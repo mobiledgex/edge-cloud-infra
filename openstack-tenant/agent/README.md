@@ -6,7 +6,7 @@ The program requires platform environment, which can be set up by sourcing `k8so
 
 ## Example using curl
 
-To createa kubernetes `mini` cluster for a tenant consisting of total three VM nodes running one k8s master and two k8s nodes:
+To create a kubernetes `mini` cluster for a tenant consisting of total three VM nodes running one k8s master and two k8s nodes:
 
 ```
 curl -sv http://localhost:18889/v1/provision -H "Content-Type: application/json" -d '{"provisions": [{"name":"test-1", "tenant":"tenant-1", "kind":"kubernetes-mini-openstack"}]}'

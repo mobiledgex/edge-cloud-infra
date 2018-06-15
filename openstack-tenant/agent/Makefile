@@ -37,7 +37,7 @@ api/mexosagent.swagger.json: api/mexosagent.proto
 		api/mexosagent.proto
 
 clean: ## Clean compiled binaries
-	@rm -f ${PROGRAM}
+	@rm -f build/${PROGRAM}
 
 realclean: ## Clean compiled binaries and all generated files
 	@rm -f ${PROGRAM}

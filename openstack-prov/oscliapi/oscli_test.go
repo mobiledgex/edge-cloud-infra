@@ -74,7 +74,6 @@ func TestListFlavors(t *testing.T) {
 }
 
 func TestCreateServer(t *testing.T) {
-
 	opts := &ServerOpt{
 		Name:       testServerName,
 		Image:      testImageName,
@@ -89,6 +88,21 @@ func TestCreateServer(t *testing.T) {
 	} else {
 		fmt.Println("created", opts)
 	}
+
+	opts = &ServerOpt{
+		Name:       testServerName,
+		Image:      testImageName,
+		Flavor:     testFlavor,
+		UserData:   testUserData,
+		NetIDs:     []string{testNetwork},
+		Properties: []string{},
+	}
+	err = CreateServer(opts)
+	if err != nil {
+		fmt.Println("correctly failed to create", opts)
+	} else {
+		t.Errorf("should have failed to create server with the same name")
+	}
 }
 
 func TestGetServerDetails(t *testing.T) {
@@ -98,6 +112,13 @@ func TestGetServerDetails(t *testing.T) {
 		return
 	}
 	fmt.Println("server", sd)
+
+	sd, err = GetServerDetails(testServerName + "xxx")
+	if err == nil {
+		t.Errorf("should have failed")
+		return
+	}
+	fmt.Println("correctly failed to get details for bogus server name")
 }
 
 func TestDeleteServer(t *testing.T) {
@@ -127,6 +148,13 @@ func TestCreateNetwork(t *testing.T) {
 		return
 	}
 	fmt.Println("network", testNetwork, "created")
+
+	err = CreateNetwork(testNetwork)
+	if err == nil {
+		t.Errorf("should have failed to create network with existing name")
+		return
+	}
+	fmt.Println("correctly failed to create network with duplicate name")
 }
 
 func TestCreateSubnet(t *testing.T) {
@@ -136,6 +164,13 @@ func TestCreateSubnet(t *testing.T) {
 		return
 	}
 	fmt.Println("created subnet ", testSubnet)
+
+	err = CreateSubnet(testRange, testNetwork, testGateway, testSubnet, false)
+	if err == nil {
+		t.Errorf("should have failed to create subnet with duplicate name")
+		return
+	}
+	fmt.Println("correctly failed to create duplicate subnet")
 }
 
 func TestCreateRouter(t *testing.T) {
@@ -145,6 +180,13 @@ func TestCreateRouter(t *testing.T) {
 		return
 	}
 	fmt.Println("created router ", testRouter)
+
+	err = CreateRouter(testRouter)
+	if err == nil {
+		t.Errorf("should have failed to create duplicate router")
+		return
+	}
+	fmt.Println("correctly failed to create dup router")
 }
 
 func TestSetRouter(t *testing.T) {
@@ -156,6 +198,13 @@ func TestSetRouter(t *testing.T) {
 		return
 	}
 	fmt.Printf("set router %s in net %s\n", testRouter, testNetwork)
+
+	err = SetRouter(testRouter, testNetwork)
+	if err == nil {
+		t.Errorf("should have failed to set router again")
+		return
+	}
+	fmt.Printf("correctly failed to set router again")
 }
 
 func TestAddRouterSubnet(t *testing.T) {
@@ -165,6 +214,13 @@ func TestAddRouterSubnet(t *testing.T) {
 		return
 	}
 	fmt.Printf("added router %s to subnet %s\n", testRouter, testSubnet)
+
+	err = AddRouterSubnet(testRouter, testSubnet)
+	if err == nil {
+		t.Errorf("should have failed to add dup router to subnet")
+		return
+	}
+	fmt.Printf("correctly failed to add dup router to subnet")
 }
 
 func TestListSubnets(t *testing.T) {
@@ -186,6 +242,8 @@ func TestListRouters(t *testing.T) {
 }
 
 // The order of the following sequence of tests are particularly important
+// For example, it is good idea to remove the router assigned to a subnet
+// before removing subnet.
 
 func TestRemoveRouterSubnet(t *testing.T) {
 	err := RemoveRouterSubnet(testRouter, testSubnet)
@@ -194,6 +252,13 @@ func TestRemoveRouterSubnet(t *testing.T) {
 		return
 	}
 	fmt.Printf("removed router %s from subnet %s\n", testRouter, testSubnet)
+
+	err = RemoveRouterSubnet(testRouter, testSubnet)
+	if err == nil {
+		t.Errorf("should have failed to remove router from subnet again")
+		return
+	}
+	fmt.Printf("correctly failed to remove the router from subnet again")
 }
 
 func TestDeleteRouter(t *testing.T) {
@@ -203,6 +268,14 @@ func TestDeleteRouter(t *testing.T) {
 		return
 	}
 	fmt.Println("deleted router ", testRouter)
+
+	err = DeleteRouter(testRouter)
+	if err == nil {
+		t.Errorf("should have failed to delete router again")
+		return
+	}
+	fmt.Println("correctly failed to remove router again")
+
 }
 func TestDeleteSubnet(t *testing.T) {
 	err := DeleteSubnet(testSubnet)
@@ -211,6 +284,13 @@ func TestDeleteSubnet(t *testing.T) {
 		return
 	}
 	fmt.Println("deleted subnet s", testSubnet)
+
+	err = DeleteSubnet(testSubnet)
+	if err == nil {
+		t.Errorf("should have failed to delete subnet again")
+		return
+	}
+	fmt.Println("correctly failed to remove subnet again")
 }
 
 func TestDeleteNetwork(t *testing.T) {
@@ -220,6 +300,13 @@ func TestDeleteNetwork(t *testing.T) {
 		return
 	}
 	fmt.Println("deleted network ", testNetwork)
+
+	err = DeleteNetwork(testNetwork)
+	if err == nil {
+		t.Errorf("should have failed to delete network again")
+		return
+	}
+	fmt.Println("correctly failed to remove the network again")
 }
 
 // The orders are not preserved here. The server should be running.
@@ -227,6 +314,7 @@ func TestDeleteNetwork(t *testing.T) {
 
 var testImage = "test-image-1"
 
+// TestCreateImage is kind of `snapshotting` the running KVM image into glance
 func TestCreateImage(t *testing.T) {
 	err := CreateImage(testServerName, testImage)
 	if err != nil {
@@ -234,10 +322,20 @@ func TestCreateImage(t *testing.T) {
 		return
 	}
 	fmt.Println("created image", testImage)
+
+	err = CreateImage(testServerName, testImage)
+	if err == nil {
+		t.Errorf("should have failed to create image again")
+		return
+	}
+	fmt.Println("correctly failed to create image again")
 }
 
 var saveImageFile = "test-save-image.qcow2" // will be created locally. Potentially very large.
 
+//Saving image that has been tagged into glance with a name before. The saving is
+// actually retrieving the image over network from cloudlet, into local storage.
+// It can take some time and storage.
 func TestSaveImage(t *testing.T) {
 	//This can take a while
 	err := SaveImage(saveImageFile, testImage)
@@ -245,7 +343,18 @@ func TestSaveImage(t *testing.T) {
 		t.Errorf("cannot save image , %v", err)
 		return
 	}
-	fmt.Println("saved image", testImage)
+	fmt.Println("saved image", testImage+"XXX")
+
+	err = SaveImage(saveImageFile, testImage)
+	if err == nil {
+		t.Errorf("should have failed to save bogus image locally")
+		return
+	}
+	fmt.Println("correctly failed to save bogus image")
+
+	//TODO: it is possible for the platform to refuse this request when
+	// the platform is slow and the tasks ongoing are queued for whatever reason, such
+	// as slow storage. So we can test for retries and legit fails. But we don't for now.
 }
 
 func TestDeleteImage(t *testing.T) {
@@ -255,4 +364,11 @@ func TestDeleteImage(t *testing.T) {
 		return
 	}
 	fmt.Println("deleted image", testImage)
+
+	err = DeleteImage(testImage)
+	if err == nil {
+		t.Errorf("should have failed to delete non existing image")
+		return
+	}
+	fmt.Println("correctly failed to delete non existing image")
 }

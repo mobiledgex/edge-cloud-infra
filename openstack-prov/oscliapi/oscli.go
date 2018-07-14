@@ -3,6 +3,9 @@ package oscli
 import (
 	"encoding/json"
 	"fmt"
+	"net"
+	"strings"
+
 	"github.com/codeskyblue/go-sh"
 )
 
@@ -80,6 +83,37 @@ type Network struct {
 	Subnets, ID, Name string
 }
 
+// NetworkDetail has a informational data for the network.
+type NetworkDetail struct {
+	ID                      string `json:"id"`
+	Name                    string `json:"name"`
+	ProviderPhysicalNetwork string `json:"provider:physical_network"`
+	IPv6AddressScope        string `json:"ipv6_address_scope"`
+	DNSDomain               string `json:"dns_domain"`
+	IsVLANTransparent       string `json:"is_vlan_transparent"`
+	RevisionNumber          int    `json:"revision_number"`
+	PortSecurityEnabled     bool   `json:"port_security_enabled"`
+	ProviderNetworkType     string `json:"provider:network_type"`
+	External                string `json:"router:external"`
+	AvailabilityZoneHints   string `json:"availability_zone_hints"`
+	AvailabilityZones       string `json:"availability_zones"`
+	Segments                string `json:"segments"`
+	IPv4AddressScope        string `json:"ipv4_address_scope"`
+	Shared                  bool   `json:"shared"`
+	ProjectID               string `json:"project_id"`
+	Status                  string `json:"status"`
+	Subnets                 string `json:"subnets"`
+	Description             string `json:"description"`
+	Tags                    string `json:"tags"`
+	UpdatedAt               string `json:"updated_at"`
+	IsDefault               bool   `json:"is_default"`
+	ProviderSegmentationID  string `json:"provider:segmentation_id"`
+	QOSPolicyID             string `json:"qos_policy_id"`
+	AdminStateUp            string `json:"admin_state_up"`
+	CreatedAt               string `json:"created_at"`
+	MTU                     int    `json:"mtu"`
+}
+
 // Flavor is used with 'openstack flavor list'
 type Flavor struct {
 	Name, ID                    string
@@ -94,11 +128,80 @@ type Subnet struct {
 	Name, ID, Network, Subnet string
 }
 
+//SubnetDetail contains details about a given subnet.
+//  ID,Name and  GatewayIP are useful.
+type SubnetDetail struct {
+	ID              string `json:"id"`
+	Name            string `json:"name"`
+	ServiceTypes    string `json:"service_types"`
+	Description     string `json:"description"`
+	EnableDHCP      bool   `json:"enable_dhcp"`
+	SegmentID       string `json:"segment_id"`
+	NetworkID       string `json:"network_id"`
+	CreatedAt       string `json:"created_at"`
+	Tags            string `json:"tags"`
+	DNSNameServers  string `json:"dns_nameservers"`
+	UpdatedAt       string `json:"updated_at"`
+	IPv6RAMode      string `json:"ipv6_ra_mode"`
+	AllocationPools string `json:"allocation_pools"`
+	GatewayIP       string `json:"gateway_ip"`
+	RevisionNumber  int    `json:"revision_number"`
+	IPv6AddressMode string `json:"ipv6_address_mode"`
+	IPVersion       int    `json:"ip_version"`
+	HostRoutes      string `json:"host_routes"`
+	CIDR            string `json:"cidr"`
+	ProjectID       string `json:"project_id"`
+	SubnetPoolID    string `json:"subnetpool_id"`
+}
+
 //Router is used with 'openstack router' commands.
 // In openstack  router is virtually created to connect different subnets
 //  and possible to external networks.
 type Router struct {
 	Name, ID, Status, State, HA, Project, Distributed string
+}
+
+//RouterDetail lists more info per router
+type RouterDetail struct {
+	ID                    string `json:"id"`
+	Name                  string `json:"name"`
+	ExternalGatewayInfo   string `json:"external_gateway_info"`
+	Status                string `json:"status"`
+	AvailabilityZoneHints string `json:"availability_zone_hints"`
+	AvailabilityZones     string `json:"availability_zones"`
+	Description           string `json:"description"`
+	AdminStateUp          string `json:"admin_state_up"`
+	CreatedAt             string `json:"created_at"`
+	Tags                  string `json:"tags"`
+	Distributed           string `json:"distributed"`
+	UpdatedAt             string `json:"updated_at"`
+	InterfacesInfo        string `json:"interfaces_info"`
+	ProjectID             string `json:"project_id"`
+	FlavorID              string `json:"flavor_id"`
+	RevisionNumber        int    `json:"revision_number"`
+	Routes                string `json:"routes"`
+	HA                    string `json:"ha"`
+}
+
+//ExternalGateway details the info inside RouterDetail. The ExternalGatewayInfo is
+// a string, which has to be double unmarshal'ed
+type ExternalGateway struct {
+	NetworkID        string            `json:"network_id"` //subnet of external net
+	EnableSNAT       string            `json:"enable_snat"`
+	ExternalFixedIPs []ExternalFixedIP `json:"external_fixed_ips"` //gateway between extnet and privnet
+}
+
+//ExternalFixedIP similarly needs to be double unmarshalled as part of the above
+type ExternalFixedIP struct {
+	SubnetID  string `json:"subnet_id"`
+	IPAddress string `json:"ip_address"`
+}
+
+//RouterInterface also needs to be used for double unmarshal
+type RouterInterface struct {
+	SubnetID  string `json:"subnet_id"`  //attached privnet
+	IPAddress string `json:"ip_address"` //router for the privnet side on the subnet CIDR, usually X.X.X.1  but should really confirm by reading this
+	PortID    string `json:"port_id"`
 }
 
 // "Is Public" field  is missing in 'Router'
@@ -193,6 +296,7 @@ func ListFlavors() ([]Flavor, error) {
 func CreateServer(opts *ServerOpt) error {
 	args := []string{
 		"server", "create",
+		"--config-drive", "true", //XXX always
 		"--image", opts.Image, "--flavor", opts.Flavor,
 		"--user-data", opts.UserData,
 	}
@@ -401,6 +505,25 @@ func ListRouters() ([]Router, error) {
 	return routers, nil
 }
 
+//GetRouterDetail returns details per router
+func GetRouterDetail(routerName string) (*RouterDetail, error) {
+	out, err := sh.Command("openstack", "router", "show", "-f", "json", routerName).Output()
+	if err != nil {
+		err = fmt.Errorf("can't get router details for %s, %s, %v", routerName, out, err)
+		return nil, err
+	}
+
+	routerDetail := &RouterDetail{}
+
+	err = json.Unmarshal(out, routerDetail)
+	if err != nil {
+		err = fmt.Errorf("can't unmarshal router detail, %v", err)
+		return nil, err
+	}
+
+	return routerDetail, nil
+}
+
 //CreateImage snapshots running service into a qcow2 image
 func CreateImage(serverName, imageName string) error {
 	out, err := sh.Command("openstack", "image", "create", serverName, "--name", imageName).Output()
@@ -435,4 +558,137 @@ func DeleteImage(imageName string) error {
 		return err
 	}
 	return nil
+}
+
+//GetSubnetDetail returns details for the subnet. This is useful when getting router/gateway
+//  IP for a given subnet.  The gateway info is used for creating a server.
+//  Also useful in general, like other `detail` functions, to get the ID map for the name of subnet.
+func GetSubnetDetail(subnetName string) (*SubnetDetail, error) {
+	out, err := sh.Command("openstack", "subnet", "show", "-f", "json", subnetName).Output()
+	if err != nil {
+		err = fmt.Errorf("can't get subnet details for %s, %s, %v", subnetName, out, err)
+		return nil, err
+	}
+	subnetDetail := &SubnetDetail{}
+	err = json.Unmarshal(out, subnetDetail)
+	if err != nil {
+		return nil, fmt.Errorf("can't unmarshal subnet detail, %v", err)
+	}
+
+	return subnetDetail, nil
+}
+
+//GetNetworkDetail returns details about a network.  It is used, for example, by GetExternalGateway.
+func GetNetworkDetail(networkName string) (*NetworkDetail, error) {
+	out, err := sh.Command("openstack", "network", "show", "-f", "json", networkName).Output()
+	if err != nil {
+		err = fmt.Errorf("can't get details for network %s, %s, %v", networkName, out, err)
+		return nil, err
+	}
+	networkDetail := &NetworkDetail{}
+	err = json.Unmarshal(out, networkDetail)
+	if err != nil {
+		return nil, fmt.Errorf("can't unmarshal network detail, %v", err)
+	}
+
+	return networkDetail, nil
+}
+
+//GetExternalGateway retrieves Gateway IP from the external network information. It first gets external
+//  network information. Using that it further gets subnet information. Inside that subnet information
+//  there should be gateway IP if the network is set up correctly.
+// Not to be confused with GetRouterDetailExternalGateway.
+func GetExternalGateway(extNetName string) (string, error) {
+	nd, err := GetNetworkDetail(extNetName)
+	if err != nil {
+		return "", fmt.Errorf("can't get details for external network %s, %v", extNetName, err)
+	}
+
+	if nd.Status != "ACTIVE" {
+		return "", fmt.Errorf("network %s is not active, status %s", extNetName, nd.Status)
+	}
+
+	if nd.AdminStateUp != "UP" {
+		return "", fmt.Errorf("network %s is not admin-state set to up", extNetName)
+	}
+
+	subnets := strings.Split(nd.Subnets, ",")
+	if len(subnets) < 1 {
+		return "", fmt.Errorf("no subnets for %s", extNetName)
+	}
+
+	//XXX just use first subnet -- may not work in all cases, but there is no tagging done rightly yet
+
+	sd, err := GetSubnetDetail(subnets[0])
+	if err != nil {
+		return "", fmt.Errorf("cannot get details for subnet %s, %v", subnets[0], err)
+	}
+
+	//TODO check status of subnet
+
+	if sd.GatewayIP == "" {
+		return "", fmt.Errorf("cannot get external network's gateway IP")
+	}
+
+	return sd.GatewayIP, nil
+}
+
+//GetNextSubnetRange will find the CIDR for the next range of subnet that can be created. For example,
+// if the subnet detail we get has 10.101.101.0/24 then the next one can be 10.101.102.0/24
+func GetNextSubnetRange(subnetName string) (string, error) {
+	sd, err := GetSubnetDetail(subnetName)
+	if err != nil {
+		return "", err
+	}
+	if sd.CIDR == "" {
+		return "", fmt.Errorf("missing CIDR in subnet %s", subnetName)
+	}
+	_, ipv4Net, err := net.ParseCIDR(sd.CIDR)
+	if err != nil {
+		return "", fmt.Errorf("can't parse CIDR %s, %v", sd.CIDR, err)
+	}
+
+	i := strings.Index(sd.CIDR, "/")
+	suffix := sd.CIDR[i:]
+	v4 := ipv4Net.IP.To4()
+	ipnew := net.IPv4(v4[0], v4[1], v4[2]+1, v4[3])
+
+	return ipnew.String() + suffix, nil
+}
+
+//GetRouterDetailExternalGateway is different than GetExternalGateway.  This function gets
+// the gateway interface in the subnet within external network.  This is
+// accessible from private networks to route packets to the external network.
+// The GetExternalGateway gets the gateway for the outside network.   This is
+// for the packets to be routed out to the external network, i.e. internet.
+func GetRouterDetailExternalGateway(rd *RouterDetail) (*ExternalGateway, error) {
+	if rd.ExternalGatewayInfo == "" {
+		return nil, fmt.Errorf("empty external gateway info")
+	}
+
+	externalGateway := &ExternalGateway{}
+
+	err := json.Unmarshal([]byte(rd.ExternalGatewayInfo), externalGateway)
+	if err != nil {
+		return nil, fmt.Errorf("can't get unmarshal external gateway info, %v", err)
+	}
+
+	return externalGateway, nil
+}
+
+// GetRouterDetailInterfaces gets the list of interfaces on the router. For example, each private
+// subnet connected to the router will be listed here with own interface definition.
+func GetRouterDetailInterfaces(rd *RouterDetail) ([]RouterInterface, error) {
+	if rd.InterfacesInfo == "" {
+		return nil, fmt.Errorf("missing interfaces info in router details")
+	}
+
+	interfaces := []RouterInterface{}
+
+	err := json.Unmarshal([]byte(rd.InterfacesInfo), &interfaces)
+	if err != nil {
+		return nil, fmt.Errorf("can't unmarshal router detail interfaces")
+	}
+
+	return interfaces, nil
 }

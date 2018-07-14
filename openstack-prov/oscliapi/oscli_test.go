@@ -372,3 +372,15 @@ func TestDeleteImage(t *testing.T) {
 	}
 	fmt.Println("correctly failed to delete non existing image")
 }
+
+var testExternalNetwork = "external-network-shared"
+
+func TestGetExternalGateway(t *testing.T) {
+	eg, err := GetExternalGateway(testExternalNetwork)
+	if err != nil {
+		t.Errorf("can't get external gateway for %s, %v", testExternalNetwork, err)
+		return
+	}
+
+	fmt.Println("external gateway for", testExternalNetwork, eg)
+}

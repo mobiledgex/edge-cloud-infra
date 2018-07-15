@@ -36,16 +36,19 @@ func init() {
 
 //GetMEXExternalRouter returns default MEX external router name
 func GetMEXExternalRouter() string {
+	//TODO validate existence and status
 	return eMEXExternalRouter
 }
 
 //GetMEXExternalNetwork returns default MEX external network name
 func GetMEXExternalNetwork() string {
+	//TODO validate existence and status
 	return eMEXExternalNetwork
 }
 
 //GetMEXNetwork returns default MEX network, internal and prepped
 func GetMEXNetwork() string {
+	//TODO validate existence and status
 	return eMEXNetwork
 }
 

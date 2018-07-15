@@ -187,7 +187,7 @@ type RouterDetail struct {
 // a string, which has to be double unmarshal'ed
 type ExternalGateway struct {
 	NetworkID        string            `json:"network_id"` //subnet of external net
-	EnableSNAT       string            `json:"enable_snat"`
+	EnableSNAT       bool              `json:"enable_snat"`
 	ExternalFixedIPs []ExternalFixedIP `json:"external_fixed_ips"` //gateway between extnet and privnet
 }
 
@@ -395,7 +395,7 @@ func CreateSubnet(netRange, networkName, gatewayAddr, subnetName string, dhcpEna
 		"--network", networkName, // mex-k8s-net-1
 		dhcpFlag,
 		"--gateway", gatewayAddr, // e.g. 10.101.101.1
-		subnetName).Output() // e.g. mex-k8s-subnet-1
+		subnetName).CombinedOutput() // e.g. mex-k8s-subnet-1
 	if err != nil {
 		err = fmt.Errorf("can't create subnet %s, %s, %v", subnetName, out, err)
 		return err
@@ -613,6 +613,7 @@ func GetExternalGateway(extNetName string) (string, error) {
 	}
 
 	subnets := strings.Split(nd.Subnets, ",")
+	//XXX beware of extra spaces
 	if len(subnets) < 1 {
 		return "", fmt.Errorf("no subnets for %s", extNetName)
 	}

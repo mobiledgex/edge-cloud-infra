@@ -2,19 +2,17 @@ package oscli
 
 import (
 	"fmt"
-	"github.com/bobbae/q"
-	"github.com/rs/xid"
 	"net"
 	"os"
 )
 
 // These are platform specific custom vars
 
-var eMEXLargeImageName = os.Getenv("MEX_LARGE_IMAGE") // "mobiledgex-16.04"
+var eMEXLargeImageName = os.Getenv("MEX_LARGE_IMAGE") // "mobiledgex-16.04-2"
 var eMEXLargeFlavor = os.Getenv("MEX_LARGE_FLAVOR")   // "m4.large"
 var eMEXUserData = os.Getenv("MEX_USERDATA")          // "/home/bob/userdata.txt"
 
-var defaultImage = "mobiledgex-16.04-1"
+var defaultImage = "mobiledgex-16.04-2"
 var defaultFlavor = "m4.large"
 
 func init() {
@@ -32,13 +30,13 @@ func init() {
 	}
 }
 
-//CreateLargeMEXVM creates basic KVM for mobiledgex applications
+//CreateFlavorMEXVM creates basic KVM for mobiledgex applications
 //  with proper initial bootstrap scripts installed on the base image that understands
 //  various properties such as role, topology of private net, gateway IP, etc.
 // Roles can be any string but special ones are k8s-master and k8s-node.
 //  To avoid running bootstrap setup for creating kubernets cluster, set skipk8s to true.
 // For more detailed information please read `mobiledgex-init.sh`
-func CreateLargeMEXVM(name, image, flavor, netID, userdata, role, edgeproxy, skipk8s, k8smaster, privatenet, privaterouter string) error {
+func CreateFlavorMEXVM(name, image, flavor, netID, userdata, role, edgeproxy, skipk8s, k8smaster, privatenet, privaterouter, tags, tenant string) error {
 	if name == "" {
 		return fmt.Errorf("name required")
 	}
@@ -63,7 +61,7 @@ func CreateLargeMEXVM(name, image, flavor, netID, userdata, role, edgeproxy, ski
 		Image:    image,
 		Flavor:   flavor,
 		UserData: userdata,
-		NetIDs:   []string{netID},
+		NetIDs:   []string{netID}, //XXX more than one?
 	}
 
 	props := []string{}
@@ -85,6 +83,8 @@ func CreateLargeMEXVM(name, image, flavor, netID, userdata, role, edgeproxy, ski
 	//  which is reachable from internal network.
 	props = append(props, "privatenet="+privatenet)
 	props = append(props, "privaterouter="+privaterouter)
+	props = append(props, "tags="+tags)
+	props = append(props, "tenant="+tenant)
 
 	opts.Properties = props
 
@@ -96,41 +96,23 @@ func CreateLargeMEXVM(name, image, flavor, netID, userdata, role, edgeproxy, ski
 	return nil
 }
 
-//CreateKVM is easier way to create a MEX app capable KVM
+//CreateMEXKVM is easier way to create a MEX app capable KVM
 //  role can be k8s-master, k8s-node, or something else
-//  node can be 1 for k8s-master, >1 for k8s-nodes; if not using k8s, it can be >0
-func CreateKVM(role string, node int) error {
-	guid := xid.New()
-	name := "mex-" + guid.String()
-
-	skipk8s := "yes"
-
+func CreateMEXKVM(name, role, cidr, tags, tenant string) error {
 	mexRouter := GetMEXExternalRouter()
-
-	subnets, err := GetMEXSubnets()
-	if err != nil {
-		return fmt.Errorf("can't get MEX subnets, %v", err)
-	}
-
-	sd, err := GetSubnetDetail(subnets[0])
-	if err != nil {
-		return fmt.Errorf("cannot get details for subnet %s, %v", subnets[0], err)
-	}
 	netID := GetMEXExternalNetwork() //do we really want to default to ext?
-	masterIP := "unknown-master-IP"
-	pRouterIP := "unknown-prouter-ip"
-	edgeProxy := "unknown-edge-proxy"
+	skipk8s := "yes"
+	masterIP := ""
+	privRouterIP := ""
+	privNet := ""
+	edgeProxy := ""
+
+	var err error
+
+	//if role == "mex-agent-node" docker will be installed automatically
 
 	if role == "k8s-master" || role == "k8s-node" {
 		skipk8s = "no"
-		if node == 0 {
-			return fmt.Errorf("can't have node 0")
-		}
-		if role == "k8s-master" {
-			node = 1
-		} else if node < 2 {
-			return fmt.Errorf("node number has to be >= 2")
-		}
 		// XXX if there was nothing set up on the cloudlet, we may have to ask the operator
 		//  the initial external network which has connection to internet.
 		//  And add at least one network for MEX use.
@@ -153,33 +135,21 @@ func CreateKVM(role string, node int) error {
 
 		// We assume router is set to external network. So just attach a new port / subnet to this router
 
-		//TODO: iterate through `subnets` and make sure to pick the
-		//  first subnet marked by a name or range
-
-		nextCIDR, err := GetNextSubnetRange(subnets[0])
+		ipv4Addr, _, err := net.ParseCIDR(cidr)
 		if err != nil {
-			return fmt.Errorf("can't get next subnet range on %s, %v", subnets[0], err)
+			return fmt.Errorf("can't parse %s, %v", cidr, err)
 		}
+		v4 := ipv4Addr.To4()
 
-		_, ipv4Net, err := net.ParseCIDR(nextCIDR)
-		if err != nil {
-			return fmt.Errorf("can't parse %s, %v", nextCIDR, err)
-		}
-		v4 := ipv4Net.IP.To4()
-
-		//last octet should always be zero
-		if v4[3] != 0 {
-			panic("bad v4[3]")
-		}
-
-		//X.X.X.1
+		//gateway always at X.X.X.1
 		gatewayIP := net.IPv4(v4[0], v4[1], v4[2], byte(1))
 
 		sn := "subnet-" + name
 		edgeProxy = gatewayIP.String()
 
+		ipaddr := net.IPv4(v4[0], v4[1], v4[2], v4[3])
 		if role == "k8s-master" {
-			err = CreateSubnet(nextCIDR, GetMEXNetwork(), edgeProxy, sn, false)
+			err = CreateSubnet(cidr, GetMEXNetwork(), edgeProxy, sn, false)
 			if err != nil {
 				return err
 			}
@@ -191,15 +161,16 @@ func CreateKVM(role string, node int) error {
 				return fmt.Errorf("cannot add router %s to subnet %s, %v", mexRouter, sn, err)
 			}
 		}
+		//XXX need to tell agent to add route for the cidr
 
-		newIP := net.IPv4(v4[0], v4[1], v4[2], byte(node+1))
 		//+1 because gatway is at .1
 		//master node num is 1
 		//so, master node will always have .2
-		netID = GetMEXNetwork() + ",v4-fixed-ip=" + newIP.String()
-		q.Q(netID)
-		newIP = net.IPv4(v4[0], v4[1], v4[2], 2)
-		masterIP = newIP.String()
+		netID = GetMEXNetwork() + ",v4-fixed-ip=" + ipaddr.String()
+
+		//XXX master always at X.X.X.2
+		ipaddr = net.IPv4(v4[0], v4[1], v4[2], byte(2))
+		masterIP = ipaddr.String()
 	} else {
 		edgeProxy, err = GetExternalGateway(netID)
 		if err != nil {
@@ -222,10 +193,10 @@ func CreateKVM(role string, node int) error {
 
 		// router IP for the private network to the external side, which
 		//  also knows about the private side. Only needed for agent gw node.
-		pRouterIP = fip.IPAddress
+		privRouterIP = fip.IPAddress
+		privNet = cidr
 	}
-
-	err = CreateLargeMEXVM(name,
+	err = CreateFlavorMEXVM(name,
 		eMEXLargeImageName,
 		eMEXLargeFlavor,
 		netID, // either external-net or internal-net,v4-fixed-ip=X.X.X.X
@@ -234,12 +205,44 @@ func CreateKVM(role string, node int) error {
 		edgeProxy,
 		skipk8s,  // if yes, skip
 		masterIP, // relevant when forming k8s cluster
-		sd.CIDR,  // first priv subnet CIDR. XXX need agent API to add more subnets
-		pRouterIP,
+		privNet,
+		privRouterIP,
+		tags,
+		tenant,
 	)
 
 	if err != nil {
 		return err
+	}
+
+	return nil
+}
+
+//DestroyMEXKVM deletes the MEX KVM instance. If server instance is k8s-master,
+//  first remove router from subnet which was created for it. Then remove subnet before
+//  deleting server KVM instance.
+func DestroyMEXKVM(name, role string) error {
+	err := DeleteServer(name)
+	if err != nil {
+		return fmt.Errorf("can't delete %s, %v", name, err)
+	}
+
+	if role == "k8s-master" {
+		sn := "subnet-" + name
+		rn := GetMEXExternalRouter()
+
+		err := RemoveRouterSubnet(rn, sn)
+		if err != nil {
+			return fmt.Errorf("can't remove router %s from subnet %s, %v", rn, sn, err)
+		}
+
+		//XXX This may not work until all nodes are removed, since
+		//   IP addresses are allocated out of this subnet
+		//   All nodes should be deleted first.
+		err = DeleteSubnet(sn)
+		if err != nil {
+			return fmt.Errorf("can't delete subnet %s, %v", sn, err)
+		}
 	}
 
 	return nil

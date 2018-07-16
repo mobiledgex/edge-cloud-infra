@@ -15,7 +15,7 @@ import (
 // During development, each of the tests were run individually against a live cluster.
 
 var testServerName = "go-test1"
-var testImageName = "mobiledgex-16.04"
+var testImageName = "mobiledgex-16.04-2"
 var testFlavor = "m4.small"
 var testUserData = "userdata.txt"
 var testNetwork = "test-external-network-shared"

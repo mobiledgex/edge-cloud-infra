@@ -5,6 +5,7 @@ import (
 
 	log "gitlab.com/bobbae/logrus"
 
+	"github.com/codeskyblue/go-sh"
 	"golang.org/x/net/context"
 
 	"github.com/mobiledgex/edge-cloud-infra/k8s-prov/k8sopenstack"
@@ -128,4 +129,66 @@ func (srv *Server) Status(ctx context.Context, req *api.StatusRequest) (res *api
 	}
 
 	return res, nil
+}
+
+func (srv *Server) Route(ctx context.Context, req *api.RouteRequest) (res *api.RouteResponse, err error) {
+	if len(req.Routes) < 1 {
+		return nil, fmt.Errorf("missing Route definitions")
+	}
+	if req.Message == "add" {
+		for _, r := range req.Routes {
+			err := addRoute(r.Subnet, r.Gateway, r.Dev)
+			if err != nil {
+				res := &api.RouteResponse{
+					Message: fmt.Sprintf("Error, cannot add Route %s %s %s, %v", r.Subnet, r.Gateway, r.Dev, err),
+				}
+				return res, err
+			}
+		}
+	} else if req.Message == "list" {
+		rl, err := listRoutes()
+		if err != nil {
+			res := &api.RouteResponse{
+				Message: fmt.Sprintf("Error, cannot list route, %v", err),
+			}
+			return res, err
+		}
+
+		res := &api.RouteResponse{
+			Message: rl,
+		}
+		return res, nil
+	} else {
+		//TODO list
+		res := &api.RouteResponse{
+			Message: fmt.Sprintf("Error, invalid request %s", req.Message),
+		}
+		return res, err
+	}
+
+	res = &api.RouteResponse{
+		Message: "OK",
+	}
+
+	return res, nil
+}
+
+func addRoute(subnet, gateway, dev string) error {
+	log.Debugf("addRoute subnet %s gateway %s dev %s", subnet, gateway, dev)
+
+	out, err := sh.Command("ip", "route", "add", subnet, "via", gateway, "dev", dev).CombinedOutput()
+	if err != nil {
+		return fmt.Errorf("can't add route %s %s %s, %s, %v", subnet, gateway, dev, out, err)
+	}
+	return nil
+}
+
+func listRoutes() (string, error) {
+	log.Debugf("list routes")
+
+	out, err := sh.Command("ip", "route", "show").Output()
+	if err != nil {
+		return "", fmt.Errorf("can't list route, %v", err)
+	}
+	return string(out), err
 }

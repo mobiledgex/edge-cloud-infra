@@ -17,6 +17,8 @@ import (
 	"strings"
 )
 
+//Agent service handlers.
+
 //Server for GRPC
 type Server struct{}
 
@@ -59,6 +61,10 @@ func (srv *Server) Destroy(ctx context.Context, req *api.ProvisionRequest) (res 
 
 	return res, nil
 }
+
+//Provision and Destroy are deprecated for now until the TLS works with TDG and other providers properly.
+// They work on custom Openstack cluster created on bare-metal, such as Packet.net.  Unfortunately they don't work with TDG.
+// Instead, use the `oscli` method.  Move the provisioning further out and do it remotely, not as part of the agent.
 
 //Proxy traffic betwwen kubernetes pods, via openstack subnet/network, iptables, and external network
 func (srv *Server) Proxy(ctx context.Context, req *api.ProxyRequest) (res *api.ProxyResponse, err error) {

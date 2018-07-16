@@ -15,7 +15,7 @@ var agentName = ""
 func TestCreateMEXAgent(t *testing.T) {
 	guid := xid.New()
 	agentName := "mex-test-" + guid.String()
-	err := CreateMEXKVM(agentName, roleAgent, "10.101.102.100/24", "notags", tenant)
+	err := CreateMEXKVM(agentName, roleAgent, "10.101.102.3/24", "notags", tenant)
 	if err != nil {
 		t.Errorf("can't create kvm, %v", err)
 		return
@@ -31,6 +31,7 @@ var test1Tags = "test-1"
 func TestCreateKubernetesMaster(t *testing.T) {
 	guid := xid.New()
 	masterName := "mex-" + roleMaster + "-" + guid.String()
+	//Master always has X.X.X.2
 	err := CreateMEXKVM(masterName, roleMaster, "10.101.102.2/24", test1Tags, tenant)
 	if err != nil {
 		t.Errorf("can't create kubernetes master node, %v", err)

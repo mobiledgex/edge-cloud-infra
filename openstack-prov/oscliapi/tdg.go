@@ -4,6 +4,8 @@ import (
 	"fmt"
 	"os"
 	"strings"
+
+	"github.com/mobiledgex/edge-cloud/log"
 )
 
 // These are operator specific custom vars
@@ -15,6 +17,7 @@ var eMEXExternalNetwork = os.Getenv("MEX_EXT_NETWORK") // "external-network-shar
 var defaultMEXNet = "mex-k8s-net-1"
 var defaultMEXRouter = "mex-k8s-router-1"
 var defaultMEXExternalNetwork = "external-network-shared"
+var defaultSecurityRule = "default"
 
 //default net should be xternal net but on some cloudlets it is not set as default
 // and there may not be a default!
@@ -157,6 +160,25 @@ func PrepNetwork() error {
 		err = CreateRouter(eMEXExternalRouter)
 		if err != nil {
 			return fmt.Errorf("cannot create %s, %v", eMEXExternalRouter, err)
+		}
+		err = SetRouter(eMEXExternalRouter, defaultMEXExternalNetwork)
+		if err != nil {
+			return fmt.Errorf("cannot set default network to router %s, %v", eMEXExternalRouter, err)
+		}
+	}
+
+	ports := []int{
+		18889, //mexosagent HTTP server
+		18888, //mexosagent GRPC server
+		443,   //mexosagent reverse proxy HTTPS
+		8001,  //kubectl proxy
+	}
+
+	ruleName := defaultSecurityRule
+	for _, p := range ports {
+		err := AddSecurityRule(ruleName, p)
+		if err != nil {
+			log.DebugLog(log.DebugLevelMexos, "warning, error while adding security rule, %v", err)
 		}
 	}
 

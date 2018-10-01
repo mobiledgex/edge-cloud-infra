@@ -178,7 +178,7 @@ func PrepNetwork() error {
 	for _, p := range ports {
 		err := AddSecurityRule(ruleName, p)
 		if err != nil {
-			log.DebugLog(log.DebugLevelMexos, "warning, error while adding security rule, %v", err)
+			log.DebugLog(log.DebugLevelMexos, "warning, error while adding security rule", "error", err)
 		}
 	}
 

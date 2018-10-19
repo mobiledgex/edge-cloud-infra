@@ -4,8 +4,6 @@ import (
 	"fmt"
 	"os"
 	"strings"
-
-	"github.com/mobiledgex/edge-cloud/log"
 )
 
 // These are operator specific custom vars
@@ -35,6 +33,10 @@ func init() {
 		eMEXExternalNetwork = defaultMEXExternalNetwork
 	}
 
+}
+
+func GetDefaultSecurityRule() string {
+	return defaultSecurityRule
 }
 
 //GetMEXExternalRouter returns default MEX external router name
@@ -164,21 +166,6 @@ func PrepNetwork() error {
 		err = SetRouter(eMEXExternalRouter, defaultMEXExternalNetwork)
 		if err != nil {
 			return fmt.Errorf("cannot set default network to router %s, %v", eMEXExternalRouter, err)
-		}
-	}
-
-	ports := []int{
-		18889, //mexosagent HTTP server
-		18888, //mexosagent GRPC server
-		443,   //mexosagent reverse proxy HTTPS
-		8001,  //kubectl proxy
-	}
-
-	ruleName := defaultSecurityRule
-	for _, p := range ports {
-		err := AddSecurityRule(ruleName, p)
-		if err != nil {
-			log.DebugLog(log.DebugLevelMexos, "warning, error while adding security rule", "error", err)
 		}
 	}
 

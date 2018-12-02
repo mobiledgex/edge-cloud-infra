@@ -18,8 +18,12 @@ sudo systemctl enable mobiledgex
 #sudo ls -al /root
 #sudo ls -al /root/.ssh
 sudo curl -s -o /tmp/id_rsa_mex.pub https://mobiledgex:sandhill@registry.mobiledgex.net:8000/mobiledgex/id_rsa_mex.pub
-sudo cat /tmp/id_rsa_mex.pub | sudo tee  /root/.ssh/authorized_keys
+sudo curl -s -o /tmp/id_rsa_mobiledgex.pub https://mobiledgex:sandhill@registry.mobiledgex.net:8000/mobiledgex/id_rsa_mobiledgex.pub
+sudo cat /tmp/id_rsa_mex.pub /tmp/id_rsa_mobiledgex | sudo tee  /root/.ssh/authorized_keys
+sudo chmod 700 /root/.ssh
+sudo chmod 600 /root/.ssh/authorized_keys
 sudo curl -s -o /root/.ssh/config https://mobiledgex:sandhill@registry.mobiledgex.net:8000/mobiledgex/ssh.config
+sudo chmod 600 /root/.ssh/config
 sudo rm /root/.ssh/known_hosts
 #sudo cat /tmp/id_rsa_mex.pub | sudo tee -a ~ubuntu/.ssh/authorized_keys
 #sudo ls -alR ~ubuntu/

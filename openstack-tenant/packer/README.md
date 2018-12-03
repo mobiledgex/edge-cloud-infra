@@ -80,3 +80,12 @@ PACKER_LOG=1 packer build packer_template.mobiledgex.json
 This will produce a lot of debug log output. It takes a while. Finally, when it is finished you have created a new image and instantiated it in cloudlet's glance database. The name of the new image is `image_name` in  `packer_template.mobiledgex.json`.
 
 
+## mexpacker
+
+The `mexpacker.go` can be run as
+
+```
+go run mexpacker.go
+```
+
+Make sure you have OS_ and MEX_ environment variable set correctly before running. The `mexpacker` is a utility that installs `xenial-server` image into glance and then retrieves the ID which and long network ID will be used to create the json for packer to run. It automates the above manual steps.

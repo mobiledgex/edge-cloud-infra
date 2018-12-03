@@ -1,6 +1,7 @@
 package main
 
 import (
+	"bufio"
 	"bytes"
 	"encoding/json"
 	"fmt"
@@ -8,7 +9,6 @@ import (
 	"text/template"
 
 	"github.com/codeskyblue/go-sh"
-	"github.com/nanobox-io/golang-ssh"
 )
 
 var sshOpts = []string{"StrictHostKeyChecking=no", "UserKnownHostsFile=/dev/null"}
@@ -16,8 +16,13 @@ var sshOpts = []string{"StrictHostKeyChecking=no", "UserKnownHostsFile=/dev/null
 type item struct {
 	ID, Name string
 }
+
 type param struct {
 	SrcImageID, NetworkID string
+}
+
+type idata struct {
+	Status string `json:"status"`
 }
 
 var packerJSON = `
@@ -46,47 +51,72 @@ func main() {
 	}
 	fn := "xenial-server-cloudimg-amd64-disk1.img"
 	ens := "external-network-shared"
-	if _, err := os.Stat(fn); os.IsNotExist(err) {
-		fmt.Println("file", fn, "does not exist, download from registry")
-		md := os.Getenv("MEX_DIR")
-		if md == "" {
-			md = os.Getenv("HOME") + "/.mobiledgex"
-		}
-		sk := os.Getenv("MEX_SSH_KEY")
-		if sk == "" {
-			fmt.Println("env var MEX_SSH_KEY does not exist")
-			os.Exit(1)
-		}
-		un := os.Getenv("MEX_REGISTRY_USER")
-		if un == "" {
-			un = "mobiledgex"
-		}
-		kp := fmt.Sprintf("%s/%s", md, sk)
-		auth := ssh.Auth{Keys: []string{kp}}
-		ad := os.Getenv("MEX_REGISTRY")
-		if ad == "" {
-			ad = "registry.mobiledgex.net"
-		}
-		fmt.Println("using registry", ad, "key", kp, "user", un)
-		client, err := ssh.NewNativeClient(un, ad, "SSH-2.0-mobiledgex-ssh-client-1.0", 22, &auth, nil)
-		if err != nil {
-			fmt.Println("cannot get ssh client", err)
-			os.Exit(1)
-		}
-		cmd := fmt.Sprintf("scp -o %s -o %s -i %s %s@%s:files-repo/mobiledgex/%s .", sshOpts[0], sshOpts[1], kp, un, ad, fn)
-		fmt.Println(cmd)
-		out, err := client.Output(cmd)
-		if err != nil {
-			fmt.Println("cannot download", fn, err, out)
-			os.Exit(1)
-		}
-		fmt.Println("downloaded ok", fn)
-	}
-	in := "mobiledgex" // XXX
-	out, err := sh.Command("openstack", "image", "create", "--disk-format", "qcow2", "--file", fn, in).Output()
+	imagename := "xenial-server" // XXX
+	out, err := sh.Command("openstack", "image", "show", imagename).Output()
 	if err != nil {
-		fmt.Println("cannot create glance image for", in, fn, out)
-		os.Exit(1)
+		if _, err := os.Stat(fn); os.IsNotExist(err) {
+			fmt.Println("file", fn, "does not exist, download from registry")
+			md := os.Getenv("MEX_DIR")
+			if md == "" {
+				md = os.Getenv("HOME") + "/.mobiledgex"
+			}
+			sk := os.Getenv("MEX_SSH_KEY")
+			if sk == "" {
+				fmt.Println("env var MEX_SSH_KEY does not exist")
+				os.Exit(1)
+			}
+			un := os.Getenv("MEX_REGISTRY_USER")
+			if un == "" {
+				un = "mobiledgex"
+			}
+			kp := fmt.Sprintf("%s/%s", md, sk)
+			//auth := ssh.Auth{Keys: []string{kp}}
+			ad := os.Getenv("MEX_REGISTRY")
+			if ad == "" {
+				ad = "registry.mobiledgex.net"
+			}
+			fmt.Println("using registry", ad, "key", kp, "user", un)
+			//client, err := ssh.NewNativeClient(un, ad, "SSH-2.0-mobiledgex-ssh-client-1.0", 22, &auth, nil)
+			// if err != nil {
+			// 	fmt.Println("cannot get ssh client", err)
+			// 	os.Exit(1)
+			// }
+			src := fmt.Sprintf("%s@%s:files-repo/mobiledgex/%s", un, ad, fn)
+			out, err := sh.Command("scp", "-o", sshOpts[0], "-o", sshOpts[1], "-i", kp, src, ".").Output()
+			if err != nil {
+				fmt.Println("cannot download", fn, err, out)
+				os.Exit(1)
+			}
+			fmt.Println("downloaded ok", fn)
+		}
+		fmt.Println("creating glance image", fn, "as", imagename)
+		out, err := sh.Command("openstack", "image", "create", "--disk-format", "qcow2", "--file", fn, imagename).Output()
+		if err != nil {
+			fmt.Println("cannot create glance image for", imagename, fn, out)
+			os.Exit(1)
+		}
+		fmt.Println("created glance image", fn)
+	}
+	imgdata := &idata{}
+	active := false
+	for i := 0; i < 10; i++ {
+		out, err = sh.Command("openstack", "image", "show", imagename, "-f", "json").Output()
+		if err != nil {
+			fmt.Println("image", imagename, "does not exist", err)
+			os.Exit(1)
+		}
+		err = json.Unmarshal([]byte(out), &imgdata)
+		if err != nil {
+			fmt.Println("cannot unmarshal idata", err)
+			os.Exit(1)
+		}
+		if imgdata.Status == "active" {
+			active = true
+			break
+		}
+	}
+	if !active {
+		fmt.Println("error, image", imagename, "not active")
 	}
 	var assetList []item
 	paramMap := make(map[string]string)
@@ -94,7 +124,7 @@ func main() {
 		asset string
 		name  string
 	}{
-		{"image", fn},
+		{"image", imagename},
 		{"network", ens},
 	}
 	for _, a := range assets {
@@ -138,11 +168,22 @@ func main() {
 		fmt.Println("cannot execute packer tmpl", err)
 		os.Exit(1)
 	}
-	fmt.Println(outbuffer.Bytes())
-	// out, err = sh.Command("PACKER_LOG=1", "packer", "build", "packer_template.mobiledgex.json").Output()
-	// if err != nil {
-	// 	fmt.Println("cannot run packer", err)
-	// 	os.Exit(1)
-	// }
+	jn := "packer_template.mobiledgex.json"
+	f, err := os.Create(jn)
+	if err != nil {
+		fmt.Println("cannot open file", jn, err)
+		os.Exit(1)
+	}
+	w := bufio.NewWriter(f)
+	fmt.Fprintln(w, string(outbuffer.Bytes()))
+	w.Flush()
+	f.Close()
+	os.Setenv("PACKER_LOG", "1")
+	out, err = sh.Command("packer", "build", jn).Output()
+	if err != nil {
+		fmt.Println("cannot run packer", err)
+		os.Exit(1)
+	}
+	fmt.Println("packer run ok")
 	os.Exit(0)
 }

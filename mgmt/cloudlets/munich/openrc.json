@@ -1,0 +1,10 @@
+{
+    "data": {
+	"OS_CACERT": "$HOME/.mobiledgex/telesec_chain.crt",
+	"OS_AUTH_URL": "https://munedgecloud.telekom.de:5000/v2.0",
+	"OS_USERNAME": "mexadmin",
+	"OS_PASSWORD": "E:KJU5H3%tw*rp4@",
+	"OS_REGION_NAME": "RegionOne",
+	"OS_TENANT_NAME": "mex"
+    }
+}

@@ -1,0 +1,1 @@
+docker run --rm  -it -e CF_Key="e6aefae8a9825d40dbf7eadb9a49967373847" -e CF_Email="mobiledgex.ops@mobiledgex.com"   -v "$(pwd)/out":/acme.sh    --net=host   neilpang/acme.sh  --issue -d vault.mobiledgex.net   --dns dns_cf

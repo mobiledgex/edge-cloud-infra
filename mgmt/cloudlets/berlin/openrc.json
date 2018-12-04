@@ -1,0 +1,10 @@
+{
+    "data": {
+	"OS_CACERT": "$HOME/.mobiledgex/beredgecloudtelekomde.crt",
+	"OS_AUTH_URL": "https://beredgecloud.telekom.de:5000/v2.0",
+	"OS_USERNAME": "mexadmin",
+	"OS_PASSWORD": "8nb-A#CUQ>Ldh=GE",
+	"OS_REGION_NAME": "RegionOne",
+	"OS_TENANT_NAME": "mex"
+    }
+}

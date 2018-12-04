@@ -1,0 +1,11 @@
+{
+    "data": {
+	"MEX_CF_USER": "mobiledgex.ops@mobiledgex.com",
+	"MEX_CF_KEY": "60632181cb3b7419304ffa820b2d99e292092",
+	"MEX_DOCKER_REG_PASS": "sandhill",
+	"MEX_SSH_KEY": "id_rsa_mex",
+	"MEX_OS_IMAGE": "mobiledgex",
+	"MEX_K8S_USER": "root",
+	"MEX_REGISTRY_USER": "mobiledgex"
+    }
+}

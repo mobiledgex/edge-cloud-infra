@@ -1,0 +1,16 @@
+{
+    "builders": [{
+	"type": "openstack",
+	"flavor": "m4.medium",
+	"ssh_username": "ubuntu",
+	"region": "RegionOne",
+	"image_name": "mobiledgex",
+	"source_image": "6a7888da-2112-4660-8d5a-8c06ab845d52",
+	"networks": "f99dfbb9-161c-4929-b0de-2eb00e765725",
+	"security_groups": ["default" ]
+    }],
+    "provisioners": [{
+	"type": "shell",
+	"script": "setup.sh"
+    }]
+}

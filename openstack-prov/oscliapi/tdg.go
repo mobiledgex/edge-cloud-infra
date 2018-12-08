@@ -165,7 +165,7 @@ func PrepNetwork() error {
 		}
 		err = SetRouter(eMEXExternalRouter, eMEXExternalNetwork)
 		if err != nil {
-			return fmt.Errorf("cannot set default network to router %s, %v", eMEXExternalRouter, err)
+			return fmt.Errorf("cannot set network: %s to router: %s, %v", eMEXExternalNetwork, eMEXExternalRouter, err)
 		}
 	}
 

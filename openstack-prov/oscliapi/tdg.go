@@ -6,11 +6,14 @@ import (
 	"strings"
 )
 
+//There needs to be one file like this per provider/operator.  This one is for tdg.
+
 // These are operator specific custom vars
 
 var eMEXExternalRouter = os.Getenv("MEX_EXT_ROUTER")   // mex-k8s-router-1
 var eMEXNetwork = os.Getenv("MEX_NETWORK")             //mex-k8s-net-1
 var eMEXExternalNetwork = os.Getenv("MEX_EXT_NETWORK") // "external-network-shared"
+var eMEXSecurityRule = os.Getenv("MEX_SECURITY_RULE")  // "default"
 
 var defaultMEXNet = "mex-k8s-net-1"
 var defaultMEXRouter = "mex-k8s-router-1"
@@ -32,11 +35,17 @@ func init() {
 	if eMEXExternalNetwork == "" {
 		eMEXExternalNetwork = defaultMEXExternalNetwork
 	}
-
+	if eMEXSecurityRule == "" {
+		eMEXSecurityRule = defaultSecurityRule
+	}
 }
 
 func GetDefaultSecurityRule() string {
 	return defaultSecurityRule
+}
+
+func GetMEXSecurityRule() string {
+	return eMEXSecurityRule
 }
 
 //GetMEXExternalRouter returns default MEX external router name
@@ -163,9 +172,9 @@ func PrepNetwork() error {
 		if err != nil {
 			return fmt.Errorf("cannot create %s, %v", eMEXExternalRouter, err)
 		}
-		err = SetRouter(eMEXExternalRouter, eMEXExternalNetwork)
+		err = SetRouter(eMEXExternalRouter, defaultMEXExternalNetwork)
 		if err != nil {
-			return fmt.Errorf("cannot set network: %s to router: %s, %v", eMEXExternalNetwork, eMEXExternalRouter, err)
+			return fmt.Errorf("cannot set default network to router %s, %v", eMEXExternalRouter, err)
 		}
 	}
 

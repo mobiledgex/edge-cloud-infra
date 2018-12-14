@@ -1,17 +1,9 @@
 {
     "data":{
 	"env": [
-	    { "name": "MEX_CF_USER", "value": "mobiledgex.ops@mobiledgex.com"},
 	    { "name": "MEX_CF_KEY", "value": "60632181cb3b7419304ffa820b2d99e292092"},
+	    { "name": "MEX_CF_USER", "value": "mobiledgex.ops@mobiledgex.com"},
 	    { "name": "MEX_DOCKER_REG_PASS", "value": "sandhill"},
-	    { "name": "MEX_SSH_KEY", "value": "id_rsa_mex"},
-	    { "name": "MEX_OS_IMAGE", "value": "mobiledgex"},
-	    { "name": "MEX_K8S_USER", "value": "root"},
-	    { "name": "MEX_REGISTRY_USER", "value": "mobiledgex"},
-	    { "name": "MEX_EXT_NETWORK", "value": "external-network-shared"},
-	    { "name": "MEX_SECURITY_RULE", "value": "default"},
-	    { "name": "MEX_EXT_ROUTER", "value": "mex-k8s-router-1"},
-	    { "name": "MEX_NETWORK", "value": "mex-k8s-net-1"}
 	]
     }
 }

@@ -1,0 +1,22 @@
+apiVersion: v1
+name: {{.Name}}
+kind: cluster
+resource: {{.ResourceGroup}}
+metadata:
+  name: {{.Cluster}}
+  tags: {{.Cluster}}-tag
+  kind: {{.ClusterKind}}
+  tenant: {{.Cluster}}-tenant
+  region: {{.Region}}
+  zone: {{.Zone}}
+  location: {{.Location}}
+  resourcegroup: {{.ResourceGroup}}
+  operator: {{.Operator}}
+  dnszone: {{.DNSZone}}
+spec:
+  flags: force
+  flavor: {{.ClusterFlavor}}
+  key: {{.Cluster}}
+  dockerregistry: {{.DockerRegistry}}
+  rootlb: {{.RootLB}}
+  networkscheme: {{.NetworkScheme}}

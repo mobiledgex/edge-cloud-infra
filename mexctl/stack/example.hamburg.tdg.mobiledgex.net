@@ -1,0 +1,49 @@
+apiVersion: v1
+name: hamburg
+kind: values
+resource: hamburg
+values:
+  name: hamburg
+  kind: plat-clust-app
+  base: example
+  rootlb: example.hamburg.tdg.mobiledgex.net
+  application:
+    name:	testapp-hamburg
+    kind: kubernetes
+    deployment: kubernetes
+    manifest: http://registry.mobiledgex.net:8080/mobiledgex/testapp.yaml
+    image: registry.mobiledgex.net:5000/mobiledgex/mexexample
+    imagetype: ImageTypeDocker
+    proxypath: testapp-hamburg
+  operator:
+    name: tdg
+    kind: openstack
+  network:
+    name: mex-k8s-net-1
+    dnszone: mobiledgex.net
+    ipaccess: IpAccessShared
+    external: external-network-shared
+    router: mex-k8s-router-1
+    options: dhcp
+    securityrule: default
+    scheme: priv-subnet,mex-k8s-net-1,10.101.X.0/24
+  cluster:
+    name: example-hamburg
+    flavor: x1.medium
+    kind: kubernetes
+    location: testlocation-hamburg
+    region: eu-central-1
+    zone: eu-central-1c
+    osimage: mobiledgex
+  agent:
+    image: registry.mobiledgex.net:5000/mobiledgex/mexosagent
+    port: 18889
+    status: active
+  registry:
+    name: registry.mobiledgex.net
+    docker: registry.mobiledgex.net:5000
+  resource:
+    group: mobiledgex
+  environment:
+    openrc: https://vault.mobiledgex.net/v1/secret/data/cloudlet/openstack/hamburg/openrc.json
+    mexenv: https://vault.mobiledgex.net/v1/secret/data/cloudlet/openstack/mexenv.json

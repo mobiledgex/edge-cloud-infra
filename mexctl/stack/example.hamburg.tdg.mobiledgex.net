@@ -4,17 +4,17 @@ kind: values
 resource: hamburg
 values:
   name: hamburg
-  kind: plat-clust-app
+  kind: static
   base: example
   rootlb: example.hamburg.tdg.mobiledgex.net
   application:
-    name:	testapp-hamburg
+    name: testapp
     kind: kubernetes
     deployment: kubernetes
     manifest: http://registry.mobiledgex.net:8080/mobiledgex/testapp.yaml
     image: registry.mobiledgex.net:5000/mobiledgex/mexexample
     imagetype: ImageTypeDocker
-    proxypath: testapp-hamburg
+    proxypath: testapp
   operator:
     name: tdg
     kind: openstack

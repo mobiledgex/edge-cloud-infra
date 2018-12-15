@@ -15,10 +15,10 @@ func StartKubectlProxy(mf *Manifest, rootLB *MEXRootLB, kubeconfig string) (int,
 	if rootLB == nil {
 		return 0, fmt.Errorf("cannot kubectl proxy, rootLB is null")
 	}
-	if rootLB.PlatConf.Spec.ExternalNetwork == "" {
+	if mf.Values.Network.External == "" {
 		return 0, fmt.Errorf("start kubectl proxy, missing external network in platform config")
 	}
-	client, err := GetSSHClient(mf, rootLB.Name, rootLB.PlatConf.Spec.ExternalNetwork, "root")
+	client, err := GetSSHClient(mf, rootLB.Name, mf.Values.Network.External, "root")
 	if err != nil {
 		return 0, err
 	}
@@ -35,7 +35,7 @@ func StartKubectlProxy(mf *Manifest, rootLB *MEXRootLB, kubeconfig string) (int,
 		}
 	}
 	maxPort++
-	log.DebugLog(log.DebugLevelMexos, "Port for kubectl proxy", "maxport", maxPort)
+	log.DebugLog(log.DebugLevelMexos, "port for kubectl proxy", "maxport", maxPort)
 	cmd = fmt.Sprintf("kubectl proxy  --port %d --accept-hosts='.*' --address='0.0.0.0' --kubeconfig=%s ", maxPort, kubeconfig)
 	//Use .Start() because we don't want to hang
 	cl1, cl2, err := client.Start(cmd)
@@ -45,10 +45,11 @@ func StartKubectlProxy(mf *Manifest, rootLB *MEXRootLB, kubeconfig string) (int,
 	cl1.Close() //nolint
 	cl2.Close() //nolint
 	err = AddSecurityRuleCIDR(mf, GetAllowedClientCIDR(), "tcp", GetMEXSecurityRule(mf), maxPort)
+	log.DebugLog(log.DebugLevelMexos, "adding external ingress security rule for kubeproxy", "port", maxPort)
 	if err != nil {
 		log.DebugLog(log.DebugLevelMexos, "warning, error while adding external ingress security rule for kubeproxy", "error", err, "port", maxPort)
 	}
-	log.DebugLog(log.DebugLevelMexos, "added external ingress security rule for kubeproxy", "port", maxPort)
+
 	cmd = "ps wwh -C kubectl -o args"
 	for i := 0; i < 5; i++ {
 		//verify

@@ -9,24 +9,49 @@ apt-get install \
     curl \
     software-properties-common
 curl -fsSL https://download.docker.com/linux/ubuntu/gpg | apt-key add -
+#curl -fsSL https://mobiledgex:sandhill@registry.mobiledgex.net:8000/mobiledgex/docker-gpg | apt-key add -
 add-apt-repository \
    "deb [arch=amd64] https://download.docker.com/linux/ubuntu \
    $(lsb_release -cs) \
    stable"
 apt-get update && apt-get install -y docker-ce
+which docker
+if [ $? -ne 0 ]; then
+    echo docker install failed
+    exit 1
+fi
 curl -s https://packages.cloud.google.com/apt/doc/apt-key.gpg | apt-key add -
+#curl -s https://mobiledgex:sandhill@registry.mobiledgex.net:8000/mobiledgex/google-apt-key.gpg | apt-key add -
 cat <<EOF >/etc/apt/sources.list.d/kubernetes.list
 deb http://apt.kubernetes.io/ kubernetes-xenial main
 EOF
 apt-get update && apt-get install -y kubelet kubeadm kubectl
+which kubectl
+if [ $? -ne 0 ]; then
+    echo kubectl not installed
+    exit 1
+fi
 sed -i "s/cgroup-driver=systemd/cgroup-driver=cgroupfs/g" /etc/systemd/system/kubelet.service.d/10-kubeadm.conf
 systemctl daemon-reload
 systemctl restart kubelet
-wget --quiet https://dl.google.com/go/go1.10.2.linux-amd64.tar.gz
-tar xf go1.10.2.linux-amd64.tar.gz 
-export PATH=`pwd`/go/bin:$PATH
-export GOPATH=/usr/local
-go get github.com/kubernetes-incubator/cri-tools/cmd/crictl
+#wget --quiet https://dl.google.com/go/go1.10.2.linux-amd64.tar.gz
+#tar xf go1.10.2.linux-amd64.tar.gz 
+#export PATH=`pwd`/go/bin:$PATH
+#export GOPATH=/usr/local
+#which go
+#if [ $? -ne 0 ]; then
+#    echo go not installed
+#    exit 1
+#fi
+#go get github.com/kubernetes-incubator/cri-tools/cmd/crictl
+curl https://mobiledgex:sandhill@registry.mobiledgex.net:8000/mobiledgex/crictl -o /usr/local/bin/crictl
+chmod +x /usr/local/bin/crictl
+which crictl
+if [ $? -ne 0 ]; then
+    echo crictl not installed
+    exit 1
+fi
+echo install-k8s-base.sh ok
 #mkdir -p /var/lib/consul
 #mkdir -p /usr/share/consul
 #mkdir -p /etc/consul/conf.d

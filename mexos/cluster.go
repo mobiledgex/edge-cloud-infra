@@ -154,10 +154,10 @@ func mexCreateClusterKubernetes(mf *Manifest) error {
 			return fmt.Errorf("can't create k8s node, %v", err)
 		}
 	}
-	if rootLB.PlatConf.Spec.ExternalNetwork == "" {
+	if mf.Values.Network.External == "" {
 		return fmt.Errorf("missing external network in platform config")
 	}
-	if err = LBAddRoute(mf, rootLB.Name, rootLB.PlatConf.Spec.ExternalNetwork, kvmname); err != nil {
+	if err = LBAddRoute(mf, rootLB.Name, mf.Values.Network.External, kvmname); err != nil {
 		log.DebugLog(log.DebugLevelMexos, "cannot add route on rootlb")
 		//return err
 	}
@@ -209,7 +209,7 @@ func mexDeleteClusterKubernetes(mf *Manifest) error {
 	for _, s := range srvs {
 		if strings.Contains(s.Name, name) {
 			if strings.Contains(s.Name, "mex-k8s-master") {
-				err = LBRemoveRoute(mf, rootLB.Name, rootLB.PlatConf.Spec.ExternalNetwork, s.Name)
+				err = LBRemoveRoute(mf, rootLB.Name, mf.Values.Network.External, s.Name)
 				if err != nil {
 					if !force {
 						err = fmt.Errorf("failed to remove route for %s, %v", s.Name, err)
@@ -271,7 +271,7 @@ func mexDeleteClusterKubernetes(mf *Manifest) error {
 	}
 	//XXX tell agent to remove the route
 	//XXX remove kubectl proxy instance
-	client, err := GetSSHClient(mf, rootLB.Name, rootLB.PlatConf.Spec.ExternalNetwork, "root")
+	client, err := GetSSHClient(mf, rootLB.Name, mf.Values.Network.External, "root")
 	if err != nil {
 		return err
 	}
@@ -317,15 +317,15 @@ func IsClusterReady(mf *Manifest, rootLB *MEXRootLB) (bool, error) {
 	if err != nil {
 		return false, err
 	}
-	if rootLB.PlatConf.Spec.ExternalNetwork == "" {
+	if mf.Values.Network.External == "" {
 		return false, fmt.Errorf("is cluster ready, missing external network in platform config")
 	}
-	client, err := GetSSHClient(mf, rootLB.Name, rootLB.PlatConf.Spec.ExternalNetwork, "root")
+	client, err := GetSSHClient(mf, rootLB.Name, mf.Values.Network.External, "root")
 	if err != nil {
 		return false, fmt.Errorf("can't get ssh client for cluser ready check, %v", err)
 	}
 	log.DebugLog(log.DebugLevelMexos, "checking master k8s node for available nodes", "ipaddr", ipaddr)
-	cmd := fmt.Sprintf("ssh -o %s -o %s -o %s -i %s root@%s kubectl get nodes -o json", sshOpts[0], sshOpts[1], sshOpts[2], PrivateSSHKey(), ipaddr)
+	cmd := fmt.Sprintf("ssh -o %s -o %s -o %s -i id_rsa_mex root@%s kubectl get nodes -o json", sshOpts[0], sshOpts[1], sshOpts[2], ipaddr)
 	log.DebugLog(log.DebugLevelMexos, "running kubectl get nodes", "cmd", cmd)
 	out, err := client.Output(cmd)
 	if err != nil {

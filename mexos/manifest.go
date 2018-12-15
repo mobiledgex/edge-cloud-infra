@@ -205,7 +205,7 @@ func FillManifest(mf *Manifest, kind, base string) error {
 	case "cluster":
 		uri = fmt.Sprintf("%s/%s/%s/%s.yaml", base, kind, mf.Values.Operator.Name, mf.Values.Base)
 	case "application":
-		uri = fmt.Sprintf("%s/%s/%s/%s.yaml", base, kind, mf.Values.Application.Kind, mf.Values.Base)
+		uri = fmt.Sprintf("%s/%s/%s/%s.yaml", base, kind, mf.Values.Application.Name, mf.Values.Base)
 	default:
 		return fmt.Errorf("invalid manifest kind %s", kind)
 	}

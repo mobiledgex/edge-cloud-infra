@@ -32,7 +32,7 @@ echo "My IP Address: $MYIP"
 #	sleep 7
 #	JOIN=`consul kv get join-cmd`
 #done
-echo wait...
+echo installing k8s node, wait...
 sleep 60
 cd /tmp
 wget http://$MASTERIP:8000/k8s-join-cmd
@@ -46,4 +46,4 @@ echo got join cmd
 cat k8s-join-cmd
 echo running $JOIN --ignore-preflight-errors=all
 $JOIN --ignore-preflight-errors=all
-echo done running join
+echo finished running join

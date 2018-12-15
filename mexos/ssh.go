@@ -36,6 +36,6 @@ func GetSSHClient(mf *Manifest, serverName, networkName, userName string) (ssh.C
 	if err != nil {
 		return nil, fmt.Errorf("cannot get ssh client, %v", err)
 	}
-	log.DebugLog(log.DebugLevelMexos, "got ssh client", "addr", addr, "key", auth)
+	//log.DebugLog(log.DebugLevelMexos, "got ssh client", "addr", addr, "key", auth)
 	return client, nil
 }

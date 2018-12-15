@@ -34,7 +34,7 @@ func AcquireCertificates(mf *Manifest, rootLB *MEXRootLB, fqdn string) error {
 	if rootLB == nil {
 		return fmt.Errorf("cannot acquire certs, rootLB is null")
 	}
-	if rootLB.PlatConf.Spec.ExternalNetwork == "" {
+	if mf.Values.Network.External == "" {
 		return fmt.Errorf("acquire certificate, missing external network in manifest")
 	}
 	if cerr := CheckCredentialsCF(mf); cerr != nil {
@@ -57,7 +57,7 @@ func AcquireCertificates(mf *Manifest, rootLB *MEXRootLB, fqdn string) error {
 		} else if checkPEMFile(keyfile) == nil {
 			//because Letsencrypt complains if we get certs repeated for the same fqdn
 			log.DebugLog(log.DebugLevelMexos, "got cached certs from registry", "FQDN", fqdn)
-			addr, ierr := GetServerIPAddr(mf, rootLB.PlatConf.Spec.ExternalNetwork, fqdn) //XXX should just use fqdn but paranoid
+			addr, ierr := GetServerIPAddr(mf, mf.Values.Network.External, fqdn) //XXX should just use fqdn but paranoid
 			if ierr != nil {
 				log.DebugLog(log.DebugLevelMexos, "failed to get server ip addr", "FQDN", fqdn, "error", ierr)
 				return ierr
@@ -74,7 +74,7 @@ func AcquireCertificates(mf *Manifest, rootLB *MEXRootLB, fqdn string) error {
 		}
 	}
 	log.DebugLog(log.DebugLevelMexos, "did not get cached cert and key files, will try to acquire new cert")
-	client, err := GetSSHClient(mf, fqdn, rootLB.PlatConf.Spec.ExternalNetwork, "root")
+	client, err := GetSSHClient(mf, fqdn, mf.Values.Network.External, "root")
 	if err != nil {
 		return fmt.Errorf("can't get ssh client for acme.sh, %v", err)
 	}
@@ -113,7 +113,7 @@ func AcquireCertificates(mf *Manifest, rootLB *MEXRootLB, fqdn string) error {
 			return fmt.Errorf("fail to copy %s to %s on %s, %v, %v", d.src, d.dest, fqdn, err, res)
 		}
 	}
-	cmd = fmt.Sprintf("scp -o %s -o %s -i %s -r %s mobiledgex@%s:files-repo/certs", sshOpts[0], sshOpts[1], PrivateSSHKey(), fqdn, mf.Values.Registry.Name) // XXX
+	cmd = fmt.Sprintf("scp -o %s -o %s -i id_rsa_mex -r %s mobiledgex@%s:files-repo/certs", sshOpts[0], sshOpts[1], fqdn, mf.Values.Registry.Name) // XXX
 	res, err = client.Output(cmd)
 	if err != nil {
 		return fmt.Errorf("failed to upload certs for %s, %v, %v", fqdn, err, res)

@@ -42,39 +42,82 @@ if [ "$skipinit" != "yes" ]; then
 	    echo add 1.1.1.1 as nameserver >> /tmp/mobiledgex.log
 	    echo nameserver 1.1.1.1 > /etc/resolv.conf
 	fi
+	echo set name server to 1.1.1.1 >> /tmp/mobiledgex.log
+	which jq
+	if [ $? -ne 0 ]; then
+	    echo jq not found >> /tmp/mobiledgex.log
+	    exit 1
+	fi
 	skipk8s=`cat $MCONF/openstack/latest/meta_data.json |jq .meta.skipk8s | sed -e 's/"//'g`
 	if [ "$role" = "mex-agent-node" ]; then
 		echo "initializing mex agent node" >> /tmp/mobiledgex.log
 		/root/install-k8s-base.sh >> /tmp/mobiledgex.log
+		if [ $? -ne 0 ]; then
+		    echo k8s base install failed >> /tmp/mobiledgex.log
+		    exit 1
+		fi
 		chmod a+rw /var/run/docker.sock
-		curl -s -o /tmp/helm.tar.gz https://storage.googleapis.com/kubernetes-helm/helm-v2.11.0-linux-amd64.tar.gz
+		#curl -L https://github.com/docker/compose/releases/download/1.22.0/docker-compose-Linux-x86_64 -o /usr/local/bin/docker-compose
+		curl  https://mobiledgex:sandhill@registry.mobiledgex.net:8000/mobiledgex/docker-compose -o /usr/local/bin/docker-compose
+		chmod +x /usr/local/bin/docker-compose
+		which docker-compose
+		if [ $? -ne 0 ]; then
+		    echo docker-compose not installed correctly >> /tmp/mobiledgex.log
+		    exit 1
+		fi
+		echo "installing helm" >> /tmp/mobiledgex.log
+		#curl -s -o /tmp/helm.tar.gz https://storage.googleapis.com/kubernetes-helm/helm-v2.11.0-linux-amd64.tar.gz
+		curl -s -o /tmp/helm.tar.gz https://mobiledgex:sandhill@registry.mobiledgex.net:8000/mobiledgex/helm-v2.11.0.tar.gz
 		tar xvf /tmp/helm.tar.gz
-		mv linux-arm64/helm /usr/local/bin/
+		if [ ! -e linux-amd64/helm ]; then
+		    echo helm down downloaded correctly >> /tmp/mobiledgex.log
+		    exit 1
+		fi
+		mv linux-amd64/helm /usr/local/bin/
 		chmod a+rx /usr/local/bin/helm
+		which helm
+		if [ $? -ne 0 ]; then
+		    echo helm install failed >> /tmp/mobiledgex.log
+		    exit 1
+		fi
+		echo helm installed ok >> /tmp/mobiledgex.log
 	else 
 		if [ "$skipk8s" != "yes" ]; then
-			echo doing k8s init >> /tmp/mobiledgex.log
+			echo skip-k8s is not set to yes so doing k8s init >> /tmp/mobiledgex.log
 			/root/install-k8s-base.sh >> /tmp/mobiledgex.log
+			if [ $? -ne 0 ]; then
+			    echo install k8s base failed with error >> /tmp/mobiledgex.log
+			    exit 1
+			fi
 			echo k8s-base installed >> /tmp/mobiledgex.log
 			masteraddr=`cat $MCONF/openstack/latest/meta_data.json |jq .meta.k8smaster | sed -e 's/"//'g`
 			if [ "$role" = "k8s-master" ]; then
 				echo k8s-master init >> /tmp/mobiledgex.log
 				/root/install-k8s-master.sh ens3 $masteraddr $ipaddress >> /tmp/mobiledgex.log
+				if [ $? -ne 0 ]; then
+				    echo install k8s master failed with error
+				    exit 1
+				fi
 				echo k8s-master installed >> /tmp/mobiledgex.log
 			elif [ "$role" = "k8s-node" ]; then
 				echo k8s-node init >> /tmp/mobiledgex.log
 				/root/install-k8s-node.sh  ens3 $masteraddr $ipaddress >> /tmp/mobiledgex.log
+				if [ $? -ne 0 ]; then
+				    echo install k8s node failed with error
+				    exit 1
+				fi
 				echo k8s-node installed >> /tmp/mobiledgex.log
 			else
-				echo "role is " $role " and not k8s" >> /tmp/mobiledgex.log
+			    echo error not k8s master and not k8s node >> /tmp/mobiledgex.log
+			    echo "role is " $role " and not k8s" >> /tmp/mobiledgex.log
 			fi
-			echo done k8s init for role $role >> /tmp/mobiledgex.log
+			echo finished k8s init for role $role >> /tmp/mobiledgex.log
 		else
 			echo skipping k8s init for role $role >> /tmp/mobiledgex.log
 		fi
 	fi
 	echo $role > /etc/mobiledgex-role.txt
-	echo done mobiledgex init >> /tmp/mobiledgex.log
+	echo finished mobiledgex init >> /tmp/mobiledgex.log
 else
 	echo skip mobiledgex init >> /tmp/mobiledgex.log
 fi

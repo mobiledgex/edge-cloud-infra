@@ -8,10 +8,10 @@ metadata:
   kind: {{.Cluster.Kind}}
   tenant: {{.Cluster.Name}}-tenant
   region: {{.Cluster.Region}}
-  zone: {{.Zone}}
+  zone: {{.Cluster.Zone}}
   location: {{.Cluster.Location}}
   resourcegroup: {{.Resource.Group}}
-  operator: {{.Cluster.Operator}}
+  operator: {{.Operator.Name}}
   dnszone: {{.Network.DNSZone}}
 spec:
   flags: force

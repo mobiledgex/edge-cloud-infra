@@ -9,7 +9,7 @@ import (
 )
 
 func addSecurityRules(rootLB *MEXRootLB, mf *Manifest, kp *kubeParam) error {
-	rootLBIPaddr, err := GetServerIPAddr(mf, rootLB.PlatConf.Spec.ExternalNetwork, rootLB.Name)
+	rootLBIPaddr, err := GetServerIPAddr(mf, mf.Values.Network.External, rootLB.Name)
 	if err != nil {
 		log.DebugLog(log.DebugLevelMexos, "cannot get rootlb IP address", "error", err)
 		return fmt.Errorf("cannot deploy kubernetes app, cannot get rootlb IP")
@@ -28,10 +28,12 @@ func addSecurityRules(rootLB *MEXRootLB, mf *Manifest, kp *kubeParam) error {
 			{kp.ipaddr + "/32", port.InternalPort},
 			{allowedClientCIDR, port.InternalPort},
 		} {
-			err := AddSecurityRuleCIDR(mf, sec.addr, strings.ToLower(port.Proto), sr, sec.port)
-			if err != nil {
-				log.DebugLog(log.DebugLevelMexos, "warning, error while adding security rule", "cidr", sec.addr, "securityrule", sr, "port", sec.port)
-			}
+			go func(addr string, port int, proto string) {
+				err := AddSecurityRuleCIDR(mf, addr, strings.ToLower(proto), sr, port)
+				if err != nil {
+					log.DebugLog(log.DebugLevelMexos, "warning, error while adding security rule", "cidr", sec.addr, "securityrule", sr, "port", sec.port)
+				}
+			}(sec.addr, sec.port, port.Proto)
 		}
 	}
 	if len(mf.Spec.Ports) > 0 {

@@ -41,13 +41,13 @@ func CreateKubernetesAppManifest(mf *Manifest, kubeManifest string) error {
 		return fmt.Errorf("can't store docker password, %s, %v", out, err)
 	}
 	log.DebugLog(log.DebugLevelMexos, "stored docker password")
-	cmd = fmt.Sprintf("scp -o %s -o %s -i %s .docker-pass %s:", sshOpts[0], sshOpts[1], PrivateSSHKey(), kp.ipaddr)
+	cmd = fmt.Sprintf("scp -o %s -o %s -i id_rsa_mex .docker-pass %s:", sshOpts[0], sshOpts[1], kp.ipaddr)
 	out, err = kp.client.Output(cmd)
 	if err != nil {
 		return fmt.Errorf("can't copy docker password to k8s-master, %s, %v", out, err)
 	}
 	log.DebugLog(log.DebugLevelMexos, "copied over docker password")
-	cmd = fmt.Sprintf("ssh -o %s -o %s -i %s %s 'cat .docker-pass| docker login -u mobiledgex --password-stdin %s'", sshOpts[0], sshOpts[1], PrivateSSHKey(), kp.ipaddr, mf.Values.Registry.Docker)
+	cmd = fmt.Sprintf("ssh -o %s -o %s -i id_rsa_mex %s 'cat .docker-pass| docker login -u mobiledgex --password-stdin %s'", sshOpts[0], sshOpts[1], kp.ipaddr, mf.Values.Registry.Docker)
 	out, err = kp.client.Output(cmd)
 	if err != nil {
 		return fmt.Errorf("can't docker login on k8s-master to %s, %s, %v", mf.Values.Registry.Docker, out, err)
@@ -104,10 +104,10 @@ func ValidateKubernetesParameters(mf *Manifest, rootLB *MEXRootLB, clustName str
 	if rootLB.PlatConf == nil {
 		return nil, fmt.Errorf("validate kubernetes parameters, missing platform config")
 	}
-	if rootLB.PlatConf.Spec.ExternalNetwork == "" {
+	if mf.Values.Network.External == "" {
 		return nil, fmt.Errorf("validate kubernetes parameters, missing external network in platform config")
 	}
-	client, err := GetSSHClient(mf, rootLB.Name, rootLB.PlatConf.Spec.ExternalNetwork, "root")
+	client, err := GetSSHClient(mf, rootLB.Name, mf.Values.Network.External, "root")
 	if err != nil {
 		return nil, err
 	}

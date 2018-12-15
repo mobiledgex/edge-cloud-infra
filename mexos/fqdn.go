@@ -66,7 +66,7 @@ func ActivateFQDNA(mf *Manifest, rootLB *MEXRootLB, fqdn string) error {
 		return fmt.Errorf("cannot activate certs, rootLB is null")
 	}
 
-	if rootLB.PlatConf.Spec.ExternalNetwork == "" {
+	if mf.Values.Network.External == "" {
 		return fmt.Errorf("activate fqdn A record, missing external network in manifest")
 	}
 	if err := CheckCredentialsCF(mf); err != nil {
@@ -80,7 +80,7 @@ func ActivateFQDNA(mf *Manifest, rootLB *MEXRootLB, fqdn string) error {
 	if err != nil {
 		return fmt.Errorf("cannot get dns records for %s, %v", fqdn, err)
 	}
-	addr, err := GetServerIPAddr(mf, rootLB.PlatConf.Spec.ExternalNetwork, fqdn)
+	addr, err := GetServerIPAddr(mf, mf.Values.Network.External, fqdn)
 	for _, d := range dr {
 		if d.Type == "A" && d.Name == fqdn {
 			if d.Content == addr {

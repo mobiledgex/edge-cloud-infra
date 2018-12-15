@@ -78,7 +78,7 @@ func RunMEXAgentManifest(mf *Manifest) error {
 
 func RunMEXOSAgentService(mf *Manifest, rootLB *MEXRootLB) error {
 	log.DebugLog(log.DebugLevelMexos, "will run new mexosagent service")
-	client, err := GetSSHClient(mf, rootLB.Name, rootLB.PlatConf.Spec.ExternalNetwork, "root")
+	client, err := GetSSHClient(mf, rootLB.Name, mf.Values.Network.External, "root")
 	if err != nil {
 		return err
 	}
@@ -93,7 +93,7 @@ func RunMEXOSAgentService(mf *Manifest, rootLB *MEXRootLB) error {
 		{"/usr/local/bin/", "mexosagent"},
 		{"/lib/systemd/system/", "mexosagent.service"},
 	} {
-		cmd := fmt.Sprintf("scp -o %s -o %s -i %s mobiledgex@%s:files-repo/mobiledgex/%s %s", sshOpts[0], sshOpts[1], PrivateSSHKey(), mf.Values.Registry.Name, dest.name, dest.path)
+		cmd := fmt.Sprintf("scp -o %s -o %s -i id_rsa_mex mobiledgex@%s:files-repo/mobiledgex/%s %s", sshOpts[0], sshOpts[1], mf.Values.Registry.Name, dest.name, dest.path)
 		out, err := client.Output(cmd)
 		if err != nil {
 			log.InfoLog("error: cannot download from registry", "fn", dest.name, "path", dest.path, "error", err, "out", out)
@@ -120,7 +120,7 @@ func RunMEXOSAgentContainer(mf *Manifest, rootLB *MEXRootLB) error {
 	if mexEnv(mf, "MEX_DOCKER_REG_PASS") == "" {
 		return fmt.Errorf("empty docker registry pass env var")
 	}
-	client, err := GetSSHClient(mf, rootLB.Name, rootLB.PlatConf.Spec.ExternalNetwork, "root")
+	client, err := GetSSHClient(mf, rootLB.Name, mf.Values.Network.External, "root")
 	if err != nil {
 		return err
 	}

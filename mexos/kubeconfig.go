@@ -13,7 +13,7 @@ import (
 )
 
 func GetKconf(mf *Manifest, createIfMissing bool) (string, error) {
-	name := MEXDir() + "/" + mf.Spec.Key + ".kubeconfig"
+	name := MEXDir() + "/" + mf.Values.Cluster.Name + ".kubeconfig"
 	log.DebugLog(log.DebugLevelMexos, "get kubeconfig name", "name", name)
 
 	if createIfMissing {
@@ -92,15 +92,15 @@ func CopyKubeConfig(mf *Manifest, rootLB *MEXRootLB, name string) error {
 	if err != nil {
 		return err
 	}
-	if rootLB.PlatConf.Spec.ExternalNetwork == "" {
+	if mf.Values.Network.External == "" {
 		return fmt.Errorf("copy kube config, missing external network in platform config")
 	}
-	client, err := GetSSHClient(mf, rootLB.Name, rootLB.PlatConf.Spec.ExternalNetwork, "root")
+	client, err := GetSSHClient(mf, rootLB.Name, mf.Values.Network.External, "root")
 	if err != nil {
 		return fmt.Errorf("can't get ssh client for copying kubeconfig, %v", err)
 	}
 	kconfname := fmt.Sprintf("%s.kubeconfig", name[strings.LastIndex(name, "-")+1:])
-	cmd := fmt.Sprintf("scp -o %s -o %s -i %s root@%s:.kube/config %s", sshOpts[0], sshOpts[1], PrivateSSHKey(), ipaddr, kconfname)
+	cmd := fmt.Sprintf("scp -o %s -o %s -i id_rsa_mex root@%s:.kube/config %s", sshOpts[0], sshOpts[1], ipaddr, kconfname)
 	out, err := client.Output(cmd)
 	if err != nil {
 		return fmt.Errorf("can't copy kubeconfig from %s, %s, %v", name, out, err)

@@ -64,7 +64,7 @@ func EnableRootLB(mf *Manifest, rootLB *MEXRootLB) error {
 	if rootLB == nil {
 		return fmt.Errorf("cannot enable rootLB, rootLB is null")
 	}
-	if rootLB.PlatConf.Spec.ExternalNetwork == "" {
+	if mf.Values.Network.External == "" {
 		return fmt.Errorf("enable rootlb, missing external network in manifest")
 	}
 	err := PrepNetwork(mf)
@@ -87,7 +87,7 @@ func EnableRootLB(mf *Manifest, rootLB *MEXRootLB) error {
 	}
 	if found == 0 {
 		log.DebugLog(log.DebugLevelMexos, "not found existing server", "name", rootLB.Name)
-		netspec := fmt.Sprintf("external-ip,%s", rootLB.PlatConf.Spec.ExternalNetwork)
+		netspec := fmt.Sprintf("external-ip,%s", mf.Values.Network.External)
 		if strings.Contains(mf.Spec.Options, "dhcp") {
 			netspec = netspec + ",dhcp"
 		}
@@ -111,7 +111,7 @@ func EnableRootLB(mf *Manifest, rootLB *MEXRootLB) error {
 		}
 		log.DebugLog(log.DebugLevelMexos, "created kvm instance", "name", rootLB.Name)
 
-		rootLBIPaddr, ierr := GetServerIPAddr(mf, rootLB.PlatConf.Spec.ExternalNetwork, rootLB.Name)
+		rootLBIPaddr, ierr := GetServerIPAddr(mf, mf.Values.Network.External, rootLB.Name)
 		if ierr != nil {
 			log.DebugLog(log.DebugLevelMexos, "cannot get rootlb IP address", "error", ierr)
 			return fmt.Errorf("created rootlb but cannot get rootlb IP")
@@ -129,10 +129,12 @@ func EnableRootLB(mf *Manifest, rootLB *MEXRootLB) error {
 		allowedClientCIDR := GetAllowedClientCIDR()
 		for _, p := range ports {
 			for _, cidr := range []string{rootLBIPaddr + "/32", privateNetCIDR, allowedClientCIDR} {
-				err := AddSecurityRuleCIDR(mf, cidr, "tcp", ruleName, p)
-				if err != nil {
-					log.DebugLog(log.DebugLevelMexos, "warning, error while adding security rule", "error", err, "cidr", cidr, "rulename", ruleName, "port", p)
-				}
+				go func(cidr string) {
+					err := AddSecurityRuleCIDR(mf, cidr, "tcp", ruleName, p)
+					if err != nil {
+						log.DebugLog(log.DebugLevelMexos, "warning, error while adding security rule", "error", err, "cidr", cidr, "rulename", ruleName, "port", p)
+					}
+				}(cidr)
 			}
 		}
 		//TODO: removal of security rules. Needs to be done for general resource per VM object.
@@ -153,21 +155,21 @@ func WaitForRootLB(mf *Manifest, rootLB *MEXRootLB) error {
 		return fmt.Errorf("cannot wait for lb, rootLB is null")
 	}
 
-	if rootLB.PlatConf.Spec.ExternalNetwork == "" {
+	if mf.Values.Network.External == "" {
 		return fmt.Errorf("waiting for lb, missing external network in manifest")
 	}
-	client, err := GetSSHClient(mf, rootLB.Name, rootLB.PlatConf.Spec.ExternalNetwork, "root")
+	client, err := GetSSHClient(mf, rootLB.Name, mf.Values.Network.External, "root")
 	if err != nil {
 		return err
 	}
 	running := false
 	for i := 0; i < 10; i++ {
 		log.DebugLog(log.DebugLevelMexos, "waiting for rootlb...")
-		_, err := client.Output("grep done /tmp/mobiledgex.log") //XXX beware of use of word done
+		_, err := client.Output("grep 'all done' /tmp/mobiledgex.log") //XXX beware of use of word done
 		if err == nil {
 			log.DebugLog(log.DebugLevelMexos, "rootlb is running", "name", rootLB.Name)
 			running = true
-			if err := CopySSHCredential(mf, rootLB.Name, rootLB.PlatConf.Spec.ExternalNetwork, "root"); err != nil {
+			if err := CopySSHCredential(mf, rootLB.Name, mf.Values.Network.External, "root"); err != nil {
 				return fmt.Errorf("can't copy ssh credential to RootLB, %v", err)
 			}
 			break

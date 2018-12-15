@@ -120,7 +120,7 @@ func deleteAppDNS(mf *Manifest, kconf string) error {
 }
 
 func addDNSRecords(rootLB *MEXRootLB, mf *Manifest, kp *kubeParam) error {
-	rootLBIPaddr, err := GetServerIPAddr(mf, rootLB.PlatConf.Spec.ExternalNetwork, rootLB.Name)
+	rootLBIPaddr, err := GetServerIPAddr(mf, mf.Values.Network.External, rootLB.Name)
 	if err != nil {
 		log.DebugLog(log.DebugLevelMexos, "cannot get rootlb IP address", "error", err)
 		return fmt.Errorf("cannot deploy kubernetes app, cannot get rootlb IP")

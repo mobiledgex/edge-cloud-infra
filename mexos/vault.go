@@ -14,7 +14,14 @@ import (
 func GetVaultData(url string) ([]byte, error) {
 	vault_token := os.Getenv("VAULT_TOKEN")
 	if vault_token == "" {
-		return nil, fmt.Errorf("no vault token")
+		res, err := ioutil.ReadFile(os.Getenv("HOME") + "/.mobiledgex/vault.txt")
+		if err != nil {
+			return nil, fmt.Errorf("no vault token")
+		}
+		vault_token = strings.TrimSpace(string(res))
+		if vault_token == "" {
+			return nil, fmt.Errorf("missing vault token")
+		}
 	}
 	req, err := http.NewRequest("GET", url, nil)
 	if err != nil {

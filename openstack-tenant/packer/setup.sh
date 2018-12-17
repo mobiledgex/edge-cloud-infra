@@ -48,4 +48,17 @@ echo root:sandhill | sudo chpasswd
 #sudo chown mobiledgex ~mobiledgex/.ssh/authorized_keys
 #echo 'mobiledgex ALL=(ALL:ALL) NOPASSWD:ALL' | sudo tee -a /etc/sudoers
 #sudo cat /etc/ssh/sshd_config
+sudo sh -x /root/install-k8s-base.sh
+sudo chmod a+rw /var/run/docker/sock
+echo installed k8s base | sudo tee -a /root/creation_date.txt
+#curl -L https://github.com/docker/compose/releases/download/1.22.0/docker-compose-Linux-x86_64 -o /usr/local/bin/docker-compose
+sudo curl  https://mobiledgex:sandhill@registry.mobiledgex.net:8000/mobiledgex/docker-compose -o /usr/local/bin/docker-compose
+sudo chmod +x /usr/local/bin/docker-compose
+echo installed docker-compose | sudo tee -a /root/creation_date.txt
+#curl -s -o /tmp/helm.tar.gz https://storage.googleapis.com/kubernetes-helm/helm-v2.11.0-linux-amd64.tar.gz
+sudo curl -s -o /tmp/helm.tar.gz https://mobiledgex:sandhill@registry.mobiledgex.net:8000/mobiledgex/helm-v2.11.0.tar.gz
+sudo tar xvf /tmp/helm.tar.gz
+sudo mv linux-amd64/helm /usr/local/bin/
+sudo chmod a+rx /usr/local/bin/helm
+echo installed helm | sudo tee -a /root/creation_date.txt
 echo created at `date` | sudo tee -a /root/creation_date.txt

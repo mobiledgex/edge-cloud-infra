@@ -61,12 +61,12 @@ func MEXClusterRemoveManifest(mf *Manifest) error {
 
 //MEXPlatformInitCloudletKey calls MEXPlatformInit with templated manifest
 func MEXPlatformInitCloudletKey(rootLB *MEXRootLB, cloudletKeyStr string) error {
-	//XXX trigger off cloudletKeyStr or flavor to pick the right template: mex, aks, gke
-	mf, err := fillPlatformTemplateCloudletKey(rootLB, cloudletKeyStr)
+	ckmf, err := fillPlatformTemplateCloudletKey(rootLB, cloudletKeyStr)
 	if err != nil {
 		return err
 	}
-	return MEXPlatformInitManifest(mf)
+	ckmf.Values = rootLB.PlatConf.Values
+	return MEXPlatformInitManifest(ckmf)
 }
 
 //MEXPlatformCleanCloudletKey calls MEXPlatformClean with templated manifest
@@ -213,11 +213,13 @@ func FillManifest(mf *Manifest, kind, base string) error {
 	if err != nil {
 		return err
 	}
+	//log.DebugLog(log.DebugLevelMexos, "got file", "uri", uri, "data", string(dat))
 	tmpl, err := template.New(mf.Values.Name).Parse(string(dat))
 	if err != nil {
 		return err
 	}
 	var outbuffer bytes.Buffer
+	//log.DebugLog(log.DebugLevelMexos, "mf values", "values", mf.Values)
 	err = tmpl.Execute(&outbuffer, &mf.Values)
 	if err != nil {
 		return err

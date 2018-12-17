@@ -1,7 +1,7 @@
 #!/bin/sh
 # must be run as root
 #  on all nodes
-
+set -x
 if [ $# -lt 3 ]; then
 	echo "Insufficient arguments"
 	echo "Need interface-name master-ip my-ip"

@@ -77,6 +77,7 @@ func RunMEXAgentManifest(mf *Manifest) error {
 }
 
 func RunMEXOSAgentService(mf *Manifest, rootLB *MEXRootLB) error {
+	//TODO check if agent is running before restarting again.
 	log.DebugLog(log.DebugLevelMexos, "will run new mexosagent service")
 	client, err := GetSSHClient(mf, rootLB.Name, mf.Values.Network.External, "root")
 	if err != nil {

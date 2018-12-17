@@ -169,7 +169,6 @@ type ValueDetail struct {
 	Name        string           `json:"name"`
 	Kind        string           `json:"kind"`
 	Base        string           `json:"base"`
-	RootLB      string           `json:"rootlb"`
 	Application AppValue         `json:"application"`
 	Agent       AgentValue       `json:"agent"`
 	Cluster     ClusterValue     `json:"cluster"`

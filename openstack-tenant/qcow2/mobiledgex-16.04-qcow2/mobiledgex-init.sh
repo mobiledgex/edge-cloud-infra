@@ -2,7 +2,7 @@
 # this is run at system init time
 # TODO: mark so that it does not run again 
 # TODO: check for updates from edgeproxy before running
-
+set -x
 echo starting mobiledgex init >> /tmp/mobiledgex.log
 date >> /tmp/mobiledgex.log
 MCONF=/mnt/mobiledgex-config
@@ -51,45 +51,57 @@ if [ "$skipinit" != "yes" ]; then
 	skipk8s=`cat $MCONF/openstack/latest/meta_data.json |jq .meta.skipk8s | sed -e 's/"//'g`
 	if [ "$role" = "mex-agent-node" ]; then
 		echo "initializing mex agent node" >> /tmp/mobiledgex.log
-		/root/install-k8s-base.sh >> /tmp/mobiledgex.log
-		if [ $? -ne 0 ]; then
-		    echo k8s base install failed >> /tmp/mobiledgex.log
-		    exit 1
-		fi
-		chmod a+rw /var/run/docker.sock
-		#curl -L https://github.com/docker/compose/releases/download/1.22.0/docker-compose-Linux-x86_64 -o /usr/local/bin/docker-compose
-		curl  https://mobiledgex:sandhill@registry.mobiledgex.net:8000/mobiledgex/docker-compose -o /usr/local/bin/docker-compose
-		chmod +x /usr/local/bin/docker-compose
-		which docker-compose
-		if [ $? -ne 0 ]; then
-		    echo docker-compose not installed correctly >> /tmp/mobiledgex.log
-		    exit 1
-		fi
-		echo "installing helm" >> /tmp/mobiledgex.log
-		#curl -s -o /tmp/helm.tar.gz https://storage.googleapis.com/kubernetes-helm/helm-v2.11.0-linux-amd64.tar.gz
-		curl -s -o /tmp/helm.tar.gz https://mobiledgex:sandhill@registry.mobiledgex.net:8000/mobiledgex/helm-v2.11.0.tar.gz
-		tar xvf /tmp/helm.tar.gz
-		if [ ! -e linux-amd64/helm ]; then
-		    echo helm down downloaded correctly >> /tmp/mobiledgex.log
-		    exit 1
-		fi
-		mv linux-amd64/helm /usr/local/bin/
-		chmod a+rx /usr/local/bin/helm
+		# /root/install-k8s-base.sh >> /tmp/mobiledgex.log
+		# if [ $? -ne 0 ]; then
+		#     echo k8s base install failed >> /tmp/mobiledgex.log
+		#     exit 1
+		# fi
+		# chmod a+rw /var/run/docker.sock
+		# #curl -L https://github.com/docker/compose/releases/download/1.22.0/docker-compose-Linux-x86_64 -o /usr/local/bin/docker-compose
+		# curl  https://mobiledgex:sandhill@registry.mobiledgex.net:8000/mobiledgex/docker-compose -o /usr/local/bin/docker-compose
+		# chmod +x /usr/local/bin/docker-compose
+		# which docker-compose
+		# if [ $? -ne 0 ]; then
+		#     echo docker-compose not installed correctly >> /tmp/mobiledgex.log
+		#     exit 1
+		# fi
+		# echo "installing helm" >> /tmp/mobiledgex.log
+		# #curl -s -o /tmp/helm.tar.gz https://storage.googleapis.com/kubernetes-helm/helm-v2.11.0-linux-amd64.tar.gz
+		# curl -s -o /tmp/helm.tar.gz https://mobiledgex:sandhill@registry.mobiledgex.net:8000/mobiledgex/helm-v2.11.0.tar.gz
+		# tar xvf /tmp/helm.tar.gz
+		# if [ ! -e linux-amd64/helm ]; then
+		#     echo helm down downloaded correctly >> /tmp/mobiledgex.log
+		#     exit 1
+		# fi
+		# mv linux-amd64/helm /usr/local/bin/
+		# chmod a+rx /usr/local/bin/helm
+		# which helm
+		# if [ $? -ne 0 ]; then
+		#     echo helm install failed >> /tmp/mobiledgex.log
+		#     exit 1
+		# fi
+		# echo helm installed ok >> /tmp/mobiledgex.log
+		which kubectl
 		which helm
-		if [ $? -ne 0 ]; then
-		    echo helm install failed >> /tmp/mobiledgex.log
-		    exit 1
-		fi
-		echo helm installed ok >> /tmp/mobiledgex.log
+		which docker-compose
+		which kubeadm
+		which kubelet
+		which crictl
 	else 
 		if [ "$skipk8s" != "yes" ]; then
 			echo skip-k8s is not set to yes so doing k8s init >> /tmp/mobiledgex.log
-			/root/install-k8s-base.sh >> /tmp/mobiledgex.log
-			if [ $? -ne 0 ]; then
-			    echo install k8s base failed with error >> /tmp/mobiledgex.log
-			    exit 1
-			fi
-			echo k8s-base installed >> /tmp/mobiledgex.log
+			# /root/install-k8s-base.sh >> /tmp/mobiledgex.log
+			# if [ $? -ne 0 ]; then
+			#     echo install k8s base failed with error >> /tmp/mobiledgex.log
+			#     exit 1
+			# fi
+			# echo k8s-base installed >> /tmp/mobiledgex.log
+			which kubectl
+			which helm
+			which docker-compose
+			which kubeadm
+			which kubelet
+			which crictl
 			masteraddr=`cat $MCONF/openstack/latest/meta_data.json |jq .meta.k8smaster | sed -e 's/"//'g`
 			if [ "$role" = "k8s-master" ]; then
 				echo k8s-master init >> /tmp/mobiledgex.log

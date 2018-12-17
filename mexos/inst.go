@@ -33,7 +33,7 @@ func FillClusterTemplateClustInst(rootLB *MEXRootLB, clusterInst *edgeproto.Clus
 		log.DebugLog(log.DebugLevelMexos, "cannot create empty cluster manifest", "clustinst", clusterInst)
 		return nil, fmt.Errorf("invalid cluster inst %v", clusterInst)
 	}
-	if verr := validateClusterKind(clusterInst.Key.CloudletKey.OperatorKey.Name); verr != nil {
+	if verr := ValidateClusterKind(clusterInst.Key.CloudletKey.OperatorKey.Name); verr != nil {
 		return nil, verr
 	}
 	vp := &rootLB.PlatConf.Values
@@ -100,6 +100,7 @@ func FillClusterTemplateClustInst(rootLB *MEXRootLB, clusterInst *edgeproto.Clus
 	if err != nil {
 		return nil, err
 	}
+	mf.Values = rootLB.PlatConf.Values
 	return mf, nil
 }
 
@@ -130,6 +131,7 @@ func MEXAddFlavorClusterInst(rootLB *MEXRootLB, flavor *edgeproto.ClusterFlavor)
 	if err != nil {
 		return err
 	}
+	mf.Values = rootLB.PlatConf.Values
 	return MEXAddFlavor(mf)
 }
 
@@ -141,6 +143,7 @@ func MEXAppCreateAppInst(rootLB *MEXRootLB, clusterInst *edgeproto.ClusterInst, 
 		log.DebugLog(log.DebugLevelMexos, "fillAppTemplate error", "error", err)
 		return err
 	}
+	mf.Values = rootLB.PlatConf.Values
 	return MEXAppCreateAppManifest(mf)
 }
 
@@ -152,5 +155,6 @@ func MEXAppDeleteAppInst(rootLB *MEXRootLB, clusterInst *edgeproto.ClusterInst, 
 		log.DebugLog(log.DebugLevelMexos, "fillAppTemplate error", "error", err)
 		return err
 	}
+	mf.Values = rootLB.PlatConf.Values
 	return MEXAppDeleteAppManifest(mf)
 }

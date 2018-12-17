@@ -1,8 +1,9 @@
 #!/bin/sh
 # must run as root
 # on both master and nodes
+set -x
 swapoff -a
-apt-get update && apt-get install -y apt-transport-https curl unzip
+apt-get update && apt-get install -y apt-transport-https curl unzip python
 apt-get install \
     apt-transport-https \
     ca-certificates \
@@ -31,6 +32,11 @@ if [ $? -ne 0 ]; then
     echo kubectl not installed
     exit 1
 fi
+which kubeadm
+if [ $? -ne 0 ]; then
+    echo kubeadm not installed
+    exit 1
+fi
 sed -i "s/cgroup-driver=systemd/cgroup-driver=cgroupfs/g" /etc/systemd/system/kubelet.service.d/10-kubeadm.conf
 systemctl daemon-reload
 systemctl restart kubelet
@@ -51,6 +57,7 @@ if [ $? -ne 0 ]; then
     echo crictl not installed
     exit 1
 fi
+kubeadm config images pull
 echo install-k8s-base.sh ok
 #mkdir -p /var/lib/consul
 #mkdir -p /usr/share/consul

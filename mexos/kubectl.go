@@ -18,7 +18,7 @@ func runKubectlCreateApp(mf *Manifest, kubeManifest string) error {
 	log.DebugLog(log.DebugLevelMexos, "run kubectl create app", "kubeManifest", kubeManifest)
 	kconf, err := GetKconf(mf, false)
 	if err != nil {
-		return fmt.Errorf("error creating app due to kconf %v, %v", mf, err)
+		return fmt.Errorf("error creating app due to kconf missing, %v, %v", mf, err)
 	}
 	out, err := sh.Command("kubectl", "create", "secret", "docker-registry", "mexregistrysecret", "--docker-server="+mf.Values.Registry.Docker, "--docker-username=mobiledgex", "--docker-password="+mexEnv(mf, "MEX_DOCKER_REG_PASS"), "--docker-email=docker@mobiledgex.com", "--kubeconfig="+kconf).CombinedOutput()
 	if err != nil {
@@ -110,7 +110,7 @@ func runKubectlDeleteApp(mf *Manifest, kubeManifest string) error {
 	}
 	kconf, err := GetKconf(mf, false)
 	if err != nil {
-		return fmt.Errorf("error deleting app due to kconf,  %v, %v", mf, err)
+		return fmt.Errorf("error deleting app due to kconf missing,  %v, %v", mf, err)
 	}
 	kfile := mf.Metadata.Name + ".yaml"
 	err = writeKubeManifest(kubeManifest, kfile)

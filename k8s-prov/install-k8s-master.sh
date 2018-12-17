@@ -1,6 +1,7 @@
 #!/bin/sh
 # must run as root
 # on the master
+set -x
 if [ $# -lt 3 ]; then
 	echo "Insufficient arguments"
 	echo "Need interface-name master-ip my-ip"
@@ -12,7 +13,6 @@ MYIP=$3
 echo "Interface $INTF"
 echo "Master IP $MASTERIP"
 echo "My IP Address: $MYIP"
-sudo apt install -y python
 which python
 if [ $? -ne 0 ]; then
     echo python not installed
@@ -31,7 +31,7 @@ if [ $? -ne 0 ]; then
 fi
 #export KUBECONFIG=/etc/kubernetes/admin.conf
 mkdir -p $HOME/.kube
-sudo cp -i /etc/kubernetes/admin.conf $HOME/.kube/config
+sudo cp  /etc/kubernetes/admin.conf $HOME/.kube/config
 sudo chown $(id -u):$(id -g) $HOME/.kube/config
 which kubectl
 if [ $? -ne 0 ]; then
@@ -67,11 +67,11 @@ fi
 kubeadm token create --print-join-command  > /tmp/k8s-join-cmd
 cat /tmp/k8s-join-cmd
 mkdir -p $HOME/.kube
-sudo cp -i /etc/kubernetes/admin.conf $HOME/.kube/config
+sudo cp  /etc/kubernetes/admin.conf $HOME/.kube/config
 sudo chown $(id -u):$(id -g) $HOME/.kube/config
 mkdir -p /root/.kube
 echo created /root/.kube
-sudo cp -i /etc/kubernetes/admin.conf /root/.kube/config
+sudo cp  /etc/kubernetes/admin.conf /root/.kube/config
 echo copied admin.conf to /root/.kube/config
 sudo chown root:root /root/.kube/config
 cd /tmp

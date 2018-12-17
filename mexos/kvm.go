@@ -22,7 +22,7 @@ func CreateQCOW2AppManifest(mf *Manifest) error {
 	if !strings.Contains(mf.Spec.Flavor, "qcow2") {
 		return fmt.Errorf("unsupported qcow2 flavor %s", mf.Spec.Flavor)
 	}
-	if err := validateCommon(mf); err != nil {
+	if err := ValidateCommon(mf); err != nil {
 		return err
 	}
 
@@ -189,20 +189,11 @@ func CreateFlavorMEXVM(mf *Manifest, name, image, flavor, netID, userdata, role,
 	return nil
 }
 
-func getNameTag(name string) string {
-	if strings.Index(name, "-") > 0 {
-		ix := strings.LastIndex(name, "-")
-		if len(name) > (ix + 1) {
-			return name[ix+1:]
-		}
-	}
-	return name
-}
-
 //CreateMEXKVM is easier way to create a MEX app capable KVM
 //  role can be k8s-master, k8s-node, or something else
 func CreateMEXKVM(mf *Manifest, name, role, netSpec, tags, tenant string, id int, platformFlavor string) error {
-	log.DebugLog(log.DebugLevelMexos, "createMEXKVM", "name", name, "role", role, "netSpec", netSpec,
+	log.DebugLog(log.DebugLevelMexos, "createMEXKVM",
+		"name", name, "role", role, "netSpec", netSpec,
 		"tags", tags, "tenant", tenant, "id", id)
 	mexRouter := GetMEXExternalRouter(mf)
 	netID := GetMEXExternalNetwork(mf) //do we really want to default to ext?
@@ -246,7 +237,8 @@ func CreateMEXKVM(mf *Manifest, name, role, netSpec, tags, tenant string, id int
 		}
 		//XXX openstack bug - subnet does not take tags but description field can be used to tag stuff
 		//   Use tag as part of name
-		sn := ni.Name + "-subnet-" + getNameTag(name)
+		sn := ni.Name + "-subnet-" + mf.Values.Cluster.Name
+		log.DebugLog(log.DebugLevelMexos, "using subnet name", "subnet", sn)
 		snd, snderr := GetSubnetDetail(mf, sn)
 		if snderr != nil {
 			if role == k8snodeRole {
@@ -508,13 +500,13 @@ func DestroyMEXKVM(mf *Manifest, name, role string) error {
 		return fmt.Errorf("can't delete %s, %v", name, err)
 	}
 	if role == k8smasterRole {
-		sn := "subnet-" + getNameTag(name)
+		sn := "subnet-" + mf.Values.Cluster.Name
 		rn := GetMEXExternalRouter(mf)
 
 		log.DebugLog(log.DebugLevelMexos, "removing router from subnet", "router", rn, "subnet", sn)
 		err := RemoveRouterSubnet(mf, rn, sn)
 		if err != nil {
-			return fmt.Errorf("can't remove router %s from subnet %s, %v", rn, sn, err)
+			return fmt.Errorf("can't remove subnet %s from router %s, %v", sn, rn, err)
 		}
 
 		//XXX This may not work until all nodes are removed, since

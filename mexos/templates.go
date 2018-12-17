@@ -190,7 +190,7 @@ func fillAppTemplate(rootLB *MEXRootLB, appInst *edgeproto.AppInst, app *edgepro
 	if clusterInst.Flavor.Name == "" {
 		return nil, fmt.Errorf("will not fill app template, invalid cluster flavor name")
 	}
-	if verr := validateClusterKind(clusterInst.Key.CloudletKey.OperatorKey.Name); verr != nil {
+	if verr := ValidateClusterKind(clusterInst.Key.CloudletKey.OperatorKey.Name); verr != nil {
 		return nil, verr
 	}
 	if appInst.Key.AppKey.Name == "" {

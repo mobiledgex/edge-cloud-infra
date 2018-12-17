@@ -18,7 +18,7 @@ func CreateKubernetesAppManifest(mf *Manifest, kubeManifest string) error {
 	if rootLB == nil {
 		return fmt.Errorf("cannot create kubernetes app manifest, rootLB is null")
 	}
-	if err = validateCommon(mf); err != nil {
+	if err = ValidateCommon(mf); err != nil {
 		return err
 	}
 	if mf.Spec.URI == "" { //XXX TODO register to the DNS registry for public IP app,controller needs to tell us which kind of app
@@ -119,7 +119,8 @@ func ValidateKubernetesParameters(mf *Manifest, rootLB *MEXRootLB, clustName str
 	if err != nil {
 		return nil, err
 	}
-	kubeconfig := fmt.Sprintf("KUBECONFIG=%s.kubeconfig", name[strings.LastIndex(name, "-")+1:])
+	//kubeconfig := fmt.Sprintf("KUBECONFIG=%s.kubeconfig", name[strings.LastIndex(name, "-")+1:])
+	kubeconfig := fmt.Sprintf("KUBECONFIG=%s", GetKconfName(mf))
 	return &kubeParam{kubeconfig, client, ipaddr}, nil
 }
 
@@ -242,7 +243,7 @@ func DeleteKubernetesAppManifest(mf *Manifest, kubeManifest string) error {
 	//if !strings.Contains(mf.Spec.Flavor, "kubernetes") {
 	//	return fmt.Errorf("unsupported kubernetes flavor %s", mf.Spec.Flavor)
 	//}
-	if err = validateCommon(mf); err != nil {
+	if err = ValidateCommon(mf); err != nil {
 		return err
 	}
 	kp, err := ValidateKubernetesParameters(mf, rootLB, mf.Spec.Key)

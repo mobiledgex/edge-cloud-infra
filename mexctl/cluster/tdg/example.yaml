@@ -18,5 +18,5 @@ spec:
   flavor: {{.Cluster.Flavor}}
   key: {{.Cluster.Name}}
   dockerregistry: {{.Registry.Docker}}
-  rootlb: {{.RootLB}}
+  rootlb: {{.Cluster.Name}}.{{.Operator.Name}}.{{.Network.DNSZone}}
   networkscheme: {{.Network.Scheme}}

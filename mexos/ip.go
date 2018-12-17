@@ -96,8 +96,9 @@ func FindNodeIP(mf *Manifest, name string) (string, error) {
 			if err != nil {
 				return "", fmt.Errorf("can't get IP for %s, %v", s.Name, err)
 			}
+			log.DebugLog(log.DebugLevelMexos, "found node ip", "name", name, "ipaddr", ipaddr)
 			return ipaddr, nil
 		}
 	}
-	return "", fmt.Errorf("node %s not found", name)
+	return "", fmt.Errorf("node %s, ip not found", name)
 }

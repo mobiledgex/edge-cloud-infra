@@ -277,7 +277,7 @@ func AddRouterSubnet(mf *Manifest, routerName, subnetName string) error {
 //RemoveRouterSubnet is useful to remove the router from the subnet before deletion. Otherwise subnet cannot
 //  be deleted.
 func RemoveRouterSubnet(mf *Manifest, routerName, subnetName string) error {
-	log.DebugLog(log.DebugLevelMexos, "removing router from subnet", "router", routerName, "subnet", subnetName)
+	log.DebugLog(log.DebugLevelMexos, "removing subnet from router", "router", routerName, "subnet", subnetName)
 	out, err := sh.Command("openstack", "router", "remove", "subnet", routerName, subnetName).Output()
 	if err != nil {
 		err = fmt.Errorf("can't remove router %s from subnet %s, %s, %v", routerName, subnetName, out, err)

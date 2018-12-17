@@ -3,7 +3,7 @@
 	"env": [
 	    { "name": "MEX_CF_KEY", "value": "60632181cb3b7419304ffa820b2d99e292092"},
 	    { "name": "MEX_CF_USER", "value": "mobiledgex.ops@mobiledgex.com"},
-	    { "name": "MEX_DOCKER_REG_PASS", "value": "sandhill"},
+	    { "name": "MEX_DOCKER_REG_PASS", "value": "sandhill"}
 	]
     }
 }

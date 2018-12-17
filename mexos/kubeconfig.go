@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"io/ioutil"
 	"os"
-	"strings"
 
 	"github.com/ghodss/yaml"
 	"github.com/mobiledgex/edge-cloud-infra/k8s-prov/azure"
@@ -12,11 +11,22 @@ import (
 	"github.com/mobiledgex/edge-cloud/log"
 )
 
-func GetKconf(mf *Manifest, createIfMissing bool) (string, error) {
-	name := MEXDir() + "/" + mf.Values.Cluster.Name + ".kubeconfig"
-	log.DebugLog(log.DebugLevelMexos, "get kubeconfig name", "name", name)
+func GetLocalKconfName(mf *Manifest) string {
+	return fmt.Sprintf("%s/%s", MEXDir(), GetKconfName(mf))
+}
 
-	if createIfMissing {
+func GetKconfName(mf *Manifest) string {
+	return fmt.Sprintf("%s.%s.%s.kubeconfig",
+		mf.Values.Cluster.Name,
+		mf.Values.Operator.Name,
+		mf.Values.Network.DNSZone)
+}
+
+func GetKconf(mf *Manifest, createIfMissing bool) (string, error) {
+	name := GetLocalKconfName(mf)
+	log.DebugLog(log.DebugLevelMexos, "get kubeconfig name", "name", name)
+	if createIfMissing { // XXX
+		log.DebugLog(log.DebugLevelMexos, "warning, creating missing kubeconfig", "name", name)
 		if _, err := os.Stat(name); os.IsNotExist(err) {
 			// if kubeconfig does not exist, optionally create it.  It is possible it was
 			// created on a different container or we had a restart of the container
@@ -36,6 +46,8 @@ func GetKconf(mf *Manifest, createIfMissing bool) (string, error) {
 				if err = copyFile(defaultKubeconfig(), name); err != nil {
 					return "", fmt.Errorf("can't copy %s, %v", defaultKubeconfig(), err)
 				}
+			default:
+				log.DebugLog(log.DebugLevelMexos, "warning, not creating missing kubeconfig for operator", "operator", mf.Metadata.Operator)
 			}
 		}
 	}
@@ -99,7 +111,9 @@ func CopyKubeConfig(mf *Manifest, rootLB *MEXRootLB, name string) error {
 	if err != nil {
 		return fmt.Errorf("can't get ssh client for copying kubeconfig, %v", err)
 	}
-	kconfname := fmt.Sprintf("%s.kubeconfig", name[strings.LastIndex(name, "-")+1:])
+	//kconfname := fmt.Sprintf("%s.kubeconfig", name[strings.LastIndex(name, "-")+1:])
+	kconfname := GetKconfName(mf)
+	log.DebugLog(log.DebugLevelMexos, "attempt to get kubeconfig from k8s master", "name", name, "ipaddr", ipaddr, "dest", kconfname)
 	cmd := fmt.Sprintf("scp -o %s -o %s -i id_rsa_mex root@%s:.kube/config %s", sshOpts[0], sshOpts[1], ipaddr, kconfname)
 	out, err := client.Output(cmd)
 	if err != nil {
@@ -131,25 +145,24 @@ func ProcessKubeconfig(mf *Manifest, rootLB *MEXRootLB, name string, port int, d
 	if len(kc.Clusters) < 1 {
 		return fmt.Errorf("insufficient clusters info in kubeconfig %s", name)
 	}
-	//log.Debugln("kubeconfig", kc)
-	//TODO: the kconfname should include more details, location, tags, to be distinct from other clusters in other regions
-	kconfname := fmt.Sprintf("%s.kubeconfig", name[strings.LastIndex(name, "-")+1:])
-	fullpath := MEXDir() + "/" + kconfname
-	err = ioutil.WriteFile(fullpath, dat, 0666)
+	//kconfname := fmt.Sprintf("%s.kubeconfig", name[strings.LastIndex(name, "-")+1:])
+	kconfname := GetLocalKconfName(mf)
+	log.DebugLog(log.DebugLevelMexos, "writing local kubeconfig file", "name", kconfname)
+	err = ioutil.WriteFile(kconfname, dat, 0666)
 	if err != nil {
-		return fmt.Errorf("can't write kubeconfig %s content,%v", name, err)
+		return fmt.Errorf("can't write kubeconfig name %s filename %s,%v", name, kconfname, err)
 	}
-	log.DebugLog(log.DebugLevelMexos, "wrote kubeconfig", "file", fullpath)
+	log.DebugLog(log.DebugLevelMexos, "wrote kubeconfig", "file", kconfname)
 	kc.Clusters[0].Cluster.Server = fmt.Sprintf("http://%s:%d", rootLB.Name, port)
 	dat, err = yaml.Marshal(kc)
 	if err != nil {
 		return fmt.Errorf("can't marshal kubeconfig proxy edit %s, %v", name, err)
 	}
-	fullpath = fullpath + "-proxy"
-	err = ioutil.WriteFile(fullpath, dat, 0666)
+	kconfname = kconfname + "-proxy"
+	err = ioutil.WriteFile(kconfname, dat, 0666)
 	if err != nil {
-		return fmt.Errorf("can't write kubeconfig proxy %s, %v", fullpath, err)
+		return fmt.Errorf("can't write kubeconfig proxy %s, %v", kconfname, err)
 	}
-	log.DebugLog(log.DebugLevelMexos, "kubeconfig-proxy file saved", "file", fullpath)
+	log.DebugLog(log.DebugLevelMexos, "kubeconfig-proxy file saved", "file", kconfname)
 	return nil
 }

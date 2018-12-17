@@ -208,6 +208,9 @@ func mexDeleteClusterKubernetes(mf *Manifest) error {
 	serverDeleted := false
 	for _, s := range srvs {
 		if strings.Contains(s.Name, name) {
+			if !strings.HasPrefix(s.Name, "mex-k8s-") {
+				continue
+			}
 			if strings.Contains(s.Name, "mex-k8s-master") {
 				err = LBRemoveRoute(mf, rootLB.Name, mf.Values.Network.External, s.Name)
 				if err != nil {
@@ -229,16 +232,16 @@ func mexDeleteClusterKubernetes(mf *Manifest) error {
 				log.DebugLog(log.DebugLevelMexos, "forced to continue, error while deleting server", "server", s.Name, "error", err)
 			}
 			serverDeleted = true
-			kconfname := fmt.Sprintf("%s.kubeconfig", s.Name[strings.LastIndex(s.Name, "-")+1:])
-			fullpath := MEXDir() + "/" + kconfname
-			rerr := os.Remove(fullpath)
+			//kconfname := fmt.Sprintf("%s.kubeconfig", s.Name[strings.LastIndex(s.Name, "-")+1:])
+			kconfname := GetLocalKconfName(mf)
+			rerr := os.Remove(kconfname)
 			if rerr != nil {
-				log.DebugLog(log.DebugLevelMexos, "error can't remove file", "name", fullpath, "error", rerr)
+				log.DebugLog(log.DebugLevelMexos, "error can't remove file", "name", kconfname, "error", rerr)
 			}
-			fullpath += "-proxy"
-			rerr = os.Remove(fullpath)
+			kconfname += "-proxy"
+			rerr = os.Remove(kconfname)
 			if rerr != nil {
-				log.DebugLog(log.DebugLevelMexos, "error can't remove file", "name", fullpath, "error", rerr)
+				log.DebugLog(log.DebugLevelMexos, "error can't remove file", "name", kconfname, "error", rerr)
 			}
 		}
 	}
@@ -252,10 +255,8 @@ func mexDeleteClusterKubernetes(mf *Manifest) error {
 		return err
 	}
 	rn := GetMEXExternalRouter(mf) //XXX for now
-	log.DebugLog(log.DebugLevelMexos, "removing router from subnet", "routername", rn, "subnets", sns)
 	for _, s := range sns {
 		if strings.Contains(s.Name, name) {
-			log.DebugLog(log.DebugLevelMexos, "removing router from subnet", "router", rn, "subnet", s.Name)
 			rerr := RemoveRouterSubnet(mf, rn, s.Name)
 			if rerr != nil {
 				log.DebugLog(log.DebugLevelMexos, "not fatal, continue, can't remove router from subnet", "error", rerr)
@@ -263,8 +264,7 @@ func mexDeleteClusterKubernetes(mf *Manifest) error {
 			}
 			err = DeleteSubnet(mf, s.Name)
 			if err != nil {
-				log.DebugLog(log.DebugLevelMexos, "error while deleting subnet", "error", err)
-				return err
+				log.DebugLog(log.DebugLevelMexos, "warning, error while deleting subnet", "error", err)
 			}
 			break
 		}
@@ -343,17 +343,11 @@ func IsClusterReady(mf *Manifest, rootLB *MEXRootLB) (bool, error) {
 		return false, nil
 	}
 	log.DebugLog(log.DebugLevelMexos, "cluster nodes", "numnodes", cf.NumNodes, "nummasters", cf.NumMasterNodes)
-	kcpath := MEXDir() + "/" + name[strings.LastIndex(name, "-")+1:] + ".kubeconfig"
-	//XXX TODO check for existing file and collisions and figure out how to handle it
-
-	//if _, err := os.Stat(kcpath); err == nil {
-	//	log.DebugLog(log.DebugLevelMexos, "kubeconfig file exists, will not overwrite", "name", kcpath)
-	//	return true, nil
-	//}
+	//kcpath := MEXDir() + "/" + name[strings.LastIndex(name, "-")+1:] + ".kubeconfig"
 	if err := CopyKubeConfig(mf, rootLB, name); err != nil {
 		return false, fmt.Errorf("kubeconfig copy failed, %v", err)
 	}
-	log.DebugLog(log.DebugLevelMexos, "cluster ready.", "KUBECONFIG", kcpath)
+	log.DebugLog(log.DebugLevelMexos, "cluster ready.")
 	return true, nil
 }
 

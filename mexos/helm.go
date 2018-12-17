@@ -15,7 +15,7 @@ func DeleteHelmAppManifest(mf *Manifest) error {
 	if rootLB == nil {
 		return fmt.Errorf("cannot delete helm app, rootLB is null")
 	}
-	if err = validateCommon(mf); err != nil {
+	if err = ValidateCommon(mf); err != nil {
 		return err
 	}
 	kp, err := ValidateKubernetesParameters(mf, rootLB, mf.Spec.Key)
@@ -49,7 +49,7 @@ func CreateHelmAppManifest(mf *Manifest) error {
 	if rootLB == nil {
 		return fmt.Errorf("cannot create helm app, rootLB is null")
 	}
-	if err = validateCommon(mf); err != nil {
+	if err = ValidateCommon(mf); err != nil {
 		return err
 	}
 	kp, err := ValidateKubernetesParameters(mf, rootLB, mf.Spec.Key)

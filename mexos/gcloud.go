@@ -29,6 +29,7 @@ func gcloudCreateGKE(mf *Manifest) error {
 	if err != nil {
 		return fmt.Errorf("cannot get kconf, %v, %v, %v", mf, kconf, err)
 	}
+	log.DebugLog(log.DebugLevelMexos, "warning, using default config") //XXX
 	if err = copyFile(defaultKubeconfig(), kconf); err != nil {
 		return fmt.Errorf("can't copy %s, %v", defaultKubeconfig(), err)
 	}

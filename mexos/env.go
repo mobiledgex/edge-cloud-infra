@@ -19,15 +19,6 @@ func MEXCheckEnvVars(mf *Manifest) error {
 			return fmt.Errorf("missing env var %s", evar)
 		}
 	}
-	//original base VM image uses id_rsa_mobiledgex key
-	if mexEnv(mf, "MEX_OS_IMAGE") == "mobiledgex-16.04-2" && mexEnv(mf, "MEX_SSH_KEY") != "id_rsa_mobiledgex" {
-		return fmt.Errorf("os image %s cannot use key %s", mexEnv(mf, "MEX_OS_IMAGE"), mexEnv(mf, "MEX_SSH_KEY"))
-	}
-	//packer VM image uses id_rsa_mex key
-	if mexEnv(mf, "MEX_OS_IMAGE") == "mobiledgex" && mexEnv(mf, "MEX_SSH_KEY") != "id_rsa_mex" {
-		return fmt.Errorf("os image %s cannot use key %s", mexEnv(mf, "MEX_OS_IMAGE"), mexEnv(mf, "MEX_SSH_KEY"))
-	}
-	//TODO need to allow users to save the environment under platform name inside .mobiledgex or Vault
 	return nil
 }
 

@@ -20,12 +20,12 @@ config:
 spec:
   flags: none
   key: {{.Cluster.Name}}
-  rootlb: {{.RootLB}}
+  rootlb: {{.Cluster.Name}}.{{.Operator.Name}}.{{.Network.DNSZone}}
   image: {{.Application.Image}}
   imagetype: {{.Application.ImageType}}
   proxypath: {{.Application.ProxyPath}}
   flavor: {{.Cluster.Flavor}}
-  uri: https://{{.Application.Name}}.{{.RootLB}}
+  uri: https://{{.Application.Name}}.{{.Cluster.Name}}.{{.Operator.Name}}.{{.Network.DNSZone}}
   ipaccess: {{.Network.IPAccess}}
   kubemanifesttemplate: 
   ports:

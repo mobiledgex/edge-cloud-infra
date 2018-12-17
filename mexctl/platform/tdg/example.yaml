@@ -4,9 +4,9 @@ kind: platform
 resource: {{.Resource.Group}}
 metadata:
   kind: {{.Operator.Kind}}
-  name: {{.RootLB}}
-  tags: {{.RootLB}}-tag
-  tenant: {{.RootLB}}-tenant
+  name: {{.Cluster.Name}}.{{.Operator.Name}}.{{.Network.DNSZone}}
+  tags: {{.Cluster.Name}}.{{.Operator.Name}}.{{.Network.DNSZone}}-tag
+  tenant: {{.Cluster.Name}}.{{.Operator.Name}}.{{.Network.DNSZone}}-tenant
   region: {{.Cluster.Region}}
   zone: {{.Cluster.Zone}}
   location: {{.Cluster.Location}}
@@ -16,7 +16,7 @@ metadata:
 spec:
   flags: force
   flavor: x1.medium
-  rootlb: {{.RootLB}}
+  rootlb: {{.Cluster.Name}}.{{.Operator.Name}}.{{.Network.DNSZone}}
   key: {{.Name}}
   dockerregistry: {{.Registry.Docker}}
   externalnetwork: {{.Network.External}}

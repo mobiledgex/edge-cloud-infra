@@ -31,7 +31,7 @@ func addSecurityRules(rootLB *MEXRootLB, mf *Manifest, kp *kubeParam) error {
 			go func(addr string, port int, proto string) {
 				err := AddSecurityRuleCIDR(mf, addr, strings.ToLower(proto), sr, port)
 				if err != nil {
-					log.DebugLog(log.DebugLevelMexos, "warning, error while adding security rule", "cidr", sec.addr, "securityrule", sr, "port", sec.port)
+					log.DebugLog(log.DebugLevelMexos, "warning, error while adding security rule", "cidr", addr, "securityrule", sr, "port", port, "proto", proto)
 				}
 			}(sec.addr, sec.port, port.Proto)
 		}

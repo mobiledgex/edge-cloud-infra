@@ -1,0 +1,9 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: mexexample-tcp-service
+  labels:
+    run: bob-app
+spec:
+  selector:
+    run: bob-app

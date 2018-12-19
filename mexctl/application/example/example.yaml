@@ -13,8 +13,9 @@ config:
   kind: config
   source:
   detail:
-    resources:
-    template:
+    base: {{.Application.Base}}
+    resources: 
+    template: {{.Application.Template}}
     deployment: {{.Application.Deployment}}
     manifest: {{.Application.Manifest}}
 spec:
@@ -27,7 +28,6 @@ spec:
   flavor: {{.Cluster.Flavor}}
   uri: https://{{.Application.Name}}.{{.Cluster.Name}}.{{.Operator.Name}}.{{.Network.DNSZone}}
   ipaccess: {{.Network.IPAccess}}
-  kubemanifesttemplate: 
   ports:
   - name: lprotohttp1
     mexproto: LProtoHTTP

@@ -1,0 +1,13 @@
+apiVersion: v1
+name: testcloudlet
+metadata:
+  name: example
+kind: values
+resource: hamburg
+values:
+  name: testcloudlet
+  cluster:
+    name: testcloudlet
+    location: eu-central
+    region: eu-central-2
+    zone: eu-central-2c

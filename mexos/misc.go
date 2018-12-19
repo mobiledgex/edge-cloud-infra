@@ -4,6 +4,8 @@ import (
 	"fmt"
 	"io/ioutil"
 	"os"
+
+	"github.com/mobiledgex/edge-cloud/util"
 )
 
 func PrivateSSHKey() string {
@@ -44,4 +46,8 @@ func writeKubeManifest(kubeManifest string, filename string) error {
 	outFile.Sync()
 	outFile.Close()
 	return nil
+}
+
+func NormalizeName(name string) string {
+	return util.K8SSanitize(name) // XXX
 }

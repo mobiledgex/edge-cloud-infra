@@ -1,19 +1,21 @@
 apiVersion: v1
-name: testcloudlet-stack1
+name: example
+metadata:
+  name: example
 kind: values
 resource: hamburg
 values:
-  name: testcloudlet-val1
+  name: example
   kind: static
   base: example
   operator:
     name: tdg
     kind: openstack
   cluster:
-    name: testcloudlet
+    name: example
     flavor: x1.medium
     kind: kubernetes
-    location: testcloudlet-location-hamburg
+    location: eu-central
     region: eu-central-1
     zone: eu-central-1c
     osimage: mobiledgex
@@ -39,7 +41,10 @@ values:
     name: testapp
     kind: kubernetes
     deployment: kubernetes
-    manifest: http://registry.mobiledgex.net:8080/mobiledgex/testapp.yaml
+    base: example
+    overlay: testapp
+    manifest:
+    template:
     image: registry.mobiledgex.net:5000/mobiledgex/mexexample
     imagetype: ImageTypeDocker
     proxypath: testapp

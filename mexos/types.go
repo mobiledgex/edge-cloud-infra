@@ -69,26 +69,25 @@ type PortDetail struct {
 
 //SpecDetail holds spec block
 type SpecDetail struct {
-	Flavor               string           `json:"flavor"` // appInst flavor?
-	FlavorDetail         FlavorDetailInfo `json:"flavordetail"`
-	Flags                string           `json:"flags"`
-	RootLB               string           `json:"rootlb"`
-	Image                string           `json:"image"`
-	ImageFlavor          string           `json:"imageflavor"`
-	ImageType            string           `json:"imagetype"`
-	DockerRegistry       string           `json:"dockerregistry"`
-	ExternalNetwork      string           `json:"externalnetwork"`
-	ExternalRouter       string           `json:"externalrouter"`
-	Options              string           `json:"options"`
-	ProxyPath            string           `json:"proxypath"`
-	Ports                []PortDetail     `json:"ports"`
-	Command              []string         `json:"command"`
-	IPAccess             string           `json:"ipaccess"`
-	URI                  string           `json:"uri"`
-	Key                  string           `json:"key"`
-	KubeManifestTemplate string           `json:"kubemanifesttemplate"`
-	NetworkScheme        string           `json:"networkscheme"`
-	Agent                AgentDetail      `json:"agent"`
+	Flavor          string           `json:"flavor"` // appInst flavor?
+	FlavorDetail    FlavorDetailInfo `json:"flavordetail"`
+	Flags           string           `json:"flags"`
+	RootLB          string           `json:"rootlb"`
+	Image           string           `json:"image"`
+	ImageFlavor     string           `json:"imageflavor"`
+	ImageType       string           `json:"imagetype"`
+	DockerRegistry  string           `json:"dockerregistry"`
+	ExternalNetwork string           `json:"externalnetwork"`
+	ExternalRouter  string           `json:"externalrouter"`
+	Options         string           `json:"options"`
+	ProxyPath       string           `json:"proxypath"`
+	Ports           []PortDetail     `json:"ports"`
+	Command         []string         `json:"command"`
+	IPAccess        string           `json:"ipaccess"`
+	URI             string           `json:"uri"`
+	Key             string           `json:"key"`
+	NetworkScheme   string           `json:"networkscheme"`
+	Agent           AgentDetail      `json:"agent"`
 }
 
 type AppInstConfigDetail struct {
@@ -96,6 +95,7 @@ type AppInstConfigDetail struct {
 	Resources  string `json:"resources"`
 	Template   string `json:"template"`
 	Manifest   string `json:"manifest"`
+	Base       string `json:"base"`
 }
 
 type AppInstConfig struct {
@@ -118,6 +118,9 @@ type AppValue struct {
 	Image      string `json:"image"`
 	ImageType  string `json:"imagetype"`
 	ProxyPath  string `json:"proxypath"`
+	Template   string `json:"template"`
+	Base       string `json:"base"`
+	Overlay    string `json:"overlay"`
 }
 
 type ClusterValue struct {
@@ -165,8 +168,13 @@ type ResourceValue struct {
 	Group string `json:"group"`
 }
 
+type MetadataValue struct {
+	Name string `json:"name"`
+}
+
 type ValueDetail struct {
 	Name        string           `json:"name"`
+	Metadata    MetadataValue    `json:"metadata"`
 	Kind        string           `json:"kind"`
 	Base        string           `json:"base"`
 	Application AppValue         `json:"application"`

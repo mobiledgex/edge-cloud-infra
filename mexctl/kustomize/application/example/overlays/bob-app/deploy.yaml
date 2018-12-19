@@ -1,0 +1,8 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: mexexample-deployment
+spec:
+  selector:
+    matchLables:
+      run: bob-app

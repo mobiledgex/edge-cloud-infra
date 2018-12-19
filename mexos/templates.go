@@ -20,11 +20,15 @@ type templateFill struct {
 	StorageSpec, NetworkScheme, MasterFlavor, Topology                   string
 	NodeFlavor, Operator, Key, Image, Options                            string
 	ImageType, AppURI, ProxyPath, AgentImage                             string
-	ExternalNetwork, Project, AppTemplate                                string
+	ExternalNetwork, Project                                             string
 	ExternalRouter, Flags, IPAccess                                      string
 	NumMasters, NumNodes                                                 int
-	ConfigDetailDeployment, ConfigDetailResources, ConfigDetailManifest  string
+	Config                                                               templateConfig
 	Command                                                              []string
+}
+
+type templateConfig struct {
+	Base, Overlay, Deployment, Resources, Manifest, Tempalte string
 }
 
 var yamlMEXCluster = `apiVersion: v1
@@ -115,8 +119,12 @@ config:
   kind:
   source:
   detail:
-    resources: {{.ConfigDetailResources}}
-    deployment: {{.ConfigDetailDeployment}}
+    resources: {{.Config.Resources}}
+    deployment: {{.Config.Deployment}}
+    manifest: {{.Config.Manifest}}
+    template: {{.Config.Template}}
+    base: {{.Config.Base}}
+    overlay: {{.Config.Overlay}}
 spec:
   flags: {{.Flags}}
   key: {{.Key}}
@@ -129,7 +137,6 @@ spec:
   uri: {{.AppURI}}
   ipaccess: {{.IPAccess}}
   networkscheme: {{.NetworkScheme}}
-  kubemanifesttemplate: {{.AppTemplate}}
   command:
 {{- range .Command}}
   - {{.}}
@@ -153,12 +160,12 @@ func fillPlatformTemplateCloudletKey(rootLB *MEXRootLB, cloudletKeyStr string) (
 
 	data := templateFill{
 		ResourceKind:    "platform",
-		Resource:        util.K8SSanitize(clk.OperatorKey.Name),
+		Resource:        util.NormalizeName(clk.OperatorKey.Name),
 		Name:            clk.Name,
 		Tags:            clk.Name + "-tag",
-		Key:             clk.Name + "-" + util.K8SSanitize(clk.OperatorKey.Name),
+		Key:             clk.Name + "-" + util.NormalizeName(clk.OperatorKey.Name),
 		Flavor:          "x1.medium",
-		Operator:        util.K8SSanitize(clk.OperatorKey.Name),
+		Operator:        util.NormalizeName(clk.OperatorKey.Name),
 		Location:        "bonn",
 		Region:          "eu-central-1",
 		Zone:            "eu-central-1c",
@@ -179,7 +186,6 @@ func fillPlatformTemplateCloudletKey(rootLB *MEXRootLB, cloudletKeyStr string) (
 }
 
 func fillAppTemplate(rootLB *MEXRootLB, appInst *edgeproto.AppInst, app *edgeproto.App, clusterInst *edgeproto.ClusterInst) (*Manifest, error) {
-	var data templateFill
 	var err error
 	var mf *Manifest
 	log.DebugLog(log.DebugLevelMexos, "fill app template", "appinst", appInst, "clusterInst", clusterInst)
@@ -217,112 +223,47 @@ func fillAppTemplate(rootLB *MEXRootLB, appInst *edgeproto.AppInst, app *edgepro
 		return nil, fmt.Errorf("deployment is not valid for image type")
 	}
 	vp := &rootLB.PlatConf.Values
+	data := templateFill{
+		ResourceKind:  "application",
+		Resource:      util.NormalizeName(appInst.Key.AppKey.Name),
+		Kind:          vp.Application.Kind, //"kubernetes",
+		Name:          util.NormalizeName(appInst.Key.AppKey.Name),
+		Tags:          util.NormalizeName(appInst.Key.AppKey.Name),
+		Key:           clusterInst.Key.ClusterKey.Name,
+		Tenant:        util.NormalizeName(appInst.Key.AppKey.Name),
+		DNSZone:       vp.Network.DNSZone, // "mobiledgex.net",
+		Operator:      util.NormalizeName(clusterInst.Key.CloudletKey.OperatorKey.Name),
+		RootLB:        rootLB.Name,
+		Image:         app.ImagePath,
+		ImageType:     imageType,
+		ImageFlavor:   appInst.Flavor.Name,
+		ProxyPath:     util.NormalizeName(appInst.Key.AppKey.Name),
+		AppURI:        appInst.Uri,
+		IPAccess:      ipAccess,
+		NetworkScheme: vp.Network.Scheme, //XXX "external-ip," + GetMEXExternalNetwork(rootLB.PlatConf),
+		Config: templateConfig{
+			Deployment: app.Deployment, //vp.Application.Deployment
+			Resources:  config.Resources,
+			Manifest:   app.DeploymentManifest, //vp.Application.Manifest
+			Template:   vp.Application.Template,
+			Base:       vp.Application.Base,
+			Overlay:    vp.Application.Overlay,
+		},
+		Command: strings.Split(app.Command, " "),
+	}
+	mf, err = templateUnmarshal(&data, yamlMEXApp)
+	if err != nil {
+		return nil, err
+	}
 	switch appDeploymentType {
 	case cloudcommon.AppDeploymentTypeKubernetes:
-		data = templateFill{
-			ResourceKind:           "application",
-			Resource:               util.K8SSanitize(appInst.Key.AppKey.Name),
-			Kind:                   vp.Application.Kind, //"kubernetes",
-			Name:                   util.K8SSanitize(appInst.Key.AppKey.Name),
-			Tags:                   util.K8SSanitize(appInst.Key.AppKey.Name) + "-kubernetes-tag",
-			Key:                    clusterInst.Key.ClusterKey.Name,
-			Tenant:                 util.K8SSanitize(appInst.Key.AppKey.Name) + "-tenant",
-			DNSZone:                vp.Network.DNSZone, // "mobiledgex.net",
-			Operator:               util.K8SSanitize(clusterInst.Key.CloudletKey.OperatorKey.Name),
-			RootLB:                 rootLB.Name,
-			Image:                  app.ImagePath,
-			ImageType:              imageType,
-			ImageFlavor:            appInst.Flavor.Name,
-			ProxyPath:              util.K8SSanitize(appInst.Key.AppKey.Name),
-			AppURI:                 appInst.Uri,
-			IPAccess:               ipAccess,
-			ConfigDetailDeployment: app.Deployment,
-			ConfigDetailResources:  config.Resources,
-			Command:                strings.Split(app.Command, " "),
-		}
-		mf, err = templateUnmarshal(&data, yamlMEXApp)
-		if err != nil {
-			return nil, err
-		}
 	case cloudcommon.AppDeploymentTypeDocker:
-		data = templateFill{
-			ResourceKind:           "application",
-			Resource:               util.K8SSanitize(appInst.Key.AppKey.Name),
-			Kind:                   vp.Application.Kind, //"docker"
-			Name:                   util.K8SSanitize(appInst.Key.AppKey.Name),
-			Tags:                   util.K8SSanitize(appInst.Key.AppKey.Name) + "-docker-tag",
-			Key:                    clusterInst.Key.ClusterKey.Name,
-			Tenant:                 util.K8SSanitize(appInst.Key.AppKey.Name) + "-tenant",
-			DNSZone:                vp.Network.DNSZone, //"mobiledgex.net",
-			Operator:               util.K8SSanitize(clusterInst.Key.CloudletKey.OperatorKey.Name),
-			RootLB:                 rootLB.Name,
-			Image:                  app.ImagePath,
-			ImageType:              imageType,
-			ImageFlavor:            appInst.Flavor.Name,
-			ProxyPath:              util.K8SSanitize(appInst.Key.AppKey.Name),
-			AppURI:                 appInst.Uri,
-			IPAccess:               ipAccess,
-			ConfigDetailDeployment: app.Deployment,
-			ConfigDetailResources:  config.Resources,
-			Command:                strings.Split(app.Command, " "),
-		}
-		mf, err = templateUnmarshal(&data, yamlMEXApp)
-		if err != nil {
-			return nil, err
-		}
 	case cloudcommon.AppDeploymentTypeKVM:
-		data = templateFill{
-			ResourceKind:           "application",
-			Resource:               appInst.Key.AppKey.Name,
-			Kind:                   vp.Application.Kind, //"kvm",
-			Name:                   appInst.Key.AppKey.Name,
-			Tags:                   appInst.Key.AppKey.Name + "-qcow-tag",
-			Key:                    clusterInst.Key.ClusterKey.Name,
-			Tenant:                 appInst.Key.AppKey.Name + "-tenant",
-			Operator:               clusterInst.Key.CloudletKey.OperatorKey.Name,
-			RootLB:                 rootLB.Name,
-			Image:                  app.ImagePath,
-			ImageFlavor:            appInst.Flavor.Name,
-			DNSZone:                vp.Network.DNSZone, //"mobiledgex.net",
-			ImageType:              imageType,
-			ProxyPath:              appInst.Key.AppKey.Name,
-			AppURI:                 appInst.Uri,
-			NetworkScheme:          vp.Network.Scheme, //XXX "external-ip," + GetMEXExternalNetwork(rootLB.PlatConf),
-			ConfigDetailDeployment: app.Deployment,
-			ConfigDetailResources:  config.Resources,
-		}
-		mf, err = templateUnmarshal(&data, yamlMEXApp)
-		if err != nil {
-			return nil, err
-		}
 	case cloudcommon.AppDeploymentTypeHelm:
-		data = templateFill{
-			ResourceKind:           "application",
-			Resource:               appInst.Key.AppKey.Name,
-			Kind:                   vp.Application.Kind, //"helm",
-			Name:                   appInst.Key.AppKey.Name,
-			Tags:                   appInst.Key.AppKey.Name + "-helm-tag",
-			Key:                    clusterInst.Key.ClusterKey.Name,
-			Tenant:                 appInst.Key.AppKey.Name + "-tenant",
-			Operator:               clusterInst.Key.CloudletKey.OperatorKey.Name,
-			RootLB:                 rootLB.Name,
-			Image:                  app.ImagePath,
-			ImageFlavor:            appInst.Flavor.Name,
-			DNSZone:                vp.Network.DNSZone, //"mobiledgex.net",
-			ImageType:              imageType,
-			ProxyPath:              appInst.Key.AppKey.Name,
-			AppURI:                 appInst.Uri,
-			ConfigDetailDeployment: app.Deployment,
-			ConfigDetailResources:  config.Resources,
-		}
-		mf, err = templateUnmarshal(&data, yamlMEXApp)
-		if err != nil {
-			return nil, err
-		}
 	default:
 		return nil, fmt.Errorf("unknown image type %s", imageType)
 	}
-	mf.Config.ConfigDetail.Manifest = app.DeploymentManifest
+	//mf.Config.ConfigDetail.Manifest = app.DeploymentManifest
 	log.DebugLog(log.DebugLevelMexos, "filled app manifest")
 	err = addPorts(mf, appInst)
 	if err != nil {

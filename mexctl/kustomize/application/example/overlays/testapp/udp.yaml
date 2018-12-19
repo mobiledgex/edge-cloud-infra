@@ -1,0 +1,9 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: mexexample-udp-service
+  labels:
+    run: testapp
+spec:
+  selector:
+    run: testapp

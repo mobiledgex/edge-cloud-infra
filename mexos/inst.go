@@ -15,6 +15,7 @@ func MEXClusterCreateClustInst(rootLB *MEXRootLB, clusterInst *edgeproto.Cluster
 	if err != nil {
 		return err
 	}
+	fixValuesInst(mf, rootLB)
 	return MEXClusterCreateManifest(mf)
 }
 
@@ -24,6 +25,7 @@ func MEXClusterRemoveClustInst(rootLb *MEXRootLB, clusterInst *edgeproto.Cluster
 	if err != nil {
 		return err
 	}
+	fixValuesInst(mf, rootLB)
 	return MEXClusterRemoveManifest(mf)
 }
 
@@ -43,7 +45,7 @@ func FillClusterTemplateClustInst(rootLB *MEXRootLB, clusterInst *edgeproto.Clus
 		Name:          clusterInst.Key.ClusterKey.Name,
 		Tags:          clusterInst.Key.ClusterKey.Name + "-tag",
 		Tenant:        clusterInst.Key.ClusterKey.Name + "-tenant",
-		Operator:      util.K8SSanitize(clusterInst.Key.CloudletKey.OperatorKey.Name),
+		Operator:      util.NormalizeName(clusterInst.Key.CloudletKey.OperatorKey.Name),
 		Key:           clusterInst.Key.ClusterKey.Name,
 		Kind:          vp.Cluster.Kind, //"kubernetes",
 		ResourceGroup: clusterInst.Key.CloudletKey.Name + "_" + clusterInst.Key.ClusterKey.Name,
@@ -100,7 +102,7 @@ func FillClusterTemplateClustInst(rootLB *MEXRootLB, clusterInst *edgeproto.Clus
 	if err != nil {
 		return nil, err
 	}
-	mf.Values = rootLB.PlatConf.Values
+	fixValuesInst(mf, rootLB)
 	return mf, nil
 }
 
@@ -131,7 +133,7 @@ func MEXAddFlavorClusterInst(rootLB *MEXRootLB, flavor *edgeproto.ClusterFlavor)
 	if err != nil {
 		return err
 	}
-	mf.Values = rootLB.PlatConf.Values
+	fixValuesInst(mf, rootLB)
 	return MEXAddFlavor(mf)
 }
 
@@ -143,7 +145,7 @@ func MEXAppCreateAppInst(rootLB *MEXRootLB, clusterInst *edgeproto.ClusterInst, 
 		log.DebugLog(log.DebugLevelMexos, "fillAppTemplate error", "error", err)
 		return err
 	}
-	mf.Values = rootLB.PlatConf.Values
+	fixValuesInst(mf, rootLB)
 	return MEXAppCreateAppManifest(mf)
 }
 
@@ -155,6 +157,16 @@ func MEXAppDeleteAppInst(rootLB *MEXRootLB, clusterInst *edgeproto.ClusterInst, 
 		log.DebugLog(log.DebugLevelMexos, "fillAppTemplate error", "error", err)
 		return err
 	}
-	mf.Values = rootLB.PlatConf.Values
+	fixValuesInst(mf, rootLB)
 	return MEXAppDeleteAppManifest(mf)
+}
+
+func fixValuesInst(mf *Manifest, rootLB *MEXRootLB) error {
+	if mf.Values.Kind == "" {
+		mf.Values = rootLB.PlatConf.Values
+	}
+	if mf.Values.Kind == "" {
+		log.DebugLog(log.DebugLevelMexos, "warning, missing mf values")
+	}
+	return nil
 }

@@ -4,5 +4,9 @@ metadata:
   name: mexexample-deployment
 spec:
   selector:
-    matchLables:
+    matchLabels:
       run: bob-app
+  template:
+    metadata:
+      labels:
+        run: testapp

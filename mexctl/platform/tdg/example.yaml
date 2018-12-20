@@ -5,8 +5,8 @@ resource: {{.Resource.Group}}
 metadata:
   kind: {{.Operator.Kind}}
   name: {{.Cluster.Name}}.{{.Operator.Name}}.{{.Network.DNSZone}}
-  tags: {{.Cluster.Name}}.{{.Operator.Name}}.{{.Network.DNSZone}}-tag
-  tenant: {{.Cluster.Name}}.{{.Operator.Name}}.{{.Network.DNSZone}}-tenant
+  tags: {{.Cluster.Name}}.{{.Operator.Name}}.{{.Network.DNSZone}}
+  tenant: {{.Cluster.Name}}.{{.Operator.Name}}.{{.Network.DNSZone}}
   region: {{.Cluster.Region}}
   zone: {{.Cluster.Zone}}
   location: {{.Cluster.Location}}

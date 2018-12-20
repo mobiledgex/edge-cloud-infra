@@ -339,7 +339,8 @@ func IsClusterReady(mf *Manifest, rootLB *MEXRootLB) (bool, error) {
 	}
 	log.DebugLog(log.DebugLevelMexos, "kubectl reports nodes", "numnodes", len(gitems.Items))
 	if len(gitems.Items) < (cf.NumNodes + cf.NumMasterNodes) {
-		log.DebugLog(log.DebugLevelMexos, "kubernetes cluster not ready", "log", out)
+		//log.DebugLog(log.DebugLevelMexos, "kubernetes cluster not ready", "log", out)
+		log.DebugLog(log.DebugLevelMexos, "kubernetes cluster not ready", "len items", len(gitems.Items))
 		return false, nil
 	}
 	log.DebugLog(log.DebugLevelMexos, "cluster nodes", "numnodes", cf.NumNodes, "nummasters", cf.NumMasterNodes)

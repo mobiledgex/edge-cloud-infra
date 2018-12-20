@@ -50,13 +50,11 @@ spec:
   replicas: 2
   selector:
     matchLabels:
-      run: mexexample
-    matchLables:
       run: testapp
   template:
     metadata:
       labels:
-        run: mexexample
+        run: testapp
     spec:
       containers:
       - image: registry.mobiledgex.net:5000/mobiledgex/mexexample

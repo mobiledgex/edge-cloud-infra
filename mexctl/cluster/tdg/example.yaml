@@ -4,9 +4,9 @@ kind: cluster
 resource: {{.Resource.Group}}
 metadata:
   name: {{.Cluster.Name}}
-  tags: {{.Cluster.Name}}-tag
+  tags: {{.Cluster.Name}}
   kind: {{.Cluster.Kind}}
-  tenant: {{.Cluster.Name}}-tenant
+  tenant: {{.Cluster.Name}}
   region: {{.Cluster.Region}}
   zone: {{.Cluster.Zone}}
   location: {{.Cluster.Location}}

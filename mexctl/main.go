@@ -54,7 +54,8 @@ func main() {
 	originalUsage = mainflag.Usage
 	mainflag.Usage = printUsage
 	if err = mainflag.Parse(os.Args[1:]); err != nil {
-		log.FatalLog("parse error", "error", err)
+		log.InfoLog("parse error", "error", err)
+		os.Exit(1)
 	}
 	if *help {
 		printUsage()
@@ -87,26 +88,32 @@ func main() {
 	log.DebugLog(log.DebugLevelMexos, "getting mf from stack", "file", *stack)
 	mf := &mexos.Manifest{}
 	if err := mexos.GetVaultEnv(mf, *stack); err != nil {
-		log.FatalLog("cannot get mf", "uri", *stack, "error", err)
+		log.InfoLog("cannot get mf", "uri", *stack, "error", err)
+		os.Exit(1)
 	}
 	kind := args[0]
 	if err := mexos.FillManifest(mf, kind, *base); err != nil {
-		log.FatalLog("cannot fill manifest", "error", err, "kind", kind, "base", *base)
+		log.InfoLog("cannot fill manifest", "error", err, "kind", kind, "base", *base)
+		os.Exit(1)
 	}
 	if err := mexos.CheckManifest(mf); err != nil {
-		log.FatalLog("incorrect manifest", "error", err)
+		log.InfoLog("incorrect manifest", "error", err)
+		os.Exit(1)
 	}
 	if _, err := mexos.NewRootLBManifest(mf); err != nil {
-		log.FatalLog("can't get new rootLB", "error", err)
+		log.InfoLog("can't get new rootLB", "error", err)
+		os.Exit(1)
 	}
 	if err := mexos.MEXInit(mf); err != nil {
-		log.FatalLog("cannot init mex", "error", err)
+		log.InfoLog("cannot init mex", "error", err)
+		os.Exit(1)
 	}
 	ops := args[1:]
 	log.DebugLog(log.DebugLevelMexos, "call", "kind", kind, "ops", ops)
 	err = callOps(mf, kind, ops...)
 	if err != nil {
-		log.FatalLog("ops failure", "kind", kind, "ops", ops, "error", err)
+		log.InfoLog("ops failure", "kind", kind, "ops", ops, "error", err)
+		os.Exit(1)
 	}
 	os.Exit(0)
 }
@@ -124,11 +131,13 @@ func callOps(mf *mexos.Manifest, kind string, ops ...string) error {
 		fmt.Println(string(out))
 		return nil
 	}
-	_, ok := categories[kind]
-	if !ok {
+	if _, ok := categories[kind]; !ok {
 		return fmt.Errorf("invalid category %s", kind)
 	}
 	op := ops[0]
+	if _, ok := categories[kind][op]; !ok {
+		return fmt.Errorf("invalid category op %s", op)
+	}
 	err := categories[kind][op](mf)
 	if err != nil {
 		return err

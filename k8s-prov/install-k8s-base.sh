@@ -22,11 +22,16 @@ if [ $? -ne 0 ]; then
     exit 1
 fi
 curl -s https://packages.cloud.google.com/apt/doc/apt-key.gpg | apt-key add -
-#curl -s https://mobiledgex:sandhill@registry.mobiledgex.net:8000/mobiledgex/google-apt-key.gpg | apt-key add -
+##curl -s https://mobiledgex:sandhill@registry.mobiledgex.net:8000/mobiledgex/google-apt-key.gpg | apt-key add -
 cat <<EOF >/etc/apt/sources.list.d/kubernetes.list
 deb http://apt.kubernetes.io/ kubernetes-xenial main
 EOF
+#apt-get update && apt-get install -y kubelet=1.12.4-00 kubeadm=1.12.4-00 kubectl=1.12.4-00
 apt-get update && apt-get install -y kubelet kubeadm kubectl
+#curl -o /usr/bin/kubectl -s -LO https://storage.googleapis.com/kubernetes-release/release/v1.12.1/bin/linux/amd64/kubectl
+#curl -o /usr/bin/kubeadm -s -LO https://storage.googleapis.com/kubernetes-release/release/v1.12.1/bin/linux/amd64/kubeadm
+#curl -o /usr/bin/kubelet -s -LO https://storage.googleapis.com/kubernetes-release/release/v1.12.1/bin/linux/amd64/kubelet
+chmod a+rx /usr/bin/kubeadm /usr/bin/kubelet /usr/bin/kubectl
 which kubectl
 if [ $? -ne 0 ]; then
     echo kubectl not installed
@@ -37,6 +42,9 @@ if [ $? -ne 0 ]; then
     echo kubeadm not installed
     exit 1
 fi
+#curl -s -LO https://mobiledgex:sandhill@registry.mobiledgex.net:8000/mobiledgex/kubelet.config.yaml
+## v1.12.1  is looking for this config.yaml
+#cp kubelet.config.yaml /var/lib/kubelet/config.yaml
 sed -i "s/cgroup-driver=systemd/cgroup-driver=cgroupfs/g" /etc/systemd/system/kubelet.service.d/10-kubeadm.conf
 systemctl daemon-reload
 systemctl restart kubelet

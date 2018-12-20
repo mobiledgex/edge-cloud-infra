@@ -11,7 +11,6 @@ import (
 	"github.com/mobiledgex/edge-cloud/cloudcommon"
 	"github.com/mobiledgex/edge-cloud/edgeproto"
 	"github.com/mobiledgex/edge-cloud/log"
-	"github.com/mobiledgex/edge-cloud/util"
 )
 
 type templateFill struct {
@@ -28,7 +27,7 @@ type templateFill struct {
 }
 
 type templateConfig struct {
-	Base, Overlay, Deployment, Resources, Manifest, Tempalte string
+	Base, Overlay, Deployment, Resources, Manifest, Template string
 }
 
 var yamlMEXCluster = `apiVersion: v1
@@ -160,12 +159,12 @@ func fillPlatformTemplateCloudletKey(rootLB *MEXRootLB, cloudletKeyStr string) (
 
 	data := templateFill{
 		ResourceKind:    "platform",
-		Resource:        util.NormalizeName(clk.OperatorKey.Name),
+		Resource:        NormalizeName(clk.OperatorKey.Name),
 		Name:            clk.Name,
 		Tags:            clk.Name + "-tag",
-		Key:             clk.Name + "-" + util.NormalizeName(clk.OperatorKey.Name),
+		Key:             clk.Name + "-" + NormalizeName(clk.OperatorKey.Name),
 		Flavor:          "x1.medium",
-		Operator:        util.NormalizeName(clk.OperatorKey.Name),
+		Operator:        NormalizeName(clk.OperatorKey.Name),
 		Location:        "bonn",
 		Region:          "eu-central-1",
 		Zone:            "eu-central-1c",
@@ -225,19 +224,19 @@ func fillAppTemplate(rootLB *MEXRootLB, appInst *edgeproto.AppInst, app *edgepro
 	vp := &rootLB.PlatConf.Values
 	data := templateFill{
 		ResourceKind:  "application",
-		Resource:      util.NormalizeName(appInst.Key.AppKey.Name),
+		Resource:      NormalizeName(appInst.Key.AppKey.Name),
 		Kind:          vp.Application.Kind, //"kubernetes",
-		Name:          util.NormalizeName(appInst.Key.AppKey.Name),
-		Tags:          util.NormalizeName(appInst.Key.AppKey.Name),
+		Name:          NormalizeName(appInst.Key.AppKey.Name),
+		Tags:          NormalizeName(appInst.Key.AppKey.Name),
 		Key:           clusterInst.Key.ClusterKey.Name,
-		Tenant:        util.NormalizeName(appInst.Key.AppKey.Name),
+		Tenant:        NormalizeName(appInst.Key.AppKey.Name),
 		DNSZone:       vp.Network.DNSZone, // "mobiledgex.net",
-		Operator:      util.NormalizeName(clusterInst.Key.CloudletKey.OperatorKey.Name),
+		Operator:      NormalizeName(clusterInst.Key.CloudletKey.OperatorKey.Name),
 		RootLB:        rootLB.Name,
 		Image:         app.ImagePath,
 		ImageType:     imageType,
 		ImageFlavor:   appInst.Flavor.Name,
-		ProxyPath:     util.NormalizeName(appInst.Key.AppKey.Name),
+		ProxyPath:     NormalizeName(appInst.Key.AppKey.Name),
 		AppURI:        appInst.Uri,
 		IPAccess:      ipAccess,
 		NetworkScheme: vp.Network.Scheme, //XXX "external-ip," + GetMEXExternalNetwork(rootLB.PlatConf),

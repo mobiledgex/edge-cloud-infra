@@ -3,6 +3,7 @@ package mexos
 import (
 	"bytes"
 	"fmt"
+	"strings"
 	"text/template"
 
 	"github.com/ghodss/yaml"
@@ -130,10 +131,24 @@ func MEXAppCreateAppManifest(mf *Manifest) error {
 	log.DebugLog(log.DebugLevelMexos, "create app from manifest")
 	appDeploymentType := mf.Config.ConfigDetail.Deployment
 	log.DebugLog(log.DebugLevelMexos, "app deployment", "imageType", mf.Spec.ImageType, "deploymentType", appDeploymentType, "config", mf.Config)
-	kubeManifest, err := cloudcommon.GetDeploymentManifest(mf.Config.ConfigDetail.Manifest)
-	if err != nil {
-		return err
+	var kubeManifest string
+	var err error
+	if mf.Values.Application.Base != "" && mf.Values.Application.Overlay != "" {
+		res, err := GetKustomizeManifest(mf)
+		if err != nil {
+			return err
+		}
+		kubeManifest = string(res)
+	} else {
+		kubeManifest, err = cloudcommon.GetDeploymentManifest(mf.Config.ConfigDetail.Manifest)
+		if err != nil {
+			return err
+		}
 	}
+	if !strings.HasPrefix(kubeManifest, "apiVersion: v1") {
+		return fmt.Errorf("bad apiversion at beginning of kube manifest")
+	}
+	//TODO values.application.template
 	switch mf.Metadata.Operator {
 	case "gcp":
 		fallthrough
@@ -263,4 +278,11 @@ func GetMEXImageName(mf *Manifest) string {
 
 func GetMEXUserData(mf *Manifest) string {
 	return MEXDir() + "/userdata.txt"
+}
+
+func GetKustomizeManifest(mf *Manifest) ([]byte, error) {
+	fn := fmt.Sprintf("scp://%s/files-repo/mobiledgex/kustomize/application/%s/output/%s.yaml",
+		mf.Values.Registry.Name, mf.Values.Application.Base, mf.Values.Application.Overlay)
+	log.DebugLog(log.DebugLevelMexos, "attempt to get kustomize application manifest", "fn", fn)
+	return GetSCPFile(mf, fn)
 }

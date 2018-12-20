@@ -8,13 +8,11 @@ fi
 case "$2" in
     create)
 	for i in platform cluster application; do
-	    #go run main.go -d mexos -stack stack/example-1/output/testcluster.yaml $i create
 	    go run main.go -d mexos -stack $1 $i $2
 	done
     ;;
     remove)
 	for i in application cluster platform ; do
-	    #go run main.go -d mexos -stack stack/example-1/output/testcluster.yaml $i create
 	    go run main.go -d mexos -stack $1 $i $2
 	done	
     ;;

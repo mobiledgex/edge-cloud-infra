@@ -5,7 +5,6 @@ import (
 
 	"github.com/mobiledgex/edge-cloud/edgeproto"
 	"github.com/mobiledgex/edge-cloud/log"
-	"github.com/mobiledgex/edge-cloud/util"
 )
 
 //MEXClusterCreateClustInst calls MEXClusterCreate with a manifest created from the template
@@ -20,8 +19,8 @@ func MEXClusterCreateClustInst(rootLB *MEXRootLB, clusterInst *edgeproto.Cluster
 }
 
 //MEXClusterRemoveClustInst calls MEXClusterRemove with a manifest created from the template
-func MEXClusterRemoveClustInst(rootLb *MEXRootLB, clusterInst *edgeproto.ClusterInst) error {
-	mf, err := FillClusterTemplateClustInst(rootLb, clusterInst)
+func MEXClusterRemoveClustInst(rootLB *MEXRootLB, clusterInst *edgeproto.ClusterInst) error {
+	mf, err := FillClusterTemplateClustInst(rootLB, clusterInst)
 	if err != nil {
 		return err
 	}
@@ -45,7 +44,7 @@ func FillClusterTemplateClustInst(rootLB *MEXRootLB, clusterInst *edgeproto.Clus
 		Name:          clusterInst.Key.ClusterKey.Name,
 		Tags:          clusterInst.Key.ClusterKey.Name + "-tag",
 		Tenant:        clusterInst.Key.ClusterKey.Name + "-tenant",
-		Operator:      util.NormalizeName(clusterInst.Key.CloudletKey.OperatorKey.Name),
+		Operator:      NormalizeName(clusterInst.Key.CloudletKey.OperatorKey.Name),
 		Key:           clusterInst.Key.ClusterKey.Name,
 		Kind:          vp.Cluster.Kind, //"kubernetes",
 		ResourceGroup: clusterInst.Key.CloudletKey.Name + "_" + clusterInst.Key.ClusterKey.Name,

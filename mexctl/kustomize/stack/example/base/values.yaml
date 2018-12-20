@@ -43,8 +43,8 @@ values:
     deployment: kubernetes
     base: example
     overlay: testapp
-    manifest:
-    template:
+    manifest: no-application-manifest
+    template: no-application-template
     image: registry.mobiledgex.net:5000/mobiledgex/mexexample
     imagetype: ImageTypeDocker
     proxypath: testapp

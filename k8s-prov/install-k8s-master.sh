@@ -24,7 +24,8 @@ if [ $? -ne 0 ]; then
     exit 1
 fi
 #nohup consul agent -server -bootstrap-expect=1 -data-dir=/tmp/consul -node=`hostname` -bind=$MYIP -syslog -config-dir=/etc/consul/conf.d  &
-kubeadm init --apiserver-advertise-address=$MYIP --pod-network-cidr=10.244.0.0/16 --ignore-preflight-errors=all
+#kubeadm init --apiserver-advertise-address=$MYIP --pod-network-cidr=10.244.0.0/16 --ignore-preflight-errors=all
+kubeadm init --apiserver-advertise-address=$MYIP --pod-network-cidr=192.168.0.0/16 --ignore-preflight-errors=all
 if [ $? -ne 0 ]; then
     echo  kubeadm exited with error
     exit 1
@@ -38,20 +39,24 @@ if [ $? -ne 0 ]; then
     echo missing kubectl
     exit 1
 fi
-kubectl apply -f https://raw.githubusercontent.com/projectcalico/canal/master/k8s-install/1.7/rbac.yaml
-if [ $? -ne 0 ]; then
-    echo kubectl exited with error installing rbac
-    exit 1
-fi
+#kubectl apply -f https://raw.githubusercontent.com/projectcalico/canal/master/k8s-install/1.7/rbac.yaml
+#if [ $? -ne 0 ]; then
+#    echo kubectl exited with error installing rbac
+#    exit 1
+#fi
 #kubectl apply -f https://raw.githubusercontent.com/projectcalico/canal/master/k8s-install/1.7/canal.yaml
 # use fixed version. the original will fail validation
-kubectl apply -f https://mobiledgex:sandhill@registry.mobiledgex.net:8000/mobiledgex/canal.yaml
+#kubectl apply -f https://mobiledgex:sandhill@registry.mobiledgex.net:8000/mobiledgex/canal.yaml
+curl https://docs.projectcalico.org/v3.4/getting-started/kubernetes/installation/hosted/kubernetes-datastore/calico-networking/1.7/calico.yaml -O
+#POD_CIDR="10.244.0.0/16" sed -i -e "s?192.168.0.0/16?$POD_CIDR?g" calico.yaml
+kubectl apply -f calico.yaml
 if [ $? -ne 0 ]; then
-    echo kubectl exited with error installing canal
+    #    echo kubectl exited with error installing canal
+    echo kubectl exited with error installing calico
     exit 1
 fi
 # the pod network plugin has to be done for coredns to come up
-kubectl apply -f "https://cloud.weave.works/k8s/net?k8s-version=$(kubectl version | base64 | tr -d '\n')"
+#kubectl apply -f "https://cloud.weave.works/k8s/net?k8s-version=$(kubectl version | base64 | tr -d '\n')"
 kubectl get pods --all-namespaces
 kubectl get nodes | grep NotReady
 while [ $? -eq 0 ] ; do

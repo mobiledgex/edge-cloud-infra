@@ -168,13 +168,8 @@ type ResourceValue struct {
 	Group string `json:"group"`
 }
 
-type MetadataValue struct {
-	Name string `json:"name"`
-}
-
 type ValueDetail struct {
 	Name        string           `json:"name"`
-	Metadata    MetadataValue    `json:"metadata"`
 	Kind        string           `json:"kind"`
 	Base        string           `json:"base"`
 	Application AppValue         `json:"application"`

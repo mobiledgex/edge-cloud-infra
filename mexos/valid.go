@@ -28,7 +28,6 @@ func CheckManifestValues(mf *Manifest) error {
 
 func CheckVals(vals interface{}) error {
 	m := reflect.ValueOf(vals)
-	//log.DebugLog(log.DebugLevelMexos, "checking", "type", m.Type())
 	if strings.HasPrefix(m.Type().String(), "map[") {
 		return nil
 	}
@@ -38,7 +37,7 @@ func CheckVals(vals interface{}) error {
 		v := m.Field(i).Interface()
 		if t.String() == "string" {
 			if v == "" {
-				return fmt.Errorf("empty %s", n)
+				return fmt.Errorf("empty %s, type %s, value %s, mtype %s", n, t, v, m.Type())
 			}
 			//log.DebugLog(log.DebugLevelMexos, "ok", "name", n, "type", t, "value", v)
 		} else {

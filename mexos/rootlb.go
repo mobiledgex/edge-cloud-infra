@@ -169,9 +169,9 @@ func WaitForRootLB(mf *Manifest, rootLB *MEXRootLB) error {
 		if err == nil {
 			log.DebugLog(log.DebugLevelMexos, "rootlb is running", "name", rootLB.Name)
 			running = true
-			if err := CopySSHCredential(mf, rootLB.Name, mf.Values.Network.External, "root"); err != nil {
-				return fmt.Errorf("can't copy ssh credential to RootLB, %v", err)
-			}
+			//if err := CopySSHCredential(mf, rootLB.Name, mf.Values.Network.External, "root"); err != nil {
+			//	return fmt.Errorf("can't copy ssh credential to RootLB, %v", err)
+			//}
 			break
 		}
 		time.Sleep(30 * time.Second)

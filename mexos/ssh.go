@@ -12,6 +12,7 @@ var sshOpts = []string{"StrictHostKeyChecking=no", "UserKnownHostsFile=/dev/null
 
 //CopySSHCredential copies over the ssh credential for mex to LB
 func CopySSHCredential(mf *Manifest, serverName, networkName, userName string) error {
+	//TODO multiple keys to be copied and added to authorized_keys if needed
 	log.DebugLog(log.DebugLevelMexos, "copying ssh credentials", "server", serverName, "network", networkName, "user", userName)
 	addr, err := GetServerIPAddr(mf, networkName, serverName)
 	if err != nil {

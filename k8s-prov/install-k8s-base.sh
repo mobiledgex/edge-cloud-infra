@@ -27,6 +27,10 @@ cat <<EOF >/etc/apt/sources.list.d/kubernetes.list
 deb http://apt.kubernetes.io/ kubernetes-xenial main
 EOF
 #apt-get update && apt-get install -y kubelet=1.12.4-00 kubeadm=1.12.4-00 kubectl=1.12.4-00
+# list of kubernetes versions are available at
+#    curl -s https://packages.cloud.google.com/apt/dists/kubernetes-xenial/main/binary-amd64/Packages | grep Version | awk '{print $2}'
+
+#apt-get update && apt-get install -y kubelet=1.11.2-00 kubeadm =1.11.2-00kubectl=1.11.2-00
 apt-get update && apt-get install -y kubelet kubeadm kubectl
 #curl -o /usr/bin/kubectl -s -LO https://storage.googleapis.com/kubernetes-release/release/v1.12.1/bin/linux/amd64/kubectl
 #curl -o /usr/bin/kubeadm -s -LO https://storage.googleapis.com/kubernetes-release/release/v1.12.1/bin/linux/amd64/kubeadm

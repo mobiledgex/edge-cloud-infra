@@ -152,6 +152,7 @@ type NetworkValue struct {
 	SecurityRule string `json:"securityrule"`
 	Scheme       string `json:"scheme"`
 	DNSZone      string `json:"dnszone"`
+	HolePunch    string `json:"holepunch"`
 }
 
 type OperatorValue struct {
@@ -162,6 +163,7 @@ type OperatorValue struct {
 type RegistryValue struct {
 	Name   string `json:"name"`
 	Docker string `json:"docker"`
+	Update string `json:"update"`
 }
 
 type ResourceValue struct {

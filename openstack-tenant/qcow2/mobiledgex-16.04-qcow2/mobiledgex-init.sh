@@ -1,13 +1,27 @@
 #!/bin/bash
 # this is run at system init time
 # TODO: mark so that it does not run again 
-# TODO: check for updates from edgeproxy before running
 set -x
+cd /root
 echo starting mobiledgex init >> /tmp/mobiledgex.log
 date >> /tmp/mobiledgex.log
 MCONF=/mnt/mobiledgex-config
 mkdir $MCONF
 mount `blkid -t LABEL="config-2" -odevice` $MCONF
+holepunch=`cat $MCONF/openstack/latest/meta_data.json |jq .meta.holepunch | sed -e 's/"//'g`
+cat /root/holepunch.json | sed -e "s/22222/$holepunch/" | tee /tmp/holepunch.json
+mv /tmp/holepunch.json .
+cat holepunch.json 
+/root/holepunch write-systemd-file
+systemctl enable holepunch
+systemctl start holepunch
+systemctl status holepunch
+update=`cat $MCONF/openstack/latest/meta_data.json |jq .meta.update | sed -e 's/"//'g`
+if [ "$update" != "" ]; then
+	curl -s -o /root/update.sh https://mobiledgex:sandhill@registry.mobiledgex.net:8000/mobiledgex/update/$update/update.sh
+	chmod a+rx /root/update.sh
+	sh -x /root/update.sh
+fi
 skipinit=`cat $MCONF/openstack/latest/meta_data.json |jq .meta.skipinit | sed -e 's/"//'g`
 if [ "$skipinit" != "yes" ]; then
 	echo mobiledgex initialization >> /tmp/mobiledgex.log
@@ -43,7 +57,6 @@ if [ "$skipinit" != "yes" ]; then
 	    echo nameserver 1.1.1.1 > /etc/resolv.conf
 	fi
 	echo set name server to 1.1.1.1 >> /tmp/mobiledgex.log
-	which jq
 	if [ $? -ne 0 ]; then
 	    echo jq not found >> /tmp/mobiledgex.log
 	    exit 1
@@ -51,7 +64,6 @@ if [ "$skipinit" != "yes" ]; then
 	skipk8s=`cat $MCONF/openstack/latest/meta_data.json |jq .meta.skipk8s | sed -e 's/"//'g`
 	if [ "$role" = "mex-agent-node" ]; then
 		echo "initializing mex agent node" >> /tmp/mobiledgex.log
-		# /root/install-k8s-base.sh >> /tmp/mobiledgex.log
 		# if [ $? -ne 0 ]; then
 		#     echo k8s base install failed >> /tmp/mobiledgex.log
 		#     exit 1
@@ -60,7 +72,6 @@ if [ "$skipinit" != "yes" ]; then
 		# #curl -L https://github.com/docker/compose/releases/download/1.22.0/docker-compose-Linux-x86_64 -o /usr/local/bin/docker-compose
 		# curl  https://mobiledgex:sandhill@registry.mobiledgex.net:8000/mobiledgex/docker-compose -o /usr/local/bin/docker-compose
 		# chmod +x /usr/local/bin/docker-compose
-		# which docker-compose
 		# if [ $? -ne 0 ]; then
 		#     echo docker-compose not installed correctly >> /tmp/mobiledgex.log
 		#     exit 1
@@ -75,18 +86,11 @@ if [ "$skipinit" != "yes" ]; then
 		# fi
 		# mv linux-amd64/helm /usr/local/bin/
 		# chmod a+rx /usr/local/bin/helm
-		# which helm
 		# if [ $? -ne 0 ]; then
 		#     echo helm install failed >> /tmp/mobiledgex.log
 		#     exit 1
 		# fi
 		# echo helm installed ok >> /tmp/mobiledgex.log
-		which kubectl
-		which helm
-		which docker-compose
-		which kubeadm
-		which kubelet
-		which crictl
 	else 
 		if [ "$skipk8s" != "yes" ]; then
 			echo skip-k8s is not set to yes so doing k8s init >> /tmp/mobiledgex.log
@@ -96,12 +100,6 @@ if [ "$skipinit" != "yes" ]; then
 			#     exit 1
 			# fi
 			# echo k8s-base installed >> /tmp/mobiledgex.log
-			which kubectl
-			which helm
-			which docker-compose
-			which kubeadm
-			which kubelet
-			which crictl
 			masteraddr=`cat $MCONF/openstack/latest/meta_data.json |jq .meta.k8smaster | sed -e 's/"//'g`
 			if [ "$role" = "k8s-master" ]; then
 				echo k8s-master init >> /tmp/mobiledgex.log

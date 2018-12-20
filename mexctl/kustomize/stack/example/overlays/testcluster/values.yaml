@@ -11,3 +11,7 @@ values:
     location: eu-central
     region: eu-central-2
     zone: eu-central-2c
+  network:
+    holepunch: 22223
+  registry:
+    update: testcloudlet

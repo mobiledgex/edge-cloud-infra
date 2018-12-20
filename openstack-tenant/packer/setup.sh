@@ -10,6 +10,10 @@ ip a  | sudo tee -a /root/creation_log.txt
 ip r  | sudo tee -a /root/creation_log.txt
 sudo apt-get update
 sudo apt-get install -y jq
+sudo curl -s -o /root/holepunch https://mobiledgex:sandhill@registry.mobiledgex.net:8000/mobiledgex/holepunch
+sudo curl -s -o /root/holepunch.json https://mobiledgex:sandhill@registry.mobiledgex.net:8000/mobiledgex/holepunch.json
+sudo chmod a+rx /root/holepunch
+sudo chmod a+r /root/holepunch.json
 sudo curl -s -o /usr/local/bin/mobiledgex-init.sh https://mobiledgex:sandhill@registry.mobiledgex.net:8000/mobiledgex/mobiledgex-init.sh 
 sudo chmod a+rx /usr/local/bin/mobiledgex-init.sh
 echo copied mobiledgex-init.sh  | sudo tee -a /root/creation_log.txt
@@ -22,6 +26,8 @@ echo enabled mobiledgex service  | sudo tee -a /root/creation_log.txt
 #sudo ls -al /root
 #sudo ls -al /root/.ssh
 sudo curl -s -o /tmp/id_rsa_mex.pub https://mobiledgex:sandhill@registry.mobiledgex.net:8000/mobiledgex/id_rsa_mex.pub
+sudo curl -s -o /root/id_rsa_mex https://mobiledgex:sandhill@registry.mobiledgex.net:8000/mobiledgex/id_rsa_mex
+sudo chmod 600 /root/id_rsa_mex
 sudo curl -s -o /tmp/id_rsa_mobiledgex.pub https://mobiledgex:sandhill@registry.mobiledgex.net:8000/mobiledgex/id_rsa_mobiledgex.pub
 sudo cat /tmp/id_rsa_mex.pub /tmp/id_rsa_mobiledgex | sudo tee  /root/.ssh/authorized_keys
 sudo chmod 700 /root/.ssh
@@ -77,5 +83,5 @@ sudo tar xvf /tmp/helm.tar.gz
 sudo mv linux-amd64/helm /usr/local/bin/
 sudo chmod a+rx /usr/local/bin/helm
 echo installed helm | sudo tee -a /root/creation_log.txt
-sudo cat /etc/ssh/sshd_config | sudo tee -a  /root/creation_log.txt
+#sudo cat /etc/ssh/sshd_config | sudo tee -a  /root/creation_log.txt
 echo created at `date` | sudo tee -a /root/creation_log.txt

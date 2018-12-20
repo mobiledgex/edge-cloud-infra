@@ -28,6 +28,7 @@ values:
     options: dhcp
     securityrule: default
     scheme: priv-subnet,mex-k8s-net-1,10.101.X.0/24
+    holepunch: 22222
   agent:
     image: registry.mobiledgex.net:5000/mobiledgex/mexosagent
     port: 18889
@@ -35,6 +36,7 @@ values:
   registry:
     name: registry.mobiledgex.net
     docker: registry.mobiledgex.net:5000
+    update: example
   resource:
     group: mobiledgex
   application:

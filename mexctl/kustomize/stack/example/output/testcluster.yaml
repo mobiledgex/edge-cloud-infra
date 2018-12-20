@@ -37,6 +37,7 @@ values:
   network:
     dnszone: mobiledgex.net
     external: external-network-shared
+    holepunch: 22223
     ipaccess: IpAccessShared
     name: mex-k8s-net-1
     options: dhcp
@@ -49,5 +50,6 @@ values:
   registry:
     docker: registry.mobiledgex.net:5000
     name: registry.mobiledgex.net
+    update: testcloudlet
   resource:
     group: mobiledgex

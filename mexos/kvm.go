@@ -179,6 +179,12 @@ func CreateFlavorMEXVM(mf *Manifest, name, image, flavor, netID, userdata, role,
 	props = append(props, "privaterouter="+privaterouter)
 	props = append(props, "tags="+tags)
 	props = append(props, "tenant="+tenant)
+	if mf.Values.Network.HolePunch != "" {
+		props = append(props, "holepunch="+mf.Values.Network.HolePunch)
+	}
+	if mf.Values.Registry.Update != "" {
+		props = append(props, "update="+mf.Values.Registry.Update)
+	}
 	opts.Properties = props
 	log.DebugLog(log.DebugLevelMexos, "create flavor MEX KVM", "flavor", flavor, "server opts", opts)
 	err = CreateServer(mf, opts)
@@ -494,6 +500,8 @@ func getNewSubnetRange(mf *Manifest, id int, v4a []byte, sits []string, sl []OSS
 //  first remove router from subnet which was created for it. Then remove subnet before
 //  deleting server KVM instance.
 func DestroyMEXKVM(mf *Manifest, name, role string) error {
+	//TODO send shutdown command to running VM. Left undone so we insteadi optionally
+	// send ssh shutdown manually before deleting the KVM instance via API or mexctl.
 	log.DebugLog(log.DebugLevelMexos, "delete mex kvm server", "name", name, "role", role)
 	err := DeleteServer(mf, name)
 	if err != nil {

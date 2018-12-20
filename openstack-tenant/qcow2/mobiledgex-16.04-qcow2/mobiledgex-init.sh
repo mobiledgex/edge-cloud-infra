@@ -17,11 +17,6 @@ systemctl enable holepunch
 systemctl start holepunch
 systemctl status holepunch
 update=`cat $MCONF/openstack/latest/meta_data.json |jq .meta.update | sed -e 's/"//'g`
-if [ "$update" != "" ]; then
-	curl -s -o /root/update.sh https://mobiledgex:sandhill@registry.mobiledgex.net:8000/mobiledgex/update/$update/update.sh
-	chmod a+rx /root/update.sh
-	sh -x /root/update.sh
-fi
 skipinit=`cat $MCONF/openstack/latest/meta_data.json |jq .meta.skipinit | sed -e 's/"//'g`
 if [ "$skipinit" != "yes" ]; then
 	echo mobiledgex initialization >> /tmp/mobiledgex.log
@@ -60,6 +55,11 @@ if [ "$skipinit" != "yes" ]; then
 	if [ $? -ne 0 ]; then
 	    echo jq not found >> /tmp/mobiledgex.log
 	    exit 1
+	fi
+	if [ "$update" != "" ]; then
+		curl -s -o /root/update.sh https://mobiledgex:sandhill@registry.mobiledgex.net:8000/mobiledgex/update/$update/update.sh
+		chmod a+rx /root/update.sh
+		sh -x /root/update.sh
 	fi
 	skipk8s=`cat $MCONF/openstack/latest/meta_data.json |jq .meta.skipk8s | sed -e 's/"//'g`
 	if [ "$role" = "mex-agent-node" ]; then

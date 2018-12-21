@@ -3,7 +3,7 @@ name: testcloudlet
 metadata:
   name: example
 kind: values
-resource: hamburg
+resource: munich
 values:
   name: testcloudlet
   cluster:
@@ -15,3 +15,6 @@ values:
     holepunch: 22223
   registry:
     update: testcloudlet
+  environment:
+    openrc: https://vault.mobiledgex.net/v1/secret/data/cloudlet/openstack/munich/openrc.json
+    mexenv: https://vault.mobiledgex.net/v1/secret/data/cloudlet/openstack/mexenv.json

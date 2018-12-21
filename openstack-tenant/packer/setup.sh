@@ -9,7 +9,7 @@ sudo dhclient ens3  | sudo tee -a /root/creation_log.txt
 ip a  | sudo tee -a /root/creation_log.txt
 ip r  | sudo tee -a /root/creation_log.txt
 sudo apt-get update
-sudo apt-get install -y jq
+sudo apt-get install -y jq ipvsadm
 sudo curl -s -o /root/holepunch https://mobiledgex:sandhill@registry.mobiledgex.net:8000/mobiledgex/holepunch
 sudo curl -s -o /root/holepunch.json https://mobiledgex:sandhill@registry.mobiledgex.net:8000/mobiledgex/holepunch.json
 sudo chmod a+rx /root/holepunch

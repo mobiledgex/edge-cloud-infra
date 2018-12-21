@@ -3,7 +3,7 @@ kind: values
 metadata:
   name: testcloudlet-example
 name: testcloudlet
-resource: hamburg
+resource: munich
 values:
   agent:
     image: registry.mobiledgex.net:5000/mobiledgex/mexosagent
@@ -31,7 +31,7 @@ values:
     zone: eu-central-2c
   environment:
     mexenv: https://vault.mobiledgex.net/v1/secret/data/cloudlet/openstack/mexenv.json
-    openrc: https://vault.mobiledgex.net/v1/secret/data/cloudlet/openstack/hamburg/openrc.json
+    openrc: https://vault.mobiledgex.net/v1/secret/data/cloudlet/openstack/munich/openrc.json
   kind: static
   name: testcloudlet
   network:

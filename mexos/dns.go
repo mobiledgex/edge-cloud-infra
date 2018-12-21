@@ -119,7 +119,7 @@ func deleteAppDNS(mf *Manifest, kconf string) error {
 	return nil
 }
 
-func addDNSRecords(rootLB *MEXRootLB, mf *Manifest, kp *kubeParam) error {
+func KubeAddDNSRecords(rootLB *MEXRootLB, mf *Manifest, kp *kubeParam) error {
 	rootLBIPaddr, err := GetServerIPAddr(mf, mf.Values.Network.External, rootLB.Name)
 	if err != nil {
 		log.DebugLog(log.DebugLevelMexos, "cannot get rootlb IP address", "error", err)
@@ -170,7 +170,11 @@ func addDNSRecords(rootLB *MEXRootLB, mf *Manifest, kp *kubeParam) error {
 	return nil
 }
 
-func deleteDNSRecords(rootLB *MEXRootLB, mf *Manifest, kp *kubeParam) error {
+func KubeDeleteDNSRecords(rootLB *MEXRootLB, mf *Manifest, kp *kubeParam) error {
+	//TODO before removing dns records, especially for the purpose of creating
+	// a dns entry that was there before, to overwrite, we need to check
+	// if the user really wants to. For example, if the cluster naming was in error,
+	// it would be bad to overwrite working existing cluster dns.
 	cmd := fmt.Sprintf("%s kubectl get svc -o json", kp.kubeconfig)
 	out, err := kp.client.Output(cmd)
 	if err != nil {

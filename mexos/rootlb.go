@@ -57,6 +57,17 @@ func getRootLB(name string) (*MEXRootLB, error) {
 	return rootLB, nil
 }
 
+var rootLBPorts = []int{
+	18889, //mexosagent HTTP server
+	18888, //mexosagent GRPC server
+	443,   //mexosagent reverse proxy HTTPS
+	8001,  //kubectl proxy
+	6443,  //kubernetes control
+	8000,  //mex k8s join token server
+}
+
+//TODO more than one kubectl proxy, one per hosted  cluster
+
 //EnableRootLB creates a seed presence node in cloudlet that also becomes first Agent node.
 //  It also sets up first basic network router and subnet, ready for running first MEX agent.
 func EnableRootLB(mf *Manifest, rootLB *MEXRootLB) error {
@@ -111,30 +122,25 @@ func EnableRootLB(mf *Manifest, rootLB *MEXRootLB) error {
 		}
 		log.DebugLog(log.DebugLevelMexos, "created kvm instance", "name", rootLB.Name)
 
-		rootLBIPaddr, ierr := GetServerIPAddr(mf, mf.Values.Network.External, rootLB.Name)
-		if ierr != nil {
-			log.DebugLog(log.DebugLevelMexos, "cannot get rootlb IP address", "error", ierr)
-			return fmt.Errorf("created rootlb but cannot get rootlb IP")
-		}
-		ports := []int{
-			18889, //mexosagent HTTP server
-			18888, //mexosagent GRPC server
-			443,   //mexosagent reverse proxy HTTPS
-			8001,  //kubectl proxy
-			6443,  //kubernetes control
-			8000,  //mex k8s join token server
-		}
+		//rootLBIPaddr, ierr := GetServerIPAddr(mf, mf.Values.Network.External, rootLB.Name)
+		// if ierr != nil {
+		// 	log.DebugLog(log.DebugLevelMexos, "cannot get rootlb IP address", "error", ierr)
+		// 	return fmt.Errorf("created rootlb but cannot get rootlb IP")
+		// }
 		ruleName := GetMEXSecurityRule(mf)
-		privateNetCIDR := strings.Replace(defaultPrivateNetRange, "X", "0", 1)
+		//privateNetCIDR := strings.Replace(defaultPrivateNetRange, "X", "0", 1)
 		allowedClientCIDR := GetAllowedClientCIDR()
-		for _, p := range ports {
-			for _, cidr := range []string{rootLBIPaddr + "/32", privateNetCIDR, allowedClientCIDR} {
-				go func(cidr string) {
-					err := AddSecurityRuleCIDR(mf, cidr, "tcp", ruleName, p)
-					if err != nil {
-						log.DebugLog(log.DebugLevelMexos, "warning, error while adding security rule", "error", err, "cidr", cidr, "rulename", ruleName, "port", p)
-					}
-				}(cidr)
+		for _, p := range rootLBPorts {
+			// for _, cidr := range []string{rootLBIPaddr + "/32", privateNetCIDR, allowedClientCIDR} {
+			// 	go func(cidr string) {
+			// 		err := AddSecurityRuleCIDR(mf, cidr, "tcp", ruleName, p)
+			// 		if err != nil {
+			// 			log.DebugLog(log.DebugLevelMexos, "warning, error while adding security rule", "error", err, "cidr", cidr, "rulename", ruleName, "port", p)
+			// 		}
+			// 	}(cidr)
+			// }
+			if err := AddSecurityRuleCIDR(mf, allowedClientCIDR, "tcp", ruleName, p); err != nil {
+				log.DebugLog(log.DebugLevelMexos, "warning, cannot add security rule", "error", err, "cidr", allowedClientCIDR, "port", p, "rule", ruleName)
 			}
 		}
 		//TODO: removal of security rules. Needs to be done for general resource per VM object.

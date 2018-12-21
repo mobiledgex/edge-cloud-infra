@@ -190,6 +190,10 @@ func RemoveMEXAgentManifest(mf *Manifest) error {
 		log.DebugLog(log.DebugLevelMexos, "forced to continue, deleting mex agent error", "error", err, "rootLB", mf.Spec.RootLB)
 	}
 	log.DebugLog(log.DebugLevelMexos, "removed rootlb", "name", mf.Spec.RootLB)
+	sip, err := GetServerIPAddr(mf, mf.Values.Network.External, mf.Spec.RootLB)
+	if err := DeleteSecurityRule(mf, sip); err != nil {
+		log.DebugLog(log.DebugLevelMexos, "warning, cannot delete security rule", "error", err, "server ip", sip)
+	}
 	if mf.Metadata.DNSZone == "" {
 		return fmt.Errorf("missing dns zone in manifest, metadata %v", mf.Metadata)
 	}

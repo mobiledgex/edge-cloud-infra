@@ -35,14 +35,16 @@ echo "My IP Address: $MYIP"
 echo installing k8s node, wait...
 sleep 60
 cd /tmp
-wget http://$MASTERIP:8000/k8s-join-cmd
+echo waiting for join-cmd
+#wget http://$MASTERIP:8000/k8s-join-cmd
+scp -i /root/id_rsa_mex $MASTERIP:/tmp/k8s-join-cmd .
 while [ $? -ne 0 ]; do
-	echo waiting for join-cmd
 	sleep 7
-	wget http://$MASTERIP:8000/k8s-join-cmd
+	#wget http://$MASTERIP:8000/k8s-join-cmd
+	scp -i /root/id_rsa_mex $MASTERIP:/tmp/k8s-join-cmd .
 done
-JOIN=`cat k8s-join-cmd`
 echo got join cmd
+JOIN=`cat k8s-join-cmd`
 cat k8s-join-cmd
 echo running $JOIN --ignore-preflight-errors=all
 $JOIN --ignore-preflight-errors=all

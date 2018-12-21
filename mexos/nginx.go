@@ -65,11 +65,11 @@ func FormNginxProxyRequest(ports []PortDetail, ipaddr string, name string) (*str
 }
 
 func DeleteNginxProxy(mf *Manifest, rootLBName, name string) error {
-	log.DebugLog(log.DebugLevelMexos, "add nginx proxy", "name", name)
+	log.DebugLog(log.DebugLevelMexos, "delete nginx proxy", "name", name)
 	request := gorequest.New()
 	npURI := fmt.Sprintf("http://%s:%s/v1/nginx", rootLBName, mf.Values.Agent.Port)
 	pl := fmt.Sprintf(`{"message":"delete","name":"%s"}`, name)
-	log.DebugLog(log.DebugLevelMexos, "nginx proxy add request post", "request", pl)
+	log.DebugLog(log.DebugLevelMexos, "nginx proxy delete request post", "request", pl)
 	resp, body, errs := request.Post(npURI).Set("Content-Type", "application/json").Send(pl).End()
 	if errs != nil {
 		return fmt.Errorf("error, can't request nginx proxy delete, %v", errs)

@@ -158,7 +158,7 @@ func mexCreateClusterKubernetes(mf *Manifest) error {
 		return fmt.Errorf("missing external network in platform config")
 	}
 	if err = LBAddRoute(mf, rootLB.Name, mf.Values.Network.External, kvmname); err != nil {
-		log.DebugLog(log.DebugLevelMexos, "cannot add route on rootlb")
+		log.DebugLog(log.DebugLevelMexos, "cannot add route on rootlb", "error", err)
 		//return err
 	}
 	if err = SetServerProperty(mf, kvmname, "mex-flavor="+mf.Spec.Flavor); err != nil {
@@ -271,11 +271,11 @@ func mexDeleteClusterKubernetes(mf *Manifest) error {
 	}
 	//XXX tell agent to remove the route
 	//XXX remove kubectl proxy instance
-	client, err := GetSSHClient(mf, rootLB.Name, mf.Values.Network.External, "root")
+	client, err := GetSSHClient(mf, rootLB.Name, mf.Values.Network.External, sshUser)
 	if err != nil {
 		return err
 	}
-	cmd := "ps wwh -C kubectl -o pid,args"
+	cmd := "sudo ps wwh -C kubectl -o pid,args"
 	out, err := client.Output(cmd)
 	if err != nil || out == "" {
 		return nil // no kubectl running
@@ -286,7 +286,7 @@ func mexDeleteClusterKubernetes(mf *Manifest) error {
 		if pidnum == 0 {
 			continue
 		}
-		cmd = fmt.Sprintf("kill -9 %d", pidnum)
+		cmd = fmt.Sprintf("sudo kill -9 %d", pidnum)
 		out, err = client.Output(cmd)
 		if err != nil {
 			log.InfoLog("error killing kubectl proxy", "command", cmd, "out", out, "error", err)
@@ -320,12 +320,12 @@ func IsClusterReady(mf *Manifest, rootLB *MEXRootLB) (bool, error) {
 	if mf.Values.Network.External == "" {
 		return false, fmt.Errorf("is cluster ready, missing external network in platform config")
 	}
-	client, err := GetSSHClient(mf, rootLB.Name, mf.Values.Network.External, "root")
+	client, err := GetSSHClient(mf, rootLB.Name, mf.Values.Network.External, sshUser)
 	if err != nil {
 		return false, fmt.Errorf("can't get ssh client for cluser ready check, %v", err)
 	}
 	log.DebugLog(log.DebugLevelMexos, "checking master k8s node for available nodes", "ipaddr", ipaddr)
-	cmd := fmt.Sprintf("ssh -o %s -o %s -o %s -i id_rsa_mex root@%s kubectl get nodes -o json", sshOpts[0], sshOpts[1], sshOpts[2], ipaddr)
+	cmd := fmt.Sprintf("ssh -o %s -o %s -o %s -i id_rsa_mex %s@%s kubectl get nodes -o json", sshOpts[0], sshOpts[1], sshOpts[2], sshUser, ipaddr)
 	log.DebugLog(log.DebugLevelMexos, "running kubectl get nodes", "cmd", cmd)
 	out, err := client.Output(cmd)
 	if err != nil {

@@ -107,7 +107,7 @@ func ValidateKubernetesParameters(mf *Manifest, rootLB *MEXRootLB, clustName str
 	if mf.Values.Network.External == "" {
 		return nil, fmt.Errorf("validate kubernetes parameters, missing external network in platform config")
 	}
-	client, err := GetSSHClient(mf, rootLB.Name, mf.Values.Network.External, "root")
+	client, err := GetSSHClient(mf, rootLB.Name, mf.Values.Network.External, sshUser)
 	if err != nil {
 		return nil, err
 	}

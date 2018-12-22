@@ -63,6 +63,9 @@ func RunMEXAgentManifest(mf *Manifest) error {
 		log.DebugLog(log.DebugLevelMexos, "timeout waiting for agent to run", "name", rootLB.Name)
 		return fmt.Errorf("Error waiting for rootLB %v", err)
 	}
+	if err := SetupSSHUser(mf, rootLB, sshUser); err != nil {
+		return err
+	}
 	if err = ActivateFQDNA(mf, rootLB, rootLB.Name); err != nil {
 		return err
 	}
@@ -79,28 +82,28 @@ func RunMEXAgentManifest(mf *Manifest) error {
 func RunMEXOSAgentService(mf *Manifest, rootLB *MEXRootLB) error {
 	//TODO check if agent is running before restarting again.
 	log.DebugLog(log.DebugLevelMexos, "will run new mexosagent service")
-	client, err := GetSSHClient(mf, rootLB.Name, mf.Values.Network.External, "root")
+	client, err := GetSSHClient(mf, rootLB.Name, mf.Values.Network.External, sshUser)
 	if err != nil {
 		return err
 	}
 	for _, act := range []string{"stop", "disable"} {
-		out, err := client.Output("systemctl " + act + " mexosagent.service")
+		out, err := client.Output("sudo systemctl " + act + " mexosagent.service")
 		if err != nil {
 			log.InfoLog("warning: cannot "+act+" mexosagent.service", "out", out, "err", err)
 		}
 	}
 	log.DebugLog(log.DebugLevelMexos, "copying new mexosagent service")
 	for _, dest := range []struct{ path, name string }{
-		{"/usr/local/bin/", "mexosagent"},
-		{"/lib/systemd/system/", "mexosagent.service"},
+		{"/usr/local/bin", "mexosagent"},
+		{"/lib/systemd/system", "mexosagent.service"},
 	} {
-		cmd := fmt.Sprintf("scp -o %s -o %s -i id_rsa_mex mobiledgex@%s:files-repo/mobiledgex/%s %s", sshOpts[0], sshOpts[1], mf.Values.Registry.Name, dest.name, dest.path)
+		cmd := fmt.Sprintf("sudo scp -o %s -o %s -i id_rsa_mex mobiledgex@%s:files-repo/mobiledgex/%s %s", sshOpts[0], sshOpts[1], mf.Values.Registry.Name, dest.name, dest.path)
 		out, err := client.Output(cmd)
 		if err != nil {
 			log.InfoLog("error: cannot download from registry", "fn", dest.name, "path", dest.path, "error", err, "out", out)
 			return err
 		}
-		out, err = client.Output("chmod a+rx " + dest.path + dest.name)
+		out, err = client.Output(fmt.Sprintf("sudo chmod a+rx %s/%s", dest.path, dest.name))
 		if err != nil {
 			log.InfoLog("error: cannot chmod", "error", err, "fn", dest.name, "path", dest.path)
 			return err
@@ -108,7 +111,7 @@ func RunMEXOSAgentService(mf *Manifest, rootLB *MEXRootLB) error {
 	}
 	log.DebugLog(log.DebugLevelMexos, "starting mexosagent.service")
 	for _, act := range []string{"enable", "start"} {
-		out, err := client.Output("systemctl " + act + " mexosagent.service")
+		out, err := client.Output("sudo systemctl " + act + " mexosagent.service")
 		if err != nil {
 			log.InfoLog("warning: cannot "+act+" mexosagent.service", "out", out, "err", err)
 		}
@@ -121,7 +124,7 @@ func RunMEXOSAgentContainer(mf *Manifest, rootLB *MEXRootLB) error {
 	if mexEnv(mf, "MEX_DOCKER_REG_PASS") == "" {
 		return fmt.Errorf("empty docker registry pass env var")
 	}
-	client, err := GetSSHClient(mf, rootLB.Name, mf.Values.Network.External, "root")
+	client, err := GetSSHClient(mf, rootLB.Name, mf.Values.Network.External, sshUser)
 	if err != nil {
 		return err
 	}

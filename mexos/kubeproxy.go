@@ -18,12 +18,12 @@ func StartKubectlProxy(mf *Manifest, rootLB *MEXRootLB, kubeconfig string) (int,
 	if mf.Values.Network.External == "" {
 		return 0, fmt.Errorf("start kubectl proxy, missing external network in platform config")
 	}
-	client, err := GetSSHClient(mf, rootLB.Name, mf.Values.Network.External, "root")
+	client, err := GetSSHClient(mf, rootLB.Name, mf.Values.Network.External, sshUser)
 	if err != nil {
 		return 0, err
 	}
 	maxPort := 8000
-	cmd := "ps wwh -C kubectl -o args"
+	cmd := "sudo ps wwh -C kubectl -o args"
 	out, err := client.Output(cmd)
 	if err == nil && out != "" {
 		lines := strings.Split(out, "\n")
@@ -50,7 +50,7 @@ func StartKubectlProxy(mf *Manifest, rootLB *MEXRootLB, kubeconfig string) (int,
 		log.DebugLog(log.DebugLevelMexos, "warning, error while adding external ingress security rule for kubeproxy", "error", err, "port", maxPort)
 	}
 
-	cmd = "ps wwh -C kubectl -o args"
+	cmd = "sudo ps wwh -C kubectl -o args"
 	for i := 0; i < 5; i++ {
 		//verify
 		out, outerr := client.Output(cmd)

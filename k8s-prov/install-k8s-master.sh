@@ -36,11 +36,18 @@ if [ $? -ne 0 ]; then
     echo missing kubectl
     exit 1
 fi
-mkdir -p /root/.kube
-echo created /root/.kube
-sudo cp  /etc/kubernetes/admin.conf /root/.kube/config
-sudo chown root:root /root/.kube/config
-echo copied admin.conf to /root/.kube/config
+for d in /home/ubuntu /root; do
+    mkdir -p $d/.kube
+    cp  /etc/kubernetes/admin.conf $d/.kube/config
+done
+chown ubuntu:ubuntu /home/ubuntu/.kube/config
+export KUBECONFIG=/etc/kubernetes/admin.conf
+kubectl version
+while [ $? -ne 0 ] ; do
+    echo kubectl version failed
+    sleep 7
+    kubectl version
+done
 #kubectl apply -f https://raw.githubusercontent.com/projectcalico/canal/master/k8s-install/1.7/rbac.yaml
 #if [ $? -ne 0 ]; then
 #    echo kubectl exited with error installing rbac
@@ -71,11 +78,12 @@ if [ $? -ne 0 ]; then
     echo kubectl exited with error doing get nodes
     exit 1
 fi
-kubeadm token create --print-join-command  > /tmp/k8s-join-cmd
+kubeadm token create --print-join-command  | tee /tmp/k8s-join-cmd
 cat /tmp/k8s-join-cmd
-cd /tmp
-echo running simple http server at :8000
-python -m SimpleHTTPServer 
+#cd /tmp
+#echo running simple http server at :8000
+#python -m SimpleHTTPServer 
 #should not get here
-echo error returned from simple http server
+#echo error returned from simple http server
 #consul kv put join-cmd "`cat /tmp/k8s-join-cmd`"
+echo master ready

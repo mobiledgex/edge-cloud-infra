@@ -62,7 +62,6 @@ func CreateQCOW2AppManifest(mf *Manifest) error {
 			return fmt.Errorf("invalid downloaded qcow2 file %s", savedQcowName)
 		}
 		log.DebugLog(log.DebugLevelMexos, "qcow2 image being created", "image", mf.Spec.Image, "name", savedQcowName)
-		//openstack image create ubuntu-16.04-mex --disk-format qcow2 --container-format bare --public  --file /var/tmp/ubuntu-16.04.qcow2
 		err = CreateImage(mf, mf.Metadata.Name, savedQcowName)
 		if err != nil {
 			return fmt.Errorf("cannot create openstack glance image instance from %s, %v", savedQcowName, err)

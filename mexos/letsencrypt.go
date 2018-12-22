@@ -10,6 +10,8 @@ import (
 	"github.com/mobiledgex/edge-cloud/log"
 )
 
+//TODO acme.sh seems to leave out _acme domains. We need to clean up periodically
+
 func checkPEMFile(fn string) error {
 	content, err := ioutil.ReadFile(fn)
 	if err != nil {
@@ -43,8 +45,8 @@ func AcquireCertificates(mf *Manifest, rootLB *MEXRootLB, fqdn string) error {
 	kf := PrivateSSHKey()
 	srcfile := fmt.Sprintf("mobiledgex@%s:files-repo/certs/%s/fullchain.cer", mf.Values.Registry.Name, fqdn)
 	dkey := fmt.Sprintf("%s/%s.key", fqdn, fqdn)
-	certfile := "cert.pem" //XXX better file location
-	keyfile := "key.pem"   //XXX better location
+	certfile := "cert.pem"
+	keyfile := "key.pem"
 	log.DebugLog(log.DebugLevelMexos, "trying to get cached cert files")
 	out, err := sh.Command("scp", "-o", sshOpts[0], "-o", sshOpts[1], "-i", kf, srcfile, certfile).Output()
 	if err != nil {
@@ -62,19 +64,26 @@ func AcquireCertificates(mf *Manifest, rootLB *MEXRootLB, fqdn string) error {
 				log.DebugLog(log.DebugLevelMexos, "failed to get server ip addr", "FQDN", fqdn, "error", ierr)
 				return ierr
 			}
+			client, err := GetSSHClient(mf, fqdn, mf.Values.Network.External, sshUser)
+			if err != nil {
+				return fmt.Errorf("can't get ssh client for cert, %v", err)
+			}
 			for _, fn := range []string{certfile, keyfile} {
-				out, oerr := sh.Command("scp", "-o", sshOpts[0], "-o", sshOpts[1], "-i", kf, fn, "root@"+addr+":").Output()
+				out, oerr := sh.Command("scp", "-o", sshOpts[0], "-o", sshOpts[1], "-i", kf, fn, sshUser+"@"+addr+":").CombinedOutput()
 				if oerr != nil {
-					return fmt.Errorf("can't copy %s to %s, %v, %v", fn, addr, oerr, out)
+					return fmt.Errorf("cannot copy %s to %s, %v, %v", fn, addr, oerr, string(out))
 				}
 				log.DebugLog(log.DebugLevelMexos, "copied", "fn", fn, "addr", addr)
+				if out, err := client.Output(fmt.Sprintf("sudo cp %s /root", fn)); err != nil {
+					return fmt.Errorf("cannot copy %s to /root, %v, %s", fn, err, out)
+				}
 			}
 			log.DebugLog(log.DebugLevelMexos, "using cached cert and key", "FQDN", fqdn)
 			return nil
 		}
 	}
 	log.DebugLog(log.DebugLevelMexos, "did not get cached cert and key files, will try to acquire new cert")
-	client, err := GetSSHClient(mf, fqdn, mf.Values.Network.External, "root")
+	client, err := GetSSHClient(mf, fqdn, mf.Values.Network.External, sshUser)
 	if err != nil {
 		return fmt.Errorf("can't get ssh client for acme.sh, %v", err)
 	}

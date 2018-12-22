@@ -164,14 +164,14 @@ func WaitForRootLB(mf *Manifest, rootLB *MEXRootLB) error {
 	if mf.Values.Network.External == "" {
 		return fmt.Errorf("waiting for lb, missing external network in manifest")
 	}
-	client, err := GetSSHClient(mf, rootLB.Name, mf.Values.Network.External, "root")
+	client, err := GetSSHClient(mf, rootLB.Name, mf.Values.Network.External, sshUser)
 	if err != nil {
 		return err
 	}
 	running := false
 	for i := 0; i < 10; i++ {
 		log.DebugLog(log.DebugLevelMexos, "waiting for rootlb...")
-		_, err := client.Output("grep 'all done' /tmp/mobiledgex.log") //XXX beware of use of word done
+		_, err := client.Output("sudo grep 'all done' /var/log/mobiledgex.log") //XXX beware of use of word done
 		if err == nil {
 			log.DebugLog(log.DebugLevelMexos, "rootlb is running", "name", rootLB.Name)
 			running = true

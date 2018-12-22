@@ -9,6 +9,8 @@ import (
 	"github.com/mobiledgex/edge-cloud/log"
 )
 
+// TODO service to periodically clean up the leftover rules
+
 func KubeAddSecurityRules(rootLB *MEXRootLB, mf *Manifest, kp *kubeParam) error {
 	// rootLBIPaddr, err := GetServerIPAddr(mf, mf.Values.Network.External, rootLB.Name)
 	// if err != nil {

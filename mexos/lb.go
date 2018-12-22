@@ -26,8 +26,8 @@ func LBAddRoute(mf *Manifest, rootLBName, extNet, name string) error {
 	if len(ap) != 2 {
 		return fmt.Errorf("expected 2 addresses, got %d", len(ap))
 	}
-	cmd := fmt.Sprintf("ip route add %s via %s dev ens3", ap[0], ap[1])
-	client, err := GetSSHClient(mf, rootLBName, extNet, "root")
+	cmd := fmt.Sprintf("sudo ip route add %s via %s dev ens3", ap[0], ap[1])
+	client, err := GetSSHClient(mf, rootLBName, extNet, sshUser)
 	if err != nil {
 		return err
 	}
@@ -51,8 +51,8 @@ func LBRemoveRoute(mf *Manifest, rootLB, extNet, name string) error {
 	if len(ap) != 2 {
 		return fmt.Errorf("expected 2 addresses, got %d", len(ap))
 	}
-	cmd := fmt.Sprintf("ip route delete %s via %s dev ens3", ap[0], ap[1])
-	client, err := GetSSHClient(mf, rootLB, extNet, "root")
+	cmd := fmt.Sprintf("sudo ip route delete %s via %s dev ens3", ap[0], ap[1])
+	client, err := GetSSHClient(mf, rootLB, extNet, sshUser)
 	if err != nil {
 		return err
 	}

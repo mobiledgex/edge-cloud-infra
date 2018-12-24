@@ -206,6 +206,7 @@ type VaultResponse struct {
 type Manifest struct {
 	Name       string         `json:"name"`
 	APIVersion string         `json:"apiVersion"`
+	Base       string         `json:"base"`
 	Kind       string         `json:"kind"`
 	Resource   string         `json:"resource"`
 	Metadata   MetadataDetail `json:"metadata"`

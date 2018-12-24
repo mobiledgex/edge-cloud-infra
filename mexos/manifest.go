@@ -131,21 +131,12 @@ func MEXAppCreateAppManifest(mf *Manifest) error {
 	log.DebugLog(log.DebugLevelMexos, "create app from manifest")
 	appDeploymentType := mf.Config.ConfigDetail.Deployment
 	log.DebugLog(log.DebugLevelMexos, "app deployment", "imageType", mf.Spec.ImageType, "deploymentType", appDeploymentType, "config", mf.Config)
-	var kubeManifest string
-	var err error
-	if mf.Values.Application.Base != "" && mf.Values.Application.Overlay != "" {
-		res, err := GetKustomizeManifest(mf)
-		if err != nil {
-			return err
-		}
-		kubeManifest = string(res)
-	} else {
-		kubeManifest, err = cloudcommon.GetDeploymentManifest(mf.Config.ConfigDetail.Manifest)
-		if err != nil {
-			return err
-		}
+	kubeManifest, err := GetKubeManifest(mf)
+	if err != nil {
+		return err
 	}
 	if !strings.HasPrefix(kubeManifest, "apiVersion: v1") {
+		log.DebugLog(log.DebugLevelMexos, "bad version", "content", kubeManifest)
 		return fmt.Errorf("bad apiversion at beginning of kube manifest")
 	}
 	//TODO values.application.template
@@ -178,7 +169,7 @@ func MEXAppDeleteAppManifest(mf *Manifest) error {
 	log.DebugLog(log.DebugLevelMexos, "delete app with manifest")
 	appDeploymentType := mf.Config.ConfigDetail.Deployment
 	log.DebugLog(log.DebugLevelMexos, "app delete", "imageType", mf.Spec.ImageType, "deploymentType", appDeploymentType, "config", mf.Config)
-	kubeManifest, err := cloudcommon.GetDeploymentManifest(mf.Config.ConfigDetail.Manifest)
+	kubeManifest, err := GetKubeManifest(mf)
 	if err != nil {
 		return err
 	}
@@ -206,7 +197,7 @@ func MEXAppDeleteAppManifest(mf *Manifest) error {
 	}
 }
 
-func FillManifest(mf *Manifest, kind, base string) error {
+func FillManifestValues(mf *Manifest, kind, base string) error {
 	if mf.Values.Name == "" {
 		return fmt.Errorf("no name for mf values")
 	}
@@ -224,6 +215,7 @@ func FillManifest(mf *Manifest, kind, base string) error {
 	default:
 		return fmt.Errorf("invalid manifest kind %s", kind)
 	}
+	mf.Base = base
 	dat, err := GetURIFile(mf, uri)
 	if err != nil {
 		return err
@@ -281,8 +273,23 @@ func GetMEXUserData(mf *Manifest) string {
 }
 
 func GetKustomizeManifest(mf *Manifest) ([]byte, error) {
-	fn := fmt.Sprintf("scp://%s/files-repo/mobiledgex/kustomize/application/%s/output/%s.yaml",
-		mf.Values.Registry.Name, mf.Values.Application.Base, mf.Values.Application.Overlay)
-	log.DebugLog(log.DebugLevelMexos, "attempt to get kustomize application manifest", "fn", fn)
-	return GetSCPFile(mf, fn)
+	return GetURIFile(mf, fmt.Sprintf("%s/%s", mf.Base, mf.Config.ConfigDetail.Manifest))
+}
+
+func GetKubeManifest(mf *Manifest) (string, error) {
+	var kubeManifest string
+	var err error
+	if strings.HasPrefix(mf.Config.ConfigDetail.Manifest, "kustomize") {
+		res, err := GetKustomizeManifest(mf)
+		if err != nil {
+			return "", err
+		}
+		kubeManifest = string(res)
+	} else {
+		kubeManifest, err = cloudcommon.GetDeploymentManifest(mf.Config.ConfigDetail.Manifest)
+		if err != nil {
+			return "", err
+		}
+	}
+	return kubeManifest, nil
 }

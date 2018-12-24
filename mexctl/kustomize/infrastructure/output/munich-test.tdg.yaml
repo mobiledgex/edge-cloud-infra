@@ -1,8 +1,8 @@
 apiVersion: v1
 kind: values
 metadata:
-  name: testcloudlet-example
-name: testcloudlet
+  name: munich-test-tdg
+name: munich
 resource: munich
 values:
   agent:
@@ -10,22 +10,22 @@ values:
     port: 18889
     status: active
   application:
-    base: example
+    base: empty
     deployment: kubernetes
     image: registry.mobiledgex.net:5000/mobiledgex/mexexample
     imagetype: ImageTypeDocker
     kind: kubernetes
-    manifest: no-application-manifest
-    name: testapp
-    overlay: testapp
-    proxypath: testapp
-    template: no-application-template
+    manifest: empty
+    name: empty
+    overlay: empty
+    proxypath: empty
+    template: empty
   base: example
   cluster:
     flavor: x1.medium
     kind: kubernetes
     location: eu-central
-    name: testcloudlet
+    name: munich-test
     osimage: mobiledgex
     region: eu-central-2
     zone: eu-central-2c
@@ -33,7 +33,7 @@ values:
     mexenv: https://vault.mobiledgex.net/v1/secret/data/cloudlet/openstack/mexenv.json
     openrc: https://vault.mobiledgex.net/v1/secret/data/cloudlet/openstack/munich/openrc.json
   kind: static
-  name: testcloudlet
+  name: munich-test
   network:
     dnszone: mobiledgex.net
     external: external-network-shared
@@ -50,6 +50,6 @@ values:
   registry:
     docker: registry.mobiledgex.net:5000
     name: registry.mobiledgex.net
-    update: testcloudlet
+    update: munich-test
   resource:
     group: mobiledgex

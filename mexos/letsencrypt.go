@@ -121,6 +121,9 @@ func AcquireCertificates(mf *Manifest, rootLB *MEXRootLB, fqdn string) error {
 		if err != nil {
 			return fmt.Errorf("fail to copy %s to %s on %s, %v, %v", d.src, d.dest, fqdn, err, res)
 		}
+		if out, err := client.Output(fmt.Sprintf("sudo cp %s /root", d.dest)); err != nil {
+			return fmt.Errorf("cannot copy %s to /root, %v, %s", d.dest, err, out)
+		}
 	}
 	cmd = fmt.Sprintf("scp -o %s -o %s -i id_rsa_mex -r %s mobiledgex@%s:files-repo/certs", sshOpts[0], sshOpts[1], fqdn, mf.Values.Registry.Name) // XXX
 	res, err = client.Output(cmd)

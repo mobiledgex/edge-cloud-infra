@@ -198,13 +198,13 @@ func KubeDeleteDNSRecords(rootLB *MEXRootLB, mf *Manifest, kp *kubeParam) error 
 		if !strings.HasPrefix(item.Metadata.Name, mf.Metadata.Name) {
 			continue
 		}
-		cmd := fmt.Sprintf("%s kubectl delete service %s", kp.kubeconfig, item.Metadata.Name)
-		out, err := kp.client.Output(cmd)
-		if err != nil {
-			log.DebugLog(log.DebugLevelMexos, "error deleting kubernetes service", "name", item.Metadata.Name, "cmd", cmd, "out", out, "err", err)
-		} else {
-			log.DebugLog(log.DebugLevelMexos, "deleted service", "name", item.Metadata.Name)
-		}
+		// cmd := fmt.Sprintf("%s kubectl delete service %s", kp.kubeconfig, item.Metadata.Name)
+		// out, err := kp.client.Output(cmd)
+		// if err != nil {
+		// 	log.DebugLog(log.DebugLevelMexos, "error deleting kubernetes service", "name", item.Metadata.Name, "cmd", cmd, "out", out, "err", err)
+		// } else {
+		// 	log.DebugLog(log.DebugLevelMexos, "deleted service", "name", item.Metadata.Name)
+		// }
 		fqdn := cloudcommon.ServiceFQDN(item.Metadata.Name, fqdnBase)
 		for _, rec := range recs {
 			if rec.Type == "A" && rec.Name == fqdn {
@@ -215,10 +215,11 @@ func KubeDeleteDNSRecords(rootLB *MEXRootLB, mf *Manifest, kp *kubeParam) error 
 			}
 		}
 	}
-	cmd = fmt.Sprintf("%s kubectl delete deploy %s", kp.kubeconfig, mf.Metadata.Name+"-deployment")
+	cmd = fmt.Sprintf("%s kubectl delete -f %s.yaml", kp.kubeconfig, mf.Metadata.Name)
+	// cmd = fmt.Sprintf("%s kubectl delete deploy %s", kp.kubeconfig, mf.Metadata.Name+"-deployment")
 	out, err = kp.client.Output(cmd)
 	if err != nil {
-		return fmt.Errorf("error deleting kubernetes deployment, %s, %s, %v", cmd, out, err)
+		return fmt.Errorf("error deleting kubernetes app, %s, %s, %s, %v", mf.Metadata.Name, cmd, out, err)
 	}
 
 	return nil

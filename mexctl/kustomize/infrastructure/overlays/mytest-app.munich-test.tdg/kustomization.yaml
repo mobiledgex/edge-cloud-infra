@@ -1,12 +1,10 @@
 apiVersion: v1
 kind: Kustomization
 bases:
-- ../../base
+- ../../base/tdg
 patchesStrategicMerge:
-- tcp.yaml
-- udp.yaml
-- deploy.yaml
-namePrefix: bob-app-
+- values.yaml
+namePrefix: munich-test-
 #commonLabels:
 #  org: acme
 #  variant: testing

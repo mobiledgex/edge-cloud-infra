@@ -5,8 +5,8 @@ metadata:
 spec:
   selector:
     matchLabels:
-      run: testapp
+      run: mytest-app
   template:
     metadata:
       labels:
-        run: testapp
+        run: mytest-app

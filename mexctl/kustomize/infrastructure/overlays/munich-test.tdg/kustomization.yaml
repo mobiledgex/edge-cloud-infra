@@ -1,10 +1,10 @@
 apiVersion: v1
 kind: Kustomization
 bases:
-- ../../base
+- ../../base/tdg
 patchesStrategicMerge:
 - values.yaml
-namePrefix: bob-cloudlet-
+namePrefix: munich-test-
 #commonLabels:
 #  org: acme
 #  variant: testing

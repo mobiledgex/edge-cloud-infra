@@ -39,8 +39,8 @@ var mainflag = flag.NewFlagSet(os.Args[0], flag.ExitOnError)
 
 func printUsage() {
 	originalUsage()
-	fmt.Println("mex -stack myvals.yaml {platform|cluster|application} {create|remove}")
-	fmt.Println("mex -stack myvals.yaml openstack ...")
+	fmt.Println("mex -manifest myvals.yaml {platform|cluster|application} {create|remove}")
+	fmt.Println("mex -manifest myvals.yaml openstack ...")
 }
 
 var originalUsage func()
@@ -49,8 +49,8 @@ func main() {
 	var err error
 	help := mainflag.Bool("help", false, "help")
 	debugLevels := mainflag.String("d", "", fmt.Sprintf("comma separated list of %v", log.DebugLevelStrings))
-	base := mainflag.String("base", ".", "base containing templates")
-	stack := mainflag.String("stack", "", "stack values")
+	base := mainflag.String("base", ".", "base containing templates, directory path or URI")
+	manifest := mainflag.String("manifest", "", "manifest")
 	originalUsage = mainflag.Usage
 	mainflag.Usage = printUsage
 	if err = mainflag.Parse(os.Args[1:]); err != nil {
@@ -75,9 +75,9 @@ func main() {
 		fmt.Println("valid categories are", "categories", reflect.ValueOf(categories).MapKeys())
 		os.Exit(1)
 	}
-	if *stack == "" {
+	if *manifest == "" {
 		printUsage()
-		fmt.Println("missing stack")
+		fmt.Println("missing manifest")
 		os.Exit(1)
 	}
 	if len(args) < 2 {
@@ -85,14 +85,14 @@ func main() {
 		fmt.Println("insufficient args")
 		os.Exit(1)
 	}
-	log.DebugLog(log.DebugLevelMexos, "getting mf from stack", "file", *stack)
+	log.DebugLog(log.DebugLevelMexos, "getting mf from manifest", "file", *manifest, "base", *base)
 	mf := &mexos.Manifest{}
-	if err := mexos.GetVaultEnv(mf, *stack); err != nil {
-		log.InfoLog("cannot get mf", "uri", *stack, "error", err)
+	if err := mexos.GetVaultEnv(mf, *manifest); err != nil {
+		log.InfoLog("cannot get mf", "uri", *manifest, "error", err)
 		os.Exit(1)
 	}
 	kind := args[0]
-	if err := mexos.FillManifest(mf, kind, *base); err != nil {
+	if err := mexos.FillManifestValues(mf, kind, *base); err != nil {
 		log.InfoLog("cannot fill manifest", "error", err, "kind", kind, "base", *base)
 		os.Exit(1)
 	}

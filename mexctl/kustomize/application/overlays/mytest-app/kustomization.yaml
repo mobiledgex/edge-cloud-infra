@@ -1,12 +1,12 @@
 apiVersion: v1
 kind: Kustomization
 bases:
-- ../../base
+- ../../base/kubernetes/testapp
 patchesStrategicMerge:
 - tcp.yaml
 - udp.yaml
 - deploy.yaml
-namePrefix: testapp-
+namePrefix: mytest-app-
 #commonLabels:
 #  org: acme
 #  variant: testing

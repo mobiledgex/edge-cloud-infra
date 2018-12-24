@@ -1,18 +1,18 @@
 apiVersion: v1
-name: example
+name: example-test
 metadata:
-  name: example
+  name: tdg
 kind: values
 resource: hamburg
 values:
-  name: example
+  name: example-test
   kind: static
   base: example
   operator:
     name: tdg
     kind: openstack
   cluster:
-    name: example
+    name: example-test
     flavor: x1.medium
     kind: kubernetes
     location: eu-central
@@ -36,20 +36,20 @@ values:
   registry:
     name: registry.mobiledgex.net
     docker: registry.mobiledgex.net:5000
-    update: example
+    update: example-test
   resource:
     group: mobiledgex
   application:
-    name: testapp
+    name: empty
     kind: kubernetes
     deployment: kubernetes
-    base: example
-    overlay: testapp
-    manifest: no-application-manifest
-    template: no-application-template
+    base: empty
+    overlay: empty
+    manifest: empty
+    template: empty
     image: registry.mobiledgex.net:5000/mobiledgex/mexexample
     imagetype: ImageTypeDocker
-    proxypath: testapp
+    proxypath: empty
   environment:
     openrc: https://vault.mobiledgex.net/v1/secret/data/cloudlet/openstack/hamburg/openrc.json
     mexenv: https://vault.mobiledgex.net/v1/secret/data/cloudlet/openstack/mexenv.json

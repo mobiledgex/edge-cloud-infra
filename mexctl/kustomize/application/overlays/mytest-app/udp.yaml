@@ -3,7 +3,7 @@ kind: Service
 metadata:
   name: mexexample-udp-service
   labels:
-    run: bob-app
+    run: mytest-app
 spec:
   selector:
-    run: bob-app
+    run: mytest-app

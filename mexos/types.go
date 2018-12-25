@@ -167,7 +167,8 @@ type RegistryValue struct {
 }
 
 type ResourceValue struct {
-	Group string `json:"group"`
+	Group   string `json:"group"`
+	Project string `json:"project"`
 }
 
 type ValueDetail struct {

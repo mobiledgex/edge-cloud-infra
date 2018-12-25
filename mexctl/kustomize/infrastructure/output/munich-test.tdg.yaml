@@ -10,16 +10,16 @@ values:
     port: 18889
     status: active
   application:
-    base: empty
+    base: null
     deployment: kubernetes
     image: registry.mobiledgex.net:5000/mobiledgex/mexexample
     imagetype: ImageTypeDocker
     kind: kubernetes
-    manifest: empty
-    name: empty
-    overlay: empty
-    proxypath: empty
-    template: empty
+    manifest: null
+    name: null
+    overlay: null
+    proxypath: null
+    template: null
   base: example
   cluster:
     flavor: x1.medium

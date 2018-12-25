@@ -13,6 +13,7 @@ metadata:
   resourcegroup: {{.Resource.Group}}
   operator: {{.Operator.Name}}
   dnszone: {{.Network.DNSZone}}
+  project: {{.Resource.Project}}
 spec:
   flags: force
   flavor: {{.Cluster.Flavor}}

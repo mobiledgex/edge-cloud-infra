@@ -40,16 +40,16 @@ values:
   resource:
     group: mobiledgex
   application:
-    name: empty
+    name: 
     kind: kubernetes
     deployment: kubernetes
-    base: empty
-    overlay: empty
-    manifest: empty
-    template: empty
+    base: 
+    overlay: 
+    manifest:
+    template:
     image: registry.mobiledgex.net:5000/mobiledgex/mexexample
     imagetype: ImageTypeDocker
-    proxypath: empty
+    proxypath:
   environment:
     openrc: https://vault.mobiledgex.net/v1/secret/data/cloudlet/openstack/hamburg/openrc.json
     mexenv: https://vault.mobiledgex.net/v1/secret/data/cloudlet/openstack/mexenv.json

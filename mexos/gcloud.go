@@ -8,8 +8,13 @@ import (
 	"github.com/mobiledgex/edge-cloud/log"
 )
 
+var GCPDefaultProjectID = "still-entity-201400" // XXX
+
 func gcloudCreateGKE(mf *Manifest) error {
 	var err error
+	if mf.Metadata.Project == "" {
+		log.DebugLog(log.DebugLevelMexos, "warning, empty gcp project ID, using default", "default", GCPDefaultProjectID)
+	}
 	if err = gcloud.SetProject(mf.Metadata.Project); err != nil {
 		return err
 	}

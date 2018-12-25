@@ -37,7 +37,7 @@ func CheckVals(vals interface{}) error {
 		v := m.Field(i).Interface()
 		if t.String() == "string" {
 			if v == "" {
-				return fmt.Errorf("empty %s, type %s, value %s, mtype %s", n, t, v, m.Type())
+				log.DebugLog(log.DebugLevelMexos, "checkvals, warning, empty field", "name", n, "type", m.Type(), "field type", t, "value", v)
 			}
 			//log.DebugLog(log.DebugLevelMexos, "ok", "name", n, "type", t, "value", v)
 		} else {

@@ -74,6 +74,9 @@ func InternVaultEnv(mf *Manifest) error {
 	//log.DebugLog(log.DebugLevelMexos, "interning vault env var")
 	mf.Values.VaultEnvMap = make(map[string]string)
 	for _, u := range []string{mf.Values.Environment.OpenRC, mf.Values.Environment.MexEnv} {
+		if u == "" {
+			continue
+		}
 		dat, err := GetVaultData(u)
 		if err != nil {
 			return err

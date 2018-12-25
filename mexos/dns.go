@@ -173,7 +173,7 @@ func KubeAddDNSRecords(rootLB *MEXRootLB, mf *Manifest, kp *kubeParam) error {
 		log.DebugLog(log.DebugLevelMexos, "created DNS record", "name", fqdn, "addr", rootLBIPaddr)
 	}
 	if processed == 0 {
-		fmt.Errorf("cannot patch service, not found", "name", mf.Metadata.Name)
+		return fmt.Errorf("cannot patch service, %s not found", mf.Metadata.Name)
 	}
 	return nil
 }

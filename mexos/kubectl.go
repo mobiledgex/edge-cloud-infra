@@ -81,6 +81,7 @@ func getSvcExternalIP(name string, kconf string) (string, error) {
 	}
 	return externalIP, nil
 }
+
 func getSvcNames(name string, kconf string) ([]string, error) {
 	out, err := sh.Command("kubectl", "get", "svc", "--kubeconfig="+kconf, "-o", "json").Output()
 	if err != nil {

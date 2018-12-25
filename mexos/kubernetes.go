@@ -80,7 +80,7 @@ func CreateKubernetesAppManifest(mf *Manifest, kubeManifest string) error {
 		log.DebugLog(log.DebugLevelMexos, "cannot create security rules", "error", err)
 		return err
 	}
-	log.DebugLog(log.DebugLevelMexos, "add spec ports", "ports", mf.Spec.Ports)
+	log.DebugLog(log.DebugLevelMexos, "ok, added spec ports", "ports", mf.Spec.Ports)
 	// Add DNS Zone
 	if err = KubeAddDNSRecords(rootLB, mf, kp); err != nil {
 		log.DebugLog(log.DebugLevelMexos, "cannot add DNS entries", "error", err)

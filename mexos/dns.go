@@ -120,6 +120,7 @@ func deleteAppDNS(mf *Manifest, kconf string) error {
 }
 
 func KubeAddDNSRecords(rootLB *MEXRootLB, mf *Manifest, kp *kubeParam) error {
+	log.DebugLog(log.DebugLevelMexos, "adding dns records for kubenernets app", "name", mf.Metadata.Name)
 	rootLBIPaddr, err := GetServerIPAddr(mf, mf.Values.Network.External, rootLB.Name)
 	if err != nil {
 		log.DebugLog(log.DebugLevelMexos, "cannot get rootlb IP address", "error", err)
@@ -142,7 +143,10 @@ func KubeAddDNSRecords(rootLB *MEXRootLB, mf *Manifest, kp *kubeParam) error {
 	if err != nil {
 		return fmt.Errorf("error getting dns records for %s, %v", mf.Metadata.DNSZone, err)
 	}
+	log.DebugLog(log.DebugLevelMexos, "number of cloudflare dns recs", "dns recs count", len(recs))
 	fqdnBase := uri2fqdn(mf.Spec.URI)
+	log.DebugLog(log.DebugLevelMexos, "kubernetes services", "services", svcs)
+	processed := 0
 	for _, item := range svcs.Items {
 		if !strings.HasPrefix(item.Metadata.Name, mf.Metadata.Name) {
 			continue
@@ -165,7 +169,11 @@ func KubeAddDNSRecords(rootLB *MEXRootLB, mf *Manifest, kp *kubeParam) error {
 		if err := cloudflare.CreateDNSRecord(mf.Metadata.DNSZone, fqdn, "A", rootLBIPaddr, 1, false); err != nil {
 			return fmt.Errorf("can't create DNS record for %s,%s, %v", fqdn, rootLBIPaddr, err)
 		}
+		processed++
 		log.DebugLog(log.DebugLevelMexos, "created DNS record", "name", fqdn, "addr", rootLBIPaddr)
+	}
+	if processed == 0 {
+		fmt.Errorf("cannot patch service, not found", "name", mf.Metadata.Name)
 	}
 	return nil
 }
@@ -219,7 +227,7 @@ func KubeDeleteDNSRecords(rootLB *MEXRootLB, mf *Manifest, kp *kubeParam) error 
 	// cmd = fmt.Sprintf("%s kubectl delete deploy %s", kp.kubeconfig, mf.Metadata.Name+"-deployment")
 	out, err = kp.client.Output(cmd)
 	if err != nil {
-		return fmt.Errorf("error deleting kubernetes app, %s, %s, %s, %v", mf.Metadata.Name, cmd, out, err)
+		return fmt.Errorf("error deleting kuberknetes app, %s, %s, %s, %v", mf.Metadata.Name, cmd, out, err)
 	}
 
 	return nil

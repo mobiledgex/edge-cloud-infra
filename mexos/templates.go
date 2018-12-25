@@ -118,9 +118,9 @@ config:
   kind:
   source:
   detail:
-    resources: {{.Config.Resources}}
+    resources: "{{.Config.Resources}}"
     deployment: {{.Config.Deployment}}
-    manifest: {{.Config.Manifest}}
+    manifest: "{{.Config.Manifest}}"
     template: {{.Config.Template}}
     base: {{.Config.Base}}
     overlay: {{.Config.Overlay}}
@@ -287,8 +287,8 @@ func templateUnmarshal(data *templateFill, yamltext string) (*Manifest, error) {
 	mf := &Manifest{}
 	err = yaml.Unmarshal(outbuffer.Bytes(), mf)
 	if err != nil {
-		log.DebugLog(log.DebugLevelMexos, "error yaml unmarshal, templated data", "templated buffer data", outbuffer.String())
-		return nil, fmt.Errorf("can't unmarshal templated data, %v", err)
+		log.DebugLog(log.DebugLevelMexos, "error yaml unmarshal, templated data")
+		return nil, fmt.Errorf("can't unmarshal templated data, %v, %s", err, outbuffer.String())
 	}
 	return mf, nil
 }

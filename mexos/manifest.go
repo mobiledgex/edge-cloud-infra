@@ -136,7 +136,7 @@ func MEXAppCreateAppManifest(mf *Manifest) error {
 		return err
 	}
 	if !strings.HasPrefix(kubeManifest, "apiVersion: v1") {
-		log.DebugLog(log.DebugLevelMexos, "bad version", "content", kubeManifest)
+		log.DebugLog(log.DebugLevelMexos, "bad apiVersion at beginning kubemanifest")
 		return fmt.Errorf("bad apiversion at beginning of kube manifest")
 	}
 	//TODO values.application.template
@@ -197,10 +197,20 @@ func MEXAppDeleteAppManifest(mf *Manifest) error {
 	}
 }
 
+func GetDefaultRegistryBase(mf *Manifest, base string) string {
+	mf.Base = base
+	if mf.Base == "" {
+		mf.Base = fmt.Sprintf("scp://%s/files-repo/mobiledgex", mf.Values.Registry.Name)
+	}
+	log.DebugLog(log.DebugLevelMexos, "default registry base", "base", mf.Base)
+	return mf.Base
+}
+
 func FillManifestValues(mf *Manifest, kind, base string) error {
 	if mf.Values.Name == "" {
 		return fmt.Errorf("no name for mf values")
 	}
+	base = GetDefaultRegistryBase(mf, base)
 	var uri string
 	switch kind {
 	case "openstack":
@@ -209,13 +219,12 @@ func FillManifestValues(mf *Manifest, kind, base string) error {
 	case "platform":
 		fallthrough
 	case "cluster":
-		uri = fmt.Sprintf("%s/%s/%s/%s.yaml", base, kind, mf.Values.Operator.Name, mf.Values.Base)
+		uri = fmt.Sprintf("%s/%s/%s/%s.yaml", mf.Base, kind, mf.Values.Operator.Name, mf.Values.Base)
 	case "application":
-		uri = fmt.Sprintf("%s/%s/%s/%s.yaml", base, kind, mf.Values.Application.Base, mf.Values.Base)
+		uri = fmt.Sprintf("%s/%s/%s/%s.yaml", mf.Base, kind, mf.Values.Application.Base, mf.Values.Base)
 	default:
 		return fmt.Errorf("invalid manifest kind %s", kind)
 	}
-	mf.Base = base
 	dat, err := GetURIFile(mf, uri)
 	if err != nil {
 		return err
@@ -272,20 +281,38 @@ func GetMEXUserData(mf *Manifest) string {
 	return MEXDir() + "/userdata.txt"
 }
 
-func GetKustomizeManifest(mf *Manifest) ([]byte, error) {
-	return GetURIFile(mf, fmt.Sprintf("%s/%s", mf.Base, mf.Config.ConfigDetail.Manifest))
-}
-
 func GetKubeManifest(mf *Manifest) (string, error) {
 	var kubeManifest string
-	var err error
-	if strings.HasPrefix(mf.Config.ConfigDetail.Manifest, "kustomize") {
-		res, err := GetKustomizeManifest(mf)
+	rootLB, err := getRootLB(mf.Spec.RootLB)
+	if err != nil {
+		return "", fmt.Errorf("cannot get rootlb, while getting kubemanifest, %v", err)
+	}
+	base := rootLB.PlatConf.Base
+	if base == "" {
+		log.DebugLog(log.DebugLevelMexos, "base is empty, using default")
+		base = GetDefaultRegistryBase(mf, base)
+	}
+	mani := mf.Config.ConfigDetail.Manifest
+	//XXX controlling pass full yaml text in parameter of another yaml
+	log.DebugLog(log.DebugLevelMexos, "getting kubemanifest", "base", base)
+	if strings.HasPrefix(mani, "kustomize/") {
+		log.DebugLog(log.DebugLevelMexos, "getting kustomize file", "base", base, "manifest", mani)
+		res, err := GetURIFile(mf, fmt.Sprintf("%s/%s", base, mani))
+		if err != nil {
+			return "", err
+		}
+		kubeManifest = string(res)
+	} else if strings.HasPrefix(mani, "scp://") {
+		log.DebugLog(log.DebugLevelMexos, "getting scp file", "base", mf.Base, "manifest", mani)
+		res, err := GetURIFile(mf, mani)
 		if err != nil {
 			return "", err
 		}
 		kubeManifest = string(res)
 	} else {
+		//XXX controller is passing full yaml as a string.
+		log.DebugLog(log.DebugLevelMexos, "getting deployment from cloudcommon", "base", mf.Base, "manifest", mani)
+		//XXX again it seems to download yaml but already yaml full string is passed from controller
 		kubeManifest, err = cloudcommon.GetDeploymentManifest(mf.Config.ConfigDetail.Manifest)
 		if err != nil {
 			return "", err

@@ -24,7 +24,7 @@ func AddNginxProxy(mf *Manifest, rootLBName, name, ipaddr string, ports []PortDe
 		return fmt.Errorf("error, can't request nginx proxy add, %v", errs)
 	}
 	if strings.Contains(body, "OK") {
-		log.DebugLog(log.DebugLevelMexos, "added nginx proxy OK")
+		log.DebugLog(log.DebugLevelMexos, "ok, nginx proxy add request post")
 		return nil
 	}
 	log.DebugLog(log.DebugLevelMexos, "warning, error while adding nginx proxy", "resp", resp, "body", body)

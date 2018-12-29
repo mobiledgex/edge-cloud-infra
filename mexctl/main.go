@@ -86,7 +86,7 @@ func main() {
 		os.Exit(1)
 	}
 	log.DebugLog(log.DebugLevelMexos, "getting mf from manifest", "file", *manifest, "base", *base)
-	mf := &mexos.Manifest{}
+	mf := &mexos.Manifest{Base: *base}
 	if err := mexos.GetVaultEnv(mf, *manifest); err != nil {
 		log.InfoLog("cannot get mf", "uri", *manifest, "error", err)
 		os.Exit(1)

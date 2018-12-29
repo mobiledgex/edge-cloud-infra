@@ -30,7 +30,7 @@ func gcloudCreateGKE(mf *Manifest) error {
 	if err = gcloud.GetGKECredentials(mf.Metadata.Name); err != nil {
 		return err
 	}
-	kconf, err := GetKconf(mf, false)
+	kconf, err := GetKconf(mf, false) //XXX
 	if err != nil {
 		return fmt.Errorf("cannot get kconf, %v, %v, %v", mf, kconf, err)
 	}

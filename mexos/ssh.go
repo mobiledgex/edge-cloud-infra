@@ -36,9 +36,18 @@ func GetSSHClient(mf *Manifest, serverName, networkName, userName string) (ssh.C
 	}
 	client, err := ssh.NewNativeClient(userName, addr, "SSH-2.0-mobiledgex-ssh-client-1.0", 22, &auth, nil)
 	if err != nil {
-		return nil, fmt.Errorf("cannot get ssh client, %v", err)
+		return nil, fmt.Errorf("cannot get ssh client for server %s on network %s, %v", serverName, networkName, err)
 	}
 	//log.DebugLog(log.DebugLevelMexos, "got ssh client", "addr", addr, "key", auth)
+	return client, nil
+}
+
+func GetSSHClientIP(mf *Manifest, ipaddr, userName string) (ssh.Client, error) {
+	auth := ssh.Auth{Keys: []string{PrivateSSHKey()}}
+	client, err := ssh.NewNativeClient(userName, ipaddr, "SSH-2.0-mobiledgex-ssh-client-1.0", 22, &auth, nil)
+	if err != nil {
+		return nil, fmt.Errorf("cannot get ssh client for ipaddr %s, %v", ipaddr, err)
+	}
 	return client, nil
 }
 

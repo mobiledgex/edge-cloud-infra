@@ -22,7 +22,7 @@ func azureCreateAKS(mf *Manifest) error {
 	if err = azure.GetAKSCredentials(mf.Metadata.ResourceGroup, mf.Metadata.Name); err != nil {
 		return err
 	}
-	kconf, err := GetKconf(mf, false)
+	kconf, err := GetKconf(mf, false) // XXX
 	if err != nil {
 		return fmt.Errorf("cannot get kconf, %v, %v, %v", mf, kconf, err)
 	}

@@ -20,10 +20,11 @@ type templateFill struct {
 	NodeFlavor, Operator, Key, Image, Options                            string
 	ImageType, AppURI, ProxyPath, AgentImage                             string
 	ExternalNetwork, Project                                             string
-	ExternalRouter, Flags, IPAccess                                      string
+	ExternalRouter, Flags, IPAccess, Swarm                               string
 	NumMasters, NumNodes                                                 int
 	Config                                                               templateConfig
 	Command                                                              []string
+	SpecPorts                                                            []PortDetail
 }
 
 type templateConfig struct {
@@ -44,6 +45,7 @@ metadata:
   location: {{.Location}}
   project: {{.Project}}
   dnszone: {{.DNSZone}}
+  swarm: {{.Swarm}}
   resourcegroup: {{.ResourceGroup}}
 spec:
   flags: {{.Flags}}
@@ -136,6 +138,15 @@ spec:
   uri: {{.AppURI}}
   ipaccess: {{.IPAccess}}
   networkscheme: {{.NetworkScheme}}
+  ports:
+{{- range .SpecPorts}}
+  - {{.Name}}
+    {{.MexProto}}
+    {{.Proto}}
+    {{.InternalPort}}
+    {{.PublicPort}}
+    {{.PublicPath}}
+{{- end}}
   command:
 {{- range .Command}}
   - {{.}}
@@ -243,12 +254,13 @@ func fillAppTemplate(rootLB *MEXRootLB, appInst *edgeproto.AppInst, app *edgepro
 		Config: templateConfig{
 			Deployment: app.Deployment, //vp.Application.Deployment
 			Resources:  config.Resources,
-			Manifest:   app.DeploymentManifest, //vp.Application.Manifest
+			Manifest:   app.DeploymentManifest, //XXX vp.Application.Manifest,controller passes entire YAML
 			Template:   vp.Application.Template,
 			Base:       vp.Application.Base,
 			Overlay:    vp.Application.Overlay,
 		},
-		Command: strings.Split(app.Command, " "),
+		SpecPorts: vp.Application.Ports,
+		Command:   strings.Split(app.Command, " "),
 	}
 	mf, err = templateUnmarshal(&data, yamlMEXApp)
 	if err != nil {
@@ -256,14 +268,14 @@ func fillAppTemplate(rootLB *MEXRootLB, appInst *edgeproto.AppInst, app *edgepro
 	}
 	switch appDeploymentType {
 	case cloudcommon.AppDeploymentTypeKubernetes:
-	case cloudcommon.AppDeploymentTypeDocker:
+	case cloudcommon.AppDeploymentTypeDockerSwarm:
 	case cloudcommon.AppDeploymentTypeKVM:
 	case cloudcommon.AppDeploymentTypeHelm:
 	default:
 		return nil, fmt.Errorf("unknown image type %s", imageType)
 	}
-	//mf.Config.ConfigDetail.Manifest = app.DeploymentManifest
 	log.DebugLog(log.DebugLevelMexos, "filled app manifest")
+	//XXX inconsistent addPorts after template fill
 	err = addPorts(mf, appInst)
 	if err != nil {
 		return nil, err

@@ -11,7 +11,7 @@ import (
 
 // TODO service to periodically clean up the leftover rules
 
-func KubeAddSecurityRules(rootLB *MEXRootLB, mf *Manifest, kp *kubeParam) error {
+func AddProxySecurityRules(rootLB *MEXRootLB, mf *Manifest, masteraddr string) error {
 	// rootLBIPaddr, err := GetServerIPAddr(mf, mf.Values.Network.External, rootLB.Name)
 	// if err != nil {
 	// 	log.DebugLog(log.DebugLevelMexos, "cannot get rootlb IP address", "error", err)
@@ -24,11 +24,7 @@ func KubeAddSecurityRules(rootLB *MEXRootLB, mf *Manifest, kp *kubeParam) error 
 			addr string
 			port int
 		}{
-			//{rootLBIPaddr + "/32", port.PublicPort},
-			//{kp.ipaddr + "/32", port.PublicPort},
 			{allowedClientCIDR, port.PublicPort},
-			//{rootLBIPaddr + "/32", port.InternalPort},
-			//{kp.ipaddr + "/32", port.InternalPort},
 			{allowedClientCIDR, port.InternalPort},
 		} {
 			// go func(addr string, port int, proto string) {
@@ -43,7 +39,7 @@ func KubeAddSecurityRules(rootLB *MEXRootLB, mf *Manifest, kp *kubeParam) error 
 		}
 	}
 	if len(mf.Spec.Ports) > 0 {
-		if err := AddNginxProxy(mf, rootLB.Name, mf.Metadata.Name, kp.ipaddr, mf.Spec.Ports); err != nil {
+		if err := AddNginxProxy(mf, rootLB.Name, mf.Metadata.Name, masteraddr, mf.Spec.Ports); err != nil {
 			log.DebugLog(log.DebugLevelMexos, "cannot add nginx proxy", "name", mf.Metadata.Name, "ports", mf.Spec.Ports)
 			return err
 		}
@@ -52,13 +48,13 @@ func KubeAddSecurityRules(rootLB *MEXRootLB, mf *Manifest, kp *kubeParam) error 
 	return nil
 }
 
-func KubeDeleteSecurityRules(rootLB *MEXRootLB, mf *Manifest, kp *kubeParam) error {
+func DeleteProxySecurityRules(rootLB *MEXRootLB, mf *Manifest, ipaddr string) error {
 	log.DebugLog(log.DebugLevelMexos, "delete spec ports", "ports", mf.Spec.Ports)
 	err := DeleteNginxProxy(mf, rootLB.Name, mf.Metadata.Name)
 	if err != nil {
 		log.DebugLog(log.DebugLevelMexos, "cannot delete nginx proxy", "name", mf.Metadata.Name, "rootlb", rootLB.Name, "error", err)
 	}
-	if err := DeleteSecurityRule(mf, kp.ipaddr); err != nil {
+	if err := DeleteSecurityRule(mf, ipaddr); err != nil {
 		return err
 	}
 	// TODO - implement the clean up of security rules

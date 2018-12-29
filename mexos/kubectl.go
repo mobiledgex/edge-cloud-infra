@@ -14,8 +14,8 @@ import (
 	"github.com/mobiledgex/edge-cloud/log"
 )
 
-func runKubectlCreateApp(mf *Manifest, kubeManifest string) error {
-	log.DebugLog(log.DebugLevelMexos, "run kubectl create app", "kubeManifest", kubeManifest)
+func CreateDockerRegistrySecret(mf *Manifest) error {
+	log.DebugLog(log.DebugLevelMexos, "creating docker registry secret in kubernetes")
 	kconf, err := GetKconf(mf, false)
 	if err != nil {
 		return fmt.Errorf("error creating app due to kconf missing, %v, %v", mf, err)
@@ -24,16 +24,29 @@ func runKubectlCreateApp(mf *Manifest, kubeManifest string) error {
 	if err != nil {
 		if !strings.Contains(string(out), "AlreadyExists") {
 			return fmt.Errorf("can't add docker registry secret, %s, %v", out, err)
+		} else {
+			log.DebugLog(log.DebugLevelMexos, "warning, docker registry secret already exists.")
 		}
 	}
+	log.DebugLog(log.DebugLevelMexos, "ok, created mexregistrysecret")
+	return nil
+}
+
+func runKubectlCreateApp(mf *Manifest, kubeManifest string) error {
+	log.DebugLog(log.DebugLevelMexos, "run kubectl create app", "kubeManifest", kubeManifest)
+	if err := CreateDockerRegistrySecret(mf); err != nil {
+		return err
+	}
 	kfile := mf.Metadata.Name + ".yaml"
-	err = writeKubeManifest(kubeManifest, kfile)
-	if err != nil {
+	if err := writeKubeManifest(kubeManifest, kfile); err != nil {
 		return err
 	}
 	defer os.Remove(kfile)
-
-	out, err = sh.Command("kubectl", "create", "-f", kfile, "--kubeconfig="+kconf).Output()
+	kconf, err := GetKconf(mf, false)
+	if err != nil {
+		return fmt.Errorf("error creating app due to kconf missing, %v, %v", mf, err)
+	}
+	out, err := sh.Command("kubectl", "create", "-f", kfile, "--kubeconfig="+kconf).Output()
 	if err != nil {
 		return fmt.Errorf("error creating app, %s, %v, %v", out, err, mf)
 	}

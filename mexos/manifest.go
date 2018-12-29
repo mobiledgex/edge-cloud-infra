@@ -131,13 +131,17 @@ func MEXAppCreateAppManifest(mf *Manifest) error {
 	log.DebugLog(log.DebugLevelMexos, "create app from manifest")
 	appDeploymentType := mf.Config.ConfigDetail.Deployment
 	log.DebugLog(log.DebugLevelMexos, "app deployment", "imageType", mf.Spec.ImageType, "deploymentType", appDeploymentType, "config", mf.Config)
-	kubeManifest, err := GetKubeManifest(mf)
-	if err != nil {
-		return err
-	}
-	if !strings.HasPrefix(kubeManifest, "apiVersion: v1") {
-		log.DebugLog(log.DebugLevelMexos, "bad apiVersion at beginning kubemanifest")
-		return fmt.Errorf("bad apiversion at beginning of kube manifest")
+	var kubeManifest string
+	var err error
+	if appDeploymentType == cloudcommon.AppDeploymentTypeKubernetes {
+		kubeManifest, err = GetKubeManifest(mf)
+		if err != nil {
+			return err
+		}
+		if !strings.HasPrefix(kubeManifest, "apiVersion: v1") {
+			log.DebugLog(log.DebugLevelMexos, "bad apiVersion at beginning kubemanifest")
+			return fmt.Errorf("bad apiversion at beginning of kube manifest")
+		}
 	}
 	//TODO values.application.template
 	switch mf.Metadata.Operator {
@@ -150,6 +154,8 @@ func MEXAppCreateAppManifest(mf *Manifest) error {
 			return fmt.Errorf("not yet supported")
 		} else if appDeploymentType == cloudcommon.AppDeploymentTypeHelm {
 			return fmt.Errorf("not yet supported")
+		} else if appDeploymentType == cloudcommon.AppDeploymentTypeDockerSwarm {
+			return fmt.Errorf("not yet supported")
 		}
 		return fmt.Errorf("unknown deployment type %s", appDeploymentType)
 	default:
@@ -159,6 +165,8 @@ func MEXAppCreateAppManifest(mf *Manifest) error {
 			return CreateQCOW2AppManifest(mf)
 		} else if appDeploymentType == cloudcommon.AppDeploymentTypeHelm {
 			return CreateHelmAppManifest(mf)
+		} else if appDeploymentType == cloudcommon.AppDeploymentTypeDockerSwarm {
+			return CreateDockerSwarmAppManifest(mf)
 		}
 		return fmt.Errorf("unknown deployment type %s", appDeploymentType)
 	}
@@ -183,6 +191,8 @@ func MEXAppDeleteAppManifest(mf *Manifest) error {
 			return fmt.Errorf("not yet supported")
 		} else if appDeploymentType == cloudcommon.AppDeploymentTypeHelm {
 			return fmt.Errorf("not yet supported")
+		} else if appDeploymentType == cloudcommon.AppDeploymentTypeDockerSwarm {
+			return fmt.Errorf("not yet supported")
 		}
 		return fmt.Errorf("unknown image type %s", appDeploymentType)
 	default:
@@ -192,6 +202,8 @@ func MEXAppDeleteAppManifest(mf *Manifest) error {
 			return DeleteQCOW2AppManifest(mf)
 		} else if appDeploymentType == cloudcommon.AppDeploymentTypeHelm {
 			return DeleteHelmAppManifest(mf)
+		} else if appDeploymentType == cloudcommon.AppDeploymentTypeDockerSwarm {
+			return DeleteDockerSwarmAppManifest(mf)
 		}
 		return fmt.Errorf("unknown image type %s", mf.Spec.ImageType)
 	}
@@ -294,17 +306,11 @@ func GetKubeManifest(mf *Manifest) (string, error) {
 	}
 	mani := mf.Config.ConfigDetail.Manifest
 	//XXX controlling pass full yaml text in parameter of another yaml
-	log.DebugLog(log.DebugLevelMexos, "getting kubemanifest", "base", base)
-	if strings.HasPrefix(mani, "kustomize/") {
-		log.DebugLog(log.DebugLevelMexos, "getting kustomize file", "base", base, "manifest", mani)
-		res, err := GetURIFile(mf, fmt.Sprintf("%s/%s", base, mani))
-		if err != nil {
-			return "", err
-		}
-		kubeManifest = string(res)
-	} else if strings.HasPrefix(mani, "scp://") {
-		log.DebugLog(log.DebugLevelMexos, "getting scp file", "base", mf.Base, "manifest", mani)
-		res, err := GetURIFile(mf, mani)
+	log.DebugLog(log.DebugLevelMexos, "getting kubernetes manifest", "base", base, "manifest", mani)
+	if !strings.Contains(mani, "://") {
+		fn := fmt.Sprintf("%s/%s", base, mani)
+		log.DebugLog(log.DebugLevelMexos, "getting manifest file", "uri", fn)
+		res, err := GetURIFile(mf, fn)
 		if err != nil {
 			return "", err
 		}

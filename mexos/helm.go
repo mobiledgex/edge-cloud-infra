@@ -27,7 +27,7 @@ func DeleteHelmAppManifest(mf *Manifest) error {
 		log.DebugLog(log.DebugLevelMexos, "warning, cannot delete DNS record", "error", err)
 	}
 	// remove Security rules
-	if err = KubeDeleteSecurityRules(rootLB, mf, kp); err != nil {
+	if err = DeleteProxySecurityRules(rootLB, mf, kp.ipaddr); err != nil {
 		log.DebugLog(log.DebugLevelMexos, "warning, cannot delete security rules", "error", err)
 	}
 	cmd := fmt.Sprintf("%s helm delete %s", kp.kubeconfig, mf.Metadata.Name)
@@ -71,7 +71,7 @@ func CreateHelmAppManifest(mf *Manifest) error {
 	}
 	log.DebugLog(log.DebugLevelMexos, "applied helm chart")
 	// Add security rules
-	if err = KubeAddSecurityRules(rootLB, mf, kp); err != nil {
+	if err = AddProxySecurityRules(rootLB, mf, kp.ipaddr); err != nil {
 		log.DebugLog(log.DebugLevelMexos, "cannot create security rules", "error", err)
 		return err
 	}

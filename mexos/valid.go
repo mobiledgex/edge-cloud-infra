@@ -35,6 +35,10 @@ func CheckVals(vals interface{}) error {
 		n := m.Type().Field(i).Name
 		t := m.Type().Field(i).Type
 		v := m.Field(i).Interface()
+		log.DebugLog(log.DebugLevelMexos, "checkvals", "name", n, "type", m.Type(), "field type", t, "value", v)
+		if t.String() == "[]mexos.PortDetail" { // XXX skip ports, TODO check !nil and validate
+			continue
+		}
 		if t.String() == "string" {
 			if v == "" {
 				log.DebugLog(log.DebugLevelMexos, "checkvals, warning, empty field", "name", n, "type", m.Type(), "field type", t, "value", v)
@@ -90,8 +94,12 @@ func ValidateClusterKind(kind string) error {
 	if kind == "" {
 		return fmt.Errorf("empty cluster kind")
 	}
-
-	for _, k := range []string{"gcp", "azure"} {
+	//TODO: add more kinds of clusters
+	for _, k := range []string{
+		"gcp",
+		"azure",
+		//"tdg",
+	} {
 		if kind == k {
 			return nil
 		}

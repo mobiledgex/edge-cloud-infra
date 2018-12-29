@@ -73,7 +73,7 @@ type ClusterMasterFlavor struct {
 //mexCreateClusterKubernetes creates a cluster of nodes. It can take a while, so call from a goroutine.
 func mexCreateClusterKubernetes(mf *Manifest) error {
 	//func mexCreateClusterKubernetes(mf *Manifest) (*string, error) {
-	log.DebugLog(log.DebugLevelMexos, "create kubernetes cluster")
+	log.DebugLog(log.DebugLevelMexos, "create kubernetes cluster", "cluster metadata", mf.Metadata, "spec", mf.Spec)
 	rootLB, err := getRootLB(mf.Spec.RootLB)
 	if err != nil {
 		return err
@@ -179,6 +179,18 @@ func mexCreateClusterKubernetes(mf *Manifest) error {
 	}
 	if !ready {
 		return fmt.Errorf("cluster not ready (yet)")
+	}
+	if err := SeedDockerSecret(mf, rootLB); err != nil {
+		return err
+	}
+	if mf.Metadata.Swarm != "" {
+		log.DebugLog(log.DebugLevelMexos, "metadata swarm is set, creating docker swarm", "swarm", mf.Metadata.Swarm)
+		if err := CreateDockerSwarm(mf, rootLB); err != nil {
+			return err
+		}
+	}
+	if err := CreateDockerRegistrySecret(mf); err != nil {
+		return err
 	}
 	//return &guid, nil
 	return nil

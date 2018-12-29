@@ -129,7 +129,7 @@ func CheckPlatformEnv(platformType string) error {
 }
 
 func GetVaultEnv(mf *Manifest, uri string) error {
-	dat, err := GetURIFile(mf, uri)
+	dat, err := GetURIFile(mf, mf.Base+"/"+uri)
 	if err != nil {
 		return err
 	}

@@ -55,6 +55,7 @@ func FillClusterTemplateClustInst(rootLB *MEXRootLB, clusterInst *edgeproto.Clus
 		Zone:          vp.Cluster.Zone,     //us-west1a
 		Location:      vp.Cluster.Location, // us-west
 		NetworkScheme: vp.Network.Scheme,   //"priv-subnet,mex-k8s-net-1,10.101.X.0/24",
+		Swarm:         vp.Cluster.Swarm,
 	}
 
 	// // if these env variables are not set, fall back to the

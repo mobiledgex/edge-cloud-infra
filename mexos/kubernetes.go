@@ -1,8 +1,8 @@
 package mexos
 
 import (
+	"encoding/json"
 	"fmt"
-	"strings"
 
 	"github.com/mobiledgex/edge-cloud/log"
 	ssh "github.com/nanobox-io/golang-ssh"
@@ -33,50 +33,23 @@ func CreateKubernetesAppManifest(mf *Manifest, kubeManifest string) error {
 	if mexEnv(mf, "MEX_DOCKER_REG_PASS") == "" {
 		return fmt.Errorf("empty docker registry password environment variable")
 	}
-	//TODO: mexosagent should cache
-	var out string
-	cmd = fmt.Sprintf("echo %s > .docker-pass", mexEnv(mf, "MEX_DOCKER_REG_PASS"))
-	out, err = kp.client.Output(cmd)
-	if err != nil {
-		return fmt.Errorf("can't store docker password, %s, %v", out, err)
+	if err := CreateDockerRegistrySecret(mf); err != nil {
+		return err
 	}
-	log.DebugLog(log.DebugLevelMexos, "stored docker password")
-	cmd = fmt.Sprintf("scp -o %s -o %s -i id_rsa_mex .docker-pass %s:", sshOpts[0], sshOpts[1], kp.ipaddr)
-	out, err = kp.client.Output(cmd)
-	if err != nil {
-		return fmt.Errorf("can't copy docker password to k8s-master, %s, %v", out, err)
-	}
-	log.DebugLog(log.DebugLevelMexos, "copied over docker password")
-	cmd = fmt.Sprintf("ssh -o %s -o %s -i id_rsa_mex %s 'cat .docker-pass| docker login -u mobiledgex --password-stdin %s'", sshOpts[0], sshOpts[1], kp.ipaddr, mf.Values.Registry.Docker)
-	out, err = kp.client.Output(cmd)
-	if err != nil {
-		return fmt.Errorf("can't docker login on k8s-master to %s, %s, %v", mf.Values.Registry.Docker, out, err)
-	}
-	log.DebugLog(log.DebugLevelMexos, "docker login ok")
-	cmd = fmt.Sprintf("%s kubectl create secret docker-registry mexregistrysecret --docker-server=%s --docker-username=mobiledgex --docker-password=%s --docker-email=docker@mobiledgex.com", kp.kubeconfig, mf.Values.Registry.Docker, mexEnv(mf, "MEX_DOCKER_REG_PASS"))
-	out, err = kp.client.Output(cmd)
-	if err != nil {
-		if strings.Contains(out, "AlreadyExists") {
-			log.DebugLog(log.DebugLevelMexos, "secret already exists")
-		} else {
-			return fmt.Errorf("error creating mexregistrysecret, %s, %s, %v", cmd, out, err)
-		}
-	}
-	log.DebugLog(log.DebugLevelMexos, "created mexregistrysecret docker secret")
 	cmd = fmt.Sprintf("cat <<'EOF'> %s.yaml \n%s\nEOF", mf.Metadata.Name, kubeManifest)
-	out, err = kp.client.Output(cmd)
+	out, err := kp.client.Output(cmd)
 	if err != nil {
 		return fmt.Errorf("error writing KubeManifest, %s, %s, %v", cmd, out, err)
 	}
-	log.DebugLog(log.DebugLevelMexos, "wrote Kube Manifest file")
+	log.DebugLog(log.DebugLevelMexos, "wrote kubernetes manifest file")
 	cmd = fmt.Sprintf("%s kubectl create -f %s.yaml", kp.kubeconfig, mf.Metadata.Name)
 	out, err = kp.client.Output(cmd)
 	if err != nil {
-		return fmt.Errorf("error deploying kubernetes app, %s, %s, %v", cmd, out, err)
+		return fmt.Errorf("error deploying kubernetes app, %s, %v", out, err)
 	}
 	log.DebugLog(log.DebugLevelMexos, "applied kubernetes manifest")
 	// Add security rules
-	if err = KubeAddSecurityRules(rootLB, mf, kp); err != nil {
+	if err = AddProxySecurityRules(rootLB, mf, kp.ipaddr); err != nil {
 		log.DebugLog(log.DebugLevelMexos, "cannot create security rules", "error", err)
 		return err
 	}
@@ -251,7 +224,7 @@ func DeleteKubernetesAppManifest(mf *Manifest, kubeManifest string) error {
 		return err
 	}
 	// Clean up security rules and nginx proxy
-	if err = KubeDeleteSecurityRules(rootLB, mf, kp); err != nil {
+	if err = DeleteProxySecurityRules(rootLB, mf, kp.ipaddr); err != nil {
 		log.DebugLog(log.DebugLevelMexos, "cannot clean up security rules", "name", mf.Metadata.Name, "rootlb", rootLB.Name, "error", err)
 	}
 	// Clean up DNS entries
@@ -261,4 +234,93 @@ func DeleteKubernetesAppManifest(mf *Manifest, kubeManifest string) error {
 	}
 	log.DebugLog(log.DebugLevelMexos, "deleted deployment", "name", mf.Metadata.Name)
 	return nil
+}
+
+type KubernetesNode struct {
+	Name string
+	Role string
+	Addr string
+}
+
+type KNodeMetadata struct {
+	Labels map[string]string `json:"labels"`
+	//TODO annotations, resourceVersion, creationTimestamp, name, selfLink, uid
+}
+
+type KNodeAddr struct {
+	Address string `json:"address"`
+	Type    string `json:"type"`
+}
+
+type KNodeStatus struct {
+	Addresses []KNodeAddr `json:"addresses"`
+	//TODO allocatable, capacity,conditions,daemonEndpoints,images,nodeInfo,
+}
+
+type KAPINode struct {
+	ApiVersion string        `json:"apiVersion"`
+	Kind       string        `json:"kind"`
+	Metadata   KNodeMetadata `json:"metadata"`
+	//TODO spec
+	Status KNodeStatus `json:"status"`
+}
+
+type KAPINodes struct {
+	ApiVersion string     `json:"apiVersion"`
+	Kind       string     `json:"kind"`
+	Items      []KAPINode `json:"items"`
+	//TODO metadata
+}
+
+func GetKubernetesNodes(mf *Manifest, rootLB *MEXRootLB) ([]KubernetesNode, error) {
+	log.DebugLog(log.DebugLevelMexos, "getting kubernetes nodes")
+	name, err := FindClusterWithKey(mf, mf.Spec.Key)
+	if err != nil {
+		return nil, fmt.Errorf("can't find cluster with key %s, %v", mf.Spec.Key, err)
+	}
+	ipaddr, err := FindNodeIP(mf, name)
+	if err != nil {
+		return nil, err
+	}
+	client, err := GetSSHClient(mf, rootLB.Name, mf.Values.Network.External, sshUser)
+	if err != nil {
+		return nil, fmt.Errorf("can't get ssh client for getting kubernetes nodes, %v", err)
+	}
+	cmd := fmt.Sprintf("ssh -o %s -o %s -o %s -i id_rsa_mex %s@%s kubectl get nodes -o json", sshOpts[0], sshOpts[1], sshOpts[2], sshUser, ipaddr)
+	log.DebugLog(log.DebugLevelMexos, "running kubectl get nodes", "cmd", cmd)
+	out, err := client.Output(cmd)
+	if err != nil {
+		log.DebugLog(log.DebugLevelMexos, "error checking for kubernetes nodes", "out", out, "err", err)
+		return nil, fmt.Errorf("error doing kubectl get nodes, %v", err)
+	}
+	knodes := KAPINodes{}
+	err = json.Unmarshal([]byte(out), &knodes)
+	if err != nil {
+		return nil, fmt.Errorf("error unmarshalling kubectl get nodes result, %v, %s", err, out)
+	}
+	if knodes.Kind != "List" {
+		return nil, fmt.Errorf("error, kubectl get nodes result is not a list")
+	}
+	kl := make([]KubernetesNode, 0)
+	for _, n := range knodes.Items {
+		if n.Kind != "Node" {
+			continue
+		}
+		kn := KubernetesNode{}
+		for _, a := range n.Status.Addresses {
+			if a.Type == "InternalIP" {
+				kn.Addr = a.Address
+			}
+			if a.Type == "Hostname" {
+				kn.Name = a.Address
+			}
+			if _, ok := n.Metadata.Labels["node-role.kubernetes.io/master"]; ok {
+				kn.Role = "master"
+			} else {
+				kn.Role = "worker"
+			}
+		}
+		kl = append(kl, kn)
+	}
+	return kl, nil
 }

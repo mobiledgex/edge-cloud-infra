@@ -12,7 +12,12 @@ import (
 )
 
 func GetLocalKconfName(mf *Manifest) string {
-	return fmt.Sprintf("%s/%s", MEXDir(), GetKconfName(mf))
+	kconf := fmt.Sprintf("%s/%s", MEXDir(), GetKconfName(mf))
+	if mf.Metadata.Operator != "gcp" &&
+		mf.Metadata.Operator != "azure" {
+		return kconf + "-proxy"
+	}
+	return kconf
 }
 
 func GetKconfName(mf *Manifest) string {

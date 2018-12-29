@@ -14,6 +14,7 @@ type MetadataDetail struct {
 	DNSZone       string `json:"dnszone"`
 	Kind          string `json:"kind"`
 	Operator      string `json:"operator"`
+	Swarm         string `json:"swarm"`
 }
 
 //NetworkDetail has network data
@@ -111,16 +112,17 @@ type AgentValue struct {
 }
 
 type AppValue struct {
-	Deployment string `json:"deployment"`
-	Name       string `json:"name"`
-	Kind       string `json:"kind"`
-	Manifest   string `json:"manifest"`
-	Image      string `json:"image"`
-	ImageType  string `json:"imagetype"`
-	ProxyPath  string `json:"proxypath"`
-	Template   string `json:"template"`
-	Base       string `json:"base"`
-	Overlay    string `json:"overlay"`
+	Deployment string       `json:"deployment"`
+	Name       string       `json:"name"`
+	Kind       string       `json:"kind"`
+	Manifest   string       `json:"manifest"`
+	Image      string       `json:"image"`
+	ImageType  string       `json:"imagetype"`
+	ProxyPath  string       `json:"proxypath"`
+	Template   string       `json:"template"`
+	Base       string       `json:"base"`
+	Overlay    string       `json:"overlay"`
+	Ports      []PortDetail `json:"ports"`
 }
 
 type ClusterValue struct {
@@ -131,6 +133,8 @@ type ClusterValue struct {
 	Region   string `json:"region"`
 	Location string `json:"location"`
 	OSImage  string `json:"osimage"`
+	Tenant   string `json:"tenant"`
+	Swarm    string `json:"swarm"`
 }
 
 type StorageValue struct {

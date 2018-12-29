@@ -6,8 +6,8 @@
 	"ssh_username": "ubuntu",
 	"region": "RegionOne",
 	"image_name": "mobiledgex",
-	"source_image": "6716798c-68dd-4dc1-8dd5-de0f0568e26d",
-	"networks": "a52eddd6-b756-4867-8f6c-59482994688d",
+	"source_image": "a4da5673-bfdb-423f-9020-9e072b851b39",
+	"networks": "d5d7d31c-721b-418e-be85-b1dad361f195",
 	"security_groups": ["default" ]
     }],
     "provisioners": [{

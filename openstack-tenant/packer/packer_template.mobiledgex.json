@@ -1,3 +1,4 @@
+
 {
     "builders": [{
 	"type": "openstack",
@@ -5,8 +6,8 @@
 	"ssh_username": "ubuntu",
 	"region": "RegionOne",
 	"image_name": "mobiledgex",
-	"source_image": "6a7888da-2112-4660-8d5a-8c06ab845d52",
-	"networks": "f99dfbb9-161c-4929-b0de-2eb00e765725",
+	"source_image": "a4da5673-bfdb-423f-9020-9e072b851b39",
+	"networks": "d5d7d31c-721b-418e-be85-b1dad361f195",
 	"security_groups": ["default" ]
     }],
     "provisioners": [{
@@ -14,3 +15,4 @@
 	"script": "setup.sh"
     }]
 }
+

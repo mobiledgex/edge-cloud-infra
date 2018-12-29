@@ -1,0 +1,21 @@
+apiVersion: v1
+name: bonn
+metadata:
+  name: tdg
+kind: values
+resource: bonn
+values:
+  name: bonn
+  cluster:
+    name: bonn
+    location: eu-central
+    region: eu-central-2
+    zone: eu-central-2c
+    swarm: 
+  network:
+    holepunch: 
+  registry:
+    update: bonn
+  environment:
+    openrc: https://vault.mobiledgex.net/v1/secret/data/cloudlet/openstack/bonn/openrc.json
+    mexenv: https://vault.mobiledgex.net/v1/secret/data/cloudlet/openstack/mexenv.json

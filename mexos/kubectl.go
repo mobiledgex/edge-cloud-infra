@@ -108,15 +108,6 @@ func getSvcExternalIP(name string, kconf string) (string, error) {
 					return externalIP, nil
 				}
 			}
-			/*
-				for _, eip := range item.Spec.ExternalIPs {
-					if eip != "" {
-						externalIP = eip
-						log.DebugLog(log.DebugLevelMexos, "got externaIP for app", "externalIP", externalIP)
-						return externalIP, nil
-					}
-				}
-			*/
 		}
 		time.Sleep(3 * time.Second)
 	}

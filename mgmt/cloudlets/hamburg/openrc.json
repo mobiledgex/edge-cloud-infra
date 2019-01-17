@@ -1,7 +1,7 @@
 {
     "data": {
 	"env": [
-	    { "name": "OS_CACERT", "value": "$HOME/.mobiledgex/hamedgecloudtelekomde.crt"},
+	    { "name": "OS_CACERT", "value": "$HOME/.mobiledgex/telesec_chain.crt"},
 	    { "name": "OS_AUTH_URL", "value": "https://hamedgecloud.telekom.de:5000/v2.0"},
 	    { "name": "OS_USERNAME", "value": "mexadmin"},
 	    { "name": "OS_PASSWORD", "value": "ED2%jdB7-Ef]b8^x"},

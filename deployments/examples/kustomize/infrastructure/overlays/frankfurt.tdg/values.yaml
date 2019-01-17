@@ -1,0 +1,21 @@
+apiVersion: v1
+name: frankfurt
+metadata:
+  name: tdg
+kind: values
+resource: frankfurt
+values:
+  name: frankfurt
+  cluster:
+    name: frankfurt
+    location: eu-central
+    region: eu-central-2
+    zone: eu-central-2c
+    swarm: 
+  network:
+    holepunch: 
+  registry:
+    update: frankfurt
+  environment:
+    openrc: https://vault.mobiledgex.net/v1/secret/data/cloudlet/openstack/frankfurt/openrc.json
+    mexenv: https://vault.mobiledgex.net/v1/secret/data/cloudlet/openstack/mexenv.json

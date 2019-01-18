@@ -1,9 +1,9 @@
 apiVersion: v1beta1
 kind: values
 metadata:
-  name: munich-test-azure
-name: munich
-resource: azure
+  name: frankfurt-tdg
+name: frankfurt
+resource: frankfurt
 values:
   agent:
     image: registry.mobiledgex.net:5000/mobiledgex/mexosagent
@@ -24,19 +24,20 @@ values:
   cluster:
     flavor: x1.medium
     kind: kubernetes
-    location: centralus
-    name: centralus-test
+    location: eu-central
+    name: frankfurt
     osimage: mobiledgex
-    region: centralus
-    zone: centralus
+    region: eu-central-2
+    tenant: null
+    zone: eu-central-2c
   environment:
     mexenv: https://vault.mobiledgex.net/v1/secret/data/cloudlet/openstack/mexenv.json
+    openrc: https://vault.mobiledgex.net/v1/secret/data/cloudlet/openstack/frankfurt/openrc.json
   kind: static
-  name: centralus-test
+  name: frankfurt
   network:
     dnszone: mobiledgex.net
     external: external-network-shared
-    holepunch: 22223
     ipaccess: IpAccessShared
     name: mex-k8s-net-1
     options: dhcp
@@ -44,11 +45,11 @@ values:
     scheme: priv-subnet,mex-k8s-net-1,10.101.X.0/24
     securityrule: default
   operator:
-    kind: azure
-    name: azure
+    kind: openstack
+    name: tdg
   registry:
     docker: registry.mobiledgex.net:5000
     name: registry.mobiledgex.net
-    update: centralus-test
+    update: frankfurt
   resource:
-    group: azure-centralus-rg-1
+    group: mobiledgex

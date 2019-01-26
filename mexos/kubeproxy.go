@@ -62,7 +62,7 @@ func StartKubectlProxy(mf *Manifest, rootLB *MEXRootLB, name, kubeconfig string)
 		return 0, fmt.Errorf("cannot convert port %v, %s", aerr, port)
 	}
 	log.DebugLog(log.DebugLevelMexos, "adding external ingress security rule for kubeproxy", "port", port)
-	err = AddSecurityRuleCIDR(mf, GetAllowedClientCIDR(), "tcp", GetMEXSecurityRule(mf), portnum)
+	err = AddSecurityRuleCIDR(mf, GetAllowedClientCIDR(), "tcp", GetMEXSecurityRule(mf), portnum+1) //XXX
 	if err != nil {
 		log.DebugLog(log.DebugLevelMexos, "warning, error while adding external ingress security rule for kubeproxy", "error", err, "port", port)
 	}

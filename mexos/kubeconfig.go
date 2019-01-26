@@ -126,11 +126,12 @@ func CopyKubeConfig(mf *Manifest, rootLB *MEXRootLB, name string) error {
 		return fmt.Errorf("can't cat %s, %s, %v", kconfname, out, err)
 	}
 	//TODO generate per proxy password and record in vault
-	port, serr := StartKubectlProxy(mf, rootLB, name, kconfname)
-	if serr != nil {
-		return serr
-	}
-	return ProcessKubeconfig(mf, rootLB, name, port, []byte(out))
+	//port, serr := StartKubectlProxy(mf, rootLB, name, kconfname)
+	//if serr != nil {
+	//	return serr
+	//}
+	//return ProcessKubeconfig(mf, rootLB, name, port, []byte(out))
+	return nil
 }
 
 //ProcessKubeconfig validates kubeconfig and saves it and creates a copy for proxy access

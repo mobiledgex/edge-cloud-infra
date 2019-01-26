@@ -3,7 +3,6 @@ package mexos
 import (
 	"encoding/json"
 	"fmt"
-	"os"
 	"strings"
 	"time"
 
@@ -215,10 +214,10 @@ func mexDeleteClusterKubernetes(mf *Manifest) error {
 	if err != nil {
 		return err
 	}
-	clname, err := FindClusterWithKey(mf, mf.Spec.Key)
-	if err != nil {
-		return fmt.Errorf("can't find cluster with key %s, %v", mf.Spec.Key, err)
-	}
+	// clname, err := FindClusterWithKey(mf, mf.Spec.Key)
+	// if err != nil {
+	// 	return fmt.Errorf("can't find cluster with key %s, %v", mf.Spec.Key, err)
+	// }
 	//log.DebugLog(log.DebugLevelMexos, "looking for server", "name", name, "servers", srvs)
 	force := strings.Contains(mf.Spec.Flags, "force")
 	serverDeleted := false
@@ -249,11 +248,11 @@ func mexDeleteClusterKubernetes(mf *Manifest) error {
 			}
 			serverDeleted = true
 			//kconfname := fmt.Sprintf("%s.kubeconfig", s.Name[strings.LastIndex(s.Name, "-")+1:])
-			kconfname := GetLocalKconfName(mf)
-			rerr := os.Remove(kconfname)
-			if rerr != nil {
-				log.DebugLog(log.DebugLevelMexos, "error can't remove file", "name", kconfname, "error", rerr)
-			}
+			// kconfname := GetLocalKconfName(mf)
+			// rerr := os.Remove(kconfname)
+			// if rerr != nil {
+			// 	log.DebugLog(log.DebugLevelMexos, "error can't remove file", "name", kconfname, "error", rerr)
+			// }
 		}
 	}
 	if !serverDeleted {
@@ -275,17 +274,17 @@ func mexDeleteClusterKubernetes(mf *Manifest) error {
 			}
 			err = DeleteSubnet(mf, s.Name)
 			if err != nil {
-				log.DebugLog(log.DebugLevelMexos, "error while deleting subnet", "error", err)
+				log.DebugLog(log.DebugLevelMexos, "warning, problems deleting subnet", "error", err)
 			}
 			break
 		}
 	}
 	//XXX tell agent to remove the route
 	//XXX remove kubectl proxy instance
-	if err = DeleteNginxKCProxy(mf, rootLB.Name, clname); err != nil {
-		log.DebugLog(log.DebugLevelMexos, "cannot clean nginx kubectl proxy", "error", err)
-		return err
-	}
+	// if err = DeleteNginxKCProxy(mf, rootLB.Name, clname); err != nil {
+	// 	log.DebugLog(log.DebugLevelMexos, "warning,cannot clean nginx kubectl proxy", "error", err)
+	// 	//return err
+	// }
 	return nil
 }
 

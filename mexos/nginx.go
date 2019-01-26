@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"strings"
 
-	sh "github.com/codeskyblue/go-sh"
 	"github.com/mobiledgex/edge-cloud/log"
 	"github.com/parnurzeal/gorequest"
 )
@@ -116,7 +115,11 @@ func AddNginxKubectlProxy(mf *Manifest, rootLBName, name string, portnum int) er
 
 func DeleteNginxKCProxy(mf *Manifest, rootLBName, name string) error {
 	log.DebugLog(log.DebugLevelMexos, "deleting nginx kubectl proxy", "name", name)
-	out, err := sh.Command("docker", "kill", name+kcproxySuffix).Output()
+	client, err := GetSSHClient(mf, rootLBName, mf.Values.Network.External, sshUser)
+	if err != nil {
+		return err
+	}
+	out, err := client.Output("docker kill " + name + kcproxySuffix)
 	if err != nil {
 		log.DebugLog(log.DebugLevelMexos, "warning, cannot delete container", "name", name+kcproxySuffix, "error", err, "out", out)
 	}

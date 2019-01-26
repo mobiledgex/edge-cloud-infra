@@ -748,8 +748,14 @@ func CreateNginxKCP(name string, port string) error {
 	}
 	htpasswdFn := "/nginx.htpasswd"
 	if !fileExists(pwd + htpasswdFn) {
-		log.Debugln("nginx.htpasswd does not exist")
-		return fmt.Errorf("while creating nginx kubectl proxy, %s, nginx.htpasswd does not exist", name)
+		out, err := sh.Command("cp", "/home/ubuntu"+htpasswdFn, ".").Output()
+		if err != nil {
+			return fmt.Errorf("cannot copy htpasswd file, %v, %s", err, out)
+		}
+		if !fileExists(pwd + htpasswdFn) {
+			log.Debugln("nginx.htpasswd does not exist")
+			return fmt.Errorf("while creating nginx kubectl proxy, %s, nginx.htpasswd does not exist", name)
+		}
 	}
 	//TODO generate htpasswd file with contents from vault per cluster
 	nconfName := dir + "/nginx.conf"
@@ -766,7 +772,7 @@ func CreateNginxKCP(name string, port string) error {
 	log.Debugln("created nginx conf", nconfName)
 
 	cmdArgs := []string{"run", "-d", "--rm", "--net", "host", "--name", name}
-	cmdArgs = append(cmdArgs, []string{"-v", dir + ":/var/www/.cache", "-v", pwd + "htpasswdFn" + ":/etc/nginx/conf.d" + htpasswdFn, "-v", "/etc/ssl/certs:/etc/ssl/certs", "-v", pwd + "/cert.pem:/etc/ssl/certs/cert.pem", "-v", pwd + "/key.pem:/etc/ssl/certs/key.pem", "-v", dir + ":/var/log/nginx", "-v", nconfName + ":/etc/nginx/nginx.conf", "nginx:alpine"}...)
+	cmdArgs = append(cmdArgs, []string{"-v", dir + ":/var/www/.cache", "-v", pwd + htpasswdFn + ":/etc/nginx/conf.d" + htpasswdFn, "-v", "/etc/ssl/certs:/etc/ssl/certs", "-v", pwd + "/cert.pem:/etc/ssl/certs/cert.pem", "-v", pwd + "/key.pem:/etc/ssl/certs/key.pem", "-v", dir + ":/var/log/nginx", "-v", nconfName + ":/etc/nginx/nginx.conf", "nginx:alpine"}...)
 	//XXX nginx:alpine for htpasswd to work
 	out, err := sh.Command("docker", cmdArgs).CombinedOutput()
 

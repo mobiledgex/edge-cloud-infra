@@ -215,6 +215,10 @@ func mexDeleteClusterKubernetes(mf *Manifest) error {
 	if err != nil {
 		return err
 	}
+	clname, err := FindClusterWithKey(mf, mf.Spec.Key)
+	if err != nil {
+		return fmt.Errorf("can't find cluster with key %s, %v", mf.Spec.Key, err)
+	}
 	//log.DebugLog(log.DebugLevelMexos, "looking for server", "name", name, "servers", srvs)
 	force := strings.Contains(mf.Spec.Flags, "force")
 	serverDeleted := false
@@ -278,10 +282,6 @@ func mexDeleteClusterKubernetes(mf *Manifest) error {
 	}
 	//XXX tell agent to remove the route
 	//XXX remove kubectl proxy instance
-	clname, err := FindClusterWithKey(mf, mf.Spec.Key)
-	if err != nil {
-		return fmt.Errorf("can't find cluster with key %s, %v", mf.Spec.Key, err)
-	}
 	if err = DeleteNginxKCProxy(mf, rootLB.Name, clname); err != nil {
 		log.DebugLog(log.DebugLevelMexos, "cannot clean nginx kubectl proxy", "error", err)
 		return err

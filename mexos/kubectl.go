@@ -25,8 +25,8 @@ func CreateDockerRegistrySecret(mf *Manifest) error {
 	}
 
 	var out string
-	log.DebugLog(log.DebugLevelMexos, "CreateDockerRegistrySecret", "mf", mf)
-
+	//log.DebugLog(log.DebugLevelMexos, "CreateDockerRegistrySecret", "mf", mf)
+	log.DebugLog(log.DebugLevelMexos, "creating docker registry secret in kubernetes cluster")
 	if IsLocalDIND(mf) || mf.Metadata.Operator == "gcp" || mf.Metadata.Operator == "azure" {
 		log.DebugLog(log.DebugLevelMexos, "CreateDockerRegistrySecret locally non OpenStack case")
 		var o []byte

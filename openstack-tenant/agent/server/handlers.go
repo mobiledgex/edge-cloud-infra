@@ -747,14 +747,11 @@ func CreateNginxKCP(name string, port string) error {
 		return fmt.Errorf("while creating nginx kubectl proxy %s, key.pem does not exist", name)
 	}
 	htpasswdFn := "/nginx.htpasswd"
-	if !fileExists(pwd + htpasswdFn) {
-		out, err := sh.Command("cp", "/home/ubuntu"+htpasswdFn, ".").Output()
-		if err != nil {
-			return fmt.Errorf("cannot copy htpasswd file, %v, %s", err, out)
-		}
-		if !fileExists(pwd + htpasswdFn) {
-			log.Debugln("nginx.htpasswd does not exist")
-			return fmt.Errorf("while creating nginx kubectl proxy, %s, nginx.htpasswd does not exist", name)
+	nginxHTPasswd := pwd + htpasswdFn
+	if !fileExists(nginxHTPasswd) {
+		nginxHTPasswd = "/home/ubuntu" + htpasswdFn
+		if !fileExists(nginxHTPasswd) {
+			return fmt.Errorf("no htpasswd file")
 		}
 	}
 	//TODO generate htpasswd file with contents from vault per cluster
@@ -772,23 +769,24 @@ func CreateNginxKCP(name string, port string) error {
 	log.Debugln("created nginx conf", nconfName)
 
 	cmdArgs := []string{"run", "-d", "--rm", "--net", "host", "--name", name}
-	cmdArgs = append(cmdArgs, []string{"-v", dir + ":/var/www/.cache", "-v", pwd + htpasswdFn + ":/etc/nginx/conf.d" + htpasswdFn, "-v", "/etc/ssl/certs:/etc/ssl/certs", "-v", pwd + "/cert.pem:/etc/ssl/certs/cert.pem", "-v", pwd + "/key.pem:/etc/ssl/certs/key.pem", "-v", dir + ":/var/log/nginx", "-v", nconfName + ":/etc/nginx/nginx.conf", "nginx:alpine"}...)
+	cmdArgs = append(cmdArgs, []string{"-v", dir + ":/var/www/.cache", "-v", nginxHTPasswd + ":/etc/nginx/conf.d" + htpasswdFn, "-v", "/etc/ssl/certs:/etc/ssl/certs", "-v", pwd + "/cert.pem:/etc/nginx/conf.d/cert.pem", "-v", pwd + "/key.pem:/etc/nginx/conf.d/key.pem", "-v", dir + ":/var/log/nginx", "-v", nconfName + ":/etc/nginx/nginx.conf", "nginx:alpine"}...)
+	log.Debugln("cmdArgs", cmdArgs)
 	//XXX nginx:alpine for htpasswd to work
 	out, err := sh.Command("docker", cmdArgs).CombinedOutput()
-
 	if err != nil {
 		return fmt.Errorf("can't create nginx kubectl proxy container %s, %s, %v", name, out, err)
 	}
+	//TODO check vitality of the created container instance
 	log.Debugln("created nginx kubectl proxy container", name)
 	return nil
 }
 
 func DeleteNginxKCP(name string) error {
-	log.Debugln("deleting nginx kubectl proxy container", name)
 	name = name + kcproxySuffix
+	log.Debugln("deleting nginx kubectl proxy container", name)
 	out, err := sh.Command("docker", "kill", name).Output()
 	if err != nil {
-		return fmt.Errorf("can't kill nginx container %s, %s, %v", name, out, err)
+		return fmt.Errorf("can't kill nginx kubectl proxy container %s, %s, %v", name, out, err)
 	}
 	log.Debugln("deleted nginx kubectl proxy container", name)
 	return nil

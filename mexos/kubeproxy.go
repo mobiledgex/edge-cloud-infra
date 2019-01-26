@@ -8,6 +8,8 @@ import (
 	"github.com/mobiledgex/edge-cloud/log"
 )
 
+var kcproxySuffix = "-kcproxy"
+
 //StartKubectlProxy starts kubectl proxy on the rootLB to handle kubectl commands remotely.
 //  To be called after copying over the kubeconfig file from cluster to rootLB.
 func StartKubectlProxy(mf *Manifest, rootLB *MEXRootLB, name, kubeconfig string) (int, error) {
@@ -34,7 +36,7 @@ func StartKubectlProxy(mf *Manifest, rootLB *MEXRootLB, name, kubeconfig string)
 		return 0, fmt.Errorf("cannot pull mobiledgex image, %v, %s", err, res)
 	}
 	//TODO verify existence of kubeconfig file
-	containerName := name + "-kcp"
+	containerName := name + kcproxySuffix
 	cmd = fmt.Sprintf("docker run --net host  -d --rm -it -v /home:/home --name %s registry.mobiledgex.net:5000/mobiledgex/mobiledgex kubectl proxy --port 0 --accept-hosts '^127.0.0.1$' --address 127.0.0.1 --kubeconfig /home/ubuntu/%s", containerName, kubeconfig)
 	res, err = client.Output(cmd)
 	if err != nil {

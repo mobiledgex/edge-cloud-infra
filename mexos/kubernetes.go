@@ -49,19 +49,20 @@ func CreateKubernetesAppManifest(mf *Manifest, kubeManifest string) error {
 		return fmt.Errorf("error deploying kubernetes app, %s, %v", out, err)
 	}
 	log.DebugLog(log.DebugLevelMexos, "applied kubernetes manifest")
-	// we might be exposing ports
-	if len(mf.Spec.Ports) > 0 {
-		// Add security rules
-		if err = AddProxySecurityRules(rootLB, mf, kp.ipaddr); err != nil {
-			log.DebugLog(log.DebugLevelMexos, "cannot create security rules", "error", err)
-			return err
-		}
-		log.DebugLog(log.DebugLevelMexos, "ok, added spec ports", "ports", mf.Spec.Ports)
-		// Add DNS Zone
-		if err = KubeAddDNSRecords(rootLB, mf, kp); err != nil {
-			log.DebugLog(log.DebugLevelMexos, "cannot add DNS entries", "error", err)
-			return err
-		}
+	// we might not be exposing ports
+	if len(mf.Spec.Ports) < 1 {
+		return nil
+	}
+	// Add security rules
+	if err = AddProxySecurityRules(rootLB, mf, kp.ipaddr); err != nil {
+		log.DebugLog(log.DebugLevelMexos, "cannot create security rules", "error", err)
+		return err
+	}
+	log.DebugLog(log.DebugLevelMexos, "ok, added spec ports", "ports", mf.Spec.Ports)
+	// Add DNS Zone
+	if err = KubeAddDNSRecords(rootLB, mf, kp); err != nil {
+		log.DebugLog(log.DebugLevelMexos, "cannot add DNS entries", "error", err)
+		return err
 	}
 	return nil
 }

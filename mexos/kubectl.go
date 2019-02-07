@@ -10,6 +10,7 @@ import (
 
 	sh "github.com/codeskyblue/go-sh"
 	"github.com/mobiledgex/edge-cloud/log"
+	"k8s.io/api/core/v1"
 )
 
 func RunKubectl(mf *Manifest, params string) (*string, error) {
@@ -85,47 +86,59 @@ func runKubectlCreateApp(mf *Manifest, kubeManifest string) error {
 		return err
 	}
 	defer os.Remove(kfile)
-	kconf, err := GetKconf(mf, false)
+
+	rootLB, err := getRootLB(mf.Spec.RootLB)
 	if err != nil {
-		return fmt.Errorf("error creating app due to kconf missing, %v, %v", mf, err)
+		return err
 	}
-	out, err := sh.Command("kubectl", "create", "-f", kfile, "--kubeconfig="+kconf).CombinedOutput()
+	kp, err := ValidateKubernetesParameters(mf, rootLB, mf.Spec.Key)
 	if err != nil {
-		return fmt.Errorf("error creating app, %s, %v, %v, %s", out, err, mf, kubeManifest)
+		return err
 	}
-	err = createAppDNS(mf, kconf)
+	cmd := fmt.Sprintf("%s kubectl create -f %s", kp.kubeconfig, kfile)
+	out, err := kp.client.Output(cmd)
 	if err != nil {
-		return fmt.Errorf("error creating dns entry for app, %v, %v", err, mf)
+		return fmt.Errorf("error creating app, %s, %v, %s", out, err, kubeManifest)
+	}
+	defer func() {
+		if err != nil {
+			cmd = fmt.Sprintf("%s kubectl delete -f %s", kp.kubeconfig, kfile)
+			out, undoerr := kp.client.Output(cmd)
+			if undoerr != nil {
+				log.DebugLog(log.DebugLevelMexos, "undo kubectl create app failed", "name", mf.Metadata.Name, "out", out, "err", undoerr)
+			}
+		}
+	}()
+	err = createAppDNS(mf, kp)
+	if err != nil {
+		return fmt.Errorf("error creating dns entry for app, %v", err)
 	}
 	return nil
 }
 
-func getSvcExternalIP(name string, kconf string) (string, error) {
-	log.DebugLog(log.DebugLevelMexos, "get service external IP", "name", name, "kconf", kconf)
+func getSvcExternalIP(name string, kp *kubeParam) (string, error) {
+	log.DebugLog(log.DebugLevelMexos, "get service external IP", "name", name, "kp", kp)
 	externalIP := ""
-	var out []byte
-	var err error
 	//wait for Load Balancer to assign external IP address. It takes a variable amount of time.
 	for i := 0; i < 100; i++ {
-		out, err = sh.Command("kubectl", "get", "svc", "--kubeconfig="+kconf, "-o", "json").Output()
+		cmd := fmt.Sprintf("%s kubectl get svc -o json", kp.kubeconfig)
+		out, err := kp.client.Output(cmd)
 		if err != nil {
 			return "", fmt.Errorf("error getting svc %s, %s, %v", name, out, err)
 		}
-		svcs := &svcItems{}
-		err = json.Unmarshal(out, svcs)
+		svcs, err := getServices(kp)
 		if err != nil {
-			return "", fmt.Errorf("error unmarshalling svc json, %v", err)
+			return "", err
 		}
 		log.DebugLog(log.DebugLevelMexos, "getting externalIP, examine list of services", "name", name, "svcs", svcs)
-		for _, item := range svcs.Items {
-			log.DebugLog(log.DebugLevelMexos, "svc item", "item", item, "name", name)
-			if item.Metadata.Name != name {
-				log.DebugLog(log.DebugLevelMexos, "service name mismatch", "name", name, "item.Metadata.Name", item.Metadata.Name)
+		for _, svc := range svcs {
+			log.DebugLog(log.DebugLevelMexos, "svc item", "item", svc, "name", name)
+			if svc.ObjectMeta.Name != name {
+				log.DebugLog(log.DebugLevelMexos, "service name mismatch", "name", name, "svc.ObjectMeta.Name", svc.ObjectMeta.Name)
 				continue
 			}
-			for _, ingress := range item.Status.LoadBalancer.Ingresses {
-				log.DebugLog(log.DebugLevelMexos, "found ingress ip", "ingress.IP", ingress.IP, "item.Metadata.Name", item.Metadata.Name)
-
+			for _, ingress := range svc.Status.LoadBalancer.Ingress {
+				log.DebugLog(log.DebugLevelMexos, "found ingress ip", "ingress.IP", ingress.IP, "svc.ObjectMeta.Name", svc.ObjectMeta.Name)
 				if ingress.IP != "" {
 					externalIP = ingress.IP
 					log.DebugLog(log.DebugLevelMexos, "got externaIP for app", "externalIP", externalIP)
@@ -141,30 +154,29 @@ func getSvcExternalIP(name string, kconf string) (string, error) {
 	return externalIP, nil
 }
 
-func getSvcNames(name string, kconf string) ([]string, error) {
-	out, err := sh.Command("kubectl", "get", "svc", "--kubeconfig="+kconf, "-o", "json").Output()
+func getServices(kp *kubeParam) ([]v1.Service, error) {
+	cmd := fmt.Sprintf("%s kubectl get svc -o json", kp.kubeconfig)
+	out, err := kp.client.Output(cmd)
 	if err != nil {
-		return nil, fmt.Errorf("error getting svc %s, %s, %v", name, out, err)
+		return nil, fmt.Errorf("can not get list of services, %s, %v", out, err)
 	}
-	svcs := &svcItems{}
-	err = json.Unmarshal(out, svcs)
+	svcs := svcItems{}
+	err = json.Unmarshal([]byte(out), &svcs)
 	if err != nil {
-		return nil, fmt.Errorf("error unmarshalling svc json, %v", err)
+		log.DebugLog(log.DebugLevelMexos, "cannot unmarshal svc json", "out", out, "err", err)
+		return nil, fmt.Errorf("cannot unmarshal svc json, %s", err.Error())
 	}
-	var serviceNames []string
-	for _, item := range svcs.Items {
-		if strings.HasPrefix(item.Metadata.Name, name) {
-			serviceNames = append(serviceNames, item.Metadata.Name)
-		}
-	}
-	log.DebugLog(log.DebugLevelMexos, "service names", "names", serviceNames)
-	return serviceNames, nil
+	return svcs.Items, nil
 }
 
 func runKubectlDeleteApp(mf *Manifest, kubeManifest string) error {
-	kconf, err := GetKconf(mf, false)
+	rootLB, err := getRootLB(mf.Spec.RootLB)
 	if err != nil {
-		return fmt.Errorf("error deleting app due to kconf missing,  %v, %v", mf, err)
+		return err
+	}
+	kp, err := ValidateKubernetesParameters(mf, rootLB, mf.Spec.Key)
+	if err != nil {
+		return err
 	}
 	kfile := mf.Metadata.Name + ".yaml"
 	err = writeKubeManifest(kubeManifest, kfile)
@@ -172,11 +184,12 @@ func runKubectlDeleteApp(mf *Manifest, kubeManifest string) error {
 		return err
 	}
 	defer os.Remove(kfile)
-	out, err := sh.Command("kubectl", "delete", "-f", kfile, "--kubeconfig="+kconf).CombinedOutput()
+	cmd := fmt.Sprintf("%s kubectl delete -f %s", kp.kubeconfig, kfile)
+	out, err := kp.client.Output(cmd)
 	if err != nil {
 		return fmt.Errorf("error deleting app, %s, %v, %v", out, mf, err)
 	}
-	err = deleteAppDNS(mf, kconf)
+	err = deleteAppDNS(mf, kp)
 	if err != nil {
 		return fmt.Errorf("error deleting dns entry for app, %v, %v", err, mf)
 	}

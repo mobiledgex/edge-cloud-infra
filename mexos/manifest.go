@@ -19,6 +19,14 @@ func IsLocalDIND(mf *Manifest) bool {
 	return mf.Values.Operator.Kind == "localdind"
 }
 
+func IsAzure(mf *Manifest) bool {
+	return mf.Metadata.Operator == cloudcommon.OperatorAzure
+}
+
+func IsGCP(mf *Manifest) bool {
+	return mf.Metadata.Operator == cloudcommon.OperatorGCP
+}
+
 //MEXClusterCreateManifest creates a cluster
 func MEXClusterCreateManifest(mf *Manifest) error {
 	log.DebugLog(log.DebugLevelMexos, "creating cluster via manifest")

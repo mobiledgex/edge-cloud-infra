@@ -1,22 +1,21 @@
 package mexos
 
 import (
-	"encoding/json"
 	"fmt"
 	"net"
 	"os/exec"
-	"strings"
 	"time"
 
 	"github.com/mobiledgex/edge-cloud-infra/k8s-prov/dind"
 	"github.com/mobiledgex/edge-cloud-infra/openstack-tenant/agent/cloudflare"
 	"github.com/mobiledgex/edge-cloud/cloudcommon"
 	"github.com/mobiledgex/edge-cloud/log"
+	"k8s.io/api/core/v1"
 )
 
 var dnsRegisterRetryDelay time.Duration = 3 * time.Second
 
-func createAppDNS(mf *Manifest, kconf string) error {
+func createAppDNS(mf *Manifest, kp *kubeParam) error {
 
 	log.DebugLog(log.DebugLevelMexos, "createAppDNS")
 
@@ -39,19 +38,23 @@ func createAppDNS(mf *Manifest, kconf string) error {
 	if mf.Metadata.DNSZone == "" {
 		return fmt.Errorf("missing DNS zone, metadata %v", mf.Metadata)
 	}
-	serviceNames, err := getSvcNames(mf.Metadata.Name, kconf)
+	svcs, err := getServices(kp)
 	if err != nil {
 		return err
 	}
-	if len(serviceNames) < 1 {
-		return fmt.Errorf("no service names starting with %s", mf.Metadata.Name)
+	if len(svcs) < 1 {
+		return fmt.Errorf("no load balancer services for %s", mf.Metadata.Name)
 	}
 	recs, derr := cloudflare.GetDNSRecords(mf.Metadata.DNSZone)
 	if derr != nil {
 		return fmt.Errorf("error getting dns records for %s, %v", mf.Metadata.DNSZone, err)
 	}
 	fqdnBase := uri2fqdn(mf.Spec.URI)
-	for _, sn := range serviceNames {
+	for _, svc := range svcs {
+		if svc.Spec.Type != v1.ServiceTypeLoadBalancer {
+			continue
+		}
+		sn := svc.ObjectMeta.Name
 		// for the DIND case we need to patch the service here
 		externalIP := ""
 		if IsLocalDIND(mf) {
@@ -62,7 +65,7 @@ func createAppDNS(mf *Manifest, kconf string) error {
 			}
 			externalIP, err = dind.GetLocalAddr()
 		} else {
-			externalIP, err = getSvcExternalIP(sn, kconf)
+			externalIP, err = getSvcExternalIP(sn, kp)
 		}
 		if err != nil {
 			return err
@@ -89,8 +92,8 @@ func createAppDNS(mf *Manifest, kconf string) error {
 	return nil
 }
 
-func deleteAppDNS(mf *Manifest, kconf string) error {
-	if mf.Metadata.Operator != "gcp" && mf.Metadata.Operator != "azure" {
+func deleteAppDNS(mf *Manifest, kp *kubeParam) error {
+	if mf.Metadata.Operator != "gcp" && mf.Metadata.Operator != "azure" && !IsLocalDIND(mf) {
 		return fmt.Errorf("error, invalid code path")
 	}
 	if err := CheckCredentialsCF(mf); err != nil {
@@ -109,11 +112,11 @@ func deleteAppDNS(mf *Manifest, kconf string) error {
 	if mf.Metadata.DNSZone == "" {
 		return fmt.Errorf("missing DNS zone, metadata %v", mf.Metadata)
 	}
-	serviceNames, err := getSvcNames(mf.Metadata.Name, kconf)
+	svcs, err := getServices(kp)
 	if err != nil {
 		return err
 	}
-	if len(serviceNames) < 1 {
+	if len(svcs) < 1 {
 		return fmt.Errorf("no service names starting with %s", mf.Metadata.Name)
 	}
 	recs, derr := cloudflare.GetDNSRecords(mf.Metadata.DNSZone)
@@ -121,7 +124,11 @@ func deleteAppDNS(mf *Manifest, kconf string) error {
 		return fmt.Errorf("cannot get dns records for dns zone %s, error %v", mf.Metadata.DNSZone, err)
 	}
 	fqdnBase := uri2fqdn(mf.Spec.URI)
-	for _, sn := range serviceNames {
+	for _, svc := range svcs {
+		if svc.Spec.Type != v1.ServiceTypeLoadBalancer {
+			continue
+		}
+		sn := svc.ObjectMeta.Name
 		fqdn := cloudcommon.ServiceFQDN(sn, fqdnBase)
 		for _, rec := range recs {
 			if rec.Type == "A" && rec.Name == fqdn {
@@ -164,15 +171,9 @@ func KubeAddDNSRecords(rootLB *MEXRootLB, mf *Manifest, kp *kubeParam) error {
 		log.DebugLog(log.DebugLevelMexos, "cannot get rootlb IP address", "error", err)
 		return fmt.Errorf("cannot deploy kubernetes app, cannot get rootlb IP")
 	}
-	cmd := fmt.Sprintf("%s kubectl get svc -o json", kp.kubeconfig)
-	out, err := kp.client.Output(cmd)
+	svcs, err := getServices(kp)
 	if err != nil {
-		return fmt.Errorf("can not get list of services, %s, %v", out, err)
-	}
-	svcs := &svcItems{}
-	err = json.Unmarshal([]byte(out), svcs)
-	if err != nil {
-		return fmt.Errorf("can not unmarshal svc json, %v", err)
+		return err
 	}
 	if err := cloudflare.InitAPI(mexEnv(mf, "MEX_CF_USER"), mexEnv(mf, "MEX_CF_KEY")); err != nil {
 		return fmt.Errorf("cannot init cloudflare api, %v", err)
@@ -185,17 +186,17 @@ func KubeAddDNSRecords(rootLB *MEXRootLB, mf *Manifest, kp *kubeParam) error {
 	fqdnBase := uri2fqdn(mf.Spec.URI)
 	log.DebugLog(log.DebugLevelMexos, "kubernetes services", "services", svcs)
 	processed := 0
-	for _, item := range svcs.Items {
-		if !strings.HasPrefix(item.Metadata.Name, mf.Metadata.Name) {
+	for _, svc := range svcs {
+		if svc.Spec.Type != v1.ServiceTypeLoadBalancer {
 			continue
 		}
-		cmd = fmt.Sprintf(`%s kubectl patch svc %s -p '{"spec":{"externalIPs":["%s"]}}'`, kp.kubeconfig, item.Metadata.Name, kp.ipaddr)
-		out, err = kp.client.Output(cmd)
+		cmd := fmt.Sprintf(`%s kubectl patch svc %s -p '{"spec":{"externalIPs":["%s"]}}'`, kp.kubeconfig, svc.ObjectMeta.Name, kp.ipaddr)
+		out, err := kp.client.Output(cmd)
 		if err != nil {
 			return fmt.Errorf("error patching for kubernetes service, %s, %s, %v", cmd, out, err)
 		}
-		log.DebugLog(log.DebugLevelMexos, "patched externalIPs on service", "service", item.Metadata.Name, "externalIPs", kp.ipaddr)
-		fqdn := cloudcommon.ServiceFQDN(item.Metadata.Name, fqdnBase)
+		log.DebugLog(log.DebugLevelMexos, "patched externalIPs on service", "service", svc.ObjectMeta.Name, "externalIPs", kp.ipaddr)
+		fqdn := cloudcommon.ServiceFQDN(svc.ObjectMeta.Name, fqdnBase)
 		for _, rec := range recs {
 			if rec.Type == "A" && rec.Name == fqdn {
 				if err := cloudflare.DeleteDNSRecord(mf.Metadata.DNSZone, rec.ID); err != nil {
@@ -226,10 +227,9 @@ func KubeDeleteDNSRecords(rootLB *MEXRootLB, mf *Manifest, kp *kubeParam) error 
 	if err != nil {
 		return fmt.Errorf("can not get list of services, %s, %v", out, err)
 	}
-	svcs := &svcItems{}
-	err = json.Unmarshal([]byte(out), svcs)
+	svcs, err := getServices(kp)
 	if err != nil {
-		return fmt.Errorf("can not unmarshal svc json, %v", err)
+		return err
 	}
 	if cerr := cloudflare.InitAPI(mexEnv(mf, "MEX_CF_USER"), mexEnv(mf, "MEX_CF_KEY")); cerr != nil {
 		return fmt.Errorf("cannot init cloudflare api, %v", cerr)
@@ -240,18 +240,18 @@ func KubeDeleteDNSRecords(rootLB *MEXRootLB, mf *Manifest, kp *kubeParam) error 
 	}
 	fqdnBase := uri2fqdn(mf.Spec.URI)
 	//FIXME use k8s manifest file to delete the whole services and deployments
-	for _, item := range svcs.Items {
-		if !strings.HasPrefix(item.Metadata.Name, mf.Metadata.Name) {
+	for _, svc := range svcs {
+		if svc.Spec.Type != v1.ServiceTypeLoadBalancer {
 			continue
 		}
-		// cmd := fmt.Sprintf("%s kubectl delete service %s", kp.kubeconfig, item.Metadata.Name)
+		// cmd := fmt.Sprintf("%s kubectl delete service %s", kp.kubeconfig, svc.ObjectMeta.Name)
 		// out, err := kp.client.Output(cmd)
 		// if err != nil {
-		// 	log.DebugLog(log.DebugLevelMexos, "error deleting kubernetes service", "name", item.Metadata.Name, "cmd", cmd, "out", out, "err", err)
+		// 	log.DebugLog(log.DebugLevelMexos, "error deleting kubernetes service", "name", svc.ObjectMeta.Name, "cmd", cmd, "out", out, "err", err)
 		// } else {
-		// 	log.DebugLog(log.DebugLevelMexos, "deleted service", "name", item.Metadata.Name)
+		// 	log.DebugLog(log.DebugLevelMexos, "deleted service", "name", svc.ObjectMeta.Name)
 		// }
-		fqdn := cloudcommon.ServiceFQDN(item.Metadata.Name, fqdnBase)
+		fqdn := cloudcommon.ServiceFQDN(svc.ObjectMeta.Name, fqdnBase)
 		for _, rec := range recs {
 			if rec.Type == "A" && rec.Name == fqdn {
 				if err := cloudflare.DeleteDNSRecord(mf.Metadata.DNSZone, rec.ID); err != nil {

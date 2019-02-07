@@ -43,7 +43,7 @@ func createAppDNS(mf *Manifest, kp *kubeParam) error {
 		return err
 	}
 	if len(svcs) < 1 {
-		return fmt.Errorf("no service names starting with %s", mf.Metadata.Name)
+		return fmt.Errorf("no load balancer services for %s", mf.Metadata.Name)
 	}
 	recs, derr := cloudflare.GetDNSRecords(mf.Metadata.DNSZone)
 	if derr != nil {

@@ -7,7 +7,7 @@ import (
 
 //There needs to be one file like this per provider/operator.  This one is for tdg.
 
-func ValidateNetwork(mf *Manifest) error {
+func ValidateNetwork() error {
 	nets, err := ListNetworks()
 	if err != nil {
 		return err
@@ -26,13 +26,13 @@ func ValidateNetwork(mf *Manifest) error {
 
 	found = false
 	for _, n := range nets {
-		if n.Name == GetCloudletNetwork() {
+		if n.Name == GetCloudletMexNetwork() {
 			found = true
 			break
 		}
 	}
 	if !found {
-		return fmt.Errorf("cannot find network %s", GetCloudletNetwork())
+		return fmt.Errorf("cannot find network %s", GetCloudletMexNetwork())
 	}
 
 	routers, err := ListRouters()
@@ -81,16 +81,16 @@ func PrepNetwork() error {
 
 	found = false
 	for _, n := range nets {
-		if n.Name == GetCloudletNetwork() {
+		if n.Name == GetCloudletMexNetwork() {
 			found = true
 			break
 		}
 	}
 	if !found {
 		// We need at least one network for `mex` clusters
-		err = CreateNetwork(GetCloudletNetwork())
+		err = CreateNetwork(GetCloudletMexNetwork())
 		if err != nil {
-			return fmt.Errorf("cannot create mex network %s, %v", GetCloudletNetwork(), err)
+			return fmt.Errorf("cannot create mex network %s, %v", GetCloudletMexNetwork(), err)
 		}
 	}
 
@@ -123,7 +123,7 @@ func PrepNetwork() error {
 
 //GetCloudletSubnets returns subnets inside MEX Network
 func GetCloudletSubnets() ([]string, error) {
-	nd, err := GetNetworkDetail(GetCloudletNetwork())
+	nd, err := GetNetworkDetail(GetCloudletMexNetwork())
 	if err != nil {
 		return nil, fmt.Errorf("can't get MEX network detail, %v", err)
 	}

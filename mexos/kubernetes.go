@@ -53,11 +53,28 @@ func CreateKubernetesAppManifest(mf *Manifest, kubeManifest string) error {
 	if len(mf.Spec.Ports) < 1 {
 		return nil
 	}
+	defer func() {
+		if err != nil {
+			cmd = fmt.Sprintf("%s kubectl delete -f %s.yaml", kp.kubeconfig, mf.Metadata.Name)
+			out, undoerr := kp.client.Output(cmd)
+			if undoerr != nil {
+				log.DebugLog(log.DebugLevelMexos, "undo kubectl create app failed", "name", mf.Metadata.Name, "out", out, "err", undoerr)
+			}
+		}
+	}()
 	// Add security rules
 	if err = AddProxySecurityRules(rootLB, mf, kp.ipaddr); err != nil {
 		log.DebugLog(log.DebugLevelMexos, "cannot create security rules", "error", err)
 		return err
 	}
+	defer func() {
+		if err != nil {
+			undoerr := DeleteProxySecurityRules(rootLB, mf, kp.ipaddr)
+			if undoerr != nil {
+				log.DebugLog(log.DebugLevelMexos, "undo create security rules failed", "err", undoerr)
+			}
+		}
+	}()
 	log.DebugLog(log.DebugLevelMexos, "ok, added spec ports", "ports", mf.Spec.Ports)
 	// Add DNS Zone
 	if err = KubeAddDNSRecords(rootLB, mf, kp); err != nil {
@@ -76,6 +93,19 @@ type kubeParam struct {
 //ValidateKubernetesParameters checks the kubernetes parameters and kubeconfig settings
 func ValidateKubernetesParameters(mf *Manifest, rootLB *MEXRootLB, clustName string) (*kubeParam, error) {
 	log.DebugLog(log.DebugLevelMexos, "validate kubernetes parameters rootLB", "cluster", clustName)
+	if IsAzure(mf) || IsGCP(mf) {
+		// No ssh jump host (rootlb) but kconf configures how to
+		// talk to remote kubernetes cluster
+		kconf, err := GetKconf(mf, true)
+		if err != nil {
+			return nil, fmt.Errorf("kconf missing, %v, %v", mf, err)
+		}
+		kp := kubeParam{
+			kubeconfig: fmt.Sprintf("KUBECONFIG=%s", kconf),
+			client:     &sshLocal{},
+		}
+		return &kp, nil
+	}
 	if rootLB == nil {
 		return nil, fmt.Errorf("cannot validate kubernetes parameters, rootLB is null")
 	}

@@ -52,6 +52,7 @@ func GetKconf(mf *Manifest, createIfMissing bool) (string, error) {
 			}
 		}
 	}
+	log.DebugLog(log.DebugLevelMexos, "got kconf file", "name", name)
 	return name, nil
 }
 

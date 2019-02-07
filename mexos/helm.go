@@ -25,11 +25,7 @@ func DeleteHelmAppManifest(mf *Manifest) error {
 	}
 	if IsLocalDIND(mf) {
 		// remove DNS entries
-		kconf, err := GetKconf(mf, false)
-		if err != nil {
-			return fmt.Errorf("error creating app due to kconf missing, %v, %v", mf, err)
-		}
-		if err = deleteAppDNS(mf, kconf); err != nil {
+		if err = deleteAppDNS(mf, kp); err != nil {
 			log.DebugLog(log.DebugLevelMexos, "warning, cannot delete DNS record", "error", err)
 		}
 	} else {
@@ -114,12 +110,8 @@ func CreateHelmAppManifest(mf *Manifest) error {
 	}
 	log.DebugLog(log.DebugLevelMexos, "applied helm chart")
 	if IsLocalDIND(mf) {
-		kconf, err := GetKconf(mf, false)
-		if err != nil {
-			return fmt.Errorf("error creating app due to kconf missing, %v, %v", mf, err)
-		}
 		// Add DNS Zone
-		if err = createAppDNS(mf, kconf); err != nil {
+		if err = createAppDNS(mf, kp); err != nil {
 			log.DebugLog(log.DebugLevelMexos, "cannot add DNS entries", "error", err)
 			return err
 		}

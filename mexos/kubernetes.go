@@ -272,6 +272,12 @@ func DeleteKubernetesAppManifest(mf *Manifest, kubeManifest string) error {
 			return err
 		}
 	}
+	cmd := fmt.Sprintf("%s kubectl delete -f %s.yaml", kp.kubeconfig, mf.Metadata.Name)
+	// cmd = fmt.Sprintf("%s kubectl delete deploy %s", kp.kubeconfig, mf.Metadata.Name+"-deployment")
+	out, err := kp.client.Output(cmd)
+	if err != nil {
+		return fmt.Errorf("error deleting kuberknetes app, %s, %s, %s, %v", mf.Metadata.Name, cmd, out, err)
+	}
 	log.DebugLog(log.DebugLevelMexos, "deleted deployment", "name", mf.Metadata.Name)
 	return nil
 }

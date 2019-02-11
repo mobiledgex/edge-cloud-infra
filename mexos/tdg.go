@@ -7,56 +7,56 @@ import (
 
 //There needs to be one file like this per provider/operator.  This one is for tdg.
 
-func ValidateNetwork(mf *Manifest) error {
-	nets, err := ListNetworks(mf)
+func ValidateNetwork() error {
+	nets, err := ListNetworks()
 	if err != nil {
 		return err
 	}
 
 	found := false
 	for _, n := range nets {
-		if n.Name == GetMEXExternalNetwork(mf) {
+		if n.Name == GetCloudletExternalNetwork() {
 			found = true
 			break
 		}
 	}
 	if !found {
-		return fmt.Errorf("cannot find external network %s", GetMEXExternalNetwork(mf))
+		return fmt.Errorf("cannot find external network %s", GetCloudletExternalNetwork())
 	}
 
 	found = false
 	for _, n := range nets {
-		if n.Name == GetMEXNetwork(mf) {
+		if n.Name == GetCloudletMexNetwork() {
 			found = true
 			break
 		}
 	}
 	if !found {
-		return fmt.Errorf("cannot find network %s", GetMEXNetwork(mf))
+		return fmt.Errorf("cannot find network %s", GetCloudletMexNetwork())
 	}
 
-	routers, err := ListRouters(mf)
+	routers, err := ListRouters()
 	if err != nil {
 		return err
 	}
 
 	found = false
 	for _, r := range routers {
-		if r.Name == GetMEXExternalRouter(mf) {
+		if r.Name == GetCloudletExternalRouter() {
 			found = true
 			break
 		}
 	}
 	if !found {
-		return fmt.Errorf("ext router %s not found", GetMEXExternalRouter(mf))
+		return fmt.Errorf("ext router %s not found", GetCloudletExternalRouter())
 	}
 
 	return nil
 }
 
 //PrepNetwork validates and does the work needed to ensure MEX network setup
-func PrepNetwork(mf *Manifest) error {
-	nets, err := ListNetworks(mf)
+func PrepNetwork() error {
+	nets, err := ListNetworks()
 	if err != nil {
 		return err
 	}
@@ -70,60 +70,60 @@ func PrepNetwork(mf *Manifest) error {
 
 	found := false
 	for _, n := range nets {
-		if n.Name == GetMEXExternalNetwork(mf) {
+		if n.Name == GetCloudletExternalNetwork() {
 			found = true
 			break
 		}
 	}
 	if !found {
-		return fmt.Errorf("cannot find ext net %s", GetMEXExternalNetwork(mf))
+		return fmt.Errorf("cannot find ext net %s", GetCloudletExternalNetwork())
 	}
 
 	found = false
 	for _, n := range nets {
-		if n.Name == GetMEXNetwork(mf) {
+		if n.Name == GetCloudletMexNetwork() {
 			found = true
 			break
 		}
 	}
 	if !found {
 		// We need at least one network for `mex` clusters
-		err = CreateNetwork(mf, GetMEXNetwork(mf))
+		err = CreateNetwork(GetCloudletMexNetwork())
 		if err != nil {
-			return fmt.Errorf("cannot create mex network %s, %v", GetMEXNetwork(mf), err)
+			return fmt.Errorf("cannot create mex network %s, %v", GetCloudletMexNetwork(), err)
 		}
 	}
 
-	routers, err := ListRouters(mf)
+	routers, err := ListRouters()
 	if err != nil {
 		return err
 	}
 
 	found = false
 	for _, r := range routers {
-		if r.Name == GetMEXExternalRouter(mf) {
+		if r.Name == GetCloudletExternalRouter() {
 			found = true
 			break
 		}
 	}
 	if !found {
 		// We need at least one router for our `mex` network and external network
-		err = CreateRouter(mf, GetMEXExternalRouter(mf))
+		err = CreateRouter(GetCloudletExternalRouter())
 		if err != nil {
-			return fmt.Errorf("cannot create the ext router %s, %v", GetMEXExternalRouter(mf), err)
+			return fmt.Errorf("cannot create the ext router %s, %v", GetCloudletExternalRouter(), err)
 		}
-		err = SetRouter(mf, GetMEXExternalRouter(mf), GetMEXExternalNetwork(mf))
+		err = SetRouter(GetCloudletExternalRouter(), GetCloudletExternalNetwork())
 		if err != nil {
-			return fmt.Errorf("cannot set default network to router %s, %v", GetMEXExternalRouter(mf), err)
+			return fmt.Errorf("cannot set default network to router %s, %v", GetCloudletExternalRouter(), err)
 		}
 	}
 
 	return nil
 }
 
-//GetMEXSubnets returns subnets inside MEX Network
-func GetMEXSubnets(mf *Manifest) ([]string, error) {
-	nd, err := GetNetworkDetail(mf, GetMEXNetwork(mf))
+//GetCloudletSubnets returns subnets inside MEX Network
+func GetCloudletSubnets() ([]string, error) {
+	nd, err := GetNetworkDetail(GetCloudletMexNetwork())
 	if err != nil {
 		return nil, fmt.Errorf("can't get MEX network detail, %v", err)
 	}

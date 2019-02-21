@@ -1,0 +1,13 @@
+{
+    "data": {
+	"env": [
+	    { "name": "OS_AUTH_URL", "value": "http://10.253.109.134:5000/v2.0"},
+	    { "name": "OS_USERNAME", "value": "mobiledgex"},
+	    { "name": "OS_PASSWORD", "value": "rq3s8vgW"},
+	    { "name": "OS_REGION_NAME", "value": "RegionOne"},
+            { "name": "OS_IDENTITY_API_VERSION", "value": "2"},
+            { "name": "OS_TENANT_ID", "value": "1155b339bb684dd4bf2211d882d321e5"},
+	    { "name": "OS_TENANT_NAME", "value": "mobiledgex"}
+	]
+    }
+}

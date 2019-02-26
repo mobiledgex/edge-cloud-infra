@@ -58,7 +58,7 @@ func CreateKubernetesAppInst(rootLB *MEXRootLB, kubeNames *KubeNames, clusterIns
 	if GetCloudletDockerPass() == "" {
 		return fmt.Errorf("empty docker registry password environment variable")
 	}
-	file, err := GetYamlFileFromMf(kp, kubeNames.appName, kubeManifest)
+	file, err := WriteConfigFile(kp, kubeNames.appName, kubeManifest, "K8s Deployment")
 	if err != nil {
 		return err
 	}

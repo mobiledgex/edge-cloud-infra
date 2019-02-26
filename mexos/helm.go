@@ -101,7 +101,11 @@ func CreateHelmAppInst(rootLB *MEXRootLB, kubeNames *KubeNames, appInst *edgepro
 	var ymls []string
 	for _, v := range configs {
 		if v.Kind == cloudcommon.AppConfigHemYaml {
-			file, err := GetYamlFileFromMf(kp, kubeNames.appName, v.Config)
+			mf, err := cloudcommon.GetDeploymentManifest(v.Config)
+			if err != nil {
+				return err
+			}
+			file, err := WriteConfigFile(kp, kubeNames.appName, mf, v.Kind)
 			if err != nil {
 				return err
 			}

@@ -38,14 +38,14 @@ func copyFile(src string, dst string) error {
 // This is a function to get the file given a manifest
 // Currently it creates a file locally on the rootLB but copying Manifest into a file
 // TODO do not create yaml file but use remote yaml file over https
-func GetYamlFileFromMf(kp *kubeParam, appName string, kubeManifest string) (string, error) {
+func WriteConfigFile(kp *kubeParam, appName string, kubeManifest string, kind string) (string, error) {
 	file := appName + ".yaml"
 	cmd := fmt.Sprintf("cat <<'EOF'> %s \n%s\nEOF", file, kubeManifest)
 	out, err := kp.client.Output(cmd)
 	if err != nil {
-		return "", fmt.Errorf("error writing KubeManifest, %s, %s, %v", cmd, out, err)
+		return "", fmt.Errorf("error writing %s manifest, %s, %s, %v", kind, cmd, out, err)
 	}
-	log.DebugLog(log.DebugLevelMexos, "wrote kubernetes manifest file")
+	log.DebugLog(log.DebugLevelMexos, "wrote manifest file", "kind", kind)
 	return file, nil
 }
 

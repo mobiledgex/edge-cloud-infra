@@ -100,19 +100,10 @@ func CreateKubernetesAppInst(rootLB *MEXRootLB, kubeNames *KubeNames, clusterIns
 		return fmt.Errorf("error deploying kubernetes app, %s, %v", out, err)
 	}
 	log.DebugLog(log.DebugLevelMexos, "done kubectl create")
-	// Add security rules
-	secchan := make(chan string)
-	dnschan := make(chan string)
-
-	go AddProxySecurityRules(rootLB, kp.ipaddr, kubeNames.appName, appInst, secchan)
-	go KubePatchSvcAddDNSRecords(rootLB, kp, kubeNames, dnschan)
-
-	secerr := <-secchan
-	dnserr := <-dnschan
-	if secerr != "" || dnserr != "" {
-		return fmt.Errorf("CreateKubernetesAppInst error -- secerr: %v dnserr: %v", secerr, dnserr)
+	err = AddProxySecurityRulesAndPatchDNS(rootLB, kp, kubeNames, appInst)
+	if err != nil {
+		return fmt.Errorf("CreateKubernetesAppInst error: %v", err)
 	}
-	log.DebugLog(log.DebugLevelMexos, "done create kubernetes app")
 
 	return nil
 }

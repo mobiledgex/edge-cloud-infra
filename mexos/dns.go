@@ -70,12 +70,6 @@ func createAppDNS(kp *kubeParam, kubeNames *KubeNames) error {
 		if err := cloudflare.CreateOrUpdateDNSRecord(GetCloudletDNSZone(), fqdn, "A", externalIP, 1, false); err != nil {
 			return fmt.Errorf("can't create DNS record for %s,%s, %v", fqdn, externalIP, err)
 		}
-
-		//log.DebugLog(log.DebugLevelMexos, "waiting for DNS record to be created on cloudflare...")
-		//err = WaitforDNSRegistration(fqdn)
-		//if err != nil {
-		//	return err
-		//}
 		log.DebugLog(log.DebugLevelMexos, "registered DNS name, may still need to wait for propagation", "name", fqdn, "externalIP", externalIP)
 	}
 	return nil
@@ -149,22 +143,22 @@ func KubePatchServiceLocal(servicename string, ipaddr string) error {
 // commands locally for DIND or other cases.
 // Same for KubeDeleteDNSRecords and deleteAppDNS.
 
-func KubePatchSvcAddDNSRecords(rootLB *MEXRootLB, kp *kubeParam, kubeNames *KubeNames, c chan string) {
+func KubePatchSvcAddDNSRecords(rootLB *MEXRootLB, kp *kubeParam, kubeNames *KubeNames) error {
 	log.DebugLog(log.DebugLevelMexos, "patching service and adding dns records for kubenernets app", "name", kubeNames.appName)
 	rootLBIPaddr, err := GetServerIPAddr(GetCloudletExternalNetwork(), rootLB.Name)
 	if err != nil {
 		log.DebugLog(log.DebugLevelMexos, "cannot get rootlb IP address", "error", err)
-		c <- fmt.Sprintf("cannot deploy kubernetes app, cannot get rootlb IP")
+		return fmt.Errorf("cannot deploy kubernetes app, cannot get rootlb IP")
 	}
 
 	svcs, err := getServices(kp)
 	log.DebugLog(log.DebugLevelMexos, "got kubernetes services", "services", svcs)
 
 	if err != nil {
-		c <- err.Error()
+		return err
 	}
 	if err := cloudflare.InitAPI(GetCloudletCFUser(), GetCloudletCFKey()); err != nil {
-		c <- fmt.Sprintf("cannot init cloudflare api, %v", err)
+		return fmt.Errorf("cannot init cloudflare api, %v", err)
 	}
 	fqdnBase := uri2fqdn(kubeNames.appURI)
 	processed := 0
@@ -180,21 +174,21 @@ func KubePatchSvcAddDNSRecords(rootLB *MEXRootLB, kp *kubeParam, kubeNames *Kube
 		cmd := fmt.Sprintf(`%s kubectl patch svc %s -p '{"spec":{"externalIPs":["%s"]}}'`, kp.kubeconfig, svc.ObjectMeta.Name, kp.ipaddr)
 		out, err := kp.client.Output(cmd)
 		if err != nil {
-			c <- fmt.Sprintf("error patching for kubernetes service, %s, %s, %v", cmd, out, err)
+			return fmt.Errorf("error patching for kubernetes service, %s, %s, %v", cmd, out, err)
 		}
 		log.DebugLog(log.DebugLevelMexos, "patched externalIPs on service", "service", svc.ObjectMeta.Name, "externalIPs", kp.ipaddr)
 		fqdn := cloudcommon.ServiceFQDN(svc.ObjectMeta.Name, fqdnBase)
 
 		if err := cloudflare.CreateOrUpdateDNSRecord(GetCloudletDNSZone(), fqdn, "A", rootLBIPaddr, 1, false); err != nil {
-			c <- fmt.Sprintf("can't create DNS record for %s,%s, %v", fqdn, rootLBIPaddr, err)
+			return fmt.Errorf("can't create DNS record for %s,%s, %v", fqdn, rootLBIPaddr, err)
 		}
 		processed++
 		log.DebugLog(log.DebugLevelMexos, "created DNS record", "name", fqdn, "addr", rootLBIPaddr)
 	}
 	if processed == 0 {
-		c <- fmt.Sprintf("cannot patch service, %s not found", kubeNames.appName)
+		return fmt.Errorf("cannot patch service, %s not found", kubeNames.appName)
 	}
-	c <- ""
+	return nil
 }
 
 func KubeDeleteDNSRecords(rootLB *MEXRootLB, kp *kubeParam, kubeNames *KubeNames) error {

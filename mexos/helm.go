@@ -122,18 +122,9 @@ func CreateHelmAppInst(rootLB *MEXRootLB, kubeNames *KubeNames, appInst *edgepro
 			return err
 		}
 	} else {
-		// Add security rules
-		// Add security rules
-		secchan := make(chan string)
-		dnschan := make(chan string)
-
-		go AddProxySecurityRules(rootLB, kp.ipaddr, kubeNames.appName, appInst, secchan)
-		go KubePatchSvcAddDNSRecords(rootLB, kp, kubeNames, dnschan)
-
-		secerr := <-secchan
-		dnserr := <-dnschan
-		if secerr != "" || dnserr != "" {
-			return fmt.Errorf("CreateHelmAppInst error -- secerr: %v dnserr: %v", secerr, dnserr)
+		err := AddProxySecurityRulesAndPatchDNS(rootLB, kp, kubeNames, appInst)
+		if err != nil {
+			return fmt.Errorf("CreateHelmAppInst error: %v", err)
 		}
 	}
 

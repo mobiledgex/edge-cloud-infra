@@ -12,42 +12,30 @@ import (
 
 // TODO service to periodically clean up the leftover rules
 
-func AddProxySecurityRules(rootLB *MEXRootLB, masteraddr string, appName string, appInst *edgeproto.AppInst) error {
+func AddProxySecurityRules(rootLB *MEXRootLB, masteraddr string, appName string, appInst *edgeproto.AppInst, c chan string) {
 
 	ports, err := GetPortDetail(appInst)
+	log.DebugLog(log.DebugLevelMexos, "AddProxySecurityRules", "port", ports)
+
 	if err != nil {
 		log.DebugLog(log.DebugLevelMexos, "GetPortDetail failed", "err", err)
-		return err
+		c <- err.Error()
 	}
 	sr := GetCloudletSecurityRule()
 	allowedClientCIDR := GetAllowedClientCIDR()
 	for _, port := range ports {
-		for _, sec := range []struct {
-			addr string
-			port int
-		}{
-			{allowedClientCIDR, port.PublicPort},
-			{allowedClientCIDR, port.InternalPort},
-		} {
-			// go func(addr string, port int, proto string) {
-			// 	err := AddSecurityRuleCIDR(mf, addr, strings.ToLower(proto), sr, port)
-			// 	if err != nil {
-			// 		log.DebugLog(log.DebugLevelMexos, "warning, error while adding security rule", "cidr", addr, "securityrule", sr, "port", port, "proto", proto)
-			// 	}
-			// }(sec.addr, sec.port, port.Proto)
-			if err := AddSecurityRuleCIDR(sec.addr, strings.ToLower(port.Proto), sr, sec.port); err != nil {
-				log.DebugLog(log.DebugLevelMexos, "warning, error while adding security rule", "addr", sec.addr, "port", sec.port, "proto", port.Proto)
-			}
+		if err := AddSecurityRuleCIDR(allowedClientCIDR, strings.ToLower(port.Proto), sr, port.PublicPort); err != nil {
+			log.DebugLog(log.DebugLevelMexos, "warning, error while adding security rule", "addr", allowedClientCIDR, "port", port.PublicPort)
 		}
 	}
 	if len(ports) > 0 {
 		if err := AddNginxProxy(rootLB.Name, appName, masteraddr, ports, ""); err != nil {
 			log.DebugLog(log.DebugLevelMexos, "cannot add nginx proxy", "appName", appName)
-			return err
+			c <- err.Error()
 		}
 	}
 	log.DebugLog(log.DebugLevelMexos, "added nginx proxy", "appName", appName, "ports", appInst.MappedPorts)
-	return nil
+	c <- ""
 }
 
 func DeleteProxySecurityRules(rootLB *MEXRootLB, ipaddr string, appName string) error {
@@ -66,6 +54,7 @@ func DeleteProxySecurityRules(rootLB *MEXRootLB, ipaddr string, appName string) 
 }
 
 func AddSecurityRuleCIDR(cidr string, proto string, name string, port int) error {
+	log.DebugLog(log.DebugLevelMexos, "OPENSTACK CMD", "cmd", "openstack security group rule create", "remote-ip", cidr, "proto", proto, "dst-port", port)
 	portStr := fmt.Sprintf("%d", port)
 	out, err := sh.Command("openstack", "security", "group", "rule", "create", "--remote-ip", cidr, "--proto", proto, "--dst-port", portStr, "--ingress", name).Output()
 	if err != nil {

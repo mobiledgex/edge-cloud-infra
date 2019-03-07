@@ -62,9 +62,7 @@ func GetKubeNames(clusterInst *edgeproto.ClusterInst, app *edgeproto.App, appIns
 			}
 			svcName := ksvc.ObjectMeta.Name
 			kubeNames.serviceNames = append(kubeNames.serviceNames, svcName)
-
 		}
-
 	}
 	return nil
 

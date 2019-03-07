@@ -54,7 +54,7 @@ func DeleteProxySecurityRules(rootLB *MEXRootLB, ipaddr string, appName string) 
 }
 
 func AddSecurityRuleCIDR(cidr string, proto string, name string, port int) error {
-	log.DebugLog(log.DebugLevelMexos, "OPENSTACK CMD", "cmd", "openstack security group rule create", "remote-ip", cidr, "proto", proto, "dst-port", port)
+	log.DebugLog(log.DebugLevelMexos, "OpenStack Command:", "cmd", "openstack security group rule create", "remote-ip", cidr, "proto", proto, "dst-port", port)
 	portStr := fmt.Sprintf("%d", port)
 	out, err := sh.Command("openstack", "security", "group", "rule", "create", "--remote-ip", cidr, "--proto", proto, "--dst-port", portStr, "--ingress", name).Output()
 	if err != nil {

@@ -8,7 +8,7 @@ import (
 	"github.com/mobiledgex/edge-cloud/log"
 )
 
-func DeleteHelmAppInst(rootLB *MEXRootLB, kubeNames *KubeNames, appInst *edgeproto.AppInst, clusterInst *edgeproto.ClusterInst, kubeManifest string) error {
+func DeleteHelmAppInst(rootLB *MEXRootLB, kubeNames *KubeNames, clusterInst *edgeproto.ClusterInst, kubeManifest string) error {
 	log.DebugLog(log.DebugLevelMexos, "delete kubernetes helm app")
 
 	var err error

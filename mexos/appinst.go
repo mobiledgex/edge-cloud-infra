@@ -102,7 +102,7 @@ func MEXAppDeleteAppInst(rootLB *MEXRootLB, clusterInst *edgeproto.ClusterInst, 
 		if appDeploymentType == cloudcommon.AppDeploymentTypeKubernetes {
 			err = runKubectlDeleteApp(rootLB, &kubeNames, clusterInst, app.DeploymentManifest)
 		} else if appDeploymentType == cloudcommon.AppDeploymentTypeHelm {
-			err = DeleteHelmAppInst(rootLB, &kubeNames, appInst, clusterInst, app.DeploymentManifest)
+			err = DeleteHelmAppInst(rootLB, &kubeNames, clusterInst, app.DeploymentManifest)
 		} else {
 			err = fmt.Errorf("invalid deployment type %s for dind", appDeploymentType)
 		}
@@ -143,7 +143,7 @@ func MEXAppDeleteAppInst(rootLB *MEXRootLB, clusterInst *edgeproto.ClusterInst, 
 		if appDeploymentType == cloudcommon.AppDeploymentTypeKubernetes {
 			return DeleteKubernetesAppInst(rootLB, &kubeNames, clusterInst)
 		} else if appDeploymentType == cloudcommon.AppDeploymentTypeHelm {
-			return DeleteHelmAppInst(rootLB, &kubeNames, appInst, clusterInst, app.DeploymentManifest)
+			return DeleteHelmAppInst(rootLB, &kubeNames, clusterInst, app.DeploymentManifest)
 		}
 		//TODO
 		//} else if appDeploymentType == cloudcommon.AppDeploymentTypeKVM {

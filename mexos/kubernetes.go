@@ -3,11 +3,14 @@ package mexos
 import (
 	"fmt"
 
+	"github.com/ghodss/yaml"
 	"github.com/mobiledgex/edge-cloud-infra/openstack-tenant/agent/cloudflare"
 	"github.com/mobiledgex/edge-cloud/cloudcommon"
 	"github.com/mobiledgex/edge-cloud/edgeproto"
 	"github.com/mobiledgex/edge-cloud/log"
+	edgeyaml "github.com/mobiledgex/edge-cloud/protoc-gen-cmd/yaml"
 	ssh "github.com/nanobox-io/golang-ssh"
+	appsv1 "k8s.io/api/apps/v1"
 	"k8s.io/api/core/v1"
 )
 
@@ -68,8 +71,63 @@ func GetKubeNames(clusterInst *edgeproto.ClusterInst, app *edgeproto.App, appIns
 
 }
 
+// Merge in all the environment variables into
+func MergeEnvVars(kubeManifest string, configs []*edgeproto.ConfigFile) (string, error) {
+	var envVars []v1.EnvVar
+	//quick bail, if nothing to do
+	if len(configs) == 0 {
+		return kubeManifest, nil
+	}
+
+	// Walk the Configs in the App and get all the environment variables together
+	for _, v := range configs {
+		if v.Kind == AppConfigEnvYaml {
+			var curVars []v1.EnvVar
+			if err := yaml.Unmarshal([]byte(v.Config), &curVars); err != nil {
+				log.DebugLog(log.DebugLevelMexos, "cannot unmarshal env vars", "kind", v.Kind,
+					"config", v.Config, "error", err)
+			} else {
+				envVars = append(envVars, curVars...)
+			}
+		}
+	}
+
+	mf, err := cloudcommon.GetDeploymentManifest(kubeManifest)
+	if err != nil {
+		return mf, err
+	}
+	//decode the objects so we can find the container objects, where we'll add the env vars
+	objs, _, err := cloudcommon.DecodeK8SYaml(mf)
+	if err != nil {
+		return kubeManifest, fmt.Errorf("invalid kubernetes deployment yaml, %s", err.Error())
+	}
+
+	//walk the objects
+	for i, _ := range objs {
+		//make sure we are working on the Deployment object
+		deployment, ok := objs[i].(*appsv1.Deployment)
+		if !ok {
+			continue
+		}
+		//walk the containers and append environment variables to each
+		for i, _ := range deployment.Spec.Template.Spec.Containers {
+			deployment.Spec.Template.Spec.Containers[i].Env =
+				append(deployment.Spec.Template.Spec.Containers[i].Env, envVars...)
+		}
+		//there should only be one deployment object, so break out of the loop
+		break
+	}
+	//marshal the objects back together and return as one string
+	d, err := edgeyaml.Marshal(objs)
+	if err != nil {
+		return kubeManifest, fmt.Errorf("unable to marshal the k8s objects back together, %s", err.Error())
+	}
+	mf = string(d)
+	return mf, nil
+}
+
 //CreateKubernetesAppInst instantiates a new kubernetes deployment
-func CreateKubernetesAppInst(rootLB *MEXRootLB, kubeNames *KubeNames, clusterInst *edgeproto.ClusterInst, appInst *edgeproto.AppInst, kubeManifest string) error {
+func CreateKubernetesAppInst(rootLB *MEXRootLB, kubeNames *KubeNames, clusterInst *edgeproto.ClusterInst, appInst *edgeproto.AppInst, kubeManifest string, configs []*edgeproto.ConfigFile) error {
 	log.DebugLog(log.DebugLevelMexos, "create kubernetes app")
 
 	if rootLB == nil {
@@ -87,8 +145,12 @@ func CreateKubernetesAppInst(rootLB *MEXRootLB, kubeNames *KubeNames, clusterIns
 	if GetCloudletDockerPass() == "" {
 		return fmt.Errorf("empty docker registry password environment variable")
 	}
-	log.DebugLog(log.DebugLevelMexos, "writing config file", "kubeManifest", kubeManifest)
-	file, err := WriteConfigFile(kp, kubeNames.appName, kubeManifest, "K8s Deployment")
+
+	// Merge in environment variables
+	mf, err := MergeEnvVars(kubeManifest, configs)
+
+	log.DebugLog(log.DebugLevelMexos, "writing config file", "kubeManifest", mf)
+	file, err := WriteConfigFile(kp, kubeNames.appName, mf, "K8s Deployment")
 	if err != nil {
 		return err
 	}

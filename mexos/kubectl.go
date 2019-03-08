@@ -67,7 +67,7 @@ func CreateClusterConfigMap(clusterInst *edgeproto.ClusterInst, rootLBName strin
 	return nil
 }
 
-func runKubectlCreateApp(rootLB *MEXRootLB, kubeNames *KubeNames, clusterInst *edgeproto.ClusterInst, kubeManifest string) error {
+func runKubectlCreateApp(rootLB *MEXRootLB, kubeNames *KubeNames, clusterInst *edgeproto.ClusterInst, kubeManifest string, configs []*edgeproto.ConfigFile) error {
 	log.DebugLog(log.DebugLevelMexos, "run kubectl create app", "kubeManifest", kubeManifest)
 
 	kfile := kubeNames.appName + ".yaml"
@@ -95,6 +95,21 @@ func runKubectlCreateApp(rootLB *MEXRootLB, kubeNames *KubeNames, clusterInst *e
 			}
 		}
 	}()
+
+	// Walk the Configs in the App and generate the yaml files for the k8s objects
+	var ymls []string
+	for _, v := range configs {
+		if v.Kind == AppConfigEnvYaml {
+			file, err := WriteConfigFile(kp, kubeNames.appName, v.Config, v.Kind)
+			if err != nil {
+				return err
+			}
+			ymls = append(ymls, file)
+		}
+	}
+	// Now apply these files
+	//TODO -XXX
+
 	err = createAppDNS(kp, kubeNames)
 	if err != nil {
 		return fmt.Errorf("error creating dns entry for app, %v", err)

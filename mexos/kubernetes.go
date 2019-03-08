@@ -2,13 +2,13 @@ package mexos
 
 import (
 	"fmt"
+	"strings"
 
 	"github.com/ghodss/yaml"
 	"github.com/mobiledgex/edge-cloud-infra/openstack-tenant/agent/cloudflare"
 	"github.com/mobiledgex/edge-cloud/cloudcommon"
 	"github.com/mobiledgex/edge-cloud/edgeproto"
 	"github.com/mobiledgex/edge-cloud/log"
-	edgeyaml "github.com/mobiledgex/edge-cloud/protoc-gen-cmd/yaml"
 	ssh "github.com/nanobox-io/golang-ssh"
 	appsv1 "k8s.io/api/apps/v1"
 	"k8s.io/api/core/v1"
@@ -74,6 +74,7 @@ func GetKubeNames(clusterInst *edgeproto.ClusterInst, app *edgeproto.App, appIns
 // Merge in all the environment variables into
 func MergeEnvVars(kubeManifest string, configs []*edgeproto.ConfigFile) (string, error) {
 	var envVars []v1.EnvVar
+	var files []string
 	//quick bail, if nothing to do
 	if len(configs) == 0 {
 		return kubeManifest, nil
@@ -83,15 +84,15 @@ func MergeEnvVars(kubeManifest string, configs []*edgeproto.ConfigFile) (string,
 	for _, v := range configs {
 		if v.Kind == AppConfigEnvYaml {
 			var curVars []v1.EnvVar
-			if err := yaml.Unmarshal([]byte(v.Config), &curVars); err != nil {
+			if err1 := yaml.Unmarshal([]byte(v.Config), &curVars); err1 != nil {
 				log.DebugLog(log.DebugLevelMexos, "cannot unmarshal env vars", "kind", v.Kind,
-					"config", v.Config, "error", err)
+					"config", v.Config, "error", err1)
 			} else {
 				envVars = append(envVars, curVars...)
 			}
 		}
 	}
-
+	log.DebugLog(log.DebugLevelMexos, "Merging environment variables", "envVars", envVars)
 	mf, err := cloudcommon.GetDeploymentManifest(kubeManifest)
 	if err != nil {
 		return mf, err
@@ -118,11 +119,15 @@ func MergeEnvVars(kubeManifest string, configs []*edgeproto.ConfigFile) (string,
 		break
 	}
 	//marshal the objects back together and return as one string
-	d, err := edgeyaml.Marshal(objs)
-	if err != nil {
-		return kubeManifest, fmt.Errorf("unable to marshal the k8s objects back together, %s", err.Error())
+	for _, o := range objs {
+		d, err := yaml.Marshal(o)
+		if err != nil {
+			return kubeManifest, fmt.Errorf("unable to marshal the k8s objects back together, %s", err.Error())
+		} else {
+			files = append(files, string(d))
+		}
 	}
-	mf = string(d)
+	mf = strings.Join(files, "---\n")
 	return mf, nil
 }
 
@@ -148,7 +153,9 @@ func CreateKubernetesAppInst(rootLB *MEXRootLB, kubeNames *KubeNames, clusterIns
 
 	// Merge in environment variables
 	mf, err := MergeEnvVars(kubeManifest, configs)
-
+	if err != nil {
+		log.DebugLog(log.DebugLevelMexos, "failed to merge env vars", "error", err)
+	}
 	log.DebugLog(log.DebugLevelMexos, "writing config file", "kubeManifest", mf)
 	file, err := WriteConfigFile(kp, kubeNames.appName, mf, "K8s Deployment")
 	if err != nil {

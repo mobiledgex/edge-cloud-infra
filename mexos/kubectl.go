@@ -72,7 +72,12 @@ func runKubectlCreateApp(rootLB *MEXRootLB, kubeNames *KubeNames, clusterInst *e
 
 	kfile := kubeNames.appName + ".yaml"
 
-	if err := writeKubeManifest(kubeManifest, kfile); err != nil {
+	mf, err := MergeEnvVars(kubeManifest, configs)
+	if err != nil {
+		log.DebugLog(log.DebugLevelMexos, "failed to merge env vars", "error", err)
+	}
+
+	if err := writeKubeManifest(mf, kfile); err != nil {
 		return err
 	}
 	defer os.Remove(kfile)
@@ -84,7 +89,7 @@ func runKubectlCreateApp(rootLB *MEXRootLB, kubeNames *KubeNames, clusterInst *e
 	cmd := fmt.Sprintf("%s kubectl create -f %s", kp.kubeconfig, kfile)
 	out, err := kp.client.Output(cmd)
 	if err != nil {
-		return fmt.Errorf("error creating app, %s, %v, %s", out, err, kubeManifest)
+		return fmt.Errorf("error creating app, %s, %v, %s", out, err, mf)
 	}
 	defer func() {
 		if err != nil {
@@ -95,21 +100,6 @@ func runKubectlCreateApp(rootLB *MEXRootLB, kubeNames *KubeNames, clusterInst *e
 			}
 		}
 	}()
-
-	// Walk the Configs in the App and generate the yaml files for the k8s objects
-	var ymls []string
-	for _, v := range configs {
-		if v.Kind == AppConfigEnvYaml {
-			file, err := WriteConfigFile(kp, kubeNames.appName, v.Config, v.Kind)
-			if err != nil {
-				return err
-			}
-			ymls = append(ymls, file)
-		}
-	}
-	// Now apply these files
-	//TODO -XXX
-
 	err = createAppDNS(kp, kubeNames)
 	if err != nil {
 		return fmt.Errorf("error creating dns entry for app, %v", err)

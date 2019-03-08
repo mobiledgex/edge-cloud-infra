@@ -92,6 +92,10 @@ func MergeEnvVars(kubeManifest string, configs []*edgeproto.ConfigFile) (string,
 			}
 		}
 	}
+	//nothing to do if no variables to merge
+	if len(envVars) == 0 {
+		return kubeManifest, nil
+	}
 	log.DebugLog(log.DebugLevelMexos, "Merging environment variables", "envVars", envVars)
 	mf, err := cloudcommon.GetDeploymentManifest(kubeManifest)
 	if err != nil {

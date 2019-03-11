@@ -10,9 +10,22 @@ import (
 func AddProxySecurityRulesAndPatchDNS(rootLB *MEXRootLB, kp *kubeParam, kubeNames *KubeNames, appInst *edgeproto.AppInst) error {
 	secchan := make(chan string)
 	dnschan := make(chan string)
+	proxychan := make(chan string)
 
+	ports, err := GetPortDetail(appInst)
+	if err != nil {
+		return err
+	}
 	go func() {
-		err := AddProxySecurityRules(rootLB, kp.ipaddr, kubeNames.appName, appInst)
+		err = AddProxy(rootLB, kp.ipaddr, kubeNames.appName, ports)
+		if err == nil {
+			proxychan <- ""
+		} else {
+			proxychan <- err.Error()
+		}
+	}()
+	go func() {
+		err := AddSecurityRules(ports)
 		if err == nil {
 			secchan <- ""
 		} else {

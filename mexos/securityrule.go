@@ -20,16 +20,6 @@ func AddSecurityRules(ports []PortDetail) error {
 	return nil
 }
 
-func AddProxy(rootLB *MEXRootLB, masteraddr string, appName string, ports []PortDetail) error {
-	if len(ports) > 0 {
-		if err := AddNginxProxy(rootLB.Name, appName, masteraddr, ports, ""); err != nil {
-			log.DebugLog(log.DebugLevelMexos, "cannot add nginx proxy", "appName", appName)
-			return err
-		}
-	}
-	return nil
-}
-
 func DeleteProxySecurityRules(rootLB *MEXRootLB, ipaddr string, appName string) error {
 
 	log.DebugLog(log.DebugLevelMexos, "delete proxy rules", "name", appName)

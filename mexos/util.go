@@ -4,6 +4,7 @@ import (
 	"fmt"
 
 	"github.com/mobiledgex/edge-cloud/edgeproto"
+	"github.com/mobiledgex/edge-cloud/log"
 )
 
 // AddProxySecurityRulesAndPatchDNS Adds security rules and dns records in parallel
@@ -17,7 +18,7 @@ func AddProxySecurityRulesAndPatchDNS(rootLB *MEXRootLB, kp *kubeParam, kubeName
 		return err
 	}
 	go func() {
-		err = AddProxy(rootLB, kp.ipaddr, kubeNames.appName, ports)
+		err = AddNginxProxy(rootLB.Name, kp.ipaddr, kubeNames.appName, ports, "")
 		if err == nil {
 			proxychan <- ""
 		} else {
@@ -40,11 +41,20 @@ func AddProxySecurityRulesAndPatchDNS(rootLB *MEXRootLB, kp *kubeParam, kubeName
 			dnschan <- err.Error()
 		}
 	}()
+	proxyerr := <-proxychan
 	secerr := <-secchan
 	dnserr := <-dnschan
 
-	if secerr != "" || dnserr != "" {
-		return fmt.Errorf("AddProxySecurityRulesAndPatchDNS error -- secerr: %v dnserr: %v", secerr, dnserr)
+	if proxyerr != "" || secerr != "" || dnserr != "" {
+		if proxyerr == "" {
+			// delete the nginx proxy if it worked but something else failed because it can cause subequent attempts to fail
+			// cleanup of security rules and DNS is not as important
+			err := DeleteNginxProxy(rootLB.Name, kubeNames.appName)
+			if err != nil {
+				log.InfoLog("cleanup nginx proxy Failed", "err", err)
+			}
+		}
+		return fmt.Errorf("AddProxySecurityRulesAndPatchDNS error -- proxyerr: %v secerr: %v dnserr: %v", proxyerr, secerr, dnserr)
 	}
 	return nil
 }

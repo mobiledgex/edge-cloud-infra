@@ -18,7 +18,7 @@ func AddNginxProxy(rootLBName, name, ipaddr string, ports []PortDetail, network 
 		log.DebugLog(log.DebugLevelMexos, "cannot form nginx proxy request")
 		return err
 	}
-	log.DebugLog(log.DebugLevelMexos, "nginx proxy add request post", "request", *pl)
+	log.DebugLog(log.DebugLevelMexos, "nginx proxy add request post", "uri", npURI, "request", *pl)
 	resp, body, errs := request.Post(npURI).Set("Content-Type", "application/json").Send(pl).End()
 	if errs != nil {
 		return fmt.Errorf("error, can't request nginx proxy add, %v", errs)
@@ -38,6 +38,7 @@ func FormNginxKCProxyRequest(name string, portnum int) (*string, error) {
 
 func FormNginxProxyRequest(ports []PortDetail, ipaddr string, name string, network string) (*string, error) {
 	portstrs := []string{}
+
 	for _, p := range ports {
 		switch p.MexProto {
 		case "LProtoHTTP":

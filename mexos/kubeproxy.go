@@ -61,11 +61,6 @@ func StartKubectlProxy(rootLB *MEXRootLB, name, kubeconfig string) (int, error) 
 	if aerr != nil {
 		return 0, fmt.Errorf("cannot convert port %v, %s", aerr, port)
 	}
-	log.DebugLog(log.DebugLevelMexos, "adding external ingress security rule for kubeproxy", "port", port)
-	err = AddSecurityRuleCIDR(GetAllowedClientCIDR(), "tcp", GetCloudletSecurityRule(), portnum+1) //XXX
-	if err != nil {
-		log.DebugLog(log.DebugLevelMexos, "warning, error while adding external ingress security rule for kubeproxy", "error", err, "port", port)
-	}
 	portnum++
 	//TODO delete security rule when kubectl proxy container deleted
 	if err := AddNginxKubectlProxy(rootLB.Name, name, portnum); err != nil {

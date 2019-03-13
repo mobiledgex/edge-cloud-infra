@@ -53,7 +53,7 @@ func RunMEXAgent(rootLBName string, cloudletKey *edgeproto.CloudletKey) error {
 			// now ensure the rootLB can reach all the internal networks
 			err = LBAddRouteAndSecRules(rootLB.Name)
 			if err != nil {
-				return fmt.Errorf("failed to LBAddRouteAllInternal %sv", err)
+				return fmt.Errorf("failed to LBAddRouteAndSecRules %v", err)
 			}
 			//return RunMEXOSAgentContainer(rootLB)
 			return RunMEXOSAgentService(rootLB)
@@ -107,7 +107,7 @@ func RunMEXAgent(rootLBName string, cloudletKey *edgeproto.CloudletKey) error {
 	// now ensure the rootLB can reach all the internal networks
 	err = LBAddRouteAndSecRules(rootLB.Name)
 	if err != nil {
-		return fmt.Errorf("failed to LBAddRouteAndSecRules %sv", err)
+		return fmt.Errorf("failed to LBAddRouteAndSecRules %v", err)
 	}
 	//return RunMEXOSAgentContainer(mf, rootLB)
 	return RunMEXOSAgentService(rootLB)

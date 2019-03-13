@@ -8,6 +8,8 @@ import (
 	"github.com/parnurzeal/gorequest"
 )
 
+var kcproxySuffix = "-kcproxy"
+
 func AddNginxProxy(rootLBName, name, ipaddr string, ports []PortDetail, network string) error {
 	log.DebugLog(log.DebugLevelMexos, "add nginx proxy", "name", name, "network", network, "ports", ports)
 
@@ -38,7 +40,6 @@ func FormNginxKCProxyRequest(name string, portnum int) (*string, error) {
 
 func FormNginxProxyRequest(ports []PortDetail, ipaddr string, name string, network string) (*string, error) {
 	portstrs := []string{}
-
 	for _, p := range ports {
 		switch p.MexProto {
 		case "LProtoHTTP":

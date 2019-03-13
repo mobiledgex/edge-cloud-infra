@@ -13,7 +13,7 @@ func AddSecurityRules(ports []PortDetail) error {
 	allowedClientCIDR := GetAllowedClientCIDR()
 	for _, port := range ports {
 		//todo: distinguish already-exists errors from others
-		portString = fmt.Sprintf("%d", port.PublicPort)
+		portString := fmt.Sprintf("%d", port.PublicPort)
 		if err := AddSecurityRuleCIDR(allowedClientCIDR, strings.ToLower(port.Proto), sr, portString); err != nil {
 			log.DebugLog(log.DebugLevelMexos, "warning, error while adding security rule", "addr", allowedClientCIDR, "port", port.PublicPort)
 		}

@@ -7,12 +7,6 @@ import (
 	"github.com/mobiledgex/edge-cloud/log"
 )
 
-type ClusterSubnetInfo struct {
-	GatewayIP    string
-	MasterIP     string
-	NodeIPPrefix string
-}
-
 // AddProxySecurityRulesAndPatchDNS Adds security rules and dns records in parallel
 func AddProxySecurityRulesAndPatchDNS(rootLB *MEXRootLB, kp *kubeParam, kubeNames *KubeNames, appInst *edgeproto.AppInst) error {
 	secchan := make(chan string)

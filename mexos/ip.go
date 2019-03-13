@@ -36,7 +36,7 @@ func ParseNetSpec(netSpec string) (*NetSpecInfo, error) {
 	if len(items) == 4 {
 		ni.Options = items[NetOptVal]
 	}
-	if len(items) > 5 {
+	if len(items) > 4 {
 		ni.Extra = items[NetOptVal+1:]
 	}
 

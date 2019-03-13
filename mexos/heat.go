@@ -225,7 +225,7 @@ func heatCreateClusterKubernetes(clusterInst *edgeproto.ClusterInst) error {
 		log.DebugLog(log.DebugLevelMexos, "Got Heat Stack detail", "detail", hd)
 		switch hd.StackStatus {
 		case "CREATE_COMPLETE":
-			log.DebugLog(log.DebugLevelMexos, "Heat Stack Creation succeeeded", "stackName", cp.ClusterName)
+			log.DebugLog(log.DebugLevelMexos, "Heat Stack Creation succeeded", "stackName", cp.ClusterName)
 			return nil
 		case "CREATE_IN_PROGRESS":
 			elapsed := time.Since(start)

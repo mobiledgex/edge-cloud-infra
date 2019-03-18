@@ -89,12 +89,15 @@ func InitializeCloudletInfra(fakecloudlet bool) error {
 		if CloudletInfra.AzureProperties.Location == "" {
 			return fmt.Errorf("Env variable MEX_AZURE_LOCATION not set")
 		}
-
+                /** resource group currently derived from cloudletname + cluster name
+		CloudletInfra.AzureProperties.ResourceGroup = os.Getenv("MEX_AZURE_RESOURCE_GROUP")
+		if CloudletInfra.AzureProperties.ResourceGroup == "" {
+			return fmt.Errorf("Env variable MEX_AZURE_RESOURCE_GROUP not set")
+                */
 		CloudletInfra.AzureProperties.UserName = os.Getenv("MEX_AZURE_USER")
 		if CloudletInfra.AzureProperties.UserName == "" {
 			return fmt.Errorf("Env variable MEX_AZURE_USER not set, check contents of MEXENV_URL")
 		}
-
 		CloudletInfra.AzureProperties.Password = os.Getenv("MEX_AZURE_PASS")
 		if CloudletInfra.AzureProperties.Password == "" {
 			return fmt.Errorf("Env variable MEX_AZURE_PASS not set, check contents of MEXENV_URL")

@@ -93,6 +93,7 @@ func InitializeCloudletInfra(fakecloudlet bool) error {
 		CloudletInfra.AzureProperties.ResourceGroup = os.Getenv("MEX_AZURE_RESOURCE_GROUP")
 		if CloudletInfra.AzureProperties.ResourceGroup == "" {
 			return fmt.Errorf("Env variable MEX_AZURE_RESOURCE_GROUP not set")
+                }
                 */
 		CloudletInfra.AzureProperties.UserName = os.Getenv("MEX_AZURE_USER")
 		if CloudletInfra.AzureProperties.UserName == "" {

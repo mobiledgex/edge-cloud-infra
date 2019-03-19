@@ -73,7 +73,6 @@ func CreateDINDCluster(clusterName, kconfName string) error {
 	log.DebugLog(log.DebugLevelMexos, "CreateDINDCluster via dind-cluster-v1.13.sh", "name", clusterName, "clusterid", getClusterID(clusterID))
 
 	out, err := sh.Command("dind-cluster-v1.13.sh", "up").Command("tee", "/tmp/dind.log").CombinedOutput()
-	//	out, err := sh.Command("dind-cluster-v1.13.sh", "up").CombinedOutput()
 	if err != nil {
 		return fmt.Errorf("ERROR creating Dind Cluster: [%s] %v", out, err)
 	}

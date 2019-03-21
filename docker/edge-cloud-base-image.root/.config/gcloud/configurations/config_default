@@ -1,0 +1,8 @@
+[core]
+account = bob.bae@mobiledgex.com
+project = still-entity-201400
+
+[compute]
+zone = us-west1-a
+region = us-west1
+

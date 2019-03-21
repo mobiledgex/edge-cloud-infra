@@ -1,0 +1,81 @@
+2018-08-16 21:51:14,394 DEBUG    root            Loaded Command Group: [u'gcloud', u'compute', u'instances']
+2018-08-16 21:51:14,401 DEBUG    root            Loaded Command Group: [u'gcloud', u'compute', u'instances', u'list']
+2018-08-16 21:51:14,403 DEBUG    root            Running [gcloud.compute.instances.list] with arguments: []
+2018-08-16 21:51:14,819 INFO     root            Display format: "    table(
+      name,
+      zone.basename(),
+      machineType.machine_type().basename(),
+      scheduling.preemptible.yesno(yes=true, no=''),
+      networkInterfaces[].networkIP.notnull().list():label=INTERNAL_IP,
+      networkInterfaces[].accessConfigs[0].natIP.notnull().list()      :label=EXTERNAL_IP,
+      status
+    )"
+2018-08-16 21:51:15,335 INFO     root            cache collection=compute.instances api_version=v1 params=[u'project', u'zone', u'instance']
+2018-08-16 21:51:15,337 INFO     ___FILE_ONLY___ NAME
+2018-08-16 21:51:15,337 INFO     ___FILE_ONLY___                 
+2018-08-16 21:51:15,337 INFO     ___FILE_ONLY___ ZONE
+2018-08-16 21:51:15,337 INFO     ___FILE_ONLY___         
+2018-08-16 21:51:15,337 INFO     ___FILE_ONLY___ MACHINE_TYPE
+2018-08-16 21:51:15,337 INFO     ___FILE_ONLY___    
+2018-08-16 21:51:15,337 INFO     ___FILE_ONLY___ PREEMPTIBLE
+2018-08-16 21:51:15,337 INFO     ___FILE_ONLY___   
+2018-08-16 21:51:15,338 INFO     ___FILE_ONLY___ INTERNAL_IP
+2018-08-16 21:51:15,338 INFO     ___FILE_ONLY___   
+2018-08-16 21:51:15,338 INFO     ___FILE_ONLY___ EXTERNAL_IP
+2018-08-16 21:51:15,338 INFO     ___FILE_ONLY___      
+2018-08-16 21:51:15,338 INFO     ___FILE_ONLY___ STATUS
+2018-08-16 21:51:15,338 INFO     ___FILE_ONLY___ 
+
+2018-08-16 21:51:15,338 INFO     ___FILE_ONLY___ barmstrong-sndk
+2018-08-16 21:51:15,338 INFO     ___FILE_ONLY___      
+2018-08-16 21:51:15,338 INFO     ___FILE_ONLY___ us-west1-a
+2018-08-16 21:51:15,338 INFO     ___FILE_ONLY___   
+2018-08-16 21:51:15,338 INFO     ___FILE_ONLY___ n1-standard-2
+2018-08-16 21:51:15,338 INFO     ___FILE_ONLY___                
+2018-08-16 21:51:15,339 INFO     ___FILE_ONLY___ 10.10.0.10
+2018-08-16 21:51:15,339 INFO     ___FILE_ONLY___    
+2018-08-16 21:51:15,339 INFO     ___FILE_ONLY___ 35.233.147.187
+2018-08-16 21:51:15,339 INFO     ___FILE_ONLY___   
+2018-08-16 21:51:15,339 INFO     ___FILE_ONLY___ RUNNING
+2018-08-16 21:51:15,339 INFO     ___FILE_ONLY___ 
+
+2018-08-16 21:51:15,339 INFO     ___FILE_ONLY___ registry
+2018-08-16 21:51:15,339 INFO     ___FILE_ONLY___             
+2018-08-16 21:51:15,339 INFO     ___FILE_ONLY___ us-west1-a
+2018-08-16 21:51:15,340 INFO     ___FILE_ONLY___   
+2018-08-16 21:51:15,340 INFO     ___FILE_ONLY___ n1-standard-4
+2018-08-16 21:51:15,340 INFO     ___FILE_ONLY___                
+2018-08-16 21:51:15,340 INFO     ___FILE_ONLY___ 10.10.0.17
+2018-08-16 21:51:15,340 INFO     ___FILE_ONLY___    
+2018-08-16 21:51:15,340 INFO     ___FILE_ONLY___ 35.233.222.88
+2018-08-16 21:51:15,340 INFO     ___FILE_ONLY___    
+2018-08-16 21:51:15,340 INFO     ___FILE_ONLY___ RUNNING
+2018-08-16 21:51:15,340 INFO     ___FILE_ONLY___ 
+
+2018-08-16 21:51:15,340 INFO     ___FILE_ONLY___ rmuralt-z37d
+2018-08-16 21:51:15,341 INFO     ___FILE_ONLY___         
+2018-08-16 21:51:15,341 INFO     ___FILE_ONLY___ us-west1-a
+2018-08-16 21:51:15,341 INFO     ___FILE_ONLY___   
+2018-08-16 21:51:15,341 INFO     ___FILE_ONLY___ n1-standard-2
+2018-08-16 21:51:15,341 INFO     ___FILE_ONLY___                
+2018-08-16 21:51:15,341 INFO     ___FILE_ONLY___ 10.10.0.12
+2018-08-16 21:51:15,341 INFO     ___FILE_ONLY___    
+2018-08-16 21:51:15,341 INFO     ___FILE_ONLY___ 35.233.209.122
+2018-08-16 21:51:15,342 INFO     ___FILE_ONLY___   
+2018-08-16 21:51:15,342 INFO     ___FILE_ONLY___ RUNNING
+2018-08-16 21:51:15,342 INFO     ___FILE_ONLY___ 
+
+2018-08-16 21:51:15,342 INFO     ___FILE_ONLY___ dev-instance-new-1
+2018-08-16 21:51:15,342 INFO     ___FILE_ONLY___   
+2018-08-16 21:51:15,342 INFO     ___FILE_ONLY___ us-west1-b
+2018-08-16 21:51:15,342 INFO     ___FILE_ONLY___   
+2018-08-16 21:51:15,342 INFO     ___FILE_ONLY___ n1-standard-2
+2018-08-16 21:51:15,342 INFO     ___FILE_ONLY___                
+2018-08-16 21:51:15,342 INFO     ___FILE_ONLY___ 10.10.0.11
+2018-08-16 21:51:15,342 INFO     ___FILE_ONLY___    
+2018-08-16 21:51:15,343 INFO     ___FILE_ONLY___ 35.199.188.102
+2018-08-16 21:51:15,343 INFO     ___FILE_ONLY___   
+2018-08-16 21:51:15,343 INFO     ___FILE_ONLY___ RUNNING
+2018-08-16 21:51:15,343 INFO     ___FILE_ONLY___ 
+
+2018-08-16 21:51:15,587 DEBUG    root            Metrics reporting process started...

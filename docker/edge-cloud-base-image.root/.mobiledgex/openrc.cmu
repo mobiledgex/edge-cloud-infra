@@ -1,0 +1,10 @@
+export OS_AUTH_URL=http://cloudlet004.elijah.cs.cmu.edu:5000/v3
+export OS_PROJECT_ID=5e4192b32e004438ad59be8a8e03acea
+export OS_PROJECT_NAME=mex
+export OS_USER_DOMAIN_NAME=default
+export OS_PROJECT_DOMAIN_ID=5783f365c523493da14697e520b08563
+export OS_USERNAME=mex
+export OS_PASSWORD=MEX\$Admin12345
+export OS_REGION_NAME=RegionOne
+export OS_INTERFACE=public
+export OS_IDENTITY_API_VERSION=3

@@ -1,0 +1,37 @@
+FROM ubuntu:18.04
+
+RUN apt-get update && apt-get install -y \
+	apt-transport-https \
+        ca-certificates \
+        curl \
+	dirmngr \
+	openssh-client \
+	openssh-server \
+	openssh-sftp-server \
+	python \
+	python2.7 \
+	python3 \
+	software-properties-common \
+	systemd \
+	tzdata \
+	vim \
+	wget
+
+# Turn off auto-upgrades
+RUN sed -i 's/"1"/"0"/' /etc/apt/apt.conf.d/20auto-upgrades
+
+RUN echo "deb [arch=amd64] https://packages.microsoft.com/repos/azure-cli/ bionic main" >/etc/apt/sources.list.d/azure-cli.list
+RUN echo "deb http://packages.cloud.google.com/apt cloud-sdk-bionic main" >/etc/apt/sources.list.d/google-cloud-sdk.list
+RUN apt-key --keyring /etc/apt/trusted.gpg.d/Microsoft.gpg adv \
+	--keyserver packages.microsoft.com \
+	--recv-keys BC528686B50D79E339D3721CEB3E94ADBE1229CF
+RUN curl https://packages.cloud.google.com/apt/doc/apt-key.gpg \
+	| apt-key add -
+
+RUN apt-get update && apt-get install -y \
+	azure-cli \
+	google-cloud-sdk \
+	python-heatclient \
+	python-openstackclient
+
+COPY edge-cloud-base-image.root /root

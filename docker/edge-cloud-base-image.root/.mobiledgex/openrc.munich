@@ -1,0 +1,6 @@
+export OS_CACERT=$HOME/.mobiledgex/telesec_chain.crt
+export OS_AUTH_URL=https://munedgecloud.telekom.de:5000/v2.0
+export OS_USERNAME=mexadmin
+export OS_PASSWORD=E\:KJU5H3\%tw\*rp4\@
+export OS_REGION_NAME=RegionOne
+export OS_TENANT_NAME=mex

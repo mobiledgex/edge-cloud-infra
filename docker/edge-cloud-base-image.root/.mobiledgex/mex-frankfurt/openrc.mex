@@ -1,0 +1,12 @@
+echo "**************************************************************************"
+echo "*                                                                        *"
+echo "* Warning. You have to adjust the path to OS_CACERT  to make this work!  *"
+echo "*                                                                        *"
+echo "**************************************************************************"
+
+export OS_CACERT=/path-to/fraedgecloudtelekomde.crt
+export OS_AUTH_URL=https://fraedgecloud.telekom.de:5000/v2.0
+export OS_USERNAME=mexadmin
+export OS_PASSWORD=vh\#\%6g\$p854aTfMk
+export OS_REGION_NAME=RegionOne
+export OS_TENANT_NAME=mex

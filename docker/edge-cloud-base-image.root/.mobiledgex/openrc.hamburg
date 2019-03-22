@@ -1,0 +1,8 @@
+#export OS_CACERT=$HOME/.mobiledgex/hamburgcertfile.pem
+#export OS_CACERT=$HOME/.mobiledgex/hamburg.crt
+export OS_CACERT=$HOME/.mobiledgex/hamedgecloudtelekomde.crt
+export OS_AUTH_URL=https://hamedgecloud.telekom.de:5000/v2.0
+export OS_USERNAME=mexadmin
+export OS_PASSWORD=ED2\%jdB7-Ef\]b8\^x
+export OS_REGION_NAME=RegionOne
+export OS_TENANT_NAME=mex

@@ -1,0 +1,6 @@
+export OS_CACERT=$HOME/.mobiledgex/bonnedgecloudtelekomde.crt
+export OS_AUTH_URL=https://bonnedgecloud.telekom.de:5000/v2.0
+export OS_USERNAME=mexadmin
+export OS_PASSWORD=kj\&shy2\%Jt5F4\$Wz
+export OS_REGION_NAME=RegionOne
+export OS_TENANT_NAME=mex

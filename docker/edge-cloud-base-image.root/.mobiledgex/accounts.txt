@@ -1,0 +1,23 @@
+MobiledgeX common accounts
+Note: Please update this googlel doc if you change any of the following passwords.
+
+new GSuite account set up 
+user: mobiledgex.ops
+email: mobiledgex.ops@mobiledgex.com
+Password: Axkpq@123
+
+new Microsoft Account set up 
+user:mobiledgex.ops
+temp pswd: 2735 Telekom
+go to mobiledgex.ops@mobiledgex.onmicrosoft.com to login
+
+
+MobiledgeX letsencrypt.org community account
+User: mobiledgex
+Pass: Axkpq@1234
+
+MobiledgeX cloudflare.com account
+User: mobiledgeX.ops@mobiledgex.com
+Pass: Axkpq@1234
+
+

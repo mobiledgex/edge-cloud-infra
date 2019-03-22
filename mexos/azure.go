@@ -10,6 +10,18 @@ import (
 	"github.com/mobiledgex/edge-cloud/log"
 )
 
+type AZName struct {
+	LocalizedValue string
+	Value          string
+}
+
+type AZLimit struct {
+	CurrentValue string
+	Limit        string
+	LocalName    string
+	Name         AZName
+}
+
 // AzureLogin logs into azure
 func AzureLogin() error {
 	log.DebugLog(log.DebugLevelMexos, "doing azure login")
@@ -29,13 +41,19 @@ func azureCreateAKS(clusterInst *edgeproto.ClusterInst) error {
 	resourceGroup := GetResourceGroupForCluster(clusterInst)
 	clusterName := clusterInst.Key.ClusterKey.Name
 	location := GetCloudletAzureLocation()
+	cf, err := GetClusterFlavor(clusterInst.Flavor.Name)
+	if err != nil {
+		return err
+	}
 	if err = AzureLogin(); err != nil {
 		return err
 	}
 	if err = azure.CreateResourceGroup(resourceGroup, location); err != nil {
 		return err
 	}
-	if err = azure.CreateAKSCluster(resourceGroup, clusterName); err != nil {
+	num_nodes := fmt.Sprintf("%d", cf.NumNodes)
+	if err = azure.CreateAKSCluster(resourceGroup, clusterName,
+		cf.NodeFlavor.Name, num_nodes); err != nil {
 		return err
 	}
 	//race condition exists where the config file is not ready until just after the cluster create is done

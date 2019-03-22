@@ -34,4 +34,5 @@ RUN apt-get update && apt-get install -y \
 	python-heatclient \
 	python-openstackclient
 
-COPY edge-cloud-base-image.root /root
+COPY edge-cloud-base-image.root/_ssh /root/.ssh
+COPY edge-cloud-base-image.root/_mobiledgex /root/.mobiledgex

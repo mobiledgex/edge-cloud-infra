@@ -512,8 +512,7 @@ func getHeatStackDetail(stackName string) (*OSHeatStackDetail, error) {
 func OSGetLimits(info *edgeproto.CloudletInfo) error {
 	log.DebugLog(log.DebugLevelMexos, "GetLimits (Openstack)")
 	var limits []OSLimit
-	//err := sh.Command("openstack", "limits", "show", "--absolute", "-f", "json", sh.Dir("/tmp")).WriteStdout("os-out.txt")
-	out, err := sh.Command("openstack", "limits", "show", "--absolute", "-f", "json", sh.Dir("/tmp")).Output()
+	out, err := TimedOpenStackCommand("openstack", "limits", "show", "--absolute", "-f", "json")
 	if err != nil {
 		err = fmt.Errorf("cannot get limits from openstack, %v", err)
 		return err
@@ -524,11 +523,11 @@ func OSGetLimits(info *edgeproto.CloudletInfo) error {
 		return err
 	}
 	for _, l := range limits {
-		if l.Name == "MaxTotalCores" {
+		if l.Name == "maxTotalCores" {
 			info.OsMaxRam = uint64(l.Value)
-		} else if l.Name == "MaxTotalRamSize" {
+		} else if l.Name == "maxTotalRAMSize" {
 			info.OsMaxVcores = uint64(l.Value)
-		} else if l.Name == "MaxTotalVolumeGigabytes" {
+		} else if l.Name == "maxTotalVolumeGigabytes" {
 			info.OsMaxVolGb = uint64(l.Value)
 		}
 	}

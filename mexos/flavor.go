@@ -63,19 +63,20 @@ var AzureClusterFlavors = []*ClusterFlavor{
 	&ClusterFlavor{
 		Name:           "x1.medium",
 		Kind:           "mex-cluster-flavor",
-		PlatformFlavor: "Standard_B2s", // 2-vCPU, 4G-Mem
+		PlatformFlavor: "Standard_DS2_v2", // 2-vCPU, 7G-Mem
 		Status:         "active",
 		NumNodes:       2,
 		NumMasterNodes: 1,
-		NodeFlavor:     ClusterNodeFlavor{Name: "Standard_B2s", Type: "k8s-node"},
+		NodeFlavor:     ClusterNodeFlavor{Name: "Standard_DS2_v2", Type: "k8s-node"},
 	},
 	&ClusterFlavor{
 		Name:           "x1.large",
 		Kind:           "mex-cluster-flavor",
-		PlatformFlavor: "Standard_DS2_v2", // 2-vCPU, 7G-Mem
+		PlatformFlavor: "Standard_DS3_v2", // 4-vCPU, 14G-Mem
 		Status:         "active",
 		NumNodes:       2,
-		NodeFlavor:     ClusterNodeFlavor{Name: "Standard_DS2_v2", Type: "k8s-node"},
+		NumMasterNodes: 1,
+		NodeFlavor:     ClusterNodeFlavor{Name: "Standard_DS3_v2", Type: "k8s-node"},
 	},
 }
 

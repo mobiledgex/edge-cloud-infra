@@ -1,7 +1,9 @@
 package mexos
 
 import (
+	"encoding/json"
 	"fmt"
+	"strconv"
 	"time"
 
 	sh "github.com/codeskyblue/go-sh"
@@ -71,4 +73,36 @@ func azureCreateAKS(clusterInst *edgeproto.ClusterInst) error {
 	}
 	log.DebugLog(log.DebugLevelMexos, "created aks", "name", clusterName)
 	return CreateDockerRegistrySecret(clusterInst, "")
+}
+
+// Get resource limits
+func AzureGetLimits(info *edgeproto.CloudletInfo) error {
+	log.DebugLog(log.DebugLevelMexos, "GetLimits (Azure)")
+
+	var limits []AZLimit
+	out, err := sh.Command("az", "vm", "list-usage", "--location", GetCloudletAzureLocation(), sh.Dir("/tmp")).Output()
+	if err != nil {
+		err = fmt.Errorf("cannot get limits from azure, %v", err)
+		return err
+	}
+	err = json.Unmarshal(out, &limits)
+	if err != nil {
+		err = fmt.Errorf("cannot unmarshal, %v", err)
+		return err
+	}
+	for _, l := range limits {
+		if l.LocalName == "Total Regional vCPUs" {
+			vcpus, err := strconv.Atoi(l.Limit)
+			if err != nil {
+				err = fmt.Errorf("failed to parse azure output, %v", err)
+				return err
+			}
+			info.OsMaxVcores = uint64(vcpus)
+			info.OsMaxRam = uint64(4 * vcpus)
+			info.OsMaxVolGb = uint64(500 * vcpus)
+			break
+		}
+	}
+
+	return nil
 }

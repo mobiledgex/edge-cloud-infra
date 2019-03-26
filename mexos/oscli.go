@@ -7,6 +7,7 @@ import (
 	"time"
 
 	sh "github.com/codeskyblue/go-sh"
+	"github.com/mobiledgex/edge-cloud/edgeproto"
 	"github.com/mobiledgex/edge-cloud/log"
 )
 
@@ -505,4 +506,32 @@ func getHeatStackDetail(stackName string) (*OSHeatStackDetail, error) {
 		return nil, fmt.Errorf("can't unmarshal stack detail, %v", err)
 	}
 	return stackDetail, nil
+}
+
+// Get resource limits
+func OSGetLimits(info *edgeproto.CloudletInfo) error {
+	log.DebugLog(log.DebugLevelMexos, "GetLimits (Openstack)")
+	var limits []OSLimit
+	//err := sh.Command("openstack", "limits", "show", "--absolute", "-f", "json", sh.Dir("/tmp")).WriteStdout("os-out.txt")
+	out, err := sh.Command("openstack", "limits", "show", "--absolute", "-f", "json", sh.Dir("/tmp")).Output()
+	if err != nil {
+		err = fmt.Errorf("cannot get limits from openstack, %v", err)
+		return err
+	}
+	err = json.Unmarshal(out, &limits)
+	if err != nil {
+		err = fmt.Errorf("cannot unmarshal, %v", err)
+		return err
+	}
+	for _, l := range limits {
+		if l.Name == "MaxTotalCores" {
+			info.OsMaxRam = uint64(l.Value)
+		} else if l.Name == "MaxTotalRamSize" {
+			info.OsMaxVcores = uint64(l.Value)
+		} else if l.Name == "MaxTotalVolumeGigabytes" {
+			info.OsMaxVolGb = uint64(l.Value)
+		}
+	}
+
+	return nil
 }

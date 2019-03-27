@@ -2,11 +2,16 @@ package dind
 
 import (
 	"fmt"
+	"math"
 	"net"
 	"os"
+	"regexp"
 	"strconv"
+	"strings"
 
 	"github.com/codeskyblue/go-sh"
+	"github.com/mobiledgex/edge-cloud/cloudcommon"
+	"github.com/mobiledgex/edge-cloud/edgeproto"
 	"github.com/mobiledgex/edge-cloud/log"
 )
 
@@ -34,8 +39,17 @@ func GetMasterAddr(clusterName string) string {
 	return c.MasterAddr
 }
 
+// GetDINDServiceIP depending on the type of DIND cluster will return either the interface or external address
+func GetDINDServiceIP(cloudletKind string) (string, error) {
+	if cloudletKind == cloudcommon.CloudletKindLocalDIND {
+		return getLocalAddr()
+	}
+	return getExternalPublicAddr()
+
+}
+
 // GetLocalAddr gets the IP address the machine uses for outbound comms
-func GetLocalAddr() (string, error) {
+func getLocalAddr() (string, error) {
 	conn, err := net.Dial("udp", "8.8.8.8:80")
 	if err != nil {
 		return "", err
@@ -44,6 +58,16 @@ func GetLocalAddr() (string, error) {
 
 	localAddr := conn.LocalAddr().(*net.UDPAddr)
 	return localAddr.IP.String(), nil
+}
+
+// Get the externally visible public IP address
+func getExternalPublicAddr() (string, error) {
+	out, err := sh.Command("dig", "@resolver1.opendns.com", "ANY", "myip.opendns.com", "+short").Output()
+	log.DebugLog(log.DebugLevelMexos, "dig to resolver1.opendns.com called", "out", string(out), "err", err)
+	if err != nil {
+		return "", err
+	}
+	return strings.TrimSpace(string(out)), err
 }
 
 func GetDockerNetworkName(clusterName string) string {
@@ -112,15 +136,55 @@ func DeleteDINDCluster(name string) error {
 	log.DebugLog(log.DebugLevelMexos, "Finished dind-cluster-v1.13.sh clean", "name", name, "out", out)
 	// Delete the entry from the dindClusters
 	delete(dindClusters, name)
+	return nil
+}
 
-	/* network is already deleted by the clean
-	netname := GetDockerNetworkName(name)
-	log.DebugLog(log.DebugLevelMexos, "removing docker network", "netname", netname, "out", out)
-	out, err = sh.Command("docker", "network", "rm", netname).CombinedOutput()
+// GetStandaloneLinuxLimits gets CPU, Memory from standalone linux machine
+func GetStandaloneLinuxLimits(info *edgeproto.CloudletInfo) error {
+	log.DebugLog(log.DebugLevelMexos, "GetDINDLinuxLimits called")
+
+	// get memory
+	m, err := sh.Command("grep", "MemTotal", "/proc/meminfo").Output()
+	memline := string(m)
 	if err != nil {
-		return fmt.Errorf("%s %v", out, err)
+		return err
 	}
-	fmt.Printf("ran command docker network rm for network: %s.  Result: %s", netname, out)
-	*/
+	rmem, _ := regexp.Compile("MemTotal:\\s+(\\d+)\\s+kB")
+
+	if rmem.MatchString(string(memline)) {
+		matches := rmem.FindStringSubmatch(memline)
+		memoryKb, err := strconv.Atoi(matches[1])
+		if err != nil {
+			return err
+		}
+		memoryGb := math.Round((float64(memoryKb) / 1024 / 1024))
+		info.OsMaxRam = uint64(memoryGb)
+	}
+	c, err := sh.Command("grep", "-c", "processor", "/proc/cpuinfo").Output()
+	cpuline := string(c)
+	cpuline = strings.TrimSpace(cpuline)
+	cpus, err := strconv.Atoi(cpuline)
+	if err != nil {
+		return err
+	}
+	info.OsMaxVcores = uint64(cpus)
+
+	// disk space
+	fd, err := sh.Command("fdisk", "-l").Output()
+	fdstr := string(fd)
+	rdisk, err := regexp.Compile("Disk\\s+\\S+:\\s+(\\d+)\\s+GiB")
+	if err != nil {
+		return err
+	}
+	matches := rdisk.FindStringSubmatch(fdstr)
+	if matches != nil {
+		//for now just looking for one disk
+		diskGb, err := strconv.Atoi(matches[1])
+		if err != nil {
+			return err
+		}
+		info.OsMaxVolGb = uint64(diskGb)
+	}
+	log.DebugLog(log.DebugLevelMexos, "GetDINDLinuxLimits results", "info", info)
 	return nil
 }

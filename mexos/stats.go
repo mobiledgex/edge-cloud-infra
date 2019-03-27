@@ -1,6 +1,7 @@
 package mexos
 
 import (
+	"github.com/mobiledgex/edge-cloud-infra/k8s-prov/dind"
 	"github.com/mobiledgex/edge-cloud/cloudcommon"
 	"github.com/mobiledgex/edge-cloud/edgeproto"
 	"github.com/mobiledgex/edge-cloud/log"
@@ -19,6 +20,12 @@ func GetLimits(info *edgeproto.CloudletInfo) error {
 		if err != nil {
 			return err
 		}
+	case cloudcommon.CloudletKindLinuxDIND:
+		err := dind.GetStandaloneLinuxLimits(info)
+		if err != nil {
+			return err
+		}
+
 	default:
 		// todo: we could try to get this from the local machine
 		log.DebugLog(log.DebugLevelMexos, "GetLimits (hardcoded)")

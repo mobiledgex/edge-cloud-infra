@@ -199,7 +199,7 @@ func FindClusterMaster(key string, srvs []OSServer) (string, error) {
 //MEXClusterCreateInst creates a cluster.  This was formerly MEXClusterCreateManifest
 func MEXClusterCreateClustInst(clusterInst *edgeproto.ClusterInst, rootLBName string) error {
 	log.DebugLog(log.DebugLevelMexos, "creating cluster instance", "clusterInst", clusterInst, "rootLBName", rootLBName)
-	if CloudletIsLocalDIND() {
+	if CloudletIsDIND() {
 		return localCreateDIND(clusterInst)
 	}
 	operatorName := NormalizeName(clusterInst.Key.CloudletKey.OperatorKey.Name)
@@ -238,7 +238,7 @@ func MEXClusterRemoveClustInst(clusterInst *edgeproto.ClusterInst, rootLBName st
 
 	clusterName := clusterInst.Key.ClusterKey.Name
 
-	if CloudletIsLocalDIND() {
+	if CloudletIsDIND() {
 		return dind.DeleteDINDCluster(clusterName)
 	}
 	operatorName := NormalizeName(clusterInst.Key.CloudletKey.OperatorKey.Name)

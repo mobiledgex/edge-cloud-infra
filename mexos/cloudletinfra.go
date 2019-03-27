@@ -89,12 +89,12 @@ func InitializeCloudletInfra(fakecloudlet bool) error {
 		if CloudletInfra.AzureProperties.Location == "" {
 			return fmt.Errorf("Env variable MEX_AZURE_LOCATION not set")
 		}
-                /** resource group currently derived from cloudletname + cluster name
-		CloudletInfra.AzureProperties.ResourceGroup = os.Getenv("MEX_AZURE_RESOURCE_GROUP")
-		if CloudletInfra.AzureProperties.ResourceGroup == "" {
-			return fmt.Errorf("Env variable MEX_AZURE_RESOURCE_GROUP not set")
-                }
-                */
+		/** resource group currently derived from cloudletname + cluster name
+				CloudletInfra.AzureProperties.ResourceGroup = os.Getenv("MEX_AZURE_RESOURCE_GROUP")
+				if CloudletInfra.AzureProperties.ResourceGroup == "" {
+					return fmt.Errorf("Env variable MEX_AZURE_RESOURCE_GROUP not set")
+		                }
+		*/
 		CloudletInfra.AzureProperties.UserName = os.Getenv("MEX_AZURE_USER")
 		if CloudletInfra.AzureProperties.UserName == "" {
 			return fmt.Errorf("Env variable MEX_AZURE_USER not set, check contents of MEXENV_URL")
@@ -126,8 +126,21 @@ func InitializeCloudletInfra(fakecloudlet bool) error {
 	return nil
 }
 
+func CloudletIsDIND() bool {
+	log.DebugLog(log.DebugLevelMexos, "checking isDind", "CloudletInfra.CloudletKind", CloudletInfra.CloudletKind)
+	return CloudletInfra.CloudletKind == cloudcommon.CloudletKindLocalDIND || CloudletInfra.CloudletKind == cloudcommon.CloudletKindLinuxDIND
+}
+
 func CloudletIsLocalDIND() bool {
-	return CloudletInfra.CloudletKind == cloudcommon.CloudletKindDIND
+	return CloudletInfra.CloudletKind == cloudcommon.CloudletKindLocalDIND
+}
+
+func CloudletIsLinuxDIND() bool {
+	return CloudletInfra.CloudletKind == cloudcommon.CloudletKindLinuxDIND
+}
+
+func CloudletIsOpenStack() bool {
+	return CloudletInfra.CloudletKind == cloudcommon.CloudletKindOpenStack
 }
 
 func CloudletIsPublicCloud() bool {
@@ -136,9 +149,7 @@ func CloudletIsPublicCloud() bool {
 
 // returns true if kubectl can be run directly from the CRM rather than SSH jump thru LB
 func CloudletIsDirectKubectlAccess() bool {
-	return CloudletInfra.CloudletKind == cloudcommon.CloudletKindDIND ||
-		CloudletInfra.CloudletKind == cloudcommon.CloudletKindAzure ||
-		CloudletInfra.CloudletKind == cloudcommon.CloudletKindGCP
+	return CloudletIsPublicCloud() || CloudletIsDIND()
 }
 
 func GetCloudletKind() string {
@@ -174,7 +185,10 @@ func GetCloudletExternalRouter() string {
 }
 
 func GetCloudletExternalNetwork() string {
-	return CloudletInfra.OpenstackProperties.OSExternalNetworkName
+	if CloudletIsOpenStack() {
+		return CloudletInfra.OpenstackProperties.OSExternalNetworkName
+	}
+	return ""
 }
 
 // Utility functions that used to be within manifest.

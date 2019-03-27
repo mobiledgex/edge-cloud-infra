@@ -27,6 +27,15 @@ func RunMEXAgent(rootLBName string, cloudletKey *edgeproto.CloudletKey) error {
 	if CloudletIsLocalDIND() {
 		return runLocalMexAgent()
 	}
+	if CloudletIsLinuxDIND() {
+		// Agent is already running, just enable the DNS
+		if err := ActivateFQDNA(rootLBName); err != nil {
+			log.DebugLog(log.DebugLevelMexos, "error in ActivateFQDNA", "err", err)
+			return err
+		}
+		log.DebugLog(log.DebugLevelMexos, "done setup mexosagent for linux dind")
+		return nil
+	}
 	if CloudletIsPublicCloud() {
 		log.DebugLog(log.DebugLevelMexos, "skip mex agent for public cloud") //TODO: maybe later we will actually have agent on public cloud
 		return nil
@@ -56,7 +65,7 @@ func RunMEXAgent(rootLBName string, cloudletKey *edgeproto.CloudletKey) error {
 				return fmt.Errorf("failed to LBAddRouteAndSecRules %v", err)
 			}
 			//return RunMEXOSAgentContainer(rootLB)
-			return RunMEXOSAgentService(rootLB)
+			return RunMEXOSAgentService(rootLB.Name)
 		}
 	}
 	log.DebugLog(log.DebugLevelMexos, "about to create mex agent", "fqdn", fqdn)
@@ -91,11 +100,11 @@ func RunMEXAgent(rootLBName string, cloudletKey *edgeproto.CloudletKey) error {
 	if err := SetupSSHUser(rootLB, sshUser); err != nil {
 		return err
 	}
-	if err = ActivateFQDNA(rootLB, rootLB.Name); err != nil {
+	if err = ActivateFQDNA(rootLB.Name); err != nil {
 		return err
 	}
 	log.DebugLog(log.DebugLevelMexos, "FQDN A record activated", "name", rootLB.Name)
-	err = AcquireCertificates(rootLB, rootLB.Name) //fqdn name may be different than rootLB.Name
+	err = AcquireCertificates(rootLB.Name) //fqdn name may be different than rootLB.Name
 	if err != nil {
 		return fmt.Errorf("can't acquire certificate for %s, %v", rootLB.Name, err)
 	}
@@ -110,13 +119,13 @@ func RunMEXAgent(rootLBName string, cloudletKey *edgeproto.CloudletKey) error {
 		return fmt.Errorf("failed to LBAddRouteAndSecRules %v", err)
 	}
 	//return RunMEXOSAgentContainer(mf, rootLB)
-	return RunMEXOSAgentService(rootLB)
+	return RunMEXOSAgentService(rootLB.Name)
 }
 
-func RunMEXOSAgentService(rootLB *MEXRootLB) error {
+func RunMEXOSAgentService(rootLBName string) error {
 	//TODO check if agent is running before restarting again.
 	log.DebugLog(log.DebugLevelMexos, "run mexosagent service")
-	client, err := GetSSHClient(rootLB.Name, GetCloudletExternalNetwork(), sshUser)
+	client, err := getClusterSSHClient(rootLBName)
 	if err != nil {
 		return err
 	}
@@ -128,6 +137,7 @@ func RunMEXOSAgentService(rootLB *MEXRootLB) error {
 	}
 	log.DebugLog(log.DebugLevelMexos, "copying new mexosagent service")
 	//TODO name should come from mf.Values and allow versioning
+	// scp the agent from the registry
 	for _, dest := range []struct{ path, name string }{
 		{"/usr/local/bin", "mexosagent"},
 		{"/lib/systemd/system", "mexosagent.service"},
@@ -144,6 +154,7 @@ func RunMEXOSAgentService(rootLB *MEXRootLB) error {
 			return err
 		}
 	}
+
 	log.DebugLog(log.DebugLevelMexos, "starting mexosagent.service")
 	for _, act := range []string{"enable", "start"} {
 		out, err := client.Output("sudo systemctl " + act + " mexosagent.service")

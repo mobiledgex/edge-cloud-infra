@@ -121,7 +121,6 @@ func InitializeCloudletInfra(fakecloudlet bool) error {
 }
 
 func CloudletIsDIND() bool {
-	log.DebugLog(log.DebugLevelMexos, "checking isDind", "CloudletInfra.CloudletKind", CloudletInfra.CloudletKind)
 	return CloudletInfra.CloudletKind == cloudcommon.CloudletKindLocalDIND || CloudletInfra.CloudletKind == cloudcommon.CloudletKindLinuxDIND
 }
 

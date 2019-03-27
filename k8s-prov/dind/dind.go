@@ -141,7 +141,7 @@ func DeleteDINDCluster(name string) error {
 
 // GetStandaloneLinuxLimits gets CPU, Memory from standalone linux machine
 func GetStandaloneLinuxLimits(info *edgeproto.CloudletInfo) error {
-	log.DebugLog(log.DebugLevelMexos, "GetDINDLinuxLimits called")
+	log.DebugLog(log.DebugLevelMexos, "GetStandaloneLinuxLimits called")
 
 	// get memory
 	m, err := sh.Command("grep", "MemTotal", "/proc/meminfo").Output()
@@ -185,6 +185,6 @@ func GetStandaloneLinuxLimits(info *edgeproto.CloudletInfo) error {
 		}
 		info.OsMaxVolGb = uint64(diskGb)
 	}
-	log.DebugLog(log.DebugLevelMexos, "GetDINDLinuxLimits results", "info", info)
+	log.DebugLog(log.DebugLevelMexos, "GetStandaloneLinuxLimits results", "info", info)
 	return nil
 }

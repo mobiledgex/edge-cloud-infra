@@ -40,8 +40,8 @@ func GetMasterAddr(clusterName string) string {
 }
 
 // GetDINDServiceIP depending on the type of DIND cluster will return either the interface or external address
-func GetDINDServiceIP(cloudletKind string) (string, error) {
-	if cloudletKind == cloudcommon.CloudletKindLocalDIND {
+func GetDINDServiceIP(networkScheme string) (string, error) {
+	if networkScheme == cloudcommon.NetworkSchemePrivateIP {
 		return getLocalAddr()
 	}
 	return getExternalPublicAddr()
@@ -139,10 +139,42 @@ func DeleteDINDCluster(name string) error {
 	return nil
 }
 
-// GetStandaloneLinuxLimits gets CPU, Memory from standalone linux machine
-func GetStandaloneLinuxLimits(info *edgeproto.CloudletInfo) error {
-	log.DebugLog(log.DebugLevelMexos, "GetStandaloneLinuxLimits called")
+func getMacLimits(info *edgeproto.CloudletInfo) error {
 
+	// get everything
+	s, err := sh.Command("sysctl", "-a").Output()
+	if err != nil {
+		return err
+	}
+	sysout := string(s)
+
+	rmem, _ := regexp.Compile("hw.memsize:\\s+(\\d+)")
+	if rmem.MatchString(sysout) {
+		matches := rmem.FindStringSubmatch(sysout)
+		memoryB, err := strconv.Atoi(matches[1])
+		if err != nil {
+			return err
+		}
+		memoryGb := math.Round((float64(memoryB) / 1024 / 1024 / 1024))
+		info.OsMaxRam = uint64(memoryGb)
+	}
+	rcpu, _ := regexp.Compile("hw.ncpu:\\s+(\\d+)")
+	if rcpu.MatchString(sysout) {
+		matches := rcpu.FindStringSubmatch(sysout)
+		cpus, err := strconv.Atoi(matches[1])
+		if err != nil {
+			return err
+		}
+		info.OsMaxVcores = uint64(cpus)
+	}
+	// hardcoding disk size for now, TODO: consider changing this but we need to consider that the
+	// whole disk is not available for DIND.
+	info.OsMaxVolGb = 500
+	log.DebugLog(log.DebugLevelMexos, "getMacLimits results", "info", info)
+	return nil
+}
+
+func getLinuxLimits(info *edgeproto.CloudletInfo) error {
 	// get memory
 	m, err := sh.Command("grep", "MemTotal", "/proc/meminfo").Output()
 	memline := string(m)
@@ -185,6 +217,19 @@ func GetStandaloneLinuxLimits(info *edgeproto.CloudletInfo) error {
 		}
 		info.OsMaxVolGb = uint64(diskGb)
 	}
-	log.DebugLog(log.DebugLevelMexos, "GetStandaloneLinuxLimits results", "info", info)
+	log.DebugLog(log.DebugLevelMexos, "getLinuxLimits results", "info", info)
 	return nil
+
+}
+
+// DINDGetLimits gets CPU, Memory from the local machine
+func DINDGetLimits(info *edgeproto.CloudletInfo, os string) error {
+	log.DebugLog(log.DebugLevelMexos, "DINDGetLimits called")
+	switch os {
+	case cloudcommon.OperatingSystemMac:
+		return getMacLimits(info)
+	case cloudcommon.OperatingSystemLinux:
+		return getLinuxLimits(info)
+	}
+	return fmt.Errorf("Unsupported OS Type for DIND")
 }

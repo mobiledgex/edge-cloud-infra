@@ -20,12 +20,15 @@ func GetLimits(info *edgeproto.CloudletInfo) error {
 		if err != nil {
 			return err
 		}
-	case cloudcommon.CloudletKindLinuxDIND:
-		err := dind.GetStandaloneLinuxLimits(info)
+	case cloudcommon.CloudletKindDIND:
+		os, err := GetLocalOperatingSystem()
 		if err != nil {
 			return err
 		}
-
+		err = dind.DINDGetLimits(info, os)
+		if err != nil {
+			return err
+		}
 	default:
 		// todo: we could try to get this from the local machine
 		log.DebugLog(log.DebugLevelMexos, "GetLimits (hardcoded)")

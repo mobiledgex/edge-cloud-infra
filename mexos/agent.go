@@ -6,15 +6,39 @@ import (
 	"strings"
 
 	valid "github.com/asaskevich/govalidator"
+	sh "github.com/codeskyblue/go-sh"
+	"github.com/mobiledgex/edge-cloud/cloudcommon"
 	"github.com/mobiledgex/edge-cloud/edgeproto"
 	"github.com/mobiledgex/edge-cloud/integration/process"
 	"github.com/mobiledgex/edge-cloud/log"
 )
 
 func runLocalMexAgent() error {
-	log.DebugLog(log.DebugLevelMexos, "run local mexosagent")
-	var localMexos process.MexAgentLocal
-	return localMexos.Start("/tmp/mexosagent.log")
+	os, err := GetLocalOperatingSystem()
+	if err != nil {
+		return err
+	}
+	log.DebugLog(log.DebugLevelMexos, "runLocalMexAgent", "os", os)
+
+	switch os {
+	case cloudcommon.OperatingSystemMac:
+		var localMexos process.MexAgentLocal
+		return localMexos.Start("/tmp/mexosagent.log")
+	case cloudcommon.OperatingSystemLinux:
+		out, err := sh.Command("sudo", "service", "mexosagent", "start").CombinedOutput()
+		if err != nil {
+			log.DebugLog(log.DebugLevelMexos, "error in mexosagent start", "out", string(out), "err", err)
+			return err
+		}
+		out, err = sh.Command("sudo", "systemctl", "enable", "mexosagent").CombinedOutput()
+		if err != nil {
+			log.DebugLog(log.DebugLevelMexos, "error in mexosagent enable", "out", string(out), "err", err)
+			return err
+		}
+		return nil
+	default:
+		return fmt.Errorf("unsupported OS: %s", os)
+	}
 }
 
 //RunMEXAgent runs the MEX agent on the RootLB. It first registers FQDN to cloudflare domain registry if not already registered.
@@ -24,16 +48,17 @@ func runLocalMexAgent() error {
 func RunMEXAgent(rootLBName string, cloudletKey *edgeproto.CloudletKey) error {
 	log.DebugLog(log.DebugLevelMexos, "run mex agent")
 
-	if CloudletIsLocalDIND() {
-		return runLocalMexAgent()
-	}
-	if CloudletIsLinuxDIND() {
-		// Agent is already running, just enable the DNS
-		if err := ActivateFQDNA(rootLBName); err != nil {
-			log.DebugLog(log.DebugLevelMexos, "error in ActivateFQDNA", "err", err)
-			return err
+	if CloudletIsDIND() {
+		if err := runLocalMexAgent(); err != nil {
+			log.DebugLog(log.DebugLevelMexos, "error in runLocalMexAgent", "err", err)
 		}
-		log.DebugLog(log.DebugLevelMexos, "done setup mexosagent for linux dind")
+		if GetCloudletNetworkScheme() == cloudcommon.NetworkSchemePublicIP {
+			if err := ActivateFQDNA(rootLBName); err != nil {
+				log.DebugLog(log.DebugLevelMexos, "error in ActivateFQDNA", "err", err)
+				return err
+			}
+		}
+		log.DebugLog(log.DebugLevelMexos, "done setup mexosagent for  dind")
 		return nil
 	}
 	if CloudletIsPublicCloud() {

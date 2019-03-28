@@ -10,6 +10,7 @@ import (
 	"os"
 	"strings"
 
+	sh "github.com/codeskyblue/go-sh"
 	"github.com/mobiledgex/edge-cloud/cloudcommon"
 	"github.com/mobiledgex/edge-cloud/edgeproto"
 	"github.com/mobiledgex/edge-cloud/log"
@@ -82,7 +83,7 @@ func InitializeCloudletInfra(fakecloudlet bool) error {
 		// defaulting some value
 		CloudletInfra.OpenstackProperties.OSExternalRouterName = "mex-k8s-router-1"
 		CloudletInfra.OpenstackProperties.OSMexNetwork = "mex-k8s-net-1"
-		CloudletInfra.OpenstackProperties.OSNetworkScheme = "priv-subnet,mex-k8s-net-1,10.101.X.0/24"
+		CloudletInfraCommon.NetworkScheme = "priv-subnet,mex-k8s-net-1,10.101.X.0/24"
 
 	case cloudcommon.CloudletKindAzure:
 		CloudletInfra.AzureProperties.Location = os.Getenv("MEX_AZURE_LOCATION")
@@ -108,6 +109,16 @@ func InitializeCloudletInfra(fakecloudlet bool) error {
 		if CloudletInfra.GcpProperties.Zone == "" {
 			return fmt.Errorf("Env variable MEX_GCP_ZONE not set")
 		}
+
+	case cloudcommon.CloudletKindDIND:
+		CloudletInfraCommon.NetworkScheme = os.Getenv("MEX_NETWORK_SCHEME")
+		if CloudletInfraCommon.NetworkScheme == "" {
+			CloudletInfraCommon.NetworkScheme = cloudcommon.NetworkSchemePrivateIP
+		}
+		if CloudletInfraCommon.NetworkScheme != cloudcommon.NetworkSchemePrivateIP &&
+			CloudletInfraCommon.NetworkScheme != cloudcommon.NetworkSchemePublicIP {
+			return fmt.Errorf("Insupported network scheme for DIND: %s", CloudletInfraCommon.NetworkScheme)
+		}
 	}
 	// not supported yet but soon
 	CloudletInfra.MexosContainerImageName = "not-supported"
@@ -121,15 +132,21 @@ func InitializeCloudletInfra(fakecloudlet bool) error {
 }
 
 func CloudletIsDIND() bool {
-	return CloudletInfra.CloudletKind == cloudcommon.CloudletKindLocalDIND || CloudletInfra.CloudletKind == cloudcommon.CloudletKindLinuxDIND
+	return CloudletInfra.CloudletKind == cloudcommon.CloudletKindDIND
 }
 
-func CloudletIsLocalDIND() bool {
-	return CloudletInfra.CloudletKind == cloudcommon.CloudletKindLocalDIND
-}
-
-func CloudletIsLinuxDIND() bool {
-	return CloudletInfra.CloudletKind == cloudcommon.CloudletKindLinuxDIND
+func GetLocalOperatingSystem() (string, error) {
+	out, err := sh.Command("uname", "-a").Output()
+	if err != nil {
+		return "", err
+	}
+	if strings.HasPrefix(string(out), "Linux") {
+		return cloudcommon.OperatingSystemLinux, nil
+	}
+	if strings.HasPrefix(string(out), "Darwin") {
+		return cloudcommon.OperatingSystemMac, nil
+	}
+	return "", fmt.Errorf("Unsupported OS Type")
 }
 
 func CloudletIsOpenStack() bool {
@@ -196,7 +213,7 @@ func GetCloudletDNSZone() string {
 }
 
 func GetCloudletNetworkScheme() string {
-	return CloudletInfra.OpenstackProperties.OSNetworkScheme
+	return CloudletInfraCommon.NetworkScheme
 }
 
 func GetCloudletOSImage() string {

@@ -1,0 +1,6 @@
+Host *
+    StrictHostKeyChecking no
+    ServerAliveInterval 300
+    UserKnownHostsFile /dev/null
+    ServerAliveCountMax 2
+    LogLevel ERROR

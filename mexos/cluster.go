@@ -80,7 +80,7 @@ func mexCreateClusterKubernetes(clusterInst *edgeproto.ClusterInst, rootLBName s
 	log.DebugLog(log.DebugLevelMexos, "create kubernetes cluster", "cluster", clusterInst)
 
 	flavorName := clusterInst.Flavor.Name
-	clusterName := clusterInst.Key.ClusterKey.Name
+	clusterNameSuffix := GetK8sNodeNameSuffix(clusterInst)
 
 	if flavorName == "" {
 		return fmt.Errorf("empty cluster flavor")
@@ -105,7 +105,7 @@ func mexCreateClusterKubernetes(clusterInst *edgeproto.ClusterInst, rootLBName s
 	if !ready {
 		return fmt.Errorf("cluster not ready (yet)")
 	}
-	if err := SeedDockerSecret(clusterName, rootLBName); err != nil {
+	if err := SeedDockerSecret(clusterNameSuffix, rootLBName); err != nil {
 		return err
 	}
 	if err := CreateDockerRegistrySecret(clusterInst, rootLBName); err != nil {

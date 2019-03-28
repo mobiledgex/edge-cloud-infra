@@ -20,6 +20,10 @@ func runLocalMexAgent() error {
 	}
 	log.DebugLog(log.DebugLevelMexos, "runLocalMexAgent", "os", os)
 
+	// It is currently assumed that Mac will run this as just a local process and linux will run as a service.  Mac env
+	// are for dev-test only, and Linux is for actual deployments.   This assumption
+	// could change in future, in which case we will need another setting to determine how to run the process.  Also, we should
+	// eventually be running this as a container in either case which will change this.
 	switch os {
 	case cloudcommon.OperatingSystemMac:
 		var localMexos process.MexAgentLocal

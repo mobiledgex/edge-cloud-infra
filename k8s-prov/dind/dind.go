@@ -155,8 +155,8 @@ func getMacLimits(info *edgeproto.CloudletInfo) error {
 		if err != nil {
 			return err
 		}
-		memoryGb := math.Round((float64(memoryB) / 1024 / 1024 / 1024))
-		info.OsMaxRam = uint64(memoryGb)
+		memoryMb := math.Round((float64(memoryB) / 1024 / 1024))
+		info.OsMaxRam = uint64(memoryMb)
 	}
 	rcpu, _ := regexp.Compile("hw.ncpu:\\s+(\\d+)")
 	if rcpu.MatchString(sysout) {
@@ -189,8 +189,8 @@ func getLinuxLimits(info *edgeproto.CloudletInfo) error {
 		if err != nil {
 			return err
 		}
-		memoryGb := math.Round((float64(memoryKb) / 1024 / 1024))
-		info.OsMaxRam = uint64(memoryGb)
+		memoryMb := math.Round((float64(memoryKb) / 1024))
+		info.OsMaxRam = uint64(memoryMb)
 	}
 	c, err := sh.Command("grep", "-c", "processor", "/proc/cpuinfo").Output()
 	cpuline := string(c)

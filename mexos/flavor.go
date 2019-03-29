@@ -3,7 +3,6 @@ package mexos
 import (
 	"fmt"
 
-	"github.com/mobiledgex/edge-cloud/cloudcommon"
 	"github.com/mobiledgex/edge-cloud/log"
 )
 
@@ -80,22 +79,26 @@ var AzureClusterFlavors = []*ClusterFlavor{
 	},
 }
 
+var availableClusterFlavors []*ClusterFlavor
+
 func GetClusterFlavor(flavor string) (*ClusterFlavor, error) {
 	log.DebugLog(log.DebugLevelMexos, "get cluster flavor details", "cluster flavor", flavor)
 
-	var AvailableClusterFlavors []*ClusterFlavor
-	switch GetCloudletKind() {
-	case cloudcommon.CloudletKindAzure:
-		AvailableClusterFlavors = AzureClusterFlavors
-	default:
-		AvailableClusterFlavors = OpenstackClusterFlavors
+	flavors := availableClusterFlavors
+	if flavors == nil {
+		flavors = OpenstackClusterFlavors
 	}
-
-	for _, af := range AvailableClusterFlavors {
+	for _, af := range flavors {
 		if af.Name == flavor {
 			//log.DebugLog(log.DebugLevelMexos, "using cluster flavor", "cluster flavor", af)
 			return af, nil
 		}
 	}
 	return nil, fmt.Errorf("unsupported cluster flavor %s", flavor)
+}
+
+// XXX ClusterFlavors should come from Controller and be platform
+// independent, so this function should be removed eventually.
+func SetAvailableClusterFlavors(flavors []*ClusterFlavor) {
+	availableClusterFlavors = flavors
 }

@@ -148,7 +148,7 @@ func WaitForRootLB(rootLB *MEXRootLB) error {
 	if extNet == "" {
 		return fmt.Errorf("waiting for lb, missing external network in manifest")
 	}
-	client, err := GetSSHClient(rootLB.Name, extNet, sshUser)
+	client, err := GetSSHClient(rootLB.Name, extNet, SSHUser)
 	if err != nil {
 		return err
 	}

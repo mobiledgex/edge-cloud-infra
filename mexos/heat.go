@@ -8,6 +8,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/mobiledgex/edge-cloud/cloud-resource-manager/k8s"
 	"github.com/mobiledgex/edge-cloud/edgeproto"
 	"github.com/mobiledgex/edge-cloud/log"
 )
@@ -126,7 +127,7 @@ resources:
 `
 
 //GetClusterParams fills template parameters for the cluster
-func getClusterParams(clusterInst *edgeproto.ClusterInst) (*ClusterParams, error) {
+func getClusterParams(clusterInst *edgeproto.ClusterInst, cf *ClusterFlavor) (*ClusterParams, error) {
 	ni, err := ParseNetSpec(GetCloudletNetworkScheme())
 	if err != nil {
 		return nil, err
@@ -162,16 +163,10 @@ func getClusterParams(clusterInst *edgeproto.ClusterInst) (*ClusterParams, error
 		return nil, fmt.Errorf("cannot find free subnet cidr")
 	}
 
-	cp.ClusterName = GetK8sNodeNameSuffix(clusterInst)
+	cp.ClusterName = k8s.GetK8sNodeNameSuffix(clusterInst)
 	cp.MEXRouterName = GetCloudletExternalRouter()
 	cp.MEXNetworkName = GetCloudletMexNetwork()
 	cp.ImageName = GetCloudletOSImage()
-	flavorName := clusterInst.Flavor.Name
-
-	cf, err := GetClusterFlavor(flavorName)
-	if err != nil {
-		return nil, err
-	}
 	cp.MasterFlavor = cf.MasterFlavor.Name
 	cp.NodeFlavor = cf.NodeFlavor.Name
 	for i := 1; i <= cf.NumNodes; i++ {
@@ -183,7 +178,7 @@ func getClusterParams(clusterInst *edgeproto.ClusterInst) (*ClusterParams, error
 	return &cp, nil
 }
 
-func heatCreateClusterKubernetes(clusterInst *edgeproto.ClusterInst) error {
+func HeatCreateClusterKubernetes(clusterInst *edgeproto.ClusterInst, cf *ClusterFlavor) error {
 
 	// It is problematic to create 2 clusters at the exact same time because we will look for available subnet CIDRS when
 	// defining the template.  If 2 start at once they may end up trying to create the same subnet and one will fail.
@@ -192,7 +187,7 @@ func heatCreateClusterKubernetes(clusterInst *edgeproto.ClusterInst) error {
 	clusterCreateLock.Lock()
 	defer clusterCreateLock.Unlock()
 
-	cp, err := getClusterParams(clusterInst)
+	cp, err := getClusterParams(clusterInst, cf)
 	if err != nil {
 		return err
 	}
@@ -258,9 +253,9 @@ func heatCreateClusterKubernetes(clusterInst *edgeproto.ClusterInst) error {
 }
 
 // HeatDeleteClusterKubernetes deletes the cluster resources
-func heatDeleteClusterKubernetes(clusterInst *edgeproto.ClusterInst) error {
+func HeatDeleteClusterKubernetes(clusterInst *edgeproto.ClusterInst) error {
 
-	clusterName := GetK8sNodeNameSuffix(clusterInst)
+	clusterName := k8s.GetK8sNodeNameSuffix(clusterInst)
 	log.DebugLog(log.DebugLevelMexos, "deleting heat stack for cluster", "stackName", clusterName)
 	deleteHeatStack(clusterName)
 	for {

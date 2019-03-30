@@ -15,7 +15,7 @@ The new way of using `packer` has a few advantages
 * it uses cloud-img and cloud-init features so it auto resizes the partition and filesystem as per given flavor
 * it uses much less disk space for base
 
-## Step by step
+## Prerequisites
 
 First, install `packer` from hashicorp. https://www.packer.io/docs/install/index.html
 
@@ -43,6 +43,40 @@ openstack image list
 ```
 
 You need to make sure that xenial-server or the equivalent image is present.  This image is based on xenial-server-cloudimg-amd64-disk1.img which can be downloaded from https://cloud-images.ubuntu.com/xenial/current/
+
+## Build and publish base VM
+
+The `build.sh` script does the build and publishing of the base VM.
+
+```
+./build.sh -h
+usage: build.sh <options>
+
+ -f <flavor>      Image flavor (default: "m4.small")
+ -i <image-tag>   Glance source image tag (default: "xenial-server")
+ -o <output-tag>  Output image tag (default: same as tag below)
+ -t <tag>         Artifactory tag name (default: "v0.0.12-7-g246dbe8")
+ -F               Ignore source image checksum mismatch
+ -T               Print trace debug messages during build
+
+ -h               Display this help message
+```
+
+The build downloads artifacts from Artifactory under the path
+"baseimage-build/<tag>".  The tag is computed from the state of the git repo
+where `build.sh` is being executed from.  Unless you are building from an
+official release tag, you might need to set the tag parameter to the latest tag
+in the `edge-cloud-infra` repo (e.g.: "v0.0.12").
+
+## Updating Artifactory artifacts
+
+The packer setup.sh script pulls files from Artifactory during the base VM
+build. These scripts are in the setup-scripts/ directory.  Publish updates
+using `make` from within that directory.
+
+## Manual build steps
+
+**These steps are for reference only.  The `build.sh` script does all of these.**
 
 Once you have  xenial-server-cloudimg-amd64-disk1.img downloaed you can create instance of this in openstack glance by doing:
 

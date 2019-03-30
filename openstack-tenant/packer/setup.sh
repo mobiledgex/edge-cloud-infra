@@ -1,64 +1,143 @@
-sudo mkdir -p /etc/mobiledgex
-sudo chmod 700 /etc/mobiledgex
-echo starting setup.sh  | sudo tee -a /etc/mobiledgex/creation_log.txt
-pwd  | sudo tee -a /etc/mobiledgex/creation_log.txt
-echo 127.0.1.1 `hostname` | sudo tee -a /etc/hosts
-cat /etc/hosts  | sudo tee -a /etc/mobiledgex/creation_log.txt
-echo nameserver 1.1.1.1 | sudo tee -a /etc/resolv.conf
-cat /etc/resolv.conf  | sudo tee -a /etc/mobiledgex/creation_log.txt
-sudo dhclient ens3  | sudo tee -a /etc/mobiledgex/creation_log.txt
-ip a  | sudo tee -a /etc/mobiledgex/creation_log.txt
-ip r  | sudo tee -a /etc/mobiledgex/creation_log.txt
+#!/bin/bash
+PATH='/usr/bin:/bin'; export PATH
+
+LOGDIR="/etc/mobiledgex"
+LOGFILE="${LOGDIR}/creation_log.txt"
+DEFAULT_INTERFACE=ens3
+ARTIFACTORY_BASEURL='https://artifactory.mobiledgex.net'
+DEFAULT_ROOT_PASS=sandhill
+DEFAULT_HELM_VERSION=v2.11.0
+MEX_RELEASE=/etc/mex-release
+
+TMPLOG="/var/tmp/creation_log.txt"
+exec &> >(tee "$TMPLOG")
+
+[[ "$TRACE" == yes ]] && set -x
+
+sudo mkdir -p "$LOGDIR"
+sudo chmod 700 "$LOGDIR"
+
+# Move log file into 
+archive_log() {
+	sudo mv "$LOGFILE" "${LOGFILE}.$( date +'%Y-%m-%d-%H%M' )" 2>/dev/null
+	sudo mv "$TMPLOG" "$LOGFILE"
+}
+trap 'archive_log' EXIT
+
+# Defaults for environment variables
+: ${TAG:=master}
+: ${ROOT_PASS:=$DEFAULT_ROOT_PASS}
+: ${HELM_VERSION:=$DEFAULT_HELM_VERSION}
+if [[ -z "$INTERFACE" ]]; then
+	INTERFACE=$( ls -d /sys/class/net/*/device 2>/dev/null \
+			| head -n 1 \
+			| cut -d/ -f5 )
+	if [[ -z "$INTERFACE" ]]; then
+		log "Unable to determine default interface; assuming $DEFAULT_INTERFACE"
+		INTERFACE=$DEFAULT_INTERFACE
+	fi
+fi
+
+log() {
+	echo "[$(date)] $*"
+}
+
+log_file_contents() {
+	[[ -f "$1" ]] || return
+
+	echo "::::::::::  $1  ::::::::::"
+	cat "$1"
+	echo "::::::::::::::::::::::::::"
+	echo
+}
+
+die() {
+	log "FATAL: $*"
+	exit 2
+}
+
+download_artifactory_file() {
+	local src="$1"
+	local dst="$2"
+	local mode="$3"
+	local arturl="${ARTIFACTORY_BASEURL}/artifactory/baseimage-build/$TAG/$src"
+	log "Downloading $arturl"
+	sudo curl -s -u "$ARTIFACTORY_CREDS" -o "$dst" "$arturl"
+	sudo test -f "$dst" || die "Failed to download file: $arturl"
+	[[ -n "$mode" ]] && sudo chmod "$mode" "$dst"
+}
+
+# Main
+echo "[$(date)] Starting setup.sh ($( pwd ))"
+
+echo "127.0.0.1 $( hostname )" | sudo tee -a /etc/hosts >/dev/null
+log_file_contents /etc/hosts
+
+echo "nameserver 1.1.1.1" | sudo tee -a /etc/resolv.conf >/dev/null
+log_file_contents /etc/resolv.conf
+
+log "Setting up $MEX_RELEASE"
+sudo tee "$MEX_RELEASE" <<EOT
+MEX_BUILD="$MEX_BUILD $( TZ=UTC date +'%Y/%m/%d %H:%M %Z' )"
+MEX_BUILD_TAG=$TAG
+MEX_BUILD_FLAVOR=$FLAVOR
+MEX_BUILD_SRC_IMG=$SRC_IMG
+MEX_BUILD_SRC_IMG_CHECKSUM=$SRC_IMG_CHECKSUM
+EOT
+
+log "Installing extra packages"
 sudo apt-get update
-sudo apt-get install -y jq ipvsadm
-sudo curl -s -o /etc/mobiledgex/holepunch https://mobiledgex:sandhill@registry.mobiledgex.net:8000/mobiledgex/holepunch
-sudo curl -s -o /etc/mobiledgex/holepunch.json https://mobiledgex:sandhill@registry.mobiledgex.net:8000/mobiledgex/holepunch.json
-sudo chmod a+rx /etc/mobiledgex/holepunch
-sudo chmod a+r /etc/mobiledgex/holepunch.json
-sudo curl -s -o /usr/local/bin/mobiledgex-init.sh https://mobiledgex:sandhill@registry.mobiledgex.net:8000/mobiledgex/mobiledgex-init.sh 
-sudo chmod a+rx /usr/local/bin/mobiledgex-init.sh
-echo copied mobiledgex-init.sh  | sudo tee -a /etc/mobiledgex/creation_log.txt
-sudo curl -s -o /etc/systemd/system/mobiledgex.service https://mobiledgex:sandhill@registry.mobiledgex.net:8000/mobiledgex/mobiledgex.service
-echo copied mobiledgex.serivce  | sudo tee -a /etc/mobiledgex/creation_log.txt
-sudo chmod a+rx /etc/systemd/system/mobiledgex.service
-sudo systemctl enable mobiledgex
-echo enabled mobiledgex service  | sudo tee -a /etc/mobiledgex/creation_log.txt
-sudo curl -s -o /tmp/id_rsa_mex.pub https://mobiledgex:sandhill@registry.mobiledgex.net:8000/mobiledgex/id_rsa_mex.pub
-sudo curl -s -o /etc/mobiledgex/id_rsa_mex https://mobiledgex:sandhill@registry.mobiledgex.net:8000/mobiledgex/id_rsa_mex
-sudo chmod 600 /etc/mobiledgex/id_rsa_mex
+sudo apt-get install -y \
+	ipvsadm=1:1.28-3 \
+	jq=1.5+dfsg-1ubuntu0.1
+[[ $? -ne 0 ]] && die "Failed to install extra packages"
+
+log "dhclient $INTERFACE"
+sudo dhclient "$INTERFACE"
+ip addr
+ip route
+
+log "Downloading files from artifactory for tag $TAG"
+download_artifactory_file holepunch /etc/mobiledgex/holepunch a+rx
+download_artifactory_file holepunch.json /etc/mobiledgex/holepunch.json a+r
+download_artifactory_file mobiledgex-init.sh /usr/local/bin/mobiledgex-init.sh a+rx
+download_artifactory_file mobiledgex.service /etc/systemd/system/mobiledgex.service a+r
+download_artifactory_file docker-compose /usr/local/bin/docker-compose a+rx
+download_artifactory_file helm-${HELM_VERSION}.tar.gz /tmp/helm.tar.gz a+r
+
+download_artifactory_file ssh.config /root/.ssh/config 600
+download_artifactory_file keys/id_rsa_mex /etc/mobiledgex/id_rsa_mex 600
+download_artifactory_file keys/id_rsa_mex.pub /tmp/id_rsa_mex.pub
+download_artifactory_file keys/id_rsa_mobiledgex.pub /tmp/id_rsa_mobiledgex.pub
+
+download_artifactory_file install-k8s-base.sh /etc/mobiledgex/install-k8s-base.sh a+rx
+download_artifactory_file install-k8s-master.sh /etc/mobiledgex/install-k8s-master.sh a+rx
+download_artifactory_file install-k8s-node.sh /etc/mobiledgex/install-k8s-node.sh a+rx
+
+log "Setting up SSH"
 sudo cp /etc/mobiledgex/id_rsa_mex /root/id_rsa_mex
 sudo chmod 600 /root/id_rsa_mex
-sudo curl -s -o /tmp/id_rsa_mobiledgex.pub https://mobiledgex:sandhill@registry.mobiledgex.net:8000/mobiledgex/id_rsa_mobiledgex.pub
-sudo cat /tmp/id_rsa_mex.pub /tmp/id_rsa_mobiledgex.pub | sudo tee  /root/.ssh/authorized_keys
+sudo mkdir -p /root/.ssh
+sudo cat /tmp/id_rsa_mex.pub /tmp/id_rsa_mobiledgex.pub | sudo tee /root/.ssh/authorized_keys
 sudo chmod 700 /root/.ssh
 sudo chmod 600 /root/.ssh/authorized_keys
-sudo curl -s -o /root/.ssh/config https://mobiledgex:sandhill@registry.mobiledgex.net:8000/mobiledgex/ssh.config
-sudo chmod 600 /root/.ssh/config
-sudo rm /root/.ssh/known_hosts
-echo set up ssh  | sudo tee -a /etc/mobiledgex/creation_log.txt
-sudo curl -s -o /etc/mobiledgex/install-k8s-base.sh https://mobiledgex:sandhill@registry.mobiledgex.net:8000/mobiledgex/install-k8s-base.sh
-sudo chmod a+rx /etc/mobiledgex/install-k8s-base.sh
-sudo curl -s -o /etc/mobiledgex/install-k8s-master.sh https://mobiledgex:sandhill@registry.mobiledgex.net:8000/mobiledgex/install-k8s-master.sh
-sudo chmod a+rx /etc/mobiledgex/install-k8s-master.sh
-sudo curl -s -o /etc/mobiledgex/install-k8s-node.sh https://mobiledgex:sandhill@registry.mobiledgex.net:8000/mobiledgex/install-k8s-node.sh
-sudo chmod a+rx /etc/mobiledgex/install-k8s-node.sh
-echo copied k8s install scripts  | sudo tee -a /etc/mobiledgex/creation_log.txt
-echo root:sandhill | sudo chpasswd
-echo set root passwd  | sudo tee -a /etc/mobiledgex/creation_log.txt
-echo starting install of k8s base | sudo tee -a /etc/mobiledgex/creation_log.txt
-sudo sh -x /etc/mobiledgex/install-k8s-base.sh | sudo tee -a /etc/mobiledgex/creation_log.txt
+sudo rm -f /root/.ssh/known_hosts
+
+log "Enabling the mobiledgex service"
+sudo systemctl enable mobiledgex
+
+log "Setting the root password"
+echo "root:$ROOT_PASS" | sudo chpasswd
+
+log "Installing k8s base"
+sudo env ARTIFACTORY_CREDS="$ARTIFACTORY_CREDS" TAG="$TAG" sh -x /etc/mobiledgex/install-k8s-base.sh 
 sudo chmod a+rw /var/run/docker/sock
 sudo groupadd docker
 sudo usermod -aG docker root
-echo installed k8s base | sudo tee -a /etc/mobiledgex/creation_log.txt
-#curl -L https://github.com/docker/compose/releases/download/1.22.0/docker-compose-Linux-x86_64 -o /usr/local/bin/docker-compose
-sudo curl  https://mobiledgex:sandhill@registry.mobiledgex.net:8000/mobiledgex/docker-compose -o /usr/local/bin/docker-compose
-sudo chmod +x /usr/local/bin/docker-compose
-echo installed docker-compose | sudo tee -a /etc/mobiledgex/creation_log.txt
-#curl -s -o /tmp/helm.tar.gz https://storage.googleapis.com/kubernetes-helm/helm-v2.11.0-linux-amd64.tar.gz
-sudo curl -s -o /tmp/helm.tar.gz https://mobiledgex:sandhill@registry.mobiledgex.net:8000/mobiledgex/helm-v2.11.0.tar.gz
-sudo tar xvf /tmp/helm.tar.gz
-sudo mv linux-amd64/helm /usr/local/bin/
+
+log "Installing helm $HELM_VERSION"
+tar xf /tmp/helm.tar.gz linux-amd64/helm
+sudo mv linux-amd64/helm /usr/local/bin/helm
 sudo chmod a+rx /usr/local/bin/helm
-echo installed helm | sudo tee -a /etc/mobiledgex/creation_log.txt
-echo created at `date` | sudo tee -a /etc/mobiledgex/creation_log.txt
+
+echo "[$(date)] Done setup.sh ($( pwd ))"

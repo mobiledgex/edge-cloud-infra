@@ -1,0 +1,118 @@
+---
+- hosts: ui-servers
+  vars:
+    install_dir: /home/ansible/edge-cloud-ui
+    mongodb_path: "{{install_dir}}/server/mongodb_data"
+    skip_checkout: no
+
+  roles:
+    - web
+
+  tasks:
+
+    - name: Add MongoDB PPA Key
+      apt_key:
+        keyserver: keyserver.ubuntu.com
+        id: 9DA31620334BD75D9DCB49F368818C72E52529D4
+      become: yes
+
+    - name: Add MongoDB PPA
+      apt_repository:
+        repo: deb https://repo.mongodb.org/apt/ubuntu bionic/mongodb-org/4.0 multiverse
+        state: present
+      become: yes
+
+    - name: Install MongoDB
+      package:
+        name: mongodb-org=4.0.6
+        state: present
+        update_cache: yes
+      become: yes
+
+    - name: Install Node.js
+      package:
+        name: nodejs
+        state: present
+      become: yes
+
+    - name: Install NPM
+      package:
+        name: npm
+        state: present
+      become: yes
+
+    - name: Check Out edge-cloud-ui
+      when: not skip_checkout
+      git:
+        repo: git@github.com:mobiledgex/edge-cloud-ui.git
+        dest: "{{install_dir}}"
+        update: yes
+        version: master
+      notify:
+        - Restart Console Server
+
+    - name: Create MongoDB Data Directory
+      file:
+        path: "{{mongodb_path}}"
+        state: directory
+
+    - name: Install Mex MongoDB Service
+      template:
+        src: mex-mongodb.service.js2
+        dest: /etc/systemd/system/mex-mongodb.service
+        mode: 0644
+      become: yes
+      notify:
+        - Restart Custom MongoDB
+        - Restart Console Server
+
+    - name: Install NPM Server dependencies
+      npm:
+        path: "{{install_dir}}/server"
+
+    - name: Install NPM UI dependencies
+      npm:
+        path: "{{install_dir}}"
+
+    - name: Install Console Server Systemd Service
+      template:
+        src: mex-console-server.service.js2
+        dest: /etc/systemd/system/mex-console-server.service
+        mode: 0644
+      notify:
+        - Restart Console Server
+      become: yes
+
+    - name: Install Console UI Systemd Service
+      template:
+        src: mex-console-ui.service.js2
+        dest: /etc/systemd/system/mex-console-ui.service
+        mode: 0644
+      notify:
+        - Restart Console UI
+      become: yes
+
+  handlers:
+
+    - name: Restart Custom MongoDB
+      systemd:
+        state: restarted
+        daemon_reload: yes
+        enabled: yes
+        name: mex-mongodb
+      become: yes
+
+    - name: Restart Console Server
+      systemd:
+        state: restarted
+        daemon_reload: yes
+        enabled: yes
+        name: mex-console-server
+      become: yes
+
+    - name: Restart Console UI
+      systemd:
+        state: restarted
+        daemon_reload: yes
+        name: mex-console-ui
+      become: yes

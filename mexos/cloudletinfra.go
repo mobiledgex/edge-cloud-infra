@@ -17,6 +17,15 @@ var CloudletInfraCommon edgeproto.CloudletInfraCommon
 var OpenstackProps edgeproto.OpenStackProperties
 
 func InitInfraCommon() error {
+	mexEnvURL := os.Getenv("MEXENV_URL")
+	if mexEnvURL == "" {
+		return fmt.Errorf("Env variable MEXENV_URL not set")
+	}
+	openRcURL := os.Getenv("OPENRC_URL")
+	err := InternVaultEnv(openRcURL, mexEnvURL)
+	if err != nil {
+		return fmt.Errorf("failed to InternVaultEnv: %v", err)
+	}
 	CloudletInfraCommon.CFKey = os.Getenv("MEX_CF_KEY")
 	if CloudletInfraCommon.CFKey == "" {
 		return fmt.Errorf("Env variable MEX_CF_KEY not set")
@@ -41,18 +50,6 @@ func InitInfraCommon() error {
 func InitOpenstackProps() error {
 	OpenstackProps.OpenRcVars = make(map[string]string)
 
-	mexEnvURL := os.Getenv("MEXENV_URL")
-	if mexEnvURL == "" {
-		return fmt.Errorf("Env variable MEXENV_URL not set")
-	}
-	openRcURL := os.Getenv("OPENRC_URL")
-	if openRcURL == "" {
-		return fmt.Errorf("Env variable OPENRC_URL not set")
-	}
-	err := InternVaultEnv(openRcURL, mexEnvURL)
-	if err != nil {
-		return fmt.Errorf("failed to InternVaultEnv: %v", err)
-	}
 	OpenstackProps.OSExternalNetworkName = os.Getenv("MEX_EXT_NETWORK")
 	if OpenstackProps.OSExternalNetworkName == "" {
 		OpenstackProps.OSExternalNetworkName = "external-network-shared"

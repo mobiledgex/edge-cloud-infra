@@ -30,9 +30,9 @@ type DnsSvcAction struct {
 type GetDnsSvcActionFunc func(svc v1.Service) (*DnsSvcAction, error)
 
 // Register DNS entries for externally visible services.
-// The passed in getServiceIP function should provide this function with
-// the IP to use for each service. If the function returns an empty string,
-// the service is ignored.
+// The passed in GetDnsSvcActionFunc function should provide this function
+// with the actions to perform for each service, since different platforms
+// will use different IPs and patching.
 func CreateAppDNS(client pc.PlatformClient, kubeNames *k8s.KubeNames, getSvcAction GetDnsSvcActionFunc) error {
 
 	log.DebugLog(log.DebugLevelMexos, "createAppDNS")

@@ -1,0 +1,22 @@
+- name: Install Nginx
+  package:
+    name: nginx
+    state: present
+  become: yes
+
+- name: Start Nginx
+  service:
+    name: nginx
+    state: started
+  become: yes
+
+- name: Add Certbot PPA
+  apt_repository:
+    repo: ppa:certbot/certbot
+  become: yes
+
+- name: Install Certbot
+  package:
+    name: python-certbot-nginx
+    state: latest
+  become: yes

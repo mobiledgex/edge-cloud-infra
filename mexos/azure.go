@@ -119,9 +119,9 @@ func AzureGetLimits(info *edgeproto.CloudletInfo) error {
 			"VCPUs:numberOfCores,"+
 			"RAM:memoryInMb, Disk:resourceDiskSizeInMb"+
 			"}[?starts_with(Name,'Standard_DS')]|[?ends_with(Name,'v2')]",
-		sh.Dir("/tmp")).Output()
+		sh.Dir("/tmp")).CombinedOutput()
 	if err != nil {
-		err = fmt.Errorf("cannot get vm-sizes from azure, %v", err)
+		err = fmt.Errorf("cannot get vm-sizes from azure, %s %v", out, err)
 		return err
 	}
 	err = json.Unmarshal(out, &vmsizes)

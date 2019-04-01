@@ -4,14 +4,14 @@ import (
 	"fmt"
 
 	"github.com/mobiledgex/edge-cloud-infra/mexos"
-	"github.com/mobiledgex/edge-cloud/cloud-resource-manager/k8s"
+	"github.com/mobiledgex/edge-cloud/cloud-resource-manager/k8smgmt"
 	"github.com/mobiledgex/edge-cloud/cloudcommon"
 	"github.com/mobiledgex/edge-cloud/edgeproto"
 	"github.com/mobiledgex/edge-cloud/log"
 	"k8s.io/api/core/v1"
 )
 
-func (s *Platform) CreateAppInst(clusterInst *edgeproto.ClusterInst, app *edgeproto.App, appInst *edgeproto.AppInst, names *k8s.KubeNames) error {
+func (s *Platform) CreateAppInst(clusterInst *edgeproto.ClusterInst, app *edgeproto.App, appInst *edgeproto.AppInst, names *k8smgmt.KubeNames) error {
 	// TODO: rootLB may be specific to clusterInst for dedicated IP configs
 	rootLBName := s.rootLBName
 	client, err := s.GetPlatformClient(rootLBName)
@@ -21,9 +21,9 @@ func (s *Platform) CreateAppInst(clusterInst *edgeproto.ClusterInst, app *edgepr
 
 	switch deployment := app.Deployment; deployment {
 	case cloudcommon.AppDeploymentTypeKubernetes:
-		err = k8s.CreateAppInst(client, names, app, appInst)
+		err = k8smgmt.CreateAppInst(client, names, app, appInst)
 	case cloudcommon.AppDeploymentTypeHelm:
-		err = k8s.CreateHelmAppInst(client, names, clusterInst, app, appInst)
+		err = k8smgmt.CreateHelmAppInst(client, names, clusterInst, app, appInst)
 	case cloudcommon.AppDeploymentTypeKVM:
 		fallthrough
 	case cloudcommon.AppDeploymentTypeDockerSwarm:
@@ -58,7 +58,7 @@ func (s *Platform) CreateAppInst(clusterInst *edgeproto.ClusterInst, app *edgepr
 	return nil
 }
 
-func (s *Platform) DeleteAppInst(clusterInst *edgeproto.ClusterInst, app *edgeproto.App, appInst *edgeproto.AppInst, names *k8s.KubeNames) error {
+func (s *Platform) DeleteAppInst(clusterInst *edgeproto.ClusterInst, app *edgeproto.App, appInst *edgeproto.AppInst, names *k8smgmt.KubeNames) error {
 	// TODO: rootLB may be specific to clusterInst for dedicated IP configs
 	rootLBName := s.rootLBName
 	client, err := s.GetPlatformClient(rootLBName)
@@ -81,9 +81,9 @@ func (s *Platform) DeleteAppInst(clusterInst *edgeproto.ClusterInst, app *edgepr
 
 	switch deployment := app.Deployment; deployment {
 	case cloudcommon.AppDeploymentTypeKubernetes:
-		return k8s.DeleteAppInst(client, names, app, appInst)
+		return k8smgmt.DeleteAppInst(client, names, app, appInst)
 	case cloudcommon.AppDeploymentTypeHelm:
-		return k8s.DeleteHelmAppInst(client, names, clusterInst)
+		return k8smgmt.DeleteHelmAppInst(client, names, clusterInst)
 	case cloudcommon.AppDeploymentTypeKVM:
 		fallthrough
 	case cloudcommon.AppDeploymentTypeDockerSwarm:

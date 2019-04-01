@@ -6,7 +6,7 @@ import (
 	"time"
 
 	"github.com/mobiledgex/edge-cloud-infra/openstack-tenant/agent/cloudflare"
-	"github.com/mobiledgex/edge-cloud/cloud-resource-manager/k8s"
+	"github.com/mobiledgex/edge-cloud/cloud-resource-manager/k8smgmt"
 	"github.com/mobiledgex/edge-cloud/cloud-resource-manager/platform/pc"
 	"github.com/mobiledgex/edge-cloud/cloudcommon"
 	"github.com/mobiledgex/edge-cloud/log"
@@ -33,7 +33,7 @@ type GetDnsSvcActionFunc func(svc v1.Service) (*DnsSvcAction, error)
 // The passed in GetDnsSvcActionFunc function should provide this function
 // with the actions to perform for each service, since different platforms
 // will use different IPs and patching.
-func CreateAppDNS(client pc.PlatformClient, kubeNames *k8s.KubeNames, getSvcAction GetDnsSvcActionFunc) error {
+func CreateAppDNS(client pc.PlatformClient, kubeNames *k8smgmt.KubeNames, getSvcAction GetDnsSvcActionFunc) error {
 
 	log.DebugLog(log.DebugLevelMexos, "createAppDNS")
 
@@ -92,7 +92,7 @@ func CreateAppDNS(client pc.PlatformClient, kubeNames *k8s.KubeNames, getSvcActi
 	return nil
 }
 
-func DeleteAppDNS(client pc.PlatformClient, kubeNames *k8s.KubeNames) error {
+func DeleteAppDNS(client pc.PlatformClient, kubeNames *k8smgmt.KubeNames) error {
 
 	if err := cloudflare.InitAPI(GetCloudletCFUser(), GetCloudletCFKey()); err != nil {
 		return fmt.Errorf("cannot init cloudflare api, %v", err)
@@ -136,7 +136,7 @@ func DeleteAppDNS(client pc.PlatformClient, kubeNames *k8s.KubeNames) error {
 
 // KubePatchServiceIP updates the service to have the given external ip.  This is done locally and not thru
 // an ssh client
-func KubePatchServiceIP(client pc.PlatformClient, kubeNames *k8s.KubeNames, servicename string, ipaddr string) error {
+func KubePatchServiceIP(client pc.PlatformClient, kubeNames *k8smgmt.KubeNames, servicename string, ipaddr string) error {
 	log.DebugLog(log.DebugLevelMexos, "patch service IP", "servicename", servicename, "ipaddr", ipaddr)
 
 	cmd := fmt.Sprintf(`%s kubectl patch svc %s -p '{"spec":{"externalIPs":["%s"]}}'`, kubeNames.KconfEnv, servicename, ipaddr)

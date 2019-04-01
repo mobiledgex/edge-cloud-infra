@@ -3,14 +3,14 @@ package mexos
 import (
 	"fmt"
 
-	"github.com/mobiledgex/edge-cloud/cloud-resource-manager/k8s"
+	"github.com/mobiledgex/edge-cloud/cloud-resource-manager/k8smgmt"
 	"github.com/mobiledgex/edge-cloud/cloud-resource-manager/platform/pc"
 	"github.com/mobiledgex/edge-cloud/edgeproto"
 	"github.com/mobiledgex/edge-cloud/log"
 )
 
 // AddProxySecurityRulesAndPatchDNS Adds security rules and dns records in parallel
-func AddProxySecurityRulesAndPatchDNS(client pc.PlatformClient, kubeNames *k8s.KubeNames, appInst *edgeproto.AppInst, getDnsSvcAction GetDnsSvcActionFunc, rootLBName, masterIP string) error {
+func AddProxySecurityRulesAndPatchDNS(client pc.PlatformClient, kubeNames *k8smgmt.KubeNames, appInst *edgeproto.AppInst, getDnsSvcAction GetDnsSvcActionFunc, rootLBName, masterIP string) error {
 	secchan := make(chan string)
 	dnschan := make(chan string)
 	proxychan := make(chan string)

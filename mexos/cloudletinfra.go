@@ -41,9 +41,6 @@ func InitInfraCommon() error {
 	CloudletInfraCommon.DNSZone = "mobiledgex.net"
 	CloudletInfraCommon.DockerRegistry = "registry.mobiledgex.net:5000"
 	CloudletInfraCommon.RegistryFileServer = "registry.mobiledgex.net"
-	// network scheme default value is for openstack, but can be
-	// overridden by dind
-	CloudletInfraCommon.NetworkScheme = "priv-subnet,mex-k8s-net-1,10.101.X.0/24"
 	return nil
 }
 

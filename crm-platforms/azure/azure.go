@@ -23,6 +23,9 @@ func (s *Platform) GetType() string {
 }
 
 func (s *Platform) Init(key *edgeproto.CloudletKey) error {
+	if err := mexos.InitInfraCommon(); err != nil {
+		return err
+	}
 	s.props.Location = os.Getenv("MEX_AZURE_LOCATION")
 	if s.props.Location == "" {
 		return fmt.Errorf("Env variable MEX_AZURE_LOCATION not set")
@@ -40,9 +43,6 @@ func (s *Platform) Init(key *edgeproto.CloudletKey) error {
 	s.props.Password = os.Getenv("MEX_AZURE_PASS")
 	if s.props.Password == "" {
 		return fmt.Errorf("Env variable MEX_AZURE_PASS not set, check contents of MEXENV_URL")
-	}
-	if err := mexos.InitInfraCommon(); err != nil {
-		return err
 	}
 
 	// TODO: these should be detected

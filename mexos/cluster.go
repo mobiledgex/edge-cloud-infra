@@ -6,7 +6,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/mobiledgex/edge-cloud/cloud-resource-manager/k8s"
+	"github.com/mobiledgex/edge-cloud/cloud-resource-manager/k8smgmt"
 	"github.com/mobiledgex/edge-cloud/edgeproto"
 	"github.com/mobiledgex/edge-cloud/log"
 )
@@ -148,7 +148,7 @@ func DeleteCluster(clusterInst *edgeproto.ClusterInst) error {
 func IsClusterReady(clusterInst *edgeproto.ClusterInst, cf *ClusterFlavor, rootLBName string) (bool, error) {
 	log.DebugLog(log.DebugLevelMexos, "checking if cluster is ready")
 
-	nameSuffix := k8s.GetK8sNodeNameSuffix(clusterInst)
+	nameSuffix := k8smgmt.GetK8sNodeNameSuffix(clusterInst)
 	srvs, err := ListServers()
 
 	master, err := FindClusterMaster(nameSuffix, srvs)

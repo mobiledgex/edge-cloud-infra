@@ -5,13 +5,13 @@ import (
 	"os"
 
 	"github.com/mobiledgex/edge-cloud-infra/mexos"
-	"github.com/mobiledgex/edge-cloud/cloud-resource-manager/k8s"
+	"github.com/mobiledgex/edge-cloud/cloud-resource-manager/k8smgmt"
 	"github.com/mobiledgex/edge-cloud/cloudcommon"
 	"github.com/mobiledgex/edge-cloud/edgeproto"
 	"k8s.io/api/core/v1"
 )
 
-func (s *Platform) CreateAppInst(clusterInst *edgeproto.ClusterInst, app *edgeproto.App, appInst *edgeproto.AppInst, names *k8s.KubeNames) error {
+func (s *Platform) CreateAppInst(clusterInst *edgeproto.ClusterInst, app *edgeproto.App, appInst *edgeproto.AppInst, names *k8smgmt.KubeNames) error {
 	var err error
 	// regenerate kconf if missing because CRM in container was restarted
 	if err = SetupKconf(clusterInst); err != nil {
@@ -21,7 +21,7 @@ func (s *Platform) CreateAppInst(clusterInst *edgeproto.ClusterInst, app *edgepr
 
 	switch deployment := app.Deployment; deployment {
 	case cloudcommon.AppDeploymentTypeKubernetes:
-		err = k8s.CreateAppInst(client, names, app, appInst)
+		err = k8smgmt.CreateAppInst(client, names, app, appInst)
 	default:
 		err = fmt.Errorf("unsupported deployment type %s", deployment)
 	}
@@ -46,7 +46,7 @@ func (s *Platform) CreateAppInst(clusterInst *edgeproto.ClusterInst, app *edgepr
 	return nil
 }
 
-func (s *Platform) DeleteAppInst(clusterInst *edgeproto.ClusterInst, app *edgeproto.App, appInst *edgeproto.AppInst, names *k8s.KubeNames) error {
+func (s *Platform) DeleteAppInst(clusterInst *edgeproto.ClusterInst, app *edgeproto.App, appInst *edgeproto.AppInst, names *k8smgmt.KubeNames) error {
 	var err error
 	// regenerate kconf if missing because CRM in container was restarted
 	if err = SetupKconf(clusterInst); err != nil {
@@ -56,7 +56,7 @@ func (s *Platform) DeleteAppInst(clusterInst *edgeproto.ClusterInst, app *edgepr
 
 	switch deployment := app.Deployment; deployment {
 	case cloudcommon.AppDeploymentTypeKubernetes:
-		err = k8s.DeleteAppInst(client, names, app, appInst)
+		err = k8smgmt.DeleteAppInst(client, names, app, appInst)
 	default:
 		err = fmt.Errorf("unsupported deployment type %s", deployment)
 	}

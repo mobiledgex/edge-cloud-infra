@@ -19,6 +19,9 @@ func (s *Platform) GetType() string {
 }
 
 func (s *Platform) Init(key *edgeproto.CloudletKey) error {
+	if err := mexos.InitInfraCommon(); err != nil {
+		return err
+	}
 	s.props.Project = os.Getenv("MEX_GCP_PROJECT")
 	if s.props.Project == "" {
 		//default
@@ -27,9 +30,6 @@ func (s *Platform) Init(key *edgeproto.CloudletKey) error {
 	s.props.Zone = os.Getenv("MEX_GCP_ZONE")
 	if s.props.Zone == "" {
 		return fmt.Errorf("Env variable MEX_GCP_ZONE not set")
-	}
-	if err := mexos.InitInfraCommon(); err != nil {
-		return err
 	}
 	return nil
 }

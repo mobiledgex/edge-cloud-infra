@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/mobiledgex/edge-cloud/cloud-resource-manager/k8s"
+	"github.com/mobiledgex/edge-cloud/cloud-resource-manager/k8smgmt"
 	"github.com/mobiledgex/edge-cloud/edgeproto"
 	"github.com/mobiledgex/edge-cloud/log"
 )
@@ -177,7 +177,7 @@ func GetMasterIP(clusterInst *edgeproto.ClusterInst, networkName string) (string
 		return "", fmt.Errorf("error getting server list: %v", err)
 
 	}
-	nodeNameSuffix := k8s.GetK8sNodeNameSuffix(clusterInst)
+	nodeNameSuffix := k8smgmt.GetK8sNodeNameSuffix(clusterInst)
 	master, err := FindClusterMaster(nodeNameSuffix, srvs)
 	if err != nil {
 		return "", fmt.Errorf("can't find cluster with key %s, %v", nodeNameSuffix, err)

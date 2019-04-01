@@ -8,7 +8,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/mobiledgex/edge-cloud/cloud-resource-manager/k8s"
+	"github.com/mobiledgex/edge-cloud/cloud-resource-manager/k8smgmt"
 	"github.com/mobiledgex/edge-cloud/edgeproto"
 	"github.com/mobiledgex/edge-cloud/log"
 )
@@ -163,7 +163,7 @@ func getClusterParams(clusterInst *edgeproto.ClusterInst, cf *ClusterFlavor) (*C
 		return nil, fmt.Errorf("cannot find free subnet cidr")
 	}
 
-	cp.ClusterName = k8s.GetK8sNodeNameSuffix(clusterInst)
+	cp.ClusterName = k8smgmt.GetK8sNodeNameSuffix(clusterInst)
 	cp.MEXRouterName = GetCloudletExternalRouter()
 	cp.MEXNetworkName = GetCloudletMexNetwork()
 	cp.ImageName = GetCloudletOSImage()
@@ -255,7 +255,7 @@ func HeatCreateClusterKubernetes(clusterInst *edgeproto.ClusterInst, cf *Cluster
 // HeatDeleteClusterKubernetes deletes the cluster resources
 func HeatDeleteClusterKubernetes(clusterInst *edgeproto.ClusterInst) error {
 
-	clusterName := k8s.GetK8sNodeNameSuffix(clusterInst)
+	clusterName := k8smgmt.GetK8sNodeNameSuffix(clusterInst)
 	log.DebugLog(log.DebugLevelMexos, "deleting heat stack for cluster", "stackName", clusterName)
 	deleteHeatStack(clusterName)
 	for {

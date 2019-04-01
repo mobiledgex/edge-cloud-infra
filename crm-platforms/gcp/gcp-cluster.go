@@ -4,7 +4,7 @@ import (
 	"time"
 
 	"github.com/mobiledgex/edge-cloud-infra/mexos"
-	"github.com/mobiledgex/edge-cloud/cloud-resource-manager/k8s"
+	"github.com/mobiledgex/edge-cloud/cloud-resource-manager/k8smgmt"
 	"github.com/mobiledgex/edge-cloud/cloud-resource-manager/platform/pc"
 	"github.com/mobiledgex/edge-cloud/edgeproto"
 	"github.com/mobiledgex/edge-cloud/log"
@@ -32,7 +32,7 @@ func (s *Platform) CreateCluster(clusterInst *edgeproto.ClusterInst) error {
 	if err = GetGKECredentials(clusterName); err != nil {
 		return err
 	}
-	kconf := k8s.GetKconfName(clusterInst) //XXX
+	kconf := k8smgmt.GetKconfName(clusterInst) //XXX
 
 	log.DebugLog(log.DebugLevelMexos, "warning, using default config") //XXX
 	if err = pc.CopyFile(client, mexos.DefaultKubeconfig(), kconf); err != nil {

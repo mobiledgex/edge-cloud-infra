@@ -23,12 +23,13 @@ func (s *Platform) Init(key *edgeproto.CloudletKey) error {
 	rootLBName := cloudcommon.GetRootLBFQDN(key)
 	log.DebugLog(log.DebugLevelMexos, "init openstack", "rootLB", rootLBName)
 
-	if err := mexos.InitOpenstackProps(); err != nil {
-		return err
-	}
 	if err := mexos.InitInfraCommon(); err != nil {
 		return err
 	}
+	if err := mexos.InitOpenstackProps(); err != nil {
+		return err
+	}
+	mexos.CloudletInfraCommon.NetworkScheme = "priv-subnet,mex-k8s-net-1,10.101.X.0/24"
 
 	// create rootLB
 	crmRootLB, cerr := mexos.NewRootLB(rootLBName)

@@ -7,7 +7,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/mobiledgex/edge-cloud/cloud-resource-manager/k8s"
+	"github.com/mobiledgex/edge-cloud/cloud-resource-manager/k8smgmt"
 	"github.com/mobiledgex/edge-cloud/cloud-resource-manager/platform/pc"
 	"github.com/mobiledgex/edge-cloud/edgeproto"
 	"github.com/mobiledgex/edge-cloud/log"
@@ -23,7 +23,7 @@ func CreateDockerRegistrySecret(client pc.PlatformClient, clusterInst *edgeproto
 		"--docker-server=%s --docker-username=mobiledgex --docker-password=%s "+
 		"--docker-email=mobiledgex@mobiledgex.com --kubeconfig=%s",
 		GetCloudletDockerRegistry(), GetCloudletDockerPass(),
-		k8s.GetKconfName(clusterInst))
+		k8smgmt.GetKconfName(clusterInst))
 	out, err := client.Output(cmd)
 	if err != nil {
 		if !strings.Contains(out, "AlreadyExists") {
@@ -48,7 +48,7 @@ func CreateClusterConfigMap(client pc.PlatformClient, clusterInst *edgeproto.Clu
 		"--from-literal=OperatorName=%s --kubeconfig=%s",
 		clusterInst.Key.ClusterKey.Name, clusterInst.Key.CloudletKey.Name,
 		clusterInst.Key.CloudletKey.OperatorKey.Name,
-		k8s.GetKconfName(clusterInst))
+		k8smgmt.GetKconfName(clusterInst))
 
 	out, err := client.Output(cmd)
 	if err != nil {
@@ -62,7 +62,7 @@ func CreateClusterConfigMap(client pc.PlatformClient, clusterInst *edgeproto.Clu
 	return nil
 }
 
-func GetSvcExternalIP(client pc.PlatformClient, kubeNames *k8s.KubeNames, name string) (string, error) {
+func GetSvcExternalIP(client pc.PlatformClient, kubeNames *k8smgmt.KubeNames, name string) (string, error) {
 	log.DebugLog(log.DebugLevelMexos, "get service external IP", "name", name)
 	externalIP := ""
 	//wait for Load Balancer to assign external IP address. It takes a variable amount of time.
@@ -100,7 +100,7 @@ func GetSvcExternalIP(client pc.PlatformClient, kubeNames *k8s.KubeNames, name s
 	return externalIP, nil
 }
 
-func GetServices(client pc.PlatformClient, names *k8s.KubeNames) ([]v1.Service, error) {
+func GetServices(client pc.PlatformClient, names *k8smgmt.KubeNames) ([]v1.Service, error) {
 	log.DebugLog(log.DebugLevelMexos, "get services", "kconf", names.KconfName)
 
 	cmd := fmt.Sprintf("%s kubectl get svc -o json", names.KconfEnv)

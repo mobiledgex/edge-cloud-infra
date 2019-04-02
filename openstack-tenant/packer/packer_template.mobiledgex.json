@@ -1,18 +1,29 @@
-
 {
+    "variables": {
+	"ARTIFACTORY_USER": "packer",
+	"TAG": "master",
+	"FLAVOR": "m4.small"
+    },
     "builders": [{
 	"type": "openstack",
-	"flavor": "m4.medium",
+	"flavor": "{{ user `FLAVOR` }}",
 	"ssh_username": "ubuntu",
 	"region": "RegionOne",
-	"image_name": "mobiledgex",
-	"source_image": "a4da5673-bfdb-423f-9020-9e072b851b39",
-	"networks": "d5d7d31c-721b-418e-be85-b1dad361f195",
+	"image_name": "{{ user `OUTPUT_IMAGE_NAME` }}",
+	"source_image": "{{ user `SRC_IMG` }}",
+	"networks": "{{ user `NETWORK` }}",
 	"security_groups": ["default" ]
     }],
     "provisioners": [{
 	"type": "shell",
-	"script": "setup.sh"
+	"script": "setup.sh",
+	"environment_vars": [
+	    "ARTIFACTORY_CREDS={{ user `ARTIFACTORY_USER` }}:{{ user `ARTIFACTORY_APIKEY` }}",
+	    "TAG={{ user `TAG` }}",
+	    "MEX_BUILD={{ user `MEX_BUILD` }}",
+	    "FLAVOR={{ user `FLAVOR` }}",
+	    "SRC_IMG={{ user `SRC_IMG` }}",
+	    "SRC_IMG_CHECKSUM={{ user `SRC_IMG_CHECKSUM` }}"
+	]
     }]
 }
-

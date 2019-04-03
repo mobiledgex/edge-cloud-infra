@@ -25,6 +25,7 @@ func (s *Platform) Init(key *edgeproto.CloudletKey) error {
 	rootLBName := cloudcommon.GetRootLBFQDN(key)
 	log.DebugLog(log.DebugLevelMexos, "init openstack", "rootLB", rootLBName)
 
+	// OPENRC_URL is required for OpenStack, but optional in InitInfraCommon
 	if os.Getenv("OPENRC_URL") == "" {
 		return fmt.Errorf("Env OPENRC_URL not set")
 	}
@@ -44,7 +45,11 @@ func (s *Platform) Init(key *edgeproto.CloudletKey) error {
 	for _, f := range osflavors {
 		finfo = append(
 			finfo,
-			&edgeproto.FlavorInfo{f.Name, uint64(f.VCPUs), uint64(f.RAM), uint64(f.Disk)},
+			&edgeproto.FlavorInfo{
+				Name:  f.Name,
+				Vcpus: uint64(f.VCPUs),
+				Ram:   uint64(f.RAM),
+				Disk:  uint64(f.Disk)},
 		)
 	}
 

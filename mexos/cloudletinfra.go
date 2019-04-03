@@ -8,6 +8,7 @@ package mexos
 import (
 	"fmt"
 	"os"
+	"strconv"
 	"strings"
 
 	"github.com/mobiledgex/edge-cloud/edgeproto"
@@ -129,6 +130,40 @@ func GetCleanupOnFailure() bool {
 		return false
 	}
 	return true
+}
+
+// GetCloudletSharedRootLBFlavor gets the flavor from defaults
+// or environment variables
+func GetCloudletSharedRootLBFlavor(flavor *edgeproto.Flavor) error {
+	ram := os.Getenv("MEX_SHARED_ROOTLB_RAM")
+	var err error
+	if ram != "" {
+		flavor.Ram, err = strconv.ParseUint(ram, 10, 64)
+		if err != nil {
+			return err
+		}
+	} else {
+		flavor.Ram = 4096
+	}
+	vcpus := os.Getenv("MEX_SHARED_ROOTLB_VCPUS")
+	if vcpus != "" {
+		flavor.Vcpus, err = strconv.ParseUint(vcpus, 10, 64)
+		if err != nil {
+			return err
+		}
+	} else {
+		flavor.Vcpus = 2
+	}
+	disk := os.Getenv("MEX_SHARED_ROOTLB_DISK")
+	if disk != "" {
+		flavor.Disk, err = strconv.ParseUint(disk, 10, 64)
+		if err != nil {
+			return err
+		}
+	} else {
+		flavor.Disk = 40
+	}
+	return nil
 }
 
 // These not in the proto file yet because they may not change for a while

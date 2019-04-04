@@ -72,7 +72,7 @@ func (s *Platform) GatherCloudletInfo(info *edgeproto.CloudletInfo) error {
 	}
 	err = json.Unmarshal(out, &quotas)
 	if err != nil {
-		err = fmt.Errorf("cannot unmarshal, %v, %v", out, err)
+		err = fmt.Errorf("cannot unmarshal, %s, %v", out, err)
 		return err
 	}
 	for _, q := range quotas {
@@ -100,7 +100,7 @@ func (s *Platform) GatherCloudletInfo(info *edgeproto.CloudletInfo) error {
 	}
 	err = json.Unmarshal(out, &machinetypes)
 	if err != nil {
-		err = fmt.Errorf("cannot unmarshal, %v, %v", out, err)
+		err = fmt.Errorf("cannot unmarshal, %s, %v", out, err)
 		return err
 	}
 	for _, m := range machinetypes {

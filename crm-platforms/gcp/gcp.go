@@ -64,15 +64,15 @@ func (s *Platform) GatherCloudletInfo(info *edgeproto.CloudletInfo) error {
 	format := "json(quotas.metric,quotas.limit)"
 
 	out, err := sh.Command("gcloud", "compute", "regions", "list",
-		"--project", s.props.Project, "--filter", filter, "--flatten", flatten, "--format", format,
-		sh.Dir("/tmp")).CombinedOutput()
+		"--project", s.props.Project, "--filter", filter, "--flatten", flatten,
+		"--format", format, sh.Dir("/tmp")).CombinedOutput()
 	if err != nil {
 		err = fmt.Errorf("cannot get resource quotas from gcp, %s, %s", out, err.Error())
 		return err
 	}
 	err = json.Unmarshal(out, &quotas)
 	if err != nil {
-		err = fmt.Errorf("cannot unmarshal, %v", err)
+		err = fmt.Errorf("cannot unmarshal, %v, %v", out, err)
 		return err
 	}
 	for _, q := range quotas {
@@ -88,19 +88,19 @@ func (s *Platform) GatherCloudletInfo(info *edgeproto.CloudletInfo) error {
 	}
 
 	var machinetypes []GCPFlavor
-	filter = fmt.Sprintf("zone:(%s)", s.props.Zone)
+	filter = fmt.Sprintf("zone=(%s) AND name:(standard)", s.props.Zone)
 	format = "json(name,guestCpus,memoryMb,maximumPersistentDisksSizeGb)"
 
 	out, err = sh.Command("gcloud", "compute", "machine-types", "list",
-		"--project", s.props.Project, "--filter", filter, "--format", format,
-		sh.Dir("/tmp")).CombinedOutput()
+		"--project", s.props.Project, "--filter", filter,
+		"--format", format, sh.Dir("/tmp")).CombinedOutput()
 	if err != nil {
 		err = fmt.Errorf("cannot get machine-types from gcp, %s, %s", out, err.Error())
 		return err
 	}
 	err = json.Unmarshal(out, &machinetypes)
 	if err != nil {
-		err = fmt.Errorf("cannot unmarshal, %v", err)
+		err = fmt.Errorf("cannot unmarshal, %v, %v", out, err)
 		return err
 	}
 	for _, m := range machinetypes {
@@ -111,7 +111,12 @@ func (s *Platform) GatherCloudletInfo(info *edgeproto.CloudletInfo) error {
 		}
 		info.Flavors = append(
 			info.Flavors,
-			&edgeproto.FlavorInfo{m.Name, uint64(m.GuestCPUs), uint64(m.MemoryMb), uint64(disk)},
+			&edgeproto.FlavorInfo{
+				m.Name,
+				uint64(m.GuestCPUs),
+				uint64(m.MemoryMb),
+				uint64(disk),
+			},
 		)
 	}
 	return nil

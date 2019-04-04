@@ -36,3 +36,4 @@ RUN apt-get update && apt-get install -y \
 
 COPY edge-cloud-base-image.root/_ssh /root/.ssh
 COPY edge-cloud-base-image.root/_mobiledgex /root/.mobiledgex
+RUN chmod 400 /root/.mobiledgex/id_rsa_mex /root/.mobiledgex/id_rsa_mobiledgex

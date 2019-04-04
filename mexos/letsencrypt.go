@@ -81,7 +81,7 @@ func AcquireCertificates(fqdn string) error {
 			// perhaps permission problem or other error.  Do not continue as this may be a problem
 			// which will cause us to  exhaust our letsencrypt API limits
 			log.InfoLog("Unexpected error attempting to get cached cert", "registry", GetCloudletRegistryFileServer(), "out", string(out))
-			return fmt.Errorf("Unable to SCP to registry: %s", GetCloudletRegistryFileServer())
+			return fmt.Errorf("Unable to SCP to registry: %s, %v", GetCloudletRegistryFileServer(), err)
 		}
 
 	} else if checkPEMCert(certfile, fqdn) == nil {

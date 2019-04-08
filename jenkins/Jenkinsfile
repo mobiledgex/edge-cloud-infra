@@ -7,7 +7,7 @@ pipeline {
         stage('Checkout') {
             steps {
                 dir(path: 'go/src/github.com/mobiledgex/edge-cloud-infra') {
-                    git url: 'git@github.com:mobiledgex/edge-cloud-infra.git'
+                    checkout scm
                 }
                 dir(path: 'go/src/github.com/mobiledgex/edge-cloud') {
                     git url: 'git@github.com:mobiledgex/edge-cloud.git'

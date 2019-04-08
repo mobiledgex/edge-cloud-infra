@@ -72,7 +72,7 @@ make
             steps {
                 slackSend color: 'good',
                           channel: '#swdev',
-                          message: "<${env.CHANGE_URL}|Pull request PR-${env.CHANGE_ID}> ready for review: (${env.CHANGE_AUTHOR} \"${env.CHANGE_TITLE}\")"
+                          message: "<${env.CHANGE_URL}|Infra Pull request PR-${env.CHANGE_ID}> ready for review: (${env.CHANGE_AUTHOR} \"${env.CHANGE_TITLE}\")"
             }
         }
     }

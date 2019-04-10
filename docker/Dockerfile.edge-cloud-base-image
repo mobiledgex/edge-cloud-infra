@@ -27,10 +27,12 @@ RUN apt-key --keyring /etc/apt/trusted.gpg.d/Microsoft.gpg adv \
 	--recv-keys BC528686B50D79E339D3721CEB3E94ADBE1229CF
 RUN curl https://packages.cloud.google.com/apt/doc/apt-key.gpg \
 	| apt-key add -
+RUN echo "deb https://apt.kubernetes.io/ kubernetes-xenial main" >/etc/apt/sources.list.d/kubernetes.list
 
 RUN apt-get update && apt-get install -y \
 	azure-cli \
 	google-cloud-sdk \
+	kubectl \
 	python-heatclient \
 	python-openstackclient
 

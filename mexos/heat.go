@@ -27,12 +27,10 @@ type VMParams struct {
 
 var floatingIPLock sync.Mutex
 
-var vmTemplate = `
-heat_template_version: 2016-10-14
-description: Create a VM
-
-resources:
-    vm:
+// This is the resources part of a template for a VM. It is for use within another template
+// the parameters under VMP can come from either a standalone struture (VM Create) or a cluster (for rootLB)
+var vmTemplateResources = `
+   {{.VMName}}:
       type: OS::Nova::Server
       properties:
          name: 
@@ -56,20 +54,26 @@ resources:
             edgeproxy: {{.GatewayIP}}
             mex-flavor: {{.Flavor}}
             privaterouter: {{.MEXRouterIP}}
-   {{if .FloatingIPAddressID}}
-    vm-port:
+  {{if .FloatingIPAddressID}}
+   vm-port:
        type: OS::Neutron::Port
        properties:
            name: {{.VMName}}-port
 		   network_id: {{.NetworkName}}
        security_groups:
         - {{$.SecurityGroup}}
-    floatingip:
+   floatingip:
        type: OS::Neutron::FloatingIPAssociation
        properties:
           floatingip_id: {{.FloatingIPAddressID}}
           port_id: { get_resource: vm-port }
-   {{- end}}`
+  {{- end}}`
+
+var vmTemplate = `
+heat_template_version: 2016-10-14
+description: Create a VM
+resources:
+` + vmTemplateResources
 
 // ClusterNode is a k8s node
 type ClusterNode struct {
@@ -90,6 +94,7 @@ type ClusterParams struct {
 	GatewayIP      string
 	MasterIP       string
 	Nodes          []ClusterNode
+	*VMParams      //rootlb
 }
 
 var clusterCreateLock sync.Mutex
@@ -263,28 +268,24 @@ func waitForStackDelete(stackname string) error {
 	}
 }
 
-// HeatCreateVM creates a new VM and optionally associates a floating IP
-func HeatCreateVM(serverName, flavor string) error {
-	log.DebugLog(log.DebugLevelMexos, "HeatCreateVM", "serverName", serverName, "flavor", flavor)
-
-	ni, err := ParseNetSpec(GetCloudletNetworkScheme())
-	if err != nil {
-		return err
-	}
+func getVMParams(serverName, flavor, imageName string) (*VMParams, error) {
 	var vmp VMParams
 	vmp.VMName = serverName
 	vmp.Flavor = flavor
-	vmp.ImageName = GetCloudletOSImage()
+	vmp.ImageName = imageName
+	ni, err := ParseNetSpec(GetCloudletNetworkScheme())
+	if err != nil {
+		return nil, err
+	}
 	vmp.GatewayIP, err = GetExternalGateway(GetCloudletExternalNetwork())
 	vmp.SecurityGroup = GetCloudletSecurityGroup()
 	if err != nil {
-		return err
+		return nil, err
 	}
 	vmp.MEXRouterIP, err = GetMexRouterIP()
 	if err != nil {
-		return err
+		return nil, err
 	}
-
 	if strings.Contains(ni.Options, "floatingip") {
 		// lock here to avoid getting the same floating IP; we need to lock until the stack is done
 		floatingIPLock.Lock()
@@ -297,17 +298,27 @@ func HeatCreateVM(serverName, flavor string) error {
 			}
 		}
 		if vmp.FloatingIPAddressID == "" {
-			return fmt.Errorf("Unable to allocate a floating IP")
+			return nil, fmt.Errorf("Unable to allocate a floating IP")
 		}
 		if err != nil {
-			return fmt.Errorf("Unable to list floating IPs %v", err)
+			return nil, fmt.Errorf("Unable to list floating IPs %v", err)
 		}
 		vmp.NetworkName = GetCloudletMexNetwork()
 	} else {
 		vmp.NetworkName = GetCloudletExternalNetwork()
 	}
+	return &vmp, nil
+}
 
-	tmpl, err := template.New("mexrootlb").Parse(vmTemplate)
+// HeatCreateVM creates a new VM and optionally associates a floating IP
+func HeatCreateVM(serverName, flavor, imageName string) error {
+	log.DebugLog(log.DebugLevelMexos, "HeatCreateVM", "serverName", serverName, "flavor", flavor)
+
+	vmp, err := getVMParams(serverName, flavor, imageName)
+	if err != nil {
+		return fmt.Errorf("Unable to get VM params: %v", err)
+	}
+	tmpl, err := template.New("vm").Parse(vmTemplate)
 	if err != nil {
 		return err
 	}
@@ -339,13 +350,20 @@ func HeatDeleteVM(serverName string) error {
 	return waitForStackDelete(serverName)
 }
 
-//GetClusterParams fills template parameters for the cluster
-func getClusterParams(clusterInst *edgeproto.ClusterInst, flavor *edgeproto.ClusterFlavor) (*ClusterParams, error) {
+//GetClusterParams fills template parameters for the cluster.  A non blank rootLBName will add a rootlb VM
+func getClusterParams(clusterInst *edgeproto.ClusterInst, flavor *edgeproto.ClusterFlavor, rootLBName string) (*ClusterParams, error) {
+	var cp ClusterParams
+	var err error
+	if rootLBName != "" {
+		cp.VMParams, err = getVMParams(rootLBName, clusterInst.NodeFlavor, GetCloudletOSImage())
+		if err != nil {
+			return nil, fmt.Errorf("Unable to get rootlb params: %v", err)
+		}
+	}
 	ni, err := ParseNetSpec(GetCloudletNetworkScheme())
 	if err != nil {
 		return nil, err
 	}
-
 	usedCidrs := make(map[string]bool)
 
 	sns, snserr := ListSubnets(ni.Name)
@@ -357,7 +375,6 @@ func getClusterParams(clusterInst *edgeproto.ClusterInst, flavor *edgeproto.Clus
 	}
 
 	found := false
-	var cp ClusterParams
 	nodeIPPrefix := ""
 
 	//find an available subnet
@@ -399,8 +416,9 @@ func getClusterParams(clusterInst *edgeproto.ClusterInst, flavor *edgeproto.Clus
 	return &cp, nil
 }
 
-func HeatCreateClusterKubernetes(clusterInst *edgeproto.ClusterInst, flavor *edgeproto.ClusterFlavor) error {
+func HeatCreateClusterKubernetes(clusterInst *edgeproto.ClusterInst, flavor *edgeproto.ClusterFlavor, dedicatedRootLBName string) error {
 
+	log.DebugLog(log.DebugLevelMexos, "HeatCreateClusterKubernetes", "clusterInst", clusterInst)
 	// It is problematic to create 2 clusters at the exact same time because we will look for available subnet CIDRS when
 	// defining the template.  If 2 start at once they may end up trying to create the same subnet and one will fail.
 	// So we will do this one at a time.   It will slightly slow down the creation of the second cluster, but the heat
@@ -408,12 +426,17 @@ func HeatCreateClusterKubernetes(clusterInst *edgeproto.ClusterInst, flavor *edg
 	clusterCreateLock.Lock()
 	defer clusterCreateLock.Unlock()
 
-	cp, err := getClusterParams(clusterInst, flavor)
+	cp, err := getClusterParams(clusterInst, flavor, dedicatedRootLBName)
 	if err != nil {
 		return err
 	}
 
-	tmpl, err := template.New("mexk8s").Parse(k8sClusterTemplate)
+	templateString := k8sClusterTemplate
+	//append the VM resources for the rootLB is specified
+	if dedicatedRootLBName != "" {
+		templateString += vmTemplateResources
+	}
+	tmpl, err := template.New("mexk8s").Parse(templateString)
 	if err != nil {
 		return err
 	}

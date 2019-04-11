@@ -71,7 +71,7 @@ type ClusterMasterFlavor struct {
 	Name string
 }
 
-func CreateCluster(sharedRootLBName string, clusterInst *edgeproto.ClusterInst, flavor *edgeproto.ClusterFlavor) (reterr error) {
+func CreateCluster(rootLBName string, clusterInst *edgeproto.ClusterInst, flavor *edgeproto.ClusterFlavor) (reterr error) {
 	// clean-up func
 	defer func() {
 		if reterr == nil {
@@ -80,7 +80,7 @@ func CreateCluster(sharedRootLBName string, clusterInst *edgeproto.ClusterInst, 
 		log.DebugLog(log.DebugLevelMexos, "error in mexCreateClusterKubernetes", "err", reterr)
 		if GetCleanupOnFailure() {
 			log.DebugLog(log.DebugLevelMexos, "cleaning up cluster resources after cluster fail, set envvar CLEANUP_ON_FAILURE to 'no' to avoid this")
-			delerr := DeleteCluster(clusterInst)
+			delerr := DeleteCluster(rootLBName, clusterInst)
 			if delerr != nil {
 				log.DebugLog(log.DebugLevelMexos, "fail to cleanup cluster")
 			}
@@ -89,30 +89,34 @@ func CreateCluster(sharedRootLBName string, clusterInst *edgeproto.ClusterInst, 
 		}
 	}()
 
-	rootLBName := sharedRootLBName
-	if clusterInst.IpAccess == edgeproto.IpAccess_IpAccessDedicated {
-		log.DebugLog(log.DebugLevelMexos, "need dedicated rootLB", "IpAccess", clusterInst.IpAccess)
-
-		dedicatedRootLBName := getDedicatedRootLBNameForCluster(clusterInst)
-		_, err := NewRootLB(dedicatedRootLBName)
-		if err != nil {
-			// likely already exists which means something went really wrong
-			return err
-		}
-		// TODO, currently creating rootlb with node flavor size.  Should this be platform VM size?  or some new size?
-		err = RunMEXAgent(dedicatedRootLBName, clusterInst.NodeFlavor)
-		rootLBName = dedicatedRootLBName
-	}
-	log.DebugLog(log.DebugLevelMexos, "creating cluster instance", "clusterInst", clusterInst, "rootLBName", rootLBName)
+	log.DebugLog(log.DebugLevelMexos, "creating cluster instance", "clusterInst", clusterInst)
 
 	flavorName := clusterInst.Flavor.Name
 	if flavorName == "" {
 		return fmt.Errorf("empty cluster flavor")
 	}
 
-	err := HeatCreateClusterKubernetes(clusterInst, flavor)
+	dedicatedRootLBName := ""
+	if clusterInst.IpAccess == edgeproto.IpAccess_IpAccessDedicated {
+		dedicatedRootLBName = rootLBName
+	}
+	err := HeatCreateClusterKubernetes(clusterInst, flavor, dedicatedRootLBName)
 	if err != nil {
 		return err
+	}
+	// the root LB was created as part of cluster creation, but it needs to be prepped and
+	// mex agent started
+	if clusterInst.IpAccess == edgeproto.IpAccess_IpAccessDedicated {
+		log.DebugLog(log.DebugLevelMexos, "need dedicated rootLB", "IpAccess", clusterInst.IpAccess)
+		_, err := NewRootLB(rootLBName)
+		if err != nil {
+			// likely already exists which means something went really wrong
+			return err
+		}
+		err = SetupRootLB(rootLBName, "")
+		if err != nil {
+			return err
+		}
 	}
 	client, err := GetSSHClient(rootLBName, GetCloudletExternalNetwork(), SSHUser)
 	if err != nil {
@@ -147,16 +151,15 @@ func CreateCluster(sharedRootLBName string, clusterInst *edgeproto.ClusterInst, 
 	return nil
 }
 
-//mexDeleteClusterKubernetes deletes kubernetes cluster
-func DeleteCluster(clusterInst *edgeproto.ClusterInst) error {
+//DeleteCluster deletes kubernetes cluster
+func DeleteCluster(rootLBName string, clusterInst *edgeproto.ClusterInst) error {
 	log.DebugLog(log.DebugLevelMexos, "deleting kubernetes cluster", "clusterInst", clusterInst)
 	err := HeatDeleteClusterKubernetes(clusterInst)
 	if err != nil {
 		return err
 	}
 	if clusterInst.IpAccess == edgeproto.IpAccess_IpAccessDedicated {
-		dedicatedRootLBName := getDedicatedRootLBNameForCluster(clusterInst)
-		return DisableRootLB(dedicatedRootLBName)
+		DeleteRootLB(rootLBName)
 	}
 	return nil
 }

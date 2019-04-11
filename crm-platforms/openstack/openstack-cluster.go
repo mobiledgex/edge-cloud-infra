@@ -6,9 +6,17 @@ import (
 )
 
 func (s *Platform) CreateCluster(clusterInst *edgeproto.ClusterInst, flavor *edgeproto.ClusterFlavor) error {
-	return mexos.CreateCluster(s.rootLBName, clusterInst, flavor)
+	lbName := s.rootLBName
+	if clusterInst.IpAccess == edgeproto.IpAccess_IpAccessDedicated {
+		lbName = mexos.GetDedicatedRootLBNameForCluster(clusterInst, s.cloudletKey)
+	}
+	return mexos.CreateCluster(lbName, clusterInst, flavor)
 }
 
 func (s *Platform) DeleteCluster(clusterInst *edgeproto.ClusterInst) error {
-	return mexos.DeleteCluster(clusterInst)
+	lbName := s.rootLBName
+	if clusterInst.IpAccess == edgeproto.IpAccess_IpAccessDedicated {
+		lbName = mexos.GetDedicatedRootLBNameForCluster(clusterInst, s.cloudletKey)
+	}
+	return mexos.DeleteCluster(lbName, clusterInst)
 }

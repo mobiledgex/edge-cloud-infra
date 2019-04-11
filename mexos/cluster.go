@@ -71,7 +71,7 @@ type ClusterMasterFlavor struct {
 	Name string
 }
 
-func CreateCluster(rootLBName string, clusterInst *edgeproto.ClusterInst, flavor *edgeproto.ClusterFlavor) (reterr error) {
+func CreateCluster(sharedRootLBName string, clusterInst *edgeproto.ClusterInst, flavor *edgeproto.ClusterFlavor) (reterr error) {
 	// clean-up func
 	defer func() {
 		if reterr == nil {
@@ -89,6 +89,20 @@ func CreateCluster(rootLBName string, clusterInst *edgeproto.ClusterInst, flavor
 		}
 	}()
 
+	rootLBName := sharedRootLBName
+	if clusterInst.IpAccess == edgeproto.IpAccess_IpAccessDedicated {
+		log.DebugLog(log.DebugLevelMexos, "need dedicated rootLB", "IpAccess", clusterInst.IpAccess)
+
+		dedicatedRootLBName := getDedicatedRootLBNameForCluster(clusterInst)
+		_, err := NewRootLB(dedicatedRootLBName)
+		if err != nil {
+			// likely already exists which means something went really wrong
+			return err
+		}
+		// TODO, currently creating rootlb with node flavor size.  Should this be platform VM size?  or some new size?
+		err = RunMEXAgent(dedicatedRootLBName, clusterInst.NodeFlavor)
+		rootLBName = dedicatedRootLBName
+	}
 	log.DebugLog(log.DebugLevelMexos, "creating cluster instance", "clusterInst", clusterInst, "rootLBName", rootLBName)
 
 	flavorName := clusterInst.Flavor.Name
@@ -136,7 +150,15 @@ func CreateCluster(rootLBName string, clusterInst *edgeproto.ClusterInst, flavor
 //mexDeleteClusterKubernetes deletes kubernetes cluster
 func DeleteCluster(clusterInst *edgeproto.ClusterInst) error {
 	log.DebugLog(log.DebugLevelMexos, "deleting kubernetes cluster", "clusterInst", clusterInst)
-	return HeatDeleteClusterKubernetes(clusterInst)
+	err := HeatDeleteClusterKubernetes(clusterInst)
+	if err != nil {
+		return err
+	}
+	if clusterInst.IpAccess == edgeproto.IpAccess_IpAccessDedicated {
+		dedicatedRootLBName := getDedicatedRootLBNameForCluster(clusterInst)
+		return DisableRootLB(dedicatedRootLBName)
+	}
+	return nil
 }
 
 //IsClusterReady checks to see if cluster is read, i.e. rootLB is running and active

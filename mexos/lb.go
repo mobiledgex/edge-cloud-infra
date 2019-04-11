@@ -50,7 +50,7 @@ func LBAddRouteAndSecRules(client pc.PlatformClient, rootLBName string) error {
 	}
 
 	// open the firewall for internal traffic
-	if err := AddSecurityRuleCIDR(subnet, "tcp", "default", "1:65535"); err != nil {
+	if err := AddSecurityRuleCIDR(subnet, "tcp", GetCloudletSecurityGroup(), "1:65535"); err != nil {
 		// this error is nonfatal because it may already exist
 		log.DebugLog(log.DebugLevelMexos, "notice, cannot add security rule", "error", err, "cidr", subnet)
 	}

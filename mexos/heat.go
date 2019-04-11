@@ -18,6 +18,7 @@ type VMParams struct {
 	VMName              string
 	Flavor              string
 	ImageName           string
+	SecurityGroup       string
 	NetworkName         string
 	MEXRouterIP         string
 	GatewayIP           string
@@ -37,6 +38,11 @@ resources:
          name: 
             {{.VMName}}
          image: {{.ImageName}}
+        {{if not .FloatingIPAddressID}}
+         security_groups:
+          - {{.SecurityGroup}}
+        {{- end}}
+          - {{.SecurityGroup}}
          flavor: {{.Flavor}}
          config_drive: true
          user_data_format: RAW
@@ -55,7 +61,9 @@ resources:
        type: OS::Neutron::Port
        properties:
            name: {{.VMName}}-port
-           network_id: {{.NetworkName}}
+		   network_id: {{.NetworkName}}
+       security_groups:
+        - {{$.SecurityGroup}}
     floatingip:
        type: OS::Neutron::FloatingIPAssociation
        properties:
@@ -74,6 +82,7 @@ type ClusterParams struct {
 	MasterFlavor   string
 	NodeFlavor     string
 	ImageName      string
+	SecurityGroup  string
 	MEXRouterName  string
 	MEXNetworkName string
 	ClusterName    string
@@ -108,6 +117,8 @@ resources:
           fixed_ips:
           - subnet: { get_resource: k8s-subnet}
             ip_address: {{.GatewayIP}}
+          security_groups:
+           - {{$.SecurityGroup}}
 
    router-interface:
       type: OS::Neutron::RouterInterface
@@ -123,6 +134,8 @@ resources:
          fixed_ips:
           - subnet: { get_resource: k8s-subnet} 
             ip_address: {{.MasterIP}}
+         security_groups:
+          - {{$.SecurityGroup}}
 
    k8s_master:
       type: OS::Nova::Server
@@ -153,6 +166,8 @@ resources:
           fixed_ips:
           - subnet: { get_resource: k8s-subnet}
             ip_address: {{.NodeIP}}
+          security_groups:
+           - {{$.SecurityGroup}}
 
    {{.NodeName}}:
       type: OS::Nova::Server
@@ -224,6 +239,30 @@ func waitForStackCreate(stackname string) error {
 	}
 }
 
+func waitForStackDelete(stackname string) error {
+	for {
+		time.Sleep(5 * time.Second)
+		hd, _ := getHeatStackDetail(stackname)
+		if hd == nil {
+			// it's gone
+			return nil
+		}
+		log.DebugLog(log.DebugLevelMexos, "Got Heat Stack detail", "detail", hd)
+		switch hd.StackStatus {
+		case "DELETE_IN_PROGRESS":
+			continue
+		case "DELETE_FAILED":
+			log.InfoLog("Heat Stack Deletion failed", "stackName", stackname)
+			return fmt.Errorf("Heat Stack delete for cluster failed")
+		case "DELETE_COMPLETE":
+			return nil
+		default:
+			log.InfoLog("Unexpected Heat Stack status", "status", hd.StackStatus)
+			return fmt.Errorf("Stack delete for cluster unexpected status: %s", hd.StackStatus)
+		}
+	}
+}
+
 // HeatCreateVM creates a new VM and optionally associates a floating IP
 func HeatCreateVM(serverName, flavor string) error {
 	log.DebugLog(log.DebugLevelMexos, "HeatCreateVM", "serverName", serverName, "flavor", flavor)
@@ -237,6 +276,7 @@ func HeatCreateVM(serverName, flavor string) error {
 	vmp.Flavor = flavor
 	vmp.ImageName = GetCloudletOSImage()
 	vmp.GatewayIP, err = GetExternalGateway(GetCloudletExternalNetwork())
+	vmp.SecurityGroup = GetCloudletSecurityGroup()
 	if err != nil {
 		return err
 	}
@@ -292,6 +332,13 @@ func HeatCreateVM(serverName, flavor string) error {
 	return nil
 }
 
+// HeatDeleteVM deletes the VM resources
+func HeatDeleteVM(serverName string) error {
+	log.DebugLog(log.DebugLevelMexos, "deleting heat stack for vm", "serverName", serverName)
+	deleteHeatStack(serverName)
+	return waitForStackDelete(serverName)
+}
+
 //GetClusterParams fills template parameters for the cluster
 func getClusterParams(clusterInst *edgeproto.ClusterInst, flavor *edgeproto.ClusterFlavor) (*ClusterParams, error) {
 	ni, err := ParseNetSpec(GetCloudletNetworkScheme())
@@ -333,6 +380,7 @@ func getClusterParams(clusterInst *edgeproto.ClusterInst, flavor *edgeproto.Clus
 	cp.MEXRouterName = GetCloudletExternalRouter()
 	cp.MEXNetworkName = GetCloudletMexNetwork()
 	cp.ImageName = GetCloudletOSImage()
+	cp.SecurityGroup = GetCloudletSecurityGroup()
 
 	if clusterInst.MasterFlavor == "" {
 		return nil, fmt.Errorf("Master Flavor is not set")
@@ -393,29 +441,8 @@ func HeatCreateClusterKubernetes(clusterInst *edgeproto.ClusterInst, flavor *edg
 
 // HeatDeleteClusterKubernetes deletes the cluster resources
 func HeatDeleteClusterKubernetes(clusterInst *edgeproto.ClusterInst) error {
-
 	clusterName := k8smgmt.GetK8sNodeNameSuffix(clusterInst)
 	log.DebugLog(log.DebugLevelMexos, "deleting heat stack for cluster", "stackName", clusterName)
 	deleteHeatStack(clusterName)
-	for {
-		time.Sleep(5 * time.Second)
-		hd, _ := getHeatStackDetail(clusterName)
-		if hd == nil {
-			// it's gone
-			return nil
-		}
-		log.DebugLog(log.DebugLevelMexos, "Got Heat Stack detail", "detail", hd)
-		switch hd.StackStatus {
-		case "DELETE_IN_PROGRESS":
-			continue
-		case "DELETE_FAILED":
-			log.InfoLog("Heat Stack Deletion failed", "stackName", clusterName)
-			return fmt.Errorf("Heat Stack delete for cluster failed")
-		case "DELETE_COMPLETE":
-			return nil
-		default:
-			log.InfoLog("Unexpected Heat Stack status", "status", hd.StackStatus)
-			return fmt.Errorf("Stack delete for cluster unexpected status: %s", hd.StackStatus)
-		}
-	}
+	return waitForStackDelete(clusterName)
 }

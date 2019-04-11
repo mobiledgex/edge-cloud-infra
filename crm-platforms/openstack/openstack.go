@@ -78,12 +78,12 @@ func (s *Platform) Init(key *edgeproto.CloudletKey) error {
 		return fmt.Errorf("unable to find closest flavor for Shared RootLB: %v", err)
 	}
 
-	log.DebugLog(log.DebugLevelMexos, "calling RunMEXAgentCloudletKey", "cloudletkeystr", key.GetKeyString())
-	err = mexos.RunMEXAgentCloudletKey(rootLBName, key.GetKeyString(), flavorName)
+	log.DebugLog(log.DebugLevelMexos, "calling RunMEXAgent")
+	err = mexos.RunMEXAgent(rootLBName, flavorName)
 	if err != nil {
 		return err
 	}
-	log.DebugLog(log.DebugLevelMexos, "ok, RunMEXAgentCloudletKey with cloudlet key")
+	log.DebugLog(log.DebugLevelMexos, "ok, RunMEXAgent")
 	return nil
 }
 

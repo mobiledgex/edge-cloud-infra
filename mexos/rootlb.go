@@ -4,8 +4,10 @@ import (
 	"fmt"
 	"os"
 	"strconv"
+	"sync"
 	"time"
 
+	"github.com/mobiledgex/edge-cloud/cloud-resource-manager/k8smgmt"
 	"github.com/mobiledgex/edge-cloud/edgeproto"
 	"github.com/mobiledgex/edge-cloud/log"
 )
@@ -16,10 +18,15 @@ type MEXRootLB struct {
 	IP   string
 }
 
+var rootLBLock sync.Mutex
+
 var MEXRootLBMap = make(map[string]*MEXRootLB)
 
 //NewRootLB gets a new rootLB instance
 func NewRootLB(rootLBName string) (*MEXRootLB, error) {
+	rootLBLock.Lock()
+	defer rootLBLock.Unlock()
+
 	log.DebugLog(log.DebugLevelMexos, "getting new rootLB", "rootLBName", rootLBName)
 	if _, ok := MEXRootLBMap[rootLBName]; ok {
 		return nil, fmt.Errorf("rootlb %s already exists", rootLBName)
@@ -31,7 +38,9 @@ func NewRootLB(rootLBName string) (*MEXRootLB, error) {
 
 //DeleteRootLB to be called by code that called NewRootLB
 func DeleteRootLB(rootLBName string) {
-	delete(MEXRootLBMap, rootLBName) //no mutex because caller should be serializing New/Delete in a control loop
+	rootLBLock.Lock()
+	defer rootLBLock.Unlock()
+	delete(MEXRootLBMap, rootLBName)
 }
 
 func getRootLB(name string) (*MEXRootLB, error) {
@@ -54,11 +63,13 @@ var rootLBPorts = []int{
 	//8000,  //mex k8s join token server
 }
 
-//TODO more than one kubectl proxy, one per hosted  cluster
+func getDedicatedRootLBNameForCluster(clusterInst *edgeproto.ClusterInst) string {
+	return "lb-" + k8smgmt.GetK8sNodeNameSuffix(clusterInst)
+}
 
 //EnableRootLB creates a seed presence node in cloudlet that also becomes first Agent node.
 //  It also sets up first basic network router and subnet, ready for running first MEX agent.
-func EnableRootLB(rootLB *MEXRootLB, cloudletKey *edgeproto.CloudletKey, platformFlavor string) error {
+func EnableRootLB(rootLB *MEXRootLB, platformFlavor string) error {
 	log.DebugLog(log.DebugLevelMexos, "enable rootlb", "name", rootLB.Name)
 	if rootLB == nil {
 		return fmt.Errorf("cannot enable rootLB, rootLB is null")
@@ -90,13 +101,13 @@ func EnableRootLB(rootLB *MEXRootLB, cloudletKey *edgeproto.CloudletKey, platfor
 			return err
 		}
 		log.DebugLog(log.DebugLevelMexos, "created VM", "name", rootLB.Name)
-		ruleName := GetCloudletSecurityRule()
+		groupName := GetCloudletSecurityGroup()
 		//privateNetCIDR := strings.Replace(defaultPrivateNetRange, "X", "0", 1)
 		allowedClientCIDR := GetAllowedClientCIDR()
 		for _, p := range rootLBPorts {
 			portString := fmt.Sprintf("%d", p)
-			if err := AddSecurityRuleCIDR(allowedClientCIDR, "tcp", ruleName, portString); err != nil {
-				log.DebugLog(log.DebugLevelMexos, "warning, cannot add security rule", "error", err, "cidr", allowedClientCIDR, "port", p, "rule", ruleName)
+			if err := AddSecurityRuleCIDR(allowedClientCIDR, "tcp", groupName, portString); err != nil {
+				return err
 			}
 		}
 	} else {
@@ -104,6 +115,17 @@ func EnableRootLB(rootLB *MEXRootLB, cloudletKey *edgeproto.CloudletKey, platfor
 	}
 	log.DebugLog(log.DebugLevelMexos, "done enabling rootlb", "name", rootLB.Name)
 
+	return nil
+}
+
+//DisableRootLB deletes the heat stack and removes the rootlb from the table
+func DisableRootLB(rootLBName string) error {
+	err := HeatDeleteVM(rootLBName)
+	if err != nil {
+		log.DebugLog(log.DebugLevelMexos, "error while deleting RootLB VM", "error", err)
+		return err
+	}
+	DeleteRootLB(rootLBName)
 	return nil
 }
 

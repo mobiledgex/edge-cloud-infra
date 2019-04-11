@@ -1,7 +1,6 @@
 package mexos
 
 import (
-	"encoding/json"
 	"fmt"
 	"runtime"
 	"strings"
@@ -9,7 +8,6 @@ import (
 	valid "github.com/asaskevich/govalidator"
 	sh "github.com/codeskyblue/go-sh"
 	"github.com/mobiledgex/edge-cloud/cloud-resource-manager/platform/pc"
-	"github.com/mobiledgex/edge-cloud/edgeproto"
 	"github.com/mobiledgex/edge-cloud/integration/process"
 	"github.com/mobiledgex/edge-cloud/log"
 )
@@ -47,7 +45,7 @@ func RunLocalMexAgent() error {
 //   It then obtains certficiates from Letsencrypt, if not done yet.  Then it runs the docker instance of MEX agent
 //   on the RootLB. It can be told to manually pull image from docker repository.  This allows upgrading with new image.
 //   It uses MEX private docker repository.  If an instance is running already, we don't start another one.
-func RunMEXAgent(rootLBName string, cloudletKey *edgeproto.CloudletKey, platformFlavor string) error {
+func RunMEXAgent(rootLBName string, platformFlavor string) error {
 	log.DebugLog(log.DebugLevelMexos, "run mex agent")
 	fqdn := rootLBName
 	//fqdn is that of the machine/kvm-instance running the agent
@@ -73,11 +71,11 @@ func RunMEXAgent(rootLBName string, cloudletKey *edgeproto.CloudletKey, platform
 			}
 			log.DebugLog(log.DebugLevelMexos, "set rootLB IP to", "ip", extIP)
 			rootLB.IP = extIP
-			// recheck certs in case they expired
-			err = AcquireCertificates(rootLBName) //fqdn name may be different than rootLB.Name
-			if err != nil {
-				return fmt.Errorf("can't acquire certificate for %s, %v", rootLB.Name, err)
-			}
+			// Certificate handling needs to be reworked
+			//err = AcquireCertificates(rootLBName) //fqdn name may be different than rootLB.Name
+			///if err != nil {
+			//	return fmt.Errorf("can't acquire certificate for %s, %v", rootLB.Name, err)
+			//}
 			// now ensure the rootLB can reach all the internal networks
 			err = LBAddRouteAndSecRules(client, rootLBName)
 			if err != nil {
@@ -99,7 +97,7 @@ func RunMEXAgent(rootLBName string, cloudletKey *edgeproto.CloudletKey, platform
 		return fmt.Errorf("missing agent image")
 	}
 	log.DebugLog(log.DebugLevelMexos, "record platform config")
-	err = EnableRootLB(rootLB, cloudletKey, platformFlavor)
+	err = EnableRootLB(rootLB, platformFlavor)
 	if err != nil {
 		log.DebugLog(log.DebugLevelMexos, "can't enable agent", "name", rootLB.Name)
 		return fmt.Errorf("Failed to enable root LB %v", err)
@@ -128,10 +126,13 @@ func RunMEXAgent(rootLBName string, cloudletKey *edgeproto.CloudletKey, platform
 		return err
 	}
 	log.DebugLog(log.DebugLevelMexos, "FQDN A record activated", "name", rootLB.Name)
-	err = AcquireCertificates(rootLB.Name) //fqdn name may be different than rootLB.Name
-	if err != nil {
-		return fmt.Errorf("can't acquire certificate for %s, %v", rootLB.Name, err)
-	}
+	//As there is no support for L7 load balancing right now, skipping the cert scp from
+	//registry.  Cert handling needs to be revamped entirely to handle 1) storage in a better
+	//location than the registry server and 2) cert renewal
+	//err = AcquireCertificates(rootLB.Name) //fqdn name may be different than rootLB.Name
+	//if err != nil {
+	//	return fmt.Errorf("can't acquire certificate for %s, %v", rootLB.Name, err)
+	//}
 	log.DebugLog(log.DebugLevelMexos, "acquired certificates from letsencrypt", "name", rootLB.Name)
 	err = GetHTPassword(rootLB.Name)
 	if err != nil {
@@ -233,19 +234,4 @@ func RunMEXOSAgentContainer(client pc.PlatformClient, rootLB *MEXRootLB) error {
 	}
 	log.DebugLog(log.DebugLevelMexos, "now running dockerized mexosagent")
 	return nil
-}
-
-//RunMEXAgentCloudletKey calls MEXPlatformInit with templated manifest
-func RunMEXAgentCloudletKey(rootLBName string, cloudletKeyStr string, platformFlavor string) error {
-
-	clk := edgeproto.CloudletKey{}
-	err := json.Unmarshal([]byte(cloudletKeyStr), &clk)
-	if err != nil {
-		return fmt.Errorf("can't unmarshal json cloudletkey %s, %v", cloudletKeyStr, err)
-	}
-	log.DebugLog(log.DebugLevelMexos, "unmarshalled cloudletkeystr", "cloudletkey", clk)
-	if clk.Name == "" || clk.OperatorKey.Name == "" {
-		return fmt.Errorf("invalid cloudletkeystr %s", cloudletKeyStr)
-	}
-	return RunMEXAgent(rootLBName, &clk, platformFlavor)
 }

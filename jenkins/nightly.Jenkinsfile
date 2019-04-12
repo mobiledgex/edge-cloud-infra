@@ -1,16 +1,16 @@
-def DOCKER_BUILD_TAG = 'latest'
-
 pipeline {
     options {
         timeout(time: 30, unit: 'MINUTES')
     }
     agent any
+    environment {
+        DOCKER_BUILD_TAG = sh(returnStdout: true, script: 'date +"%Y-%m-%d"')
+    }
     stages {
         stage('Set up build tag') {
             steps {
                 script {
-                    DOCKER_BUILD_TAG = sh(returnStdout: true, script: 'date +"%Y-%m-%d"')
-                    currentBuild.displayName = DOCKER_BUILD_TAG
+                    currentBuild.displayName = "${DOCKER_BUILD_TAG}"
                 }
             }
         }

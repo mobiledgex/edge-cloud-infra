@@ -1,4 +1,4 @@
-def BUILD_TAG = 'latest'
+def DOCKER_BUILD_TAG = 'latest'
 
 pipeline {
     options {
@@ -9,7 +9,8 @@ pipeline {
         stage('Set up build tag') {
             steps {
                 script {
-                    BUILD_TAG = sh(returnStdout: true, script: 'date +"%Y-%m-%d"')
+                    DOCKER_BUILD_TAG = sh(returnStdout: true, script: 'date +"%Y-%m-%d"')
+                    currentBuild.displayName = DOCKER_BUILD_TAG
                 }
             }
         }
@@ -56,12 +57,12 @@ make dep
             steps {
                 dir(path: 'go/src/github.com/mobiledgex/edge-cloud') {
                     sh label: 'make build-docker', script: '''#!/bin/bash
-TAG="${BUILD_TAG}" make build-docker
+TAG="${DOCKER_BUILD_TAG}" make build-docker
                     '''
                 }
                 script {
                     currentBuild.displayName = sh(returnStdout: true,
-                        script: "docker run --rm registry.mobiledgex.net:5000/mobiledgex/edge-cloud:${BUILD_TAG} version")
+                        script: "docker run --rm registry.mobiledgex.net:5000/mobiledgex/edge-cloud:${DOCKER_BUILD_TAG} version")
                 }
             }
         }

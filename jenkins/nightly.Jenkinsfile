@@ -3,7 +3,17 @@ pipeline {
         timeout(time: 30, unit: 'MINUTES')
     }
     agent any
+    environment {
+        DOCKER_BUILD_TAG = sh(returnStdout: true, script: 'date +"%Y-%m-%d" | tr -d "\n"')
+    }
     stages {
+        stage('Set up build tag') {
+            steps {
+                script {
+                    currentBuild.displayName = "${DOCKER_BUILD_TAG}"
+                }
+            }
+        }
         stage('Checkout') {
             steps {
                 dir(path: 'go/src/github.com/mobiledgex/edge-cloud-infra') {
@@ -25,27 +35,13 @@ make edge-cloud-version-set
                 }
             }
         }
-        stage('Build') {
+        stage('Pull in dependencies') {
             steps {
-                dir(path: 'go/src/github.com/mobiledgex/edge-cloud') {
-                    sh label: 'make clean', script: '''#!/bin/bash
-export PATH=$PATH:$HOME/go/bin:$WORKSPACE/go/bin
-export GOPATH=$WORKSPACE/go
-make clean
-                    '''
-                }
                 dir(path: 'go/src/github.com/mobiledgex/edge-cloud') {
                     sh label: 'make dep', script: '''#!/bin/bash
 export PATH=$PATH:$HOME/go/bin:$WORKSPACE/go/bin
 export GOPATH=$WORKSPACE/go
 make dep
-                    '''
-                }
-                dir(path: 'go/src/github.com/mobiledgex/edge-cloud') {
-                    sh label: 'make tools', script: '''#!/bin/bash
-export PATH=$PATH:$HOME/go/bin:$WORKSPACE/go/bin
-export GOPATH=$WORKSPACE/go
-make tools
                     '''
                 }
                 dir(path: 'go/src/github.com/mobiledgex/edge-cloud-infra') {
@@ -55,21 +51,18 @@ export GOPATH=$WORKSPACE/go
 make dep
                     '''
                 }
-                dir(path: 'go/src/github.com/mobiledgex/edge-cloud-infra') {
-                    sh label: 'make', script: '''#!/bin/bash
-export PATH=$PATH:$HOME/go/bin:$WORKSPACE/go/bin
-export GOPATH=$WORKSPACE/go
-make
-                    '''
-                }
             }
         }
         stage('Docker Image') {
             steps {
                 dir(path: 'go/src/github.com/mobiledgex/edge-cloud') {
                     sh label: 'make build-docker', script: '''#!/bin/bash
-TAG="$( date +'%Y-%m-%d' )" make build-docker
+TAG="${DOCKER_BUILD_TAG}" make build-docker
                     '''
+                }
+                script {
+                    currentBuild.displayName = sh(returnStdout: true,
+                        script: "docker run --rm registry.mobiledgex.net:5000/mobiledgex/edge-cloud:${DOCKER_BUILD_TAG} version")
                 }
             }
         }

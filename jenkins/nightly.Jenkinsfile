@@ -61,7 +61,7 @@ TAG="${BUILD_TAG}" make build-docker
                 }
                 script {
                     currentBuild.displayName = sh(returnStdout: true,
-                        script: "docker run --rm registry.mobiledgex.net:5000/mobiledgex/edge-cloud:${BUILD_TAG}")
+                        script: "docker run --rm registry.mobiledgex.net:5000/mobiledgex/edge-cloud:${BUILD_TAG} version")
                 }
             }
         }

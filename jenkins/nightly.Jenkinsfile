@@ -1,4 +1,4 @@
-def BUILD_TAG = sh(returnStdout: true, script: 'date +"%Y-%m-%d"')
+def BUILD_TAG = 'latest'
 
 pipeline {
     options {
@@ -6,6 +6,13 @@ pipeline {
     }
     agent any
     stages {
+        stage('Set up build tag') {
+            steps {
+                script {
+                    BUILD_TAG = sh(returnStdout: true, script: 'date +"%Y-%m-%d"')
+                }
+            }
+        }
         stage('Checkout') {
             steps {
                 dir(path: 'go/src/github.com/mobiledgex/edge-cloud-infra') {

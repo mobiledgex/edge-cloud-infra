@@ -7,8 +7,6 @@ import (
 	"sync"
 	"time"
 
-	"github.com/mobiledgex/edge-cloud/util"
-
 	valid "github.com/asaskevich/govalidator"
 	"github.com/mobiledgex/edge-cloud/edgeproto"
 	"github.com/mobiledgex/edge-cloud/log"
@@ -58,13 +56,6 @@ func getRootLB(name string) (*MEXRootLB, error) {
 
 var rootLBPorts = []int{
 	18889, //mexosagent HTTP server
-}
-
-func GetDedicatedRootLBNameForCluster(clusterInst *edgeproto.ClusterInst, cloudletKey *edgeproto.CloudletKey) string {
-	cloudletName := util.DNSSanitize(clusterInst.Key.CloudletKey.Name)
-	clusterName := util.DNSSanitize(clusterInst.Key.ClusterKey.Name)
-	operatorName := util.DNSSanitize(cloudletKey.OperatorKey.Name)
-	return cloudletName + "." + clusterName + "." + operatorName
 }
 
 //CreateRootLB creates a seed presence node in cloudlet that also becomes first Agent node.
@@ -126,7 +117,7 @@ func SetupRootLB(rootLBName string, createRootLBFlavor string) error {
 	if err == nil && sd.Name == rootLBName {
 		log.DebugLog(log.DebugLevelMexos, "server with same name as rootLB exists", "rootLBName", rootLBName)
 	} else if createRootLBFlavor != "" {
-		err = CreateRootLB(rootLB, rootLBName)
+		err = CreateRootLB(rootLB, createRootLBFlavor)
 		if err != nil {
 			log.DebugLog(log.DebugLevelMexos, "can't create agent", "name", rootLB.Name)
 			return fmt.Errorf("Failed to enable root LB %v", err)

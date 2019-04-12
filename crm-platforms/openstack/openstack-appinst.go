@@ -15,7 +15,7 @@ func (s *Platform) CreateAppInst(clusterInst *edgeproto.ClusterInst, app *edgepr
 	// TODO: rootLB may be specific to clusterInst for dedicated IP configs
 	rootLBName := s.rootLBName
 	if clusterInst.IpAccess == edgeproto.IpAccess_IpAccessDedicated {
-		rootLBName = mexos.GetDedicatedRootLBNameForCluster(clusterInst, s.cloudletKey)
+		rootLBName = cloudcommon.GetDedicatedLBFQDN(s.cloudletKey, &clusterInst.Key.ClusterKey)
 		log.DebugLog(log.DebugLevelMexos, "using dedicated RootLB to create app", "rootLBName", rootLBName)
 	}
 	client, err := s.GetPlatformClient(rootLBName)
@@ -65,7 +65,7 @@ func (s *Platform) CreateAppInst(clusterInst *edgeproto.ClusterInst, app *edgepr
 func (s *Platform) DeleteAppInst(clusterInst *edgeproto.ClusterInst, app *edgeproto.App, appInst *edgeproto.AppInst, names *k8smgmt.KubeNames) error {
 	rootLBName := s.rootLBName
 	if clusterInst.IpAccess == edgeproto.IpAccess_IpAccessDedicated {
-		rootLBName = mexos.GetDedicatedRootLBNameForCluster(clusterInst, s.cloudletKey)
+		rootLBName = cloudcommon.GetDedicatedLBFQDN(s.cloudletKey, &clusterInst.Key.ClusterKey)
 		log.DebugLog(log.DebugLevelMexos, "using dedicated RootLB to delete app", "rootLBName", rootLBName)
 	}
 	client, err := s.GetPlatformClient(rootLBName)

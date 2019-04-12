@@ -312,7 +312,7 @@ func getVMParams(serverName, flavor, imageName string) (*VMParams, error) {
 
 // HeatCreateVM creates a new VM and optionally associates a floating IP
 func HeatCreateVM(serverName, flavor, imageName string) error {
-	log.DebugLog(log.DebugLevelMexos, "HeatCreateVM", "serverName", serverName, "flavor", flavor)
+	log.DebugLog(log.DebugLevelMexos, "HeatCreateVM", "serverName", serverName, "flavor", flavor, "imageName", imageName)
 
 	vmp, err := getVMParams(serverName, flavor, imageName)
 	if err != nil {

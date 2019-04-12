@@ -258,12 +258,12 @@ func waitForStackDelete(stackname string) error {
 			continue
 		case "DELETE_FAILED":
 			log.InfoLog("Heat Stack Deletion failed", "stackName", stackname)
-			return fmt.Errorf("Heat Stack delete for cluster failed")
+			return fmt.Errorf("Heat Stack delete failed")
 		case "DELETE_COMPLETE":
 			return nil
 		default:
 			log.InfoLog("Unexpected Heat Stack status", "status", hd.StackStatus)
-			return fmt.Errorf("Stack delete for cluster unexpected status: %s", hd.StackStatus)
+			return fmt.Errorf("Stack delete unexpected status: %s", hd.StackStatus)
 		}
 	}
 }

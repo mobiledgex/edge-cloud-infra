@@ -1,0 +1,31 @@
+---
+- hosts: platform
+  pre_tasks:
+    - name: Check if edge-cloud Image is Available
+      uri:
+        url: "https://{{ mex_docker_username }}:{{ mex_docker_password }}@{{ mex_docker_registry }}/v2/mobiledgex/edge-cloud/tags/list"
+        return_content: yes
+        status_code: 200
+        body_format: json
+      register: response
+      failed_when: edge_cloud_version not in response.json.tags
+    - debug:
+        msg: "Deploying edge-cloud version '{{ edge_cloud_version }}' to cluster '{{ deploy_target }}'"
+  roles:
+    - k8s
+    - etcd
+    - monitor
+    - controller
+
+- hosts: crms
+  roles:
+    - docker
+    - crm
+
+- hosts: mcs
+  roles:
+    - role: web
+      vars:
+        nginx_config_template: "templates/mexplat/mc-nginx-config.j2"
+    - docker
+    - mc

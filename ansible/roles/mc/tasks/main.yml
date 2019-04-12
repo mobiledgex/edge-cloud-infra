@@ -1,0 +1,57 @@
+- name: Deploy the MC
+  docker_container:
+    name: "{{ mc_name }}"
+    image: "{{ edge_cloud_image }}:{{ edge_cloud_version }}"
+    restart_policy: unless-stopped
+    command:
+      - mc
+      - "-addr"
+      - "0.0.0.0:{{ mc_api_port }}"
+      - "-sqlAddr"
+      - "{{ postgres_server }}"
+      - "-vaultAddr"
+      - "{{ vault_address }}"
+      - "-gitlabAddr"
+      - "{{ gitlab_address }}"
+      - "-ldapAddr"
+      - "0.0.0.0:{{ mc_ldap_port }}"
+      - "-tls"
+      - "/root/tls/mex-server.crt"
+      - "-tlskey"
+      - "/root/tls/mex-server.key"
+      - "-clientCert"
+      - "/root/tls/mex-server.crt"
+      - "-d"
+      - "api"
+    ports:
+      - "127.0.0.1:{{ mc_api_internal_port }}:{{ mc_api_port }}"
+      - "{{ mc_ldap_port }}:{{ mc_ldap_port }}"
+    env:
+      db_name: "{{ mc_postgres_db }}"
+      db_username: "{{ mc_postgres_username }}"
+      db_password: "{{ mc_postgres_password }}"
+      superuser: "{{ mc_superuser }}"
+      superpass: "{{ mc_superuser_password }}"
+      VAULT_ROLE_ID: "{{ mc_vault_role_id }}"
+      VAULT_SECRET_ID: "{{ mc_vault_secret_id }}"
+      gitlab_token: "{{ mc_gitlab_token }}"
+
+- name: Get MC Public IP
+  uri:
+    url: http://ifconfig.me/ip
+    return_content: yes
+  register: ifconfig_me_response
+
+- set_fact:
+    mc_ip: "{{ ifconfig_me_response.content }}"
+
+- name: Update MC DNS
+  cloudflare_dns:
+    zone: "{{ cloudflare_zone }}"
+    record: "{{ mc_name }}"
+    value: "{{ mc_ip }}"
+    type: A
+    state: present
+    solo: true
+    account_email: "{{ cloudflare_account_email }}"
+    account_api_token: "{{ cloudflare_account_api_token }}"

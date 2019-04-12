@@ -4,7 +4,7 @@ pipeline {
     }
     agent any
     environment {
-        DOCKER_BUILD_TAG = sh(returnStdout: true, script: 'date +"%Y-%m-%d"')
+        DOCKER_BUILD_TAG = sh(returnStdout: true, script: 'date +"%Y-%m-%d" | tr -d "\n"')
     }
     stages {
         stage('Set up build tag') {

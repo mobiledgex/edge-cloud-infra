@@ -156,6 +156,7 @@ func GetCloudletSecurityGroup() string {
 	}
 	return sg
 }
+
 func GetCloudletMexosAgentPort() string {
 	return "18889"
 }

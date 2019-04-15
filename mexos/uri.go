@@ -4,7 +4,11 @@ import (
 	"fmt"
 	"io/ioutil"
 	"net/http"
+	"net/url"
+	"os"
+	"path/filepath"
 	"strings"
+	"time"
 
 	sh "github.com/codeskyblue/go-sh"
 	"github.com/mobiledgex/edge-cloud/log"
@@ -105,3 +109,77 @@ func GetSCPFile(uri string) ([]byte, error) {
 // 	}
 // 	return nil
 // }
+
+func GetFileNameWithExt(fileUrlPath string) (string, error) {
+	log.DebugLog(log.DebugLevelMexos, "get file name with extension from url", "file-url", fileUrlPath)
+	fileUrl, err := url.Parse(fileUrlPath)
+	if err != nil {
+		return "", fmt.Errorf("Error parsing file URL %s, %v", fileUrlPath, err)
+	}
+
+	path := fileUrl.Path
+	segments := strings.Split(path, "/")
+
+	return segments[len(segments)-1], nil
+}
+
+func GetFileName(fileUrlPath string) (string, error) {
+	log.DebugLog(log.DebugLevelMexos, "get file name from url", "file-url", fileUrlPath)
+	fileName, err := GetFileNameWithExt(fileUrlPath)
+	if err != nil {
+		return "", err
+	}
+	return strings.TrimSuffix(fileName, filepath.Ext(fileName)), nil
+}
+
+func GetArtifactoryCreds() (string, string, error) {
+	af_user := os.Getenv("MEX_ARTIFACTORY_USER")
+	if af_user == "" {
+		return "", "", fmt.Errorf("Env variable MEX_ARTIFACTORY_USER not set")
+	}
+	af_pass := os.Getenv("MEX_ARTIFACTORY_PASS")
+	if af_pass == "" {
+		return "", "", fmt.Errorf("Env variable MEX_ARTIFACTORY_PASS not set")
+	}
+	return af_user, af_pass, nil
+}
+
+func GetUrlUpdatedTime(fileUrlPath string) (time.Time, error) {
+	log.DebugLog(log.DebugLevelMexos, "get url last-modified time", "file-url", fileUrlPath)
+	af_user, af_pass, err := GetArtifactoryCreds()
+	if err != nil {
+		return time.Time{}, err
+	}
+	client := &http.Client{}
+	req, err := http.NewRequest("HEAD", fileUrlPath, nil)
+	req.SetBasicAuth(af_user, af_pass)
+	resp, err := client.Do(req)
+	if err != nil {
+		return time.Time{}, fmt.Errorf("Error fetching last modified time of URL %s, %v", fileUrlPath, err)
+	}
+	tStr := resp.Header.Get("Last-modified")
+	return time.Parse(time.RFC1123, tStr)
+}
+
+func DownloadFile(fileUrlPath string) error {
+	log.DebugLog(log.DebugLevelMexos, "attempt to download file", "file-url", fileUrlPath)
+	fileUrl, err := url.Parse(fileUrlPath)
+	if fileUrl.Host == "artifactory.mobiledgex.net" {
+		af_user, af_pass, err := GetArtifactoryCreds()
+		if err != nil {
+			return err
+		}
+		_, err = sh.Command("wget", "--user", af_user, "--password", af_pass, fileUrlPath, sh.Dir("/tmp")).Output()
+	} else {
+		_, err = sh.Command("wget", "--no-check-certificate", fileUrlPath, sh.Dir("/tmp")).Output()
+	}
+	return err
+}
+
+func DeleteFile(filePath string) error {
+	var err error
+	if _, err = os.Stat(filePath); !os.IsNotExist(err) {
+		_, err = sh.Command("rm", filePath).Output()
+	}
+	return err
+}

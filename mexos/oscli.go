@@ -62,6 +62,34 @@ func ListImages() ([]OSImage, error) {
 	return images, nil
 }
 
+//GetImageDetail show of a given image from Glance
+func GetImageDetail(name string) (*OSImageDetail, error) {
+	out, err := TimedOpenStackCommand("openstack", "image", "show", name, "-f", "json", "-c", "id", "-c", "status", "-c", "updated_at")
+	if err != nil {
+		err = fmt.Errorf("cannot get image Detail for %s, %s, %v", name, string(out), err)
+		return nil, err
+	}
+	var imageDetail OSImageDetail
+	err = json.Unmarshal(out, &imageDetail)
+	if err != nil {
+		err = fmt.Errorf("cannot unmarshal, %v", err)
+		return nil, err
+	}
+	log.DebugLog(log.DebugLevelMexos, "show image Detail", "Detail", imageDetail)
+	return &imageDetail, nil
+}
+
+func GetImageUpdatedTime(name string) (time.Time, error) {
+	imageDetail, err := GetImageDetail(name)
+	if err == nil && imageDetail.Status != "active" {
+		err = fmt.Errorf("image %s is not active", name)
+	}
+	if err != nil {
+		return time.Time{}, err
+	}
+	return time.Parse(time.RFC3339, imageDetail.UpdatedAt)
+}
+
 //ListNetworks lists networks known to the platform. Some created by the operator, some by users.
 func ListNetworks() ([]OSNetwork, error) {
 	out, err := TimedOpenStackCommand("openstack", "network", "list", "-f", "json")
@@ -404,6 +432,28 @@ func CreateImage(imageName, qcowFile string) error {
 	return nil
 }
 
+//CreateImageFromUrl downloads image from URL and then puts into glance
+func CreateImageFromUrl(imageName, imageUrl string) error {
+	fileExt, err := GetFileNameWithExt(imageUrl)
+	if err != nil {
+		return err
+	}
+	filePath := "/tmp/" + fileExt
+	err = DownloadFile(imageUrl)
+	if err != nil {
+		return fmt.Errorf("error downloading image from %s, %v", imageUrl, err)
+	}
+
+	err = CreateImage(imageName, filePath)
+	if delerr := DeleteFile(filePath); delerr != nil {
+		log.DebugLog(log.DebugLevelMexos, "delete file failed", "filePath", filePath)
+	}
+	if err != nil {
+		return fmt.Errorf("error creating image %v", err)
+	}
+	return err
+}
+
 //SaveImage takes the image name available in glance, as a result of for example the above create image.
 // It will then save that into a local file. The image transfer happens from glance into your own laptop
 // or whatever.
@@ -562,4 +612,23 @@ func OSGetLimits(info *edgeproto.CloudletInfo) error {
 		)
 	}
 	return nil
+}
+
+func GetFlavorInfo() ([]*edgeproto.FlavorInfo, error) {
+	osflavors, err := ListFlavors()
+	if err != nil || len(osflavors) == 0 {
+		return nil, fmt.Errorf("failed to get flavors, %s", err.Error())
+	}
+	var finfo []*edgeproto.FlavorInfo
+	for _, f := range osflavors {
+		finfo = append(
+			finfo,
+			&edgeproto.FlavorInfo{
+				Name:  f.Name,
+				Vcpus: uint64(f.VCPUs),
+				Ram:   uint64(f.RAM),
+				Disk:  uint64(f.Disk)},
+		)
+	}
+	return finfo, nil
 }

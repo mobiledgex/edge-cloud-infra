@@ -23,7 +23,15 @@ type VMParams struct {
 	MEXRouterIP         string
 	GatewayIP           string
 	FloatingIPAddressID string
+	AuthPublicKey       template.HTML // Must be of this type to skip HTML escaping
 }
+
+type DeploymentType string
+
+const (
+	RootLBVMDeployment DeploymentType = "mexrootlb"
+	UserVMDeployment   DeploymentType = "mexuservm"
+)
 
 var floatingIPLock sync.Mutex
 
@@ -74,11 +82,34 @@ var vmTemplateResources = `
           port_id: { get_resource: vm-port }
   {{- end}}`
 
-var vmTemplate = `
+var rootlbVMTemplate = `
 heat_template_version: 2016-10-14
 description: Create a VM
 resources:
 ` + vmTemplateResources
+
+var userVMTemplate = `
+heat_template_version: 2016-10-14
+description: Create a VM
+resources:
+    vm:
+      type: OS::Nova::Server
+      properties:
+         name: 
+            {{.VMName}}
+         image: {{.ImageName}}
+         flavor: {{.Flavor}}
+         {{if .AuthPublicKey}}key_name: { get_resource: ssh_key_pair } {{- end}}
+         config_drive: true
+         networks:
+          - network: {{.NetworkName}}
+    {{if .AuthPublicKey}}
+    ssh_key_pair:
+      type: OS::Nova::KeyPair
+      properties:
+        name: {{.VMName}}-ssh-keypair
+        public_key: {{.AuthPublicKey}}
+    {{- end}}`
 
 // ClusterNode is a k8s node
 type ClusterNode struct {
@@ -317,17 +348,40 @@ func getVMParams(serverName, flavor, imageName string) (*VMParams, error) {
 }
 
 // HeatCreateVM creates a new VM and optionally associates a floating IP
-func HeatCreateVM(serverName, flavor, imageName string) error {
-	log.DebugLog(log.DebugLevelMexos, "HeatCreateVM", "serverName", serverName, "flavor", flavor, "imageName", imageName)
+func HeatCreateVM(serverName, flavor, imageName string, depType DeploymentType, authPublicKey string) error {
+	log.DebugLog(log.DebugLevelMexos, "HeatCreateVM", "serverName", serverName, "flavor", flavor, "imageName", imageName, "depType", depType)
 
-	vmp, err := getVMParams(serverName, flavor, imageName)
-	if err != nil {
-		return fmt.Errorf("Unable to get VM params: %v", err)
+	var tmpl *template.Template
+	var vmp *VMParams
+	var err error
+
+	switch depType {
+	case RootLBVMDeployment:
+		vmp, err = getVMParams(serverName, flavor, imageName)
+		if err != nil {
+			return fmt.Errorf("Unable to get VM params: %v", err)
+		}
+		tmpl, err = template.New("mexrootlbvm").Parse(rootlbVMTemplate)
+		if err != nil {
+			return err
+		}
+	case UserVMDeployment:
+		// TODO: Fetch networkSpec from environment variable
+		// TODO: Integrate floating IP support
+		vmp = &VMParams{}
+		vmp.VMName = serverName
+		vmp.Flavor = flavor
+		vmp.ImageName = imageName
+		vmp.NetworkName = "external-network-shared" //GetCloudletExternalNetwork()
+		vmp.AuthPublicKey = template.HTML(authPublicKey)
+		tmpl, err = template.New("mexuservm").Parse(userVMTemplate)
+		if err != nil {
+			return err
+		}
+	default:
+		return fmt.Errorf("Unsupported deployment type %s", depType)
 	}
-	tmpl, err := template.New("vm").Parse(vmTemplate)
-	if err != nil {
-		return err
-	}
+
 	var buf bytes.Buffer
 	err = tmpl.Execute(&buf, vmp)
 	if err != nil {
@@ -343,10 +397,7 @@ func HeatCreateVM(serverName, flavor, imageName string) error {
 		return err
 	}
 	err = waitForStackCreate(serverName)
-	if err != nil {
-		return err
-	}
-	return nil
+	return err
 }
 
 // HeatDeleteVM deletes the VM resources

@@ -86,7 +86,7 @@ func CreateRootLB(rootLB *MEXRootLB, platformFlavor string) error {
 	}
 	if found == 0 {
 		log.DebugLog(log.DebugLevelMexos, "not found existing server", "name", rootLB.Name)
-		err = HeatCreateVM(rootLB.Name, platformFlavor, GetCloudletOSImage())
+		err = HeatCreateVM(rootLB.Name, platformFlavor, GetCloudletOSImage(), RootLBVMDeployment, "")
 		if err != nil {
 			log.DebugLog(log.DebugLevelMexos, "error while creating VM", "error", err)
 			return err

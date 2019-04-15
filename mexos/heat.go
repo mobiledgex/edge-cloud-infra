@@ -359,7 +359,7 @@ func HeatCreateVM(serverName, flavor, imageName string, depType DeploymentType, 
 			heatStackLock.Lock()
 			defer heatStackLock.Unlock()
 		}
-		vmp, err := getVMParams(serverName, flavor, imageName, ni)
+		vmp, err = getVMParams(serverName, flavor, imageName, ni)
 		if err != nil {
 			return fmt.Errorf("Unable to get VM params: %v", err)
 		}

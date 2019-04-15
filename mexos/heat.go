@@ -33,7 +33,7 @@ const (
 	UserVMDeployment   DeploymentType = "mexuservm"
 )
 
-var floatingIPLock sync.Mutex
+var heatStackLock sync.Mutex
 
 // This is the resources part of a template for a VM. It is for use within another template
 // the parameters under VMP can come from either a standalone struture (VM Create) or a cluster (for rootLB)
@@ -132,8 +132,6 @@ type ClusterParams struct {
 	Nodes          []ClusterNode
 	*VMParams      //rootlb
 }
-
-var clusterCreateLock sync.Mutex
 
 var k8sClusterTemplate = `
 heat_template_version: 2016-10-14
@@ -304,15 +302,12 @@ func waitForStackDelete(stackname string) error {
 	}
 }
 
-func getVMParams(serverName, flavor, imageName string) (*VMParams, error) {
+func getVMParams(serverName, flavor, imageName string, ni *NetSpecInfo) (*VMParams, error) {
 	var vmp VMParams
+	var err error
 	vmp.VMName = serverName
 	vmp.Flavor = flavor
 	vmp.ImageName = imageName
-	ni, err := ParseNetSpec(GetCloudletNetworkScheme())
-	if err != nil {
-		return nil, err
-	}
 	vmp.GatewayIP, err = GetExternalGateway(GetCloudletExternalNetwork())
 	vmp.SecurityGroup = GetCloudletSecurityGroup()
 	if err != nil {
@@ -323,9 +318,6 @@ func getVMParams(serverName, flavor, imageName string) (*VMParams, error) {
 		return nil, err
 	}
 	if ni.FloatingIPNet != "" {
-		// lock here to avoid getting the same floating IP; we need to lock until the stack is done
-		floatingIPLock.Lock()
-		defer floatingIPLock.Unlock()
 
 		fips, err := ListFloatingIPs()
 		for _, f := range fips {
@@ -357,7 +349,17 @@ func HeatCreateVM(serverName, flavor, imageName string, depType DeploymentType, 
 
 	switch depType {
 	case RootLBVMDeployment:
-		vmp, err = getVMParams(serverName, flavor, imageName)
+		ni, err := ParseNetSpec(GetCloudletNetworkScheme())
+		if err != nil {
+			return err
+		}
+		// lock here to avoid getting the same floating IP; we need to lock until the stack is done
+		// Floating IPs are allocated both by VM and cluster creation
+		if ni.FloatingIPNet != "" {
+			heatStackLock.Lock()
+			defer heatStackLock.Unlock()
+		}
+		vmp, err := getVMParams(serverName, flavor, imageName, ni)
 		if err != nil {
 			return fmt.Errorf("Unable to get VM params: %v", err)
 		}
@@ -411,15 +413,15 @@ func HeatDeleteVM(serverName string) error {
 func getClusterParams(clusterInst *edgeproto.ClusterInst, flavor *edgeproto.ClusterFlavor, rootLBName string) (*ClusterParams, error) {
 	var cp ClusterParams
 	var err error
-	if rootLBName != "" {
-		cp.VMParams, err = getVMParams(rootLBName, clusterInst.NodeFlavor, GetCloudletOSImage())
-		if err != nil {
-			return nil, fmt.Errorf("Unable to get rootlb params: %v", err)
-		}
-	}
 	ni, err := ParseNetSpec(GetCloudletNetworkScheme())
 	if err != nil {
 		return nil, err
+	}
+	if rootLBName != "" {
+		cp.VMParams, err = getVMParams(rootLBName, clusterInst.NodeFlavor, GetCloudletOSImage(), ni)
+		if err != nil {
+			return nil, fmt.Errorf("Unable to get rootlb params: %v", err)
+		}
 	}
 	usedCidrs := make(map[string]bool)
 
@@ -480,8 +482,9 @@ func HeatCreateClusterKubernetes(clusterInst *edgeproto.ClusterInst, flavor *edg
 	// defining the template.  If 2 start at once they may end up trying to create the same subnet and one will fail.
 	// So we will do this one at a time.   It will slightly slow down the creation of the second cluster, but the heat
 	// stack create time is relatively quick compared to the k8s startup which can be done in parallel
-	clusterCreateLock.Lock()
-	defer clusterCreateLock.Unlock()
+	// Floating IPs can also be allocated within the stack and need to be locked as well.
+	heatStackLock.Lock()
+	defer heatStackLock.Unlock()
 
 	cp, err := getClusterParams(clusterInst, flavor, dedicatedRootLBName)
 	if err != nil {

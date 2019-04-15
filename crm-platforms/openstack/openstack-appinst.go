@@ -104,9 +104,8 @@ func (s *Platform) CreateAppInst(clusterInst *edgeproto.ClusterInst, app *edgepr
 			return fmt.Errorf("unable to find closest flavor for app: %v", err)
 		}
 
-		stackName := app.Key.Name + "-heat"
-		log.DebugLog(log.DebugLevelMexos, "Deploying VM", "stackName", stackName, "flavor", appFlavorName)
-		err = mexos.HeatCreateVM(stackName, appFlavorName, imageName, mexos.UserVMDeployment, app.AuthPublicKey)
+		log.DebugLog(log.DebugLevelMexos, "Deploying VM", "stackName", app.Key.Name, "flavor", appFlavorName)
+		err = mexos.HeatCreateVM(app.Key.Name, appFlavorName, imageName, mexos.UserVMDeployment, app.AuthPublicKey)
 		if err != nil {
 			return fmt.Errorf("CreateVMAppInst error: %v", err)
 		}
@@ -156,9 +155,8 @@ func (s *Platform) DeleteAppInst(clusterInst *edgeproto.ClusterInst, app *edgepr
 			return k8smgmt.DeleteHelmAppInst(client, names, clusterInst)
 		}
 	case cloudcommon.AppDeploymentTypeKVM:
-		stackName := app.Key.Name + "-heat"
-		log.DebugLog(log.DebugLevelMexos, "Deleting VM", "stackName", stackName)
-		err := mexos.HeatDeleteVM(stackName)
+		log.DebugLog(log.DebugLevelMexos, "Deleting VM", "stackName", app.Key.Name)
+		err := mexos.HeatDeleteVM(app.Key.Name)
 		if err != nil {
 			return fmt.Errorf("DeleteVMAppInst error: %v", err)
 		}

@@ -108,7 +108,7 @@ resources:
       type: OS::Nova::KeyPair
       properties:
         name: {{.VMName}}-ssh-keypair
-        public_key: {{.AuthPublicKey}}
+        public_key: "{{.AuthPublicKey}}"
     {{- end}}`
 
 // ClusterNode is a k8s node

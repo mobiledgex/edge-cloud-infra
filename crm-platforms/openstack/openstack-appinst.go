@@ -112,6 +112,10 @@ func (s *Platform) DeleteAppInst(clusterInst *edgeproto.ClusterInst, app *edgepr
 func (s *Platform) GetAppInstRuntime(clusterInst *edgeproto.ClusterInst, app *edgeproto.App, appInst *edgeproto.AppInst) (*edgeproto.AppInstRuntime, error) {
 	// TODO: rootLB may be specific to clusterInst for dedicated IP configs
 	rootLBName := s.rootLBName
+	if clusterInst.IpAccess == edgeproto.IpAccess_IpAccessDedicated {
+		rootLBName = cloudcommon.GetDedicatedLBFQDN(s.cloudletKey, &clusterInst.Key.ClusterKey)
+		log.DebugLog(log.DebugLevelMexos, "using dedicated RootLB to delete app", "rootLBName", rootLBName)
+	}
 	client, err := s.GetPlatformClientRootLB(rootLBName)
 	if err != nil {
 		return nil, err

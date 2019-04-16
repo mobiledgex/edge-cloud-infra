@@ -1,16 +1,20 @@
 package mexos
 
 import (
+	"crypto/md5"
+	"encoding/hex"
 	"fmt"
+	"io"
 	"io/ioutil"
 	"net/http"
 	"net/url"
 	"os"
-	"path/filepath"
 	"strings"
 	"time"
 
 	sh "github.com/codeskyblue/go-sh"
+	"github.com/mobiledgex/edge-cloud-infra/artifactory"
+	"github.com/mobiledgex/edge-cloud/cloudcommon"
 	"github.com/mobiledgex/edge-cloud/log"
 )
 
@@ -110,70 +114,94 @@ func GetSCPFile(uri string) ([]byte, error) {
 // 	return nil
 // }
 
-func GetFileNameWithExt(fileUrlPath string) (string, error) {
-	log.DebugLog(log.DebugLevelMexos, "get file name with extension from url", "file-url", fileUrlPath)
+func SendHTTPReq(method, fileUrlPath string) (*http.Response, error) {
 	fileUrl, err := url.Parse(fileUrlPath)
 	if err != nil {
-		return "", fmt.Errorf("Error parsing file URL %s, %v", fileUrlPath, err)
+		return nil, err
 	}
-
-	path := fileUrl.Path
-	segments := strings.Split(path, "/")
-
-	return segments[len(segments)-1], nil
-}
-
-func GetFileName(fileUrlPath string) (string, error) {
-	log.DebugLog(log.DebugLevelMexos, "get file name from url", "file-url", fileUrlPath)
-	fileName, err := GetFileNameWithExt(fileUrlPath)
-	if err != nil {
-		return "", err
-	}
-	return strings.TrimSuffix(fileName, filepath.Ext(fileName)), nil
-}
-
-func GetArtifactoryCreds() (string, string, error) {
-	af_user := os.Getenv("MEX_ARTIFACTORY_USER")
-	if af_user == "" {
-		return "", "", fmt.Errorf("Env variable MEX_ARTIFACTORY_USER not set")
-	}
-	af_pass := os.Getenv("MEX_ARTIFACTORY_PASS")
-	if af_pass == "" {
-		return "", "", fmt.Errorf("Env variable MEX_ARTIFACTORY_PASS not set")
-	}
-	return af_user, af_pass, nil
-}
-
-func GetUrlUpdatedTime(fileUrlPath string) (time.Time, error) {
-	log.DebugLog(log.DebugLevelMexos, "get url last-modified time", "file-url", fileUrlPath)
-	af_user, af_pass, err := GetArtifactoryCreds()
-	if err != nil {
-		return time.Time{}, err
+	var af_user, af_pass string
+	if fileUrl.Host == "artifactory.mobiledgex.net" {
+		af_user, af_pass, err = artifactory.GetCreds()
+		if err != nil {
+			return nil, err
+		}
 	}
 	client := &http.Client{}
-	req, err := http.NewRequest("HEAD", fileUrlPath, nil)
-	req.SetBasicAuth(af_user, af_pass)
+	req, err := http.NewRequest(method, fileUrlPath, nil)
+	if err != nil {
+		return nil, fmt.Errorf("failed sending request %v", err)
+	}
+	if af_user != "" && af_pass != "" {
+		req.SetBasicAuth(af_user, af_pass)
+	}
 	resp, err := client.Do(req)
 	if err != nil {
-		return time.Time{}, fmt.Errorf("Error fetching last modified time of URL %s, %v", fileUrlPath, err)
+		return nil, fmt.Errorf("failed fetching response %v", err)
+	}
+	// Check server response
+	if resp.StatusCode != http.StatusOK {
+		return nil, fmt.Errorf("bad status: %s", resp.Status)
+	}
+	return resp, err
+}
+
+func GetUrlInfo(fileUrlPath string) (time.Time, string, error) {
+	log.DebugLog(log.DebugLevelMexos, "get url last-modified time", "file-url", fileUrlPath)
+	resp, err := SendHTTPReq("HEAD", fileUrlPath)
+	if err != nil {
+		return time.Time{}, "", fmt.Errorf("Error fetching last modified time of URL %s, %v", fileUrlPath, err)
 	}
 	tStr := resp.Header.Get("Last-modified")
-	return time.Parse(time.RFC1123, tStr)
+	lastMod, err := time.Parse(time.RFC1123, tStr)
+	if err != nil {
+		return time.Time{}, "", fmt.Errorf("Error parsing last modified time of URL %s, %v", fileUrlPath, err)
+	}
+	md5Sum := resp.Header.Get("X-Checksum-Md5")
+	return lastMod, md5Sum, err
+}
+
+func Md5SumFile(filePath string) (string, error) {
+	f, err := os.Open(filePath)
+	if err != nil {
+		return "", fmt.Errorf("failed to open file %s, %v", filePath, err)
+	}
+	defer f.Close()
+
+	h := md5.New()
+	if _, err := io.Copy(h, f); err != nil {
+		return "", fmt.Errorf("failed to calculate md5sum of file %s, %v", filePath, err)
+	}
+
+	return hex.EncodeToString(h.Sum(nil)), nil
 }
 
 func DownloadFile(fileUrlPath string) error {
 	log.DebugLog(log.DebugLevelMexos, "attempt to download file", "file-url", fileUrlPath)
-	fileUrl, err := url.Parse(fileUrlPath)
-	if fileUrl.Host == "artifactory.mobiledgex.net" {
-		af_user, af_pass, err := GetArtifactoryCreds()
-		if err != nil {
-			return err
-		}
-		_, err = sh.Command("wget", "--user", af_user, "--password", af_pass, fileUrlPath, sh.Dir("/tmp")).Output()
-	} else {
-		_, err = sh.Command("wget", "--no-check-certificate", fileUrlPath, sh.Dir("/tmp")).Output()
+
+	fileName, err := cloudcommon.GetFileNameWithExt(fileUrlPath)
+	if err != nil {
+		return err
 	}
-	return err
+
+	// Create the file
+	out, err := os.Create("/tmp/" + fileName)
+	if err != nil {
+		return err
+	}
+	defer out.Close()
+
+	resp, err := SendHTTPReq("GET", fileUrlPath)
+	if err != nil {
+		return err
+	}
+	defer resp.Body.Close()
+
+	_, err = io.Copy(out, resp.Body)
+	if err != nil {
+		return fmt.Errorf("failed to download file %v", err)
+	}
+
+	return nil
 }
 
 func DeleteFile(filePath string) error {

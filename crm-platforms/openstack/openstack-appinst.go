@@ -58,17 +58,21 @@ func (s *Platform) CreateAppInst(clusterInst *edgeproto.ClusterInst, app *edgepr
 		if err != nil {
 			return fmt.Errorf("CreateKubernetesAppInst error: %v", err)
 		}
-	case cloudcommon.AppDeploymentTypeKVM:
-		imageName, err := mexos.GetFileName(app.ImagePath)
+	case cloudcommon.AppDeploymentTypeVM:
+		imageName, err := cloudcommon.GetFileName(app.ImagePath)
 		if err != nil {
 			return fmt.Errorf("CreateVMAppInst error: %v", err)
+		}
+		sourceImageTime, md5Sum, err := mexos.GetUrlInfo(app.ImagePath)
+		if err != nil {
+			log.DebugLog(log.DebugLevelMexos, "failed to fetch source image info, skip image validity checks")
 		}
 		glanceImageTime, err := mexos.GetImageUpdatedTime(imageName)
 		if err != nil {
 			if strings.Contains(err.Error(), "Could not find resource") {
 				// Add image to Glance
 				log.DebugLog(log.DebugLevelMexos, "image is not present in glance, add image")
-				err := mexos.CreateImageFromUrl(imageName, app.ImagePath)
+				err := mexos.CreateImageFromUrl(imageName, app.ImagePath, md5Sum)
 				if err != nil {
 					return fmt.Errorf("CreateVMAppInst error: %v", err)
 				}
@@ -76,10 +80,7 @@ func (s *Platform) CreateAppInst(clusterInst *edgeproto.ClusterInst, app *edgepr
 				return fmt.Errorf("CreateVMAppInst error: %v", err)
 			}
 		} else {
-			sourceImageTime, err := mexos.GetUrlUpdatedTime(app.ImagePath)
-			if err != nil {
-				log.DebugLog(log.DebugLevelMexos, "failed to fetch source image updated time, continuing...")
-			} else {
+			if !sourceImageTime.IsZero() {
 				if sourceImageTime.Sub(glanceImageTime) > 0 {
 					// Update the image in Glance
 					log.DebugLog(log.DebugLevelMexos, "image in glance is no more valid, update image")
@@ -87,7 +88,7 @@ func (s *Platform) CreateAppInst(clusterInst *edgeproto.ClusterInst, app *edgepr
 					if err != nil {
 						return fmt.Errorf("CreateVMAppInst error: %v", err)
 					}
-					err = mexos.CreateImageFromUrl(imageName, app.ImagePath)
+					err = mexos.CreateImageFromUrl(imageName, app.ImagePath, md5Sum)
 					if err != nil {
 						return fmt.Errorf("CreateVMAppInst error: %v", err)
 					}
@@ -154,7 +155,7 @@ func (s *Platform) DeleteAppInst(clusterInst *edgeproto.ClusterInst, app *edgepr
 		} else {
 			return k8smgmt.DeleteHelmAppInst(client, names, clusterInst)
 		}
-	case cloudcommon.AppDeploymentTypeKVM:
+	case cloudcommon.AppDeploymentTypeVM:
 		log.DebugLog(log.DebugLevelMexos, "Deleting VM", "stackName", app.Key.Name)
 		err := mexos.HeatDeleteVM(app.Key.Name)
 		if err != nil {

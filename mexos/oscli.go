@@ -7,6 +7,7 @@ import (
 	"time"
 
 	sh "github.com/codeskyblue/go-sh"
+	"github.com/mobiledgex/edge-cloud/cloudcommon"
 	"github.com/mobiledgex/edge-cloud/edgeproto"
 	"github.com/mobiledgex/edge-cloud/log"
 )
@@ -426,15 +427,15 @@ func CreateImage(imageName, qcowFile string) error {
 		"--container-format", "bare",
 		"--file", qcowFile)
 	if err != nil {
-		err = fmt.Errorf("can't create image in glace, %s, %s, %s, %v", imageName, qcowFile, out, err)
+		err = fmt.Errorf("can't create image in glance, %s, %s, %s, %v", imageName, qcowFile, out, err)
 		return err
 	}
 	return nil
 }
 
 //CreateImageFromUrl downloads image from URL and then puts into glance
-func CreateImageFromUrl(imageName, imageUrl string) error {
-	fileExt, err := GetFileNameWithExt(imageUrl)
+func CreateImageFromUrl(imageName, imageUrl, md5Sum string) error {
+	fileExt, err := cloudcommon.GetFileNameWithExt(imageUrl)
 	if err != nil {
 		return err
 	}
@@ -442,6 +443,17 @@ func CreateImageFromUrl(imageName, imageUrl string) error {
 	err = DownloadFile(imageUrl)
 	if err != nil {
 		return fmt.Errorf("error downloading image from %s, %v", imageUrl, err)
+	}
+	// Verify checksum
+	if md5Sum != "" {
+		fileMd5Sum, err := Md5SumFile(filePath)
+		if err != nil {
+			return err
+		}
+		log.DebugLog(log.DebugLevelMexos, "verify md5sum", "downloaded-md5sum", fileMd5Sum, "actual-md5sum", md5Sum)
+		if fileMd5Sum != md5Sum {
+			return fmt.Errorf("mismatch in md5sum")
+		}
 	}
 
 	err = CreateImage(imageName, filePath)

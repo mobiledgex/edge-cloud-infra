@@ -24,6 +24,7 @@ type VMParams struct {
 	GatewayIP           string
 	FloatingIPAddressID string
 	AuthPublicKey       template.HTML // Must be of this type to skip HTML escaping
+	IsRootLB            bool
 }
 
 type DeploymentType string
@@ -49,22 +50,34 @@ var vmTemplateResources = `
           - {{.SecurityGroup}}
         {{- end}}
          flavor: {{.Flavor}}
+        {{if .AuthPublicKey}} key_name: { get_resource: ssh_key_pair } {{- end}}
          config_drive: true
+        {{if .IsRootLB}}
          user_data_format: RAW
          user_data:
             get_file: /root/.mobiledgex/userdata.txt
+        {{- end}}
          networks:
         {{if .FloatingIPAddressID}}
           - port: { get_resource: vm-port }
         {{else}}
           - network: {{.NetworkName}}
         {{- end}}
+        {{if .IsRootLB}}
          metadata:
             skipk8s: yes
             role: mex-agent-node 
             edgeproxy: {{.GatewayIP}}
             mex-flavor: {{.Flavor}}
             privaterouter: {{.MEXRouterIP}}
+        {{- end}}
+  {{if .AuthPublicKey}}
+   ssh_key_pair:
+       type: OS::Nova::KeyPair
+       properties:
+            name: {{.VMName}}-ssh-keypair
+            public_key: "{{.AuthPublicKey}}"
+  {{- end}}
   {{if .FloatingIPAddressID}}
    vm-port:
        type: OS::Neutron::Port
@@ -82,34 +95,11 @@ var vmTemplateResources = `
           port_id: { get_resource: vm-port }
   {{- end}}`
 
-var rootlbVMTemplate = `
+var vmTemplate = `
 heat_template_version: 2016-10-14
 description: Create a VM
 resources:
 ` + vmTemplateResources
-
-var userVMTemplate = `
-heat_template_version: 2016-10-14
-description: Create a VM
-resources:
-    vm:
-      type: OS::Nova::Server
-      properties:
-         name: 
-            {{.VMName}}
-         image: {{.ImageName}}
-         flavor: {{.Flavor}}
-         {{if .AuthPublicKey}}key_name: { get_resource: ssh_key_pair } {{- end}}
-         config_drive: true
-         networks:
-          - network: {{.NetworkName}}
-    {{if .AuthPublicKey}}
-    ssh_key_pair:
-      type: OS::Nova::KeyPair
-      properties:
-        name: {{.VMName}}-ssh-keypair
-        public_key: "{{.AuthPublicKey}}"
-    {{- end}}`
 
 // ClusterNode is a k8s node
 type ClusterNode struct {
@@ -360,12 +350,9 @@ func HeatCreateVM(serverName, flavor, imageName string, depType DeploymentType, 
 			defer heatStackLock.Unlock()
 		}
 		vmp, err = getVMParams(serverName, flavor, imageName, ni)
+		vmp.IsRootLB = true
 		if err != nil {
 			return fmt.Errorf("Unable to get VM params: %v", err)
-		}
-		tmpl, err = template.New("mexrootlbvm").Parse(rootlbVMTemplate)
-		if err != nil {
-			return err
 		}
 	case UserVMDeployment:
 		// TODO: Fetch networkSpec from environment variable
@@ -376,15 +363,16 @@ func HeatCreateVM(serverName, flavor, imageName string, depType DeploymentType, 
 		vmp.ImageName = imageName
 		vmp.NetworkName = "external-network-shared" //GetCloudletExternalNetwork()
 		vmp.AuthPublicKey = template.HTML(authPublicKey)
-		tmpl, err = template.New("mexuservm").Parse(userVMTemplate)
-		if err != nil {
-			return err
-		}
+		vmp.SecurityGroup = GetCloudletSecurityGroup()
 	default:
 		return fmt.Errorf("Unsupported deployment type %s", depType)
 	}
 
 	var buf bytes.Buffer
+	tmpl, err = template.New("vm").Parse(vmTemplate)
+	if err != nil {
+		return err
+	}
 	err = tmpl.Execute(&buf, vmp)
 	if err != nil {
 		return err

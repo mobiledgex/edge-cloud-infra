@@ -5,12 +5,15 @@ import (
 	"fmt"
 	"html/template"
 	"os"
+	"strconv"
+	"strings"
 	"sync"
 	"time"
 
 	"github.com/mobiledgex/edge-cloud/cloud-resource-manager/k8smgmt"
 	"github.com/mobiledgex/edge-cloud/edgeproto"
 	"github.com/mobiledgex/edge-cloud/log"
+	"github.com/mobiledgex/edge-cloud/util"
 )
 
 type VMParams struct {
@@ -24,6 +27,7 @@ type VMParams struct {
 	GatewayIP           string
 	FloatingIPAddressID string
 	AuthPublicKey       template.HTML // Must be of this type to skip HTML escaping
+	AccessPorts         []AccessPort
 	IsRootLB            bool
 }
 
@@ -48,6 +52,7 @@ var vmTemplateResources = `
         {{if not .FloatingIPAddressID}}
          security_groups:
           - {{.SecurityGroup}}
+	 {{if .AccessPorts}} - { get_resource: vm_security_group } {{- end}}
         {{- end}}
          flavor: {{.Flavor}}
         {{if .AuthPublicKey}} key_name: { get_resource: ssh_key_pair } {{- end}}
@@ -75,8 +80,8 @@ var vmTemplateResources = `
    ssh_key_pair:
        type: OS::Nova::KeyPair
        properties:
-            name: {{.VMName}}-ssh-keypair
-            public_key: "{{.AuthPublicKey}}"
+          name: {{.VMName}}-ssh-keypair
+          public_key: "{{.AuthPublicKey}}"
   {{- end}}
   {{if .FloatingIPAddressID}}
    vm-port:
@@ -88,11 +93,26 @@ var vmTemplateResources = `
             - subnet_id: {{.SubnetName}}
            security_groups:
             - {{$.SecurityGroup}}
+	   {{if .AccessPorts}} - { get_resource: vm_security_group } {{- end}}
    floatingip:
        type: OS::Neutron::FloatingIPAssociation
        properties:
           floatingip_id: {{.FloatingIPAddressID}}
           port_id: { get_resource: vm-port }
+  {{- end}}
+  {{if .AccessPorts}}
+   vm_security_group:
+       type: OS::Neutron::SecurityGroup
+       properties:
+          name: {{.VMName}}-sg
+          rules: [
+             {{range .AccessPorts}}
+              {remote_ip_prefix: 0.0.0.0/0,
+               protocol: {{.Proto}},
+               port_range_min: {{.Port}},
+               port_range_max: {{.Port}}},
+             {{end}}
+          ]
   {{- end}}`
 
 var vmTemplate = `
@@ -329,8 +349,38 @@ func getVMParams(serverName, flavor, imageName string, ni *NetSpecInfo) (*VMPara
 	return &vmp, nil
 }
 
+type AccessPort struct {
+	Proto string
+	Port  int
+}
+
+func ParseAccessPorts(accessPorts string) ([]AccessPort, error) {
+	aports := make([]AccessPort, 0)
+	strs := strings.Split(accessPorts, ",")
+	for _, str := range strs {
+		vals := strings.Split(str, ":")
+		if len(vals) != 2 {
+			return nil, fmt.Errorf("Invalid Access Ports format, expected proto:port but was %s", vals[0])
+		}
+		proto := vals[0]
+		port, err := strconv.ParseInt(vals[1], 10, 32)
+		if err != nil {
+			return nil, fmt.Errorf("Failed to convert port %s to integer: %s", vals[1], err)
+		}
+		if port < 1 || port > 65535 {
+			return nil, fmt.Errorf("Port %s out of range", vals[1])
+		}
+		p := AccessPort{
+			Proto: proto,
+			Port:  int(port),
+		}
+		aports = append(aports, p)
+	}
+	return aports, nil
+}
+
 // HeatCreateVM creates a new VM and optionally associates a floating IP
-func HeatCreateVM(serverName, flavor, imageName string, depType DeploymentType, authPublicKey string) error {
+func HeatCreateVM(serverName, flavor, imageName string, depType DeploymentType, authPublicKey string, accessPorts string) error {
 	log.DebugLog(log.DebugLevelMexos, "HeatCreateVM", "serverName", serverName, "flavor", flavor, "imageName", imageName, "depType", depType)
 
 	var tmpl *template.Template
@@ -362,7 +412,19 @@ func HeatCreateVM(serverName, flavor, imageName string, depType DeploymentType, 
 		vmp.Flavor = flavor
 		vmp.ImageName = imageName
 		vmp.NetworkName = "external-network-shared" //GetCloudletExternalNetwork()
-		vmp.AuthPublicKey = template.HTML(authPublicKey)
+		if authPublicKey != "" {
+			convKey, err := util.ConvertPEMtoOpenSSH(authPublicKey)
+			if err != nil {
+				return err
+			}
+			vmp.AuthPublicKey = template.HTML(convKey)
+		}
+		if accessPorts != "" {
+			vmp.AccessPorts, err = ParseAccessPorts(accessPorts)
+			if err != nil {
+				return err
+			}
+		}
 		vmp.SecurityGroup = GetCloudletSecurityGroup()
 	default:
 		return fmt.Errorf("Unsupported deployment type %s", depType)

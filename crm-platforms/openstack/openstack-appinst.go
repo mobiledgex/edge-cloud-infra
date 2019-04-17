@@ -106,7 +106,7 @@ func (s *Platform) CreateAppInst(clusterInst *edgeproto.ClusterInst, app *edgepr
 		}
 
 		log.DebugLog(log.DebugLevelMexos, "Deploying VM", "stackName", app.Key.Name, "flavor", appFlavorName)
-		err = mexos.HeatCreateVM(app.Key.Name, appFlavorName, imageName, mexos.UserVMDeployment, app.AuthPublicKey)
+		err = mexos.HeatCreateVM(app.Key.Name, appFlavorName, imageName, mexos.UserVMDeployment, app.AuthPublicKey, app.AccessPorts)
 		if err != nil {
 			return fmt.Errorf("CreateVMAppInst error: %v", err)
 		}

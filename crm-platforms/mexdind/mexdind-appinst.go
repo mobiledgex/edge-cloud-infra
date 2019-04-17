@@ -18,9 +18,10 @@ import (
 func (s *Platform) CreateAppInst(clusterInst *edgeproto.ClusterInst, app *edgeproto.App, appInst *edgeproto.AppInst, flavor *edgeproto.Flavor) error {
 	var err error
 	client := s.generic.GetPlatformClient()
-	names, err := k8smgmt.GetKubeNames(clusterInst, app, appInst)
+
+  names, err := k8smgmt.GetKubeNames(clusterInst, app, appInst)
 	if err != nil {
-		return fmt.Errorf("get kube names failed: %s", err)
+		return err
 	}
 
 	masterIP := s.GetMasterAddr(names.ClusterName)
@@ -72,10 +73,14 @@ func (s *Platform) CreateAppInst(clusterInst *edgeproto.ClusterInst, app *edgepr
 
 func (s *Platform) DeleteAppInst(clusterInst *edgeproto.ClusterInst, app *edgeproto.App, appInst *edgeproto.AppInst) error {
 	var err error
-	client := s.generic.GetPlatformClient()
+	client, err := s.generic.GetPlatformClient()
+	if err != nil {
+		return err
+	}
+
 	names, err := k8smgmt.GetKubeNames(clusterInst, app, appInst)
 	if err != nil {
-		return fmt.Errorf("get kube names failed: %s", err)
+		return err
 	}
 
 	// remove DNS entries
@@ -100,6 +105,14 @@ func (s *Platform) DeleteAppInst(clusterInst *edgeproto.ClusterInst, app *edgepr
 		}
 	}
 	return nil
+}
+
+func (s *Platform) GetAppInstRuntime(clusterInst *edgeproto.ClusterInst, app *edgeproto.App, appInst *edgeproto.AppInst) (*edgeproto.AppInstRuntime, error) {
+	return s.generic.GetAppInstRuntime(clusterInst, app, appInst)
+}
+
+func (s *Platform) GetContainerCommand(clusterInst *edgeproto.ClusterInst, app *edgeproto.App, appInst *edgeproto.AppInst, req *edgeproto.ExecRequest) (string, error) {
+	return s.generic.GetContainerCommand(clusterInst, app, appInst, req)
 }
 
 // Get gets the ip address of the k8s master that nginx proxy will route to

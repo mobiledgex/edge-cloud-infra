@@ -35,10 +35,11 @@ make clean
                     '''
                 }
                 dir(path: 'go/src/github.com/mobiledgex/edge-cloud') {
-                    sh label: 'make dep', script: '''#!/bin/bash
+                    sh label: 'go mod download', script: '''#!/bin/bash
 export PATH=$PATH:$HOME/go/bin:$WORKSPACE/go/bin
 export GOPATH=$WORKSPACE/go
-make dep
+export GO111MODULE=on
+go mod download
                     '''
                 }
                 dir(path: 'go/src/github.com/mobiledgex/edge-cloud') {
@@ -46,13 +47,6 @@ make dep
 export PATH=$PATH:$HOME/go/bin:$WORKSPACE/go/bin
 export GOPATH=$WORKSPACE/go
 make tools
-                    '''
-                }
-                dir(path: 'go/src/github.com/mobiledgex/edge-cloud-infra') {
-                    sh label: 'infra make dep', script: '''#!/bin/bash
-export PATH=$PATH:$HOME/go/bin:$WORKSPACE/go/bin
-export GOPATH=$WORKSPACE/go
-make dep
                     '''
                 }
                 dir(path: 'go/src/github.com/mobiledgex/edge-cloud-infra') {

@@ -17,10 +17,14 @@ func (s *Platform) CreateAppInst(clusterInst *edgeproto.ClusterInst, app *edgepr
 	if err = SetupKconf(clusterInst); err != nil {
 		return fmt.Errorf("can't set up kconf, %s", err.Error())
 	}
-	client := s.GetPlatformClient()
+	client, err := s.GetPlatformClient()
+	if err != nil {
+		return err
+	}
+
 	names, err := k8smgmt.GetKubeNames(clusterInst, app, appInst)
 	if err != nil {
-		return fmt.Errorf("get kube names failed: %s", err)
+		return err
 	}
 
 	switch deployment := app.Deployment; deployment {
@@ -56,10 +60,14 @@ func (s *Platform) DeleteAppInst(clusterInst *edgeproto.ClusterInst, app *edgepr
 	if err = SetupKconf(clusterInst); err != nil {
 		return fmt.Errorf("can't set up kconf, %s", err.Error())
 	}
-	client := s.GetPlatformClient()
+	client, err := s.GetPlatformClient()
+	if err != nil {
+		return err
+	}
+
 	names, err := k8smgmt.GetKubeNames(clusterInst, app, appInst)
 	if err != nil {
-		return fmt.Errorf("get kube names failed: %s", err)
+		return err
 	}
 
 	switch deployment := app.Deployment; deployment {
@@ -94,4 +102,25 @@ func SetupKconf(clusterInst *edgeproto.ClusterInst) error {
 		return fmt.Errorf("can't copy %s, %v", src, err)
 	}
 	return nil
+}
+
+func (s *Platform) GetAppInstRuntime(clusterInst *edgeproto.ClusterInst, app *edgeproto.App, appInst *edgeproto.AppInst) (*edgeproto.AppInstRuntime, error) {
+	// regenerate kconf if missing because CRM in container was restarted
+	if err := SetupKconf(clusterInst); err != nil {
+		return nil, fmt.Errorf("can't set up kconf, %s", err.Error())
+	}
+	client, err := s.GetPlatformClient()
+	if err != nil {
+		return nil, err
+	}
+
+	names, err := k8smgmt.GetKubeNames(clusterInst, app, appInst)
+	if err != nil {
+		return nil, err
+	}
+	return k8smgmt.GetAppInstRuntime(client, names, app, appInst)
+}
+
+func (s *Platform) GetContainerCommand(clusterInst *edgeproto.ClusterInst, app *edgeproto.App, appInst *edgeproto.AppInst, req *edgeproto.ExecRequest) (string, error) {
+	return k8smgmt.GetContainerCommand(clusterInst, app, appInst, req)
 }

@@ -52,7 +52,7 @@ var vmTemplateResources = `
         {{if not .FloatingIPAddressID}}
          security_groups:
           - {{.SecurityGroup}}
-	 {{if .AccessPorts}} - { get_resource: vm_security_group } {{- end}}
+         {{if .AccessPorts}} - { get_resource: vm_security_group } {{- end}}
         {{- end}}
          flavor: {{.Flavor}}
         {{if .AuthPublicKey}} key_name: { get_resource: ssh_key_pair } {{- end}}

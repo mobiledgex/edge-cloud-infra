@@ -35,24 +35,6 @@ make edge-cloud-version-set
                 }
             }
         }
-        stage('Pull in dependencies') {
-            steps {
-                dir(path: 'go/src/github.com/mobiledgex/edge-cloud') {
-                    sh label: 'make dep', script: '''#!/bin/bash
-export PATH=$PATH:$HOME/go/bin:$WORKSPACE/go/bin
-export GOPATH=$WORKSPACE/go
-make dep
-                    '''
-                }
-                dir(path: 'go/src/github.com/mobiledgex/edge-cloud-infra') {
-                    sh label: 'infra make dep', script: '''#!/bin/bash
-export PATH=$PATH:$HOME/go/bin:$WORKSPACE/go/bin
-export GOPATH=$WORKSPACE/go
-make dep
-                    '''
-                }
-            }
-        }
         stage('Docker Image') {
             steps {
                 dir(path: 'go/src/github.com/mobiledgex/edge-cloud') {

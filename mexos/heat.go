@@ -46,10 +46,10 @@ var heatStackLock sync.Mutex
 var vmTemplateResources = `
    {{if .IsRootLB}}
    mex_rootlb_init:
-      type: OS::Heat::CloudConfig
+      type: OS::Heat::SoftwareConfig
       properties:
-         cloud_config:
-             content: { get_file: /root/.mobiledgex/userdata.txt }
+         group: ungrouped
+         config: { get_file: /root/.mobiledgex/userdata.txt }
    {{- end}}
    {{if .DeploymentManifest}}
    vm_init:

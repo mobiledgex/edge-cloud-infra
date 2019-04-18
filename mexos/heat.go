@@ -395,7 +395,7 @@ func GetVMParams(depType DeploymentType, serverName, flavor, imageName, authPubl
 		vmp.NetworkName = ni.FloatingIPNet
 		vmp.SubnetName = ni.FloatingIPSubnet
 	} else {
-		vmp.NetworkName = "external-network-shared" //GetCloudletExternalNetwork()
+		vmp.NetworkName = GetCloudletExternalNetwork()
 	}
 	return &vmp, nil
 }

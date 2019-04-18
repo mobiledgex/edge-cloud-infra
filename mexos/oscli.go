@@ -440,7 +440,7 @@ func CreateImageFromUrl(imageName, imageUrl, md5Sum string) error {
 		return err
 	}
 	filePath := "/tmp/" + fileExt
-	err = DownloadFile(imageUrl)
+	err = DownloadFile(imageUrl, filePath)
 	if err != nil {
 		return fmt.Errorf("error downloading image from %s, %v", imageUrl, err)
 	}

@@ -1,7 +1,6 @@
 package mexdind
 
 import (
-	"fmt"
 	"net"
 	"strings"
 
@@ -16,10 +15,12 @@ import (
 )
 
 func (s *Platform) CreateAppInst(clusterInst *edgeproto.ClusterInst, app *edgeproto.App, appInst *edgeproto.AppInst, flavor *edgeproto.Flavor) error {
-	var err error
-	client := s.generic.GetPlatformClient()
+	client, err := s.generic.GetPlatformClient()
+	if err != nil {
+		return err
+	}
 
-  names, err := k8smgmt.GetKubeNames(clusterInst, app, appInst)
+	names, err := k8smgmt.GetKubeNames(clusterInst, app, appInst)
 	if err != nil {
 		return err
 	}

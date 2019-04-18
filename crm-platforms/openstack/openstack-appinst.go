@@ -25,7 +25,7 @@ func (s *Platform) CreateAppInst(clusterInst *edgeproto.ClusterInst, app *edgepr
 			rootLBName = cloudcommon.GetDedicatedLBFQDN(s.cloudletKey, &clusterInst.Key.ClusterKey)
 			log.DebugLog(log.DebugLevelMexos, "using dedicated RootLB to create app", "rootLBName", rootLBName)
 		}
-		client, err := s.GetPlatformClient(rootLBName)
+		client, err := s.GetPlatformClient()
 		if err != nil {
 			return err
 		}
@@ -68,14 +68,12 @@ func (s *Platform) CreateAppInst(clusterInst *edgeproto.ClusterInst, app *edgepr
 			log.DebugLog(log.DebugLevelMexos, "failed to fetch source image info, skip image validity checks")
 		}
 		glanceImageTime, err := mexos.GetImageUpdatedTime(imageName)
+		createImage := false
 		if err != nil {
 			if strings.Contains(err.Error(), "Could not find resource") {
 				// Add image to Glance
 				log.DebugLog(log.DebugLevelMexos, "image is not present in glance, add image")
-				err := mexos.CreateImageFromUrl(imageName, app.ImagePath, md5Sum)
-				if err != nil {
-					return fmt.Errorf("CreateVMAppInst error: %v", err)
-				}
+				createImage = true
 			} else {
 				return fmt.Errorf("CreateVMAppInst error: %v", err)
 			}
@@ -83,16 +81,19 @@ func (s *Platform) CreateAppInst(clusterInst *edgeproto.ClusterInst, app *edgepr
 			if !sourceImageTime.IsZero() {
 				if sourceImageTime.Sub(glanceImageTime) > 0 {
 					// Update the image in Glance
-					log.DebugLog(log.DebugLevelMexos, "image in glance is no more valid, update image")
+					log.DebugLog(log.DebugLevelMexos, "image in glance is no longer valid, update image")
 					err = mexos.DeleteImage(imageName)
 					if err != nil {
 						return fmt.Errorf("CreateVMAppInst error: %v", err)
 					}
-					err = mexos.CreateImageFromUrl(imageName, app.ImagePath, md5Sum)
-					if err != nil {
-						return fmt.Errorf("CreateVMAppInst error: %v", err)
-					}
+					createImage = true
 				}
+			}
+		}
+		if createImage {
+			err = mexos.CreateImageFromUrl(imageName, app.ImagePath, md5Sum)
+			if err != nil {
+				return fmt.Errorf("CreateVMAppInst error: %v", err)
 			}
 		}
 
@@ -105,8 +106,22 @@ func (s *Platform) CreateAppInst(clusterInst *edgeproto.ClusterInst, app *edgepr
 			return fmt.Errorf("unable to find closest flavor for app: %v", err)
 		}
 
+		vmp, err := mexos.GetVMParams(
+			mexos.UserVMDeployment,
+			app.Key.Name,
+			appFlavorName,
+			imageName,
+			app.AuthPublicKey,
+			app.AccessPorts,
+			app.DeploymentManifest,
+			app.Command,
+			nil, // NetSpecInfo
+		)
+		if err != nil {
+			return fmt.Errorf("unable to get vm params: %v", err)
+		}
 		log.DebugLog(log.DebugLevelMexos, "Deploying VM", "stackName", app.Key.Name, "flavor", appFlavorName)
-		err = mexos.HeatCreateVM(app.Key.Name, appFlavorName, imageName, mexos.UserVMDeployment, app.AuthPublicKey, app.AccessPorts)
+		err = mexos.HeatCreateVM(vmp, app.Key.Name, mexos.VmTemplate)
 		if err != nil {
 			return fmt.Errorf("CreateVMAppInst error: %v", err)
 		}
@@ -130,7 +145,7 @@ func (s *Platform) DeleteAppInst(clusterInst *edgeproto.ClusterInst, app *edgepr
 			rootLBName = cloudcommon.GetDedicatedLBFQDN(s.cloudletKey, &clusterInst.Key.ClusterKey)
 			log.DebugLog(log.DebugLevelMexos, "using dedicated RootLB to delete app", "rootLBName", rootLBName)
 		}
-		client, err := s.GetPlatformClient(rootLBName)
+		client, err := s.GetPlatformClient()
 		if err != nil {
 			return err
 		}
@@ -190,7 +205,7 @@ func (s *Platform) GetAppInstRuntime(clusterInst *edgeproto.ClusterInst, app *ed
 			return nil, err
 		}
 		return k8smgmt.GetAppInstRuntime(client, names, app, appInst)
-	case cloudcommon.AppDeploymentTypeKVM:
+	case cloudcommon.AppDeploymentTypeVM:
 		fallthrough
 	case cloudcommon.AppDeploymentTypeDockerSwarm:
 		fallthrough
@@ -205,7 +220,7 @@ func (s *Platform) GetContainerCommand(clusterInst *edgeproto.ClusterInst, app *
 		fallthrough
 	case cloudcommon.AppDeploymentTypeHelm:
 		return k8smgmt.GetContainerCommand(clusterInst, app, appInst, req)
-	case cloudcommon.AppDeploymentTypeKVM:
+	case cloudcommon.AppDeploymentTypeVM:
 		fallthrough
 	case cloudcommon.AppDeploymentTypeDockerSwarm:
 		fallthrough

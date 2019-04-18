@@ -14,7 +14,6 @@ import (
 
 	sh "github.com/codeskyblue/go-sh"
 	"github.com/mobiledgex/edge-cloud-infra/artifactory"
-	"github.com/mobiledgex/edge-cloud/cloudcommon"
 	"github.com/mobiledgex/edge-cloud/log"
 )
 
@@ -175,16 +174,11 @@ func Md5SumFile(filePath string) (string, error) {
 	return hex.EncodeToString(h.Sum(nil)), nil
 }
 
-func DownloadFile(fileUrlPath string) error {
+func DownloadFile(fileUrlPath string, filePath string) error {
 	log.DebugLog(log.DebugLevelMexos, "attempt to download file", "file-url", fileUrlPath)
 
-	fileName, err := cloudcommon.GetFileNameWithExt(fileUrlPath)
-	if err != nil {
-		return err
-	}
-
 	// Create the file
-	out, err := os.Create("/tmp/" + fileName)
+	out, err := os.Create(filePath)
 	if err != nil {
 		return err
 	}

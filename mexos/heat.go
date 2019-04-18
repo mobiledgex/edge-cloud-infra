@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"html/template"
 	"os"
-	"strconv"
 	"strings"
 	"sync"
 	"time"
@@ -27,7 +26,9 @@ type VMParams struct {
 	GatewayIP           string
 	FloatingIPAddressID string
 	AuthPublicKey       template.HTML // Must be of this type to skip HTML escaping
-	AccessPorts         []AccessPort
+	AccessPorts         []util.PortSpec
+	DeploymentManifest  template.HTML
+	Command             template.HTML
 	IsRootLB            bool
 }
 
@@ -43,6 +44,37 @@ var heatStackLock sync.Mutex
 // This is the resources part of a template for a VM. It is for use within another template
 // the parameters under VMP can come from either a standalone struture (VM Create) or a cluster (for rootLB)
 var vmTemplateResources = `
+   {{if .IsRootLB}}
+   mex_rootlb_init:
+      type: OS::Heat::CloudConfig
+      properties:
+         cloud_config:
+             get_file: /root/.mobiledgex/userdata.txt
+   {{- end}}
+   {{if .DeploymentManifest}}
+   vm_init:
+      type: OS::Heat::CloudConfig
+      properties:
+         cloud_config:
+{{ Indent .DeploymentManifest 16 }}
+   {{- end}}
+   {{if .Command}}
+   single_command:
+      type: OS::Heat::CloudConfig
+      properties:
+         cloud_config:
+            merge_how: 'dict(recurse_array,no_replace)+list(append)'
+            #cloud-config
+            runcmd:
+             - {{.Command}}
+   {{- end}}
+   server_init:
+      type: OS::Heat::MultipartMime
+      properties:
+         parts:
+          {{if .IsRootLB}} - config: {get_resource: mex_rootlb_init} {{- end}}
+          {{if .DeploymentManifest}} - config: {get_resource: vm_init} {{- end}}
+          {{if .Command}} - config: {get_resource: single_command} {{- end}}
    {{.VMName}}:
       type: OS::Nova::Server
       properties:
@@ -57,11 +89,8 @@ var vmTemplateResources = `
          flavor: {{.Flavor}}
         {{if .AuthPublicKey}} key_name: { get_resource: ssh_key_pair } {{- end}}
          config_drive: true
-        {{if .IsRootLB}}
-         user_data_format: RAW
-         user_data:
-            get_file: /root/.mobiledgex/userdata.txt
-        {{- end}}
+         user_data_format: SOFTWARE_CONFIG
+         user_data: { get_resource: server_init }
          networks:
         {{if .FloatingIPAddressID}}
           - port: { get_resource: vm-port }
@@ -115,7 +144,7 @@ var vmTemplateResources = `
           ]
   {{- end}}`
 
-var vmTemplate = `
+var VmTemplate = `
 heat_template_version: 2016-10-14
 description: Create a VM
 resources:
@@ -312,22 +341,44 @@ func waitForStackDelete(stackname string) error {
 	}
 }
 
-func getVMParams(serverName, flavor, imageName string, ni *NetSpecInfo) (*VMParams, error) {
+func GetVMParams(depType DeploymentType, serverName, flavor, imageName, authPublicKey, accessPorts, deploymentManifest, command string, ni *NetSpecInfo) (*VMParams, error) {
 	var vmp VMParams
 	var err error
 	vmp.VMName = serverName
 	vmp.Flavor = flavor
 	vmp.ImageName = imageName
-	vmp.GatewayIP, err = GetExternalGateway(GetCloudletExternalNetwork())
 	vmp.SecurityGroup = GetCloudletSecurityGroup()
-	if err != nil {
-		return nil, err
+	if depType == RootLBVMDeployment {
+		vmp.GatewayIP, err = GetExternalGateway(GetCloudletExternalNetwork())
+		if err != nil {
+			return nil, err
+		}
+		vmp.MEXRouterIP, err = GetMexRouterIP()
+		if err != nil {
+			return nil, err
+		}
+		vmp.IsRootLB = true
 	}
-	vmp.MEXRouterIP, err = GetMexRouterIP()
-	if err != nil {
-		return nil, err
+	if authPublicKey != "" {
+		convKey, err := util.ConvertPEMtoOpenSSH(authPublicKey)
+		if err != nil {
+			return nil, err
+		}
+		vmp.AuthPublicKey = template.HTML(convKey)
 	}
-	if ni.FloatingIPNet != "" {
+	if accessPorts != "" {
+		vmp.AccessPorts, err = util.ParsePorts(accessPorts)
+		if err != nil {
+			return nil, err
+		}
+	}
+	if deploymentManifest != "" {
+		vmp.DeploymentManifest = template.HTML(deploymentManifest)
+	}
+	if command != "" {
+		vmp.Command = template.HTML(command)
+	}
+	if ni != nil && ni.FloatingIPNet != "" {
 
 		fips, err := ListFloatingIPs()
 		for _, f := range fips {
@@ -344,98 +395,38 @@ func getVMParams(serverName, flavor, imageName string, ni *NetSpecInfo) (*VMPara
 		vmp.NetworkName = ni.FloatingIPNet
 		vmp.SubnetName = ni.FloatingIPSubnet
 	} else {
-		vmp.NetworkName = GetCloudletExternalNetwork()
+		vmp.NetworkName = "external-network-shared" //GetCloudletExternalNetwork()
 	}
 	return &vmp, nil
 }
 
-type AccessPort struct {
-	Proto string
-	Port  int
-}
-
-func ParseAccessPorts(accessPorts string) ([]AccessPort, error) {
-	aports := make([]AccessPort, 0)
-	strs := strings.Split(accessPorts, ",")
-	for _, str := range strs {
-		vals := strings.Split(str, ":")
-		if len(vals) != 2 {
-			return nil, fmt.Errorf("Invalid Access Ports format, expected proto:port but was %s", vals[0])
-		}
-		proto := vals[0]
-		port, err := strconv.ParseInt(vals[1], 10, 32)
-		if err != nil {
-			return nil, fmt.Errorf("Failed to convert port %s to integer: %s", vals[1], err)
-		}
-		if port < 1 || port > 65535 {
-			return nil, fmt.Errorf("Port %s out of range", vals[1])
-		}
-		p := AccessPort{
-			Proto: proto,
-			Port:  int(port),
-		}
-		aports = append(aports, p)
-	}
-	return aports, nil
-}
-
 // HeatCreateVM creates a new VM and optionally associates a floating IP
-func HeatCreateVM(serverName, flavor, imageName string, depType DeploymentType, authPublicKey string, accessPorts string) error {
-	log.DebugLog(log.DebugLevelMexos, "HeatCreateVM", "serverName", serverName, "flavor", flavor, "imageName", imageName, "depType", depType)
-
-	var tmpl *template.Template
-	var vmp *VMParams
-	var err error
-
-	switch depType {
-	case RootLBVMDeployment:
-		ni, err := ParseNetSpec(GetCloudletNetworkScheme())
-		if err != nil {
-			return err
-		}
-		// lock here to avoid getting the same floating IP; we need to lock until the stack is done
-		// Floating IPs are allocated both by VM and cluster creation
-		if ni.FloatingIPNet != "" {
-			heatStackLock.Lock()
-			defer heatStackLock.Unlock()
-		}
-		vmp, err = getVMParams(serverName, flavor, imageName, ni)
-		vmp.IsRootLB = true
-		if err != nil {
-			return fmt.Errorf("Unable to get VM params: %v", err)
-		}
-	case UserVMDeployment:
-		// TODO: Fetch networkSpec from environment variable
-		// TODO: Integrate floating IP support
-		vmp = &VMParams{}
-		vmp.VMName = serverName
-		vmp.Flavor = flavor
-		vmp.ImageName = imageName
-		vmp.NetworkName = "external-network-shared" //GetCloudletExternalNetwork()
-		if authPublicKey != "" {
-			convKey, err := util.ConvertPEMtoOpenSSH(authPublicKey)
-			if err != nil {
-				return err
-			}
-			vmp.AuthPublicKey = template.HTML(convKey)
-		}
-		if accessPorts != "" {
-			vmp.AccessPorts, err = ParseAccessPorts(accessPorts)
-			if err != nil {
-				return err
-			}
-		}
-		vmp.SecurityGroup = GetCloudletSecurityGroup()
-	default:
-		return fmt.Errorf("Unsupported deployment type %s", depType)
-	}
+func HeatCreateVM(data interface{}, serverName, vmTemplate string) error {
+	log.DebugLog(log.DebugLevelMexos, "HeatCreateVM")
 
 	var buf bytes.Buffer
-	tmpl, err = template.New("vm").Parse(vmTemplate)
+
+	funcMap := template.FuncMap{
+		"Indent": func(values ...interface{}) template.HTML {
+			s := values[0].(template.HTML)
+			l := 4
+			if len(values) > 1 {
+				l = values[1].(int)
+			}
+			var new_str []string
+			for _, v := range strings.Split(string(s), "\n") {
+				n_v := fmt.Sprintf("%s%s", strings.Repeat(" ", l), v)
+				new_str = append(new_str, n_v)
+			}
+			return template.HTML(strings.Join(new_str, "\n"))
+		},
+	}
+
+	tmpl, err := template.New(serverName).Funcs(funcMap).Parse(vmTemplate)
 	if err != nil {
 		return err
 	}
-	err = tmpl.Execute(&buf, vmp)
+	err = tmpl.Execute(&buf, data)
 	if err != nil {
 		return err
 	}
@@ -468,7 +459,17 @@ func getClusterParams(clusterInst *edgeproto.ClusterInst, flavor *edgeproto.Clus
 		return nil, err
 	}
 	if rootLBName != "" {
-		cp.VMParams, err = getVMParams(rootLBName, clusterInst.NodeFlavor, GetCloudletOSImage(), ni)
+		cp.VMParams, err = GetVMParams(
+			RootLBVMDeployment,
+			rootLBName,
+			clusterInst.NodeFlavor,
+			GetCloudletOSImage(),
+			"", // AuthPublicKey
+			"", // AccessPorts
+			"", // DeploymentManifest
+			"", // Command
+			ni,
+		)
 		if err != nil {
 			return nil, fmt.Errorf("Unable to get rootlb params: %v", err)
 		}
@@ -546,30 +547,8 @@ func HeatCreateClusterKubernetes(clusterInst *edgeproto.ClusterInst, flavor *edg
 	if dedicatedRootLBName != "" {
 		templateString += vmTemplateResources
 	}
-	tmpl, err := template.New("mexk8s").Parse(templateString)
-	if err != nil {
-		return err
-	}
-	var buf bytes.Buffer
-	err = tmpl.Execute(&buf, cp)
-	if err != nil {
-		return err
-	}
-	filename := cp.ClusterName + "-heat.yaml"
-	err = writeTemplateFile(filename, &buf)
-	if err != nil {
-		return err
-	}
-
-	err = createHeatStack(filename, cp.ClusterName)
-	if err != nil {
-		return err
-	}
-	err = waitForStackCreate(cp.ClusterName)
-	if err != nil {
-		return err
-	}
-	return nil
+	err = HeatCreateVM(cp, dedicatedRootLBName, templateString)
+	return err
 }
 
 // HeatDeleteClusterKubernetes deletes the cluster resources

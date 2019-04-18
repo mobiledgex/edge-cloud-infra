@@ -49,7 +49,7 @@ var vmTemplateResources = `
       type: OS::Heat::CloudConfig
       properties:
          cloud_config:
-             get_file: /root/.mobiledgex/userdata.txt
+             content: { get_file: /root/.mobiledgex/userdata.txt }
    {{- end}}
    {{if .DeploymentManifest}}
    vm_init:

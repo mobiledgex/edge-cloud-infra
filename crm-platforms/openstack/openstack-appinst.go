@@ -25,7 +25,7 @@ func (s *Platform) CreateAppInst(clusterInst *edgeproto.ClusterInst, app *edgepr
 			rootLBName = cloudcommon.GetDedicatedLBFQDN(s.cloudletKey, &clusterInst.Key.ClusterKey)
 			log.DebugLog(log.DebugLevelMexos, "using dedicated RootLB to create app", "rootLBName", rootLBName)
 		}
-		client, err := s.GetPlatformClient()
+		client, err := s.GetPlatformClientRootLB(rootLBName)
 		if err != nil {
 			return err
 		}
@@ -145,7 +145,7 @@ func (s *Platform) DeleteAppInst(clusterInst *edgeproto.ClusterInst, app *edgepr
 			rootLBName = cloudcommon.GetDedicatedLBFQDN(s.cloudletKey, &clusterInst.Key.ClusterKey)
 			log.DebugLog(log.DebugLevelMexos, "using dedicated RootLB to delete app", "rootLBName", rootLBName)
 		}
-		client, err := s.GetPlatformClient()
+		client, err := s.GetPlatformClientRootLB(rootLBName)
 		if err != nil {
 			return err
 		}

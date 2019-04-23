@@ -44,13 +44,6 @@ var heatStackLock sync.Mutex
 // This is the resources part of a template for a VM. It is for use within another template
 // the parameters under VMP can come from either a standalone struture (VM Create) or a cluster (for rootLB)
 var vmTemplateResources = `
-   {{if .IsRootLB}}
-   mex_rootlb_init:
-      type: OS::Heat::SoftwareConfig
-      properties:
-         group: ungrouped
-         config: { get_file: /root/.mobiledgex/userdata.txt }
-   {{- end}}
    {{if .DeploymentManifest}}
    vm_init:
       type: OS::Heat::CloudConfig
@@ -72,7 +65,6 @@ var vmTemplateResources = `
       type: OS::Heat::MultipartMime
       properties:
          parts:
-          {{if .IsRootLB}} - config: {get_resource: mex_rootlb_init} {{- end}}
           {{if .DeploymentManifest}} - config: {get_resource: vm_init} {{- end}}
           {{if .Command}} - config: {get_resource: single_command} {{- end}}
    {{.VMName}}:
@@ -88,9 +80,7 @@ var vmTemplateResources = `
         {{- end}}
          flavor: {{.Flavor}}
         {{if .AuthPublicKey}} key_name: { get_resource: ssh_key_pair } {{- end}}
-         config_drive: true
-         user_data_format: RAW
-         user_data: { get_resource: server_init }
+         config_drive: true       
          networks:
         {{if .FloatingIPAddressID}}
           - port: { get_resource: vm-port }
@@ -104,6 +94,12 @@ var vmTemplateResources = `
             edgeproxy: {{.GatewayIP}}
             mex-flavor: {{.Flavor}}
             privaterouter: {{.MEXRouterIP}}
+         user_data_format: RAW		
+         user_data: 
+            get_file: /root/.mobiledgex/userdata.txt 
+        {{else}}
+         user_data_format: SOFTWARE_CONFIG
+         user_data: { get_resource: server_init }
         {{- end}}
   {{if .AuthPublicKey}}
    ssh_key_pair:

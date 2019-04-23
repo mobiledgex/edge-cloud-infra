@@ -121,7 +121,7 @@ func (s *Platform) CreateAppInst(clusterInst *edgeproto.ClusterInst, app *edgepr
 			return fmt.Errorf("unable to get vm params: %v", err)
 		}
 		log.DebugLog(log.DebugLevelMexos, "Deploying VM", "stackName", app.Key.Name, "flavor", appFlavorName)
-		err = mexos.HeatCreateVM(vmp, app.Key.Name, mexos.VmTemplate)
+		err = mexos.CreateHeatStackFromTemplate(vmp, app.Key.Name, mexos.VmTemplate)
 		if err != nil {
 			return fmt.Errorf("CreateVMAppInst error: %v", err)
 		}
@@ -172,7 +172,7 @@ func (s *Platform) DeleteAppInst(clusterInst *edgeproto.ClusterInst, app *edgepr
 		}
 	case cloudcommon.AppDeploymentTypeVM:
 		log.DebugLog(log.DebugLevelMexos, "Deleting VM", "stackName", app.Key.Name)
-		err := mexos.HeatDeleteVM(app.Key.Name)
+		err := mexos.HeatDeleteStack(app.Key.Name)
 		if err != nil {
 			return fmt.Errorf("DeleteVMAppInst error: %v", err)
 		}

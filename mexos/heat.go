@@ -445,7 +445,7 @@ func CreateHeatStackFromTemplate(templateData interface{}, stackName, templateSt
 
 // HeatDeleteVM deletes the VM resources
 func HeatDeleteStack(stackName string) error {
-	log.DebugLog(log.DebugLevelMexos, "deleting heat stack for vm", "serverName", stackName)
+	log.DebugLog(log.DebugLevelMexos, "deleting heat stack for stack", "stackName", stackName)
 	deleteHeatStack(stackName)
 	return waitForStackDelete(stackName)
 }

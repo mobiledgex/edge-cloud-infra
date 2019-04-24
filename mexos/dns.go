@@ -58,7 +58,7 @@ func CreateAppDNS(client pc.PlatformClient, kubeNames *k8smgmt.KubeNames, getSvc
 	fqdnBase := uri2fqdn(kubeNames.AppURI)
 
 	for _, svc := range svcs {
-		if !kubeNames.NonK8sDocker && svc.Spec.Type != v1.ServiceTypeLoadBalancer {
+		if kubeNames.DeploymentType != cloudcommon.AppDeploymentTypeDocker && svc.Spec.Type != v1.ServiceTypeLoadBalancer {
 			continue
 		}
 		if !kubeNames.ContainsService(svc.Name) {
@@ -111,7 +111,7 @@ func DeleteAppDNS(client pc.PlatformClient, kubeNames *k8smgmt.KubeNames) error 
 	}
 	fqdnBase := uri2fqdn(kubeNames.AppURI)
 	for _, svc := range svcs {
-		if !kubeNames.NonK8sDocker && svc.Spec.Type != v1.ServiceTypeLoadBalancer {
+		if kubeNames.DeploymentType != cloudcommon.AppDeploymentTypeDocker && svc.Spec.Type != v1.ServiceTypeLoadBalancer {
 			continue
 		}
 		if !kubeNames.ContainsService(svc.Name) {

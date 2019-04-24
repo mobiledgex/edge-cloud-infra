@@ -9,6 +9,7 @@ import (
 
 	"github.com/mobiledgex/edge-cloud/cloud-resource-manager/k8smgmt"
 	"github.com/mobiledgex/edge-cloud/cloud-resource-manager/platform/pc"
+	"github.com/mobiledgex/edge-cloud/cloudcommon"
 	"github.com/mobiledgex/edge-cloud/edgeproto"
 	"github.com/mobiledgex/edge-cloud/log"
 	"k8s.io/api/core/v1"
@@ -103,7 +104,7 @@ func GetSvcExternalIP(client pc.PlatformClient, kubeNames *k8smgmt.KubeNames, na
 func GetServices(client pc.PlatformClient, names *k8smgmt.KubeNames) ([]v1.Service, error) {
 	log.DebugLog(log.DebugLevelMexos, "get services", "kconf", names.KconfName)
 	svcs := svcItems{}
-	if names.NonK8sDocker {
+	if names.DeploymentType == cloudcommon.AppDeploymentTypeDocker {
 		// just populate the service names
 		for _, sn := range names.ServiceNames {
 			item := v1.Service{}

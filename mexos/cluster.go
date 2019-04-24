@@ -103,11 +103,15 @@ func CreateCluster(rootLBName string, clusterInst *edgeproto.ClusterInst, flavor
 
 	var err error
 	singleNodeCluster := false
-	if clusterInst.IpAccess == edgeproto.IpAccess_IpAccessDedicated && flavor.NumMasters == 0 {
-		//suitable for docker only
-		log.DebugLog(log.DebugLevelMexos, "creating single VM cluster with just rootLB and no k8s")
-		singleNodeCluster = true
-		err = HeatCreateRootLBVM(dedicatedRootLBName, k8smgmt.GetK8sNodeNameSuffix(clusterInst), clusterInst.NodeFlavor)
+	if flavor.NumMasters == 0 {
+		if clusterInst.IpAccess == edgeproto.IpAccess_IpAccessDedicated {
+			//suitable for docker only
+			log.DebugLog(log.DebugLevelMexos, "creating single VM cluster with just rootLB and no k8s")
+			singleNodeCluster = true
+			err = HeatCreateRootLBVM(dedicatedRootLBName, k8smgmt.GetK8sNodeNameSuffix(clusterInst), clusterInst.NodeFlavor)
+		} else {
+			err = fmt.Errorf("NumMasters cannot be 0 for shared access")
+		}
 	} else {
 		err = HeatCreateClusterKubernetes(clusterInst, flavor, dedicatedRootLBName)
 	}

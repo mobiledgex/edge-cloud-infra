@@ -247,7 +247,6 @@ func (s *Platform) GetAppInstRuntime(clusterInst *edgeproto.ClusterInst, app *ed
 	case cloudcommon.AppDeploymentTypeVM:
 		fallthrough
 	case cloudcommon.AppDeploymentTypeDocker:
-		//TODO
 		return dockermgmt.GetAppInstRuntime(client, app, appInst)
 	default:
 		return nil, fmt.Errorf("unsupported deployment type %s", deployment)

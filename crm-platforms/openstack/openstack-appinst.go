@@ -244,10 +244,10 @@ func (s *Platform) GetAppInstRuntime(clusterInst *edgeproto.ClusterInst, app *ed
 			return nil, err
 		}
 		return k8smgmt.GetAppInstRuntime(client, names, app, appInst)
-	case cloudcommon.AppDeploymentTypeVM:
-		fallthrough
 	case cloudcommon.AppDeploymentTypeDocker:
 		return dockermgmt.GetAppInstRuntime(client, app, appInst)
+	case cloudcommon.AppDeploymentTypeVM:
+		fallthrough
 	default:
 		return nil, fmt.Errorf("unsupported deployment type %s", deployment)
 	}
@@ -259,10 +259,10 @@ func (s *Platform) GetContainerCommand(clusterInst *edgeproto.ClusterInst, app *
 		fallthrough
 	case cloudcommon.AppDeploymentTypeHelm:
 		return k8smgmt.GetContainerCommand(clusterInst, app, appInst, req)
-	case cloudcommon.AppDeploymentTypeVM:
-		fallthrough
 	case cloudcommon.AppDeploymentTypeDocker:
 		return dockermgmt.GetContainerCommand(clusterInst, app, appInst, req)
+	case cloudcommon.AppDeploymentTypeVM:
+		fallthrough
 	default:
 		return "", fmt.Errorf("unsupported deployment type %s", deployment)
 	}

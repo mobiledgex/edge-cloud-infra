@@ -16,6 +16,7 @@
     - etcd
     - monitor
     - controller
+    - dme
 
 - hosts: crms
   roles:

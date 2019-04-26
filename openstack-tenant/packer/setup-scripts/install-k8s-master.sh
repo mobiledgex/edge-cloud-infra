@@ -78,8 +78,9 @@ if [ $? -ne 0 ]; then
     echo kubectl exited with error doing get nodes
     exit 1
 fi
-kubeadm token create --print-join-command  | tee /tmp/k8s-join-cmd
-cat /tmp/k8s-join-cmd
+kubeadm token create --print-join-command  | tee /tmp/k8s-join-cmd.tmp
+cat /tmp/k8s-join-cmd.tmp
+mv /tmp/k8s-join-cmd.tmp /tmp/k8s-join-cmd
 #cd /tmp
 #echo running simple http server at :8000
 #python -m SimpleHTTPServer 

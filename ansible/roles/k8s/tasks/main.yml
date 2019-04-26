@@ -1,0 +1,11 @@
+- name: Deploy Mex Secrets
+  k8s:
+    context: "{{ deploy_target }}"
+    state: present
+    definition: "{{ lookup('template', 'mexplat/mex-secret.yml') }}"
+
+- name: Set up RBAC
+  k8s:
+    context: "{{ deploy_target }}"
+    state: present
+    definition: "{{ lookup('template', 'mexplat/rbac.yml') }}"

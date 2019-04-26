@@ -1,0 +1,26 @@
+ansible_python_interpreter: python3
+mex_docker_registry: registry.mobiledgex.net:5000
+mex_docker_username: mobiledgex
+mex_docker_password: sandhill
+edge_cloud_image: "{{ mex_docker_registry }}/mobiledgex/edge-cloud"
+monitor_image: "{{ mex_docker_registry }}/mobiledgex/monitor"
+mex_ext_network: external-network-shared
+cloudflare_account_email: mobiledgex.ops@mobiledgex.com
+cloudflare_account_api_token: ***REMOVED***
+cloudflare_zone: mobiledgex.net
+vault_address: https://vault.mobiledgex.net
+vault_token: ***REMOVED***
+gitlab_address: https://container-registry.mobiledgex.net
+etcd_opetator_crd: etcdclusters.etcd.database.coreos.com
+crm_api_port: 55091
+mc_api_port: 9900
+mc_api_internal_port: 19900
+mc_ldap_port: 9389
+postgres_server: postgres.mobiledgex.net:5432
+mc_vault_role_id: f4207f0f-c965-ac3e-181c-235de8838ff7
+mc_vault_secret_id: ***REMOVED***
+mc_gitlab_token: ***REMOVED***
+dme_vault_role_id: b95e3309-5964-89a2-5647-e86f745f20c7
+dme_vault_secret_id: ***REMOVED***
+locapi_user: mexserver
+locapi_passwd: "seC2835!"

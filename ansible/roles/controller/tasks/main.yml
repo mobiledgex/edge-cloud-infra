@@ -1,0 +1,34 @@
+- name: Deploy the Mex Controller
+  k8s:
+    context: "{{ deploy_target }}"
+    namespace: default
+    state: present
+    definition: "{{ lookup('template', 'mexplat/mex-controller-deploy.yml.j2') }}"
+
+- name: Deploy the Mex Controller LB
+  k8s:
+    context: "{{ deploy_target }}"
+    namespace: default
+    state: present
+    definition: "{{ lookup('template', 'mexplat/mex-controller-lb.yml') }}"
+
+- name: Get Controller Public IP
+  command: "kubectl --context {{ deploy_target }} get svc -o jsonpath='{.status.loadBalancer.ingress[0].ip}' controller"
+  register: controller_ip_command
+  retries: 60
+  delay: 5
+  until: controller_ip_command.stdout != ""
+
+- set_fact:
+    controller_ip: "{{ controller_ip_command.stdout }}"
+
+- name: Update Controller DNS
+  cloudflare_dns:
+    zone: "{{ cloudflare_zone }}"
+    record: "{{ controller_dns }}"
+    value: "{{ controller_ip }}"
+    type: A
+    state: present
+    solo: true
+    account_email: "{{ cloudflare_account_email }}"
+    account_api_token: "{{ cloudflare_account_api_token }}"

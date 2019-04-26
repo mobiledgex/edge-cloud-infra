@@ -35,6 +35,16 @@ make edge-cloud-version-set
                 }
             }
         }
+        stage('Force Clean') {
+            steps {
+                dir(path: 'go/src/github.com/mobiledgex/edge-cloud') {
+                    sh label: 'git clean edge-cloud', script: 'git clean -f -d'
+                }
+                dir(path: 'go/src/github.com/mobiledgex/edge-cloud-infra') {
+                    sh label: 'git clean edge-cloud-infra', script: 'git clean -f -d'
+                }
+            }
+        }
         stage('Docker Image') {
             steps {
                 dir(path: 'go/src/github.com/mobiledgex/edge-cloud') {

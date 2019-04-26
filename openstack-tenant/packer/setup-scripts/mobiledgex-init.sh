@@ -75,6 +75,7 @@ if [[ -z "$INTERFACE" ]]; then
 	[[ -z "$INTERFACE" ]] && INTERFACE=ens3
 fi
 
+echo 127.0.0.1 `hostname` >> /etc/hosts
 [[ "$UPDATEHOSTNAME" == yes ]] && sed -i "s|^\(127\.0\.1\.1 \).*|\1${HOSTNAME}|" /etc/hosts
 
 if [[ -n "$HOLEPUNCH" ]]; then

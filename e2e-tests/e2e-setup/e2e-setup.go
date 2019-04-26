@@ -101,7 +101,11 @@ func StartProcesses(processName string, outputDir string) bool {
 	}
 
 	// this roles file needs to match the one from setupmex.StartProcess()
+	if outputDir == "" {
+		outputDir = "."
+	}
 	rolesfile := outputDir + "/roles.yaml"
+
 	opts := []process.StartOp{}
 	if processName == "" {
 		// full start of all processes, do clean start

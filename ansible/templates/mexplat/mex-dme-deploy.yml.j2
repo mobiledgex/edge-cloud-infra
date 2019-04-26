@@ -1,0 +1,55 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: dme
+  labels:
+    app: dme
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: dme
+  template:
+    metadata:
+      labels:
+        app: dme
+    spec:
+      containers:
+      - name: dme
+        image: "{{ edge_cloud_image }}:{{ edge_cloud_version }}"
+        imagePullPolicy: Always
+        command:
+         - "dme-server"
+         - "--apiAddr"
+         - "0.0.0.0:50051"
+         - "--httpAddr"
+         - "0.0.0.0:38001"
+         - "--notifyAddrs"
+         - "controller:37001"
+         - "--vaultAddr"
+         - "{{ vault_address }}"
+         - "--locverurl"
+         - "{{ locver_url }}"
+         - "--carrier"
+         - "{{ dme_carrier }}"
+         - "--d"
+         - "locapi,dmedb,dmereq"
+         - "--toksrvurl"
+         - "{{ toksrv_url }}"
+         - "--tls"
+         - "/root/tls/mex-server.crt"
+         - "--cloudletKey"
+         - "{\"operator_key\":{\"name\":\"{{ operator_key }}\"},\"name\":\"{{ deploy_target }}-cloudlet\"}"
+        env:
+         - name: LOCAPI_USER
+           value: "{{ locapi_user }}"
+         - name: LOCAPI_PASSWD
+           value: "{{ locapi_passwd }}"
+         - name: VAULT_ROLE_ID
+           value: "{{ dme_vault_role_id }}"
+         - name: VAULT_SECRET_ID
+           value: "{{ dme_vault_secret_id }}"
+
+      imagePullSecrets:
+       - name: mexreg-secret
+

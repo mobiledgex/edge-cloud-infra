@@ -1,0 +1,24 @@
+- name: Deploy the CRM
+  docker_container:
+    name: "{{ crm_name }}"
+    image: "{{ edge_cloud_image }}:{{ edge_cloud_version }}"
+    restart_policy: unless-stopped
+    command:
+      - crmserver
+      - "--apiAddr"
+      - "0.0.0.0:{{ crm_api_port }}"
+      - "--cloudletKey"
+      - "{\\\"operator_key\\\":{\\\"name\\\":\\\"{{ operator_key }}\\\"},\\\"name\\\":\\\"{{ cloudlet_name }}\\\"}"
+      - "--notifyAddrs"
+      - "{{ controller_dns }}.{{ cloudflare_zone }}:37001"
+      - "--tls"
+      - "/root/tls/mex-server.crt"
+      - "-d"
+      - "api,notify,mexos"
+    env:
+      OPENRC_URL: "https://vault.mobiledgex.net/v1/secret/data/cloudlet/openstack/{{ openstack_instance }}/openrc.json"
+      MEXENV_URL: https://vault.mobiledgex.net/v1/secret/data/cloudlet/openstack/mexenv.json
+      CLOUDLET_KIND: openstack
+      PLATFORM: openstack
+      MEX_EXT_NETWORK: "{{ mex_ext_network }}"
+      VAULT_TOKEN: "{{ vault_token }}"

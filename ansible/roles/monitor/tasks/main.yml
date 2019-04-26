@@ -1,0 +1,13 @@
+- name: Deploy the Mex Monitor
+  k8s:
+    context: "{{ deploy_target }}"
+    namespace: default
+    state: present
+    definition: "{{ lookup('template', 'mexplat/mex-monitor-deploy.yml.j2') }}"
+
+- name: Deploy the Mex Monitor LB
+  k8s:
+    context: "{{ deploy_target }}"
+    namespace: default
+    state: present
+    definition: "{{ lookup('template', 'mexplat/mex-monitor-lb.yml') }}"

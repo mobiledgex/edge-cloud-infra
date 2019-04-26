@@ -4,6 +4,14 @@
     state: present
   become: yes
 
+- name: Install Nginx Config
+  template:
+    src: "{{ nginx_config_template }}"
+    dest: /etc/nginx/sites-available/default
+    mode: 0644
+  become: yes
+  when: nginx_config_template is defined
+
 - name: Start Nginx
   service:
     name: nginx

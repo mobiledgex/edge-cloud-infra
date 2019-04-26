@@ -1,0 +1,24 @@
+[all:vars]
+monitor_version=latest
+deploy_target=bleeding-edge
+operator_key=TDG
+openstack_instance=bonn
+controller_dns="{{ deploy_target }}.ctrl"
+dme_dns="{{ deploy_target }}.dme"
+dme_carrier=TDG
+locver_url="http://{{ deploy_target }}.locsim.mobiledgex.net:8888/verifyLocation"
+toksrv_url="http://{{ deploy_target }}.tok.mobiledgex.net:9999/its?followURL=https://dme.mobiledgex.net/verifyLoc"
+mc_postgres_db=mcdevdb
+mc_postgres_username=mcdevuser
+mc_postgres_password=topsecret
+mc_superuser=mexadmin
+mc_superuser_password=mexadmin123
+
+[platform]
+localhost	ansible_connection=local
+
+[crms]
+bleeding-edge-plat.mobiledgex.net	crm_name="crm-{{ deploy_target }}" cloudlet_name="{{ deploy_target }}-cloudlet"
+
+[mcs]
+bleeding-edge-plat.mobiledgex.net	mc_name="mc-dev"

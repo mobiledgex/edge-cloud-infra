@@ -2,8 +2,8 @@
 mc_postgres_db=mcdb
 mc_postgres_username=mcuser
 mc_postgres_password="s3cr3tmc!"
-mc_superuser: mexadmin
-mc_superuser_password: mexadmin123
+mc_superuser=mexadmin
+mc_superuser_password=mexadmin123
 
 [ui-servers]
 console.mobiledgex.net

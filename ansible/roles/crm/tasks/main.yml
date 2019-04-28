@@ -18,7 +18,7 @@
     env:
       OPENRC_URL: "https://vault.mobiledgex.net/v1/secret/data/cloudlet/openstack/{{ openstack_instance }}/openrc.json"
       MEXENV_URL: https://vault.mobiledgex.net/v1/secret/data/cloudlet/openstack/mexenv.json
-      CLOUDLET_KIND: openstack
       PLATFORM: openstack
       MEX_EXT_NETWORK: "{{ mex_ext_network }}"
       VAULT_TOKEN: "{{ vault_token }}"
+      MEX_SECURITY_GROUP: "{{ mex_security_group }}"

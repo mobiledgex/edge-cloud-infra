@@ -2,7 +2,7 @@
   gather_facts: no
   user: ubuntu
   become: yes
-  hosts: etcds
+  hosts: etcd
 
   vars_files:
   - mex_vars.yml
@@ -27,7 +27,7 @@
   gather_facts: no
   user: ubuntu
   become: yes
-  hosts: controllers
+  hosts: controller
 
   vars_files:
   - mex_vars.yml
@@ -42,7 +42,7 @@
        -  "{{ controllers }}"
     
   - name: stop controller docker container
-    shell: "docker kill $(docker ps|grep {{item.controllerlocal.name}}|cut -d' ' -f 1)|| true"
+    shell: "docker kill $(docker ps|grep {{item.name}}|cut -d' ' -f 1)|| true"
     when: item.hostname == inventory_hostname and item.dockerimage != ""
     with_items:
        -  "{{ controllers }}"
@@ -51,7 +51,7 @@
   gather_facts: no
   user: ubuntu
   become: yes
-  hosts: dmes
+  hosts: dme
 
   vars_files:
   - mex_vars.yml
@@ -66,7 +66,7 @@
        -  "{{ dmes }}"
 
   - name: stop dme docker container
-    shell: "docker kill $(docker ps|grep {{item.dmelocal.name}}|cut -d' ' -f 1)||true"
+    shell: "docker kill $(docker ps|grep {{item.name}}|cut -d' ' -f 1)||true"
     when: item.hostname == inventory_hostname and item.dockerimage != ""
     with_items:
        -  "{{ dmes }}"
@@ -75,7 +75,7 @@
   gather_facts: no
   user: ubuntu
   become: yes
-  hosts: crms
+  hosts: crm
 
   vars_files:
   - mex_vars.yml
@@ -89,7 +89,7 @@
        -  "{{ crms }}"
 
   - name: stop crm docker container
-    shell: "docker kill $(docker ps|grep {{item.crmlocal.name}}|cut -d' ' -f 1)||true"
+    shell: "docker kill $(docker ps|grep {{item.name}}|cut -d' ' -f 1)||true"
     when: item.hostname == inventory_hostname and item.dockerimage != ""
     with_items:
        -  "{{ crms }}"
@@ -98,7 +98,7 @@
   gather_facts: no
   user: ubuntu
   become: yes
-  hosts: locapisims
+  hosts: locapisim
 
   vars_files:
   - mex_vars.yml
@@ -121,7 +121,7 @@
   gather_facts: no
   user: ubuntu
   become: yes
-  hosts: toksrvsims
+  hosts: toksrvsim
 
   vars_files:
   - mex_vars.yml
@@ -135,40 +135,17 @@
        -  "{{ toksrvsims }}"
 
   - name: stop toksim docker container
-    shell: "docker kill $(docker ps|grep {{item.toksrvsimlocal.name}}|cut -d' ' -f 1)||true"
+    shell: "docker kill $(docker ps|grep {{item.name}}|cut -d' ' -f 1)||true"
     when: item.hostname == inventory_hostname and item.dockerimage != ""
     with_items:
        -  "{{ toksrvsims }}"
-
-- name: stop sample apps
-  gather_facts: no
-  user: ubuntu
-  become: yes
-  hosts: sampleapps
-
-  vars_files:
-  - mex_vars.yml
-  - "{{ setupfile }}"
-
-  tasks:
-  - name: stop sample app process
-    shell: "pkill -9 {{ item.sampleapplocal.exename }} || true"
-    when: item.hostname == inventory_hostname and item.dockerimage == ""
-    with_items:
-       -  "{{ sampleapps }}"
-
-  - name: stop sampleapp docker container
-    shell: "docker kill $(docker ps|grep {{item.sampleapplocal.name}}|cut -d' ' -f 1)||true"
-    when: item.hostname == inventory_hostname and item.dockerimage != ""
-    with_items:
-      -  "{{ sampleapps }}"
 
 
 - name: stop vault
   gather_facts: no
   user: ubuntu
   become: yes
-  hosts: vaults
+  hosts: vault
 
   vars_files:
   - mex_vars.yml

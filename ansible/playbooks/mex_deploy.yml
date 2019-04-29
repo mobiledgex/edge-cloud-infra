@@ -16,7 +16,7 @@
   gather_facts: yes
   user: ubuntu
   become: yes
-  hosts: etcds
+  hosts: etcd
 
   vars_files:
   - mex_vars.yml

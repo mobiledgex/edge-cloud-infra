@@ -12,8 +12,8 @@
 
   - name: fetch etcd logs
     fetch:
-      src:  "{{ remote_log_path }}/{{ item.etcdlocal.name }}.log"
-      dest: "{{ local_log_path }}/{{ inventory_hostname}}.{{ item.etcdlocal.name }}.log"
+      src:  "{{ remote_log_path }}/{{ item.name }}.log"
+      dest: "{{ local_log_path }}/{{ inventory_hostname}}.{{ item.name }}.log"
       flat: yes
     when: item.hostname == inventory_hostname
     with_items:
@@ -34,8 +34,8 @@
 
   - name: fetch controller logs
     fetch:
-      src:  "{{ remote_log_path }}/{{ item.controllerlocal.name }}.log"
-      dest: "{{ local_log_path }}/{{ inventory_hostname}}.{{ item.controllerlocal.name }}.log"
+      src:  "{{ remote_log_path }}/{{ item.name }}.log"
+      dest: "{{ local_log_path }}/{{ inventory_hostname}}.{{ item.name }}.log"
       flat: yes
     when: item.hostname == inventory_hostname
     with_items:
@@ -55,8 +55,8 @@
 
   - name: fetch crm logs
     fetch:
-      src:  "{{ remote_log_path }}/{{ item.crmlocal.name }}.log"
-      dest: "{{ local_log_path }}/{{ inventory_hostname}}.{{ item.crmlocal.name }}.log"
+      src:  "{{ remote_log_path }}/{{ item.name }}.log"
+      dest: "{{ local_log_path }}/{{ inventory_hostname}}.{{ item.name }}.log"
       flat: yes
     when: item.hostname == inventory_hostname
     with_items:
@@ -76,8 +76,8 @@
 
   - name: fetch dme logs
     fetch:
-      src:  "{{ remote_log_path }}/{{ item.dmelocal.name }}.log"
-      dest: "{{ local_log_path }}/{{ inventory_hostname}}.{{ item.dmelocal.name }}.log"
+      src:  "{{ remote_log_path }}/{{ item.name }}.log"
+      dest: "{{ local_log_path }}/{{ inventory_hostname}}.{{ item.name }}.log"
       flat: yes
     when: item.hostname == inventory_hostname
     with_items:
@@ -97,8 +97,8 @@
   tasks:
   - name: fetch locsim logs
     fetch:
-      src:  "{{ remote_log_path }}/{{ item.locapisimlocal.name }}.log"
-      dest: "{{ local_log_path }}/{{ inventory_hostname}}.{{ item.locapisimlocal.name }}.log"
+      src:  "{{ remote_log_path }}/{{ item.name }}.log"
+      dest: "{{ local_log_path }}/{{ inventory_hostname}}.{{ item.name }}.log"
       flat: yes
     when: item.hostname == inventory_hostname
     with_items:
@@ -118,8 +118,8 @@
   tasks:
   - name: fetch toksim logs
     fetch:
-      src:  "{{ remote_log_path }}/{{ item.toksrvsimlocal.name }}.log"
-      dest: "{{ local_log_path }}/{{ inventory_hostname}}.{{ item.toksrvsimlocal.name }}.log"
+      src:  "{{ remote_log_path }}/{{ item.name }}.log"
+      dest: "{{ local_log_path }}/{{ inventory_hostname}}.{{ item.name }}.log"
       flat: yes
     when: item.hostname == inventory_hostname
     with_items:

@@ -1,0 +1,38 @@
+tlscerts: []
+cluster:
+  mexmanifest: ""
+k8s-deployment: []
+locsims: []
+toksims: []
+vaults: []
+etcds: []
+controllers: []
+dmes: []
+crms:
+- kind: ""
+  name: crm-frankfurt
+  hostname: 40.114.198.180
+  dockerimage: registry.mobiledgex.net:5000/mobiledgex/edge-cloud:2019-04-29
+  envvars:
+    MEX_EXT_NETWORK: external-network-shared
+    MEXENV_URL: https://vault.mobiledgex.net/v1/secret/data/cloudlet/openstack/mexenv.json
+    OPENRC_URL: https://vault.mobiledgex.net/v1/secret/data/cloudlet/openstack/frankfurt/openrc.json
+    PLATFORM: openstack
+    VAULT_TOKEN: 0eb94cce-ab3f-33a3-bd66-0046e8743a14
+  apiaddr: 0.0.0.0:55093
+  notifyaddrs: mexdemo.ctrl.mobiledgex.net:37001
+  cloudletkey: '{"operator_key":{"name":"TDG"},"name":"frankfurt-mexdemo"}'
+  platform: ""
+  plugin: ""
+  tls:
+    servercert: /Users/jimmorris/go/src/github.com/mobiledgex/edge-cloud/tls/out/mex-server.crt
+    serverkey: ""
+    clientcert: /Users/jimmorris/go/src/github.com/mobiledgex/edge-cloud/tls/out/mex-client.crt
+mcs: []
+sqls: []
+sampleapps: []
+influxs: []
+clustersvcs: []
+cloudflare:
+  zone: ""
+  records: []

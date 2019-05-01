@@ -6,12 +6,12 @@ import (
 	"encoding/json"
 	"fmt"
 	sh "github.com/codeskyblue/go-sh"
-
 	"github.com/mobiledgex/edge-cloud-infra/mexos"
 	"github.com/mobiledgex/edge-cloud/cloud-resource-manager/k8smgmt"
 	"github.com/mobiledgex/edge-cloud/cloud-resource-manager/platform/pc"
 	"github.com/mobiledgex/edge-cloud/edgeproto"
 	"github.com/mobiledgex/edge-cloud/log"
+	"io/ioutil"
 	"os"
 )
 
@@ -28,18 +28,12 @@ func (s *Platform) GCPLogin() error {
 	}
 	databytes, err := json.Marshal(vr.Data.Data)
 	filename := "/tmp/auth_key.json"
-	outFile, err := os.OpenFile("/tmp/auth_key.json", os.O_TRUNC|os.O_CREATE|os.O_WRONLY, 0644)
+	err = ioutil.WriteFile(filename, databytes, 0644)
+	defer os.Remove(filename)
 	if err != nil {
-		return fmt.Errorf("unable to auth file %s: %s", filename, err.Error())
-	}
-	_, err = outFile.Write(databytes)
-	if err != nil {
-		outFile.Close()
-		os.Remove(filename)
 		return fmt.Errorf("unable to write auth file %s: %s", filename, err.Error())
 	}
-	outFile.Sync()
-	outFile.Close()
+
 	out, err := sh.Command("gcloud", "auth", "activate-service-account", GCPServiceAccount, "--key-file", filename).CombinedOutput()
 	log.DebugLog(log.DebugLevelMexos, "gcp login", "out", string(out), "err", err)
 	if err != nil {

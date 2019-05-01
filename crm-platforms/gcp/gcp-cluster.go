@@ -3,12 +3,51 @@ package gcp
 import (
 	"time"
 
+	"encoding/json"
+	"fmt"
+	sh "github.com/codeskyblue/go-sh"
+
 	"github.com/mobiledgex/edge-cloud-infra/mexos"
 	"github.com/mobiledgex/edge-cloud/cloud-resource-manager/k8smgmt"
 	"github.com/mobiledgex/edge-cloud/cloud-resource-manager/platform/pc"
 	"github.com/mobiledgex/edge-cloud/edgeproto"
 	"github.com/mobiledgex/edge-cloud/log"
+	"os"
 )
+
+// GCPLogin logs into google cloud
+func (s *Platform) GCPLogin() error {
+	dat, err := mexos.GetVaultData(s.props.GCPAuthKeyUrl)
+	log.DebugLog(log.DebugLevelMexos, "doing GcpLogin", "vault url", s.props.GCPAuthKeyUrl)
+	if err != nil {
+		return err
+	}
+	vr, err := mexos.GetVaultGenericResponse(dat)
+	if err != nil {
+		return err
+	}
+	databytes, err := json.Marshal(vr.Data.Data)
+	filename := "/tmp/auth_key.json"
+	outFile, err := os.OpenFile("/tmp/auth_key.json", os.O_TRUNC|os.O_CREATE|os.O_WRONLY, 0644)
+	if err != nil {
+		return fmt.Errorf("unable to auth file %s: %s", filename, err.Error())
+	}
+	_, err = outFile.Write(databytes)
+	if err != nil {
+		outFile.Close()
+		os.Remove(filename)
+		return fmt.Errorf("unable to write auth file %s: %s", filename, err.Error())
+	}
+	outFile.Sync()
+	outFile.Close()
+	out, err := sh.Command("gcloud", "auth", "activate-service-account", GCPServiceAccount, "--key-file", filename).CombinedOutput()
+	log.DebugLog(log.DebugLevelMexos, "gcp login", "out", string(out), "err", err)
+	if err != nil {
+		return err
+	}
+	log.DebugLog(log.DebugLevelMexos, "GCP login OK")
+	return nil
+}
 
 func (s *Platform) CreateCluster(clusterInst *edgeproto.ClusterInst, flavor *edgeproto.ClusterFlavor) error {
 	var err error

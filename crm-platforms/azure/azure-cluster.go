@@ -2,6 +2,7 @@ package azure
 
 import (
 	"fmt"
+	"strings"
 	"time"
 
 	sh "github.com/codeskyblue/go-sh"
@@ -28,6 +29,10 @@ func GetResourceGroupForCluster(clusterInst *edgeproto.ClusterInst) string {
 
 func (s *Platform) CreateCluster(clusterInst *edgeproto.ClusterInst, flavor *edgeproto.ClusterFlavor) error {
 	var err error
+
+	//Remove all periods in the name since azure doesnt allow it
+	clusterInst.Key.ClusterKey.Name = strings.NewReplacer(".", "").Replace(clusterInst.Key.ClusterKey.Name)
+
 	resourceGroup := GetResourceGroupForCluster(clusterInst)
 	clusterName := clusterInst.Key.ClusterKey.Name
 	location := s.props.Location

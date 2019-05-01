@@ -29,11 +29,10 @@ func (s *Platform) GCPLogin() error {
 	databytes, err := json.Marshal(vr.Data.Data)
 	filename := "/tmp/auth_key.json"
 	err = ioutil.WriteFile(filename, databytes, 0644)
-	defer os.Remove(filename)
 	if err != nil {
 		return fmt.Errorf("unable to write auth file %s: %s", filename, err.Error())
 	}
-
+	defer os.Remove(filename)
 	out, err := sh.Command("gcloud", "auth", "activate-service-account", GCPServiceAccount, "--key-file", filename).CombinedOutput()
 	log.DebugLog(log.DebugLevelMexos, "gcp login", "out", string(out), "err", err)
 	if err != nil {

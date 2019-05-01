@@ -5,7 +5,8 @@
 	    { "name": "MEX_CF_USER", "value": "mobiledgex.ops@mobiledgex.com"},
 	    { "name": "MEX_DOCKER_REG_PASS", "value": "sandhill"},
             { "name": "MEX_AZURE_USER", "value": "mobiledgex.ops@mobiledgex.onmicrosoft.com"},
-            { "name": "MEX_AZURE_PASS", "value": "Telekom2735"}
+            { "name": "MEX_AZURE_PASS", "value": "Telekom2735"},
+            { "name": "MEX_GCP_SERVICE_ACCOUNT", "value": "733061651822-compute@developer.gserviceaccount.com"}
 	]
     }
 }

@@ -40,7 +40,7 @@ build-internal:
 	fixmod -srcRepo ../edge-cloud
 	go install ./protoc-gen-mc2
 	make -f proto.make
-	make -C ./openstack-tenant/agent/
+#	make -C ./openstack-tenant/agent/
 	go build ./...
 	go build -buildmode=plugin -o ${GOPATH}/plugins/platforms.so plugin/*.go
 	go vet ./...

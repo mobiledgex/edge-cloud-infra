@@ -11,7 +11,7 @@ import (
 )
 
 // AddProxySecurityRulesAndPatchDNS Adds security rules and dns records in parallel
-func AddProxySecurityRulesAndPatchDNS(client pc.PlatformClient, kubeNames *k8smgmt.KubeNames, appInst *edgeproto.AppInst, getDnsSvcAction GetDnsSvcActionFunc, rootLBName, masterIP string, addProxy bool) error {
+func AddProxySecurityRulesAndPatchDNS(client pc.PlatformClient, kubeNames *k8smgmt.KubeNames, appInst *edgeproto.AppInst, getDnsSvcAction GetDnsSvcActionFunc, rootLBName, masterIP string, addProxy bool, ops ...nginx.Op) error {
 	secchan := make(chan string)
 	dnschan := make(chan string)
 	proxychan := make(chan string)
@@ -22,7 +22,7 @@ func AddProxySecurityRulesAndPatchDNS(client pc.PlatformClient, kubeNames *k8smg
 	}
 	go func() {
 		if addProxy {
-			err := nginx.CreateNginxProxy(client, kubeNames.AppName, masterIP, "", appInst.MappedPorts)
+			err := nginx.CreateNginxProxy(client, kubeNames.AppName, masterIP, appInst.MappedPorts, ops...)
 			if err == nil {
 				proxychan <- ""
 			} else {

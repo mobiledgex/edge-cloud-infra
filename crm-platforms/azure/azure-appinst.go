@@ -3,7 +3,6 @@ package azure
 import (
 	"fmt"
 	"os"
-	"strings"
 
 	"github.com/mobiledgex/edge-cloud-infra/mexos"
 	"github.com/mobiledgex/edge-cloud/cloud-resource-manager/k8smgmt"
@@ -98,7 +97,7 @@ func (s *Platform) SetupKconf(clusterInst *edgeproto.ClusterInst) error {
 	if err := s.AzureLogin(); err != nil {
 		return err
 	}
-	clusterName := strings.NewReplacer(".", "").Replace(clusterInst.Key.ClusterKey.Name)
+	clusterName := AzureSanitize(clusterInst.Key.ClusterKey.Name)
 	rg := GetResourceGroupForCluster(clusterInst)
 	if err := GetAKSCredentials(rg, clusterName); err != nil {
 		return fmt.Errorf("unable to get AKS credentials %v", err)

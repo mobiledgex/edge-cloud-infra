@@ -1,0 +1,3 @@
+cert_domains: []
+letsencrypt_root: /etc/letsencrypt/live
+cloudflare_credentials_file: /etc/cloudflare.ini

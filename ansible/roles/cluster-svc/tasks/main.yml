@@ -1,0 +1,6 @@
+- name: Deploy Cluster Service
+  k8s:
+    kubeconfig: "{{ kubeconfig_file.path }}"
+    namespace: default
+    state: present
+    definition: "{{ lookup('template', 'mexplat/mex-cluster-svc-deploy.yml.j2') }}"

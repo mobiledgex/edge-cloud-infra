@@ -129,8 +129,12 @@ fi
 
 if [[ "$ROLE" == mex-agent-node ]]; then
 	log "Initializing mex agent node"
+	systemctl disable kubelet
+	systemctl stop kubelet
 elif [[ "$SKIPK8S" == yes ]]; then
 	log "Skipping k8s init for role $ROLE"
+	systemctl disable kubelet
+	systemctl stop kubelet
 else
 	log "K8s init for role $ROLE"
 	case "$ROLE" in

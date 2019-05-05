@@ -10,7 +10,8 @@ OUTPUT_IMAGE_NAME='mobiledgex'
 : ${FORCE:=no}
 : ${TRACE:=no}
 
-[[ -z "$TAG" ]] && TAG=$( git describe --tags )
+GITTAG=$( git describe --tags )
+[[ -z "$TAG" ]] && TAG="$GITTAG"
 
 USAGE="usage: $( basename $0 ) <options>
 
@@ -117,6 +118,7 @@ PACKER_LOG=1 packer build \
 	-var "NETWORK=$NETWORK" \
 	-var "ARTIFACTORY_APIKEY=$ARTIFACTORY_APIKEY" \
 	-var "TAG=$TAG" \
+	-var "GITTAG=$GITTAG" \
 	-var "FLAVOR=$FLAVOR" \
 	-var "TRACE=$TRACE" \
 	-var "MEX_BUILD=$( git describe --long --tags )" \

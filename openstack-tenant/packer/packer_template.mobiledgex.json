@@ -12,7 +12,8 @@
 	"image_name": "{{ user `OUTPUT_IMAGE_NAME` }}",
 	"source_image": "{{ user `SRC_IMG` }}",
 	"networks": "{{ user `NETWORK` }}",
-	"security_groups": ["default" ]
+	"security_groups": [ "default" ],
+	"metadata": { "git_tag": "{{ user `GITTAG` }}" }
     }],
     "provisioners": [{
 	"type": "shell",

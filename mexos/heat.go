@@ -41,7 +41,7 @@ const (
 
 var heatStackLock sync.Mutex
 
-var vmCloudConfig = ` #cloud-config
+var vmCloudConfig = `#cloud-config
 bootcmd:
  - echo MOBILEDGEX CLOUD CONFIG START
  - echo 'APT::Periodic::Enable "0";' > /etc/apt/apt.conf.d/10cloudinit-disable

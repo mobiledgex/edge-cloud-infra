@@ -121,11 +121,9 @@ func getClaims(c echo.Context) (*UserClaims, error) {
 
 func AuthCookie(next echo.HandlerFunc) echo.HandlerFunc {
 	return func(c echo.Context) error {
-		fmt.Printf("asdf made it here\n")
 		auth := c.Request().Header.Get(echo.HeaderAuthorization)
 		scheme := "Bearer"
 		l := len(scheme)
-		fmt.Printf("asdf auth: %s\n", auth)
 		if len(auth) <= len(scheme) || !strings.HasPrefix(auth, scheme) {
 			//if no token provided, return a 400 err
 			err := fmt.Errorf("no token found for Authorization Bearer")

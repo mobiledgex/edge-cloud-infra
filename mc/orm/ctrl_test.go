@@ -1,11 +1,9 @@
 package orm
 
 import (
-	"fmt"
 	"net"
 	"net/http"
 	"testing"
-	"time"
 
 	"github.com/mobiledgex/edge-cloud-infra/mc/ormapi"
 	"github.com/mobiledgex/edge-cloud-infra/mc/ormclient"
@@ -143,9 +141,7 @@ func TestController(t *testing.T) {
 	testAddUserRole(t, mcClient, uri, tokenOper3, org3, "OperatorViewer", user5.Name, Fail)
 	testAddUserRole(t, mcClient, uri, tokenOper4, org3, "OperatorViewer", user5.Name, Fail)
 
-	// make sure developer and operator cannot modify controllers
-	// all users can see controllers (required for UI to be able to
-	// fork requests to each controller as the user).
+	// make sure developer and operator cannot see or modify controllers
 	ctrlNew := ormapi.Controller{
 		Region:  "Bad",
 		Address: "bad.mobiledgex.net",
@@ -155,15 +151,14 @@ func TestController(t *testing.T) {
 	status, err = mcClient.CreateController(uri, tokenOper, &ctrlNew)
 	require.Equal(t, http.StatusForbidden, status)
 	ctrls, status, err = mcClient.ShowController(uri, tokenDev)
-	require.Equal(t, http.StatusOK, status)
-	require.Equal(t, 1, len(ctrls))
+	require.Equal(t, http.StatusForbidden, status)
+	require.Equal(t, 0, len(ctrls))
 	ctrls, status, err = mcClient.ShowController(uri, tokenOper)
-	require.Equal(t, http.StatusOK, status)
-	require.Equal(t, 1, len(ctrls))
+	require.Equal(t, http.StatusForbidden, status)
+	require.Equal(t, 0, len(ctrls))
 
 	// admin can do everything
 	goodPermTestFlavor(t, mcClient, uri, tokenAd, ctrl.Region, "", icnt)
-	goodPermTestClusterFlavor(t, mcClient, uri, tokenAd, ctrl.Region, "", icnt)
 	goodPermTestCloudlet(t, mcClient, uri, tokenAd, ctrl.Region, org3, count)
 	goodPermTestCloudlet(t, mcClient, uri, tokenAd, ctrl.Region, org4, count)
 	goodPermTestApp(t, mcClient, uri, tokenAd, ctrl.Region, org1, dcnt)
@@ -183,15 +178,6 @@ func TestController(t *testing.T) {
 	goodPermTestShowFlavor(t, mcClient, uri, tokenOper3, ctrl.Region, "", icnt)
 	goodPermTestShowFlavor(t, mcClient, uri, tokenOper4, ctrl.Region, "", icnt)
 
-	goodPermTestShowClusterFlavor(t, mcClient, uri, tokenDev, ctrl.Region, "", icnt)
-	goodPermTestShowClusterFlavor(t, mcClient, uri, tokenDev2, ctrl.Region, "", icnt)
-	goodPermTestShowClusterFlavor(t, mcClient, uri, tokenDev3, ctrl.Region, "", icnt)
-	goodPermTestShowClusterFlavor(t, mcClient, uri, tokenDev4, ctrl.Region, "", icnt)
-	goodPermTestShowClusterFlavor(t, mcClient, uri, tokenOper, ctrl.Region, "", icnt)
-	goodPermTestShowClusterFlavor(t, mcClient, uri, tokenOper2, ctrl.Region, "", icnt)
-	goodPermTestShowClusterFlavor(t, mcClient, uri, tokenOper3, ctrl.Region, "", icnt)
-	goodPermTestShowClusterFlavor(t, mcClient, uri, tokenOper4, ctrl.Region, "", icnt)
-
 	goodPermTestShowCloudlet(t, mcClient, uri, tokenDev, ctrl.Region, "", count)
 	goodPermTestShowCloudlet(t, mcClient, uri, tokenDev2, ctrl.Region, "", count)
 	goodPermTestShowCloudlet(t, mcClient, uri, tokenDev3, ctrl.Region, "", count)
@@ -209,15 +195,6 @@ func TestController(t *testing.T) {
 	badPermTestFlavor(t, mcClient, uri, tokenOper2, ctrl.Region, "")
 	badPermTestFlavor(t, mcClient, uri, tokenOper3, ctrl.Region, "")
 	badPermTestFlavor(t, mcClient, uri, tokenOper4, ctrl.Region, "")
-
-	badPermTestClusterFlavor(t, mcClient, uri, tokenDev, ctrl.Region, "")
-	badPermTestClusterFlavor(t, mcClient, uri, tokenDev2, ctrl.Region, "")
-	badPermTestClusterFlavor(t, mcClient, uri, tokenDev3, ctrl.Region, "")
-	badPermTestClusterFlavor(t, mcClient, uri, tokenDev4, ctrl.Region, "")
-	badPermTestClusterFlavor(t, mcClient, uri, tokenOper, ctrl.Region, "")
-	badPermTestClusterFlavor(t, mcClient, uri, tokenOper2, ctrl.Region, "")
-	badPermTestClusterFlavor(t, mcClient, uri, tokenOper3, ctrl.Region, "")
-	badPermTestClusterFlavor(t, mcClient, uri, tokenOper4, ctrl.Region, "")
 
 	// make sure operator cannot create apps, appinsts, clusters, etc
 	badPermTestApp(t, mcClient, uri, tokenOper, ctrl.Region, org1)
@@ -278,56 +255,6 @@ func TestController(t *testing.T) {
 	require.Nil(t, err, "show controllers")
 	require.Equal(t, http.StatusOK, status)
 	require.Equal(t, 0, len(ctrls))
-
-	// Test Streaming APIs
-	dc2 := grpc.NewServer()
-	ctrlAddr2 := "127.0.0.1:9997"
-	lis2, err := net.Listen("tcp", ctrlAddr2)
-	require.Nil(t, err)
-	sds := StreamDummyServer{}
-	sds.next = make(chan int, 1)
-	edgeproto.RegisterClusterInstApiServer(dc2, &sds)
-	go func() {
-		dc2.Serve(lis2)
-	}()
-	defer dc2.Stop()
-
-	ctrl = ormapi.Controller{
-		Region:  "Stream",
-		Address: ctrlAddr2,
-	}
-	// create controller
-	status, err = mcClient.CreateController(uri, token, &ctrl)
-	require.Nil(t, err, "create controller")
-	require.Equal(t, http.StatusOK, status)
-	dat := RegionClusterInst{
-		Region: ctrl.Region,
-	}
-	out := edgeproto.Result{}
-	count = 0
-	// check that we get intermediate results.
-	// the callback func is only called when data is read back.
-	status, err = mcClient.PostJsonStreamOut(uri+"/auth/ctrl/CreateClusterInst",
-		token, &dat, &out, func() {
-			// got a result, trigger next result
-			count++
-			require.Equal(t, count, int(out.Code))
-			sds.next <- 1
-		})
-	require.Nil(t, err, "stream test create cluster inst")
-	require.Equal(t, http.StatusOK, status)
-	require.Equal(t, 3, count)
-	// check that we hit timeout if we don't trigger the next one.
-	count = 0
-	sds.next = make(chan int, 1)
-	status, err = mcClient.PostJsonStreamOut(uri+"/auth/ctrl/CreateClusterInst",
-		token, &dat, &out, func() {
-			count++
-		})
-	require.NotNil(t, err)
-	require.Contains(t, err.Error(), "timedout")
-	require.Equal(t, http.StatusOK, status)
-	require.Equal(t, 1, count)
 }
 
 func testCreateUser(t *testing.T, mcClient *ormclient.Client, uri, name string) (*ormapi.User, string) {
@@ -419,37 +346,4 @@ func addDummyObjs(d *testutil.DummyServer, org string, num int) {
 		cloudlet.Key.OperatorKey.Name = org
 		d.Cloudlets = append(d.Cloudlets, cloudlet)
 	}
-}
-
-type StreamDummyServer struct {
-	next chan int
-	fail bool
-}
-
-func (s *StreamDummyServer) CreateClusterInst(in *edgeproto.ClusterInst, server edgeproto.ClusterInstApi_CreateClusterInstServer) error {
-	server.Send(&edgeproto.Result{Code: 1})
-	for ii := 2; ii < 4; ii++ {
-		select {
-		case <-s.next:
-		case <-time.After(1 * time.Second):
-			return fmt.Errorf("timedout")
-		}
-		server.Send(&edgeproto.Result{Code: int32(ii)})
-	}
-	if s.fail {
-		return fmt.Errorf("fail")
-	}
-	return nil
-}
-
-func (s *StreamDummyServer) DeleteClusterInst(in *edgeproto.ClusterInst, server edgeproto.ClusterInstApi_DeleteClusterInstServer) error {
-	return nil
-}
-
-func (s *StreamDummyServer) UpdateClusterInst(in *edgeproto.ClusterInst, server edgeproto.ClusterInstApi_UpdateClusterInstServer) error {
-	return nil
-}
-
-func (s *StreamDummyServer) ShowClusterInst(in *edgeproto.ClusterInst, server edgeproto.ClusterInstApi_ShowClusterInstServer) error {
-	return nil
 }

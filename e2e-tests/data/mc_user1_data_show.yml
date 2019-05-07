@@ -1,31 +1,48 @@
+controllers:
+- region: local
+  address: 127.0.0.1:55001
+  createdat: 2019-05-07T09:47:29.768271-05:00
+  updatedat: 2019-05-07T09:47:29.768271-05:00
+- region: usa
+  address: usa.mc.mobiledgex.com:55001
+  createdat: 2019-05-07T09:47:29.769442-05:00
+  updatedat: 2019-05-07T09:47:29.769442-05:00
+- region: germany
+  address: germany.mc.mobiledgex.com:55001
+  createdat: 2019-05-07T09:47:29.770329-05:00
+  updatedat: 2019-05-07T09:47:29.770329-05:00
 orgs:
 - name: tmus
   type: operator
   address: tmus headquarters
   phone: 123-123-1234
   adminusername: user1
+  createdat: 2019-05-07T09:47:29.904566-05:00
+  updatedat: 2019-05-07T09:47:29.904566-05:00
 - name: azure
   type: operator
   address: amazon jungle
   phone: 123-123-1234
   adminusername: user1
+  createdat: 2019-05-07T09:47:29.907158-05:00
+  updatedat: 2019-05-07T09:47:29.907158-05:00
 - name: gcp
   type: operator
   address: mountain view
   phone: 123-123-1234
   adminusername: user1
-
+  createdat: 2019-05-07T09:47:29.90894-05:00
+  updatedat: 2019-05-07T09:47:29.90894-05:00
 roles:
-- username: user1
-  org: tmus
+- org: tmus
+  username: user1
   role: OperatorManager
-- username: user1
-  org: azure
+- org: azure
+  username: user1
   role: OperatorManager
-- username: user1
-  org: gcp
+- org: gcp
+  username: user1
   role: OperatorManager
-
 regiondata:
 - region: local
   appdata:
@@ -72,6 +89,11 @@ regiondata:
       numdynamicips: 254
     flavors:
     - key:
+        name: x1.tiny
+      ram: 1024
+      vcpus: 1
+      disk: 1
+    - key:
         name: x1.small
       ram: 2048
       vcpus: 2
@@ -81,36 +103,3 @@ regiondata:
       ram: 4096
       vcpus: 4
       disk: 4
-    - key:
-        name: x1.tiny
-      ram: 1024
-      vcpus: 1
-      disk: 1
-    clusterflavors:
-    - key:
-        name: c1.tiny
-      nodeflavor:
-        name: x1.tiny
-      masterflavor:
-        name: x1.tiny
-      numnodes: 2
-      maxnodes: 2
-      nummasters: 1
-    - key:
-        name: c1.small
-      nodeflavor:
-        name: x1.small
-      masterflavor:
-        name: x1.small
-      numnodes: 3
-      maxnodes: 3
-      nummasters: 1
-    - key:
-        name: c1.medium
-      nodeflavor:
-        name: x1.medium
-      masterflavor:
-        name: x1.medium
-      numnodes: 3
-      maxnodes: 4
-      nummasters: 1

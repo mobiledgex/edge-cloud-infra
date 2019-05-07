@@ -40,26 +40,36 @@ const (
 )
 
 var heatStackLock sync.Mutex
-
-var vmCloudConfig = `#cloud-config
-bootcmd:
- - echo MOBILEDGEX CLOUD CONFIG START
- - echo 'APT::Periodic::Enable "0";' > /etc/apt/apt.conf.d/10cloudinit-disable
- - apt-get -y purge update-notifier-common ubuntu-release-upgrader-core landscape-common unattended-upgrades
- - echo "Removed APT and Ubuntu extra packages" | systemd-cat
-ssh_authorized_keys:
- - ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAABAQDZiZ16uwmHOuafD6a9AmZ5kYF9LqtfyrUOIVMF1eoRJCMALQrWbzNz/NOnqi5h5dwhPn+49oWMU16BKDkEgDik2jgNUOSZ69oZM4/ovPsB8yL55qdNBTx32kov5O8NkSwMEDter2mAPi9czCEv18MRC1qkiZCUxmfFs0BBgXtNfE42Utr97YcKFtvutLDGA1hoFVjon0Yk7wSMNZfwkBznVoShRISCzMvG5uVtf6miJwIIA9+SiwA/aa2OjCRQaiPCKJrPzHMcuLg4oZcs0ltd1CaIVLtMGaqpEoIvDumXEpuk0TSBJwxWUDAEgO5ILmVxi2fSLKa0yuLala6bcfwJ stack@sv1.mobiledgex.com
- - ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAABAQCrHlOJOJUqvd4nEOXQbdL8ODKzWaUxKVY94pF7J3diTxgZ1NTvS6omqOjRS3loiU7TOlQQU4cKnRRnmJW8QQQZSOMIGNrMMInGaEYsdm6+tr1k4DDfoOrkGMj3X/I2zXZ3U+pDPearVFbczCByPU0dqs16TWikxDoCCxJRGeeUl7duzD9a65bI8Jl+zpfQV+I7OPa81P5/fw15lTzT4+F9MhhOUVJ4PFfD+d6/BLnlUfZ94nZlvSYnT+GoZ8xTAstM7+6pvvvHtaHoV4YqRf5CelbWAQ162XNa9/pW5v/RKDrt203/JEk3e70tzx9KAfSw2vuO1QepkCZAdM9rQoCd ubuntu@registry
-chpasswd: { expire: False }
-ssh_pwauth: False
-timezone: UTC
-runcmd:
- - [ echo, MOBILEDGEX, doing, ifconfig ]
- - [ ifconfig, -a ]`
+var heatCreate string = "CREATE"
+var heatUpdate string = "UPDATE"
+var heatDelete string = "DELETE"
 
 // This is the resources part of a template for a VM. It is for use within another template
 // the parameters under VMP can come from either a standalone struture (VM Create) or a cluster (for rootLB)
 var vmTemplateResources = `
+   {{if .DeploymentManifest}}
+   vm_init:
+      type: OS::Heat::CloudConfig
+      properties:
+         cloud_config:
+{{ Indent .DeploymentManifest 16 }}
+   {{- end}}
+   {{if .Command}}
+   single_command:
+      type: OS::Heat::CloudConfig
+      properties:
+         cloud_config:
+            merge_how: 'dict(recurse_array,no_replace)+list(append)'
+            #cloud-config
+            runcmd:
+             - {{.Command}}
+   {{- end}}
+   server_init:
+      type: OS::Heat::MultipartMime
+      properties:
+         parts:
+          {{if .DeploymentManifest}} - config: {get_resource: vm_init} {{- end}}
+          {{if .Command}} - config: {get_resource: single_command} {{- end}}
    {{.VMName}}:
       type: OS::Nova::Server
       properties:
@@ -87,21 +97,12 @@ var vmTemplateResources = `
             edgeproxy: {{.GatewayIP}}
             mex-flavor: {{.Flavor}}
             privaterouter: {{.MEXRouterIP}}
-         user_data_format: RAW
-         user_data: |
-` + reindent(vmCloudConfig, 12) + `
-        {{- end}}
-        {{if .DeploymentManifest}}
-         user_data_format: RAW
-         user_data: |
-{{ Indent .DeploymentManifest 13 }}
-        {{- end}}
-        {{if .Command}}
-         user_data_format: RAW
-         user_data: |
-            #cloud-config
-            runcmd:
-             - {{.Command}}
+         user_data_format: RAW		
+         user_data: 
+            get_file: /root/.mobiledgex/userdata.txt 
+        {{else}}
+         user_data_format: SOFTWARE_CONFIG
+         user_data: { get_resource: server_init }
         {{- end}}
   {{if .AuthPublicKey}}
    ssh_key_pair:
@@ -222,8 +223,8 @@ resources:
          flavor: {{.MasterFlavor}}
          config_drive: true
          user_data_format: RAW
-         user_data: |
-` + reindent(vmCloudConfig, 12) + `
+         user_data:
+            get_file: /root/.mobiledgex/userdata.txt
          networks:
           - port: { get_resource: k8s-master-port }
          metadata:
@@ -254,8 +255,8 @@ resources:
          flavor: {{$.NodeFlavor}}
          config_drive: true
          user_data_format: RAW
-         user_data: |
-` + reindent(vmCloudConfig, 12) + `
+         user_data:
+            get_file: /root/.mobiledgex/userdata.txt
          networks:
           - port: { get_resource: {{.NodeName}}-port } 
          metadata:
@@ -266,14 +267,6 @@ resources:
             k8smaster: {{$.MasterIP}}
   {{end}}
 `
-
-func reindent(str string, indent int) string {
-	out := ""
-	for _, v := range strings.Split(str, "\n") {
-		out += strings.Repeat(" ", indent) + v + "\n"
-	}
-	return strings.TrimSuffix(out, "\n")
-}
 
 func writeTemplateFile(filename string, buf *bytes.Buffer) error {
 	outFile, err := os.OpenFile(filename, os.O_TRUNC|os.O_CREATE|os.O_WRONLY, 0644)
@@ -292,7 +285,8 @@ func writeTemplateFile(filename string, buf *bytes.Buffer) error {
 	return nil
 }
 
-func waitForStackCreate(stackname string) error {
+func waitForStack(stackname string, action string) error {
+	log.DebugLog(log.DebugLevelMexos, "waiting for stack", "name", stackname, "action", action)
 	start := time.Now()
 	for {
 		time.Sleep(10 * time.Second)
@@ -302,47 +296,23 @@ func waitForStackCreate(stackname string) error {
 		}
 		log.DebugLog(log.DebugLevelMexos, "Got Heat Stack detail", "detail", hd)
 		switch hd.StackStatus {
-		case "CREATE_COMPLETE":
-			log.DebugLog(log.DebugLevelMexos, "Heat Stack Creation succeeded", "stackName", stackname)
+		case action + "_COMPLETE":
+			log.DebugLog(log.DebugLevelMexos, "Heat Stack succeeded", "action", action, "stackName", stackname)
 			return nil
-		case "CREATE_IN_PROGRESS":
+		case action + "_IN_PROGRESS":
 			elapsed := time.Since(start)
 			if elapsed >= (time.Minute * 20) {
 				// this should not happen and indicates the stack is stuck somehow
-				log.InfoLog("Heat stack create taking too long", "status", hd.StackStatus, "elasped time", elapsed)
-				return fmt.Errorf("Heat stack create taking too long")
+				log.InfoLog("Heat stack taking too long", "status", hd.StackStatus, "elasped time", elapsed)
+				return fmt.Errorf("Heat stack taking too long")
 			}
 			continue
-		case "CREATE_FAILED":
-			log.InfoLog("Heat Stack Creation failed", "stackName", stackname)
+		case action + "_FAILED":
+			log.InfoLog("Heat Stack failed", "action", action, "stackName", stackname)
 			return fmt.Errorf("Heat Stack create failed")
 		default:
 			log.InfoLog("Unexpected Heat Stack status", "status", stackname)
 			return fmt.Errorf("Stack create unexpected status: %s", hd.StackStatus)
-		}
-	}
-}
-
-func waitForStackDelete(stackname string) error {
-	for {
-		time.Sleep(5 * time.Second)
-		hd, _ := getHeatStackDetail(stackname)
-		if hd == nil {
-			// it's gone
-			return nil
-		}
-		log.DebugLog(log.DebugLevelMexos, "Got Heat Stack detail", "detail", hd)
-		switch hd.StackStatus {
-		case "DELETE_IN_PROGRESS":
-			continue
-		case "DELETE_FAILED":
-			log.InfoLog("Heat Stack Deletion failed", "stackName", stackname)
-			return fmt.Errorf("Heat Stack delete failed")
-		case "DELETE_COMPLETE":
-			return nil
-		default:
-			log.InfoLog("Unexpected Heat Stack status", "status", hd.StackStatus)
-			return fmt.Errorf("Stack delete unexpected status: %s", hd.StackStatus)
 		}
 	}
 }
@@ -406,8 +376,7 @@ func GetVMParams(depType DeploymentType, serverName, flavor, imageName, authPubl
 	return &vmp, nil
 }
 
-// createHeatStackFromTemplate fills the template from templateData and creates the stack
-func CreateHeatStackFromTemplate(templateData interface{}, stackName, templateString string) error {
+func createOrUpdateHeatStackFromTemplate(templateData interface{}, stackName string, templateString string, action string) error {
 	log.DebugLog(log.DebugLevelMexos, "createHeatStackFromTemplate", "stackName", stackName)
 
 	var buf bytes.Buffer
@@ -441,23 +410,39 @@ func CreateHeatStackFromTemplate(templateData interface{}, stackName, templateSt
 	if err != nil {
 		return err
 	}
-	err = createHeatStack(filename, stackName)
+	if action == heatCreate {
+		err = createHeatStack(filename, stackName)
+	} else {
+		err = updateHeatStack(filename, stackName)
+	}
 	if err != nil {
 		return err
 	}
-	err = waitForStackCreate(stackName)
+	err = waitForStack(stackName, action)
 	return err
 }
 
-// HeatDeleteVM deletes the VM resources
+// UpdateHeatStackFromTemplate fills the template from templateData and creates the stack
+func UpdateHeatStackFromTemplate(templateData interface{}, stackName, templateString string) error {
+	return createOrUpdateHeatStackFromTemplate(templateData, stackName, templateString, heatUpdate)
+}
+
+// CreateHeatStackFromTemplate fills the template from templateData and creates the stack
+func CreateHeatStackFromTemplate(templateData interface{}, stackName, templateString string) error {
+	return createOrUpdateHeatStackFromTemplate(templateData, stackName, templateString, heatCreate)
+}
+
+// HeatDeleteStack deletes the VM resources
 func HeatDeleteStack(stackName string) error {
 	log.DebugLog(log.DebugLevelMexos, "deleting heat stack for stack", "stackName", stackName)
 	deleteHeatStack(stackName)
-	return waitForStackDelete(stackName)
+	return waitForStack(stackName, heatDelete)
 }
 
 //GetClusterParams fills template parameters for the cluster.  A non blank rootLBName will add a rootlb VM
-func getClusterParams(clusterInst *edgeproto.ClusterInst, flavor *edgeproto.ClusterFlavor, rootLBName string) (*ClusterParams, error) {
+func getClusterParams(clusterInst *edgeproto.ClusterInst, rootLBName string, action string) (*ClusterParams, error) {
+	log.DebugLog(log.DebugLevelMexos, "getClusterParams", "cluster", clusterInst, "action", action)
+
 	var cp ClusterParams
 	var err error
 	ni, err := ParseNetSpec(GetCloudletNetworkScheme())
@@ -480,23 +465,33 @@ func getClusterParams(clusterInst *edgeproto.ClusterInst, flavor *edgeproto.Clus
 			return nil, fmt.Errorf("Unable to get rootlb params: %v", err)
 		}
 	}
-	usedCidrs := make(map[string]bool)
+	cp.ClusterName = k8smgmt.GetK8sNodeNameSuffix(clusterInst)
+	cp.MEXRouterName = GetCloudletExternalRouter()
+	cp.MEXNetworkName = GetCloudletMexNetwork()
+	cp.ImageName = GetCloudletOSImage()
+	cp.SecurityGroup = GetCloudletSecurityGroup()
+	usedCidrs := make(map[string]string)
 
+	currentSubnetName := ""
+	found := false
+	if action == heatUpdate {
+		currentSubnetName = "mex-k8s-subnet-" + cp.ClusterName
+	}
 	sns, snserr := ListSubnets(ni.Name)
 	if snserr != nil {
 		return nil, fmt.Errorf("can't get list of subnets for %s, %v", ni.Name, snserr)
 	}
 	for _, s := range sns {
-		usedCidrs[s.Subnet] = true
+		usedCidrs[s.Subnet] = s.Name
 	}
 
-	found := false
 	nodeIPPrefix := ""
 
 	//find an available subnet
 	for i := 0; i <= 255; i++ {
 		subnet := fmt.Sprintf("%s.%s.%d.%d/%s", ni.Octets[0], ni.Octets[1], i, 0, ni.NetmaskBits)
-		if !usedCidrs[subnet] {
+		// either look for an unused one (create) or the current one (update)
+		if (action == heatCreate && usedCidrs[subnet] == "") || (action == heatUpdate && usedCidrs[subnet] == currentSubnetName) {
 			found = true
 			cp.CIDR = subnet
 			cp.GatewayIP = fmt.Sprintf("%s.%s.%d.%d", ni.Octets[0], ni.Octets[1], i, 1)
@@ -509,12 +504,6 @@ func getClusterParams(clusterInst *edgeproto.ClusterInst, flavor *edgeproto.Clus
 		return nil, fmt.Errorf("cannot find free subnet cidr")
 	}
 
-	cp.ClusterName = k8smgmt.GetK8sNodeNameSuffix(clusterInst)
-	cp.MEXRouterName = GetCloudletExternalRouter()
-	cp.MEXNetworkName = GetCloudletMexNetwork()
-	cp.ImageName = GetCloudletOSImage()
-	cp.SecurityGroup = GetCloudletSecurityGroup()
-
 	if clusterInst.MasterFlavor == "" {
 		return nil, fmt.Errorf("Master Flavor is not set")
 	}
@@ -523,7 +512,7 @@ func getClusterParams(clusterInst *edgeproto.ClusterInst, flavor *edgeproto.Clus
 	}
 	cp.MasterFlavor = clusterInst.MasterFlavor
 	cp.NodeFlavor = clusterInst.NodeFlavor
-	for i := uint32(1); i <= flavor.NumNodes; i++ {
+	for i := uint32(1); i <= clusterInst.NumNodes; i++ {
 		nn := fmt.Sprintf("mex-k8s-node-%d", i)
 		nip := fmt.Sprintf("%s.%d", nodeIPPrefix, i+100)
 		cn := ClusterNode{NodeName: nn, NodeIP: nip}
@@ -564,7 +553,7 @@ func HeatCreateRootLBVM(serverName string, stackName string, flavor string) erro
 }
 
 // HeatCreateClusterKubernetes creates a k8s cluster which may optionally include a dedicated root LB
-func HeatCreateClusterKubernetes(clusterInst *edgeproto.ClusterInst, flavor *edgeproto.ClusterFlavor, dedicatedRootLBName string) error {
+func HeatCreateClusterKubernetes(clusterInst *edgeproto.ClusterInst, dedicatedRootLBName string) error {
 
 	log.DebugLog(log.DebugLevelMexos, "HeatCreateClusterKubernetes", "clusterInst", clusterInst)
 	// It is problematic to create 2 clusters at the exact same time because we will look for available subnet CIDRS when
@@ -575,7 +564,7 @@ func HeatCreateClusterKubernetes(clusterInst *edgeproto.ClusterInst, flavor *edg
 	heatStackLock.Lock()
 	defer heatStackLock.Unlock()
 
-	cp, err := getClusterParams(clusterInst, flavor, dedicatedRootLBName)
+	cp, err := getClusterParams(clusterInst, dedicatedRootLBName, heatCreate)
 	if err != nil {
 		return err
 	}
@@ -586,5 +575,24 @@ func HeatCreateClusterKubernetes(clusterInst *edgeproto.ClusterInst, flavor *edg
 		templateString += vmTemplateResources
 	}
 	err = CreateHeatStackFromTemplate(cp, cp.ClusterName, templateString)
+	return err
+}
+
+// HeatUpdateClusterKubernetes creates a k8s cluster which may optionally include a dedicated root LB
+func HeatUpdateClusterKubernetes(clusterInst *edgeproto.ClusterInst, dedicatedRootLBName string) error {
+
+	log.DebugLog(log.DebugLevelMexos, "HeatUpdateClusterKubernetes", "clusterInst", clusterInst)
+
+	cp, err := getClusterParams(clusterInst, dedicatedRootLBName, heatUpdate)
+	if err != nil {
+		return err
+	}
+
+	templateString := k8sClusterTemplate
+	//append the VM resources for the rootLB is specified
+	if dedicatedRootLBName != "" {
+		templateString += vmTemplateResources
+	}
+	err = UpdateHeatStackFromTemplate(cp, cp.ClusterName, templateString)
 	return err
 }

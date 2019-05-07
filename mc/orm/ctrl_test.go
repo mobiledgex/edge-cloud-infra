@@ -2,10 +2,6 @@ package orm
 
 import (
 	"fmt"
-	"net"
-	"net/http"
-	"testing"
-	"time"
 	"github.com/mobiledgex/edge-cloud-infra/mc/ormapi"
 	"github.com/mobiledgex/edge-cloud-infra/mc/ormclient"
 	edgeproto "github.com/mobiledgex/edge-cloud/edgeproto"
@@ -14,6 +10,10 @@ import (
 	"github.com/mobiledgex/edge-cloud/vault"
 	"github.com/stretchr/testify/require"
 	"google.golang.org/grpc"
+	"net"
+	"net/http"
+	"testing"
+	"time"
 )
 
 var Success = true
@@ -259,7 +259,7 @@ func TestController(t *testing.T) {
 	require.Equal(t, http.StatusOK, status)
 	require.Equal(t, 0, len(ctrls))
 
-	// Test Streaming APIs	
+	// Test Streaming APIs
 	dc2 := grpc.NewServer()
 	ctrlAddr2 := "127.0.0.1:9997"
 	lis2, err := net.Listen("tcp", ctrlAddr2)
@@ -272,11 +272,11 @@ func TestController(t *testing.T) {
 	}()
 	defer dc2.Stop()
 
- 	ctrl = ormapi.Controller{
+	ctrl = ormapi.Controller{
 		Region:  "Stream",
 		Address: ctrlAddr2,
 	}
-	// create controller	
+	// create controller
 	status, err = mcClient.CreateController(uri, token, &ctrl)
 	require.Nil(t, err, "create controller")
 	require.Equal(t, http.StatusOK, status)
@@ -293,7 +293,7 @@ func TestController(t *testing.T) {
 			count++
 			require.Equal(t, count, int(out.Code))
 			sds.next <- 1
-		})	
+		})
 	require.Nil(t, err, "stream test create cluster inst")
 	require.Equal(t, http.StatusOK, status)
 	require.Equal(t, 3, count)
@@ -406,7 +406,7 @@ type StreamDummyServer struct {
 	fail bool
 }
 
- func (s *StreamDummyServer) CreateClusterInst(in *edgeproto.ClusterInst, server edgeproto.ClusterInstApi_CreateClusterInstServer) error {
+func (s *StreamDummyServer) CreateClusterInst(in *edgeproto.ClusterInst, server edgeproto.ClusterInstApi_CreateClusterInstServer) error {
 	server.Send(&edgeproto.Result{Code: 1})
 	for ii := 2; ii < 4; ii++ {
 		select {
@@ -420,16 +420,16 @@ type StreamDummyServer struct {
 		return fmt.Errorf("fail")
 	}
 	return nil
-}	
+}
 
- func (s *StreamDummyServer) DeleteClusterInst(in *edgeproto.ClusterInst, server edgeproto.ClusterInstApi_DeleteClusterInstServer) error {
+func (s *StreamDummyServer) DeleteClusterInst(in *edgeproto.ClusterInst, server edgeproto.ClusterInstApi_DeleteClusterInstServer) error {
 	return nil
 }
 
- func (s *StreamDummyServer) UpdateClusterInst(in *edgeproto.ClusterInst, server edgeproto.ClusterInstApi_UpdateClusterInstServer) error {
+func (s *StreamDummyServer) UpdateClusterInst(in *edgeproto.ClusterInst, server edgeproto.ClusterInstApi_UpdateClusterInstServer) error {
 	return nil
 }
 
- func (s *StreamDummyServer) ShowClusterInst(in *edgeproto.ClusterInst, server edgeproto.ClusterInstApi_ShowClusterInstServer) error {
+func (s *StreamDummyServer) ShowClusterInst(in *edgeproto.ClusterInst, server edgeproto.ClusterInstApi_ShowClusterInstServer) error {
 	return nil
 }

@@ -18,7 +18,8 @@ crms:
     MEXENV_URL: https://vault.mobiledgex.net/v1/secret/data/cloudlet/openstack/mexenv.json
     OPENRC_URL: https://vault.mobiledgex.net/v1/secret/data/cloudlet/openstack/frankfurt/openrc.json
     PLATFORM: openstack
-    VAULT_TOKEN: 0eb94cce-ab3f-33a3-bd66-0046e8743a14
+    VAULT_ROLE_ID: e017fc39-dff7-adc3-364f-bb8e04805454
+    VAULT_SECRET_ID: 6e88cd75-7297-ba5e-6b27-9d612e3792b7
   apiaddr: 0.0.0.0:55093
   notifyaddrs: mexdemo.ctrl.mobiledgex.net:37001
   cloudletkey: '{"operator_key":{"name":"TDG"},"name":"frankfurt-mexdemo"}'

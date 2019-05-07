@@ -400,35 +400,36 @@ func addDummyObjs(d *testutil.DummyServer, org string, num int) {
 		d.Cloudlets = append(d.Cloudlets, cloudlet)
 	}
 }
-type StreamDummyServer struct {	
-	next chan int	
-	fail bool	
+
+type StreamDummyServer struct {
+	next chan int
+	fail bool
+}
+
+ func (s *StreamDummyServer) CreateClusterInst(in *edgeproto.ClusterInst, server edgeproto.ClusterInstApi_CreateClusterInstServer) error {
+	server.Send(&edgeproto.Result{Code: 1})
+	for ii := 2; ii < 4; ii++ {
+		select {
+		case <-s.next:
+		case <-time.After(1 * time.Second):
+			return fmt.Errorf("timedout")
+		}
+		server.Send(&edgeproto.Result{Code: int32(ii)})
+	}
+	if s.fail {
+		return fmt.Errorf("fail")
+	}
+	return nil
 }	
 
- func (s *StreamDummyServer) CreateClusterInst(in *edgeproto.ClusterInst, server edgeproto.ClusterInstApi_CreateClusterInstServer) error {	
-	server.Send(&edgeproto.Result{Code: 1})	
-	for ii := 2; ii < 4; ii++ {	
-		select {	
-		case <-s.next:	
-		case <-time.After(1 * time.Second):	
-			return fmt.Errorf("timedout")	
-		}	
-		server.Send(&edgeproto.Result{Code: int32(ii)})	
-	}	
-	if s.fail {	
-		return fmt.Errorf("fail")	
-	}	
-	return nil	
-}	
+ func (s *StreamDummyServer) DeleteClusterInst(in *edgeproto.ClusterInst, server edgeproto.ClusterInstApi_DeleteClusterInstServer) error {
+	return nil
+}
 
- func (s *StreamDummyServer) DeleteClusterInst(in *edgeproto.ClusterInst, server edgeproto.ClusterInstApi_DeleteClusterInstServer) error {	
-	return nil	
-}	
+ func (s *StreamDummyServer) UpdateClusterInst(in *edgeproto.ClusterInst, server edgeproto.ClusterInstApi_UpdateClusterInstServer) error {
+	return nil
+}
 
- func (s *StreamDummyServer) UpdateClusterInst(in *edgeproto.ClusterInst, server edgeproto.ClusterInstApi_UpdateClusterInstServer) error {	
-	return nil	
-}	
-
- func (s *StreamDummyServer) ShowClusterInst(in *edgeproto.ClusterInst, server edgeproto.ClusterInstApi_ShowClusterInstServer) error {	
-	return nil	
-}	
+ func (s *StreamDummyServer) ShowClusterInst(in *edgeproto.ClusterInst, server edgeproto.ClusterInstApi_ShowClusterInstServer) error {
+	return nil
+}

@@ -224,7 +224,8 @@ resources:
          flavor: {{.MasterFlavor}}
          config_drive: true
          user_data_format: RAW
-         user_data:
+		 user_data: |
+` + reindent(vmCloudConfig, 12) + `
             get_file: /root/.mobiledgex/userdata.txt
          networks:
           - port: { get_resource: k8s-master-port }
@@ -256,8 +257,8 @@ resources:
          flavor: {{$.NodeFlavor}}
          config_drive: true
          user_data_format: RAW
-         user_data:
-            get_file: /root/.mobiledgex/userdata.txt
+         user_data: | 
+` + reindent(vmCloudConfig, 12) + `
          networks:
           - port: { get_resource: {{.NodeName}}-port } 
          metadata:

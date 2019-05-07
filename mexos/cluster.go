@@ -107,7 +107,7 @@ func CreateCluster(rootLBName string, clusterInst *edgeproto.ClusterInst) (reter
 		if reterr == nil {
 			return
 		}
-		log.DebugLog(log.DebugLevelMexos, "error in CreateClusterInst", "err", reterr)
+		log.DebugLog(log.DebugLevelMexos, "error in CreateCluster", "err", reterr)
 		if GetCleanupOnFailure() {
 			log.DebugLog(log.DebugLevelMexos, "cleaning up cluster resources after cluster fail, set envvar CLEANUP_ON_FAILURE to 'no' to avoid this")
 			delerr := DeleteCluster(rootLBName, clusterInst)

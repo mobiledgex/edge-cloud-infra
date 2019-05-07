@@ -20,5 +20,6 @@
       MEXENV_URL: https://vault.mobiledgex.net/v1/secret/data/cloudlet/openstack/mexenv.json
       PLATFORM: openstack
       MEX_EXT_NETWORK: "{{ mex_ext_network }}"
-      VAULT_TOKEN: "{{ vault_token }}"
+      VAULT_ROLE_ID: "{{ crm_vault_role_id }}"
+      VAULT_SECRET_ID: "{{ crm_vault_secret_id }}"
       MEX_SECURITY_GROUP: "{{ mex_security_group }}"

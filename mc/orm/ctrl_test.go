@@ -141,8 +141,8 @@ func TestController(t *testing.T) {
 	testAddUserRole(t, mcClient, uri, tokenOper3, org3, "OperatorViewer", user5.Name, Fail)
 	testAddUserRole(t, mcClient, uri, tokenOper4, org3, "OperatorViewer", user5.Name, Fail)
 
-	// make sure developer and operator cannot see or modify controllers
-	// all users can see controllers (required for UI to be able to	
+	// make sure developer and operator cannot modify controllers
+	// all users can see controllers (required for UI to be able to
 	// fork requests to each controller as the user).
 	ctrlNew := ormapi.Controller{
 		Region:  "Bad",

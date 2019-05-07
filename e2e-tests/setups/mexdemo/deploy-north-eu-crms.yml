@@ -3,7 +3,8 @@ vars:
 - vm1_external_ip: 40.114.198.180
 - vm1_internal_ip: 127.0.0.1
 - controller: mexdemo.ctrl.mobiledgex.net
-- vault_token: 0eb94cce-ab3f-33a3-bd66-0046e8743a14
+- crm_vault_role_id: e017fc39-dff7-adc3-364f-bb8e04805454
+- crm_vault_secret_id: 6e88cd75-7297-ba5e-6b27-9d612e3792b7
 
 crms:
 - name: crm-hamburg
@@ -21,7 +22,8 @@ crms:
     CLOUDLET_KIND: openstack
     PLATFORM: openstack
     MEX_EXT_NETWORK: external-network-shared
-    VAULT_TOKEN: "{{vault_token}}"
+    VAULT_ROLE_ID: "{{crm_vault_role_id}}"
+    VAULT_SECRET_ID: "{{crm_vault_secret_id}}"
 
 - name: crm-berlin
   apiaddr: "0.0.0.0:55092"
@@ -38,7 +40,8 @@ crms:
     CLOUDLET_KIND: openstack
     PLATFORM: openstack
     MEX_EXT_NETWORK: external-network-shared
-    VAULT_TOKEN: "{{vault_token}}"
+    VAULT_ROLE_ID: "{{crm_vault_role_id}}"
+    VAULT_SECRET_ID: "{{crm_vault_secret_id}}"
 
 - name: crm-frankfurt
   apiaddr: "0.0.0.0:55093"
@@ -55,7 +58,8 @@ crms:
     CLOUDLET_KIND: openstack
     PLATFORM: openstack
     MEX_EXT_NETWORK: external-network-shared
-    VAULT_TOKEN: "{{vault_token}}"
+    VAULT_ROLE_ID: "{{crm_vault_role_id}}"
+    VAULT_SECRET_ID: "{{crm_vault_secret_id}}"
 
 - name: crm-munich
   apiaddr: "0.0.0.0:55094"
@@ -72,7 +76,8 @@ crms:
     CLOUDLET_KIND: openstack
     PLATFORM: openstack
     MEX_EXT_NETWORK: external-network-shared
-    VAULT_TOKEN: "{{vault_token}}"
+    VAULT_ROLE_ID: "{{crm_vault_role_id}}"
+    VAULT_SECRET_ID: "{{crm_vault_secret_id}}"
 
 - name: crm-bonn
   apiaddr: "0.0.0.0:55095"
@@ -89,4 +94,5 @@ crms:
     CLOUDLET_KIND: openstack
     PLATFORM: openstack
     MEX_EXT_NETWORK: external-network-shared
-    VAULT_TOKEN: "{{vault_token}}"
+    VAULT_ROLE_ID: "{{crm_vault_role_id}}"
+    VAULT_SECRET_ID: "{{crm_vault_secret_id}}"

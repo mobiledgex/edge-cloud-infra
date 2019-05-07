@@ -189,6 +189,7 @@ func TestController(t *testing.T) {
 	goodPermTestShowCloudlet(t, mcClient, uri, tokenOper2, ctrl.Region, "", count)
 	goodPermTestShowCloudlet(t, mcClient, uri, tokenOper3, ctrl.Region, "", count)
 	goodPermTestShowCloudlet(t, mcClient, uri, tokenOper4, ctrl.Region, "", count)
+
 	// However, flavors and clusterflavors cannot be modified by non-admins
 	badPermTestFlavor(t, mcClient, uri, tokenDev, ctrl.Region, "")
 	badPermTestFlavor(t, mcClient, uri, tokenDev2, ctrl.Region, "")

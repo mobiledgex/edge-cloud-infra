@@ -158,7 +158,6 @@ type ClusterNode struct {
 
 // ClusterParams has the info needed to populate the heat template
 type ClusterParams struct {
-	MasterFlavor   string
 	NodeFlavor     string
 	ImageName      string
 	SecurityGroup  string
@@ -221,7 +220,7 @@ resources:
          name: 
             mex-k8s-master-{{.ClusterName}}
          image: {{.ImageName}}
-         flavor: {{.MasterFlavor}}
+         flavor: {{.NodeFlavor}}
          config_drive: true
          user_data_format: RAW
          user_data: |
@@ -300,6 +299,10 @@ func waitForStack(stackname string, action string) error {
 	for {
 		time.Sleep(10 * time.Second)
 		hd, err := getHeatStackDetail(stackname)
+		if action == heatDelete && hd == nil {
+			// it's gone
+			return nil
+		}
 		if err != nil {
 			return err
 		}
@@ -513,13 +516,9 @@ func getClusterParams(clusterInst *edgeproto.ClusterInst, rootLBName string, act
 		return nil, fmt.Errorf("cannot find free subnet cidr")
 	}
 
-	if clusterInst.MasterFlavor == "" {
-		return nil, fmt.Errorf("Master Flavor is not set")
-	}
 	if clusterInst.NodeFlavor == "" {
 		return nil, fmt.Errorf("Node Flavor is not set")
 	}
-	cp.MasterFlavor = clusterInst.MasterFlavor
 	cp.NodeFlavor = clusterInst.NodeFlavor
 	for i := uint32(1); i <= clusterInst.NumNodes; i++ {
 		nn := fmt.Sprintf("mex-k8s-node-%d", i)

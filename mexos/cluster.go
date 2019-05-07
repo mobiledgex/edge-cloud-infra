@@ -40,7 +40,6 @@ type ClusterFlavor struct {
 	NetworkSpec    string
 	StorageSpec    string
 	NodeFlavor     ClusterNodeFlavor
-	MasterFlavor   ClusterMasterFlavor
 	Topology       string
 }
 
@@ -61,12 +60,6 @@ type ClusterFlavor struct {
 
 //ClusterNodeFlavor contains details of flavor for the node
 type ClusterNodeFlavor struct {
-	Type string
-	Name string
-}
-
-//ClusterMasterFlavor contains details of flavor for the master node
-type ClusterMasterFlavor struct {
 	Type string
 	Name string
 }

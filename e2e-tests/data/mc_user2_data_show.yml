@@ -1,31 +1,21 @@
 controllers:
 - region: local
   address: 127.0.0.1:55001
-  createdat: 2019-05-07T09:51:27.582983-05:00
-  updatedat: 2019-05-07T09:51:27.582983-05:00
 - region: usa
   address: usa.mc.mobiledgex.com:55001
-  createdat: 2019-05-07T09:51:27.586374-05:00
-  updatedat: 2019-05-07T09:51:27.586374-05:00
 - region: germany
   address: germany.mc.mobiledgex.com:55001
-  createdat: 2019-05-07T09:51:27.587769-05:00
-  updatedat: 2019-05-07T09:51:27.587769-05:00
 orgs:
 - name: AcmeAppCo
   type: developer
   address: 123 Maple Street, Gainesville, FL 32604
   phone: 123-123-1234
   adminusername: user2
-  createdat: 2019-05-07T09:51:27.883513-05:00
-  updatedat: 2019-05-07T09:51:27.883513-05:00
 - name: Samsung
   type: developer
   address: 1 Samstreet, Samsung Town, South Korea
   phone: 123-123-1234
   adminusername: user2
-  createdat: 2019-05-07T09:51:27.886068-05:00
-  updatedat: 2019-05-07T09:51:27.886068-05:00
 roles:
 - org: AcmeAppCo
   username: user2
@@ -296,9 +286,6 @@ regiondata:
       flavor:
         name: x1.small
       state: Ready
-      createdat:
-        seconds: 1557240688
-        nanos: 214446000
     - key:
         appkey:
           developerkey:
@@ -339,9 +326,6 @@ regiondata:
       flavor:
         name: x1.small
       state: Ready
-      createdat:
-        seconds: 1557240688
-        nanos: 20770000
     - key:
         appkey:
           developerkey:
@@ -382,6 +366,3 @@ regiondata:
       flavor:
         name: x1.small
       state: Ready
-      createdat:
-        seconds: 1557240688
-        nanos: 146485000

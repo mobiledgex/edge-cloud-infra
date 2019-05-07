@@ -1,38 +1,26 @@
 controllers:
 - region: local
   address: 127.0.0.1:55001
-  createdat: 2019-05-07T09:47:29.768271-05:00
-  updatedat: 2019-05-07T09:47:29.768271-05:00
 - region: usa
   address: usa.mc.mobiledgex.com:55001
-  createdat: 2019-05-07T09:47:29.769442-05:00
-  updatedat: 2019-05-07T09:47:29.769442-05:00
 - region: germany
   address: germany.mc.mobiledgex.com:55001
-  createdat: 2019-05-07T09:47:29.770329-05:00
-  updatedat: 2019-05-07T09:47:29.770329-05:00
 orgs:
 - name: tmus
   type: operator
   address: tmus headquarters
   phone: 123-123-1234
   adminusername: user1
-  createdat: 2019-05-07T09:47:29.904566-05:00
-  updatedat: 2019-05-07T09:47:29.904566-05:00
 - name: azure
   type: operator
   address: amazon jungle
   phone: 123-123-1234
   adminusername: user1
-  createdat: 2019-05-07T09:47:29.907158-05:00
-  updatedat: 2019-05-07T09:47:29.907158-05:00
 - name: gcp
   type: operator
   address: mountain view
   phone: 123-123-1234
   adminusername: user1
-  createdat: 2019-05-07T09:47:29.90894-05:00
-  updatedat: 2019-05-07T09:47:29.90894-05:00
 roles:
 - org: tmus
   username: user1

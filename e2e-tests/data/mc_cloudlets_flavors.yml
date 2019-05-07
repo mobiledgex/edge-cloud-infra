@@ -1,16 +1,10 @@
 controllers:
 - region: local
   address: 127.0.0.1:55001
-  createdat: 2019-05-07T09:52:09.643407-05:00
-  updatedat: 2019-05-07T09:52:09.643407-05:00
 - region: usa
   address: usa.mc.mobiledgex.com:55001
-  createdat: 2019-05-07T09:52:09.646672-05:00
-  updatedat: 2019-05-07T09:52:09.646672-05:00
 - region: germany
   address: germany.mc.mobiledgex.com:55001
-  createdat: 2019-05-07T09:52:09.647839-05:00
-  updatedat: 2019-05-07T09:52:09.647839-05:00
 regiondata:
 - region: local
   appdata:

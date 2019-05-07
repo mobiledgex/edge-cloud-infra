@@ -43,33 +43,25 @@ var heatStackLock sync.Mutex
 var heatCreate string = "CREATE"
 var heatUpdate string = "UPDATE"
 var heatDelete string = "DELETE"
+var vmCloudConfig = `#cloud-config
+bootcmd:
+ - echo MOBILEDGEX CLOUD CONFIG START
+ - echo 'APT::Periodic::Enable "0";' > /etc/apt/apt.conf.d/10cloudinit-disable
+ - apt-get -y purge update-notifier-common ubuntu-release-upgrader-core landscape-common unattended-upgrades
+ - echo "Removed APT and Ubuntu extra packages" | systemd-cat
+ssh_authorized_keys:
+ - ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAABAQDZiZ16uwmHOuafD6a9AmZ5kYF9LqtfyrUOIVMF1eoRJCMALQrWbzNz/NOnqi5h5dwhPn+49oWMU16BKDkEgDik2jgNUOSZ69oZM4/ovPsB8yL55qdNBTx32kov5O8NkSwMEDter2mAPi9czCEv18MRC1qkiZCUxmfFs0BBgXtNfE42Utr97YcKFtvutLDGA1hoFVjon0Yk7wSMNZfwkBznVoShRISCzMvG5uVtf6miJwIIA9+SiwA/aa2OjCRQaiPCKJrPzHMcuLg4oZcs0ltd1CaIVLtMGaqpEoIvDumXEpuk0TSBJwxWUDAEgO5ILmVxi2fSLKa0yuLala6bcfwJ stack@sv1.mobiledgex.com
+ - ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAABAQCrHlOJOJUqvd4nEOXQbdL8ODKzWaUxKVY94pF7J3diTxgZ1NTvS6omqOjRS3loiU7TOlQQU4cKnRRnmJW8QQQZSOMIGNrMMInGaEYsdm6+tr1k4DDfoOrkGMj3X/I2zXZ3U+pDPearVFbczCByPU0dqs16TWikxDoCCxJRGeeUl7duzD9a65bI8Jl+zpfQV+I7OPa81P5/fw15lTzT4+F9MhhOUVJ4PFfD+d6/BLnlUfZ94nZlvSYnT+GoZ8xTAstM7+6pvvvHtaHoV4YqRf5CelbWAQ162XNa9/pW5v/RKDrt203/JEk3e70tzx9KAfSw2vuO1QepkCZAdM9rQoCd ubuntu@registry
+chpasswd: { expire: False }
+ssh_pwauth: False
+timezone: UTC
+runcmd:
+ - [ echo, MOBILEDGEX, doing, ifconfig ]
+ - [ ifconfig, -a ]`
 
 // This is the resources part of a template for a VM. It is for use within another template
 // the parameters under VMP can come from either a standalone struture (VM Create) or a cluster (for rootLB)
 var vmTemplateResources = `
-   {{if .DeploymentManifest}}
-   vm_init:
-      type: OS::Heat::CloudConfig
-      properties:
-         cloud_config:
-{{ Indent .DeploymentManifest 16 }}
-   {{- end}}
-   {{if .Command}}
-   single_command:
-      type: OS::Heat::CloudConfig
-      properties:
-         cloud_config:
-            merge_how: 'dict(recurse_array,no_replace)+list(append)'
-            #cloud-config
-            runcmd:
-             - {{.Command}}
-   {{- end}}
-   server_init:
-      type: OS::Heat::MultipartMime
-      properties:
-         parts:
-          {{if .DeploymentManifest}} - config: {get_resource: vm_init} {{- end}}
-          {{if .Command}} - config: {get_resource: single_command} {{- end}}
    {{.VMName}}:
       type: OS::Nova::Server
       properties:
@@ -97,12 +89,21 @@ var vmTemplateResources = `
             edgeproxy: {{.GatewayIP}}
             mex-flavor: {{.Flavor}}
             privaterouter: {{.MEXRouterIP}}
-         user_data_format: RAW		
-         user_data: 
-            get_file: /root/.mobiledgex/userdata.txt 
-        {{else}}
-         user_data_format: SOFTWARE_CONFIG
-         user_data: { get_resource: server_init }
+         user_data_format: RAW
+         user_data: |
+` + reindent(vmCloudConfig, 12) + `
+        {{- end}}
+        {{if .DeploymentManifest}}
+         user_data_format: RAW
+         user_data: |
+{{ Indent .DeploymentManifest 13 }}
+        {{- end}}
+        {{if .Command}}
+         user_data_format: RAW
+         user_data: |
+            #cloud-config
+            runcmd:
+             - {{.Command}}
         {{- end}}
   {{if .AuthPublicKey}}
    ssh_key_pair:
@@ -267,6 +268,14 @@ resources:
             k8smaster: {{$.MasterIP}}
   {{end}}
 `
+
+func reindent(str string, indent int) string {
+	out := ""
+	for _, v := range strings.Split(str, "\n") {
+		out += strings.Repeat(" ", indent) + v + "\n"
+	}
+	return strings.TrimSuffix(out, "\n")
+}
 
 func writeTemplateFile(filename string, buf *bytes.Buffer) error {
 	outFile, err := os.OpenFile(filename, os.O_TRUNC|os.O_CREATE|os.O_WRONLY, 0644)

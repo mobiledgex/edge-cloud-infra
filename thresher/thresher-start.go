@@ -16,7 +16,7 @@ var operatorName = flag.String("operator", "local", "Cloudlet Operator Name")
 var cloudletName = flag.String("cloudlet", "localtest", "Cloudlet Name")
 var clusterName = flag.String("cluster", "AppCluster", "Cluster Name")
 var collectInterval = flag.Duration("interval", time.Second*15, "Metrics collection interval")
-var tlsCertFile = flag.String("tls", "", "server tls cert file.  Keyfile and CA file mex-ca.crt must be in same directory")
+var tlsCertFile = flag.String("tls", "", "server9 tls cert file.  Keyfile and CA file mex-ca.crt must be in same directory")
 var notifyAddrs = flag.String("notifyAddrs", "127.0.0.1:50001", "Comma separated list of controller notify listener addresses")
 var cloudletKeyStr = flag.String("cloudletKey", "", "Json or Yaml formatted cloudletKey for the cloudlet in which this CRM is instantiated; e.g. '{\"operator_key\":{\"name\":\"TMUS\"},\"name\":\"tmocloud1\"}'")
 

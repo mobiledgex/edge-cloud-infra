@@ -1,4 +1,4 @@
-package main
+package thresher
 
 import (
 	"errors"
@@ -97,6 +97,7 @@ func main() {
 	flag.Parse()
 	log.SetDebugLevelStrs(*debugLevels)
 	fmt.Printf("Starting metrics exporter with Prometheus addr %s\n", *promAddress)
+	TODO: change this clust ip
 	clustIP, err := getIPfromEnv()
 	if err == nil {
 		*promAddress = clustIP + ":9090"

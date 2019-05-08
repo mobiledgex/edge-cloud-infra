@@ -28,6 +28,8 @@ func LBAddRouteAndSecRules(client pc.PlatformClient, rootLBName string) error {
 	//TODO: this may not be necessary, as instead we can allow group to remote group rules
 	// add to the /16 range for all the possible subnets
 	subnet := fmt.Sprintf("%s.%s.0.0/16", ni.Octets[0], ni.Octets[1])
+	subnetNomask := fmt.Sprintf("%s.%s.0.0", ni.Octets[0], ni.Octets[1])
+	mask := "255.255.0.0"
 
 	rd, err := GetRouterDetail(GetCloudletExternalRouter())
 	if err != nil {
@@ -56,6 +58,12 @@ func LBAddRouteAndSecRules(client pc.PlatformClient, rootLBName string) error {
 		} else {
 			return fmt.Errorf("can't add route to rootlb, %s, %s, %v", cmd, out, err)
 		}
+	}
+	// make the route persist
+	cmd = fmt.Sprintf("echo 'up route add -net %s netmask %s gw %s'|sudo tee -a /etc/network/interfaces.d/50-cloud-init.cfg", subnetNomask, mask, fip[0].IPAddress)
+	out, err = client.Output(cmd)
+	if err != nil {
+		return fmt.Errorf("can't add route to interfaces file: %v", err)
 	}
 
 	// open the firewall for internal traffic

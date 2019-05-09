@@ -1,7 +1,6 @@
 package orm
 
 import (
-	"fmt"
 	"testing"
 
 	"github.com/mobiledgex/edge-cloud-infra/mc/ormclient"
@@ -56,7 +55,6 @@ func TestLDAPServer(t *testing.T) {
 	testAddUserRole(t, mcClient, uri, token2, org2.Name, "DeveloperContributor", worker2.Name, Success)
 
 	l, err := ldap.Dial("tcp", config.LDAPAddr)
-	fmt.Printf("Dial err: %v\n", err)
 	require.Nil(t, err, "connected to ldap server")
 	defer l.Close()
 	//l.debug = true

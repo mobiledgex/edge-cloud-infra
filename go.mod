@@ -49,6 +49,7 @@ require (
 	golang.org/x/time v0.0.0-20190308202827-9d24e82272b4 // indirect
 	google.golang.org/genproto v0.0.0-20190401181712-f467c93bbac2
 	google.golang.org/grpc v1.19.1
+	gopkg.in/ldap.v3 v3.0.3
 	gopkg.in/yaml.v2 v2.2.2
 	//	k8s.io/api v0.0.0-20190327184913-92d2ee7fc726
 	k8s.io/api v0.0.0-20190222213804-5cb15d344471

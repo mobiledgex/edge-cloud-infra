@@ -50,20 +50,23 @@ func LBAddRouteAndSecRules(client pc.PlatformClient, rootLBName string) error {
 	if err != nil {
 		return err
 	}
+	routeExists := false
 	out, err := client.Output(cmd)
 	if err != nil {
 		if strings.Contains(out, "RTNETLINK") && strings.Contains(out, " exists") {
 			log.DebugLog(log.DebugLevelMexos, "warning, can't add existing route to rootLB", "cmd", cmd, "out", out, "error", err)
-
+			routeExists = true
 		} else {
 			return fmt.Errorf("can't add route to rootlb, %s, %s, %v", cmd, out, err)
 		}
 	}
 	// make the route persist
-	cmd = fmt.Sprintf("echo 'up route add -net %s netmask %s gw %s'|sudo tee -a /etc/network/interfaces.d/50-cloud-init.cfg", subnetNomask, mask, fip[0].IPAddress)
-	out, err = client.Output(cmd)
-	if err != nil {
-		return fmt.Errorf("can't add route to interfaces file: %v", err)
+	if !routeExists {
+		cmd = fmt.Sprintf("echo 'up route add -net %s netmask %s gw %s'|sudo tee -a /etc/network/interfaces.d/50-cloud-init.cfg", subnetNomask, mask, fip[0].IPAddress)
+		out, err = client.Output(cmd)
+		if err != nil {
+			return fmt.Errorf("can't add route to interfaces file: %v", err)
+		}
 	}
 
 	// open the firewall for internal traffic

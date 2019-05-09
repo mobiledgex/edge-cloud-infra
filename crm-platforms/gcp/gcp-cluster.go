@@ -5,14 +5,15 @@ import (
 
 	"encoding/json"
 	"fmt"
+	"io/ioutil"
+	"os"
+
 	sh "github.com/codeskyblue/go-sh"
 	"github.com/mobiledgex/edge-cloud-infra/mexos"
 	"github.com/mobiledgex/edge-cloud/cloud-resource-manager/k8smgmt"
 	"github.com/mobiledgex/edge-cloud/cloud-resource-manager/platform/pc"
 	"github.com/mobiledgex/edge-cloud/edgeproto"
 	"github.com/mobiledgex/edge-cloud/log"
-	"io/ioutil"
-	"os"
 )
 
 // GCPLogin logs into google cloud
@@ -22,11 +23,7 @@ func (s *Platform) GCPLogin() error {
 	if err != nil {
 		return err
 	}
-	vr, err := mexos.GetVaultGenericResponse(dat)
-	if err != nil {
-		return err
-	}
-	databytes, err := json.Marshal(vr.Data.Data)
+	databytes, err := json.Marshal(dat)
 	filename := "/tmp/auth_key.json"
 	err = ioutil.WriteFile(filename, databytes, 0644)
 	if err != nil {
@@ -42,7 +39,7 @@ func (s *Platform) GCPLogin() error {
 	return nil
 }
 
-func (s *Platform) CreateCluster(clusterInst *edgeproto.ClusterInst, flavor *edgeproto.ClusterFlavor) error {
+func (s *Platform) CreateClusterInst(clusterInst *edgeproto.ClusterInst) error {
 	var err error
 	project := s.props.Project
 	zone := s.props.Zone
@@ -77,6 +74,10 @@ func (s *Platform) CreateCluster(clusterInst *edgeproto.ClusterInst, flavor *edg
 	return mexos.CreateDockerRegistrySecret(client, clusterInst)
 }
 
-func (s *Platform) DeleteCluster(clusterInst *edgeproto.ClusterInst) error {
+func (s *Platform) DeleteClusterInst(clusterInst *edgeproto.ClusterInst) error {
 	return DeleteGKECluster(clusterInst.Key.ClusterKey.Name)
+}
+
+func (s *Platform) UpdateClusterInst(clusterInst *edgeproto.ClusterInst) error {
+	return fmt.Errorf("update cluster inst not implemented for GCP")
 }

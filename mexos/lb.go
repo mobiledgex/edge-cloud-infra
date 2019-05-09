@@ -60,10 +60,19 @@ func LBAddRouteAndSecRules(client pc.PlatformClient, rootLBName string) error {
 	}
 	// make the route persist by adding the following line if not already present via grep.
 	routeAddLine := fmt.Sprintf("up route add -net %s netmask %s gw %s", subnetNomask, mask, fip[0].IPAddress)
-	cmd = fmt.Sprintf("grep -L '%s' || echo '%s'|sudo tee -a /etc/network/interfaces.d/50-cloud-init.cfg", routeAddLine, routeAddLine)
+	interfacesFile := "/etc/network/interfaces.d/50-cloud-init.cfg"
+	cmd = fmt.Sprintf("grep -l '%s' %s", routeAddLine, interfacesFile)
 	out, err = client.Output(cmd)
 	if err != nil {
-		return fmt.Errorf("can't add route to interfaces file: %v", err)
+		// grep failed so not there already
+		log.DebugLog(log.DebugLevelMexos, "adding route to interfaces file", "route", routeAddLine, "file", interfacesFile)
+		cmd = fmt.Sprintf("echo '%s'|sudo tee -a %s", routeAddLine, interfacesFile)
+		out, err = client.Output(cmd)
+		if err != nil {
+			return fmt.Errorf("can't add route to interfaces file: %v", err)
+		}
+	} else {
+		log.DebugLog(log.DebugLevelMexos, "route already present in interfaces file")
 	}
 
 	// open the firewall for internal traffic

@@ -96,7 +96,6 @@ func CreateUser(c echo.Context) error {
 	if err := c.Bind(&createuser); err != nil {
 		return c.JSON(http.StatusBadRequest, Msg("Invalid POST data"))
 	}
-	fmt.Printf("createuser %+v\n", createuser)
 	user := createuser.User
 	if user.Name == "" {
 		return c.JSON(http.StatusBadRequest, Msg("Name not specified"))
@@ -384,6 +383,8 @@ func PasswordResetRequest(c echo.Context) error {
 	if err := tmpl.Execute(&buf, &arg); err != nil {
 		return err
 	}
+	log.DebugLog(log.DebugLevelApi, "send password reset email",
+		"from", noreply.Email, "to", req.Email)
 	return sendEmail(noreply, req.Email, &buf)
 }
 

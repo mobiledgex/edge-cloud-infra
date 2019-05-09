@@ -11,6 +11,7 @@ import (
 	jwt "github.com/dgrijalva/jwt-go"
 	"github.com/labstack/echo"
 	"github.com/mobiledgex/edge-cloud-infra/mc/ormapi"
+	"github.com/mobiledgex/edge-cloud/log"
 	"github.com/mobiledgex/edge-cloud/util"
 	"github.com/mobiledgex/edge-cloud/vault"
 )
@@ -92,6 +93,8 @@ func sendNotify(to, subject, message string) error {
 	if err != nil {
 		return err
 	}
+	log.DebugLog(log.DebugLevelApi, "send notify email",
+		"from", noreply.Email, "to", to, "subject", subject)
 	arg := notifyTmplArg{
 		From:    noreply.Email,
 		To:      to,
@@ -157,6 +160,8 @@ func sendVerifyEmail(username string, req *ormapi.EmailRequest) error {
 	if err := welcomeTmpl.Execute(&buf, &arg); err != nil {
 		return err
 	}
+	log.DebugLog(log.DebugLevelApi, "send verify email",
+		"from", noreply.Email, "to", req.Email)
 	return sendEmail(noreply, req.Email, &buf)
 }
 
@@ -167,6 +172,7 @@ type emailAccount struct {
 }
 
 func getNoreply() (*emailAccount, error) {
+	log.DebugLog(log.DebugLevelApi, "lookup Vault email account")
 	noreply := emailAccount{}
 	err := vault.GetData(serverConfig.VaultAddr, roleID, secretID,
 		"/secret/data/accounts/noreplyemail", 0, &noreply)

@@ -1,23 +1,24 @@
 - name: Deploy the Mex Controller
   k8s:
-    context: "{{ deploy_target }}"
+    kubeconfig: "{{ kubeconfig_file.path }}"
     namespace: default
     state: present
     definition: "{{ lookup('template', 'mexplat/mex-controller-deploy.yml.j2') }}"
 
 - name: Deploy the Mex Controller LB
   k8s:
-    context: "{{ deploy_target }}"
+    kubeconfig: "{{ kubeconfig_file.path }}"
     namespace: default
     state: present
     definition: "{{ lookup('template', 'mexplat/mex-controller-lb.yml') }}"
 
 - name: Get Controller Public IP
-  command: "kubectl --context {{ deploy_target }} get svc -o jsonpath='{.status.loadBalancer.ingress[0].ip}' controller"
+  command: "kubectl --kubeconfig {{ kubeconfig_file.path }} get svc -o jsonpath='{.status.loadBalancer.ingress[0].ip}' controller"
   register: controller_ip_command
   retries: 60
   delay: 5
   until: controller_ip_command.stdout != ""
+  changed_when: false
 
 - set_fact:
     controller_ip: "{{ controller_ip_command.stdout }}"

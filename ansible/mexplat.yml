@@ -1,6 +1,7 @@
 ---
 - hosts: platform
-  pre_tasks:
+  tasks:
+
     - name: Check if edge-cloud Image is Available
       uri:
         url: "https://{{ mex_docker_username }}:{{ mex_docker_password }}@{{ mex_docker_registry }}/v2/mobiledgex/edge-cloud/tags/list"
@@ -9,24 +10,93 @@
         body_format: json
       register: response
       failed_when: edge_cloud_version not in response.json.tags
+
+    - name: Get setup details from terraform
+      terraform:
+        project_path: "../terraform/mexplat/{{ deploy_environ }}"
+        state: present
+        variables:
+          azure_client_id: "{{ azure_terraform_service_principal_id }}"
+          azure_client_secret: "{{ azure_terraform_service_principal_secret }}"
+          azure_subscription_id: "{{ azure_subscription_id }}"
+          azure_tenant_id: "{{ azure_tenant_id }}"
+      check_mode: yes
+      register: terraform
+
+    - set_fact:
+        k8s_cluster_name: "{{ terraform.outputs.k8s_cluster_name.value }}"
+        gitlab_ip: "{{ terraform.outputs.gitlab_external_ip.value }}"
+        crm_ip: "{{ terraform.outputs.crm_external_ip.value }}"
+        mc_ip: "{{ terraform.outputs.mc_external_ip.value }}"
+
     - debug:
-        msg: "Deploying edge-cloud version '{{ edge_cloud_version }}' to cluster '{{ deploy_target }}'"
+        msg: "Deploying edge-cloud version '{{ edge_cloud_version }}' to cluster '{{ k8s_cluster_name }}'"
+
+    - name: Notify upgrade start on slack
+      slack:
+        token: "{{ slack_token }}"
+        channel: "{{ slack_channel }}"
+        msg: "Mexplat \"{{ deploy_environ }}\" setup being upgraded to version {{ edge_cloud_version }} by {{ ansible_user }}"
+      delegate_to: localhost
+
+    - name: Update VM DNS entries
+      cloudflare_dns:
+        zone: "{{ cloudflare_zone }}"
+        record: "{{ item.hostname }}"
+        value: "{{ item.ip }}"
+        type: A
+        state: present
+        solo: true
+        account_email: "{{ cloudflare_account_email }}"
+        account_api_token: "{{ cloudflare_account_api_token }}"
+      with_items:
+        - { hostname: "{{ gitlab_vm_hostname }}", ip: "{{ gitlab_ip }}" }
+        - { hostname: "{{ gitlab_docker_hostname }}", ip: "{{ gitlab_ip }}" }
+        - { hostname: "{{ crm_vm_hostname }}", ip: "{{ crm_ip }}" }
+        - { hostname: "{{ mc_vm_hostname }}", ip: "{{ mc_ip }}" }
+
+    - name: Create temporary kubeconfig file
+      tempfile:
+        state: file
+        suffix: .kubeconfig
+      register: kubeconfig_file
+      changed_when: false
+
+    - name: Store kubeconfig data in file
+      copy:
+        content: "{{ terraform.outputs.kube_config.value }}"
+        dest: "{{ kubeconfig_file.path }}"
+      changed_when: false
+
+    - include_role: name="k8s"
+    - include_role: name="etcd"
+    - include_role: name="monitor"
+    - include_role: name="controller"
+    - include_role: name="dme"
+    - include_role: name="cluster-svc"
+
+- hosts: gitlab
   roles:
-    - k8s
-    - etcd
-    - monitor
-    - controller
-    - dme
+    - role: gitlab
 
 - hosts: crms
   roles:
     - docker
     - crm
 
-- hosts: mcs
+- hosts: mc
   roles:
     - role: web
       vars:
         nginx_config_template: "templates/mexplat/mc-nginx-config.j2"
+        cert_domains: [ "{{ mc_vm_hostname }}" ]
     - docker
     - mc
+
+- hosts: localhost
+  tasks:
+    - name: Notify upgrade completion on slack
+      slack:
+        token: "{{ slack_token }}"
+        channel: "{{ slack_channel }}"
+        msg: "Mexplat \"{{ deploy_environ }}\" setup successfully upgraded to version {{ edge_cloud_version }} by {{ ansible_user }}"

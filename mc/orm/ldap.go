@@ -147,8 +147,8 @@ func ldapLookupUsers(username string, filter *ber.Packet, result *ldap.ServerSea
 				entry.Attributes = append(entry.Attributes, &attr)
 			}
 		}
-		keep, rescode := ldap.ServerApplyFilter(filter, &entry)
-		if rescode == ldap.LDAPResultSuccess && !keep {
+		keep, _ := ldap.ServerApplyFilter(filter, &entry)
+		if !keep {
 			continue
 		}
 
@@ -208,8 +208,8 @@ func ldapLookupOrgs(orgname string, filter *ber.Packet, result *ldap.ServerSearc
 			}
 			entry.Attributes = append(entry.Attributes, &attr)
 		}
-		keep, rescode := ldap.ServerApplyFilter(filter, &entry)
-		if rescode == ldap.LDAPResultSuccess && !keep {
+		keep, _ := ldap.ServerApplyFilter(filter, &entry)
+		if !keep {
 			continue
 		}
 

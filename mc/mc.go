@@ -23,6 +23,7 @@ var vaultAddr = flag.String("vaultAddr", "http://127.0.0.1:8200", "Vault address
 var localVault = flag.Bool("localVault", false, "Run local Vault")
 var ldapAddr = flag.String("ldapAddr", "127.0.0.1:9389", "LDAP listener address")
 var gitlabAddr = flag.String("gitlabAddr", "http://127.0.0.1:80", "Gitlab server address")
+var artifactoryAddr = flag.String("artifactoryAddr", "http://127.0.0.1:80", "Artifactory server address")
 var pingInterval = flag.Duration("pingInterval", 20*time.Second, "SQL database ping keep-alive interval")
 
 var sigChan chan os.Signal
@@ -33,18 +34,19 @@ func main() {
 	sigChan = make(chan os.Signal, 1)
 
 	config := orm.ServerConfig{
-		ServAddr:     *addr,
-		SqlAddr:      *sqlAddr,
-		VaultAddr:    *vaultAddr,
-		RunLocal:     *localSql,
-		InitLocal:    *initSql,
-		LocalVault:   *localVault,
-		TlsCertFile:  *tlsCertFile,
-		TlsKeyFile:   *tlsKeyFile,
-		LDAPAddr:     *ldapAddr,
-		GitlabAddr:   *gitlabAddr,
-		ClientCert:   *clientCert,
-		PingInterval: *pingInterval,
+		ServAddr:        *addr,
+		SqlAddr:         *sqlAddr,
+		VaultAddr:       *vaultAddr,
+		RunLocal:        *localSql,
+		InitLocal:       *initSql,
+		LocalVault:      *localVault,
+		TlsCertFile:     *tlsCertFile,
+		TlsKeyFile:      *tlsKeyFile,
+		LDAPAddr:        *ldapAddr,
+		GitlabAddr:      *gitlabAddr,
+		ArtifactoryAddr: *artifactoryAddr,
+		ClientCert:      *clientCert,
+		PingInterval:    *pingInterval,
 	}
 	server, err := orm.RunServer(&config)
 	if err != nil {

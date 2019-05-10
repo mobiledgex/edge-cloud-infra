@@ -70,6 +70,9 @@ func CreateOrgObj(claims *UserClaims, org *ormapi.Organization) error {
 		Role:     role,
 	}
 	gitlabAddGroupMember(&r)
+
+	artifactoryCreateGroupObjects(org.Name)
+
 	return nil
 }
 
@@ -110,6 +113,7 @@ func DeleteOrgObj(claims *UserClaims, org *ormapi.Organization) error {
 		}
 	}
 	gitlabDeleteGroup(org)
+	artifactoryDeleteGroupObjects(org.Name)
 	return nil
 }
 

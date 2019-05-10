@@ -1,20 +1,21 @@
 - name: Deploy Etcd Operator
   k8s:
-    context: "{{ deploy_target }}"
+    kubeconfig: "{{ kubeconfig_file.path }}"
     namespace: default
     state: present
     definition: "{{ lookup('template', 'mexplat/etcd-operator.yml') }}"
 
 - name: Wait for Etcd Operator
-  command: "kubectl --context {{ deploy_target }} get customresourcedefinition {{ etcd_opetator_crd }}"
+  command: "kubectl --kubeconfig {{ kubeconfig_file.path }} get customresourcedefinition {{ etcd_opetator_crd }}"
   register: result
   retries: 60
   delay: 5
   until: result is succeeded
+  changed_when: false
 
 - name: Deploy Etcd Cluster
   k8s:
-    context: "{{ deploy_target }}"
+    kubeconfig: "{{ kubeconfig_file.path }}"
     namespace: default
     state: present
     definition: "{{ lookup('template', 'mexplat/mex-etcd-cluster.yml') }}"

@@ -1,0 +1,29 @@
+- name: Add Certbot PPA
+  apt_repository:
+    repo: ppa:certbot/certbot
+  become: yes
+
+- name: Install Certbot
+  package:
+    name: python3-certbot-dns-cloudflare
+    state: latest
+  become: yes
+
+- name: Set up Cloudflare config
+  template:
+    src: cloudflare.ini.j2
+    dest: "{{ cloudflare_credentials_file }}"
+    owner: root
+    group: root
+    mode: 0400
+  become: yes
+
+- name: Obtain certs from Letsencrypt
+  command: >-
+    certbot certonly
+      --dns-cloudflare --dns-cloudflare-credentials {{ cloudflare_credentials_file }}
+      --agree-tos --email {{ mex_ops_email }} --non-interactive
+      -d {{ cert_domains|join(' -d ') }}
+  become: yes
+  args:
+    creates: "{{ letsencrypt_root }}/{{ mc_vm_hostname }}/fullchain.pem"

@@ -1,23 +1,24 @@
 - name: Deploy the Mex DME
   k8s:
-    context: "{{ deploy_target }}"
+    kubeconfig: "{{ kubeconfig_file.path }}"
     namespace: default
     state: present
     definition: "{{ lookup('template', 'mexplat/mex-dme-deploy.yml.j2') }}"
 
 - name: Deploy the Mex DME LB
   k8s:
-    context: "{{ deploy_target }}"
+    kubeconfig: "{{ kubeconfig_file.path }}"
     namespace: default
     state: present
     definition: "{{ lookup('template', 'mexplat/mex-dme-lb.yml') }}"
 
 - name: Get DME Public IP
-  command: "kubectl --context {{ deploy_target }} get svc -o jsonpath='{.status.loadBalancer.ingress[0].ip}' dme"
+  command: "kubectl --kubeconfig {{ kubeconfig_file.path }} get svc -o jsonpath='{.status.loadBalancer.ingress[0].ip}' dme"
   register: dme_ip_command
   retries: 60
   delay: 5
   until: dme_ip_command.stdout != ""
+  changed_when: false
 
 - set_fact:
     dme_ip: "{{ dme_ip_command.stdout }}"

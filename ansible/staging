@@ -1,7 +1,8 @@
 [all:vars]
-deploy_environ=dev
+deploy_environ=stage
+ubuntu_release=bionic
 monitor_version=latest
-deploy_target=bleeding-edge
+deploy_target="mexplat-{{ deploy_environ }}"
 operator_key=TDG
 openstack_instance=bonn
 controller_dns="{{ deploy_target }}.ctrl"
@@ -14,13 +15,20 @@ mc_postgres_username=mcdevuser
 mc_postgres_password=topsecret
 mc_superuser=mexadmin
 mc_superuser_password=mexadmin123
-mc_vm_hostname=bleeding-edge-plat.mobiledgex.net
+gitlab_vm_hostname=gitlab-stage.mobiledgex.net
+crm_vm_hostname=crm-stage.mobiledgex.net
+mc_vm_hostname=mc-stage.mobiledgex.net
+gitlab_email_enabled=false
+gitlab_docker_hostname="docker-{{ deploy_environ }}.mobiledgex.net"
 
 [platform]
 localhost	ansible_connection=local
 
 [crms]
-bleeding-edge-plat.mobiledgex.net	crm_name="crm-{{ deploy_target }}" cloudlet_name="{{ deploy_target }}-cloudlet"
+crm-stage.mobiledgex.net	crm_name="crm-{{ deploy_target }}" cloudlet_name="{{ deploy_target }}-cloudlet"
 
 [mc]
-bleeding-edge-plat.mobiledgex.net
+mc-stage.mobiledgex.net	
+
+[gitlab]
+gitlab-stage.mobiledgex.net

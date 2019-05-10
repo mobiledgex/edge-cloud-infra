@@ -1,0 +1,18 @@
+---
+- hosts: artifactory
+  vars:
+    docker_skip_install: true
+    docker_skip_registry_login: true
+
+  tasks:
+    - include_role: name="docker"
+    - name: "Installing Artifactory version {{ artifactory_version }}"
+      docker_container:
+        name: artifactory
+        image: "docker.bintray.io/jfrog/artifactory-pro:{{ artifactory_version }}"
+        restart_policy: unless-stopped
+        ports:
+          - "127.0.0.1:9091:8081"
+        volumes:
+          - "/var/opt/jfrog/artifactory:/var/opt/jfrog/artifactory"
+      become: yes

@@ -1,0 +1,61 @@
+- stat: path="{{ gitlab_config_path }}"
+  register: gitlab_config_st
+
+- name: Create first-run flag file
+  copy:
+    content: ""
+    dest: "{{ first_run_flag_file }}"
+    force: no
+  become: yes
+  when: not gitlab_config_st.stat.exists
+
+- name: Add gitlab apt repository
+  apt_key:
+    url: https://packages.gitlab.com/gitlab/gitlab-ee/gpgkey
+    state: present
+  become: yes
+
+- name: Add gitlab apt repository
+  get_url:
+    url: "https://packages.gitlab.com/install/repositories/gitlab/gitlab-ee/config_file.list?os=Ubuntu&dist={{ ubuntu_release }}&source=script"
+    dest: /etc/apt/sources.list.d/gitlab_gitlab-ee.list
+  become: yes
+
+- name: Install gitlab
+  apt:
+    name: ['curl', 'openssh-server', 'ca-certificates', 'gitlab-ee']
+    state: present
+    update_cache: yes
+  become: yes
+
+- name: Install gitlab config
+  template:
+    src: templates/mexplat/gitlab.rb.j2
+    dest: /etc/gitlab/gitlab.rb
+  become: yes
+  register: gitlab_config
+
+- name: Reconfigure gitlab
+  command: gitlab-ctl reconfigure
+  become: yes
+  when: gitlab_config.changed or gitlab_force_reconfigure
+
+- stat: path="{{ first_run_flag_file }}"
+  register: first_run_flag_file_st
+
+- name: Wait for root account password setup
+  pause:
+    prompt: |-
+      
+      Please open the following link in your browser and set a password
+      for the gitlab "root" account:
+      - https://{{ gitlab_vm_hostname }}
+
+      Hit [Enter] after you are done (Ctrl-C to abort)
+  when: first_run_flag_file_st.stat.exists
+
+- name: Remove first-run flag file
+  file:
+    path: "{{ first_run_flag_file }}"
+    state: absent
+  become: yes

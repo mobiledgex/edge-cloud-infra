@@ -517,17 +517,6 @@ Date: Wed, 13 Mar 2019 19:05:23 GMT
 }
 ```
 
-Notes:
-edgectl commands to populate controller directly:
-```
-edgectl controller CreateCloudlet --key-name oceanview --key-operatorkey-name bigwaves --numdynamicips 30 --location-longitude 1 --location-latitude 1
-edgectl controller CreateFlavor --key-name x1.medium --vcpus 2 --ram 2048 --disk 1
-edgectl controller CreateClusterFlavor --key-name x1.medium --masterflavor-name x1.medium --maxnodes 2 --nodeflavor-name x1.medium --nummasters 1 --numnodes 2
-edgectl controller CreateClusterInst --key-cloudletkey-name oceanview --key-cloudletkey-operatorkey-name bigwaves --key-clusterkey-name bigclust --flavor-name x1.medium
-edgectl controller CreateApp --key-developerkey-name bigorg --key-name myapp --key-version 1.0.0 --cluster-name bigclust --defaultflavor-name x1.medium --imagetype ImageTypeDocker --accessports "udp:12001,tcp:80,http:7777" --imagepath "registry.mobiledgex.net:5000/mobiledgex/simapp" --command "simapp -port 7777"
-edgectl controller CreateAppInst --key-appkey-developerkey-name bigorg --key-appkey-name myapp --key-appkey-version 1.0.0 --key-cloudletkey-name oceanview --key-cloudletkey-operatorkey-name bigwaves --clusterinstkey-clusterkey-name bigclust
-```
-
 #### VM based Deployment APIs:
 Once controller & CRM server is up and running, following http commands can be used to CreateApp/CreateAppInst via MC:
 
@@ -550,4 +539,15 @@ http --auth-type=jwt --auth=$SUPERPASS POST 127.0.0.1:9900/api/v1/auth/ctrl/Crea
 http --auth-type=jwt --auth=$SUPERPASS POST 127.0.0.1:9900/api/v1/auth/ctrl/DeleteAppInst <<< '{"region":"local","appinst":{"key":{"app_key":{"developer_key":{"name":"MEXInc"},"name":"TestVM","version":"1.0"},"cloudlet_key":{"operator_key":{"name":"TDG"},"name":"berlin-mexdemo"}},"cluster_inst_key":{"cluster_key":{"name":"appcluster"},"cloudlet_key":{"operator_key":{"name":"TDG"},"name":"berlin-mexdemo"}}}}'
 
 http --auth-type=jwt --auth=$SUPERPASS POST 127.0.0.1:9900/api/v1/auth/ctrl/DeleteApp <<< '{"region":"local","app":{"key":{"developer_key":{"name":"MEXInc"},"name":"TestVM","version":"1.0"}}}'
+```
+
+Notes:
+edgectl commands to populate controller directly:
+```
+edgectl controller CreateCloudlet --key-name oceanview --key-operatorkey-name bigwaves --numdynamicips 30 --location-longitude 1 --location-latitude 1
+edgectl controller CreateFlavor --key-name x1.medium --vcpus 2 --ram 2048 --disk 1
+edgectl controller CreateClusterFlavor --key-name x1.medium --masterflavor-name x1.medium --maxnodes 2 --nodeflavor-name x1.medium --nummasters 1 --numnodes 2
+edgectl controller CreateClusterInst --key-cloudletkey-name oceanview --key-cloudletkey-operatorkey-name bigwaves --key-clusterkey-name bigclust --flavor-name x1.medium
+edgectl controller CreateApp --key-developerkey-name bigorg --key-name myapp --key-version 1.0.0 --cluster-name bigclust --defaultflavor-name x1.medium --imagetype ImageTypeDocker --accessports "udp:12001,tcp:80,http:7777" --imagepath "registry.mobiledgex.net:5000/mobiledgex/simapp" --command "simapp -port 7777"
+edgectl controller CreateAppInst --key-appkey-developerkey-name bigorg --key-appkey-name myapp --key-appkey-version 1.0.0 --key-cloudletkey-name oceanview --key-cloudletkey-operatorkey-name bigwaves --clusterinstkey-clusterkey-name bigclust
 ```

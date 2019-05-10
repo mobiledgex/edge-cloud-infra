@@ -527,7 +527,7 @@ http --auth-type=jwt --auth=$SUPERPASS POST 127.0.0.1:9900/api/v1/auth/ctrl/Crea
 http --auth-type=jwt --auth=$SUPERPASS POST 127.0.0.1:9900/api/v1/auth/ctrl/CreateAppInst <<< '{"region":"local","appinst":{"key":{"app_key":{"developer_key":{"name":"MEXInc"},"name":"TestVM","version":"1.0"},"cloudlet_key":{"operator_key":{"name":"TDG"},"name":"berlin-mexdemo"}},"cluster_inst_key":{"cluster_key":{"name":"appcluster"},"cloudlet_key":{"operator_key":{"name":"TDG"},"name":"berlin-mexdemo"}}}}'
 ```
 
-* CreateApp with deployment-manifest set:
+* CreateApp with deployment_manifest set:
 ```
 http --auth-type=jwt --auth=$SUPERPASS POST 127.0.0.1:9900/api/v1/auth/ctrl/CreateApp <<< '{"region":"local","app":{"key":{"developer_key":{"name":"MEXInc"},"name":"TestVM","version":"1.0"},"image_path":"http://cloud-images.ubuntu.com/xenial/current/xenial-server-cloudimg-amd64-disk1.img","image_type":2,"access_ports":"tcp:22,udp:1111","default_flavor":{"name":"x1.medium"},"cluster":{"name":"appcluster"},"deployment_manifest": "#cloud-config\nusers:\n  - name: demo\n    groups: sudo\n    shell: /bin/bash\n    sudo: [\"ALL=(ALL) NOPASSWD:ALL\"]\n    ssh-authorized-keys:\n      - ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAABAQCrHlOJOJUqvd4nEOXQbdL8ODKzWaUxKVY94pF7J3diTxgZ1NTvS6omqOjRS3loiU7TOlQQU4cKnRRnmJW8QQQZSOMIGNrMMInGaEYsdm6+tr1k4DDfoOrkGMj3X/I2zXZ3U+pDPearVFbczCByPU0dqs16TWikxDoCCxJRGeeUl7duzD9a65bI8Jl+zpfQV+I7OPa81P5/fw15lTzT4+F9MhhOUVJ4PFfD+d6/BLnlUfZ94nZlvSYnT+GoZ8xTAstM7+6pvvvHtaHoV4YqRf5CelbWAQ162XNa9/pW5v/RKDrt203/JEk3e70tzx9KAfSw2vuO1QepkCZAdM9rQoCd bob@registry\nruncmd:\n  - touch /test.txt"}}'
 
@@ -541,7 +541,7 @@ http --auth-type=jwt --auth=$SUPERPASS POST 127.0.0.1:9900/api/v1/auth/ctrl/Dele
 http --auth-type=jwt --auth=$SUPERPASS POST 127.0.0.1:9900/api/v1/auth/ctrl/DeleteApp <<< '{"region":"local","app":{"key":{"developer_key":{"name":"MEXInc"},"name":"TestVM","version":"1.0"}}}'
 ```
 
-Notes:
+#### Notes:
 edgectl commands to populate controller directly:
 ```
 edgectl controller CreateCloudlet --key-name oceanview --key-operatorkey-name bigwaves --numdynamicips 30 --location-longitude 1 --location-latitude 1

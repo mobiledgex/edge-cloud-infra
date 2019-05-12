@@ -18,6 +18,7 @@ mc_superuser_password=mexadmin123
 gitlab_vm_hostname=gitlab-stage.mobiledgex.net
 crm_vm_hostname=crm-stage.mobiledgex.net
 mc_vm_hostname=mc-stage.mobiledgex.net
+mc_gitlab_token=gitlabstagetoken
 gitlab_email_enabled=false
 gitlab_docker_hostname="docker-{{ deploy_environ }}.mobiledgex.net"
 

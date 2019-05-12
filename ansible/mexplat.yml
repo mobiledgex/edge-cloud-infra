@@ -38,6 +38,7 @@
         channel: "{{ slack_channel }}"
         msg: "Mexplat \"{{ deploy_environ }}\" setup being upgraded to version {{ edge_cloud_version }} by {{ ansible_user }}"
       delegate_to: localhost
+      when: slack_notify
 
     - name: Update VM DNS entries
       cloudflare_dns:
@@ -100,3 +101,4 @@
         token: "{{ slack_token }}"
         channel: "{{ slack_channel }}"
         msg: "Mexplat \"{{ deploy_environ }}\" setup successfully upgraded to version {{ edge_cloud_version }} by {{ ansible_user }}"
+      when: slack_notify

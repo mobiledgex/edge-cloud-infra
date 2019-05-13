@@ -1,6 +1,7 @@
 package orm
 
 import (
+	"strings"
 	"time"
 
 	"github.com/labstack/echo"
@@ -11,33 +12,41 @@ import (
 )
 
 // Gitlab's groups and group members are a duplicate of the Organizations
-// and Org Roles in MC. Because it's a duplicate, it's possible to get
-// out of sync (either due to failed operations, or MC or gitlab DB reset
-// or restored from backup, etc). GitlabSync takes care of re-syncing.
-// Syncs are triggered either by a failure, or by an API call.
+// and Org Roles in MC. So areArtifactory's groups. Because it's a
+// duplicate, it's possible to get out of sync (either due to failed
+// operations, or MC or gitlab DB reset or restored from backup, etc).
+// AppStoreSync takes care of re-syncing. Syncs are triggered either by
+// a failure, or by an API call.
 
 // Sync Interval attempts to re-sync if there was a failure
-var GitlabSyncInterval = 5 * time.Minute
+var AppStoreSyncInterval = 5 * time.Minute
 
 // MC tag is used to tag groups/projects created by master controller
 var GitlabMCTag = "mastercontroller"
 var GitlabAdminID = 1
 
-type GitlabSync struct {
-	run       chan bool
-	needsSync bool
+const (
+	AppStoreGitlab      string = "gitlab"
+	AppStoreArtifactory string = "artifactory"
+)
+
+type AppStoreSync struct {
+	run          chan bool
+	needsSync    bool
+	appStoreType string
 }
 
-func gitlabNewSync() *GitlabSync {
-	sync := GitlabSync{}
+func AppStoreNewSync(appStoreType string) *AppStoreSync {
+	sync := AppStoreSync{}
 	sync.run = make(chan bool, 1)
+	sync.appStoreType = appStoreType
 	return &sync
 }
 
-func (s *GitlabSync) Start() {
+func (s *AppStoreSync) Start() {
 	go func() {
 		for {
-			time.Sleep(GitlabSyncInterval)
+			time.Sleep(AppStoreSyncInterval)
 			if s.needsSync {
 				s.wakeup()
 			}
@@ -48,7 +57,7 @@ func (s *GitlabSync) Start() {
 	go s.runThread()
 }
 
-func (s *GitlabSync) runThread() {
+func (s *AppStoreSync) runThread() {
 	var err error
 	for {
 		if err != nil {
@@ -57,7 +66,7 @@ func (s *GitlabSync) runThread() {
 		select {
 		case <-s.run:
 		}
-		log.DebugLog(log.DebugLevelApi, "Gitlab Sync running")
+		log.DebugLog(log.DebugLevelApi, "AppStore Sync running", "AppStore", s.appStoreType)
 		s.needsSync = false
 		s.syncUsers()
 		s.syncGroups()
@@ -65,7 +74,12 @@ func (s *GitlabSync) runThread() {
 	}
 }
 
-func (s *GitlabSync) syncUsers() {
+func (s *AppStoreSync) syncUsers() {
+	if s.appStoreType == AppStoreArtifactory {
+		// no sync required for Artifactory as LDAP users are transient
+		// i.e. they exists only till they are logged in
+		return
+	}
 	// get Gitlab users
 	gusers, _, err := gitlabClient.Users.ListUsers(&gitlab.ListUsersOptions{})
 	if err != nil {
@@ -125,7 +139,7 @@ func (s *GitlabSync) syncUsers() {
 	}
 }
 
-func (s *GitlabSync) syncGroups() {
+func (s *AppStoreSync) syncGitlabGroups(orgsT map[string]*ormapi.Organization) {
 	// get Gitlab groups
 	groups, _, err := gitlabClient.Groups.ListGroups(&gitlab.ListGroupsOptions{})
 	if err != nil {
@@ -136,18 +150,6 @@ func (s *GitlabSync) syncGroups() {
 	for ii, _ := range groups {
 		groupsT[groups[ii].Name] = groups[ii]
 	}
-	// get MC orgs
-	orgs := []ormapi.Organization{}
-	err = db.Find(&orgs).Error
-	if err != nil {
-		s.syncErr(err)
-		return
-	}
-	orgsT := make(map[string]*ormapi.Organization)
-	for ii, _ := range orgs {
-		orgsT[orgs[ii].Name] = &orgs[ii]
-	}
-
 	for name, org := range orgsT {
 		name = util.GitlabGroupSanitize(name)
 		if _, found := groupsT[name]; found {
@@ -179,7 +181,132 @@ func (s *GitlabSync) syncGroups() {
 	}
 }
 
-func (s *GitlabSync) syncGroupMembers() {
+func (s *AppStoreSync) syncArtifactoryGroups(orgsT map[string]*ormapi.Organization) {
+	if !artifactoryConnected() {
+		// retry connecting to artifactory
+		err := artifactoryConnect()
+		if err != nil {
+			s.syncErr(err)
+			return
+		}
+	}
+	// Get Artifactory Objects: Groups, Repos, Permission Targets
+	groups, err := artifactoryListGroups()
+	if err != nil {
+		s.syncErr(err)
+		return
+	}
+	repos, err := artifactoryListRepos()
+	if err != nil {
+		s.syncErr(err)
+		return
+	}
+	perms, err := artifactoryListPerms()
+	if err != nil {
+		s.syncErr(err)
+		return
+	}
+
+	// Create missing objects
+	for org, _ := range orgsT {
+		groupName := getGroupName(org)
+		if _, ok := groups[groupName]; ok {
+			delete(groups, groupName)
+		} else {
+			log.DebugLog(log.DebugLevelApi,
+				"Artifactory Sync create missing group",
+				"name", groupName)
+			err = artifactoryCreateGroup(org)
+			if err != nil {
+				s.syncErr(err)
+			}
+		}
+
+		repoName := getRepoName(org)
+		if _, ok := repos[repoName]; ok {
+			delete(repos, repoName)
+		} else {
+			log.DebugLog(log.DebugLevelApi,
+				"Artifactory Sync create missing repository",
+				"name", repoName)
+			err = artifactoryCreateRepo(org)
+			if err != nil {
+				s.syncErr(err)
+			}
+		}
+
+		permName := getPermTargetName(org)
+		if _, ok := perms[permName]; ok {
+			delete(perms, permName)
+		} else {
+			log.DebugLog(log.DebugLevelApi,
+				"Artifactory Sync create missing permission targets",
+				"name", permName)
+			err := artifactoryCreateRepoPerms(org)
+			if err != nil {
+				s.syncErr(err)
+			}
+		}
+	}
+
+	// Delete extra objects
+	for group, _ := range groups {
+		log.DebugLog(log.DebugLevelApi,
+			"Artifactory Sync delete extra group",
+			"name", group)
+		err = artifactoryDeleteGroup(strings.TrimPrefix(group, GroupPrefix))
+		if err != nil {
+			s.syncErr(err)
+		}
+	}
+	for repo, _ := range repos {
+		log.DebugLog(log.DebugLevelApi,
+			"Artifactory Sync delete extra repository",
+			"name", repo)
+		err = artifactoryDeleteRepo(strings.TrimPrefix(repo, RepoPrefix))
+		if err != nil {
+			s.syncErr(err)
+		}
+	}
+	for perm, _ := range perms {
+		log.DebugLog(log.DebugLevelApi,
+			"Artifactory Sync delete extra permission target",
+			"name", perm)
+		err = artifactoryDeleteRepoPerms(strings.TrimPrefix(perm, PermPrefix))
+		if err != nil {
+			s.syncErr(err)
+		}
+	}
+}
+
+func (s *AppStoreSync) syncGroups() {
+	// get MC orgs
+	orgs := []ormapi.Organization{}
+	err := db.Find(&orgs).Error
+	if err != nil {
+		s.syncErr(err)
+		return
+	}
+	orgsT := make(map[string]*ormapi.Organization)
+	for ii, _ := range orgs {
+		orgsT[orgs[ii].Name] = &orgs[ii]
+	}
+
+	if s.appStoreType == AppStoreArtifactory {
+		s.syncArtifactoryGroups(orgsT)
+	} else {
+		s.syncGitlabGroups(orgsT)
+	}
+	return
+
+}
+
+func (s *AppStoreSync) syncGroupMembers() {
+	if s.appStoreType == AppStoreArtifactory {
+		// no sync required for Artifactory as group members are transient
+		// i.e. they exists only till they are logged in
+		return
+	}
 	members := make(map[string]map[string]*gitlab.GroupMember)
 	var err error
 
@@ -240,23 +367,23 @@ func (s *GitlabSync) syncGroupMembers() {
 	}
 }
 
-func (s *GitlabSync) NeedsSync() {
+func (s *AppStoreSync) NeedsSync() {
 	s.needsSync = true
 }
 
-func (s *GitlabSync) wakeup() {
+func (s *AppStoreSync) wakeup() {
 	select {
 	case s.run <- true:
 	default:
 	}
 }
 
-func (s *GitlabSync) syncErr(err error) {
-	log.DebugLog(log.DebugLevelApi, "Gitlab Sync failed", "err", err)
+func (s *AppStoreSync) syncErr(err error) {
+	log.DebugLog(log.DebugLevelApi, "AppStore Sync failed", "AppStore", s.appStoreType, "err", err)
 	s.NeedsSync()
 }
 
-func GitlabResync(c echo.Context) error {
+func resync(c echo.Context, appStoreType string) error {
 	claims, err := getClaims(c)
 	if err != nil {
 		return err
@@ -265,7 +392,20 @@ func GitlabResync(c echo.Context) error {
 	if !enforcer.Enforce(claims.Username, "", ResourceControllers, ActionManage) {
 		return echo.ErrForbidden
 	}
-	gitlabSync.NeedsSync()
-	gitlabSync.wakeup()
+	if appStoreType == AppStoreGitlab {
+		gitlabSync.NeedsSync()
+		gitlabSync.wakeup()
+	} else {
+		artifactorySync.NeedsSync()
+		artifactorySync.wakeup()
+	}
 	return nil
+}
+
+func GitlabResync(c echo.Context) error {
+	return resync(c, AppStoreGitlab)
+}
+
+func ArtifactoryResync(c echo.Context) error {
+	return resync(c, AppStoreArtifactory)
 }

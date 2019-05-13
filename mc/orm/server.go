@@ -7,7 +7,6 @@ import (
 	"time"
 
 	"github.com/atlassian/go-artifactory/v2/artifactory"
-	"github.com/atlassian/go-artifactory/v2/artifactory/transport"
 	"github.com/casbin/casbin"
 	"github.com/jinzhu/gorm"
 	"github.com/labstack/echo"
@@ -57,8 +56,9 @@ var db *gorm.DB
 var enforcer *casbin.SyncedEnforcer
 var serverConfig *ServerConfig
 var gitlabClient *gitlab.Client
-var gitlabSync *GitlabSync
+var gitlabSync *AppStoreSync
 var artifactoryClient *artifactory.Artifactory
+var artifactorySync *AppStoreSync
 var roleID string
 var secretID string
 
@@ -73,7 +73,6 @@ func RunServer(config *ServerConfig) (*Server, error) {
 	superuser := os.Getenv("superuser")
 	superpass := os.Getenv("superpass")
 	gitlabToken := os.Getenv("gitlab_token")
-	artifactoryApiKey := os.Getenv("artifactory_apikey")
 	if dbuser == "" || config.IgnoreEnv {
 		dbuser = DefaultDBUser
 	}
@@ -132,21 +131,7 @@ func RunServer(config *ServerConfig) (*Server, error) {
 			config.GitlabAddr, err.Error())
 	}
 
-	if artifactoryApiKey == "" {
-		log.InfoLog("Note: No artifactory_apikey env var found")
-	} else {
-		var err error
-		tp := transport.ApiKeyAuth{
-			ApiKey: artifactoryApiKey,
-		}
-		artifactoryClient, err = artifactory.NewClient(
-			config.ArtifactoryAddr,
-			tp.Client())
-		if err != nil {
-			log.InfoLog("Note: Failed to connect to artifactory %s, %s",
-				config.ArtifactoryAddr, err.Error())
-		}
-	}
+	artifactoryConnect()
 
 	if config.RunLocal {
 		sql := intprocess.Sql{
@@ -222,6 +207,7 @@ func RunServer(config *ServerConfig) (*Server, error) {
 	auth.POST("/data/delete", DeleteData)
 	auth.POST("/data/show", ShowData)
 	auth.POST("/gitlab/resync", GitlabResync)
+	auth.POST("/artifactory/resync", ArtifactoryResync)
 	auth.POST("/config/update", UpdateConfig)
 	auth.POST("/config/show", ShowConfig)
 	auth.POST("/restricted/user/update", RestrictedUserUpdate)
@@ -250,10 +236,11 @@ func RunServer(config *ServerConfig) (*Server, error) {
 		}
 	}()
 
-	gitlabSync = gitlabNewSync()
+	gitlabSync = AppStoreNewSync(AppStoreGitlab)
 	gitlabSync.Start()
 
-	go artifactoryCreateAllGroupObjects()
+	artifactorySync = AppStoreNewSync(AppStoreArtifactory)
+	artifactorySync.Start()
 
 	return &server, nil
 }

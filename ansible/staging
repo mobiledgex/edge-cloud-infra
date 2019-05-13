@@ -1,0 +1,34 @@
+[all:vars]
+deploy_environ=stage
+ubuntu_release=bionic
+monitor_version=latest
+deploy_target="mexplat-{{ deploy_environ }}"
+operator_key=TDG
+openstack_instance=bonn
+controller_dns="{{ deploy_target }}.ctrl"
+dme_dns="{{ deploy_target }}.dme"
+dme_carrier=TDG
+locver_url="http://{{ deploy_target }}.locsim.mobiledgex.net:8888/verifyLocation"
+toksrv_url="http://{{ deploy_target }}.tok.mobiledgex.net:9999/its?followURL=https://dme.mobiledgex.net/verifyLoc"
+mc_postgres_db=mcdevdb
+mc_postgres_username=mcdevuser
+mc_postgres_password=topsecret
+mc_superuser=mexadmin
+mc_superuser_password=mexadmin123
+gitlab_vm_hostname=gitlab-stage.mobiledgex.net
+crm_vm_hostname=crm-stage.mobiledgex.net
+mc_vm_hostname=mc-stage.mobiledgex.net
+gitlab_email_enabled=false
+gitlab_docker_hostname="docker-{{ deploy_environ }}.mobiledgex.net"
+
+[platform]
+localhost	ansible_connection=local
+
+[crms]
+crm-stage.mobiledgex.net	crm_name="crm-{{ deploy_target }}" cloudlet_name="{{ deploy_target }}-cloudlet"
+
+[mc]
+mc-stage.mobiledgex.net	
+
+[gitlab]
+gitlab-stage.mobiledgex.net

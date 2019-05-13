@@ -10,21 +10,21 @@
     dest: /etc/nginx/sites-available/default
     mode: 0644
   become: yes
+  register: nginx_config
   when: nginx_config_template is defined
 
-- name: Start Nginx
+- import_tasks: certs.yml
+  when: cert_domains
+
+- name: Restart Nginx
+  service:
+    name: nginx
+    state: restarted
+  become: yes
+  when: nginx_config.changed
+
+- name: Ensure Nginx is running
   service:
     name: nginx
     state: started
-  become: yes
-
-- name: Add Certbot PPA
-  apt_repository:
-    repo: ppa:certbot/certbot
-  become: yes
-
-- name: Install Certbot
-  package:
-    name: python-certbot-nginx
-    state: latest
   become: yes

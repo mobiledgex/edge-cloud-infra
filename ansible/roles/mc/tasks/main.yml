@@ -1,6 +1,6 @@
 - name: Deploy the MC
   docker_container:
-    name: "{{ mc_name }}"
+    name: "{{ mc_vm_hostname.split('.')[0]|lower }}"
     image: "{{ edge_cloud_image }}:{{ edge_cloud_version }}"
     restart_policy: unless-stopped
     command:
@@ -12,7 +12,7 @@
       - "-vaultAddr"
       - "{{ vault_address }}"
       - "-gitlabAddr"
-      - "{{ gitlab_address }}"
+      - "https://{{ gitlab_vm_hostname }}"
       - "-ldapAddr"
       - "0.0.0.0:{{ mc_ldap_port }}"
       - "-tls"
@@ -48,7 +48,7 @@
 - name: Update MC DNS
   cloudflare_dns:
     zone: "{{ cloudflare_zone }}"
-    record: "{{ mc_name }}"
+    record: "{{ mc_vm_hostname }}"
     value: "{{ mc_ip }}"
     type: A
     state: present

@@ -4,6 +4,7 @@
     install_dir: /home/ansible/edge-cloud-ui
     mongodb_path: "{{install_dir}}/server/mongodb_data"
     skip_checkout: no
+    slack_channel: "#web-ui"
 
   roles:
     - web
@@ -48,8 +49,10 @@
         dest: "{{install_dir}}"
         update: yes
         version: master
+      register: git_checkout
       notify:
         - Restart Console Server
+        - Notify Slack
 
     - name: Create MongoDB Data Directory
       file:
@@ -116,3 +119,10 @@
         daemon_reload: yes
         name: mex-console-ui
       become: yes
+
+    - name: Notify Slack
+      slack:
+        token: "{{ slack_token }}"
+        channel: "{{ slack_channel }}"
+        msg: "Console upgraded to commit <https://github.com/mobiledgex/edge-cloud-ui/commits/{{ git_checkout.after }}|{{ git_checkout.after|truncate(10, False, '') }}> by {{ ansible_user }}"
+      delegate_to: localhost

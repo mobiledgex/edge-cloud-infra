@@ -44,6 +44,7 @@ type ServerConfig struct {
 	ArtifactoryAddr string
 	ClientCert      string
 	PingInterval    time.Duration
+	SkipVerifyEmail bool
 }
 
 var DefaultDBUser = "mcuser"
@@ -181,6 +182,8 @@ func RunServer(config *ServerConfig) (*Server, error) {
 	e.POST(root+"/usercreate", CreateUser)
 	e.POST(root+"/passwordresetrequest", PasswordResetRequest)
 	e.POST(root+"/passwordreset", PasswordReset)
+	e.POST(root+"/verifyemail", VerifyEmail)
+	e.POST(root+"/resendverify", ResendVerify)
 	// authenticated routes - jwt middleware
 	auth := e.Group(root + "/auth")
 	auth.Use(AuthCookie)

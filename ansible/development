@@ -1,4 +1,5 @@
 [all:vars]
+deploy_environ=dev
 monitor_version=latest
 deploy_target=bleeding-edge
 operator_key=TDG
@@ -13,6 +14,7 @@ mc_postgres_username=mcdevuser
 mc_postgres_password=topsecret
 mc_superuser=mexadmin
 mc_superuser_password=mexadmin123
+mc_vm_hostname=bleeding-edge-plat.mobiledgex.net
 
 [platform]
 localhost	ansible_connection=local
@@ -20,5 +22,5 @@ localhost	ansible_connection=local
 [crms]
 bleeding-edge-plat.mobiledgex.net	crm_name="crm-{{ deploy_target }}" cloudlet_name="{{ deploy_target }}-cloudlet"
 
-[mcs]
-bleeding-edge-plat.mobiledgex.net	mc_name="mc-dev"
+[mc]
+bleeding-edge-plat.mobiledgex.net

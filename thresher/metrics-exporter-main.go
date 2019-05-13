@@ -43,6 +43,8 @@ var Env = map[string]string{
 	"INFLUXDB_PASS": "root",
 }
 
+var AppInstCacheInfo edgeproto.AppInstInfoCache
+
 var InfluxDBName = "clusterstats"
 var influxQ *influxq.InfluxQ
 
@@ -104,6 +106,12 @@ func main() {
 	}
 	fmt.Printf("Found Prometheus running on: %s\n", *promAddress)
 	initEnv()
+
+	//register thresher to receive appinst notifications from crm
+	edgeproto.InitAppInstInfoCache(&AppInstInfoCache)
+	AppInstInfoCache.SetNotifyCb(AppInstInfoCb) <- implement this callback
+	//then init notify, (look at crm/main line 108)
+
 	fmt.Printf("InfluxDB is at: %s\n", *influxdb)
 	fmt.Printf("Metrics collection interval is %s\n", *collectInterval)
 	influxQ = influxq.NewInfluxQ(InfluxDBName)

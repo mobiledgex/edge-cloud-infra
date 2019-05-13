@@ -4,7 +4,7 @@
   become: yes
 
 - name: Install Certbot
-  package:
+  apt:
     name: python3-certbot-dns-cloudflare
     state: latest
   become: yes

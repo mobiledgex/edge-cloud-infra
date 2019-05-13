@@ -19,6 +19,7 @@
   delay: 5
   until: controller_ip_command.stdout != ""
   changed_when: false
+  check_mode: no
 
 - set_fact:
     controller_ip: "{{ controller_ip_command.stdout }}"

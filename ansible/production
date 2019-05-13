@@ -6,6 +6,7 @@ mc_postgres_password="s3cr3tmc!"
 mc_superuser=mexadmin
 mc_superuser_password=mexadmin123
 mc_gitlab_token=sx3vbbf2iLGgpwSMm3NZ
+postgres_hostname=postgres.mobiledgex.net
 artifactory_version=6.10.0
 
 [ui-servers]

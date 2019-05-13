@@ -8,7 +8,7 @@
       - "-addr"
       - "0.0.0.0:{{ mc_api_port }}"
       - "-sqlAddr"
-      - "{{ postgres_server }}"
+      - "{{ postgres_hostname }}:5432"
       - "-vaultAddr"
       - "{{ vault_address }}"
       - "-gitlabAddr"

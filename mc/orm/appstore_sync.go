@@ -12,7 +12,7 @@ import (
 )
 
 // Gitlab's groups and group members are a duplicate of the Organizations
-// and Org Roles in MC. So areArtifactory's groups. Because it's a
+// and Org Roles in MC. So are Artifactory's groups. Because it's a
 // duplicate, it's possible to get out of sync (either due to failed
 // operations, or MC or gitlab DB reset or restored from backup, etc).
 // AppStoreSync takes care of re-syncing. Syncs are triggered either by

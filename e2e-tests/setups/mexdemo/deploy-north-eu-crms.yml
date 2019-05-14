@@ -15,8 +15,8 @@ crms:
     servercert: "{{tlsoutdir}}/mex-server.crt"
     clientcert: "{{tlsoutdir}}/mex-client.crt"
   hostname: "{{vm1_external_ip}}"
-  dockerimage: registry.mobiledgex.net:5000/mobiledgex/edge-cloud:2019-04-29
-  envvars
+  dockerimage: registry.mobiledgex.net:5000/mobiledgex/edge-cloud:2019-05-14
+  envvars:
     OPENRC_URL: https://vault.mobiledgex.net/v1/secret/data/cloudlet/openstack/hamburg/openrc.json
     MEXENV_URL: https://vault.mobiledgex.net/v1/secret/data/cloudlet/openstack/mexenv.json
     CLOUDLET_KIND: openstack
@@ -33,7 +33,7 @@ crms:
     servercert: "{{tlsoutdir}}/mex-server.crt"
     clientcert: "{{tlsoutdir}}/mex-client.crt"
   hostname: "{{vm1_external_ip}}"
-  dockerimage: registry.mobiledgex.net:5000/mobiledgex/edge-cloud:2019-04-29
+  dockerimage: registry.mobiledgex.net:5000/mobiledgex/edge-cloud:2019-05-14
   envvars:
     OPENRC_URL: https://vault.mobiledgex.net/v1/secret/data/cloudlet/openstack/berlin/openrc.json
     MEXENV_URL: https://vault.mobiledgex.net/v1/secret/data/cloudlet/openstack/mexenv.json
@@ -51,7 +51,7 @@ crms:
     servercert: "{{tlsoutdir}}/mex-server.crt"
     clientcert: "{{tlsoutdir}}/mex-client.crt"
   hostname: "{{vm1_external_ip}}"
-  dockerimage: registry.mobiledgex.net:5000/mobiledgex/edge-cloud:2019-04-29
+  dockerimage: registry.mobiledgex.net:5000/mobiledgex/edge-cloud:2019-05-14
   envvars:
     OPENRC_URL: https://vault.mobiledgex.net/v1/secret/data/cloudlet/openstack/frankfurt/openrc.json
     MEXENV_URL: https://vault.mobiledgex.net/v1/secret/data/cloudlet/openstack/mexenv.json
@@ -69,7 +69,7 @@ crms:
     servercert: "{{tlsoutdir}}/mex-server.crt"
     clientcert: "{{tlsoutdir}}/mex-client.crt"
   hostname: "{{vm1_external_ip}}"
-  dockerimage: registry.mobiledgex.net:5000/mobiledgex/edge-cloud:2019-04-29
+  dockerimage: registry.mobiledgex.net:5000/mobiledgex/edge-cloud:2019-05-14
   envvars:
     OPENRC_URL: https://vault.mobiledgex.net/v1/secret/data/cloudlet/openstack/munich/openrc.json
     MEXENV_URL: https://vault.mobiledgex.net/v1/secret/data/cloudlet/openstack/mexenv.json
@@ -87,7 +87,7 @@ crms:
     servercert: "{{tlsoutdir}}/mex-server.crt"
     clientcert: "{{tlsoutdir}}/mex-client.crt"
   hostname: "{{vm1_external_ip}}"
-  dockerimage: registry.mobiledgex.net:5000/mobiledgex/edge-cloud:2019-04-29
+  dockerimage: registry.mobiledgex.net:5000/mobiledgex/edge-cloud:2019-05-14
   envvars:
     OPENRC_URL: https://vault.mobiledgex.net/v1/secret/data/cloudlet/openstack/bonn/openrc.json
     MEXENV_URL: https://vault.mobiledgex.net/v1/secret/data/cloudlet/openstack/mexenv.json

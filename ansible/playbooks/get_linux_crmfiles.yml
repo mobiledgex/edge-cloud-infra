@@ -1,0 +1,16 @@
+- name: get crmfiles
+  hosts: registry
+  user: mobiledgex
+ 
+  tasks:
+   - name: "fetch crm files from repo"
+     fetch:
+        src: "/home/mobiledgex/files-repo/mobiledgex/crm-linux-binary/{{item}}"
+        dest: "./binfiles/{{item}}"
+        flat: yes
+     with_items:
+         - crmserver
+         - platforms.so
+
+   
+     

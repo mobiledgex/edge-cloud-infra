@@ -67,31 +67,15 @@
       name: nginx
       tag: latest
 
-  - name: copy mexosagent bin
-    copy:
-      src: "{{ mexosagent_local_bin }}"
-      dest: "{{ mexosagent_remote_bin }}"
-      owner: root
-      group: root
-      mode: 0755
-
-  - name: copy mexosagent service
-    copy:
-     src: "{{ mexosagent_local_svc }}"
-     dest: "{{ mexosagent_remote_svc }}"
-     owner: root
-     group: root
-     mode: 0755
-
   - name: copy crm binary
     copy:
-       src: "{{ crm_bin }}"
+       src: "{{ linux_crm_bin }}"
        dest: "{{ remote_bin_path }}"
        mode: 0755 
 
-  - name: copy crm plugin
+  - name: "copy crm plugin"
     copy:
-       src: "{{ local_plugin_file }}"
+       src: "{{ linux_plugin_file }}"
        dest: "{{ remote_plugin_file }}"
        mode: 0755
 

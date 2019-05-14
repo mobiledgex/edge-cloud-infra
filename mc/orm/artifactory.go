@@ -2,6 +2,7 @@ package orm
 
 import (
 	"context"
+	"fmt"
 	"os"
 	"strings"
 
@@ -12,74 +13,74 @@ import (
 )
 
 const (
-	GroupPrefix string = "mexdev-group-"
-	RepoPrefix  string = "mexdev-repo-"
-	PermPrefix  string = "mexdev-perm-"
+	ArtifactoryRepoPrefix string = "mc-repo-"
+	ArtifactoryPermPrefix string = "mc-perm-"
 )
 
-func artifactoryConnected() bool {
-	if artifactoryClient != nil {
-		return true
-	}
-	return false
-}
-
-func artifactoryConnect() error {
+func artifactoryConnect() (*artifactory.Artifactory, error) {
 	artifactoryApiKey := os.Getenv("artifactory_apikey")
 	if artifactoryApiKey == "" {
 		log.InfoLog("Note: No 'artifactory_apikey' env var found")
-		// return success, no point re-connecting to artifactory
-		return nil
+		return nil, fmt.Errorf("Artifactory API Key not found")
 	}
 	tp := transport.ApiKeyAuth{
 		ApiKey: artifactoryApiKey,
 	}
-	var err error
-	artifactoryClient, err = artifactory.NewClient(
-		serverConfig.ArtifactoryAddr,
-		tp.Client())
+	client, err := artifactory.NewClient(serverConfig.ArtifactoryAddr, tp.Client())
 	if err != nil {
 		log.InfoLog("Note: Failed to connect to artifactory", "addr",
 			serverConfig.ArtifactoryAddr, "err", err)
+		return nil, err
 	}
-	return err
+	return client, nil
 }
 
-func getGroupName(orgName string) string {
-	return GroupPrefix + orgName
+func getArtifactoryRepoName(orgName string) string {
+	return ArtifactoryRepoPrefix + orgName
 }
 
-func getRepoName(orgName string) string {
-	return RepoPrefix + orgName
+func getArtifactoryPermName(orgName string) string {
+	return ArtifactoryPermPrefix + orgName
 }
 
-func getPermTargetName(orgName string) string {
-	return PermPrefix + orgName
+func getArtifactoryRealmAttr(orgName string) string {
+	return "ldapGroupName=" + orgName + ";groupsStrategy=STATIC;groupDn=cn=" + orgName + ",ou=orgs"
 }
 
 func artifactoryListGroups() (map[string]bool, error) {
-	groups, _, err := artifactoryClient.V1.Security.ListGroups(context.Background())
+	client, err := artifactoryConnect()
+	if err != nil {
+		return nil, err
+	}
+	groups, _, err := client.V1.Security.ListGroups(context.Background())
 	if err != nil {
 		return nil, err
 	}
 	tmp := make(map[string]bool)
 	for _, group := range *groups {
 		groupName := *group.Name
-		if strings.HasPrefix(groupName, GroupPrefix) {
-			tmp[groupName] = true
+		groupInfo, _, err := client.V1.Security.GetGroup(context.Background(), groupName)
+		if err == nil && *groupInfo.Realm == "ldap" {
+			if *groupInfo.RealmAttributes == getArtifactoryRealmAttr(groupName) {
+				tmp[groupName] = true
+			}
 		}
 	}
 	return tmp, nil
 }
 
-func artifactoryCreateGroup(orgName string) error {
-	groupName := getGroupName(orgName)
+func artifactoryCreateGroup(groupName string) error {
+	client, err := artifactoryConnect()
+	if err != nil {
+		return err
+	}
 	group := v1.Group{
 		Name:            artifactory.String(groupName),
+		Description:     artifactory.String("Group maintained by master-controller"),
 		Realm:           artifactory.String("ldap"),
-		RealmAttributes: artifactory.String("ldapGroupName=" + orgName + ";groupsStrategy=STATIC;groupDn=cn=" + orgName + ",ou=orgs"),
+		RealmAttributes: artifactory.String(getArtifactoryRealmAttr(groupName)),
 	}
-	_, err := artifactoryClient.V1.Security.CreateOrReplaceGroup(context.Background(), groupName, &group)
+	_, err = client.V1.Security.CreateOrReplaceGroup(context.Background(), groupName, &group)
 	if err != nil {
 		log.DebugLog(log.DebugLevelApi, "artifactory create group",
 			"group", groupName, "err", err)
@@ -87,9 +88,12 @@ func artifactoryCreateGroup(orgName string) error {
 	return err
 }
 
-func artifactoryDeleteGroup(orgName string) error {
-	groupName := getGroupName(orgName)
-	_, _, err := artifactoryClient.V1.Security.DeleteGroup(context.Background(), groupName)
+func artifactoryDeleteGroup(groupName string) error {
+	client, err := artifactoryConnect()
+	if err != nil {
+		return err
+	}
+	_, _, err = client.V1.Security.DeleteGroup(context.Background(), groupName)
 	if err != nil {
 		if strings.Contains(err.Error(), "Status:404") {
 			log.DebugLog(log.DebugLevelApi, "artifactory delete group",
@@ -103,14 +107,18 @@ func artifactoryDeleteGroup(orgName string) error {
 }
 
 func artifactoryListRepos() (map[string]bool, error) {
-	repos, _, err := artifactoryClient.V1.Repositories.ListRepositories(context.Background(), nil)
+	client, err := artifactoryConnect()
+	if err != nil {
+		return nil, err
+	}
+	repos, _, err := client.V1.Repositories.ListRepositories(context.Background(), nil)
 	if err != nil {
 		return nil, err
 	}
 	tmp := make(map[string]bool)
 	for _, repo := range *repos {
 		repoName := *repo.Key
-		if strings.HasPrefix(repoName, RepoPrefix) {
+		if strings.HasPrefix(repoName, ArtifactoryRepoPrefix) {
 			tmp[repoName] = true
 		}
 	}
@@ -118,7 +126,11 @@ func artifactoryListRepos() (map[string]bool, error) {
 }
 
 func artifactoryCreateRepo(orgName string) error {
-	repoName := getRepoName(orgName)
+	client, err := artifactoryConnect()
+	if err != nil {
+		return err
+	}
+	repoName := getArtifactoryRepoName(orgName)
 	repo := v1.LocalRepository{
 		Key:             artifactory.String(repoName),
 		RClass:          artifactory.String("local"),
@@ -126,7 +138,7 @@ func artifactoryCreateRepo(orgName string) error {
 		HandleSnapshots: artifactory.Bool(false),
 	}
 
-	_, err := artifactoryClient.V1.Repositories.CreateLocal(context.Background(), &repo)
+	_, err = client.V1.Repositories.CreateLocal(context.Background(), &repo)
 	if err != nil {
 		if strings.Contains(err.Error(), "key already exists") {
 			log.DebugLog(log.DebugLevelApi, "artifactory create repository",
@@ -140,8 +152,12 @@ func artifactoryCreateRepo(orgName string) error {
 }
 
 func artifactoryDeleteRepo(orgName string) error {
-	repoName := getRepoName(orgName)
-	_, err := artifactoryClient.V1.Repositories.DeleteLocal(context.Background(), repoName)
+	client, err := artifactoryConnect()
+	if err != nil {
+		return err
+	}
+	repoName := getArtifactoryRepoName(orgName)
+	_, err = client.V1.Repositories.DeleteLocal(context.Background(), repoName)
 	if err != nil {
 		if strings.Contains(err.Error(), "Status:404") {
 			log.DebugLog(log.DebugLevelApi, "artifactory delete repository",
@@ -155,14 +171,18 @@ func artifactoryDeleteRepo(orgName string) error {
 }
 
 func artifactoryListPerms() (map[string]bool, error) {
-	perms, _, err := artifactoryClient.V1.Security.ListPermissionTargets(context.Background())
+	client, err := artifactoryConnect()
+	if err != nil {
+		return nil, err
+	}
+	perms, _, err := client.V1.Security.ListPermissionTargets(context.Background())
 	if err != nil {
 		return nil, err
 	}
 	tmp := make(map[string]bool)
 	for _, perm := range perms {
 		permName := *perm.Name
-		if strings.HasPrefix(permName, PermPrefix) {
+		if strings.HasPrefix(permName, ArtifactoryPermPrefix) {
 			tmp[permName] = true
 		}
 	}
@@ -170,20 +190,24 @@ func artifactoryListPerms() (map[string]bool, error) {
 }
 
 func artifactoryCreateRepoPerms(orgName string) error {
-	groupName := getGroupName(orgName)
-	repoName := getRepoName(orgName)
-	permTargetName := getPermTargetName(orgName)
+	client, err := artifactoryConnect()
+	if err != nil {
+		return err
+	}
+	groupName := orgName
+	repoName := getArtifactoryRepoName(orgName)
+	permTargetName := getArtifactoryPermName(orgName)
 	// create permission target
 	permTargets := v1.PermissionTargets{
 		Name:         artifactory.String(permTargetName),
 		Repositories: &[]string{repoName},
 		Principals: &v1.Principals{
 			Groups: &map[string][]string{
-				groupName: []string{"m", "w", "n", "r"},
+				groupName: []string{"m", "w", "n", "d", "r"},
 			},
 		},
 	}
-	_, err := artifactoryClient.V1.Security.CreateOrReplacePermissionTargets(context.Background(), permTargetName, &permTargets)
+	_, err = client.V1.Security.CreateOrReplacePermissionTargets(context.Background(), permTargetName, &permTargets)
 	if err != nil {
 		log.DebugLog(log.DebugLevelApi, "artifactory create repo perms",
 			"permission target", permTargetName, "repository", repoName, "group", groupName, "err", err)
@@ -192,8 +216,12 @@ func artifactoryCreateRepoPerms(orgName string) error {
 }
 
 func artifactoryDeleteRepoPerms(orgName string) error {
-	permTargetName := getPermTargetName(orgName)
-	_, _, err := artifactoryClient.V1.Security.DeletePermissionTargets(context.Background(), permTargetName)
+	client, err := artifactoryConnect()
+	if err != nil {
+		return err
+	}
+	permTargetName := getArtifactoryPermName(orgName)
+	_, _, err = client.V1.Security.DeletePermissionTargets(context.Background(), permTargetName)
 	if err != nil {
 		if strings.Contains(err.Error(), "Status:404") {
 			log.DebugLog(log.DebugLevelApi, "artifactory delete repo perms",
@@ -207,9 +235,6 @@ func artifactoryDeleteRepoPerms(orgName string) error {
 }
 
 func artifactoryCreateGroupObjects(orgName string) {
-	if !artifactoryConnected() {
-		return
-	}
 	err := artifactoryCreateGroup(orgName)
 	if err != nil {
 		artifactorySync.NeedsSync()
@@ -228,9 +253,6 @@ func artifactoryCreateGroupObjects(orgName string) {
 }
 
 func artifactoryDeleteGroupObjects(orgName string) {
-	if !artifactoryConnected() {
-		return
-	}
 	err := artifactoryDeleteGroup(orgName)
 	if err != nil {
 		artifactorySync.NeedsSync()

@@ -6,7 +6,6 @@ import (
 	"os"
 	"time"
 
-	"github.com/atlassian/go-artifactory/v2/artifactory"
 	"github.com/casbin/casbin"
 	"github.com/jinzhu/gorm"
 	"github.com/labstack/echo"
@@ -58,7 +57,6 @@ var enforcer *casbin.SyncedEnforcer
 var serverConfig *ServerConfig
 var gitlabClient *gitlab.Client
 var gitlabSync *AppStoreSync
-var artifactoryClient *artifactory.Artifactory
 var artifactorySync *AppStoreSync
 var roleID string
 var secretID string
@@ -131,8 +129,6 @@ func RunServer(config *ServerConfig) (*Server, error) {
 		return nil, fmt.Errorf("Gitlab client set base URL to %s, %s",
 			config.GitlabAddr, err.Error())
 	}
-
-	artifactoryConnect()
 
 	if config.RunLocal {
 		sql := intprocess.Sql{
@@ -239,10 +235,10 @@ func RunServer(config *ServerConfig) (*Server, error) {
 		}
 	}()
 
-	gitlabSync = AppStoreNewSync(AppStoreGitlab)
+	gitlabSync = GitlabNewSync()
 	gitlabSync.Start()
 
-	artifactorySync = AppStoreNewSync(AppStoreArtifactory)
+	artifactorySync = ArtifactoryNewSync()
 	artifactorySync.Start()
 
 	return &server, nil

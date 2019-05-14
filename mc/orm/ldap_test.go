@@ -98,7 +98,7 @@ func TestLDAPServer(t *testing.T) {
 	// Expect Count: 1 (1 user)
 	ldapSearchCheck(t, l, "cn=gitlab,ou=users", "gitlab", "ou=users", "(email=orgman1@gmail.com)", 1)
 
-	// Expect Count: 2 (2 orgs, as worker2 belongs to orgs)
+	// Expect Count: 2 (2 orgs, as worker2 belongs to 2 orgs: bigorg1,bigorg2)
 	ldapSearchCheck(t, l, "cn=orgman1,ou=users", "orgman1-password", "ou=orgs", "(&(objectClass=groupOfUniqueNames)(|(uniqueMember=cn=worker2,ou=users)(uniqueMember=worker2)))", 2)
 }
 

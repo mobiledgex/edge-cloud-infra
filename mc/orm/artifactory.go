@@ -17,11 +17,19 @@ const (
 	ArtifactoryPermPrefix string = "mc-perm-"
 )
 
-func artifactoryConnect() (*artifactory.Artifactory, error) {
+func GetArtifactoryApiKey() (string, error) {
 	artifactoryApiKey := os.Getenv("artifactory_apikey")
 	if artifactoryApiKey == "" {
 		log.InfoLog("Note: No 'artifactory_apikey' env var found")
-		return nil, fmt.Errorf("Artifactory API Key not found")
+		return "", fmt.Errorf("Artifactory API Key not found")
+	}
+	return artifactoryApiKey, nil
+}
+
+func artifactoryConnect() (*artifactory.Artifactory, error) {
+	artifactoryApiKey, err := GetArtifactoryApiKey()
+	if err != nil {
+		return nil, err
 	}
 	tp := transport.ApiKeyAuth{
 		ApiKey: artifactoryApiKey,

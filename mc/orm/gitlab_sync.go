@@ -193,7 +193,7 @@ func (s *AppStoreSync) syncGroupMembers() {
 }
 
 func GitlabResync(c echo.Context) error {
-	err := SuperUserAccessCheck(c)
+	err := SyncAccessCheck(c)
 	if err != nil {
 		return err
 	}

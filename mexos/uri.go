@@ -13,7 +13,7 @@ import (
 	"time"
 
 	sh "github.com/codeskyblue/go-sh"
-	"github.com/mobiledgex/edge-cloud-infra/mc/orm"
+	"github.com/mobiledgex/edge-cloud-infra/artifactory"
 	"github.com/mobiledgex/edge-cloud/log"
 )
 
@@ -120,7 +120,7 @@ func SendHTTPReq(method, fileUrlPath string) (*http.Response, error) {
 	}
 	var af_apikey string
 	if fileUrl.Host == "artifactory.mobiledgex.net" {
-		af_apikey, err = orm.GetArtifactoryApiKey()
+		af_apikey, err = artifactory.GetArtifactoryApiKey()
 		if err != nil {
 			return nil, err
 		}

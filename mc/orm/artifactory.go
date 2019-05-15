@@ -2,13 +2,12 @@ package orm
 
 import (
 	"context"
-	"fmt"
-	"os"
 	"strings"
 
 	"github.com/atlassian/go-artifactory/v2/artifactory"
 	"github.com/atlassian/go-artifactory/v2/artifactory/transport"
 	"github.com/atlassian/go-artifactory/v2/artifactory/v1"
+	rtf "github.com/mobiledgex/edge-cloud-infra/artifactory"
 	"github.com/mobiledgex/edge-cloud/log"
 )
 
@@ -17,17 +16,8 @@ const (
 	ArtifactoryPermPrefix string = "mc-perm-"
 )
 
-func GetArtifactoryApiKey() (string, error) {
-	artifactoryApiKey := os.Getenv("artifactory_apikey")
-	if artifactoryApiKey == "" {
-		log.InfoLog("Note: No 'artifactory_apikey' env var found")
-		return "", fmt.Errorf("Artifactory API Key not found")
-	}
-	return artifactoryApiKey, nil
-}
-
-func artifactoryConnect() (*artifactory.Artifactory, error) {
-	artifactoryApiKey, err := GetArtifactoryApiKey()
+func artifactoryClient() (*artifactory.Artifactory, error) {
+	artifactoryApiKey, err := rtf.GetArtifactoryApiKey()
 	if err != nil {
 		return nil, err
 	}
@@ -56,7 +46,7 @@ func getArtifactoryRealmAttr(orgName string) string {
 }
 
 func artifactoryListGroups() (map[string]bool, error) {
-	client, err := artifactoryConnect()
+	client, err := artifactoryClient()
 	if err != nil {
 		return nil, err
 	}
@@ -78,7 +68,7 @@ func artifactoryListGroups() (map[string]bool, error) {
 }
 
 func artifactoryCreateGroup(groupName string) error {
-	client, err := artifactoryConnect()
+	client, err := artifactoryClient()
 	if err != nil {
 		return err
 	}
@@ -97,7 +87,7 @@ func artifactoryCreateGroup(groupName string) error {
 }
 
 func artifactoryDeleteGroup(groupName string) error {
-	client, err := artifactoryConnect()
+	client, err := artifactoryClient()
 	if err != nil {
 		return err
 	}
@@ -115,7 +105,7 @@ func artifactoryDeleteGroup(groupName string) error {
 }
 
 func artifactoryListRepos() (map[string]bool, error) {
-	client, err := artifactoryConnect()
+	client, err := artifactoryClient()
 	if err != nil {
 		return nil, err
 	}
@@ -134,7 +124,7 @@ func artifactoryListRepos() (map[string]bool, error) {
 }
 
 func artifactoryCreateRepo(orgName string) error {
-	client, err := artifactoryConnect()
+	client, err := artifactoryClient()
 	if err != nil {
 		return err
 	}
@@ -160,7 +150,7 @@ func artifactoryCreateRepo(orgName string) error {
 }
 
 func artifactoryDeleteRepo(orgName string) error {
-	client, err := artifactoryConnect()
+	client, err := artifactoryClient()
 	if err != nil {
 		return err
 	}
@@ -179,7 +169,7 @@ func artifactoryDeleteRepo(orgName string) error {
 }
 
 func artifactoryListPerms() (map[string]bool, error) {
-	client, err := artifactoryConnect()
+	client, err := artifactoryClient()
 	if err != nil {
 		return nil, err
 	}
@@ -198,7 +188,7 @@ func artifactoryListPerms() (map[string]bool, error) {
 }
 
 func artifactoryCreateRepoPerms(orgName string) error {
-	client, err := artifactoryConnect()
+	client, err := artifactoryClient()
 	if err != nil {
 		return err
 	}
@@ -224,7 +214,7 @@ func artifactoryCreateRepoPerms(orgName string) error {
 }
 
 func artifactoryDeleteRepoPerms(orgName string) error {
-	client, err := artifactoryConnect()
+	client, err := artifactoryClient()
 	if err != nil {
 		return err
 	}

@@ -112,7 +112,7 @@ func (s *AppStoreSync) syncArtifactoryObjects() {
 }
 
 func ArtifactoryResync(c echo.Context) error {
-	err := SuperUserAccessCheck(c)
+	err := SyncAccessCheck(c)
 	if err != nil {
 		return err
 	}

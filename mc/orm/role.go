@@ -351,7 +351,7 @@ func ShowUserRoleObj(username string) ([]ormapi.Role, error) {
 	return roles, nil
 }
 
-func SuperUserAccessCheck(c echo.Context) error {
+func SyncAccessCheck(c echo.Context) error {
 	claims, err := getClaims(c)
 	if err != nil {
 		return err

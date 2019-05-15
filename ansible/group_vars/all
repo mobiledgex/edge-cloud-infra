@@ -12,6 +12,7 @@ cloudflare_account_api_token: 60632181cb3b7419304ffa820b2d99e292092
 cloudflare_zone: mobiledgex.net
 vault_address: https://vault.mobiledgex.net
 gitlab_address: https://container-registry.mobiledgex.net
+artifactory_address: https://artifactory.mobiledgex.net/artifactory
 gitlab_config_path: /etc/gitlab/gitlab.rb
 etcd_opetator_crd: etcdclusters.etcd.database.coreos.com
 crm_api_port: 55091
@@ -22,10 +23,12 @@ postgres_server: postgres.mobiledgex.net:5432
 mc_vault_role_id: f4207f0f-c965-ac3e-181c-235de8838ff7
 mc_vault_secret_id: 528a3921-5afc-0150-1f9b-9e1fa4a49727
 mc_gitlab_token: sx3vbbf2iLGgpwSMm3NZ
+mc_artifactory_apikey: AKCp5cckWfoFRPDGNyyFkm49XtZxrMxLKknawYrT6KTCra3uuiTZtqgLgvbvccTNEXrEQSoyF
 dme_vault_role_id: b95e3309-5964-89a2-5647-e86f745f20c7
 dme_vault_secret_id: b6c6c629-c99d-25f8-b26d-1afc5bf5d654
 crm_vault_role_id: e017fc39-dff7-adc3-364f-bb8e04805454
 crm_vault_secret_id: 6e88cd75-7297-ba5e-6b27-9d612e3792b7
+crm_artifactory_apikey: AKCp5cckWfoFRPDGNyyFkm49XtZxrMxLKknawYrT6KTCra3uuiTZtqgLgvbvccTNEXrEQSoyF
 locapi_user: mexserver
 locapi_passwd: "seC2835!"
 sendgrid_username: venkyt

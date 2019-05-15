@@ -1,4 +1,17 @@
 ---
+- name: Set edge cloud version
+  hosts:
+    - platform
+    - crms
+    - mc
+  vars_prompt:
+    - name: edge_cloud_version
+      prompt: "Version of edge cloud to install. (Example: 2019-05-01)"
+      private: no
+  tasks:
+    - set_fact:
+        edge_cloud_version: "{{ edge_cloud_version }}"
+
 - hosts: platform
   tasks:
 

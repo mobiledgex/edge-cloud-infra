@@ -31,8 +31,8 @@
         state: present
         force_init: yes
         variables:
-          azure_client_id: "{{ azure_terraform_service_principal_id }}"
-          azure_client_secret: "{{ azure_terraform_service_principal_secret }}"
+          azure_terraform_service_principal_id: "{{ azure_terraform_service_principal_id }}"
+          azure_terraform_service_principal_secret: "{{ azure_terraform_service_principal_secret }}"
           azure_subscription_id: "{{ azure_subscription_id }}"
           azure_tenant_id: "{{ azure_tenant_id }}"
       check_mode: yes

@@ -159,7 +159,6 @@ func CreateCluster(rootLBName string, clusterInst *edgeproto.ClusterInst) (reter
 		if err != nil {
 			return err
 		}
-
 	}
 	if err := SeedDockerSecret(client, clusterInst, singleNodeCluster); err != nil {
 		return err

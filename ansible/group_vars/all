@@ -4,8 +4,6 @@ mex_docker_username: mobiledgex
 mex_docker_password: sandhill
 edge_cloud_image: "{{ mex_docker_registry }}/mobiledgex/edge-cloud"
 monitor_image: "{{ mex_docker_registry }}/mobiledgex/monitor"
-mex_ext_network: external-network-shared
-mex_security_group: default
 mex_ops_email: mobiledgex.ops@mobiledgex.com
 cloudflare_account_email: mobiledgex.ops@mobiledgex.com
 cloudflare_account_api_token: 60632181cb3b7419304ffa820b2d99e292092

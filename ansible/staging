@@ -27,7 +27,7 @@ gitlab_docker_hostname="docker-{{ deploy_environ }}.mobiledgex.net"
 localhost	ansible_connection=local
 
 [crms]
-crm-stage.mobiledgex.net	crm_name="crm-{{ deploy_target }}" cloudlet_name="{{ deploy_target }}-cloudlet"
+crm-stage.mobiledgex.net
 
 [mc]
 mc-stage.mobiledgex.net	

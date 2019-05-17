@@ -19,6 +19,7 @@
   delay: 5
   until: dme_ip_command.stdout != ""
   changed_when: false
+  check_mode: no
 
 - set_fact:
     dme_ip: "{{ dme_ip_command.stdout }}"

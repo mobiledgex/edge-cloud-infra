@@ -19,16 +19,15 @@
   when: docker_skip_install is undefined or not docker_skip_install
 
 - name: Install docker
-  package:
-    name: "{{ item }}"
+  apt:
+    name:
+      - apt-transport-https
+      - ca-certificates
+      - curl
+      - software-properties-common
+      - docker-ce
     state: present
     update_cache: yes
-  with_items:
-    - apt-transport-https
-    - ca-certificates
-    - curl
-    - software-properties-common
-    - docker-ce
   become: yes
   when: docker_skip_install is undefined or not docker_skip_install
 
@@ -43,7 +42,7 @@
   meta: reset_connection
 
 - name: Install pip
-  package:
+  apt:
     name: python3-pip
     state: present
   become: yes

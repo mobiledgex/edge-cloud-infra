@@ -1,3 +1,18 @@
+- name: Get mex-etcd pod
+  command: "kubectl --kubeconfig {{ kubeconfig_file.path }} get pods --selector=etcd_cluster=mex-etcd-cluster -o jsonpath={.items[*].metadata.name}"
+  register: mex_etcd_pod_json
+  check_mode: no
+  changed_when: false
+
+- set_fact:
+    mex_etcd_pod: "{{ mex_etcd_pod_json.stdout.split(' ') | first }}"
+  check_mode: no
+  changed_when: false
+
+- name: Backup etcd
+  include: etcd-backup.yml
+  when: mex_etcd_pod|length > 0
+
 - name: Deploy the Mex Controller
   k8s:
     kubeconfig: "{{ kubeconfig_file.path }}"
@@ -19,6 +34,7 @@
   delay: 5
   until: controller_ip_command.stdout != ""
   changed_when: false
+  check_mode: no
 
 - set_fact:
     controller_ip: "{{ controller_ip_command.stdout }}"

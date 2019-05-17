@@ -32,8 +32,9 @@ spec:
          - "monitoring-influxdb:8086"
          - "--tls"
          - "/root/tls/mex-server.crt"
-         - "--d" 
-         - "etcd,api,notify"
+         - "-autoUpgrade"
+         - "-d"
+         - "etcd,api,notify,upgrade"
 
       imagePullSecrets:
        - name: mexreg-secret 

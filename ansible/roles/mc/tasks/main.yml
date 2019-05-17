@@ -13,6 +13,8 @@
       - "{{ vault_address }}"
       - "-gitlabAddr"
       - "https://{{ gitlab_vm_hostname }}"
+      - "-artifactoryAddr"
+      - "{{ artifactory_address }}"
       - "-ldapAddr"
       - "0.0.0.0:{{ mc_ldap_port }}"
       - "-tls"
@@ -35,6 +37,7 @@
       VAULT_ROLE_ID: "{{ mc_vault_role_id }}"
       VAULT_SECRET_ID: "{{ mc_vault_secret_id }}"
       gitlab_token: "{{ mc_gitlab_token }}"
+      artifactory_apikey: "{{ mc_artifactory_apikey }}"
 
 - name: Get MC Public IP
   uri:

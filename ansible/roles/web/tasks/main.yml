@@ -1,5 +1,5 @@
 - name: Install Nginx
-  package:
+  apt:
     name: nginx
     state: present
   become: yes

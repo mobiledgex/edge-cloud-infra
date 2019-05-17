@@ -1,4 +1,17 @@
 ---
+- name: Set edge cloud version
+  hosts:
+    - platform
+    - crms
+    - mc
+  vars_prompt:
+    - name: edge_cloud_version
+      prompt: "Version of edge cloud to install. (Example: 2019-05-01)"
+      private: no
+  tasks:
+    - set_fact:
+        edge_cloud_version: "{{ edge_cloud_version }}"
+
 - hosts: platform
   tasks:
 
@@ -10,14 +23,16 @@
         body_format: json
       register: response
       failed_when: edge_cloud_version not in response.json.tags
+      check_mode: no
 
     - name: Get setup details from terraform
       terraform:
         project_path: "../terraform/mexplat/{{ deploy_environ }}"
         state: present
+        force_init: yes
         variables:
-          azure_client_id: "{{ azure_terraform_service_principal_id }}"
-          azure_client_secret: "{{ azure_terraform_service_principal_secret }}"
+          azure_terraform_service_principal_id: "{{ azure_terraform_service_principal_id }}"
+          azure_terraform_service_principal_secret: "{{ azure_terraform_service_principal_secret }}"
           azure_subscription_id: "{{ azure_subscription_id }}"
           azure_tenant_id: "{{ azure_tenant_id }}"
       check_mode: yes
@@ -28,6 +43,7 @@
         gitlab_ip: "{{ terraform.outputs.gitlab_external_ip.value }}"
         crm_ip: "{{ terraform.outputs.crm_external_ip.value }}"
         mc_ip: "{{ terraform.outputs.mc_external_ip.value }}"
+        postgres_ip: "{{ terraform.outputs.postgres_external_ip.value }}"
 
     - debug:
         msg: "Deploying edge-cloud version '{{ edge_cloud_version }}' to cluster '{{ k8s_cluster_name }}'"
@@ -38,6 +54,9 @@
         channel: "{{ slack_channel }}"
         msg: "Mexplat \"{{ deploy_environ }}\" setup being upgraded to version {{ edge_cloud_version }} by {{ ansible_user }}"
       delegate_to: localhost
+      when:
+        - slack_notify
+        - not ansible_check_mode
 
     - name: Update VM DNS entries
       cloudflare_dns:
@@ -54,6 +73,7 @@
         - { hostname: "{{ gitlab_docker_hostname }}", ip: "{{ gitlab_ip }}" }
         - { hostname: "{{ crm_vm_hostname }}", ip: "{{ crm_ip }}" }
         - { hostname: "{{ mc_vm_hostname }}", ip: "{{ mc_ip }}" }
+        - { hostname: "{{ postgres_hostname }}", ip: "{{ postgres_ip }}" }
 
     - name: Create temporary kubeconfig file
       tempfile:
@@ -61,12 +81,14 @@
         suffix: .kubeconfig
       register: kubeconfig_file
       changed_when: false
+      check_mode: no
 
     - name: Store kubeconfig data in file
       copy:
         content: "{{ terraform.outputs.kube_config.value }}"
         dest: "{{ kubeconfig_file.path }}"
       changed_when: false
+      check_mode: no
 
     - include_role: name="k8s"
     - include_role: name="etcd"
@@ -78,6 +100,15 @@
 - hosts: gitlab
   roles:
     - role: gitlab
+
+- hosts: postgres
+  roles:
+    - role: postgres
+      vars:
+        postgres_users:
+          - db: "{{ mc_postgres_db }}"
+            username: "{{ mc_postgres_username }}"
+            password: "{{ mc_postgres_password }}"
 
 - hosts: crms
   roles:
@@ -100,3 +131,6 @@
         token: "{{ slack_token }}"
         channel: "{{ slack_channel }}"
         msg: "Mexplat \"{{ deploy_environ }}\" setup successfully upgraded to version {{ edge_cloud_version }} by {{ ansible_user }}"
+      when:
+        - slack_notify
+        - not ansible_check_mode

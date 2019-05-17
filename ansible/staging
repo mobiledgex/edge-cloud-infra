@@ -10,14 +10,16 @@ dme_dns="{{ deploy_target }}.dme"
 dme_carrier=GDDT
 locver_url="http://{{ deploy_target }}.locsim.mobiledgex.net:8888/verifyLocation"
 toksrv_url="http://{{ deploy_target }}.tok.mobiledgex.net:9999/its?followURL=https://dme.mobiledgex.net/verifyLoc"
-mc_postgres_db=mcdevdb
-mc_postgres_username=mcdevuser
+mc_postgres_db=mcdb
+mc_postgres_username=mcuser
 mc_postgres_password=topsecret
 mc_superuser=mexadmin
 mc_superuser_password=mexadmin123
+postgres_hostname=postgres-stage.mobiledgex.net
 gitlab_vm_hostname=gitlab-stage.mobiledgex.net
 crm_vm_hostname=crm-stage.mobiledgex.net
 mc_vm_hostname=mc-stage.mobiledgex.net
+mc_gitlab_token=gitlabstagetoken
 gitlab_email_enabled=false
 gitlab_docker_hostname="docker-{{ deploy_environ }}.mobiledgex.net"
 
@@ -25,10 +27,13 @@ gitlab_docker_hostname="docker-{{ deploy_environ }}.mobiledgex.net"
 localhost	ansible_connection=local
 
 [crms]
-crm-stage.mobiledgex.net	crm_name="crm-{{ deploy_target }}" cloudlet_name="{{ deploy_target }}-cloudlet"
+crm-stage.mobiledgex.net
 
 [mc]
 mc-stage.mobiledgex.net	
 
 [gitlab]
 gitlab-stage.mobiledgex.net
+
+[postgres]
+postgres-stage.mobiledgex.net

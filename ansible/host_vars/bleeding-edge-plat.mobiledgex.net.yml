@@ -1,0 +1,3 @@
+crm_instances:
+  - openstack_instance: buckhorn
+    operator_key: GDDT

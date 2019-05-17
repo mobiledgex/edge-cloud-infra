@@ -126,3 +126,6 @@
         channel: "{{ slack_channel }}"
         msg: "Console upgraded to commit <https://github.com/mobiledgex/edge-cloud-ui/commits/{{ git_checkout.after }}|{{ git_checkout.after|truncate(10, False, '') }}> by {{ ansible_user }}"
       delegate_to: localhost
+      when:
+        - slack_notify
+        - not ansible_check_mode

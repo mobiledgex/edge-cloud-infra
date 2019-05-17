@@ -1,0 +1,65 @@
+- name: Add postgres GPG key
+  apt_key:
+    url: https://www.postgresql.org/media/keys/ACCC4CF8.asc
+    state: present
+  become: yes
+
+- name: Add postgres apt repository
+  apt_repository:
+    repo: "deb http://apt.postgresql.org/pub/repos/apt/ {{ ubuntu_release }}-pgdg main"
+  become: yes
+
+- name: Install postgres
+  apt:
+    name:
+      - "postgresql-{{ postgres_version }}"
+      - "postgresql-contrib-{{ postgres_version }}"
+      - libpq-dev
+      - python3-psycopg2
+    state: present
+    update_cache: yes
+  become: yes
+
+- name: Allow remote access
+  lineinfile:
+    path: "/etc/postgresql/{{ postgres_version }}/main/postgresql.conf"
+    regexp: '^listen_addresses\s*='
+    line: "listen_addresses = '*'"
+  become: yes
+  notify:
+    - Restart postgres
+
+- name: Allow remote client authentication
+  blockinfile:
+    path: "/etc/postgresql/{{ postgres_version }}/main/pg_hba.conf"
+    marker: "# {mark} ANSIBLE MANAGED BLOCK"
+    block: |
+      host    all             all             0.0.0.0/0               md5
+  become: yes
+  notify:
+    - Restart postgres
+
+- name: Create databases
+  postgresql_db:
+    name: "{{ item.db }}"
+  become: yes
+  become_user: postgres
+  with_items: "{{ postgres_users }}"
+
+- name: Create users
+  postgresql_user:
+    db: "{{ item.db }}"
+    name: "{{ item.username }}"
+    password: "{{ item.password }}"
+    priv: ALL
+  become: yes
+  become_user: postgres
+  with_items: "{{ postgres_users }}"
+
+- name: Remove unnecessary privileges
+  postgresql_user:
+    name: "{{ item.username }}"
+    role_attr_flags: NOSUPERUSER,NOCREATEDB
+  become: yes
+  become_user: postgres
+  with_items: "{{ postgres_users }}"

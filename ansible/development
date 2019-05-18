@@ -20,7 +20,7 @@ mc_vm_hostname=bleeding-edge-plat.mobiledgex.net
 localhost	ansible_connection=local
 
 [crms]
-bleeding-edge-plat.mobiledgex.net	crm_name="crm-{{ deploy_target }}" cloudlet_name="{{ deploy_target }}-cloudlet"
+bleeding-edge-plat.mobiledgex.net
 
 [mc]
 bleeding-edge-plat.mobiledgex.net

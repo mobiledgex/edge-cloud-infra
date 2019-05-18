@@ -41,5 +41,15 @@ module "gitlab" {
 
 	instance_name				= "${var.gitlab_instance_name}"
 	zone								= "${var.gcp_zone}"
+	boot_disk_size			= 100
 	tags								= [ "mexplat-${var.environ_tag}", "gitlab-registry", "http-server", "https-server", "pg-5432", "crm", "mc", "stun-turn" ]
+}
+
+# VM for console
+module "console" {
+	source							= "../../modules/vm_gcp"
+
+	instance_name				= "${var.console_instance_name}"
+	zone								= "${var.gcp_zone}"
+	tags								= [ "http-server", "https-server", "console-debug" ]
 }

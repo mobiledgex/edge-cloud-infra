@@ -19,6 +19,7 @@ postgres_hostname=postgres-stage.mobiledgex.net
 gitlab_vm_hostname=gitlab-stage.mobiledgex.net
 crm_vm_hostname=crm-stage.mobiledgex.net
 mc_vm_hostname=mc-stage.mobiledgex.net
+console_vm_hostname=console-stage.mobiledgex.net
 mc_gitlab_token=gitlabstagetoken
 gitlab_email_enabled=false
 gitlab_docker_hostname="docker-{{ deploy_environ }}.mobiledgex.net"
@@ -37,3 +38,6 @@ gitlab-stage.mobiledgex.net
 
 [postgres]
 postgres-stage.mobiledgex.net
+
+[console]
+console-stage.mobiledgex.net

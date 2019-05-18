@@ -51,3 +51,7 @@ variable "gcp_zone" {
 variable "gitlab_instance_name" {
 	default			= "gitlab-stage"
 }
+
+variable "console_instance_name" {
+	default			= "console-stage"
+}

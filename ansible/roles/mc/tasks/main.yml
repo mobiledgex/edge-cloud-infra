@@ -44,6 +44,7 @@
     url: http://ifconfig.me/ip
     return_content: yes
   register: ifconfig_me_response
+  check_mode: no
 
 - set_fact:
     mc_ip: "{{ ifconfig_me_response.content }}"

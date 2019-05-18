@@ -21,6 +21,10 @@ output "postgres_external_ip" {
 	value = "${module.gitlab.external_ip}"
 }
 
+output "console_external_ip" {
+	value = "${module.console.external_ip}"
+}
+
 output "k8s_cluster_name" {
 	value = "${var.cluster_name}"
 }

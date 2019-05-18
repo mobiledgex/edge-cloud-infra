@@ -25,6 +25,11 @@ variable "boot_image" {
 	default			= "ubuntu-os-cloud/ubuntu-1804-lts"
 }
 
+variable "boot_disk_size" {
+	description	= "Boot disk size in GB"
+	default			= 10
+}
+
 variable "allow_stopping_for_update" {
 	description	= "Flag to determine if the VM can be stopped for updates"
 	default			= true

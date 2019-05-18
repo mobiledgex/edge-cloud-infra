@@ -1,0 +1,33 @@
+---
+- name: Restart Custom MongoDB
+  systemd:
+    state: restarted
+    daemon_reload: yes
+    enabled: yes
+    name: mex-mongodb
+  become: yes
+
+- name: Restart Console Server
+  systemd:
+    state: restarted
+    daemon_reload: yes
+    enabled: yes
+    name: mex-console-server
+  become: yes
+
+- name: Restart Console UI
+  systemd:
+    state: restarted
+    daemon_reload: yes
+    name: mex-console-ui
+  become: yes
+
+- name: Notify Slack
+  slack:
+    token: "{{ slack_token }}"
+    channel: "{{ slack_channel }}"
+    msg: "Console {{ console_vm_hostname }} upgraded to commit <https://github.com/mobiledgex/edge-cloud-ui/commits/{{ git_checkout.after }}|{{ git_checkout.after|truncate(10, False, '') }}> by {{ ansible_user }}"
+  delegate_to: localhost
+  when:
+    - slack_notify
+    - not ansible_check_mode

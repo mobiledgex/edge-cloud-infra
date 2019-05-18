@@ -23,7 +23,10 @@
     certbot certonly
       --dns-cloudflare --dns-cloudflare-credentials {{ cloudflare_credentials_file }}
       --agree-tos --email {{ mex_ops_email }} --non-interactive
-      -d {{ cert_domains|join(' -d ') }}
+      -d {{ item }}
   become: yes
   args:
-    creates: "{{ letsencrypt_root }}/{{ mc_vm_hostname }}/fullchain.pem"
+    creates: "{{ letsencrypt_root }}/{{ item }}/fullchain.pem"
+  with_items: "{{ cert_domains }}"
+  notify:
+    - Restart nginx

@@ -325,15 +325,15 @@ func MarshalArgs(obj interface{}, ignore []string) ([]string, error) {
 func MapToArgs(prefix []string, dat map[string]interface{}, ignore map[string]struct{}) []string {
 	args := []string{}
 	for k, v := range dat {
+		if v == nil {
+			continue
+		}
 		if sub, ok := v.(map[string]interface{}); ok {
 			subargs := MapToArgs(append(prefix, k), sub, ignore)
 			args = append(args, subargs...)
 			continue
 		}
 		keys := append(prefix, k)
-		if v == nil {
-			continue
-		}
 		if _, ok := ignore[strings.Join(keys, ".")]; ok {
 			continue
 		}

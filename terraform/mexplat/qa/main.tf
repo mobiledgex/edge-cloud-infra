@@ -31,14 +31,12 @@ terraform {
 }
 
 module "gitlab" {
-	source												= "../../modules/vm_azure"
+	source							= "../../modules/vm_gcp"
 
-	instance_name									= "${var.gitlab_instance_name}"
-	location											= "${var.azure_location}"
-	environ_tag										= "mexplat-${var.environ_tag}"
-	resource_group_name						= "mexplat-${var.environ_tag}-rg"
-	virtual_network_address_space	= "${var.address_space}"
-	subnet_address_prefix					= "${var.address_space}"
+	instance_name				= "${var.gitlab_instance_name}"
+	zone								= "${var.gcp_zone}"
+	boot_disk_size			= 20
+	tags								= [ "mexplat-${var.environ_tag}", "gitlab-registry", "http-server", "https-server", "pg-5432", "crm", "mc", "stun-turn" ]
 }
 
 module "gitlab_dns" {
@@ -53,7 +51,6 @@ module "docker_dns" {
 	ip														= "${module.gitlab.external_ip}"
 }
 
-/*
 # VM for console
 module "console" {
 	source							= "../../modules/vm_gcp"
@@ -62,4 +59,9 @@ module "console" {
 	zone								= "${var.gcp_zone}"
 	tags								= [ "http-server", "https-server", "console-debug" ]
 }
-*/
+
+module "console_dns" {
+	source												= "../../modules/cloudflare_record"
+	hostname											= "${var.console_domain_name}"
+	ip														= "${module.console.external_ip}"
+}

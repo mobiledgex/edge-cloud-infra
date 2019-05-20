@@ -1,6 +1,6 @@
 variable "environ_tag" {
 	description	= "Name to tag instances created by this workspace"
-	default			= "test"
+	default			= "qa"
 }
 
 variable "azure_location" {
@@ -39,11 +39,11 @@ variable "cloudflare_account_api_token" {
 }
 
 variable "cluster_name" {
-	default			= "mexplat-test"
+	default			= "mexplat-qa"
 }
 
 variable "resource_group_name" {
-	default			= "mexplat-test-rg"
+	default			= "mexplat-qa-rg"
 }
 
 variable "address_space" {
@@ -63,11 +63,11 @@ variable "gcp_zone" {
 }
 
 variable "gitlab_instance_name" {
-	default			= "gitlab-test"
+	default			= "gitlab-qa"
 }
 
 variable "console_instance_name" {
-	default			= "console-test"
+	default			= "console-qa"
 }
 
 // DNS entries
@@ -79,5 +79,10 @@ variable "gitlab_domain_name" {
 
 variable "gitlab_docker_domain_name" {
 	description	= "Gitlab docker repo domain name"
+	type				= "string"
+}
+
+variable "console_domain_name" {
+	description	= "Console domain name"
 	type				= "string"
 }

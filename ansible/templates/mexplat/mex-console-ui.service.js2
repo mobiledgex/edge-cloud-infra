@@ -4,6 +4,7 @@ Requires=mex-console-server.service
 After=mex-console-server.service
 
 [Service]
+Environment="NODE_OPTIONS=--max-old-space-size=3072"
 WorkingDirectory={{install_dir}}
 User=ansible
 Type=simple

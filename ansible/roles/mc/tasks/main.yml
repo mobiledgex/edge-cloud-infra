@@ -38,24 +38,3 @@
       VAULT_SECRET_ID: "{{ mc_vault_secret_id }}"
       gitlab_token: "{{ mc_gitlab_token }}"
       artifactory_apikey: "{{ mc_artifactory_apikey }}"
-
-- name: Get MC Public IP
-  uri:
-    url: http://ifconfig.me/ip
-    return_content: yes
-  register: ifconfig_me_response
-  check_mode: no
-
-- set_fact:
-    mc_ip: "{{ ifconfig_me_response.content }}"
-
-- name: Update MC DNS
-  cloudflare_dns:
-    zone: "{{ cloudflare_zone }}"
-    record: "{{ mc_vm_hostname }}"
-    value: "{{ mc_ip }}"
-    type: A
-    state: present
-    solo: true
-    account_email: "{{ cloudflare_account_email }}"
-    account_api_token: "{{ cloudflare_account_api_token }}"

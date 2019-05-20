@@ -28,6 +28,16 @@ variable "azure_tenant_id" {
 	type				= "string"
 }
 
+variable "cloudflare_account_email" {
+	description	= "Cloudflare account email"
+	type				= "string"
+}
+
+variable "cloudflare_account_api_token" {
+	description	= "Cloudflare account API token"
+	type				= "string"
+}
+
 variable "cluster_name" {
 	default			= "mexplat-test"
 }
@@ -58,4 +68,16 @@ variable "gitlab_instance_name" {
 
 variable "console_instance_name" {
 	default			= "console-test"
+}
+
+// DNS entries
+
+variable "gitlab_domain_name" {
+	description	= "Gitlab domain name"
+	type				= "string"
+}
+
+variable "gitlab_docker_domain_name" {
+	description	= "Gitlab docker repo domain name"
+	type				= "string"
 }

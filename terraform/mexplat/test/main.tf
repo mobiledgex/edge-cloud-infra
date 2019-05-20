@@ -15,6 +15,13 @@ provider "google" {
 	zone		= "${var.gcp_zone}"
 }
 
+provider "cloudflare" {
+	version	= "=1.14.0"
+
+	email		= "${var.cloudflare_account_email}"
+	token		= "${var.cloudflare_account_api_token}"
+}
+
 terraform {
 	backend "azurerm" {
 		storage_account_name	= "mexterraformstate"
@@ -32,6 +39,18 @@ module "gitlab" {
 	resource_group_name						= "mexplat-${var.environ_tag}-rg"
 	virtual_network_address_space	= "${var.address_space}"
 	subnet_address_prefix					= "${var.address_space}"
+}
+
+module "gitlab_dns" {
+	source												= "../../modules/cloudflare_record"
+	hostname											= "${var.gitlab_domain_name}"
+	ip														= "${module.gitlab.external_ip}"
+}
+
+module "docker_dns" {
+	source												= "../../modules/cloudflare_record"
+	hostname											= "${var.gitlab_docker_domain_name}"
+	ip														= "${module.gitlab.external_ip}"
 }
 
 /*

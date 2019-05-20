@@ -23,7 +23,11 @@
 
 - name: Install gitlab
   apt:
-    name: ['curl', 'openssh-server', 'ca-certificates', 'gitlab-ee']
+    name:
+      - curl
+      - openssh-server
+      - ca-certificates
+      - "gitlab-ee={{ gitlab_version }}"
     state: present
     update_cache: yes
   become: yes

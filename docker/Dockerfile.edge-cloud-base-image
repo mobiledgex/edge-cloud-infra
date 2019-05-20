@@ -1,5 +1,5 @@
 FROM ubuntu:18.04
-
+ENV DEBIAN_FRONTEND=noninteractive
 RUN apt-get update && apt-get install -y \
 	apt-transport-https \
         ca-certificates \
@@ -11,6 +11,7 @@ RUN apt-get update && apt-get install -y \
 	python \
 	python2.7 \
 	python3 \
+        python-pip \
 	software-properties-common \
 	systemd \
 	tzdata \
@@ -32,9 +33,9 @@ RUN echo "deb https://apt.kubernetes.io/ kubernetes-xenial main" >/etc/apt/sourc
 RUN apt-get update && apt-get install -y \
 	azure-cli \
 	google-cloud-sdk \
-	kubectl \
-	python-heatclient \
-	python-openstackclient
+	kubectl 
+RUN pip install python-heatclient
+RUN pip install python-openstackclient
 
 COPY edge-cloud-base-image.root/_ssh /root/.ssh
 COPY edge-cloud-base-image.root/_mobiledgex /root/.mobiledgex

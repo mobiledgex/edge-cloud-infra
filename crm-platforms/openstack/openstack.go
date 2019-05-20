@@ -17,6 +17,7 @@ type Platform struct {
 	rootLBName  string
 	rootLB      *mexos.MEXRootLB
 	cloudletKey *edgeproto.CloudletKey
+	flavorList []*FlavorInfo
 }
 
 func (s *Platform) GetType() string {
@@ -44,7 +45,7 @@ func (s *Platform) Init(key *edgeproto.CloudletKey, physicalName, vaultAddr stri
 		mexos.CloudletInfraCommon.NetworkScheme = "priv-subnet,mex-k8s-net-1,10.101.X.0/24"
 	}
 
-	finfo, err := mexos.GetFlavorInfo()
+	s.flavorList, err := mexos.GetFlavorInfo()
 	if err != nil {
 		return err
 	}
@@ -66,7 +67,7 @@ func (s *Platform) Init(key *edgeproto.CloudletKey, physicalName, vaultAddr stri
 	if err != nil {
 		return fmt.Errorf("unable to get Shared RootLB Flavor: %v", err)
 	}
-	flavorName, err := flavor.GetClosestFlavor(finfo, sharedRootLBFlavor)
+	flavorName, err := flavor.GetClosestFlavor(s.flavorList, sharedRootLBFlavor)
 	if err != nil {
 		return fmt.Errorf("unable to find closest flavor for Shared RootLB: %v", err)
 	}

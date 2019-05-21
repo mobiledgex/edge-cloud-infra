@@ -57,7 +57,7 @@ module "console" {
 
 	instance_name				= "${var.console_instance_name}"
 	zone								= "${var.gcp_zone}"
-	tags								= [ "http-server", "https-server", "console-debug" ]
+	tags								= [ "http-server", "https-server", "console-debug", "mc" ]
 }
 
 module "console_dns" {

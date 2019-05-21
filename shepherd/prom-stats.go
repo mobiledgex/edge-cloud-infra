@@ -1,4 +1,4 @@
-package main
+package thresher
 
 import (
 	"encoding/json"

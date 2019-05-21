@@ -1,4 +1,4 @@
-package thresher
+package shepherd
 
 import (
 	"flag"
@@ -229,18 +229,16 @@ func createAppCommon(dialOpts grpc.DialOption, app *edgeproto.App) error {
 }
 
 
-TODO: add a cluster to the command line args so i have somewhere to start the metrics app 
+TODO: add a cluster to the command line args so i have somewhere to start the metrics app
+or create your own cluster here??? (this part is platform dependent/should i have the platform init functions run this main func)
 func main() {
 	flag.Parse()
-	//TODO: figure out if we wanna do standalone stuff
-	promMap = make(map[string]edgeproto.ClusterInstKey)
+	TODO: figure out if we wanna do standalone stuff
+	//promMap = make(map[string]edgeproto.ClusterInstKey)
 	cloudcommon.ParseMyCloudletKey(false, cloudletKeyStr, &myCloudletKey)
 	//start metrics exporter
-	TODO: fix the cluster part of this, it needs to start in rootlb vm
-	if err = createMEXMetricsExporterInst(dialOpts, in.Key, &MEXMetricsExporterApp); err != nil {
+	TODO: fix the cluster part of this, it needs to start in rootlb vm for openstack, for everything else just start a dedicated cluster for it?
+	if err = createMEXMetricsExporterInst(dialOpts, clusterInst.Key, &MEXMetricsExporterApp); err != nil {
 		log.DebugLog(log.DebugLevelMexos, "Metrics-exporter inst create failed", "cluster", in.Key.ClusterKey.Name,
 			"error", err.Error())
-	notifyClient := initNotifyClient(*notifyAddrs, *tlsCertFile)
-	notifyClient.Start()
-	defer notifyClient.Stop()
 }

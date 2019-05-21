@@ -65,3 +65,35 @@ variable "gitlab_instance_name" {
 variable "console_instance_name" {
 	default			= "console-stage"
 }
+
+// DNS entries
+
+variable "crm_vm_domain_name" {
+	description	= "CRM VM domain name"
+	type				= "string"
+}
+
+variable "mc_vm_domain_name" {
+	description	= "MC VM domain name"
+	type				= "string"
+}
+
+variable "postgres_domain_name" {
+	description	= "Postgres domain name"
+	type				= "string"
+}
+
+variable "gitlab_domain_name" {
+	description	= "Gitlab domain name"
+	type				= "string"
+}
+
+variable "gitlab_docker_domain_name" {
+	description	= "Gitlab docker repo domain name"
+	type				= "string"
+}
+
+variable "console_domain_name" {
+	description	= "Console domain name"
+	type				= "string"
+}

@@ -94,5 +94,5 @@ module "console" {
 module "console_dns" {
 	source												= "../../modules/cloudflare_record"
 	hostname											= "${var.console_domain_name}"
-	ip														= "${module.gitlab.external_ip}"
+	ip														= "${module.console.external_ip}"
 }

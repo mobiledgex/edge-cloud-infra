@@ -30,14 +30,6 @@
     state: present
   become: yes
 
-- set_fact:
-    github_user: "{{ lookup('env', 'GITHUB_USER') }}"
-  when: github_user is not defined or not github_user
-
-- set_fact:
-    github_token: "{{ lookup('env', 'GITHUB_TOKEN') }}"
-  when: github_token is not defined or not github_token
-
 - name: Check Out edge-cloud-ui
   when: not skip_checkout
   git:

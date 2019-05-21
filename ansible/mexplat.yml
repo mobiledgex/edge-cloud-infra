@@ -13,8 +13,32 @@
     - console
   gather_facts: no
   tasks:
-    - assert:
-        that: console_version is defined
+    - set_fact:
+        github_user: "{{ lookup('env', 'GITHUB_USER') }}"
+      when: github_user is not defined or not github_user
+
+    - set_fact:
+        github_token: "{{ lookup('env', 'GITHUB_TOKEN') }}"
+      when: github_token is not defined or not github_token
+
+    - name: Pick latest release from Github
+      uri:
+        url: https://api.github.com/repos/mobiledgex/edge-cloud-ui/releases/latest
+        user: "{{ github_user }}"
+        password: "{{ github_token }}"
+        force_basic_auth: yes
+        return_content: yes
+      register: console_release
+      when: console_version is not defined
+
+    - set_fact:
+        console_version: "{{ console_release.json.tag_name }}"
+      when: console_version is not defined
+
+    - pause:
+        prompt: "Installing the latest console release: {{ console_version }}"
+        seconds: 30
+      when: console_release.json is defined
 
 - hosts: platform
   tasks:
@@ -55,8 +79,8 @@
         msg: "Mexplat \"{{ deploy_environ }}\" setup being upgraded to version {{ edge_cloud_version }} by {{ ansible_user }}"
       delegate_to: localhost
       when:
-        - slack_notify
         - not ansible_check_mode
+      tags: notify
 
     - name: Create temporary kubeconfig file
       tempfile:
@@ -123,5 +147,5 @@
         channel: "{{ slack_channel }}"
         msg: "Mexplat \"{{ deploy_environ }}\" setup successfully upgraded to version {{ edge_cloud_version }} by {{ ansible_user }}"
       when:
-        - slack_notify
         - not ansible_check_mode
+      tags: notify

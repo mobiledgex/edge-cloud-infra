@@ -1,5 +1,6 @@
 [all:vars]
 deploy_environ=prod
+ubuntu_release=bionic
 mc_postgres_db=mcdb
 mc_postgres_username=mcuser
 mc_postgres_password="s3cr3tmc!"
@@ -9,8 +10,8 @@ mc_gitlab_token=sx3vbbf2iLGgpwSMm3NZ
 postgres_hostname=postgres.mobiledgex.net
 artifactory_version=6.10.0
 
-[ui-servers]
-console.mobiledgex.net
-
 [artifactory]
 artifactory.mobiledgex.net	ubuntu_release=xenial
+
+[console]
+console.mobiledgex.net

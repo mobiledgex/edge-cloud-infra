@@ -1,4 +1,4 @@
-package thresher
+package shepherd
 
 import (
 	"errors"
@@ -20,6 +20,8 @@ var debugLevels = flag.String("d", "", fmt.Sprintf("comma separated list of %v",
 var operatorName = flag.String("operator", "local", "Cloudlet Operator Name")
 var cloudletName = flag.String("cloudlet", "local", "Cloudlet Name")
 var clusterName = flag.String("cluster", "myclust", "Cluster Name")
+var notifyAddrs = flag.String("notifyAddrs", "127.0.0.1:50001", "Comma separated list of controller notify listener addresses")
+var tlsCertFile = flag.String("tls", "", "server9 tls cert file.  Keyfile and CA file mex-ca.crt must be in same directory")
 var collectInterval = flag.Duration("interval", time.Second*15, "Metrics collection interval")
 
 var promQCpuClust = "sum(rate(container_cpu_usage_seconds_total%7Bid%3D%22%2F%22%7D%5B1m%5D))%2Fsum(machine_cpu_cores)*100"
@@ -37,6 +39,12 @@ var promQCpuPod = "sum(rate(container_cpu_usage_seconds_total%7Bimage!%3D%22%22%
 var promQMemPod = "sum(container_memory_working_set_bytes%7Bimage!%3D%22%22%7D)by(pod_name)"
 var promQNetRecvRate = "sum(irate(container_network_receive_bytes_total%7Bimage!%3D%22%22%7D%5B1m%5D))by(pod_name)"
 var promQNetSendRate = "sum(irate(container_network_transmit_bytes_total%7Bimage!%3D%22%22%7D%5B1m%5D))by(pod_name)"
+
+//map keeping track of all the currently running prometheuses
+//TODO: figure out exactly what the types need to be
+var promMap map[string]edgeproto.AppInstInfo
+
+var MEXPrometheusAppName = "MEXPrometheusAppName"
 
 var Env = map[string]string{
 	"INFLUXDB_USER": "root",
@@ -95,22 +103,38 @@ func initEnv() {
 	}
 }
 
+func appInstInfoCb(key *edgeproto.AppInstKey, old *edgeproto.AppInstInfo) {
+	//check for prometheus
+	if key.AppKey.Name != MEXPrometheusAppName {
+		 return
+	}
+	appInstInfo := edgeproto.AppInst{}
+	found := AppInstInfoCache.Get(key, &appInstInfo)
+	if !found {
+		return
+	}
+	//deleted
+	var mapKey = key.ClusterInstKey.ClusterKey.Name
+	if appInst.State == edgeproto.TrackedState_DeleteRequested {
+		//remove it from the prommap
+		delete(promMap, appInstInfo)
+		return
+	}
+	//check to see if its in the map, if its not add it and start a thread to monitor it
+	else if
+}
+
 func main() {
 	flag.Parse()
 	log.SetDebugLevelStrs(*debugLevels)
-	fmt.Printf("Starting metrics exporter with Prometheus addr %s\n", *promAddress)
-	TODO: change this clust ip
-	clustIP, err := getIPfromEnv()
-	if err == nil {
-		*promAddress = clustIP + ":9090"
-	}
-	fmt.Printf("Found Prometheus running on: %s\n", *promAddress)
+	// fmt.Printf("Starting metrics exporter with Prometheus addr %s\n", *promAddress)
+	// TODO: change this clust ip
+	// clustIP, err := getIPfromEnv()
+	// if err == nil {
+	// 	*promAddress = clustIP + ":9090"
+	// }
+	// fmt.Printf("Found Prometheus running on: %s\n", *promAddress)
 	initEnv()
-
-	//register thresher to receive appinst notifications from crm
-	edgeproto.InitAppInstInfoCache(&AppInstInfoCache)
-	AppInstInfoCache.SetNotifyCb(AppInstInfoCb) <- implement this callback
-	//then init notify, (look at crm/main line 108)
 
 	fmt.Printf("InfluxDB is at: %s\n", *influxdb)
 	fmt.Printf("Metrics collection interval is %s\n", *collectInterval)
@@ -121,6 +145,18 @@ func main() {
 			"address", *influxdb, "err", err)
 	}
 	defer influxQ.Stop()
+
+	promMap = make(map[string]edgeproto.AppInstInfo)
+
+	//register thresher to receive appinst notifications from crm
+	edgeproto.InitAppInstInfoCache(&AppInstInfoCache)
+	AppInstInfoCache.SetNotifyCb(AppInstInfoCb) <- implement this callback
+	//then init notify, (look at crm/main line 108)
+	addrs := strings.Split(*notifyAddrs, ",")
+	notifyClient = notify.NewClient(addrs, *tlsCertFile)
+	notifyClient.RegisterRecvAppInstInfoCache(&AppInstInfoCache)
+	notifyClient.Start()
+	defer notifyClient.Stop()
 
 	stats := NewPromStats(*promAddress, *collectInterval, sendMetric)
 	stats.Start()

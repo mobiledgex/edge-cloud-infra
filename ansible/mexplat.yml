@@ -53,6 +53,11 @@
       failed_when: edge_cloud_version not in response.json.tags
       check_mode: no
 
+    - name: Import terraform variables from ansible
+      make:
+        chdir: "../terraform/mexplat/{{ deploy_environ }}"
+        target: ansible.auto.tfvars
+
     - name: Get setup details from terraform
       terraform:
         project_path: "../terraform/mexplat/{{ deploy_environ }}"

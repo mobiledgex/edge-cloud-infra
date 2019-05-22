@@ -20,7 +20,6 @@ mc_ldap_port: 9389
 postgres_server: postgres.mobiledgex.net:5432
 mc_vault_role_id: f4207f0f-c965-ac3e-181c-235de8838ff7
 mc_vault_secret_id: ***REMOVED***
-mc_gitlab_token: ***REMOVED***
 mc_artifactory_apikey: ***REMOVED***
 dme_vault_role_id: b95e3309-5964-89a2-5647-e86f745f20c7
 dme_vault_secret_id: ***REMOVED***
@@ -33,4 +32,3 @@ sendgrid_username: venkyt
 sendgrid_password: "etorxWEV2y8dcrq*Ebew2LVN"
 slack_token: "T97USPYUX/BJ8AEDGF4/k2d1GNETqaMqRxGyXNbr8nFq"
 slack_channel: "#devops"
-slack_notify: true

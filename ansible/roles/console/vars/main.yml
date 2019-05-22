@@ -1,0 +1,3 @@
+install_dir: /home/ansible/edge-cloud-ui
+mongodb_path: "{{install_dir}}/server/mongodb_data"
+slack_channel: "#web-ui"

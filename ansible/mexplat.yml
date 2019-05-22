@@ -1,16 +1,44 @@
 ---
-- name: Set edge cloud version
+- name: Ensure edge cloud version is set
   hosts:
-    - platform
     - crms
     - mc
-  vars_prompt:
-    - name: edge_cloud_version
-      prompt: "Version of edge cloud to install. (Example: 2019-05-01)"
-      private: no
+  gather_facts: no
+  tasks:
+    - assert:
+        that: edge_cloud_version is defined
+
+- name: Ensure that console version is set
+  hosts:
+    - console
+  gather_facts: no
   tasks:
     - set_fact:
-        edge_cloud_version: "{{ edge_cloud_version }}"
+        github_user: "{{ lookup('env', 'GITHUB_USER') }}"
+      when: github_user is not defined or not github_user
+
+    - set_fact:
+        github_token: "{{ lookup('env', 'GITHUB_TOKEN') }}"
+      when: github_token is not defined or not github_token
+
+    - name: Pick latest release from Github
+      uri:
+        url: https://api.github.com/repos/mobiledgex/edge-cloud-ui/releases/latest
+        user: "{{ github_user }}"
+        password: "{{ github_token }}"
+        force_basic_auth: yes
+        return_content: yes
+      register: console_release
+      when: console_version is not defined
+
+    - set_fact:
+        console_version: "{{ console_release.json.tag_name }}"
+      when: console_version is not defined
+
+    - pause:
+        prompt: "Installing the latest console release: {{ console_version }}"
+        seconds: 30
+      when: console_release.json is defined
 
 - hosts: platform
   tasks:
@@ -24,6 +52,12 @@
       register: response
       failed_when: edge_cloud_version not in response.json.tags
       check_mode: no
+
+    - name: Import terraform variables from ansible
+      make:
+        chdir: "../terraform/mexplat/{{ deploy_environ }}"
+        target: ansible.auto.tfvars
+      changed_when: false
 
     - name: Get setup details from terraform
       terraform:
@@ -40,10 +74,6 @@
 
     - set_fact:
         k8s_cluster_name: "{{ terraform.outputs.k8s_cluster_name.value }}"
-        gitlab_ip: "{{ terraform.outputs.gitlab_external_ip.value }}"
-        crm_ip: "{{ terraform.outputs.crm_external_ip.value }}"
-        mc_ip: "{{ terraform.outputs.mc_external_ip.value }}"
-        postgres_ip: "{{ terraform.outputs.postgres_external_ip.value }}"
 
     - debug:
         msg: "Deploying edge-cloud version '{{ edge_cloud_version }}' to cluster '{{ k8s_cluster_name }}'"
@@ -55,25 +85,8 @@
         msg: "Mexplat \"{{ deploy_environ }}\" setup being upgraded to version {{ edge_cloud_version }} by {{ ansible_user }}"
       delegate_to: localhost
       when:
-        - slack_notify
         - not ansible_check_mode
-
-    - name: Update VM DNS entries
-      cloudflare_dns:
-        zone: "{{ cloudflare_zone }}"
-        record: "{{ item.hostname }}"
-        value: "{{ item.ip }}"
-        type: A
-        state: present
-        solo: true
-        account_email: "{{ cloudflare_account_email }}"
-        account_api_token: "{{ cloudflare_account_api_token }}"
-      with_items:
-        - { hostname: "{{ gitlab_vm_hostname }}", ip: "{{ gitlab_ip }}" }
-        - { hostname: "{{ gitlab_docker_hostname }}", ip: "{{ gitlab_ip }}" }
-        - { hostname: "{{ crm_vm_hostname }}", ip: "{{ crm_ip }}" }
-        - { hostname: "{{ mc_vm_hostname }}", ip: "{{ mc_ip }}" }
-        - { hostname: "{{ postgres_hostname }}", ip: "{{ postgres_ip }}" }
+      tags: notify
 
     - name: Create temporary kubeconfig file
       tempfile:
@@ -124,7 +137,15 @@
     - docker
     - mc
 
-- hosts: localhost
+- hosts: console
+  roles:
+    - role: web
+      vars:
+        nginx_config_template: "templates/mexplat/console-nginx-config.j2"
+        cert_domains: [ "{{ console_vm_hostname }}" ]
+    - role: console
+
+- hosts: platform
   tasks:
     - name: Notify upgrade completion on slack
       slack:
@@ -132,5 +153,5 @@
         channel: "{{ slack_channel }}"
         msg: "Mexplat \"{{ deploy_environ }}\" setup successfully upgraded to version {{ edge_cloud_version }} by {{ ansible_user }}"
       when:
-        - slack_notify
         - not ansible_check_mode
+      tags: notify

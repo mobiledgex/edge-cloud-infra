@@ -23,7 +23,11 @@
 
 - name: Install gitlab
   apt:
-    name: ['curl', 'openssh-server', 'ca-certificates', 'gitlab-ee']
+    name:
+      - curl
+      - openssh-server
+      - ca-certificates
+      - "gitlab-ee={{ gitlab_version }}"
     state: present
     update_cache: yes
   become: yes
@@ -70,12 +74,16 @@
   template:
     src: token_creation.rb.j2
     dest: "{{ token_creation_script }}"
-  when: gitlab_api_call.status != 200
+  when:
+    - not ansible_check_mode
+    - gitlab_api_call.status != 200
 
 - name: Set up access token
   command: "gitlab-rails r {{ token_creation_script }}"
   become: yes
-  when: gitlab_api_call.status != 200
+  when:
+    - not ansible_check_mode
+    - gitlab_api_call.status != 200
 
 - name: Cleanup access token script
   file:
@@ -85,4 +93,6 @@
 - name: Check if the token is valid now
   uri:
     url: "https://{{ gitlab_vm_hostname }}/api/v4/projects?private_token={{ mc_gitlab_token }}"
-  when: gitlab_api_call.status != 200
+  when:
+    - not ansible_check_mode
+    - gitlab_api_call.status != 200

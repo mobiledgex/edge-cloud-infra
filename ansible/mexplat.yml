@@ -57,6 +57,7 @@
       make:
         chdir: "../terraform/mexplat/{{ deploy_environ }}"
         target: ansible.auto.tfvars
+      changed_when: false
 
     - name: Get setup details from terraform
       terraform:

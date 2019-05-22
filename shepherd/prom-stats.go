@@ -1,4 +1,4 @@
-package thresher
+package shepherd
 
 import (
 	"encoding/json"

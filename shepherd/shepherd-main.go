@@ -108,20 +108,28 @@ func appInstInfoCb(key *edgeproto.AppInstKey, old *edgeproto.AppInstInfo) {
 	if key.AppKey.Name != MEXPrometheusAppName {
 		 return
 	}
-	appInstInfo := edgeproto.AppInst{}
-	found := AppInstInfoCache.Get(key, &appInstInfo)
+	info := edgeproto.AppInst{}
+	found := AppInstInfoCache.Get(key, &info)
 	if !found {
 		return
 	}
-	//deleted
 	var mapKey = key.ClusterInstKey.ClusterKey.Name
-	if appInst.State == edgeproto.TrackedState_DeleteRequested {
-		//remove it from the prommap
-		delete(promMap, appInstInfo)
-		return
+	//maybe need to do more than just check for ready
+	if info.State == edgeproto.TrackedState_Ready {
+		//get address of prometheus.
+		//for now while testing in dind this is ok
+		promAddress = "http://localhost:9090/"
+		stats := NewPromStats(*promAddress, *collectInterval, sendMetric)
+		promMap[mapKey] = stats
+		stats.Start()
+	} else { //if its anything other than ready just stop it
+		//try to remove it from the prommap
+		stats, exists := promMap[mapKey]
+		if exists {
+			delete(promMap, mapKey)
+			stats.Stop()
+		}
 	}
-	//check to see if its in the map, if its not add it and start a thread to monitor it
-	else if
 }
 
 func main() {
@@ -157,10 +165,6 @@ func main() {
 	notifyClient.RegisterRecvAppInstInfoCache(&AppInstInfoCache)
 	notifyClient.Start()
 	defer notifyClient.Stop()
-
-	stats := NewPromStats(*promAddress, *collectInterval, sendMetric)
-	stats.Start()
-	defer stats.Stop()
 
 	sigChan = make(chan os.Signal, 1)
 	signal.Notify(sigChan, os.Interrupt)

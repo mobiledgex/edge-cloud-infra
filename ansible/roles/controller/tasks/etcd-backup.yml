@@ -22,6 +22,7 @@
 - name: Verify etcd backup size
   assert:
     that: etcd_backup_local_file_st.stat.size > 0
+  when: not ansible_check_mode
 
 - name: Archive etcd backup in Artifactory
   uri:

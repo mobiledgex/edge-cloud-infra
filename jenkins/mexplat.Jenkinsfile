@@ -10,6 +10,7 @@ pipeline {
         GCP_AUTH_KIND = 'serviceaccount'
         GCP_SERVICE_ACCOUNT_FILE = credentials('jenkins-terraform-gcp-credentials')
         GOOGLE_CLOUD_KEYFILE_JSON = credentials('jenkins-terraform-gcp-credentials')
+        GITHUB_CREDS = credentials('ansible-github-credentials')
     }
     stages {
         stage('Set up build tag') {
@@ -23,6 +24,8 @@ pipeline {
             steps {
                 dir(path: 'ansible') {
                     sh label: 'Run ansible playbook', script: '''$!/bin/bash
+export GITHUB_USER="${GITHUB_CREDS_USR}"
+export GITHUB_TOKEN="${GITHUB_CREDS_PSW}"
 ansible-playbook -i staging -e "edge_cloud_version=${DOCKER_BUILD_TAG}" -e @ansible-mex-vault.yml mexplat.yml
                     '''
                 }

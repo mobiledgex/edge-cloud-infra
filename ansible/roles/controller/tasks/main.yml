@@ -12,6 +12,7 @@
 - name: Backup etcd
   include: etcd-backup.yml
   when: mex_etcd_pod|length > 0
+  tags: etcd-backup
 
 - name: Deploy the Mex Controller
   k8s:

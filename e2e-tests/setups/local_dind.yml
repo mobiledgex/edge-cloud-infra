@@ -85,6 +85,8 @@ crms:
   envvars:
     PLATFORM: mexdind
     MEXENV_URL: "https://vault.mobiledgex.net/v1/secret/data/cloudlet/openstack/mexenv.json"
+    VAULT_ROLE_ID: ea92e59c-0019-7120-46cf-2b15755cbe93
+    VAULT_SECRET_ID: 31e4fdeb-3bd1-814f-0936-807ce4f88602
 
 clustersvcs:
 - name: cluster-svc1
@@ -96,4 +98,26 @@ clustersvcs:
   promports: "tcp:9090"
   influxdb: "host.docker.internal:8086"
   interval: "5s"
+  hostname: "127.0.0.1"
+
+mcs:
+- name: mc1
+  addr: "127.0.0.1:9900"
+  sqladdr: "127.0.0.1:5432"
+  vaultaddr: "http://127.0.0.1:8200"
+  tls:
+    servercert: "{{tlsoutdir}}/mex-server.crt"
+    serverkey: "{{tlsoutdir}}/mex-server.key"
+    clientcert: "{{tlsoutdir}}/mex-client.crt"
+  hostname: "127.0.0.1"
+
+sqls:
+- name: sql1
+  datadir: /var/tmp/edge-cloud-local-sql/sql1
+  httpaddr: "127.0.0.1:5432"
+  username: mcuser
+  dbname: mcdb
+  tls:
+    servercert: "{{tlsoutdir}}/mex-server.crt"
+    serverkey: "{{tlsoutdir}}/mex-server.key"
   hostname: "127.0.0.1"

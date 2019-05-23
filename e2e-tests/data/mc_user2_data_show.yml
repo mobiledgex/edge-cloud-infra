@@ -280,6 +280,7 @@ regiondata:
             operatorkey:
               name: developer
             name: default
+          developer: Samsung
       uri: default.samsungenablement.samsung.com
       liveness: LivenessStatic
       mappedports:

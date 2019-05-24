@@ -1,4 +1,4 @@
-package shepherd
+package main
 
 import (
 	"encoding/json"

@@ -1,4 +1,4 @@
-package shepherd
+package main
 
 import (
 	"errors"
@@ -7,14 +7,15 @@ import (
 	"os"
 	"os/signal"
 	"regexp"
+	"strings"
 	"time"
 
 	influxq "github.com/mobiledgex/edge-cloud/controller/influxq_client"
 	"github.com/mobiledgex/edge-cloud/edgeproto"
 	"github.com/mobiledgex/edge-cloud/log"
+	"github.com/mobiledgex/edge-cloud/notify"
 )
 
-var promAddress = flag.String("apiAddr", "0.0.0.0:9090", "Prometheus address to bind to")
 var influxdb = flag.String("influxdb", "0.0.0.0:8086", "InfluxDB address to export to")
 var debugLevels = flag.String("d", "", fmt.Sprintf("comma separated list of %v", log.DebugLevelStrings))
 var operatorName = flag.String("operator", "local", "Cloudlet Operator Name")
@@ -42,7 +43,7 @@ var promQNetSendRate = "sum(irate(container_network_transmit_bytes_total%7Bimage
 
 //map keeping track of all the currently running prometheuses
 //TODO: figure out exactly what the types need to be
-var promMap map[string]edgeproto.AppInstInfo
+var promMap map[string]*PromStats
 
 var MEXPrometheusAppName = "MEXPrometheusAppName"
 
@@ -51,7 +52,7 @@ var Env = map[string]string{
 	"INFLUXDB_PASS": "root",
 }
 
-var AppInstCacheInfo edgeproto.AppInstInfoCache
+var AppInstCache edgeproto.AppInstCache
 
 var InfluxDBName = "clusterstats"
 var influxQ *influxq.InfluxQ
@@ -103,28 +104,36 @@ func initEnv() {
 	}
 }
 
-func appInstInfoCb(key *edgeproto.AppInstKey, old *edgeproto.AppInstInfo) {
+func appInstCb(key *edgeproto.AppInstKey, old *edgeproto.AppInst) {
 	//check for prometheus
 	if key.AppKey.Name != MEXPrometheusAppName {
-		 return
+		return
 	}
 	info := edgeproto.AppInst{}
-	found := AppInstInfoCache.Get(key, &info)
+	found := AppInstCache.Get(key, &info)
 	if !found {
 		return
 	}
 	var mapKey = key.ClusterInstKey.ClusterKey.Name
 	//maybe need to do more than just check for ready
+	stats, exists := promMap[mapKey]
 	if info.State == edgeproto.TrackedState_Ready {
+		fmt.Printf("New Prometheus instance detected in cluster: %s\n", mapKey)
 		//get address of prometheus.
 		//for now while testing in dind this is ok
-		promAddress = "http://localhost:9090/"
-		stats := NewPromStats(*promAddress, *collectInterval, sendMetric)
-		promMap[mapKey] = stats
-		stats.Start()
+		clustIP := "localhost"
+		port := info.MappedPorts[0].PublicPort
+		promAddress := fmt.Sprintf("%s:%d", clustIP, port)
+		//should probably also check to see if it already exists before throwing it in the map
+		if !exists {
+			stats = NewPromStats(promAddress, *collectInterval, sendMetric)
+			promMap[mapKey] = stats
+			stats.Start()
+		} else {
+			fmt.Printf("somethings wrong\n")
+		}
 	} else { //if its anything other than ready just stop it
 		//try to remove it from the prommap
-		stats, exists := promMap[mapKey]
 		if exists {
 			delete(promMap, mapKey)
 			stats.Stop()
@@ -147,22 +156,22 @@ func main() {
 	fmt.Printf("InfluxDB is at: %s\n", *influxdb)
 	fmt.Printf("Metrics collection interval is %s\n", *collectInterval)
 	influxQ = influxq.NewInfluxQ(InfluxDBName)
-	err = influxQ.Start(*influxdb)
+	err := influxQ.Start(*influxdb)
 	if err != nil {
 		log.FatalLog("Failed to start influx queue",
 			"address", *influxdb, "err", err)
 	}
 	defer influxQ.Stop()
 
-	promMap = make(map[string]edgeproto.AppInstInfo)
+	promMap = make(map[string]*PromStats)
 
 	//register thresher to receive appinst notifications from crm
-	edgeproto.InitAppInstInfoCache(&AppInstInfoCache)
-	AppInstInfoCache.SetNotifyCb(AppInstInfoCb) <- implement this callback
+	edgeproto.InitAppInstCache(&AppInstCache)
+	AppInstCache.SetNotifyCb(appInstCb)
 	//then init notify, (look at crm/main line 108)
 	addrs := strings.Split(*notifyAddrs, ",")
-	notifyClient = notify.NewClient(addrs, *tlsCertFile)
-	notifyClient.RegisterRecvAppInstInfoCache(&AppInstInfoCache)
+	notifyClient := notify.NewClient(addrs, *tlsCertFile)
+	notifyClient.RegisterRecvAppInstCache(&AppInstCache)
 	notifyClient.Start()
 	defer notifyClient.Stop()
 

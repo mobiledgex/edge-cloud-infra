@@ -52,7 +52,7 @@ func isDomainName(s string) bool {
 	return ok
 }
 
-func uri2fqdn(uri string) string {
+func Uri2fqdn(uri string) string {
 	fqdn := strings.Replace(uri, "http://", "", 1)
 	fqdn = strings.Replace(fqdn, "https://", "", 1)
 	//XXX assumes no trailing elements

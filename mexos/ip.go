@@ -87,6 +87,24 @@ func ParseNetSpec(netSpec string) (*NetSpecInfo, error) {
 	return ni, nil
 }
 
+//GetExternalIP returns External IP of the server
+func GetExternalIP(name string) (string, error) {
+	sd, err := GetServerDetails(name)
+	if err != nil {
+		return "", err
+	}
+	its := strings.Split(sd.Addresses, ";")
+	for _, it := range its {
+		sits := strings.Split(it, "=")
+		if len(sits) == 2 {
+			if strings.Contains(sits[0], OpenstackProps.OsExternalNetworkName) {
+				return sits[1], nil
+			}
+		}
+	}
+	return "", fmt.Errorf("No external IP found for %s", name)
+}
+
 //GetInternalIP returns IP of the server
 func GetInternalIP(name string, srvs []OSServer) (string, error) {
 	for _, s := range srvs {

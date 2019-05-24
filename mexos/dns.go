@@ -55,7 +55,7 @@ func CreateAppDNS(client pc.PlatformClient, kubeNames *k8smgmt.KubeNames, getSvc
 		return fmt.Errorf("no load balancer services for %s", kubeNames.AppURI)
 	}
 
-	fqdnBase := uri2fqdn(kubeNames.AppURI)
+	fqdnBase := Uri2fqdn(kubeNames.AppURI)
 
 	for _, svc := range svcs {
 		if kubeNames.DeploymentType != cloudcommon.AppDeploymentTypeDocker && svc.Spec.Type != v1.ServiceTypeLoadBalancer {
@@ -109,7 +109,7 @@ func DeleteAppDNS(client pc.PlatformClient, kubeNames *k8smgmt.KubeNames) error 
 	if err != nil {
 		return err
 	}
-	fqdnBase := uri2fqdn(kubeNames.AppURI)
+	fqdnBase := Uri2fqdn(kubeNames.AppURI)
 	for _, svc := range svcs {
 		if kubeNames.DeploymentType != cloudcommon.AppDeploymentTypeDocker && svc.Spec.Type != v1.ServiceTypeLoadBalancer {
 			continue

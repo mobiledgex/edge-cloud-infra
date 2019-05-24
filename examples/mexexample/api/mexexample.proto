@@ -16,7 +16,7 @@ service MexExample {
             body: "*"
         };
     }
-    rpc status(StatusRequest) returns (StatusResponse) {
+    rpc Status(StatusRequest) returns (StatusResponse) {
         option (google.api.http) = {
             post: "/status",
             body: "*"

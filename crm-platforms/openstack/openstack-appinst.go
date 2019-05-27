@@ -126,12 +126,12 @@ func (s *Platform) CreateAppInst(clusterInst *edgeproto.ClusterInst, app *edgepr
 		if err != nil {
 			return fmt.Errorf("CreateVMAppInst error: %v", err)
 		}
-		external_ip, err := mexos.GetExternalIP(app.Key.Name)
+		external_ip, err := mexos.GetServerIPAddr(mexos.GetCloudletExternalNetwork(), app.Key.Name)
 		if err != nil {
 			return err
 		}
 		if appInst.Uri != "" && external_ip != "" {
-			fqdn := mexos.Uri2fqdn(appInst.Uri)
+			fqdn := appInst.Uri
 			if err = mexos.ActivateFQDNA(fqdn, external_ip); err != nil {
 				return err
 			}

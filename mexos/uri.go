@@ -23,7 +23,7 @@ func validateDomain(uri string) error {
 	if isDomainName(uri) {
 		return nil
 	}
-	fqdn := Uri2fqdn(uri)
+	fqdn := uri2fqdn(uri)
 	if isDomainName(fqdn) {
 		return nil
 	}

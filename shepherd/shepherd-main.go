@@ -22,11 +22,6 @@ var notifyAddrs = flag.String("notifyAddrs", "127.0.0.1:50001", "Comma separated
 var tlsCertFile = flag.String("tls", "", "server9 tls cert file.  Keyfile and CA file mex-ca.crt must be in same directory")
 var collectInterval = flag.Duration("interval", time.Second*15, "Metrics collection interval")
 
-//do i need these???
-var operatorName = flag.String("operator", "local", "Cloudlet Operator Name")
-var cloudletName = flag.String("cloudlet", "local", "Cloudlet Name")
-var clusterName = flag.String("cluster", "myclust", "Cluster Name")
-
 var promQCpuClust = "sum(rate(container_cpu_usage_seconds_total%7Bid%3D%22%2F%22%7D%5B1m%5D))%2Fsum(machine_cpu_cores)*100"
 var promQMemClust = "sum(container_memory_working_set_bytes%7Bid%3D%22%2F%22%7D)%2Fsum(machine_memory_bytes)*100"
 var promQDiskClust = "sum(container_fs_usage_bytes%7Bdevice%3D~%22%5E%2Fdev%2F%5Bsv%5Dd%5Ba-z%5D%5B1-9%5D%24%22%2Cid%3D%22%2F%22%7D)%2Fsum(container_fs_limit_bytes%7Bdevice%3D~%22%5E%2Fdev%2F%5Bsv%5Dd%5Ba-z%5D%5B1-9%5D%24%22%2Cid%3D%22%2F%22%7D)*100"
@@ -61,51 +56,6 @@ var influxQ *influxq.InfluxQ
 
 var sigChan chan os.Signal
 
-func getIPfromEnv() (string, error) {
-	re := regexp.MustCompile(".*PROMETHEUS_PORT_9090_TCP_ADDR=(.*)")
-	for _, e := range os.Environ() {
-		match := re.FindStringSubmatch(e)
-		if len(match) > 1 {
-			return match[1], nil
-		}
-	}
-	return "", errors.New("No Prometheus is running")
-}
-
-func initEnv() {
-	val := os.Getenv("MEX_OPERATOR_NAME")
-	if val != "" {
-		*operatorName = val
-	}
-	val = os.Getenv("MEX_CLOUDLET_NAME")
-	if val != "" {
-		*cloudletName = val
-	}
-	val = os.Getenv("MEX_CLUSTER_NAME")
-	if val != "" {
-		*clusterName = val
-	}
-	val = os.Getenv("MEX_INFLUXDB_ADDR")
-	if val != "" {
-		*influxdb = val
-	}
-	val = os.Getenv("MEX_INFLUXDB_USER")
-	if val != "" {
-		Env["INFLUXDB_USER"] = val
-	}
-	val = os.Getenv("MEX_INFLUXDB_PASS")
-	if val != "" {
-		Env["INFLUXDB_PASS"] = val
-	}
-	val = os.Getenv("MEX_SCRAPE_INTERVAL")
-	if val != "" {
-		tmp, err := time.ParseDuration(val)
-		if err == nil {
-			*collectInterval = tmp
-		}
-	}
-}
-
 func appInstCb(key *edgeproto.AppInstKey, old *edgeproto.AppInst) {
 	//check for prometheus
 	if key.AppKey.Name != MEXPrometheusAppName {
@@ -126,13 +76,12 @@ func appInstCb(key *edgeproto.AppInstKey, old *edgeproto.AppInst) {
 		clustIP := "localhost"
 		port := info.MappedPorts[0].PublicPort
 		promAddress := fmt.Sprintf("%s:%d", clustIP, port)
-		//should probably also check to see if it already exists before throwing it in the map
 		if !exists {
-			stats = NewPromStats(promAddress, *collectInterval, sendMetric)
+			stats = NewPromStats(promAddress, *collectInterval, sendMetric, key.ClusterInstKey)
 			promMap[mapKey] = stats
 			stats.Start()
-		} else {
-			fmt.Printf("somethings wrong\n")
+		} else { //somehow this cluster's prometheus was already registered
+			fmt.Printf("Error, Prometheus app already registered for this cluster\n")
 		}
 	} else { //if its anything other than ready just stop it
 		//try to remove it from the prommap
@@ -146,7 +95,6 @@ func appInstCb(key *edgeproto.AppInstKey, old *edgeproto.AppInst) {
 func main() {
 	flag.Parse()
 	log.SetDebugLevelStrs(*debugLevels)
-	initEnv() //leftover from metrics main.go, figure out why this was in there
 
 	fmt.Printf("InfluxDB is at: %s\n", *influxdb)
 	fmt.Printf("Metrics collection interval is %s\n", *collectInterval)

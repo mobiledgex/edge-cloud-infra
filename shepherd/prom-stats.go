@@ -41,13 +41,17 @@ type ClustPromStat struct {
 }
 
 type PromStats struct {
-	promAddr    string
-	interval    time.Duration
-	appStatsMap map[MetricAppInstKey]*PodPromStat
-	clusterStat *ClustPromStat
-	send        func(metric *edgeproto.Metric)
-	waitGrp     sync.WaitGroup
-	stop        chan struct{}
+	promAddr     string
+	interval     time.Duration
+	appStatsMap  map[MetricAppInstKey]*PodPromStat
+	clusterStat  *ClustPromStat
+	send         func(metric *edgeproto.Metric)
+	waitGrp      sync.WaitGroup
+	stop         chan struct{}
+	operatorName string
+	cloudletName string
+	clusterName  string
+	developer    string
 }
 
 type PromResp struct {
@@ -66,13 +70,17 @@ type PromLables struct {
 	PodName string `json:"pod_name,omitempty"`
 }
 
-func NewPromStats(promAddr string, interval time.Duration, send func(metric *edgeproto.Metric)) *PromStats {
+func NewPromStats(promAddr string, interval time.Duration, send func(metric *edgeproto.Metric), key edgeproto.ClusterInstKey) *PromStats {
 	p := PromStats{}
 	p.promAddr = promAddr
 	p.appStatsMap = make(map[MetricAppInstKey]*PodPromStat)
 	p.clusterStat = &ClustPromStat{}
 	p.interval = interval
 	p.send = send
+	p.operatorName = key.CloudletKey.OperatorKey.Name
+	p.cloudletName = key.CloudletKey.Name
+	p.clusterName = key.ClusterKey.Name
+	p.developer = key.Developer
 	return &p
 }
 
@@ -95,10 +103,10 @@ func getPromMetrics(addr string, query string) (*PromResp, error) {
 
 func (p *PromStats) CollectPromStats() error {
 	appKey := MetricAppInstKey{
-		operator:  *operatorName,
-		cloudlet:  *cloudletName,
-		cluster:   *clusterName,
-		developer: "",
+		operator:  p.operatorName,
+		cloudlet:  p.cloudletName,
+		cluster:   p.clusterName,
+		developer: p.developer,
 	}
 	// Get Pod CPU usage percentage
 	resp, err := getPromMetrics(p.promAddr, promQCpuPod)
@@ -312,12 +320,12 @@ func (p *PromStats) RunNotify() {
 			if p.CollectPromStats() != nil {
 				continue
 			}
-			DebugPrint("Sending metrics for (%s-%s)%s with timestamp %s\n", *operatorName, *cloudletName,
-				*clusterName, ts.String())
+			DebugPrint("Sending metrics for (%s-%s)%s with timestamp %s\n", p.operatorName, p.cloudletName,
+				p.clusterName, ts.String())
 			for key, stat := range p.appStatsMap {
 				p.send(PodStatToMetric(ts, &key, stat))
 			}
-			p.send(ClusterStatToMetric(ts, p.clusterStat))
+			p.send(ClusterStatToMetric(ts, p.clusterStat, p.operatorName, p.cloudletName, p.clusterName))
 		case <-p.stop:
 			done = true
 		}
@@ -325,13 +333,13 @@ func (p *PromStats) RunNotify() {
 	p.waitGrp.Done()
 }
 
-func ClusterStatToMetric(ts *types.Timestamp, stat *ClustPromStat) *edgeproto.Metric {
+func ClusterStatToMetric(ts *types.Timestamp, stat *ClustPromStat, operatorName string, cloudletName string, clusterName string) *edgeproto.Metric {
 	metric := edgeproto.Metric{}
 	metric.Timestamp = *ts
 	metric.Name = "crm-cluster"
-	metric.AddTag("operator", *operatorName)
-	metric.AddTag("cloudlet", *cloudletName)
-	metric.AddTag("cluster", *clusterName)
+	metric.AddTag("operator", operatorName)
+	metric.AddTag("cloudlet", cloudletName)
+	metric.AddTag("cluster", clusterName)
 	metric.AddDoubleVal("cpu", stat.cpu)
 	metric.AddDoubleVal("mem", stat.mem)
 	metric.AddDoubleVal("disk", stat.disk)

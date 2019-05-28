@@ -58,6 +58,14 @@ func InitOpenstackProps() error {
 			return fmt.Errorf("failed to InternVaultEnv %s: %v", openRcURL, err)
 		}
 	}
+	cacert_URL := os.Getenv("OS_CACERT_URL")
+	if cacert_URL != "" {
+		err := GetVaultDataToFile(cacert_URL, "/tmp/os_cacert.cert")
+		if err != nil {
+			return fmt.Errorf("failed to GetVaultDataToFile %s: %v", cacert_URL, err)
+		}
+		os.Setenv("OS_CACERT", "/tmp/os_cacert.cert")
+	}
 	OpenstackProps.OpenRcVars = make(map[string]string)
 
 	OpenstackProps.OsExternalNetworkName = os.Getenv("MEX_EXT_NETWORK")

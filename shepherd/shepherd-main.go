@@ -18,12 +18,14 @@ import (
 
 var influxdb = flag.String("influxdb", "0.0.0.0:8086", "InfluxDB address to export to")
 var debugLevels = flag.String("d", "", fmt.Sprintf("comma separated list of %v", log.DebugLevelStrings))
-var operatorName = flag.String("operator", "local", "Cloudlet Operator Name")
-var cloudletName = flag.String("cloudlet", "local", "Cloudlet Name")
-var clusterName = flag.String("cluster", "myclust", "Cluster Name")
 var notifyAddrs = flag.String("notifyAddrs", "127.0.0.1:50001", "Comma separated list of controller notify listener addresses")
 var tlsCertFile = flag.String("tls", "", "server9 tls cert file.  Keyfile and CA file mex-ca.crt must be in same directory")
 var collectInterval = flag.Duration("interval", time.Second*15, "Metrics collection interval")
+
+//do i need these???
+var operatorName = flag.String("operator", "local", "Cloudlet Operator Name")
+var cloudletName = flag.String("cloudlet", "local", "Cloudlet Name")
+var clusterName = flag.String("cluster", "myclust", "Cluster Name")
 
 var promQCpuClust = "sum(rate(container_cpu_usage_seconds_total%7Bid%3D%22%2F%22%7D%5B1m%5D))%2Fsum(machine_cpu_cores)*100"
 var promQMemClust = "sum(container_memory_working_set_bytes%7Bid%3D%22%2F%22%7D)%2Fsum(machine_memory_bytes)*100"
@@ -115,9 +117,9 @@ func appInstCb(key *edgeproto.AppInstKey, old *edgeproto.AppInst) {
 		return
 	}
 	var mapKey = key.ClusterInstKey.ClusterKey.Name
-	//maybe need to do more than just check for ready
 	stats, exists := promMap[mapKey]
-	if info.State == edgeproto.TrackedState_Ready {
+	//maybe need to do more than just check for ready
+	if info.State == edgeproto.TrackedState_READY {
 		fmt.Printf("New Prometheus instance detected in cluster: %s\n", mapKey)
 		//get address of prometheus.
 		//for now while testing in dind this is ok
@@ -144,14 +146,7 @@ func appInstCb(key *edgeproto.AppInstKey, old *edgeproto.AppInst) {
 func main() {
 	flag.Parse()
 	log.SetDebugLevelStrs(*debugLevels)
-	// fmt.Printf("Starting metrics exporter with Prometheus addr %s\n", *promAddress)
-	// TODO: change this clust ip
-	// clustIP, err := getIPfromEnv()
-	// if err == nil {
-	// 	*promAddress = clustIP + ":9090"
-	// }
-	// fmt.Printf("Found Prometheus running on: %s\n", *promAddress)
-	initEnv()
+	initEnv() //leftover from metrics main.go, figure out why this was in there
 
 	fmt.Printf("InfluxDB is at: %s\n", *influxdb)
 	fmt.Printf("Metrics collection interval is %s\n", *collectInterval)

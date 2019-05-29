@@ -3,12 +3,14 @@
   apt_key:
     keyserver: keyserver.ubuntu.com
     id: 9DA31620334BD75D9DCB49F368818C72E52529D4
+  when: skip_console_setup is not defined or not skip_console_setup
   become: yes
 
 - name: Add MongoDB PPA
   apt_repository:
     repo: deb https://repo.mongodb.org/apt/ubuntu bionic/mongodb-org/4.0 multiverse
     state: present
+  when: skip_console_setup is not defined or not skip_console_setup
   become: yes
 
 - name: Install MongoDB
@@ -16,18 +18,21 @@
     name: mongodb-org=4.0.6
     state: present
     update_cache: yes
+  when: skip_console_setup is not defined or not skip_console_setup
   become: yes
 
 - name: Install Node.js
   package:
     name: nodejs
     state: present
+  when: skip_console_setup is not defined or not skip_console_setup
   become: yes
 
 - name: Install NPM
   package:
     name: npm
     state: present
+  when: skip_console_setup is not defined or not skip_console_setup
   become: yes
 
 - name: Check Out edge-cloud-ui
@@ -53,6 +58,7 @@
     dest: /etc/systemd/system/mex-mongodb.service
     mode: 0644
   become: yes
+  when: skip_console_setup is not defined or not skip_console_setup
   notify:
     - Restart Custom MongoDB
     - Restart Console Server

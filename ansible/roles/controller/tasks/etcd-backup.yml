@@ -1,8 +1,10 @@
 - name: Clean out any old backups
   command: "kubectl --kubeconfig {{ kubeconfig_file.path }} exec {{ mex_etcd_pod }} -- rm -f {{ etcd_backup_file }}"
+  changed_when: false
 
 - name: Backup etcd database
   command: "kubectl --kubeconfig {{ kubeconfig_file.path }} exec {{ mex_etcd_pod }} -- env ETCDCTL_API=3 etcdctl snapshot save {{ etcd_backup_file }}"
+  changed_when: false
 
 - name: Create temporary file for etcd backup download
   tempfile:
@@ -14,6 +16,7 @@
 
 - name: Download etcd database
   command: "kubectl --kubeconfig {{ kubeconfig_file.path }} cp {{ mex_etcd_pod }}:{{ etcd_backup_file }} {{ etcd_backup_local_file.path }}"
+  changed_when: false
 
 - stat:
     path: "{{ etcd_backup_local_file.path }}"
@@ -26,7 +29,7 @@
 
 - name: Archive etcd backup in Artifactory
   uri:
-    url: "{{ artifactory_address }}/build-artifacts/etcd-backup/{{ deploy_environ }}/etcd-backup-{{ ansible_date_time.iso8601 }}.db"
+    url: "{{ artifactory_address }}/build-artifacts/etcd-backup/{{ deploy_environ }}/{{ k8s_cluster_name }}/etcd-backup-{{ ansible_date_time.iso8601 }}.db"
     method: PUT
     headers:
       X-JFrog-Art-Api: "{{ artifactory_publish_api_key }}"

@@ -1,9 +1,6 @@
-- name: Deploy the MC
-  docker_container:
-    name: "{{ mc_vm_hostname.split('.')[0]|lower }}"
-    image: "{{ edge_cloud_image }}:{{ edge_cloud_version }}"
-    restart_policy: unless-stopped
-    command:
+- name: Compute mc command line
+  set_fact:
+    mc_args:
       - mc
       - "-addr"
       - "0.0.0.0:{{ mc_api_port }}"
@@ -23,8 +20,22 @@
       - "/root/tls/mex-server.key"
       - "-clientCert"
       - "/root/tls/mex-server.crt"
-      - "-d"
-      - "api"
+
+- name: Add MC tag to command line
+  set_fact:
+    mc_args: "{{ mc_args + [ '--tag', mc_tag ] }}"
+  when: mc_tag is defined and mc_tag
+
+- name: Add MC debug args to command line
+  set_fact:
+    mc_args: "{{ mc_args + [ '-d', 'api' ] }}"
+
+- name: Deploy the MC
+  docker_container:
+    name: "{{ mc_vm_hostname.split('.')[0]|lower }}"
+    image: "{{ edge_cloud_image }}:{{ edge_cloud_version }}"
+    restart_policy: unless-stopped
+    command: "{{ mc_args }}"
     ports:
       - "127.0.0.1:{{ mc_api_internal_port }}:{{ mc_api_port }}"
       - "{{ mc_ldap_port }}:{{ mc_ldap_port }}"

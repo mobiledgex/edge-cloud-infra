@@ -43,7 +43,7 @@
 - name: Update Controller DNS
   cloudflare_dns:
     zone: "{{ cloudflare_zone }}"
-    record: "{{ controller_dns }}"
+    record: "{{ k8s_cluster_name }}.ctrl"
     value: "{{ controller_ip }}"
     type: A
     state: present

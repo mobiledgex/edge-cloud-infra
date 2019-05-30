@@ -1,5 +1,7 @@
 crm_instances:
   - openstack_instance: buckhorn
     operator_key: GDDT
+    controller: mexplat-stage
   - openstack_instance: hawkins
     operator_key: GDDT
+    controller: mexplat-stage

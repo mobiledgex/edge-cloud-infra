@@ -14,4 +14,4 @@ artifactory_version=6.10.0
 artifactory.mobiledgex.net	ubuntu_release=xenial
 
 [console]
-console.mobiledgex.net
+console.mobiledgex.net		skip_console_setup=true mc_vm_hostname=mc.mobiledgex.net

@@ -1,6 +1,6 @@
 - name: Deploy the CRM
   docker_container:
-    name: "crm-{{ deploy_target }}-{{ item.openstack_instance | mandatory }}"
+    name: "crm-{{ item.controller }}-{{ item.openstack_instance | mandatory }}"
     image: "{{ edge_cloud_image }}:{{ edge_cloud_version }}"
     restart_policy: unless-stopped
     command:
@@ -10,7 +10,7 @@
       - "--cloudletKey"
       - "{\\\"operator_key\\\":{\\\"name\\\":\\\"{{ item.operator_key | mandatory }}\\\"},\\\"name\\\":\\\"{{ deploy_target }}-{{ item.openstack_instance | mandatory }}-cloudlet\\\"}"
       - "--notifyAddrs"
-      - "{{ controller_dns }}.{{ cloudflare_zone }}:37001"
+      - "{{ item.controller }}.ctrl.{{ cloudflare_zone }}:37001"
       - "--tls"
       - "/root/tls/mex-server.crt"
       - "-d"

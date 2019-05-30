@@ -27,7 +27,7 @@
 - name: Update DME DNS
   cloudflare_dns:
     zone: "{{ cloudflare_zone }}"
-    record: "{{ dme_dns }}"
+    record: "{{ k8s_cluster_name }}.dme"
     value: "{{ dme_ip }}"
     type: A
     state: present

@@ -1,5 +1,7 @@
 crm_instances:
   - openstack_instance: bonn
     operator_key: TDG
+    controller: mexplat-stage
   - openstack_instance: hamburg
     operator_key: TDG
+    controller: mexplat-stage

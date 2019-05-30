@@ -73,10 +73,7 @@
       register: terraform
 
     - set_fact:
-        k8s_cluster_name: "{{ terraform.outputs.k8s_cluster_name.value }}"
-
-    - debug:
-        msg: "Deploying edge-cloud version '{{ edge_cloud_version }}' to cluster '{{ k8s_cluster_name }}'"
+        k8s_clusters: "{{ terraform.outputs.k8s_clusters.value }}"
 
     - name: Notify upgrade start on slack
       slack:
@@ -88,27 +85,12 @@
         - not ansible_check_mode
       tags: notify
 
-    - name: Create temporary kubeconfig file
-      tempfile:
-        state: file
-        suffix: .kubeconfig
-      register: kubeconfig_file
-      changed_when: false
-      check_mode: no
-
-    - name: Store kubeconfig data in file
-      copy:
-        content: "{{ terraform.outputs.kube_config.value }}"
-        dest: "{{ kubeconfig_file.path }}"
-      changed_when: false
-      check_mode: no
-
-    - include_role: name="k8s"
-    - include_role: name="etcd"
-    - include_role: name="monitor"
-    - include_role: name="controller"
-    - include_role: name="dme"
-    - include_role: name="cluster-svc"
+    - include_role:
+        name: mexplat_k8s
+      vars:
+        k8s_cluster_name: "{{ item.name }}"
+        kube_config: "{{ item.kube_config }}"
+      with_items: "{{ k8s_clusters }}"
 
 - hosts: gitlab
   roles:

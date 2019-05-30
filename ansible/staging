@@ -5,11 +5,9 @@ monitor_version=latest
 deploy_target="mexplat-{{ deploy_environ }}"
 operator_key=TDG
 openstack_instance=bonn
-controller_dns="{{ deploy_target }}.ctrl"
-dme_dns="{{ deploy_target }}.dme"
 dme_carrier=TDG
-locver_url="http://{{ deploy_target }}.locsim.mobiledgex.net:8888/verifyLocation"
-toksrv_url="http://{{ deploy_target }}.tok.mobiledgex.net:9999/its?followURL=https://dme.mobiledgex.net/verifyLoc"
+locver_url="http://mexdemo.locsim.mobiledgex.net:8888/verifyLocation"
+toksrv_url="http://mexdemo.tok.mobiledgex.net:9999/its?followURL=https://dme.mobiledgex.net/verifyLoc"
 mc_postgres_db=mcdb
 mc_postgres_username=mcuser
 mc_postgres_password=topsecret

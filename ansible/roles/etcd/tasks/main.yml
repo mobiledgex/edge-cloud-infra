@@ -19,3 +19,11 @@
     namespace: default
     state: present
     definition: "{{ lookup('template', 'mexplat/mex-etcd-cluster.yml') }}"
+
+- name: Wait for Etcd Pods
+  command: "kubectl --kubeconfig {{ kubeconfig_file.path }} get pods --selector=etcd_cluster=mex-etcd-cluster -o 'jsonpath={.items[*].metadata.name}' --field-selector='status.phase==Running'"
+  register: result
+  retries: 60
+  delay: 5
+  until: result.stdout.split(" ")|length > 2
+  changed_when: false

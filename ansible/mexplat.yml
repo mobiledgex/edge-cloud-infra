@@ -38,7 +38,7 @@
     - pause:
         prompt: "Installing the latest console release: {{ console_version }}"
         seconds: 30
-      when: console_release.json is defined
+      when: console_release is defined
 
 - hosts: platform
   tasks:
@@ -120,12 +120,15 @@
     - mc
 
 - hosts: console
-  roles:
-    - role: web
+  tasks:
+    - import_role:
+        name: web
       vars:
         nginx_config_template: "templates/mexplat/console-nginx-config.j2"
         cert_domains: [ "{{ console_vm_hostname }}" ]
-    - role: console
+      when: skip_console_setup is not defined or not skip_console_setup
+    - import_role:
+        name: console
 
 - hosts: platform
   tasks:

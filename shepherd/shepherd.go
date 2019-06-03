@@ -1,15 +1,18 @@
 package main
 
 import (
-	"errors"
+	//"errors"
 	"flag"
 	"fmt"
 	"os"
 	"os/signal"
-	"regexp"
 	"strings"
 	"time"
 
+	//"github.com/mobiledgex/edge-cloud-infra/mexos"
+	"github.com/mobiledgex/edge-cloud-infra/shepherd/platform"
+	"github.com/mobiledgex/edge-cloud-infra/shepherd/platform/dind"
+	"github.com/mobiledgex/edge-cloud-infra/shepherd/platform/openstack"
 	influxq "github.com/mobiledgex/edge-cloud/controller/influxq_client"
 	"github.com/mobiledgex/edge-cloud/edgeproto"
 	"github.com/mobiledgex/edge-cloud/log"
@@ -21,6 +24,7 @@ var debugLevels = flag.String("d", "", fmt.Sprintf("comma separated list of %v",
 var notifyAddrs = flag.String("notifyAddrs", "127.0.0.1:50001", "Comma separated list of controller notify listener addresses")
 var tlsCertFile = flag.String("tls", "", "server9 tls cert file.  Keyfile and CA file mex-ca.crt must be in same directory")
 var collectInterval = flag.Duration("interval", time.Second*15, "Metrics collection interval")
+var platformName = flag.String("platform", "", "Platform type of Cloudlet")
 
 var promQCpuClust = "sum(rate(container_cpu_usage_seconds_total%7Bid%3D%22%2F%22%7D%5B1m%5D))%2Fsum(machine_cpu_cores)*100"
 var promQMemClust = "sum(container_memory_working_set_bytes%7Bid%3D%22%2F%22%7D)%2Fsum(machine_memory_bytes)*100"
@@ -38,18 +42,19 @@ var promQMemPod = "sum(container_memory_working_set_bytes%7Bimage!%3D%22%22%7D)b
 var promQNetRecvRate = "sum(irate(container_network_receive_bytes_total%7Bimage!%3D%22%22%7D%5B1m%5D))by(pod_name)"
 var promQNetSendRate = "sum(irate(container_network_transmit_bytes_total%7Bimage!%3D%22%22%7D%5B1m%5D))by(pod_name)"
 
-//map keeping track of all the currently running prometheuses
-//TODO: figure out exactly what the types need to be
-var promMap map[string]*PromStats
-
-var MEXPrometheusAppName = "MEXPrometheusAppName"
-
 var Env = map[string]string{
 	"INFLUXDB_USER": "root",
 	"INFLUXDB_PASS": "root",
 }
 
+//map keeping track of all the currently running prometheuses
+var promMap map[string]*PromStats
+var MEXPrometheusAppName = "MEXPrometheusAppName"
 var AppInstCache edgeproto.AppInstCache
+
+//is there a better way to get clusterinsts than having this cache
+var ClusterInstCache edgeproto.ClusterInstCache
+var pf platform.Platform
 
 var InfluxDBName = "clusterstats"
 var influxQ *influxq.InfluxQ
@@ -73,9 +78,16 @@ func appInstCb(key *edgeproto.AppInstKey, old *edgeproto.AppInst) {
 		fmt.Printf("New Prometheus instance detected in cluster: %s\n", mapKey)
 		//get address of prometheus.
 		//for now while testing in dind this is ok
-		clustIP := "localhost"
+		clusterInst := edgeproto.ClusterInst{}
+		found := ClusterInstCache.Get(&key.ClusterInstKey, &clusterInst)
+		if !found {
+			fmt.Printf("Unable to find clusterInst for prometheus\n")
+			return
+		}
+		clustIP, _ := pf.GetClusterIP(&clusterInst)
 		port := info.MappedPorts[0].PublicPort
 		promAddress := fmt.Sprintf("%s:%d", clustIP, port)
+		fmt.Printf("prometheus found at: %s\n", promAddress)
 		if !exists {
 			stats = NewPromStats(promAddress, *collectInterval, sendMetric, key.ClusterInstKey)
 			promMap[mapKey] = stats
@@ -92,14 +104,34 @@ func appInstCb(key *edgeproto.AppInstKey, old *edgeproto.AppInst) {
 	}
 }
 
+func getPlatform() (platform.Platform, error) {
+	var plat platform.Platform
+	var err error
+	switch *platformName {
+	case "dind":
+		plat = &dind.Platform{}
+	case "openstack":
+		plat = &openstack.Platform{}
+	default:
+		err = fmt.Errorf("No recognizable platform provided. Supported platforms are dind, openstack, and azure\n")
+	}
+	return plat, err
+}
+
+//openstack appinst go line 44
 func main() {
 	flag.Parse()
 	log.SetDebugLevelStrs(*debugLevels)
 
 	fmt.Printf("InfluxDB is at: %s\n", *influxdb)
 	fmt.Printf("Metrics collection interval is %s\n", *collectInterval)
+	var err error
+	pf, err = getPlatform()
+	if err != nil {
+		log.FatalLog("Failed to get platform", "platformName", platformName, "err", err)
+	}
 	influxQ = influxq.NewInfluxQ(InfluxDBName)
-	err := influxQ.Start(*influxdb)
+	err = influxQ.Start(*influxdb)
 	if err != nil {
 		log.FatalLog("Failed to start influx queue",
 			"address", *influxdb, "err", err)
@@ -111,10 +143,12 @@ func main() {
 	//register thresher to receive appinst notifications from crm
 	edgeproto.InitAppInstCache(&AppInstCache)
 	AppInstCache.SetNotifyCb(appInstCb)
+	edgeproto.InitClusterInstCache(&ClusterInstCache)
 	//then init notify, (look at crm/main line 108)
 	addrs := strings.Split(*notifyAddrs, ",")
 	notifyClient := notify.NewClient(addrs, *tlsCertFile)
 	notifyClient.RegisterRecvAppInstCache(&AppInstCache)
+	notifyClient.RegisterRecvClusterInstCache(&ClusterInstCache)
 	notifyClient.Start()
 	defer notifyClient.Stop()
 

@@ -156,6 +156,15 @@ func GetUrlInfo(fileUrlPath string) (time.Time, string, error) {
 		return time.Time{}, "", fmt.Errorf("Error parsing last modified time of URL %s, %v", fileUrlPath, err)
 	}
 	md5Sum := resp.Header.Get("X-Checksum-Md5")
+	if md5Sum == "" {
+		urlInfo := strings.Split(fileUrlPath, "#")
+		if len(urlInfo) == 2 {
+			cSum := strings.Split(urlInfo[1], ":")
+			if len(cSum) == 2 {
+				md5Sum = cSum[1]
+			}
+		}
+	}
 	return lastMod, md5Sum, err
 }
 

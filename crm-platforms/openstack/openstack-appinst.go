@@ -23,6 +23,8 @@ func (s *Platform) CreateAppInst(clusterInst *edgeproto.ClusterInst, app *edgepr
 		fallthrough
 	case cloudcommon.AppDeploymentTypeHelm:
 		rootLBName := s.rootLBName
+		appCreateChan := make(chan string)
+
 		if clusterInst.IpAccess == edgeproto.IpAccess_IP_ACCESS_DEDICATED {
 			rootLBName = cloudcommon.GetDedicatedLBFQDN(s.cloudletKey, &clusterInst.Key.ClusterKey)
 			log.DebugLog(log.DebugLevelMexos, "using dedicated RootLB to create app", "rootLBName", rootLBName)
@@ -35,30 +37,45 @@ func (s *Platform) CreateAppInst(clusterInst *edgeproto.ClusterInst, app *edgepr
 		if err != nil {
 			return err
 		}
-		if deployment == cloudcommon.AppDeploymentTypeKubernetes {
-			err = k8smgmt.CreateAppInst(client, names, app, appInst)
-		} else {
-			err = k8smgmt.CreateHelmAppInst(client, names, clusterInst, app, appInst)
-		}
+		// app creation may take a little while, especially now that we will to wait for it
+		// to come inservice.  So this will be done in parallel with DNS and secgrp rules
+		go func() {
+			var createErr error
+			if deployment == cloudcommon.AppDeploymentTypeKubernetes {
+				createErr = k8smgmt.CreateAppInst(client, names, app, appInst)
+			} else {
+				createErr = k8smgmt.CreateHelmAppInst(client, names, clusterInst, app, appInst)
+			}
+			if createErr == nil {
+				appCreateChan <- ""
+			} else {
+				appCreateChan <- createErr.Error()
+			}
+		}()
+
 		// set up DNS
+		var rootLBIPaddr string
 		masterIP, err := mexos.GetMasterIP(clusterInst)
-		if err != nil {
-			return err
+		if err == nil {
+
+			rootLBIPaddr, err = mexos.GetServerIPAddr(mexos.GetCloudletExternalNetwork(), rootLBName)
+			if err == nil {
+				getDnsAction := func(svc v1.Service) (*mexos.DnsSvcAction, error) {
+					action := mexos.DnsSvcAction{}
+					action.PatchKube = true
+					action.PatchIP = masterIP
+					action.ExternalIP = rootLBIPaddr
+					return &action, nil
+				}
+				err = mexos.AddProxySecurityRulesAndPatchDNS(client, names, appInst, getDnsAction, rootLBName, masterIP, true, nginx.WithDockerNetwork("host"))
+			}
 		}
-		rootLBIPaddr, err := mexos.GetServerIPAddr(mexos.GetCloudletExternalNetwork(), rootLBName)
-		if err != nil {
-			return err
+		appCreateErr := <-appCreateChan
+		if appCreateErr != "" {
+			return fmt.Errorf("CreateKubernetesAppInst app create error: %v", appCreateErr)
 		}
-		getDnsAction := func(svc v1.Service) (*mexos.DnsSvcAction, error) {
-			action := mexos.DnsSvcAction{}
-			action.PatchKube = true
-			action.PatchIP = masterIP
-			action.ExternalIP = rootLBIPaddr
-			return &action, nil
-		}
-		err = mexos.AddProxySecurityRulesAndPatchDNS(client, names, appInst, getDnsAction, rootLBName, masterIP, true, nginx.WithDockerNetwork("host"))
 		if err != nil {
-			return fmt.Errorf("CreateKubernetesAppInst error: %v", err)
+			return fmt.Errorf("CreateKubernetesAppInst other error: %v", err)
 		}
 	case cloudcommon.AppDeploymentTypeVM:
 		imageName, err := cloudcommon.GetFileName(app.ImagePath)

@@ -13,6 +13,8 @@ import (
 	"github.com/mobiledgex/edge-cloud/log"
 )
 
+const MINIMUM_DISK_SIZE uint64 = 20
+
 type Platform struct {
 	rootLBName  string
 	rootLB      *mexos.MEXRootLB

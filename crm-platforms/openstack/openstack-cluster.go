@@ -22,9 +22,9 @@ func (s *Platform) CreateClusterInst(clusterInst *edgeproto.ClusterInst) error {
 	}
 	//find the flavor and check the disk size
 	for _, flavor := range s.flavorList {
-		if flavor.Name == clusterInst.NodeFlavor && flavor.Disk < 20 {
+		if flavor.Name == clusterInst.NodeFlavor && flavor.Disk < MINIMUM_DISK_SIZE {
 
-			return fmt.Errorf("Insufficient disk size, please specify a flavor with at least 20gb")
+			return fmt.Errorf("Insufficient disk size, please specify a flavor with at least %dgb", MINIMUM_DISK_SIZE)
 		}
 	}
 	return mexos.CreateCluster(lbName, clusterInst)

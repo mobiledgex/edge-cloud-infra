@@ -23,7 +23,7 @@ func (s *Platform) CreateAppInst(clusterInst *edgeproto.ClusterInst, app *edgepr
 		fallthrough
 	case cloudcommon.AppDeploymentTypeHelm:
 		rootLBName := s.rootLBName
-		appCreateChan := make(chan string)
+		appWaitChan := make(chan string)
 
 		if clusterInst.IpAccess == edgeproto.IpAccess_IP_ACCESS_DEDICATED {
 			rootLBName = cloudcommon.GetDedicatedLBFQDN(s.cloudletKey, &clusterInst.Key.ClusterKey)
@@ -37,19 +37,24 @@ func (s *Platform) CreateAppInst(clusterInst *edgeproto.ClusterInst, app *edgepr
 		if err != nil {
 			return err
 		}
-		// app creation may take a little while, especially now that we will to wait for it
-		// to come inservice.  So this will be done in parallel with DNS and secgrp rules
+
+		if deployment == cloudcommon.AppDeploymentTypeKubernetes {
+			err = k8smgmt.CreateAppInst(client, names, app, appInst)
+		} else {
+			err = k8smgmt.CreateHelmAppInst(client, names, clusterInst, app, appInst)
+		}
+
+		// wait for the appinst in parallel with other tasks
 		go func() {
-			var createErr error
 			if deployment == cloudcommon.AppDeploymentTypeKubernetes {
-				createErr = k8smgmt.CreateAppInst(client, names, app, appInst)
-			} else {
-				createErr = k8smgmt.CreateHelmAppInst(client, names, clusterInst, app, appInst)
-			}
-			if createErr == nil {
-				appCreateChan <- ""
-			} else {
-				appCreateChan <- createErr.Error()
+				waitErr := k8smgmt.WaitForAppInst(client, names, app)
+				if waitErr == nil {
+					appWaitChan <- ""
+				} else {
+					appWaitChan <- waitErr.Error()
+				}
+			} else { // no waiting for the helm apps currently, to be revisited
+				appWaitChan <- ""
 			}
 		}()
 
@@ -57,7 +62,6 @@ func (s *Platform) CreateAppInst(clusterInst *edgeproto.ClusterInst, app *edgepr
 		var rootLBIPaddr string
 		masterIP, err := mexos.GetMasterIP(clusterInst)
 		if err == nil {
-
 			rootLBIPaddr, err = mexos.GetServerIPAddr(mexos.GetCloudletExternalNetwork(), rootLBName)
 			if err == nil {
 				getDnsAction := func(svc v1.Service) (*mexos.DnsSvcAction, error) {
@@ -70,9 +74,9 @@ func (s *Platform) CreateAppInst(clusterInst *edgeproto.ClusterInst, app *edgepr
 				err = mexos.AddProxySecurityRulesAndPatchDNS(client, names, appInst, getDnsAction, rootLBName, masterIP, true, nginx.WithDockerNetwork("host"))
 			}
 		}
-		appCreateErr := <-appCreateChan
-		if appCreateErr != "" {
-			return fmt.Errorf("CreateKubernetesAppInst app create error: %v", appCreateErr)
+		appWaitErr := <-appWaitChan
+		if appWaitErr != "" {
+			return fmt.Errorf("CreateKubernetesAppInst app wait error: %v", appWaitErr)
 		}
 		if err != nil {
 			return fmt.Errorf("CreateKubernetesAppInst other error: %v", err)

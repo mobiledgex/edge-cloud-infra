@@ -19,5 +19,5 @@ func (s *Platform) Init(key *edgeproto.CloudletKey) error {
 }
 
 func (s *Platform) GetClusterIP(clusterInst *edgeproto.ClusterInst) (string, error) {
-	return mexos.GetMasterIP(clusterInst, "")
+	return mexos.GetMasterIP(clusterInst)
 }

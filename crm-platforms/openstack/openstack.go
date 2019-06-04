@@ -17,7 +17,7 @@ type Platform struct {
 	rootLBName  string
 	rootLB      *mexos.MEXRootLB
 	cloudletKey *edgeproto.CloudletKey
-	flavorList []*FlavorInfo
+	flavorList  []*edgeproto.FlavorInfo
 }
 
 func (s *Platform) GetType() string {
@@ -44,8 +44,8 @@ func (s *Platform) Init(key *edgeproto.CloudletKey, physicalName, vaultAddr stri
 	if mexos.CloudletInfraCommon.NetworkScheme == "" {
 		mexos.CloudletInfraCommon.NetworkScheme = "priv-subnet,mex-k8s-net-1,10.101.X.0/24"
 	}
-
-	s.flavorList, err := mexos.GetFlavorInfo()
+	var err error
+	s.flavorList, err = mexos.GetFlavorInfo()
 	if err != nil {
 		return err
 	}

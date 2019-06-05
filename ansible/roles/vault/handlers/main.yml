@@ -1,0 +1,20 @@
+---
+- name: Delete key tempfile
+  file:
+    path: "{{ key_tempfile.path }}"
+    state: absent
+
+- name: Restart vault
+  systemd:
+    name: vault
+    daemon_reload: yes
+    enabled: yes
+    state: restarted
+  become: yes
+
+- name: Vault initialization prompt
+  debug:
+    msg: |
+      Initialize vault using the command:
+      VAULT_ADDR=https://{{ vault_vm_hostname }}:8200 vault operator init -key-shares=5 -key-threshold=3 -format json
+

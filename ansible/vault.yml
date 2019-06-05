@@ -1,0 +1,25 @@
+- hosts: vault
+  tasks:
+
+    - import_role:
+        name: ntp
+
+    - import_role:
+        name: web
+        tasks_from: certs
+      vars:
+        cert_domains: [ "{{ vault_vm_hostname }}" ]
+
+    - name: Set up vault firewall rules
+      import_role:
+        name: gcp_firewall
+        tasks_from: vault
+
+    - name: Set up vault
+      import_role:
+        name: vault
+      vars:
+        storage_bucket_name: "mex-vault-{{ deploy_environ }}"
+        project: "{{ gcp_project }}"
+        storage_service_account_key: "/etc/gcloud/{{ storage_bucket_name }}.json"
+      tags: test

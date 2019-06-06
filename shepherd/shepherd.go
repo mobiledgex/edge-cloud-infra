@@ -21,7 +21,7 @@ import (
 
 var influxdb = flag.String("influxdb", "0.0.0.0:8086", "InfluxDB address to export to")
 var debugLevels = flag.String("d", "", fmt.Sprintf("comma separated list of %v", log.DebugLevelStrings))
-var notifyAddrs = flag.String("notifyAddrs", "127.0.0.1:50001", "Comma separated list of controller notify listener addresses")
+var notifyAddrs = flag.String("notifyAddrs", "127.0.0.1:51001", "CRM notify listener addresses")
 var tlsCertFile = flag.String("tls", "", "server9 tls cert file.  Keyfile and CA file mex-ca.crt must be in same directory")
 var collectInterval = flag.Duration("interval", time.Second*15, "Metrics collection interval")
 var platformName = flag.String("platform", "", "Platform type of Cloudlet")
@@ -62,6 +62,7 @@ var influxQ *influxq.InfluxQ
 var sigChan chan os.Signal
 
 func appInstCb(key *edgeproto.AppInstKey, old *edgeproto.AppInst) {
+	fmt.Printf("app update called\n")
 	//check for prometheus
 	if key.AppKey.Name != MEXPrometheusAppName {
 		return

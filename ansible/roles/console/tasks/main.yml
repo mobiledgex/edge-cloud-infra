@@ -1,101 +1,23 @@
 ---
-- name: Add MongoDB PPA Key
-  apt_key:
-    keyserver: keyserver.ubuntu.com
-    id: 9DA31620334BD75D9DCB49F368818C72E52529D4
-  when: skip_console_setup is not defined or not skip_console_setup
-  become: yes
-
-- name: Add MongoDB PPA
-  apt_repository:
-    repo: deb https://repo.mongodb.org/apt/ubuntu bionic/mongodb-org/4.0 multiverse
-    state: present
-  when: skip_console_setup is not defined or not skip_console_setup
-  become: yes
-
-- name: Install MongoDB
-  package:
-    name: mongodb-org=4.0.6
-    state: present
-    update_cache: yes
-  when: skip_console_setup is not defined or not skip_console_setup
-  become: yes
-
-- name: Install Node.js
-  package:
-    name: nodejs
-    state: present
-  when: skip_console_setup is not defined or not skip_console_setup
-  become: yes
-
-- name: Install NPM
-  package:
-    name: npm
-    state: present
-  when: skip_console_setup is not defined or not skip_console_setup
-  become: yes
-
-- name: Check Out edge-cloud-ui
-  when: not skip_checkout
-  git:
-    repo: "https://{{ github_user | urlencode }}:{{ github_token | urlencode }}@github.com/mobiledgex/edge-cloud-ui.git"
-    dest: "{{install_dir}}"
-    update: yes
-    version: "{{ console_version }}"
-  register: git_checkout
-  notify:
-    - Restart Console Server
-    - Notify Slack
-
-- name: Create MongoDB Data Directory
-  file:
-    path: "{{mongodb_path}}"
-    state: directory
-
-- name: Install Mex MongoDB Service
-  template:
-    src: mexplat/mex-mongodb.service.js2
-    dest: /etc/systemd/system/mex-mongodb.service
-    mode: 0644
-  become: yes
-  when: skip_console_setup is not defined or not skip_console_setup
-  notify:
-    - Restart Custom MongoDB
-    - Restart Console Server
-
-- name: Install NPM Server dependencies
-  npm:
-    path: "{{install_dir}}/server"
-
-- name: Install NPM UI dependencies
-  npm:
-    path: "{{install_dir}}"
-
-- name: Install Console Server Systemd Service
-  template:
-    src: mexplat/mex-console-server.service.js2
-    dest: /etc/systemd/system/mex-console-server.service
-    mode: 0644
-  notify:
-    - Restart Console Server
-  become: yes
-
-- name: Install Console UI Systemd Service
-  template:
-    src: mexplat/mex-console-ui.service.js2
-    dest: /etc/systemd/system/mex-console-ui.service
-    mode: 0644
-  notify:
-    - Restart Console UI
-  become: yes
-
-- name: Ensure Services are Up
+- name: Disable any running native services
   systemd:
-    state: started
-    enabled: yes
+    state: stopped
+    enabled: no
     name: "{{ item }}"
-  become: yes
   with_items:
     - mex-mongodb
     - mex-console-server
     - mex-console-ui
+  ignore_errors: yes
+  become: yes
+
+- name: Deploy the console
+  docker_container:
+    name: "console-{{ deploy_environ }}"
+    image: "{{ console_image }}:{{ console_version }}"
+    restart_policy: unless-stopped
+    ports:
+      - "127.0.0.1:3000:3000"
+      - "127.0.0.1:13030:3030"
+    env:
+      MC_URL: "https://{{mc_vm_hostname}}:{{mc_api_port}}"

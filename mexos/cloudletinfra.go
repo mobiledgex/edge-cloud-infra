@@ -21,7 +21,7 @@ var OpenstackProps edgeproto.OpenStackProperties
 var MEXInfraVersion = "v2.0.2" //Stratus
 var defaultOSImageName = "mobiledgex-" + MEXInfraVersion
 
-func getVaultPath(filePath, vaultAddr string) string {
+func getVaultCloudletPath(filePath, vaultAddr string) string {
 	return fmt.Sprintf(
 		"https://%s/v1/secret/data/cloudlet/openstack/%s",
 		vaultAddr, filePath,
@@ -29,7 +29,10 @@ func getVaultPath(filePath, vaultAddr string) string {
 }
 
 func InitInfraCommon(vaultAddr string) error {
-	mexEnvURL := getVaultPath("mexenv.json", vaultAddr)
+	if vaultAddr == "" {
+		return fmt.Errorf("vaultAddr is not specified")
+	}
+	mexEnvURL := getVaultCloudletPath("mexenv.json", vaultAddr)
 	err := InternVaultEnv(mexEnvURL)
 	if err != nil {
 		return fmt.Errorf("failed to InternVaultEnv %s: %v", mexEnvURL, err)
@@ -54,19 +57,23 @@ func InitInfraCommon(vaultAddr string) error {
 	return nil
 }
 
-func InitOpenstackProps(physicalName, vaultAddr string) error {
-	openRcURL := getVaultPath(physicalName+"/openrc.json", vaultAddr)
+func InitOpenstackProps(operatorName, physicalName, vaultAddr string) error {
+	openRcURL := getVaultCloudletPath(physicalName+"/openrc.json", vaultAddr)
 	err := InternVaultEnv(openRcURL)
 	if err != nil {
 		return fmt.Errorf("failed to InternVaultEnv %s: %v", openRcURL, err)
 	}
-	caCertURL := getVaultPath(physicalName+"/os_cacert.json", vaultAddr)
-	if caCertURL != "" {
-		err := GetVaultDataToFile(caCertURL, "/tmp/os_cacert.cert")
-		if err != nil {
-			return fmt.Errorf("failed to GetVaultDataToFile %s: %v", caCertURL, err)
+	authURL := os.Getenv("OS_AUTH_URL")
+	if strings.HasPrefix(authURL, "https") {
+		caCertURL := getVaultCloudletPath(physicalName+"/os_cacert.json", vaultAddr)
+		if caCertURL != "" {
+			certFile := fmt.Sprintf("/tmp/%s.%s.cert", operatorName, physicalName)
+			err := GetVaultDataToFile(caCertURL, certFile)
+			if err != nil {
+				return fmt.Errorf("failed to GetVaultDataToFile %s: %v", caCertURL, err)
+			}
+			os.Setenv("OS_CACERT", certFile)
 		}
-		os.Setenv("OS_CACERT", "/tmp/os_cacert.cert")
 	}
 
 	OpenstackProps.OpenRcVars = make(map[string]string)

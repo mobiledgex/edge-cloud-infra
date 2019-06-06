@@ -36,7 +36,7 @@ func (s *Platform) Init(key *edgeproto.CloudletKey, physicalName, vaultAddr stri
 	if err := mexos.InitInfraCommon(vaultAddr); err != nil {
 		return err
 	}
-	if err := mexos.InitOpenstackProps(physicalName, vaultAddr); err != nil {
+	if err := mexos.InitOpenstackProps(key.OperatorKey.Name, physicalName, vaultAddr); err != nil {
 		return err
 	}
 	mexos.CloudletInfraCommon.NetworkScheme = os.Getenv("MEX_NETWORK_SCHEME")

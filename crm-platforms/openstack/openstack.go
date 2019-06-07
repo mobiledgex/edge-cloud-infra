@@ -13,10 +13,13 @@ import (
 	"github.com/mobiledgex/edge-cloud/log"
 )
 
+const MINIMUM_DISK_SIZE uint64 = 20
+
 type Platform struct {
 	rootLBName   string
 	rootLB       *mexos.MEXRootLB
 	cloudletKey  *edgeproto.CloudletKey
+	flavorList   []*edgeproto.FlavorInfo
 	clusterCache *edgeproto.ClusterInstInfoCache
 }
 
@@ -24,28 +27,29 @@ func (s *Platform) GetType() string {
 	return "openstack"
 }
 
-func (s *Platform) Init(key *edgeproto.CloudletKey, clusterCache *edgeproto.ClusterInstInfoCache) error {
+func (s *Platform) Init(key *edgeproto.CloudletKey, physicalName, vaultAddr string, clusterCache *edgeproto.ClusterInstInfoCache) error {
 	rootLBName := cloudcommon.GetRootLBFQDN(key)
-	s.cloudletKey = key
 	s.clusterCache = clusterCache
-	log.DebugLog(log.DebugLevelMexos, "init openstack", "rootLB", rootLBName)
+	s.cloudletKey = key
+	log.DebugLog(
+		log.DebugLevelMexos, "init openstack",
+		"rootLB", rootLBName,
+		"physicalName", physicalName,
+		"vaultAddr", vaultAddr,
+	)
 
-	// OPENRC_URL is required for OpenStack, but optional in InitInfraCommon
-	if os.Getenv("OPENRC_URL") == "" {
-		return fmt.Errorf("Env OPENRC_URL not set")
-	}
-	if err := mexos.InitInfraCommon(); err != nil {
+	if err := mexos.InitInfraCommon(vaultAddr); err != nil {
 		return err
 	}
-	if err := mexos.InitOpenstackProps(); err != nil {
+	if err := mexos.InitOpenstackProps(key.OperatorKey.Name, physicalName, vaultAddr); err != nil {
 		return err
 	}
 	mexos.CloudletInfraCommon.NetworkScheme = os.Getenv("MEX_NETWORK_SCHEME")
 	if mexos.CloudletInfraCommon.NetworkScheme == "" {
 		mexos.CloudletInfraCommon.NetworkScheme = "priv-subnet,mex-k8s-net-1,10.101.X.0/24"
 	}
-
-	finfo, err := mexos.GetFlavorInfo()
+	var err error
+	s.flavorList, err = mexos.GetFlavorInfo()
 	if err != nil {
 		return err
 	}
@@ -67,7 +71,7 @@ func (s *Platform) Init(key *edgeproto.CloudletKey, clusterCache *edgeproto.Clus
 	if err != nil {
 		return fmt.Errorf("unable to get Shared RootLB Flavor: %v", err)
 	}
-	flavorName, err := flavor.GetClosestFlavor(finfo, sharedRootLBFlavor)
+	flavorName, err := flavor.GetClosestFlavor(s.flavorList, sharedRootLBFlavor)
 	if err != nil {
 		return fmt.Errorf("unable to find closest flavor for Shared RootLB: %v", err)
 	}

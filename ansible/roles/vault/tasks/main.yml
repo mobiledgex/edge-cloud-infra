@@ -156,7 +156,7 @@
 
 - name: Check if vault is initialized
   uri:
-    url: "https://{{ vault_vm_hostname }}:8200/v1/sys/init"
+    url: "https://{{ vault_vm_hostname }}:{{ vault_port }}/v1/sys/init"
     return_content: yes
     status_code: 200
     body_format: json

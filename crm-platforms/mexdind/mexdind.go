@@ -19,18 +19,20 @@ import (
 type Platform struct {
 	generic       dind.Platform
 	NetworkScheme string
+	clusterCache  *edgeproto.ClusterInstInfoCache
 }
 
 func (s *Platform) GetType() string {
 	return "mexdind"
 }
 
-func (s *Platform) Init(key *edgeproto.CloudletKey, clusterCache *edgeproto.ClusterInstInfoCache) error {
-	err := s.generic.Init(key, clusterCache)
+func (s *Platform) Init(key *edgeproto.CloudletKey, physicalName, vaultAddr string, clusterCache *edgeproto.ClusterInstInfoCache) error {
+	err := s.generic.Init(key, physicalName, vaultAddr, clusterCache)
 	if err != nil {
 		return err
 	}
-	if err := mexos.InitInfraCommon(); err != nil {
+	s.clusterCache = clusterCache
+	if err := mexos.InitInfraCommon(vaultAddr); err != nil {
 		return err
 	}
 

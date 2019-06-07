@@ -23,8 +23,8 @@ func (s *Platform) GetType() string {
 	return "azure"
 }
 
-func (s *Platform) Init(key *edgeproto.CloudletKey, clusterCache *edgeproto.ClusterInstInfoCache) error {
-	if err := mexos.InitInfraCommon(); err != nil {
+func (s *Platform) Init(key *edgeproto.CloudletKey, physicalName, vaultAddr string, clusterCache *edgeproto.ClusterInstInfoCache) error {
+	if err := mexos.InitInfraCommon(vaultAddr); err != nil {
 		return err
 	}
 	s.clusterCache = clusterCache
@@ -32,7 +32,7 @@ func (s *Platform) Init(key *edgeproto.CloudletKey, clusterCache *edgeproto.Clus
 	if s.props.Location == "" {
 		return fmt.Errorf("Env variable MEX_AZURE_LOCATION not set")
 	}
-	/** resource group currently derived from cloudletname + cluster name
+	/** resource group currently derived from cloudletName + cluster name
 			s.props.ResourceGroup = os.Getenv("MEX_AZURE_RESOURCE_GROUP")
 			if s.props.ResourceGroup == "" {
 				return fmt.Errorf("Env variable MEX_AZURE_RESOURCE_GROUP not set")

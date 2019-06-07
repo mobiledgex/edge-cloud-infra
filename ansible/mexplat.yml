@@ -106,9 +106,12 @@
             password: "{{ mc_postgres_password }}"
 
 - hosts: crms
-  roles:
-    - docker
-    - crm
+  tasks:
+    - import_role:
+        name: docker
+    - include_role:
+        name: crm
+      with_items: "{{ crm_instances }}"
 
 - hosts: mc
   roles:
@@ -119,6 +122,10 @@
     - docker
     - mc
 
+- hosts: stun
+  roles:
+    - coturn
+
 - hosts: console
   tasks:
     - import_role:
@@ -127,6 +134,8 @@
         nginx_config_template: "templates/mexplat/console-nginx-config.j2"
         cert_domains: [ "{{ console_vm_hostname }}" ]
       when: skip_console_setup is not defined or not skip_console_setup
+    - import_role:
+        name: docker
     - import_role:
         name: console
 

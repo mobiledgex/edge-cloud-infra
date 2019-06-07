@@ -17,8 +17,8 @@ var GCPServiceAccount string //temp
 
 type Platform struct {
 	// GcpProperties needs to move to edge-cloud-infra
-	props edgeproto.GcpProperties
-	cache *edgeproto.ClusterInstInfoCache
+	props        edgeproto.GcpProperties
+	clusterCache *edgeproto.ClusterInstInfoCache
 }
 
 type GCPQuotas struct {
@@ -41,11 +41,11 @@ func (s *Platform) GetType() string {
 	return "gcp"
 }
 
-func (s *Platform) Init(key *edgeproto.CloudletKey, cache *edgeproto.ClusterInstInfoCache) error {
-	if err := mexos.InitInfraCommon(); err != nil {
+func (s *Platform) Init(key *edgeproto.CloudletKey, physicalName, vaultAddr string, clusterCache *edgeproto.ClusterInstInfoCache) error {
+	if err := mexos.InitInfraCommon(vaultAddr); err != nil {
 		return err
 	}
-	s.cache = cache
+	s.clusterCache = clusterCache
 	s.props.Project = os.Getenv("MEX_GCP_PROJECT")
 	if s.props.Project == "" {
 		//default
@@ -62,7 +62,7 @@ func (s *Platform) Init(key *edgeproto.CloudletKey, cache *edgeproto.ClusterInst
 	s.props.GcpAuthKeyUrl = os.Getenv("MEX_GCP_AUTH_KEY_URL")
 	if s.props.GcpAuthKeyUrl == "" {
 		//default it
-		s.props.GcpAuthKeyUrl = "https://vault.mobiledgex.net/v1/secret/data/cloudlet/gcp/auth_key.json"
+		s.props.GcpAuthKeyUrl = "https://" + vaultAddr + "/v1/secret/data/cloudlet/gcp/auth_key.json"
 		log.DebugLog(log.DebugLevelMexos, "MEX_GCP_AUTH_KEY_URL defaulted", "value", s.props.GcpAuthKeyUrl)
 	}
 	return nil

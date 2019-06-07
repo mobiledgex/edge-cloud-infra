@@ -6,7 +6,7 @@
     allowed:
       - ip_protocol: tcp
         ports:
-          - '8200'        # Vault server
+          - "{{ vault_port }}"
     target_tags:
       - vault-ac
     project: "{{ gcp_project }}"

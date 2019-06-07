@@ -15,6 +15,7 @@ mc_superuser=mexadmin
 mc_superuser_password=mexadmin123
 postgres_hostname=postgres-stage.mobiledgex.net
 vault_vm_hostname=vault-stage.mobiledgex.net
+vault_port=8200
 gitlab_vm_hostname=gitlab-stage.mobiledgex.net
 crm_vm_hostname=crm-stage.mobiledgex.net
 mc_vm_hostname=mc-stage.mobiledgex.net
@@ -28,7 +29,7 @@ gitlab_docker_hostname="docker-{{ deploy_environ }}.mobiledgex.net"
 localhost	ansible_connection=local
 
 [crms]
-crm-stage.mobiledgex.net
+crm-stage.mobiledgex.net	vault_vm_hostname=vault.mobiledgex.net vault_port=443
 
 [mc]
 mc-stage.mobiledgex.net	

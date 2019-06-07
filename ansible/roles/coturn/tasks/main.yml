@@ -17,7 +17,8 @@
     command:
       - "-n"
       - "--log-file=stdout"
-      - "--min-port=49160"
+      - "--min-port={{ min_port }}"
+      - "--max-port={{ max_port }}"
       - "--lt-cred-mech"
       - "--fingerprint"
       - "--no-multicast-peers"

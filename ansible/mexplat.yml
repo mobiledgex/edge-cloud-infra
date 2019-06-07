@@ -119,6 +119,10 @@
     - docker
     - mc
 
+- hosts: stun
+  roles:
+    - coturn
+
 - hosts: console
   tasks:
     - import_role:

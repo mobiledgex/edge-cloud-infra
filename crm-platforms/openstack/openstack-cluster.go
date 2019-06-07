@@ -11,7 +11,7 @@ func (s *Platform) UpdateClusterInst(clusterInst *edgeproto.ClusterInst) error {
 	if clusterInst.IpAccess == edgeproto.IpAccess_IP_ACCESS_DEDICATED {
 		lbName = cloudcommon.GetDedicatedLBFQDN(s.cloudletKey, &clusterInst.Key.ClusterKey)
 	}
-	return mexos.UpdateCluster(lbName, clusterInst)
+	return mexos.UpdateCluster(lbName, clusterInst, s.clusterCache)
 }
 
 func (s *Platform) CreateClusterInst(clusterInst *edgeproto.ClusterInst) error {
@@ -19,7 +19,7 @@ func (s *Platform) CreateClusterInst(clusterInst *edgeproto.ClusterInst) error {
 	if clusterInst.IpAccess == edgeproto.IpAccess_IP_ACCESS_DEDICATED {
 		lbName = cloudcommon.GetDedicatedLBFQDN(s.cloudletKey, &clusterInst.Key.ClusterKey)
 	}
-	return mexos.CreateCluster(lbName, clusterInst)
+	return mexos.CreateCluster(lbName, clusterInst, s.clusterCache)
 }
 
 func (s *Platform) DeleteClusterInst(clusterInst *edgeproto.ClusterInst) error {

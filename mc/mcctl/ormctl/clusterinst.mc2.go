@@ -120,6 +120,9 @@ var ClusterInstAliasArgs = []string{
 	"deployment=clusterinst.deployment",
 	"nummasters=clusterinst.nummasters",
 	"numnodes=clusterinst.numnodes",
+	"status.tasknumber=clusterinst.status.tasknumber",
+	"status.taskname=clusterinst.status.taskname",
+	"status.stepname=clusterinst.status.stepname",
 }
 var ClusterInstInfoRequiredArgs = []string{
 	"key.clusterkey.name",
@@ -130,6 +133,9 @@ var ClusterInstInfoRequiredArgs = []string{
 var ClusterInstInfoOptionalArgs = []string{
 	"notifyid",
 	"state",
+	"status.tasknumber",
+	"status.taskname",
+	"status.stepname",
 	"errors",
 }
 var ClusterInstInfoAliasArgs = []string{
@@ -139,5 +145,8 @@ var ClusterInstInfoAliasArgs = []string{
 	"key.developer=clusterinstinfo.key.developer",
 	"notifyid=clusterinstinfo.notifyid",
 	"state=clusterinstinfo.state",
+	"status.tasknumber=clusterinstinfo.status.tasknumber",
+	"status.taskname=clusterinstinfo.status.taskname",
+	"status.stepname=clusterinstinfo.status.stepname",
 	"errors=clusterinstinfo.errors",
 }

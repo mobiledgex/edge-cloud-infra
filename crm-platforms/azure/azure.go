@@ -15,17 +15,19 @@ import (
 
 type Platform struct {
 	// AzureProperties should be moved to edge-cloud-infra
-	props edgeproto.AzureProperties
+	props        edgeproto.AzureProperties
+	clusterCache *edgeproto.ClusterInstInfoCache
 }
 
 func (s *Platform) GetType() string {
 	return "azure"
 }
 
-func (s *Platform) Init(key *edgeproto.CloudletKey) error {
+func (s *Platform) Init(key *edgeproto.CloudletKey, clusterCache *edgeproto.ClusterInstInfoCache) error {
 	if err := mexos.InitInfraCommon(); err != nil {
 		return err
 	}
+	s.clusterCache = clusterCache
 	s.props.Location = os.Getenv("MEX_AZURE_LOCATION")
 	if s.props.Location == "" {
 		return fmt.Errorf("Env variable MEX_AZURE_LOCATION not set")

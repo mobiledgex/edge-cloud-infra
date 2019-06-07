@@ -296,7 +296,7 @@ func writeTemplateFile(filename string, buf *bytes.Buffer) error {
 	return nil
 }
 
-func waitForStack(stackname string, action string) error {
+func waitForStack(stackname string, action string, clusterKey *edgeproto.ClusterInstKey, clusterCache *edgeproto.ClusterInstInfoCache) error {
 	log.DebugLog(log.DebugLevelMexos, "waiting for stack", "name", stackname, "action", action)
 	start := time.Now()
 	for {
@@ -310,6 +310,10 @@ func waitForStack(stackname string, action string) error {
 			return err
 		}
 		log.DebugLog(log.DebugLevelMexos, "Got Heat Stack detail", "detail", hd)
+		if clusterCache != nil && clusterKey != nil {
+			clusterCache.SetStatusStep(clusterKey, fmt.Sprintf("Heat stack status: %s", hd.StackStatus))
+		}
+
 		switch hd.StackStatus {
 		case action + "_COMPLETE":
 			log.DebugLog(log.DebugLevelMexos, "Heat Stack succeeded", "action", action, "stackName", stackname)
@@ -391,7 +395,7 @@ func GetVMParams(depType DeploymentType, serverName, flavor, imageName, authPubl
 	return &vmp, nil
 }
 
-func createOrUpdateHeatStackFromTemplate(templateData interface{}, stackName string, templateString string, action string) error {
+func createOrUpdateHeatStackFromTemplate(templateData interface{}, stackName string, templateString string, action string, clusterKey *edgeproto.ClusterInstKey, clusterCache *edgeproto.ClusterInstInfoCache) error {
 	log.DebugLog(log.DebugLevelMexos, "createHeatStackFromTemplate", "stackName", stackName)
 
 	var buf bytes.Buffer
@@ -433,25 +437,25 @@ func createOrUpdateHeatStackFromTemplate(templateData interface{}, stackName str
 	if err != nil {
 		return err
 	}
-	err = waitForStack(stackName, action)
+	err = waitForStack(stackName, action, clusterKey, clusterCache)
 	return err
 }
 
 // UpdateHeatStackFromTemplate fills the template from templateData and creates the stack
-func UpdateHeatStackFromTemplate(templateData interface{}, stackName, templateString string) error {
-	return createOrUpdateHeatStackFromTemplate(templateData, stackName, templateString, heatUpdate)
+func UpdateHeatStackFromTemplate(templateData interface{}, stackName, templateString string, clusterKey *edgeproto.ClusterInstKey, clusterCache *edgeproto.ClusterInstInfoCache) error {
+	return createOrUpdateHeatStackFromTemplate(templateData, stackName, templateString, heatUpdate, clusterKey, clusterCache)
 }
 
 // CreateHeatStackFromTemplate fills the template from templateData and creates the stack
-func CreateHeatStackFromTemplate(templateData interface{}, stackName, templateString string) error {
-	return createOrUpdateHeatStackFromTemplate(templateData, stackName, templateString, heatCreate)
+func CreateHeatStackFromTemplate(templateData interface{}, stackName, templateString string, clusterKey *edgeproto.ClusterInstKey, clusterCache *edgeproto.ClusterInstInfoCache) error {
+	return createOrUpdateHeatStackFromTemplate(templateData, stackName, templateString, heatCreate, clusterKey, clusterCache)
 }
 
 // HeatDeleteStack deletes the VM resources
 func HeatDeleteStack(stackName string) error {
 	log.DebugLog(log.DebugLevelMexos, "deleting heat stack for stack", "stackName", stackName)
 	deleteHeatStack(stackName)
-	return waitForStack(stackName, heatDelete)
+	return waitForStack(stackName, heatDelete, nil, nil)
 }
 
 //GetClusterParams fills template parameters for the cluster.  A non blank rootLBName will add a rootlb VM
@@ -535,7 +539,7 @@ func getClusterParams(clusterInst *edgeproto.ClusterInst, rootLBName string, act
 }
 
 // HeatCreateRootLBVM creates a roobLB VM
-func HeatCreateRootLBVM(serverName string, stackName string, flavor string) error {
+func HeatCreateRootLBVM(serverName string, stackName string, flavor string, clusterKey *edgeproto.ClusterInstKey, clusterCache *edgeproto.ClusterInstInfoCache) error {
 	log.DebugLog(log.DebugLevelMexos, "HeatCreateRootLBVM", "serverName", serverName, "stackName", stackName, "flavor", flavor)
 	ni, err := ParseNetSpec(GetCloudletNetworkScheme())
 	if err != nil {
@@ -562,11 +566,11 @@ func HeatCreateRootLBVM(serverName string, stackName string, flavor string) erro
 	if err != nil {
 		return fmt.Errorf("Unable to get VM params: %v", err)
 	}
-	return CreateHeatStackFromTemplate(vmp, stackName, VmTemplate)
+	return CreateHeatStackFromTemplate(vmp, stackName, VmTemplate, clusterKey, clusterCache)
 }
 
 // HeatCreateClusterKubernetes creates a k8s cluster which may optionally include a dedicated root LB
-func HeatCreateClusterKubernetes(clusterInst *edgeproto.ClusterInst, dedicatedRootLBName string) error {
+func HeatCreateClusterKubernetes(clusterInst *edgeproto.ClusterInst, dedicatedRootLBName string, clusterKey *edgeproto.ClusterInstKey, clusterCache *edgeproto.ClusterInstInfoCache) error {
 
 	log.DebugLog(log.DebugLevelMexos, "HeatCreateClusterKubernetes", "clusterInst", clusterInst)
 	// It is problematic to create 2 clusters at the exact same time because we will look for available subnet CIDRS when
@@ -587,12 +591,12 @@ func HeatCreateClusterKubernetes(clusterInst *edgeproto.ClusterInst, dedicatedRo
 	if dedicatedRootLBName != "" {
 		templateString += vmTemplateResources
 	}
-	err = CreateHeatStackFromTemplate(cp, cp.ClusterName, templateString)
+	err = CreateHeatStackFromTemplate(cp, cp.ClusterName, templateString, clusterKey, clusterCache)
 	return err
 }
 
 // HeatUpdateClusterKubernetes creates a k8s cluster which may optionally include a dedicated root LB
-func HeatUpdateClusterKubernetes(clusterInst *edgeproto.ClusterInst, dedicatedRootLBName string) error {
+func HeatUpdateClusterKubernetes(clusterInst *edgeproto.ClusterInst, dedicatedRootLBName string, clusterKey *edgeproto.ClusterInstKey, clusterCache *edgeproto.ClusterInstInfoCache) error {
 
 	log.DebugLog(log.DebugLevelMexos, "HeatUpdateClusterKubernetes", "clusterInst", clusterInst)
 
@@ -606,6 +610,6 @@ func HeatUpdateClusterKubernetes(clusterInst *edgeproto.ClusterInst, dedicatedRo
 	if dedicatedRootLBName != "" {
 		templateString += vmTemplateResources
 	}
-	err = UpdateHeatStackFromTemplate(cp, cp.ClusterName, templateString)
+	err = UpdateHeatStackFromTemplate(cp, cp.ClusterName, templateString, clusterKey, clusterCache)
 	return err
 }

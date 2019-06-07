@@ -66,11 +66,11 @@ type ClusterNodeFlavor struct {
 
 var maxClusterWaitTime = 10 * time.Minute
 
-func waitClusterReady(clusterInst *edgeproto.ClusterInst, rootLBName string) error {
+func waitClusterReady(clusterInst *edgeproto.ClusterInst, rootLBName string, clusterCache *edgeproto.ClusterInstInfoCache) error {
 	start := time.Now()
 
 	for {
-		ready, err := IsClusterReady(clusterInst, rootLBName)
+		ready, err := IsClusterReady(clusterInst, rootLBName, clusterCache)
 		if err != nil {
 			return err
 		}
@@ -86,20 +86,24 @@ func waitClusterReady(clusterInst *edgeproto.ClusterInst, rootLBName string) err
 	}
 }
 
-func UpdateCluster(rootLBName string, clusterInst *edgeproto.ClusterInst) (reterr error) {
-	err := HeatUpdateClusterKubernetes(clusterInst, "")
+func UpdateCluster(rootLBName string, clusterInst *edgeproto.ClusterInst, clusterCache *edgeproto.ClusterInstInfoCache) (reterr error) {
+	clusterCache.SetStatusTask(&clusterInst.Key, "Update Cluster Resources with Heat")
+
+	err := HeatUpdateClusterKubernetes(clusterInst, "", &clusterInst.Key, clusterCache)
 	if err != nil {
 		return err
 	}
-	return waitClusterReady(clusterInst, rootLBName)
+	clusterCache.SetStatusTask(&clusterInst.Key, "Wait for Cluster to Update")
+	return waitClusterReady(clusterInst, rootLBName, clusterCache)
 }
 
-func CreateCluster(rootLBName string, clusterInst *edgeproto.ClusterInst) (reterr error) {
+func CreateCluster(rootLBName string, clusterInst *edgeproto.ClusterInst, clusterCache *edgeproto.ClusterInstInfoCache) (reterr error) {
 	// clean-up func
 	defer func() {
 		if reterr == nil {
 			return
 		}
+
 		log.DebugLog(log.DebugLevelMexos, "error in CreateCluster", "err", reterr)
 		if GetCleanupOnFailure() {
 			log.DebugLog(log.DebugLevelMexos, "cleaning up cluster resources after cluster fail, set envvar CLEANUP_ON_FAILURE to 'no' to avoid this")
@@ -126,12 +130,14 @@ func CreateCluster(rootLBName string, clusterInst *edgeproto.ClusterInst) (reter
 			//suitable for docker only
 			log.DebugLog(log.DebugLevelMexos, "creating single VM cluster with just rootLB and no k8s")
 			singleNodeCluster = true
-			err = HeatCreateRootLBVM(dedicatedRootLBName, k8smgmt.GetK8sNodeNameSuffix(clusterInst), clusterInst.NodeFlavor)
+			clusterCache.SetStatusTask(&clusterInst.Key, "Create Dedicated VM For Docker")
+			err = HeatCreateRootLBVM(dedicatedRootLBName, k8smgmt.GetK8sNodeNameSuffix(clusterInst), clusterInst.NodeFlavor, &clusterInst.Key, clusterCache)
 		} else {
 			err = fmt.Errorf("NumMasters cannot be 0 for shared access")
 		}
 	} else {
-		err = HeatCreateClusterKubernetes(clusterInst, dedicatedRootLBName)
+		clusterCache.SetStatusTask(&clusterInst.Key, "Create Cluster Resources with Heat")
+		err = HeatCreateClusterKubernetes(clusterInst, dedicatedRootLBName, &clusterInst.Key, clusterCache)
 	}
 	if err != nil {
 		return err
@@ -145,7 +151,8 @@ func CreateCluster(rootLBName string, clusterInst *edgeproto.ClusterInst) (reter
 			// likely already exists which means something went really wrong
 			return err
 		}
-		err = SetupRootLB(rootLBName, "")
+		clusterCache.SetStatusTask(&clusterInst.Key, "Setup Root LB")
+		err = SetupRootLB(rootLBName, "", &clusterInst.Key, clusterCache)
 		if err != nil {
 			return err
 		}
@@ -155,11 +162,13 @@ func CreateCluster(rootLBName string, clusterInst *edgeproto.ClusterInst) (reter
 		return fmt.Errorf("can't get rootLB client, %v", err)
 	}
 	if !singleNodeCluster {
-		err := waitClusterReady(clusterInst, rootLBName)
+		clusterCache.SetStatusTask(&clusterInst.Key, "Wait for Cluster to Initialize")
+		err := waitClusterReady(clusterInst, rootLBName, clusterCache)
 		if err != nil {
 			return err
 		}
 	}
+	clusterCache.SetStatusTask(&clusterInst.Key, "Update Docker credentials for cluster")
 	if err := SeedDockerSecret(client, clusterInst, singleNodeCluster); err != nil {
 		return err
 	}
@@ -190,7 +199,7 @@ func DeleteCluster(rootLBName string, clusterInst *edgeproto.ClusterInst) error 
 }
 
 //IsClusterReady checks to see if cluster is read, i.e. rootLB is running and active
-func IsClusterReady(clusterInst *edgeproto.ClusterInst, rootLBName string) (bool, error) {
+func IsClusterReady(clusterInst *edgeproto.ClusterInst, rootLBName string, clusterCache *edgeproto.ClusterInstInfoCache) (bool, error) {
 	log.DebugLog(log.DebugLevelMexos, "checking if cluster is ready")
 
 	nameSuffix := k8smgmt.GetK8sNodeNameSuffix(clusterInst)
@@ -212,6 +221,7 @@ func IsClusterReady(clusterInst *edgeproto.ClusterInst, rootLBName string) (bool
 	if err != nil {
 		return false, fmt.Errorf("can't get ssh client for cluser ready check, %v", err)
 	}
+	clusterCache.SetStatusStep(&clusterInst.Key, "Checking master for available nodes")
 	log.DebugLog(log.DebugLevelMexos, "checking master k8s node for available nodes", "ipaddr", ipaddr)
 	cmd := fmt.Sprintf("ssh -o %s -o %s -o %s -i id_rsa_mex %s@%s kubectl get nodes -o json", sshOpts[0], sshOpts[1], sshOpts[2], SSHUser, ipaddr)
 	//log.DebugLog(log.DebugLevelMexos, "running kubectl get nodes", "cmd", cmd)
@@ -226,6 +236,9 @@ func IsClusterReady(clusterInst *edgeproto.ClusterInst, rootLBName string) (bool
 		return false, fmt.Errorf("failed to json unmarshal kubectl get nodes output, %v, %v", err, out)
 	}
 	log.DebugLog(log.DebugLevelMexos, "kubectl reports nodes", "numnodes", len(gitems.Items))
+	numNodes := uint32(len(gitems.Items)) - 1
+	clusterCache.SetStatusStep(&clusterInst.Key, fmt.Sprintf("Found %d of %d active nodes", numNodes, clusterInst.NumNodes))
+
 	if uint32(len(gitems.Items)) < (clusterInst.NumNodes + clusterInst.NumMasters) {
 		//log.DebugLog(log.DebugLevelMexos, "kubernetes cluster not ready", "log", out)
 		log.DebugLog(log.DebugLevelMexos, "kubernetes cluster not ready", "len items", len(gitems.Items))

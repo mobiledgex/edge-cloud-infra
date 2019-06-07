@@ -145,6 +145,9 @@ var AppInstAliasArgs = []string{
 	"createdat.seconds=appinst.createdat.seconds",
 	"createdat.nanos=appinst.createdat.nanos",
 	"autoclusteripaccess=appinst.autoclusteripaccess",
+	"status.tasknumber=appinst.status.tasknumber",
+	"status.taskname=appinst.status.taskname",
+	"status.stepname=appinst.status.stepname",
 }
 var AppInstRuntimeRequiredArgs = []string{}
 var AppInstRuntimeOptionalArgs = []string{
@@ -167,6 +170,9 @@ var AppInstInfoOptionalArgs = []string{
 	"state",
 	"errors",
 	"runtimeinfo.containerids",
+	"status.tasknumber",
+	"status.taskname",
+	"status.stepname",
 }
 var AppInstInfoAliasArgs = []string{
 	"key.appkey.developerkey.name=appinstinfo.key.appkey.developerkey.name",
@@ -180,6 +186,9 @@ var AppInstInfoAliasArgs = []string{
 	"state=appinstinfo.state",
 	"errors=appinstinfo.errors",
 	"runtimeinfo.containerids=appinstinfo.runtimeinfo.containerids",
+	"status.tasknumber=appinstinfo.status.tasknumber",
+	"status.taskname=appinstinfo.status.taskname",
+	"status.stepname=appinstinfo.status.stepname",
 }
 var AppInstMetricsRequiredArgs = []string{}
 var AppInstMetricsOptionalArgs = []string{

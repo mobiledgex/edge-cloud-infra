@@ -18,6 +18,7 @@ var GCPServiceAccount string //temp
 type Platform struct {
 	// GcpProperties needs to move to edge-cloud-infra
 	props edgeproto.GcpProperties
+	cache *edgeproto.ClusterInstInfoCache
 }
 
 type GCPQuotas struct {
@@ -40,10 +41,11 @@ func (s *Platform) GetType() string {
 	return "gcp"
 }
 
-func (s *Platform) Init(key *edgeproto.CloudletKey) error {
+func (s *Platform) Init(key *edgeproto.CloudletKey, cache *edgeproto.ClusterInstInfoCache) error {
 	if err := mexos.InitInfraCommon(); err != nil {
 		return err
 	}
+	s.cache = cache
 	s.props.Project = os.Getenv("MEX_GCP_PROJECT")
 	if s.props.Project == "" {
 		//default

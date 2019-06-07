@@ -14,18 +14,20 @@ import (
 )
 
 type Platform struct {
-	rootLBName  string
-	rootLB      *mexos.MEXRootLB
-	cloudletKey *edgeproto.CloudletKey
+	rootLBName   string
+	rootLB       *mexos.MEXRootLB
+	cloudletKey  *edgeproto.CloudletKey
+	clusterCache *edgeproto.ClusterInstInfoCache
 }
 
 func (s *Platform) GetType() string {
 	return "openstack"
 }
 
-func (s *Platform) Init(key *edgeproto.CloudletKey) error {
+func (s *Platform) Init(key *edgeproto.CloudletKey, clusterCache *edgeproto.ClusterInstInfoCache) error {
 	rootLBName := cloudcommon.GetRootLBFQDN(key)
 	s.cloudletKey = key
+	s.clusterCache = clusterCache
 	log.DebugLog(log.DebugLevelMexos, "init openstack", "rootLB", rootLBName)
 
 	// OPENRC_URL is required for OpenStack, but optional in InitInfraCommon
@@ -71,7 +73,7 @@ func (s *Platform) Init(key *edgeproto.CloudletKey) error {
 	}
 
 	log.DebugLog(log.DebugLevelMexos, "calling SetupRootLB")
-	err = mexos.SetupRootLB(rootLBName, flavorName)
+	err = mexos.SetupRootLB(rootLBName, flavorName, nil, nil)
 	if err != nil {
 		return err
 	}

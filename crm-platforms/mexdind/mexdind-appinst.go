@@ -14,7 +14,7 @@ import (
 	"k8s.io/api/core/v1"
 )
 
-func (s *Platform) CreateAppInst(clusterInst *edgeproto.ClusterInst, app *edgeproto.App, appInst *edgeproto.AppInst, flavor *edgeproto.Flavor) error {
+func (s *Platform) CreateAppInst(clusterInst *edgeproto.ClusterInst, app *edgeproto.App, appInst *edgeproto.AppInst, flavor *edgeproto.Flavor, infoCache *edgeproto.AppInstInfoCache) error {
 	client, err := s.generic.GetPlatformClient(clusterInst)
 	if err != nil {
 		return err
@@ -26,7 +26,7 @@ func (s *Platform) CreateAppInst(clusterInst *edgeproto.ClusterInst, app *edgepr
 	}
 
 	// Use generic DIND to create the AppInst
-	err = s.generic.CreateAppInst(clusterInst, app, appInst, flavor)
+	err = s.generic.CreateAppInst(clusterInst, app, appInst, flavor, infoCache)
 	if err != nil {
 		return err
 	}

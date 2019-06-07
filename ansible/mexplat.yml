@@ -106,9 +106,12 @@
             password: "{{ mc_postgres_password }}"
 
 - hosts: crms
-  roles:
-    - docker
-    - crm
+  tasks:
+    - import_role:
+        name: docker
+    - include_role:
+        name: crm
+      with_items: "{{ crm_instances }}"
 
 - hosts: mc
   roles:

@@ -9,9 +9,13 @@ mc_superuser_password=mexadmin123
 mc_gitlab_token=sx3vbbf2iLGgpwSMm3NZ
 postgres_hostname=postgres.mobiledgex.net
 artifactory_version=6.10.0
+coturn_instance_name=coturn
 
 [artifactory]
 artifactory.mobiledgex.net	ubuntu_release=xenial
 
 [console]
 console.mobiledgex.net		skip_console_setup=true mc_vm_hostname=mc.mobiledgex.net
+
+[stun]
+stun.mobiledgex.net

@@ -10,6 +10,16 @@ crm_instances:
 
   # QA fake cloudlets
 
+  - cloudlet_name: tmocloud-1
+    operator_key: tmus
+    platform: fakecloudlet
+    controller: mexplat-stage
+
+  - cloudlet_name: tmocloud-2
+    operator_key: tmus
+    platform: fakecloudlet
+    controller: mexplat-stage
+
   - cloudlet_name: tmocloud-3
     operator_key: tmus
     platform: fakecloudlet

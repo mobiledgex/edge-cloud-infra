@@ -1,0 +1,27 @@
+---
+- set_fact:
+    portlist:
+      - "{{ stun_port }}:3478"
+      - "{{ stun_port }}:3478/udp"
+
+- set_fact:
+    portlist: "{{ portlist }} + [ '{{ item }}:{{ item }}/udp' ]"
+  with_sequence: start={{ min_port|int }} end={{ max_port|int }}
+  no_log: true
+
+- name: Deploy the coturn server
+  docker_container:
+    name: "{{ coturn_instance_name }}"
+    image: "instrumentisto/coturn:{{ coturn_version }}"
+    ports: "{{ portlist }}"
+    command:
+      - "-n"
+      - "--log-file=stdout"
+      - "--min-port={{ min_port }}"
+      - "--max-port={{ max_port }}"
+      - "--lt-cred-mech"
+      - "--fingerprint"
+      - "--no-multicast-peers"
+      - "--no-cli"
+      - "--external-ip=$(detect-external-ip)"
+      - "--realm=mobiledgex.net"

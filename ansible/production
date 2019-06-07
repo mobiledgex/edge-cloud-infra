@@ -10,6 +10,7 @@ mc_gitlab_token=sx3vbbf2iLGgpwSMm3NZ
 postgres_hostname=postgres.mobiledgex.net
 artifactory_version=6.10.0
 coturn_instance_name=coturn
+stun_port=19302
 
 [artifactory]
 artifactory.mobiledgex.net	ubuntu_release=xenial

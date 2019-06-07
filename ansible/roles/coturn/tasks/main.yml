@@ -1,8 +1,8 @@
 ---
 - set_fact:
     portlist:
-      - "19302:3478"
-      - "19302:3478/udp"
+      - "{{ stun_port }}:3478"
+      - "{{ stun_port }}:3478/udp"
 
 - set_fact:
     portlist: "{{ portlist }} + [ '{{ item }}:{{ item }}/udp' ]"

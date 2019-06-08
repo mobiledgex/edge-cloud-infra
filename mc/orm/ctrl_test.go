@@ -131,7 +131,7 @@ func TestController(t *testing.T) {
 	badPermTestShowClusterInst(t, mcClient, uri, tokenDev3, ctrl.Region, org1)
 
 	badPermTestCloudlet(t, mcClient, uri, tokenOper3, ctrl.Region, org1)
-
+	badPermTestMetrics(t, mcClient, uri, tokenDev3, ctrl.Region, org1)
 	// add new users to orgs
 	testAddUserRole(t, mcClient, uri, tokenDev, org1, "DeveloperContributor", dev3.Name, Success)
 	testAddUserRole(t, mcClient, uri, tokenDev, org1, "DeveloperViewer", dev4.Name, Success)
@@ -240,6 +240,8 @@ func TestController(t *testing.T) {
 	goodPermTestApp(t, mcClient, uri, tokenDev3, ctrl.Region, org1, dcnt)
 	goodPermTestAppInst(t, mcClient, uri, tokenDev3, ctrl.Region, org1, dcnt)
 	goodPermTestClusterInst(t, mcClient, uri, tokenDev3, ctrl.Region, org1, dcnt)
+	goodPermTestMetrics(t, mcClient, uri, tokenDev3, ctrl.Region, org1)
+
 	// test users with different roles
 	goodPermTestCloudlet(t, mcClient, uri, tokenOper3, ctrl.Region, org3, count)
 	goodPermTestClusterInst(t, mcClient, uri, tokenDev, ctrl.Region, org1, dcnt)

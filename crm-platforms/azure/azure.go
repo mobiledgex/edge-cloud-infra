@@ -8,6 +8,7 @@ import (
 
 	sh "github.com/codeskyblue/go-sh"
 	"github.com/mobiledgex/edge-cloud-infra/mexos"
+	"github.com/mobiledgex/edge-cloud/cloud-resource-manager/platform"
 	"github.com/mobiledgex/edge-cloud/cloud-resource-manager/platform/pc"
 	"github.com/mobiledgex/edge-cloud/edgeproto"
 	"github.com/mobiledgex/edge-cloud/log"
@@ -15,19 +16,17 @@ import (
 
 type Platform struct {
 	// AzureProperties should be moved to edge-cloud-infra
-	props        edgeproto.AzureProperties
-	clusterCache *edgeproto.ClusterInstInfoCache
+	props edgeproto.AzureProperties
 }
 
 func (s *Platform) GetType() string {
 	return "azure"
 }
 
-func (s *Platform) Init(key *edgeproto.CloudletKey, physicalName, vaultAddr string, clusterCache *edgeproto.ClusterInstInfoCache) error {
-	if err := mexos.InitInfraCommon(vaultAddr); err != nil {
+func (s *Platform) Init(platformConfig *platform.PlatformConfig) error {
+	if err := mexos.InitInfraCommon(platformConfig.VaultAddr); err != nil {
 		return err
 	}
-	s.clusterCache = clusterCache
 	s.props.Location = os.Getenv("MEX_AZURE_LOCATION")
 	if s.props.Location == "" {
 		return fmt.Errorf("Env variable MEX_AZURE_LOCATION not set")
@@ -48,6 +47,14 @@ func (s *Platform) Init(key *edgeproto.CloudletKey, physicalName, vaultAddr stri
 	}
 
 	return nil
+}
+
+func (s *Platform) GetClusterCreateMaxTasks(clusterInst *edgeproto.ClusterInst) uint32 {
+	return 0
+}
+
+func (s *Platform) GetAppCreateMaxTasks(appInst *edgeproto.AppInst) uint32 {
+	return 0
 }
 
 type AZName struct {

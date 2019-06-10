@@ -146,6 +146,7 @@ var AppInstAliasArgs = []string{
 	"createdat.nanos=appinst.createdat.nanos",
 	"autoclusteripaccess=appinst.autoclusteripaccess",
 	"status.tasknumber=appinst.status.tasknumber",
+	"status.maxtasks=appinst.status.maxtasks",
 	"status.taskname=appinst.status.taskname",
 	"status.stepname=appinst.status.stepname",
 }
@@ -171,6 +172,7 @@ var AppInstInfoOptionalArgs = []string{
 	"errors",
 	"runtimeinfo.containerids",
 	"status.tasknumber",
+	"status.maxtasks",
 	"status.taskname",
 	"status.stepname",
 }
@@ -187,6 +189,7 @@ var AppInstInfoAliasArgs = []string{
 	"errors=appinstinfo.errors",
 	"runtimeinfo.containerids=appinstinfo.runtimeinfo.containerids",
 	"status.tasknumber=appinstinfo.status.tasknumber",
+	"status.maxtasks=appinstinfo.status.maxtasks",
 	"status.taskname=appinstinfo.status.taskname",
 	"status.stepname=appinstinfo.status.stepname",
 }

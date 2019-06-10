@@ -6,6 +6,7 @@ import (
 
 	"github.com/mobiledgex/edge-cloud-infra/mexos"
 	"github.com/mobiledgex/edge-cloud/cloud-resource-manager/nginx"
+	"github.com/mobiledgex/edge-cloud/cloud-resource-manager/platform"
 	"github.com/mobiledgex/edge-cloud/cloud-resource-manager/platform/pc"
 	"github.com/mobiledgex/edge-cloud/cloudcommon"
 	"github.com/mobiledgex/edge-cloud/edgeproto"
@@ -16,32 +17,29 @@ import (
 const MINIMUM_DISK_SIZE uint64 = 20
 
 type Platform struct {
-	rootLBName   string
-	rootLB       *mexos.MEXRootLB
-	cloudletKey  *edgeproto.CloudletKey
-	flavorList   []*edgeproto.FlavorInfo
-	clusterCache *edgeproto.ClusterInstInfoCache
+	rootLBName  string
+	rootLB      *mexos.MEXRootLB
+	cloudletKey *edgeproto.CloudletKey
+	flavorList  []*edgeproto.FlavorInfo
 }
 
 func (s *Platform) GetType() string {
 	return "openstack"
 }
 
-func (s *Platform) Init(key *edgeproto.CloudletKey, physicalName, vaultAddr string, clusterCache *edgeproto.ClusterInstInfoCache) error {
-	rootLBName := cloudcommon.GetRootLBFQDN(key)
-	s.clusterCache = clusterCache
-	s.cloudletKey = key
+func (s *Platform) Init(platformConfig *platform.PlatformConfig) error {
+	rootLBName := cloudcommon.GetRootLBFQDN(platformConfig.CloudletKey)
+	s.cloudletKey = platformConfig.CloudletKey
 	log.DebugLog(
 		log.DebugLevelMexos, "init openstack",
 		"rootLB", rootLBName,
-		"physicalName", physicalName,
-		"vaultAddr", vaultAddr,
-	)
+		"physicalName", platformConfig.PhysicalName,
+		"vaultAddr", platformConfig.VaultAddr)
 
-	if err := mexos.InitInfraCommon(vaultAddr); err != nil {
+	if err := mexos.InitInfraCommon(platformConfig.VaultAddr); err != nil {
 		return err
 	}
-	if err := mexos.InitOpenstackProps(key.OperatorKey.Name, physicalName, vaultAddr); err != nil {
+	if err := mexos.InitOpenstackProps(platformConfig.CloudletKey.OperatorKey.Name, platformConfig.PhysicalName, platformConfig.VaultAddr); err != nil {
 		return err
 	}
 	mexos.CloudletInfraCommon.NetworkScheme = os.Getenv("MEX_NETWORK_SCHEME")
@@ -77,7 +75,7 @@ func (s *Platform) Init(key *edgeproto.CloudletKey, physicalName, vaultAddr stri
 	}
 
 	log.DebugLog(log.DebugLevelMexos, "calling SetupRootLB")
-	err = mexos.SetupRootLB(rootLBName, flavorName, nil, nil)
+	err = mexos.SetupRootLB(rootLBName, flavorName, edgeproto.DummyUpdateCallback)
 	if err != nil {
 		return err
 	}

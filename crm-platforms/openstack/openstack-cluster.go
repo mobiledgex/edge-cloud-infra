@@ -7,15 +7,15 @@ import (
 	"github.com/mobiledgex/edge-cloud/edgeproto"
 )
 
-func (s *Platform) UpdateClusterInst(clusterInst *edgeproto.ClusterInst) error {
+func (s *Platform) UpdateClusterInst(clusterInst *edgeproto.ClusterInst, updateCallback edgeproto.CacheUpdateCallback) error {
 	lbName := s.rootLBName
 	if clusterInst.IpAccess == edgeproto.IpAccess_IP_ACCESS_DEDICATED {
 		lbName = cloudcommon.GetDedicatedLBFQDN(s.cloudletKey, &clusterInst.Key.ClusterKey)
 	}
-	return mexos.UpdateCluster(lbName, clusterInst, s.clusterCache)
+	return mexos.UpdateCluster(lbName, clusterInst, updateCallback)
 }
 
-func (s *Platform) CreateClusterInst(clusterInst *edgeproto.ClusterInst) error {
+func (s *Platform) CreateClusterInst(clusterInst *edgeproto.ClusterInst, updateCallback edgeproto.CacheUpdateCallback) error {
 	lbName := s.rootLBName
 	if clusterInst.IpAccess == edgeproto.IpAccess_IP_ACCESS_DEDICATED {
 		lbName = cloudcommon.GetDedicatedLBFQDN(s.cloudletKey, &clusterInst.Key.ClusterKey)
@@ -26,7 +26,7 @@ func (s *Platform) CreateClusterInst(clusterInst *edgeproto.ClusterInst) error {
 			return fmt.Errorf("Insufficient disk size, please specify a flavor with at least %dgb", MINIMUM_DISK_SIZE)
 		}
 	}
-	return mexos.CreateCluster(lbName, clusterInst, s.clusterCache)
+	return mexos.CreateCluster(lbName, clusterInst, updateCallback)
 }
 
 func (s *Platform) DeleteClusterInst(clusterInst *edgeproto.ClusterInst) error {

@@ -5,6 +5,7 @@ import (
 	"os"
 
 	"github.com/mobiledgex/edge-cloud-infra/mexos"
+	"github.com/mobiledgex/edge-cloud/cloud-resource-manager/platform"
 	"github.com/mobiledgex/edge-cloud/cloud-resource-manager/platform/dind"
 	"github.com/mobiledgex/edge-cloud/cloud-resource-manager/platform/pc"
 	"github.com/mobiledgex/edge-cloud/cloudcommon"
@@ -19,20 +20,18 @@ import (
 type Platform struct {
 	generic       dind.Platform
 	NetworkScheme string
-	clusterCache  *edgeproto.ClusterInstInfoCache
 }
 
 func (s *Platform) GetType() string {
 	return "mexdind"
 }
 
-func (s *Platform) Init(key *edgeproto.CloudletKey, physicalName, vaultAddr string, clusterCache *edgeproto.ClusterInstInfoCache) error {
-	err := s.generic.Init(key, physicalName, vaultAddr, clusterCache)
+func (s *Platform) Init(platformConfig *platform.PlatformConfig) error {
+	err := s.generic.Init(platformConfig)
 	if err != nil {
 		return err
 	}
-	s.clusterCache = clusterCache
-	if err := mexos.InitInfraCommon(vaultAddr); err != nil {
+	if err := mexos.InitInfraCommon(platformConfig.VaultAddr); err != nil {
 		return err
 	}
 
@@ -46,7 +45,7 @@ func (s *Platform) Init(key *edgeproto.CloudletKey, physicalName, vaultAddr stri
 	}
 	mexos.CloudletInfraCommon.NetworkScheme = s.NetworkScheme
 
-	fqdn := cloudcommon.GetRootLBFQDN(key)
+	fqdn := cloudcommon.GetRootLBFQDN(platformConfig.CloudletKey)
 	ipaddr, err := s.GetDINDServiceIP()
 	if err != nil {
 		return fmt.Errorf("init cannot get service ip, %s", err.Error())
@@ -59,6 +58,14 @@ func (s *Platform) Init(key *edgeproto.CloudletKey, physicalName, vaultAddr stri
 	}
 	log.DebugLog(log.DebugLevelMexos, "done init mexdind")
 	return nil
+}
+
+func (s *Platform) GetClusterCreateMaxTasks(clusterInst *edgeproto.ClusterInst) uint32 {
+	return 0
+}
+
+func (s *Platform) GetAppCreateMaxTasks(appInst *edgeproto.AppInst) uint32 {
+	return 0
 }
 
 func (s *Platform) GatherCloudletInfo(info *edgeproto.CloudletInfo) error {

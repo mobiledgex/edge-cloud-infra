@@ -60,14 +60,6 @@ func (s *Platform) Init(platformConfig *platform.PlatformConfig) error {
 	return nil
 }
 
-func (s *Platform) GetClusterCreateMaxTasks(clusterInst *edgeproto.ClusterInst) uint32 {
-	return 0
-}
-
-func (s *Platform) GetAppCreateMaxTasks(appInst *edgeproto.AppInst) uint32 {
-	return 0
-}
-
 func (s *Platform) GatherCloudletInfo(info *edgeproto.CloudletInfo) error {
 	return s.generic.GatherCloudletInfo(info)
 }

@@ -310,7 +310,7 @@ func waitForStack(stackname string, action string, updateCallback edgeproto.Cach
 			return err
 		}
 		log.DebugLog(log.DebugLevelMexos, "Got Heat Stack detail", "detail", hd)
-		updateCallback(edgeproto.UpdateStep, fmt.Sprintf("Heat stack status: %s", hd.StackStatus))
+		updateCallback(edgeproto.UpdateStep, fmt.Sprintf("Heat Stack Status: %s", hd.StackStatus))
 
 		switch hd.StackStatus {
 		case action + "_COMPLETE":

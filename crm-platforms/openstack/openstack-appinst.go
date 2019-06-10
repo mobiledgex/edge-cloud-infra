@@ -63,7 +63,7 @@ func (s *Platform) CreateAppInst(clusterInst *edgeproto.ClusterInst, app *edgepr
 
 		// set up DNS
 		var rootLBIPaddr string
-		masterIP, err := mexos.GetMasterIP(clusterInst)
+		_, masterIP, err := mexos.GetMasterNameAndIP(clusterInst)
 		if err == nil {
 			rootLBIPaddr, err = mexos.GetServerIPAddr(mexos.GetCloudletExternalNetwork(), rootLBName)
 			if err == nil {
@@ -74,7 +74,7 @@ func (s *Platform) CreateAppInst(clusterInst *edgeproto.ClusterInst, app *edgepr
 					action.ExternalIP = rootLBIPaddr
 					return &action, nil
 				}
-				updateCallback(edgeproto.UpdateTask, "Configure service: LB, Firewall Rules and DNS")
+				updateCallback(edgeproto.UpdateTask, "Configuring Service: LB, Firewall Rules and DNS")
 				err = mexos.AddProxySecurityRulesAndPatchDNS(client, names, appInst, getDnsAction, rootLBName, masterIP, true, nginx.WithDockerNetwork("host"))
 			}
 		}
@@ -118,7 +118,7 @@ func (s *Platform) CreateAppInst(clusterInst *edgeproto.ClusterInst, app *edgepr
 			}
 		}
 		if createImage {
-			updateCallback(edgeproto.UpdateTask, "Create VM Image from URL")
+			updateCallback(edgeproto.UpdateTask, "Creating VM Image from URL")
 			err = mexos.CreateImageFromUrl(imageName, app.ImagePath, md5Sum)
 			if err != nil {
 				return fmt.Errorf("CreateVMAppInst error: %v", err)
@@ -147,7 +147,7 @@ func (s *Platform) CreateAppInst(clusterInst *edgeproto.ClusterInst, app *edgepr
 		if err != nil {
 			return fmt.Errorf("unable to get vm params: %v", err)
 		}
-		updateCallback(edgeproto.UpdateTask, "Deploy VM")
+		updateCallback(edgeproto.UpdateTask, "Deploying VM")
 		log.DebugLog(log.DebugLevelMexos, "Deploying VM", "stackName", app.Key.Name, "flavor", appFlavorName)
 		err = mexos.CreateHeatStackFromTemplate(vmp, app.Key.Name, mexos.VmTemplate, updateCallback)
 		if err != nil {
@@ -186,7 +186,7 @@ func (s *Platform) CreateAppInst(clusterInst *edgeproto.ClusterInst, app *edgepr
 		if err != nil {
 			return fmt.Errorf("get kube names failed: %s", err)
 		}
-		updateCallback(edgeproto.UpdateTask, "Deploy Docker App")
+		updateCallback(edgeproto.UpdateTask, "Deploying Docker App")
 		err = dockermgmt.CreateAppInst(client, app, appInst)
 		if err != nil {
 			return fmt.Errorf("createAppInst error for docker %v", err)
@@ -197,7 +197,7 @@ func (s *Platform) CreateAppInst(clusterInst *edgeproto.ClusterInst, app *edgepr
 			action.ExternalIP = rootLBIPaddr
 			return &action, nil
 		}
-		updateCallback(edgeproto.UpdateTask, "Configure Firewall Rules and DNS")
+		updateCallback(edgeproto.UpdateTask, "Configuring Firewall Rules and DNS")
 		err = mexos.AddProxySecurityRulesAndPatchDNS(client, names, appInst, getDnsAction, rootLBName, rootLBIPaddr, false)
 		if err != nil {
 			return fmt.Errorf("AddProxySecurityRulesAndPatchDNS error: %v", err)
@@ -228,7 +228,7 @@ func (s *Platform) DeleteAppInst(clusterInst *edgeproto.ClusterInst, app *edgepr
 			return fmt.Errorf("get kube names failed: %s", err)
 		}
 
-		masterIP, err := mexos.GetMasterIP(clusterInst)
+		_, masterIP, err := mexos.GetMasterNameAndIP(clusterInst)
 		if err != nil {
 			return err
 		} // Clean up security rules and nginx proxy

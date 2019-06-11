@@ -57,11 +57,9 @@ crms:
        servercert: "{{tlsoutdir}}/mex-server.crt"
        clientcert: "{{tlsoutdir}}/mex-client.crt"
     hostname: "127.0.0.1"
+    vaultaddr: "vault.mobiledgex.net"
+    physicalname: bonn
     envvars:
-      OPENRC_URL: https://vault.mobiledgex.net/v1/secret/data/cloudlet/openstack/bonn/openrc.json
-      MEXENV_URL: https://vault.mobiledgex.net/v1/secret/data/cloudlet/openstack/mexenv.json
-      VAULT_ROLE_ID: "{{crm_vault_role_id}}" 
-      VAULT_SECRET_ID: "{{crm_vault_secret_id}}"
-      MEX_OS_IMAGE: mobiledgex-v2.0.2
       CLEANUP_ON_FAILURE: 'no'
-
+      VAULT_ROLE_ID: e017fc39-dff7-adc3-364f-bb8e04805454
+      VAULT_SECRET_ID: 6e88cd75-7297-ba5e-6b27-9d612e3792b7

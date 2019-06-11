@@ -10,9 +10,8 @@ import (
 
 	influxdb "github.com/influxdata/influxdb/client/v2"
 	"github.com/labstack/echo"
-	"github.com/mitchellh/mapstructure"
 	"github.com/mobiledgex/edge-cloud-infra/mc/ormapi"
-	"github.com/mobiledgex/edge-cloud-infra/mexos"
+	"github.com/mobiledgex/edge-cloud-infra/vault"
 	"github.com/mobiledgex/edge-cloud/cloudcommon"
 	"github.com/mobiledgex/edge-cloud/log"
 	"google.golang.org/grpc/status"
@@ -27,11 +26,6 @@ type InfluxDBContext struct {
 	region string
 	claims *UserClaims
 	conn   influxdb.Client
-}
-
-type InfluxDBVaultData struct {
-	username string
-	password string
 }
 
 type influxQueryArgs struct {
@@ -62,18 +56,18 @@ func connectInfluxDB(region string) (influxdb.Client, error) {
 	if err != nil {
 		return nil, err
 	}
-	creds, err := getInfluxDBCreds(region)
+	creds, err := vault.GetInfluxDBCreds(region)
 	if err != nil {
 		// defeault to empty login
-		creds = &InfluxDBVaultData{
-			username: "",
-			password: "",
+		creds = &vault.InfluxDBVaultData{
+			Username: "",
+			Password: "",
 		}
 	}
 	client, err := influxdb.NewHTTPClient(influxdb.HTTPConfig{
 		Addr:     "http://" + addr,
-		Username: creds.username,
-		Password: creds.password,
+		Username: creds.Username,
+		Password: creds.Password,
 	})
 	log.DebugLog(log.DebugLevelMetrics, "connecting to influxdb",
 		"addr", addr, "err", err)
@@ -90,20 +84,6 @@ func getInfluxDBAddrForRegion(region string) (string, error) {
 		return "", err
 	}
 	return ctrl.InfluxDB, nil
-}
-
-// Get influxDB login credentials from the vault
-func getInfluxDBCreds(region string) (*InfluxDBVaultData, error) {
-	data, err := mexos.GetVaultData(cloudcommon.InfluxDBVaultPath + "region/influxdb.json")
-	if err != nil {
-		return nil, err
-	}
-	influxData := &InfluxDBVaultData{}
-	err = mapstructure.Decode(data, influxData)
-	if err != nil {
-		return nil, err
-	}
-	return influxData, nil
 }
 
 // Query is a template with a specific set of if/else

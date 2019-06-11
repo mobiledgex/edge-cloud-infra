@@ -199,6 +199,10 @@ func GetMetricsCommon(c echo.Context) error {
 		if err := c.Bind(&in); err != nil {
 			return c.JSON(http.StatusBadRequest, Msg("Invalid GET data"))
 		}
+		// Cluster name has to be specified
+		if in.AppInst.ClusterInstKey.ClusterKey.Name == "" {
+			return c.JSON(http.StatusBadRequest, Msg("Cluster details must be present"))
+		}
 		rc.region = in.Region
 		org = in.AppInst.AppKey.DeveloperKey.Name
 		cmd = AppInstMetricsQuery(&in, cloudcommon.DeveloperAppMetrics)
@@ -206,6 +210,10 @@ func GetMetricsCommon(c echo.Context) error {
 		in := ormapi.RegionClusterInstMetrics{}
 		if err := c.Bind(&in); err != nil {
 			return c.JSON(http.StatusBadRequest, Msg("Invalid GET data"))
+		}
+		// Cluster name has to be specified
+		if in.ClusterInst.ClusterKey.Name == "" {
+			return c.JSON(http.StatusBadRequest, Msg("Cluster details must be present"))
 		}
 		rc.region = in.Region
 		org = in.ClusterInst.Developer

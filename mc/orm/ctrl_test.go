@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"net"
 	"net/http"
+	"net/http/httptest"
 	"testing"
 	"time"
 
@@ -44,6 +45,16 @@ func TestController(t *testing.T) {
 		Refresh: "1s",
 	}
 
+	// run a dummy http server to mimic influxdb
+	// this will reply with empty json to everything
+	influxServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		fmt.Fprintln(w, `{"data":[{"Messages": null,"Series": null}]}`)
+	}))
+	defer influxServer.Close()
+	// Remove the leading "http://"
+	influxAddr := influxServer.URL[7:]
+
 	// run dummy controller - this always returns success
 	// to all APIs directed to it, and does not actually
 	// create or delete objects. We are mocking it out
@@ -74,8 +85,9 @@ func TestController(t *testing.T) {
 	require.Equal(t, http.StatusOK, status)
 	require.Equal(t, 0, len(ctrls))
 	ctrl := ormapi.Controller{
-		Region:  "USA",
-		Address: ctrlAddr,
+		Region:   "USA",
+		Address:  ctrlAddr,
+		InfluxDB: influxAddr,
 	}
 	// create controller
 	status, err = mcClient.CreateController(uri, token, &ctrl)

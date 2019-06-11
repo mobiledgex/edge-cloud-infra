@@ -1,6 +1,7 @@
 package orm
 
 import (
+	"net/http"
 	"testing"
 
 	"github.com/mobiledgex/edge-cloud-infra/mc/ormapi"
@@ -15,30 +16,65 @@ func TestInfluxDB(t *testing.T) {
 	require.Equal(t, 0, 0)
 }
 
-func testShowClusterMetrics(mcClient *ormclient.Client, uri, token, region string, in *edgeproto.ClusterInst) ([]edgeproto.ClusterInst, int, error) {
-	dat := &ormapi.RegionClusterInst{}
-	dat.Region = region
-	dat.ClusterInst = *in
-	return mcClient.ShowClusterInst(uri, token, dat)
-}
+func testPermShowClusterMetrics(mcClient *ormclient.Client, uri, token, region, org string) ([]interface{}, int, error) {
+	var out interface{}
+	var data []interface{}
 
-func testPermShowClusterMetrics(mcClient *ormclient.Client, uri, token, region, org string) ([]edgeproto.ClusterInst, int, error) {
 	in := &edgeproto.ClusterInst{}
 	in.Key.Developer = org
-	return testShowClusterMetrics(mcClient, uri, token, region, in)
+	dat := &ormapi.RegionClusterInstMetrics{}
+	dat.Region = region
+	dat.ClusterInst = *in
+	status, err := mcClient.PostJsonStreamOut(uri+"/auth/metrics/cluster", token, dat, &out, func() {
+		data = append(data, out)
+	})
+	return data, status, err
+}
+
+func testPermShowAppInstMetrics(mcClient *ormclient.Client, uri, token, region, org string) ([]interface{}, int, error) {
+	var out interface{}
+	var data []interface{}
+
+	in := &edgeproto.AppInst{}
+	in.Key.AppKey.DeveloperKey.Name = org
+	dat := &ormapi.RegionAppInstMetrics{}
+	dat.Region = region
+	dat.AppInst = *in
+	status, err := mcClient.PostJsonStreamOut(uri+"/auth/metrics/app", token, dat, &out, func() {
+		data = append(data, out)
+	})
+	return data, status, err
 }
 
 func badPermTestMetrics(t *testing.T, mcClient *ormclient.Client, uri, token, region, org string) {
-	/*
-		_, status, err := testPermShowAppInstMetrics(mcClient, uri, token, region, org)
-		require.NotNil(t, err)
-		require.Equal(t, http.StatusForbidden, status)
-		_, status, err = testPermShowClusterMetrics(mcClient, uri, token, region, org)
-		require.NotNil(t, err)
-		require.Equal(t, http.StatusForbidden, status)
-	*/
+	_, status, err := testPermShowAppInstMetrics(mcClient, uri, token, region, org)
+	require.NotNil(t, err)
+	require.Equal(t, http.StatusForbidden, status)
+	_, status, err = testPermShowClusterMetrics(mcClient, uri, token, region, org)
+	require.NotNil(t, err)
+	require.Equal(t, http.StatusForbidden, status)
 }
 
 func goodPermTestMetrics(t *testing.T, mcClient *ormclient.Client, uri, token, region, org string) {
+	list, status, err := testPermShowAppInstMetrics(mcClient, uri, token, region, org)
+	require.Nil(t, err)
+	require.Equal(t, http.StatusOK, status)
+	require.NotEqual(t, 0, len(list))
+	// bad region check
+	list, status, err = testPermShowAppInstMetrics(mcClient, uri, token, "bad region", org)
+	require.NotNil(t, err)
+	require.Contains(t, err.Error(), "\"bad region\" not found")
+	require.Equal(t, http.StatusBadRequest, status)
+	require.Equal(t, 0, len(list))
 
+	list, status, err = testPermShowClusterMetrics(mcClient, uri, token, region, org)
+	require.Nil(t, err)
+	require.Equal(t, http.StatusOK, status)
+	require.NotEqual(t, 0, len(list))
+	// bad region check
+	list, status, err = testPermShowClusterMetrics(mcClient, uri, token, "bad region", org)
+	require.NotNil(t, err)
+	require.Contains(t, err.Error(), "\"bad region\" not found")
+	require.Equal(t, http.StatusBadRequest, status)
+	require.Equal(t, 0, len(list))
 }

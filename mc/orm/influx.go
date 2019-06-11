@@ -14,6 +14,7 @@ import (
 	"github.com/mobiledgex/edge-cloud-infra/mc/ormapi"
 	"github.com/mobiledgex/edge-cloud-infra/mexos"
 	"github.com/mobiledgex/edge-cloud/cloudcommon"
+	"github.com/mobiledgex/edge-cloud/log"
 	"google.golang.org/grpc/status"
 )
 
@@ -59,7 +60,6 @@ func init() {
 func connectInfluxDB(region string) (influxdb.Client, error) {
 	addr, err := getInfluxDBAddrForRegion(region)
 	if err != nil {
-		fmt.Printf("Failed to get addr for region: %s\n", region)
 		return nil, err
 	}
 	creds, err := getInfluxDBCreds(region)
@@ -70,14 +70,14 @@ func connectInfluxDB(region string) (influxdb.Client, error) {
 			password: "",
 		}
 	}
-	fmt.Printf("Connecting to %s\n", addr)
 	client, err := influxdb.NewHTTPClient(influxdb.HTTPConfig{
 		Addr:     "http://" + addr,
 		Username: creds.username,
 		Password: creds.password,
 	})
+	log.DebugLog(log.DebugLevelApi, "connecting to influxdb",
+		"addr", addr, "err", err)
 	if err != nil {
-		fmt.Printf("Failed to connect to %s err: %v\n", addr, err)
 		return nil, err
 	}
 	return client, nil
@@ -190,18 +190,15 @@ func metricsStream(rc *InfluxDBContext, dbQuery string, cb func(Data interface{}
 		Chunked:   false, // TODO - add chunking. Client lib doesn't support chunk response processing yet
 		ChunkSize: queryChunkSize,
 	}
-	fmt.Printf("Got command: [%s]\n", dbQuery)
-	fmt.Printf("Running query: %v\n", query)
 	resp, err := rc.conn.Query(query)
+	log.DebugLog(log.DebugLevelApi, "InfluxDB query",
+		"query", query, "resp", resp, "err", err)
 	if err != nil {
-		fmt.Printf("Coudlnt'run query %v\n", err)
 		return err
 	}
 	if resp.Error() != nil {
-		fmt.Printf("Got back and error: %v\n", resp)
 		return resp.Error()
 	}
-	fmt.Printf("No error!!! %v\n", resp)
 	cb(resp.Results)
 	return nil
 }

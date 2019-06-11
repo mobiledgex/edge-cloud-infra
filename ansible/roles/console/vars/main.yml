@@ -1,3 +1,2 @@
-install_dir: /home/ansible/edge-cloud-ui
-mongodb_path: "{{install_dir}}/server/mongodb_data"
+console_image: registry.mobiledgex.net:5000/mobiledgex/console
 slack_channel: "#web-ui"

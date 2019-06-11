@@ -1,0 +1,169 @@
+---
+- name: Create groups
+  group:
+    name: "{{ vault_group }}"
+  become: yes
+
+- name: Create vault user account
+  user:
+    name: "{{ vault_user }}"
+    group: "{{ vault_group }}"
+    system: yes
+    shell: /sbin/nologin
+    createhome: no
+  become: yes
+
+- name: Install vault dependencies
+  apt:
+    name:
+      - unzip
+  become: yes
+
+- name: "Download vault {{ vault_version }}"
+  get_url:
+    url: "https://releases.hashicorp.com/vault/{{ vault_version }}/vault_{{ vault_version }}_linux_amd64.zip"
+    dest: "{{ ansible_env.HOME }}/vault_{{ vault_version }}_linux_amd64.zip"
+    checksum: "{{ vault_checksum }}"
+  register: vault_download
+
+- name: Extract vault
+  unarchive:
+    src: "{{ vault_download.dest }}"
+    dest: "{{ vault_path }}"
+    remote_src: yes
+  become: yes
+
+- name: Grant IPC lock capability
+  capabilities:
+    path: "{{ vault_path }}/vault"
+    capability: cap_ipc_lock+ep
+  become: yes
+
+- name: Create storage bucket
+  command: "gsutil mb gs://{{ storage_bucket_name }}"
+  changed_when: false
+  register: result
+  failed_when:
+    - result.rc != 0
+    - "'already exists' not in result.stderr"
+  delegate_to: localhost
+
+- set_fact:
+    storage_bucket_service_account_name: "{{ storage_bucket_name }}-user"
+    storage_bucket_service_account_email: "{{ storage_bucket_name }}-user@{{ project }}.iam.gserviceaccount.com"
+
+- name: Create service account
+  command: "gcloud iam service-accounts create {{ storage_bucket_service_account_name }} --display-name {{ storage_bucket_service_account_name }}"
+  changed_when: false
+  register: result
+  failed_when:
+    - result.rc != 0
+    - "'already exists within project' not in result.stderr"
+  delegate_to: localhost
+
+- name: Grant access to storage bucket
+  command: "gsutil iam ch serviceAccount:{{ storage_bucket_service_account_email }}:roles/storage.objectAdmin gs://{{ storage_bucket_name }}"
+  changed_when: false
+  delegate_to: localhost
+
+- block:
+
+    - stat:
+        path: "{{ storage_service_account_key }}"
+      become: yes
+      register: key
+
+    - name: Verify that service account key is present
+      assert:
+        that: key.stat.exists
+
+  rescue:
+
+    - name: Make sure key directory is present
+      file:
+        path: "{{ storage_service_account_key | dirname }}"
+        owner: "{{ vault_user }}"
+        group: "{{ vault_group }}"
+        state: directory
+        mode: 0700
+      become: yes
+
+    - tempfile:
+        suffix: .json
+      register: key_tempfile
+      notify: Delete key tempfile
+
+    - name: Get service account key
+      command: "gcloud iam service-accounts keys create {{ key_tempfile.path }} --iam-account {{ storage_bucket_service_account_email }}"
+      delegate_to: localhost
+
+    - name: Install service account key
+      copy:
+        src: "{{ key_tempfile.path }}"
+        dest: "{{ storage_service_account_key }}"
+      become: yes
+      notify: Restart vault
+
+- name: Install vault config file
+  template:
+    src: vault.hcl.j2
+    dest: "{{ vault_conf }}"
+  become: yes
+  notify: Restart vault
+
+- name: Allow vault permission to its certs
+  acl:
+    path: "{{ item }}"
+    entity: "{{ vault_user }}"
+    etype: user
+    permissions: r
+    recursive: yes
+    default: yes
+    state: present
+  become: yes
+  with_items:
+    - "/etc/letsencrypt/live/{{ vault_vm_hostname }}"
+    - "/etc/letsencrypt/archive/{{ vault_vm_hostname }}"
+
+- name: Allow vault permission to its cert directories
+  acl:
+    path: "{{ item }}"
+    entity: "{{ vault_user }}"
+    etype: user
+    permissions: rx
+    state: present
+  become: yes
+  with_items:
+    - /etc/letsencrypt/live
+    - "/etc/letsencrypt/live/{{ vault_vm_hostname }}"
+    - /etc/letsencrypt/archive
+    - "/etc/letsencrypt/archive/{{ vault_vm_hostname }}"
+
+- name: Install systemd service file
+  template:
+    src: vault.service.j2
+    dest: "/etc/systemd/system/vault.service"
+    mode: 0644
+  become: yes
+
+- name: Start vault service
+  systemd:
+    name: vault
+    enabled: yes
+    state: started
+    daemon_reload: yes
+  become: yes
+
+- name: Check if vault is initialized
+  uri:
+    url: "https://{{ vault_vm_hostname }}:{{ vault_port }}/v1/sys/init"
+    return_content: yes
+    status_code: 200
+    body_format: json
+  register: result
+
+- debug:
+    msg: "Vault needs to be initialized"
+  when: not result.json.initialized
+  changed_when: true
+  notify: Vault initialization prompt

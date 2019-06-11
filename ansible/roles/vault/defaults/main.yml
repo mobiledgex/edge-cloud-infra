@@ -1,0 +1,7 @@
+---
+vault_version: 1.1.2
+vault_checksum: sha256:e927fd4daac11f6c7b8b3f1f53f2017516e29e99585dc975b657acdeac43500b
+vault_user: vault
+vault_group: vault
+vault_path: /usr/local/bin
+vault_conf: /etc/vault.hcl

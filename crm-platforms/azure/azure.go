@@ -8,6 +8,7 @@ import (
 
 	sh "github.com/codeskyblue/go-sh"
 	"github.com/mobiledgex/edge-cloud-infra/mexos"
+	"github.com/mobiledgex/edge-cloud/cloud-resource-manager/platform"
 	"github.com/mobiledgex/edge-cloud/cloud-resource-manager/platform/pc"
 	"github.com/mobiledgex/edge-cloud/edgeproto"
 	"github.com/mobiledgex/edge-cloud/log"
@@ -22,15 +23,15 @@ func (s *Platform) GetType() string {
 	return "azure"
 }
 
-func (s *Platform) Init(key *edgeproto.CloudletKey) error {
-	if err := mexos.InitInfraCommon(); err != nil {
+func (s *Platform) Init(platformConfig *platform.PlatformConfig) error {
+	if err := mexos.InitInfraCommon(platformConfig.VaultAddr); err != nil {
 		return err
 	}
 	s.props.Location = os.Getenv("MEX_AZURE_LOCATION")
 	if s.props.Location == "" {
 		return fmt.Errorf("Env variable MEX_AZURE_LOCATION not set")
 	}
-	/** resource group currently derived from cloudletname + cluster name
+	/** resource group currently derived from cloudletName + cluster name
 			s.props.ResourceGroup = os.Getenv("MEX_AZURE_RESOURCE_GROUP")
 			if s.props.ResourceGroup == "" {
 				return fmt.Errorf("Env variable MEX_AZURE_RESOURCE_GROUP not set")

@@ -5,6 +5,7 @@ import (
 	"os"
 
 	"github.com/mobiledgex/edge-cloud-infra/mexos"
+	"github.com/mobiledgex/edge-cloud/cloud-resource-manager/platform"
 	"github.com/mobiledgex/edge-cloud/cloud-resource-manager/platform/dind"
 	"github.com/mobiledgex/edge-cloud/cloud-resource-manager/platform/pc"
 	"github.com/mobiledgex/edge-cloud/cloudcommon"
@@ -25,13 +26,12 @@ func (s *Platform) GetType() string {
 	return "mexdind"
 }
 
-func (s *Platform) Init(key *edgeproto.CloudletKey) error {
-	err := s.generic.Init(key)
+func (s *Platform) Init(platformConfig *platform.PlatformConfig) error {
+	err := s.generic.Init(platformConfig)
 	if err != nil {
 		return err
 	}
-
-	if err := mexos.InitInfraCommon(); err != nil {
+	if err := mexos.InitInfraCommon(platformConfig.VaultAddr); err != nil {
 		return err
 	}
 
@@ -45,7 +45,7 @@ func (s *Platform) Init(key *edgeproto.CloudletKey) error {
 	}
 	mexos.CloudletInfraCommon.NetworkScheme = s.NetworkScheme
 
-	fqdn := cloudcommon.GetRootLBFQDN(key)
+	fqdn := cloudcommon.GetRootLBFQDN(platformConfig.CloudletKey)
 	ipaddr, err := s.GetDINDServiceIP()
 	if err != nil {
 		return fmt.Errorf("init cannot get service ip, %s", err.Error())

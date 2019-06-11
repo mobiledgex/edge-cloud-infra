@@ -75,7 +75,7 @@ func connectInfluxDB(region string) (influxdb.Client, error) {
 		Username: creds.username,
 		Password: creds.password,
 	})
-	log.DebugLog(log.DebugLevelApi, "connecting to influxdb",
+	log.DebugLog(log.DebugLevelMetrics, "connecting to influxdb",
 		"addr", addr, "err", err)
 	if err != nil {
 		return nil, err
@@ -108,14 +108,13 @@ func getInfluxDBCreds(region string) (*InfluxDBVaultData, error) {
 
 // Query is a template with a specific set of if/else
 func AppInstMetricsQuery(obj *ormapi.RegionAppInstMetrics, measurement string) string {
-	appInst := obj.AppInst
 	arg := influxQueryArgs{
 		Selector:     obj.Selector,
 		Measurement:  measurement,
-		AppInstName:  appInst.Key.AppKey.Name,
-		CloudletName: appInst.Key.ClusterInstKey.CloudletKey.Name,
-		ClusterName:  appInst.Key.ClusterInstKey.ClusterKey.Name,
-		OperatorName: appInst.Key.ClusterInstKey.CloudletKey.OperatorKey.Name,
+		AppInstName:  obj.AppInst.AppKey.Name,
+		CloudletName: obj.AppInst.ClusterInstKey.CloudletKey.Name,
+		ClusterName:  obj.AppInst.ClusterInstKey.ClusterKey.Name,
+		OperatorName: obj.AppInst.ClusterInstKey.CloudletKey.OperatorKey.Name,
 	}
 
 	// Figure out the start/end time range for the query
@@ -141,13 +140,12 @@ func AppInstMetricsQuery(obj *ormapi.RegionAppInstMetrics, measurement string) s
 
 // Query is a template with a specific set of if/else
 func ClusterMetricsQuery(obj *ormapi.RegionClusterInstMetrics, measurement string) string {
-	cluster := obj.ClusterInst
 	arg := influxQueryArgs{
 		Selector:     obj.Selector,
 		Measurement:  measurement,
-		CloudletName: cluster.Key.CloudletKey.Name,
-		ClusterName:  cluster.Key.ClusterKey.Name,
-		OperatorName: cluster.Key.CloudletKey.OperatorKey.Name,
+		CloudletName: obj.ClusterInst.CloudletKey.Name,
+		ClusterName:  obj.ClusterInst.ClusterKey.Name,
+		OperatorName: obj.ClusterInst.CloudletKey.OperatorKey.Name,
 	}
 
 	// Figure out the start/end time range for the query
@@ -171,6 +169,8 @@ func ClusterMetricsQuery(obj *ormapi.RegionClusterInstMetrics, measurement strin
 	return buf.String()
 }
 
+// TODO: This function should be a streaming fucntion, but currently client library for influxDB
+// doesn't implement it in a way could really be using it
 func metricsStream(rc *InfluxDBContext, dbQuery string, cb func(Data interface{})) error {
 	if rc.conn == nil {
 		conn, err := connectInfluxDB(rc.region)
@@ -191,9 +191,9 @@ func metricsStream(rc *InfluxDBContext, dbQuery string, cb func(Data interface{}
 		ChunkSize: queryChunkSize,
 	}
 	resp, err := rc.conn.Query(query)
-	log.DebugLog(log.DebugLevelApi, "InfluxDB query",
-		"query", query, "resp", resp, "err", err)
 	if err != nil {
+		log.DebugLog(log.DebugLevelMetrics, "InfluxDB query failed",
+			"query", query, "resp", resp, "err", err)
 		return err
 	}
 	if resp.Error() != nil {
@@ -205,7 +205,7 @@ func metricsStream(rc *InfluxDBContext, dbQuery string, cb func(Data interface{}
 
 // Common method to handle both app and cluster metrics
 func GetMetricsCommon(c echo.Context) error {
-	var cmd, user string
+	var cmd, org string
 
 	rc := &InfluxDBContext{}
 	claims, err := getClaims(c)
@@ -220,7 +220,7 @@ func GetMetricsCommon(c echo.Context) error {
 			return c.JSON(http.StatusBadRequest, Msg("Invalid GET data"))
 		}
 		rc.region = in.Region
-		user = in.AppInst.Key.AppKey.DeveloperKey.Name
+		org = in.AppInst.AppKey.DeveloperKey.Name
 		cmd = AppInstMetricsQuery(&in, cloudcommon.DeveloperAppMetrics)
 	} else if strings.HasSuffix(c.Path(), "metrics/cluster") {
 		in := ormapi.RegionClusterInstMetrics{}
@@ -228,14 +228,14 @@ func GetMetricsCommon(c echo.Context) error {
 			return c.JSON(http.StatusBadRequest, Msg("Invalid GET data"))
 		}
 		rc.region = in.Region
-		user = in.ClusterInst.Key.Developer
+		org = in.ClusterInst.Developer
 		cmd = ClusterMetricsQuery(&in, cloudcommon.DeveloperClusterMetric)
 	} else {
 		return echo.ErrNotFound
 	}
 
 	// Check the developer against who is logged in
-	if !enforcer.Enforce(rc.claims.Username, user, ResourceAppAnalytics, ActionView) {
+	if !enforcer.Enforce(rc.claims.Username, org, ResourceAppAnalytics, ActionView) {
 		return echo.ErrForbidden
 	}
 

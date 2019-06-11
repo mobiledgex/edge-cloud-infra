@@ -7,21 +7,15 @@ import (
 	"github.com/mobiledgex/edge-cloud-infra/mc/ormapi"
 	"github.com/mobiledgex/edge-cloud-infra/mc/ormclient"
 	"github.com/mobiledgex/edge-cloud/edgeproto"
-	"github.com/mobiledgex/edge-cloud/log"
 	"github.com/stretchr/testify/require"
 )
-
-func TestInfluxDB(t *testing.T) {
-	log.SetDebugLevel(log.DebugLevelApi)
-	require.Equal(t, 0, 0)
-}
 
 func testPermShowClusterMetrics(mcClient *ormclient.Client, uri, token, region, org string) ([]interface{}, int, error) {
 	var out interface{}
 	var data []interface{}
 
-	in := &edgeproto.ClusterInst{}
-	in.Key.Developer = org
+	in := &edgeproto.ClusterInstKey{}
+	in.Developer = org
 	dat := &ormapi.RegionClusterInstMetrics{}
 	dat.Region = region
 	dat.ClusterInst = *in
@@ -35,8 +29,8 @@ func testPermShowAppInstMetrics(mcClient *ormclient.Client, uri, token, region, 
 	var out interface{}
 	var data []interface{}
 
-	in := &edgeproto.AppInst{}
-	in.Key.AppKey.DeveloperKey.Name = org
+	in := &edgeproto.AppInstKey{}
+	in.AppKey.DeveloperKey.Name = org
 	dat := &ormapi.RegionAppInstMetrics{}
 	dat.Region = region
 	dat.AppInst = *in

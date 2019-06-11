@@ -5,6 +5,7 @@ import (
 	"net"
 	"net/http"
 	"net/http/httptest"
+	"strings"
 	"testing"
 	"time"
 
@@ -52,8 +53,9 @@ func TestController(t *testing.T) {
 		fmt.Fprintln(w, `{"data":[{"Messages": null,"Series": null}]}`)
 	}))
 	defer influxServer.Close()
-	// Remove the leading "http://"
-	influxAddr := influxServer.URL[7:]
+
+	// TODO - once add TLS to influxdb change this as well
+	influxAddr := strings.TrimPrefix(influxServer.URL, "http://")
 
 	// run dummy controller - this always returns success
 	// to all APIs directed to it, and does not actually

@@ -130,7 +130,7 @@ type RegionData struct {
 // Metrics data
 type RegionAppInstMetrics struct {
 	Region    string
-	AppInst   edgeproto.AppInst
+	AppInst   edgeproto.AppInstKey
 	Selector  string    `json:",omitempty"`
 	StartTime time.Time `json:",omitempty"`
 	EndTime   time.Time `json:",omitempty"`
@@ -138,7 +138,7 @@ type RegionAppInstMetrics struct {
 
 type RegionClusterInstMetrics struct {
 	Region      string
-	ClusterInst edgeproto.ClusterInst
+	ClusterInst edgeproto.ClusterInstKey
 	Selector    string    `json:",omitempty"`
 	StartTime   time.Time `json:",omitempty"`
 	EndTime     time.Time `json:",omitempty"`

@@ -2,10 +2,14 @@ package dind
 
 import (
 	//"errors"
+	"github.com/mobiledgex/edge-cloud/cloud-resource-manager/platform/dind"
+	"github.com/mobiledgex/edge-cloud/cloud-resource-manager/platform/pc"
 	"github.com/mobiledgex/edge-cloud/edgeproto"
 )
 
 type Platform struct {
+	pf           dind.Platform
+	SharedClient pc.PlatformClient
 }
 
 func (s *Platform) GetType() string {
@@ -13,7 +17,7 @@ func (s *Platform) GetType() string {
 }
 
 func (s *Platform) Init(key *edgeproto.CloudletKey) error {
-	//dont need to do anything here?
+	s.SharedClient, _ = s.pf.GetPlatformClient(nil)
 	return nil
 }
 
@@ -22,4 +26,8 @@ func (s *Platform) GetClusterIP(clusterInst *edgeproto.ClusterInst) (string, err
 		return clusterInst.AllocatedIp, nil
 	}
 	return "localhost", nil
+}
+
+func (s *Platform) GetPlatformClient(clusterInst *edgeproto.ClusterInst) (pc.PlatformClient, error) {
+	return s.SharedClient, nil
 }

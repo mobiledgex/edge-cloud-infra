@@ -61,37 +61,40 @@ var influxQ *influxq.InfluxQ
 
 var sigChan chan os.Signal
 
-func appInstCb(key *edgeproto.AppInstKey, old *edgeproto.AppInst) {
+func appInstCb(old *edgeproto.AppInst, new *edgeproto.AppInst) {
 	fmt.Printf("app update called\n")
 	//check for prometheus
-	if key.AppKey.Name != MEXPrometheusAppName {
+	if new.Key.AppKey.Name != MEXPrometheusAppName {
 		return
 	}
-	info := edgeproto.AppInst{}
-	found := AppInstCache.Get(key, &info)
-	if !found {
-		return
-	}
-	var mapKey = key.ClusterInstKey.ClusterKey.Name
+	var mapKey = new.Key.ClusterInstKey.ClusterKey.Name
 	stats, exists := promMap[mapKey]
 	//maybe need to do more than just check for ready
-	if info.State == edgeproto.TrackedState_READY {
+	if new.State == edgeproto.TrackedState_READY {
 		fmt.Printf("New Prometheus instance detected in cluster: %s\n", mapKey)
 		//get address of prometheus.
 		//for now while testing in dind this is ok
 		clusterInst := edgeproto.ClusterInst{}
-		found := ClusterInstCache.Get(&key.ClusterInstKey, &clusterInst)
+		found := ClusterInstCache.Get(&new.Key.ClusterInstKey, &clusterInst)
 		if !found {
 			fmt.Printf("Unable to find clusterInst for prometheus\n")
 			return
 		}
-		clustIP, _ := pf.GetClusterIP(&clusterInst)
-		port := info.MappedPorts[0].PublicPort
+		clustIP, err := pf.GetClusterIP(&clusterInst)
+		if err != nil {
+			fmt.Printf("error getting clusterIP: %s\n", err.Error())
+		}
+		port := new.MappedPorts[0].PublicPort
 		promAddress := fmt.Sprintf("%s:%d", clustIP, port)
 		fmt.Printf("prometheus found at: %s\n", promAddress)
 		if !exists {
-			stats = NewPromStats(promAddress, *collectInterval, sendMetric, key.ClusterInstKey)
+			stats = NewPromStats(promAddress, *collectInterval, sendMetric, new.Key.ClusterInstKey)
 			promMap[mapKey] = stats
+			stats.pc, err = pf.GetPlatformClient(&clusterInst)
+			if err != nil {
+				//should this be a fatal log???
+				log.FatalLog("Failed to acquire platform client", "error", err)
+			}
 			stats.Start()
 		} else { //somehow this cluster's prometheus was already registered
 			fmt.Printf("Error, Prometheus app already registered for this cluster\n")
@@ -143,7 +146,8 @@ func main() {
 
 	//register thresher to receive appinst notifications from crm
 	edgeproto.InitAppInstCache(&AppInstCache)
-	AppInstCache.SetNotifyCb(appInstCb)
+	//TODO: change this to a updatedCb
+	AppInstCache.SetUpdatedCb(appInstCb)
 	edgeproto.InitClusterInstCache(&ClusterInstCache)
 	//then init notify, (look at crm/main line 108)
 	addrs := strings.Split(*notifyAddrs, ",")

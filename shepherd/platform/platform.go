@@ -1,6 +1,7 @@
 package platform
 
 import (
+	"github.com/mobiledgex/edge-cloud/cloud-resource-manager/platform/pc"
 	"github.com/mobiledgex/edge-cloud/edgeproto"
 )
 
@@ -12,4 +13,6 @@ type Platform interface {
 	Init(key *edgeproto.CloudletKey) error
 	// Gets the IP for a cluster
 	GetClusterIP(clusterInst *edgeproto.ClusterInst) (string, error)
+	// Gets a platform client to be able to runn commands against (mainly for curling the prometheuses)
+	GetPlatformClient(clusterInst *edgeproto.ClusterInst) (pc.PlatformClient, error)
 }

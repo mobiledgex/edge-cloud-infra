@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/gogo/protobuf/types"
+	"github.com/mobiledgex/edge-cloud/cloud-resource-manager/platform/pc"
 	"github.com/mobiledgex/edge-cloud/edgeproto"
 )
 
@@ -52,6 +53,7 @@ type PromStats struct {
 	cloudletName string
 	clusterName  string
 	developer    string
+	pc           pc.PlatformClient
 }
 
 type PromResp struct {

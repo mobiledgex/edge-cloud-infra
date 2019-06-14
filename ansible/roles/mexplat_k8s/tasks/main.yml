@@ -1,6 +1,6 @@
 ---
 - debug:
-    msg: "Deploying edge-cloud version '{{ edge_cloud_version }}' to cluster '{{ k8s_cluster_name }}'"
+    msg: "Deploying edge-cloud version '{{ edge_cloud_version }}' to cluster '{{ k8s_cluster_name }}' (region: '{{ region }}')"
 
 - name: Create temporary kubeconfig file
   tempfile:

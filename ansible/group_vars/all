@@ -21,8 +21,6 @@ postgres_server: postgres.mobiledgex.net:5432
 mc_vault_role_id: f4207f0f-c965-ac3e-181c-235de8838ff7
 mc_vault_secret_id: ***REMOVED***
 mc_artifactory_apikey: ***REMOVED***
-dme_vault_role_id: b95e3309-5964-89a2-5647-e86f745f20c7
-dme_vault_secret_id: ***REMOVED***
 crm_vault_role_id: e017fc39-dff7-adc3-364f-bb8e04805454
 crm_vault_secret_id: ***REMOVED***
 crm_artifactory_apikey: ***REMOVED***

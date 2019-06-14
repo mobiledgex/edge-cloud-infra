@@ -20,7 +20,7 @@ spec:
         imagePullPolicy: Always
         command:
          - "controller"
-         - "-region"
+         - "--region"
          - "EU"
          - "--apiAddr"
          - "0.0.0.0:55001"

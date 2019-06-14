@@ -36,9 +36,9 @@ spec:
          - "etcd,api,notify"
         env:
          - name: VAULT_ROLE_ID
-           value: 0d0ab025-509e-c37d-d5de-c3319f452bd8
+           value: 1c2a5271-31af-96e9-da03-b3f63d7fd628
          - name: VAULT_SECRET_ID
-           value: 4c5ed16b-b287-ee12-62d5-b25fef28736d
+           value: ed04e6dc-72fc-0abe-774f-7ae806469eb9
 
       imagePullSecrets:
        - name: mexreg-secret 

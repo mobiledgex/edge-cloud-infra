@@ -20,6 +20,8 @@ spec:
         imagePullPolicy: Always
         command:
          - "dme-server"
+         - "--region"
+         - "{{ region }}"
          - "--apiAddr"
          - "0.0.0.0:50051"
          - "--httpAddr"

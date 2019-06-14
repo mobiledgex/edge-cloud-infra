@@ -48,9 +48,9 @@ spec:
          - name: LOCAPI_PASSWD
            value: "{{ locapi_passwd }}"
          - name: VAULT_ROLE_ID
-           value: "{{ dme_vault_role_id }}"
+           value: "{{ dme_vault_app_role[region].role_id }}"
          - name: VAULT_SECRET_ID
-           value: "{{ dme_vault_secret_id }}"
+           value: "{{ dme_vault_app_role[region].secret_id }}"
 
       imagePullSecrets:
        - name: mexreg-secret

@@ -20,6 +20,8 @@ spec:
         imagePullPolicy: Always
         command:
          - "controller"
+         - "-region"
+         - "{{ region }}"
          - "--apiAddr"
          - "0.0.0.0:55001"
          - "--httpAddr"
@@ -35,6 +37,11 @@ spec:
          - "-autoUpgrade"
          - "-d"
          - "etcd,api,notify,upgrade"
+        env:
+         - name: VAULT_ROLE_ID
+           value: "{{ ctrl_vault_app_role[region].role_id }}"
+         - name: VAULT_SECRET_ID
+           value: "{{ ctrl_vault_app_role[region].secret_id }}"
 
       imagePullSecrets:
        - name: mexreg-secret 

@@ -27,3 +27,4 @@
   delay: 5
   until: result.stdout.split(" ")|length > 2
   changed_when: false
+  when: not ansible_check_mode

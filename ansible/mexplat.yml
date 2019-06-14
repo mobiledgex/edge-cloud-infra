@@ -100,6 +100,7 @@
       vars:
         k8s_cluster_name: "{{ item.name }}"
         kube_config: "{{ item.kube_config }}"
+        region: "{{ item.region }}"
       with_items: "{{ k8s_clusters }}"
 
 - hosts: gitlab

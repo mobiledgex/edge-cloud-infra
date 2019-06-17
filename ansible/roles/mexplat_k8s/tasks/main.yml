@@ -17,9 +17,10 @@
   changed_when: false
   check_mode: no
 
-- include_role: name="k8s"
-- include_role: name="etcd"
-- include_role: name="monitor"
-- include_role: name="controller"
-- include_role: name="dme"
-- include_role: name="cluster-svc"
+- import_role: name="k8s"
+- import_role: name="cert-manager"
+- import_role: name="etcd"
+- import_role: name="monitor"
+- import_role: name="controller"
+- import_role: name="dme"
+- import_role: name="cluster-svc"

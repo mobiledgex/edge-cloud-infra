@@ -18,7 +18,7 @@ import (
 	"github.com/mobiledgex/edge-cloud/notify"
 )
 
-var influxdb = flag.String("influxdb", "0.0.0.0:8086", "InfluxDB address to export to")
+var influxdb = flag.String("influxdb", "http://0.0.0.0:8086", "InfluxDB address to export to")
 var debugLevels = flag.String("d", "", fmt.Sprintf("comma separated list of %v", log.DebugLevelStrings))
 var notifyAddrs = flag.String("notifyAddrs", "127.0.0.1:51001", "CRM notify listener addresses")
 var tlsCertFile = flag.String("tls", "", "server9 tls cert file.  Keyfile and CA file mex-ca.crt must be in same directory")

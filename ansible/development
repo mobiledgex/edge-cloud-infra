@@ -25,6 +25,8 @@ mc_tag="{{ deploy_environ }}"
 gitlab_email_enabled=false
 gitlab_docker_hostname="docker-{{ deploy_environ }}.mobiledgex.net"
 use_letsencrypt_staging=True
+azure_volume_storage_class=default
+influxdb_volume_size=1Gi
 
 [platform]
 localhost	ansible_connection=local

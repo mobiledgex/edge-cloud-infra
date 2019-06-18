@@ -1,0 +1,44 @@
+apiVersion: extensions/v1beta1
+kind: Deployment
+metadata:
+  name: {{ influxdb_name }}
+spec:
+  replicas: 1
+  template:
+    metadata:
+      labels:
+        task: monitoring
+        k8s-app: influxdb
+    spec:
+
+      containers:
+      - name: influxdb
+        image: influxdb:{{ influxdb_version }}
+        volumeMounts:
+        - mountPath: /var/lib/influxdb
+          name: influxdb-storage
+        - mountPath: /etc/influxdb
+          name: influxdb-conf
+          readOnly: true
+        - name: tls
+          mountPath: /tls
+          readOnly: true
+        env:
+        - name: INFLUXDB_ADMIN_USER
+          value: {{ influxdb_user }}
+        - name: INFLUXDB_ADMIN_PASSWORD
+          value: {{ influxdb_password }}
+
+      volumes:
+      - name: influxdb-storage
+        persistentVolumeClaim:
+          claimName: {{ influxdb_volume_name }}
+      - name: influxdb-conf
+        configMap:
+          name: influxdb-conf
+          items:
+          - key: influxdb.conf
+            path: influxdb.conf
+      - name: tls
+        secret:
+          secretName: {{ cert_secret_name }}

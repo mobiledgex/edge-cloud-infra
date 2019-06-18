@@ -1,8 +1,10 @@
 - name: "Set up nginx ingress controller v{{ nginx_ingress_version }}"
   command: "kubectl --kubeconfig {{ kubeconfig_file.path }} apply -f https://raw.githubusercontent.com/kubernetes/ingress-nginx/nginx-{{ nginx_ingress_version }}/deploy/mandatory.yaml"
+  changed_when: no
 
 - name: Set up nginx loadbalancer service
   command: "kubectl --kubeconfig {{ kubeconfig_file.path }} apply -f https://raw.githubusercontent.com/kubernetes/ingress-nginx/nginx-{{ nginx_ingress_version }}/deploy/provider/cloud-generic.yaml"
+  changed_when: no
 
 - k8s_facts:
     kubeconfig: "{{ kubeconfig_file.path }}"

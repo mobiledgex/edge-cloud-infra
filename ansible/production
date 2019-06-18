@@ -11,6 +11,8 @@ postgres_hostname=postgres.mobiledgex.net
 artifactory_version=6.10.0
 coturn_instance_name=coturn
 stun_port=19302
+azure_volume_storage_class=managed-premium
+influxdb_volume_size=10Gi
 
 [artifactory]
 artifactory.mobiledgex.net	ubuntu_release=xenial

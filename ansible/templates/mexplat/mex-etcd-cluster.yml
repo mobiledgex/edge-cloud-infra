@@ -1,7 +1,7 @@
 apiVersion: "etcd.database.coreos.com/v1beta2"
 kind: "EtcdCluster"
 metadata:
-  name: "mex-etcd-cluster"
+  name: "{{ etcd_cluster_name }}"
   ## Adding this annotation make this cluster managed by clusterwide operators
   ## namespaced operators ignore it
   # annotations:

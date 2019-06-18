@@ -1,5 +1,5 @@
 - name: Get mex-etcd pod
-  command: "kubectl --kubeconfig {{ kubeconfig_file.path }} get pods --selector=etcd_cluster=mex-etcd-cluster -o jsonpath={.items[*].metadata.name}"
+  command: "kubectl --kubeconfig {{ kubeconfig_file.path }} get pods --selector=etcd_cluster={{ etcd_cluster_name }} -o jsonpath={.items[*].metadata.name}"
   register: mex_etcd_pod_json
   check_mode: no
   changed_when: false

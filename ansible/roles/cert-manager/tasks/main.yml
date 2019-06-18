@@ -14,6 +14,7 @@
 
 - name: "Install cert-manager {{ cert_manager_version }}"
   command: "kubectl --kubeconfig {{ kubeconfig_file.path }} apply -f https://github.com/jetstack/cert-manager/releases/download/{{ cert_manager_version }}/cert-manager.yaml --validate=false"
+  changed_when: no
 
 - set_fact:
     acme_url: "https://acme{{ ( use_letsencrypt_staging is defined and use_letsencrypt_staging ) | ternary('-staging', '') }}-v02.api.letsencrypt.org/directory"

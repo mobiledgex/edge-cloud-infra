@@ -1,7 +1,6 @@
 package dind
 
 import (
-	//"errors"
 	"github.com/mobiledgex/edge-cloud/cloud-resource-manager/platform/dind"
 	"github.com/mobiledgex/edge-cloud/cloud-resource-manager/platform/pc"
 	"github.com/mobiledgex/edge-cloud/edgeproto"
@@ -16,7 +15,7 @@ func (s *Platform) GetType() string {
 	return "dind"
 }
 
-func (s *Platform) Init(key *edgeproto.CloudletKey) error {
+func (s *Platform) Init(key *edgeproto.CloudletKey, physicalName, vaultAddr string) error {
 	s.SharedClient, _ = s.pf.GetPlatformClient(nil)
 	return nil
 }

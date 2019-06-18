@@ -1,7 +1,6 @@
 package openstack
 
 import (
-	//"errors"
 	"github.com/mobiledgex/edge-cloud-infra/crm-platforms/openstack"
 	"github.com/mobiledgex/edge-cloud-infra/mexos"
 	"github.com/mobiledgex/edge-cloud/cloud-resource-manager/platform/pc"
@@ -19,10 +18,10 @@ func (s *Platform) GetType() string {
 	return "openstack"
 }
 
-func (s *Platform) Init(key *edgeproto.CloudletKey) error {
+func (s *Platform) Init(key *edgeproto.CloudletKey, physicalName, vaultAddr string) error {
 	//get the platform client so we can ssh in to make curl commands to the prometheus apps
 	var err error
-	if err = mexos.InitOpenstackProps(); err != nil {
+	if err = mexos.InitOpenstackProps(key.OperatorKey.Name, physicalName, vaultAddr); err != nil {
 		return err
 	}
 	//need to have a separate one for dedicated rootlbs, see openstack.go line 111,
@@ -35,7 +34,8 @@ func (s *Platform) Init(key *edgeproto.CloudletKey) error {
 }
 
 func (s *Platform) GetClusterIP(clusterInst *edgeproto.ClusterInst) (string, error) {
-	return mexos.GetMasterIP(clusterInst)
+	_, ip, err := mexos.GetMasterNameAndIP(clusterInst)
+	return ip, err
 }
 
 func (s *Platform) GetPlatformClient(clusterInst *edgeproto.ClusterInst) (pc.PlatformClient, error) {

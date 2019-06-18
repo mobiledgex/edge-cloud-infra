@@ -1,7 +1,6 @@
 package main
 
 import (
-	//"errors"
 	"flag"
 	"fmt"
 	"os"
@@ -9,10 +8,10 @@ import (
 	"strings"
 	"time"
 
-	//"github.com/mobiledgex/edge-cloud-infra/mexos"
 	"github.com/mobiledgex/edge-cloud-infra/shepherd/platform"
 	"github.com/mobiledgex/edge-cloud-infra/shepherd/platform/dind"
 	"github.com/mobiledgex/edge-cloud-infra/shepherd/platform/openstack"
+	"github.com/mobiledgex/edge-cloud/cloudcommon"
 	influxq "github.com/mobiledgex/edge-cloud/controller/influxq_client"
 	"github.com/mobiledgex/edge-cloud/edgeproto"
 	"github.com/mobiledgex/edge-cloud/log"
@@ -25,6 +24,9 @@ var notifyAddrs = flag.String("notifyAddrs", "127.0.0.1:51001", "CRM notify list
 var tlsCertFile = flag.String("tls", "", "server9 tls cert file.  Keyfile and CA file mex-ca.crt must be in same directory")
 var collectInterval = flag.Duration("interval", time.Second*15, "Metrics collection interval")
 var platformName = flag.String("platform", "", "Platform type of Cloudlet")
+var vaultAddr = flag.String("vaultAddr", "", "Address to vault")
+var physicalName = flag.String("physicalName", "", "Physical infrastructure cloudlet name, defaults to cloudlet name in cloudletKey")
+var cloudletKeyStr = flag.String("cloudletKey", "", "Json or Yaml formatted cloudletKey for the cloudlet in which this CRM is instantiated; e.g. '{\"operator_key\":{\"name\":\"TMUS\"},\"name\":\"tmocloud1\"}'")
 
 var promQCpuClust = "sum(rate(container_cpu_usage_seconds_total%7Bid%3D%22%2F%22%7D%5B1m%5D))%2Fsum(machine_cpu_cores)*100"
 var promQMemClust = "sum(container_memory_working_set_bytes%7Bid%3D%22%2F%22%7D)%2Fsum(machine_memory_bytes)*100"
@@ -51,9 +53,9 @@ var Env = map[string]string{
 var promMap map[string]*PromStats
 var MEXPrometheusAppName = "MEXPrometheusAppName"
 var AppInstCache edgeproto.AppInstCache
-
-//is there a better way to get clusterinsts than having this cache
 var ClusterInstCache edgeproto.ClusterInstCache
+
+var cloudletKey edgeproto.CloudletKey
 var pf platform.Platform
 
 var InfluxDBName = "clusterstats"
@@ -62,42 +64,39 @@ var influxQ *influxq.InfluxQ
 var sigChan chan os.Signal
 
 func appInstCb(old *edgeproto.AppInst, new *edgeproto.AppInst) {
-	fmt.Printf("app update called\n")
 	//check for prometheus
 	if new.Key.AppKey.Name != MEXPrometheusAppName {
 		return
 	}
 	var mapKey = new.Key.ClusterInstKey.ClusterKey.Name
 	stats, exists := promMap[mapKey]
-	//maybe need to do more than just check for ready
 	if new.State == edgeproto.TrackedState_READY {
-		fmt.Printf("New Prometheus instance detected in cluster: %s\n", mapKey)
+		DebugPrint("New Prometheus instance detected in cluster: %s\n", mapKey)
 		//get address of prometheus.
-		//for now while testing in dind this is ok
 		clusterInst := edgeproto.ClusterInst{}
 		found := ClusterInstCache.Get(&new.Key.ClusterInstKey, &clusterInst)
 		if !found {
-			fmt.Printf("Unable to find clusterInst for prometheus\n")
+			log.DebugLog(log.DebugLevelMetrics, "Unable to find clusterInst for prometheus\n")
 			return
 		}
 		clustIP, err := pf.GetClusterIP(&clusterInst)
 		if err != nil {
-			fmt.Printf("error getting clusterIP: %s\n", err.Error())
+			log.DebugLog(log.DebugLevelMetrics, "error getting clusterIP: %s\n", err.Error())
 		}
 		port := new.MappedPorts[0].PublicPort
 		promAddress := fmt.Sprintf("%s:%d", clustIP, port)
-		fmt.Printf("prometheus found at: %s\n", promAddress)
+		DebugPrint("prometheus found at: %s\n", promAddress)
 		if !exists {
 			stats = NewPromStats(promAddress, *collectInterval, sendMetric, new.Key.ClusterInstKey)
-			promMap[mapKey] = stats
-			stats.pc, err = pf.GetPlatformClient(&clusterInst)
+			stats.client, err = pf.GetPlatformClient(&clusterInst)
 			if err != nil {
 				//should this be a fatal log???
 				log.FatalLog("Failed to acquire platform client", "error", err)
 			}
+			promMap[mapKey] = stats
 			stats.Start()
 		} else { //somehow this cluster's prometheus was already registered
-			fmt.Printf("Error, Prometheus app already registered for this cluster\n")
+			log.DebugLog(log.DebugLevelMetrics, "Error, Prometheus app already registered for this cluster\n")
 		}
 	} else { //if its anything other than ready just stop it
 		//try to remove it from the prommap
@@ -127,13 +126,15 @@ func main() {
 	flag.Parse()
 	log.SetDebugLevelStrs(*debugLevels)
 
-	fmt.Printf("InfluxDB is at: %s\n", *influxdb)
-	fmt.Printf("Metrics collection interval is %s\n", *collectInterval)
+	cloudcommon.ParseMyCloudletKey(false, cloudletKeyStr, &cloudletKey)
+	DebugPrint("InfluxDB is at: %s\n", *influxdb)
+	DebugPrint("Metrics collection interval is %s\n", *collectInterval)
 	var err error
 	pf, err = getPlatform()
 	if err != nil {
 		log.FatalLog("Failed to get platform", "platformName", platformName, "err", err)
 	}
+	pf.Init(&cloudletKey, *physicalName, *vaultAddr)
 	influxQ = influxq.NewInfluxQ(InfluxDBName)
 	err = influxQ.Start(*influxdb)
 	if err != nil {

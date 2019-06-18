@@ -1,5 +1,5 @@
 [all:vars]
-deploy_environ=prod
+deploy_environ=main
 ubuntu_release=bionic
 mc_postgres_db=mcdb
 mc_postgres_username=mcuser

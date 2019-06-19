@@ -30,6 +30,8 @@ spec:
          - "0.0.0.0:37001"
          - "--etcdUrls"  
          - "mex-etcd-cluster:2379"
+         - "--vaultAddr"
+         - "https://{{ vault_vm_hostname }}:{{ vault_port }}"
          - "--influxAddr"
          - "http://monitoring-influxdb:8086"
          - "--tls"

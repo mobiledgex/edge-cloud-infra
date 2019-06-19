@@ -26,7 +26,7 @@ gitlab_email_enabled=false
 gitlab_docker_hostname="docker-{{ deploy_environ }}.mobiledgex.net"
 
 [platform]
-localhost	ansible_connection=local
+localhost	ansible_connection=local	vault_vm_hostname=vault.mobiledgex.net vault_port=443
 
 [crms]
 crm-stage.mobiledgex.net	vault_vm_hostname=vault.mobiledgex.net vault_port=443

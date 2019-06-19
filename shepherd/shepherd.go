@@ -136,7 +136,8 @@ func main() {
 	}
 	pf.Init(&cloudletKey, *physicalName, *vaultAddr)
 	influxQ = influxq.NewInfluxQ(InfluxDBName)
-	err = influxQ.Start(*influxdb)
+	clientCert := strings.Replace(*tlsCertFile, "server", "client", 1)
+	err = influxQ.Start(*influxdb, clientCert)
 	if err != nil {
 		log.FatalLog("Failed to start influx queue",
 			"address", *influxdb, "err", err)

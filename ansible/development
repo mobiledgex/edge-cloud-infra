@@ -29,7 +29,7 @@ azure_volume_storage_class=default
 influxdb_volume_size=1Gi
 
 [platform]
-localhost	ansible_connection=local
+localhost	ansible_connection=local vault_vm_hostname=vault.mobiledgex.net vault_port=443
 
 [crms]
 crm-dev.mobiledgex.net	vault_vm_hostname=vault.mobiledgex.net vault_port=443

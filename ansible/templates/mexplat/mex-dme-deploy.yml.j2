@@ -28,6 +28,10 @@ spec:
          - "0.0.0.0:38001"
          - "--notifyAddrs"
          - "controller:37001"
+         - "--tlsApiCertFile"
+         - "/tls/tls.crt"
+         - "--tlsApiKeyFile"
+         - "/tls/tls.key"
          - "--vaultAddr"
          - "{{ vault_address }}"
          - "--locverurl"
@@ -51,7 +55,14 @@ spec:
            value: "{{ dme_vault_app_role[region].role_id }}"
          - name: VAULT_SECRET_ID
            value: "{{ dme_vault_app_role[region].secret_id }}"
+        volumeMounts:
+         - name: tls
+           mountPath: /tls
 
       imagePullSecrets:
        - name: mexreg-secret
 
+      volumes:
+      - name: tls
+        secret:
+          secretName: {{ cert_secret_name }}

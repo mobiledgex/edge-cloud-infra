@@ -1,24 +1,50 @@
 [all:vars]
 deploy_environ=dev
+ubuntu_release=bionic
 monitor_version=latest
-deploy_target=bleeding-edge
+deploy_target="mexplat-{{ deploy_environ }}"
 operator_key=GDDT
 openstack_instance=buckhorn
 dme_carrier=GDDT
 locver_url="http://mexdemo.locsim.mobiledgex.net:8888/verifyLocation"
 toksrv_url="http://mexdemo.tok.mobiledgex.net:9999/its?followURL=https://dme.mobiledgex.net/verifyLoc"
-mc_postgres_db=mcdevdb
-mc_postgres_username=mcdevuser
+mc_postgres_db=mcdb
+mc_postgres_username=mcuser
 mc_postgres_password=topsecret
 mc_superuser=mexadmin
 mc_superuser_password=mexadmin123
-mc_vm_hostname=bleeding-edge-plat.mobiledgex.net
+postgres_hostname=postgres-dev.mobiledgex.net
+vault_vm_hostname=vault-dev.mobiledgex.net
+vault_port=8200
+gitlab_vm_hostname=gitlab-dev.mobiledgex.net
+crm_vm_hostname=crm-dev.mobiledgex.net
+mc_vm_hostname=mc-dev.mobiledgex.net
+console_vm_hostname=console-dev.mobiledgex.net
+mc_gitlab_token=gitlabdevtoken
+mc_tag="{{ deploy_environ }}"
+gitlab_email_enabled=false
+gitlab_docker_hostname="docker-{{ deploy_environ }}.mobiledgex.net"
+use_letsencrypt_staging=True
+azure_volume_storage_class=default
+influxdb_volume_size=1Gi
 
 [platform]
-localhost	ansible_connection=local
+localhost	ansible_connection=local vault_vm_hostname=vault.mobiledgex.net vault_port=443
 
 [crms]
-bleeding-edge-plat.mobiledgex.net
+crm-dev.mobiledgex.net	vault_vm_hostname=vault.mobiledgex.net vault_port=443
 
 [mc]
-bleeding-edge-plat.mobiledgex.net
+mc-dev.mobiledgex.net	
+
+[gitlab]
+gitlab-dev.mobiledgex.net
+
+[postgres]
+postgres-dev.mobiledgex.net
+
+[vault]
+vault-dev.mobiledgex.net
+
+[console]
+console-dev.mobiledgex.net

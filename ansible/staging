@@ -24,9 +24,11 @@ mc_gitlab_token=gitlabstagetoken
 mc_tag="{{ deploy_environ }}"
 gitlab_email_enabled=false
 gitlab_docker_hostname="docker-{{ deploy_environ }}.mobiledgex.net"
+azure_volume_storage_class=managed-premium
+influxdb_volume_size=5Gi
 
 [platform]
-localhost	ansible_connection=local	vault_vm_hostname=vault.mobiledgex.net vault_port=443
+localhost	ansible_connection=local vault_vm_hostname=vault.mobiledgex.net vault_port=443
 
 [crms]
 crm-stage.mobiledgex.net	vault_vm_hostname=vault.mobiledgex.net vault_port=443

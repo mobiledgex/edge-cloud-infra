@@ -1,0 +1,4 @@
+namespace: cert-manager
+cert_manager_version: v0.8.0
+cloudflare_secret: cloudflare-apikey-secret
+cloudflare_secret_key: apikey

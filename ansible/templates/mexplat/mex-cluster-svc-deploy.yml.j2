@@ -29,7 +29,7 @@ spec:
          - "--tls"
          - "/root/tls/mex-server.crt"
          - "--influxdb"
-         - "monitoring-influxdb:8086"
+         - "{{ influxdb_name }}:8086"
          - "--flavor"
          - "x1.medium"
       imagePullSecrets:

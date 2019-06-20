@@ -32,6 +32,10 @@
     definition: "{{ lookup('template', 'letsencrypt-dns01.yaml.j2') }}"
     namespace: default
     state: present
+  register: dns01_issuer
+  retries: 30
+  delay: 10
+  until: dns01_issuer is not failed
 
 - name: Set up the letsencrypt http01 issuer
   k8s:
@@ -39,3 +43,7 @@
     definition: "{{ lookup('template', 'letsencrypt-http01.yaml.j2') }}"
     namespace: default
     state: present
+  register: http01_issuer
+  retries: 30
+  delay: 10
+  until: http01_issuer is not failed

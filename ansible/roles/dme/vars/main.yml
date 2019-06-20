@@ -1,0 +1,1 @@
+tls_cert_manifest: "/tmp/dme-{{ deploy_environ }}-{{ region }}-cert.yaml"

@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/gogo/protobuf/types"
+	platform "github.com/mobiledgex/edge-cloud-infra/shepherd/shepherd_platform"
 	"github.com/mobiledgex/edge-cloud/cloud-resource-manager/platform/pc"
 	"github.com/mobiledgex/edge-cloud/edgeproto"
 	"github.com/mobiledgex/edge-cloud/log"
@@ -73,23 +74,32 @@ type PromLables struct {
 	PodName string `json:"pod_name,omitempty"`
 }
 
-func NewPromStats(promAddr string, interval time.Duration, send func(metric *edgeproto.Metric), key edgeproto.ClusterInstKey) *PromStats {
+func NewPromStats(promAddr string, interval time.Duration, send func(metric *edgeproto.Metric), clusterInst *edgeproto.ClusterInst, pf platform.Platform) *PromStats {
+	var err error
 	p := PromStats{}
 	p.promAddr = promAddr
 	p.appStatsMap = make(map[MetricAppInstKey]*PodPromStat)
 	p.clusterStat = &ClustPromStat{}
 	p.interval = interval
 	p.send = send
-	p.operatorName = key.CloudletKey.OperatorKey.Name
-	p.cloudletName = key.CloudletKey.Name
-	p.clusterName = key.ClusterKey.Name
-	p.developer = key.Developer
+	p.operatorName = clusterInst.Key.CloudletKey.OperatorKey.Name
+	p.cloudletName = clusterInst.Key.CloudletKey.Name
+	p.clusterName = clusterInst.Key.ClusterKey.Name
+	p.developer = clusterInst.Key.Developer
+	p.client, err = pf.GetPlatformClient(clusterInst)
+	if err != nil {
+		//should this be a fatal log???
+		log.FatalLog("Failed to acquire platform client", "error", err)
+	}
 	return &p
 }
 
 //trims the output from the pc.PlatformClient.Output request so that to get rid of the header stuff tacked on by it
 func outputTrim(output string) string {
 	lines := strings.Split(output, "\n")
+	if len(lines) == 0 {
+		return ""
+	}
 	return lines[len(lines)-1]
 }
 

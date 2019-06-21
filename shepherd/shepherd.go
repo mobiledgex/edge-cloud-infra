@@ -51,14 +51,14 @@ var Env = map[string]string{
 
 //map keeping track of all the currently running prometheuses
 var promMap map[string]*PromStats
-var MEXPrometheusAppName = "MEXPrometheusAppName"
+var MEXPrometheusAppName = cloudcommon.MEXPrometheusAppName
 var AppInstCache edgeproto.AppInstCache
 var ClusterInstCache edgeproto.ClusterInstCache
 
 var cloudletKey edgeproto.CloudletKey
 var pf platform.Platform
 
-var InfluxDBName = "clusterstats"
+var InfluxDBName = cloudcommon.DeveloperMetricsDbName
 var influxQ *influxq.InfluxQ
 
 var sigChan chan os.Signal
@@ -87,12 +87,7 @@ func appInstCb(old *edgeproto.AppInst, new *edgeproto.AppInst) {
 		promAddress := fmt.Sprintf("%s:%d", clustIP, port)
 		log.DebugLog(log.DebugLevelMetrics, "prometheus found at: %s\n", promAddress)
 		if !exists {
-			stats = NewPromStats(promAddress, *collectInterval, sendMetric, new.Key.ClusterInstKey)
-			stats.client, err = pf.GetPlatformClient(&clusterInst)
-			if err != nil {
-				//should this be a fatal log???
-				log.FatalLog("Failed to acquire platform client", "error", err)
-			}
+			stats = NewPromStats(promAddress, *collectInterval, sendMetric, &clusterInst, pf)
 			promMap[mapKey] = stats
 			stats.Start()
 		} else { //somehow this cluster's prometheus was already registered
@@ -135,8 +130,7 @@ func main() {
 	}
 	pf.Init(&cloudletKey, *physicalName, *vaultAddr)
 	influxQ = influxq.NewInfluxQ(InfluxDBName)
-	clientCert := strings.Replace(*tlsCertFile, "server", "client", 1)
-	err = influxQ.Start(*influxdb, clientCert)
+	err = influxQ.Start(*influxdb, "")
 	if err != nil {
 		log.FatalLog("Failed to start influx queue",
 			"address", *influxdb, "err", err)
@@ -145,7 +139,7 @@ func main() {
 
 	promMap = make(map[string]*PromStats)
 
-	//register thresher to receive appinst notifications from crm
+	//register shepherd to receive appinst notifications from crm
 	edgeproto.InitAppInstCache(&AppInstCache)
 	AppInstCache.SetUpdatedCb(appInstCb)
 	edgeproto.InitClusterInstCache(&ClusterInstCache)

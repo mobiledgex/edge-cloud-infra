@@ -12,7 +12,7 @@
     cert_name: "{{ influxdb_dns | replace('.', '-') }}"
     cert_secret_name: "{{ influxdb_dns | replace('.', '-') }}-tls"
 
-- name: Generate DME cert manifest
+- name: Generate InfluxDB cert manifest
   template:
     src: mexplat/tls-cert.yaml.j2
     dest: "{{ tls_cert_manifest }}"
@@ -67,6 +67,9 @@
     name: "{{ influxdb_name }}"
     namespace: default
   register: influxdb_facts
+  retries: 24
+  delay: 5
+  until: influxdb_facts.resources[0].status.loadBalancer.ingress[0].ip is defined
 
 - set_fact:
     influxdb_ip: "{{ influxdb_facts.resources[0].status.loadBalancer.ingress[0].ip }}"

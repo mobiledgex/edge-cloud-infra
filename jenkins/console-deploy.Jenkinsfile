@@ -7,8 +7,8 @@ pipeline {
         ANSIBLE_VAULT_PASSWORD_FILE = credentials('ansible-mex-vault-pass-file')
     }
     parameters {
-        string name: 'TAG'
-        string name: 'DEPLOY_ENVIRONMENT', defaultValue: 'staging'
+        string name: 'TAG', description: 'Console version (tag) to deploy'
+        string name: 'DEPLOY_ENVIRONMENT', defaultValue: 'staging', description: 'Environment to deploy to'
     }
     stages {
         stage('Set up build tag') {
@@ -25,7 +25,8 @@ pipeline {
             steps {
                 dir(path: 'ansible') {
                     sh label: 'Run ansible playbook', script: '''$!/bin/bash
-echo ansible-playbook -i "${params.DEPLOY_ENVIRONMENT}" -e "console_version=${params.TAG}" -e @ansible-mex-vault.yml -l console mexplat.yml
+set -x
+ansible-playbook -i "${params.DEPLOY_ENVIRONMENT}" -e "console_version=${params.TAG}" -e @ansible-mex-vault.yml -l console mexplat.yml
                     '''
                 }
             }

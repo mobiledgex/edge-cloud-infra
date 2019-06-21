@@ -34,7 +34,7 @@
     - "'password verification failed' not in htpasswd_verify.stderr"
   changed_when: no
 
-- name: Update docker htpasswd file
+- name: Update docker registry htpasswd file
   block:
   - name: Generate htpasswd data
     command: "docker run --entrypoint htpasswd registry:2 -Bbn {{ mex_docker_username }} {{ mex_docker_password }}"
@@ -51,9 +51,9 @@
       - Restart registry replica
   when: htpasswd_verify.rc != 0
 
-- name: Set up docker config
+- name: Set up docker registry config
   template:
-    src: config.yml.j2
+    src: docker-registry-config.yml.j2
     dest: "{{ docker_config_path }}"
     owner: root
     group: root

@@ -1,6 +1,6 @@
-# Metrics-exporter service 
+# Shepherd service 
 
-`metrics-exporter` service collects prometheus metrics on a cluster and writes them into an influxDB.
+`Shepherd` service collects prometheus metrics on a cluster and writes them into an influxDB.
 
 The service collects cluster-wide as well as per-pod metrics. Service will create database `clusterstats` in the influxDB if one doesn't exist.
 Cluster metrics are collected and stored in `crm-cluster` measurement in `clusterstats` database. It includes the following metrics:
@@ -23,51 +23,43 @@ Per-pod metrics are collected and stored in `crm-appinst` measurement in `cluste
    - `recvBytes` - rx traffic rate averaged over 1 minute for a given pod
 In addition to the above values `cluster`, `dev`, and `app` tags are added to the measurement to uniquely identify a particular time series.
 
-The collection of the above metrics happens every set interval by running queries agains a prometheus running in a different pod on the same cluster. See Usage section for addition details of how to configure interval/influxDB address/Prometheus address. In a typical deployment `cluster-svc` will set the appropriate environement variables for `metrics-exporter` when it deploys it on a given cluster. 
+The collection of the above metrics happens every set interval by running queries against a prometheus running in a cluster. See Usage section for addition details of how to configure interval/influxDB address/Prometheus address.
 
 ## Usage
 
-In a most usual case this service is started by `cluster-svc` as a pod on a kubernetes cluster, but a process can be started locally with the following usage.
+This service is meant to run as a process (similar to crm) that can be started locally with the following usage.
 
 ```
-$ metrics-exporter -h
-Usage of metrics-exporter:
-  -apiAddr string
-    	Prometheus address to bind to (default "0.0.0.0:9090")
-  -cloudlet string
-    	Cloudlet Name (default "local")
-  -cluster string
-    	Cluster Name (default "myclust")
+$ shepherd -h
+Usage of shepherd:
+  -cloudletKey string
+    	Json or Yaml formatted cloudletKey for the cloudlet in which this CRM is instantiated; e.g. '{"operator_key":{"name":"TMUS"},"name":"tmocloud1"}'
   -d string
-    	comma separated list of [etcd api notify dmedb dmereq locapi mexos metrics]
+    	comma separated list of [etcd api notify dmedb dmereq locapi mexos metrics upgrade]
   -influxdb string
-    	InfluxDB address to export to (default "0.0.0.0:8086")
+    	InfluxDB address to export to (default "http://0.0.0.0:8086")
   -interval duration
     	Metrics collection interval (default 15s)
-  -operator string
-    	Cloudlet Operator Name (default "local")
+  -notifyAddrs string
+    	CRM notify listener addresses (default "127.0.0.1:51001")
+  -physicalName string
+    	Physical infrastructure cloudlet name, defaults to cloudlet name in cloudletKey
+  -platform string
+    	Platform type of Cloudlet
+  -tls string
+    	server9 tls cert file.  Keyfile and CA file mex-ca.crt must be in same directory
+  -vaultAddr string
+    	Address to vault
 ```
-
-The following environment variable will take precedence over command-line arguments:
-
-   - MEX_OPERATOR_NAME - equivalent to `-operator`
-   - MEX_CLOUDLET_NAME - equivalent to `-cloudlet`
-   - MEX_CLUSTER_NAME - equivalent to `-cluster`
-   - MEX_INFLUXDB_ADDR - equivalent to `-influxdb`
-   - MEX_INFLUXDB_USER - username that is used to connect to Influxdb, defaults to `root`
-   - MEX_INFLUXDB_PASS - password that is used to connect to Influxdb, defaults to `root`
-   - MEX_SCRAPE_INTERVAL - equivalent to `-interval`
 
 ## Docker Image
 
-`make build-docker` will build, create(from Dockerfile) and upload the image to our repository at:
-`registry.mobiledgex.net:5000/mobiledgex/metrics-exporter:latest`
-This is the intended deployment packaging of this service
+Currently not available, will be soon
 
 
 ## TODO
 
-1. Need to add different tag to image in the docker registry - currently only have `latest`
-2. Long term we need to retire `metrics-exporter` as it's a too rigid to provide configurable metrics
-   - ideally a federated prometheus system with a global prometheus scraping cluster prometheuses
+1. Need to find a better way to organize metrics being sent to influxdb. It is currently too rigid to provide configurable
+metrics and adding in a new one later would be a hassle.
+2. Register shepherd with the country controller to be able to send metrics through the notify framework so that controller writes to influxdb instead of shepherd.
 

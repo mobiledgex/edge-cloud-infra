@@ -1,4 +1,4 @@
-package openstack
+package shepherd_openstack
 
 import (
 	"github.com/mobiledgex/edge-cloud-infra/crm-platforms/openstack"

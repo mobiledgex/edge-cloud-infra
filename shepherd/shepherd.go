@@ -8,9 +8,9 @@ import (
 	"strings"
 	"time"
 
-	"github.com/mobiledgex/edge-cloud-infra/shepherd/platform"
-	"github.com/mobiledgex/edge-cloud-infra/shepherd/platform/dind"
-	"github.com/mobiledgex/edge-cloud-infra/shepherd/platform/openstack"
+	platform "github.com/mobiledgex/edge-cloud-infra/shepherd/shepherd_platform"
+	"github.com/mobiledgex/edge-cloud-infra/shepherd/shepherd_platform/shepherd_dind"
+	"github.com/mobiledgex/edge-cloud-infra/shepherd/shepherd_platform/shepherd_openstack"
 	"github.com/mobiledgex/edge-cloud/cloudcommon"
 	influxq "github.com/mobiledgex/edge-cloud/controller/influxq_client"
 	"github.com/mobiledgex/edge-cloud/edgeproto"
@@ -112,16 +112,15 @@ func getPlatform() (platform.Platform, error) {
 	var err error
 	switch *platformName {
 	case "dind":
-		plat = &dind.Platform{}
+		plat = &shepherd_dind.Platform{}
 	case "openstack":
-		plat = &openstack.Platform{}
+		plat = &shepherd_openstack.Platform{}
 	default:
-		err = fmt.Errorf("No recognizable platform provided. Supported platforms are dind, openstack, and azure\n")
+		err = fmt.Errorf("Platform %s not supported", *platformName)
 	}
 	return plat, err
 }
 
-//openstack appinst go line 44
 func main() {
 	flag.Parse()
 	log.SetDebugLevelStrs(*debugLevels)
@@ -148,10 +147,8 @@ func main() {
 
 	//register thresher to receive appinst notifications from crm
 	edgeproto.InitAppInstCache(&AppInstCache)
-	//TODO: change this to a updatedCb
 	AppInstCache.SetUpdatedCb(appInstCb)
 	edgeproto.InitClusterInstCache(&ClusterInstCache)
-	//then init notify, (look at crm/main line 108)
 	addrs := strings.Split(*notifyAddrs, ",")
 	notifyClient := notify.NewClient(addrs, *tlsCertFile)
 	notifyClient.RegisterRecvAppInstCache(&AppInstCache)

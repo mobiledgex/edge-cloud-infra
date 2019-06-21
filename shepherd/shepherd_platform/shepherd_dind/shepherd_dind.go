@@ -1,4 +1,4 @@
-package dind
+package shepherd_dind
 
 import (
 	"github.com/mobiledgex/edge-cloud/cloud-resource-manager/platform/dind"

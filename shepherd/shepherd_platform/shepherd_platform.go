@@ -1,4 +1,4 @@
-package platform
+package shepherd_platform
 
 import (
 	"github.com/mobiledgex/edge-cloud/cloud-resource-manager/platform/pc"

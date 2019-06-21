@@ -36,6 +36,7 @@ module "docker_replica_west_eu" {
 
   instance_name       = "docker-replica-west-eu"
   zone                = "europe-west3-a"
+  instance_size       = "custom-1-2816"
   boot_disk_size      = 10
   tags                = [ "mexplat-${var.environ_tag}", "http-server", "https-server" ]
 }

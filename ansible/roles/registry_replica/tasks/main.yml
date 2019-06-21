@@ -26,12 +26,6 @@
     mode: 0700
   become: yes
 
-- name: Install apache2-utils
-  apt:
-    name: apache2-utils
-    state: present
-  become: yes
-
 - name: Verify htpasswd file
   command: "docker run -v {{ htpasswd_file }}:{{ htpasswd_file }} --entrypoint htpasswd registry:2 -vb {{ htpasswd_file }} {{ mex_docker_username }} {{ mex_docker_password }}"
   register: htpasswd_verify
@@ -73,6 +67,10 @@
     gcp_service_account: "{{ lookup('vault', path) }}"
   vars:
     path: "secret/ansible/{{ deploy_environ }}/gcp-registry-reader-service-account"
+  register: result
+  retries: 6
+  delay: 10
+  until: result is not failed
 
 - name: Set up GCP service account credentials
   copy:
@@ -95,4 +93,5 @@
       - "{{ cert_dir }}/archive:{{ cert_dir }}/archive"
     ports:
       - "443:5000"
+    restart_policy: unless-stopped
   become: yes

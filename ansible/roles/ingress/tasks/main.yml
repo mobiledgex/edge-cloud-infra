@@ -12,6 +12,9 @@
     name: ingress-nginx
     namespace: ingress-nginx
   register: ingress_nginx_facts
+  retries: 24
+  delay: 5
+  until: ingress_nginx_facts.resources[0].status.loadBalancer.ingress[0].ip is defined
 
 - set_fact:
     ingress_ip: "{{ ingress_nginx_facts.resources[0].status.loadBalancer.ingress[0].ip }}"

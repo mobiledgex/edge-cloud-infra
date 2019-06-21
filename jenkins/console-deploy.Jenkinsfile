@@ -26,9 +26,12 @@ pipeline {
         stage('Deploy') {
             steps {
                 dir(path: 'ansible') {
-                    sh label: 'Run ansible playbook', script: '''$!/bin/bash
+                    ansiColor('xterm') {
+                        sh label: 'Run ansible playbook', script: '''$!/bin/bash
+export ANSIBLE_FORCE_COLOR=true
 ansible-playbook -i "${DEPLOY_ENVIRONMENT}" -e "console_version=${TAG}" -e @ansible-mex-vault.yml -l console mexplat.yml
-                    '''
+                        '''
+                    }
                 }
             }
         }

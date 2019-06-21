@@ -1,0 +1,3 @@
+plugin: terraform
+dir: mexplat/main
+key: registry_replicas

@@ -1,0 +1,2 @@
+registry_confdir: /etc/registry
+htpasswd_file: "{{ registry_confdir }}/htpasswd"

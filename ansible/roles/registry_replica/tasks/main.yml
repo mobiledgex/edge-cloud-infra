@@ -1,0 +1,36 @@
+- import_role:
+    name: web
+  vars:
+    nginx_config_template: "registry-replica-nginx-config.j2"
+    cert_domains: [ "{{ inventory_hostname }}" ]
+
+- import_role:
+    name: docker
+
+- name: Install passlib
+  apt:
+    name: python3-passlib
+    state: present
+  become: yes
+  register: passlib_install
+
+- name: Set up config directory
+  file:
+    path: "{{ registry_confdir }}"
+    state: directory
+    owner: root
+    group: root
+    mode: 0700
+  become: yes
+
+- name: Set up htpasswd file for docker
+  htpasswd:
+    path: "{{ htpasswd_file }}"
+    name: "{{ mex_docker_username }}"
+    password: "{{ mex_docker_password }}"
+    owner: root
+    group: root
+    mode: 0400
+  become: yes
+
+## XXX: Trigger docker restart when certs get updated

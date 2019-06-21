@@ -26,6 +26,8 @@ pipeline {
                 dir(path: 'ansible') {
                     sh label: 'Run ansible playbook', script: '''$!/bin/bash
 set -x
+echo "$0"
+sleep 60
 ansible-playbook -i "${params.DEPLOY_ENVIRONMENT}" -e "console_version=${params.TAG}" -e @ansible-mex-vault.yml -l console mexplat.yml
                     '''
                 }

@@ -10,6 +10,7 @@ import (
 	"github.com/gogo/protobuf/types"
 	"github.com/mobiledgex/edge-cloud/cloud-resource-manager/platform/pc"
 	"github.com/mobiledgex/edge-cloud/edgeproto"
+	"github.com/mobiledgex/edge-cloud/log"
 )
 
 type MetricAppInstKey struct {
@@ -97,7 +98,7 @@ func getPromMetrics(addr string, query string, client pc.PlatformClient) (*PromR
 
 	resp, err := client.Output("curl " + reqURI)
 	if err != nil {
-		DebugPrint("Failed to run <%s>, err: %s\n", reqURI, err.Error())
+		log.DebugLog(log.DebugLevelMetrics, "Failed to run <%s>, err: %s\n", reqURI, err.Error())
 		return nil, err
 	}
 	trimmedResp := outputTrim(resp)
@@ -312,13 +313,13 @@ func (p *PromStats) Start() {
 }
 
 func (p *PromStats) Stop() {
-	DebugPrint("Stopping PromStats thread\n")
+	log.DebugLog(log.DebugLevelMetrics, "Stopping PromStats thread\n")
 	close(p.stop)
 	p.waitGrp.Wait()
 }
 
 func (p *PromStats) RunNotify() {
-	DebugPrint("Started PromStats thread\n")
+	log.DebugLog(log.DebugLevelMetrics, "Started PromStats thread\n")
 	done := false
 	for !done {
 		select {
@@ -327,7 +328,7 @@ func (p *PromStats) RunNotify() {
 			if p.CollectPromStats() != nil {
 				continue
 			}
-			DebugPrint("Sending metrics for (%s-%s)%s with timestamp %s\n", p.operatorName, p.cloudletName,
+			log.DebugLog(log.DebugLevelMetrics, "Sending metrics for (%s-%s)%s with timestamp %s\n", p.operatorName, p.cloudletName,
 				p.clusterName, ts.String())
 			for key, stat := range p.appStatsMap {
 				p.send(PodStatToMetric(ts, &key, stat))

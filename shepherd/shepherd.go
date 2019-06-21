@@ -21,7 +21,7 @@ import (
 var influxdb = flag.String("influxdb", "http://0.0.0.0:8086", "InfluxDB address to export to")
 var debugLevels = flag.String("d", "", fmt.Sprintf("comma separated list of %v", log.DebugLevelStrings))
 var notifyAddrs = flag.String("notifyAddrs", "127.0.0.1:51001", "CRM notify listener addresses")
-var tlsCertFile = flag.String("tls", "", "server9 tls cert file.  Keyfile and CA file mex-ca.crt must be in same directory")
+var tlsCertFile = flag.String("tls", "", "server tls cert file.  Keyfile and CA file mex-ca.crt must be in same directory")
 var collectInterval = flag.Duration("interval", time.Second*15, "Metrics collection interval")
 var platformName = flag.String("platform", "", "Platform type of Cloudlet")
 var vaultAddr = flag.String("vaultAddr", "", "Address to vault")
@@ -71,7 +71,7 @@ func appInstCb(old *edgeproto.AppInst, new *edgeproto.AppInst) {
 	var mapKey = new.Key.ClusterInstKey.ClusterKey.Name
 	stats, exists := promMap[mapKey]
 	if new.State == edgeproto.TrackedState_READY {
-		DebugPrint("New Prometheus instance detected in cluster: %s\n", mapKey)
+		log.DebugLog(log.DebugLevelMetrics, "New Prometheus instance detected in cluster: %s\n", mapKey)
 		//get address of prometheus.
 		clusterInst := edgeproto.ClusterInst{}
 		found := ClusterInstCache.Get(&new.Key.ClusterInstKey, &clusterInst)
@@ -85,7 +85,7 @@ func appInstCb(old *edgeproto.AppInst, new *edgeproto.AppInst) {
 		}
 		port := new.MappedPorts[0].PublicPort
 		promAddress := fmt.Sprintf("%s:%d", clustIP, port)
-		DebugPrint("prometheus found at: %s\n", promAddress)
+		log.DebugLog(log.DebugLevelMetrics, "prometheus found at: %s\n", promAddress)
 		if !exists {
 			stats = NewPromStats(promAddress, *collectInterval, sendMetric, new.Key.ClusterInstKey)
 			stats.client, err = pf.GetPlatformClient(&clusterInst)
@@ -126,8 +126,8 @@ func main() {
 	log.SetDebugLevelStrs(*debugLevels)
 
 	cloudcommon.ParseMyCloudletKey(false, cloudletKeyStr, &cloudletKey)
-	DebugPrint("InfluxDB is at: %s\n", *influxdb)
-	DebugPrint("Metrics collection interval is %s\n", *collectInterval)
+	log.DebugLog(log.DebugLevelMetrics, "InfluxDB is at: %s\n", *influxdb)
+	log.DebugLog(log.DebugLevelMetrics, "Metrics collection interval is %s\n", *collectInterval)
 	var err error
 	pf, err = getPlatform()
 	if err != nil {
@@ -159,15 +159,11 @@ func main() {
 	sigChan = make(chan os.Signal, 1)
 	signal.Notify(sigChan, os.Interrupt)
 
-	DebugPrint("Ready\n")
+	log.DebugLog(log.DebugLevelMetrics, "Ready\n")
 
 	// wait until process in killed/interrupted
 	sig := <-sigChan
 	fmt.Println(sig)
-}
-
-func DebugPrint(format string, a ...interface{}) {
-	fmt.Printf(format, a...)
 }
 
 func sendMetric(metric *edgeproto.Metric) {

@@ -5,6 +5,8 @@ pipeline {
     agent any
     environment {
         ANSIBLE_VAULT_PASSWORD_FILE = credentials('ansible-mex-vault-pass-file')
+        TAG = "${params.TAG}"
+        DEPLOY_ENVIRONMENT = "${params.DEPLOY_ENVIRONMENT}"
     }
     parameters {
         string name: 'TAG', description: 'Console version (tag) to deploy'
@@ -28,7 +30,7 @@ pipeline {
 set -x
 echo "$0"
 sleep 60
-ansible-playbook -i "${params.DEPLOY_ENVIRONMENT}" -e "console_version=${params.TAG}" -e @ansible-mex-vault.yml -l console mexplat.yml
+ansible-playbook -i "${DEPLOY_ENVIRONMENT}" -e "console_version=${TAG}" -e @ansible-mex-vault.yml -l console mexplat.yml
                     '''
                 }
             }

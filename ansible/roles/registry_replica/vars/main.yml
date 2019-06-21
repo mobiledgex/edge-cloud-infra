@@ -1,2 +1,6 @@
 registry_confdir: /etc/registry
 htpasswd_file: "{{ registry_confdir }}/htpasswd"
+gcp_service_account_path: "{{ registry_confdir }}/gcp-service-account.json"
+docker_config_path: "{{ registry_confdir }}/config.yml"
+docker_container_name: registry-replica
+cert_dir: /etc/letsencrypt

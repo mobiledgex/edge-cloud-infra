@@ -74,6 +74,7 @@
         project_path: "../terraform/mexplat/{{ deploy_environ }}"
         state: present
         force_init: yes
+        lock: no
         variables:
           azure_terraform_service_principal_id: "{{ azure_terraform_service_principal_id }}"
           azure_terraform_service_principal_secret: "{{ azure_terraform_service_principal_secret }}"
@@ -100,6 +101,7 @@
       vars:
         k8s_cluster_name: "{{ item.name }}"
         kube_config: "{{ item.kube_config }}"
+        region: "{{ item.region }}"
       with_items: "{{ k8s_clusters }}"
 
 - hosts: gitlab

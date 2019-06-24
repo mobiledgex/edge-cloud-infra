@@ -58,14 +58,14 @@ func connectInfluxDB(region string) (influxdb.Client, error) {
 	}
 	creds, err := vault.GetInfluxDBCreds(region)
 	if err != nil {
-		// defeault to empty login
+		// defeault to default user/pass
 		creds = &vault.InfluxDBVaultData{
-			Username: "",
-			Password: "",
+			Username: "root",
+			Password: "root",
 		}
 	}
 	client, err := influxdb.NewHTTPClient(influxdb.HTTPConfig{
-		Addr:     "http://" + addr,
+		Addr:     addr,
 		Username: creds.Username,
 		Password: creds.Password,
 	})

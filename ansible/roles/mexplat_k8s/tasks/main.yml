@@ -1,6 +1,6 @@
 ---
 - debug:
-    msg: "Deploying edge-cloud version '{{ edge_cloud_version }}' to cluster '{{ k8s_cluster_name }}'"
+    msg: "Deploying edge-cloud version '{{ edge_cloud_version }}' to cluster '{{ k8s_cluster_name }}' (region: '{{ region }}')"
 
 - name: Create temporary kubeconfig file
   tempfile:
@@ -17,9 +17,11 @@
   changed_when: false
   check_mode: no
 
-- include_role: name="k8s"
-- include_role: name="etcd"
-- include_role: name="monitor"
-- include_role: name="controller"
-- include_role: name="dme"
-- include_role: name="cluster-svc"
+- import_role: name="k8s"
+- import_role: name="cert-manager"
+- import_role: name="etcd"
+- import_role: name="monitor"
+- import_role: name="influxdb"
+- import_role: name="controller"
+- import_role: name="dme"
+- import_role: name="cluster-svc"

@@ -20,6 +20,8 @@ spec:
         imagePullPolicy: Always
         command:
          - "controller"
+         - "--region"
+         - "{{ region }}"
          - "--apiAddr"
          - "0.0.0.0:55001"
          - "--httpAddr"
@@ -27,14 +29,21 @@ spec:
          - "--notifyAddr"
          - "0.0.0.0:37001"
          - "--etcdUrls"  
-         - "mex-etcd-cluster:2379"
+         - "{{ etcd_cluster_name }}:2379"
+         - "--vaultAddr"
+         - "https://{{ vault_vm_hostname }}:{{ vault_port }}"
          - "--influxAddr"
-         - "monitoring-influxdb:8086"
+         - "https://{{ influxdb_dns }}.{{ cloudflare_zone }}:8086"
          - "--tls"
          - "/root/tls/mex-server.crt"
          - "-autoUpgrade"
          - "-d"
          - "etcd,api,notify,upgrade"
+        env:
+         - name: VAULT_ROLE_ID
+           value: "{{ ctrl_vault_app_role[region].role_id }}"
+         - name: VAULT_SECRET_ID
+           value: "{{ ctrl_vault_app_role[region].secret_id }}"
 
       imagePullSecrets:
        - name: mexreg-secret 

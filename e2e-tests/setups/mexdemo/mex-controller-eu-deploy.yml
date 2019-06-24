@@ -1,0 +1,47 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: controller
+  labels:
+    app: controller
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: controller
+  template:
+    metadata:
+      labels:
+        app: controller
+    spec:
+      containers:
+      - name: controller
+        image: registry.mobiledgex.net:5000/mobiledgex/edge-cloud:2019-04-29
+        imagePullPolicy: Always
+        command:
+         - "controller"
+         - "--region"
+         - "EU"
+         - "--apiAddr"
+         - "0.0.0.0:55001"
+         - "--httpAddr"
+         - "0.0.0.0:36001"
+         - "--notifyAddr"
+         - "0.0.0.0:37001"
+         - "--etcdUrls"  
+         - "mex-etcd-cluster:2379"
+         - "--influxAddr"
+         - "monitoring-influxdb:8086"
+         - "--tls"
+         - "/root/tls/mex-server.crt"
+         - "--d" 
+         - "etcd,api,notify"
+        env:
+         - name: VAULT_ROLE_ID
+           value: 1c2a5271-31af-96e9-da03-b3f63d7fd628
+         - name: VAULT_SECRET_ID
+           value: ed04e6dc-72fc-0abe-774f-7ae806469eb9
+
+      imagePullSecrets:
+       - name: mexreg-secret 
+

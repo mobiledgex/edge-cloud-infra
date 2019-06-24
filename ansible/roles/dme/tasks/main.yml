@@ -1,3 +1,42 @@
+- set_fact:
+    dme_dns: "{{ region | lower }}.dme"
+  when: ( deploy_environ == 'main' ) or ( deploy_environ == 'prod' )
+
+- set_fact:
+    dme_dns: "{{ region | lower }}-{{ deploy_environ }}.dme"
+  when:
+    - deploy_environ != 'main'
+    - deploy_environ != 'prod'
+
+- set_fact:
+    cert_name: "{{ dme_dns | replace('.', '-') }}"
+    cert_secret_name: "{{ dme_dns | replace('.', '-') }}-tls"
+
+- name: Generate DME cert manifest
+  template:
+    src: mexplat/tls-cert.yaml.j2
+    dest: "{{ tls_cert_manifest }}"
+  vars:
+    name: "{{ cert_name }}"
+    secret_name: "{{ cert_secret_name }}"
+    fqdn: "{{ dme_dns }}.{{ cloudflare_zone }}"
+
+- name: "Generate DME cert for domain: {{ dme_dns }}"
+  k8s:
+    kubeconfig: "{{ kubeconfig_file.path }}"
+    namespace: default
+    src: "{{ tls_cert_manifest }}"
+    state: present
+
+- name: Wait for cert to be issued
+  command: "kubectl --kubeconfig {{ kubeconfig_file.path }} describe cert {{ cert_name }}"
+  register: describe_cert_command
+  retries: 60
+  delay: 5
+  until: "'Certificate is up to date and has not expired' in describe_cert_command.stdout"
+  changed_when: false
+  check_mode: no
+
 - name: Deploy the Mex DME
   k8s:
     kubeconfig: "{{ kubeconfig_file.path }}"
@@ -24,10 +63,10 @@
 - set_fact:
     dme_ip: "{{ dme_ip_command.stdout }}"
 
-- name: Update DME DNS
+- name: "Update DME DNS: {{ dme_dns }}"
   cloudflare_dns:
     zone: "{{ cloudflare_zone }}"
-    record: "{{ k8s_cluster_name }}.dme"
+    record: "{{ dme_dns }}"
     value: "{{ dme_ip }}"
     type: A
     state: present

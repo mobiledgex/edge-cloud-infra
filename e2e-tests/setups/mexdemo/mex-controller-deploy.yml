@@ -20,6 +20,8 @@ spec:
         imagePullPolicy: Always
         command:
          - "controller"
+         - "--region"
+         - "US"
          - "--apiAddr"
          - "0.0.0.0:55001"
          - "--httpAddr"
@@ -34,6 +36,11 @@ spec:
          - "/root/tls/mex-server.crt"
          - "--d" 
          - "etcd,api,notify"
+        env:
+         - name: VAULT_ROLE_ID
+           value: 0d0ab025-509e-c37d-d5de-c3319f452bd8
+         - name: VAULT_SECRET_ID
+           value: 4c5ed16b-b287-ee12-62d5-b25fef28736d
 
       imagePullSecrets:
        - name: mexreg-secret 

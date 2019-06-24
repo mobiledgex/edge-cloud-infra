@@ -105,15 +105,18 @@ func RunServer(config *ServerConfig) (*Server, error) {
 			Common: process.Common{
 				Name: "vault",
 			},
-			DmeSecret:   "123456",
-			McormSecret: "987664",
+			DmeSecret: "123456",
 		}
-		roles, err := vault.StartLocalRoles()
+		_, err := vault.StartLocalRoles()
 		if err != nil {
 			return nil, err
 		}
-		roleID = roles.MCORMRoleID
-		secretID = roles.MCORMSecretID
+		roles, err := intprocess.SetupVault(&vault)
+		if err != nil {
+			return nil, err
+		}
+		roleID = roles.MCRoleID
+		secretID = roles.MCSecretID
 		config.VaultAddr = process.VaultAddress
 		server.vault = &vault
 	}
@@ -212,6 +215,9 @@ func RunServer(config *ServerConfig) (*Server, error) {
 	auth.POST("/config/show", ShowConfig)
 	auth.POST("/restricted/user/update", RestrictedUserUpdate)
 	addControllerApis(auth)
+	// Metrics api route use auth to serve a query to influxDB
+	auth.POST("/metrics/app", GetMetricsCommon)
+	auth.POST("/metrics/cluster", GetMetricsCommon)
 	go func() {
 		var err error
 		if config.TlsCertFile != "" {

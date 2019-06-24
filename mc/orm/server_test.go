@@ -29,7 +29,7 @@ func TestServer(t *testing.T) {
 	require.Nil(t, err, "run server")
 	defer server.Stop()
 
-	Jwks.Init("addr", "mcorm", "roleID", "secretID")
+	Jwks.Init("addr", "region", "mcorm", "roleID", "secretID")
 	Jwks.Meta.CurrentVersion = 1
 	Jwks.Keys[1] = &vault.JWK{
 		Secret:  "12345",
@@ -72,7 +72,7 @@ func TestServer(t *testing.T) {
 	policies, status, err := showRolePerms(mcClient, uri, token)
 	require.Nil(t, err, "show role perms err")
 	require.Equal(t, http.StatusOK, status, "show role perms status")
-	require.Equal(t, 99, len(policies), "number of role perms")
+	require.Equal(t, 109, len(policies), "number of role perms")
 	roles, status, err := showRoles(mcClient, uri, token)
 	require.Nil(t, err, "show roles err")
 	require.Equal(t, http.StatusOK, status, "show roles status")

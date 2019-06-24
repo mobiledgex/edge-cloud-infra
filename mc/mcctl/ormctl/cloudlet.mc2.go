@@ -267,6 +267,7 @@ var CloudletAliasArgs = []string{
 	"timelimits.createappinsttimeout=cloudlet.timelimits.createappinsttimeout",
 	"timelimits.updateappinsttimeout=cloudlet.timelimits.updateappinsttimeout",
 	"timelimits.deleteappinsttimeout=cloudlet.timelimits.deleteappinsttimeout",
+<<<<<<< HEAD
 	"controlleraddr=cloudlet.controlleraddr",
 	"platform=cloudlet.platform",
 	"vaultaddr=cloudlet.vaultaddr",
@@ -278,6 +279,8 @@ var CloudletAliasArgs = []string{
 	"status.maxtasks=cloudlet.status.maxtasks",
 	"status.taskname=cloudlet.status.taskname",
 	"status.stepname=cloudlet.status.stepname",
+=======
+>>>>>>> b8f7f6a808c29c4a533b82aca4f8df0a67e0225c
 }
 var FlavorInfoRequiredArgs = []string{}
 var FlavorInfoOptionalArgs = []string{

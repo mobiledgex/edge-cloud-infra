@@ -68,7 +68,7 @@ func GetUserCommand() *cobra.Command {
 		Use:          "restricteduserupdate",
 		OptionalArgs: "name email emailverified familyname givenname nickname locked",
 		ReqData:      &ormapi.User{},
-		Path:         "/restricted/user/update",
+		Path:         "/auth/restricted/user/update",
 	}}
 	return genGroup("user", "manage users", cmds)
 }
@@ -76,7 +76,7 @@ func GetUserCommand() *cobra.Command {
 func GetLoginCmd() *cobra.Command {
 	cmd := genCmd(&Command{
 		Use:          "login",
-		RequiredArgs: "username",
+		RequiredArgs: "name",
 		Run:          runLogin,
 	})
 	return cmd
@@ -84,8 +84,9 @@ func GetLoginCmd() *cobra.Command {
 
 func runLogin(cmd *cobra.Command, args []string) error {
 	input := cli.Input{
-		RequiredArgs: []string{"username"},
+		RequiredArgs: []string{"name"},
 		PasswordArg:  "password",
+		AliasArgs:    []string{"name=username"},
 	}
 	login := ormapi.UserLogin{}
 	_, err := input.ParseArgs(args, &login)

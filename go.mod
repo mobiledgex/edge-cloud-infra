@@ -10,6 +10,7 @@ require (
 	github.com/cloudflare/cloudflare-go v0.8.5
 	github.com/codeskyblue/go-sh v0.0.0-20170112005953-b097669b1569
 	github.com/coreos/go-systemd v0.0.0-20190321100706-95778dfbb74e // indirect
+	github.com/denisenkom/go-mssqldb v0.0.0-20190515213511-eb9f6a1743f3 // indirect
 	github.com/dgrijalva/jwt-go v3.2.0+incompatible
 	github.com/docker/cli v0.0.0-20190520121752-57aa7731d0a5
 	github.com/docker/machine v0.16.1 // indirect
@@ -23,6 +24,7 @@ require (
 	github.com/google/go-cmp v0.2.1-0.20190312032427-6f77996f0c42
 	github.com/gophercloud/gophercloud v0.0.0-20190330013820-4d3066f119fa
 	github.com/grpc-ecosystem/grpc-gateway v1.8.5
+	github.com/influxdata/influxdb v1.6.2
 	github.com/jcelliott/lumber v0.0.0-20160324203708-dd349441af25 // indirect
 	github.com/jinzhu/gorm v1.9.1
 	github.com/json-iterator/go v1.1.6 // indirect
@@ -45,15 +47,15 @@ require (
 	github.com/pion/webrtc/v2 v2.0.7
 	github.com/sirupsen/logrus v1.4.1
 	github.com/smartystreets/goconvey v0.0.0-20190330032615-68dc04aab96a // indirect
-	github.com/spf13/cobra v0.0.3
+	github.com/spf13/cobra v0.0.4
 	github.com/stretchr/testify v1.3.0
 	github.com/xanzy/go-gitlab v0.16.0
 	go.uber.org/zap v1.10.0
 	golang.org/x/crypto v0.0.0-20190404164418-38d8ce5564a5
 	golang.org/x/net v0.0.0-20190328230028-74de082e2cca
 	golang.org/x/time v0.0.0-20190308202827-9d24e82272b4 // indirect
-	google.golang.org/genproto v0.0.0-20190401181712-f467c93bbac2
-	google.golang.org/grpc v1.20.1
+	google.golang.org/genproto v0.0.0-20190404172233-64821d5d2107
+	google.golang.org/grpc v1.21.0
 	gopkg.in/ldap.v3 v3.0.3
 	gopkg.in/yaml.v2 v2.2.2
 	//	k8s.io/api v0.0.0-20190327184913-92d2ee7fc726
@@ -124,7 +126,7 @@ replace github.com/containerd/continuity => github.com/containerd/continuity v0.
 
 replace github.com/coreos/bbolt => github.com/coreos/bbolt v1.3.2
 
-replace github.com/coreos/etcd => github.com/coreos/etcd v3.3.9+incompatible
+replace github.com/coreos/etcd => github.com/coreos/etcd v3.3.10+incompatible
 
 replace github.com/coreos/go-semver => github.com/coreos/go-semver v0.3.0
 
@@ -266,8 +268,6 @@ replace github.com/mattn/go-sqlite3 => github.com/mattn/go-sqlite3 v1.10.0
 
 replace github.com/mitchellh/copystructure => github.com/mitchellh/copystructure v1.0.0
 
-replace github.com/mitchellh/go-homedir => github.com/mitchellh/go-homedir v1.0.0
-
 replace github.com/mitchellh/go-testing-interface => github.com/mitchellh/go-testing-interface v1.0.0
 
 replace github.com/mitchellh/mapstructure => github.com/mitchellh/mapstructure v1.1.2
@@ -310,7 +310,7 @@ replace github.com/soheilhy/cmux => github.com/soheilhy/cmux v0.1.4
 
 replace github.com/spaolacci/murmur3 => github.com/spaolacci/murmur3 v1.1.0
 
-replace github.com/spf13/cobra => github.com/spf13/cobra v0.0.3
+replace github.com/spf13/cobra => github.com/spf13/cobra v0.0.4
 
 replace github.com/spf13/pflag => github.com/spf13/pflag v1.0.3
 
@@ -329,8 +329,6 @@ replace github.com/xiang90/probing => github.com/xiang90/probing v0.0.0-20190116
 replace go.etcd.io/bbolt => go.etcd.io/bbolt v1.3.2
 
 replace go.opencensus.io => go.opencensus.io v0.19.0
-
-replace go.uber.org/atomic => go.uber.org/atomic v1.3.2
 
 replace go.uber.org/multierr => go.uber.org/multierr v1.1.0
 
@@ -352,7 +350,7 @@ replace google.golang.org/api => google.golang.org/api v0.1.0
 
 replace google.golang.org/genproto => google.golang.org/genproto v0.0.0-20190307195333-5fe7a883aa19
 
-replace google.golang.org/grpc => google.golang.org/grpc v1.20.1
+replace google.golang.org/grpc => google.golang.org/grpc v1.21.0
 
 replace gopkg.in/alecthomas/kingpin.v2 => gopkg.in/alecthomas/kingpin.v2 v2.2.6
 
@@ -384,4 +382,4 @@ replace github.com/pion/webrtc/v2 => github.com/pion/webrtc/v2 v2.0.7
 
 replace golang.org/x/text => golang.org/x/text v0.3.1-0.20180807135948-17ff2d5776d2
 
-replace github.com/uber/prototool => github.com/uber/prototool v1.7.0
+replace github.com/uber/prototool => github.com/uber/prototool v1.8.0

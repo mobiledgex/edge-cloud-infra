@@ -1,6 +1,7 @@
 controllers:
 - region: local
   address: 127.0.0.1:55001
+  influxdb: https://127.0.0.1:8086
 - region: usa
   address: usa.mc.mobiledgex.com:55001
 - region: germany
@@ -45,6 +46,13 @@ regiondata:
         longitude: -91
       ipsupport: IpSupportDynamic
       numdynamicips: 254
+      timelimits:
+        createclusterinsttimeout: 3000000000
+        updateclusterinsttimeout: 2000000000
+        deleteclusterinsttimeout: 2000000000
+        createappinsttimeout: 3000000000
+        updateappinsttimeout: 2000000000
+        deleteappinsttimeout: 2000000000
     - key:
         operatorkey:
           name: tmus
@@ -55,6 +63,13 @@ regiondata:
         longitude: -95
       ipsupport: IpSupportDynamic
       numdynamicips: 254
+      timelimits:
+        createclusterinsttimeout: 3000000000
+        updateclusterinsttimeout: 2000000000
+        deleteclusterinsttimeout: 2000000000
+        createappinsttimeout: 3000000000
+        updateappinsttimeout: 2000000000
+        deleteappinsttimeout: 2000000000
     - key:
         operatorkey:
           name: azure
@@ -65,6 +80,13 @@ regiondata:
         longitude: -91
       ipsupport: IpSupportDynamic
       numdynamicips: 254
+      timelimits:
+        createclusterinsttimeout: 3000000000
+        updateclusterinsttimeout: 2000000000
+        deleteclusterinsttimeout: 2000000000
+        createappinsttimeout: 3000000000
+        updateappinsttimeout: 2000000000
+        deleteappinsttimeout: 2000000000
     - key:
         operatorkey:
           name: gcp
@@ -75,6 +97,13 @@ regiondata:
         longitude: -95
       ipsupport: IpSupportDynamic
       numdynamicips: 254
+      timelimits:
+        createclusterinsttimeout: 3000000000
+        updateclusterinsttimeout: 2000000000
+        deleteclusterinsttimeout: 2000000000
+        createappinsttimeout: 3000000000
+        updateappinsttimeout: 2000000000
+        deleteappinsttimeout: 2000000000
     flavors:
     - key:
         name: x1.tiny

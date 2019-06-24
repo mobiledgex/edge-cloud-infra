@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"net"
 	"net/http"
+	"net/http/httptest"
 	"testing"
 	"time"
 
@@ -37,12 +38,20 @@ func TestController(t *testing.T) {
 	require.Nil(t, err, "run server")
 	defer server.Stop()
 
-	Jwks.Init("addr", "mcorm", "roleID", "secretID")
+	Jwks.Init("addr", "region", "mcorm", "roleID", "secretID")
 	Jwks.Meta.CurrentVersion = 1
 	Jwks.Keys[1] = &vault.JWK{
 		Secret:  "12345",
 		Refresh: "1s",
 	}
+
+	// run a dummy http server to mimic influxdb
+	// this will reply with empty json to everything
+	influxServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		fmt.Fprintln(w, `{"data":[{"Messages": null,"Series": null}]}`)
+	}))
+	defer influxServer.Close()
 
 	// run dummy controller - this always returns success
 	// to all APIs directed to it, and does not actually
@@ -74,8 +83,9 @@ func TestController(t *testing.T) {
 	require.Equal(t, http.StatusOK, status)
 	require.Equal(t, 0, len(ctrls))
 	ctrl := ormapi.Controller{
-		Region:  "USA",
-		Address: ctrlAddr,
+		Region:   "USA",
+		Address:  ctrlAddr,
+		InfluxDB: influxServer.URL,
 	}
 	// create controller
 	status, err = mcClient.CreateController(uri, token, &ctrl)
@@ -131,7 +141,7 @@ func TestController(t *testing.T) {
 	badPermTestShowClusterInst(t, mcClient, uri, tokenDev3, ctrl.Region, org1)
 
 	badPermTestCloudlet(t, mcClient, uri, tokenOper3, ctrl.Region, org1)
-
+	badPermTestMetrics(t, mcClient, uri, tokenDev3, ctrl.Region, org1)
 	// add new users to orgs
 	testAddUserRole(t, mcClient, uri, tokenDev, org1, "DeveloperContributor", dev3.Name, Success)
 	testAddUserRole(t, mcClient, uri, tokenDev, org1, "DeveloperViewer", dev4.Name, Success)
@@ -240,6 +250,8 @@ func TestController(t *testing.T) {
 	goodPermTestApp(t, mcClient, uri, tokenDev3, ctrl.Region, org1, dcnt)
 	goodPermTestAppInst(t, mcClient, uri, tokenDev3, ctrl.Region, org1, dcnt)
 	goodPermTestClusterInst(t, mcClient, uri, tokenDev3, ctrl.Region, org1, dcnt)
+	goodPermTestMetrics(t, mcClient, uri, tokenDev3, ctrl.Region, org1)
+
 	// test users with different roles
 	goodPermTestCloudlet(t, mcClient, uri, tokenOper3, ctrl.Region, org3, count)
 	goodPermTestClusterInst(t, mcClient, uri, tokenDev, ctrl.Region, org1, dcnt)

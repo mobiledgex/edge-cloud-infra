@@ -21,24 +21,34 @@
         github_token: "{{ lookup('env', 'GITHUB_TOKEN') }}"
       when: github_token is not defined or not github_token
 
-    - name: Pick latest release from Github
+    - set_fact:
+        console_version_not_provided: true
+      when: console_version is not defined
+
+    - name: Get list of edge-cloud-ui tags from Github
       uri:
-        url: https://api.github.com/repos/mobiledgex/edge-cloud-ui/releases/latest
+        url: https://api.github.com/repos/mobiledgex/edge-cloud-ui/tags
         user: "{{ github_user }}"
         password: "{{ github_token }}"
         force_basic_auth: yes
         return_content: yes
-      register: console_release
-      when: console_version is not defined
+      register: console_tags
+      check_mode: false
+      when: console_version_not_provided | default(false)
 
-    - set_fact:
-        console_version: "{{ console_release.json.tag_name }}"
-      when: console_version is not defined
+    - name: Pick newest tag by semver
+      set_fact:
+        console_version: "{{ console_tags.json | json_query('[*].name') | semver_sort(re_filter='^v[0-9]') | last }}"
+      when: console_version_not_provided | default(false)
+
+    - assert:
+        that:
+          - console_version is defined
 
     - pause:
         prompt: "Installing the latest console release: {{ console_version }}"
         seconds: 30
-      when: console_release is defined
+      when: console_version_not_provided | default(false)
 
 - hosts: platform
   tasks:
@@ -64,6 +74,7 @@
         project_path: "../terraform/mexplat/{{ deploy_environ }}"
         state: present
         force_init: yes
+        lock: no
         variables:
           azure_terraform_service_principal_id: "{{ azure_terraform_service_principal_id }}"
           azure_terraform_service_principal_secret: "{{ azure_terraform_service_principal_secret }}"
@@ -90,6 +101,7 @@
       vars:
         k8s_cluster_name: "{{ item.name }}"
         kube_config: "{{ item.kube_config }}"
+        region: "{{ item.region }}"
       with_items: "{{ k8s_clusters }}"
 
 - hosts: gitlab

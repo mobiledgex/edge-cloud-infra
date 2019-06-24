@@ -1,0 +1,17 @@
+apiVersion: certmanager.k8s.io/v1alpha1
+kind: ClusterIssuer
+metadata:
+  name: letsencrypt-dns01
+spec:
+  acme:
+    email: {{ mex_ops_email }}
+    server: {{ acme_url }}
+    privateKeySecretRef:
+      name: letsencrypt-issuer-account-key
+    solvers:
+    - dns01:
+        cloudflare:
+          email: {{ cloudflare_account_email }}
+          apiKeySecretRef:
+            name: {{ cloudflare_secret }}
+            key: {{ cloudflare_secret_key }}

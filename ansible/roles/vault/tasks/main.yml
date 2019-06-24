@@ -111,6 +111,19 @@
   become: yes
   notify: Restart vault
 
+- name: Set default cert ACLs
+  acl:
+    path: "{{ item }}"
+    entity: "{{ vault_user }}"
+    etype: user
+    permissions: r
+    default: yes
+    state: present
+  become: yes
+  with_items:
+    - "/etc/letsencrypt/live/{{ vault_vm_hostname }}"
+    - "/etc/letsencrypt/archive/{{ vault_vm_hostname }}"
+
 - name: Allow vault permission to its certs
   acl:
     path: "{{ item }}"
@@ -118,7 +131,6 @@
     etype: user
     permissions: r
     recursive: yes
-    default: yes
     state: present
   become: yes
   with_items:

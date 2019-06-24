@@ -202,7 +202,7 @@ ssh_authorized_keys:
 	if out, err := client.Output(
 		`sudo docker run -d ` +
 			`--name ` + crm_name +
-			` -e VAULT_SECRET_ID="6e88cd75-7297-ba5e-6b27-9d612e3792b7"` +
+			` -e VAULT_SECRET_ID="6e88cd75-7297-ba5e-6b27-9d612e3792b7"` + // TODO: How to fetch CRM specific Vault Role/Secret ID
 			` -e VAULT_ROLE_ID="e017fc39-dff7-adc3-364f-bb8e04805454" ` +
 			crm_registry_path +
 			` crmserver ` +

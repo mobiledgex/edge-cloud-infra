@@ -2,6 +2,7 @@ package main
 
 import (
 	"encoding/json"
+	"fmt"
 	"strconv"
 	"strings"
 	"sync"
@@ -108,7 +109,8 @@ func getPromMetrics(addr string, query string, client pc.PlatformClient) (*PromR
 
 	resp, err := client.Output("curl " + reqURI)
 	if err != nil {
-		log.DebugLog(log.DebugLevelMetrics, "Failed to run <%s>, err: %s\n", reqURI, err.Error())
+		errstr := fmt.Sprintf("Failed to run <%s>", reqURI)
+		log.DebugLog(log.DebugLevelMetrics, errstr, "err", err.Error())
 		return nil, err
 	}
 	trimmedResp := outputTrim(resp)
@@ -338,8 +340,8 @@ func (p *PromStats) RunNotify() {
 			if p.CollectPromStats() != nil {
 				continue
 			}
-			log.DebugLog(log.DebugLevelMetrics, "Sending metrics for (%s-%s)%s with timestamp %s\n", p.operatorName, p.cloudletName,
-				p.clusterName, ts.String())
+			log.DebugLog(log.DebugLevelMetrics, fmt.Sprintf("Sending metrics for (%s-%s)%s with timestamp %s\n", p.operatorName, p.cloudletName,
+				p.clusterName, ts.String()))
 			for key, stat := range p.appStatsMap {
 				p.send(PodStatToMetric(ts, &key, stat))
 			}

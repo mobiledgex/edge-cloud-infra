@@ -72,27 +72,27 @@ func appInstCb(old *edgeproto.AppInst, new *edgeproto.AppInst) {
 	var mapKey = k8smgmt.GetK8sNodeNameSuffix(&new.Key.ClusterInstKey)
 	stats, exists := promMap[mapKey]
 	if new.State == edgeproto.TrackedState_READY {
-		log.DebugLog(log.DebugLevelMetrics, "New Prometheus instance detected in cluster: %s\n", mapKey)
+		log.DebugLog(log.DebugLevelMetrics, "New Prometheus instance detected", "clustername", mapKey)
 		//get address of prometheus.
 		clusterInst := edgeproto.ClusterInst{}
 		found := ClusterInstCache.Get(&new.Key.ClusterInstKey, &clusterInst)
 		if !found {
-			log.DebugLog(log.DebugLevelMetrics, "Unable to find clusterInst for prometheus\n")
+			log.DebugLog(log.DebugLevelMetrics, "Unable to find clusterInst for prometheus")
 			return
 		}
 		clustIP, err := pf.GetClusterIP(&clusterInst)
 		if err != nil {
-			log.DebugLog(log.DebugLevelMetrics, "error getting clusterIP: %s\n", err.Error())
+			log.DebugLog(log.DebugLevelMetrics, "error getting clusterIP", "err", err.Error())
 		}
 		port := new.MappedPorts[0].PublicPort
 		promAddress := fmt.Sprintf("%s:%d", clustIP, port)
-		log.DebugLog(log.DebugLevelMetrics, "prometheus found at: %s\n", promAddress)
+		log.DebugLog(log.DebugLevelMetrics, "prometheus found", "promAddress", promAddress)
 		if !exists {
 			stats = NewPromStats(promAddress, *collectInterval, sendMetric, &clusterInst, pf)
 			promMap[mapKey] = stats
 			stats.Start()
 		} else { //somehow this cluster's prometheus was already registered
-			log.DebugLog(log.DebugLevelMetrics, "Error, Prometheus app already registered for this cluster\n")
+			log.DebugLog(log.DebugLevelMetrics, "Error, Prometheus app already registered for this cluster")
 		}
 	} else { //if its anything other than ready just stop it
 		//try to remove it from the prommap
@@ -122,8 +122,8 @@ func main() {
 	log.SetDebugLevelStrs(*debugLevels)
 
 	cloudcommon.ParseMyCloudletKey(false, cloudletKeyStr, &cloudletKey)
-	log.DebugLog(log.DebugLevelMetrics, "InfluxDB is at: %s\n", *influxdb)
-	log.DebugLog(log.DebugLevelMetrics, "Metrics collection interval is %s\n", *collectInterval)
+	log.DebugLog(log.DebugLevelMetrics, "InfluxDB found", "influxdb addr", influxdb)
+	log.DebugLog(log.DebugLevelMetrics, "Metrics collection", "interval", collectInterval)
 	var err error
 	pf, err = getPlatform()
 	if err != nil {
@@ -154,7 +154,7 @@ func main() {
 	sigChan = make(chan os.Signal, 1)
 	signal.Notify(sigChan, os.Interrupt)
 
-	log.DebugLog(log.DebugLevelMetrics, "Ready\n")
+	log.DebugLog(log.DebugLevelMetrics, "Ready")
 
 	// wait until process in killed/interrupted
 	sig := <-sigChan

@@ -29,7 +29,7 @@ spec:
          - "--tls"
          - "/root/tls/mex-server.crt"
          - "--influxdb"
-         - "{{ influxdb_name }}:8086"
+         - "https://{{ influxdb_dns }}.{{ cloudflare_zone }}:8086"
          - "--flavor"
          - "x1.medium"
       imagePullSecrets:

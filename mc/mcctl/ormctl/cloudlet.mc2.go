@@ -96,6 +96,23 @@ var CloudletKeyAliasArgs = []string{
 	"operatorkey.name=cloudletkey.operatorkey.name",
 	"name=cloudletkey.name",
 }
+var OperationTimeLimitsRequiredArgs = []string{}
+var OperationTimeLimitsOptionalArgs = []string{
+	"createclusterinsttimeout",
+	"updateclusterinsttimeout",
+	"deleteclusterinsttimeout",
+	"createappinsttimeout",
+	"updateappinsttimeout",
+	"deleteappinsttimeout",
+}
+var OperationTimeLimitsAliasArgs = []string{
+	"createclusterinsttimeout=operationtimelimits.createclusterinsttimeout",
+	"updateclusterinsttimeout=operationtimelimits.updateclusterinsttimeout",
+	"deleteclusterinsttimeout=operationtimelimits.deleteclusterinsttimeout",
+	"createappinsttimeout=operationtimelimits.createappinsttimeout",
+	"updateappinsttimeout=operationtimelimits.updateappinsttimeout",
+	"deleteappinsttimeout=operationtimelimits.deleteappinsttimeout",
+}
 var CloudletInfraCommonRequiredArgs = []string{}
 var CloudletInfraCommonOptionalArgs = []string{
 	"dockerregistry",
@@ -220,6 +237,13 @@ var CloudletOptionalArgs = []string{
 	"ipsupport",
 	"staticips",
 	"numdynamicips",
+	"controlleraddr",
+	"platform",
+	"vaultaddr",
+	"physicalname",
+	"bindport",
+	"state",
+	"errors",
 }
 var CloudletAliasArgs = []string{
 	"operator=cloudlet.key.operatorkey.name",
@@ -237,6 +261,23 @@ var CloudletAliasArgs = []string{
 	"ipsupport=cloudlet.ipsupport",
 	"staticips=cloudlet.staticips",
 	"numdynamicips=cloudlet.numdynamicips",
+	"timelimits.createclusterinsttimeout=cloudlet.timelimits.createclusterinsttimeout",
+	"timelimits.updateclusterinsttimeout=cloudlet.timelimits.updateclusterinsttimeout",
+	"timelimits.deleteclusterinsttimeout=cloudlet.timelimits.deleteclusterinsttimeout",
+	"timelimits.createappinsttimeout=cloudlet.timelimits.createappinsttimeout",
+	"timelimits.updateappinsttimeout=cloudlet.timelimits.updateappinsttimeout",
+	"timelimits.deleteappinsttimeout=cloudlet.timelimits.deleteappinsttimeout",
+	"controlleraddr=cloudlet.controlleraddr",
+	"platform=cloudlet.platform",
+	"vaultaddr=cloudlet.vaultaddr",
+	"physicalname=cloudlet.physicalname",
+	"bindport=cloudlet.bindport",
+	"state=cloudlet.state",
+	"errors=cloudlet.errors",
+	"status.tasknumber=cloudlet.status.tasknumber",
+	"status.maxtasks=cloudlet.status.maxtasks",
+	"status.taskname=cloudlet.status.taskname",
+	"status.stepname=cloudlet.status.stepname",
 }
 var FlavorInfoRequiredArgs = []string{}
 var FlavorInfoOptionalArgs = []string{

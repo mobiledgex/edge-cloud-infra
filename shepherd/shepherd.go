@@ -11,6 +11,7 @@ import (
 	platform "github.com/mobiledgex/edge-cloud-infra/shepherd/shepherd_platform"
 	"github.com/mobiledgex/edge-cloud-infra/shepherd/shepherd_platform/shepherd_dind"
 	"github.com/mobiledgex/edge-cloud-infra/shepherd/shepherd_platform/shepherd_openstack"
+	"github.com/mobiledgex/edge-cloud/cloud-resource-manager/k8smgmt"
 	"github.com/mobiledgex/edge-cloud/cloudcommon"
 	influxq "github.com/mobiledgex/edge-cloud/controller/influxq_client"
 	"github.com/mobiledgex/edge-cloud/edgeproto"
@@ -68,7 +69,7 @@ func appInstCb(old *edgeproto.AppInst, new *edgeproto.AppInst) {
 	if new.Key.AppKey.Name != MEXPrometheusAppName {
 		return
 	}
-	var mapKey = new.Key.ClusterInstKey.ClusterKey.Name
+	var mapKey = k8smgmt.GetK8sNodeNameSuffix(&new.Key.ClusterInstKey)
 	stats, exists := promMap[mapKey]
 	if new.State == edgeproto.TrackedState_READY {
 		log.DebugLog(log.DebugLevelMetrics, "New Prometheus instance detected in cluster: %s\n", mapKey)

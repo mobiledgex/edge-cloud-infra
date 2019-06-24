@@ -62,4 +62,4 @@ Currently not available, will be soon
 1. Need to find a better way to organize metrics being sent to influxdb. It is currently too rigid to provide configurable
 metrics and adding in a new one later would be a hassle.
 2. Register shepherd with the country controller to be able to send metrics through the notify framework so that controller writes to influxdb instead of shepherd.
-
+3. Azure support

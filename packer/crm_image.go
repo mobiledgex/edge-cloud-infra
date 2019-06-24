@@ -104,12 +104,12 @@ func main() {
 	}
 	fmt.Println("packer run ok")
 
-	imgDetail, err = mexos.GetImageDetail(CRMImgName)
+	_, err = mexos.GetImageDetail(CRMImgName)
 	if err != nil {
 		fmt.Println("image does not exist in Openstack", err)
 		os.Exit(1)
 	}
-	savePath := "/tmp/" + CRMImgName + ".img"
+	savePath := "/tmp/" + CRMImgName + ".qcow2"
 	err = mexos.SaveImage(savePath, CRMImgName)
 	if err != nil {
 		fmt.Println("failed saving image", err)

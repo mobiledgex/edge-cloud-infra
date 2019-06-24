@@ -3,10 +3,13 @@ package openstack
 import (
 	"fmt"
 	"io/ioutil"
+	"strings"
+	"time"
 
 	"github.com/mobiledgex/edge-cloud-infra/mexos"
 	"github.com/mobiledgex/edge-cloud/cloudcommon"
 	"github.com/mobiledgex/edge-cloud/edgeproto"
+	"github.com/mobiledgex/edge-cloud/flavor"
 	"github.com/mobiledgex/edge-cloud/log"
 	ssh "github.com/mobiledgex/golang-ssh"
 )
@@ -16,19 +19,35 @@ const (
 	CRMMinVcpus    = 2
 	CRMMinRam      = 8
 	CRMMinDisk     = 40
-	CRMNotifyPort  = 37001
-	CRMImgRegistry = "registry.mobiledgex.net:5000/mobiledgex/edge-cloud:2019-06-20"
+	CRMNotifyPort  = "37001"
+	MaxWait        = 2 * time.Minute
+	CRMImgRegistry = "registry.mobiledgex.net:5000/mobiledgex/edge-cloud"
+	CRMBaseImgPath = "https://artifactory.mobiledgex.net/artifactory/crm-baseimages/openstack/" + CRMBaseImg + ".qcow2"
+	CRMBaseImgSum  = "a605d8d5385e74b28f60381acd4a9433"
 )
+
+func getCRMName(cloudlet *edgeproto.Cloudlet) string {
+	// Form CRM VM name based on cloudletKey
+	return cloudlet.Key.Name + "-crm." + cloudlet.Key.OperatorKey.Name
+}
 
 func (s *Platform) CreateCloudlet(cloudlet *edgeproto.Cloudlet, updateCallback edgeproto.CacheUpdateCallback) error {
 	var err error
 
-	in.State = edgeproto.TrackedState_CREATING
+	// Fetch CRM Image Tag
+	crm_version, err = ioutil.ReadFile("/version.txt")
+	if err != nil {
+		return fmt.Errorf("unable to fetch crm image tag details: %v", err)
+	}
+
+	crm_registry_path := CRMImgRegistry + ":" + crm_version
+
+	cloudlet.State = edgeproto.TrackedState_CREATING
 	log.DebugLog(log.DebugLevelMexos, "Creating cloudlet", "cloudletName", cloudlet.Key.Name)
 
 	// Soure OpenRC file to access openstack API endpoint
 	updateCallback(edgeproto.UpdateTask, "Fetch and Source OpenRC file")
-	err = mexos.InitOpenstackProps(cloudlet.Key.OperatoryKey.Name, cloudlet.PhysicalName, cloudlet.VaultAddr)
+	err = mexos.InitOpenstackProps(cloudlet.Key.OperatorKey.Name, cloudlet.PhysicalName, cloudlet.VaultAddr)
 	if err != nil {
 		return err
 	}
@@ -40,19 +59,18 @@ func (s *Platform) CreateCloudlet(cloudlet *edgeproto.Cloudlet, updateCallback e
 	}
 	if err != nil {
 		// Download CRM base image and Add to Openstack Glance
-		updateCallback(edgeproto.UpdateTask, "Downloading CRM base image: "+err.Error())
-		/*
-			err = mexos.CreateImageFromUrl(imageName, app.ImagePath, md5Sum)
-			if err != nil {
-				return fmt.Errorf("CreateVMAppInst error: %v", err)
-			}
-		*/
-		return err
+		updateCallback(edgeproto.UpdateTask, "Downloading CRM base image: ")
+		err = mexos.CreateImageFromUrl(CRMBaseImg, CRMBaseImgPath, CRMBaseImgSum)
+		if err != nil {
+			return fmt.Errorf("Error downloading CRM base image: %v", err)
+		}
 	}
 
 	// Fetch CRM Flavor
 	crm_flavor := edgeproto.Flavor{
-		Key:   "crm-flavor",
+		Key: edgeproto.FlavorKey{
+			Name: "crm-flavor",
+		},
 		Ram:   uint64(CRMMinRam),
 		Vcpus: uint64(CRMMinVcpus),
 		Disk:  uint64(CRMMinDisk),
@@ -67,7 +85,7 @@ func (s *Platform) CreateCloudlet(cloudlet *edgeproto.Cloudlet, updateCallback e
 	}
 
 	// Form CRM VM name based on cloudletKey
-	crm_name := cloudlet.Key.Name + "." + cloudlet.Key.OperatorKey.Name
+	crm_name := getCRMName(cloudlet)
 
 	// Generate SSH KeyPair
 	keyPairPath := "/tmp/" + crm_name
@@ -111,11 +129,11 @@ ssh_authorized_keys:
 
 	// Gather registry credentails from Vault
 	updateCallback(edgeproto.UpdateTask, "Fetch registry auth credentials")
-	regAuth := cloudcommon.GetRegistryAuth(CRMImgRegistry, cloudlet.VaultAddr)
+	regAuth := cloudcommon.GetRegistryAuth(crm_registry_path, cloudlet.VaultAddr)
 	if regAuth == nil {
 		return fmt.Errorf("unable to fetch registry auth credentials")
 	}
-	if regAuth.AuthType != BasicAuth {
+	if regAuth.AuthType != cloudcommon.BasicAuth {
 		return fmt.Errorf("unsupported registry auth type %s", regAuth.AuthType)
 	}
 
@@ -135,17 +153,17 @@ ssh_authorized_keys:
 	}
 	updateCallback(edgeproto.UpdateTask, "External IP: "+external_ip)
 	log.DebugLog(log.DebugLevelMexos, "external IP", "ip", external_ip)
+	// TODO: Activate FDQN
 	/*
-		// TODO: Activate FDQN
-		if appInst.Uri != "" && external_ip != "" {
-			fqdn := appInst.Uri
+		loc := util.DNSSanitize(cloudlet.Key.Name)
+		oper := util.DNSSanitize(cloudletkey.OperatorKey.Name)
+		fqdn := fmt.Sprintf("%s.%s.%s", loc, oper, cloudcommon.AppDNSRoot)
+		if external_ip != "" {
 			if err = mexos.ActivateFQDNA(fqdn, external_ip); err != nil {
 				return err
 			}
 			log.DebugLog(log.DebugLevelMexos, "DNS A record activated",
-				"name", app.Key.Name,
-				"fqdn", fqdn,
-				"IP", external_ip)
+				"fqdn", fqdn, "IP", external_ip)
 		}
 	*/
 
@@ -173,7 +191,7 @@ ssh_authorized_keys:
 			`echo "%s" | sudo docker login -u %s --password-stdin %s`,
 			regAuth.Password,
 			regAuth.Username,
-			CRMImgRegistry,
+			crm_registry_path,
 		),
 	); err != nil {
 		return fmt.Errorf("unable to login to docker registry: %v, %s\n", err, out)
@@ -183,13 +201,14 @@ ssh_authorized_keys:
 	updateCallback(edgeproto.UpdateTask, "Start CRMServer")
 	if out, err := client.Output(
 		`sudo docker run -d ` +
-			`-e VAULT_SECRET_ID="6e88cd75-7297-ba5e-6b27-9d612e3792b7" ` +
-			`-e VAULT_ROLE_ID="e017fc39-dff7-adc3-364f-bb8e04805454" ` +
-			CRMImgRegistry +
+			`--name ` + crm_name +
+			` -e VAULT_SECRET_ID="6e88cd75-7297-ba5e-6b27-9d612e3792b7"` +
+			` -e VAULT_ROLE_ID="e017fc39-dff7-adc3-364f-bb8e04805454" ` +
+			crm_registry_path +
 			` crmserver ` +
 			`"--notifyAddrs" ` + `"` + cloudlet.ControllerAddr + `:` + CRMNotifyPort + `" ` +
 			`"--apiAddr" "0.0.0.0:55101" ` +
-			`"--cloudletKey" "{\"operator_key\":{\"name\":\"` + cloudlet.Key.OperatoryKey.Name + `\"},\"name\":\"` + cloudlet.Key.Name + `\"}" ` +
+			`"--cloudletKey" "{\"operator_key\":{\"name\":\"` + cloudlet.Key.OperatorKey.Name + `\"},\"name\":\"` + cloudlet.Key.Name + `\"}" ` +
 			`"--tls" "/root/tls/mex-server.crt" ` +
 			`"-d" "api,notify,mexos" ` +
 			`"--platform" "openstack" ` +
@@ -199,10 +218,42 @@ ssh_authorized_keys:
 		return fmt.Errorf("unable to start crmserver: %v, %s\n", err, out)
 	}
 
+	// Wait for CRM to come up: Since we cannot fetch information
+	// regarding CRM state from docker ouput, we observe container
+	// state for MaxWait time, if it is Up then we return
+	// successfully and then controller will do the actual
+	// check if CRM connected to it or not
+	start := time.Now()
+	for {
+		out, err := client.Output(`sudo docker ps -a -n 1 --filter name=` + crm_name + ` --format '{{.Status}}'`)
+		if err != nil {
+			return fmt.Errorf("unable to fetch crm container status: %v, %s\n", err, out)
+		}
+		if !strings.Contains(out, "Up ") {
+			// container exited in failure state
+			out, err = client.Output(`sudo docker logs ` + crm_name + ` 2>&1 | grep FATAL | awk '{for (i=1; i<=NF-3; i++) $i = $(i+3); NF-=3; print}'`)
+			if err != nil {
+				return fmt.Errorf("failed to brinup crmserver")
+			}
+			return fmt.Errorf("failed to brinup crmserver: %s", out)
+		}
+		elapsed := time.Since(start)
+		if elapsed >= (MaxWait) {
+			// no issues in wait time
+			break
+		}
+		time.Sleep(1 * time.Second)
+	}
+
 	return nil
 }
 
 func (s *Platform) DeleteCloudlet(cloudlet *edgeproto.Cloudlet) error {
 	log.DebugLog(log.DebugLevelMexos, "Deleting cloudlet", "cloudletName", cloudlet.Key.Name)
+	crm_name := getCRMName(cloudlet)
+	err := mexos.HeatDeleteStack(crm_name)
+	if err != nil {
+		return fmt.Errorf("DeleteCloudlet error: %v", err)
+	}
 	return nil
 }

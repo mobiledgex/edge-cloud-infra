@@ -33,7 +33,7 @@ spec:
          - "--vaultAddr"
          - "https://{{ vault_vm_hostname }}:{{ vault_port }}"
          - "--influxAddr"
-         - "https://{{ influxdb_name }}:8086"
+         - "https://{{ influxdb_dns }}.{{ cloudflare_zone }}:8086"
          - "--tls"
          - "/root/tls/mex-server.crt"
          - "-autoUpgrade"

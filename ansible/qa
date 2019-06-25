@@ -10,9 +10,14 @@ mc_tag="{{ deploy_environ }}"
 console_vm_hostname=console-qa.mobiledgex.net
 azure_volume_storage_class=default
 influxdb_volume_size=1Gi
+vault_vm_hostname=vault-qa.mobiledgex.net
+vault_port=8200
 
 [gitlab]
 gitlab-qa.mobiledgex.net
 
 [console]
 console-qa.mobiledgex.net
+
+[vault]
+vault-qa.mobiledgex.net

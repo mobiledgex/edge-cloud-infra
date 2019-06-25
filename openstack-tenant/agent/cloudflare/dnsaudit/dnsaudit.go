@@ -78,7 +78,6 @@ func doAudit() error {
 	records, err := api.DNSRecords(zoneID, cloudflare.DNSRecord{Type: "A"})
 	for _, r := range records {
 		if reg.MatchString(r.Name) {
-			//	fmt.Printf("Found a DNS record %s matching %s\n", r.Name, *matchPattern)
 			recordsFound = append(recordsFound, r)
 		}
 	}

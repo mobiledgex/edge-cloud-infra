@@ -24,4 +24,5 @@
       - "--no-multicast-peers"
       - "--no-cli"
       - "--external-ip=$(detect-external-ip)"
+      - "--user={{ stun_user | default('fake') }}:{{ stun_password | default('fake') }}"
       - "--realm=mobiledgex.net"

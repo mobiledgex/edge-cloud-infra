@@ -34,6 +34,8 @@ spec:
          - "https://{{ vault_vm_hostname }}:{{ vault_port }}"
          - "--influxAddr"
          - "https://{{ influxdb_dns }}.{{ cloudflare_zone }}:8086"
+         - "-registryFQDN"
+         - "{{ gitlab_docker_hostname }}"
          - "--tls"
          - "/root/tls/mex-server.crt"
          - "-autoUpgrade"

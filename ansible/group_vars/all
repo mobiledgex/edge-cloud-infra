@@ -18,11 +18,7 @@ mc_api_port: 9900
 mc_api_internal_port: 19900
 mc_ldap_port: 9389
 postgres_server: postgres.mobiledgex.net:5432
-mc_vault_role_id: f4207f0f-c965-ac3e-181c-235de8838ff7
-mc_vault_secret_id: ***REMOVED***
 mc_artifactory_apikey: ***REMOVED***
-crm_vault_role_id: e017fc39-dff7-adc3-364f-bb8e04805454
-crm_vault_secret_id: ***REMOVED***
 crm_artifactory_apikey: ***REMOVED***
 influxdb_name: monitoring-influxdb
 etcd_cluster_name: mex-etcd-cluster

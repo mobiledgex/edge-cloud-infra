@@ -3,17 +3,20 @@
 MAIN_ANSIBLE_VAULT_PREFIX='ansible-mex-vault'
 PERSONAL_ANSIBLE_VAULT='personal-ansible-vault.yml'
 DEFAULT_PLAYBOOK='mexplat.yml'
+EC_VERSION=$( date +'%Y-%m-%d' )
 
 USAGE="usage: $0 [options] <environment> [<target>]
 
-  -c	confirm before running playbook
-  -l	list available targets
-  -n	dry-run mode
-  -p	playbook (default: \"$DEFAULT_PLAYBOOK\")
-  -t	tags (comma-separated)
-  -y	skip confirmation prompts
+  -c		confirm before running playbook
+  -C <version>	console version to deploy (default: pick latest git tag)
+  -l		list available targets
+  -n		dry-run mode
+  -p <playbook>	playbook (default: \"$DEFAULT_PLAYBOOK\")
+  -t <tags>	tags (comma-separated)
+  -V <version>	edge-cloud version to deploy (default: \"$EC_VERSION\")
+  -y		skip confirmation prompts
 
-  -h	display this help message
+  -h		display this help message
 
 example: $0 -n staging console"
 
@@ -26,13 +29,17 @@ CONFIRM=false
 ASSUME_YES=false
 PLAYBOOK_FORCED=
 TAGS=
-while getopts ':cChlnp:t:y' OPT; do
+CONSOLE_VERSION=
+EC_VERSION_SET=false
+while getopts ':cC:hlnp:t:V:y' OPT; do
 	case "$OPT" in
 	c)	CONFIRM=true ;;
-	n|C)	DRYRUN=true ;;
+	C)	CONSOLE_VERSION="$OPTARG" ;;
+	n)	DRYRUN=true ;;
 	l)	LIST=true ;;
 	p)	PLAYBOOK_FORCED="$OPTARG" ;;
 	t)	TAGS="$OPTARG" ;;
+	V)	EC_VERSION="$OPTARG"; EC_VERSION_SET=true ;;
 	y)	ASSUME_YES=true ;;
 	h)	echo "$USAGE"
 		exit 0
@@ -64,6 +71,7 @@ if [[ -n "$PLAYBOOK_FORCED" && ! -f "$PLAYBOOK_FORCED" ]]; then
 fi
 
 [[ "$ENVIRON" == main ]] && CONFIRM=true
+$EC_VERSION_SET || CONFIRM=true
 
 # List mode
 "$LIST" && exec ansible-inventory -i "$ENVIRON" --graph
@@ -83,6 +91,10 @@ MAIN_VAULT="${MAIN_ANSIBLE_VAULT_PREFIX}-${ENVIRON}.yml"
 
 # Tags
 [[ -n "$TAGS" ]] && ARGS+=( -t "$TAGS" )
+
+# Deployment versions
+ARGS+=( -e edge_cloud_version="$EC_VERSION" )
+[[ -n "$CONSOLE_VERSION" ]] && ARGS+=( -e console_version="$CONSOLE_VERSION" )
 
 # Inventory
 ARGS+=( -i "$ENVIRON" )

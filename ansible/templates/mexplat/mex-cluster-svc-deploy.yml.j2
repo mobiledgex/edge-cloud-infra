@@ -28,8 +28,6 @@ spec:
          - "mexos,notify"
          - "--tls"
          - "/root/tls/mex-server.crt"
-         - "--influxdb"
-         - "https://{{ influxdb_dns }}.{{ cloudflare_zone }}:8086"
          - "--flavor"
          - "x1.medium"
       imagePullSecrets:

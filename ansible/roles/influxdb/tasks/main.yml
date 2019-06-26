@@ -37,6 +37,16 @@
   changed_when: false
   check_mode: no
 
+- name: Look up influxdb credentials in vault
+  set_fact:
+    vault_lookup: "{{ lookup('vault', influxdb_path) }}"
+  vars:
+    influxdb_path: "secret/{{ region }}/accounts/influxdb"
+
+- set_fact:
+    influxdb_user: "{{ vault_lookup.influxdb.data.user }}"
+    influxdb_password: "{{ vault_lookup.influxdb.data.pass }}"
+
 - name: Set up configmap
   k8s:
     kubeconfig: "{{ kubeconfig_file.path }}"

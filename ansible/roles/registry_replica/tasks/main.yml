@@ -64,9 +64,9 @@
 
 - name: Retrieve GCP service account from vault
   set_fact:
-    gcp_service_account: "{{ lookup('vault', path) }}"
+    vault_lookup: "{{ lookup('vault', path) }}"
   vars:
-    path: "secret/ansible/{{ deploy_environ }}/gcp-registry-reader-service-account"
+    path: "secret/ansible/{{ deploy_environ }}/gcp-registry-reader-service-account:service_account"
   register: result
   retries: 6
   delay: 10
@@ -75,7 +75,7 @@
 - name: Set up GCP service account credentials
   copy:
     dest: "{{ gcp_service_account_path }}"
-    content: "{{ gcp_service_account.data }}"
+    content: "{{ vault_lookup.service_account.data }}"
     owner: root
     group: root
     mode: 0400

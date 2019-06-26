@@ -66,6 +66,6 @@
     env:
       PLATFORM: "{{ item.platform | default('openstack') }}"
       MEX_EXT_NETWORK: "{{ item.mex_ext_network | default(mex_ext_network) }}"
-      VAULT_ROLE_ID: "{{ crm_vault_role_id }}"
-      VAULT_SECRET_ID: "{{ crm_vault_secret_id }}"
+      VAULT_ROLE_ID: "{{ crm_vault_app_role.role_id }}"
+      VAULT_SECRET_ID: "{{ crm_vault_app_role.secret_id }}"
       MEX_SECURITY_GROUP: "{{ item.mex_security_group | default(mex_security_group) }}"

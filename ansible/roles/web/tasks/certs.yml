@@ -30,3 +30,25 @@
   with_items: "{{ cert_domains }}"
   notify:
     - Restart nginx
+
+- name: Install pre-renewal hooks
+  copy:
+    dest: "{{ letsencrypt_renewal_hooks_dir }}/pre/{{ item.hook_name }}"
+    content: "{{ item.hook_content }}"
+    owner: root
+    group: root
+    mode: 0755
+  become: yes
+  with_items: "{{ pre_renewal_hooks }}"
+  when: pre_renewal_hooks is defined
+
+- name: Install post-renewal hooks
+  copy:
+    dest: "{{ letsencrypt_renewal_hooks_dir }}/post/{{ item.hook_name }}"
+    content: "{{ item.hook_content }}"
+    owner: root
+    group: root
+    mode: 0755
+  become: yes
+  with_items: "{{ post_renewal_hooks }}"
+  when: post_renewal_hooks is defined

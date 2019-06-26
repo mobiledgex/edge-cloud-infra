@@ -1,0 +1,5 @@
+- name: Restart registry replica
+  docker_container:
+    name: "{{ docker_container_name }}"
+    state: started
+    restart: yes

@@ -151,6 +151,11 @@
     - import_role:
         name: console
 
+- hosts: registry_replicas
+  tasks:
+    - import_role:
+        name: registry_replica
+
 - hosts: platform
   tasks:
     - name: Notify upgrade completion on slack

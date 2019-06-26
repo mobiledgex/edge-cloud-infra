@@ -365,7 +365,6 @@ func GetVMParams(depType DeploymentType, serverName, flavor, imageName, authPubl
 			return nil, err
 		}
 	}
-	log.DebugLog(log.DebugLevelMexos, "ASHISH: ", "mf", deploymentManifest)
 	if deploymentManifest != "" {
 		vmp.DeploymentManifest = template.HTML(deploymentManifest)
 	}

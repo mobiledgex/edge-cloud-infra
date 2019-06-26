@@ -21,6 +21,40 @@ var _ = math.Inf
 
 // Auto-generated code: DO NOT EDIT
 
+func (s *Client) CreatePlatform(uri, token string, in *ormapi.RegionPlatform) (edgeproto.Result, int, error) {
+	out := edgeproto.Result{}
+	status, err := s.PostJson(uri+"/auth/ctrl/CreatePlatform", token, in, &out)
+	return out, status, err
+}
+
+func (s *Client) DeletePlatform(uri, token string, in *ormapi.RegionPlatform) (edgeproto.Result, int, error) {
+	out := edgeproto.Result{}
+	status, err := s.PostJson(uri+"/auth/ctrl/DeletePlatform", token, in, &out)
+	return out, status, err
+}
+
+func (s *Client) UpdatePlatform(uri, token string, in *ormapi.RegionPlatform) (edgeproto.Result, int, error) {
+	out := edgeproto.Result{}
+	status, err := s.PostJson(uri+"/auth/ctrl/UpdatePlatform", token, in, &out)
+	return out, status, err
+}
+
+func (s *Client) ShowPlatform(uri, token string, in *ormapi.RegionPlatform) ([]edgeproto.Platform, int, error) {
+	out := edgeproto.Platform{}
+	outlist := []edgeproto.Platform{}
+	status, err := s.PostJsonStreamOut(uri+"/auth/ctrl/ShowPlatform", token, in, &out, func() {
+		outlist = append(outlist, out)
+	})
+	return outlist, status, err
+}
+
+type PlatformApiClient interface {
+	CreatePlatform(uri, token string, in *ormapi.RegionPlatform) (edgeproto.Result, int, error)
+	DeletePlatform(uri, token string, in *ormapi.RegionPlatform) (edgeproto.Result, int, error)
+	UpdatePlatform(uri, token string, in *ormapi.RegionPlatform) (edgeproto.Result, int, error)
+	ShowPlatform(uri, token string, in *ormapi.RegionPlatform) ([]edgeproto.Platform, int, error)
+}
+
 func (s *Client) CreateCloudlet(uri, token string, in *ormapi.RegionCloudlet) ([]edgeproto.Result, int, error) {
 	out := edgeproto.Result{}
 	outlist := []edgeproto.Result{}

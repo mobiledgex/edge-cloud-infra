@@ -22,6 +22,53 @@ var _ = math.Inf
 
 // Auto-generated code: DO NOT EDIT
 
+var CreatePlatformCmd = &Command{
+	Use:          "CreatePlatform",
+	RequiredArgs: strings.Join(append([]string{"region"}, PlatformRequiredArgs...), " "),
+	OptionalArgs: strings.Join(PlatformOptionalArgs, " "),
+	AliasArgs:    strings.Join(PlatformAliasArgs, " "),
+	ReqData:      &ormapi.RegionPlatform{},
+	ReplyData:    &edgeproto.Result{},
+	Path:         "/auth/ctrl/CreatePlatform",
+}
+
+var DeletePlatformCmd = &Command{
+	Use:          "DeletePlatform",
+	RequiredArgs: strings.Join(append([]string{"region"}, PlatformRequiredArgs...), " "),
+	OptionalArgs: strings.Join(PlatformOptionalArgs, " "),
+	AliasArgs:    strings.Join(PlatformAliasArgs, " "),
+	ReqData:      &ormapi.RegionPlatform{},
+	ReplyData:    &edgeproto.Result{},
+	Path:         "/auth/ctrl/DeletePlatform",
+}
+
+var UpdatePlatformCmd = &Command{
+	Use:          "UpdatePlatform",
+	RequiredArgs: strings.Join(append([]string{"region"}, PlatformRequiredArgs...), " "),
+	OptionalArgs: strings.Join(PlatformOptionalArgs, " "),
+	AliasArgs:    strings.Join(PlatformAliasArgs, " "),
+	ReqData:      &ormapi.RegionPlatform{},
+	ReplyData:    &edgeproto.Result{},
+	Path:         "/auth/ctrl/UpdatePlatform",
+}
+
+var ShowPlatformCmd = &Command{
+	Use:          "ShowPlatform",
+	RequiredArgs: "region",
+	OptionalArgs: strings.Join(append(PlatformRequiredArgs, PlatformOptionalArgs...), " "),
+	AliasArgs:    strings.Join(PlatformAliasArgs, " "),
+	ReqData:      &ormapi.RegionPlatform{},
+	ReplyData:    &edgeproto.Platform{},
+	Path:         "/auth/ctrl/ShowPlatform",
+	StreamOut:    true,
+}
+var PlatformApiCmds = []*Command{
+	CreatePlatformCmd,
+	DeletePlatformCmd,
+	UpdatePlatformCmd,
+	ShowPlatformCmd,
+}
+
 var CreateCloudletCmd = &Command{
 	Use:          "CreateCloudlet",
 	RequiredArgs: strings.Join(append([]string{"region"}, CloudletRequiredArgs...), " "),
@@ -223,6 +270,29 @@ var CloudletInfraPropertiesAliasArgs = []string{
 	"gcpproperties.serviceaccount=cloudletinfraproperties.gcpproperties.serviceaccount",
 	"gcpproperties.gcpauthkeyurl=cloudletinfraproperties.gcpproperties.gcpauthkeyurl",
 }
+var PlatformKeyRequiredArgs = []string{}
+var PlatformKeyOptionalArgs = []string{
+	"name",
+}
+var PlatformKeyAliasArgs = []string{
+	"name=platformkey.name",
+}
+var PlatformRequiredArgs = []string{
+	"name",
+}
+var PlatformOptionalArgs = []string{
+	"type",
+	"flavor.name",
+	"registrypath",
+	"imagepath",
+}
+var PlatformAliasArgs = []string{
+	"name=platform.key.name",
+	"type=platform.type",
+	"flavor.name=platform.flavor.name",
+	"registrypath=platform.registrypath",
+	"imagepath=platform.imagepath",
+}
 var CloudletRequiredArgs = []string{
 	"operator",
 	"name",
@@ -237,14 +307,11 @@ var CloudletOptionalArgs = []string{
 	"ipsupport",
 	"staticips",
 	"numdynamicips",
-	"controlleraddr",
-	"platform",
-	"vaultaddr",
+	"notifyctrladdrs",
+	"platform.name",
 	"physicalname",
-	"bindport",
 	"state",
 	"errors",
-	"uri",
 }
 var CloudletAliasArgs = []string{
 	"operator=cloudlet.key.operatorkey.name",
@@ -268,18 +335,19 @@ var CloudletAliasArgs = []string{
 	"timelimits.createappinsttimeout=cloudlet.timelimits.createappinsttimeout",
 	"timelimits.updateappinsttimeout=cloudlet.timelimits.updateappinsttimeout",
 	"timelimits.deleteappinsttimeout=cloudlet.timelimits.deleteappinsttimeout",
-	"controlleraddr=cloudlet.controlleraddr",
-	"platform=cloudlet.platform",
-	"vaultaddr=cloudlet.vaultaddr",
+	"notifyctrladdrs=cloudlet.notifyctrladdrs",
+	"platform.name=cloudlet.platform.name",
 	"physicalname=cloudlet.physicalname",
-	"bindport=cloudlet.bindport",
 	"state=cloudlet.state",
 	"errors=cloudlet.errors",
 	"status.tasknumber=cloudlet.status.tasknumber",
 	"status.maxtasks=cloudlet.status.maxtasks",
 	"status.taskname=cloudlet.status.taskname",
 	"status.stepname=cloudlet.status.stepname",
-	"uri=cloudlet.uri",
+	"vaultaddr=cloudlet.vaultaddr",
+	"tlscertfile=cloudlet.tlscertfile",
+	"crmroleid=cloudlet.crmroleid",
+	"crmsecretid=cloudlet.crmsecretid",
 }
 var FlavorInfoRequiredArgs = []string{}
 var FlavorInfoOptionalArgs = []string{

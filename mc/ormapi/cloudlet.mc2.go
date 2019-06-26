@@ -20,6 +20,11 @@ var _ = math.Inf
 
 // Auto-generated code: DO NOT EDIT
 
+type RegionPlatform struct {
+	Region   string
+	Platform edgeproto.Platform
+}
+
 type RegionCloudlet struct {
 	Region   string
 	Cloudlet edgeproto.Cloudlet

@@ -26,7 +26,7 @@ pipeline {
                     sh label: 'Run ansible playbook', script: '''$!/bin/bash
 export GITHUB_USER="${GITHUB_CREDS_USR}"
 export GITHUB_TOKEN="${GITHUB_CREDS_PSW}"
-ansible-playbook -i staging -e "edge_cloud_version=${DOCKER_BUILD_TAG}" -e @ansible-mex-vault.yml mexplat.yml
+ansible-playbook -i staging -e "edge_cloud_version=${DOCKER_BUILD_TAG}" -e @ansible-mex-vault-staging.yml mexplat.yml
                     '''
                 }
             }

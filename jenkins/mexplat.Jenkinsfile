@@ -23,11 +23,14 @@ pipeline {
         stage('Deploy') {
             steps {
                 dir(path: 'ansible') {
-                    sh label: 'Run ansible playbook', script: '''$!/bin/bash
+                    ansiColor('xterm') {
+                        sh label: 'Run ansible playbook', script: '''$!/bin/bash
 export GITHUB_USER="${GITHUB_CREDS_USR}"
 export GITHUB_TOKEN="${GITHUB_CREDS_PSW}"
+export ANSIBLE_FORCE_COLOR=true
 ansible-playbook -i staging -e "edge_cloud_version=${DOCKER_BUILD_TAG}" -e @ansible-mex-vault-staging.yml mexplat.yml
-                    '''
+                        '''
+                    }
                 }
             }
         }

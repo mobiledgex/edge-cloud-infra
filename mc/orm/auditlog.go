@@ -112,7 +112,7 @@ func logger(next echo.HandlerFunc) echo.HandlerFunc {
 		}
 		if len(resBody) > 0 {
 			kvs = append(kvs, "resp")
-			kvs = append(kvs, string(resBody))
+			kvs = append(kvs, string("")) // remove token from log
 		}
 		kvs = append(kvs, "took")
 		kvs = append(kvs, time.Since(start))

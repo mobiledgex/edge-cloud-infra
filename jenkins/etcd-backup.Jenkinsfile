@@ -15,7 +15,7 @@ pipeline {
                         sh label: 'Run ansible playbook', script: '''$!/bin/bash
 export ANSIBLE_FORCE_COLOR=true
 for DEPLOY_ENVIRON in mexdemo staging; do
-    ./deploy.sh -p etcd-backup.yml "$DEPLOY_ENVIRON"
+    ./deploy.sh -p etcd-backup.yml -y "$DEPLOY_ENVIRON"
 done
                         '''
                     }

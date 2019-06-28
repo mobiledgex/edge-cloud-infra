@@ -1,5 +1,7 @@
 ---
 - hosts: platform
+  vars:
+    local_tfstate: out.tfstate
   tasks:
 
     - name: Import terraform variables from ansible
@@ -12,18 +14,23 @@
       command:
         argv:
           - terraform
-          - "{{ item }}"
+          - init
         chdir: "../terraform/mexplat/{{ deploy_environ }}"
       check_mode: no
-      with_items:
-        - init
-        - refresh
+
+    - name: Retrieve terraform state
+      shell: "terraform state pull >{{ local_tfstate }}"
+      args:
+        chdir: "../terraform/mexplat/{{ deploy_environ }}"
+        creates: "{{ local_tfstate }}"
+      check_mode: no
 
     - name: Get setup details from terraform
       command:
         argv:
           - terraform
           - output
+          - "-state={{ local_tfstate }}"
           - "-json"
           - k8s_clusters
         chdir: "../terraform/mexplat/{{ deploy_environ }}"

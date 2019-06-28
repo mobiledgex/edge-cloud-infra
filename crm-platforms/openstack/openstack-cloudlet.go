@@ -16,11 +16,6 @@ import (
 
 const (
 	PlatformMaxWait = 5 * time.Minute
-	/*
-		PlatformBaseImgPath  = "https://artifactory.mobiledgex.net/artifactory/crm-baseimages/openstack/" + PlatformBaseImg + ".qcow2"
-		PlatformBaseImg      = "mobiledgex-crm-v1.0"
-		PlatformBaseImgSum   = "a605d8d5385e74b28f60381acd4a9433"
-	*/
 )
 
 func getPlatformVMName(cloudlet *edgeproto.Cloudlet) string {
@@ -181,23 +176,29 @@ ssh_authorized_keys:
 		return fmt.Errorf("unable to login to docker registry: %v, %s\n", err, out)
 	}
 
+	crm_cmd, envVars, err := cloudcommon.GetCRMCmd(cloudlet, pf)
+	if err != nil {
+		return fmt.Errorf("unable to get crm service command: %v\n", err)
+	}
+
 	// Pull docker image and start crmserver
 	updateCallback(edgeproto.UpdateTask, "Start CRMServer")
-	if out, err := client.Output(
-		`sudo docker run -d --restart=unless-stopped ` +
-			`--name ` + platform_vm_name +
-			` -e VAULT_SECRET_ID="` + cloudlet.CrmSecretId + `"` +
-			` -e VAULT_ROLE_ID="` + cloudlet.CrmRoleId + `" ` +
-			pf.RegistryPath +
-			` crmserver ` +
-			`"--notifyAddrs" ` + `"` + cloudlet.NotifyCtrlAddrs + `" ` +
-			`"--cloudletKey" "{\"operator_key\":{\"name\":\"` + cloudlet.Key.OperatorKey.Name + `\"},\"name\":\"` + cloudlet.Key.Name + `\"}" ` +
-			`"--tls" "` + cloudlet.TlsCertFile + `" ` +
-			`"-d" "api,notify,mexos" ` +
-			`"--platform" "openstack" ` +
-			`"-vaultAddr" "` + cloudlet.VaultAddr + `" ` +
-			`"--physicalName" "` + cloudlet.PhysicalName + `"`,
-	); err != nil {
+
+	var envVarsAr []string
+	for k, v := range *envVars {
+		envVarsAr = append(envVarsAr, "-e")
+		envVarsAr = append(envVarsAr, k+"="+v)
+	}
+	cmd := []string{
+		"sudo docker run",
+		"-d",
+		"--restart=unless-stopped",
+		"--name", platform_vm_name,
+		strings.Join(envVarsAr, " "),
+		pf.RegistryPath,
+		crm_cmd,
+	}
+	if out, err := client.Output(strings.Join(cmd, " ")); err != nil {
 		return fmt.Errorf("unable to start crmserver: %v, %s\n", err, out)
 	}
 

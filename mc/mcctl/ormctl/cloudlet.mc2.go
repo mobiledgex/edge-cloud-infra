@@ -281,14 +281,16 @@ var PlatformRequiredArgs = []string{
 	"name",
 }
 var PlatformOptionalArgs = []string{
-	"type",
+	"platformtype",
+	"deployment",
 	"flavor.name",
 	"registrypath",
 	"imagepath",
 }
 var PlatformAliasArgs = []string{
 	"name=platform.key.name",
-	"type=platform.type",
+	"platformtype=platform.platformtype",
+	"deployment=platform.deployment",
 	"flavor.name=platform.flavor.name",
 	"registrypath=platform.registrypath",
 	"imagepath=platform.imagepath",

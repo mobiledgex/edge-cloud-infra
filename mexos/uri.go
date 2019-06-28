@@ -213,3 +213,16 @@ func DeleteFile(filePath string) error {
 	}
 	return err
 }
+
+func GetMyIP() (string, error) {
+	resp, err := SendHTTPReq("GET", "http://ifconfig.me")
+	if err != nil {
+		return "", err
+	}
+	defer resp.Body.Close()
+	ip, err := ioutil.ReadAll(resp.Body)
+	if err != nil {
+		return "", err
+	}
+	return string(ip), nil
+}

@@ -8,6 +8,17 @@
         target: ansible.auto.tfvars
       changed_when: false
 
+    - name: Initialize terraform
+      command:
+        argv:
+          - terraform
+          - "{{ item }}"
+        chdir: "../terraform/mexplat/{{ deploy_environ }}"
+      check_mode: no
+      with_items:
+        - init
+        - refresh
+
     - name: Get setup details from terraform
       command:
         argv:

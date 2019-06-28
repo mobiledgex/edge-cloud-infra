@@ -13,6 +13,7 @@ pipeline {
                 dir(path: 'ansible') {
                     ansiColor('xterm') {
                         sh label: 'Run ansible playbook', script: '''$!/bin/bash
+set -e
 export ANSIBLE_FORCE_COLOR=true
 for DEPLOY_ENVIRON in mexdemo staging; do
     ./deploy.sh -p etcd-backup.yml -y "$DEPLOY_ENVIRON"

@@ -17,6 +17,7 @@
           - init
         chdir: "../terraform/mexplat/{{ deploy_environ }}"
       check_mode: no
+      changed_when: false
 
     - name: Retrieve terraform state
       shell: "terraform state pull >{{ local_tfstate }}"
@@ -36,6 +37,7 @@
         chdir: "../terraform/mexplat/{{ deploy_environ }}"
       register: terraform_output
       check_mode: no
+      changed_when: false
 
     - set_fact:
         k8s_clusters: "{{ (terraform_output.stdout | from_json).value }}"

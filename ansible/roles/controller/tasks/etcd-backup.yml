@@ -1,38 +1,54 @@
-- name: Clean out any old backups
-  command: "kubectl --kubeconfig {{ kubeconfig_file.path }} exec {{ mex_etcd_pod }} -- rm -f {{ etcd_backup_file }}"
-  changed_when: false
-
-- name: Backup etcd database
-  command: "kubectl --kubeconfig {{ kubeconfig_file.path }} exec {{ mex_etcd_pod }} -- env ETCDCTL_API=3 etcdctl snapshot save {{ etcd_backup_file }}"
-  changed_when: false
-
-- name: Create temporary file for etcd backup download
-  tempfile:
-    state: file
-    suffix: .db
-  register: etcd_backup_local_file
-  changed_when: false
+- name: Get mex-etcd pod
+  command: "kubectl --kubeconfig {{ kubeconfig_file.path }} get pods --selector=etcd_cluster={{ etcd_cluster_name }} -o jsonpath={.items[*].metadata.name}"
+  register: mex_etcd_pod_json
   check_mode: no
-
-- name: Download etcd database
-  command: "kubectl --kubeconfig {{ kubeconfig_file.path }} cp {{ mex_etcd_pod }}:{{ etcd_backup_file }} {{ etcd_backup_local_file.path }}"
   changed_when: false
 
-- stat:
-    path: "{{ etcd_backup_local_file.path }}"
-  register: etcd_backup_local_file_st
+- set_fact:
+    mex_etcd_pod: "{{ mex_etcd_pod_json.stdout.split(' ') | first }}"
+  check_mode: no
+  changed_when: false
 
-- name: Verify etcd backup size
-  assert:
-    that: etcd_backup_local_file_st.stat.size > 0
-  when: not ansible_check_mode
+- name: Back up etcd data
+  block:
 
-- name: Archive etcd backup in Artifactory
-  uri:
-    url: "{{ artifactory_address }}/build-artifacts/etcd-backup/{{ deploy_environ }}/{{ k8s_cluster_name }}/etcd-backup-{{ ansible_date_time.iso8601 }}.db"
-    method: PUT
-    headers:
-      X-JFrog-Art-Api: "{{ artifactory_publish_api_key }}"
-      X-Checksum-Sha1: "{{ etcd_backup_local_file_st.stat.checksum }}"
-    src: "{{ etcd_backup_local_file.path }}"
-    status_code: 201
+  - name: Clean out any old backups
+    command: "kubectl --kubeconfig {{ kubeconfig_file.path }} exec {{ mex_etcd_pod }} -- rm -f {{ etcd_backup_file }}"
+    changed_when: false
+
+  - name: Backup etcd database
+    command: "kubectl --kubeconfig {{ kubeconfig_file.path }} exec {{ mex_etcd_pod }} -- env ETCDCTL_API=3 etcdctl snapshot save {{ etcd_backup_file }}"
+    changed_when: false
+
+  - name: Create temporary file for etcd backup download
+    tempfile:
+      state: file
+      suffix: .db
+    register: etcd_backup_local_file
+    changed_when: false
+    check_mode: no
+
+  - name: Download etcd database
+    command: "kubectl --kubeconfig {{ kubeconfig_file.path }} cp {{ mex_etcd_pod }}:{{ etcd_backup_file }} {{ etcd_backup_local_file.path }}"
+    changed_when: false
+
+  - stat:
+      path: "{{ etcd_backup_local_file.path }}"
+    register: etcd_backup_local_file_st
+
+  - name: Verify etcd backup size
+    assert:
+      that: etcd_backup_local_file_st.stat.size > 0
+    when: not ansible_check_mode
+
+  - name: Archive etcd backup in Artifactory
+    uri:
+      url: "{{ artifactory_address }}/build-artifacts/etcd-backup/{{ deploy_environ }}/{{ k8s_cluster_name }}/{{ ansible_date_time.year }}-{{ ansible_date_time.month }}/etcd-backup-{{ ansible_date_time.iso8601 }}.db"
+      method: PUT
+      headers:
+        X-JFrog-Art-Api: "{{ artifactory_publish_api_key }}"
+        X-Checksum-Sha1: "{{ etcd_backup_local_file_st.stat.checksum }}"
+      src: "{{ etcd_backup_local_file.path }}"
+      status_code: 201
+
+  when: mex_etcd_pod|length > 0

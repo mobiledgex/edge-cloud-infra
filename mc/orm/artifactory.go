@@ -9,6 +9,7 @@ import (
 	"github.com/atlassian/go-artifactory/v2/artifactory/v1"
 	rtf "github.com/mobiledgex/edge-cloud-infra/artifactory"
 	"github.com/mobiledgex/edge-cloud/log"
+	"github.com/mobiledgex/edge-cloud/util"
 )
 
 func artifactoryClient() (*artifactory.Artifactory, error) {
@@ -37,7 +38,7 @@ func getArtifactoryPermPrefix() string {
 }
 
 func getArtifactoryRepoName(orgName string) string {
-	return getArtifactoryRepoPrefix() + orgName
+	return getArtifactoryRepoPrefix() + util.ArtifactoryRepoSanitize(orgName)
 }
 
 func getArtifactoryPermName(orgName string) string {
@@ -45,7 +46,7 @@ func getArtifactoryPermName(orgName string) string {
 }
 
 func getArtifactoryRealmAttr(orgName string) string {
-	return "ldapGroupName=" + orgName + ";groupsStrategy=STATIC;groupDn=cn=" + orgName + ",ou=orgs,dc=" + serverConfig.Tag
+	return "ldapGroupName=" + strings.ToLower(orgName) + ";groupsStrategy=STATIC;groupDn=cn=" + orgName + ",ou=orgs,dc=" + serverConfig.Tag
 }
 
 func artifactoryListGroups() (map[string]bool, error) {

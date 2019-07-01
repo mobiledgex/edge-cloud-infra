@@ -176,6 +176,7 @@ var AppOptionalArgs = []string{
 	"configs.kind",
 	"configs.config",
 	"scalewithcluster",
+	"md5sum",
 }
 var AppAliasArgs = []string{
 	"developer=app.key.developerkey.name",
@@ -197,4 +198,5 @@ var AppAliasArgs = []string{
 	"configs.kind=app.configs.kind",
 	"configs.config=app.configs.config",
 	"scalewithcluster=app.scalewithcluster",
+	"md5sum=app.md5sum",
 }

@@ -91,11 +91,6 @@ variable "mc_vm_domain_name" {
   type        = "string"
 }
 
-variable "vault_vm_domain_name" {
-  description = "Vault domain name"
-  type        = "string"
-}
-
 variable "postgres_domain_name" {
   description = "Postgres domain name"
   type        = "string"

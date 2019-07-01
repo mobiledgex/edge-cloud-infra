@@ -1,0 +1,51 @@
+---
+- hosts: platform
+  vars:
+    local_tfstate: out.tfstate
+  tasks:
+
+    - name: Import terraform variables from ansible
+      make:
+        chdir: "../terraform/mexplat/{{ deploy_environ }}"
+        target: ansible.auto.tfvars
+      changed_when: false
+
+    - name: Initialize terraform
+      command:
+        argv:
+          - terraform
+          - init
+        chdir: "../terraform/mexplat/{{ deploy_environ }}"
+      check_mode: no
+      changed_when: false
+
+    - name: Retrieve terraform state
+      shell: "terraform state pull >{{ local_tfstate }}"
+      args:
+        chdir: "../terraform/mexplat/{{ deploy_environ }}"
+        creates: "{{ local_tfstate }}"
+      check_mode: no
+
+    - name: Get setup details from terraform
+      command:
+        argv:
+          - terraform
+          - output
+          - "-state={{ local_tfstate }}"
+          - "-json"
+          - k8s_clusters
+        chdir: "../terraform/mexplat/{{ deploy_environ }}"
+      register: terraform_output
+      check_mode: no
+      changed_when: false
+
+    - set_fact:
+        k8s_clusters: "{{ (terraform_output.stdout | from_json).value }}"
+
+    - include_role:
+        name: etcd_backup_k8s
+      vars:
+        k8s_cluster_name: "{{ item.name }}"
+        kube_config: "{{ item.kube_config }}"
+        region: "{{ item.region }}"
+      with_items: "{{ k8s_clusters }}"

@@ -1,17 +1,5 @@
-- name: Get mex-etcd pod
-  command: "kubectl --kubeconfig {{ kubeconfig_file.path }} get pods --selector=etcd_cluster={{ etcd_cluster_name }} -o jsonpath={.items[*].metadata.name}"
-  register: mex_etcd_pod_json
-  check_mode: no
-  changed_when: false
-
-- set_fact:
-    mex_etcd_pod: "{{ mex_etcd_pod_json.stdout.split(' ') | first }}"
-  check_mode: no
-  changed_when: false
-
 - name: Backup etcd
   include: etcd-backup.yml
-  when: mex_etcd_pod|length > 0
   tags: etcd-backup
 
 - name: Deploy the Mex Controller

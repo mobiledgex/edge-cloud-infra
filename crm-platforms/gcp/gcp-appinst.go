@@ -8,7 +8,7 @@ import (
 	"github.com/mobiledgex/edge-cloud/cloud-resource-manager/k8smgmt"
 	"github.com/mobiledgex/edge-cloud/cloudcommon"
 	"github.com/mobiledgex/edge-cloud/edgeproto"
-	"k8s.io/api/core/v1"
+	v1 "k8s.io/api/core/v1"
 )
 
 func (s *Platform) CreateAppInst(clusterInst *edgeproto.ClusterInst, app *edgeproto.App, appInst *edgeproto.AppInst, flavor *edgeproto.Flavor, updateCallback edgeproto.CacheUpdateCallback) error {
@@ -26,12 +26,16 @@ func (s *Platform) CreateAppInst(clusterInst *edgeproto.ClusterInst, app *edgepr
 	if err != nil {
 		return err
 	}
+	err = mexos.CreateDockerRegistrySecret(client, clusterInst, app, s.config.VaultAddr)
+	if err != nil {
+		return err
+	}
 
 	switch deployment := app.Deployment; deployment {
 	case cloudcommon.AppDeploymentTypeKubernetes:
 		err = k8smgmt.CreateAppInst(client, names, app, appInst)
 		if err == nil {
-			err = k8smgmt.WaitForAppInst(client, names, app)
+			err = k8smgmt.WaitForAppInst(client, names, app, k8smgmt.WaitRunning)
 		}
 	default:
 		err = fmt.Errorf("unsupported deployment type %s", deployment)
@@ -83,11 +87,7 @@ func (s *Platform) DeleteAppInst(clusterInst *edgeproto.ClusterInst, app *edgepr
 		return err
 	}
 
-	err = mexos.DeleteAppDNS(client, names)
-	if err != nil {
-		return err
-	}
-	return nil
+	return mexos.DeleteAppDNS(client, names)
 }
 
 func SetupKconf(clusterInst *edgeproto.ClusterInst) error {

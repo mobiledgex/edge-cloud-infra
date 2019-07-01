@@ -14,6 +14,7 @@
     name: "{{ coturn_instance_name }}"
     image: "instrumentisto/coturn:{{ coturn_version }}"
     ports: "{{ portlist }}"
+    restart_policy: unless-stopped
     command:
       - "-n"
       - "--log-file=stdout"

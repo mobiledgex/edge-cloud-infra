@@ -12,7 +12,7 @@ import (
 	"github.com/mobiledgex/edge-cloud/edgeproto"
 	"github.com/mobiledgex/edge-cloud/flavor"
 	"github.com/mobiledgex/edge-cloud/log"
-	"k8s.io/api/core/v1"
+	v1 "k8s.io/api/core/v1"
 )
 
 func (s *Platform) CreateAppInst(clusterInst *edgeproto.ClusterInst, app *edgeproto.App, appInst *edgeproto.AppInst, appFlavor *edgeproto.Flavor, updateCallback edgeproto.CacheUpdateCallback) error {
@@ -37,6 +37,11 @@ func (s *Platform) CreateAppInst(clusterInst *edgeproto.ClusterInst, app *edgepr
 		if err != nil {
 			return err
 		}
+		updateCallback(edgeproto.UpdateTask, "Setting up registry secret")
+		err = mexos.CreateDockerRegistrySecret(client, clusterInst, app, s.config.VaultAddr)
+		if err != nil {
+			return err
+		}
 
 		if deployment == cloudcommon.AppDeploymentTypeKubernetes {
 			updateCallback(edgeproto.UpdateTask, "Creating Kubernetes App")
@@ -50,7 +55,7 @@ func (s *Platform) CreateAppInst(clusterInst *edgeproto.ClusterInst, app *edgepr
 		// wait for the appinst in parallel with other tasks
 		go func() {
 			if deployment == cloudcommon.AppDeploymentTypeKubernetes {
-				waitErr := k8smgmt.WaitForAppInst(client, names, app)
+				waitErr := k8smgmt.WaitForAppInst(client, names, app, k8smgmt.WaitRunning)
 				if waitErr == nil {
 					appWaitChan <- ""
 				} else {
@@ -184,7 +189,12 @@ func (s *Platform) CreateAppInst(clusterInst *edgeproto.ClusterInst, app *edgepr
 		}
 		names, err := k8smgmt.GetKubeNames(clusterInst, app, appInst)
 		if err != nil {
-			return fmt.Errorf("get kube names failed: %s", err)
+			return fmt.Errorf("get kube names failed, %v", err)
+		}
+		updateCallback(edgeproto.UpdateTask, "Seeding docker secret")
+		err = mexos.SeedDockerSecret(client, clusterInst, app, s.config.VaultAddr)
+		if err != nil {
+			return fmt.Errorf("seeding docker secret failed, %v", err)
 		}
 		updateCallback(edgeproto.UpdateTask, "Deploying Docker App")
 		err = dockermgmt.CreateAppInst(client, app, appInst)
@@ -281,7 +291,13 @@ func (s *Platform) GetAppInstRuntime(clusterInst *edgeproto.ClusterInst, app *ed
 	case cloudcommon.AppDeploymentTypeDocker:
 		return dockermgmt.GetAppInstRuntime(client, app, appInst)
 	case cloudcommon.AppDeploymentTypeVM:
-		fallthrough
+		consoleUrl, err := mexos.OSGetConsoleUrl(app.Key.Name)
+		if err != nil {
+			return nil, err
+		}
+		rt := &edgeproto.AppInstRuntime{}
+		rt.ConsoleUrl = consoleUrl.Url
+		return rt, nil
 	default:
 		return nil, fmt.Errorf("unsupported deployment type %s", deployment)
 	}

@@ -1,0 +1,22 @@
+---
+- debug:
+    msg: "Backing up etcd data from cluster '{{ k8s_cluster_name }}' (region: '{{ region }}')"
+
+- name: Create temporary kubeconfig file
+  tempfile:
+    state: file
+    suffix: .kubeconfig
+  register: kubeconfig_file
+  changed_when: false
+  check_mode: no
+
+- name: Store kubeconfig data in file
+  copy:
+    content: "{{ kube_config }}"
+    dest: "{{ kubeconfig_file.path }}"
+  changed_when: false
+  check_mode: no
+
+- import_role:
+    name: controller
+    tasks_from: etcd-backup

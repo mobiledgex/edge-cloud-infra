@@ -12,10 +12,10 @@ import (
 )
 
 func (s *Platform) CreateAppInst(clusterInst *edgeproto.ClusterInst, app *edgeproto.App, appInst *edgeproto.AppInst, flavor *edgeproto.Flavor, updateCallback edgeproto.CacheUpdateCallback) error {
-	var err error
-	// regenerate kconf if missing because CRM in container was restarted
 	updateCallback(edgeproto.UpdateTask, "Creating AppInst")
 
+	var err error
+	// regenerate kconf if missing because CRM in container was restarted
 	if err = s.SetupKconf(clusterInst); err != nil {
 		return fmt.Errorf("can't set up kconf, %s", err.Error())
 	}
@@ -49,7 +49,6 @@ func (s *Platform) CreateAppInst(clusterInst *edgeproto.ClusterInst, app *edgepr
 	if err != nil {
 		return err
 	}
-
 	updateCallback(edgeproto.UpdateTask, "Waiting for Load Balancer External IP")
 
 	// set up dns

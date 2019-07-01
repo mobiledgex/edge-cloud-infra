@@ -115,8 +115,8 @@ ssh_authorized_keys:
 
 	// Gather registry credentails from Vault
 	updateCallback(edgeproto.UpdateTask, "Fetch registry auth credentials")
-	regAuth := cloudcommon.GetRegistryAuth(pf.RegistryPath, cloudlet.VaultAddr)
-	if regAuth == nil {
+	regAuth, err := cloudcommon.GetRegistryAuth(pf.RegistryPath, cloudlet.VaultAddr)
+	if err != nil {
 		return fmt.Errorf("unable to fetch registry auth credentials")
 	}
 	if regAuth.AuthType != cloudcommon.BasicAuth {

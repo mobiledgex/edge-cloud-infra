@@ -214,15 +214,12 @@ func DeleteFile(filePath string) error {
 	return err
 }
 
-func GetMyIP() (string, error) {
-	resp, err := SendHTTPReq("GET", "http://ifconfig.me")
+// Get the externally visible public IP address
+func GetExternalPublicAddr() (string, error) {
+	out, err := sh.Command("dig", "@resolver1.opendns.com", "ANY", "myip.opendns.com", "+short").Output()
+	log.DebugLog(log.DebugLevelMexos, "dig to resolver1.opendns.com called", "out", string(out), "err", err)
 	if err != nil {
 		return "", err
 	}
-	defer resp.Body.Close()
-	ip, err := ioutil.ReadAll(resp.Body)
-	if err != nil {
-		return "", err
-	}
-	return string(ip), nil
+	return strings.TrimSpace(string(out)), err
 }

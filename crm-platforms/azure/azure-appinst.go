@@ -14,6 +14,8 @@ import (
 func (s *Platform) CreateAppInst(clusterInst *edgeproto.ClusterInst, app *edgeproto.App, appInst *edgeproto.AppInst, flavor *edgeproto.Flavor, updateCallback edgeproto.CacheUpdateCallback) error {
 	var err error
 	// regenerate kconf if missing because CRM in container was restarted
+	updateCallback(edgeproto.UpdateTask, "Creating AppInst")
+
 	if err = s.SetupKconf(clusterInst); err != nil {
 		return fmt.Errorf("can't set up kconf, %s", err.Error())
 	}
@@ -26,6 +28,8 @@ func (s *Platform) CreateAppInst(clusterInst *edgeproto.ClusterInst, app *edgepr
 	if err != nil {
 		return err
 	}
+	updateCallback(edgeproto.UpdateTask, "Creating Registry Secret")
+
 	err = mexos.CreateDockerRegistrySecret(client, clusterInst, app, s.config.VaultAddr)
 	if err != nil {
 		return err
@@ -35,6 +39,8 @@ func (s *Platform) CreateAppInst(clusterInst *edgeproto.ClusterInst, app *edgepr
 	case cloudcommon.AppDeploymentTypeKubernetes:
 		err = k8smgmt.CreateAppInst(client, names, app, appInst)
 		if err == nil {
+			updateCallback(edgeproto.UpdateTask, "Waiting for AppInst to Start")
+
 			err = k8smgmt.WaitForAppInst(client, names, app, k8smgmt.WaitRunning)
 		}
 	default:
@@ -43,6 +49,8 @@ func (s *Platform) CreateAppInst(clusterInst *edgeproto.ClusterInst, app *edgepr
 	if err != nil {
 		return err
 	}
+
+	updateCallback(edgeproto.UpdateTask, "Waiting for Load Balancer External IP")
 
 	// set up dns
 	getDnsAction := func(svc v1.Service) (*mexos.DnsSvcAction, error) {

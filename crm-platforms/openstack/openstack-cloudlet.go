@@ -16,6 +16,9 @@ import (
 
 const (
 	PlatformMaxWait = 5 * time.Minute
+
+	// Platform services
+	ServiceTypeCRM = "crmserver"
 )
 
 func getPlatformVMName(cloudlet *edgeproto.Cloudlet) string {
@@ -23,15 +26,14 @@ func getPlatformVMName(cloudlet *edgeproto.Cloudlet) string {
 	return cloudlet.Key.Name + cloudlet.Key.OperatorKey.Name
 }
 
-func (s *Platform) CreateCloudlet(cloudlet *edgeproto.Cloudlet, pf *edgeproto.Platform, pfFlavor *edgeproto.Flavor, updateCallback edgeproto.CacheUpdateCallback) error {
+func (s *Platform) CreatePlatform(pf *edgeproto.Platform, updateCallback edgeproto.CacheUpdateCallback) error {
 	var err error
 
-	cloudlet.State = edgeproto.TrackedState_CREATING
-	log.DebugLog(log.DebugLevelMexos, "Creating cloudlet", "cloudletName", cloudlet.Key.Name)
+	log.DebugLog(log.DebugLevelMexos, "Creating platform", "platformName", pf.Key.Name)
 
 	// Soure OpenRC file to access openstack API endpoint
-	updateCallback(edgeproto.UpdateTask, "Fetch and Source OpenRC file")
-	err = mexos.InitOpenstackProps(cloudlet.Key.OperatorKey.Name, cloudlet.PhysicalName, cloudlet.VaultAddr)
+	updateCallback(edgeproto.UpdateTask, fmt.Sprintf("Sourcing platform variables for %s deployment infra", pf.PhysicalName))
+	err = mexos.InitOpenstackProps(pf.Key.Name, pf.PhysicalName, pf.VaultAddr)
 	if err != nil {
 		return err
 	}
@@ -53,11 +55,110 @@ func (s *Platform) CreateCloudlet(cloudlet *edgeproto.Cloudlet, pf *edgeproto.Pl
 	}
 	if err != nil {
 		// Download platform base image and Add to Openstack Glance
-		updateCallback(edgeproto.UpdateTask, "Downloading platform base image: ")
+		updateCallback(edgeproto.UpdateTask, "Downloading platform base image: "+pfImageName)
 		err = mexos.CreateImageFromUrl(pfImageName, pf.ImagePath, md5Sum)
 		if err != nil {
 			return fmt.Errorf("Error downloading platform base image: %v", err)
 		}
+	}
+	updateCallback(edgeproto.UpdateTask, "Successfully created platform")
+
+	return nil
+}
+
+func (s *Platform) DeletePlatform(pf *edgeproto.Platform) error {
+	return nil
+}
+
+func startPlatformService(cloudlet *edgeproto.Cloudlet, pf *edgeproto.Platform, client ssh.Client, serviceType string, updateCallback edgeproto.CacheUpdateCallback, cDone chan error) {
+	var service_cmd string
+	var envVars *map[string]string
+	var err error
+
+	switch serviceType {
+	case ServiceTypeCRM:
+		service_cmd, envVars, err = cloudcommon.GetCRMCmd(cloudlet, pf)
+		if err != nil {
+			cDone <- fmt.Errorf("unable to get crm service command: %v", err)
+			return
+		}
+	default:
+		cDone <- fmt.Errorf("unsupported service type: %s", serviceType)
+		return
+	}
+
+	// Form platform VM name based on cloudletKey
+	platform_vm_name := getPlatformVMName(cloudlet)
+
+	// Pull docker image and start service
+	updateCallback(edgeproto.UpdateTask, "Starting "+serviceType)
+
+	var envVarsAr []string
+	for k, v := range *envVars {
+		envVarsAr = append(envVarsAr, "-e")
+		envVarsAr = append(envVarsAr, k+"="+v)
+	}
+	cmd := []string{
+		"sudo docker run",
+		"-d",
+		"--restart=unless-stopped",
+		"--name", platform_vm_name,
+		strings.Join(envVarsAr, " "),
+		pf.RegistryPath,
+		service_cmd,
+	}
+	if out, err := client.Output(strings.Join(cmd, " ")); err != nil {
+		cDone <- fmt.Errorf("unable to start %s: %v, %s\n", serviceType, err, out)
+		return
+	}
+
+	// Wait for service to come up: Since we cannot fetch information
+	// regarding service state from docker ouput, we observe container
+	// state for PlatformMaxWait time, if it is Up then we return
+	// successfully and then controller will do the actual
+	// check if service connected to it or not
+	start := time.Now()
+	for {
+		out, err := client.Output(`sudo docker ps -a -n 1 --filter name=` + platform_vm_name + ` --format '{{.Status}}'`)
+		if err != nil {
+			cDone <- fmt.Errorf("unable to fetch %s container status: %v, %s\n", serviceType, err, out)
+			return
+		}
+		if !strings.Contains(out, "Up ") {
+			// container exited in failure state
+			out, err = client.Output(`sudo docker logs ` + platform_vm_name + ` 2>&1 | grep FATAL | awk '{for (i=1; i<=NF-3; i++) $i = $(i+3); NF-=3; print}'`)
+			if err != nil {
+				cDone <- fmt.Errorf("failed to brinup %s", serviceType)
+				return
+			}
+			cDone <- fmt.Errorf("failed to brinup %s: %s", serviceType, out)
+			return
+		}
+		elapsed := time.Since(start)
+		if elapsed >= (PlatformMaxWait) {
+			// no issues in wait time
+			break
+		}
+		time.Sleep(1 * time.Second)
+	}
+	cDone <- nil
+	return
+}
+
+func (s *Platform) CreateCloudlet(cloudlet *edgeproto.Cloudlet, pf *edgeproto.Platform, pfFlavor *edgeproto.Flavor, updateCallback edgeproto.CacheUpdateCallback) error {
+	var err error
+
+	log.DebugLog(log.DebugLevelMexos, "Creating cloudlet", "cloudletName", cloudlet.Key.Name)
+
+	if cloudlet.PhysicalName == "" {
+		cloudlet.PhysicalName = cloudlet.Key.Name
+	}
+
+	// Soure OpenRC file to access openstack API endpoint
+	updateCallback(edgeproto.UpdateTask, fmt.Sprintf("Sourcing platform variables for %s cloudlet", cloudlet.PhysicalName))
+	err = mexos.InitOpenstackProps(cloudlet.Key.OperatorKey.Name, cloudlet.PhysicalName, pf.VaultAddr)
+	if err != nil {
+		return err
 	}
 
 	// Get Closest Platform Flavor
@@ -68,6 +169,20 @@ func (s *Platform) CreateCloudlet(cloudlet *edgeproto.Cloudlet, pf *edgeproto.Pl
 	platform_flavor_name, err := flavor.GetClosestFlavor(finfo, *pfFlavor)
 	if err != nil {
 		return fmt.Errorf("unable to find closest flavor for platform: %v", err)
+	}
+
+	// Fetch platform base image name and md5sum
+	pfImageName, err := cloudcommon.GetFileName(pf.ImagePath)
+	if err != nil {
+		return err
+	}
+
+	// Use PlatformBaseImage, if not present then fetch it from MobiledgeX VM registry
+	imageDetail, err := mexos.GetImageDetail(pfImageName)
+	if err != nil {
+		return fmt.Errorf("image %s is not present", pfImageName)
+	} else if imageDetail.Status != "active" {
+		return fmt.Errorf("image %s is not active", pfImageName)
 	}
 
 	// Form platform VM name based on cloudletKey
@@ -114,8 +229,8 @@ ssh_authorized_keys:
 	}
 
 	// Gather registry credentails from Vault
-	updateCallback(edgeproto.UpdateTask, "Fetch registry auth credentials")
-	regAuth, err := cloudcommon.GetRegistryAuth(pf.RegistryPath, cloudlet.VaultAddr)
+	updateCallback(edgeproto.UpdateTask, "Fetching registry auth credentials")
+	regAuth, err := cloudcommon.GetRegistryAuth(pf.RegistryPath, pf.VaultAddr)
 	if err != nil {
 		return fmt.Errorf("unable to fetch registry auth credentials")
 	}
@@ -137,7 +252,7 @@ ssh_authorized_keys:
 	if err != nil {
 		return err
 	}
-	updateCallback(edgeproto.UpdateTask, "External IP: "+external_ip)
+	updateCallback(edgeproto.UpdateTask, "Platform VM external IP: "+external_ip)
 	log.DebugLog(log.DebugLevelMexos, "external IP", "ip", external_ip)
 
 	// Setup SSH Client
@@ -149,7 +264,7 @@ ssh_authorized_keys:
 
 	// Verify if controller's notify port is reachable
 	updateCallback(edgeproto.UpdateTask, "Verifying if controller notification channel is reachable")
-	for _, ctrlAddrPort := range strings.Split(cloudlet.NotifyCtrlAddrs, ",") {
+	for _, ctrlAddrPort := range strings.Split(pf.NotifyCtrlAddrs, ",") {
 		addrPort := strings.Split(ctrlAddrPort, ":")
 		if len(addrPort) != 2 {
 			return fmt.Errorf("notifyctrladdrs format is incorrect")
@@ -164,7 +279,7 @@ ssh_authorized_keys:
 	}
 
 	// Login to docker registry
-	updateCallback(edgeproto.UpdateTask, "Setup docker registry")
+	updateCallback(edgeproto.UpdateTask, "Setting up docker registry")
 	if out, err := client.Output(
 		fmt.Sprintf(
 			`echo "%s" | sudo docker login -u %s --password-stdin %s`,
@@ -176,63 +291,17 @@ ssh_authorized_keys:
 		return fmt.Errorf("unable to login to docker registry: %v, %s\n", err, out)
 	}
 
-	crm_cmd, envVars, err := cloudcommon.GetCRMCmd(cloudlet, pf)
-	if err != nil {
-		return fmt.Errorf("unable to get crm service command: %v\n", err)
-	}
+	// Start platform service on PlatformVM
+	crmChan := make(chan error, 1)
+	go startPlatformService(cloudlet, pf, client, ServiceTypeCRM, updateCallback, crmChan)
 
-	// Pull docker image and start crmserver
-	updateCallback(edgeproto.UpdateTask, "Start CRMServer")
+	// Wait for platform services to come up
+	err = <-crmChan
 
-	var envVarsAr []string
-	for k, v := range *envVars {
-		envVarsAr = append(envVarsAr, "-e")
-		envVarsAr = append(envVarsAr, k+"="+v)
-	}
-	cmd := []string{
-		"sudo docker run",
-		"-d",
-		"--restart=unless-stopped",
-		"--name", platform_vm_name,
-		strings.Join(envVarsAr, " "),
-		pf.RegistryPath,
-		crm_cmd,
-	}
-	if out, err := client.Output(strings.Join(cmd, " ")); err != nil {
-		return fmt.Errorf("unable to start crmserver: %v, %s\n", err, out)
-	}
-
-	// Wait for CRM to come up: Since we cannot fetch information
-	// regarding CRM state from docker ouput, we observe container
-	// state for PlatformMaxWait time, if it is Up then we return
-	// successfully and then controller will do the actual
-	// check if CRM connected to it or not
-	start := time.Now()
-	for {
-		out, err := client.Output(`sudo docker ps -a -n 1 --filter name=` + platform_vm_name + ` --format '{{.Status}}'`)
-		if err != nil {
-			return fmt.Errorf("unable to fetch crm container status: %v, %s\n", err, out)
-		}
-		if !strings.Contains(out, "Up ") {
-			// container exited in failure state
-			out, err = client.Output(`sudo docker logs ` + platform_vm_name + ` 2>&1 | grep FATAL | awk '{for (i=1; i<=NF-3; i++) $i = $(i+3); NF-=3; print}'`)
-			if err != nil {
-				return fmt.Errorf("failed to brinup crmserver")
-			}
-			return fmt.Errorf("failed to brinup crmserver: %s", out)
-		}
-		elapsed := time.Since(start)
-		if elapsed >= (PlatformMaxWait) {
-			// no issues in wait time
-			break
-		}
-		time.Sleep(1 * time.Second)
-	}
-
-	return nil
+	return err
 }
 
-func (s *Platform) DeleteCloudlet(cloudlet *edgeproto.Cloudlet) error {
+func (s *Platform) DeleteCloudlet(cloudlet *edgeproto.Cloudlet, pf *edgeproto.Platform) error {
 	log.DebugLog(log.DebugLevelMexos, "Deleting cloudlet", "cloudletName", cloudlet.Key.Name)
 	platform_vm_name := getPlatformVMName(cloudlet)
 	err := mexos.HeatDeleteStack(platform_vm_name)

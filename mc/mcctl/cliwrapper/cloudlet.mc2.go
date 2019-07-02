@@ -22,34 +22,44 @@ var _ = math.Inf
 
 // Auto-generated code: DO NOT EDIT
 
-func (s *Client) CreatePlatform(uri, token string, in *ormapi.RegionPlatform) (edgeproto.Result, int, error) {
+func (s *Client) CreatePlatform(uri, token string, in *ormapi.RegionPlatform) ([]edgeproto.Result, int, error) {
 	args := []string{"ctrl", "CreatePlatform"}
-	out := edgeproto.Result{}
-	noconfig := strings.Split("", ",")
-	st, err := s.runObjs(uri, token, args, in, &out, withIgnore(noconfig))
-	return out, st, err
+	outlist := []edgeproto.Result{}
+	noconfig := strings.Split("VaultAddr,TlsCertFile,CrmRoleId,CrmSecretId,Status,PlatformTag", ",")
+	ops := []runOp{
+		withIgnore(noconfig),
+	}
+	st, err := s.runObjs(uri, token, args, in, &outlist, ops...)
+	return outlist, st, err
 }
 
-func (s *Client) DeletePlatform(uri, token string, in *ormapi.RegionPlatform) (edgeproto.Result, int, error) {
+func (s *Client) DeletePlatform(uri, token string, in *ormapi.RegionPlatform) ([]edgeproto.Result, int, error) {
 	args := []string{"ctrl", "DeletePlatform"}
-	out := edgeproto.Result{}
-	noconfig := strings.Split("", ",")
-	st, err := s.runObjs(uri, token, args, in, &out, withIgnore(noconfig))
-	return out, st, err
+	outlist := []edgeproto.Result{}
+	noconfig := strings.Split("VaultAddr,TlsCertFile,CrmRoleId,CrmSecretId,Status,PlatformTag", ",")
+	ops := []runOp{
+		withIgnore(noconfig),
+		withStreamOutIncremental(),
+	}
+	st, err := s.runObjs(uri, token, args, in, &outlist, ops...)
+	return outlist, st, err
 }
 
-func (s *Client) UpdatePlatform(uri, token string, in *ormapi.RegionPlatform) (edgeproto.Result, int, error) {
+func (s *Client) UpdatePlatform(uri, token string, in *ormapi.RegionPlatform) ([]edgeproto.Result, int, error) {
 	args := []string{"ctrl", "UpdatePlatform"}
-	out := edgeproto.Result{}
-	noconfig := strings.Split("", ",")
-	st, err := s.runObjs(uri, token, args, in, &out, withIgnore(noconfig))
-	return out, st, err
+	outlist := []edgeproto.Result{}
+	noconfig := strings.Split("VaultAddr,TlsCertFile,CrmRoleId,CrmSecretId,Status,PlatformTag", ",")
+	ops := []runOp{
+		withIgnore(noconfig),
+	}
+	st, err := s.runObjs(uri, token, args, in, &outlist, ops...)
+	return outlist, st, err
 }
 
 func (s *Client) ShowPlatform(uri, token string, in *ormapi.RegionPlatform) ([]edgeproto.Platform, int, error) {
 	args := []string{"ctrl", "ShowPlatform"}
 	outlist := []edgeproto.Platform{}
-	noconfig := strings.Split("", ",")
+	noconfig := strings.Split("VaultAddr,TlsCertFile,CrmRoleId,CrmSecretId,Status,PlatformTag", ",")
 	ops := []runOp{
 		withIgnore(noconfig),
 	}
@@ -60,7 +70,7 @@ func (s *Client) ShowPlatform(uri, token string, in *ormapi.RegionPlatform) ([]e
 func (s *Client) CreateCloudlet(uri, token string, in *ormapi.RegionCloudlet) ([]edgeproto.Result, int, error) {
 	args := []string{"ctrl", "CreateCloudlet"}
 	outlist := []edgeproto.Result{}
-	noconfig := strings.Split("Location.HorizontalAccuracy,Location.VerticalAccuracy,Location.Course,Location.Speed,Location.Timestamp,TimeLimits,VaultAddr,TlsCertFile,CrmRoleId,CrmSecretId,Status", ",")
+	noconfig := strings.Split("Location.HorizontalAccuracy,Location.VerticalAccuracy,Location.Course,Location.Speed,Location.Timestamp,TimeLimits,Status", ",")
 	ops := []runOp{
 		withIgnore(noconfig),
 	}
@@ -71,7 +81,7 @@ func (s *Client) CreateCloudlet(uri, token string, in *ormapi.RegionCloudlet) ([
 func (s *Client) DeleteCloudlet(uri, token string, in *ormapi.RegionCloudlet) ([]edgeproto.Result, int, error) {
 	args := []string{"ctrl", "DeleteCloudlet"}
 	outlist := []edgeproto.Result{}
-	noconfig := strings.Split("Location.HorizontalAccuracy,Location.VerticalAccuracy,Location.Course,Location.Speed,Location.Timestamp,TimeLimits,VaultAddr,TlsCertFile,CrmRoleId,CrmSecretId,Status", ",")
+	noconfig := strings.Split("Location.HorizontalAccuracy,Location.VerticalAccuracy,Location.Course,Location.Speed,Location.Timestamp,TimeLimits,Status", ",")
 	ops := []runOp{
 		withIgnore(noconfig),
 		withStreamOutIncremental(),
@@ -83,7 +93,7 @@ func (s *Client) DeleteCloudlet(uri, token string, in *ormapi.RegionCloudlet) ([
 func (s *Client) UpdateCloudlet(uri, token string, in *ormapi.RegionCloudlet) ([]edgeproto.Result, int, error) {
 	args := []string{"ctrl", "UpdateCloudlet"}
 	outlist := []edgeproto.Result{}
-	noconfig := strings.Split("Location.HorizontalAccuracy,Location.VerticalAccuracy,Location.Course,Location.Speed,Location.Timestamp,TimeLimits,VaultAddr,TlsCertFile,CrmRoleId,CrmSecretId,Status", ",")
+	noconfig := strings.Split("Location.HorizontalAccuracy,Location.VerticalAccuracy,Location.Course,Location.Speed,Location.Timestamp,TimeLimits,Status", ",")
 	ops := []runOp{
 		withIgnore(noconfig),
 	}
@@ -94,7 +104,7 @@ func (s *Client) UpdateCloudlet(uri, token string, in *ormapi.RegionCloudlet) ([
 func (s *Client) ShowCloudlet(uri, token string, in *ormapi.RegionCloudlet) ([]edgeproto.Cloudlet, int, error) {
 	args := []string{"ctrl", "ShowCloudlet"}
 	outlist := []edgeproto.Cloudlet{}
-	noconfig := strings.Split("Location.HorizontalAccuracy,Location.VerticalAccuracy,Location.Course,Location.Speed,Location.Timestamp,TimeLimits,VaultAddr,TlsCertFile,CrmRoleId,CrmSecretId,Status", ",")
+	noconfig := strings.Split("Location.HorizontalAccuracy,Location.VerticalAccuracy,Location.Course,Location.Speed,Location.Timestamp,TimeLimits,Status", ",")
 	ops := []runOp{
 		withIgnore(noconfig),
 	}

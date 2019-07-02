@@ -30,16 +30,19 @@ var CreatePlatformCmd = &Command{
 	ReqData:      &ormapi.RegionPlatform{},
 	ReplyData:    &edgeproto.Result{},
 	Path:         "/auth/ctrl/CreatePlatform",
+	StreamOut:    true,
 }
 
 var DeletePlatformCmd = &Command{
-	Use:          "DeletePlatform",
-	RequiredArgs: strings.Join(append([]string{"region"}, PlatformRequiredArgs...), " "),
-	OptionalArgs: strings.Join(PlatformOptionalArgs, " "),
-	AliasArgs:    strings.Join(PlatformAliasArgs, " "),
-	ReqData:      &ormapi.RegionPlatform{},
-	ReplyData:    &edgeproto.Result{},
-	Path:         "/auth/ctrl/DeletePlatform",
+	Use:                  "DeletePlatform",
+	RequiredArgs:         strings.Join(append([]string{"region"}, PlatformRequiredArgs...), " "),
+	OptionalArgs:         strings.Join(PlatformOptionalArgs, " "),
+	AliasArgs:            strings.Join(PlatformAliasArgs, " "),
+	ReqData:              &ormapi.RegionPlatform{},
+	ReplyData:            &edgeproto.Result{},
+	Path:                 "/auth/ctrl/DeletePlatform",
+	StreamOut:            true,
+	StreamOutIncremental: true,
 }
 
 var UpdatePlatformCmd = &Command{
@@ -50,6 +53,7 @@ var UpdatePlatformCmd = &Command{
 	ReqData:      &ormapi.RegionPlatform{},
 	ReplyData:    &edgeproto.Result{},
 	Path:         "/auth/ctrl/UpdatePlatform",
+	StreamOut:    true,
 }
 
 var ShowPlatformCmd = &Command{
@@ -282,24 +286,44 @@ var PlatformRequiredArgs = []string{
 }
 var PlatformOptionalArgs = []string{
 	"platformtype",
-	"deployment",
+	"physicalname",
 	"flavor.name",
 	"registrypath",
 	"imagepath",
+	"notifyctrladdrs",
+	"notifysrvaddr",
+	"state",
+	"errors",
 }
 var PlatformAliasArgs = []string{
 	"name=platform.key.name",
 	"platformtype=platform.platformtype",
-	"deployment=platform.deployment",
+	"physicalname=platform.physicalname",
 	"flavor.name=platform.flavor.name",
 	"registrypath=platform.registrypath",
 	"imagepath=platform.imagepath",
+	"notifyctrladdrs=platform.notifyctrladdrs",
+	"notifysrvaddr=platform.notifysrvaddr",
+	"vaultaddr=platform.vaultaddr",
+	"tlscertfile=platform.tlscertfile",
+	"crmroleid=platform.crmroleid",
+	"crmsecretid=platform.crmsecretid",
+	"state=platform.state",
+	"errors=platform.errors",
+	"status.tasknumber=platform.status.tasknumber",
+	"status.maxtasks=platform.status.maxtasks",
+	"status.taskname=platform.status.taskname",
+	"status.stepname=platform.status.stepname",
+	"platformtag=platform.platformtag",
 }
 var CloudletRequiredArgs = []string{
 	"operator",
 	"name",
 }
 var CloudletOptionalArgs = []string{
+	"platform.name",
+	"deployment",
+	"physicalname",
 	"accesscredentials",
 	"location.latitude",
 	"location.longitude",
@@ -309,15 +333,15 @@ var CloudletOptionalArgs = []string{
 	"ipsupport",
 	"staticips",
 	"numdynamicips",
-	"notifyctrladdrs",
-	"platform.name",
-	"physicalname",
 	"state",
 	"errors",
 }
 var CloudletAliasArgs = []string{
 	"operator=cloudlet.key.operatorkey.name",
 	"name=cloudlet.key.name",
+	"platform.name=cloudlet.platform.name",
+	"deployment=cloudlet.deployment",
+	"physicalname=cloudlet.physicalname",
 	"accesscredentials=cloudlet.accesscredentials",
 	"location.latitude=cloudlet.location.latitude",
 	"location.longitude=cloudlet.location.longitude",
@@ -331,25 +355,18 @@ var CloudletAliasArgs = []string{
 	"ipsupport=cloudlet.ipsupport",
 	"staticips=cloudlet.staticips",
 	"numdynamicips=cloudlet.numdynamicips",
-	"timelimits.createclusterinsttimeout=cloudlet.timelimits.createclusterinsttimeout",
-	"timelimits.updateclusterinsttimeout=cloudlet.timelimits.updateclusterinsttimeout",
-	"timelimits.deleteclusterinsttimeout=cloudlet.timelimits.deleteclusterinsttimeout",
-	"timelimits.createappinsttimeout=cloudlet.timelimits.createappinsttimeout",
-	"timelimits.updateappinsttimeout=cloudlet.timelimits.updateappinsttimeout",
-	"timelimits.deleteappinsttimeout=cloudlet.timelimits.deleteappinsttimeout",
-	"notifyctrladdrs=cloudlet.notifyctrladdrs",
-	"platform.name=cloudlet.platform.name",
-	"physicalname=cloudlet.physicalname",
 	"state=cloudlet.state",
 	"errors=cloudlet.errors",
 	"status.tasknumber=cloudlet.status.tasknumber",
 	"status.maxtasks=cloudlet.status.maxtasks",
 	"status.taskname=cloudlet.status.taskname",
 	"status.stepname=cloudlet.status.stepname",
-	"vaultaddr=cloudlet.vaultaddr",
-	"tlscertfile=cloudlet.tlscertfile",
-	"crmroleid=cloudlet.crmroleid",
-	"crmsecretid=cloudlet.crmsecretid",
+	"timelimits.createclusterinsttimeout=cloudlet.timelimits.createclusterinsttimeout",
+	"timelimits.updateclusterinsttimeout=cloudlet.timelimits.updateclusterinsttimeout",
+	"timelimits.deleteclusterinsttimeout=cloudlet.timelimits.deleteclusterinsttimeout",
+	"timelimits.createappinsttimeout=cloudlet.timelimits.createappinsttimeout",
+	"timelimits.updateappinsttimeout=cloudlet.timelimits.updateappinsttimeout",
+	"timelimits.deleteappinsttimeout=cloudlet.timelimits.deleteappinsttimeout",
 }
 var FlavorInfoRequiredArgs = []string{}
 var FlavorInfoOptionalArgs = []string{

@@ -21,22 +21,31 @@ var _ = math.Inf
 
 // Auto-generated code: DO NOT EDIT
 
-func (s *Client) CreatePlatform(uri, token string, in *ormapi.RegionPlatform) (edgeproto.Result, int, error) {
+func (s *Client) CreatePlatform(uri, token string, in *ormapi.RegionPlatform) ([]edgeproto.Result, int, error) {
 	out := edgeproto.Result{}
-	status, err := s.PostJson(uri+"/auth/ctrl/CreatePlatform", token, in, &out)
-	return out, status, err
+	outlist := []edgeproto.Result{}
+	status, err := s.PostJsonStreamOut(uri+"/auth/ctrl/CreatePlatform", token, in, &out, func() {
+		outlist = append(outlist, out)
+	})
+	return outlist, status, err
 }
 
-func (s *Client) DeletePlatform(uri, token string, in *ormapi.RegionPlatform) (edgeproto.Result, int, error) {
+func (s *Client) DeletePlatform(uri, token string, in *ormapi.RegionPlatform) ([]edgeproto.Result, int, error) {
 	out := edgeproto.Result{}
-	status, err := s.PostJson(uri+"/auth/ctrl/DeletePlatform", token, in, &out)
-	return out, status, err
+	outlist := []edgeproto.Result{}
+	status, err := s.PostJsonStreamOut(uri+"/auth/ctrl/DeletePlatform", token, in, &out, func() {
+		outlist = append(outlist, out)
+	})
+	return outlist, status, err
 }
 
-func (s *Client) UpdatePlatform(uri, token string, in *ormapi.RegionPlatform) (edgeproto.Result, int, error) {
+func (s *Client) UpdatePlatform(uri, token string, in *ormapi.RegionPlatform) ([]edgeproto.Result, int, error) {
 	out := edgeproto.Result{}
-	status, err := s.PostJson(uri+"/auth/ctrl/UpdatePlatform", token, in, &out)
-	return out, status, err
+	outlist := []edgeproto.Result{}
+	status, err := s.PostJsonStreamOut(uri+"/auth/ctrl/UpdatePlatform", token, in, &out, func() {
+		outlist = append(outlist, out)
+	})
+	return outlist, status, err
 }
 
 func (s *Client) ShowPlatform(uri, token string, in *ormapi.RegionPlatform) ([]edgeproto.Platform, int, error) {
@@ -49,9 +58,9 @@ func (s *Client) ShowPlatform(uri, token string, in *ormapi.RegionPlatform) ([]e
 }
 
 type PlatformApiClient interface {
-	CreatePlatform(uri, token string, in *ormapi.RegionPlatform) (edgeproto.Result, int, error)
-	DeletePlatform(uri, token string, in *ormapi.RegionPlatform) (edgeproto.Result, int, error)
-	UpdatePlatform(uri, token string, in *ormapi.RegionPlatform) (edgeproto.Result, int, error)
+	CreatePlatform(uri, token string, in *ormapi.RegionPlatform) ([]edgeproto.Result, int, error)
+	DeletePlatform(uri, token string, in *ormapi.RegionPlatform) ([]edgeproto.Result, int, error)
+	UpdatePlatform(uri, token string, in *ormapi.RegionPlatform) ([]edgeproto.Result, int, error)
 	ShowPlatform(uri, token string, in *ormapi.RegionPlatform) ([]edgeproto.Platform, int, error)
 }
 

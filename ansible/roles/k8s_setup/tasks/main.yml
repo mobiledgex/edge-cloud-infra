@@ -1,0 +1,22 @@
+---
+- block:
+
+  - name: Create temporary kubeconfig file
+    tempfile:
+      state: file
+      suffix: .kubeconfig
+    register: kubeconfig_file_tmp
+    changed_when: false
+    check_mode: no
+
+  - name: Store kubeconfig data in file
+    copy:
+      content: "{{ kube_config }}"
+      dest: "{{ kubeconfig_file_tmp.path }}"
+    changed_when: false
+    check_mode: no
+
+  - set_fact:
+      kubeconfig_file: "{{ kubeconfig_file_tmp }}"
+
+  when: kubeconfig_file is not defined

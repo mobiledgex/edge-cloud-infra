@@ -1,0 +1,5 @@
+crm_instances:
+
+  - openstack_instance: bonn
+    operator_key: TDG
+    controller: mexplat-dev

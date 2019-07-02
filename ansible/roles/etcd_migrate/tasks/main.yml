@@ -1,0 +1,115 @@
+---
+- set_fact:
+    etcd_backup_set: no
+
+- block:
+  - set_fact:
+      etcd_backups_int: "{{ etcd_backups | default({}) }}"
+
+  - name: "Set cluster-specific backup path from command line for {{ k8s_cluster_name }}"
+    set_fact:
+      etcd_backup_path: "{{ etcd_backups_int[k8s_cluster_name] | default(etcd_backup) }}"
+      etcd_backup_set: yes
+  when: (etcd_backups is defined and k8s_cluster_name in etcd_backups) or etcd_backup is defined
+
+- set_fact:
+    etcd_backup_path: "migrate/etcd-snapshot-{{ '%Y-%m-%d-%H%M%S' | strftime }}.db"
+  when: not etcd_backup_set
+
+- set_fact:
+    etcd_backup_artifactory_url: "{{ artifactory_address }}/{{ artifactory_etcd_backup_repo }}/{{ deploy_environ }}/{{ k8s_cluster_name }}/{{ etcd_backup_path }}"
+
+- name: Look up Artifactory token in vault
+  set_fact:
+    vault_lookup: "{{ lookup('vault', artifactory_token_path) }}"
+  vars:
+    artifactory_token_path: "secret/ansible/{{ deploy_environ }}/artifactory_tokens"
+
+- set_fact:
+    artifactory_token: "{{ vault_lookup.artifactory_tokens.data.etcd_reader }}"
+
+- name: Ensure that the backup is present
+  uri:
+    url: "{{ etcd_backup_artifactory_url }}"
+    method: HEAD
+    headers:
+      Authorization: "Bearer {{ artifactory_token }}"
+  when: etcd_backup_set
+
+- import_role: name="k8s_setup"
+
+- name: Stop the controller
+  k8s:
+    kubeconfig: "{{ kubeconfig_file.path }}"
+    namespace: default
+    kind: Deployment
+    name: controller
+    state: absent
+
+- name: "Stop any {{ etcd_cluster_name }} etcd statefulsets"
+  k8s:
+    kubeconfig: "{{ kubeconfig_file.path }}"
+    namespace: default
+    kind: StatefulSet
+    name: "{{ etcd_cluster_name }}"
+    state: absent
+
+- name: Wait for the controller to stop
+  k8s_facts:
+    kubeconfig: "{{ kubeconfig_file.path }}"
+    namespace: default
+    kind: Deployment
+    name: controller
+  register: controller_facts
+  until: controller_facts.resources|length < 1
+  retries: 60
+  delay: 5
+
+- name: "Wait for etcd statefulsets to stop"
+  k8s_facts:
+    kubeconfig: "{{ kubeconfig_file.path }}"
+    namespace: default
+    kind: StatefulSet
+    name: "{{ etcd_cluster_name }}"
+  register: etcd_sts_facts
+  until: etcd_sts_facts.resources|length < 1
+  retries: 60
+  delay: 5
+
+- import_role:
+    name: etcd_backup_k8s
+  vars:
+    etcd_cluster_to_backup: "{{ old_etcd_cluster_name }}"
+  when: not etcd_backup_set
+
+- name: Create persistent volume claims
+  k8s:
+    kubeconfig: "{{ kubeconfig_file.path }}"
+    namespace: default
+    state: present
+    definition: "{{ lookup('template', 'etcd_pvc.yaml.j2') }}"
+  loop: "{{ range(0, etcd_replica_num) | list }}"
+  loop_control:
+    loop_var: etcd_index
+
+- debug:
+    msg: "Restoring from backup: {{ etcd_backup_artifactory_url }}"
+  when: etcd_backup_set
+
+- name: Copy etcd snapshot into persistent volumes
+  k8s:
+    kubeconfig: "{{ kubeconfig_file.path }}"
+    namespace: default
+    state: present
+    definition: "{{ lookup('template', 'etcd_setup_snapshot.yaml.j2') }}"
+  loop: "{{ range(0, etcd_replica_num) | list }}"
+  loop_control:
+    loop_var: etcd_index
+
+- include_role:
+    name: etcd_migrate
+    tasks_from: job_cleanup
+  loop: "{{ range(0, etcd_replica_num) | list }}"
+  loop_control:
+    loop_var: etcd_index
+  tags: cleanup

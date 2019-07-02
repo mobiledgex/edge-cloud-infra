@@ -29,7 +29,7 @@ spec:
          - "--notifyAddr"
          - "0.0.0.0:37001"
          - "--etcdUrls"  
-         - "{{ etcd_cluster_name }}:2379"
+         - "{{ etcd_cluster_client }}:2379"
          - "--vaultAddr"
          - "https://{{ vault_vm_hostname }}:{{ vault_port }}"
          - "--influxAddr"

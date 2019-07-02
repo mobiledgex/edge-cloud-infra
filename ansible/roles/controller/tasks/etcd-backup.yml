@@ -1,5 +1,5 @@
 - name: Get mex-etcd pod
-  command: "kubectl --kubeconfig {{ kubeconfig_file.path }} get pods --selector=etcd_cluster={{ etcd_cluster_name }} -o jsonpath={.items[*].metadata.name}"
+  command: "kubectl --kubeconfig {{ kubeconfig_file.path }} get pods --selector=etcd_cluster={{ etcd_cluster_to_backup | default(etcd_cluster_name) }} -o jsonpath={.items[*].metadata.name}"
   register: mex_etcd_pod_json
   check_mode: no
   changed_when: false
@@ -8,6 +8,9 @@
     mex_etcd_pod: "{{ mex_etcd_pod_json.stdout.split(' ') | first }}"
   check_mode: no
   changed_when: false
+
+- debug:
+    msg: "Etcd pod to back up: {{ mex_etcd_pod }}"
 
 - name: Back up etcd data
   block:
@@ -51,9 +54,19 @@
       that: etcd_backup_local_file_st.stat.size > 0
     when: not ansible_check_mode
 
-  - name: Archive etcd backup in Artifactory
+  - name: Set backup path
+    set_fact:
+      etcd_backup_path_int: "{{ etcd_backup_path }}"
+    when: etcd_backup_path is defined
+
+  - name: Compute backup path
+    set_fact:
+      etcd_backup_path_int: "{{ ansible_date_time.year }}-{{ ansible_date_time.month }}/etcd-backup-{{ ansible_date_time.iso8601 }}.db"
+    when: etcd_backup_path is not defined
+
+  - name: "Archive etcd backup in Artifactory: {{ etcd_backup_path_int }}"
     uri:
-      url: "{{ artifactory_address }}/build-artifacts/etcd-backup/{{ deploy_environ }}/{{ k8s_cluster_name }}/{{ ansible_date_time.year }}-{{ ansible_date_time.month }}/etcd-backup-{{ ansible_date_time.iso8601 }}.db"
+      url: "{{ artifactory_address }}/{{ artifactory_etcd_backup_repo }}/{{ deploy_environ }}/{{ k8s_cluster_name }}/{{ etcd_backup_path_int }}"
       method: PUT
       headers:
         X-JFrog-Art-Api: "{{ artifactory_publish_api_key }}"

@@ -1,0 +1,24 @@
+- set_fact:
+    etcd_snapshot_setup_job_name: "etcd-{{ etcd_index }}-snapshot-setup"
+
+- name: "Get job completion status for job {{ etcd_snapshot_setup_job_name }}"
+  k8s_facts:
+    kubeconfig: "{{ kubeconfig_file.path }}"
+    kind: Job
+    namespace: default
+    label_selectors:
+      - "job-name = {{ etcd_snapshot_setup_job_name }}"
+  register: snapshot_job
+  until: snapshot_job.resources.0.status.succeeded is defined
+  retries: 60
+  delay: 5
+
+- assert:
+    that: snapshot_job.resources.0.status.succeeded == 1
+
+- name: Remove completed snapshot job
+  k8s:
+    kubeconfig: "{{ kubeconfig_file.path }}"
+    namespace: default
+    state: absent
+    definition: "{{ lookup('template', 'etcd_setup_snapshot.yaml.j2') }}"

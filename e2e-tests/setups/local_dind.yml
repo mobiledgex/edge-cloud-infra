@@ -24,6 +24,9 @@ influxs:
   datadir: /var/tmp/edge-cloud-local-influx/influx1
   httpaddr: "127.0.0.1:8086"
   hostname: "127.0.0.1"
+  auth:
+    user: "root"
+    pass: "root"
 
 etcds:
 - name: etcd1

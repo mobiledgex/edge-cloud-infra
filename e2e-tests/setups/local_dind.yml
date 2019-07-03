@@ -80,6 +80,7 @@ crms:
 - name: crm1
   apiaddr: "0.0.0.0:55091"
   notifyaddrs: "127.0.0.1:37001,127.0.0.1:37002"
+  notifysrvaddr: "127.0.0.1:51101"
   cloudletkey: '{"operator_key":{"name":"mexdev"},"name":"localtest"}'
   vaultaddr: "vault.mobiledgex.net"
   tls:
@@ -100,6 +101,17 @@ clustersvcs:
     clientcert: "{{tlsoutdir}}/mex-client.crt"
   promports: "tcp:9090"
   interval: "5s"
+  hostname: "127.0.0.1"
+
+shepherds:
+- name: shepherd1
+  notifyaddrs: "127.0.0.1:51101"
+  cloudletkey: '{"operator_key":{"name":"mexdev"},"name":"localtest"}'
+  platform: fakecloudlet
+  vaultaddr: "http://127.0.0.1:8200"
+  tls:
+    servercert: "{{tlsoutdir}}/mex-server.crt"
+    clientcert: "{{tlsoutdir}}/mex-client.crt"
   hostname: "127.0.0.1"
 
 mcs:

@@ -10,6 +10,7 @@ import (
 
 	platform "github.com/mobiledgex/edge-cloud-infra/shepherd/shepherd_platform"
 	"github.com/mobiledgex/edge-cloud-infra/shepherd/shepherd_platform/shepherd_dind"
+	"github.com/mobiledgex/edge-cloud-infra/shepherd/shepherd_platform/shepherd_fake"
 	"github.com/mobiledgex/edge-cloud-infra/shepherd/shepherd_platform/shepherd_openstack"
 	"github.com/mobiledgex/edge-cloud/cloud-resource-manager/k8smgmt"
 	"github.com/mobiledgex/edge-cloud/cloudcommon"
@@ -112,6 +113,8 @@ func getPlatform() (platform.Platform, error) {
 		plat = &shepherd_dind.Platform{}
 	case "openstack":
 		plat = &shepherd_openstack.Platform{}
+	case "fake":
+		plat = &shepherd_fake.Platform{}
 	default:
 		err = fmt.Errorf("Platform %s not supported", *platformName)
 	}
@@ -134,8 +137,8 @@ func main() {
 	// get influxDB credentials from vault
 	influxAuth := cloudcommon.GetInfluxDataAuth(*vaultAddr, *region)
 	if influxAuth == nil {
-		// defeault to default user/pass
-		influxAuth = &cloudcommon.InfluxCreds{}
+		// default to default user/pass
+		influxAuth = &cloudcommon.InfluxCreds{User: "root", Pass: "root"}
 	}
 	influxQ = influxq.NewInfluxQ(InfluxDBName, influxAuth.User, influxAuth.Pass)
 	err = influxQ.Start(*influxdb, "")

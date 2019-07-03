@@ -30,6 +30,7 @@ var vaultAddr = flag.String("vaultAddr", "", "Address to vault")
 var physicalName = flag.String("physicalName", "", "Physical infrastructure cloudlet name, defaults to cloudlet name in cloudletKey")
 var cloudletKeyStr = flag.String("cloudletKey", "", "Json or Yaml formatted cloudletKey for the cloudlet in which this CRM is instantiated; e.g. '{\"operator_key\":{\"name\":\"TMUS\"},\"name\":\"tmocloud1\"}'")
 var region = flag.String("region", "local", "region name")
+var name = flag.String("name", "", "Unique name to identify a process")
 
 var promQCpuClust = "sum(rate(container_cpu_usage_seconds_total%7Bid%3D%22%2F%22%7D%5B1m%5D))%2Fsum(machine_cpu_cores)*100"
 var promQMemClust = "sum(container_memory_working_set_bytes%7Bid%3D%22%2F%22%7D)%2Fsum(machine_memory_bytes)*100"
@@ -52,6 +53,8 @@ var Env = map[string]string{
 	"INFLUXDB_PASS": "root",
 }
 
+var defaultPormetheusPort = int32(9090)
+
 //map keeping track of all the currently running prometheuses
 var promMap map[string]*PromStats
 var MEXPrometheusAppName = cloudcommon.MEXPrometheusAppName
@@ -67,6 +70,7 @@ var influxQ *influxq.InfluxQ
 var sigChan chan os.Signal
 
 func appInstCb(old *edgeproto.AppInst, new *edgeproto.AppInst) {
+	var port int32
 	//check for prometheus
 	if new.Key.AppKey.Name != MEXPrometheusAppName {
 		return
@@ -74,7 +78,7 @@ func appInstCb(old *edgeproto.AppInst, new *edgeproto.AppInst) {
 	var mapKey = k8smgmt.GetK8sNodeNameSuffix(&new.Key.ClusterInstKey)
 	stats, exists := promMap[mapKey]
 	if new.State == edgeproto.TrackedState_READY {
-		log.DebugLog(log.DebugLevelMetrics, "New Prometheus instance detected", "clustername", mapKey)
+		log.DebugLog(log.DebugLevelMetrics, "New Prometheus instance detected", "clustername", mapKey, "appInst", new)
 		//get address of prometheus.
 		clusterInst := edgeproto.ClusterInst{}
 		found := ClusterInstCache.Get(&new.Key.ClusterInstKey, &clusterInst)
@@ -86,7 +90,12 @@ func appInstCb(old *edgeproto.AppInst, new *edgeproto.AppInst) {
 		if err != nil {
 			log.DebugLog(log.DebugLevelMetrics, "error getting clusterIP", "err", err.Error())
 		}
-		port := new.MappedPorts[0].PublicPort
+		// We don't actually expose prometheus ports - we should default to 9090
+		if len(new.MappedPorts) > 0 {
+			port = new.MappedPorts[0].PublicPort
+		} else {
+			port = defaultPormetheusPort
+		}
 		promAddress := fmt.Sprintf("%s:%d", clustIP, port)
 		log.DebugLog(log.DebugLevelMetrics, "prometheus found", "promAddress", promAddress)
 		if !exists {
@@ -113,7 +122,7 @@ func getPlatform() (platform.Platform, error) {
 		plat = &shepherd_dind.Platform{}
 	case "openstack":
 		plat = &shepherd_openstack.Platform{}
-	case "fake":
+	case "fakecloudlet":
 		plat = &shepherd_fake.Platform{}
 	default:
 		err = fmt.Errorf("Platform %s not supported", *platformName)

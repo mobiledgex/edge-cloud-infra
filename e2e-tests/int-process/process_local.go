@@ -195,6 +195,10 @@ func (p *Sql) runPsql(args []string) ([]byte, error) {
 
 func (p *Shepherd) StartLocal(logfile string, opts ...process.StartOp) error {
 	args := []string{}
+	if p.Name != "" {
+		args = append(args, "--name")
+		args = append(args, p.Name)
+	}
 	if p.NotifyAddrs != "" {
 		args = append(args, "--notifyAddrs")
 		args = append(args, p.NotifyAddrs)

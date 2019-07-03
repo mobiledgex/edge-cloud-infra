@@ -8,7 +8,12 @@ metadata:
 spec:
   externalTrafficPolicy: Cluster
   ports:
-   - port: 50051
+   - name: http
+     port: 38001
+     protocol: TCP
+     targetPort: 38001
+   - name: grpc
+     port: 50051
      protocol: TCP
      targetPort: 50051
   selector:

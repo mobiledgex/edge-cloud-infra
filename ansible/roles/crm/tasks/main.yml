@@ -47,6 +47,8 @@
       - "{{ vault_vm_hostname }}:{{ vault_port }}"
       - "--notifyAddrs"
       - "{{ item.controller }}.ctrl.{{ cloudflare_zone }}:37001"
+      - "--notifySrvAddr"
+      - 0.0.0.0:{{ crm_srv_notify_notify_port }}"
       - "--tls"
       - "/root/tls/mex-server.crt"
       - "-d"
@@ -69,3 +71,10 @@
       VAULT_ROLE_ID: "{{ crm_vault_app_role.role_id }}"
       VAULT_SECRET_ID: "{{ crm_vault_app_role.secret_id }}"
       MEX_SECURITY_GROUP: "{{ item.mex_security_group | default(mex_security_group) }}"
+
+- name: Add CRM to docker network
+  docker_network:
+    name: "{{ mex_docker_network }}"
+    connected:
+      - "{{ crm_name }}"
+    appends: yes

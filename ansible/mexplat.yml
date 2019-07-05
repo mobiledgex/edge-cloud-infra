@@ -2,6 +2,7 @@
 - name: Ensure edge cloud version is set
   hosts:
     - crms
+    - shepherds
     - mc
   gather_facts: no
   tasks:
@@ -124,6 +125,14 @@
     - include_role:
         name: crm
       with_items: "{{ crm_instances }}"
+
+- hosts: shepherds
+  tasks:
+    - import_role:
+        name: docker
+    - include_role:
+        name: shepherd
+      with_items: "{{ shepherd_instances }}"
 
 - hosts: mc
   roles:

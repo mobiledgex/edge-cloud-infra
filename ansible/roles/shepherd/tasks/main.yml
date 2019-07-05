@@ -1,0 +1,88 @@
+- debug: var=item
+
+- assert:
+    that:
+      - item.openstack_instance is defined or item.cloudlet_name is defined
+
+# Compute cloudlet name
+
+- set_fact:
+    cloudlet_name: "{{ item.cloudlet_name }}"
+  when: item.cloudlet_name is defined
+
+- set_fact:
+    cloudlet_name: "{{ deploy_target }}-{{ item.openstack_instance }}-cloudlet"
+  when: item.cloudlet_name is not defined
+
+# Compute Shepherd and CRM names
+
+- set_fact:
+    shepherd_name: "{{ item.shepherd_name }}"
+  when: item.shepherd_name is defined
+
+- set_fact:
+    crm_name: "{{ item.crm_name }}"
+  when: item.crm_name is defined
+
+- set_fact:
+    shepherd_name: "shepherd-{{ item.controller }}-{{ item.openstack_instance }}"
+    crm_name: "crm-{{ item.controller }}-{{ item.openstack_instance }}"
+  when:
+    - item.shepherd_name is not defined
+    - item.crm_name is not defined
+    - item.openstack_instance is defined
+
+- set_fact:
+    shepherd_name: "shepherd-{{ cloudlet_name }}"
+    crm_name: "crm-{{ cloudlet_name }}"
+  when:
+    - item.shepherd_name is not defined
+    - item.crm_name is not defined
+    - item.openstack_instance is not defined
+
+- debug:
+    msg: "Deploying {{ shepherd_name }} (cloudlet name: {{ cloudlet_name }})"
+
+- name: Compute shepherd command line
+  set_fact:
+    shepherd_args:
+      - shepherd
+      - "--influxAddr"
+      - "https://{{ influxdb_dns }}.{{ cloudflare_zone }}:8086"
+      # notifyAddr is derived from crm name, since crm and shepherd run as two docker containers on the same host
+      - "--notifyAddrs"
+      - "{{ crm_name }}:{{ crm_srv_notify_notify_port }}"
+      - "--tls"
+      - "/root/tls/mex-server.crt"
+      - "platform"
+      - "{{ item.platform | default('openstack') }}"
+      - "--vaultAddr"
+      - "{{ vault_vm_hostname }}:{{ vault_port }}"
+      - "--cloudletKey"
+      - "{\\\"operator_key\\\":{\\\"name\\\":\\\"{{ item.operator_key | mandatory }}\\\"},\\\"name\\\":\\\"{{ cloudlet_name }}\\\"}"
+      - "region"
+      - "{{ region }}"
+      - "-d"
+      - "api,notify,mexos"
+
+- name: Add openstack parameters
+  set_fact:
+    shepherd_args: "{{ shepherd_args + [ '--physicalName', item.openstack_instance ] }}"
+  when: item.openstack_instance is defined and item.openstack_instance
+
+- name: Deploy the shepherd
+  docker_container:
+    name: "{{ shepherd_name }}"
+    image: "{{ edge_cloud_image }}:{{ edge_cloud_version }}"
+    restart_policy: unless-stopped
+    command: "{{ shepherd_args }}"
+    env:
+      VAULT_ROLE_ID: "{{ shepherd_vault_app_role[region].role_id }}"
+      VAULT_SECRET_ID: "{{ shepherd_vault_app_role[region].secret_id }}"
+
+- name: Add Shepherd to docker network
+  docker_network:
+    name: "{{ mex_docker_network }}"
+    connected:
+      - "{{ shepherd_name }}"
+    appends: yes

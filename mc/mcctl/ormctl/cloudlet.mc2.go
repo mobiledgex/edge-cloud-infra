@@ -322,8 +322,6 @@ var CloudletRequiredArgs = []string{
 }
 var CloudletOptionalArgs = []string{
 	"platform.name",
-	"deployment",
-	"physicalname",
 	"accesscredentials",
 	"location.latitude",
 	"location.longitude",
@@ -335,13 +333,13 @@ var CloudletOptionalArgs = []string{
 	"numdynamicips",
 	"state",
 	"errors",
+	"crmoverride",
+	"deploymentlocal",
 }
 var CloudletAliasArgs = []string{
 	"operator=cloudlet.key.operatorkey.name",
 	"name=cloudlet.key.name",
 	"platform.name=cloudlet.platform.name",
-	"deployment=cloudlet.deployment",
-	"physicalname=cloudlet.physicalname",
 	"accesscredentials=cloudlet.accesscredentials",
 	"location.latitude=cloudlet.location.latitude",
 	"location.longitude=cloudlet.location.longitude",
@@ -367,6 +365,8 @@ var CloudletAliasArgs = []string{
 	"timelimits.createappinsttimeout=cloudlet.timelimits.createappinsttimeout",
 	"timelimits.updateappinsttimeout=cloudlet.timelimits.updateappinsttimeout",
 	"timelimits.deleteappinsttimeout=cloudlet.timelimits.deleteappinsttimeout",
+	"crmoverride=cloudlet.crmoverride",
+	"deploymentlocal=cloudlet.deploymentlocal",
 }
 var FlavorInfoRequiredArgs = []string{}
 var FlavorInfoOptionalArgs = []string{

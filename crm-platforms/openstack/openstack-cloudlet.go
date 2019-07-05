@@ -23,7 +23,7 @@ const (
 
 func getPlatformVMName(cloudlet *edgeproto.Cloudlet) string {
 	// Form platform VM name based on cloudletKey
-	return cloudlet.Key.Name + cloudlet.Key.OperatorKey.Name
+	return cloudlet.Key.Name + "." + cloudlet.Key.OperatorKey.Name + ".pf"
 }
 
 func (s *Platform) CreatePlatform(pf *edgeproto.Platform, updateCallback edgeproto.CacheUpdateCallback) error {
@@ -32,7 +32,7 @@ func (s *Platform) CreatePlatform(pf *edgeproto.Platform, updateCallback edgepro
 	log.DebugLog(log.DebugLevelMexos, "Creating platform", "platformName", pf.Key.Name)
 
 	// Soure OpenRC file to access openstack API endpoint
-	updateCallback(edgeproto.UpdateTask, fmt.Sprintf("Sourcing platform variables for %s deployment infra", pf.PhysicalName))
+	updateCallback(edgeproto.UpdateTask, fmt.Sprintf("Sourcing platform variables for %s cloudlet", pf.PhysicalName))
 	err = mexos.InitOpenstackProps(pf.Key.Name, pf.PhysicalName, pf.VaultAddr)
 	if err != nil {
 		return err
@@ -126,12 +126,16 @@ func startPlatformService(cloudlet *edgeproto.Cloudlet, pf *edgeproto.Platform, 
 		}
 		if !strings.Contains(out, "Up ") {
 			// container exited in failure state
+			// Show Fatal Log, if not Fatal log found, then show last 10 lines of error
 			out, err = client.Output(`sudo docker logs ` + platform_vm_name + ` 2>&1 | grep FATAL | awk '{for (i=1; i<=NF-3; i++) $i = $(i+3); NF-=3; print}'`)
 			if err != nil {
-				cDone <- fmt.Errorf("failed to brinup %s", serviceType)
-				return
+				out, err = client.Output(`sudo docker logs ` + platform_vm_name + ` 2>&1 | tail -n 10`)
+				if err != nil {
+					cDone <- fmt.Errorf("failed to bringup %s: %s", serviceType, err.Error())
+					return
+				}
 			}
-			cDone <- fmt.Errorf("failed to brinup %s: %s", serviceType, out)
+			cDone <- fmt.Errorf("failed to bringup %s: %s", serviceType, out)
 			return
 		}
 		elapsed := time.Since(start)
@@ -150,13 +154,9 @@ func (s *Platform) CreateCloudlet(cloudlet *edgeproto.Cloudlet, pf *edgeproto.Pl
 
 	log.DebugLog(log.DebugLevelMexos, "Creating cloudlet", "cloudletName", cloudlet.Key.Name)
 
-	if cloudlet.PhysicalName == "" {
-		cloudlet.PhysicalName = cloudlet.Key.Name
-	}
-
 	// Soure OpenRC file to access openstack API endpoint
-	updateCallback(edgeproto.UpdateTask, fmt.Sprintf("Sourcing platform variables for %s cloudlet", cloudlet.PhysicalName))
-	err = mexos.InitOpenstackProps(cloudlet.Key.OperatorKey.Name, cloudlet.PhysicalName, pf.VaultAddr)
+	updateCallback(edgeproto.UpdateTask, fmt.Sprintf("Sourcing platform variables for %s cloudlet", pf.PhysicalName))
+	err = mexos.InitOpenstackProps(cloudlet.Key.OperatorKey.Name, pf.PhysicalName, pf.VaultAddr)
 	if err != nil {
 		return err
 	}
@@ -176,13 +176,23 @@ func (s *Platform) CreateCloudlet(cloudlet *edgeproto.Cloudlet, pf *edgeproto.Pl
 	if err != nil {
 		return err
 	}
+	_, md5Sum, err := mexos.GetUrlInfo(pf.ImagePath)
+	if err != nil {
+		return err
+	}
 
 	// Use PlatformBaseImage, if not present then fetch it from MobiledgeX VM registry
 	imageDetail, err := mexos.GetImageDetail(pfImageName)
-	if err != nil {
-		return fmt.Errorf("image %s is not present", pfImageName)
-	} else if imageDetail.Status != "active" {
+	if err == nil && imageDetail.Status != "active" {
 		return fmt.Errorf("image %s is not active", pfImageName)
+	}
+	if err != nil {
+		// Download platform base image and Add to Openstack Glance
+		updateCallback(edgeproto.UpdateTask, "Downloading platform base image: "+pfImageName)
+		err = mexos.CreateImageFromUrl(pfImageName, pf.ImagePath, md5Sum)
+		if err != nil {
+			return fmt.Errorf("Error downloading platform base image: %v", err)
+		}
 	}
 
 	// Form platform VM name based on cloudletKey
@@ -271,7 +281,7 @@ ssh_authorized_keys:
 		}
 		if out, err := client.Output(
 			fmt.Sprintf(
-				"nc %s %s -w 5", addrPort[0], addrPort[2],
+				"nc %s %s -w 5", addrPort[0], addrPort[1],
 			),
 		); err != nil {
 			return fmt.Errorf("controller's notify port is unreachable: %v, %s\n", err, out)

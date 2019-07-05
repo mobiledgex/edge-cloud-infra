@@ -13,6 +13,7 @@ options:
         - Values returned in a dict with the key being the basename of path,
           with dashes replaced by underscores
         - Key can be overridden by specifying lookup in the form of "path:key"
+        - Specific versions can be retrieved by adding "@version" to the path.
     required: True
   vault_addr:
     description: The vault to connect to
@@ -31,13 +32,15 @@ options:
 EXAMPLES="""
   - name: Look up influx DB creds and GCP service account
     set_fact:
-      vault_lookup: "{{ lookup('vault', influxdb_path, gcp_path) }}"
+      vault_lookup: "{{ lookup('vault', influxdb_path, gcp_path, some_secret_version) }}"
     vars:
       influxdb_path: "secret/EU/accounts/influxdb"
       gcp_path: "secret/ansible/main/gcp-registry-reader-service-account:gcp"
+      some_secret_version: "secret/some/thing@3:thing_3"
 
   - debug: var=vault_lookup.influxdb.data
   - debug: var=vault_lookup.gcp.data
+  - debug: var=vault_lookup.thing_3.data
 """
 
 from ansible.errors import AnsibleError, AnsibleParserError
@@ -58,8 +61,10 @@ display = Display()
 
 class LookupModule(LookupBase):
 
-    def _lookup_path(self, vault_addr, path, token):
+    def _lookup_path(self, vault_addr, path, version, token):
         url = "{0}/v1/{1}".format(vault_addr, path)
+        if version:
+            url += '?version={0}'.format(version)
         r = requests.get(url, headers={'X-Vault-Token': token})
         if r.status_code != requests.codes.ok:
             raise AnsibleError("Vault lookup of path \"{0}\" returned response code \"{1}\"".format(
@@ -98,6 +103,8 @@ class LookupModule(LookupBase):
         except KeyError:
             raise AnsibleError("Could not find vault address variable: {0}".format(vault_addr_key))
 
+        version = kwargs.get('version', None)
+
         vault_auth = {}
         app_role_key = 'ansible_app_role'
         for p in ('role_id', 'secret_id'):
@@ -123,12 +130,21 @@ class LookupModule(LookupBase):
         for item in paths:
             tokens = item.split(':', 1)
             path = tokens.pop(0)
+            key = None
             if tokens:
                 key = tokens.pop()
+
+            vers = path.split('@', 1)
+            if len(vers) > 1 and int(vers[1]) > 0:
+                path = vers[0]
+                version = int(vers[1])
             else:
+                version = None
+
+            if not key:
                 key = os.path.basename(path).replace('-', '_')
 
-            resp[key] = self._lookup_path(vault_addr, path, token)
+            resp[key] = self._lookup_path(vault_addr, path, version, token)
 
         ret.append(resp)
 

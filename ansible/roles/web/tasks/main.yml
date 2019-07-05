@@ -5,6 +5,9 @@
     state: present
   become: yes
 
+- set_fact:
+    nginx_installed: true
+
 - name: Install nginx config
   template:
     src: "{{ nginx_config_template }}"

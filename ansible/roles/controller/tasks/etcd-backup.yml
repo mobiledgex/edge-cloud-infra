@@ -20,8 +20,18 @@
     command: "kubectl --kubeconfig {{ kubeconfig_file.path }} exec {{ mex_etcd_pod }} -- env ETCDCTL_API=3 etcdctl snapshot save {{ etcd_backup_file }}"
     changed_when: false
 
+  # Work around this bug: https://github.com/kubernetes/kubernetes/issues/78211
+  - set_fact:
+      tempfile_path: /private/tmp
+    when: ansible_distribution == "MacOSX"
+
+  - set_fact:
+      tempfile_path: /tmp
+    when: tempfile_path is not defined
+
   - name: Create temporary file for etcd backup download
     tempfile:
+      path: "{{ tempfile_path }}"
       state: file
       suffix: .db
     register: etcd_backup_local_file

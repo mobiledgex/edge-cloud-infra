@@ -2,7 +2,7 @@ package openstack
 
 import (
 	"fmt"
-	"io/ioutil"
+	"path/filepath"
 	"strings"
 	"time"
 
@@ -79,11 +79,11 @@ func startPlatformService(cloudlet *edgeproto.Cloudlet, pf *edgeproto.Platform, 
 	case ServiceTypeCRM:
 		service_cmd, envVars, err = cloudcommon.GetCRMCmd(cloudlet, pf)
 		if err != nil {
-			cDone <- fmt.Errorf("unable to get crm service command: %v", err)
+			cDone <- fmt.Errorf("Unable to get crm service command: %v", err)
 			return
 		}
 	default:
-		cDone <- fmt.Errorf("unsupported service type: %s", serviceType)
+		cDone <- fmt.Errorf("Unsupported service type: %s", serviceType)
 		return
 	}
 
@@ -101,14 +101,15 @@ func startPlatformService(cloudlet *edgeproto.Cloudlet, pf *edgeproto.Platform, 
 	cmd := []string{
 		"sudo docker run",
 		"-d",
+		"-v /tmp:/tmp",
 		"--restart=unless-stopped",
 		"--name", platform_vm_name,
 		strings.Join(envVarsAr, " "),
-		pf.RegistryPath,
+		pf.RegistryPath + ":" + pf.PlatformTag,
 		service_cmd,
 	}
 	if out, err := client.Output(strings.Join(cmd, " ")); err != nil {
-		cDone <- fmt.Errorf("unable to start %s: %v, %s\n", serviceType, err, out)
+		cDone <- fmt.Errorf("Unable to start %s: %v, %s\n", serviceType, err, out)
 		return
 	}
 
@@ -121,21 +122,21 @@ func startPlatformService(cloudlet *edgeproto.Cloudlet, pf *edgeproto.Platform, 
 	for {
 		out, err := client.Output(`sudo docker ps -a -n 1 --filter name=` + platform_vm_name + ` --format '{{.Status}}'`)
 		if err != nil {
-			cDone <- fmt.Errorf("unable to fetch %s container status: %v, %s\n", serviceType, err, out)
+			cDone <- fmt.Errorf("Unable to fetch %s container status: %v, %s\n", serviceType, err, out)
 			return
 		}
 		if !strings.Contains(out, "Up ") {
 			// container exited in failure state
 			// Show Fatal Log, if not Fatal log found, then show last 10 lines of error
 			out, err = client.Output(`sudo docker logs ` + platform_vm_name + ` 2>&1 | grep FATAL | awk '{for (i=1; i<=NF-3; i++) $i = $(i+3); NF-=3; print}'`)
-			if err != nil {
+			if err != nil || out == "" {
 				out, err = client.Output(`sudo docker logs ` + platform_vm_name + ` 2>&1 | tail -n 10`)
 				if err != nil {
-					cDone <- fmt.Errorf("failed to bringup %s: %s", serviceType, err.Error())
+					cDone <- fmt.Errorf("Failed to bringup %s: %s", serviceType, err.Error())
 					return
 				}
 			}
-			cDone <- fmt.Errorf("failed to bringup %s: %s", serviceType, out)
+			cDone <- fmt.Errorf("Failed to bringup %s: %s", serviceType, out)
 			return
 		}
 		elapsed := time.Since(start)
@@ -200,11 +201,7 @@ func (s *Platform) CreateCloudlet(cloudlet *edgeproto.Cloudlet, pf *edgeproto.Pl
 
 	// Generate SSH KeyPair
 	keyPairPath := "/tmp/" + platform_vm_name
-	err = mexos.GenerateSSHKeyPair(keyPairPath)
-	if err != nil {
-		return err
-	}
-	pubKeyBytes, err := ioutil.ReadFile(keyPairPath + ".pub")
+	pubKey, _, err := ssh.GetKeyPair(keyPairPath)
 	if err != nil {
 		return err
 	}
@@ -219,7 +216,7 @@ chpasswd: { expire: False }
 ssh_pwauth: False
 timezone: UTC
 ssh_authorized_keys:
- - ` + string(pubKeyBytes)
+ - ` + pubKey
 
 	// TODO Upload SSHKeyPair to Vault so that all the VMs in the cloudlet use this KeyPair
 
@@ -287,6 +284,38 @@ ssh_authorized_keys:
 			return fmt.Errorf("controller's notify port is unreachable: %v, %s\n", err, out)
 		}
 	}
+
+	// NOTE: Once we have certs per service support following copy will not be required
+	// Upload server certs i.e. crt, key, ca.crt files to Platform VM
+	updateCallback(edgeproto.UpdateTask, "Uploading TLS certs to platform VM")
+	dir, crtFile := filepath.Split(pf.TlsCertFile)
+
+	ext := filepath.Ext(crtFile)
+	if ext == "" {
+		return fmt.Errorf("invalid tls cert file name: %s", crtFile)
+	}
+	keyPath := dir + strings.TrimSuffix(crtFile, ext) + ".key"
+
+	copyFiles := []string{
+		pf.TlsCertFile,
+		keyPath,
+	}
+
+	matches, err := filepath.Glob(dir + "*-ca.crt")
+	if err != nil {
+		return fmt.Errorf("unable to find ca crt file")
+	}
+	for _, match := range matches {
+		copyFiles = append(copyFiles, match)
+	}
+
+	for _, copyFile := range copyFiles {
+		err = mexos.SCPFilePath(client, copyFile, "/tmp/")
+		if err != nil {
+			return fmt.Errorf("error copying %s to platform VM", copyFile)
+		}
+	}
+	pf.TlsCertFile = "/tmp/" + crtFile
 
 	// Login to docker registry
 	updateCallback(edgeproto.UpdateTask, "Setting up docker registry")

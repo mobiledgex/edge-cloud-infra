@@ -14,7 +14,7 @@ import (
 )
 
 var AuditId uint64
-var regex = regexp.MustCompile(`"(.*?)"`) // scrub jwt tokens from responses before logging
+var jwtRegex = regexp.MustCompile(`"(.*?)"`) // scrub jwt tokens from responses before logging, find all quoted strings.
 
 func logger(next echo.HandlerFunc) echo.HandlerFunc {
 	return func(c echo.Context) error {
@@ -116,7 +116,7 @@ func logger(next echo.HandlerFunc) echo.HandlerFunc {
 			// for all responses, if it has a jwt token
 			// remove it before logging
 			if strings.Contains(string(resBody), "token") {
-				ms := regex.FindAllStringSubmatch(string(resBody), -1)
+				ms := jwtRegex.FindAllStringSubmatch(string(resBody), -1)
 				if ms != nil {
 					ss := make([]string, len(ms))
 					for i, m := range ms {

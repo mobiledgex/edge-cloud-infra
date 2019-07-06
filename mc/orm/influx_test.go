@@ -19,6 +19,7 @@ func testPermShowClusterMetrics(mcClient *ormclient.Client, uri, token, region, 
 	in.ClusterKey.Name = "testcluster"
 	dat := &ormapi.RegionClusterInstMetrics{}
 	dat.Region = region
+	dat.Selector = "cpu"
 	dat.ClusterInst = *in
 	status, err := mcClient.PostJsonStreamOut(uri+"/auth/metrics/cluster", token, dat, &out, func() {
 		data = append(data, out)
@@ -35,6 +36,7 @@ func testPermShowAppInstMetrics(mcClient *ormclient.Client, uri, token, region, 
 	in.ClusterInstKey.ClusterKey.Name = "testcluster"
 	dat := &ormapi.RegionAppInstMetrics{}
 	dat.Region = region
+	dat.Selector = "cpu"
 	dat.AppInst = *in
 	status, err := mcClient.PostJsonStreamOut(uri+"/auth/metrics/app", token, dat, &out, func() {
 		data = append(data, out)

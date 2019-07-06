@@ -63,7 +63,7 @@
       - "region"
       - "{{ region }}"
       - "-d"
-      - "api,notify,mexos"
+      - "api,notify,mexos,metrics"
 
 - name: Add openstack parameters
   set_fact:

@@ -38,6 +38,8 @@ type influxQueryArgs struct {
 	EndTime      string
 }
 
+// select * from "crm-appinst-cpu"."crm-appinst-mem"."crm-appinst-net"...
+// EDGECLOUD-940
 var influDBT = `SELECT {{if .Selector}}"{{.Selector}}"{{else}}*{{end}} from "{{.Measurement}}"` +
 	` WHERE "cluster"='{{.ClusterName}}'` +
 	`{{if .AppInstName}} AND "app"=~/{{.AppInstName}}/{{end}}` +
@@ -83,10 +85,10 @@ func getInfluxDBAddrForRegion(region string) (string, error) {
 }
 
 // Query is a template with a specific set of if/else
-func AppInstMetricsQuery(obj *ormapi.RegionAppInstMetrics, measurement string) string {
+func AppInstMetricsQuery(obj *ormapi.RegionAppInstMetrics) string {
 	arg := influxQueryArgs{
 		Selector:     obj.Selector,
-		Measurement:  measurement,
+		Measurement:  "crm-appinst-" + obj.Selector,
 		AppInstName:  obj.AppInst.AppKey.Name,
 		CloudletName: obj.AppInst.ClusterInstKey.CloudletKey.Name,
 		ClusterName:  obj.AppInst.ClusterInstKey.ClusterKey.Name,
@@ -115,10 +117,10 @@ func AppInstMetricsQuery(obj *ormapi.RegionAppInstMetrics, measurement string) s
 }
 
 // Query is a template with a specific set of if/else
-func ClusterMetricsQuery(obj *ormapi.RegionClusterInstMetrics, measurement string) string {
+func ClusterMetricsQuery(obj *ormapi.RegionClusterInstMetrics) string {
 	arg := influxQueryArgs{
 		Selector:     obj.Selector,
-		Measurement:  measurement,
+		Measurement:  "crm-cluster-" + obj.Selector,
 		CloudletName: obj.ClusterInst.CloudletKey.Name,
 		ClusterName:  obj.ClusterInst.ClusterKey.Name,
 		OperatorName: obj.ClusterInst.CloudletKey.OperatorKey.Name,
@@ -179,6 +181,27 @@ func metricsStream(rc *InfluxDBContext, dbQuery string, cb func(Data interface{}
 	return nil
 }
 
+// Function validates the selector passed, we support several selectors: cpu, mem, disk, net
+// TODO: check for specific strings for now.
+//       Right now we don't support "*", or multiple selectors - EDGECLOUD-940
+func validateSelector(selector string) bool {
+	switch selector {
+	case "cpu":
+		fallthrough
+	case "mem":
+		fallthrough
+	case "disk":
+		fallthrough
+	case "network":
+		fallthrough
+	case "tcp":
+		fallthrough
+	case "udp":
+		return true
+	}
+	return false
+}
+
 // Common method to handle both app and cluster metrics
 func GetMetricsCommon(c echo.Context) error {
 	var cmd, org string
@@ -201,7 +224,10 @@ func GetMetricsCommon(c echo.Context) error {
 		}
 		rc.region = in.Region
 		org = in.AppInst.AppKey.DeveloperKey.Name
-		cmd = AppInstMetricsQuery(&in, cloudcommon.DeveloperAppMetrics)
+		if !validateSelector(in.Selector) {
+			return c.JSON(http.StatusBadRequest, Msg("Invalid Selector passed in"))
+		}
+		cmd = AppInstMetricsQuery(&in)
 	} else if strings.HasSuffix(c.Path(), "metrics/cluster") {
 		in := ormapi.RegionClusterInstMetrics{}
 		if err := c.Bind(&in); err != nil {
@@ -213,11 +239,13 @@ func GetMetricsCommon(c echo.Context) error {
 		}
 		rc.region = in.Region
 		org = in.ClusterInst.Developer
-		cmd = ClusterMetricsQuery(&in, cloudcommon.DeveloperClusterMetric)
+		if !validateSelector(in.Selector) {
+			return c.JSON(http.StatusBadRequest, Msg("Invalid Selector passed in"))
+		}
+		cmd = ClusterMetricsQuery(&in)
 	} else {
 		return echo.ErrNotFound
 	}
-
 	// Check the developer against who is logged in
 	if !enforcer.Enforce(rc.claims.Username, org, ResourceAppAnalytics, ActionView) {
 		return echo.ErrForbidden
@@ -237,6 +265,7 @@ func GetMetricsCommon(c echo.Context) error {
 	})
 	if err != nil {
 		if st, ok := status.FromError(err); ok {
+			// TODO: Change the message not to show influxdb query
 			err = fmt.Errorf("%s", st.Message())
 		}
 		if !wroteHeader {

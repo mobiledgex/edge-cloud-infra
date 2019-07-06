@@ -36,8 +36,6 @@ func CreateOrgObj(claims *UserClaims, org *ormapi.Organization) error {
 	if err != nil {
 		return err
 	}
-	// Store orgName in lower case format
-	org.Name = strings.ToLower(org.Name)
 	// any user can create their own organization
 
 	role := ""

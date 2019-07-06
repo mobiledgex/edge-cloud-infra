@@ -9,7 +9,6 @@ import (
 	"github.com/atlassian/go-artifactory/v2/artifactory/v1"
 	rtf "github.com/mobiledgex/edge-cloud-infra/artifactory"
 	"github.com/mobiledgex/edge-cloud/log"
-	"github.com/mobiledgex/edge-cloud/util"
 )
 
 func artifactoryClient() (*artifactory.Artifactory, error) {
@@ -38,7 +37,7 @@ func getArtifactoryPermPrefix() string {
 }
 
 func getArtifactoryRepoName(orgName string) string {
-	return getArtifactoryRepoPrefix() + util.ArtifactoryRepoSanitize(orgName)
+	return getArtifactoryRepoPrefix() + orgName
 }
 
 func getArtifactoryPermName(orgName string) string {

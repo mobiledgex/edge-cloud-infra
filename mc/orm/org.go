@@ -32,12 +32,12 @@ func CreateOrgObj(claims *UserClaims, org *ormapi.Organization) error {
 	if org.Name == "" {
 		return fmt.Errorf("Name not specified")
 	}
-	if strings.Contains(org.Name, "::") {
-		return fmt.Errorf("Name cannot contain ::")
+	err := util.ValidOrgName(org.Name)
+	if err != nil {
+		return err
 	}
-	if !util.ValidLDAPName(org.Name) {
-		return fmt.Errorf("Invalid characters in name")
-	}
+	// Store orgName in lower case format
+	org.Name = strings.ToLower(org.Name)
 	// any user can create their own organization
 
 	role := ""
@@ -55,7 +55,7 @@ func CreateOrgObj(claims *UserClaims, org *ormapi.Organization) error {
 		return fmt.Errorf("Phone number not specified")
 	}
 	org.AdminUsername = claims.Username
-	err := db.Create(&org).Error
+	err = db.Create(&org).Error
 	if err != nil {
 		return dbErr(err)
 	}

@@ -139,6 +139,8 @@ func getPromMetrics(addr string, query string, client pc.PlatformClient) (*PromR
 	return promResp, nil
 }
 
+//this takes a float64 representation of a time(in sec) given to use by prometheus
+//and turns it into a type.Timestamp format for writing into influxDB
 func parseTime(timeFloat float64) *types.Timestamp {
 	sec, dec := math.Modf(timeFloat)
 	time := time.Unix(int64(sec), int64(dec*(1e9)))
@@ -396,9 +398,10 @@ func (p *PromStats) RunNotify() {
 	p.waitGrp.Done()
 }
 
-func newMetric(operator, cloudlet, cluster, developer, name string, key *MetricAppInstKey) *edgeproto.Metric {
+func newMetric(operator, cloudlet, cluster, developer, name string, key *MetricAppInstKey, ts *types.Timestamp) *edgeproto.Metric {
 	metric := edgeproto.Metric{}
 	metric.Name = name
+	metric.Timestamp = *ts
 	metric.AddTag("operator", operator)
 	metric.AddTag("cloudlet", cloudlet)
 	metric.AddTag("cluster", cluster)
@@ -413,39 +416,33 @@ func ClusterStatToMetrics(p *PromStats) []*edgeproto.Metric {
 	var metrics []*edgeproto.Metric
 	var metric *edgeproto.Metric
 
-	metric = newMetric(p.operatorName, p.cloudletName, p.clusterName, p.developer, "crm-cluster-cpu", nil)
+	metric = newMetric(p.operatorName, p.cloudletName, p.clusterName, p.developer, "crm-cluster-cpu", nil, p.clusterStat.cpuTS)
 	metric.AddDoubleVal("cpu", p.clusterStat.cpu)
-	metric.Timestamp = *p.clusterStat.cpuTS
 	metrics = append(metrics, metric)
 
-	metric = newMetric(p.operatorName, p.cloudletName, p.clusterName, p.developer, "crm-cluster-mem", nil)
+	metric = newMetric(p.operatorName, p.cloudletName, p.clusterName, p.developer, "crm-cluster-mem", nil, p.clusterStat.memTS)
 	metric.AddDoubleVal("mem", p.clusterStat.mem)
-	metric.Timestamp = *p.clusterStat.memTS
 	metrics = append(metrics, metric)
 
-	metric = newMetric(p.operatorName, p.cloudletName, p.clusterName, p.developer, "crm-cluster-disk", nil)
+	metric = newMetric(p.operatorName, p.cloudletName, p.clusterName, p.developer, "crm-cluster-disk", nil, p.clusterStat.diskTS)
 	metric.AddDoubleVal("disk", p.clusterStat.disk)
-	metric.Timestamp = *p.clusterStat.diskTS
 	metrics = append(metrics, metric)
 
 	//for measurements with multiple values just pick one timestamp to use
-	metric = newMetric(p.operatorName, p.cloudletName, p.clusterName, p.developer, "crm-cluster-network", nil)
+	metric = newMetric(p.operatorName, p.cloudletName, p.clusterName, p.developer, "crm-cluster-network", nil, p.clusterStat.netSendTS)
 	metric.AddIntVal("sendBytes", p.clusterStat.netSend)
 	metric.AddIntVal("recvBytes", p.clusterStat.netRecv)
-	metric.Timestamp = *p.clusterStat.netSendTS
 	metrics = append(metrics, metric)
 
-	metric = newMetric(p.operatorName, p.cloudletName, p.clusterName, p.developer, "crm-cluster-tcp", nil)
+	metric = newMetric(p.operatorName, p.cloudletName, p.clusterName, p.developer, "crm-cluster-tcp", nil, p.clusterStat.tcpConnsTS)
 	metric.AddIntVal("tcpConns", p.clusterStat.tcpConns)
 	metric.AddIntVal("tcpRetrans", p.clusterStat.tcpRetrans)
-	metric.Timestamp = *p.clusterStat.tcpConnsTS
 	metrics = append(metrics, metric)
 
-	metric = newMetric(p.operatorName, p.cloudletName, p.clusterName, p.developer, "crm-cluster-udp", nil)
+	metric = newMetric(p.operatorName, p.cloudletName, p.clusterName, p.developer, "crm-cluster-udp", nil, p.clusterStat.udpSendTS)
 	metric.AddIntVal("udpSend", p.clusterStat.udpSend)
 	metric.AddIntVal("udpRecv", p.clusterStat.udpRecv)
 	metric.AddIntVal("udpRecvErr", p.clusterStat.udpRecvErr)
-	metric.Timestamp = *p.clusterStat.udpSendTS
 	metrics = append(metrics, metric)
 
 	return metrics
@@ -455,27 +452,24 @@ func PodStatToMetrics(key *MetricAppInstKey, stat *PodPromStat) []*edgeproto.Met
 	var metrics []*edgeproto.Metric
 	var metric *edgeproto.Metric
 
-	metric = newMetric(key.operator, key.cloudlet, key.cluster, key.developer, "crm-appinst-cpu", key)
+	metric = newMetric(key.operator, key.cloudlet, key.cluster, key.developer, "crm-appinst-cpu", key, stat.cpuTS)
 	metric.AddDoubleVal("cpu", stat.cpu)
-	metric.Timestamp = *stat.cpuTS
 	metrics = append(metrics, metric)
 
-	metric = newMetric(key.operator, key.cloudlet, key.cluster, key.developer, "crm-appinst-mem", key)
+	metric = newMetric(key.operator, key.cloudlet, key.cluster, key.developer, "crm-appinst-mem", key, stat.memTS)
 	metric.AddIntVal("mem", stat.mem)
-	metric.Timestamp = *stat.memTS
 	metrics = append(metrics, metric)
 
-	metric = newMetric(key.operator, key.cloudlet, key.cluster, key.developer, "crm-appinst-disk", key)
+	//use the memTS for now until we get an actual disk query so we can get disk time
+	//metric = newMetric(key.operator, key.cloudlet, key.cluster, key.developer, "crm-appinst-disk", key, stat.diskTS)
+	metric = newMetric(key.operator, key.cloudlet, key.cluster, key.developer, "crm-appinst-disk", key, stat.memTS)
 	metric.AddDoubleVal("disk", stat.disk)
-	metric.Timestamp = *stat.memTS //use the memTS for now until we get an actual disk query so we can get disk time
-	//metric.Timestamp = *stat.diskTS
 	metrics = append(metrics, metric)
 
 	//for measurements with multiple values just pick one timestamp to use
-	metric = newMetric(key.operator, key.cloudlet, key.cluster, key.developer, "crm-appinst-network", key)
+	metric = newMetric(key.operator, key.cloudlet, key.cluster, key.developer, "crm-appinst-network", key, stat.netSendTS)
 	metric.AddIntVal("sendBytes", stat.netSend)
 	metric.AddIntVal("recvBytes", stat.netRecv)
-	metric.Timestamp = *stat.netSendTS
 	metrics = append(metrics, metric)
 
 	return metrics

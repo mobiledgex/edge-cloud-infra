@@ -487,19 +487,14 @@ func PodStatToMetrics(key *MetricAppInstKey, stat *PodPromStat) []*edgeproto.Met
 		metric = newMetric(key.operator, key.cloudlet, key.cluster, key.developer, "crm-appinst-mem", key, stat.memTS)
 		metric.AddIntVal("mem", stat.mem)
 		metrics = append(metrics, metric)
-		//commented out for now until disk gets its own query
-		//stat.memTS = nil
+		stat.memTS = nil
 	}
 
-	//use the memTS for now until we get an actual disk query so we can get disk time
-	//if stat.diskTS != nil {
-	if stat.memTS != nil {
-		//metric = newMetric(key.operator, key.cloudlet, key.cluster, key.developer, "crm-appinst-disk", key, stat.diskTS)
-		metric = newMetric(key.operator, key.cloudlet, key.cluster, key.developer, "crm-appinst-disk", key, stat.memTS)
+	if stat.diskTS != nil {
+		metric = newMetric(key.operator, key.cloudlet, key.cluster, key.developer, "crm-appinst-disk", key, stat.diskTS)
 		metric.AddDoubleVal("disk", stat.disk)
 		metrics = append(metrics, metric)
-		//stat.diskTS = nil
-		stat.memTS = nil
+		stat.diskTS = nil
 	}
 
 	if stat.netSendTS != nil && stat.netRecvTS != nil {

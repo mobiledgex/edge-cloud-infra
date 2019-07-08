@@ -88,7 +88,7 @@ func getInfluxDBAddrForRegion(region string) (string, error) {
 func AppInstMetricsQuery(obj *ormapi.RegionAppInstMetrics) string {
 	arg := influxQueryArgs{
 		Selector:     obj.Selector,
-		Measurement:  "crm-appinst-" + obj.Selector,
+		Measurement:  "appinst-" + obj.Selector,
 		AppInstName:  obj.AppInst.AppKey.Name,
 		CloudletName: obj.AppInst.ClusterInstKey.CloudletKey.Name,
 		ClusterName:  obj.AppInst.ClusterInstKey.ClusterKey.Name,
@@ -120,7 +120,7 @@ func AppInstMetricsQuery(obj *ormapi.RegionAppInstMetrics) string {
 func ClusterMetricsQuery(obj *ormapi.RegionClusterInstMetrics) string {
 	arg := influxQueryArgs{
 		Selector:     obj.Selector,
-		Measurement:  "crm-cluster-" + obj.Selector,
+		Measurement:  "cluster-" + obj.Selector,
 		CloudletName: obj.ClusterInst.CloudletKey.Name,
 		ClusterName:  obj.ClusterInst.ClusterKey.Name,
 		OperatorName: obj.ClusterInst.CloudletKey.OperatorKey.Name,

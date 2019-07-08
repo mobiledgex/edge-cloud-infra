@@ -379,29 +379,29 @@ func ClusterStatToMetrics(ts *types.Timestamp, p *PromStats) []*edgeproto.Metric
 	var metrics []*edgeproto.Metric
 	var metric *edgeproto.Metric
 
-	metric = newMetric(p.operatorName, p.cloudletName, p.clusterName, p.developer, "crm-cluster-cpu", nil, ts)
+	metric = newMetric(p.operatorName, p.cloudletName, p.clusterName, p.developer, "cluster-cpu", nil, ts)
 	metric.AddDoubleVal("cpu", p.clusterStat.cpu)
 	metrics = append(metrics, metric)
 
-	metric = newMetric(p.operatorName, p.cloudletName, p.clusterName, p.developer, "crm-cluster-mem", nil, ts)
+	metric = newMetric(p.operatorName, p.cloudletName, p.clusterName, p.developer, "cluster-mem", nil, ts)
 	metric.AddDoubleVal("mem", p.clusterStat.mem)
 	metrics = append(metrics, metric)
 
-	metric = newMetric(p.operatorName, p.cloudletName, p.clusterName, p.developer, "crm-cluster-disk", nil, ts)
+	metric = newMetric(p.operatorName, p.cloudletName, p.clusterName, p.developer, "cluster-disk", nil, ts)
 	metric.AddDoubleVal("disk", p.clusterStat.disk)
 	metrics = append(metrics, metric)
 
-	metric = newMetric(p.operatorName, p.cloudletName, p.clusterName, p.developer, "crm-cluster-network", nil, ts)
+	metric = newMetric(p.operatorName, p.cloudletName, p.clusterName, p.developer, "cluster-network", nil, ts)
 	metric.AddIntVal("sendBytes", p.clusterStat.netSend)
 	metric.AddIntVal("recvBytes", p.clusterStat.netRecv)
 	metrics = append(metrics, metric)
 
-	metric = newMetric(p.operatorName, p.cloudletName, p.clusterName, p.developer, "crm-cluster-tcp", nil, ts)
+	metric = newMetric(p.operatorName, p.cloudletName, p.clusterName, p.developer, "cluster-tcp", nil, ts)
 	metric.AddIntVal("tcpConns", p.clusterStat.tcpConns)
 	metric.AddIntVal("tcpRetrans", p.clusterStat.tcpRetrans)
 	metrics = append(metrics, metric)
 
-	metric = newMetric(p.operatorName, p.cloudletName, p.clusterName, p.developer, "crm-cluster-udp", nil, ts)
+	metric = newMetric(p.operatorName, p.cloudletName, p.clusterName, p.developer, "cluster-udp", nil, ts)
 	metric.AddIntVal("udpSend", p.clusterStat.udpSend)
 	metric.AddIntVal("udpRecv", p.clusterStat.udpRecv)
 	metric.AddIntVal("udpRecvErr", p.clusterStat.udpRecvErr)
@@ -414,19 +414,19 @@ func PodStatToMetrics(ts *types.Timestamp, key *MetricAppInstKey, stat *PodPromS
 	var metrics []*edgeproto.Metric
 	var metric *edgeproto.Metric
 
-	metric = newMetric(key.operator, key.cloudlet, key.cluster, key.developer, "crm-appinst-cpu", key, ts)
+	metric = newMetric(key.operator, key.cloudlet, key.cluster, key.developer, "appinst-cpu", key, ts)
 	metric.AddDoubleVal("cpu", stat.cpu)
 	metrics = append(metrics, metric)
 
-	metric = newMetric(key.operator, key.cloudlet, key.cluster, key.developer, "crm-appinst-mem", key, ts)
+	metric = newMetric(key.operator, key.cloudlet, key.cluster, key.developer, "appinst-mem", key, ts)
 	metric.AddIntVal("mem", stat.mem)
 	metrics = append(metrics, metric)
 
-	metric = newMetric(key.operator, key.cloudlet, key.cluster, key.developer, "crm-appinst-disk", key, ts)
+	metric = newMetric(key.operator, key.cloudlet, key.cluster, key.developer, "appinst-disk", key, ts)
 	metric.AddDoubleVal("disk", stat.disk)
 	metrics = append(metrics, metric)
 
-	metric = newMetric(key.operator, key.cloudlet, key.cluster, key.developer, "crm-appinst-network", key, ts)
+	metric = newMetric(key.operator, key.cloudlet, key.cluster, key.developer, "appinst-network", key, ts)
 	metric.AddIntVal("sendBytes", stat.netSend)
 	metric.AddIntVal("recvBytes", stat.netRecv)
 	metrics = append(metrics, metric)

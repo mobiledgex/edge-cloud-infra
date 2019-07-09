@@ -34,6 +34,9 @@ localhost	ansible_connection=local vault_vm_hostname=vault.mobiledgex.net vault_
 [crms]
 crm-dev.mobiledgex.net	vault_vm_hostname=vault.mobiledgex.net vault_port=443
 
+[shepherd]
+shepherd-dev.mobiledgex.net	vault_vm_hostname=vault.mobiledgex.net vault_port=443
+
 [mc]
 mc-dev.mobiledgex.net	
 

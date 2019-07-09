@@ -477,21 +477,21 @@ func PodStatToMetrics(key *MetricAppInstKey, stat *PodPromStat) []*edgeproto.Met
 	var metric *edgeproto.Metric
 
 	if stat.cpuTS != nil {
-		metric = newMetric(key.operator, key.cloudlet, key.cluster, key.developer, "crm-appinst-cpu", key, stat.cpuTS)
+		metric = newMetric(key.operator, key.cloudlet, key.cluster, key.developer, "appinst-cpu", key, stat.cpuTS)
 		metric.AddDoubleVal("cpu", stat.cpu)
 		metrics = append(metrics, metric)
 		stat.cpuTS = nil
 	}
 
 	if stat.memTS != nil {
-		metric = newMetric(key.operator, key.cloudlet, key.cluster, key.developer, "crm-appinst-mem", key, stat.memTS)
+		metric = newMetric(key.operator, key.cloudlet, key.cluster, key.developer, "appinst-mem", key, stat.memTS)
 		metric.AddIntVal("mem", stat.mem)
 		metrics = append(metrics, metric)
 		stat.memTS = nil
 	}
 
 	if stat.diskTS != nil {
-		metric = newMetric(key.operator, key.cloudlet, key.cluster, key.developer, "crm-appinst-disk", key, stat.diskTS)
+		metric = newMetric(key.operator, key.cloudlet, key.cluster, key.developer, "appinst-disk", key, stat.diskTS)
 		metric.AddDoubleVal("disk", stat.disk)
 		metrics = append(metrics, metric)
 		stat.diskTS = nil
@@ -499,7 +499,7 @@ func PodStatToMetrics(key *MetricAppInstKey, stat *PodPromStat) []*edgeproto.Met
 
 	if stat.netSendTS != nil && stat.netRecvTS != nil {
 		//for measurements with multiple values just pick one timestamp to use
-		metric = newMetric(key.operator, key.cloudlet, key.cluster, key.developer, "crm-appinst-network", key, stat.netSendTS)
+		metric = newMetric(key.operator, key.cloudlet, key.cluster, key.developer, "appinst-network", key, stat.netSendTS)
 		metric.AddIntVal("sendBytes", stat.netSend)
 		metric.AddIntVal("recvBytes", stat.netRecv)
 		metrics = append(metrics, metric)

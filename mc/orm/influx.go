@@ -185,7 +185,7 @@ func metricsStream(rc *InfluxDBContext, dbQuery string, cb func(Data interface{}
 // Function validates the selector passed, we support several selectors: cpu, mem, disk, net
 // TODO: check for specific strings for now.
 //       Right now we don't support "*", or multiple selectors - EDGECLOUD-940
-func validateSelector(selector string) bool {
+func validateClusterSelector(selector string) bool {
 	switch selector {
 	case "cpu":
 		fallthrough
@@ -198,6 +198,20 @@ func validateSelector(selector string) bool {
 	case "tcp":
 		fallthrough
 	case "udp":
+		return true
+	}
+	return false
+}
+
+func validateAppSelector(selector string) bool {
+	switch selector {
+	case "cpu":
+		fallthrough
+	case "mem":
+		fallthrough
+	case "disk":
+		fallthrough
+	case "network":
 		return true
 	}
 	return false
@@ -225,8 +239,8 @@ func GetMetricsCommon(c echo.Context) error {
 		}
 		rc.region = in.Region
 		org = in.AppInst.AppKey.DeveloperKey.Name
-		if !validateSelector(in.Selector) {
-			return c.JSON(http.StatusBadRequest, Msg("Invalid Selector passed in"))
+		if !validateAppSelector(in.Selector) {
+			return c.JSON(http.StatusBadRequest, Msg("Invalid selector in a request"))
 		}
 		cmd = AppInstMetricsQuery(&in)
 	} else if strings.HasSuffix(c.Path(), "metrics/cluster") {
@@ -240,8 +254,8 @@ func GetMetricsCommon(c echo.Context) error {
 		}
 		rc.region = in.Region
 		org = in.ClusterInst.Developer
-		if !validateSelector(in.Selector) {
-			return c.JSON(http.StatusBadRequest, Msg("Invalid Selector passed in"))
+		if !validateClusterSelector(in.Selector) {
+			return c.JSON(http.StatusBadRequest, Msg("Invalid selector in a request"))
 		}
 		cmd = ClusterMetricsQuery(&in)
 	} else {

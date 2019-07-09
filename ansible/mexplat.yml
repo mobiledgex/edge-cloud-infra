@@ -132,7 +132,8 @@
         name: docker
     - include_role:
         name: shepherd
-      with_items: "{{ shepherd_instances }}"
+      # Same as CRMs - don't need anything extra
+      with_items: "{{ crm_instances }}"
 
 - hosts: mc
   roles:

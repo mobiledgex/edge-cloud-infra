@@ -172,7 +172,8 @@ func metricsStream(rc *InfluxDBContext, dbQuery string, cb func(Data interface{}
 	if err != nil {
 		log.DebugLog(log.DebugLevelMetrics, "InfluxDB query failed",
 			"query", query, "resp", resp, "err", err)
-		return err
+		// We return a different error, as we don't want to expose a URL-encoded query to influxDB
+		return fmt.Errorf("Connection to InfluxDB failed")
 	}
 	if resp.Error() != nil {
 		return resp.Error()
@@ -265,7 +266,6 @@ func GetMetricsCommon(c echo.Context) error {
 	})
 	if err != nil {
 		if st, ok := status.FromError(err); ok {
-			// TODO: Change the message not to show influxdb query
 			err = fmt.Errorf("%s", st.Message())
 		}
 		if !wroteHeader {

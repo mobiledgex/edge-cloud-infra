@@ -1,0 +1,5 @@
+crm_instances:
+- cloudlet_name: "{{ deploy_target }}-buckhorn-cloudlet"
+  openstack_instance: buckhorn
+  operator_key: GDDT
+  controller_region: US

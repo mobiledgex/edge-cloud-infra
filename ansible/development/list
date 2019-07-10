@@ -38,7 +38,7 @@ crm-dev.mobiledgex.net	vault_vm_hostname=vault.mobiledgex.net vault_port=443
 shepherd-dev.mobiledgex.net	vault_vm_hostname=vault.mobiledgex.net vault_port=443
 
 [mc]
-mc-dev.mobiledgex.net	
+mc-dev.mobiledgex.net
 
 [gitlab]
 gitlab-dev.mobiledgex.net

@@ -1,0 +1,5 @@
+crm_instances:
+- cloudlet_name: "{{ deploy_target }}-bonn-cloudlet"
+  openstack_instance: bonn
+  operator_key: TDG
+  controller_region: US

@@ -124,15 +124,7 @@
         name: docker
     - include_role:
         name: crm
-      with_items: "{{ crm_instances }}"
-
-- hosts: shepherds
-  tasks:
-    - import_role:
-        name: docker
-    - include_role:
         name: shepherd
-      # Same as CRMs - don't need anything extra
       with_items: "{{ crm_instances }}"
 
 - hosts: mc

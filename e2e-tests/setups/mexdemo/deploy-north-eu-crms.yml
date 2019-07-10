@@ -15,15 +15,15 @@ crms:
     servercert: "{{tlsoutdir}}/mex-server.crt"
     clientcert: "{{tlsoutdir}}/mex-client.crt"
   hostname: "{{vm1_external_ip}}"
-  dockerimage: registry.mobiledgex.net:5000/mobiledgex/edge-cloud:2019-05-14
+  physicalname: hamburg
+  vaultaddr: vault.mobiledgex.net
+  notifysrvaddr: "0.0.0.0:51091"
+  dockerimage: registry.mobiledgex.net:5000/mobiledgex/edge-cloud:2019-07-09
   envvars:
-    OPENRC_URL: https://vault.mobiledgex.net/v1/secret/data/cloudlet/openstack/hamburg/openrc.json
-    MEXENV_URL: https://vault.mobiledgex.net/v1/secret/data/cloudlet/openstack/mexenv.json
-    CLOUDLET_KIND: openstack
-    PLATFORM: openstack
     MEX_EXT_NETWORK: external-network-shared
     VAULT_ROLE_ID: "{{crm_vault_role_id}}"
     VAULT_SECRET_ID: "{{crm_vault_secret_id}}"
+
 
 - name: crm-berlin
   apiaddr: "0.0.0.0:55092"
@@ -33,15 +33,15 @@ crms:
     servercert: "{{tlsoutdir}}/mex-server.crt"
     clientcert: "{{tlsoutdir}}/mex-client.crt"
   hostname: "{{vm1_external_ip}}"
-  dockerimage: registry.mobiledgex.net:5000/mobiledgex/edge-cloud:2019-05-14
+  physicalname: berlin
+  vaultaddr: vault.mobiledgex.net
+  notifysrvaddr: "0.0.0.0:51092"
+  dockerimage: registry.mobiledgex.net:5000/mobiledgex/edge-cloud:2019-07-09
   envvars:
-    OPENRC_URL: https://vault.mobiledgex.net/v1/secret/data/cloudlet/openstack/berlin/openrc.json
-    MEXENV_URL: https://vault.mobiledgex.net/v1/secret/data/cloudlet/openstack/mexenv.json
-    CLOUDLET_KIND: openstack
-    PLATFORM: openstack
     MEX_EXT_NETWORK: external-network-shared
     VAULT_ROLE_ID: "{{crm_vault_role_id}}"
     VAULT_SECRET_ID: "{{crm_vault_secret_id}}"
+
 
 - name: crm-frankfurt
   apiaddr: "0.0.0.0:55093"
@@ -51,15 +51,15 @@ crms:
     servercert: "{{tlsoutdir}}/mex-server.crt"
     clientcert: "{{tlsoutdir}}/mex-client.crt"
   hostname: "{{vm1_external_ip}}"
-  dockerimage: registry.mobiledgex.net:5000/mobiledgex/edge-cloud:2019-05-14
+  physicalname: frankfurt
+  vaultaddr: vault.mobiledgex.net
+  notifysrvaddr: "0.0.0.0:51093"
+  dockerimage: registry.mobiledgex.net:5000/mobiledgex/edge-cloud:2019-07-09
   envvars:
-    OPENRC_URL: https://vault.mobiledgex.net/v1/secret/data/cloudlet/openstack/frankfurt/openrc.json
-    MEXENV_URL: https://vault.mobiledgex.net/v1/secret/data/cloudlet/openstack/mexenv.json
-    CLOUDLET_KIND: openstack
-    PLATFORM: openstack
     MEX_EXT_NETWORK: external-network-shared
     VAULT_ROLE_ID: "{{crm_vault_role_id}}"
     VAULT_SECRET_ID: "{{crm_vault_secret_id}}"
+
 
 - name: crm-munich
   apiaddr: "0.0.0.0:55094"
@@ -69,15 +69,16 @@ crms:
     servercert: "{{tlsoutdir}}/mex-server.crt"
     clientcert: "{{tlsoutdir}}/mex-client.crt"
   hostname: "{{vm1_external_ip}}"
-  dockerimage: registry.mobiledgex.net:5000/mobiledgex/edge-cloud:2019-05-14
+  physicalname: munich
+  vaultaddr: vault.mobiledgex.net
+  notifysrvaddr: "0.0.0.0:51094"
+  dockerimage: registry.mobiledgex.net:5000/mobiledgex/edge-cloud:2019-07-09
   envvars:
-    OPENRC_URL: https://vault.mobiledgex.net/v1/secret/data/cloudlet/openstack/munich/openrc.json
-    MEXENV_URL: https://vault.mobiledgex.net/v1/secret/data/cloudlet/openstack/mexenv.json
-    CLOUDLET_KIND: openstack
-    PLATFORM: openstack
     MEX_EXT_NETWORK: external-network-shared
     VAULT_ROLE_ID: "{{crm_vault_role_id}}"
     VAULT_SECRET_ID: "{{crm_vault_secret_id}}"
+
+
 
 - name: crm-bonn
   apiaddr: "0.0.0.0:55095"
@@ -87,12 +88,12 @@ crms:
     servercert: "{{tlsoutdir}}/mex-server.crt"
     clientcert: "{{tlsoutdir}}/mex-client.crt"
   hostname: "{{vm1_external_ip}}"
-  dockerimage: registry.mobiledgex.net:5000/mobiledgex/edge-cloud:2019-05-14
+  physicalname: bonn
+  vaultaddr: vault.mobiledgex.net
+  notifysrvaddr: "0.0.0.0:51095"
+  dockerimage: registry.mobiledgex.net:5000/mobiledgex/edge-cloud:2019-07-09
   envvars:
-    OPENRC_URL: https://vault.mobiledgex.net/v1/secret/data/cloudlet/openstack/bonn/openrc.json
-    MEXENV_URL: https://vault.mobiledgex.net/v1/secret/data/cloudlet/openstack/mexenv.json
-    CLOUDLET_KIND: openstack
-    PLATFORM: openstack
     MEX_EXT_NETWORK: external-network-shared
     VAULT_ROLE_ID: "{{crm_vault_role_id}}"
     VAULT_SECRET_ID: "{{crm_vault_secret_id}}"
+

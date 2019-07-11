@@ -1,6 +1,6 @@
 pipeline {
     options {
-        timeout(time: 45, unit: 'MINUTES')
+        timeout(time: 60, unit: 'MINUTES')
     }
     agent any
     stages {
@@ -66,7 +66,7 @@ make
         }
         stage('Test') {
             options {
-                timeout(time: 20, unit: 'MINUTES')
+                timeout(time: 40, unit: 'MINUTES')
             }
             steps {
                 lock('testbed') {

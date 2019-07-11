@@ -64,6 +64,36 @@ make
                 }
             }
         }
+        stage('Test') {
+            options {
+                timeout(time: 20, unit: 'MINUTES')
+            }
+            steps {
+                lock('testbed') {
+                    retry(2) {
+                        sleep 10
+                        dir(path: 'go/src/github.com/mobiledgex/edge-cloud-infra') {
+                            sh label: 'unit tests', script: '''#!/bin/bash
+export PATH=$PATH:$HOME/go/bin:$WORKSPACE/go/bin:/usr/lib/postgresql/11/bin
+export GOPATH=$WORKSPACE/go
+export GO111MODULE=on
+make unit-test
+                            '''
+                        }
+                    }
+                    retry(2) {
+                        sleep 10
+                        dir(path: 'go/src/github.com/mobiledgex/edge-cloud-infra') {
+                            sh label: 'make test', script: '''#!/bin/bash
+export PATH=$PATH:$HOME/go/bin:$WORKSPACE/go/bin:/usr/lib/postgresql/11/bin
+export GOPATH=$WORKSPACE/go
+make test
+                            '''
+                        }
+                    }
+                }
+            }
+        }
         stage('Notify') {
             when {
                 changeRequest()

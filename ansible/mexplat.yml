@@ -124,6 +124,8 @@
         name: docker
     - include_role:
         name: crm
+      with_items: "{{ crm_instances }}"
+    - include_role:
         name: shepherd
       with_items: "{{ crm_instances }}"
 

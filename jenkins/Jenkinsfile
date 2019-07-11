@@ -1,6 +1,6 @@
 pipeline {
     options {
-        timeout(time: 30, unit: 'MINUTES')
+        timeout(time: 45, unit: 'MINUTES')
     }
     agent any
     stages {
@@ -81,6 +81,7 @@ make unit-test
                             '''
                         }
                     }
+                    sleep 60
                     retry(2) {
                         sleep 10
                         dir(path: 'go/src/github.com/mobiledgex/edge-cloud-infra') {

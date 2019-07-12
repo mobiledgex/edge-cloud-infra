@@ -84,7 +84,11 @@ MAIN_VAULT="${MAIN_ANSIBLE_VAULT_PREFIX}-${ENVIRON}.yml"
 [[ -f "$MAIN_VAULT" ]] && ARGS+=( -e "@${MAIN_VAULT}" )
 
 # Add personal ansible vault to command line, if present
-[[ -f "$PERSONAL_ANSIBLE_VAULT" ]] && ARGS+=( -e "@${PERSONAL_ANSIBLE_VAULT}" )
+if [[ -f "$PERSONAL_ANSIBLE_VAULT" ]]; then
+	ARGS+=( -e "@${PERSONAL_ANSIBLE_VAULT}" )
+elif [[ -f "${HOME}/${PERSONAL_ANSIBLE_VAULT}" ]]; then
+	ARGS+=( -e "@${HOME}/${PERSONAL_ANSIBLE_VAULT}" )
+fi
 
 # Limit to specified target
 [[ -n "$TARGET" ]] && ARGS+=( -l "$TARGET" )

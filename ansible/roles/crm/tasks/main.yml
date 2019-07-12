@@ -5,6 +5,8 @@
 
 - set_fact:
     controller_name: "{{ (k8s_clusters | selectattr('region', 'equalto', item.controller_region) | list | first).name }}"
+    api_port: "{{ api_port_start + crm_index }}"
+    notify_srv_port: "{{ notify_srv_port_start + crm_index }}"
 
 - assert:
     that:
@@ -22,14 +24,21 @@
     - item.crm_name is not defined
 
 - debug:
-    msg: "Deploying {{ crm_name }} (cloudlet name: {{ item.cloudlet_name }})"
+    msg: |
+      Deploying {{ crm_name }}
+       - cloudlet name: {{ item.cloudlet_name }}
+       - controller name: {{ controller_name }}
+       - api port: {{ api_port }}
+       - notify srv port: {{ notify_srv_port }}
 
 - name: Compute CRM command line
   set_fact:
     crm_args:
       - crmserver
       - "--apiAddr"
-      - "0.0.0.0:{{ crm_api_port }}"
+      - "0.0.0.0:{{ api_port }}"
+      - "--notifySrvAddr"
+      - "0.0.0.0:{{ notify_srv_port }}"
       - "--cloudletKey"
       - "{\\\"operator_key\\\":{\\\"name\\\":\\\"{{ item.operator_key | mandatory }}\\\"},\\\"name\\\":\\\"{{ item.cloudlet_name }}\\\"}"
       - "--vaultAddr"
@@ -50,6 +59,7 @@
   docker_container:
     name: "{{ crm_name }}"
     image: "{{ edge_cloud_image }}:{{ edge_cloud_version }}"
+    network_mode: host
     restart_policy: unless-stopped
     command: "{{ crm_args }}"
     env:
@@ -58,3 +68,19 @@
       VAULT_ROLE_ID: "{{ crm_vault_app_role.role_id }}"
       VAULT_SECRET_ID: "{{ crm_vault_app_role.secret_id }}"
       MEX_SECURITY_GROUP: "{{ item.mex_security_group | default(mex_security_group) }}"
+
+- name: Verify that the API port is accessible
+  wait_for:
+    host: "{{ (ansible_ssh_host|default(ansible_host))|default(inventory_hostname) }}"
+    port: "{{ api_port }}"
+    timeout: 60
+  vars:
+    ansible_connection: local
+
+- name: Verify that the notify srv port is accessible
+  wait_for:
+    host: "{{ (ansible_ssh_host|default(ansible_host))|default(inventory_hostname) }}"
+    port: "{{ notify_srv_port }}"
+    timeout: 5
+  vars:
+    ansible_connection: local

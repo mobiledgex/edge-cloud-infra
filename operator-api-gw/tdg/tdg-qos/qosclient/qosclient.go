@@ -85,8 +85,6 @@ func GetQOSPositionKPIFromApiGW(serverUrl string, mreq *dme.QosPositionKpiReques
 	request.Requestid = nextRequestId
 	nextRequestId++
 
-	//TODO: currently we are connecting to the GW for every request.
-	// Should we keep the connection up or might it time out anyway?
 	qosClient := tdgproto.NewQueryQoSClient(conn)
 	stream, err := qosClient.QueryQoSKPI(ctx, &request)
 	stream.CloseSend()

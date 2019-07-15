@@ -13,7 +13,6 @@ gitlab_address: https://container-registry.mobiledgex.net
 artifactory_address: https://artifactory.mobiledgex.net/artifactory
 gitlab_config_path: /etc/gitlab/gitlab.rb
 etcd_opetator_crd: etcdclusters.etcd.database.coreos.com
-crm_api_port: 55091
 mc_api_port: 9900
 mc_api_internal_port: 19900
 mc_ldap_port: 9389

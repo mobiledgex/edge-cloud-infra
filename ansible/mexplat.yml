@@ -124,10 +124,14 @@
         name: docker
     - include_role:
         name: crm
-      with_items: "{{ crm_instances }}"
+      loop: "{{ crm_instances }}"
+      loop_control:
+        index_var: crm_index
     - include_role:
         name: shepherd
-      with_items: "{{ crm_instances }}"
+      loop: "{{ crm_instances }}"
+      loop_control:
+        index_var: crm_index
 
 - hosts: mc
   roles:

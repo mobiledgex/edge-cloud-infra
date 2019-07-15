@@ -15,6 +15,9 @@
     - deploy_environ != 'main'
     - deploy_environ != 'prod'
 ###
+- set_fact:
+    notify_port: "{{ notify_srv_port_start + crm_index }}"
+
 # Compute Shepherd and CRM names
 - set_fact:
     crm_name: "{{ item.crm_name }}"
@@ -45,7 +48,7 @@
       - "https://{{ influxdb_dns }}.{{ cloudflare_zone }}:8086"
       # notifyAddr is derived from crm name, since crm and shepherd run as two docker containers on the same host
       - "--notifyAddrs"
-      - "{{ crm_name }}.crm.mobiledgex.net:{{ crm_srv_notify_notify_port }}"
+      - "{{ crm_name }}.crm.mobiledgex.net:{{ notify_port }}"
       - "--tls"
       - "/root/tls/mex-server.crt"
       - "--platform"

@@ -12,6 +12,12 @@ crm_instances:
     operator_key: TDG
     controller_region: US
 
+  - cloudlet_name: "{{ deploy_target }}-frankfurt-cloudlet"
+    crm_name: "crm-{{ deploy_target }}-frankfurt"
+    openstack_instance: frankfurt
+    operator_key: TDG
+    controller_region: US
+
   # QA fake cloudlets
 
   - cloudlet_name: tmocloud-1

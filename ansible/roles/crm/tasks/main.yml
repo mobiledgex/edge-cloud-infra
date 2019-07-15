@@ -67,3 +67,11 @@
     connected:
       - "{{ crm_name }}"
     appends: yes
+
+- name: Update network with alias for cert validation
+  docker_container:
+    name: "{{ crm_name }}"
+    networks:
+      - name: "{{ mex_docker_network }}"
+        aliases:
+          - "{{ crm_name }}.crm.mobiledgex.net"

@@ -12,6 +12,12 @@ crm_instances:
     operator_key: GDDT
     controller_region: US
 
+  - cloudlet_name: "{{ deploy_target }}-fairview-cloudlet"
+    crm_name: "crm-{{ deploy_target }}-fairview"
+    openstack_instance: fairview
+    operator_key: GDDT
+    controller_region: US
+
   # QA fake cloudlets
 
   - cloudlet_name: tmocloud-1

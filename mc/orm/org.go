@@ -70,6 +70,7 @@ func CreateOrgObj(claims *UserClaims, org *ormapi.Organization) error {
 	gitlabAddGroupMember(&r)
 
 	artifactoryCreateGroupObjects(org.Name)
+	artifactoryAddUserToGroup(&r)
 
 	return nil
 }

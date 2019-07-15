@@ -294,6 +294,7 @@ func AddUserRoleObj(claims *UserClaims, role *ormapi.Role) error {
 	}
 
 	gitlabAddGroupMember(role)
+	artifactoryAddUserToGroup(role)
 	return nil
 }
 
@@ -337,6 +338,8 @@ func RemoveUserRoleObj(claims *UserClaims, role *ormapi.Role) error {
 	enforcer.RemoveGroupingPolicy(psub, role.Role)
 
 	gitlabRemoveGroupMember(role)
+	artifactoryRemoveUserFromGroup(role)
+
 	return nil
 }
 

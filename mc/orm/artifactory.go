@@ -8,6 +8,7 @@ import (
 	"github.com/atlassian/go-artifactory/v2/artifactory/transport"
 	"github.com/atlassian/go-artifactory/v2/artifactory/v1"
 	rtf "github.com/mobiledgex/edge-cloud-infra/artifactory"
+	"github.com/mobiledgex/edge-cloud-infra/mc/ormapi"
 	"github.com/mobiledgex/edge-cloud/log"
 )
 
@@ -28,12 +29,28 @@ func artifactoryClient() (*artifactory.Artifactory, error) {
 	return client, nil
 }
 
+func getArtifactoryUserPrefix() string {
+	return serverConfig.Tag + "-user-"
+}
+
+func getArtifactoryGroupPrefix() string {
+	return serverConfig.Tag + "-group-"
+}
+
 func getArtifactoryRepoPrefix() string {
 	return serverConfig.Tag + "-repo-"
 }
 
 func getArtifactoryPermPrefix() string {
 	return serverConfig.Tag + "-perm-"
+}
+
+func getArtifactoryUserName(userName string) string {
+	return getArtifactoryUserPrefix() + userName
+}
+
+func getArtifactoryGroupName(orgName string) string {
+	return getArtifactoryGroupPrefix() + orgName
 }
 
 func getArtifactoryRepoName(orgName string) string {
@@ -44,8 +61,136 @@ func getArtifactoryPermName(orgName string) string {
 	return getArtifactoryPermPrefix() + orgName
 }
 
-func getArtifactoryRealmAttr(orgName string) string {
-	return "ldapGroupName=" + strings.ToLower(orgName) + ";groupsStrategy=STATIC;groupDn=cn=" + orgName + ",ou=orgs,dc=" + serverConfig.Tag
+func artifactoryListUsers() (map[string]bool, error) {
+	client, err := artifactoryClient()
+	if err != nil {
+		return nil, err
+	}
+	users, _, err := client.V1.Security.ListUsers(context.Background())
+	if err != nil {
+		return nil, err
+	}
+	tmp := make(map[string]bool)
+	for _, user := range *users {
+		userName := *user.Name
+		if strings.HasPrefix(userName, getArtifactoryUserPrefix()) {
+			tmp[userName] = true
+		}
+	}
+	return tmp, nil
+}
+
+func artifactoryListUserGroups(userName string) (map[string]bool, error) {
+	client, err := artifactoryClient()
+	if err != nil {
+		return nil, err
+	}
+
+	tmp := make(map[string]bool)
+	userInfo, _, err := client.V1.Security.GetUser(context.Background(), userName)
+	if err == nil && userInfo.Groups != nil {
+		for _, group := range *userInfo.Groups {
+			tmp[group] = true
+		}
+	}
+	return tmp, nil
+}
+
+func artifactoryCreateUser(user *ormapi.User, groups *[]string) {
+	client, err := artifactoryClient()
+	userName := getArtifactoryUserName(user.Name)
+	if err == nil {
+		rtfUser := v1.User{
+			Name:             artifactory.String(userName),
+			Email:            artifactory.String(user.Email),
+			Password:         artifactory.String(user.Passhash),
+			ProfileUpdatable: artifactory.Bool(false),
+			Groups:           groups,
+		}
+		_, err = client.V1.Security.CreateOrReplaceUser(context.Background(), userName, &rtfUser)
+	}
+	if err != nil {
+		log.DebugLog(log.DebugLevelApi, "artifactory create user",
+			"user", userName, "err", err)
+		artifactorySync.NeedsSync()
+		return
+	}
+}
+
+func artifactoryDeleteUser(name string) {
+	client, err := artifactoryClient()
+	userName := getArtifactoryUserName(name)
+	if err == nil {
+		_, _, err = client.V1.Security.DeleteUser(context.Background(), userName)
+	}
+	if err != nil {
+		if strings.Contains(err.Error(), "Status:404") {
+			log.DebugLog(log.DebugLevelApi, "artifactory delete user",
+				"user", userName, "err", "user does not exists")
+			return
+		}
+		log.DebugLog(log.DebugLevelApi, "artifactory delete user",
+			"user", userName, "err", err)
+		artifactorySync.NeedsSync()
+		return
+	}
+}
+
+func artifactoryAddUserToGroup(role *ormapi.Role) {
+	client, err := artifactoryClient()
+	userName := getArtifactoryUserName(role.Username)
+	orgName := getArtifactoryGroupName(role.Org)
+	if err == nil {
+		var userInfo *v1.User
+		userInfo, _, err = client.V1.Security.GetUser(context.Background(), userName)
+		if err == nil {
+			var groups []string
+			if userInfo.Groups != nil {
+				groups = *userInfo.Groups
+			}
+			groups = append(groups, orgName)
+			rtfUser := v1.User{
+				Name:   artifactory.String(userName),
+				Groups: &groups,
+			}
+			_, err = client.V1.Security.UpdateUser(context.Background(), userName, &rtfUser)
+		}
+	}
+	if err != nil {
+		log.DebugLog(log.DebugLevelApi, "artifactory add user to group",
+			"user", userName, "group", orgName, "err", err)
+		artifactorySync.NeedsSync()
+		return
+	}
+}
+
+func artifactoryRemoveUserFromGroup(role *ormapi.Role) {
+	client, err := artifactoryClient()
+	userName := getArtifactoryUserName(role.Username)
+	orgName := getArtifactoryGroupName(role.Org)
+	if err == nil {
+		var userInfo *v1.User
+		userInfo, _, err = client.V1.Security.GetUser(context.Background(), userName)
+		if err == nil && userInfo.Groups != nil {
+			var groups []string
+			for _, group := range *userInfo.Groups {
+				if group != orgName {
+					groups = append(groups, group)
+				}
+			}
+			rtfUser := v1.User{
+				Name:   artifactory.String(userName),
+				Groups: &groups,
+			}
+			_, err = client.V1.Security.UpdateUser(context.Background(), userName, &rtfUser)
+		}
+	}
+	if err != nil {
+		log.DebugLog(log.DebugLevelApi, "artifactory remove user from group",
+			"user", userName, "err", err)
+		artifactorySync.NeedsSync()
+		return
+	}
 }
 
 func artifactoryListGroups() (map[string]bool, error) {
@@ -60,26 +205,22 @@ func artifactoryListGroups() (map[string]bool, error) {
 	tmp := make(map[string]bool)
 	for _, group := range *groups {
 		groupName := *group.Name
-		groupInfo, _, err := client.V1.Security.GetGroup(context.Background(), groupName)
-		if err == nil && *groupInfo.Realm == "ldap" {
-			if *groupInfo.RealmAttributes == getArtifactoryRealmAttr(groupName) {
-				tmp[groupName] = true
-			}
+		if strings.HasPrefix(groupName, getArtifactoryGroupPrefix()) {
+			tmp[groupName] = true
 		}
 	}
 	return tmp, nil
 }
 
-func artifactoryCreateGroup(groupName string) error {
+func artifactoryCreateGroup(orgName string) error {
 	client, err := artifactoryClient()
 	if err != nil {
 		return err
 	}
+	groupName := getArtifactoryGroupName(orgName)
 	group := v1.Group{
-		Name:            artifactory.String(groupName),
-		Description:     artifactory.String("Group maintained by master-controller"),
-		Realm:           artifactory.String("ldap"),
-		RealmAttributes: artifactory.String(getArtifactoryRealmAttr(groupName)),
+		Name:        artifactory.String(groupName),
+		Description: artifactory.String("Group maintained by master-controller"),
 	}
 	_, err = client.V1.Security.CreateOrReplaceGroup(context.Background(), groupName, &group)
 	if err != nil {
@@ -89,11 +230,12 @@ func artifactoryCreateGroup(groupName string) error {
 	return err
 }
 
-func artifactoryDeleteGroup(groupName string) error {
+func artifactoryDeleteGroup(orgName string) error {
 	client, err := artifactoryClient()
 	if err != nil {
 		return err
 	}
+	groupName := getArtifactoryGroupName(orgName)
 	_, _, err = client.V1.Security.DeleteGroup(context.Background(), groupName)
 	if err != nil {
 		if strings.Contains(err.Error(), "Status:404") {
@@ -195,7 +337,7 @@ func artifactoryCreateRepoPerms(orgName string) error {
 	if err != nil {
 		return err
 	}
-	groupName := orgName
+	groupName := getArtifactoryGroupName(orgName)
 	repoName := getArtifactoryRepoName(orgName)
 	permTargetName := getArtifactoryPermName(orgName)
 	// create permission target

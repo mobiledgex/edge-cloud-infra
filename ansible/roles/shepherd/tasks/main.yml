@@ -16,7 +16,7 @@
     - deploy_environ != 'prod'
 ###
 - set_fact:
-    notify_port: "{{ notify_srv_port_start + crm_index }}"
+    notify_port: "{{ notify_port_start + crm_index }}"
 
 # Compute Shepherd and CRM names
 - set_fact:
@@ -48,7 +48,7 @@
       - "https://{{ influxdb_dns }}.{{ cloudflare_zone }}:8086"
       # notifyAddr is derived from crm name, since crm and shepherd run as two docker containers on the same host
       - "--notifyAddrs"
-      - "{{ crm_name }}.crm.mobiledgex.net:{{ notify_port }}"
+      - "localhost:{{ notify_port }}"
       - "--tls"
       - "/root/tls/mex-server.crt"
       - "--platform"
@@ -71,15 +71,10 @@
   docker_container:
     name: "{{ shepherd_name }}"
     image: "{{ edge_cloud_image }}:{{ edge_cloud_version }}"
+    network_mode: host
     restart_policy: unless-stopped
     command: "{{ shepherd_args }}"
     env:
       VAULT_ROLE_ID: "{{ shepherd_vault_app_role.role_id }}"
       VAULT_SECRET_ID: "{{ shepherd_vault_app_role.secret_id }}"
 
-- name: Add Shepherd to docker network
-  docker_network:
-    name: "{{ mex_docker_network }}"
-    connected:
-      - "{{ shepherd_name }}"
-    appends: yes

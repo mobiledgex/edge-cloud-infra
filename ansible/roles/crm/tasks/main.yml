@@ -86,18 +86,3 @@
     timeout: 5
   vars:
     ansible_connection: local
-
-- name: Add CRM to docker network
-  docker_network:
-    name: "{{ mex_docker_network }}"
-    connected:
-      - "{{ crm_name }}"
-    appends: yes
-
-- name: Update network with alias for cert validation
-  docker_container:
-    name: "{{ crm_name }}"
-    networks:
-      - name: "{{ mex_docker_network }}"
-        aliases:
-          - "{{ crm_name }}.crm.mobiledgex.net"

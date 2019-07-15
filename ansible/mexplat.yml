@@ -2,7 +2,6 @@
 - name: Ensure edge cloud version is set
   hosts:
     - crms
-    - shepherds
     - mc
   gather_facts: no
   tasks:

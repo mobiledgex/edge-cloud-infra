@@ -37,7 +37,7 @@
       - "--notifyAddrs"
       - "{{ controller_name }}.ctrl.{{ cloudflare_zone }}:37001"
       - "--notifySrvAddr"
-      - 0.0.0.0:{{ crm_srv_notify_notify_port }}"
+      - "0.0.0.0:{{ crm_srv_notify_notify_port }}"
       - "--tls"
       - "/root/tls/mex-server.crt"
       - "-d"

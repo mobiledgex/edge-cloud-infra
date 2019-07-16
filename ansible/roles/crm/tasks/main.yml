@@ -37,8 +37,6 @@
       - crmserver
       - "--apiAddr"
       - "0.0.0.0:{{ api_port }}"
-      - "--notifySrvAddr"
-      - "0.0.0.0:{{ notify_srv_port }}"
       - "--cloudletKey"
       - "{\\\"operator_key\\\":{\\\"name\\\":\\\"{{ item.operator_key | mandatory }}\\\"},\\\"name\\\":\\\"{{ item.cloudlet_name }}\\\"}"
       - "--vaultAddr"

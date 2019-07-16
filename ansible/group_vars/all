@@ -2,7 +2,6 @@ ansible_python_interpreter: python3
 mex_docker_registry: registry.mobiledgex.net:5000
 mex_docker_username: mobiledgex
 mex_docker_password: sandhill
-mex_docker_network: notify_net
 edge_cloud_image: "{{ mex_docker_registry }}/mobiledgex/edge-cloud"
 monitor_image: "{{ mex_docker_registry }}/mobiledgex/monitor"
 mex_ops_email: mobiledgex.ops@mobiledgex.com

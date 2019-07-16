@@ -46,7 +46,7 @@
       - shepherd
       - "--influxAddr"
       - "https://{{ influxdb_dns }}.{{ cloudflare_zone }}:8086"
-      # notifyAddr is derived from crm name, since crm and shepherd run as two docker containers on the same host
+      # notifyAddr is localhost because use use host networking for docker containers
       - "--notifyAddrs"
       - "localhost:{{ notify_port }}"
       - "--tls"

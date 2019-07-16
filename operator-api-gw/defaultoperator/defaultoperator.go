@@ -1,20 +1,18 @@
 package defaultoperator
 
 import (
+	"fmt"
+
 	simulatedqos "github.com/mobiledgex/edge-cloud-infra/operator-api-gw/defaultoperator/simulated-qos"
 	dmecommon "github.com/mobiledgex/edge-cloud/d-match-engine/dme-common"
 	dme "github.com/mobiledgex/edge-cloud/d-match-engine/dme-proto"
+	operator "github.com/mobiledgex/edge-cloud/d-match-engine/operator"
 	"github.com/mobiledgex/edge-cloud/log"
-
-	"fmt"
 )
 
 //OperatorApiGw respresent an Operator API Gateway
 type OperatorApiGw struct {
-	VaultAddr string
-	QosPosUrl string
-	LocVerUrl string
-	TokSrvUrl string
+	Servers *operator.OperatorApiGwServers
 }
 
 func (OperatorApiGw) GetOperatorName() string {
@@ -22,12 +20,9 @@ func (OperatorApiGw) GetOperatorName() string {
 }
 
 // Init is called once during startup.
-func (o *OperatorApiGw) Init(operatorName, vaultAddr, qosPosUrl, locVerUrl, tokSrvUrl string) error {
-	log.DebugLog(log.DebugLevelDmereq, "init for default operator")
-	o.QosPosUrl = qosPosUrl
-	o.LocVerUrl = locVerUrl
-	o.TokSrvUrl = tokSrvUrl
-	o.VaultAddr = vaultAddr
+func (o *OperatorApiGw) Init(operatorName string, servers *operator.OperatorApiGwServers) error {
+	log.DebugLog(log.DebugLevelDmereq, "init for default operator", "operatorName", operatorName)
+	o.Servers = servers
 	return nil
 }
 

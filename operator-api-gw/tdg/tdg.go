@@ -1,14 +1,14 @@
 package tdg
 
 import (
-	dmecommon "github.com/mobiledgex/edge-cloud/d-match-engine/dme-common"
-	dme "github.com/mobiledgex/edge-cloud/d-match-engine/dme-proto"
-	"github.com/mobiledgex/edge-cloud/log"
-
 	"fmt"
 
 	simulatedqos "github.com/mobiledgex/edge-cloud-infra/operator-api-gw/defaultoperator/simulated-qos"
 	tdgclient "github.com/mobiledgex/edge-cloud-infra/operator-api-gw/tdg/tdg-qos/qosclient"
+	dmecommon "github.com/mobiledgex/edge-cloud/d-match-engine/dme-common"
+	dme "github.com/mobiledgex/edge-cloud/d-match-engine/dme-proto"
+	operator "github.com/mobiledgex/edge-cloud/d-match-engine/operator"
+	"github.com/mobiledgex/edge-cloud/log"
 )
 
 var QosClientCert = "qosclient.crt"
@@ -17,10 +17,7 @@ var QoServerCert = "qosserver.crt"
 
 //OperatorApiGw respresent an Operator API Gateway
 type OperatorApiGw struct {
-	VaultAddr string
-	QosPosUrl string
-	LocVerUrl string
-	TokSrvUrl string
+	Servers *operator.OperatorApiGwServers
 }
 
 func (OperatorApiGw) GetOperatorName() string {
@@ -28,15 +25,12 @@ func (OperatorApiGw) GetOperatorName() string {
 }
 
 // Init is called once during startup.
-func (o *OperatorApiGw) Init(operatorName, vaultAddr, qosPosUrl, locVerUrl, tokSrvUrl string) error {
-	log.DebugLog(log.DebugLevelDmereq, "init for tdg operator")
-	o.QosPosUrl = qosPosUrl
-	o.LocVerUrl = locVerUrl
-	o.TokSrvUrl = tokSrvUrl
-	o.VaultAddr = vaultAddr
+func (o *OperatorApiGw) Init(operatorName string, servers *operator.OperatorApiGwServers) error {
+	log.DebugLog(log.DebugLevelDmereq, "init for tdg operator", "servers", servers)
+	o.Servers = servers
 
-	if o.QosPosUrl != "" {
-		err := tdgclient.GetQosCertsFromVault(o.VaultAddr)
+	if o.Servers.QosPosUrl != "" {
+		err := tdgclient.GetQosCertsFromVault(o.Servers.VaultAddr)
 		if err != nil {
 			return err
 		}
@@ -49,11 +43,11 @@ func (*OperatorApiGw) VerifyLocation(mreq *dme.VerifyLocationRequest, mreply *dm
 }
 
 func (o *OperatorApiGw) GetQOSPositionKPI(mreq *dme.QosPositionKpiRequest, getQosSvr dme.MatchEngineApi_GetQosPositionKpiServer) error {
-	log.DebugLog(log.DebugLevelDmereq, "TDG GetQOSPositionKPI", "QosPosUrl", o.QosPosUrl, "request", mreq)
+	log.DebugLog(log.DebugLevelDmereq, "TDG GetQOSPositionKPI", "QosPosUrl", o.Servers.QosPosUrl, "request", mreq)
 
-	if o.QosPosUrl == "" {
+	if o.Servers.QosPosUrl == "" {
 		log.DebugLog(log.DebugLevelDmereq, "No QosPosUrl, getting simulated results")
 		return simulatedqos.GetSimulatedQOSPositionKPI(mreq, getQosSvr)
 	}
-	return tdgclient.GetQOSPositionKPIFromApiGW(o.QosPosUrl, mreq, getQosSvr)
+	return tdgclient.GetQOSPositionKPIFromApiGW(o.Servers.QosPosUrl, mreq, getQosSvr)
 }

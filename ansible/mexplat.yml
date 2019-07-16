@@ -126,6 +126,11 @@
       loop: "{{ crm_instances }}"
       loop_control:
         index_var: crm_index
+    - include_role:
+        name: shepherd
+      loop: "{{ crm_instances }}"
+      loop_control:
+        index_var: crm_index
 
 - hosts: mc
   roles:

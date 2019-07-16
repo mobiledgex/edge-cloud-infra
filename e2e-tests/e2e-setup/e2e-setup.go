@@ -151,7 +151,7 @@ func StartProcesses(processName string, outputDir string) bool {
 	}
 	for _, p := range Deployment.Shepherds {
 		opts = append(opts, process.WithRolesFile(rolesfile))
-		opts = append(opts, process.WithDebug("metrics"))
+		opts = append(opts, process.WithDebug("api,metrics"))
 		if !setupmex.StartLocal(processName, outputDir, p, opts...) {
 			return false
 		}

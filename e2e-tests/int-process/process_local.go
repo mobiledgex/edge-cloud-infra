@@ -291,11 +291,20 @@ func SetupVault(p *process.Vault, opts ...process.StartOp) (*VaultRoles, error) 
 		return nil, err
 	}
 
+	// run regional setup script
+	region := "local"
+	setup = gopath + "/src/github.com/mobiledgex/edge-cloud-infra/vault/setup-region.sh " + region
+	out = p.Run("/bin/sh", setup, &err)
+	if err != nil {
+		fmt.Println(out)
+		return nil, err
+	}
+
 	// get roleIDs and secretIDs
 	roles := VaultRoles{}
 	p.GetAppRole("", "mcorm", &roles.MCRoleID, &roles.MCSecretID, &err)
 	p.GetAppRole("", "rotator", &roles.RotatorRoleID, &roles.RotatorSecretID, &err)
-	p.GetAppRole("", "shepherd", &roles.ShepherdRoleID, &roles.ShepherdSecretID, &err)
+	p.GetAppRole(region, "shepherd", &roles.ShepherdRoleID, &roles.ShepherdSecretID, &err)
 	p.PutSecret("", "mcorm", mcormSecret+"-old", &err)
 	p.PutSecret("", "mcorm", mcormSecret, &err)
 	if err != nil {

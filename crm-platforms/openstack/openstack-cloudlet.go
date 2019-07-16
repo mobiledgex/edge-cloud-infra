@@ -2,6 +2,8 @@ package openstack
 
 import (
 	"fmt"
+	"net/url"
+	"os"
 	"path/filepath"
 	"strings"
 	"time"
@@ -285,6 +287,47 @@ ssh_authorized_keys:
 		}
 	}
 
+	// Verify if Openstack API Endpoint is reachable
+	updateCallback(edgeproto.UpdateTask, "Verifying if Openstack API Endpoint is reachable")
+	osAuthUrl := os.Getenv("OS_AUTH_URL")
+	if osAuthUrl == "" {
+		return fmt.Errorf("unable to find OS_AUTH_URL")
+	}
+	urlObj, err := url.Parse(osAuthUrl)
+	if err != nil {
+		return fmt.Errorf("unable to parse OS_AUTH_URL: %s, %v\n", osAuthUrl, err)
+	}
+	if _, err := client.Output(
+		fmt.Sprintf(
+			"nc %s %s -w 5", urlObj.Hostname(), urlObj.Port(),
+		),
+	); err != nil {
+		updateCallback(edgeproto.UpdateTask, "Adding route for API endpoint as it is unreachable")
+		// Fetch gateway IP of external network
+		gatewayAddr, err := mexos.GetExternalGateway(mexos.GetCloudletExternalNetwork())
+		if err != nil {
+			return fmt.Errorf("unable to fetch gateway IP for external network: %s, %v",
+				mexos.GetCloudletExternalNetwork(), err)
+		}
+		// Add route to reach API endpoint
+		if out, err := client.Output(
+			fmt.Sprintf(
+				"sudo route add -host %s gw %s", urlObj.Hostname(), gatewayAddr,
+			),
+		); err != nil {
+			return fmt.Errorf("unable to add route to reach API endpoint: %v, %s\n", err, out)
+		}
+		// Retry
+		updateCallback(edgeproto.UpdateTask, "Retrying verification of reachability of Openstack API endpoint")
+		if out, err := client.Output(
+			fmt.Sprintf(
+				"nc %s %s -w 5", urlObj.Hostname(), urlObj.Port(),
+			),
+		); err != nil {
+			return fmt.Errorf("Openstack API Endpoint is unreachable: %v, %s\n", err, out)
+		}
+	}
+
 	// NOTE: Once we have certs per service support following copy will not be required
 	// Upload server certs i.e. crt, key, ca.crt files to Platform VM
 	updateCallback(edgeproto.UpdateTask, "Uploading TLS certs to platform VM")
@@ -328,6 +371,13 @@ ssh_authorized_keys:
 		),
 	); err != nil {
 		return fmt.Errorf("unable to login to docker registry: %v, %s\n", err, out)
+	}
+
+	// setup SSH access to cloudlet for CRM
+	updateCallback(edgeproto.UpdateTask, "Setting up security group for SSH access")
+	groupName := mexos.GetCloudletSecurityGroup()
+	if err := mexos.AddSecurityRuleCIDR(external_ip, "tcp", groupName, "22"); err != nil {
+		return fmt.Errorf("unable to add security rule for ssh access, err: %v", err)
 	}
 
 	// Start platform service on PlatformVM

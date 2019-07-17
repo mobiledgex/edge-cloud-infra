@@ -22,57 +22,6 @@ var _ = math.Inf
 
 // Auto-generated code: DO NOT EDIT
 
-var CreatePlatformCmd = &Command{
-	Use:          "CreatePlatform",
-	RequiredArgs: strings.Join(append([]string{"region"}, PlatformRequiredArgs...), " "),
-	OptionalArgs: strings.Join(PlatformOptionalArgs, " "),
-	AliasArgs:    strings.Join(PlatformAliasArgs, " "),
-	ReqData:      &ormapi.RegionPlatform{},
-	ReplyData:    &edgeproto.Result{},
-	Path:         "/auth/ctrl/CreatePlatform",
-	StreamOut:    true,
-}
-
-var DeletePlatformCmd = &Command{
-	Use:                  "DeletePlatform",
-	RequiredArgs:         strings.Join(append([]string{"region"}, PlatformRequiredArgs...), " "),
-	OptionalArgs:         strings.Join(PlatformOptionalArgs, " "),
-	AliasArgs:            strings.Join(PlatformAliasArgs, " "),
-	ReqData:              &ormapi.RegionPlatform{},
-	ReplyData:            &edgeproto.Result{},
-	Path:                 "/auth/ctrl/DeletePlatform",
-	StreamOut:            true,
-	StreamOutIncremental: true,
-}
-
-var UpdatePlatformCmd = &Command{
-	Use:          "UpdatePlatform",
-	RequiredArgs: strings.Join(append([]string{"region"}, PlatformRequiredArgs...), " "),
-	OptionalArgs: strings.Join(PlatformOptionalArgs, " "),
-	AliasArgs:    strings.Join(PlatformAliasArgs, " "),
-	ReqData:      &ormapi.RegionPlatform{},
-	ReplyData:    &edgeproto.Result{},
-	Path:         "/auth/ctrl/UpdatePlatform",
-	StreamOut:    true,
-}
-
-var ShowPlatformCmd = &Command{
-	Use:          "ShowPlatform",
-	RequiredArgs: "region",
-	OptionalArgs: strings.Join(append(PlatformRequiredArgs, PlatformOptionalArgs...), " "),
-	AliasArgs:    strings.Join(PlatformAliasArgs, " "),
-	ReqData:      &ormapi.RegionPlatform{},
-	ReplyData:    &edgeproto.Platform{},
-	Path:         "/auth/ctrl/ShowPlatform",
-	StreamOut:    true,
-}
-var PlatformApiCmds = []*Command{
-	CreatePlatformCmd,
-	DeletePlatformCmd,
-	UpdatePlatformCmd,
-	ShowPlatformCmd,
-}
-
 var CreateCloudletCmd = &Command{
 	Use:          "CreateCloudlet",
 	RequiredArgs: strings.Join(append([]string{"region"}, CloudletRequiredArgs...), " "),
@@ -274,54 +223,11 @@ var CloudletInfraPropertiesAliasArgs = []string{
 	"gcpproperties.serviceaccount=cloudletinfraproperties.gcpproperties.serviceaccount",
 	"gcpproperties.gcpauthkeyurl=cloudletinfraproperties.gcpproperties.gcpauthkeyurl",
 }
-var PlatformKeyRequiredArgs = []string{}
-var PlatformKeyOptionalArgs = []string{
-	"name",
-}
-var PlatformKeyAliasArgs = []string{
-	"name=platformkey.name",
-}
-var PlatformRequiredArgs = []string{
-	"name",
-}
-var PlatformOptionalArgs = []string{
-	"platformtype",
-	"physicalname",
-	"flavor.name",
-	"registrypath",
-	"imagepath",
-	"notifyctrladdrs",
-	"notifysrvaddr",
-	"state",
-	"errors",
-}
-var PlatformAliasArgs = []string{
-	"name=platform.key.name",
-	"platformtype=platform.platformtype",
-	"physicalname=platform.physicalname",
-	"flavor.name=platform.flavor.name",
-	"registrypath=platform.registrypath",
-	"imagepath=platform.imagepath",
-	"notifyctrladdrs=platform.notifyctrladdrs",
-	"notifysrvaddr=platform.notifysrvaddr",
-	"vaultaddr=platform.vaultaddr",
-	"tlscertfile=platform.tlscertfile",
-	"crmroleid=platform.crmroleid",
-	"crmsecretid=platform.crmsecretid",
-	"state=platform.state",
-	"errors=platform.errors",
-	"status.tasknumber=platform.status.tasknumber",
-	"status.maxtasks=platform.status.maxtasks",
-	"status.taskname=platform.status.taskname",
-	"status.stepname=platform.status.stepname",
-	"platformtag=platform.platformtag",
-}
 var CloudletRequiredArgs = []string{
 	"operator",
 	"name",
 }
 var CloudletOptionalArgs = []string{
-	"platform.name",
 	"accesscredentials",
 	"location.latitude",
 	"location.longitude",
@@ -335,11 +241,14 @@ var CloudletOptionalArgs = []string{
 	"state",
 	"crmoverride",
 	"deploymentlocal",
+	"platformtype",
+	"notifysrvaddr",
+	"flavor.name",
+	"physicalname",
 }
 var CloudletAliasArgs = []string{
 	"operator=cloudlet.key.operatorkey.name",
 	"name=cloudlet.key.name",
-	"platform.name=cloudlet.platform.name",
 	"accesscredentials=cloudlet.accesscredentials",
 	"location.latitude=cloudlet.location.latitude",
 	"location.longitude=cloudlet.location.longitude",
@@ -367,6 +276,18 @@ var CloudletAliasArgs = []string{
 	"state=cloudlet.state",
 	"crmoverride=cloudlet.crmoverride",
 	"deploymentlocal=cloudlet.deploymentlocal",
+	"platformtype=cloudlet.platformtype",
+	"registrypath=cloudlet.registrypath",
+	"imagepath=cloudlet.imagepath",
+	"notifyctrladdrs=cloudlet.notifyctrladdrs",
+	"notifysrvaddr=cloudlet.notifysrvaddr",
+	"vaultaddr=cloudlet.vaultaddr",
+	"tlscertfile=cloudlet.tlscertfile",
+	"crmroleid=cloudlet.crmroleid",
+	"crmsecretid=cloudlet.crmsecretid",
+	"flavor.name=cloudlet.flavor.name",
+	"platformtag=cloudlet.platformtag",
+	"physicalname=cloudlet.physicalname",
 }
 var FlavorInfoRequiredArgs = []string{}
 var FlavorInfoOptionalArgs = []string{

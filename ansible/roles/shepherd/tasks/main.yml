@@ -1,0 +1,80 @@
+- debug: var=item
+
+- assert:
+    that:
+      - item.cloudlet_name is defined
+
+### TODO remove after move shepherd to notify framework - EDGECLOUD-951
+- set_fact:
+    influxdb_dns: "{{ item.controller_region | lower }}.influxdb"
+  when: ( deploy_environ == 'main' ) or ( deploy_environ == 'prod' )
+
+- set_fact:
+    influxdb_dns: "{{ item.controller_region | lower }}-{{ deploy_environ }}.influxdb"
+  when:
+    - deploy_environ != 'main'
+    - deploy_environ != 'prod'
+###
+- set_fact:
+    notify_port: "{{ notify_port_start + crm_index }}"
+
+# Compute Shepherd and CRM names
+- set_fact:
+    crm_name: "{{ item.crm_name }}"
+  when: item.crm_name is defined
+
+- set_fact:
+    crm_name: "crm-{{ item.cloudlet_name }}"
+  when:
+    - item.crm_name is not defined
+
+- set_fact:
+    shepherd_name: "{{ item.shepherd_name }}"
+  when: item.shepherd_name is defined
+
+- set_fact:
+    shepherd_name: "shepherd-{{ item.cloudlet_name }}"
+  when:
+    - item.shepherd_name is not defined
+
+- debug:
+    msg: "Deploying {{ shepherd_name }} (cloudlet name: {{ item.cloudlet_name }})"
+
+- name: Compute shepherd command line
+  set_fact:
+    shepherd_args:
+      - shepherd
+      - "--influxAddr"
+      - "https://{{ influxdb_dns }}.{{ cloudflare_zone }}:8086"
+      # notifyAddr is localhost because use use host networking for docker containers
+      - "--notifyAddrs"
+      - "localhost:{{ notify_port }}"
+      - "--tls"
+      - "/root/tls/mex-server.crt"
+      - "--platform"
+      - "{{ item.platform | default('openstack') }}"
+      - "--vaultAddr"
+      - "{{ vault_vm_hostname }}:{{ vault_port }}"
+      - "--cloudletKey"
+      - "{\\\"operator_key\\\":{\\\"name\\\":\\\"{{ item.operator_key | mandatory }}\\\"},\\\"name\\\":\\\"{{ item.cloudlet_name }}\\\"}"
+      - "--region"
+      - "{{ item.controller_region }}"
+      - "-d"
+      - "api,notify,mexos,metrics"
+
+- name: Add openstack parameters
+  set_fact:
+    shepherd_args: "{{ shepherd_args + [ '--physicalName', item.openstack_instance ] }}"
+  when: item.openstack_instance is defined and item.openstack_instance
+
+- name: Deploy the shepherd
+  docker_container:
+    name: "{{ shepherd_name }}"
+    image: "{{ edge_cloud_image }}:{{ edge_cloud_version }}"
+    network_mode: host
+    restart_policy: unless-stopped
+    command: "{{ shepherd_args }}"
+    env:
+      VAULT_ROLE_ID: "{{ shepherd_vault_app_role.role_id }}"
+      VAULT_SECRET_ID: "{{ shepherd_vault_app_role.secret_id }}"
+

@@ -75,6 +75,6 @@
     restart_policy: unless-stopped
     command: "{{ shepherd_args }}"
     env:
-      VAULT_ROLE_ID: "{{ shepherd_vault_app_role.role_id }}"
-      VAULT_SECRET_ID: "{{ shepherd_vault_app_role.secret_id }}"
+      VAULT_ROLE_ID: "{{ crm_vault_app_role.role_id }}"
+      VAULT_SECRET_ID: "{{ crm_vault_app_role.secret_id }}"
 

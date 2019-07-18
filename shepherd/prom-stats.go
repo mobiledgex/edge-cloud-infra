@@ -108,7 +108,7 @@ func NewPromStats(promAddr string, interval time.Duration, send func(metric *edg
 	p.client, err = pf.GetPlatformClient(clusterInst)
 	if err != nil {
 		// If we cannot get a platform client no point in trying to get metrics
-		log.DebugLog(log.DebugLevelMetrics, "Failed to acquire platform client", "error", err)
+		log.DebugLog(log.DebugLevelMetrics, "Failed to acquire platform client", "cluster", clusterInst.Key, "error", err)
 		return nil, err
 	}
 	return &p, nil

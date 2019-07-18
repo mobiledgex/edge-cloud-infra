@@ -197,4 +197,5 @@ var AppAliasArgs = []string{
 	"configs.kind=app.configs.kind",
 	"configs.config=app.configs.config",
 	"scalewithcluster=app.scalewithcluster",
+	"revision=app.revision",
 }

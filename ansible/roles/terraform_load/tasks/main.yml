@@ -1,0 +1,21 @@
+- name: Import terraform variables from ansible
+  make:
+    chdir: "../terraform/mexplat/{{ deploy_environ }}"
+    target: ansible.auto.tfvars
+  changed_when: false
+  delegate_to: localhost
+
+- name: Get setup details from terraform
+  terraform:
+    project_path: "../terraform/mexplat/{{ deploy_environ }}"
+    state: present
+    force_init: yes
+    lock: no
+    variables:
+      azure_terraform_service_principal_id: "{{ azure_terraform_service_principal_id }}"
+      azure_terraform_service_principal_secret: "{{ azure_terraform_service_principal_secret }}"
+      azure_subscription_id: "{{ azure_subscription_id }}"
+      azure_tenant_id: "{{ azure_tenant_id }}"
+  check_mode: yes
+  delegate_to: localhost
+  register: terraform

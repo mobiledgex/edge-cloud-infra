@@ -124,6 +124,18 @@ func SetupRootLB(rootLBName string, createRootLBFlavor string, updateCallback ed
 		}
 	}
 
+	// setup SSH access to cloudlet for CRM
+	log.DebugLog(log.DebugLevelMexos, "setup security group for SSH access")
+	groupName := GetCloudletSecurityGroup()
+	my_ip, err := GetExternalPublicAddr()
+	if err != nil {
+		return fmt.Errorf("unable to fetch public facing IP: %v", err)
+	}
+	if err := AddSecurityRuleCIDR(my_ip, "tcp", groupName, "22"); err != nil {
+		log.DebugLog(log.DebugLevelMexos, "cannot add security rule for ssh access", "error", err, "ip", my_ip)
+		return fmt.Errorf("unable to add security rule for ssh access, err: %v", err)
+	}
+
 	err = WaitForRootLB(rootLB)
 	if err != nil {
 		log.DebugLog(log.DebugLevelMexos, "timeout waiting for agent to run", "name", rootLB.Name)

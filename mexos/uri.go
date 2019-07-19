@@ -216,10 +216,14 @@ func DeleteFile(filePath string) error {
 
 // Get the externally visible public IP address
 func GetExternalPublicAddr() (string, error) {
-	out, err := sh.Command("dig", "@resolver1.opendns.com", "ANY", "myip.opendns.com", "+short").Output()
-	log.DebugLog(log.DebugLevelMexos, "dig to resolver1.opendns.com called", "out", string(out), "err", err)
+	resp, err := SendHTTPReq("GET", "http://ifconfig.me")
 	if err != nil {
 		return "", err
 	}
-	return strings.TrimSpace(string(out)), err
+	defer resp.Body.Close()
+	ip, err := ioutil.ReadAll(resp.Body)
+	if err != nil {
+		return "", err
+	}
+	return strings.TrimSpace(string(ip)), err
 }

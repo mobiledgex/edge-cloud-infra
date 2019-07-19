@@ -2,6 +2,15 @@
 
 - set_fact:
     k8s_clusters: "{{ hostvars['localhost'].k8s_clusters }}"
+  when: hostvars['localhost'].k8s_clusters is defined
+
+- block:
+  - include_role:
+      name: terraform_load
+    when: terraform is not defined
+  - set_fact:
+      k8s_clusters: "{{ terraform.outputs.k8s_clusters.value }}"
+  when: hostvars['localhost'].k8s_clusters is not defined
 
 - set_fact:
     controller_name: "{{ (k8s_clusters | selectattr('region', 'equalto', item.controller_region) | list | first).name }}"

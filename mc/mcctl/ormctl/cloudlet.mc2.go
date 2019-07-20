@@ -223,6 +223,27 @@ var CloudletInfraPropertiesAliasArgs = []string{
 	"gcpproperties.serviceaccount=cloudletinfraproperties.gcpproperties.serviceaccount",
 	"gcpproperties.gcpauthkeyurl=cloudletinfraproperties.gcpproperties.gcpauthkeyurl",
 }
+var PlatformConfigRequiredArgs = []string{}
+var PlatformConfigOptionalArgs = []string{
+	"registrypath",
+	"imagepath",
+	"notifyctrladdrs",
+	"vaultaddr",
+	"tlscertfile",
+	"crmroleid",
+	"crmsecretid",
+	"platformtag",
+}
+var PlatformConfigAliasArgs = []string{
+	"registrypath=platformconfig.registrypath",
+	"imagepath=platformconfig.imagepath",
+	"notifyctrladdrs=platformconfig.notifyctrladdrs",
+	"vaultaddr=platformconfig.vaultaddr",
+	"tlscertfile=platformconfig.tlscertfile",
+	"crmroleid=platformconfig.crmroleid",
+	"crmsecretid=platformconfig.crmsecretid",
+	"platformtag=platformconfig.platformtag",
+}
 var CloudletRequiredArgs = []string{
 	"operator",
 	"name",
@@ -277,16 +298,8 @@ var CloudletAliasArgs = []string{
 	"crmoverride=cloudlet.crmoverride",
 	"deploymentlocal=cloudlet.deploymentlocal",
 	"platformtype=cloudlet.platformtype",
-	"registrypath=cloudlet.registrypath",
-	"imagepath=cloudlet.imagepath",
-	"notifyctrladdrs=cloudlet.notifyctrladdrs",
 	"notifysrvaddr=cloudlet.notifysrvaddr",
-	"vaultaddr=cloudlet.vaultaddr",
-	"tlscertfile=cloudlet.tlscertfile",
-	"crmroleid=cloudlet.crmroleid",
-	"crmsecretid=cloudlet.crmsecretid",
 	"flavor.name=cloudlet.flavor.name",
-	"platformtag=cloudlet.platformtag",
 	"physicalname=cloudlet.physicalname",
 }
 var FlavorInfoRequiredArgs = []string{}

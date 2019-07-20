@@ -28,14 +28,14 @@ func getPlatformVMName(cloudlet *edgeproto.Cloudlet) string {
 	return cloudlet.Key.Name + "." + cloudlet.Key.OperatorKey.Name + ".pf"
 }
 
-func startPlatformService(cloudlet *edgeproto.Cloudlet, client ssh.Client, serviceType string, updateCallback edgeproto.CacheUpdateCallback, cDone chan error) {
+func startPlatformService(cloudlet *edgeproto.Cloudlet, pfConfig *edgeproto.PlatformConfig, client ssh.Client, serviceType string, updateCallback edgeproto.CacheUpdateCallback, cDone chan error) {
 	var service_cmd string
 	var envVars *map[string]string
 	var err error
 
 	switch serviceType {
 	case ServiceTypeCRM:
-		service_cmd, envVars, err = cloudcommon.GetCRMCmd(cloudlet)
+		service_cmd, envVars, err = cloudcommon.GetCRMCmd(cloudlet, pfConfig)
 		if err != nil {
 			cDone <- fmt.Errorf("Unable to get crm service command: %v", err)
 			return
@@ -63,7 +63,7 @@ func startPlatformService(cloudlet *edgeproto.Cloudlet, client ssh.Client, servi
 		"--restart=unless-stopped",
 		"--name", platform_vm_name,
 		strings.Join(envVarsAr, " "),
-		cloudlet.RegistryPath + ":" + cloudlet.PlatformTag,
+		pfConfig.RegistryPath + ":" + pfConfig.PlatformTag,
 		service_cmd,
 	}
 	if out, err := client.Output(strings.Join(cmd, " ")); err != nil {
@@ -108,14 +108,14 @@ func startPlatformService(cloudlet *edgeproto.Cloudlet, client ssh.Client, servi
 	return
 }
 
-func (s *Platform) CreateCloudlet(cloudlet *edgeproto.Cloudlet, pfFlavor *edgeproto.Flavor, updateCallback edgeproto.CacheUpdateCallback) error {
+func (s *Platform) CreateCloudlet(cloudlet *edgeproto.Cloudlet, pfConfig *edgeproto.PlatformConfig, pfFlavor *edgeproto.Flavor, updateCallback edgeproto.CacheUpdateCallback) error {
 	var err error
 
 	log.DebugLog(log.DebugLevelMexos, "Creating cloudlet", "cloudletName", cloudlet.Key.Name)
 
 	// Soure OpenRC file to access openstack API endpoint
 	updateCallback(edgeproto.UpdateTask, fmt.Sprintf("Sourcing platform variables for %s cloudlet", cloudlet.PhysicalName))
-	err = mexos.InitOpenstackProps(cloudlet.Key.OperatorKey.Name, cloudlet.PhysicalName, cloudlet.VaultAddr)
+	err = mexos.InitOpenstackProps(cloudlet.Key.OperatorKey.Name, cloudlet.PhysicalName, pfConfig.VaultAddr)
 	if err != nil {
 		return err
 	}
@@ -131,11 +131,11 @@ func (s *Platform) CreateCloudlet(cloudlet *edgeproto.Cloudlet, pfFlavor *edgepr
 	}
 
 	// Fetch platform base image name and md5sum
-	pfImageName, err := cloudcommon.GetFileName(cloudlet.ImagePath)
+	pfImageName, err := cloudcommon.GetFileName(pfConfig.ImagePath)
 	if err != nil {
 		return err
 	}
-	_, md5Sum, err := mexos.GetUrlInfo(cloudlet.ImagePath)
+	_, md5Sum, err := mexos.GetUrlInfo(pfConfig.ImagePath)
 	if err != nil {
 		return err
 	}
@@ -148,7 +148,7 @@ func (s *Platform) CreateCloudlet(cloudlet *edgeproto.Cloudlet, pfFlavor *edgepr
 	if err != nil {
 		// Download platform base image and Add to Openstack Glance
 		updateCallback(edgeproto.UpdateTask, "Downloading platform base image: "+pfImageName)
-		err = mexos.CreateImageFromUrl(pfImageName, cloudlet.ImagePath, md5Sum)
+		err = mexos.CreateImageFromUrl(pfImageName, pfConfig.ImagePath, md5Sum)
 		if err != nil {
 			return fmt.Errorf("Error downloading platform base image: %v", err)
 		}
@@ -195,7 +195,7 @@ ssh_authorized_keys:
 
 	// Gather registry credentails from Vault
 	updateCallback(edgeproto.UpdateTask, "Fetching registry auth credentials")
-	regAuth, err := cloudcommon.GetRegistryAuth(cloudlet.RegistryPath, cloudlet.VaultAddr)
+	regAuth, err := cloudcommon.GetRegistryAuth(pfConfig.RegistryPath, pfConfig.VaultAddr)
 	if err != nil {
 		return fmt.Errorf("unable to fetch registry auth credentials")
 	}
@@ -229,7 +229,7 @@ ssh_authorized_keys:
 
 	// Verify if controller's notify port is reachable
 	updateCallback(edgeproto.UpdateTask, "Verifying if controller notification channel is reachable")
-	addrPort := strings.Split(cloudlet.NotifyCtrlAddrs, ":")
+	addrPort := strings.Split(pfConfig.NotifyCtrlAddrs, ":")
 	if len(addrPort) != 2 {
 		return fmt.Errorf("notifyctrladdrs format is incorrect")
 	}
@@ -285,7 +285,7 @@ ssh_authorized_keys:
 	// NOTE: Once we have certs per service support following copy will not be required
 	// Upload server certs i.e. crt, key, ca.crt files to Platform VM
 	updateCallback(edgeproto.UpdateTask, "Uploading TLS certs to platform VM")
-	dir, crtFile := filepath.Split(cloudlet.TlsCertFile)
+	dir, crtFile := filepath.Split(pfConfig.TlsCertFile)
 
 	ext := filepath.Ext(crtFile)
 	if ext == "" {
@@ -294,7 +294,7 @@ ssh_authorized_keys:
 	keyPath := dir + strings.TrimSuffix(crtFile, ext) + ".key"
 
 	copyFiles := []string{
-		cloudlet.TlsCertFile,
+		pfConfig.TlsCertFile,
 		keyPath,
 	}
 
@@ -312,7 +312,7 @@ ssh_authorized_keys:
 			return fmt.Errorf("error copying %s to platform VM", copyFile)
 		}
 	}
-	cloudlet.TlsCertFile = "/tmp/" + crtFile
+	pfConfig.TlsCertFile = "/tmp/" + crtFile
 
 	// Login to docker registry
 	updateCallback(edgeproto.UpdateTask, "Setting up docker registry")
@@ -321,7 +321,7 @@ ssh_authorized_keys:
 			`echo "%s" | sudo docker login -u %s --password-stdin %s`,
 			regAuth.Password,
 			regAuth.Username,
-			cloudlet.RegistryPath,
+			pfConfig.RegistryPath,
 		),
 	); err != nil {
 		return fmt.Errorf("unable to login to docker registry: %v, %s\n", err, out)
@@ -336,7 +336,7 @@ ssh_authorized_keys:
 
 	// Start platform service on PlatformVM
 	crmChan := make(chan error, 1)
-	go startPlatformService(cloudlet, client, ServiceTypeCRM, updateCallback, crmChan)
+	go startPlatformService(cloudlet, pfConfig, client, ServiceTypeCRM, updateCallback, crmChan)
 
 	// Wait for platform services to come up
 	err = <-crmChan

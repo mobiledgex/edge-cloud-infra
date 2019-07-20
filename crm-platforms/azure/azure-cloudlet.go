@@ -5,7 +5,7 @@ import (
 	"github.com/mobiledgex/edge-cloud/log"
 )
 
-func (s *Platform) CreateCloudlet(cloudlet *edgeproto.Cloudlet, flavor *edgeproto.Flavor, updateCallback edgeproto.CacheUpdateCallback) error {
+func (s *Platform) CreateCloudlet(cloudlet *edgeproto.Cloudlet, pfConfig *edgeproto.PlatformConfig, flavor *edgeproto.Flavor, updateCallback edgeproto.CacheUpdateCallback) error {
 	log.DebugLog(log.DebugLevelMexos, "create cloudlet for azure")
 	return nil
 }

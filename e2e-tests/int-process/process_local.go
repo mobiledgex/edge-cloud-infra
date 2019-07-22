@@ -203,10 +203,6 @@ func (p *Shepherd) StartLocal(logfile string, opts ...process.StartOp) error {
 		args = append(args, "--notifyAddrs")
 		args = append(args, p.NotifyAddrs)
 	}
-	if p.InfluxAddr != "" {
-		args = append(args, "--influxAddr")
-		args = append(args, p.InfluxAddr)
-	}
 	if p.Interval != "" {
 		args = append(args, "--interval")
 		args = append(args, p.Interval)

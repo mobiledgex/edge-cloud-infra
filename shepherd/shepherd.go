@@ -84,6 +84,7 @@ func appInstCb(old *edgeproto.AppInst, new *edgeproto.AppInst) {
 		clustIP, err := pf.GetClusterIP(&clusterInst)
 		if err != nil {
 			log.DebugLog(log.DebugLevelMetrics, "error getting clusterIP", "err", err.Error())
+			return
 		}
 		// We don't actually expose prometheus ports - we should default to 9090
 		if len(new.MappedPorts) > 0 {
@@ -94,9 +95,11 @@ func appInstCb(old *edgeproto.AppInst, new *edgeproto.AppInst) {
 		promAddress := fmt.Sprintf("%s:%d", clustIP, port)
 		log.DebugLog(log.DebugLevelMetrics, "prometheus found", "promAddress", promAddress)
 		if !exists {
-			stats = NewPromStats(promAddress, *collectInterval, sendMetric, &clusterInst, pf)
-			promMap[mapKey] = stats
-			stats.Start()
+			stats, err = NewPromStats(promAddress, *collectInterval, sendMetric, &clusterInst, pf)
+			if err == nil {
+				promMap[mapKey] = stats
+				stats.Start()
+			}
 		} else { //somehow this cluster's prometheus was already registered
 			log.DebugLog(log.DebugLevelMetrics, "Error, Prometheus app already registered for this cluster")
 		}

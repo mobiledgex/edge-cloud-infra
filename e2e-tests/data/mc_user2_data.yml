@@ -140,6 +140,7 @@ regiondata:
             operatorkey:
               name: developer
             name: default
+          developer: Samsung
       liveness: LivenessStatic
       uri: default.samsungenablement.samsung.com
       flavor:

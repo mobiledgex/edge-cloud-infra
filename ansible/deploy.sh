@@ -9,10 +9,14 @@ USAGE="usage: $0 [options] <environment> [<target>]
 
   -c		confirm before running playbook
   -C <version>	console version to deploy (default: pick latest git tag)
+  -e <var=val>	pass environment variables to playbook run
   -l		list available targets
   -n		dry-run mode
   -p <playbook>	playbook (default: \"$DEFAULT_PLAYBOOK\")
+  -q		quiet mode; skip Slack notifications
+  -s <tags>     skip tags (comma-separated)
   -t <tags>	tags (comma-separated)
+  -v            verbose mode; can be repeated to increase verbosity
   -V <version>	edge-cloud version to deploy (default: \"$EC_VERSION\")
   -y		skip confirmation prompts
 
@@ -29,16 +33,24 @@ CONFIRM=false
 ASSUME_YES=false
 PLAYBOOK_FORCED=
 TAGS=
+SKIP_TAGS=
 CONSOLE_VERSION=
 EC_VERSION_SET=false
-while getopts ':cC:hlnp:t:V:y' OPT; do
+QUIET_MODE=false
+VERBOSITY=
+ENVVARS=()
+while getopts ':ce:C:hlnp:qs:t:vV:y' OPT; do
 	case "$OPT" in
 	c)	CONFIRM=true ;;
 	C)	CONSOLE_VERSION="$OPTARG" ;;
+	e)	ENVVARS+=( -e "$OPTARG" ) ;;
 	n)	DRYRUN=true ;;
 	l)	LIST=true ;;
 	p)	PLAYBOOK_FORCED="$OPTARG" ;;
+	q)	QUIET_MODE=true ;;
+	s)	SKIP_TAGS="$OPTARG" ;;
 	t)	TAGS="$OPTARG" ;;
+	v)	VERBOSITY="${VERBOSITY}v" ;;
 	V)	EC_VERSION="$OPTARG"; EC_VERSION_SET=true ;;
 	y)	ASSUME_YES=true ;;
 	h)	echo "$USAGE"
@@ -78,23 +90,35 @@ $EC_VERSION_SET || CONFIRM=true
 
 ARGS=()
 $DRYRUN && ARGS+=( '--check' )
+[[ -n "$VERBOSITY" ]] && ARGS+=( "-${VERBOSITY}" )
 
 MAIN_VAULT="${MAIN_ANSIBLE_VAULT_PREFIX}-${ENVIRON}.yml"
 [[ ! -f "$MAIN_VAULT" ]] && MAIN_VAULT="${MAIN_ANSIBLE_VAULT_PREFIX}.yml"
 [[ -f "$MAIN_VAULT" ]] && ARGS+=( -e "@${MAIN_VAULT}" )
 
 # Add personal ansible vault to command line, if present
-[[ -f "$PERSONAL_ANSIBLE_VAULT" ]] && ARGS+=( -e "@${PERSONAL_ANSIBLE_VAULT}" )
+if [[ -f "$PERSONAL_ANSIBLE_VAULT" ]]; then
+	ARGS+=( -e "@${PERSONAL_ANSIBLE_VAULT}" )
+elif [[ -f "${HOME}/${PERSONAL_ANSIBLE_VAULT}" ]]; then
+	ARGS+=( -e "@${HOME}/${PERSONAL_ANSIBLE_VAULT}" )
+fi
 
 # Limit to specified target
 [[ -n "$TARGET" ]] && ARGS+=( -l "$TARGET" )
 
-# Tags
+# Tags and skip tags
 [[ -n "$TAGS" ]] && ARGS+=( -t "$TAGS" )
+[[ -n "$SKIP_TAGS" ]] && ARGS+=( --skip-tags "$SKIP_TAGS" )
+
+# Quiet mode
+$QUIET_MODE && ARGS+=( --skip-tags notify )
 
 # Deployment versions
 ARGS+=( -e edge_cloud_version="$EC_VERSION" )
 [[ -n "$CONSOLE_VERSION" ]] && ARGS+=( -e console_version="$CONSOLE_VERSION" )
+
+# Additional environment variables
+ARGS+=( "${ENVVARS[@]}" )
 
 # Inventory
 ARGS+=( -i "$ENVIRON" )

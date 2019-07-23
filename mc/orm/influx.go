@@ -11,7 +11,6 @@ import (
 	influxdb "github.com/influxdata/influxdb/client/v2"
 	"github.com/labstack/echo"
 	"github.com/mobiledgex/edge-cloud-infra/mc/ormapi"
-	"github.com/mobiledgex/edge-cloud-infra/vault"
 	"github.com/mobiledgex/edge-cloud/cloudcommon"
 	"github.com/mobiledgex/edge-cloud/log"
 	"google.golang.org/grpc/status"
@@ -39,7 +38,9 @@ type influxQueryArgs struct {
 	EndTime      string
 }
 
-var influDBT = `SELECT {{if .Selector}}"{{.Selector}}"{{else}}*{{end}} from "{{.Measurement}}"` +
+// select * from "crm-appinst-cpu"."crm-appinst-mem"."crm-appinst-net"...
+// EDGECLOUD-940
+var influDBT = `SELECT {{.Selector}} from "{{.Measurement}}"` +
 	` WHERE "cluster"='{{.ClusterName}}'` +
 	`{{if .AppInstName}} AND "app"=~/{{.AppInstName}}/{{end}}` +
 	`{{if .CloudletName}} AND "cloudlet"='{{.CloudletName}}'{{end}}` +
@@ -56,18 +57,15 @@ func connectInfluxDB(region string) (influxdb.Client, error) {
 	if err != nil {
 		return nil, err
 	}
-	creds, err := vault.GetInfluxDBCreds(region)
-	if err != nil {
-		// defeault to default user/pass
-		creds = &vault.InfluxDBVaultData{
-			Username: "root",
-			Password: "root",
-		}
+	creds := cloudcommon.GetInfluxDataAuth(serverConfig.VaultAddr, region)
+	if creds == nil {
+		// defeault to empty auth
+		creds = &cloudcommon.InfluxCreds{}
 	}
 	client, err := influxdb.NewHTTPClient(influxdb.HTTPConfig{
 		Addr:     addr,
-		Username: creds.Username,
-		Password: creds.Password,
+		Username: creds.User,
+		Password: creds.Pass,
 	})
 	log.DebugLog(log.DebugLevelMetrics, "connecting to influxdb",
 		"addr", addr, "err", err)
@@ -87,10 +85,10 @@ func getInfluxDBAddrForRegion(region string) (string, error) {
 }
 
 // Query is a template with a specific set of if/else
-func AppInstMetricsQuery(obj *ormapi.RegionAppInstMetrics, measurement string) string {
+func AppInstMetricsQuery(obj *ormapi.RegionAppInstMetrics, selectorStr string) string {
 	arg := influxQueryArgs{
-		Selector:     obj.Selector,
-		Measurement:  measurement,
+		Selector:     selectorStr,
+		Measurement:  "appinst-" + obj.Selector,
 		AppInstName:  obj.AppInst.AppKey.Name,
 		CloudletName: obj.AppInst.ClusterInstKey.CloudletKey.Name,
 		ClusterName:  obj.AppInst.ClusterInstKey.ClusterKey.Name,
@@ -119,10 +117,10 @@ func AppInstMetricsQuery(obj *ormapi.RegionAppInstMetrics, measurement string) s
 }
 
 // Query is a template with a specific set of if/else
-func ClusterMetricsQuery(obj *ormapi.RegionClusterInstMetrics, measurement string) string {
+func ClusterMetricsQuery(obj *ormapi.RegionClusterInstMetrics, selectorStr string) string {
 	arg := influxQueryArgs{
-		Selector:     obj.Selector,
-		Measurement:  measurement,
+		Selector:     selectorStr,
+		Measurement:  "cluster-" + obj.Selector,
 		CloudletName: obj.ClusterInst.CloudletKey.Name,
 		ClusterName:  obj.ClusterInst.ClusterKey.Name,
 		OperatorName: obj.ClusterInst.CloudletKey.OperatorKey.Name,
@@ -174,7 +172,8 @@ func metricsStream(rc *InfluxDBContext, dbQuery string, cb func(Data interface{}
 	if err != nil {
 		log.DebugLog(log.DebugLevelMetrics, "InfluxDB query failed",
 			"query", query, "resp", resp, "err", err)
-		return err
+		// We return a different error, as we don't want to expose a URL-encoded query to influxDB
+		return fmt.Errorf("Connection to InfluxDB failed")
 	}
 	if resp.Error() != nil {
 		return resp.Error()
@@ -183,9 +182,44 @@ func metricsStream(rc *InfluxDBContext, dbQuery string, cb func(Data interface{}
 	return nil
 }
 
+// Function validates the selector passed, we support several selectors: cpu, mem, disk, net
+// TODO: check for specific strings for now.
+//       Right now we don't support "*", or multiple selectors - EDGECLOUD-940
+func parseClusterSelectorString(selector string) (string, error) {
+	switch selector {
+	case "cpu":
+		fallthrough
+	case "mem":
+		fallthrough
+	case "disk":
+		fallthrough
+	case "network":
+		fallthrough
+	case "tcp":
+		fallthrough
+	case "udp":
+		return "*", nil
+	}
+	return "", fmt.Errorf("Invalid selector in a request")
+}
+
+func parseAppSelectorString(selector string) (string, error) {
+	switch selector {
+	case "cpu":
+		fallthrough
+	case "mem":
+		fallthrough
+	case "disk":
+		fallthrough
+	case "network":
+		return "*", nil
+	}
+	return "", fmt.Errorf("Invalid selector in a request")
+}
+
 // Common method to handle both app and cluster metrics
 func GetMetricsCommon(c echo.Context) error {
-	var cmd, org string
+	var cmd, org, selectorStr string
 
 	rc := &InfluxDBContext{}
 	claims, err := getClaims(c)
@@ -205,7 +239,10 @@ func GetMetricsCommon(c echo.Context) error {
 		}
 		rc.region = in.Region
 		org = in.AppInst.AppKey.DeveloperKey.Name
-		cmd = AppInstMetricsQuery(&in, cloudcommon.DeveloperAppMetrics)
+		if selectorStr, err = parseAppSelectorString(in.Selector); err != nil {
+			return c.JSON(http.StatusBadRequest, Msg(err.Error()))
+		}
+		cmd = AppInstMetricsQuery(&in, selectorStr)
 	} else if strings.HasSuffix(c.Path(), "metrics/cluster") {
 		in := ormapi.RegionClusterInstMetrics{}
 		if err := c.Bind(&in); err != nil {
@@ -217,11 +254,13 @@ func GetMetricsCommon(c echo.Context) error {
 		}
 		rc.region = in.Region
 		org = in.ClusterInst.Developer
-		cmd = ClusterMetricsQuery(&in, cloudcommon.DeveloperClusterMetric)
+		if selectorStr, err = parseClusterSelectorString(in.Selector); err != nil {
+			return c.JSON(http.StatusBadRequest, Msg(err.Error()))
+		}
+		cmd = ClusterMetricsQuery(&in, selectorStr)
 	} else {
 		return echo.ErrNotFound
 	}
-
 	// Check the developer against who is logged in
 	if !enforcer.Enforce(rc.claims.Username, org, ResourceAppAnalytics, ActionView) {
 		return echo.ErrForbidden

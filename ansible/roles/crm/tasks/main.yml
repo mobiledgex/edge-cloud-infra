@@ -1,18 +1,25 @@
 - debug: var=item
 
+- set_fact:
+    k8s_clusters: "{{ hostvars['localhost'].k8s_clusters }}"
+  when: hostvars['localhost'].k8s_clusters is defined
+
+- block:
+  - include_role:
+      name: terraform_load
+    when: terraform is not defined
+  - set_fact:
+      k8s_clusters: "{{ terraform.outputs.k8s_clusters.value }}"
+  when: hostvars['localhost'].k8s_clusters is not defined
+
+- set_fact:
+    controller_name: "{{ (k8s_clusters | selectattr('region', 'equalto', item.controller_region) | list | first).name }}"
+    api_port: "{{ api_port_start + crm_index }}"
+    notify_srv_port: "{{ notify_srv_port_start + crm_index }}"
+
 - assert:
     that:
-      - item.openstack_instance is defined or item.cloudlet_name is defined
-
-# Compute cloudlet name
-
-- set_fact:
-    cloudlet_name: "{{ item.cloudlet_name }}"
-  when: item.cloudlet_name is defined
-
-- set_fact:
-    cloudlet_name: "{{ deploy_target }}-{{ item.openstack_instance }}-cloudlet"
-  when: item.cloudlet_name is not defined
+      - item.cloudlet_name is defined
 
 # Compute CRM name
 
@@ -21,32 +28,29 @@
   when: item.crm_name is defined
 
 - set_fact:
-    crm_name: "crm-{{ item.controller }}-{{ item.openstack_instance }}"
+    crm_name: "crm-{{ item.cloudlet_name }}"
   when:
     - item.crm_name is not defined
-    - item.openstack_instance is defined
-
-- set_fact:
-    crm_name: "crm-{{ cloudlet_name }}"
-  when:
-    - item.crm_name is not defined
-    - item.openstack_instance is not defined
 
 - debug:
-    msg: "Deploying {{ crm_name }} (cloudlet name: {{ cloudlet_name }})"
+    msg: |
+      Deploying {{ crm_name }}
+       - cloudlet name: {{ item.cloudlet_name }}
+       - controller name: {{ controller_name }}
+       - notify srv port: {{ notify_srv_port }}
 
 - name: Compute CRM command line
   set_fact:
     crm_args:
       - crmserver
-      - "--apiAddr"
-      - "0.0.0.0:{{ crm_api_port }}"
+      - "--notifySrvAddr"
+      - "0.0.0.0:{{ notify_srv_port }}"
       - "--cloudletKey"
-      - "{\\\"operator_key\\\":{\\\"name\\\":\\\"{{ item.operator_key | mandatory }}\\\"},\\\"name\\\":\\\"{{ cloudlet_name }}\\\"}"
+      - "{\\\"operator_key\\\":{\\\"name\\\":\\\"{{ item.operator_key | mandatory }}\\\"},\\\"name\\\":\\\"{{ item.cloudlet_name }}\\\"}"
       - "--vaultAddr"
       - "{{ vault_vm_hostname }}:{{ vault_port }}"
       - "--notifyAddrs"
-      - "{{ item.controller }}.ctrl.{{ cloudflare_zone }}:37001"
+      - "{{ controller_name }}.ctrl.{{ cloudflare_zone }}:37001"
       - "--tls"
       - "/root/tls/mex-server.crt"
       - "-d"
@@ -61,11 +65,20 @@
   docker_container:
     name: "{{ crm_name }}"
     image: "{{ edge_cloud_image }}:{{ edge_cloud_version }}"
+    network_mode: host
     restart_policy: unless-stopped
     command: "{{ crm_args }}"
     env:
-      PLATFORM: "{{ item.platform | default('openstack') }}"
+      PLATFORM: "{{ item.platform | default('PLATFORM_TYPE_OPENSTACK') }}"
       MEX_EXT_NETWORK: "{{ item.mex_ext_network | default(mex_ext_network) }}"
       VAULT_ROLE_ID: "{{ crm_vault_app_role.role_id }}"
       VAULT_SECRET_ID: "{{ crm_vault_app_role.secret_id }}"
       MEX_SECURITY_GROUP: "{{ item.mex_security_group | default(mex_security_group) }}"
+
+- name: Verify that the notify srv port is accessible
+  wait_for:
+    host: "{{ (ansible_ssh_host|default(ansible_host))|default(inventory_hostname) }}"
+    port: "{{ notify_srv_port }}"
+    timeout: 60
+  vars:
+    ansible_connection: local

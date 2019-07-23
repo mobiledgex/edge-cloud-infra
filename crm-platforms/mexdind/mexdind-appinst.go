@@ -1,10 +1,9 @@
 package mexdind
 
 import (
+	"fmt"
 	"net"
-	"strings"
 
-	sh "github.com/codeskyblue/go-sh"
 	"github.com/mobiledgex/edge-cloud-infra/mexos"
 	"github.com/mobiledgex/edge-cloud/cloud-resource-manager/k8smgmt"
 	"github.com/mobiledgex/edge-cloud/cloud-resource-manager/platform/dind"
@@ -55,6 +54,8 @@ func (s *Platform) CreateAppInst(clusterInst *edgeproto.ClusterInst, app *edgepr
 			return nil, err
 		}
 		action.ExternalIP = externalIP
+		// Should only add DNS for external ports
+		action.AddDNS = !app.InternalPorts
 		return &action, nil
 	}
 	if err = mexos.CreateAppDNS(client, names, getDnsAction); err != nil {
@@ -76,15 +77,21 @@ func (s *Platform) DeleteAppInst(clusterInst *edgeproto.ClusterInst, app *edgepr
 		return err
 	}
 
-	// remove DNS entries
-	if err = mexos.DeleteAppDNS(client, names); err != nil {
-		log.DebugLog(log.DebugLevelMexos, "warning, cannot delete DNS record", "error", err)
+	// remove DNS entries if it was added
+	if !app.InternalPorts {
+		if err = mexos.DeleteAppDNS(client, names); err != nil {
+			log.DebugLog(log.DebugLevelMexos, "warning, cannot delete DNS record", "error", err)
+		}
 	}
 	if err = s.generic.DeleteAppInst(clusterInst, app, appInst); err != nil {
 		log.DebugLog(log.DebugLevelMexos, "warning, cannot delete AppInst", "error", err)
 		return err
 	}
 	return nil
+}
+
+func (s *Platform) UpdateAppInst(clusterInst *edgeproto.ClusterInst, app *edgeproto.App, appInst *edgeproto.AppInst, updateCallback edgeproto.CacheUpdateCallback) error {
+	return fmt.Errorf("Update not supported for dind")
 }
 
 func (s *Platform) GetAppInstRuntime(clusterInst *edgeproto.ClusterInst, app *edgeproto.App, appInst *edgeproto.AppInst) (*edgeproto.AppInstRuntime, error) {
@@ -100,7 +107,7 @@ func (s *Platform) GetDINDServiceIP() (string, error) {
 	if s.NetworkScheme == cloudcommon.NetworkSchemePrivateIP {
 		return GetLocalAddr()
 	}
-	return GetExternalPublicAddr()
+	return mexos.GetExternalPublicAddr()
 }
 
 // GetLocalAddr gets the IP address the machine uses for outbound comms
@@ -113,14 +120,4 @@ func GetLocalAddr() (string, error) {
 
 	localAddr := conn.LocalAddr().(*net.UDPAddr)
 	return localAddr.IP.String(), nil
-}
-
-// Get the externally visible public IP address
-func GetExternalPublicAddr() (string, error) {
-	out, err := sh.Command("dig", "@resolver1.opendns.com", "ANY", "myip.opendns.com", "+short").Output()
-	log.DebugLog(log.DebugLevelMexos, "dig to resolver1.opendns.com called", "out", string(out), "err", err)
-	if err != nil {
-		return "", err
-	}
-	return strings.TrimSpace(string(out)), err
 }

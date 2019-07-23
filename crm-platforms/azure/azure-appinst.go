@@ -12,6 +12,8 @@ import (
 )
 
 func (s *Platform) CreateAppInst(clusterInst *edgeproto.ClusterInst, app *edgeproto.App, appInst *edgeproto.AppInst, flavor *edgeproto.Flavor, updateCallback edgeproto.CacheUpdateCallback) error {
+	updateCallback(edgeproto.UpdateTask, "Creating AppInst")
+
 	var err error
 	// regenerate kconf if missing because CRM in container was restarted
 	if err = s.SetupKconf(clusterInst); err != nil {
@@ -26,6 +28,8 @@ func (s *Platform) CreateAppInst(clusterInst *edgeproto.ClusterInst, app *edgepr
 	if err != nil {
 		return err
 	}
+	updateCallback(edgeproto.UpdateTask, "Creating Registry Secret")
+
 	err = mexos.CreateDockerRegistrySecret(client, clusterInst, app, s.config.VaultAddr)
 	if err != nil {
 		return err
@@ -35,6 +39,8 @@ func (s *Platform) CreateAppInst(clusterInst *edgeproto.ClusterInst, app *edgepr
 	case cloudcommon.AppDeploymentTypeKubernetes:
 		err = k8smgmt.CreateAppInst(client, names, app, appInst)
 		if err == nil {
+			updateCallback(edgeproto.UpdateTask, "Waiting for AppInst to Start")
+
 			err = k8smgmt.WaitForAppInst(client, names, app, k8smgmt.WaitRunning)
 		}
 	default:
@@ -43,6 +49,7 @@ func (s *Platform) CreateAppInst(clusterInst *edgeproto.ClusterInst, app *edgepr
 	if err != nil {
 		return err
 	}
+	updateCallback(edgeproto.UpdateTask, "Waiting for Load Balancer External IP")
 
 	// set up dns
 	getDnsAction := func(svc v1.Service) (*mexos.DnsSvcAction, error) {
@@ -53,6 +60,8 @@ func (s *Platform) CreateAppInst(clusterInst *edgeproto.ClusterInst, app *edgepr
 		}
 		action.ExternalIP = externalIP
 		// no patching needed since Azure already does it.
+		// Should only add DNS for external ports
+		action.AddDNS = !app.InternalPorts
 		return &action, nil
 	}
 	err = mexos.CreateAppDNS(client, names, getDnsAction)
@@ -87,7 +96,10 @@ func (s *Platform) DeleteAppInst(clusterInst *edgeproto.ClusterInst, app *edgepr
 	if err != nil {
 		return err
 	}
-
+	// No DNS entry if ports are internal
+	if app.InternalPorts {
+		return nil
+	}
 	return mexos.DeleteAppDNS(client, names)
 }
 
@@ -127,6 +139,10 @@ func (s *Platform) GetAppInstRuntime(clusterInst *edgeproto.ClusterInst, app *ed
 		return nil, err
 	}
 	return k8smgmt.GetAppInstRuntime(client, names, app, appInst)
+}
+
+func (s *Platform) UpdateAppInst(clusterInst *edgeproto.ClusterInst, app *edgeproto.App, appInst *edgeproto.AppInst, updateCallback edgeproto.CacheUpdateCallback) error {
+	return fmt.Errorf("Update not yet supported for Azure AppInst")
 }
 
 func (s *Platform) GetContainerCommand(clusterInst *edgeproto.ClusterInst, app *edgeproto.App, appInst *edgeproto.AppInst, req *edgeproto.ExecRequest) (string, error) {

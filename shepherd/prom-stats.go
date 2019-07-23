@@ -3,6 +3,7 @@ package main
 import (
 	"encoding/json"
 	"fmt"
+	"math"
 	"strconv"
 	"strings"
 	"sync"
@@ -24,24 +25,39 @@ type MetricAppInstKey struct {
 }
 
 type PodPromStat struct {
-	cpu     float64
-	mem     uint64
-	disk    float64
-	netSend uint64
-	netRecv uint64
+	cpu       float64
+	cpuTS     *types.Timestamp
+	mem       uint64
+	memTS     *types.Timestamp
+	disk      float64
+	diskTS    *types.Timestamp
+	netSend   uint64
+	netSendTS *types.Timestamp
+	netRecv   uint64
+	netRecvTS *types.Timestamp
 }
 
 type ClustPromStat struct {
-	cpu        float64
-	mem        float64
-	disk       float64
-	netSend    uint64
-	netRecv    uint64
-	tcpConns   uint64
-	tcpRetrans uint64
-	udpSend    uint64
-	udpRecv    uint64
-	udpRecvErr uint64
+	cpu          float64
+	cpuTS        *types.Timestamp
+	mem          float64
+	memTS        *types.Timestamp
+	disk         float64
+	diskTS       *types.Timestamp
+	netSend      uint64
+	netSendTS    *types.Timestamp
+	netRecv      uint64
+	netRecvTS    *types.Timestamp
+	tcpConns     uint64
+	tcpConnsTS   *types.Timestamp
+	tcpRetrans   uint64
+	tcpRetransTS *types.Timestamp
+	udpSend      uint64
+	udpSendTS    *types.Timestamp
+	udpRecv      uint64
+	udpRecvTS    *types.Timestamp
+	udpRecvErr   uint64
+	udpRecvErrTS *types.Timestamp
 }
 
 type PromStats struct {
@@ -75,7 +91,9 @@ type PromLables struct {
 	PodName string `json:"pod_name,omitempty"`
 }
 
-func NewPromStats(promAddr string, interval time.Duration, send func(metric *edgeproto.Metric), clusterInst *edgeproto.ClusterInst, pf platform.Platform) *PromStats {
+const platformClientHeaderSize = 3
+
+func NewPromStats(promAddr string, interval time.Duration, send func(metric *edgeproto.Metric), clusterInst *edgeproto.ClusterInst, pf platform.Platform) (*PromStats, error) {
 	var err error
 	p := PromStats{}
 	p.promAddr = promAddr
@@ -89,15 +107,16 @@ func NewPromStats(promAddr string, interval time.Duration, send func(metric *edg
 	p.developer = clusterInst.Key.Developer
 	p.client, err = pf.GetPlatformClient(clusterInst)
 	if err != nil {
-		//should this be a fatal log???
-		log.FatalLog("Failed to acquire platform client", "error", err)
+		// If we cannot get a platform client no point in trying to get metrics
+		log.DebugLog(log.DebugLevelMetrics, "Failed to acquire platform client", "cluster", clusterInst.Key, "error", err)
+		return nil, err
 	}
-	return &p
+	return &p, nil
 }
 
 //trims the output from the pc.PlatformClient.Output request so that to get rid of the header stuff tacked on by it
 func outputTrim(output string) string {
-	lines := strings.Split(output, "\n")
+	lines := strings.SplitN(output, "\n", platformClientHeaderSize+1)
 	if len(lines) == 0 {
 		return ""
 	}
@@ -121,6 +140,15 @@ func getPromMetrics(addr string, query string, client pc.PlatformClient) (*PromR
 	return promResp, nil
 }
 
+//this takes a float64 representation of a time(in sec) given to use by prometheus
+//and turns it into a type.Timestamp format for writing into influxDB
+func parseTime(timeFloat float64) *types.Timestamp {
+	sec, dec := math.Modf(timeFloat)
+	time := time.Unix(int64(sec), int64(dec*(1e9)))
+	ts, _ := types.TimestampProto(time)
+	return ts
+}
+
 func (p *PromStats) CollectPromStats() error {
 	appKey := MetricAppInstKey{
 		operator:  p.operatorName,
@@ -138,6 +166,7 @@ func (p *PromStats) CollectPromStats() error {
 				stat = &PodPromStat{}
 				p.appStatsMap[appKey] = stat
 			}
+			stat.cpuTS = parseTime(metric.Values[0].(float64))
 			//copy only if we can parse the value
 			if val, err := strconv.ParseFloat(metric.Values[1].(string), 64); err == nil {
 				stat.cpu = val
@@ -154,6 +183,7 @@ func (p *PromStats) CollectPromStats() error {
 				stat = &PodPromStat{}
 				p.appStatsMap[appKey] = stat
 			}
+			stat.memTS = parseTime(metric.Values[0].(float64))
 			//copy only if we can parse the value
 			if val, err := strconv.ParseUint(metric.Values[1].(string), 10, 64); err == nil {
 				stat.mem = val
@@ -170,6 +200,7 @@ func (p *PromStats) CollectPromStats() error {
 				stat = &PodPromStat{}
 				p.appStatsMap[appKey] = stat
 			}
+			stat.netRecvTS = parseTime(metric.Values[0].(float64))
 			//copy only if we can parse the value
 			if val, err := strconv.ParseFloat(metric.Values[1].(string), 64); err == nil {
 				stat.netRecv = uint64(val)
@@ -187,6 +218,7 @@ func (p *PromStats) CollectPromStats() error {
 				p.appStatsMap[appKey] = stat
 			}
 			//copy only if we can parse the value
+			stat.netSendTS = parseTime(metric.Values[0].(float64))
 			if val, err := strconv.ParseFloat(metric.Values[1].(string), 64); err == nil {
 				stat.netSend = uint64(val)
 			}
@@ -197,6 +229,7 @@ func (p *PromStats) CollectPromStats() error {
 	resp, err = getPromMetrics(p.promAddr, promQCpuClust, p.client)
 	if err == nil && resp.Status == "success" {
 		for _, metric := range resp.Data.Result {
+			p.clusterStat.cpuTS = parseTime(metric.Values[0].(float64))
 			//copy only if we can parse the value
 			if val, err := strconv.ParseFloat(metric.Values[1].(string), 64); err == nil {
 				p.clusterStat.cpu = val
@@ -209,6 +242,7 @@ func (p *PromStats) CollectPromStats() error {
 	resp, err = getPromMetrics(p.promAddr, promQMemClust, p.client)
 	if err == nil && resp.Status == "success" {
 		for _, metric := range resp.Data.Result {
+			p.clusterStat.memTS = parseTime(metric.Values[0].(float64))
 			//copy only if we can parse the value
 			if val, err := strconv.ParseFloat(metric.Values[1].(string), 64); err == nil {
 				p.clusterStat.mem = val
@@ -221,6 +255,7 @@ func (p *PromStats) CollectPromStats() error {
 	resp, err = getPromMetrics(p.promAddr, promQDiskClust, p.client)
 	if err == nil && resp.Status == "success" {
 		for _, metric := range resp.Data.Result {
+			p.clusterStat.diskTS = parseTime(metric.Values[0].(float64))
 			//copy only if we can parse the value
 			if val, err := strconv.ParseFloat(metric.Values[1].(string), 64); err == nil {
 				p.clusterStat.disk = val
@@ -233,6 +268,7 @@ func (p *PromStats) CollectPromStats() error {
 	resp, err = getPromMetrics(p.promAddr, promQRecvBytesRateClust, p.client)
 	if err == nil && resp.Status == "success" {
 		for _, metric := range resp.Data.Result {
+			p.clusterStat.netRecvTS = parseTime(metric.Values[0].(float64))
 			//copy only if we can parse the value
 			if val, err := strconv.ParseFloat(metric.Values[1].(string), 64); err == nil {
 				p.clusterStat.netRecv = uint64(val)
@@ -245,6 +281,7 @@ func (p *PromStats) CollectPromStats() error {
 	resp, err = getPromMetrics(p.promAddr, promQSendBytesRateClust, p.client)
 	if err == nil && resp.Status == "success" {
 		for _, metric := range resp.Data.Result {
+			p.clusterStat.netSendTS = parseTime(metric.Values[0].(float64))
 			//copy only if we can parse the value
 			if val, err := strconv.ParseFloat(metric.Values[1].(string), 64); err == nil {
 				p.clusterStat.netSend = uint64(val)
@@ -258,6 +295,7 @@ func (p *PromStats) CollectPromStats() error {
 	resp, err = getPromMetrics(p.promAddr, promQTcpConnClust, p.client)
 	if err == nil && resp.Status == "success" {
 		for _, metric := range resp.Data.Result {
+			p.clusterStat.tcpConnsTS = parseTime(metric.Values[0].(float64))
 			//copy only if we can parse the value
 			if val, err := strconv.ParseUint(metric.Values[1].(string), 10, 64); err == nil {
 				p.clusterStat.tcpConns = val
@@ -270,6 +308,7 @@ func (p *PromStats) CollectPromStats() error {
 	resp, err = getPromMetrics(p.promAddr, promQTcpRetransClust, p.client)
 	if err == nil && resp.Status == "success" {
 		for _, metric := range resp.Data.Result {
+			p.clusterStat.tcpRetransTS = parseTime(metric.Values[0].(float64))
 			//copy only if we can parse the value
 			if val, err := strconv.ParseUint(metric.Values[1].(string), 10, 64); err == nil {
 				p.clusterStat.tcpRetrans = val
@@ -282,6 +321,7 @@ func (p *PromStats) CollectPromStats() error {
 	resp, err = getPromMetrics(p.promAddr, promQUdpSendPktsClust, p.client)
 	if err == nil && resp.Status == "success" {
 		for _, metric := range resp.Data.Result {
+			p.clusterStat.udpSendTS = parseTime(metric.Values[0].(float64))
 			//copy only if we can parse the value
 			if val, err := strconv.ParseUint(metric.Values[1].(string), 10, 64); err == nil {
 				p.clusterStat.udpSend = val
@@ -294,6 +334,7 @@ func (p *PromStats) CollectPromStats() error {
 	resp, err = getPromMetrics(p.promAddr, promQUdpRecvPktsClust, p.client)
 	if err == nil && resp.Status == "success" {
 		for _, metric := range resp.Data.Result {
+			p.clusterStat.udpRecvTS = parseTime(metric.Values[0].(float64))
 			//copy only if we can parse the value
 			if val, err := strconv.ParseUint(metric.Values[1].(string), 10, 64); err == nil {
 				p.clusterStat.udpRecv = val
@@ -306,6 +347,7 @@ func (p *PromStats) CollectPromStats() error {
 	resp, err = getPromMetrics(p.promAddr, promQUdpRecvErr, p.client)
 	if err == nil && resp.Status == "success" {
 		for _, metric := range resp.Data.Result {
+			p.clusterStat.udpRecvErrTS = parseTime(metric.Values[0].(float64))
 			//copy only if we can parse the value
 			if val, err := strconv.ParseUint(metric.Values[1].(string), 10, 64); err == nil {
 				p.clusterStat.udpRecvErr = val
@@ -336,16 +378,20 @@ func (p *PromStats) RunNotify() {
 	for !done {
 		select {
 		case <-time.After(p.interval):
-			ts, _ := types.TimestampProto(time.Now())
 			if p.CollectPromStats() != nil {
 				continue
 			}
-			log.DebugLog(log.DebugLevelMetrics, fmt.Sprintf("Sending metrics for (%s-%s)%s with timestamp %s\n", p.operatorName, p.cloudletName,
-				p.clusterName, ts.String()))
+			log.DebugLog(log.DebugLevelMetrics, fmt.Sprintf("Sending metrics for (%s-%s)%s\n", p.operatorName, p.cloudletName, p.clusterName))
 			for key, stat := range p.appStatsMap {
-				p.send(PodStatToMetric(ts, &key, stat))
+				appMetrics := PodStatToMetrics(&key, stat)
+				for _, metric := range appMetrics {
+					p.send(metric)
+				}
 			}
-			p.send(ClusterStatToMetric(ts, p.clusterStat, p.operatorName, p.cloudletName, p.clusterName))
+			clusterMetrics := ClusterStatToMetrics(p)
+			for _, metric := range clusterMetrics {
+				p.send(metric)
+			}
 		case <-p.stop:
 			done = true
 		}
@@ -353,39 +399,114 @@ func (p *PromStats) RunNotify() {
 	p.waitGrp.Done()
 }
 
-func ClusterStatToMetric(ts *types.Timestamp, stat *ClustPromStat, operatorName string, cloudletName string, clusterName string) *edgeproto.Metric {
+func newMetric(operator, cloudlet, cluster, developer, name string, key *MetricAppInstKey, ts *types.Timestamp) *edgeproto.Metric {
 	metric := edgeproto.Metric{}
+	metric.Name = name
 	metric.Timestamp = *ts
-	metric.Name = "crm-cluster"
-	metric.AddTag("operator", operatorName)
-	metric.AddTag("cloudlet", cloudletName)
-	metric.AddTag("cluster", clusterName)
-	metric.AddDoubleVal("cpu", stat.cpu)
-	metric.AddDoubleVal("mem", stat.mem)
-	metric.AddDoubleVal("disk", stat.disk)
-	metric.AddIntVal("sendBytes", stat.netSend)
-	metric.AddIntVal("recvBytes", stat.netRecv)
-	metric.AddIntVal("tcpConns", stat.tcpConns)
-	metric.AddIntVal("tcpRetrans", stat.tcpRetrans)
-	metric.AddIntVal("udpSend", stat.udpSend)
-	metric.AddIntVal("udpRecv", stat.udpRecv)
-	metric.AddIntVal("udpRecvErr", stat.udpRecvErr)
+	metric.AddTag("operator", operator)
+	metric.AddTag("cloudlet", cloudlet)
+	metric.AddTag("cluster", cluster)
+	metric.AddTag("dev", developer)
+	if key != nil {
+		metric.AddTag("app", key.pod)
+	}
 	return &metric
 }
 
-func PodStatToMetric(ts *types.Timestamp, key *MetricAppInstKey, stat *PodPromStat) *edgeproto.Metric {
-	metric := edgeproto.Metric{}
-	metric.Timestamp = *ts
-	metric.Name = "crm-appinst"
-	metric.AddTag("operator", key.operator)
-	metric.AddTag("cloudlet", key.cloudlet)
-	metric.AddTag("cluster", key.cluster)
-	metric.AddTag("dev", key.developer)
-	metric.AddTag("app", key.pod)
-	metric.AddDoubleVal("cpu", stat.cpu)
-	metric.AddIntVal("mem", stat.mem)
-	metric.AddDoubleVal("disk", stat.disk)
-	metric.AddIntVal("sendBytes", stat.netSend)
-	metric.AddIntVal("recvBytes", stat.netRecv)
-	return &metric
+func ClusterStatToMetrics(p *PromStats) []*edgeproto.Metric {
+	var metrics []*edgeproto.Metric
+	var metric *edgeproto.Metric
+
+	//nil timestamps mean the curl request failed. So do not write the metric in
+	if p.clusterStat.cpuTS != nil {
+		metric = newMetric(p.operatorName, p.cloudletName, p.clusterName, p.developer, "cluster-cpu", nil, p.clusterStat.cpuTS)
+		metric.AddDoubleVal("cpu", p.clusterStat.cpu)
+		metrics = append(metrics, metric)
+		//reset to nil for the next collection
+		p.clusterStat.cpuTS = nil
+	}
+
+	if p.clusterStat.memTS != nil {
+		metric = newMetric(p.operatorName, p.cloudletName, p.clusterName, p.developer, "cluster-mem", nil, p.clusterStat.memTS)
+		metric.AddDoubleVal("mem", p.clusterStat.mem)
+		metrics = append(metrics, metric)
+		p.clusterStat.memTS = nil
+	}
+
+	if p.clusterStat.diskTS != nil {
+		metric = newMetric(p.operatorName, p.cloudletName, p.clusterName, p.developer, "cluster-disk", nil, p.clusterStat.diskTS)
+		metric.AddDoubleVal("disk", p.clusterStat.disk)
+		metrics = append(metrics, metric)
+		p.clusterStat.diskTS = nil
+	}
+
+	if p.clusterStat.netSendTS != nil && p.clusterStat.netRecvTS != nil {
+		//for measurements with multiple values just pick one timestamp to use
+		metric = newMetric(p.operatorName, p.cloudletName, p.clusterName, p.developer, "cluster-network", nil, p.clusterStat.netSendTS)
+		metric.AddIntVal("sendBytes", p.clusterStat.netSend)
+		metric.AddIntVal("recvBytes", p.clusterStat.netRecv)
+		metrics = append(metrics, metric)
+	}
+	p.clusterStat.netSendTS = nil
+	p.clusterStat.netRecvTS = nil
+
+	if p.clusterStat.tcpConnsTS != nil && p.clusterStat.tcpRetransTS != nil {
+		metric = newMetric(p.operatorName, p.cloudletName, p.clusterName, p.developer, "cluster-tcp", nil, p.clusterStat.tcpConnsTS)
+		metric.AddIntVal("tcpConns", p.clusterStat.tcpConns)
+		metric.AddIntVal("tcpRetrans", p.clusterStat.tcpRetrans)
+		metrics = append(metrics, metric)
+	}
+	p.clusterStat.netSendTS = nil
+	p.clusterStat.netRecvTS = nil
+
+	if p.clusterStat.udpSendTS != nil && p.clusterStat.udpRecvTS != nil && p.clusterStat.udpRecvErrTS != nil {
+		metric = newMetric(p.operatorName, p.cloudletName, p.clusterName, p.developer, "cluster-udp", nil, p.clusterStat.udpSendTS)
+		metric.AddIntVal("udpSend", p.clusterStat.udpSend)
+		metric.AddIntVal("udpRecv", p.clusterStat.udpRecv)
+		metric.AddIntVal("udpRecvErr", p.clusterStat.udpRecvErr)
+		metrics = append(metrics, metric)
+	}
+	p.clusterStat.udpSendTS = nil
+	p.clusterStat.udpRecvTS = nil
+	p.clusterStat.udpRecvErrTS = nil
+
+	return metrics
+}
+
+func PodStatToMetrics(key *MetricAppInstKey, stat *PodPromStat) []*edgeproto.Metric {
+	var metrics []*edgeproto.Metric
+	var metric *edgeproto.Metric
+
+	if stat.cpuTS != nil {
+		metric = newMetric(key.operator, key.cloudlet, key.cluster, key.developer, "appinst-cpu", key, stat.cpuTS)
+		metric.AddDoubleVal("cpu", stat.cpu)
+		metrics = append(metrics, metric)
+		stat.cpuTS = nil
+	}
+
+	if stat.memTS != nil {
+		metric = newMetric(key.operator, key.cloudlet, key.cluster, key.developer, "appinst-mem", key, stat.memTS)
+		metric.AddIntVal("mem", stat.mem)
+		metrics = append(metrics, metric)
+		stat.memTS = nil
+	}
+
+	if stat.diskTS != nil {
+		metric = newMetric(key.operator, key.cloudlet, key.cluster, key.developer, "appinst-disk", key, stat.diskTS)
+		metric.AddDoubleVal("disk", stat.disk)
+		metrics = append(metrics, metric)
+		stat.diskTS = nil
+	}
+
+	if stat.netSendTS != nil && stat.netRecvTS != nil {
+		//for measurements with multiple values just pick one timestamp to use
+		metric = newMetric(key.operator, key.cloudlet, key.cluster, key.developer, "appinst-network", key, stat.netSendTS)
+		metric.AddIntVal("sendBytes", stat.netSend)
+		metric.AddIntVal("recvBytes", stat.netRecv)
+		metrics = append(metrics, metric)
+	}
+	stat.netSendTS = nil
+	stat.netRecvTS = nil
+
+	return metrics
 }

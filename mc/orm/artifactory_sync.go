@@ -177,7 +177,7 @@ func (s *AppStoreSync) syncGroupUsers() {
 		log.DebugLog(log.DebugLevelApi,
 			"Artifactory Sync delete extra user",
 			"name", user)
-		artifactoryDeleteUser(strings.TrimPrefix(user, getArtifactoryUserPrefix()))
+		artifactoryDeleteUser(user)
 	}
 
 	// Add missing roles

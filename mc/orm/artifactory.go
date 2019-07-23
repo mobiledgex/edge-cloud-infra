@@ -29,10 +29,6 @@ func artifactoryClient() (*artifactory.Artifactory, error) {
 	return client, nil
 }
 
-func getArtifactoryUserPrefix() string {
-	return serverConfig.Tag + "-user-"
-}
-
 func getArtifactoryGroupPrefix() string {
 	return serverConfig.Tag + "-group-"
 }
@@ -43,10 +39,6 @@ func getArtifactoryRepoPrefix() string {
 
 func getArtifactoryPermPrefix() string {
 	return serverConfig.Tag + "-perm-"
-}
-
-func getArtifactoryUserName(userName string) string {
-	return getArtifactoryUserPrefix() + userName
 }
 
 func getArtifactoryGroupName(orgName string) string {
@@ -73,7 +65,7 @@ func artifactoryListUsers() (map[string]bool, error) {
 	tmp := make(map[string]bool)
 	for _, user := range *users {
 		userName := *user.Name
-		if strings.HasPrefix(userName, getArtifactoryUserPrefix()) {
+		if *user.Realm == "ldap" && userName != "admin" {
 			tmp[userName] = true
 		}
 	}
@@ -98,14 +90,14 @@ func artifactoryListUserGroups(userName string) (map[string]bool, error) {
 
 func artifactoryCreateUser(user *ormapi.User, groups *[]string) {
 	client, err := artifactoryClient()
-	userName := getArtifactoryUserName(user.Name)
+	userName := user.Name
 	if err == nil {
 		rtfUser := v1.User{
-			Name:             artifactory.String(userName),
-			Email:            artifactory.String(user.Email),
-			Password:         artifactory.String(user.Passhash),
-			ProfileUpdatable: artifactory.Bool(false),
-			Groups:           groups,
+			Name:                     artifactory.String(userName),
+			Email:                    artifactory.String(user.Email),
+			ProfileUpdatable:         artifactory.Bool(false),
+			Groups:                   groups,
+			InternalPasswordDisabled: artifactory.Bool(true),
 		}
 		_, err = client.V1.Security.CreateOrReplaceUser(context.Background(), userName, &rtfUser)
 	}
@@ -117,9 +109,8 @@ func artifactoryCreateUser(user *ormapi.User, groups *[]string) {
 	}
 }
 
-func artifactoryDeleteUser(name string) {
+func artifactoryDeleteUser(userName string) {
 	client, err := artifactoryClient()
-	userName := getArtifactoryUserName(name)
 	if err == nil {
 		_, _, err = client.V1.Security.DeleteUser(context.Background(), userName)
 	}
@@ -138,7 +129,7 @@ func artifactoryDeleteUser(name string) {
 
 func artifactoryAddUserToGroup(role *ormapi.Role) {
 	client, err := artifactoryClient()
-	userName := getArtifactoryUserName(role.Username)
+	userName := role.Username
 	orgName := getArtifactoryGroupName(role.Org)
 	if err == nil {
 		var userInfo *v1.User
@@ -166,7 +157,7 @@ func artifactoryAddUserToGroup(role *ormapi.Role) {
 
 func artifactoryRemoveUserFromGroup(role *ormapi.Role) {
 	client, err := artifactoryClient()
-	userName := getArtifactoryUserName(role.Username)
+	userName := role.Username
 	orgName := getArtifactoryGroupName(role.Org)
 	if err == nil {
 		var userInfo *v1.User

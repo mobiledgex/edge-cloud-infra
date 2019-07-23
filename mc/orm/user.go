@@ -132,8 +132,7 @@ func CreateUser(c echo.Context) error {
 	}
 	user.EmailVerified = false
 	// password should be passed through in Passhash field.
-	plainpass := user.Passhash
-	user.Passhash, user.Salt, user.Iter = NewPasshash(plainpass)
+	user.Passhash, user.Salt, user.Iter = NewPasshash(user.Passhash)
 	if err := db.Create(&user).Error; err != nil {
 		//check specifically for duplicate username and/or emails
 		if err.Error() == "pq: duplicate key value violates unique constraint \"users_pkey\"" {
@@ -153,7 +152,6 @@ func CreateUser(c echo.Context) error {
 
 	gitlabCreateLDAPUser(&user)
 	if user.Name != DefaultSuperuser {
-		user.Passhash = plainpass
 		artifactoryCreateUser(&user, nil)
 	}
 

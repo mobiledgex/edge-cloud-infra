@@ -9,3 +9,8 @@ crm_instances:
   openstack_instance: beacon
   operator_key: GDDT
   controller_region: US
+
+- cloudlet_name: "{{ deploy_target }}-fake-cloudlet"
+  operator_key: dmuus
+  platform: PLATFORM_TYPE_FAKE
+  controller_region: US

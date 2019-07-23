@@ -2,6 +2,9 @@
   include: etcd-backup.yml
   tags: etcd-backup
 
+- set_fact:
+    controller_hostname: "{{ k8s_cluster_name }}.ctrl.{{ cloudflare_zone }}"
+
 - name: Deploy the Mex Controller
   k8s:
     kubeconfig: "{{ kubeconfig_file.path }}"
@@ -31,7 +34,7 @@
 - name: Update Controller DNS
   cloudflare_dns:
     zone: "{{ cloudflare_zone }}"
-    record: "{{ k8s_cluster_name }}.ctrl"
+    record: "{{ controller_hostname }}"
     value: "{{ controller_ip }}"
     type: A
     state: present

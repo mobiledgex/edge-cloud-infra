@@ -125,7 +125,6 @@ func outputTrim(output string) string {
 
 func getPromMetrics(addr string, query string, client pc.PlatformClient) (*PromResp, error) {
 	reqURI := "'http://" + addr + "/api/v1/query?query=" + query + "'"
-	log.DebugLog(log.DebugLevelMetrics, "asdf making curl request", "Request", "curl "+reqURI)
 	resp, err := client.Output("curl " + reqURI)
 	if err != nil {
 		errstr := fmt.Sprintf("Failed to run <%s>", reqURI)

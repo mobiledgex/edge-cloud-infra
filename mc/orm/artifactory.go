@@ -53,7 +53,7 @@ func getArtifactoryPermName(orgName string) string {
 	return getArtifactoryPermPrefix() + orgName
 }
 
-func artifactoryListUsers() (map[string]bool, error) {
+func artifactoryListUsers() (map[string]struct{}, error) {
 	client, err := artifactoryClient()
 	if err != nil {
 		return nil, err
@@ -62,27 +62,27 @@ func artifactoryListUsers() (map[string]bool, error) {
 	if err != nil {
 		return nil, err
 	}
-	tmp := make(map[string]bool)
+	tmp := make(map[string]struct{})
 	for _, user := range *users {
 		userName := *user.Name
 		if *user.Realm == "ldap" && userName != "admin" {
-			tmp[userName] = true
+			tmp[userName] = struct{}{}
 		}
 	}
 	return tmp, nil
 }
 
-func artifactoryListUserGroups(userName string) (map[string]bool, error) {
+func artifactoryListUserGroups(userName string) (map[string]struct{}, error) {
 	client, err := artifactoryClient()
 	if err != nil {
 		return nil, err
 	}
 
-	tmp := make(map[string]bool)
+	tmp := make(map[string]struct{})
 	userInfo, _, err := client.V1.Security.GetUser(context.Background(), userName)
 	if err == nil && userInfo.Groups != nil {
 		for _, group := range *userInfo.Groups {
-			tmp[group] = true
+			tmp[group] = struct{}{}
 		}
 	}
 	return tmp, nil
@@ -131,6 +131,8 @@ func artifactoryAddUserToGroup(role *ormapi.Role) {
 	client, err := artifactoryClient()
 	userName := role.Username
 	orgName := getArtifactoryGroupName(role.Org)
+	log.DebugLog(log.DebugLevelApi, "artifactory add user to group",
+		"user", userName, "group", orgName)
 	if err == nil {
 		var userInfo *v1.User
 		userInfo, _, err = client.V1.Security.GetUser(context.Background(), userName)
@@ -159,6 +161,8 @@ func artifactoryRemoveUserFromGroup(role *ormapi.Role) {
 	client, err := artifactoryClient()
 	userName := role.Username
 	orgName := getArtifactoryGroupName(role.Org)
+	log.DebugLog(log.DebugLevelApi, "artifactory remove user from group",
+		"user", userName)
 	if err == nil {
 		var userInfo *v1.User
 		userInfo, _, err = client.V1.Security.GetUser(context.Background(), userName)
@@ -184,7 +188,7 @@ func artifactoryRemoveUserFromGroup(role *ormapi.Role) {
 	}
 }
 
-func artifactoryListGroups() (map[string]bool, error) {
+func artifactoryListGroups() (map[string]struct{}, error) {
 	client, err := artifactoryClient()
 	if err != nil {
 		return nil, err
@@ -193,11 +197,11 @@ func artifactoryListGroups() (map[string]bool, error) {
 	if err != nil {
 		return nil, err
 	}
-	tmp := make(map[string]bool)
+	tmp := make(map[string]struct{})
 	for _, group := range *groups {
 		groupName := *group.Name
 		if strings.HasPrefix(groupName, getArtifactoryGroupPrefix()) {
-			tmp[groupName] = true
+			tmp[groupName] = struct{}{}
 		}
 	}
 	return tmp, nil
@@ -240,7 +244,7 @@ func artifactoryDeleteGroup(orgName string) error {
 	return err
 }
 
-func artifactoryListRepos() (map[string]bool, error) {
+func artifactoryListRepos() (map[string]struct{}, error) {
 	client, err := artifactoryClient()
 	if err != nil {
 		return nil, err
@@ -249,11 +253,11 @@ func artifactoryListRepos() (map[string]bool, error) {
 	if err != nil {
 		return nil, err
 	}
-	tmp := make(map[string]bool)
+	tmp := make(map[string]struct{})
 	for _, repo := range *repos {
 		repoName := *repo.Key
 		if strings.HasPrefix(repoName, getArtifactoryRepoPrefix()) {
-			tmp[repoName] = true
+			tmp[repoName] = struct{}{}
 		}
 	}
 	return tmp, nil
@@ -304,7 +308,7 @@ func artifactoryDeleteRepo(orgName string) error {
 	return err
 }
 
-func artifactoryListPerms() (map[string]bool, error) {
+func artifactoryListPerms() (map[string]struct{}, error) {
 	client, err := artifactoryClient()
 	if err != nil {
 		return nil, err
@@ -313,11 +317,11 @@ func artifactoryListPerms() (map[string]bool, error) {
 	if err != nil {
 		return nil, err
 	}
-	tmp := make(map[string]bool)
+	tmp := make(map[string]struct{})
 	for _, perm := range perms {
 		permName := *perm.Name
 		if strings.HasPrefix(permName, getArtifactoryPermPrefix()) {
-			tmp[permName] = true
+			tmp[permName] = struct{}{}
 		}
 	}
 	return tmp, nil

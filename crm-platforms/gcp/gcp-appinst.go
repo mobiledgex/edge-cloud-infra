@@ -53,6 +53,8 @@ func (s *Platform) CreateAppInst(clusterInst *edgeproto.ClusterInst, app *edgepr
 		}
 		action.ExternalIP = externalIP
 		// no patching needed since GCP already does it.
+		// Should only add DNS for external ports
+		action.AddDNS = !app.InternalPorts
 		return &action, nil
 	}
 	if err = mexos.CreateAppDNS(client, names, getDnsAction); err != nil {
@@ -86,7 +88,10 @@ func (s *Platform) DeleteAppInst(clusterInst *edgeproto.ClusterInst, app *edgepr
 	if err != nil {
 		return err
 	}
-
+	// No DNS entry if ports are internal
+	if app.InternalPorts {
+		return nil
+	}
 	return mexos.DeleteAppDNS(client, names)
 }
 
@@ -105,6 +110,10 @@ func SetupKconf(clusterInst *edgeproto.ClusterInst) error {
 		return fmt.Errorf("can't copy %s, %v", src, err)
 	}
 	return nil
+}
+
+func (s *Platform) UpdateAppInst(clusterInst *edgeproto.ClusterInst, app *edgeproto.App, appInst *edgeproto.AppInst, updateCallback edgeproto.CacheUpdateCallback) error {
+	return fmt.Errorf("Update not yet supported for GCP AppInst")
 }
 
 func (s *Platform) GetAppInstRuntime(clusterInst *edgeproto.ClusterInst, app *edgeproto.App, appInst *edgeproto.AppInst) (*edgeproto.AppInstRuntime, error) {

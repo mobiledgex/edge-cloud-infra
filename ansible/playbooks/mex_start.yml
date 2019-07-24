@@ -151,7 +151,7 @@
       pull: yes
       image: "{{ item.dockerimage }}"
       name: "{{ item.name }}"
-      command: "crmserver --apiAddr {{ item.apiaddr }} --notifyAddrs {{ item.notifyaddrs }} --cloudletKey '{{ item.cloudletkey }}' {{ tlsopt }} --d api,notify,mexos"
+      command: "crmserver --apiAddr {{ item.apiaddr }} --notifySrvAddr {{ item.notifysrvaddr }} --vaultAddr {{ item.vaultaddr }} --physicalName {{ item.physicalname }} --platform openstack --notifyAddrs {{ item.notifyaddrs }} --cloudletKey '{{ item.cloudletkey }}' {{ tlsopt }} --d api,notify,mexos"
       network_mode: host
       restart_policy: unless-stopped
       env_file: "{{remote_log_path}}/{{item.name}}.env"

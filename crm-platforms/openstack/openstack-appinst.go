@@ -77,10 +77,17 @@ func (s *Platform) CreateAppInst(clusterInst *edgeproto.ClusterInst, app *edgepr
 					action.PatchKube = true
 					action.PatchIP = masterIP
 					action.ExternalIP = rootLBIPaddr
+					// Should only add DNS for external ports
+					action.AddDNS = !app.InternalPorts
 					return &action, nil
 				}
-				updateCallback(edgeproto.UpdateTask, "Configuring Service: LB, Firewall Rules and DNS")
-				err = mexos.AddProxySecurityRulesAndPatchDNS(client, names, appInst, getDnsAction, rootLBName, masterIP, true, nginx.WithDockerNetwork("host"))
+				// If this is an internal ports, all we need is patch of kube service
+				if app.InternalPorts {
+					err = mexos.CreateAppDNS(client, names, getDnsAction)
+				} else {
+					updateCallback(edgeproto.UpdateTask, "Configuring Service: LB, Firewall Rules and DNS")
+					err = mexos.AddProxySecurityRulesAndPatchDNS(client, names, appInst, getDnsAction, rootLBName, masterIP, true, nginx.WithDockerNetwork("host"))
+				}
 			}
 		}
 		appWaitErr := <-appWaitChan
@@ -241,13 +248,15 @@ func (s *Platform) DeleteAppInst(clusterInst *edgeproto.ClusterInst, app *edgepr
 		_, masterIP, err := mexos.GetMasterNameAndIP(clusterInst)
 		if err != nil {
 			return err
-		} // Clean up security rules and nginx proxy
-		if err := mexos.DeleteProxySecurityRules(client, masterIP, names.AppName); err != nil {
-			log.DebugLog(log.DebugLevelMexos, "cannot clean up security rules", "name", names.AppName, "rootlb", rootLBName, "error", err)
-		}
-		// Clean up DNS entries
-		if err := mexos.DeleteAppDNS(client, names); err != nil {
-			log.DebugLog(log.DebugLevelMexos, "cannot clean up DNS entries", "name", names.AppName, "rootlb", rootLBName, "error", err)
+		} // Clean up security rules and nginx proxy if app is external
+		if !app.InternalPorts {
+			if err := mexos.DeleteProxySecurityRules(client, masterIP, names.AppName); err != nil {
+				log.DebugLog(log.DebugLevelMexos, "cannot clean up security rules", "name", names.AppName, "rootlb", rootLBName, "error", err)
+			}
+			// Clean up DNS entries
+			if err := mexos.DeleteAppDNS(client, names); err != nil {
+				log.DebugLog(log.DebugLevelMexos, "cannot clean up DNS entries", "name", names.AppName, "rootlb", rootLBName, "error", err)
+			}
 		}
 		if deployment == cloudcommon.AppDeploymentTypeKubernetes {
 			return k8smgmt.DeleteAppInst(client, names, app, appInst)
@@ -269,6 +278,23 @@ func (s *Platform) DeleteAppInst(clusterInst *edgeproto.ClusterInst, app *edgepr
 		return dockermgmt.DeleteAppInst(client, app, appInst)
 	default:
 		return fmt.Errorf("unsupported deployment type %s", deployment)
+	}
+}
+
+func (s *Platform) UpdateAppInst(clusterInst *edgeproto.ClusterInst, app *edgeproto.App, appInst *edgeproto.AppInst, updateCallback edgeproto.CacheUpdateCallback) error {
+	switch deployment := app.Deployment; deployment {
+	case cloudcommon.AppDeploymentTypeKubernetes:
+		client, err := s.GetPlatformClient(clusterInst)
+		if err != nil {
+			return err
+		}
+		names, err := k8smgmt.GetKubeNames(clusterInst, app, appInst)
+		if err != nil {
+			return fmt.Errorf("get kube names failed: %s", err)
+		}
+		return k8smgmt.UpdateAppInst(client, names, app, appInst)
+	default:
+		return fmt.Errorf("UpdateAppInst not supported for deployment: %s", app.Deployment)
 	}
 }
 

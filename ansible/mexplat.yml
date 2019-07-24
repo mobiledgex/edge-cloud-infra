@@ -63,25 +63,8 @@
       failed_when: edge_cloud_version not in response.json.tags
       check_mode: no
 
-    - name: Import terraform variables from ansible
-      make:
-        chdir: "../terraform/mexplat/{{ deploy_environ }}"
-        target: ansible.auto.tfvars
-      changed_when: false
-
-    - name: Get setup details from terraform
-      terraform:
-        project_path: "../terraform/mexplat/{{ deploy_environ }}"
-        state: present
-        force_init: yes
-        lock: no
-        variables:
-          azure_terraform_service_principal_id: "{{ azure_terraform_service_principal_id }}"
-          azure_terraform_service_principal_secret: "{{ azure_terraform_service_principal_secret }}"
-          azure_subscription_id: "{{ azure_subscription_id }}"
-          azure_tenant_id: "{{ azure_tenant_id }}"
-      check_mode: yes
-      register: terraform
+    - import_role:
+        name: terraform_load
 
     - set_fact:
         k8s_clusters: "{{ terraform.outputs.k8s_clusters.value }}"
@@ -121,9 +104,17 @@
   tasks:
     - import_role:
         name: docker
+      tags: setup
     - include_role:
         name: crm
-      with_items: "{{ crm_instances }}"
+      loop: "{{ crm_instances }}"
+      loop_control:
+        index_var: crm_index
+    - include_role:
+        name: shepherd
+      loop: "{{ crm_instances }}"
+      loop_control:
+        index_var: crm_index
 
 - hosts: mc
   roles:

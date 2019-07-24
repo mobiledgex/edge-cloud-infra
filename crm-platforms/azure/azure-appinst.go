@@ -60,6 +60,8 @@ func (s *Platform) CreateAppInst(clusterInst *edgeproto.ClusterInst, app *edgepr
 		}
 		action.ExternalIP = externalIP
 		// no patching needed since Azure already does it.
+		// Should only add DNS for external ports
+		action.AddDNS = !app.InternalPorts
 		return &action, nil
 	}
 	err = mexos.CreateAppDNS(client, names, getDnsAction)
@@ -94,7 +96,10 @@ func (s *Platform) DeleteAppInst(clusterInst *edgeproto.ClusterInst, app *edgepr
 	if err != nil {
 		return err
 	}
-
+	// No DNS entry if ports are internal
+	if app.InternalPorts {
+		return nil
+	}
 	return mexos.DeleteAppDNS(client, names)
 }
 
@@ -134,6 +139,10 @@ func (s *Platform) GetAppInstRuntime(clusterInst *edgeproto.ClusterInst, app *ed
 		return nil, err
 	}
 	return k8smgmt.GetAppInstRuntime(client, names, app, appInst)
+}
+
+func (s *Platform) UpdateAppInst(clusterInst *edgeproto.ClusterInst, app *edgeproto.App, appInst *edgeproto.AppInst, updateCallback edgeproto.CacheUpdateCallback) error {
+	return fmt.Errorf("Update not yet supported for Azure AppInst")
 }
 
 func (s *Platform) GetContainerCommand(clusterInst *edgeproto.ClusterInst, app *edgeproto.App, appInst *edgeproto.AppInst, req *edgeproto.ExecRequest) (string, error) {

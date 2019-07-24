@@ -30,7 +30,7 @@ var vaultAddr = flag.String("vaultAddr", "", "Address to vault")
 var physicalName = flag.String("physicalName", "", "Physical infrastructure cloudlet name, defaults to cloudlet name in cloudletKey")
 var cloudletKeyStr = flag.String("cloudletKey", "", "Json or Yaml formatted cloudletKey for the cloudlet in which this CRM is instantiated; e.g. '{\"operator_key\":{\"name\":\"TMUS\"},\"name\":\"tmocloud1\"}'")
 var region = flag.String("region", "local", "region name")
-var name = flag.String("name", "", "Unique name to identify a process")
+var name = flag.String("name", "shepherd", "Unique name to identify a process")
 
 var promQCpuClust = "sum(rate(container_cpu_usage_seconds_total%7Bid%3D%22%2F%22%7D%5B1m%5D))%2Fsum(machine_cpu_cores)*100"
 var promQMemClust = "sum(container_memory_working_set_bytes%7Bid%3D%22%2F%22%7D)%2Fsum(machine_memory_bytes)*100"
@@ -48,12 +48,7 @@ var promQMemPod = "sum(container_memory_working_set_bytes%7Bimage!%3D%22%22%7D)b
 var promQNetRecvRate = "sum(irate(container_network_receive_bytes_total%7Bimage!%3D%22%22%7D%5B1m%5D))by(pod_name)"
 var promQNetSendRate = "sum(irate(container_network_transmit_bytes_total%7Bimage!%3D%22%22%7D%5B1m%5D))by(pod_name)"
 
-var Env = map[string]string{
-	"INFLUXDB_USER": "root",
-	"INFLUXDB_PASS": "root",
-}
-
-var defaultPormetheusPort = int32(9090)
+var defaultPrometheusPort = int32(9090)
 
 //map keeping track of all the currently running prometheuses
 var promMap map[string]*PromStats
@@ -89,19 +84,22 @@ func appInstCb(old *edgeproto.AppInst, new *edgeproto.AppInst) {
 		clustIP, err := pf.GetClusterIP(&clusterInst)
 		if err != nil {
 			log.DebugLog(log.DebugLevelMetrics, "error getting clusterIP", "err", err.Error())
+			return
 		}
 		// We don't actually expose prometheus ports - we should default to 9090
 		if len(new.MappedPorts) > 0 {
 			port = new.MappedPorts[0].PublicPort
 		} else {
-			port = defaultPormetheusPort
+			port = defaultPrometheusPort
 		}
 		promAddress := fmt.Sprintf("%s:%d", clustIP, port)
 		log.DebugLog(log.DebugLevelMetrics, "prometheus found", "promAddress", promAddress)
 		if !exists {
-			stats = NewPromStats(promAddress, *collectInterval, sendMetric, &clusterInst, pf)
-			promMap[mapKey] = stats
-			stats.Start()
+			stats, err = NewPromStats(promAddress, *collectInterval, sendMetric, &clusterInst, pf)
+			if err == nil {
+				promMap[mapKey] = stats
+				stats.Start()
+			}
 		} else { //somehow this cluster's prometheus was already registered
 			log.DebugLog(log.DebugLevelMetrics, "Error, Prometheus app already registered for this cluster")
 		}
@@ -146,8 +144,7 @@ func main() {
 	// get influxDB credentials from vault
 	influxAuth := cloudcommon.GetInfluxDataAuth(*vaultAddr, *region)
 	if influxAuth == nil {
-		// default to default user/pass
-		influxAuth = &cloudcommon.InfluxCreds{User: "root", Pass: "root"}
+		log.FatalLog("Failed to get influxDB credentials from vault")
 	}
 	influxQ = influxq.NewInfluxQ(InfluxDBName, influxAuth.User, influxAuth.Pass)
 	err = influxQ.Start(*influxdb, "")

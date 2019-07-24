@@ -1,6 +1,6 @@
 pipeline {
     options {
-        timeout(time: 30, unit: 'MINUTES')
+        timeout(time: 60, unit: 'MINUTES')
     }
     agent any
     stages {
@@ -61,6 +61,37 @@ export PATH=$PATH:$WORKSPACE/go/bin:$HOME/go/bin
 export GOPATH=$WORKSPACE/go
 make
                     '''
+                }
+            }
+        }
+        stage('Test') {
+            options {
+                timeout(time: 40, unit: 'MINUTES')
+            }
+            steps {
+                lock('testbed') {
+                    retry(2) {
+                        sleep 10
+                        dir(path: 'go/src/github.com/mobiledgex/edge-cloud-infra') {
+                            sh label: 'unit tests', script: '''#!/bin/bash
+export PATH=$PATH:$WORKSPACE/go/bin:$HOME/go/bin:/usr/lib/postgresql/11/bin
+export GOPATH=$WORKSPACE/go
+export GO111MODULE=on
+UNIT_TEST_LOG=/tmp/edge-cloud-infra-unit-test.${BUILD_TAG}.log make unit-test
+                            '''
+                        }
+                    }
+                    sleep 60
+                    retry(2) {
+                        sleep 10
+                        dir(path: 'go/src/github.com/mobiledgex/edge-cloud-infra') {
+                            sh label: 'make test', script: '''#!/bin/bash
+export PATH=$PATH:$WORKSPACE/go/bin:$HOME/go/bin:/usr/lib/postgresql/11/bin
+export GOPATH=$WORKSPACE/go
+make test
+                            '''
+                        }
+                    }
                 }
             }
         }

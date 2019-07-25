@@ -29,28 +29,20 @@ func artifactoryClient() (*artifactory.Artifactory, error) {
 	return client, nil
 }
 
-func getArtifactoryGroupPrefix() string {
-	return serverConfig.Tag + "-group-"
-}
-
-func getArtifactoryRepoPrefix() string {
-	return serverConfig.Tag + "-repo-"
-}
-
-func getArtifactoryPermPrefix() string {
-	return serverConfig.Tag + "-perm-"
+func getArtifactoryPrefix() string {
+	return "mc-"
 }
 
 func getArtifactoryGroupName(orgName string) string {
-	return getArtifactoryGroupPrefix() + orgName
+	return getArtifactoryPrefix() + orgName
 }
 
 func getArtifactoryRepoName(orgName string) string {
-	return getArtifactoryRepoPrefix() + orgName
+	return getArtifactoryPrefix() + orgName
 }
 
 func getArtifactoryPermName(orgName string) string {
-	return getArtifactoryPermPrefix() + orgName
+	return getArtifactoryPrefix() + orgName
 }
 
 func artifactoryListUsers() (map[string]struct{}, error) {
@@ -200,7 +192,7 @@ func artifactoryListGroups() (map[string]struct{}, error) {
 	tmp := make(map[string]struct{})
 	for _, group := range *groups {
 		groupName := *group.Name
-		if strings.HasPrefix(groupName, getArtifactoryGroupPrefix()) {
+		if strings.HasPrefix(groupName, getArtifactoryPrefix()) {
 			tmp[groupName] = struct{}{}
 		}
 	}
@@ -256,7 +248,7 @@ func artifactoryListRepos() (map[string]struct{}, error) {
 	tmp := make(map[string]struct{})
 	for _, repo := range *repos {
 		repoName := *repo.Key
-		if strings.HasPrefix(repoName, getArtifactoryRepoPrefix()) {
+		if strings.HasPrefix(repoName, getArtifactoryPrefix()) {
 			tmp[repoName] = struct{}{}
 		}
 	}
@@ -320,7 +312,7 @@ func artifactoryListPerms() (map[string]struct{}, error) {
 	tmp := make(map[string]struct{})
 	for _, perm := range perms {
 		permName := *perm.Name
-		if strings.HasPrefix(permName, getArtifactoryPermPrefix()) {
+		if strings.HasPrefix(permName, getArtifactoryPrefix()) {
 			tmp[permName] = struct{}{}
 		}
 	}

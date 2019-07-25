@@ -91,7 +91,7 @@ func (s *AppStoreSync) syncGroupObjects() {
 		log.DebugLog(log.DebugLevelApi,
 			"Artifactory Sync delete extra group",
 			"name", group)
-		err = artifactoryDeleteGroup(strings.TrimPrefix(group, getArtifactoryGroupPrefix()))
+		err = artifactoryDeleteGroup(strings.TrimPrefix(group, getArtifactoryPrefix()))
 		if err != nil {
 			s.syncErr(err)
 		}
@@ -100,7 +100,7 @@ func (s *AppStoreSync) syncGroupObjects() {
 		log.DebugLog(log.DebugLevelApi,
 			"Artifactory Sync delete extra repository",
 			"name", repo)
-		err = artifactoryDeleteRepo(strings.TrimPrefix(repo, getArtifactoryRepoPrefix()))
+		err = artifactoryDeleteRepo(strings.TrimPrefix(repo, getArtifactoryPrefix()))
 		if err != nil {
 			s.syncErr(err)
 		}
@@ -109,7 +109,7 @@ func (s *AppStoreSync) syncGroupObjects() {
 		log.DebugLog(log.DebugLevelApi,
 			"Artifactory Sync delete extra permission target",
 			"name", perm)
-		err = artifactoryDeleteRepoPerms(strings.TrimPrefix(perm, getArtifactoryPermPrefix()))
+		err = artifactoryDeleteRepoPerms(strings.TrimPrefix(perm, getArtifactoryPrefix()))
 		if err != nil {
 			s.syncErr(err)
 		}

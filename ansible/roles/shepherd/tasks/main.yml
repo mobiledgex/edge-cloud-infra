@@ -44,8 +44,6 @@
   set_fact:
     shepherd_args:
       - shepherd
-      - "--influxAddr"
-      - "https://{{ influxdb_dns }}.{{ cloudflare_zone }}:8086"
       # notifyAddr is localhost because use use host networking for docker containers
       - "--notifyAddrs"
       - "localhost:{{ notify_port }}"

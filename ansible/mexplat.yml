@@ -89,6 +89,7 @@
 
 - hosts: gitlab
   roles:
+    - role: docker
     - role: gitlab
 
 - hosts: postgres

@@ -19,10 +19,10 @@ post "/*" do
         next unless target["url"].include? "/manifests/"
 
         image = "#{event["request"]["host"]}/#{target["repository"]}:#{target["tag"]}"
-	developer = target["repository"].split("/")[0]
+        developer = target["repository"].split("/")[0]
         publish_user = "#{event["actor"]["name"]}"
-	url = target["url"]
-	publish_from = event["request"]["addr"]
+        url = target["url"]
+        publish_from = event["request"]["addr"]
 
         slack = [
             {
@@ -37,7 +37,7 @@ post "/*" do
                 "elements" => [
                     {
                         "type": "mrkdwn",
-			"text": "*Developer*: #{developer}"
+                        "text": "*Developer*: #{developer}"
                     },
                     {
                         "type": "mrkdwn",

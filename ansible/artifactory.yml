@@ -1,11 +1,32 @@
 ---
 - hosts: artifactory
   vars:
-    docker_skip_install: true
+    artifactory_version: 6.10.7
     docker_skip_registry_login: true
+    data_directory: /var/opt/jfrog/artifactory
+    artifactory_docker_userid: 1030
 
   tasks:
     - include_role: name="docker"
+
+    - block:
+
+      - file:
+          path: "{{ data_directory }}"
+          state: directory
+          owner: "{{ artifactory_docker_userid }}"
+          group: root
+          mode: 0755
+        become: yes
+
+      - import_role:
+          name: web
+        vars:
+          nginx_config_template: "templates/nginx-artifactory.j2"
+          cert_domains: [ "{{ inventory_hostname }}" ]
+
+      when: artifactory_preconfigured is not defined or not artifactory_preconfigured
+
     - name: "Installing Artifactory version {{ artifactory_version }}"
       docker_container:
         name: artifactory
@@ -14,5 +35,5 @@
         ports:
           - "127.0.0.1:9091:8081"
         volumes:
-          - "/var/opt/jfrog/artifactory:/var/opt/jfrog/artifactory"
+          - "{{ data_directory }}:{{ data_directory }}"
       become: yes

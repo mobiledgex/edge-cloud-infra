@@ -21,3 +21,6 @@ console-qa.mobiledgex.net
 
 [vault]
 vault-qa.mobiledgex.net
+
+[artifactory]
+artifactory-qa.mobiledgex.net

@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"flag"
 	"fmt"
 	"os"
@@ -14,16 +15,14 @@ import (
 	"github.com/mobiledgex/edge-cloud-infra/shepherd/shepherd_platform/shepherd_openstack"
 	"github.com/mobiledgex/edge-cloud/cloud-resource-manager/k8smgmt"
 	"github.com/mobiledgex/edge-cloud/cloudcommon"
-	influxq "github.com/mobiledgex/edge-cloud/controller/influxq_client"
 	"github.com/mobiledgex/edge-cloud/edgeproto"
 	"github.com/mobiledgex/edge-cloud/log"
 	"github.com/mobiledgex/edge-cloud/notify"
 )
 
-var influxdb = flag.String("influxAddr", "http://0.0.0.0:8086", "InfluxDB address to export to")
 var debugLevels = flag.String("d", "", fmt.Sprintf("comma separated list of %v", log.DebugLevelStrings))
-var notifyAddrs = flag.String("notifyAddrs", "127.0.0.1:51001", "CRM notify listener addresses")
 var tlsCertFile = flag.String("tls", "", "server tls cert file.  Keyfile and CA file mex-ca.crt must be in same directory")
+var notifyAddrs = flag.String("notifyAddrs", "127.0.0.1:51001", "CRM notify listener addresses")
 var collectInterval = flag.Duration("interval", time.Second*15, "Metrics collection interval")
 var platformName = flag.String("platform", "", "Platform type of Cloudlet")
 var vaultAddr = flag.String("vaultAddr", "", "Address to vault")
@@ -55,16 +54,14 @@ var promMap map[string]*PromStats
 var MEXPrometheusAppName = cloudcommon.MEXPrometheusAppName
 var AppInstCache edgeproto.AppInstCache
 var ClusterInstCache edgeproto.ClusterInstCache
+var metricSender *notify.MetricSend
 
 var cloudletKey edgeproto.CloudletKey
 var pf platform.Platform
 
-var InfluxDBName = cloudcommon.DeveloperMetricsDbName
-var influxQ *influxq.InfluxQ
-
 var sigChan chan os.Signal
 
-func appInstCb(old *edgeproto.AppInst, new *edgeproto.AppInst) {
+func appInstCb(ctx context.Context, old *edgeproto.AppInst, new *edgeproto.AppInst) {
 	var port int32
 	//check for prometheus
 	if new.Key.AppKey.Name != MEXPrometheusAppName {
@@ -95,7 +92,7 @@ func appInstCb(old *edgeproto.AppInst, new *edgeproto.AppInst) {
 		promAddress := fmt.Sprintf("%s:%d", clustIP, port)
 		log.DebugLog(log.DebugLevelMetrics, "prometheus found", "promAddress", promAddress)
 		if !exists {
-			stats, err = NewPromStats(promAddress, *collectInterval, sendMetric, &clusterInst, pf)
+			stats, err = NewPromStats(promAddress, *collectInterval, metricSender.Update, &clusterInst, pf)
 			if err == nil {
 				promMap[mapKey] = stats
 				stats.Start()
@@ -131,9 +128,11 @@ func getPlatform() (platform.Platform, error) {
 func main() {
 	flag.Parse()
 	log.SetDebugLevelStrs(*debugLevels)
+	log.InitTracer()
+	defer log.FinishTracer()
+	span := log.StartSpan(log.DebugLevelInfo, "main")
 
 	cloudcommon.ParseMyCloudletKey(false, cloudletKeyStr, &cloudletKey)
-	log.DebugLog(log.DebugLevelMetrics, "InfluxDB found", "influxdb addr", influxdb)
 	log.DebugLog(log.DebugLevelMetrics, "Metrics collection", "interval", collectInterval)
 	var err error
 	pf, err = getPlatform()
@@ -141,22 +140,10 @@ func main() {
 		log.FatalLog("Failed to get platform", "platformName", platformName, "err", err)
 	}
 	pf.Init(&cloudletKey, *physicalName, *vaultAddr)
-	// get influxDB credentials from vault
-	influxAuth := cloudcommon.GetInfluxDataAuth(*vaultAddr, *region)
-	if influxAuth == nil {
-		log.FatalLog("Failed to get influxDB credentials from vault")
-	}
-	influxQ = influxq.NewInfluxQ(InfluxDBName, influxAuth.User, influxAuth.Pass)
-	err = influxQ.Start(*influxdb, "")
-	if err != nil {
-		log.FatalLog("Failed to start influx queue",
-			"address", *influxdb, "err", err)
-	}
-	defer influxQ.Stop()
 
 	promMap = make(map[string]*PromStats)
 
-	//register shepherd to receive appinst notifications from crm
+	//register shepherd to receive appinst and clusterinst notifications from crm
 	edgeproto.InitAppInstCache(&AppInstCache)
 	AppInstCache.SetUpdatedCb(appInstCb)
 	edgeproto.InitClusterInstCache(&ClusterInstCache)
@@ -164,6 +151,10 @@ func main() {
 	notifyClient := notify.NewClient(addrs, *tlsCertFile)
 	notifyClient.RegisterRecvAppInstCache(&AppInstCache)
 	notifyClient.RegisterRecvClusterInstCache(&ClusterInstCache)
+	//register to send metrics
+	metricSender = notify.NewMetricSend()
+	notifyClient.RegisterSend(metricSender)
+
 	notifyClient.Start()
 	defer notifyClient.Stop()
 
@@ -171,12 +162,9 @@ func main() {
 	signal.Notify(sigChan, os.Interrupt)
 
 	log.DebugLog(log.DebugLevelMetrics, "Ready")
+	span.Finish()
 
 	// wait until process in killed/interrupted
 	sig := <-sigChan
 	fmt.Println(sig)
-}
-
-func sendMetric(metric *edgeproto.Metric) {
-	influxQ.AddMetric(metric)
 }

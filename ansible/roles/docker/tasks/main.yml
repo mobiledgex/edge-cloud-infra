@@ -57,4 +57,4 @@
     registry: "{{ mex_docker_registry }}"
     username: "{{ mex_docker_username }}"
     password: "{{ mex_docker_password }}"
-  when: docker_skip_registry_login is undefined or not docker_skip_install
+  when: docker_skip_registry_login is undefined or not docker_skip_registry_login

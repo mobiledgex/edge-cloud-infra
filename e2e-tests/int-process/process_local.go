@@ -203,10 +203,6 @@ func (p *Shepherd) GetArgs(opts ...process.StartOp) []string {
 		args = append(args, "--notifyAddrs")
 		args = append(args, p.NotifyAddrs)
 	}
-	if p.InfluxAddr != "" {
-		args = append(args, "--influxAddr")
-		args = append(args, p.InfluxAddr)
-	}
 	if p.Interval != "" {
 		args = append(args, "--interval")
 		args = append(args, p.Interval)
@@ -297,7 +293,6 @@ func SetupVault(p *process.Vault, opts ...process.StartOp) (*VaultRoles, error) 
 	roles := VaultRoles{}
 	p.GetAppRole("", "mcorm", &roles.MCRoleID, &roles.MCSecretID, &err)
 	p.GetAppRole("", "rotator", &roles.RotatorRoleID, &roles.RotatorSecretID, &err)
-	p.GetAppRole("", "shepherd", &roles.ShepherdRoleID, &roles.ShepherdSecretID, &err)
 	p.PutSecret("", "mcorm", mcormSecret+"-old", &err)
 	p.PutSecret("", "mcorm", mcormSecret, &err)
 	if err != nil {

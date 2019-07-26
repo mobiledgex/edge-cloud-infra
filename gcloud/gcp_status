@@ -9,4 +9,4 @@ vm=$1
 
 
 
-gcloud compute instances list --filter="name=($vm)" --format "value(status)"
+gcloud compute instances list --filter="name=($vm)" --format "table(name,status)"

@@ -18,3 +18,5 @@ gcp_status <vm-name>
 #To stop a vm
 gcp_stop <vm-name>
 
+#Instead of one vm-name you can also give list of vm-names separated by commas.
+gcp-stop <vm-name1>,<vm-name2>,<vm-name3>

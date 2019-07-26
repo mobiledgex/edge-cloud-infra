@@ -1,2 +1,5 @@
 first_run_flag_file: /etc/gitlab-init-in-progress
 token_creation_script: /var/tmp/gitlab_token_creation.rb
+gitlab_slack_notify_image: "{{ mex_docker_registry }}/mobiledgex/gitlab-slack-notify"
+gitlab_slack_notify_port: 4567
+gitlab_slack_notify_webhook: https://hooks.slack.com/services/***REMOVED***

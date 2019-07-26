@@ -12,6 +12,12 @@ import (
 	"github.com/mobiledgex/edge-cloud/log"
 )
 
+const ArtifactoryPrefix string = "mc-"
+
+func getArtifactoryName(orgName string) string {
+	return ArtifactoryPrefix + orgName
+}
+
 func artifactoryClient() (*artifactory.Artifactory, error) {
 	artifactoryApiKey, err := rtf.GetArtifactoryApiKey()
 	if err != nil {
@@ -27,22 +33,6 @@ func artifactoryClient() (*artifactory.Artifactory, error) {
 		return nil, err
 	}
 	return client, nil
-}
-
-func getArtifactoryPrefix() string {
-	return "mc-"
-}
-
-func getArtifactoryGroupName(orgName string) string {
-	return getArtifactoryPrefix() + orgName
-}
-
-func getArtifactoryRepoName(orgName string) string {
-	return getArtifactoryPrefix() + orgName
-}
-
-func getArtifactoryPermName(orgName string) string {
-	return getArtifactoryPrefix() + orgName
 }
 
 func artifactoryListUsers() (map[string]struct{}, error) {
@@ -122,7 +112,7 @@ func artifactoryDeleteUser(userName string) {
 func artifactoryAddUserToGroup(role *ormapi.Role) {
 	client, err := artifactoryClient()
 	userName := role.Username
-	orgName := getArtifactoryGroupName(role.Org)
+	orgName := getArtifactoryName(role.Org)
 	log.DebugLog(log.DebugLevelApi, "artifactory add user to group",
 		"user", userName, "group", orgName)
 	if err == nil {
@@ -152,7 +142,7 @@ func artifactoryAddUserToGroup(role *ormapi.Role) {
 func artifactoryRemoveUserFromGroup(role *ormapi.Role) {
 	client, err := artifactoryClient()
 	userName := role.Username
-	orgName := getArtifactoryGroupName(role.Org)
+	orgName := getArtifactoryName(role.Org)
 	log.DebugLog(log.DebugLevelApi, "artifactory remove user from group",
 		"user", userName)
 	if err == nil {
@@ -192,7 +182,7 @@ func artifactoryListGroups() (map[string]struct{}, error) {
 	tmp := make(map[string]struct{})
 	for _, group := range *groups {
 		groupName := *group.Name
-		if strings.HasPrefix(groupName, getArtifactoryPrefix()) {
+		if strings.HasPrefix(groupName, ArtifactoryPrefix) {
 			tmp[groupName] = struct{}{}
 		}
 	}
@@ -204,7 +194,7 @@ func artifactoryCreateGroup(orgName string) error {
 	if err != nil {
 		return err
 	}
-	groupName := getArtifactoryGroupName(orgName)
+	groupName := getArtifactoryName(orgName)
 	group := v1.Group{
 		Name:        artifactory.String(groupName),
 		Description: artifactory.String("Group maintained by master-controller"),
@@ -222,7 +212,7 @@ func artifactoryDeleteGroup(orgName string) error {
 	if err != nil {
 		return err
 	}
-	groupName := getArtifactoryGroupName(orgName)
+	groupName := getArtifactoryName(orgName)
 	_, _, err = client.V1.Security.DeleteGroup(context.Background(), groupName)
 	if err != nil {
 		if strings.Contains(err.Error(), "Status:404") {
@@ -248,7 +238,7 @@ func artifactoryListRepos() (map[string]struct{}, error) {
 	tmp := make(map[string]struct{})
 	for _, repo := range *repos {
 		repoName := *repo.Key
-		if strings.HasPrefix(repoName, getArtifactoryPrefix()) {
+		if strings.HasPrefix(repoName, ArtifactoryPrefix) {
 			tmp[repoName] = struct{}{}
 		}
 	}
@@ -260,7 +250,7 @@ func artifactoryCreateRepo(orgName string) error {
 	if err != nil {
 		return err
 	}
-	repoName := getArtifactoryRepoName(orgName)
+	repoName := getArtifactoryName(orgName)
 	repo := v1.LocalRepository{
 		Key:             artifactory.String(repoName),
 		RClass:          artifactory.String("local"),
@@ -286,7 +276,7 @@ func artifactoryDeleteRepo(orgName string) error {
 	if err != nil {
 		return err
 	}
-	repoName := getArtifactoryRepoName(orgName)
+	repoName := getArtifactoryName(orgName)
 	_, err = client.V1.Repositories.DeleteLocal(context.Background(), repoName)
 	if err != nil {
 		if strings.Contains(err.Error(), "Status:404") {
@@ -312,7 +302,7 @@ func artifactoryListPerms() (map[string]struct{}, error) {
 	tmp := make(map[string]struct{})
 	for _, perm := range perms {
 		permName := *perm.Name
-		if strings.HasPrefix(permName, getArtifactoryPrefix()) {
+		if strings.HasPrefix(permName, ArtifactoryPrefix) {
 			tmp[permName] = struct{}{}
 		}
 	}
@@ -324,9 +314,9 @@ func artifactoryCreateRepoPerms(orgName string) error {
 	if err != nil {
 		return err
 	}
-	groupName := getArtifactoryGroupName(orgName)
-	repoName := getArtifactoryRepoName(orgName)
-	permTargetName := getArtifactoryPermName(orgName)
+	groupName := getArtifactoryName(orgName)
+	repoName := getArtifactoryName(orgName)
+	permTargetName := getArtifactoryName(orgName)
 	// create permission target
 	permTargets := v1.PermissionTargets{
 		Name:         artifactory.String(permTargetName),
@@ -350,7 +340,7 @@ func artifactoryDeleteRepoPerms(orgName string) error {
 	if err != nil {
 		return err
 	}
-	permTargetName := getArtifactoryPermName(orgName)
+	permTargetName := getArtifactoryName(orgName)
 	_, _, err = client.V1.Security.DeletePermissionTargets(context.Background(), permTargetName)
 	if err != nil {
 		if strings.Contains(err.Error(), "Status:404") {

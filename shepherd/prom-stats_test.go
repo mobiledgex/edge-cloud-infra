@@ -196,7 +196,7 @@ func TestPromStats(t *testing.T) {
 		Key: testClusterInstKey,
 	}
 
-	*platformName = "fakecloudlet"
+	*platformName = "PLATFORM_TYPE_FAKE"
 	testPlatform, _ := getPlatform()
 
 	// Skip this much of the URL

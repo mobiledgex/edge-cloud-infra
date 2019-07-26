@@ -33,6 +33,11 @@ func (s *Platform) Init(platformConfig *platform.PlatformConfig) error {
 	if err != nil {
 		return err
 	}
+	// if this is a local deployment, don't need to do anything else
+	if platformConfig.PhysicalName == "localtest" {
+		log.DebugLog(log.DebugLevelMexos, "done init local mexdind")
+		return nil
+	}
 	if err := mexos.InitInfraCommon(platformConfig.VaultAddr); err != nil {
 		return err
 	}

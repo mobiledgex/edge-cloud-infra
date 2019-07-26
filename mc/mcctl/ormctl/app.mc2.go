@@ -178,6 +178,7 @@ var AppOptionalArgs = []string{
 	"configs.config",
 	"scalewithcluster",
 	"internalports",
+	"officialfqdn",
 	"md5sum",
 }
 var AppAliasArgs = []string{
@@ -202,5 +203,6 @@ var AppAliasArgs = []string{
 	"scalewithcluster=app.scalewithcluster",
 	"internalports=app.internalports",
 	"revision=app.revision",
+	"officialfqdn=app.officialfqdn",
 	"md5sum=app.md5sum",
 }

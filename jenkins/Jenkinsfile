@@ -18,7 +18,7 @@ pipeline {
             steps {
                 dir(path: 'go/src/github.com/mobiledgex/edge-cloud-infra') {
                     sh label: 'make edge-cloud-version-set', script: '''$!/bin/bash
-export PATH=$PATH:$HOME/go/bin:$WORKSPACE/go/bin
+export PATH=$PATH:$WORKSPACE/go/bin:$HOME/go/bin
 export GOPATH=$WORKSPACE/go
 make edge-cloud-version-set
                     '''
@@ -29,7 +29,7 @@ make edge-cloud-version-set
             steps {
                 dir(path: 'go/src/github.com/mobiledgex/edge-cloud') {
                     sh label: 'make clean', script: '''#!/bin/bash
-export PATH=$PATH:$HOME/go/bin:$WORKSPACE/go/bin
+export PATH=$PATH:$WORKSPACE/go/bin:$HOME/go/bin
 export GOPATH=$WORKSPACE/go
 make clean
                     '''
@@ -42,7 +42,7 @@ make clean
                 }
                 dir(path: 'go/src/github.com/mobiledgex/edge-cloud') {
                     sh label: 'go mod download', script: '''#!/bin/bash
-export PATH=$PATH:$HOME/go/bin:$WORKSPACE/go/bin
+export PATH=$PATH:$WORKSPACE/go/bin:$HOME/go/bin
 export GOPATH=$WORKSPACE/go
 export GO111MODULE=on
 go mod download
@@ -50,14 +50,14 @@ go mod download
                 }
                 dir(path: 'go/src/github.com/mobiledgex/edge-cloud') {
                     sh label: 'make tools', script: '''#!/bin/bash
-export PATH=$PATH:$HOME/go/bin:$WORKSPACE/go/bin
+export PATH=$PATH:$WORKSPACE/go/bin:$HOME/go/bin
 export GOPATH=$WORKSPACE/go
 make tools
                     '''
                 }
                 dir(path: 'go/src/github.com/mobiledgex/edge-cloud-infra') {
                     sh label: 'make', script: '''#!/bin/bash
-export PATH=$PATH:$HOME/go/bin:$WORKSPACE/go/bin
+export PATH=$PATH:$WORKSPACE/go/bin:$HOME/go/bin
 export GOPATH=$WORKSPACE/go
 make
                     '''
@@ -74,10 +74,10 @@ make
                         sleep 10
                         dir(path: 'go/src/github.com/mobiledgex/edge-cloud-infra') {
                             sh label: 'unit tests', script: '''#!/bin/bash
-export PATH=$PATH:$HOME/go/bin:$WORKSPACE/go/bin:/usr/lib/postgresql/11/bin
+export PATH=$PATH:$WORKSPACE/go/bin:$HOME/go/bin:/usr/lib/postgresql/11/bin
 export GOPATH=$WORKSPACE/go
 export GO111MODULE=on
-make unit-test
+UNIT_TEST_LOG=/tmp/edge-cloud-infra-unit-test.${BUILD_TAG}.log make unit-test
                             '''
                         }
                     }
@@ -86,7 +86,7 @@ make unit-test
                         sleep 10
                         dir(path: 'go/src/github.com/mobiledgex/edge-cloud-infra') {
                             sh label: 'make test', script: '''#!/bin/bash
-export PATH=$PATH:$HOME/go/bin:$WORKSPACE/go/bin:/usr/lib/postgresql/11/bin
+export PATH=$PATH:$WORKSPACE/go/bin:$HOME/go/bin:/usr/lib/postgresql/11/bin
 export GOPATH=$WORKSPACE/go
 make test
                             '''

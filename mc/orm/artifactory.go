@@ -49,6 +49,11 @@ func artifactoryListUsers() (map[string]struct{}, error) {
 		userName := *user.Name
 		if *user.Realm == "ldap" && userName != "admin" {
 			tmp[userName] = struct{}{}
+			continue
+		}
+		userInfo, _, err := client.V1.Security.GetUser(context.Background(), userName)
+		if err == nil && *userInfo.InternalPasswordDisabled {
+			tmp[userName] = struct{}{}
 		}
 	}
 	return tmp, nil

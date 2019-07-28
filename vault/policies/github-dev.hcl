@@ -14,6 +14,14 @@ path "secret/metadata/ansible/main/*" {
 	capabilities = ["deny"]
 }
 
+path "secret/data/ansible/prod/*" {
+	capabilities = ["deny"]
+}
+
+path "secret/metadata/ansible/prod/*" {
+	capabilities = ["deny"]
+}
+
 path "secret/data/ansible/internal/*" {
 	capabilities = ["deny"]
 }

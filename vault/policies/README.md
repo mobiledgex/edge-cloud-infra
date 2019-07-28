@@ -7,6 +7,7 @@ This allows devs to log in using their Github personal access tokens and access 
 #### Usage
 
    * Create a [Github personal access token](https://help.github.com/en/articles/creating-a-personal-access-token-for-the-command-line)
+   * Login using the token:
    * ```
        export VAULT_ADDR=https://vault.mobiledgex.net
        vault login -method=github token="MY_TOKEN"

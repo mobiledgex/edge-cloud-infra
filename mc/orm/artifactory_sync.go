@@ -59,7 +59,7 @@ func (s *AppStoreSync) syncGroupObjects() {
 			}
 		}
 
-		repoName := getArtifactoryName(org)
+		repoName := getArtifactoryRepoName(org)
 		if _, ok := repos[repoName]; ok {
 			delete(repos, repoName)
 		} else {
@@ -100,7 +100,7 @@ func (s *AppStoreSync) syncGroupObjects() {
 		log.DebugLog(log.DebugLevelApi,
 			"Artifactory Sync delete extra repository",
 			"name", repo)
-		err = artifactoryDeleteRepo(strings.TrimPrefix(repo, ArtifactoryPrefix))
+		err = artifactoryDeleteRepo(strings.TrimPrefix(repo, ArtifactoryRepoPrefix))
 		if err != nil {
 			s.syncErr(err)
 		}

@@ -12,10 +12,17 @@ import (
 	"github.com/mobiledgex/edge-cloud/log"
 )
 
-const ArtifactoryPrefix string = "mc-"
+const (
+	ArtifactoryPrefix     string = "mc-"
+	ArtifactoryRepoPrefix string = "repo-"
+)
 
 func getArtifactoryName(orgName string) string {
 	return ArtifactoryPrefix + orgName
+}
+
+func getArtifactoryRepoName(orgName string) string {
+	return ArtifactoryRepoPrefix + orgName
 }
 
 func artifactoryClient() (*artifactory.Artifactory, error) {
@@ -243,7 +250,7 @@ func artifactoryListRepos() (map[string]struct{}, error) {
 	tmp := make(map[string]struct{})
 	for _, repo := range *repos {
 		repoName := *repo.Key
-		if strings.HasPrefix(repoName, ArtifactoryPrefix) {
+		if strings.HasPrefix(repoName, ArtifactoryRepoPrefix) {
 			tmp[repoName] = struct{}{}
 		}
 	}
@@ -255,7 +262,7 @@ func artifactoryCreateRepo(orgName string) error {
 	if err != nil {
 		return err
 	}
-	repoName := getArtifactoryName(orgName)
+	repoName := getArtifactoryRepoName(orgName)
 	repo := v1.LocalRepository{
 		Key:             artifactory.String(repoName),
 		RClass:          artifactory.String("local"),
@@ -281,7 +288,7 @@ func artifactoryDeleteRepo(orgName string) error {
 	if err != nil {
 		return err
 	}
-	repoName := getArtifactoryName(orgName)
+	repoName := getArtifactoryRepoName(orgName)
 	_, err = client.V1.Repositories.DeleteLocal(context.Background(), repoName)
 	if err != nil {
 		if strings.Contains(err.Error(), "Status:404") {
@@ -320,7 +327,7 @@ func artifactoryCreateRepoPerms(orgName string) error {
 		return err
 	}
 	groupName := getArtifactoryName(orgName)
-	repoName := getArtifactoryName(orgName)
+	repoName := getArtifactoryRepoName(orgName)
 	permTargetName := getArtifactoryName(orgName)
 	// create permission target
 	permTargets := v1.PermissionTargets{

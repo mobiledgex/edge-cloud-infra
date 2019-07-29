@@ -17,8 +17,6 @@ mc_api_port: 9900
 mc_api_internal_port: 19900
 mc_ldap_port: 9389
 postgres_server: postgres.mobiledgex.net:5432
-mc_artifactory_apikey: AKCp5cckWfoFRPDGNyyFkm49XtZxrMxLKknawYrT6KTCra3uuiTZtqgLgvbvccTNEXrEQSoyF
-crm_artifactory_apikey: AKCp5cckWfoFRPDGNyyFkm49XtZxrMxLKknawYrT6KTCra3uuiTZtqgLgvbvccTNEXrEQSoyF
 influxdb_name: monitoring-influxdb
 etcd_cluster_name: mex-etcd-cluster
 locapi_user: mexserver

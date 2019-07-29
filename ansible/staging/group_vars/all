@@ -1,3 +1,5 @@
+mc_artifactory_apikey: FAKE
+crm_artifactory_apikey: FAKE
 crm_instances:
 
   - cloudlet_name: "{{ deploy_target }}-buckhorn-cloudlet"

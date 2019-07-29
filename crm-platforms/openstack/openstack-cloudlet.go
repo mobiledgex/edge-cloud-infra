@@ -8,8 +8,8 @@ import (
 	"strings"
 	"time"
 
-	"github.com/mobiledgex/edge-cloud-infra/mexos"
 	intprocess "github.com/mobiledgex/edge-cloud-infra/e2e-tests/int-process"
+	"github.com/mobiledgex/edge-cloud-infra/mexos"
 	"github.com/mobiledgex/edge-cloud/cloudcommon"
 	"github.com/mobiledgex/edge-cloud/edgeproto"
 	"github.com/mobiledgex/edge-cloud/flavor"
@@ -37,7 +37,6 @@ func startPlatformService(cloudlet *edgeproto.Cloudlet, pfConfig *edgeproto.Plat
 
 	switch serviceType {
 	case ServiceTypeShepherd:
-		// TODO: need to pass what port to listen to for notify service, etc
 		service_cmd, envVars, err = intprocess.GetShepherdCmd(cloudlet, pfConfig)
 		if err != nil {
 			cDone <- fmt.Errorf("Unable to get shepherd service command: %v", err)
@@ -350,13 +349,12 @@ ssh_authorized_keys:
 	go startPlatformService(cloudlet, pfConfig, client, ServiceTypeCRM, updateCallback, crmChan)
 	go startPlatformService(cloudlet, pfConfig, client, ServiceTypeShepherd, updateCallback, shepherdChan)
 	// Wait for platform services to come up
-	err = <-crmChan
-	if err != nil {
-		return err
+	crmErr := <-crmChan
+	shepherdErr := <-shepherdChan
+	if crmErr != nil {
+		return crmErr
 	}
-	err = <-shepherdChan
-
-	return err
+	return shepherdErr
 }
 
 func (s *Platform) DeleteCloudlet(cloudlet *edgeproto.Cloudlet) error {

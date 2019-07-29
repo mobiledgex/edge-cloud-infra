@@ -52,7 +52,7 @@ func getShepherdProc(cloudlet *edgeproto.Cloudlet, pfConfig *edgeproto.PlatformC
 		vaultAddr = pfConfig.VaultAddr
 	}
 
-	opts = append(opts, process.WithDebug("api,mexos,notify"))
+	opts = append(opts, process.WithDebug("api,mexos,notify,metrics"))
 
 	return &Shepherd{
 		NotifyAddrs: notifyAddr,
@@ -85,7 +85,7 @@ func StartShepherdService(cloudlet *edgeproto.Cloudlet, pfConfig *edgeproto.Plat
 		return err
 	}
 
-	err = ShepherdProc.StartLocal("/tmp/"+cloudlet.Key.Name+"shepherd.log", opts...)
+	err = ShepherdProc.StartLocal("/tmp/"+cloudlet.Key.Name+".shepherd.log", opts...)
 	if err != nil {
 		return err
 	}
@@ -95,15 +95,21 @@ func StartShepherdService(cloudlet *edgeproto.Cloudlet, pfConfig *edgeproto.Plat
 }
 
 func StopShepherdService(cloudlet *edgeproto.Cloudlet) error {
-	ShepherdProc, _, err := getShepherdProc(cloudlet, nil)
-	if err != nil {
-		return err
+	args := ""
+	if cloudlet != nil {
+		ShepherdProc, _, err := getShepherdProc(cloudlet, nil)
+		if err != nil {
+			log.DebugLog(log.DebugLevelMexos, "cannot stop Shepherdserver", "err", err)
+			return err
+		}
+		args = ShepherdProc.LookupArgs()
 	}
+
 	// max wait time for process to go down gracefully, after which it is killed forcefully
-	maxwait := 5 * time.Second
+	maxwait := 1 * time.Second
 
 	c := make(chan string)
-	go process.KillProcessesByName(ShepherdProc.GetExeName(), maxwait, ShepherdProc.LookupArgs(), c)
+	go process.KillProcessesByName("shepherd", maxwait, args, c)
 
 	log.DebugLog(log.DebugLevelMexos, "stopped Shepherdserver", "msg", <-c)
 	return nil

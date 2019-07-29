@@ -25,4 +25,4 @@ regiondata:
       ipsupport: IpSupportDynamic
       numdynamicips: 254
       platformtype: PlatformTypeMexdind
-      deploymentlocal: true
+

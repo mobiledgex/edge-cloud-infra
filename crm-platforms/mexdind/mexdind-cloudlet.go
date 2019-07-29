@@ -1,8 +1,8 @@
 package mexdind
 
 import (
-	"github.com/mobiledgex/edge-cloud/edgeproto"
 	intprocess "github.com/mobiledgex/edge-cloud-infra/e2e-tests/int-process"
+	"github.com/mobiledgex/edge-cloud/edgeproto"
 	"github.com/mobiledgex/edge-cloud/log"
 )
 

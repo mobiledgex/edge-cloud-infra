@@ -38,9 +38,13 @@ type GetDnsSvcActionFunc func(svc v1.Service) (*DnsSvcAction, error)
 func CreateAppDNS(client pc.PlatformClient, kubeNames *k8smgmt.KubeNames, getSvcAction GetDnsSvcActionFunc) error {
 
 	log.DebugLog(log.DebugLevelMexos, "createAppDNS")
-
-	if err := cloudflare.InitAPI(GetCloudletCFUser(), GetCloudletCFKey()); err != nil {
-		return fmt.Errorf("cannot init cloudflare api, %v", err)
+	cfuser := GetCloudletCFUser()
+	cfkey := GetCloudletCFKey()
+	// If this is a localtest CFUser and CFKey are empty
+	if cfuser != "" && cfkey != "" {
+		if err := cloudflare.InitAPI(cfuser, cfkey); err != nil {
+			return fmt.Errorf("cannot init cloudflare api, %v", err)
+		}
 	}
 	if kubeNames.AppURI == "" {
 		return fmt.Errorf("URI not specified")
@@ -85,7 +89,7 @@ func CreateAppDNS(client pc.PlatformClient, kubeNames *k8smgmt.KubeNames, getSvc
 				return err
 			}
 		}
-		if action.AddDNS {
+		if action.AddDNS && cfuser != "" && cfkey != "" {
 			fqdn := cloudcommon.ServiceFQDN(sn, fqdnBase)
 
 			if err := cloudflare.CreateOrUpdateDNSRecord(GetCloudletDNSZone(), fqdn, "A", action.ExternalIP, 1, false); err != nil {

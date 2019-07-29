@@ -33,11 +33,6 @@ func (s *Platform) CreateAppInst(clusterInst *edgeproto.ClusterInst, app *edgepr
 	if err != nil {
 		return err
 	}
-	// Don't need to set up dns if this is a local dind testing
-	if s.config.PhysicalName == "localtest" {
-		log.DebugLog(log.DebugLevelMexos, "done creating local appinst")
-		return nil
-	}
 
 	// set up DNS
 	cluster, err := dind.FindCluster(names.ClusterName)
@@ -75,12 +70,6 @@ func (s *Platform) DeleteAppInst(clusterInst *edgeproto.ClusterInst, app *edgepr
 	client, err := s.generic.GetPlatformClient(clusterInst)
 	if err != nil {
 		return err
-	}
-
-	// Don't need to clean up dns if this is a local dind testing
-	if s.config.PhysicalName == "localtest" {
-		log.DebugLog(log.DebugLevelMexos, "done deleting local appinst")
-		return nil
 	}
 
 	names, err := k8smgmt.GetKubeNames(clusterInst, app, appInst)

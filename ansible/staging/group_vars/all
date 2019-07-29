@@ -75,3 +75,11 @@ crm_instances:
     operator_key: tmus
     platform: PLATFORM_TYPE_FAKE
     controller_region: US
+
+  # Azure Cloudlets
+
+  - cloudlet_name: skt
+    operator_key: SKT
+    platform: PLATFORM_TYPE_AZURE
+    azure_instance: koreasouth
+    controller_region: US

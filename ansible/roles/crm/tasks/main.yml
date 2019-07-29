@@ -61,6 +61,25 @@
     crm_args: "{{ crm_args + [ '--physicalName', item.openstack_instance ] }}"
   when: item.openstack_instance is defined and item.openstack_instance
 
+- name: Compute CRM common environment
+  set_fact:
+    crm_env:
+      PLATFORM: "{{ item.platform | default('PLATFORM_TYPE_OPENSTACK') }}"
+      MEX_EXT_NETWORK: "{{ item.mex_ext_network | default(mex_ext_network) }}"
+      VAULT_ROLE_ID: "{{ crm_vault_app_role.role_id }}"
+      VAULT_SECRET_ID: "{{ crm_vault_app_role.secret_id }}"
+      MEX_SECURITY_GROUP: "{{ item.mex_security_group | default(mex_security_group) }}"
+
+- name: Add azure environment variables
+  block:
+    - set_fact:
+        crm_env_azure:
+          MEX_AZURE_LOCATION: "{{ item.azure_instance }}"
+          MEXENV_URL: "https://{{ vault_vm_hostname}}:{{ vault_port }}/v1/secret/data/cloudlet/openstack/mexenv.json"
+    - set_fact:
+        crm_env: "{{ crm_env | combine(crm_env_azure) }}"
+  when: item.azure_instance is defined and item.azure_instance
+
 - name: Deploy the CRM
   docker_container:
     name: "{{ crm_name }}"
@@ -68,12 +87,7 @@
     network_mode: host
     restart_policy: unless-stopped
     command: "{{ crm_args }}"
-    env:
-      PLATFORM: "{{ item.platform | default('PLATFORM_TYPE_OPENSTACK') }}"
-      MEX_EXT_NETWORK: "{{ item.mex_ext_network | default(mex_ext_network) }}"
-      VAULT_ROLE_ID: "{{ crm_vault_app_role.role_id }}"
-      VAULT_SECRET_ID: "{{ crm_vault_app_role.secret_id }}"
-      MEX_SECURITY_GROUP: "{{ item.mex_security_group | default(mex_security_group) }}"
+    env: "{{ crm_env }}"
 
 - name: Verify that the notify srv port is accessible
   wait_for:

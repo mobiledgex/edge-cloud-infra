@@ -64,7 +64,7 @@ func (s *Platform) CreateAppInst(clusterInst *edgeproto.ClusterInst, app *edgepr
 		action.AddDNS = !app.InternalPorts
 		return &action, nil
 	}
-	err = mexos.CreateAppDNS(client, names, getDnsAction)
+	err = mexos.CreateAppDNS(client, names, false, getDnsAction)
 	if err != nil {
 		return nil
 	}

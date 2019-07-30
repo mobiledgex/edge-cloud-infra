@@ -35,14 +35,12 @@ type GetDnsSvcActionFunc func(svc v1.Service) (*DnsSvcAction, error)
 // The passed in GetDnsSvcActionFunc function should provide this function
 // with the actions to perform for each service, since different platforms
 // will use different IPs and patching.
-func CreateAppDNS(client pc.PlatformClient, kubeNames *k8smgmt.KubeNames, getSvcAction GetDnsSvcActionFunc) error {
+func CreateAppDNS(client pc.PlatformClient, kubeNames *k8smgmt.KubeNames, testMode bool, getSvcAction GetDnsSvcActionFunc) error {
 
 	log.DebugLog(log.DebugLevelMexos, "createAppDNS")
-	cfuser := GetCloudletCFUser()
-	cfkey := GetCloudletCFKey()
-	// If this is a localtest CFUser and CFKey are empty
-	if cfuser != "" && cfkey != "" {
-		if err := cloudflare.InitAPI(cfuser, cfkey); err != nil {
+	// Don't try to get to cloudflare if this is a Test Mode
+	if !testMode {
+		if err := cloudflare.InitAPI(GetCloudletCFUser(), GetCloudletCFKey()); err != nil {
 			return fmt.Errorf("cannot init cloudflare api, %v", err)
 		}
 	}
@@ -89,7 +87,7 @@ func CreateAppDNS(client pc.PlatformClient, kubeNames *k8smgmt.KubeNames, getSvc
 				return err
 			}
 		}
-		if action.AddDNS && cfuser != "" && cfkey != "" {
+		if action.AddDNS && !testMode {
 			fqdn := cloudcommon.ServiceFQDN(sn, fqdnBase)
 
 			if err := cloudflare.CreateOrUpdateDNSRecord(GetCloudletDNSZone(), fqdn, "A", action.ExternalIP, 1, false); err != nil {

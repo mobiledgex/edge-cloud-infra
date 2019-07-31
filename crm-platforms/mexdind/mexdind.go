@@ -34,11 +34,11 @@ func (s *Platform) Init(platformConfig *platform.PlatformConfig) error {
 		return err
 	}
 
-	// In Test Mode don't init external services like cloudflare, or vault
-	if !platformConfig.TestMode {
-		if err := mexos.InitInfraCommon(platformConfig.VaultAddr); err != nil {
-			return err
-		}
+	// Set the test Mode based on what is in PlatformConfig
+	mexos.SetTestMode(platformConfig.TestMode)
+
+	if err := mexos.InitInfraCommon(platformConfig.VaultAddr); err != nil {
+		return err
 	}
 
 	s.NetworkScheme = os.Getenv("MEX_NETWORK_SCHEME")

@@ -41,7 +41,7 @@ func AddProxySecurityRulesAndPatchDNS(client pc.PlatformClient, kubeNames *k8smg
 		}
 	}()
 	go func() {
-		err := CreateAppDNS(client, kubeNames, false, getDnsSvcAction)
+		err := CreateAppDNS(client, kubeNames, getDnsSvcAction)
 		if err == nil {
 			dnschan <- ""
 		} else {

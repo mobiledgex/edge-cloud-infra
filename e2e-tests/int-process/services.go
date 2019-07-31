@@ -18,27 +18,6 @@ func getShepherdProc(cloudlet *edgeproto.Cloudlet, pfConfig *edgeproto.PlatformC
 		return nil, opts, fmt.Errorf("unable to marshal cloudlet key")
 	}
 
-	/*
-	   - shepherd
-	   - "--influxAddr"
-	   - "https://{{ influxdb_dns }}.{{ cloudflare_zone }}:8086"
-	   # notifyAddr is localhost because use use host networking for docker containers
-	   - "--notifyAddrs"
-	   - "localhost:{{ notify_port }}"
-	   - "--tls"
-	   - "/root/tls/mex-server.crt"
-	   - "--platform"
-	   - "{{ item.platform | default('openstack') }}"
-	   - "--vaultAddr"
-	   - "{{ vault_vm_hostname }}:{{ vault_port }}"
-	   - "--cloudletKey"
-	   - "{\\\"operator_key\\\":{\\\"name\\\":\\\"{{ item.operator_key | mandatory }}\\\"},\\\"name\\\":\\\"{{ item.cloudlet_name }}\\\"}"
-	   - "--region"
-	   - "{{ item.controller_region }}"
-	   - "-d"
-	   - "api,notify,mexos,metrics"
-
-	*/
 	envVars := make(map[string]string)
 	notifyAddr := ""
 	tlsCertFile := ""

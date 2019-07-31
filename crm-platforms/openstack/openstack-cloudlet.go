@@ -6,7 +6,6 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
-	"time"
 
 	"github.com/mobiledgex/edge-cloud-infra/mexos"
 	"github.com/mobiledgex/edge-cloud/cloudcommon"
@@ -17,8 +16,6 @@ import (
 )
 
 const (
-	PlatformMaxWait = 5 * time.Minute
-
 	// Platform services
 	ServiceTypeCRM = "crmserver"
 )
@@ -71,38 +68,24 @@ func startPlatformService(cloudlet *edgeproto.Cloudlet, pfConfig *edgeproto.Plat
 		return
 	}
 
-	// Wait for service to come up: Since we cannot fetch information
-	// regarding service state from docker ouput, we observe container
-	// state for PlatformMaxWait time, if it is Up then we return
-	// successfully and then controller will do the actual
-	// check if service connected to it or not
-	start := time.Now()
-	for {
-		out, err := client.Output(`sudo docker ps -a -n 1 --filter name=` + platform_vm_name + ` --format '{{.Status}}'`)
-		if err != nil {
-			cDone <- fmt.Errorf("Unable to fetch %s container status: %v, %s\n", serviceType, err, out)
-			return
-		}
-		if !strings.Contains(out, "Up ") {
-			// container exited in failure state
-			// Show Fatal Log, if not Fatal log found, then show last 10 lines of error
-			out, err = client.Output(`sudo docker logs ` + platform_vm_name + ` 2>&1 | grep FATAL | awk '{for (i=1; i<=NF-3; i++) $i = $(i+3); NF-=3; print}'`)
-			if err != nil || out == "" {
-				out, err = client.Output(`sudo docker logs ` + platform_vm_name + ` 2>&1 | tail -n 10`)
-				if err != nil {
-					cDone <- fmt.Errorf("Failed to bringup %s: %s", serviceType, err.Error())
-					return
-				}
+	out, err := client.Output(`sudo docker ps -a -n 1 --filter name=` + platform_vm_name + ` --format '{{.Status}}'`)
+	if err != nil {
+		cDone <- fmt.Errorf("Unable to fetch %s container status: %v, %s\n", serviceType, err, out)
+		return
+	}
+	if !strings.Contains(out, "Up ") {
+		// container exited in failure state
+		// Show Fatal Log, if not Fatal log found, then show last 10 lines of error
+		out, err = client.Output(`sudo docker logs ` + platform_vm_name + ` 2>&1 | grep FATAL | awk '{for (i=1; i<=NF-3; i++) $i = $(i+3); NF-=3; print}'`)
+		if err != nil || out == "" {
+			out, err = client.Output(`sudo docker logs ` + platform_vm_name + ` 2>&1 | tail -n 10`)
+			if err != nil {
+				cDone <- fmt.Errorf("Failed to bringup %s: %s", serviceType, err.Error())
+				return
 			}
-			cDone <- fmt.Errorf("Failed to bringup %s: %s", serviceType, out)
-			return
 		}
-		elapsed := time.Since(start)
-		if elapsed >= (PlatformMaxWait) {
-			// no issues in wait time
-			break
-		}
-		time.Sleep(1 * time.Second)
+		cDone <- fmt.Errorf("Failed to bringup %s: %s", serviceType, out)
+		return
 	}
 	cDone <- nil
 	return

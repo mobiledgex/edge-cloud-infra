@@ -333,6 +333,10 @@ var CloudletInfoOptionalArgs = []string{
 	"flavors.vcpus",
 	"flavors.ram",
 	"flavors.disk",
+	"status.tasknumber",
+	"status.maxtasks",
+	"status.taskname",
+	"status.stepname",
 }
 var CloudletInfoAliasArgs = []string{
 	"operator=cloudletinfo.key.operatorkey.name",
@@ -348,6 +352,10 @@ var CloudletInfoAliasArgs = []string{
 	"flavors.vcpus=cloudletinfo.flavors.vcpus",
 	"flavors.ram=cloudletinfo.flavors.ram",
 	"flavors.disk=cloudletinfo.flavors.disk",
+	"status.tasknumber=cloudletinfo.status.tasknumber",
+	"status.maxtasks=cloudletinfo.status.maxtasks",
+	"status.taskname=cloudletinfo.status.taskname",
+	"status.stepname=cloudletinfo.status.stepname",
 }
 var CloudletMetricsRequiredArgs = []string{}
 var CloudletMetricsOptionalArgs = []string{

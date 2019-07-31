@@ -20,7 +20,6 @@ gitlab_vm_hostname=container-registry.mobiledgex.net
 crm_vm_hostname=crm.mobiledgex.net
 mc_vm_hostname=mc.mobiledgex.net
 console_vm_hostname=console.mobiledgex.net
-mc_tag="{{ deploy_environ }}"
 gitlab_email_enabled=false
 gitlab_docker_hostname="docker.mobiledgex.net"
 azure_volume_storage_class=managed-premium

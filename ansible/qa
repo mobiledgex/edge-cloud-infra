@@ -6,7 +6,6 @@ gitlab_email_enabled=false
 gitlab_docker_hostname="docker-{{ deploy_environ }}.mobiledgex.net"
 mc_vm_hostname=mc-{{ deploy_environ}}.mobiledgex.net
 mc_gitlab_token=gitlabtesttoken
-mc_tag="{{ deploy_environ }}"
 console_vm_hostname=console-qa.mobiledgex.net
 azure_volume_storage_class=default
 influxdb_volume_size=1Gi

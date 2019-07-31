@@ -9,7 +9,7 @@ type Platform struct {
 }
 
 func (s *Platform) GetType() string {
-	return "fake"
+	return "fakecloudlet"
 }
 
 func (s *Platform) Init(key *edgeproto.CloudletKey, physicalName, vaultAddr string) error {
@@ -17,7 +17,10 @@ func (s *Platform) Init(key *edgeproto.CloudletKey, physicalName, vaultAddr stri
 }
 
 func (s *Platform) GetClusterIP(clusterInst *edgeproto.ClusterInst) (string, error) {
-	return "localhost", nil
+	//start the fake prom server
+	SetupFakeProm()
+	addr := GetFakePromAddr()
+	return addr, nil
 }
 
 func (s *Platform) GetPlatformClient(clusterInst *edgeproto.ClusterInst) (pc.PlatformClient, error) {

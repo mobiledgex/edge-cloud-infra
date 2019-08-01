@@ -391,6 +391,28 @@ func (p *PromStats) Stop() {
 
 func (p *PromStats) RunNotify() {
 	log.DebugLog(log.DebugLevelMetrics, "Started PromStats thread\n")
+
+	//run once right away at the very beginning
+	if p.CollectPromStats() == nil {
+		span := log.StartSpan(log.DebugLevelSampled, "send-metric")
+		span.SetTag("operator", p.operatorName)
+		span.SetTag("cloudlet", p.cloudletName)
+		span.SetTag("cluster", p.clusterName)
+		ctx := log.ContextWithSpan(context.Background(), span)
+
+		for key, stat := range p.appStatsMap {
+			appMetrics := PodStatToMetrics(&key, stat)
+			for _, metric := range appMetrics {
+				p.send(ctx, metric)
+			}
+		}
+		clusterMetrics := ClusterStatToMetrics(p)
+		for _, metric := range clusterMetrics {
+			p.send(ctx, metric)
+		}
+		span.Finish()
+	}
+
 	done := false
 	for !done {
 		select {

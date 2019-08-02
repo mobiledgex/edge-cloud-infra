@@ -24,6 +24,8 @@ gitlab_email_enabled=false
 gitlab_docker_hostname="docker.mobiledgex.net"
 azure_volume_storage_class=managed-premium
 influxdb_volume_size=5Gi
+mc_artifactory_apikey=AKCp5dKiN12oPkRaH1kor3BeV6XQzrJ817d2wX1vbFgqCRF8DgyBocYPQFL3XGpuXV88WyXnX
+crm_artifactory_apikey=AKCp5dKiN12oPkRaH1kor3BeV6XQzrJ817d2wX1vbFgqCRF8DgyBocYPQFL3XGpuXV88WyXnX
 
 [platform]
-localhost	ansible_connection=local
+localhost	ansible_connection=local vault_vm_hostname=vault.mobiledgex.net vault_port=443

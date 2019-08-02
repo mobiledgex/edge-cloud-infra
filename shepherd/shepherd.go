@@ -44,6 +44,7 @@ var promQUdpRecvErr = "node_netstat_Udp_InErrors"
 
 var promQCpuPod = "sum(rate(container_cpu_usage_seconds_total%7Bimage!%3D%22%22%7D%5B1m%5D))by(pod_name)"
 var promQMemPod = "sum(container_memory_working_set_bytes%7Bimage!%3D%22%22%7D)by(pod_name)"
+var promQDiskPod = "sum(container_fs_usage_bytes%7Bimage!%3D%22%22%7D)by(pod_name)"
 var promQNetRecvRate = "sum(irate(container_network_receive_bytes_total%7Bimage!%3D%22%22%7D%5B1m%5D))by(pod_name)"
 var promQNetSendRate = "sum(irate(container_network_transmit_bytes_total%7Bimage!%3D%22%22%7D%5B1m%5D))by(pod_name)"
 
@@ -113,11 +114,11 @@ func getPlatform() (platform.Platform, error) {
 	var plat platform.Platform
 	var err error
 	switch *platformName {
-	case "dind":
+	case "PLATFORM_TYPE_MEXDIND":
 		plat = &shepherd_dind.Platform{}
-	case "openstack":
+	case "PLATFORM_TYPE_OPENSTACK":
 		plat = &shepherd_openstack.Platform{}
-	case "fakecloudlet":
+	case "PLATFORM_TYPE_FAKE":
 		plat = &shepherd_fake.Platform{}
 	default:
 		err = fmt.Errorf("Platform %s not supported", *platformName)

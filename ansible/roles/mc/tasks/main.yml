@@ -20,15 +20,8 @@
       - "/root/tls/mex-server.key"
       - "-clientCert"
       - "/root/tls/mex-server.crt"
-
-- name: Add MC tag to command line
-  set_fact:
-    mc_args: "{{ mc_args + [ '--tag', mc_tag ] }}"
-  when: mc_tag is defined and mc_tag
-
-- name: Add MC debug args to command line
-  set_fact:
-    mc_args: "{{ mc_args + [ '-d', 'api' ] }}"
+      - "-d"
+      - "api"
 
 - name: Deploy the MC
   docker_container:

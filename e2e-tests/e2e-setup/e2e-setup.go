@@ -265,6 +265,12 @@ func RunAction(actionSpec, outputDir string, config *e2eapi.TestConfig, spec *Te
 		} else {
 			errors = append(errors, "Error in parsing sleeptime")
 		}
+
+	case "checkmetrics":
+		err := RunCheckMetrics(actionSubtype)
+		if err != nil {
+			errors = append(errors, err.Error())
+		}
 	default:
 		ecSpec := setupmex.TestSpec{}
 		err := json.Unmarshal([]byte(specStr), &ecSpec)

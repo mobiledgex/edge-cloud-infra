@@ -30,20 +30,17 @@ terraform {
   }
 }
 
-module "k8s" {
+module "k8s_kr" {
   source              = "../../modules/k8s_azure"
 
-  location            = "${var.azure_location}"
+  location            = "${var.azure_kr_location}"
   client_id           = "${var.azure_terraform_service_principal_id}"
   client_secret       = "${var.azure_terraform_service_principal_secret}"
-  cluster_name        = "${var.cluster_name}"
-  dns_prefix          = "mexdemo2-c-mexdemo2-resourc-902e87"
+  cluster_name        = "${var.kr_cluster_name}"
+  dns_prefix          = "mexdemo-kr"
   vm_size             = "${var.azure_vm_size}"
   cluster_tag         = "mexplat-${var.environ_tag}"
-  resource_group_name = "${var.resource_group_name}"
-  admin_username      = "azureuser"
-  agent_pool_name     = "nodepool1"
-  client_id           = "4233042d-4655-4c88-a25f-9cd160e6f16a"
+  resource_group_name = "${var.kr_resource_group_name}"
 }
 
 module "k8s_eu" {

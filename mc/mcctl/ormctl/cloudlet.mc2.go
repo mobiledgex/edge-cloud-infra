@@ -236,6 +236,7 @@ var PlatformConfigOptionalArgs = []string{
 	"crmsecretid",
 	"platformtag",
 	"testmode",
+	"span",
 }
 var PlatformConfigAliasArgs = []string{
 	"registrypath=platformconfig.registrypath",
@@ -247,6 +248,7 @@ var PlatformConfigAliasArgs = []string{
 	"crmsecretid=platformconfig.crmsecretid",
 	"platformtag=platformconfig.platformtag",
 	"testmode=platformconfig.testmode",
+	"span=platformconfig.span",
 }
 var CloudletRequiredArgs = []string{
 	"operator",

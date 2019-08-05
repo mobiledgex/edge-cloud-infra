@@ -45,6 +45,8 @@ tests:
   actions: [mcapi-runcommand]
   apifile: '{{datadir2}}/mc_runcommand.yml'
   curuserfile: '{{datadir2}}/mc_user2.yml'
+- name: verify shepherd metrics in influx
+  actions: [checkmetrics-shepherd]
 - name: user2 deletes apps; verify it is empty
   actions: [mcapi-delete, mcapi-show]
   apifile: '{{datadir2}}/mc_user2_data.yml'

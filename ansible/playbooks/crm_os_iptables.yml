@@ -18,12 +18,16 @@
       flush: yes
     with_items: [ 'INPUT', 'OUTPUT', 'PREROUTING', 'POSTROUTING' ]
 
-  - name: accept iptables chain
+  - name: accept input iptables chain
     iptables:
-      chain: '{{ item }}'
+      chain: INPUT
+      in_interface: "{{ ingress_interface }}"
       jump: ACCEPT
-    with_items: ['INPUT', 'FORWARD']
 
+  - name: accept forward iptables chain
+    iptables:
+      chain: FORWARD
+      jump: ACCEPT
 
   - name: create iptables nat rules
     iptables: 

@@ -1,0 +1,15 @@
+ingress_interface: ens4
+egress_interface: ens3
+crm_ip: 192.168.2.6
+openstack_ip: 10.235.140.252
+openstack_ports:
+ - 5000
+ - 8000
+ - 8004
+ - 8774
+ - 8776
+ - 8777
+ - 8778
+ - 9001
+ - 9292
+ - 9696

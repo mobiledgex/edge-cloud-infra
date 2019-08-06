@@ -1,0 +1,50 @@
+- name: setup iptables for openstack access
+  gather_facts: no
+  user: ubuntu
+  become: yes
+  hosts: crmos
+
+  tasks:
+  - name: flush iptables filter
+    iptables:
+      chain: "{{ item }}"
+      flush: yes
+    with_items:  [ 'INPUT', 'FORWARD', 'OUTPUT' ]
+
+  - name: flush iptables nat
+    iptables:
+      table: nat
+      chain: '{{ item }}'
+      flush: yes
+    with_items: [ 'INPUT', 'OUTPUT', 'PREROUTING', 'POSTROUTING' ]
+
+  - name: accept input iptables chain
+    iptables:
+      chain: INPUT
+      in_interface: "{{ ingress_interface }}"
+      jump: ACCEPT
+
+  - name: accept forward iptables chain
+    iptables:
+      chain: FORWARD
+      jump: ACCEPT
+
+  - name: create iptables nat rules
+    iptables: 
+      table: nat
+      chain: PREROUTING
+      to_destination: "{{ openstack_ip }}"
+      in_interface: "{{ ingress_interface }}"
+      protocol: tcp
+      match: tcp
+      destination_port: "{{ item }}"
+      jump: DNAT
+    with_items: "{{ openstack_ports }}"
+  
+  - name: create iptables masquerade rule
+    iptables:
+      table: nat
+      chain: POSTROUTING
+      out_interface: "{{ egress_interface }}"
+      jump: MASQUERADE
+

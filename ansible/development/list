@@ -22,6 +22,7 @@ mc_vm_hostname=mc-dev.mobiledgex.net
 console_vm_hostname=console-dev.mobiledgex.net
 mc_gitlab_token=gitlabdevtoken
 gitlab_email_enabled=false
+gitlab_slack_notifications=false
 gitlab_docker_hostname="docker-{{ deploy_environ }}.mobiledgex.net"
 use_letsencrypt_staging=True
 azure_volume_storage_class=default

@@ -262,27 +262,38 @@ var e2eTestData = map[string]string{
 		}`,
 }
 
-func SetupFakeProm() {
-	// Skip this much of the URL
-	skiplen := len("/api/v1/query?query=")
-	// start up http server to serve Prometheus metrics data
+func SetupFakeProm() (*net.Listener, error) {
+	// reserve the 9090 port
 	l, err := net.Listen("tcp", "127.0.0.1:9090")
 	//only one fakeProm will be up at a time, so basically its whichever shepherd creates it first is the one that will get tested
 	if err != nil {
 		//if it fails, do nothing and return
-		fmt.Printf("failed to initialize listener on port 9090, assuming there is already a fake prometheus server up")
-		return
+		return nil, fmt.Errorf("failed to initialize listener on port 9090, assuming there is already a fake prometheus server up")
 	}
-	fakeProm := httptest.NewUnstartedServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		w.Write([]byte(e2eTestData[r.URL.String()[skiplen:]]))
-	}))
+	return &l, nil
+}
+
+func RunFakeProm(l *net.Listener) {
+	// Skip this much of the URL
+	// skiplen := len("/api/v1/query?query=")
+	// fakeProm := httptest.NewUnstartedServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	// 	w.Write([]byte(e2eTestData[r.URL.String()[skiplen:]]))
+	// }))
+	fakeProm := httptest.NewUnstartedServer(http.HandlerFunc(fakePromHandler))
 	//assign the listener for port 9090
 	fakeProm.Listener.Close()
-	fakeProm.Listener = l
+	fakeProm.Listener = *l
 	fakeProm.Start()
 	defer fakeProm.Close()
 
 	//loop forever
 	for true {
 	}
+}
+
+func fakePromHandler(w http.ResponseWriter, r *http.Request) {
+	skiplen := len("/api/v1/query?query=")
+	fmt.Printf("incoming request\n")
+	w.Write([]byte(e2eTestData[r.URL.String()[skiplen:]]))
+	fmt.Printf("request served\n")
 }

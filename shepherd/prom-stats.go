@@ -124,9 +124,12 @@ func outputTrim(output string) string {
 	return lines[len(lines)-1]
 }
 
+var counter = 1
+
 func getPromMetrics(addr string, query string, client pc.PlatformClient) (*PromResp, error) {
 	reqURI := "'http://" + addr + "/api/v1/query?query=" + query + "'"
-	fmt.Printf("curling now\n")
+	fmt.Printf("curling now: %d\n", counter)
+	counter = counter + 1
 	resp, err := client.Output("curl " + reqURI)
 	fmt.Printf("made it out of curl\n")
 	if err != nil {
@@ -139,6 +142,7 @@ func getPromMetrics(addr string, query string, client pc.PlatformClient) (*PromR
 	if err = json.Unmarshal([]byte(trimmedResp), promResp); err != nil {
 		return nil, err
 	}
+	fmt.Printf("returning now\n")
 	return promResp, nil
 }
 
@@ -152,7 +156,6 @@ func parseTime(timeFloat float64) *types.Timestamp {
 }
 
 func (p *PromStats) CollectPromStats() error {
-	fmt.Printf("made it here 0\n")
 	appKey := MetricAppInstKey{
 		operator:  p.operatorName,
 		cloudlet:  p.cloudletName,
@@ -162,7 +165,6 @@ func (p *PromStats) CollectPromStats() error {
 	// Get Pod CPU usage percentage
 	resp, err := getPromMetrics(p.promAddr, promQCpuPod, p.client)
 	if err == nil && resp.Status == "success" {
-		fmt.Printf("CPU\n")
 		for _, metric := range resp.Data.Result {
 			appKey.pod = metric.Labels.PodName
 			stat, found := p.appStatsMap[appKey]
@@ -196,7 +198,6 @@ func (p *PromStats) CollectPromStats() error {
 	}
 	// Get Pod Disk usage
 	resp, err = getPromMetrics(p.promAddr, promQDiskPod, p.client)
-	fmt.Printf("pod disk\n")
 	if err == nil && resp.Status == "success" {
 		for _, metric := range resp.Data.Result {
 			appKey.pod = metric.Labels.PodName
@@ -262,7 +263,6 @@ func (p *PromStats) CollectPromStats() error {
 	}
 	// Get Cluster Mem usage
 	resp, err = getPromMetrics(p.promAddr, promQMemClust, p.client)
-	fmt.Printf("cluster memory\n")
 	if err == nil && resp.Status == "success" {
 		for _, metric := range resp.Data.Result {
 			p.clusterStat.memTS = parseTime(metric.Values[0].(float64))
@@ -274,7 +274,6 @@ func (p *PromStats) CollectPromStats() error {
 			}
 		}
 	}
-	fmt.Printf("hello\n")
 	// Get Cluster Disk usage percentage
 	resp, err = getPromMetrics(p.promAddr, promQDiskClust, p.client)
 	if err == nil && resp.Status == "success" {
@@ -288,10 +287,8 @@ func (p *PromStats) CollectPromStats() error {
 			}
 		}
 	}
-	fmt.Printf("bye\n")
 	// Get Cluster NetRecv bytes rate averaged over 1m
 	resp, err = getPromMetrics(p.promAddr, promQRecvBytesRateClust, p.client)
-	fmt.Printf("cluster recieve\n")
 	if err == nil && resp.Status == "success" {
 		for _, metric := range resp.Data.Result {
 			p.clusterStat.netRecvTS = parseTime(metric.Values[0].(float64))
@@ -303,7 +300,6 @@ func (p *PromStats) CollectPromStats() error {
 			}
 		}
 	}
-	fmt.Printf("cluster printf\n")
 	// Get Cluster NetSend bytes rate averaged over 1m
 	resp, err = getPromMetrics(p.promAddr, promQSendBytesRateClust, p.client)
 	if err == nil && resp.Status == "success" {
@@ -320,7 +316,6 @@ func (p *PromStats) CollectPromStats() error {
 
 	// Get Cluster Established TCP connections
 	resp, err = getPromMetrics(p.promAddr, promQTcpConnClust, p.client)
-	fmt.Printf("tcp cluster\n")
 	if err == nil && resp.Status == "success" {
 		for _, metric := range resp.Data.Result {
 			p.clusterStat.tcpConnsTS = parseTime(metric.Values[0].(float64))
@@ -333,7 +328,6 @@ func (p *PromStats) CollectPromStats() error {
 		}
 	}
 	// Get Cluster TCP retransmissions
-	fmt.Printf("garbage print\n")
 	resp, err = getPromMetrics(p.promAddr, promQTcpRetransClust, p.client)
 	if err == nil && resp.Status == "success" {
 		for _, metric := range resp.Data.Result {
@@ -346,7 +340,6 @@ func (p *PromStats) CollectPromStats() error {
 			}
 		}
 	}
-	fmt.Printf("garbage print 2\n")
 	// Get Cluster UDP Send Datagrams
 	resp, err = getPromMetrics(p.promAddr, promQUdpSendPktsClust, p.client)
 	if err == nil && resp.Status == "success" {
@@ -360,7 +353,6 @@ func (p *PromStats) CollectPromStats() error {
 			}
 		}
 	}
-	fmt.Printf("hello again\n")
 	// Get Cluster UDP Recv Datagrams
 	resp, err = getPromMetrics(p.promAddr, promQUdpRecvPktsClust, p.client)
 	if err == nil && resp.Status == "success" {
@@ -375,7 +367,6 @@ func (p *PromStats) CollectPromStats() error {
 		}
 	}
 	// Get Cluster UDP Recv Errors
-	fmt.Printf("another print\n")
 	resp, err = getPromMetrics(p.promAddr, promQUdpRecvErr, p.client)
 	if err == nil && resp.Status == "success" {
 		for _, metric := range resp.Data.Result {
@@ -388,7 +379,6 @@ func (p *PromStats) CollectPromStats() error {
 			}
 		}
 	}
-	fmt.Printf("asdf made it here 0.5\n")
 	return nil
 }
 
@@ -416,6 +406,7 @@ func (p *PromStats) RunNotify() {
 		span.SetTag("cluster", p.clusterName)
 		ctx := log.ContextWithSpan(context.Background(), span)
 
+		fmt.Printf("sending...\n")
 		for key, stat := range p.appStatsMap {
 			appMetrics := PodStatToMetrics(&key, stat)
 			for _, metric := range appMetrics {
@@ -426,6 +417,7 @@ func (p *PromStats) RunNotify() {
 		for _, metric := range clusterMetrics {
 			p.send(ctx, metric)
 		}
+		fmt.Printf("...sent\n")
 		span.Finish()
 	}
 
@@ -433,6 +425,7 @@ func (p *PromStats) RunNotify() {
 	for !done {
 		select {
 		case <-time.After(p.interval):
+			counter = 1
 			if p.CollectPromStats() != nil {
 				continue
 			}
@@ -471,7 +464,6 @@ func newMetric(operator, cloudlet, cluster, developer, name string, key *MetricA
 	if key != nil {
 		metric.AddTag("app", key.pod)
 	}
-	fmt.Printf("made it here: %s\n", metric.Name)
 	return &metric
 }
 

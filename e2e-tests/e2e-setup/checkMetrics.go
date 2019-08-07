@@ -65,7 +65,7 @@ func RunCheckMetrics(actionSubtype string) error {
 
 func CheckInfluxShepherd() error {
 	//give shepherd time to collect and push metrics
-	time.Sleep(30 * time.Second)
+	time.Sleep(5 * time.Second)
 	metric, err := getInfluxMeasurements()
 	if err != nil {
 		return err
@@ -108,6 +108,11 @@ func clearInfluxMeasurements() {
 
 func checkInfluxMeasurements(metric *InfluxResp) error {
 	//for some reason all values are seen as floats, TODO: figure out why
+
+	//make sure all the metrics are there and got pulled
+	if len(metric.Results) != len(selectMeasurements) {
+		return fmt.Errorf("Shepherd metrics incomplete")
+	}
 
 	//cpu from cluster-cpu
 	if metric.Results[0].Series[0].Values[0][1] != float64(10.01) {

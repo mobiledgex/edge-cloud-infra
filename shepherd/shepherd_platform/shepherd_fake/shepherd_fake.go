@@ -18,7 +18,11 @@ func (s *Platform) Init(key *edgeproto.CloudletKey, physicalName, vaultAddr stri
 
 func (s *Platform) GetClusterIP(clusterInst *edgeproto.ClusterInst) (string, error) {
 	//start the fake prom server for e2e tests
-	go SetupFakeProm()
+	if l, err := SetupFakeProm(); err != nil {
+		return "", err
+	} else {
+		go RunFakeProm(l)
+	}
 	addr := "127.0.0.1"
 	return addr, nil
 }

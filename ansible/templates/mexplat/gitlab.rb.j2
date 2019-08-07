@@ -559,6 +559,7 @@ registry_external_url 'https://{{ gitlab_docker_hostname }}'
 #####  }
 #####}
 
+{% if gitlab_slack_notifications is not defined or gitlab_slack_notifications is sameas true %}
 ### Registry notifications endpoints
 registry['notifications'] = [
   {
@@ -569,6 +570,7 @@ registry['notifications'] = [
     'backoff' => '60s',
   }
 ]
+{% endif %}
 ### Default registry notifications
 # registry['default_notifications_timeout'] = "500ms"
 # registry['default_notifications_threshold'] = 5

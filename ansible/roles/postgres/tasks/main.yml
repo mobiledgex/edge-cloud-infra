@@ -58,6 +58,14 @@
   with_items: "{{ postgres_users }}"
   no_log: true
 
+- name: Add extensions
+  postgresql_ext:
+    db: "{{ item.db }}"
+    name: citext
+  become: yes
+  become_user: postgres
+  no_log: true
+
 - name: Remove unnecessary privileges
   postgresql_user:
     name: "{{ item.username }}"

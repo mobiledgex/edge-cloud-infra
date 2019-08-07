@@ -36,6 +36,7 @@
   template:
     src: templates/mexplat/gitlab.rb.j2
     dest: /etc/gitlab/gitlab.rb
+    backup: yes
   become: yes
   register: gitlab_config
 

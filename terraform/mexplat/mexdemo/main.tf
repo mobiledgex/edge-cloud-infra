@@ -41,6 +41,7 @@ module "k8s_kr" {
   vm_size             = "${var.azure_vm_size}"
   cluster_tag         = "mexplat-${var.environ_tag}"
   resource_group_name = "${var.kr_resource_group_name}"
+  ssh_public_key      = "${var.ssh_public_key_file}"
 }
 
 module "k8s_eu" {
@@ -54,4 +55,5 @@ module "k8s_eu" {
   vm_size             = "${var.azure_vm_size}"
   cluster_tag         = "mexplat-${var.environ_tag}"
   resource_group_name = "${var.eu_resource_group_name}"
+  ssh_public_key      = "${var.ssh_public_key_file}"
 }

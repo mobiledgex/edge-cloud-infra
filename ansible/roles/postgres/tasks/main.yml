@@ -64,6 +64,7 @@
     name: citext
   become: yes
   become_user: postgres
+  with_items: "{{ postgres_users }}"
   no_log: true
 
 - name: Remove unnecessary privileges

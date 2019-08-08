@@ -115,23 +115,23 @@ func checkInfluxMeasurements(metric *InfluxResp) error {
 	}
 
 	//cpu from cluster-cpu
-	if metric.Results[0].Series[0].Values[0][1] != float64(10.01) {
+	if len(metric.Results[0].Series) > 0 || metric.Results[0].Series[0].Values[0][1] != float64(10.01) {
 		return fmt.Errorf("Influx cluster-cpu measurements inconsistent")
 	}
 
 	//mem from cluster-mem
-	if metric.Results[1].Series[0].Values[0][1] != float64(99.99) {
+	if len(metric.Results[1].Series) > 0 || metric.Results[1].Series[0].Values[0][1] != float64(99.99) {
 		return fmt.Errorf("Influx cluster-mem measurements inconsistent")
 	}
 
 	//disk from cluster-disk
-	if metric.Results[2].Series[0].Values[0][1] != float64(50.0) {
+	if len(metric.Results[2].Series) > 0 || metric.Results[2].Series[0].Values[0][1] != float64(50.0) {
 		return fmt.Errorf("Influx cluster-disk measurements inconsistent")
 	}
 
 	//cluster-network
 	//sendBytes
-	if metric.Results[3].Series[0].Values[0][1] != float64(11111) {
+	if len(metric.Results[3].Series) > 0 || metric.Results[3].Series[0].Values[0][1] != float64(11111) {
 		return fmt.Errorf("Influx cluster-network measurements inconsistent")
 	}
 	//recvBytes
@@ -141,7 +141,7 @@ func checkInfluxMeasurements(metric *InfluxResp) error {
 
 	//cluster-tcp
 	//tcpConns
-	if metric.Results[4].Series[0].Values[0][1] != float64(33333) {
+	if len(metric.Results[4].Series) > 0 || metric.Results[4].Series[0].Values[0][1] != float64(33333) {
 		return fmt.Errorf("Influx cluster-tcp measurements inconsistent")
 	}
 	//tcpRetrans
@@ -151,7 +151,7 @@ func checkInfluxMeasurements(metric *InfluxResp) error {
 
 	//cluster-udp
 	//udpSend
-	if metric.Results[5].Series[0].Values[0][1] != float64(55555) {
+	if len(metric.Results[5].Series) > 0 || metric.Results[5].Series[0].Values[0][1] != float64(55555) {
 		return fmt.Errorf("Influx cluster-udp measurements inconsistent")
 	}
 	//udpRecv
@@ -164,23 +164,23 @@ func checkInfluxMeasurements(metric *InfluxResp) error {
 	}
 
 	//cpu from appinst-cpu
-	if metric.Results[6].Series[0].Values[0][1] != float64(5.0) {
+	if len(metric.Results[6].Series) > 0 || metric.Results[6].Series[0].Values[0][1] != float64(5.0) {
 		return fmt.Errorf("Influx appinst-cpu measurements inconsistent")
 	}
 
 	//mem from appinst-mem
-	if metric.Results[7].Series[0].Values[0][1] != float64(100000000) {
+	if len(metric.Results[7].Series) > 0 || metric.Results[7].Series[0].Values[0][1] != float64(100000000) {
 		return fmt.Errorf("Influx appinst-mem measurements inconsistent")
 	}
 
 	//disk from appinst-disk
-	if metric.Results[8].Series[0].Values[0][1] != float64(200000000) {
+	if len(metric.Results[8].Series) > 0 || metric.Results[8].Series[0].Values[0][1] != float64(200000000) {
 		return fmt.Errorf("Influx appinst-disk measurements inconsistent")
 	}
 
 	//appinst-network
 	//sendBytes
-	if metric.Results[9].Series[0].Values[0][1] != float64(111111) {
+	if len(metric.Results[9].Series) > 0 || metric.Results[9].Series[0].Values[0][1] != float64(111111) {
 		return fmt.Errorf("Influx appinst-network measurements inconsistent")
 	}
 	//recvBytes

@@ -128,10 +128,8 @@ var counter = 1
 
 func getPromMetrics(addr string, query string, client pc.PlatformClient) (*PromResp, error) {
 	reqURI := "'http://" + addr + "/api/v1/query?query=" + query + "'"
-	fmt.Printf("curling now: %d\n", counter)
 	counter = counter + 1
 	resp, err := client.Output("curl " + reqURI)
-	fmt.Printf("made it out of curl\n")
 	if err != nil {
 		errstr := fmt.Sprintf("Failed to run <%s>", reqURI)
 		log.DebugLog(log.DebugLevelMetrics, errstr, "err", err.Error())
@@ -142,7 +140,6 @@ func getPromMetrics(addr string, query string, client pc.PlatformClient) (*PromR
 	if err = json.Unmarshal([]byte(trimmedResp), promResp); err != nil {
 		return nil, err
 	}
-	fmt.Printf("returning now\n")
 	return promResp, nil
 }
 
@@ -399,14 +396,12 @@ func (p *PromStats) RunNotify() {
 
 	//run once right away at the very beginning
 	if p.CollectPromStats() == nil {
-		fmt.Printf("made it here1\n")
 		span := log.StartSpan(log.DebugLevelSampled, "send-metric")
 		span.SetTag("operator", p.operatorName)
 		span.SetTag("cloudlet", p.cloudletName)
 		span.SetTag("cluster", p.clusterName)
 		ctx := log.ContextWithSpan(context.Background(), span)
 
-		fmt.Printf("sending...\n")
 		for key, stat := range p.appStatsMap {
 			appMetrics := PodStatToMetrics(&key, stat)
 			for _, metric := range appMetrics {
@@ -417,7 +412,6 @@ func (p *PromStats) RunNotify() {
 		for _, metric := range clusterMetrics {
 			p.send(ctx, metric)
 		}
-		fmt.Printf("...sent\n")
 		span.Finish()
 	}
 

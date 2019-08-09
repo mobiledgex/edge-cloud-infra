@@ -7,13 +7,12 @@ import (
 	"io"
 	"io/ioutil"
 	"net/http"
-	"net/url"
 	"os"
 	"strings"
 	"time"
 
 	sh "github.com/codeskyblue/go-sh"
-	"github.com/mobiledgex/edge-cloud-infra/artifactory"
+	"github.com/mobiledgex/edge-cloud/cloudcommon"
 	"github.com/mobiledgex/edge-cloud/log"
 )
 
@@ -113,40 +112,13 @@ func GetSCPFile(uri string) ([]byte, error) {
 // 	return nil
 // }
 
-func SendHTTPReq(method, fileUrlPath string) (*http.Response, error) {
-	fileUrl, err := url.Parse(fileUrlPath)
-	if err != nil {
-		return nil, err
-	}
-	var af_apikey string
-	if fileUrl.Host == "artifactory.mobiledgex.net" {
-		af_apikey, err = artifactory.GetArtifactoryApiKey()
-		if err != nil {
-			return nil, err
-		}
-	}
-	client := &http.Client{}
-	req, err := http.NewRequest(method, fileUrlPath, nil)
-	if err != nil {
-		return nil, fmt.Errorf("failed sending request %v", err)
-	}
-	if af_apikey != "" {
-		req.Header.Set("X-JFrog-Art-Api", af_apikey)
-	}
-	resp, err := client.Do(req)
-	if err != nil {
-		return nil, fmt.Errorf("failed fetching response %v", err)
-	}
-	// Check server response
-	if resp.StatusCode != http.StatusOK {
-		return nil, fmt.Errorf("bad status: %s", resp.Status)
-	}
-	return resp, err
-}
-
 func GetUrlInfo(fileUrlPath string) (time.Time, string, error) {
 	log.DebugLog(log.DebugLevelMexos, "get url last-modified time", "file-url", fileUrlPath)
-	resp, err := SendHTTPReq("HEAD", fileUrlPath)
+	auth, err := cloudcommon.GetRegistryAuth(fileUrlPath, VaultAddr)
+	if err != nil {
+		log.DebugLog(log.DebugLevelMexos, "failed to get auth", "file-url", fileUrlPath, "err", err)
+	}
+	resp, err := cloudcommon.SendHTTPReq("HEAD", fileUrlPath, auth)
 	if err != nil {
 		return time.Time{}, "", fmt.Errorf("Error fetching last modified time of URL %s, %v", fileUrlPath, err)
 	}
@@ -185,18 +157,26 @@ func Md5SumFile(filePath string) (string, error) {
 func DownloadFile(fileUrlPath string, filePath string) error {
 	log.DebugLog(log.DebugLevelMexos, "attempt to download file", "file-url", fileUrlPath)
 
+	auth, err := cloudcommon.GetRegistryAuth(fileUrlPath, VaultAddr)
+	if err != nil {
+		log.DebugLog(log.DebugLevelMexos, "failed to get auth", "file-url", fileUrlPath, "err", err)
+	}
+	resp, err := cloudcommon.SendHTTPReq("GET", fileUrlPath, auth)
+	if err != nil {
+		return err
+	}
+	defer resp.Body.Close()
+	// Check server response
+	if resp.StatusCode != http.StatusOK {
+		return fmt.Errorf("bad status: %s", resp.Status)
+	}
+
 	// Create the file
 	out, err := os.Create(filePath)
 	if err != nil {
 		return err
 	}
 	defer out.Close()
-
-	resp, err := SendHTTPReq("GET", fileUrlPath)
-	if err != nil {
-		return err
-	}
-	defer resp.Body.Close()
 
 	_, err = io.Copy(out, resp.Body)
 	if err != nil {
@@ -216,7 +196,7 @@ func DeleteFile(filePath string) error {
 
 // Get the externally visible public IP address
 func GetExternalPublicAddr() (string, error) {
-	resp, err := SendHTTPReq("GET", "http://ifconfig.me")
+	resp, err := cloudcommon.SendHTTPReq("GET", "http://ifconfig.me", nil)
 	if err != nil {
 		return "", err
 	}

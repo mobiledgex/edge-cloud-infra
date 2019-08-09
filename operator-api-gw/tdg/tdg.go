@@ -3,11 +3,11 @@ package tdg
 import (
 	"fmt"
 
-	simulatedqos "github.com/mobiledgex/edge-cloud-infra/operator-api-gw/defaultoperator/simulated-qos"
 	tdgclient "github.com/mobiledgex/edge-cloud-infra/operator-api-gw/tdg/tdg-qos/qosclient"
 	dmecommon "github.com/mobiledgex/edge-cloud/d-match-engine/dme-common"
 	dme "github.com/mobiledgex/edge-cloud/d-match-engine/dme-proto"
 	operator "github.com/mobiledgex/edge-cloud/d-match-engine/operator"
+	simulatedqos "github.com/mobiledgex/edge-cloud/d-match-engine/operator/defaultoperator/simulated-qos"
 	"github.com/mobiledgex/edge-cloud/log"
 )
 

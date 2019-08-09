@@ -25,7 +25,7 @@ type User struct {
 }
 
 type Organization struct {
-	Name          string `gorm:"primary_key"`
+	Name          string `gorm:"primary_key;type:citext"`
 	Type          string `gorm:"not null"`
 	Address       string
 	Phone         string
@@ -160,6 +160,7 @@ type RegionAppInstMetrics struct {
 	Selector  string
 	StartTime time.Time `json:",omitempty"`
 	EndTime   time.Time `json:",omitempty"`
+	Last      int       `json:",omitempty"`
 }
 
 type RegionClusterInstMetrics struct {
@@ -168,4 +169,5 @@ type RegionClusterInstMetrics struct {
 	Selector    string
 	StartTime   time.Time `json:",omitempty"`
 	EndTime     time.Time `json:",omitempty"`
+	Last        int       `json:",omitempty"`
 }

@@ -127,21 +127,3 @@ regiondata:
       liveness: LivenessStatic
       flavor:
         name: x1.small
-    - key:
-        appkey:
-          developerkey:
-            name: Samsung
-          name: SamsungEnablingLayer
-          version: "1.0"
-        clusterinstkey:
-          clusterkey:
-            name: default
-          cloudletkey:
-            operatorkey:
-              name: developer
-            name: default
-          developer: Samsung
-      liveness: LivenessStatic
-      uri: default.samsungenablement.samsung.com
-      flavor:
-        name: x1.small

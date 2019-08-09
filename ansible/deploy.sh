@@ -92,6 +92,9 @@ ARGS=()
 $DRYRUN && ARGS+=( '--check' )
 [[ -n "$VERBOSITY" ]] && ARGS+=( "-${VERBOSITY}" )
 
+[[ -n "$ANSIBLE_SSH_PRIVATE_KEY_FILE" ]] \
+	&& ARGS+=( --private-key "$ANSIBLE_SSH_PRIVATE_KEY_FILE" )
+
 MAIN_VAULT="${MAIN_ANSIBLE_VAULT_PREFIX}-${ENVIRON}.yml"
 [[ ! -f "$MAIN_VAULT" ]] && MAIN_VAULT="${MAIN_ANSIBLE_VAULT_PREFIX}.yml"
 [[ -f "$MAIN_VAULT" ]] && ARGS+=( -e "@${MAIN_VAULT}" )

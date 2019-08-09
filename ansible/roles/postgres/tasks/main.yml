@@ -44,7 +44,7 @@
     name: "{{ item.db }}"
   become: yes
   become_user: postgres
-  with_items: "{{ postgres_users }}"
+  with_items: "{{ postgres_db_accounts }}"
   no_log: true
 
 - name: Create users
@@ -55,7 +55,16 @@
     priv: ALL
   become: yes
   become_user: postgres
-  with_items: "{{ postgres_users }}"
+  with_items: "{{ postgres_db_accounts }}"
+  no_log: true
+
+- name: Add extensions
+  postgresql_ext:
+    db: "{{ item.db }}"
+    name: citext
+  become: yes
+  become_user: postgres
+  with_items: "{{ postgres_db_accounts }}"
   no_log: true
 
 - name: Remove unnecessary privileges
@@ -64,5 +73,5 @@
     role_attr_flags: NOSUPERUSER,NOCREATEDB
   become: yes
   become_user: postgres
-  with_items: "{{ postgres_users }}"
+  with_items: "{{ postgres_db_accounts }}"
   no_log: true

@@ -4,7 +4,6 @@ import (
 	"context"
 	"fmt"
 	"net/http"
-	"strings"
 
 	"github.com/mobiledgex/edge-cloud-infra/mc/ormapi"
 	"github.com/mobiledgex/edge-cloud/log"
@@ -54,6 +53,7 @@ func gitlabCreateLDAPUser(ctx context.Context, user *ormapi.User) {
 	// generate long random password for LDAP users, effectively disabling it
 	pw := string(util.RandAscii(128))
 	_true := true
+	_false := false
 	opts := gitlab.CreateUserOptions{
 		Email:            &user.Email,
 		Name:             &user.Name,
@@ -62,6 +62,7 @@ func gitlabCreateLDAPUser(ctx context.Context, user *ormapi.User) {
 		Provider:         &LDAPProvider,
 		Password:         &pw,
 		SkipConfirmation: &_true,
+		CanCreateGroup:   &_false,
 	}
 	_, _, err := gitlabClient.Users.CreateUser(&opts)
 	if err != nil {
@@ -96,22 +97,7 @@ func gitlabCreateGroup(ctx context.Context, org *ormapi.Organization) {
 		Path:       &name,
 		Visibility: gitlab.Visibility(gitlab.PrivateVisibility),
 	}
-	// The "path" argument is used to access the group via a URL,
-	// and so is case-insensitive. If there is a case conflict,
-	// i.e. two orgs named "org1" and "Org1", modify the path so
-	// there is no conflict.
-	var err error
-	var grp *gitlab.Group
-	for ii := 0; ii < 20; ii++ {
-		log.SpanLog(ctx, log.DebugLevelApi, "gitlab create group", "data", groupOpts)
-		grp, _, err = gitlabClient.Groups.CreateGroup(&groupOpts)
-		if err != nil && strings.Contains(err.Error(), "path=>[\"has already been taken\"]") {
-			path := *groupOpts.Path + "_"
-			groupOpts.Path = &path
-			continue
-		}
-		break
-	}
+	grp, _, err := gitlabClient.Groups.CreateGroup(&groupOpts)
 	if err != nil {
 		log.SpanLog(ctx, log.DebugLevelApi, "gitlab create group",
 			"org", org, "name", name, "err", err)
@@ -156,7 +142,7 @@ func gitlabAddGroupMember(ctx context.Context, role *ormapi.Role) {
 	if enforcer.Enforce(role.Username, role.Org, ResourceUsers, ActionManage) {
 		access = gitlab.AccessLevel(gitlab.OwnerPermissions)
 	} else {
-		access = gitlab.AccessLevel(gitlab.MaintainerPermissions)
+		access = gitlab.AccessLevel(gitlab.ReporterPermissions)
 	}
 	opts := gitlab.AddGroupMemberOptions{
 		UserID:      &user.ID,

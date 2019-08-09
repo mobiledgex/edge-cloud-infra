@@ -50,7 +50,7 @@
       - "--tls"
       - "/root/tls/mex-server.crt"
       - "--platform"
-      - "{{ item.platform | default('openstack') }}"
+      - "{{ item.platform | default('PLATFORM_TYPE_OPENSTACK') }}"
       - "--vaultAddr"
       - "{{ vault_vm_hostname }}:{{ vault_port }}"
       - "--cloudletKey"

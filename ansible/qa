@@ -3,6 +3,7 @@ deploy_environ=qa
 ubuntu_release=bionic
 gitlab_vm_hostname=gitlab-{{ deploy_environ }}.mobiledgex.net
 gitlab_email_enabled=false
+gitlab_slack_notifications=false
 gitlab_docker_hostname="docker-{{ deploy_environ }}.mobiledgex.net"
 mc_vm_hostname=mc-{{ deploy_environ}}.mobiledgex.net
 mc_ldap_hostname=automationmc.mobiledgex.net

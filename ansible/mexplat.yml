@@ -96,7 +96,7 @@
   roles:
     - role: postgres
       vars:
-        postgres_users:
+        postgres_db_accounts:
           - db: "{{ mc_postgres_db }}"
             username: "{{ mc_postgres_username }}"
             password: "{{ mc_postgres_password }}"

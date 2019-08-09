@@ -6,14 +6,17 @@ import (
 	"fmt"
 	"io"
 	"io/ioutil"
+	"net"
 	"net/http"
 	"os"
 	"strings"
 	"time"
 
 	sh "github.com/codeskyblue/go-sh"
+	"github.com/miekg/dns"
 	"github.com/mobiledgex/edge-cloud/cloudcommon"
 	"github.com/mobiledgex/edge-cloud/log"
+	"gortc.io/stun"
 )
 
 //validateDomain does strange validation, not strictly domain, due to the data passed from controller.
@@ -196,14 +199,70 @@ func DeleteFile(filePath string) error {
 
 // Get the externally visible public IP address
 func GetExternalPublicAddr() (string, error) {
-	resp, err := cloudcommon.SendHTTPReq("GET", "http://ifconfig.me", nil)
+	myip, err := stunGetMyIP()
+	if err == nil {
+		return myip, nil
+	}
+
+	// Alternatively use dns resolver to fetch external IP
+	myip, err = dnsGetMyIP()
+	if err == nil {
+		return myip, nil
+	}
+	return "", err
+}
+
+func stunGetMyIP() (string, error) {
+	log.DebugLog(log.DebugLevelMexos, "get ip from stun server")
+	var myip string
+
+	// Creating a "connection" to STUN server.
+	c, err := stun.Dial("udp", "stun.mobiledgex.net:19302")
 	if err != nil {
 		return "", err
 	}
-	defer resp.Body.Close()
-	ip, err := ioutil.ReadAll(resp.Body)
+	// Building binding request with random transaction id.
+	message := stun.MustBuild(stun.TransactionID, stun.BindingRequest)
+	// Sending request to STUN server, waiting for response message.
+	if c_err := c.Do(message, func(res stun.Event) {
+		if res.Error != nil {
+			err = res.Error
+		}
+		// Decoding XOR-MAPPED-ADDRESS attribute from message.
+		var xorAddr stun.XORMappedAddress
+		if x_err := xorAddr.GetFrom(res.Message); err != nil {
+			err = x_err
+		}
+		myip = xorAddr.IP.String()
+	}); c_err != nil {
+		return "", c_err
+	}
 	if err != nil {
 		return "", err
 	}
-	return strings.TrimSpace(string(ip)), err
+	return myip, nil
+}
+
+func dnsGetMyIP() (string, error) {
+	c := new(dns.Client)
+	m := new(dns.Msg)
+	m.SetQuestion(dns.Fqdn("myip.opendns.com"), dns.TypeANY)
+	m.RecursionDesired = true
+
+	r, _, err := c.Exchange(m, net.JoinHostPort("resolver1.opendns.com", "53"))
+	if r == nil {
+		return "", err
+	}
+
+	if r.Rcode != dns.RcodeSuccess {
+		return "", fmt.Errorf("invalid return code %d", r.Rcode)
+	}
+	// Stuff must be in the answer section
+	for _, a := range r.Answer {
+		f, ok := a.(*dns.A)
+		if ok {
+			return f.A.String(), nil
+		}
+	}
+	return "", fmt.Errorf("unable to find external IP")
 }

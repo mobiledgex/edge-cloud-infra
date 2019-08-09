@@ -7,7 +7,7 @@ import (
 	dmecommon "github.com/mobiledgex/edge-cloud/d-match-engine/dme-common"
 	dme "github.com/mobiledgex/edge-cloud/d-match-engine/dme-proto"
 	operator "github.com/mobiledgex/edge-cloud/d-match-engine/operator"
-	simulatedqos "github.com/mobiledgex/edge-cloud/d-match-engine/operator/defaultoperator/simulated-qos"
+	simulatedqos "github.com/mobiledgex/edge-cloud/d-match-engine/operator/simulated-qos"
 	"github.com/mobiledgex/edge-cloud/log"
 )
 

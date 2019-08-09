@@ -31,6 +31,15 @@
   notify:
     - Restart nginx
 
+- name: Install nginx post-renewal hook
+  copy:
+    src: nginx_restart_hook
+    dest: "{{ letsencrypt_renewal_hooks_dir }}/post/nginx_restart_hook"
+    owner: root
+    group: root
+    mode: 0755
+  become: yes
+
 - name: Install pre-renewal hooks
   copy:
     dest: "{{ letsencrypt_renewal_hooks_dir }}/pre/{{ item.hook_name }}"

@@ -6,6 +6,7 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"time"
 
 	intprocess "github.com/mobiledgex/edge-cloud-infra/e2e-tests/int-process"
 	"github.com/mobiledgex/edge-cloud-infra/mexos"
@@ -20,6 +21,7 @@ const (
 	// Platform services
 	ServiceTypeCRM      = "crmserver"
 	ServiceTypeShepherd = "shepherd"
+	PlatformMaxWait     = 10 * time.Second
 )
 
 func getPlatformVMName(cloudlet *edgeproto.Cloudlet) string {
@@ -77,24 +79,39 @@ func startPlatformService(cloudlet *edgeproto.Cloudlet, pfConfig *edgeproto.Plat
 		return
 	}
 
-	out, err := client.Output(`sudo docker ps -a -n 1 --filter name=` + platform_vm_name + ` --format '{{.Status}}'`)
-	if err != nil {
-		cDone <- fmt.Errorf("Unable to fetch %s container status: %v, %s\n", serviceType, err, out)
-		return
-	}
-	if !strings.Contains(out, "Up ") {
-		// container exited in failure state
-		// Show Fatal Log, if not Fatal log found, then show last 10 lines of error
-		out, err = client.Output(`sudo docker logs ` + platform_vm_name + ` 2>&1 | grep FATAL | awk '{for (i=1; i<=NF-3; i++) $i = $(i+3); NF-=3; print}'`)
-		if err != nil || out == "" {
-			out, err = client.Output(`sudo docker logs ` + platform_vm_name + ` 2>&1 | tail -n 10`)
-			if err != nil {
-				cDone <- fmt.Errorf("Failed to bringup %s: %s", serviceType, err.Error())
-				return
-			}
+	// - Wait for docker container to start running
+	// - And also monitor the UP state for PlatformMaxTime to
+	//   catch early Fatal Logs
+	// - After which controller will monitor it using CloudletInfo
+	start := time.Now()
+	for {
+		out, err := client.Output(`sudo docker ps -a -n 1 --filter name=` + platform_vm_name + ` --format '{{.Status}}'`)
+		if err != nil {
+			cDone <- fmt.Errorf("Unable to fetch %s container status: %v, %s\n", serviceType, err, out)
+			return
 		}
-		cDone <- fmt.Errorf("Failed to bringup %s: %s", serviceType, out)
-		return
+		if strings.Contains(out, "Up ") {
+			break
+		} else if !strings.Contains(out, "Created") {
+			// container exited in failure state
+			// Show Fatal Log, if not Fatal log found, then show last 10 lines of error
+			out, err = client.Output(`sudo docker logs ` + platform_vm_name + ` 2>&1 | grep FATAL | awk '{for (i=1; i<=NF-3; i++) $i = $(i+3); NF-=3; print}'`)
+			if err != nil || out == "" {
+				out, err = client.Output(`sudo docker logs ` + platform_vm_name + ` 2>&1 | tail -n 10`)
+				if err != nil {
+					cDone <- fmt.Errorf("Failed to bringup %s: %s", serviceType, err.Error())
+					return
+				}
+			}
+			cDone <- fmt.Errorf("Failed to bringup %s: %s", serviceType, out)
+			return
+		}
+		elapsed := time.Since(start)
+		if elapsed >= (PlatformMaxWait) {
+			// no issues in wait time
+			break
+		}
+		time.Sleep(1 * time.Second)
 	}
 	cDone <- nil
 	return

@@ -33,8 +33,8 @@
 
 - name: Install nginx post-renewal hook
   copy:
-    src: nginx_restart_hook
-    dest: "{{ letsencrypt_renewal_hooks_dir }}/post/nginx_restart_hook"
+    src: nginx_reload_hook
+    dest: "{{ letsencrypt_renewal_hooks_dir }}/post/nginx_reload_hook"
     owner: root
     group: root
     mode: 0755

@@ -2,7 +2,9 @@ package orm
 
 import (
 	"encoding/json"
+	"fmt"
 	"net/http"
+	"net/url"
 	"os"
 	"testing"
 
@@ -10,7 +12,6 @@ import (
 	"github.com/jarcoal/httpmock"
 	"github.com/mobiledgex/edge-cloud-infra/mc/ormclient"
 	"github.com/mobiledgex/edge-cloud/log"
-	"github.com/mobiledgex/edge-cloud/vault"
 	"github.com/stretchr/testify/require"
 )
 
@@ -213,23 +214,25 @@ func TestArtifactoryApi(t *testing.T) {
 		IgnoreEnv:       true,
 		ArtifactoryAddr: artifactoryAddr,
 		SkipVerifyEmail: true,
+		LocalVault:      true,
 	}
-
-	os.Setenv("artifactory_apikey", artifactoryApiKey)
 
 	server, err := RunServer(&config)
 	require.Nil(t, err, "run server")
 	defer server.Stop()
 
-	Jwks.Init("addr", "region", "mcorm", "roleID", "secretID")
-	Jwks.Meta.CurrentVersion = 1
-	Jwks.Keys[1] = &vault.JWK{
-		Secret:  "12345",
-		Refresh: "1s",
-	}
-
 	err = server.WaitUntilReady()
 	require.Nil(t, err, "server online")
+
+	os.Setenv("VAULT_ROLE_ID", roleID)
+	os.Setenv("VAULT_SECRET_ID", secretID)
+
+	rtfuri, err := url.ParseRequestURI(artifactoryAddr)
+	require.Nil(t, err, "parse artifactory url")
+
+	path := "secret/registry/" + rtfuri.Host
+	server.vault.Run("vault", fmt.Sprintf("kv put %s apikey=%s", path, artifactoryApiKey), &err)
+	require.Nil(t, err, "added secret to vault")
 
 	mcClient := &ormclient.Client{}
 

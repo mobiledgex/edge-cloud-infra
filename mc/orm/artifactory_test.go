@@ -100,9 +100,8 @@ func registerDeleteUser(userName string) {
 			if _, ok := rtfUserStore[userName]; ok {
 				delete(rtfUserStore, userName)
 				return httpmock.NewStringResponse(200, "Success"), nil
-			} else {
-				return httpmock.NewStringResponse(404, "Unable to find user"), nil
 			}
+			return httpmock.NewStringResponse(404, "Unable to find user"), nil
 		},
 	)
 }
@@ -129,9 +128,8 @@ func registerDeleteGroup(orgName string) {
 			if _, ok := rtfGroupStore[groupName]; ok {
 				delete(rtfGroupStore, groupName)
 				return httpmock.NewStringResponse(200, "Success"), nil
-			} else {
-				return httpmock.NewStringResponse(404, "Unable to find group"), nil
 			}
+			return httpmock.NewStringResponse(404, "Unable to find group"), nil
 		},
 	)
 }
@@ -158,11 +156,8 @@ func registerDeleteRepo(orgName string) {
 			if _, ok := rtfRepoStore[repoName]; ok {
 				delete(rtfRepoStore, repoName)
 				return httpmock.NewStringResponse(200, "Success"), nil
-			} else {
-				return httpmock.NewStringResponse(404, "Unable to find repo"), nil
 			}
-
-			return httpmock.NewStringResponse(200, "Success"), nil
+			return httpmock.NewStringResponse(404, "Unable to find repo"), nil
 		},
 	)
 }
@@ -189,9 +184,8 @@ func registerDeletePerm(orgName string) {
 			if _, ok := rtfPermStore[permName]; ok {
 				delete(rtfPermStore, permName)
 				return httpmock.NewStringResponse(200, "Success"), nil
-			} else {
-				return httpmock.NewStringResponse(404, "Unable to find permission target"), nil
 			}
+			return httpmock.NewStringResponse(404, "Unable to find permission target"), nil
 		},
 	)
 }
@@ -201,9 +195,8 @@ func registerGetUser(userName string) {
 		func(req *http.Request) (*http.Response, error) {
 			if rtfUser, ok := rtfUserStore[userName]; ok {
 				return httpmock.NewJsonResponse(200, rtfUser)
-			} else {
-				return httpmock.NewStringResponse(404, "Unable to find user"), nil
 			}
+			return httpmock.NewStringResponse(404, "Unable to find user"), nil
 		},
 	)
 }
@@ -290,9 +283,8 @@ func registerUpdateUser(userName, orgName string) {
 			if rtfUser, ok := rtfUserStore[userName]; ok {
 				rtfUser.Groups = updateUser.Groups
 				return httpmock.NewStringResponse(200, ""), nil
-			} else {
-				return httpmock.NewStringResponse(404, "Unable to find user"), nil
 			}
+			return httpmock.NewStringResponse(404, "Unable to find user"), nil
 		},
 	)
 }

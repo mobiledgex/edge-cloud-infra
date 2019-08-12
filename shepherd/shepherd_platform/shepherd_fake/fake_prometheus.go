@@ -275,25 +275,12 @@ func SetupFakeProm() (*net.Listener, error) {
 
 func RunFakeProm(l *net.Listener) {
 	// Skip this much of the URL
-	// skiplen := len("/api/v1/query?query=")
-	// fakeProm := httptest.NewUnstartedServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-	// 	w.Write([]byte(e2eTestData[r.URL.String()[skiplen:]]))
-	// }))
-	fakeProm := httptest.NewUnstartedServer(http.HandlerFunc(fakePromHandler))
+	skiplen := len("/api/v1/query?query=")
+	fakeProm := httptest.NewUnstartedServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Write([]byte(e2eTestData[r.URL.String()[skiplen:]]))
+	}))
 	//assign the listener for port 9090
 	fakeProm.Listener.Close()
 	fakeProm.Listener = *l
 	fakeProm.Start()
-	defer fakeProm.Close()
-
-	//loop forever
-	for true {
-	}
-}
-
-func fakePromHandler(w http.ResponseWriter, r *http.Request) {
-	skiplen := len("/api/v1/query?query=")
-	fmt.Printf("incoming request\n")
-	w.Write([]byte(e2eTestData[r.URL.String()[skiplen:]]))
-	fmt.Printf("request served\n")
 }

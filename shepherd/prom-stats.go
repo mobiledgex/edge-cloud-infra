@@ -124,13 +124,11 @@ func outputTrim(output string) string {
 	return lines[len(lines)-1]
 }
 
-var counter = 1
-
 func getPromMetrics(addr string, query string, client pc.PlatformClient) (*PromResp, error) {
 	reqURI := "'http://" + addr + "/api/v1/query?query=" + query + "'"
-	counter = counter + 1
 	resp, err := client.Output("curl " + reqURI)
 	if err != nil {
+		fmt.Printf("Err\n")
 		errstr := fmt.Sprintf("Failed to run <%s>", reqURI)
 		log.DebugLog(log.DebugLevelMetrics, errstr, "err", err.Error())
 		return nil, err
@@ -419,7 +417,6 @@ func (p *PromStats) RunNotify() {
 	for !done {
 		select {
 		case <-time.After(p.interval):
-			counter = 1
 			if p.CollectPromStats() != nil {
 				continue
 			}

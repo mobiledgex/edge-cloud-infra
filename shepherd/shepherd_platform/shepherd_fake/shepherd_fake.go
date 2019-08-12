@@ -21,7 +21,7 @@ func (s *Platform) GetClusterIP(clusterInst *edgeproto.ClusterInst) (string, err
 	if l, err := SetupFakeProm(); err != nil {
 		return "", err
 	} else {
-		go RunFakeProm(l)
+		RunFakeProm(l)
 	}
 	addr := "127.0.0.1"
 	return addr, nil

@@ -118,6 +118,12 @@ func artifactoryCreateUser(ctx context.Context, user *ormapi.User, groups *[]str
 		artifactorySync.NeedsSync()
 		return
 	}
+	if groups != nil {
+		for _, group := range *groups {
+			groupName := strings.TrimPrefix(group, ArtifactoryPrefix)
+			artifactoryCreateRepoPerms(ctx, groupName)
+		}
+	}
 }
 
 func artifactoryDeleteUser(ctx context.Context, userName string) {
@@ -166,6 +172,7 @@ func artifactoryAddUserToGroup(ctx context.Context, role *ormapi.Role) {
 		artifactorySync.NeedsSync()
 		return
 	}
+	artifactoryCreateRepoPerms(ctx, role.Org)
 }
 
 func artifactoryRemoveUserFromGroup(ctx context.Context, role *ormapi.Role) {
@@ -197,6 +204,7 @@ func artifactoryRemoveUserFromGroup(ctx context.Context, role *ormapi.Role) {
 		artifactorySync.NeedsSync()
 		return
 	}
+	artifactoryCreateRepoPerms(ctx, role.Org)
 }
 
 func artifactoryListGroups(ctx context.Context) (map[string]struct{}, error) {
@@ -352,10 +360,28 @@ func artifactoryCreateRepoPerms(ctx context.Context, orgName string) error {
 		Repositories: &[]string{repoName},
 		Principals: &v1.Principals{
 			Groups: &map[string][]string{
-				groupName: []string{"w", "d", "r"},
+				groupName: []string{"r"},
 			},
 		},
 	}
+
+	userPerms := map[string][]string{}
+	groupings := enforcer.GetGroupingPolicy()
+	for ii, _ := range groupings {
+		role := parseRole(groupings[ii])
+		if role == nil {
+			continue
+		}
+		userName := strings.ToLower(role.Username)
+		if role.Role == RoleDeveloperManager {
+			userPerms[userName] = []string{"w", "d", "r", "m"}
+		}
+		if role.Role == RoleDeveloperContributor {
+			userPerms[userName] = []string{"w", "d", "r"}
+		}
+	}
+	permTargets.Principals.Users = &userPerms
+
 	_, err = client.V1.Security.CreateOrReplacePermissionTargets(context.Background(), permTargetName, &permTargets)
 	if err != nil {
 		log.SpanLog(ctx, log.DebugLevelApi, "artifactory create repo perms",

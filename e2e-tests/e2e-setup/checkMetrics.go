@@ -65,7 +65,7 @@ func RunCheckMetrics(actionSubtype string) error {
 
 func CheckInfluxShepherd() error {
 	//give shepherd time to collect and push metrics
-	time.Sleep(5 * time.Second)
+	time.Sleep(time.Second)
 	metric, err := getInfluxMeasurements()
 	if err != nil {
 		return err
@@ -116,7 +116,7 @@ func checkInfluxMeasurements(metric *InfluxResp) error {
 
 	//cpu from cluster-cpu
 	if len(metric.Results[0].Series) == 0 || (metric.Results[0].Series[0].Values[0][1] != float64(10.01)) {
-		return fmt.Errorf("Influx cluster-cpu measurements inconsistent, got %f", metric.Results[0].Series[0].Values[0][1])
+		return fmt.Errorf("Influx cluster-cpu measurements inconsistent")
 	}
 
 	//mem from cluster-mem

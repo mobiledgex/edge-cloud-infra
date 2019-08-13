@@ -1,79 +1,106 @@
 package fakeinfra
 
 import (
+	"fmt"
 	"time"
 
 	intprocess "github.com/mobiledgex/edge-cloud-infra/e2e-tests/int-process"
 	"github.com/mobiledgex/edge-cloud/cloud-resource-manager/platform"
-	"github.com/mobiledgex/edge-cloud/cloud-resource-manager/platform/fake"
 	"github.com/mobiledgex/edge-cloud/cloud-resource-manager/platform/pc"
+	"github.com/mobiledgex/edge-cloud/cloudcommon"
 	"github.com/mobiledgex/edge-cloud/edgeproto"
 	"github.com/mobiledgex/edge-cloud/log"
 )
 
 type Platform struct {
-	generic fake.Platform
 }
 
 func (s *Platform) GetType() string {
 	return "fakeinfra"
 }
 
-func (s *Platform) Init(platformConfig *platform.PlatformConfig) error {
+func (s *Platform) Init(platformConfig *platform.PlatformConfig, updateCallback edgeproto.CacheUpdateCallback) error {
 	log.DebugLog(log.DebugLevelMexos, "running in fakeinfra cloudlet mode")
+	updateCallback(edgeproto.UpdateTask, "Done intializing fakeinfra platform")
 	return nil
 }
 
 func (s *Platform) GatherCloudletInfo(info *edgeproto.CloudletInfo) error {
-	return s.generic.GatherCloudletInfo(info)
+	info.OsMaxRam = 500
+	info.OsMaxVcores = 50
+	info.OsMaxVolGb = 5000
+	info.Flavors = []*edgeproto.FlavorInfo{
+		&edgeproto.FlavorInfo{
+			Name:  "flavor1",
+			Vcpus: uint64(10),
+			Ram:   uint64(101024),
+			Disk:  uint64(500),
+		},
+	}
+	return nil
 }
 
 func (s *Platform) UpdateClusterInst(clusterInst *edgeproto.ClusterInst, updateCallback edgeproto.CacheUpdateCallback) error {
-	return s.generic.UpdateClusterInst(clusterInst, updateCallback)
+	return fmt.Errorf("update cluster not supported for fakeinfra cloudlets")
 }
 func (s *Platform) CreateClusterInst(clusterInst *edgeproto.ClusterInst, updateCallback edgeproto.CacheUpdateCallback, timeout time.Duration) error {
-	return s.generic.CreateClusterInst(clusterInst, updateCallback, timeout)
+	updateCallback(edgeproto.UpdateTask, "First Create Task")
+	updateCallback(edgeproto.UpdateTask, "Second Create Task")
+	log.DebugLog(log.DebugLevelMexos, "fakeinfra ClusterInst ready")
+	return nil
 }
 
 func (s *Platform) DeleteClusterInst(clusterInst *edgeproto.ClusterInst) error {
-	return s.generic.DeleteClusterInst(clusterInst)
+	log.DebugLog(log.DebugLevelMexos, "fakeinfra ClusterInst deleted")
+	return nil
 }
 
 func (s *Platform) CreateAppInst(clusterInst *edgeproto.ClusterInst, app *edgeproto.App, appInst *edgeproto.AppInst, flavor *edgeproto.Flavor, updateCallback edgeproto.CacheUpdateCallback) error {
-	return s.generic.CreateAppInst(clusterInst, app, appInst, flavor, updateCallback)
+	updateCallback(edgeproto.UpdateTask, "Creating App Inst")
+	log.DebugLog(log.DebugLevelMexos, "fakeinfra AppInst ready")
+	return nil
 }
 
 func (s *Platform) DeleteAppInst(clusterInst *edgeproto.ClusterInst, app *edgeproto.App, appInst *edgeproto.AppInst) error {
-	return s.generic.DeleteAppInst(clusterInst, app, appInst)
+	log.DebugLog(log.DebugLevelMexos, "fakeinfra AppInst deleted")
+	return nil
 }
 
 func (s *Platform) UpdateAppInst(clusterInst *edgeproto.ClusterInst, app *edgeproto.App, appInst *edgeproto.AppInst, updateCallback edgeproto.CacheUpdateCallback) error {
-	return s.generic.UpdateAppInst(clusterInst, app, appInst, updateCallback)
+	updateCallback(edgeproto.UpdateTask, "fakeinfra appInst updated")
+	return nil
 }
 
 func (s *Platform) GetAppInstRuntime(clusterInst *edgeproto.ClusterInst, app *edgeproto.App, appInst *edgeproto.AppInst) (*edgeproto.AppInstRuntime, error) {
-	return s.generic.GetAppInstRuntime(clusterInst, app, appInst)
+	return &edgeproto.AppInstRuntime{}, nil
 }
 
 func (s *Platform) GetPlatformClient(clusterInst *edgeproto.ClusterInst) (pc.PlatformClient, error) {
-	return s.generic.GetPlatformClient(clusterInst)
+	return &pc.LocalClient{}, nil
 }
 
 func (s *Platform) GetContainerCommand(clusterInst *edgeproto.ClusterInst, app *edgeproto.App, appInst *edgeproto.AppInst, req *edgeproto.ExecRequest) (string, error) {
-	return s.generic.GetContainerCommand(clusterInst, app, appInst, req)
+	return req.Command, nil
 }
 
 func (s *Platform) CreateCloudlet(cloudlet *edgeproto.Cloudlet, pfConfig *edgeproto.PlatformConfig, flavor *edgeproto.Flavor, updateCallback edgeproto.CacheUpdateCallback) error {
-	err := s.generic.CreateCloudlet(cloudlet, pfConfig, flavor, updateCallback)
+	log.DebugLog(log.DebugLevelMexos, "create fakeinfra cloudlet", "key", cloudlet.Key)
+	updateCallback(edgeproto.UpdateTask, "Creating Cloudlet")
+
+	updateCallback(edgeproto.UpdateTask, "Starting CRMServer")
+	err := cloudcommon.StartCRMService(cloudlet, pfConfig)
 	if err != nil {
+		log.DebugLog(log.DebugLevelMexos, "fakeinfra cloudlet create failed", "err", err)
 		return err
 	}
 	return intprocess.StartShepherdService(cloudlet, pfConfig)
 }
 
 func (s *Platform) DeleteCloudlet(cloudlet *edgeproto.Cloudlet) error {
-	err := s.generic.DeleteCloudlet(cloudlet)
+	log.DebugLog(log.DebugLevelMexos, "delete fakeinfra Cloudlet", "key", cloudlet.Key)
+	err := cloudcommon.StopCRMService(cloudlet)
 	if err != nil {
+		log.DebugLog(log.DebugLevelMexos, "fakeinfra cloudlet delete failed", "err", err)
 		return err
 	}
 	return intprocess.StopShepherdService(cloudlet)

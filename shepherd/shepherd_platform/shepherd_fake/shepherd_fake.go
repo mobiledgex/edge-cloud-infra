@@ -6,6 +6,7 @@ import (
 )
 
 type Platform struct {
+	fakePromOwner bool
 }
 
 func (s *Platform) GetType() string {
@@ -13,18 +14,21 @@ func (s *Platform) GetType() string {
 }
 
 func (s *Platform) Init(key *edgeproto.CloudletKey, physicalName, vaultAddr string) error {
+	s.fakePromOwner = false
 	return nil
 }
 
 func (s *Platform) GetClusterIP(clusterInst *edgeproto.ClusterInst) (string, error) {
-	//start the fake prom server for e2e tests
-	if l, err := SetupFakeProm(); err != nil {
-		return "", err
-	} else {
-		RunFakeProm(l)
+	if s.fakePromOwner == false {
+		//start the fake prom server for e2e tests
+		if l, err := SetupFakeProm(); err != nil {
+			return "", err
+		} else {
+			s.fakePromOwner = true
+			RunFakeProm(l)
+		}
 	}
-	addr := "127.0.0.1"
-	return addr, nil
+	return "127.0.0.1", nil
 }
 
 func (s *Platform) GetPlatformClient(clusterInst *edgeproto.ClusterInst) (pc.PlatformClient, error) {

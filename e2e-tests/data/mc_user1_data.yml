@@ -52,6 +52,7 @@ regiondata:
         longitude: -95
       ipsupport: IpSupportDynamic
       numdynamicips: 254
+      platformtype: PlatformTypeFakeinfra
       notifysrvaddr: 127.0.0.1:51002
     - key:
         operatorkey:
@@ -63,6 +64,7 @@ regiondata:
         longitude: -91
       ipsupport: IpSupportDynamic
       numdynamicips: 254
+      platformtype: PlatformTypeFakeinfra
       notifysrvaddr: 127.0.0.1:51004
     - key:
         operatorkey:
@@ -74,4 +76,5 @@ regiondata:
         longitude: -95
       ipsupport: IpSupportDynamic
       numdynamicips: 254
+      platformtype: PlatformTypeFakeinfra
       notifysrvaddr: 127.0.0.1:51005

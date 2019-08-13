@@ -33,10 +33,10 @@ var (
 			},
 		},
 		entry{
-			Org:      "bigorg2",
-			UserMain: "orgman2",
+			Org:      "bigOrg2",
+			UserMain: "orgMan2",
 			UserContrib: []string{
-				"worker2", "worker2.1",
+				"worker2", "worKer2.1",
 			},
 		},
 	}
@@ -73,7 +73,7 @@ func getApiPath(api, name string) string {
 	if name == "" {
 		return artifactoryAddr + strings.TrimSuffix(api, "/")
 	} else {
-		return artifactoryAddr + api + name
+		return "=~(?i)^" + artifactoryAddr + api + name + "$"
 	}
 }
 
@@ -86,8 +86,11 @@ func registerCreateUser(userName string) {
 				return httpmock.NewStringResponse(500, "Unable to decode JSON body"), nil
 			}
 			realm := "ldap"
+			// As Artifactory stores username in lowercase format
+			username := strings.ToLower(*rtfUser.Name)
 			rtfUser.Realm = &realm
-			rtfUserStore[*rtfUser.Name] = &rtfUser
+			rtfUser.Name = &username
+			rtfUserStore[username] = &rtfUser
 
 			return httpmock.NewStringResponse(200, "Success"), nil
 		},
@@ -97,8 +100,9 @@ func registerCreateUser(userName string) {
 func registerDeleteUser(userName string) {
 	httpmock.RegisterResponder("DELETE", getApiPath(userApi, userName),
 		func(req *http.Request) (*http.Response, error) {
-			if _, ok := rtfUserStore[userName]; ok {
-				delete(rtfUserStore, userName)
+			username := strings.ToLower(userName)
+			if _, ok := rtfUserStore[username]; ok {
+				delete(rtfUserStore, username)
 				return httpmock.NewStringResponse(200, "Success"), nil
 			}
 			return httpmock.NewStringResponse(404, "Unable to find user"), nil
@@ -193,7 +197,7 @@ func registerDeletePerm(orgName string) {
 func registerGetUser(userName string) {
 	httpmock.RegisterResponder("GET", getApiPath(userApi, userName),
 		func(req *http.Request) (*http.Response, error) {
-			if rtfUser, ok := rtfUserStore[userName]; ok {
+			if rtfUser, ok := rtfUserStore[strings.ToLower(userName)]; ok {
 				return httpmock.NewJsonResponse(200, rtfUser)
 			}
 			return httpmock.NewStringResponse(404, "Unable to find user"), nil
@@ -280,7 +284,7 @@ func registerUpdateUser(userName, orgName string) {
 			if err != nil {
 				return httpmock.NewStringResponse(500, "Unable to decode JSON body"), nil
 			}
-			if rtfUser, ok := rtfUserStore[userName]; ok {
+			if rtfUser, ok := rtfUserStore[strings.ToLower(userName)]; ok {
 				rtfUser.Groups = updateUser.Groups
 				return httpmock.NewStringResponse(200, ""), nil
 			}
@@ -374,17 +378,15 @@ func verifyRtfStore(t *testing.T, v entry) {
 	}
 
 	// Verify user exists and uses LDAP config
-	rtfUser, ok := rtfUserStore[v.UserMain]
-	require.True(t, ok, "user exists")
-	require.Equal(t, *rtfUser.Name, v.UserMain, "user name matches")
-	require.True(t, *rtfUser.InternalPasswordDisabled, "user must use LDAP")
-	require.Equal(t, (*rtfUser.Groups)[0], getArtifactoryName(v.Org), "user must belong to org")
-
-	for _, userContrib := range v.UserContrib {
-		rtfUser, ok = rtfUserStore[userContrib]
+	users := v.UserContrib
+	users = append(users, v.UserMain)
+	for _, user := range users {
+		userName := strings.ToLower(user)
+		rtfUser, ok := rtfUserStore[userName]
 		require.True(t, ok, "user exists")
-		require.Equal(t, *rtfUser.Name, userContrib, "user name matches")
+		require.Equal(t, *rtfUser.Name, userName, "user name matches")
 		require.True(t, *rtfUser.InternalPasswordDisabled, "user must use LDAP")
+		require.NotNil(t, rtfUser.Groups, "user group exists")
 		require.True(t, contains(*rtfUser.Groups, getArtifactoryName(v.Org)), "user must belong to org")
 	}
 }
@@ -535,8 +537,8 @@ func TestArtifactoryApi(t *testing.T) {
 	}
 
 	// By now, artifactory Sync thread should delete all extra objects as well
-	require.Equal(t, len(rtfUserStore), 0, "deleted all users")
-	require.Equal(t, len(rtfGroupStore), 0, "deleted all groups")
-	require.Equal(t, len(rtfRepoStore), 0, "deleted all repos")
-	require.Equal(t, len(rtfPermStore), 0, "deleted all permission targets")
+	require.Equal(t, 0, len(rtfUserStore), "deleted all users")
+	require.Equal(t, 0, len(rtfGroupStore), "deleted all groups")
+	require.Equal(t, 0, len(rtfRepoStore), "deleted all repos")
+	require.Equal(t, 0, len(rtfPermStore), "deleted all permission targets")
 }

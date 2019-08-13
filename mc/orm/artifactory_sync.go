@@ -16,6 +16,9 @@ func ArtifactoryNewSync() *AppStoreSync {
 }
 
 func (s *AppStoreSync) syncArtifactoryObjects(ctx context.Context) {
+	// Refresh auth cache on sync
+	rtfAuth = nil
+
 	s.syncGroupObjects(ctx)
 	s.syncGroupUsers(ctx)
 }

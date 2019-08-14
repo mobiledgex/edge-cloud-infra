@@ -530,6 +530,7 @@ func TestArtifactoryApi(t *testing.T) {
 			require.Nil(t, err, "remove user role")
 			require.Equal(t, http.StatusOK, status)
 		}
+		artifactoryCreateUser(ctx, &userMain, nil)
 
 		// delete org
 		org := ormapi.Organization{
@@ -548,6 +549,7 @@ func TestArtifactoryApi(t *testing.T) {
 			require.Nil(t, err)
 			require.Equal(t, http.StatusOK, status)
 		}
+		verifyRtfStore(t, v)
 	}
 
 	// By now, artifactory Sync thread should delete all extra objects as well

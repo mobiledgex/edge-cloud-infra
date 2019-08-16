@@ -93,7 +93,9 @@ func artifactoryListUserGroups(ctx context.Context, userName string) (map[string
 	userInfo, _, err := client.V1.Security.GetUser(context.Background(), userName)
 	if err == nil && userInfo.Groups != nil {
 		for _, group := range *userInfo.Groups {
-			tmp[group] = struct{}{}
+			if strings.HasPrefix(group, ArtifactoryPrefix) {
+				tmp[group] = struct{}{}
+			}
 		}
 	}
 	return tmp, nil

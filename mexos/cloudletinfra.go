@@ -8,6 +8,7 @@ package mexos
 import (
 	"fmt"
 	"os"
+	"strconv"
 	"strings"
 
 	"github.com/mobiledgex/edge-cloud/edgeproto"
@@ -188,4 +189,21 @@ func GetCloudletFlavorMatchPattern() string {
 		return ".*"
 	}
 	return pattern
+}
+
+func GetCloudletCRMGatewayIPAndPort() (string, int) {
+	gw := os.Getenv("MEX_CRM_GATEWAY_ADDR")
+	if gw == "" {
+		return "", 0
+	}
+	sa := strings.Split(gw, ":")
+	if len(sa) == 2 {
+		port, err := strconv.Atoi(sa[1])
+		if err != nil {
+			log.FatalLog("Error in MEX_CRM_GATEWAY_ADDR port format")
+		}
+		return sa[0], port
+	}
+	log.FatalLog("Error in MEX_CRM_GATEWAY_ADDR format")
+	return "", 0
 }

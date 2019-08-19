@@ -39,7 +39,7 @@ func GetSSHClient(serverName, networkName, userName string) (ssh.Client, error) 
 	}
 
 	gwhost, gwport := GetCloudletCRMGatewayIPAndPort()
-	client, err := ssh.NewNativeClient(userName, addr, "SSH-2.0-mobiledgex-ssh-client-1.0", 22, gwhost, gwport, &auth, nil)
+	client, err := ssh.NewNativeClient(userName, addr, "SSH-2.0-mobiledgex-ssh-client-1.0", 22, gwhost, gwport, &auth, &auth, nil)
 	if err != nil {
 		return nil, fmt.Errorf("cannot get ssh client for server %s on network %s, %v", serverName, networkName, err)
 	}
@@ -50,7 +50,7 @@ func GetSSHClient(serverName, networkName, userName string) (ssh.Client, error) 
 func GetSSHClientIP(ipaddr, userName string) (ssh.Client, error) {
 	auth := ssh.Auth{Keys: []string{PrivateSSHKey()}}
 	gwhost, gwport := GetCloudletCRMGatewayIPAndPort()
-	client, err := ssh.NewNativeClient(userName, ipaddr, "SSH-2.0-mobiledgex-ssh-client-1.0", 22, gwhost, gwport, &auth, nil)
+	client, err := ssh.NewNativeClient(userName, ipaddr, "SSH-2.0-mobiledgex-ssh-client-1.0", 22, gwhost, gwport, &auth, &auth, nil)
 	if err != nil {
 		return nil, fmt.Errorf("cannot get ssh client for ipaddr %s, %v", ipaddr, err)
 	}

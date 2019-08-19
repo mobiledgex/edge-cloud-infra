@@ -3,6 +3,7 @@
   group:
     name: "{{ vault_group }}"
   become: yes
+  tags: setup
 
 - name: Create vault user account
   user:
@@ -12,12 +13,14 @@
     shell: /sbin/nologin
     createhome: no
   become: yes
+  tags: setup
 
 - name: Install vault dependencies
   apt:
     name:
       - unzip
   become: yes
+  tags: setup
 
 - name: "Download vault {{ vault_version }}"
   get_url:
@@ -25,6 +28,7 @@
     dest: "{{ ansible_env.HOME }}/vault_{{ vault_version }}_linux_amd64.zip"
     checksum: "{{ vault_checksum }}"
   register: vault_download
+  tags: setup
 
 - name: Extract vault
   unarchive:
@@ -32,12 +36,14 @@
     dest: "{{ vault_path }}"
     remote_src: yes
   become: yes
+  tags: setup
 
 - name: Grant IPC lock capability
   capabilities:
     path: "{{ vault_path }}/vault"
     capability: cap_ipc_lock+ep
   become: yes
+  tags: setup
 
 - name: Create storage bucket
   command: "gsutil mb gs://{{ storage_bucket_name }}"
@@ -47,6 +53,7 @@
     - result.rc != 0
     - "'already exists' not in result.stderr"
   delegate_to: localhost
+  tags: setup
 
 - set_fact:
     storage_bucket_service_account_name: "{{ storage_bucket_name }}-user"
@@ -60,11 +67,13 @@
     - result.rc != 0
     - "'already exists within project' not in result.stderr"
   delegate_to: localhost
+  tags: setup
 
 - name: Grant access to storage bucket
   command: "gsutil iam ch serviceAccount:{{ storage_bucket_service_account_email }}:roles/storage.objectAdmin gs://{{ storage_bucket_name }}"
   changed_when: false
   delegate_to: localhost
+  tags: setup
 
 - block:
 
@@ -103,6 +112,7 @@
         dest: "{{ storage_service_account_key }}"
       become: yes
       notify: Restart vault
+  tags: setup
 
 - name: Install vault config file
   template:
@@ -110,6 +120,63 @@
     dest: "{{ vault_conf }}"
   become: yes
   notify: Restart vault
+
+- name: Set up vault plugin directory
+  file:
+    path: "{{ vault_plugin_directory }}"
+    state: directory
+    owner: root
+    group: root
+    mode: 0755
+  become: yes
+  tags: setup
+
+- name: Look up Artifactory token in vault
+  set_fact:
+    vault_lookup: "{{ lookup('vault', vault_artifactory_token_path) }}"
+
+- set_fact:
+    artifactory_token: "{{ vault_lookup.artifactory.data.token }}"
+
+- name: Download letsencrypt plugin
+  get_url:
+    url: "{{ vault_letsencrypt_plugin }}"
+    dest: "{{ vault_plugin_directory }}/letsencrypt-plugin"
+    checksum: "{{ vault_letsencrypt_plugin_checksum }}"
+    headers:
+      Authorization: "Bearer {{ artifactory_token }}"
+  register: vault_letsencrypt_plugin_download
+  become: yes
+  notify:
+    - Vault letencrypt plugin register prompt
+
+- name: Set letsencrypt plugin permissions
+  file:
+    path: "{{ vault_letsencrypt_plugin_download.dest }}"
+    owner: root
+    group: root
+    mode: 0555
+  become: yes
+
+- name: Grant IPC lock capability to letsencrypt plugin
+  capabilities:
+    path: "{{ vault_letsencrypt_plugin_download.dest }}"
+    capability: cap_ipc_lock+ep
+  become: yes
+
+- name: Deploy certgen service
+  docker_container:
+    name: certgen
+    image: "{{ certgen_image }}:{{ certgen_image_version }}"
+    restart_policy: unless-stopped
+    ports:
+      - "127.0.0.1:{{ certgen_port }}:4567"
+    env:
+      RAILS_ENV: production
+      RACK_ENV: production
+      LETSENCRYPT_ENV: "{{ letsencrypt_env | default('staging') }}"
+      CF_USER: "{{ cloudflare_account_email }}"
+      CF_APIKEY: "{{ cloudflare_account_api_token }}"
 
 - name: Set default cert ACLs
   acl:
@@ -123,6 +190,7 @@
   with_items:
     - "/etc/letsencrypt/live/{{ vault_vm_hostname }}"
     - "/etc/letsencrypt/archive/{{ vault_vm_hostname }}"
+  tags: setup
 
 - name: Allow vault permission to its certs
   acl:
@@ -136,6 +204,7 @@
   with_items:
     - "/etc/letsencrypt/live/{{ vault_vm_hostname }}"
     - "/etc/letsencrypt/archive/{{ vault_vm_hostname }}"
+  tags: setup
 
 - name: Allow vault permission to its cert directories
   acl:
@@ -150,6 +219,7 @@
     - "/etc/letsencrypt/live/{{ vault_vm_hostname }}"
     - /etc/letsencrypt/archive
     - "/etc/letsencrypt/archive/{{ vault_vm_hostname }}"
+  tags: setup
 
 - name: Install systemd service file
   template:

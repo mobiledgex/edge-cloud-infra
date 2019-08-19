@@ -18,3 +18,13 @@
       Initialize vault using the command:
       VAULT_ADDR=https://{{ vault_vm_hostname }}:{{ vault_port }} vault operator init -key-shares=5 -key-threshold=3 -format json
 
+- name: Vault letencrypt plugin register prompt
+  debug:
+    msg: |
+      Run the following for this vault to register the letsencrypt plugin:
+      $ vault secrets disable certs || true
+      $ vault write sys/plugins/catalog/letsencrypt-certs \
+          sha_256="{{ vault_letsencrypt_plugin_checksum.split(':')[1] }}" \
+          command=letsencrypt-plugin \
+          env="CERTGEN_PORT={{ certgen_port }}"
+      $ vault secrets enable -path=certs -plugin-name=letsencrypt-certs plugin

@@ -22,6 +22,9 @@ pipeline {
                 dir(path: 'go/src/github.com/mobiledgex/edge-cloud') {
                     git url: 'git@github.com:mobiledgex/edge-cloud.git'
                 }
+                dir(path: 'go/src/github.com/mobiledgex/edge-proto') {
+                    git url: 'git@github.com:mobiledgex/edge-proto.git'
+                }
             }
         }
         stage('Edge-Cloud Version') {

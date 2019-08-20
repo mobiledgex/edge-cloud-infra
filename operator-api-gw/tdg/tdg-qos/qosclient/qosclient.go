@@ -106,15 +106,10 @@ func GetQOSPositionFromApiGW(serverUrl string, mreq *dme.QosPositionRequest, qos
 		qosClient := tdgproto.NewQueryQoSClient(conn)
 		stream, err := qosClient.QueryQoSKPI(ctx, &request)
 		if err != nil {
-			return fmt.Errorf("Error getting stream: %v", err)
-		}
-		stream.CloseSend()
-
-		if err != nil {
 			return fmt.Errorf("QueryQoSKPI error: %v", err)
 		}
+		stream.CloseSend()
 		for {
-			log.DebugLog(log.DebugLevelDmereq, "Receiving responses", "serverUrl", serverUrl)
 			// convert the DT format to the MEX format and stream the replies
 			var mreply dme.QosPositionKpiReply
 			res, err := stream.Recv()
@@ -160,15 +155,11 @@ func GetQOSPositionFromApiGW(serverUrl string, mreq *dme.QosPositionRequest, qos
 		qosClient := tdgproto.NewQueryQoSClient(conn)
 		stream, err := qosClient.QueryQoSKPIClassifier(ctx, &request)
 		if err != nil {
-			return fmt.Errorf("Error getting stream: %v", err)
+			return fmt.Errorf("QueryQosClassifier error: %v", err)
 		}
 		stream.CloseSend()
 
-		if err != nil {
-			return fmt.Errorf("QueryQoSKPI error: %v", err)
-		}
 		for {
-			log.DebugLog(log.DebugLevelDmereq, "Receiving responses", "serverUrl", serverUrl)
 			// convert the DT format to the MEX format and stream the replies
 			var mreply dme.QosPositionClassifierReply
 			res, err := stream.Recv()

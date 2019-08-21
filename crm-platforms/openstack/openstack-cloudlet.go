@@ -67,6 +67,7 @@ func startPlatformService(cloudlet *edgeproto.Cloudlet, pfConfig *edgeproto.Plat
 	cmd := []string{
 		"sudo docker run",
 		"-d",
+		"--network host",
 		"-v /tmp:/tmp",
 		"--restart=unless-stopped",
 		"--name", container_name,

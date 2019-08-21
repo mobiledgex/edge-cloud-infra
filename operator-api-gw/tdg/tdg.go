@@ -81,13 +81,3 @@ func (o *OperatorApiGw) GetQOSPositionKPI(mreq *dme.QosPositionRequest, getQosSv
 	}
 	return qosclient.GetQOSPositionFromApiGW(o.Servers.QosPosUrl, mreq, getQosSvr, qosclient.RequestTypeKPI)
 }
-
-func (o *OperatorApiGw) GetQOSPositionClassifier(mreq *dme.QosPositionRequest, getQosSvr dme.MatchEngineApi_GetQosPositionClassifierServer) error {
-	log.DebugLog(log.DebugLevelDmereq, "TDG GetQOSPositionClassifier", "QosPosUrl", o.Servers.QosPosUrl, "request", mreq)
-
-	if o.Servers.QosPosUrl == "" {
-		log.DebugLog(log.DebugLevelDmereq, "No QosPosUrl, getting simulated results")
-		return simulatedqos.GetSimulatedQOSPositionClassifier(mreq, getQosSvr)
-	}
-	return qosclient.GetQOSPositionFromApiGW(o.Servers.QosPosUrl, mreq, getQosSvr, qosclient.RequestTypeClassifier)
-}

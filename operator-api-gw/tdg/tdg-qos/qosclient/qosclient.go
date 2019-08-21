@@ -42,7 +42,7 @@ func GetQosCertsFromVault(vaultAddr string) error {
 	return nil
 }
 
-func GetQOSPositionFromApiGW(serverUrl string, mreq *dme.QosPositionRequest, qosSvr interface{}, requestType string) error {
+func GetQOSPositionFromApiGW(serverUrl string, mreq *dme.QosPositionRequest, qosKpiServer dme.MatchEngineApi_GetQosPositionKpiServer, requestType string) error {
 	serverCertFile := "/tmp/" + serverCert
 	clientCertFile := "/tmp/" + clientCert
 
@@ -97,12 +97,6 @@ func GetQOSPositionFromApiGW(serverUrl string, mreq *dme.QosPositionRequest, qos
 
 	log.DebugLog(log.DebugLevelDmereq, "Sending request to API GW", "request", request)
 
-	switch requestType {
-	case RequestTypeKPI:
-		qosKpiServer, ok := qosSvr.(dme.MatchEngineApi_GetQosPositionKpiServer)
-		if !ok {
-			return fmt.Errorf("unable to cast client to GetQosPositionKpiServer")
-		}
 		qosClient := tdgproto.NewQueryQoSClient(conn)
 		stream, err := qosClient.QueryQoSKPI(ctx, &request)
 		if err != nil {
@@ -147,53 +141,7 @@ func GetQOSPositionFromApiGW(serverUrl string, mreq *dme.QosPositionRequest, qos
 			qosKpiServer.Send(&mreply)
 		}
 
-	case RequestTypeClassifier:
-		qosClassifierServer, ok := qosSvr.(dme.MatchEngineApi_GetQosPositionClassifierServer)
-		if !ok {
-			return fmt.Errorf("unable to cast client to GetQosPositionClassifierServer")
-		}
-		qosClient := tdgproto.NewQueryQoSClient(conn)
-		stream, err := qosClient.QueryQoSKPIClassifier(ctx, &request)
-		if err != nil {
-			return fmt.Errorf("QueryQosClassifier error: %v", err)
-		}
-		stream.CloseSend()
-
-		for {
-			// convert the DT format to the MEX format and stream the replies
-			var mreply dme.QosPositionClassifierReply
-			res, err := stream.Recv()
-
-			if err == io.EOF {
-				log.DebugLog(log.DebugLevelDmereq, "EOF received")
-				err = nil
-				break
-			}
-			if err != nil {
-				break
-			}
-			log.DebugLog(log.DebugLevelDmereq, "Recv done", "resultLen", len(res.Results), "err", err)
-
-			for _, r := range res.Results {
-				var qosres dme.QosPositionClassifierResult
-				qosres.Positionid = r.Positionid
-				gps, ok := positionIdToGps[qosres.Positionid]
-				if !ok {
-					return fmt.Errorf("PositionId %d found in response but not request", qosres.Positionid)
-				}
-				qosres.GpsLocation = gps
-				qosres.UluserthroughputClass = r.UluserthroughputClass
-				qosres.DluserthroughputClass = r.DluserthroughputClass
-				qosres.LatencyClass = r.LatencyClass
-				mreply.PositionResults = append(mreply.PositionResults, &qosres)
-			}
-			mreply.Status = dme.ReplyStatus_RS_SUCCESS
-			qosClassifierServer.Send(&mreply)
-		}
-	default:
-		// this is a bug
-		return fmt.Errorf("invalid request type: %s", requestType)
-	}
+	
 	log.DebugLog(log.DebugLevelDmereq, "Done receiving responses")
 	return err
 

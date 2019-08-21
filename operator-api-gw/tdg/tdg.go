@@ -79,5 +79,5 @@ func (o *OperatorApiGw) GetQOSPositionKPI(mreq *dme.QosPositionRequest, getQosSv
 		log.DebugLog(log.DebugLevelDmereq, "No QosPosUrl, getting simulated results")
 		return simulatedqos.GetSimulatedQOSPositionKPI(mreq, getQosSvr)
 	}
-	return qosclient.GetQOSPositionFromApiGW(o.Servers.QosPosUrl, mreq, getQosSvr, qosclient.RequestTypeKPI)
+	return qosclient.GetQOSPositionFromApiGW(o.Servers.QosPosUrl, mreq, getQosSvr)
 }

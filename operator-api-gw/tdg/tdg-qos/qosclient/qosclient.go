@@ -16,9 +16,6 @@ import (
 	"google.golang.org/grpc/credentials"
 )
 
-var RequestTypeKPI = "RequestTypeKPI"
-var RequestTypeClassifier = "RequestTypeClassifier"
-
 var clientCert = "qosclient.crt"
 var clientKey = "qosclient.key"
 var serverCert = "qosserver.crt"
@@ -42,7 +39,7 @@ func GetQosCertsFromVault(vaultAddr string) error {
 	return nil
 }
 
-func GetQOSPositionFromApiGW(serverUrl string, mreq *dme.QosPositionRequest, qosKpiServer dme.MatchEngineApi_GetQosPositionKpiServer, requestType string) error {
+func GetQOSPositionFromApiGW(serverUrl string, mreq *dme.QosPositionRequest, qosKpiServer dme.MatchEngineApi_GetQosPositionKpiServer) error {
 	serverCertFile := "/tmp/" + serverCert
 	clientCertFile := "/tmp/" + clientCert
 
@@ -97,51 +94,50 @@ func GetQOSPositionFromApiGW(serverUrl string, mreq *dme.QosPositionRequest, qos
 
 	log.DebugLog(log.DebugLevelDmereq, "Sending request to API GW", "request", request)
 
-		qosClient := tdgproto.NewQueryQoSClient(conn)
-		stream, err := qosClient.QueryQoSKPI(ctx, &request)
+	qosClient := tdgproto.NewQueryQoSClient(conn)
+	stream, err := qosClient.QueryQoSKPI(ctx, &request)
+	if err != nil {
+		return fmt.Errorf("QueryQoSKPI error: %v", err)
+	}
+	stream.CloseSend()
+	for {
+		// convert the DT format to the MEX format and stream the replies
+		var mreply dme.QosPositionKpiReply
+		res, err := stream.Recv()
+		if err == io.EOF {
+			log.DebugLog(log.DebugLevelDmereq, "EOF received")
+			err = nil
+			break
+		}
 		if err != nil {
-			return fmt.Errorf("QueryQoSKPI error: %v", err)
+			break
 		}
-		stream.CloseSend()
-		for {
-			// convert the DT format to the MEX format and stream the replies
-			var mreply dme.QosPositionKpiReply
-			res, err := stream.Recv()
-			if err == io.EOF {
-				log.DebugLog(log.DebugLevelDmereq, "EOF received")
-				err = nil
-				break
-			}
-			if err != nil {
-				break
-			}
-			log.DebugLog(log.DebugLevelDmereq, "Recv done", "resultLen", len(res.Results), "err", err)
+		log.DebugLog(log.DebugLevelDmereq, "Recv done", "resultLen", len(res.Results), "err", err)
 
-			for _, r := range res.Results {
-				var qosres dme.QosPositionKpiResult
-				qosres.Positionid = r.Positionid
-				gps, ok := positionIdToGps[qosres.Positionid]
-				if !ok {
-					return fmt.Errorf("PositionId %d found in response but not request", qosres.Positionid)
-				}
-				qosres.GpsLocation = gps
-				qosres.UluserthroughputMin = r.UluserthroughputMin
-				qosres.UluserthroughputMax = r.UluserthroughputMax
-				qosres.UluserthroughputAvg = r.UluserthroughputAvg
-				qosres.DluserthroughputMin = r.DluserthroughputMin
-				qosres.DluserthroughputMax = r.DluserthroughputMax
-				qosres.DluserthroughputAvg = r.DluserthroughputAvg
-				qosres.LatencyMin = r.LatencyMin
-				qosres.LatencyMin = r.LatencyMax
-				qosres.LatencyMin = r.LatencyAvg
-
-				mreply.PositionResults = append(mreply.PositionResults, &qosres)
+		for _, r := range res.Results {
+			var qosres dme.QosPositionKpiResult
+			qosres.Positionid = r.Positionid
+			gps, ok := positionIdToGps[qosres.Positionid]
+			if !ok {
+				return fmt.Errorf("PositionId %d found in response but not request", qosres.Positionid)
 			}
-			mreply.Status = dme.ReplyStatus_RS_SUCCESS
-			qosKpiServer.Send(&mreply)
+			qosres.GpsLocation = gps
+			qosres.UluserthroughputMin = r.UluserthroughputMin
+			qosres.UluserthroughputMax = r.UluserthroughputMax
+			qosres.UluserthroughputAvg = r.UluserthroughputAvg
+			qosres.DluserthroughputMin = r.DluserthroughputMin
+			qosres.DluserthroughputMax = r.DluserthroughputMax
+			qosres.DluserthroughputAvg = r.DluserthroughputAvg
+			qosres.LatencyMin = r.LatencyMin
+			qosres.LatencyMin = r.LatencyMax
+			qosres.LatencyMin = r.LatencyAvg
+
+			mreply.PositionResults = append(mreply.PositionResults, &qosres)
 		}
+		mreply.Status = dme.ReplyStatus_RS_SUCCESS
+		qosKpiServer.Send(&mreply)
+	}
 
-	
 	log.DebugLog(log.DebugLevelDmereq, "Done receiving responses")
 	return err
 

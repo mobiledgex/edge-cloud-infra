@@ -72,12 +72,12 @@ func (o *OperatorApiGw) GetLocation(mreq *dme.GetLocationRequest, mreply *dme.Ge
 	return simulatedloc.GetSimulatedClientLoc(mreq, mreply)
 }
 
-func (o *OperatorApiGw) GetQOSPositionKPI(mreq *dme.QosPositionKpiRequest, getQosSvr dme.MatchEngineApi_GetQosPositionKpiServer) error {
+func (o *OperatorApiGw) GetQOSPositionKPI(mreq *dme.QosPositionRequest, getQosSvr dme.MatchEngineApi_GetQosPositionKpiServer) error {
 	log.DebugLog(log.DebugLevelDmereq, "TDG GetQOSPositionKPI", "QosPosUrl", o.Servers.QosPosUrl, "request", mreq)
 
 	if o.Servers.QosPosUrl == "" {
 		log.DebugLog(log.DebugLevelDmereq, "No QosPosUrl, getting simulated results")
 		return simulatedqos.GetSimulatedQOSPositionKPI(mreq, getQosSvr)
 	}
-	return qosclient.GetQOSPositionKPIFromApiGW(o.Servers.QosPosUrl, mreq, getQosSvr)
+	return qosclient.GetQOSPositionFromApiGW(o.Servers.QosPosUrl, mreq, getQosSvr)
 }

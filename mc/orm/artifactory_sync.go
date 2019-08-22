@@ -48,9 +48,6 @@ func (s *AppStoreSync) syncGroupObjects(ctx context.Context) map[string]*ormapi.
 		s.syncErr(ctx, err)
 		return orgsT
 	}
-	log.DebugLog(log.DebugLevelApi, "rtf sync groups", "groups", groups)
-	log.DebugLog(log.DebugLevelApi, "rtf sync repos", "repos", repos)
-	log.DebugLog(log.DebugLevelApi, "rtf sync perms", "perms", perms)
 
 	// Create missing objects
 	for orgname, org := range orgsT {

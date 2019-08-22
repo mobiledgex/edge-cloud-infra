@@ -409,8 +409,6 @@ func artifactoryCreateRepoPerms(ctx context.Context, orgName, orgType string) er
 	}
 	permTargets.Principals.Users = &userPerms
 
-	log.SpanLog(ctx, log.DebugLevelApi, "artifactory create repo perms",
-		"permission target", permTargetName, "repository", repoName, "group", groupName)
 	_, err = client.V1.Security.CreateOrReplacePermissionTargets(context.Background(), permTargetName, &permTargets)
 	if err != nil {
 		log.SpanLog(ctx, log.DebugLevelApi, "artifactory create repo perms",

@@ -1,0 +1,7 @@
+vault_user: vault
+vault_group: vault
+vault_path: /usr/local/bin
+vault_conf: /etc/vault.hcl
+vault_plugin_directory: /etc/vault-plugins
+certgen_image: "{{ mex_docker_registry }}/mobiledgex/certgen"
+certgen_port: 4568

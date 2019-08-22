@@ -3,6 +3,7 @@ module github.com/mobiledgex/edge-cloud-infra
 go 1.12
 
 require (
+	github.com/AsGz/geo v0.0.0-20170331085501-324ae0e80045
 	github.com/asaskevich/govalidator v0.0.0-20180720115003-f9ffefc3facf
 	github.com/atlassian/go-artifactory/v2 v2.3.0
 	github.com/casbin/casbin v1.6.0
@@ -18,12 +19,14 @@ require (
 	github.com/elazarl/goproxy/ext v0.0.0-20190410145444-c548f45dcf1d // indirect
 	github.com/fsouza/go-dockerclient v1.3.6
 	github.com/ghodss/yaml v1.0.0
+	github.com/go-resty/resty/v2 v2.0.0
 	github.com/gogo/googleapis v1.0.0
 	github.com/gogo/protobuf v1.2.1
 	github.com/golang/protobuf v1.3.1
 	github.com/google/go-cmp v0.2.1-0.20190312032427-6f77996f0c42
 	github.com/gophercloud/gophercloud v0.0.0-20190330013820-4d3066f119fa
 	github.com/grpc-ecosystem/grpc-gateway v1.8.5
+	github.com/hashicorp/vault v0.11.5
 	github.com/influxdata/influxdb v1.6.2
 	github.com/jaegertracing/jaeger v1.13.1
 	github.com/jarcoal/httpmock v1.0.4
@@ -38,7 +41,7 @@ require (
 	github.com/miekg/dns v1.1.15
 	github.com/mitchellh/mapstructure v1.1.2
 	github.com/mobiledgex/edge-cloud v1.0.1
-	github.com/mobiledgex/golang-ssh v0.0.3
+	github.com/mobiledgex/golang-ssh v0.0.4
 	github.com/mobiledgex/yaml v2.1.0+incompatible
 	github.com/mobiledgex/yaml/v2 v2.2.4
 	github.com/modern-go/reflect2 v1.0.1 // indirect
@@ -48,7 +51,9 @@ require (
 	github.com/nmcclain/ldap v0.0.0-20160601145537-6e14e8271933
 	github.com/parnurzeal/gorequest v0.2.15
 	github.com/pelletier/go-toml v1.3.0
+	github.com/pion/stun v0.3.1
 	github.com/pion/webrtc/v2 v2.0.24
+	github.com/pkg/errors v0.8.1
 	github.com/sirupsen/logrus v1.4.1
 	github.com/smartystreets/goconvey v0.0.0-20190330032615-68dc04aab96a // indirect
 	github.com/spf13/cobra v0.0.4

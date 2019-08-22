@@ -7,7 +7,9 @@ package mexos
 
 import (
 	"fmt"
+	"net"
 	"os"
+	"strconv"
 	"strings"
 
 	"github.com/mobiledgex/edge-cloud/edgeproto"
@@ -72,6 +74,7 @@ func InitOpenstackProps(operatorName, physicalName, vaultAddr string) error {
 	if err != nil {
 		return fmt.Errorf("failed to InternVaultEnv %s: %v", openRcURL, err)
 	}
+	VaultAddr = vaultAddr
 	authURL := os.Getenv("OS_AUTH_URL")
 	if strings.HasPrefix(authURL, "https") {
 		caCertURL := getVaultCloudletPath(physicalName+"/os_cacert", vaultAddr)
@@ -188,4 +191,20 @@ func GetCloudletFlavorMatchPattern() string {
 		return ".*"
 	}
 	return pattern
+}
+
+func GetCloudletCRMGatewayIPAndPort() (string, int) {
+	gw := os.Getenv("MEX_CRM_GATEWAY_ADDR")
+	if gw == "" {
+		return "", 0
+	}
+	host, portstr, err := net.SplitHostPort(gw)
+	if err != nil {
+		log.FatalLog("Error in MEX_CRM_GATEWAY_ADDR format")
+	}
+	port, err := strconv.Atoi(portstr)
+	if err != nil {
+		log.FatalLog("Error in MEX_CRM_GATEWAY_ADDR port format")
+	}
+	return host, port
 }

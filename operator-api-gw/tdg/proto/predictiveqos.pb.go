@@ -9,9 +9,12 @@
 
 	It has these top-level messages:
 		QoSKPIRequest
+		BandSelection
 		PositionKpiResult
+		PositionKpiClassificationResult
 		PositionKpiRequest
 		QoSKPIResponse
+		QoSKPIClassificationResponse
 		HealthCheckRequest
 		HealthCheckResponse
 */
@@ -68,19 +71,20 @@ func (x HealthCheckResponse_ServingStatus) String() string {
 	return proto.EnumName(HealthCheckResponse_ServingStatus_name, int32(x))
 }
 func (HealthCheckResponse_ServingStatus) EnumDescriptor() ([]byte, []int) {
-	return fileDescriptorPredictiveqos, []int{5, 0}
+	return fileDescriptorPredictiveqos, []int{8, 0}
 }
 
-// Represents a request sent by the client, contains the ID of the request
-// and the list of the grids in question, together with the timestamp for
-// which the KPIs will be predicted
 type QoSKPIRequest struct {
 	// set by the client (the Unix timestamp when the initial
 	// request was in the client, in microseconds) and the
 	// server attaches it to each response
 	Requestid int64 `protobuf:"varint,1,opt,name=requestid,proto3" json:"requestid,omitempty"`
-	// the list of the position-timestamp pairs requested
+	// The list of the position-timestamp pairs requested
 	Requests []*PositionKpiRequest `protobuf:"bytes,2,rep,name=requests" json:"requests,omitempty"`
+	// client's device LTE category number
+	Ltecategory int32 `protobuf:"varint,4,opt,name=ltecategory,proto3" json:"ltecategory,omitempty"`
+	// Band list used by the client
+	Bandselection *BandSelection `protobuf:"bytes,5,opt,name=bandselection" json:"bandselection,omitempty"`
 }
 
 func (m *QoSKPIRequest) Reset()                    { *m = QoSKPIRequest{} }
@@ -88,537 +92,93 @@ func (m *QoSKPIRequest) String() string            { return proto.CompactTextStr
 func (*QoSKPIRequest) ProtoMessage()               {}
 func (*QoSKPIRequest) Descriptor() ([]byte, []int) { return fileDescriptorPredictiveqos, []int{0} }
 
-// Represents a response object which contains the calculated
-// KPIs at the given grid (represented with
-// lat/long coordinates) at the given timestamp.
-// A QoSKPIResponse contains a list of this result object
+type BandSelection struct {
+	// Radio Access Technologies
+	RAT2G []string `protobuf:"bytes,1,rep,name=RAT2G" json:"RAT2G,omitempty"`
+	RAT3G []string `protobuf:"bytes,2,rep,name=RAT3G" json:"RAT3G,omitempty"`
+	RAT4G []string `protobuf:"bytes,3,rep,name=RAT4G" json:"RAT4G,omitempty"`
+	RAT5G []string `protobuf:"bytes,4,rep,name=RAT5G" json:"RAT5G,omitempty"`
+}
+
+func (m *BandSelection) Reset()                    { *m = BandSelection{} }
+func (m *BandSelection) String() string            { return proto.CompactTextString(m) }
+func (*BandSelection) ProtoMessage()               {}
+func (*BandSelection) Descriptor() ([]byte, []int) { return fileDescriptorPredictiveqos, []int{1} }
+
+// Response object
+// contains the calculated KPIs at the given grid
+// (represented with lat/long coordinates) at the given timestamp.
+// a QoSKPIResponse contains a list of this result object
 type PositionKpiResult struct {
 	// as set by the client, must be unique within one QoSKPIRequest
 	Positionid int64 `protobuf:"varint,1,opt,name=positionid,proto3" json:"positionid,omitempty"`
-	// Types that are valid to be assigned to AOneof1:
-	//	*PositionKpiResult_DluserthroughputMin
-	AOneof1 isPositionKpiResult_AOneof1 `protobuf_oneof:"a_oneof1"`
-	// Types that are valid to be assigned to AOneof2:
-	//	*PositionKpiResult_DluserthroughputAvg
-	AOneof2 isPositionKpiResult_AOneof2 `protobuf_oneof:"a_oneof2"`
-	// Types that are valid to be assigned to AOneof3:
-	//	*PositionKpiResult_DluserthroughputMax
-	AOneof3 isPositionKpiResult_AOneof3 `protobuf_oneof:"a_oneof3"`
-	// Types that are valid to be assigned to AOneof4:
-	//	*PositionKpiResult_UluserthroughputMin
-	AOneof4 isPositionKpiResult_AOneof4 `protobuf_oneof:"a_oneof4"`
-	// Types that are valid to be assigned to AOneof5:
-	//	*PositionKpiResult_UluserthroughputAvg
-	AOneof5 isPositionKpiResult_AOneof5 `protobuf_oneof:"a_oneof5"`
-	// Types that are valid to be assigned to AOneof6:
-	//	*PositionKpiResult_UluserthroughputMax
-	AOneof6 isPositionKpiResult_AOneof6 `protobuf_oneof:"a_oneof6"`
-	// Types that are valid to be assigned to AOneof7:
-	//	*PositionKpiResult_LatencyMin
-	AOneof7 isPositionKpiResult_AOneof7 `protobuf_oneof:"a_oneof7"`
-	// Types that are valid to be assigned to AOneof8:
-	//	*PositionKpiResult_LatencyAvg
-	AOneof8 isPositionKpiResult_AOneof8 `protobuf_oneof:"a_oneof8"`
-	// Types that are valid to be assigned to AOneof9:
-	//	*PositionKpiResult_LatencyMax
-	AOneof9 isPositionKpiResult_AOneof9 `protobuf_oneof:"a_oneof9"`
+	// Mbit/s
+	DluserthroughputMin float32 `protobuf:"fixed32,2,opt,name=dluserthroughput_min,json=dluserthroughputMin,proto3" json:"dluserthroughput_min,omitempty"`
+	DluserthroughputAvg float32 `protobuf:"fixed32,3,opt,name=dluserthroughput_avg,json=dluserthroughputAvg,proto3" json:"dluserthroughput_avg,omitempty"`
+	DluserthroughputMax float32 `protobuf:"fixed32,4,opt,name=dluserthroughput_max,json=dluserthroughputMax,proto3" json:"dluserthroughput_max,omitempty"`
+	// Mbit/s
+	UluserthroughputMin float32 `protobuf:"fixed32,5,opt,name=uluserthroughput_min,json=uluserthroughputMin,proto3" json:"uluserthroughput_min,omitempty"`
+	UluserthroughputAvg float32 `protobuf:"fixed32,6,opt,name=uluserthroughput_avg,json=uluserthroughputAvg,proto3" json:"uluserthroughput_avg,omitempty"`
+	UluserthroughputMax float32 `protobuf:"fixed32,7,opt,name=uluserthroughput_max,json=uluserthroughputMax,proto3" json:"uluserthroughput_max,omitempty"`
+	// ms
+	LatencyMin float32 `protobuf:"fixed32,8,opt,name=latency_min,json=latencyMin,proto3" json:"latency_min,omitempty"`
+	LatencyAvg float32 `protobuf:"fixed32,9,opt,name=latency_avg,json=latencyAvg,proto3" json:"latency_avg,omitempty"`
+	LatencyMax float32 `protobuf:"fixed32,10,opt,name=latency_max,json=latencyMax,proto3" json:"latency_max,omitempty"`
 }
 
 func (m *PositionKpiResult) Reset()                    { *m = PositionKpiResult{} }
 func (m *PositionKpiResult) String() string            { return proto.CompactTextString(m) }
 func (*PositionKpiResult) ProtoMessage()               {}
-func (*PositionKpiResult) Descriptor() ([]byte, []int) { return fileDescriptorPredictiveqos, []int{1} }
+func (*PositionKpiResult) Descriptor() ([]byte, []int) { return fileDescriptorPredictiveqos, []int{2} }
 
-type isPositionKpiResult_AOneof1 interface {
-	isPositionKpiResult_AOneof1()
-	MarshalTo([]byte) (int, error)
-	Size() int
-}
-type isPositionKpiResult_AOneof2 interface {
-	isPositionKpiResult_AOneof2()
-	MarshalTo([]byte) (int, error)
-	Size() int
-}
-type isPositionKpiResult_AOneof3 interface {
-	isPositionKpiResult_AOneof3()
-	MarshalTo([]byte) (int, error)
-	Size() int
-}
-type isPositionKpiResult_AOneof4 interface {
-	isPositionKpiResult_AOneof4()
-	MarshalTo([]byte) (int, error)
-	Size() int
-}
-type isPositionKpiResult_AOneof5 interface {
-	isPositionKpiResult_AOneof5()
-	MarshalTo([]byte) (int, error)
-	Size() int
-}
-type isPositionKpiResult_AOneof6 interface {
-	isPositionKpiResult_AOneof6()
-	MarshalTo([]byte) (int, error)
-	Size() int
-}
-type isPositionKpiResult_AOneof7 interface {
-	isPositionKpiResult_AOneof7()
-	MarshalTo([]byte) (int, error)
-	Size() int
-}
-type isPositionKpiResult_AOneof8 interface {
-	isPositionKpiResult_AOneof8()
-	MarshalTo([]byte) (int, error)
-	Size() int
-}
-type isPositionKpiResult_AOneof9 interface {
-	isPositionKpiResult_AOneof9()
-	MarshalTo([]byte) (int, error)
-	Size() int
-}
-
-type PositionKpiResult_DluserthroughputMin struct {
-	DluserthroughputMin float32 `protobuf:"fixed32,2,opt,name=dluserthroughput_min,json=dluserthroughputMin,proto3,oneof"`
-}
-type PositionKpiResult_DluserthroughputAvg struct {
-	DluserthroughputAvg float32 `protobuf:"fixed32,3,opt,name=dluserthroughput_avg,json=dluserthroughputAvg,proto3,oneof"`
-}
-type PositionKpiResult_DluserthroughputMax struct {
-	DluserthroughputMax float32 `protobuf:"fixed32,4,opt,name=dluserthroughput_max,json=dluserthroughputMax,proto3,oneof"`
-}
-type PositionKpiResult_UluserthroughputMin struct {
-	UluserthroughputMin float32 `protobuf:"fixed32,5,opt,name=uluserthroughput_min,json=uluserthroughputMin,proto3,oneof"`
-}
-type PositionKpiResult_UluserthroughputAvg struct {
-	UluserthroughputAvg float32 `protobuf:"fixed32,6,opt,name=uluserthroughput_avg,json=uluserthroughputAvg,proto3,oneof"`
-}
-type PositionKpiResult_UluserthroughputMax struct {
-	UluserthroughputMax float32 `protobuf:"fixed32,7,opt,name=uluserthroughput_max,json=uluserthroughputMax,proto3,oneof"`
-}
-type PositionKpiResult_LatencyMin struct {
-	LatencyMin float32 `protobuf:"fixed32,8,opt,name=latency_min,json=latencyMin,proto3,oneof"`
-}
-type PositionKpiResult_LatencyAvg struct {
-	LatencyAvg float32 `protobuf:"fixed32,9,opt,name=latency_avg,json=latencyAvg,proto3,oneof"`
-}
-type PositionKpiResult_LatencyMax struct {
-	LatencyMax float32 `protobuf:"fixed32,10,opt,name=latency_max,json=latencyMax,proto3,oneof"`
-}
-
-func (*PositionKpiResult_DluserthroughputMin) isPositionKpiResult_AOneof1() {}
-func (*PositionKpiResult_DluserthroughputAvg) isPositionKpiResult_AOneof2() {}
-func (*PositionKpiResult_DluserthroughputMax) isPositionKpiResult_AOneof3() {}
-func (*PositionKpiResult_UluserthroughputMin) isPositionKpiResult_AOneof4() {}
-func (*PositionKpiResult_UluserthroughputAvg) isPositionKpiResult_AOneof5() {}
-func (*PositionKpiResult_UluserthroughputMax) isPositionKpiResult_AOneof6() {}
-func (*PositionKpiResult_LatencyMin) isPositionKpiResult_AOneof7()          {}
-func (*PositionKpiResult_LatencyAvg) isPositionKpiResult_AOneof8()          {}
-func (*PositionKpiResult_LatencyMax) isPositionKpiResult_AOneof9()          {}
-
-func (m *PositionKpiResult) GetAOneof1() isPositionKpiResult_AOneof1 {
-	if m != nil {
-		return m.AOneof1
-	}
-	return nil
-}
-func (m *PositionKpiResult) GetAOneof2() isPositionKpiResult_AOneof2 {
-	if m != nil {
-		return m.AOneof2
-	}
-	return nil
-}
-func (m *PositionKpiResult) GetAOneof3() isPositionKpiResult_AOneof3 {
-	if m != nil {
-		return m.AOneof3
-	}
-	return nil
-}
-func (m *PositionKpiResult) GetAOneof4() isPositionKpiResult_AOneof4 {
-	if m != nil {
-		return m.AOneof4
-	}
-	return nil
-}
-func (m *PositionKpiResult) GetAOneof5() isPositionKpiResult_AOneof5 {
-	if m != nil {
-		return m.AOneof5
-	}
-	return nil
-}
-func (m *PositionKpiResult) GetAOneof6() isPositionKpiResult_AOneof6 {
-	if m != nil {
-		return m.AOneof6
-	}
-	return nil
-}
-func (m *PositionKpiResult) GetAOneof7() isPositionKpiResult_AOneof7 {
-	if m != nil {
-		return m.AOneof7
-	}
-	return nil
-}
-func (m *PositionKpiResult) GetAOneof8() isPositionKpiResult_AOneof8 {
-	if m != nil {
-		return m.AOneof8
-	}
-	return nil
-}
-func (m *PositionKpiResult) GetAOneof9() isPositionKpiResult_AOneof9 {
-	if m != nil {
-		return m.AOneof9
-	}
-	return nil
-}
-
-func (m *PositionKpiResult) GetDluserthroughputMin() float32 {
-	if x, ok := m.GetAOneof1().(*PositionKpiResult_DluserthroughputMin); ok {
-		return x.DluserthroughputMin
-	}
-	return 0
-}
-
-func (m *PositionKpiResult) GetDluserthroughputAvg() float32 {
-	if x, ok := m.GetAOneof2().(*PositionKpiResult_DluserthroughputAvg); ok {
-		return x.DluserthroughputAvg
-	}
-	return 0
-}
-
-func (m *PositionKpiResult) GetDluserthroughputMax() float32 {
-	if x, ok := m.GetAOneof3().(*PositionKpiResult_DluserthroughputMax); ok {
-		return x.DluserthroughputMax
-	}
-	return 0
-}
-
-func (m *PositionKpiResult) GetUluserthroughputMin() float32 {
-	if x, ok := m.GetAOneof4().(*PositionKpiResult_UluserthroughputMin); ok {
-		return x.UluserthroughputMin
-	}
-	return 0
-}
-
-func (m *PositionKpiResult) GetUluserthroughputAvg() float32 {
-	if x, ok := m.GetAOneof5().(*PositionKpiResult_UluserthroughputAvg); ok {
-		return x.UluserthroughputAvg
-	}
-	return 0
-}
-
-func (m *PositionKpiResult) GetUluserthroughputMax() float32 {
-	if x, ok := m.GetAOneof6().(*PositionKpiResult_UluserthroughputMax); ok {
-		return x.UluserthroughputMax
-	}
-	return 0
-}
-
-func (m *PositionKpiResult) GetLatencyMin() float32 {
-	if x, ok := m.GetAOneof7().(*PositionKpiResult_LatencyMin); ok {
-		return x.LatencyMin
-	}
-	return 0
-}
-
-func (m *PositionKpiResult) GetLatencyAvg() float32 {
-	if x, ok := m.GetAOneof8().(*PositionKpiResult_LatencyAvg); ok {
-		return x.LatencyAvg
-	}
-	return 0
-}
-
-func (m *PositionKpiResult) GetLatencyMax() float32 {
-	if x, ok := m.GetAOneof9().(*PositionKpiResult_LatencyMax); ok {
-		return x.LatencyMax
-	}
-	return 0
-}
-
-// XXX_OneofFuncs is for the internal use of the proto package.
-func (*PositionKpiResult) XXX_OneofFuncs() (func(msg proto.Message, b *proto.Buffer) error, func(msg proto.Message, tag, wire int, b *proto.Buffer) (bool, error), func(msg proto.Message) (n int), []interface{}) {
-	return _PositionKpiResult_OneofMarshaler, _PositionKpiResult_OneofUnmarshaler, _PositionKpiResult_OneofSizer, []interface{}{
-		(*PositionKpiResult_DluserthroughputMin)(nil),
-		(*PositionKpiResult_DluserthroughputAvg)(nil),
-		(*PositionKpiResult_DluserthroughputMax)(nil),
-		(*PositionKpiResult_UluserthroughputMin)(nil),
-		(*PositionKpiResult_UluserthroughputAvg)(nil),
-		(*PositionKpiResult_UluserthroughputMax)(nil),
-		(*PositionKpiResult_LatencyMin)(nil),
-		(*PositionKpiResult_LatencyAvg)(nil),
-		(*PositionKpiResult_LatencyMax)(nil),
-	}
-}
-
-func _PositionKpiResult_OneofMarshaler(msg proto.Message, b *proto.Buffer) error {
-	m := msg.(*PositionKpiResult)
-	// a_oneof1
-	switch x := m.AOneof1.(type) {
-	case *PositionKpiResult_DluserthroughputMin:
-		_ = b.EncodeVarint(2<<3 | proto.WireFixed32)
-		_ = b.EncodeFixed32(uint64(math.Float32bits(x.DluserthroughputMin)))
-	case nil:
-	default:
-		return fmt.Errorf("PositionKpiResult.AOneof1 has unexpected type %T", x)
-	}
-	// a_oneof2
-	switch x := m.AOneof2.(type) {
-	case *PositionKpiResult_DluserthroughputAvg:
-		_ = b.EncodeVarint(3<<3 | proto.WireFixed32)
-		_ = b.EncodeFixed32(uint64(math.Float32bits(x.DluserthroughputAvg)))
-	case nil:
-	default:
-		return fmt.Errorf("PositionKpiResult.AOneof2 has unexpected type %T", x)
-	}
-	// a_oneof3
-	switch x := m.AOneof3.(type) {
-	case *PositionKpiResult_DluserthroughputMax:
-		_ = b.EncodeVarint(4<<3 | proto.WireFixed32)
-		_ = b.EncodeFixed32(uint64(math.Float32bits(x.DluserthroughputMax)))
-	case nil:
-	default:
-		return fmt.Errorf("PositionKpiResult.AOneof3 has unexpected type %T", x)
-	}
-	// a_oneof4
-	switch x := m.AOneof4.(type) {
-	case *PositionKpiResult_UluserthroughputMin:
-		_ = b.EncodeVarint(5<<3 | proto.WireFixed32)
-		_ = b.EncodeFixed32(uint64(math.Float32bits(x.UluserthroughputMin)))
-	case nil:
-	default:
-		return fmt.Errorf("PositionKpiResult.AOneof4 has unexpected type %T", x)
-	}
-	// a_oneof5
-	switch x := m.AOneof5.(type) {
-	case *PositionKpiResult_UluserthroughputAvg:
-		_ = b.EncodeVarint(6<<3 | proto.WireFixed32)
-		_ = b.EncodeFixed32(uint64(math.Float32bits(x.UluserthroughputAvg)))
-	case nil:
-	default:
-		return fmt.Errorf("PositionKpiResult.AOneof5 has unexpected type %T", x)
-	}
-	// a_oneof6
-	switch x := m.AOneof6.(type) {
-	case *PositionKpiResult_UluserthroughputMax:
-		_ = b.EncodeVarint(7<<3 | proto.WireFixed32)
-		_ = b.EncodeFixed32(uint64(math.Float32bits(x.UluserthroughputMax)))
-	case nil:
-	default:
-		return fmt.Errorf("PositionKpiResult.AOneof6 has unexpected type %T", x)
-	}
-	// a_oneof7
-	switch x := m.AOneof7.(type) {
-	case *PositionKpiResult_LatencyMin:
-		_ = b.EncodeVarint(8<<3 | proto.WireFixed32)
-		_ = b.EncodeFixed32(uint64(math.Float32bits(x.LatencyMin)))
-	case nil:
-	default:
-		return fmt.Errorf("PositionKpiResult.AOneof7 has unexpected type %T", x)
-	}
-	// a_oneof8
-	switch x := m.AOneof8.(type) {
-	case *PositionKpiResult_LatencyAvg:
-		_ = b.EncodeVarint(9<<3 | proto.WireFixed32)
-		_ = b.EncodeFixed32(uint64(math.Float32bits(x.LatencyAvg)))
-	case nil:
-	default:
-		return fmt.Errorf("PositionKpiResult.AOneof8 has unexpected type %T", x)
-	}
-	// a_oneof9
-	switch x := m.AOneof9.(type) {
-	case *PositionKpiResult_LatencyMax:
-		_ = b.EncodeVarint(10<<3 | proto.WireFixed32)
-		_ = b.EncodeFixed32(uint64(math.Float32bits(x.LatencyMax)))
-	case nil:
-	default:
-		return fmt.Errorf("PositionKpiResult.AOneof9 has unexpected type %T", x)
-	}
-	return nil
-}
-
-func _PositionKpiResult_OneofUnmarshaler(msg proto.Message, tag, wire int, b *proto.Buffer) (bool, error) {
-	m := msg.(*PositionKpiResult)
-	switch tag {
-	case 2: // a_oneof1.dluserthroughput_min
-		if wire != proto.WireFixed32 {
-			return true, proto.ErrInternalBadWireType
-		}
-		x, err := b.DecodeFixed32()
-		m.AOneof1 = &PositionKpiResult_DluserthroughputMin{math.Float32frombits(uint32(x))}
-		return true, err
-	case 3: // a_oneof2.dluserthroughput_avg
-		if wire != proto.WireFixed32 {
-			return true, proto.ErrInternalBadWireType
-		}
-		x, err := b.DecodeFixed32()
-		m.AOneof2 = &PositionKpiResult_DluserthroughputAvg{math.Float32frombits(uint32(x))}
-		return true, err
-	case 4: // a_oneof3.dluserthroughput_max
-		if wire != proto.WireFixed32 {
-			return true, proto.ErrInternalBadWireType
-		}
-		x, err := b.DecodeFixed32()
-		m.AOneof3 = &PositionKpiResult_DluserthroughputMax{math.Float32frombits(uint32(x))}
-		return true, err
-	case 5: // a_oneof4.uluserthroughput_min
-		if wire != proto.WireFixed32 {
-			return true, proto.ErrInternalBadWireType
-		}
-		x, err := b.DecodeFixed32()
-		m.AOneof4 = &PositionKpiResult_UluserthroughputMin{math.Float32frombits(uint32(x))}
-		return true, err
-	case 6: // a_oneof5.uluserthroughput_avg
-		if wire != proto.WireFixed32 {
-			return true, proto.ErrInternalBadWireType
-		}
-		x, err := b.DecodeFixed32()
-		m.AOneof5 = &PositionKpiResult_UluserthroughputAvg{math.Float32frombits(uint32(x))}
-		return true, err
-	case 7: // a_oneof6.uluserthroughput_max
-		if wire != proto.WireFixed32 {
-			return true, proto.ErrInternalBadWireType
-		}
-		x, err := b.DecodeFixed32()
-		m.AOneof6 = &PositionKpiResult_UluserthroughputMax{math.Float32frombits(uint32(x))}
-		return true, err
-	case 8: // a_oneof7.latency_min
-		if wire != proto.WireFixed32 {
-			return true, proto.ErrInternalBadWireType
-		}
-		x, err := b.DecodeFixed32()
-		m.AOneof7 = &PositionKpiResult_LatencyMin{math.Float32frombits(uint32(x))}
-		return true, err
-	case 9: // a_oneof8.latency_avg
-		if wire != proto.WireFixed32 {
-			return true, proto.ErrInternalBadWireType
-		}
-		x, err := b.DecodeFixed32()
-		m.AOneof8 = &PositionKpiResult_LatencyAvg{math.Float32frombits(uint32(x))}
-		return true, err
-	case 10: // a_oneof9.latency_max
-		if wire != proto.WireFixed32 {
-			return true, proto.ErrInternalBadWireType
-		}
-		x, err := b.DecodeFixed32()
-		m.AOneof9 = &PositionKpiResult_LatencyMax{math.Float32frombits(uint32(x))}
-		return true, err
-	default:
-		return false, nil
-	}
-}
-
-func _PositionKpiResult_OneofSizer(msg proto.Message) (n int) {
-	m := msg.(*PositionKpiResult)
-	// a_oneof1
-	switch x := m.AOneof1.(type) {
-	case *PositionKpiResult_DluserthroughputMin:
-		n += proto.SizeVarint(2<<3 | proto.WireFixed32)
-		n += 4
-	case nil:
-	default:
-		panic(fmt.Sprintf("proto: unexpected type %T in oneof", x))
-	}
-	// a_oneof2
-	switch x := m.AOneof2.(type) {
-	case *PositionKpiResult_DluserthroughputAvg:
-		n += proto.SizeVarint(3<<3 | proto.WireFixed32)
-		n += 4
-	case nil:
-	default:
-		panic(fmt.Sprintf("proto: unexpected type %T in oneof", x))
-	}
-	// a_oneof3
-	switch x := m.AOneof3.(type) {
-	case *PositionKpiResult_DluserthroughputMax:
-		n += proto.SizeVarint(4<<3 | proto.WireFixed32)
-		n += 4
-	case nil:
-	default:
-		panic(fmt.Sprintf("proto: unexpected type %T in oneof", x))
-	}
-	// a_oneof4
-	switch x := m.AOneof4.(type) {
-	case *PositionKpiResult_UluserthroughputMin:
-		n += proto.SizeVarint(5<<3 | proto.WireFixed32)
-		n += 4
-	case nil:
-	default:
-		panic(fmt.Sprintf("proto: unexpected type %T in oneof", x))
-	}
-	// a_oneof5
-	switch x := m.AOneof5.(type) {
-	case *PositionKpiResult_UluserthroughputAvg:
-		n += proto.SizeVarint(6<<3 | proto.WireFixed32)
-		n += 4
-	case nil:
-	default:
-		panic(fmt.Sprintf("proto: unexpected type %T in oneof", x))
-	}
-	// a_oneof6
-	switch x := m.AOneof6.(type) {
-	case *PositionKpiResult_UluserthroughputMax:
-		n += proto.SizeVarint(7<<3 | proto.WireFixed32)
-		n += 4
-	case nil:
-	default:
-		panic(fmt.Sprintf("proto: unexpected type %T in oneof", x))
-	}
-	// a_oneof7
-	switch x := m.AOneof7.(type) {
-	case *PositionKpiResult_LatencyMin:
-		n += proto.SizeVarint(8<<3 | proto.WireFixed32)
-		n += 4
-	case nil:
-	default:
-		panic(fmt.Sprintf("proto: unexpected type %T in oneof", x))
-	}
-	// a_oneof8
-	switch x := m.AOneof8.(type) {
-	case *PositionKpiResult_LatencyAvg:
-		n += proto.SizeVarint(9<<3 | proto.WireFixed32)
-		n += 4
-	case nil:
-	default:
-		panic(fmt.Sprintf("proto: unexpected type %T in oneof", x))
-	}
-	// a_oneof9
-	switch x := m.AOneof9.(type) {
-	case *PositionKpiResult_LatencyMax:
-		n += proto.SizeVarint(10<<3 | proto.WireFixed32)
-		n += 4
-	case nil:
-	default:
-		panic(fmt.Sprintf("proto: unexpected type %T in oneof", x))
-	}
-	return n
-}
-
-// Represents a request which queries the KPIs at the given grid
+// Response object
+// contains the calculated KPIs at the given grid
 // (represented with lat/long coordinates) at the given timestamp.
-// The QoSKPIRequest contains a
-// list of this objects
+// a QoSKPIClassificationResponse contains a list of this result object
+type PositionKpiClassificationResult struct {
+	// as set by the client, must be unique within one QoSKPIRequest
+	Positionid            int64 `protobuf:"varint,1,opt,name=positionid,proto3" json:"positionid,omitempty"`
+	DluserthroughputClass int32 `protobuf:"varint,2,opt,name=dluserthroughput_class,json=dluserthroughputClass,proto3" json:"dluserthroughput_class,omitempty"`
+	UluserthroughputClass int32 `protobuf:"varint,3,opt,name=uluserthroughput_class,json=uluserthroughputClass,proto3" json:"uluserthroughput_class,omitempty"`
+	LatencyClass          int32 `protobuf:"varint,4,opt,name=latency_class,json=latencyClass,proto3" json:"latency_class,omitempty"`
+}
+
+func (m *PositionKpiClassificationResult) Reset()         { *m = PositionKpiClassificationResult{} }
+func (m *PositionKpiClassificationResult) String() string { return proto.CompactTextString(m) }
+func (*PositionKpiClassificationResult) ProtoMessage()    {}
+func (*PositionKpiClassificationResult) Descriptor() ([]byte, []int) {
+	return fileDescriptorPredictiveqos, []int{3}
+}
+
+// Request sent by the client for a given grid and a given timestamp
+// a QoSKPIRequest contains a list of this objects
 type PositionKpiRequest struct {
+	// as set by the client, must be unique within one QoSKPIRequest
 	Positionid int64 `protobuf:"varint,1,opt,name=positionid,proto3" json:"positionid,omitempty"`
 	// as decimal degree, i.e.: 48.1855141 , 11.5613505
 	// in wsg84 coordinate system
 	// minus number represent south / west coordinate
 	Latitude  float32 `protobuf:"fixed32,2,opt,name=latitude,proto3" json:"latitude,omitempty"`
 	Longitude float32 `protobuf:"fixed32,3,opt,name=longitude,proto3" json:"longitude,omitempty"`
-	// UNIX timestamp for which the prediction has to be calculated
-	// se when the vehicle is due at the given position, in secs
+	// UNIX timestamp for which the prediction has to be calculated,in secs
 	Timestamp int64 `protobuf:"varint,5,opt,name=timestamp,proto3" json:"timestamp,omitempty"`
-	// in meter, above ground level
-	// (ignored in the calculations during the Pilot phase - added here only for completness)
+	// altitude above ground level, in meters
 	Altitude float32 `protobuf:"fixed32,6,opt,name=altitude,proto3" json:"altitude,omitempty"`
 }
 
 func (m *PositionKpiRequest) Reset()                    { *m = PositionKpiRequest{} }
 func (m *PositionKpiRequest) String() string            { return proto.CompactTextString(m) }
 func (*PositionKpiRequest) ProtoMessage()               {}
-func (*PositionKpiRequest) Descriptor() ([]byte, []int) { return fileDescriptorPredictiveqos, []int{2} }
+func (*PositionKpiRequest) Descriptor() ([]byte, []int) { return fileDescriptorPredictiveqos, []int{4} }
 
+// This response is sent periodically by the server as a server stream.
+// The positions with the already passed timestamps are omitted from the
 // renewal responses, and when all of the timestamps are passed, the server
 // closes the stream for this request
 type QoSKPIResponse struct {
-	// set by the client (the Unix timestamp when the initial
-	// request was in the client, in microseconds) and the
-	// server attaches it to each response
+	// set by the client
+	// (the Unix timestamp when the initial request was in the client, in microseconds)
+	// and the server attaches it to each response
 	Requestid int64                `protobuf:"varint,1,opt,name=requestid,proto3" json:"requestid,omitempty"`
 	Results   []*PositionKpiResult `protobuf:"bytes,2,rep,name=results" json:"results,omitempty"`
 }
@@ -626,11 +186,29 @@ type QoSKPIResponse struct {
 func (m *QoSKPIResponse) Reset()                    { *m = QoSKPIResponse{} }
 func (m *QoSKPIResponse) String() string            { return proto.CompactTextString(m) }
 func (*QoSKPIResponse) ProtoMessage()               {}
-func (*QoSKPIResponse) Descriptor() ([]byte, []int) { return fileDescriptorPredictiveqos, []int{3} }
+func (*QoSKPIResponse) Descriptor() ([]byte, []int) { return fileDescriptorPredictiveqos, []int{5} }
 
-// The request sent by the client.
-// Optionally it can contain the name of the service the client is interested
-// in, currently for this system it can be only QueryQoS
+// This response is sent periodically by the server as a server stream.
+// The positions with the already passed timestamps are omitted from the
+// renewal responses, and when all of the timestamps are passed, the server
+// closes the stream for this request
+type QoSKPIClassificationResponse struct {
+	// set by the client
+	// (the Unix timestamp when the initial request was in the client, in microseconds)
+	// and the server attaches it to each response
+	Requestid int64                              `protobuf:"varint,1,opt,name=requestid,proto3" json:"requestid,omitempty"`
+	Results   []*PositionKpiClassificationResult `protobuf:"bytes,2,rep,name=results" json:"results,omitempty"`
+}
+
+func (m *QoSKPIClassificationResponse) Reset()         { *m = QoSKPIClassificationResponse{} }
+func (m *QoSKPIClassificationResponse) String() string { return proto.CompactTextString(m) }
+func (*QoSKPIClassificationResponse) ProtoMessage()    {}
+func (*QoSKPIClassificationResponse) Descriptor() ([]byte, []int) {
+	return fileDescriptorPredictiveqos, []int{6}
+}
+
+// Health Check Request
+// Used for verifying the service status
 type HealthCheckRequest struct {
 	Service string `protobuf:"bytes,1,opt,name=service,proto3" json:"service,omitempty"`
 }
@@ -638,30 +216,33 @@ type HealthCheckRequest struct {
 func (m *HealthCheckRequest) Reset()                    { *m = HealthCheckRequest{} }
 func (m *HealthCheckRequest) String() string            { return proto.CompactTextString(m) }
 func (*HealthCheckRequest) ProtoMessage()               {}
-func (*HealthCheckRequest) Descriptor() ([]byte, []int) { return fileDescriptorPredictiveqos, []int{4} }
+func (*HealthCheckRequest) Descriptor() ([]byte, []int) { return fileDescriptorPredictiveqos, []int{7} }
 
-// The response to the above message. The NOT_SERVING"
-// response represents an internal error condition of the system, when the
-// API frontend is up (hence can answer the health request), but cannot
-// provide actual results
+// Health Check Response
+//   - UNKOWN       - an internal error - the actual reason is specified in the error message
+//   - SERVING      - service is up and running
+//   - NOT_SERVING  - an internal error, when the API frontend is up but cannot provide the actual results
 type HealthCheckResponse struct {
 	Status HealthCheckResponse_ServingStatus `protobuf:"varint,1,opt,name=status,proto3,enum=queryqos.HealthCheckResponse_ServingStatus" json:"status,omitempty"`
-	// similar to http status codes, attach it to error reports
+	// similar to http status codes
 	Errorcode int32 `protobuf:"varint,2,opt,name=errorcode,proto3" json:"errorcode,omitempty"`
-	// prediction model version that is used for calculating the response
+	// prediction model version used for predicting the response values
 	Modelversion string `protobuf:"bytes,3,opt,name=modelversion,proto3" json:"modelversion,omitempty"`
 }
 
 func (m *HealthCheckResponse) Reset()                    { *m = HealthCheckResponse{} }
 func (m *HealthCheckResponse) String() string            { return proto.CompactTextString(m) }
 func (*HealthCheckResponse) ProtoMessage()               {}
-func (*HealthCheckResponse) Descriptor() ([]byte, []int) { return fileDescriptorPredictiveqos, []int{5} }
+func (*HealthCheckResponse) Descriptor() ([]byte, []int) { return fileDescriptorPredictiveqos, []int{8} }
 
 func init() {
 	proto.RegisterType((*QoSKPIRequest)(nil), "queryqos.QoSKPIRequest")
+	proto.RegisterType((*BandSelection)(nil), "queryqos.BandSelection")
 	proto.RegisterType((*PositionKpiResult)(nil), "queryqos.PositionKpiResult")
+	proto.RegisterType((*PositionKpiClassificationResult)(nil), "queryqos.PositionKpiClassificationResult")
 	proto.RegisterType((*PositionKpiRequest)(nil), "queryqos.PositionKpiRequest")
 	proto.RegisterType((*QoSKPIResponse)(nil), "queryqos.QoSKPIResponse")
+	proto.RegisterType((*QoSKPIClassificationResponse)(nil), "queryqos.QoSKPIClassificationResponse")
 	proto.RegisterType((*HealthCheckRequest)(nil), "queryqos.HealthCheckRequest")
 	proto.RegisterType((*HealthCheckResponse)(nil), "queryqos.HealthCheckResponse")
 	proto.RegisterEnum("queryqos.HealthCheckResponse_ServingStatus", HealthCheckResponse_ServingStatus_name, HealthCheckResponse_ServingStatus_value)
@@ -679,6 +260,7 @@ const _ = grpc.SupportPackageIsVersion4
 
 type QueryQoSClient interface {
 	QueryQoSKPI(ctx context.Context, in *QoSKPIRequest, opts ...grpc.CallOption) (QueryQoS_QueryQoSKPIClient, error)
+	QueryQoSKPIClassifier(ctx context.Context, in *QoSKPIRequest, opts ...grpc.CallOption) (QueryQoS_QueryQoSKPIClassifierClient, error)
 }
 
 type queryQoSClient struct {
@@ -721,10 +303,43 @@ func (x *queryQoSQueryQoSKPIClient) Recv() (*QoSKPIResponse, error) {
 	return m, nil
 }
 
+func (c *queryQoSClient) QueryQoSKPIClassifier(ctx context.Context, in *QoSKPIRequest, opts ...grpc.CallOption) (QueryQoS_QueryQoSKPIClassifierClient, error) {
+	stream, err := grpc.NewClientStream(ctx, &_QueryQoS_serviceDesc.Streams[1], c.cc, "/queryqos.QueryQoS/QueryQoSKPIClassifier", opts...)
+	if err != nil {
+		return nil, err
+	}
+	x := &queryQoSQueryQoSKPIClassifierClient{stream}
+	if err := x.ClientStream.SendMsg(in); err != nil {
+		return nil, err
+	}
+	if err := x.ClientStream.CloseSend(); err != nil {
+		return nil, err
+	}
+	return x, nil
+}
+
+type QueryQoS_QueryQoSKPIClassifierClient interface {
+	Recv() (*QoSKPIClassificationResponse, error)
+	grpc.ClientStream
+}
+
+type queryQoSQueryQoSKPIClassifierClient struct {
+	grpc.ClientStream
+}
+
+func (x *queryQoSQueryQoSKPIClassifierClient) Recv() (*QoSKPIClassificationResponse, error) {
+	m := new(QoSKPIClassificationResponse)
+	if err := x.ClientStream.RecvMsg(m); err != nil {
+		return nil, err
+	}
+	return m, nil
+}
+
 // Server API for QueryQoS service
 
 type QueryQoSServer interface {
 	QueryQoSKPI(*QoSKPIRequest, QueryQoS_QueryQoSKPIServer) error
+	QueryQoSKPIClassifier(*QoSKPIRequest, QueryQoS_QueryQoSKPIClassifierServer) error
 }
 
 func RegisterQueryQoSServer(s *grpc.Server, srv QueryQoSServer) {
@@ -752,6 +367,27 @@ func (x *queryQoSQueryQoSKPIServer) Send(m *QoSKPIResponse) error {
 	return x.ServerStream.SendMsg(m)
 }
 
+func _QueryQoS_QueryQoSKPIClassifier_Handler(srv interface{}, stream grpc.ServerStream) error {
+	m := new(QoSKPIRequest)
+	if err := stream.RecvMsg(m); err != nil {
+		return err
+	}
+	return srv.(QueryQoSServer).QueryQoSKPIClassifier(m, &queryQoSQueryQoSKPIClassifierServer{stream})
+}
+
+type QueryQoS_QueryQoSKPIClassifierServer interface {
+	Send(*QoSKPIClassificationResponse) error
+	grpc.ServerStream
+}
+
+type queryQoSQueryQoSKPIClassifierServer struct {
+	grpc.ServerStream
+}
+
+func (x *queryQoSQueryQoSKPIClassifierServer) Send(m *QoSKPIClassificationResponse) error {
+	return x.ServerStream.SendMsg(m)
+}
+
 var _QueryQoS_serviceDesc = grpc.ServiceDesc{
 	ServiceName: "queryqos.QueryQoS",
 	HandlerType: (*QueryQoSServer)(nil),
@@ -760,6 +396,11 @@ var _QueryQoS_serviceDesc = grpc.ServiceDesc{
 		{
 			StreamName:    "QueryQoSKPI",
 			Handler:       _QueryQoS_QueryQoSKPI_Handler,
+			ServerStreams: true,
+		},
+		{
+			StreamName:    "QueryQoSKPIClassifier",
+			Handler:       _QueryQoS_QueryQoSKPIClassifier_Handler,
 			ServerStreams: true,
 		},
 	},
@@ -862,6 +503,99 @@ func (m *QoSKPIRequest) MarshalTo(dAtA []byte) (int, error) {
 			i += n
 		}
 	}
+	if m.Ltecategory != 0 {
+		dAtA[i] = 0x20
+		i++
+		i = encodeVarintPredictiveqos(dAtA, i, uint64(m.Ltecategory))
+	}
+	if m.Bandselection != nil {
+		dAtA[i] = 0x2a
+		i++
+		i = encodeVarintPredictiveqos(dAtA, i, uint64(m.Bandselection.Size()))
+		n1, err := m.Bandselection.MarshalTo(dAtA[i:])
+		if err != nil {
+			return 0, err
+		}
+		i += n1
+	}
+	return i, nil
+}
+
+func (m *BandSelection) Marshal() (dAtA []byte, err error) {
+	size := m.Size()
+	dAtA = make([]byte, size)
+	n, err := m.MarshalTo(dAtA)
+	if err != nil {
+		return nil, err
+	}
+	return dAtA[:n], nil
+}
+
+func (m *BandSelection) MarshalTo(dAtA []byte) (int, error) {
+	var i int
+	_ = i
+	var l int
+	_ = l
+	if len(m.RAT2G) > 0 {
+		for _, s := range m.RAT2G {
+			dAtA[i] = 0xa
+			i++
+			l = len(s)
+			for l >= 1<<7 {
+				dAtA[i] = uint8(uint64(l)&0x7f | 0x80)
+				l >>= 7
+				i++
+			}
+			dAtA[i] = uint8(l)
+			i++
+			i += copy(dAtA[i:], s)
+		}
+	}
+	if len(m.RAT3G) > 0 {
+		for _, s := range m.RAT3G {
+			dAtA[i] = 0x12
+			i++
+			l = len(s)
+			for l >= 1<<7 {
+				dAtA[i] = uint8(uint64(l)&0x7f | 0x80)
+				l >>= 7
+				i++
+			}
+			dAtA[i] = uint8(l)
+			i++
+			i += copy(dAtA[i:], s)
+		}
+	}
+	if len(m.RAT4G) > 0 {
+		for _, s := range m.RAT4G {
+			dAtA[i] = 0x1a
+			i++
+			l = len(s)
+			for l >= 1<<7 {
+				dAtA[i] = uint8(uint64(l)&0x7f | 0x80)
+				l >>= 7
+				i++
+			}
+			dAtA[i] = uint8(l)
+			i++
+			i += copy(dAtA[i:], s)
+		}
+	}
+	if len(m.RAT5G) > 0 {
+		for _, s := range m.RAT5G {
+			dAtA[i] = 0x22
+			i++
+			l = len(s)
+			for l >= 1<<7 {
+				dAtA[i] = uint8(uint64(l)&0x7f | 0x80)
+				l >>= 7
+				i++
+			}
+			dAtA[i] = uint8(l)
+			i++
+			i += copy(dAtA[i:], s)
+		}
+	}
 	return i, nil
 }
 
@@ -885,144 +619,101 @@ func (m *PositionKpiResult) MarshalTo(dAtA []byte) (int, error) {
 		i++
 		i = encodeVarintPredictiveqos(dAtA, i, uint64(m.Positionid))
 	}
-	if m.AOneof1 != nil {
-		nn1, err := m.AOneof1.MarshalTo(dAtA[i:])
-		if err != nil {
-			return 0, err
-		}
-		i += nn1
+	if m.DluserthroughputMin != 0 {
+		dAtA[i] = 0x15
+		i++
+		binary.LittleEndian.PutUint32(dAtA[i:], uint32(math.Float32bits(float32(m.DluserthroughputMin))))
+		i += 4
 	}
-	if m.AOneof2 != nil {
-		nn2, err := m.AOneof2.MarshalTo(dAtA[i:])
-		if err != nil {
-			return 0, err
-		}
-		i += nn2
+	if m.DluserthroughputAvg != 0 {
+		dAtA[i] = 0x1d
+		i++
+		binary.LittleEndian.PutUint32(dAtA[i:], uint32(math.Float32bits(float32(m.DluserthroughputAvg))))
+		i += 4
 	}
-	if m.AOneof3 != nil {
-		nn3, err := m.AOneof3.MarshalTo(dAtA[i:])
-		if err != nil {
-			return 0, err
-		}
-		i += nn3
+	if m.DluserthroughputMax != 0 {
+		dAtA[i] = 0x25
+		i++
+		binary.LittleEndian.PutUint32(dAtA[i:], uint32(math.Float32bits(float32(m.DluserthroughputMax))))
+		i += 4
 	}
-	if m.AOneof4 != nil {
-		nn4, err := m.AOneof4.MarshalTo(dAtA[i:])
-		if err != nil {
-			return 0, err
-		}
-		i += nn4
+	if m.UluserthroughputMin != 0 {
+		dAtA[i] = 0x2d
+		i++
+		binary.LittleEndian.PutUint32(dAtA[i:], uint32(math.Float32bits(float32(m.UluserthroughputMin))))
+		i += 4
 	}
-	if m.AOneof5 != nil {
-		nn5, err := m.AOneof5.MarshalTo(dAtA[i:])
-		if err != nil {
-			return 0, err
-		}
-		i += nn5
+	if m.UluserthroughputAvg != 0 {
+		dAtA[i] = 0x35
+		i++
+		binary.LittleEndian.PutUint32(dAtA[i:], uint32(math.Float32bits(float32(m.UluserthroughputAvg))))
+		i += 4
 	}
-	if m.AOneof6 != nil {
-		nn6, err := m.AOneof6.MarshalTo(dAtA[i:])
-		if err != nil {
-			return 0, err
-		}
-		i += nn6
+	if m.UluserthroughputMax != 0 {
+		dAtA[i] = 0x3d
+		i++
+		binary.LittleEndian.PutUint32(dAtA[i:], uint32(math.Float32bits(float32(m.UluserthroughputMax))))
+		i += 4
 	}
-	if m.AOneof7 != nil {
-		nn7, err := m.AOneof7.MarshalTo(dAtA[i:])
-		if err != nil {
-			return 0, err
-		}
-		i += nn7
+	if m.LatencyMin != 0 {
+		dAtA[i] = 0x45
+		i++
+		binary.LittleEndian.PutUint32(dAtA[i:], uint32(math.Float32bits(float32(m.LatencyMin))))
+		i += 4
 	}
-	if m.AOneof8 != nil {
-		nn8, err := m.AOneof8.MarshalTo(dAtA[i:])
-		if err != nil {
-			return 0, err
-		}
-		i += nn8
+	if m.LatencyAvg != 0 {
+		dAtA[i] = 0x4d
+		i++
+		binary.LittleEndian.PutUint32(dAtA[i:], uint32(math.Float32bits(float32(m.LatencyAvg))))
+		i += 4
 	}
-	if m.AOneof9 != nil {
-		nn9, err := m.AOneof9.MarshalTo(dAtA[i:])
-		if err != nil {
-			return 0, err
-		}
-		i += nn9
+	if m.LatencyMax != 0 {
+		dAtA[i] = 0x55
+		i++
+		binary.LittleEndian.PutUint32(dAtA[i:], uint32(math.Float32bits(float32(m.LatencyMax))))
+		i += 4
 	}
 	return i, nil
 }
 
-func (m *PositionKpiResult_DluserthroughputMin) MarshalTo(dAtA []byte) (int, error) {
-	i := 0
-	dAtA[i] = 0x15
-	i++
-	binary.LittleEndian.PutUint32(dAtA[i:], uint32(math.Float32bits(float32(m.DluserthroughputMin))))
-	i += 4
+func (m *PositionKpiClassificationResult) Marshal() (dAtA []byte, err error) {
+	size := m.Size()
+	dAtA = make([]byte, size)
+	n, err := m.MarshalTo(dAtA)
+	if err != nil {
+		return nil, err
+	}
+	return dAtA[:n], nil
+}
+
+func (m *PositionKpiClassificationResult) MarshalTo(dAtA []byte) (int, error) {
+	var i int
+	_ = i
+	var l int
+	_ = l
+	if m.Positionid != 0 {
+		dAtA[i] = 0x8
+		i++
+		i = encodeVarintPredictiveqos(dAtA, i, uint64(m.Positionid))
+	}
+	if m.DluserthroughputClass != 0 {
+		dAtA[i] = 0x10
+		i++
+		i = encodeVarintPredictiveqos(dAtA, i, uint64(m.DluserthroughputClass))
+	}
+	if m.UluserthroughputClass != 0 {
+		dAtA[i] = 0x18
+		i++
+		i = encodeVarintPredictiveqos(dAtA, i, uint64(m.UluserthroughputClass))
+	}
+	if m.LatencyClass != 0 {
+		dAtA[i] = 0x20
+		i++
+		i = encodeVarintPredictiveqos(dAtA, i, uint64(m.LatencyClass))
+	}
 	return i, nil
 }
-func (m *PositionKpiResult_DluserthroughputAvg) MarshalTo(dAtA []byte) (int, error) {
-	i := 0
-	dAtA[i] = 0x1d
-	i++
-	binary.LittleEndian.PutUint32(dAtA[i:], uint32(math.Float32bits(float32(m.DluserthroughputAvg))))
-	i += 4
-	return i, nil
-}
-func (m *PositionKpiResult_DluserthroughputMax) MarshalTo(dAtA []byte) (int, error) {
-	i := 0
-	dAtA[i] = 0x25
-	i++
-	binary.LittleEndian.PutUint32(dAtA[i:], uint32(math.Float32bits(float32(m.DluserthroughputMax))))
-	i += 4
-	return i, nil
-}
-func (m *PositionKpiResult_UluserthroughputMin) MarshalTo(dAtA []byte) (int, error) {
-	i := 0
-	dAtA[i] = 0x2d
-	i++
-	binary.LittleEndian.PutUint32(dAtA[i:], uint32(math.Float32bits(float32(m.UluserthroughputMin))))
-	i += 4
-	return i, nil
-}
-func (m *PositionKpiResult_UluserthroughputAvg) MarshalTo(dAtA []byte) (int, error) {
-	i := 0
-	dAtA[i] = 0x35
-	i++
-	binary.LittleEndian.PutUint32(dAtA[i:], uint32(math.Float32bits(float32(m.UluserthroughputAvg))))
-	i += 4
-	return i, nil
-}
-func (m *PositionKpiResult_UluserthroughputMax) MarshalTo(dAtA []byte) (int, error) {
-	i := 0
-	dAtA[i] = 0x3d
-	i++
-	binary.LittleEndian.PutUint32(dAtA[i:], uint32(math.Float32bits(float32(m.UluserthroughputMax))))
-	i += 4
-	return i, nil
-}
-func (m *PositionKpiResult_LatencyMin) MarshalTo(dAtA []byte) (int, error) {
-	i := 0
-	dAtA[i] = 0x45
-	i++
-	binary.LittleEndian.PutUint32(dAtA[i:], uint32(math.Float32bits(float32(m.LatencyMin))))
-	i += 4
-	return i, nil
-}
-func (m *PositionKpiResult_LatencyAvg) MarshalTo(dAtA []byte) (int, error) {
-	i := 0
-	dAtA[i] = 0x4d
-	i++
-	binary.LittleEndian.PutUint32(dAtA[i:], uint32(math.Float32bits(float32(m.LatencyAvg))))
-	i += 4
-	return i, nil
-}
-func (m *PositionKpiResult_LatencyMax) MarshalTo(dAtA []byte) (int, error) {
-	i := 0
-	dAtA[i] = 0x55
-	i++
-	binary.LittleEndian.PutUint32(dAtA[i:], uint32(math.Float32bits(float32(m.LatencyMax))))
-	i += 4
-	return i, nil
-}
+
 func (m *PositionKpiRequest) Marshal() (dAtA []byte, err error) {
 	size := m.Size()
 	dAtA = make([]byte, size)
@@ -1080,6 +771,41 @@ func (m *QoSKPIResponse) Marshal() (dAtA []byte, err error) {
 }
 
 func (m *QoSKPIResponse) MarshalTo(dAtA []byte) (int, error) {
+	var i int
+	_ = i
+	var l int
+	_ = l
+	if m.Requestid != 0 {
+		dAtA[i] = 0x8
+		i++
+		i = encodeVarintPredictiveqos(dAtA, i, uint64(m.Requestid))
+	}
+	if len(m.Results) > 0 {
+		for _, msg := range m.Results {
+			dAtA[i] = 0x12
+			i++
+			i = encodeVarintPredictiveqos(dAtA, i, uint64(msg.Size()))
+			n, err := msg.MarshalTo(dAtA[i:])
+			if err != nil {
+				return 0, err
+			}
+			i += n
+		}
+	}
+	return i, nil
+}
+
+func (m *QoSKPIClassificationResponse) Marshal() (dAtA []byte, err error) {
+	size := m.Size()
+	dAtA = make([]byte, size)
+	n, err := m.MarshalTo(dAtA)
+	if err != nil {
+		return nil, err
+	}
+	return dAtA[:n], nil
+}
+
+func (m *QoSKPIClassificationResponse) MarshalTo(dAtA []byte) (int, error) {
 	var i int
 	_ = i
 	var l int
@@ -1186,6 +912,26 @@ func (m *QoSKPIRequest) CopyInFields(src *QoSKPIRequest) {
 			m.Requests[i0].Altitude = src.Requests[i0].Altitude
 		}
 	}
+	m.Ltecategory = src.Ltecategory
+	if src.Bandselection != nil {
+		m.Bandselection = &BandSelection{}
+		if m.Bandselection.RAT2G == nil || len(m.Bandselection.RAT2G) != len(src.Bandselection.RAT2G) {
+			m.Bandselection.RAT2G = make([]string, len(src.Bandselection.RAT2G))
+		}
+		copy(m.Bandselection.RAT2G, src.Bandselection.RAT2G)
+		if m.Bandselection.RAT3G == nil || len(m.Bandselection.RAT3G) != len(src.Bandselection.RAT3G) {
+			m.Bandselection.RAT3G = make([]string, len(src.Bandselection.RAT3G))
+		}
+		copy(m.Bandselection.RAT3G, src.Bandselection.RAT3G)
+		if m.Bandselection.RAT4G == nil || len(m.Bandselection.RAT4G) != len(src.Bandselection.RAT4G) {
+			m.Bandselection.RAT4G = make([]string, len(src.Bandselection.RAT4G))
+		}
+		copy(m.Bandselection.RAT4G, src.Bandselection.RAT4G)
+		if m.Bandselection.RAT5G == nil || len(m.Bandselection.RAT5G) != len(src.Bandselection.RAT5G) {
+			m.Bandselection.RAT5G = make([]string, len(src.Bandselection.RAT5G))
+		}
+		copy(m.Bandselection.RAT5G, src.Bandselection.RAT5G)
+	}
 }
 
 // Helper method to check that enums have valid values
@@ -1195,15 +941,63 @@ func (m *QoSKPIRequest) ValidateEnums() error {
 			return err
 		}
 	}
+	if err := m.Bandselection.ValidateEnums(); err != nil {
+		return err
+	}
+	return nil
+}
+
+func (m *BandSelection) CopyInFields(src *BandSelection) {
+	if m.RAT2G == nil || len(m.RAT2G) != len(src.RAT2G) {
+		m.RAT2G = make([]string, len(src.RAT2G))
+	}
+	copy(m.RAT2G, src.RAT2G)
+	if m.RAT3G == nil || len(m.RAT3G) != len(src.RAT3G) {
+		m.RAT3G = make([]string, len(src.RAT3G))
+	}
+	copy(m.RAT3G, src.RAT3G)
+	if m.RAT4G == nil || len(m.RAT4G) != len(src.RAT4G) {
+		m.RAT4G = make([]string, len(src.RAT4G))
+	}
+	copy(m.RAT4G, src.RAT4G)
+	if m.RAT5G == nil || len(m.RAT5G) != len(src.RAT5G) {
+		m.RAT5G = make([]string, len(src.RAT5G))
+	}
+	copy(m.RAT5G, src.RAT5G)
+}
+
+// Helper method to check that enums have valid values
+func (m *BandSelection) ValidateEnums() error {
 	return nil
 }
 
 func (m *PositionKpiResult) CopyInFields(src *PositionKpiResult) {
 	m.Positionid = src.Positionid
+	m.DluserthroughputMin = src.DluserthroughputMin
+	m.DluserthroughputAvg = src.DluserthroughputAvg
+	m.DluserthroughputMax = src.DluserthroughputMax
+	m.UluserthroughputMin = src.UluserthroughputMin
+	m.UluserthroughputAvg = src.UluserthroughputAvg
+	m.UluserthroughputMax = src.UluserthroughputMax
+	m.LatencyMin = src.LatencyMin
+	m.LatencyAvg = src.LatencyAvg
+	m.LatencyMax = src.LatencyMax
 }
 
 // Helper method to check that enums have valid values
 func (m *PositionKpiResult) ValidateEnums() error {
+	return nil
+}
+
+func (m *PositionKpiClassificationResult) CopyInFields(src *PositionKpiClassificationResult) {
+	m.Positionid = src.Positionid
+	m.DluserthroughputClass = src.DluserthroughputClass
+	m.UluserthroughputClass = src.UluserthroughputClass
+	m.LatencyClass = src.LatencyClass
+}
+
+// Helper method to check that enums have valid values
+func (m *PositionKpiClassificationResult) ValidateEnums() error {
 	return nil
 }
 
@@ -1229,12 +1023,47 @@ func (m *QoSKPIResponse) CopyInFields(src *QoSKPIResponse) {
 		for i0 := 0; i0 < len(src.Results); i0++ {
 			m.Results[i0] = &PositionKpiResult{}
 			m.Results[i0].Positionid = src.Results[i0].Positionid
+			m.Results[i0].DluserthroughputMin = src.Results[i0].DluserthroughputMin
+			m.Results[i0].DluserthroughputAvg = src.Results[i0].DluserthroughputAvg
+			m.Results[i0].DluserthroughputMax = src.Results[i0].DluserthroughputMax
+			m.Results[i0].UluserthroughputMin = src.Results[i0].UluserthroughputMin
+			m.Results[i0].UluserthroughputAvg = src.Results[i0].UluserthroughputAvg
+			m.Results[i0].UluserthroughputMax = src.Results[i0].UluserthroughputMax
+			m.Results[i0].LatencyMin = src.Results[i0].LatencyMin
+			m.Results[i0].LatencyAvg = src.Results[i0].LatencyAvg
+			m.Results[i0].LatencyMax = src.Results[i0].LatencyMax
 		}
 	}
 }
 
 // Helper method to check that enums have valid values
 func (m *QoSKPIResponse) ValidateEnums() error {
+	for _, e := range m.Results {
+		if err := e.ValidateEnums(); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func (m *QoSKPIClassificationResponse) CopyInFields(src *QoSKPIClassificationResponse) {
+	m.Requestid = src.Requestid
+	if src.Results != nil {
+		if m.Results == nil || len(m.Results) != len(src.Results) {
+			m.Results = make([]*PositionKpiClassificationResult, len(src.Results))
+		}
+		for i0 := 0; i0 < len(src.Results); i0++ {
+			m.Results[i0] = &PositionKpiClassificationResult{}
+			m.Results[i0].Positionid = src.Results[i0].Positionid
+			m.Results[i0].DluserthroughputClass = src.Results[i0].DluserthroughputClass
+			m.Results[i0].UluserthroughputClass = src.Results[i0].UluserthroughputClass
+			m.Results[i0].LatencyClass = src.Results[i0].LatencyClass
+		}
+	}
+}
+
+// Helper method to check that enums have valid values
+func (m *QoSKPIClassificationResponse) ValidateEnums() error {
 	for _, e := range m.Results {
 		if err := e.ValidateEnums(); err != nil {
 			return err
@@ -1407,6 +1236,43 @@ func (m *QoSKPIRequest) Size() (n int) {
 			n += 1 + l + sovPredictiveqos(uint64(l))
 		}
 	}
+	if m.Ltecategory != 0 {
+		n += 1 + sovPredictiveqos(uint64(m.Ltecategory))
+	}
+	if m.Bandselection != nil {
+		l = m.Bandselection.Size()
+		n += 1 + l + sovPredictiveqos(uint64(l))
+	}
+	return n
+}
+
+func (m *BandSelection) Size() (n int) {
+	var l int
+	_ = l
+	if len(m.RAT2G) > 0 {
+		for _, s := range m.RAT2G {
+			l = len(s)
+			n += 1 + l + sovPredictiveqos(uint64(l))
+		}
+	}
+	if len(m.RAT3G) > 0 {
+		for _, s := range m.RAT3G {
+			l = len(s)
+			n += 1 + l + sovPredictiveqos(uint64(l))
+		}
+	}
+	if len(m.RAT4G) > 0 {
+		for _, s := range m.RAT4G {
+			l = len(s)
+			n += 1 + l + sovPredictiveqos(uint64(l))
+		}
+	}
+	if len(m.RAT5G) > 0 {
+		for _, s := range m.RAT5G {
+			l = len(s)
+			n += 1 + l + sovPredictiveqos(uint64(l))
+		}
+	}
 	return n
 }
 
@@ -1416,90 +1282,54 @@ func (m *PositionKpiResult) Size() (n int) {
 	if m.Positionid != 0 {
 		n += 1 + sovPredictiveqos(uint64(m.Positionid))
 	}
-	if m.AOneof1 != nil {
-		n += m.AOneof1.Size()
+	if m.DluserthroughputMin != 0 {
+		n += 5
 	}
-	if m.AOneof2 != nil {
-		n += m.AOneof2.Size()
+	if m.DluserthroughputAvg != 0 {
+		n += 5
 	}
-	if m.AOneof3 != nil {
-		n += m.AOneof3.Size()
+	if m.DluserthroughputMax != 0 {
+		n += 5
 	}
-	if m.AOneof4 != nil {
-		n += m.AOneof4.Size()
+	if m.UluserthroughputMin != 0 {
+		n += 5
 	}
-	if m.AOneof5 != nil {
-		n += m.AOneof5.Size()
+	if m.UluserthroughputAvg != 0 {
+		n += 5
 	}
-	if m.AOneof6 != nil {
-		n += m.AOneof6.Size()
+	if m.UluserthroughputMax != 0 {
+		n += 5
 	}
-	if m.AOneof7 != nil {
-		n += m.AOneof7.Size()
+	if m.LatencyMin != 0 {
+		n += 5
 	}
-	if m.AOneof8 != nil {
-		n += m.AOneof8.Size()
+	if m.LatencyAvg != 0 {
+		n += 5
 	}
-	if m.AOneof9 != nil {
-		n += m.AOneof9.Size()
+	if m.LatencyMax != 0 {
+		n += 5
 	}
 	return n
 }
 
-func (m *PositionKpiResult_DluserthroughputMin) Size() (n int) {
+func (m *PositionKpiClassificationResult) Size() (n int) {
 	var l int
 	_ = l
-	n += 5
+	if m.Positionid != 0 {
+		n += 1 + sovPredictiveqos(uint64(m.Positionid))
+	}
+	if m.DluserthroughputClass != 0 {
+		n += 1 + sovPredictiveqos(uint64(m.DluserthroughputClass))
+	}
+	if m.UluserthroughputClass != 0 {
+		n += 1 + sovPredictiveqos(uint64(m.UluserthroughputClass))
+	}
+	if m.LatencyClass != 0 {
+		n += 1 + sovPredictiveqos(uint64(m.LatencyClass))
+	}
 	return n
 }
-func (m *PositionKpiResult_DluserthroughputAvg) Size() (n int) {
-	var l int
-	_ = l
-	n += 5
-	return n
-}
-func (m *PositionKpiResult_DluserthroughputMax) Size() (n int) {
-	var l int
-	_ = l
-	n += 5
-	return n
-}
-func (m *PositionKpiResult_UluserthroughputMin) Size() (n int) {
-	var l int
-	_ = l
-	n += 5
-	return n
-}
-func (m *PositionKpiResult_UluserthroughputAvg) Size() (n int) {
-	var l int
-	_ = l
-	n += 5
-	return n
-}
-func (m *PositionKpiResult_UluserthroughputMax) Size() (n int) {
-	var l int
-	_ = l
-	n += 5
-	return n
-}
-func (m *PositionKpiResult_LatencyMin) Size() (n int) {
-	var l int
-	_ = l
-	n += 5
-	return n
-}
-func (m *PositionKpiResult_LatencyAvg) Size() (n int) {
-	var l int
-	_ = l
-	n += 5
-	return n
-}
-func (m *PositionKpiResult_LatencyMax) Size() (n int) {
-	var l int
-	_ = l
-	n += 5
-	return n
-}
+
 func (m *PositionKpiRequest) Size() (n int) {
 	var l int
 	_ = l
@@ -1522,6 +1352,21 @@ func (m *PositionKpiRequest) Size() (n int) {
 }
 
 func (m *QoSKPIResponse) Size() (n int) {
+	var l int
+	_ = l
+	if m.Requestid != 0 {
+		n += 1 + sovPredictiveqos(uint64(m.Requestid))
+	}
+	if len(m.Results) > 0 {
+		for _, e := range m.Results {
+			l = e.Size()
+			n += 1 + l + sovPredictiveqos(uint64(l))
+		}
+	}
+	return n
+}
+
+func (m *QoSKPIClassificationResponse) Size() (n int) {
 	var l int
 	_ = l
 	if m.Requestid != 0 {
@@ -1654,6 +1499,224 @@ func (m *QoSKPIRequest) Unmarshal(dAtA []byte) error {
 				return err
 			}
 			iNdEx = postIndex
+		case 4:
+			if wireType != 0 {
+				return fmt.Errorf("proto: wrong wireType = %d for field Ltecategory", wireType)
+			}
+			m.Ltecategory = 0
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowPredictiveqos
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				m.Ltecategory |= (int32(b) & 0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+		case 5:
+			if wireType != 2 {
+				return fmt.Errorf("proto: wrong wireType = %d for field Bandselection", wireType)
+			}
+			var msglen int
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowPredictiveqos
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				msglen |= (int(b) & 0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+			if msglen < 0 {
+				return ErrInvalidLengthPredictiveqos
+			}
+			postIndex := iNdEx + msglen
+			if postIndex > l {
+				return io.ErrUnexpectedEOF
+			}
+			if m.Bandselection == nil {
+				m.Bandselection = &BandSelection{}
+			}
+			if err := m.Bandselection.Unmarshal(dAtA[iNdEx:postIndex]); err != nil {
+				return err
+			}
+			iNdEx = postIndex
+		default:
+			iNdEx = preIndex
+			skippy, err := skipPredictiveqos(dAtA[iNdEx:])
+			if err != nil {
+				return err
+			}
+			if skippy < 0 {
+				return ErrInvalidLengthPredictiveqos
+			}
+			if (iNdEx + skippy) > l {
+				return io.ErrUnexpectedEOF
+			}
+			iNdEx += skippy
+		}
+	}
+
+	if iNdEx > l {
+		return io.ErrUnexpectedEOF
+	}
+	return nil
+}
+func (m *BandSelection) Unmarshal(dAtA []byte) error {
+	l := len(dAtA)
+	iNdEx := 0
+	for iNdEx < l {
+		preIndex := iNdEx
+		var wire uint64
+		for shift := uint(0); ; shift += 7 {
+			if shift >= 64 {
+				return ErrIntOverflowPredictiveqos
+			}
+			if iNdEx >= l {
+				return io.ErrUnexpectedEOF
+			}
+			b := dAtA[iNdEx]
+			iNdEx++
+			wire |= (uint64(b) & 0x7F) << shift
+			if b < 0x80 {
+				break
+			}
+		}
+		fieldNum := int32(wire >> 3)
+		wireType := int(wire & 0x7)
+		if wireType == 4 {
+			return fmt.Errorf("proto: BandSelection: wiretype end group for non-group")
+		}
+		if fieldNum <= 0 {
+			return fmt.Errorf("proto: BandSelection: illegal tag %d (wire type %d)", fieldNum, wire)
+		}
+		switch fieldNum {
+		case 1:
+			if wireType != 2 {
+				return fmt.Errorf("proto: wrong wireType = %d for field RAT2G", wireType)
+			}
+			var stringLen uint64
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowPredictiveqos
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				stringLen |= (uint64(b) & 0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+			intStringLen := int(stringLen)
+			if intStringLen < 0 {
+				return ErrInvalidLengthPredictiveqos
+			}
+			postIndex := iNdEx + intStringLen
+			if postIndex > l {
+				return io.ErrUnexpectedEOF
+			}
+			m.RAT2G = append(m.RAT2G, string(dAtA[iNdEx:postIndex]))
+			iNdEx = postIndex
+		case 2:
+			if wireType != 2 {
+				return fmt.Errorf("proto: wrong wireType = %d for field RAT3G", wireType)
+			}
+			var stringLen uint64
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowPredictiveqos
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				stringLen |= (uint64(b) & 0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+			intStringLen := int(stringLen)
+			if intStringLen < 0 {
+				return ErrInvalidLengthPredictiveqos
+			}
+			postIndex := iNdEx + intStringLen
+			if postIndex > l {
+				return io.ErrUnexpectedEOF
+			}
+			m.RAT3G = append(m.RAT3G, string(dAtA[iNdEx:postIndex]))
+			iNdEx = postIndex
+		case 3:
+			if wireType != 2 {
+				return fmt.Errorf("proto: wrong wireType = %d for field RAT4G", wireType)
+			}
+			var stringLen uint64
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowPredictiveqos
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				stringLen |= (uint64(b) & 0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+			intStringLen := int(stringLen)
+			if intStringLen < 0 {
+				return ErrInvalidLengthPredictiveqos
+			}
+			postIndex := iNdEx + intStringLen
+			if postIndex > l {
+				return io.ErrUnexpectedEOF
+			}
+			m.RAT4G = append(m.RAT4G, string(dAtA[iNdEx:postIndex]))
+			iNdEx = postIndex
+		case 4:
+			if wireType != 2 {
+				return fmt.Errorf("proto: wrong wireType = %d for field RAT5G", wireType)
+			}
+			var stringLen uint64
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowPredictiveqos
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				stringLen |= (uint64(b) & 0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+			intStringLen := int(stringLen)
+			if intStringLen < 0 {
+				return ErrInvalidLengthPredictiveqos
+			}
+			postIndex := iNdEx + intStringLen
+			if postIndex > l {
+				return io.ErrUnexpectedEOF
+			}
+			m.RAT5G = append(m.RAT5G, string(dAtA[iNdEx:postIndex]))
+			iNdEx = postIndex
 		default:
 			iNdEx = preIndex
 			skippy, err := skipPredictiveqos(dAtA[iNdEx:])
@@ -1733,7 +1796,7 @@ func (m *PositionKpiResult) Unmarshal(dAtA []byte) error {
 			}
 			v = uint32(binary.LittleEndian.Uint32(dAtA[iNdEx:]))
 			iNdEx += 4
-			m.AOneof1 = &PositionKpiResult_DluserthroughputMin{float32(math.Float32frombits(v))}
+			m.DluserthroughputMin = float32(math.Float32frombits(v))
 		case 3:
 			if wireType != 5 {
 				return fmt.Errorf("proto: wrong wireType = %d for field DluserthroughputAvg", wireType)
@@ -1744,7 +1807,7 @@ func (m *PositionKpiResult) Unmarshal(dAtA []byte) error {
 			}
 			v = uint32(binary.LittleEndian.Uint32(dAtA[iNdEx:]))
 			iNdEx += 4
-			m.AOneof2 = &PositionKpiResult_DluserthroughputAvg{float32(math.Float32frombits(v))}
+			m.DluserthroughputAvg = float32(math.Float32frombits(v))
 		case 4:
 			if wireType != 5 {
 				return fmt.Errorf("proto: wrong wireType = %d for field DluserthroughputMax", wireType)
@@ -1755,7 +1818,7 @@ func (m *PositionKpiResult) Unmarshal(dAtA []byte) error {
 			}
 			v = uint32(binary.LittleEndian.Uint32(dAtA[iNdEx:]))
 			iNdEx += 4
-			m.AOneof3 = &PositionKpiResult_DluserthroughputMax{float32(math.Float32frombits(v))}
+			m.DluserthroughputMax = float32(math.Float32frombits(v))
 		case 5:
 			if wireType != 5 {
 				return fmt.Errorf("proto: wrong wireType = %d for field UluserthroughputMin", wireType)
@@ -1766,7 +1829,7 @@ func (m *PositionKpiResult) Unmarshal(dAtA []byte) error {
 			}
 			v = uint32(binary.LittleEndian.Uint32(dAtA[iNdEx:]))
 			iNdEx += 4
-			m.AOneof4 = &PositionKpiResult_UluserthroughputMin{float32(math.Float32frombits(v))}
+			m.UluserthroughputMin = float32(math.Float32frombits(v))
 		case 6:
 			if wireType != 5 {
 				return fmt.Errorf("proto: wrong wireType = %d for field UluserthroughputAvg", wireType)
@@ -1777,7 +1840,7 @@ func (m *PositionKpiResult) Unmarshal(dAtA []byte) error {
 			}
 			v = uint32(binary.LittleEndian.Uint32(dAtA[iNdEx:]))
 			iNdEx += 4
-			m.AOneof5 = &PositionKpiResult_UluserthroughputAvg{float32(math.Float32frombits(v))}
+			m.UluserthroughputAvg = float32(math.Float32frombits(v))
 		case 7:
 			if wireType != 5 {
 				return fmt.Errorf("proto: wrong wireType = %d for field UluserthroughputMax", wireType)
@@ -1788,7 +1851,7 @@ func (m *PositionKpiResult) Unmarshal(dAtA []byte) error {
 			}
 			v = uint32(binary.LittleEndian.Uint32(dAtA[iNdEx:]))
 			iNdEx += 4
-			m.AOneof6 = &PositionKpiResult_UluserthroughputMax{float32(math.Float32frombits(v))}
+			m.UluserthroughputMax = float32(math.Float32frombits(v))
 		case 8:
 			if wireType != 5 {
 				return fmt.Errorf("proto: wrong wireType = %d for field LatencyMin", wireType)
@@ -1799,7 +1862,7 @@ func (m *PositionKpiResult) Unmarshal(dAtA []byte) error {
 			}
 			v = uint32(binary.LittleEndian.Uint32(dAtA[iNdEx:]))
 			iNdEx += 4
-			m.AOneof7 = &PositionKpiResult_LatencyMin{float32(math.Float32frombits(v))}
+			m.LatencyMin = float32(math.Float32frombits(v))
 		case 9:
 			if wireType != 5 {
 				return fmt.Errorf("proto: wrong wireType = %d for field LatencyAvg", wireType)
@@ -1810,7 +1873,7 @@ func (m *PositionKpiResult) Unmarshal(dAtA []byte) error {
 			}
 			v = uint32(binary.LittleEndian.Uint32(dAtA[iNdEx:]))
 			iNdEx += 4
-			m.AOneof8 = &PositionKpiResult_LatencyAvg{float32(math.Float32frombits(v))}
+			m.LatencyAvg = float32(math.Float32frombits(v))
 		case 10:
 			if wireType != 5 {
 				return fmt.Errorf("proto: wrong wireType = %d for field LatencyMax", wireType)
@@ -1821,7 +1884,133 @@ func (m *PositionKpiResult) Unmarshal(dAtA []byte) error {
 			}
 			v = uint32(binary.LittleEndian.Uint32(dAtA[iNdEx:]))
 			iNdEx += 4
-			m.AOneof9 = &PositionKpiResult_LatencyMax{float32(math.Float32frombits(v))}
+			m.LatencyMax = float32(math.Float32frombits(v))
+		default:
+			iNdEx = preIndex
+			skippy, err := skipPredictiveqos(dAtA[iNdEx:])
+			if err != nil {
+				return err
+			}
+			if skippy < 0 {
+				return ErrInvalidLengthPredictiveqos
+			}
+			if (iNdEx + skippy) > l {
+				return io.ErrUnexpectedEOF
+			}
+			iNdEx += skippy
+		}
+	}
+
+	if iNdEx > l {
+		return io.ErrUnexpectedEOF
+	}
+	return nil
+}
+func (m *PositionKpiClassificationResult) Unmarshal(dAtA []byte) error {
+	l := len(dAtA)
+	iNdEx := 0
+	for iNdEx < l {
+		preIndex := iNdEx
+		var wire uint64
+		for shift := uint(0); ; shift += 7 {
+			if shift >= 64 {
+				return ErrIntOverflowPredictiveqos
+			}
+			if iNdEx >= l {
+				return io.ErrUnexpectedEOF
+			}
+			b := dAtA[iNdEx]
+			iNdEx++
+			wire |= (uint64(b) & 0x7F) << shift
+			if b < 0x80 {
+				break
+			}
+		}
+		fieldNum := int32(wire >> 3)
+		wireType := int(wire & 0x7)
+		if wireType == 4 {
+			return fmt.Errorf("proto: PositionKpiClassificationResult: wiretype end group for non-group")
+		}
+		if fieldNum <= 0 {
+			return fmt.Errorf("proto: PositionKpiClassificationResult: illegal tag %d (wire type %d)", fieldNum, wire)
+		}
+		switch fieldNum {
+		case 1:
+			if wireType != 0 {
+				return fmt.Errorf("proto: wrong wireType = %d for field Positionid", wireType)
+			}
+			m.Positionid = 0
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowPredictiveqos
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				m.Positionid |= (int64(b) & 0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+		case 2:
+			if wireType != 0 {
+				return fmt.Errorf("proto: wrong wireType = %d for field DluserthroughputClass", wireType)
+			}
+			m.DluserthroughputClass = 0
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowPredictiveqos
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				m.DluserthroughputClass |= (int32(b) & 0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+		case 3:
+			if wireType != 0 {
+				return fmt.Errorf("proto: wrong wireType = %d for field UluserthroughputClass", wireType)
+			}
+			m.UluserthroughputClass = 0
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowPredictiveqos
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				m.UluserthroughputClass |= (int32(b) & 0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+		case 4:
+			if wireType != 0 {
+				return fmt.Errorf("proto: wrong wireType = %d for field LatencyClass", wireType)
+			}
+			m.LatencyClass = 0
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowPredictiveqos
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				m.LatencyClass |= (int32(b) & 0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
 		default:
 			iNdEx = preIndex
 			skippy, err := skipPredictiveqos(dAtA[iNdEx:])
@@ -2039,6 +2228,106 @@ func (m *QoSKPIResponse) Unmarshal(dAtA []byte) error {
 				return io.ErrUnexpectedEOF
 			}
 			m.Results = append(m.Results, &PositionKpiResult{})
+			if err := m.Results[len(m.Results)-1].Unmarshal(dAtA[iNdEx:postIndex]); err != nil {
+				return err
+			}
+			iNdEx = postIndex
+		default:
+			iNdEx = preIndex
+			skippy, err := skipPredictiveqos(dAtA[iNdEx:])
+			if err != nil {
+				return err
+			}
+			if skippy < 0 {
+				return ErrInvalidLengthPredictiveqos
+			}
+			if (iNdEx + skippy) > l {
+				return io.ErrUnexpectedEOF
+			}
+			iNdEx += skippy
+		}
+	}
+
+	if iNdEx > l {
+		return io.ErrUnexpectedEOF
+	}
+	return nil
+}
+func (m *QoSKPIClassificationResponse) Unmarshal(dAtA []byte) error {
+	l := len(dAtA)
+	iNdEx := 0
+	for iNdEx < l {
+		preIndex := iNdEx
+		var wire uint64
+		for shift := uint(0); ; shift += 7 {
+			if shift >= 64 {
+				return ErrIntOverflowPredictiveqos
+			}
+			if iNdEx >= l {
+				return io.ErrUnexpectedEOF
+			}
+			b := dAtA[iNdEx]
+			iNdEx++
+			wire |= (uint64(b) & 0x7F) << shift
+			if b < 0x80 {
+				break
+			}
+		}
+		fieldNum := int32(wire >> 3)
+		wireType := int(wire & 0x7)
+		if wireType == 4 {
+			return fmt.Errorf("proto: QoSKPIClassificationResponse: wiretype end group for non-group")
+		}
+		if fieldNum <= 0 {
+			return fmt.Errorf("proto: QoSKPIClassificationResponse: illegal tag %d (wire type %d)", fieldNum, wire)
+		}
+		switch fieldNum {
+		case 1:
+			if wireType != 0 {
+				return fmt.Errorf("proto: wrong wireType = %d for field Requestid", wireType)
+			}
+			m.Requestid = 0
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowPredictiveqos
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				m.Requestid |= (int64(b) & 0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+		case 2:
+			if wireType != 2 {
+				return fmt.Errorf("proto: wrong wireType = %d for field Results", wireType)
+			}
+			var msglen int
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowPredictiveqos
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				msglen |= (int(b) & 0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+			if msglen < 0 {
+				return ErrInvalidLengthPredictiveqos
+			}
+			postIndex := iNdEx + msglen
+			if postIndex > l {
+				return io.ErrUnexpectedEOF
+			}
+			m.Results = append(m.Results, &PositionKpiClassificationResult{})
 			if err := m.Results[len(m.Results)-1].Unmarshal(dAtA[iNdEx:postIndex]); err != nil {
 				return err
 			}
@@ -2368,46 +2657,55 @@ var (
 func init() { proto.RegisterFile("predictiveqos.proto", fileDescriptorPredictiveqos) }
 
 var fileDescriptorPredictiveqos = []byte{
-	// 641 bytes of a gzipped FileDescriptorProto
-	0x1f, 0x8b, 0x08, 0x00, 0x00, 0x00, 0x00, 0x00, 0x02, 0xff, 0x84, 0x54, 0x5d, 0x6f, 0xd3, 0x30,
-	0x14, 0x6d, 0xfa, 0x99, 0xde, 0xb2, 0xb1, 0xb9, 0x48, 0x44, 0x63, 0x54, 0x23, 0x4f, 0x93, 0x26,
-	0x55, 0xd0, 0x31, 0x18, 0xbc, 0xb1, 0x0d, 0xb1, 0xa9, 0xa2, 0x6b, 0x5d, 0x3e, 0x1e, 0x27, 0xd3,
-	0x9a, 0x36, 0x22, 0x8d, 0xd3, 0xd8, 0xae, 0xba, 0x7f, 0xc4, 0x2f, 0x41, 0x7b, 0xe4, 0x91, 0x47,
-	0xe8, 0x2f, 0x41, 0x76, 0x92, 0x26, 0xa5, 0x19, 0x7b, 0x3b, 0xbe, 0x39, 0xe7, 0xdc, 0xe3, 0x1b,
-	0xdb, 0x50, 0xf7, 0x03, 0x3a, 0x74, 0x06, 0xc2, 0x99, 0xd1, 0x29, 0xe3, 0x4d, 0x3f, 0x60, 0x82,
-	0x21, 0x73, 0x2a, 0x69, 0x70, 0x3d, 0x65, 0xdc, 0x1e, 0xc1, 0x46, 0x8f, 0xf5, 0xdb, 0xdd, 0x0b,
-	0x4c, 0xa7, 0x92, 0x72, 0x81, 0x76, 0xa1, 0x1a, 0x84, 0xd0, 0x19, 0x5a, 0xc6, 0x9e, 0xb1, 0x5f,
-	0xc0, 0x49, 0x01, 0x1d, 0x83, 0x19, 0x2d, 0xb8, 0x95, 0xdf, 0x2b, 0xec, 0xd7, 0x5a, 0xbb, 0xcd,
-	0xd8, 0xab, 0xd9, 0x65, 0xdc, 0x11, 0x0e, 0xf3, 0xda, 0xbe, 0x13, 0xb9, 0xe1, 0x25, 0xdb, 0xfe,
-	0x51, 0x84, 0xed, 0x15, 0x02, 0x97, 0xae, 0x40, 0x0d, 0x00, 0x3f, 0x2a, 0x2e, 0xdb, 0xa5, 0x2a,
-	0xe8, 0x10, 0x1e, 0x0c, 0x5d, 0xc9, 0x69, 0x20, 0xc6, 0x01, 0x93, 0xa3, 0xb1, 0x2f, 0xc5, 0xd5,
-	0xc4, 0xf1, 0xac, 0xfc, 0x9e, 0xb1, 0x9f, 0x3f, 0xcf, 0xe1, 0xfa, 0xbf, 0x5f, 0xdf, 0x3b, 0x5e,
-	0xa6, 0x88, 0xcc, 0x46, 0x56, 0x41, 0x8b, 0x8c, 0x75, 0xd1, 0x9b, 0xd9, 0x28, 0xbb, 0x13, 0x99,
-	0x5b, 0x45, 0x2d, 0xca, 0x67, 0x74, 0x22, 0x73, 0x25, 0x92, 0x59, 0xf1, 0x4a, 0x5a, 0x54, 0xc0,
-	0x75, 0x99, 0x1d, 0x4f, 0x66, 0xc5, 0x2b, 0x6b, 0x51, 0x71, 0x5d, 0x14, 0xc5, 0x93, 0x59, 0xf1,
-	0x2a, 0x5a, 0x54, 0xca, 0xe8, 0x44, 0xe6, 0xe8, 0x09, 0xd4, 0x5c, 0x22, 0xa8, 0x37, 0xb8, 0xd6,
-	0xa9, 0x4c, 0xcd, 0x2d, 0x63, 0x88, 0x8a, 0x2a, 0x4c, 0x8a, 0xa2, 0x32, 0x54, 0x35, 0xa5, 0xb2,
-	0xa4, 0xa8, 0xd6, 0x69, 0x17, 0x32, 0xb7, 0x40, 0x53, 0xcc, 0xc4, 0x85, 0xcc, 0x4f, 0x00, 0x4c,
-	0x72, 0xc5, 0x3c, 0xca, 0xbe, 0x3e, 0x4b, 0xe1, 0x56, 0x0a, 0x1f, 0xa6, 0xf0, 0xf3, 0x14, 0x3e,
-	0x4a, 0xe1, 0x17, 0x29, 0xfc, 0x32, 0x85, 0x8f, 0x53, 0xf8, 0x95, 0xfd, 0xdd, 0x00, 0xb4, 0x7e,
-	0xd2, 0xee, 0x3c, 0x49, 0x3b, 0x60, 0xba, 0x44, 0x38, 0x42, 0x0e, 0x69, 0x78, 0x7a, 0xf0, 0x72,
-	0xad, 0xce, 0xbc, 0xcb, 0xbc, 0x51, 0xf8, 0x51, 0x9f, 0x12, 0x9c, 0x14, 0xd4, 0x57, 0xe1, 0x4c,
-	0x28, 0x17, 0x64, 0xe2, 0xeb, 0x3f, 0x5b, 0xc0, 0x49, 0x41, 0xf9, 0x12, 0x37, 0xf2, 0x2d, 0x87,
-	0xbe, 0xf1, 0xda, 0xa6, 0xb0, 0x19, 0x5f, 0x2e, 0xee, 0x33, 0x8f, 0xd3, 0x3b, 0x6e, 0xd7, 0x11,
-	0x54, 0x02, 0x7d, 0x2f, 0xe2, 0xcb, 0xf5, 0xe8, 0x96, 0xcb, 0xa5, 0x38, 0x38, 0xe6, 0xda, 0x4d,
-	0x40, 0xe7, 0x94, 0xb8, 0x62, 0x7c, 0x3a, 0xa6, 0x83, 0x6f, 0xf1, 0x40, 0x2c, 0xa8, 0x70, 0x1a,
-	0xcc, 0x9c, 0x01, 0xd5, 0x8d, 0xaa, 0x38, 0x5e, 0xda, 0xbf, 0x0c, 0xa8, 0xaf, 0x08, 0xa2, 0x70,
-	0xa7, 0x50, 0xe6, 0x82, 0x08, 0xc9, 0xb5, 0x60, 0xb3, 0x75, 0x90, 0x74, 0xcf, 0xa0, 0x37, 0xfb,
-	0xca, 0xce, 0x1b, 0xf5, 0xb5, 0x04, 0x47, 0x52, 0xb5, 0x43, 0x1a, 0x04, 0x2c, 0x18, 0xb0, 0x68,
-	0xd0, 0x25, 0x9c, 0x14, 0x90, 0x0d, 0xf7, 0x26, 0x6c, 0x48, 0xdd, 0x19, 0x0d, 0xb8, 0xc3, 0x3c,
-	0x3d, 0xec, 0x2a, 0x5e, 0xa9, 0xd9, 0xaf, 0x61, 0x63, 0xc5, 0x1a, 0xd5, 0xa0, 0xf2, 0xb1, 0xd3,
-	0xee, 0x5c, 0x7e, 0xee, 0x6c, 0xe5, 0xd4, 0xa2, 0xff, 0x16, 0x7f, 0xba, 0xe8, 0xbc, 0xdb, 0x32,
-	0xd0, 0x7d, 0xa8, 0x75, 0x2e, 0x3f, 0x5c, 0xc5, 0x85, 0x7c, 0xab, 0x0b, 0x66, 0x4f, 0x65, 0xee,
-	0xb1, 0x3e, 0x3a, 0x83, 0x5a, 0x8c, 0xdb, 0xdd, 0x0b, 0xf4, 0x30, 0xd9, 0xcd, 0xca, 0x8b, 0xb7,
-	0x63, 0xad, 0x7f, 0x08, 0x77, 0x68, 0xe7, 0x9e, 0x1a, 0xad, 0x0e, 0x94, 0xc3, 0xcd, 0xa3, 0x33,
-	0x28, 0xe9, 0x01, 0xa0, 0xdd, 0x5b, 0xe6, 0x12, 0xda, 0x3d, 0xfe, 0xef, 0xd4, 0x4e, 0x0e, 0x6e,
-	0xfe, 0x34, 0x72, 0x37, 0x8b, 0x86, 0xf1, 0x73, 0xd1, 0x30, 0x7e, 0x2f, 0x1a, 0x06, 0x6c, 0x0f,
-	0x45, 0x33, 0x7c, 0x9a, 0xe3, 0x87, 0xfa, 0xa4, 0xd8, 0xeb, 0xb1, 0x7e, 0xd7, 0xf8, 0x52, 0xd6,
-	0xcf, 0xf5, 0xe1, 0xdf, 0x00, 0x00, 0x00, 0xff, 0xff, 0x0c, 0xad, 0x0e, 0xb9, 0xc5, 0x05, 0x00,
-	0x00,
+	// 792 bytes of a gzipped FileDescriptorProto
+	0x1f, 0x8b, 0x08, 0x00, 0x00, 0x00, 0x00, 0x00, 0x02, 0xff, 0x8c, 0x55, 0xcf, 0x6f, 0xe3, 0x44,
+	0x14, 0xee, 0xc4, 0xcd, 0xaf, 0x97, 0xcd, 0xb2, 0x4c, 0x76, 0xc1, 0x5a, 0x42, 0x36, 0x32, 0x12,
+	0x0a, 0x42, 0x44, 0x90, 0x6e, 0x24, 0x84, 0xc4, 0xa1, 0x4d, 0x51, 0xa8, 0x22, 0xd2, 0xc4, 0x29,
+	0x70, 0x41, 0xaa, 0xa6, 0xf6, 0xe0, 0x58, 0x38, 0x9e, 0xc4, 0x33, 0x8e, 0xd2, 0x23, 0xff, 0x0d,
+	0x27, 0xfe, 0x8e, 0x1c, 0x39, 0x70, 0xe0, 0x08, 0xfd, 0x4b, 0xd0, 0x8c, 0xed, 0x24, 0x4e, 0x9c,
+	0x6d, 0x6f, 0x9e, 0xef, 0xbd, 0xef, 0x7b, 0xdf, 0xcc, 0x1b, 0xbf, 0x81, 0xda, 0x3c, 0xa0, 0xb6,
+	0x6b, 0x09, 0x77, 0x49, 0x17, 0x8c, 0xb7, 0xe7, 0x01, 0x13, 0x0c, 0x97, 0x16, 0x21, 0x0d, 0xee,
+	0x17, 0x8c, 0x1b, 0x6b, 0x04, 0xd5, 0x31, 0x9b, 0x0c, 0x46, 0x57, 0x26, 0x5d, 0x84, 0x94, 0x0b,
+	0x5c, 0x87, 0x72, 0x10, 0x7d, 0xba, 0xb6, 0x8e, 0x9a, 0xa8, 0xa5, 0x99, 0x5b, 0x00, 0x7f, 0x0d,
+	0xa5, 0x78, 0xc1, 0xf5, 0x5c, 0x53, 0x6b, 0x55, 0x3a, 0xf5, 0x76, 0x22, 0xd6, 0x1e, 0x31, 0xee,
+	0x0a, 0x97, 0xf9, 0x83, 0xb9, 0x1b, 0xab, 0x99, 0x9b, 0x6c, 0xdc, 0x84, 0x8a, 0x27, 0xa8, 0x45,
+	0x04, 0x75, 0x58, 0x70, 0xaf, 0x9f, 0x36, 0x51, 0x2b, 0x6f, 0xee, 0x42, 0xf8, 0x5b, 0xa8, 0xde,
+	0x11, 0xdf, 0xe6, 0xd4, 0xa3, 0x96, 0x94, 0xd1, 0xf3, 0x4d, 0xd4, 0xaa, 0x74, 0x3e, 0xdc, 0x16,
+	0xb8, 0x20, 0xbe, 0x3d, 0x49, 0xc2, 0x66, 0x3a, 0xdb, 0x70, 0xa0, 0x9a, 0x8a, 0xe3, 0x97, 0x90,
+	0x37, 0xcf, 0x6f, 0x3a, 0x7d, 0x1d, 0x35, 0xb5, 0x56, 0xd9, 0x8c, 0x16, 0x31, 0x7a, 0xd6, 0x57,
+	0xf6, 0x23, 0xf4, 0x2c, 0x41, 0xdf, 0xf6, 0x75, 0x6d, 0x83, 0xbe, 0x4d, 0xd0, 0x6e, 0x5f, 0x3f,
+	0xdd, 0xa0, 0xdd, 0xbe, 0xb1, 0xd6, 0xe0, 0xfd, 0xd4, 0x56, 0x79, 0xe8, 0x09, 0xdc, 0x00, 0x98,
+	0xc7, 0xe0, 0xe6, 0xe0, 0x76, 0x10, 0xfc, 0x15, 0xbc, 0xb4, 0xbd, 0x90, 0xd3, 0x40, 0x4c, 0x03,
+	0x16, 0x3a, 0xd3, 0x79, 0x28, 0x6e, 0x67, 0xae, 0xaf, 0xe7, 0x9a, 0xa8, 0x95, 0x33, 0x6b, 0xfb,
+	0xb1, 0x1f, 0x5c, 0x3f, 0x93, 0x42, 0x96, 0x8e, 0xae, 0x65, 0x53, 0xce, 0x97, 0x4e, 0x76, 0x15,
+	0xb2, 0x52, 0xc7, 0x9d, 0x55, 0x85, 0xac, 0x24, 0x25, 0xcc, 0x32, 0x96, 0x8f, 0x28, 0x61, 0xb6,
+	0xb1, 0x30, 0xcb, 0x58, 0x21, 0x9b, 0x12, 0x1b, 0x0b, 0xb3, 0x8c, 0x15, 0x8f, 0x54, 0x21, 0x2b,
+	0xfc, 0x06, 0x2a, 0x1e, 0x11, 0xd4, 0xb7, 0xee, 0x95, 0x9f, 0x92, 0xca, 0x84, 0x18, 0x92, 0x36,
+	0x76, 0x12, 0x64, 0xf5, 0x72, 0x2a, 0x41, 0x16, 0xdd, 0x55, 0x20, 0x2b, 0x1d, 0xd2, 0x0a, 0x64,
+	0x65, 0xfc, 0x8d, 0xe0, 0xcd, 0x4e, 0x2b, 0x7b, 0x1e, 0xe1, 0xdc, 0xfd, 0xd5, 0xb5, 0x88, 0xba,
+	0x60, 0x4f, 0x6b, 0x6c, 0x17, 0x3e, 0x38, 0x38, 0x72, 0x4b, 0x0a, 0xa9, 0xd6, 0xe6, 0xcd, 0x57,
+	0xfb, 0x51, 0x55, 0x45, 0xd2, 0xc2, 0x6c, 0x9a, 0x16, 0xd1, 0xc2, 0x4c, 0xda, 0x27, 0x50, 0x4d,
+	0xb6, 0x14, 0x65, 0x47, 0x3f, 0xd2, 0xb3, 0x18, 0x54, 0x49, 0xc6, 0x1f, 0x08, 0xf0, 0xe1, 0xcf,
+	0xf8, 0xe8, 0x4e, 0x5e, 0x43, 0xc9, 0x23, 0xc2, 0x15, 0xa1, 0x4d, 0xe3, 0x6b, 0xb9, 0x59, 0xcb,
+	0xb1, 0xe0, 0x31, 0xdf, 0x89, 0x82, 0xd1, 0x05, 0xdc, 0x02, 0x32, 0x2a, 0xdc, 0x19, 0xe5, 0x82,
+	0xcc, 0xe6, 0xea, 0xe2, 0x68, 0xe6, 0x16, 0x90, 0xba, 0xc4, 0x8b, 0x75, 0xa3, 0x2b, 0xb2, 0x59,
+	0x1b, 0x14, 0x9e, 0x27, 0xf3, 0x87, 0xcf, 0x99, 0xcf, 0xe9, 0x23, 0x03, 0xa8, 0x0b, 0xc5, 0x40,
+	0xf5, 0x25, 0x99, 0x3f, 0x1f, 0x1d, 0x99, 0x3f, 0x32, 0xc7, 0x4c, 0x72, 0x8d, 0xdf, 0x11, 0xd4,
+	0xa3, 0x3a, 0x07, 0x3d, 0x7e, 0x4a, 0xd5, 0xde, 0x7e, 0xd5, 0xcf, 0x32, 0xab, 0x66, 0xdd, 0x9f,
+	0xad, 0x87, 0x36, 0xe0, 0xef, 0x29, 0xf1, 0xc4, 0xb4, 0x37, 0xa5, 0xd6, 0x6f, 0x49, 0x53, 0x74,
+	0x28, 0x72, 0x1a, 0x2c, 0x5d, 0x8b, 0xaa, 0xb2, 0x65, 0x33, 0x59, 0x1a, 0xff, 0x20, 0xa8, 0xa5,
+	0x08, 0xb1, 0xd5, 0x1e, 0x14, 0xb8, 0x20, 0x22, 0xe4, 0x8a, 0xf0, 0xbc, 0xf3, 0xf9, 0xd6, 0x4b,
+	0x46, 0x7a, 0x7b, 0x22, 0xe5, 0x7c, 0x67, 0xa2, 0x28, 0x66, 0x4c, 0x95, 0xfb, 0xa5, 0x41, 0xc0,
+	0x02, 0x8b, 0xc5, 0xcd, 0xce, 0x9b, 0x5b, 0x00, 0x1b, 0xf0, 0x6c, 0xc6, 0x6c, 0xea, 0x2d, 0x69,
+	0xc0, 0xe5, 0x24, 0xd6, 0x94, 0xb3, 0x14, 0x66, 0x7c, 0x03, 0xd5, 0x94, 0x34, 0xae, 0x40, 0xf1,
+	0xc7, 0xe1, 0x60, 0x78, 0xfd, 0xf3, 0xf0, 0xc5, 0x89, 0x5c, 0x4c, 0xbe, 0x33, 0x7f, 0xba, 0x1a,
+	0xf6, 0x5f, 0x20, 0xfc, 0x1e, 0x54, 0x86, 0xd7, 0x37, 0xb7, 0x09, 0x90, 0xeb, 0xfc, 0x89, 0xa0,
+	0x34, 0x96, 0xa6, 0xc7, 0x6c, 0x82, 0x2f, 0xa1, 0x92, 0x7c, 0x0f, 0x46, 0x57, 0x78, 0x67, 0xde,
+	0xa7, 0x5e, 0xa6, 0xd7, 0xfa, 0x61, 0x20, 0xda, 0xa2, 0x71, 0xf2, 0x25, 0xc2, 0xbf, 0xc0, 0xab,
+	0x1d, 0x95, 0xa4, 0x13, 0x34, 0x38, 0xae, 0xf7, 0xe9, 0x7e, 0x20, 0xfb, 0x6a, 0x48, 0xf5, 0xce,
+	0x10, 0x0a, 0xd1, 0xd9, 0xe2, 0x4b, 0xc8, 0xab, 0xf3, 0xc5, 0xf5, 0x23, 0xc7, 0x1e, 0x89, 0x7f,
+	0xfc, 0xce, 0xa6, 0x5c, 0x7c, 0xb1, 0xfe, 0xaf, 0x71, 0xb2, 0x7e, 0x68, 0xa0, 0xbf, 0x1e, 0x1a,
+	0xe8, 0xdf, 0x87, 0x06, 0x82, 0x9a, 0x2d, 0x88, 0xd3, 0x8e, 0xde, 0xe8, 0xe4, 0xc5, 0xbe, 0x38,
+	0x1d, 0x8f, 0xd9, 0x64, 0x84, 0xee, 0x0a, 0xea, 0xdd, 0x3e, 0xfb, 0x3f, 0x00, 0x00, 0xff, 0xff,
+	0x67, 0x42, 0x13, 0xdb, 0xce, 0x07, 0x00, 0x00,
 }

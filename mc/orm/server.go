@@ -29,6 +29,7 @@ type Server struct {
 	vault        *process.Vault
 	stopInitData bool
 	initDataDone chan struct{}
+	initJWKDone  chan struct{}
 }
 
 type ServerConfig struct {
@@ -128,7 +129,8 @@ func RunServer(config *ServerConfig) (*Server, error) {
 		config.VaultAddr = process.VaultAddress
 		server.vault = &vault
 	}
-	InitVault(config.VaultAddr, roleID, secretID)
+	server.initJWKDone = make(chan struct{}, 1)
+	InitVault(config.VaultAddr, roleID, secretID, server.initJWKDone)
 
 	if gitlabToken == "" {
 		log.InfoLog("Note: No gitlab_token env var found")
@@ -256,7 +258,9 @@ func RunServer(config *ServerConfig) (*Server, error) {
 	gitlabSync = GitlabNewSync()
 	artifactorySync = ArtifactoryNewSync()
 
-	return &server, nil
+	err = server.WaitUntilReady()
+
+	return &server, err
 }
 
 func (s *Server) WaitUntilReady() error {
@@ -267,14 +271,17 @@ func (s *Server) WaitUntilReady() error {
 	gitlabSync.Start()
 	artifactorySync.Start()
 
+	<-s.initJWKDone
+
 	// wait until server is online
 	for ii := 0; ii < 10; ii++ {
+		// if TLS specified, status response will be BadRequest.
+		// In any case, as long as the server is responding,
+		// then it is ready.
 		resp, err := http.Get("http://" + s.config.ServAddr)
 		if err == nil {
 			resp.Body.Close()
-			if resp.StatusCode == http.StatusOK {
-				return nil
-			}
+			return nil
 		}
 		time.Sleep(10 * time.Millisecond)
 	}

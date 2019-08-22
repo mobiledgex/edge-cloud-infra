@@ -14,7 +14,7 @@ import (
 
 func TestServer(t *testing.T) {
 	log.SetDebugLevel(log.DebugLevelApi)
-	log.InitTracer()
+	log.InitTracer("")
 	defer log.FinishTracer()
 	addr := "127.0.0.1:9999"
 	uri := "http://" + addr + "/api/v1"
@@ -115,6 +115,17 @@ func TestServer(t *testing.T) {
 	// login as new user2
 	tokenMisterY, err := mcClient.DoLogin(uri, user2.Name, user2.Passhash)
 	require.Nil(t, err, "login as mister Y")
+
+	// create user2 (case-insensitive) - duplicate
+	user2ci := ormapi.User{
+		Name:     "Mistery",
+		Email:    "mistery@gmail.com",
+		Passhash: "mistery-password",
+	}
+	status, err = mcClient.CreateUser(uri, &user2ci)
+	require.NotNil(t, err, "create duplicate user (case-insensitive)")
+	require.Equal(t, http.StatusBadRequest, status, "create dup user")
+
 	// create an Organization
 	org2 := ormapi.Organization{
 		Type:    "developer",

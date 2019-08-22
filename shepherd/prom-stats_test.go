@@ -199,10 +199,18 @@ func TestPromStats(t *testing.T) {
 	ctx := log.StartTestSpan(context.Background())
 
 	testAppKey := MetricAppInstKey{
-		operator:  "testoper",
-		cloudlet:  "testcloudlet",
-		cluster:   "testcluster",
-		developer: "",
+		clusterInstKey: edgeproto.ClusterInstKey{
+			ClusterKey: edgeproto.ClusterKey{
+				Name: "testcluster",
+			},
+			CloudletKey: edgeproto.CloudletKey{
+				OperatorKey: edgeproto.OperatorKey{
+					Name: "testoper",
+				},
+				Name: "testcloudlet",
+			},
+			Developer: "",
+		},
 	}
 
 	testOperatorKey := edgeproto.OperatorKey{Name: "testoper"}
@@ -233,7 +241,7 @@ func TestPromStats(t *testing.T) {
 	// Remove the leading "http://"
 	testPromStats, err := NewClusterWorker(tsProm.URL[7:], time.Second*1, testMetricSend, &testClusterInst, testPlatform)
 	assert.Nil(t, err, "Get a patform client for fake cloudlet")
-	err = testPromStats.CollectPromStats()
+	err = collectClusterPormetheusMetrics(testPromStats)
 	assert.Nil(t, err, "Fill stats from json")
 	testAppKey.pod = "testPod1"
 	stat, found := testPromStats.appStatsMap[testAppKey]

@@ -18,6 +18,9 @@ type ClusterStats interface {
 	// Returns current resource usage for a cluster instance
 }
 
+type PrometheusClient struct {
+}
+
 type AppMetrics struct {
 	cpu       float64
 	cpuTS     *types.Timestamp
@@ -54,13 +57,12 @@ type ClusterMetrics struct {
 	udpRecvErrTS *types.Timestamp
 }
 
-// TODO - why not edgeproto.AppInstKey? how to account for the mobiledgeX infra pods(i.e. prometheus, weave, etc.)
+// We keep the name of the pod+ClusterInstKey rather than AppInstKey
+// The reson is that we do not have a way to differentiate between different pods in a k8s cluster
+// See EDGECLOUD-1183
 type MetricAppInstKey struct {
-	operator  string
-	cloudlet  string
-	cluster   string
-	pod       string
-	developer string
+	clusterInstKey edgeproto.ClusterInstKey
+	pod            string
 }
 
 // K8s App. We use it to deal with a kuberneter app metrics

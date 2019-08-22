@@ -17,5 +17,6 @@ const (
 	NetNameVal       = 1
 	NetCIDRVal       = 2
 	NetFloatingIPVal = 3
-	NetOptVal        = 4
+	NetVnicType      = 4
+	NetOptVal        = 5
 )

@@ -16,9 +16,11 @@ type NetSpecInfo struct {
 	NetworkAddress            string
 	NetmaskBits               string
 	Octets                    []string
+	MasterIPLastOctet         string
 	DelimiterOctet            int // this is the X
 	FloatingIPNet             string
 	FloatingIPSubnet          string
+	VnicType                  string
 	Extra                     []string
 }
 
@@ -39,12 +41,17 @@ func ParseNetSpec(netSpec string) (*NetSpecInfo, error) {
 	ni.CIDR = items[NetCIDRVal]
 	if len(items) > NetFloatingIPVal {
 		fi := items[NetFloatingIPVal]
-		fs := strings.Split(fi, "|")
-		if len(fs) != 2 {
-			return nil, fmt.Errorf("floating ip format wrong expected: internalnet|internalsubnet")
+		if fi != "" {
+			fs := strings.Split(fi, "|")
+			if len(fs) != 2 {
+				return nil, fmt.Errorf("floating ip format wrong expected: internalnet|internalsubnet")
+			}
+			ni.FloatingIPNet = fs[0]
+			ni.FloatingIPSubnet = fs[1]
 		}
-		ni.FloatingIPNet = fs[0]
-		ni.FloatingIPSubnet = fs[1]
+	}
+	if len(items) > NetVnicType {
+		ni.VnicType = items[NetVnicType]
 	}
 	if len(items) > NetOptVal {
 		ni.Options = items[NetOptVal]

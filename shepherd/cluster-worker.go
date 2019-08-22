@@ -2,12 +2,14 @@ package main
 
 import (
 	"context"
+	"fmt"
 	"sync"
 	"time"
 
 	"github.com/gogo/protobuf/types"
 	platform "github.com/mobiledgex/edge-cloud-infra/shepherd/shepherd_platform"
 	"github.com/mobiledgex/edge-cloud/cloud-resource-manager/platform/pc"
+	"github.com/mobiledgex/edge-cloud/cloudcommon"
 	"github.com/mobiledgex/edge-cloud/edgeproto"
 	"github.com/mobiledgex/edge-cloud/log"
 )
@@ -18,8 +20,7 @@ type ClusterWorker struct {
 	deployment     string
 	promAddr       string
 	interval       time.Duration
-	appStatsMap    map[MetricAppInstKey]*AppMetrics
-	clusterStat    *ClusterMetrics
+	clusterStat    ClusterStats
 	send           func(ctx context.Context, metric *edgeproto.Metric) bool
 	waitGrp        sync.WaitGroup
 	stop           chan struct{}
@@ -30,18 +31,27 @@ func NewClusterWorker(promAddr string, interval time.Duration, send func(ctx con
 	var err error
 	p := ClusterWorker{}
 	p.promAddr = promAddr
-	p.appStatsMap = make(map[MetricAppInstKey]*AppMetrics)
-	p.clusterStat = &ClusterMetrics{}
+	p.deployment = clusterInst.Deployment
 	p.interval = interval
 	p.send = send
 	p.clusterInstKey = clusterInst.Key
-	p.deployment = clusterInst.Deployment
 	p.client, err = pf.GetPlatformClient(clusterInst)
 	if err != nil {
 		// If we cannot get a platform client no point in trying to get metrics
 		log.DebugLog(log.DebugLevelMetrics, "Failed to acquire platform client", "cluster", clusterInst.Key, "error", err)
 		return nil, err
 	}
+	// only support K8s deployments
+	if p.deployment == cloudcommon.AppDeploymentTypeKubernetes {
+		p.clusterStat = &K8sClusterStats{
+			key:      p.clusterInstKey,
+			client:   p.client,
+			promAddr: p.promAddr,
+		}
+	} else {
+		return nil, fmt.Errorf("Unsupported deployment %s", clusterInst.Deployment)
+	}
+
 	return &p, nil
 }
 
@@ -63,22 +73,21 @@ func (p *ClusterWorker) RunNotify() {
 	for !done {
 		select {
 		case <-time.After(p.interval):
-			if collectClusterPormetheusMetrics(p) != nil {
-				continue
-			}
+			clusterStats := p.clusterStat.GetClusterStats()
+			appStatsMap := p.clusterStat.GetAppStats()
 			span := log.StartSpan(log.DebugLevelSampled, "send-metric")
 			span.SetTag("operator", p.clusterInstKey.CloudletKey.OperatorKey.Name)
 			span.SetTag("cloudlet", p.clusterInstKey.CloudletKey.Name)
 			span.SetTag("cluster", p.clusterInstKey.ClusterKey.Name)
 			ctx := log.ContextWithSpan(context.Background(), span)
 
-			for key, stat := range p.appStatsMap {
-				appMetrics := PodStatToMetrics(&key, stat)
+			for key, stat := range appStatsMap {
+				appMetrics := MarshalAppMetrics(&key, stat)
 				for _, metric := range appMetrics {
 					p.send(ctx, metric)
 				}
 			}
-			clusterMetrics := ClusterStatToMetrics(p)
+			clusterMetrics := MarshalClusterMetrics(clusterStats, p.clusterInstKey)
 			for _, metric := range clusterMetrics {
 				p.send(ctx, metric)
 			}
@@ -104,67 +113,67 @@ func newMetric(clusterInstKey edgeproto.ClusterInstKey, name string, key *Metric
 	return &metric
 }
 
-func ClusterStatToMetrics(p *ClusterWorker) []*edgeproto.Metric {
+func MarshalClusterMetrics(cm *ClusterMetrics, key edgeproto.ClusterInstKey) []*edgeproto.Metric {
 	var metrics []*edgeproto.Metric
 	var metric *edgeproto.Metric
 
 	//nil timestamps mean the curl request failed. So do not write the metric in
-	if p.clusterStat.cpuTS != nil {
-		metric = newMetric(p.clusterInstKey, "cluster-cpu", nil, p.clusterStat.cpuTS)
-		metric.AddDoubleVal("cpu", p.clusterStat.cpu)
+	if cm.cpuTS != nil {
+		metric = newMetric(key, "cluster-cpu", nil, cm.cpuTS)
+		metric.AddDoubleVal("cpu", cm.cpu)
 		metrics = append(metrics, metric)
 		//reset to nil for the next collection
-		p.clusterStat.cpuTS = nil
+		cm.cpuTS = nil
 	}
 
-	if p.clusterStat.memTS != nil {
-		metric = newMetric(p.clusterInstKey, "cluster-mem", nil, p.clusterStat.memTS)
-		metric.AddDoubleVal("mem", p.clusterStat.mem)
+	if cm.memTS != nil {
+		metric = newMetric(key, "cluster-mem", nil, cm.memTS)
+		metric.AddDoubleVal("mem", cm.mem)
 		metrics = append(metrics, metric)
-		p.clusterStat.memTS = nil
+		cm.memTS = nil
 	}
 
-	if p.clusterStat.diskTS != nil {
-		metric = newMetric(p.clusterInstKey, "cluster-disk", nil, p.clusterStat.diskTS)
-		metric.AddDoubleVal("disk", p.clusterStat.disk)
+	if cm.diskTS != nil {
+		metric = newMetric(key, "cluster-disk", nil, cm.diskTS)
+		metric.AddDoubleVal("disk", cm.disk)
 		metrics = append(metrics, metric)
-		p.clusterStat.diskTS = nil
+		cm.diskTS = nil
 	}
 
-	if p.clusterStat.netSendTS != nil && p.clusterStat.netRecvTS != nil {
+	if cm.netSendTS != nil && cm.netRecvTS != nil {
 		//for measurements with multiple values just pick one timestamp to use
-		metric = newMetric(p.clusterInstKey, "cluster-network", nil, p.clusterStat.netSendTS)
-		metric.AddIntVal("sendBytes", p.clusterStat.netSend)
-		metric.AddIntVal("recvBytes", p.clusterStat.netRecv)
+		metric = newMetric(key, "cluster-network", nil, cm.netSendTS)
+		metric.AddIntVal("sendBytes", cm.netSend)
+		metric.AddIntVal("recvBytes", cm.netRecv)
 		metrics = append(metrics, metric)
 	}
-	p.clusterStat.netSendTS = nil
-	p.clusterStat.netRecvTS = nil
+	cm.netSendTS = nil
+	cm.netRecvTS = nil
 
-	if p.clusterStat.tcpConnsTS != nil && p.clusterStat.tcpRetransTS != nil {
-		metric = newMetric(p.clusterInstKey, "cluster-tcp", nil, p.clusterStat.tcpConnsTS)
-		metric.AddIntVal("tcpConns", p.clusterStat.tcpConns)
-		metric.AddIntVal("tcpRetrans", p.clusterStat.tcpRetrans)
+	if cm.tcpConnsTS != nil && cm.tcpRetransTS != nil {
+		metric = newMetric(key, "cluster-tcp", nil, cm.tcpConnsTS)
+		metric.AddIntVal("tcpConns", cm.tcpConns)
+		metric.AddIntVal("tcpRetrans", cm.tcpRetrans)
 		metrics = append(metrics, metric)
 	}
-	p.clusterStat.netSendTS = nil
-	p.clusterStat.netRecvTS = nil
+	cm.netSendTS = nil
+	cm.netRecvTS = nil
 
-	if p.clusterStat.udpSendTS != nil && p.clusterStat.udpRecvTS != nil && p.clusterStat.udpRecvErrTS != nil {
-		metric = newMetric(p.clusterInstKey, "cluster-udp", nil, p.clusterStat.udpSendTS)
-		metric.AddIntVal("udpSend", p.clusterStat.udpSend)
-		metric.AddIntVal("udpRecv", p.clusterStat.udpRecv)
-		metric.AddIntVal("udpRecvErr", p.clusterStat.udpRecvErr)
+	if cm.udpSendTS != nil && cm.udpRecvTS != nil && cm.udpRecvErrTS != nil {
+		metric = newMetric(key, "cluster-udp", nil, cm.udpSendTS)
+		metric.AddIntVal("udpSend", cm.udpSend)
+		metric.AddIntVal("udpRecv", cm.udpRecv)
+		metric.AddIntVal("udpRecvErr", cm.udpRecvErr)
 		metrics = append(metrics, metric)
 	}
-	p.clusterStat.udpSendTS = nil
-	p.clusterStat.udpRecvTS = nil
-	p.clusterStat.udpRecvErrTS = nil
+	cm.udpSendTS = nil
+	cm.udpRecvTS = nil
+	cm.udpRecvErrTS = nil
 
 	return metrics
 }
 
-func PodStatToMetrics(key *MetricAppInstKey, stat *AppMetrics) []*edgeproto.Metric {
+func MarshalAppMetrics(key *MetricAppInstKey, stat *AppMetrics) []*edgeproto.Metric {
 	var metrics []*edgeproto.Metric
 	var metric *edgeproto.Metric
 

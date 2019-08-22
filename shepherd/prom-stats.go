@@ -82,19 +82,21 @@ func parseTime(timeFloat float64) *types.Timestamp {
 	return ts
 }
 
-func collectClusterPormetheusMetrics(p *ClusterWorker) error {
+func collectAppPrometheusMetrics(p *K8sClusterStats) map[MetricAppInstKey]*AppMetrics {
+	appStatsMap := make(map[MetricAppInstKey]*AppMetrics)
+
 	appKey := MetricAppInstKey{
-		clusterInstKey: p.clusterInstKey,
+		clusterInstKey: p.key,
 	}
 	// Get Pod CPU usage percentage
 	resp, err := getPromMetrics(p.promAddr, promQCpuPod, p.client)
 	if err == nil && resp.Status == "success" {
 		for _, metric := range resp.Data.Result {
 			appKey.pod = metric.Labels.PodName
-			stat, found := p.appStatsMap[appKey]
+			stat, found := appStatsMap[appKey]
 			if !found {
 				stat = &AppMetrics{}
-				p.appStatsMap[appKey] = stat
+				appStatsMap[appKey] = stat
 			}
 			stat.cpuTS = parseTime(metric.Values[0].(float64))
 			//copy only if we can parse the value
@@ -108,10 +110,10 @@ func collectClusterPormetheusMetrics(p *ClusterWorker) error {
 	if err == nil && resp.Status == "success" {
 		for _, metric := range resp.Data.Result {
 			appKey.pod = metric.Labels.PodName
-			stat, found := p.appStatsMap[appKey]
+			stat, found := appStatsMap[appKey]
 			if !found {
 				stat = &AppMetrics{}
-				p.appStatsMap[appKey] = stat
+				appStatsMap[appKey] = stat
 			}
 			stat.memTS = parseTime(metric.Values[0].(float64))
 			//copy only if we can parse the value
@@ -125,10 +127,10 @@ func collectClusterPormetheusMetrics(p *ClusterWorker) error {
 	if err == nil && resp.Status == "success" {
 		for _, metric := range resp.Data.Result {
 			appKey.pod = metric.Labels.PodName
-			stat, found := p.appStatsMap[appKey]
+			stat, found := appStatsMap[appKey]
 			if !found {
 				stat = &AppMetrics{}
-				p.appStatsMap[appKey] = stat
+				appStatsMap[appKey] = stat
 			}
 			stat.diskTS = parseTime(metric.Values[0].(float64))
 			//copy only if we can parse the value
@@ -142,10 +144,10 @@ func collectClusterPormetheusMetrics(p *ClusterWorker) error {
 	if err == nil && resp.Status == "success" {
 		for _, metric := range resp.Data.Result {
 			appKey.pod = metric.Labels.PodName
-			stat, found := p.appStatsMap[appKey]
+			stat, found := appStatsMap[appKey]
 			if !found {
 				stat = &AppMetrics{}
-				p.appStatsMap[appKey] = stat
+				appStatsMap[appKey] = stat
 			}
 			stat.netRecvTS = parseTime(metric.Values[0].(float64))
 			//copy only if we can parse the value
@@ -159,10 +161,10 @@ func collectClusterPormetheusMetrics(p *ClusterWorker) error {
 	if err == nil && resp.Status == "success" {
 		for _, metric := range resp.Data.Result {
 			appKey.pod = metric.Labels.PodName
-			stat, found := p.appStatsMap[appKey]
+			stat, found := appStatsMap[appKey]
 			if !found {
 				stat = &AppMetrics{}
-				p.appStatsMap[appKey] = stat
+				appStatsMap[appKey] = stat
 			}
 			//copy only if we can parse the value
 			stat.netSendTS = parseTime(metric.Values[0].(float64))
@@ -171,15 +173,18 @@ func collectClusterPormetheusMetrics(p *ClusterWorker) error {
 			}
 		}
 	}
+	return appStatsMap
+}
 
+func collectClusterPormetheusMetrics(p *K8sClusterStats) error {
 	// Get Cluster CPU usage
-	resp, err = getPromMetrics(p.promAddr, promQCpuClust, p.client)
+	resp, err := getPromMetrics(p.promAddr, promQCpuClust, p.client)
 	if err == nil && resp.Status == "success" {
 		for _, metric := range resp.Data.Result {
-			p.clusterStat.cpuTS = parseTime(metric.Values[0].(float64))
+			p.cpuTS = parseTime(metric.Values[0].(float64))
 			//copy only if we can parse the value
 			if val, err := strconv.ParseFloat(metric.Values[1].(string), 64); err == nil {
-				p.clusterStat.cpu = val
+				p.cpu = val
 				// We should have only one value here
 				break
 			}
@@ -189,10 +194,10 @@ func collectClusterPormetheusMetrics(p *ClusterWorker) error {
 	resp, err = getPromMetrics(p.promAddr, promQMemClust, p.client)
 	if err == nil && resp.Status == "success" {
 		for _, metric := range resp.Data.Result {
-			p.clusterStat.memTS = parseTime(metric.Values[0].(float64))
+			p.memTS = parseTime(metric.Values[0].(float64))
 			//copy only if we can parse the value
 			if val, err := strconv.ParseFloat(metric.Values[1].(string), 64); err == nil {
-				p.clusterStat.mem = val
+				p.mem = val
 				// We should have only one value here
 				break
 			}
@@ -202,10 +207,10 @@ func collectClusterPormetheusMetrics(p *ClusterWorker) error {
 	resp, err = getPromMetrics(p.promAddr, promQDiskClust, p.client)
 	if err == nil && resp.Status == "success" {
 		for _, metric := range resp.Data.Result {
-			p.clusterStat.diskTS = parseTime(metric.Values[0].(float64))
+			p.diskTS = parseTime(metric.Values[0].(float64))
 			//copy only if we can parse the value
 			if val, err := strconv.ParseFloat(metric.Values[1].(string), 64); err == nil {
-				p.clusterStat.disk = val
+				p.disk = val
 				// We should have only one value here
 				break
 			}
@@ -215,10 +220,10 @@ func collectClusterPormetheusMetrics(p *ClusterWorker) error {
 	resp, err = getPromMetrics(p.promAddr, promQRecvBytesRateClust, p.client)
 	if err == nil && resp.Status == "success" {
 		for _, metric := range resp.Data.Result {
-			p.clusterStat.netRecvTS = parseTime(metric.Values[0].(float64))
+			p.netRecvTS = parseTime(metric.Values[0].(float64))
 			//copy only if we can parse the value
 			if val, err := strconv.ParseFloat(metric.Values[1].(string), 64); err == nil {
-				p.clusterStat.netRecv = uint64(val)
+				p.netRecv = uint64(val)
 				// We should have only one value here
 				break
 			}
@@ -228,10 +233,10 @@ func collectClusterPormetheusMetrics(p *ClusterWorker) error {
 	resp, err = getPromMetrics(p.promAddr, promQSendBytesRateClust, p.client)
 	if err == nil && resp.Status == "success" {
 		for _, metric := range resp.Data.Result {
-			p.clusterStat.netSendTS = parseTime(metric.Values[0].(float64))
+			p.netSendTS = parseTime(metric.Values[0].(float64))
 			//copy only if we can parse the value
 			if val, err := strconv.ParseFloat(metric.Values[1].(string), 64); err == nil {
-				p.clusterStat.netSend = uint64(val)
+				p.netSend = uint64(val)
 				// We should have only one value here
 				break
 			}
@@ -242,10 +247,10 @@ func collectClusterPormetheusMetrics(p *ClusterWorker) error {
 	resp, err = getPromMetrics(p.promAddr, promQTcpConnClust, p.client)
 	if err == nil && resp.Status == "success" {
 		for _, metric := range resp.Data.Result {
-			p.clusterStat.tcpConnsTS = parseTime(metric.Values[0].(float64))
+			p.tcpConnsTS = parseTime(metric.Values[0].(float64))
 			//copy only if we can parse the value
 			if val, err := strconv.ParseUint(metric.Values[1].(string), 10, 64); err == nil {
-				p.clusterStat.tcpConns = val
+				p.tcpConns = val
 				// We should have only one value here
 				break
 			}
@@ -255,10 +260,10 @@ func collectClusterPormetheusMetrics(p *ClusterWorker) error {
 	resp, err = getPromMetrics(p.promAddr, promQTcpRetransClust, p.client)
 	if err == nil && resp.Status == "success" {
 		for _, metric := range resp.Data.Result {
-			p.clusterStat.tcpRetransTS = parseTime(metric.Values[0].(float64))
+			p.tcpRetransTS = parseTime(metric.Values[0].(float64))
 			//copy only if we can parse the value
 			if val, err := strconv.ParseUint(metric.Values[1].(string), 10, 64); err == nil {
-				p.clusterStat.tcpRetrans = val
+				p.tcpRetrans = val
 				// We should have only one value here
 				break
 			}
@@ -268,10 +273,10 @@ func collectClusterPormetheusMetrics(p *ClusterWorker) error {
 	resp, err = getPromMetrics(p.promAddr, promQUdpSendPktsClust, p.client)
 	if err == nil && resp.Status == "success" {
 		for _, metric := range resp.Data.Result {
-			p.clusterStat.udpSendTS = parseTime(metric.Values[0].(float64))
+			p.udpSendTS = parseTime(metric.Values[0].(float64))
 			//copy only if we can parse the value
 			if val, err := strconv.ParseUint(metric.Values[1].(string), 10, 64); err == nil {
-				p.clusterStat.udpSend = val
+				p.udpSend = val
 				// We should have only one value here
 				break
 			}
@@ -281,10 +286,10 @@ func collectClusterPormetheusMetrics(p *ClusterWorker) error {
 	resp, err = getPromMetrics(p.promAddr, promQUdpRecvPktsClust, p.client)
 	if err == nil && resp.Status == "success" {
 		for _, metric := range resp.Data.Result {
-			p.clusterStat.udpRecvTS = parseTime(metric.Values[0].(float64))
+			p.udpRecvTS = parseTime(metric.Values[0].(float64))
 			//copy only if we can parse the value
 			if val, err := strconv.ParseUint(metric.Values[1].(string), 10, 64); err == nil {
-				p.clusterStat.udpRecv = val
+				p.udpRecv = val
 				// We should have only one value here
 				break
 			}
@@ -294,15 +299,14 @@ func collectClusterPormetheusMetrics(p *ClusterWorker) error {
 	resp, err = getPromMetrics(p.promAddr, promQUdpRecvErr, p.client)
 	if err == nil && resp.Status == "success" {
 		for _, metric := range resp.Data.Result {
-			p.clusterStat.udpRecvErrTS = parseTime(metric.Values[0].(float64))
+			p.udpRecvErrTS = parseTime(metric.Values[0].(float64))
 			//copy only if we can parse the value
 			if val, err := strconv.ParseUint(metric.Values[1].(string), 10, 64); err == nil {
-				p.clusterStat.udpRecvErr = val
+				p.udpRecvErr = val
 				// We should have only one value here
 				break
 			}
 		}
 	}
-
 	return nil
 }

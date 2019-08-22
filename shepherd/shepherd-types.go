@@ -8,6 +8,7 @@ import (
 )
 
 // Common interface to deal with AppMetrics
+// Pending EDGECLOUD-1183 implementation
 type AppStats interface {
 	// Returns current resource usage for a app instance
 	GetAppStats() *AppMetrics
@@ -94,26 +95,4 @@ func (c *K8sClusterStats) GetAppStats() map[MetricAppInstKey]*AppMetrics {
 		log.DebugLog(log.DebugLevelMetrics, "Could not collect app metrics", "K8s Cluster", c)
 	}
 	return metrics
-}
-
-// Docker App. TODO: NEEDS IMPLEMENTING
-type DockerAppStats struct {
-	edgeproto.AppKey
-	client pc.PlatformClient
-}
-
-func (app *DockerAppStats) GetAppStats() *AppMetrics {
-	//TODO - nill is error
-	return nil
-}
-
-// OpenstackVM App. TODO: NEEDS IMPLEMENTING
-type OpenStackVmAppStats struct {
-	edgeproto.AppKey
-	client pc.PlatformClient
-}
-
-func (app *OpenStackVmAppStats) GetAppStats() *AppMetrics {
-	//TODO - nill is error
-	return nil
 }

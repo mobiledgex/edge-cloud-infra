@@ -1,0 +1,11 @@
+---
+- name: Generate terraform config file
+  hosts: localhost
+  connection: local
+  gather_facts: no
+
+  tasks:
+    - name: Generate terraform config
+      template:
+        src: templates/internal/terraform.tfvars.j2
+        dest: "{{ output_file | mandatory }}"

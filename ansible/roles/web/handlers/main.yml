@@ -3,3 +3,5 @@
     name: nginx
     state: restarted
   become: yes
+  when:
+    - nginx_installed | default(false) | bool

@@ -1,0 +1,262 @@
+---
+- hosts: influxdb
+  vars:
+    vault_influxdb_creds_path: "secret/ansible/{{ deploy_environ }}/accounts/influxdb"
+    chronograf_google_creds_path: "secret/ansible/{{ deploy_environ }}/accounts/chronograf_google"
+    influxdb_conf_file: /etc/influxdb/influxdb.conf
+    ansible_managed_header: "MANAGED BY ANSIBLE"
+    chronograf_version: 1.7.12
+    chronograf_checksum: "sha256:ea261d5de9ad7738980f091cb78c5762ee57cdac8bf56ec1fdf36953351ff2cc"
+    chronograf_canned_path: /usr/share/chronograf/canned
+    kapacitor_version: 1.5.3
+    kapacitor_checksum: "md5:2fb06503a66e3cc5fb1f9b86875da39d"
+    kapacitor_conf_file: /etc/kapacitor/kapacitor.conf
+
+  tasks:
+
+    - name: Add InfluxDB GPG key
+      apt_key:
+        url: https://repos.influxdata.com/influxdb.key
+      become: yes
+      tags: setup
+
+    - name: Add InfluxDB repo
+      apt_repository:
+        repo: "deb https://repos.influxdata.com/ubuntu {{ ubuntu_release }} stable"
+      become: yes
+      tags: setup
+
+    - name: Install InfluxDB
+      apt:
+        name: influxdb
+        update_cache: yes
+      become: yes
+      tags: setup
+
+    - name: "Download Kapacitor v{{ kapacitor_version }}"
+      get_url:
+        url: "https://dl.influxdata.com/kapacitor/releases/kapacitor_{{ kapacitor_version }}_amd64.deb"
+        dest: "{{ ansible_env.HOME }}/kapacitor_{{ kapacitor_version }}_amd64.deb"
+        checksum: "{{ kapacitor_checksum }}"
+      register: kapacitor_download
+      tags: setup
+
+    - name: Install Kapacitor
+      apt:
+        deb: "{{ kapacitor_download.dest }}"
+      become: yes
+      tags: setup
+
+    - name: "Download Chronograf v{{ chronograf_version }}"
+      get_url:
+        url: "https://dl.influxdata.com/chronograf/releases/chronograf_{{ chronograf_version }}_amd64.deb"
+        dest: "{{ ansible_env.HOME }}/chronograf_{{ chronograf_version }}_amd64.deb"
+        checksum: "{{ chronograf_checksum }}"
+      register: chronograf_download
+      tags: setup
+
+    - name: Install Chronograf
+      apt:
+        deb: "{{ chronograf_download.dest }}"
+      become: yes
+      tags: setup
+
+    - name: Set up certs
+      import_role:
+        name: web
+      vars:
+        nginx_config_template: "internal/chronograf/nginx-config.j2"
+        cert_domains: [ "{{ influxdb_vm_hostname }}" ]
+        post_renewal_hooks:
+          - hook_name: influxdb_restart
+            hook_content: "{{ lookup('template', 'internal/influxdb_restart.hook.j2') }}"
+      tags: setup
+
+    - include_role:
+        name: cert_access
+      vars:
+        cert_hostname: "{{ influxdb_vm_hostname }}"
+      loop:
+        - influxdb
+        - kapacitor
+        - chronograf
+      loop_control:
+        loop_var: cert_user
+      tags: setup
+
+    - name: Install pip
+      apt:
+        name: python3-pip
+        state: present
+      become: yes
+      tags: setup
+
+    - name: Install influxdb python module
+      pip:
+        name: influxdb
+      become: yes
+      tags: setup
+
+    - name: Look up credentials in vault
+      set_fact:
+        vault_lookup: "{{ lookup('vault', vault_influxdb_creds_path, chronograf_google_creds_path) }}"
+
+    - set_fact:
+        influxdb_user: "{{ vault_lookup.influxdb.data.user }}"
+        influxdb_password: "{{ vault_lookup.influxdb.data.pass }}"
+        influxdb_creds_version: "{{ vault_lookup.influxdb.metadata.version }}"
+        influxdb_old_user: "{{ vault_lookup.influxdb.data.user }}"
+        influxdb_old_password: "{{ vault_lookup.influxdb.data.pass }}"
+        chronograf_google_client_id: "{{ vault_lookup.chronograf_google.data.client_id }}"
+        chronograf_google_client_secret: "{{ vault_lookup.chronograf_google.data.client_secret }}"
+        chronograf_google_token_secret: "{{ vault_lookup.chronograf_google.data.token_secret }}"
+
+    - block:
+      - set_fact:
+          vault_lookup: "{{ lookup('vault', old_version) }}"
+        vars:
+          old_version: "{{ vault_influxdb_creds_path }}@{{ influxdb_creds_version|int - 1 }}"
+
+      - set_fact:
+          influxdb_old_user: "{{ vault_lookup.influxdb.data.user }}"
+          influxdb_old_password: "{{ vault_lookup.influxdb.data.pass }}"
+      when: influxdb_creds_version|int > 1
+
+    - name: Check if initial setup is complete
+      lineinfile:
+        path: "{{ influxdb_conf_file }}"
+        regexp: "{{ ansible_managed_header }}"
+        state: absent
+      check_mode: yes
+      register: setup_complete_header
+
+    - block:
+
+      - name: Copy initial config
+        template:
+          src: internal/influxdb.conf.j2
+          dest: "{{ influxdb_conf_file }}"
+        vars:
+          ansible_header: "TEMPORARY"
+          influxdb_auth_enabled: "false"
+        become: yes
+
+      - name: Ensure InfluxDB is running
+        systemd:
+          name: influxdb
+          enabled: yes
+          state: restarted
+        become: yes
+
+      - name: Set up admin account
+        influxdb_user:
+          hostname: "{{ influxdb_vm_hostname }}"
+          ssl: yes
+          user_name: "{{ influxdb_user }}"
+          user_password: "{{ influxdb_password }}"
+          admin: yes
+
+      when: not setup_complete_header.found
+
+    - name: Set up InfluxDB config
+      template:
+        src: internal/influxdb.conf.j2
+        dest: "{{ influxdb_conf_file }}"
+      become: yes
+      notify:
+        - Restart InfluxDB
+
+    - meta: flush_handlers
+
+    - name: Set up admin account
+      influxdb_user:
+        hostname: "{{ influxdb_vm_hostname }}"
+        ssl: yes
+        user_name: "{{ influxdb_user }}"
+        user_password: "{{ influxdb_password }}"
+        login_username: "{{ influxdb_user }}"
+        login_password: "{{ influxdb_password }}"
+        admin: yes
+      ignore_errors: yes
+      register: influx_admin_account
+
+    - name: Admin password change
+      influxdb_user:
+        hostname: "{{ influxdb_vm_hostname }}"
+        ssl: yes
+        user_name: "{{ influxdb_user }}"
+        user_password: "{{ influxdb_password }}"
+        login_username: "{{ influxdb_old_user }}"
+        login_password: "{{ influxdb_old_password }}"
+        admin: yes
+      when:
+        - influx_admin_account.failed is defined
+        - 'influx_admin_account.failed | bool'
+        - '"authorization failed" in influx_admin_account.msg'
+
+    - name: Set up databases
+      influxdb_database:
+        hostname: "{{ influxdb_vm_hostname }}"
+        ssl: yes
+        database_name: "{{ item }}"
+        state: present
+        username: "{{ influxdb_user }}"
+        password: "{{ influxdb_password }}"
+      loop:
+        - jenkins
+
+    - name: Set up Kapacitor config
+      template:
+        src: internal/kapacitor.conf.j2
+        dest: "{{ kapacitor_conf_file }}"
+      become: yes
+
+    - name: Ensure Kapacitor is running
+      systemd:
+        name: kapacitor
+        enabled: yes
+        state: started
+      become: yes
+
+    - name: Set up Chronograf environment
+      template:
+        src: "internal/chronograf/environment.j2"
+        dest: /etc/default/chronograf
+      become: yes
+      notify:
+        - Restart Chronograf
+
+    - name: Install Chronograf sources
+      template:
+        src: "internal/chronograf/{{ chronograf_conf }}.j2"
+        dest: "{{ chronograf_canned_path }}/{{ chronograf_conf }}"
+        owner: chronograf
+        group: chronograf
+        mode: 0400
+      become: yes
+      loop:
+        - influxdb.src
+        - kapacitor.kap
+      loop_control:
+        loop_var: chronograf_conf
+      notify:
+        - Restart Chronograf
+
+    - meta: end_play
+
+  handlers:
+    - name: Restart InfluxDB
+      systemd:
+        name: influxdb
+        enabled: yes
+        state: restarted
+        daemon_reload: yes
+      become: yes
+
+    - name: Restart Chronograf
+      systemd:
+        name: chronograf
+        enabled: yes
+        state: restarted
+        daemon_reload: yes
+      become: yes

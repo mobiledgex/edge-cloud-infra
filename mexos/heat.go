@@ -524,7 +524,6 @@ func getClusterParams(clusterInst *edgeproto.ClusterInst, rootLBName string, act
 	for i := 0; i <= 255; i++ {
 		subnet := fmt.Sprintf("%s.%s.%d.%d/%s", ni.Octets[0], ni.Octets[1], i, 0, ni.NetmaskBits)
 		// either look for an unused one (create) or the current one (update)
-
 		if (action == heatCreate && usedCidrs[subnet] == "") || (action == heatUpdate && usedCidrs[subnet] == currentSubnetName) {
 			found = true
 			cp.CIDR = subnet

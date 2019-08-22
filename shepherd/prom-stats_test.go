@@ -231,7 +231,7 @@ func TestPromStats(t *testing.T) {
 	}))
 	defer tsProm.Close()
 	// Remove the leading "http://"
-	testPromStats, err := NewPromStats(tsProm.URL[7:], time.Second*1, testMetricSend, &testClusterInst, testPlatform)
+	testPromStats, err := NewClusterWorker(tsProm.URL[7:], time.Second*1, testMetricSend, &testClusterInst, testPlatform)
 	assert.Nil(t, err, "Get a patform client for fake cloudlet")
 	err = testPromStats.CollectPromStats()
 	assert.Nil(t, err, "Fill stats from json")

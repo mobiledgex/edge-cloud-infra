@@ -51,7 +51,7 @@ var promQNetSendRate = "sum(irate(container_network_transmit_bytes_total%7Bimage
 var defaultPrometheusPort = int32(9090)
 
 //map keeping track of all the currently running prometheuses
-var promMap map[string]*PromStats
+var promMap map[string]*ClusterWorker
 var MEXPrometheusAppName = cloudcommon.MEXPrometheusAppName
 var AppInstCache edgeproto.AppInstCache
 var ClusterInstCache edgeproto.ClusterInstCache
@@ -93,7 +93,7 @@ func appInstCb(ctx context.Context, old *edgeproto.AppInst, new *edgeproto.AppIn
 		promAddress := fmt.Sprintf("%s:%d", clustIP, port)
 		log.DebugLog(log.DebugLevelMetrics, "prometheus found", "promAddress", promAddress)
 		if !exists {
-			stats, err = NewPromStats(promAddress, *collectInterval, metricSender.Update, &clusterInst, pf)
+			stats, err = NewClusterWorker(promAddress, *collectInterval, metricSender.Update, &clusterInst, pf)
 			if err == nil {
 				promMap[mapKey] = stats
 				stats.Start()
@@ -142,7 +142,7 @@ func main() {
 	}
 	pf.Init(&cloudletKey, *physicalName, *vaultAddr)
 
-	promMap = make(map[string]*PromStats)
+	promMap = make(map[string]*ClusterWorker)
 
 	//register shepherd to receive appinst and clusterinst notifications from crm
 	edgeproto.InitAppInstCache(&AppInstCache)

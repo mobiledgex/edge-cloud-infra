@@ -1,0 +1,17 @@
+---
+- assert:
+    that:
+      - "lookup('env','VAULT_ADDR')"
+      - "lookup('env','VAULT_TOKEN')"
+
+- name: Set up GitHub auth
+  hashivault_auth_method:
+    method_type: github
+
+- name: Configure GitHub auth
+  hashivault_write:
+    secret: /auth/github/config
+    data:
+      organization: mobiledgex
+      ttl: 15m
+      max_ttl: 15m

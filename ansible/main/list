@@ -13,6 +13,10 @@ stun_port=19302
 azure_volume_storage_class=managed-premium
 influxdb_volume_size=10Gi
 gitlab_gcp_storage_bucket=gitlab-registry
+vault_vm_hostname=vault-main.mobiledgex.net
+vault_port=443
+additional_vault_domains=vault.mobiledgex.net
+vault_firewall_setup=no
 
 [artifactory]
 artifactory.mobiledgex.net	ubuntu_release=xenial docker_skip_install=true artifactory_preconfigured=true
@@ -22,3 +26,6 @@ console.mobiledgex.net		skip_console_setup=true mc_vm_hostname=mc.mobiledgex.net
 
 [stun]
 stun.mobiledgex.net
+
+[vault]
+vault-main.mobiledgex.net

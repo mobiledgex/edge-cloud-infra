@@ -13,3 +13,6 @@
     auth_kind: "{{ gcp_auth_kind }}"
     service_account_file: "{{ gcp_service_account_file_firewall }}"
   delegate_to: localhost
+  when:
+    - vault_firewall_setup is not defined
+    - not vault_firewall_setup

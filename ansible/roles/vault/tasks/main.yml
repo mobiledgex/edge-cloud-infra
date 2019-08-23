@@ -45,6 +45,14 @@
   become: yes
   tags: setup
 
+- name: Grant privileged port access
+  capabilities:
+    path: "{{ vault_path }}/vault"
+    capability: cap_net_bind_service+ep
+  become: yes
+  tags: setup
+  when: vault_port < 1024
+
 - name: Create storage bucket
   command: "gsutil mb gs://{{ storage_bucket_name }}"
   changed_when: false

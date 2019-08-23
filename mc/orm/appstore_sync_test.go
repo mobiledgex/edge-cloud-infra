@@ -63,7 +63,7 @@ var (
 		},
 	}
 
-	// Missing entries only present in MC but not Artifactory/Gitlab
+	// Missing entries only present in MC but not in Artifactory/Gitlab
 	missingEntries []entry = []entry{
 		entry{
 			Org:     "missingOrg1",
@@ -255,7 +255,7 @@ func TestAppStoreApi(t *testing.T) {
 		mcClientDelete(t, v, mcClient, uri, tokenAdmin)
 	}
 
-	// By now, artifactory Sync thread should delete all extra objects as well
+	// By now, appstore Sync threads should delete all extra objects as well
 	rtf.verifyEmpty(t)
 	gm.verifyEmpty(t)
 }

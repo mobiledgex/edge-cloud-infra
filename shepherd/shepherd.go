@@ -54,17 +54,17 @@ func appInstCb(ctx context.Context, old *edgeproto.AppInst, new *edgeproto.AppIn
 	var mapKey = k8smgmt.GetK8sNodeNameSuffix(&new.Key.ClusterInstKey)
 	stats, exists := promMap[mapKey]
 	if new.State == edgeproto.TrackedState_READY {
-		log.DebugLog(log.DebugLevelMetrics, "New Prometheus instance detected", "clustername", mapKey, "appInst", new)
+		log.SpanLog(ctx, log.DebugLevelMetrics, "New Prometheus instance detected", "clustername", mapKey, "appInst", new)
 		//get address of prometheus.
 		clusterInst := edgeproto.ClusterInst{}
 		found := ClusterInstCache.Get(&new.Key.ClusterInstKey, &clusterInst)
 		if !found {
-			log.DebugLog(log.DebugLevelMetrics, "Unable to find clusterInst for prometheus")
+			log.SpanLog(ctx, log.DebugLevelMetrics, "Unable to find clusterInst for prometheus")
 			return
 		}
 		clustIP, err := pf.GetClusterIP(&clusterInst)
 		if err != nil {
-			log.DebugLog(log.DebugLevelMetrics, "error getting clusterIP", "err", err.Error())
+			log.SpanLog(ctx, log.DebugLevelMetrics, "error getting clusterIP", "err", err.Error())
 			return
 		}
 		// We don't actually expose prometheus ports - we should default to 9090
@@ -74,7 +74,7 @@ func appInstCb(ctx context.Context, old *edgeproto.AppInst, new *edgeproto.AppIn
 			port = defaultPrometheusPort
 		}
 		promAddress := fmt.Sprintf("%s:%d", clustIP, port)
-		log.DebugLog(log.DebugLevelMetrics, "prometheus found", "promAddress", promAddress)
+		log.SpanLog(ctx, log.DebugLevelMetrics, "prometheus found", "promAddress", promAddress)
 		if !exists {
 			stats, err = NewClusterWorker(promAddress, *collectInterval, metricSender.Update, &clusterInst, pf)
 			if err == nil {
@@ -82,7 +82,7 @@ func appInstCb(ctx context.Context, old *edgeproto.AppInst, new *edgeproto.AppIn
 				stats.Start()
 			}
 		} else { //somehow this cluster's prometheus was already registered
-			log.DebugLog(log.DebugLevelMetrics, "Error, Prometheus app already registered for this cluster")
+			log.SpanLog(ctx, log.DebugLevelMetrics, "Error, Prometheus app already registered for this cluster")
 		}
 	} else { //if its anything other than ready just stop it
 		//try to remove it from the prommap
@@ -101,7 +101,7 @@ func clusterInstCb(ctx context.Context, old *edgeproto.ClusterInst, new *edgepro
 	var mapKey = k8smgmt.GetK8sNodeNameSuffix(&new.Key)
 	stats, exists := promMap[mapKey]
 	if new.State == edgeproto.TrackedState_READY {
-		log.DebugLog(log.DebugLevelMetrics, "New Docker cluster detected", "clustername", mapKey, "clusterInst", new)
+		log.SpanLog(ctx, log.DebugLevelMetrics, "New Docker cluster detected", "clustername", mapKey, "clusterInst", new)
 		if !exists {
 			stats, err := NewClusterWorker("", *collectInterval, metricSender.Update, new, pf)
 			if err == nil {
@@ -109,7 +109,7 @@ func clusterInstCb(ctx context.Context, old *edgeproto.ClusterInst, new *edgepro
 				stats.Start()
 			}
 		} else { //somehow this cluster's prometheus was already registered
-			log.DebugLog(log.DebugLevelMetrics, "Error, This cluster is already registered")
+			log.SpanLog(ctx, log.DebugLevelMetrics, "Error, This cluster is already registered")
 		}
 	} else { //if its anything other than ready just stop it
 		//try to remove it from the prommap

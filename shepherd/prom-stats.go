@@ -176,7 +176,7 @@ func collectAppPrometheusMetrics(p *K8sClusterStats) map[MetricAppInstKey]*AppMe
 	return appStatsMap
 }
 
-func collectClusterPormetheusMetrics(p *K8sClusterStats) error {
+func collectClusterPrometheusMetrics(p *K8sClusterStats) error {
 	// Get Cluster CPU usage
 	resp, err := getPromMetrics(p.promAddr, promQCpuClust, p.client)
 	if err == nil && resp.Status == "success" {

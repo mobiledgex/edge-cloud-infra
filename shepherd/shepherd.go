@@ -118,7 +118,6 @@ func clusterInstCb(ctx context.Context, old *edgeproto.ClusterInst, new *edgepro
 			stats.Stop()
 		}
 	}
-
 }
 
 func getPlatform() (platform.Platform, error) {

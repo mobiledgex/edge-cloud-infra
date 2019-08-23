@@ -57,6 +57,7 @@ var DefaultDBName = "mcdb"
 var DefaultDBPass = ""
 var DefaultSuperuser = "mexadmin"
 var DefaultSuperpass = "mexadmin123"
+var Superuser string
 
 var database *gorm.DB
 var enforcer *casbin.SyncedEnforcer
@@ -79,7 +80,7 @@ func RunServer(config *ServerConfig) (*Server, error) {
 	dbuser := os.Getenv("db_username")
 	dbpass := os.Getenv("db_password")
 	dbname := os.Getenv("db_name")
-	superuser := os.Getenv("superuser")
+	Superuser = os.Getenv("superuser")
 	superpass := os.Getenv("superpass")
 	gitlabToken := os.Getenv("gitlab_token")
 	if dbuser == "" || config.IgnoreEnv {
@@ -91,8 +92,8 @@ func RunServer(config *ServerConfig) (*Server, error) {
 	if dbpass == "" || config.IgnoreEnv {
 		dbpass = DefaultDBPass
 	}
-	if superuser == "" || config.IgnoreEnv {
-		superuser = DefaultSuperuser
+	if Superuser == "" || config.IgnoreEnv {
+		Superuser = DefaultSuperuser
 	}
 	if superpass == "" || config.IgnoreEnv {
 		superpass = DefaultSuperpass
@@ -174,7 +175,7 @@ func RunServer(config *ServerConfig) (*Server, error) {
 	server.database = database
 
 	server.initDataDone = make(chan struct{}, 1)
-	go InitData(ctx, superuser, superpass, config.PingInterval, &server.stopInitData, server.initDataDone)
+	go InitData(ctx, Superuser, superpass, config.PingInterval, &server.stopInitData, server.initDataDone)
 
 	e := echo.New()
 	e.HideBanner = true
@@ -258,19 +259,16 @@ func RunServer(config *ServerConfig) (*Server, error) {
 	gitlabSync = GitlabNewSync()
 	artifactorySync = ArtifactoryNewSync()
 
-	err = server.WaitUntilReady()
+	// gitlab/artifactory sync requires data to be initialized
+	<-server.initDataDone
+	gitlabSync.Start()
+	artifactorySync.Start()
 
 	return &server, err
 }
 
 func (s *Server) WaitUntilReady() error {
-	// wait until init data is done
-	<-s.initDataDone
-
-	// Start sync service
-	gitlabSync.Start()
-	artifactorySync.Start()
-
+	// login won't work until jwt keys are pulled
 	<-s.initJWKDone
 
 	// wait until server is online

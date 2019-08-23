@@ -1,0 +1,69 @@
+- name: deploy CRM GW 
+  user: ubuntu
+  gather_facts: no
+  become: yes
+  hosts: crmgws
+  vars:
+     nginx_dir: /home/ubuntu/crm-gw/nginx  
+     nginx_log_dir: /var/log/nginx/
+     tinyproxy_log_dir: /var/log/tinyproxy/
+ 
+  tasks:
+    - name: check variables
+      debug: 
+        msg: verify controller_hostname and controller_notify_port set
+      failed_when:
+       - controller_hostname is not defined
+       - controller_notify_port is not defined
+
+    - name: Install python3-pip
+      package:
+        name: python3-pip
+        state: present
+        update_cache: yes
+
+    - name: Pip install docker
+      pip:
+        name: docker
+
+    - name: Create nginx dirs
+      file:
+        path: "{{ item }}"
+        state: directory
+      with_items:
+        - "{{ nginx_dir }}"
+        - "{{ nginx_log_dir }}"
+    
+    - name: Create tinyproxy log dir
+      file:
+        path: "{{ tinyproxy_log_dir }}"
+        state: directory
+        mode: '777'
+
+    - name: install nginx config
+      template: 
+        src: templates/crm-gw-nginx-config.j2
+        dest: "{{ nginx_dir}}/nginx.conf"
+       
+    - name: startup nginx
+      docker_container:
+        image: nginx
+        name: crm-gw-nginx
+        network_mode: host
+        restart_policy: unless-stopped   
+        state: started
+        volumes:
+         - "{{ nginx_dir }}/nginx.conf:/etc/nginx/nginx.conf"
+         - "{{ nginx_log_dir }}:{{ nginx_log_dir }}"
+
+    - name: startup tinyproxy
+      docker_container:
+        image: travix/tinyproxy
+        name: tinyproxy
+        ports:
+         - "443:8888"
+        restart_policy: unless-stopped
+        state: started
+        volumes:
+         - "{{ tinyproxy_log_dir }}:{{ tinyproxy_log_dir }}"
+

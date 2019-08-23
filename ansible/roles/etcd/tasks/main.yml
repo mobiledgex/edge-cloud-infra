@@ -58,6 +58,3 @@
   until: etcd_sts_facts.get("resources", []) and etcd_sts_facts.resources[0].get("status", {}).get("readyReplicas", 0) == etcd_replica_num
   retries: 30
   delay: 10
-
-- debug:
-    msg: "XXX: Health check?"

@@ -13,7 +13,6 @@ import (
 	"github.com/mobiledgex/edge-cloud-infra/shepherd/shepherd_platform/shepherd_dind"
 	"github.com/mobiledgex/edge-cloud-infra/shepherd/shepherd_platform/shepherd_fake"
 	"github.com/mobiledgex/edge-cloud-infra/shepherd/shepherd_platform/shepherd_openstack"
-	"github.com/mobiledgex/edge-cloud/cloud-resource-manager/k8smgmt"
 	"github.com/mobiledgex/edge-cloud/cloudcommon"
 	"github.com/mobiledgex/edge-cloud/edgeproto"
 	"github.com/mobiledgex/edge-cloud/log"
@@ -38,7 +37,7 @@ var promMap map[string]*ClusterWorker
 var MEXPrometheusAppName = cloudcommon.MEXPrometheusAppName
 var AppInstCache edgeproto.AppInstCache
 var ClusterInstCache edgeproto.ClusterInstCache
-var metricSender *notify.MetricSend
+var MetricSender *notify.MetricSend
 
 var cloudletKey edgeproto.CloudletKey
 var pf platform.Platform
@@ -151,7 +150,9 @@ func main() {
 		log.FatalLog("Failed to get platform", "platformName", platformName, "err", err)
 	}
 	pf.Init(&cloudletKey, *physicalName, *vaultAddr)
-
+	if err != nil {
+		log.FatalLog("Failed to initialize platform", "platformName", platformName, "err", err)
+	}
 	promMap = make(map[string]*ClusterWorker)
 
 	//register shepherd to receive appinst and clusterinst notifications from crm
@@ -164,9 +165,11 @@ func main() {
 	notifyClient.RegisterRecvAppInstCache(&AppInstCache)
 	notifyClient.RegisterRecvClusterInstCache(&ClusterInstCache)
 	//register to send metrics
-	metricSender = notify.NewMetricSend()
-	notifyClient.RegisterSend(metricSender)
+	MetricSender = notify.NewMetricSend()
+	notifyClient.RegisterSend(MetricSender)
 
+	//set up relevant metric scrapers
+	InitMetricCollectors()
 	notifyClient.Start()
 	defer notifyClient.Stop()
 
@@ -179,4 +182,18 @@ func main() {
 	// wait until process in killed/interrupted
 	sig := <-sigChan
 	fmt.Println(sig)
+}
+
+func InitMetricCollectors() {
+	InitPromScraper()
+	InitNginxScraper()
+}
+
+//trims the output from the pc.PlatformClient.Output request so that to get rid of the header stuff tacked on by it
+func OutputTrim(output string) string {
+	lines := strings.SplitN(output, "\n", platformClientHeaderSize+1)
+	if len(lines) == 0 {
+		return ""
+	}
+	return lines[len(lines)-1]
 }

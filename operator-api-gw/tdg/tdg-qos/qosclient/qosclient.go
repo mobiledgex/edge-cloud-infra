@@ -12,7 +12,7 @@ import (
 	"github.com/mobiledgex/edge-cloud/log"
 	edgetls "github.com/mobiledgex/edge-cloud/tls"
 	"google.golang.org/grpc"
-
+	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/credentials"
 )
 
@@ -33,7 +33,7 @@ func GetQosCertsFromVault(vaultAddr string) error {
 		fileName := "/tmp/" + cert
 		err := mexos.GetVaultDataToFile(certURL, fileName)
 		if err != nil {
-			return fmt.Errorf("Unable to get cert from file: %s, %v", cert, err)
+			return grpc.Errorf(codes.Internal, "Unable to get cert from file: %s, %v", cert, err)
 		}
 	}
 	return nil
@@ -44,7 +44,7 @@ func GetQOSPositionFromApiGW(serverUrl string, mreq *dme.QosPositionRequest, qos
 	clientCertFile := "/tmp/" + clientCert
 
 	if mreq.Positions == nil {
-		return fmt.Errorf("No positions requested")
+		return grpc.Errorf(codes.InvalidArgument, "No positions requested")
 	}
 
 	// in case the responses come put of order, we need to be able to lookup the GPS coordinate of the request positionid
@@ -54,14 +54,14 @@ func GetQOSPositionFromApiGW(serverUrl string, mreq *dme.QosPositionRequest, qos
 
 	tlsConfig, err := edgetls.GetTLSClientConfig(serverUrl, clientCertFile, serverCertFile, false)
 	if err != nil {
-		return fmt.Errorf("Unable get TLS Client config: %v", err)
+		return grpc.Errorf(codes.Unavailable, "Unable get TLS Client config: %v", err)
 	}
 
 	transportCreds := credentials.NewTLS(tlsConfig)
 	dialOption := grpc.WithTransportCredentials(transportCreds)
 	conn, err := grpc.Dial(serverUrl, dialOption)
 	if err != nil {
-		return fmt.Errorf("Unable to connect to API GW: %s, %v", serverUrl, err)
+		return grpc.Errorf(codes.Unavailable, "Unable to connect to API GW: %s, %v", serverUrl, err)
 	}
 	defer conn.Close()
 	ctx := context.TODO()
@@ -119,7 +119,7 @@ func GetQOSPositionFromApiGW(serverUrl string, mreq *dme.QosPositionRequest, qos
 			qosres.Positionid = r.Positionid
 			gps, ok := positionIdToGps[qosres.Positionid]
 			if !ok {
-				return fmt.Errorf("PositionId %d found in response but not request", qosres.Positionid)
+				return grpc.Errorf(codes.Internal, "PositionId %d found in response but not request", qosres.Positionid)
 			}
 			qosres.GpsLocation = gps
 			qosres.UluserthroughputMin = r.UluserthroughputMin

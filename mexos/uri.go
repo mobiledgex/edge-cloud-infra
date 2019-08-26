@@ -117,11 +117,7 @@ func GetSCPFile(uri string) ([]byte, error) {
 
 func GetUrlInfo(fileUrlPath string) (time.Time, string, error) {
 	log.DebugLog(log.DebugLevelMexos, "get url last-modified time", "file-url", fileUrlPath)
-	auth, err := cloudcommon.GetRegistryAuth(fileUrlPath, VaultAddr)
-	if err != nil {
-		log.DebugLog(log.DebugLevelMexos, "failed to get auth", "file-url", fileUrlPath, "err", err)
-	}
-	resp, err := cloudcommon.SendHTTPReq("HEAD", fileUrlPath, auth)
+	resp, err := cloudcommon.SendHTTPReq("HEAD", fileUrlPath, VaultAddr)
 	if err != nil {
 		return time.Time{}, "", fmt.Errorf("Error fetching last modified time of URL %s, %v", fileUrlPath, err)
 	}
@@ -160,11 +156,7 @@ func Md5SumFile(filePath string) (string, error) {
 func DownloadFile(fileUrlPath string, filePath string) error {
 	log.DebugLog(log.DebugLevelMexos, "attempt to download file", "file-url", fileUrlPath)
 
-	auth, err := cloudcommon.GetRegistryAuth(fileUrlPath, VaultAddr)
-	if err != nil {
-		log.DebugLog(log.DebugLevelMexos, "failed to get auth", "file-url", fileUrlPath, "err", err)
-	}
-	resp, err := cloudcommon.SendHTTPReq("GET", fileUrlPath, auth)
+	resp, err := cloudcommon.SendHTTPReq("GET", fileUrlPath, VaultAddr)
 	if err != nil {
 		return err
 	}

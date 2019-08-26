@@ -46,10 +46,7 @@ type PromLables struct {
 	PodName string `json:"pod_name,omitempty"`
 }
 
-//gets shepherd ready to pull from running prometheuses
-func InitPromScraper() {
-	PromMap = make(map[string]*PromStats)
-}
+const platformClientHeaderSize = 3
 
 //trims the output from the pc.PlatformClient.Output request so that to get rid of the header stuff tacked on by it
 func outputTrim(output string) string {
@@ -68,7 +65,7 @@ func getPromMetrics(addr string, query string, client pc.PlatformClient) (*PromR
 		log.DebugLog(log.DebugLevelMetrics, errstr, "err", err.Error())
 		return nil, err
 	}
-	trimmedResp := OutputTrim(resp)
+	trimmedResp := outputTrim(resp)
 	promResp := &PromResp{}
 	if err = json.Unmarshal([]byte(trimmedResp), promResp); err != nil {
 		return nil, err

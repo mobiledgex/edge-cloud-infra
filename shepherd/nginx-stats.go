@@ -14,6 +14,9 @@ import (
 	"github.com/mobiledgex/edge-cloud/log"
 )
 
+var nginxAddChan chan NginxScrapePoint
+var nginxRemoveChan chan string
+
 type NginxScrapePoint struct {
 	App       string
 	Cluster   string
@@ -21,20 +24,6 @@ type NginxScrapePoint struct {
 	Client    pc.PlatformClient
 	Container string //this is specific to k8s, will need to accomodate for docker as well (when we get there)
 }
-
-type NginxMetrics struct {
-	ActiveConn  uint64
-	Accepts     uint64
-	HandledConn uint64
-	Requests    uint64
-	Reading     uint64
-	Writing     uint64
-	Waiting     uint64
-	Ts          *types.Timestamp
-}
-
-var nginxAddChan chan NginxScrapePoint
-var nginxRemoveChan chan string
 
 func InitNginxScraper() {
 	nginxAddChan = make(chan NginxScrapePoint)
@@ -99,7 +88,7 @@ func NginxScraper() {
 					log.DebugLog(log.DebugLevelMetrics, "Error retrieving nginx metrics", "appinst", v.App, "error", err.Error())
 				} else {
 					//send to crm->controller->influx
-					influxData := newNginxMetric(v, metrics)
+					influxData := MarshallNginxMetric(v, metrics)
 					MetricSender.Update(ctx, influxData)
 				}
 				span.Finish()
@@ -189,7 +178,7 @@ func parseNginxResp(resp string, metrics *NginxMetrics) error {
 	return nil
 }
 
-func newNginxMetric(scrapePoint NginxScrapePoint, data *NginxMetrics) *edgeproto.Metric {
+func MarshallNginxMetric(scrapePoint NginxScrapePoint, data *NginxMetrics) *edgeproto.Metric {
 	metric := edgeproto.Metric{}
 	metric.Name = "appinst-nginx"
 	metric.Timestamp = *data.Ts

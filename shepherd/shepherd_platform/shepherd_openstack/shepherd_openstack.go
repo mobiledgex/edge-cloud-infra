@@ -1,7 +1,6 @@
 package shepherd_openstack
 
 import (
-	"fmt"
 	"github.com/mobiledgex/edge-cloud-infra/crm-platforms/openstack"
 	"github.com/mobiledgex/edge-cloud-infra/mexos"
 	"github.com/mobiledgex/edge-cloud/cloud-resource-manager/platform/pc"
@@ -32,7 +31,6 @@ func (s *Platform) Init(key *edgeproto.CloudletKey, physicalName, vaultAddr stri
 	if err != nil {
 		return err
 	}
-	fmt.Printf("asdf %+v\n", s)
 	log.DebugLog(log.DebugLevelMexos, "init openstack", "rootLB", s.rootLbName,
 		"physicalName", physicalName, "vaultAddr", vaultAddr)
 	return nil

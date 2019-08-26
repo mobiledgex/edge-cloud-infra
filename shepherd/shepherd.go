@@ -13,6 +13,7 @@ import (
 	"github.com/mobiledgex/edge-cloud-infra/shepherd/shepherd_platform/shepherd_dind"
 	"github.com/mobiledgex/edge-cloud-infra/shepherd/shepherd_platform/shepherd_fake"
 	"github.com/mobiledgex/edge-cloud-infra/shepherd/shepherd_platform/shepherd_openstack"
+	"github.com/mobiledgex/edge-cloud/cloud-resource-manager/k8smgmt"
 	"github.com/mobiledgex/edge-cloud/cloudcommon"
 	"github.com/mobiledgex/edge-cloud/edgeproto"
 	"github.com/mobiledgex/edge-cloud/log"
@@ -45,6 +46,7 @@ var pf platform.Platform
 var sigChan chan os.Signal
 
 func appInstCb(ctx context.Context, old *edgeproto.AppInst, new *edgeproto.AppInst) {
+	CollectNginxStats(new)
 	var port int32
 	//check for prometheus
 	if new.Key.AppKey.Name != MEXPrometheusAppName {
@@ -75,7 +77,7 @@ func appInstCb(ctx context.Context, old *edgeproto.AppInst, new *edgeproto.AppIn
 		promAddress := fmt.Sprintf("%s:%d", clustIP, port)
 		log.SpanLog(ctx, log.DebugLevelMetrics, "prometheus found", "promAddress", promAddress)
 		if !exists {
-			stats, err = NewClusterWorker(promAddress, *collectInterval, metricSender.Update, &clusterInst, pf)
+			stats, err = NewClusterWorker(promAddress, *collectInterval, MetricSender.Update, &clusterInst, pf)
 			if err == nil {
 				promMap[mapKey] = stats
 				stats.Start()
@@ -102,7 +104,7 @@ func clusterInstCb(ctx context.Context, old *edgeproto.ClusterInst, new *edgepro
 	if new.State == edgeproto.TrackedState_READY {
 		log.SpanLog(ctx, log.DebugLevelMetrics, "New Docker cluster detected", "clustername", mapKey, "clusterInst", new)
 		if !exists {
-			stats, err := NewClusterWorker("", *collectInterval, metricSender.Update, new, pf)
+			stats, err := NewClusterWorker("", *collectInterval, MetricSender.Update, new, pf)
 			if err == nil {
 				promMap[mapKey] = stats
 				stats.Start()
@@ -154,6 +156,7 @@ func main() {
 		log.FatalLog("Failed to initialize platform", "platformName", platformName, "err", err)
 	}
 	promMap = make(map[string]*ClusterWorker)
+	InitNginxScraper()
 
 	//register shepherd to receive appinst and clusterinst notifications from crm
 	edgeproto.InitAppInstCache(&AppInstCache)
@@ -168,8 +171,6 @@ func main() {
 	MetricSender = notify.NewMetricSend()
 	notifyClient.RegisterSend(MetricSender)
 
-	//set up relevant metric scrapers
-	InitMetricCollectors()
 	notifyClient.Start()
 	defer notifyClient.Stop()
 
@@ -182,18 +183,4 @@ func main() {
 	// wait until process in killed/interrupted
 	sig := <-sigChan
 	fmt.Println(sig)
-}
-
-func InitMetricCollectors() {
-	InitPromScraper()
-	InitNginxScraper()
-}
-
-//trims the output from the pc.PlatformClient.Output request so that to get rid of the header stuff tacked on by it
-func OutputTrim(output string) string {
-	lines := strings.SplitN(output, "\n", platformClientHeaderSize+1)
-	if len(lines) == 0 {
-		return ""
-	}
-	return lines[len(lines)-1]
 }

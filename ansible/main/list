@@ -17,6 +17,7 @@ vault_vm_hostname=vault-main.mobiledgex.net
 vault_port=443
 additional_vault_domains=vault.mobiledgex.net
 vault_firewall_setup=no
+letsencrypt_env=production
 
 [artifactory]
 artifactory.mobiledgex.net	ubuntu_release=xenial docker_skip_install=true artifactory_preconfigured=true

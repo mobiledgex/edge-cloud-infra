@@ -143,35 +143,28 @@ func parseNginxResp(resp string, metrics *NginxMetrics) error {
 	//first line has active connections
 	stats := strings.Split(lines[0], " ")
 	if metrics.ActiveConn, err = strconv.ParseUint(stats[1], 10, 64); err != nil {
-		fmt.Printf("1: %s\n", stats[2])
 		return err
 	}
 	//third line for accepts, handled, and requests
 	stats = strings.Split(lines[2], " ")
 	if metrics.Accepts, err = strconv.ParseUint(stats[1], 10, 64); err != nil {
-		fmt.Printf("2: '%s'\n", stats[1])
 		return err
 	}
 	if metrics.HandledConn, err = strconv.ParseUint(stats[2], 10, 64); err != nil {
-		fmt.Printf("3: '%s'\n", stats[2])
 		return err
 	}
 	if metrics.Requests, err = strconv.ParseUint(stats[3], 10, 64); err != nil {
-		fmt.Printf("4: '%s'\n", stats[3])
 		return err
 	}
 	//last line has reading, writing, waiting
 	stats = strings.Split(lines[3], " ")
 	if metrics.Reading, err = strconv.ParseUint(stats[1], 10, 64); err != nil {
-		fmt.Printf("5: '%s'\n", stats[1])
 		return err
 	}
 	if metrics.Writing, err = strconv.ParseUint(stats[3], 10, 64); err != nil {
-		fmt.Printf("6: '%s'\n", stats[3])
 		return err
 	}
 	if metrics.Waiting, err = strconv.ParseUint(stats[5], 10, 64); err != nil {
-		fmt.Printf("7: '%s'\n", stats[5])
 		return err
 	}
 	metrics.Ts, _ = types.TimestampProto(time.Now())

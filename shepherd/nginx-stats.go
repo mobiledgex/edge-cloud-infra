@@ -100,7 +100,7 @@ func NginxScraper() {
 
 func QueryNginx(scrapePoint NginxScrapePoint) (*NginxMetrics, error) {
 	//build the query
-	request := fmt.Sprintf("docker exec %s curl http://127.0.0.1:8080/nginx_metrics", scrapePoint.Container)
+	request := fmt.Sprintf("docker exec %s curl http://127.0.0.1:9091/nginx_metrics", scrapePoint.Container)
 	resp, err := scrapePoint.Client.Output(request)
 	//if this is the first time, or the container got restarted, install curl
 	if strings.Contains(resp, "executable file not found") {
@@ -136,7 +136,7 @@ func parseNginxResp(resp string, metrics *NginxMetrics) error {
 
 	var err error
 	//fix this hardcoding later
-	if len(lines) < 5 {
+	if len(lines) < 4 {
 		return fmt.Errorf("Unexpected output format")
 	}
 

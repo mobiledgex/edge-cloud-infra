@@ -18,16 +18,18 @@
     mode: 0400
   become: yes
 
+- debug:
+    msg: "Generating cert for domains(s): {{ cert_domains | join(', ') }}"
+
 - name: Obtain certs from Letsencrypt
   command: >-
     certbot certonly
       --dns-cloudflare --dns-cloudflare-credentials {{ cloudflare_credentials_file }}
       --agree-tos --email {{ mex_ops_email }} --non-interactive
-      -d {{ item }}
+      -d {{ cert_domains | join(" -d ") }}
   become: yes
   args:
-    creates: "{{ letsencrypt_root }}/{{ item }}/fullchain.pem"
-  with_items: "{{ cert_domains }}"
+    creates: "{{ letsencrypt_root }}/{{ cert_domains[0] }}/fullchain.pem"
   notify:
     - Restart nginx
 

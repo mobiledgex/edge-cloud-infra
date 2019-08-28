@@ -5,3 +5,8 @@ vault_conf: /etc/vault.hcl
 vault_plugin_directory: /etc/vault-plugins
 certgen_image: "{{ mex_docker_registry }}/mobiledgex/certgen"
 certgen_port: 4568
+github_policy: github-dev
+github_org: mobiledgex
+github_dev_team: edge-cloud-development-team
+letsencrypt_path: certs
+letsencrypt_backend: letsencrypt-certs

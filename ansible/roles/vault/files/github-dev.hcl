@@ -7,25 +7,25 @@ path "secret/metadata/ansible/*" {
 }
 
 path "secret/data/ansible/main/*" {
-	capabilities = ["deny"]
+	capabilities = []
 }
 
 path "secret/metadata/ansible/main/*" {
-	capabilities = ["deny"]
+	capabilities = []
 }
 
 path "secret/data/ansible/prod/*" {
-	capabilities = ["deny"]
+	capabilities = []
 }
 
 path "secret/metadata/ansible/prod/*" {
-	capabilities = ["deny"]
+	capabilities = []
 }
 
 path "secret/data/ansible/internal/*" {
-	capabilities = ["deny"]
+	capabilities = []
 }
 
 path "secret/metadata/ansible/internal/*" {
-	capabilities = ["deny"]
+	capabilities = []
 }

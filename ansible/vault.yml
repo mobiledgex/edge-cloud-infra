@@ -13,7 +13,7 @@
         name: web
         tasks_from: certs
       vars:
-        cert_domains: [ "{{ vault_vm_hostname }}" ]
+        cert_domains: "{{ [ vault_vm_hostname ] + additional_vault_domains.split(',') }}"
       tags: setup
 
     - name: Set up vault firewall rules

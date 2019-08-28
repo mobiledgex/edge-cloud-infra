@@ -45,6 +45,14 @@
   become: yes
   tags: setup
 
+- name: Grant privileged port access
+  capabilities:
+    path: "{{ vault_path }}/vault"
+    capability: cap_net_bind_service+ep
+  become: yes
+  tags: setup
+  when: vault_port < 1024
+
 - name: Create storage bucket
   command: "gsutil mb gs://{{ storage_bucket_name }}"
   changed_when: false
@@ -142,7 +150,7 @@
   get_url:
     url: "{{ vault_letsencrypt_plugin }}"
     dest: "{{ vault_plugin_directory }}/letsencrypt-plugin"
-    checksum: "{{ vault_letsencrypt_plugin_checksum }}"
+    checksum: "sha256:{{ vault_letsencrypt_plugin_sha256sum }}"
     headers:
       Authorization: "Bearer {{ artifactory_token }}"
   register: vault_letsencrypt_plugin_download
@@ -164,7 +172,10 @@
     capability: cap_ipc_lock+ep
   become: yes
 
-- name: Deploy certgen service
+- set_fact:
+    le_env: "{{ letsencrypt_env | default('staging') }}"
+
+- name: "Deploy certgen service ({{ le_env }})"
   docker_container:
     name: certgen
     image: "{{ certgen_image }}:{{ certgen_image_version }}"
@@ -174,7 +185,7 @@
     env:
       RAILS_ENV: production
       RACK_ENV: production
-      LETSENCRYPT_ENV: "{{ letsencrypt_env | default('staging') }}"
+      LETSENCRYPT_ENV: "{{ le_env }}"
       CF_USER: "{{ cloudflare_account_email }}"
       CF_APIKEY: "{{ cloudflare_account_api_token }}"
 

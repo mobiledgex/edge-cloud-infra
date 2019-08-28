@@ -2,5 +2,6 @@
 vault_version: 1.1.2
 vault_checksum: sha256:e927fd4daac11f6c7b8b3f1f53f2017516e29e99585dc975b657acdeac43500b
 vault_letsencrypt_plugin: "{{ artifactory_address }}/binaries/vault-letsencrypt-plugin/1.0/letsencrypt-plugin"
-vault_letsencrypt_plugin_checksum: sha256:0f521764878fcdd5ad8c069e841197fbf3085c9c1ea290310edce3a68bb33902
+vault_letsencrypt_plugin_sha256sum: 0f521764878fcdd5ad8c069e841197fbf3085c9c1ea290310edce3a68bb33902
 certgen_image_version: 2019-08-16
+additional_vault_domains: ''

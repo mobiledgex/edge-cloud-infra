@@ -20,17 +20,20 @@
   hashivault_policy_set:
     name: "{{ github_policy }}"
     rules: "{{ lookup('file', 'github-dev.hcl') }}"
+  tags: policies
 
 - name: Map edge-cloud dev team to Github dev policy
   hashivault_write:
     secret: "/auth/github/map/teams/{{ github_dev_team }}"
     data:
       value: "{{ github_policy }}"
+  tags: policies
 
 - name: Install superuser policy
   hashivault_policy_set:
     name: superuser
     rules: "{{ lookup('file', 'superuser.hcl') }}"
+  tags: policies
 
 - name: Configure letsencrypt plugin
   hashivault_write:

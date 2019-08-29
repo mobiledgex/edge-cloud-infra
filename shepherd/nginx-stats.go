@@ -23,7 +23,7 @@ type NginxScrapePoint struct {
 	Cluster   string
 	Dev       string
 	Client    pc.PlatformClient
-	Container string //this is specific to k8s, will need to accomodate for docker as well (when we get there)
+	Container string // this is specific to k8s, will need to accomodate for docker as well (when we get there)
 }
 
 func InitNginxScraper() {
@@ -59,12 +59,12 @@ func CollectNginxStats(appInst *edgeproto.AppInst) {
 			log.DebugLog(log.DebugLevelMetrics, "Failed to acquire platform client", "cluster", clusterInst.Key, "error", err)
 			return
 		}
-		//this can block for a bit so run it in a separate thread
+		// this can block for a bit so run it in a separate thread
 		go func() {
 			nginxAddChan <- new
 		}()
 	} else {
-		//if the app is anything other than ready, stop tracking it
+		// if the app is anything other than ready, stop tracking it
 		go func() {
 			nginxRemoveChan <- appInst.Key.AppKey.Name
 		}()
@@ -74,7 +74,7 @@ func CollectNginxStats(appInst *edgeproto.AppInst) {
 func NginxScraper() {
 	nginxMap := make(map[string]NginxScrapePoint)
 	for true {
-		//check if there are any new apps we need to start/stop scraping for
+		// check if there are any new apps we need to start/stop scraping for
 		select {
 		case new := <-nginxAddChan:
 			nginxMap[new.App] = new
@@ -92,7 +92,7 @@ func NginxScraper() {
 				if err != nil {
 					log.DebugLog(log.DebugLevelMetrics, "Error retrieving nginx metrics", "appinst", v.App, "error", err.Error())
 				} else {
-					//send to crm->controller->influx
+					// send to crm->controller->influx
 					influxData := MarshallNginxMetric(v, metrics)
 					MetricSender.Update(ctx, influxData)
 				}
@@ -104,10 +104,10 @@ func NginxScraper() {
 }
 
 func QueryNginx(scrapePoint NginxScrapePoint) (*NginxMetrics, error) {
-	//build the query
+	// build the query
 	request := fmt.Sprintf("docker exec %s curl http://127.0.0.1:%d/nginx_metrics", scrapePoint.Container, cloudcommon.NginxMetricsPort)
 	resp, err := scrapePoint.Client.Output(request)
-	//if this is the first time, or the container got restarted, install curl
+	// if this is the first time, or the container got restarted, install curl
 	if strings.Contains(resp, "executable file not found") {
 		log.DebugLog(log.DebugLevelMexos, "Installing curl onto docker container "+scrapePoint.Container+" for metrics collection")
 		installer := fmt.Sprintf("docker exec %s apt-get update; docker exec %s apt-get --assume-yes install curl", scrapePoint.Container, scrapePoint.Container)
@@ -115,7 +115,7 @@ func QueryNginx(scrapePoint NginxScrapePoint) (*NginxMetrics, error) {
 		if err != nil {
 			return nil, fmt.Errorf("can't install curl on nginx container %s, %s, %v", *name, resp, err)
 		}
-		//now retry curling
+		// now retry curling
 		resp, err = scrapePoint.Client.Output(request)
 	}
 	if err != nil {
@@ -132,7 +132,7 @@ func QueryNginx(scrapePoint NginxScrapePoint) (*NginxMetrics, error) {
 }
 
 func parseNginxResp(resp string, metrics *NginxMetrics) error {
-	//sometimes the response lines get cycled around, so break it up based on the start of the actual content
+	// sometimes the response lines get cycled around, so break it up based on the start of the actual content
 	trimmedResp := strings.Split(resp, "Active connections:")
 	if len(trimmedResp) < 2 {
 		return fmt.Errorf("Unexpected output format")
@@ -145,12 +145,12 @@ func parseNginxResp(resp string, metrics *NginxMetrics) error {
 		return fmt.Errorf("Unexpected output format")
 	}
 
-	//first line has active connections
+	// first line has active connections
 	stats := strings.Split(lines[0], " ")
 	if metrics.ActiveConn, err = strconv.ParseUint(stats[1], 10, 64); err != nil {
 		return err
 	}
-	//third line for accepts, handled, and requests
+	// third line for accepts, handled, and requests
 	stats = strings.Split(lines[2], " ")
 	if metrics.Accepts, err = strconv.ParseUint(stats[1], 10, 64); err != nil {
 		return err
@@ -161,7 +161,7 @@ func parseNginxResp(resp string, metrics *NginxMetrics) error {
 	if metrics.Requests, err = strconv.ParseUint(stats[3], 10, 64); err != nil {
 		return err
 	}
-	//last line has reading, writing, waiting
+	// last line has reading, writing, waiting
 	stats = strings.Split(lines[3], " ")
 	if metrics.Reading, err = strconv.ParseUint(stats[1], 10, 64); err != nil {
 		return err

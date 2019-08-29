@@ -32,6 +32,10 @@ func InitNginxScraper() {
 }
 
 func CollectNginxStats(appInst *edgeproto.AppInst) {
+	// ignore prometheus apps as they dont have an nginx lb
+	if appInst.Key.AppKey.Name == MEXPrometheusAppName {
+		return
+	}
 	// add/remove from the list of nginx endpoints to hit
 	if appInst.State == edgeproto.TrackedState_READY {
 		new := NginxScrapePoint{

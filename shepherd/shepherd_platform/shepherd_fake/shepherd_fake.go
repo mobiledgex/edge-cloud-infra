@@ -1,11 +1,18 @@
 package shepherd_fake
 
 import (
+	"context"
+
 	"github.com/mobiledgex/edge-cloud/cloud-resource-manager/platform/pc"
 	"github.com/mobiledgex/edge-cloud/edgeproto"
 )
 
 type Platform struct {
+	ctx context.Context
+}
+
+func (s *Platform) SetContext(ctx context.Context) {
+	s.ctx = ctx
 }
 
 func (s *Platform) GetType() string {

@@ -22,16 +22,16 @@ var serverCert = "qosserver.crt"
 
 var nextRequestId int64 = 1
 
-func GetQosCertsFromVault(vaultAddr string) error {
-	log.DebugLog(log.DebugLevelDmereq, "GetQosCertsFromVault", "vaultAddr", vaultAddr)
+func GetQosCertsFromVault(ctx context.Context, vaultAddr string) error {
+	log.SpanLog(ctx, log.DebugLevelDmereq, "GetQosCertsFromVault", "vaultAddr", vaultAddr)
 
 	certs := []string{clientCert, clientKey, serverCert}
 	for _, cert := range certs {
 
 		certURL := fmt.Sprintf("%s/v1/secret/data/accounts/tdg/qosapi/%s", vaultAddr, cert)
-		log.DebugLog(log.DebugLevelDmereq, "Fetching Cert", "certURL", certURL)
+		log.SpanLog(ctx, log.DebugLevelDmereq, "Fetching Cert", "certURL", certURL)
 		fileName := "/tmp/" + cert
-		err := mexos.GetVaultDataToFile(certURL, fileName)
+		err := mexos.GetVaultDataToFile(ctx, certURL, fileName)
 		if err != nil {
 			return grpc.Errorf(codes.Internal, "Unable to get cert from file: %s, %v", cert, err)
 		}
@@ -39,7 +39,7 @@ func GetQosCertsFromVault(vaultAddr string) error {
 	return nil
 }
 
-func GetQOSPositionFromApiGW(serverUrl string, mreq *dme.QosPositionRequest, qosKpiServer dme.MatchEngineApi_GetQosPositionKpiServer) error {
+func GetQOSPositionFromApiGW(ctx context.Context, serverUrl string, mreq *dme.QosPositionRequest, qosKpiServer dme.MatchEngineApi_GetQosPositionKpiServer) error {
 	serverCertFile := "/tmp/" + serverCert
 	clientCertFile := "/tmp/" + clientCert
 
@@ -50,7 +50,7 @@ func GetQOSPositionFromApiGW(serverUrl string, mreq *dme.QosPositionRequest, qos
 	// in case the responses come put of order, we need to be able to lookup the GPS coordinate of the request positionid
 	var positionIdToGps = make(map[int64]*dme.Loc)
 
-	log.DebugLog(log.DebugLevelDmereq, "Connecting to QOS API GW", "serverUrl", serverUrl)
+	log.SpanLog(ctx, log.DebugLevelDmereq, "Connecting to QOS API GW", "serverUrl", serverUrl)
 
 	tlsConfig, err := edgetls.GetTLSClientConfig(serverUrl, clientCertFile, serverCertFile, false)
 	if err != nil {
@@ -64,7 +64,6 @@ func GetQOSPositionFromApiGW(serverUrl string, mreq *dme.QosPositionRequest, qos
 		return grpc.Errorf(codes.Unavailable, "Unable to connect to API GW: %s, %v", serverUrl, err)
 	}
 	defer conn.Close()
-	ctx := context.TODO()
 	defaultTimestamp := time.Now().Unix() + 1000
 	var request tdgproto.QoSKPIRequest
 	for _, p := range mreq.Positions {
@@ -92,7 +91,7 @@ func GetQOSPositionFromApiGW(serverUrl string, mreq *dme.QosPositionRequest, qos
 	request.Requestid = nextRequestId
 	nextRequestId++
 
-	log.DebugLog(log.DebugLevelDmereq, "Sending request to API GW", "request", request)
+	log.SpanLog(ctx, log.DebugLevelDmereq, "Sending request to API GW", "request", request)
 
 	qosClient := tdgproto.NewQueryQoSClient(conn)
 	stream, err := qosClient.QueryQoSKPI(ctx, &request)
@@ -105,14 +104,14 @@ func GetQOSPositionFromApiGW(serverUrl string, mreq *dme.QosPositionRequest, qos
 		var mreply dme.QosPositionKpiReply
 		res, err := stream.Recv()
 		if err == io.EOF {
-			log.DebugLog(log.DebugLevelDmereq, "EOF received")
+			log.SpanLog(ctx, log.DebugLevelDmereq, "EOF received")
 			err = nil
 			break
 		}
 		if err != nil {
 			break
 		}
-		log.DebugLog(log.DebugLevelDmereq, "Recv done", "resultLen", len(res.Results), "err", err)
+		log.SpanLog(ctx, log.DebugLevelDmereq, "Recv done", "resultLen", len(res.Results), "err", err)
 
 		for _, r := range res.Results {
 			var qosres dme.QosPositionKpiResult
@@ -138,7 +137,7 @@ func GetQOSPositionFromApiGW(serverUrl string, mreq *dme.QosPositionRequest, qos
 		qosKpiServer.Send(&mreply)
 	}
 
-	log.DebugLog(log.DebugLevelDmereq, "Done receiving responses")
+	log.SpanLog(ctx, log.DebugLevelDmereq, "Done receiving responses")
 	return err
 
 }

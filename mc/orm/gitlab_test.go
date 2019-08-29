@@ -1,6 +1,7 @@
 package orm
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"net/http"
@@ -14,6 +15,7 @@ import (
 )
 
 type GitlabMock struct {
+	ctx           context.Context
 	addr          string
 	users         map[int]*gitlab.User
 	groups        map[int]*gitlab.Group
@@ -24,8 +26,9 @@ type GitlabMock struct {
 	nextProjectID int
 }
 
-func NewGitlabMock(addr string) *GitlabMock {
+func NewGitlabMock(ctx context.Context, addr string) *GitlabMock {
 	gm := GitlabMock{}
+	gm.ctx = ctx
 	gm.addr = addr + "/api/v4"
 	gm.users = make(map[int]*gitlab.User)
 	gm.groups = make(map[int]*gitlab.Group)
@@ -146,7 +149,7 @@ func (s *GitlabMock) registerCreateUser() {
 				user.Identities = ids
 			}
 			s.users[user.ID] = &user
-			log.DebugLog(log.DebugLevelApi, "gitlab mock created user", "user", user)
+			log.SpanLog(s.ctx, log.DebugLevelApi, "gitlab mock created user", "user", user)
 			return httpmock.NewJsonResponse(200, user)
 		},
 	)
@@ -159,7 +162,7 @@ func (s *GitlabMock) registerDeleteUser() {
 			userID := int(httpmock.MustGetSubmatchAsInt(req, 1))
 			user, found := s.users[userID]
 			delete(s.users, userID)
-			log.DebugLog(log.DebugLevelApi, "gitlab mock deleted user", "user", user, "found", found)
+			log.SpanLog(s.ctx, log.DebugLevelApi, "gitlab mock deleted user", "user", user, "found", found)
 			if found {
 				return httpmock.NewJsonResponse(200, user)
 			}
@@ -208,7 +211,7 @@ func (s *GitlabMock) registerCreateGroup() {
 			s.groups[group.ID] = &group
 			s.groupMembers[group.ID] = make([]gitlab.GroupMember, 0)
 
-			log.DebugLog(log.DebugLevelApi, "gitlab mock created group", "group", group)
+			log.SpanLog(s.ctx, log.DebugLevelApi, "gitlab mock created group", "group", group)
 			return httpmock.NewJsonResponse(200, group)
 		},
 	)
@@ -234,7 +237,7 @@ func (s *GitlabMock) registerDeleteGroup() {
 					delete(s.projects, proj.ID)
 				}
 			}
-			log.DebugLog(log.DebugLevelApi, "gitlab mock deleted group", "group", group)
+			log.SpanLog(s.ctx, log.DebugLevelApi, "gitlab mock deleted group", "group", group)
 			return httpmock.NewStringResponse(200, ""), nil
 		},
 	)
@@ -294,7 +297,7 @@ func (s *GitlabMock) registerAddGroupMember() {
 			members = append(members, gm)
 			s.groupMembers[groupID] = members
 
-			log.DebugLog(log.DebugLevelApi, "gitlab mock add group member", "groupID", groupID, "member", gm)
+			log.SpanLog(s.ctx, log.DebugLevelApi, "gitlab mock add group member", "groupID", groupID, "member", gm)
 			return httpmock.NewStringResponse(200, ""), nil
 		},
 	)
@@ -319,7 +322,7 @@ func (s *GitlabMock) registerRemoveGroupMember() {
 				}
 			}
 			s.groupMembers[groupID] = members
-			log.DebugLog(log.DebugLevelApi, "gitlab mock remove group member", "groupID", groupID, "userID", userID)
+			log.SpanLog(s.ctx, log.DebugLevelApi, "gitlab mock remove group member", "groupID", groupID, "userID", userID)
 			return httpmock.NewStringResponse(200, "Success"), nil
 		},
 	)
@@ -373,7 +376,7 @@ func (s *GitlabMock) registerCreateProject() {
 				project.ApprovalsBeforeMerge = *opt.ApprovalsBeforeMerge
 			}
 			s.projects[project.ID] = &project
-			log.DebugLog(log.DebugLevelApi, "gitlab mock create project", "project", project)
+			log.SpanLog(s.ctx, log.DebugLevelApi, "gitlab mock create project", "project", project)
 			return httpmock.NewJsonResponse(200, project)
 		},
 	)
@@ -400,7 +403,7 @@ func (s *GitlabMock) registerSetCustomGroupAttribute() {
 				group.CustomAttributes = make([]*gitlab.CustomAttribute, 0)
 			}
 			group.CustomAttributes = append(group.CustomAttributes, &attr)
-			log.DebugLog(log.DebugLevelApi, "gitlab mock set custom group attribute", "groupID", groupID, "attr", attr)
+			log.SpanLog(s.ctx, log.DebugLevelApi, "gitlab mock set custom group attribute", "groupID", groupID, "attr", attr)
 			return httpmock.NewJsonResponse(200, attr)
 		},
 	)

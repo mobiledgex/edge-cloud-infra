@@ -1,6 +1,8 @@
 package shepherd_openstack
 
 import (
+	"context"
+
 	"github.com/mobiledgex/edge-cloud-infra/crm-platforms/openstack"
 	"github.com/mobiledgex/edge-cloud-infra/mexos"
 	"github.com/mobiledgex/edge-cloud/cloud-resource-manager/platform/pc"
@@ -10,9 +12,14 @@ import (
 )
 
 type Platform struct {
+	ctx          context.Context
 	rootLbName   string
 	SharedClient pc.PlatformClient
 	pf           openstack.Platform
+}
+
+func (s *Platform) SetContext(ctx context.Context) {
+	s.ctx = ctx
 }
 
 func (s *Platform) GetType() string {
@@ -22,7 +29,7 @@ func (s *Platform) GetType() string {
 func (s *Platform) Init(key *edgeproto.CloudletKey, physicalName, vaultAddr string) error {
 	//get the platform client so we can ssh in to make curl commands to the prometheus apps
 	var err error
-	if err = mexos.InitOpenstackProps(key.OperatorKey.Name, physicalName, vaultAddr); err != nil {
+	if err = mexos.InitOpenstackProps(s.ctx, key.OperatorKey.Name, physicalName, vaultAddr); err != nil {
 		return err
 	}
 	//need to have a separate one for dedicated rootlbs, see openstack.go line 111,
@@ -31,13 +38,13 @@ func (s *Platform) Init(key *edgeproto.CloudletKey, physicalName, vaultAddr stri
 	if err != nil {
 		return err
 	}
-	log.DebugLog(log.DebugLevelMexos, "init openstack", "rootLB", s.rootLbName,
+	log.SpanLog(s.ctx, log.DebugLevelMexos, "init openstack", "rootLB", s.rootLbName,
 		"physicalName", physicalName, "vaultAddr", vaultAddr)
 	return nil
 }
 
 func (s *Platform) GetClusterIP(clusterInst *edgeproto.ClusterInst) (string, error) {
-	_, ip, err := mexos.GetMasterNameAndIP(clusterInst)
+	_, ip, err := mexos.GetMasterNameAndIP(s.ctx, clusterInst)
 	return ip, err
 }
 

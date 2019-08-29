@@ -44,7 +44,7 @@ func (s *Platform) Init(platformConfig *platform.PlatformConfig, updateCallback 
 	// Set the test Mode based on what is in PlatformConfig
 	mexos.SetTestMode(platformConfig.TestMode)
 
-	if err := mexos.InitInfraCommon(platformConfig.VaultAddr); err != nil {
+	if err := mexos.InitInfraCommon(s.ctx, platformConfig.VaultAddr); err != nil {
 		return err
 	}
 
@@ -64,7 +64,7 @@ func (s *Platform) Init(platformConfig *platform.PlatformConfig, updateCallback 
 		return fmt.Errorf("init cannot get service ip, %s", err.Error())
 	}
 	if mexos.GetCloudletNetworkScheme() == cloudcommon.NetworkSchemePublicIP {
-		if err := mexos.ActivateFQDNA(fqdn, ipaddr); err != nil {
+		if err := mexos.ActivateFQDNA(s.ctx, fqdn, ipaddr); err != nil {
 			log.SpanLog(s.ctx, log.DebugLevelMexos, "error in ActivateFQDNA", "err", err)
 			return err
 		}

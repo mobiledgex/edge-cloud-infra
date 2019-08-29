@@ -18,7 +18,7 @@ func (s *Platform) CreateCloudlet(cloudlet *edgeproto.Cloudlet, pfConfig *edgepr
 		return err
 	}
 	updateCallback(edgeproto.UpdateTask, "Starting Shepherd")
-	shProc, err := intprocess.StartShepherdService(cloudlet, pfConfig)
+	shProc, err := intprocess.StartShepherdService(s.ctx, cloudlet, pfConfig)
 	if err != nil {
 		return err
 	}
@@ -53,5 +53,5 @@ func (s *Platform) DeleteCloudlet(cloudlet *edgeproto.Cloudlet, updateCallback e
 	}
 
 	updateCallback(edgeproto.UpdateTask, "Stopping Shepherd")
-	return intprocess.StopShepherdService(cloudlet)
+	return intprocess.StopShepherdService(s.ctx, cloudlet)
 }

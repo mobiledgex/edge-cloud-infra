@@ -30,7 +30,7 @@ func (s *Platform) CreateAppInst(clusterInst *edgeproto.ClusterInst, app *edgepr
 	}
 	updateCallback(edgeproto.UpdateTask, "Creating Registry Secret")
 
-	err = mexos.CreateDockerRegistrySecret(client, clusterInst, app, s.config.VaultAddr)
+	err = mexos.CreateDockerRegistrySecret(s.ctx, client, clusterInst, app, s.config.VaultAddr)
 	if err != nil {
 		return err
 	}
@@ -54,7 +54,7 @@ func (s *Platform) CreateAppInst(clusterInst *edgeproto.ClusterInst, app *edgepr
 	// set up dns
 	getDnsAction := func(svc v1.Service) (*mexos.DnsSvcAction, error) {
 		action := mexos.DnsSvcAction{}
-		externalIP, err := mexos.GetSvcExternalIP(client, names, svc.ObjectMeta.Name)
+		externalIP, err := mexos.GetSvcExternalIP(s.ctx, client, names, svc.ObjectMeta.Name)
 		if err != nil {
 			return nil, err
 		}
@@ -64,7 +64,7 @@ func (s *Platform) CreateAppInst(clusterInst *edgeproto.ClusterInst, app *edgepr
 		action.AddDNS = !app.InternalPorts
 		return &action, nil
 	}
-	err = mexos.CreateAppDNS(client, names, getDnsAction)
+	err = mexos.CreateAppDNS(s.ctx, client, names, getDnsAction)
 	if err != nil {
 		return nil
 	}
@@ -100,7 +100,7 @@ func (s *Platform) DeleteAppInst(clusterInst *edgeproto.ClusterInst, app *edgepr
 	if app.InternalPorts {
 		return nil
 	}
-	return mexos.DeleteAppDNS(client, names)
+	return mexos.DeleteAppDNS(s.ctx, client, names)
 }
 
 func (s *Platform) SetupKconf(clusterInst *edgeproto.ClusterInst) error {

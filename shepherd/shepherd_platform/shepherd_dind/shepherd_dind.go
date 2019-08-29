@@ -1,14 +1,21 @@
 package shepherd_dind
 
 import (
+	"context"
+
 	"github.com/mobiledgex/edge-cloud/cloud-resource-manager/platform/dind"
 	"github.com/mobiledgex/edge-cloud/cloud-resource-manager/platform/pc"
 	"github.com/mobiledgex/edge-cloud/edgeproto"
 )
 
 type Platform struct {
+	ctx          context.Context
 	pf           dind.Platform
 	SharedClient pc.PlatformClient
+}
+
+func (s *Platform) SetContext(ctx context.Context) {
+	s.ctx = ctx
 }
 
 func (s *Platform) GetType() string {

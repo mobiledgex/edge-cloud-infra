@@ -23,7 +23,7 @@ func (s *Platform) CreateAppInst(clusterInst *edgeproto.ClusterInst, app *edgepr
 	if err != nil {
 		return err
 	}
-	err = mexos.CreateDockerRegistrySecret(client, clusterInst, app, s.config.VaultAddr)
+	err = mexos.CreateDockerRegistrySecret(s.ctx, client, clusterInst, app, s.config.VaultAddr)
 	if err != nil {
 		return err
 	}
@@ -58,7 +58,7 @@ func (s *Platform) CreateAppInst(clusterInst *edgeproto.ClusterInst, app *edgepr
 		action.AddDNS = !app.InternalPorts
 		return &action, nil
 	}
-	if err = mexos.CreateAppDNS(client, names, getDnsAction); err != nil {
+	if err = mexos.CreateAppDNS(s.ctx, client, names, getDnsAction); err != nil {
 		log.SpanLog(s.ctx, log.DebugLevelMexos, "cannot add DNS entries", "error", err)
 		return err
 	}
@@ -79,7 +79,7 @@ func (s *Platform) DeleteAppInst(clusterInst *edgeproto.ClusterInst, app *edgepr
 
 	// remove DNS entries if it was added
 	if !app.InternalPorts {
-		if err = mexos.DeleteAppDNS(client, names); err != nil {
+		if err = mexos.DeleteAppDNS(s.ctx, client, names); err != nil {
 			log.SpanLog(s.ctx, log.DebugLevelMexos, "warning, cannot delete DNS record", "error", err)
 		}
 	}
@@ -107,7 +107,7 @@ func (s *Platform) GetDINDServiceIP() (string, error) {
 	if s.NetworkScheme == cloudcommon.NetworkSchemePrivateIP {
 		return GetLocalAddr()
 	}
-	return mexos.GetExternalPublicAddr()
+	return mexos.GetExternalPublicAddr(s.ctx, )
 }
 
 // GetLocalAddr gets the IP address the machine uses for outbound comms

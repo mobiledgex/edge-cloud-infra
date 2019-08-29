@@ -1,12 +1,16 @@
 package shepherd_platform
 
 import (
+	"context"
+
 	"github.com/mobiledgex/edge-cloud/cloud-resource-manager/platform/pc"
 	"github.com/mobiledgex/edge-cloud/edgeproto"
 )
 
 // Platform abstracts the underlying cloudlet platform.
 type Platform interface {
+	// Set context for Span logging
+	SetContext(ctx context.Context)
 	// GetType Returns the Cloudlet's stack type, i.e. Openstack, Azure, etc.
 	GetType() string
 	// Init is called once during shepherd startup.

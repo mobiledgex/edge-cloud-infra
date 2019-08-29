@@ -248,7 +248,7 @@ func RunAction(ctx context.Context, actionSpec, outputDir string, config *e2eapi
 				errors = append(errors, "cleanup failed")
 			}
 		}
-		err = intprocess.StopShepherdService(nil)
+		err = intprocess.StopShepherdService(ctx, nil)
 		if err != nil {
 			errors = append(errors, err.Error())
 		}

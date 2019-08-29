@@ -125,13 +125,13 @@ func (s *Platform) CreateCloudlet(cloudlet *edgeproto.Cloudlet, pfConfig *edgepr
 
 	// Soure OpenRC file to access openstack API endpoint
 	updateCallback(edgeproto.UpdateTask, fmt.Sprintf("Sourcing platform variables for %s cloudlet", cloudlet.PhysicalName))
-	err = mexos.InitOpenstackProps(cloudlet.Key.OperatorKey.Name, cloudlet.PhysicalName, pfConfig.VaultAddr)
+	err = mexos.InitOpenstackProps(s.ctx, cloudlet.Key.OperatorKey.Name, cloudlet.PhysicalName, pfConfig.VaultAddr)
 	if err != nil {
 		return err
 	}
 
 	// Get Closest Platform Flavor
-	finfo, err := mexos.GetFlavorInfo()
+	finfo, err := mexos.GetFlavorInfo(s.ctx, )
 	if err != nil {
 		return err
 	}
@@ -145,20 +145,20 @@ func (s *Platform) CreateCloudlet(cloudlet *edgeproto.Cloudlet, pfConfig *edgepr
 	if err != nil {
 		return err
 	}
-	_, md5Sum, err := mexos.GetUrlInfo(pfConfig.ImagePath)
+	_, md5Sum, err := mexos.GetUrlInfo(s.ctx, pfConfig.ImagePath)
 	if err != nil {
 		return err
 	}
 
 	// Use PlatformBaseImage, if not present then fetch it from MobiledgeX VM registry
-	imageDetail, err := mexos.GetImageDetail(pfImageName)
+	imageDetail, err := mexos.GetImageDetail(s.ctx, pfImageName)
 	if err == nil && imageDetail.Status != "active" {
 		return fmt.Errorf("image %s is not active", pfImageName)
 	}
 	if err != nil {
 		// Download platform base image and Add to Openstack Glance
 		updateCallback(edgeproto.UpdateTask, "Downloading platform base image: "+pfImageName)
-		err = mexos.CreateImageFromUrl(pfImageName, pfConfig.ImagePath, md5Sum)
+		err = mexos.CreateImageFromUrl(s.ctx, pfImageName, pfConfig.ImagePath, md5Sum)
 		if err != nil {
 			return fmt.Errorf("Error downloading platform base image: %v", err)
 		}
@@ -188,7 +188,7 @@ ssh_authorized_keys:
 
 	// TODO Upload SSHKeyPair to Vault so that all the VMs in the cloudlet use this KeyPair
 
-	vmp, err := mexos.GetVMParams(
+	vmp, err := mexos.GetVMParams(s.ctx, 
 		mexos.UserVMDeployment,
 		platform_vm_name,
 		platform_flavor_name,
@@ -216,14 +216,14 @@ ssh_authorized_keys:
 	// Deploy Platform VM
 	updateCallback(edgeproto.UpdateTask, "Deploying Platform VM")
 	log.SpanLog(s.ctx, log.DebugLevelMexos, "Deploying VM", "stackName", platform_vm_name, "flavor", platform_flavor_name)
-	err = mexos.CreateHeatStackFromTemplate(vmp, platform_vm_name, mexos.VmTemplate, updateCallback)
+	err = mexos.CreateHeatStackFromTemplate(s.ctx, vmp, platform_vm_name, mexos.VmTemplate, updateCallback)
 	if err != nil {
 		return fmt.Errorf("CreateVMAppInst error: %v", err)
 	}
 	updateCallback(edgeproto.UpdateTask, "Successfully Deployed Platform VM")
 
 	// Fetch external IP for further configuration
-	external_ip, err := mexos.GetServerIPAddr(mexos.GetCloudletExternalNetwork(), platform_vm_name)
+	external_ip, err := mexos.GetServerIPAddr(s.ctx, mexos.GetCloudletExternalNetwork(), platform_vm_name)
 	if err != nil {
 		return err
 	}
@@ -269,7 +269,7 @@ ssh_authorized_keys:
 	); err != nil {
 		updateCallback(edgeproto.UpdateTask, "Adding route for API endpoint as it is unreachable")
 		// Fetch gateway IP of external network
-		gatewayAddr, err := mexos.GetExternalGateway(mexos.GetCloudletExternalNetwork())
+		gatewayAddr, err := mexos.GetExternalGateway(s.ctx, mexos.GetCloudletExternalNetwork())
 		if err != nil {
 			return fmt.Errorf("unable to fetch gateway IP for external network: %s, %v",
 				mexos.GetCloudletExternalNetwork(), err)
@@ -341,7 +341,7 @@ ssh_authorized_keys:
 	// setup SSH access to cloudlet for CRM
 	updateCallback(edgeproto.UpdateTask, "Setting up security group for SSH access")
 	groupName := mexos.GetCloudletSecurityGroup()
-	if err := mexos.AddSecurityRuleCIDR(external_ip, "tcp", groupName, "22"); err != nil {
+	if err := mexos.AddSecurityRuleCIDR(s.ctx, external_ip, "tcp", groupName, "22"); err != nil {
 		return fmt.Errorf("unable to add security rule for ssh access, err: %v", err)
 	}
 
@@ -363,7 +363,7 @@ func (s *Platform) DeleteCloudlet(cloudlet *edgeproto.Cloudlet, updateCallback e
 	log.SpanLog(s.ctx, log.DebugLevelMexos, "Deleting cloudlet", "cloudletName", cloudlet.Key.Name)
 	platform_vm_name := getPlatformVMName(cloudlet)
 	updateCallback(edgeproto.UpdateTask, fmt.Sprintf("Deleting HEAT Stack %s", platform_vm_name))
-	err := mexos.HeatDeleteStack(platform_vm_name)
+	err := mexos.HeatDeleteStack(s.ctx, platform_vm_name)
 	if err != nil {
 		return fmt.Errorf("DeleteCloudlet error: %v", err)
 	}

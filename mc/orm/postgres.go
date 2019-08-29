@@ -43,7 +43,7 @@ func InitSql(ctx context.Context, addr, username, password, dbname string) (*gor
 	db.SetLogger(&sqlLogger{context.Background()})
 	db.LogMode(true)
 
-	return db, &adapterLogger{adapter}, nil
+	return db, &adapterLogger{ctx, adapter}, nil
 }
 
 func InitData(ctx context.Context, superuser, superpass string, pingInterval time.Duration, stop *bool, done chan struct{}) {
@@ -135,40 +135,41 @@ func (s *sqlLogger) Print(v ...interface{}) {
 }
 
 type adapterLogger struct {
+	ctx     context.Context
 	adapter persist.Adapter
 }
 
 func (s *adapterLogger) LoadPolicy(model model.Model) error {
 	start := time.Now()
 	err := s.adapter.LoadPolicy(model)
-	log.DebugLog(log.DebugLevelApi, "Call gorm LoadPolicy", "model", model, "took", time.Since(start))
+	log.SpanLog(s.ctx, log.DebugLevelApi, "Call gorm LoadPolicy", "model", model, "took", time.Since(start))
 	return err
 }
 
 func (s *adapterLogger) SavePolicy(model model.Model) error {
 	start := time.Now()
 	err := s.adapter.SavePolicy(model)
-	log.DebugLog(log.DebugLevelApi, "Call gorm SavePolicy", "model", model, "took", time.Since(start))
+	log.SpanLog(s.ctx, log.DebugLevelApi, "Call gorm SavePolicy", "model", model, "took", time.Since(start))
 	return err
 }
 
 func (s *adapterLogger) AddPolicy(sec, ptype string, rule []string) error {
 	start := time.Now()
 	err := s.adapter.AddPolicy(sec, ptype, rule)
-	log.DebugLog(log.DebugLevelApi, "Call gorm AddPolicy", "sec", sec, "ptype", ptype, "rule", rule, "took", time.Since(start))
+	log.SpanLog(s.ctx, log.DebugLevelApi, "Call gorm AddPolicy", "sec", sec, "ptype", ptype, "rule", rule, "took", time.Since(start))
 	return err
 }
 
 func (s *adapterLogger) RemovePolicy(sec, ptype string, rule []string) error {
 	start := time.Now()
 	err := s.adapter.RemovePolicy(sec, ptype, rule)
-	log.DebugLog(log.DebugLevelApi, "Call gorm RemovePolicy", "sec", sec, "ptype", ptype, "rule", rule, "took", time.Since(start))
+	log.SpanLog(s.ctx, log.DebugLevelApi, "Call gorm RemovePolicy", "sec", sec, "ptype", ptype, "rule", rule, "took", time.Since(start))
 	return err
 }
 
 func (s *adapterLogger) RemoveFilteredPolicy(sec, ptype string, fieldIndex int, fieldValues ...string) error {
 	start := time.Now()
 	err := s.adapter.RemoveFilteredPolicy(sec, ptype, fieldIndex, fieldValues...)
-	log.DebugLog(log.DebugLevelApi, "Call gorm RemoveFilteredPolicy", "sec", sec, "ptype", ptype, "fieldIndex", fieldIndex, "fieldValues", fieldValues, "took", time.Since(start))
+	log.SpanLog(s.ctx, log.DebugLevelApi, "Call gorm RemoveFilteredPolicy", "sec", sec, "ptype", ptype, "fieldIndex", fieldIndex, "fieldValues", fieldValues, "took", time.Since(start))
 	return err
 }

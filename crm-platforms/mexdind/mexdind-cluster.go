@@ -23,7 +23,7 @@ func (s *Platform) CreateClusterInst(clusterInst *edgeproto.ClusterInst, updateC
 	}
 	clusterName := clusterInst.Key.ClusterKey.Name
 
-	err = mexos.CreateClusterConfigMap(client, clusterInst)
+	err = mexos.CreateClusterConfigMap(s.ctx, client, clusterInst)
 	if err != nil {
 		return fmt.Errorf("cannot create ConfigMap for: %s, err: %v", clusterName, err)
 	}

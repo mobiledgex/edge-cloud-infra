@@ -76,7 +76,7 @@ func appInstCb(ctx context.Context, old *edgeproto.AppInst, new *edgeproto.AppIn
 		promAddress := fmt.Sprintf("%s:%d", clustIP, port)
 		log.SpanLog(ctx, log.DebugLevelMetrics, "prometheus found", "promAddress", promAddress)
 		if !exists {
-			stats, err = NewClusterWorker(promAddress, *collectInterval, metricSender.Update, &clusterInst, pf)
+			stats, err = NewClusterWorker(ctx, promAddress, *collectInterval, metricSender.Update, &clusterInst, pf)
 			if err == nil {
 				promMap[mapKey] = stats
 				stats.Start()
@@ -103,7 +103,7 @@ func clusterInstCb(ctx context.Context, old *edgeproto.ClusterInst, new *edgepro
 	if new.State == edgeproto.TrackedState_READY {
 		log.SpanLog(ctx, log.DebugLevelMetrics, "New Docker cluster detected", "clustername", mapKey, "clusterInst", new)
 		if !exists {
-			stats, err := NewClusterWorker("", *collectInterval, metricSender.Update, new, pf)
+			stats, err := NewClusterWorker(ctx, "", *collectInterval, metricSender.Update, new, pf)
 			if err == nil {
 				promMap[mapKey] = stats
 				stats.Start()
@@ -120,7 +120,7 @@ func clusterInstCb(ctx context.Context, old *edgeproto.ClusterInst, new *edgepro
 	}
 }
 
-func getPlatform() (platform.Platform, error) {
+func getPlatform(ctx context.Context) (platform.Platform, error) {
 	var plat platform.Platform
 	var err error
 	switch *platformName {
@@ -133,6 +133,7 @@ func getPlatform() (platform.Platform, error) {
 	default:
 		err = fmt.Errorf("Platform %s not supported", *platformName)
 	}
+	plat.SetContext(ctx)
 	return plat, err
 }
 
@@ -142,11 +143,12 @@ func main() {
 	log.InitTracer(*tlsCertFile)
 	defer log.FinishTracer()
 	span := log.StartSpan(log.DebugLevelInfo, "main")
+	ctx := log.ContextWithSpan(context.Background(), span)
 
 	cloudcommon.ParseMyCloudletKey(false, cloudletKeyStr, &cloudletKey)
-	log.DebugLog(log.DebugLevelMetrics, "Metrics collection", "interval", collectInterval)
+	log.SpanLog(ctx, log.DebugLevelMetrics, "Metrics collection", "interval", collectInterval)
 	var err error
-	pf, err = getPlatform()
+	pf, err = getPlatform(ctx)
 	if err != nil {
 		log.FatalLog("Failed to get platform", "platformName", platformName, "err", err)
 	}
@@ -173,7 +175,7 @@ func main() {
 	sigChan = make(chan os.Signal, 1)
 	signal.Notify(sigChan, os.Interrupt)
 
-	log.DebugLog(log.DebugLevelMetrics, "Ready")
+	log.SpanLog(ctx, log.DebugLevelMetrics, "Ready")
 	span.Finish()
 
 	// wait until process in killed/interrupted

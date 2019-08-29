@@ -14,7 +14,7 @@ func (s *Platform) UpdateClusterInst(clusterInst *edgeproto.ClusterInst, updateC
 	if clusterInst.IpAccess == edgeproto.IpAccess_IP_ACCESS_DEDICATED {
 		lbName = cloudcommon.GetDedicatedLBFQDN(s.cloudletKey, &clusterInst.Key.ClusterKey)
 	}
-	return mexos.UpdateCluster(lbName, clusterInst, updateCallback)
+	return mexos.UpdateCluster(s.ctx, lbName, clusterInst, updateCallback)
 }
 
 func (s *Platform) CreateClusterInst(clusterInst *edgeproto.ClusterInst, updateCallback edgeproto.CacheUpdateCallback, timeout time.Duration) error {
@@ -32,7 +32,7 @@ func (s *Platform) CreateClusterInst(clusterInst *edgeproto.ClusterInst, updateC
 	//adjust the timeout just a bit to give some buffer for the API exchange and also sleep loops
 	timeout -= time.Minute
 
-	return mexos.CreateCluster(lbName, clusterInst, updateCallback, timeout)
+	return mexos.CreateCluster(s.ctx, lbName, clusterInst, updateCallback, timeout)
 }
 
 func (s *Platform) DeleteClusterInst(clusterInst *edgeproto.ClusterInst) error {
@@ -40,5 +40,5 @@ func (s *Platform) DeleteClusterInst(clusterInst *edgeproto.ClusterInst) error {
 	if clusterInst.IpAccess == edgeproto.IpAccess_IP_ACCESS_DEDICATED {
 		lbName = cloudcommon.GetDedicatedLBFQDN(s.cloudletKey, &clusterInst.Key.ClusterKey)
 	}
-	return mexos.DeleteCluster(lbName, clusterInst)
+	return mexos.DeleteCluster(s.ctx, lbName, clusterInst)
 }

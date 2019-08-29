@@ -1,6 +1,8 @@
 package main
 
 import (
+	"context"
+
 	"github.com/mobiledgex/edge-cloud/cloud-resource-manager/platform/pc"
 	"github.com/mobiledgex/edge-cloud/edgeproto"
 	"github.com/mobiledgex/edge-cloud/log"
@@ -8,6 +10,7 @@ import (
 
 // K8s Cluster
 type K8sClusterStats struct {
+	ctx      context.Context
 	key      edgeproto.ClusterInstKey
 	promAddr string
 	client   pc.PlatformClient
@@ -19,7 +22,7 @@ func (c *K8sClusterStats) GetClusterStats() *ClusterMetrics {
 		return nil
 	}
 	if err := collectClusterPrometheusMetrics(c); err != nil {
-		log.DebugLog(log.DebugLevelMetrics, "Could not collect cluster metrics", "K8s Cluster", c)
+		log.SpanLog(c.ctx, log.DebugLevelMetrics, "Could not collect cluster metrics", "K8s Cluster", c)
 		return nil
 	}
 	return &c.ClusterMetrics
@@ -33,7 +36,7 @@ func (c *K8sClusterStats) GetAppStats() map[MetricAppInstKey]*AppMetrics {
 	}
 	metrics := collectAppPrometheusMetrics(c)
 	if metrics == nil {
-		log.DebugLog(log.DebugLevelMetrics, "Could not collect app metrics", "K8s Cluster", c)
+		log.SpanLog(c.ctx, log.DebugLevelMetrics, "Could not collect app metrics", "K8s Cluster", c)
 	}
 	return metrics
 }

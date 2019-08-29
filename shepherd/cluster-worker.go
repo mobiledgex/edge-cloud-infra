@@ -16,6 +16,7 @@ import (
 
 // For each cluster the notify worker is created
 type ClusterWorker struct {
+	ctx            context.Context
 	clusterInstKey edgeproto.ClusterInstKey
 	deployment     string
 	promAddr       string
@@ -27,9 +28,10 @@ type ClusterWorker struct {
 	client         pc.PlatformClient
 }
 
-func NewClusterWorker(promAddr string, interval time.Duration, send func(ctx context.Context, metric *edgeproto.Metric) bool, clusterInst *edgeproto.ClusterInst, pf platform.Platform) (*ClusterWorker, error) {
+func NewClusterWorker(ctx context.Context, promAddr string, interval time.Duration, send func(ctx context.Context, metric *edgeproto.Metric) bool, clusterInst *edgeproto.ClusterInst, pf platform.Platform) (*ClusterWorker, error) {
 	var err error
 	p := ClusterWorker{}
+	p.ctx = ctx
 	p.promAddr = promAddr
 	p.deployment = clusterInst.Deployment
 	p.interval = interval
@@ -38,12 +40,13 @@ func NewClusterWorker(promAddr string, interval time.Duration, send func(ctx con
 	p.client, err = pf.GetPlatformClient(clusterInst)
 	if err != nil {
 		// If we cannot get a platform client no point in trying to get metrics
-		log.DebugLog(log.DebugLevelMetrics, "Failed to acquire platform client", "cluster", clusterInst.Key, "error", err)
+		log.SpanLog(p.ctx, log.DebugLevelMetrics, "Failed to acquire platform client", "cluster", clusterInst.Key, "error", err)
 		return nil, err
 	}
 	// only support K8s deployments
 	if p.deployment == cloudcommon.AppDeploymentTypeKubernetes {
 		p.clusterStat = &K8sClusterStats{
+			ctx:      ctx,
 			key:      p.clusterInstKey,
 			client:   p.client,
 			promAddr: p.promAddr,
@@ -62,13 +65,13 @@ func (p *ClusterWorker) Start() {
 }
 
 func (p *ClusterWorker) Stop() {
-	log.DebugLog(log.DebugLevelMetrics, "Stopping ClusterWorker thread\n")
+	log.SpanLog(p.ctx, log.DebugLevelMetrics, "Stopping ClusterWorker thread\n")
 	close(p.stop)
 	p.waitGrp.Wait()
 }
 
 func (p *ClusterWorker) RunNotify() {
-	log.DebugLog(log.DebugLevelMetrics, "Started ClusterWorker thread\n")
+	log.SpanLog(p.ctx, log.DebugLevelMetrics, "Started ClusterWorker thread\n")
 	done := false
 	for !done {
 		select {

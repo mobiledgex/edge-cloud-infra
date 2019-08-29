@@ -18,7 +18,7 @@ import (
 func (s *Platform) GCPLogin() error {
 	log.SpanLog(s.ctx, log.DebugLevelMexos, "doing GcpLogin", "vault url", s.props.GcpAuthKeyUrl)
 	filename := "/tmp/auth_key.json"
-	err := mexos.GetVaultDataToFile(s.props.GcpAuthKeyUrl, filename)
+	err := mexos.GetVaultDataToFile(s.ctx, s.props.GcpAuthKeyUrl, filename)
 	if err != nil {
 		return fmt.Errorf("unable to write auth file %s: %s", filename, err.Error())
 	}
@@ -53,7 +53,7 @@ func (s *Platform) CreateClusterInst(clusterInst *edgeproto.ClusterInst, updateC
 	if err != nil {
 		return err
 	}
-	mexos.BackupKubeconfig(client)
+	mexos.BackupKubeconfig(s.ctx, client)
 	if err = GetGKECredentials(clusterName); err != nil {
 		return err
 	}

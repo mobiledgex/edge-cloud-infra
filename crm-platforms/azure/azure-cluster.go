@@ -51,7 +51,7 @@ func (s *Platform) CreateClusterInst(clusterInst *edgeproto.ClusterInst, updateC
 	if err != nil {
 		return err
 	}
-	mexos.BackupKubeconfig(client)
+	mexos.BackupKubeconfig(s.ctx, client)
 	if err = GetAKSCredentials(resourceGroup, clusterName); err != nil {
 		return err
 	}

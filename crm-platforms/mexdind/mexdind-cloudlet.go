@@ -12,7 +12,7 @@ import (
 )
 
 func (s *Platform) CreateCloudlet(cloudlet *edgeproto.Cloudlet, pfConfig *edgeproto.PlatformConfig, flavor *edgeproto.Flavor, updateCallback edgeproto.CacheUpdateCallback) error {
-	log.DebugLog(log.DebugLevelMexos, "create cloudlet for mexdind")
+	log.SpanLog(s.ctx, log.DebugLevelMexos, "create cloudlet for mexdind")
 	err := s.generic.CreateCloudlet(cloudlet, pfConfig, flavor, updateCallback)
 	if err != nil {
 		return err
@@ -31,7 +31,7 @@ func (s *Platform) CreateCloudlet(cloudlet *edgeproto.Cloudlet, pfConfig *edgepr
 	select {
 	case <-fatal:
 		out := ""
-		out, err = cloudcommon.GetCloudletLog(&cloudlet.Key)
+		out, err = cloudcommon.GetCloudletLog(s.ctx, &cloudlet.Key)
 		if err != nil || out == "" {
 			out = fmt.Sprintf("Please look at %s for more details", cloudcommon.GetCloudletLogFile(cloudlet.Key.Name+".shepherd"))
 		} else {
@@ -46,7 +46,7 @@ func (s *Platform) CreateCloudlet(cloudlet *edgeproto.Cloudlet, pfConfig *edgepr
 }
 
 func (s *Platform) DeleteCloudlet(cloudlet *edgeproto.Cloudlet, updateCallback edgeproto.CacheUpdateCallback) error {
-	log.DebugLog(log.DebugLevelMexos, "delete cloudlet for mexdind")
+	log.SpanLog(s.ctx, log.DebugLevelMexos, "delete cloudlet for mexdind")
 	err := s.generic.DeleteCloudlet(cloudlet, updateCallback)
 	if err != nil {
 		return err

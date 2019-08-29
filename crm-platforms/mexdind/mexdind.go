@@ -1,6 +1,7 @@
 package mexdind
 
 import (
+	"context"
 	"fmt"
 	"os"
 
@@ -18,9 +19,15 @@ import (
 // registry.mobiledgex.net access secrets.
 
 type Platform struct {
+	ctx           context.Context
 	generic       dind.Platform
 	config        platform.PlatformConfig
 	NetworkScheme string
+}
+
+func (s *Platform) SetContext(ctx context.Context) {
+	s.ctx = ctx
+	s.generic.SetContext(ctx)
 }
 
 func (s *Platform) GetType() string {
@@ -58,11 +65,11 @@ func (s *Platform) Init(platformConfig *platform.PlatformConfig, updateCallback 
 	}
 	if mexos.GetCloudletNetworkScheme() == cloudcommon.NetworkSchemePublicIP {
 		if err := mexos.ActivateFQDNA(fqdn, ipaddr); err != nil {
-			log.DebugLog(log.DebugLevelMexos, "error in ActivateFQDNA", "err", err)
+			log.SpanLog(s.ctx, log.DebugLevelMexos, "error in ActivateFQDNA", "err", err)
 			return err
 		}
 	}
-	log.DebugLog(log.DebugLevelMexos, "done init mexdind")
+	log.SpanLog(s.ctx, log.DebugLevelMexos, "done init mexdind")
 	return nil
 }
 

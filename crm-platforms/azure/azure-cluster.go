@@ -15,7 +15,7 @@ import (
 
 // AzureLogin logs into azure
 func (s *Platform) AzureLogin() error {
-	log.DebugLog(log.DebugLevelMexos, "doing azure login")
+	log.SpanLog(s.ctx, log.DebugLevelMexos, "doing azure login")
 	out, err := sh.Command("az", "login", "--username", s.props.UserName, "--password", s.props.Password).CombinedOutput()
 	if err != nil {
 		return fmt.Errorf("Login Failed: %s %v", out, err)
@@ -57,12 +57,12 @@ func (s *Platform) CreateClusterInst(clusterInst *edgeproto.ClusterInst, updateC
 	}
 	kconf := k8smgmt.GetKconfName(clusterInst) // XXX
 
-	log.DebugLog(log.DebugLevelMexos, "warning, using default config") //XXX
+	log.SpanLog(s.ctx, log.DebugLevelMexos, "warning, using default config") //XXX
 	//XXX watch out for multiple cluster contexts
 	if err = pc.CopyFile(client, mexos.DefaultKubeconfig(), kconf); err != nil {
 		return err
 	}
-	log.DebugLog(log.DebugLevelMexos, "created aks", "name", clusterName)
+	log.SpanLog(s.ctx, log.DebugLevelMexos, "created aks", "name", clusterName)
 	return nil
 }
 

@@ -1,6 +1,7 @@
 package azure
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"os"
@@ -15,9 +16,13 @@ import (
 )
 
 type Platform struct {
-	// AzureProperties should be moved to edge-cloud-infra
-	props  edgeproto.AzureProperties
+	ctx    context.Context
+	props  edgeproto.AzureProperties // AzureProperties should be moved to edge-cloud-infra
 	config platform.PlatformConfig
+}
+
+func (s *Platform) SetContext(ctx context.Context) {
+	s.ctx = ctx
 }
 
 func (s *Platform) GetType() string {
@@ -71,7 +76,7 @@ type AZFlavor struct {
 }
 
 func (s *Platform) GatherCloudletInfo(info *edgeproto.CloudletInfo) error {
-	log.DebugLog(log.DebugLevelMexos, "GetLimits (Azure)")
+	log.SpanLog(s.ctx, log.DebugLevelMexos, "GetLimits (Azure)")
 	if err := s.AzureLogin(); err != nil {
 		return err
 	}

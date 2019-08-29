@@ -1,6 +1,7 @@
 package openstack
 
 import (
+	"context"
 	"fmt"
 	"os"
 
@@ -17,11 +18,16 @@ import (
 const MINIMUM_DISK_SIZE uint64 = 20
 
 type Platform struct {
+	ctx         context.Context
 	rootLBName  string
 	rootLB      *mexos.MEXRootLB
 	cloudletKey *edgeproto.CloudletKey
 	flavorList  []*edgeproto.FlavorInfo
 	config      platform.PlatformConfig
+}
+
+func (s *Platform) SetContext(ctx context.Context) {
+	s.ctx = ctx
 }
 
 func (s *Platform) GetType() string {
@@ -32,7 +38,7 @@ func (s *Platform) Init(platformConfig *platform.PlatformConfig, updateCallback 
 	rootLBName := cloudcommon.GetRootLBFQDN(platformConfig.CloudletKey)
 	s.cloudletKey = platformConfig.CloudletKey
 	s.config = *platformConfig
-	log.DebugLog(
+	log.SpanLog(s.ctx,
 		log.DebugLevelMexos, "init openstack",
 		"rootLB", rootLBName,
 		"physicalName", platformConfig.PhysicalName,
@@ -66,7 +72,7 @@ func (s *Platform) Init(platformConfig *platform.PlatformConfig, updateCallback 
 	if crmRootLB == nil {
 		return fmt.Errorf("rootLB is not initialized")
 	}
-	log.DebugLog(log.DebugLevelMexos, "created rootLB", "rootlb", crmRootLB.Name)
+	log.SpanLog(s.ctx, log.DebugLevelMexos, "created rootLB", "rootlb", crmRootLB.Name)
 	s.rootLB = crmRootLB
 	s.rootLBName = rootLBName
 
@@ -80,13 +86,13 @@ func (s *Platform) Init(platformConfig *platform.PlatformConfig, updateCallback 
 		return fmt.Errorf("unable to find closest flavor for Shared RootLB: %v", err)
 	}
 
-	log.DebugLog(log.DebugLevelMexos, "calling SetupRootLB")
+	log.SpanLog(s.ctx, log.DebugLevelMexos, "calling SetupRootLB")
 	updateCallback(edgeproto.UpdateTask, "Setting up RootLB")
 	err = mexos.SetupRootLB(rootLBName, flavorName, edgeproto.DummyUpdateCallback)
 	if err != nil {
 		return err
 	}
-	log.DebugLog(log.DebugLevelMexos, "ok, SetupRootLB")
+	log.SpanLog(s.ctx, log.DebugLevelMexos, "ok, SetupRootLB")
 
 	// set up L7 load balancer
 	client, err := s.GetPlatformClientRootLB(rootLBName)
@@ -106,7 +112,7 @@ func (s *Platform) GatherCloudletInfo(info *edgeproto.CloudletInfo) error {
 }
 
 func (s *Platform) GetPlatformClientRootLB(rootLBName string) (pc.PlatformClient, error) {
-	log.DebugLog(log.DebugLevelMexos, "GetPlatformClientRootLB", "rootLBName", rootLBName)
+	log.SpanLog(s.ctx, log.DebugLevelMexos, "GetPlatformClientRootLB", "rootLBName", rootLBName)
 
 	if rootLBName == "" {
 		return nil, fmt.Errorf("cannot GetPlatformClientRootLB, rootLB is empty")

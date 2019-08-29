@@ -121,7 +121,7 @@ func startPlatformService(cloudlet *edgeproto.Cloudlet, pfConfig *edgeproto.Plat
 func (s *Platform) CreateCloudlet(cloudlet *edgeproto.Cloudlet, pfConfig *edgeproto.PlatformConfig, pfFlavor *edgeproto.Flavor, updateCallback edgeproto.CacheUpdateCallback) error {
 	var err error
 
-	log.DebugLog(log.DebugLevelMexos, "Creating cloudlet", "cloudletName", cloudlet.Key.Name)
+	log.SpanLog(s.ctx, log.DebugLevelMexos, "Creating cloudlet", "cloudletName", cloudlet.Key.Name)
 
 	// Soure OpenRC file to access openstack API endpoint
 	updateCallback(edgeproto.UpdateTask, fmt.Sprintf("Sourcing platform variables for %s cloudlet", cloudlet.PhysicalName))
@@ -215,7 +215,7 @@ ssh_authorized_keys:
 
 	// Deploy Platform VM
 	updateCallback(edgeproto.UpdateTask, "Deploying Platform VM")
-	log.DebugLog(log.DebugLevelMexos, "Deploying VM", "stackName", platform_vm_name, "flavor", platform_flavor_name)
+	log.SpanLog(s.ctx, log.DebugLevelMexos, "Deploying VM", "stackName", platform_vm_name, "flavor", platform_flavor_name)
 	err = mexos.CreateHeatStackFromTemplate(vmp, platform_vm_name, mexos.VmTemplate, updateCallback)
 	if err != nil {
 		return fmt.Errorf("CreateVMAppInst error: %v", err)
@@ -228,7 +228,7 @@ ssh_authorized_keys:
 		return err
 	}
 	updateCallback(edgeproto.UpdateTask, "Platform VM external IP: "+external_ip)
-	log.DebugLog(log.DebugLevelMexos, "external IP", "ip", external_ip)
+	log.SpanLog(s.ctx, log.DebugLevelMexos, "external IP", "ip", external_ip)
 
 	// Setup SSH Client
 	auth := ssh.Auth{Keys: []string{keyPairPath}}
@@ -360,7 +360,7 @@ ssh_authorized_keys:
 }
 
 func (s *Platform) DeleteCloudlet(cloudlet *edgeproto.Cloudlet, updateCallback edgeproto.CacheUpdateCallback) error {
-	log.DebugLog(log.DebugLevelMexos, "Deleting cloudlet", "cloudletName", cloudlet.Key.Name)
+	log.SpanLog(s.ctx, log.DebugLevelMexos, "Deleting cloudlet", "cloudletName", cloudlet.Key.Name)
 	platform_vm_name := getPlatformVMName(cloudlet)
 	updateCallback(edgeproto.UpdateTask, fmt.Sprintf("Deleting HEAT Stack %s", platform_vm_name))
 	err := mexos.HeatDeleteStack(platform_vm_name)

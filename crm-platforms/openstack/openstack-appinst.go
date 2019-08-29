@@ -27,7 +27,7 @@ func (s *Platform) CreateAppInst(clusterInst *edgeproto.ClusterInst, app *edgepr
 
 		if clusterInst.IpAccess == edgeproto.IpAccess_IP_ACCESS_DEDICATED {
 			rootLBName = cloudcommon.GetDedicatedLBFQDN(s.cloudletKey, &clusterInst.Key.ClusterKey)
-			log.DebugLog(log.DebugLevelMexos, "using dedicated RootLB to create app", "rootLBName", rootLBName)
+			log.SpanLog(s.ctx, log.DebugLevelMexos, "using dedicated RootLB to create app", "rootLBName", rootLBName)
 		}
 		client, err := s.GetPlatformClient(clusterInst)
 		if err != nil {
@@ -104,14 +104,14 @@ func (s *Platform) CreateAppInst(clusterInst *edgeproto.ClusterInst, app *edgepr
 		}
 		sourceImageTime, md5Sum, err := mexos.GetUrlInfo(app.ImagePath)
 		if err != nil {
-			log.DebugLog(log.DebugLevelMexos, "failed to fetch source image info, skip image validity checks")
+			log.SpanLog(s.ctx, log.DebugLevelMexos, "failed to fetch source image info, skip image validity checks")
 		}
 		glanceImageTime, err := mexos.GetImageUpdatedTime(imageName)
 		createImage := false
 		if err != nil {
 			if strings.Contains(err.Error(), "Could not find resource") {
 				// Add image to Glance
-				log.DebugLog(log.DebugLevelMexos, "image is not present in glance, add image")
+				log.SpanLog(s.ctx, log.DebugLevelMexos, "image is not present in glance, add image")
 				createImage = true
 			} else {
 				return fmt.Errorf("CreateVMAppInst error: %v", err)
@@ -120,7 +120,7 @@ func (s *Platform) CreateAppInst(clusterInst *edgeproto.ClusterInst, app *edgepr
 			if !sourceImageTime.IsZero() {
 				if sourceImageTime.Sub(glanceImageTime) > 0 {
 					// Update the image in Glance
-					log.DebugLog(log.DebugLevelMexos, "image in glance is no longer valid, update image")
+					log.SpanLog(s.ctx, log.DebugLevelMexos, "image in glance is no longer valid, update image")
 					err = mexos.DeleteImage(imageName)
 					if err != nil {
 						return fmt.Errorf("CreateVMAppInst error: %v", err)
@@ -160,7 +160,7 @@ func (s *Platform) CreateAppInst(clusterInst *edgeproto.ClusterInst, app *edgepr
 			return fmt.Errorf("unable to get vm params: %v", err)
 		}
 		updateCallback(edgeproto.UpdateTask, "Deploying VM")
-		log.DebugLog(log.DebugLevelMexos, "Deploying VM", "stackName", app.Key.Name, "flavor", appFlavorName)
+		log.SpanLog(s.ctx, log.DebugLevelMexos, "Deploying VM", "stackName", app.Key.Name, "flavor", appFlavorName)
 		err = mexos.CreateHeatStackFromTemplate(vmp, app.Key.Name, mexos.VmTemplate, updateCallback)
 		if err != nil {
 			return fmt.Errorf("CreateVMAppInst error: %v", err)
@@ -174,7 +174,7 @@ func (s *Platform) CreateAppInst(clusterInst *edgeproto.ClusterInst, app *edgepr
 			if err = mexos.ActivateFQDNA(fqdn, external_ip); err != nil {
 				return err
 			}
-			log.DebugLog(log.DebugLevelMexos, "DNS A record activated",
+			log.SpanLog(s.ctx, log.DebugLevelMexos, "DNS A record activated",
 				"name", app.Key.Name,
 				"fqdn", fqdn,
 				"IP", external_ip)
@@ -184,7 +184,7 @@ func (s *Platform) CreateAppInst(clusterInst *edgeproto.ClusterInst, app *edgepr
 		rootLBName := s.rootLBName
 		if clusterInst.IpAccess == edgeproto.IpAccess_IP_ACCESS_DEDICATED {
 			rootLBName = cloudcommon.GetDedicatedLBFQDN(s.cloudletKey, &clusterInst.Key.ClusterKey)
-			log.DebugLog(log.DebugLevelMexos, "using dedicated RootLB to create app", "rootLBName", rootLBName)
+			log.SpanLog(s.ctx, log.DebugLevelMexos, "using dedicated RootLB to create app", "rootLBName", rootLBName)
 		}
 		client, err := s.GetPlatformClient(clusterInst)
 		if err != nil {
@@ -234,7 +234,7 @@ func (s *Platform) DeleteAppInst(clusterInst *edgeproto.ClusterInst, app *edgepr
 		rootLBName := s.rootLBName
 		if clusterInst.IpAccess == edgeproto.IpAccess_IP_ACCESS_DEDICATED {
 			rootLBName = cloudcommon.GetDedicatedLBFQDN(s.cloudletKey, &clusterInst.Key.ClusterKey)
-			log.DebugLog(log.DebugLevelMexos, "using dedicated RootLB to delete app", "rootLBName", rootLBName)
+			log.SpanLog(s.ctx, log.DebugLevelMexos, "using dedicated RootLB to delete app", "rootLBName", rootLBName)
 		}
 		client, err := s.GetPlatformClient(clusterInst)
 		if err != nil {
@@ -251,11 +251,11 @@ func (s *Platform) DeleteAppInst(clusterInst *edgeproto.ClusterInst, app *edgepr
 		} // Clean up security rules and nginx proxy if app is external
 		if !app.InternalPorts {
 			if err := mexos.DeleteProxySecurityRules(client, masterIP, names.AppName); err != nil {
-				log.DebugLog(log.DebugLevelMexos, "cannot clean up security rules", "name", names.AppName, "rootlb", rootLBName, "error", err)
+				log.SpanLog(s.ctx, log.DebugLevelMexos, "cannot clean up security rules", "name", names.AppName, "rootlb", rootLBName, "error", err)
 			}
 			// Clean up DNS entries
 			if err := mexos.DeleteAppDNS(client, names); err != nil {
-				log.DebugLog(log.DebugLevelMexos, "cannot clean up DNS entries", "name", names.AppName, "rootlb", rootLBName, "error", err)
+				log.SpanLog(s.ctx, log.DebugLevelMexos, "cannot clean up DNS entries", "name", names.AppName, "rootlb", rootLBName, "error", err)
 			}
 		}
 		if deployment == cloudcommon.AppDeploymentTypeKubernetes {
@@ -264,7 +264,7 @@ func (s *Platform) DeleteAppInst(clusterInst *edgeproto.ClusterInst, app *edgepr
 			return k8smgmt.DeleteHelmAppInst(client, names, clusterInst)
 		}
 	case cloudcommon.AppDeploymentTypeVM:
-		log.DebugLog(log.DebugLevelMexos, "Deleting VM", "stackName", app.Key.Name)
+		log.SpanLog(s.ctx, log.DebugLevelMexos, "Deleting VM", "stackName", app.Key.Name)
 		err := mexos.HeatDeleteStack(app.Key.Name)
 		if err != nil {
 			return fmt.Errorf("DeleteVMAppInst error: %v", err)

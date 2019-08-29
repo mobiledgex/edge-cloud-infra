@@ -1,6 +1,7 @@
 package e2esetup
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"log"
@@ -160,7 +161,7 @@ func StartProcesses(processName string, outputDir string) bool {
 	return true
 }
 
-func RunAction(actionSpec, outputDir string, config *e2eapi.TestConfig, spec *TestSpec, specStr string, mods []string) []string {
+func RunAction(ctx context.Context, actionSpec, outputDir string, config *e2eapi.TestConfig, spec *TestSpec, specStr string, mods []string) []string {
 	act, actionParam := setupmex.GetActionParam(actionSpec)
 	action, actionSubtype := setupmex.GetActionSubtype(act)
 
@@ -251,7 +252,7 @@ func RunAction(actionSpec, outputDir string, config *e2eapi.TestConfig, spec *Te
 		if err != nil {
 			errors = append(errors, err.Error())
 		}
-		err = setupmex.Cleanup()
+		err = setupmex.Cleanup(ctx)
 		if err != nil {
 			errors = append(errors, err.Error())
 		}
@@ -273,7 +274,7 @@ func RunAction(actionSpec, outputDir string, config *e2eapi.TestConfig, spec *Te
 			fmt.Fprintf(os.Stderr, "ERROR: unmarshaling setupmex TestSpec: %v", err)
 			errors = append(errors, "Error in unmarshaling TestSpec")
 		} else {
-			errs := setupmex.RunAction(actionSpec, outputDir, &ecSpec, mods)
+			errs := setupmex.RunAction(ctx, actionSpec, outputDir, &ecSpec, mods)
 			errors = append(errors, errs...)
 		}
 	}

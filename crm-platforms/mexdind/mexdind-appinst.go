@@ -45,7 +45,7 @@ func (s *Platform) CreateAppInst(clusterInst *edgeproto.ClusterInst, app *edgepr
 		action := mexos.DnsSvcAction{}
 
 		if len(svc.Spec.ExternalIPs) > 0 && svc.Spec.ExternalIPs[0] == masterIP {
-			log.DebugLog(log.DebugLevelMexos, "external IP already present in DIND, no patch required", "addr", masterIP)
+			log.SpanLog(s.ctx, log.DebugLevelMexos, "external IP already present in DIND, no patch required", "addr", masterIP)
 		} else {
 			action.PatchKube = true
 			action.PatchIP = masterIP
@@ -59,7 +59,7 @@ func (s *Platform) CreateAppInst(clusterInst *edgeproto.ClusterInst, app *edgepr
 		return &action, nil
 	}
 	if err = mexos.CreateAppDNS(client, names, getDnsAction); err != nil {
-		log.DebugLog(log.DebugLevelMexos, "cannot add DNS entries", "error", err)
+		log.SpanLog(s.ctx, log.DebugLevelMexos, "cannot add DNS entries", "error", err)
 		return err
 	}
 	return nil
@@ -80,11 +80,11 @@ func (s *Platform) DeleteAppInst(clusterInst *edgeproto.ClusterInst, app *edgepr
 	// remove DNS entries if it was added
 	if !app.InternalPorts {
 		if err = mexos.DeleteAppDNS(client, names); err != nil {
-			log.DebugLog(log.DebugLevelMexos, "warning, cannot delete DNS record", "error", err)
+			log.SpanLog(s.ctx, log.DebugLevelMexos, "warning, cannot delete DNS record", "error", err)
 		}
 	}
 	if err = s.generic.DeleteAppInst(clusterInst, app, appInst); err != nil {
-		log.DebugLog(log.DebugLevelMexos, "warning, cannot delete AppInst", "error", err)
+		log.SpanLog(s.ctx, log.DebugLevelMexos, "warning, cannot delete AppInst", "error", err)
 		return err
 	}
 	return nil

@@ -1,6 +1,7 @@
 package gcp
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"os"
@@ -17,8 +18,8 @@ import (
 var GCPServiceAccount string //temp
 
 type Platform struct {
-	// GcpProperties needs to move to edge-cloud-infra
-	props        edgeproto.GcpProperties
+	ctx          context.Context
+	props        edgeproto.GcpProperties // GcpProperties needs to move to edge-cloud-infra
 	config       platform.PlatformConfig
 	clusterCache *edgeproto.ClusterInstInfoCache
 }
@@ -37,6 +38,10 @@ type GCPFlavor struct {
 	MaximumPersistentDisksSizeGb string
 	MemoryMb                     int
 	Name                         string
+}
+
+func (s *Platform) SetContext(ctx context.Context) {
+	s.ctx = ctx
 }
 
 func (s *Platform) GetType() string {
@@ -65,13 +70,13 @@ func (s *Platform) Init(platformConfig *platform.PlatformConfig, updateCallback 
 	if s.props.GcpAuthKeyUrl == "" {
 		//default it
 		s.props.GcpAuthKeyUrl = "https://" + platformConfig.VaultAddr + "/v1/secret/data/cloudlet/gcp/auth_key.json"
-		log.DebugLog(log.DebugLevelMexos, "MEX_GCP_AUTH_KEY_URL defaulted", "value", s.props.GcpAuthKeyUrl)
+		log.SpanLog(s.ctx, log.DebugLevelMexos, "MEX_GCP_AUTH_KEY_URL defaulted", "value", s.props.GcpAuthKeyUrl)
 	}
 	return nil
 }
 
 func (s *Platform) GatherCloudletInfo(info *edgeproto.CloudletInfo) error {
-	log.DebugLog(log.DebugLevelMexos, "GetLimits (GCP)")
+	log.SpanLog(s.ctx, log.DebugLevelMexos, "GetLimits (GCP)")
 	err := s.GCPLogin()
 	if err != nil {
 		return err

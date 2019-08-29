@@ -16,7 +16,7 @@ import (
 
 // GCPLogin logs into google cloud
 func (s *Platform) GCPLogin() error {
-	log.DebugLog(log.DebugLevelMexos, "doing GcpLogin", "vault url", s.props.GcpAuthKeyUrl)
+	log.SpanLog(s.ctx, log.DebugLevelMexos, "doing GcpLogin", "vault url", s.props.GcpAuthKeyUrl)
 	filename := "/tmp/auth_key.json"
 	err := mexos.GetVaultDataToFile(s.props.GcpAuthKeyUrl, filename)
 	if err != nil {
@@ -24,11 +24,11 @@ func (s *Platform) GCPLogin() error {
 	}
 	defer os.Remove(filename)
 	out, err := sh.Command("gcloud", "auth", "activate-service-account", GCPServiceAccount, "--key-file", filename).CombinedOutput()
-	log.DebugLog(log.DebugLevelMexos, "gcp login", "out", string(out), "err", err)
+	log.SpanLog(s.ctx, log.DebugLevelMexos, "gcp login", "out", string(out), "err", err)
 	if err != nil {
 		return err
 	}
-	log.DebugLog(log.DebugLevelMexos, "GCP login OK")
+	log.SpanLog(s.ctx, log.DebugLevelMexos, "GCP login OK")
 	return nil
 }
 
@@ -59,11 +59,11 @@ func (s *Platform) CreateClusterInst(clusterInst *edgeproto.ClusterInst, updateC
 	}
 	kconf := k8smgmt.GetKconfName(clusterInst) //XXX
 
-	log.DebugLog(log.DebugLevelMexos, "warning, using default config") //XXX
+	log.SpanLog(s.ctx, log.DebugLevelMexos, "warning, using default config") //XXX
 	if err = pc.CopyFile(client, mexos.DefaultKubeconfig(), kconf); err != nil {
 		return err
 	}
-	log.DebugLog(log.DebugLevelMexos, "created gke", "name", clusterName)
+	log.SpanLog(s.ctx, log.DebugLevelMexos, "created gke", "name", clusterName)
 	return nil
 }
 

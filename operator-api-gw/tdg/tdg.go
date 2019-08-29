@@ -1,7 +1,8 @@
 package tdg
 
 import (
-	"fmt"
+	"google.golang.org/grpc"
+	"google.golang.org/grpc/codes"
 
 	locclient "github.com/mobiledgex/edge-cloud-infra/operator-api-gw/tdg/tdg-loc/locclient"
 	qosclient "github.com/mobiledgex/edge-cloud-infra/operator-api-gw/tdg/tdg-qos/qosclient"
@@ -46,17 +47,17 @@ func (o *OperatorApiGw) VerifyLocation(mreq *dme.VerifyLocationRequest, mreply *
 	if o.Servers.LocVerUrl == "" {
 		// because this is so often used for demos, it is better to fail in a clear way
 		// than to give a defaultoperator/fake result
-		return fmt.Errorf("DME has no location verification server")
+		return grpc.Errorf(codes.InvalidArgument, "DME has no location verification server")
 	}
 	if o.Servers.TokSrvUrl == "" {
-		return fmt.Errorf("DME has no token server")
+		return grpc.Errorf(codes.InvalidArgument, "DME has no token server")
 	}
 	if mreq.VerifyLocToken == "" {
-		return fmt.Errorf("no VerifyLocToken in request")
+		return grpc.Errorf(codes.InvalidArgument, "no VerifyLocToken in request")
 	}
 	// this is checked in the DME, but since we dereference it we will check it in this code as well
 	if mreq.GpsLocation == nil {
-		return fmt.Errorf("no GpsLocation in request")
+		return grpc.Errorf(codes.InvalidArgument, "no GpsLocation in request")
 	}
 
 	result := locclient.CallTDGLocationVerifyAPI(o.Servers.LocVerUrl, mreq.GpsLocation.Latitude, mreq.GpsLocation.Longitude, mreq.VerifyLocToken, o.Servers.TokSrvUrl)

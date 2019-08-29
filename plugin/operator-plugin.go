@@ -18,8 +18,9 @@ func GetOperatorApiGw(ctx context.Context, operatorName string) (operator.Operat
 		fallthrough
 	case "TDG":
 		outApiGw = &tdg.OperatorApiGw{}
+	default:
+		outApiGw = &defaultoperator.OperatorApiGw{}
 	}
-	outApiGw = &defaultoperator.OperatorApiGw{}
 	outApiGw.SetContext(ctx)
 	return outApiGw, nil
 }

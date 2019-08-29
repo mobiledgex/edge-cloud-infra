@@ -90,6 +90,7 @@
 - hosts: gitlab
   roles:
     - role: telegraf
+      tags: monitoring
     - role: docker
     - role: gitlab
 
@@ -106,6 +107,7 @@
   tasks:
     - import_role:
         name: telegraf
+      tags: monitoring
     - import_role:
         name: docker
       tags: setup
@@ -123,6 +125,7 @@
 - hosts: mc
   roles:
     - role: telegraf
+      tags: monitoring
     - role: web
       vars:
         nginx_config_template: "templates/mexplat/mc-nginx-config.j2"
@@ -132,13 +135,15 @@
 
 - hosts: stun
   roles:
-    - telegraf
-    - coturn
+    - role: telegraf
+      tags: monitoring
+    - role: coturn
 
 - hosts: console
   tasks:
     - import_role:
         name: telegraf
+      tags: monitoring
     - import_role:
         name: web
       vars:
@@ -154,6 +159,7 @@
   tasks:
     - import_role:
         name: telegraf
+      tags: monitoring
     - import_role:
         name: registry_replica
 

@@ -235,7 +235,7 @@ func TestPromStats(t *testing.T) {
 	}
 
 	*platformName = "PLATFORM_TYPE_FAKE"
-	testPlatform, _ := getPlatform()
+	testPlatform, _ := getPlatform(ctx)
 
 	// Skip this much of the URL
 	skiplen := len("/api/v1/query?query=")

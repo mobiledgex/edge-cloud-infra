@@ -10,6 +10,7 @@ import (
 	"github.com/gogo/protobuf/types"
 	"github.com/mobiledgex/edge-cloud/cloud-resource-manager/k8smgmt"
 	"github.com/mobiledgex/edge-cloud/cloud-resource-manager/platform/pc"
+	"github.com/mobiledgex/edge-cloud/cloudcommon"
 	"github.com/mobiledgex/edge-cloud/edgeproto"
 	"github.com/mobiledgex/edge-cloud/log"
 )
@@ -104,7 +105,7 @@ func NginxScraper() {
 
 func QueryNginx(scrapePoint NginxScrapePoint) (*NginxMetrics, error) {
 	//build the query
-	request := fmt.Sprintf("docker exec %s curl http://127.0.0.1:9091/nginx_metrics", scrapePoint.Container)
+	request := fmt.Sprintf("docker exec %s curl http://127.0.0.1:%d/nginx_metrics", scrapePoint.Container, cloudcommon.NginxMetricsPort)
 	resp, err := scrapePoint.Client.Output(request)
 	//if this is the first time, or the container got restarted, install curl
 	if strings.Contains(resp, "executable file not found") {

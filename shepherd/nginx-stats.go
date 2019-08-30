@@ -18,6 +18,9 @@ import (
 var nginxAddChan chan NginxScrapePoint
 var nginxRemoveChan chan string
 
+var nginxUnitTest = false
+var nginxUnitTestPort = int64(0)
+
 type NginxScrapePoint struct {
 	App     string
 	Cluster string
@@ -105,6 +108,9 @@ func QueryNginx(scrapePoint NginxScrapePoint) (*NginxMetrics, error) {
 	// build the query
 	container := k8smgmt.NormalizeName(scrapePoint.App)
 	request := fmt.Sprintf("docker exec %s curl http://127.0.0.1:%d/nginx_metrics", container, cloudcommon.NginxMetricsPort)
+	if nginxUnitTest {
+		request = fmt.Sprintf("curl http://127.0.0.1:%d/nginx_metrics", nginxUnitTestPort)
+	}
 	resp, err := scrapePoint.Client.Output(request)
 	// if this is the first time, or the container got restarted, install curl
 	if strings.Contains(resp, "executable file not found") {
@@ -129,6 +135,7 @@ func QueryNginx(scrapePoint NginxScrapePoint) (*NginxMetrics, error) {
 	return metrics, nil
 }
 
+// view here: https://github.com/nginxinc/nginx-prometheus-exporter/blob/29ec94bdee98668e358efac7316bd8d12b05a130/client/nginx.go#L70
 func parseNginxResp(resp string, metrics *NginxMetrics) error {
 	// sometimes the response lines get cycled around, so break it up based on the start of the actual content
 	trimmedResp := strings.Split(resp, "Active connections:")

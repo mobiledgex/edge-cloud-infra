@@ -39,7 +39,7 @@ func CollectNginxStats(appInst *edgeproto.AppInst) {
 	}
 	// add/remove from the list of nginx endpoints to hit
 	if appInst.State == edgeproto.TrackedState_READY {
-		new := NginxScrapePoint{
+		scrapePoint := NginxScrapePoint{
 			App:       appInst.Key.AppKey.Name,
 			Cluster:   appInst.Key.ClusterInstKey.ClusterKey.Name,
 			Dev:       appInst.Key.AppKey.DeveloperKey.Name,
@@ -53,7 +53,7 @@ func CollectNginxStats(appInst *edgeproto.AppInst) {
 			return
 		}
 		var err error
-		new.Client, err = pf.GetPlatformClient(&clusterInst)
+		scrapePoint.Client, err = pf.GetPlatformClient(&clusterInst)
 		if err != nil {
 			// If we cannot get a platform client no point in trying to get metrics
 			log.DebugLog(log.DebugLevelMetrics, "Failed to acquire platform client", "cluster", clusterInst.Key, "error", err)
@@ -61,23 +61,23 @@ func CollectNginxStats(appInst *edgeproto.AppInst) {
 		}
 		// this can block for a bit so run it in a separate thread
 		go func() {
-			nginxAddChan <- new
+			nginxAddChan <- scrapePoint
 		}()
 	} else {
 		// if the app is anything other than ready, stop tracking it
 		go func() {
-			nginxRemoveChan <- appInst.Key.AppKey.Name
+			nginxRemoveChan <- appInst.Key.AppKey.Name + "-" + appInst.Key.ClusterInstKey.ClusterKey.Name + "-" + appInst.Key.AppKey.DeveloperKey.Name
 		}()
 	}
 }
 
 func NginxScraper() {
 	nginxMap := make(map[string]NginxScrapePoint)
-	for true {
+	for {
 		// check if there are any new apps we need to start/stop scraping for
 		select {
 		case new := <-nginxAddChan:
-			nginxMap[new.App] = new
+			nginxMap[new.App+"-"+new.Cluster+"-"+new.Dev] = new
 		case old := <-nginxRemoveChan:
 			delete(nginxMap, old)
 		case <-time.After(*collectInterval):
@@ -109,7 +109,7 @@ func QueryNginx(scrapePoint NginxScrapePoint) (*NginxMetrics, error) {
 	resp, err := scrapePoint.Client.Output(request)
 	// if this is the first time, or the container got restarted, install curl
 	if strings.Contains(resp, "executable file not found") {
-		log.DebugLog(log.DebugLevelMexos, "Installing curl onto docker container "+scrapePoint.Container+" for metrics collection")
+		log.DebugLog(log.DebugLevelMexos, "Installing curl onto docker container ", "Container", scrapePoint.Container)
 		installer := fmt.Sprintf("docker exec %s apt-get update; docker exec %s apt-get --assume-yes install curl", scrapePoint.Container, scrapePoint.Container)
 		resp, err = scrapePoint.Client.Output(installer)
 		if err != nil {
@@ -119,8 +119,7 @@ func QueryNginx(scrapePoint NginxScrapePoint) (*NginxMetrics, error) {
 		resp, err = scrapePoint.Client.Output(request)
 	}
 	if err != nil {
-		errstr := fmt.Sprintf("Failed to run <%s>", request)
-		log.DebugLog(log.DebugLevelMetrics, errstr, "err", err.Error())
+		log.DebugLog(log.DebugLevelMetrics, "Failed to run request", "request", request, "err", err.Error())
 		return nil, err
 	}
 	metrics := &NginxMetrics{}

@@ -41,4 +41,3 @@
       VAULT_ROLE_ID: "{{ mc_vault_app_role.role_id }}"
       VAULT_SECRET_ID: "{{ mc_vault_app_role.secret_id }}"
       gitlab_token: "{{ mc_gitlab_token }}"
-      artifactory_apikey: "{{ mc_artifactory_apikey }}"

@@ -71,8 +71,8 @@ func InternVaultEnv(ctx context.Context, keyURL string) error {
 	return nil
 }
 
-func GetVaultDataToFile(ctx context.Context, keyURL, fileName string) error {
-	log.SpanLog(ctx, log.DebugLevelMexos, "get vault data to file", "keyURL", keyURL, "file", fileName)
+func GetVaultDataToFile(keyURL, fileName string) error {
+	log.DebugLog(log.DebugLevelMexos, "get vault data to file", "keyURL", keyURL, "file", fileName)
 	dat, err := vault.GetVaultData(keyURL)
 	if err != nil {
 		return err
@@ -88,7 +88,7 @@ func GetVaultDataToFile(ctx context.Context, keyURL, fileName string) error {
 		return err
 	}
 
-	log.SpanLog(ctx, log.DebugLevelMexos, "vault data imported to file successfully")
+	log.DebugLog(log.DebugLevelMexos, "vault data imported to file successfully")
 
 	return nil
 }

@@ -2,7 +2,6 @@ package locclient
 
 import (
 	"bytes"
-	"context"
 	"encoding/base64"
 	"encoding/json"
 	"io/ioutil"
@@ -40,7 +39,7 @@ func basicAuth(username, password string) string {
 }
 
 // CallTDGLocationVerifyAPI REST API client for the TDG implementation of Location verification API
-func CallTDGLocationVerifyAPI(ctx context.Context, locVerUrl string, lat, long float64, token string, tokSrvUrl string) dmecommon.LocationResult {
+func CallTDGLocationVerifyAPI(locVerUrl string, lat, long float64, token string, tokSrvUrl string) dmecommon.LocationResult {
 
 	//for TDG, the serviceURL is the value of the query parameter "followURL" in the token service URL
 	u, err := url.Parse(tokSrvUrl)
@@ -81,13 +80,13 @@ func CallTDGLocationVerifyAPI(ctx context.Context, locVerUrl string, lat, long f
 	password := os.Getenv("LOCAPI_PASSWD")
 
 	if username != "" {
-		log.SpanLog(ctx, log.DebugLevelLocapi, "adding auth header", "username", username)
+		log.DebugLog(log.DebugLevelLocapi, "adding auth header", "username", username)
 		req.Header.Add("Authorization", "Basic "+basicAuth(username, password))
 	} else {
-		log.SpanLog(ctx, log.DebugLevelLocapi, "no auth credentials")
+		log.DebugLog(log.DebugLevelLocapi, "no auth credentials")
 	}
 	client := &http.Client{}
-	log.SpanLog(ctx, log.DebugLevelLocapi, "sending to api gw", "body:", body)
+	log.DebugLog(log.DebugLevelLocapi, "sending to api gw", "body:", body)
 
 	resp, err := client.Do(req)
 
@@ -97,11 +96,11 @@ func CallTDGLocationVerifyAPI(ctx context.Context, locVerUrl string, lat, long f
 	}
 	defer resp.Body.Close()
 
-	log.SpanLog(ctx, log.DebugLevelLocapi, "Received response", "statusCode:", resp.StatusCode)
+	log.DebugLog(log.DebugLevelLocapi, "Received response", "statusCode:", resp.StatusCode)
 
 	switch resp.StatusCode {
 	case http.StatusOK:
-		log.SpanLog(ctx, log.DebugLevelLocapi, "200OK received")
+		log.DebugLog(log.DebugLevelLocapi, "200OK received")
 
 	//treat 401 or 403 as a token issue.  Handling with TDG to be confirmed
 	case http.StatusForbidden:
@@ -129,26 +128,26 @@ func CallTDGLocationVerifyAPI(ctx context.Context, locVerUrl string, lat, long f
 		return dmecommon.LocationResult{DistanceRange: -1, MatchEngineLocStatus: dme.VerifyLocationReply_LOC_ERROR_OTHER}
 	}
 
-	log.SpanLog(ctx, log.DebugLevelLocapi, "unmarshalled location response", "lrmResp:", lrmResp)
+	log.DebugLog(log.DebugLevelLocapi, "unmarshalled location response", "lrmResp:", lrmResp)
 	md, err := strconv.ParseInt(lrmResp.MatchingDegree, 10, 32)
 	if err != nil {
 		log.WarnLog("Error in LocationResult", "LocationResult", lrmResp.MatchingDegree, "err", err)
 		return dmecommon.LocationResult{DistanceRange: -1, MatchEngineLocStatus: dme.VerifyLocationReply_LOC_ERROR_OTHER}
 	}
 	if md < 0 {
-		log.SpanLog(ctx, log.DebugLevelLocapi, "Invalid Matching degree received", "Message:", lrmResp.Message)
+		log.DebugLog(log.DebugLevelLocapi, "Invalid Matching degree received", "Message:", lrmResp.Message)
 		if strings.Contains(lrmResp.Message, "invalidToken") {
 			rc := dmecommon.LocationResult{DistanceRange: -1, MatchEngineLocStatus: dme.VerifyLocationReply_LOC_ERROR_UNAUTHORIZED}
-			log.SpanLog(ctx, log.DebugLevelLocapi, "Invalid token", "result", rc)
+			log.DebugLog(log.DebugLevelLocapi, "Invalid token", "result", rc)
 			return rc
 		}
 		rc := dmecommon.LocationResult{DistanceRange: -1, MatchEngineLocStatus: dme.VerifyLocationReply_LOC_ERROR_OTHER}
-		log.SpanLog(ctx, log.DebugLevelLocapi, "other error", "result", rc)
+		log.DebugLog(log.DebugLevelLocapi, "other error", "result", rc)
 		return rc
 	}
 
 	rc := dmecommon.GetDistanceAndStatusForLocationResult(uint32(md))
-	log.SpanLog(ctx, log.DebugLevelLocapi, "Returning result", "Location Result", rc)
+	log.DebugLog(log.DebugLevelLocapi, "Returning result", "Location Result", rc)
 
 	return rc
 }

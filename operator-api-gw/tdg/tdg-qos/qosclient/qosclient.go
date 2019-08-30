@@ -22,16 +22,16 @@ var serverCert = "qosserver.crt"
 
 var nextRequestId int64 = 1
 
-func GetQosCertsFromVault(ctx context.Context, vaultAddr string) error {
-	log.SpanLog(ctx, log.DebugLevelDmereq, "GetQosCertsFromVault", "vaultAddr", vaultAddr)
+func GetQosCertsFromVault(vaultAddr string) error {
+	log.DebugLog(log.DebugLevelDmereq, "GetQosCertsFromVault", "vaultAddr", vaultAddr)
 
 	certs := []string{clientCert, clientKey, serverCert}
 	for _, cert := range certs {
 
 		certURL := fmt.Sprintf("%s/v1/secret/data/accounts/tdg/qosapi/%s", vaultAddr, cert)
-		log.SpanLog(ctx, log.DebugLevelDmereq, "Fetching Cert", "certURL", certURL)
+		log.DebugLog(log.DebugLevelDmereq, "Fetching Cert", "certURL", certURL)
 		fileName := "/tmp/" + cert
-		err := mexos.GetVaultDataToFile(ctx, certURL, fileName)
+		err := mexos.GetVaultDataToFile(certURL, fileName)
 		if err != nil {
 			return grpc.Errorf(codes.Internal, "Unable to get cert from file: %s, %v", cert, err)
 		}

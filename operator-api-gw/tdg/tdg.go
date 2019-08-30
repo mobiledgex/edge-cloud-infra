@@ -1,7 +1,6 @@
 package tdg
 
 import (
-	"context"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
 
@@ -28,12 +27,12 @@ func (OperatorApiGw) GetOperatorName() string {
 }
 
 // Init is called once during startup.
-func (o *OperatorApiGw) Init(ctx context.Context, operatorName string, servers *operator.OperatorApiGwServers) error {
-	log.SpanLog(ctx, log.DebugLevelDmereq, "init for tdg operator", "servers", servers)
+func (o *OperatorApiGw) Init(operatorName string, servers *operator.OperatorApiGwServers) error {
+	log.DebugLog(log.DebugLevelDmereq, "init for tdg operator", "servers", servers)
 	o.Servers = servers
 
 	if o.Servers.QosPosUrl != "" {
-		err := qosclient.GetQosCertsFromVault(ctx, o.Servers.VaultAddr)
+		err := qosclient.GetQosCertsFromVault(o.Servers.VaultAddr)
 		if err != nil {
 			return err
 		}
@@ -41,9 +40,9 @@ func (o *OperatorApiGw) Init(ctx context.Context, operatorName string, servers *
 	return nil
 }
 
-func (o *OperatorApiGw) VerifyLocation(ctx context.Context, mreq *dme.VerifyLocationRequest, mreply *dme.VerifyLocationReply) error {
+func (o *OperatorApiGw) VerifyLocation(mreq *dme.VerifyLocationRequest, mreply *dme.VerifyLocationReply) error {
 
-	log.SpanLog(ctx, log.DebugLevelDmereq, "TDG VerifyLocation", "request", mreq)
+	log.DebugLog(log.DebugLevelDmereq, "TDG VerifyLocation", "request", mreq)
 
 	if o.Servers.LocVerUrl == "" {
 		// because this is so often used for demos, it is better to fail in a clear way
@@ -61,15 +60,15 @@ func (o *OperatorApiGw) VerifyLocation(ctx context.Context, mreq *dme.VerifyLoca
 		return grpc.Errorf(codes.InvalidArgument, "no GpsLocation in request")
 	}
 
-	result := locclient.CallTDGLocationVerifyAPI(ctx, o.Servers.LocVerUrl, mreq.GpsLocation.Latitude, mreq.GpsLocation.Longitude, mreq.VerifyLocToken, o.Servers.TokSrvUrl)
+	result := locclient.CallTDGLocationVerifyAPI(o.Servers.LocVerUrl, mreq.GpsLocation.Latitude, mreq.GpsLocation.Longitude, mreq.VerifyLocToken, o.Servers.TokSrvUrl)
 	mreply.GpsLocationStatus = result.MatchEngineLocStatus
 	mreply.GpsLocationAccuracyKm = result.DistanceRange
-	log.SpanLog(ctx, log.DebugLevelDmereq, "TDG VerifyLocation result", "mreply", mreply)
+	log.DebugLog(log.DebugLevelDmereq, "TDG VerifyLocation result", "mreply", mreply)
 	return nil
 }
 
-func (o *OperatorApiGw) GetLocation(ctx context.Context, mreq *dme.GetLocationRequest, mreply *dme.GetLocationReply) error {
-	log.SpanLog(ctx, log.DebugLevelDmereq, "TDG GetLocation", "request", mreq)
+func (o *OperatorApiGw) GetLocation(mreq *dme.GetLocationRequest, mreply *dme.GetLocationReply) error {
+	log.DebugLog(log.DebugLevelDmereq, "TDG GetLocation", "request", mreq)
 	// We have no real implementation of this
 	return simulatedloc.GetSimulatedClientLoc(mreq, mreply)
 }

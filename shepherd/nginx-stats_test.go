@@ -11,7 +11,7 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-var testNginxData = "Active Connections: 10\nserver accepts handled requests\n 101 202 303\nReading: 5 Writing: 4 Waiting: 3"
+var testNginxData = "Active connections: 10\nserver accepts handled requests\n 101 202 303\nReading: 5 Writing: 4 Waiting: 3"
 
 func TestNginxStats(t *testing.T) {
 	testScrapePoint := NginxScrapePoint{

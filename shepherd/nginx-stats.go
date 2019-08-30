@@ -19,11 +19,10 @@ var nginxAddChan chan NginxScrapePoint
 var nginxRemoveChan chan string
 
 type NginxScrapePoint struct {
-	App       string
-	Cluster   string
-	Dev       string
-	Client    pc.PlatformClient
-	Container string // this is specific to k8s, will need to accomodate for docker as well (when we get there)
+	App     string
+	Cluster string
+	Dev     string
+	Client  pc.PlatformClient
 }
 
 func InitNginxScraper() {
@@ -40,10 +39,9 @@ func CollectNginxStats(appInst *edgeproto.AppInst) {
 	// add/remove from the list of nginx endpoints to hit
 	if appInst.State == edgeproto.TrackedState_READY {
 		scrapePoint := NginxScrapePoint{
-			App:       appInst.Key.AppKey.Name,
-			Cluster:   appInst.Key.ClusterInstKey.ClusterKey.Name,
-			Dev:       appInst.Key.AppKey.DeveloperKey.Name,
-			Container: k8smgmt.NormalizeName(appInst.Key.AppKey.Name),
+			App:     appInst.Key.AppKey.Name,
+			Cluster: appInst.Key.ClusterInstKey.ClusterKey.Name,
+			Dev:     appInst.Key.AppKey.DeveloperKey.Name,
 		}
 
 		clusterInst := edgeproto.ClusterInst{}
@@ -105,12 +103,13 @@ func NginxScraper() {
 
 func QueryNginx(scrapePoint NginxScrapePoint) (*NginxMetrics, error) {
 	// build the query
-	request := fmt.Sprintf("docker exec %s curl http://127.0.0.1:%d/nginx_metrics", scrapePoint.Container, cloudcommon.NginxMetricsPort)
+	container := k8smgmt.NormalizeName(scrapePoint.App)
+	request := fmt.Sprintf("docker exec %s curl http://127.0.0.1:%d/nginx_metrics", container, cloudcommon.NginxMetricsPort)
 	resp, err := scrapePoint.Client.Output(request)
 	// if this is the first time, or the container got restarted, install curl
 	if strings.Contains(resp, "executable file not found") {
-		log.DebugLog(log.DebugLevelMexos, "Installing curl onto docker container ", "Container", scrapePoint.Container)
-		installer := fmt.Sprintf("docker exec %s apt-get update; docker exec %s apt-get --assume-yes install curl", scrapePoint.Container, scrapePoint.Container)
+		log.DebugLog(log.DebugLevelMexos, "Installing curl onto docker container ", "Container", container)
+		installer := fmt.Sprintf("docker exec %s apt-get update; docker exec %s apt-get --assume-yes install curl", container, container)
 		resp, err = scrapePoint.Client.Output(installer)
 		if err != nil {
 			return nil, fmt.Errorf("can't install curl on nginx container %s, %s, %v", *name, resp, err)

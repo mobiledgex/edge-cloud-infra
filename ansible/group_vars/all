@@ -8,7 +8,7 @@ mex_ops_email: mobiledgex.ops@mobiledgex.com
 cloudflare_account_email: mobiledgex.ops@mobiledgex.com
 cloudflare_account_api_token: ***REMOVED***
 cloudflare_zone: mobiledgex.net
-vault_address: https://vault.mobiledgex.net
+vault_address: https://vault-main.mobiledgex.net
 gitlab_address: https://container-registry.mobiledgex.net
 artifactory_address: https://artifactory.mobiledgex.net/artifactory
 gitlab_config_path: /etc/gitlab/gitlab.rb

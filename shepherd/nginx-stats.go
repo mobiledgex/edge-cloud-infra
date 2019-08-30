@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/gogo/protobuf/types"
@@ -15,9 +16,10 @@ import (
 	"github.com/mobiledgex/edge-cloud/log"
 )
 
-var nginxAddChan chan NginxScrapePoint
-var nginxRemoveChan chan string
+var nginxMap map[string]NginxScrapePoint
+var nginxMutex *sync.Mutex
 
+// variables for unit testing only
 var nginxUnitTest = false
 var nginxUnitTestPort = int64(0)
 
@@ -29,8 +31,8 @@ type NginxScrapePoint struct {
 }
 
 func InitNginxScraper() {
-	nginxAddChan = make(chan NginxScrapePoint)
-	nginxRemoveChan = make(chan string)
+	nginxMap = make(map[string]NginxScrapePoint)
+	nginxMutex = &sync.Mutex{}
 	go NginxScraper()
 }
 
@@ -60,29 +62,34 @@ func CollectNginxStats(appInst *edgeproto.AppInst) {
 			log.DebugLog(log.DebugLevelMetrics, "Failed to acquire platform client", "cluster", clusterInst.Key, "error", err)
 			return
 		}
-		// this can block for a bit so run it in a separate thread
-		go func() {
-			nginxAddChan <- scrapePoint
-		}()
+		nginxMutex.Lock()
+		nginxMap[scrapePoint.App+"-"+scrapePoint.Cluster+"-"+scrapePoint.Dev] = scrapePoint
+		nginxMutex.Unlock()
 	} else {
 		// if the app is anything other than ready, stop tracking it
-		go func() {
-			nginxRemoveChan <- appInst.Key.AppKey.Name + "-" + appInst.Key.ClusterInstKey.ClusterKey.Name + "-" + appInst.Key.AppKey.DeveloperKey.Name
-		}()
+		nginxMutex.Lock()
+		delete(nginxMap, appInst.Key.AppKey.Name+"-"+appInst.Key.ClusterInstKey.ClusterKey.Name+"-"+appInst.Key.AppKey.DeveloperKey.Name)
+		nginxMutex.Unlock()
 	}
 }
 
+func copyMapValues() []NginxScrapePoint {
+	nginxMutex.Lock()
+	scrapePoints := make([]NginxScrapePoint, 0, len(nginxMap))
+	for _, value := range nginxMap {
+		scrapePoints = append(scrapePoints, value)
+	}
+	nginxMutex.Unlock()
+	return scrapePoints
+}
+
 func NginxScraper() {
-	nginxMap := make(map[string]NginxScrapePoint)
 	for {
 		// check if there are any new apps we need to start/stop scraping for
 		select {
-		case new := <-nginxAddChan:
-			nginxMap[new.App+"-"+new.Cluster+"-"+new.Dev] = new
-		case old := <-nginxRemoveChan:
-			delete(nginxMap, old)
 		case <-time.After(*collectInterval):
-			for _, v := range nginxMap {
+			scrapePoints := copyMapValues()
+			for _, v := range scrapePoints {
 				span := log.StartSpan(log.DebugLevelSampled, "send-metric")
 				span.SetTag("operator", cloudletKey.OperatorKey.Name)
 				span.SetTag("cloudlet", cloudletKey.Name)

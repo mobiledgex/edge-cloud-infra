@@ -36,8 +36,7 @@ func main() {
 	flag.Parse()
 	log.InitTracer("")
 	defer log.FinishTracer()
-	span := log.StartSpan(log.DebugLevelInfo, "main")
-	ctx := log.ContextWithSpan(context.Background(), span)
+	ctx := log.StartTestSpan(context.Background())
 
 	config := e2eapi.TestConfig{}
 	spec := e2esetup.TestSpec{}

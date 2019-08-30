@@ -29,7 +29,7 @@ func TestController(t *testing.T) {
 	log.InitTracer("")
 	defer log.FinishTracer()
 	ctx := log.StartTestSpan(context.Background())
-	addr := "127.0.0.1:9899"
+	addr := "127.0.0.1:9999"
 	uri := "http://" + addr + "/api/v1"
 
 	config := ServerConfig{

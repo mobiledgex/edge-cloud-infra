@@ -19,7 +19,7 @@ import (
 func CreateDockerRegistrySecret(ctx context.Context, client pc.PlatformClient, clusterInst *edgeproto.ClusterInst, app *edgeproto.App, vaultAddr string) error {
 	var out string
 	log.SpanLog(ctx, log.DebugLevelMexos, "creating docker registry secret in kubernetes cluster")
-	auth, err := cloudcommon.GetRegistryAuth(app.ImagePath, vaultAddr)
+	auth, err := cloudcommon.GetRegistryAuth(ctx, app.ImagePath, vaultAddr)
 	if err != nil {
 		log.SpanLog(ctx, log.DebugLevelMexos, "warning, cannot get docker registry secret from vault - assume public registry", "err", err)
 		return nil

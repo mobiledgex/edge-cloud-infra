@@ -206,7 +206,7 @@ ssh_authorized_keys:
 
 	// Gather registry credentails from Vault
 	updateCallback(edgeproto.UpdateTask, "Fetching registry auth credentials")
-	regAuth, err := cloudcommon.GetRegistryAuth(pfConfig.RegistryPath, pfConfig.VaultAddr)
+	regAuth, err := cloudcommon.GetRegistryAuth(ctx, pfConfig.RegistryPath, pfConfig.VaultAddr)
 	if err != nil {
 		return fmt.Errorf("unable to fetch registry auth credentials")
 	}

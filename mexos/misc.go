@@ -41,7 +41,7 @@ func CopyFile(src string, dst string) error {
 func SeedDockerSecret(ctx context.Context, client pc.PlatformClient, inst *edgeproto.ClusterInst, app *edgeproto.App, vaultAddr string) error {
 	log.SpanLog(ctx, log.DebugLevelMexos, "seed docker secret")
 
-	auth, err := cloudcommon.GetRegistryAuth(app.ImagePath, vaultAddr)
+	auth, err := cloudcommon.GetRegistryAuth(ctx, app.ImagePath, vaultAddr)
 	if err != nil {
 		return err
 	}

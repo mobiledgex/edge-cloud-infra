@@ -81,7 +81,6 @@ func TestController(t *testing.T) {
 
 	// test controller api
 	ctrls, status, err := mcClient.ShowController(uri, token)
-
 	require.Nil(t, err, "show controllers")
 	require.Equal(t, http.StatusOK, status)
 	require.Equal(t, 0, len(ctrls))

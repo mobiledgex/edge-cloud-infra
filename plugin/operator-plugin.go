@@ -21,6 +21,5 @@ func GetOperatorApiGw(ctx context.Context, operatorName string) (operator.Operat
 	default:
 		outApiGw = &defaultoperator.OperatorApiGw{}
 	}
-	outApiGw.SetContext(ctx)
 	return outApiGw, nil
 }

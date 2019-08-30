@@ -235,7 +235,7 @@ func TestPromStats(t *testing.T) {
 	}
 
 	*platformName = "PLATFORM_TYPE_FAKE"
-	testPlatform, _ := getPlatform(ctx)
+	testPlatform, _ := getPlatform()
 
 	// Skip this much of the URL
 	skiplen := len("/api/v1/query?query=")
@@ -250,8 +250,8 @@ func TestPromStats(t *testing.T) {
 	assert.Contains(t, err.Error(), "Unsupported deployment")
 	testPromStats, err = NewClusterWorker(ctx, tsProm.URL[7:], time.Second*1, testMetricSend, &testClusterInst, testPlatform)
 	assert.Nil(t, err, "Get a patform client for fake cloudlet")
-	clusterMetrics := testPromStats.clusterStat.GetClusterStats()
-	appsMetrics := testPromStats.clusterStat.GetAppStats()
+	clusterMetrics := testPromStats.clusterStat.GetClusterStats(ctx)
+	appsMetrics := testPromStats.clusterStat.GetAppStats(ctx)
 	assert.NotNil(t, clusterMetrics, "Fill stats from json")
 	assert.NotNil(t, appsMetrics, "Fill stats from json")
 	testAppKey.pod = "testPod1"

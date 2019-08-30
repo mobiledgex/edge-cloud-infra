@@ -1,7 +1,6 @@
 package orm
 
 import (
-	"context"
 	"encoding/json"
 	"fmt"
 	"net/http"
@@ -14,7 +13,6 @@ import (
 )
 
 type ArtifactoryMock struct {
-	ctx        context.Context
 	addr       string
 	userStore  map[string]*v1.User
 	groupStore map[string]*v1.Group
@@ -29,9 +27,8 @@ const (
 	permApi  string = "api/security/permissions"
 )
 
-func NewArtifactoryMock(ctx context.Context, addr string) *ArtifactoryMock {
+func NewArtifactoryMock(addr string) *ArtifactoryMock {
 	rtf := ArtifactoryMock{}
-	rtf.ctx = ctx
 	rtf.addr = addr
 	rtf.userStore = make(map[string]*v1.User)
 	rtf.groupStore = make(map[string]*v1.Group)

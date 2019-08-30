@@ -16,21 +16,16 @@ import (
 )
 
 type Platform struct {
-	ctx    context.Context
 	props  edgeproto.AzureProperties // AzureProperties should be moved to edge-cloud-infra
 	config platform.PlatformConfig
-}
-
-func (s *Platform) SetContext(ctx context.Context) {
-	s.ctx = ctx
 }
 
 func (s *Platform) GetType() string {
 	return "azure"
 }
 
-func (s *Platform) Init(platformConfig *platform.PlatformConfig, updateCallback edgeproto.CacheUpdateCallback) error {
-	if err := mexos.InitInfraCommon(s.ctx, platformConfig.VaultAddr); err != nil {
+func (s *Platform) Init(ctx context.Context, platformConfig *platform.PlatformConfig, updateCallback edgeproto.CacheUpdateCallback) error {
+	if err := mexos.InitInfraCommon(ctx, platformConfig.VaultAddr); err != nil {
 		return err
 	}
 	s.config = *platformConfig
@@ -75,9 +70,9 @@ type AZFlavor struct {
 	VCPUs int
 }
 
-func (s *Platform) GatherCloudletInfo(info *edgeproto.CloudletInfo) error {
-	log.SpanLog(s.ctx, log.DebugLevelMexos, "GetLimits (Azure)")
-	if err := s.AzureLogin(); err != nil {
+func (s *Platform) GatherCloudletInfo(ctx context.Context, info *edgeproto.CloudletInfo) error {
+	log.SpanLog(ctx, log.DebugLevelMexos, "GetLimits (Azure)")
+	if err := s.AzureLogin(ctx, ); err != nil {
 		return err
 	}
 
@@ -142,6 +137,6 @@ func (s *Platform) GatherCloudletInfo(info *edgeproto.CloudletInfo) error {
 	return nil
 }
 
-func (s *Platform) GetPlatformClient(clusterInst *edgeproto.ClusterInst) (pc.PlatformClient, error) {
+func (s *Platform) GetPlatformClient(ctx context.Context, clusterInst *edgeproto.ClusterInst) (pc.PlatformClient, error) {
 	return &pc.LocalClient{}, nil
 }

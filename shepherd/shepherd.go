@@ -62,7 +62,7 @@ func appInstCb(ctx context.Context, old *edgeproto.AppInst, new *edgeproto.AppIn
 			log.SpanLog(ctx, log.DebugLevelMetrics, "Unable to find clusterInst for prometheus")
 			return
 		}
-		clustIP, err := pf.GetClusterIP(&clusterInst)
+		clustIP, err := pf.GetClusterIP(ctx, &clusterInst)
 		if err != nil {
 			log.SpanLog(ctx, log.DebugLevelMetrics, "error getting clusterIP", "err", err.Error())
 			return
@@ -79,7 +79,7 @@ func appInstCb(ctx context.Context, old *edgeproto.AppInst, new *edgeproto.AppIn
 			stats, err = NewClusterWorker(ctx, promAddress, *collectInterval, metricSender.Update, &clusterInst, pf)
 			if err == nil {
 				promMap[mapKey] = stats
-				stats.Start()
+				stats.Start(ctx)
 			}
 		} else { //somehow this cluster's prometheus was already registered
 			log.SpanLog(ctx, log.DebugLevelMetrics, "Error, Prometheus app already registered for this cluster")
@@ -88,7 +88,7 @@ func appInstCb(ctx context.Context, old *edgeproto.AppInst, new *edgeproto.AppIn
 		//try to remove it from the prommap
 		if exists {
 			delete(promMap, mapKey)
-			stats.Stop()
+			stats.Stop(ctx)
 		}
 	}
 }
@@ -106,7 +106,7 @@ func clusterInstCb(ctx context.Context, old *edgeproto.ClusterInst, new *edgepro
 			stats, err := NewClusterWorker(ctx, "", *collectInterval, metricSender.Update, new, pf)
 			if err == nil {
 				promMap[mapKey] = stats
-				stats.Start()
+				stats.Start(ctx)
 			}
 		} else { //somehow this cluster's prometheus was already registered
 			log.SpanLog(ctx, log.DebugLevelMetrics, "Error, This cluster is already registered")
@@ -115,12 +115,12 @@ func clusterInstCb(ctx context.Context, old *edgeproto.ClusterInst, new *edgepro
 		//try to remove it from the prommap
 		if exists {
 			delete(promMap, mapKey)
-			stats.Stop()
+			stats.Stop(ctx)
 		}
 	}
 }
 
-func getPlatform(ctx context.Context) (platform.Platform, error) {
+func getPlatform() (platform.Platform, error) {
 	var plat platform.Platform
 	var err error
 	switch *platformName {
@@ -133,7 +133,6 @@ func getPlatform(ctx context.Context) (platform.Platform, error) {
 	default:
 		err = fmt.Errorf("Platform %s not supported", *platformName)
 	}
-	plat.SetContext(ctx)
 	return plat, err
 }
 
@@ -148,11 +147,11 @@ func main() {
 	cloudcommon.ParseMyCloudletKey(false, cloudletKeyStr, &cloudletKey)
 	log.SpanLog(ctx, log.DebugLevelMetrics, "Metrics collection", "interval", collectInterval)
 	var err error
-	pf, err = getPlatform(ctx)
+	pf, err = getPlatform()
 	if err != nil {
 		log.FatalLog("Failed to get platform", "platformName", platformName, "err", err)
 	}
-	pf.Init(&cloudletKey, *physicalName, *vaultAddr)
+	pf.Init(ctx, &cloudletKey, *physicalName, *vaultAddr)
 
 	promMap = make(map[string]*ClusterWorker)
 

@@ -172,9 +172,9 @@ func TestAppStoreApi(t *testing.T) {
 	}
 
 	// mock artifactory
-	rtf := NewArtifactoryMock(ctx, artifactoryAddr)
+	rtf := NewArtifactoryMock(artifactoryAddr)
 	// mock gitlab
-	gm := NewGitlabMock(ctx, gitlabAddr)
+	gm := NewGitlabMock(gitlabAddr)
 
 	// Create new users & orgs from MC
 	for _, v := range testEntries {

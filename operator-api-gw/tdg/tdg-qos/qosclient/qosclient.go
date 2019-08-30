@@ -39,7 +39,7 @@ func GetQosCertsFromVault(ctx context.Context, vaultAddr string) error {
 	return nil
 }
 
-func GetQOSPositionFromApiGW(ctx context.Context, serverUrl string, mreq *dme.QosPositionRequest, qosKpiServer dme.MatchEngineApi_GetQosPositionKpiServer) error {
+func GetQOSPositionFromApiGW(serverUrl string, mreq *dme.QosPositionRequest, qosKpiServer dme.MatchEngineApi_GetQosPositionKpiServer) error {
 	serverCertFile := "/tmp/" + serverCert
 	clientCertFile := "/tmp/" + clientCert
 
@@ -50,7 +50,7 @@ func GetQOSPositionFromApiGW(ctx context.Context, serverUrl string, mreq *dme.Qo
 	// in case the responses come put of order, we need to be able to lookup the GPS coordinate of the request positionid
 	var positionIdToGps = make(map[int64]*dme.Loc)
 
-	log.SpanLog(ctx, log.DebugLevelDmereq, "Connecting to QOS API GW", "serverUrl", serverUrl)
+	log.DebugLog(log.DebugLevelDmereq, "Connecting to QOS API GW", "serverUrl", serverUrl)
 
 	tlsConfig, err := edgetls.GetTLSClientConfig(serverUrl, clientCertFile, serverCertFile, false)
 	if err != nil {
@@ -64,6 +64,7 @@ func GetQOSPositionFromApiGW(ctx context.Context, serverUrl string, mreq *dme.Qo
 		return grpc.Errorf(codes.Unavailable, "Unable to connect to API GW: %s, %v", serverUrl, err)
 	}
 	defer conn.Close()
+	ctx := context.TODO()
 	defaultTimestamp := time.Now().Unix() + 1000
 	var request tdgproto.QoSKPIRequest
 	for _, p := range mreq.Positions {
@@ -91,7 +92,7 @@ func GetQOSPositionFromApiGW(ctx context.Context, serverUrl string, mreq *dme.Qo
 	request.Requestid = nextRequestId
 	nextRequestId++
 
-	log.SpanLog(ctx, log.DebugLevelDmereq, "Sending request to API GW", "request", request)
+	log.DebugLog(log.DebugLevelDmereq, "Sending request to API GW", "request", request)
 
 	qosClient := tdgproto.NewQueryQoSClient(conn)
 	stream, err := qosClient.QueryQoSKPI(ctx, &request)
@@ -104,14 +105,14 @@ func GetQOSPositionFromApiGW(ctx context.Context, serverUrl string, mreq *dme.Qo
 		var mreply dme.QosPositionKpiReply
 		res, err := stream.Recv()
 		if err == io.EOF {
-			log.SpanLog(ctx, log.DebugLevelDmereq, "EOF received")
+			log.DebugLog(log.DebugLevelDmereq, "EOF received")
 			err = nil
 			break
 		}
 		if err != nil {
 			break
 		}
-		log.SpanLog(ctx, log.DebugLevelDmereq, "Recv done", "resultLen", len(res.Results), "err", err)
+		log.DebugLog(log.DebugLevelDmereq, "Recv done", "resultLen", len(res.Results), "err", err)
 
 		for _, r := range res.Results {
 			var qosres dme.QosPositionKpiResult
@@ -137,7 +138,7 @@ func GetQOSPositionFromApiGW(ctx context.Context, serverUrl string, mreq *dme.Qo
 		qosKpiServer.Send(&mreply)
 	}
 
-	log.SpanLog(ctx, log.DebugLevelDmereq, "Done receiving responses")
+	log.DebugLog(log.DebugLevelDmereq, "Done receiving responses")
 	return err
 
 }

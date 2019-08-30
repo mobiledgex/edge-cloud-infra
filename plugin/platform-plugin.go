@@ -1,7 +1,6 @@
 package main
 
 import (
-	"context"
 	"fmt"
 
 	"github.com/mobiledgex/edge-cloud-infra/crm-platforms/azure"
@@ -11,7 +10,7 @@ import (
 	"github.com/mobiledgex/edge-cloud/cloud-resource-manager/platform"
 )
 
-func GetPlatform(ctx context.Context, plat string) (platform.Platform, error) {
+func GetPlatform(plat string) (platform.Platform, error) {
 	var outPlatform platform.Platform
 	switch plat {
 	case "PLATFORM_TYPE_OPENSTACK":
@@ -25,7 +24,6 @@ func GetPlatform(ctx context.Context, plat string) (platform.Platform, error) {
 	default:
 		return nil, fmt.Errorf("unknown platform %s", plat)
 	}
-	outPlatform.SetContext(ctx)
 	return outPlatform, nil
 }
 

@@ -1,10 +1,13 @@
 package orm
 
 import (
+	"context"
 	"fmt"
 	"net"
 	"net/http"
 	"net/http/httptest"
+	"os"
+	"os/exec"
 	"testing"
 	"time"
 
@@ -25,7 +28,8 @@ func TestController(t *testing.T) {
 	log.SetDebugLevel(log.DebugLevelApi)
 	log.InitTracer("")
 	defer log.FinishTracer()
-	addr := "127.0.0.1:9999"
+	ctx := log.StartTestSpan(context.Background())
+	addr := "127.0.0.1:9899"
 	uri := "http://" + addr + "/api/v1"
 
 	config := ServerConfig{
@@ -74,13 +78,19 @@ func TestController(t *testing.T) {
 	require.Nil(t, err, "server online")
 
 	mcClient := &ormclient.Client{}
+	prout, err := exec.Command("/bin/sh", "-c", fmt.Sprintf("lsof -P -p %v  | awk ' { print $1,$9 }'", os.Getpid())).Output()
+	log.SpanLog(ctx, log.DebugLevelApi, "LSOF1=====>", "out", string(prout), "err", err)
 
 	// login as super user
 	token, err := mcClient.DoLogin(uri, DefaultSuperuser, DefaultSuperpass)
 	require.Nil(t, err, "login as superuser")
 
+	prout, err = exec.Command("/bin/sh", "-c", fmt.Sprintf("lsof -P -p %v  | awk ' { print $1,$9 }'", os.Getpid())).Output()
+	log.SpanLog(ctx, log.DebugLevelApi, "LSOF2=====>", "out", string(prout), "err", err)
+
 	// test controller api
 	ctrls, status, err := mcClient.ShowController(uri, token)
+
 	require.Nil(t, err, "show controllers")
 	require.Equal(t, http.StatusOK, status)
 	require.Equal(t, 0, len(ctrls))

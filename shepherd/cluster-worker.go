@@ -58,7 +58,8 @@ func NewClusterWorker(ctx context.Context, promAddr string, interval time.Durati
 func (p *ClusterWorker) Start(ctx context.Context) {
 	p.stop = make(chan struct{})
 	p.waitGrp.Add(1)
-	go p.RunNotify(ctx)
+	go p.RunNotify()
+	log.SpanLog(ctx, log.DebugLevelMetrics, "Started ClusterWorker thread\n")
 }
 
 func (p *ClusterWorker) Stop(ctx context.Context) {
@@ -67,19 +68,18 @@ func (p *ClusterWorker) Stop(ctx context.Context) {
 	p.waitGrp.Wait()
 }
 
-func (p *ClusterWorker) RunNotify(ctx context.Context) {
-	log.SpanLog(ctx, log.DebugLevelMetrics, "Started ClusterWorker thread\n")
+func (p *ClusterWorker) RunNotify() {
 	done := false
 	for !done {
 		select {
 		case <-time.After(p.interval):
-			clusterStats := p.clusterStat.GetClusterStats(ctx)
-			appStatsMap := p.clusterStat.GetAppStats(ctx)
 			span := log.StartSpan(log.DebugLevelSampled, "send-metric")
 			span.SetTag("operator", p.clusterInstKey.CloudletKey.OperatorKey.Name)
 			span.SetTag("cloudlet", p.clusterInstKey.CloudletKey.Name)
 			span.SetTag("cluster", p.clusterInstKey.ClusterKey.Name)
 			ctx := log.ContextWithSpan(context.Background(), span)
+			clusterStats := p.clusterStat.GetClusterStats(ctx)
+			appStatsMap := p.clusterStat.GetAppStats(ctx)
 
 			for key, stat := range appStatsMap {
 				appMetrics := MarshalAppMetrics(&key, stat)

@@ -34,6 +34,12 @@ func (s *Platform) CreateAppInst(clusterInst *edgeproto.ClusterInst, app *edgepr
 		return err
 	}
 
+	// The rest is k8s specific
+	// TODO: need to do different thing for Docker Apps on Dind
+	if clusterInst.Deployment != cloudcommon.AppDeploymentTypeKubernetes {
+		return nil
+	}
+
 	// set up DNS
 	cluster, err := dind.FindCluster(names.ClusterName)
 	if err != nil {

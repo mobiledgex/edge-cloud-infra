@@ -5,6 +5,7 @@ import (
 	"time"
 
 	"github.com/mobiledgex/edge-cloud-infra/mexos"
+	"github.com/mobiledgex/edge-cloud/cloudcommon"
 	"github.com/mobiledgex/edge-cloud/edgeproto"
 )
 
@@ -16,6 +17,10 @@ func (s *Platform) CreateClusterInst(clusterInst *edgeproto.ClusterInst, updateC
 	err := s.generic.CreateClusterInst(clusterInst, updateCallback, timeout)
 	if err != nil {
 		return err
+	}
+	// The rest is k8s specific
+	if clusterInst.Deployment == cloudcommon.AppDeploymentTypeDocker {
+		return nil
 	}
 	client, err := s.generic.GetPlatformClient(clusterInst)
 	if err != nil {

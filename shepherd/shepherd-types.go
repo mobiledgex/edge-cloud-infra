@@ -33,25 +33,25 @@ type AppMetrics struct {
 }
 
 type ClusterMetrics struct {
-	cpu          float64
+	Cpu          float64
 	cpuTS        *types.Timestamp
-	mem          float64
+	Mem          float64
 	memTS        *types.Timestamp
-	disk         float64
+	Disk         float64
 	diskTS       *types.Timestamp
-	netSend      uint64
+	NetSend      uint64
 	netSendTS    *types.Timestamp
-	netRecv      uint64
+	NetRecv      uint64
 	netRecvTS    *types.Timestamp
-	tcpConns     uint64
+	TcpConns     uint64
 	tcpConnsTS   *types.Timestamp
-	tcpRetrans   uint64
+	TcpRetrans   uint64
 	tcpRetransTS *types.Timestamp
-	udpSend      uint64
+	UdpSend      uint64
 	udpSendTS    *types.Timestamp
-	udpRecv      uint64
+	UdpRecv      uint64
 	udpRecvTS    *types.Timestamp
-	udpRecvErr   uint64
+	UdpRecvErr   uint64
 	udpRecvErrTS *types.Timestamp
 }
 

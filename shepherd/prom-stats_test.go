@@ -266,11 +266,11 @@ func TestPromStats(t *testing.T) {
 		assert.Equal(t, uint64(222222), stat.netRecv)
 	}
 	// Check ClusterStats
-	assert.Equal(t, float64(10.01), clusterMetrics.cpu)
-	assert.Equal(t, float64(99.99), clusterMetrics.mem)
-	assert.Equal(t, float64(50.0), clusterMetrics.disk)
-	assert.Equal(t, uint64(11111), clusterMetrics.netSend)
-	assert.Equal(t, uint64(22222), clusterMetrics.netRecv)
+	assert.Equal(t, float64(10.01), clusterMetrics.Cpu)
+	assert.Equal(t, float64(99.99), clusterMetrics.Mem)
+	assert.Equal(t, float64(50.0), clusterMetrics.Disk)
+	assert.Equal(t, uint64(11111), clusterMetrics.NetSend)
+	assert.Equal(t, uint64(22222), clusterMetrics.NetRecv)
 
 	// Check callback is called
 	assert.Equal(t, int(0), testMetricSent)

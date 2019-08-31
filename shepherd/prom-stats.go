@@ -184,7 +184,7 @@ func collectClusterPrometheusMetrics(p *K8sClusterStats) error {
 			p.cpuTS = parseTime(metric.Values[0].(float64))
 			//copy only if we can parse the value
 			if val, err := strconv.ParseFloat(metric.Values[1].(string), 64); err == nil {
-				p.cpu = val
+				p.Cpu = val
 				// We should have only one value here
 				break
 			}
@@ -197,7 +197,7 @@ func collectClusterPrometheusMetrics(p *K8sClusterStats) error {
 			p.memTS = parseTime(metric.Values[0].(float64))
 			//copy only if we can parse the value
 			if val, err := strconv.ParseFloat(metric.Values[1].(string), 64); err == nil {
-				p.mem = val
+				p.Mem = val
 				// We should have only one value here
 				break
 			}
@@ -210,7 +210,7 @@ func collectClusterPrometheusMetrics(p *K8sClusterStats) error {
 			p.diskTS = parseTime(metric.Values[0].(float64))
 			//copy only if we can parse the value
 			if val, err := strconv.ParseFloat(metric.Values[1].(string), 64); err == nil {
-				p.disk = val
+				p.Disk = val
 				// We should have only one value here
 				break
 			}
@@ -223,7 +223,7 @@ func collectClusterPrometheusMetrics(p *K8sClusterStats) error {
 			p.netRecvTS = parseTime(metric.Values[0].(float64))
 			//copy only if we can parse the value
 			if val, err := strconv.ParseFloat(metric.Values[1].(string), 64); err == nil {
-				p.netRecv = uint64(val)
+				p.NetRecv = uint64(val)
 				// We should have only one value here
 				break
 			}
@@ -236,7 +236,7 @@ func collectClusterPrometheusMetrics(p *K8sClusterStats) error {
 			p.netSendTS = parseTime(metric.Values[0].(float64))
 			//copy only if we can parse the value
 			if val, err := strconv.ParseFloat(metric.Values[1].(string), 64); err == nil {
-				p.netSend = uint64(val)
+				p.NetSend = uint64(val)
 				// We should have only one value here
 				break
 			}
@@ -250,7 +250,7 @@ func collectClusterPrometheusMetrics(p *K8sClusterStats) error {
 			p.tcpConnsTS = parseTime(metric.Values[0].(float64))
 			//copy only if we can parse the value
 			if val, err := strconv.ParseUint(metric.Values[1].(string), 10, 64); err == nil {
-				p.tcpConns = val
+				p.TcpConns = val
 				// We should have only one value here
 				break
 			}
@@ -263,7 +263,7 @@ func collectClusterPrometheusMetrics(p *K8sClusterStats) error {
 			p.tcpRetransTS = parseTime(metric.Values[0].(float64))
 			//copy only if we can parse the value
 			if val, err := strconv.ParseUint(metric.Values[1].(string), 10, 64); err == nil {
-				p.tcpRetrans = val
+				p.TcpRetrans = val
 				// We should have only one value here
 				break
 			}
@@ -276,7 +276,7 @@ func collectClusterPrometheusMetrics(p *K8sClusterStats) error {
 			p.udpSendTS = parseTime(metric.Values[0].(float64))
 			//copy only if we can parse the value
 			if val, err := strconv.ParseUint(metric.Values[1].(string), 10, 64); err == nil {
-				p.udpSend = val
+				p.UdpSend = val
 				// We should have only one value here
 				break
 			}
@@ -289,7 +289,7 @@ func collectClusterPrometheusMetrics(p *K8sClusterStats) error {
 			p.udpRecvTS = parseTime(metric.Values[0].(float64))
 			//copy only if we can parse the value
 			if val, err := strconv.ParseUint(metric.Values[1].(string), 10, 64); err == nil {
-				p.udpRecv = val
+				p.UdpRecv = val
 				// We should have only one value here
 				break
 			}
@@ -302,7 +302,7 @@ func collectClusterPrometheusMetrics(p *K8sClusterStats) error {
 			p.udpRecvErrTS = parseTime(metric.Values[0].(float64))
 			//copy only if we can parse the value
 			if val, err := strconv.ParseUint(metric.Values[1].(string), 10, 64); err == nil {
-				p.udpRecvErr = val
+				p.UdpRecvErr = val
 				// We should have only one value here
 				break
 			}

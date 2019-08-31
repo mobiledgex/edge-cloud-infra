@@ -72,7 +72,6 @@ func main() {
 				// TODO - parse udp stats
 			}
 		}
-		//		fmt.Printf("Protocol stats %v\n", proto)
 	}
 	b, err := json.Marshal(&result)
 	if err != nil {

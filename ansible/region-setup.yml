@@ -1,0 +1,7 @@
+- hosts: platform
+  tasks:
+    - include_role:
+        name: azure-aks
+      loop: "{{ regions }}"
+      loop_control:
+        loop_var: region

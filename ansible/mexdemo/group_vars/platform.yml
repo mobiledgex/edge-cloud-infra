@@ -1,0 +1,12 @@
+regions:
+  - platform_name: mexdemo-eu-cluster
+    azure_resource_group_name: mexdemo-eu-resource-group
+    location: westeurope
+    kubernetes_version: 1.12.8
+
+  - platform_name: mexdemo-kr
+    location: koreacentral
+    kubernetes_version: 1.12.8
+
+  - platform_name: mexdemo-us
+    location: northcentralus

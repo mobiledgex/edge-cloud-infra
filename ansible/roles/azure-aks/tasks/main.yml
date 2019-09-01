@@ -1,0 +1,31 @@
+---
+- name: Set resource group name
+  set_fact:
+    az_rg_name: "{{ region.azure_resource_group_name | default(def_rg_name) }}"
+  vars:
+    def_rg_name: "{{ region.platform_name }}-rg"
+
+- name: "Create resource group \"{{ az_rg_name }}\" in \"{{ region.location }}\""
+  azure_rm_resourcegroup:
+    name: "{{ az_rg_name }}"
+    location: "{{ region.location }}"
+
+- name: "Create kubernetes cluster \"{{ region.platform_name }}\""
+  azure_rm_aks:
+    name: "{{ region.platform_name }}"
+    location: "{{ region.location }}"
+    resource_group: "{{ az_rg_name }}"
+    kubernetes_version: "{{ region.kubernetes_version | default(kubernetes_version) }}"
+    dns_prefix: "{{ dns_prefix | default(region.platform_name) }}"
+    linux_profile:
+      admin_username: "{{ vm_ssh_user }}"
+      ssh_key: "{{ lookup('file', vm_ssh_pub_key_file) }}\n"
+    service_principal:
+      client_id: "{{ azure_terraform_service_principal_id }}"
+      client_secret: "{{ azure_terraform_service_principal_secret }}"
+    agent_pool_profiles:
+      - name: agentpool
+        count: "{{ platform_k8s_pool_size }}"
+        vm_size: "{{ platform_k8s_vm_size }}"
+    tags:
+      Environment: "mexplat-{{ deploy_environ }}"

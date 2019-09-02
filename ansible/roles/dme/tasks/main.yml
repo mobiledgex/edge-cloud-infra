@@ -20,6 +20,7 @@
     name: "{{ cert_name }}"
     secret_name: "{{ cert_secret_name }}"
     fqdn: "{{ dme_dns }}.{{ cloudflare_zone }}"
+  check_mode: no
 
 - name: "Generate DME cert for domain: {{ dme_dns }}"
   k8s:

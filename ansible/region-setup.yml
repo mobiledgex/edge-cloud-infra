@@ -1,7 +1,11 @@
 - hosts: platform
   tasks:
+    - import_role:
+        name: azure-aks
+        tasks_from: platform-regions-load
+
     - include_role:
         name: azure-aks
-      loop: "{{ regions }}"
+      loop: "{{ platform_regions }}"
       loop_control:
-        loop_var: region
+        loop_var: platform_region

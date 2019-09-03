@@ -20,6 +20,7 @@
     name: "{{ cert_name }}"
     secret_name: "{{ cert_secret_name }}"
     fqdn: "{{ influxdb_dns }}.{{ cloudflare_zone }}"
+  check_mode: no
 
 - name: "Generate InfluxDB cert for domain: {{ influxdb_dns }}"
   k8s:

@@ -1,0 +1,37 @@
+---
+- name: "Create resource group \"{{ platform_region.resource_group }}\" in \"{{ platform_region.location }}\""
+  azure_rm_resourcegroup:
+    name: "{{ platform_region.resource_group }}"
+    location: "{{ platform_region.location }}"
+
+- name: "Create kubernetes cluster \"{{ platform_region.name }}\""
+  azure_rm_aks:
+    name: "{{ platform_region.name }}"
+    location: "{{ platform_region.location }}"
+    resource_group: "{{ platform_region.resource_group }}"
+    kubernetes_version: "{{ platform_region.kubernetes_version }}"
+    dns_prefix: "{{ platform_region.dns_prefix }}"
+    linux_profile:
+      admin_username: "{{ vm_ssh_user }}"
+      ssh_key: "{{ lookup('file', vm_ssh_pub_key_file) }}\n"
+    service_principal:
+      client_id: "{{ azure_terraform_service_principal_id }}"
+      client_secret: "{{ azure_terraform_service_principal_secret }}"
+    agent_pool_profiles:
+      - name: agentpool
+        count: "{{ platform_k8s_pool_size }}"
+        vm_size: "{{ platform_k8s_vm_size }}"
+    tags:
+      Environment: "mexplat-{{ deploy_environ }}"
+
+- name: Dump debug data
+  block:
+  - name: Load kubernetes facts
+    azure_rm_aks_facts:
+      name: "{{ platform_region.name }}"
+      resource_group: "{{ platform_region.resource_group }}"
+      show_kubeconfig: admin
+    register: aks_facts
+    check_mode: no
+  - debug: var=aks_facts
+  tags: [ 'never', 'debug' ]

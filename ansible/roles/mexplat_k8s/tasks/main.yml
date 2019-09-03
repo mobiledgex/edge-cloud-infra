@@ -2,6 +2,14 @@
 - debug:
     msg: "Deploying edge-cloud version '{{ edge_cloud_version }}' to cluster '{{ k8s_cluster_name }}' (region: '{{ region }}')"
 
+- name: Retrieve kube config
+  azure_rm_aks_facts:
+    name: "{{ k8s_cluster_name }}"
+    resource_group: "{{ resource_group }}"
+    show_kubeconfig: admin
+  register: aks_facts
+  check_mode: no
+
 - name: Create temporary kubeconfig file
   tempfile:
     state: file
@@ -10,9 +18,12 @@
   changed_when: false
   check_mode: no
 
+- debug: var=aks_facts
+  tags: [ 'never', 'debug' ]
+
 - name: Store kubeconfig data in file
   copy:
-    content: "{{ kube_config }}"
+    content: "{{ aks_facts.aks[0].kube_config }}"
     dest: "{{ kubeconfig_file.path }}"
   changed_when: false
   check_mode: no

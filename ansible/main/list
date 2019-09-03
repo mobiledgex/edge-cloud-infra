@@ -6,12 +6,13 @@ mc_postgres_username=mcuser
 mc_postgres_password="s3cr3tmc!"
 mc_superuser=mexadmin
 mc_superuser_password=mexadmin123
-mc_gitlab_token=***REMOVED***
+mc_vm_hostname=mc.mobiledgex.net
 postgres_hostname=postgres.mobiledgex.net
 coturn_instance_name=coturn
 stun_port=19302
 azure_volume_storage_class=managed-premium
 influxdb_volume_size=10Gi
+gitlab_vm_hostname=container-registry.mobiledgex.net
 gitlab_gcp_storage_bucket=gitlab-registry
 vault_vm_hostname=vault-main.mobiledgex.net
 vault_port=443
@@ -23,7 +24,10 @@ letsencrypt_env=production
 artifactory.mobiledgex.net	ubuntu_release=xenial docker_skip_install=true artifactory_preconfigured=true
 
 [console]
-console.mobiledgex.net		skip_console_setup=true mc_vm_hostname=mc.mobiledgex.net
+console.mobiledgex.net		skip_console_setup=true
+
+[mc]
+mc.mobiledgex.net	
 
 [stun]
 stun.mobiledgex.net

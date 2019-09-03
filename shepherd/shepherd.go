@@ -38,6 +38,7 @@ var promMap map[string]*ClusterWorker
 var MEXPrometheusAppName = cloudcommon.MEXPrometheusAppName
 var AppInstCache edgeproto.AppInstCache
 var ClusterInstCache edgeproto.ClusterInstCache
+var AppCache edgeproto.AppCache
 var MetricSender *notify.MetricSend
 
 var cloudletKey edgeproto.CloudletKey
@@ -46,7 +47,7 @@ var pf platform.Platform
 var sigChan chan os.Signal
 
 func appInstCb(ctx context.Context, old *edgeproto.AppInst, new *edgeproto.AppInst) {
-	CollectNginxStats(new)
+	CollectNginxStats(ctx, new)
 	var port int32
 	//check for prometheus
 	if new.Key.AppKey.Name != MEXPrometheusAppName {
@@ -163,10 +164,12 @@ func main() {
 	AppInstCache.SetUpdatedCb(appInstCb)
 	ClusterInstCache.SetUpdatedCb(clusterInstCb)
 	edgeproto.InitClusterInstCache(&ClusterInstCache)
+	edgeproto.InitAppCache(&AppCache)
 	addrs := strings.Split(*notifyAddrs, ",")
 	notifyClient := notify.NewClient(addrs, *tlsCertFile)
 	notifyClient.RegisterRecvAppInstCache(&AppInstCache)
 	notifyClient.RegisterRecvClusterInstCache(&ClusterInstCache)
+	notifyClient.RegisterRecvAppCache(&AppCache)
 	//register to send metrics
 	MetricSender = notify.NewMetricSend()
 	notifyClient.RegisterSend(MetricSender)

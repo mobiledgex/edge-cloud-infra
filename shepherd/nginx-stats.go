@@ -36,9 +36,14 @@ func InitNginxScraper() {
 	go NginxScraper()
 }
 
-func CollectNginxStats(appInst *edgeproto.AppInst) {
-	// ignore prometheus apps as they dont have an nginx lb
-	if appInst.Key.AppKey.Name == MEXPrometheusAppName {
+func CollectNginxStats(ctx context.Context, appInst *edgeproto.AppInst) {
+	// ignore apps not exposed to the outside world as they dont have an nginx lb
+	app := edgeproto.App{}
+	found := AppCache.Get(&appInst.Key.AppKey, &app)
+	if !found {
+		log.SpanLog(ctx, log.DebugLevelMetrics, "Unable to find app", "app", appInst.Key.AppKey.Name)
+		return
+	} else if app.InternalPorts {
 		return
 	}
 	// add/remove from the list of nginx endpoints to hit
@@ -52,14 +57,14 @@ func CollectNginxStats(appInst *edgeproto.AppInst) {
 		clusterInst := edgeproto.ClusterInst{}
 		found := ClusterInstCache.Get(&appInst.Key.ClusterInstKey, &clusterInst)
 		if !found {
-			log.DebugLog(log.DebugLevelMetrics, "Unable to find clusterInst for "+appInst.Key.AppKey.Name)
+			log.SpanLog(ctx, log.DebugLevelMetrics, "Unable to find clusterInst for "+appInst.Key.AppKey.Name)
 			return
 		}
 		var err error
 		scrapePoint.Client, err = pf.GetPlatformClient(&clusterInst)
 		if err != nil {
 			// If we cannot get a platform client no point in trying to get metrics
-			log.DebugLog(log.DebugLevelMetrics, "Failed to acquire platform client", "cluster", clusterInst.Key, "error", err)
+			log.SpanLog(ctx, log.DebugLevelMetrics, "Failed to acquire platform client", "cluster", clusterInst.Key, "error", err)
 			return
 		}
 		nginxMutex.Lock()

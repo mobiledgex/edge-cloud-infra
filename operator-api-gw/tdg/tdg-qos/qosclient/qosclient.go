@@ -70,10 +70,10 @@ func GetQOSPositionFromApiGW(serverUrl string, mreq *dme.QosPositionRequest, qos
 	for _, p := range mreq.Positions {
 		var posreq tdgproto.PositionKpiRequest
 		posreq.Positionid = p.Positionid
-		positionIdToGps[posreq.Positionid] = p.GpsLocation
 		if p.GpsLocation == nil {
 			return grpc.Errorf(codes.InvalidArgument, "Missing GPS Location in request")
 		}
+		positionIdToGps[posreq.Positionid] = p.GpsLocation
 		posreq.Latitude = float32(p.GpsLocation.Latitude)
 		posreq.Longitude = float32(p.GpsLocation.Longitude)
 		posreq.Altitude = float32(p.GpsLocation.Altitude)

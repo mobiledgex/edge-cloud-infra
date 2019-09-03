@@ -107,6 +107,19 @@ if [[ -f "$PERSONAL_ANSIBLE_VAULT" ]]; then
 	ARGS+=( -e "@${PERSONAL_ANSIBLE_VAULT}" )
 elif [[ -f "${HOME}/${PERSONAL_ANSIBLE_VAULT}" ]]; then
 	ARGS+=( -e "@${HOME}/${PERSONAL_ANSIBLE_VAULT}" )
+elif [[ -z "$CONSOLE_VERSION" ]]; then
+	# Get Github creds from user
+	read -p 'Github username: ' GITHUB_USER
+	read -p 'Github password/token: ' -s GITHUB_TOKEN
+	curl --fail --user "${GITHUB_USER}:${GITHUB_TOKEN}" https://api.github.com/users/${GITHUB_USER} >/dev/null 2>&1
+	if [[ $? -ne 0 ]]; then
+		echo; echo
+		echo "Unable to log in to Github!" >&2
+		echo "If you have 2FA enabled, you need a personal access token to log in:" >&2
+		echo "   https://help.github.com/en/articles/creating-a-personal-access-token-for-the-command-line" >&2
+		exit 2
+	fi
+	export GITHUB_USER GITHUB_TOKEN
 fi
 
 # Limit to specified target

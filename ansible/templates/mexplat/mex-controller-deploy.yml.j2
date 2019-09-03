@@ -54,8 +54,6 @@ spec:
            value: "{{ crm_vault_app_role.role_id }}"
          - name: VAULT_CRM_SECRET_ID
            value: "{{ crm_vault_app_role.secret_id }}"
-         - name: artifactory_apikey
-           value: "{{ crm_artifactory_apikey }}"
 
       imagePullSecrets:
        - name: mexreg-secret 

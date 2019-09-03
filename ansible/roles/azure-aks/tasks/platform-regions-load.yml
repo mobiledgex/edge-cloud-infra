@@ -1,0 +1,21 @@
+- set_fact:
+    platform_regions: >
+      {{ platform_regions | default([]) + 
+      [ {
+          'name': pr.name,
+          'location': pr.location,
+          'region': pr.region,
+          'dns_prefix': dns_pref,
+          'resource_group': rg,
+          'kubernetes_version': kver,
+      } ] }}
+  vars:
+    rg: "{{ pr.azure_resource_group_name | default(pr.name + '-rg') }}"
+    kver: "{{ pr.kubernetes_version | default(kubernetes_version) }}"
+    dns_pref: "{{ pr.dns_prefix | default(pr.name) }}"
+  loop: "{{ regions }}"
+  loop_control:
+    loop_var: pr
+
+- debug: var=platform_regions
+  tags: [ 'never', 'debug' ]

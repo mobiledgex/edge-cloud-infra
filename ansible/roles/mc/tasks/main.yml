@@ -1,3 +1,12 @@
+- name: Look up gitlab apikey in vault
+  set_fact:
+    vault_lookup: "{{ lookup('vault', gitlab_path) }}"
+  vars:
+    gitlab_path: "secret/registry/{{ gitlab_vm_hostname }}:token"
+
+- set_fact:
+    mc_gitlab_token: "{{ vault_lookup.token.data.apikey }}"
+
 - name: Compute mc command line
   set_fact:
     mc_args:
@@ -41,4 +50,3 @@
       VAULT_ROLE_ID: "{{ mc_vault_app_role.role_id }}"
       VAULT_SECRET_ID: "{{ mc_vault_app_role.secret_id }}"
       gitlab_token: "{{ mc_gitlab_token }}"
-      artifactory_apikey: "{{ mc_artifactory_apikey }}"

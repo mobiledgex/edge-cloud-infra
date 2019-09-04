@@ -11,7 +11,6 @@ import (
 
 	platform "github.com/mobiledgex/edge-cloud-infra/shepherd/shepherd_platform"
 	"github.com/mobiledgex/edge-cloud-infra/shepherd/shepherd_platform/shepherd_dind"
-	"github.com/mobiledgex/edge-cloud-infra/shepherd/shepherd_platform/shepherd_unittest"
 	"github.com/mobiledgex/edge-cloud-infra/shepherd/shepherd_platform/shepherd_fake"
 	"github.com/mobiledgex/edge-cloud-infra/shepherd/shepherd_platform/shepherd_openstack"
 	"github.com/mobiledgex/edge-cloud/cloud-resource-manager/k8smgmt"
@@ -132,8 +131,6 @@ func getPlatform() (platform.Platform, error) {
 		plat = &shepherd_openstack.Platform{}
 	case "PLATFORM_TYPE_FAKE":
 		plat = &shepherd_fake.Platform{}
-	case "PLATFORM_TYPE_UNITTEST":
-		plat = &shepherd_unittest.Platform{}
 	default:
 		err = fmt.Errorf("Platform %s not supported", *platformName)
 	}

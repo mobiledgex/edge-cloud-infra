@@ -5,6 +5,7 @@ import (
 	"time"
 
 	"github.com/mobiledgex/edge-cloud-infra/shepherd/shepherd_common"
+	"github.com/mobiledgex/edge-cloud-infra/shepherd/shepherd_platform/shepherd_unittest"
 	"github.com/mobiledgex/edge-cloud/cloud-resource-manager/k8smgmt"
 	"github.com/mobiledgex/edge-cloud/cloudcommon"
 	"github.com/mobiledgex/edge-cloud/edgeproto"
@@ -44,10 +45,7 @@ func TestDockerStats(t *testing.T) {
 		Deployment: cloudcommon.AppDeploymentTypeDocker,
 	}
 
-	*platformName = "PLATFORM_TYPE_UNITTEST"
-	testPlatform, _ := getPlatform()
-
-	testPromStats, err := NewClusterWorker("", time.Second*1, nil, &testClusterInst, testPlatform)
+	testPromStats, err := NewClusterWorker("", time.Second*1, nil, &testClusterInst, &shepherd_unittest.Platform{})
 	assert.Nil(t, err, "Get a patform client for unit test cloudlet")
 	clusterMetrics := testPromStats.clusterStat.GetClusterStats()
 	appsMetrics := testPromStats.clusterStat.GetAppStats()

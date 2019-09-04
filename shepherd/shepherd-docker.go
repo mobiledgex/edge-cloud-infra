@@ -49,7 +49,7 @@ type DockerClusterStats struct {
 }
 
 func (c *DockerClusterStats) GetClusterStats() *shepherd_common.ClusterMetrics {
-	if err := collectDockerClusterMMetrics(c); err != nil {
+	if err := collectDockerClusterMetrics(c); err != nil {
 		log.DebugLog(log.DebugLevelMetrics, "Could not collect cluster metrics", "Docker cluster", c)
 		return nil
 	}
@@ -211,7 +211,7 @@ func collectDockerAppMetrics(p *DockerClusterStats) map[shepherd_common.MetricAp
 	return appStatsMap
 }
 
-func collectDockerClusterMMetrics(p *DockerClusterStats) error {
+func collectDockerClusterMetrics(p *DockerClusterStats) error {
 	// VM stats from Openstack might be a better idea going forward, but for now use a simple script to scrape the metrics on the RootLB
 	resp, err := p.client.Output(resTrackerCmd)
 	if err != nil {

@@ -1,6 +1,7 @@
 package main
 
 import (
+	"github.com/mobiledgex/edge-cloud-infra/shepherd/shepherd_common"
 	"github.com/mobiledgex/edge-cloud/cloud-resource-manager/platform/pc"
 	"github.com/mobiledgex/edge-cloud/edgeproto"
 	"github.com/mobiledgex/edge-cloud/log"
@@ -11,10 +12,10 @@ type K8sClusterStats struct {
 	key      edgeproto.ClusterInstKey
 	promAddr string
 	client   pc.PlatformClient
-	ClusterMetrics
+	shepherd_common.ClusterMetrics
 }
 
-func (c *K8sClusterStats) GetClusterStats() *ClusterMetrics {
+func (c *K8sClusterStats) GetClusterStats() *shepherd_common.ClusterMetrics {
 	if c.promAddr == "" {
 		return nil
 	}
@@ -27,7 +28,7 @@ func (c *K8sClusterStats) GetClusterStats() *ClusterMetrics {
 
 // Currently we are collecting stats for all apps in the cluster in one shot
 // Implementing  EDGECLOUD-1183 would allow us to query by label and we can have each app be an individual metric
-func (c *K8sClusterStats) GetAppStats() map[MetricAppInstKey]*AppMetrics {
+func (c *K8sClusterStats) GetAppStats() map[shepherd_common.MetricAppInstKey]*shepherd_common.AppMetrics {
 	if c.promAddr == "" {
 		return nil
 	}

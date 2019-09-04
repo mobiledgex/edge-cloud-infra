@@ -1,5 +1,5 @@
-// This is a utility to get rosource utilization of a system
-// ot uses psutil package to query different subsystems
+// This is a utility to get resource utilization of a system
+// it uses psutil package to query different subsystems
 // This script produces json data for shepherd consumption:
 //   {"Cpu":1.2,"Mem":34.379,"Disk":4.93,"NetSent":5622,"NetRecv":7164,"TcpConns":0,"TcpRetrans":0,"UdpSent":0,"UdpRecv":0,"UdpRecvErr":0}
 package main
@@ -35,7 +35,7 @@ func main() {
 		result.Mem = v.UsedPercent
 	} else {
 		// We should always have memory data - something wrong, so just bail
-		fmt.Printf("Unable to get memory information\n")
+		fmt.Printf("Unable to get memory information - %s\n", err.Error())
 		return
 	}
 
@@ -43,14 +43,14 @@ func main() {
 		result.Cpu = c[0]
 	} else {
 		// We should always have cpu data - something wrong, so just bail
-		fmt.Printf("Unable to get cpu information\n")
+		fmt.Printf("Unable to get cpu information - %s\n", err.Error())
 		return
 	}
 	if d, err := disk.Usage("/"); err == nil {
 		result.Disk = d.UsedPercent
 	} else {
 		// We should always have disk data - something wrong, so just bail
-		fmt.Printf("Unable to get disk information\n")
+		fmt.Printf("Unable to get disk information - %s\n", err.Error())
 		return
 	}
 	// We currently aggregate all the nics, but in reality we want to only track external interface

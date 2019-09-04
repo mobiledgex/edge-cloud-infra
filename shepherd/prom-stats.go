@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/gogo/protobuf/types"
+	"github.com/mobiledgex/edge-cloud-infra/shepherd/shepherd_common"
 	"github.com/mobiledgex/edge-cloud/cloud-resource-manager/platform/pc"
 	"github.com/mobiledgex/edge-cloud/log"
 )
@@ -16,11 +17,11 @@ import (
 var promQCpuClust = "sum(rate(container_cpu_usage_seconds_total%7Bid%3D%22%2F%22%7D%5B1m%5D))%2Fsum(machine_cpu_cores)*100"
 var promQMemClust = "sum(container_memory_working_set_bytes%7Bid%3D%22%2F%22%7D)%2Fsum(machine_memory_bytes)*100"
 var promQDiskClust = "sum(container_fs_usage_bytes%7Bdevice%3D~%22%5E%2Fdev%2F%5Bsv%5Dd%5Ba-z%5D%5B1-9%5D%24%22%2Cid%3D%22%2F%22%7D)%2Fsum(container_fs_limit_bytes%7Bdevice%3D~%22%5E%2Fdev%2F%5Bsv%5Dd%5Ba-z%5D%5B1-9%5D%24%22%2Cid%3D%22%2F%22%7D)*100"
-var promQSendBytesRateClust = "sum(irate(container_network_transmit_bytes_total%5B1m%5D))"
+var promQSentBytesRateClust = "sum(irate(container_network_transmit_bytes_total%5B1m%5D))"
 var promQRecvBytesRateClust = "sum(irate(container_network_receive_bytes_total%5B1m%5D))"
 var promQTcpConnClust = "node_netstat_Tcp_CurrEstab"
 var promQTcpRetransClust = "node_netstat_Tcp_RetransSegs"
-var promQUdpSendPktsClust = "node_netstat_Udp_OutDatagrams"
+var promQUdpSentPktsClust = "node_netstat_Udp_OutDatagrams"
 var promQUdpRecvPktsClust = "node_netstat_Udp_InDatagrams"
 var promQUdpRecvErr = "node_netstat_Udp_InErrors"
 
@@ -28,7 +29,7 @@ var promQCpuPod = "sum(rate(container_cpu_usage_seconds_total%7Bimage!%3D%22%22%
 var promQMemPod = "sum(container_memory_working_set_bytes%7Bimage!%3D%22%22%7D)by(pod_name)"
 var promQDiskPod = "sum(container_fs_usage_bytes%7Bimage!%3D%22%22%7D)by(pod_name)"
 var promQNetRecvRate = "sum(irate(container_network_receive_bytes_total%7Bimage!%3D%22%22%7D%5B1m%5D))by(pod_name)"
-var promQNetSendRate = "sum(irate(container_network_transmit_bytes_total%7Bimage!%3D%22%22%7D%5B1m%5D))by(pod_name)"
+var promQNetSentRate = "sum(irate(container_network_transmit_bytes_total%7Bimage!%3D%22%22%7D%5B1m%5D))by(pod_name)"
 
 type PromResp struct {
 	Status string   `json:"status,omitempty"`
@@ -82,26 +83,26 @@ func parseTime(timeFloat float64) *types.Timestamp {
 	return ts
 }
 
-func collectAppPrometheusMetrics(p *K8sClusterStats) map[MetricAppInstKey]*AppMetrics {
-	appStatsMap := make(map[MetricAppInstKey]*AppMetrics)
+func collectAppPrometheusMetrics(p *K8sClusterStats) map[shepherd_common.MetricAppInstKey]*shepherd_common.AppMetrics {
+	appStatsMap := make(map[shepherd_common.MetricAppInstKey]*shepherd_common.AppMetrics)
 
-	appKey := MetricAppInstKey{
-		clusterInstKey: p.key,
+	appKey := shepherd_common.MetricAppInstKey{
+		ClusterInstKey: p.key,
 	}
 	// Get Pod CPU usage percentage
 	resp, err := getPromMetrics(p.promAddr, promQCpuPod, p.client)
 	if err == nil && resp.Status == "success" {
 		for _, metric := range resp.Data.Result {
-			appKey.pod = metric.Labels.PodName
+			appKey.Pod = metric.Labels.PodName
 			stat, found := appStatsMap[appKey]
 			if !found {
-				stat = &AppMetrics{}
+				stat = &shepherd_common.AppMetrics{}
 				appStatsMap[appKey] = stat
 			}
-			stat.cpuTS = parseTime(metric.Values[0].(float64))
+			stat.CpuTS = parseTime(metric.Values[0].(float64))
 			//copy only if we can parse the value
 			if val, err := strconv.ParseFloat(metric.Values[1].(string), 64); err == nil {
-				stat.cpu = val
+				stat.Cpu = val
 			}
 		}
 	}
@@ -109,16 +110,16 @@ func collectAppPrometheusMetrics(p *K8sClusterStats) map[MetricAppInstKey]*AppMe
 	resp, err = getPromMetrics(p.promAddr, promQMemPod, p.client)
 	if err == nil && resp.Status == "success" {
 		for _, metric := range resp.Data.Result {
-			appKey.pod = metric.Labels.PodName
+			appKey.Pod = metric.Labels.PodName
 			stat, found := appStatsMap[appKey]
 			if !found {
-				stat = &AppMetrics{}
+				stat = &shepherd_common.AppMetrics{}
 				appStatsMap[appKey] = stat
 			}
-			stat.memTS = parseTime(metric.Values[0].(float64))
+			stat.MemTS = parseTime(metric.Values[0].(float64))
 			//copy only if we can parse the value
 			if val, err := strconv.ParseUint(metric.Values[1].(string), 10, 64); err == nil {
-				stat.mem = val
+				stat.Mem = val
 			}
 		}
 	}
@@ -126,16 +127,16 @@ func collectAppPrometheusMetrics(p *K8sClusterStats) map[MetricAppInstKey]*AppMe
 	resp, err = getPromMetrics(p.promAddr, promQDiskPod, p.client)
 	if err == nil && resp.Status == "success" {
 		for _, metric := range resp.Data.Result {
-			appKey.pod = metric.Labels.PodName
+			appKey.Pod = metric.Labels.PodName
 			stat, found := appStatsMap[appKey]
 			if !found {
-				stat = &AppMetrics{}
+				stat = &shepherd_common.AppMetrics{}
 				appStatsMap[appKey] = stat
 			}
-			stat.diskTS = parseTime(metric.Values[0].(float64))
+			stat.DiskTS = parseTime(metric.Values[0].(float64))
 			//copy only if we can parse the value
 			if val, err := strconv.ParseUint(metric.Values[1].(string), 10, 64); err == nil {
-				stat.disk = val
+				stat.Disk = val
 			}
 		}
 	}
@@ -143,33 +144,33 @@ func collectAppPrometheusMetrics(p *K8sClusterStats) map[MetricAppInstKey]*AppMe
 	resp, err = getPromMetrics(p.promAddr, promQNetRecvRate, p.client)
 	if err == nil && resp.Status == "success" {
 		for _, metric := range resp.Data.Result {
-			appKey.pod = metric.Labels.PodName
+			appKey.Pod = metric.Labels.PodName
 			stat, found := appStatsMap[appKey]
 			if !found {
-				stat = &AppMetrics{}
+				stat = &shepherd_common.AppMetrics{}
 				appStatsMap[appKey] = stat
 			}
-			stat.netRecvTS = parseTime(metric.Values[0].(float64))
+			stat.NetRecvTS = parseTime(metric.Values[0].(float64))
 			//copy only if we can parse the value
 			if val, err := strconv.ParseFloat(metric.Values[1].(string), 64); err == nil {
-				stat.netRecv = uint64(val)
+				stat.NetRecv = uint64(val)
 			}
 		}
 	}
 	// Get Pod NetRecv bytes rate averaged over 1m
-	resp, err = getPromMetrics(p.promAddr, promQNetSendRate, p.client)
+	resp, err = getPromMetrics(p.promAddr, promQNetSentRate, p.client)
 	if err == nil && resp.Status == "success" {
 		for _, metric := range resp.Data.Result {
-			appKey.pod = metric.Labels.PodName
+			appKey.Pod = metric.Labels.PodName
 			stat, found := appStatsMap[appKey]
 			if !found {
-				stat = &AppMetrics{}
+				stat = &shepherd_common.AppMetrics{}
 				appStatsMap[appKey] = stat
 			}
 			//copy only if we can parse the value
-			stat.netSendTS = parseTime(metric.Values[0].(float64))
+			stat.NetSentTS = parseTime(metric.Values[0].(float64))
 			if val, err := strconv.ParseFloat(metric.Values[1].(string), 64); err == nil {
-				stat.netSend = uint64(val)
+				stat.NetSent = uint64(val)
 			}
 		}
 	}
@@ -181,7 +182,7 @@ func collectClusterPrometheusMetrics(p *K8sClusterStats) error {
 	resp, err := getPromMetrics(p.promAddr, promQCpuClust, p.client)
 	if err == nil && resp.Status == "success" {
 		for _, metric := range resp.Data.Result {
-			p.cpuTS = parseTime(metric.Values[0].(float64))
+			p.CpuTS = parseTime(metric.Values[0].(float64))
 			//copy only if we can parse the value
 			if val, err := strconv.ParseFloat(metric.Values[1].(string), 64); err == nil {
 				p.Cpu = val
@@ -194,7 +195,7 @@ func collectClusterPrometheusMetrics(p *K8sClusterStats) error {
 	resp, err = getPromMetrics(p.promAddr, promQMemClust, p.client)
 	if err == nil && resp.Status == "success" {
 		for _, metric := range resp.Data.Result {
-			p.memTS = parseTime(metric.Values[0].(float64))
+			p.MemTS = parseTime(metric.Values[0].(float64))
 			//copy only if we can parse the value
 			if val, err := strconv.ParseFloat(metric.Values[1].(string), 64); err == nil {
 				p.Mem = val
@@ -207,7 +208,7 @@ func collectClusterPrometheusMetrics(p *K8sClusterStats) error {
 	resp, err = getPromMetrics(p.promAddr, promQDiskClust, p.client)
 	if err == nil && resp.Status == "success" {
 		for _, metric := range resp.Data.Result {
-			p.diskTS = parseTime(metric.Values[0].(float64))
+			p.DiskTS = parseTime(metric.Values[0].(float64))
 			//copy only if we can parse the value
 			if val, err := strconv.ParseFloat(metric.Values[1].(string), 64); err == nil {
 				p.Disk = val
@@ -220,7 +221,7 @@ func collectClusterPrometheusMetrics(p *K8sClusterStats) error {
 	resp, err = getPromMetrics(p.promAddr, promQRecvBytesRateClust, p.client)
 	if err == nil && resp.Status == "success" {
 		for _, metric := range resp.Data.Result {
-			p.netRecvTS = parseTime(metric.Values[0].(float64))
+			p.NetRecvTS = parseTime(metric.Values[0].(float64))
 			//copy only if we can parse the value
 			if val, err := strconv.ParseFloat(metric.Values[1].(string), 64); err == nil {
 				p.NetRecv = uint64(val)
@@ -229,14 +230,14 @@ func collectClusterPrometheusMetrics(p *K8sClusterStats) error {
 			}
 		}
 	}
-	// Get Cluster NetSend bytes rate averaged over 1m
-	resp, err = getPromMetrics(p.promAddr, promQSendBytesRateClust, p.client)
+	// Get Cluster NetSent bytes rate averaged over 1m
+	resp, err = getPromMetrics(p.promAddr, promQSentBytesRateClust, p.client)
 	if err == nil && resp.Status == "success" {
 		for _, metric := range resp.Data.Result {
-			p.netSendTS = parseTime(metric.Values[0].(float64))
+			p.NetSentTS = parseTime(metric.Values[0].(float64))
 			//copy only if we can parse the value
 			if val, err := strconv.ParseFloat(metric.Values[1].(string), 64); err == nil {
-				p.NetSend = uint64(val)
+				p.NetSent = uint64(val)
 				// We should have only one value here
 				break
 			}
@@ -247,7 +248,7 @@ func collectClusterPrometheusMetrics(p *K8sClusterStats) error {
 	resp, err = getPromMetrics(p.promAddr, promQTcpConnClust, p.client)
 	if err == nil && resp.Status == "success" {
 		for _, metric := range resp.Data.Result {
-			p.tcpConnsTS = parseTime(metric.Values[0].(float64))
+			p.TcpConnsTS = parseTime(metric.Values[0].(float64))
 			//copy only if we can parse the value
 			if val, err := strconv.ParseUint(metric.Values[1].(string), 10, 64); err == nil {
 				p.TcpConns = val
@@ -260,7 +261,7 @@ func collectClusterPrometheusMetrics(p *K8sClusterStats) error {
 	resp, err = getPromMetrics(p.promAddr, promQTcpRetransClust, p.client)
 	if err == nil && resp.Status == "success" {
 		for _, metric := range resp.Data.Result {
-			p.tcpRetransTS = parseTime(metric.Values[0].(float64))
+			p.TcpRetransTS = parseTime(metric.Values[0].(float64))
 			//copy only if we can parse the value
 			if val, err := strconv.ParseUint(metric.Values[1].(string), 10, 64); err == nil {
 				p.TcpRetrans = val
@@ -269,14 +270,14 @@ func collectClusterPrometheusMetrics(p *K8sClusterStats) error {
 			}
 		}
 	}
-	// Get Cluster UDP Send Datagrams
-	resp, err = getPromMetrics(p.promAddr, promQUdpSendPktsClust, p.client)
+	// Get Cluster UDP Sent Datagrams
+	resp, err = getPromMetrics(p.promAddr, promQUdpSentPktsClust, p.client)
 	if err == nil && resp.Status == "success" {
 		for _, metric := range resp.Data.Result {
-			p.udpSendTS = parseTime(metric.Values[0].(float64))
+			p.UdpSentTS = parseTime(metric.Values[0].(float64))
 			//copy only if we can parse the value
 			if val, err := strconv.ParseUint(metric.Values[1].(string), 10, 64); err == nil {
-				p.UdpSend = val
+				p.UdpSent = val
 				// We should have only one value here
 				break
 			}
@@ -286,7 +287,7 @@ func collectClusterPrometheusMetrics(p *K8sClusterStats) error {
 	resp, err = getPromMetrics(p.promAddr, promQUdpRecvPktsClust, p.client)
 	if err == nil && resp.Status == "success" {
 		for _, metric := range resp.Data.Result {
-			p.udpRecvTS = parseTime(metric.Values[0].(float64))
+			p.UdpRecvTS = parseTime(metric.Values[0].(float64))
 			//copy only if we can parse the value
 			if val, err := strconv.ParseUint(metric.Values[1].(string), 10, 64); err == nil {
 				p.UdpRecv = val
@@ -299,7 +300,7 @@ func collectClusterPrometheusMetrics(p *K8sClusterStats) error {
 	resp, err = getPromMetrics(p.promAddr, promQUdpRecvErr, p.client)
 	if err == nil && resp.Status == "success" {
 		for _, metric := range resp.Data.Result {
-			p.udpRecvErrTS = parseTime(metric.Values[0].(float64))
+			p.UdpRecvErrTS = parseTime(metric.Values[0].(float64))
 			//copy only if we can parse the value
 			if val, err := strconv.ParseUint(metric.Values[1].(string), 10, 64); err == nil {
 				p.UdpRecvErr = val

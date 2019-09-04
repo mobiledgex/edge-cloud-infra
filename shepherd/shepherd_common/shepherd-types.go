@@ -1,4 +1,4 @@
-package main
+package shepherd_common
 
 import (
 	"github.com/gogo/protobuf/types"
@@ -20,45 +20,45 @@ type ClusterStats interface {
 }
 
 type AppMetrics struct {
-	cpu       float64
-	cpuTS     *types.Timestamp
-	mem       uint64
-	memTS     *types.Timestamp
-	disk      uint64
-	diskTS    *types.Timestamp
-	netSend   uint64
-	netSendTS *types.Timestamp
-	netRecv   uint64
-	netRecvTS *types.Timestamp
+	Cpu       float64
+	CpuTS     *types.Timestamp
+	Mem       uint64
+	MemTS     *types.Timestamp
+	Disk      uint64
+	DiskTS    *types.Timestamp
+	NetSent   uint64
+	NetSentTS *types.Timestamp
+	NetRecv   uint64
+	NetRecvTS *types.Timestamp
 }
 
 type ClusterMetrics struct {
 	Cpu          float64
-	cpuTS        *types.Timestamp
+	CpuTS        *types.Timestamp
 	Mem          float64
-	memTS        *types.Timestamp
+	MemTS        *types.Timestamp
 	Disk         float64
-	diskTS       *types.Timestamp
-	NetSend      uint64
-	netSendTS    *types.Timestamp
+	DiskTS       *types.Timestamp
+	NetSent      uint64
+	NetSentTS    *types.Timestamp
 	NetRecv      uint64
-	netRecvTS    *types.Timestamp
+	NetRecvTS    *types.Timestamp
 	TcpConns     uint64
-	tcpConnsTS   *types.Timestamp
+	TcpConnsTS   *types.Timestamp
 	TcpRetrans   uint64
-	tcpRetransTS *types.Timestamp
-	UdpSend      uint64
-	udpSendTS    *types.Timestamp
+	TcpRetransTS *types.Timestamp
+	UdpSent      uint64
+	UdpSentTS    *types.Timestamp
 	UdpRecv      uint64
-	udpRecvTS    *types.Timestamp
+	UdpRecvTS    *types.Timestamp
 	UdpRecvErr   uint64
-	udpRecvErrTS *types.Timestamp
+	UdpRecvErrTS *types.Timestamp
 }
 
 // We keep the name of the pod+ClusterInstKey rather than AppInstKey
 // The reson is that we do not have a way to differentiate between different pods in a k8s cluster
 // See EDGECLOUD-1183
 type MetricAppInstKey struct {
-	clusterInstKey edgeproto.ClusterInstKey
-	pod            string
+	ClusterInstKey edgeproto.ClusterInstKey
+	Pod            string
 }

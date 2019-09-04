@@ -9,6 +9,7 @@ import (
 	"unicode"
 
 	"github.com/gogo/protobuf/types"
+	"github.com/mobiledgex/edge-cloud-infra/shepherd/shepherd_common"
 	"github.com/mobiledgex/edge-cloud/cloud-resource-manager/k8smgmt"
 	"github.com/mobiledgex/edge-cloud/cloud-resource-manager/platform/pc"
 	"github.com/mobiledgex/edge-cloud/edgeproto"
@@ -44,10 +45,10 @@ type DockerStats struct {
 type DockerClusterStats struct {
 	key    edgeproto.ClusterInstKey
 	client pc.PlatformClient
-	ClusterMetrics
+	shepherd_common.ClusterMetrics
 }
 
-func (c *DockerClusterStats) GetClusterStats() *ClusterMetrics {
+func (c *DockerClusterStats) GetClusterStats() *shepherd_common.ClusterMetrics {
 	if err := collectDockerClusterMMetrics(c); err != nil {
 		log.DebugLog(log.DebugLevelMetrics, "Could not collect cluster metrics", "Docker cluster", c)
 		return nil
@@ -57,10 +58,10 @@ func (c *DockerClusterStats) GetClusterStats() *ClusterMetrics {
 
 // Currently we are collecting stats for all apps in the cluster in one shot
 // Implementing  EDGECLOUD-1183 would allow us to query by label and we can have each app be an individual metric
-func (c *DockerClusterStats) GetAppStats() map[MetricAppInstKey]*AppMetrics {
+func (c *DockerClusterStats) GetAppStats() map[shepherd_common.MetricAppInstKey]*shepherd_common.AppMetrics {
 	metrics := collectDockerAppMetrics(c)
 	if metrics == nil {
-		log.DebugLog(log.DebugLevelMetrics, "Could not collect app metrics", "K8s Cluster", c)
+		log.DebugLog(log.DebugLevelMetrics, "Could not collect app metrics", "Docker Container", c)
 	}
 	return metrics
 }
@@ -99,7 +100,6 @@ func parsePercentStr(pStr string) (float64, error) {
 }
 
 // parse data in the format "1.629MiB / 1.952GiB / 12KB / 12B" into [1.629* 1000000, 1.952 * 1000000000, 12*1000 , 12]
-// This is granly - really wanna get rid of this once I get the stats api endpoint
 func parseComputeUnitsDelim(dataStr string) ([]uint64, error) {
 	var items []uint64
 	var scale uint64
@@ -123,8 +123,6 @@ func parseComputeUnitsDelim(dataStr string) ([]uint64, error) {
 		}
 		// deal with KiB, MiB, GiB
 		switch v[i] {
-		case 'b':
-			fallthrough
 		case 'B':
 			scale = 1
 		case 'k':
@@ -159,8 +157,8 @@ func parseComputeUnitsDelim(dataStr string) ([]uint64, error) {
 // If a more detailed reource usage is needed /containers/(id)/stats API endpoint should be used
 // To get to the API endpoint on a rootLB netcat can be used:
 //   $ echo -e "GET /containers/mobiledgexsdkdemo/stats?stream=0 HTTP/1.0\r\n" | nc -q -1 -U /var/run/docker.sock | grep "^{" | jq
-func collectDockerAppMetrics(p *DockerClusterStats) map[MetricAppInstKey]*AppMetrics {
-	appStatsMap := make(map[MetricAppInstKey]*AppMetrics)
+func collectDockerAppMetrics(p *DockerClusterStats) map[shepherd_common.MetricAppInstKey]*shepherd_common.AppMetrics {
+	appStatsMap := make(map[shepherd_common.MetricAppInstKey]*shepherd_common.AppMetrics)
 
 	stats, err := p.GetContainerStats()
 	if err != nil {
@@ -168,23 +166,23 @@ func collectDockerAppMetrics(p *DockerClusterStats) map[MetricAppInstKey]*AppMet
 		return nil
 	}
 
-	appKey := MetricAppInstKey{
-		clusterInstKey: p.key,
+	appKey := shepherd_common.MetricAppInstKey{
+		ClusterInstKey: p.key,
 	}
 
 	// We scraped it at the same time, so same timestamp for everything
 	ts, _ := types.TimestampProto(time.Now())
 	for _, containerStats := range stats.Containers {
 		// EDGECLOUD-1183  - once done we should not normalize the name
-		appKey.pod = k8smgmt.NormalizeName(containerStats.App)
+		appKey.Pod = k8smgmt.NormalizeName(containerStats.App)
 		stat, found := appStatsMap[appKey]
 		if !found {
-			stat = &AppMetrics{}
+			stat = &shepherd_common.AppMetrics{}
 			appStatsMap[appKey] = stat
 		}
-		stat.cpuTS, stat.memTS, stat.diskTS, stat.netSendTS, stat.netRecvTS = ts, ts, ts, ts, ts
+		stat.CpuTS, stat.MemTS, stat.DiskTS, stat.NetSentTS, stat.NetRecvTS = ts, ts, ts, ts, ts
 		// cpu is in the form "0.00%" - remove the % at the end and cast to float
-		stat.cpu, err = parsePercentStr(containerStats.Cpu)
+		stat.Cpu, err = parsePercentStr(containerStats.Cpu)
 		if err != nil {
 			log.DebugLog(log.DebugLevelMetrics, "Failed to parse CPU usage", "App", appKey, "stats", containerStats, "err", err)
 		}
@@ -193,17 +191,17 @@ func collectDockerAppMetrics(p *DockerClusterStats) map[MetricAppInstKey]*AppMet
 		if err != nil {
 			log.DebugLog(log.DebugLevelMetrics, "Failed to parse Mem usage", "App", appKey, "stats", containerStats, "err", err)
 		} else {
-			stat.mem = memData[0]
+			stat.Mem = memData[0]
 		}
 		// Disk usage is unsupported
-		stat.disk = 0
+		stat.Disk = 0
 		netIO, err := parseComputeUnitsDelim(containerStats.IO.Network)
 		if err != nil {
 			log.DebugLog(log.DebugLevelMetrics, "Failed to parse Network usage", "App", appKey, "stats", containerStats, "err", err)
 		} else {
 			if len(netIO) > 1 {
-				stat.netSend = netIO[1]
-				stat.netRecv = netIO[0]
+				stat.NetSent = netIO[1]
+				stat.NetRecv = netIO[0]
 			} else {
 				log.DebugLog(log.DebugLevelMetrics, "Failed to parse network data", "netio", netIO)
 			}
@@ -215,8 +213,8 @@ func collectDockerAppMetrics(p *DockerClusterStats) map[MetricAppInstKey]*AppMet
 
 func collectDockerClusterMMetrics(p *DockerClusterStats) error {
 	// VM stats from Openstack might be a better idea going forward, but for now use a simple script to scrape the metrics on the RootLB
-	p.cpuTS, _ = types.TimestampProto(time.Now())
-	p.memTS, p.diskTS, p.netSendTS, p.netRecvTS, p.tcpConnsTS, p.tcpRetransTS, p.udpSendTS, p.udpRecvTS, p.udpRecvErrTS = p.cpuTS, p.cpuTS, p.cpuTS, p.cpuTS, p.cpuTS, p.cpuTS, p.cpuTS, p.cpuTS, p.cpuTS
+	p.CpuTS, _ = types.TimestampProto(time.Now())
+	p.MemTS, p.DiskTS, p.NetSentTS, p.NetRecvTS, p.TcpConnsTS, p.TcpRetransTS, p.UdpSentTS, p.UdpRecvTS, p.UdpRecvErrTS = p.CpuTS, p.CpuTS, p.CpuTS, p.CpuTS, p.CpuTS, p.CpuTS, p.CpuTS, p.CpuTS, p.CpuTS
 	resp, err := p.client.Output(resTrackerCmd)
 	if err != nil {
 		errstr := fmt.Sprintf("Failed to run <%s>", resTrackerCmd)

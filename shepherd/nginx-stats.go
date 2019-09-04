@@ -46,6 +46,7 @@ func CollectNginxStats(ctx context.Context, appInst *edgeproto.AppInst) {
 	} else if app.InternalPorts {
 		return
 	}
+	nginxMapKey := appInst.Key.AppKey.Name + "-" + appInst.Key.ClusterInstKey.ClusterKey.Name + "-" + appInst.Key.AppKey.DeveloperKey.Name
 	// add/remove from the list of nginx endpoints to hit
 	if appInst.State == edgeproto.TrackedState_READY {
 		scrapePoint := NginxScrapePoint{
@@ -68,12 +69,12 @@ func CollectNginxStats(ctx context.Context, appInst *edgeproto.AppInst) {
 			return
 		}
 		nginxMutex.Lock()
-		nginxMap[scrapePoint.App+"-"+scrapePoint.Cluster+"-"+scrapePoint.Dev] = scrapePoint
+		nginxMap[nginxMapKey] = scrapePoint
 		nginxMutex.Unlock()
 	} else {
 		// if the app is anything other than ready, stop tracking it
 		nginxMutex.Lock()
-		delete(nginxMap, appInst.Key.AppKey.Name+"-"+appInst.Key.ClusterInstKey.ClusterKey.Name+"-"+appInst.Key.AppKey.DeveloperKey.Name)
+		delete(nginxMap, nginxMapKey)
 		nginxMutex.Unlock()
 	}
 }

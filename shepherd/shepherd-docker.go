@@ -213,17 +213,17 @@ func collectDockerAppMetrics(p *DockerClusterStats) map[shepherd_common.MetricAp
 
 func collectDockerClusterMMetrics(p *DockerClusterStats) error {
 	// VM stats from Openstack might be a better idea going forward, but for now use a simple script to scrape the metrics on the RootLB
-	p.CpuTS, _ = types.TimestampProto(time.Now())
-	p.MemTS, p.DiskTS, p.NetSentTS, p.NetRecvTS, p.TcpConnsTS, p.TcpRetransTS, p.UdpSentTS, p.UdpRecvTS, p.UdpRecvErrTS = p.CpuTS, p.CpuTS, p.CpuTS, p.CpuTS, p.CpuTS, p.CpuTS, p.CpuTS, p.CpuTS, p.CpuTS
 	resp, err := p.client.Output(resTrackerCmd)
 	if err != nil {
-		errstr := fmt.Sprintf("Failed to run <%s>", resTrackerCmd)
-		log.DebugLog(log.DebugLevelMetrics, errstr, "err", err.Error())
+		log.DebugLog(log.DebugLevelMetrics, "Failed to run", "cmd", resTrackerCmd, "err", err.Error())
 		return err
 	}
 	if err = json.Unmarshal([]byte(resp), &p.ClusterMetrics); err != nil {
 		log.DebugLog(log.DebugLevelMetrics, "Failed to marshal machine metrics", "stats", resp, "err", err.Error())
 		return err
 	}
+	// set timestamps to current time
+	p.CpuTS, _ = types.TimestampProto(time.Now())
+	p.MemTS, p.DiskTS, p.NetSentTS, p.NetRecvTS, p.TcpConnsTS, p.TcpRetransTS, p.UdpSentTS, p.UdpRecvTS, p.UdpRecvErrTS = p.CpuTS, p.CpuTS, p.CpuTS, p.CpuTS, p.CpuTS, p.CpuTS, p.CpuTS, p.CpuTS, p.CpuTS
 	return nil
 }

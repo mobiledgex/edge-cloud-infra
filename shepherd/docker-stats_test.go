@@ -63,10 +63,12 @@ func TestDockerStats(t *testing.T) {
 		assert.Equal(t, uint64(0), stat.Disk)
 		assert.Equal(t, uint64(1024), stat.NetSent)
 		assert.Equal(t, uint64(111), stat.NetRecv)
+		assert.NotNil(t, stat.CpuTS, "CPU timestamp")
 	}
 
 	// Check ClusterStats
 	assert.Equal(t, float64(10.10101010), clusterMetrics.Cpu)
+	assert.NotNil(t, clusterMetrics.CpuTS, "CPU timestamp for cluster")
 	assert.Equal(t, float64(11.111111), clusterMetrics.Mem)
 	assert.Equal(t, float64(12.12121212), clusterMetrics.Disk)
 	assert.Equal(t, uint64(1313131313), clusterMetrics.NetSent)

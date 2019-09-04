@@ -1,4 +1,8 @@
 ansible_python_interpreter: python3
+vm_ssh_user: ubuntu
+vm_ssh_pub_key_file: "{{ lookup('env','HOME') }}/.mobiledgex/id_rsa_mex.pub"
+platform_k8s_pool_size: 3
+platform_k8s_vm_size: Standard_DS1_v2
 mex_docker_registry: registry.mobiledgex.net:5000
 mex_docker_username: mobiledgex
 mex_docker_password: sandhill

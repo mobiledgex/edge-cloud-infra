@@ -9,6 +9,7 @@ USAGE="usage: $0 [options] <environment> [<target>]
 
   -c		confirm before running playbook
   -C <version>	console version to deploy (default: pick latest git tag)
+  -d		enable debug mode
   -e <var=val>	pass environment variables to playbook run
   -l		list available targets
   -n		dry-run mode
@@ -29,6 +30,7 @@ export OBJC_DISABLE_INITIALIZE_FORK_SAFETY=YES
 
 DRYRUN=false
 LIST=false
+DEBUG=false
 CONFIRM=false
 ASSUME_YES=false
 PLAYBOOK_FORCED=
@@ -39,10 +41,11 @@ EC_VERSION_SET=false
 QUIET_MODE=false
 VERBOSITY=
 ENVVARS=()
-while getopts ':ce:C:hlnp:qs:t:vV:y' OPT; do
+while getopts ':cde:C:hlnp:qs:t:vV:y' OPT; do
 	case "$OPT" in
 	c)	CONFIRM=true ;;
 	C)	CONSOLE_VERSION="$OPTARG" ;;
+	d)	DEBUG=true ;;
 	e)	ENVVARS+=( -e "$OPTARG" ) ;;
 	n)	DRYRUN=true ;;
 	l)	LIST=true ;;
@@ -104,6 +107,19 @@ if [[ -f "$PERSONAL_ANSIBLE_VAULT" ]]; then
 	ARGS+=( -e "@${PERSONAL_ANSIBLE_VAULT}" )
 elif [[ -f "${HOME}/${PERSONAL_ANSIBLE_VAULT}" ]]; then
 	ARGS+=( -e "@${HOME}/${PERSONAL_ANSIBLE_VAULT}" )
+elif [[ -z "$CONSOLE_VERSION" ]]; then
+	# Get Github creds from user
+	read -p 'Github username: ' GITHUB_USER
+	read -p 'Github password/token: ' -s GITHUB_TOKEN
+	curl --fail --user "${GITHUB_USER}:${GITHUB_TOKEN}" https://api.github.com/users/${GITHUB_USER} >/dev/null 2>&1
+	if [[ $? -ne 0 ]]; then
+		echo; echo
+		echo "Unable to log in to Github!" >&2
+		echo "If you have 2FA enabled, you need a personal access token to log in:" >&2
+		echo "   https://help.github.com/en/articles/creating-a-personal-access-token-for-the-command-line" >&2
+		exit 2
+	fi
+	export GITHUB_USER GITHUB_TOKEN
 fi
 
 # Limit to specified target
@@ -112,6 +128,9 @@ fi
 # Tags and skip tags
 [[ -n "$TAGS" ]] && ARGS+=( -t "$TAGS" )
 [[ -n "$SKIP_TAGS" ]] && ARGS+=( --skip-tags "$SKIP_TAGS" )
+if $DEBUG; then
+	[[ -n "$TAGS" ]] && ARGS+=( -t debug ) || ARGS+=( -t all,debug )
+fi
 
 # Quiet mode
 $QUIET_MODE && ARGS+=( --skip-tags notify )

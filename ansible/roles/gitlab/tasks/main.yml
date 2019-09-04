@@ -65,6 +65,15 @@
     state: absent
   become: yes
 
+- name: Look up gitlab apikey in vault
+  set_fact:
+    vault_lookup: "{{ lookup('vault', gitlab_path) }}"
+  vars:
+    gitlab_path: "secret/registry/{{ gitlab_vm_hostname }}:token"
+
+- set_fact:
+    mc_gitlab_token: "{{ vault_lookup.token.data.apikey }}"
+
 - name: Check if the token is valid
   uri:
     url: "https://{{ gitlab_vm_hostname }}/api/v4/projects?private_token={{ mc_gitlab_token }}"

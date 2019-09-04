@@ -9,27 +9,15 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/mobiledgex/edge-cloud-infra/shepherd/shepherd_common"
 	"github.com/shirou/gopsutil/cpu"
 	"github.com/shirou/gopsutil/disk"
 	"github.com/shirou/gopsutil/mem"
 	"github.com/shirou/gopsutil/net"
 )
 
-type ResSummary struct {
-	Cpu        float64 // Percentage used
-	Mem        float64 // Total memory used
-	Disk       float64 // Percentage used
-	NetSent    uint64  // Bytes sent
-	NetRecv    uint64  // Bytes received
-	TcpConns   uint64
-	TcpRetrans uint64
-	UdpSent    uint64
-	UdpRecv    uint64
-	UdpRecvErr uint64
-}
-
 func main() {
-	result := ResSummary{}
+	result := shepherd_common.ClusterMetrics{}
 
 	if v, err := mem.VirtualMemory(); err == nil {
 		result.Mem = v.UsedPercent

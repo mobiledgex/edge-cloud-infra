@@ -42,7 +42,7 @@ func NewClusterWorker(ctx context.Context, promAddr string, interval time.Durati
 		log.SpanLog(ctx, log.DebugLevelMetrics, "Failed to acquire platform client", "cluster", clusterInst.Key, "error", err)
 		return nil, err
 	}
-	log.DebugLog(log.DebugLevelMetrics, "NewClusterWorker", "cluster", clusterInst.Key, "promAddr", promAddr)
+	log.SpanLog(ctx, log.DebugLevelMetrics, "NewClusterWorker", "cluster", clusterInst.Key, "promAddr", promAddr)
 	// only support K8s deployments
 	if p.deployment == cloudcommon.AppDeploymentTypeKubernetes {
 		p.clusterStat = &K8sClusterStats{

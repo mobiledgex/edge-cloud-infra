@@ -50,8 +50,8 @@ type DockerClusterStats struct {
 }
 
 func (c *DockerClusterStats) GetClusterStats(ctx context.Context) *shepherd_common.ClusterMetrics {
-	if err := collectDockerClusterMetrics(c); err != nil {
-		log.DebugLog(log.DebugLevelMetrics, "Could not collect cluster metrics", "Docker cluster", c)
+	if err := collectDockerClusterMetrics(ctx, c); err != nil {
+		log.SpanLog(ctx, log.DebugLevelMetrics, "Could not collect cluster metrics", "Docker cluster", c)
 		return nil
 	}
 	return &c.ClusterMetrics
@@ -60,19 +60,19 @@ func (c *DockerClusterStats) GetClusterStats(ctx context.Context) *shepherd_comm
 // Currently we are collecting stats for all apps in the cluster in one shot
 // Implementing  EDGECLOUD-1183 would allow us to query by label and we can have each app be an individual metric
 func (c *DockerClusterStats) GetAppStats(ctx context.Context) map[shepherd_common.MetricAppInstKey]*shepherd_common.AppMetrics {
-	metrics := collectDockerAppMetrics(c)
+	metrics := collectDockerAppMetrics(ctx, c)
 	if metrics == nil {
-		log.DebugLog(log.DebugLevelMetrics, "Could not collect app metrics", "Docker Container", c)
+		log.SpanLog(ctx, log.DebugLevelMetrics, "Could not collect app metrics", "Docker Container", c)
 	}
 	return metrics
 }
 
 // Get the output of the container stats on the platform and format them properly
-func (c *DockerClusterStats) GetContainerStats() (*DockerStats, error) {
+func (c *DockerClusterStats) GetContainerStats(ctx context.Context) (*DockerStats, error) {
 	resp, err := c.client.Output(dockerStatsCmd)
 	if err != nil {
 		errstr := fmt.Sprintf("Failed to run <%s>", dockerStatsCmd)
-		log.DebugLog(log.DebugLevelMetrics, errstr, "err", err.Error())
+		log.SpanLog(ctx, log.DebugLevelMetrics, errstr, "err", err.Error())
 		return nil, err
 	}
 	dockerResp := &DockerStats{}
@@ -84,7 +84,7 @@ func (c *DockerClusterStats) GetContainerStats() (*DockerStats, error) {
 		}
 		containerStat := ContainerStats{}
 		if err = json.Unmarshal([]byte(c), &containerStat); err != nil {
-			log.DebugLog(log.DebugLevelMetrics, "Failed to marshal stats", "stats", c, "err", err.Error())
+			log.SpanLog(ctx, log.DebugLevelMetrics, "Failed to marshal stats", "stats", c, "err", err.Error())
 			continue
 		}
 		dockerResp.Containers = append(dockerResp.Containers, containerStat)
@@ -101,7 +101,7 @@ func parsePercentStr(pStr string) (float64, error) {
 }
 
 // parse data in the format "1.629MiB / 1.952GiB / 12KB / 12B" into [1.629* 1000000, 1.952 * 1000000000, 12*1000 , 12]
-func parseComputeUnitsDelim(dataStr string) ([]uint64, error) {
+func parseComputeUnitsDelim(ctx context.Context, dataStr string) ([]uint64, error) {
 	var items []uint64
 	var scale uint64
 	// token function to find first letter(K/M/G)
@@ -118,7 +118,7 @@ func parseComputeUnitsDelim(dataStr string) ([]uint64, error) {
 			if t, err := strconv.ParseUint(v, 10, 64); err == nil {
 				items = append(items, t)
 			} else {
-				log.DebugLog(log.DebugLevelMetrics, "Failed to parse data", "val", v, "err", err)
+				log.SpanLog(ctx, log.DebugLevelMetrics, "Failed to parse data", "val", v, "err", err)
 			}
 			continue
 		}
@@ -139,7 +139,7 @@ func parseComputeUnitsDelim(dataStr string) ([]uint64, error) {
 		case 'G':
 			scale = 1024 * 1024
 		default:
-			log.DebugLog(log.DebugLevelMetrics, "Unknown Unit string", "units", v[i])
+			log.SpanLog(ctx, log.DebugLevelMetrics, "Unknown Unit string", "units", v[i])
 			continue
 		}
 
@@ -147,7 +147,7 @@ func parseComputeUnitsDelim(dataStr string) ([]uint64, error) {
 			t *= float64(scale)
 			items = append(items, uint64(t))
 		} else {
-			log.DebugLog(log.DebugLevelMetrics, "Failed to parse data", "val", v[0:i], "err", err)
+			log.SpanLog(ctx, log.DebugLevelMetrics, "Failed to parse data", "val", v[0:i], "err", err)
 		}
 	}
 	return items, nil
@@ -158,12 +158,12 @@ func parseComputeUnitsDelim(dataStr string) ([]uint64, error) {
 // If a more detailed reource usage is needed /containers/(id)/stats API endpoint should be used
 // To get to the API endpoint on a rootLB netcat can be used:
 //   $ echo -e "GET /containers/mobiledgexsdkdemo/stats?stream=0 HTTP/1.0\r\n" | nc -q -1 -U /var/run/docker.sock | grep "^{" | jq
-func collectDockerAppMetrics(p *DockerClusterStats) map[shepherd_common.MetricAppInstKey]*shepherd_common.AppMetrics {
+func collectDockerAppMetrics(ctx context.Context, p *DockerClusterStats) map[shepherd_common.MetricAppInstKey]*shepherd_common.AppMetrics {
 	appStatsMap := make(map[shepherd_common.MetricAppInstKey]*shepherd_common.AppMetrics)
 
-	stats, err := p.GetContainerStats()
+	stats, err := p.GetContainerStats(ctx)
 	if err != nil {
-		log.DebugLog(log.DebugLevelMetrics, "Failed to collect App stats for docker cluster", "err", err)
+		log.SpanLog(ctx, log.DebugLevelMetrics, "Failed to collect App stats for docker cluster", "err", err)
 		return nil
 	}
 
@@ -185,26 +185,26 @@ func collectDockerAppMetrics(p *DockerClusterStats) map[shepherd_common.MetricAp
 		// cpu is in the form "0.00%" - remove the % at the end and cast to float
 		stat.Cpu, err = parsePercentStr(containerStats.Cpu)
 		if err != nil {
-			log.DebugLog(log.DebugLevelMetrics, "Failed to parse CPU usage", "App", appKey, "stats", containerStats, "err", err)
+			log.SpanLog(ctx, log.DebugLevelMetrics, "Failed to parse CPU usage", "App", appKey, "stats", containerStats, "err", err)
 		}
 
-		memData, err := parseComputeUnitsDelim(containerStats.Memory.Raw)
+		memData, err := parseComputeUnitsDelim(ctx, containerStats.Memory.Raw)
 		if err != nil {
-			log.DebugLog(log.DebugLevelMetrics, "Failed to parse Mem usage", "App", appKey, "stats", containerStats, "err", err)
+			log.SpanLog(ctx, log.DebugLevelMetrics, "Failed to parse Mem usage", "App", appKey, "stats", containerStats, "err", err)
 		} else {
 			stat.Mem = memData[0]
 		}
 		// Disk usage is unsupported
 		stat.Disk = 0
-		netIO, err := parseComputeUnitsDelim(containerStats.IO.Network)
+		netIO, err := parseComputeUnitsDelim(ctx, containerStats.IO.Network)
 		if err != nil {
-			log.DebugLog(log.DebugLevelMetrics, "Failed to parse Network usage", "App", appKey, "stats", containerStats, "err", err)
+			log.SpanLog(ctx, log.DebugLevelMetrics, "Failed to parse Network usage", "App", appKey, "stats", containerStats, "err", err)
 		} else {
 			if len(netIO) > 1 {
 				stat.NetSent = netIO[1]
 				stat.NetRecv = netIO[0]
 			} else {
-				log.DebugLog(log.DebugLevelMetrics, "Failed to parse network data", "netio", netIO)
+				log.SpanLog(ctx, log.DebugLevelMetrics, "Failed to parse network data", "netio", netIO)
 			}
 		}
 	}
@@ -212,15 +212,15 @@ func collectDockerAppMetrics(p *DockerClusterStats) map[shepherd_common.MetricAp
 	return appStatsMap
 }
 
-func collectDockerClusterMetrics(p *DockerClusterStats) error {
+func collectDockerClusterMetrics(ctx context.Context, p *DockerClusterStats) error {
 	// VM stats from Openstack might be a better idea going forward, but for now use a simple script to scrape the metrics on the RootLB
 	resp, err := p.client.Output(resTrackerCmd)
 	if err != nil {
-		log.DebugLog(log.DebugLevelMetrics, "Failed to run", "cmd", resTrackerCmd, "err", err.Error())
+		log.SpanLog(ctx, log.DebugLevelMetrics, "Failed to run", "cmd", resTrackerCmd, "err", err.Error())
 		return err
 	}
 	if err = json.Unmarshal([]byte(resp), &p.ClusterMetrics); err != nil {
-		log.DebugLog(log.DebugLevelMetrics, "Failed to marshal machine metrics", "stats", resp, "err", err.Error())
+		log.SpanLog(ctx, log.DebugLevelMetrics, "Failed to marshal machine metrics", "stats", resp, "err", err.Error())
 		return err
 	}
 	// set timestamps to current time

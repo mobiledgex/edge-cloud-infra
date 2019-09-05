@@ -260,3 +260,86 @@
         state: restarted
         daemon_reload: yes
       become: yes
+
+- hosts: vouch
+  vars:
+    vouch_image: "voucher/vouch-proxy:0.6.6"
+    vouch_google_creds_path: "secret/ansible/{{ deploy_environ }}/accounts/vouch_google"
+    vouch_conf_file: "/etc/vouch/config.yml"
+    vouch_data_dir: "/var/vouch"
+  tasks:
+    - import_role:
+        name: telegraf
+      tags:
+        - monitoring
+        - setup
+    - import_role:
+        name: docker
+      tags: setup
+    - import_role:
+        name: web
+      vars:
+        nginx_config_template: "internal/vouch/nginx-config.j2"
+        nginx_config_filename: "vouch"
+        cert_domains: [ "{{ inventory_hostname }}" ]
+      tags: setup
+
+    - name: Make vouch directories
+      file:
+        path: "{{ dir }}"
+        state: directory
+        owner: root
+        group: root
+        mode: 0700
+      become: yes
+      loop:
+        - "{{ vouch_conf_file | dirname }}"
+        - "{{ vouch_data_dir }}"
+      loop_control:
+        loop_var: dir
+
+    - name: Look up credentials in vault
+      set_fact:
+        vault_lookup: "{{ lookup('vault', vouch_google_creds_path) }}"
+    - set_fact:
+        vouch_google_client_id: "{{ vault_lookup.vouch_google.data.client_id }}"
+        vouch_google_client_secret: "{{ vault_lookup.vouch_google.data.client_secret }}"
+
+    - name: Install vouch config
+      template:
+        src: "internal/vouch/config.yml.j2"
+        dest: "{{ vouch_conf_file }}"
+        owner: root
+        group: root
+        mode: 0400
+      become: yes
+
+    - name: Deploy vouch
+      docker_container:
+        name: vouch
+        image: "{{ vouch_image }}"
+        restart_policy: unless-stopped
+        ports:
+          - "127.0.0.1:9090:9090"
+        volumes:
+          - "{{ vouch_conf_file | dirname }}:/config"
+          - "{{ vouch_data_dir }}:/data"
+
+- hosts: jaeger
+  tasks:
+    - import_role:
+        name: telegraf
+      tags:
+        - monitoring
+        - setup
+    - import_role:
+        name: docker
+      tags: setup
+    - import_role:
+        name: web
+      vars:
+        nginx_config_template: "internal/jaeger/nginx-config.j2"
+        cert_domains: [ "{{ inventory_hostname }}" ]
+      tags: setup
+    - import_role:
+        name: jaeger

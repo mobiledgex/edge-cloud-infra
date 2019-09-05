@@ -23,6 +23,8 @@
       - "{{ artifactory_address }}"
       - "-ldapAddr"
       - "0.0.0.0:{{ mc_ldap_port }}"
+      - "-jaegerAddr"
+      - "{{ jaeger_hostname }}:443"
       - "-tls"
       - "/root/tls/mex-server.crt"
       - "-tlskey"
@@ -32,9 +34,13 @@
       - "-d"
       - "api"
 
+- name: Compute MC name
+  set_fact:
+    mc_name: "{{ mc_vm_hostname.split('.')[0]|lower }}"
+
 - name: Deploy the MC
   docker_container:
-    name: "{{ mc_vm_hostname.split('.')[0]|lower }}"
+    name: "{{ mc_name }}"
     image: "{{ edge_cloud_image }}:{{ edge_cloud_version }}"
     restart_policy: unless-stopped
     command: "{{ mc_args }}"
@@ -50,3 +56,5 @@
       VAULT_ROLE_ID: "{{ mc_vault_app_role.role_id }}"
       VAULT_SECRET_ID: "{{ mc_vault_app_role.secret_id }}"
       gitlab_token: "{{ mc_gitlab_token }}"
+      JAEGER_ENDPOINT: "{{ jaeger_endpoint }}"
+      JAEGER_TAGS: "mc={{ mc_name }},environ={{ deploy_environ }},version={{ edge_cloud_version }}"

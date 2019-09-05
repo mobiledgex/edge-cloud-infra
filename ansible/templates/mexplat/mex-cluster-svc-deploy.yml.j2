@@ -32,5 +32,10 @@ spec:
          - "x1.medium"
          - "--scrapeInterval"
          - "5s"
+        env:
+         - name: JAEGER_ENDPOINT
+           value: "{{ jaeger_endpoint }}"
+         - name: JAEGER_TAGS
+           value: "environ={{ deploy_environ }},version={{ edge_cloud_version }}"
       imagePullSecrets:
        - name: mexreg-secret 

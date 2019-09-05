@@ -1,0 +1,3 @@
+---
+jaeger_collector_image: jaegertracing/jaeger-collector
+jaeger_query_image: jaegertracing/jaeger-query

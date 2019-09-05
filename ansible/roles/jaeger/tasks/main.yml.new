@@ -1,0 +1,25 @@
+---
+- name: Deploy jaeger
+  docker_container:
+    name: jaeger
+    image: "hello-world"
+    ports:
+      - 127.0.0.1:24268:14268
+      - 127.0.0.1:16686:16686
+  state: absent
+  tags: never
+
+- name: Deploy jaeger collector
+  docker_container:
+    name: jaeger-collector
+    image: "{{ jaeger_collector_image }}:{{ jaeger_version }}"
+    ports:
+      - 127.0.0.1:24268:14268
+
+- name: Deploy jaeger query
+  docker_container:
+    name: jaeger-query
+    image: "{{ jaeger_query_image }}:{{ jaeger_version }}"
+    ports:
+      - 127.0.0.1:16686:16686
+

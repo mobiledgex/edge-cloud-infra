@@ -71,7 +71,6 @@ func (a *Adapter) createTable(ctx context.Context) error {
 		}
 	}
 	cmd := fmt.Sprintf("CREATE TABLE %v (%v, UNIQUE (%v))", scope.QuotedTableName(), strings.Join(tags, ","), strings.Join(fields, ","))
-	fmt.Printf("db exec cmd: %s\n", cmd)
 	return db.Exec(cmd).Error
 }
 

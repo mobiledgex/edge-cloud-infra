@@ -1,6 +1,8 @@
 package shepherd_common
 
 import (
+	"context"
+
 	"github.com/gogo/protobuf/types"
 	"github.com/mobiledgex/edge-cloud/edgeproto"
 )
@@ -9,14 +11,14 @@ import (
 // Pending EDGECLOUD-1183 implementation
 type AppStats interface {
 	// Returns current resource usage for a app instance
-	GetAppStats() *AppMetrics
+	GetAppStats(ctx context.Context) *AppMetrics
 }
 
 // Common interface to deal with ClusterMetrics
 type ClusterStats interface {
 	// Returns current resource usage for a cluster instance
-	GetClusterStats() *ClusterMetrics
-	GetAppStats() map[MetricAppInstKey]*AppMetrics
+	GetClusterStats(ctx context.Context) *ClusterMetrics
+	GetAppStats(ctx context.Context) map[MetricAppInstKey]*AppMetrics
 }
 
 type AppMetrics struct {
@@ -53,6 +55,17 @@ type ClusterMetrics struct {
 	UdpRecvTS    *types.Timestamp
 	UdpRecvErr   uint64
 	UdpRecvErrTS *types.Timestamp
+}
+
+type NginxMetrics struct {
+	ActiveConn  uint64
+	Accepts     uint64
+	HandledConn uint64
+	Requests    uint64
+	Reading     uint64
+	Writing     uint64
+	Waiting     uint64
+	Ts          *types.Timestamp
 }
 
 // We keep the name of the pod+ClusterInstKey rather than AppInstKey

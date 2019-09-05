@@ -2,6 +2,7 @@ package shepherd_unittest
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"fmt"
 	"strings"
@@ -21,15 +22,15 @@ func (s *Platform) GetType() string {
 	return "unit test"
 }
 
-func (s *Platform) Init(key *edgeproto.CloudletKey, physicalName, vaultAddr string) error {
+func (s *Platform) Init(ctx context.Context, key *edgeproto.CloudletKey, physicalName, vaultAddr string) error {
 	return nil
 }
 
-func (s *Platform) GetClusterIP(clusterInst *edgeproto.ClusterInst) (string, error) {
+func (s *Platform) GetClusterIP(ctx context.Context, clusterInst *edgeproto.ClusterInst) (string, error) {
 	return "localhost", nil
 }
 
-func (s *Platform) GetPlatformClient(clusterInst *edgeproto.ClusterInst) (pc.PlatformClient, error) {
+func (s *Platform) GetPlatformClient(ctx context.Context, clusterInst *edgeproto.ClusterInst) (pc.PlatformClient, error) {
 	return &UTClient{pf: s}, nil
 }
 

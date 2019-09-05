@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"encoding/json"
 	"testing"
 	"time"
@@ -10,6 +11,7 @@ import (
 	"github.com/mobiledgex/edge-cloud/cloud-resource-manager/k8smgmt"
 	"github.com/mobiledgex/edge-cloud/cloudcommon"
 	"github.com/mobiledgex/edge-cloud/edgeproto"
+	"github.com/mobiledgex/edge-cloud/log"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -42,6 +44,9 @@ var testDockerClusterData = shepherd_common.ClusterMetrics{
 }
 
 func TestDockerStats(t *testing.T) {
+	log.InitTracer("")
+	defer log.FinishTracer()
+	ctx := log.StartTestSpan(context.Background())
 
 	testAppKey := shepherd_common.MetricAppInstKey{
 		ClusterInstKey: edgeproto.ClusterInstKey{
@@ -81,10 +86,10 @@ func TestDockerStats(t *testing.T) {
 		DockerClusterMetrics: string(buf),
 	}
 
-	testPromStats, err := NewClusterWorker("", time.Second*1, nil, &testClusterInst, &platform)
+	testPromStats, err := NewClusterWorker(ctx, "", time.Second*1, nil, &testClusterInst, &platform)
 	assert.Nil(t, err, "Get a patform client for unit test cloudlet")
-	clusterMetrics := testPromStats.clusterStat.GetClusterStats()
-	appsMetrics := testPromStats.clusterStat.GetAppStats()
+	clusterMetrics := testPromStats.clusterStat.GetClusterStats(ctx)
+	appsMetrics := testPromStats.clusterStat.GetAppStats(ctx)
 	assert.NotNil(t, clusterMetrics, "Fill stats from json")
 	assert.NotNil(t, appsMetrics, "Fill stats from json")
 	testAppKey.Pod = k8smgmt.NormalizeName("DockerApp1")

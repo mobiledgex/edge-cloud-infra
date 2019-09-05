@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"strconv"
@@ -48,7 +49,7 @@ type DockerClusterStats struct {
 	shepherd_common.ClusterMetrics
 }
 
-func (c *DockerClusterStats) GetClusterStats() *shepherd_common.ClusterMetrics {
+func (c *DockerClusterStats) GetClusterStats(ctx context.Context) *shepherd_common.ClusterMetrics {
 	if err := collectDockerClusterMetrics(c); err != nil {
 		log.DebugLog(log.DebugLevelMetrics, "Could not collect cluster metrics", "Docker cluster", c)
 		return nil
@@ -58,7 +59,7 @@ func (c *DockerClusterStats) GetClusterStats() *shepherd_common.ClusterMetrics {
 
 // Currently we are collecting stats for all apps in the cluster in one shot
 // Implementing  EDGECLOUD-1183 would allow us to query by label and we can have each app be an individual metric
-func (c *DockerClusterStats) GetAppStats() map[shepherd_common.MetricAppInstKey]*shepherd_common.AppMetrics {
+func (c *DockerClusterStats) GetAppStats(ctx context.Context) map[shepherd_common.MetricAppInstKey]*shepherd_common.AppMetrics {
 	metrics := collectDockerAppMetrics(c)
 	if metrics == nil {
 		log.DebugLog(log.DebugLevelMetrics, "Could not collect app metrics", "Docker Container", c)

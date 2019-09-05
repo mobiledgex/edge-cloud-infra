@@ -24,7 +24,7 @@
       - "-ldapAddr"
       - "0.0.0.0:{{ mc_ldap_port }}"
       - "-jaegerAddr"
-      - "{{ jaeger_hostname }}:443"
+      - "{{ jaeger_hostname }}:16686"
       - "-tls"
       - "/root/tls/mex-server.crt"
       - "-tlskey"

@@ -326,20 +326,39 @@
           - "{{ vouch_data_dir }}:/data"
 
 - hosts: jaeger
+  vars:
+    vault_mex_ca_cert_path: "secret/certs/mex-ca"
+
   tasks:
+
     - import_role:
         name: telegraf
       tags:
         - monitoring
         - setup
+
     - import_role:
         name: docker
       tags: setup
+
+    - name: Look up CA cert in vault
+      set_fact:
+        vault_lookup: "{{ lookup('vault', vault_mex_ca_cert_path) }}"
+    - set_fact:
+        mex_ca_cert: "{{ vault_lookup.mex_ca.data.cert }}"
+
+    - name: Copy CA cert
+      copy:
+        dest: "{{ mex_ca_cert_path }}"
+        content: "{{ mex_ca_cert }}"
+      become: yes
+
     - import_role:
         name: web
       vars:
         nginx_config_template: "internal/jaeger/nginx-config.j2"
         cert_domains: [ "{{ inventory_hostname }}" ]
       tags: setup
+
     - import_role:
         name: jaeger

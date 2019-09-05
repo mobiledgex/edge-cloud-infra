@@ -36,7 +36,6 @@ func (s *Platform) CreateAppInst(ctx context.Context, clusterInst *edgeproto.Clu
 	}
 
 	// The rest is k8s specific
-	// TODO: need to do different thing for Docker Apps on Dind
 	if clusterInst.Deployment != cloudcommon.AppDeploymentTypeKubernetes {
 		return nil
 	}
@@ -47,7 +46,7 @@ func (s *Platform) CreateAppInst(ctx context.Context, clusterInst *edgeproto.Clu
 		return err
 	}
 	masterIP := cluster.MasterAddr
-	externalIP, err := s.GetDINDServiceIP(ctx, )
+	externalIP, err := s.GetDINDServiceIP(ctx)
 	getDnsAction := func(svc v1.Service) (*mexos.DnsSvcAction, error) {
 		action := mexos.DnsSvcAction{}
 

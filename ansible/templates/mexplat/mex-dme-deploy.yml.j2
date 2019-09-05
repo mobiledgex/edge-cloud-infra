@@ -55,6 +55,10 @@ spec:
            value: "{{ dme_vault_app_role[region].role_id }}"
          - name: VAULT_SECRET_ID
            value: "{{ dme_vault_app_role[region].secret_id }}"
+         - name: JAEGER_ENDPOINT
+           value: "{{ jaeger_endpoint }}"
+         - name: JAEGER_TAGS
+           value: "environ={{ deploy_environ }},region={{ region }},version={{ edge_cloud_version }}"
         volumeMounts:
          - name: tls
            mountPath: /tls

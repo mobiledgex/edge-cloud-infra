@@ -272,6 +272,8 @@ var CloudletOptionalArgs = []string{
 	"notifysrvaddr",
 	"flavor.name",
 	"physicalname",
+	"envvars.key",
+	"envvars.value",
 }
 var CloudletAliasArgs = []string{
 	"operator=cloudlet.key.operatorkey.name",
@@ -307,6 +309,17 @@ var CloudletAliasArgs = []string{
 	"notifysrvaddr=cloudlet.notifysrvaddr",
 	"flavor.name=cloudlet.flavor.name",
 	"physicalname=cloudlet.physicalname",
+	"envvars.key=cloudlet.envvars.key",
+	"envvars.value=cloudlet.envvars.value",
+}
+var EnvVarsEntryRequiredArgs = []string{}
+var EnvVarsEntryOptionalArgs = []string{
+	"key",
+	"value",
+}
+var EnvVarsEntryAliasArgs = []string{
+	"key=envvarsentry.key",
+	"value=envvarsentry.value",
 }
 var FlavorInfoRequiredArgs = []string{}
 var FlavorInfoOptionalArgs = []string{

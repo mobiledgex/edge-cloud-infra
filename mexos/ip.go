@@ -30,7 +30,7 @@ func ParseNetSpec(ctx context.Context, netSpec string) (*NetSpecInfo, error) {
 		return nil, fmt.Errorf("empty netspec")
 	}
 	log.SpanLog(ctx, log.DebugLevelMexos, "parsing netspec", "netspec", netSpec)
-	items := strings.Split(netSpec, ",")
+	items := strings.Split(netSpec, ";")
 	for _, i := range items {
 		kvs := strings.Split(i, "=")
 		if len(kvs) != 2 {
@@ -174,7 +174,7 @@ func FindNodeIP(name string, srvs []OSServer) (string, error) {
 // GetMasterNameAndIP gets the name and IP address of the cluster's master node.
 func GetMasterNameAndIP(ctx context.Context, clusterInst *edgeproto.ClusterInst) (string, string, error) {
 	log.SpanLog(ctx, log.DebugLevelMexos, "get master IP", "cluster", clusterInst.Key.ClusterKey.Name)
-	srvs, err := ListServers(ctx, )
+	srvs, err := ListServers(ctx)
 	if err != nil {
 		return "", "", fmt.Errorf("error getting server list: %v", err)
 

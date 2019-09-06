@@ -50,7 +50,7 @@ func (s *Platform) Init(ctx context.Context, platformConfig *platform.PlatformCo
 	}
 	mexos.CloudletInfraCommon.NetworkScheme = os.Getenv("MEX_NETWORK_SCHEME")
 	if mexos.CloudletInfraCommon.NetworkScheme == "" {
-		mexos.CloudletInfraCommon.NetworkScheme = "name=mex-k8s-net-1,cidr=10.101.X.0/24"
+		mexos.CloudletInfraCommon.NetworkScheme = "name=mex-k8s-net-1;cidr=10.101.X.0/24"
 	}
 	var err error
 	s.flavorList, err = mexos.GetFlavorInfo(ctx)

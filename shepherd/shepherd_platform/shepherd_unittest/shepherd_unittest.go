@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/mobiledgex/edge-cloud-infra/shepherd/shepherd_common"
 	"github.com/mobiledgex/edge-cloud/cloud-resource-manager/platform/pc"
 	"github.com/mobiledgex/edge-cloud/edgeproto"
 )
@@ -34,6 +35,11 @@ func (s *Platform) GetPlatformClient(ctx context.Context, clusterInst *edgeproto
 	return &UTClient{pf: s}, nil
 }
 
+// Query local system for the resource usage
+func (s *Platform) GetPlatformStats(ctx context.Context) (shepherd_common.CloudletMetrics, error) {
+	return shepherd_common.CloudletMetrics{}, nil
+}
+
 // UTClient hijacks a set of commands and returns predetermined output
 // For all other commands it just calls pc.LocalClient equivalents
 type UTClient struct {
@@ -55,7 +61,7 @@ func (s *UTClient) getUTData(command string) (string, error) {
 	if strings.Contains(command, "docker stats ") {
 		// take the json with line breaks and compact it, as that's what the command expects
 		str = s.pf.DockerAppMetrics
-	} else if strings.Contains(command, "resource-tracker") {
+	} else if strings.Contains(command, shepherd_common.ResTrackerCmd) {
 		str = s.pf.DockerClusterMetrics
 	}
 	if str != "" {

@@ -7,6 +7,9 @@ import (
 	"github.com/mobiledgex/edge-cloud/edgeproto"
 )
 
+// Prerequisite - install small edge-cloud utility on the VM running this docker containers
+var ResTrackerCmd = "resource-tracker"
+
 // Common interface to deal with AppMetrics
 // Pending EDGECLOUD-1183 implementation
 type AppStats interface {
@@ -55,6 +58,19 @@ type ClusterMetrics struct {
 	UdpRecvTS    *types.Timestamp
 	UdpRecvErr   uint64
 	UdpRecvErrTS *types.Timestamp
+}
+
+type CloudletMetrics struct {
+	ComputeTS *types.Timestamp
+	VCpuMax   uint64
+	VCpuUsed  uint64
+	MemUsed   uint64
+	MemMax    uint64
+	DiskUsed  uint64
+	DiskMax   uint64
+	NetworkTS *types.Timestamp
+	NetRecv   uint64
+	NetSent   uint64
 }
 
 type NginxMetrics struct {

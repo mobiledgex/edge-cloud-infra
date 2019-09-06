@@ -124,7 +124,8 @@ func QueryNginx(scrapePoint NginxScrapePoint) (*NginxMetrics, error) {
 	if nginxUnitTest {
 		request = fmt.Sprintf("curl http://127.0.0.1:%d/nginx_metrics", nginxUnitTestPort)
 	}
-	// if this is the first time, or the container got restarted, install curl
+	resp, err := scrapePoint.Client.Output(request)
+	// if this is the first time, or the container got restarted, install curl (for old deployments)
 	if strings.Contains(resp, "executable file not found") {
 		log.DebugLog(log.DebugLevelMexos, "Installing curl onto docker container ", "Container", container)
 		installer := fmt.Sprintf("docker exec %s apt-get update; docker exec %s apt-get --assume-yes install curl", container, container)
@@ -135,7 +136,6 @@ func QueryNginx(scrapePoint NginxScrapePoint) (*NginxMetrics, error) {
 		// now retry curling
 		resp, err = scrapePoint.Client.Output(request)
 	}
-	resp, err := scrapePoint.Client.Output(request)
 	if err != nil {
 		log.DebugLog(log.DebugLevelMetrics, "Failed to run request", "request", request, "err", err.Error())
 		return nil, err

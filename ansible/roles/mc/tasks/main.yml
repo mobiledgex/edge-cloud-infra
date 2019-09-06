@@ -1,3 +1,12 @@
+- name: Look up gitlab apikey in vault
+  set_fact:
+    vault_lookup: "{{ lookup('vault', gitlab_path) }}"
+  vars:
+    gitlab_path: "secret/registry/{{ gitlab_vm_hostname }}:token"
+
+- set_fact:
+    mc_gitlab_token: "{{ vault_lookup.token.data.apikey }}"
+
 - name: Compute mc command line
   set_fact:
     mc_args:
@@ -14,6 +23,8 @@
       - "{{ artifactory_address }}"
       - "-ldapAddr"
       - "0.0.0.0:{{ mc_ldap_port }}"
+      - "-jaegerAddr"
+      - "{{ jaeger_hostname }}:16686"
       - "-tls"
       - "/root/tls/mex-server.crt"
       - "-tlskey"
@@ -23,9 +34,13 @@
       - "-d"
       - "api"
 
+- name: Compute MC name
+  set_fact:
+    mc_name: "{{ mc_vm_hostname.split('.')[0]|lower }}"
+
 - name: Deploy the MC
   docker_container:
-    name: "{{ mc_vm_hostname.split('.')[0]|lower }}"
+    name: "{{ mc_name }}"
     image: "{{ edge_cloud_image }}:{{ edge_cloud_version }}"
     restart_policy: unless-stopped
     command: "{{ mc_args }}"
@@ -41,4 +56,5 @@
       VAULT_ROLE_ID: "{{ mc_vault_app_role.role_id }}"
       VAULT_SECRET_ID: "{{ mc_vault_app_role.secret_id }}"
       gitlab_token: "{{ mc_gitlab_token }}"
-      artifactory_apikey: "{{ mc_artifactory_apikey }}"
+      JAEGER_ENDPOINT: "{{ jaeger_endpoint }}"
+      JAEGER_TAGS: "mc={{ mc_name }},environ={{ deploy_environ }},version={{ edge_cloud_version }}"

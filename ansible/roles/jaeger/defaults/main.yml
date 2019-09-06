@@ -1,0 +1,3 @@
+---
+jaeger_version: 1.14
+jaeger_image: "jaegertracing/all-in-one:{{ jaeger_version }}"

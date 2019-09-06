@@ -2,7 +2,32 @@
 - debug:
     msg: "Deploying edge-cloud version '{{ edge_cloud_version }}' to cluster '{{ k8s_cluster_name }}' (region: '{{ region }}')"
 
-- import_role: name="k8s_setup"
+- name: Retrieve kube config
+  azure_rm_aks_facts:
+    name: "{{ k8s_cluster_name }}"
+    resource_group: "{{ resource_group }}"
+    show_kubeconfig: admin
+  register: aks_facts
+  check_mode: no
+
+- name: Create temporary kubeconfig file
+  tempfile:
+    state: file
+    suffix: .kubeconfig
+  register: kubeconfig_file
+  changed_when: false
+  check_mode: no
+
+- debug: var=aks_facts
+  tags: [ 'never', 'debug' ]
+
+- name: Store kubeconfig data in file
+  copy:
+    content: "{{ aks_facts.aks[0].kube_config }}"
+    dest: "{{ kubeconfig_file.path }}"
+  changed_when: false
+  check_mode: no
+
 - import_role: name="k8s"
 - import_role: name="cert-manager"
 - import_role: name="etcd"

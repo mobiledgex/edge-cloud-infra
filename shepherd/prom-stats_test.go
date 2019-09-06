@@ -2,12 +2,13 @@ package main
 
 import (
 	"context"
-	"encoding/json"
 	"net/http"
 	"net/http/httptest"
 	"testing"
 	"time"
 
+	"github.com/mobiledgex/edge-cloud-infra/shepherd/shepherd_common"
+	"github.com/mobiledgex/edge-cloud/cloudcommon"
 	"github.com/mobiledgex/edge-cloud/edgeproto"
 	"github.com/mobiledgex/edge-cloud/log"
 	"github.com/stretchr/testify/assert"
@@ -61,7 +62,7 @@ var testPayloadData = map[string]string{
 		  ]
 		}
 	  }`,
-	promQSendBytesRateClust: `{
+	promQSentBytesRateClust: `{
 		"status": "success",
 		"data": {
 		  "resultType": "vector",
@@ -143,7 +144,7 @@ var testPayloadData = map[string]string{
 		]
 		}
 		}`,
-	promQNetSendRate: `{
+	promQNetSentRate: `{
 		"status": "success",
 		"data": {
   		"resultType": "vector",
@@ -184,25 +185,24 @@ func testMetricSend(ctx context.Context, metric *edgeproto.Metric) bool {
 	return true
 }
 
-func getTestMetrics(addr string, query string) (*PromResp, error) {
-	input := []byte(testPayloadData[query])
-	promResp := &PromResp{}
-	if err := json.Unmarshal(input, &promResp); err != nil {
-		return nil, err
-	}
-	return promResp, nil
-}
-
 func TestPromStats(t *testing.T) {
 	log.InitTracer("")
 	defer log.FinishTracer()
 	ctx := log.StartTestSpan(context.Background())
 
-	testAppKey := MetricAppInstKey{
-		operator:  "testoper",
-		cloudlet:  "testcloudlet",
-		cluster:   "testcluster",
-		developer: "",
+	testAppKey := shepherd_common.MetricAppInstKey{
+		ClusterInstKey: edgeproto.ClusterInstKey{
+			ClusterKey: edgeproto.ClusterKey{
+				Name: "testcluster",
+			},
+			CloudletKey: edgeproto.CloudletKey{
+				OperatorKey: edgeproto.OperatorKey{
+					Name: "testoper",
+				},
+				Name: "testcloudlet",
+			},
+			Developer: "",
+		},
 	}
 
 	testOperatorKey := edgeproto.OperatorKey{Name: "testoper"}
@@ -217,7 +217,12 @@ func TestPromStats(t *testing.T) {
 		Developer:   "",
 	}
 	testClusterInst := edgeproto.ClusterInst{
-		Key: testClusterInstKey,
+		Key:        testClusterInstKey,
+		Deployment: cloudcommon.AppDeploymentTypeKubernetes,
+	}
+	testClusterInstUnsupported := edgeproto.ClusterInst{
+		Key:        testClusterInstKey,
+		Deployment: cloudcommon.AppDeploymentTypeHelm,
 	}
 
 	*platformName = "PLATFORM_TYPE_FAKE"
@@ -231,30 +236,35 @@ func TestPromStats(t *testing.T) {
 	}))
 	defer tsProm.Close()
 	// Remove the leading "http://"
-	testPromStats, err := NewPromStats(tsProm.URL[7:], time.Second*1, testMetricSend, &testClusterInst, testPlatform)
-	assert.Nil(t, err, "Get a patform client for fake cloudlet")
-	err = testPromStats.CollectPromStats()
-	assert.Nil(t, err, "Fill stats from json")
-	testAppKey.pod = "testPod1"
-	stat, found := testPromStats.appStatsMap[testAppKey]
+	testPromStats, err := NewClusterWorker(ctx, tsProm.URL[7:], time.Second*1, testMetricSend, &testClusterInstUnsupported, testPlatform)
+	assert.NotNil(t, err, "Unsupported deployment type")
+	assert.Contains(t, err.Error(), "Unsupported deployment")
+	testPromStats, err = NewClusterWorker(ctx, tsProm.URL[7:], time.Second*1, testMetricSend, &testClusterInst, testPlatform)
+	assert.Nil(t, err, "Get a platform client for fake cloudlet")
+	clusterMetrics := testPromStats.clusterStat.GetClusterStats(ctx)
+	appsMetrics := testPromStats.clusterStat.GetAppStats(ctx)
+	assert.NotNil(t, clusterMetrics, "Fill stats from json")
+	assert.NotNil(t, appsMetrics, "Fill stats from json")
+	testAppKey.Pod = "testPod1"
+	stat, found := appsMetrics[testAppKey]
 	// Check PodStats
 	assert.True(t, found, "Pod testPod1 is not found")
 	if found {
-		assert.Equal(t, float64(5.0), stat.cpu)
-		assert.Equal(t, uint64(100000000), stat.mem)
-		assert.Equal(t, uint64(300000000), stat.disk)
-		assert.Equal(t, uint64(111111), stat.netSend)
-		assert.Equal(t, uint64(222222), stat.netRecv)
+		assert.Equal(t, float64(5.0), stat.Cpu)
+		assert.Equal(t, uint64(100000000), stat.Mem)
+		assert.Equal(t, uint64(300000000), stat.Disk)
+		assert.Equal(t, uint64(111111), stat.NetSent)
+		assert.Equal(t, uint64(222222), stat.NetRecv)
 	}
 	// Check ClusterStats
-	assert.Equal(t, float64(10.01), testPromStats.clusterStat.cpu)
-	assert.Equal(t, float64(99.99), testPromStats.clusterStat.mem)
-	assert.Equal(t, float64(50.0), testPromStats.clusterStat.disk)
-	assert.Equal(t, uint64(11111), testPromStats.clusterStat.netSend)
-	assert.Equal(t, uint64(22222), testPromStats.clusterStat.netRecv)
+	assert.Equal(t, float64(10.01), clusterMetrics.Cpu)
+	assert.Equal(t, float64(99.99), clusterMetrics.Mem)
+	assert.Equal(t, float64(50.0), clusterMetrics.Disk)
+	assert.Equal(t, uint64(11111), clusterMetrics.NetSent)
+	assert.Equal(t, uint64(22222), clusterMetrics.NetRecv)
 
 	// Check callback is called
 	assert.Equal(t, int(0), testMetricSent)
-	testPromStats.send(ctx, ClusterStatToMetrics(testPromStats)[0])
+	testPromStats.send(ctx, MarshalClusterMetrics(clusterMetrics, testPromStats.clusterInstKey)[0])
 	assert.Equal(t, int(1), testMetricSent)
 }

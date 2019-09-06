@@ -1,6 +1,7 @@
 package intprocess
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"time"
@@ -58,27 +59,27 @@ func GetShepherdCmd(cloudlet *edgeproto.Cloudlet, pfConfig *edgeproto.PlatformCo
 	return ShepherdProc.String(opts...), &ShepherdProc.Common.EnvVars, nil
 }
 
-func StartShepherdService(cloudlet *edgeproto.Cloudlet, pfConfig *edgeproto.PlatformConfig) error {
-	ShepherdProc, opts, err := getShepherdProc(cloudlet, pfConfig)
+func StartShepherdService(ctx context.Context, cloudlet *edgeproto.Cloudlet, pfConfig *edgeproto.PlatformConfig) (*Shepherd, error) {
+	shepherdProc, opts, err := getShepherdProc(cloudlet, pfConfig)
 	if err != nil {
-		return err
+		return nil, err
 	}
 
-	err = ShepherdProc.StartLocal("/tmp/"+cloudlet.Key.Name+".shepherd.log", opts...)
+	err = shepherdProc.StartLocal("/tmp/"+cloudlet.Key.Name+".shepherd.log", opts...)
 	if err != nil {
-		return err
+		return nil, err
 	}
-	log.DebugLog(log.DebugLevelMexos, "started "+ShepherdProc.GetExeName())
+	log.SpanLog(ctx, log.DebugLevelMexos, "started "+shepherdProc.GetExeName())
 
-	return nil
+	return shepherdProc, nil
 }
 
-func StopShepherdService(cloudlet *edgeproto.Cloudlet) error {
+func StopShepherdService(ctx context.Context, cloudlet *edgeproto.Cloudlet) error {
 	args := ""
 	if cloudlet != nil {
 		ShepherdProc, _, err := getShepherdProc(cloudlet, nil)
 		if err != nil {
-			log.DebugLog(log.DebugLevelMexos, "cannot stop Shepherdserver", "err", err)
+			log.SpanLog(ctx, log.DebugLevelMexos, "cannot stop Shepherdserver", "err", err)
 			return err
 		}
 		args = ShepherdProc.LookupArgs()
@@ -90,6 +91,6 @@ func StopShepherdService(cloudlet *edgeproto.Cloudlet) error {
 	c := make(chan string)
 	go process.KillProcessesByName("shepherd", maxwait, args, c)
 
-	log.DebugLog(log.DebugLevelMexos, "stopped Shepherdserver", "msg", <-c)
+	log.SpanLog(ctx, log.DebugLevelMexos, "stopped Shepherdserver", "msg", <-c)
 	return nil
 }

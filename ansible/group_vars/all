@@ -1,4 +1,8 @@
 ansible_python_interpreter: python3
+vm_ssh_user: ubuntu
+vm_ssh_pub_key_file: "{{ lookup('env','HOME') }}/.mobiledgex/id_rsa_mex.pub"
+platform_k8s_pool_size: 3
+platform_k8s_vm_size: Standard_DS1_v2
 mex_docker_registry: registry.mobiledgex.net:5000
 mex_docker_username: mobiledgex
 mex_docker_password: sandhill
@@ -8,7 +12,7 @@ mex_ops_email: mobiledgex.ops@mobiledgex.com
 cloudflare_account_email: mobiledgex.ops@mobiledgex.com
 cloudflare_account_api_token: 60632181cb3b7419304ffa820b2d99e292092
 cloudflare_zone: mobiledgex.net
-vault_address: https://vault.mobiledgex.net
+vault_address: https://vault-main.mobiledgex.net
 gitlab_address: https://container-registry.mobiledgex.net
 artifactory_address: https://artifactory.mobiledgex.net/artifactory
 gitlab_config_path: /etc/gitlab/gitlab.rb
@@ -33,3 +37,6 @@ etcd_replica_num: 3
 etcd_data_volume_path: /var/etcd/data
 etcd_data_dir: "{{ etcd_data_volume_path }}/default.etcd"
 artifactory_etcd_backup_repo: build-artifacts/etcd-backup
+jaeger_hostname: jaeger.mobiledgex.net
+jaeger_endpoint: "https://{{ jaeger_hostname }}:14268/api/traces"
+vouch_hostname: vouch.mobiledgex.net

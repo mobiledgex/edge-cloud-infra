@@ -7,3 +7,11 @@ output "registry_replicas" {
     }
   ]
 }
+
+output "vault_external_ip" {
+  value = "${module.vault.external_ip}"
+}
+
+output "mc_external_ip" {
+  value = "${module.mc.external_ip}"
+}

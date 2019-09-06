@@ -63,12 +63,6 @@
       failed_when: edge_cloud_version not in response.json.tags
       check_mode: no
 
-    - import_role:
-        name: terraform_load
-
-    - set_fact:
-        k8s_clusters: "{{ terraform.outputs.k8s_clusters.value }}"
-
     - name: Notify upgrade start on slack
       slack:
         token: "{{ slack_token }}"
@@ -79,17 +73,22 @@
         - not ansible_check_mode
       tags: notify
 
+    - import_role:
+        name: azure-aks
+        tasks_from: platform-regions-load
+
     - include_role:
         name: mexplat_k8s
       vars:
         k8s_cluster_name: "{{ item.name }}"
-        kube_config: "{{ item.kube_config }}"
         region: "{{ item.region }}"
-      with_items: "{{ k8s_clusters }}"
+        resource_group: "{{ item.resource_group }}"
+      with_items: "{{ platform_regions }}"
 
 - hosts: gitlab
   roles:
     - role: telegraf
+      tags: monitoring
     - role: docker
     - role: gitlab
 
@@ -106,6 +105,7 @@
   tasks:
     - import_role:
         name: telegraf
+      tags: monitoring
     - import_role:
         name: docker
       tags: setup
@@ -123,22 +123,27 @@
 - hosts: mc
   roles:
     - role: telegraf
+      tags: [ 'monitoring', 'setup' ]
     - role: web
+      tags: setup
       vars:
         nginx_config_template: "templates/mexplat/mc-nginx-config.j2"
         cert_domains: [ "{{ mc_vm_hostname }}" ]
-    - docker
+    - role: docker
+      tags: setup
     - mc
 
 - hosts: stun
   roles:
-    - telegraf
-    - coturn
+    - role: telegraf
+      tags: monitoring
+    - role: coturn
 
 - hosts: console
   tasks:
     - import_role:
         name: telegraf
+      tags: monitoring
     - import_role:
         name: web
       vars:
@@ -154,6 +159,7 @@
   tasks:
     - import_role:
         name: telegraf
+      tags: monitoring
     - import_role:
         name: registry_replica
 

@@ -54,8 +54,10 @@ spec:
            value: "{{ crm_vault_app_role.role_id }}"
          - name: VAULT_CRM_SECRET_ID
            value: "{{ crm_vault_app_role.secret_id }}"
-         - name: artifactory_apikey
-           value: "{{ crm_artifactory_apikey }}"
+         - name: JAEGER_ENDPOINT
+           value: "{{ jaeger_endpoint }}"
+         - name: JAEGER_TAGS
+           value: "environ={{ deploy_environ }},region={{ region }},version={{ edge_cloud_version }}"
 
       imagePullSecrets:
        - name: mexreg-secret 

@@ -24,7 +24,18 @@
       Run the following for this vault to register the letsencrypt plugin:
       $ vault secrets disable certs || true
       $ vault write sys/plugins/catalog/letsencrypt-certs \
-          sha_256="{{ vault_letsencrypt_plugin_checksum.split(':')[1] }}" \
+          sha_256="{{ vault_letsencrypt_plugin_sha256sum }}" \
           command=letsencrypt-plugin \
           env="CERTGEN_PORT={{ certgen_port }}"
       $ vault secrets enable -path=certs -plugin-name=letsencrypt-certs plugin
+
+- name: Reload letsencrypt backend
+  uri:
+    url: "{{ lookup('env','VAULT_ADDR') }}/v1/sys/plugins/reload/backend"
+    method: PUT
+    headers:
+      X-Vault-Token: "{{ lookup('env','VAULT_TOKEN') }}"
+    body:
+      plugin: letsencrypt-certs
+    body_format: json
+    status_code: 204

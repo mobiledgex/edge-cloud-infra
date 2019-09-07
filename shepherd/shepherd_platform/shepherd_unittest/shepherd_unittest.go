@@ -10,12 +10,15 @@ import (
 	"github.com/mobiledgex/edge-cloud-infra/shepherd/shepherd_common"
 	"github.com/mobiledgex/edge-cloud/cloud-resource-manager/platform/pc"
 	"github.com/mobiledgex/edge-cloud/edgeproto"
+	"github.com/mobiledgex/edge-cloud/log"
 )
 
 type Platform struct {
 	// Contains the response string for a given type of a request
 	DockerAppMetrics     string
 	DockerClusterMetrics string
+	// Cloudlet-level test data
+	CloudletMetrics string
 	// TODO - add Prometheus/nginx strings here EDGECLOUD-1252
 }
 
@@ -37,7 +40,12 @@ func (s *Platform) GetPlatformClient(ctx context.Context, clusterInst *edgeproto
 
 // Query local system for the resource usage
 func (s *Platform) GetPlatformStats(ctx context.Context) (shepherd_common.CloudletMetrics, error) {
-	return shepherd_common.CloudletMetrics{}, nil
+	metrics := shepherd_common.CloudletMetrics{}
+	if err := json.Unmarshal([]byte(s.CloudletMetrics), &metrics); err != nil {
+		log.SpanLog(ctx, log.DebugLevelMetrics, "Failed to marshal unit test metrics", "stats", s.CloudletMetrics, "err", err.Error())
+		return metrics, err
+	}
+	return metrics, nil
 }
 
 // UTClient hijacks a set of commands and returns predetermined output

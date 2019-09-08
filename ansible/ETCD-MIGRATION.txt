@@ -17,4 +17,9 @@ $ ./deploy.sh -p etcd-migrate-02-bringup.yml mexdemo platform
 
 ### Bring up the controller with the new etcd
 $ ./deploy.sh -p etcd-migrate-03-controller.yml mexdemo platform
+
+### Verify that the controller is working fine
+
+### Cleanup the snapshot setup batch jobs
+$ kubectl delete pod -l job-type=etcd-snapshot-setup
 ```

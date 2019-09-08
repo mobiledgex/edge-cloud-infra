@@ -1,0 +1,2 @@
+etcd_volume_storage_class: managed-premium
+etcd_backup_size: 500Mi

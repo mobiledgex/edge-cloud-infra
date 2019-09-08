@@ -1,0 +1,41 @@
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: "etcd-{{ etcd_index }}-snapshot-setup"
+spec:
+  backoffLimit: 2
+  activeDeadlineSeconds: 300
+  template:
+    metadata:
+      labels:
+        job-type: etcd-snapshot-setup
+    spec:
+      restartPolicy: Never
+      containers:
+      - name: "etcd-{{ etcd_index }}-snapshot-setup"
+        image: busybox:1.31
+        volumeMounts:
+        - name: data
+          mountPath: {{ etcd_data_volume_path }}
+        command:
+          - "/bin/sh"
+          - "-ecx"
+          - |
+            mkdir -p {{ etcd_data_volume_path }}
+            cd {{ etcd_data_volume_path }}
+            rm -f {{ etcd_restore_snapshot_name }}
+
+            SNAP="{{ etcd_backup_artifactory_url }}"
+            SHA1SUM=$( wget -S --spider --header 'Authorization: Bearer {{ artifactory_token }}' "$SNAP" 2>&1 >/dev/null \
+                | grep X-Checksum-Sha1: | awk '{print $2}' )
+            wget --header 'Authorization: Bearer {{ artifactory_token }}' -O "{{ etcd_restore_snapshot_name }}" "$SNAP"
+            SNAP_SHA1SUM=$( sha1sum "{{ etcd_restore_snapshot_name }}" | awk '{print $1}' )
+            if [[ "$SNAP_SHA1SUM" != "$SHA1SUM" ]]; then
+                echo "Snapshot download error; SHA1 mismatch: $SNAP_SHA1SUM != $SHA1SUM" >&2
+                exit 2
+            fi
+
+      volumes:
+      - name: data
+        persistentVolumeClaim:
+          claimName: data-{{ etcd_cluster_name }}-{{ etcd_index }}

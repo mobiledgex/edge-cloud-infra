@@ -1,0 +1,106 @@
+---
+- hosts: platform
+  vars:
+    etcd_volume_storage_class: managed-premium
+    etcd_restore_snapshot_name: snap.db
+  vars_prompt:
+    - name: k8s_cluster_name
+      prompt: "Name of k8s cluster to migrate"
+      private: no
+    - name: resource_group
+      prompt: "Resource group of k8s cluster"
+      private: no
+    - name: etcd_backup_artifactory_url
+      prompt: "Artifactory URL of backup to restore from"
+      private: no
+
+  tasks:
+
+    - name: Retrieve kube config
+      azure_rm_aks_facts:
+        name: "{{ k8s_cluster_name }}"
+        resource_group: "{{ resource_group }}"
+        show_kubeconfig: admin
+      register: aks_facts
+      check_mode: no
+
+    - debug: var=aks_facts
+
+    - name: Create temporary kubeconfig file
+      tempfile:
+        state: file
+        suffix: .kubeconfig
+      register: kubeconfig_file
+      changed_when: false
+      check_mode: no
+
+    - name: Store kubeconfig data in file
+      copy:
+        content: "{{ aks_facts.aks[0].kube_config }}"
+        dest: "{{ kubeconfig_file.path }}"
+      changed_when: false
+      check_mode: no
+
+    - name: Look up Artifactory token in vault
+      set_fact:
+        vault_lookup: "{{ lookup('vault', artifactory_token_path) }}"
+      vars:
+        artifactory_token_path: "secret/ansible/{{ deploy_environ }}/artifactory_tokens"
+
+    - set_fact:
+        artifactory_token: "{{ vault_lookup.artifactory_tokens.data.etcd_reader }}"
+
+    - name: Ensure that the backup is present
+      uri:
+        url: "{{ etcd_backup_artifactory_url }}"
+        method: HEAD
+        headers:
+          Authorization: "Bearer {{ artifactory_token }}"
+
+    - pause:
+        prompt: "Stopping controller"
+
+    - name: Stop the controller
+      k8s:
+        kubeconfig: "{{ kubeconfig_file.path }}"
+        namespace: default
+        kind: Deployment
+        name: controller
+        state: absent
+
+    - name: Wait for the controller to stop
+      k8s_facts:
+        kubeconfig: "{{ kubeconfig_file.path }}"
+        namespace: default
+        kind: Deployment
+        name: controller
+      register: controller_facts
+      until: controller_facts.resources|length < 1
+      retries: 60
+      delay: 5
+
+    - pause:
+        prompt: Creating persistent volume claims
+
+    - name: Create persistent volume claims
+      k8s:
+        kubeconfig: "{{ kubeconfig_file.path }}"
+        namespace: default
+        state: present
+        definition: "{{ lookup('template', 'etcd_pvc.yaml.j2') }}"
+      loop: "{{ range(0, etcd_replica_num) | list }}"
+      loop_control:
+        loop_var: etcd_index
+
+    - pause:
+        prompt: Copying backup into volumes
+
+    - name: Copy etcd snapshot into persistent volumes
+      k8s:
+        kubeconfig: "{{ kubeconfig_file.path }}"
+        namespace: default
+        state: present
+        definition: "{{ lookup('template', 'etcd_setup_snapshot.yaml.j2') }}"
+      loop: "{{ range(0, etcd_replica_num) | list }}"
+      loop_control:
+        loop_var: etcd_index

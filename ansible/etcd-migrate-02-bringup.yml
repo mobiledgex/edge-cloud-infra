@@ -1,0 +1,42 @@
+---
+- hosts: platform
+  vars:
+    etcd_volume_storage_class: managed-premium
+    etcd_restore_snapshot_name: snap.db
+  vars_prompt:
+    - name: k8s_cluster_name
+      prompt: "Name of k8s cluster to migrate"
+      private: no
+    - name: resource_group
+      prompt: "Resource group of k8s cluster"
+      private: no
+
+  tasks:
+
+    - name: Retrieve kube config
+      azure_rm_aks_facts:
+        name: "{{ k8s_cluster_name }}"
+        resource_group: "{{ resource_group }}"
+        show_kubeconfig: admin
+      register: aks_facts
+      check_mode: no
+
+    - debug: var=aks_facts
+
+    - name: Create temporary kubeconfig file
+      tempfile:
+        state: file
+        suffix: .kubeconfig
+      register: kubeconfig_file
+      changed_when: false
+      check_mode: no
+
+    - name: Store kubeconfig data in file
+      copy:
+        content: "{{ aks_facts.aks[0].kube_config }}"
+        dest: "{{ kubeconfig_file.path }}"
+      changed_when: false
+      check_mode: no
+
+    - import_role:
+        name: etcd

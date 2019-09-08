@@ -1,0 +1,45 @@
+---
+- hosts: platform
+  vars_prompt:
+    - name: k8s_cluster_name
+      prompt: "Name of k8s cluster to migrate"
+      private: no
+    - name: resource_group
+      prompt: "Resource group of k8s cluster"
+      private: no
+    - name: region
+      prompt: "Controller region"
+      private: no
+    - name: influxdb_dns
+      prompt: 'InfluxDB DNS for the controller (eg: "us-mexdemo.influxdb")'
+      private: no
+
+  tasks:
+
+    - name: Retrieve kube config
+      azure_rm_aks_facts:
+        name: "{{ k8s_cluster_name }}"
+        resource_group: "{{ resource_group }}"
+        show_kubeconfig: admin
+      register: aks_facts
+      check_mode: no
+
+    - debug: var=aks_facts
+
+    - name: Create temporary kubeconfig file
+      tempfile:
+        state: file
+        suffix: .kubeconfig
+      register: kubeconfig_file
+      changed_when: false
+      check_mode: no
+
+    - name: Store kubeconfig data in file
+      copy:
+        content: "{{ aks_facts.aks[0].kube_config }}"
+        dest: "{{ kubeconfig_file.path }}"
+      changed_when: false
+      check_mode: no
+
+    - import_role: name="controller"
+

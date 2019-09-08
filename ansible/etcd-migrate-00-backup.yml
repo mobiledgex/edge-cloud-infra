@@ -1,0 +1,51 @@
+---
+- hosts: platform
+  vars_prompt:
+    - name: k8s_cluster_name
+      prompt: "Name of k8s cluster to migrate"
+      private: no
+    - name: resource_group
+      prompt: "Resource group of k8s cluster"
+      private: no
+  vars:
+    etcd_cluster_name: mex-etcd-cluster
+
+  tasks:
+
+    - name: Retrieve kube config
+      azure_rm_aks_facts:
+        name: "{{ k8s_cluster_name }}"
+        resource_group: "{{ resource_group }}"
+        show_kubeconfig: admin
+      register: aks_facts
+      check_mode: no
+
+    - debug: var=aks_facts
+
+    - name: Create temporary kubeconfig file
+      tempfile:
+        state: file
+        suffix: .kubeconfig
+      register: kubeconfig_file
+      changed_when: false
+      check_mode: no
+
+    - name: Store kubeconfig data in file
+      copy:
+        content: "{{ aks_facts.aks[0].kube_config }}"
+        dest: "{{ kubeconfig_file.path }}"
+      changed_when: false
+      check_mode: no
+
+    - name: Look up Artifactory token in vault
+      set_fact:
+        vault_lookup: "{{ lookup('vault', artifactory_token_path) }}"
+      vars:
+        artifactory_token_path: "secret/ansible/{{ deploy_environ }}/artifactory_tokens"
+
+    - set_fact:
+        artifactory_token: "{{ vault_lookup.artifactory_tokens.data.etcd_reader }}"
+
+    - import_role:
+        name: controller
+        tasks_from: etcd-backup

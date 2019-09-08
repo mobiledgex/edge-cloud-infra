@@ -36,6 +36,14 @@
       Authorization: "Bearer {{ artifactory_token }}"
   when: etcd_backup_set
 
+- name: Retrieve kube config
+  azure_rm_aks_facts:
+    name: "{{ k8s_cluster_name }}"
+    resource_group: "{{ resource_group }}"
+    show_kubeconfig: admin
+  register: aks_facts
+  check_mode: no
+
 - import_role: name="k8s_setup"
 
 - name: Stop the controller

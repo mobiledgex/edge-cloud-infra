@@ -64,14 +64,19 @@
       etcd_backup_path_int: "{{ ansible_date_time.year }}-{{ ansible_date_time.month }}/etcd-backup-{{ ansible_date_time.iso8601 }}.db"
     when: etcd_backup_path is not defined
 
+  - set_fact:
+      art_bkp_url: "{{ artifactory_address }}/{{ artifactory_etcd_backup_repo }}/{{ deploy_environ }}/{{ k8s_cluster_name }}/{{ etcd_backup_path_int }}"
+
   - name: "Archive etcd backup in Artifactory: {{ etcd_backup_path_int }}"
     uri:
-      url: "{{ artifactory_address }}/{{ artifactory_etcd_backup_repo }}/{{ deploy_environ }}/{{ k8s_cluster_name }}/{{ etcd_backup_path_int }}"
+      url: "{{ art_bkp_url }}"
       method: PUT
       headers:
         X-JFrog-Art-Api: "{{ artifactory_publish_api_key }}"
         X-Checksum-Sha1: "{{ etcd_backup_local_file_st.stat.checksum }}"
       src: "{{ etcd_backup_local_file.path }}"
       status_code: 201
+
+  - debug: var=art_bkp_url
 
   when: mex_etcd_pod|length > 0

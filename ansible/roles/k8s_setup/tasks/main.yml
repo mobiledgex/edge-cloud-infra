@@ -9,9 +9,12 @@
     changed_when: false
     check_mode: no
 
+  - debug: var=aks_facts
+    tags: [ 'never', 'debug' ]
+
   - name: Store kubeconfig data in file
     copy:
-      content: "{{ kube_config }}"
+      content: "{{ aks_facts.aks[0].kube_config }}"
       dest: "{{ kubeconfig_file_tmp.path }}"
     changed_when: false
     check_mode: no

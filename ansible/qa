@@ -12,6 +12,8 @@ azure_volume_storage_class=default
 influxdb_volume_size=1Gi
 vault_vm_hostname=vault-qa.mobiledgex.net
 vault_port=8200
+jaeger_hostname=jaeger-qa.mobiledgex.net
+jaeger_endpoint="https://{{ jaeger_hostname }}:14268/api/traces"
 
 [gitlab]
 gitlab-qa.mobiledgex.net

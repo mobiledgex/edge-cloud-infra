@@ -1,0 +1,20 @@
+Sample Steps:
+
+The playbooks below are interactive and need to be run individually for every
+k8s cluster to be migrated.
+
+```
+## Back up current etcd
+$ ./deploy.sh -p etcd-migrate-00-backup.yml mexdemo platform
+
+## Stop the controller and setup the new etcd persistent volumes
+$ ./deploy.sh -p etcd-migrate-01.yml mexdemo platform
+
+### Wait for all the `etcd-*-snapshot-setup-*` k8s batch jobs to complete
+
+### Bring up the new statefulset etcd
+$ ./deploy.sh -p etcd-migrate-02-bringup.yml mexdemo platform
+
+### Bring up the controller with the new etcd
+$ ./deploy.sh -p etcd-migrate-03-controller.yml mexdemo platform
+```

@@ -1,7 +1,6 @@
 ---
 - hosts: platform
   vars:
-    etcd_volume_storage_class: managed-premium
     etcd_restore_snapshot_name: snap.db
   vars_prompt:
     - name: k8s_cluster_name
@@ -12,6 +11,10 @@
       private: no
     - name: etcd_backup_artifactory_url
       prompt: "Artifactory URL of backup to restore from"
+      private: no
+    - name: etcd_volume_storage_class
+      prompt: "Volume storage class (default/managed-premium)"
+      default: managed-premium
       private: no
 
   tasks:

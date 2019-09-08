@@ -22,7 +22,12 @@ mc_api_internal_port: 19900
 mc_ldap_port: 9389
 postgres_server: postgres.mobiledgex.net:5432
 influxdb_name: monitoring-influxdb
-etcd_cluster_name: mex-etcd-cluster
+etcd_cluster_name: mex-etcd
+etcd_cluster_client: "{{ etcd_cluster_name }}-client"
+etcd_replica_num: 3
+etcd_data_volume_path: /var/etcd/data
+etcd_data_dir: "{{ etcd_data_volume_path }}/default.etcd"
+artifactory_etcd_backup_repo: build-artifacts/etcd-backup
 locapi_user: mexserver
 locapi_passwd: "seC2835!"
 sendgrid_username: venkyt

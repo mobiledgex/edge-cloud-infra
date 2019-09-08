@@ -13,9 +13,9 @@ mc_postgres_username=mcuser
 mc_postgres_password=topsecret
 mc_superuser=mexadmin
 mc_superuser_password=mexadmin123
+vault_vm_hostname=vault-main.mobiledgex.net
+vault_port=443
 postgres_hostname=postgres-dev.mobiledgex.net
-vault_vm_hostname=vault-dev.mobiledgex.net
-vault_port=8200
 gitlab_vm_hostname=gitlab-dev.mobiledgex.net
 crm_vm_hostname=crm-dev.mobiledgex.net
 mc_vm_hostname=mc-dev.mobiledgex.net
@@ -28,10 +28,10 @@ azure_volume_storage_class=default
 influxdb_volume_size=1Gi
 
 [platform]
-localhost	ansible_connection=local vault_vm_hostname=vault.mobiledgex.net vault_port=443
+localhost	ansible_connection=local
 
 [crms]
-crm-dev.mobiledgex.net	vault_vm_hostname=vault.mobiledgex.net vault_port=443
+crm-dev.mobiledgex.net
 
 [mc]
 mc-dev.mobiledgex.net

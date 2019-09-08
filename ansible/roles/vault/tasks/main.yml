@@ -175,6 +175,13 @@
 - set_fact:
     le_env: "{{ letsencrypt_env | default('staging') }}"
 
+- name: Lookup up NS1 apikey in vault
+  set_fact:
+    vault_lookup: "{{ lookup('vault', vault_ns1_apikey_path) }}"
+
+- set_fact:
+    ns1_apikey: "{{ vault_lookup.ns1.data.apikey }}"
+
 - name: "Deploy certgen service ({{ le_env }})"
   docker_container:
     name: certgen
@@ -182,12 +189,15 @@
     restart_policy: unless-stopped
     ports:
       - "127.0.0.1:{{ certgen_port }}:4567"
+    volumes:
+      - "{{ certgen_volume }}:/etc/letsencrypt"
     env:
       RAILS_ENV: production
       RACK_ENV: production
       LETSENCRYPT_ENV: "{{ le_env }}"
       CF_USER: "{{ cloudflare_account_email }}"
       CF_APIKEY: "{{ cloudflare_account_api_token }}"
+      NS1_APIKEY: "{{ ns1_apikey }}"
 
 - name: Set default cert ACLs
   acl:

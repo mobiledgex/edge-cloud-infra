@@ -8,11 +8,13 @@
           'dns_prefix': dns_pref,
           'resource_group': rg,
           'kubernetes_version': kver,
+          'global_dme_aliases': gdme
       } ] }}
   vars:
     rg: "{{ pr.azure_resource_group_name | default(pr.name + '-rg') }}"
     kver: "{{ pr.kubernetes_version | default(kubernetes_version) }}"
     dns_pref: "{{ pr.dns_prefix | default(pr.name) }}"
+    gdme: "{{ pr.global_dme_aliases | default([]) | map('regex_replace', '$', global_dme_suffix) | list }}"
   loop: "{{ regions }}"
   loop_control:
     loop_var: pr

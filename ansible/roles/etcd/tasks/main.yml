@@ -1,30 +1,60 @@
-- name: Deploy Etcd Operator
+- name: Check if EtcdCluster objects are present
+  k8s_facts:
+    kubeconfig: "{{ kubeconfig_file.path }}"
+    namespace: default
+    api_version: etcd.database.coreos.com/v1beta2
+    kind: EtcdCluster
+  register: etcd_cluster_facts
+
+- name: Check if Etcd StatefulSet is present
+  k8s_facts:
+    kubeconfig: "{{ kubeconfig_file.path }}"
+    namespace: default
+    kind: StatefulSet
+    name: "{{ etcd_cluster_name }}"
+    api_version: apps/v1
+  register: etcd_sts_facts
+
+- name: Check if Etcd persistent volume claims are present
+  k8s_facts:
+    kubeconfig: "{{ kubeconfig_file.path }}"
+    namespace: default
+    kind: PersistentVolumeClaim
+    label_selectors:
+      - "component = {{ etcd_cluster_name }}"
+  register: etcd_pvc_facts
+
+- assert:
+    that: etcd_cluster_facts.resources|length < 1 or
+          etcd_sts_facts.resources|length == 1 or
+          etcd_pvc_facts.resources|length == etcd_replica_num
+    fail_msg: "PVCs for {{ etcd_cluster_name }} not present; Etcd migration not done?"
+
+- name: Deploy etcd service
   k8s:
     kubeconfig: "{{ kubeconfig_file.path }}"
     namespace: default
-    state: present
-    definition: "{{ lookup('template', 'mexplat/etcd-operator.yml') }}"
+    definition: "{{ lookup('template', 'mex-etcd-svc.yml') }}"
 
-- name: Wait for Etcd Operator
-  command: "kubectl --kubeconfig {{ kubeconfig_file.path }} get customresourcedefinition {{ etcd_opetator_crd }}"
-  register: result
-  retries: 60
-  delay: 5
-  until: result is succeeded
-  changed_when: false
-
-- name: Deploy Etcd Cluster
+- name: Deploy etcd stateful set
   k8s:
     kubeconfig: "{{ kubeconfig_file.path }}"
     namespace: default
-    state: present
-    definition: "{{ lookup('template', 'mexplat/mex-etcd-cluster.yml') }}"
+    definition: "{{ lookup('template', 'mex-etcd.yml') }}"
 
-- name: Wait for Etcd Pods
-  command: "kubectl --kubeconfig {{ kubeconfig_file.path }} get pods --selector=etcd_cluster={{ etcd_cluster_name }} -o 'jsonpath={.items[*].metadata.name}' --field-selector='status.phase==Running'"
-  register: result
-  retries: 60
-  delay: 5
-  until: result.stdout.split(" ")|length > 2
-  changed_when: false
-  when: not ansible_check_mode
+- name: Deploy etcd client service
+  k8s:
+    kubeconfig: "{{ kubeconfig_file.path }}"
+    namespace: default
+    definition: "{{ lookup('template', 'mex-etcd-client.yml') }}"
+
+- k8s_facts:
+    kubeconfig: "{{ kubeconfig_file.path }}"
+    namespace: default
+    kind: StatefulSet
+    name: "{{ etcd_cluster_name }}"
+    api_version: apps/v1
+  register: etcd_sts_facts
+  until: etcd_sts_facts.get("resources", []) and etcd_sts_facts.resources[0].get("status", {}).get("readyReplicas", 0) == etcd_replica_num
+  retries: 30
+  delay: 10

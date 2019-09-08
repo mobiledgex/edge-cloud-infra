@@ -1,7 +1,7 @@
 ## Jaeger UI
 server {
-        listen 443 ssl http2;
-        listen [::]:443 ssl http2 ipv6only=on;
+        listen {{ jaeger_ui_port }} ssl http2;
+        listen [::]:{{ jaeger_ui_port }} ssl http2;
         ssl_certificate {{ letsencrypt_root }}/{{ inventory_hostname }}/fullchain.pem;
         ssl_certificate_key {{ letsencrypt_root }}/{{ inventory_hostname }}/privkey.pem;
         ssl_session_cache shared:le_nginx_SSL:1m;
@@ -49,7 +49,7 @@ server {
 ## Jaeger collector, mTLS
 server {
         listen 14268 ssl;
-        listen [::]:14268 ssl ipv6only=on;
+        listen [::]:14268 ssl;
         ssl_certificate {{ letsencrypt_root }}/{{ inventory_hostname }}/fullchain.pem;
         ssl_certificate_key {{ letsencrypt_root }}/{{ inventory_hostname }}/privkey.pem;
         ssl_client_certificate {{ mex_ca_cert_path }};
@@ -76,7 +76,7 @@ server {
 ## Jaeger query, mTLS
 server {
         listen 16686 ssl;
-        listen [::]:16686 ssl ipv6only=on;
+        listen [::]:16686 ssl;
         ssl_certificate {{ letsencrypt_root }}/{{ inventory_hostname }}/fullchain.pem;
         ssl_certificate_key {{ letsencrypt_root }}/{{ inventory_hostname }}/privkey.pem;
         ssl_client_certificate {{ mex_ca_cert_path }};

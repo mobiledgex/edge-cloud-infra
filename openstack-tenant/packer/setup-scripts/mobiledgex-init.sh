@@ -56,9 +56,6 @@ set_metadata_param HOLEPUNCH .meta.holepunch
 set_metadata_param UPDATE .meta.update
 set_metadata_param SKIPINIT .meta.skipinit
 set_metadata_param INTERFACE .meta.interface
-set_metadata_param EDGEPROXY .meta.edgeproxy
-set_metadata_param PRIVATENET .meta.privatenet
-set_metadata_param PRIVATEROUTER .meta.privaterouter
 set_metadata_param ROLE .meta.role
 set_metadata_param SKIPK8S .meta.skipk8s
 set_metadata_param MASTERADDR .meta.k8smaster
@@ -93,22 +90,6 @@ chmod a+rw /var/run/docker.sock
 if [[ "$SKIPINIT" == yes ]]; then
 	log "Skipping mobiledgex init as instructed"
 	exit 0
-fi
-
-log "mobiledgex initialization"
-if [[ "$NETTYPE" == ipv4_dhcp ]]; then
-	log "Using DHCP ($INTERFACE)"
-	dhclient "$INTERFACE"
-else
-	log "Setting up IP $IPADDR ($INTERFACE)"
-	ifconfig "$INTERFACE" "$IPADDR" up
-	ifconfig "$INTERFACE" netmask "$NETMASK" up
-	ip route add default via "$EDGEPROXY" dev "$INTERFACE"
-fi
-
-if [[ -n "$PRIVATENET" && -n "$PRIVATEROUTER" ]]; then
-	log "Private route entry $PRIVATENET via $PRIVATEROUTER"
-	ip route add "$PRIVATENET" via "$PRIVATEROUTER" dev "$INTERFACE"
 fi
 
 ifconfig -a | log

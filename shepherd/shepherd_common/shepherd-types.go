@@ -60,17 +60,28 @@ type ClusterMetrics struct {
 	UdpRecvErrTS *types.Timestamp
 }
 
+// This structure represents cloudlet utilization stats
+// It tracks the Max Available and currently used set of
+// resources
 type CloudletMetrics struct {
 	ComputeTS *types.Timestamp
-	VCpuMax   uint64
-	VCpuUsed  uint64
-	MemUsed   uint64
-	MemMax    uint64
-	DiskUsed  uint64
+	// Total number of CPUs
+	VCpuMax uint64
+	// Current number of CPUs used
+	VCpuUsed uint64
+	// Total amount of RAM(in Bytes)
+	MemMax uint64
+	// Currently used RAM(in Bytes)
+	MemUsed uint64
+	// Total amount of Storage(in Bytes)
+	DiskUsed uint64
+	// Currently used Storage(in Bytes)
 	DiskMax   uint64
 	NetworkTS *types.Timestamp
-	NetRecv   uint64
-	NetSent   uint64
+	// Total Bytes received
+	NetRecv uint64
+	// Total Bytes sent
+	NetSent uint64
 }
 
 type NginxMetrics struct {

@@ -83,6 +83,7 @@
         k8s_cluster_name: "{{ item.name }}"
         region: "{{ item.region }}"
         resource_group: "{{ item.resource_group }}"
+        dme_aliases: "{{ item.global_dme_aliases }}"
       with_items: "{{ platform_regions }}"
 
 - hosts: gitlab

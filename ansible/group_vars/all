@@ -12,6 +12,7 @@ mex_ops_email: mobiledgex.ops@mobiledgex.com
 cloudflare_account_email: mobiledgex.ops@mobiledgex.com
 cloudflare_account_api_token: 60632181cb3b7419304ffa820b2d99e292092
 cloudflare_zone: mobiledgex.net
+global_dme_suffix: ".global.dme.{{ cloudflare_zone }}"
 vault_address: https://vault-main.mobiledgex.net
 artifactory_address: https://artifactory.mobiledgex.net/artifactory
 gitlab_config_path: /etc/gitlab/gitlab.rb
@@ -35,4 +36,5 @@ slack_token: "T97USPYUX/BJ8AEDGF4/k2d1GNETqaMqRxGyXNbr8nFq"
 slack_channel: "#devops"
 vault_telegraf_creds_path: "secret/ansible/common/accounts/telegraf"
 vault_artifactory_token_path: "secret/ansible/common/accounts/artifactory"
+vault_ns1_apikey_path: "secret/ansible/common/accounts/ns1"
 vouch_hostname: vouch.mobiledgex.net

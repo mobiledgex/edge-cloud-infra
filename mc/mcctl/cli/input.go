@@ -1,6 +1,7 @@
 package cli
 
 import (
+	"encoding/csv"
 	"fmt"
 	"reflect"
 	"strconv"
@@ -23,6 +24,8 @@ type Input struct {
 	RequiredArgs []string
 	// Alias argument names, format is alias=real
 	AliasArgs []string
+	// Special argument names, format is arg=argType
+	SpecialArgs *map[string]string
 	// Password arg will prompt for password if not in args list
 	PasswordArg string
 	// Verify password if prompting
@@ -73,9 +76,30 @@ func (s *Input) ParseArgs(args []string, obj interface{}) (map[string]interface{
 		if len(kv) != 2 {
 			return dat, fmt.Errorf("arg \"%s\" not name=val format", arg)
 		}
-		key := resolveAlias(kv[0], aliases)
+		var argVal interface{}
+		argKey, argVal := kv[0], kv[1]
+		if s.SpecialArgs != nil {
+			if argType, found := (*s.SpecialArgs)[argKey]; found {
+				if argType == "StringToString" {
+					csvout, err := csv.NewReader(strings.NewReader(argVal.(string))).Read()
+					if err != nil {
+						return dat, fmt.Errorf("arg \"%s\" not a valid key-pair format", arg)
+					}
+					out := make(map[string]string, len(csvout))
+					for _, pair := range csvout {
+						kv := strings.SplitN(pair, "=", 2)
+						if len(kv) != 2 {
+							return dat, fmt.Errorf("value \"%s\" of arg \"%s\" must be formatted as key=value", pair, arg)
+						}
+						out[kv[0]] = kv[1]
+					}
+					argVal = out
+				}
+			}
+		}
+		key := resolveAlias(argKey, aliases)
 		delete(required, key)
-		setKeyVal(dat, key, kv[1])
+		setKeyVal(dat, key, argVal)
 		if key == s.PasswordArg {
 			passwordFound = true
 		}
@@ -193,12 +217,16 @@ func MapJsonNamesT(args, js map[string]interface{}, t reflect.Type) error {
 			if v.Elem().Kind() == reflect.String {
 				strval = strconv.Quote(strval)
 			}
-			err := yaml.Unmarshal([]byte(strval), v.Interface())
-			if err != nil {
-				return fmt.Errorf("unmarshal err on %s, %v", key, err)
+			if sf.Type.Kind() == reflect.Map {
+				js[jsonName] = val
+			} else {
+				err := yaml.Unmarshal([]byte(strval), v.Interface())
+				if err != nil {
+					return fmt.Errorf("unmarshal err on %s, %v", key, err)
+				}
+				// elem to dereference it
+				js[jsonName] = v.Elem().Interface()
 			}
-			// elem to dereference it
-			js[jsonName] = v.Elem().Interface()
 		}
 	}
 	return nil
@@ -239,15 +267,19 @@ func resolveAlias(name string, aliases map[string]string) string {
 	return name
 }
 
-func setKeyVal(dat map[string]interface{}, key, val string) {
+func setKeyVal(dat map[string]interface{}, key string, val interface{}) {
 	parts := strings.Split(key, ".")
 	for ii, part := range parts {
 		if ii == len(parts)-1 {
 			// values passed in on the command line that
 			// have spaces will be quoted.
-			valnew, err := strconv.Unquote(val)
-			if err == nil {
-				dat[part] = valnew
+			if readVal, ok := val.(string); ok {
+				valnew, err := strconv.Unquote(readVal)
+				if err == nil {
+					dat[part] = valnew
+				} else {
+					dat[part] = readVal
+				}
 			} else {
 				dat[part] = val
 			}

@@ -3,6 +3,15 @@ deploy_environ=internal
 ubuntu_release=bionic
 influxdb_vm_hostname=influxdb.internal.mobiledgex.net
 influxdb_volume_size=5Gi
+jaeger_ui_port=443
 
 [influxdb]
 influxdb.internal.mobiledgex.net
+
+[vouch]
+vouch.mobiledgex.net
+
+[jaeger]
+jaeger.mobiledgex.net
+jaeger-dev.mobiledgex.net	nginx_config_filename=jaeger jaeger_ui_port=8443
+jaeger-qa.mobiledgex.net	nginx_config_filename=jaeger jaeger_ui_port=8443

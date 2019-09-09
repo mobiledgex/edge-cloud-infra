@@ -10,33 +10,32 @@
 
 - set_fact:
     cert_name: "{{ dme_dns | replace('.', '-') }}"
-    cert_secret_name: "{{ dme_dns | replace('.', '-') }}-tls"
+    cert_secret_name: "{{ dme_dns | replace('.', '-') }}-global-tls"
+    fqdn_list: [ "{{ dme_dns }}.{{ cloudflare_zone }}" ]
 
-- name: Generate DME cert manifest
-  template:
-    src: mexplat/tls-cert.yaml.j2
-    dest: "{{ tls_cert_manifest }}"
+- name: Set global DME aliases
+  set_fact:
+    fqdn_list: "{{ dme_aliases }}"
+  when: dme_aliases|length > 0
+
+- set_fact:
+    cert_id: "{{ fqdn_list | join(',') }}"
+
+- name: "Get DME cert from vault for domain(s): {{ fqdn_list }}"
+  set_fact:
+    vault_lookup: "{{ lookup('vault', cert_path) }}"
   vars:
-    name: "{{ cert_name }}"
-    secret_name: "{{ cert_secret_name }}"
-    fqdn: "{{ dme_dns }}.{{ cloudflare_zone }}"
-  check_mode: no
+    cert_path: "certs/cert/{{ cert_id }}:dmecert"
 
-- name: "Generate DME cert for domain: {{ dme_dns }}"
+- name: "Generate DME tls secret: {{ cert_secret_name }}"
   k8s:
     kubeconfig: "{{ kubeconfig_file.path }}"
     namespace: default
-    src: "{{ tls_cert_manifest }}"
+    definition: "{{ lookup('template', 'mexplat/tls-secret.yaml.j2') }}"
     state: present
-
-- name: Wait for cert to be issued
-  command: "kubectl --kubeconfig {{ kubeconfig_file.path }} describe cert {{ cert_name }}"
-  register: describe_cert_command
-  retries: 60
-  delay: 5
-  until: "'Certificate is up to date and has not expired' in describe_cert_command.stdout"
-  changed_when: false
-  check_mode: no
+  vars:
+    cert: "{{ vault_lookup.dmecert.cert }}"
+    key: "{{ vault_lookup.dmecert.key }}"
 
 - name: Deploy the Mex DME
   k8s:

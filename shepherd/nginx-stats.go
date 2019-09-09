@@ -10,6 +10,7 @@ import (
 
 	"github.com/gogo/protobuf/types"
 	"github.com/mobiledgex/edge-cloud/cloud-resource-manager/k8smgmt"
+	"github.com/mobiledgex/edge-cloud-infra/shepherd/shepherd_common"
 	"github.com/mobiledgex/edge-cloud/cloud-resource-manager/platform/pc"
 	"github.com/mobiledgex/edge-cloud/cloudcommon"
 	"github.com/mobiledgex/edge-cloud/edgeproto"
@@ -117,7 +118,7 @@ func NginxScraper() {
 
 }
 
-func QueryNginx(scrapePoint NginxScrapePoint) (*NginxMetrics, error) {
+func QueryNginx(scrapePoint NginxScrapePoint) (*shepherd_common.NginxMetrics, error) {
 	// build the query
 	container := k8smgmt.NormalizeName(scrapePoint.App)
 	request := fmt.Sprintf("docker exec %s curl http://127.0.0.1:%d/nginx_metrics", container, cloudcommon.NginxMetricsPort)
@@ -125,7 +126,7 @@ func QueryNginx(scrapePoint NginxScrapePoint) (*NginxMetrics, error) {
 		request = fmt.Sprintf("curl http://127.0.0.1:%d/nginx_metrics", nginxUnitTestPort)
 	}
 	resp, err := scrapePoint.Client.Output(request)
-	// if this is the first time, or the container got restarted, install curl
+	// if this is the first time, or the container got restarted, install curl (for old deployments)
 	if strings.Contains(resp, "executable file not found") {
 		log.DebugLog(log.DebugLevelMexos, "Installing curl onto docker container ", "Container", container)
 		installer := fmt.Sprintf("docker exec %s apt-get update; docker exec %s apt-get --assume-yes install curl", container, container)
@@ -140,7 +141,7 @@ func QueryNginx(scrapePoint NginxScrapePoint) (*NginxMetrics, error) {
 		log.DebugLog(log.DebugLevelMetrics, "Failed to run request", "request", request, "err", err.Error())
 		return nil, err
 	}
-	metrics := &NginxMetrics{}
+	metrics := &shepherd_common.NginxMetrics{}
 	err = parseNginxResp(resp, metrics)
 	if err != nil {
 		return nil, fmt.Errorf("Error parsing response: %v", err)
@@ -149,7 +150,7 @@ func QueryNginx(scrapePoint NginxScrapePoint) (*NginxMetrics, error) {
 }
 
 // view here: https://github.com/nginxinc/nginx-prometheus-exporter/blob/29ec94bdee98668e358efac7316bd8d12b05a130/client/nginx.go#L70
-func parseNginxResp(resp string, metrics *NginxMetrics) error {
+func parseNginxResp(resp string, metrics *shepherd_common.NginxMetrics) error {
 	// sometimes the response lines get cycled around, so break it up based on the start of the actual content
 	trimmedResp := strings.Split(resp, "Active connections:")
 	if len(trimmedResp) < 2 {
@@ -194,7 +195,8 @@ func parseNginxResp(resp string, metrics *NginxMetrics) error {
 	return nil
 }
 
-func MarshallNginxMetric(scrapePoint NginxScrapePoint, data *NginxMetrics) *edgeproto.Metric {
+func MarshallNginxMetric(scrapePoint NginxScrapePoint, data *shepherd_common.NginxMetrics) *edgeproto.Metric {
+	RemoveShepherdMetrics(data)
 	metric := edgeproto.Metric{}
 	metric.Name = "appinst-nginx"
 	metric.Timestamp = *data.Ts
@@ -207,9 +209,11 @@ func MarshallNginxMetric(scrapePoint NginxScrapePoint, data *NginxMetrics) *edge
 	metric.AddIntVal("active", data.ActiveConn)
 	metric.AddIntVal("accepts", data.Accepts)
 	metric.AddIntVal("handled", data.HandledConn)
-	metric.AddIntVal("requests", data.Requests)
-	metric.AddIntVal("reading", data.Reading)
-	metric.AddIntVal("writing", data.Writing)
-	metric.AddIntVal("waiting", data.Waiting)
 	return &metric
+}
+
+func RemoveShepherdMetrics(data *shepherd_common.NginxMetrics) {
+	data.ActiveConn = data.ActiveConn - 1
+	data.Accepts = data.Accepts - data.Requests
+	data.HandledConn = data.HandledConn - data.Requests
 }

@@ -1,0 +1,4 @@
+---
+mex_ca_cert_path: /etc/nginx/mex-ca.crt
+jaeger_collector_image: jaegertracing/jaeger-collector
+jaeger_query_image: jaegertracing/jaeger-query

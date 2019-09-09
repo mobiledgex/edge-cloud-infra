@@ -25,7 +25,6 @@ func CloudletScraper() {
 			span.SetTag("operator", cloudletKey.OperatorKey.Name)
 			span.SetTag("cloudlet", cloudletKey.Name)
 			ctx := log.ContextWithSpan(context.Background(), span)
-
 			cloudletStats, err := pf.GetPlatformStats(ctx)
 			if err != nil {
 				log.DebugLog(log.DebugLevelMetrics, "Error retrieving platform metrics", "Platform", pf, "error", err.Error())
@@ -44,25 +43,32 @@ func CloudletScraper() {
 func MarshalCloudletMetrics(data *shepherd_common.CloudletMetrics) []*edgeproto.Metric {
 	var metrics []*edgeproto.Metric
 	cMetric := edgeproto.Metric{}
-	cMetric.Name = "cloudlet-utilization"
-	cMetric.Timestamp = *data.ComputeTS
-	cMetric.AddTag("operator", cloudletKey.OperatorKey.Name)
-	cMetric.AddTag("cloudlet", cloudletKey.Name)
-	cMetric.AddIntVal("vCpuUsed", data.VCpuUsed)
-	cMetric.AddIntVal("vCpuMax", data.VCpuMax)
-	cMetric.AddIntVal("memUsed", data.MemUsed)
-	cMetric.AddIntVal("memMax", data.MemMax)
-	cMetric.AddIntVal("diskUsed", data.DiskUsed)
-	cMetric.AddIntVal("diskMax", data.DiskMax)
-
 	nMetric := edgeproto.Metric{}
-	nMetric.Name = "cloudlet-network"
-	nMetric.Timestamp = *data.NetworkTS
-	nMetric.AddTag("operator", cloudletKey.OperatorKey.Name)
-	nMetric.AddTag("cloudlet", cloudletKey.Name)
-	nMetric.AddIntVal("netSent", data.NetSent)
-	nMetric.AddIntVal("netRecv", data.NetRecv)
 
-	metrics = append(metrics, &cMetric, &nMetric)
+	// If the timestamp for any given metric is null, don't send anything
+	if data.ComputeTS != nil {
+		cMetric.Name = "cloudlet-utilization"
+		cMetric.Timestamp = *data.ComputeTS
+		cMetric.AddTag("operator", cloudletKey.OperatorKey.Name)
+		cMetric.AddTag("cloudlet", cloudletKey.Name)
+		cMetric.AddIntVal("vCpuUsed", data.VCpuUsed)
+		cMetric.AddIntVal("vCpuMax", data.VCpuMax)
+		cMetric.AddIntVal("memUsed", data.MemUsed)
+		cMetric.AddIntVal("memMax", data.MemMax)
+		cMetric.AddIntVal("diskUsed", data.DiskUsed)
+		cMetric.AddIntVal("diskMax", data.DiskMax)
+
+		metrics = append(metrics, &cMetric)
+	}
+	if data.NetworkTS != nil {
+		nMetric.Name = "cloudlet-network"
+		nMetric.Timestamp = *data.NetworkTS
+		nMetric.AddTag("operator", cloudletKey.OperatorKey.Name)
+		nMetric.AddTag("cloudlet", cloudletKey.Name)
+		nMetric.AddIntVal("netSent", data.NetSent)
+		nMetric.AddIntVal("netRecv", data.NetRecv)
+
+		metrics = append(metrics, &nMetric)
+	}
 	return metrics
 }

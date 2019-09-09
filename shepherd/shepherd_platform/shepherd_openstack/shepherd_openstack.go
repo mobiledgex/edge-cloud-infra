@@ -68,20 +68,19 @@ func (s *Platform) GetPlatformStats(ctx context.Context) (shepherd_common.Cloudl
 	cloudletMetric.ComputeTS, _ = types.TimestampProto(time.Now())
 	// Openstack limits for RAM and Disk is in GBs
 	for _, l := range limits {
-		// Openstack limits for Mem is in MBs
+
 		if l.Name == "maxTotalRAMSize" {
-			cloudletMetric.MemMax = uint64(l.Value << 20)
+			cloudletMetric.MemMax = uint64(l.Value)
 		} else if l.Name == "totalRAMUsed" {
-			cloudletMetric.MemUsed = uint64(l.Value << 20)
+			cloudletMetric.MemUsed = uint64(l.Value)
 		} else if l.Name == "maxTotalCores" {
 			cloudletMetric.VCpuMax = uint64(l.Value)
 		} else if l.Name == "totalCoresUsed" {
 			cloudletMetric.VCpuUsed = uint64(l.Value)
 		} else if l.Name == "maxTotalVolumeGigabytes" {
-			// Openstack limits for Disk is in GBs
-			cloudletMetric.DiskMax = uint64(l.Value << 30)
+			cloudletMetric.DiskMax = uint64(l.Value)
 		} else if l.Name == "totalGigabytesUsed" {
-			cloudletMetric.DiskUsed = uint64(l.Value << 30)
+			cloudletMetric.DiskUsed = uint64(l.Value)
 		}
 	}
 	// TODO - collect network data for all the VM instances

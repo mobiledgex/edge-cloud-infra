@@ -69,18 +69,18 @@ type CloudletMetrics struct {
 	VCpuMax uint64
 	// Current number of CPUs used
 	VCpuUsed uint64
-	// Total amount of RAM(in Bytes)
+	// Total amount of RAM(in MB)
 	MemMax uint64
-	// Currently used RAM(in Bytes)
+	// Currently used RAM(in MB)
 	MemUsed uint64
-	// Total amount of Storage(in Bytes)
+	// Total amount of Storage(in GB)
 	DiskUsed uint64
-	// Currently used Storage(in Bytes)
+	// Currently used Storage(in GB)
 	DiskMax   uint64
 	NetworkTS *types.Timestamp
-	// Total Bytes received
+	// Total KBytes received
 	NetRecv uint64
-	// Total Bytes sent
+	// Total KBytes sent
 	NetSent uint64
 }
 

@@ -56,20 +56,22 @@ func (s *Platform) GetPlatformStats(ctx context.Context) (shepherd_common.Cloudl
 	if err != nil {
 		return cloudletMetric, err
 	}
-	cloudletMetric.MemUsed = uint64(m.Used)
-	cloudletMetric.MemMax = uint64(m.Total)
+	// Limits for Mem is in MBs
+	cloudletMetric.MemUsed = uint64(m.Used >> 20)
+	cloudletMetric.MemMax = uint64(m.Total >> 20)
 	d, err := disk.Usage("/")
 	if err != nil {
 		return cloudletMetric, err
 	}
-	cloudletMetric.DiskMax = d.Total
-	cloudletMetric.DiskUsed = d.Used
+	// Limits for Disk is in GBs
+	cloudletMetric.DiskMax = d.Total >> 30
+	cloudletMetric.DiskUsed = d.Used >> 30
 
 	n, err := net.IOCounters(false)
 	if err != nil {
 		return cloudletMetric, err
 	}
-	cloudletMetric.NetRecv = n[0].BytesRecv
-	cloudletMetric.NetSent = n[0].BytesSent
+	cloudletMetric.NetRecv = n[0].BytesRecv >> 10
+	cloudletMetric.NetSent = n[0].BytesSent >> 10
 	return cloudletMetric, nil
 }

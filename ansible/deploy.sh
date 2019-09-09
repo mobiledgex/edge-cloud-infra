@@ -11,6 +11,7 @@ USAGE="usage: $0 [options] <environment> [<target>]
   -C <version>	console version to deploy (default: pick latest git tag)
   -d		enable debug mode
   -e <var=val>	pass environment variables to playbook run
+  -G		skip github login
   -l		list available targets
   -n		dry-run mode
   -p <playbook>	playbook (default: \"$DEFAULT_PLAYBOOK\")
@@ -36,17 +37,19 @@ ASSUME_YES=false
 PLAYBOOK_FORCED=
 TAGS=
 SKIP_TAGS=
+SKIP_GITHUB=false
 CONSOLE_VERSION=
 EC_VERSION_SET=false
 QUIET_MODE=false
 VERBOSITY=
 ENVVARS=()
-while getopts ':cde:C:hlnp:qs:t:vV:y' OPT; do
+while getopts ':cC:de:Ghlnp:qs:t:vV:y' OPT; do
 	case "$OPT" in
 	c)	CONFIRM=true ;;
 	C)	CONSOLE_VERSION="$OPTARG" ;;
 	d)	DEBUG=true ;;
 	e)	ENVVARS+=( -e "$OPTARG" ) ;;
+	G)	SKIP_GITHUB=true ;;
 	n)	DRYRUN=true ;;
 	l)	LIST=true ;;
 	p)	PLAYBOOK_FORCED="$OPTARG" ;;
@@ -107,7 +110,7 @@ if [[ -f "$PERSONAL_ANSIBLE_VAULT" ]]; then
 	ARGS+=( -e "@${PERSONAL_ANSIBLE_VAULT}" )
 elif [[ -f "${HOME}/${PERSONAL_ANSIBLE_VAULT}" ]]; then
 	ARGS+=( -e "@${HOME}/${PERSONAL_ANSIBLE_VAULT}" )
-elif [[ -z "$CONSOLE_VERSION" ]]; then
+elif [[ "$SKIP_GITHUB" != true && -z "$CONSOLE_VERSION" ]]; then
 	# Get Github creds from user
 	read -p 'Github username: ' GITHUB_USER
 	read -p 'Github password/token: ' -s GITHUB_TOKEN

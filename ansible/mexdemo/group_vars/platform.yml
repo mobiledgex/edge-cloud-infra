@@ -4,6 +4,10 @@ regions:
     location: westeurope
     region: EU
     kubernetes_version: 1.12.8
+    global_dme_aliases:
+      - 262-01
+      - 262-06
+      - sdkdemo
 
   - name: mexdemo-kr
     location: koreacentral

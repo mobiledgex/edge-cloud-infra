@@ -12,6 +12,7 @@ import (
 	"github.com/mobiledgex/edge-cloud/cloudcommon"
 	"github.com/mobiledgex/edge-cloud/edgeproto"
 	"github.com/mobiledgex/edge-cloud/log"
+	ssh "github.com/mobiledgex/golang-ssh"
 )
 
 //MEXRootLB has rootLB data
@@ -155,6 +156,13 @@ func SetupRootLB(ctx context.Context, rootLBName string, createRootLBFlavor stri
 	if err != nil {
 		return err
 	}
+	log.SpanLog(ctx, log.DebugLevelMexos, "Copy resource-tracker to rootLb", "rootLb", rootLBName)
+	err = CopyResourceTracker(client)
+	// Not critical if we cannot copy over resource-tracker executable so just log it
+	if err != nil {
+		log.SpanLog(ctx, log.DebugLevelMexos, "cannot copy resource-tracker to rootLb", "name", rootLBName, "error", err)
+	}
+
 	err = LBAddRouteAndSecRules(ctx, client, rootLBName)
 	if err != nil {
 		return fmt.Errorf("failed to LBAddRouteAndSecRules %v", err)
@@ -240,4 +248,16 @@ func GetCloudletSharedRootLBFlavor(flavor *edgeproto.Flavor) error {
 		flavor.Disk = 40
 	}
 	return nil
+}
+
+// This function copies resource-tracker from crm to rootLb - we need this to provide docker metrics
+func CopyResourceTracker(client ssh.Client) error {
+	err := SCPFilePath(client, "/usr/local/bin/resource-tracker", "/usr/local/bin/resource-tracker")
+	if err != nil {
+		return err
+	}
+	// make it executable
+	cmd := fmt.Sprintf("sudo chmod a+rx /usr/local/bin/resource-tracker")
+	_, err = client.Output(cmd)
+	return err
 }

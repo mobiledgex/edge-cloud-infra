@@ -268,6 +268,10 @@ func GetMetricsCommon(c echo.Context) error {
 			return c.JSON(http.StatusBadRequest, Msg(err.Error()))
 		}
 		cmd = ClusterMetricsQuery(&in, selectorStr)
+	} else if strings.HasSuffix(c.Path(), "metrics/cloudlet") {
+		in := ormapi.RegionCloudletMetrics{}
+		cmd = ClusterMetricsQuery(&in, selectorStr)
+
 	} else {
 		return echo.ErrNotFound
 	}

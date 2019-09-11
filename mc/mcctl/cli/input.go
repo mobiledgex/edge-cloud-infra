@@ -1,7 +1,6 @@
 package cli
 
 import (
-	"encoding/csv"
 	"fmt"
 	"reflect"
 	"strconv"
@@ -70,6 +69,7 @@ func (s *Input) ParseArgs(args []string, obj interface{}) (map[string]interface{
 
 	// create generic data map from args
 	passwordFound := false
+	specialArgType := ""
 	for _, arg := range args {
 		arg = strings.TrimSpace(arg)
 		kv := strings.SplitN(arg, "=", 2)
@@ -80,26 +80,20 @@ func (s *Input) ParseArgs(args []string, obj interface{}) (map[string]interface{
 		argKey, argVal := kv[0], kv[1]
 		if s.SpecialArgs != nil {
 			if argType, found := (*s.SpecialArgs)[argKey]; found {
+				specialArgType = argType
 				if argType == "StringToString" {
-					csvout, err := csv.NewReader(strings.NewReader(argVal.(string))).Read()
-					if err != nil {
-						return dat, fmt.Errorf("arg \"%s\" not a valid key-pair format", arg)
+					pair := argVal.(string)
+					kv := strings.SplitN(pair, "=", 2)
+					if len(kv) != 2 {
+						return dat, fmt.Errorf("value \"%s\" of arg \"%s\" must be formatted as key=value", pair, arg)
 					}
-					out := make(map[string]string, len(csvout))
-					for _, pair := range csvout {
-						kv := strings.SplitN(pair, "=", 2)
-						if len(kv) != 2 {
-							return dat, fmt.Errorf("value \"%s\" of arg \"%s\" must be formatted as key=value", pair, arg)
-						}
-						out[kv[0]] = kv[1]
-					}
-					argVal = out
+					argVal = kv
 				}
 			}
 		}
 		key := resolveAlias(argKey, aliases)
 		delete(required, key)
-		setKeyVal(dat, key, argVal)
+		setKeyVal(dat, key, argVal, specialArgType)
 		if key == s.PasswordArg {
 			passwordFound = true
 		}
@@ -121,7 +115,7 @@ func (s *Input) ParseArgs(args []string, obj interface{}) (map[string]interface{
 		if err != nil {
 			return dat, err
 		}
-		setKeyVal(dat, resolveAlias(s.PasswordArg, aliases), pw)
+		setKeyVal(dat, resolveAlias(s.PasswordArg, aliases), pw, "")
 	}
 
 	// Fill in obj with values. Also checks for args that
@@ -267,7 +261,7 @@ func resolveAlias(name string, aliases map[string]string) string {
 	return name
 }
 
-func setKeyVal(dat map[string]interface{}, key string, val interface{}) {
+func setKeyVal(dat map[string]interface{}, key string, val interface{}, argType string) {
 	parts := strings.Split(key, ".")
 	for ii, part := range parts {
 		if ii == len(parts)-1 {
@@ -281,7 +275,17 @@ func setKeyVal(dat map[string]interface{}, key string, val interface{}) {
 					dat[part] = readVal
 				}
 			} else {
-				dat[part] = val
+				if argType == "StringToString" {
+					if _, ok := dat[part]; !ok {
+						dat[part] = make(map[string]string)
+					}
+					valSlice := val.([]string)
+					mapVal := dat[part].(map[string]string)
+					mapVal[valSlice[0]] = valSlice[1]
+					dat[part] = mapVal
+				} else {
+					dat[part] = val
+				}
 			}
 		} else {
 			dat = getSubMap(dat, part)

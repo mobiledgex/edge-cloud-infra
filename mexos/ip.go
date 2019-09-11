@@ -30,7 +30,7 @@ func ParseNetSpec(ctx context.Context, netSpec string) (*NetSpecInfo, error) {
 		return nil, fmt.Errorf("empty netspec")
 	}
 	log.SpanLog(ctx, log.DebugLevelMexos, "parsing netspec", "netspec", netSpec)
-	items := strings.Split(netSpec, ";")
+	items := strings.Split(netSpec, ",")
 	for _, i := range items {
 		kvs := strings.Split(i, "=")
 		if len(kvs) != 2 {

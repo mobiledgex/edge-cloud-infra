@@ -105,6 +105,8 @@ func InitOpenstackProps(ctx context.Context, operatorName, physicalName, vaultAd
 	OpenstackProps.OsExternalRouterName = os.Getenv("MEX_ROUTER")
 	if OpenstackProps.OsExternalRouterName == "" {
 		OpenstackProps.OsExternalRouterName = "mex-k8s-router-1"
+	} else if OpenstackProps.OsExternalRouterName == "NONE" {
+		OpenstackProps.OsExternalRouterName = ""
 	}
 	OpenstackProps.OsMexNetwork = "mex-k8s-net-1"
 	return nil

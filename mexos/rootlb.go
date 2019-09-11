@@ -160,7 +160,7 @@ func SetupRootLB(ctx context.Context, rootLBName string, createRootLBFlavor stri
 	err = CopyResourceTracker(client)
 	// Not critical if we cannot copy over resource-tracker executable so just log it
 	if err != nil {
-		log.SpanLog(ctx, log.DebugLevelMexos, "cannot copy resource-tracker to rootLb", "name", rootLBName, "error", err)
+		return fmt.Errorf("cannot copy resource-tracker to rootLb %v", err)
 	}
 
 	err = LBAddRouteAndSecRules(ctx, client, rootLBName)

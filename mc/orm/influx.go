@@ -313,6 +313,9 @@ func GetMetricsCommon(c echo.Context) error {
 		cmd = ClusterMetricsQuery(&in, selectorStr)
 	} else if strings.HasSuffix(c.Path(), "metrics/cloudlet") {
 		in := ormapi.RegionCloudletMetrics{}
+		if err := c.Bind(&in); err != nil {
+			return c.JSON(http.StatusBadRequest, Msg("Invalid GET data"))
+		}
 		// Cloudlet details are required
 		if in.Cloudlet.Name == "" || in.Cloudlet.OperatorKey.Name == "" {
 			return c.JSON(http.StatusBadRequest, Msg("Cloudlet details must be present"))

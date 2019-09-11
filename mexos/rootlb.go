@@ -252,12 +252,18 @@ func GetCloudletSharedRootLBFlavor(flavor *edgeproto.Flavor) error {
 
 // This function copies resource-tracker from crm to rootLb - we need this to provide docker metrics
 func CopyResourceTracker(client ssh.Client) error {
-	err := SCPFilePath(client, "/usr/local/bin/resource-tracker", "/usr/local/bin/resource-tracker")
+	err := SCPFilePath(client, "/usr/local/bin/resource-tracker", "/tmp/resource-tracker")
+	if err != nil {
+		return err
+	}
+	// copy to /usr/local/bin/resource-tracker
+	cmd := fmt.Sprintf("sudo cp /tmp/resource-tracker /usr/local/bin/resource-tracker")
+	_, err = client.Output(cmd)
 	if err != nil {
 		return err
 	}
 	// make it executable
-	cmd := fmt.Sprintf("sudo chmod a+rx /usr/local/bin/resource-tracker")
+	cmd = fmt.Sprintf("sudo chmod a+rx /usr/local/bin/resource-tracker")
 	_, err = client.Output(cmd)
 	return err
 }

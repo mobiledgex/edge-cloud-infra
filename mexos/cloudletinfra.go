@@ -25,7 +25,7 @@ var defaultOSImageName = "mobiledgex-" + MEXInfraVersion
 var VaultAddr string
 
 // NoConfigExternalRouter is used for the case in which we don't manage the external
-// router and don't add ports to it ourself, as happens with Contail
+// router and don't add ports to it ourself, as happens with Contrail
 var NoConfigExternalRouter = "NOCONFIG"
 
 // Package level test mode variable

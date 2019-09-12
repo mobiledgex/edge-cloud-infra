@@ -24,6 +24,10 @@ var MEXInfraVersion = "v2.0.3" //Stratus
 var defaultOSImageName = "mobiledgex-" + MEXInfraVersion
 var VaultAddr string
 
+// NoExternalRouter is used for the case in which we don't manage the external
+// router and don't add ports to it ourself, as happens with Contail
+var NoExternalRouter = "NONE"
+
 // Package level test mode variable
 var testMode = false
 
@@ -105,8 +109,6 @@ func InitOpenstackProps(ctx context.Context, operatorName, physicalName, vaultAd
 	OpenstackProps.OsExternalRouterName = os.Getenv("MEX_ROUTER")
 	if OpenstackProps.OsExternalRouterName == "" {
 		OpenstackProps.OsExternalRouterName = "mex-k8s-router-1"
-	} else if OpenstackProps.OsExternalRouterName == "NONE" {
-		OpenstackProps.OsExternalRouterName = ""
 	}
 	OpenstackProps.OsMexNetwork = "mex-k8s-net-1"
 	return nil

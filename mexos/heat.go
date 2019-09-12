@@ -502,7 +502,10 @@ func getClusterParams(ctx context.Context, clusterInst *edgeproto.ClusterInst, r
 		}
 	}
 	cp.ClusterName = k8smgmt.GetK8sNodeNameSuffix(&clusterInst.Key)
-	cp.MEXRouterName = GetCloudletExternalRouter()
+	rtr := GetCloudletExternalRouter()
+	if rtr != NoExternalRouter {
+		cp.MEXRouterName = rtr
+	}
 	cp.MEXNetworkName = GetCloudletMexNetwork()
 	cp.ImageName = GetCloudletOSImage()
 	cp.SecurityGroup = GetCloudletSecurityGroup()

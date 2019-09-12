@@ -78,7 +78,7 @@ func GetRouterDetailInterfaces(ctx context.Context, rd *OSRouterDetail) ([]OSRou
 
 func GetMexRouterIP(ctx context.Context) (string, error) {
 	rtr := GetCloudletExternalRouter()
-	if rtr == "" {
+	if rtr == NoExternalRouter {
 		return "", nil
 	}
 	rd, rderr := GetRouterDetail(ctx, rtr)
@@ -131,7 +131,7 @@ func ValidateNetwork(ctx context.Context) error {
 	}
 
 	rtr := GetCloudletExternalRouter()
-	if rtr != "" {
+	if rtr != NoExternalRouter {
 		routers, err := ListRouters(ctx)
 		if err != nil {
 			return err
@@ -193,7 +193,7 @@ func PrepNetwork(ctx context.Context) error {
 	}
 
 	rtr := GetCloudletExternalRouter()
-	if rtr != "" {
+	if rtr != NoExternalRouter {
 		routers, err := ListRouters(ctx)
 		if err != nil {
 			return err

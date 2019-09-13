@@ -6,6 +6,7 @@ package ormctl
 import edgeproto "github.com/mobiledgex/edge-cloud/edgeproto"
 import "strings"
 import "github.com/mobiledgex/edge-cloud-infra/mc/ormapi"
+import "github.com/mobiledgex/edge-cloud/cli"
 import proto "github.com/gogo/protobuf/proto"
 import fmt "fmt"
 import math "math"
@@ -21,33 +22,35 @@ var _ = math.Inf
 
 // Auto-generated code: DO NOT EDIT
 
-var ShowCloudletRefsCmd = &Command{
+var ShowCloudletRefsCmd = &cli.Command{
 	Use:          "ShowCloudletRefs",
 	RequiredArgs: "region",
 	OptionalArgs: strings.Join(append(CloudletRefsRequiredArgs, CloudletRefsOptionalArgs...), " "),
 	AliasArgs:    strings.Join(CloudletRefsAliasArgs, " "),
 	SpecialArgs:  &CloudletRefsSpecialArgs,
+	Comments:     addRegionComment(CloudletRefsComments),
 	ReqData:      &ormapi.RegionCloudletRefs{},
 	ReplyData:    &edgeproto.CloudletRefs{},
-	Path:         "/auth/ctrl/ShowCloudletRefs",
+	Run:          runRest("/auth/ctrl/ShowCloudletRefs"),
 	StreamOut:    true,
 }
-var CloudletRefsApiCmds = []*Command{
+var CloudletRefsApiCmds = []*cli.Command{
 	ShowCloudletRefsCmd,
 }
 
-var ShowClusterRefsCmd = &Command{
+var ShowClusterRefsCmd = &cli.Command{
 	Use:          "ShowClusterRefs",
 	RequiredArgs: "region",
 	OptionalArgs: strings.Join(append(ClusterRefsRequiredArgs, ClusterRefsOptionalArgs...), " "),
 	AliasArgs:    strings.Join(ClusterRefsAliasArgs, " "),
 	SpecialArgs:  &ClusterRefsSpecialArgs,
+	Comments:     addRegionComment(ClusterRefsComments),
 	ReqData:      &ormapi.RegionClusterRefs{},
 	ReplyData:    &edgeproto.ClusterRefs{},
-	Path:         "/auth/ctrl/ShowClusterRefs",
+	Run:          runRest("/auth/ctrl/ShowClusterRefs"),
 	StreamOut:    true,
 }
-var ClusterRefsApiCmds = []*Command{
+var ClusterRefsApiCmds = []*cli.Command{
 	ShowClusterRefsCmd,
 }
 
@@ -77,6 +80,16 @@ var CloudletRefsAliasArgs = []string{
 	"useddynamicips=cloudletrefs.useddynamicips",
 	"usedstaticips=cloudletrefs.usedstaticips",
 }
+var CloudletRefsComments = map[string]string{
+	"key.operatorkey.name": "Company or Organization name of the operator",
+	"key.name":             "Name of the cloudlet",
+	"clusters.name":        "Cluster name",
+	"usedram":              "Used RAM in MB",
+	"usedvcores":           "Used VCPU cores",
+	"useddisk":             "Used disk in GB",
+	"useddynamicips":       "Used dynamic IPs",
+	"usedstaticips":        "Used static IPs",
+}
 var CloudletRefsSpecialArgs = map[string]string{}
 var RootLbPortsEntryRequiredArgs = []string{}
 var RootLbPortsEntryOptionalArgs = []string{
@@ -87,6 +100,7 @@ var RootLbPortsEntryAliasArgs = []string{
 	"key=rootlbportsentry.key",
 	"value=rootlbportsentry.value",
 }
+var RootLbPortsEntryComments = map[string]string{}
 var RootLbPortsEntrySpecialArgs = map[string]string{}
 var ClusterRefsRequiredArgs = []string{
 	"key.clusterkey.name",
@@ -113,5 +127,17 @@ var ClusterRefsAliasArgs = []string{
 	"usedram=clusterrefs.usedram",
 	"usedvcores=clusterrefs.usedvcores",
 	"useddisk=clusterrefs.useddisk",
+}
+var ClusterRefsComments = map[string]string{
+	"key.clusterkey.name":              "Cluster name",
+	"key.cloudletkey.operatorkey.name": "Company or Organization name of the operator",
+	"key.cloudletkey.name":             "Name of the cloudlet",
+	"key.developer":                    "Name of Developer that this cluster belongs to",
+	"apps.developerkey.name":           "Organization or Company Name that a Developer is part of",
+	"apps.name":                        "App name",
+	"apps.version":                     "App version",
+	"usedram":                          "Used RAM in MB",
+	"usedvcores":                       "Used VCPU cores",
+	"useddisk":                         "Used disk in GB",
 }
 var ClusterRefsSpecialArgs = map[string]string{}

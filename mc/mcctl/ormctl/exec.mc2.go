@@ -6,6 +6,7 @@ package ormctl
 import edgeproto "github.com/mobiledgex/edge-cloud/edgeproto"
 import "strings"
 import "github.com/mobiledgex/edge-cloud-infra/mc/ormapi"
+import "github.com/mobiledgex/edge-cloud/cli"
 import proto "github.com/gogo/protobuf/proto"
 import fmt "fmt"
 import math "math"
@@ -21,17 +22,18 @@ var _ = math.Inf
 
 // Auto-generated code: DO NOT EDIT
 
-var RunCommandCmd = &Command{
+var RunCommandCmd = &cli.Command{
 	Use:          "RunCommand",
 	RequiredArgs: strings.Join(append([]string{"region"}, ExecRequestRequiredArgs...), " "),
 	OptionalArgs: strings.Join(ExecRequestOptionalArgs, " "),
 	AliasArgs:    strings.Join(ExecRequestAliasArgs, " "),
 	SpecialArgs:  &ExecRequestSpecialArgs,
+	Comments:     addRegionComment(ExecRequestComments),
 	ReqData:      &ormapi.RegionExecRequest{},
 	ReplyData:    &edgeproto.ExecRequest{},
-	Path:         "/auth/ctrl/RunCommand",
+	Run:          runRest("/auth/ctrl/RunCommand"),
 }
-var ExecApiCmds = []*Command{
+var ExecApiCmds = []*cli.Command{
 	RunCommandCmd,
 }
 
@@ -60,5 +62,19 @@ var ExecRequestAliasArgs = []string{
 	"offer=execrequest.offer",
 	"answer=execrequest.answer",
 	"err=execrequest.err",
+}
+var ExecRequestComments = map[string]string{
+	"developer":        "Organization or Company Name that a Developer is part of",
+	"appname":          "App name",
+	"appvers":          "App version",
+	"cluster":          "Cluster name",
+	"operator":         "Company or Organization name of the operator",
+	"cloudlet":         "Name of the cloudlet",
+	"clusterdeveloper": "Name of Developer that this cluster belongs to",
+	"command":          "Command or Shell",
+	"containerid":      "ContainerID is the name of the target container, if applicable",
+	"offer":            "WebRTC Offer",
+	"answer":           "WebRTC Answer",
+	"err":              "Any error message",
 }
 var ExecRequestSpecialArgs = map[string]string{}

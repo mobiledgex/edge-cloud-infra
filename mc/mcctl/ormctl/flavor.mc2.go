@@ -12,7 +12,6 @@ import fmt "fmt"
 import math "math"
 import _ "github.com/gogo/googleapis/google/api"
 import _ "github.com/mobiledgex/edge-cloud/protogen"
-import _ "github.com/mobiledgex/edge-cloud/protoc-gen-cmd/protocmd"
 import _ "github.com/gogo/protobuf/gogoproto"
 
 // Reference imports to suppress errors if they are not otherwise used.
@@ -90,12 +89,11 @@ var FlavorKeyComments = map[string]string{
 var FlavorKeySpecialArgs = map[string]string{}
 var FlavorRequiredArgs = []string{
 	"name",
-}
-var FlavorOptionalArgs = []string{
 	"ram",
 	"vcpus",
 	"disk",
 }
+var FlavorOptionalArgs = []string{}
 var FlavorAliasArgs = []string{
 	"name=flavor.key.name",
 	"ram=flavor.ram",
@@ -108,4 +106,6 @@ var FlavorComments = map[string]string{
 	"vcpus": "Number of virtual CPUs",
 	"disk":  "Amount of disk space in gigabytes",
 }
-var FlavorSpecialArgs = map[string]string{}
+var FlavorSpecialArgs = map[string]string{
+	"fields": "StringArray",
+}

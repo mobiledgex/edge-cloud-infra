@@ -12,7 +12,6 @@ import fmt "fmt"
 import math "math"
 import _ "github.com/gogo/googleapis/google/api"
 import _ "github.com/mobiledgex/edge-cloud/protogen"
-import _ "github.com/mobiledgex/edge-cloud/protoc-gen-cmd/protocmd"
 import _ "github.com/gogo/protobuf/gogoproto"
 
 // Reference imports to suppress errors if they are not otherwise used.
@@ -37,8 +36,7 @@ var ExecApiCmds = []*cli.Command{
 	RunCommandCmd,
 }
 
-var ExecRequestRequiredArgs = []string{}
-var ExecRequestOptionalArgs = []string{
+var ExecRequestRequiredArgs = []string{
 	"developer",
 	"appname",
 	"appvers",
@@ -47,6 +45,8 @@ var ExecRequestOptionalArgs = []string{
 	"cloudlet",
 	"clusterdeveloper",
 	"command",
+}
+var ExecRequestOptionalArgs = []string{
 	"containerid",
 }
 var ExecRequestAliasArgs = []string{

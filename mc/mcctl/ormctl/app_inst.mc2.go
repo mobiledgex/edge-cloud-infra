@@ -12,7 +12,6 @@ import fmt "fmt"
 import math "math"
 import _ "github.com/gogo/googleapis/google/api"
 import _ "github.com/mobiledgex/edge-cloud/protogen"
-import _ "github.com/mobiledgex/edge-cloud/protoc-gen-cmd/protocmd"
 import _ "github.com/mobiledgex/edge-cloud/d-match-engine/dme-proto"
 import _ "github.com/mobiledgex/edge-cloud/d-match-engine/dme-proto"
 import _ "github.com/gogo/protobuf/gogoproto"
@@ -210,7 +209,11 @@ var AppInstComments = map[string]string{
 	"forceupdate":                    "Force Appinst update when UpdateAppInst is done if revision matches",
 	"updatemultiple":                 "Allow multiple instances to be updated at once",
 }
-var AppInstSpecialArgs = map[string]string{}
+var AppInstSpecialArgs = map[string]string{
+	"fields":                   "StringArray",
+	"errors":                   "StringArray",
+	"runtimeinfo.containerids": "StringArray",
+}
 var AppInstRuntimeRequiredArgs = []string{}
 var AppInstRuntimeOptionalArgs = []string{
 	"containerids",
@@ -224,7 +227,9 @@ var AppInstRuntimeComments = map[string]string{
 	"containerids": "List of container names",
 	"consoleurl":   "URL to access VM console",
 }
-var AppInstRuntimeSpecialArgs = map[string]string{}
+var AppInstRuntimeSpecialArgs = map[string]string{
+	"containerids": "StringArray",
+}
 var AppInstInfoRequiredArgs = []string{
 	"key.appkey.developerkey.name",
 	"key.appkey.name",
@@ -277,7 +282,11 @@ var AppInstInfoComments = map[string]string{
 	"runtimeinfo.containerids":                        "List of container names",
 	"runtimeinfo.consoleurl":                          "URL to access VM console",
 }
-var AppInstInfoSpecialArgs = map[string]string{}
+var AppInstInfoSpecialArgs = map[string]string{
+	"runtimeinfo.containerids": "StringArray",
+	"fields":                   "StringArray",
+	"errors":                   "StringArray",
+}
 var AppInstMetricsRequiredArgs = []string{}
 var AppInstMetricsOptionalArgs = []string{
 	"something",

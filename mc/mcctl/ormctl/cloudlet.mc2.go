@@ -12,7 +12,6 @@ import fmt "fmt"
 import math "math"
 import _ "github.com/gogo/googleapis/google/api"
 import _ "github.com/mobiledgex/edge-cloud/protogen"
-import _ "github.com/mobiledgex/edge-cloud/protoc-gen-cmd/protocmd"
 import _ "github.com/mobiledgex/edge-cloud/d-match-engine/dme-proto"
 import _ "github.com/gogo/protobuf/gogoproto"
 
@@ -102,16 +101,16 @@ var CloudletInfoApiCmds = []*cli.Command{
 
 var CloudletKeyRequiredArgs = []string{}
 var CloudletKeyOptionalArgs = []string{
-	"operatorkey.name",
+	"operator",
 	"name",
 }
 var CloudletKeyAliasArgs = []string{
-	"operatorkey.name=cloudletkey.operatorkey.name",
+	"operator=cloudletkey.operatorkey.name",
 	"name=cloudletkey.name",
 }
 var CloudletKeyComments = map[string]string{
-	"operatorkey.name": "Company or Organization name of the operator",
-	"name":             "Name of the cloudlet",
+	"operator": "Company or Organization name of the operator",
+	"name":     "Name of the cloudlet",
 }
 var CloudletKeySpecialArgs = map[string]string{}
 var OperationTimeLimitsRequiredArgs = []string{}
@@ -433,6 +432,8 @@ var CloudletComments = map[string]string{
 }
 var CloudletSpecialArgs = map[string]string{
 	"envvar": "StringToString",
+	"fields": "StringArray",
+	"errors": "StringArray",
 }
 var EnvVarEntryRequiredArgs = []string{}
 var EnvVarEntryOptionalArgs = []string{
@@ -520,7 +521,10 @@ var CloudletInfoComments = map[string]string{
 	"flavors.ram":   "Ram in MB on the Cloudlet",
 	"flavors.disk":  "Amount of disk in GB on the Cloudlet",
 }
-var CloudletInfoSpecialArgs = map[string]string{}
+var CloudletInfoSpecialArgs = map[string]string{
+	"fields": "StringArray",
+	"errors": "StringArray",
+}
 var CloudletMetricsRequiredArgs = []string{}
 var CloudletMetricsOptionalArgs = []string{
 	"foo",

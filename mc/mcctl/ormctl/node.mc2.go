@@ -13,7 +13,6 @@ import math "math"
 import _ "github.com/gogo/googleapis/google/api"
 import _ "github.com/gogo/protobuf/gogoproto"
 import _ "github.com/mobiledgex/edge-cloud/protogen"
-import _ "github.com/mobiledgex/edge-cloud/protoc-gen-cmd/protocmd"
 
 // Reference imports to suppress errors if they are not otherwise used.
 var _ = proto.Marshal
@@ -93,4 +92,6 @@ var NodeComments = map[string]string{
 	"buildauthor":                      "Build Author",
 	"hostname":                         "Hostname",
 }
-var NodeSpecialArgs = map[string]string{}
+var NodeSpecialArgs = map[string]string{
+	"fields": "StringArray",
+}

@@ -8,6 +8,7 @@ It is generated from these files:
 	app.proto
 	app_inst.proto
 	cloudlet.proto
+	cloudletpool.proto
 	cluster.proto
 	clusterinst.proto
 	common.proto
@@ -44,6 +45,10 @@ It has these top-level messages:
 	FlavorInfo
 	CloudletInfo
 	CloudletMetrics
+	CloudletPoolKey
+	CloudletPool
+	CloudletPoolMember
+	CloudletPoolList
 	ClusterKey
 	ClusterInstKey
 	ClusterInst
@@ -79,7 +84,6 @@ import fmt "fmt"
 import math "math"
 import _ "github.com/gogo/googleapis/google/api"
 import _ "github.com/mobiledgex/edge-cloud/protogen"
-import _ "github.com/mobiledgex/edge-cloud/protoc-gen-cmd/protocmd"
 import _ "github.com/gogo/protobuf/gogoproto"
 
 // Reference imports to suppress errors if they are not otherwise used.
@@ -248,4 +252,6 @@ var AppComments = map[string]string{
 	"officialfqdn":        "Official FQDN is the FQDN that the app uses to connect by default",
 	"md5sum":              "MD5Sum of the VM-based app image",
 }
-var AppSpecialArgs = map[string]string{}
+var AppSpecialArgs = map[string]string{
+	"fields": "StringArray",
+}

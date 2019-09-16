@@ -27,6 +27,7 @@ regiondata:
         updateappinsttimeout: 2000000000
         deleteappinsttimeout: 2000000000
       state: Ready
+      platformtype: PlatformTypeFakeinfra
       deploymentlocal: false
       notifysrvaddr: 127.0.0.1:51001
       flavor:
@@ -49,6 +50,7 @@ regiondata:
         updateappinsttimeout: 2000000000
         deleteappinsttimeout: 2000000000
       state: Ready
+      platformtype: PlatformTypeFakeinfra
       deploymentlocal: false
       notifysrvaddr: 127.0.0.1:51002
       flavor:
@@ -71,6 +73,7 @@ regiondata:
         updateappinsttimeout: 2000000000
         deleteappinsttimeout: 2000000000
       state: Ready
+      platformtype: PlatformTypeFakeinfra
       deploymentlocal: false
       notifysrvaddr: 127.0.0.1:51004
       flavor:
@@ -93,6 +96,7 @@ regiondata:
         updateappinsttimeout: 2000000000
         deleteappinsttimeout: 2000000000
       state: Ready
+      platformtype: PlatformTypeFakeinfra
       deploymentlocal: false
       notifysrvaddr: 127.0.0.1:51005
       flavor:

@@ -155,7 +155,7 @@ func getPlatform() (platform.Platform, error) {
 		plat = &shepherd_dind.Platform{}
 	case "PLATFORM_TYPE_OPENSTACK":
 		plat = &shepherd_openstack.Platform{}
-	case "PLATFORM_TYPE_FAKE":
+	case "PLATFORM_TYPE_FAKEINFRA":
 		plat = &shepherd_fake.Platform{}
 	default:
 		err = fmt.Errorf("Platform %s not supported", *platformName)

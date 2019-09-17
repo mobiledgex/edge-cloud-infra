@@ -92,6 +92,4 @@ var NodeComments = map[string]string{
 	"buildauthor":                      "Build Author",
 	"hostname":                         "Hostname",
 }
-var NodeSpecialArgs = map[string]string{
-	"fields": "StringArray",
-}
+var NodeSpecialArgs = map[string]string{}

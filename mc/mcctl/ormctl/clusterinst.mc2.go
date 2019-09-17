@@ -159,7 +159,6 @@ var ClusterInstComments = map[string]string{
 	"numnodes":    "Number of k8s nodes (In case of docker deployment, this field is not required)",
 }
 var ClusterInstSpecialArgs = map[string]string{
-	"fields": "StringArray",
 	"errors": "StringArray",
 }
 var ClusterInstInfoRequiredArgs = []string{
@@ -200,6 +199,5 @@ var ClusterInstInfoComments = map[string]string{
 	"errors":                           "Any errors trying to create, update, or delete the ClusterInst on the Cloudlet.",
 }
 var ClusterInstInfoSpecialArgs = map[string]string{
-	"fields": "StringArray",
 	"errors": "StringArray",
 }

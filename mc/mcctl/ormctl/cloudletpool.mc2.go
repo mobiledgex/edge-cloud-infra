@@ -63,8 +63,8 @@ var CloudletPoolApiCmds = []*cli.Command{
 	ShowCloudletPoolCmd,
 }
 
-var AddCloudletPoolMemberCmd = &cli.Command{
-	Use:          "AddCloudletPoolMember",
+var CreateCloudletPoolMemberCmd = &cli.Command{
+	Use:          "CreateCloudletPoolMember",
 	RequiredArgs: strings.Join(append([]string{"region"}, CloudletPoolMemberRequiredArgs...), " "),
 	OptionalArgs: strings.Join(CloudletPoolMemberOptionalArgs, " "),
 	AliasArgs:    strings.Join(CloudletPoolMemberAliasArgs, " "),
@@ -72,11 +72,11 @@ var AddCloudletPoolMemberCmd = &cli.Command{
 	Comments:     addRegionComment(CloudletPoolMemberComments),
 	ReqData:      &ormapi.RegionCloudletPoolMember{},
 	ReplyData:    &edgeproto.Result{},
-	Run:          runRest("/auth/ctrl/AddCloudletPoolMember"),
+	Run:          runRest("/auth/ctrl/CreateCloudletPoolMember"),
 }
 
-var RemoveCloudletPoolMemberCmd = &cli.Command{
-	Use:          "RemoveCloudletPoolMember",
+var DeleteCloudletPoolMemberCmd = &cli.Command{
+	Use:          "DeleteCloudletPoolMember",
 	RequiredArgs: strings.Join(append([]string{"region"}, CloudletPoolMemberRequiredArgs...), " "),
 	OptionalArgs: strings.Join(CloudletPoolMemberOptionalArgs, " "),
 	AliasArgs:    strings.Join(CloudletPoolMemberAliasArgs, " "),
@@ -84,7 +84,7 @@ var RemoveCloudletPoolMemberCmd = &cli.Command{
 	Comments:     addRegionComment(CloudletPoolMemberComments),
 	ReqData:      &ormapi.RegionCloudletPoolMember{},
 	ReplyData:    &edgeproto.Result{},
-	Run:          runRest("/auth/ctrl/RemoveCloudletPoolMember"),
+	Run:          runRest("/auth/ctrl/DeleteCloudletPoolMember"),
 }
 
 var ShowCloudletPoolMemberCmd = &cli.Command{
@@ -139,8 +139,8 @@ var ShowCloudletsForPoolListCmd = &cli.Command{
 	StreamOut:    true,
 }
 var CloudletPoolMemberApiCmds = []*cli.Command{
-	AddCloudletPoolMemberCmd,
-	RemoveCloudletPoolMemberCmd,
+	CreateCloudletPoolMemberCmd,
+	DeleteCloudletPoolMemberCmd,
 	ShowCloudletPoolMemberCmd,
 	ShowPoolsForCloudletCmd,
 	ShowCloudletsForPoolCmd,
@@ -164,27 +164,11 @@ var CloudletPoolRequiredArgs = []string{
 var CloudletPoolOptionalArgs = []string{}
 var CloudletPoolAliasArgs = []string{
 	"name=cloudletpool.key.name",
-	"members=cloudletpool.members",
 }
 var CloudletPoolComments = map[string]string{
-	"name":    "CloudletPool Name",
-	"members": "Pool members",
+	"name": "CloudletPool Name",
 }
-var CloudletPoolSpecialArgs = map[string]string{
-	"fields":  "StringArray",
-	"members": "StringToString",
-}
-var MembersEntryRequiredArgs = []string{}
-var MembersEntryOptionalArgs = []string{
-	"key",
-	"value",
-}
-var MembersEntryAliasArgs = []string{
-	"key=membersentry.key",
-	"value=membersentry.value",
-}
-var MembersEntryComments = map[string]string{}
-var MembersEntrySpecialArgs = map[string]string{}
+var CloudletPoolSpecialArgs = map[string]string{}
 var CloudletPoolMemberRequiredArgs = []string{
 	"pool",
 	"operator",

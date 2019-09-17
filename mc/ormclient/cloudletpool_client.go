@@ -46,15 +46,15 @@ type CloudletPoolApiClient interface {
 	ShowCloudletPool(uri, token string, in *ormapi.RegionCloudletPool) ([]edgeproto.CloudletPool, int, error)
 }
 
-func (s *Client) AddCloudletPoolMember(uri, token string, in *ormapi.RegionCloudletPoolMember) (edgeproto.Result, int, error) {
+func (s *Client) CreateCloudletPoolMember(uri, token string, in *ormapi.RegionCloudletPoolMember) (edgeproto.Result, int, error) {
 	out := edgeproto.Result{}
-	status, err := s.PostJson(uri+"/auth/ctrl/AddCloudletPoolMember", token, in, &out)
+	status, err := s.PostJson(uri+"/auth/ctrl/CreateCloudletPoolMember", token, in, &out)
 	return out, status, err
 }
 
-func (s *Client) RemoveCloudletPoolMember(uri, token string, in *ormapi.RegionCloudletPoolMember) (edgeproto.Result, int, error) {
+func (s *Client) DeleteCloudletPoolMember(uri, token string, in *ormapi.RegionCloudletPoolMember) (edgeproto.Result, int, error) {
 	out := edgeproto.Result{}
-	status, err := s.PostJson(uri+"/auth/ctrl/RemoveCloudletPoolMember", token, in, &out)
+	status, err := s.PostJson(uri+"/auth/ctrl/DeleteCloudletPoolMember", token, in, &out)
 	return out, status, err
 }
 
@@ -95,8 +95,8 @@ func (s *Client) ShowCloudletsForPoolList(uri, token string, in *ormapi.RegionCl
 }
 
 type CloudletPoolMemberApiClient interface {
-	AddCloudletPoolMember(uri, token string, in *ormapi.RegionCloudletPoolMember) (edgeproto.Result, int, error)
-	RemoveCloudletPoolMember(uri, token string, in *ormapi.RegionCloudletPoolMember) (edgeproto.Result, int, error)
+	CreateCloudletPoolMember(uri, token string, in *ormapi.RegionCloudletPoolMember) (edgeproto.Result, int, error)
+	DeleteCloudletPoolMember(uri, token string, in *ormapi.RegionCloudletPoolMember) (edgeproto.Result, int, error)
 	ShowCloudletPoolMember(uri, token string, in *ormapi.RegionCloudletPoolMember) ([]edgeproto.CloudletPoolMember, int, error)
 	ShowPoolsForCloudlet(uri, token string, in *ormapi.RegionCloudletKey) ([]edgeproto.CloudletPool, int, error)
 	ShowCloudletsForPool(uri, token string, in *ormapi.RegionCloudletPoolKey) ([]edgeproto.Cloudlet, int, error)

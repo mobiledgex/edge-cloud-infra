@@ -210,7 +210,6 @@ var AppInstComments = map[string]string{
 	"updatemultiple":                 "Allow multiple instances to be updated at once",
 }
 var AppInstSpecialArgs = map[string]string{
-	"fields":                   "StringArray",
 	"errors":                   "StringArray",
 	"runtimeinfo.containerids": "StringArray",
 }
@@ -283,9 +282,8 @@ var AppInstInfoComments = map[string]string{
 	"runtimeinfo.consoleurl":                          "URL to access VM console",
 }
 var AppInstInfoSpecialArgs = map[string]string{
-	"runtimeinfo.containerids": "StringArray",
-	"fields":                   "StringArray",
 	"errors":                   "StringArray",
+	"runtimeinfo.containerids": "StringArray",
 }
 var AppInstMetricsRequiredArgs = []string{}
 var AppInstMetricsOptionalArgs = []string{

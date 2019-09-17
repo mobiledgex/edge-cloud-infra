@@ -47,16 +47,16 @@ func (s *Client) ShowCloudletPool(uri, token string, in *ormapi.RegionCloudletPo
 	return outlist, st, err
 }
 
-func (s *Client) AddCloudletPoolMember(uri, token string, in *ormapi.RegionCloudletPoolMember) (edgeproto.Result, int, error) {
-	args := []string{"region", "AddCloudletPoolMember"}
+func (s *Client) CreateCloudletPoolMember(uri, token string, in *ormapi.RegionCloudletPoolMember) (edgeproto.Result, int, error) {
+	args := []string{"region", "CreateCloudletPoolMember"}
 	out := edgeproto.Result{}
 	noconfig := strings.Split("", ",")
 	st, err := s.runObjs(uri, token, args, in, &out, withIgnore(noconfig))
 	return out, st, err
 }
 
-func (s *Client) RemoveCloudletPoolMember(uri, token string, in *ormapi.RegionCloudletPoolMember) (edgeproto.Result, int, error) {
-	args := []string{"region", "RemoveCloudletPoolMember"}
+func (s *Client) DeleteCloudletPoolMember(uri, token string, in *ormapi.RegionCloudletPoolMember) (edgeproto.Result, int, error) {
+	args := []string{"region", "DeleteCloudletPoolMember"}
 	out := edgeproto.Result{}
 	noconfig := strings.Split("", ",")
 	st, err := s.runObjs(uri, token, args, in, &out, withIgnore(noconfig))

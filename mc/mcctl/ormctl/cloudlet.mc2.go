@@ -431,9 +431,8 @@ var CloudletComments = map[string]string{
 	"envvar":                              "Single Key-Value pair of env var to be passed to CRM",
 }
 var CloudletSpecialArgs = map[string]string{
-	"envvar": "StringToString",
-	"fields": "StringArray",
 	"errors": "StringArray",
+	"envvar": "StringToString",
 }
 var EnvVarEntryRequiredArgs = []string{}
 var EnvVarEntryOptionalArgs = []string{
@@ -522,7 +521,6 @@ var CloudletInfoComments = map[string]string{
 	"flavors.disk":  "Amount of disk in GB on the Cloudlet",
 }
 var CloudletInfoSpecialArgs = map[string]string{
-	"fields": "StringArray",
 	"errors": "StringArray",
 }
 var CloudletMetricsRequiredArgs = []string{}

@@ -252,6 +252,4 @@ var AppComments = map[string]string{
 	"officialfqdn":        "Official FQDN is the FQDN that the app uses to connect by default",
 	"md5sum":              "MD5Sum of the VM-based app image",
 }
-var AppSpecialArgs = map[string]string{
-	"fields": "StringArray",
-}
+var AppSpecialArgs = map[string]string{}

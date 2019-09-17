@@ -106,6 +106,4 @@ var FlavorComments = map[string]string{
 	"vcpus": "Number of virtual CPUs",
 	"disk":  "Amount of disk space in gigabytes",
 }
-var FlavorSpecialArgs = map[string]string{
-	"fields": "StringArray",
-}
+var FlavorSpecialArgs = map[string]string{}

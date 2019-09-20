@@ -1,4 +1,5 @@
-package main
+//package main
+package fakepromexporter
 
 import (
 	"fmt"
@@ -56,7 +57,8 @@ type Prometheus struct {
 // 	return nil
 // }
 
-func main() {
+//func main() {
+func StartExporter() {
 	// reg := prometheus.NewPedanticRegistry()
 	// stats := ExporterStatsCollector{}
 	// GetValuesFromYaml(&stats, "/Users/matthewchu/go/src/github.com/mobiledgex/edge-cloud-infra/shepherd/fakePromEndpoint/fakeStats.yml")

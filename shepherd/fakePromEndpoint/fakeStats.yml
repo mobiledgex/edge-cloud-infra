@@ -1,0 +1,6 @@
+prometheus:
+  tcpConn: 100
+  tcpRetrans: 200
+  udpSent: 300
+  udpRecv: 400
+  udpRecvErr: 500

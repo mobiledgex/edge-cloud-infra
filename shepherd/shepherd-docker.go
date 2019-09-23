@@ -117,7 +117,6 @@ func (c *DockerClusterStats) GetContainerStats(ctx context.Context) (*DockerStat
 			dockerResp.Containers = append(dockerResp.Containers, container)
 		}
 	}
-	// walk containers and consolidate any which have the same
 	return dockerResp, nil
 }
 

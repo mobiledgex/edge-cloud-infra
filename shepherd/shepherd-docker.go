@@ -90,7 +90,6 @@ func (c *DockerClusterStats) GetContainerStats(ctx context.Context) (*DockerStat
 		}
 		// save results in a hash based on the container name
 		containers[containerStat.Container] = containerStat
-		//dockerResp.Containers = append(dockerResp.Containers, containerStat)
 	}
 
 	// Walk AppInstCache with a filter and add appName

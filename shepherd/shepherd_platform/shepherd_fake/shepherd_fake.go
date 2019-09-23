@@ -4,6 +4,7 @@ import (
 	"context"
 	"time"
 
+	exporter "github.com/mobiledgex/edge-cloud-infra/shepherd/fakePromExporter"
 	"github.com/mobiledgex/edge-cloud-infra/shepherd/shepherd_common"
 	"github.com/mobiledgex/edge-cloud/cloud-resource-manager/platform/pc"
 	"github.com/mobiledgex/edge-cloud/edgeproto"
@@ -17,10 +18,12 @@ func (s *Platform) GetType() string {
 }
 
 func (s *Platform) Init(ctx context.Context, key *edgeproto.CloudletKey, physicalName, vaultAddr string) error {
+	exporter.StartExporter()
 	return nil
 }
 
 func (s *Platform) GetClusterIP(ctx context.Context, clusterInst *edgeproto.ClusterInst) (string, error) {
+	//start a docker container for prometheus
 	return "localhost", nil
 }
 

@@ -350,3 +350,16 @@ func (s *Platform) GetContainerCommand(ctx context.Context, clusterInst *edgepro
 		return "", fmt.Errorf("unsupported deployment type %s", deployment)
 	}
 }
+
+func (s *Platform) GetConsoleUrl(ctx context.Context, app *edgeproto.App) (string, error) {
+	switch deployment := app.Deployment; deployment {
+	case cloudcommon.AppDeploymentTypeVM:
+		consoleUrl, err := mexos.OSGetConsoleUrl(ctx, app.Key.Name)
+		if err != nil {
+			return "", err
+		}
+		return consoleUrl.Url, nil
+	default:
+		return "", fmt.Errorf("unsupported deployment type %s", deployment)
+	}
+}

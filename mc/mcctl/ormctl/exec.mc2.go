@@ -46,6 +46,7 @@ var ExecRequestOptionalArgs = []string{
 	"clusterdeveloper",
 	"command",
 	"containerid",
+	"console",
 }
 var ExecRequestAliasArgs = []string{
 	"developer=execrequest.appinstkey.appkey.developerkey.name",
@@ -60,5 +61,7 @@ var ExecRequestAliasArgs = []string{
 	"offer=execrequest.offer",
 	"answer=execrequest.answer",
 	"err=execrequest.err",
+	"console=execrequest.console",
+	"consoleurl=execrequest.consoleurl",
 }
 var ExecRequestSpecialArgs = map[string]string{}

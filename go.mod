@@ -57,7 +57,7 @@ require (
 	github.com/stretchr/testify v1.3.0
 	github.com/tmc/scp v0.0.0-20170824174625-f7b48647feef
 	github.com/xanzy/go-gitlab v0.16.0
-	golang.org/x/crypto v0.0.0-20190404164418-38d8ce5564a5
+	golang.org/x/crypto v0.0.0-20190426145343-a29dc8fdc734
 	golang.org/x/net v0.0.0-20190628185345-da137c7871d7
 	golang.org/x/time v0.0.0-20190308202827-9d24e82272b4 // indirect
 	google.golang.org/genproto v0.0.0-20190404172233-64821d5d2107
@@ -263,7 +263,7 @@ replace go.uber.org/multierr => go.uber.org/multierr v1.1.0
 
 replace go.uber.org/zap => go.uber.org/zap v1.10.0
 
-replace golang.org/x/crypto => golang.org/x/crypto v0.0.0-20190404164418-38d8ce5564a5
+replace golang.org/x/crypto => golang.org/x/crypto v0.0.0-20190426145343-a29dc8fdc734
 
 replace golang.org/x/oauth2 => golang.org/x/oauth2 v0.0.0-20190226205417-e64efc72b421
 
@@ -328,3 +328,5 @@ replace github.com/uber-go/atomic => github.com/uber-go/atomic v1.4.0
 replace go.uber.org/atomic => go.uber.org/atomic v1.4.0
 
 replace gopkg.in/check.v1 => gopkg.in/check.v1 v1.0.0-20180628173108-788fd7840127
+
+replace github.com/xtaci/smux => github.com/xtaci/smux v1.3.6

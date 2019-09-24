@@ -29,6 +29,9 @@ import (
 //   Nor is there a way to return the IP address or DNS name. Or even know if it needs a DNS name.
 //   No ability to open ports, redirect or set up any kind of reverse proxy control.  etc.
 
+// MaxK8sNodeNameLen is the maximum length that k8s node names are truncated to
+const MaxK8sNodeNameLen = 63
+
 //ClusterFlavor contains definitions of cluster flavor
 type ClusterFlavor struct {
 	Kind           string
@@ -240,11 +243,11 @@ func IsClusterReady(ctx context.Context, clusterInst *edgeproto.ClusterInst, mas
 		return false, 0, fmt.Errorf("kubeconfig copy failed, %v", err)
 	}
 	if clusterInst.NumNodes == 0 {
-		// k8s nodes are limited to 63 chars
+		// k8s nodes are limited to MaxK8sNodeNameLen chars
 		masterString := masterName
-		if len(masterString) > 63 {
-			log.SpanLog(ctx, log.DebugLevelMexos, "truncating master node name to 63 characters")
-			masterString = masterString[0:63]
+		if len(masterString) > MaxK8sNodeNameLen {
+			log.SpanLog(ctx, log.DebugLevelMexos, "truncating master node name", "MaxK8sNodeNameLen", MaxK8sNodeNameLen)
+			masterString = masterString[0:MaxK8sNodeNameLen]
 		}
 		//remove the taint from the master if there are no nodes. This has potential side effects if the cluster
 		// becomes very busy but is useful for testing and PoC type clusters.

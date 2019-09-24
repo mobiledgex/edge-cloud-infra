@@ -8,6 +8,7 @@ It is generated from these files:
 	app.proto
 	app_inst.proto
 	cloudlet.proto
+	cloudletpool.proto
 	cluster.proto
 	clusterinst.proto
 	common.proto
@@ -44,6 +45,10 @@ It has these top-level messages:
 	FlavorInfo
 	CloudletInfo
 	CloudletMetrics
+	CloudletPoolKey
+	CloudletPool
+	CloudletPoolMember
+	CloudletPoolList
 	ClusterKey
 	ClusterInstKey
 	ClusterInst
@@ -77,7 +82,6 @@ import fmt "fmt"
 import math "math"
 import _ "github.com/gogo/googleapis/google/api"
 import _ "github.com/mobiledgex/edge-cloud/protogen"
-import _ "github.com/mobiledgex/edge-cloud/protoc-gen-cmd/protocmd"
 import _ "github.com/gogo/protobuf/gogoproto"
 
 // Reference imports to suppress errors if they are not otherwise used.

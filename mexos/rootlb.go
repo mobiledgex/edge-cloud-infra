@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"os"
+	"os/exec"
 	"strconv"
 	"sync"
 	"time"
@@ -171,10 +172,6 @@ func SetupRootLB(ctx context.Context, rootLBName string, createRootLBFlavor stri
 		return err
 	}
 	log.SpanLog(ctx, log.DebugLevelMexos, "DNS A record activated", "name", rootLB.Name)
-	err = GetHTPassword(ctx, rootLB.Name)
-	if err != nil {
-		return fmt.Errorf("can't download htpassword %v", err)
-	}
 	return nil
 }
 
@@ -252,7 +249,11 @@ func GetCloudletSharedRootLBFlavor(flavor *edgeproto.Flavor) error {
 
 // This function copies resource-tracker from crm to rootLb - we need this to provide docker metrics
 func CopyResourceTracker(client ssh.Client) error {
-	err := SCPFilePath(client, "/usr/local/bin/resource-tracker", "/tmp/resource-tracker")
+	path, err := exec.LookPath("resource-tracker")
+	if err != nil {
+		return err
+	}
+	err = SCPFilePath(client, path, "/tmp/resource-tracker")
 	if err != nil {
 		return err
 	}

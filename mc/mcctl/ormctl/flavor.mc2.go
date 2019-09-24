@@ -6,12 +6,12 @@ package ormctl
 import edgeproto "github.com/mobiledgex/edge-cloud/edgeproto"
 import "strings"
 import "github.com/mobiledgex/edge-cloud-infra/mc/ormapi"
+import "github.com/mobiledgex/edge-cloud/cli"
 import proto "github.com/gogo/protobuf/proto"
 import fmt "fmt"
 import math "math"
 import _ "github.com/gogo/googleapis/google/api"
 import _ "github.com/mobiledgex/edge-cloud/protogen"
-import _ "github.com/mobiledgex/edge-cloud/protoc-gen-cmd/protocmd"
 import _ "github.com/gogo/protobuf/gogoproto"
 
 // Reference imports to suppress errors if they are not otherwise used.
@@ -21,51 +21,71 @@ var _ = math.Inf
 
 // Auto-generated code: DO NOT EDIT
 
-var CreateFlavorCmd = &Command{
+var CreateFlavorCmd = &cli.Command{
 	Use:          "CreateFlavor",
 	RequiredArgs: strings.Join(append([]string{"region"}, FlavorRequiredArgs...), " "),
 	OptionalArgs: strings.Join(FlavorOptionalArgs, " "),
 	AliasArgs:    strings.Join(FlavorAliasArgs, " "),
 	SpecialArgs:  &FlavorSpecialArgs,
+	Comments:     addRegionComment(FlavorComments),
 	ReqData:      &ormapi.RegionFlavor{},
 	ReplyData:    &edgeproto.Result{},
-	Path:         "/auth/ctrl/CreateFlavor",
+	Run:          runRest("/auth/ctrl/CreateFlavor"),
 }
 
-var DeleteFlavorCmd = &Command{
+var DeleteFlavorCmd = &cli.Command{
 	Use:          "DeleteFlavor",
 	RequiredArgs: strings.Join(append([]string{"region"}, FlavorRequiredArgs...), " "),
 	OptionalArgs: strings.Join(FlavorOptionalArgs, " "),
 	AliasArgs:    strings.Join(FlavorAliasArgs, " "),
 	SpecialArgs:  &FlavorSpecialArgs,
+	Comments:     addRegionComment(FlavorComments),
 	ReqData:      &ormapi.RegionFlavor{},
 	ReplyData:    &edgeproto.Result{},
-	Path:         "/auth/ctrl/DeleteFlavor",
+	Run:          runRest("/auth/ctrl/DeleteFlavor"),
 }
 
-var UpdateFlavorCmd = &Command{
+var UpdateFlavorCmd = &cli.Command{
 	Use:          "UpdateFlavor",
 	RequiredArgs: strings.Join(append([]string{"region"}, FlavorRequiredArgs...), " "),
 	OptionalArgs: strings.Join(FlavorOptionalArgs, " "),
 	AliasArgs:    strings.Join(FlavorAliasArgs, " "),
 	SpecialArgs:  &FlavorSpecialArgs,
+	Comments:     addRegionComment(FlavorComments),
 	ReqData:      &ormapi.RegionFlavor{},
 	ReplyData:    &edgeproto.Result{},
-	Path:         "/auth/ctrl/UpdateFlavor",
+	Run: runRest("/auth/ctrl/UpdateFlavor",
+		withSetFieldsFunc(setUpdateFlavorFields),
+	),
 }
 
-var ShowFlavorCmd = &Command{
+func setUpdateFlavorFields(in map[string]interface{}) {
+	// get map for edgeproto object in region struct
+	obj := in[strings.ToLower("Flavor")]
+	if obj == nil {
+		return
+	}
+	objmap, ok := obj.(map[string]interface{})
+	if !ok {
+		return
+	}
+	objmap["fields"] = cli.GetSpecifiedFields(objmap, &edgeproto.Flavor{}, cli.JsonNamespace)
+}
+
+var ShowFlavorCmd = &cli.Command{
 	Use:          "ShowFlavor",
 	RequiredArgs: "region",
 	OptionalArgs: strings.Join(append(FlavorRequiredArgs, FlavorOptionalArgs...), " "),
 	AliasArgs:    strings.Join(FlavorAliasArgs, " "),
 	SpecialArgs:  &FlavorSpecialArgs,
+	Comments:     addRegionComment(FlavorComments),
 	ReqData:      &ormapi.RegionFlavor{},
 	ReplyData:    &edgeproto.Flavor{},
-	Path:         "/auth/ctrl/ShowFlavor",
+	Run:          runRest("/auth/ctrl/ShowFlavor"),
 	StreamOut:    true,
 }
-var FlavorApiCmds = []*Command{
+
+var FlavorApiCmds = []*cli.Command{
 	CreateFlavorCmd,
 	DeleteFlavorCmd,
 	UpdateFlavorCmd,
@@ -79,19 +99,27 @@ var FlavorKeyOptionalArgs = []string{
 var FlavorKeyAliasArgs = []string{
 	"name=flavorkey.name",
 }
+var FlavorKeyComments = map[string]string{
+	"name": "Flavor name",
+}
 var FlavorKeySpecialArgs = map[string]string{}
 var FlavorRequiredArgs = []string{
 	"name",
-}
-var FlavorOptionalArgs = []string{
 	"ram",
 	"vcpus",
 	"disk",
 }
+var FlavorOptionalArgs = []string{}
 var FlavorAliasArgs = []string{
 	"name=flavor.key.name",
 	"ram=flavor.ram",
 	"vcpus=flavor.vcpus",
 	"disk=flavor.disk",
+}
+var FlavorComments = map[string]string{
+	"name":  "Flavor name",
+	"ram":   "RAM in megabytes",
+	"vcpus": "Number of virtual CPUs",
+	"disk":  "Amount of disk space in gigabytes",
 }
 var FlavorSpecialArgs = map[string]string{}

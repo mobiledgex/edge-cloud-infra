@@ -217,7 +217,6 @@ var AppInstComments = map[string]string{
 	"errors":                         "Any errors trying to create, update, or delete the AppInst on the Cloudlet",
 	"crmoverride":                    "Override actions to CRM, one of NoOverride, IgnoreCrmErrors, IgnoreCrm, IgnoreTransientState, IgnoreCrmAndTransientState",
 	"runtimeinfo.containerids":       "List of container names",
-	"runtimeinfo.consoleurl":         "URL to access VM console",
 	"autoclusteripaccess":            "IpAccess for auto-clusters. Ignored otherwise., one of IpAccessUnknown, IpAccessDedicated, IpAccessDedicatedOrShared, IpAccessShared",
 	"revision":                       "Revision increments each time the App is updated.  Updating the App Instance will sync the revision with that of the App",
 	"forceupdate":                    "Force Appinst update when UpdateAppInst is done if revision matches",
@@ -236,7 +235,6 @@ var AppInstRuntimeAliasArgs = []string{
 }
 var AppInstRuntimeComments = map[string]string{
 	"containerids": "List of container names",
-	"consoleurl":   "URL to access VM console",
 }
 var AppInstRuntimeSpecialArgs = map[string]string{
 	"containerids": "StringArray",
@@ -289,7 +287,6 @@ var AppInstInfoComments = map[string]string{
 	"state":                                           "Current state of the AppInst on the Cloudlet, one of TrackedStateUnknown, NotPresent, CreateRequested, Creating, CreateError, Ready, UpdateRequested, Updating, UpdateError, DeleteRequested, Deleting, DeleteError, DeletePrepare",
 	"errors":                                          "Any errors trying to create, update, or delete the AppInst on the Cloudlet",
 	"runtimeinfo.containerids":                        "List of container names",
-	"runtimeinfo.consoleurl":                          "URL to access VM console",
 }
 var AppInstInfoSpecialArgs = map[string]string{
 	"errors":                   "StringArray",

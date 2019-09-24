@@ -80,5 +80,7 @@ var ExecRequestComments = map[string]string{
 	"offer":            "WebRTC Offer",
 	"answer":           "WebRTC Answer",
 	"err":              "Any error message",
+	"console":          "VM Console",
+	"consoleurl":       "VM Console URL",
 }
 var ExecRequestSpecialArgs = map[string]string{}

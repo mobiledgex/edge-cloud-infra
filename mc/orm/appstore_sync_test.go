@@ -259,9 +259,6 @@ func TestAppStoreApi(t *testing.T) {
 		mcClientDelete(t, v, mcClient, uri, tokenAdmin)
 	}
 
-	waitSyncCount(t, gitlabSync, 2)
-	waitSyncCount(t, artifactorySync, 2)
-
 	// verify missing entries are there
 	rtf.verifyCount(t, missingEntries, MCObj)
 	for _, v := range missingEntries {

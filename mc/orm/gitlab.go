@@ -3,7 +3,6 @@ package orm
 import (
 	"context"
 	"fmt"
-	"net/http"
 
 	"github.com/mobiledgex/edge-cloud-infra/mc/ormapi"
 	"github.com/mobiledgex/edge-cloud/log"
@@ -223,38 +222,4 @@ func gitlabGetUser(username string) (*gitlab.User, error) {
 		return nil, fmt.Errorf("Gitlab more than one user with name %s", username)
 	}
 	return users[0], nil
-}
-
-// Wrap default http transport for logging
-type GitlabTransport struct {
-	Transport http.RoundTripper
-	ctx       context.Context
-}
-
-func NewGitlabTransport(ctx context.Context) *GitlabTransport {
-	// TODO: caller skip 7
-	return &GitlabTransport{
-		Transport: http.DefaultTransport,
-		ctx:       ctx,
-	}
-}
-
-func (s *GitlabTransport) RoundTrip(req *http.Request) (*http.Response, error) {
-	resp, err := s.transport().RoundTrip(req)
-	status := ""
-	if resp != nil {
-		status = resp.Status
-	}
-	if err != nil {
-		log.SpanLog(s.ctx, log.DebugLevelApi, "Call gitlab",
-			"status", status, "err", err)
-	}
-	return resp, err
-}
-
-func (s *GitlabTransport) transport() http.RoundTripper {
-	if s.Transport != nil {
-		return s.Transport
-	}
-	return http.DefaultTransport
 }

@@ -14,8 +14,8 @@ import (
 )
 
 const (
-	ArtifactoryPrefix     string = "mark-"
-	ArtifactoryRepoPrefix string = "markrepo-"
+	ArtifactoryPrefix     string = "mc-"
+	ArtifactoryRepoPrefix string = "repo-"
 )
 
 // Cache Artifactory Auth Key

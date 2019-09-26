@@ -131,7 +131,7 @@ func RunServer(config *ServerConfig) (*Server, error) {
 		log.InfoLog("Note: No gitlab_token env var found")
 	}
 	httpClient := &http.Client{
-		Transport: NewGitlabTransport(),
+		Transport: NewGitlabTransport(ctx),
 	}
 	gitlabClient = gitlab.NewClient(httpClient, gitlabToken)
 	if err := gitlabClient.SetBaseURL(config.GitlabAddr); err != nil {

@@ -228,29 +228,27 @@ func gitlabGetUser(username string) (*gitlab.User, error) {
 // Wrap default http transport for logging
 type GitlabTransport struct {
 	Transport http.RoundTripper
+	ctx       context.Context
 }
 
-func NewGitlabTransport() *GitlabTransport {
+func NewGitlabTransport(ctx context.Context) *GitlabTransport {
 	// TODO: caller skip 7
 	return &GitlabTransport{
 		Transport: http.DefaultTransport,
+		ctx:       ctx,
 	}
 }
 
 func (s *GitlabTransport) RoundTrip(req *http.Request) (*http.Response, error) {
-	span := log.StartSpan(log.DebugLevelApi, "gitlab transport")
-	span.SetTag("url", req.URL)
-	span.SetTag("method", req.Method)
-	defer span.Finish()
-	ctx := log.ContextWithSpan(context.Background(), span)
-
 	resp, err := s.transport().RoundTrip(req)
 	status := ""
 	if resp != nil {
 		status = resp.Status
 	}
-	log.SpanLog(ctx, log.DebugLevelApi, "Call gitlab",
-		"status", status, "err", err)
+	if err != nil {
+		log.SpanLog(s.ctx, log.DebugLevelApi, "Call gitlab",
+			"status", status, "err", err)
+	}
 	return resp, err
 }
 

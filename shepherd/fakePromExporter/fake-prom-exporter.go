@@ -2,11 +2,13 @@
 package fakepromexporter
 
 import (
+	"context"
 	"fmt"
 	// 	"io/ioutil"
 	"net/http"
+
+	"github.com/mobiledgex/edge-cloud/log"
 	// 	"gopkg.in/yaml.v2"
-	// 	"github.com/mobiledgex/edge-cloud/log"
 	// 	"github.com/prometheus/client_golang/prometheus"
 	// 	"github.com/prometheus/client_golang/prometheus/promhttp"
 )
@@ -58,13 +60,14 @@ type Prometheus struct {
 // }
 
 //func main() {
-func StartExporter() {
+func StartExporter(ctx context.Context) {
 	// reg := prometheus.NewPedanticRegistry()
 	// stats := ExporterStatsCollector{}
 	// GetValuesFromYaml(&stats, "/Users/matthewchu/go/src/github.com/mobiledgex/edge-cloud-infra/shepherd/fakePromEndpoint/fakeStats.yml")
 	// prometheus.WrapRegistererWith(nil, reg).MustRegister(stats)
 
 	// http.Handle("/metrics", promhttp.HandlerFor(reg, promhttp.HandlerOpts{}))
+	log.SpanLog(ctx, log.DebugLevelMexos, "Starting fake prometheus exporter...")
 	http.HandleFunc("/metrics", tempExporter)
 	http.ListenAndServe(":9100", nil)
 }

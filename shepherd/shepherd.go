@@ -32,7 +32,7 @@ var cloudletKeyStr = flag.String("cloudletKey", "", "Json or Yaml formatted clou
 var name = flag.String("name", "shepherd", "Unique name to identify a process")
 var parentSpan = flag.String("span", "", "Use parent span for logging")
 
-var defaultPrometheusPort = int32(9090)
+var defaultPrometheusPort = cloudcommon.PrometheusPort
 
 //map keeping track of all the currently running prometheuses
 var workerMap map[string]*ClusterWorker

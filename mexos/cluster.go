@@ -227,7 +227,11 @@ func IsClusterReady(ctx context.Context, clusterInst *edgeproto.ClusterInst, mas
 	//                   node       state               role     age     version
 	nodeMatchPattern := "(\\S+)\\s+(Ready|NotReady)\\s+(\\S+)\\s+\\S+\\s+\\S+"
 	reg, err := regexp.Compile(nodeMatchPattern)
-
+	if err != nil {
+		// this is a bug if the regex does not compile
+		log.SpanLog(ctx, log.DebugLevelInfo, "failed to compile regex", "pattern", nodeMatchPattern)
+		return false, 0, fmt.Errorf("Internal Error compiling regex for k8s node")
+	}
 	masterString := ""
 	lines := strings.Split(out, "\n")
 	var readyCount uint32

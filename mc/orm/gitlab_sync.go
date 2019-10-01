@@ -28,7 +28,9 @@ func (s *AppStoreSync) syncGitlabObjects(ctx context.Context) {
 
 func (s *AppStoreSync) syncUsers(ctx context.Context) {
 	// get Gitlab users
-	gusers, _, err := gitlabClient.Users.ListUsers(&gitlab.ListUsersOptions{})
+	gusers, _, err := gitlabClient.Users.ListUsers(&gitlab.ListUsersOptions{
+		ListOptions: ListOptions,
+	})
 	log.SpanLog(ctx, log.DebugLevelApi, "Gitlab Sync list users",
 		"users", gusers)
 	if err != nil {
@@ -96,7 +98,9 @@ func (s *AppStoreSync) syncGroups(ctx context.Context) map[string]*ormapi.Organi
 		return nil
 	}
 	// get Gitlab groups
-	groups, _, err := gitlabClient.Groups.ListGroups(&gitlab.ListGroupsOptions{})
+	groups, _, err := gitlabClient.Groups.ListGroups(&gitlab.ListGroupsOptions{
+		ListOptions: ListOptions,
+	})
 	if err != nil {
 		s.syncErr(ctx, err)
 		return orgsT
@@ -161,7 +165,9 @@ func (s *AppStoreSync) syncGroupMembers(ctx context.Context, allOrgs map[string]
 		memberTable, found := members[role.Org]
 		if !found {
 			gname := util.GitlabGroupSanitize(role.Org)
-			memberlist, _, err := gitlabClient.Groups.ListGroupMembers(gname, &gitlab.ListGroupMembersOptions{})
+			memberlist, _, err := gitlabClient.Groups.ListGroupMembers(gname, &gitlab.ListGroupMembersOptions{
+				ListOptions: ListOptions,
+			})
 			if err != nil {
 				s.syncErr(ctx, err)
 				continue

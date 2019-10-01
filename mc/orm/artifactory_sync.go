@@ -19,8 +19,59 @@ func (s *AppStoreSync) syncArtifactoryObjects(ctx context.Context) {
 	// Refresh auth cache on sync
 	rtfAuth = nil
 
+	s.syncRtfUsers(ctx)
 	allOrgs := s.syncGroupObjects(ctx)
 	s.syncGroupUsers(ctx, allOrgs)
+}
+
+func (s *AppStoreSync) syncRtfUsers(ctx context.Context) {
+	// Get MC users
+	mcusers := []ormapi.User{}
+	db := loggedDB(ctx)
+	err := db.Find(&mcusers).Error
+	if err != nil {
+		s.syncErr(ctx, err)
+		return
+	}
+	mcusersT := make(map[string]*ormapi.User)
+	for ii, _ := range mcusers {
+		if mcusers[ii].Name == Superuser {
+			continue
+		}
+		// Store username is lowercase format as Artifactory stores it in lowercase
+		userName := getArtifactoryName(strings.ToLower(mcusers[ii].Name))
+		mcusersT[userName] = &mcusers[ii]
+	}
+
+	// Get Artifactory users
+	rtfUsers, err := artifactoryListUsers(ctx)
+	if err != nil {
+		s.syncErr(ctx, err)
+		return
+	}
+
+	// Create missing users
+	for name, user := range mcusersT {
+		if _, found := rtfUsers[name]; found {
+			// in sync
+			delete(rtfUsers, name)
+		} else {
+			// missing from Artifactory, so create
+			log.SpanLog(ctx, log.DebugLevelApi,
+				"Artifactory Sync create missing LDAP user",
+				"user", name)
+			artifactoryCreateUser(ctx, user)
+		}
+	}
+
+	// Delete extra users
+	for user, _ := range rtfUsers {
+		log.SpanLog(ctx, log.DebugLevelApi,
+			"Artifactory Sync delete extra user",
+			"name", user)
+		userName := strings.TrimPrefix(user, ArtifactoryPrefix)
+		artifactoryDeleteUser(ctx, userName)
+	}
 }
 
 func (s *AppStoreSync) syncGroupObjects(ctx context.Context) map[string]*ormapi.Organization {
@@ -129,31 +180,13 @@ func (s *AppStoreSync) syncGroupObjects(ctx context.Context) map[string]*ormapi.
 }
 
 func (s *AppStoreSync) syncGroupUsers(ctx context.Context, allOrgs map[string]*ormapi.Organization) {
-	// Get MC users
-	mcusers := []ormapi.User{}
-	db := loggedDB(ctx)
-	err := db.Find(&mcusers).Error
-	if err != nil {
-		s.syncErr(ctx, err)
-		return
-	}
-	mcusersT := make(map[string]*ormapi.User)
-	for ii, _ := range mcusers {
-		if mcusers[ii].Name == Superuser {
-			continue
-		}
-		// Store username is lowercase format as Artifactory stores it in lowercase
-		userName := getArtifactoryName(strings.ToLower(mcusers[ii].Name))
-		mcusersT[userName] = &mcusers[ii]
-	}
-
 	// Get MC group members info
 	groupings, err := enforcer.GetGroupingPolicy()
 	if err != nil {
 		s.syncErr(ctx, err)
 		return
 	}
-	groupMembers := make(map[string]map[string]*ormapi.Role)
+	mcGroupMembers := make(map[string]map[string]*ormapi.Role)
 	for ii, _ := range groupings {
 		role := parseRole(groupings[ii])
 		if role == nil || role.Org == "" {
@@ -162,84 +195,50 @@ func (s *AppStoreSync) syncGroupUsers(ctx context.Context, allOrgs map[string]*o
 		if org, ok := allOrgs[role.Org]; !ok || org.Type == OrgTypeOperator {
 			continue
 		}
-		userName := getArtifactoryName(strings.ToLower(role.Username))
-		orgName := getArtifactoryName(role.Org)
-		if _, ok := groupMembers[userName]; !ok {
-			groupMembers[userName] = map[string]*ormapi.Role{}
+		if role.Username == Superuser {
+			continue
 		}
-		groupMembers[userName][orgName] = role
-	}
-
-	// Get Artifactory users
-	rtfUsers, err := artifactoryListUsers(ctx)
-	if err != nil {
-		s.syncErr(ctx, err)
-		return
-	}
-
-	// Create missing users
-	for name, user := range mcusersT {
-		if _, found := rtfUsers[name]; found {
-			// in sync
-			delete(rtfUsers, name)
-		} else {
-			// missing from Artifactory, so create
-			log.SpanLog(ctx, log.DebugLevelApi,
-				"Artifactory Sync create missing LDAP user",
-				"user", name)
-			if groups, ok := groupMembers[name]; ok {
-				rtfGroups := []string{}
-				for group, _ := range groups {
-					rtfGroups = append(rtfGroups, group)
-				}
-				artifactoryCreateUser(ctx, user, &rtfGroups, allOrgs)
-			} else {
-				artifactoryCreateUser(ctx, user, nil, allOrgs)
-			}
+		orgName := role.Org
+		userName := strings.ToLower(role.Username)
+		if _, ok := mcGroupMembers[userName]; !ok {
+			mcGroupMembers[userName] = map[string]*ormapi.Role{}
 		}
+		mcGroupMembers[userName][orgName] = role
 	}
 
-	// Delete extra users
-	for user, _ := range rtfUsers {
-		log.SpanLog(ctx, log.DebugLevelApi,
-			"Artifactory Sync delete extra user",
-			"name", user)
-		userName := strings.TrimPrefix(user, ArtifactoryPrefix)
-		artifactoryDeleteUser(ctx, userName)
-	}
-
-	// Add missing roles
-	for name, _ := range mcusersT {
+	for mcUserName, mcUserRoles := range mcGroupMembers {
+		rtfUserName := getArtifactoryName(mcUserName)
 		// Get Artifactory roles
-		userName := strings.TrimPrefix(name, ArtifactoryPrefix)
-		rtfGroups, err := artifactoryListUserGroups(ctx, userName)
+		rtfGroups, err := artifactoryListUserGroups(ctx, mcUserName)
 		if err != nil {
 			s.syncErr(ctx, err)
 			return
 		}
-		for mcgroup, mcrole := range groupMembers[name] {
-			if _, ok := rtfGroups[mcgroup]; !ok {
+		for mcGroup, mcRole := range mcUserRoles {
+			rtfGroup := getArtifactoryName(mcGroup)
+			if _, ok := rtfGroups[rtfGroup]; !ok {
 				// Group not part of Artifactory user
 				// Add user to the group
 				log.SpanLog(ctx, log.DebugLevelApi,
 					"Artifactory Sync add missing user to group",
-					"user", name, "group", mcgroup,
-					"role", mcrole)
-				orgType := getOrgType(mcrole.Org, allOrgs)
-				artifactoryAddUserToGroup(ctx, mcrole, orgType)
+					"user", rtfUserName, "group", rtfGroup,
+					"role", mcRole)
+				orgType := getOrgType(mcRole.Org, allOrgs)
+				artifactoryAddUserToGroup(ctx, mcRole, orgType)
 			}
 		}
-		for rtfgroup, _ := range rtfGroups {
-			if _, ok := groupMembers[name][rtfgroup]; !ok {
+		for rtfGroup, _ := range rtfGroups {
+			mcGroup := strings.TrimPrefix(rtfGroup, ArtifactoryPrefix)
+			if _, ok := mcUserRoles[mcGroup]; !ok {
 				// User is part of extra group
 				// Remove user from the group
 				role := ormapi.Role{}
-				role.Username = strings.TrimPrefix(name, ArtifactoryPrefix)
-				role.Org = strings.TrimPrefix(rtfgroup, ArtifactoryPrefix)
+				role.Username = mcUserName
+				role.Org = mcGroup
 				orgType := getOrgType(role.Org, allOrgs)
 				log.SpanLog(ctx, log.DebugLevelApi,
 					"Artifactory Sync remove extra user from group",
-					"user", name, "group", rtfgroup,
+					"user", rtfUserName, "group", rtfGroup,
 					"role", role)
 				artifactoryRemoveUserFromGroup(ctx, &role, orgType)
 			}

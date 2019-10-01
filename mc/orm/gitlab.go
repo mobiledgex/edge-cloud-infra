@@ -42,6 +42,10 @@ EOS
 
 var LDAPProvider = "ldapmain"
 var DefaultProjectName = "images"
+var ListOptions = gitlab.ListOptions{
+	PerPage: 100000,
+	Page:    1,
+}
 
 func gitlabCreateLDAPUser(ctx context.Context, user *ormapi.User) {
 	dn := ldapdn{
@@ -209,7 +213,8 @@ func gitlabCreateProject(ctx context.Context, groupID int, name string) {
 
 func gitlabGetUser(username string) (*gitlab.User, error) {
 	opts := gitlab.ListUsersOptions{
-		Username: &username,
+		ListOptions: ListOptions,
+		Username:    &username,
 	}
 	users, _, err := gitlabClient.Users.ListUsers(&opts)
 	if err != nil {

@@ -76,10 +76,6 @@ func (s *Platform) Init(ctx context.Context, platformConfig *platform.PlatformCo
 	if err != nil {
 		return fmt.Errorf("unable to get Shared RootLB Flavor: %v", err)
 	}
-	updateCallback(edgeproto.UpdateTask, "Setting up RootLB")
-
-	log.SpanLog(ctx, log.DebugLevelMexos, "calling GetVMSpec", "flavorlist", s.flavorList)
-
 	vmspec, err := vmspec.GetVMSpec(s.flavorList, sharedRootLBFlavor)
 	if err != nil {
 		return fmt.Errorf("unable to find VM spec for Shared RootLB: %v", err)

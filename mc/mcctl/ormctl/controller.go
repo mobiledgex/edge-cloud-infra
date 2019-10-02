@@ -10,6 +10,7 @@ func GetControllerCommand() *cobra.Command {
 	cmds := []*cli.Command{&cli.Command{
 		Use:          "create",
 		RequiredArgs: "region address",
+		OptionalArgs: "influxdb",
 		ReqData:      &ormapi.Controller{},
 		Run:          runRest("/auth/controller/create"),
 	}, &cli.Command{
@@ -29,6 +30,8 @@ func GetRegionCommand() *cobra.Command {
 	cmds := []*cli.Command{}
 	cmds = append(cmds, FlavorApiCmds...)
 	cmds = append(cmds, CloudletApiCmds...)
+	cmds = append(cmds, CloudletPoolApiCmds...)
+	cmds = append(cmds, CloudletPoolMemberApiCmds...)
 	cmds = append(cmds, ClusterInstApiCmds...)
 	cmds = append(cmds, AppApiCmds...)
 	cmds = append(cmds, AppInstApiCmds...)

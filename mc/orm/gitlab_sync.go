@@ -190,11 +190,13 @@ func (s *AppStoreSync) syncGroupMembers(ctx context.Context, allOrgs map[string]
 			gname := util.GitlabGroupSanitize(role.Org)
 			// convert list to table for easier processing
 			memberTable = make(map[string]*gitlab.GroupMember)
+			foundErr := false
 			for {
 				memberlist, resp, err := gitlabClient.Groups.ListGroupMembers(gname, &mopts)
 				if err != nil {
 					s.syncErr(ctx, err)
-					continue
+					foundErr = true
+					break
 				}
 				for _, member := range memberlist {
 					memberTable[member.Username] = member
@@ -204,6 +206,9 @@ func (s *AppStoreSync) syncGroupMembers(ctx context.Context, allOrgs map[string]
 					break
 				}
 				mopts.Page = resp.NextPage
+			}
+			if foundErr {
+				continue
 			}
 			members[role.Org] = memberTable
 		}

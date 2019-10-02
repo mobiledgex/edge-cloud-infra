@@ -93,35 +93,40 @@ func getInfluxDBAddrForRegion(ctx context.Context, region string) (string, error
 
 // Query is a template with a specific set of if/else
 func AppInstMetricsQuery(obj *ormapi.RegionAppInstMetrics, selectorStr string) string {
-	arg := influxQueryArgs{
-		Selector:     selectorStr,
-		Measurement:  "appinst-" + obj.Selector,
-		AppInstName:  k8smgmt.NormalizeName(obj.AppInst.AppKey.Name),
-		CloudletName: obj.AppInst.ClusterInstKey.CloudletKey.Name,
-		ClusterName:  obj.AppInst.ClusterInstKey.ClusterKey.Name,
-		OperatorName: obj.AppInst.ClusterInstKey.CloudletKey.OperatorKey.Name,
-		Last:         obj.Last,
-	}
+	selectors := strings.Split(obj.Selector, ",")
+	queries := make([]string, 1)
+	for _, selector := range selectors {
+		arg := influxQueryArgs{
+			Selector:     selectorStr,
+			Measurement:  "appinst-" + selector,
+			AppInstName:  k8smgmt.NormalizeName(obj.AppInst.AppKey.Name),
+			CloudletName: obj.AppInst.ClusterInstKey.CloudletKey.Name,
+			ClusterName:  obj.AppInst.ClusterInstKey.ClusterKey.Name,
+			OperatorName: obj.AppInst.ClusterInstKey.CloudletKey.OperatorKey.Name,
+			Last:         obj.Last,
+		}
 
-	// Figure out the start/end time range for the query
-	if !obj.StartTime.IsZero() {
-		buf, err := obj.StartTime.MarshalText()
-		if err == nil {
-			arg.StartTime = string(buf)
+		// Figure out the start/end time range for the query
+		if !obj.StartTime.IsZero() {
+			buf, err := obj.StartTime.MarshalText()
+			if err == nil {
+				arg.StartTime = string(buf)
+			}
 		}
-	}
-	if !obj.EndTime.IsZero() {
-		buf, err := obj.EndTime.MarshalText()
-		if err == nil {
-			arg.EndTime = string(buf)
+		if !obj.EndTime.IsZero() {
+			buf, err := obj.EndTime.MarshalText()
+			if err == nil {
+				arg.EndTime = string(buf)
+			}
 		}
+		// now that we know all the details of the query - build it
+		buf := bytes.Buffer{}
+		if err := influxDBTemplate.Execute(&buf, &arg); err != nil {
+			return ""
+		}
+		queries = append(queries, buf.String())
 	}
-	// now that we know all the details of the query - build it
-	buf := bytes.Buffer{}
-	if err := influxDBTemplate.Execute(&buf, &arg); err != nil {
-		return ""
-	}
-	return buf.String()
+	return strings.Join(queries, ";")
 }
 
 // Query is a template with a specific set of if/else
@@ -228,47 +233,62 @@ func metricsStream(ctx context.Context, rc *InfluxDBContext, dbQuery string, cb 
 // TODO: check for specific strings for now.
 //       Right now we don't support "*", or multiple selectors - EDGECLOUD-940
 func parseClusterSelectorString(selector string) (string, error) {
-	switch selector {
-	case "cpu":
-		fallthrough
-	case "mem":
-		fallthrough
-	case "disk":
-		fallthrough
-	case "network":
-		fallthrough
-	case "tcp":
-		fallthrough
-	case "udp":
-		return "*", nil
+	selectors := strings.Split(selector, ",")
+	for _, s := range selectors {
+		switch s {
+		case "cpu":
+			fallthrough
+		case "mem":
+			fallthrough
+		case "disk":
+			fallthrough
+		case "network":
+			fallthrough
+		case "tcp":
+			fallthrough
+		case "udp":
+			continue
+		default:
+			return "", fmt.Errorf("Invalid selector in a request")
+		}
 	}
-	return "", fmt.Errorf("Invalid selector in a request")
+	return "*", nil
 }
 
 func parseAppSelectorString(selector string) (string, error) {
-	switch selector {
-	case "cpu":
-		fallthrough
-	case "mem":
-		fallthrough
-	case "disk":
-		fallthrough
-	case "network":
-		fallthrough
-	case "connections":
-		return "*", nil
+	selectors := strings.Split(selector, ",")
+	for _, s := range selectors {
+		switch s {
+		case "cpu":
+			fallthrough
+		case "mem":
+			fallthrough
+		case "disk":
+			fallthrough
+		case "network":
+			fallthrough
+		case "connections":
+			continue
+		default:
+			return "", fmt.Errorf("Invalid selector in a request")
+		}
 	}
-	return "", fmt.Errorf("Invalid selector in a request")
+	return "*", nil
 }
 
 func parseCloudletSelectorString(selector string) (string, error) {
-	switch selector {
-	case "utilization":
-		fallthrough
-	case "network":
-		return "*", nil
+	selectors := strings.Split(selector, ",")
+	for _, s := range selectors {
+		switch s {
+		case "utilization":
+			fallthrough
+		case "network":
+			continue
+		default:
+			return "", fmt.Errorf("Invalid selector in a request")
+		}
 	}
-	return "", fmt.Errorf("Invalid selector in a request")
+	return "*", nil
 }
 
 // Common method to handle both app and cluster metrics

@@ -35,7 +35,6 @@ func (s *AppStoreSync) syncUsers(ctx context.Context) {
 	opts := gitlab.ListUsersOptions{
 		ListOptions: ListOptions,
 	}
-	log.SpanLog(ctx, log.DebugLevelApi, "Gitlab Sync list users")
 	gusersT := make(map[string]*gitlab.User)
 	for {
 		gusers, resp, err := gitlabClient.Users.ListUsers(&opts)
@@ -64,6 +63,7 @@ func (s *AppStoreSync) syncUsers(ctx context.Context) {
 	for ii, _ := range mcusers {
 		mcusersT[mcusers[ii].Name] = &mcusers[ii]
 	}
+	log.SpanLog(ctx, log.DebugLevelApi, "Gitlab sync users", "gitlab users", len(gusersT), "mc users", len(mcusersT))
 
 	for name, user := range mcusersT {
 		if _, found := gusersT[name]; found {
@@ -128,6 +128,7 @@ func (s *AppStoreSync) syncGroups(ctx context.Context) map[string]*ormapi.Organi
 		}
 		opts.Page = resp.NextPage
 	}
+	log.SpanLog(ctx, log.DebugLevelApi, "Gitlab sync groups", "gitlab groups", len(groupsT), "mc groups", len(orgsT))
 	for name, org := range orgsT {
 		if org.Type == OrgTypeOperator {
 			continue

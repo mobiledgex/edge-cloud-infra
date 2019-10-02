@@ -49,6 +49,7 @@ func (s *AppStoreSync) syncRtfUsers(ctx context.Context) {
 		s.syncErr(ctx, err)
 		return
 	}
+	log.SpanLog(ctx, log.DebugLevelApi, "artifactory sync users", "artifactory users", len(rtfUsers), "mc users", len(mcusersT))
 
 	// Create missing users
 	for name, user := range mcusersT {
@@ -99,6 +100,7 @@ func (s *AppStoreSync) syncGroupObjects(ctx context.Context) map[string]*ormapi.
 		s.syncErr(ctx, err)
 		return orgsT
 	}
+	log.SpanLog(ctx, log.DebugLevelApi, "artifactory sync group objs", "artifactory groups", len(groups), "mc groups", len(orgsT))
 
 	// Create missing objects
 	for orgname, org := range orgsT {

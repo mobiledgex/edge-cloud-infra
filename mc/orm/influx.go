@@ -233,6 +233,9 @@ func metricsStream(ctx context.Context, rc *InfluxDBContext, dbQuery string, cb 
 // TODO: check for specific strings for now.
 //       Right now we don't support "*", or multiple selectors - EDGECLOUD-940
 func parseClusterSelectorString(selector string) (string, error) {
+	if selector == "*" {
+		return "*", nil
+	}
 	selectors := strings.Split(selector, ",")
 	for _, s := range selectors {
 		switch s {
@@ -256,6 +259,9 @@ func parseClusterSelectorString(selector string) (string, error) {
 }
 
 func parseAppSelectorString(selector string) (string, error) {
+	if selector == "*" {
+		return "*", nil
+	}
 	selectors := strings.Split(selector, ",")
 	for _, s := range selectors {
 		switch s {
@@ -277,6 +283,9 @@ func parseAppSelectorString(selector string) (string, error) {
 }
 
 func parseCloudletSelectorString(selector string) (string, error) {
+	if selector == "*" {
+		return "*", nil
+	}
 	selectors := strings.Split(selector, ",")
 	for _, s := range selectors {
 		switch s {

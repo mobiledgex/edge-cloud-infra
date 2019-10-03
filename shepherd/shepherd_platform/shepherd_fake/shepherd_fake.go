@@ -22,6 +22,7 @@ func (s *Platform) GetType() string {
 
 func (s *Platform) Init(ctx context.Context, key *edgeproto.CloudletKey, physicalName, vaultAddr string) error {
 	s.promStarted = false
+	// maybe move this to the e2e-test program itself to start it when controller and everything else gets started?
 	go exporter.StartExporter(ctx)
 	return nil
 }

@@ -32,6 +32,7 @@ type Organization struct {
 	AdminUsername string    `gorm:"type:text;type:citext REFERENCES users(name)"`
 	CreatedAt     time.Time `json:",omitempty"`
 	UpdatedAt     time.Time `json:",omitempty"`
+	PublicImages  bool      `json:",omitempty"`
 }
 
 type Controller struct {

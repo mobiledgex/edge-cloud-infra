@@ -7,6 +7,7 @@ import (
 	"strings"
 
 	"github.com/labstack/echo"
+	"github.com/mobiledgex/edge-cloud-infra/mc/ormapi"
 	"github.com/mobiledgex/edge-cloud/edgeproto"
 )
 
@@ -61,6 +62,19 @@ func checkImagePath(ctx context.Context, obj *edgeproto.App) error {
 		return fmt.Errorf("Empty URL path in ImagePath")
 	}
 	targetOrg := pathNames[0]
+
+	lookup := ormapi.Organization{}
+	lookup.Name = targetOrg
+	db := loggedDB(ctx)
+	err = db.Where(&lookup).First(&lookup).Error
+	if err != nil {
+		return err
+	}
+	if lookup.PublicImages {
+		// all images in target org are public
+		return nil
+	}
+
 	if strings.ToLower(targetOrg) != strings.ToLower(obj.Key.DeveloperKey.Name) {
 		return fmt.Errorf("ImagePath for %s registry using organization '%s' does not match App developer name '%s', must match", dns, targetOrg, obj.Key.DeveloperKey.Name)
 	}

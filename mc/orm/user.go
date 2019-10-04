@@ -258,6 +258,37 @@ func DeleteUser(c echo.Context) error {
 	if err != nil {
 		return dbErr(err)
 	}
+	// check role mappings first before deleting
+	// need to make sure we are not deleting the last manager from an org or deleting the last AdminManager
+	managerCounts := make(map[string]int)
+	var userOrgs []string // orgs for which the user is a manager of
+	for _, grp := range groups {
+		if len(grp) < 2 {
+			continue
+		}
+		strs := strings.Split(grp[0], "::")
+		if grp[1] == RoleAdminManager {
+			managerCounts[RoleAdminManager] = managerCounts[RoleAdminManager] + 1
+			if grp[0] == user.Name {
+				userOrgs = append(userOrgs, RoleAdminManager)
+			}
+		} else if len(strs) == 2 && (grp[1] == RoleDeveloperManager || grp[1] == RoleOperatorManager) {
+			managerCounts[strs[0]] = managerCounts[strs[0]] + 1
+			if strs[1] == user.Name {
+				userOrgs = append(userOrgs, strs[0])
+			}
+		}
+	}
+	for _, org := range userOrgs {
+		if managerCounts[org] < 2 {
+			if org == RoleAdminManager {
+				err = fmt.Errorf("Error: Cannot delete the last remaining %s", org)
+			} else {
+				err = fmt.Errorf("Error: Cannot delete the last remaining manager for the org %s", org)
+			}
+			return setReply(c, err, nil)
+		}
+	}
 	for _, grp := range groups {
 		if len(grp) < 2 {
 			continue

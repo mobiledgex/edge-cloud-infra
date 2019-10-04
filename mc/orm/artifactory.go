@@ -74,10 +74,6 @@ func artifactoryListUsers(ctx context.Context) (map[string]struct{}, error) {
 	tmp := make(map[string]struct{})
 	for _, user := range *users {
 		userName := *user.Name
-		if *user.Realm == "ldap" && userName != "admin" {
-			tmp[userName] = struct{}{}
-			continue
-		}
 		userInfo, _, err := client.V1.Security.GetUser(context.Background(), userName)
 		if err == nil && *userInfo.InternalPasswordDisabled {
 			tmp[userName] = struct{}{}

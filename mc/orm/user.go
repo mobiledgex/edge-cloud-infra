@@ -267,22 +267,23 @@ func DeleteUser(c echo.Context) error {
 			continue
 		}
 		strs := strings.Split(grp[0], "::")
-		if grp[1] == RoleAdminManager {
-			managerCounts[RoleAdminManager] = managerCounts[RoleAdminManager] + 1
-			if grp[0] == user.Name {
-				userOrgs = append(userOrgs, RoleAdminManager)
+		if grp[1] == RoleAdminManager || grp[1] == RoleDeveloperManager || grp[1] == RoleOperatorManager {
+			org := ""
+			username := grp[0]
+			if len(strs) == 2 {
+				org = strs[0]
+				username = strs[1]
 			}
-		} else if len(strs) == 2 && (grp[1] == RoleDeveloperManager || grp[1] == RoleOperatorManager) {
-			managerCounts[strs[0]] = managerCounts[strs[0]] + 1
-			if strs[1] == user.Name {
-				userOrgs = append(userOrgs, strs[0])
+			managerCounts[org] = managerCounts[org] + 1
+			if username == user.Name {
+				userOrgs = append(userOrgs, org)
 			}
 		}
 	}
 	for _, org := range userOrgs {
 		if managerCounts[org] < 2 {
-			if org == RoleAdminManager {
-				err = fmt.Errorf("Error: Cannot delete the last remaining %s", org)
+			if org == "" {
+				err = fmt.Errorf("Error: Cannot delete the last remaining AdminManager")
 			} else {
 				err = fmt.Errorf("Error: Cannot delete the last remaining manager for the org %s", org)
 			}

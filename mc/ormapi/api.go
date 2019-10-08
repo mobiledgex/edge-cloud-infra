@@ -166,6 +166,17 @@ type RegionData struct {
 }
 
 // Metrics data
+type AllMetrics struct {
+	Data []struct {
+		Messages interface{} `json:"Messages"`
+		Series   []struct {
+			Columns []string        `json:"columns"`
+			Name    string          `json:"name"`
+			Values  [][]interface{} `json:"values"`
+		} `json:"Series"`
+	} `json:"data"`
+}
+
 type RegionAppInstMetrics struct {
 	Region    string
 	AppInst   edgeproto.AppInstKey

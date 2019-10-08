@@ -121,6 +121,12 @@ func runMcDataAPI(api, uri, apiFile, curUserFile, outputDir string, mods []strin
 		return rc
 	}
 
+	if api == "showmetrics" {
+		// the sep case will make individual calls to mc api for each metric
+		showMetrics := showMcMetrics(uri, token, &rc)
+		util.PrintToYamlFile("show-commands.yml", outputDir, showMetrics, true)
+	}
+
 	if apiFile == "" {
 		log.Println("Error: Cannot run MC data APIs without API file")
 		return false
@@ -220,6 +226,25 @@ func showMcDataAll(uri, token string, rc *bool) *ormapi.AllData {
 	showData, status, err := mcClient.ShowData(uri, token)
 	checkMcErr("ShowData", status, err, rc)
 	return showData
+}
+
+//for now only get netstat metrics until i figure out the exporter formatting problem
+func showMcMetrics(uri, token string, rc *bool) *ormapi.AllMetrics {
+	//appMetrics, status, err := mcClient.ShowAppMetrics(uri, token)
+	//checkMcErr("ShowAppMetrics", status, err, rc)
+	clusterQuery := ormapi.RegionClusterInstMetrics{
+		Region: "local",
+		ClusterInst: edgeproto.ClusterInstKey{ //change this to pull clusterkey from the yml file
+			ClusterKey: edgpeproto.ClusterKey{Name: "SmallCluster"}
+			CloudletKey: edgeproto.CloudletKey{OperatorKey: edgeproto.OperatorKey{name:"tmus"}, Name: "tmus-cloud-1"},
+			developer: "AcmeAppCo",
+		},
+		Selector: "tcp,udp",
+		Last: 1,
+	}
+	clusterMetrics, status, err := mcClient.ShowClusterMetrics(uri, token, clusterQuery)
+	checkMcErr("ShowClusterMetrics", status, err, rc)
+	return appMetrics
 }
 
 func createMcDataAll(uri, token string, data *ormapi.AllData, rc *bool) {

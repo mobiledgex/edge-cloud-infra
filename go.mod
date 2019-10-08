@@ -46,6 +46,7 @@ require (
 	github.com/moul/http2curl v1.0.0 // indirect
 	github.com/nmcclain/asn1-ber v0.0.0-20170104154839-2661553a0484
 	github.com/nmcclain/ldap v0.0.0-20160601145537-6e14e8271933
+	github.com/opentracing/opentracing-go v1.1.0
 	github.com/parnurzeal/gorequest v0.2.15
 	github.com/peterbourgon/diskv v2.0.1+incompatible // indirect
 	github.com/pion/webrtc/v2 v2.0.24
@@ -263,7 +264,7 @@ replace go.uber.org/multierr => go.uber.org/multierr v1.1.0
 
 replace go.uber.org/zap => go.uber.org/zap v1.10.0
 
-replace golang.org/x/crypto => golang.org/x/crypto v0.0.0-20190404164418-38d8ce5564a5
+replace golang.org/x/crypto => golang.org/x/crypto v0.0.0-20190426145343-a29dc8fdc734
 
 replace golang.org/x/oauth2 => golang.org/x/oauth2 v0.0.0-20190226205417-e64efc72b421
 
@@ -328,3 +329,5 @@ replace github.com/uber-go/atomic => github.com/uber-go/atomic v1.4.0
 replace go.uber.org/atomic => go.uber.org/atomic v1.4.0
 
 replace gopkg.in/check.v1 => gopkg.in/check.v1 v1.0.0-20180628173108-788fd7840127
+
+replace github.com/xtaci/smux => github.com/xtaci/smux v1.3.6

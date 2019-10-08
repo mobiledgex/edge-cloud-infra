@@ -59,7 +59,9 @@ func CreateOrgObj(ctx context.Context, claims *UserClaims, org *ormapi.Organizat
 	if org.Phone == "" {
 		return fmt.Errorf("Phone number not specified")
 	}
-	org.AdminUsername = claims.Username
+	if strings.ToLower(claims.Username) == strings.ToLower(org.Name) {
+		return fmt.Errorf("org name cannot be same as existing user name")
+	}
 	db := loggedDB(ctx)
 	err = db.Create(&org).Error
 	if err != nil {

@@ -25,14 +25,13 @@ type User struct {
 }
 
 type Organization struct {
-	Name          string `gorm:"primary_key;type:citext"`
-	Type          string `gorm:"not null"`
-	Address       string
-	Phone         string
-	AdminUsername string    `gorm:"type:text;type:citext REFERENCES users(name)"`
-	CreatedAt     time.Time `json:",omitempty"`
-	UpdatedAt     time.Time `json:",omitempty"`
-	PublicImages  bool      `json:",omitempty"`
+	Name         string `gorm:"primary_key;type:citext"`
+	Type         string `gorm:"not null"`
+	Address      string
+	Phone        string
+	CreatedAt    time.Time `json:",omitempty"`
+	UpdatedAt    time.Time `json:",omitempty"`
+	PublicImages bool      `json:",omitempty"`
 }
 
 type Controller struct {

@@ -171,7 +171,7 @@ func CreateUser(c echo.Context) error {
 	}
 
 	gitlabCreateLDAPUser(ctx, &user)
-	artifactoryCreateUser(ctx, &user, nil, nil)
+	artifactoryCreateUser(ctx, &user)
 
 	if user.Locked {
 		msg := fmt.Sprintf("Locked account created for user %s, email %s", user.Name, user.Email)
@@ -257,6 +257,38 @@ func DeleteUser(c echo.Context) error {
 	groups, err := enforcer.GetGroupingPolicy()
 	if err != nil {
 		return dbErr(err)
+	}
+	// check role mappings first before deleting
+	// need to make sure we are not deleting the last manager from an org or deleting the last AdminManager
+	managerCounts := make(map[string]int)
+	var userOrgs []string // orgs for which the user is a manager of
+	for _, grp := range groups {
+		if len(grp) < 2 {
+			continue
+		}
+		strs := strings.Split(grp[0], "::")
+		if grp[1] == RoleAdminManager || grp[1] == RoleDeveloperManager || grp[1] == RoleOperatorManager {
+			org := ""
+			username := grp[0]
+			if len(strs) == 2 {
+				org = strs[0]
+				username = strs[1]
+			}
+			managerCounts[org] = managerCounts[org] + 1
+			if username == user.Name {
+				userOrgs = append(userOrgs, org)
+			}
+		}
+	}
+	for _, org := range userOrgs {
+		if managerCounts[org] < 2 {
+			if org == "" {
+				err = fmt.Errorf("Error: Cannot delete the last remaining AdminManager")
+			} else {
+				err = fmt.Errorf("Error: Cannot delete the last remaining manager for the org %s", org)
+			}
+			return setReply(c, err, nil)
+		}
 	}
 	for _, grp := range groups {
 		if len(grp) < 2 {

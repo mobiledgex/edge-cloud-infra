@@ -252,9 +252,14 @@ func DeleteServer(ctx context.Context, id string) error {
 }
 
 // CreateNetwork creates a network with a name.
-func CreateNetwork(ctx context.Context, name string) error {
+func CreateNetwork(ctx context.Context, name string, netType string) error {
 	log.SpanLog(ctx, log.DebugLevelMexos, "creating network", "network", name)
-	out, err := TimedOpenStackCommand(ctx, "openstack", "network", "create", name)
+	args := []string{"network", "create"}
+	if netType != "" {
+		args = append(args, []string{"--provider-network-type", netType}...)
+	}
+	args = append(args, name)
+	out, err := TimedOpenStackCommand(ctx, "openstack", args...)
 	if err != nil {
 		err = fmt.Errorf("can't create network %s, %s, %v", name, out, err)
 		return err

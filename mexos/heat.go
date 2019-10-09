@@ -72,7 +72,7 @@ var vmTemplateResources = `
       properties:
          name: {{.VMName}}-vol
          image: {{.ImageName}}
-         size: 40
+         size: {{.ExternalVolumeSize}}
   {{- end }}
    {{.VMName}}:
       type: OS::Nova::Server
@@ -177,20 +177,22 @@ type ClusterNode struct {
 
 // ClusterParams has the info needed to populate the heat template
 type ClusterParams struct {
-	NodeFlavor         string
-	ExternalVolumeSize uint64
-	ImageName          string
-	SecurityGroup      string
-	MEXRouterName      string
-	MEXNetworkName     string
-	VnicType           string
-	ClusterName        string
-	CIDR               string
-	GatewayIP          string
-	MasterIP           string
-	DNSServers         []string
-	Nodes              []ClusterNode
-	*VMParams          //rootlb
+	NodeFlavor            string
+	ExternalVolumeSize    uint64
+	ImageName             string
+	SecurityGroup         string
+	MEXRouterName         string
+	MEXNetworkName        string
+	VnicType              string
+	ClusterName           string
+	CIDR                  string
+	GatewayIP             string
+	MasterIP              string
+	RootLBConnectToSubnet string
+	NetworkType           string
+	DNSServers            []string
+	Nodes                 []ClusterNode
+	*VMParams             //rootlb
 }
 
 var k8sClusterTemplate = `
@@ -211,6 +213,18 @@ resources:
        {{end}}
         name: 
            mex-k8s-subnet-{{.ClusterName}}
+  {{if .RootLBConnectToSubnet}}
+   rootlb-port:
+      type: OS::Neutron::Port
+      properties:
+         name: {{.RootLBConnectToSubnet}}-{{.ClusterName}}-port
+         network_id: mex-k8s-net-1
+         fixed_ips:
+          - subnet: { get_resource: k8s-subnet}
+            ip_address: {{.GatewayIP}}
+         security_groups:
+          - {{$.SecurityGroup}}
+  {{- end}}
   {{if .MEXRouterName}}
    router-port:
        type: OS::Neutron::Port
@@ -248,7 +262,7 @@ resources:
       properties:
          name: k8s-master-{{.ClusterName}}-vol
          image: {{.ImageName}}
-         size: 40
+         size: {{.ExternalVolumeSize}}
   {{- end}}
    k8s_master:
       type: OS::Nova::Server
@@ -517,7 +531,7 @@ func HeatDeleteStack(ctx context.Context, stackName string) error {
 }
 
 //GetClusterParams fills template parameters for the cluster.  A non blank rootLBName will add a rootlb VM
-func getClusterParams(ctx context.Context, clusterInst *edgeproto.ClusterInst, rootLBName string, action string) (*ClusterParams, error) {
+func getClusterParams(ctx context.Context, clusterInst *edgeproto.ClusterInst, rootLBName string, dedicatedRootLB bool, action string) (*ClusterParams, error) {
 	log.SpanLog(ctx, log.DebugLevelMexos, "getClusterParams", "cluster", clusterInst, "action", action)
 
 	var cp ClusterParams
@@ -526,8 +540,11 @@ func getClusterParams(ctx context.Context, clusterInst *edgeproto.ClusterInst, r
 	if err != nil {
 		return nil, err
 	}
+	cp.NetworkType = ni.NetworkType
+
 	cp.VnicType = ni.VnicType
-	if rootLBName != "" {
+	// dedicated rootLB requires a rootLB VM to be created in the stack
+	if dedicatedRootLB {
 		cp.VMParams, err = GetVMParams(ctx,
 			RootLBVMDeployment,
 			rootLBName,
@@ -546,7 +563,13 @@ func getClusterParams(ctx context.Context, clusterInst *edgeproto.ClusterInst, r
 	}
 	cp.ClusterName = k8smgmt.GetK8sNodeNameSuffix(&clusterInst.Key)
 	rtr := GetCloudletExternalRouter()
-	if rtr != NoConfigExternalRouter {
+	if rtr == NoConfigExternalRouter {
+		log.SpanLog(ctx, log.DebugLevelMexos, "NoConfigExternalRouter in use for cluster, create cluster stack without adding router interfaces")
+	} else if rtr == NoExternalRouter {
+		log.SpanLog(ctx, log.DebugLevelMexos, "NoExternalRouter in use for cluster, will create cluster stack with rootlb connected to subnet")
+		cp.RootLBConnectToSubnet = rootLBName
+	} else {
+		log.SpanLog(ctx, log.DebugLevelMexos, "External router in use for cluster, will create cluster stack with router interfaces")
 		cp.MEXRouterName = rtr
 	}
 	cp.MEXNetworkName = GetCloudletMexNetwork()
@@ -635,7 +658,7 @@ func HeatCreateRootLBVM(ctx context.Context, serverName string, stackName string
 }
 
 // HeatCreateClusterKubernetes creates a k8s cluster which may optionally include a dedicated root LB
-func HeatCreateClusterKubernetes(ctx context.Context, clusterInst *edgeproto.ClusterInst, dedicatedRootLBName string, updateCallback edgeproto.CacheUpdateCallback) error {
+func HeatCreateClusterKubernetes(ctx context.Context, clusterInst *edgeproto.ClusterInst, rootLBName string, dedicatedRootLB bool, updateCallback edgeproto.CacheUpdateCallback) error {
 
 	log.SpanLog(ctx, log.DebugLevelMexos, "HeatCreateClusterKubernetes", "clusterInst", clusterInst)
 	// It is problematic to create 2 clusters at the exact same time because we will look for available subnet CIDRS when
@@ -646,14 +669,14 @@ func HeatCreateClusterKubernetes(ctx context.Context, clusterInst *edgeproto.Clu
 	heatStackLock.Lock()
 	defer heatStackLock.Unlock()
 
-	cp, err := getClusterParams(ctx, clusterInst, dedicatedRootLBName, heatCreate)
+	cp, err := getClusterParams(ctx, clusterInst, rootLBName, dedicatedRootLB, heatCreate)
 	if err != nil {
 		return err
 	}
 
 	templateString := k8sClusterTemplate
-	//append the VM resources for the rootLB is specified
-	if dedicatedRootLBName != "" {
+	//append the VM resources for the rootLB is dedicated
+	if dedicatedRootLB {
 		templateString += vmTemplateResources
 	}
 	err = CreateHeatStackFromTemplate(ctx, cp, cp.ClusterName, templateString, updateCallback)
@@ -661,11 +684,11 @@ func HeatCreateClusterKubernetes(ctx context.Context, clusterInst *edgeproto.Clu
 }
 
 // HeatUpdateClusterKubernetes creates a k8s cluster which may optionally include a dedicated root LB
-func HeatUpdateClusterKubernetes(ctx context.Context, clusterInst *edgeproto.ClusterInst, dedicatedRootLBName string, updateCallback edgeproto.CacheUpdateCallback) error {
+func HeatUpdateClusterKubernetes(ctx context.Context, clusterInst *edgeproto.ClusterInst, dedicatedRootLBName string, dedicatedRootLB bool, updateCallback edgeproto.CacheUpdateCallback) error {
 
 	log.SpanLog(ctx, log.DebugLevelMexos, "HeatUpdateClusterKubernetes", "clusterInst", clusterInst)
 
-	cp, err := getClusterParams(ctx, clusterInst, dedicatedRootLBName, heatUpdate)
+	cp, err := getClusterParams(ctx, clusterInst, dedicatedRootLBName, dedicatedRootLB, heatUpdate)
 	if err != nil {
 		return err
 	}

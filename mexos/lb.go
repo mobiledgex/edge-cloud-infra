@@ -23,17 +23,24 @@ func LBAddRouteAndSecRules(ctx context.Context, client pc.PlatformClient, rootLB
 		log.SpanLog(ctx, log.DebugLevelMexos, "No route changes needed due to floating IP")
 		return nil
 	}
+	if ni.NetworkType == NetworkTypeVLAN {
+		log.SpanLog(ctx, log.DebugLevelMexos, "No route changes needed for VLAN networks")
+		// TODO: iptables stuff
+		return nil
+	}
 	if rootLBName == "" {
 		return fmt.Errorf("empty rootLB")
 	}
+
 	//TODO: this may not be necessary, as instead we can allow group to remote group rules
 	// add to the /16 range for all the possible subnets
 	subnet := fmt.Sprintf("%s.%s.0.0/16", ni.Octets[0], ni.Octets[1])
 	subnetNomask := fmt.Sprintf("%s.%s.0.0", ni.Octets[0], ni.Octets[1])
 	mask := "255.255.0.0"
 
+	rtr := GetCloudletExternalRouter()
 	gatewayIP := ni.RouterGatewayIP
-	if gatewayIP == "" {
+	if gatewayIP == "" && rtr != NoConfigExternalRouter && rtr != NoExternalRouter {
 		rd, err := GetRouterDetail(ctx, GetCloudletExternalRouter())
 		if err != nil {
 			return err
@@ -50,36 +57,37 @@ func LBAddRouteAndSecRules(ctx context.Context, client pc.PlatformClient, rootLB
 		}
 		gatewayIP = fip[0].IPAddress
 	}
-	//TODO: remote the hardcoded device name here; it should not be needed anyway
-	cmd := fmt.Sprintf("sudo ip route add %s via %s dev ens3", subnet, gatewayIP)
-	if err != nil {
-		return err
-	}
-
-	out, err := client.Output(cmd)
-	if err != nil {
-		if strings.Contains(out, "RTNETLINK") && strings.Contains(out, " exists") {
-			log.SpanLog(ctx, log.DebugLevelMexos, "warning, can't add existing route to rootLB", "cmd", cmd, "out", out, "error", err)
-		} else {
-			return fmt.Errorf("can't add route to rootlb, %s, %s, %v", cmd, out, err)
+	if gatewayIP != "" {
+		cmd := fmt.Sprintf("sudo ip route add %s via %s", subnet, gatewayIP)
+		if err != nil {
+			return err
 		}
-	}
 
-	// make the route persist by adding the following line if not already present via grep.
-	routeAddLine := fmt.Sprintf("up route add -net %s netmask %s gw %s", subnetNomask, mask, gatewayIP)
-	interfacesFile := "/etc/network/interfaces.d/50-cloud-init.cfg"
-	cmd = fmt.Sprintf("grep -l '%s' %s", routeAddLine, interfacesFile)
-	out, err = client.Output(cmd)
-	if err != nil {
-		// grep failed so not there already
-		log.SpanLog(ctx, log.DebugLevelMexos, "adding route to interfaces file", "route", routeAddLine, "file", interfacesFile)
-		cmd = fmt.Sprintf("echo '%s'|sudo tee -a %s", routeAddLine, interfacesFile)
+		out, err := client.Output(cmd)
+		if err != nil {
+			if strings.Contains(out, "RTNETLINK") && strings.Contains(out, " exists") {
+				log.SpanLog(ctx, log.DebugLevelMexos, "warning, can't add existing route to rootLB", "cmd", cmd, "out", out, "error", err)
+			} else {
+				return fmt.Errorf("can't add route to rootlb, %s, %s, %v", cmd, out, err)
+			}
+		}
+
+		// make the route persist by adding the following line if not already present via grep.
+		routeAddLine := fmt.Sprintf("up route add -net %s netmask %s gw %s", subnetNomask, mask, gatewayIP)
+		interfacesFile := "/etc/network/interfaces.d/50-cloud-init.cfg"
+		cmd = fmt.Sprintf("grep -l '%s' %s", routeAddLine, interfacesFile)
 		out, err = client.Output(cmd)
 		if err != nil {
-			return fmt.Errorf("can't add route to interfaces file: %v", err)
+			// grep failed so not there already
+			log.SpanLog(ctx, log.DebugLevelMexos, "adding route to interfaces file", "route", routeAddLine, "file", interfacesFile)
+			cmd = fmt.Sprintf("echo '%s'|sudo tee -a %s", routeAddLine, interfacesFile)
+			out, err = client.Output(cmd)
+			if err != nil {
+				return fmt.Errorf("can't add route to interfaces file: %v", err)
+			}
+		} else {
+			log.SpanLog(ctx, log.DebugLevelMexos, "route already present in interfaces file")
 		}
-	} else {
-		log.SpanLog(ctx, log.DebugLevelMexos, "route already present in interfaces file")
 	}
 
 	// open the firewall for internal traffic

@@ -12,6 +12,6 @@ influxdb.internal.mobiledgex.net
 vouch.mobiledgex.net
 
 [jaeger]
-jaeger.mobiledgex.net
+jaeger.mobiledgex.net		es_instance=main
 jaeger-dev.mobiledgex.net	nginx_config_filename=jaeger jaeger_ui_port=8443
 jaeger-qa.mobiledgex.net	nginx_config_filename=jaeger jaeger_ui_port=8443

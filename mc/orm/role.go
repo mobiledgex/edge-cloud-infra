@@ -305,6 +305,20 @@ func AddUserRoleObj(ctx context.Context, claims *UserClaims, role *ormapi.Role) 
 			return fmt.Errorf("Can only assign operator roles for operator organization")
 		}
 		orgType = org.Type
+
+		groupings, err := enforcer.GetGroupingPolicy()
+		if err != nil {
+			return dbErr(err)
+		}
+		for ii, _ := range groupings {
+			existingRole := parseRole(groupings[ii])
+			if existingRole == nil {
+				continue
+			}
+			if existingRole.Org == role.Org && existingRole.Username == role.Username {
+				return fmt.Errorf("User is already associated with a role")
+			}
+		}
 	}
 
 	// make sure caller has perms to modify users of target org

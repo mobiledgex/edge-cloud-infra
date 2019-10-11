@@ -4,7 +4,6 @@ import (
 	"context"
 
 	"github.com/mobiledgex/edge-cloud-infra/shepherd/shepherd_common"
-
 	"github.com/mobiledgex/edge-cloud/cloud-resource-manager/platform/pc"
 	"github.com/mobiledgex/edge-cloud/edgeproto"
 	"github.com/mobiledgex/edge-cloud/log"

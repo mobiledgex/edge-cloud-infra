@@ -315,8 +315,12 @@ func AddUserRoleObj(ctx context.Context, claims *UserClaims, role *ormapi.Role) 
 			if existingRole == nil {
 				continue
 			}
+			// avoid gitlab error of member already exists if multiple roles are assigned to the same org
 			if existingRole.Org == role.Org && existingRole.Username == role.Username {
-				return fmt.Errorf("User is already associated with a role")
+				return fmt.Errorf(
+					"User already has a role %s for org %s, please remove existing role first",
+					existingRole.Role, existingRole.Org,
+				)
 			}
 		}
 	}

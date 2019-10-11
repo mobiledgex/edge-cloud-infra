@@ -1,10 +1,57 @@
 ---
-- name: Deploy jaeger
+- name: Deploy all-in-one jaeger
   docker_container:
     name: jaeger
     image: "{{ jaeger_image }}"
+    restart_policy: unless-stopped
     ports:
       - 127.0.0.1:24268:14268
       - 127.0.0.1:26686:16686
+  when:
+    - es_instance is not defined
 
+- name: Deploy jaeger components
+  block:
+    - name: Compute vault path for creds
+      set_fact:
+        vault_es_path: "secret/ansible/internal/accounts/elasticsearch/{{ es_instance }}"
 
+    - name: Look up elasticsearch credentials in vault
+      set_fact:
+        vault_lookup: "{{ lookup('vault', vault_es_path) }}"
+
+    - set_fact:
+        jaeger_es_url: "{{ vault_lookup.main.data.url }}"
+        jaeger_es_user: "{{ vault_lookup.main.data.user }}"
+        jaeger_es_pass: "{{ vault_lookup.main.data.pass }}"
+
+    - name: Deploy jaeger collector
+      docker_container:
+        name: jaeger-collector
+        image: "jaegertracing/jaeger-collector:{{ jaeger_version }}"
+        restart_policy: unless-stopped
+        ports:
+          - 127.0.0.1:24268:14268
+        env:
+          SPAN_STORAGE_TYPE: elasticsearch
+          ES_SERVER_URLS: "{{ jaeger_es_url }}"
+          ES_INDEX_PREFIX: "{{ es_index_prefix | default('main') }}"
+          ES_USERNAME: "{{ jaeger_es_user }}"
+          ES_PASSWORD: "{{ jaeger_es_pass }}"
+
+    - name: Deploy jaeger query
+      docker_container:
+        name: jaeger-query
+        image: "jaegertracing/jaeger-query:{{ jaeger_version }}"
+        restart_policy: unless-stopped
+        ports:
+          - 127.0.0.1:26686:16686
+        env:
+          SPAN_STORAGE_TYPE: elasticsearch
+          ES_SERVER_URLS: "{{ jaeger_es_url }}"
+          ES_INDEX_PREFIX: "{{ es_index_prefix | default('main') }}"
+          ES_USERNAME: "{{ jaeger_es_user }}"
+          ES_PASSWORD: "{{ jaeger_es_pass }}"
+
+  when:
+    - es_instance is defined

@@ -253,11 +253,7 @@ func updateAlerts(ctx context.Context, clusterInstKey *edgeproto.ClusterInstKey,
 				return alert, true
 			}
 			// don't update if nothing changed
-			fmt.Printf("key: %s\n", alert.GetKeyVal())
-			fmt.Printf("old: %v\n", old)
-			fmt.Printf("new: %v\n", alert)
 			changed := !alert.Matches(old)
-			fmt.Printf("changed: %t\n", changed)
 			return alert, changed
 		})
 		delete(stale, alert.GetKeyVal())

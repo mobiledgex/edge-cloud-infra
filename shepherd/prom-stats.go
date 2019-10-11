@@ -72,8 +72,7 @@ func getPromMetrics(ctx context.Context, addr string, query string, client pc.Pl
 	reqURI := "'http://" + addr + "/api/v1/query?query=" + query + "'"
 	resp, err := client.Output("curl " + reqURI)
 	if err != nil {
-		errstr := fmt.Sprintf("Failed to run <%s>", reqURI)
-		log.SpanLog(ctx, log.DebugLevelMetrics, errstr, "err", err)
+		log.SpanLog(ctx, log.DebugLevelMetrics, "Failed to get prom metrics", "reqURI", reqURI, "err", err)
 		return nil, err
 	}
 	trimmedResp := outputTrim(resp)

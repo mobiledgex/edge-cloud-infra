@@ -87,3 +87,8 @@ func (s *Platform) GetPlatformStats(ctx context.Context) (shepherd_common.Cloudl
 
 	return cloudletMetric, nil
 }
+
+func (s *Platform) GetVmStats(ctx context.Context, key *edgeproto.AppInstKey) (shepherd_common.AppMetrics, error) {
+	//TODO
+	return shepherd_common.AppMetrics{}, nil
+}

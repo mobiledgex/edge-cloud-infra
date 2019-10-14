@@ -20,4 +20,6 @@ type Platform interface {
 	GetPlatformClient(ctx context.Context, clusterInst *edgeproto.ClusterInst) (pc.PlatformClient, error)
 	// Gets cloudlet-level metrics. This is platform-dependent, hence the common interfcae
 	GetPlatformStats(ctx context.Context) (shepherd_common.CloudletMetrics, error)
+	// Get VM metrics - this is really a set of AppMetrics
+	GetVmStats(ctx context.Context, key *edgeproto.AppInstKey) (shepherd_common.AppMetrics, error)
 }

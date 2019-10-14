@@ -30,3 +30,7 @@ func (s *Platform) GetPlatformClient(ctx context.Context, clusterInst *edgeproto
 func (s *Platform) GetPlatformStats(ctx context.Context) (shepherd_common.CloudletMetrics, error) {
 	return shepherd_common.CloudletMetrics{}, nil
 }
+
+func (s *Platform) GetVmStats(ctx context.Context, key *edgeproto.AppInstKey) (shepherd_common.AppMetrics, error) {
+	return shepherd_common.AppMetrics{}, nil
+}

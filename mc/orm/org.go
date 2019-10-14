@@ -39,7 +39,7 @@ func CreateOrgObj(ctx context.Context, claims *UserClaims, org *ormapi.Organizat
 	if org.Name == "" {
 		return fmt.Errorf("Name not specified")
 	}
-	err := util.ValidOrgName(org.Name)
+	err := util.ValidObjName(org.Name)
 	if err != nil {
 		return err
 	}

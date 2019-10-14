@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"github.com/mobiledgex/edge-cloud/cloud-resource-manager/k8smgmt"
+	"github.com/mobiledgex/edge-cloud/cloud-resource-manager/platform/pc"
 	"github.com/mobiledgex/edge-cloud/edgeproto"
 	"github.com/mobiledgex/edge-cloud/log"
 	"github.com/mobiledgex/edge-cloud/util"
@@ -189,6 +190,7 @@ type ClusterParams struct {
 	GatewayIP             string
 	MasterIP              string
 	RootLBConnectToSubnet string
+	RootLBPortName        string
 	NetworkType           string
 	DNSServers            []string
 	Nodes                 []ClusterNode
@@ -217,7 +219,7 @@ resources:
    rootlb-port:
       type: OS::Neutron::Port
       properties:
-         name: {{.RootLBConnectToSubnet}}-{{.ClusterName}}-port
+         name: {{.RootLBPortName}}
          network_id: mex-k8s-net-1
          fixed_ips:
           - subnet: { get_resource: k8s-subnet}
@@ -568,6 +570,7 @@ func getClusterParams(ctx context.Context, clusterInst *edgeproto.ClusterInst, r
 	} else if rtr == NoExternalRouter {
 		log.SpanLog(ctx, log.DebugLevelMexos, "NoExternalRouter in use for cluster, will create cluster stack with rootlb connected to subnet")
 		cp.RootLBConnectToSubnet = rootLBName
+		cp.RootLBPortName = fmt.Sprintf("%s-%s-port", rootLBName, cp.ClusterName)
 	} else {
 		log.SpanLog(ctx, log.DebugLevelMexos, "External router in use for cluster, will create cluster stack with router interfaces")
 		cp.MEXRouterName = rtr
@@ -658,7 +661,7 @@ func HeatCreateRootLBVM(ctx context.Context, serverName string, stackName string
 }
 
 // HeatCreateClusterKubernetes creates a k8s cluster which may optionally include a dedicated root LB
-func HeatCreateClusterKubernetes(ctx context.Context, clusterInst *edgeproto.ClusterInst, rootLBName string, dedicatedRootLB bool, updateCallback edgeproto.CacheUpdateCallback) error {
+func HeatCreateClusterKubernetes(ctx context.Context, client pc.PlatformClient, clusterInst *edgeproto.ClusterInst, rootLBName string, dedicatedRootLB bool, updateCallback edgeproto.CacheUpdateCallback) error {
 
 	log.SpanLog(ctx, log.DebugLevelMexos, "HeatCreateClusterKubernetes", "clusterInst", clusterInst)
 	// It is problematic to create 2 clusters at the exact same time because we will look for available subnet CIDRS when
@@ -680,7 +683,13 @@ func HeatCreateClusterKubernetes(ctx context.Context, clusterInst *edgeproto.Clu
 		templateString += vmTemplateResources
 	}
 	err = CreateHeatStackFromTemplate(ctx, cp, cp.ClusterName, templateString, updateCallback)
-	return err
+	if err != nil {
+		return err
+	}
+	if cp.RootLBPortName != "" {
+		return AttachAndEnableRootLBInterface(ctx, client, rootLBName, cp.RootLBPortName, cp.GatewayIP)
+	}
+	return nil
 }
 
 // HeatUpdateClusterKubernetes creates a k8s cluster which may optionally include a dedicated root LB

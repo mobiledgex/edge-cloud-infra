@@ -239,6 +239,39 @@ func GetServerDetails(ctx context.Context, name string) (*OSServerDetail, error)
 	return srvDetail, nil
 }
 
+// GetPortDetails gets details of the specified port
+func GetPortDetails(ctx context.Context, name string) (*OSPortDetail, error) {
+	log.SpanLog(ctx, log.DebugLevelMexos, "get port details", "name", name)
+	portDetail := &OSPortDetail{}
+
+	out, err := TimedOpenStackCommand(ctx, "openstack", "port", "show", name, "-f", "json")
+	if err != nil {
+		err = fmt.Errorf("can't get port detail for port: %s, %s, %v", name, out, err)
+		return nil, err
+	}
+	err = json.Unmarshal(out, &portDetail)
+	if err != nil {
+		log.SpanLog(ctx, log.DebugLevelMexos, "port unmarshal failed", "err", err)
+		err = fmt.Errorf("can't unmarshal port, %v", err)
+		return nil, err
+	}
+	return portDetail, nil
+}
+
+// AttachPortToServer attaches a port to a server
+func AttachPortToServer(ctx context.Context, serverName, portName string) error {
+	log.SpanLog(ctx, log.DebugLevelMexos, "AttachPortToServer", "serverName", serverName, "portName", portName)
+
+	out, err := TimedOpenStackCommand(ctx, "openstack", "server", "add", "port", serverName, portName)
+	if err != nil {
+		log.SpanLog(ctx, log.DebugLevelMexos, "can't attach port", "serverName", serverName, "portName", portName, "out", out, "err", err)
+		err = fmt.Errorf("can't attach port: %s, %s, %v", portName, out, err)
+		return err
+	}
+	return nil
+
+}
+
 //DeleteServer destroys a KVM instance
 //  sometimes it is not possible to destroy. Like most things in Openstack, try again.
 func DeleteServer(ctx context.Context, id string) error {

@@ -3,6 +3,7 @@ package mexos
 import (
 	"context"
 	"fmt"
+	"regexp"
 	"strings"
 
 	"github.com/mobiledgex/edge-cloud/cloud-resource-manager/platform/pc"
@@ -105,6 +106,81 @@ func LBAddRouteAndSecRules(ctx context.Context, client pc.PlatformClient, rootLB
 		if err := AddSecurityRuleCIDR(ctx, allowedClientCIDR, "tcp", groupName, portString); err != nil {
 			return err
 		}
+	}
+
+	return nil
+}
+
+// AttachAndEnableRootLBInterface attaches the interface and enables it in the OS
+func AttachAndEnableRootLBInterface(ctx context.Context, client pc.PlatformClient, rootLBName string, portName, ipaddr string) error {
+	log.SpanLog(ctx, log.DebugLevelMexos, "AttachAndEnableRootLBInterface", "rootLBName", rootLBName, "portName", portName)
+
+	portDetails, err := GetPortDetails(ctx, portName)
+	if err != nil {
+		return err
+	}
+
+	err = AttachPortToServer(ctx, rootLBName, portName)
+	if err != nil {
+		return err
+	}
+
+	// Once the attach is done, it does not really need to be detached if something fails after here because
+	// the port will be deleted.
+
+	// list all the interfaces
+	cmd := fmt.Sprintf("sudo ifconfig -a")
+	out, err := client.Output(cmd)
+	if err != nil {
+		return fmt.Errorf("unable to run ifconfig: %s - %v", out, err)
+	}
+	//                ifname        encap              mac
+	matchPattern := "(\\w+)\\s+Link \\S+\\s+HWaddr\\s+(\\S+)"
+	reg, err := regexp.Compile(matchPattern)
+	if err != nil {
+		// this is a bug if the regex does not compile
+		log.SpanLog(ctx, log.DebugLevelMexos, "failed to compile regex", "pattern", matchPattern)
+		return fmt.Errorf("Internal Error compiling regex for interface")
+	}
+
+	//find the interface matching our mac
+	ifName := ""
+	lines := strings.Split(out, "\n")
+	for _, l := range lines {
+		if reg.MatchString(l) {
+			matches := reg.FindStringSubmatch(l)
+			ifn := matches[1]
+			mac := matches[2]
+			log.SpanLog(ctx, log.DebugLevelMexos, "found interface", "ifn", ifn, "mac", mac)
+			if mac == portDetails.MACAddress {
+				ifName = ifn
+				break
+			}
+		}
+	}
+	if ifName == "" {
+		log.SpanLog(ctx, log.DebugLevelMexos, "unable to find interface via MAC", "portDetails", portDetails)
+		return fmt.Errorf("unable to find interface via MAC for port: %s", portName)
+	}
+
+	filename := "/etc/network/interfaces.d/" + portName + ".cfg"
+	contents := fmt.Sprintf("auto %s\niface %s inet static\n   address %s/24", ifName, ifName, ipaddr)
+
+	err = pc.WriteFile(client, filename, contents, "ifconfig", true)
+	// now create the file
+	if err != nil {
+		return fmt.Errorf("unable to write interface config file: %s -- %v", filename, err)
+	}
+
+	// now bring the interface up
+	cmd = fmt.Sprintf("sudo ifup %s", ifName)
+	if err != nil {
+		return err
+	}
+	out, err = client.Output(cmd)
+	if err != nil {
+		log.SpanLog(ctx, log.DebugLevelMexos, "unable to run ifup", "out", out, "err", err)
+		return fmt.Errorf("unable to run ifup: %s - %v", out, err)
 	}
 
 	return nil

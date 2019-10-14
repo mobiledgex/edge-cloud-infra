@@ -3,6 +3,7 @@ package openstack
 import (
 	"context"
 	"fmt"
+	"io/ioutil"
 	"net/url"
 	"os"
 	"path/filepath"
@@ -124,7 +125,7 @@ func (s *Platform) CreateCloudlet(ctx context.Context, cloudlet *edgeproto.Cloud
 
 	log.SpanLog(ctx, log.DebugLevelMexos, "Creating cloudlet", "cloudletName", cloudlet.Key.Name)
 
-	// Soure OpenRC file to access openstack API endpoint
+	// Source OpenRC file to access openstack API endpoint
 	updateCallback(edgeproto.UpdateTask, fmt.Sprintf("Sourcing platform variables for %s cloudlet", cloudlet.PhysicalName))
 	err = mexos.InitOpenstackProps(ctx, cloudlet.Key.OperatorKey.Name, cloudlet.PhysicalName, pfConfig.VaultAddr)
 	if err != nil {
@@ -376,5 +377,197 @@ func (s *Platform) DeleteCloudlet(ctx context.Context, cloudlet *edgeproto.Cloud
 	if err != nil {
 		return fmt.Errorf("DeleteCloudlet error: %v", err)
 	}
+	return nil
+}
+
+func getImageVersion() (string, error) {
+	dat, err := ioutil.ReadFile("/version.txt")
+	if err != nil {
+		return "", err
+	}
+	out := strings.Fields(string(dat))
+	if len(out) != 2 {
+		return "", fmt.Errorf("invalid version details: %s", out)
+	}
+	return out[1], nil
+}
+
+func isUpgradeRequired(cur_version, new_version string) error {
+	// 2nd Jan 2016
+	ref_layout := "2006-01-02"
+	cur, err := time.Parse(ref_layout, cur_version)
+	if err != nil {
+		return fmt.Errorf("failed to parse current version details: %v", err)
+	}
+	updated, err := time.Parse(ref_layout, new_version)
+	if err != nil {
+		return fmt.Errorf("failed to parse new version details: %v", err)
+	}
+	diff := cur.Sub(updated)
+	if diff > 0 {
+		return fmt.Errorf("downgrade is not supported")
+	}
+	if diff == 0 {
+		return fmt.Errorf("no upgrade required")
+	}
+	return nil
+}
+
+func (s *Platform) UpdateCloudlet(ctx context.Context, cloudlet *edgeproto.Cloudlet, pfConfig *edgeproto.PlatformConfig, updateCallback edgeproto.CacheUpdateCallback) error {
+	log.SpanLog(ctx, log.DebugLevelMexos, "Updating cloudlet", "cloudletName", cloudlet.Key.Name)
+
+	updateCallback(edgeproto.UpdateTask, fmt.Sprintf("Validating upgrade versions"))
+	new_version := pfConfig.PlatformTag
+	if new_version == "" {
+		return fmt.Errorf("versionTag is required to upgrade cloudlet")
+	}
+	cur_version, err := getImageVersion()
+	if err != nil {
+		return fmt.Errorf("unable to fetch image version: %v", err)
+	}
+	err = isUpgradeRequired(cur_version, new_version)
+	if err != nil {
+		return err
+	}
+
+	// Source OpenRC file to access openstack API endpoint
+	updateCallback(edgeproto.UpdateTask, fmt.Sprintf("Sourcing platform variables for %s cloudlet", cloudlet.PhysicalName))
+	err = mexos.InitOpenstackProps(ctx, cloudlet.Key.OperatorKey.Name, cloudlet.PhysicalName, pfConfig.VaultAddr)
+	if err != nil {
+		return err
+	}
+
+	// Fetch external IP for further configuration
+	platform_vm_name := getPlatformVMName(cloudlet)
+	external_ip, err := mexos.GetServerIPAddr(ctx, mexos.GetCloudletExternalNetwork(), platform_vm_name)
+	if err != nil {
+		return err
+	}
+	updateCallback(edgeproto.UpdateTask, "Platform VM external IP: "+external_ip)
+
+	// Setup SSH Client
+	keyPairPath := "/tmp/" + platform_vm_name
+	auth := ssh.Auth{Keys: []string{keyPairPath}}
+	gwaddr, gwport := mexos.GetCloudletCRMGatewayIPAndPort()
+	client, err := ssh.NewNativeClient("ubuntu", external_ip, "SSH-2.0-mobiledgex-ssh-client-1.0", 22, gwaddr, gwport, &auth, &auth, nil)
+	if err != nil {
+		return fmt.Errorf("cannot get ssh client for server %s with ip %s, %v", platform_vm_name, external_ip, err)
+	}
+
+	// Gather registry credentails from Vault
+	updateCallback(edgeproto.UpdateTask, "Fetching registry auth credentials")
+	regAuth, err := cloudcommon.GetRegistryAuth(ctx, pfConfig.RegistryPath, pfConfig.VaultAddr)
+	if err != nil {
+		return fmt.Errorf("unable to fetch registry auth credentials")
+	}
+	if regAuth.AuthType != cloudcommon.BasicAuth {
+		return fmt.Errorf("unsupported registry auth type %s", regAuth.AuthType)
+	}
+
+	// Login to docker registry
+	updateCallback(edgeproto.UpdateTask, "Authenticating docker registry")
+	if out, err := client.Output(
+		fmt.Sprintf(
+			`echo "%s" | sudo docker login -u %s --password-stdin %s`,
+			regAuth.Password,
+			regAuth.Username,
+			pfConfig.RegistryPath,
+		),
+	); err != nil {
+		return fmt.Errorf("unable to login to docker registry: %v, %s\n", err, out)
+	}
+
+	// Rename existing container
+	log.SpanLog(ctx, log.DebugLevelMexos, "renaming old-container", "ip", external_ip)
+	if out, err := client.Output(
+		fmt.Sprintf(
+			"sudo docker rename %s %s_old",
+			ServiceTypeCRM,
+			ServiceTypeCRM,
+		),
+	); err != nil {
+		return fmt.Errorf("unable to rename old-container: %v, %s\n", err, out)
+	}
+	if out, err := client.Output(
+		fmt.Sprintf(
+			"sudo docker rename %s %s_old",
+			ServiceTypeShepherd,
+			ServiceTypeShepherd,
+		),
+	); err != nil {
+		return fmt.Errorf("unable to rename old-container: %v, %s\n", err, out)
+	}
+
+	// Get non-conflicting port for NotifySrvAddr
+	ipobj := strings.Split(cloudlet.NotifySrvAddr, ":")
+	if len(ipobj) != 2 {
+		return fmt.Errorf("invalid notifysrvaddr")
+	}
+	newport := ""
+	if ipobj[1] == "51001" {
+		newport = "51002"
+	} else if ipobj[1] == "51002" {
+		newport = "51002"
+	} else {
+		newport = "51001"
+	}
+	cloudlet.NotifySrvAddr = strings.Join([]string{ipobj[0], newport}, ":")
+
+	// Bringup upgraded cloudlet services
+	crmChan := make(chan error, 1)
+	go startPlatformService(cloudlet, pfConfig, client, ServiceTypeCRM, updateCallback, crmChan)
+	shepherdChan := make(chan error, 1)
+	go startPlatformService(cloudlet, pfConfig, client, ServiceTypeShepherd, updateCallback, shepherdChan)
+
+	// Wait for platform services to come up
+	crmErr := <-crmChan
+	shepherdErr := <-shepherdChan
+	if crmErr != nil || shepherdErr != nil {
+		// Cleanup failed containers
+		updateCallback(edgeproto.UpdateTask, "Upgrade failed, cleaning up")
+		if out, err := client.Output(
+			fmt.Sprintf(
+				"sudo docker rm -f %s",
+				ServiceTypeCRM,
+			),
+		); err != nil {
+			return fmt.Errorf("cleanup failed: %v, %s\n", err, out)
+		}
+		if out, err := client.Output(
+			fmt.Sprintf(
+				"sudo docker rm -f %s",
+				ServiceTypeShepherd,
+			),
+		); err != nil {
+			return fmt.Errorf("cleanup failed: %v, %s\n", err, out)
+		}
+		// Cleanup container names
+		log.SpanLog(ctx, log.DebugLevelMexos, "renaming old-container", "ip", external_ip)
+		if out, err := client.Output(
+			fmt.Sprintf(
+				"sudo docker rename %s_old %s",
+				ServiceTypeCRM,
+				ServiceTypeCRM,
+			),
+		); err != nil {
+			return fmt.Errorf("unable to rename old-container: %v, %s\n", err, out)
+		}
+		if out, err := client.Output(
+			fmt.Sprintf(
+				"sudo docker rename %s_old %s",
+				ServiceTypeShepherd,
+				ServiceTypeShepherd,
+			),
+		); err != nil {
+			return fmt.Errorf("unable to rename old-container: %v, %s\n", err, out)
+		}
+	}
+	if crmErr != nil {
+		return crmErr
+	}
+	if shepherdErr != nil {
+		return shepherdErr
+	}
+	updateCallback(edgeproto.UpdateTask, fmt.Sprintf("successfully upgrade to new version: %s", new_version))
 	return nil
 }

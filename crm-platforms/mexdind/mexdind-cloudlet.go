@@ -56,3 +56,9 @@ func (s *Platform) DeleteCloudlet(ctx context.Context, cloudlet *edgeproto.Cloud
 	updateCallback(edgeproto.UpdateTask, "Stopping Shepherd")
 	return intprocess.StopShepherdService(ctx, cloudlet)
 }
+
+func (s *Platform) UpdateCloudlet(ctx context.Context, cloudlet *edgeproto.Cloudlet, pfConfig *edgeproto.PlatformConfig, updateCallback edgeproto.CacheUpdateCallback) error {
+	log.SpanLog(ctx, log.DebugLevelMexos, "Updating cloudlet", "cloudletName", cloudlet.Key.Name)
+	err := s.generic.UpdateCloudlet(ctx, cloudlet, pfConfig, updateCallback)
+	return err
+}

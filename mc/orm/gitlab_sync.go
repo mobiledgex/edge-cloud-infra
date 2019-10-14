@@ -6,7 +6,6 @@ import (
 	"github.com/labstack/echo"
 	"github.com/mobiledgex/edge-cloud-infra/mc/ormapi"
 	"github.com/mobiledgex/edge-cloud/log"
-	"github.com/mobiledgex/edge-cloud/util"
 	gitlab "github.com/xanzy/go-gitlab"
 )
 
@@ -133,7 +132,7 @@ func (s *AppStoreSync) syncGroups(ctx context.Context) map[string]*ormapi.Organi
 		if org.Type == OrgTypeOperator {
 			continue
 		}
-		name = util.GitlabGroupSanitize(name)
+		name = GitlabGroupSanitize(name)
 		if _, found := groupsT[name]; found {
 			delete(groupsT, name)
 		} else {
@@ -187,7 +186,7 @@ func (s *AppStoreSync) syncGroupMembers(ctx context.Context, allOrgs map[string]
 			ListOptions: ListOptions,
 		}
 		if !found {
-			gname := util.GitlabGroupSanitize(role.Org)
+			gname := GitlabGroupSanitize(role.Org)
 			// convert list to table for easier processing
 			memberTable = make(map[string]*gitlab.GroupMember)
 			foundErr := false
@@ -239,7 +238,7 @@ func (s *AppStoreSync) syncGroupMembers(ctx context.Context, allOrgs map[string]
 			log.SpanLog(ctx, log.DebugLevelApi,
 				"Gitlab Sync remove extra role",
 				"org", roleOrg, "member", groupMember.Username)
-			gname := util.GitlabGroupSanitize(roleOrg)
+			gname := GitlabGroupSanitize(roleOrg)
 			_, err = gitlabClient.GroupMembers.RemoveGroupMember(gname, groupMember.ID)
 			if err != nil {
 				s.syncErr(ctx, err)

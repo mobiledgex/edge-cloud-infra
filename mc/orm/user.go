@@ -112,7 +112,7 @@ func CreateUser(c echo.Context) error {
 	if user.Name == "" {
 		return c.JSON(http.StatusBadRequest, Msg("Name not specified"))
 	}
-	err := util.ValidObjName(user.Name)
+	err := ValidName(user.Name)
 	if err != nil {
 		return c.JSON(http.StatusBadRequest, Msg(err.Error()))
 	}

@@ -224,8 +224,7 @@ resources:
          fixed_ips:
           - subnet: { get_resource: k8s-subnet}
             ip_address: {{.GatewayIP}}
-         security_groups:
-          - {{$.SecurityGroup}}
+         port_security_enabled: false
   {{- end}}
   {{if .MEXRouterName}}
    router-port:

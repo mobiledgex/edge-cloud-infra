@@ -10,6 +10,8 @@ import (
 	"github.com/mobiledgex/edge-cloud/log"
 )
 
+var udevRulesFile = "/etc/udev/rules.d/70-persistent-net.rules"
+
 // LBAddRouteAndSecRules adds an external route and sec rules
 func LBAddRouteAndSecRules(ctx context.Context, client pc.PlatformClient, rootLBName string) error {
 	log.SpanLog(ctx, log.DebugLevelMexos, "Adding route to reach internal networks", "rootLBName", rootLBName)
@@ -26,7 +28,6 @@ func LBAddRouteAndSecRules(ctx context.Context, client pc.PlatformClient, rootLB
 	}
 	if ni.NetworkType == NetworkTypeVLAN {
 		log.SpanLog(ctx, log.DebugLevelMexos, "No route changes needed for VLAN networks")
-		// TODO: iptables stuff
 		return nil
 	}
 	if rootLBName == "" {
@@ -107,26 +108,116 @@ func LBAddRouteAndSecRules(ctx context.Context, client pc.PlatformClient, rootLB
 			return err
 		}
 	}
-
 	return nil
 }
 
-// AttachAndEnableRootLBInterface attaches the interface and enables it in the OS
-func AttachAndEnableRootLBInterface(ctx context.Context, client pc.PlatformClient, rootLBName string, portName, ipaddr string) error {
-	log.SpanLog(ctx, log.DebugLevelMexos, "AttachAndEnableRootLBInterface", "rootLBName", rootLBName, "portName", portName)
+func persistInterfaceName(ctx context.Context, client pc.PlatformClient, ifName, mac string) error {
+	log.SpanLog(ctx, log.DebugLevelMexos, "persistInterfaceName", "ifName", ifName, "mac", mac)
+	cmd := fmt.Sprintf("sudo cat %s", udevRulesFile)
 
-	portDetails, err := GetPortDetails(ctx, portName)
+	newFileContents := ""
+
+	out, err := client.Output(cmd)
+	if err != nil {
+		return fmt.Errorf("unable to cat udev rules file: %s - %v", out, err)
+	}
+
+	lines := strings.Split(out, "\n")
+	for _, l := range lines {
+		// if the mac is already there remove it, it will be appended later
+		if strings.Contains(l, mac) {
+			log.SpanLog(ctx, log.DebugLevelMexos, "found existing rule for mac", "line", l)
+		} else {
+			newFileContents = newFileContents + l + "\n"
+		}
+	}
+	newRule := fmt.Sprintf("SUBSYSTEM==\"net\", ACTION==\"add\", DRIVERS==\"?*\", ATTR{address}==\"%s\", NAME=\"%s\"", mac, ifName)
+	newFileContents = newFileContents + newRule + "\n"
+	return pc.WriteFile(client, udevRulesFile, newFileContents, "udev-rules", true)
+}
+
+func setupForwardingIptables(ctx context.Context, client pc.PlatformClient, externalIfname, internalIfname string) error {
+	log.SpanLog(ctx, log.DebugLevelMexos, "setupForwardingIptables", "externalIfname", externalIfname, "internalIfname", internalIfname)
+	// get current iptables
+	cmd := fmt.Sprintf("sudo iptables-save|grep -e POSTROUTING -e FORWARD")
+	out, err := client.Output(cmd)
+	if err != nil {
+		return fmt.Errorf("unable to run iptables-save: %s - %v", out, err)
+	}
+	// we are looking only for the FORWARD or postrouting entries
+	masqueradeRule := fmt.Sprintf("-t nat -A POSTROUTING -o %s -j MASQUERADE", externalIfname)
+	forwardExternalRule := fmt.Sprintf("-A FORWARD -i %s -o %s -m state --state RELATED,ESTABLISHED -j ACCEPT", externalIfname, internalIfname)
+	forwardInternalRule := fmt.Sprintf("-A FORWARD -i %s -j ACCEPT", internalIfname)
+
+	masqueradeRuleFound := false
+	forwardExternalRuleFound := false
+	forwardInternalRuleFound := false
+
+	lines := strings.Split(out, "\n")
+	for _, l := range lines {
+		if l == masqueradeRule {
+			masqueradeRuleFound = true
+		}
+		if l == forwardExternalRule {
+			forwardExternalRuleFound = true
+		}
+		if l == forwardInternalRule {
+			forwardInternalRuleFound = true
+		}
+	}
+	if !masqueradeRuleFound {
+		log.SpanLog(ctx, log.DebugLevelMexos, "adding iptables", "masqueradeRule", masqueradeRule)
+		cmd := fmt.Sprintf("sudo iptables %s", masqueradeRule)
+		out, err := client.Output(cmd)
+		if err != nil {
+			return fmt.Errorf("unable to add iptables rule for masquerade: %s - %v", out, err)
+		}
+	}
+	if !forwardExternalRuleFound {
+		log.SpanLog(ctx, log.DebugLevelMexos, "adding iptables", "forwardExternalRule", forwardExternalRule)
+
+		cmd := fmt.Sprintf("sudo iptables %s", forwardExternalRule)
+		out, err := client.Output(cmd)
+		if err != nil {
+			return fmt.Errorf("unable to add iptables rule for forwarding from external interface: %s - %v", out, err)
+		}
+	}
+	if !forwardInternalRuleFound {
+		log.SpanLog(ctx, log.DebugLevelMexos, "adding iptables", "forwardInternalRule", forwardInternalRule)
+		cmd := fmt.Sprintf("sudo iptables %s", forwardInternalRule)
+		out, err := client.Output(cmd)
+		if err != nil {
+			return fmt.Errorf("unable to add iptables rule for forwarding from internal interface: %s - %v", out, err)
+		}
+	}
+
+	//now persist the rules
+	cmd = fmt.Sprintf("sudo bash -c 'iptables-save > /etc/iptables/rules.v4'")
+	out, err = client.Output(cmd)
+	if err != nil {
+		return fmt.Errorf("unable to run iptables-save to persistent rules file: %s - %v", out, err)
+	}
+	return nil
+}
+
+// configureInternalInterfaceAndExternalForwarding sets up the new internal interface and then creates iptables rules to forward
+// traffic out the external interface
+func configureInternalInterfaceAndExternalForwarding(ctx context.Context, client pc.PlatformClient, externalIPAddr, internalPortName, internalIPAddr string) error {
+
+	// list the ports so we can find the internal and external port macs
+	ports, err := ListPorts(ctx)
 	if err != nil {
 		return err
 	}
-
-	err = AttachPortToServer(ctx, rootLBName, portName)
-	if err != nil {
-		return err
+	internalPortMac := ""
+	externalPortMac := ""
+	for _, p := range ports {
+		if strings.Contains(p.FixedIPs, "'"+internalIPAddr+"'") {
+			internalPortMac = p.MACAddress
+		} else if strings.Contains(p.FixedIPs, "'"+externalIPAddr+"'") {
+			externalPortMac = p.MACAddress
+		}
 	}
-
-	// Once the attach is done, it does not really need to be detached if something fails after here because
-	// the port will be deleted.
 
 	// list all the interfaces
 	cmd := fmt.Sprintf("sudo ifconfig -a")
@@ -143,8 +234,9 @@ func AttachAndEnableRootLBInterface(ctx context.Context, client pc.PlatformClien
 		return fmt.Errorf("Internal Error compiling regex for interface")
 	}
 
-	//find the interface matching our mac
-	ifName := ""
+	//find the interfaces matching our macs
+	externalIfname := ""
+	internalIfname := ""
 	lines := strings.Split(out, "\n")
 	for _, l := range lines {
 		if reg.MatchString(l) {
@@ -152,19 +244,25 @@ func AttachAndEnableRootLBInterface(ctx context.Context, client pc.PlatformClien
 			ifn := matches[1]
 			mac := matches[2]
 			log.SpanLog(ctx, log.DebugLevelMexos, "found interface", "ifn", ifn, "mac", mac)
-			if mac == portDetails.MACAddress {
-				ifName = ifn
-				break
+			if mac == externalPortMac {
+				externalIfname = ifn
+			}
+			if mac == internalPortMac {
+				internalIfname = ifn
 			}
 		}
 	}
-	if ifName == "" {
-		log.SpanLog(ctx, log.DebugLevelMexos, "unable to find interface via MAC", "portDetails", portDetails)
-		return fmt.Errorf("unable to find interface via MAC for port: %s", portName)
+	if externalIfname == "" {
+		log.SpanLog(ctx, log.DebugLevelMexos, "unable to find external interface via MAC", "mac", externalPortMac)
+		return fmt.Errorf("unable to find interface for external port mac: %s", externalPortMac)
+	}
+	if internalIfname == "" {
+		log.SpanLog(ctx, log.DebugLevelMexos, "unable to find internal interface via MAC", "mac", internalPortMac)
+		return fmt.Errorf("unable to find interface for internal port mac: %s", internalPortMac)
 	}
 
-	filename := "/etc/network/interfaces.d/" + portName + ".cfg"
-	contents := fmt.Sprintf("auto %s\niface %s inet static\n   address %s/24", ifName, ifName, ipaddr)
+	filename := "/etc/network/interfaces.d/" + internalPortName + ".cfg"
+	contents := fmt.Sprintf("auto %s\niface %s inet static\n   address %s/24", internalIfname, internalIfname, internalIPAddr)
 
 	err = pc.WriteFile(client, filename, contents, "ifconfig", true)
 	// now create the file
@@ -172,8 +270,9 @@ func AttachAndEnableRootLBInterface(ctx context.Context, client pc.PlatformClien
 		return fmt.Errorf("unable to write interface config file: %s -- %v", filename, err)
 	}
 
-	// now bring the interface up
-	cmd = fmt.Sprintf("sudo ifup %s", ifName)
+	// now bring the new internal interface up
+	log.SpanLog(ctx, log.DebugLevelMexos, "running ifup", "internalIfname", internalIfname)
+	cmd = fmt.Sprintf("sudo ifup %s", internalIfname)
 	if err != nil {
 		return err
 	}
@@ -182,6 +281,38 @@ func AttachAndEnableRootLBInterface(ctx context.Context, client pc.PlatformClien
 		log.SpanLog(ctx, log.DebugLevelMexos, "unable to run ifup", "out", out, "err", err)
 		return fmt.Errorf("unable to run ifup: %s - %v", out, err)
 	}
+	err = persistInterfaceName(ctx, client, internalIfname, internalPortMac)
+	if err != nil {
+		return nil
+	}
+	err = setupForwardingIptables(ctx, client, externalIfname, internalIfname)
+	if err != nil {
+		log.SpanLog(ctx, log.DebugLevelMexos, "setupForwardingIptables failed", "err", err)
+	}
+	return err
+}
 
+// AttachAndEnableRootLBInterface attaches the interface and enables it in the OS
+func AttachAndEnableRootLBInterface(ctx context.Context, client pc.PlatformClient, rootLBName string, internalPortName, internalIPAddr string) error {
+	log.SpanLog(ctx, log.DebugLevelMexos, "AttachAndEnableRootLBInterface", "rootLBName", rootLBName, "internalPortName", internalPortName)
+
+	err := AttachPortToServer(ctx, rootLBName, internalPortName)
+	if err != nil {
+		return err
+	}
+
+	rootLB, err := getRootLB(ctx, rootLBName)
+	if err != nil {
+		return err
+	}
+
+	err = configureInternalInterfaceAndExternalForwarding(ctx, client, rootLB.IP, internalPortName, internalIPAddr)
+	if err != nil {
+		deterr := DetachPortFromServer(ctx, rootLBName, internalPortName)
+		if deterr != nil {
+			log.SpanLog(ctx, log.DebugLevelMexos, "fail to detach port", "err", deterr)
+		}
+		return err
+	}
 	return nil
 }

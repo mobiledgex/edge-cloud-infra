@@ -48,6 +48,23 @@ func ListServers(ctx context.Context) ([]OSServer, error) {
 	return servers, nil
 }
 
+//ListServers returns list of servers, KVM instances, running on the system
+func ListPorts(ctx context.Context) ([]OSPort, error) {
+	out, err := TimedOpenStackCommand(ctx, "openstack", "port", "list", "-f", "json")
+
+	if err != nil {
+		err = fmt.Errorf("cannot get port list, %v", err)
+		return nil, err
+	}
+	var ports []OSPort
+	err = json.Unmarshal(out, &ports)
+	if err != nil {
+		err = fmt.Errorf("cannot unmarshal, %v", err)
+		return nil, err
+	}
+	return ports, nil
+}
+
 //ListImages lists avilable images in glance
 func ListImages(ctx context.Context) ([]OSImage, error) {
 	out, err := TimedOpenStackCommand(ctx, "openstack", "image", "list", "-f", "json")
@@ -269,7 +286,19 @@ func AttachPortToServer(ctx context.Context, serverName, portName string) error 
 		return err
 	}
 	return nil
+}
 
+// DetachPortFromServer removes a port from a server
+func DetachPortFromServer(ctx context.Context, serverName, portName string) error {
+	log.SpanLog(ctx, log.DebugLevelMexos, "DetachPortFromServer", "serverName", serverName, "portName", portName)
+
+	out, err := TimedOpenStackCommand(ctx, "openstack", "server", "remove", "port", serverName, portName)
+	if err != nil {
+		log.SpanLog(ctx, log.DebugLevelMexos, "can't remove port", "serverName", serverName, "portName", portName, "out", out, "err", err)
+		err = fmt.Errorf("can't remove port: %s, %s, %v", portName, out, err)
+		return err
+	}
+	return nil
 }
 
 //DeleteServer destroys a KVM instance

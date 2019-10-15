@@ -253,3 +253,16 @@ func GetMappedExternalIP(ip string) string {
 	}
 	return ip
 }
+
+func SourceEnv(ctx context.Context, envvar map[string]string) error {
+	var err error
+
+	log.SpanLog(ctx, log.DebugLevelMexos, "sourcing env vars", "envvar", envvar)
+	for envKey, envVal := range envvar {
+		err = os.Setenv(envKey, envVal)
+		if err != nil {
+			return err
+		}
+	}
+	return nil
+}

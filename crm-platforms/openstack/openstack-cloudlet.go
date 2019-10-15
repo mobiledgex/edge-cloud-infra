@@ -126,6 +126,11 @@ func (s *Platform) CreateCloudlet(ctx context.Context, cloudlet *edgeproto.Cloud
 
 	// Soure OpenRC file to access openstack API endpoint
 	updateCallback(edgeproto.UpdateTask, fmt.Sprintf("Sourcing platform variables for %s cloudlet", cloudlet.PhysicalName))
+	err = mexos.SourceEnv(ctx, cloudlet.EnvVar)
+	if err != nil {
+		return fmt.Errorf("failed to source envvar: %v", err)
+	}
+
 	err = mexos.InitOpenstackProps(ctx, cloudlet.Key.OperatorKey.Name, cloudlet.PhysicalName, pfConfig.VaultAddr)
 	if err != nil {
 		return err

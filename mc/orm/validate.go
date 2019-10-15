@@ -22,6 +22,12 @@ func ValidName(name string) error {
 	if strings.HasSuffix(name, ".") {
 		return fmt.Errorf("Name cannot end with '.'")
 	}
+	if strings.Contains(name, "::") {
+		return fmt.Errorf("Name cannot contain ::")
+	}
+	if strings.Contains(name, "&") {
+		return fmt.Errorf("Name cannot contain &")
+	}
 	if strings.HasSuffix(name, ".git") {
 		return fmt.Errorf("Name cannot end with '.git'")
 	}

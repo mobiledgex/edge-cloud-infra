@@ -525,10 +525,15 @@ func CreateHeatStackFromTemplate(ctx context.Context, templateData interface{}, 
 func HeatDeleteCluster(ctx context.Context, client pc.PlatformClient, clusterInst *edgeproto.ClusterInst, rootLBName string, dedicatedRootLB bool) error {
 	cp, err := getClusterParams(ctx, clusterInst, rootLBName, dedicatedRootLB, heatDelete)
 	if err == nil {
-		DetachAndDisableRootLBInterface(ctx, client, rootLBName, cp.RootLBPortName, cp.GatewayIP)
+		if cp.RootLBPortName != "" {
+			err = DetachAndDisableRootLBInterface(ctx, client, rootLBName, cp.RootLBPortName, cp.GatewayIP)
+			if err != nil {
+				log.SpanLog(ctx, log.DebugLevelMexos, "unable to detach rootLB interface, proceed with stack deletion", "err", err)
+			}
+		}
 	} else {
 		// probably already gone
-		log.SpanLog(ctx, log.DebugLevelMexos, "unable to detach rootLB interface, proceed with stack deletion", "err", err)
+		log.SpanLog(ctx, log.DebugLevelMexos, "unable to get cluster params, proceed with stack deletion", "err", err)
 	}
 	clusterName := k8smgmt.GetK8sNodeNameSuffix(&clusterInst.Key)
 	return HeatDeleteStack(ctx, clusterName)

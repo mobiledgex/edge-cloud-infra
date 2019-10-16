@@ -521,6 +521,16 @@ func CreateHeatStackFromTemplate(ctx context.Context, templateData interface{}, 
 	return createOrUpdateHeatStackFromTemplate(ctx, templateData, stackName, templateString, heatCreate, updateCallback)
 }
 
+// HeatDeleteCluster deletes the stack and also cleans up rootLB port if needed
+func HeatDeleteCluster(ctx context.Context, client pc.PlatformClient, clusterInst *edgeproto.ClusterInst, rootLBName string, dedicatedRootLB bool) error {
+	cp, err := getClusterParams(ctx, clusterInst, rootLBName, dedicatedRootLB, heatDelete)
+	if err != nil {
+		return err
+	}
+	DetachAndDisableRootLBInterface(ctx, client, rootLBName, cp.RootLBPortName, cp.GatewayIP)
+	return HeatDeleteStack(ctx, cp.ClusterName)
+}
+
 // HeatDeleteStack deletes the VM resources
 func HeatDeleteStack(ctx context.Context, stackName string) error {
 	log.SpanLog(ctx, log.DebugLevelMexos, "deleting heat stack for stack", "stackName", stackName)

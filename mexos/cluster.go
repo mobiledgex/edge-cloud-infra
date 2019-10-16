@@ -200,12 +200,17 @@ func CreateCluster(ctx context.Context, rootLBName string, clusterInst *edgeprot
 //DeleteCluster deletes kubernetes cluster
 func DeleteCluster(ctx context.Context, rootLBName string, clusterInst *edgeproto.ClusterInst) error {
 	log.SpanLog(ctx, log.DebugLevelMexos, "deleting kubernetes cluster", "clusterInst", clusterInst)
-	clusterName := k8smgmt.GetK8sNodeNameSuffix(&clusterInst.Key)
-	err := HeatDeleteStack(ctx, clusterName)
+
+	dedicatedRootLB := clusterInst.IpAccess == edgeproto.IpAccess_IP_ACCESS_DEDICATED
+	client, err := GetSSHClient(ctx, rootLBName, GetCloudletExternalNetwork(), SSHUser)
 	if err != nil {
 		return err
 	}
-	if clusterInst.IpAccess == edgeproto.IpAccess_IP_ACCESS_DEDICATED {
+	err = HeatDeleteCluster(ctx, client, clusterInst, rootLBName, dedicatedRootLB)
+	if err != nil {
+		return err
+	}
+	if dedicatedRootLB {
 		DeleteRootLB(rootLBName)
 	}
 	return nil

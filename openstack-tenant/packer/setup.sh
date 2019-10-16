@@ -86,10 +86,17 @@ MEX_BUILD_SRC_IMG_CHECKSUM=$SRC_IMG_CHECKSUM
 EOT
 
 log "Installing extra packages"
+add-apt-repository universe
 sudo apt-get update
+# avoid interactive for iptables-persistent
+sudo apt-get install -y debconf-utils
+echo iptables-persistent iptables-persistent/autosave_v6 boolean true | sudo debconf-set-selections
+echo iptables-persistent iptables-persistent/autosave_v4 boolean true | sudo debconf-set-selections
 sudo apt-get install -y \
 	ipvsadm=1:1.28-3 \
-	jq=1.5+dfsg-1ubuntu0.1
+	jq=1.5+dfsg-1ubuntu0.1 \
+        cloud-init \
+        iptables-persistent
 [[ $? -ne 0 ]] && die "Failed to install extra packages"
 
 log "dhclient $INTERFACE"

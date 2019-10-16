@@ -491,11 +491,26 @@
         name: docker
       tags: setup
 
+    - name: Look up CA cert in vault
+      set_fact:
+        vault_lookup: "{{ lookup('vault', vault_mex_ca_cert_path) }}"
+      tags: setup
+    - set_fact:
+        mex_ca_cert: "{{ vault_lookup.mex_ca.data.cert }}"
+      tags: setup
+
+    - name: Copy CA cert
+      copy:
+        dest: "{{ mex_ca_cert_path }}"
+        content: "{{ mex_ca_cert }}"
+      become: yes
+      tags: setup
+
     - import_role:
         name: web
-        tasks_from: certs
       vars:
-        cert_domains: "{{ [ vault_vm_hostname ] + additional_vault_domains.split(',') }}"
+        nginx_config_template: "internal/jaeger/nginx-config.j2"
+        cert_domains: [ "{{ inventory_hostname }}" ]
       tags: setup
 
     - import_role:

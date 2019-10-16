@@ -19,8 +19,6 @@
       - "{{ vault_address }}"
       - "-gitlabAddr"
       - "https://{{ gitlab_vm_hostname }}"
-      - "-artifactoryAddr"
-      - "{{ artifactory_address }}"
       - "-ldapAddr"
       - "0.0.0.0:{{ mc_ldap_port }}"
       - "-jaegerAddr"
@@ -33,6 +31,11 @@
       - "/root/tls/mex-server.crt"
       - "-d"
       - "api"
+
+- name: Add artifactory address
+  set_fact:
+    mc_args: "{{ mc_args + [ '-artifactoryAddr', mc_artifactory_address ] }}"
+  when: mc_artifactory_address is defined
 
 - name: Compute MC name
   set_fact:

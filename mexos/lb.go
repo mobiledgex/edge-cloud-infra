@@ -185,9 +185,12 @@ func setupForwardingIptables(ctx context.Context, client pc.PlatformClient, exte
 		option = "-D"
 	}
 	// we are looking only for the FORWARD or postrouting entries
-	masqueradeRule := fmt.Sprintf("-t nat %s POSTROUTING -o %s -j MASQUERADE", option, externalIfname)
-	forwardExternalRule := fmt.Sprintf("%s FORWARD -i %s -o %s -m state --state RELATED,ESTABLISHED -j ACCEPT", option, externalIfname, internalIfname)
-	forwardInternalRule := fmt.Sprintf("%s FORWARD -i %s -j ACCEPT", option, internalIfname)
+	masqueradeRuleMatch := fmt.Sprintf("POSTROUTING -o %s -j MASQUERADE", externalIfname)
+	masqueradeRule := fmt.Sprintf("-t nat %s %s", option, masqueradeRuleMatch)
+	forwardExternalRuleMatch := fmt.Sprintf("FORWARD -i %s -o %s -m state --state RELATED,ESTABLISHED -j ACCEPT", externalIfname, internalIfname)
+	forwardExternalRule := fmt.Sprintf("%s %s", option, forwardExternalRuleMatch)
+	forwardInternalRuleMatch := fmt.Sprintf("FORWARD -i %s -j ACCEPT", internalIfname)
+	forwardInternalRule := fmt.Sprintf("%s %s", option, forwardInternalRuleMatch)
 
 	masqueradeRuleExists := false
 	forwardExternalRuleExists := false
@@ -195,19 +198,23 @@ func setupForwardingIptables(ctx context.Context, client pc.PlatformClient, exte
 
 	lines := strings.Split(out, "\n")
 	for _, l := range lines {
-		if l == masqueradeRule {
+		if strings.Contains(l, masqueradeRuleMatch) {
 			masqueradeRuleExists = true
 		}
-		if l == forwardExternalRule {
+		if strings.Contains(l, forwardExternalRuleMatch) {
 			forwardExternalRuleExists = true
 		}
-		if l == forwardInternalRule {
+		if strings.Contains(l, forwardInternalRuleMatch) {
 			forwardInternalRuleExists = true
 		}
 	}
-	err = doIptablesCommand(ctx, client, masqueradeRule, masqueradeRuleExists, action)
-	if err != nil {
-		return err
+	if action == actionAdd {
+		// this rule is never deleted because it applies to all subnets.   Multiple adds will
+		// not create duplicates
+		err = doIptablesCommand(ctx, client, masqueradeRule, masqueradeRuleExists, action)
+		if err != nil {
+			return err
+		}
 	}
 	err = doIptablesCommand(ctx, client, forwardExternalRule, forwardExternalRuleExists, action)
 	if err != nil {
@@ -229,6 +236,8 @@ func setupForwardingIptables(ctx context.Context, client pc.PlatformClient, exte
 // configureInternalInterfaceAndExternalForwarding sets up the new internal interface and then creates iptables rules to forward
 // traffic out the external interface
 func configureInternalInterfaceAndExternalForwarding(ctx context.Context, client pc.PlatformClient, externalIPAddr, internalPortName, internalIPAddr string, action string) error {
+
+	log.SpanLog(ctx, log.DebugLevelMexos, "configureInternalInterfaceAndExternalForwarding", "externalIPAddr", externalIPAddr, "internalPortName", internalPortName, "internalIPAddr", internalIPAddr)
 
 	// list the ports so we can find the internal and external port macs
 	ports, err := ListPorts(ctx)
@@ -297,8 +306,8 @@ func configureInternalInterfaceAndExternalForwarding(ctx context.Context, client
 			return fmt.Errorf("unable to write interface config file: %s -- %v", filename, err)
 		}
 		// now bring the new internal interface up
-		log.SpanLog(ctx, log.DebugLevelMexos, "running ifup", "internalIfname", internalIfname)
-		cmd = fmt.Sprintf("sudo ifup %s", internalIfname)
+		log.SpanLog(ctx, log.DebugLevelMexos, "bringing up interface", "internalIfname", internalIfname)
+		cmd = fmt.Sprintf("sudo ifdown %s;sudo ifup %s", internalIfname, internalIfname)
 		out, err = client.Output(cmd)
 		if err != nil {
 			log.SpanLog(ctx, log.DebugLevelMexos, "unable to run ifup", "out", out, "err", err)

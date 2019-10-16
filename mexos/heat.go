@@ -524,11 +524,14 @@ func CreateHeatStackFromTemplate(ctx context.Context, templateData interface{}, 
 // HeatDeleteCluster deletes the stack and also cleans up rootLB port if needed
 func HeatDeleteCluster(ctx context.Context, client pc.PlatformClient, clusterInst *edgeproto.ClusterInst, rootLBName string, dedicatedRootLB bool) error {
 	cp, err := getClusterParams(ctx, clusterInst, rootLBName, dedicatedRootLB, heatDelete)
-	if err != nil {
-		return err
+	if err == nil {
+		DetachAndDisableRootLBInterface(ctx, client, rootLBName, cp.RootLBPortName, cp.GatewayIP)
+	} else {
+		// probably already gone
+		log.SpanLog(ctx, log.DebugLevelMexos, "unable to detach rootLB interface, proceed with stack deletion", "err", err)
 	}
-	DetachAndDisableRootLBInterface(ctx, client, rootLBName, cp.RootLBPortName, cp.GatewayIP)
-	return HeatDeleteStack(ctx, cp.ClusterName)
+	clusterName := k8smgmt.GetK8sNodeNameSuffix(&clusterInst.Key)
+	return HeatDeleteStack(ctx, clusterName)
 }
 
 // HeatDeleteStack deletes the VM resources
@@ -575,13 +578,13 @@ func getClusterParams(ctx context.Context, clusterInst *edgeproto.ClusterInst, r
 	cp.ClusterName = k8smgmt.GetK8sNodeNameSuffix(&clusterInst.Key)
 	rtr := GetCloudletExternalRouter()
 	if rtr == NoConfigExternalRouter {
-		log.SpanLog(ctx, log.DebugLevelMexos, "NoConfigExternalRouter in use for cluster, create cluster stack without adding router interfaces")
+		log.SpanLog(ctx, log.DebugLevelMexos, "NoConfigExternalRouter in use for cluster, cluster stack with no router interfaces")
 	} else if rtr == NoExternalRouter {
-		log.SpanLog(ctx, log.DebugLevelMexos, "NoExternalRouter in use for cluster, will create cluster stack with rootlb connected to subnet")
+		log.SpanLog(ctx, log.DebugLevelMexos, "NoExternalRouter in use for cluster, cluster stack with rootlb connected to subnet")
 		cp.RootLBConnectToSubnet = rootLBName
 		cp.RootLBPortName = fmt.Sprintf("%s-%s-port", rootLBName, cp.ClusterName)
 	} else {
-		log.SpanLog(ctx, log.DebugLevelMexos, "External router in use for cluster, will create cluster stack with router interfaces")
+		log.SpanLog(ctx, log.DebugLevelMexos, "External router in use for cluster, cluster stack with router interfaces")
 		cp.MEXRouterName = rtr
 	}
 	cp.MEXNetworkName = GetCloudletMexNetwork()
@@ -591,7 +594,7 @@ func getClusterParams(ctx context.Context, clusterInst *edgeproto.ClusterInst, r
 
 	currentSubnetName := ""
 	found := false
-	if action == heatUpdate {
+	if action != heatCreate {
 		currentSubnetName = "mex-k8s-subnet-" + cp.ClusterName
 	}
 	sns, snserr := ListSubnets(ctx, ni.Name)
@@ -604,11 +607,11 @@ func getClusterParams(ctx context.Context, clusterInst *edgeproto.ClusterInst, r
 
 	nodeIPPrefix := ""
 
-	//find an available subnet
+	//find an available subnet or the current subnet for update and delete
 	for i := 0; i <= 255; i++ {
 		subnet := fmt.Sprintf("%s.%s.%d.%d/%s", ni.Octets[0], ni.Octets[1], i, 0, ni.NetmaskBits)
 		// either look for an unused one (create) or the current one (update)
-		if (action == heatCreate && usedCidrs[subnet] == "") || (action == heatUpdate && usedCidrs[subnet] == currentSubnetName) {
+		if (action == heatCreate && usedCidrs[subnet] == "") || (action != heatCreate && usedCidrs[subnet] == currentSubnetName) {
 			found = true
 			cp.CIDR = subnet
 			cp.GatewayIP = fmt.Sprintf("%s.%s.%d.%d", ni.Octets[0], ni.Octets[1], i, 1)
@@ -618,7 +621,7 @@ func getClusterParams(ctx context.Context, clusterInst *edgeproto.ClusterInst, r
 		}
 	}
 	if !found {
-		return nil, fmt.Errorf("cannot find free subnet cidr")
+		return nil, fmt.Errorf("cannot find subnet cidr")
 	}
 
 	if clusterInst.NodeFlavor == "" {

@@ -29,10 +29,6 @@ func LBAddRouteAndSecRules(ctx context.Context, client pc.PlatformClient, rootLB
 		log.SpanLog(ctx, log.DebugLevelMexos, "No route changes needed due to floating IP")
 		return nil
 	}
-	if ni.NetworkType == NetworkTypeVLAN {
-		log.SpanLog(ctx, log.DebugLevelMexos, "No route changes needed for VLAN networks")
-		return nil
-	}
 	if rootLBName == "" {
 		return fmt.Errorf("empty rootLB")
 	}
@@ -114,10 +110,10 @@ func LBAddRouteAndSecRules(ctx context.Context, client pc.PlatformClient, rootLB
 	return nil
 }
 
+// creates entries in the 70-persistent-net.rules files to ensure the interface names are consistent after reboot
 func persistInterfaceName(ctx context.Context, client pc.PlatformClient, ifName, mac, action string) error {
 	log.SpanLog(ctx, log.DebugLevelMexos, "persistInterfaceName", "ifName", ifName, "mac", mac)
 	cmd := fmt.Sprintf("sudo cat %s", udevRulesFile)
-
 	newFileContents := ""
 
 	out, err := client.Output(cmd)
@@ -141,8 +137,8 @@ func persistInterfaceName(ctx context.Context, client pc.PlatformClient, ifName,
 	return pc.WriteFile(client, udevRulesFile, newFileContents, "udev-rules", true)
 }
 
+// run an iptables add or delete conditionally based on whether the entry already exists or not
 func doIptablesCommand(ctx context.Context, client pc.PlatformClient, rule string, ruleExists bool, action string) error {
-
 	runCommand := false
 	if ruleExists {
 		if action == actionDelete {
@@ -166,11 +162,12 @@ func doIptablesCommand(ctx context.Context, client pc.PlatformClient, rule strin
 		if err != nil {
 			return fmt.Errorf("unable to modify iptables rule: %s, %s - %v", rule, out, err)
 		}
-
 	}
 	return nil
 }
 
+// setupForwardingIptables creates iptables rules to allow the cluster nodes to use the LB as a
+// router for internet access
 func setupForwardingIptables(ctx context.Context, client pc.PlatformClient, externalIfname, internalIfname, action string) error {
 	log.SpanLog(ctx, log.DebugLevelMexos, "setupForwardingIptables", "externalIfname", externalIfname, "internalIfname", internalIfname)
 	// get current iptables

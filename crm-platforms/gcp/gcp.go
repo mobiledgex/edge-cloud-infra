@@ -44,7 +44,7 @@ func (s *Platform) GetType() string {
 }
 
 func (s *Platform) Init(ctx context.Context, platformConfig *platform.PlatformConfig, updateCallback edgeproto.CacheUpdateCallback) error {
-	if err := mexos.InitInfraCommon(ctx, platformConfig.VaultAddr); err != nil {
+	if err := mexos.InitInfraCommon(ctx, platformConfig.VaultAddr, platformConfig.EnvVars); err != nil {
 		return err
 	}
 	s.config = *platformConfig

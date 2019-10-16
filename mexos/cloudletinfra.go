@@ -18,7 +18,6 @@ import (
 )
 
 var CloudletInfraCommon edgeproto.CloudletInfraCommon
-var OpenstackProps edgeproto.OpenStackProperties
 
 var MEXInfraVersion = "v2.0.3" //Stratus
 var defaultOSImageName = "mobiledgex-" + MEXInfraVersion
@@ -36,6 +35,44 @@ var testMode = false
 // access the cloudlet externally but are not visible in any way to OpenStack
 var mappedExternalIPs map[string]string
 
+// Common Cloudlet Infra Properties
+var infraProps = map[string]string{
+	// Property: Default-Value
+	"MEX_NETWORK_SCHEME": "",
+}
+
+// Openstack Infra Properties
+var openstackProps = map[string]string{
+	// Property: Default-Value
+	"MEX_EXT_NETWORK":      "external-network-shared",
+	"MEX_NETWORK":          "mex-k8s-net-1",
+	"MEX_ROUTER":           "mex-k8s-router-1",
+	"MEX_OS_IMAGE":         defaultOSImageName,
+	"MEX_SECURITY_GROUP":   "default",
+	"FLAVOR_MATCH_PATTERN": ".*",
+	"MEX_CRM_GATEWAY_ADDR": "",
+	"MEX_EXTERNAL_IP_MAP":  "",
+}
+
+func setPropsFromVars(ctx context.Context, props, vars map[string]string) {
+	// Infra Props value is fetched in following order:
+	// 1. Fetch props from vars passed, if nothing set then
+	// 2. Fetch from env, if nothing set then
+	// 3. Use default value
+	for k, _ := range props {
+		if val, ok := vars[k]; ok {
+			log.SpanLog(ctx, log.DebugLevelMexos, "set infra property from vars", "key", k, "val", val)
+			props[k] = val
+		} else {
+			val := os.Getenv(k)
+			if val != "" {
+				log.SpanLog(ctx, log.DebugLevelMexos, "set infra property from env", "key", k, "val", val)
+				props[k] = val
+			}
+		}
+	}
+}
+
 func getVaultCloudletPath(filePath, vaultAddr string) string {
 	return fmt.Sprintf(
 		"%s/v1/secret/data/cloudlet/openstack/%s",
@@ -43,7 +80,7 @@ func getVaultCloudletPath(filePath, vaultAddr string) string {
 	)
 }
 
-func InitInfraCommon(ctx context.Context, vaultAddr string) error {
+func InitInfraCommon(ctx context.Context, vaultAddr string, vars map[string]string) error {
 	if vaultAddr == "" {
 		return fmt.Errorf("vaultAddr is not specified")
 	}
@@ -75,6 +112,9 @@ func InitInfraCommon(ctx context.Context, vaultAddr string) error {
 	}
 	CloudletInfraCommon.DnsZone = "mobiledgex.net"
 	CloudletInfraCommon.RegistryFileServer = "registry.mobiledgex.net"
+
+	setPropsFromVars(ctx, infraProps, vars)
+
 	err = initMappedIPs()
 	if err != nil {
 		return fmt.Errorf("unable to init Mapped IPs: %v", err)
@@ -82,7 +122,7 @@ func InitInfraCommon(ctx context.Context, vaultAddr string) error {
 	return nil
 }
 
-func InitOpenstackProps(ctx context.Context, operatorName, physicalName, vaultAddr string) error {
+func InitOpenstackProps(ctx context.Context, operatorName, physicalName, vaultAddr string, vars map[string]string) error {
 	openRcURL := getVaultCloudletPath(physicalName+"/openrc.json", vaultAddr)
 	err := InternVaultEnv(ctx, openRcURL)
 	if err != nil {
@@ -102,56 +142,36 @@ func InitOpenstackProps(ctx context.Context, operatorName, physicalName, vaultAd
 		}
 	}
 
-	OpenstackProps.OpenRcVars = make(map[string]string)
+	setPropsFromVars(ctx, openstackProps, vars)
 
-	OpenstackProps.OsExternalNetworkName = os.Getenv("MEX_EXT_NETWORK")
-	if OpenstackProps.OsExternalNetworkName == "" {
-		OpenstackProps.OsExternalNetworkName = "external-network-shared"
-	}
-
-	OpenstackProps.OsImageName = os.Getenv("MEX_OS_IMAGE")
-	if OpenstackProps.OsImageName == "" {
-		OpenstackProps.OsImageName = defaultOSImageName
-	}
-
-	// defaulting some value
-	OpenstackProps.OsExternalRouterName = os.Getenv("MEX_ROUTER")
-	if OpenstackProps.OsExternalRouterName == "" {
-		OpenstackProps.OsExternalRouterName = "mex-k8s-router-1"
-	}
-	OpenstackProps.OsMexNetwork = "mex-k8s-net-1"
 	return nil
 }
 
 //GetCloudletExternalRouter returns default MEX external router name
 func GetCloudletExternalRouter() string {
 	//TODO validate existence and status
-	return OpenstackProps.OsExternalRouterName
+	return openstackProps["MEX_ROUTER"]
 }
 
 func GetCloudletExternalNetwork() string {
 	// this will be unset if platform is not openstack
-	// because InitOpenstackProps() will not have been called.
-	return OpenstackProps.OsExternalNetworkName
+	// because InitopenstackProps() will not have been called.
+	return openstackProps["MEX_EXT_NETWORK"]
 }
 
 // Utility functions that used to be within manifest.
 //GetCloudletNetwork returns default MEX network, internal and prepped
 func GetCloudletMexNetwork() string {
 	//TODO validate existence and status
-	return OpenstackProps.OsMexNetwork
+	return openstackProps["MEX_NETWORK"]
 }
 
 func GetCloudletDNSZone() string {
 	return CloudletInfraCommon.DnsZone
 }
 
-func GetCloudletNetworkScheme() string {
-	return CloudletInfraCommon.NetworkScheme
-}
-
 func GetCloudletOSImage() string {
-	return OpenstackProps.OsImageName
+	return openstackProps["MEX_OS_IMAGE"]
 }
 
 func GetCloudletRegistryFileServer() string {
@@ -164,6 +184,14 @@ func GetCloudletCFKey() string {
 
 func GetCloudletCFUser() string {
 	return CloudletInfraCommon.CfUser
+}
+
+func GetCloudletNetworkScheme() string {
+	return infraProps["MEX_NETWORK_SCHEME"]
+}
+
+func SetCloudletNetworkScheme(val string) {
+	infraProps["MEX_NETWORK_SCHEME"] = val
 }
 
 func SetTestMode(tMode bool) {
@@ -189,18 +217,14 @@ func GetCloudletTenant() string {
 	return "null"
 }
 func GetCloudletSecurityGroup() string {
-	sg := os.Getenv("MEX_SECURITY_GROUP")
-	if sg == "" {
-		return "default"
-	}
-	return sg
+	return openstackProps["MEX_SECURITY_GROUP"]
 }
 func GetCloudletMexosAgentPort() string {
 	return "18889"
 }
 
 func GetCloudletFlavorMatchPattern() string {
-	pattern := os.Getenv("FLAVOR_MATCH_PATTERN")
+	pattern := openstackProps["FLAVOR_MATCH_PATTERN"]
 	if pattern == "" {
 		return ".*"
 	}
@@ -208,7 +232,7 @@ func GetCloudletFlavorMatchPattern() string {
 }
 
 func GetCloudletCRMGatewayIPAndPort() (string, int) {
-	gw := os.Getenv("MEX_CRM_GATEWAY_ADDR")
+	gw := openstackProps["MEX_CRM_GATEWAY_ADDR"]
 	if gw == "" {
 		return "", 0
 	}
@@ -227,7 +251,7 @@ func GetCloudletCRMGatewayIPAndPort() (string, int) {
 // fromip1=toip1,fromip2=toip2 and populates mappedExternalIPs
 func initMappedIPs() error {
 	mappedExternalIPs = make(map[string]string)
-	meip := os.Getenv("MEX_EXTERNAL_IP_MAP")
+	meip := openstackProps["MEX_EXTERNAL_IP_MAP"]
 	if meip != "" {
 		ippair := strings.Split(meip, ",")
 		for _, i := range ippair {
@@ -252,17 +276,4 @@ func GetMappedExternalIP(ip string) string {
 		return mappedip
 	}
 	return ip
-}
-
-func SourceEnv(ctx context.Context, envvar map[string]string) error {
-	var err error
-
-	log.SpanLog(ctx, log.DebugLevelMexos, "sourcing env vars", "envvar", envvar)
-	for envKey, envVal := range envvar {
-		err = os.Setenv(envKey, envVal)
-		if err != nil {
-			return err
-		}
-	}
-	return nil
 }

@@ -3,7 +3,6 @@ package openstack
 import (
 	"context"
 	"fmt"
-	"os"
 
 	"github.com/mobiledgex/edge-cloud-infra/mexos"
 	"github.com/mobiledgex/edge-cloud/cloud-resource-manager/nginx"
@@ -42,15 +41,14 @@ func (s *Platform) Init(ctx context.Context, platformConfig *platform.PlatformCo
 	updateCallback(edgeproto.UpdateTask, "Initializing Openstack platform")
 
 	updateCallback(edgeproto.UpdateTask, "Fetching Openstack access credentials")
-	if err := mexos.InitInfraCommon(ctx, platformConfig.VaultAddr); err != nil {
+	if err := mexos.InitInfraCommon(ctx, platformConfig.VaultAddr, platformConfig.EnvVars); err != nil {
 		return err
 	}
-	if err := mexos.InitOpenstackProps(ctx, platformConfig.CloudletKey.OperatorKey.Name, platformConfig.PhysicalName, platformConfig.VaultAddr); err != nil {
+	if err := mexos.InitOpenstackProps(ctx, platformConfig.CloudletKey.OperatorKey.Name, platformConfig.PhysicalName, platformConfig.VaultAddr, platformConfig.EnvVars); err != nil {
 		return err
 	}
-	mexos.CloudletInfraCommon.NetworkScheme = os.Getenv("MEX_NETWORK_SCHEME")
-	if mexos.CloudletInfraCommon.NetworkScheme == "" {
-		mexos.CloudletInfraCommon.NetworkScheme = "name=mex-k8s-net-1,cidr=10.101.X.0/24"
+	if mexos.GetCloudletNetworkScheme() == "" {
+		mexos.SetCloudletNetworkScheme("name=mex-k8s-net-1,cidr=10.101.X.0/24")
 	}
 	var err error
 	s.flavorList, err = mexos.GetFlavorInfo(ctx)

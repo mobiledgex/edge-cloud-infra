@@ -25,7 +25,7 @@ func (s *Platform) GetType() string {
 }
 
 func (s *Platform) Init(ctx context.Context, platformConfig *platform.PlatformConfig, updateCallback edgeproto.CacheUpdateCallback) error {
-	if err := mexos.InitInfraCommon(ctx, platformConfig.VaultAddr); err != nil {
+	if err := mexos.InitInfraCommon(ctx, platformConfig.VaultAddr, platformConfig.EnvVars); err != nil {
 		return err
 	}
 	s.config = *platformConfig
@@ -72,7 +72,7 @@ type AZFlavor struct {
 
 func (s *Platform) GatherCloudletInfo(ctx context.Context, info *edgeproto.CloudletInfo) error {
 	log.SpanLog(ctx, log.DebugLevelMexos, "GetLimits (Azure)")
-	if err := s.AzureLogin(ctx, ); err != nil {
+	if err := s.AzureLogin(ctx); err != nil {
 		return err
 	}
 

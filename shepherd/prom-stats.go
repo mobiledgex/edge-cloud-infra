@@ -84,7 +84,7 @@ func parseTime(timeFloat float64) *types.Timestamp {
 	return ts
 }
 
-func collectAppPrometheusMetrics(ctx context.Context,p *K8sClusterStats) map[shepherd_common.MetricAppInstKey]*shepherd_common.AppMetrics {
+func collectAppPrometheusMetrics(ctx context.Context, p *K8sClusterStats) map[shepherd_common.MetricAppInstKey]*shepherd_common.AppMetrics {
 	appStatsMap := make(map[shepherd_common.MetricAppInstKey]*shepherd_common.AppMetrics)
 
 	appKey := shepherd_common.MetricAppInstKey{
@@ -159,7 +159,7 @@ func collectAppPrometheusMetrics(ctx context.Context,p *K8sClusterStats) map[she
 		}
 	}
 	// Get Pod NetRecv bytes rate averaged over 1m
-	resp, err = getPromMetrics(ctx,p.promAddr, promQNetSentRate, p.client)
+	resp, err = getPromMetrics(ctx, p.promAddr, promQNetSentRate, p.client)
 	if err == nil && resp.Status == "success" {
 		for _, metric := range resp.Data.Result {
 			appKey.Pod = metric.Labels.PodName

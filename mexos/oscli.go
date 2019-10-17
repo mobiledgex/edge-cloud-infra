@@ -748,9 +748,9 @@ func OSFindResourceByInstId(ctx context.Context, resourceType string, instId str
 //   <openstack metric measures show --resource-id a9bf10cf-a709-5a47-8b69-da920b8f65cd network.incoming.bytes>
 // However what we need is only the last metric, so we set the start time 10mins befor "Now"
 // to limit the number of results
-func OSGetLastMetricForId(ctx context.Context, resId string, metric string) (OSMetriciMeasurement, error) {
+func OSGetLastMetricForId(ctx context.Context, resId string, metric string) (OSMetricMeasurement, error) {
 	log.SpanLog(ctx, log.DebugLevelMexos, "get measure for Id", "id", resId, "metric", metric)
-	measurements := []OSMetriciMeasurement{}
+	measurements := []OSMetricMeasurement{}
 
 	// We don't want to have a bunch of data, just get from last 10 mins
 	startTime := time.Now().Add(time.Duration(-10) * time.Minute)
@@ -760,16 +760,16 @@ func OSGetLastMetricForId(ctx context.Context, resId string, metric string) (OSM
 		"-f", "json", "--start", startStr, "--resource-id", resId, metric)
 	if err != nil {
 		err = fmt.Errorf("can't get measurements %s, for %s, %s %v", metric, resId, out, err)
-		return OSMetriciMeasurement{}, err
+		return OSMetricMeasurement{}, err
 	}
 	err = json.Unmarshal(out, &measurements)
 	if err != nil {
 		err = fmt.Errorf("cannot unmarshal measurements, %v", err)
-		return OSMetriciMeasurement{}, err
+		return OSMetricMeasurement{}, err
 	}
 	// No value, means we don't need to write it
 	if len(measurements) == 0 {
-		return OSMetriciMeasurement{}, fmt.Errorf("No values for the metric")
+		return OSMetricMeasurement{}, fmt.Errorf("No values for the metric")
 	}
 	last := len(measurements) - 1
 	return measurements[last], nil

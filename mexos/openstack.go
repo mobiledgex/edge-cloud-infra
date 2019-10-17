@@ -252,7 +252,7 @@ type OSMetricResource struct {
 }
 
 // Ceilometer-based tsdb measurements
-type OSMetriciMeasurement struct {
+type OSMetricMeasurement struct {
 	Timestamp   string  `json:"timestamp"`
 	Value       float64 `json:"value"`
 	Granularity float64 `json:"granularity"`

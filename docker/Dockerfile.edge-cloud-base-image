@@ -36,6 +36,7 @@ RUN apt-get update && apt-get install -y \
 	kubectl 
 RUN pip install python-heatclient
 RUN pip install python-openstackclient
+RUN pip install gnocchiclient
 
 COPY edge-cloud-base-image.root/_ssh /root/.ssh
 COPY edge-cloud-base-image.root/_mobiledgex /root/.mobiledgex

@@ -89,7 +89,7 @@ func (s *Platform) GetPlatformStats(ctx context.Context) (shepherd_common.Cloudl
 }
 
 // Helper function to asynchronously get the metric from openstack
-func goGetMetricforId(ctx context.Context, id string, measurement string, osMetric *mexos.OSMetriciMeasurement) chan string {
+func goGetMetricforId(ctx context.Context, id string, measurement string, osMetric *mexos.OSMetricMeasurement) chan string {
 	var err error
 	waitChan := make(chan string)
 	go func() {
@@ -106,7 +106,7 @@ func goGetMetricforId(ctx context.Context, id string, measurement string, osMetr
 }
 
 func (s *Platform) GetVmStats(ctx context.Context, key *edgeproto.AppInstKey) (shepherd_common.AppMetrics, error) {
-	var Cpu, Mem, Disk, NetSent, NetRecv mexos.OSMetriciMeasurement
+	var Cpu, Mem, Disk, NetSent, NetRecv mexos.OSMetricMeasurement
 	netSentChan := make(chan string)
 	netRecvChan := make(chan string)
 	appMetrics := shepherd_common.AppMetrics{}

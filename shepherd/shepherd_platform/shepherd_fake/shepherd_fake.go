@@ -2,6 +2,7 @@ package shepherd_fake
 
 import (
 	"context"
+	"time"
 
 	"github.com/mobiledgex/edge-cloud-infra/shepherd/shepherd_common"
 	"github.com/mobiledgex/edge-cloud/cloud-resource-manager/platform/pc"
@@ -33,4 +34,8 @@ func (s *Platform) GetPlatformStats(ctx context.Context) (shepherd_common.Cloudl
 
 func (s *Platform) GetVmStats(ctx context.Context, key *edgeproto.AppInstKey) (shepherd_common.AppMetrics, error) {
 	return shepherd_common.AppMetrics{}, nil
+}
+
+func (s *Platform) GetMetricsCollectInterval() time.Duration {
+	return 0
 }

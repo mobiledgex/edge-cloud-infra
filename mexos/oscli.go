@@ -741,31 +741,27 @@ func OSFindResourceByInstId(ctx context.Context, resourceType string, instId str
 // Get openstack metrics from ceilometer tsdb
 // Example openstack call:
 //   <openstack metric measures show --resource-id a9bf10cf-a709-5a47-8b69-da920b8f65cd network.incoming.bytes>
-// However what we need is only the last metric, so we set the start time 10mins befor "Now"
-// to limit the number of results
-func OSGetLastMetricForId(ctx context.Context, resId string, metric string) (OSMetricMeasurement, error) {
+// This will return a range of measurements from the startTime
+func OSGetMetricsRangeForId(ctx context.Context, resId string, metric string, startTime time.Time) ([]OSMetricMeasurement, error) {
 	log.SpanLog(ctx, log.DebugLevelMexos, "get measure for Id", "id", resId, "metric", metric)
 	measurements := []OSMetricMeasurement{}
 
-	// We don't want to have a bunch of data, just get from last 10 mins
-	startTime := time.Now().Add(time.Duration(-10) * time.Minute)
 	startStr := startTime.Format(time.RFC3339)
 
 	out, err := TimedOpenStackCommand(ctx, "openstack", "metric", "measures", "show",
 		"-f", "json", "--start", startStr, "--resource-id", resId, metric)
 	if err != nil {
 		err = fmt.Errorf("can't get measurements %s, for %s, %s %v", metric, resId, out, err)
-		return OSMetricMeasurement{}, err
+		return []OSMetricMeasurement{}, err
 	}
 	err = json.Unmarshal(out, &measurements)
 	if err != nil {
 		err = fmt.Errorf("cannot unmarshal measurements, %v", err)
-		return OSMetricMeasurement{}, err
+		return []OSMetricMeasurement{}, err
 	}
 	// No value, means we don't need to write it
 	if len(measurements) == 0 {
-		return OSMetricMeasurement{}, fmt.Errorf("No values for the metric")
+		return []OSMetricMeasurement{}, fmt.Errorf("No values for the metric")
 	}
-	last := len(measurements) - 1
-	return measurements[last], nil
+	return measurements, nil
 }

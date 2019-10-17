@@ -34,9 +34,6 @@ var parentSpan = flag.String("span", "", "Use parent span for logging")
 
 var defaultPrometheusPort = int32(9090)
 
-// Default Ceilometer granularity is 300 secs(5 mins)
-var VmScrapeInterval = time.Minute * 5
-
 //map keeping track of all the currently running prometheuses
 var workerMap map[string]*ClusterWorker
 var vmAppWorkerMap map[string]*AppInstWorker
@@ -64,12 +61,12 @@ func appInstCb(ctx context.Context, old *edgeproto.AppInst, new *edgeproto.AppIn
 		stats, exists := vmAppWorkerMap[mapKey]
 		if new.State == edgeproto.TrackedState_READY && !exists {
 			// Add/Create
-			stats, err := NewAppInstWorker(ctx, VmScrapeInterval, MetricSender.Update, new, myPlatform)
+			stats, err := NewAppInstWorker(ctx, *collectInterval, MetricSender.Update, new, myPlatform)
 			if err == nil {
 				vmAppWorkerMap[mapKey] = stats
 				stats.Start(ctx)
 			}
-		} else if exists {
+		} else if new.State != edgeproto.TrackedState_READY && !exists {
 			delete(vmAppWorkerMap, mapKey)
 			stats.Stop(ctx)
 		}

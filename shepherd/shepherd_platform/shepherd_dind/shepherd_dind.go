@@ -41,6 +41,10 @@ func (s *Platform) GetPlatformClient(ctx context.Context, clusterInst *edgeproto
 	return s.SharedClient, nil
 }
 
+func (s *Platform) GetMetricsCollectInterval() time.Duration {
+	return 0
+}
+
 func (s *Platform) GetPlatformStats(ctx context.Context) (shepherd_common.CloudletMetrics, error) {
 	cloudletMetric := shepherd_common.CloudletMetrics{}
 	cloudletMetric.ComputeTS, _ = types.TimestampProto(time.Now())

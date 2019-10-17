@@ -15,10 +15,14 @@ import (
 	"github.com/mobiledgex/edge-cloud/log"
 )
 
+// Default Ceilometer granularity is 300 secs(5 mins)
+var VmScrapeInterval = time.Minute * 5
+
 type Platform struct {
-	rootLbName   string
-	SharedClient pc.PlatformClient
-	pf           openstack.Platform
+	rootLbName      string
+	SharedClient    pc.PlatformClient
+	pf              openstack.Platform
+	collectInterval time.Duration
 }
 
 func (s *Platform) GetType() string {
@@ -37,9 +41,14 @@ func (s *Platform) Init(ctx context.Context, key *edgeproto.CloudletKey, physica
 	if err != nil {
 		return err
 	}
+	s.collectInterval = VmScrapeInterval
 	log.SpanLog(ctx, log.DebugLevelMexos, "init openstack", "rootLB", s.rootLbName,
 		"physicalName", physicalName, "vaultAddr", vaultAddr)
 	return nil
+}
+
+func (s *Platform) GetMetricsCollectInterval() time.Duration {
+	return s.collectInterval
 }
 
 func (s *Platform) GetClusterIP(ctx context.Context, clusterInst *edgeproto.ClusterInst) (string, error) {
@@ -89,12 +98,14 @@ func (s *Platform) GetPlatformStats(ctx context.Context) (shepherd_common.Cloudl
 }
 
 // Helper function to asynchronously get the metric from openstack
-func goGetMetricforId(ctx context.Context, id string, measurement string, osMetric *mexos.OSMetricMeasurement) chan string {
-	var err error
+func (s *Platform) goGetMetricforId(ctx context.Context, id string, measurement string, osMetric *mexos.OSMetricMeasurement) chan string {
 	waitChan := make(chan string)
 	go func() {
-		*osMetric, err = mexos.OSGetLastMetricForId(ctx, id, measurement)
-		if err == nil {
+		// We don't want to have a bunch of data, just get from last 2*interval
+		startTime := time.Now().Add(-s.collectInterval * 2)
+		metrics, err := mexos.OSGetMetricsRangeForId(ctx, id, measurement, startTime)
+		if err == nil && len(metrics) > 0 {
+			*osMetric = metrics[len(metrics)-1]
 			waitChan <- ""
 		} else {
 			log.SpanLog(ctx, log.DebugLevelMexos, "Error getting metric", "id", id,
@@ -121,15 +132,15 @@ func (s *Platform) GetVmStats(ctx context.Context, key *edgeproto.AppInstKey) (s
 	}
 
 	// Get a bunch of the results in parallel as it might take a bit of time
-	cpuChan := goGetMetricforId(ctx, server.ID, "cpu_util", &Cpu)
-	memChan := goGetMetricforId(ctx, server.ID, "memory.usage", &Mem)
-	diskChan := goGetMetricforId(ctx, server.ID, "disk.usage", &Disk)
+	cpuChan := s.goGetMetricforId(ctx, server.ID, "cpu_util", &Cpu)
+	memChan := s.goGetMetricforId(ctx, server.ID, "memory.usage", &Mem)
+	diskChan := s.goGetMetricforId(ctx, server.ID, "disk.usage", &Disk)
 
 	// For network we try to get the id of the instance_network_interface for an instance
 	netIf, err := mexos.OSFindResourceByInstId(ctx, "instance_network_interface", server.ID)
 	if err == nil {
-		netSentChan = goGetMetricforId(ctx, netIf.Id, "network.outgoing.bytes.rate", &NetSent)
-		netRecvChan = goGetMetricforId(ctx, netIf.Id, "network.incoming.bytes.rate", &NetRecv)
+		netSentChan = s.goGetMetricforId(ctx, netIf.Id, "network.outgoing.bytes.rate", &NetSent)
+		netRecvChan = s.goGetMetricforId(ctx, netIf.Id, "network.incoming.bytes.rate", &NetRecv)
 	} else {
 		netRecvChan <- "Unavailable"
 		netSentChan <- "Unavailable"

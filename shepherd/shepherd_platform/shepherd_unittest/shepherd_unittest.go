@@ -61,6 +61,10 @@ func (s *Platform) GetVmStats(ctx context.Context, key *edgeproto.AppInstKey) (s
 	return metrics, nil
 }
 
+func (s *Platform) GetMetricsCollectInterval() time.Duration {
+	return 0
+}
+
 // UTClient hijacks a set of commands and returns predetermined output
 // For all other commands it just calls pc.LocalClient equivalents
 type UTClient struct {

@@ -25,7 +25,11 @@ type AppInstWorker struct {
 func NewAppInstWorker(ctx context.Context, interval time.Duration, send func(ctx context.Context, metric *edgeproto.Metric) bool, appinst *edgeproto.AppInst, pf platform.Platform) (*AppInstWorker, error) {
 	p := AppInstWorker{}
 	p.pf = pf
-	p.interval = interval
+	if int64(interval) > int64(pf.GetMetricsCollectInterval()) {
+		p.interval = interval
+	} else {
+		p.interval = pf.GetMetricsCollectInterval()
+	}
 	p.send = send
 	p.appInstKey = appinst.Key
 	log.SpanLog(ctx, log.DebugLevelMetrics, "NewAppInstWorker", "app", appinst)
@@ -63,6 +67,7 @@ func (p *AppInstWorker) RunNotify() {
 			stat, err := p.pf.GetVmStats(ctx, &p.appInstKey)
 			if err != nil {
 				log.SpanLog(ctx, log.DebugLevelInfo, "Failed to get metrics from VM", "app", p.appInstKey, "err", err)
+				span.Finish()
 				continue
 			}
 			log.SpanLog(ctx, log.DebugLevelMetrics, "metrics for app", "key", key, "metrics", stat)

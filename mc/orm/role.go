@@ -31,6 +31,7 @@ const ResourceCloudletAnalytics = "cloudletanalytics"
 const ResourceClusterFlavors = "clusterflavors"
 const ResourceFlavors = "flavors"
 const ResourceConfig = "config"
+const ResourceAlert = "alert"
 
 var DeveloperResources = []string{
 	ResourceApps,
@@ -72,6 +73,8 @@ func InitRolePerms(ctx context.Context) error {
 	addPolicy(ctx, &err, RoleAdminManager, ResourceConfig, ActionView)
 	addPolicy(ctx, &err, RoleAdminManager, ResourceCloudletPools, ActionManage)
 	addPolicy(ctx, &err, RoleAdminManager, ResourceCloudletPools, ActionView)
+	addPolicy(ctx, &err, RoleAdminManager, ResourceAlert, ActionManage)
+	addPolicy(ctx, &err, RoleAdminManager, ResourceAlert, ActionView)
 
 	addPolicy(ctx, &err, RoleDeveloperManager, ResourceUsers, ActionManage)
 	addPolicy(ctx, &err, RoleDeveloperManager, ResourceUsers, ActionView)
@@ -305,6 +308,24 @@ func AddUserRoleObj(ctx context.Context, claims *UserClaims, role *ormapi.Role) 
 			return fmt.Errorf("Can only assign operator roles for operator organization")
 		}
 		orgType = org.Type
+
+		groupings, err := enforcer.GetGroupingPolicy()
+		if err != nil {
+			return dbErr(err)
+		}
+		for ii, _ := range groupings {
+			existingRole := parseRole(groupings[ii])
+			if existingRole == nil {
+				continue
+			}
+			// avoid gitlab error of member already exists if multiple roles are assigned to the same org
+			if existingRole.Org == role.Org && existingRole.Username == role.Username {
+				return fmt.Errorf(
+					"User already has a role %s for org %s, please remove existing role first",
+					existingRole.Role, existingRole.Org,
+				)
+			}
+		}
 	}
 
 	// make sure caller has perms to modify users of target org
@@ -414,12 +435,17 @@ func ShowUserRoleObj(ctx context.Context, username string) ([]ormapi.Role, error
 	if err != nil {
 		return nil, dbErr(err)
 	}
+	authz, err := newShowAuthz(ctx, username, ResourceUsers, ActionView)
+	if err != nil {
+		return nil, err
+	}
+
 	for ii, _ := range groupings {
 		role := parseRole(groupings[ii])
 		if role == nil {
 			continue
 		}
-		if !authorized(ctx, username, role.Org, ResourceUsers, ActionView) {
+		if !authz.Ok(ctx, role.Org) {
 			continue
 		}
 		roles = append(roles, *role)

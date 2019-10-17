@@ -1,0 +1,7 @@
+- name: Look up cloudflare creds in vault
+  set_fact:
+    vault_lookup: "{{ lookup('vault', cloudflare_account_path) }}"
+
+- set_fact:
+    cloudflare_account_email: "{{ vault_lookup.cloudflare.data.user }}"
+    cloudflare_account_api_token: "{{ vault_lookup.cloudflare.data.pass }}"

@@ -325,6 +325,156 @@
           - "{{ vouch_conf_file | dirname }}:/config"
           - "{{ vouch_data_dir }}:/data"
 
+- hosts: elasticsearch
+  vars:
+    elasticsearch_version: 7.4.0 
+    cert_sync_script: /usr/local/bin/es-cert-sync.sh
+    es_conf_dir: /etc/es
+    cert_sync_dir: certs
+    es_certs_dir: /usr/share/elasticsearch/config/certificates/es
+    kibana_conf: /etc/kibana.yml
+
+  tasks:
+    - import_role:
+        name: telegraf
+      tags:
+        - monitoring
+        - setup
+
+    - import_role:
+        name: docker
+      tags: setup
+
+    - set_fact:
+        es_domain: "*.{{ cert_wildcard_domain }}"
+      tags: setup
+
+    - import_role:
+        name: web
+        tasks_from: certs
+      vars:
+        cert_domains: [ "{{ es_domain }}" ]
+        post_renewal_hooks:
+          - hook_name: es-cert-sync
+            hook_content: |-
+              #!/bin/bash
+              exec {{ cert_sync_script }}
+      tags: setup
+
+    - name: Install pip
+      apt:
+        name: python3-pip
+        state: present
+      become: yes
+      tags: setup
+
+    - name: Install docker-compose python module
+      pip:
+        name: docker-compose
+      become: yes
+      tags: setup
+
+    - name: Bump up virtual memory map counts
+      sysctl:
+        name: vm.max_map_count
+        value: 262144
+        sysctl_set: yes
+      become: yes
+      tags: setup
+
+    - name: Compute vault path for creds
+      set_fact:
+        vault_es_path: "secret/ansible/internal/accounts/elasticsearch/{{ es_instance | default('main') }}:es"
+
+    - name: Look up elasticsearch credentials in vault
+      set_fact:
+        vault_lookup: "{{ lookup('vault', vault_es_path) }}"
+
+    - set_fact:
+        es_url: "{{ vault_lookup.es.data.url }}"
+        es_jaeger_user: "{{ vault_lookup.es.data.user }}"
+        es_jaeger_pass: "{{ vault_lookup.es.data.pass }}"
+        es_root_user: "{{ vault_lookup.es.data.root_user }}"
+        es_root_pass: "{{ vault_lookup.es.data.root_pass }}"
+
+    - name: Set up the config dir
+      file:
+        path: "{{ es_conf_dir }}"
+        state: directory
+        owner: root
+        group: root
+        mode: 0700
+      become: yes
+      tags: setup
+
+    - name: Install the cert sync script
+      template:
+        src: internal/elasticsearch/es-cert-sync.sh.j2
+        dest: "{{ cert_sync_script }}"
+        owner: root
+        group: root
+        mode: 0755
+      become: yes
+      register: script
+
+    - name: Run the cert sync script
+      command: "{{ cert_sync_script }}"
+      become: yes
+      when: script.changed
+
+    - name: Install the docker compose manifest
+      template:
+        src: internal/elasticsearch/docker-compose.yml.j2
+        dest: "{{ es_conf_dir }}/docker-compose.yml"
+      become: yes
+
+    - name: Start the elasticsearch services
+      docker_compose:
+        project_name: es
+        project_src: "{{ es_conf_dir }}"
+      become: yes
+      register: compose
+
+    - name: Wait for cluster to come up
+      uri:
+        url: "https://{{ inventory_hostname }}:9200/_cat/health"
+        user: "{{ es_root_user }}"
+        password: "{{ es_root_pass }}"
+        force_basic_auth: yes
+        return_content: yes
+      delegate_to: localhost
+      check_mode: no
+      register: result
+      until: '"docker-cluster green" in result.content'
+      retries: 20
+      delay: 15
+
+    - debug: var=result.content
+
+    - name: Add the jaeger role
+      uri:
+        url: "https://{{ inventory_hostname }}:9200/_security/role/{{ es_jaeger_user }}"
+        method: POST
+        user: "{{ es_root_user }}"
+        password: "{{ es_root_pass }}"
+        force_basic_auth: yes
+        body: "{{ lookup('template', 'internal/elasticsearch/jaeger-role.j2') }}"
+        body_format: json
+        status_code: 200
+      delegate_to: localhost
+
+    - name: Add the jaeger user
+      uri:
+        url: "https://{{ inventory_hostname }}:9200/_security/user/{{ es_jaeger_user }}"
+        method: POST
+        user: "{{ es_root_user }}"
+        password: "{{ es_root_pass }}"
+        force_basic_auth: yes
+        body: "{{ lookup('template', 'internal/elasticsearch/jaeger-user.j2') }}"
+        body_format: json
+        status_code: 200
+      delegate_to: localhost
+
 - hosts: jaeger
   vars:
     vault_mex_ca_cert_path: "secret/certs/mex-ca"
@@ -344,14 +494,17 @@
     - name: Look up CA cert in vault
       set_fact:
         vault_lookup: "{{ lookup('vault', vault_mex_ca_cert_path) }}"
+      tags: setup
     - set_fact:
         mex_ca_cert: "{{ vault_lookup.mex_ca.data.cert }}"
+      tags: setup
 
     - name: Copy CA cert
       copy:
         dest: "{{ mex_ca_cert_path }}"
         content: "{{ mex_ca_cert }}"
       become: yes
+      tags: setup
 
     - import_role:
         name: web

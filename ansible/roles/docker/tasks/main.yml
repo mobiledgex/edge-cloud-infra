@@ -52,6 +52,11 @@
     name: docker
   become: yes
 
+- name: Load registry docker creds
+  import_role:
+    name: load-vault-creds
+    tasks_from: mex_docker
+
 - name: Log in to Docker Registry
   docker_login:
     registry: "{{ mex_docker_registry }}"

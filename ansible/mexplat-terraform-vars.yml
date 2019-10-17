@@ -5,6 +5,10 @@
   gather_facts: no
 
   tasks:
+    - name: Load cloudflare creds
+      import_role:
+        name: load-vault-creds
+        tasks_from: cloudflare
     - name: Generate terraform config
       template:
         src: templates/mexplat/terraform.tfvars.j2

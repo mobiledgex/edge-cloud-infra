@@ -31,6 +31,11 @@
 - set_fact:
     controller_ip: "{{ controller_ip_command.stdout }}"
 
+- name: Load cloudflare creds
+  import_role:
+    name: load-vault-creds
+    tasks_from: cloudflare
+
 - name: Update Controller DNS
   cloudflare_dns:
     zone: "{{ cloudflare_zone }}"

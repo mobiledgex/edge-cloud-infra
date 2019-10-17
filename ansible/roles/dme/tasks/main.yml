@@ -37,6 +37,11 @@
     cert: "{{ vault_lookup.dmecert.cert }}"
     key: "{{ vault_lookup.dmecert.key }}"
 
+- name: Load locapi creds
+  import_role:
+    name: load-vault-creds
+    tasks_from: locapi
+
 - name: Deploy the Mex DME
   k8s:
     kubeconfig: "{{ kubeconfig_file.path }}"
@@ -62,6 +67,11 @@
 
 - set_fact:
     dme_ip: "{{ dme_ip_command.stdout }}"
+
+- name: Load cloudflare creds
+  import_role:
+    name: load-vault-creds
+    tasks_from: cloudflare
 
 - name: "Update DME DNS: {{ dme_dns }}"
   cloudflare_dns:

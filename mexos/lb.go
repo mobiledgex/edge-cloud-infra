@@ -134,7 +134,7 @@ func persistInterfaceName(ctx context.Context, client pc.PlatformClient, ifName,
 	if action == actionAdd {
 		newFileContents = newFileContents + newRule + "\n"
 	}
-	return pc.WriteFile(client, udevRulesFile, newFileContents, "udev-rules", true)
+	return pc.WriteFile(client, udevRulesFile, newFileContents, "udev-rules", pc.SudoOn)
 }
 
 // run an iptables add or delete conditionally based on whether the entry already exists or not
@@ -297,7 +297,7 @@ func configureInternalInterfaceAndExternalForwarding(ctx context.Context, client
 	contents := fmt.Sprintf("auto %s\niface %s inet static\n   address %s/24", internalIfname, internalIfname, internalIPAddr)
 
 	if action == actionAdd {
-		err = pc.WriteFile(client, filename, contents, "ifconfig", true)
+		err = pc.WriteFile(client, filename, contents, "ifconfig", pc.SudoOn)
 		// now create the file
 		if err != nil {
 			return fmt.Errorf("unable to write interface config file: %s -- %v", filename, err)

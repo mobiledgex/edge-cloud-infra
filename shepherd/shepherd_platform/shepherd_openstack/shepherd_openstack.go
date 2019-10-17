@@ -162,7 +162,8 @@ func (s *Platform) GetVmStats(ctx context.Context, key *edgeproto.AppInstKey) (s
 	if memErr == "" {
 		time, err := time.Parse(time.RFC3339, Mem.Timestamp)
 		if err == nil {
-			appMetrics.Mem = uint64(Mem.Value)
+			// Openstack gives it to us in MB
+			appMetrics.Mem = uint64(Mem.Value * 1024 * 1024)
 			appMetrics.MemTS, _ = types.TimestampProto(time)
 		}
 	}

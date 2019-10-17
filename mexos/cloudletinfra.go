@@ -45,14 +45,17 @@ var infraProps = map[string]string{
 // Openstack Infra Properties
 var openstackProps = map[string]string{
 	// Property: Default-Value
-	"MEX_EXT_NETWORK":      "external-network-shared",
-	"MEX_NETWORK":          "mex-k8s-net-1",
-	"MEX_ROUTER":           "mex-k8s-router-1",
-	"MEX_OS_IMAGE":         defaultOSImageName,
-	"MEX_SECURITY_GROUP":   "default",
-	"FLAVOR_MATCH_PATTERN": ".*",
-	"MEX_CRM_GATEWAY_ADDR": "",
-	"MEX_EXTERNAL_IP_MAP":  "",
+	"MEX_EXT_NETWORK":         "external-network-shared",
+	"MEX_NETWORK":             "mex-k8s-net-1",
+	"MEX_ROUTER":              "mex-k8s-router-1",
+	"MEX_OS_IMAGE":            defaultOSImageName,
+	"MEX_SECURITY_GROUP":      "default",
+	"FLAVOR_MATCH_PATTERN":    ".*",
+	"MEX_CRM_GATEWAY_ADDR":    "",
+	"MEX_EXTERNAL_IP_MAP":     "",
+	"MEX_SHARED_ROOTLB_RAM":   "4096",
+	"MEX_SHARED_ROOTLB_VCPUS": "2",
+	"MEX_SHARED_ROOTLB_DISK":  "40",
 }
 
 var CommonInfraProps map[string]string
@@ -68,12 +71,9 @@ func setPropsFromVars(ctx context.Context, props, vars map[string]string) {
 		if val, ok := vars[k]; ok {
 			log.SpanLog(ctx, log.DebugLevelMexos, "set infra property from vars", "key", k, "val", val)
 			props[k] = val
-		} else {
-			val := os.Getenv(k)
-			if val != "" {
-				log.SpanLog(ctx, log.DebugLevelMexos, "set infra property from env", "key", k, "val", val)
-				props[k] = val
-			}
+		} else if val, ok := os.LookupEnv(k); ok {
+			log.SpanLog(ctx, log.DebugLevelMexos, "set infra property from env", "key", k, "val", val)
+			props[k] = val
 		}
 	}
 }
@@ -177,6 +177,28 @@ func GetCloudletExternalNetwork() string {
 func GetCloudletMexNetwork() string {
 	//TODO validate existence and status
 	return OpenstackInfraProps["MEX_NETWORK"]
+}
+
+// GetCloudletSharedRootLBFlavor gets the flavor from defaults
+// or environment variables
+func GetCloudletSharedRootLBFlavor(flavor *edgeproto.Flavor) error {
+	var err error
+	ram := OpenstackInfraProps["MEX_SHARED_ROOTLB_RAM"]
+	flavor.Ram, err = strconv.ParseUint(ram, 10, 64)
+	if err != nil {
+		return err
+	}
+	vcpus := OpenstackInfraProps["MEX_SHARED_ROOTLB_VCPUS"]
+	flavor.Vcpus, err = strconv.ParseUint(vcpus, 10, 64)
+	if err != nil {
+		return err
+	}
+	disk := OpenstackInfraProps["MEX_SHARED_ROOTLB_DISK"]
+	flavor.Disk, err = strconv.ParseUint(disk, 10, 64)
+	if err != nil {
+		return err
+	}
+	return nil
 }
 
 func GetCloudletDNSZone() string {

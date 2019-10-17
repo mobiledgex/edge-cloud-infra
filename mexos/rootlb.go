@@ -3,17 +3,15 @@ package mexos
 import (
 	"context"
 	"fmt"
-	"os"
 	"os/exec"
-	"strconv"
 	"sync"
 	"time"
 
 	valid "github.com/asaskevich/govalidator"
 	"github.com/mobiledgex/edge-cloud/cloudcommon"
 	"github.com/mobiledgex/edge-cloud/edgeproto"
-	"github.com/mobiledgex/edge-cloud/vmspec"
 	"github.com/mobiledgex/edge-cloud/log"
+	"github.com/mobiledgex/edge-cloud/vmspec"
 	ssh "github.com/mobiledgex/golang-ssh"
 )
 
@@ -211,40 +209,6 @@ func WaitForRootLB(ctx context.Context, rootLB *MEXRootLB) error {
 	}
 	log.SpanLog(ctx, log.DebugLevelMexos, "done waiting for rootlb", "name", rootLB.Name)
 
-	return nil
-}
-
-// GetCloudletSharedRootLBFlavor gets the flavor from defaults
-// or environment variables
-func GetCloudletSharedRootLBFlavor(flavor *edgeproto.Flavor) error {
-	ram := os.Getenv("MEX_SHARED_ROOTLB_RAM")
-	var err error
-	if ram != "" {
-		flavor.Ram, err = strconv.ParseUint(ram, 10, 64)
-		if err != nil {
-			return err
-		}
-	} else {
-		flavor.Ram = 4096
-	}
-	vcpus := os.Getenv("MEX_SHARED_ROOTLB_VCPUS")
-	if vcpus != "" {
-		flavor.Vcpus, err = strconv.ParseUint(vcpus, 10, 64)
-		if err != nil {
-			return err
-		}
-	} else {
-		flavor.Vcpus = 2
-	}
-	disk := os.Getenv("MEX_SHARED_ROOTLB_DISK")
-	if disk != "" {
-		flavor.Disk, err = strconv.ParseUint(disk, 10, 64)
-		if err != nil {
-			return err
-		}
-	} else {
-		flavor.Disk = 40
-	}
 	return nil
 }
 

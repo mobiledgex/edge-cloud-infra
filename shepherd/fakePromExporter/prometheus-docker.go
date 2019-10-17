@@ -31,7 +31,7 @@ func StartPromContainer(ctx context.Context) error {
 	}
 
 	dockerRun = exec.Command("docker", "run", "--rm", "-p", fmt.Sprintf("%d:%d", promPort, promPort), "--name", imageName, imageName)
-	// connect to stdout so you can see if the command docker command failed due to e2e-prom already being started by another shepherd
+	// see if the command docker command failed due to e2e-prom already being started by another shepherd
 	stderr, err := dockerRun.StderrPipe()
 	if err != nil {
 		return fmt.Errorf("Could not pipe stdout of docker run command: %v", err)
@@ -66,7 +66,7 @@ func imageFound(name string) bool {
 	return false
 }
 
-func StopPromContainer(containerID string) error {
+func StopPromContainer() error {
 	err := exec.Command("docker", "stop", imageName).Run()
 	dockerRun.Wait()
 	return err

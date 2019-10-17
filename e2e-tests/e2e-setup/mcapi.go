@@ -125,6 +125,7 @@ func runMcDataAPI(api, uri, apiFile, curUserFile, outputDir string, mods []strin
 		// the sep case will make individual calls to mc api for each metric
 		showMetrics := showMcMetrics(uri, token, &rc)
 		util.PrintToYamlFile("show-commands.yml", outputDir, showMetrics, true)
+		return rc
 	}
 
 	if apiFile == "" {
@@ -235,16 +236,16 @@ func showMcMetrics(uri, token string, rc *bool) *ormapi.AllMetrics {
 	clusterQuery := ormapi.RegionClusterInstMetrics{
 		Region: "local",
 		ClusterInst: edgeproto.ClusterInstKey{ //change this to pull clusterkey from the yml file
-			ClusterKey: edgpeproto.ClusterKey{Name: "SmallCluster"}
-			CloudletKey: edgeproto.CloudletKey{OperatorKey: edgeproto.OperatorKey{name:"tmus"}, Name: "tmus-cloud-1"},
-			developer: "AcmeAppCo",
+			ClusterKey:  edgeproto.ClusterKey{Name: "SmallCluster"},
+			CloudletKey: edgeproto.CloudletKey{OperatorKey: edgeproto.OperatorKey{Name: "tmus"}, Name: "tmus-cloud-1"},
+			Developer:   "AcmeAppCo",
 		},
 		Selector: "tcp,udp",
-		Last: 1,
+		Last:     1,
 	}
-	clusterMetrics, status, err := mcClient.ShowClusterMetrics(uri, token, clusterQuery)
+	clusterMetrics, status, err := mcClient.ShowClusterMetrics(uri, token, &clusterQuery)
 	checkMcErr("ShowClusterMetrics", status, err, rc)
-	return appMetrics
+	return clusterMetrics
 }
 
 func createMcDataAll(uri, token string, data *ormapi.AllData, rc *bool) {

@@ -24,7 +24,7 @@ func LBAddRouteAndSecRules(ctx context.Context, client pc.PlatformClient, rootLB
 		return err
 	}
 	if ni.FloatingIPNet != "" {
-		// For now we do nothing when we have a floating IP because it means we are using theyeah i can
+		// For now we do nothing when we have a floating IP because it means we are using the
 		// openstack router to get everywhere anyway.
 		log.SpanLog(ctx, log.DebugLevelMexos, "No route changes needed due to floating IP")
 		return nil

@@ -90,13 +90,15 @@ func (s *Platform) GetPlatformStats(ctx context.Context) (shepherd_common.Cloudl
 
 // Helper function to asynchronously get the metric from openstack
 func goGetMetricforId(ctx context.Context, id string, measurement string, osMetric *mexos.OSMetriciMeasurement) chan string {
+	var err error
 	waitChan := make(chan string)
 	go func() {
-		metric, err := mexos.OSGetLastMetricForId(ctx, id, measurement)
+		*osMetric, err = mexos.OSGetLastMetricForId(ctx, id, measurement)
 		if err == nil {
 			waitChan <- ""
-			osMetric = metric
 		} else {
+			log.SpanLog(ctx, log.DebugLevelMexos, "Error getting metric", "id", id,
+				"measurement", measurement, "error", err)
 			waitChan <- err.Error()
 		}
 	}()
@@ -104,7 +106,7 @@ func goGetMetricforId(ctx context.Context, id string, measurement string, osMetr
 }
 
 func (s *Platform) GetVmStats(ctx context.Context, key *edgeproto.AppInstKey) (shepherd_common.AppMetrics, error) {
-	var Cpu, Mem, Disk, NetSent, NetRecv *mexos.OSMetriciMeasurement
+	var Cpu, Mem, Disk, NetSent, NetRecv mexos.OSMetriciMeasurement
 	netSentChan := make(chan string)
 	netRecvChan := make(chan string)
 	appMetrics := shepherd_common.AppMetrics{}
@@ -119,15 +121,15 @@ func (s *Platform) GetVmStats(ctx context.Context, key *edgeproto.AppInstKey) (s
 	}
 
 	// Get a bunch of the results in parallel as it might take a bit of time
-	cpuChan := goGetMetricforId(ctx, server.ID, "cpu_util", Cpu)
-	memChan := goGetMetricforId(ctx, server.ID, "memory.usage", Mem)
-	diskChan := goGetMetricforId(ctx, server.ID, "disk.usage", Disk)
+	cpuChan := goGetMetricforId(ctx, server.ID, "cpu_util", &Cpu)
+	memChan := goGetMetricforId(ctx, server.ID, "memory.usage", &Mem)
+	diskChan := goGetMetricforId(ctx, server.ID, "disk.usage", &Disk)
 
 	// For network we try to get the id of the instance_network_interface for an instance
 	netIf, err := mexos.OSFindResourceByInstId(ctx, "instance_network_interface", server.ID)
 	if err == nil {
-		netSentChan = goGetMetricforId(ctx, netIf.Id, "network.outgoing.bytes.rate", NetSent)
-		netRecvChan = goGetMetricforId(ctx, netIf.Id, "network.incoming.bytes.rate", NetRecv)
+		netSentChan = goGetMetricforId(ctx, netIf.Id, "network.outgoing.bytes.rate", &NetSent)
+		netRecvChan = goGetMetricforId(ctx, netIf.Id, "network.incoming.bytes.rate", &NetRecv)
 	} else {
 		netRecvChan <- "Unavailable"
 		netSentChan <- "Unavailable"
@@ -139,40 +141,41 @@ func (s *Platform) GetVmStats(ctx context.Context, key *edgeproto.AppInstKey) (s
 	netOutErr := <-netSentChan
 
 	// Now fill the metrics that we actually got
-	if cpuErr == "" && Cpu != nil {
+	if cpuErr == "" {
 		time, err := time.Parse(time.RFC3339, Cpu.Timestamp)
 		if err == nil {
 			appMetrics.Cpu = Cpu.Value
 			appMetrics.CpuTS, _ = types.TimestampProto(time)
 		}
 	}
-	if memErr == "" && Mem != nil {
+	if memErr == "" {
 		time, err := time.Parse(time.RFC3339, Mem.Timestamp)
 		if err == nil {
 			appMetrics.Mem = uint64(Mem.Value)
 			appMetrics.MemTS, _ = types.TimestampProto(time)
 		}
 	}
-	if diskErr == "" && Disk != nil {
+	if diskErr == "" {
 		time, err := time.Parse(time.RFC3339, Disk.Timestamp)
 		if err == nil {
 			appMetrics.Disk = uint64(Disk.Value)
 			appMetrics.DiskTS, _ = types.TimestampProto(time)
 		}
 	}
-	if netInErr == "" && NetRecv != nil {
+	if netInErr == "" {
 		time, err := time.Parse(time.RFC3339, NetRecv.Timestamp)
 		if err == nil {
 			appMetrics.NetRecv = uint64(NetRecv.Value)
 			appMetrics.NetRecvTS, _ = types.TimestampProto(time)
 		}
 	}
-	if netOutErr == "" && NetSent != nil {
+	if netOutErr == "" {
 		time, err := time.Parse(time.RFC3339, NetSent.Timestamp)
 		if err == nil {
 			appMetrics.NetSent = uint64(NetSent.Value)
 			appMetrics.NetSentTS, _ = types.TimestampProto(time)
 		}
 	}
+	log.SpanLog(ctx, log.DebugLevelMetrics, "Finished openstack vm metrics", "metrics", appMetrics)
 	return appMetrics, nil
 }

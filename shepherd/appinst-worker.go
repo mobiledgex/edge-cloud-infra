@@ -65,6 +65,7 @@ func (p *AppInstWorker) RunNotify() {
 				log.SpanLog(ctx, log.DebugLevelInfo, "Failed to get metrics from VM", "app", p.appInstKey, "err", err)
 				continue
 			}
+			log.SpanLog(ctx, log.DebugLevelMetrics, "metrics for app", "key", key, "metrics", stat)
 			appMetrics := MarshalAppMetrics(&key, &stat)
 			for _, metric := range appMetrics {
 				p.send(ctx, metric)

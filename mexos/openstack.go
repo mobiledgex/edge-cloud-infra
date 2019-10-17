@@ -255,5 +255,5 @@ type OSMetricResource struct {
 type OSMetriciMeasurement struct {
 	Timestamp   string  `json:"timestamp"`
 	Value       float64 `json:"value"`
-	Granularity uint64  `json:"granularity"`
+	Granularity float64 `json:"granularity"`
 }

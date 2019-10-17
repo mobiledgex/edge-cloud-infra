@@ -1,0 +1,7 @@
+- name: Look up locapi creds in vault
+  set_fact:
+    vault_lookup: "{{ lookup('vault', locapi_account_path) }}"
+
+- set_fact:
+    locapi_user: "{{ vault_lookup.locapi.data.user }}"
+    locapi_passwd: "{{ vault_lookup.locapi.data.pass }}"

@@ -26,6 +26,11 @@
     mode: 0700
   become: yes
 
+- name: Load registry docker creds
+  import_role:
+    name: load-vault-creds
+    tasks_from: mex_docker
+
 - name: Verify htpasswd file
   command: "docker run -v {{ htpasswd_file }}:{{ htpasswd_file }} --entrypoint htpasswd registry:2 -vb {{ htpasswd_file }} {{ mex_docker_username }} {{ mex_docker_password }}"
   register: htpasswd_verify

@@ -290,7 +290,13 @@ func DetachPortFromServer(ctx context.Context, serverName, portName string) erro
 	out, err := TimedOpenStackCommand(ctx, "openstack", "server", "remove", "port", serverName, portName)
 	if err != nil {
 		log.SpanLog(ctx, log.DebugLevelMexos, "can't remove port", "serverName", serverName, "portName", portName, "out", out, "err", err)
-		err = fmt.Errorf("can't remove port: %s, %s, %v", portName, out, err)
+		if strings.Contains(string(out), "No Port found") {
+			// when ports are removed they are detached from any server they are connected to.
+			log.SpanLog(ctx, log.DebugLevelMexos, "port is gone", "portName", portName)
+			err = nil
+		} else {
+			log.SpanLog(ctx, log.DebugLevelMexos, "can't remove port", "serverName", serverName, "portName", portName, "out", out, "err", err)
+		}
 		return err
 	}
 	return nil

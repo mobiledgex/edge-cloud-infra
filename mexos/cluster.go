@@ -147,10 +147,7 @@ func CreateCluster(ctx context.Context, rootLBName string, clusterInst *edgeprot
 		dedicatedRootLB = true
 	}
 
-	client, err := GetSSHClient(ctx, rootLBName, GetCloudletExternalNetwork(), SSHUser)
-	if err != nil {
-		return fmt.Errorf("can't get rootLB client, %v", err)
-	}
+	var err error
 	if clusterInst.Deployment == cloudcommon.AppDeploymentTypeDocker {
 		//suitable for docker only
 		log.SpanLog(ctx, log.DebugLevelMexos, "creating single VM cluster with just rootLB and no k8s")
@@ -158,7 +155,7 @@ func CreateCluster(ctx context.Context, rootLBName string, clusterInst *edgeprot
 		vmspec := vmspec.VMCreationSpec{FlavorName: clusterInst.NodeFlavor, ExternalVolumeSize: clusterInst.ExternalVolumeSize}
 		err = HeatCreateRootLBVM(ctx, rootLBName, k8smgmt.GetK8sNodeNameSuffix(&clusterInst.Key), &vmspec, updateCallback)
 	} else {
-		err = HeatCreateClusterKubernetes(ctx, client, clusterInst, rootLBName, dedicatedRootLB, updateCallback)
+		err = HeatCreateClusterKubernetes(ctx, clusterInst, rootLBName, dedicatedRootLB, updateCallback)
 	}
 	if err != nil {
 		return err
@@ -178,7 +175,10 @@ func CreateCluster(ctx context.Context, rootLBName string, clusterInst *edgeprot
 			return err
 		}
 	}
-
+	client, err := GetSSHClient(ctx, rootLBName, GetCloudletExternalNetwork(), SSHUser)
+	if err != nil {
+		return fmt.Errorf("can't get rootLB client, %v", err)
+	}
 	if clusterInst.Deployment == cloudcommon.AppDeploymentTypeKubernetes {
 		elapsed := time.Since(start)
 		// subtract elapsed time from total time to get remaining time

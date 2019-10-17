@@ -525,7 +525,8 @@ func CreateHeatStackFromTemplate(ctx context.Context, templateData interface{}, 
 func HeatDeleteCluster(ctx context.Context, client pc.PlatformClient, clusterInst *edgeproto.ClusterInst, rootLBName string, dedicatedRootLB bool) error {
 	cp, err := getClusterParams(ctx, clusterInst, rootLBName, dedicatedRootLB, heatDelete)
 	if err == nil {
-		if cp.RootLBPortName != "" {
+		// no need to detach the port from the dedicated RootLB because the VM is going away with the stack
+		if cp.RootLBPortName != "" && !dedicatedRootLB {
 			err = DetachAndDisableRootLBInterface(ctx, client, rootLBName, cp.RootLBPortName, cp.GatewayIP)
 			if err != nil {
 				log.SpanLog(ctx, log.DebugLevelMexos, "unable to detach rootLB interface, proceed with stack deletion", "err", err)
@@ -678,7 +679,7 @@ func HeatCreateRootLBVM(ctx context.Context, serverName string, stackName string
 }
 
 // HeatCreateClusterKubernetes creates a k8s cluster which may optionally include a dedicated root LB
-func HeatCreateClusterKubernetes(ctx context.Context, client pc.PlatformClient, clusterInst *edgeproto.ClusterInst, rootLBName string, dedicatedRootLB bool, updateCallback edgeproto.CacheUpdateCallback) error {
+func HeatCreateClusterKubernetes(ctx context.Context, clusterInst *edgeproto.ClusterInst, rootLBName string, dedicatedRootLB bool, updateCallback edgeproto.CacheUpdateCallback) error {
 
 	log.SpanLog(ctx, log.DebugLevelMexos, "HeatCreateClusterKubernetes", "clusterInst", clusterInst)
 	// It is problematic to create 2 clusters at the exact same time because we will look for available subnet CIDRS when
@@ -704,6 +705,10 @@ func HeatCreateClusterKubernetes(ctx context.Context, client pc.PlatformClient, 
 		return err
 	}
 	if cp.RootLBPortName != "" {
+		client, err := GetSSHClient(ctx, rootLBName, GetCloudletExternalNetwork(), SSHUser)
+		if err != nil {
+			return fmt.Errorf("unable to get rootlb SSH client: %v", err)
+		}
 		return AttachAndEnableRootLBInterface(ctx, client, rootLBName, cp.RootLBPortName, cp.GatewayIP)
 	}
 	return nil

@@ -24,7 +24,7 @@ func LBAddRouteAndSecRules(ctx context.Context, client pc.PlatformClient, rootLB
 		return err
 	}
 	if ni.FloatingIPNet != "" {
-		// For now we do nothing when we have a floating IP because it means we are using the
+		// For now we do nothing when we have a floating IP because it means we are using theyeah i can
 		// openstack router to get everywhere anyway.
 		log.SpanLog(ctx, log.DebugLevelMexos, "No route changes needed due to floating IP")
 		return nil
@@ -286,11 +286,17 @@ func configureInternalInterfaceAndExternalForwarding(ctx context.Context, client
 	}
 	if externalIfname == "" {
 		log.SpanLog(ctx, log.DebugLevelMexos, "unable to find external interface via MAC", "mac", externalPortMac)
-		return fmt.Errorf("unable to find interface for external port mac: %s", externalPortMac)
+		if action == actionAdd {
+			return fmt.Errorf("unable to find interface for external port mac: %s", externalPortMac)
+		}
+		// keep going on delete
 	}
 	if internalIfname == "" {
 		log.SpanLog(ctx, log.DebugLevelMexos, "unable to find internal interface via MAC", "mac", internalPortMac)
-		return fmt.Errorf("unable to find interface for internal port mac: %s", internalPortMac)
+		if action == actionAdd {
+			return fmt.Errorf("unable to find interface for internal port mac: %s", internalPortMac)
+		}
+		// keep going on delete
 	}
 
 	filename := "/etc/network/interfaces.d/" + internalPortName + ".cfg"
@@ -314,17 +320,27 @@ func configureInternalInterfaceAndExternalForwarding(ctx context.Context, client
 		cmd := fmt.Sprintf("sudo rm %s", filename)
 		out, err := client.Output(cmd)
 		if err != nil {
-			log.SpanLog(ctx, log.DebugLevelMexos, "unable to remove interfaces files", "out", out, "err", err)
+			if strings.Contains(err.Error(), "No such file") {
+				log.SpanLog(ctx, log.DebugLevelMexos, "file already gone", "filename", filename)
+			} else {
+				return fmt.Errorf("Unexpected error removing interface file %s, %s -- %v", filename, out, err)
+			}
 		}
 	}
-	err = persistInterfaceName(ctx, client, internalIfname, internalPortMac, action)
-	if err != nil {
-		return nil
+	// we can get here on some error cases in which the ifname were not found
+	if internalIfname != "" {
+		err = persistInterfaceName(ctx, client, internalIfname, internalPortMac, action)
+		if err != nil {
+			return nil
+		}
+		if externalIfname != "" {
+			err = setupForwardingIptables(ctx, client, externalIfname, internalIfname, action)
+			if err != nil {
+				log.SpanLog(ctx, log.DebugLevelMexos, "setupForwardingIptables failed", "err", err)
+			}
+		}
 	}
-	err = setupForwardingIptables(ctx, client, externalIfname, internalIfname, action)
-	if err != nil {
-		log.SpanLog(ctx, log.DebugLevelMexos, "setupForwardingIptables failed", "err", err)
-	}
+
 	return err
 }
 
@@ -337,12 +353,18 @@ func AttachAndEnableRootLBInterface(ctx context.Context, client pc.PlatformClien
 		return err
 	}
 
-	rootLB, err := getRootLB(ctx, rootLBName)
+	rootLbIp, err := GetServerIPAddr(ctx, GetCloudletExternalNetwork(), rootLBName)
 	if err != nil {
+		log.SpanLog(ctx, log.DebugLevelMexos, "fail to get RootLB IP address", "rootLBName", rootLBName)
+
+		deterr := DetachPortFromServer(ctx, rootLBName, internalPortName)
+		if deterr != nil {
+			log.SpanLog(ctx, log.DebugLevelMexos, "fail to detach port", "err", deterr)
+		}
 		return err
 	}
 
-	err = configureInternalInterfaceAndExternalForwarding(ctx, client, rootLB.IP, internalPortName, internalIPAddr, actionAdd)
+	err = configureInternalInterfaceAndExternalForwarding(ctx, client, rootLbIp, internalPortName, internalIPAddr, actionAdd)
 	if err != nil {
 		deterr := DetachPortFromServer(ctx, rootLBName, internalPortName)
 		if deterr != nil {
@@ -370,5 +392,5 @@ func DetachAndDisableRootLBInterface(ctx context.Context, client pc.PlatformClie
 		// might already be gone
 		log.SpanLog(ctx, log.DebugLevelMexos, "fail to detach port", "err", err)
 	}
-	return nil
+	return err
 }

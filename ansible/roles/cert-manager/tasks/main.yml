@@ -19,6 +19,11 @@
 - set_fact:
     acme_url: "https://acme{{ ( use_letsencrypt_staging is defined and use_letsencrypt_staging ) | ternary('-staging', '') }}-v02.api.letsencrypt.org/directory"
 
+- name: Load cloudflare creds
+  import_role:
+    name: load-vault-creds
+    tasks_from: cloudflare
+
 - name: Set up cloudflare secret
   k8s:
     kubeconfig: "{{ kubeconfig_file.path }}"

@@ -1,0 +1,7 @@
+- name: Look up sendgrid creds in vault
+  set_fact:
+    vault_lookup: "{{ lookup('vault', sendgrid_account_path) }}"
+
+- set_fact:
+    sendgrid_username: "{{ vault_lookup.sendgrid.data.user }}"
+    sendgrid_password: "{{ vault_lookup.sendgrid.data.pass }}"

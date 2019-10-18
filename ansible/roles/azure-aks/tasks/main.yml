@@ -23,6 +23,7 @@
         vm_size: "{{ platform_k8s_vm_size }}"
     tags:
       Environment: "mexplat-{{ deploy_environ }}"
+      Region: "{{ platform_region.region }}"
 
 - name: Dump debug data
   block:

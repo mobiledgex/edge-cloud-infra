@@ -1,11 +1,6 @@
 [all:vars]
 deploy_environ=main
 ubuntu_release=bionic
-mc_postgres_db=mcdb
-mc_postgres_username=mcuser
-mc_postgres_password="s3cr3tmc!"
-mc_superuser=mexadmin
-mc_superuser_password=mexadmin123
 mc_vm_hostname=mc.mobiledgex.net
 postgres_hostname=postgres.mobiledgex.net
 coturn_instance_name=coturn

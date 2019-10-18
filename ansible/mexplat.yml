@@ -99,8 +99,12 @@
     - role: gitlab
 
 - hosts: postgres
-  roles:
-    - role: postgres
+  tasks:
+    - import_role:
+        name: load-vault-creds
+        tasks_from: mc
+    - import_role:
+        name: postgres
       vars:
         postgres_db_accounts:
           - db: "{{ mc_postgres_db }}"

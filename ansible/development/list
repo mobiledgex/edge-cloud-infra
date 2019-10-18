@@ -25,9 +25,6 @@ influxdb_volume_size=1Gi
 [platform]
 localhost	ansible_connection=local
 
-[crms]
-crm-dev.mobiledgex.net
-
 [mc]
 mc-dev.mobiledgex.net
 

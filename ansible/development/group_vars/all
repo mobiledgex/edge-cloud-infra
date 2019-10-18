@@ -1,19 +1,2 @@
 jaeger_hostname: jaeger-dev.mobiledgex.net
 jaeger_endpoint: "https://{{ jaeger_hostname }}:14268/api/traces"
-
-crm_instances:
-
-- cloudlet_name: "{{ deploy_target }}-bonn-cloudlet"
-  openstack_instance: bonn
-  operator_key: TDG
-  controller_region: US
-
-- cloudlet_name: "{{ deploy_target }}-berlin-cloudlet"
-  openstack_instance: berlin
-  operator_key: TDG
-  controller_region: US
-
-- cloudlet_name: "{{ deploy_target }}-fake-cloudlet"
-  operator_key: tmus
-  platform: PLATFORM_TYPE_FAKE
-  controller_region: US

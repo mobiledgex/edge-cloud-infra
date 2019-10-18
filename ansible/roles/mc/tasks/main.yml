@@ -1,3 +1,11 @@
+- import_role:
+    name: load-vault-creds
+    tasks_from: mc
+
+- import_role:
+    name: mc
+    tasks_from: set-password
+
 - name: Look up gitlab apikey in vault
   set_fact:
     vault_lookup: "{{ lookup('vault', gitlab_path) }}"

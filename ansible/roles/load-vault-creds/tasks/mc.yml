@@ -1,0 +1,12 @@
+- set_fact:
+    vault_lookup: "{{ lookup('vault', mc_creds_vault_path) }}"
+
+- name: Look up MC creds in vault
+  set_fact:
+    mc_postgres_db: "{{ vault_lookup.mc.data.db }}"
+    mc_postgres_username: "{{ vault_lookup.mc.data.db_username }}"
+    mc_postgres_password: "{{ vault_lookup.mc.data.db_password }}"
+    mc_superuser: "{{ vault_lookup.mc.data.superuser }}"
+    mc_superuser_password: "{{ vault_lookup.mc.data.superpass }}"
+    mc_creds_version: "{{ vault_lookup.mc.metadata.version }}"
+  delegate_to: localhost

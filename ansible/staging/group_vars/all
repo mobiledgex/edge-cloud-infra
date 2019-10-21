@@ -86,9 +86,3 @@ crm_instances:
     platform: PLATFORM_TYPE_AZURE
     azure_instance: koreasouth
     controller_region: US
-
-  - cloudlet_name: stage-az-kr-cloudlet
-    operator_key: azure
-    platform: PLATFORM_TYPE_AZURE
-    azure_instance: koreacentral
-    controller_region: KR

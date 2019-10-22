@@ -68,6 +68,8 @@ var CloudletRefsOptionalArgs = []string{
 	"rootlbports.value",
 	"useddynamicips",
 	"usedstaticips",
+	"usedgpus",
+	"usedvgpus",
 }
 var CloudletRefsAliasArgs = []string{
 	"key.operatorkey.name=cloudletrefs.key.operatorkey.name",
@@ -80,6 +82,8 @@ var CloudletRefsAliasArgs = []string{
 	"rootlbports.value=cloudletrefs.rootlbports.value",
 	"useddynamicips=cloudletrefs.useddynamicips",
 	"usedstaticips=cloudletrefs.usedstaticips",
+	"usedgpus=cloudletrefs.usedgpus",
+	"usedvgpus=cloudletrefs.usedvgpus",
 }
 var CloudletRefsComments = map[string]string{
 	"key.operatorkey.name": "Company or Organization name of the operator",
@@ -90,6 +94,7 @@ var CloudletRefsComments = map[string]string{
 	"useddisk":             "Used disk in GB",
 	"useddynamicips":       "Used dynamic IPs",
 	"usedstaticips":        "Used static IPs",
+	"usedgpus":             "Until we know otherwise, assume we can count these seperately",
 }
 var CloudletRefsSpecialArgs = map[string]string{}
 var RootLbPortsEntryRequiredArgs = []string{}

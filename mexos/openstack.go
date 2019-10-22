@@ -154,8 +154,21 @@ type OSNetworkDetail struct {
 }
 
 type OSFlavor struct {
-	Name, ID                    string
+	Name, ID, properties        string
 	RAM, Ephemeral, VCPUs, Disk int
+}
+
+type OSFlavorDetail struct {
+	Name       string `json:"name"`
+	ID         string `json:"id"`
+	RAM        int    `json:"ram"`
+	Ephemeral  int    `json:"OS-FLV-EXT-DATA:ephemeral"`
+	VCPUs      int    `json:"vcpus"`
+	Disk       int    `json:"disk"`
+	Disabled   bool   `json:"OS-FLV-DISABLED:disabled"`
+	Public     bool   `json:"os-flavor-access:is_public"`
+	Properties string `json:"properties"`
+	// TBD: access_project_ids : is this flavor available to only certain projects?
 }
 
 type OSSubnet struct {

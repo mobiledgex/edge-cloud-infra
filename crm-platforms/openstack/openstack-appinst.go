@@ -153,7 +153,9 @@ func (s *Platform) CreateAppInst(ctx context.Context, clusterInst *edgeproto.Clu
 		if err != nil {
 			return err
 		}
-		vmspec, err := vmspec.GetVMSpec(finfo, *appFlavor)
+		var gputab edgeproto.GpuTagTable
+		gputab.Key.Name = ""
+		vmspec, err := vmspec.GetVMSpec(finfo, *appFlavor, gputab)
 		if err != nil {
 			return fmt.Errorf("unable to find closest flavor for app: %v", err)
 		}

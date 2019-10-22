@@ -228,6 +228,12 @@ func RunServer(config *ServerConfig) (*Server, error) {
 	auth.POST("/orgcloudletpool/delete", DeleteOrgCloudletPool)
 	auth.POST("/orgcloudletpool/show", ShowOrgCloudletPool)
 	auth.POST("/orgcloudlet/show", ShowOrgCloudlet)
+	auth.POST("/gputagtbl/show", ShowGpuTagTable)
+	auth.POST("/gputagtbl/create", CreateGpuTagTable)
+	auth.POST("/gputagtbl/delete", DeleteGpuTagTable)
+	auth.POST("/gputagtbl/foo", AddGpuTag)
+	auth.POST("/gputagtbl/rm", RemoveGpuTag)
+
 	addControllerApis(auth)
 	// Metrics api route use auth to serve a query to influxDB
 	auth.POST("/metrics/app", GetMetricsCommon)

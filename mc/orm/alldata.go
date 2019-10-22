@@ -107,6 +107,11 @@ func CreateData(c echo.Context) error {
 			err = CreateAppInstStream(ctx, rc, &appinst, cb)
 			streamReply(c, desc, err, &hadErr)
 		}
+		for _, gputagtbl := range appdata.GpuTagTables {
+			desc := fmt.Sprintf("Create GpuTagTable %v", gputagtbl.Key)
+			_, err = CreateGpuTagTableObj(ctx, rc, &gputagtbl)
+			streamReply(c, desc, err, &hadErr)
+		}
 	}
 	for _, oc := range data.OrgCloudletPools {
 		desc := fmt.Sprintf("Create OrgCloudletPool %v", oc)
@@ -192,6 +197,11 @@ func DeleteData(c echo.Context) error {
 		for _, flavor := range appdata.Flavors {
 			desc := fmt.Sprintf("Delete Flavor %s", flavor.Key.Name)
 			_, err = DeleteFlavorObj(ctx, rc, &flavor)
+			streamReply(c, desc, err, &hadErr)
+		}
+		for _, gputagtbl := range appdata.GpuTagTables {
+			desc := fmt.Sprintf("Delete Gputable %s", gputagtbl.Key.Name)
+			_, err = DeleteGpuTagTableObj(ctx, rc, &gputagtbl)
 			streamReply(c, desc, err, &hadErr)
 		}
 	}

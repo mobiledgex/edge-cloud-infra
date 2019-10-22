@@ -32,6 +32,7 @@ const ResourceClusterFlavors = "clusterflavors"
 const ResourceFlavors = "flavors"
 const ResourceConfig = "config"
 const ResourceAlert = "alert"
+const ResourceGpuTagTable = "gputagtbl"
 
 var DeveloperResources = []string{
 	ResourceApps,
@@ -90,6 +91,9 @@ func InitRolePerms(ctx context.Context) error {
 	addPolicy(ctx, &err, RoleAdminManager, ResourceUsers, ActionView)
 	addPolicy(ctx, &err, RoleAdminContributor, ResourceUsers, ActionView)
 	addPolicy(ctx, &err, RoleAdminViewer, ResourceUsers, ActionView)
+
+	addPolicy(ctx, &err, RoleAdminManager, ResourceGpuTagTable, ActionManage)
+	addPolicy(ctx, &err, RoleAdminManager, ResourceGpuTagTable, ActionView)
 
 	for _, str := range DeveloperResources {
 		addPolicy(ctx, &err, RoleDeveloperManager, str, ActionManage)

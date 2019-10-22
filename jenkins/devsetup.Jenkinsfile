@@ -22,7 +22,11 @@ pipeline {
         stage('Set up build tag') {
             steps {
                 script {
-                    currentBuild.displayName = "${DOCKER_BUILD_TAG}"
+                    try {
+                        currentBuild.displayName = "${DOCKER_BUILD_TAG}"
+                    } catch (err) {
+                        currentBuild.displayName = "${DEFAULT_DOCKER_BUILD_TAG}"
+                    }
                 }
             }
         }

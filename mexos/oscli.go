@@ -48,6 +48,23 @@ func ListServers(ctx context.Context) ([]OSServer, error) {
 	return servers, nil
 }
 
+//ListServers returns list of servers, KVM instances, running on the system
+func ListPorts(ctx context.Context) ([]OSPort, error) {
+	out, err := TimedOpenStackCommand(ctx, "openstack", "port", "list", "-f", "json")
+
+	if err != nil {
+		err = fmt.Errorf("cannot get port list, %v", err)
+		return nil, err
+	}
+	var ports []OSPort
+	err = json.Unmarshal(out, &ports)
+	if err != nil {
+		err = fmt.Errorf("cannot unmarshal, %v", err)
+		return nil, err
+	}
+	return ports, nil
+}
+
 //ListImages lists avilable images in glance
 func ListImages(ctx context.Context) ([]OSImage, error) {
 	out, err := TimedOpenStackCommand(ctx, "openstack", "image", "list", "-f", "json")
@@ -234,6 +251,57 @@ func GetServerDetails(ctx context.Context, name string) (*OSServerDetail, error)
 	return srvDetail, nil
 }
 
+// GetPortDetails gets details of the specified port
+func GetPortDetails(ctx context.Context, name string) (*OSPortDetail, error) {
+	log.SpanLog(ctx, log.DebugLevelMexos, "get port details", "name", name)
+	portDetail := &OSPortDetail{}
+
+	out, err := TimedOpenStackCommand(ctx, "openstack", "port", "show", name, "-f", "json")
+	if err != nil {
+		err = fmt.Errorf("can't get port detail for port: %s, %s, %v", name, out, err)
+		return nil, err
+	}
+	err = json.Unmarshal(out, &portDetail)
+	if err != nil {
+		log.SpanLog(ctx, log.DebugLevelMexos, "port unmarshal failed", "err", err)
+		err = fmt.Errorf("can't unmarshal port, %v", err)
+		return nil, err
+	}
+	return portDetail, nil
+}
+
+// AttachPortToServer attaches a port to a server
+func AttachPortToServer(ctx context.Context, serverName, portName string) error {
+	log.SpanLog(ctx, log.DebugLevelMexos, "AttachPortToServer", "serverName", serverName, "portName", portName)
+
+	out, err := TimedOpenStackCommand(ctx, "openstack", "server", "add", "port", serverName, portName)
+	if err != nil {
+		log.SpanLog(ctx, log.DebugLevelMexos, "can't attach port", "serverName", serverName, "portName", portName, "out", out, "err", err)
+		err = fmt.Errorf("can't attach port: %s, %s, %v", portName, out, err)
+		return err
+	}
+	return nil
+}
+
+// DetachPortFromServer removes a port from a server
+func DetachPortFromServer(ctx context.Context, serverName, portName string) error {
+	log.SpanLog(ctx, log.DebugLevelMexos, "DetachPortFromServer", "serverName", serverName, "portName", portName)
+
+	out, err := TimedOpenStackCommand(ctx, "openstack", "server", "remove", "port", serverName, portName)
+	if err != nil {
+		log.SpanLog(ctx, log.DebugLevelMexos, "can't remove port", "serverName", serverName, "portName", portName, "out", out, "err", err)
+		if strings.Contains(string(out), "No Port found") {
+			// when ports are removed they are detached from any server they are connected to.
+			log.SpanLog(ctx, log.DebugLevelMexos, "port is gone", "portName", portName)
+			err = nil
+		} else {
+			log.SpanLog(ctx, log.DebugLevelMexos, "can't remove port", "serverName", serverName, "portName", portName, "out", out, "err", err)
+		}
+		return err
+	}
+	return nil
+}
+
 //DeleteServer destroys a KVM instance
 //  sometimes it is not possible to destroy. Like most things in Openstack, try again.
 func DeleteServer(ctx context.Context, id string) error {
@@ -247,9 +315,14 @@ func DeleteServer(ctx context.Context, id string) error {
 }
 
 // CreateNetwork creates a network with a name.
-func CreateNetwork(ctx context.Context, name string) error {
+func CreateNetwork(ctx context.Context, name string, netType string) error {
 	log.SpanLog(ctx, log.DebugLevelMexos, "creating network", "network", name)
-	out, err := TimedOpenStackCommand(ctx, "openstack", "network", "create", name)
+	args := []string{"network", "create"}
+	if netType != "" {
+		args = append(args, []string{"--provider-network-type", netType}...)
+	}
+	args = append(args, name)
+	out, err := TimedOpenStackCommand(ctx, "openstack", args...)
 	if err != nil {
 		err = fmt.Errorf("can't create network %s, %s, %v", name, out, err)
 		return err
@@ -708,4 +781,60 @@ func OSGetConsoleUrl(ctx context.Context, serverName string) (*OSConsoleUrl, err
 		return nil, fmt.Errorf("can't unmarshal console url output, %v", err)
 	}
 	return consoleUrl, nil
+}
+
+// Finds a resource by name by instance id.
+// There are resources that are metered for instance-id, which are resources of their own
+// The examples are instance_network_interface and instance_disk
+// Openstack example call:
+//   <openstack metric resource search --type instance_network_interface instance_id=dc32daa6-0d0a-4512-a9fa-2b989e913014>
+// We only use the the first found result
+func OSFindResourceByInstId(ctx context.Context, resourceType string, instId string) (*OSMetricResource, error) {
+	log.SpanLog(ctx, log.DebugLevelMexos, "find resource for instance Id", "id", instId,
+		"resource", resourceType)
+	osRes := []OSMetricResource{}
+	instArg := fmt.Sprintf("instance_id=%s", instId)
+	out, err := TimedOpenStackCommand(ctx, "openstack", "metric", "resource", "search",
+		"-f", "json", "--type", resourceType, instArg)
+	if err != nil {
+		err = fmt.Errorf("can't find resource %s, for %s, %s %v", resourceType, instId, out, err)
+		return nil, err
+	}
+	err = json.Unmarshal(out, &osRes)
+	if err != nil {
+		err = fmt.Errorf("cannot unmarshal Metric Resource, %v", err)
+		return nil, err
+	}
+	if len(osRes) != 1 {
+		return nil, fmt.Errorf("Unexpected Number of Meters found")
+	}
+	return &osRes[0], nil
+}
+
+// Get openstack metrics from ceilometer tsdb
+// Example openstack call:
+//   <openstack metric measures show --resource-id a9bf10cf-a709-5a47-8b69-da920b8f65cd network.incoming.bytes>
+// This will return a range of measurements from the startTime
+func OSGetMetricsRangeForId(ctx context.Context, resId string, metric string, startTime time.Time) ([]OSMetricMeasurement, error) {
+	log.SpanLog(ctx, log.DebugLevelMexos, "get measure for Id", "id", resId, "metric", metric)
+	measurements := []OSMetricMeasurement{}
+
+	startStr := startTime.Format(time.RFC3339)
+
+	out, err := TimedOpenStackCommand(ctx, "openstack", "metric", "measures", "show",
+		"-f", "json", "--start", startStr, "--resource-id", resId, metric)
+	if err != nil {
+		err = fmt.Errorf("can't get measurements %s, for %s, %s %v", metric, resId, out, err)
+		return []OSMetricMeasurement{}, err
+	}
+	err = json.Unmarshal(out, &measurements)
+	if err != nil {
+		err = fmt.Errorf("cannot unmarshal measurements, %v", err)
+		return []OSMetricMeasurement{}, err
+	}
+	// No value, means we don't need to write it
+	if len(measurements) == 0 {
+		return []OSMetricMeasurement{}, fmt.Errorf("No values for the metric")
+	}
+	return measurements, nil
 }

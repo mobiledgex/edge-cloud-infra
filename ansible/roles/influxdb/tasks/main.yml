@@ -85,6 +85,11 @@
 - set_fact:
     influxdb_ip: "{{ influxdb_facts.resources[0].status.loadBalancer.ingress[0].ip }}"
 
+- name: Load cloudflare creds
+  import_role:
+    name: load-vault-creds
+    tasks_from: cloudflare
+
 - name: Update InfluxDB DNS
   cloudflare_dns:
     zone: "{{ cloudflare_zone }}"

@@ -182,6 +182,11 @@
 - set_fact:
     ns1_apikey: "{{ vault_lookup.ns1.data.apikey }}"
 
+- name: Load cloudflare creds
+  import_role:
+    name: load-vault-creds
+    tasks_from: cloudflare
+
 - name: "Deploy certgen service ({{ le_env }})"
   docker_container:
     name: certgen

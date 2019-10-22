@@ -53,6 +53,11 @@
 - hosts: platform
   tasks:
 
+    - name: Load registry docker creds
+      import_role:
+        name: load-vault-creds
+        tasks_from: mex_docker
+
     - name: Check if edge-cloud Image is Available
       uri:
         url: "https://{{ mex_docker_username }}:{{ mex_docker_password }}@{{ mex_docker_registry }}/v2/mobiledgex/edge-cloud/tags/list"
@@ -94,8 +99,12 @@
     - role: gitlab
 
 - hosts: postgres
-  roles:
-    - role: postgres
+  tasks:
+    - import_role:
+        name: load-vault-creds
+        tasks_from: mc
+    - import_role:
+        name: postgres
       vars:
         postgres_db_accounts:
           - db: "{{ mc_postgres_db }}"

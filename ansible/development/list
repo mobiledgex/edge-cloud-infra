@@ -8,11 +8,6 @@ openstack_instance=bonn
 dme_carrier=TDG
 locver_url="http://mexdemo.locsim.mobiledgex.net:8888/verifyLocation"
 toksrv_url="http://mexdemo.tok.mobiledgex.net:9999/its?followURL=https://dme.mobiledgex.net/verifyLoc"
-mc_postgres_db=mcdb
-mc_postgres_username=mcuser
-mc_postgres_password=topsecret
-mc_superuser=mexadmin
-mc_superuser_password=mexadmin123
 vault_vm_hostname=vault-main.mobiledgex.net
 vault_port=443
 postgres_hostname=postgres-dev.mobiledgex.net
@@ -29,9 +24,6 @@ influxdb_volume_size=1Gi
 
 [platform]
 localhost	ansible_connection=local
-
-[crms]
-crm-dev.mobiledgex.net
 
 [mc]
 mc-dev.mobiledgex.net

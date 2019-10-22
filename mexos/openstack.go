@@ -91,6 +91,23 @@ type OSServerDetail struct {
 	Properties       string `json:"properties"`
 }
 
+type OSPort struct {
+	ID         string `json:"ID"`
+	Name       string `json:"Name"`
+	Status     string `json:"Status"`
+	MACAddress string `json:"MAC Address"`
+	FixedIPs   string `json:"Fixed IP Addresses"`
+}
+
+type OSPortDetail struct {
+	ID         string `json:"id"`
+	Name       string `json:"name"`
+	DeviceID   string `json:"device_id"`
+	Status     string `json:"status"`
+	MACAddress string `json:"mac_address"`
+	FixedIPs   string `json:"fixed_ips"`
+}
+
 type OSImage struct {
 	Status, ID, Name string
 }
@@ -234,4 +251,27 @@ type OSHeatStackDetail struct {
 
 type OSConsoleUrl struct {
 	Url string `json:"url"`
+}
+
+// instance_network_interface details
+type OSMetricResource struct {
+	StartedAt          string `json:"started_at"`
+	UserID             string `json:"user_id"`
+	RevisionEnd        string `json:"revision_end"`
+	Creator            string `json:"creator"`
+	RevisionStart      string `json:"revision_start"`
+	InstanceId         string `json:"instance_id"`
+	OriginalResourceId string `json:"original_resource_id"`
+	EndedAt            string `json:"ended_at"`
+	ProjectId          string `json:"project_id"`
+	Type               string `json:"type"`
+	Id                 string `json:"id"`
+	Name               string `json:"name"`
+}
+
+// Ceilometer-based tsdb measurements
+type OSMetricMeasurement struct {
+	Timestamp   string  `json:"timestamp"`
+	Value       float64 `json:"value"`
+	Granularity float64 `json:"granularity"`
 }

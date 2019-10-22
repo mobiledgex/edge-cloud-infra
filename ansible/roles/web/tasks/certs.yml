@@ -9,6 +9,11 @@
     state: latest
   become: yes
 
+- name: Load cloudflare creds
+  import_role:
+    name: load-vault-creds
+    tasks_from: cloudflare
+
 - name: Set up Cloudflare config
   template:
     src: cloudflare.ini.j2

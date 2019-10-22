@@ -34,8 +34,9 @@ RUN apt-get update && apt-get install -y \
 	azure-cli \
 	google-cloud-sdk \
 	kubectl 
-RUN pip install python-heatclient
-RUN pip install python-openstackclient
+RUN pip install python-heatclient==1.18.0
+RUN pip install python-openstackclient==3.18.0
+RUN pip install gnocchiclient
 
 COPY edge-cloud-base-image.root/_ssh /root/.ssh
 COPY edge-cloud-base-image.root/_mobiledgex /root/.mobiledgex

@@ -32,6 +32,11 @@
     update_cache: yes
   become: yes
 
+- name: Load sendgrid creds
+  import_role:
+    name: load-vault-creds
+    tasks_from: sendgrid
+
 - name: Install gitlab config
   template:
     src: templates/mexplat/gitlab.rb.j2

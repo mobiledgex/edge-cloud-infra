@@ -34,14 +34,14 @@ pipeline {
             steps {
                 dir(path: 'ansible') {
                     ansiColor('xterm') {
-                        sh label: 'Run ansible playbook', script: '''$!/bin/bash
+                        sh label: 'Run ansible playbook', script: '''#!/bin/bash
 export GITHUB_USER="${GITHUB_CREDS_USR}"
 export GITHUB_TOKEN="${GITHUB_CREDS_PSW}"
 export AZURE_CLIENT_ID="${AZURE_SERVICE_PRINCIPAL_USR}"
 export AZURE_SECRET="${AZURE_SERVICE_PRINCIPAL_PSW}"
 export ANSIBLE_FORCE_COLOR=true
 
-[[ -n "$DOCKER_BUILD_TAG" ]] || DOCKER_BUILD_TAG="$DEFAULT_DOCKER_BUILD_TAG"
+[ -n "$DOCKER_BUILD_TAG" ] || DOCKER_BUILD_TAG="$DEFAULT_DOCKER_BUILD_TAG"
 ansible-playbook -e @ansible-mex-vault-development.yml -e "edge_cloud_version=${DOCKER_BUILD_TAG}" -i development mexplat.yml
                         '''
                     }

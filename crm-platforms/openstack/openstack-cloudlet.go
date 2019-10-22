@@ -235,20 +235,18 @@ func setupPlatformService(ctx context.Context, cloudlet *edgeproto.Cloudlet, pfC
 		return fmt.Errorf("unable to login to docker registry: %v, %s\n", err, out)
 	}
 
-	// Get non-conflicting port for NotifySrvAddr
+	// Get non-conflicting port for NotifySrvAddr if actual port is 0
 	ipobj := strings.Split(cloudlet.NotifySrvAddr, ":")
 	if len(ipobj) != 2 {
-		return fmt.Errorf("invalid notifysrvaddr")
+		return fmt.Errorf("invalid notifysrvaddr format")
 	}
-	newport := ""
-	if ipobj[1] == "51001" {
-		newport = "51002"
-	} else if ipobj[1] == "51002" {
-		newport = "51002"
-	} else {
-		newport = "51001"
+	if ipobj[1] == "0" {
+		port, err := cloudcommon.GetAvailablePort()
+		if err != nil {
+			return fmt.Errorf("no ports available for CRM")
+		}
+		cloudlet.NotifySrvAddr = fmt.Sprintf("%s:%d", ipobj[0], port)
 	}
-	cloudlet.NotifySrvAddr = strings.Join([]string{ipobj[0], newport}, ":")
 
 	// Start platform service on PlatformVM
 	crmChan := make(chan error, 1)

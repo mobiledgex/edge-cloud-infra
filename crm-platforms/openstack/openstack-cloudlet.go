@@ -312,7 +312,7 @@ func (s *Platform) CreateCloudlet(ctx context.Context, cloudlet *edgeproto.Cloud
 	platform_vm_name := getPlatformVMName(cloudlet)
 
 	vmp, err := mexos.GetVMParams(ctx,
-		mexos.UserVMDeployment,
+		mexos.PlatformVMDeployment,
 		platform_vm_name,
 		vmspec.FlavorName,
 		vmspec.ExternalVolumeSize,

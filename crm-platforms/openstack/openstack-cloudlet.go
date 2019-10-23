@@ -311,38 +311,17 @@ func (s *Platform) CreateCloudlet(ctx context.Context, cloudlet *edgeproto.Cloud
 	// Form platform VM name based on cloudletKey
 	platform_vm_name := getPlatformVMName(cloudlet)
 
-	// Generate SSH KeyPair
-	keyPairPath := "/tmp/" + platform_vm_name
-	pubKey, _, err := ssh.GetKeyPair(keyPairPath)
-	if err != nil {
-		return err
-	}
-
-	// Use cloud-config to configure SSH access
-	cloud_config := `#cloud-config
-bootcmd:
- - echo MOBILEDGEX PLATFORM CLOUD CONFIG START
- - echo 'APT::Periodic::Enable "0";' > /etc/apt/apt.conf.d/10cloudinit-disable
-hostname: ` + cloudlet.Key.Name + `
-chpasswd: { expire: False }
-ssh_pwauth: False
-timezone: UTC
-ssh_authorized_keys:
- - ` + pubKey
-
-	// TODO Upload SSHKeyPair to Vault so that all the VMs in the cloudlet use this KeyPair
-
 	vmp, err := mexos.GetVMParams(ctx,
 		mexos.UserVMDeployment,
 		platform_vm_name,
 		vmspec.FlavorName,
 		vmspec.ExternalVolumeSize,
 		pfImageName,
-		"",           // AuthPublicKey
-		"tcp:22",     // AccessPorts
-		cloud_config, // DeploymentManifest,
-		"",           // Command,
-		nil,          // NetSpecInfo
+		"",       // AuthPublicKey
+		"tcp:22", // AccessPorts
+		"",       // DeploymentManifest,
+		"",       // Command,
+		nil,      // NetSpecInfo
 	)
 	if err != nil {
 		return fmt.Errorf("unable to get vm params: %v", err)
@@ -357,11 +336,16 @@ ssh_authorized_keys:
 	}
 	updateCallback(edgeproto.UpdateTask, "Successfully Deployed Platform VM")
 
-	external_ip, client, err := GetPlatformAccess(ctx, cloudlet)
+	external_ip, err := mexos.GetServerIPAddr(ctx, mexos.GetCloudletExternalNetwork(), platform_vm_name)
 	if err != nil {
 		return err
 	}
 	updateCallback(edgeproto.UpdateTask, "Platform VM external IP: "+external_ip)
+
+	client, err := mexos.GetSSHClient(ctx, platform_vm_name, mexos.GetCloudletExternalNetwork(), mexos.SSHUser)
+	if err != nil {
+		return err
+	}
 
 	// setup SSH access to cloudlet for CRM
 	updateCallback(edgeproto.UpdateTask, "Setting up security group for SSH access")
@@ -392,73 +376,17 @@ func (s *Platform) DeleteCloudlet(ctx context.Context, cloudlet *edgeproto.Cloud
 	return nil
 }
 
-func isUpgradeRequired(cur_version, new_version string) error {
-	// 2nd Jan 2016
-	ref_layout := "2006-01-02"
-	cur, err := time.Parse(ref_layout, cur_version)
-	if err != nil {
-		return fmt.Errorf("failed to parse current version details: %v", err)
-	}
-	updated, err := time.Parse(ref_layout, new_version)
-	if err != nil {
-		return fmt.Errorf("failed to parse new version details: %v", err)
-	}
-	diff := cur.Sub(updated)
-	if diff > 0 {
-		return fmt.Errorf("downgrade is not supported")
-	}
-	if diff == 0 {
-		return fmt.Errorf("no upgrade required")
-	}
-	return nil
-}
-
-func GetPlatformAccess(ctx context.Context, cloudlet *edgeproto.Cloudlet) (string, ssh.Client, error) {
-	// Fetch external IP for further configuration
-	platform_vm_name := getPlatformVMName(cloudlet)
-	external_ip, err := mexos.GetServerIPAddr(ctx, mexos.GetCloudletExternalNetwork(), platform_vm_name)
-	if err != nil {
-		return "", nil, err
-	}
-	log.SpanLog(ctx, log.DebugLevelMexos, "external IP", "ip", external_ip)
-
-	// Setup SSH Client
-	keyPairPath := "/tmp/" + platform_vm_name
-	auth := ssh.Auth{Keys: []string{keyPairPath}}
-	gwaddr, gwport := mexos.GetCloudletCRMGatewayIPAndPort()
-	client, err := ssh.NewNativeClient("ubuntu", external_ip, "SSH-2.0-mobiledgex-ssh-client-1.0", 22, gwaddr, gwport, &auth, &auth, nil)
-	if err != nil {
-		return "", nil, fmt.Errorf("cannot get ssh client for server %s with ip %s, %v", platform_vm_name, external_ip, err)
-	}
-	return external_ip, client, nil
-
-}
-
 func (s *Platform) UpdateCloudlet(ctx context.Context, cloudlet *edgeproto.Cloudlet, pfConfig *edgeproto.PlatformConfig, updateCallback edgeproto.CacheUpdateCallback) error {
 	log.SpanLog(ctx, log.DebugLevelMexos, "Updating cloudlet", "cloudletName", cloudlet.Key.Name)
 
-	updateCallback(edgeproto.UpdateTask, fmt.Sprintf("Validating upgrade versions"))
-	new_version := pfConfig.PlatformTag
-	if new_version == "" {
-		return fmt.Errorf("versionTag is required to upgrade cloudlet")
-	}
-	cur_version, err := cloudcommon.GetDockerBaseImageVersion()
-	if err != nil {
-		return fmt.Errorf("unable to fetch image version: %v", err)
-	}
-	err = isUpgradeRequired(cur_version, new_version)
-	if err != nil {
-		return err
-	}
-
 	// Source OpenRC file to access openstack API endpoint
 	updateCallback(edgeproto.UpdateTask, fmt.Sprintf("Sourcing platform variables for %s cloudlet", cloudlet.PhysicalName))
-	err = mexos.InitOpenstackProps(ctx, cloudlet.Key.OperatorKey.Name, cloudlet.PhysicalName, pfConfig.VaultAddr)
+	err := mexos.InitOpenstackProps(ctx, cloudlet.Key.OperatorKey.Name, cloudlet.PhysicalName, pfConfig.VaultAddr)
 	if err != nil {
 		return err
 	}
 
-	_, client, err := GetPlatformAccess(ctx, cloudlet)
+	client, err := mexos.GetSSHClient(ctx, getPlatformVMName(cloudlet), mexos.GetCloudletExternalNetwork(), mexos.SSHUser)
 	if err != nil {
 		return err
 	}
@@ -496,7 +424,7 @@ func (s *Platform) UpdateCloudlet(ctx context.Context, cloudlet *edgeproto.Cloud
 	if err != nil {
 		return err
 	}
-	updateCallback(edgeproto.UpdateTask, fmt.Sprintf("successfully upgraded to new version: %s", new_version))
+	updateCallback(edgeproto.UpdateTask, fmt.Sprintf("successfully upgraded to new version: %s", pfConfig.PlatformTag))
 	return nil
 }
 
@@ -504,7 +432,7 @@ func (s *Platform) CleanupCloudlet(ctx context.Context, cloudlet *edgeproto.Clou
 	log.SpanLog(ctx, log.DebugLevelMexos, "Cleaning up cloudlet", "cloudletName", cloudlet.Key.Name)
 	updateCallback(edgeproto.UpdateTask, "Performing cleanup")
 
-	_, client, err := GetPlatformAccess(ctx, cloudlet)
+	client, err := mexos.GetSSHClient(ctx, getPlatformVMName(cloudlet), mexos.GetCloudletExternalNetwork(), mexos.SSHUser)
 	if err != nil {
 		return err
 	}

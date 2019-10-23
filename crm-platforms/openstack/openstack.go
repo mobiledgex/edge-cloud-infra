@@ -77,7 +77,6 @@ func (s *Platform) Init(ctx context.Context, platformConfig *platform.PlatformCo
 		return fmt.Errorf("unable to get Shared RootLB Flavor: %v", err)
 	}
 	var emptytable edgeproto.GpuTagTable
-	emptytable.Key.Name = ""
 	vmspec, err := vmspec.GetVMSpec(s.flavorList, sharedRootLBFlavor, emptytable)
 	if err != nil {
 		return fmt.Errorf("unable to find VM spec for Shared RootLB: %v", err)

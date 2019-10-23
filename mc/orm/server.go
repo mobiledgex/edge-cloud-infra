@@ -231,7 +231,7 @@ func RunServer(config *ServerConfig) (*Server, error) {
 	auth.POST("/gputagtbl/show", ShowGpuTagTable)
 	auth.POST("/gputagtbl/create", CreateGpuTagTable)
 	auth.POST("/gputagtbl/delete", DeleteGpuTagTable)
-	auth.POST("/gputagtbl/foo", AddGpuTag)
+	auth.POST("/gputagtbl/add", AddGpuTag)
 	auth.POST("/gputagtbl/rm", RemoveGpuTag)
 
 	addControllerApis(auth)

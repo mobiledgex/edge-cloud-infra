@@ -137,7 +137,6 @@ func (s *Platform) CreateCloudlet(ctx context.Context, cloudlet *edgeproto.Cloud
 		return err
 	}
 	var gputab edgeproto.GpuTagTable
-	gputab.Key.Name = ""
 	vmspec, err := vmspec.GetVMSpec(finfo, *pfFlavor, gputab)
 	if err != nil {
 		return fmt.Errorf("unable to find matching vm spec for platform: %v", err)

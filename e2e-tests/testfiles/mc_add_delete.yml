@@ -39,7 +39,7 @@ tests:
     filetype: mcdata
 
 - name: user2 creates apps; verify it is there
-  actions: [mcapi-create, mcapi-show, sleep=5]
+  actions: [mcapi-create, mcapi-show, sleep=15 ]
   apifile: '{{datadir2}}/mc_user2_data.yml'
   curuserfile: '{{datadir2}}/mc_user2.yml'
   compareyaml:
@@ -61,8 +61,9 @@ tests:
   curuserfile: '{{datadir2}}/mc_user2.yml'
   compareyaml:
     yaml1: '{{outputdir}}/show-commands.yml'
-    yaml2: '{{datadir2}}/fakeStats.yml'
-    filetype: mcdata
+    yaml2: '{{datadir2}}/mc_metrics_show.yml'
+    filetype: mcmetrics
+
 - name: test RunCommand
   actions: [mcapi-runcommand]
   apifile: '{{datadir2}}/mc_runcommand.yml'

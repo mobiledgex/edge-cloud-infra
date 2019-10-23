@@ -97,6 +97,18 @@ func runMcUsersAPI(api, uri, apiFile, curUserFile, outputDir string, mods []stri
 	return rc
 }
 
+//converts AllMetrics to E2eMetrics, so the yml can actually parse them later
+func convertAllMetrics(all *ormapi.AllMetrics) *ormapi.E2eMetrics {
+	result := ormapi.E2eMetrics{}
+	for _, data := range all.Data {
+		for _, series := range data.Series {
+			// if len(series.Values) == 1
+			newSeries := struct{Columns: series.Columns, Name: series.Name, Values = series.Values[0]}
+		}
+	}
+	return nil
+}
+
 func runMcDataAPI(api, uri, apiFile, curUserFile, outputDir string, mods []string) bool {
 	log.Printf("Applying MC data via APIs for %s %v\n", apiFile, mods)
 	sep := hasMod("sep", mods)
@@ -123,7 +135,15 @@ func runMcDataAPI(api, uri, apiFile, curUserFile, outputDir string, mods []strin
 
 	if api == "showmetrics" {
 		// the sep case will make individual calls to mc api for each metric
-		showMetrics := showMcMetrics(uri, token, &rc)
+		var showMetrics *ormapi.AllMetrics
+		if sep {
+			showMetrics = showMcMetricsSep(uri, token, &rc)
+		} else {
+			showMetrics = showMcMetricsAll(uri, token, &rc)
+		}
+		// before printing to yml file, flatten nested values array,
+		// since we only get one metric per measurement,
+		// it doesnt matter and it makes it yml friendly to parse later
 		util.PrintToYamlFile("show-commands.yml", outputDir, showMetrics, true)
 		return rc
 	}
@@ -227,25 +247,6 @@ func showMcDataAll(uri, token string, rc *bool) *ormapi.AllData {
 	showData, status, err := mcClient.ShowData(uri, token)
 	checkMcErr("ShowData", status, err, rc)
 	return showData
-}
-
-//for now only get netstat metrics until i figure out the exporter formatting problem
-func showMcMetrics(uri, token string, rc *bool) *ormapi.AllMetrics {
-	//appMetrics, status, err := mcClient.ShowAppMetrics(uri, token)
-	//checkMcErr("ShowAppMetrics", status, err, rc)
-	clusterQuery := ormapi.RegionClusterInstMetrics{
-		Region: "local",
-		ClusterInst: edgeproto.ClusterInstKey{ //change this to pull clusterkey from the yml file
-			ClusterKey:  edgeproto.ClusterKey{Name: "SmallCluster"},
-			CloudletKey: edgeproto.CloudletKey{OperatorKey: edgeproto.OperatorKey{Name: "tmus"}, Name: "tmus-cloud-1"},
-			Developer:   "AcmeAppCo",
-		},
-		Selector: "tcp,udp",
-		Last:     1,
-	}
-	clusterMetrics, status, err := mcClient.ShowClusterMetrics(uri, token, &clusterQuery)
-	checkMcErr("ShowClusterMetrics", status, err, rc)
-	return clusterMetrics
 }
 
 func createMcDataAll(uri, token string, data *ormapi.AllData, rc *bool) {
@@ -520,6 +521,48 @@ func deleteMcDataSep(uri, token string, data *ormapi.AllData, rc *bool) {
 		st, err := mcClient.DeleteController(uri, token, &ctrl)
 		checkMcErr("DeleteController", st, err, rc)
 	}
+}
+
+//for now only get netstat metrics until i figure out the exporter formatting problem
+func showMcMetricsAll(uri, token string, rc *bool) *ormapi.AllMetrics {
+	//appMetrics, status, err := mcClient.ShowAppMetrics(uri, token)
+	//checkMcErr("ShowAppMetrics", status, err, rc)
+	clusterQuery := ormapi.RegionClusterInstMetrics{
+		Region: "local",
+		ClusterInst: edgeproto.ClusterInstKey{ //change this to pull clusterkey from the yml file
+			ClusterKey:  edgeproto.ClusterKey{Name: "SmallCluster"},
+			CloudletKey: edgeproto.CloudletKey{OperatorKey: edgeproto.OperatorKey{Name: "tmus"}, Name: "tmus-cloud-1"},
+			Developer:   "AcmeAppCo",
+		},
+		Selector: "tcp,udp",
+		Last:     1,
+	}
+	clusterMetrics, status, err := mcClient.ShowClusterMetrics(uri, token, &clusterQuery)
+	checkMcErr("ShowClusterMetrics", status, err, rc)
+	return clusterMetrics
+}
+
+//for now only get netstat metrics until i figure out the exporter formatting problem
+func showMcMetricsSep(uri, token string, rc *bool) *ormapi.AllMetrics {
+	var allMetrics *ormapi.AllMetrics
+	clusterQuery := ormapi.RegionClusterInstMetrics{
+		Region: "local",
+		ClusterInst: edgeproto.ClusterInstKey{ //change this to pull clusterkey from the yml file
+			ClusterKey:  edgeproto.ClusterKey{Name: "SmallCluster"},
+			CloudletKey: edgeproto.CloudletKey{OperatorKey: edgeproto.OperatorKey{Name: "tmus"}, Name: "tmus-cloud-1"},
+			Developer:   "AcmeAppCo",
+		},
+		Selector: "tcp",
+		Last:     1,
+	}
+	clusterTcp, status, err := mcClient.ShowClusterMetrics(uri, token, &clusterQuery)
+	checkMcErr("ShowClusterTcp", status, err, rc)
+	clusterQuery.Selector = "udp"
+	clusterUdp, status, err := mcClient.ShowClusterMetrics(uri, token, &clusterQuery)
+	checkMcErr("ShowClusterUdp", status, err, rc)
+	allMetrics = clusterTcp
+	allMetrics.Data[0].Series = append(allMetrics.Data[0].Series, clusterUdp.Data[0].Series...)
+	return allMetrics
 }
 
 type runCommandData struct {

@@ -155,6 +155,13 @@ func CompareYamlFiles(firstYamlFile string, secondYamlFile string, fileType stri
 		err1 = util.ReadYamlFile(firstYamlFile, &a1)
 		err2 = util.ReadYamlFile(secondYamlFile, &a2)
 
+		sort.Slice(a1, func(i, j int) bool {
+			return a1[i].Name < a1[j].Name
+		})
+		sort.Slice(a2, func(i, j int) bool {
+			return a2[i].Name < a2[j].Name
+		})
+
 		y1 = a1
 		y2 = a2
 

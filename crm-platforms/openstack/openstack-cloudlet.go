@@ -75,6 +75,7 @@ func startPlatformService(cloudlet *edgeproto.Cloudlet, pfConfig *edgeproto.Plat
 		"-d",
 		"--network host",
 		"-v /tmp:/tmp",
+		"-v /var/tmp:/var/tmp",
 		"--restart=unless-stopped",
 		"--name", container_name,
 		strings.Join(envVarsAr, " "),
@@ -190,37 +191,38 @@ func setupPlatformService(ctx context.Context, cloudlet *edgeproto.Cloudlet, pfC
 		}
 	}
 
-	// NOTE: Once we have certs per service support following copy will not be required
-	// Upload server certs i.e. crt, key, ca.crt files to Platform VM
-	updateCallback(edgeproto.UpdateTask, "Uploading TLS certs to platform VM")
 	dir, crtFile := filepath.Split(pfConfig.TlsCertFile)
-
 	ext := filepath.Ext(crtFile)
 	if ext == "" {
 		return fmt.Errorf("invalid tls cert file name: %s", crtFile)
 	}
-	keyPath := dir + strings.TrimSuffix(crtFile, ext) + ".key"
+	pfConfig.TlsCertFile = "/var/tmp/" + crtFile
+	if _, err := os.Stat(pfConfig.TlsCertFile); os.IsNotExist(err) {
+		// NOTE: Once we have certs per service support following copy will not be required
+		// Upload server certs i.e. crt, key, ca.crt files to Platform VM
+		updateCallback(edgeproto.UpdateTask, "Uploading TLS certs to platform VM")
+		keyPath := dir + strings.TrimSuffix(crtFile, ext) + ".key"
 
-	copyFiles := []string{
-		pfConfig.TlsCertFile,
-		keyPath,
-	}
+		copyFiles := []string{
+			pfConfig.TlsCertFile,
+			keyPath,
+		}
 
-	matches, err := filepath.Glob(dir + "*-ca.crt")
-	if err != nil {
-		return fmt.Errorf("unable to find ca crt file")
-	}
-	for _, match := range matches {
-		copyFiles = append(copyFiles, match)
-	}
-
-	for _, copyFile := range copyFiles {
-		err = mexos.SCPFilePath(client, copyFile, "/tmp/")
+		matches, err := filepath.Glob(dir + "*-ca.crt")
 		if err != nil {
-			return fmt.Errorf("error copying %s to platform VM", copyFile)
+			return fmt.Errorf("unable to find ca crt file")
+		}
+		for _, match := range matches {
+			copyFiles = append(copyFiles, match)
+		}
+
+		for _, copyFile := range copyFiles {
+			err = mexos.SCPFilePath(client, copyFile, "/var/tmp/")
+			if err != nil {
+				return fmt.Errorf("error copying %s to platform VM", copyFile)
+			}
 		}
 	}
-	pfConfig.TlsCertFile = "/tmp/" + crtFile
 
 	// Login to docker registry
 	updateCallback(edgeproto.UpdateTask, "Setting up docker registry")
@@ -404,20 +406,25 @@ func (s *Platform) UpdateCloudlet(ctx context.Context, cloudlet *edgeproto.Cloud
 	err = setupPlatformService(ctx, cloudlet, pfConfig, client, updateCallback)
 
 	if err != nil {
+		log.SpanLog(ctx, log.DebugLevelMexos, "failed to setup platform services", "err", err)
 		// Cleanup failed containers
 		updateCallback(edgeproto.UpdateTask, "Upgrade failed, cleaning up")
-		if out, err := client.Output(
+		if out, err1 := client.Output(
 			fmt.Sprintf("sudo docker rm -f %s", strings.Join(PlatformServices, " ")),
-		); err != nil {
-			return fmt.Errorf("cleanup failed: %v, %s\n", err, out)
+		); err1 != nil {
+			if strings.Contains(out, "No such container") {
+				log.SpanLog(ctx, log.DebugLevelMexos, "no containers to cleanup")
+			} else {
+				return fmt.Errorf("upgrade failed: %v and cleanup failed: %v, %s\n", err, err1, out)
+			}
 		}
 		// Cleanup container names
 		for _, pf_service := range PlatformServices {
 			log.SpanLog(ctx, log.DebugLevelMexos, "renaming old-container")
-			if out, err := client.Output(
+			if out, err1 := client.Output(
 				fmt.Sprintf("sudo docker rename %s_old %s", pf_service, pf_service),
-			); err != nil {
-				return fmt.Errorf("unable to rename old-container: %v, %s\n", err, out)
+			); err1 != nil {
+				return fmt.Errorf("upgrade failed: %v and unable to rename old-container: %v, %s\n", err, err1, out)
 			}
 		}
 	}

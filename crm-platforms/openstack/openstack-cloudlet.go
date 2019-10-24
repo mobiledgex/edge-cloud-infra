@@ -75,7 +75,6 @@ func startPlatformService(cloudlet *edgeproto.Cloudlet, pfConfig *edgeproto.Plat
 		"-d",
 		"--network host",
 		"-v /tmp:/tmp",
-		"-v /var/tmp:/var/tmp",
 		"--restart=unless-stopped",
 		"--name", container_name,
 		strings.Join(envVarsAr, " "),
@@ -191,37 +190,16 @@ func setupPlatformService(ctx context.Context, cloudlet *edgeproto.Cloudlet, pfC
 		}
 	}
 
-	dir, crtFile := filepath.Split(pfConfig.TlsCertFile)
+	updateCallback(edgeproto.UpdateTask, "Verifying TLS Certs")
+	_, crtFile := filepath.Split(pfConfig.TlsCertFile)
 	ext := filepath.Ext(crtFile)
 	if ext == "" {
 		return fmt.Errorf("invalid tls cert file name: %s", crtFile)
 	}
-	pfConfig.TlsCertFile = "/var/tmp/" + crtFile
-	if _, err := os.Stat(pfConfig.TlsCertFile); os.IsNotExist(err) {
-		// NOTE: Once we have certs per service support following copy will not be required
-		// Upload server certs i.e. crt, key, ca.crt files to Platform VM
-		updateCallback(edgeproto.UpdateTask, "Uploading TLS certs to platform VM")
-		keyPath := dir + strings.TrimSuffix(crtFile, ext) + ".key"
-
-		copyFiles := []string{
-			pfConfig.TlsCertFile,
-			keyPath,
-		}
-
-		matches, err := filepath.Glob(dir + "*-ca.crt")
-		if err != nil {
-			return fmt.Errorf("unable to find ca crt file")
-		}
-		for _, match := range matches {
-			copyFiles = append(copyFiles, match)
-		}
-
-		for _, copyFile := range copyFiles {
-			err = mexos.SCPFilePath(client, copyFile, "/var/tmp/")
-			if err != nil {
-				return fmt.Errorf("error copying %s to platform VM", copyFile)
-			}
-		}
+	pfConfig.TlsCertFile = "/root/tls/" + crtFile
+	if _, err := os.Stat(pfConfig.TlsCertFile); err != nil {
+		// NOTE: Once we have certs per service support following will not be required
+		return fmt.Errorf("Unable to find TLS certfile: %s, %v\n", pfConfig.TlsCertFile, err)
 	}
 
 	// Login to docker registry

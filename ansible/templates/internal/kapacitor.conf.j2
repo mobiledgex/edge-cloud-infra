@@ -7,7 +7,7 @@ default-retention-policy = ""
   persist-topics = true
 
 [http]
-  bind-address = ":9092"
+  bind-address = "localhost:9092"
   auth-enabled = false
   log-enabled = true
   write-tracing = false
@@ -45,7 +45,7 @@ default-retention-policy = ""
   insecure-skip-verify = false
   timeout = "0s"
   disable-subscriptions = false
-  subscription-protocol = "http"
+  subscription-protocol = "https"
   subscription-mode = "cluster"
   kapacitor-hostname = ""
   http-port = 0

@@ -1,7 +1,6 @@
 package e2esetup
 
 import (
-	"fmt"
 	"log"
 	"sort"
 	"strings"
@@ -150,11 +149,11 @@ func CompareYamlFiles(firstYamlFile string, secondYamlFile string, fileType stri
 		y1 = a1
 		y2 = a2
 	} else if fileType == "mcmetrics" {
-		var a1 []metricsCompare
-		var a2 []metricsCompare
+		var a1 []ormapi.MetricsCompare
+		var a2 []ormapi.MetricsCompare
 
-		err1 = parseMetricsYaml(firstYamlFile, &a1)
-		err2 = parseMetricsYaml(secondYamlFile, &a2)
+		err1 = util.ReadYamlFile(firstYamlFile, &a1)
+		err2 = util.ReadYamlFile(secondYamlFile, &a2)
 
 		y1 = a1
 		y2 = a2
@@ -183,49 +182,4 @@ func CompareYamlFiles(firstYamlFile string, secondYamlFile string, fileType stri
 	}
 	log.Println("Comparison success")
 	return true
-}
-
-//move this as the mcmetrics case for the compareyml function
-type metricsCompare struct {
-	name   string
-	tags   map[string]string
-	values map[string]float64
-}
-
-func parseMetricsYaml(file string, result *[]metricsCompare) error {
-	var rawData []ormapi.AllMetrics
-	err := util.ReadYamlFile(file, &rawData)
-	if err != nil {
-		return err
-	}
-	for _, raw := range rawData {
-		for _, data := range raw.Data {
-			for _, series := range data.Series {
-				measurement := metricsCompare{name: series.Name}
-				// e2e tests only grabs the latest measurement so there should only be one
-				if len(series.Values) != 1 {
-					return fmt.Errorf("Encountered 0 or more than one value per measurement")
-				}
-				for i, val := range series.Values[0] {
-					// ignore time
-					if series.Columns[i] == "time" || series.Columns[i] == "metadata" {
-						continue
-					}
-					// if its a string its a tag, if its not then its an actual measurement value
-					if str, ok := val.(string); ok {
-						measurement.tags[series.Columns[i]] = str
-					}
-					if floatVal, ok := val.(float64); ok {
-						measurement.values[series.Columns[i]] = floatVal
-						// if its an int cast it to a float to make comparing easier
-					} else if intVal, ok := val.(int); ok {
-						measurement.values[series.Columns[i]] = float64(intVal)
-					}
-				}
-
-				*result = append(*result, measurement)
-			}
-		}
-	}
-	return nil
 }

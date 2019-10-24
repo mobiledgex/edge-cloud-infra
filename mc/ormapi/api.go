@@ -167,14 +167,21 @@ type RegionData struct {
 
 // Metrics data
 type AllMetrics struct {
-	Data []struct {
-		Messages interface{} `json:"Messages"`
-		Series   []struct {
+	Messages interface{} `json:"Messages"`
+	Data     []struct {
+		Series []struct {
 			Columns []string        `json:"columns"`
 			Name    string          `json:"name"`
 			Values  [][]interface{} `json:"values"`
 		} `json:"Series"`
 	} `json:"data"`
+}
+
+// a comparison and yaml friendly version of AllMetrics for e2e-tests
+type MetricsCompare struct {
+	Name   string
+	Tags   map[string]string
+	Values map[string]float64
 }
 
 type RegionAppInstMetrics struct {

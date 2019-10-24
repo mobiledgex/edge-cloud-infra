@@ -1,48 +1,19 @@
-data:
-- series:
-  - columns:
-    - time
-    - cloudlet
-    - cluster
-    - dev
-    - operator
-    - tcpConns
-    - tcpRetrans
-    - udpRecv
-    - udpRecvErr
-    - udpSent
-    name: cluster-udp
-    values:
-    - - "2019-10-15T20:38:21.190000057Z"
-      - tmus-cloud-1
-      - SmallCluster
-      - AcmeAppCo
-      - tmus
-      - null
-      - null
-      - 400
-      - 500
-      - 300
-  - columns:
-    - time
-    - cloudlet
-    - cluster
-    - dev
-    - operator
-    - tcpConns
-    - tcpRetrans
-    - udpRecv
-    - udpRecvErr
-    - udpSent
-    name: cluster-tcp
-    values:
-    - - "2019-10-15T20:38:21.151000022Z"
-      - tmus-cloud-1
-      - SmallCluster
-      - AcmeAppCo
-      - tmus
-      - 100
-      - 200
-      - null
-      - null
-      - null
+- name: cluster-udp
+  tags:
+    cloudlet: tmus-cloud-1
+    cluster: SmallCluster
+    dev: AcmeAppCo
+    operator: tmus
+  values:
+    udpRecv: 400
+    udpRecvErr: 500
+    udpSent: 300
+- name: cluster-tcp
+  tags:
+    cloudlet: tmus-cloud-1
+    cluster: SmallCluster
+    dev: AcmeAppCo
+    operator: tmus
+  values:
+    tcpConns: 100
+    tcpRetrans: 200

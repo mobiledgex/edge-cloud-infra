@@ -97,18 +97,6 @@ func runMcUsersAPI(api, uri, apiFile, curUserFile, outputDir string, mods []stri
 	return rc
 }
 
-//converts AllMetrics to E2eMetrics, so the yml can actually parse them later
-func convertAllMetrics(all *ormapi.AllMetrics) *ormapi.E2eMetrics {
-	result := ormapi.E2eMetrics{}
-	for _, data := range all.Data {
-		for _, series := range data.Series {
-			// if len(series.Values) == 1
-			newSeries := struct{Columns: series.Columns, Name: series.Name, Values = series.Values[0]}
-		}
-	}
-	return nil
-}
-
 func runMcDataAPI(api, uri, apiFile, curUserFile, outputDir string, mods []string) bool {
 	log.Printf("Applying MC data via APIs for %s %v\n", apiFile, mods)
 	sep := hasMod("sep", mods)
@@ -141,10 +129,9 @@ func runMcDataAPI(api, uri, apiFile, curUserFile, outputDir string, mods []strin
 		} else {
 			showMetrics = showMcMetricsAll(uri, token, &rc)
 		}
-		// before printing to yml file, flatten nested values array,
-		// since we only get one metric per measurement,
-		// it doesnt matter and it makes it yml friendly to parse later
-		util.PrintToYamlFile("show-commands.yml", outputDir, showMetrics, true)
+		// convert showMetrics into something yml compatible
+		parsedMetrics := parseMetrics(showMetrics)
+		util.PrintToYamlFile("show-commands.yml", outputDir, parsedMetrics, true)
 		return rc
 	}
 
@@ -674,4 +661,35 @@ func runMcAudit(api, uri, apiFile, curUserFile, outputDir string, mods []string)
 
 func getTokenFile(username, outputDir string) string {
 	return outputDir + "/" + username + ".token"
+}
+
+func parseMetrics(allMetrics *ormapi.AllMetrics) *[]ormapi.MetricsCompare {
+	result := make([]ormapi.MetricsCompare, 0)
+	for _, data := range allMetrics.Data {
+		for _, series := range data.Series {
+			measurement := ormapi.MetricsCompare{Name: series.Name, Tags: make(map[string]string), Values: make(map[string]float64)}
+			// e2e tests only grabs the latest measurement so there should only be one
+			if len(series.Values) != 1 {
+				return nil
+			}
+			for i, val := range series.Values[0] {
+				// ignore timestamps
+				if series.Columns[i] == "time" || series.Columns[i] == "metadata" {
+					continue
+				}
+				// if its a string its a tag, if its not then its an actual measurement value
+				if str, ok := val.(string); ok {
+					measurement.Tags[series.Columns[i]] = str
+				}
+				if floatVal, ok := val.(float64); ok {
+					measurement.Values[series.Columns[i]] = floatVal
+					// if its an int cast it to a float to make comparing easier
+				} else if intVal, ok := val.(int); ok {
+					measurement.Values[series.Columns[i]] = float64(intVal)
+				}
+			}
+			result = append(result, measurement)
+		}
+	}
+	return &result
 }

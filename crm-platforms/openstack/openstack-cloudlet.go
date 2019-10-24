@@ -405,13 +405,11 @@ func (s *Platform) UpdateCloudlet(ctx context.Context, cloudlet *edgeproto.Cloud
 	if err != nil {
 		return err
 	}
-	updateCallback(edgeproto.UpdateTask, fmt.Sprintf("successfully upgraded to new version: %s", pfConfig.PlatformTag))
 	return nil
 }
 
 func (s *Platform) CleanupCloudlet(ctx context.Context, cloudlet *edgeproto.Cloudlet, pfConfig *edgeproto.PlatformConfig, updateCallback edgeproto.CacheUpdateCallback) error {
 	log.SpanLog(ctx, log.DebugLevelMexos, "Cleaning up cloudlet", "cloudletName", cloudlet.Key.Name)
-	updateCallback(edgeproto.UpdateTask, "Performing cleanup")
 
 	client, err := mexos.GetSSHClient(ctx, getPlatformVMName(cloudlet), mexos.GetCloudletExternalNetwork(), mexos.SSHUser)
 	if err != nil {
@@ -425,8 +423,6 @@ func (s *Platform) CleanupCloudlet(ctx context.Context, cloudlet *edgeproto.Clou
 			return fmt.Errorf("cleanup failed: %v, %s\n", err, out)
 		}
 	}
-
-	updateCallback(edgeproto.UpdateTask, "Cleanup was successful")
 
 	return nil
 }

@@ -12,6 +12,7 @@ import (
 
 	"github.com/mobiledgex/edge-cloud/cloud-resource-manager/k8smgmt"
 	"github.com/mobiledgex/edge-cloud/cloud-resource-manager/platform/pc"
+	"github.com/mobiledgex/edge-cloud/cloudcommon"
 	"github.com/mobiledgex/edge-cloud/edgeproto"
 	"github.com/mobiledgex/edge-cloud/log"
 	"github.com/mobiledgex/edge-cloud/util"
@@ -637,7 +638,7 @@ func getClusterParams(ctx context.Context, clusterInst *edgeproto.ClusterInst, r
 	cp.NodeFlavor = clusterInst.NodeFlavor
 	cp.ExternalVolumeSize = clusterInst.ExternalVolumeSize
 	for i := uint32(1); i <= clusterInst.NumNodes; i++ {
-		nn := fmt.Sprintf("mex-k8s-node-%d", i)
+		nn := fmt.Sprintf("%s%d", cloudcommon.MexNodePrefix, i)
 		nip := fmt.Sprintf("%s.%d", nodeIPPrefix, i+100)
 		cn := ClusterNode{NodeName: nn, NodeIP: nip}
 		cp.Nodes = append(cp.Nodes, cn)

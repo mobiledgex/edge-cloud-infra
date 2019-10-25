@@ -68,6 +68,6 @@ func imageFound(name string) bool {
 
 func StopPromContainer() error {
 	err := exec.Command("docker", "stop", imageName).Run()
-	dockerRun.Wait()
+	// dockerRun.Wait()
 	return err
 }

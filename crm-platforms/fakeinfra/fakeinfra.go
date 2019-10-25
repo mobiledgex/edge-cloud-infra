@@ -7,7 +7,6 @@ import (
 	"time"
 
 	intprocess "github.com/mobiledgex/edge-cloud-infra/e2e-tests/int-process"
-	exporter "github.com/mobiledgex/edge-cloud-infra/shepherd/fakePromExporter"
 	"github.com/mobiledgex/edge-cloud/cloud-resource-manager/platform/fake"
 	"github.com/mobiledgex/edge-cloud/cloudcommon"
 	"github.com/mobiledgex/edge-cloud/edgeproto"
@@ -57,7 +56,5 @@ func (s *Platform) DeleteCloudlet(ctx context.Context, cloudlet *edgeproto.Cloud
 		return err
 	}
 	updateCallback(edgeproto.UpdateTask, "Stopping Shepherd")
-	// stop the prometheus container (if shepherd started one)
-	exporter.StopPromContainer()
 	return intprocess.StopShepherdService(ctx, cloudlet)
 }

@@ -11,6 +11,7 @@ import (
 	"time"
 
 	intprocess "github.com/mobiledgex/edge-cloud-infra/e2e-tests/int-process"
+	"github.com/mobiledgex/edge-cloud-infra/shepherd/fakePromExporter"
 	"github.com/mobiledgex/edge-cloud/integration/process"
 	"github.com/mobiledgex/edge-cloud/setup-env/e2e-tests/e2eapi"
 	setupmex "github.com/mobiledgex/edge-cloud/setup-env/setup-mex"
@@ -274,6 +275,7 @@ func RunAction(ctx context.Context, actionSpec, outputDir string, config *e2eapi
 		if err != nil {
 			errors = append(errors, err.Error())
 		}
+		fakepromexporter.StopPromContainer()
 		err = setupmex.Cleanup(ctx)
 		if err != nil {
 			errors = append(errors, err.Error())

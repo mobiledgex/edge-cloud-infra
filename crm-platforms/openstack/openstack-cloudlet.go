@@ -2,6 +2,7 @@ package openstack
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"net/url"
 	"os"
@@ -179,6 +180,21 @@ func setupPlatformService(ctx context.Context, cloudlet *edgeproto.Cloudlet, pfC
 		); err != nil {
 			return fmt.Errorf("unable to add route to reach API endpoint: %v, %s\n", err, out)
 		}
+		interfacesFile := mexos.GetCloudletNetworkIfaceFile()
+		routeAddLine := fmt.Sprintf("up route add -host %s gw %s", urlObj.Hostname(), gatewayAddr)
+		cmd := fmt.Sprintf("grep -l '%s' %s", routeAddLine, interfacesFile)
+		_, err = client.Output(cmd)
+		if err != nil {
+			// grep failed so not there already
+			log.SpanLog(ctx, log.DebugLevelMexos, "adding route to interfaces file", "route", routeAddLine, "file", interfacesFile)
+			cmd = fmt.Sprintf("echo '%s'|sudo tee -a %s", routeAddLine, interfacesFile)
+			out, err := client.Output(cmd)
+			if err != nil {
+				return fmt.Errorf("can't add route '%s' to interfaces file: %v, %s", routeAddLine, err, out)
+			}
+		} else {
+			log.SpanLog(ctx, log.DebugLevelMexos, "route already present in interfaces file")
+		}
 		// Retry
 		updateCallback(edgeproto.UpdateTask, "Retrying verification of reachability of Openstack API endpoint")
 		if out, err := client.Output(
@@ -212,17 +228,11 @@ func setupPlatformService(ctx context.Context, cloudlet *edgeproto.Cloudlet, pfC
 	}
 
 	// Get non-conflicting port for NotifySrvAddr if actual port is 0
-	ipobj := strings.Split(cloudlet.NotifySrvAddr, ":")
-	if len(ipobj) != 2 {
-		return fmt.Errorf("invalid notifysrvaddr format")
+	newAddr, err := cloudcommon.GetAvailablePort(cloudlet.NotifySrvAddr)
+	if err != nil {
+		return err
 	}
-	if ipobj[1] == "0" {
-		port, err := cloudcommon.GetAvailablePort()
-		if err != nil {
-			return fmt.Errorf("no ports available for CRM")
-		}
-		cloudlet.NotifySrvAddr = fmt.Sprintf("%s:%d", ipobj[0], port)
-	}
+	cloudlet.NotifySrvAddr = newAddr
 
 	// Start platform service on PlatformVM
 	crmChan := make(chan error, 1)
@@ -352,6 +362,22 @@ func (s *Platform) DeleteCloudlet(ctx context.Context, cloudlet *edgeproto.Cloud
 	return nil
 }
 
+func handleUpgradeError(ctx context.Context, client ssh.Client) error {
+	for _, pfService := range PlatformServices {
+		log.SpanLog(ctx, log.DebugLevelMexos, "restoring container names")
+		if out, err := client.Output(
+			fmt.Sprintf("sudo docker rename %s_old %s", pfService, pfService),
+		); err != nil {
+			if strings.Contains(out, "No such container") {
+				continue
+			}
+			return fmt.Errorf("unable to restore %s_old to %s: %v, %s\n",
+				pfService, pfService, err, out)
+		}
+	}
+	return nil
+}
+
 func (s *Platform) UpdateCloudlet(ctx context.Context, cloudlet *edgeproto.Cloudlet, pfConfig *edgeproto.PlatformConfig, updateCallback edgeproto.CacheUpdateCallback) error {
 	log.SpanLog(ctx, log.DebugLevelMexos, "Updating cloudlet", "cloudletName", cloudlet.Key.Name)
 
@@ -368,12 +394,21 @@ func (s *Platform) UpdateCloudlet(ctx context.Context, cloudlet *edgeproto.Cloud
 	}
 
 	// Rename existing containers
-	for _, pf_service := range PlatformServices {
-		log.SpanLog(ctx, log.DebugLevelMexos, "renaming old-container")
+	for _, pfService := range PlatformServices {
+		from := pfService
+		to := pfService + "_old"
+		log.SpanLog(ctx, log.DebugLevelMexos, "renaming existing services to bringup new ones", "from", from, "to", to)
 		if out, err := client.Output(
-			fmt.Sprintf("sudo docker rename %s %s_old", pf_service, pf_service),
+			fmt.Sprintf("sudo docker rename %s %s", from, to),
 		); err != nil {
-			return fmt.Errorf("unable to rename old-container: %v, %s\n", err, out)
+			errStr := fmt.Sprintf("unable to rename %s to %s: %v, %s\n",
+				from, to, err, out)
+			err = handleUpgradeError(ctx, client)
+			if err == nil {
+				return errors.New(errStr)
+			} else {
+				return fmt.Errorf("%s. Cleanup failed as well: %v\n", errStr, err)
+			}
 		}
 	}
 
@@ -393,10 +428,12 @@ func (s *Platform) UpdateCloudlet(ctx context.Context, cloudlet *edgeproto.Cloud
 			}
 		}
 		// Cleanup container names
-		for _, pf_service := range PlatformServices {
-			log.SpanLog(ctx, log.DebugLevelMexos, "renaming old-container")
+		for _, pfService := range PlatformServices {
+			from := pfService + "_old"
+			to := pfService
+			log.SpanLog(ctx, log.DebugLevelMexos, "restoring old container name", "from", from, "to", to)
 			if out, err1 := client.Output(
-				fmt.Sprintf("sudo docker rename %s_old %s", pf_service, pf_service),
+				fmt.Sprintf("sudo docker rename %s %s", from, to),
 			); err1 != nil {
 				return fmt.Errorf("upgrade failed: %v and unable to rename old-container: %v, %s\n", err, err1, out)
 			}
@@ -416,9 +453,9 @@ func (s *Platform) CleanupCloudlet(ctx context.Context, cloudlet *edgeproto.Clou
 		return err
 	}
 	updateCallback(edgeproto.UpdateTask, "Removing old containers")
-	for _, pf_service := range PlatformServices {
+	for _, pfService := range PlatformServices {
 		if out, err := client.Output(
-			fmt.Sprintf("sudo docker rm -f %s_old", pf_service),
+			fmt.Sprintf("sudo docker rm -f %s_old", pfService),
 		); err != nil {
 			return fmt.Errorf("cleanup failed: %v, %s\n", err, out)
 		}

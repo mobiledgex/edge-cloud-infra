@@ -4,10 +4,12 @@ import (
 	"bytes"
 	"context"
 	"fmt"
-	"html/template"
 	"os"
+	"regexp"
+	"strconv"
 	"strings"
 	"sync"
+	"text/template"
 	"time"
 
 	"github.com/mobiledgex/edge-cloud/cloud-resource-manager/k8smgmt"
@@ -31,10 +33,10 @@ type VMParams struct {
 	MEXRouterIP         string
 	GatewayIP           string
 	FloatingIPAddressID string
-	AuthPublicKey       template.HTML // Must be of this type to skip HTML escaping
+	AuthPublicKey       string
 	AccessPorts         []util.PortSpec
-	DeploymentManifest  template.HTML
-	Command             template.HTML
+	DeploymentManifest  string
+	Command             string
 	IsRootLB            bool
 }
 
@@ -426,7 +428,7 @@ func GetVMParams(ctx context.Context, depType DeploymentType, serverName, flavor
 		if err != nil {
 			return nil, err
 		}
-		vmp.AuthPublicKey = template.HTML(convKey)
+		vmp.AuthPublicKey = convKey
 	}
 	if accessPorts != "" {
 		vmp.AccessPorts, err = util.ParsePorts(accessPorts)
@@ -435,10 +437,10 @@ func GetVMParams(ctx context.Context, depType DeploymentType, serverName, flavor
 		}
 	}
 	if deploymentManifest != "" {
-		vmp.DeploymentManifest = template.HTML(deploymentManifest)
+		vmp.DeploymentManifest = deploymentManifest
 	}
 	if command != "" {
-		vmp.Command = template.HTML(command)
+		vmp.Command = command
 	}
 	if ni != nil && ni.FloatingIPNet != "" {
 
@@ -472,8 +474,8 @@ func createOrUpdateHeatStackFromTemplate(ctx context.Context, templateData inter
 	updateCallback(edgeproto.UpdateTask, "Creating Heat Stack for "+stackName)
 
 	funcMap := template.FuncMap{
-		"Indent": func(values ...interface{}) template.HTML {
-			s := values[0].(template.HTML)
+		"Indent": func(values ...interface{}) string {
+			s := values[0].(string)
 			l := 4
 			if len(values) > 1 {
 				l = values[1].(int)
@@ -483,7 +485,7 @@ func createOrUpdateHeatStackFromTemplate(ctx context.Context, templateData inter
 				nV := fmt.Sprintf("%s%s", strings.Repeat(" ", l), v)
 				newStr = append(newStr, nV)
 			}
-			return template.HTML(strings.Join(newStr, "\n"))
+			return strings.Join(newStr, "\n")
 		},
 	}
 
@@ -638,7 +640,7 @@ func getClusterParams(ctx context.Context, clusterInst *edgeproto.ClusterInst, r
 	cp.NodeFlavor = clusterInst.NodeFlavor
 	cp.ExternalVolumeSize = clusterInst.ExternalVolumeSize
 	for i := uint32(1); i <= clusterInst.NumNodes; i++ {
-		nn := fmt.Sprintf("%s%d", cloudcommon.MexNodePrefix, i)
+		nn := HeatNodePrefix(i)
 		nip := fmt.Sprintf("%s.%d", nodeIPPrefix, i+100)
 		cn := ClusterNode{NodeName: nn, NodeIP: nip}
 		cp.Nodes = append(cp.Nodes, cn)
@@ -646,6 +648,20 @@ func getClusterParams(ctx context.Context, clusterInst *edgeproto.ClusterInst, r
 	// cloudflare primary and backup
 	cp.DNSServers = []string{"1.1.1.1", "1.0.0.1"}
 	return &cp, nil
+}
+
+func HeatNodePrefix(num uint32) string {
+	return fmt.Sprintf("%s%d", cloudcommon.MexNodePrefix, num)
+}
+
+func ParseHeatNodePrefix(name string) (bool, uint32) {
+	reg := regexp.MustCompile("^" + cloudcommon.MexNodePrefix + "(\\d+).*")
+	matches := reg.FindSubmatch([]byte(name))
+	if matches == nil || len(matches) < 2 {
+		return false, 0
+	}
+	num, _ := strconv.Atoi(string(matches[1]))
+	return true, uint32(num)
 }
 
 // HeatCreateRootLBVM creates a roobLB VM
@@ -728,7 +744,7 @@ func HeatUpdateClusterKubernetes(ctx context.Context, clusterInst *edgeproto.Clu
 
 	templateString := k8sClusterTemplate
 	//append the VM resources for the rootLB is specified
-	if dedicatedRootLB{
+	if dedicatedRootLB {
 		templateString += vmTemplateResources
 	}
 	err = UpdateHeatStackFromTemplate(ctx, cp, cp.ClusterName, templateString, updateCallback)

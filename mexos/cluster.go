@@ -4,7 +4,6 @@ import (
 	"context"
 	"fmt"
 	"regexp"
-	"sort"
 	"strings"
 	"time"
 
@@ -123,18 +122,23 @@ func UpdateCluster(ctx context.Context, client pc.PlatformClient, rootLBName str
 			return err
 		}
 		allnodes := strings.Split(strings.TrimSpace(out), "\n")
-		// ignore master node
-		nodes := []string{}
+		toRemove := []string{}
 		for _, n := range allnodes {
 			if !strings.HasPrefix(n, cloudcommon.MexNodePrefix) {
+				// skip master
 				continue
 			}
-			nodes = append(nodes, n)
+			ok, num := ParseHeatNodePrefix(n)
+			if !ok {
+				log.SpanLog(ctx, log.DebugLevelMexos, "unable to parse node name, ignoring", "name", n)
+				continue
+			}
+			// heat will remove the higher-numbered nodes
+			if num > clusterInst.NumNodes {
+				toRemove = append(toRemove, n)
+			}
 		}
-		if len(nodes) > int(clusterInst.NumNodes) {
-			// heat will remove the higher-named nodes
-			sort.Strings(nodes)
-			toRemove := nodes[clusterInst.NumNodes:]
+		if len(toRemove) > 0 {
 			log.SpanLog(ctx, log.DebugLevelMexos, "delete nodes", "toRemove", toRemove)
 			err = k8smgmt.DeleteNodes(ctx, client, kconfName, toRemove)
 			if err != nil {

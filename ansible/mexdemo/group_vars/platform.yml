@@ -17,3 +17,7 @@ regions:
   - name: mexdemo-us
     location: northcentralus
     region: US
+
+  - name: mexdemo-jp
+    location: japaneast
+    region: JP

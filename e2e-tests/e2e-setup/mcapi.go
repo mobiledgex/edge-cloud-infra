@@ -122,7 +122,6 @@ func runMcDataAPI(api, uri, apiFile, curUserFile, outputDir string, mods []strin
 	}
 
 	if api == "showmetrics" {
-		// the sep case will make individual calls to mc api for each metric
 		var showMetrics *ormapi.AllMetrics
 		targets := readMCMetricTargetsFile(apiFile)
 		log.Printf("targets: %+v\n", targets)

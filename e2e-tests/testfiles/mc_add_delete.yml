@@ -63,6 +63,7 @@ tests:
 
 - name: check shepherd metrics in influx
   actions: [sleep=9, mcapi-showmetrics]
+  apifile: '{{datadir2}}/mc_metrics_targets.yml'
   curuserfile: '{{datadir2}}/mc_user2.yml'
   compareyaml:
     yaml1: '{{outputdir}}/show-commands.yml'

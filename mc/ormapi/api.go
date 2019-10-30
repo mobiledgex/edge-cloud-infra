@@ -210,3 +210,8 @@ type RegionCloudletMetrics struct {
 	EndTime   time.Time `json:",omitempty"`
 	Last      int       `json:",omitempty"`
 }
+
+type MetricTargets struct {
+	AppInstKey     edgeproto.AppInstKey
+	ClusterInstKey edgeproto.ClusterInstKey
+}

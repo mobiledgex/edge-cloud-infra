@@ -124,10 +124,12 @@ func runMcDataAPI(api, uri, apiFile, curUserFile, outputDir string, mods []strin
 	if api == "showmetrics" {
 		// the sep case will make individual calls to mc api for each metric
 		var showMetrics *ormapi.AllMetrics
+		targets := readMCMetricTargetsFile(apiFile)
+		log.Printf("targets: %+v\n", targets)
 		if sep {
-			showMetrics = showMcMetricsSep(uri, token, &rc)
+			showMetrics = showMcMetricsSep(uri, token, targets, &rc)
 		} else {
-			showMetrics = showMcMetricsAll(uri, token, &rc)
+			showMetrics = showMcMetricsAll(uri, token, targets, &rc)
 		}
 		// convert showMetrics into something yml compatible
 		parsedMetrics := parseMetrics(showMetrics)
@@ -184,6 +186,18 @@ func readMCDataFile(file string) *ormapi.AllData {
 		}
 	}
 	return &data
+}
+
+func readMCMetricTargetsFile(file string) *ormapi.MetricTargets {
+	targets := ormapi.MetricTargets{}
+	err := util.ReadYamlFile(file, &targets)
+	if err != nil {
+		if !util.IsYamlOk(err, "mcdata") {
+			fmt.Fprintf(os.Stderr, "error in unmarshal for file %s\n", file)
+			os.Exit(1)
+		}
+	}
+	return &targets
 }
 
 func loginCurUser(uri, curUserFile string) (string, bool) {
@@ -510,35 +524,20 @@ func deleteMcDataSep(uri, token string, data *ormapi.AllData, rc *bool) {
 	}
 }
 
-func showMcMetricsAll(uri, token string, rc *bool) *ormapi.AllMetrics {
+func showMcMetricsAll(uri, token string, targets *ormapi.MetricTargets, rc *bool) *ormapi.AllMetrics {
 	appQuery := ormapi.RegionAppInstMetrics{
-		Region: "local",
-		AppInst: edgeproto.AppInstKey{ //change this to pull appkey from the yml file
-			AppKey: edgeproto.AppKey{
-				Name:         "someapplication1",
-				Version:      "1.0",
-				DeveloperKey: edgeproto.DeveloperKey{Name: "AcmeAppCo"},
-			},
-			ClusterInstKey: edgeproto.ClusterInstKey{
-				ClusterKey:  edgeproto.ClusterKey{Name: "SmallCluster"},
-				CloudletKey: edgeproto.CloudletKey{OperatorKey: edgeproto.OperatorKey{Name: "tmus"}, Name: "tmus-cloud-1"},
-				Developer:   "AcmeAppCo",
-			},
-		},
+		Region:   "local",
+		AppInst:  targets.AppInstKey,
 		Selector: "*",
 		Last:     1,
 	}
 	appMetrics, status, err := mcClient.ShowAppMetrics(uri, token, &appQuery)
 	checkMcErr("ShowAppMetrics", status, err, rc)
 	clusterQuery := ormapi.RegionClusterInstMetrics{
-		Region: "local",
-		ClusterInst: edgeproto.ClusterInstKey{ //change this to pull clusterkey from the yml file
-			ClusterKey:  edgeproto.ClusterKey{Name: "SmallCluster"},
-			CloudletKey: edgeproto.CloudletKey{OperatorKey: edgeproto.OperatorKey{Name: "tmus"}, Name: "tmus-cloud-1"},
-			Developer:   "AcmeAppCo",
-		},
-		Selector: "*",
-		Last:     1,
+		Region:      "local",
+		ClusterInst: targets.ClusterInstKey,
+		Selector:    "*",
+		Last:        1,
 	}
 	clusterMetrics, status, err := mcClient.ShowClusterMetrics(uri, token, &clusterQuery)
 	checkMcErr("ShowClusterMetrics", status, err, rc)
@@ -547,21 +546,10 @@ func showMcMetricsAll(uri, token string, rc *bool) *ormapi.AllMetrics {
 	return appMetrics
 }
 
-func showMcMetricsSep(uri, token string, rc *bool) *ormapi.AllMetrics {
+func showMcMetricsSep(uri, token string, targets *ormapi.MetricTargets, rc *bool) *ormapi.AllMetrics {
 	appQuery := ormapi.RegionAppInstMetrics{
-		Region: "local",
-		AppInst: edgeproto.AppInstKey{ //change this to pull appkey from the yml file
-			AppKey: edgeproto.AppKey{
-				Name:         "someapplication1",
-				Version:      "1.0",
-				DeveloperKey: edgeproto.DeveloperKey{Name: "AcmeAppCo"},
-			},
-			ClusterInstKey: edgeproto.ClusterInstKey{
-				ClusterKey:  edgeproto.ClusterKey{Name: "SmallCluster"},
-				CloudletKey: edgeproto.CloudletKey{OperatorKey: edgeproto.OperatorKey{Name: "tmus"}, Name: "tmus-cloud-1"},
-				Developer:   "AcmeAppCo",
-			},
-		},
+		Region:   "local",
+		AppInst:  targets.AppInstKey,
 		Selector: "cpu",
 		Last:     1,
 	}
@@ -578,14 +566,10 @@ func showMcMetricsSep(uri, token string, rc *bool) *ormapi.AllMetrics {
 	checkMcErr("ShowAppNetwork", status, err, rc)
 
 	clusterQuery := ormapi.RegionClusterInstMetrics{
-		Region: "local",
-		ClusterInst: edgeproto.ClusterInstKey{ //change this to pull clusterkey from the yml file
-			ClusterKey:  edgeproto.ClusterKey{Name: "SmallCluster"},
-			CloudletKey: edgeproto.CloudletKey{OperatorKey: edgeproto.OperatorKey{Name: "tmus"}, Name: "tmus-cloud-1"},
-			Developer:   "AcmeAppCo",
-		},
-		Selector: "cpu",
-		Last:     1,
+		Region:      "local",
+		ClusterInst: targets.ClusterInstKey,
+		Selector:    "cpu",
+		Last:        1,
 	}
 	clusterCpu, status, err := mcClient.ShowClusterMetrics(uri, token, &clusterQuery)
 	checkMcErr("ShowClusterCpu", status, err, rc)

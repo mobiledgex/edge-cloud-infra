@@ -117,10 +117,7 @@ func AppInstMetricsQuery(obj *ormapi.RegionAppInstMetrics, selectorStr string) s
 	if obj.Selector != "*" {
 		selectors = strings.Split(obj.Selector, ",")
 	}
-	for i, v := range selectors {
-		selectors[i] = "appinst-" + v
-	}
-	measurement := strings.Join(selectors, "\",\"")
+	measurement := "appinst-" + strings.Join(selectors, "\",\"appinst-")
 	arg := influxQueryArgs{
 		Selector:     selectorStr,
 		Measurement:  measurement,
@@ -158,10 +155,7 @@ func ClusterMetricsQuery(obj *ormapi.RegionClusterInstMetrics, selectorStr strin
 	if obj.Selector != "*" {
 		selectors = strings.Split(obj.Selector, ",")
 	}
-	for i, v := range selectors {
-		selectors[i] = "cluster-" + v
-	}
-	measurement := strings.Join(selectors, "\",\"")
+	measurement := "cluster-" + strings.Join(selectors, "\",\"cluster-")
 	arg := influxQueryArgs{
 		Selector:     selectorStr,
 		Measurement:  measurement,
@@ -198,10 +192,7 @@ func CloudldetMetricsQuery(obj *ormapi.RegionCloudletMetrics, selectorStr string
 	if obj.Selector != "*" {
 		selectors = strings.Split(obj.Selector, ",")
 	}
-	for i, v := range selectors {
-		selectors[i] = "cloudlet-" + v
-	}
-	measurement := strings.Join(selectors, "\",\"")
+	measurement := "cloudlet-" + strings.Join(selectors, "\",\"cloudlet-")
 	arg := influxQueryArgs{
 		Selector:     selectorStr,
 		Measurement:  measurement,

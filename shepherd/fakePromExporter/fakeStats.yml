@@ -1,6 +1,11 @@
 prometheus:
+  #cluster-cpu
+  clustCpu: 0
+  clustCpuCores: 4
+  #cluster-tcp
   tcpConn: 100
   tcpRetrans: 200
+  #cluster-udp
   udpSent: 300
   udpRecv: 400
   udpRecvErr: 500

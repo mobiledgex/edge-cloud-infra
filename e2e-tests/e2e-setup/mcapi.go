@@ -510,10 +510,27 @@ func deleteMcDataSep(uri, token string, data *ormapi.AllData, rc *bool) {
 	}
 }
 
-//for now only get netstat metrics until i figure out the exporter formatting problem
 func showMcMetricsAll(uri, token string, rc *bool) *ormapi.AllMetrics {
-	//appMetrics, status, err := mcClient.ShowAppMetrics(uri, token)
-	//checkMcErr("ShowAppMetrics", status, err, rc)
+	appQuery := ormapi.RegionAppInstMetrics{
+		Region: "local",
+		AppInst: edgeproto.AppInstKey{ //change this to pull appkey from the yml file
+			AppKey: edgeproto.AppKey{
+				Name:         "someapplication1",
+				Version:      "1.0",
+				DeveloperKey: edgeproto.DeveloperKey{Name: "AcmeAppCo"},
+			},
+			ClusterInstKey: edgeproto.ClusterInstKey{
+				ClusterKey:  edgeproto.ClusterKey{Name: "SmallCluster"},
+				CloudletKey: edgeproto.CloudletKey{OperatorKey: edgeproto.OperatorKey{Name: "tmus"}, Name: "tmus-cloud-1"},
+				Developer:   "AcmeAppCo",
+			},
+		},
+		Selector: "*",
+		Last:     1,
+	}
+	appMetrics, status, err := mcClient.ShowAppMetrics(uri, token, &appQuery)
+	checkMcErr("ShowAppMetrics", status, err, rc)
+
 	clusterQuery := ormapi.RegionClusterInstMetrics{
 		Region: "local",
 		ClusterInst: edgeproto.ClusterInstKey{ //change this to pull clusterkey from the yml file
@@ -521,17 +538,46 @@ func showMcMetricsAll(uri, token string, rc *bool) *ormapi.AllMetrics {
 			CloudletKey: edgeproto.CloudletKey{OperatorKey: edgeproto.OperatorKey{Name: "tmus"}, Name: "tmus-cloud-1"},
 			Developer:   "AcmeAppCo",
 		},
-		Selector: "tcp,udp",
+		Selector: "*",
 		Last:     1,
 	}
 	clusterMetrics, status, err := mcClient.ShowClusterMetrics(uri, token, &clusterQuery)
 	checkMcErr("ShowClusterMetrics", status, err, rc)
-	return clusterMetrics
+	// combine them into one AllMetrics
+	appMetrics.Data = append(appMetrics.Data, clusterMetrics.Data...)
+	return appMetrics
 }
 
-//for now only get netstat metrics until i figure out the exporter formatting problem
 func showMcMetricsSep(uri, token string, rc *bool) *ormapi.AllMetrics {
-	var allMetrics *ormapi.AllMetrics
+	appQuery := ormapi.RegionAppInstMetrics{
+		Region: "local",
+		AppInst: edgeproto.AppInstKey{ //change this to pull appkey from the yml file
+			AppKey: edgeproto.AppKey{
+				Name:         "someapplication1",
+				Version:      "1.0",
+				DeveloperKey: edgeproto.DeveloperKey{Name: "AcmeAppCo"},
+			},
+			ClusterInstKey: edgeproto.ClusterInstKey{
+				ClusterKey:  edgeproto.ClusterKey{Name: "SmallCluster"},
+				CloudletKey: edgeproto.CloudletKey{OperatorKey: edgeproto.OperatorKey{Name: "tmus"}, Name: "tmus-cloud-1"},
+				Developer:   "AcmeAppCo",
+			},
+		},
+		Selector: "cpu",
+		Last:     1,
+	}
+	appCpu, status, err := mcClient.ShowAppMetrics(uri, token, &appQuery)
+	checkMcErr("ShowAppCpu", status, err, rc)
+	appQuery.Selector = "mem"
+	appMem, status, err := mcClient.ShowAppMetrics(uri, token, &appQuery)
+	checkMcErr("ShowAppMem", status, err, rc)
+	appQuery.Selector = "disk"
+	appDisk, status, err := mcClient.ShowAppMetrics(uri, token, &appQuery)
+	checkMcErr("ShowAppDisk", status, err, rc)
+	appQuery.Selector = "network"
+	appNetwork, status, err := mcClient.ShowAppMetrics(uri, token, &appQuery)
+	checkMcErr("ShowAppNetwork", status, err, rc)
+
 	clusterQuery := ormapi.RegionClusterInstMetrics{
 		Region: "local",
 		ClusterInst: edgeproto.ClusterInstKey{ //change this to pull clusterkey from the yml file
@@ -539,15 +585,37 @@ func showMcMetricsSep(uri, token string, rc *bool) *ormapi.AllMetrics {
 			CloudletKey: edgeproto.CloudletKey{OperatorKey: edgeproto.OperatorKey{Name: "tmus"}, Name: "tmus-cloud-1"},
 			Developer:   "AcmeAppCo",
 		},
-		Selector: "tcp",
+		Selector: "cpu",
 		Last:     1,
 	}
+	clusterCpu, status, err := mcClient.ShowClusterMetrics(uri, token, &clusterQuery)
+	checkMcErr("ShowClusterCpu", status, err, rc)
+	clusterQuery.Selector = "mem"
+	clusterMem, status, err := mcClient.ShowClusterMetrics(uri, token, &clusterQuery)
+	checkMcErr("ShowClusterMem", status, err, rc)
+	clusterQuery.Selector = "disk"
+	clusterDisk, status, err := mcClient.ShowClusterMetrics(uri, token, &clusterQuery)
+	checkMcErr("ShowClusterDisk", status, err, rc)
+	clusterQuery.Selector = "network"
+	clusterNetwork, status, err := mcClient.ShowClusterMetrics(uri, token, &clusterQuery)
+	checkMcErr("ShowClusterNetwork", status, err, rc)
+	clusterQuery.Selector = "tcp"
 	clusterTcp, status, err := mcClient.ShowClusterMetrics(uri, token, &clusterQuery)
 	checkMcErr("ShowClusterTcp", status, err, rc)
 	clusterQuery.Selector = "udp"
 	clusterUdp, status, err := mcClient.ShowClusterMetrics(uri, token, &clusterQuery)
 	checkMcErr("ShowClusterUdp", status, err, rc)
-	allMetrics = clusterTcp
+
+	var allMetrics *ormapi.AllMetrics
+	allMetrics = appCpu
+	allMetrics.Data[0].Series = append(allMetrics.Data[0].Series, appMem.Data[0].Series...)
+	allMetrics.Data[0].Series = append(allMetrics.Data[0].Series, appDisk.Data[0].Series...)
+	allMetrics.Data[0].Series = append(allMetrics.Data[0].Series, appNetwork.Data[0].Series...)
+	allMetrics.Data[0].Series = append(allMetrics.Data[0].Series, clusterCpu.Data[0].Series...)
+	allMetrics.Data[0].Series = append(allMetrics.Data[0].Series, clusterMem.Data[0].Series...)
+	allMetrics.Data[0].Series = append(allMetrics.Data[0].Series, clusterDisk.Data[0].Series...)
+	allMetrics.Data[0].Series = append(allMetrics.Data[0].Series, clusterNetwork.Data[0].Series...)
+	allMetrics.Data[0].Series = append(allMetrics.Data[0].Series, clusterTcp.Data[0].Series...)
 	allMetrics.Data[0].Series = append(allMetrics.Data[0].Series, clusterUdp.Data[0].Series...)
 	return allMetrics
 }

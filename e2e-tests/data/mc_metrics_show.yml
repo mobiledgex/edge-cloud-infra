@@ -1,3 +1,40 @@
+- name: appinst-network
+  tags:
+    app: someapplication1
+    cloudlet: tmus-cloud-1
+    cluster: SmallCluster
+    dev: AcmeAppCo
+    operator: tmus
+  values:
+    recvBytes: 0
+    sendBytes: 0
+- name: appinst-mem
+  tags:
+    app: someapplication1
+    cloudlet: tmus-cloud-1
+    cluster: SmallCluster
+    dev: AcmeAppCo
+    operator: tmus
+  values:
+    mem: 3.756834298e+09
+- name: appinst-disk
+  tags:
+    app: someapplication1
+    cloudlet: tmus-cloud-1
+    cluster: SmallCluster
+    dev: AcmeAppCo
+    operator: tmus
+  values:
+    disk: 73728
+- name: appinst-cpu
+  tags:
+    app: someapplication1
+    cloudlet: tmus-cloud-1
+    cluster: SmallCluster
+    dev: AcmeAppCo
+    operator: tmus
+  values:
+    cpu: 0
 - name: cluster-udp
   tags:
     cloudlet: tmus-cloud-1
@@ -17,3 +54,36 @@
   values:
     tcpConns: 100
     tcpRetrans: 200
+- name: cluster-network
+  tags:
+    cloudlet: tmus-cloud-1
+    cluster: SmallCluster
+    dev: AcmeAppCo
+    operator: tmus
+  values:
+    recvBytes: 0
+    sendBytes: 0
+- name: cluster-mem
+  tags:
+    cloudlet: tmus-cloud-1
+    cluster: SmallCluster
+    dev: AcmeAppCo
+    operator: tmus
+  values:
+    mem: 73.44554632256649
+- name: cluster-disk
+  tags:
+    cloudlet: tmus-cloud-1
+    cluster: SmallCluster
+    dev: AcmeAppCo
+    operator: tmus
+  values:
+    disk: 16.729046923661965
+- name: cluster-cpu
+  tags:
+    cloudlet: tmus-cloud-1
+    cluster: SmallCluster
+    dev: AcmeAppCo
+    operator: tmus
+  values:
+    cpu: 0

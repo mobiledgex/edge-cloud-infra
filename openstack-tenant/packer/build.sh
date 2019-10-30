@@ -1,7 +1,7 @@
 #!/bin/bash
-
+set -x
 ARTIFACTORY_BASEURL='https://artifactory.mobiledgex.net'
-ARTIFACTORY_USER='packer'
+ARTIFACTORY_USER='jim.morris'
 CLOUD_IMAGE='xenial-server-cloudimg-amd64-disk1.img'
 OUTPUT_IMAGE_NAME='mobiledgex'
 

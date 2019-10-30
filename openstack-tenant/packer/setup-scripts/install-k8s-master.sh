@@ -13,11 +13,6 @@ MYIP=$3
 echo "Interface $INTF"
 echo "Master IP $MASTERIP"
 echo "My IP Address: $MYIP"
-which python
-if [ $? -ne 0 ]; then
-    echo python not installed
-    exit 1
-fi
 which kubeadm
 if [ $? -ne 0 ]; then
     echo missing kubeadm

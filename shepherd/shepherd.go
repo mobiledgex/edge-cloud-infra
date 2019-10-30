@@ -156,6 +156,8 @@ func getPlatform() (platform.Platform, error) {
 	case "PLATFORM_TYPE_OPENSTACK":
 		plat = &shepherd_openstack.Platform{}
 	case "PLATFORM_TYPE_FAKEINFRA":
+		// change the scrape interval to 1s so we dont have to wait as long for e2e tests to go
+		*collectInterval = time.Second
 		plat = &shepherd_fake.Platform{}
 	default:
 		err = fmt.Errorf("Platform %s not supported", *platformName)

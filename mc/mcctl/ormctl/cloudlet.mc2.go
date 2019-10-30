@@ -524,6 +524,8 @@ var CloudletInfoOptionalArgs = []string{
 	"status.maxtasks",
 	"status.taskname",
 	"status.stepname",
+	"version",
+	"outdated",
 }
 var CloudletInfoAliasArgs = []string{
 	"operator=cloudletinfo.key.operatorkey.name",
@@ -543,6 +545,8 @@ var CloudletInfoAliasArgs = []string{
 	"status.maxtasks=cloudletinfo.status.maxtasks",
 	"status.taskname=cloudletinfo.status.taskname",
 	"status.stepname=cloudletinfo.status.stepname",
+	"version=cloudletinfo.version",
+	"outdated=cloudletinfo.outdated",
 }
 var CloudletInfoComments = map[string]string{
 	"operator":      "Company or Organization name of the operator",
@@ -558,6 +562,8 @@ var CloudletInfoComments = map[string]string{
 	"flavors.vcpus": "Number of VCPU cores on the Cloudlet",
 	"flavors.ram":   "Ram in MB on the Cloudlet",
 	"flavors.disk":  "Amount of disk in GB on the Cloudlet",
+	"version":       "Cloudlet version",
+	"outdated":      "Cloudlet outdated",
 }
 var CloudletInfoSpecialArgs = map[string]string{
 	"errors": "StringArray",

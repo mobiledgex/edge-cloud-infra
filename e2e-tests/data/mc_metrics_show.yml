@@ -70,7 +70,7 @@
     dev: AcmeAppCo
     operator: tmus
   values:
-    mem: 73.44554632256649
+    mem: 75
 - name: cluster-disk
   tags:
     cloudlet: tmus-cloud-1
@@ -78,7 +78,7 @@
     dev: AcmeAppCo
     operator: tmus
   values:
-    disk: 16.729046923661965
+    disk: 42.1
 - name: cluster-cpu
   tags:
     cloudlet: tmus-cloud-1

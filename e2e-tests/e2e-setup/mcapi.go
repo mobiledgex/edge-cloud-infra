@@ -530,7 +530,6 @@ func showMcMetricsAll(uri, token string, rc *bool) *ormapi.AllMetrics {
 	}
 	appMetrics, status, err := mcClient.ShowAppMetrics(uri, token, &appQuery)
 	checkMcErr("ShowAppMetrics", status, err, rc)
-
 	clusterQuery := ormapi.RegionClusterInstMetrics{
 		Region: "local",
 		ClusterInst: edgeproto.ClusterInstKey{ //change this to pull clusterkey from the yml file

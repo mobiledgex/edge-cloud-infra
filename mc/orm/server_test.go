@@ -124,7 +124,7 @@ func TestServer(t *testing.T) {
 		Passhash: "misterX-password",
 	}
 	status, err = mcClient.CreateUser(uri, &userX)
-	require.NotNil(t, err, "cannot user with same name as org")
+	require.NotNil(t, err, "cannot create user with same name as org")
 
 	// create new user2
 	user2 := ormapi.User{

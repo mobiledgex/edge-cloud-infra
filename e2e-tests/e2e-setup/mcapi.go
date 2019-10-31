@@ -126,7 +126,6 @@ func runMcDataAPI(api, uri, apiFile, curUserFile, outputDir string, mods []strin
 		var showMetrics *ormapi.AllMetrics
 		targets := readMCMetricTargetsFile(apiFile)
 		var parsedMetrics *[]MetricsCompare
-		gotMetrics := false
 		// retry a couple times since prometheus takes a while on startup
 		for i := 0; i < 100; i++ {
 			if sep {
@@ -137,15 +136,10 @@ func runMcDataAPI(api, uri, apiFile, curUserFile, outputDir string, mods []strin
 			// convert showMetrics into something yml compatible
 			parsedMetrics = parseMetrics(showMetrics)
 			if len(*parsedMetrics) == len(E2eAppSelectors)+len(E2eClusterSelectors) {
-				gotMetrics = true
 				break
 			} else {
 				time.Sleep(100 * time.Millisecond)
 			}
-		}
-		if !gotMetrics {
-			log.Println("Error: Unable to retrieve metrics")
-			return false
 		}
 		util.PrintToYamlFile("show-commands.yml", outputDir, parsedMetrics, true)
 		return rc

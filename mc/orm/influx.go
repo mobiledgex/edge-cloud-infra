@@ -63,6 +63,12 @@ var CloudletSelectors = []string{
 	"utilization",
 }
 
+const (
+	APPINST  = "appinst"
+	CLUSTER  = "cluster"
+	CLOUDLET = "cloudlet"
+)
+
 var influDBT = `SELECT {{.Selector}} from "{{.Measurement}}"` +
 	` WHERE "cluster"='{{.ClusterName}}'` +
 	`{{if .AppInstName}} AND "app"=~/{{.AppInstName}}/{{end}}` +
@@ -115,7 +121,7 @@ func getInfluxDBAddrForRegion(ctx context.Context, region string) (string, error
 func AppInstMetricsQuery(obj *ormapi.RegionAppInstMetrics) string {
 	arg := influxQueryArgs{
 		Selector:     "*",
-		Measurement:  getMeasurementString(obj.Selector, AppSelectors),
+		Measurement:  getMeasurementString(obj.Selector, APPINST),
 		AppInstName:  k8smgmt.NormalizeName(obj.AppInst.AppKey.Name),
 		CloudletName: obj.AppInst.ClusterInstKey.CloudletKey.Name,
 		ClusterName:  obj.AppInst.ClusterInstKey.ClusterKey.Name,
@@ -148,7 +154,7 @@ func AppInstMetricsQuery(obj *ormapi.RegionAppInstMetrics) string {
 func ClusterMetricsQuery(obj *ormapi.RegionClusterInstMetrics) string {
 	arg := influxQueryArgs{
 		Selector:     "*",
-		Measurement:  getMeasurementString(obj.Selector, ClusterSelectors),
+		Measurement:  getMeasurementString(obj.Selector, CLUSTER),
 		CloudletName: obj.ClusterInst.CloudletKey.Name,
 		ClusterName:  obj.ClusterInst.ClusterKey.Name,
 		OperatorName: obj.ClusterInst.CloudletKey.OperatorKey.Name,
@@ -180,7 +186,7 @@ func ClusterMetricsQuery(obj *ormapi.RegionClusterInstMetrics) string {
 func CloudletMetricsQuery(obj *ormapi.RegionCloudletMetrics) string {
 	arg := influxQueryArgs{
 		Selector:     "*",
-		Measurement:  getMeasurementString(obj.Selector, CloudletSelectors),
+		Measurement:  getMeasurementString(obj.Selector, CLOUDLET),
 		CloudletName: obj.Cloudlet.Name,
 		OperatorName: obj.Cloudlet.OperatorKey.Name,
 		Last:         obj.Last,
@@ -267,12 +273,21 @@ func validateSelectorString(selector string, validSelectors []string) error {
 	return nil
 }
 
-func getMeasurementString(selector string, selectors []string) string {
-	measurements := selectors
+func getMeasurementString(selector, measurementType string) string {
+	var measurements []string
+	switch measurementType {
+	case "appinst":
+		measurements = AppSelectors
+	case "cluster":
+		measurements = ClusterSelectors
+	case "cloudlet":
+		measurements = CloudletSelectors
+	}
 	if selector != "*" {
 		measurements = strings.Split(selector, ",")
 	}
-	return "appinst-" + strings.Join(measurements, "\",\"appinst-")
+	prefix := measurementType + "-"
+	return prefix + strings.Join(measurements, "\",\""+prefix)
 }
 
 // Common method to handle both app and cluster metrics

@@ -278,7 +278,7 @@ func parseClusterSelectorString(selector string) (string, error) {
 	selectors := strings.Split(selector, ",")
 	for _, s := range selectors {
 		if !Contains(ClusterSelectors, s) {
-			return "", fmt.Errorf("Invalid selector in a request")
+			return "", fmt.Errorf("Invalid cluster selector %s in a request", s)
 		}
 	}
 	return "*", nil
@@ -291,7 +291,7 @@ func parseAppSelectorString(selector string) (string, error) {
 	selectors := strings.Split(selector, ",")
 	for _, s := range selectors {
 		if !Contains(AppSelectors, s) {
-			return "", fmt.Errorf("Invalid selector in a request")
+			return "", fmt.Errorf("Invalid app selector %s in a request", s)
 		}
 	}
 	return "*", nil
@@ -304,7 +304,7 @@ func parseCloudletSelectorString(selector string) (string, error) {
 	selectors := strings.Split(selector, ",")
 	for _, s := range selectors {
 		if !Contains(CloudletSelectors, s) {
-			return "", fmt.Errorf("Invalid selector in a request")
+			return "", fmt.Errorf("Invalid cloudlet selector %s in a request", s)
 		}
 	}
 	return "*", nil

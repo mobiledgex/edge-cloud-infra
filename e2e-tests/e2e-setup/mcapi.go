@@ -7,6 +7,7 @@ import (
 	"net/http"
 	"os"
 	"strings"
+	"time"
 
 	intprocess "github.com/mobiledgex/edge-cloud-infra/e2e-tests/int-process"
 	"github.com/mobiledgex/edge-cloud-infra/mc/mcctl/cliwrapper"
@@ -125,13 +126,27 @@ func runMcDataAPI(api, uri, apiFile, curUserFile, outputDir string, mods []strin
 		var showMetrics *ormapi.AllMetrics
 		targets := readMCMetricTargetsFile(apiFile)
 		log.Printf("targets: %+v\n", targets)
-		if sep {
-			showMetrics = showMcMetricsSep(uri, token, targets, &rc)
-		} else {
-			showMetrics = showMcMetricsAll(uri, token, targets, &rc)
+		var parsedMetrics *[]MetricsCompare
+		gotMetrics := false
+		for i := 0; i < 100; i++ {
+			if sep {
+				showMetrics = showMcMetricsSep(uri, token, targets, &rc)
+			} else {
+				showMetrics = showMcMetricsAll(uri, token, targets, &rc)
+			}
+			// convert showMetrics into something yml compatible
+			parsedMetrics = parseMetrics(showMetrics)
+			if len(*parsedMetrics) == len(AppSelectors)+len(ClusterSelectors) {
+				gotMetrics = true
+				break
+			} else {
+				time.Sleep(100 * time.Millisecond)
+			}
 		}
-		// convert showMetrics into something yml compatible
-		parsedMetrics := parseMetrics(showMetrics)
+		if !gotMetrics {
+			log.Println("Error: Unable to retrieve metrics")
+			return false
+		}
 		util.PrintToYamlFile("show-commands.yml", outputDir, parsedMetrics, true)
 		return rc
 	}
@@ -187,8 +202,8 @@ func readMCDataFile(file string) *ormapi.AllData {
 	return &data
 }
 
-func readMCMetricTargetsFile(file string) *ormapi.MetricTargets {
-	targets := ormapi.MetricTargets{}
+func readMCMetricTargetsFile(file string) *MetricTargets {
+	targets := MetricTargets{}
 	err := util.ReadYamlFile(file, &targets)
 	if err != nil {
 		if !util.IsYamlOk(err, "mcdata") {
@@ -523,7 +538,7 @@ func deleteMcDataSep(uri, token string, data *ormapi.AllData, rc *bool) {
 	}
 }
 
-func showMcMetricsAll(uri, token string, targets *ormapi.MetricTargets, rc *bool) *ormapi.AllMetrics {
+func showMcMetricsAll(uri, token string, targets *MetricTargets, rc *bool) *ormapi.AllMetrics {
 	appQuery := ormapi.RegionAppInstMetrics{
 		Region:   "local",
 		AppInst:  targets.AppInstKey,
@@ -545,61 +560,32 @@ func showMcMetricsAll(uri, token string, targets *ormapi.MetricTargets, rc *bool
 	return appMetrics
 }
 
-func showMcMetricsSep(uri, token string, targets *ormapi.MetricTargets, rc *bool) *ormapi.AllMetrics {
+func showMcMetricsSep(uri, token string, targets *MetricTargets, rc *bool) *ormapi.AllMetrics {
+	allMetrics := ormapi.AllMetrics{Data: make([]ormapi.MetricData, 0)}
 	appQuery := ormapi.RegionAppInstMetrics{
-		Region:   "local",
-		AppInst:  targets.AppInstKey,
-		Selector: "cpu",
-		Last:     1,
+		Region:  "local",
+		AppInst: targets.AppInstKey,
+		Last:    1,
 	}
-	appCpu, status, err := mcClient.ShowAppMetrics(uri, token, &appQuery)
-	checkMcErr("ShowAppCpu", status, err, rc)
-	appQuery.Selector = "mem"
-	appMem, status, err := mcClient.ShowAppMetrics(uri, token, &appQuery)
-	checkMcErr("ShowAppMem", status, err, rc)
-	appQuery.Selector = "disk"
-	appDisk, status, err := mcClient.ShowAppMetrics(uri, token, &appQuery)
-	checkMcErr("ShowAppDisk", status, err, rc)
-	appQuery.Selector = "network"
-	appNetwork, status, err := mcClient.ShowAppMetrics(uri, token, &appQuery)
-	checkMcErr("ShowAppNetwork", status, err, rc)
+	for _, selector := range AppSelectors {
+		appQuery.Selector = selector
+		appMetric, status, err := mcClient.ShowAppMetrics(uri, token, &appQuery)
+		checkMcErr("ShowApp"+strings.Title(selector), status, err, rc)
+		allMetrics.Data = append(allMetrics.Data, appMetric.Data...)
+	}
 
 	clusterQuery := ormapi.RegionClusterInstMetrics{
 		Region:      "local",
 		ClusterInst: targets.ClusterInstKey,
-		Selector:    "cpu",
 		Last:        1,
 	}
-	clusterCpu, status, err := mcClient.ShowClusterMetrics(uri, token, &clusterQuery)
-	checkMcErr("ShowClusterCpu", status, err, rc)
-	clusterQuery.Selector = "mem"
-	clusterMem, status, err := mcClient.ShowClusterMetrics(uri, token, &clusterQuery)
-	checkMcErr("ShowClusterMem", status, err, rc)
-	clusterQuery.Selector = "disk"
-	clusterDisk, status, err := mcClient.ShowClusterMetrics(uri, token, &clusterQuery)
-	checkMcErr("ShowClusterDisk", status, err, rc)
-	clusterQuery.Selector = "network"
-	clusterNetwork, status, err := mcClient.ShowClusterMetrics(uri, token, &clusterQuery)
-	checkMcErr("ShowClusterNetwork", status, err, rc)
-	clusterQuery.Selector = "tcp"
-	clusterTcp, status, err := mcClient.ShowClusterMetrics(uri, token, &clusterQuery)
-	checkMcErr("ShowClusterTcp", status, err, rc)
-	clusterQuery.Selector = "udp"
-	clusterUdp, status, err := mcClient.ShowClusterMetrics(uri, token, &clusterQuery)
-	checkMcErr("ShowClusterUdp", status, err, rc)
-
-	var allMetrics *ormapi.AllMetrics
-	allMetrics = appCpu
-	allMetrics.Data[0].Series = append(allMetrics.Data[0].Series, appMem.Data[0].Series...)
-	allMetrics.Data[0].Series = append(allMetrics.Data[0].Series, appDisk.Data[0].Series...)
-	allMetrics.Data[0].Series = append(allMetrics.Data[0].Series, appNetwork.Data[0].Series...)
-	allMetrics.Data[0].Series = append(allMetrics.Data[0].Series, clusterCpu.Data[0].Series...)
-	allMetrics.Data[0].Series = append(allMetrics.Data[0].Series, clusterMem.Data[0].Series...)
-	allMetrics.Data[0].Series = append(allMetrics.Data[0].Series, clusterDisk.Data[0].Series...)
-	allMetrics.Data[0].Series = append(allMetrics.Data[0].Series, clusterNetwork.Data[0].Series...)
-	allMetrics.Data[0].Series = append(allMetrics.Data[0].Series, clusterTcp.Data[0].Series...)
-	allMetrics.Data[0].Series = append(allMetrics.Data[0].Series, clusterUdp.Data[0].Series...)
-	return allMetrics
+	for _, selector := range ClusterSelectors {
+		clusterQuery.Selector = selector
+		clusterMetric, status, err := mcClient.ShowClusterMetrics(uri, token, &clusterQuery)
+		checkMcErr("ShowCluster"+strings.Title(selector), status, err, rc)
+		allMetrics.Data = append(allMetrics.Data, clusterMetric.Data...)
+	}
+	return &allMetrics
 }
 
 type runCommandData struct {
@@ -713,11 +699,11 @@ func getTokenFile(username, outputDir string) string {
 	return outputDir + "/" + username + ".token"
 }
 
-func parseMetrics(allMetrics *ormapi.AllMetrics) *[]ormapi.MetricsCompare {
-	result := make([]ormapi.MetricsCompare, 0)
+func parseMetrics(allMetrics *ormapi.AllMetrics) *[]MetricsCompare {
+	result := make([]MetricsCompare, 0)
 	for _, data := range allMetrics.Data {
 		for _, series := range data.Series {
-			measurement := ormapi.MetricsCompare{Name: series.Name, Tags: make(map[string]string), Values: make(map[string]float64)}
+			measurement := MetricsCompare{Name: series.Name, Tags: make(map[string]string), Values: make(map[string]float64)}
 			// e2e tests only grabs the latest measurement so there should only be one
 			if len(series.Values) != 1 {
 				return nil

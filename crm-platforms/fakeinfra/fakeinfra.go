@@ -43,7 +43,7 @@ func (s *Platform) CreateCloudlet(ctx context.Context, cloudlet *edgeproto.Cloud
 			out = fmt.Sprintf("Failure: %s", out)
 		}
 		return errors.New(out)
-	case <-time.After(2 * time.Second):
+	case <-time.After(20 * time.Millisecond):
 		// Small timeout should be enough for Shepherd to connect to CRM as both will be present locally
 		return nil
 	}

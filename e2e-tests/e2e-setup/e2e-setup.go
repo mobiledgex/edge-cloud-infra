@@ -12,6 +12,7 @@ import (
 
 	intprocess "github.com/mobiledgex/edge-cloud-infra/e2e-tests/int-process"
 	"github.com/mobiledgex/edge-cloud-infra/shepherd/fakePromExporter"
+	"github.com/mobiledgex/edge-cloud/edgeproto"
 	"github.com/mobiledgex/edge-cloud/integration/process"
 	"github.com/mobiledgex/edge-cloud/setup-env/e2e-tests/e2eapi"
 	setupmex "github.com/mobiledgex/edge-cloud/setup-env/setup-mex"
@@ -70,6 +71,35 @@ type DeploymentData struct {
 	Shepherds           []*intprocess.Shepherd `yaml:"shepherds"`
 	AutoProvs           []*intprocess.AutoProv `yaml:"autoprovs"`
 	Cloudflare          CloudflareDNS          `yaml:"cloudflare"`
+}
+
+// a comparison and yaml friendly version of AllMetrics for e2e-tests
+type MetricsCompare struct {
+	Name   string
+	Tags   map[string]string
+	Values map[string]float64
+}
+
+type MetricTargets struct {
+	AppInstKey     edgeproto.AppInstKey
+	ClusterInstKey edgeproto.ClusterInstKey
+}
+
+// metrics that e2e currently tests for
+var AppSelectors = []string{
+	"cpu",
+	"mem",
+	"disk",
+	"network",
+}
+
+var ClusterSelectors = []string{
+	"cpu",
+	"mem",
+	"disk",
+	"network",
+	"tcp",
+	"udp",
 }
 
 var apiAddrsUpdated = false

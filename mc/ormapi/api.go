@@ -167,21 +167,15 @@ type RegionData struct {
 
 // Metrics data
 type AllMetrics struct {
-	Messages interface{} `json:"Messages"`
-	Data     []struct {
-		Series []struct {
-			Columns []string        `json:"columns"`
-			Name    string          `json:"name"`
-			Values  [][]interface{} `json:"values"`
-		} `json:"Series"`
-	} `json:"data"`
+	Data []MetricData `json:"data"`
 }
 
-// a comparison and yaml friendly version of AllMetrics for e2e-tests
-type MetricsCompare struct {
-	Name   string
-	Tags   map[string]string
-	Values map[string]float64
+type MetricData struct {
+	Series []struct {
+		Columns []string        `json:"columns"`
+		Name    string          `json:"name"`
+		Values  [][]interface{} `json:"values"`
+	} `json:"Series"`
 }
 
 type RegionAppInstMetrics struct {
@@ -209,9 +203,4 @@ type RegionCloudletMetrics struct {
 	StartTime time.Time `json:",omitempty"`
 	EndTime   time.Time `json:",omitempty"`
 	Last      int       `json:",omitempty"`
-}
-
-type MetricTargets struct {
-	AppInstKey     edgeproto.AppInstKey
-	ClusterInstKey edgeproto.ClusterInstKey
 }

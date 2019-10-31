@@ -149,8 +149,8 @@ func CompareYamlFiles(firstYamlFile string, secondYamlFile string, fileType stri
 		y1 = a1
 		y2 = a2
 	} else if fileType == "mcmetrics" {
-		var a1 []ormapi.MetricsCompare
-		var a2 []ormapi.MetricsCompare
+		var a1 []MetricsCompare
+		var a2 []MetricsCompare
 
 		err1 = util.ReadYamlFile(firstYamlFile, &a1)
 		err2 = util.ReadYamlFile(secondYamlFile, &a2)

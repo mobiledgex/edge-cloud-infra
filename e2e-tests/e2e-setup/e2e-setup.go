@@ -102,6 +102,14 @@ var E2eClusterSelectors = []string{
 	"udp",
 }
 
+var TagValues = map[string]int{
+	"app":      1,
+	"cloudlet": 1,
+	"cluster":  1,
+	"dev":      1,
+	"operator": 1,
+}
+
 var apiAddrsUpdated = false
 
 func GetAllProcesses() []process.Process {

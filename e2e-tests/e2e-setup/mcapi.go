@@ -708,8 +708,8 @@ func parseMetrics(allMetrics *ormapi.AllMetrics) *[]MetricsCompare {
 				if series.Columns[i] == "time" || series.Columns[i] == "metadata" {
 					continue
 				}
-				// if its a string its a tag, if its not then its an actual measurement value
-				if str, ok := val.(string); ok {
+				// put non measurement info separate
+				if str, ok := val.(string); ok && TagValues[series.Columns[i]] != 0 {
 					measurement.Tags[series.Columns[i]] = str
 				}
 				if floatVal, ok := val.(float64); ok {

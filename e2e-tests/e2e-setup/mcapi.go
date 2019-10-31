@@ -128,6 +128,7 @@ func runMcDataAPI(api, uri, apiFile, curUserFile, outputDir string, mods []strin
 		log.Printf("targets: %+v\n", targets)
 		var parsedMetrics *[]MetricsCompare
 		gotMetrics := false
+		// retry a couple times since prometheus takes a while on startup
 		for i := 0; i < 100; i++ {
 			if sep {
 				showMetrics = showMcMetricsSep(uri, token, targets, &rc)

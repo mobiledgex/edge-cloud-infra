@@ -29,7 +29,7 @@ var VaultAddr string
 // These are not used if running the CRM manually, because these are only
 // used by CreateCloudlet to set up the CRM VM and container.
 var DefaultCloudletRegistryPath = "registry.mobiledgex.net:5000/mobiledgex/edge-cloud"
-var DefaultCloudletVMImagePath = "https://artifactory.mobiledgex.net/artifactory/baseimages/mobiledgex-v2.0.42.qcow2#md5:a9a31345f7483b9aac67c32a569cdbf1"
+var DefaultCloudletVMImagePath = "https://artifactory.mobiledgex.net/artifactory/baseimages/" + defaultOSImageName + ".qcow2"
 
 // NoConfigExternalRouter is used for the case in which we don't manage the external
 // router and don't add ports to it ourself, as happens with Contrail.  The router does exist in

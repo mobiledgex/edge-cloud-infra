@@ -6,7 +6,7 @@ LOGFILE="${LOGDIR}/creation_log.txt"
 DEFAULT_INTERFACE=ens3
 ARTIFACTORY_BASEURL='https://artifactory.mobiledgex.net'
 DEFAULT_ROOT_PASS=sandhill
-DEFAULT_HELM_VERSION=v2.11.0
+DEFAULT_HELM_VERSION=v2.15.1
 MEX_RELEASE=/etc/mex-release
 
 TMPLOG="/var/tmp/creation_log.txt"
@@ -86,7 +86,7 @@ MEX_BUILD_SRC_IMG_CHECKSUM=$SRC_IMG_CHECKSUM
 EOT
 
 log "Installing extra packages"
-add-apt-repository universe
+sudo add-apt-repository universe
 sudo apt-get update
 # avoid interactive for iptables-persistent
 sudo apt-get install -y debconf-utils
@@ -96,7 +96,8 @@ sudo apt-get install -y \
 	ipvsadm=1:1.28-3 \
 	jq=1.5+dfsg-1ubuntu0.1 \
         cloud-init \
-        iptables-persistent
+        iptables-persistent 
+
 [[ $? -ne 0 ]] && die "Failed to install extra packages"
 
 log "dhclient $INTERFACE"

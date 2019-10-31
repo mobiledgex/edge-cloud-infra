@@ -267,9 +267,8 @@ func AddUserRoleObj(ctx context.Context, claims *UserClaims, role *ormapi.Role) 
 		if role.Org != "" {
 			return fmt.Errorf("Admin roles cannot be associated with an org, please specify the empty org \"\"")
 		}
-	}
-	if role.Org == "" {
-		if role.Role != RoleAdminManager && role.Role != RoleAdminContributor && role.Role != RoleAdminViewer {
+	} else {
+		if role.Org == "" {
 			return fmt.Errorf("Org name must be specified for the specified role")
 		}
 	}

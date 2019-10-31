@@ -13,8 +13,7 @@ import (
 	"github.com/mobiledgex/edge-cloud/log"
 )
 
-func AddSecurityRules(ctx context.Context, ports []dme.AppPort) error {
-	sg := GetCloudletSecurityGroup()
+func AddSecurityRules(ctx context.Context, groupName string, ports []dme.AppPort) error {
 	allowedClientCIDR := GetAllowedClientCIDR()
 	for _, port := range ports {
 		//todo: distinguish already-exists errors from others
@@ -23,7 +22,7 @@ func AddSecurityRules(ctx context.Context, ports []dme.AppPort) error {
 		if err != nil {
 			return err
 		}
-		if err := AddSecurityRuleCIDR(ctx, allowedClientCIDR, proto, sg, portString); err != nil {
+		if err := AddSecurityRuleCIDR(ctx, allowedClientCIDR, proto, groupName, portString); err != nil {
 			return err
 		}
 	}
@@ -49,7 +48,7 @@ func AddSecurityRuleCIDR(ctx context.Context, cidr string, proto string, name st
 	out, err := TimedOpenStackCommand(ctx, "openstack", "security", "group", "rule", "create", "--remote-ip", cidr, "--proto", proto, "--dst-port", port, "--ingress", name)
 	if err != nil {
 		if strings.Contains(string(out), "Security group rule already exists") {
-			log.SpanLog(ctx, log.DebugLevelMexos, "security group already exists, proceeding")
+			log.SpanLog(ctx, log.DebugLevelMexos, "security group rule already exists, proceeding")
 		} else {
 			return fmt.Errorf("can't add security group rule for port %s to %s,%s,%v", port, name, string(out), err)
 		}

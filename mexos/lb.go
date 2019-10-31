@@ -94,12 +94,8 @@ func LBAddRouteAndSecRules(ctx context.Context, client pc.PlatformClient, rootLB
 	// open the firewall for internal traffic
 	// note that LB security rules will currently be added redundantly for each rootLB because they
 	// all use the same sec grp.  However, this will eventually change
-	groupName := GetCloudletSecurityGroup()
+	groupName := GetRootLBSecurityGroupName(ctx, rootLBName)
 
-	if err := AddSecurityRuleCIDR(ctx, subnet, "tcp", groupName, "1:65535"); err != nil {
-		// this error is nonfatal because it may already exist
-		log.SpanLog(ctx, log.DebugLevelMexos, "notice, cannot add security rule", "error", err, "cidr", subnet)
-	}
 	allowedClientCIDR := GetAllowedClientCIDR()
 	for _, p := range rootLBPorts {
 		portString := fmt.Sprintf("%d", p)

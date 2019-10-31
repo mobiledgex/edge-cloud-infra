@@ -167,6 +167,7 @@ func (s *Platform) CreateAppInst(ctx context.Context, clusterInst *edgeproto.Clu
 			app.AccessPorts,
 			app.DeploymentManifest,
 			app.Command,
+			app.Key.Name+"-sg",
 			nil, // NetSpecInfo
 		)
 		if err != nil {

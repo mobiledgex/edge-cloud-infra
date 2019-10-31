@@ -34,7 +34,7 @@ func AddProxySecurityRulesAndPatchDNS(ctx context.Context, client pc.PlatformCli
 		}
 	}()
 	go func() {
-		err := AddSecurityRules(ctx, appInst.MappedPorts)
+		err := AddSecurityRules(ctx, GetRootLBSecurityGroupName(ctx, rootLBName), appInst.MappedPorts)
 		if err == nil {
 			secchan <- ""
 		} else {

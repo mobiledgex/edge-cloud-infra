@@ -193,13 +193,7 @@ func GetCleanupOnFailure(ctx context.Context) bool {
 func GetCloudletTenant() string {
 	return "null"
 }
-func GetCloudletSecurityGroup() string {
-	sg := os.Getenv("MEX_SECURITY_GROUP")
-	if sg == "" {
-		return "default"
-	}
-	return sg
-}
+
 func GetCloudletMexosAgentPort() string {
 	return "18889"
 }

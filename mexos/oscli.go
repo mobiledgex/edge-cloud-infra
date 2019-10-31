@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"os"
 	"regexp"
 	"strings"
 	"time"
@@ -13,6 +14,10 @@ import (
 	"github.com/mobiledgex/edge-cloud/edgeproto"
 	"github.com/mobiledgex/edge-cloud/log"
 )
+
+// DefaultSecurityGroupIdForProject is the "default" security group ID for our project.  There can be
+// more than one named "default", for different projects
+var DefaultSecurityGroupIDForProject string = ""
 
 func TimedOpenStackCommand(ctx context.Context, name string, a ...string) ([]byte, error) {
 	parmstr := ""
@@ -475,6 +480,40 @@ func ListSubnets(ctx context.Context, netName string) ([]OSSubnet, error) {
 	return subnets, nil
 }
 
+//ListProjects returns a list of projects we can see
+func ListProjects(ctx context.Context) ([]OSProject, error) {
+	out, err := TimedOpenStackCommand(ctx, "openstack", "project", "list", "-f", "json")
+	if err != nil {
+		err = fmt.Errorf("can't get a list of projects, %s, %v", out, err)
+		return nil, err
+	}
+	projects := []OSProject{}
+	err = json.Unmarshal(out, &projects)
+	if err != nil {
+		err = fmt.Errorf("can't unmarshal projects, %v", err)
+		return nil, err
+	}
+	log.SpanLog(ctx, log.DebugLevelMexos, "list projects", "projects", projects)
+	return projects, nil
+}
+
+//ListProjects returns a list of security groups
+func ListSecurityGroups(ctx context.Context) ([]OSSecurityGroup, error) {
+	out, err := TimedOpenStackCommand(ctx, "openstack", "security", "group", "list", "-f", "json")
+	if err != nil {
+		err = fmt.Errorf("can't get a list of security groups, %s, %v", out, err)
+		return nil, err
+	}
+	secgrps := []OSSecurityGroup{}
+	err = json.Unmarshal(out, &secgrps)
+	if err != nil {
+		err = fmt.Errorf("can't unmarshal security groups, %v", err)
+		return nil, err
+	}
+	log.SpanLog(ctx, log.DebugLevelMexos, "list security groups", "security groups", secgrps)
+	return secgrps, nil
+}
+
 //ListRouters returns a list of routers available
 func ListRouters(ctx context.Context) ([]OSRouter, error) {
 	out, err := TimedOpenStackCommand(ctx, "openstack", "router", "list", "-f", "json")
@@ -766,6 +805,48 @@ func GetFlavorInfo(ctx context.Context) ([]*edgeproto.FlavorInfo, error) {
 		)
 	}
 	return finfo, nil
+}
+
+func GetSecurityGroupIDForProject(ctx context.Context, grpname string, projectID string) (string, error) {
+	grps, err := ListSecurityGroups(ctx)
+	if err != nil {
+		return "", err
+	}
+	for _, g := range grps {
+		if g.Name == grpname && g.Project == projectID {
+			log.SpanLog(ctx, log.DebugLevelMexos, "GetSecurityGroupIDForProject", "projectID", projectID, "group", grpname)
+			return g.ID, nil
+		}
+	}
+	return "", fmt.Errorf("unable to find security group %s project %s", grpname, projectID)
+}
+
+func GetDefaultSecurityGroupID(ctx context.Context) (string, error) {
+	log.SpanLog(ctx, log.DebugLevelMexos, "GetDefaultSecurityGroupID")
+
+	if DefaultSecurityGroupIDForProject != "" {
+		//cached
+		log.SpanLog(ctx, log.DebugLevelMexos, "GetDefaultSecurityGroupID using existing value", "DefaultSecurityGroupIDForProject", DefaultSecurityGroupIDForProject)
+		return DefaultSecurityGroupIDForProject, nil
+	}
+	projectName := os.Getenv("OS_PROJECT_NAME")
+	if projectName == "" {
+		return "", fmt.Errorf("No OS_PROJECT_NAME, cannot get default security group")
+	}
+	projects, err := ListProjects(ctx)
+	if err != nil {
+		return "", err
+	}
+	for _, p := range projects {
+		if p.Name == projectName {
+			DefaultSecurityGroupIDForProject, err = GetSecurityGroupIDForProject(ctx, "default", p.ID)
+			if err != nil {
+				return "", err
+			}
+			return DefaultSecurityGroupIDForProject, nil
+		}
+	}
+	return "", fmt.Errorf("Unable to find default security group for project: %s", projectName)
 }
 
 func OSGetConsoleUrl(ctx context.Context, serverName string) (*OSConsoleUrl, error) {

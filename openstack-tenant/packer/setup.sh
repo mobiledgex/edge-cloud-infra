@@ -1,4 +1,5 @@
 #!/bin/bash
+set -x
 PATH='/usr/bin:/bin'; export PATH
 
 LOGDIR="/etc/mobiledgex"
@@ -6,7 +7,7 @@ LOGFILE="${LOGDIR}/creation_log.txt"
 DEFAULT_INTERFACE=ens3
 ARTIFACTORY_BASEURL='https://artifactory.mobiledgex.net'
 DEFAULT_ROOT_PASS=sandhill
-DEFAULT_HELM_VERSION=v2.11.0
+DEFAULT_HELM_VERSION=v2.15.1
 MEX_RELEASE=/etc/mex-release
 
 TMPLOG="/var/tmp/creation_log.txt"
@@ -86,7 +87,7 @@ MEX_BUILD_SRC_IMG_CHECKSUM=$SRC_IMG_CHECKSUM
 EOT
 
 log "Installing extra packages"
-add-apt-repository universe
+sudo add-apt-repository universe
 sudo apt-get update
 # avoid interactive for iptables-persistent
 sudo apt-get install -y debconf-utils
@@ -143,6 +144,7 @@ sudo groupadd docker
 sudo usermod -aG docker root
 
 log "Installing helm $HELM_VERSION"
+ls lrt /tmp/helm.tar.gz
 tar xf /tmp/helm.tar.gz linux-amd64/helm
 sudo mv linux-amd64/helm /usr/local/bin/helm
 sudo chmod a+rx /usr/local/bin/helm

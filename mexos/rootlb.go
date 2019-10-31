@@ -27,6 +27,16 @@ var rootLBLock sync.Mutex
 
 var MEXRootLBMap = make(map[string]*MEXRootLB)
 
+// GetRootLBSecurityGroupName gets the secgrp name based on the rootLB
+// unless it is overridden via env var
+func GetRootLBSecurityGroupName(ctx context.Context, rootLBName string) string {
+	name := os.Getenv("MEX_SECURITY_GROUP")
+	if name != "" {
+		return name
+	}
+	return rootLBName + "-sg"
+}
+
 //NewRootLB gets a new rootLB instance
 func NewRootLB(ctx context.Context, rootLBName string) (*MEXRootLB, error) {
 	rootLBLock.Lock()
@@ -130,7 +140,7 @@ func SetupRootLB(ctx context.Context, rootLBName string, rootLBSpec *vmspec.VMCr
 
 	// setup SSH access to cloudlet for CRM
 	log.SpanLog(ctx, log.DebugLevelMexos, "setup security group for SSH access")
-	groupName := GetCloudletSecurityGroup()
+	groupName := GetRootLBSecurityGroupName(ctx, rootLBName)
 	my_ip, err := GetExternalPublicAddr(ctx)
 	if err != nil {
 		// this is not necessarily fatal

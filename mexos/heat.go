@@ -77,6 +77,26 @@ var vmTemplateResources = `
          image: {{.ImageName}}
          size: {{.ExternalVolumeSize}}
   {{- end }}
+
+   vm_security_group:
+       type: OS::Neutron::SecurityGroup
+       properties:
+          name: {{.SecurityGroup}}
+          rules:
+           - direction: egress
+          {{range .AccessPorts}}
+           - remote_ip_prefix: 0.0.0.0/0
+             protocol: {{.Proto}}
+             port_range_min: {{.Port}}
+             port_range_max: {{.Port}}
+          {{end}}
+
+   security_group_remote_rule:
+       type: OS::Neutron::SecurityGroupRule
+       properties:
+           security_group: { get_resource: vm_security_group }
+           remote_group: { get_resource: vm_security_group }
+
    {{.VMName}}:
       type: OS::Nova::Server
       properties:
@@ -89,8 +109,7 @@ var vmTemplateResources = `
        {{- end}}
         {{if not .FloatingIPAddressID}}
          security_groups:
-          - {{.SecurityGroup}}
-         {{if .AccessPorts}} - { get_resource: vm_security_group } {{- end}}
+          - { get_resource: vm_security_group }
         {{- end}}
          flavor: {{.FlavorName}}
         {{if .AuthPublicKey}} key_name: { get_resource: ssh_key_pair } {{- end}}
@@ -145,27 +164,12 @@ var vmTemplateResources = `
            fixed_ips: 
             - subnet_id: {{.SubnetName}}
            security_groups:
-            - {{$.SecurityGroup}}
-           {{if .AccessPorts}} - { get_resource: vm_security_group } {{- end}}
+            - {{$.RootLBParams.SecurityGroup}}
    floatingip:
        type: OS::Neutron::FloatingIPAssociation
        properties:
           floatingip_id: {{.FloatingIPAddressID}}
           port_id: { get_resource: vm-port }
-  {{- end}}
-  {{if .AccessPorts}}
-   vm_security_group:
-       type: OS::Neutron::SecurityGroup
-       properties:
-          name: {{.VMName}}-sg
-          rules: [
-             {{range .AccessPorts}}
-              {remote_ip_prefix: 0.0.0.0/0,
-               protocol: {{.Proto}},
-               port_range_min: {{.Port}},
-               port_range_max: {{.Port}}},
-             {{end}}
-          ]
   {{- end}}`
 
 var VmTemplate = `
@@ -185,7 +189,6 @@ type ClusterParams struct {
 	NodeFlavor            string
 	ExternalVolumeSize    uint64
 	ImageName             string
-	SecurityGroup         string
 	MEXRouterName         string
 	MEXNetworkName        string
 	VnicType              string
@@ -198,6 +201,7 @@ type ClusterParams struct {
 	NetworkType           string
 	DNSServers            []string
 	Nodes                 []ClusterNode
+	RouterSecurityGroup   string
 	*VMParams             //rootlb
 }
 
@@ -240,7 +244,7 @@ resources:
           - subnet: { get_resource: k8s-subnet}
             ip_address: {{.GatewayIP}}
           security_groups:
-           - {{$.SecurityGroup}}
+           - {{.SecurityGroup}}
 
    router-interface:
       type: OS::Neutron::RouterInterface
@@ -261,6 +265,8 @@ resources:
             ip_address: {{.MasterIP}}
          security_groups:
           - {{$.SecurityGroup}}
+          - {{$.RouterSecurityGroup}}
+
   {{if .ExternalVolumeSize}}
    k8s_master_vol:
       type: OS::Cinder::Volume
@@ -307,6 +313,8 @@ resources:
             ip_address: {{.NodeIP}}
           security_groups:
            - {{$.SecurityGroup}}
+           - {{$.RouterSecurityGroup}}
+
   {{if $.ExternalVolumeSize}}
    {{.NodeName}}-vol:
       type: OS::Cinder::Volume
@@ -405,14 +413,14 @@ func waitForStack(ctx context.Context, stackname string, action string, updateCa
 	}
 }
 
-func GetVMParams(ctx context.Context, depType DeploymentType, serverName, flavorName string, externalVolumeSize uint64, imageName, authPublicKey, accessPorts, deploymentManifest, command string, ni *NetSpecInfo) (*VMParams, error) {
+func GetVMParams(ctx context.Context, depType DeploymentType, serverName, flavorName string, externalVolumeSize uint64, imageName, authPublicKey, accessPorts, deploymentManifest, command, secGrp string, ni *NetSpecInfo) (*VMParams, error) {
 	var vmp VMParams
 	var err error
 	vmp.VMName = serverName
 	vmp.FlavorName = flavorName
 	vmp.ExternalVolumeSize = externalVolumeSize
 	vmp.ImageName = imageName
-	vmp.SecurityGroup = GetCloudletSecurityGroup()
+	vmp.SecurityGroup = secGrp
 	if depType != UserVMDeployment {
 		vmp.IsInternal = true
 	}
@@ -583,11 +591,15 @@ func getClusterParams(ctx context.Context, clusterInst *edgeproto.ClusterInst, r
 			"", // AccessPorts
 			"", // DeploymentManifest
 			"", // Command
+			GetRootLBSecurityGroupName(ctx, rootLBName),
 			ni,
 		)
 		if err != nil {
 			return nil, fmt.Errorf("Unable to get rootlb params: %v", err)
 		}
+	} else {
+		// we still use the security group from the VM params even for shared
+		cp.VMParams = &VMParams{}
 	}
 	cp.ClusterName = k8smgmt.GetK8sNodeNameSuffix(&clusterInst.Key)
 	rtr := GetCloudletExternalRouter()
@@ -600,10 +612,15 @@ func getClusterParams(ctx context.Context, clusterInst *edgeproto.ClusterInst, r
 	} else {
 		log.SpanLog(ctx, log.DebugLevelMexos, "External router in use for cluster, cluster stack with router interfaces")
 		cp.MEXRouterName = rtr
+		// The cluster needs to be connected to the default security group to have router access
+		cp.RouterSecurityGroup, err = GetDefaultSecurityGroupID(ctx)
+		if err != nil {
+			return nil, err
+		}
 	}
 	cp.MEXNetworkName = GetCloudletMexNetwork()
 	cp.ImageName = GetCloudletOSImage()
-	cp.SecurityGroup = GetCloudletSecurityGroup()
+	cp.SecurityGroup = GetRootLBSecurityGroupName(ctx, rootLBName)
 	usedCidrs := make(map[string]string)
 
 	currentSubnetName := ""
@@ -678,6 +695,7 @@ func HeatCreateRootLBVM(ctx context.Context, serverName string, stackName string
 		"", // AccessPorts
 		"", // DeploymentManifest
 		"", // Command
+		GetRootLBSecurityGroupName(ctx, serverName),
 		ni,
 	)
 	if err != nil {
@@ -734,7 +752,7 @@ func HeatUpdateClusterKubernetes(ctx context.Context, clusterInst *edgeproto.Clu
 
 	templateString := k8sClusterTemplate
 	//append the VM resources for the rootLB is specified
-	if dedicatedRootLB{
+	if dedicatedRootLB {
 		templateString += vmTemplateResources
 	}
 	err = UpdateHeatStackFromTemplate(ctx, cp, cp.ClusterName, templateString, updateCallback)

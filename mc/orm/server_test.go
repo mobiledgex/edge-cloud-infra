@@ -76,7 +76,7 @@ func TestServer(t *testing.T) {
 	policies, status, err := showRolePerms(mcClient, uri, token)
 	require.Nil(t, err, "show role perms err")
 	require.Equal(t, http.StatusOK, status, "show role perms status")
-	require.Equal(t, 113, len(policies), "number of role perms")
+	require.Equal(t, 123, len(policies), "number of role perms")
 	roles, status, err := showRoles(mcClient, uri, token)
 	require.Nil(t, err, "show roles err")
 	require.Equal(t, http.StatusOK, status, "show roles status")
@@ -116,6 +116,15 @@ func TestServer(t *testing.T) {
 	status, err = mcClient.DeleteUser(uri, tokenMisterX, &user1)
 	require.NotNil(t, err, "delete only manager of an org")
 	require.Equal(t, http.StatusBadRequest, status, "deleting lone manager")
+
+	// create new user with same name as org
+	userX := ormapi.User{
+		Name:     "DevX",
+		Email:    "misterX@gmail.com",
+		Passhash: "misterX-password",
+	}
+	status, err = mcClient.CreateUser(uri, &userX)
+	require.NotNil(t, err, "cannot create user with same name as org")
 
 	// create new user2
 	user2 := ormapi.User{

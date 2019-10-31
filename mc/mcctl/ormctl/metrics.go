@@ -42,15 +42,15 @@ func GetMetricsCommand() *cobra.Command {
 
 var AppMetricRequiredArgs = []string{
 	"developer",
-	"appname",
-	"appvers",
 	"cluster",
-	"operator",
-	"cloudlet",
 	"selector",
 }
 
 var AppMetricOptionalArgs = []string{
+	"appname",
+	"appvers",
+	"cloudlet",
+	"operator",
 	"last",
 	"starttime",
 	"endtime",
@@ -68,12 +68,12 @@ var AppMetricAliasArgs = []string{
 var ClusterMetricRequiredArgs = []string{
 	"developer",
 	"cluster",
-	"operator",
-	"cloudlet",
 	"selector",
 }
 
 var ClusterMetricOptionalArgs = []string{
+	"operator",
+	"cloudlet",
 	"last",
 	"starttime",
 	"endtime",
@@ -88,11 +88,11 @@ var ClusterMetricAliasArgs = []string{
 
 var CloudletMetricRequiredArgs = []string{
 	"operator",
-	"cloudlet",
 	"selector",
 }
 
 var CloudletMetricOptionalArgs = []string{
+	"cloudlet",
 	"last",
 	"starttime",
 	"endtime",

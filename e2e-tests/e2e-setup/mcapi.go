@@ -125,7 +125,6 @@ func runMcDataAPI(api, uri, apiFile, curUserFile, outputDir string, mods []strin
 	if api == "showmetrics" {
 		var showMetrics *ormapi.AllMetrics
 		targets := readMCMetricTargetsFile(apiFile)
-		log.Printf("targets: %+v\n", targets)
 		var parsedMetrics *[]MetricsCompare
 		gotMetrics := false
 		// retry a couple times since prometheus takes a while on startup
@@ -137,7 +136,7 @@ func runMcDataAPI(api, uri, apiFile, curUserFile, outputDir string, mods []strin
 			}
 			// convert showMetrics into something yml compatible
 			parsedMetrics = parseMetrics(showMetrics)
-			if len(*parsedMetrics) == len(AppSelectors)+len(ClusterSelectors) {
+			if len(*parsedMetrics) == len(E2eAppSelectors)+len(E2eClusterSelectors) {
 				gotMetrics = true
 				break
 			} else {
@@ -561,6 +560,7 @@ func showMcMetricsAll(uri, token string, targets *MetricTargets, rc *bool) *orma
 	return appMetrics
 }
 
+// same end result as showMcMetricsAll, but gets each metric individually instead of in a batch
 func showMcMetricsSep(uri, token string, targets *MetricTargets, rc *bool) *ormapi.AllMetrics {
 	allMetrics := ormapi.AllMetrics{Data: make([]ormapi.MetricData, 0)}
 	appQuery := ormapi.RegionAppInstMetrics{
@@ -568,7 +568,7 @@ func showMcMetricsSep(uri, token string, targets *MetricTargets, rc *bool) *orma
 		AppInst: targets.AppInstKey,
 		Last:    1,
 	}
-	for _, selector := range AppSelectors {
+	for _, selector := range E2eAppSelectors {
 		appQuery.Selector = selector
 		appMetric, status, err := mcClient.ShowAppMetrics(uri, token, &appQuery)
 		checkMcErr("ShowApp"+strings.Title(selector), status, err, rc)
@@ -580,7 +580,7 @@ func showMcMetricsSep(uri, token string, targets *MetricTargets, rc *bool) *orma
 		ClusterInst: targets.ClusterInstKey,
 		Last:        1,
 	}
-	for _, selector := range ClusterSelectors {
+	for _, selector := range E2eClusterSelectors {
 		clusterQuery.Selector = selector
 		clusterMetric, status, err := mcClient.ShowClusterMetrics(uri, token, &clusterQuery)
 		checkMcErr("ShowCluster"+strings.Title(selector), status, err, rc)

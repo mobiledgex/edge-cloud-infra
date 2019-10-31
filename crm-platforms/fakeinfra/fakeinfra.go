@@ -22,6 +22,19 @@ func (s *Platform) CreateCloudlet(ctx context.Context, cloudlet *edgeproto.Cloud
 	if err != nil {
 		return err
 	}
+	return ShepherdStartup(ctx, cloudlet, pfConfig, updateCallback)
+}
+
+func (s *Platform) DeleteCloudlet(ctx context.Context, cloudlet *edgeproto.Cloudlet, pfConfig *edgeproto.PlatformConfig, updateCallback edgeproto.CacheUpdateCallback) error {
+	err := s.fake.DeleteCloudlet(ctx, cloudlet, pfConfig, updateCallback)
+	if err != nil {
+		return err
+	}
+	updateCallback(edgeproto.UpdateTask, "Stopping Shepherd")
+	return intprocess.StopShepherdService(ctx, cloudlet)
+}
+
+func ShepherdStartup(ctx context.Context, cloudlet *edgeproto.Cloudlet, pfConfig *edgeproto.PlatformConfig, updateCallback edgeproto.CacheUpdateCallback) error {
 	updateCallback(edgeproto.UpdateTask, "Starting Shepherd")
 	shProc, err := intprocess.StartShepherdService(ctx, cloudlet, pfConfig)
 	if err != nil {
@@ -47,14 +60,4 @@ func (s *Platform) CreateCloudlet(ctx context.Context, cloudlet *edgeproto.Cloud
 		// Small timeout should be enough for Shepherd to connect to CRM as both will be present locally
 		return nil
 	}
-
-}
-
-func (s *Platform) DeleteCloudlet(ctx context.Context, cloudlet *edgeproto.Cloudlet, pfConfig *edgeproto.PlatformConfig, updateCallback edgeproto.CacheUpdateCallback) error {
-	err := s.fake.DeleteCloudlet(ctx, cloudlet, pfConfig, updateCallback)
-	if err != nil {
-		return err
-	}
-	updateCallback(edgeproto.UpdateTask, "Stopping Shepherd")
-	return intprocess.StopShepherdService(ctx, cloudlet)
 }

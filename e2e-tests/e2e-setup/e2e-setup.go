@@ -86,14 +86,14 @@ type MetricTargets struct {
 }
 
 // metrics that e2e currently tests for
-var AppSelectors = []string{
+var E2eAppSelectors = []string{
 	"cpu",
 	"mem",
 	"disk",
 	"network",
 }
 
-var ClusterSelectors = []string{
+var E2eClusterSelectors = []string{
 	"cpu",
 	"mem",
 	"disk",

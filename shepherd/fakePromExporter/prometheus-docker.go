@@ -42,7 +42,6 @@ func StartPromContainer(ctx context.Context) error {
 	}
 	buf := make([]byte, len(dockerError))
 	stderr.Read(buf)
-	fmt.Printf("readstr: %s\n", string(buf))
 	if strings.Contains(string(buf), dockerError) {
 		dockerRun.Wait()
 		return fmt.Errorf("Failed to run Prometheus container")
@@ -68,6 +67,5 @@ func imageFound(name string) bool {
 
 func StopPromContainer() error {
 	err := exec.Command("docker", "stop", imageName).Run()
-	// dockerRun.Wait()
 	return err
 }

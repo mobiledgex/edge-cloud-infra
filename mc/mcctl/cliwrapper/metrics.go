@@ -2,7 +2,6 @@ package cliwrapper
 
 import (
 	"github.com/mobiledgex/edge-cloud-infra/mc/ormapi"
-	//"github.com/mobiledgex/edge-cloud/cli"
 )
 
 func (s *Client) ShowAppMetrics(uri, token string, query *ormapi.RegionAppInstMetrics) (*ormapi.AllMetrics, int, error) {

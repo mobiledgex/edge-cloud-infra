@@ -11,21 +11,12 @@
 - set_fact:
     cert_name: "{{ dme_dns | replace('.', '-') }}"
     cert_secret_name: "{{ dme_dns | replace('.', '-') }}-global-tls"
-    fqdn_list: [ "{{ dme_dns }}.{{ cloudflare_zone }}" ]
 
-- name: Set global DME aliases
-  set_fact:
-    fqdn_list: "{{ dme_aliases }}"
-  when: dme_aliases|length > 0
-
-- set_fact:
-    cert_id: "{{ fqdn_list | join(',') }}"
-
-- name: "Get DME cert from vault for domain(s): {{ fqdn_list }}"
+- name: "Get wildcard DME cert from vault"
   set_fact:
     vault_lookup: "{{ lookup('vault', cert_path) }}"
   vars:
-    cert_path: "certs/cert/{{ cert_id }}:dmecert"
+    cert_path: "certs/cert/_.dme.{{ cloudflare_zone }}:dmecert"
 
 - name: "Generate DME tls secret: {{ cert_secret_name }}"
   k8s:

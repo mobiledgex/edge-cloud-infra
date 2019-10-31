@@ -97,7 +97,8 @@ sudo apt-get install -y \
 	ipvsadm=1:1.28-3 \
 	jq=1.5+dfsg-1ubuntu0.1 \
         cloud-init \
-        iptables-persistent
+        iptables-persistent 
+
 [[ $? -ne 0 ]] && die "Failed to install extra packages"
 
 log "dhclient $INTERFACE"

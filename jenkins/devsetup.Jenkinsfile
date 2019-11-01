@@ -24,12 +24,12 @@ pipeline {
             steps {
                 checkout([$class: 'GitSCM',
                           branches: [[name: "${params.TAG}"]],
-                          credentialsId: '5b257185-bf90-4cf1-9e62-0465a6dec06c',
                           doGenerateSubmoduleConfigurations: false,
                           extensions: [],
                           gitTool: 'Default',
                           submoduleCfg: [],
-                          userRemoteConfigs: [[url: 'https://github.com/mobiledgex/edge-cloud-infra.git']]
+                          userRemoteConfigs: [[credentialsId: '5b257185-bf90-4cf1-9e62-0465a6dec06c',
+                                               url: 'https://github.com/mobiledgex/edge-cloud-infra.git']]
                         ])
             }
         }

@@ -92,11 +92,37 @@ var ShowCloudletCmd = &cli.Command{
 	StreamOut:    true,
 }
 
+var AddCloudletResMappingCmd = &cli.Command{
+	Use:          "AddCloudletResMapping",
+	RequiredArgs: strings.Join(append([]string{"region"}, CloudletRequiredArgs...), " "),
+	OptionalArgs: strings.Join(CloudletOptionalArgs, " "),
+	AliasArgs:    strings.Join(CloudletAliasArgs, " "),
+	SpecialArgs:  &CloudletSpecialArgs,
+	Comments:     addRegionComment(CloudletComments),
+	ReqData:      &ormapi.RegionCloudlet{},
+	ReplyData:    &edgeproto.Result{},
+	Run:          runRest("/auth/ctrl/AddCloudletResMapping"),
+}
+
+var RmCloudletResMappingCmd = &cli.Command{
+	Use:          "RmCloudletResMapping",
+	RequiredArgs: strings.Join(append([]string{"region"}, CloudletRequiredArgs...), " "),
+	OptionalArgs: strings.Join(CloudletOptionalArgs, " "),
+	AliasArgs:    strings.Join(CloudletAliasArgs, " "),
+	SpecialArgs:  &CloudletSpecialArgs,
+	Comments:     addRegionComment(CloudletComments),
+	ReqData:      &ormapi.RegionCloudlet{},
+	ReplyData:    &edgeproto.Result{},
+	Run:          runRest("/auth/ctrl/RmCloudletResMapping"),
+}
+
 var CloudletApiCmds = []*cli.Command{
 	CreateCloudletCmd,
 	DeleteCloudletCmd,
 	UpdateCloudletCmd,
 	ShowCloudletCmd,
+	AddCloudletResMappingCmd,
+	RmCloudletResMappingCmd,
 }
 
 var ShowCloudletInfoCmd = &cli.Command{
@@ -380,6 +406,9 @@ var CloudletOptionalArgs = []string{
 	"physicalname",
 	"envvar",
 	"upgrade",
+	"restagmap.key",
+	"restagmap.value.name",
+	"mapping",
 }
 var CloudletAliasArgs = []string{
 	"operator=cloudlet.key.operatorkey.name",
@@ -427,6 +456,9 @@ var CloudletAliasArgs = []string{
 	"config.platformtag=cloudlet.config.platformtag",
 	"config.testmode=cloudlet.config.testmode",
 	"config.span=cloudlet.config.span",
+	"restagmap.key=cloudlet.restagmap.key",
+	"restagmap.value.name=cloudlet.restagmap.value.name",
+	"mapping=cloudlet.mapping",
 }
 var CloudletComments = map[string]string{
 	"operator":                            "Company or Organization name of the operator",
@@ -468,10 +500,12 @@ var CloudletComments = map[string]string{
 	"config.platformtag":                  "Tag of edge-cloud image",
 	"config.testmode":                     "Internal Test Flag",
 	"config.span":                         "Span string",
+	"mapping":                             "Resource mapping info",
 }
 var CloudletSpecialArgs = map[string]string{
-	"envvar": "StringToString",
-	"errors": "StringArray",
+	"envvar":  "StringToString",
+	"errors":  "StringArray",
+	"mapping": "StringToString",
 }
 var EnvVarEntryRequiredArgs = []string{}
 var EnvVarEntryOptionalArgs = []string{
@@ -484,18 +518,42 @@ var EnvVarEntryAliasArgs = []string{
 }
 var EnvVarEntryComments = map[string]string{}
 var EnvVarEntrySpecialArgs = map[string]string{}
+var ResTagMapEntryRequiredArgs = []string{}
+var ResTagMapEntryOptionalArgs = []string{
+	"key",
+	"value.name",
+}
+var ResTagMapEntryAliasArgs = []string{
+	"key=restagmapentry.key",
+	"value.name=restagmapentry.value.name",
+}
+var ResTagMapEntryComments = map[string]string{}
+var ResTagMapEntrySpecialArgs = map[string]string{}
+var MappingEntryRequiredArgs = []string{}
+var MappingEntryOptionalArgs = []string{
+	"key",
+	"value",
+}
+var MappingEntryAliasArgs = []string{
+	"key=mappingentry.key",
+	"value=mappingentry.value",
+}
+var MappingEntryComments = map[string]string{}
+var MappingEntrySpecialArgs = map[string]string{}
 var FlavorInfoRequiredArgs = []string{}
 var FlavorInfoOptionalArgs = []string{
 	"name",
 	"vcpus",
 	"ram",
 	"disk",
+	"properties",
 }
 var FlavorInfoAliasArgs = []string{
 	"name=flavorinfo.name",
 	"vcpus=flavorinfo.vcpus",
 	"ram=flavorinfo.ram",
 	"disk=flavorinfo.disk",
+	"properties=flavorinfo.properties",
 }
 var FlavorInfoComments = map[string]string{
 	"name":  "Name of the flavor on the Cloudlet",
@@ -520,6 +578,7 @@ var CloudletInfoOptionalArgs = []string{
 	"flavors.vcpus",
 	"flavors.ram",
 	"flavors.disk",
+	"flavors.properties",
 	"status.tasknumber",
 	"status.maxtasks",
 	"status.taskname",
@@ -539,6 +598,7 @@ var CloudletInfoAliasArgs = []string{
 	"flavors.vcpus=cloudletinfo.flavors.vcpus",
 	"flavors.ram=cloudletinfo.flavors.ram",
 	"flavors.disk=cloudletinfo.flavors.disk",
+	"flavors.properties=cloudletinfo.flavors.properties",
 	"status.tasknumber=cloudletinfo.status.tasknumber",
 	"status.maxtasks=cloudletinfo.status.maxtasks",
 	"status.taskname=cloudletinfo.status.taskname",

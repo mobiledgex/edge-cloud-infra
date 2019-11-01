@@ -74,6 +74,11 @@ func CreateData(c echo.Context) error {
 			_, err = CreateFlavorObj(ctx, rc, &flavor)
 			streamReply(c, desc, err, &hadErr)
 		}
+		for _, restagtbl := range appdata.ResTagTables {
+			desc := fmt.Sprintf("Create ResTagTable %v", restagtbl.Key)
+			_, err = CreateResTagTableObj(ctx, rc, &restagtbl)
+			streamReply(c, desc, err, &hadErr)
+		}
 		for _, cloudlet := range appdata.Cloudlets {
 			desc := fmt.Sprintf("Create Cloudlet %v", cloudlet.Key)
 			cb := newResCb(c, desc)
@@ -204,6 +209,11 @@ func DeleteData(c echo.Context) error {
 			_, err = DeleteFlavorObj(ctx, rc, &flavor)
 			streamReply(c, desc, err, &hadErr)
 		}
+		for _, restagtbl := range appdata.ResTagTables {
+			desc := fmt.Sprintf("Delete Restable %s", restagtbl.Key.Name)
+			_, err = DeleteResTagTableObj(ctx, rc, &restagtbl)
+			streamReply(c, desc, err, &hadErr)
+		}
 	}
 	// roles must be deleted after orgs, otherwise we may delete the
 	// role that's needed to be able to delete the org.
@@ -309,7 +319,10 @@ func ShowData(c echo.Context) error {
 		if err == nil {
 			appdata.AppInstances = appinsts
 		}
-
+		restbls, err := ShowResTagTableObj(ctx, rc, &edgeproto.ResTagTable{})
+		if err == nil {
+			appdata.ResTagTables = restbls
+		}
 		if len(flavors) > 0 ||
 			len(cloudlets) > 0 || len(cinsts) > 0 ||
 			len(apps) > 0 || len(appinsts) > 0 {

@@ -5,7 +5,7 @@ pipeline {
     agent any
     parameters {
         string(name: 'DOCKER_BUILD_TAG', defaultValue: '', description: 'Docker build tag for the custom build')
-        gitParameter(branchFilter: 'origin/(.*)', defaultValue: 'master', name: 'BRANCH', type: 'PT_BRANCH')
+        gitParameter(branchFilter: 'origin/(.*)', sortMode: 'ASCENDING_SMART', defaultValue: 'master', name: 'BRANCH', type: 'PT_BRANCH')
     }
     environment {
         DEFAULT_DOCKER_BUILD_TAG = sh(returnStdout: true, script: 'date +"%Y-%m-%d" | tr -d "\n"')

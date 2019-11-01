@@ -22,15 +22,9 @@ pipeline {
     stages {
         stage('Checkout') {
             steps {
-                checkout([$class: 'GitSCM',
-                          branches: [[name: "${params.TAG}"]],
-                          doGenerateSubmoduleConfigurations: false,
-                          extensions: [],
-                          gitTool: 'Default',
-                          submoduleCfg: [],
-                          userRemoteConfigs: [[credentialsId: '5b257185-bf90-4cf1-9e62-0465a6dec06c',
-                                               url: 'https://github.com/mobiledgex/edge-cloud-infra.git']]
-                        ])
+                git branch: "${params.BRANCH}",
+                    url: 'https://github.com/mobiledgex/edge-cloud-infra.git',
+                    credentialsId: '5b257185-bf90-4cf1-9e62-0465a6dec06c'
             }
         }
         stage('Set up build tag') {

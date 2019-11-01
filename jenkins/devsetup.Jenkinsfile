@@ -5,6 +5,7 @@ pipeline {
     agent any
     parameters {
         string(name: 'DOCKER_BUILD_TAG', defaultValue: '', description: 'Docker build tag for the custom build')
+        gitParameter(branchFilter: 'origin/(.*)', sortMode: 'ASCENDING_SMART', defaultValue: 'master', name: 'BRANCH', type: 'PT_BRANCH')
     }
     environment {
         DEFAULT_DOCKER_BUILD_TAG = sh(returnStdout: true, script: 'date +"%Y-%m-%d" | tr -d "\n"')
@@ -19,6 +20,13 @@ pipeline {
         AZURE_TENANT = credentials('azure-tenant-id')
     }
     stages {
+        stage('Checkout') {
+            steps {
+                git branch: "${params.BRANCH}",
+                    url: 'https://github.com/mobiledgex/edge-cloud-infra.git',
+                    credentialsId: '5b257185-bf90-4cf1-9e62-0465a6dec06c'
+            }
+        }
         stage('Set up build tag') {
             steps {
                 script {

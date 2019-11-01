@@ -3,10 +3,10 @@
 ARTIFACTORY_BASEURL='https://artifactory.mobiledgex.net'
 ARTIFACTORY_USER='packer'
 ARTIFACTORY_ARTIFACTS_TAG='2019-11-01'
-CLOUD_IMAGE='xenial-server-cloudimg-amd64-disk1.img'
+CLOUD_IMAGE='ubuntu-16.04-server-cloudimg-amd64-disk1.img'
 OUTPUT_IMAGE_NAME='mobiledgex'
 
-: ${CLOUD_IMAGE_TAG:=xenial-server}
+: ${CLOUD_IMAGE_TAG:=ubuntu-16.04-20191024}
 : ${FLAVOR:=m4.small}
 : ${FORCE:=no}
 : ${TRACE:=no}

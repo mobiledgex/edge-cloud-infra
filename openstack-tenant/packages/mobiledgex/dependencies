@@ -1,5 +1,5 @@
 apt-transport-https		1.2.32
-ca-certificates			20170717~16.04.1
+ca-certificates			20170717~16.04.2
 cloud-init			19.2-36-g059d049c-0ubuntu2~16.04.1
 crictl				1.16.1
 curl				7.47.0-1ubuntu2.14
@@ -14,5 +14,5 @@ kubeadm				1.16.2-00
 kubectl				1.16.2-00
 kubelet				1.16.2-00
 python				2.7.12-1~16.04
-software-properties-common	0.96.20.7
+software-properties-common	0.96.20.9
 unzip				6.0-20ubuntu1

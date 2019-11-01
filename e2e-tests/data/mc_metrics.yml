@@ -25,4 +25,3 @@ prometheus:
   netSend: 11
   netRecv: 12
   appName: someapplication1
-  

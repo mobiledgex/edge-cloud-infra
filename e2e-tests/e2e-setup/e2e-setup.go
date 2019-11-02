@@ -11,7 +11,6 @@ import (
 	"time"
 
 	intprocess "github.com/mobiledgex/edge-cloud-infra/e2e-tests/int-process"
-	"github.com/mobiledgex/edge-cloud-infra/shepherd/fakePromExporter"
 	"github.com/mobiledgex/edge-cloud/edgeproto"
 	"github.com/mobiledgex/edge-cloud/integration/process"
 	"github.com/mobiledgex/edge-cloud/setup-env/e2e-tests/e2eapi"
@@ -71,6 +70,8 @@ type DeploymentData struct {
 	Shepherds           []*intprocess.Shepherd `yaml:"shepherds"`
 	AutoProvs           []*intprocess.AutoProv `yaml:"autoprovs"`
 	Cloudflare          CloudflareDNS          `yaml:"cloudflare"`
+	Prometheus          []*intprocess.PromE2e  `yaml:"prometheus"`
+	Exporters           []*intprocess.Exporter `yaml:"exporter"`
 }
 
 // a comparison and yaml friendly version of AllMetrics for e2e-tests
@@ -125,6 +126,12 @@ func GetAllProcesses() []process.Process {
 		all = append(all, p)
 	}
 	for _, p := range Deployment.AutoProvs {
+		all = append(all, p)
+	}
+	for _, p := range Deployment.Prometheus {
+		all = append(all, p)
+	}
+	for _, p := range Deployment.Exporters {
 		all = append(all, p)
 	}
 	return all
@@ -203,6 +210,18 @@ func StartProcesses(processName string, args []string, outputDir string) bool {
 	}
 	for _, p := range Deployment.AutoProvs {
 		opts = append(opts, process.WithDebug("api,notify"))
+		if !setupmex.StartLocal(processName, outputDir, p, opts...) {
+			return false
+		}
+	}
+	for _, p := range Deployment.Prometheus {
+		opts := append(opts, process.WithCleanStartup())
+		if !setupmex.StartLocal(processName, outputDir, p, opts...) {
+			return false
+		}
+	}
+	for _, p := range Deployment.Exporters {
+		opts := append(opts, process.WithCleanStartup())
 		if !setupmex.StartLocal(processName, outputDir, p, opts...) {
 			return false
 		}
@@ -313,7 +332,6 @@ func RunAction(ctx context.Context, actionSpec, outputDir string, config *e2eapi
 		if err != nil {
 			errors = append(errors, err.Error())
 		}
-		fakepromexporter.StopPromContainer()
 		err = setupmex.Cleanup(ctx)
 		if err != nil {
 			errors = append(errors, err.Error())

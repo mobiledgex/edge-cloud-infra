@@ -1,16 +1,14 @@
-//package main
-package fakepromexporter
+package main
 
 import (
 	"bytes"
-	"context"
+	"flag"
 	"fmt"
 	"io/ioutil"
+	"log"
 	"net/http"
-	"os"
 	"text/template"
 
-	"github.com/mobiledgex/edge-cloud/log"
 	"gopkg.in/yaml.v2"
 )
 
@@ -37,8 +35,6 @@ type Prometheus struct {
 	NetRecv        int    `yaml:"netRecv"`
 	AppName        string `yaml:"appName"`
 }
-
-var fakeStatsPath = "/src/github.com/mobiledgex/edge-cloud-infra/e2e-tests/data/mc_metrics.yml"
 
 var exportStr string
 var exportStrTemplate *template.Template
@@ -86,30 +82,36 @@ container_network_transmit_bytes_total{image="notTheEmptyString",pod_name="{{.Ap
 container_network_receive_bytes_total{image="notTheEmptyString",pod_name="{{.AppName}}"} {{.NetRecv}}
 `
 
-func StartExporter(ctx context.Context) {
+var port = flag.Int("port", 9100, "Port to export metrics on")
+var statsPath = flag.String("statsPath", "", "Path to stats to export")
+
+func main() {
+	flag.Parse()
+	if *port < 0 || 65535 < *port {
+		log.Fatalf("Invalid Port number %d, please specify a port between 0 and 65535", *port)
+	}
 	exportStrTemplate = template.Must(template.New("exporter").Parse(exportSetup))
 	stats := ExporterStatsCollector{}
-	GetValuesFromYaml(&stats, os.Getenv("GOPATH")+fakeStatsPath)
-	fmt.Printf("stats: %+v\n", stats)
+	GetValuesFromYaml(&stats, *statsPath)
 	buf := bytes.Buffer{}
 	if err := exportStrTemplate.Execute(&buf, &stats.Prom); err != nil {
-		log.FatalLog("Failed to create exporter", "error", err)
+		log.Fatal("Failed to create exporter ", "error:", err)
 	}
 	exportStr = buf.String()
 
-	log.SpanLog(ctx, log.DebugLevelMexos, "Starting fake prometheus exporter...")
+	log.Println("Starting fake prometheus exporter...")
 	http.HandleFunc("/metrics", exporter)
-	http.ListenAndServe(":9100", nil)
+	http.ListenAndServe(fmt.Sprintf(":%d", *port), nil)
 }
 
 func GetValuesFromYaml(stats *ExporterStatsCollector, ymlPath string) {
 	yamlFile, err := ioutil.ReadFile(ymlPath)
 	if err != nil {
-		log.FatalLog("Failed to load exporter yml file", "filename", ymlPath, "error", err)
+		log.Fatal("Failed to load exporter yml file ", "filename:", ymlPath, " error:", err)
 	}
 	err = yaml.Unmarshal(yamlFile, stats)
 	if err != nil {
-		log.FatalLog("Failed to parse exporter yml file", "filename", ymlPath, "error", err)
+		log.Fatal("Failed to parse exporter yml file ", "filename:", ymlPath, " error:", err)
 	}
 }
 

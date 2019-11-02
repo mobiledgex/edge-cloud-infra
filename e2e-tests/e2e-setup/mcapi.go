@@ -709,7 +709,8 @@ func parseMetrics(allMetrics *ormapi.AllMetrics) *[]MetricsCompare {
 					continue
 				}
 				// put non measurement info separate
-				if str, ok := val.(string); ok && TagValues[series.Columns[i]] != 0 {
+				_, isTag := TagValues[series.Columns[i]]
+				if str, ok := val.(string); ok && isTag {
 					measurement.Tags[series.Columns[i]] = str
 				}
 				if floatVal, ok := val.(float64); ok {

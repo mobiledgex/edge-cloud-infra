@@ -41,6 +41,7 @@ type AutoProv struct {
 	NotifyAddrs    string
 	CtrlAddrs      string
 	TLS            process.TLSCerts
+	cmd            *exec.Cmd
 }
 
 type PromE2e struct {

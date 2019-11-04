@@ -758,7 +758,7 @@ func HeatUpdateClusterKubernetes(ctx context.Context, clusterInst *edgeproto.Clu
 	if err != nil {
 		return err
 	}
-	// It it is possible this cluser was created before the default was no have no router
+	// It it is possible this cluster was created before the default was to use a router
 	if cp.RootLBPortName != "" {
 		client, err := GetSSHClient(ctx, rootLBName, GetCloudletExternalNetwork(), SSHUser)
 		if err != nil {

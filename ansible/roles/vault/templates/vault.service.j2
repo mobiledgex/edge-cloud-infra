@@ -13,12 +13,15 @@ PrivateTmp=yes
 PrivateDevices=yes
 SecureBits=keep-caps
 AmbientCapabilities=CAP_IPC_LOCK{% if vault_port < 1024 %} CAP_NET_BIND_SERVICE{% endif %}
+
 Capabilities=CAP_IPC_LOCK+ep{% if vault_port < 1024 %} CAP_NET_BIND_SERVICE+ep{% endif %}
+
 CapabilityBoundingSet=CAP_SYSLOG CAP_IPC_LOCK{% if vault_port < 1024 %} CAP_NET_BIND_SERVICE{% endif %}
+
 NoNewPrivileges=yes
 Environment=GOOGLE_APPLICATION_CREDENTIALS={{ storage_service_account_key }}
 ExecStart={{ vault_path }}/vault server -config={{ vault_conf }}
-ExecReload=/usr/local/bin/kill --signal HUP $MAINPID
+ExecReload=/bin/kill --signal HUP $MAINPID
 KillMode=process
 KillSignal=SIGINT
 

@@ -119,15 +119,16 @@
         src: "{{ key_tempfile.path }}"
         dest: "{{ storage_service_account_key }}"
       become: yes
-      notify: Restart vault
+      notify: Reload vault
   tags: setup
 
 - name: Install vault config file
   template:
     src: vault.hcl.j2
     dest: "{{ vault_conf }}"
+    backup: yes
   become: yes
-  notify: Restart vault
+  notify: Reload vault
 
 - name: Set up vault plugin directory
   file:
@@ -174,18 +175,22 @@
 
 - set_fact:
     le_env: "{{ letsencrypt_env | default('staging') }}"
+  tags: certgen
 
 - name: Lookup up NS1 apikey in vault
   set_fact:
     vault_lookup: "{{ lookup('vault', vault_ns1_apikey_path) }}"
+  tags: certgen
 
 - set_fact:
     ns1_apikey: "{{ vault_lookup.ns1.data.apikey }}"
+  tags: certgen
 
 - name: Load cloudflare creds
   import_role:
     name: load-vault-creds
     tasks_from: cloudflare
+  tags: certgen
 
 - name: "Deploy certgen service ({{ le_env }})"
   docker_container:
@@ -203,6 +208,7 @@
       CF_USER: "{{ cloudflare_account_email }}"
       CF_APIKEY: "{{ cloudflare_account_api_token }}"
       NS1_APIKEY: "{{ ns1_apikey }}"
+  tags: certgen
 
 - name: Set default cert ACLs
   acl:
@@ -272,6 +278,8 @@
 
 - debug:
     msg: "Vault needs to be initialized"
-  when: not result.json.initialized
+  when:
+    - not ansible_check_mode
+    - not result.json.initialized
   changed_when: true
   notify: Vault initialization prompt

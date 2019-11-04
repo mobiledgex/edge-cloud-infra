@@ -25,7 +25,7 @@ echo deb http://apt.kubernetes.io/ kubernetes-xenial main | sudo tee /etc/apt/so
 #    curl -s https://packages.cloud.google.com/apt/dists/kubernetes-xenial/main/binary-amd64/Packages | grep Version | awk '{print $2}'
 
 #apt-get update && apt-get install -y kubelet=1.11.2-00 kubeadm =1.11.2-00kubectl=1.11.2-00
-sudo apt-get update && apt-get install -y kubelet kubeadm kubectl
+sudo apt-get update && apt-get install -y kubelet=1.16.2-00 kubeadm=1.16.2-00 kubectl=1.16.2-00
 #curl -o /usr/bin/kubectl -s -LO https://storage.googleapis.com/kubernetes-release/release/v1.12.1/bin/linux/amd64/kubectl
 #curl -o /usr/bin/kubeadm -s -LO https://storage.googleapis.com/kubernetes-release/release/v1.12.1/bin/linux/amd64/kubeadm
 #curl -o /usr/bin/kubelet -s -LO https://storage.googleapis.com/kubernetes-release/release/v1.12.1/bin/linux/amd64/kubelet

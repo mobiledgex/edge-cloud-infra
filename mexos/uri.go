@@ -196,13 +196,22 @@ func GetExternalPublicAddr(ctx context.Context) (string, error) {
 	if err == nil {
 		return myip, nil
 	}
-
 	// Alternatively use dns resolver to fetch external IP
 	myip, err = dnsGetMyIP()
 	if err == nil {
 		return myip, nil
 	}
-	return "", err
+	// last resort is ifconfig.me in case DNS and stun are firewall blocked
+	resp, err := cloudcommon.SendHTTPReq(ctx, "GET", "http://ifconfig.me")
+	if err != nil {
+		return "", err
+	}
+	defer resp.Body.Close()
+	ip, err := ioutil.ReadAll(resp.Body)
+	if err != nil {
+		return "", err
+	}
+	return string(ip), nil
 }
 
 func stunGetMyIP(ctx context.Context) (string, error) {

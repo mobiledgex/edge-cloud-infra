@@ -28,12 +28,7 @@ var rootLBLock sync.Mutex
 var MEXRootLBMap = make(map[string]*MEXRootLB)
 
 // GetRootLBSecurityGroupName gets the secgrp name based on the rootLB
-// unless it is overridden via env var
 func GetRootLBSecurityGroupName(ctx context.Context, rootLBName string) string {
-	name := os.Getenv("MEX_SECURITY_GROUP")
-	if name != "" {
-		return name
-	}
 	return rootLBName + "-sg"
 }
 

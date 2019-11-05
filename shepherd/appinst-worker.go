@@ -55,6 +55,7 @@ func (p *AppInstWorker) sendMetrics() {
 	span.SetTag("cloudlet", p.appInstKey.ClusterInstKey.CloudletKey.Name)
 	span.SetTag("cluster", cloudcommon.DefaultVMCluster)
 	ctx := log.ContextWithSpan(context.Background(), span)
+	defer span.Finish()
 	key := shepherd_common.MetricAppInstKey{
 		ClusterInstKey: p.appInstKey.ClusterInstKey,
 		Pod:            p.appInstKey.AppKey.Name,
@@ -71,12 +72,11 @@ func (p *AppInstWorker) sendMetrics() {
 	for _, metric := range appMetrics {
 		p.send(ctx, metric)
 	}
-	span.Finish()
 }
 
 func (p *AppInstWorker) RunNotify() {
 	done := false
-	// Run the collection as a first step to avoid doing and initial wait
+	// Run the collection as a first step to avoid an initial wait
 	p.sendMetrics()
 	for !done {
 		select {

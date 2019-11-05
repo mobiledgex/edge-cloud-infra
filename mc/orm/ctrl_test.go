@@ -514,6 +514,59 @@ func testCreateOrg(t *testing.T, mcClient *ormclient.Client, uri, token, orgType
 	return &org
 }
 
+var updateOrgData = `{"Name":"%s","PublicImages":%t}`
+
+func testUpdateOrg(t *testing.T, mcClient *ormclient.Client, uri, token, orgName string) {
+	org := getOrg(t, mcClient, uri, token, orgName)
+	update := *org
+	update.PublicImages = !org.PublicImages
+
+	// For updates, must specify json directly so we can
+	// specify empty strings and false values. Otherwise json.Marshal()
+	// will just ignore them.
+	dat := fmt.Sprintf(updateOrgData, update.Name, update.PublicImages)
+
+	status, err := mcClient.UpdateOrg(uri, token, dat)
+	require.Nil(t, err, "update org ", org.Name)
+	require.Equal(t, http.StatusOK, status)
+
+	check := getOrg(t, mcClient, uri, token, org.Name)
+	// ignore updated timestamps
+	check.UpdatedAt = update.UpdatedAt
+	require.Equal(t, update, *check, "updated org should be as expected")
+
+	// change back
+	dat = fmt.Sprintf(updateOrgData, org.Name, org.PublicImages)
+	status, err = mcClient.UpdateOrg(uri, token, dat)
+	require.Nil(t, err, "update org ", org.Name)
+	require.Equal(t, http.StatusOK, status)
+
+	check = getOrg(t, mcClient, uri, token, org.Name)
+	// ignore updated timestamps
+	check.UpdatedAt = org.UpdatedAt
+	require.Equal(t, org, check, "updated org should be as expected")
+}
+
+func testUpdateOrgFail(t *testing.T, mcClient *ormclient.Client, uri, token, orgName string) {
+	dat := fmt.Sprintf(updateOrgData, orgName, false)
+	status, err := mcClient.UpdateOrg(uri, token, dat)
+	require.NotNil(t, err)
+	require.Equal(t, http.StatusForbidden, status)
+}
+
+func getOrg(t *testing.T, mcClient *ormclient.Client, uri, token, name string) *ormapi.Organization {
+	orgs, status, err := mcClient.ShowOrg(uri, token)
+	require.Nil(t, err)
+	require.Equal(t, http.StatusOK, status)
+	for _, org := range orgs {
+		if org.Name == name {
+			return &org
+		}
+	}
+	require.True(t, false, fmt.Errorf("org %s not found", name))
+	return nil
+}
+
 func testCreateUserOrg(t *testing.T, mcClient *ormclient.Client, uri, name, orgType, orgName string) (*ormapi.User, *ormapi.Organization, string) {
 	user, token := testCreateUser(t, mcClient, uri, name)
 	org := testCreateOrg(t, mcClient, uri, token, orgType, orgName)

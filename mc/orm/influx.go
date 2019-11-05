@@ -318,6 +318,11 @@ func GetMetricsCommon(c echo.Context) error {
 			return c.JSON(http.StatusBadRequest, Msg(err.Error()))
 		}
 		cmd = AppInstMetricsQuery(&in)
+
+		// Check the developer against who is logged in
+		if !authorized(ctx, rc.claims.Username, org, ResourceAppAnalytics, ActionView) {
+			return echo.ErrForbidden
+		}
 	} else if strings.HasSuffix(c.Path(), "metrics/cluster") {
 		in := ormapi.RegionClusterInstMetrics{}
 		if err := c.Bind(&in); err != nil {
@@ -334,6 +339,11 @@ func GetMetricsCommon(c echo.Context) error {
 			return c.JSON(http.StatusBadRequest, Msg(err.Error()))
 		}
 		cmd = ClusterMetricsQuery(&in)
+
+		// Check the developer against who is logged in
+		if !authorized(ctx, rc.claims.Username, org, ResourceClusterAnalytics, ActionView) {
+			return echo.ErrForbidden
+		}
 	} else if strings.HasSuffix(c.Path(), "metrics/cloudlet") {
 		in := ormapi.RegionCloudletMetrics{}
 		if err := c.Bind(&in); err != nil {
@@ -351,12 +361,12 @@ func GetMetricsCommon(c echo.Context) error {
 		}
 		cmd = CloudletMetricsQuery(&in)
 
+		// Check the operator against who is logged in
+		if !authorized(ctx, rc.claims.Username, org, ResourceCloudletAnalytics, ActionView) {
+			return echo.ErrForbidden
+		}
 	} else {
 		return echo.ErrNotFound
-	}
-	// Check the developer against who is logged in
-	if !authorized(ctx, rc.claims.Username, org, ResourceAppAnalytics, ActionView) {
-		return echo.ErrForbidden
 	}
 
 	wroteHeader := false

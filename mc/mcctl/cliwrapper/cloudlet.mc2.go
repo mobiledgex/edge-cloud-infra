@@ -68,18 +68,18 @@ func (s *Client) ShowCloudlet(uri, token string, in *ormapi.RegionCloudlet) ([]e
 	return outlist, st, err
 }
 
-func (s *Client) AddCloudletResMapping(uri, token string, in *ormapi.RegionCloudlet) (edgeproto.Result, int, error) {
+func (s *Client) AddCloudletResMapping(uri, token string, in *ormapi.RegionCloudletResMap) (edgeproto.Result, int, error) {
 	args := []string{"region", "AddCloudletResMapping"}
 	out := edgeproto.Result{}
-	noconfig := strings.Split("Location.HorizontalAccuracy,Location.VerticalAccuracy,Location.Course,Location.Speed,Location.Timestamp,TimeLimits,Status,Config,NotifySrvAddr", ",")
+	noconfig := strings.Split("", ",")
 	st, err := s.runObjs(uri, token, args, in, &out, withIgnore(noconfig))
 	return out, st, err
 }
 
-func (s *Client) RmCloudletResMapping(uri, token string, in *ormapi.RegionCloudlet) (edgeproto.Result, int, error) {
-	args := []string{"region", "RmCloudletResMapping"}
+func (s *Client) DeleteCloudletResMapping(uri, token string, in *ormapi.RegionCloudletResMap) (edgeproto.Result, int, error) {
+	args := []string{"region", "DeleteCloudletResMapping"}
 	out := edgeproto.Result{}
-	noconfig := strings.Split("Location.HorizontalAccuracy,Location.VerticalAccuracy,Location.Course,Location.Speed,Location.Timestamp,TimeLimits,Status,Config,NotifySrvAddr", ",")
+	noconfig := strings.Split("", ",")
 	st, err := s.runObjs(uri, token, args, in, &out, withIgnore(noconfig))
 	return out, st, err
 }

@@ -109,30 +109,6 @@ var RemoveResTagCmd = &cli.Command{
 	Run:          runRest("/auth/ctrl/RemoveResTag"),
 }
 
-var AddZoneCmd = &cli.Command{
-	Use:          "AddZone",
-	RequiredArgs: strings.Join(append([]string{"region"}, ResTagTableRequiredArgs...), " "),
-	OptionalArgs: strings.Join(ResTagTableOptionalArgs, " "),
-	AliasArgs:    strings.Join(ResTagTableAliasArgs, " "),
-	SpecialArgs:  &ResTagTableSpecialArgs,
-	Comments:     addRegionComment(ResTagTableComments),
-	ReqData:      &ormapi.RegionResTagTable{},
-	ReplyData:    &edgeproto.Result{},
-	Run:          runRest("/auth/ctrl/AddZone"),
-}
-
-var RemoveZoneCmd = &cli.Command{
-	Use:          "RemoveZone",
-	RequiredArgs: strings.Join(append([]string{"region"}, ResTagTableRequiredArgs...), " "),
-	OptionalArgs: strings.Join(ResTagTableOptionalArgs, " "),
-	AliasArgs:    strings.Join(ResTagTableAliasArgs, " "),
-	SpecialArgs:  &ResTagTableSpecialArgs,
-	Comments:     addRegionComment(ResTagTableComments),
-	ReqData:      &ormapi.RegionResTagTable{},
-	ReplyData:    &edgeproto.Result{},
-	Run:          runRest("/auth/ctrl/RemoveZone"),
-}
-
 var GetResTagTableCmd = &cli.Command{
 	Use:          "GetResTagTable",
 	RequiredArgs: strings.Join(append([]string{"region"}, ResTagTableKeyRequiredArgs...), " "),
@@ -152,35 +128,40 @@ var ResTagTableApiCmds = []*cli.Command{
 	ShowResTagTableCmd,
 	AddResTagCmd,
 	RemoveResTagCmd,
-	AddZoneCmd,
-	RemoveZoneCmd,
 	GetResTagTableCmd,
 }
 
 var ResTagTableKeyRequiredArgs = []string{}
 var ResTagTableKeyOptionalArgs = []string{
 	"name",
+	"operator",
 }
 var ResTagTableKeyAliasArgs = []string{
 	"name=restagtablekey.name",
+	"operator=restagtablekey.operatorkey.name",
 }
-var ResTagTableKeyComments = map[string]string{}
+var ResTagTableKeyComments = map[string]string{
+	"operator": "Company or Organization name of the operator",
+}
 var ResTagTableKeySpecialArgs = map[string]string{}
 var ResTagTableRequiredArgs = []string{
 	"res",
+	"operator",
+	"tags",
 }
 var ResTagTableOptionalArgs = []string{
-	"tags",
 	"azone",
 }
 var ResTagTableAliasArgs = []string{
 	"res=restagtable.key.name",
+	"operator=restagtable.key.operatorkey.name",
 	"tags=restagtable.tags",
 	"azone=restagtable.azone",
 }
 var ResTagTableComments = map[string]string{
-	"tags":  "one or more string tags",
-	"azone": "availability zone of resource if required",
+	"operator": "Company or Organization name of the operator",
+	"tags":     "one or more string tags",
+	"azone":    "availability zone(s) of resource if required",
 }
 var ResTagTableSpecialArgs = map[string]string{
 	"tags": "StringArray",

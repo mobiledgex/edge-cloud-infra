@@ -58,18 +58,6 @@ func (s *Client) RemoveResTag(uri, token string, in *ormapi.RegionResTagTable) (
 	return out, status, err
 }
 
-func (s *Client) AddZone(uri, token string, in *ormapi.RegionResTagTable) (edgeproto.Result, int, error) {
-	out := edgeproto.Result{}
-	status, err := s.PostJson(uri+"/auth/ctrl/AddZone", token, in, &out)
-	return out, status, err
-}
-
-func (s *Client) RemoveZone(uri, token string, in *ormapi.RegionResTagTable) (edgeproto.Result, int, error) {
-	out := edgeproto.Result{}
-	status, err := s.PostJson(uri+"/auth/ctrl/RemoveZone", token, in, &out)
-	return out, status, err
-}
-
 func (s *Client) GetResTagTable(uri, token string, in *ormapi.RegionResTagTableKey) (edgeproto.ResTagTable, int, error) {
 	out := edgeproto.ResTagTable{}
 	status, err := s.PostJson(uri+"/auth/ctrl/GetResTagTable", token, in, &out)
@@ -83,7 +71,5 @@ type ResTagTableApiClient interface {
 	ShowResTagTable(uri, token string, in *ormapi.RegionResTagTable) ([]edgeproto.ResTagTable, int, error)
 	AddResTag(uri, token string, in *ormapi.RegionResTagTable) (edgeproto.Result, int, error)
 	RemoveResTag(uri, token string, in *ormapi.RegionResTagTable) (edgeproto.Result, int, error)
-	AddZone(uri, token string, in *ormapi.RegionResTagTable) (edgeproto.Result, int, error)
-	RemoveZone(uri, token string, in *ormapi.RegionResTagTable) (edgeproto.Result, int, error)
 	GetResTagTable(uri, token string, in *ormapi.RegionResTagTableKey) (edgeproto.ResTagTable, int, error)
 }

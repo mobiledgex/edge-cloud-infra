@@ -71,22 +71,6 @@ func (s *Client) RemoveResTag(uri, token string, in *ormapi.RegionResTagTable) (
 	return out, st, err
 }
 
-func (s *Client) AddZone(uri, token string, in *ormapi.RegionResTagTable) (edgeproto.Result, int, error) {
-	args := []string{"region", "AddZone"}
-	out := edgeproto.Result{}
-	noconfig := strings.Split("", ",")
-	st, err := s.runObjs(uri, token, args, in, &out, withIgnore(noconfig))
-	return out, st, err
-}
-
-func (s *Client) RemoveZone(uri, token string, in *ormapi.RegionResTagTable) (edgeproto.Result, int, error) {
-	args := []string{"region", "RemoveZone"}
-	out := edgeproto.Result{}
-	noconfig := strings.Split("", ",")
-	st, err := s.runObjs(uri, token, args, in, &out, withIgnore(noconfig))
-	return out, st, err
-}
-
 func (s *Client) GetResTagTable(uri, token string, in *ormapi.RegionResTagTableKey) (edgeproto.ResTagTable, int, error) {
 	args := []string{"region", "GetResTagTable"}
 	out := edgeproto.ResTagTable{}

@@ -16,7 +16,7 @@ func GetOrgCommand() *cobra.Command {
 	}, &cli.Command{
 		Use:          "update",
 		RequiredArgs: "name",
-		OptionalArgs: "type address phone publicimages",
+		OptionalArgs: "address phone publicimages",
 		ReqData:      &ormapi.Organization{},
 		Run:          runRest("/auth/org/update"),
 	}, &cli.Command{

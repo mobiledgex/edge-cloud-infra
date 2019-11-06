@@ -175,6 +175,7 @@ func UpdateOrg(c echo.Context) error {
 	if res.Error != nil {
 		return c.JSON(http.StatusInternalServerError, MsgErr(dbErr(res.Error)))
 	}
+	oldType := org.Type
 
 	if !authorized(ctx, claims.Username, in.Name, ResourceUsers, ActionManage) {
 		return echo.ErrForbidden
@@ -185,9 +186,8 @@ func UpdateOrg(c echo.Context) error {
 	if err != nil {
 		return bindErr(c, err)
 	}
-	// check type after update to disallow empty string
-	if org.Type != OrgTypeDeveloper && org.Type != OrgTypeOperator {
-		return c.JSON(http.StatusBadRequest, Msg(fmt.Sprintf("Organization type must be %s, or %s", OrgTypeDeveloper, OrgTypeOperator)))
+	if org.Type != oldType {
+		return c.JSON(http.StatusBadRequest, Msg("Cannot change Organization type"))
 	}
 
 	err = db.Save(&org).Error

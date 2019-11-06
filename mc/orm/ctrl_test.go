@@ -515,6 +515,7 @@ func testCreateOrg(t *testing.T, mcClient *ormclient.Client, uri, token, orgType
 }
 
 var updateOrgData = `{"Name":"%s","PublicImages":%t}`
+var updateOrgType = `{"Name":"%s","Type":"%s"}`
 
 func testUpdateOrg(t *testing.T, mcClient *ormclient.Client, uri, token, orgName string) {
 	org := getOrg(t, mcClient, uri, token, orgName)
@@ -545,6 +546,22 @@ func testUpdateOrg(t *testing.T, mcClient *ormclient.Client, uri, token, orgName
 	// ignore updated timestamps
 	check.UpdatedAt = org.UpdatedAt
 	require.Equal(t, org, check, "updated org should be as expected")
+
+	// changing type should fail
+	typ := OrgTypeDeveloper
+	if org.Type == OrgTypeDeveloper {
+		typ = OrgTypeOperator
+	}
+	dat = fmt.Sprintf(updateOrgType, org.Name, typ)
+	status, err = mcClient.UpdateOrg(uri, token, dat)
+	require.NotNil(t, err, "update org type")
+	require.Equal(t, http.StatusBadRequest, status)
+	require.Contains(t, err.Error(), "Cannot change Organization type")
+	dat = fmt.Sprintf(updateOrgType, org.Name, OrgTypeAdmin)
+	status, err = mcClient.UpdateOrg(uri, token, dat)
+	require.NotNil(t, err, "update org type")
+	require.Equal(t, http.StatusBadRequest, status)
+	require.Contains(t, err.Error(), "Cannot change Organization type")
 }
 
 func testUpdateOrgFail(t *testing.T, mcClient *ormclient.Client, uri, token, orgName string) {

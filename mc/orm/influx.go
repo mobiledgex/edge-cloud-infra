@@ -367,7 +367,6 @@ func GetMetricsCommon(c echo.Context) error {
 	} else {
 		return echo.ErrNotFound
 	}
-	fmt.Printf("asdf query: %s\n", cmd)
 	// Check the developer against who is logged in
 	if !authorized(ctx, rc.claims.Username, org, ResourceAppAnalytics, ActionView) {
 		return echo.ErrForbidden

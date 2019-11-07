@@ -291,7 +291,7 @@ func (s *Platform) DeleteAppInst(ctx context.Context, clusterInst *edgeproto.Clu
 		if deployment == cloudcommon.AppDeploymentTypeKubernetes {
 			return k8smgmt.DeleteAppInst(client, names, app, appInst)
 		} else {
-			return k8smgmt.DeleteHelmAppInst(client, names, clusterInst)
+			return k8smgmt.DeleteHelmAppInst(client, names, clusterInst, app)
 		}
 
 	case cloudcommon.AppDeploymentTypeVM:

@@ -146,10 +146,11 @@ var FlavorAliasArgs = []string{
 	"optresmap=flavor.optresmap",
 }
 var FlavorComments = map[string]string{
-	"name":  "Flavor name",
-	"ram":   "RAM in megabytes",
-	"vcpus": "Number of virtual CPUs",
-	"disk":  "Amount of disk space in gigabytes",
+	"name":      "Flavor name",
+	"ram":       "RAM in megabytes",
+	"vcpus":     "Number of virtual CPUs",
+	"disk":      "Amount of disk space in gigabytes",
+	"optresmap": "Optional Resources request, key = [gpu, nas, nic]",
 }
 var FlavorSpecialArgs = map[string]string{
 	"optresmap": "StringToString",

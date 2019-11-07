@@ -141,6 +141,7 @@ var ResTagTableKeyAliasArgs = []string{
 	"operator=restagtablekey.operatorkey.name",
 }
 var ResTagTableKeyComments = map[string]string{
+	"name":     "Resource Table Name",
 	"operator": "Company or Organization name of the operator",
 }
 var ResTagTableKeySpecialArgs = map[string]string{}
@@ -159,6 +160,7 @@ var ResTagTableAliasArgs = []string{
 	"azone=restagtable.azone",
 }
 var ResTagTableComments = map[string]string{
+	"res":      "Resource Table Name",
 	"operator": "Company or Organization name of the operator",
 	"tags":     "one or more string tags",
 	"azone":    "availability zone(s) of resource if required",

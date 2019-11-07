@@ -530,6 +530,7 @@ var CloudletComments = map[string]string{
 	"config.platformtag":                  "Tag of edge-cloud image",
 	"config.testmode":                     "Internal Test Flag",
 	"config.span":                         "Span string",
+	"restagmap.value.name":                "Resource Table Name",
 	"restagmap.value.operatorkey.name":    "Company or Organization name of the operator",
 }
 var CloudletSpecialArgs = map[string]string{
@@ -559,6 +560,7 @@ var ResTagMapEntryAliasArgs = []string{
 	"value.operatorkey.name=restagmapentry.value.operatorkey.name",
 }
 var ResTagMapEntryComments = map[string]string{
+	"value.name":             "Resource Table Name",
 	"value.operatorkey.name": "Company or Organization name of the operator",
 }
 var ResTagMapEntrySpecialArgs = map[string]string{}

@@ -16,8 +16,8 @@ import (
 // We don't use the auto-generated Command because the client
 // must implement the webrtc protocol.
 
-const runCommandRequiredArgs = "region command appname appvers developer cluster cloudlet operator"
-const runCommandOptionalArgs = "containerid"
+const runCommandRequiredArgs = "region appname appvers developer cluster cloudlet operator"
+const runCommandOptionalArgs = "command containerid"
 
 var runCommandAliasArgs = []string{
 	"appname=execrequest.appinstkey.appkey.name",
@@ -49,10 +49,13 @@ func runExecRequest(c *cli.Command, args []string) error {
 	var clusterdeveloper string
 	for _, arg := range args {
 		parts := strings.Split(arg, "=")
+		if len(parts) != 2 {
+			continue
+		}
 		if parts[0] == "developer" {
 			developer = parts[1]
 		}
-		if parts[1] == "clusterdeveloper" {
+		if parts[0] == "clusterdeveloper" {
 			clusterdeveloper = parts[1]
 		}
 	}

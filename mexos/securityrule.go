@@ -15,7 +15,7 @@ import (
 	"github.com/mobiledgex/edge-cloud/log"
 )
 
-// CloudletSecurityGroupIDMap is a cache of cloudlet to secuurity group id
+// CloudletSecurityGroupIDMap is a cache of cloudlet to security group id
 var CloudletSecurityGroupIDMap = make(map[string]string)
 
 var cloudetSecurityGroupIDLock sync.Mutex

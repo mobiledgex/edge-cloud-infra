@@ -1,6 +1,6 @@
 {
     "variables": {
-	"ARTIFACTORY_USER": "jim.morris",
+	"ARTIFACTORY_USER": "packer",
 	"TAG": "master",
 	"FLAVOR": "m4.small"
     },

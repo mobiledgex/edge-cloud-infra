@@ -1,5 +1,4 @@
 #!/bin/bash
-set -x
 PATH='/usr/bin:/bin'; export PATH
 
 LOGDIR="/etc/mobiledgex"
@@ -145,7 +144,6 @@ sudo groupadd docker
 sudo usermod -aG docker root
 
 log "Installing helm $HELM_VERSION"
-ls lrt /tmp/helm.tar.gz
 tar xf /tmp/helm.tar.gz linux-amd64/helm
 sudo mv linux-amd64/helm /usr/local/bin/helm
 sudo chmod a+rx /usr/local/bin/helm

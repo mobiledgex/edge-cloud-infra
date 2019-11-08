@@ -68,6 +68,23 @@ func ListPorts(ctx context.Context) ([]OSPort, error) {
 	return ports, nil
 }
 
+//ListPortsServerNetwork returns ports for a particular server on a given network
+func ListPortsServerNetwork(ctx context.Context, server, network string) ([]OSPort, error) {
+	out, err := TimedOpenStackCommand(ctx, "openstack", "port", "list", "--server", server, "--network", network, "-f", "json")
+
+	if err != nil {
+		err = fmt.Errorf("cannot get port list, %v", err)
+		return nil, err
+	}
+	var ports []OSPort
+	err = json.Unmarshal(out, &ports)
+	if err != nil {
+		err = fmt.Errorf("cannot unmarshal, %v", err)
+		return nil, err
+	}
+	return ports, nil
+}
+
 //ListImages lists avilable images in glance
 func ListImages(ctx context.Context) ([]OSImage, error) {
 	out, err := TimedOpenStackCommand(ctx, "openstack", "image", "list", "-f", "json")
@@ -517,6 +534,24 @@ func ListSecurityGroups(ctx context.Context) ([]OSSecurityGroup, error) {
 	return secgrps, nil
 }
 
+func CreateSecurityGroup(ctx context.Context, groupName string) error {
+	out, err := TimedOpenStackCommand(ctx, "openstack", "security", "group", "create", groupName)
+	if err != nil {
+		err = fmt.Errorf("can't create security group, %s, %v", out, err)
+		return err
+	}
+	return nil
+}
+
+func AddSecurityGroupToPort(ctx context.Context, portID, groupName string) error {
+	out, err := TimedOpenStackCommand(ctx, "openstack", "port", "set", "--security-group", groupName, portID)
+	if err != nil {
+		err = fmt.Errorf("can't add security group to port, %s, %v", out, err)
+		return err
+	}
+	return nil
+}
+
 //ListRouters returns a list of routers available
 func ListRouters(ctx context.Context) ([]OSRouter, error) {
 	out, err := TimedOpenStackCommand(ctx, "openstack", "router", "list", "-f", "json")
@@ -824,12 +859,12 @@ func GetSecurityGroupIDForProject(ctx context.Context, grpname string, projectID
 	return "", fmt.Errorf("unable to find security group %s project %s", grpname, projectID)
 }
 
-// GetCloudletSecurityGroupID gets the group ID for the cloudlet group.  The group
-// name may be 'default' or other.  There may be more than one group id with the same name which
+// GetCloudletSecurityGroupID gets the group ID for the default cloudlet-wide group.  The group
+// There may be more than one group id with the same name of "default"
 // is why this function is needed to reliably create rules against a group
 func GetCloudletSecurityGroupID(ctx context.Context) (string, error) {
-	cloudletGroup := GetCloudletSecurityGroup()
-	log.SpanLog(ctx, log.DebugLevelMexos, "GetDefaultSecurityGroupID", "cloudletGroup", cloudletGroup)
+	groupname := "default"
+	log.SpanLog(ctx, log.DebugLevelMexos, "GetCloudletSecurityGroupID", "cloudletGroup", groupname)
 
 	if SecurityGroupIDForProject != "" {
 		//cached
@@ -846,7 +881,7 @@ func GetCloudletSecurityGroupID(ctx context.Context) (string, error) {
 	}
 	for _, p := range projects {
 		if p.Name == projectName {
-			SecurityGroupIDForProject, err = GetSecurityGroupIDForProject(ctx, cloudletGroup, p.ID)
+			SecurityGroupIDForProject, err = GetSecurityGroupIDForProject(ctx, groupname, p.ID)
 			if err != nil {
 				return "", err
 			}

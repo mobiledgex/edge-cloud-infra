@@ -22,24 +22,24 @@ import (
 )
 
 type VMParams struct {
-	VMName                string
-	FlavorName            string
-	ExternalVolumeSize    uint64
-	ImageName             string
-	SecurityGroup         string
-	CloudletSecurityGroup string
-	NetworkName           string
-	SubnetName            string
-	VnicType              string
-	MEXRouterIP           string
-	GatewayIP             string
-	FloatingIPAddressID   string
-	AuthPublicKey         string
-	AccessPorts           []util.PortSpec
-	DeploymentManifest    string
-	Command               string
-	IsRootLB              bool
-	IsInternal            bool
+	VMName              string
+	FlavorName          string
+	ExternalVolumeSize  uint64
+	ImageName           string
+	SecurityGroup       string
+	NetworkName         string
+	SubnetName          string
+	VnicType            string
+	MEXRouterIP         string
+	GatewayIP           string
+	FloatingIPAddressID string
+	AuthPublicKey       string
+	AccessPorts         []util.PortSpec
+	ExternalSSHAccessIP string
+	DeploymentManifest  string
+	Command             string
+	IsRootLB            bool
+	IsInternal          bool
 }
 
 type DeploymentType string
@@ -94,12 +94,12 @@ var vmTemplateResources = `
              port_range_min: {{.Port}}
              port_range_max: {{.Port}}
           {{end}}
-
-   security_group_remote_rule:
-       type: OS::Neutron::SecurityGroupRule
-       properties:
-           security_group: { get_resource: vm_security_group }
-           remote_group: { get_resource: vm_security_group }
+          {{if .ExternalSSHAccessIP}}
+           - remote_ip_prefix: {{.ExternalSSHAccessIP}}/32
+             protocol: tcp
+             port_range_min: 22
+             port_range_max: 22
+          {{- end}}
 
    {{.VMName}}:
       type: OS::Nova::Server
@@ -114,9 +114,6 @@ var vmTemplateResources = `
         {{if not .FloatingIPAddressID}}
          security_groups:
          - { get_resource: vm_security_group }
-         {{if $.CloudletSecurityGroup }} 
-         - {{.CloudletSecurityGroup}}
-         {{- end}}
         {{- end}}
          flavor: {{.FlavorName}}
         {{if .AuthPublicKey}} key_name: { get_resource: ssh_key_pair } {{- end}}
@@ -205,6 +202,7 @@ type ClusterParams struct {
 	MasterIP              string
 	RootLBConnectToSubnet string
 	RootLBPortName        string
+	CloudletSecurityGroup string
 	NetworkType           string
 	DNSServers            []string
 	Nodes                 []ClusterNode
@@ -269,10 +267,11 @@ resources:
          fixed_ips:
           - subnet: { get_resource: k8s-subnet} 
             ip_address: {{.MasterIP}}
-         security_groups:
-          - {{$.SecurityGroup}}
         {{if $.CloudletSecurityGroup }}
-          - {{$.CloudletSecurityGroup}}
+         security_groups:
+           - {{$.CloudletSecurityGroup}}
+        {{else}}
+         port_security_enabled: false
         {{- end}}
 
   {{if .ExternalVolumeSize}}
@@ -319,10 +318,11 @@ resources:
           fixed_ips:
           - subnet: { get_resource: k8s-subnet}
             ip_address: {{.NodeIP}}
-          security_groups:
-           - {{$.SecurityGroup}}
          {{if $.CloudletSecurityGroup }}
+          security_groups:
            - {{$.CloudletSecurityGroup}}
+         {{else}}
+          port_security_enabled: false
          {{- end}}
 
   {{if $.ExternalVolumeSize}}
@@ -431,10 +431,6 @@ func GetVMParams(ctx context.Context, depType DeploymentType, serverName, flavor
 	vmp.ExternalVolumeSize = externalVolumeSize
 	vmp.ImageName = imageName
 	vmp.SecurityGroup = secGrp
-	vmp.CloudletSecurityGroup, err = GetCloudletSecurityGroupID(ctx)
-	if err != nil {
-		return nil, err
-	}
 	if depType != UserVMDeployment {
 		vmp.IsInternal = true
 	}
@@ -462,6 +458,11 @@ func GetVMParams(ctx context.Context, depType DeploymentType, serverName, flavor
 			return nil, err
 		}
 	}
+	extIP, err := GetExternalPublicAddr(ctx)
+	if err != nil {
+		return nil, err
+	}
+	vmp.ExternalSSHAccessIP = extIP
 	if deploymentManifest != "" {
 		vmp.DeploymentManifest = deploymentManifest
 	}
@@ -626,8 +627,8 @@ func getClusterParams(ctx context.Context, clusterInst *edgeproto.ClusterInst, r
 	} else {
 		log.SpanLog(ctx, log.DebugLevelMexos, "External router in use for cluster, cluster stack with router interfaces")
 		cp.MEXRouterName = rtr
-		// The cluster needs to be connected to the cloudlet level security group to have router access
-		cp.RouterSecurityGroup, err = GetCloudletSecurityGroupID(ctx)
+		// The cluster needs to be connected to the default level security group to have router access
+		cp.CloudletSecurityGroup, err = GetCloudletSecurityGroupID(ctx)
 		if err != nil {
 			return nil, err
 		}
@@ -745,8 +746,6 @@ func HeatCreateClusterKubernetes(ctx context.Context, clusterInst *edgeproto.Clu
 	defer heatStackLock.Unlock()
 
 	cp, err := getClusterParams(ctx, clusterInst, rootLBName, dedicatedRootLB, heatCreate)
-	log.SpanLog(ctx, log.DebugLevelMexos, "XXXXX HeatCreateClusterKubernetes", "cp", cp)
-
 	if err != nil {
 		return err
 	}

@@ -196,16 +196,6 @@ func GetCleanupOnFailure(ctx context.Context) bool {
 	return true
 }
 
-// GetCloudletSecurityGroup get the cloudlet level security group which should only apply to ports which must be
-// open for each LB.  Application specific ports should never be opened on this group
-func GetCloudletSecurityGroup() string {
-	sg := os.Getenv("MEX_SECURITY_GROUP")
-	if sg == "" {
-		return "default"
-	}
-	return sg
-}
-
 func GetCloudletProjectName() string {
 	return os.Getenv("OS_PROJECT_NAME")
 }
@@ -213,6 +203,14 @@ func GetCloudletProjectName() string {
 // These not in the proto file yet because they may not change for a while
 func GetCloudletTenant() string {
 	return "null"
+}
+
+func GetCloudletSecurityGroup() string {
+	sg := os.Getenv("MEX_SECURITY_GROUP")
+	if sg == "" {
+		return "default"
+	}
+	return sg
 }
 
 func GetCloudletMexosAgentPort() string {

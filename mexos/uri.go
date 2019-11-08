@@ -201,17 +201,13 @@ func GetExternalPublicAddr(ctx context.Context) (string, error) {
 	if err == nil {
 		return myip, nil
 	}
-	// last resort is ifconfig.me in case DNS and stun are firewall blocked
-	resp, err := cloudcommon.SendHTTPReq(ctx, "GET", "http://ifconfig.me")
-	if err != nil {
-		return "", err
+	// last resort is ifconfig.me in case DNS and stun are firewall blocked.  This may
+	// be the case in CRM-GW deployments
+	myip, err = httpGetMyIP(ctx)
+	if err == nil {
+		return myip, nil
 	}
-	defer resp.Body.Close()
-	ip, err := ioutil.ReadAll(resp.Body)
-	if err != nil {
-		return "", err
-	}
-	return string(ip), nil
+	return "", err
 }
 
 func stunGetMyIP(ctx context.Context) (string, error) {
@@ -268,4 +264,20 @@ func dnsGetMyIP() (string, error) {
 		}
 	}
 	return "", fmt.Errorf("unable to find external IP")
+}
+
+func httpGetMyIP(ctx context.Context) (string, error) {
+	log.SpanLog(ctx, log.DebugLevelMexos, "get ip from ifconfig.me")
+
+	response, err := http.Get("http://ifconfig.me")
+	if err != nil {
+		log.SpanLog(ctx, log.DebugLevelMexos, "error in get to ifconfig.me", "err", err)
+		return "", err
+	}
+	defer response.Body.Close()
+	ip, err := ioutil.ReadAll(response.Body)
+	if err != nil {
+		return "", err
+	}
+	return string(ip), nil
 }

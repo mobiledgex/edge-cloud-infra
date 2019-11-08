@@ -92,14 +92,12 @@ func LBAddRouteAndSecRules(ctx context.Context, client pc.PlatformClient, rootLB
 	}
 
 	// open the firewall for internal traffic
-	// note that LB security rules will currently be added redundantly for each rootLB because they
-	// all use the same sec grp.  However, this will eventually change
 	groupName := GetRootLBSecurityGroupName(ctx, rootLBName)
 
 	allowedClientCIDR := GetAllowedClientCIDR()
 	for _, p := range rootLBPorts {
 		portString := fmt.Sprintf("%d", p)
-		if err := AddSecurityRuleCIDR(ctx, allowedClientCIDR, "tcp", groupName, portString); err != nil {
+		if err := AddSecurityRuleCIDRWithRetry(ctx, allowedClientCIDR, "tcp", groupName, portString, rootLBName); err != nil {
 			return err
 		}
 	}
@@ -246,7 +244,7 @@ func configureInternalInterfaceAndExternalForwarding(ctx context.Context, client
 			externalPortMac = p.MACAddress
 		}
 	}
-
+	log.SpanLog(ctx, log.DebugLevelMexos, "running ifconfig to list interfaces")
 	// list all the interfaces
 	cmd := fmt.Sprintf("sudo ifconfig -a")
 	out, err := client.Output(cmd)

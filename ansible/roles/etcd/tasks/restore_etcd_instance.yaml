@@ -1,0 +1,30 @@
+- debug:
+    msg: "Restoring etcd instance #{{ etcd_index }}"
+
+- name: Set up the volume
+  k8s:
+    kubeconfig: "{{ kubeconfig_file.path }}"
+    namespace: default
+    state: present
+    definition: "{{ lookup('template', 'etcd_pvc.yaml.j2') }}"
+
+- name: Delete any old restore jobs
+  k8s:
+    kubeconfig: "{{ kubeconfig_file.path }}"
+    namespace: default
+    name: "{{ etcd_restore_job_name }}"
+    kind: Job
+    api_version: batch/v1
+    state: absent
+    wait: yes
+
+- name: Restore the backups
+  k8s:
+    kubeconfig: "{{ kubeconfig_file.path }}"
+    namespace: default
+    state: present
+    definition: "{{ lookup('template', 'etcd_setup_snapshot.yaml.j2') }}"
+    wait: yes
+    wait_condition:
+      type: Complete
+      status: True

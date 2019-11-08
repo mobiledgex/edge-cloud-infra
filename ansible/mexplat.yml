@@ -160,8 +160,10 @@
         nginx_config_template: "templates/mexplat/console-nginx-config.j2"
         cert_domains: [ "{{ console_vm_hostname }}" ]
       when: skip_console_setup is not defined or not skip_console_setup
+      tags: setup
     - import_role:
         name: docker
+      tags: setup
     - import_role:
         name: console
 

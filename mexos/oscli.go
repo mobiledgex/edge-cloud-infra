@@ -14,9 +14,6 @@ import (
 	"github.com/mobiledgex/edge-cloud/log"
 )
 
-// SecurityGroupIDForProject is the cloudlet level security group ID for our project.  It never changes so this value caches it
-var SecurityGroupIDForProject string = ""
-
 func TimedOpenStackCommand(ctx context.Context, name string, a ...string) ([]byte, error) {
 	parmstr := ""
 	start := time.Now()
@@ -857,38 +854,6 @@ func GetSecurityGroupIDForProject(ctx context.Context, grpname string, projectID
 		}
 	}
 	return "", fmt.Errorf("unable to find security group %s project %s", grpname, projectID)
-}
-
-// GetCloudletSecurityGroupID gets the group ID for the default cloudlet-wide group.  The group
-// There may be more than one group id with the same name of "default"
-// is why this function is needed to reliably create rules against a group
-func GetCloudletSecurityGroupID(ctx context.Context) (string, error) {
-	groupname := "default"
-	log.SpanLog(ctx, log.DebugLevelMexos, "GetCloudletSecurityGroupID", "cloudletGroup", groupname)
-
-	if SecurityGroupIDForProject != "" {
-		//cached
-		log.SpanLog(ctx, log.DebugLevelMexos, "GetCloudletSecurityGroupID using existing value", "SecurityGroupIDForProject", SecurityGroupIDForProject)
-		return SecurityGroupIDForProject, nil
-	}
-	projectName := GetCloudletProjectName()
-	if projectName == "" {
-		return "", fmt.Errorf("No OpenStack project name, cannot get project security group")
-	}
-	projects, err := ListProjects(ctx)
-	if err != nil {
-		return "", err
-	}
-	for _, p := range projects {
-		if p.Name == projectName {
-			SecurityGroupIDForProject, err = GetSecurityGroupIDForProject(ctx, groupname, p.ID)
-			if err != nil {
-				return "", err
-			}
-			return SecurityGroupIDForProject, nil
-		}
-	}
-	return "", fmt.Errorf("Unable to find default security group for project: %s", projectName)
 }
 
 func OSGetConsoleUrl(ctx context.Context, serverName string) (*OSConsoleUrl, error) {

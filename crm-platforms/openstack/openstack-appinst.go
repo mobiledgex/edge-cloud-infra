@@ -173,6 +173,7 @@ func (s *Platform) CreateAppInst(ctx context.Context, clusterInst *edgeproto.Clu
 			app.Command,
 			app.Key.Name+"-sg",
 			nil, // NetSpecInfo
+			nil, // cloudletKey
 		)
 		if err != nil {
 			return fmt.Errorf("unable to get vm params: %v", err)

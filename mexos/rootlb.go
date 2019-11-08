@@ -70,7 +70,7 @@ var rootLBPorts = []int{
 
 //CreateRootLB creates a seed presence node in cloudlet that also becomes first Agent node.
 //  It also sets up first basic network router and subnet, ready for running first MEX agent.
-func CreateRootLB(ctx context.Context, rootLB *MEXRootLB, vmspec *vmspec.VMCreationSpec, updateCallback edgeproto.CacheUpdateCallback) error {
+func CreateRootLB(ctx context.Context, rootLB *MEXRootLB, vmspec *vmspec.VMCreationSpec, cloudletKey *edgeproto.CloudletKey, updateCallback edgeproto.CacheUpdateCallback) error {
 	log.SpanLog(ctx, log.DebugLevelMexos, "enable rootlb", "name", rootLB.Name, "vmspec", vmspec)
 	if rootLB == nil {
 		return fmt.Errorf("cannot enable rootLB, rootLB is null")
@@ -96,7 +96,7 @@ func CreateRootLB(ctx context.Context, rootLB *MEXRootLB, vmspec *vmspec.VMCreat
 	}
 	if found == 0 {
 		log.SpanLog(ctx, log.DebugLevelMexos, "not found existing server", "name", rootLB.Name)
-		err := HeatCreateRootLBVM(ctx, rootLB.Name, rootLB.Name, vmspec, updateCallback)
+		err := HeatCreateRootLBVM(ctx, rootLB.Name, rootLB.Name, vmspec, cloudletKey, updateCallback)
 		if err != nil {
 			log.InfoLog("error while creating RootLB VM", "name", rootLB.Name, "error", err)
 			return err
@@ -112,7 +112,7 @@ func CreateRootLB(ctx context.Context, rootLB *MEXRootLB, vmspec *vmspec.VMCreat
 
 //SetupRootLB prepares the RootLB. It will optionally create the rootlb if the createRootLBFlavor
 // is not blank and no existing server found
-func SetupRootLB(ctx context.Context, rootLBName string, rootLBSpec *vmspec.VMCreationSpec, updateCallback edgeproto.CacheUpdateCallback) error {
+func SetupRootLB(ctx context.Context, rootLBName string, rootLBSpec *vmspec.VMCreationSpec, cloudletKey *edgeproto.CloudletKey, updateCallback edgeproto.CacheUpdateCallback) error {
 	log.SpanLog(ctx, log.DebugLevelMexos, "SetupRootLB", "rootLBSpec", rootLBSpec)
 	//fqdn is that of the machine/kvm-instance running the agent
 	if !valid.IsDNSName(rootLBName) {
@@ -126,14 +126,15 @@ func SetupRootLB(ctx context.Context, rootLBName string, rootLBSpec *vmspec.VMCr
 	if err == nil && sd.Name == rootLBName {
 		log.SpanLog(ctx, log.DebugLevelMexos, "server with same name as rootLB exists", "rootLBName", rootLBName)
 	} else if rootLBSpec != nil {
-		err = CreateRootLB(ctx, rootLB, rootLBSpec, updateCallback)
+		err = CreateRootLB(ctx, rootLB, rootLBSpec, cloudletKey, updateCallback)
 		if err != nil {
 			log.InfoLog("can't create agent", "name", rootLB.Name, "err", err)
 			return fmt.Errorf("Failed to enable root LB %v", err)
 		}
 	}
 
-	// setup SSH access to cloudlet for CRM
+	// setup SSH access to cloudlet for CRM.  Since we are getting the external IP here, this will only work
+	// when CRM accessed via public internet.
 	log.SpanLog(ctx, log.DebugLevelMexos, "setup security group for SSH access")
 	groupName := GetRootLBSecurityGroupName(ctx, rootLBName)
 	my_ip, err := GetExternalPublicAddr(ctx)

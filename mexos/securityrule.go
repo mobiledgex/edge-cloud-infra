@@ -4,7 +4,9 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"os"
 	"strings"
+	"sync"
 
 	"github.com/mobiledgex/edge-cloud/cloud-resource-manager/nginx"
 	"github.com/mobiledgex/edge-cloud/cloud-resource-manager/platform/pc"
@@ -12,6 +14,75 @@ import (
 	"github.com/mobiledgex/edge-cloud/edgeproto"
 	"github.com/mobiledgex/edge-cloud/log"
 )
+
+// CloudletSecurityGroupIDMap is a cache of cloudlet to secuurity group id
+var CloudletSecurityGroupIDMap = make(map[string]string)
+
+var cloudetSecurityGroupIDLock sync.Mutex
+
+// getCloudletSecurityGroupName returns the cloudlet-wide security group name.  This function cannot never be called externally because
+// this group name can be duplicated which can cause errors in some environments.   GetCloudletSecurityGroupID should be used instead.  Note
+// if this is called from the controller the env var is a problem (issue being worked separately)
+func getCloudletSecurityGroupName() string {
+	sg := os.Getenv("MEX_SECURITY_GROUP")
+	if sg == "" {
+		return "default"
+	}
+	return sg
+}
+
+func getCachedCloudsetSecgrpID(ctx context.Context, keyString string) string {
+	cloudetSecurityGroupIDLock.Lock()
+	defer cloudetSecurityGroupIDLock.Unlock()
+	groupID, ok := CloudletSecurityGroupIDMap[keyString]
+	if !ok {
+		return ""
+	}
+	return groupID
+}
+
+func setCachedCloudsetSecgrpID(ctx context.Context, keyString, groupID string) {
+	cloudetSecurityGroupIDLock.Lock()
+	defer cloudetSecurityGroupIDLock.Unlock()
+	CloudletSecurityGroupIDMap[keyString] = groupID
+}
+
+// GetCloudletSecurityGroupID gets the group ID for the default cloudlet-wide group for our project.  It handles
+// duplicate names.  This group should not be used for application traffic, it is for management/OAM/CRM access.
+func GetCloudletSecurityGroupID(ctx context.Context, cloudletKey *edgeproto.CloudletKey) (string, error) {
+	groupName := getCloudletSecurityGroupName()
+	keyString := cloudletKey.GetKeyString()
+
+	log.SpanLog(ctx, log.DebugLevelMexos, "GetCloudletSecurityGroupID", "groupName", groupName, "keyString", keyString)
+
+	groupID := getCachedCloudsetSecgrpID(ctx, keyString)
+	if groupID != "" {
+		//cached
+		log.SpanLog(ctx, log.DebugLevelMexos, "GetCloudletSecurityGroupID using existing value", "groupID", groupID)
+		return groupID, nil
+	}
+
+	projectName := GetCloudletProjectName()
+	if projectName == "" {
+		return "", fmt.Errorf("No OpenStack project name, cannot get project security group")
+	}
+	projects, err := ListProjects(ctx)
+	if err != nil {
+		return "", err
+	}
+	for _, p := range projects {
+		if p.Name == projectName {
+			groupID, err = GetSecurityGroupIDForProject(ctx, groupName, p.ID)
+			if err != nil {
+				return "", err
+			}
+			setCachedCloudsetSecgrpID(ctx, keyString, groupID)
+			log.SpanLog(ctx, log.DebugLevelMexos, "GetCloudletSecurityGroupID using new value", "groupID", groupID)
+			return groupID, nil
+		}
+	}
+	return "", fmt.Errorf("Unable to find cloudlet security group for project: %s", projectName)
+}
 
 func AddSecurityRules(ctx context.Context, groupName string, ports []dme.AppPort, serverName string) error {
 	allowedClientCIDR := GetAllowedClientCIDR()
@@ -44,7 +115,7 @@ func DeleteProxySecurityRules(ctx context.Context, client pc.PlatformClient, ipa
 }
 
 // AddSecurityRuleCIDRWithRetry calls AddSecurityRuleCIDR, and then will retry if that fails because the group does not exist.  This can happen during
-// the transition between cloudlet-wide security groups and the newer per-cluster groups.  Eventually this function can be removed once all LBs have been
+// the transition between cloudlet-wide security groups and the newer per-LB groups.  Eventually this function can be removed once all LBs have been
 // updated with the per-cluster group
 func AddSecurityRuleCIDRWithRetry(ctx context.Context, cidr string, proto string, group string, port string, serverName string) error {
 	err := AddSecurityRuleCIDR(ctx, cidr, proto, group, port)

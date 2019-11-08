@@ -320,7 +320,8 @@ func (s *Platform) CreateCloudlet(ctx context.Context, cloudlet *edgeproto.Cloud
 		"",       // DeploymentManifest,
 		"",       // Command,
 		secGrp,   // Security group
-		nil,      // NetSpecInfo
+		nil,      // NetSpecInfo -- TODO: default value will not work everywehre
+		&cloudlet.Key,
 	)
 	if err != nil {
 		return fmt.Errorf("unable to get vm params: %v", err)

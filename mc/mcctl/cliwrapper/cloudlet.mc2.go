@@ -76,8 +76,8 @@ func (s *Client) AddCloudletResMapping(uri, token string, in *ormapi.RegionCloud
 	return out, st, err
 }
 
-func (s *Client) DeleteCloudletResMapping(uri, token string, in *ormapi.RegionCloudletResMap) (edgeproto.Result, int, error) {
-	args := []string{"region", "DeleteCloudletResMapping"}
+func (s *Client) RemoveCloudletResMapping(uri, token string, in *ormapi.RegionCloudletResMap) (edgeproto.Result, int, error) {
+	args := []string{"region", "RemoveCloudletResMapping"}
 	out := edgeproto.Result{}
 	noconfig := strings.Split("", ",")
 	st, err := s.runObjs(uri, token, args, in, &out, withIgnore(noconfig))

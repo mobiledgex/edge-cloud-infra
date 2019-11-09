@@ -97,8 +97,8 @@ var AddFlavorResCmd = &cli.Command{
 	Run:          runRest("/auth/ctrl/AddFlavorRes"),
 }
 
-var DelFlavorResCmd = &cli.Command{
-	Use:          "DelFlavorRes",
+var RemoveFlavorResCmd = &cli.Command{
+	Use:          "RemoveFlavorRes",
 	RequiredArgs: strings.Join(append([]string{"region"}, FlavorRequiredArgs...), " "),
 	OptionalArgs: strings.Join(FlavorOptionalArgs, " "),
 	AliasArgs:    strings.Join(FlavorAliasArgs, " "),
@@ -106,7 +106,7 @@ var DelFlavorResCmd = &cli.Command{
 	Comments:     addRegionComment(FlavorComments),
 	ReqData:      &ormapi.RegionFlavor{},
 	ReplyData:    &edgeproto.Result{},
-	Run:          runRest("/auth/ctrl/DelFlavorRes"),
+	Run:          runRest("/auth/ctrl/RemoveFlavorRes"),
 }
 
 var FlavorApiCmds = []*cli.Command{
@@ -115,7 +115,7 @@ var FlavorApiCmds = []*cli.Command{
 	UpdateFlavorCmd,
 	ShowFlavorCmd,
 	AddFlavorResCmd,
-	DelFlavorResCmd,
+	RemoveFlavorResCmd,
 }
 
 var FlavorKeyRequiredArgs = []string{}

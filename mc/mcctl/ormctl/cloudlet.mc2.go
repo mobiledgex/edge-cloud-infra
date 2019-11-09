@@ -104,8 +104,8 @@ var AddCloudletResMappingCmd = &cli.Command{
 	Run:          runRest("/auth/ctrl/AddCloudletResMapping"),
 }
 
-var DeleteCloudletResMappingCmd = &cli.Command{
-	Use:          "DeleteCloudletResMapping",
+var RemoveCloudletResMappingCmd = &cli.Command{
+	Use:          "RemoveCloudletResMapping",
 	RequiredArgs: strings.Join(append([]string{"region"}, CloudletResMapRequiredArgs...), " "),
 	OptionalArgs: strings.Join(CloudletResMapOptionalArgs, " "),
 	AliasArgs:    strings.Join(CloudletResMapAliasArgs, " "),
@@ -113,7 +113,7 @@ var DeleteCloudletResMappingCmd = &cli.Command{
 	Comments:     addRegionComment(CloudletResMapComments),
 	ReqData:      &ormapi.RegionCloudletResMap{},
 	ReplyData:    &edgeproto.Result{},
-	Run:          runRest("/auth/ctrl/DeleteCloudletResMapping"),
+	Run:          runRest("/auth/ctrl/RemoveCloudletResMapping"),
 }
 
 var CloudletApiCmds = []*cli.Command{
@@ -122,7 +122,7 @@ var CloudletApiCmds = []*cli.Command{
 	UpdateCloudletCmd,
 	ShowCloudletCmd,
 	AddCloudletResMappingCmd,
-	DeleteCloudletResMappingCmd,
+	RemoveCloudletResMappingCmd,
 }
 
 var ShowCloudletInfoCmd = &cli.Command{

@@ -20,7 +20,7 @@ var CloudletSecurityGroupIDMap = make(map[string]string)
 
 var cloudetSecurityGroupIDLock sync.Mutex
 
-// getCloudletSecurityGroupName returns the cloudlet-wide security group name.  This function cannot never be called externally because
+// getCloudletSecurityGroupName returns the cloudlet-wide security group name.  This function cannot ever be called externally because
 // this group name can be duplicated which can cause errors in some environments.   GetCloudletSecurityGroupID should be used instead.  Note
 // if this is called from the controller the env var is a problem (issue being worked separately)
 func getCloudletSecurityGroupName() string {
@@ -31,7 +31,7 @@ func getCloudletSecurityGroupName() string {
 	return sg
 }
 
-func getCachedCloudsetSecgrpID(ctx context.Context, keyString string) string {
+func getCachedCloudletSecgrpID(ctx context.Context, keyString string) string {
 	cloudetSecurityGroupIDLock.Lock()
 	defer cloudetSecurityGroupIDLock.Unlock()
 	groupID, ok := CloudletSecurityGroupIDMap[keyString]
@@ -41,7 +41,7 @@ func getCachedCloudsetSecgrpID(ctx context.Context, keyString string) string {
 	return groupID
 }
 
-func setCachedCloudsetSecgrpID(ctx context.Context, keyString, groupID string) {
+func setCachedCloudletSecgrpID(ctx context.Context, keyString, groupID string) {
 	cloudetSecurityGroupIDLock.Lock()
 	defer cloudetSecurityGroupIDLock.Unlock()
 	CloudletSecurityGroupIDMap[keyString] = groupID
@@ -55,7 +55,7 @@ func GetCloudletSecurityGroupID(ctx context.Context, cloudletKey *edgeproto.Clou
 
 	log.SpanLog(ctx, log.DebugLevelMexos, "GetCloudletSecurityGroupID", "groupName", groupName, "keyString", keyString)
 
-	groupID := getCachedCloudsetSecgrpID(ctx, keyString)
+	groupID := getCachedCloudletSecgrpID(ctx, keyString)
 	if groupID != "" {
 		//cached
 		log.SpanLog(ctx, log.DebugLevelMexos, "GetCloudletSecurityGroupID using existing value", "groupID", groupID)
@@ -76,7 +76,7 @@ func GetCloudletSecurityGroupID(ctx context.Context, cloudletKey *edgeproto.Clou
 			if err != nil {
 				return "", err
 			}
-			setCachedCloudsetSecgrpID(ctx, keyString, groupID)
+			setCachedCloudletSecgrpID(ctx, keyString, groupID)
 			log.SpanLog(ctx, log.DebugLevelMexos, "GetCloudletSecurityGroupID using new value", "groupID", groupID)
 			return groupID, nil
 		}

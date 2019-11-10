@@ -42,6 +42,8 @@ type VMParams struct {
 	IsInternal               bool
 }
 
+type VMParamsOp func(vmp *VMParams) error
+
 type DeploymentType string
 
 const (
@@ -421,7 +423,40 @@ func waitForStack(ctx context.Context, stackname string, action string, updateCa
 	}
 }
 
-func GetVMParams(ctx context.Context, depType DeploymentType, serverName, flavorName string, externalVolumeSize uint64, imageName, authPublicKey, accessPorts, deploymentManifest, command, secGrp string, ni *NetSpecInfo, cloudletKey *edgeproto.CloudletKey) (*VMParams, error) {
+func WithPublicKey(authPublicKey string) VMParamsOp {
+	return func(vmp *VMParams) error {
+		convKey, err := util.ConvertPEMtoOpenSSH(authPublicKey)
+		if err != nil {
+			return err
+		}
+		vmp.AuthPublicKey = convKey
+		return nil
+	}
+}
+
+func WithAccessPorts(accessPorts string) VMParamsOp {
+	return func(vmp *VMParams) error {
+		var err error
+		vmp.AccessPorts, err = util.ParsePorts(accessPorts)
+		return err
+	}
+}
+
+func WithDeploymentManifest(deploymentManifest string) VMParamsOp {
+	return func(vmp *VMParams) error {
+		vmp.DeploymentManifest = deploymentManifest
+		return nil
+	}
+}
+
+func WithCommand(command string) VMParamsOp {
+	return func(vmp *VMParams) error {
+		vmp.Command = command
+		return nil
+	}
+}
+
+func GetVMParams(ctx context.Context, depType DeploymentType, serverName, flavorName string, externalVolumeSize uint64, imageName, secGrp string, cloudletKey *edgeproto.CloudletKey, opts ...VMParamsOp) (*VMParams, error) {
 	var vmp VMParams
 	var err error
 	vmp.VMName = serverName
@@ -429,6 +464,15 @@ func GetVMParams(ctx context.Context, depType DeploymentType, serverName, flavor
 	vmp.ExternalVolumeSize = externalVolumeSize
 	vmp.ImageName = imageName
 	vmp.ApplicationSecurityGroup = secGrp
+	for _, op := range opts {
+		if err := op(&vmp); err != nil {
+			return nil, err
+		}
+	}
+	ni, err := ParseNetSpec(ctx, GetCloudletNetworkScheme())
+	if err != nil {
+		return nil, err
+	}
 	if depType != UserVMDeployment {
 		vmp.IsInternal = true
 	}
@@ -452,27 +496,7 @@ func GetVMParams(ctx context.Context, depType DeploymentType, serverName, flavor
 		vmp.CloudletSecurityGroup = cloudletGrp
 
 	}
-	if authPublicKey != "" {
-		convKey, err := util.ConvertPEMtoOpenSSH(authPublicKey)
-		if err != nil {
-			return nil, err
-		}
-		vmp.AuthPublicKey = convKey
-	}
-	if accessPorts != "" {
-		vmp.AccessPorts, err = util.ParsePorts(accessPorts)
-		if err != nil {
-			return nil, err
-		}
-	}
-	if deploymentManifest != "" {
-		vmp.DeploymentManifest = deploymentManifest
-	}
-	if command != "" {
-		vmp.Command = command
-	}
-	if ni != nil && ni.FloatingIPNet != "" {
-
+	if ni.FloatingIPNet != "" {
 		fips, err := ListFloatingIPs(ctx)
 		for _, f := range fips {
 			if f.Port == "" && f.FloatingIPAddress != "" {
@@ -604,12 +628,7 @@ func getClusterParams(ctx context.Context, clusterInst *edgeproto.ClusterInst, r
 			clusterInst.NodeFlavor,
 			clusterInst.ExternalVolumeSize,
 			GetCloudletOSImage(),
-			"", // AuthPublicKey
-			"", // AccessPorts
-			"", // DeploymentManifest
-			"", // Command
 			GetRootLBSecurityGroupName(ctx, rootLBName),
-			ni,
 			&clusterInst.Key.CloudletKey,
 		)
 		if err != nil {
@@ -725,12 +744,7 @@ func HeatCreateRootLBVM(ctx context.Context, serverName string, stackName string
 		vmspec.FlavorName,
 		vmspec.ExternalVolumeSize,
 		GetCloudletOSImage(),
-		"", // AuthPublicKey
-		"", // AccessPorts
-		"", // DeploymentManifest
-		"", // Command
 		GetRootLBSecurityGroupName(ctx, serverName),
-		ni,
 		cloudletKey,
 	)
 	if err != nil {

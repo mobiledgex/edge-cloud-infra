@@ -167,14 +167,14 @@ func (s *Platform) CreateAppInst(ctx context.Context, clusterInst *edgeproto.Clu
 			vmspec.FlavorName,
 			vmspec.ExternalVolumeSize,
 			imageName,
-			app.AuthPublicKey,
-			app.AccessPorts,
-			app.DeploymentManifest,
-			app.Command,
 			app.Key.Name+"-sg",
-			nil, // NetSpecInfo
-			nil, // cloudletKey
+			&clusterInst.Key.CloudletKey,
+			mexos.WithPublicKey(app.AuthPublicKey),
+			mexos.WithAccessPorts(app.AccessPorts),
+			mexos.WithDeploymentManifest(app.DeploymentManifest),
+			mexos.WithCommand(app.Command),
 		)
+
 		if err != nil {
 			return fmt.Errorf("unable to get vm params: %v", err)
 		}

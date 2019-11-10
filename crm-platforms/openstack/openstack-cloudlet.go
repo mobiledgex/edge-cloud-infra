@@ -315,13 +315,9 @@ func (s *Platform) CreateCloudlet(ctx context.Context, cloudlet *edgeproto.Cloud
 		vmspec.FlavorName,
 		vmspec.ExternalVolumeSize,
 		pfImageName,
-		"",       // AuthPublicKey
-		"tcp:22", // AccessPorts
-		"",       // DeploymentManifest,
-		"",       // Command,
-		secGrp,   // Security group
-		nil,      // NetSpecInfo -- TODO: default value will not work everywehre
+		secGrp,
 		&cloudlet.Key,
+		mexos.WithAccessPorts("tcp:22"),
 	)
 	if err != nil {
 		return fmt.Errorf("unable to get vm params: %v", err)

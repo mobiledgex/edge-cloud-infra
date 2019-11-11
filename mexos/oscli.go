@@ -68,7 +68,6 @@ func ListPorts(ctx context.Context) ([]OSPort, error) {
 //ListPortsServerNetwork returns ports for a particular server on a given network
 func ListPortsServerNetwork(ctx context.Context, server, network string) ([]OSPort, error) {
 	out, err := TimedOpenStackCommand(ctx, "openstack", "port", "list", "--server", server, "--network", network, "-f", "json")
-
 	if err != nil {
 		err = fmt.Errorf("cannot get port list, %v", err)
 		return nil, err
@@ -79,6 +78,7 @@ func ListPortsServerNetwork(ctx context.Context, server, network string) ([]OSPo
 		err = fmt.Errorf("cannot unmarshal, %v", err)
 		return nil, err
 	}
+	log.SpanLog(ctx, log.DebugLevelMexos, "list ports", "server", server, "network", network, "ports", ports)
 	return ports, nil
 }
 
@@ -514,7 +514,7 @@ func ListProjects(ctx context.Context) ([]OSProject, error) {
 	return projects, nil
 }
 
-//ListProjects returns a list of security groups
+//ListSecurityGroups returns a list of security groups
 func ListSecurityGroups(ctx context.Context) ([]OSSecurityGroup, error) {
 	out, err := TimedOpenStackCommand(ctx, "openstack", "security", "group", "list", "-f", "json")
 	if err != nil {

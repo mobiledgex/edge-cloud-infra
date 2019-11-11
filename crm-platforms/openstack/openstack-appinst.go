@@ -167,7 +167,7 @@ func (s *Platform) CreateAppInst(ctx context.Context, clusterInst *edgeproto.Clu
 			vmspec.FlavorName,
 			vmspec.ExternalVolumeSize,
 			imageName,
-			app.Key.Name+"-sg",
+			mexos.GetSecurityGroupName(ctx, objName),
 			&clusterInst.Key.CloudletKey,
 			mexos.WithPublicKey(app.AuthPublicKey),
 			mexos.WithAccessPorts(app.AccessPorts),
@@ -280,7 +280,7 @@ func (s *Platform) DeleteAppInst(ctx context.Context, clusterInst *edgeproto.Clu
 			}
 			return err
 		} // Clean up security rules and nginx proxy if app is external
-		secGrp := mexos.GetRootLBSecurityGroupName(ctx, rootLBName)
+		secGrp := mexos.GetSecurityGroupName(ctx, rootLBName)
 		if !app.InternalPorts {
 			if err := mexos.DeleteProxySecurityRules(ctx, client, masterIP, names.AppName, secGrp); err != nil {
 				log.SpanLog(ctx, log.DebugLevelMexos, "cannot clean up security rules", "name", names.AppName, "rootlb", rootLBName, "error", err)

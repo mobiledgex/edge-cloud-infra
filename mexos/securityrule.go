@@ -20,6 +20,11 @@ var CloudletSecurityGroupIDMap = make(map[string]string)
 
 var cloudetSecurityGroupIDLock sync.Mutex
 
+// GetSecurityGroupName gets the secgrp name based on the server name
+func GetSecurityGroupName(ctx context.Context, serverName string) string {
+	return serverName + "-sg"
+}
+
 // getCloudletSecurityGroupName returns the cloudlet-wide security group name.  This function cannot ever be called externally because
 // this group name can be duplicated which can cause errors in some environments.   GetCloudletSecurityGroupID should be used instead.  Note
 // if this is called from the controller the env var is a problem (issue being worked separately)

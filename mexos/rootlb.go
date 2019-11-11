@@ -27,11 +27,6 @@ var rootLBLock sync.Mutex
 
 var MEXRootLBMap = make(map[string]*MEXRootLB)
 
-// GetRootLBSecurityGroupName gets the secgrp name based on the rootLB
-func GetRootLBSecurityGroupName(ctx context.Context, rootLBName string) string {
-	return rootLBName + "-sg"
-}
-
 //NewRootLB gets a new rootLB instance
 func NewRootLB(ctx context.Context, rootLBName string) (*MEXRootLB, error) {
 	rootLBLock.Lock()
@@ -136,7 +131,7 @@ func SetupRootLB(ctx context.Context, rootLBName string, rootLBSpec *vmspec.VMCr
 	// setup SSH access to cloudlet for CRM.  Since we are getting the external IP here, this will only work
 	// when CRM accessed via public internet.
 	log.SpanLog(ctx, log.DebugLevelMexos, "setup security group for SSH access")
-	groupName := GetRootLBSecurityGroupName(ctx, rootLBName)
+	groupName := GetSecurityGroupName(ctx, rootLBName)
 	my_ip, err := GetExternalPublicAddr(ctx)
 	if err != nil {
 		// this is not necessarily fatal

@@ -628,7 +628,7 @@ func getClusterParams(ctx context.Context, clusterInst *edgeproto.ClusterInst, r
 			clusterInst.NodeFlavor,
 			clusterInst.ExternalVolumeSize,
 			GetCloudletOSImage(),
-			GetRootLBSecurityGroupName(ctx, rootLBName),
+			GetSecurityGroupName(ctx, rootLBName),
 			&clusterInst.Key.CloudletKey,
 		)
 		if err != nil {
@@ -659,7 +659,7 @@ func getClusterParams(ctx context.Context, clusterInst *edgeproto.ClusterInst, r
 	}
 	cp.MEXNetworkName = GetCloudletMexNetwork()
 	cp.ImageName = GetCloudletOSImage()
-	cp.ApplicationSecurityGroup = GetRootLBSecurityGroupName(ctx, rootLBName)
+	cp.ApplicationSecurityGroup = GetSecurityGroupName(ctx, rootLBName)
 	usedCidrs := make(map[string]string)
 
 	currentSubnetName := ""
@@ -744,7 +744,7 @@ func HeatCreateRootLBVM(ctx context.Context, serverName string, stackName string
 		vmspec.FlavorName,
 		vmspec.ExternalVolumeSize,
 		GetCloudletOSImage(),
-		GetRootLBSecurityGroupName(ctx, serverName),
+		GetSecurityGroupName(ctx, serverName),
 		cloudletKey,
 	)
 	if err != nil {

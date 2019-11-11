@@ -92,7 +92,7 @@ func LBAddRouteAndSecRules(ctx context.Context, client pc.PlatformClient, rootLB
 	}
 
 	// open the firewall for internal traffic
-	groupName := GetRootLBSecurityGroupName(ctx, rootLBName)
+	groupName := GetSecurityGroupName(ctx, rootLBName)
 
 	allowedClientCIDR := GetAllowedClientCIDR()
 	for _, p := range rootLBPorts {

@@ -307,7 +307,7 @@ func (s *Platform) CreateCloudlet(ctx context.Context, cloudlet *edgeproto.Cloud
 
 	// Form platform VM name based on cloudletKey
 	platform_vm_name := getPlatformVMName(cloudlet)
-	secGrp := platform_vm_name + "-sg"
+	secGrp := mexos.GetSecurityGroupName(ctx, platform_vm_name)
 
 	vmp, err := mexos.GetVMParams(ctx,
 		mexos.PlatformVMDeployment,

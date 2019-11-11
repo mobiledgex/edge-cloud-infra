@@ -11,6 +11,7 @@ import (
 	dme "github.com/mobiledgex/edge-cloud/d-match-engine/dme-proto"
 	"github.com/mobiledgex/edge-cloud/log"
 	edgetls "github.com/mobiledgex/edge-cloud/tls"
+	"github.com/mobiledgex/edge-cloud/vault"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/credentials"
@@ -22,16 +23,16 @@ var serverCert = "qosserver.crt"
 
 var nextRequestId int64 = 1
 
-func GetQosCertsFromVault(vaultAddr string) error {
-	log.DebugLog(log.DebugLevelDmereq, "GetQosCertsFromVault", "vaultAddr", vaultAddr)
+func GetQosCertsFromVault(vaultConfig *vault.Config) error {
+	log.DebugLog(log.DebugLevelDmereq, "GetQosCertsFromVault", "vaultAddr", vaultConfig.Addr)
 
 	certs := []string{clientCert, clientKey, serverCert}
 	for _, cert := range certs {
 
-		certURL := fmt.Sprintf("%s/v1/secret/data/accounts/tdg/qosapi/%s", vaultAddr, cert)
-		log.DebugLog(log.DebugLevelDmereq, "Fetching Cert", "certURL", certURL)
+		certPath := fmt.Sprintf("/secret/data/accounts/tdg/qosapi/%s", cert)
+		log.DebugLog(log.DebugLevelDmereq, "Fetching Cert", "certPath", certPath)
 		fileName := "/tmp/" + cert
-		err := mexos.GetVaultDataToFile(certURL, fileName)
+		err := mexos.GetVaultDataToFile(vaultConfig, certPath, fileName)
 		if err != nil {
 			return grpc.Errorf(codes.Internal, "Unable to get cert from file: %s, %v", cert, err)
 		}

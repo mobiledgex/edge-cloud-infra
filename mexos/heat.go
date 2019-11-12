@@ -472,8 +472,8 @@ func GetVMParams(ctx context.Context, depType DeploymentType, serverName, flavor
 	ni, err := ParseNetSpec(ctx, GetCloudletNetworkScheme())
 	if err != nil {
 		// The netspec should always be present but is not set when running OpenStack from the controller.
-		// for now, tolerate this as it will work with default settings but not anywhere that requires a non-default
-		// netspec.  TODO This meeds a general fix
+		// For now, tolerate this as it will work with default settings but not anywhere that requires a non-default
+		// netspec.  TODO This meeds a general fix to allow CreateCloudlet to work with floating IPs.
 		log.SpanLog(ctx, log.DebugLevelMexos, "WARNING, empty netspec")
 	}
 	if depType != UserVMDeployment {

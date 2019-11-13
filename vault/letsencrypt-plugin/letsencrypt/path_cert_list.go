@@ -8,7 +8,7 @@ import (
 	"github.com/go-resty/resty/v2"
 )
 
-func (b *backend) pathCerts(_ context.Context, req *logical.Request, d *framework.FieldData) (*logical.Response, error) {
+func (b *backend) pathCertList(_ context.Context, req *logical.Request, d *framework.FieldData) (*logical.Response, error) {
 	var t certlist
 
 	client := resty.New()

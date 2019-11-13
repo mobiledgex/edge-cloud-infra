@@ -85,7 +85,7 @@ Return the letsencrypt cert for the given domain(s), generating it if it is not 
 			},
 
 			&framework.Path{
-				Pattern:      "certs",
+				Pattern:      "list",
 				HelpSynopsis: "List all managed certs",
 				HelpDescription: `
 
@@ -93,7 +93,7 @@ Return a list of all known certs.
 
 `,
 				Callbacks: map[logical.Operation]framework.OperationFunc{
-					logical.ReadOperation: b.pathCerts,
+					logical.ReadOperation: b.pathCertList,
 				},
 			},
 		},

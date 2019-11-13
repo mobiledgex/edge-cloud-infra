@@ -52,5 +52,5 @@ vault secrets enable -path=certs -plugin-name=letsencrypt-certs plugin
 
 ```
 export VAULT_ADDR='http://127.0.0.1:8200'
-vault read certs/cert/foo-$(date +%Y-%m-%d).mobiledgex.net
+vault read certs/cert/foo.mobiledgex.net
 ```

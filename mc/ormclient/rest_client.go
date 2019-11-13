@@ -79,6 +79,10 @@ func (s *Client) DeleteOrg(uri, token string, org *ormapi.Organization) (int, er
 	return s.PostJson(uri+"/auth/org/delete", token, org, nil)
 }
 
+func (s *Client) UpdateOrg(uri, token string, jsonData string) (int, error) {
+	return s.PostJson(uri+"/auth/org/update", token, jsonData, nil)
+}
+
 func (s *Client) ShowOrg(uri, token string) ([]ormapi.Organization, int, error) {
 	orgs := []ormapi.Organization{}
 	status, err := s.PostJson(uri+"/auth/org/show", token, nil, &orgs)
@@ -191,17 +195,41 @@ func (s *Client) ShowAuditOrg(uri, token string, query *ormapi.AuditQuery) ([]or
 	return resp, status, err
 }
 
+func (s *Client) ShowAppMetrics(uri, token string, query *ormapi.RegionAppInstMetrics) (*ormapi.AllMetrics, int, error) {
+	metrics := ormapi.AllMetrics{}
+	status, err := s.PostJson(uri+"/auth/metrics/app", token, query, &metrics)
+	return &metrics, status, err
+}
+
+func (s *Client) ShowClusterMetrics(uri, token string, query *ormapi.RegionClusterInstMetrics) (*ormapi.AllMetrics, int, error) {
+	metrics := ormapi.AllMetrics{}
+	status, err := s.PostJson(uri+"/auth/metrics/cluster", token, query, &metrics)
+	return &metrics, status, err
+}
+
+func (s *Client) ShowCloudletMetrics(uri, token string, query *ormapi.RegionCloudletMetrics) (*ormapi.AllMetrics, int, error) {
+	metrics := ormapi.AllMetrics{}
+	status, err := s.PostJson(uri+"/auth/metrics/cloutlet", token, query, &metrics)
+	return &metrics, status, err
+}
+
 func (s *Client) PostJsonSend(uri, token string, reqData interface{}) (*http.Response, error) {
 	var body io.Reader
 	if reqData != nil {
-		out, err := json.Marshal(reqData)
-		if err != nil {
-			return nil, fmt.Errorf("post %s marshal req failed, %s", uri, err.Error())
+		str, ok := reqData.(string)
+		if ok {
+			// assume string is json data
+			body = bytes.NewBuffer([]byte(str))
+		} else {
+			out, err := json.Marshal(reqData)
+			if err != nil {
+				return nil, fmt.Errorf("post %s marshal req failed, %s", uri, err.Error())
+			}
+			if s.Debug {
+				fmt.Printf("posting %s\n", string(out))
+			}
+			body = bytes.NewBuffer(out)
 		}
-		if s.Debug {
-			fmt.Printf("posting %s\n", string(out))
-		}
-		body = bytes.NewBuffer(out)
 	} else {
 		body = nil
 	}

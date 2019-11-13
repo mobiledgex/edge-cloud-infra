@@ -30,6 +30,9 @@ func TestController(t *testing.T) {
 	addr := "127.0.0.1:9999"
 	uri := "http://" + addr + "/api/v1"
 
+	vaultServer, vaultConfig := vault.DummyServer()
+	defer vaultServer.Close()
+
 	config := ServerConfig{
 		ServAddr:        addr,
 		SqlAddr:         "127.0.0.1:5445",
@@ -37,13 +40,14 @@ func TestController(t *testing.T) {
 		InitLocal:       true,
 		IgnoreEnv:       true,
 		SkipVerifyEmail: true,
+		vaultConfig:     vaultConfig,
 	}
 	server, err := RunServer(&config)
 	require.Nil(t, err, "run server")
 	defer server.Stop()
 	enforcer.LogEnforce(true)
 
-	Jwks.Init("addr", "region", "mcorm", "roleID", "secretID")
+	Jwks.Init(vaultConfig, "region", "mcorm")
 	Jwks.Meta.CurrentVersion = 1
 	Jwks.Keys[1] = &vault.JWK{
 		Secret:  "12345",
@@ -304,7 +308,7 @@ func TestController(t *testing.T) {
 	goodPermTestApp(t, mcClient, uri, tokenDev3, ctrl.Region, org1, dcnt)
 	goodPermTestAppInst(t, mcClient, uri, tokenDev3, ctrl.Region, org1, tc3, dcnt)
 	goodPermTestClusterInst(t, mcClient, uri, tokenDev3, ctrl.Region, org1, tc3, dcnt)
-	goodPermTestMetrics(t, mcClient, uri, tokenDev3, ctrl.Region, org1)
+	goodPermTestMetrics(t, mcClient, uri, tokenDev3, tokenOper3, ctrl.Region, org1, org3)
 
 	// test users with different roles
 	goodPermTestCloudlet(t, mcClient, uri, tokenOper3, ctrl.Region, org3, ccount)
@@ -512,6 +516,76 @@ func testCreateOrg(t *testing.T, mcClient *ormclient.Client, uri, token, orgType
 	require.Nil(t, err, "create org ", orgName)
 	require.Equal(t, http.StatusOK, status)
 	return &org
+}
+
+var updateOrgData = `{"Name":"%s","PublicImages":%t}`
+var updateOrgType = `{"Name":"%s","Type":"%s"}`
+
+func testUpdateOrg(t *testing.T, mcClient *ormclient.Client, uri, token, orgName string) {
+	org := getOrg(t, mcClient, uri, token, orgName)
+	update := *org
+	update.PublicImages = !org.PublicImages
+
+	// For updates, must specify json directly so we can
+	// specify empty strings and false values. Otherwise json.Marshal()
+	// will just ignore them.
+	dat := fmt.Sprintf(updateOrgData, update.Name, update.PublicImages)
+
+	status, err := mcClient.UpdateOrg(uri, token, dat)
+	require.Nil(t, err, "update org ", org.Name)
+	require.Equal(t, http.StatusOK, status)
+
+	check := getOrg(t, mcClient, uri, token, org.Name)
+	// ignore updated timestamps
+	check.UpdatedAt = update.UpdatedAt
+	require.Equal(t, update, *check, "updated org should be as expected")
+
+	// change back
+	dat = fmt.Sprintf(updateOrgData, org.Name, org.PublicImages)
+	status, err = mcClient.UpdateOrg(uri, token, dat)
+	require.Nil(t, err, "update org ", org.Name)
+	require.Equal(t, http.StatusOK, status)
+
+	check = getOrg(t, mcClient, uri, token, org.Name)
+	// ignore updated timestamps
+	check.UpdatedAt = org.UpdatedAt
+	require.Equal(t, org, check, "updated org should be as expected")
+
+	// changing type should fail
+	typ := OrgTypeDeveloper
+	if org.Type == OrgTypeDeveloper {
+		typ = OrgTypeOperator
+	}
+	dat = fmt.Sprintf(updateOrgType, org.Name, typ)
+	status, err = mcClient.UpdateOrg(uri, token, dat)
+	require.NotNil(t, err, "update org type")
+	require.Equal(t, http.StatusBadRequest, status)
+	require.Contains(t, err.Error(), "Cannot change Organization type")
+	dat = fmt.Sprintf(updateOrgType, org.Name, OrgTypeAdmin)
+	status, err = mcClient.UpdateOrg(uri, token, dat)
+	require.NotNil(t, err, "update org type")
+	require.Equal(t, http.StatusBadRequest, status)
+	require.Contains(t, err.Error(), "Cannot change Organization type")
+}
+
+func testUpdateOrgFail(t *testing.T, mcClient *ormclient.Client, uri, token, orgName string) {
+	dat := fmt.Sprintf(updateOrgData, orgName, false)
+	status, err := mcClient.UpdateOrg(uri, token, dat)
+	require.NotNil(t, err)
+	require.Equal(t, http.StatusForbidden, status)
+}
+
+func getOrg(t *testing.T, mcClient *ormclient.Client, uri, token, name string) *ormapi.Organization {
+	orgs, status, err := mcClient.ShowOrg(uri, token)
+	require.Nil(t, err)
+	require.Equal(t, http.StatusOK, status)
+	for _, org := range orgs {
+		if org.Name == name {
+			return &org
+		}
+	}
+	require.True(t, false, fmt.Errorf("org %s not found", name))
+	return nil
 }
 
 func testCreateUserOrg(t *testing.T, mcClient *ormclient.Client, uri, name, orgType, orgName string) (*ormapi.User, *ormapi.Organization, string) {

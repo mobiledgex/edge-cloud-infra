@@ -21,6 +21,9 @@ func TestServer(t *testing.T) {
 	uri := "http://" + addr + "/api/v1"
 	ctx := log.StartTestSpan(context.Background())
 
+	vaultServer, vaultConfig := vault.DummyServer()
+	defer vaultServer.Close()
+
 	config := ServerConfig{
 		ServAddr:        addr,
 		SqlAddr:         "127.0.0.1:5445",
@@ -28,12 +31,13 @@ func TestServer(t *testing.T) {
 		InitLocal:       true,
 		IgnoreEnv:       true,
 		SkipVerifyEmail: true,
+		vaultConfig:     vaultConfig,
 	}
 	server, err := RunServer(&config)
 	require.Nil(t, err, "run server")
 	defer server.Stop()
 
-	Jwks.Init("addr", "region", "mcorm", "roleID", "secretID")
+	Jwks.Init(vaultConfig, "region", "mcorm")
 	Jwks.Meta.CurrentVersion = 1
 	Jwks.Keys[1] = &vault.JWK{
 		Secret:  "12345",
@@ -214,6 +218,14 @@ func TestServer(t *testing.T) {
 	require.Nil(t, err)
 	require.Equal(t, http.StatusOK, status)
 	require.Equal(t, 2, len(orgs))
+
+	// users should be able to update their own orgs
+	testUpdateOrg(t, mcClient, uri, tokenMisterX, org1.Name)
+	testUpdateOrg(t, mcClient, uri, tokenMisterY, org2.Name)
+	testUpdateOrg(t, mcClient, uri, tokenAdmin, org1.Name)
+	// users should not be able to update other's org
+	testUpdateOrgFail(t, mcClient, uri, tokenMisterX, org2.Name)
+	testUpdateOrgFail(t, mcClient, uri, tokenMisterY, org1.Name)
 
 	// check role assignments as mister x
 	roleAssignments, status, err = mcClient.ShowRoleAssignment(uri, tokenMisterX)

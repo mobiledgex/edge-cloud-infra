@@ -13,6 +13,7 @@ import (
 	"github.com/mobiledgex/edge-cloud/cloudcommon"
 	"github.com/mobiledgex/edge-cloud/edgeproto"
 	"github.com/mobiledgex/edge-cloud/log"
+	"github.com/mobiledgex/edge-cloud/vault"
 )
 
 // Default Ceilometer granularity is 300 secs(5 mins)
@@ -23,6 +24,7 @@ type Platform struct {
 	SharedClient    pc.PlatformClient
 	pf              openstack.Platform
 	collectInterval time.Duration
+	vaultConfig     *vault.Config
 }
 
 func (s *Platform) GetType() string {
@@ -30,9 +32,14 @@ func (s *Platform) GetType() string {
 }
 
 func (s *Platform) Init(ctx context.Context, key *edgeproto.CloudletKey, physicalName, vaultAddr string) error {
+	vaultConfig, err := vault.BestConfig(vaultAddr)
+	if err != nil {
+		return err
+	}
+	s.vaultConfig = vaultConfig
+
 	//get the platform client so we can ssh in to make curl commands to the prometheus apps
-	var err error
-	if err = mexos.InitOpenstackProps(ctx, key.OperatorKey.Name, physicalName, vaultAddr); err != nil {
+	if err = mexos.InitOpenstackProps(ctx, key.OperatorKey.Name, physicalName, vaultConfig); err != nil {
 		return err
 	}
 	//need to have a separate one for dedicated rootlbs, see openstack.go line 111,
@@ -107,8 +114,10 @@ func (s *Platform) goGetMetricforId(ctx context.Context, id string, measurement 
 		if err == nil && len(metrics) > 0 {
 			*osMetric = metrics[len(metrics)-1]
 			waitChan <- ""
+		} else if len(metrics) == 0 {
+			waitChan <- "no metric"
 		} else {
-			log.SpanLog(ctx, log.DebugLevelMexos, "Error getting metric", "id", id,
+			log.SpanLog(ctx, log.DebugLevelMetrics, "Error getting metric", "id", id,
 				"measurement", measurement, "error", err)
 			waitChan <- err.Error()
 		}
@@ -126,7 +135,7 @@ func (s *Platform) GetVmStats(ctx context.Context, key *edgeproto.AppInstKey) (s
 		return appMetrics, fmt.Errorf("Nil App passed")
 	}
 
-	server, err := mexos.GetServerDetails(ctx, key.AppKey.Name)
+	server, err := mexos.GetServerDetails(ctx, cloudcommon.GetAppFQN(&key.AppKey))
 	if err != nil {
 		return appMetrics, err
 	}
@@ -142,8 +151,10 @@ func (s *Platform) GetVmStats(ctx context.Context, key *edgeproto.AppInstKey) (s
 		netSentChan = s.goGetMetricforId(ctx, netIf.Id, "network.outgoing.bytes.rate", &NetSent)
 		netRecvChan = s.goGetMetricforId(ctx, netIf.Id, "network.incoming.bytes.rate", &NetRecv)
 	} else {
-		netRecvChan <- "Unavailable"
-		netSentChan <- "Unavailable"
+		go func() {
+			netRecvChan <- "Unavailable"
+			netSentChan <- "Unavailable"
+		}()
 	}
 	cpuErr := <-cpuChan
 	memErr := <-memChan

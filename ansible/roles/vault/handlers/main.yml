@@ -4,12 +4,12 @@
     path: "{{ key_tempfile.path }}"
     state: absent
 
-- name: Restart vault
+- name: Reload vault
   systemd:
     name: vault
     daemon_reload: yes
     enabled: yes
-    state: restarted
+    state: reloaded
   become: yes
 
 - name: Vault initialization prompt

@@ -1,0 +1,63 @@
+---
+- debug:
+    msg: |
+      Restore etcd from backup in cluster '{{ k8s_cluster_name }}' (region: '{{ region }}')
+      Backup old database: {{ backup_old_db | bool }}
+
+- pause:
+
+- name: Retrieve kube config
+  azure_rm_aks_facts:
+    name: "{{ k8s_cluster_name }}"
+    resource_group: "{{ resource_group }}"
+    show_kubeconfig: admin
+  register: aks_facts
+  check_mode: no
+
+- name: Create temporary kubeconfig file
+  tempfile:
+    state: file
+    suffix: .kubeconfig
+  register: kubeconfig_file
+  changed_when: false
+  check_mode: no
+
+- name: Store kubeconfig data in file
+  copy:
+    content: "{{ aks_facts.aks[0].kube_config }}"
+    dest: "{{ kubeconfig_file.path }}"
+  changed_when: false
+  check_mode: no
+
+- name: Bring down the etcd cluster
+  k8s:
+    kubeconfig: "{{ kubeconfig_file.path }}"
+    namespace: default
+    name: "{{ etcd_cluster_name }}"
+    kind: StatefulSet
+    api_version: apps/v1
+    state: absent
+
+- name: Wait for etcd cluster to come down
+  k8s_facts:
+    kubeconfig: "{{ kubeconfig_file.path }}"
+    namespace: default
+    kind: StatefulSet
+    name: "{{ etcd_cluster_name }}"
+    api_version: apps/v1
+  register: etcd_sts_facts
+  until: etcd_sts_facts.resources|length == 0
+  retries: 30
+  delay: 10
+
+- include_role:
+    name: etcd
+    tasks_from: restore_etcd_instance
+  loop: "{{ range(3) | list }}"
+  loop_control:
+    index_var: etcd_index
+
+- debug:
+    msg: |
+      Should be all set now.
+      Run the standard platform deployment playbook to bring up etcd.

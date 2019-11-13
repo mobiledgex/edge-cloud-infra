@@ -2,10 +2,6 @@ controllers:
 - region: local
   address: 127.0.0.1:55001
   influxdb: http://127.0.0.1:8086
-- region: usa
-  address: usa.mc.mobiledgex.com:55001
-- region: germany
-  address: germany.mc.mobiledgex.com:55001
 orgs:
 - name: AcmeAppCo
   type: developer
@@ -45,6 +41,7 @@ regiondata:
         updateappinsttimeout: 2000000000
         deleteappinsttimeout: 2000000000
       state: Ready
+      platformtype: PlatformTypeFakeinfra
       deploymentlocal: false
       notifysrvaddr: 127.0.0.1:51001
       flavor:

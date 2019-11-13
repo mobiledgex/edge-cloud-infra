@@ -15,6 +15,7 @@ import (
 	"github.com/mobiledgex/edge-cloud/cloudcommon"
 	"github.com/mobiledgex/edge-cloud/edgeproto"
 	"github.com/mobiledgex/edge-cloud/log"
+	"github.com/mobiledgex/edge-cloud/vault"
 	"github.com/mobiledgex/edge-cloud/vmspec"
 	ssh "github.com/mobiledgex/golang-ssh"
 )
@@ -125,10 +126,10 @@ func startPlatformService(cloudlet *edgeproto.Cloudlet, pfConfig *edgeproto.Plat
 	return
 }
 
-func setupPlatformService(ctx context.Context, cloudlet *edgeproto.Cloudlet, pfConfig *edgeproto.PlatformConfig, client ssh.Client, updateCallback edgeproto.CacheUpdateCallback) error {
+func setupPlatformService(ctx context.Context, cloudlet *edgeproto.Cloudlet, pfConfig *edgeproto.PlatformConfig, vaultConfig *vault.Config, client ssh.Client, updateCallback edgeproto.CacheUpdateCallback) error {
 	// Gather registry credentails from Vault
 	updateCallback(edgeproto.UpdateTask, "Fetching registry auth credentials")
-	regAuth, err := cloudcommon.GetRegistryAuth(ctx, pfConfig.RegistryPath, pfConfig.VaultAddr)
+	regAuth, err := cloudcommon.GetRegistryAuth(ctx, pfConfig.RegistryPath, vaultConfig)
 	if err != nil {
 		return fmt.Errorf("unable to fetch registry auth credentials")
 	}
@@ -254,11 +255,24 @@ func (s *Platform) CreateCloudlet(ctx context.Context, cloudlet *edgeproto.Cloud
 
 	log.SpanLog(ctx, log.DebugLevelMexos, "Creating cloudlet", "cloudletName", cloudlet.Key.Name)
 
+	vaultAuth := vault.NewAppRoleAuth(pfConfig.CrmRoleId, pfConfig.CrmSecretId)
+	vaultConfig := vault.NewConfig(pfConfig.VaultAddr, vaultAuth)
 	// Source OpenRC file to access openstack API endpoint
 	updateCallback(edgeproto.UpdateTask, fmt.Sprintf("Sourcing platform variables for %s cloudlet", cloudlet.PhysicalName))
-	err = mexos.InitOpenstackProps(ctx, cloudlet.Key.OperatorKey.Name, cloudlet.PhysicalName, pfConfig.VaultAddr)
+	err = mexos.InitOpenstackProps(ctx, cloudlet.Key.OperatorKey.Name, cloudlet.PhysicalName, vaultConfig)
 	if err != nil {
 		return err
+	}
+
+	// For real setups, ansible will always specify the correct
+	// cloudlet container and vm image paths to the controller.
+	// But for local testing convenience, we default to the hard-coded
+	// ones if not specified.
+	if pfConfig.RegistryPath == "" {
+		pfConfig.RegistryPath = mexos.DefaultCloudletRegistryPath
+	}
+	if pfConfig.ImagePath == "" {
+		pfConfig.ImagePath = mexos.DefaultCloudletVMImagePath
 	}
 
 	// Get Closest Platform Flavor
@@ -296,6 +310,7 @@ func (s *Platform) CreateCloudlet(ctx context.Context, cloudlet *edgeproto.Cloud
 
 	// Form platform VM name based on cloudletKey
 	platform_vm_name := getPlatformVMName(cloudlet)
+	secGrp := mexos.GetSecurityGroupName(ctx, platform_vm_name)
 
 	vmp, err := mexos.GetVMParams(ctx,
 		mexos.PlatformVMDeployment,
@@ -303,11 +318,9 @@ func (s *Platform) CreateCloudlet(ctx context.Context, cloudlet *edgeproto.Cloud
 		vmspec.FlavorName,
 		vmspec.ExternalVolumeSize,
 		pfImageName,
-		"",       // AuthPublicKey
-		"tcp:22", // AccessPorts
-		"",       // DeploymentManifest,
-		"",       // Command,
-		nil,      // NetSpecInfo
+		secGrp,
+		&cloudlet.Key,
+		mexos.WithAccessPorts("tcp:22"),
 	)
 	if err != nil {
 		return fmt.Errorf("unable to get vm params: %v", err)
@@ -335,22 +348,27 @@ func (s *Platform) CreateCloudlet(ctx context.Context, cloudlet *edgeproto.Cloud
 
 	// setup SSH access to cloudlet for CRM
 	updateCallback(edgeproto.UpdateTask, "Setting up security group for SSH access")
-	groupName := mexos.GetCloudletSecurityGroup()
-	if err := mexos.AddSecurityRuleCIDR(ctx, external_ip, "tcp", groupName, "22"); err != nil {
+
+	if err := mexos.AddSecurityRuleCIDR(ctx, external_ip, "tcp", secGrp, "22"); err != nil {
 		return fmt.Errorf("unable to add security rule for ssh access, err: %v", err)
 	}
 
-	return setupPlatformService(ctx, cloudlet, pfConfig, client, updateCallback)
+	return setupPlatformService(ctx, cloudlet, pfConfig, vaultConfig, client, updateCallback)
 }
 
 func (s *Platform) DeleteCloudlet(ctx context.Context, cloudlet *edgeproto.Cloudlet, pfConfig *edgeproto.PlatformConfig, updateCallback edgeproto.CacheUpdateCallback) error {
 	log.SpanLog(ctx, log.DebugLevelMexos, "Deleting cloudlet", "cloudletName", cloudlet.Key.Name)
 
-	// Soure OpenRC file to access openstack API endpoint
-	updateCallback(edgeproto.UpdateTask, fmt.Sprintf("Sourcing platform variables for %s cloudlet", cloudlet.PhysicalName))
-	err := mexos.InitOpenstackProps(ctx, cloudlet.Key.OperatorKey.Name, cloudlet.PhysicalName, pfConfig.VaultAddr)
+	updateCallback(edgeproto.UpdateTask, "Deleting cloudlet")
+
+	vaultAuth := vault.NewAppRoleAuth(pfConfig.CrmRoleId, pfConfig.CrmSecretId)
+	vaultConfig := vault.NewConfig(pfConfig.VaultAddr, vaultAuth)
+	// Source OpenRC file to access openstack API endpoint
+	err := mexos.InitOpenstackProps(ctx, cloudlet.Key.OperatorKey.Name, cloudlet.PhysicalName, vaultConfig)
 	if err != nil {
-		return err
+		// ignore this error, as no creation would've happened on infra, so nothing to delete
+		log.SpanLog(ctx, log.DebugLevelMexos, "failed to source platform variables", "cloudletName", cloudlet.Key.Name, "err", err)
+		return nil
 	}
 
 	platform_vm_name := getPlatformVMName(cloudlet)
@@ -381,9 +399,11 @@ func handleUpgradeError(ctx context.Context, client ssh.Client) error {
 func (s *Platform) UpdateCloudlet(ctx context.Context, cloudlet *edgeproto.Cloudlet, pfConfig *edgeproto.PlatformConfig, updateCallback edgeproto.CacheUpdateCallback) error {
 	log.SpanLog(ctx, log.DebugLevelMexos, "Updating cloudlet", "cloudletName", cloudlet.Key.Name)
 
+	vaultAuth := vault.NewAppRoleAuth(pfConfig.CrmRoleId, pfConfig.CrmSecretId)
+	vaultConfig := vault.NewConfig(pfConfig.VaultAddr, vaultAuth)
 	// Source OpenRC file to access openstack API endpoint
 	updateCallback(edgeproto.UpdateTask, fmt.Sprintf("Sourcing platform variables for %s cloudlet", cloudlet.PhysicalName))
-	err := mexos.InitOpenstackProps(ctx, cloudlet.Key.OperatorKey.Name, cloudlet.PhysicalName, pfConfig.VaultAddr)
+	err := mexos.InitOpenstackProps(ctx, cloudlet.Key.OperatorKey.Name, cloudlet.PhysicalName, vaultConfig)
 	if err != nil {
 		return err
 	}
@@ -412,7 +432,7 @@ func (s *Platform) UpdateCloudlet(ctx context.Context, cloudlet *edgeproto.Cloud
 		}
 	}
 
-	err = setupPlatformService(ctx, cloudlet, pfConfig, client, updateCallback)
+	err = setupPlatformService(ctx, cloudlet, pfConfig, vaultConfig, client, updateCallback)
 
 	if err != nil {
 		log.SpanLog(ctx, log.DebugLevelMexos, "failed to setup platform services", "err", err)

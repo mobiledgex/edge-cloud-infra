@@ -119,15 +119,16 @@
         src: "{{ key_tempfile.path }}"
         dest: "{{ storage_service_account_key }}"
       become: yes
-      notify: Restart vault
+      notify: Reload vault
   tags: setup
 
 - name: Install vault config file
   template:
     src: vault.hcl.j2
     dest: "{{ vault_conf }}"
+    backup: yes
   become: yes
-  notify: Restart vault
+  notify: Reload vault
 
 - name: Set up vault plugin directory
   file:

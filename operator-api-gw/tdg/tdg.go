@@ -11,6 +11,7 @@ import (
 	simulatedloc "github.com/mobiledgex/edge-cloud/d-match-engine/operator/defaultoperator/simulated-location"
 	simulatedqos "github.com/mobiledgex/edge-cloud/d-match-engine/operator/defaultoperator/simulated-qos"
 	"github.com/mobiledgex/edge-cloud/log"
+	"github.com/mobiledgex/edge-cloud/vault"
 )
 
 var QosClientCert = "qosclient.crt"
@@ -19,7 +20,8 @@ var QoServerCert = "qosserver.crt"
 
 //OperatorApiGw respresent an Operator API Gateway
 type OperatorApiGw struct {
-	Servers *operator.OperatorApiGwServers
+	Servers     *operator.OperatorApiGwServers
+	vaultConfig *vault.Config
 }
 
 func (OperatorApiGw) GetOperatorName() string {
@@ -30,9 +32,14 @@ func (OperatorApiGw) GetOperatorName() string {
 func (o *OperatorApiGw) Init(operatorName string, servers *operator.OperatorApiGwServers) error {
 	log.DebugLog(log.DebugLevelDmereq, "init for tdg operator", "servers", servers)
 	o.Servers = servers
+	vaultConfig, err := vault.BestConfig(o.Servers.VaultAddr)
+	if err != nil {
+		return err
+	}
+	o.vaultConfig = vaultConfig
 
 	if o.Servers.QosPosUrl != "" {
-		err := qosclient.GetQosCertsFromVault(o.Servers.VaultAddr)
+		err := qosclient.GetQosCertsFromVault(vaultConfig)
 		if err != nil {
 			return err
 		}

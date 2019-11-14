@@ -52,7 +52,6 @@ set_network_param() {
 }
 
 set_metadata_param HOSTNAME .name
-set_metadata_param HOLEPUNCH .meta.holepunch
 set_metadata_param UPDATE .meta.update
 set_metadata_param SKIPINIT .meta.skipinit
 set_metadata_param INTERFACE .meta.interface
@@ -74,15 +73,6 @@ fi
 
 echo 127.0.0.1 `hostname` >> /etc/hosts
 [[ "$UPDATEHOSTNAME" == yes ]] && sed -i "s|^\(127\.0\.1\.1 \).*|\1${HOSTNAME}|" /etc/hosts
-
-if [[ -n "$HOLEPUNCH" ]]; then
-	sed -i "s/22222/${HOLEPUNCH}/" /etc/mobiledgex/holepunch.json
-	cd /etc/mobiledgex
-	/etc/mobiledgex/holepunch write-systemd-file
-	systemctl enable holepunch
-	systemctl start holepunch
-	systemctl status holepunch
-fi
 
 usermod -aG docker ubuntu
 chmod a+rw /var/run/docker.sock

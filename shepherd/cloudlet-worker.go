@@ -44,6 +44,7 @@ func MarshalCloudletMetrics(data *shepherd_common.CloudletMetrics) []*edgeproto.
 	var metrics []*edgeproto.Metric
 	cMetric := edgeproto.Metric{}
 	nMetric := edgeproto.Metric{}
+	iMetric := edgeproto.Metric{}
 
 	// bail out if we get no metrics
 	if data == nil {
@@ -76,14 +77,14 @@ func MarshalCloudletMetrics(data *shepherd_common.CloudletMetrics) []*edgeproto.
 		metrics = append(metrics, &nMetric)
 	}
 	if data.IpUsageTS != nil {
-		nMetric.Name = "cloudlet-ipusage"
-		nMetric.Timestamp = *data.IpUsageTS
-		nMetric.AddTag("operator", cloudletKey.OperatorKey.Name)
-		nMetric.AddTag("cloudlet", cloudletKey.Name)
-		nMetric.AddIntVal("ipMax", data.IpMax)
-		nMetric.AddIntVal("ipUsed", data.IpUsed)
+		iMetric.Name = "cloudlet-ipusage"
+		iMetric.Timestamp = *data.IpUsageTS
+		iMetric.AddTag("operator", cloudletKey.OperatorKey.Name)
+		iMetric.AddTag("cloudlet", cloudletKey.Name)
+		iMetric.AddIntVal("ipMax", data.IpMax)
+		iMetric.AddIntVal("ipUsed", data.IpUsed)
 
-		metrics = append(metrics, &nMetric)
+		metrics = append(metrics, &iMetric)
 
 	}
 	return metrics

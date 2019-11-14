@@ -109,6 +109,35 @@ func getIpCountFromPools(ipPools string) uint64 {
 	return total
 }
 
+func addIpUsageDetails(ctx context.Context, metric *shepherd_common.CloudletMetrics) error {
+	externalNet, err := mexos.GetNetworkDetail(ctx, mexos.GetCloudletExternalNetwork())
+	if err != nil {
+		return err
+	}
+	if externalNet == nil {
+		return fmt.Errorf("No external network")
+	}
+	subnets := strings.Split(externalNet.Subnets, ",")
+	if len(subnets) < 1 {
+		return nil
+	}
+	// Assume first subnet for now - see similar note in GetExternalGateway()
+	sd, err := mexos.GetSubnetDetail(ctx, subnets[0])
+	metric.IpMax = getIpCountFromPools(sd.AllocationPools)
+	// Get current usage
+	srvs, err := mexos.ListServers(ctx)
+	if err != nil {
+		return err
+	}
+	metric.IpUsed = 0
+	for _, s := range srvs {
+		if strings.Contains(s.Networks, mexos.GetCloudletExternalNetwork()) {
+			metric.IpUsed++
+		}
+	}
+	return nil
+}
+
 func (s *Platform) GetPlatformStats(ctx context.Context) (shepherd_common.CloudletMetrics, error) {
 	cloudletMetric := shepherd_common.CloudletMetrics{}
 	limits, err := mexos.OSGetAllLimits(ctx)
@@ -138,30 +167,10 @@ func (s *Platform) GetPlatformStats(ctx context.Context) (shepherd_common.Cloudl
 	// TODO - collect network data for all the VM instances
 
 	// Get Ip pool usage
-	externalNet, err := mexos.GetNetworkDetail(ctx, mexos.GetCloudletExternalNetwork())
-	if err != nil || externalNet == nil {
-		log.SpanLog(ctx, log.DebugLevelMetrics, "external network details", "error", err)
-		return cloudletMetric, nil
-	}
-	subnets := strings.Split(externalNet.Subnets, ",")
-	//XXX beware of extra spaces
-	if len(subnets) < 1 {
-		return cloudletMetric, nil
-	}
-	// Assume first subnet for now - seee similar note in GetExternalGateway()
-	sd, err := mexos.GetSubnetDetail(ctx, subnets[0])
-	cloudletMetric.IpMax = getIpCountFromPools(sd.AllocationPools)
-	cloudletMetric.IpUsageTS, _ = types.TimestampProto(time.Now())
-	// Get current usage
-	srvs, err := mexos.ListServers(ctx)
-	if err != nil {
-		return cloudletMetric, nil
-	}
-	cloudletMetric.IpUsed = 0
-	for _, s := range srvs {
-		if strings.Contains(s.Networks, mexos.GetCloudletExternalNetwork()) {
-			cloudletMetric.IpUsed++
-		}
+	if addIpUsageDetails(ctx, &cloudletMetric) != nil {
+		log.SpanLog(ctx, log.DebugLevelMetrics, "get ip pool information", "error", err)
+	} else {
+		cloudletMetric.IpUsageTS, _ = types.TimestampProto(time.Now())
 	}
 	return cloudletMetric, nil
 }

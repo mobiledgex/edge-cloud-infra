@@ -75,5 +75,16 @@ func MarshalCloudletMetrics(data *shepherd_common.CloudletMetrics) []*edgeproto.
 
 		metrics = append(metrics, &nMetric)
 	}
+	if data.IpUsageTS != nil {
+		nMetric.Name = "cloudlet-ipusage"
+		nMetric.Timestamp = *data.IpUsageTS
+		nMetric.AddTag("operator", cloudletKey.OperatorKey.Name)
+		nMetric.AddTag("cloudlet", cloudletKey.Name)
+		nMetric.AddIntVal("ipMax", data.IpMax)
+		nMetric.AddIntVal("ipUsed", data.IpUsed)
+
+		metrics = append(metrics, &nMetric)
+
+	}
 	return metrics
 }

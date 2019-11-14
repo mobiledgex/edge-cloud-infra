@@ -3,6 +3,9 @@ package shepherd_openstack
 import (
 	"context"
 	"fmt"
+	"math/big"
+	"net"
+	"strings"
 	"time"
 
 	"github.com/gogo/protobuf/types"
@@ -73,6 +76,39 @@ func (s *Platform) GetPlatformClient(ctx context.Context, clusterInst *edgeproto
 	}
 }
 
+// Given pool ranges return total number of available ip addresses
+// Example: 10.10.10.1-10.10.10.20,10.10.10.30-10.10.10.40
+//  Returns 20+11 = 31
+func getIpCountFromPools(ipPools string) uint64 {
+	var total uint64
+	total = 0
+	pools := strings.Split(ipPools, ",")
+	for _, p := range pools {
+		ipRange := strings.Split(p, "-")
+		if len(ipRange) != 2 {
+			continue
+		}
+		ipStart := net.ParseIP(ipRange[0])
+		ipEnd := net.ParseIP(ipRange[1])
+		if ipStart == nil || ipEnd == nil {
+			continue
+		}
+		numStart := new(big.Int)
+		numEnd := new(big.Int)
+		diff := new(big.Int)
+		numStart = numStart.SetBytes(ipStart)
+		numEnd = numEnd.SetBytes(ipEnd)
+		if numStart == nil || numEnd == nil {
+			continue
+		}
+		diff = diff.Sub(numEnd, numStart)
+		total += diff.Uint64()
+		// add extra 1 for the start of pool
+		total += 1
+	}
+	return total
+}
+
 func (s *Platform) GetPlatformStats(ctx context.Context) (shepherd_common.CloudletMetrics, error) {
 	cloudletMetric := shepherd_common.CloudletMetrics{}
 	limits, err := mexos.OSGetAllLimits(ctx)
@@ -101,6 +137,32 @@ func (s *Platform) GetPlatformStats(ctx context.Context) (shepherd_common.Cloudl
 	}
 	// TODO - collect network data for all the VM instances
 
+	// Get Ip pool usage
+	externalNet, err := mexos.GetNetworkDetail(ctx, mexos.GetCloudletExternalNetwork())
+	if err != nil || externalNet == nil {
+		log.SpanLog(ctx, log.DebugLevelMetrics, "external network details", "error", err)
+		return cloudletMetric, nil
+	}
+	subnets := strings.Split(externalNet.Subnets, ",")
+	//XXX beware of extra spaces
+	if len(subnets) < 1 {
+		return cloudletMetric, nil
+	}
+	// Assume first subnet for now - seee similar note in GetExternalGateway()
+	sd, err := mexos.GetSubnetDetail(ctx, subnets[0])
+	cloudletMetric.IpMax = getIpCountFromPools(sd.AllocationPools)
+	cloudletMetric.IpUsageTS, _ = types.TimestampProto(time.Now())
+	// Get current usage
+	srvs, err := mexos.ListServers(ctx)
+	if err != nil {
+		return cloudletMetric, nil
+	}
+	cloudletMetric.IpUsed = 0
+	for _, s := range srvs {
+		if strings.Contains(s.Networks, mexos.GetCloudletExternalNetwork()) {
+			cloudletMetric.IpUsed++
+		}
+	}
 	return cloudletMetric, nil
 }
 

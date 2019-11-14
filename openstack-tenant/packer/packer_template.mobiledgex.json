@@ -2,7 +2,10 @@
     "variables": {
 	"ARTIFACTORY_USER": "packer",
 	"TAG": "master",
-	"FLAVOR": "m4.small"
+	"FLAVOR": "m4.small",
+	"APT_USER": "apt",
+	"APT_PASS": "mobiledgex",
+	"ARTIFACTORY_ARTIFACTS_TAG": ""
     },
     "builders": [{
 	"type": "openstack",
@@ -23,6 +26,9 @@
 	    "TAG={{ user `TAG` }}",
 	    "MEX_BUILD={{ user `MEX_BUILD` }}",
 	    "FLAVOR={{ user `FLAVOR` }}",
+	    "APT_USER={{ user `APT_USER` }}",
+	    "APT_PASS={{ user `APT_PASS` }}",
+	    "ARTIFACTORY_ARTIFACTS_TAG={{ user `ARTIFACTORY_ARTIFACTS_TAG` }}",
 	    "SRC_IMG={{ user `SRC_IMG` }}",
 	    "SRC_IMG_CHECKSUM={{ user `SRC_IMG_CHECKSUM` }}"
 	]

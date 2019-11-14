@@ -1,5 +1,5 @@
 PACKAGE = mobiledgex
-VERSION = 2.0.5
+VERSION = 3.0.0
 DISTRIBUTION = stratus
 COMPONENT = main
 

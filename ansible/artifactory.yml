@@ -37,3 +37,25 @@
         volumes:
           - "{{ data_directory }}:{{ data_directory }}"
       become: yes
+
+    - block:
+
+      - name: Install webhook
+        copy:
+          src: files/artifactory/webhook.groovy
+          dest: "{{ data_directory }}/etc/plugins/webhook.groovy"
+          owner: ansible
+          group: ansible
+          mode: '0444'
+        become: yes
+
+      - name: Install webhook config
+        template:
+          src: templates/artifactory/webhook.config.json.j2
+          dest: "{{ data_directory }}/etc/plugins/webhook.config.json"
+          owner: ansible
+          group: ansible
+          mode: '0444'
+        become: yes
+
+      when: install_webhook|default(false)

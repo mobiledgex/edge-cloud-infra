@@ -31,3 +31,4 @@ vault_artifactory_token_path: "secret/ansible/common/accounts/artifactory"
 vault_ns1_apikey_path: "secret/ansible/common/accounts/ns1"
 mc_creds_vault_path: "secret/ansible/{{ deploy_environ }}/accounts/mc"
 vouch_hostname: vouch.mobiledgex.net
+slack_support_webhook: https://hooks.slack.com/services/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

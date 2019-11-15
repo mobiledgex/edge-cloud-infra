@@ -85,9 +85,9 @@ type CloudletMetrics struct {
 	NetSent   uint64
 	IpUsageTS *types.Timestamp
 	// Total available IP addresses
-	IpMax uint64
+	Ipv4Max uint64
 	// Currently used IP addrs
-	IpUsed uint64
+	Ipv4Used uint64
 }
 
 type NginxMetrics struct {

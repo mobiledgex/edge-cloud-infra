@@ -25,8 +25,8 @@ var testCloudletData = shepherd_common.CloudletMetrics{
 	DiskUsed: 10000,
 	NetRecv:  123456,
 	NetSent:  654321,
-	IpMax:    100,
-	IpUsed:   50,
+	Ipv4Max:  100,
+	Ipv4Used: 50,
 }
 
 func TestCloudletStats(t *testing.T) {
@@ -103,10 +103,10 @@ func TestCloudletStats(t *testing.T) {
 		}
 	}
 	for _, v := range metrics[2].Vals {
-		if v.Name == "ipMax" {
-			assert.Equal(t, testCloudletData.IpMax, v.GetIval())
-		} else if v.Name == "ipUsed" {
-			assert.Equal(t, testCloudletData.IpUsed, v.GetIval())
+		if v.Name == "ipv4Max" {
+			assert.Equal(t, testCloudletData.Ipv4Max, v.GetIval())
+		} else if v.Name == "ipv4Used" {
+			assert.Equal(t, testCloudletData.Ipv4Used, v.GetIval())
 		} else {
 			errstr := fmt.Sprintf("Unexpected value in a metric(%v) - %s", v, v.Name)
 			assert.FailNow(t, errstr)

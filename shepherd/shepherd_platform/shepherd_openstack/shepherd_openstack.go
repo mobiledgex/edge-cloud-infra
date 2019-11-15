@@ -79,19 +79,19 @@ func (s *Platform) GetPlatformClient(ctx context.Context, clusterInst *edgeproto
 // Given pool ranges return total number of available ip addresses
 // Example: 10.10.10.1-10.10.10.20,10.10.10.30-10.10.10.40
 //  Returns 20+11 = 31
-func getIpCountFromPools(ipPools string) uint64 {
+func getIpCountFromPools(ipPools string) (uint64, error) {
 	var total uint64
 	total = 0
 	pools := strings.Split(ipPools, ",")
 	for _, p := range pools {
 		ipRange := strings.Split(p, "-")
 		if len(ipRange) != 2 {
-			continue
+			return 0, fmt.Errorf("invalid ip pool format")
 		}
 		ipStart := net.ParseIP(ipRange[0])
 		ipEnd := net.ParseIP(ipRange[1])
 		if ipStart == nil || ipEnd == nil {
-			continue
+			return 0, fmt.Errorf("Could not parse ip pool limits")
 		}
 		numStart := new(big.Int)
 		numEnd := new(big.Int)
@@ -99,14 +99,14 @@ func getIpCountFromPools(ipPools string) uint64 {
 		numStart = numStart.SetBytes(ipStart)
 		numEnd = numEnd.SetBytes(ipEnd)
 		if numStart == nil || numEnd == nil {
-			continue
+			return 0, fmt.Errorf("cannot convert bytes to bigInt")
 		}
 		diff = diff.Sub(numEnd, numStart)
 		total += diff.Uint64()
 		// add extra 1 for the start of pool
 		total += 1
 	}
-	return total
+	return total, nil
 }
 
 func addIpUsageDetails(ctx context.Context, metric *shepherd_common.CloudletMetrics) error {
@@ -123,16 +123,18 @@ func addIpUsageDetails(ctx context.Context, metric *shepherd_common.CloudletMetr
 	}
 	// Assume first subnet for now - see similar note in GetExternalGateway()
 	sd, err := mexos.GetSubnetDetail(ctx, subnets[0])
-	metric.IpMax = getIpCountFromPools(sd.AllocationPools)
+	if metric.Ipv4Max, err = getIpCountFromPools(sd.AllocationPools); err != nil {
+		return err
+	}
 	// Get current usage
 	srvs, err := mexos.ListServers(ctx)
 	if err != nil {
 		return err
 	}
-	metric.IpUsed = 0
+	metric.Ipv4Used = 0
 	for _, s := range srvs {
 		if strings.Contains(s.Networks, mexos.GetCloudletExternalNetwork()) {
-			metric.IpUsed++
+			metric.Ipv4Used++
 		}
 	}
 	return nil

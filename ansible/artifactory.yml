@@ -5,6 +5,7 @@
     docker_skip_registry_login: true
     data_directory: /var/opt/jfrog/artifactory
     artifactory_docker_userid: 1030
+    vault_slack_webhook_path: secret/ansible/common/accounts/slack_webhooks/support
 
   tasks:
     - include_role: name="docker"
@@ -39,6 +40,13 @@
       become: yes
 
     - block:
+
+      - name: Get Slack webhook URL from vault
+        set_fact:
+          vault_lookup: "{{ lookup('vault', vault_slack_webhook_path) }}"
+
+      - set_fact:
+          slack_support_webhook: "{{ vault_lookup.support.data.url }}"
 
       - name: Install webhook
         copy:

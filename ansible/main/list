@@ -16,7 +16,7 @@ vault_firewall_setup=no
 letsencrypt_env=production
 
 [artifactory]
-artifactory.mobiledgex.net	ubuntu_release=xenial docker_skip_install=true artifactory_preconfigured=true
+artifactory.mobiledgex.net	ubuntu_release=xenial docker_skip_install=true artifactory_preconfigured=true install_webhook=true
 
 [console]
 console.mobiledgex.net		skip_console_setup=true

@@ -2,9 +2,9 @@ regions:
   - name: mexplat-stage-eu
     location: westeurope
     region: EU
-    kubernetes_version: 1.12.8
+    kubernetes_version: 1.13.11
 
-  - name: mexplat-stage
+  - name: mexplat-stage-us
     location: westus2
     region: US
-    kubernetes_version: 1.12.7
+    kubernetes_version: 1.13.11

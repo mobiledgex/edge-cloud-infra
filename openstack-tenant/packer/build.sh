@@ -2,10 +2,11 @@
 
 ARTIFACTORY_BASEURL='https://artifactory.mobiledgex.net'
 ARTIFACTORY_USER='packer'
-CLOUD_IMAGE='xenial-server-cloudimg-amd64-disk1.img'
+ARTIFACTORY_ARTIFACTS_TAG='2019-11-01'
+CLOUD_IMAGE='ubuntu-16.04-server-cloudimg-amd64-disk1.img'
 OUTPUT_IMAGE_NAME='mobiledgex'
 
-: ${CLOUD_IMAGE_TAG:=xenial-server}
+: ${CLOUD_IMAGE_TAG:=ubuntu-16.04-20191024}
 : ${FLAVOR:=m4.small}
 : ${FORCE:=no}
 : ${TRACE:=no}
@@ -15,17 +16,18 @@ GITTAG=$( git describe --tags )
 
 USAGE="usage: $( basename $0 ) <options>
 
- -f <flavor>	  Image flavor (default: \"$FLAVOR\")
- -i <image-tag>	  Glance source image tag (default: \"$CLOUD_IMAGE_TAG\")
+ -f <flavor>      Image flavor (default: \"$FLAVOR\")
+ -i <image-tag>   Glance source image tag (default: \"$CLOUD_IMAGE_TAG\")
  -o <output-tag>  Output image tag (default: same as tag below)
- -t <tag>         Artifactory tag name (default: \"$TAG\")
+ -t <tag>         Image tag name (default: \"$TAG\")
  -F               Ignore source image checksum mismatch
  -T               Print trace debug messages during build
+ -u <artf-user>   Build as this Artifactory user (default: \"$ARTIFACTORY_USER\")
 
  -h               Display this help message
 "
 
-while getopts ":hf:i:o:t:FT" OPT; do
+while getopts ":hf:i:o:t:FTu:" OPT; do
 	case "$OPT" in
 	h) echo "$USAGE"; exit 0 ;;
 	i) CLOUD_IMAGE_TAG="$OPTARG" ;;
@@ -34,11 +36,13 @@ while getopts ":hf:i:o:t:FT" OPT; do
 	t) TAG="$OPTARG" ;;
 	F) FORCE=yes ;;
 	T) TRACE=yes ;;
+	u) ARTIFACTORY_USER="$OPTARG" ;;
 	esac
 done
 shift $(( OPTIND - 1 ))
 
-[[ -z "$OUTPUT_TAG" ]] && OUTPUT_TAG="$TAG"
+TAG=${TAG#v}
+[[ -z "$OUTPUT_TAG" ]] && OUTPUT_TAG="v$TAG"
 
 die() {
 	echo "ERROR: $*" >&2
@@ -46,9 +50,12 @@ die() {
 }
 
 ARTIFACTORY_APIKEY_FILE="${HOME}/.mobiledgex/artifactory.apikey"
-[[ -f "$ARTIFACTORY_APIKEY_FILE" ]] \
-	|| die "Artifactory API key file not found: $ARTIFACTORY_APIKEY_FILE"
-ARTIFACTORY_APIKEY=$( head -n 1 "$ARTIFACTORY_APIKEY_FILE" )
+if [[ -f "$ARTIFACTORY_APIKEY_FILE" ]]; then
+	ARTIFACTORY_APIKEY=$( head -n 1 "$ARTIFACTORY_APIKEY_FILE" )
+else
+	read -s -p "Artifactory password/api-key: " ARTIFACTORY_APIKEY
+	echo
+fi
 
 jq_VERSION=$( jq --version 2>/dev/null )
 openstack_VERSION=$( openstack --version 2>&1 | grep '^openstack' | awk '{print $2}' )
@@ -64,11 +71,11 @@ echo
 
 OUTPUT_IMAGE_NAME="${OUTPUT_IMAGE_NAME}-${OUTPUT_TAG}"
 
-ARTIFACTORY_CLOUD_IMAGE_PATH="baseimage-build/${TAG}/${CLOUD_IMAGE}"
+ARTIFACTORY_CLOUD_IMAGE_PATH="baseimage-build/${ARTIFACTORY_ARTIFACTS_TAG}/${CLOUD_IMAGE}"
 ARTIFACTORY_CLOUD_IMAGE_CHECKSUM=$( curl -sSL -u "${ARTIFACTORY_USER}:${ARTIFACTORY_APIKEY}" \
 	"${ARTIFACTORY_BASEURL}/api/storage/${ARTIFACTORY_CLOUD_IMAGE_PATH}" \
 	| jq -er '.checksums.md5' )
-[[ $? -ne 0 ]] && die "Failed to retrieve cloud image checksum from artifactory: TAG=$TAG"
+[[ $? -ne 0 ]] && die "Failed to retrieve cloud image checksum from artifactory: TAG=$ARTIFACTORY_ARTIFACTS_TAG"
 
 SRC_IMG=$( openstack image list -c ID -c Name -f value \
 	| grep " ${CLOUD_IMAGE_TAG}$" \
@@ -102,6 +109,7 @@ BUILD PARAMETERS:
        Network UUID: $NETWORK
      New Image Name: $OUTPUT_IMAGE_NAME
              Flavor: $FLAVOR
+   Artifactory User: $ARTIFACTORY_USER
 
 EOT
 
@@ -111,15 +119,57 @@ case "$RESP" in
 	*)	echo "Aborting build..."; exit 1 ;;
 esac
 
-PACKER_LOG=1 packer build \
+PACKER_LOG=1 packer build -on-error=ask \
 	-var "OUTPUT_IMAGE_NAME=$OUTPUT_IMAGE_NAME" \
 	-var "SRC_IMG=$SRC_IMG" \
 	-var "SRC_IMG_CHECKSUM=$SRC_IMG_CHECKSUM" \
 	-var "NETWORK=$NETWORK" \
+	-var "ARTIFACTORY_USER=$ARTIFACTORY_USER" \
 	-var "ARTIFACTORY_APIKEY=$ARTIFACTORY_APIKEY" \
+	-var "ARTIFACTORY_ARTIFACTS_TAG=$ARTIFACTORY_ARTIFACTS_TAG" \
 	-var "TAG=$TAG" \
 	-var "GITTAG=$GITTAG" \
 	-var "FLAVOR=$FLAVOR" \
 	-var "TRACE=$TRACE" \
 	-var "MEX_BUILD=$( git describe --long --tags )" \
 	packer_template.mobiledgex.json
+
+if [[ $? -ne 0 ]]; then
+	echo "Failed to build base image!" >&2
+	exit 2
+fi
+
+echo
+read -p "Upload to Artifactory? (yN) " RESP
+case "$RESP" in
+	y*|Y*)	true ;;
+	*)	echo "NOT uploading to Artifactory"; exit 0 ;;
+esac
+
+IMAGE_FNAME="${OUTPUT_IMAGE_NAME}.qcow2"
+
+echo
+echo "Downloading image from glance: $IMAGE_FNAME ..."
+openstack image save --file "$IMAGE_FNAME" "$OUTPUT_IMAGE_NAME"
+
+GLANCE_CHECKSUM=$( openstack image show -c checksum -f value "$OUTPUT_IMAGE_NAME" )
+LOCAL_CHECKSUM=$( openssl md5 "$IMAGE_FNAME" | awk '{print $NF}' )
+if [[ "$LOCAL_CHECKSUM" != "$GLANCE_CHECKSUM" ]]; then
+	echo "Error downloading \"$OUTPUT_IMAGE_NAME\" image; checksum mismatch" >&2
+	exit 2
+fi
+
+echo
+echo "Uploading image to Artifactory..."
+LOCAL_SHA1SUM=$( openssl sha1 "$IMAGE_FNAME" | awk '{print $NF}' )
+curl -sSL -XPUT -u "${ARTIFACTORY_USER}:${ARTIFACTORY_APIKEY}" \
+	-H "X-Checksum-MD5:$LOCAL_CHECKSUM" \
+	-H "X-Checksum-Sha1:$LOCAL_SHA1SUM" \
+	-T "$IMAGE_FNAME" \
+	"${ARTIFACTORY_BASEURL}/baseimages/${IMAGE_FNAME}"
+if [[ $? -ne 0 ]]; then
+	echo "Error uploading image to Artifactory" >&2
+	exit 2
+fi
+
+rm "$IMAGE_FNAME"

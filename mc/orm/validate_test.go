@@ -3,6 +3,7 @@ package orm
 import (
 	"testing"
 
+	"github.com/mobiledgex/edge-cloud/cloudcommon"
 	"github.com/stretchr/testify/require"
 )
 
@@ -41,4 +42,7 @@ func TestValidName(t *testing.T) {
 
 	err = ValidName("username_123dev&test")
 	require.NotNil(t, err, "invalid user name")
+
+	err = ValidName(cloudcommon.DeveloperMobiledgeX)
+	require.NotNil(t, err, "invalid org name")
 }

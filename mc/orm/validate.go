@@ -5,6 +5,7 @@ import (
 	"strings"
 	"unicode"
 
+	"github.com/mobiledgex/edge-cloud/cloudcommon"
 	"github.com/mobiledgex/edge-cloud/util"
 )
 
@@ -36,6 +37,9 @@ func ValidName(name string) error {
 	}
 	if strings.HasSuffix(name, "-cache") {
 		return fmt.Errorf("Name cannot end with '-cache'")
+	}
+	if strings.ToLower(name) == strings.ToLower(cloudcommon.DeveloperMobiledgeX) {
+		return fmt.Errorf("Name %s is reserved, please choose another", name)
 	}
 	return nil
 }

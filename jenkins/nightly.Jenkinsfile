@@ -61,6 +61,36 @@ TAG="${DOCKER_BUILD_TAG}" make build-docker
                 }
             }
         }
+        stage('Swagger Upload') {
+            steps {
+                sh 'docker run --rm registry.mobiledgex.net:5000/mobiledgex/edge-cloud:${DOCKER_BUILD_TAG} dump-docs internal >internal.json'
+                sh 'docker run --rm registry.mobiledgex.net:5000/mobiledgex/edge-cloud:${DOCKER_BUILD_TAG} dump-docs external >external.json'
+                rtUpload (
+                    serverId: "artifactory",
+                    spec:
+                        """{
+                            "files": [
+                                {
+                                    "pattern": "internal.json",
+                                    "target": "build-artifacts/swagger-spec/${DOCKER_BUILD_TAG}/apidocs.swagger.json"
+                                }
+                            ]
+                        }"""
+                )
+                rtUpload (
+                    serverId: "artifactory",
+                    spec:
+                        """{
+                            "files": [
+                                {
+                                    "pattern": "external.json",
+                                    "target": "build-artifacts/swagger-spec/${DOCKER_BUILD_TAG}/external/apidocs.swagger.json"
+                                }
+                            ]
+                        }"""
+                )
+            }
+        }
     }
     post {
         success {

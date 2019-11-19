@@ -109,7 +109,7 @@ func TestCloudletStats(t *testing.T) {
 			assert.Equal(t, testCloudletData.Ipv4Max, v.GetIval())
 		} else if v.Name == "ipv4Used" {
 			assert.Equal(t, testCloudletData.Ipv4Used, v.GetIval())
-		} else if v.Name == "flaotingIpsMax" {
+		} else if v.Name == "floatingIpsMax" {
 			assert.Equal(t, testCloudletData.FloatingIpsMax, v.GetIval())
 		} else if v.Name == "floatingIpsUsed" {
 			assert.Equal(t, testCloudletData.FloatingIpsUsed, v.GetIval())

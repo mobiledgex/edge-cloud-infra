@@ -44,7 +44,7 @@
       - "--cloudletKey"
       - "{\\\"operator_key\\\":{\\\"name\\\":\\\"{{ item.operator_key | mandatory }}\\\"},\\\"name\\\":\\\"{{ item.cloudlet_name }}\\\"}"
       - "--vaultAddr"
-      - "{{ vault_vm_hostname }}:{{ vault_port }}"
+      - "https://{{ vault_vm_hostname }}:{{ vault_port }}"
       - "--notifyAddrs"
       - "{{ controller_name }}.ctrl.{{ cloudflare_zone }}:37001"
       - "--tls"

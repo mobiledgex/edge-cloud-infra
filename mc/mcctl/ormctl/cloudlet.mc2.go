@@ -24,8 +24,8 @@ var _ = math.Inf
 
 var CreateCloudletCmd = &cli.Command{
 	Use:                  "CreateCloudlet",
-	RequiredArgs:         strings.Join(append([]string{"region"}, CloudletRequiredArgs...), " "),
-	OptionalArgs:         strings.Join(CloudletOptionalArgs, " "),
+	RequiredArgs:         strings.Join(append([]string{"region"}, CreateCloudletRequiredArgs...), " "),
+	OptionalArgs:         strings.Join(CreateCloudletOptionalArgs, " "),
 	AliasArgs:            strings.Join(CloudletAliasArgs, " "),
 	SpecialArgs:          &CloudletSpecialArgs,
 	Comments:             addRegionComment(CloudletComments),
@@ -123,6 +123,34 @@ var CloudletApiCmds = []*cli.Command{
 	ShowCloudletCmd,
 	AddCloudletResMappingCmd,
 	RemoveCloudletResMappingCmd,
+}
+
+var CreateCloudletRequiredArgs = []string{
+	"operator",
+	"name",
+	"location.latitude",
+	"location.longitude",
+	"numdynamicips",
+}
+var CreateCloudletOptionalArgs = []string{
+	"accesscredentials",
+	"location.altitude",
+	"location.timestamp.seconds",
+	"location.timestamp.nanos",
+	"ipsupport",
+	"staticips",
+	"errors",
+	"state",
+	"crmoverride",
+	"deploymentlocal",
+	"platformtype",
+	"flavor.name",
+	"physicalname",
+	"envvar",
+	"version",
+	"restagmap.key",
+	"restagmap.value.name",
+	"restagmap.value.operatorkey.name",
 }
 
 var ShowCloudletInfoCmd = &cli.Command{
@@ -419,17 +447,17 @@ var MappingEntrySpecialArgs = map[string]string{}
 var CloudletRequiredArgs = []string{
 	"operator",
 	"name",
-	"location.latitude",
-	"location.longitude",
-	"numdynamicips",
 }
 var CloudletOptionalArgs = []string{
 	"accesscredentials",
+	"location.latitude",
+	"location.longitude",
 	"location.altitude",
 	"location.timestamp.seconds",
 	"location.timestamp.nanos",
 	"ipsupport",
 	"staticips",
+	"numdynamicips",
 	"errors",
 	"state",
 	"crmoverride",
@@ -501,7 +529,7 @@ var CloudletComments = map[string]string{
 	"location.latitude":                   "latitude in WGS 84 coordinates",
 	"location.longitude":                  "longitude in WGS 84 coordinates",
 	"location.horizontalaccuracy":         "horizontal accuracy (radius in meters)",
-	"location.verticalaccuracy":           "veritical accuracy (meters)",
+	"location.verticalaccuracy":           "vertical accuracy (meters)",
 	"location.altitude":                   "On android only lat and long are guaranteed to be supplied altitude in meters",
 	"location.course":                     "course (IOS) / bearing (Android) (degrees east relative to true north)",
 	"location.speed":                      "speed (IOS) / velocity (Android) (meters/sec)",

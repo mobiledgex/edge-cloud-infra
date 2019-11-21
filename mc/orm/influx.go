@@ -330,12 +330,7 @@ func GetMetricsCommon(c echo.Context) error {
 	if strings.HasSuffix(c.Path(), "metrics/app") {
 		in := ormapi.RegionAppInstMetrics{}
 		if err := c.Bind(&in); err != nil {
-			errStr = fmt.Sprintf("Invalid POST data: %s", err.Error())
-			// special case for errors regarding time format
-			// golang's reference time is "2006-01-02T15:04:05Z07:00" (123456 in the posix date command), which is confusing
-			if strings.Contains(err.Error(), "2006-01-02T15:04:05Z07:00") {
-				errStr = strings.Split(errStr, " as")[0]
-			}
+			errStr = checkForTimeError(fmt.Sprintf("Invalid POST data: %s", err.Error()))
 			return c.JSON(http.StatusBadRequest, Msg(errStr))
 		}
 		// Developer name has to be specified
@@ -356,12 +351,7 @@ func GetMetricsCommon(c echo.Context) error {
 	} else if strings.HasSuffix(c.Path(), "metrics/cluster") {
 		in := ormapi.RegionClusterInstMetrics{}
 		if err := c.Bind(&in); err != nil {
-			errStr = fmt.Sprintf("Invalid POST data: %s", err.Error())
-			// special case for errors regarding time format
-			// golang's reference time is "2006-01-02T15:04:05Z07:00" (123456 in the posix date command), which is confusing
-			if strings.Contains(err.Error(), "2006-01-02T15:04:05Z07:00") {
-				errStr = strings.Split(errStr, " as")[0]
-			}
+			errStr = checkForTimeError(fmt.Sprintf("Invalid POST data: %s", err.Error()))
 			return c.JSON(http.StatusBadRequest, Msg(errStr))
 		}
 		// Developer name has to be specified
@@ -382,12 +372,7 @@ func GetMetricsCommon(c echo.Context) error {
 	} else if strings.HasSuffix(c.Path(), "metrics/cloudlet") {
 		in := ormapi.RegionCloudletMetrics{}
 		if err := c.Bind(&in); err != nil {
-			errStr = fmt.Sprintf("Invalid POST data: %s", err.Error())
-			// special case for errors regarding time format
-			// golang's reference time is "2006-01-02T15:04:05Z07:00" (123456 in the posix date command), which is confusing
-			if strings.Contains(err.Error(), "2006-01-02T15:04:05Z07:00") {
-				errStr = strings.Split(errStr, " as")[0]
-			}
+			errStr = checkForTimeError(fmt.Sprintf("Invalid POST data: %s", err.Error()))
 			return c.JSON(http.StatusBadRequest, Msg(errStr))
 		}
 		// Operator name has to be specified
@@ -435,4 +420,14 @@ func GetMetricsCommon(c echo.Context) error {
 		json.NewEncoder(c.Response()).Encode(payload)
 	}
 	return nil
+}
+
+func checkForTimeError(errStr string) string {
+	// special case for errors regarding time format
+	// golang's reference time is "2006-01-02T15:04:05Z07:00" (123456 in the posix date command), which is confusing
+	refTime := "2006-01-02T15:04:05Z07:00"
+	if strings.Contains(errStr, refTime) {
+		return fmt.Sprintf("%s into RFC3339 format. Example: \"%s\"", strings.Split(errStr, " as")[0], refTime)
+	}
+	return errStr
 }

@@ -427,7 +427,7 @@ func checkForTimeError(errStr string) string {
 	// golang's reference time is "2006-01-02T15:04:05Z07:00" (123456 in the posix date command), which is confusing
 	refTime := "2006-01-02T15:04:05Z07:00"
 	if strings.Contains(errStr, refTime) {
-		return fmt.Sprintf("%s into RFC3339 format. Example: \"%s\"", strings.Split(errStr, " as")[0], refTime)
+		return fmt.Sprintf("%s into RFC3339 format failed. Example: \"%s\"", strings.Split(errStr, " as")[0], refTime)
 	}
 	return errStr
 }

@@ -360,7 +360,7 @@ func GetMetricsCommon(c echo.Context) error {
 			// special case for errors regarding time format
 			// golang's reference time is "2006-01-02T15:04:05Z07:00" (123456 in the posix date command), which is confusing
 			if strings.Contains(err.Error(), "2006-01-02T15:04:05Z07:00") {
-				errStr = strings.Split(errStr, "as")[0]
+				errStr = strings.Split(errStr, "as ")[0]
 			}
 			return c.JSON(http.StatusBadRequest, Msg(errStr))
 		}

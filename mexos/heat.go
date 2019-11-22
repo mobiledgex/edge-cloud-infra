@@ -116,7 +116,9 @@ var vmTemplateResources = `
           {{- end}}
         {{- end}}
          flavor: {{.FlavorName}}
-         availabilityzone: {{if .AvailabilityZone}}
+         {{if .AvailabilityZone}}
+           availabilityzone:{{.AvailabilityZone}}
+         {{- end}}
         {{if .AuthPublicKey}} key_name: { get_resource: ssh_key_pair } {{- end}}
          config_drive: true       
          user_data_format: RAW

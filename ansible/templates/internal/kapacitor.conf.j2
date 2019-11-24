@@ -15,7 +15,7 @@ default-retention-policy = ""
   https-enabled = true
   https-certificate = "/etc/letsencrypt/live/{{ influxdb_vm_hostname }}/fullchain.pem"
   https-private-key = "/etc/letsencrypt/live/{{ influxdb_vm_hostname }}/privkey.pem"
-  shutdown-timeout = "10s"
+  shutdown-timeout = "30s"
   shared-secret = ""
 
 [replay]
@@ -30,7 +30,7 @@ default-retention-policy = ""
 
 [load]
   enabled = true
-  dir = "/etc/kapacitor/load"
+  dir = "{{ kapacitor_load_dir }}"
 
 [[influxdb]]
   enabled = true

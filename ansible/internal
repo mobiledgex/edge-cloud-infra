@@ -1,7 +1,6 @@
 [all:vars]
 deploy_environ=internal
 ubuntu_release=bionic
-influxdb_vm_hostname=influxdb.internal.mobiledgex.net
 influxdb_volume_size=5Gi
 jaeger_ui_port=443
 

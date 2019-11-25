@@ -1,7 +1,6 @@
 ---
 - hosts: influxdb
   vars:
-    vault_influxdb_creds_path: "secret/ansible/{{ deploy_environ }}/accounts/influxdb"
     chronograf_google_creds_path: "secret/ansible/{{ deploy_environ }}/accounts/chronograf_google"
     influxdb_conf_file: /etc/influxdb/influxdb.conf
     ansible_managed_header: "MANAGED BY ANSIBLE"
@@ -11,6 +10,7 @@
     kapacitor_version: 1.5.3
     kapacitor_checksum: "md5:2fb06503a66e3cc5fb1f9b86875da39d"
     kapacitor_conf_file: /etc/kapacitor/kapacitor.conf
+    kapacitor_load_dir: /etc/kapacitor/load
 
   tasks:
 
@@ -218,6 +218,21 @@
         state: started
       become: yes
 
+    - name: Copy kapacitor tasks
+      copy:
+        src: "files/kapacitor/tasks/{{ taskfile }}"
+        dest: "{{ kapacitor_load_dir }}/tasks/"
+      loop:
+        - cloudflare-dns-entries.tick
+        - cpu-usage.tick
+        - disk-usage.tick
+        - etcd-db.tick
+        - memory-usage.tick
+      loop_control:
+        loop_var: taskfile
+      notify:
+        - Reload Kapacitor
+
     - name: Set up Chronograf environment
       template:
         src: "internal/chronograf/environment.j2"
@@ -259,6 +274,10 @@
         enabled: yes
         state: restarted
         daemon_reload: yes
+      become: yes
+
+    - name: Reload Kapacitor
+      command: pkill -HUP kapacitord
       become: yes
 
 - hosts: vouch

@@ -36,3 +36,4 @@
 - import_role: name="controller"
 - import_role: name="dme"
 - import_role: name="cluster-svc"
+- import_role: name="k8s-telegraf"

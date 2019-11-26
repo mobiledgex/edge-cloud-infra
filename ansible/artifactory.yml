@@ -5,7 +5,6 @@
     data_directory: /var/opt/jfrog/artifactory
     artifactory_docker_userid: 1030
     vault_slack_webhook_path: secret/ansible/common/accounts/slack_webhooks/support
-    vault_mex_ca_cert_path: secret/ansible/common/certs/mex-ca
 
   tasks:
     - include_role: name="docker"

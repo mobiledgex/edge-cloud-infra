@@ -424,18 +424,9 @@ func RemoveUserRoleObj(ctx context.Context, claims *UserClaims, role *ormapi.Rol
 			return dbErr(err)
 		}
 		for _, grp := range groups {
-			if len(grp) < 2 {
-				continue
-			}
-			strs := strings.Split(grp[0], "::")
-			if grp[1] == role.Role {
-				org := ""
-				if len(strs) == 2 {
-					org = strs[0]
-				}
-				if org == role.Org {
-					managerCount = managerCount + 1
-				}
+			r := parseRole(grp)
+			if r.Role == role.Role && r.Org == role.Org {
+				managerCount = managerCount + 1
 			}
 		}
 		if managerCount < 2 {

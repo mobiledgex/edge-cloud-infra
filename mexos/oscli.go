@@ -158,19 +158,19 @@ func ShowFlavor(ctx context.Context, flavor string) (details OSFlavorDetail, err
 }
 
 //ListFlavors lists flavors known to the platform.   The ones matching the flavorMatchPattern are returned
-func ListFlavors(ctx context.Context) ([]OSFlavor, error) {
+func ListFlavors(ctx context.Context) ([]OSFlavorDetail, error) {
 	flavorMatchPattern := GetCloudletFlavorMatchPattern()
 	r, err := regexp.Compile(flavorMatchPattern)
 	if err != nil {
 		return nil, fmt.Errorf("Cannot compile flavor match pattern")
 	}
-	out, err := TimedOpenStackCommand(ctx, "openstack", "flavor", "list", "-f", "json")
+	out, err := TimedOpenStackCommand(ctx, "openstack", "flavor", "list", "--long", "-f", "json")
 	if err != nil {
 		err = fmt.Errorf("cannot get flavor list, %v", err)
 		return nil, err
 	}
-	var flavors []OSFlavor
-	var flavorsMatched []OSFlavor
+	var flavors []OSFlavorDetail
+	var flavorsMatched []OSFlavorDetail
 	err = json.Unmarshal(out, &flavors)
 
 	if err != nil {
@@ -862,12 +862,7 @@ func GetFlavorInfo(ctx context.Context) ([]*edgeproto.FlavorInfo, []OSAZone, err
 		return nil, nil, fmt.Errorf("no flavors found")
 	}
 	var finfo []*edgeproto.FlavorInfo
-	var props string
 	for _, f := range osflavors {
-		details, err := ShowFlavor(ctx, f.Name)
-		if err == nil {
-			props = details.Properties
-		}
 		finfo = append(
 			finfo,
 			&edgeproto.FlavorInfo{
@@ -875,7 +870,7 @@ func GetFlavorInfo(ctx context.Context) ([]*edgeproto.FlavorInfo, []OSAZone, err
 				Vcpus:      uint64(f.VCPUs),
 				Ram:        uint64(f.RAM),
 				Disk:       uint64(f.Disk),
-				Properties: props},
+				Properties: f.Properties},
 		)
 	}
 	zones, err := ListAZones(ctx)

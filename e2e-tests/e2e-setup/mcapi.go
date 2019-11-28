@@ -537,6 +537,7 @@ func deleteMcDataSep(uri, token string, data *ormapi.AllData, rc *bool) {
 func updateMcDataSep(uri, token string, data *ormapi.AllData, rc *bool) {
 	for _, rd := range data.RegionData {
 		for _, flavor := range rd.AppData.Flavors {
+			(&flavor).SetUpdateFields()
 			in := &ormapi.RegionFlavor{
 				Region: rd.Region,
 				Flavor: flavor,
@@ -545,19 +546,16 @@ func updateMcDataSep(uri, token string, data *ormapi.AllData, rc *bool) {
 			checkMcErr("UpdateFlavor", st, err, rc)
 		}
 		for _, cloudlet := range rd.AppData.Cloudlets {
+			(&cloudlet).SetUpdateFields()
 			in := &ormapi.RegionCloudlet{
 				Region:   rd.Region,
 				Cloudlet: cloudlet,
 			}
-			in.Cloudlet.Fields = append(in.Cloudlet.Fields, edgeproto.CloudletFieldLocationLatitude)
-			in.Cloudlet.Fields = append(in.Cloudlet.Fields, edgeproto.CloudletFieldLocationLongitude)
-			in.Cloudlet.Fields = append(in.Cloudlet.Fields, edgeproto.CloudletFieldNumDynamicIps)
-			in.Cloudlet.Fields = append(in.Cloudlet.Fields, edgeproto.CloudletFieldVersion)
-			in.Cloudlet.Fields = append(in.Cloudlet.Fields, edgeproto.CloudletFieldNotifySrvAddr)
 			_, st, err := mcClient.UpdateCloudlet(uri, token, in)
 			checkMcErr("UpdateCloudlet", st, err, rc)
 		}
 		for _, policy := range rd.AppData.AutoScalePolicies {
+			(&policy).SetUpdateFields()
 			in := &ormapi.RegionAutoScalePolicy{
 				Region:          rd.Region,
 				AutoScalePolicy: policy,
@@ -566,6 +564,7 @@ func updateMcDataSep(uri, token string, data *ormapi.AllData, rc *bool) {
 			checkMcErr("UpdateAutoScalePolicy", st, err, rc)
 		}
 		for _, cinst := range rd.AppData.ClusterInsts {
+			(&cinst).SetUpdateFields()
 			in := &ormapi.RegionClusterInst{
 				Region:      rd.Region,
 				ClusterInst: cinst,
@@ -574,6 +573,7 @@ func updateMcDataSep(uri, token string, data *ormapi.AllData, rc *bool) {
 			checkMcErr("UpdateClusterInst", st, err, rc)
 		}
 		for _, app := range rd.AppData.Applications {
+			(&app).SetUpdateFields()
 			in := &ormapi.RegionApp{
 				Region: rd.Region,
 				App:    app,
@@ -582,6 +582,7 @@ func updateMcDataSep(uri, token string, data *ormapi.AllData, rc *bool) {
 			checkMcErr("UpdateApp", st, err, rc)
 		}
 		for _, appinst := range rd.AppData.AppInstances {
+			(&appinst).SetUpdateFields()
 			in := &ormapi.RegionAppInst{
 				Region:  rd.Region,
 				AppInst: appinst,

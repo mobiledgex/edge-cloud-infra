@@ -1,0 +1,23 @@
+- debug:
+    msg: "Need to validate artifactory: {{ artifactory_host }}"
+
+- docker_container_info:
+    name: artifactory
+  register: artifactory_docker
+  delegate_to: "{{ artifactory_host }}"
+
+- assert:
+    that:
+      - artifactory_docker.exists
+
+- name: Get Artifactory version
+  set_fact:
+    current_artifactory_version: "{{ image.split(':')[-1] }}"
+  vars:
+    image: "{{ artifactory_docker.container['Config']['Image'] }}"
+
+- name: Verify Artifactory version
+  assert:
+    that:
+      - artifactory_version == current_artifactory_version
+    fail_msg: "Artifactory version in {{ artifactory_host }} needs to be {{ artifactory_version }}"

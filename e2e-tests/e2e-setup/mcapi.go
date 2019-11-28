@@ -163,6 +163,8 @@ func runMcDataAPI(api, uri, apiFile, curUserFile, outputDir string, mods []strin
 		} else {
 			deleteMcDataAll(uri, token, data, &rc)
 		}
+	case "update":
+		updateMcDataSep(uri, token, data, &rc)
 	}
 	return rc
 }
@@ -529,6 +531,64 @@ func deleteMcDataSep(uri, token string, data *ormapi.AllData, rc *bool) {
 	for _, ctrl := range data.Controllers {
 		st, err := mcClient.DeleteController(uri, token, &ctrl)
 		checkMcErr("DeleteController", st, err, rc)
+	}
+}
+
+func updateMcDataSep(uri, token string, data *ormapi.AllData, rc *bool) {
+	for _, rd := range data.RegionData {
+		for _, flavor := range rd.AppData.Flavors {
+			in := &ormapi.RegionFlavor{
+				Region: rd.Region,
+				Flavor: flavor,
+			}
+			_, st, err := mcClient.UpdateFlavor(uri, token, in)
+			checkMcErr("UpdateFlavor", st, err, rc)
+		}
+		for _, cloudlet := range rd.AppData.Cloudlets {
+			in := &ormapi.RegionCloudlet{
+				Region:   rd.Region,
+				Cloudlet: cloudlet,
+			}
+			in.Cloudlet.Fields = append(in.Cloudlet.Fields, edgeproto.CloudletFieldLocationLatitude)
+			in.Cloudlet.Fields = append(in.Cloudlet.Fields, edgeproto.CloudletFieldLocationLongitude)
+			in.Cloudlet.Fields = append(in.Cloudlet.Fields, edgeproto.CloudletFieldNumDynamicIps)
+			in.Cloudlet.Fields = append(in.Cloudlet.Fields, edgeproto.CloudletFieldVersion)
+			in.Cloudlet.Fields = append(in.Cloudlet.Fields, edgeproto.CloudletFieldNotifySrvAddr)
+			_, st, err := mcClient.UpdateCloudlet(uri, token, in)
+			checkMcErr("UpdateCloudlet", st, err, rc)
+		}
+		for _, policy := range rd.AppData.AutoScalePolicies {
+			in := &ormapi.RegionAutoScalePolicy{
+				Region:          rd.Region,
+				AutoScalePolicy: policy,
+			}
+			_, st, err := mcClient.UpdateAutoScalePolicy(uri, token, in)
+			checkMcErr("UpdateAutoScalePolicy", st, err, rc)
+		}
+		for _, cinst := range rd.AppData.ClusterInsts {
+			in := &ormapi.RegionClusterInst{
+				Region:      rd.Region,
+				ClusterInst: cinst,
+			}
+			_, st, err := mcClient.UpdateClusterInst(uri, token, in)
+			checkMcErr("UpdateClusterInst", st, err, rc)
+		}
+		for _, app := range rd.AppData.Applications {
+			in := &ormapi.RegionApp{
+				Region: rd.Region,
+				App:    app,
+			}
+			_, st, err := mcClient.UpdateApp(uri, token, in)
+			checkMcErr("UpdateApp", st, err, rc)
+		}
+		for _, appinst := range rd.AppData.AppInstances {
+			in := &ormapi.RegionAppInst{
+				Region:  rd.Region,
+				AppInst: appinst,
+			}
+			_, st, err := mcClient.UpdateAppInst(uri, token, in)
+			checkMcErr("UpdateAppInst", st, err, rc)
+		}
 	}
 }
 

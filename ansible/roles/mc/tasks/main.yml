@@ -1,3 +1,11 @@
+- name: Validate Artifactory
+  include_role:
+    name: mc
+    tasks_from: validate-artifactory
+  loop: "{{ groups['artifactory'] | default([]) }}"
+  loop_control:
+    loop_var: artifactory_host
+
 - import_role:
     name: load-vault-creds
     tasks_from: mc

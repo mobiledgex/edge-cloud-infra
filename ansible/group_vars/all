@@ -30,6 +30,11 @@ vault_telegraf_creds_path: "secret/ansible/common/accounts/telegraf"
 vault_artifactory_token_path: "secret/ansible/common/accounts/artifactory"
 vault_ns1_apikey_path: "secret/ansible/common/accounts/ns1"
 vault_influxdb_creds_path: "secret/ansible/internal/accounts/influxdb"
+vault_mex_ca_cert_path: secret/ansible/common/certs/mex-ca
 mc_creds_vault_path: "secret/ansible/{{ deploy_environ }}/accounts/mc"
 vouch_hostname: vouch.mobiledgex.net
 influxdb_vm_hostname: influxdb.internal.mobiledgex.net
+artifactory_version: 6.14.1
+mex_ca_cert_dir: /etc/ssl/local
+mex_ca_cert_der: "{{ mex_ca_cert_dir }}/mex-ca.der"
+mex_ca_cert_pem: "{{ mex_ca_cert_dir }}/mex-ca.crt"

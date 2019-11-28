@@ -24,8 +24,8 @@ var _ = math.Inf
 
 var CreateCloudletCmd = &cli.Command{
 	Use:                  "CreateCloudlet",
-	RequiredArgs:         strings.Join(append([]string{"region"}, CloudletRequiredArgs...), " "),
-	OptionalArgs:         strings.Join(CloudletOptionalArgs, " "),
+	RequiredArgs:         strings.Join(append([]string{"region"}, CreateCloudletRequiredArgs...), " "),
+	OptionalArgs:         strings.Join(CreateCloudletOptionalArgs, " "),
 	AliasArgs:            strings.Join(CloudletAliasArgs, " "),
 	SpecialArgs:          &CloudletSpecialArgs,
 	Comments:             addRegionComment(CloudletComments),
@@ -92,11 +92,78 @@ var ShowCloudletCmd = &cli.Command{
 	StreamOut:    true,
 }
 
+var AddCloudletResMappingCmd = &cli.Command{
+	Use:          "AddCloudletResMapping",
+	RequiredArgs: strings.Join(append([]string{"region"}, CloudletResMapRequiredArgs...), " "),
+	OptionalArgs: strings.Join(CloudletResMapOptionalArgs, " "),
+	AliasArgs:    strings.Join(CloudletResMapAliasArgs, " "),
+	SpecialArgs:  &CloudletResMapSpecialArgs,
+	Comments:     addRegionComment(CloudletResMapComments),
+	ReqData:      &ormapi.RegionCloudletResMap{},
+	ReplyData:    &edgeproto.Result{},
+	Run:          runRest("/auth/ctrl/AddCloudletResMapping"),
+}
+
+var RemoveCloudletResMappingCmd = &cli.Command{
+	Use:          "RemoveCloudletResMapping",
+	RequiredArgs: strings.Join(append([]string{"region"}, CloudletResMapRequiredArgs...), " "),
+	OptionalArgs: strings.Join(CloudletResMapOptionalArgs, " "),
+	AliasArgs:    strings.Join(CloudletResMapAliasArgs, " "),
+	SpecialArgs:  &CloudletResMapSpecialArgs,
+	Comments:     addRegionComment(CloudletResMapComments),
+	ReqData:      &ormapi.RegionCloudletResMap{},
+	ReplyData:    &edgeproto.Result{},
+	Run:          runRest("/auth/ctrl/RemoveCloudletResMapping"),
+}
+
+var FindFlavorMatchCmd = &cli.Command{
+	Use:          "FindFlavorMatch",
+	RequiredArgs: strings.Join(append([]string{"region"}, FlavorMatchRequiredArgs...), " "),
+	OptionalArgs: strings.Join(FlavorMatchOptionalArgs, " "),
+	AliasArgs:    strings.Join(FlavorMatchAliasArgs, " "),
+	SpecialArgs:  &FlavorMatchSpecialArgs,
+	Comments:     addRegionComment(FlavorMatchComments),
+	ReqData:      &ormapi.RegionFlavorMatch{},
+	ReplyData:    &edgeproto.FlavorMatch{},
+	Run:          runRest("/auth/ctrl/FindFlavorMatch"),
+}
+
 var CloudletApiCmds = []*cli.Command{
 	CreateCloudletCmd,
 	DeleteCloudletCmd,
 	UpdateCloudletCmd,
 	ShowCloudletCmd,
+	AddCloudletResMappingCmd,
+	RemoveCloudletResMappingCmd,
+	FindFlavorMatchCmd,
+}
+
+var CreateCloudletRequiredArgs = []string{
+	"operator",
+	"name",
+	"location.latitude",
+	"location.longitude",
+	"numdynamicips",
+}
+var CreateCloudletOptionalArgs = []string{
+	"accesscredentials",
+	"location.altitude",
+	"location.timestamp.seconds",
+	"location.timestamp.nanos",
+	"ipsupport",
+	"staticips",
+	"errors",
+	"state",
+	"crmoverride",
+	"deploymentlocal",
+	"platformtype",
+	"flavor.name",
+	"physicalname",
+	"envvar",
+	"version",
+	"restagmap.key",
+	"restagmap.value.name",
+	"restagmap.value.operatorkey.name",
 }
 
 var ShowCloudletInfoCmd = &cli.Command{
@@ -253,17 +320,6 @@ var OpenStackPropertiesComments = map[string]string{
 var OpenStackPropertiesSpecialArgs = map[string]string{
 	"openrcvars": "StringToString",
 }
-var OpenRcVarsEntryRequiredArgs = []string{}
-var OpenRcVarsEntryOptionalArgs = []string{
-	"key",
-	"value",
-}
-var OpenRcVarsEntryAliasArgs = []string{
-	"key=openrcvarsentry.key",
-	"value=openrcvarsentry.value",
-}
-var OpenRcVarsEntryComments = map[string]string{}
-var OpenRcVarsEntrySpecialArgs = map[string]string{}
 var CloudletInfraPropertiesRequiredArgs = []string{}
 var CloudletInfraPropertiesOptionalArgs = []string{
 	"cloudletkind",
@@ -326,8 +382,7 @@ var PlatformConfigOptionalArgs = []string{
 	"notifyctrladdrs",
 	"vaultaddr",
 	"tlscertfile",
-	"crmroleid",
-	"crmsecretid",
+	"envvar",
 	"platformtag",
 	"testmode",
 	"span",
@@ -339,8 +394,7 @@ var PlatformConfigAliasArgs = []string{
 	"notifyctrladdrs=platformconfig.notifyctrladdrs",
 	"vaultaddr=platformconfig.vaultaddr",
 	"tlscertfile=platformconfig.tlscertfile",
-	"crmroleid=platformconfig.crmroleid",
-	"crmsecretid=platformconfig.crmsecretid",
+	"envvar=platformconfig.envvar",
 	"platformtag=platformconfig.platformtag",
 	"testmode=platformconfig.testmode",
 	"span=platformconfig.span",
@@ -352,28 +406,48 @@ var PlatformConfigComments = map[string]string{
 	"notifyctrladdrs": "Address of controller notify port (can be multiple of these)",
 	"vaultaddr":       "Vault address",
 	"tlscertfile":     "TLS cert file",
-	"crmroleid":       "Vault role ID for CRM",
-	"crmsecretid":     "Vault secret ID for CRM",
+	"envvar":          "Environment variables",
 	"platformtag":     "Tag of edge-cloud image",
 	"testmode":        "Internal Test flag",
 	"span":            "Span string",
 	"cleanupmode":     "Internal cleanup flag",
 }
-var PlatformConfigSpecialArgs = map[string]string{}
+var PlatformConfigSpecialArgs = map[string]string{
+	"envvar": "StringToString",
+}
+var CloudletResMapRequiredArgs = []string{
+	"operator",
+	"name",
+	"mapping",
+}
+var CloudletResMapOptionalArgs = []string{}
+var CloudletResMapAliasArgs = []string{
+	"operator=cloudletresmap.key.operatorkey.name",
+	"name=cloudletresmap.key.name",
+	"mapping=cloudletresmap.mapping",
+}
+var CloudletResMapComments = map[string]string{
+	"operator": "Company or Organization name of the operator",
+	"name":     "Name of the cloudlet",
+	"mapping":  "Resource mapping info",
+}
+var CloudletResMapSpecialArgs = map[string]string{
+	"mapping": "StringToString",
+}
 var CloudletRequiredArgs = []string{
 	"operator",
 	"name",
-	"location.latitude",
-	"location.longitude",
-	"numdynamicips",
 }
 var CloudletOptionalArgs = []string{
 	"accesscredentials",
+	"location.latitude",
+	"location.longitude",
 	"location.altitude",
 	"location.timestamp.seconds",
 	"location.timestamp.nanos",
 	"ipsupport",
 	"staticips",
+	"numdynamicips",
 	"errors",
 	"state",
 	"crmoverride",
@@ -383,6 +457,9 @@ var CloudletOptionalArgs = []string{
 	"physicalname",
 	"envvar",
 	"version",
+	"restagmap.key",
+	"restagmap.value.name",
+	"restagmap.value.operatorkey.name",
 }
 var CloudletAliasArgs = []string{
 	"operator=cloudlet.key.operatorkey.name",
@@ -425,12 +502,14 @@ var CloudletAliasArgs = []string{
 	"config.notifyctrladdrs=cloudlet.config.notifyctrladdrs",
 	"config.vaultaddr=cloudlet.config.vaultaddr",
 	"config.tlscertfile=cloudlet.config.tlscertfile",
-	"config.crmroleid=cloudlet.config.crmroleid",
-	"config.crmsecretid=cloudlet.config.crmsecretid",
+	"config.envvar=cloudlet.config.envvar",
 	"config.platformtag=cloudlet.config.platformtag",
 	"config.testmode=cloudlet.config.testmode",
 	"config.span=cloudlet.config.span",
 	"config.cleanupmode=cloudlet.config.cleanupmode",
+	"restagmap.key=cloudlet.restagmap.key",
+	"restagmap.value.name=cloudlet.restagmap.value.name",
+	"restagmap.value.operatorkey.name=cloudlet.restagmap.value.operatorkey.name",
 }
 var CloudletComments = map[string]string{
 	"operator":                            "Company or Organization name of the operator",
@@ -467,48 +546,72 @@ var CloudletComments = map[string]string{
 	"config.notifyctrladdrs":              "Address of controller notify port (can be multiple of these)",
 	"config.vaultaddr":                    "Vault address",
 	"config.tlscertfile":                  "TLS cert file",
-	"config.crmroleid":                    "Vault role ID for CRM",
-	"config.crmsecretid":                  "Vault secret ID for CRM",
+	"config.envvar":                       "Environment variables",
 	"config.platformtag":                  "Tag of edge-cloud image",
 	"config.testmode":                     "Internal Test flag",
 	"config.span":                         "Span string",
 	"config.cleanupmode":                  "Internal cleanup flag",
+	"restagmap.value.name":                "Resource Table Name",
+	"restagmap.value.operatorkey.name":    "Company or Organization name of the operator",
 }
 var CloudletSpecialArgs = map[string]string{
-	"envvar": "StringToString",
-	"errors": "StringArray",
+	"config.envvar": "StringToString",
+	"envvar":        "StringToString",
+	"errors":        "StringArray",
 }
-var EnvVarEntryRequiredArgs = []string{}
-var EnvVarEntryOptionalArgs = []string{
-	"key",
-	"value",
+var FlavorMatchRequiredArgs = []string{
+	"operator",
+	"cloudlet",
 }
-var EnvVarEntryAliasArgs = []string{
-	"key=envvarentry.key",
-	"value=envvarentry.value",
+var FlavorMatchOptionalArgs = []string{
+	"flavor",
+	"availabilityzone",
 }
-var EnvVarEntryComments = map[string]string{}
-var EnvVarEntrySpecialArgs = map[string]string{}
+var FlavorMatchAliasArgs = []string{
+	"operator=flavormatch.key.operatorkey.name",
+	"cloudlet=flavormatch.key.name",
+	"flavor=flavormatch.flavorname",
+	"availabilityzone=flavormatch.availabilityzone",
+}
+var FlavorMatchComments = map[string]string{
+	"operator": "Company or Organization name of the operator",
+	"cloudlet": "Name of the cloudlet",
+}
+var FlavorMatchSpecialArgs = map[string]string{}
 var FlavorInfoRequiredArgs = []string{}
 var FlavorInfoOptionalArgs = []string{
 	"name",
 	"vcpus",
 	"ram",
 	"disk",
+	"properties",
 }
 var FlavorInfoAliasArgs = []string{
 	"name=flavorinfo.name",
 	"vcpus=flavorinfo.vcpus",
 	"ram=flavorinfo.ram",
 	"disk=flavorinfo.disk",
+	"properties=flavorinfo.properties",
 }
 var FlavorInfoComments = map[string]string{
-	"name":  "Name of the flavor on the Cloudlet",
-	"vcpus": "Number of VCPU cores on the Cloudlet",
-	"ram":   "Ram in MB on the Cloudlet",
-	"disk":  "Amount of disk in GB on the Cloudlet",
+	"name":       "Name of the flavor on the Cloudlet",
+	"vcpus":      "Number of VCPU cores on the Cloudlet",
+	"ram":        "Ram in MB on the Cloudlet",
+	"disk":       "Amount of disk in GB on the Cloudlet",
+	"properties": "OS Flavor Properties, if any",
 }
 var FlavorInfoSpecialArgs = map[string]string{}
+var OSAZoneRequiredArgs = []string{}
+var OSAZoneOptionalArgs = []string{
+	"name",
+	"status",
+}
+var OSAZoneAliasArgs = []string{
+	"name=osazone.name",
+	"status=osazone.status",
+}
+var OSAZoneComments = map[string]string{}
+var OSAZoneSpecialArgs = map[string]string{}
 var CloudletInfoRequiredArgs = []string{
 	"operator",
 	"name",
@@ -525,11 +628,14 @@ var CloudletInfoOptionalArgs = []string{
 	"flavors.vcpus",
 	"flavors.ram",
 	"flavors.disk",
+	"flavors.properties",
 	"status.tasknumber",
 	"status.maxtasks",
 	"status.taskname",
 	"status.stepname",
 	"version",
+	"availabilityzones.name",
+	"availabilityzones.status",
 }
 var CloudletInfoAliasArgs = []string{
 	"operator=cloudletinfo.key.operatorkey.name",
@@ -545,27 +651,31 @@ var CloudletInfoAliasArgs = []string{
 	"flavors.vcpus=cloudletinfo.flavors.vcpus",
 	"flavors.ram=cloudletinfo.flavors.ram",
 	"flavors.disk=cloudletinfo.flavors.disk",
+	"flavors.properties=cloudletinfo.flavors.properties",
 	"status.tasknumber=cloudletinfo.status.tasknumber",
 	"status.maxtasks=cloudletinfo.status.maxtasks",
 	"status.taskname=cloudletinfo.status.taskname",
 	"status.stepname=cloudletinfo.status.stepname",
 	"version=cloudletinfo.version",
+	"availabilityzones.name=cloudletinfo.availabilityzones.name",
+	"availabilityzones.status=cloudletinfo.availabilityzones.status",
 }
 var CloudletInfoComments = map[string]string{
-	"operator":      "Company or Organization name of the operator",
-	"name":          "Name of the cloudlet",
-	"state":         "State of cloudlet, one of CloudletStateUnknown, CloudletStateErrors, CloudletStateReady, CloudletStateOffline, CloudletStateNotPresent, CloudletStateInit, CloudletStateUpgrade",
-	"notifyid":      "Id of client assigned by server (internal use only)",
-	"controller":    "Connected controller unique id",
-	"osmaxram":      "Maximum Ram in MB on the Cloudlet",
-	"osmaxvcores":   "Maximum number of VCPU cores on the Cloudlet",
-	"osmaxvolgb":    "Maximum amount of disk in GB on the Cloudlet",
-	"errors":        "Any errors encountered while making changes to the Cloudlet",
-	"flavors.name":  "Name of the flavor on the Cloudlet",
-	"flavors.vcpus": "Number of VCPU cores on the Cloudlet",
-	"flavors.ram":   "Ram in MB on the Cloudlet",
-	"flavors.disk":  "Amount of disk in GB on the Cloudlet",
-	"version":       "Cloudlet version",
+	"operator":           "Company or Organization name of the operator",
+	"name":               "Name of the cloudlet",
+	"state":              "State of cloudlet, one of CloudletStateUnknown, CloudletStateErrors, CloudletStateReady, CloudletStateOffline, CloudletStateNotPresent, CloudletStateInit, CloudletStateUpgrade",
+	"notifyid":           "Id of client assigned by server (internal use only)",
+	"controller":         "Connected controller unique id",
+	"osmaxram":           "Maximum Ram in MB on the Cloudlet",
+	"osmaxvcores":        "Maximum number of VCPU cores on the Cloudlet",
+	"osmaxvolgb":         "Maximum amount of disk in GB on the Cloudlet",
+	"errors":             "Any errors encountered while making changes to the Cloudlet",
+	"flavors.name":       "Name of the flavor on the Cloudlet",
+	"flavors.vcpus":      "Number of VCPU cores on the Cloudlet",
+	"flavors.ram":        "Ram in MB on the Cloudlet",
+	"flavors.disk":       "Amount of disk in GB on the Cloudlet",
+	"flavors.properties": "OS Flavor Properties, if any",
+	"version":            "Cloudlet version",
 }
 var CloudletInfoSpecialArgs = map[string]string{
 	"errors": "StringArray",

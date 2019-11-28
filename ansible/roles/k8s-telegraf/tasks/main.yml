@@ -1,0 +1,23 @@
+---
+- set_fact:
+    etcd_env_tag: "{{ deploy_environ }}-{{ region }}"
+
+- name: Look up credentials in vault
+  set_fact:
+    vault_lookup: "{{ lookup('vault', vault_influxdb_creds_path) }}"
+
+- set_fact:
+    influxdb_user: "{{ vault_lookup.influxdb.data.user }}"
+    influxdb_password: "{{ vault_lookup.influxdb.data.pass }}"
+
+- name: Set up configmap
+  k8s:
+    kubeconfig: "{{ kubeconfig_file.path }}"
+    namespace: default
+    definition: "{{ lookup('template', 'telegraf-config.yaml.j2') }}"
+
+- name: "Set up Telegraf v{{ telegraf_image_tag }}"
+  k8s:
+    kubeconfig: "{{ kubeconfig_file.path }}"
+    namespace: default
+    definition: "{{ lookup('template', 'telegraf-deploy.yaml.j2') }}"

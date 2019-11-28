@@ -52,7 +52,7 @@
       - "--platform"
       - "{{ item.platform | default('PLATFORM_TYPE_OPENSTACK') }}"
       - "--vaultAddr"
-      - "{{ vault_vm_hostname }}:{{ vault_port }}"
+      - "https://{{ vault_vm_hostname }}:{{ vault_port }}"
       - "--cloudletKey"
       - "{\\\"operator_key\\\":{\\\"name\\\":\\\"{{ item.operator_key | mandatory }}\\\"},\\\"name\\\":\\\"{{ item.cloudlet_name }}\\\"}"
       - "-d"

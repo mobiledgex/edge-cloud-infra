@@ -68,6 +68,8 @@ var CloudletRefsOptionalArgs = []string{
 	"rootlbports.value",
 	"useddynamicips",
 	"usedstaticips",
+	"optresusedmap.key",
+	"optresusedmap.value",
 }
 var CloudletRefsAliasArgs = []string{
 	"key.operatorkey.name=cloudletrefs.key.operatorkey.name",
@@ -80,6 +82,8 @@ var CloudletRefsAliasArgs = []string{
 	"rootlbports.value=cloudletrefs.rootlbports.value",
 	"useddynamicips=cloudletrefs.useddynamicips",
 	"usedstaticips=cloudletrefs.usedstaticips",
+	"optresusedmap.key=cloudletrefs.optresusedmap.key",
+	"optresusedmap.value=cloudletrefs.optresusedmap.value",
 }
 var CloudletRefsComments = map[string]string{
 	"key.operatorkey.name": "Company or Organization name of the operator",
@@ -92,17 +96,6 @@ var CloudletRefsComments = map[string]string{
 	"usedstaticips":        "Used static IPs",
 }
 var CloudletRefsSpecialArgs = map[string]string{}
-var RootLbPortsEntryRequiredArgs = []string{}
-var RootLbPortsEntryOptionalArgs = []string{
-	"key",
-	"value",
-}
-var RootLbPortsEntryAliasArgs = []string{
-	"key=rootlbportsentry.key",
-	"value=rootlbportsentry.value",
-}
-var RootLbPortsEntryComments = map[string]string{}
-var RootLbPortsEntrySpecialArgs = map[string]string{}
 var ClusterRefsRequiredArgs = []string{
 	"key.clusterkey.name",
 	"key.cloudletkey.operatorkey.name",

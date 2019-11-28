@@ -14,6 +14,24 @@ type OSServer struct {
 	Status, Name, Image, ID, Flavor, Networks string
 }
 
+type OSFlavorDetail struct {
+	Name        string `json:"name"`
+	ID          string `json:"id"`
+	RAM         int    `json:"ram"`
+	Ephemeral   int    `json:"OS-FLV-EXT-DATA:ephemeral"`
+	VCPUs       int    `json:"vcpus"`
+	Disk        int    `json:"disk"`
+	Public      bool   `json:"os-flavor-access:is_public"`
+	Properties  string `json:"properties"`
+	Swap        string `json:"swap"`
+	RXTX_Factor string `json:"RXTX_factor"`
+}
+
+type OSAZone struct {
+	Name   string `json:"zone_name"`
+	Status string `json:"zone_status"`
+}
+
 type OSFloatingIP struct {
 	ID                string `json:"ID"`
 	Project           string `json:"Project"`
@@ -32,6 +50,13 @@ type OSSecurityGroup struct {
 	ID      string `json:"ID"`
 	Project string `json:"Project"`
 	Name    string `json:"Name"`
+}
+
+type OSSecurityGroupRule struct {
+	ID        string `json:"ID"`
+	IPRange   string `json:"IP Range"`
+	PortRange string `json:"Port Range"`
+	Protocol  string `json:"IP Protocol"`
 }
 
 func getNameAndIPFromNetwork(network string) (string, string, error) {

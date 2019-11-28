@@ -33,6 +33,7 @@ const ResourceFlavors = "flavors"
 const ResourceConfig = "config"
 const ResourceAlert = "alert"
 const ResourceAutoScalePolicy = "autoscalepolicy"
+const ResourceResTagTable = "restagtbl"
 
 var DeveloperResources = []string{
 	ResourceApps,
@@ -92,6 +93,8 @@ func InitRolePerms(ctx context.Context) error {
 	addPolicy(ctx, &err, RoleAdminManager, ResourceUsers, ActionView)
 	addPolicy(ctx, &err, RoleAdminContributor, ResourceUsers, ActionView)
 	addPolicy(ctx, &err, RoleAdminViewer, ResourceUsers, ActionView)
+	addPolicy(ctx, &err, RoleAdminManager, ResourceResTagTable, ActionManage)
+	addPolicy(ctx, &err, RoleAdminManager, ResourceResTagTable, ActionView)
 
 	for _, str := range DeveloperResources {
 		addPolicy(ctx, &err, RoleDeveloperManager, str, ActionManage)
@@ -411,6 +414,24 @@ func RemoveUserRoleObj(ctx context.Context, claims *UserClaims, role *ormapi.Rol
 	// make sure caller has perms to modify users of target org
 	if !authorized(ctx, claims.Username, role.Org, ResourceUsers, ActionManage) {
 		return echo.ErrForbidden
+	}
+
+	// if we are removing a manager role, make sure we are not deleting the last manager of an org
+	if role.Role == RoleAdminManager || role.Role == RoleDeveloperManager || role.Role == RoleOperatorManager {
+		managerCount := 0
+		groups, err := enforcer.GetGroupingPolicy()
+		if err != nil {
+			return dbErr(err)
+		}
+		for _, grp := range groups {
+			r := parseRole(grp)
+			if r.Role == role.Role && r.Org == role.Org {
+				managerCount = managerCount + 1
+			}
+		}
+		if managerCount < 2 {
+			return fmt.Errorf("Error: Cannot remove the last remaining manager of an org")
+		}
 	}
 
 	err = enforcer.RemoveGroupingPolicy(ctx, psub, role.Role)

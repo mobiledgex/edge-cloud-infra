@@ -40,6 +40,7 @@ type VMParams struct {
 	Command                  string
 	IsRootLB                 bool
 	IsInternal               bool
+	AvailabilityZone         string
 }
 
 type VMParamsOp func(vmp *VMParams) error
@@ -115,6 +116,9 @@ var vmTemplateResources = `
           {{- end}}
         {{- end}}
          flavor: {{.FlavorName}}
+         {{if .AvailabilityZone}}
+           availabilityzone:{{.AvailabilityZone}}
+         {{- end}}
         {{if .AuthPublicKey}} key_name: { get_resource: ssh_key_pair } {{- end}}
          config_drive: true       
          user_data_format: RAW
@@ -167,7 +171,7 @@ var vmTemplateResources = `
            fixed_ips: 
             - subnet_id: {{.SubnetName}}
            security_groups:
-            - {{$.RootLBParams.ApplicationSecurityGroup}}
+            - { get_resource: vm_security_group }
    floatingip:
        type: OS::Neutron::FloatingIPAssociation
        properties:

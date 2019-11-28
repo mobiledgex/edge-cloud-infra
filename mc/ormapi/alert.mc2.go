@@ -23,6 +23,7 @@ It is generated from these files:
 	notice.proto
 	operator.proto
 	refs.proto
+	restagtable.proto
 	result.proto
 	version.proto
 
@@ -46,8 +47,11 @@ It has these top-level messages:
 	OpenStackProperties
 	CloudletInfraProperties
 	PlatformConfig
+	CloudletResMap
 	Cloudlet
+	FlavorMatch
 	FlavorInfo
+	OSAZone
 	CloudletInfo
 	CloudletMetrics
 	CloudletPoolKey
@@ -75,6 +79,8 @@ It has these top-level messages:
 	Operator
 	CloudletRefs
 	ClusterRefs
+	ResTagTableKey
+	ResTagTable
 	Result
 */
 package ormapi

@@ -195,7 +195,7 @@ func main() {
 	InitNginxScraper()
 	InitPlatformMetrics()
 
-	//register shepherd to receive appinst and clusterinst notifications from crm
+	// register shepherd to receive appinst and clusterinst notifications from crm
 	edgeproto.InitAppInstCache(&AppInstCache)
 	AppInstCache.SetUpdatedCb(appInstCb)
 	ClusterInstCache.SetUpdatedCb(clusterInstCb)
@@ -206,7 +206,7 @@ func main() {
 	notifyClient.RegisterRecvAppInstCache(&AppInstCache)
 	notifyClient.RegisterRecvClusterInstCache(&ClusterInstCache)
 	notifyClient.RegisterRecvAppCache(&AppCache)
-	//register to send metrics
+	// register to send metrics
 	MetricSender = notify.NewMetricSend()
 	notifyClient.RegisterSend(MetricSender)
 	edgeproto.InitAlertCache(&AlertCache)

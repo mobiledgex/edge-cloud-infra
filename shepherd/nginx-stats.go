@@ -25,6 +25,7 @@ var nginxUnitTest = false
 var nginxUnitTestPort = int64(0)
 
 type NginxScrapePoint struct {
+	Key     edgeproto.AppInstKey
 	App     string
 	Cluster string
 	Dev     string
@@ -51,6 +52,7 @@ func CollectNginxStats(ctx context.Context, appInst *edgeproto.AppInst) {
 	// add/remove from the list of nginx endpoints to hit
 	if appInst.State == edgeproto.TrackedState_READY {
 		scrapePoint := NginxScrapePoint{
+			Key:     appInst.Key,
 			App:     k8smgmt.NormalizeName(appInst.Key.AppKey.Name),
 			Cluster: appInst.Key.ClusterInstKey.ClusterKey.Name,
 			Dev:     appInst.Key.AppKey.DeveloperKey.Name,
@@ -103,7 +105,7 @@ func NginxScraper() {
 				span.SetTag("cluster", v.Cluster)
 				ctx := log.ContextWithSpan(context.Background(), span)
 
-				metrics, err := QueryNginx(ctx, v)
+				metrics, err := QueryNginx(ctx, &v)
 				if err != nil {
 					log.SpanLog(ctx, log.DebugLevelMetrics, "Error retrieving nginx metrics", "appinst", v.App, "error", err.Error())
 				} else {
@@ -118,7 +120,7 @@ func NginxScraper() {
 
 }
 
-func QueryNginx(ctx context.Context, scrapePoint NginxScrapePoint) (*shepherd_common.NginxMetrics, error) {
+func QueryNginx(ctx context.Context, scrapePoint *NginxScrapePoint) (*shepherd_common.NginxMetrics, error) {
 	// build the query
 	request := fmt.Sprintf("docker exec %s curl http://127.0.0.1:%d/nginx_metrics", scrapePoint.App, cloudcommon.NginxMetricsPort)
 	if nginxUnitTest {
@@ -138,8 +140,11 @@ func QueryNginx(ctx context.Context, scrapePoint NginxScrapePoint) (*shepherd_co
 	}
 	if err != nil {
 		log.SpanLog(ctx, log.DebugLevelMetrics, "Failed to run request", "request", request, "err", err.Error())
+		// Also this means that we need to notify the controller that this AppInst is no longer recheable
+		HealthCheckDown(&scrapePoint.Key)
 		return nil, err
 	}
+	HealthCheckUp(&scrapePoint.Key)
 	metrics := &shepherd_common.NginxMetrics{}
 	err = parseNginxResp(resp, metrics)
 	if err != nil {

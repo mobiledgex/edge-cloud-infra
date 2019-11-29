@@ -33,7 +33,7 @@ func TestNginxStats(t *testing.T) {
 	nginxUnitTestPort, _ = strconv.ParseInt(strings.Split(fakeNginxTestServer.URL, ":")[2], 10, 32)
 	nginxUnitTest = true
 
-	testMetrics, err := QueryNginx(ctx, testScrapePoint)
+	testMetrics, err := QueryNginx(ctx, &testScrapePoint)
 
 	assert.Nil(t, err, "Test Querying Nginx")
 	assert.Equal(t, uint64(10), testMetrics.ActiveConn)

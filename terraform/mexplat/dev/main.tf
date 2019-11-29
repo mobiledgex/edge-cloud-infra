@@ -79,7 +79,7 @@ module "console" {
   instance_size       = "custom-1-7680-ext"
   zone                = "${var.gcp_zone}"
   boot_disk_size      = 100
-  tags                = [ "http-server", "https-server", "console-debug", "jaeger", "alt-https" ]
+  tags                = [ "http-server", "https-server", "console-debug", "jaeger", "alt-https", "vault-ac" ]
   ssh_public_key_file = "${var.ssh_public_key_file}"
 }
 
@@ -92,5 +92,17 @@ module "console_dns" {
 module "jaeger_dns" {
   source                        = "../../modules/cloudflare_record"
   hostname                      = "${var.jaeger_domain_name}"
+  ip                            = "${module.console.external_ip}"
+}
+
+module "vault_a_dns" {
+  source                        = "../../modules/cloudflare_record"
+  hostname                      = "${var.vault_a_domain_name}"
+  ip                            = "${module.gitlab.external_ip}"
+}
+
+module "vault_b_dns" {
+  source                        = "../../modules/cloudflare_record"
+  hostname                      = "${var.vault_b_domain_name}"
   ip                            = "${module.console.external_ip}"
 }

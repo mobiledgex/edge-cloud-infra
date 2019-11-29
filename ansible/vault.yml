@@ -10,10 +10,17 @@
       tags: setup
 
     - import_role:
+        name: telegraf
+      vars:
+        telegraf_additional_config:
+          - input/vault-statsd.conf.j2
+      tags: [ 'monitoring', 'setup' ]
+
+    - import_role:
         name: web
         tasks_from: certs
       vars:
-        cert_domains: "{{ [ vault_vm_hostname ] + additional_vault_domains.split(',') }}"
+        cert_domains: [ "{{ vault_vm_hostname }}" ]
         post_renewal_hooks:
           - hook_name: vault_reload_hook
             hook_content: |

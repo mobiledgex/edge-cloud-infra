@@ -35,7 +35,8 @@ gitlab-dev.mobiledgex.net
 postgres-dev.mobiledgex.net
 
 [vault]
-vault-dev.mobiledgex.net	vault_vm_hostname=vault-dev.mobiledgex.net vault_port=8200
+vault-dev-a.mobiledgex.net	vault_vm_hostname=vault-dev-a.mobiledgex.net vault_port=8200
+vault-dev-b.mobiledgex.net	vault_vm_hostname=vault-dev-b.mobiledgex.net vault_port=8200
 
 [console]
 console-dev.mobiledgex.net

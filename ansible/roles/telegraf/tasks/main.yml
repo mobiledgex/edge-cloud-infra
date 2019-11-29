@@ -41,4 +41,18 @@
   notify:
     - Restart telegraf
 
+- name: Install additional telegraf configs
+  template:
+    src: "{{ additional_conf_file }}"
+    dest: "{{ telegraf_additional_config_path }}/{{ additional_conf_file | basename | regex_replace('\\.j2$', '') }}"
+    owner: telegraf
+    group: root
+    mode: 0400
+  become: yes
+  notify:
+    - Restart telegraf
+  loop: "{{ telegraf_additional_config }}"
+  loop_control:
+    loop_var: additional_conf_file
+
 - meta: flush_handlers

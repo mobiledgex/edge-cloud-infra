@@ -63,6 +63,14 @@ variable "console_instance_name" {
   default     = "console-dev"
 }
 
+variable "vault_b_instance_name" {
+  default     = "vault-dev-b"
+}
+
+variable "vault_b_gcp_zone" {
+  default     = "europe-west3-a"
+}
+
 // DNS entries
 
 variable "crm_vm_domain_name" {

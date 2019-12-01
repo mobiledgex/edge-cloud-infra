@@ -137,6 +137,7 @@
     owner: "{{ vault_user }}"
     group: "{{ vault_group }}"
     mode: 0600
+  changed_when: False
   become: yes
 
 - name: Set up vault audit log rotation
@@ -298,3 +299,9 @@
     - not result.json.initialized
   changed_when: true
   notify: Vault initialization prompt
+
+- include_role:
+    role: vault
+    tasks_from: loadbalancer
+  tags:
+    - loadbalancer

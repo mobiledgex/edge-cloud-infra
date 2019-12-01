@@ -1,6 +1,26 @@
 - hosts: vault
   tasks:
 
+    - name: Ensure that GCP creds are present in the controller
+      block:
+
+      - set_fact:
+          gcp_creds_file: "{{ lookup('env', 'GOOGLE_CLOUD_KEYFILE_JSON') }}"
+
+      - stat:
+          path: "{{ gcp_creds_file }}"
+        register: st
+
+      - assert:
+          that:
+            - gcp_creds_file != ""
+            - st.stat.exists
+          fail_msg: "Valid GCP credentials not found in variable: GOOGLE_CLOUD_KEYFILE_JSON"
+
+      delegate_to: localhost
+      tags:
+        - loadbalancer
+
     - import_role:
         name: ntp
       tags: setup
@@ -26,6 +46,12 @@
             hook_content: |
               #!/bin/bash
               systemctl reload vault
+      tags: setup
+
+    - name: Install google-auth
+      pip:
+        name: google-auth
+      become: yes
       tags: setup
 
     - name: Set up vault firewall rules

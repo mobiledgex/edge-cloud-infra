@@ -843,22 +843,11 @@ func OSGetLimits(ctx context.Context, info *edgeproto.CloudletInfo) error {
 		}
 	}
 
-	finfo, zones, images, err := GetFlavorInfo(ctx)
+	finfo, _, _, err := GetFlavorInfo(ctx)
 	if err != nil {
 		return err
 	}
 	info.Flavors = finfo
-	for i, _ := range zones {
-		info.AvailabilityZones[i].Name = zones[i].Name
-		info.AvailabilityZones[i].Status = zones[i].Status
-	}
-	for i, _ := range images {
-		info.OsImages[i].Name = images[i].Name
-		info.OsImages[i].Tags = images[i].Tags
-		info.OsImages[i].Properties = images[i].Properties
-		info.OsImages[i].DiskFormat = images[i].DiskFormat
-	}
-
 	return nil
 }
 

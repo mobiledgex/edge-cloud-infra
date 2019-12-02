@@ -9,7 +9,6 @@ monitor_image: "{{ mex_docker_registry }}/mobiledgex/monitor"
 mex_ops_email: mobiledgex.ops@mobiledgex.com
 cloudflare_zone: mobiledgex.net
 global_dme_suffix: ".global.dme.{{ cloudflare_zone }}"
-vault_address: https://vault-main.mobiledgex.net
 artifactory_address: https://artifactory.mobiledgex.net/artifactory
 gitlab_config_path: /etc/gitlab/gitlab.rb
 etcd_opetator_crd: etcdclusters.etcd.database.coreos.com

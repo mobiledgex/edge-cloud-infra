@@ -1,0 +1,5 @@
+regions:
+  - name: mexplat-qa-us
+    location: southcentralus
+    region: US
+    kubernetes_version: 1.13.11

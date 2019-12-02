@@ -65,7 +65,6 @@
     - set_fact:
         backend_srv: "{{ be_get['items'][0] }}"
 
-  - debug: var=backend_srv
   - assert:
       that:
         - backend_srv.name == vault_backend_service
@@ -93,8 +92,6 @@
       filters:
         - "name = {{ vault_cert_name }}"
     register: vault_cert
-
-  - debug: var=vault_cert
 
   - name: Create HTTPS proxy
     gcp_compute_target_https_proxy:

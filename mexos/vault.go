@@ -74,3 +74,21 @@ func GetVaultDataToFile(config *vault.Config, path, fileName string) error {
 	log.DebugLog(log.DebugLevelMexos, "vault data imported to file successfully")
 	return nil
 }
+
+func PutDataToVault(config *vault.Config, path string, data map[string]interface{}) error {
+	client, err := config.Login()
+	if err != nil {
+		return err
+	}
+	return vault.PutKV(client, path, data)
+}
+
+func DeleteDataFromVault(config *vault.Config, path string) error {
+	client, err := config.Login()
+	if err != nil {
+		return err
+	}
+	// Deleting metadata will delete all version of data
+	metadataPath := strings.Replace(path, "secret/data", "secret/metadata", -1)
+	return vault.DeleteKV(client, metadataPath)
+}

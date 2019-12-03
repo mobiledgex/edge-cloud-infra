@@ -53,5 +53,29 @@
           ES_USERNAME: "{{ jaeger_es_user }}"
           ES_PASSWORD: "{{ jaeger_es_pass }}"
 
+    - name: Install dependencies
+      apt:
+        name:
+          - moreutils
+        state: present
+        update_cache: yes
+      become: yes
+
+    - name: Install index cleaner cronjob
+      cron:
+        name: Elasticsearch index cleanup
+        minute: 0
+        hour: 8
+        user: root
+        job: 'docker run --rm
+            -e "ES_USERNAME={{ jaeger_es_user }}"
+            -e "ES_PASSWORD={{ jaeger_es_pass }}"
+            -e ES_TLS=true
+            {{ jaeger_index_cleaner_image }}
+            {{ jaeger_index_cleanup_days }}
+            "{{ jaeger_es_url }}"
+            | ts >>"{{ jaeger_index_cleanup_log }}"'
+      become: yes
+
   when:
     - es_instance is defined

@@ -6,7 +6,7 @@ gitlab_email_enabled=false
 gitlab_slack_notifications=false
 gitlab_docker_hostname="docker-{{ deploy_environ }}.mobiledgex.net"
 mc_artifactory_address=https://artifactory-qa.mobiledgex.net/artifactory
-mc_vm_hostname=mc-{{ deploy_environ}}-alt.mobiledgex.net
+mc_vm_hostname=mc-{{ deploy_environ}}.mobiledgex.net
 crm_vm_hostname=crm-{{ deploy_environ }}.mobiledgex.net
 console_vm_hostname=console-{{ deploy_environ }}.mobiledgex.net
 postgres_hostname=postgres-{{ deploy_environ }}.mobiledgex.net
@@ -28,9 +28,6 @@ localhost	ansible_connection=local
 
 [crms]
 crm-qa.mobiledgex.net
-
-[mc]
-mc-qa-alt.mobiledgex.net
 
 [gitlab]
 gitlab-qa.mobiledgex.net

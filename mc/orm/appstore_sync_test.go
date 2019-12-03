@@ -289,7 +289,7 @@ func mcClientCreate(t *testing.T, v entry, mcClient *ormclient.Client, uri strin
 
 func mcClientDelete(t *testing.T, v entry, mcClient *ormclient.Client, uri, tokenAdmin string) {
 	for user, userType := range v.Users {
-		if userType == RoleDeveloperManager {
+		if userType == RoleDeveloperManager || userType == RoleOperatorManager {
 			continue
 		}
 		roleArg := ormapi.Role{
@@ -297,6 +297,7 @@ func mcClientDelete(t *testing.T, v entry, mcClient *ormclient.Client, uri, toke
 			Org:      v.Org,
 			Role:     userType,
 		}
+		fmt.Printf("blah %+v\n", roleArg)
 		// admin user can remove role
 		status, err := mcClient.RemoveUserRole(uri, tokenAdmin, &roleArg)
 		require.Nil(t, err, "remove user role")

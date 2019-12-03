@@ -3,3 +3,7 @@ regions:
     location: southcentralus
     region: US
     kubernetes_version: 1.13.11
+  - name: mexplat-qa-eu
+    location: southcentralus
+    region: EU
+    kubernetes_version: 1.13.11

@@ -2,6 +2,8 @@ package mexos
 
 import (
 	"context"
+	"encoding/json"
+	"fmt"
 	"io/ioutil"
 	"os"
 	"strings"
@@ -80,7 +82,17 @@ func PutDataToVault(config *vault.Config, path string, data map[string]interface
 	if err != nil {
 		return err
 	}
-	return vault.PutKV(client, path, data)
+	out, err := json.Marshal(data)
+	if err != nil {
+		return fmt.Errorf("Failed to marshal data to json: %v", err)
+	}
+
+	var vaultData map[string]interface{}
+	err = json.Unmarshal(out, &vaultData)
+	if err != nil {
+		return fmt.Errorf("Failed to unmarshal json to vault data: %v", err)
+	}
+	return vault.PutKV(client, path, vaultData)
 }
 
 func DeleteDataFromVault(config *vault.Config, path string) error {

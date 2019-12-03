@@ -14,7 +14,6 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/mobiledgex/edge-cloud/cloudcommon"
 	"github.com/mobiledgex/edge-cloud/edgeproto"
 	"github.com/mobiledgex/edge-cloud/log"
 	"github.com/mobiledgex/edge-cloud/vault"
@@ -46,13 +45,16 @@ var NoExternalRouter = "NONE"
 // Package level test mode variable
 var testMode = false
 
+// Access variables used for cloudlet access
+var OSAccessVars = "openrc.json"
+
 // mapping of FQDNs the CRM knows about to externally mapped IPs. This
 // is used mainly in lab environments that have NATed IPs which can be used to
 // access the cloudlet externally but are not visible in any way to OpenStack
 var mappedExternalIPs map[string]string
 
-func GetVaultCloudletPath(key *edgeproto.CloudletKey, region, filePath string) string {
-	return fmt.Sprintf("/secret/data/%s/cloudlet/openstack/%s.%s/%s", region, key.Name, key.OperatorKey.Name, filePath)
+func GetVaultCloudletPath(key *edgeproto.CloudletKey, region, physicalName, filePath string) string {
+	return fmt.Sprintf("/secret/data/%s/cloudlet/openstack/%s/%s/%s", region, key.OperatorKey.Name, physicalName, filePath)
 }
 
 func GetVaultCloudletCommonPath(filePath string) string {
@@ -103,35 +105,6 @@ func InitInfraCommon(ctx context.Context, vaultConfig *vault.Config) error {
 	return nil
 }
 
-func ParseAccessVars(ctx context.Context, key *edgeproto.CloudletKey, accessInfo *edgeproto.CloudletAccess) (map[string]string, error) {
-	accessVars, err := cloudcommon.MapParse(accessInfo.Vars)
-	if err != nil {
-		log.SpanLog(ctx, log.DebugLevelMexos, "invalid access vars", "err", err)
-		return nil, err
-	}
-	authURL, ok := accessVars["OS_AUTH_URL"]
-	if !ok {
-		return nil, fmt.Errorf("Invalid access var, missing OS_AUTH_URL")
-	}
-	for os_key, _ := range accessVars {
-		if !strings.HasPrefix(os_key, "OS_") {
-			return nil, fmt.Errorf("Invalid access var: %s, must start with 'OS_' prefix", os_key)
-		}
-	}
-	if strings.HasPrefix(authURL, "https") {
-		if accessInfo.CaCert == "" {
-			return nil, fmt.Errorf("Missing CA certs for HTTPS cert verification")
-		}
-		certFile := GetCertFilePath(key)
-		err = ioutil.WriteFile(certFile, []byte(accessInfo.CaCert), 0644)
-		if err != nil {
-			return nil, err
-		}
-		accessVars["OS_CACERT"] = certFile
-	}
-	return accessVars, nil
-}
-
 func InitOpenstackProps(ctx context.Context, key *edgeproto.CloudletKey, accessVars map[string]string, region, physicalName string, vaultConfig *vault.Config) error {
 	if vaultConfig.Addr == "" {
 		return fmt.Errorf("vaultAddr is not specified")
@@ -147,17 +120,11 @@ func InitOpenstackProps(ctx context.Context, key *edgeproto.CloudletKey, accessV
 			return fmt.Errorf("%s, %v", out, err)
 		}
 	} else {
-		var openRcPath string
-		var caCertPath string
-		if physicalName != "" {
-			openRcPath = GetVaultCloudletCommonPath(physicalName + "/openrc.json")
-		} else {
-			openRcPath = GetVaultCloudletPath(key, region, "openrc.json")
-		}
+		openRcPath := GetVaultCloudletPath(key, region, physicalName, OSAccessVars)
 		err := InternVaultEnv(ctx, vaultConfig, openRcPath)
 		if err != nil {
 			if strings.Contains(err.Error(), "no secrets") {
-				return fmt.Errorf("Failed to source access variables as it does not exist")
+				return fmt.Errorf("Failed to source access variables as physicalname '%s' is invalid", physicalName)
 			}
 			return fmt.Errorf("Failed to source access variables from %s, %s: %v", vaultConfig.Addr, openRcPath, err)
 		}
@@ -166,17 +133,15 @@ func InitOpenstackProps(ctx context.Context, key *edgeproto.CloudletKey, accessV
 		// for Platform Create/Delete/UpdateCloudlet.
 		authURL := os.Getenv("OS_AUTH_URL")
 		if strings.HasPrefix(authURL, "https") {
-			if physicalName != "" {
-				caCertPath = GetVaultCloudletCommonPath(physicalName + "/os_cacert")
-			} else {
-				caCertPath = GetVaultCloudletPath(key, region, "/os_cacert")
+			certData := os.Getenv("OS_CACERT_DATA")
+			if certData != "" {
+				certFile := GetCertFilePath(key)
+				err = ioutil.WriteFile(certFile, []byte(certData), 0644)
+				if err != nil {
+					return err
+				}
+				os.Setenv("OS_CACERT", certFile)
 			}
-			certFile := GetCertFilePath(key)
-			err := GetVaultDataToFile(vaultConfig, caCertPath, certFile)
-			if err != nil {
-				return fmt.Errorf("Failed to GetVaultDataToFile %s, %s: %v", vaultConfig.Addr, caCertPath, err)
-			}
-			os.Setenv("OS_CACERT", certFile)
 		}
 	}
 

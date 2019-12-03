@@ -110,11 +110,11 @@ func logger(next echo.HandlerFunc) echo.HandlerFunc {
 			}
 		} else if strings.Contains(req.RequestURI, "/auth/ctrl/CreateCloudlet") ||
 			strings.Contains(req.RequestURI, "/auth/ctrl/UpdateCloudlet") {
-			cloudlet := ormapi.RegionCloudlet{}
-			err := json.Unmarshal(reqBody, &cloudlet)
+			regionCloudlet := ormapi.RegionCloudlet{}
+			err := json.Unmarshal(reqBody, &regionCloudlet)
 			if err == nil {
-				cloudlet.Cloudlet.AccessInfo = nil
-				reqBody, err = json.Marshal(cloudlet)
+				regionCloudlet.Cloudlet.AccessVars = nil
+				reqBody, err = json.Marshal(regionCloudlet)
 			}
 			if err != nil {
 				reqBody = []byte{}

@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"io/ioutil"
 	"net/url"
 	"os"
 	"path/filepath"
@@ -263,8 +264,8 @@ func (s *Platform) CreateCloudlet(ctx context.Context, cloudlet *edgeproto.Cloud
 	updateCallback(edgeproto.UpdateTask, "Sourcing access variables")
 
 	var accessVars map[string]string
-	if cloudlet.AccessInfo != nil {
-		accessVars, err = mexos.ParseAccessVars(ctx, &cloudlet.Key, cloudlet.AccessInfo)
+	if cloudlet.AccessVars != nil {
+		accessVars, err = parseAccessVars(ctx, &cloudlet.Key, cloudlet.AccessVars)
 		if err != nil {
 			return err
 		}
@@ -275,7 +276,7 @@ func (s *Platform) CreateCloudlet(ctx context.Context, cloudlet *edgeproto.Cloud
 	}
 	if accessVars != nil {
 		updateCallback(edgeproto.UpdateTask, "Storing access info to vault")
-		err = storeAccessVars(vaultConfig, cloudlet, pfConfig, accessVars)
+		err = storeAccessVars(vaultConfig, cloudlet, pfConfig.Region, cloudlet.PhysicalName, accessVars)
 		if err != nil {
 			updateCallback(edgeproto.UpdateTask, "Failed to store access info to vault")
 			log.SpanLog(ctx, log.DebugLevelMexos, err.Error(), "cloudletName", cloudlet.Key.Name)
@@ -375,55 +376,76 @@ func (s *Platform) CreateCloudlet(ctx context.Context, cloudlet *edgeproto.Cloud
 	return setupPlatformService(ctx, cloudlet, pfConfig, vaultConfig, client, updateCallback)
 }
 
-func storeAccessVars(vaultConfig *vault.Config, cloudlet *edgeproto.Cloudlet, pfConfig *edgeproto.PlatformConfig, accessVars map[string]string) error {
-	var varList []map[string]interface{}
+func parseAccessVars(ctx context.Context, key *edgeproto.CloudletKey, accessVarsIn map[string]string) (map[string]string, error) {
+	openrcData, ok := accessVarsIn["OPENRC_DATA"]
+	if !ok {
+		return nil, fmt.Errorf("Invalid accessvars, missing OPENRC_DATA")
+	}
+	out := strings.Split(openrcData, "\n")
+	if len(out) <= 1 {
+		return nil, fmt.Errorf("Invalid accessvars: %v", out)
+	}
+	accessVars := make(map[string]string)
+	for _, v := range out {
+		out1 := strings.Split(v, "=")
+		if len(out1) != 2 {
+			return nil, fmt.Errorf("Invalid separator for key-value pair: %v", out1)
+		}
+		key := strings.TrimSpace(out1[0])
+		value := strings.TrimSpace(out1[1])
+		if !strings.HasPrefix(key, "OS_") {
+			return nil, fmt.Errorf("Invalid accessvars: %s, must start with 'OS_' prefix", key)
+		}
+		accessVars[key] = value
+	}
+	authURL, ok := accessVars["OS_AUTH_URL"]
+	if !ok {
+		return nil, fmt.Errorf("Invalid accessvars, missing OS_AUTH_URL")
+	}
+	if strings.HasPrefix(authURL, "https") {
+		certData, ok := accessVarsIn["CACERT_DATA"]
+		if !ok {
+			return nil, fmt.Errorf("Invalid accessvars, missing CACERT_DATA")
+		}
+		certFile := mexos.GetCertFilePath(key)
+		err := ioutil.WriteFile(certFile, []byte(certData), 0644)
+		if err != nil {
+			return nil, err
+		}
+		accessVars["OS_CACERT"] = certFile
+		accessVars["OS_CACERT_DATA"] = certData
+	}
+	return accessVars, nil
+}
+
+func storeAccessVars(vaultConfig *vault.Config, cloudlet *edgeproto.Cloudlet, region, physicalName string, accessVars map[string]string) error {
+	var varList mexos.VaultEnvData
 	for key, value := range accessVars {
 		if key == "OS_CACERT" {
 			continue
 		}
-		varList = append(varList, map[string]interface{}{
-			"name":  key,
-			"value": value,
+		varList.Env = append(varList.Env, mexos.EnvData{
+			Name:  key,
+			Value: value,
 		})
 	}
-	envData := map[string]interface{}{
-		"env": varList,
-	}
 	data := map[string]interface{}{
-		"data": envData,
+		"data": varList,
 	}
-	path := mexos.GetVaultCloudletPath(&cloudlet.Key, pfConfig.Region, "/openrc.json")
+
+	path := mexos.GetVaultCloudletPath(&cloudlet.Key, region, physicalName, mexos.OSAccessVars)
 	err := mexos.PutDataToVault(vaultConfig, path, data)
 	if err != nil {
 		return fmt.Errorf("Failed to store access vars to vault: %v", err)
 	}
-
-	if _, ok := accessVars["OS_CACERT"]; ok {
-		certData := map[string]interface{}{
-			"data": cloudlet.AccessInfo.CaCert,
-		}
-		data = map[string]interface{}{
-			"data": certData,
-		}
-		path = mexos.GetVaultCloudletPath(&cloudlet.Key, pfConfig.Region, "/os_cacert")
-		err = mexos.PutDataToVault(vaultConfig, path, data)
-		if err != nil {
-			return fmt.Errorf("Failed to store CACert to vault: %v", err)
-		}
-	}
 	return nil
 }
 
-func deleteAccessVars(vaultConfig *vault.Config, cloudlet *edgeproto.Cloudlet, pfConfig *edgeproto.PlatformConfig) error {
-	path := mexos.GetVaultCloudletPath(&cloudlet.Key, pfConfig.Region, "/openrc.json")
+func deleteAccessVars(vaultConfig *vault.Config, cloudlet *edgeproto.Cloudlet, region, physicalName string) error {
+	path := mexos.GetVaultCloudletPath(&cloudlet.Key, region, physicalName, mexos.OSAccessVars)
 	err := mexos.DeleteDataFromVault(vaultConfig, path)
 	if err != nil {
 		return fmt.Errorf("Failed to delete access vars from vault: %v", err)
-	}
-	path = mexos.GetVaultCloudletPath(&cloudlet.Key, pfConfig.Region, "/os_cacert")
-	err = mexos.DeleteDataFromVault(vaultConfig, path)
-	if err != nil {
-		return fmt.Errorf("Failed to delete CACert from vault: %v", err)
 	}
 	return nil
 }
@@ -452,14 +474,9 @@ func (s *Platform) DeleteCloudlet(ctx context.Context, cloudlet *edgeproto.Cloud
 		return fmt.Errorf("DeleteCloudlet error: %v", err)
 	}
 
-	if cloudlet.AccessInfo != nil {
-		updateCallback(edgeproto.UpdateTask, "Deleting access info from vault")
-		err = deleteAccessVars(vaultConfig, cloudlet, pfConfig)
-		if err != nil {
-			updateCallback(edgeproto.UpdateTask, "Failed to delete access info from vault")
-			log.SpanLog(ctx, log.DebugLevelMexos, err.Error(), "cloudletName", cloudlet.Key.Name)
-		}
-	}
+	// Not sure if it's safe to remove vars from Vault due to testing/virtual cloudlets,
+	// so leaving them in Vault for the time being. We can always delete them manually
+
 	return nil
 }
 
@@ -489,8 +506,8 @@ func (s *Platform) UpdateCloudlet(ctx context.Context, cloudlet *edgeproto.Cloud
 	// Source OpenRC file to access openstack API endpoint
 	updateCallback(edgeproto.UpdateTask, fmt.Sprintf("Sourcing platform variables for %s cloudlet", cloudlet.PhysicalName))
 	var accessVars map[string]string
-	if cloudlet.AccessInfo != nil {
-		accessVars, err = mexos.ParseAccessVars(ctx, &cloudlet.Key, cloudlet.AccessInfo)
+	if cloudlet.AccessVars != nil {
+		accessVars, err = parseAccessVars(ctx, &cloudlet.Key, cloudlet.AccessVars)
 		if err != nil {
 			return err
 		}
@@ -501,7 +518,7 @@ func (s *Platform) UpdateCloudlet(ctx context.Context, cloudlet *edgeproto.Cloud
 	}
 	if accessVars != nil {
 		updateCallback(edgeproto.UpdateTask, "Storing access info to vault")
-		err = storeAccessVars(vaultConfig, cloudlet, pfConfig, accessVars)
+		err = storeAccessVars(vaultConfig, cloudlet, pfConfig.Region, cloudlet.PhysicalName, accessVars)
 		if err != nil {
 			updateCallback(edgeproto.UpdateTask, "Failed to store access info to vault")
 			log.SpanLog(ctx, log.DebugLevelMexos, err.Error(), "cloudletName", cloudlet.Key.Name)

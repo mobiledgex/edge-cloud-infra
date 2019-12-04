@@ -130,6 +130,22 @@
   become: yes
   notify: Reload vault
 
+- name: Create vault audit log
+  file:
+    path: "{{ vault_audit_log }}"
+    state: touch
+    owner: "{{ vault_user }}"
+    group: "{{ vault_group }}"
+    mode: 0600
+  changed_when: False
+  become: yes
+
+- name: Set up vault audit log rotation
+  template:
+    src: vault.logrotate.j2
+    dest: "{{ vault_logrotate_path }}"
+  become: yes
+
 - name: Set up vault plugin directory
   file:
     path: "{{ vault_plugin_directory }}"
@@ -283,3 +299,9 @@
     - not result.json.initialized
   changed_when: true
   notify: Vault initialization prompt
+
+- include_role:
+    role: vault
+    tasks_from: loadbalancer
+  tags:
+    - loadbalancer

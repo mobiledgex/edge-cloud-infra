@@ -21,6 +21,7 @@ gitlab_docker_hostname="docker-{{ deploy_environ }}.mobiledgex.net"
 azure_volume_storage_class=default
 influxdb_volume_size=1Gi
 vault_firewall_setup=no
+vault_ha_domain="vault-{{ deploy_environ }}.mobiledgex.net"
 
 [platform]
 localhost	ansible_connection=local
@@ -35,7 +36,8 @@ gitlab-dev.mobiledgex.net
 postgres-dev.mobiledgex.net
 
 [vault]
-vault-dev.mobiledgex.net	vault_vm_hostname=vault-dev.mobiledgex.net vault_port=8200
+vault-dev-a.mobiledgex.net	vault_vm_hostname=vault-dev-a.mobiledgex.net vault_port=8200
+vault-dev-b.mobiledgex.net	vault_vm_hostname=vault-dev-b.mobiledgex.net vault_port=8200
 
 [console]
 console-dev.mobiledgex.net

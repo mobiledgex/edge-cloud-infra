@@ -42,7 +42,7 @@ func (s *Platform) Init(ctx context.Context, key *edgeproto.CloudletKey, region,
 	s.vaultConfig = vaultConfig
 
 	//get the platform client so we can ssh in to make curl commands to the prometheus apps
-	if err = mexos.InitOpenstackProps(ctx, key, nil, region, physicalName, vaultConfig); err != nil {
+	if err = mexos.InitOpenstackProps(ctx, key, region, physicalName, vaultConfig); err != nil {
 		return err
 	}
 	//need to have a separate one for dedicated rootlbs, see openstack.go line 111,

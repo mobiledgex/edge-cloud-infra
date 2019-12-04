@@ -105,43 +105,32 @@ func InitInfraCommon(ctx context.Context, vaultConfig *vault.Config) error {
 	return nil
 }
 
-func InitOpenstackProps(ctx context.Context, key *edgeproto.CloudletKey, accessVars map[string]string, region, physicalName string, vaultConfig *vault.Config) error {
+func InitOpenstackProps(ctx context.Context, key *edgeproto.CloudletKey, region, physicalName string, vaultConfig *vault.Config) error {
 	if vaultConfig.Addr == "" {
 		return fmt.Errorf("vaultAddr is not specified")
 	}
 	VaultConfig = vaultConfig
-	if accessVars != nil {
-		for os_key, os_value := range accessVars {
-			os.Setenv(os_key, os_value)
+	openRcPath := GetVaultCloudletPath(key, region, physicalName, OSAccessVars)
+	err := InternVaultEnv(ctx, vaultConfig, openRcPath)
+	if err != nil {
+		if strings.Contains(err.Error(), "no secrets") {
+			return fmt.Errorf("Failed to source access variables as physicalname '%s' is invalid", physicalName)
 		}
-		// Test openstack call
-		out, err := TimedOpenStackCommand(ctx, "openstack", "flavor", "list")
-		if err != nil {
-			return fmt.Errorf("%s, %v", out, err)
-		}
-	} else {
-		openRcPath := GetVaultCloudletPath(key, region, physicalName, OSAccessVars)
-		err := InternVaultEnv(ctx, vaultConfig, openRcPath)
-		if err != nil {
-			if strings.Contains(err.Error(), "no secrets") {
-				return fmt.Errorf("Failed to source access variables as physicalname '%s' is invalid", physicalName)
+		return fmt.Errorf("Failed to source access variables from %s, %s: %v", vaultConfig.Addr, openRcPath, err)
+	}
+	// these (and the resulting env vars) really need to be set on an
+	// object to deal with controller calling this function in parallel
+	// for Platform Create/Delete/UpdateCloudlet.
+	authURL := os.Getenv("OS_AUTH_URL")
+	if strings.HasPrefix(authURL, "https") {
+		certData := os.Getenv("OS_CACERT_DATA")
+		if certData != "" {
+			certFile := GetCertFilePath(key)
+			err = ioutil.WriteFile(certFile, []byte(certData), 0644)
+			if err != nil {
+				return err
 			}
-			return fmt.Errorf("Failed to source access variables from %s, %s: %v", vaultConfig.Addr, openRcPath, err)
-		}
-		// these (and the resulting env vars) really need to be set on an
-		// object to deal with controller calling this function in parallel
-		// for Platform Create/Delete/UpdateCloudlet.
-		authURL := os.Getenv("OS_AUTH_URL")
-		if strings.HasPrefix(authURL, "https") {
-			certData := os.Getenv("OS_CACERT_DATA")
-			if certData != "" {
-				certFile := GetCertFilePath(key)
-				err = ioutil.WriteFile(certFile, []byte(certData), 0644)
-				if err != nil {
-					return err
-				}
-				os.Setenv("OS_CACERT", certFile)
-			}
+			os.Setenv("OS_CACERT", certFile)
 		}
 	}
 

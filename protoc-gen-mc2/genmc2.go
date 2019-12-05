@@ -17,6 +17,7 @@ type GenMC2 struct {
 	tmpl                 *template.Template
 	tmplApi              *template.Template
 	tmplMethodTest       *template.Template
+	tmplMethodTestutil   *template.Template
 	tmplMethodCtl        *template.Template
 	tmplMessageTest      *template.Template
 	tmplMethodClient     *template.Template
@@ -25,6 +26,7 @@ type GenMC2 struct {
 	firstFile            bool
 	genapi               bool
 	gentest              bool
+	gentestutil          bool
 	genclient            bool
 	genctl               bool
 	gencliwrapper        bool
@@ -37,6 +39,7 @@ type GenMC2 struct {
 	importRequire        bool
 	importOrmclient      bool
 	importOrmapi         bool
+	importOrmtestutil    bool
 	importGrpcStatus     bool
 	importStrings        bool
 	importLog            bool
@@ -52,6 +55,7 @@ func (g *GenMC2) Init(gen *generator.Generator) {
 	g.tmpl = template.Must(template.New("mc2").Parse(tmpl))
 	g.tmplApi = template.Must(template.New("mc2api").Parse(tmplApi))
 	g.tmplMethodTest = template.Must(template.New("methodtest").Parse(tmplMethodTest))
+	g.tmplMethodTestutil = template.Must(template.New("methodtest").Parse(tmplMethodTestutil))
 	g.tmplMethodClient = template.Must(template.New("methodclient").Parse(tmplMethodClient))
 	g.tmplMethodCtl = template.Must(template.New("methodctl").Parse(tmplMethodCtl))
 	g.tmplMethodCliWrapper = template.Must(template.New("methodcliwrapper").Parse(tmplMethodCliWrapper))
@@ -95,6 +99,9 @@ func (g *GenMC2) GenerateImports(file *generator.FileDescriptor) {
 	if g.importOrmapi {
 		g.PrintImport("", "github.com/mobiledgex/edge-cloud-infra/mc/ormapi")
 	}
+	if g.importOrmtestutil {
+		g.PrintImport("", "github.com/mobiledgex/edge-cloud-infra/mc/orm/testutil")
+	}
 	if g.importCli {
 		g.PrintImport("", "github.com/mobiledgex/edge-cloud/cli")
 	}
@@ -114,6 +121,7 @@ func (g *GenMC2) Generate(file *generator.FileDescriptor) {
 	g.importRequire = false
 	g.importOrmclient = false
 	g.importOrmapi = false
+	g.importOrmtestutil = false
 	g.importGrpcStatus = false
 	g.importLog = false
 	g.importCli = false
@@ -129,6 +137,7 @@ func (g *GenMC2) Generate(file *generator.FileDescriptor) {
 	g.P(gensupport.AutoGenComment)
 	g.genapi = g.hasParam("genapi")
 	g.gentest = g.hasParam("gentest")
+	g.gentestutil = g.hasParam("gentestutil")
 	g.genclient = g.hasParam("genclient")
 	g.genctl = g.hasParam("genctl")
 	g.gencliwrapper = g.hasParam("gencliwrapper")
@@ -141,6 +150,12 @@ func (g *GenMC2) Generate(file *generator.FileDescriptor) {
 		if g.genctl {
 			g.generateCtlGroup(service)
 		}
+		if g.gentestutil {
+			if len(service.Method) == 0 {
+				continue
+			}
+			g.generateRunApi(file.FileDescriptorProto, service)
+		}
 	}
 	if g.genctl {
 		for ii, msg := range file.Messages() {
@@ -148,7 +163,7 @@ func (g *GenMC2) Generate(file *generator.FileDescriptor) {
 		}
 	}
 
-	if g.genapi || g.genclient || g.genctl || g.gencliwrapper {
+	if g.genapi || g.genclient || g.genctl || g.gencliwrapper || g.gentestutil {
 		return
 	}
 
@@ -281,11 +296,15 @@ func (g *GenMC2) generateMethod(service string, method *descriptor.MethodDescrip
 		g.importOrmapi = true
 	} else if g.gentest {
 		tmpl = g.tmplMethodTest
-		g.importOrmapi = true
 		g.importOrmclient = true
+		g.importOrmtestutil = true
 		g.importTesting = true
 		g.importRequire = true
 		g.importHttp = true
+	} else if g.gentestutil {
+		tmpl = g.tmplMethodTestutil
+		g.importOrmapi = true
+		g.importOrmclient = true
 	} else if g.genctl {
 		tmpl = g.tmplMethodCtl
 		g.importOrmapi = true
@@ -527,11 +546,11 @@ func {{.MethodName}}Obj(ctx context.Context, rc *RegionContext, obj *edgeproto.{
 
 `
 
-var tmplMethodTest = `
+var tmplMethodTestutil = `
 {{- if .Outstream}}
-func test{{.MethodName}}(mcClient *ormclient.Client, uri, token, region string, in *edgeproto.{{.InName}}) ([]edgeproto.{{.OutName}}, int, error) {
+func Test{{.MethodName}}(mcClient *ormclient.Client, uri, token, region string, in *edgeproto.{{.InName}}) ([]edgeproto.{{.OutName}}, int, error) {
 {{- else}}
-func test{{.MethodName}}(mcClient *ormclient.Client, uri, token, region string, in *edgeproto.{{.InName}}) (edgeproto.{{.OutName}}, int, error) {
+func Test{{.MethodName}}(mcClient *ormclient.Client, uri, token, region string, in *edgeproto.{{.InName}}) (edgeproto.{{.OutName}}, int, error) {
 {{- end}}
 	dat := &ormapi.Region{{.InName}}{}
 	dat.Region = region
@@ -540,9 +559,9 @@ func test{{.MethodName}}(mcClient *ormclient.Client, uri, token, region string, 
 }
 
 {{- if .Outstream}}
-func testPerm{{.MethodName}}(mcClient *ormclient.Client, uri, token, region, org string{{.TargetCloudletParam}}) ([]edgeproto.{{.OutName}}, int, error) {
+func TestPerm{{.MethodName}}(mcClient *ormclient.Client, uri, token, region, org string{{.TargetCloudletParam}}) ([]edgeproto.{{.OutName}}, int, error) {
 {{- else}}
-func testPerm{{.MethodName}}(mcClient *ormclient.Client, uri, token, region, org string{{.TargetCloudletParam}}) (edgeproto.{{.OutName}}, int, error) {
+func TestPerm{{.MethodName}}(mcClient *ormclient.Client, uri, token, region, org string{{.TargetCloudletParam}}) (edgeproto.{{.OutName}}, int, error) {
 {{- end}}
 	in := &edgeproto.{{.InName}}{}
 {{- if .TargetCloudlet}}
@@ -553,17 +572,22 @@ func testPerm{{.MethodName}}(mcClient *ormclient.Client, uri, token, region, org
 {{- if and (ne .OrgField "") (not .SkipEnforce)}}
 	in.{{.OrgField}} = org
 {{- end}}
-	return test{{.MethodName}}(mcClient, uri, token, region, in)
+	return Test{{.MethodName}}(mcClient, uri, token, region, in)
 }
+`
+
+var tmplMethodTest = `
+
+var _ = edgeproto.GetFields
 
 func badPerm{{.MethodName}}(t *testing.T, mcClient *ormclient.Client, uri, token, region, org string{{.TargetCloudletParam}}) {
-	_, status, err := testPerm{{.MethodName}}(mcClient, uri, token, region, org{{.TargetCloudletArg}})
+	_, status, err := testutil.TestPerm{{.MethodName}}(mcClient, uri, token, region, org{{.TargetCloudletArg}})
 	require.NotNil(t, err)
 	require.Equal(t, http.StatusForbidden, status)
 }
 
 func goodPerm{{.MethodName}}(t *testing.T, mcClient *ormclient.Client, uri, token, region, org string{{.TargetCloudletParam}}) {
-	_, status, err := testPerm{{.MethodName}}(mcClient, uri, token, region, org{{.TargetCloudletArg}})
+	_, status, err := testutil.TestPerm{{.MethodName}}(mcClient, uri, token, region, org{{.TargetCloudletArg}})
 	require.Nil(t, err)
 	require.Equal(t, http.StatusOK, status)
 }
@@ -690,6 +714,67 @@ func (g *GenMC2) generateMessageTest(desc *generator.Descriptor) {
 	g.importHttp = true
 }
 
+func (g *GenMC2) generateRunApi(file *descriptor.FileDescriptorProto, service *descriptor.ServiceDescriptorProto) {
+	allowedActions := []string{
+		"Create",
+		"Update",
+		"Delete",
+	}
+	out := make(map[string]map[string]string)
+	for _, method := range service.Method {
+		found := false
+		action := ""
+		for _, act := range allowedActions {
+			if strings.HasPrefix(*method.Name, act) {
+				found = true
+				action = act
+				break
+			}
+		}
+		if !found {
+			continue
+		}
+		cmd := strings.TrimPrefix(*method.Name, action)
+		if _, ok := out[cmd]; ok {
+			out[cmd][action] = *method.Name
+		} else {
+			out[cmd] = map[string]string{
+				action: *method.Name,
+			}
+		}
+	}
+	for k, v := range out {
+		g.P()
+		g.P("func RunMc", k, "Api(uri, token, region string, data *[]edgeproto.", k, ", dataMap []map[string]interface{}, rc *bool, mode string) {")
+		g.P("var mcClient ormclient.Api")
+		objStr := strings.ToLower(string(k[0])) + string(k[1:len(k)])
+		if _, ok := v["Update"]; ok {
+			g.P("for ii, ", objStr, " := range *data {")
+		} else {
+			g.P("for _, ", objStr, " := range *data {")
+		}
+		g.P("in := &ormapi.Region", k, "{")
+		g.P("Region: region,")
+		g.P(k, ": ", objStr, ",")
+		g.P("}")
+		g.P("switch mode {")
+		for action, fName := range v {
+			g.P("case \"", strings.ToLower(action), "\":")
+			if action == "Update" {
+				g.importCli = true
+				g.P("in.", k, ".Fields = cli.GetSpecifiedFields(dataMap[ii], &in.", k, ", cli.YamlNamespace)")
+			}
+			g.P("_, st, err := mcClient.", fName, "(uri, token, in)")
+			g.P("checkMcErr(\"", fName, "\", st, err, rc)")
+		}
+		g.P("default:")
+		g.P("return")
+		g.P("}")
+		g.P("}")
+		g.P("}")
+	}
+}
+
 type msgArgs struct {
 	Message             string
 	HasUpdate           bool
@@ -713,7 +798,7 @@ func badPermTest{{.Message}}(t *testing.T, mcClient *ormclient.Client, uri, toke
 
 func badPermTestShow{{.Message}}(t *testing.T, mcClient *ormclient.Client, uri, token, region, org string) {
 	// show is allowed but won't show anything
-	list, status, err := testPermShow{{.Message}}(mcClient, uri, token, region, org)
+	list, status, err := testutil.TestPermShow{{.Message}}(mcClient, uri, token, region, org)
 	require.Nil(t, err)
 	require.Equal(t, http.StatusOK, status)
 	require.Equal(t, 0, len(list))
@@ -729,17 +814,17 @@ func goodPermTest{{.Message}}(t *testing.T, mcClient *ormclient.Client, uri, tok
 	goodPerm{{.Delete}}{{.Message}}(t, mcClient, uri, token, region, org{{.TargetCloudletArg}})
 
 	// make sure region check works
-	_, status, err := testPerm{{.Create}}{{.Message}}(mcClient, uri, token, "bad region", org{{.TargetCloudletArg}})
+	_, status, err := testutil.TestPerm{{.Create}}{{.Message}}(mcClient, uri, token, "bad region", org{{.TargetCloudletArg}})
 	require.NotNil(t, err)
 	require.Contains(t, err.Error(), "\"bad region\" not found")
 	require.Equal(t, http.StatusBadRequest, status)
 {{- if .HasUpdate}}
-	_, status, err = testPermUpdate{{.Message}}(mcClient, uri, token, "bad region", org{{.TargetCloudletArg}})
+	_, status, err = testutil.TestPermUpdate{{.Message}}(mcClient, uri, token, "bad region", org{{.TargetCloudletArg}})
 	require.NotNil(t, err)
 	require.Contains(t, err.Error(), "\"bad region\" not found")
 	require.Equal(t, http.StatusBadRequest, status)
 {{- end}}
-	_, status, err = testPerm{{.Delete}}{{.Message}}(mcClient, uri, token, "bad region", org{{.TargetCloudletArg}})
+	_, status, err = testutil.TestPerm{{.Delete}}{{.Message}}(mcClient, uri, token, "bad region", org{{.TargetCloudletArg}})
 	require.NotNil(t, err)
 	require.Contains(t, err.Error(), "\"bad region\" not found")
 	require.Equal(t, http.StatusBadRequest, status)
@@ -748,13 +833,13 @@ func goodPermTest{{.Message}}(t *testing.T, mcClient *ormclient.Client, uri, tok
 }
 
 func goodPermTestShow{{.Message}}(t *testing.T, mcClient *ormclient.Client, uri, token, region, org string, count int) {
-	list, status, err := testPermShow{{.Message}}(mcClient, uri, token, region, org)
+	list, status, err := testutil.TestPermShow{{.Message}}(mcClient, uri, token, region, org)
 	require.Nil(t, err)
 	require.Equal(t, http.StatusOK, status)
 	require.Equal(t, count, len(list))
 
 	// make sure region check works
-	list, status, err = testPermShow{{.Message}}(mcClient, uri, token, "bad region", org)
+	list, status, err = testutil.TestPermShow{{.Message}}(mcClient, uri, token, "bad region", org)
 	require.NotNil(t, err)
 	require.Contains(t, err.Error(), "\"bad region\" not found")
 	require.Equal(t, http.StatusBadRequest, status)

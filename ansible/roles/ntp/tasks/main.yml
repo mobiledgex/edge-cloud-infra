@@ -8,4 +8,5 @@
   apt:
     name:
       - ntp
+    update_cache: yes
   become: yes

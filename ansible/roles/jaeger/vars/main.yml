@@ -2,3 +2,4 @@
 mex_ca_cert_path: /etc/nginx/mex-ca.crt
 jaeger_collector_image: jaegertracing/jaeger-collector
 jaeger_query_image: jaegertracing/jaeger-query
+jaeger_index_cleanup_log: /var/log/jaeger-es-index-cleanup.log

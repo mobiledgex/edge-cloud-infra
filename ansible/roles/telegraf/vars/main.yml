@@ -1,1 +1,2 @@
 telegraf_config_path: /etc/telegraf/telegraf.conf
+telegraf_additional_config_path: /etc/telegraf/telegraf.d

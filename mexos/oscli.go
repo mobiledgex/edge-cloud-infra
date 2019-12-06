@@ -843,7 +843,7 @@ func OSGetLimits(ctx context.Context, info *edgeproto.CloudletInfo) error {
 		}
 	}
 
-	finfo, _, _, err := GetFlavorInfo(ctx)
+	finfo, err := GetFlavorInfo(ctx)
 	if err != nil {
 		return err
 	}
@@ -867,13 +867,13 @@ func OSGetAllLimits(ctx context.Context) ([]OSLimit, error) {
 	return limits, nil
 }
 
-func GetFlavorInfo(ctx context.Context) ([]*edgeproto.FlavorInfo, []OSAZone, []OSImageDetail, error) {
+func GetFlavorInfo(ctx context.Context) ([]*edgeproto.FlavorInfo, error) {
 	osflavors, err := ListFlavors(ctx)
 	if err != nil {
-		return nil, nil, nil, fmt.Errorf("failed to get flavors, %v", err.Error())
+		return nil, fmt.Errorf("failed to get flavors, %v", err.Error())
 	}
 	if len(osflavors) == 0 {
-		return nil, nil, nil, fmt.Errorf("no flavors found")
+		return nil, fmt.Errorf("no flavors found")
 	}
 	var finfo []*edgeproto.FlavorInfo
 	for _, f := range osflavors {
@@ -887,12 +887,7 @@ func GetFlavorInfo(ctx context.Context) ([]*edgeproto.FlavorInfo, []OSAZone, []O
 				Properties: f.Properties},
 		)
 	}
-	zones, err := ListAZones(ctx)
-	images, err := ListImagesDetail(ctx)
-	if err != nil {
-		return nil, nil, nil, err
-	}
-	return finfo, zones, images, nil
+	return finfo, nil
 }
 
 func GetSecurityGroupIDForProject(ctx context.Context, grpname string, projectID string) (string, error) {

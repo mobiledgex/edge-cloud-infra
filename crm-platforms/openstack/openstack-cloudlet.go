@@ -278,7 +278,7 @@ func (s *Platform) CreateCloudlet(ctx context.Context, cloudlet *edgeproto.Cloud
 	}
 
 	// Get Closest Platform Flavor
-	finfo, _, _, err := mexos.GetFlavorInfo(ctx)
+	finfo, err := mexos.GetFlavorInfo(ctx)
 	if err != nil {
 		return err
 	}

@@ -406,6 +406,8 @@ func processAccessVars(ctx context.Context, cloudlet *edgeproto.Cloudlet, access
 		accessVars["OS_CACERT"] = certFile
 		accessVars["OS_CACERT_DATA"] = certData
 	}
+	// os.Setenv here is redundant with the InternVaultEnv in InitOpenstackProps,
+	// but it's needed to be able to run the test TimedOpenStackCommand below.
 	for os_key, os_value := range accessVars {
 		os.Setenv(os_key, os_value)
 	}

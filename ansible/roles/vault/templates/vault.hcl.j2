@@ -1,12 +1,19 @@
 ui = true
 api_addr = "https://{{ vault_vm_hostname }}:{{ vault_port }}"
+cluster_addr = "https://{{ vault_vm_hostname }}:{{ vault_cluster_port }}"
 listener "tcp" {
   address = "0.0.0.0:{{ vault_port }}"
+  cluster_address  = "0.0.0.0:{{ vault_cluster_port }}"
   tls_disable = 0
   tls_cert_file = "/etc/letsencrypt/live/{{ vault_vm_hostname }}/fullchain.pem"
   tls_key_file = "/etc/letsencrypt/live/{{ vault_vm_hostname }}/privkey.pem"
 }
 storage "gcs" {
   bucket = "{{ storage_bucket_name }}"
+  ha_enabled = "true"
 }
 plugin_directory = "{{ vault_plugin_directory }}"
+telemetry {
+  dogstatsd_addr   = "localhost:8125"
+  disable_hostname = true
+}

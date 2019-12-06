@@ -274,7 +274,7 @@ func (s *Platform) CreateCloudlet(ctx context.Context, cloudlet *edgeproto.Cloud
 		return err
 	}
 	// Get Flavor Info
-	finfo, _, err := mexos.GetFlavorInfo(ctx)
+	finfo, _, _, err := mexos.GetFlavorInfo(ctx)
 	if err != nil {
 		return err
 	}

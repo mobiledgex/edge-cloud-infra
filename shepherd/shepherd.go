@@ -51,7 +51,7 @@ var myPlatform platform.Platform
 var sigChan chan os.Signal
 
 func appInstCb(ctx context.Context, old *edgeproto.AppInst, new *edgeproto.AppInst) {
-	CollectNginxStats(ctx, new)
+	CollectLBStats(ctx, new)
 	var port int32
 	var exists bool
 	var mapKey string
@@ -193,7 +193,7 @@ func main() {
 	}
 	workerMap = make(map[string]*ClusterWorker)
 	vmAppWorkerMap = make(map[string]*AppInstWorker)
-	InitNginxScraper()
+	InitLBScraper()
 	InitPlatformMetrics()
 
 	//register shepherd to receive appinst and clusterinst notifications from crm

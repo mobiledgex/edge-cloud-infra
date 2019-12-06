@@ -20,7 +20,7 @@ func TestNginxStats(t *testing.T) {
 	defer log.FinishTracer()
 	ctx := log.StartTestSpan(context.Background())
 
-	testScrapePoint := NginxScrapePoint{
+	testScrapePoint := LBScrapePoint{
 		App:     "UnitTestApp",
 		Cluster: "UnitTestCluster",
 		Dev:     "UnitTestDev",

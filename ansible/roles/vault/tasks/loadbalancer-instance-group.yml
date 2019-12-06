@@ -1,0 +1,27 @@
+- name: "Create instance group for {{ item.zone_name }}"
+  debug:
+    msg: "{{ item }}"
+
+- gcp_compute_instance_facts:
+    zone: "{{ item.zone_region }}"
+    filters:
+      - "labels.environ = {{ deploy_environ }}"
+      - "labels.vault = true"
+  register: result
+
+- set_fact:
+    instance_group_name: "vault-{{ deploy_environ }}-{{ item.zone_name }}-instance-group"
+    vault_instances: "{{ result | json_query('items') }}"
+
+- name: "Create instance group {{ instance_group_name }}"
+  gcp_compute_instance_group:
+    zone: "{{ item.zone_region }}"
+    name: "{{ instance_group_name }}"
+    instances: "{{ vault_instances }}"
+    named_ports:
+      - name: http
+        port: "{{ vault_port }}"
+  register: instance_group
+
+- set_fact:
+    instance_groups: "{{ instance_groups|default([]) + [ { 'group': instance_group } ] }}"

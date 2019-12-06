@@ -10,10 +10,6 @@
     name: load-vault-creds
     tasks_from: mc
 
-- import_role:
-    name: mc
-    tasks_from: set-password
-
 - name: Look up gitlab apikey in vault
   set_fact:
     vault_lookup: "{{ lookup('vault', gitlab_path) }}"
@@ -71,7 +67,7 @@
       db_username: "{{ mc_postgres_username }}"
       db_password: "{{ mc_postgres_password }}"
       superuser: "{{ mc_superuser }}"
-      superpass: "{{ mc_superuser_password }}"
+      superpass: "{{ mc_default_superuser_password }}"
       VAULT_ROLE_ID: "{{ mc_vault_app_role.role_id }}"
       VAULT_SECRET_ID: "{{ mc_vault_app_role.secret_id }}"
       gitlab_token: "{{ mc_gitlab_token }}"

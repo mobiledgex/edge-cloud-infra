@@ -53,8 +53,7 @@ func TestPermShowCloudletPool(mcClient *ormclient.Client, uri, token, region, or
 	return TestShowCloudletPool(mcClient, uri, token, region, in)
 }
 
-func RunMcCloudletPoolApi(uri, token, region string, data *[]edgeproto.CloudletPool, dataMap []map[string]interface{}, rc *bool, mode string) {
-	var mcClient ormclient.Api
+func RunMcCloudletPoolApi(mcClient ormclient.Api, uri, token, region string, data *[]edgeproto.CloudletPool, dataIn interface{}, rc *bool, mode string) {
 	for _, cloudletPool := range *data {
 		in := &ormapi.RegionCloudletPool{
 			Region:       region,
@@ -106,8 +105,7 @@ func TestPermShowCloudletPoolMember(mcClient *ormclient.Client, uri, token, regi
 	return TestShowCloudletPoolMember(mcClient, uri, token, region, in)
 }
 
-func RunMcCloudletPoolMemberApi(uri, token, region string, data *[]edgeproto.CloudletPoolMember, dataMap []map[string]interface{}, rc *bool, mode string) {
-	var mcClient ormclient.Api
+func RunMcCloudletPoolMemberApi(mcClient ormclient.Api, uri, token, region string, data *[]edgeproto.CloudletPoolMember, dataIn interface{}, rc *bool, mode string) {
 	for _, cloudletPoolMember := range *data {
 		in := &ormapi.RegionCloudletPoolMember{
 			Region:             region,

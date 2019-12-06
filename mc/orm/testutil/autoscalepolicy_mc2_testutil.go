@@ -4,6 +4,7 @@
 package testutil
 
 import edgeproto "github.com/mobiledgex/edge-cloud/edgeproto"
+import "os"
 import "github.com/mobiledgex/edge-cloud-infra/mc/ormclient"
 import "github.com/mobiledgex/edge-cloud-infra/mc/ormapi"
 import "github.com/mobiledgex/edge-cloud/cli"
@@ -69,9 +70,22 @@ func TestPermShowAutoScalePolicy(mcClient *ormclient.Client, uri, token, region,
 	return TestShowAutoScalePolicy(mcClient, uri, token, region, in)
 }
 
-func RunMcAutoScalePolicyApi(uri, token, region string, data *[]edgeproto.AutoScalePolicy, dataMap []map[string]interface{}, rc *bool, mode string) {
-	var mcClient ormclient.Api
+func RunMcAutoScalePolicyApi(mcClient ormclient.Api, uri, token, region string, data *[]edgeproto.AutoScalePolicy, dataIn interface{}, rc *bool, mode string) {
+	var dataInList []interface{}
+	var ok bool
+	if dataIn != nil {
+		dataInList, ok = dataIn.([]interface{})
+		if !ok {
+			fmt.Fprintf(os.Stderr, "invalid data in autoScalePolicy: %v\n", dataIn)
+			os.Exit(1)
+		}
+	}
 	for ii, autoScalePolicy := range *data {
+		dataMap, ok := dataInList[ii].(map[string]interface{})
+		if !ok {
+			fmt.Fprintf(os.Stderr, "invalid data in autoScalePolicy: %v\n", dataInList[ii])
+			os.Exit(1)
+		}
 		in := &ormapi.RegionAutoScalePolicy{
 			Region:          region,
 			AutoScalePolicy: autoScalePolicy,
@@ -84,7 +98,7 @@ func RunMcAutoScalePolicyApi(uri, token, region string, data *[]edgeproto.AutoSc
 			_, st, err := mcClient.DeleteAutoScalePolicy(uri, token, in)
 			checkMcErr("DeleteAutoScalePolicy", st, err, rc)
 		case "update":
-			in.AutoScalePolicy.Fields = cli.GetSpecifiedFields(dataMap[ii], &in.AutoScalePolicy, cli.YamlNamespace)
+			in.AutoScalePolicy.Fields = cli.GetSpecifiedFields(dataMap, &in.AutoScalePolicy, cli.YamlNamespace)
 			_, st, err := mcClient.UpdateAutoScalePolicy(uri, token, in)
 			checkMcErr("UpdateAutoScalePolicy", st, err, rc)
 		default:

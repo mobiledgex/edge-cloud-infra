@@ -4,6 +4,7 @@
 package testutil
 
 import edgeproto "github.com/mobiledgex/edge-cloud/edgeproto"
+import "os"
 import "github.com/mobiledgex/edge-cloud-infra/mc/ormclient"
 import "github.com/mobiledgex/edge-cloud-infra/mc/ormapi"
 import "github.com/mobiledgex/edge-cloud/cli"
@@ -98,9 +99,22 @@ func TestPermGetResTagTable(mcClient *ormclient.Client, uri, token, region, org 
 	return TestGetResTagTable(mcClient, uri, token, region, in)
 }
 
-func RunMcResTagTableApi(uri, token, region string, data *[]edgeproto.ResTagTable, dataMap []map[string]interface{}, rc *bool, mode string) {
-	var mcClient ormclient.Api
+func RunMcResTagTableApi(mcClient ormclient.Api, uri, token, region string, data *[]edgeproto.ResTagTable, dataIn interface{}, rc *bool, mode string) {
+	var dataInList []interface{}
+	var ok bool
+	if dataIn != nil {
+		dataInList, ok = dataIn.([]interface{})
+		if !ok {
+			fmt.Fprintf(os.Stderr, "invalid data in resTagTable: %v\n", dataIn)
+			os.Exit(1)
+		}
+	}
 	for ii, resTagTable := range *data {
+		dataMap, ok := dataInList[ii].(map[string]interface{})
+		if !ok {
+			fmt.Fprintf(os.Stderr, "invalid data in resTagTable: %v\n", dataInList[ii])
+			os.Exit(1)
+		}
 		in := &ormapi.RegionResTagTable{
 			Region:      region,
 			ResTagTable: resTagTable,
@@ -113,7 +127,7 @@ func RunMcResTagTableApi(uri, token, region string, data *[]edgeproto.ResTagTabl
 			_, st, err := mcClient.DeleteResTagTable(uri, token, in)
 			checkMcErr("DeleteResTagTable", st, err, rc)
 		case "update":
-			in.ResTagTable.Fields = cli.GetSpecifiedFields(dataMap[ii], &in.ResTagTable, cli.YamlNamespace)
+			in.ResTagTable.Fields = cli.GetSpecifiedFields(dataMap, &in.ResTagTable, cli.YamlNamespace)
 			_, st, err := mcClient.UpdateResTagTable(uri, token, in)
 			checkMcErr("UpdateResTagTable", st, err, rc)
 		default:

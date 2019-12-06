@@ -4,6 +4,7 @@
 package testutil
 
 import edgeproto "github.com/mobiledgex/edge-cloud/edgeproto"
+import "os"
 import "github.com/mobiledgex/edge-cloud-infra/mc/ormclient"
 import "github.com/mobiledgex/edge-cloud-infra/mc/ormapi"
 import "github.com/mobiledgex/edge-cloud/cli"
@@ -105,9 +106,22 @@ func TestPermFindFlavorMatch(mcClient *ormclient.Client, uri, token, region, org
 	return TestFindFlavorMatch(mcClient, uri, token, region, in)
 }
 
-func RunMcCloudletApi(uri, token, region string, data *[]edgeproto.Cloudlet, dataMap []map[string]interface{}, rc *bool, mode string) {
-	var mcClient ormclient.Api
+func RunMcCloudletApi(mcClient ormclient.Api, uri, token, region string, data *[]edgeproto.Cloudlet, dataIn interface{}, rc *bool, mode string) {
+	var dataInList []interface{}
+	var ok bool
+	if dataIn != nil {
+		dataInList, ok = dataIn.([]interface{})
+		if !ok {
+			fmt.Fprintf(os.Stderr, "invalid data in cloudlet: %v\n", dataIn)
+			os.Exit(1)
+		}
+	}
 	for ii, cloudlet := range *data {
+		dataMap, ok := dataInList[ii].(map[string]interface{})
+		if !ok {
+			fmt.Fprintf(os.Stderr, "invalid data in cloudlet: %v\n", dataInList[ii])
+			os.Exit(1)
+		}
 		in := &ormapi.RegionCloudlet{
 			Region:   region,
 			Cloudlet: cloudlet,
@@ -120,7 +134,7 @@ func RunMcCloudletApi(uri, token, region string, data *[]edgeproto.Cloudlet, dat
 			_, st, err := mcClient.DeleteCloudlet(uri, token, in)
 			checkMcErr("DeleteCloudlet", st, err, rc)
 		case "update":
-			in.Cloudlet.Fields = cli.GetSpecifiedFields(dataMap[ii], &in.Cloudlet, cli.YamlNamespace)
+			in.Cloudlet.Fields = cli.GetSpecifiedFields(dataMap, &in.Cloudlet, cli.YamlNamespace)
 			_, st, err := mcClient.UpdateCloudlet(uri, token, in)
 			checkMcErr("UpdateCloudlet", st, err, rc)
 		default:

@@ -386,13 +386,13 @@ func showMcDataSep(uri, token string, rc *bool) *ormapi.AllData {
 	return showData
 }
 
-func getRegionAppDataFromMap(regionDataMap interface{}) edgeproto.ApplicationDataMap {
+func getRegionAppDataFromMap(regionDataMap interface{}) map[string]interface{} {
 	regionData, ok := regionDataMap.(map[string]interface{})
 	if !ok {
 		fmt.Fprintf(os.Stderr, "invalid data in regiondata: %v\n", regionDataMap)
 		os.Exit(1)
 	}
-	appData, ok := regionData["appdata"].(edgeproto.ApplicationDataMap)
+	appData, ok := regionData["appdata"].(map[string]interface{})
 	if !ok {
 		fmt.Fprintf(os.Stderr, "invalid data in appdata: %v\n", regionData["appdata"])
 		os.Exit(1)
@@ -400,29 +400,29 @@ func getRegionAppDataFromMap(regionDataMap interface{}) edgeproto.ApplicationDat
 	return appData
 }
 
-func runRegionDataApi(uri, token string, rd *ormapi.RegionData, rdMap interface{}, rc *bool, mode string) {
+func runRegionDataApi(mcClient ormclient.Api, uri, token string, rd *ormapi.RegionData, rdMap interface{}, rc *bool, mode string) {
 	appDataMap := getRegionAppDataFromMap(rdMap)
 	switch mode {
 	case "create":
 		fallthrough
 	case "update":
-		testutil.RunMcFlavorApi(uri, token, rd.Region, &rd.AppData.Flavors, appDataMap["flavors"], rc, mode)
-		testutil.RunMcCloudletApi(uri, token, rd.Region, &rd.AppData.Cloudlets, appDataMap["cloudlets"], rc, mode)
-		testutil.RunMcCloudletPoolApi(uri, token, rd.Region, &rd.AppData.CloudletPools, appDataMap["cloudletpools"], rc, mode)
-		testutil.RunMcCloudletPoolMemberApi(uri, token, rd.Region, &rd.AppData.CloudletPoolMembers, appDataMap["cloudletpoolmembers"], rc, mode)
-		testutil.RunMcAutoScalePolicyApi(uri, token, rd.Region, &rd.AppData.AutoScalePolicies, appDataMap["autoscalepolicies"], rc, mode)
-		testutil.RunMcClusterInstApi(uri, token, rd.Region, &rd.AppData.ClusterInsts, appDataMap["clusterinsts"], rc, mode)
-		testutil.RunMcAppApi(uri, token, rd.Region, &rd.AppData.Applications, appDataMap["apps"], rc, mode)
-		testutil.RunMcAppInstApi(uri, token, rd.Region, &rd.AppData.AppInstances, appDataMap["appinstances"], rc, mode)
+		testutil.RunMcFlavorApi(mcClient, uri, token, rd.Region, &rd.AppData.Flavors, appDataMap["flavors"], rc, mode)
+		testutil.RunMcCloudletApi(mcClient, uri, token, rd.Region, &rd.AppData.Cloudlets, appDataMap["cloudlets"], rc, mode)
+		testutil.RunMcCloudletPoolApi(mcClient, uri, token, rd.Region, &rd.AppData.CloudletPools, appDataMap["cloudletpools"], rc, mode)
+		testutil.RunMcCloudletPoolMemberApi(mcClient, uri, token, rd.Region, &rd.AppData.CloudletPoolMembers, appDataMap["cloudletpoolmembers"], rc, mode)
+		testutil.RunMcAutoScalePolicyApi(mcClient, uri, token, rd.Region, &rd.AppData.AutoScalePolicies, appDataMap["autoscalepolicies"], rc, mode)
+		testutil.RunMcClusterInstApi(mcClient, uri, token, rd.Region, &rd.AppData.ClusterInsts, appDataMap["clusterinsts"], rc, mode)
+		testutil.RunMcAppApi(mcClient, uri, token, rd.Region, &rd.AppData.Applications, appDataMap["apps"], rc, mode)
+		testutil.RunMcAppInstApi(mcClient, uri, token, rd.Region, &rd.AppData.AppInstances, appDataMap["appinstances"], rc, mode)
 	case "delete":
-		testutil.RunMcAppInstApi(uri, token, rd.Region, &rd.AppData.AppInstances, appDataMap["appinstances"], rc, mode)
-		testutil.RunMcAppApi(uri, token, rd.Region, &rd.AppData.Applications, appDataMap["apps"], rc, mode)
-		testutil.RunMcClusterInstApi(uri, token, rd.Region, &rd.AppData.ClusterInsts, appDataMap["clusterinsts"], rc, mode)
-		testutil.RunMcAutoScalePolicyApi(uri, token, rd.Region, &rd.AppData.AutoScalePolicies, appDataMap["autoscalepolicies"], rc, mode)
-		testutil.RunMcCloudletPoolMemberApi(uri, token, rd.Region, &rd.AppData.CloudletPoolMembers, appDataMap["cloudletpoolmembers"], rc, mode)
-		testutil.RunMcCloudletPoolApi(uri, token, rd.Region, &rd.AppData.CloudletPools, appDataMap["cloudletpools"], rc, mode)
-		testutil.RunMcCloudletApi(uri, token, rd.Region, &rd.AppData.Cloudlets, appDataMap["cloudlets"], rc, mode)
-		testutil.RunMcFlavorApi(uri, token, rd.Region, &rd.AppData.Flavors, appDataMap["flavors"], rc, mode)
+		testutil.RunMcAppInstApi(mcClient, uri, token, rd.Region, &rd.AppData.AppInstances, appDataMap["appinstances"], rc, mode)
+		testutil.RunMcAppApi(mcClient, uri, token, rd.Region, &rd.AppData.Applications, appDataMap["apps"], rc, mode)
+		testutil.RunMcClusterInstApi(mcClient, uri, token, rd.Region, &rd.AppData.ClusterInsts, appDataMap["clusterinsts"], rc, mode)
+		testutil.RunMcAutoScalePolicyApi(mcClient, uri, token, rd.Region, &rd.AppData.AutoScalePolicies, appDataMap["autoscalepolicies"], rc, mode)
+		testutil.RunMcCloudletPoolMemberApi(mcClient, uri, token, rd.Region, &rd.AppData.CloudletPoolMembers, appDataMap["cloudletpoolmembers"], rc, mode)
+		testutil.RunMcCloudletPoolApi(mcClient, uri, token, rd.Region, &rd.AppData.CloudletPools, appDataMap["cloudletpools"], rc, mode)
+		testutil.RunMcCloudletApi(mcClient, uri, token, rd.Region, &rd.AppData.Cloudlets, appDataMap["cloudlets"], rc, mode)
+		testutil.RunMcFlavorApi(mcClient, uri, token, rd.Region, &rd.AppData.Flavors, appDataMap["flavors"], rc, mode)
 	}
 }
 
@@ -440,7 +440,7 @@ func createMcDataSep(uri, token string, data *ormapi.AllData, regionDataMap *[]i
 		checkMcErr("AddUserRole", st, err, rc)
 	}
 	for ii, rd := range data.RegionData {
-		runRegionDataApi(uri, token, &rd, (*regionDataMap)[ii], rc, "create")
+		runRegionDataApi(mcClient, uri, token, &rd, (*regionDataMap)[ii], rc, "create")
 	}
 	for _, oc := range data.OrgCloudletPools {
 		st, err := mcClient.CreateOrgCloudletPool(uri, token, &oc)
@@ -454,7 +454,7 @@ func deleteMcDataSep(uri, token string, data *ormapi.AllData, regionDataMap *[]i
 		checkMcErr("DeleteOrgCloudletPool", st, err, rc)
 	}
 	for ii, rd := range data.RegionData {
-		runRegionDataApi(uri, token, &rd, (*regionDataMap)[ii], rc, "delete")
+		runRegionDataApi(mcClient, uri, token, &rd, (*regionDataMap)[ii], rc, "delete")
 	}
 	for _, org := range data.Orgs {
 		st, err := mcClient.DeleteOrg(uri, token, &org)
@@ -472,7 +472,7 @@ func deleteMcDataSep(uri, token string, data *ormapi.AllData, regionDataMap *[]i
 
 func updateMcDataSep(uri, token string, data *ormapi.AllData, regionDataMap *[]interface{}, rc *bool) {
 	for ii, rd := range data.RegionData {
-		runRegionDataApi(uri, token, &rd, (*regionDataMap)[ii], rc, "update")
+		runRegionDataApi(mcClient, uri, token, &rd, (*regionDataMap)[ii], rc, "update")
 	}
 }
 

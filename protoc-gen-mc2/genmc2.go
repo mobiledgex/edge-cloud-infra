@@ -1,6 +1,7 @@
 package main
 
 import (
+	"sort"
 	"strings"
 	"text/template"
 
@@ -34,6 +35,7 @@ type GenMC2 struct {
 	importHttp           bool
 	importContext        bool
 	importIO             bool
+	importOS             bool
 	importJson           bool
 	importTesting        bool
 	importRequire        bool
@@ -78,6 +80,9 @@ func (g *GenMC2) GenerateImports(file *generator.FileDescriptor) {
 	if g.importIO {
 		g.PrintImport("", "io")
 	}
+	if g.importOS {
+		g.PrintImport("", "os")
+	}
 	if g.importJson {
 		g.PrintImport("", "encoding/json")
 	}
@@ -115,6 +120,7 @@ func (g *GenMC2) Generate(file *generator.FileDescriptor) {
 	g.importHttp = false
 	g.importContext = false
 	g.importIO = false
+	g.importOS = false
 	g.importJson = false
 	g.importTesting = false
 	g.importStrings = false
@@ -744,12 +750,32 @@ func (g *GenMC2) generateRunApi(file *descriptor.FileDescriptorProto, service *d
 		}
 	}
 	for k, v := range out {
-		g.P()
-		g.P("func RunMc", k, "Api(uri, token, region string, data *[]edgeproto.", k, ", dataMap []map[string]interface{}, rc *bool, mode string) {")
-		g.P("var mcClient ormclient.Api")
-		objStr := strings.ToLower(string(k[0])) + string(k[1:len(k)])
+		readMap := false
 		if _, ok := v["Update"]; ok {
+			readMap = true
+		}
+		objStr := strings.ToLower(string(k[0])) + string(k[1:len(k)])
+		g.P()
+		g.P("func RunMc", k, "Api(mcClient ormclient.Api, uri, token, region string, data *[]edgeproto.", k, ", dataIn interface{}, rc *bool, mode string) {")
+		if readMap {
+			g.importOS = true
+			g.P("var dataInList []interface{}")
+			g.P("var ok bool")
+			g.P("if dataIn != nil {")
+			g.P("dataInList, ok = dataIn.([]interface{})")
+			g.P("if !ok {")
+			g.P("fmt.Fprintf(os.Stderr, \"invalid data in ", objStr, ": %v\\n\", dataIn)")
+			g.P("os.Exit(1)")
+			g.P("}")
+			g.P("}")
+		}
+		if readMap {
 			g.P("for ii, ", objStr, " := range *data {")
+			g.P("dataMap, ok := dataInList[ii].(map[string]interface{})")
+			g.P("if !ok {")
+			g.P("fmt.Fprintf(os.Stderr, \"invalid data in ", objStr, ": %v\\n\", dataInList[ii])")
+			g.P("os.Exit(1)")
+			g.P("}")
 		} else {
 			g.P("for _, ", objStr, " := range *data {")
 		}
@@ -757,12 +783,19 @@ func (g *GenMC2) generateRunApi(file *descriptor.FileDescriptorProto, service *d
 		g.P("Region: region,")
 		g.P(k, ": ", objStr, ",")
 		g.P("}")
+
+		mapKeys := []string{}
+		for mapKey, _ := range v {
+			mapKeys = append(mapKeys, mapKey)
+		}
+		sort.Strings(mapKeys)
 		g.P("switch mode {")
-		for action, fName := range v {
+		for _, action := range mapKeys {
+			fName := v[action]
 			g.P("case \"", strings.ToLower(action), "\":")
 			if action == "Update" {
 				g.importCli = true
-				g.P("in.", k, ".Fields = cli.GetSpecifiedFields(dataMap[ii], &in.", k, ", cli.YamlNamespace)")
+				g.P("in.", k, ".Fields = cli.GetSpecifiedFields(dataMap, &in.", k, ", cli.YamlNamespace)")
 			}
 			g.P("_, st, err := mcClient.", fName, "(uri, token, in)")
 			g.P("checkMcErr(\"", fName, "\", st, err, rc)")

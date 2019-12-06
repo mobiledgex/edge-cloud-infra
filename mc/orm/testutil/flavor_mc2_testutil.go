@@ -4,6 +4,7 @@
 package testutil
 
 import edgeproto "github.com/mobiledgex/edge-cloud/edgeproto"
+import "os"
 import "github.com/mobiledgex/edge-cloud-infra/mc/ormclient"
 import "github.com/mobiledgex/edge-cloud-infra/mc/ormapi"
 import "github.com/mobiledgex/edge-cloud/cli"
@@ -87,9 +88,22 @@ func TestPermRemoveFlavorRes(mcClient *ormclient.Client, uri, token, region, org
 	return TestRemoveFlavorRes(mcClient, uri, token, region, in)
 }
 
-func RunMcFlavorApi(uri, token, region string, data *[]edgeproto.Flavor, dataMap []map[string]interface{}, rc *bool, mode string) {
-	var mcClient ormclient.Api
+func RunMcFlavorApi(mcClient ormclient.Api, uri, token, region string, data *[]edgeproto.Flavor, dataIn interface{}, rc *bool, mode string) {
+	var dataInList []interface{}
+	var ok bool
+	if dataIn != nil {
+		dataInList, ok = dataIn.([]interface{})
+		if !ok {
+			fmt.Fprintf(os.Stderr, "invalid data in flavor: %v\n", dataIn)
+			os.Exit(1)
+		}
+	}
 	for ii, flavor := range *data {
+		dataMap, ok := dataInList[ii].(map[string]interface{})
+		if !ok {
+			fmt.Fprintf(os.Stderr, "invalid data in flavor: %v\n", dataInList[ii])
+			os.Exit(1)
+		}
 		in := &ormapi.RegionFlavor{
 			Region: region,
 			Flavor: flavor,
@@ -102,7 +116,7 @@ func RunMcFlavorApi(uri, token, region string, data *[]edgeproto.Flavor, dataMap
 			_, st, err := mcClient.DeleteFlavor(uri, token, in)
 			checkMcErr("DeleteFlavor", st, err, rc)
 		case "update":
-			in.Flavor.Fields = cli.GetSpecifiedFields(dataMap[ii], &in.Flavor, cli.YamlNamespace)
+			in.Flavor.Fields = cli.GetSpecifiedFields(dataMap, &in.Flavor, cli.YamlNamespace)
 			_, st, err := mcClient.UpdateFlavor(uri, token, in)
 			checkMcErr("UpdateFlavor", st, err, rc)
 		default:

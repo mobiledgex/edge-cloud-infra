@@ -4,6 +4,7 @@
 package testutil
 
 import edgeproto "github.com/mobiledgex/edge-cloud/edgeproto"
+import "os"
 import "github.com/mobiledgex/edge-cloud-infra/mc/ormclient"
 import "github.com/mobiledgex/edge-cloud-infra/mc/ormapi"
 import "github.com/mobiledgex/edge-cloud/cli"
@@ -69,9 +70,22 @@ func TestPermShowApp(mcClient *ormclient.Client, uri, token, region, org string)
 	return TestShowApp(mcClient, uri, token, region, in)
 }
 
-func RunMcAppApi(uri, token, region string, data *[]edgeproto.App, dataMap []map[string]interface{}, rc *bool, mode string) {
-	var mcClient ormclient.Api
+func RunMcAppApi(mcClient ormclient.Api, uri, token, region string, data *[]edgeproto.App, dataIn interface{}, rc *bool, mode string) {
+	var dataInList []interface{}
+	var ok bool
+	if dataIn != nil {
+		dataInList, ok = dataIn.([]interface{})
+		if !ok {
+			fmt.Fprintf(os.Stderr, "invalid data in app: %v\n", dataIn)
+			os.Exit(1)
+		}
+	}
 	for ii, app := range *data {
+		dataMap, ok := dataInList[ii].(map[string]interface{})
+		if !ok {
+			fmt.Fprintf(os.Stderr, "invalid data in app: %v\n", dataInList[ii])
+			os.Exit(1)
+		}
 		in := &ormapi.RegionApp{
 			Region: region,
 			App:    app,
@@ -84,7 +98,7 @@ func RunMcAppApi(uri, token, region string, data *[]edgeproto.App, dataMap []map
 			_, st, err := mcClient.DeleteApp(uri, token, in)
 			checkMcErr("DeleteApp", st, err, rc)
 		case "update":
-			in.App.Fields = cli.GetSpecifiedFields(dataMap[ii], &in.App, cli.YamlNamespace)
+			in.App.Fields = cli.GetSpecifiedFields(dataMap, &in.App, cli.YamlNamespace)
 			_, st, err := mcClient.UpdateApp(uri, token, in)
 			checkMcErr("UpdateApp", st, err, rc)
 		default:

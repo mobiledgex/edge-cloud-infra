@@ -4,6 +4,7 @@
 package testutil
 
 import edgeproto "github.com/mobiledgex/edge-cloud/edgeproto"
+import "os"
 import "github.com/mobiledgex/edge-cloud-infra/mc/ormclient"
 import "github.com/mobiledgex/edge-cloud-infra/mc/ormapi"
 import "github.com/mobiledgex/edge-cloud/cli"
@@ -78,24 +79,37 @@ func TestPermShowClusterInst(mcClient *ormclient.Client, uri, token, region, org
 	return TestShowClusterInst(mcClient, uri, token, region, in)
 }
 
-func RunMcClusterInstApi(uri, token, region string, data *[]edgeproto.ClusterInst, dataMap []map[string]interface{}, rc *bool, mode string) {
-	var mcClient ormclient.Api
+func RunMcClusterInstApi(mcClient ormclient.Api, uri, token, region string, data *[]edgeproto.ClusterInst, dataIn interface{}, rc *bool, mode string) {
+	var dataInList []interface{}
+	var ok bool
+	if dataIn != nil {
+		dataInList, ok = dataIn.([]interface{})
+		if !ok {
+			fmt.Fprintf(os.Stderr, "invalid data in clusterInst: %v\n", dataIn)
+			os.Exit(1)
+		}
+	}
 	for ii, clusterInst := range *data {
+		dataMap, ok := dataInList[ii].(map[string]interface{})
+		if !ok {
+			fmt.Fprintf(os.Stderr, "invalid data in clusterInst: %v\n", dataInList[ii])
+			os.Exit(1)
+		}
 		in := &ormapi.RegionClusterInst{
 			Region:      region,
 			ClusterInst: clusterInst,
 		}
 		switch mode {
-		case "update":
-			in.ClusterInst.Fields = cli.GetSpecifiedFields(dataMap[ii], &in.ClusterInst, cli.YamlNamespace)
-			_, st, err := mcClient.UpdateClusterInst(uri, token, in)
-			checkMcErr("UpdateClusterInst", st, err, rc)
 		case "create":
 			_, st, err := mcClient.CreateClusterInst(uri, token, in)
 			checkMcErr("CreateClusterInst", st, err, rc)
 		case "delete":
 			_, st, err := mcClient.DeleteClusterInst(uri, token, in)
 			checkMcErr("DeleteClusterInst", st, err, rc)
+		case "update":
+			in.ClusterInst.Fields = cli.GetSpecifiedFields(dataMap, &in.ClusterInst, cli.YamlNamespace)
+			_, st, err := mcClient.UpdateClusterInst(uri, token, in)
+			checkMcErr("UpdateClusterInst", st, err, rc)
 		default:
 			return
 		}

@@ -11,10 +11,11 @@ This app requires the following environment variables:
    * `LOG_WEBHOOK`: A Slack incoming webhook to post alerts from this app
 
 ```
-docker run --rm registry.mobiledgex.net:5000/mobiledgex/slack-org-mgmt:VERSION \
+docker run --rm \
 	-e SLACK_TOKEN="xoxp-..." \
 	-e SLACK_LEGACY_TOKEN="xoxp-..." \
 	-e MC_USER=mcviewer \
 	-e MC_PASS="XXX" \
-	-e LOG_WEBHOOK="https://hooks.slack.com/services/T9..."
+	-e LOG_WEBHOOK="https://hooks.slack.com/services/T9..." \
+	registry.mobiledgex.net:5000/mobiledgex/slack-org-mgmt:VERSION
 ```

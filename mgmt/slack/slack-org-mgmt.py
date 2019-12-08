@@ -231,7 +231,8 @@ def slack_channel_create(token, name, args):
 
 def slack_channel_invite_member(token, channel, userid, args):
     channame = LOOKUPS['channel'](channel)
-    slack_log(f"Adding user '{userid}' to channel '{channame}'")
+    username = LOOKUPS['user'](userid)
+    slack_log(f"Adding user '{username}' to channel '{channame}'")
     if args.dry_run:
         logging.debug("DRYRUN: Not adding user")
         return
@@ -324,6 +325,13 @@ def main():
         channelid = None
         if norg not in channels['by_name']:
             channelid = slack_channel_create(slack_token, norg, args)
+            channels['by_name'][norg] = {
+                'id': channelid,
+                'name': norg,
+                'is_private': True,
+                'is_archived': Falsem
+            }
+            channels['by_id'][channelid] = channels['by_name'][norg]
         else:
             channel = channels['by_name'][norg]
             if channel['is_archived']:

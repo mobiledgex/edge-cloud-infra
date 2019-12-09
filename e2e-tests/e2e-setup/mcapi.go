@@ -20,7 +20,7 @@ import (
 
 var mcClient ormclient.Api
 
-func RunMcAPI(api, mcname, apiFile, curUserFile, outputDir string, mods []string) bool {
+func RunMcAPI(api, mcname, apiFile, curUserFile, outputDir string, mods []string, vars map[string]string) bool {
 	mc := getMC(mcname)
 	uri := "https://" + mc.Addr + "/api/v1"
 	log.Printf("Using MC %s at %s", mc.Name, uri)

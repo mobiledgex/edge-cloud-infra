@@ -1,0 +1,20 @@
+mcs:
+- name: mc1
+  addr: {{mc}}
+  hostname: {{mc}}
+
+crms:
+- name: crm1
+  apiaddr: "0.0.0.0:55091"
+  notifyaddrs: "mexplat-stage-eu.ctrl.mobiledgex.net:37001"
+  cloudletkey: '{"operator_key":{"name":"{{operator}}"},"name":"{{cloudlet}}"}'
+  tls:
+    servercert: "{{tlsoutdir}}/mex-server.crt"
+    clientcert: "{{tlsoutdir}}/mex-client.crt"
+  hostname: "127.0.0.1"
+  vaultaddr: "vault.mobiledgex.net"
+  envvars:
+    PLATFORM: PLATFORM_TYPE_MEXDIND
+    VAULT_ROLE_ID: e017fc39-dff7-adc3-364f-bb8e04805454
+    VAULT_SECRET_ID: 6e88cd75-7297-ba5e-6b27-9d612e3792b7
+

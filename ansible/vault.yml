@@ -29,11 +29,28 @@
         name: docker
       tags: setup
 
+    - name: Install dependencies
+      apt:
+        name:
+          - python-minimal
+          - python-requests
+      become: yes
+
+    - name: Install vault status monitor plugin
+      copy:
+        src: vault/vault-status-monitor.py
+        dest: "{{ vault_status_monitor_plugin }}"
+        owner: root
+        group: root
+        mode: 0555
+      become: yes
+
     - import_role:
         name: telegraf
       vars:
         telegraf_additional_config:
           - input/vault-statsd.conf.j2
+          - input/vault-status.conf.j2
       tags: [ 'monitoring', 'setup' ]
 
     - import_role:

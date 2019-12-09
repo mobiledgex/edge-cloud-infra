@@ -5,9 +5,6 @@ var name = 'Cloudflare DNS Entries'
 var info = 2500
 var warn = 3000
 var crit = 3250
-var infoSig = 2.5
-var warnSig = 3
-var critSig = 3.5
 
 var period = 60m
 var every = 60m
@@ -25,15 +22,12 @@ var data = batch
 
 // Thresholds
 var alert = data
-    |eval(lambda: sigma("nrecs"))
-        .as('sigma')
-        .keep()
     |alert()
         .id(name)
         .message('{{ .Level }}: {{ .ID }}: {{ index .Fields "nrecs" }} records')
-        .info(lambda: "nrecs" > info OR "sigma" > infoSig)
-        .warn(lambda: "nrecs" > warn OR "sigma" > warnSig)
-        .crit(lambda: "nrecs" > crit OR "sigma" > critSig)
+        .info(lambda: "nrecs" > info)
+        .warn(lambda: "nrecs" > warn)
+        .crit(lambda: "nrecs" > crit)
         .slack()
         .channel('#alerts')
 

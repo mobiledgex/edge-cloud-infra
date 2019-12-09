@@ -360,8 +360,8 @@ func (s *Platform) CreateCloudlet(ctx context.Context, cloudlet *edgeproto.Cloud
 	return setupPlatformService(ctx, cloudlet, pfConfig, vaultConfig, client, updateCallback)
 }
 
-func (s *Platform) SetupCloudletAccessVars(ctx context.Context, cloudlet *edgeproto.Cloudlet, accessVarsIn map[string]string, pfConfig *edgeproto.PlatformConfig, updateCallback edgeproto.CacheUpdateCallback) error {
-	log.SpanLog(ctx, log.DebugLevelMexos, "Setting up cloudlet access vars", "cloudletName", cloudlet.Key.Name)
+func (s *Platform) SaveCloudletAccessVars(ctx context.Context, cloudlet *edgeproto.Cloudlet, accessVarsIn map[string]string, pfConfig *edgeproto.PlatformConfig, updateCallback edgeproto.CacheUpdateCallback) error {
+	log.SpanLog(ctx, log.DebugLevelMexos, "Saving cloudlet access vars to vault", "cloudletName", cloudlet.Key.Name)
 	vaultConfig, err := vault.BestConfig(pfConfig.VaultAddr, vault.WithEnvMap(pfConfig.EnvVar))
 	if err != nil {
 		return err
@@ -404,7 +404,7 @@ func (s *Platform) SetupCloudletAccessVars(ctx context.Context, cloudlet *edgepr
 		accessVars["OS_CACERT"] = certFile
 		accessVars["OS_CACERT_DATA"] = certData
 	}
-	updateCallback(edgeproto.UpdateTask, "Storing access info to vault")
+	updateCallback(edgeproto.UpdateTask, "Saving access vars to secure secrets storage (Vault)")
 	var varList mexos.VaultEnvData
 	for key, value := range accessVars {
 		if key == "OS_CACERT" {
@@ -422,17 +422,17 @@ func (s *Platform) SetupCloudletAccessVars(ctx context.Context, cloudlet *edgepr
 	path := mexos.GetVaultCloudletPath(&cloudlet.Key, pfConfig.Region, cloudlet.PhysicalName, mexos.OSAccessVars)
 	err = mexos.PutDataToVault(vaultConfig, path, data)
 	if err != nil {
-		updateCallback(edgeproto.UpdateTask, "Failed to store access info to vault")
+		updateCallback(edgeproto.UpdateTask, "Failed to save access vars to vault")
 		log.SpanLog(ctx, log.DebugLevelMexos, err.Error(), "cloudletName", cloudlet.Key.Name)
-		return fmt.Errorf("Failed to store access vars to vault: %v", err)
+		return fmt.Errorf("Failed to save access vars to vault: %v", err)
 	}
 	return nil
 }
 
 func (s *Platform) DeleteCloudletAccessVars(ctx context.Context, cloudlet *edgeproto.Cloudlet, pfConfig *edgeproto.PlatformConfig, updateCallback edgeproto.CacheUpdateCallback) error {
-	log.SpanLog(ctx, log.DebugLevelMexos, "Deleting cloudlet access vars", "cloudletName", cloudlet.Key.Name)
+	log.SpanLog(ctx, log.DebugLevelMexos, "Deleting access vars from vault", "cloudletName", cloudlet.Key.Name)
 
-	updateCallback(edgeproto.UpdateTask, "Deleting access info from vault")
+	updateCallback(edgeproto.UpdateTask, "Deleting access vars from secure secrets storage")
 
 	vaultConfig, err := vault.BestConfig(pfConfig.VaultAddr, vault.WithEnvMap(pfConfig.EnvVar))
 	if err != nil {

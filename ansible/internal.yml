@@ -534,3 +534,41 @@
 
     - import_role:
         name: jaeger
+
+- hosts: slack
+  vars:
+    slack_org_mgmt_image: "registry.mobiledgex.net:5000/mobiledgex/slack-org-mgmt:1.0"
+    slack_org_mgmt_log: slack-org-mgmt.log
+    support_users:
+      - michal.skiba@mobiledgex.com
+      - thomas.vits@mobiledgex.com
+      - wonho.park@mobiledgex.com
+
+  tasks:
+
+    - import_role:
+        name: telegraf
+      tags:
+        - monitoring
+        - setup
+
+    - import_role:
+        name: docker
+      tags: setup
+
+    - import_role:
+        name: load-vault-creds
+        tasks_from: slack_org_mgmt
+
+    - name: Install Slack org mgmt cronjob
+      cron:
+        name: Slack org mgmt
+        minute: "*/10"
+        job: 'docker run --rm
+            -e SLACK_TOKEN="{{ slack_token }}"
+            -e SLACK_LEGACY_TOKEN="{{ slack_legacy_token }}"
+            -e MC_USER="{{ mc_user }}"
+            -e MC_PASS="{{ mc_pass }}"
+            -e LOG_WEBHOOK="{{ slack_webhook }}"
+            "{{ slack_org_mgmt_image }}" --support {{ support_users|join(" ") }}
+            >>~/{{ slack_org_mgmt_log }} 2>&1'

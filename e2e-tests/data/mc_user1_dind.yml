@@ -11,7 +11,7 @@ regiondata:
     cloudlets:
     - key:
         operatorkey:
-          name: mexoper
+          name: mexdev
         name: localtest
       accessuri: localtest.tmo
       location:

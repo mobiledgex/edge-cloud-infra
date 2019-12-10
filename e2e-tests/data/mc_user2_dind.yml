@@ -14,7 +14,7 @@ regiondata:
           name: AppCluster
         cloudletkey:
           operatorkey:
-            name: mexoper
+            name: mexdev
           name: localtest
         developer: DevOrg
       flavor:
@@ -77,7 +77,7 @@ regiondata:
             name: AppCluster
           cloudletkey:
             operatorkey:
-              name: mexoper
+              name: mexdev
             name: localtest
     - key:
         appkey:
@@ -90,7 +90,7 @@ regiondata:
             name: AppCluster
           cloudletkey:
             operatorkey:
-              name: mexoper
+              name: mexdev
             name: localtest
     autoscalepolicies:
     - key:

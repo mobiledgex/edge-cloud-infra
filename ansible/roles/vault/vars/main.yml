@@ -13,3 +13,4 @@ github_org: mobiledgex
 github_dev_team: edge-cloud-development-team
 letsencrypt_path: certs
 letsencrypt_backend: letsencrypt-certs
+vault_status_monitor_plugin: /usr/local/bin/vault-status-monitor.py

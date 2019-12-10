@@ -1,0 +1,10 @@
+- name: Look up slack org mgmt creds in vault
+  set_fact:
+    vault_lookup: "{{ lookup('vault', slack_org_mgmt_path) }}"
+
+- set_fact:
+    slack_token: "{{ vault_lookup.slack_org_mgmt.data.SLACK_TOKEN }}"
+    slack_legacy_token: "{{ vault_lookup.slack_org_mgmt.data.SLACK_LEGACY_TOKEN }}"
+    slack_webhook: "{{ vault_lookup.slack_org_mgmt.data.LOG_WEBHOOK }}"
+    mc_user: "{{ vault_lookup.slack_org_mgmt.data.MC_USER }}"
+    mc_pass: "{{ vault_lookup.slack_org_mgmt.data.MC_PASS }}"

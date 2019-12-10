@@ -120,7 +120,7 @@ func LBScraper() {
 
 				metrics, err := QueryLB(ctx, v)
 				if err != nil {
-					log.SpanLog(ctx, log.DebugLevelMetrics, "Error retrieving nginx metrics", "appinst", v.App, "error", err.Error())
+					log.SpanLog(ctx, log.DebugLevelMetrics, "Error retrieving LB metrics", "appinst", v.App, "error", err.Error())
 				} else {
 					// send to crm->controller->influx
 					influxData := MarshallLBMetric(v, metrics)
@@ -159,9 +159,9 @@ func parseEnvoyResp(resp string, ports []int32, metrics *shepherd_common.LBMetri
 	for _, port := range ports {
 		new := shepherd_common.ConnectionsMetric{}
 		//active, accepts, handled conn
-		activeSearch := clusterName + string(port) + "." + active
-		droppedSearch := clusterName + string(port) + "." + dropped
-		totalSearch := clusterName + string(port) + "." + total
+		activeSearch := clusterName + strconv.Itoa(int(port)) + "." + active
+		droppedSearch := clusterName + strconv.Itoa(int(port)) + "." + dropped
+		totalSearch := clusterName + strconv.Itoa(int(port)) + "." + total
 
 		new.ActiveConn, err = getStat(resp, activeSearch)
 		if err != nil {
@@ -177,7 +177,7 @@ func parseEnvoyResp(resp string, ports []int32, metrics *shepherd_common.LBMetri
 			return fmt.Errorf("Error retrieving envoy handled connections stats: %v", err)
 		}
 		new.HandledConn = new.Accepts - droppedVal
-
+		metrics.Ts, _ = types.TimestampProto(time.Now())
 		metrics.EnvoyStats[port] = new
 	}
 	return nil
@@ -186,7 +186,7 @@ func parseEnvoyResp(resp string, ports []int32, metrics *shepherd_common.LBMetri
 func getStat(resp, statName string) (uint64, error) {
 	i := strings.Index(resp, statName)
 	if i == -1 {
-		return 0, fmt.Errorf("stat not found")
+		return 0, fmt.Errorf("stat not found: %s", statName)
 	}
 	// skip the stat name and the trailing ": "
 	i = i + len(statName) + 2
@@ -288,7 +288,7 @@ func MarshallLBMetric(scrapePoint LBScrapePoint, data *shepherd_common.LBMetrics
 		metric.AddTag("cluster", scrapePoint.Cluster)
 		metric.AddTag("dev", scrapePoint.Dev)
 		metric.AddTag("app", scrapePoint.App)
-		metric.AddTag("port", string(port))
+		metric.AddTag("port", strconv.Itoa(int(port)))
 
 		metric.AddIntVal("active", data.EnvoyStats[port].ActiveConn)
 		metric.AddIntVal("accepts", data.EnvoyStats[port].Accepts)

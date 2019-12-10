@@ -565,7 +565,7 @@
     - name: Install Slack org mgmt cronjob
       cron:
         name: Slack org mgmt
-        minute: "*/10"
+        minute: "*/2"
         job: 'docker run --rm
             -e SLACK_TOKEN="{{ slack_token }}"
             -e SLACK_LEGACY_TOKEN="{{ slack_legacy_token }}"

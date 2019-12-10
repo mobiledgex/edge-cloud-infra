@@ -1,5 +1,5 @@
 orgs:
-- name: mexdev
+- name: mexoper
   type: operator
   address: mexdev headquarters
   phone: 123-123-1234
@@ -11,7 +11,7 @@ regiondata:
     cloudlets:
     - key:
         operatorkey:
-          name: mexdev
+          name: mexoper
         name: localtest
       accessuri: localtest.tmo
       location:

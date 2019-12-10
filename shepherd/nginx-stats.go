@@ -141,10 +141,10 @@ func QueryNginx(ctx context.Context, scrapePoint *NginxScrapePoint) (*shepherd_c
 	if err != nil {
 		log.SpanLog(ctx, log.DebugLevelMetrics, "Failed to run request", "request", request, "err", err.Error())
 		// Also this means that we need to notify the controller that this AppInst is no longer recheable
-		HealthCheckDown(&scrapePoint.Key)
+		HealthCheckDown(ctx, &scrapePoint.Key)
 		return nil, err
 	}
-	HealthCheckUp(&scrapePoint.Key)
+	HealthCheckUp(ctx, &scrapePoint.Key)
 	metrics := &shepherd_common.NginxMetrics{}
 	err = parseNginxResp(resp, metrics)
 	if err != nil {

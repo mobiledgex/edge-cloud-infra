@@ -1,5 +1,5 @@
 orgs:
-- name: mexoper
+- name: mexdev
   type: operator
   address: mexdev headquarters
   phone: 123-123-1234

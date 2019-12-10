@@ -7,8 +7,6 @@ default-program: test-mex-infra
 mc: mc-stage.mobiledgex.net:9900
 operator: mex
 cloudlet: hackathon-test
-user: mexadmin
-password: mexadmin123
 region: EU
 controller: mexplat-stage-eu.ctrl.mobiledgex.net
 latitude: 32.12

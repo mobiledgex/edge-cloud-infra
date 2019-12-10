@@ -15,6 +15,4 @@ crms:
   vaultaddr: "https://vault.mobiledgex.net"
   envvars:
     PLATFORM: PLATFORM_TYPE_MEXDIND
-    VAULT_ROLE_ID: e017fc39-dff7-adc3-364f-bb8e04805454
-    VAULT_SECRET_ID: 6e88cd75-7297-ba5e-6b27-9d612e3792b7
 

@@ -11,6 +11,7 @@ import (
 	"github.com/gogo/protobuf/types"
 	"github.com/mobiledgex/edge-cloud-infra/shepherd/shepherd_common"
 	"github.com/mobiledgex/edge-cloud/cloud-resource-manager/k8smgmt"
+	"github.com/mobiledgex/edge-cloud/cloud-resource-manager/nginx"
 	"github.com/mobiledgex/edge-cloud/cloud-resource-manager/platform/pc"
 	"github.com/mobiledgex/edge-cloud/cloudcommon"
 	dme "github.com/mobiledgex/edge-cloud/d-match-engine/dme-proto"
@@ -57,7 +58,7 @@ func CollectLBStats(ctx context.Context, appInst *edgeproto.AppInst) {
 		return
 	}
 	LBMapKey := appInst.Key.AppKey.Name + "-" + appInst.Key.ClusterInstKey.ClusterKey.Name + "-" + appInst.Key.AppKey.DeveloperKey.Name
-	// add/remove from the list of nginx endpoints to hit
+	// add/remove from the list of lb endpoints to hit
 	if appInst.State == edgeproto.TrackedState_READY {
 		scrapePoint := LBScrapePoint{
 			App:     k8smgmt.NormalizeName(appInst.Key.AppKey.Name),
@@ -133,12 +134,11 @@ func LBScraper() {
 			}
 		}
 	}
-
 }
 
 func QueryLB(ctx context.Context, scrapePoint LBScrapePoint) (*shepherd_common.LBMetrics, error) {
 	//query envoy
-	container := "envoy" + scrapePoint.App
+	container := nginx.GetEnvoyContainerName(scrapePoint.App)
 	request := fmt.Sprintf("docker exec %s curl http://127.0.0.1:%d/stats", container, cloudcommon.LBMetricsPort)
 	if unitTest {
 		request = fmt.Sprintf("curl http://127.0.0.1:%d/stats", envoyUnitTestPort)

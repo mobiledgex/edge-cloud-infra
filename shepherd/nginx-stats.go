@@ -25,11 +25,12 @@ var LBMutex *sync.Mutex
 var clusterName = "backend"
 var active = "upstream_cx_active"
 var total = "upstream_cx_total"
-var dropped = "upstream_cx_destroy"
+var dropped = "upstream_cx_connect_fail" // this one might not be right/enough
 
 // variables for unit testing only
-var nginxUnitTest = false
+var unitTest = false
 var nginxUnitTestPort = int64(0)
+var envoyUnitTestPort = int64(0)
 
 type LBScrapePoint struct {
 	App     string
@@ -139,6 +140,9 @@ func QueryLB(ctx context.Context, scrapePoint LBScrapePoint) (*shepherd_common.L
 	//query envoy
 	container := "envoy" + scrapePoint.App
 	request := fmt.Sprintf("docker exec %s curl http://127.0.0.1:%d/stats", container, cloudcommon.LBMetricsPort)
+	if unitTest {
+		request = fmt.Sprintf("curl http://127.0.0.1:%d/stats", nginxUnitTestPort)
+	}
 	resp, err := scrapePoint.Client.Output(request)
 	if err != nil {
 		if strings.Contains(resp, "No such container") {
@@ -201,7 +205,7 @@ func getStat(resp, statName string) (uint64, error) {
 func QueryNginx(ctx context.Context, scrapePoint LBScrapePoint) (*shepherd_common.LBMetrics, error) {
 	// build the query
 	request := fmt.Sprintf("docker exec %s curl http://127.0.0.1:%d/nginx_metrics", scrapePoint.App, cloudcommon.LBMetricsPort)
-	if nginxUnitTest {
+	if unitTest {
 		request = fmt.Sprintf("curl http://127.0.0.1:%d/nginx_metrics", nginxUnitTestPort)
 	}
 	resp, err := scrapePoint.Client.Output(request)

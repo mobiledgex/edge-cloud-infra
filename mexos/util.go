@@ -23,7 +23,7 @@ func AddProxySecurityRulesAndPatchDNS(ctx context.Context, client pc.PlatformCli
 	}
 	go func() {
 		if addProxy {
-			err := nginx.CreateNginxProxy(client, kubeNames.AppName, masterIP, appInst.MappedPorts, ops...)
+			err := nginx.CreateNginxProxy(ctx, client, kubeNames.AppName, masterIP, appInst.MappedPorts, ops...)
 			if err == nil {
 				proxychan <- ""
 			} else {

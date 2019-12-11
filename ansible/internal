@@ -3,6 +3,7 @@ deploy_environ=internal
 ubuntu_release=bionic
 influxdb_volume_size=5Gi
 jaeger_ui_port=443
+vault_address=https://vault-main.mobiledgex.net
 
 [influxdb]
 influxdb.internal.mobiledgex.net

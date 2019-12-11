@@ -3,6 +3,7 @@ deploy_environ=internal
 ubuntu_release=bionic
 influxdb_volume_size=5Gi
 jaeger_ui_port=443
+vault_address=https://vault-main.mobiledgex.net
 
 [influxdb]
 influxdb.internal.mobiledgex.net
@@ -17,3 +18,6 @@ es01.es.mobiledgex.net		cert_wildcard_domain=es.mobiledgex.net es_instance=main
 jaeger.mobiledgex.net		es_instance=main
 jaeger-dev.mobiledgex.net	nginx_config_filename=jaeger jaeger_ui_port=8443
 jaeger-qa.mobiledgex.net	nginx_config_filename=jaeger jaeger_ui_port=8443
+
+[slack]
+infra.internal.mobiledgex.net

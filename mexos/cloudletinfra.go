@@ -114,7 +114,9 @@ func InitOpenstackProps(ctx context.Context, key *edgeproto.CloudletKey, region,
 	err := InternVaultEnv(ctx, vaultConfig, openRcPath)
 	if err != nil {
 		if strings.Contains(err.Error(), "no secrets") {
-			return fmt.Errorf("Failed to source access variables as physicalname '%s' is invalid", physicalName)
+			return fmt.Errorf("Failed to source access variables as '%s/%s' "+
+				"does not exists in secure secrets storage (Vault)",
+				key.OperatorKey.Name, physicalName)
 		}
 		return fmt.Errorf("Failed to source access variables from %s, %s: %v", vaultConfig.Addr, openRcPath, err)
 	}

@@ -39,7 +39,7 @@ func TestEnvoyStats(t *testing.T) {
 	envoyUnitTestPort, _ = strconv.ParseInt(strings.Split(fakeEnvoyTestServer.URL, ":")[2], 10, 32)
 	unitTest = true
 
-	testMetrics, err := QueryNginx(ctx, testScrapePoint)
+	testMetrics, err := QueryLB(ctx, testScrapePoint)
 
 	assert.Nil(t, err, "Test Querying Envoy")
 	assert.Equal(t, uint64(10), testMetrics.EnvoyStats[1234].ActiveConn)

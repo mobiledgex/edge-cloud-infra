@@ -141,7 +141,7 @@ func QueryLB(ctx context.Context, scrapePoint LBScrapePoint) (*shepherd_common.L
 	container := "envoy" + scrapePoint.App
 	request := fmt.Sprintf("docker exec %s curl http://127.0.0.1:%d/stats", container, cloudcommon.LBMetricsPort)
 	if unitTest {
-		request = fmt.Sprintf("curl http://127.0.0.1:%d/stats", nginxUnitTestPort)
+		request = fmt.Sprintf("curl http://127.0.0.1:%d/stats", envoyUnitTestPort)
 	}
 	resp, err := scrapePoint.Client.Output(request)
 	if err != nil {

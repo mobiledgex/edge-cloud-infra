@@ -19,8 +19,8 @@ import (
 	"github.com/mobiledgex/edge-cloud/log"
 )
 
-var LBMap map[string]LBScrapePoint
-var LBMutex *sync.Mutex
+var ProxyMap map[string]ProxyScrapePoint
+var ProxyMutex *sync.Mutex
 
 // stat names in envoy
 var clusterName = "backend"
@@ -33,7 +33,7 @@ var unitTest = false
 var nginxUnitTestPort = int64(0)
 var envoyUnitTestPort = int64(0)
 
-type LBScrapePoint struct {
+type ProxyScrapePoint struct {
 	App     string
 	Cluster string
 	Dev     string
@@ -41,14 +41,14 @@ type LBScrapePoint struct {
 	Client  pc.PlatformClient
 }
 
-func InitLBScraper() {
-	LBMap = make(map[string]LBScrapePoint)
-	LBMutex = &sync.Mutex{}
-	go LBScraper()
+func InitProxyScraper() {
+	ProxyMap = make(map[string]ProxyScrapePoint)
+	ProxyMutex = &sync.Mutex{}
+	go ProxyScraper()
 }
 
-func CollectLBStats(ctx context.Context, appInst *edgeproto.AppInst) {
-	// ignore apps not exposed to the outside world as they dont have an nginx lb
+func CollectProxyStats(ctx context.Context, appInst *edgeproto.AppInst) {
+	// ignore apps not exposed to the outside world as they dont have an nginx proxy
 	app := edgeproto.App{}
 	found := AppCache.Get(&appInst.Key.AppKey, &app)
 	if !found {
@@ -57,10 +57,10 @@ func CollectLBStats(ctx context.Context, appInst *edgeproto.AppInst) {
 	} else if app.InternalPorts {
 		return
 	}
-	LBMapKey := appInst.Key.AppKey.Name + "-" + appInst.Key.ClusterInstKey.ClusterKey.Name + "-" + appInst.Key.AppKey.DeveloperKey.Name
-	// add/remove from the list of lb endpoints to hit
+	ProxyMapKey := appInst.Key.AppKey.Name + "-" + appInst.Key.ClusterInstKey.ClusterKey.Name + "-" + appInst.Key.AppKey.DeveloperKey.Name
+	// add/remove from the list of proxy endpoints to hit
 	if appInst.State == edgeproto.TrackedState_READY {
-		scrapePoint := LBScrapePoint{
+		scrapePoint := ProxyScrapePoint{
 			App:     k8smgmt.NormalizeName(appInst.Key.AppKey.Name),
 			Cluster: appInst.Key.ClusterInstKey.ClusterKey.Name,
 			Dev:     appInst.Key.AppKey.DeveloperKey.Name,
@@ -86,28 +86,28 @@ func CollectLBStats(ctx context.Context, appInst *edgeproto.AppInst) {
 			log.SpanLog(ctx, log.DebugLevelMetrics, "Failed to acquire platform client", "cluster", clusterInst.Key, "error", err)
 			return
 		}
-		LBMutex.Lock()
-		LBMap[LBMapKey] = scrapePoint
-		LBMutex.Unlock()
+		ProxyMutex.Lock()
+		ProxyMap[ProxyMapKey] = scrapePoint
+		ProxyMutex.Unlock()
 	} else {
 		// if the app is anything other than ready, stop tracking it
-		LBMutex.Lock()
-		delete(LBMap, LBMapKey)
-		LBMutex.Unlock()
+		ProxyMutex.Lock()
+		delete(ProxyMap, ProxyMapKey)
+		ProxyMutex.Unlock()
 	}
 }
 
-func copyMapValues() []LBScrapePoint {
-	LBMutex.Lock()
-	scrapePoints := make([]LBScrapePoint, 0, len(LBMap))
-	for _, value := range LBMap {
+func copyMapValues() []ProxyScrapePoint {
+	ProxyMutex.Lock()
+	scrapePoints := make([]ProxyScrapePoint, 0, len(ProxyMap))
+	for _, value := range ProxyMap {
 		scrapePoints = append(scrapePoints, value)
 	}
-	LBMutex.Unlock()
+	ProxyMutex.Unlock()
 	return scrapePoints
 }
 
-func LBScraper() {
+func ProxyScraper() {
 	for {
 		// check if there are any new apps we need to start/stop scraping for
 		select {
@@ -120,12 +120,12 @@ func LBScraper() {
 				span.SetTag("cluster", v.Cluster)
 				ctx := log.ContextWithSpan(context.Background(), span)
 
-				metrics, err := QueryLB(ctx, v)
+				metrics, err := QueryProxy(ctx, v)
 				if err != nil {
-					log.SpanLog(ctx, log.DebugLevelMetrics, "Error retrieving LB metrics", "appinst", v.App, "error", err.Error())
+					log.SpanLog(ctx, log.DebugLevelMetrics, "Error retrieving proxy metrics", "appinst", v.App, "error", err.Error())
 				} else {
 					// send to crm->controller->influx
-					influxData := MarshallLBMetric(v, metrics)
+					influxData := MarshallProxyMetric(v, metrics)
 					for _, datapoint := range influxData {
 						MetricSender.Update(ctx, datapoint)
 					}
@@ -136,10 +136,10 @@ func LBScraper() {
 	}
 }
 
-func QueryLB(ctx context.Context, scrapePoint LBScrapePoint) (*shepherd_common.LBMetrics, error) {
+func QueryProxy(ctx context.Context, scrapePoint ProxyScrapePoint) (*shepherd_common.ProxyMetrics, error) {
 	//query envoy
 	container := nginx.GetEnvoyContainerName(scrapePoint.App)
-	request := fmt.Sprintf("docker exec %s curl http://127.0.0.1:%d/stats", container, cloudcommon.LBMetricsPort)
+	request := fmt.Sprintf("docker exec %s curl http://127.0.0.1:%d/stats", container, cloudcommon.ProxyMetricsPort)
 	if unitTest {
 		request = fmt.Sprintf("curl http://127.0.0.1:%d/stats", envoyUnitTestPort)
 	}
@@ -149,7 +149,7 @@ func QueryLB(ctx context.Context, scrapePoint LBScrapePoint) (*shepherd_common.L
 			return QueryNginx(ctx, scrapePoint) //if envoy isnt there(for legacy apps) query nginx
 		}
 	}
-	metrics := &shepherd_common.LBMetrics{Nginx: false}
+	metrics := &shepherd_common.ProxyMetrics{Nginx: false}
 	err = parseEnvoyResp(resp, scrapePoint.Ports, metrics)
 	if err != nil {
 		return nil, fmt.Errorf("Error parsing response: %v", err)
@@ -157,7 +157,7 @@ func QueryLB(ctx context.Context, scrapePoint LBScrapePoint) (*shepherd_common.L
 	return metrics, nil
 }
 
-func parseEnvoyResp(resp string, ports []int32, metrics *shepherd_common.LBMetrics) error {
+func parseEnvoyResp(resp string, ports []int32, metrics *shepherd_common.ProxyMetrics) error {
 	metrics.EnvoyStats = make(map[int32]shepherd_common.ConnectionsMetric)
 	var err error
 	for _, port := range ports {
@@ -202,9 +202,9 @@ func getStat(resp, statName string) (uint64, error) {
 	return val, nil
 }
 
-func QueryNginx(ctx context.Context, scrapePoint LBScrapePoint) (*shepherd_common.LBMetrics, error) {
+func QueryNginx(ctx context.Context, scrapePoint ProxyScrapePoint) (*shepherd_common.ProxyMetrics, error) {
 	// build the query
-	request := fmt.Sprintf("docker exec %s curl http://127.0.0.1:%d/nginx_metrics", scrapePoint.App, cloudcommon.LBMetricsPort)
+	request := fmt.Sprintf("docker exec %s curl http://127.0.0.1:%d/nginx_metrics", scrapePoint.App, cloudcommon.ProxyMetricsPort)
 	if unitTest {
 		request = fmt.Sprintf("curl http://127.0.0.1:%d/nginx_metrics", nginxUnitTestPort)
 	}
@@ -224,7 +224,7 @@ func QueryNginx(ctx context.Context, scrapePoint LBScrapePoint) (*shepherd_commo
 		log.SpanLog(ctx, log.DebugLevelMetrics, "Failed to run request", "request", request, "err", err.Error())
 		return nil, err
 	}
-	metrics := &shepherd_common.LBMetrics{Nginx: true}
+	metrics := &shepherd_common.ProxyMetrics{Nginx: true}
 	err = parseNginxResp(resp, metrics)
 	if err != nil {
 		return nil, fmt.Errorf("Error parsing response: %v", err)
@@ -233,7 +233,7 @@ func QueryNginx(ctx context.Context, scrapePoint LBScrapePoint) (*shepherd_commo
 }
 
 // view here: https://github.com/nginxinc/nginx-prometheus-exporter/blob/29ec94bdee98668e358efac7316bd8d12b05a130/client/nginx.go#L70
-func parseNginxResp(resp string, metrics *shepherd_common.LBMetrics) error {
+func parseNginxResp(resp string, metrics *shepherd_common.ProxyMetrics) error {
 	// sometimes the response lines get cycled around, so break it up based on the start of the actual content
 	trimmedResp := strings.Split(resp, "Active connections:")
 	if len(trimmedResp) < 2 {
@@ -278,7 +278,7 @@ func parseNginxResp(resp string, metrics *shepherd_common.LBMetrics) error {
 	return nil
 }
 
-func MarshallLBMetric(scrapePoint LBScrapePoint, data *shepherd_common.LBMetrics) []*edgeproto.Metric {
+func MarshallProxyMetric(scrapePoint ProxyScrapePoint, data *shepherd_common.ProxyMetrics) []*edgeproto.Metric {
 	if data.Nginx {
 		return []*edgeproto.Metric{MarshallNginxMetric(scrapePoint, data)}
 	}
@@ -302,7 +302,7 @@ func MarshallLBMetric(scrapePoint LBScrapePoint, data *shepherd_common.LBMetrics
 	return metricList
 }
 
-func MarshallNginxMetric(scrapePoint LBScrapePoint, data *shepherd_common.LBMetrics) *edgeproto.Metric {
+func MarshallNginxMetric(scrapePoint ProxyScrapePoint, data *shepherd_common.ProxyMetrics) *edgeproto.Metric {
 	RemoveShepherdMetrics(data)
 	metric := edgeproto.Metric{}
 	metric.Name = "appinst-connections"
@@ -320,7 +320,7 @@ func MarshallNginxMetric(scrapePoint LBScrapePoint, data *shepherd_common.LBMetr
 	return &metric
 }
 
-func RemoveShepherdMetrics(data *shepherd_common.LBMetrics) {
+func RemoveShepherdMetrics(data *shepherd_common.ProxyMetrics) {
 	data.ActiveConn = data.ActiveConn - 1
 	data.Accepts = data.Accepts - data.Requests
 	data.HandledConn = data.HandledConn - data.Requests

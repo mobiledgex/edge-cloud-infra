@@ -289,6 +289,11 @@ type OSHeatStackDetail struct {
 	StackStatus       string            `json:"stack_status"`
 }
 
+type OSHeatStack struct {
+	ID        string `json:"id"`
+	StackName string `json:"stack_name"`
+}
+
 type OSConsoleUrl struct {
 	Url string `json:"url"`
 }

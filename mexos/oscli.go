@@ -805,8 +805,8 @@ func deleteHeatStack(ctx context.Context, stackName string) error {
 	return nil
 }
 
-// getHeatStackDetail gets details of the provided stack
-func getHeatStackDetail(ctx context.Context, stackName string) (*OSHeatStackDetail, error) {
+// GetHeatStackDetail gets details of the provided stack
+func GetHeatStackDetail(ctx context.Context, stackName string) (*OSHeatStackDetail, error) {
 	out, err := TimedOpenStackCommand(ctx, "openstack", "stack", "show", "-f", "json", stackName)
 	if err != nil {
 		err = fmt.Errorf("can't get stack details for %s, %s, %v", stackName, out, err)
@@ -818,6 +818,22 @@ func getHeatStackDetail(ctx context.Context, stackName string) (*OSHeatStackDeta
 		return nil, fmt.Errorf("can't unmarshal stack detail, %v", err)
 	}
 	return stackDetail, nil
+}
+
+//ListHeatStack returns list of stacks
+func ListHeatStacks(ctx context.Context) ([]OSHeatStack, error) {
+	out, err := TimedOpenStackCommand(ctx, "openstack", "stack", "list", "-f", "json", "-c", "ID", "-c", "Stack Name")
+	if err != nil {
+		err = fmt.Errorf("cannot get stack list, %s, %v", out, err)
+		return nil, err
+	}
+	var stacks []OSHeatStack
+	err = json.Unmarshal(out, &stacks)
+	if err != nil {
+		err = fmt.Errorf("cannot unmarshal, %v", err)
+		return nil, err
+	}
+	return stacks, nil
 }
 
 // Get resource limits

@@ -397,7 +397,7 @@ func waitForStack(ctx context.Context, stackname string, action string, updateCa
 	start := time.Now()
 	for {
 		time.Sleep(10 * time.Second)
-		hd, err := getHeatStackDetail(ctx, stackname)
+		hd, err := GetHeatStackDetail(ctx, stackname)
 		if action == heatDelete && hd == nil {
 			// it's gone
 			return nil

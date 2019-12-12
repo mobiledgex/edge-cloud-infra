@@ -94,7 +94,7 @@ type CloudletMetrics struct {
 	Ipv4Used uint64
 }
 
-type LBMetrics struct {
+type ProxyMetrics struct {
 	ActiveConn  uint64
 	Accepts     uint64
 	HandledConn uint64

@@ -25,7 +25,7 @@ func TestEnvoyStats(t *testing.T) {
 	defer log.FinishTracer()
 	ctx := log.StartTestSpan(context.Background())
 
-	testScrapePoint := LBScrapePoint{
+	testScrapePoint := ProxyScrapePoint{
 		App:     "UnitTestApp",
 		Cluster: "UnitTestCluster",
 		Dev:     "UnitTestDev",
@@ -39,7 +39,7 @@ func TestEnvoyStats(t *testing.T) {
 	envoyUnitTestPort, _ = strconv.ParseInt(strings.Split(fakeEnvoyTestServer.URL, ":")[2], 10, 32)
 	unitTest = true
 
-	testMetrics, err := QueryLB(ctx, testScrapePoint)
+	testMetrics, err := QueryProxy(ctx, testScrapePoint)
 
 	assert.Nil(t, err, "Test Querying Envoy")
 	assert.Equal(t, uint64(10), testMetrics.EnvoyStats[1234].ActiveConn)

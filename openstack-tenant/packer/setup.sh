@@ -98,6 +98,18 @@ MEX_BUILD_SRC_IMG=$SRC_IMG
 MEX_BUILD_SRC_IMG_CHECKSUM=$SRC_IMG_CHECKSUM
 EOT
 
+log "Set up docker log file rotation"
+sudo mkdir -p /etc/docker
+sudo tee /etc/docker/daemon.json <<EOT
+{
+  "log-driver": "json-file",
+  "log-opts": {
+    "max-size": "50m",
+    "max-file": "20"
+  }
+}
+EOT
+
 log "Setting up APT sources"
 sudo rm -rf /etc/apt/sources.list.d
 sudo tee /etc/apt/sources.list <<EOT

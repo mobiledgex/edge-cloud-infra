@@ -574,3 +574,88 @@
             -e LOG_WEBHOOK="{{ slack_webhook }}"
             "{{ slack_org_mgmt_image }}" --support {{ support_users|join(" ") }}
             >>~/{{ slack_org_mgmt_log }} 2>&1'
+
+- hosts: apt
+  vars:
+    aptly_dir: /var/aptly
+    apt_user: apt
+    apt_pass: mobiledgex
+    htpasswd_file: /etc/nginx/htpasswd
+
+  tasks:
+    - import_role:
+        name: telegraf
+      tags:
+        - monitoring
+        - setup
+
+    - name: Install packages
+      apt:
+        name:
+          - aptly
+          - apache2-utils
+        update_cache: yes
+      become: yes
+      tags: setup
+
+    - name: Generate htpasswd file
+      command: "htpasswd -bc {{ htpasswd_file }} {{ apt_user }} {{ apt_pass }}"
+      args:
+        creates: "{{ htpasswd_file }}"
+      become: yes
+
+    - import_role:
+        name: web
+      vars:
+        nginx_config_template: "internal/apt/nginx-config.j2"
+        cert_domains: [ "{{ inventory_hostname }}" ]
+      tags: setup
+
+    - name: Add aptly GPG key
+      apt_key:
+        keyserver: pool.sks-keyservers.net
+        id: ED75B5A4483DA07C
+      become: yes
+      tags: setup
+
+    - name: Add aptly repo
+      apt_repository:
+        repo: "deb http://repo.aptly.info/ squeeze main"
+      become: yes
+      tags: setup
+
+    - name: Set up aptly publish directory
+      file:
+        name: "{{ aptly_dir }}/public"
+        state: directory
+        owner: ansible
+        group: ansible
+      become: yes
+
+    - name: Copy the GPG batch file
+      template:
+        src: templates/internal/apt/gpg-key.batch.j2
+        dest: "{{ aptly_dir }}/gpg-key.batch"
+        mode: 0444
+
+    - name: Generate GPG key
+      command: "gpg --batch --gen-key {{ aptly_dir }}/gpg-key.batch"
+      args:
+        creates: ~/.gnupg/trustdb.gpg
+
+    - name: Generate GPG signing public key
+      command: "gpg --export --armor {{ mex_ops_email }}"
+      changed_when: false
+      register: pubkey
+
+    - name: Publish GPG signing public key
+      copy:
+        content: "{{ pubkey.stdout }}"
+        dest: "{{ aptly_dir }}/public/gpg.key"
+
+    - name: Install aptly config
+      template:
+        src: templates/internal/apt/aptly.conf.j2
+        dest: /etc/aptly.conf
+        mode: 0444
+      become: yes

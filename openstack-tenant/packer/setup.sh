@@ -102,17 +102,15 @@ log "Setting up APT sources"
 sudo rm -rf /etc/apt/sources.list.d
 sudo tee /etc/apt/sources.list <<EOT
 deb https://${APT_USER}:${APT_PASS}@artifactory.mobiledgex.net/artifactory/packages stratus main
-deb https://${APT_USER}:${APT_PASS}@artifactory.mobiledgex.net/artifactory/docker xenial stable
+deb https://${APT_USER}:${APT_PASS}@apt.mobiledgex.net stratus-deps main
 deb https://${APT_USER}:${APT_PASS}@artifactory.mobiledgex.net/artifactory/ubuntu xenial main restricted universe multiverse
 deb https://${APT_USER}:${APT_PASS}@artifactory.mobiledgex.net/artifactory/ubuntu xenial-updates main restricted universe multiverse
 deb https://${APT_USER}:${APT_PASS}@artifactory.mobiledgex.net/artifactory/ubuntu-security xenial-security main restricted universe multiverse
-deb https://apt.kubernetes.io/ kubernetes-xenial main
 EOT
 
 log "Set up the APT keys"
 curl -s https://${APT_USER}:${APT_PASS}@artifactory.mobiledgex.net/artifactory/api/gpg/key/public | sudo apt-key add -
-curl -s https://packages.cloud.google.com/apt/doc/apt-key.gpg | sudo apt-key add -
-curl -fsSL https://download.docker.com/linux/ubuntu/gpg | sudo apt-key add -
+curl -s https://${APT_USER}:${APT_PASS}@apt.mobiledgex.net/gpg.key | sudo apt-key add -
 sudo apt-get update
 
 log "Install mobiledgex ${TAG#v}"

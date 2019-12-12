@@ -8,7 +8,8 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/mobiledgex/edge-cloud/cloud-resource-manager/platform/pc"
+	"github.com/mobiledgex/edge-cloud-infra/shepherd/shepherd_platform/shepherd_unittest"
+	"github.com/mobiledgex/edge-cloud/cloudcommon"
 	"github.com/mobiledgex/edge-cloud/log"
 	"github.com/stretchr/testify/assert"
 )
@@ -30,14 +31,14 @@ func TestEnvoyStats(t *testing.T) {
 		Cluster: "UnitTestCluster",
 		Dev:     "UnitTestDev",
 		Ports:   []int32{1234, 4321},
-		Client:  &pc.LocalClient{},
+		Client:  &shepherd_unittest.UTClient{},
 	}
 
 	fakeEnvoyTestServer := httptest.NewServer(http.HandlerFunc(envoyHandler))
 	defer fakeEnvoyTestServer.Close()
 
-	envoyUnitTestPort, _ = strconv.ParseInt(strings.Split(fakeEnvoyTestServer.URL, ":")[2], 10, 32)
-	unitTest = true
+	envoyUnitTestPort, _ := strconv.ParseInt(strings.Split(fakeEnvoyTestServer.URL, ":")[2], 10, 32)
+	cloudcommon.ProxyMetricsPort = int32(envoyUnitTestPort)
 
 	testMetrics, err := QueryProxy(ctx, testScrapePoint)
 

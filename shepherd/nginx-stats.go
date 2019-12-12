@@ -28,11 +28,6 @@ var envoyActive = "upstream_cx_active"
 var envoyTotal = "upstream_cx_total"
 var envoyDropped = "upstream_cx_connect_fail" // this one might not be right/enough
 
-// variables for unit testing only
-var unitTest = false
-var nginxUnitTestPort = int64(0)
-var envoyUnitTestPort = int64(0)
-
 type ProxyScrapePoint struct {
 	App     string
 	Cluster string
@@ -140,9 +135,6 @@ func QueryProxy(ctx context.Context, scrapePoint ProxyScrapePoint) (*shepherd_co
 	//query envoy
 	container := proxy.GetEnvoyContainerName(scrapePoint.App)
 	request := fmt.Sprintf("docker exec %s curl http://127.0.0.1:%d/stats", container, cloudcommon.ProxyMetricsPort)
-	if unitTest {
-		request = fmt.Sprintf("curl http://127.0.0.1:%d/stats", envoyUnitTestPort)
-	}
 	resp, err := scrapePoint.Client.Output(request)
 	if err != nil {
 		if strings.Contains(resp, "No such container") {
@@ -150,18 +142,16 @@ func QueryProxy(ctx context.Context, scrapePoint ProxyScrapePoint) (*shepherd_co
 		}
 	}
 	metrics := &shepherd_common.ProxyMetrics{Nginx: false}
-	err = parseEnvoyResp(resp, scrapePoint.Ports, metrics)
+	respMap := parseEnvoyResp(ctx, resp)
+	err = envoyConnections(ctx, respMap, scrapePoint.Ports, metrics)
 	if err != nil {
 		return nil, fmt.Errorf("Error parsing response: %v", err)
 	}
 	return metrics, nil
 }
 
-func parseEnvoyResp(resp string, ports []int32, metrics *shepherd_common.ProxyMetrics) error {
-	respMap, err := formatEnvoyResp(resp)
-	if err != nil {
-		return err
-	}
+func envoyConnections(ctx context.Context, respMap map[string]string, ports []int32, metrics *shepherd_common.ProxyMetrics) error {
+	var err error
 	metrics.EnvoyStats = make(map[int32]shepherd_common.ConnectionsMetric)
 	for _, port := range ports {
 		new := shepherd_common.ConnectionsMetric{}
@@ -190,17 +180,19 @@ func parseEnvoyResp(resp string, ports []int32, metrics *shepherd_common.ProxyMe
 	return nil
 }
 
-func formatEnvoyResp(resp string) (map[string]string, error) {
-	lines := strings.Split(resp, "\n")
+// converts the envoy stats page into a map for easy reading
+func parseEnvoyResp(ctx context.Context, resp string) map[string]string {
+	lines := strings.Split(outputTrim(resp), "\n")
 	newMap := make(map[string]string)
 	for _, line := range lines {
 		keyValPair := strings.Split(line, ": ")
-		if len(keyValPair) != 2 {
-			return newMap, fmt.Errorf("Error parsing response")
+		if len(keyValPair) == 2 {
+			newMap[keyValPair[0]] = keyValPair[1]
+		} else {
+			log.SpanLog(ctx, log.DebugLevelMetrics, "Could not parse line", "line", line)
 		}
-		newMap[keyValPair[0]] = keyValPair[1]
 	}
-	return newMap, nil
+	return newMap
 }
 
 // this function only retrieves stats from envoy that are expected to be int values
@@ -219,9 +211,6 @@ func getUIntStat(respMap map[string]string, statName string) (uint64, error) {
 func QueryNginx(ctx context.Context, scrapePoint ProxyScrapePoint) (*shepherd_common.ProxyMetrics, error) {
 	// build the query
 	request := fmt.Sprintf("docker exec %s curl http://127.0.0.1:%d/nginx_metrics", scrapePoint.App, cloudcommon.ProxyMetricsPort)
-	if unitTest {
-		request = fmt.Sprintf("curl http://127.0.0.1:%d/nginx_metrics", nginxUnitTestPort)
-	}
 	resp, err := scrapePoint.Client.Output(request)
 	// if this is the first time, or the container got restarted, install curl (for old deployments)
 	if strings.Contains(resp, "executable file not found") {

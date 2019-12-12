@@ -23,7 +23,7 @@ var ProxyMap map[string]ProxyScrapePoint
 var ProxyMutex *sync.Mutex
 
 // stat names in envoy
-var envoyClusterName = "backend"
+var envoyClusterName = "cluster.backend"
 var envoyActive = "upstream_cx_active"
 var envoyTotal = "upstream_cx_total"
 var envoyDropped = "upstream_cx_connect_fail" // this one might not be right/enough
@@ -158,8 +158,11 @@ func QueryProxy(ctx context.Context, scrapePoint ProxyScrapePoint) (*shepherd_co
 }
 
 func parseEnvoyResp(resp string, ports []int32, metrics *shepherd_common.ProxyMetrics) error {
+	respMap, err := formatEnvoyResp(resp)
+	if err != nil {
+		return err
+	}
 	metrics.EnvoyStats = make(map[int32]shepherd_common.ConnectionsMetric)
-	var err error
 	for _, port := range ports {
 		new := shepherd_common.ConnectionsMetric{}
 		//active, accepts, handled conn
@@ -167,16 +170,16 @@ func parseEnvoyResp(resp string, ports []int32, metrics *shepherd_common.ProxyMe
 		droppedSearch := envoyClusterName + strconv.Itoa(int(port)) + "." + envoyDropped
 		totalSearch := envoyClusterName + strconv.Itoa(int(port)) + "." + envoyTotal
 
-		new.ActiveConn, err = getStat(resp, activeSearch)
+		new.ActiveConn, err = getUIntStat(respMap, activeSearch)
 		if err != nil {
 			return fmt.Errorf("Error retrieving envoy active connections stats: %v", err)
 		}
-		new.Accepts, err = getStat(resp, totalSearch)
+		new.Accepts, err = getUIntStat(respMap, totalSearch)
 		if err != nil {
 			return fmt.Errorf("Error retrieving envoy accepts connections stats: %v", err)
 		}
 		var droppedVal uint64
-		droppedVal, err = getStat(resp, droppedSearch)
+		droppedVal, err = getUIntStat(respMap, droppedSearch)
 		if err != nil {
 			return fmt.Errorf("Error retrieving envoy handled connections stats: %v", err)
 		}
@@ -187,14 +190,25 @@ func parseEnvoyResp(resp string, ports []int32, metrics *shepherd_common.ProxyMe
 	return nil
 }
 
-func getStat(resp, statName string) (uint64, error) {
-	i := strings.Index(resp, statName)
-	if i == -1 {
+func formatEnvoyResp(resp string) (map[string]string, error) {
+	lines := strings.Split(resp, "\n")
+	newMap := make(map[string]string)
+	for _, line := range lines {
+		keyValPair := strings.Split(line, ": ")
+		if len(keyValPair) != 2 {
+			return newMap, fmt.Errorf("Error parsing response")
+		}
+		newMap[keyValPair[0]] = keyValPair[1]
+	}
+	return newMap, nil
+}
+
+// this function only retrieves stats from envoy that are expected to be int values
+func getUIntStat(respMap map[string]string, statName string) (uint64, error) {
+	stat, exists := respMap[statName]
+	if !exists {
 		return 0, fmt.Errorf("stat not found: %s", statName)
 	}
-	// skip the stat name and the trailing ": "
-	i = i + len(statName) + 2
-	stat := strings.SplitN(resp[i:], "\n", 2)[0]
 	val, err := strconv.ParseUint(stat, 10, 64)
 	if err != nil {
 		return 0, fmt.Errorf("Error retrieving stats: %v", err)

@@ -23,10 +23,10 @@ var ProxyMap map[string]ProxyScrapePoint
 var ProxyMutex *sync.Mutex
 
 // stat names in envoy
-var clusterName = "backend"
-var active = "upstream_cx_active"
-var total = "upstream_cx_total"
-var dropped = "upstream_cx_connect_fail" // this one might not be right/enough
+var envoyClusterName = "backend"
+var envoyActive = "upstream_cx_active"
+var envoyTotal = "upstream_cx_total"
+var envoyDropped = "upstream_cx_connect_fail" // this one might not be right/enough
 
 // variables for unit testing only
 var unitTest = false
@@ -163,9 +163,9 @@ func parseEnvoyResp(resp string, ports []int32, metrics *shepherd_common.ProxyMe
 	for _, port := range ports {
 		new := shepherd_common.ConnectionsMetric{}
 		//active, accepts, handled conn
-		activeSearch := clusterName + strconv.Itoa(int(port)) + "." + active
-		droppedSearch := clusterName + strconv.Itoa(int(port)) + "." + dropped
-		totalSearch := clusterName + strconv.Itoa(int(port)) + "." + total
+		activeSearch := envoyClusterName + strconv.Itoa(int(port)) + "." + envoyActive
+		droppedSearch := envoyClusterName + strconv.Itoa(int(port)) + "." + envoyDropped
+		totalSearch := envoyClusterName + strconv.Itoa(int(port)) + "." + envoyTotal
 
 		new.ActiveConn, err = getStat(resp, activeSearch)
 		if err != nil {

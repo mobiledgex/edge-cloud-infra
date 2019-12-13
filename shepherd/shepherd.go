@@ -51,7 +51,10 @@ var myPlatform platform.Platform
 var sigChan chan os.Signal
 
 func appInstCb(ctx context.Context, old *edgeproto.AppInst, new *edgeproto.AppInst) {
-	CollectNginxStats(ctx, new)
+	// LB metrics are not supported in fake mode
+	if myPlatform.GetType() != "fake" {
+		CollectNginxStats(ctx, new)
+	}
 	var port int32
 	var exists bool
 	var mapKey string

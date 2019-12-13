@@ -74,7 +74,8 @@ func CollectNginxStats(ctx context.Context, appInst *edgeproto.AppInst) {
 		nginxMutex.Lock()
 		nginxMap[nginxMapKey] = scrapePoint
 		nginxMutex.Unlock()
-	} else {
+	} else if appInst.State != edgeproto.TrackedState_HEALTHCHECK_FAILED {
+		// health check failed apps we still track, since we need to keep probing it
 		// if the app is anything other than ready, stop tracking it
 		nginxMutex.Lock()
 		delete(nginxMap, nginxMapKey)

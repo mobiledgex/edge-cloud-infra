@@ -21,6 +21,8 @@ func setupHealthCheckSpan(appInstKey *edgeproto.AppInstKey) (opentracing.Span, c
 
 func getAlertFromAppInst(appInstKey *edgeproto.AppInstKey) *edgeproto.Alert {
 	alert := edgeproto.Alert{}
+	alert.Labels = make(map[string]string)
+	alert.Annotations = make(map[string]string)
 	alert.Labels["alertname"] = cloudcommon.AlertAppInstDown
 	alert.Labels[cloudcommon.AlertLabelDev] = appInstKey.AppKey.DeveloperKey.Name
 	alert.Labels[cloudcommon.AlertLabelOperator] = appInstKey.ClusterInstKey.CloudletKey.OperatorKey.Name
@@ -36,7 +38,7 @@ func HealthCheckDown(ctx context.Context, appInstKey *edgeproto.AppInstKey) {
 	defer span.Finish()
 
 	appInst := edgeproto.AppInst{}
-	found := AppInstCache.Get(&appInst.Key, &appInst)
+	found := AppInstCache.Get(appInstKey, &appInst)
 	if !found {
 		log.SpanLog(ctx, log.DebugLevelMetrics, "Unable to find appInst ", "appInst", appInst.Key)
 		return
@@ -65,15 +67,16 @@ func HealthCheckUp(ctx context.Context, appInstKey *edgeproto.AppInstKey) {
 	defer span.Finish()
 
 	appInst := edgeproto.AppInst{}
-	found := AppInstCache.Get(&appInst.Key, &appInst)
+	found := AppInstCache.Get(appInstKey, &appInst)
 	if !found {
 		log.SpanLog(ctx, log.DebugLevelMetrics, "Unable to find appInst ", "appInst", appInst.Key)
 		return
 	}
-	if appInst.State == edgeproto.TrackedState_READY {
-		return
-	}
 	// Delete the alert if we can find it
 	alert := getAlertFromAppInst(appInstKey)
-	AlertCache.Delete(ctx, alert, 0)
+	if AlertCache.HasKey(alert.GetKey()) {
+		log.SpanLog(ctx, log.DebugLevelMetrics, "Deleting alert ", "alert", alert, "appInst", appInst.Key)
+		AlertCache.Delete(ctx, alert, 0)
+	}
+	return
 }

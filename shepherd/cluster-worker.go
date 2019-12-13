@@ -247,11 +247,11 @@ func pruneForeignAlerts(clusterInstKey *edgeproto.ClusterInstKey, keys *map[edge
 	toremove := []edgeproto.AlertKey{}
 	for key, _ := range *keys {
 		edgeproto.AlertKeyStringParse(string(key), &alertFromKey)
-		if _, found := alertFromKey.Labels[cloudcommon.AlertLabelApp]; found &&
-			alertFromKey.Labels[cloudcommon.AlertLabelDev] == clusterInstKey.Developer &&
-			alertFromKey.Labels[cloudcommon.AlertLabelOperator] == clusterInstKey.CloudletKey.OperatorKey.Name &&
-			alertFromKey.Labels[cloudcommon.AlertLabelCloudlet] == clusterInstKey.CloudletKey.Name &&
-			alertFromKey.Labels[cloudcommon.AlertLabelCluster] == clusterInstKey.ClusterKey.Name {
+		if _, found := alertFromKey.Labels[cloudcommon.AlertLabelApp]; found ||
+			alertFromKey.Labels[cloudcommon.AlertLabelDev] != clusterInstKey.Developer ||
+			alertFromKey.Labels[cloudcommon.AlertLabelOperator] != clusterInstKey.CloudletKey.OperatorKey.Name ||
+			alertFromKey.Labels[cloudcommon.AlertLabelCloudlet] != clusterInstKey.CloudletKey.Name ||
+			alertFromKey.Labels[cloudcommon.AlertLabelCluster] != clusterInstKey.ClusterKey.Name {
 			toremove = append(toremove, key)
 		}
 	}

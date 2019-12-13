@@ -193,7 +193,10 @@ func main() {
 	}
 	workerMap = make(map[string]*ClusterWorker)
 	vmAppWorkerMap = make(map[string]*AppInstWorker)
-	InitNginxScraper()
+	// LB metrics are not supported in fake mode
+	if myPlatform.GetType() != "fake" {
+		InitNginxScraper()
+	}
 	InitPlatformMetrics()
 
 	// register shepherd to receive appinst and clusterinst notifications from crm

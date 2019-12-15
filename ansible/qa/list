@@ -30,7 +30,7 @@ localhost	ansible_connection=local
 crm-qa.mobiledgex.net
 
 [mc]
-mc-qa.mobiledgex.net
+mc-qa.mobiledgex.net nginx_config_filename=mc
 
 [gitlab]
 gitlab-qa.mobiledgex.net

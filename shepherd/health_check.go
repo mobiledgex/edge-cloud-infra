@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"strconv"
 
 	"github.com/mobiledgex/edge-cloud/cloudcommon"
 	"github.com/mobiledgex/edge-cloud/edgeproto"
@@ -33,7 +34,7 @@ func getAlertFromAppInst(appInstKey *edgeproto.AppInstKey) *edgeproto.Alert {
 	return &alert
 }
 
-func HealthCheckDown(ctx context.Context, appInstKey *edgeproto.AppInstKey) {
+func HealthCheckDown(ctx context.Context, appInstKey *edgeproto.AppInstKey, scrapePoint *NginxScrapePoint) {
 	span, ctx := setupHealthCheckSpan(appInstKey)
 	defer span.Finish()
 
@@ -46,8 +47,20 @@ func HealthCheckDown(ctx context.Context, appInstKey *edgeproto.AppInstKey) {
 	if appInst.State != edgeproto.TrackedState_READY {
 		return
 	}
-	// Create and send the Alert
+
+	// don't send alert first several failures
+	if scrapePoint.FailedChecksCount < *healthCheckRetries {
+		scrapePoint.FailedChecksCount++
+		return
+	} else {
+		// reset the failed retries count
+		scrapePoint.FailedChecksCount = 0
+	}
+
+	// Create and send the Alert - for now only due to rootLb going down
 	alert := getAlertFromAppInst(appInstKey)
+	alert.Annotations[cloudcommon.AlertHealthCheckStatus] =
+		strconv.Itoa(int(edgeproto.HealthCheck_HEALTH_CHECK_FAIL_ROOTLB_OFFLINE))
 	AlertCache.UpdateModFunc(ctx, alert.GetKey(), 0, func(old *edgeproto.Alert) (*edgeproto.Alert, bool) {
 		if old == nil {
 			log.SpanLog(ctx, log.DebugLevelMetrics, "Update alert", "alert", alert)
@@ -62,7 +75,7 @@ func HealthCheckDown(ctx context.Context, appInstKey *edgeproto.AppInstKey) {
 	})
 }
 
-func HealthCheckUp(ctx context.Context, appInstKey *edgeproto.AppInstKey) {
+func HealthCheckUp(ctx context.Context, appInstKey *edgeproto.AppInstKey, scrapePoint *NginxScrapePoint) {
 	span, ctx := setupHealthCheckSpan(appInstKey)
 	defer span.Finish()
 
@@ -77,6 +90,8 @@ func HealthCheckUp(ctx context.Context, appInstKey *edgeproto.AppInstKey) {
 	if AlertCache.HasKey(alert.GetKey()) {
 		log.SpanLog(ctx, log.DebugLevelMetrics, "Deleting alert ", "alert", alert, "appInst", appInst.Key)
 		AlertCache.Delete(ctx, alert, 0)
+		// Reset failure count
+		scrapePoint.FailedChecksCount = 0
 	}
 	return
 }

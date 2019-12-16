@@ -133,6 +133,7 @@ var CreateAppInstOptionalArgs = []string{
 	"configs.kind",
 	"configs.config",
 	"sharedvolumesize",
+	"healthcheck",
 }
 var RefreshAppInstRequiredArgs = []string{
 	"developer",
@@ -148,6 +149,7 @@ var RefreshAppInstOptionalArgs = []string{
 	"forceupdate",
 	"updatemultiple",
 	"sharedvolumesize",
+	"healthcheck",
 }
 var UpdateAppInstRequiredArgs = []string{
 	"developer",
@@ -164,6 +166,7 @@ var UpdateAppInstOptionalArgs = []string{
 	"configs.kind",
 	"configs.config",
 	"sharedvolumesize",
+	"healthcheck",
 }
 var AppInstKeyRequiredArgs = []string{}
 var AppInstKeyOptionalArgs = []string{
@@ -213,6 +216,7 @@ var AppInstOptionalArgs = []string{
 	"configs.kind",
 	"configs.config",
 	"sharedvolumesize",
+	"healthcheck",
 }
 var AppInstAliasArgs = []string{
 	"developer=appinst.key.appkey.developerkey.name",
@@ -257,6 +261,7 @@ var AppInstAliasArgs = []string{
 	"configs.kind=appinst.configs.kind",
 	"configs.config=appinst.configs.config",
 	"sharedvolumesize=appinst.sharedvolumesize",
+	"healthcheck=appinst.healthcheck",
 }
 var AppInstComments = map[string]string{
 	"developer":                      "Organization or Company Name that a Developer is part of",
@@ -282,7 +287,7 @@ var AppInstComments = map[string]string{
 	"mappedports.fqdnprefix":         "FQDN prefix to append to base FQDN in FindCloudlet response. May be empty.",
 	"mappedports.endport":            "A non-zero end port indicates a port range from internal port to end port, inclusive.",
 	"flavor":                         "Flavor name",
-	"state":                          "Current state of the AppInst on the Cloudlet, one of TrackedStateUnknown, NotPresent, CreateRequested, Creating, CreateError, Ready, UpdateRequested, Updating, UpdateError, DeleteRequested, Deleting, DeleteError, DeletePrepare, CrmInitok, HealthcheckFailed",
+	"state":                          "Current state of the AppInst on the Cloudlet, one of TrackedStateUnknown, NotPresent, CreateRequested, Creating, CreateError, Ready, UpdateRequested, Updating, UpdateError, DeleteRequested, Deleting, DeleteError, DeletePrepare, CrmInitok",
 	"errors":                         "Any errors trying to create, update, or delete the AppInst on the Cloudlet",
 	"crmoverride":                    "Override actions to CRM, one of NoOverride, IgnoreCrmErrors, IgnoreCrm, IgnoreTransientState, IgnoreCrmAndTransientState",
 	"runtimeinfo.containerids":       "List of container names",
@@ -293,6 +298,7 @@ var AppInstComments = map[string]string{
 	"configs.kind":                   "kind (type) of config, i.e. k8s-manifest, helm-values, deploygen-config",
 	"configs.config":                 "config file contents or URI reference",
 	"sharedvolumesize":               "shared volume size when creating auto cluster",
+	"healthcheck":                    "Health Check status, one of HealthCheckOk, HealthCheckFailRootlbOffline, HealthCheckFailServerFail",
 }
 var AppInstSpecialArgs = map[string]string{
 	"errors":                   "StringArray",
@@ -356,7 +362,7 @@ var AppInstInfoComments = map[string]string{
 	"key.clusterinstkey.cloudletkey.name":             "Name of the cloudlet",
 	"key.clusterinstkey.developer":                    "Name of Developer that this cluster belongs to",
 	"notifyid":                                        "Id of client assigned by server (internal use only)",
-	"state":                                           "Current state of the AppInst on the Cloudlet, one of TrackedStateUnknown, NotPresent, CreateRequested, Creating, CreateError, Ready, UpdateRequested, Updating, UpdateError, DeleteRequested, Deleting, DeleteError, DeletePrepare, CrmInitok, HealthcheckFailed",
+	"state":                                           "Current state of the AppInst on the Cloudlet, one of TrackedStateUnknown, NotPresent, CreateRequested, Creating, CreateError, Ready, UpdateRequested, Updating, UpdateError, DeleteRequested, Deleting, DeleteError, DeletePrepare, CrmInitok",
 	"errors":                                          "Any errors trying to create, update, or delete the AppInst on the Cloudlet",
 	"runtimeinfo.containerids":                        "List of container names",
 }

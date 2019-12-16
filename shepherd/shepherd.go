@@ -32,7 +32,8 @@ var cloudletKeyStr = flag.String("cloudletKey", "", "Json or Yaml formatted clou
 var name = flag.String("name", "shepherd", "Unique name to identify a process")
 var parentSpan = flag.String("span", "", "Use parent span for logging")
 var region = flag.String("region", "local", "Region name")
-
+var healthCheckRetries = flag.Int("healthCheckRetries", 3, "Number of times Health Check fails before we mark appInst down")
+var healthCheckInterval = flag.Duration("healthCheckInterval", time.Second*5, "Health Checking frequesncy") // TODO - use in a separate health check goroutine
 var defaultPrometheusPort = cloudcommon.PrometheusPort
 
 //map keeping track of all the currently running prometheuses

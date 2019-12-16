@@ -25,11 +25,12 @@ var nginxUnitTest = false
 var nginxUnitTestPort = int64(0)
 
 type NginxScrapePoint struct {
-	Key     edgeproto.AppInstKey
-	App     string
-	Cluster string
-	Dev     string
-	Client  pc.PlatformClient
+	Key               edgeproto.AppInstKey
+	FailedChecksCount int
+	App               string
+	Cluster           string
+	Dev               string
+	Client            pc.PlatformClient
 }
 
 func InitNginxScraper() {
@@ -74,7 +75,7 @@ func CollectNginxStats(ctx context.Context, appInst *edgeproto.AppInst) {
 		nginxMutex.Lock()
 		nginxMap[nginxMapKey] = scrapePoint
 		nginxMutex.Unlock()
-	} else if appInst.State != edgeproto.TrackedState_HEALTHCHECK_FAILED {
+	} else {
 		// health check failed apps we still track, since we need to keep probing it
 		// if the app is anything other than ready, stop tracking it
 		nginxMutex.Lock()
@@ -142,10 +143,10 @@ func QueryNginx(ctx context.Context, scrapePoint *NginxScrapePoint) (*shepherd_c
 	if err != nil {
 		log.SpanLog(ctx, log.DebugLevelMetrics, "Failed to run request", "request", request, "err", err.Error())
 		// Also this means that we need to notify the controller that this AppInst is no longer recheable
-		HealthCheckDown(ctx, &scrapePoint.Key)
+		HealthCheckDown(ctx, &scrapePoint.Key, scrapePoint)
 		return nil, err
 	}
-	HealthCheckUp(ctx, &scrapePoint.Key)
+	HealthCheckUp(ctx, &scrapePoint.Key, scrapePoint)
 	metrics := &shepherd_common.NginxMetrics{}
 	err = parseNginxResp(resp, metrics)
 	if err != nil {

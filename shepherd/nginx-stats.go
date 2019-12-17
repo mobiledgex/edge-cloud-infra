@@ -39,6 +39,10 @@ func InitNginxScraper() {
 	go NginxScraper()
 }
 
+func getProxyKey(appInstKey *edgeproto.AppInstKey) string {
+	return appInstKey.AppKey.Name + "-" + appInstKey.ClusterInstKey.ClusterKey.Name + "-" + appInstKey.AppKey.DeveloperKey.Name
+}
+
 func CollectNginxStats(ctx context.Context, appInst *edgeproto.AppInst) {
 	// ignore apps not exposed to the outside world as they dont have an nginx lb
 	app := edgeproto.App{}
@@ -49,7 +53,7 @@ func CollectNginxStats(ctx context.Context, appInst *edgeproto.AppInst) {
 	} else if app.InternalPorts {
 		return
 	}
-	nginxMapKey := appInst.Key.AppKey.Name + "-" + appInst.Key.ClusterInstKey.ClusterKey.Name + "-" + appInst.Key.AppKey.DeveloperKey.Name
+	nginxMapKey := getProxyKey(appInst.GetKey())
 	// add/remove from the list of nginx endpoints to hit
 	if appInst.State == edgeproto.TrackedState_READY {
 		scrapePoint := NginxScrapePoint{
@@ -143,10 +147,10 @@ func QueryNginx(ctx context.Context, scrapePoint *NginxScrapePoint) (*shepherd_c
 	if err != nil {
 		log.SpanLog(ctx, log.DebugLevelMetrics, "Failed to run request", "request", request, "err", err.Error())
 		// Also this means that we need to notify the controller that this AppInst is no longer recheable
-		HealthCheckDown(ctx, &scrapePoint.Key, scrapePoint)
+		HealthCheckDown(ctx, &scrapePoint.Key)
 		return nil, err
 	}
-	HealthCheckUp(ctx, &scrapePoint.Key, scrapePoint)
+	HealthCheckUp(ctx, &scrapePoint.Key)
 	metrics := &shepherd_common.NginxMetrics{}
 	err = parseNginxResp(resp, metrics)
 	if err != nil {

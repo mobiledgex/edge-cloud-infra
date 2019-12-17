@@ -34,7 +34,31 @@ func getAlertFromAppInst(appInstKey *edgeproto.AppInstKey) *edgeproto.Alert {
 	return &alert
 }
 
-func HealthCheckDown(ctx context.Context, appInstKey *edgeproto.AppInstKey, scrapePoint *NginxScrapePoint) {
+func shouldSendAlertForHealthCheckCount(ctx context.Context, appInstKey *edgeproto.AppInstKey) bool {
+	// Update the scrape point number of failures
+	nginxMutex.Lock()
+	defer nginxMutex.Unlock()
+	scrapePoint, found := nginxMap[getProxyKey(appInstKey)]
+
+	if !found {
+		// Already deleted
+		log.SpanLog(ctx, log.DebugLevelMetrics, "AppInst deleted while updating health check",
+			"appInst", appInstKey)
+		return false
+	}
+
+	// don't send alert first several failures
+	if scrapePoint.FailedChecksCount < cloudcommon.ShepherdHealthCheckRetries {
+		scrapePoint.FailedChecksCount++
+		nginxMap[getProxyKey(appInstKey)] = scrapePoint
+		return false
+	}
+	// reset the failed retries count
+	scrapePoint.FailedChecksCount = 0
+	return true
+}
+
+func HealthCheckDown(ctx context.Context, appInstKey *edgeproto.AppInstKey) {
 	span, ctx := setupHealthCheckSpan(appInstKey)
 	defer span.Finish()
 
@@ -44,17 +68,12 @@ func HealthCheckDown(ctx context.Context, appInstKey *edgeproto.AppInstKey, scra
 		log.SpanLog(ctx, log.DebugLevelMetrics, "Unable to find appInst ", "appInst", appInst.Key)
 		return
 	}
-	if appInst.State != edgeproto.TrackedState_READY {
+	if appInst.State != edgeproto.TrackedState_READY ||
+		appInst.HealthCheck != edgeproto.HealthCheck_HEALTH_CHECK_OK {
 		return
 	}
-
-	// don't send alert first several failures
-	if scrapePoint.FailedChecksCount < cloudcommon.ShepherdHealthCheckRetries {
-		scrapePoint.FailedChecksCount++
+	if !shouldSendAlertForHealthCheckCount(ctx, appInstKey) {
 		return
-	} else {
-		// reset the failed retries count
-		scrapePoint.FailedChecksCount = 0
 	}
 
 	// Create and send the Alert - for now only due to rootLb going down
@@ -75,7 +94,7 @@ func HealthCheckDown(ctx context.Context, appInstKey *edgeproto.AppInstKey, scra
 	})
 }
 
-func HealthCheckUp(ctx context.Context, appInstKey *edgeproto.AppInstKey, scrapePoint *NginxScrapePoint) {
+func HealthCheckUp(ctx context.Context, appInstKey *edgeproto.AppInstKey) {
 	span, ctx := setupHealthCheckSpan(appInstKey)
 	defer span.Finish()
 
@@ -91,6 +110,15 @@ func HealthCheckUp(ctx context.Context, appInstKey *edgeproto.AppInstKey, scrape
 		log.SpanLog(ctx, log.DebugLevelMetrics, "Deleting alert ", "alert", alert, "appInst", appInst.Key)
 		AlertCache.Delete(ctx, alert, 0)
 		// Reset failure count
+		nginxMutex.Lock()
+		defer nginxMutex.Unlock()
+		scrapePoint, found := nginxMap[getProxyKey(appInstKey)]
+		if !found {
+			// Already deleted
+			log.SpanLog(ctx, log.DebugLevelMetrics, "AppInst deleted while updating health check",
+				"appInst", appInstKey)
+			return
+		}
 		scrapePoint.FailedChecksCount = 0
 	}
 	return

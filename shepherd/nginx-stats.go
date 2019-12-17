@@ -98,7 +98,7 @@ func NginxScraper() {
 	for {
 		// check if there are any new apps we need to start/stop scraping for
 		select {
-		case <-time.After(*collectInterval):
+		case <-time.After(collectInterval):
 			scrapePoints := copyMapValues()
 			for _, v := range scrapePoints {
 				span := log.StartSpan(log.DebugLevelSampled, "send-metric")

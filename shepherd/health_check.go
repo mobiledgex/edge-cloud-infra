@@ -49,7 +49,7 @@ func HealthCheckDown(ctx context.Context, appInstKey *edgeproto.AppInstKey, scra
 	}
 
 	// don't send alert first several failures
-	if scrapePoint.FailedChecksCount < *healthCheckRetries {
+	if scrapePoint.FailedChecksCount < cloudcommon.ShepherdHealthCheckRetries {
 		scrapePoint.FailedChecksCount++
 		return
 	} else {

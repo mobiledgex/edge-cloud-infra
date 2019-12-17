@@ -1,9 +1,5 @@
 #!/usr/bin/python
-
-import random
 import re
-import datetime
-import getopt
 import sys
 import os
 import subprocess
@@ -19,24 +15,23 @@ Cloudlet = None
 Appinsts = None
 Controller = None
 Clusterinsts = None
-Zap = False
-
-Edgectl = "/usr/local/bin/edgectl --addr mexplat-stage-eu.ctrl.mobiledgex.net:55001 --tls /root/tls/mex-client.crt"
-EdgectlCmd = None
+Edgectl = None
+TlsDir = os.environ["GOPATH"]+"/src/github.com/mobiledgex/edge-cloud/tls/out"
 
 def readConfig():
     global Operator
     global Controller
     global Cloudlet
     global Controller
+    global Edgectl
 
     with open("edgebox_vars.yml", 'r') as stream:
        data = load(stream, Loader=Loader)
        Operator = data['operator']
        Cloudlet = data['cloudlet']
        Controller = data['controller']
-       EdgectlCmd = "/usr/local/bin/edgectl --addr %s:55001 --tls /root/tls/mex-client.crt" % Controller
-     
+       Edgectl = "/usr/local/bin/edgectl --addr %s:55001 --tls %s/mex-client.crt" % (Controller, TlsDir)
+    
 def getAppClusterInsts():
         global Appinsts
         global Clusterinsts
@@ -152,24 +147,13 @@ def yesOrNo(question):
         return yesOrNo("please enter")
 
 if __name__ == "__main__":
-   try:
-      short_options = 'dvc:o:zz',
-      long_options = ['verbose', 'operator=', 'cloudlet=', 'zap', 'nodev']
- 
-      opts, args = getopt.getopt(sys.argv[1:],
-                                 short_options,
-                                 long_options)        
-
-      readConfig()
-      if yesOrNo("CONFIRM: Delete operator: %s cloudlet: %s from controller: %s ?\n" % (Operator, Cloudlet, Controller)):
-        getAppClusterInsts()
-        deleteAppInsts()
-        deleteClusterInsts()
-        deleteCloudlet()
-        dockerCleanup()        
+   readConfig()
+   if yesOrNo("CONFIRM: Delete operator: %s cloudlet: %s from controller: %s ?\n" % (Operator, Cloudlet, Controller)):
+     getAppClusterInsts()
+     deleteAppInsts()
+     deleteClusterInsts()
+     deleteCloudlet()
+     dockerCleanup()        
         
-   except getopt.GetoptError as error:
-           print (error)
-           sys.exit(1)
 
         

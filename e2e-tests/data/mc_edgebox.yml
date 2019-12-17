@@ -11,6 +11,7 @@ regiondata:
         longitude: 2
       ipsupport: IpSupportDynamic
       numdynamicips: 254
+      crmoverride: IgnoreCrmAndTransientState
       platformtype: PlatformTypeMexdind
       flavor:
         name: x1.medium

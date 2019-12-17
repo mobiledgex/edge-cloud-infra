@@ -65,11 +65,9 @@ func (s *Platform) Init(ctx context.Context, platformConfig *platform.PlatformCo
 	if err != nil {
 		return fmt.Errorf("init cannot get service ip, %s", err.Error())
 	}
-	if mexos.GetCloudletNetworkScheme() == cloudcommon.NetworkSchemePublicIP {
-		if err := mexos.ActivateFQDNA(ctx, fqdn, ipaddr); err != nil {
-			log.SpanLog(ctx, log.DebugLevelMexos, "error in ActivateFQDNA", "err", err)
-			return err
-		}
+	if err := mexos.ActivateFQDNA(ctx, fqdn, ipaddr); err != nil {
+		log.SpanLog(ctx, log.DebugLevelMexos, "error in ActivateFQDNA", "err", err)
+		return err
 	}
 	log.SpanLog(ctx, log.DebugLevelMexos, "done init mexdind")
 	return nil

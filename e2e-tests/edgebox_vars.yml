@@ -9,5 +9,6 @@ operator: mex
 cloudlet: hackathon-test
 region: EU
 controller: mexplat-stage-eu.ctrl.mobiledgex.net
+vault: https://vault-main.mobiledgex.net
 latitude: 32.12
 longitude: 96.99

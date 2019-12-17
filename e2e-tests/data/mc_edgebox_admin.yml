@@ -1,0 +1,3 @@
+- name: {{mcuser}}
+  passhash: {{mcpass}}
+  email: mexadmin@mobiledgex.com

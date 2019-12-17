@@ -1,6 +1,0 @@
-
-e2e-tests -varsfile edgebox_vars.yml -setupfile setups/edgebox.yml -testfile testfiles/edgebox_deploy.yml -notimestamp
-e2e-tests -varsfile edgebox_vars.yml -setupfile setups/edgebox.yml -testfile testfiles/edgebox_create.yml -notimestamp
-
-e2e-tests -varsfile edgebox_vars.yml -setupfile setups/edgebox.yml -testfile testfiles/edgebox_delete.yml -notimestamp
-e2e-tests -varsfile edgebox_vars.yml -setupfile setups/edgebox.yml -testfile testfiles/stop_cleanup.yml -notimestamp

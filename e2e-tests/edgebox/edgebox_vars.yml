@@ -5,10 +5,13 @@ default-program: test-mex-infra
 
 ### 
 mc: mc-stage.mobiledgex.net:9900
+mcuser: mexadmin
+mcpass: mexadmin123
+controller: mexplat-stage-eu.ctrl.mobiledgex.net
+vault: https://vault-main.mobiledgex.net
+
 operator: mex
 cloudlet: hackathon-test
 region: EU
-controller: mexplat-stage-eu.ctrl.mobiledgex.net
-vault: https://vault-main.mobiledgex.net
 latitude: 32.12
 longitude: 96.99

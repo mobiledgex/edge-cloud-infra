@@ -45,14 +45,6 @@ type VMParams struct {
 
 type VMParamsOp func(vmp *VMParams) error
 
-type DeploymentType string
-
-const (
-	RootLBVMDeployment   DeploymentType = "mexrootlb"
-	UserVMDeployment     DeploymentType = "mexuservm"
-	PlatformVMDeployment DeploymentType = "mexplatformvm"
-)
-
 var heatStackLock sync.Mutex
 var heatCreate string = "CREATE"
 var heatUpdate string = "UPDATE"
@@ -738,7 +730,7 @@ func ParseHeatNodePrefix(name string) (bool, uint32) {
 }
 
 // HeatCreateRootLBVM creates a roobLB VM
-func HeatCreateRootLBVM(ctx context.Context, serverName string, stackName string, vmspec *vmspec.VMCreationSpec, cloudletKey *edgeproto.CloudletKey, updateCallback edgeproto.CacheUpdateCallback) error {
+func HeatCreateRootLBVM(ctx context.Context, serverName string, stackName string, imgName string, vmspec *vmspec.VMCreationSpec, cloudletKey *edgeproto.CloudletKey, updateCallback edgeproto.CacheUpdateCallback) error {
 	log.SpanLog(ctx, log.DebugLevelMexos, "HeatCreateRootLBVM", "serverName", serverName, "stackName", stackName, "vmspec", vmspec)
 	ni, err := ParseNetSpec(ctx, GetCloudletNetworkScheme())
 	if err != nil {
@@ -751,12 +743,15 @@ func HeatCreateRootLBVM(ctx context.Context, serverName string, stackName string
 		heatStackLock.Lock()
 		defer heatStackLock.Unlock()
 	}
+	if imgName == "" {
+		imgName = GetCloudletOSImage()
+	}
 	vmp, err := GetVMParams(ctx,
 		RootLBVMDeployment,
 		serverName,
 		vmspec.FlavorName,
 		vmspec.ExternalVolumeSize,
-		GetCloudletOSImage(),
+		imgName,
 		GetSecurityGroupName(ctx, serverName),
 		cloudletKey,
 	)

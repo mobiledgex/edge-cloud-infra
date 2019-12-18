@@ -19,51 +19,31 @@ import (
 	"github.com/mobiledgex/edge-cloud/vault"
 )
 
-var CloudletInfraCommon edgeproto.CloudletInfraCommon
-var OpenstackProps edgeproto.OpenStackProperties
+var (
+	CloudletInfraCommon edgeproto.CloudletInfraCommon
+	OpenstackProps      edgeproto.OpenStackProperties
+	VaultConfig         *vault.Config
 
-var MEXInfraVersion = "v3.0.0"
-var defaultOSImageName = "mobiledgex-" + MEXInfraVersion
-var VaultConfig *vault.Config
+	// NoConfigExternalRouter is used for the case in which we don't manage the external
+	// router and don't add ports to it ourself, as happens with Contrail.  The router does exist in
+	// this case and we use it to route from the LB to the pods
+	NoConfigExternalRouter = "NOCONFIG"
 
-// Default CloudletVM/Registry paths should only be used for local testing.
-// Ansible should always specify the correct ones to the controller.
-// These are not used if running the CRM manually, because these are only
-// used by CreateCloudlet to set up the CRM VM and container.
-var DefaultCloudletRegistryPath = "registry.mobiledgex.net:5000/mobiledgex/edge-cloud"
-var DefaultCloudletVMImagePath = "https://artifactory.mobiledgex.net/artifactory/baseimages/" + defaultOSImageName + ".qcow2"
+	// NoExternalRouter means there is no router at all and we connect the LB to the k8s pods on the same subnet
+	// this may eventually be the default and possibly only option
+	NoExternalRouter = "NONE"
 
-// NoConfigExternalRouter is used for the case in which we don't manage the external
-// router and don't add ports to it ourself, as happens with Contrail.  The router does exist in
-// this case and we use it to route from the LB to the pods
-var NoConfigExternalRouter = "NOCONFIG"
+	// Package level test mode variable
+	testMode = false
 
-// NoExternalRouter means there is no router at all and we connect the LB to the k8s pods on the same subnet
-// this may eventually be the default and possibly only option
-var NoExternalRouter = "NONE"
+	// Access variables used for cloudlet access
+	OSAccessVars = "openrc.json"
 
-// Package level test mode variable
-var testMode = false
-
-// Access variables used for cloudlet access
-var OSAccessVars = "openrc.json"
-
-// mapping of FQDNs the CRM knows about to externally mapped IPs. This
-// is used mainly in lab environments that have NATed IPs which can be used to
-// access the cloudlet externally but are not visible in any way to OpenStack
-var mappedExternalIPs map[string]string
-
-func GetVaultCloudletPath(key *edgeproto.CloudletKey, region, physicalName, filePath string) string {
-	return fmt.Sprintf("/secret/data/%s/cloudlet/openstack/%s/%s/%s", region, key.OperatorKey.Name, physicalName, filePath)
-}
-
-func GetVaultCloudletCommonPath(filePath string) string {
-	return fmt.Sprintf("/secret/data/cloudlet/openstack/%s", filePath)
-}
-
-func GetCertFilePath(key *edgeproto.CloudletKey) string {
-	return fmt.Sprintf("/tmp/%s.%s.cert", key.Name, key.OperatorKey.Name)
-}
+	// mapping of FQDNs the CRM knows about to externally mapped IPs. This
+	// is used mainly in lab environments that have NATed IPs which can be used to
+	// access the cloudlet externally but are not visible in any way to OpenStack
+	mappedExternalIPs map[string]string
+)
 
 func InitInfraCommon(ctx context.Context, vaultConfig *vault.Config) error {
 	if vaultConfig.Addr == "" {

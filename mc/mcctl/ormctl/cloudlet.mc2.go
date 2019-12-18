@@ -164,7 +164,8 @@ var CreateCloudletOptionalArgs = []string{
 	"restagmap.value.name",
 	"restagmap.value.operatorkey.name",
 	"accessvars",
-	"imagepath",
+	"imageversion",
+	"imageupgrade",
 }
 
 var ShowCloudletInfoCmd = &cli.Command{
@@ -379,6 +380,7 @@ var CloudletInfraPropertiesSpecialArgs = map[string]string{
 var PlatformConfigRequiredArgs = []string{}
 var PlatformConfigOptionalArgs = []string{
 	"registrypath",
+	"imagepath",
 	"notifyctrladdrs",
 	"vaultaddr",
 	"tlscertfile",
@@ -391,6 +393,7 @@ var PlatformConfigOptionalArgs = []string{
 }
 var PlatformConfigAliasArgs = []string{
 	"registrypath=platformconfig.registrypath",
+	"imagepath=platformconfig.imagepath",
 	"notifyctrladdrs=platformconfig.notifyctrladdrs",
 	"vaultaddr=platformconfig.vaultaddr",
 	"tlscertfile=platformconfig.tlscertfile",
@@ -403,6 +406,7 @@ var PlatformConfigAliasArgs = []string{
 }
 var PlatformConfigComments = map[string]string{
 	"registrypath":    "Path to Docker registry holding edge-cloud image",
+	"imagepath":       "Path to platform base image",
 	"notifyctrladdrs": "Address of controller notify port (can be multiple of these)",
 	"vaultaddr":       "Vault address",
 	"tlscertfile":     "TLS cert file",
@@ -461,7 +465,8 @@ var CloudletOptionalArgs = []string{
 	"restagmap.value.name",
 	"restagmap.value.operatorkey.name",
 	"accessvars",
-	"imagepath",
+	"imageversion",
+	"imageupgrade",
 }
 var CloudletAliasArgs = []string{
 	"operator=cloudlet.key.operatorkey.name",
@@ -499,6 +504,7 @@ var CloudletAliasArgs = []string{
 	"envvar=cloudlet.envvar",
 	"version=cloudlet.version",
 	"config.registrypath=cloudlet.config.registrypath",
+	"config.imagepath=cloudlet.config.imagepath",
 	"config.notifyctrladdrs=cloudlet.config.notifyctrladdrs",
 	"config.vaultaddr=cloudlet.config.vaultaddr",
 	"config.tlscertfile=cloudlet.config.tlscertfile",
@@ -512,8 +518,8 @@ var CloudletAliasArgs = []string{
 	"restagmap.value.name=cloudlet.restagmap.value.name",
 	"restagmap.value.operatorkey.name=cloudlet.restagmap.value.operatorkey.name",
 	"accessvars=cloudlet.accessvars",
-	"imagepath=cloudlet.imagepath",
-	"deploymentmanual=cloudlet.deploymentmanual",
+	"imageversion=cloudlet.imageversion",
+	"imageupgrade=cloudlet.imageupgrade",
 }
 var CloudletComments = map[string]string{
 	"operator":                            "Company or Organization name of the operator",
@@ -545,6 +551,7 @@ var CloudletComments = map[string]string{
 	"envvar":                              "Single Key-Value pair of env var to be passed to CRM",
 	"version":                             "Cloudlet version",
 	"config.registrypath":                 "Path to Docker registry holding edge-cloud image",
+	"config.imagepath":                    "Path to platform base image",
 	"config.notifyctrladdrs":              "Address of controller notify port (can be multiple of these)",
 	"config.vaultaddr":                    "Vault address",
 	"config.tlscertfile":                  "TLS cert file",
@@ -557,8 +564,8 @@ var CloudletComments = map[string]string{
 	"restagmap.value.name":                "Resource Table Name",
 	"restagmap.value.operatorkey.name":    "Company or Organization name of the operator",
 	"accessvars":                          "Variables required to access cloudlet",
-	"imagepath":                           "VM image path for deploying cloudlet services",
-	"deploymentmanual":                    "Cloudlet deployed manually",
+	"imageversion":                        "VM image version for deploying cloudlet services",
+	"imageupgrade":                        "Upgrade base image on which cloudlet services are deployed",
 }
 var CloudletSpecialArgs = map[string]string{
 	"accessvars":    "StringToString",

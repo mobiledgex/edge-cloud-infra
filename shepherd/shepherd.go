@@ -52,7 +52,7 @@ var collectInterval time.Duration
 func appInstCb(ctx context.Context, old *edgeproto.AppInst, new *edgeproto.AppInst) {
 	// LB metrics are not supported in fake mode
 	if myPlatform.GetType() != "fake" {
-		CollectNginxStats(ctx, new)
+		CollectProxyStats(ctx, new)
 	}
 	var port int32
 	var exists bool
@@ -197,7 +197,7 @@ func main() {
 	vmAppWorkerMap = make(map[string]*AppInstWorker)
 	// LB metrics are not supported in fake mode
 	if myPlatform.GetType() != "fake" {
-		InitNginxScraper()
+		InitProxyScraper()
 	}
 	InitPlatformMetrics()
 

@@ -36,9 +36,9 @@ func getAlertFromAppInst(appInstKey *edgeproto.AppInstKey) *edgeproto.Alert {
 
 func shouldSendAlertForHealthCheckCount(ctx context.Context, appInstKey *edgeproto.AppInstKey) bool {
 	// Update the scrape point number of failures
-	nginxMutex.Lock()
-	defer nginxMutex.Unlock()
-	scrapePoint, found := nginxMap[getProxyKey(appInstKey)]
+	ProxyMutex.Lock()
+	defer ProxyMutex.Unlock()
+	scrapePoint, found := ProxyMap[getProxyKey(appInstKey)]
 
 	if !found {
 		// Already deleted
@@ -50,7 +50,7 @@ func shouldSendAlertForHealthCheckCount(ctx context.Context, appInstKey *edgepro
 	// don't send alert first several failures
 	if scrapePoint.FailedChecksCount < cloudcommon.ShepherdHealthCheckRetries {
 		scrapePoint.FailedChecksCount++
-		nginxMap[getProxyKey(appInstKey)] = scrapePoint
+		ProxyMap[getProxyKey(appInstKey)] = scrapePoint
 		return false
 	}
 	// reset the failed retries count
@@ -110,9 +110,9 @@ func HealthCheckUp(ctx context.Context, appInstKey *edgeproto.AppInstKey) {
 		log.SpanLog(ctx, log.DebugLevelMetrics, "Deleting alert ", "alert", alert, "appInst", appInst.Key)
 		AlertCache.Delete(ctx, alert, 0)
 		// Reset failure count
-		nginxMutex.Lock()
-		defer nginxMutex.Unlock()
-		scrapePoint, found := nginxMap[getProxyKey(appInstKey)]
+		ProxyMutex.Lock()
+		defer ProxyMutex.Unlock()
+		scrapePoint, found := ProxyMap[getProxyKey(appInstKey)]
 		if !found {
 			// Already deleted
 			log.SpanLog(ctx, log.DebugLevelMetrics, "AppInst deleted while updating health check",

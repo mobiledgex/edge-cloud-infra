@@ -4,6 +4,8 @@ import sys
 import os
 import shutil
 import subprocess
+import getpass
+
 from yaml import load, dump
 try:
     from yaml import CLoader as Loader, CDumper as Dumper
@@ -120,7 +122,7 @@ def getConfig():
    while not done:
      Mc = prompt("Enter Master controller address", Mc)
      Mcuser = prompt("Enter MC userid for console/mc login", Mcuser)
-     Mcpass = prompt("Enter MC password for console/mc login", Mcpass)
+     Mcpass = getpass.getpass(prompt="Enter MC password for console/mc login: ", stream=None)
      Region = prompt("Enter region, e.g. US, EU, JP", Region)
      Controller = prompt("Enter controller", Controller)
      Cloudlet = prompt("Enter cloudlet", Cloudlet)
@@ -130,7 +132,7 @@ def getConfig():
      print("\nYou entered:")
      print("   MC addr: %s" % Mc)
      print("   MC user: %s" % Mcuser)
-     print("   MC password: %s" % Mcpass)
+     print("   MC password: %s" % "*******")
      print("   Region: %s" % Region)
      print("   Controller: %s" % Controller)
      print("   Operator: %s\n" % Operator)

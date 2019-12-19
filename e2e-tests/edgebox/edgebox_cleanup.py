@@ -17,6 +17,7 @@ Controller = None
 Clusterinsts = None
 Edgectl = None
 TlsDir = os.environ["GOPATH"]+"/src/github.com/mobiledgex/edge-cloud/tls/out"
+Varsfile = os.environ["GOPATH"]+"/src/github.com/mobiledgex/edge-cloud-infra/e2e-tests/edgebox/edgebox_vars.yml"
 
 def readConfig():
     global Operator
@@ -25,7 +26,7 @@ def readConfig():
     global Controller
     global Edgectl
 
-    with open("edgebox_vars.yml", 'r') as stream:
+    with open(Varsfile, 'r') as stream:
        data = load(stream, Loader=Loader)
        Operator = data['operator']
        Cloudlet = data['cloudlet']
@@ -146,6 +147,11 @@ def yesOrNo(question):
     else:
         return yesOrNo("please enter")
 
+def crmCleanup():
+     print ("Killing CRM process")
+     subprocess.call('pkill -9 crmserver', shell=True)
+
+
 if __name__ == "__main__":
    readConfig()
    if yesOrNo("CONFIRM: Delete operator: %s cloudlet: %s from controller: %s ?\n" % (Operator, Cloudlet, Controller)):
@@ -154,6 +160,6 @@ if __name__ == "__main__":
      deleteClusterInsts()
      deleteCloudlet()
      dockerCleanup()        
-        
+     crmCleanup()   
 
         

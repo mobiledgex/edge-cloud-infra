@@ -12,7 +12,7 @@ regiondata:
       ipsupport: IpSupportDynamic
       numdynamicips: 254
       crmoverride: IgnoreCrmAndTransientState
-      platformtype: PlatformTypeMexdind
+      platformtype: PlatformTypeEdgebox
       flavor:
         name: x1.medium
       state: Ready

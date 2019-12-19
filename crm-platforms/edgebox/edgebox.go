@@ -1,4 +1,4 @@
-package mexdind
+package edgebox
 
 import (
 	"context"
@@ -15,7 +15,7 @@ import (
 	"github.com/mobiledgex/edge-cloud/vault"
 )
 
-// mexdind wraps the generic dind implementation with
+// edgebox wraps the generic dind implementation with
 // mex-specific behavior, such as setting up DNS and
 // registry.mobiledgex.net access secrets.
 
@@ -27,7 +27,7 @@ type Platform struct {
 }
 
 func (s *Platform) GetType() string {
-	return "mexdind"
+	return "edgebox"
 }
 
 func (s *Platform) Init(ctx context.Context, platformConfig *platform.PlatformConfig, updateCallback edgeproto.CacheUpdateCallback) error {
@@ -69,7 +69,7 @@ func (s *Platform) Init(ctx context.Context, platformConfig *platform.PlatformCo
 		log.SpanLog(ctx, log.DebugLevelMexos, "error in ActivateFQDNA", "err", err)
 		return err
 	}
-	log.SpanLog(ctx, log.DebugLevelMexos, "done init mexdind")
+	log.SpanLog(ctx, log.DebugLevelMexos, "done init edgebox")
 	return nil
 }
 

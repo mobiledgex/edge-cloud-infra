@@ -1,6 +1,6 @@
 mcs:
 - name: mc1
-  addr: {{mc}}
+  addr: {{mc}}:9900
   hostname: {{mc}}
 
 crms:
@@ -14,5 +14,5 @@ crms:
   hostname: "127.0.0.1"
   vaultaddr: "{{vault}}"
   envvars:
-    PLATFORM: PLATFORM_TYPE_MEXDIND
+    PLATFORM: PLATFORM_TYPE_EDGEBOX
 

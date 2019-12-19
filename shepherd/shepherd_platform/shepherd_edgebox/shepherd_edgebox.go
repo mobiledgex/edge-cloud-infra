@@ -22,7 +22,7 @@ type Platform struct {
 }
 
 func (s *Platform) GetType() string {
-	return "edgegox"
+	return "edgebox"
 }
 
 func (s *Platform) Init(ctx context.Context, key *edgeproto.CloudletKey, region, physicalName, vaultAddr string) error {

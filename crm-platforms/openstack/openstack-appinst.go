@@ -50,12 +50,8 @@ func (s *Platform) CreateAppInst(ctx context.Context, clusterInst *edgeproto.Clu
 			err = k8smgmt.CreateAppInst(client, names, app, appInst)
 		} else {
 			updateCallback(edgeproto.UpdateTask, "Creating Helm App")
-			_, ip, err := mexos.GetMasterNameAndIP(ctx, clusterInst)
-			if err != nil {
-				return err
-			}
-			helmCust := k8smgmt.HelmCustomizations{ClusterMasterIP: ip}
-			err = k8smgmt.CreateHelmAppInst(client, names, clusterInst, app, appInst, &helmCust)
+
+			err = k8smgmt.CreateHelmAppInst(client, names, clusterInst, app, appInst)
 		}
 		if err != nil {
 			return err
@@ -363,12 +359,7 @@ func (s *Platform) UpdateAppInst(ctx context.Context, clusterInst *edgeproto.Clu
 		if err != nil {
 			return fmt.Errorf("get kube names failed: %s", err)
 		}
-		_, ip, err := mexos.GetMasterNameAndIP(ctx, clusterInst)
-		if err != nil {
-			return err
-		}
-		helmCust := k8smgmt.HelmCustomizations{ClusterMasterIP: ip}
-		return k8smgmt.UpdateHelmAppInst(client, names, app, appInst, &helmCust)
+		return k8smgmt.UpdateHelmAppInst(client, names, app, appInst)
 
 	default:
 		return fmt.Errorf("UpdateAppInst not supported for deployment: %s", app.Deployment)

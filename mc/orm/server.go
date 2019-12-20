@@ -350,8 +350,6 @@ func ShowVersion(c echo.Context) error {
 
 func websocketConnect(c echo.Context) (*websocket.Conn, error) {
 	upgrader := websocket.Upgrader{}
-	// TODO: Remove below, just used for testing
-	upgrader.CheckOrigin = func(r *http.Request) bool { return true }
 	ws, err := upgrader.Upgrade(c.Response(), c.Request(), nil)
 	if err != nil {
 		return nil, err

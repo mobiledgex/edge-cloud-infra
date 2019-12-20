@@ -8,7 +8,8 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/mobiledgex/edge-cloud/cloud-resource-manager/platform/pc"
+	"github.com/mobiledgex/edge-cloud-infra/shepherd/shepherd_platform/shepherd_unittest"
+	"github.com/mobiledgex/edge-cloud/cloudcommon"
 	"github.com/mobiledgex/edge-cloud/log"
 	"github.com/stretchr/testify/assert"
 )
@@ -20,20 +21,20 @@ func TestNginxStats(t *testing.T) {
 	defer log.FinishTracer()
 	ctx := log.StartTestSpan(context.Background())
 
-	testScrapePoint := NginxScrapePoint{
+	testScrapePoint := ProxyScrapePoint{
 		App:     "UnitTestApp",
 		Cluster: "UnitTestCluster",
 		Dev:     "UnitTestDev",
-		Client:  &pc.LocalClient{},
+		Client:  &shepherd_unittest.UTClient{},
 	}
 
 	fakeNginxTestServer := httptest.NewServer(http.HandlerFunc(nginxHandler))
 	defer fakeNginxTestServer.Close()
 
-	nginxUnitTestPort, _ = strconv.ParseInt(strings.Split(fakeNginxTestServer.URL, ":")[2], 10, 32)
-	nginxUnitTest = true
+	nginxUnitTestPort, _ := strconv.ParseInt(strings.Split(fakeNginxTestServer.URL, ":")[2], 10, 32)
+	cloudcommon.ProxyMetricsPort = int32(nginxUnitTestPort)
 
-	testMetrics, err := QueryNginx(ctx, testScrapePoint)
+	testMetrics, err := QueryNginx(ctx, &testScrapePoint)
 
 	assert.Nil(t, err, "Test Querying Nginx")
 	assert.Equal(t, uint64(10), testMetrics.ActiveConn)

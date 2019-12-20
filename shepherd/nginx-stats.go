@@ -27,6 +27,8 @@ var envoyClusterName = "cluster.backend"
 var envoyActive = "upstream_cx_active"
 var envoyTotal = "upstream_cx_total"
 var envoyDropped = "upstream_cx_connect_fail" // this one might not be right/enough
+var envoyBytesSent = "upstream_cx_tx_bytes_total"
+var envoyBytesRecvd = "upstream_cx_rx_bytes_total"
 
 type ProxyScrapePoint struct {
 	Key               edgeproto.AppInstKey
@@ -177,11 +179,14 @@ func envoyConnections(ctx context.Context, respMap map[string]string, ports []in
 	metrics.EnvoyStats = make(map[int32]shepherd_common.ConnectionsMetric)
 	for _, port := range ports {
 		new := shepherd_common.ConnectionsMetric{}
-		//active, accepts, handled conn
-		activeSearch := envoyClusterName + strconv.Itoa(int(port)) + "." + envoyActive
-		droppedSearch := envoyClusterName + strconv.Itoa(int(port)) + "." + envoyDropped
-		totalSearch := envoyClusterName + strconv.Itoa(int(port)) + "." + envoyTotal
-
+		//active, accepts, handled conn, bytes sent/recvd
+		envoyCluster := envoyClusterName + strconv.Itoa(int(port)) + "."
+		activeSearch := envoyCluster + envoyActive
+		droppedSearch := envoyCluster + envoyDropped
+		totalSearch := envoyCluster + envoyTotal
+		bytesSentSearch := envoyCluster + envoyBytesSent
+		bytesRecvdSearch := envoyCluster + envoyBytesRecvd
+		var droppedVal, bytesSent, bytesRecvd uint64
 		new.ActiveConn, err = getUIntStat(respMap, activeSearch)
 		if err != nil {
 			return fmt.Errorf("Error retrieving envoy active connections stats: %v", err)
@@ -190,12 +195,21 @@ func envoyConnections(ctx context.Context, respMap map[string]string, ports []in
 		if err != nil {
 			return fmt.Errorf("Error retrieving envoy accepts connections stats: %v", err)
 		}
-		var droppedVal uint64
 		droppedVal, err = getUIntStat(respMap, droppedSearch)
 		if err != nil {
 			return fmt.Errorf("Error retrieving envoy handled connections stats: %v", err)
 		}
 		new.HandledConn = new.Accepts - droppedVal
+		bytesSent, err = getUIntStat(respMap, bytesSentSearch)
+		if err != nil {
+			return fmt.Errorf("Error retrieving envoy bytes_sent connections stats: %v", err)
+		}
+		bytesRecvd, err = getUIntStat(respMap, bytesRecvdSearch)
+		if err != nil {
+			return fmt.Errorf("Error retrieving envoy bytes_recvd connections stats: %v", err)
+		}
+		new.AvgBytesSent = bytesSent / new.Accepts
+		new.AvgBytesRecvd = bytesRecvd / new.Accepts
 		metrics.Ts, _ = types.TimestampProto(time.Now())
 		metrics.EnvoyStats[port] = new
 	}
@@ -346,6 +360,8 @@ func MarshallProxyMetric(scrapePoint ProxyScrapePoint, data *shepherd_common.Pro
 		metric.AddIntVal("active", data.EnvoyStats[port].ActiveConn)
 		metric.AddIntVal("accepts", data.EnvoyStats[port].Accepts)
 		metric.AddIntVal("handled", data.EnvoyStats[port].HandledConn)
+		metric.AddIntVal("avgBytesSent", data.EnvoyStats[port].AvgBytesSent)
+		metric.AddIntVal("avgBytesRecvd", data.EnvoyStats[port].AvgBytesRecvd)
 		metricList = append(metricList, &metric)
 	}
 	return metricList

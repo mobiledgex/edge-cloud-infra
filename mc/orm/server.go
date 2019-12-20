@@ -7,6 +7,7 @@ import (
 	"os"
 	"time"
 
+	"github.com/gorilla/websocket"
 	"github.com/jinzhu/gorm"
 	"github.com/labstack/echo"
 	intprocess "github.com/mobiledgex/edge-cloud-infra/e2e-tests/int-process"
@@ -236,12 +237,25 @@ func RunServer(config *ServerConfig) (*Server, error) {
 	auth.POST("/orgcloudletpool/delete", DeleteOrgCloudletPool)
 	auth.POST("/orgcloudletpool/show", ShowOrgCloudletPool)
 	auth.POST("/orgcloudlet/show", ShowOrgCloudlet)
-	addControllerApis(auth)
+
+	// Support multiple connection types: HTTP(s), Websockets
+	addControllerApis("POST", auth)
 	// Metrics api route use auth to serve a query to influxDB
 	auth.POST("/metrics/app", GetMetricsCommon)
 	auth.POST("/metrics/cluster", GetMetricsCommon)
 	auth.POST("/metrics/cloudlet", GetMetricsCommon)
 	auth.POST("/metrics/client", GetMetricsCommon)
+
+	// Use GET method for websockets as thats the method used
+	// in setting up TCP connection by most of the clients
+	// Also, authorization is handled
+	ws := e.Group("ws/api/v1/auth")
+	addControllerApis("GET", ws)
+	// Metrics api route use ws to serve a query to influxDB
+	ws.GET("/metrics/app", GetMetricsCommon)
+	ws.GET("/metrics/cluster", GetMetricsCommon)
+	ws.GET("/metrics/cloudlet", GetMetricsCommon)
+	ws.GET("/metrics/client", GetMetricsCommon)
 
 	go func() {
 		var err error
@@ -332,4 +346,26 @@ func ShowVersion(c echo.Context) error {
 		Hostname:    cloudcommon.Hostname(),
 	}
 	return c.JSON(http.StatusOK, ver)
+}
+
+func websocketConnect(c echo.Context) (*websocket.Conn, error) {
+	upgrader := websocket.Upgrader{}
+	// TODO: Remove below, just used for testing
+	upgrader.CheckOrigin = func(r *http.Request) bool { return true }
+	ws, err := upgrader.Upgrade(c.Response(), c.Request(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	// Set Read timeout
+	ws.SetReadDeadline(time.Now().Add(10 * time.Second))
+
+	// Verify Auth
+	isAuth, err := AuthWSCookie(c, ws)
+	if !isAuth {
+		ws.Close()
+		return nil, err
+	}
+
+	return ws, nil
 }

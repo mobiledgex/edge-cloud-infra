@@ -158,13 +158,13 @@ func CreateUser(c echo.Context) error {
 	if err := db.Create(&user).Error; err != nil {
 		//check specifically for duplicate username and/or emails
 		if err.Error() == "pq: duplicate key value violates unique constraint \"users_pkey\"" {
-			return setReply(c, fmt.Errorf("Username with name %s (case-insensitive) already exists", user.Name), nil)
+			return setReply(c, nil, fmt.Errorf("Username with name %s (case-insensitive) already exists", user.Name), nil)
 		}
 		if err.Error() == "pq: duplicate key value violates unique constraint \"users_email_key\"" {
-			return setReply(c, fmt.Errorf("Email already in use"), nil)
+			return setReply(c, nil, fmt.Errorf("Email already in use"), nil)
 		}
 
-		return setReply(c, dbErr(err), nil)
+		return setReply(c, nil, dbErr(err), nil)
 	}
 	createuser.Verify.Email = user.Email
 	err = sendVerifyEmail(ctx, user.Name, &createuser.Verify)
@@ -229,7 +229,7 @@ func VerifyEmail(c echo.Context) error {
 
 	user.EmailVerified = true
 	if err := db.Model(&user).Updates(&user).Error; err != nil {
-		return setReply(c, dbErr(err), nil)
+		return setReply(c, nil, dbErr(err), nil)
 	}
 	return c.JSON(http.StatusOK, Msg("email verified, thank you"))
 }
@@ -290,7 +290,7 @@ func DeleteUser(c echo.Context) error {
 			} else {
 				err = fmt.Errorf("Error: Cannot delete the last remaining manager for the org %s", org)
 			}
-			return setReply(c, err, nil)
+			return setReply(c, nil, err, nil)
 		}
 	}
 	for _, grp := range groups {
@@ -309,7 +309,7 @@ func DeleteUser(c echo.Context) error {
 	db := loggedDB(ctx)
 	err = db.Delete(&user).Error
 	if err != nil {
-		return setReply(c, dbErr(err), nil)
+		return setReply(c, nil, dbErr(err), nil)
 	}
 	gitlabDeleteLDAPUser(ctx, user.Name)
 	artifactoryDeleteUser(ctx, user.Name)
@@ -328,7 +328,7 @@ func CurrentUser(c echo.Context) error {
 	db := loggedDB(ctx)
 	err = db.Where(&user).First(&user).Error
 	if err != nil {
-		return setReply(c, dbErr(err), nil)
+		return setReply(c, nil, dbErr(err), nil)
 	}
 	user.Passhash = ""
 	user.Salt = ""
@@ -362,7 +362,7 @@ func ShowUser(c echo.Context) error {
 	if filter.Name == "" {
 		err = db.Find(&users).Error
 		if err != nil {
-			return setReply(c, dbErr(err), nil)
+			return setReply(c, nil, dbErr(err), nil)
 		}
 	} else {
 		groupings, err := enforcer.GetGroupingPolicy()
@@ -379,7 +379,7 @@ func ShowUser(c echo.Context) error {
 				user.Name = orguser[1]
 				err = db.Where(&user).First(&user).Error
 				if err != nil {
-					return setReply(c, dbErr(err), nil)
+					return setReply(c, nil, dbErr(err), nil)
 				}
 				users = append(users, user)
 			}
@@ -416,11 +416,11 @@ func setPassword(c echo.Context, username, password string) error {
 	db := loggedDB(ctx)
 	err := db.Where(&user).First(&user).Error
 	if err != nil {
-		return setReply(c, dbErr(err), nil)
+		return setReply(c, nil, dbErr(err), nil)
 	}
 	user.Passhash, user.Salt, user.Iter = NewPasshash(password)
 	if err := db.Model(&user).Updates(&user).Error; err != nil {
-		return setReply(c, dbErr(err), nil)
+		return setReply(c, nil, dbErr(err), nil)
 	}
 	return c.JSON(http.StatusOK, Msg("password updated"))
 }

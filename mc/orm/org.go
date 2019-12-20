@@ -34,7 +34,7 @@ func CreateOrg(c echo.Context) error {
 	span.SetTag("org", org.Name)
 
 	err = CreateOrgObj(ctx, claims, &org)
-	return setReply(c, err, Msg("Organization created"))
+	return setReply(c, nil, err, Msg("Organization created"))
 }
 
 func CreateOrgObj(ctx context.Context, claims *UserClaims, org *ormapi.Organization) error {
@@ -112,7 +112,7 @@ func DeleteOrg(c echo.Context) error {
 	span.SetTag("org", org.Name)
 
 	err = DeleteOrgObj(ctx, claims, &org)
-	return setReply(c, err, Msg("Organization deleted"))
+	return setReply(c, nil, err, Msg("Organization deleted"))
 }
 
 func DeleteOrgObj(ctx context.Context, claims *UserClaims, org *ormapi.Organization) error {
@@ -211,7 +211,7 @@ func ShowOrg(c echo.Context) error {
 		return err
 	}
 	orgs, err := ShowOrgObj(ctx, claims)
-	return setReply(c, err, orgs)
+	return setReply(c, nil, err, orgs)
 }
 
 func ShowOrgObj(ctx context.Context, claims *UserClaims) ([]ormapi.Organization, error) {

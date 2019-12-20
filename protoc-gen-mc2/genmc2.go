@@ -46,6 +46,7 @@ type GenMC2 struct {
 	importStrings        bool
 	importLog            bool
 	importCli            bool
+	importWebsocket      bool
 }
 
 func (g *GenMC2) Name() string {
@@ -113,6 +114,9 @@ func (g *GenMC2) GenerateImports(file *generator.FileDescriptor) {
 	if g.importGrpcStatus {
 		g.PrintImport("", "google.golang.org/grpc/status")
 	}
+	if g.importWebsocket {
+		g.PrintImport("", "github.com/gorilla/websocket")
+	}
 }
 
 func (g *GenMC2) Generate(file *generator.FileDescriptor) {
@@ -131,6 +135,7 @@ func (g *GenMC2) Generate(file *generator.FileDescriptor) {
 	g.importGrpcStatus = false
 	g.importLog = false
 	g.importCli = false
+	g.importWebsocket = false
 
 	g.support.InitFile()
 	if !g.support.GenFile(*file.FileDescriptorProto.Name) {
@@ -206,7 +211,7 @@ func genFile(file *generator.FileDescriptor) bool {
 }
 
 func (g *GenMC2) generatePosts() {
-	g.P("func addControllerApis(group *echo.Group) {")
+	g.P("func addControllerApis(method string, group *echo.Group) {")
 
 	for _, file := range g.Generator.Request.ProtoFile {
 		if !g.support.GenFile(*file.Name) {
@@ -223,7 +228,7 @@ func (g *GenMC2) generatePosts() {
 				if GetMc2Api(method) == "" {
 					continue
 				}
-				g.P("group.POST(\"/ctrl/", method.Name,
+				g.P("group.Match([]string{method}, \"/ctrl/", method.Name,
 					"\", ", method.Name, ")")
 			}
 		}
@@ -259,6 +264,7 @@ func (g *GenMC2) generateMethod(service string, method *descriptor.MethodDescrip
 		Service:              service,
 		MethodName:           *method.Name,
 		InName:               inname,
+		InNameJson:           strings.ToLower(inname),
 		OutName:              *out.DescriptorProto.Name,
 		GenStruct:            !found,
 		Resource:             apiVals[0],
@@ -337,6 +343,8 @@ func (g *GenMC2) generateMethod(service string, method *descriptor.MethodDescrip
 		if args.Outstream {
 			g.importIO = true
 			g.importJson = true
+			g.importWebsocket = true
+			g.importStrings = true
 		}
 	}
 	err := tmpl.Execute(g, &args)
@@ -352,6 +360,7 @@ type tmplArgs struct {
 	Service              string
 	MethodName           string
 	InName               string
+	InNameJson           string
 	OutName              string
 	GenStruct            bool
 	Resource             string
@@ -377,8 +386,8 @@ type tmplArgs struct {
 var tmplApi = `
 {{- if .GenStruct}}
 type Region{{.InName}} struct {
-	Region string
-	{{.InName}} edgeproto.{{.InName}}
+	Region string ` + "`json:\"region\"`" + `
+	{{.InName}} edgeproto.{{.InName}} ` + "`json:\"{{.InNameJson}}\"`" + `
 }
 
 {{- end}}
@@ -388,6 +397,22 @@ var tmpl = `
 func {{.MethodName}}(c echo.Context) error {
 	ctx := GetContext(c)
 	rc := &RegionContext{}
+
+{{- if .Outstream}}
+	var err error
+	var ws *websocket.Conn
+	if strings.HasPrefix(c.Request().URL.Path, "/ws") {
+		ws, err = websocketConnect(c)
+                if err != nil {
+                        return err
+                }
+		if ws == nil {
+			return nil
+		}
+                defer ws.Close()
+	}
+{{- end}}
+
 	claims, err := getClaims(c)
 	if err != nil {
 		return err
@@ -395,41 +420,66 @@ func {{.MethodName}}(c echo.Context) error {
 	rc.username = claims.Username
 
 	in := ormapi.Region{{.InName}}{}
-	if err := c.Bind(&in); err != nil {
-		return c.JSON(http.StatusBadRequest, Msg("Invalid POST data"))
+{{- if .Outstream}}
+	if ws == nil {
+		if err := c.Bind(&in); err != nil {
+			return c.JSON(http.StatusBadRequest, Msg("Invalid POST data"))
+		}
+	} else {
+		err = ws.ReadJSON(&in)
+		if err != nil {
+			if err == io.EOF || err == io.ErrUnexpectedEOF {
+				return setReply(c, ws, fmt.Errorf("Invalid data"), nil)
+			}
+			return setReply(c, ws, err, nil)
+		}
 	}
+{{- else}}
+		if err := c.Bind(&in); err != nil {
+			return c.JSON(http.StatusBadRequest, Msg("Invalid POST data"))
+		}
+{{- end}}
 	rc.region = in.Region
 {{- if .OrgValid}}
 	span := log.SpanFromContext(ctx)
 	span.SetTag("org", in.{{.InName}}.{{.OrgField}})
 {{- end}}
 {{- if .Outstream}}
+
 	// stream func may return "forbidden", so don't write
 	// header until we know it's ok
 	wroteHeader := false
 	err = {{.MethodName}}Stream(ctx, rc, &in.{{.InName}}, func(res *edgeproto.{{.OutName}}) {
-		if !wroteHeader {
-			c.Response().Header().Set(echo.HeaderContentType, echo.MIMEApplicationJSON)
-			c.Response().WriteHeader(http.StatusOK)
-			wroteHeader = true
-		}
 		payload := ormapi.StreamPayload{}
 		payload.Data = res
-		json.NewEncoder(c.Response()).Encode(payload)
-		c.Response().Flush()
+		if ws != nil {
+			err = ws.WriteJSON(payload)
+		} else {
+			if !wroteHeader {
+				c.Response().Header().Set(echo.HeaderContentType, echo.MIMEApplicationJSON)
+				c.Response().WriteHeader(http.StatusOK)
+				wroteHeader = true
+			}
+			json.NewEncoder(c.Response()).Encode(payload)
+			c.Response().Flush()
+		}
 	})
 	if err != nil {
 		if st, ok := status.FromError(err); ok {
 			err = fmt.Errorf("%s", st.Message())
 		}
 		if !wroteHeader {
-			return setReply(c, err, nil)
+			return setReply(c, ws, err, nil)
 		}
 		res := ormapi.Result{}
 		res.Message = err.Error()
 		res.Code = http.StatusBadRequest
 		payload := ormapi.StreamPayload{Result: &res}
-		json.NewEncoder(c.Response()).Encode(payload)
+		if ws != nil {
+			ws.WriteJSON(payload)
+		} else {
+			json.NewEncoder(c.Response()).Encode(payload)
+		}
 	}
 	return nil
 {{- else}}
@@ -439,7 +489,7 @@ func {{.MethodName}}(c echo.Context) error {
 			err = fmt.Errorf("%s", st.Message())
 		}
 	}
-	return setReply(c, err, resp)
+	return setReply(c, nil, err, resp)
 {{- end}}
 }
 

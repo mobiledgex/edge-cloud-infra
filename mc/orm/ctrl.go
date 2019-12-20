@@ -69,7 +69,7 @@ func CreateController(c echo.Context) error {
 		return c.JSON(http.StatusBadRequest, Msg("Invalid Post data"))
 	}
 	err = CreateControllerObj(ctx, claims, &ctrl)
-	return setReply(c, err, Msg("Controller registered"))
+	return setReply(c, nil, err, Msg("Controller registered"))
 }
 
 func CreateControllerObj(ctx context.Context, claims *UserClaims, ctrl *ormapi.Controller) error {
@@ -102,7 +102,7 @@ func DeleteController(c echo.Context) error {
 		return c.JSON(http.StatusBadRequest, Msg("Invalid Post data"))
 	}
 	err = DeleteControllerObj(ctx, claims, &ctrl)
-	return setReply(c, err, Msg("Controller deregistered"))
+	return setReply(c, nil, err, Msg("Controller deregistered"))
 }
 
 func DeleteControllerObj(ctx context.Context, claims *UserClaims, ctrl *ormapi.Controller) error {
@@ -124,7 +124,7 @@ func ShowController(c echo.Context) error {
 		return err
 	}
 	ctrls, err := ShowControllerObj(ctx, claims)
-	return setReply(c, err, ctrls)
+	return setReply(c, nil, err, ctrls)
 }
 
 func ShowControllerObj(ctx context.Context, claims *UserClaims) ([]ormapi.Controller, error) {

@@ -49,7 +49,7 @@ func (s *Platform) CreateAppInst(ctx context.Context, clusterInst *edgeproto.Clu
 		_, masterIP, masterIpErr := mexos.GetMasterNameAndIP(ctx, clusterInst)
 		// Add crm local replace variables
 		deploymentVars := crmutil.DeploymentReplaceVars{
-			CRM: crmutil.CrmReplaceVars{
+			Deployment: crmutil.CrmReplaceVars{
 				ClusterIp: masterIP,
 			},
 		}
@@ -345,7 +345,7 @@ func (s *Platform) UpdateAppInst(ctx context.Context, clusterInst *edgeproto.Clu
 	_, masterIP, _ := mexos.GetMasterNameAndIP(ctx, clusterInst)
 	// Add crm local replace variables
 	deploymentVars := crmutil.DeploymentReplaceVars{
-		CRM: crmutil.CrmReplaceVars{
+		Deployment: crmutil.CrmReplaceVars{
 			ClusterIp: masterIP,
 		},
 	}

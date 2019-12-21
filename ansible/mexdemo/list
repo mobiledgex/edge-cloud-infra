@@ -21,3 +21,6 @@ influxdb_volume_size=5Gi
 
 [platform]
 localhost	ansible_connection=local
+
+[swagger]
+swagger.mobiledgex.net

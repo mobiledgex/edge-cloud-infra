@@ -1,0 +1,26 @@
+- hosts: swagger
+  vars:
+    apidocs_samples_script: /usr/local/bin/apidocs-samples.py
+    swagger_cron_script: /usr/local/bin/swagger.cron
+    swagger_base_dir: /var/swagger
+
+  tasks:
+
+    - name: Install apidocs script
+      copy:
+        src: apidocs/apidocs-samples.py
+        dest: "{{ apidocs_samples_script }}"
+        mode: 0555
+      become: yes
+
+    - name: Install swagger generation cron script
+      template:
+        src: apidocs/swagger.cron.j2
+        dest: "{{ swagger_cron_script }}"
+        mode: 0555
+      become: yes
+
+    - name: Install the code samples
+      copy:
+        src: apidocs/code-samples
+        dest: "{{ swagger_base_dir }}"

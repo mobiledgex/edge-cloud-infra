@@ -29,6 +29,10 @@ var envoyTotal = "upstream_cx_total"
 var envoyDropped = "upstream_cx_connect_fail" // this one might not be right/enough
 var envoyBytesSent = "upstream_cx_tx_bytes_total"
 var envoyBytesRecvd = "upstream_cx_rx_bytes_total"
+var envoySessionTime = "upstream_cx_length_ms"
+
+var envoyUnseen = "No recorded values"
+var envoyHistogramBuckets = []string{"P0", "P25", "P50", "P75", "P90", "P95", "P99", "P99.5", "P99.9", "P100"}
 
 type ProxyScrapePoint struct {
 	Key               edgeproto.AppInstKey
@@ -186,6 +190,7 @@ func envoyConnections(ctx context.Context, respMap map[string]string, ports []in
 		totalSearch := envoyCluster + envoyTotal
 		bytesSentSearch := envoyCluster + envoyBytesSent
 		bytesRecvdSearch := envoyCluster + envoyBytesRecvd
+		sessionTimeSearch := envoyCluster + envoySessionTime
 		var droppedVal, bytesSent, bytesRecvd uint64
 		new.ActiveConn, err = getUIntStat(respMap, activeSearch)
 		if err != nil {
@@ -210,6 +215,14 @@ func envoyConnections(ctx context.Context, respMap map[string]string, ports []in
 		}
 		new.AvgBytesSent = bytesSent / new.Accepts
 		new.AvgBytesRecvd = bytesRecvd / new.Accepts
+
+		// session time histogram
+		var sessionTimeHistogram []uint64
+		sessionTimeHistogram, err = getHistogramIntStats(respMap, sessionTimeSearch)
+		if err != nil {
+			return fmt.Errorf("Error retrieving envoy session time connections stats: %v", err)
+		}
+		new.SessionTime = sessionTimeHistogram
 		metrics.Ts, _ = types.TimestampProto(time.Now())
 		metrics.EnvoyStats[port] = new
 	}
@@ -260,6 +273,41 @@ func getUIntStat(respMap map[string]string, statName string) (uint64, error) {
 		return 0, fmt.Errorf("Error retrieving stats: %v", err)
 	}
 	return val, nil
+}
+
+func getHistogramIntStats(respMap map[string]string, statName string) ([]uint64, error) {
+	histogramStr, exists := respMap[statName]
+	if !exists {
+		return nil, fmt.Errorf("stat not found: %s", statName)
+	}
+	// no connections yet so just 0 everything
+	if histogramStr == envoyUnseen {
+		return []uint64{0, 0, 0, 0, 0, 0, 0, 0, 0, 0}, nil
+	}
+	buckets := strings.Split(histogramStr, " ")
+	if len(buckets) != len(envoyHistogramBuckets) {
+		return nil, fmt.Errorf("Error parsing histogram")
+	}
+	var histogram []uint64
+	for i, bucket := range buckets {
+		// P0(nan,3300)
+		// check if the percentile matches
+		if !strings.HasPrefix(bucket, envoyHistogramBuckets[i]) {
+			return nil, fmt.Errorf("Error parsing histogram")
+		}
+		start := strings.Index(bucket, ",")
+		end := strings.Index(bucket, ")")
+		if start == -1 || end == -1 {
+			return nil, fmt.Errorf("Error parsing histogram")
+		}
+		start = start + 1
+		val, err := strconv.ParseUint(bucket[start:end], 10, 64)
+		if err != nil {
+			return nil, fmt.Errorf("Error parsing histogram: %v", err)
+		}
+		histogram = append(histogram, val)
+	}
+	return histogram, nil
 }
 
 func QueryNginx(ctx context.Context, scrapePoint *ProxyScrapePoint) (*shepherd_common.ProxyMetrics, error) {
@@ -362,6 +410,11 @@ func MarshallProxyMetric(scrapePoint ProxyScrapePoint, data *shepherd_common.Pro
 		metric.AddIntVal("handled", data.EnvoyStats[port].HandledConn)
 		metric.AddIntVal("avgBytesSent", data.EnvoyStats[port].AvgBytesSent)
 		metric.AddIntVal("avgBytesRecvd", data.EnvoyStats[port].AvgBytesRecvd)
+
+		//session time historgram
+		for i, v := range data.EnvoyStats[port].SessionTime {
+			metric.AddIntVal(envoyHistogramBuckets[i], v)
+		}
 		metricList = append(metricList, &metric)
 	}
 	return metricList

@@ -1,4 +1,10 @@
 ---
+- name: Load cloudflare creds
+  import_role:
+    name: load-vault-creds
+    tasks_from: cloudflare
+  tags: certgen
+
 - name: Create groups
   group:
     name: "{{ vault_group }}"
@@ -202,12 +208,6 @@
     ns1_apikey: "{{ vault_lookup.ns1.data.apikey }}"
   tags: certgen
 
-- name: Load cloudflare creds
-  import_role:
-    name: load-vault-creds
-    tasks_from: cloudflare
-  tags: certgen
-
 - name: "Deploy certgen service ({{ le_env }})"
   docker_container:
     name: certgen
@@ -236,8 +236,8 @@
     state: present
   become: yes
   with_items:
-    - "/etc/letsencrypt/live/{{ vault_vm_hostname }}"
-    - "/etc/letsencrypt/archive/{{ vault_vm_hostname }}"
+    - "/etc/letsencrypt/live/{{ inventory_hostname }}"
+    - "/etc/letsencrypt/archive/{{ inventory_hostname }}"
   tags: setup
 
 - name: Allow vault permission to its certs
@@ -250,8 +250,8 @@
     state: present
   become: yes
   with_items:
-    - "/etc/letsencrypt/live/{{ vault_vm_hostname }}"
-    - "/etc/letsencrypt/archive/{{ vault_vm_hostname }}"
+    - "/etc/letsencrypt/live/{{ inventory_hostname }}"
+    - "/etc/letsencrypt/archive/{{ inventory_hostname }}"
   tags: setup
 
 - name: Allow vault permission to its cert directories
@@ -264,9 +264,9 @@
   become: yes
   with_items:
     - /etc/letsencrypt/live
-    - "/etc/letsencrypt/live/{{ vault_vm_hostname }}"
+    - "/etc/letsencrypt/live/{{ inventory_hostname }}"
     - /etc/letsencrypt/archive
-    - "/etc/letsencrypt/archive/{{ vault_vm_hostname }}"
+    - "/etc/letsencrypt/archive/{{ inventory_hostname }}"
   tags: setup
 
 - name: Install systemd service file
@@ -275,6 +275,9 @@
     dest: "/etc/systemd/system/vault.service"
     mode: 0644
   become: yes
+
+- pause:
+    prompt: "Shut down the vault instance now. Continue when done."
 
 - name: Start vault service
   systemd:
@@ -286,7 +289,7 @@
 
 - name: Check if vault is initialized
   uri:
-    url: "https://{{ vault_vm_hostname }}:{{ vault_port }}/v1/sys/init"
+    url: "https://{{ inventory_hostname }}:{{ vault_port }}/v1/sys/init"
     return_content: yes
     status_code: 200
     body_format: json

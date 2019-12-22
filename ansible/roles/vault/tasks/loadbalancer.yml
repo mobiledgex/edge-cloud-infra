@@ -112,11 +112,6 @@
   - pause:
       prompt: "Set DNS \"{{ vault_ha_domain }}\" to {{ vault_ip.address }}?"
 
-  - name: Load cloudflare creds
-    import_role:
-      name: load-vault-creds
-      tasks_from: cloudflare
-
   - name: "Update vault LB DNS: {{ vault_ha_domain }}"
     cloudflare_dns:
       zone: "{{ cloudflare_zone }}"

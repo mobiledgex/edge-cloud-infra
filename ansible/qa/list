@@ -13,6 +13,7 @@ postgres_hostname=postgres-{{ deploy_environ }}.mobiledgex.net
 azure_volume_storage_class=default
 influxdb_volume_size=1Gi
 vault_vm_hostname=vault-{{ deploy_environ }}.mobiledgex.net
+vault_ha_domain="vault-{{ deploy_environ }}.mobiledgex.net"
 vault_port=8200
 vault_firewall_setup=no
 monitor_version=latest
@@ -42,7 +43,8 @@ postgres-qa.mobiledgex.net
 console-qa.mobiledgex.net
 
 [vault]
-vault-qa.mobiledgex.net
+vault-qa-a.mobiledgex.net
+vault-qa-b.mobiledgex.net
 
 [artifactory]
 artifactory-qa.mobiledgex.net

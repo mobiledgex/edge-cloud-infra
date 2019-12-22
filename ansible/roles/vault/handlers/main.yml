@@ -16,7 +16,7 @@
   debug:
     msg: |
       Initialize vault using the command:
-      VAULT_ADDR=https://{{ vault_vm_hostname }}:{{ vault_port }} vault operator init -key-shares=5 -key-threshold=3 -format json
+      VAULT_ADDR=https://{{ inventory_hostname }}:{{ vault_port }} vault operator init -key-shares=5 -key-threshold=3 -format json
 
 - name: Vault letencrypt plugin register prompt
   debug:

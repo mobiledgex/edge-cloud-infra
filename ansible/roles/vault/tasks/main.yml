@@ -57,7 +57,7 @@
     capability: cap_net_bind_service+ep
   become: yes
   tags: setup
-  when: vault_port < 1024
+  when: vault_ha_instance_port < 1024
 
 - name: Create storage bucket
   command: "gsutil mb gs://{{ storage_bucket_name }}"
@@ -289,7 +289,7 @@
 
 - name: Check if vault is initialized
   uri:
-    url: "https://{{ inventory_hostname }}:{{ vault_port }}/v1/sys/init"
+    url: "https://{{ inventory_hostname }}:{{ vault_ha_instance_port }}/v1/sys/init"
     return_content: yes
     status_code: 200
     body_format: json

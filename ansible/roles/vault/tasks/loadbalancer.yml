@@ -28,7 +28,7 @@
   - name: Set up health check
     gcp_compute_https_health_check:
       name: "{{ vault_healthcheck }}"
-      port: "{{ vault_port }}"
+      port: "{{ vault_ha_instance_port }}"
       request_path: /v1/sys/health
     register: health_check
 

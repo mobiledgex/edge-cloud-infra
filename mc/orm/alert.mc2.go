@@ -88,14 +88,9 @@ package orm
 
 import edgeproto "github.com/mobiledgex/edge-cloud/edgeproto"
 import "github.com/labstack/echo"
-import "net/http"
 import "context"
 import "io"
-import "encoding/json"
-import "strings"
 import "github.com/mobiledgex/edge-cloud-infra/mc/ormapi"
-import "google.golang.org/grpc/status"
-import "github.com/gorilla/websocket"
 import proto "github.com/gogo/protobuf/proto"
 import fmt "fmt"
 import math "math"
@@ -114,19 +109,6 @@ var _ = math.Inf
 func ShowAlert(c echo.Context) error {
 	ctx := GetContext(c)
 	rc := &RegionContext{}
-	var err error
-	var ws *websocket.Conn
-	if strings.HasPrefix(c.Request().URL.Path, "/ws") {
-		ws, err = websocketConnect(c)
-		if err != nil {
-			return err
-		}
-		if ws == nil {
-			return nil
-		}
-		defer ws.Close()
-	}
-
 	claims, err := getClaims(c)
 	if err != nil {
 		return err
@@ -134,55 +116,19 @@ func ShowAlert(c echo.Context) error {
 	rc.username = claims.Username
 
 	in := ormapi.RegionAlert{}
-	if ws == nil {
-		if err := c.Bind(&in); err != nil {
-			return c.JSON(http.StatusBadRequest, Msg("Invalid POST data"))
-		}
-	} else {
-		err = ws.ReadJSON(&in)
-		if err != nil {
-			if err == io.EOF || err == io.ErrUnexpectedEOF {
-				return setReply(c, ws, fmt.Errorf("Invalid data"), nil)
-			}
-			return setReply(c, ws, err, nil)
-		}
+	success, err := ReadConn(c, &in)
+	if !success {
+		return err
 	}
 	rc.region = in.Region
 
-	// stream func may return "forbidden", so don't write
-	// header until we know it's ok
-	wroteHeader := false
 	err = ShowAlertStream(ctx, rc, &in.Alert, func(res *edgeproto.Alert) {
 		payload := ormapi.StreamPayload{}
 		payload.Data = res
-		if ws != nil {
-			err = ws.WriteJSON(payload)
-		} else {
-			if !wroteHeader {
-				c.Response().Header().Set(echo.HeaderContentType, echo.MIMEApplicationJSON)
-				c.Response().WriteHeader(http.StatusOK)
-				wroteHeader = true
-			}
-			json.NewEncoder(c.Response()).Encode(payload)
-			c.Response().Flush()
-		}
+		WriteStream(c, &payload)
 	})
 	if err != nil {
-		if st, ok := status.FromError(err); ok {
-			err = fmt.Errorf("%s", st.Message())
-		}
-		if !wroteHeader {
-			return setReply(c, ws, err, nil)
-		}
-		res := ormapi.Result{}
-		res.Message = err.Error()
-		res.Code = http.StatusBadRequest
-		payload := ormapi.StreamPayload{Result: &res}
-		if ws != nil {
-			ws.WriteJSON(payload)
-		} else {
-			json.NewEncoder(c.Response()).Encode(payload)
-		}
+		return WriteError(c, err)
 	}
 	return nil
 }

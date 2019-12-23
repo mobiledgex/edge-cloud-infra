@@ -246,7 +246,7 @@ func AddUserRole(c echo.Context) error {
 		return c.JSON(http.StatusBadRequest, Msg("Invalid POST data"))
 	}
 	err = AddUserRoleObj(GetContext(c), claims, &role)
-	return setReply(c, nil, err, Msg("Role added to user"))
+	return setReply(c, err, Msg("Role added to user"))
 }
 
 func AddUserRoleObj(ctx context.Context, claims *UserClaims, role *ormapi.Role) error {
@@ -381,7 +381,7 @@ func RemoveUserRole(c echo.Context) error {
 		return c.JSON(http.StatusBadRequest, Msg("Invalid POST data"))
 	}
 	err = RemoveUserRoleObj(ctx, claims, &role)
-	return setReply(c, nil, err, Msg("Role removed from user"))
+	return setReply(c, err, Msg("Role removed from user"))
 }
 
 func RemoveUserRoleObj(ctx context.Context, claims *UserClaims, role *ormapi.Role) error {
@@ -458,7 +458,7 @@ func ShowUserRole(c echo.Context) error {
 	ctx := GetContext(c)
 
 	roles, err := ShowUserRoleObj(ctx, claims.Username)
-	return setReply(c, nil, err, roles)
+	return setReply(c, err, roles)
 }
 
 // show roles for organizations the current user has permission to

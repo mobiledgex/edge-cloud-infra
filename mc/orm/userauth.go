@@ -166,9 +166,9 @@ func AuthWSCookie(c echo.Context, ws *websocket.Conn) (bool, error) {
 	err := ws.ReadJSON(&tokAuth)
 	if err != nil {
 		if err == io.EOF || err == io.ErrUnexpectedEOF {
-			return false, setReply(c, ws, fmt.Errorf("no bearer token found"), nil)
+			return false, setReply(c, fmt.Errorf("no bearer token found"), nil)
 		}
-		return false, setReply(c, ws, err, nil)
+		return false, setReply(c, err, nil)
 	}
 
 	claims := UserClaims{}
@@ -178,7 +178,7 @@ func AuthWSCookie(c echo.Context, ws *websocket.Conn) (bool, error) {
 		c.Set("user", token)
 		return true, nil
 	}
-	return false, setReply(c, ws, fmt.Errorf("invalid or expired jwt"), nil)
+	return false, setReply(c, fmt.Errorf("invalid or expired jwt"), nil)
 }
 
 func authorized(ctx context.Context, sub, org, obj, act string) bool {

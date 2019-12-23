@@ -27,7 +27,6 @@ var _ = math.Inf
 func RunCommand(c echo.Context) error {
 	ctx := GetContext(c)
 	rc := &RegionContext{}
-
 	claims, err := getClaims(c)
 	if err != nil {
 		return err
@@ -47,7 +46,7 @@ func RunCommand(c echo.Context) error {
 			err = fmt.Errorf("%s", st.Message())
 		}
 	}
-	return setReply(c, nil, err, resp)
+	return setReply(c, err, resp)
 }
 
 func RunCommandObj(ctx context.Context, rc *RegionContext, obj *edgeproto.ExecRequest) (*edgeproto.ExecRequest, error) {

@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"net/http"
 
-	"github.com/gorilla/websocket"
 	"github.com/labstack/echo"
 	"github.com/mobiledgex/edge-cloud-infra/mc/ormapi"
 )
@@ -34,7 +33,7 @@ func bindErr(c echo.Context, err error) error {
 	return c.JSON(http.StatusBadRequest, Msg(msg))
 }
 
-func setReply(c echo.Context, ws *websocket.Conn, err error, data interface{}) error {
+func setReply(c echo.Context, err error, data interface{}) error {
 	code := http.StatusOK
 	if err != nil {
 		switch err {
@@ -46,7 +45,7 @@ func setReply(c echo.Context, ws *websocket.Conn, err error, data interface{}) e
 			code = http.StatusBadRequest
 		}
 	}
-	if ws != nil {
+	if ws := GetWs(c); ws != nil {
 		res := ormapi.Result{}
 		res.Code = code
 		payload := ormapi.StreamPayload{Result: &res}

@@ -7,7 +7,6 @@ import (
 	"net/http"
 	"strings"
 
-	"github.com/gorilla/websocket"
 	"github.com/labstack/echo"
 	"github.com/mobiledgex/edge-cloud-infra/mc/ormapi"
 	"github.com/mobiledgex/edge-cloud/edgeproto"
@@ -45,7 +44,7 @@ func CreateOrgCloudletPool(c echo.Context) error {
 	span.SetTag("org", op.Org)
 
 	err = CreateOrgCloudletPoolObj(ctx, claims, &op)
-	return setReply(c, nil, err, Msg("Organization CloudletPool created"))
+	return setReply(c, err, Msg("Organization CloudletPool created"))
 }
 
 func CreateOrgCloudletPoolObj(ctx context.Context, claims *UserClaims, op *ormapi.OrgCloudletPool) error {
@@ -135,7 +134,7 @@ func DeleteOrgCloudletPool(c echo.Context) error {
 	span.SetTag("org", op.Org)
 
 	err = DeleteOrgCloudletPoolObj(ctx, claims, &op)
-	return setReply(c, nil, err, Msg("organization cloudletpool deleted"))
+	return setReply(c, err, Msg("organization cloudletpool deleted"))
 }
 
 func DeleteOrgCloudletPoolObj(ctx context.Context, claims *UserClaims, op *ormapi.OrgCloudletPool) error {
@@ -176,7 +175,7 @@ func ShowOrgCloudletPool(c echo.Context) error {
 	ctx := GetContext(c)
 
 	ops, err := ShowOrgCloudletPoolObj(ctx, claims.Username)
-	return setReply(c, nil, err, ops)
+	return setReply(c, err, ops)
 }
 
 func ShowOrgCloudletPoolObj(ctx context.Context, username string) ([]ormapi.OrgCloudletPool, error) {
@@ -203,50 +202,29 @@ func ShowOrgCloudletPoolObj(ctx context.Context, username string) ([]ormapi.OrgC
 
 // Used by UI to show cloudlets for the current organization
 func ShowOrgCloudlet(c echo.Context) error {
-	var err error
-	var ws *websocket.Conn
-	if strings.HasPrefix(c.Request().URL.Path, "/ws") {
-		ws, err = websocketConnect(c)
-		if err != nil {
-			return err
-		}
-		if ws == nil {
-			return nil
-		}
-		defer ws.Close()
-	}
 	claims, err := getClaims(c)
 	if err != nil {
 		return err
 	}
 	ctx := GetContext(c)
 	oc := ormapi.OrgCloudlet{}
-
-	if ws != nil {
-		err = ws.ReadJSON(&oc)
-		if err != nil {
-			if err == io.EOF || err == io.ErrUnexpectedEOF {
-				return setReply(c, ws, fmt.Errorf("Invalid data"), nil)
-			}
-			return setReply(c, ws, err, nil)
-		}
-	} else {
-		if err := c.Bind(&oc); err != nil {
-			return c.JSON(http.StatusBadRequest, Msg("Invalid POST data"))
-		}
+	success, err := ReadConn(c, &oc)
+	if !success {
+		return err
 	}
+
 	if oc.Org == "" {
-		return setReply(c, ws, fmt.Errorf("Organization must be specified"), nil)
+		return setReply(c, fmt.Errorf("Organization must be specified"), nil)
 	}
 	if oc.Region == "" {
-		return setReply(c, ws, fmt.Errorf("Region must be specified"), nil)
+		return setReply(c, fmt.Errorf("Region must be specified"), nil)
 	}
 
 	db := loggedDB(ctx)
 	org := ormapi.Organization{}
 	res := db.Where(&ormapi.Organization{Name: oc.Org}).First(&org)
 	if res.RecordNotFound() {
-		return setReply(c, ws, fmt.Errorf("Specified Organization not found"), nil)
+		return setReply(c, fmt.Errorf("Specified Organization not found"), nil)
 	}
 	if res.Error != nil {
 		return dbErr(res.Error)
@@ -269,5 +247,5 @@ func ShowOrgCloudlet(c echo.Context) error {
 			show = append(show, cloudlet)
 		}
 	})
-	return setReply(c, ws, err, show)
+	return setReply(c, err, show)
 }

@@ -20,7 +20,7 @@
     instances: "{{ vault_instances }}"
     named_ports:
       - name: http
-        port: "{{ vault_port }}"
+        port: "{{ vault_ha_instance_port }}"
   register: instance_group
 
 - set_fact:

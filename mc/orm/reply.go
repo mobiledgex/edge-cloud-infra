@@ -46,16 +46,15 @@ func setReply(c echo.Context, err error, data interface{}) error {
 		}
 	}
 	if ws := GetWs(c); ws != nil {
-		res := ormapi.Result{}
-		res.Code = code
-		payload := ormapi.StreamPayload{Result: &res}
+		wsPayload := ormapi.WSStreamPayload{
+			Code: code,
+		}
 		if err != nil {
-			res.Message = err.Error()
+			wsPayload.Data = MsgErr(err)
+		} else if data != nil {
+			wsPayload.Data = data
 		}
-		if data != nil {
-			payload.Data = data
-		}
-		return ws.WriteJSON(payload)
+		return ws.WriteJSON(wsPayload)
 	}
 	if err != nil {
 		return c.JSON(code, MsgErr(err))

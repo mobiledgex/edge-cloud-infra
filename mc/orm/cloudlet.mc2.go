@@ -50,7 +50,7 @@ func CreateCloudlet(c echo.Context) error {
 		WriteStream(c, &payload)
 	})
 	if err != nil {
-		return WriteError(c, err)
+		WriteError(c, err)
 	}
 	return nil
 }
@@ -122,7 +122,7 @@ func DeleteCloudlet(c echo.Context) error {
 		WriteStream(c, &payload)
 	})
 	if err != nil {
-		return WriteError(c, err)
+		WriteError(c, err)
 	}
 	return nil
 }
@@ -194,7 +194,7 @@ func UpdateCloudlet(c echo.Context) error {
 		WriteStream(c, &payload)
 	})
 	if err != nil {
-		return WriteError(c, err)
+		WriteError(c, err)
 	}
 	return nil
 }
@@ -264,7 +264,7 @@ func ShowCloudlet(c echo.Context) error {
 		WriteStream(c, &payload)
 	})
 	if err != nil {
-		return WriteError(c, err)
+		WriteError(c, err)
 	}
 	return nil
 }
@@ -487,7 +487,7 @@ func ShowCloudletInfo(c echo.Context) error {
 		WriteStream(c, &payload)
 	})
 	if err != nil {
-		return WriteError(c, err)
+		WriteError(c, err)
 	}
 	return nil
 }

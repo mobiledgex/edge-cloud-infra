@@ -49,7 +49,7 @@ func CreateAppInst(c echo.Context) error {
 		WriteStream(c, &payload)
 	})
 	if err != nil {
-		return WriteError(c, err)
+		WriteError(c, err)
 	}
 	return nil
 }
@@ -123,7 +123,7 @@ func DeleteAppInst(c echo.Context) error {
 		WriteStream(c, &payload)
 	})
 	if err != nil {
-		return WriteError(c, err)
+		WriteError(c, err)
 	}
 	return nil
 }
@@ -195,7 +195,7 @@ func RefreshAppInst(c echo.Context) error {
 		WriteStream(c, &payload)
 	})
 	if err != nil {
-		return WriteError(c, err)
+		WriteError(c, err)
 	}
 	return nil
 }
@@ -267,7 +267,7 @@ func UpdateAppInst(c echo.Context) error {
 		WriteStream(c, &payload)
 	})
 	if err != nil {
-		return WriteError(c, err)
+		WriteError(c, err)
 	}
 	return nil
 }
@@ -339,7 +339,7 @@ func ShowAppInst(c echo.Context) error {
 		WriteStream(c, &payload)
 	})
 	if err != nil {
-		return WriteError(c, err)
+		WriteError(c, err)
 	}
 	return nil
 }

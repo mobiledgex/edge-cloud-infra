@@ -422,13 +422,17 @@ func ReadConn(c echo.Context, in interface{}) (bool, error) {
 
 func WriteStream(c echo.Context, payload *ormapi.StreamPayload) error {
 	if ws := GetWs(c); ws != nil {
-		return ws.WriteJSON(*payload)
+		wsPayload := ormapi.WSStreamPayload{
+			Code: http.StatusOK,
+			Data: (*payload).Data,
+		}
+		return ws.WriteJSON(wsPayload)
 	} else {
 		headerFlag := c.Get("WroteHeader")
 		wroteHeader := false
 		if headerFlag != nil {
-			if h, ok := headerFlag.(*bool); ok && *h {
-				wroteHeader = true
+			if h, ok := headerFlag.(bool); ok {
+				wroteHeader = h
 			}
 		}
 		// stream func may return "forbidden", so don't write
@@ -452,20 +456,24 @@ func WriteError(c echo.Context, err error) error {
 	headerFlag := c.Get("WroteHeader")
 	wroteHeader := false
 	if headerFlag != nil {
-		if h, ok := headerFlag.(*bool); ok && *h {
-			wroteHeader = true
+		if h, ok := headerFlag.(bool); ok {
+			wroteHeader = h
 		}
 	}
 	if !wroteHeader {
 		return setReply(c, err, nil)
 	}
-	res := ormapi.Result{}
-	res.Message = err.Error()
-	res.Code = http.StatusBadRequest
-	payload := ormapi.StreamPayload{Result: &res}
 	if ws := GetWs(c); ws != nil {
-		ws.WriteJSON(payload)
+		wsPayload := ormapi.WSStreamPayload{
+			Code: http.StatusBadRequest,
+			Data: MsgErr(err),
+		}
+		ws.WriteJSON(wsPayload)
 	} else {
+		res := ormapi.Result{}
+		res.Message = err.Error()
+		res.Code = http.StatusBadRequest
+		payload := ormapi.StreamPayload{Result: &res}
 		json.NewEncoder(c.Response()).Encode(payload)
 	}
 

@@ -91,9 +91,11 @@ func DeleteCloudletPool(c echo.Context) error {
 }
 
 func DeleteCloudletPoolObj(ctx context.Context, rc *RegionContext, obj *edgeproto.CloudletPool) (*edgeproto.Result, error) {
-	if !rc.skipAuthz && !authorized(ctx, rc.username, "",
-		ResourceCloudletPools, ActionManage) {
-		return nil, echo.ErrForbidden
+	if !rc.skipAuthz {
+		if err := authzDeleteCloudletPool(ctx, rc.region, rc.username, obj,
+			ResourceCloudletPools, ActionManage); err != nil {
+			return nil, err
+		}
 	}
 	if rc.conn == nil {
 		conn, err := connectController(ctx, rc.region)
@@ -132,7 +134,7 @@ func ShowCloudletPool(c echo.Context) error {
 		WriteStream(c, &payload)
 	})
 	if err != nil {
-		return WriteError(c, err)
+		WriteError(c, err)
 	}
 	return nil
 }
@@ -300,7 +302,7 @@ func ShowCloudletPoolMember(c echo.Context) error {
 		WriteStream(c, &payload)
 	})
 	if err != nil {
-		return WriteError(c, err)
+		WriteError(c, err)
 	}
 	return nil
 }
@@ -382,7 +384,7 @@ func ShowPoolsForCloudlet(c echo.Context) error {
 		WriteStream(c, &payload)
 	})
 	if err != nil {
-		return WriteError(c, err)
+		WriteError(c, err)
 	}
 	return nil
 }
@@ -464,7 +466,7 @@ func ShowCloudletsForPool(c echo.Context) error {
 		WriteStream(c, &payload)
 	})
 	if err != nil {
-		return WriteError(c, err)
+		WriteError(c, err)
 	}
 	return nil
 }

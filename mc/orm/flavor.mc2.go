@@ -175,7 +175,7 @@ func ShowFlavor(c echo.Context) error {
 		WriteStream(c, &payload)
 	})
 	if err != nil {
-		return WriteError(c, err)
+		WriteError(c, err)
 	}
 	return nil
 }

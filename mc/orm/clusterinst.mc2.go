@@ -47,7 +47,7 @@ func CreateClusterInst(c echo.Context) error {
 		WriteStream(c, &payload)
 	})
 	if err != nil {
-		return WriteError(c, err)
+		WriteError(c, err)
 	}
 	return nil
 }
@@ -121,7 +121,7 @@ func DeleteClusterInst(c echo.Context) error {
 		WriteStream(c, &payload)
 	})
 	if err != nil {
-		return WriteError(c, err)
+		WriteError(c, err)
 	}
 	return nil
 }
@@ -193,7 +193,7 @@ func UpdateClusterInst(c echo.Context) error {
 		WriteStream(c, &payload)
 	})
 	if err != nil {
-		return WriteError(c, err)
+		WriteError(c, err)
 	}
 	return nil
 }
@@ -265,7 +265,7 @@ func ShowClusterInst(c echo.Context) error {
 		WriteStream(c, &payload)
 	})
 	if err != nil {
-		return WriteError(c, err)
+		WriteError(c, err)
 	}
 	return nil
 }

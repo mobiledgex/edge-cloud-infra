@@ -57,7 +57,7 @@
         name: web
         tasks_from: certs
       vars:
-        cert_domains: [ "{{ vault_vm_hostname }}" ]
+        cert_domains: [ "{{ inventory_hostname }}" ]
         post_renewal_hooks:
           - hook_name: vault_reload_hook
             hook_content: |

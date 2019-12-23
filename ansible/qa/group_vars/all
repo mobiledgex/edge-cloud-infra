@@ -1,5 +1,8 @@
 jaeger_hostname: jaeger-{{ deploy_environ }}.mobiledgex.net
 jaeger_endpoint: "https://{{ jaeger_hostname }}:14268/api/traces"
-vault_address: https://vault-qa.mobiledgex.net:8200
+vault_address: https://vault-qa.mobiledgex.net
+vault_ha_zones:
+  us: us-west2-a
+  eu: europe-west3-a
 
 crm_instances: []

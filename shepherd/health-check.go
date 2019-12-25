@@ -58,7 +58,19 @@ func shouldSendAlertForHealthCheckCount(ctx context.Context, appInstKey *edgepro
 	return true
 }
 
-func HealthCheckDown(ctx context.Context, appInstKey *edgeproto.AppInstKey) {
+func HealthCheckRootLbDown(ctx context.Context, appInstKey *edgeproto.AppInstKey) {
+	HealthCheckDown(ctx, appInstKey, edgeproto.HealthCheck_HEALTH_CHECK_FAIL_ROOTLB_OFFLINE)
+}
+
+func HealthCheckRootLbUp(ctx context.Context, appInstKey *edgeproto.AppInstKey) {
+	HealthCheckUp(ctx, appInstKey, edgeproto.HealthCheck_HEALTH_CHECK_FAIL_ROOTLB_OFFLINE)
+}
+
+func CheckEnvoyClusterHealth(ctx context.Context, appInstKey *edgeproto.AppInstKey) {
+	// TODO - check health check of envoy server backends
+}
+
+func HealthCheckDown(ctx context.Context, appInstKey *edgeproto.AppInstKey, reason edgeproto.HealthCheck) {
 	span, ctx := setupHealthCheckSpan(appInstKey)
 	defer span.Finish()
 
@@ -94,7 +106,7 @@ func HealthCheckDown(ctx context.Context, appInstKey *edgeproto.AppInstKey) {
 	})
 }
 
-func HealthCheckUp(ctx context.Context, appInstKey *edgeproto.AppInstKey) {
+func HealthCheckUp(ctx context.Context, appInstKey *edgeproto.AppInstKey, reason edgeproto.HealthCheck) {
 	span, ctx := setupHealthCheckSpan(appInstKey)
 	defer span.Finish()
 

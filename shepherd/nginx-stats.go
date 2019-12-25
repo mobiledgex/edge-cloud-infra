@@ -149,10 +149,11 @@ func QueryProxy(ctx context.Context, scrapePoint *ProxyScrapePoint) (*shepherd_c
 		}
 		log.SpanLog(ctx, log.DebugLevelMetrics, "Failed to run request", "request", request, "err", err.Error())
 		// Also this means that we need to notify the controller that this AppInst is no longer recheable
-		HealthCheckDown(ctx, &scrapePoint.Key)
+		HealthCheckRootLbDown(ctx, &scrapePoint.Key)
 		return nil, err
 	}
-	HealthCheckUp(ctx, &scrapePoint.Key)
+	HealthCheckRootLbUp(ctx, &scrapePoint.Key)
+	CheckEnvoyClusterHealth(ctx, &scrapePoint.Key)
 	metrics := &shepherd_common.ProxyMetrics{Nginx: false}
 	respMap := parseEnvoyResp(ctx, resp)
 	err = envoyConnections(ctx, respMap, scrapePoint.Ports, metrics)
@@ -238,10 +239,10 @@ func QueryNginx(ctx context.Context, scrapePoint *ProxyScrapePoint) (*shepherd_c
 	if err != nil {
 		log.SpanLog(ctx, log.DebugLevelMetrics, "Failed to run request", "request", request, "err", err.Error())
 		// Also this means that we need to notify the controller that this AppInst is no longer recheable
-		HealthCheckDown(ctx, &scrapePoint.Key)
+		HealthCheckRootLbDown(ctx, &scrapePoint.Key)
 		return nil, err
 	}
-	HealthCheckUp(ctx, &scrapePoint.Key)
+	HealthCheckRootLbUp(ctx, &scrapePoint.Key)
 	metrics := &shepherd_common.ProxyMetrics{Nginx: true}
 	err = parseNginxResp(resp, metrics)
 	if err != nil {

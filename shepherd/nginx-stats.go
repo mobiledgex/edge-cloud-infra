@@ -41,6 +41,12 @@ type ProxyScrapePoint struct {
 func InitProxyScraper() {
 	ProxyMap = make(map[string]ProxyScrapePoint)
 	ProxyMutex = &sync.Mutex{}
+}
+
+func StartProxyScraper() {
+	if ProxyMap == nil {
+		return
+	}
 	go ProxyScraper()
 }
 
@@ -153,7 +159,7 @@ func QueryProxy(ctx context.Context, scrapePoint *ProxyScrapePoint) (*shepherd_c
 		return nil, err
 	}
 	HealthCheckRootLbUp(ctx, &scrapePoint.Key)
-	CheckEnvoyClusterHealth(ctx, &scrapePoint.Key)
+	CheckEnvoyClusterHealth(ctx, scrapePoint)
 	metrics := &shepherd_common.ProxyMetrics{Nginx: false}
 	respMap := parseEnvoyResp(ctx, resp)
 	err = envoyConnections(ctx, respMap, scrapePoint.Ports, metrics)

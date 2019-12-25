@@ -2,8 +2,10 @@ package main
 
 import (
 	"context"
+	"fmt"
 	"strconv"
 
+	"github.com/mobiledgex/edge-cloud/cloud-resource-manager/proxy"
 	"github.com/mobiledgex/edge-cloud/cloudcommon"
 	"github.com/mobiledgex/edge-cloud/edgeproto"
 	"github.com/mobiledgex/edge-cloud/log"
@@ -47,14 +49,15 @@ func shouldSendAlertForHealthCheckCount(ctx context.Context, appInstKey *edgepro
 		return false
 	}
 
-	// don't send alert first several failures
-	if scrapePoint.FailedChecksCount < cloudcommon.ShepherdHealthCheckRetries {
+	// don't send alert first several failures(starting from 0, so maxRetries-1 )
+	if scrapePoint.FailedChecksCount < cloudcommon.ShepherdHealthCheckRetries-1 {
 		scrapePoint.FailedChecksCount++
 		ProxyMap[getProxyKey(appInstKey)] = scrapePoint
 		return false
 	}
 	// reset the failed retries count
 	scrapePoint.FailedChecksCount = 0
+	ProxyMap[getProxyKey(appInstKey)] = scrapePoint
 	return true
 }
 
@@ -66,8 +69,27 @@ func HealthCheckRootLbUp(ctx context.Context, appInstKey *edgeproto.AppInstKey) 
 	HealthCheckUp(ctx, appInstKey, edgeproto.HealthCheck_HEALTH_CHECK_FAIL_ROOTLB_OFFLINE)
 }
 
-func CheckEnvoyClusterHealth(ctx context.Context, appInstKey *edgeproto.AppInstKey) {
-	// TODO - check health check of envoy server backends
+func isEnvoyClusterHealthy(ctx context.Context, envoyResponse string) bool {
+	// TODO
+	// respMap := parseEnvoyResp(ctx, envoyResponse)
+	// Find cluster healthcheck status in resp:
+	// backend8008::10.192.1.2:8008::health_flags::healthy
+	return true
+}
+
+func CheckEnvoyClusterHealth(ctx context.Context, scrapePoint *ProxyScrapePoint) {
+	container := proxy.GetEnvoyContainerName(scrapePoint.App)
+	request := fmt.Sprintf("docker exec %s curl http://127.0.0.1:%d/cluster", container, cloudcommon.ProxyMetricsPort)
+	resp, err := scrapePoint.Client.Output(request)
+	if err != nil {
+		log.SpanLog(ctx, log.DebugLevelMetrics, "Cluster status unknown", "request", request, "err", err.Error())
+		return
+	}
+	if isEnvoyClusterHealthy(ctx, resp) {
+		HealthCheckUp(ctx, &scrapePoint.Key, edgeproto.HealthCheck_HEALTH_CHECK_FAIL_SERVER_FAIL)
+	} else {
+		HealthCheckDown(ctx, &scrapePoint.Key, edgeproto.HealthCheck_HEALTH_CHECK_FAIL_SERVER_FAIL)
+	}
 }
 
 func HealthCheckDown(ctx context.Context, appInstKey *edgeproto.AppInstKey, reason edgeproto.HealthCheck) {
@@ -80,18 +102,19 @@ func HealthCheckDown(ctx context.Context, appInstKey *edgeproto.AppInstKey, reas
 		log.SpanLog(ctx, log.DebugLevelMetrics, "Unable to find appInst ", "appInst", appInst.Key)
 		return
 	}
+
+	// AppInst is either not ready, or already failed this health check
 	if appInst.State != edgeproto.TrackedState_READY ||
-		appInst.HealthCheck != edgeproto.HealthCheck_HEALTH_CHECK_OK {
+		appInst.HealthCheck == reason {
 		return
 	}
 	if !shouldSendAlertForHealthCheckCount(ctx, appInstKey) {
 		return
 	}
 
-	// Create and send the Alert - for now only due to rootLb going down
+	// Create and send the Alert
 	alert := getAlertFromAppInst(appInstKey)
-	alert.Annotations[cloudcommon.AlertHealthCheckStatus] =
-		strconv.Itoa(int(edgeproto.HealthCheck_HEALTH_CHECK_FAIL_ROOTLB_OFFLINE))
+	alert.Annotations[cloudcommon.AlertHealthCheckStatus] = strconv.Itoa(int(reason))
 	AlertCache.UpdateModFunc(ctx, alert.GetKey(), 0, func(old *edgeproto.Alert) (*edgeproto.Alert, bool) {
 		if old == nil {
 			log.SpanLog(ctx, log.DebugLevelMetrics, "Update alert", "alert", alert)
@@ -116,6 +139,12 @@ func HealthCheckUp(ctx context.Context, appInstKey *edgeproto.AppInstKey, reason
 		log.SpanLog(ctx, log.DebugLevelMetrics, "Unable to find appInst ", "appInst", appInst.Key)
 		return
 	}
+
+	// Trying to clear a reason which is not active
+	if appInst.HealthCheck != reason {
+		return
+	}
+
 	// Delete the alert if we can find it
 	alert := getAlertFromAppInst(appInstKey)
 	if AlertCache.HasKey(alert.GetKey()) {

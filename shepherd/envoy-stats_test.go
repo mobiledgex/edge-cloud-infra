@@ -10,8 +10,49 @@ import (
 
 	"github.com/mobiledgex/edge-cloud-infra/shepherd/shepherd_platform/shepherd_unittest"
 	"github.com/mobiledgex/edge-cloud/cloudcommon"
+	"github.com/mobiledgex/edge-cloud/edgeproto"
 	"github.com/mobiledgex/edge-cloud/log"
 	"github.com/stretchr/testify/assert"
+)
+
+// Health check vars
+var (
+	testEnvoyHealthCheckGood = "backend11111::10.192.1.2:11111::health_flags::healthy"
+	testEnvoyHealthCheckBad  = "backend11111::10.192.1.2:11111::health_flags::/failed_active_hc"
+	// Current state
+	testEnvoyHealthCheckCurrent = testEnvoyHealthCheckGood
+
+	// Test App/Cluster state data
+	testOperatorKey = edgeproto.OperatorKey{Name: "testoper"}
+	testCloudletKey = edgeproto.CloudletKey{
+		OperatorKey: testOperatorKey,
+		Name:        "testcloudlet",
+	}
+	testClusterKey     = edgeproto.ClusterKey{Name: "testcluster"}
+	testClusterInstKey = edgeproto.ClusterInstKey{
+		ClusterKey:  testClusterKey,
+		CloudletKey: testCloudletKey,
+		Developer:   "",
+	}
+	testClusterInst = edgeproto.ClusterInst{
+		Key:        testClusterInstKey,
+		Deployment: cloudcommon.AppDeploymentTypeDocker,
+	}
+	testAppKey = edgeproto.AppKey{
+		Name: "App",
+	}
+	testApp = edgeproto.App{
+		Key: testAppKey,
+	}
+	testAppInstKey = edgeproto.AppInstKey{
+		AppKey:         testAppKey,
+		ClusterInstKey: testClusterInstKey,
+	}
+	testAppInst = edgeproto.AppInst{
+		Key:         testAppInstKey,
+		State:       edgeproto.TrackedState_READY,
+		HealthCheck: edgeproto.HealthCheck_HEALTH_CHECK_OK,
+	}
 )
 
 var testEnvoyData = `cluster.backend1234.upstream_cx_active: 10
@@ -21,10 +62,19 @@ cluster.backend4321.upstream_cx_active: 7
 cluster.backend4321.upstream_cx_total: 10
 cluster.backend4321.upstream_cx_connect_fail: 1`
 
-func TestEnvoyStats(t *testing.T) {
+func setupLog() context.Context {
 	log.InitTracer("")
-	defer log.FinishTracer()
 	ctx := log.StartTestSpan(context.Background())
+	return ctx
+}
+func startServer() *httptest.Server {
+	fakeEnvoyTestServer := httptest.NewServer(http.HandlerFunc(envoyHandler))
+	envoyUnitTestPort, _ := strconv.ParseInt(strings.Split(fakeEnvoyTestServer.URL, ":")[2], 10, 32)
+	cloudcommon.ProxyMetricsPort = int32(envoyUnitTestPort)
+	return fakeEnvoyTestServer
+}
+
+func TestEnvoyStats(t *testing.T) {
 
 	testScrapePoint := ProxyScrapePoint{
 		App:     "UnitTestApp",
@@ -33,12 +83,10 @@ func TestEnvoyStats(t *testing.T) {
 		Ports:   []int32{1234, 4321},
 		Client:  &shepherd_unittest.UTClient{},
 	}
-
-	fakeEnvoyTestServer := httptest.NewServer(http.HandlerFunc(envoyHandler))
+	ctx := setupLog()
+	fakeEnvoyTestServer := startServer()
+	defer log.FinishTracer()
 	defer fakeEnvoyTestServer.Close()
-
-	envoyUnitTestPort, _ := strconv.ParseInt(strings.Split(fakeEnvoyTestServer.URL, ":")[2], 10, 32)
-	cloudcommon.ProxyMetricsPort = int32(envoyUnitTestPort)
 
 	testMetrics, err := QueryProxy(ctx, &testScrapePoint)
 
@@ -59,8 +107,107 @@ func TestEnvoyStats(t *testing.T) {
 	assert.Equal(t, uint64(0), testMetrics.EnvoyStats[4321].AvgBytesRecvd)
 }
 
+// Tests a healthy and reachable app
+func testHealthCheckOK(t *testing.T, ctx context.Context) {
+
+	scrapePoints := copyMapValues()
+	// Should only be a single point
+	assert.Equal(t, 1, len(scrapePoints))
+	_, err := QueryProxy(ctx, &scrapePoints[0])
+	assert.Nil(t, err)
+	// failure count should be 0
+	scrapePoint := ProxyMap[getProxyKey(&testAppInstKey)]
+	assert.Equal(t, 0, scrapePoint.FailedChecksCount)
+	// AlertCache Should not have the appInst as a key
+	alert := getAlertFromAppInst(&testAppInstKey)
+	assert.False(t, AlertCache.HasKey(alert.GetKey()))
+
+}
+
+// Test retry count and failure case
+func testHealthCheckFail(t *testing.T, ctx context.Context, healthCheck edgeproto.HealthCheck) {
+	// run ShepherdHealthCheckRetries - 1 times
+	for i := 1; i < cloudcommon.ShepherdHealthCheckRetries; i++ {
+		scrapePoints := copyMapValues()
+		// Should only be a single point
+		assert.Equal(t, 1, len(scrapePoints))
+		QueryProxy(ctx, &scrapePoints[0])
+		// failure count should be i
+		scrapePoint := ProxyMap[getProxyKey(&testAppInstKey)]
+		assert.Equal(t, i, scrapePoint.FailedChecksCount)
+		// AlertCache Still Should not have the appInst as a key
+		alert := getAlertFromAppInst(&testAppInstKey)
+		assert.False(t, AlertCache.HasKey(alert.GetKey()))
+	}
+	// Trigger alert now
+	scrapePoints := copyMapValues()
+	_, err := QueryProxy(ctx, &scrapePoints[0])
+	// Check that for RootLb failure QueryProxy returns an error
+	if healthCheck == edgeproto.HealthCheck_HEALTH_CHECK_FAIL_ROOTLB_OFFLINE {
+		assert.NotNil(t, err)
+	}
+	// failure count should be reset to 0 now
+	scrapePoint := ProxyMap[getProxyKey(&testAppInstKey)]
+	assert.Equal(t, 0, scrapePoint.FailedChecksCount)
+	// AlertCache Should have the alert now
+	alert := getAlertFromAppInst(&testAppInstKey)
+	found := AlertCache.Get(alert.GetKey(), alert)
+	assert.True(t, found)
+	val, found := alert.Annotations[cloudcommon.AlertHealthCheckStatus]
+	assert.True(t, found)
+	assert.Equal(t, strconv.Itoa(int(healthCheck)), val)
+}
+
+func TestHealthChecks(t *testing.T) {
+	ctx := setupLog()
+	defer log.FinishTracer()
+
+	edgeproto.InitClusterInstCache(&ClusterInstCache)
+	ClusterInstCache.Update(ctx, &testClusterInst, 0)
+	edgeproto.InitAppCache(&AppCache)
+	AppCache.Update(ctx, &testApp, 0)
+
+	edgeproto.InitAppInstCache(&AppInstCache)
+	AppInstCache.Update(ctx, &testAppInst, 0)
+	edgeproto.InitAlertCache(&AlertCache)
+	myPlatform = &shepherd_unittest.Platform{}
+
+	InitProxyScraper()
+	// Add appInst to proxyMap
+	CollectProxyStats(ctx, &testAppInst)
+
+	fakeEnvoyTestServer := startServer()
+	defer fakeEnvoyTestServer.Close()
+
+	testHealthCheckOK(t, ctx)
+
+	// RootLB health check failure
+	fakeEnvoyTestServer.Close()
+	testHealthCheckFail(t, ctx, edgeproto.HealthCheck_HEALTH_CHECK_FAIL_ROOTLB_OFFLINE)
+	// Emulate controller setting appInst health check state
+	testAppInst.HealthCheck = edgeproto.HealthCheck_HEALTH_CHECK_FAIL_ROOTLB_OFFLINE
+	AppInstCache.Update(ctx, &testAppInst, 0)
+	// restart server and check that we are passing health check
+	fakeEnvoyTestServer = startServer()
+	testHealthCheckOK(t, ctx)
+
+	// Test envoy health check functionality now
+	testEnvoyHealthCheckCurrent = testEnvoyHealthCheckBad
+	testHealthCheckFail(t, ctx, edgeproto.HealthCheck_HEALTH_CHECK_FAIL_SERVER_FAIL)
+	// Emulate controller setting appInst health check state
+	testAppInst.HealthCheck = edgeproto.HealthCheck_HEALTH_CHECK_FAIL_SERVER_FAIL
+	AppInstCache.Update(ctx, &testAppInst, 0)
+	// set the Envoy response sting to a good one and check that we are passing health check
+	testEnvoyHealthCheckCurrent = testEnvoyHealthCheckGood
+	testHealthCheckOK(t, ctx)
+}
+
 func envoyHandler(w http.ResponseWriter, r *http.Request) {
 	if r.URL.String() == "/stats" {
 		w.Write([]byte(testEnvoyData))
+	}
+	// For health checking
+	if r.URL.String() == "/cluster" {
+		w.Write([]byte(testEnvoyHealthCheckCurrent))
 	}
 }

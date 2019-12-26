@@ -333,3 +333,133 @@ func ShowVersion(c echo.Context) error {
 	}
 	return c.JSON(http.StatusOK, ver)
 }
+
+func websocketUpgrade(next echo.HandlerFunc) echo.HandlerFunc {
+	return func(c echo.Context) error {
+		upgrader := websocket.Upgrader{}
+		upgrader.CheckOrigin = func(r *http.Request) bool { return true }
+		ws, err := upgrader.Upgrade(c.Response(), c.Request(), nil)
+		if err != nil {
+			return nil
+		}
+		defer ws.Close()
+
+		// Set Read timeout
+		ws.SetReadDeadline(time.Now().Add(10 * time.Second))
+
+		// Verify Auth
+		// ===========
+		// JWT token is received after websocket connection is established, although
+		// Websocket server can receive full request header from client before
+		// upgrade to websocket
+
+		// Infact most of the golang websocket clients do support that. But the problem
+		// is on the UI side. Javascript doesn't support it directly
+
+		// Following are some links describing this issue:
+		//  - https://stackoverflow.com/questions/22383089/is-it-possible-to-use-bearer-authentication-for-websocket-upgrade-requests/26123316#26123316
+		// The above URL does give another way to send access token, but then it is not
+		// safe enough to use
+
+		// Here's another way to solve this, but again complicated and insecure:
+		//  - https://devcenter.heroku.com/articles/websocket-security#authentication-authorization
+
+		// In summary, it is not straightforward to implement this from our console UI
+		// as we plan to call this directly from React (browser)
+		isAuth, err := AuthWSCookie(c, ws)
+		if !isAuth {
+			ws.Close()
+			return err
+		}
+
+		// Set ws on echo context
+		SetWs(c, ws)
+
+		// call next handler
+		return next(c)
+	}
+}
+
+func ReadConn(c echo.Context, in interface{}) (bool, error) {
+	var err error
+
+	// Init header state while reading connection.
+	// This will be used to track if headers is written
+	// for response.
+	c.Set("WroteHeader", false)
+
+	if ws := GetWs(c); ws != nil {
+		err = ws.ReadJSON(in)
+	} else {
+		err = c.Bind(in)
+	}
+	if err != nil {
+		if err == io.EOF || err == io.ErrUnexpectedEOF {
+			return false, setReply(c, fmt.Errorf("Invalid data"), nil)
+		}
+		errStr := checkForTimeError(fmt.Sprintf("Invalid data: %v", err))
+		return false, setReply(c, fmt.Errorf(errStr), nil)
+	}
+
+	return true, nil
+}
+
+func WriteStream(c echo.Context, payload *ormapi.StreamPayload) error {
+	if ws := GetWs(c); ws != nil {
+		wsPayload := ormapi.WSStreamPayload{
+			Code: http.StatusOK,
+			Data: (*payload).Data,
+		}
+		return ws.WriteJSON(wsPayload)
+	} else {
+		headerFlag := c.Get("WroteHeader")
+		wroteHeader := false
+		if headerFlag != nil {
+			if h, ok := headerFlag.(bool); ok {
+				wroteHeader = h
+			}
+		}
+		// stream func may return "forbidden", so don't write
+		// header until we know it's ok
+		if !wroteHeader {
+			c.Response().Header().Set(echo.HeaderContentType, echo.MIMEApplicationJSON)
+			c.Response().WriteHeader(http.StatusOK)
+			c.Set("WroteHeader", true)
+		}
+		json.NewEncoder(c.Response()).Encode(*payload)
+		c.Response().Flush()
+	}
+
+	return nil
+}
+
+func WriteError(c echo.Context, err error) error {
+	if st, ok := status.FromError(err); ok {
+		err = fmt.Errorf("%s", st.Message())
+	}
+	headerFlag := c.Get("WroteHeader")
+	wroteHeader := false
+	if headerFlag != nil {
+		if h, ok := headerFlag.(bool); ok {
+			wroteHeader = h
+		}
+	}
+	if !wroteHeader {
+		return setReply(c, err, nil)
+	}
+	if ws := GetWs(c); ws != nil {
+		wsPayload := ormapi.WSStreamPayload{
+			Code: http.StatusBadRequest,
+			Data: MsgErr(err),
+		}
+		ws.WriteJSON(wsPayload)
+	} else {
+		res := ormapi.Result{}
+		res.Message = err.Error()
+		res.Code = http.StatusBadRequest
+		payload := ormapi.StreamPayload{Result: &res}
+		json.NewEncoder(c.Response()).Encode(payload)
+	}
+
+	return nil
+}

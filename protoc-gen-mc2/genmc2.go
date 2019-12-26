@@ -219,12 +219,31 @@ func (g *GenMC2) generatePosts() {
 			if len(service.Method) == 0 {
 				continue
 			}
+			streamRouteAdded := false
 			for _, method := range service.Method {
 				if GetMc2Api(method) == "" {
 					continue
 				}
 				g.P("group.POST(\"/ctrl/", method.Name,
 					"\", ", method.Name, ")")
+				if gensupport.ServerStreaming(method) && !streamRouteAdded {
+					api := GetMc2Api(method)
+					if api == "" {
+						return
+					}
+					apiVals := strings.Split(api, ",")
+					if len(apiVals) != 3 {
+						g.Fail("invalid mc2_api string, expected ResourceType,Action,OrgNameField")
+					}
+					if apiVals[1] == "ActionView" && strings.HasPrefix(*method.Name, "Show") {
+						continue
+					}
+					streamRouteAdded = true
+					in := gensupport.GetDesc(g.Generator, method.GetInputType())
+					streamName := "Stream" + *in.DescriptorProto.Name
+					g.P("group.Match([]string{method}, \"/ctrl/", streamName,
+						"\", ", streamName, ")")
+				}
 			}
 		}
 	}
@@ -252,6 +271,10 @@ func (g *GenMC2) generateMethod(service string, method *descriptor.MethodDescrip
 	}
 	in := gensupport.GetDesc(g.Generator, method.GetInputType())
 	out := gensupport.GetDesc(g.Generator, method.GetOutputType())
+	keyStr, err := g.support.GetMessageKeyType(g.Generator, in)
+	if err != nil {
+		keyTypeStr = "key type not found"
+	}
 	g.support.FQTypeName(g.Generator, in)
 	inname := *in.DescriptorProto.Name
 	_, found := g.regionStructs[inname]
@@ -259,6 +282,8 @@ func (g *GenMC2) generateMethod(service string, method *descriptor.MethodDescrip
 		Service:              service,
 		MethodName:           *method.Name,
 		InName:               inname,
+		InNameJson:           strings.ToLower(inname),
+		KeyName:              keyStr,
 		OutName:              *out.DescriptorProto.Name,
 		GenStruct:            !found,
 		Resource:             apiVals[0],
@@ -286,6 +311,9 @@ func (g *GenMC2) generateMethod(service string, method *descriptor.MethodDescrip
 	}
 	if !args.Outstream {
 		args.ReturnErrArg = "nil, "
+	}
+	if args.Outstream && !args.Show && !found {
+		args.GenStream = true
 	}
 	if !args.Show {
 		args.TargetCloudlet = GetMc2TargetCloudlet(in.DescriptorProto)
@@ -339,7 +367,7 @@ func (g *GenMC2) generateMethod(service string, method *descriptor.MethodDescrip
 			g.importJson = true
 		}
 	}
-	err := tmpl.Execute(g, &args)
+	err = tmpl.Execute(g, &args)
 	if err != nil {
 		g.Fail("Failed to execute template %s: ", tmpl.Name(), err.Error())
 	}
@@ -352,8 +380,12 @@ type tmplArgs struct {
 	Service              string
 	MethodName           string
 	InName               string
+	InNameJson           string
+	KeyName              string
+	KeyTypeName          string
 	OutName              string
 	GenStruct            bool
+	GenStream            bool
 	Resource             string
 	Action               string
 	OrgField             string
@@ -385,6 +417,43 @@ type Region{{.InName}} struct {
 `
 
 var tmpl = `
+{{- if .GenStream}}
+var stream{{.InName}} map[{{.KeyName}}]*Streamer
+
+func Stream{{.InName}}(c echo.Context) error {
+	ctx := GetContext(c)
+	rc := &RegionContext{}
+	claims, err := getClaims(c)
+	if err != nil {
+		return err
+	}
+	rc.username = claims.Username
+
+	in := ormapi.Region{{.InName}}{}
+	success, err := ReadConn(c, &in)
+	if !success {
+		return err
+	}
+	rc.region = in.Region
+{{- if .OrgValid}}
+	span := log.SpanFromContext(ctx)
+	span.SetTag("org", in.{{.InName}}.{{.OrgField}})
+{{- end}}
+
+	payload := ormapi.StreamPayload{}
+        if streamer, ok := stream{{.InName}}[in.{{.InName}}.Key]; ok {
+		streamCh := streamer.Subscribe()
+		for streamMsg := range streamCh {
+			payload.Data = &edgeproto.Result{Message: streamMsg.(string)}
+			WriteStream(c, &payload)
+		}
+        } else {
+		WriteError(c, fmt.Errorf("Key doesn't exist"))
+	}
+        return nil
+}
+{{- end}}
+
 func {{.MethodName}}(c echo.Context) error {
 	ctx := GetContext(c)
 	rc := &RegionContext{}
@@ -404,9 +473,19 @@ func {{.MethodName}}(c echo.Context) error {
 	span.SetTag("org", in.{{.InName}}.{{.OrgField}})
 {{- end}}
 {{- if .Outstream}}
-	// stream func may return "forbidden", so don't write
-	// header until we know it's ok
-	wroteHeader := false
+{{- if and (not .Show) .Outstream}}
+
+	if _, ok := stream{{.InName}}[in.{{.InName}}.Key]; ok {
+                return WriteError(c, fmt.Errorf("{{.InName}} is busy"))
+	}
+	if stream{{.InName}} == nil {
+		stream{{.InName}} = make(map[{{.KeyName}}]*Streamer)
+	}
+	streamer := NewStreamer()
+	go streamer.Start()
+	stream{{.InName}}[in.{{.InName}}.Key] = streamer
+{{- end}}
+
 	err = {{.MethodName}}Stream(ctx, rc, &in.{{.InName}}, func(res *edgeproto.{{.OutName}}) {
 		if !wroteHeader {
 			c.Response().Header().Set(echo.HeaderContentType, echo.MIMEApplicationJSON)
@@ -415,8 +494,10 @@ func {{.MethodName}}(c echo.Context) error {
 		}
 		payload := ormapi.StreamPayload{}
 		payload.Data = res
-		json.NewEncoder(c.Response()).Encode(payload)
-		c.Response().Flush()
+{{- if and (not .Show) .Outstream}}
+		streamer.Publish(res.Message)
+{{- end}}
+		WriteStream(c, &payload)
 	})
 	if err != nil {
 		if st, ok := status.FromError(err); ok {
@@ -431,6 +512,13 @@ func {{.MethodName}}(c echo.Context) error {
 		payload := ormapi.StreamPayload{Result: &res}
 		json.NewEncoder(c.Response()).Encode(payload)
 	}
+{{- if and (not .Show) .Outstream}}
+	if _, ok := stream{{.InName}}[in.{{.InName}}.Key]; ok {
+		delete(stream{{.InName}}, in.{{.InName}}.Key)
+	}
+	streamer.Stop()
+
+{{- end}}
 	return nil
 {{- else}}
 	resp, err := {{.MethodName}}Obj(ctx, rc, &in.{{.InName}})

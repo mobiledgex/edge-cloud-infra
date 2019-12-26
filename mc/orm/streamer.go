@@ -33,6 +33,7 @@ func (b *Streamer) Start() {
 			return
 		case msgCh := <-b.subscribeCh:
 			subs[msgCh] = struct{}{}
+			// Send already streamed msgs to new subscriber
 			for _, msg := range b.buffer {
 				select {
 				case msgCh <- msg:

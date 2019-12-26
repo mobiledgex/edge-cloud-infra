@@ -25,6 +25,39 @@ var _ = math.Inf
 
 // Auto-generated code: DO NOT EDIT
 
+var streamAppInst map[edgeproto.AppInstKey]*Streamer
+
+func StreamAppInst(c echo.Context) error {
+	ctx := GetContext(c)
+	rc := &RegionContext{}
+	claims, err := getClaims(c)
+	if err != nil {
+		return err
+	}
+	rc.username = claims.Username
+
+	in := ormapi.RegionAppInst{}
+	success, err := ReadConn(c, &in)
+	if !success {
+		return err
+	}
+	rc.region = in.Region
+	span := log.SpanFromContext(ctx)
+	span.SetTag("org", in.AppInst.Key.AppKey.DeveloperKey.Name)
+
+	payload := ormapi.StreamPayload{}
+	if streamer, ok := streamAppInst[in.AppInst.Key]; ok {
+		streamCh := streamer.Subscribe()
+		for streamMsg := range streamCh {
+			payload.Data = &edgeproto.Result{Message: streamMsg.(string)}
+			WriteStream(c, &payload)
+		}
+	} else {
+		WriteError(c, fmt.Errorf("Key doesn't exist"))
+	}
+	return nil
+}
+
 func CreateAppInst(c echo.Context) error {
 	ctx := GetContext(c)
 	rc := &RegionContext{}
@@ -43,14 +76,29 @@ func CreateAppInst(c echo.Context) error {
 	span := log.SpanFromContext(ctx)
 	span.SetTag("org", in.AppInst.Key.AppKey.DeveloperKey.Name)
 
+	if _, ok := streamAppInst[in.AppInst.Key]; ok {
+		return WriteError(c, fmt.Errorf("AppInst is busy"))
+	}
+	if streamAppInst == nil {
+		streamAppInst = make(map[edgeproto.AppInstKey]*Streamer)
+	}
+	streamer := NewStreamer()
+	go streamer.Start()
+	streamAppInst[in.AppInst.Key] = streamer
+
 	err = CreateAppInstStream(ctx, rc, &in.AppInst, func(res *edgeproto.Result) {
 		payload := ormapi.StreamPayload{}
 		payload.Data = res
+		streamer.Publish(res.Message)
 		WriteStream(c, &payload)
 	})
 	if err != nil {
 		WriteError(c, err)
 	}
+	if _, ok := streamAppInst[in.AppInst.Key]; ok {
+		delete(streamAppInst, in.AppInst.Key)
+	}
+	streamer.Stop()
 	return nil
 }
 
@@ -117,14 +165,29 @@ func DeleteAppInst(c echo.Context) error {
 	span := log.SpanFromContext(ctx)
 	span.SetTag("org", in.AppInst.Key.AppKey.DeveloperKey.Name)
 
+	if _, ok := streamAppInst[in.AppInst.Key]; ok {
+		return WriteError(c, fmt.Errorf("AppInst is busy"))
+	}
+	if streamAppInst == nil {
+		streamAppInst = make(map[edgeproto.AppInstKey]*Streamer)
+	}
+	streamer := NewStreamer()
+	go streamer.Start()
+	streamAppInst[in.AppInst.Key] = streamer
+
 	err = DeleteAppInstStream(ctx, rc, &in.AppInst, func(res *edgeproto.Result) {
 		payload := ormapi.StreamPayload{}
 		payload.Data = res
+		streamer.Publish(res.Message)
 		WriteStream(c, &payload)
 	})
 	if err != nil {
 		WriteError(c, err)
 	}
+	if _, ok := streamAppInst[in.AppInst.Key]; ok {
+		delete(streamAppInst, in.AppInst.Key)
+	}
+	streamer.Stop()
 	return nil
 }
 
@@ -189,14 +252,29 @@ func RefreshAppInst(c echo.Context) error {
 	span := log.SpanFromContext(ctx)
 	span.SetTag("org", in.AppInst.Key.AppKey.DeveloperKey.Name)
 
+	if _, ok := streamAppInst[in.AppInst.Key]; ok {
+		return WriteError(c, fmt.Errorf("AppInst is busy"))
+	}
+	if streamAppInst == nil {
+		streamAppInst = make(map[edgeproto.AppInstKey]*Streamer)
+	}
+	streamer := NewStreamer()
+	go streamer.Start()
+	streamAppInst[in.AppInst.Key] = streamer
+
 	err = RefreshAppInstStream(ctx, rc, &in.AppInst, func(res *edgeproto.Result) {
 		payload := ormapi.StreamPayload{}
 		payload.Data = res
+		streamer.Publish(res.Message)
 		WriteStream(c, &payload)
 	})
 	if err != nil {
 		WriteError(c, err)
 	}
+	if _, ok := streamAppInst[in.AppInst.Key]; ok {
+		delete(streamAppInst, in.AppInst.Key)
+	}
+	streamer.Stop()
 	return nil
 }
 
@@ -261,14 +339,29 @@ func UpdateAppInst(c echo.Context) error {
 	span := log.SpanFromContext(ctx)
 	span.SetTag("org", in.AppInst.Key.AppKey.DeveloperKey.Name)
 
+	if _, ok := streamAppInst[in.AppInst.Key]; ok {
+		return WriteError(c, fmt.Errorf("AppInst is busy"))
+	}
+	if streamAppInst == nil {
+		streamAppInst = make(map[edgeproto.AppInstKey]*Streamer)
+	}
+	streamer := NewStreamer()
+	go streamer.Start()
+	streamAppInst[in.AppInst.Key] = streamer
+
 	err = UpdateAppInstStream(ctx, rc, &in.AppInst, func(res *edgeproto.Result) {
 		payload := ormapi.StreamPayload{}
 		payload.Data = res
+		streamer.Publish(res.Message)
 		WriteStream(c, &payload)
 	})
 	if err != nil {
 		WriteError(c, err)
 	}
+	if _, ok := streamAppInst[in.AppInst.Key]; ok {
+		delete(streamAppInst, in.AppInst.Key)
+	}
+	streamer.Stop()
 	return nil
 }
 

@@ -23,6 +23,39 @@ var _ = math.Inf
 
 // Auto-generated code: DO NOT EDIT
 
+var streamClusterInst map[edgeproto.ClusterInstKey]*Streamer
+
+func StreamClusterInst(c echo.Context) error {
+	ctx := GetContext(c)
+	rc := &RegionContext{}
+	claims, err := getClaims(c)
+	if err != nil {
+		return err
+	}
+	rc.username = claims.Username
+
+	in := ormapi.RegionClusterInst{}
+	success, err := ReadConn(c, &in)
+	if !success {
+		return err
+	}
+	rc.region = in.Region
+	span := log.SpanFromContext(ctx)
+	span.SetTag("org", in.ClusterInst.Key.Developer)
+
+	payload := ormapi.StreamPayload{}
+	if streamer, ok := streamClusterInst[in.ClusterInst.Key]; ok {
+		streamCh := streamer.Subscribe()
+		for streamMsg := range streamCh {
+			payload.Data = &edgeproto.Result{Message: streamMsg.(string)}
+			WriteStream(c, &payload)
+		}
+	} else {
+		WriteError(c, fmt.Errorf("Key doesn't exist"))
+	}
+	return nil
+}
+
 func CreateClusterInst(c echo.Context) error {
 	ctx := GetContext(c)
 	rc := &RegionContext{}
@@ -41,14 +74,29 @@ func CreateClusterInst(c echo.Context) error {
 	span := log.SpanFromContext(ctx)
 	span.SetTag("org", in.ClusterInst.Key.Developer)
 
+	if _, ok := streamClusterInst[in.ClusterInst.Key]; ok {
+		return WriteError(c, fmt.Errorf("ClusterInst is busy"))
+	}
+	if streamClusterInst == nil {
+		streamClusterInst = make(map[edgeproto.ClusterInstKey]*Streamer)
+	}
+	streamer := NewStreamer()
+	go streamer.Start()
+	streamClusterInst[in.ClusterInst.Key] = streamer
+
 	err = CreateClusterInstStream(ctx, rc, &in.ClusterInst, func(res *edgeproto.Result) {
 		payload := ormapi.StreamPayload{}
 		payload.Data = res
+		streamer.Publish(res.Message)
 		WriteStream(c, &payload)
 	})
 	if err != nil {
 		WriteError(c, err)
 	}
+	if _, ok := streamClusterInst[in.ClusterInst.Key]; ok {
+		delete(streamClusterInst, in.ClusterInst.Key)
+	}
+	streamer.Stop()
 	return nil
 }
 
@@ -115,14 +163,29 @@ func DeleteClusterInst(c echo.Context) error {
 	span := log.SpanFromContext(ctx)
 	span.SetTag("org", in.ClusterInst.Key.Developer)
 
+	if _, ok := streamClusterInst[in.ClusterInst.Key]; ok {
+		return WriteError(c, fmt.Errorf("ClusterInst is busy"))
+	}
+	if streamClusterInst == nil {
+		streamClusterInst = make(map[edgeproto.ClusterInstKey]*Streamer)
+	}
+	streamer := NewStreamer()
+	go streamer.Start()
+	streamClusterInst[in.ClusterInst.Key] = streamer
+
 	err = DeleteClusterInstStream(ctx, rc, &in.ClusterInst, func(res *edgeproto.Result) {
 		payload := ormapi.StreamPayload{}
 		payload.Data = res
+		streamer.Publish(res.Message)
 		WriteStream(c, &payload)
 	})
 	if err != nil {
 		WriteError(c, err)
 	}
+	if _, ok := streamClusterInst[in.ClusterInst.Key]; ok {
+		delete(streamClusterInst, in.ClusterInst.Key)
+	}
+	streamer.Stop()
 	return nil
 }
 
@@ -187,14 +250,29 @@ func UpdateClusterInst(c echo.Context) error {
 	span := log.SpanFromContext(ctx)
 	span.SetTag("org", in.ClusterInst.Key.Developer)
 
+	if _, ok := streamClusterInst[in.ClusterInst.Key]; ok {
+		return WriteError(c, fmt.Errorf("ClusterInst is busy"))
+	}
+	if streamClusterInst == nil {
+		streamClusterInst = make(map[edgeproto.ClusterInstKey]*Streamer)
+	}
+	streamer := NewStreamer()
+	go streamer.Start()
+	streamClusterInst[in.ClusterInst.Key] = streamer
+
 	err = UpdateClusterInstStream(ctx, rc, &in.ClusterInst, func(res *edgeproto.Result) {
 		payload := ormapi.StreamPayload{}
 		payload.Data = res
+		streamer.Publish(res.Message)
 		WriteStream(c, &payload)
 	})
 	if err != nil {
 		WriteError(c, err)
 	}
+	if _, ok := streamClusterInst[in.ClusterInst.Key]; ok {
+		delete(streamClusterInst, in.ClusterInst.Key)
+	}
+	streamer.Stop()
 	return nil
 }
 

@@ -21,11 +21,11 @@ var _ = math.Inf
 // Auto-generated code: DO NOT EDIT
 
 type RegionAutoProvPolicy struct {
-	Region         string
-	AutoProvPolicy edgeproto.AutoProvPolicy
+	Region         string                   `json:"region"`
+	AutoProvPolicy edgeproto.AutoProvPolicy `json:"autoprovpolicy"`
 }
 
 type RegionAutoProvPolicyCloudlet struct {
-	Region                 string
-	AutoProvPolicyCloudlet edgeproto.AutoProvPolicyCloudlet
+	Region                 string                           `json:"region"`
+	AutoProvPolicyCloudlet edgeproto.AutoProvPolicyCloudlet `json:"autoprovpolicycloudlet"`
 }

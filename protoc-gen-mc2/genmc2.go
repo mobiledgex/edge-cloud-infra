@@ -272,7 +272,7 @@ func (g *GenMC2) generateMethod(service string, method *descriptor.MethodDescrip
 	out := gensupport.GetDesc(g.Generator, method.GetOutputType())
 	keyStr, err := g.support.GetMessageKeyType(g.Generator, in)
 	if err != nil {
-		keyTypeStr = "key type not found"
+		keyStr = "key type not found"
 	}
 	g.support.FQTypeName(g.Generator, in)
 	inname := *in.DescriptorProto.Name

@@ -26,6 +26,39 @@ var _ = math.Inf
 
 // Auto-generated code: DO NOT EDIT
 
+var streamCloudlet map[edgeproto.CloudletKey]*Streamer
+
+func StreamCloudlet(c echo.Context) error {
+	ctx := GetContext(c)
+	rc := &RegionContext{}
+	claims, err := getClaims(c)
+	if err != nil {
+		return err
+	}
+	rc.username = claims.Username
+
+	in := ormapi.RegionCloudlet{}
+	success, err := ReadConn(c, &in)
+	if !success {
+		return err
+	}
+	rc.region = in.Region
+	span := log.SpanFromContext(ctx)
+	span.SetTag("org", in.Cloudlet.Key.OperatorKey.Name)
+
+	payload := ormapi.StreamPayload{}
+	if streamer, ok := streamCloudlet[in.Cloudlet.Key]; ok {
+		streamCh := streamer.Subscribe()
+		for streamMsg := range streamCh {
+			payload.Data = &edgeproto.Result{Message: streamMsg.(string)}
+			WriteStream(c, &payload)
+		}
+	} else {
+		WriteError(c, fmt.Errorf("Key doesn't exist"))
+	}
+	return nil
+}
+
 func CreateCloudlet(c echo.Context) error {
 	ctx := GetContext(c)
 	rc := &RegionContext{}
@@ -44,14 +77,29 @@ func CreateCloudlet(c echo.Context) error {
 	span := log.SpanFromContext(ctx)
 	span.SetTag("org", in.Cloudlet.Key.OperatorKey.Name)
 
+	if _, ok := streamCloudlet[in.Cloudlet.Key]; ok {
+		return WriteError(c, fmt.Errorf("Cloudlet is busy"))
+	}
+	if streamCloudlet == nil {
+		streamCloudlet = make(map[edgeproto.CloudletKey]*Streamer)
+	}
+	streamer := NewStreamer()
+	go streamer.Start()
+	streamCloudlet[in.Cloudlet.Key] = streamer
+
 	err = CreateCloudletStream(ctx, rc, &in.Cloudlet, func(res *edgeproto.Result) {
 		payload := ormapi.StreamPayload{}
 		payload.Data = res
+		streamer.Publish(res.Message)
 		WriteStream(c, &payload)
 	})
 	if err != nil {
 		WriteError(c, err)
 	}
+	if _, ok := streamCloudlet[in.Cloudlet.Key]; ok {
+		delete(streamCloudlet, in.Cloudlet.Key)
+	}
+	streamer.Stop()
 	return nil
 }
 
@@ -116,14 +164,29 @@ func DeleteCloudlet(c echo.Context) error {
 	span := log.SpanFromContext(ctx)
 	span.SetTag("org", in.Cloudlet.Key.OperatorKey.Name)
 
+	if _, ok := streamCloudlet[in.Cloudlet.Key]; ok {
+		return WriteError(c, fmt.Errorf("Cloudlet is busy"))
+	}
+	if streamCloudlet == nil {
+		streamCloudlet = make(map[edgeproto.CloudletKey]*Streamer)
+	}
+	streamer := NewStreamer()
+	go streamer.Start()
+	streamCloudlet[in.Cloudlet.Key] = streamer
+
 	err = DeleteCloudletStream(ctx, rc, &in.Cloudlet, func(res *edgeproto.Result) {
 		payload := ormapi.StreamPayload{}
 		payload.Data = res
+		streamer.Publish(res.Message)
 		WriteStream(c, &payload)
 	})
 	if err != nil {
 		WriteError(c, err)
 	}
+	if _, ok := streamCloudlet[in.Cloudlet.Key]; ok {
+		delete(streamCloudlet, in.Cloudlet.Key)
+	}
+	streamer.Stop()
 	return nil
 }
 
@@ -188,14 +251,29 @@ func UpdateCloudlet(c echo.Context) error {
 	span := log.SpanFromContext(ctx)
 	span.SetTag("org", in.Cloudlet.Key.OperatorKey.Name)
 
+	if _, ok := streamCloudlet[in.Cloudlet.Key]; ok {
+		return WriteError(c, fmt.Errorf("Cloudlet is busy"))
+	}
+	if streamCloudlet == nil {
+		streamCloudlet = make(map[edgeproto.CloudletKey]*Streamer)
+	}
+	streamer := NewStreamer()
+	go streamer.Start()
+	streamCloudlet[in.Cloudlet.Key] = streamer
+
 	err = UpdateCloudletStream(ctx, rc, &in.Cloudlet, func(res *edgeproto.Result) {
 		payload := ormapi.StreamPayload{}
 		payload.Data = res
+		streamer.Publish(res.Message)
 		WriteStream(c, &payload)
 	})
 	if err != nil {
 		WriteError(c, err)
 	}
+	if _, ok := streamCloudlet[in.Cloudlet.Key]; ok {
+		delete(streamCloudlet, in.Cloudlet.Key)
+	}
+	streamer.Stop()
 	return nil
 }
 

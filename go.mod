@@ -37,6 +37,7 @@ require (
 	github.com/kballard/go-shellquote v0.0.0-20180428030007-95032a82bc51 // indirect
 	github.com/konsorten/go-windows-terminal-sequences v1.0.2 // indirect
 	github.com/labstack/echo v3.3.10+incompatible
+	github.com/labstack/gommon v0.3.0 // indirect
 	github.com/lib/pq v1.1.1
 	github.com/miekg/dns v1.1.15
 	github.com/mitchellh/mapstructure v1.1.2
@@ -59,6 +60,7 @@ require (
 	github.com/spf13/cobra v0.0.4
 	github.com/stretchr/testify v1.4.0
 	github.com/tmc/scp v0.0.0-20170824174625-f7b48647feef
+	github.com/valyala/fasttemplate v1.1.0 // indirect
 	github.com/xanzy/go-gitlab v0.16.0
 	golang.org/x/crypto v0.0.0-20190426145343-a29dc8fdc734
 	golang.org/x/net v0.0.0-20190628185345-da137c7871d7
@@ -255,7 +257,7 @@ replace github.com/spf13/cobra => github.com/spf13/cobra v0.0.4
 
 replace github.com/spf13/pflag => github.com/spf13/pflag v1.0.3
 
-replace github.com/stretchr/testify => github.com/stretchr/testify v1.4.0
+replace github.com/stretchr/testify => github.com/stretchr/testify v1.3.0
 
 replace github.com/tmc/grpc-websocket-proxy => github.com/tmc/grpc-websocket-proxy v0.0.0-20190109142713-0ad062ec5ee5
 
@@ -334,7 +336,3 @@ replace go.uber.org/atomic => go.uber.org/atomic v1.4.0
 replace gopkg.in/check.v1 => gopkg.in/check.v1 v1.0.0-20180628173108-788fd7840127
 
 replace github.com/xtaci/smux => github.com/xtaci/smux v1.3.6
-
-replace github.com/labstack/echo => github.com/labstack/echo v3.3.10+incompatible
-
-replace github.com/labstack/gommon => github.com/labstack/gommon v0.3.0

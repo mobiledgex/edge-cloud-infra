@@ -1,7 +1,6 @@
 package main
 
 import (
-	"sort"
 	"strings"
 	"text/template"
 
@@ -206,7 +205,7 @@ func genFile(file *generator.FileDescriptor) bool {
 }
 
 func (g *GenMC2) generatePosts() {
-	g.P("func addControllerApis(group *echo.Group) {")
+	g.P("func addControllerApis(method string, group *echo.Group) {")
 
 	for _, file := range g.Generator.Request.ProtoFile {
 		if !g.support.GenFile(*file.Name) {
@@ -224,7 +223,7 @@ func (g *GenMC2) generatePosts() {
 				if GetMc2Api(method) == "" {
 					continue
 				}
-				g.P("group.POST(\"/ctrl/", method.Name,
+				g.P("group.Match([]string{method}, \"/ctrl/", method.Name,
 					"\", ", method.Name, ")")
 				if gensupport.ServerStreaming(method) && !streamRouteAdded {
 					api := GetMc2Api(method)
@@ -355,16 +354,16 @@ func (g *GenMC2) generateMethod(service string, method *descriptor.MethodDescrip
 	} else {
 		tmpl = g.tmpl
 		g.importEcho = true
-		g.importHttp = true
 		g.importContext = true
 		g.importOrmapi = true
-		g.importGrpcStatus = true
 		if args.OrgValid {
 			g.importLog = true
 		}
 		if args.Outstream {
 			g.importIO = true
-			g.importJson = true
+		} else {
+			g.importHttp = true
+			g.importGrpcStatus = true
 		}
 	}
 	err = tmpl.Execute(g, &args)
@@ -382,7 +381,6 @@ type tmplArgs struct {
 	InName               string
 	InNameJson           string
 	KeyName              string
-	KeyTypeName          string
 	OutName              string
 	GenStruct            bool
 	GenStream            bool
@@ -409,8 +407,8 @@ type tmplArgs struct {
 var tmplApi = `
 {{- if .GenStruct}}
 type Region{{.InName}} struct {
-	Region string
-	{{.InName}} edgeproto.{{.InName}}
+	Region string ` + "`json:\"region\"`" + `
+	{{.InName}} edgeproto.{{.InName}} ` + "`json:\"{{.InNameJson}}\"`" + `
 }
 
 {{- end}}
@@ -464,9 +462,16 @@ func {{.MethodName}}(c echo.Context) error {
 	rc.username = claims.Username
 
 	in := ormapi.Region{{.InName}}{}
+{{- if .Outstream}}
+	success, err := ReadConn(c, &in)
+	if !success {
+		return err
+	}
+{{- else}}
 	if err := c.Bind(&in); err != nil {
 		return c.JSON(http.StatusBadRequest, Msg("Invalid POST data"))
 	}
+{{- end}}
 	rc.region = in.Region
 {{- if .OrgValid}}
 	span := log.SpanFromContext(ctx)
@@ -487,11 +492,6 @@ func {{.MethodName}}(c echo.Context) error {
 {{- end}}
 
 	err = {{.MethodName}}Stream(ctx, rc, &in.{{.InName}}, func(res *edgeproto.{{.OutName}}) {
-		if !wroteHeader {
-			c.Response().Header().Set(echo.HeaderContentType, echo.MIMEApplicationJSON)
-			c.Response().WriteHeader(http.StatusOK)
-			wroteHeader = true
-		}
 		payload := ormapi.StreamPayload{}
 		payload.Data = res
 {{- if and (not .Show) .Outstream}}
@@ -500,17 +500,7 @@ func {{.MethodName}}(c echo.Context) error {
 		WriteStream(c, &payload)
 	})
 	if err != nil {
-		if st, ok := status.FromError(err); ok {
-			err = fmt.Errorf("%s", st.Message())
-		}
-		if !wroteHeader {
-			return setReply(c, err, nil)
-		}
-		res := ormapi.Result{}
-		res.Message = err.Error()
-		res.Code = http.StatusBadRequest
-		payload := ormapi.StreamPayload{Result: &res}
-		json.NewEncoder(c.Response()).Encode(payload)
+		WriteError(c, err)
 	}
 {{- if and (not .Show) .Outstream}}
 	if _, ok := stream{{.InName}}[in.{{.InName}}.Key]; ok {
@@ -809,91 +799,99 @@ func (g *GenMC2) generateMessageTest(desc *generator.Descriptor) {
 }
 
 func (g *GenMC2) generateRunApi(file *descriptor.FileDescriptorProto, service *descriptor.ServiceDescriptorProto) {
-	allowedActions := []string{
-		"Create",
-		"Update",
-		"Delete",
+	// group methods by input type
+	groups := gensupport.GetMethodGroups(g.Generator, service, nil)
+	for inType, group := range groups {
+		g.generateRunGroupApi(file, service, inType, group)
 	}
-	out := make(map[string]map[string]string)
-	for _, method := range service.Method {
-		found := false
-		action := ""
-		for _, act := range allowedActions {
-			if strings.HasPrefix(*method.Name, act) {
-				found = true
-				action = act
-				break
+}
+
+func (g *GenMC2) generateRunGroupApi(file *descriptor.FileDescriptorProto, service *descriptor.ServiceDescriptorProto, inType string, group *gensupport.MethodGroup) {
+	if !group.HasMc2Api {
+		return
+	}
+	apiName := *service.Name + group.Suffix
+
+	/*
+		allowedActions := []string{
+			"Create",
+			"Update",
+			"Delete",
+		}
+		out := make(map[string]map[string]string)
+		for _, method := range service.Method {
+			found := false
+			action := ""
+			for _, act := range allowedActions {
+				if strings.HasPrefix(*method.Name, act) {
+					found = true
+					action = act
+					break
+				}
+			}
+			if !found {
+				continue
+			}
+			cmd := strings.TrimPrefix(*method.Name, action)
+			if _, ok := out[cmd]; ok {
+				out[cmd][action] = *method.Name
+			} else {
+				out[cmd] = map[string]string{
+					action: *method.Name,
+				}
 			}
 		}
-		if !found {
+	*/
+	readMap := group.HasUpdate
+
+	objStr := strings.ToLower(string(inType[0])) + string(inType[1:len(inType)])
+	g.P()
+	g.P("func RunMc", apiName, "(mcClient ormclient.Api, uri, token, region string, data *[]edgeproto.", inType, ", dataIn interface{}, rc *bool, mode string) {")
+	if readMap {
+		g.importOS = true
+		g.P("var dataInList []interface{}")
+		g.P("var ok bool")
+		g.P("if dataIn != nil {")
+		g.P("dataInList, ok = dataIn.([]interface{})")
+		g.P("if !ok {")
+		g.P("fmt.Fprintf(os.Stderr, \"invalid data in ", objStr, ": %v\\n\", dataIn)")
+		g.P("os.Exit(1)")
+		g.P("}")
+		g.P("}")
+	}
+	if readMap {
+		g.P("for ii, ", objStr, " := range *data {")
+		g.P("dataMap, ok := dataInList[ii].(map[string]interface{})")
+		g.P("if !ok {")
+		g.P("fmt.Fprintf(os.Stderr, \"invalid data in ", objStr, ": %v\\n\", dataInList[ii])")
+		g.P("os.Exit(1)")
+		g.P("}")
+	} else {
+		g.P("for _, ", objStr, " := range *data {")
+	}
+	g.P("in := &ormapi.Region", inType, "{")
+	g.P("Region: region,")
+	g.P(inType, ": ", objStr, ",")
+	g.P("}")
+
+	g.P("switch mode {")
+	for _, info := range group.MethodInfos {
+		if !info.Mc2Api {
 			continue
 		}
-		cmd := strings.TrimPrefix(*method.Name, action)
-		if _, ok := out[cmd]; ok {
-			out[cmd][action] = *method.Name
-		} else {
-			out[cmd] = map[string]string{
-				action: *method.Name,
-			}
+		g.P("case \"", info.Action, "\":")
+		if info.Action == "update" {
+			g.importCli = true
+			g.P("in.", inType, ".Fields = cli.GetSpecifiedFields(dataMap, &in.", inType, ", cli.YamlNamespace)")
 		}
+		g.P("_, st, err := mcClient.", info.Name, "(uri, token, in)")
+		g.P("checkMcErr(\"", info.Name, "\", st, err, rc)")
 	}
-	for k, v := range out {
-		readMap := false
-		if _, ok := v["Update"]; ok {
-			readMap = true
-		}
-		objStr := strings.ToLower(string(k[0])) + string(k[1:len(k)])
-		g.P()
-		g.P("func RunMc", k, "Api(mcClient ormclient.Api, uri, token, region string, data *[]edgeproto.", k, ", dataIn interface{}, rc *bool, mode string) {")
-		if readMap {
-			g.importOS = true
-			g.P("var dataInList []interface{}")
-			g.P("var ok bool")
-			g.P("if dataIn != nil {")
-			g.P("dataInList, ok = dataIn.([]interface{})")
-			g.P("if !ok {")
-			g.P("fmt.Fprintf(os.Stderr, \"invalid data in ", objStr, ": %v\\n\", dataIn)")
-			g.P("os.Exit(1)")
-			g.P("}")
-			g.P("}")
-		}
-		if readMap {
-			g.P("for ii, ", objStr, " := range *data {")
-			g.P("dataMap, ok := dataInList[ii].(map[string]interface{})")
-			g.P("if !ok {")
-			g.P("fmt.Fprintf(os.Stderr, \"invalid data in ", objStr, ": %v\\n\", dataInList[ii])")
-			g.P("os.Exit(1)")
-			g.P("}")
-		} else {
-			g.P("for _, ", objStr, " := range *data {")
-		}
-		g.P("in := &ormapi.Region", k, "{")
-		g.P("Region: region,")
-		g.P(k, ": ", objStr, ",")
-		g.P("}")
-
-		mapKeys := []string{}
-		for mapKey, _ := range v {
-			mapKeys = append(mapKeys, mapKey)
-		}
-		sort.Strings(mapKeys)
-		g.P("switch mode {")
-		for _, action := range mapKeys {
-			fName := v[action]
-			g.P("case \"", strings.ToLower(action), "\":")
-			if action == "Update" {
-				g.importCli = true
-				g.P("in.", k, ".Fields = cli.GetSpecifiedFields(dataMap, &in.", k, ", cli.YamlNamespace)")
-			}
-			g.P("_, st, err := mcClient.", fName, "(uri, token, in)")
-			g.P("checkMcErr(\"", fName, "\", st, err, rc)")
-		}
-		g.P("default:")
-		g.P("return")
-		g.P("}")
-		g.P("}")
-		g.P("}")
-	}
+	g.P("default:")
+	g.P("return")
+	g.P("}")
+	g.P("}")
+	g.P("}")
 }
 
 type msgArgs struct {

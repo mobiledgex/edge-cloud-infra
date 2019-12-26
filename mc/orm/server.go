@@ -2,11 +2,14 @@ package orm
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
+	"io"
 	"net/http"
 	"os"
 	"time"
 
+	"github.com/gorilla/websocket"
 	"github.com/jinzhu/gorm"
 	"github.com/labstack/echo"
 	intprocess "github.com/mobiledgex/edge-cloud-infra/e2e-tests/int-process"
@@ -19,6 +22,7 @@ import (
 	"github.com/mobiledgex/edge-cloud/version"
 	"github.com/nmcclain/ldap"
 	gitlab "github.com/xanzy/go-gitlab"
+	"google.golang.org/grpc/status"
 )
 
 // Server struct is just to track sql/db so we can stop them later.
@@ -236,12 +240,25 @@ func RunServer(config *ServerConfig) (*Server, error) {
 	auth.POST("/orgcloudletpool/delete", DeleteOrgCloudletPool)
 	auth.POST("/orgcloudletpool/show", ShowOrgCloudletPool)
 	auth.POST("/orgcloudlet/show", ShowOrgCloudlet)
-	addControllerApis(auth)
+
+	// Support multiple connection types: HTTP(s), Websockets
+	addControllerApis("POST", auth)
 	// Metrics api route use auth to serve a query to influxDB
 	auth.POST("/metrics/app", GetMetricsCommon)
 	auth.POST("/metrics/cluster", GetMetricsCommon)
 	auth.POST("/metrics/cloudlet", GetMetricsCommon)
 	auth.POST("/metrics/client", GetMetricsCommon)
+
+	// Use GET method for websockets as thats the method used
+	// in setting up TCP connection by most of the clients
+	// Also, authorization is handled as part of websocketUpgrade
+	ws := e.Group("ws/"+root+"/auth", websocketUpgrade)
+	addControllerApis("GET", ws)
+	// Metrics api route use ws to serve a query to influxDB
+	ws.GET("/metrics/app", GetMetricsCommon)
+	ws.GET("/metrics/cluster", GetMetricsCommon)
+	ws.GET("/metrics/cloudlet", GetMetricsCommon)
+	ws.GET("/metrics/client", GetMetricsCommon)
 
 	go func() {
 		var err error
@@ -337,7 +354,6 @@ func ShowVersion(c echo.Context) error {
 func websocketUpgrade(next echo.HandlerFunc) echo.HandlerFunc {
 	return func(c echo.Context) error {
 		upgrader := websocket.Upgrader{}
-		upgrader.CheckOrigin = func(r *http.Request) bool { return true }
 		ws, err := upgrader.Upgrade(c.Response(), c.Request(), nil)
 		if err != nil {
 			return nil

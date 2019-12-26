@@ -27,7 +27,6 @@ type Sql struct {
 type Shepherd struct {
 	process.Common `yaml:",inline"`
 	NotifyAddrs    string
-	Interval       string
 	Platform       string
 	VaultAddr      string
 	PhysicalName   string
@@ -41,7 +40,10 @@ type AutoProv struct {
 	process.Common `yaml:",inline"`
 	NotifyAddrs    string
 	CtrlAddrs      string
+	VaultAddr      string
+	InfluxAddr     string
 	TLS            process.TLSCerts
+	ShortTimeouts  bool
 	cmd            *exec.Cmd
 }
 

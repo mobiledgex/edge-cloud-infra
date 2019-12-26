@@ -10,6 +10,7 @@ influxdb_volume_size=10Gi
 gitlab_vm_hostname=container-registry.mobiledgex.net
 gitlab_gcp_storage_bucket=gitlab-registry
 vault_vm_hostname=vault-main.mobiledgex.net
+vault_ha_domain=vault-main.mobiledgex.net
 vault_port=443
 vault_firewall_setup=no
 letsencrypt_env=production
@@ -27,4 +28,5 @@ mc.mobiledgex.net
 stun.mobiledgex.net
 
 [vault]
-vault-main.mobiledgex.net
+vault-main-a.mobiledgex.net
+vault-main-b.mobiledgex.net

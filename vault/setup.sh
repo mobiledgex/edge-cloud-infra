@@ -73,8 +73,27 @@ vault write auth/approle/role/rotator period="720h" policies="rotator"
 vault read auth/approle/role/rotator/role-id
 vault write -f auth/approle/role/rotator/secret-id
 
+# autoprov approle
+# Just need access to influx db credentials
+cat > /tmp/autoprov-pol.hcl <<EOF
+path "auth/approle/login" {
+  capabilities = [ "create", "read" ]
+}
+
+path "secret/data/+/accounts/influxdb" {
+  capabilities = [ "read" ]
+}
+EOF
+vault policy write autoprov /tmp/autoprov-pol.hcl
+rm /tmp/autoprov-pol.hcl
+vault write auth/approle/role/autoprov period="720h" policies="autoprov"
+# get autoprov app roleID and generate secretID
+vault read auth/approle/role/autoprov/role-id
+vault write -f auth/approle/role/autoprov/secret-id
+
+
 # mexenv approle
-# This is used by mexdind to access registry secrets only.
+# This is used by edgebox to access registry secrets only.
 # It does not have full access of crm role, so we can put it in
 # the local_dind.yml setup file. Once we make our demo
 # apps public, we can remove this app role.

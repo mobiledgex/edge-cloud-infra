@@ -10,6 +10,7 @@ import (
 
 	"github.com/mobiledgex/edge-cloud-infra/shepherd/shepherd_platform/shepherd_unittest"
 	"github.com/mobiledgex/edge-cloud/cloudcommon"
+	dme "github.com/mobiledgex/edge-cloud/d-match-engine/dme-proto"
 	"github.com/mobiledgex/edge-cloud/edgeproto"
 	"github.com/mobiledgex/edge-cloud/log"
 	"github.com/stretchr/testify/assert"
@@ -17,8 +18,15 @@ import (
 
 // Health check vars
 var (
-	testEnvoyHealthCheckGood = "backend11111::10.192.1.2:11111::health_flags::healthy"
-	testEnvoyHealthCheckBad  = "backend11111::10.192.1.2:11111::health_flags::/failed_active_hc"
+	testEnvoyHealthCheckGood       = `backend1234::10.192.1.2:1234::health_flags::healthy`
+	testEnvoyHealthCheckBad        = `backend1234::10.192.1.2:1234::health_flags::/failed_active_hc`
+	testEnvoy2PortsHealthCheckGood = `
+backend1234::10.192.1.2:1234::health_flags::healthy
+backend4321::10.192.1.2:4321::health_flags::healthy`
+	testEnvoy2PortsHealthCheck1Bad = `
+backend1234::10.192.1.2:1234::health_flags::healthy
+backend4321::10.192.1.2:4321::health_flags::/failed_active_hc`
+
 	// Current state
 	testEnvoyHealthCheckCurrent = testEnvoyHealthCheckGood
 
@@ -42,7 +50,8 @@ var (
 		Name: "App",
 	}
 	testApp = edgeproto.App{
-		Key: testAppKey,
+		Key:         testAppKey,
+		AccessPorts: "tcp:1234",
 	}
 	testAppInstKey = edgeproto.AppInstKey{
 		AppKey:         testAppKey,
@@ -52,6 +61,12 @@ var (
 		Key:         testAppInstKey,
 		State:       edgeproto.TrackedState_READY,
 		HealthCheck: edgeproto.HealthCheck_HEALTH_CHECK_OK,
+		MappedPorts: []dme.AppPort{
+			dme.AppPort{
+				Proto:      dme.LProto_L_PROTO_TCP,
+				PublicPort: 1234,
+			},
+		},
 	}
 )
 
@@ -109,7 +124,6 @@ func TestEnvoyStats(t *testing.T) {
 
 // Tests a healthy and reachable app
 func testHealthCheckOK(t *testing.T, ctx context.Context) {
-
 	scrapePoints := copyMapValues()
 	// Should only be a single point
 	assert.Equal(t, 1, len(scrapePoints))
@@ -121,13 +135,12 @@ func testHealthCheckOK(t *testing.T, ctx context.Context) {
 	// AlertCache Should not have the appInst as a key
 	alert := getAlertFromAppInst(&testAppInstKey)
 	assert.False(t, AlertCache.HasKey(alert.GetKey()))
-
 }
 
 // Test retry count and failure case
-func testHealthCheckFail(t *testing.T, ctx context.Context, healthCheck edgeproto.HealthCheck) {
+func testHealthCheckFail(t *testing.T, ctx context.Context, healthCheck edgeproto.HealthCheck, retires int) {
 	// run ShepherdHealthCheckRetries - 1 times
-	for i := 1; i < cloudcommon.ShepherdHealthCheckRetries; i++ {
+	for i := 1; i < retires; i++ {
 		scrapePoints := copyMapValues()
 		// Should only be a single point
 		assert.Equal(t, 1, len(scrapePoints))
@@ -183,23 +196,58 @@ func TestHealthChecks(t *testing.T) {
 
 	// RootLB health check failure
 	fakeEnvoyTestServer.Close()
-	testHealthCheckFail(t, ctx, edgeproto.HealthCheck_HEALTH_CHECK_FAIL_ROOTLB_OFFLINE)
+	testHealthCheckFail(t, ctx, edgeproto.HealthCheck_HEALTH_CHECK_FAIL_ROOTLB_OFFLINE, cloudcommon.ShepherdHealthCheckRetries)
 	// Emulate controller setting appInst health check state
 	testAppInst.HealthCheck = edgeproto.HealthCheck_HEALTH_CHECK_FAIL_ROOTLB_OFFLINE
 	AppInstCache.Update(ctx, &testAppInst, 0)
 	// restart server and check that we are passing health check
 	fakeEnvoyTestServer = startServer()
 	testHealthCheckOK(t, ctx)
+	// Emulate controller setting appInst health check state
+	testAppInst.HealthCheck = edgeproto.HealthCheck_HEALTH_CHECK_OK
+	AppInstCache.Update(ctx, &testAppInst, 0)
 
 	// Test envoy health check functionality now
 	testEnvoyHealthCheckCurrent = testEnvoyHealthCheckBad
-	testHealthCheckFail(t, ctx, edgeproto.HealthCheck_HEALTH_CHECK_FAIL_SERVER_FAIL)
+	testHealthCheckFail(t, ctx, edgeproto.HealthCheck_HEALTH_CHECK_FAIL_SERVER_FAIL, 1)
 	// Emulate controller setting appInst health check state
 	testAppInst.HealthCheck = edgeproto.HealthCheck_HEALTH_CHECK_FAIL_SERVER_FAIL
 	AppInstCache.Update(ctx, &testAppInst, 0)
 	// set the Envoy response sting to a good one and check that we are passing health check
 	testEnvoyHealthCheckCurrent = testEnvoyHealthCheckGood
 	testHealthCheckOK(t, ctx)
+	// Emulate controller setting appInst health check state
+	testAppInst.HealthCheck = edgeproto.HealthCheck_HEALTH_CHECK_OK
+	AppInstCache.Update(ctx, &testAppInst, 0)
+
+	// Test two ports in an app with a single one failing
+	// Delete and re-createe the appInst
+	testAppInst.State = edgeproto.TrackedState_DELETING
+	CollectProxyStats(ctx, &testAppInst)
+	AppInstCache.Delete(ctx, &testAppInst, 0)
+	testAppInst.MappedPorts = append(testAppInst.MappedPorts, dme.AppPort{
+		Proto:      dme.LProto_L_PROTO_TCP,
+		PublicPort: 4321,
+	})
+	testAppInst.State = edgeproto.TrackedState_READY
+	AppInstCache.Update(ctx, &testAppInst, 0)
+	// Add back into the scrapePoints
+	CollectProxyStats(ctx, &testAppInst)
+	testEnvoyHealthCheckCurrent = testEnvoy2PortsHealthCheckGood
+	testHealthCheckOK(t, ctx)
+	// set one port to fail and see that the whole app goes into health check fail state
+	testEnvoyHealthCheckCurrent = testEnvoy2PortsHealthCheck1Bad
+	testHealthCheckFail(t, ctx, edgeproto.HealthCheck_HEALTH_CHECK_FAIL_SERVER_FAIL, 1)
+	// Emulate controller setting appInst health check state
+	testAppInst.HealthCheck = edgeproto.HealthCheck_HEALTH_CHECK_FAIL_SERVER_FAIL
+	AppInstCache.Update(ctx, &testAppInst, 0)
+	// set the Envoy response sting to a good one and check that we are passing health check
+	testEnvoyHealthCheckCurrent = testEnvoy2PortsHealthCheckGood
+	testHealthCheckOK(t, ctx)
+	// Emulate controller setting appInst health check state
+	testAppInst.HealthCheck = edgeproto.HealthCheck_HEALTH_CHECK_OK
+	AppInstCache.Update(ctx, &testAppInst, 0)
+
 }
 
 func envoyHandler(w http.ResponseWriter, r *http.Request) {
@@ -207,7 +255,7 @@ func envoyHandler(w http.ResponseWriter, r *http.Request) {
 		w.Write([]byte(testEnvoyData))
 	}
 	// For health checking
-	if r.URL.String() == "/cluster" {
+	if r.URL.String() == "/clusters" {
 		w.Write([]byte(testEnvoyHealthCheckCurrent))
 	}
 }

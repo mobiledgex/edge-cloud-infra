@@ -354,7 +354,6 @@ func ShowVersion(c echo.Context) error {
 func websocketUpgrade(next echo.HandlerFunc) echo.HandlerFunc {
 	return func(c echo.Context) error {
 		upgrader := websocket.Upgrader{}
-		upgrader.CheckOrigin = func(r *http.Request) bool { return true }
 		ws, err := upgrader.Upgrade(c.Response(), c.Request(), nil)
 		if err != nil {
 			return nil

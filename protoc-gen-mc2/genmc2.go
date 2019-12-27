@@ -416,7 +416,7 @@ type Region{{.InName}} struct {
 
 var tmpl = `
 {{- if .GenStream}}
-var stream{{.InName}} map[{{.KeyName}}]*Streamer
+var stream{{.InName}} = &StreamObj{}
 
 func Stream{{.InName}}(c echo.Context) error {
 	ctx := GetContext(c)
@@ -438,15 +438,33 @@ func Stream{{.InName}}(c echo.Context) error {
 	span.SetTag("org", in.{{.InName}}.{{.OrgField}})
 {{- end}}
 
-	payload := ormapi.StreamPayload{}
-        if streamer, ok := stream{{.InName}}[in.{{.InName}}.Key]; ok {
+	streamer := stream{{.InName}}.Get(in.{{.InName}}.Key)
+	if streamer != nil {
+		payload := ormapi.StreamPayload{}
 		streamCh := streamer.Subscribe()
-		for streamMsg := range streamCh {
-			payload.Data = &edgeproto.Result{Message: streamMsg.(string)}
-			WriteStream(c, &payload)
-		}
+		closed := make(chan bool)
+		go func() {
+			for streamMsg := range streamCh {
+				switch out := streamMsg.(type) {
+				case string:
+					payload.Data = &edgeproto.Result{Message: out}
+					WriteStream(c, &payload)
+				case error:
+					WriteError(c, out)
+				default:
+					WriteError(c, fmt.Errorf("Unsupported message type received: %v", streamMsg))
+				}
+			}
+			CloseConn(c)
+			closed <- true
+		}()
+		// Listen for client closure, as a message is sent
+		// from client on closure
+		WaitForConnClose(c, closed)
+		streamer.Unsubscribe(streamCh)
         } else {
 		WriteError(c, fmt.Errorf("Key doesn't exist"))
+		CloseConn(c)
 	}
         return nil
 }
@@ -467,6 +485,7 @@ func {{.MethodName}}(c echo.Context) error {
 	if !success {
 		return err
 	}
+	defer CloseConn(c)
 {{- else}}
 	if err := c.Bind(&in); err != nil {
 		return c.JSON(http.StatusBadRequest, Msg("Invalid POST data"))
@@ -480,15 +499,12 @@ func {{.MethodName}}(c echo.Context) error {
 {{- if .Outstream}}
 {{- if and (not .Show) .Outstream}}
 
-	if _, ok := stream{{.InName}}[in.{{.InName}}.Key]; ok {
-                return WriteError(c, fmt.Errorf("{{.InName}} is busy"))
-	}
-	if stream{{.InName}} == nil {
-		stream{{.InName}} = make(map[{{.KeyName}}]*Streamer)
-	}
 	streamer := NewStreamer()
-	go streamer.Start()
-	stream{{.InName}}[in.{{.InName}}.Key] = streamer
+	defer streamer.Stop()
+	err = stream{{.InName}}.Add(in.{{.InName}}.Key, streamer)
+	if err != nil {
+		return WriteError(c, fmt.Errorf("{{.InName}} is %v", err))
+	}
 {{- end}}
 
 	err = {{.MethodName}}Stream(ctx, rc, &in.{{.InName}}, func(res *edgeproto.{{.OutName}}) {
@@ -500,13 +516,13 @@ func {{.MethodName}}(c echo.Context) error {
 		WriteStream(c, &payload)
 	})
 	if err != nil {
+{{- if and (not .Show) .Outstream}}
+		streamer.Publish(err)
+{{- end}}
 		WriteError(c, err)
 	}
 {{- if and (not .Show) .Outstream}}
-	if _, ok := stream{{.InName}}[in.{{.InName}}.Key]; ok {
-		delete(stream{{.InName}}, in.{{.InName}}.Key)
-	}
-	streamer.Stop()
+	stream{{.InName}}.Remove(in.{{.InName}}.Key)
 
 {{- end}}
 	return nil

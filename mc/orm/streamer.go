@@ -1,71 +1,106 @@
 package orm
 
 import (
+	"fmt"
 	"sync"
 )
 
 type Streamer struct {
-	buffer      []interface{}
-	stopCh      chan struct{}
-	publishCh   chan interface{}
-	subscribeCh chan chan interface{}
-	mux         sync.Mutex
+	buffer []interface{}
+	mux    sync.Mutex
+	subs   map[chan interface{}]struct{}
+}
+
+type Streams map[interface{}]*Streamer
+
+type StreamObj struct {
+	streamMap Streams
+	mux       sync.Mutex
+}
+
+func (sm *StreamObj) Get(in interface{}) *Streamer {
+	sm.mux.Lock()
+	defer sm.mux.Unlock()
+	streamer, found := sm.streamMap[in]
+	if found {
+		return streamer
+	}
+	return nil
+}
+
+func (sm *StreamObj) Add(in interface{}, streamer *Streamer) error {
+	sm.mux.Lock()
+	defer sm.mux.Unlock()
+	if sm.streamMap == nil {
+		sm.streamMap = Streams{in: streamer}
+	} else {
+		if _, ok := sm.streamMap[in]; ok {
+			return fmt.Errorf("busy")
+		}
+		sm.streamMap[in] = streamer
+	}
+	return nil
+}
+
+func (sm *StreamObj) Remove(in interface{}) {
+	sm.mux.Lock()
+	defer sm.mux.Unlock()
+	if _, ok := sm.streamMap[in]; ok {
+		delete(sm.streamMap, in)
+	}
 }
 
 func NewStreamer() *Streamer {
 	return &Streamer{
-		stopCh:      make(chan struct{}),
-		publishCh:   make(chan interface{}, 1),
-		subscribeCh: make(chan chan interface{}, 1),
+		subs: make(map[chan interface{}]struct{}),
 	}
 }
 
-func (b *Streamer) Start() {
-	subs := map[chan interface{}]struct{}{}
-	for {
-		b.mux.Lock()
-		select {
-		case <-b.stopCh:
-			for msgCh := range subs {
-				close(msgCh)
-			}
-			b.mux.Unlock()
-			return
-		case msgCh := <-b.subscribeCh:
-			subs[msgCh] = struct{}{}
-			// Send already streamed msgs to new subscriber
-			for _, msg := range b.buffer {
-				select {
-				case msgCh <- msg:
-				default:
-				}
-			}
-		case msg := <-b.publishCh:
-			// Buffer all the streamed messages till now,
-			// so that a newly joined subscriber can get
-			// complete list of messages
-			b.buffer = append(b.buffer, msg)
-			for msgCh := range subs {
-				select {
-				case msgCh <- msg:
-				default:
-				}
-			}
-		}
-		b.mux.Unlock()
+func (s *Streamer) Stop() {
+	s.mux.Lock()
+	defer s.mux.Unlock()
+	for msgCh := range s.subs {
+		close(msgCh)
+		delete(s.subs, msgCh)
 	}
 }
 
-func (b *Streamer) Stop() {
-	close(b.stopCh)
-}
-
-func (b *Streamer) Subscribe() chan interface{} {
+func (s *Streamer) Subscribe() chan interface{} {
 	msgCh := make(chan interface{}, 20)
-	b.subscribeCh <- msgCh
+
+	s.mux.Lock()
+	defer s.mux.Unlock()
+	s.subs[msgCh] = struct{}{}
+	// Send already streamed msgs to new subscriber
+	for _, msg := range s.buffer {
+		select {
+		case msgCh <- msg:
+		default:
+		}
+	}
 	return msgCh
 }
 
-func (b *Streamer) Publish(msg interface{}) {
-	b.publishCh <- msg
+func (s *Streamer) Unsubscribe(msgCh chan interface{}) {
+	s.mux.Lock()
+	defer s.mux.Unlock()
+	if _, ok := s.subs[msgCh]; ok {
+		delete(s.subs, msgCh)
+		close(msgCh)
+	}
+}
+
+func (s *Streamer) Publish(msg interface{}) {
+	// Buffer all the streamed messages till now,
+	// so that a newly joined subscriber can get
+	// complete list of messages
+	s.mux.Lock()
+	defer s.mux.Unlock()
+	s.buffer = append(s.buffer, msg)
+	for msgCh := range s.subs {
+		select {
+		case msgCh <- msg:
+		default:
+		}
+	}
 }

@@ -25,7 +25,7 @@ var _ = math.Inf
 
 // Auto-generated code: DO NOT EDIT
 
-var streamAppInst map[edgeproto.AppInstKey]*Streamer
+var streamAppInst = &StreamObj{}
 
 func StreamAppInst(c echo.Context) error {
 	ctx := GetContext(c)
@@ -45,15 +45,33 @@ func StreamAppInst(c echo.Context) error {
 	span := log.SpanFromContext(ctx)
 	span.SetTag("org", in.AppInst.Key.AppKey.DeveloperKey.Name)
 
-	payload := ormapi.StreamPayload{}
-	if streamer, ok := streamAppInst[in.AppInst.Key]; ok {
+	streamer := streamAppInst.Get(in.AppInst.Key)
+	if streamer != nil {
+		payload := ormapi.StreamPayload{}
 		streamCh := streamer.Subscribe()
-		for streamMsg := range streamCh {
-			payload.Data = &edgeproto.Result{Message: streamMsg.(string)}
-			WriteStream(c, &payload)
-		}
+		closed := make(chan bool)
+		go func() {
+			for streamMsg := range streamCh {
+				switch out := streamMsg.(type) {
+				case string:
+					payload.Data = &edgeproto.Result{Message: out}
+					WriteStream(c, &payload)
+				case error:
+					WriteError(c, out)
+				default:
+					WriteError(c, fmt.Errorf("Unsupported message type received: %v", streamMsg))
+				}
+			}
+			CloseConn(c)
+			closed <- true
+		}()
+		// Listen for client closure, as a message is sent
+		// from client on closure
+		WaitForConnClose(c, closed)
+		streamer.Unsubscribe(streamCh)
 	} else {
 		WriteError(c, fmt.Errorf("Key doesn't exist"))
+		CloseConn(c)
 	}
 	return nil
 }
@@ -72,19 +90,17 @@ func CreateAppInst(c echo.Context) error {
 	if !success {
 		return err
 	}
+	defer CloseConn(c)
 	rc.region = in.Region
 	span := log.SpanFromContext(ctx)
 	span.SetTag("org", in.AppInst.Key.AppKey.DeveloperKey.Name)
 
-	if _, ok := streamAppInst[in.AppInst.Key]; ok {
-		return WriteError(c, fmt.Errorf("AppInst is busy"))
-	}
-	if streamAppInst == nil {
-		streamAppInst = make(map[edgeproto.AppInstKey]*Streamer)
-	}
 	streamer := NewStreamer()
-	go streamer.Start()
-	streamAppInst[in.AppInst.Key] = streamer
+	defer streamer.Stop()
+	err = streamAppInst.Add(in.AppInst.Key, streamer)
+	if err != nil {
+		return WriteError(c, fmt.Errorf("AppInst is %v", err))
+	}
 
 	err = CreateAppInstStream(ctx, rc, &in.AppInst, func(res *edgeproto.Result) {
 		payload := ormapi.StreamPayload{}
@@ -93,12 +109,10 @@ func CreateAppInst(c echo.Context) error {
 		WriteStream(c, &payload)
 	})
 	if err != nil {
+		streamer.Publish(err)
 		WriteError(c, err)
 	}
-	if _, ok := streamAppInst[in.AppInst.Key]; ok {
-		delete(streamAppInst, in.AppInst.Key)
-	}
-	streamer.Stop()
+	streamAppInst.Remove(in.AppInst.Key)
 	return nil
 }
 
@@ -161,19 +175,17 @@ func DeleteAppInst(c echo.Context) error {
 	if !success {
 		return err
 	}
+	defer CloseConn(c)
 	rc.region = in.Region
 	span := log.SpanFromContext(ctx)
 	span.SetTag("org", in.AppInst.Key.AppKey.DeveloperKey.Name)
 
-	if _, ok := streamAppInst[in.AppInst.Key]; ok {
-		return WriteError(c, fmt.Errorf("AppInst is busy"))
-	}
-	if streamAppInst == nil {
-		streamAppInst = make(map[edgeproto.AppInstKey]*Streamer)
-	}
 	streamer := NewStreamer()
-	go streamer.Start()
-	streamAppInst[in.AppInst.Key] = streamer
+	defer streamer.Stop()
+	err = streamAppInst.Add(in.AppInst.Key, streamer)
+	if err != nil {
+		return WriteError(c, fmt.Errorf("AppInst is %v", err))
+	}
 
 	err = DeleteAppInstStream(ctx, rc, &in.AppInst, func(res *edgeproto.Result) {
 		payload := ormapi.StreamPayload{}
@@ -182,12 +194,10 @@ func DeleteAppInst(c echo.Context) error {
 		WriteStream(c, &payload)
 	})
 	if err != nil {
+		streamer.Publish(err)
 		WriteError(c, err)
 	}
-	if _, ok := streamAppInst[in.AppInst.Key]; ok {
-		delete(streamAppInst, in.AppInst.Key)
-	}
-	streamer.Stop()
+	streamAppInst.Remove(in.AppInst.Key)
 	return nil
 }
 
@@ -248,19 +258,17 @@ func RefreshAppInst(c echo.Context) error {
 	if !success {
 		return err
 	}
+	defer CloseConn(c)
 	rc.region = in.Region
 	span := log.SpanFromContext(ctx)
 	span.SetTag("org", in.AppInst.Key.AppKey.DeveloperKey.Name)
 
-	if _, ok := streamAppInst[in.AppInst.Key]; ok {
-		return WriteError(c, fmt.Errorf("AppInst is busy"))
-	}
-	if streamAppInst == nil {
-		streamAppInst = make(map[edgeproto.AppInstKey]*Streamer)
-	}
 	streamer := NewStreamer()
-	go streamer.Start()
-	streamAppInst[in.AppInst.Key] = streamer
+	defer streamer.Stop()
+	err = streamAppInst.Add(in.AppInst.Key, streamer)
+	if err != nil {
+		return WriteError(c, fmt.Errorf("AppInst is %v", err))
+	}
 
 	err = RefreshAppInstStream(ctx, rc, &in.AppInst, func(res *edgeproto.Result) {
 		payload := ormapi.StreamPayload{}
@@ -269,12 +277,10 @@ func RefreshAppInst(c echo.Context) error {
 		WriteStream(c, &payload)
 	})
 	if err != nil {
+		streamer.Publish(err)
 		WriteError(c, err)
 	}
-	if _, ok := streamAppInst[in.AppInst.Key]; ok {
-		delete(streamAppInst, in.AppInst.Key)
-	}
-	streamer.Stop()
+	streamAppInst.Remove(in.AppInst.Key)
 	return nil
 }
 
@@ -335,19 +341,17 @@ func UpdateAppInst(c echo.Context) error {
 	if !success {
 		return err
 	}
+	defer CloseConn(c)
 	rc.region = in.Region
 	span := log.SpanFromContext(ctx)
 	span.SetTag("org", in.AppInst.Key.AppKey.DeveloperKey.Name)
 
-	if _, ok := streamAppInst[in.AppInst.Key]; ok {
-		return WriteError(c, fmt.Errorf("AppInst is busy"))
-	}
-	if streamAppInst == nil {
-		streamAppInst = make(map[edgeproto.AppInstKey]*Streamer)
-	}
 	streamer := NewStreamer()
-	go streamer.Start()
-	streamAppInst[in.AppInst.Key] = streamer
+	defer streamer.Stop()
+	err = streamAppInst.Add(in.AppInst.Key, streamer)
+	if err != nil {
+		return WriteError(c, fmt.Errorf("AppInst is %v", err))
+	}
 
 	err = UpdateAppInstStream(ctx, rc, &in.AppInst, func(res *edgeproto.Result) {
 		payload := ormapi.StreamPayload{}
@@ -356,12 +360,10 @@ func UpdateAppInst(c echo.Context) error {
 		WriteStream(c, &payload)
 	})
 	if err != nil {
+		streamer.Publish(err)
 		WriteError(c, err)
 	}
-	if _, ok := streamAppInst[in.AppInst.Key]; ok {
-		delete(streamAppInst, in.AppInst.Key)
-	}
-	streamer.Stop()
+	streamAppInst.Remove(in.AppInst.Key)
 	return nil
 }
 
@@ -422,6 +424,7 @@ func ShowAppInst(c echo.Context) error {
 	if !success {
 		return err
 	}
+	defer CloseConn(c)
 	rc.region = in.Region
 	span := log.SpanFromContext(ctx)
 	span.SetTag("org", in.AppInst.Key.AppKey.DeveloperKey.Name)

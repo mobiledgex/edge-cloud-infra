@@ -126,6 +126,7 @@ func ShowAlert(c echo.Context) error {
 	if !success {
 		return err
 	}
+	defer CloseConn(c)
 	rc.region = in.Region
 
 	err = ShowAlertStream(ctx, rc, &in.Alert, func(res *edgeproto.Alert) {

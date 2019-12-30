@@ -23,6 +23,7 @@ type OSFlavorDetail struct {
 	Disk        int    `json:"disk"`
 	Public      bool   `json:"os-flavor-access:is_public"`
 	Properties  string `json:"properties"`
+	PropMap     map[string]string
 	Swap        string `json:"swap"`
 	RXTX_Factor string `json:"RXTX_factor"`
 }

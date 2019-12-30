@@ -172,6 +172,14 @@ func ShowFlavor(ctx context.Context, flavor string) (details OSFlavorDetail, err
 	if err != nil {
 		return flav, err
 	}
+	ms := strings.Split(flav.Properties, ",")
+	if ms != nil {
+		flav.PropMap = make(map[string]string)
+		for _, m := range ms {
+			value := strings.Split(m, ":")
+			flav.PropMap[value[0]] = value[1]
+		}
+	}
 	return flav, nil
 }
 
@@ -885,7 +893,8 @@ func GetFlavorInfo(ctx context.Context) ([]*edgeproto.FlavorInfo, []OSAZone, []O
 				Vcpus:      uint64(f.VCPUs),
 				Ram:        uint64(f.RAM),
 				Disk:       uint64(f.Disk),
-				Properties: f.Properties},
+				Properties: f.Properties,
+				PropMap:    f.PropMap},
 		)
 	}
 	zones, err := ListAZones(ctx)

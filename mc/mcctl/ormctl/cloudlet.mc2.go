@@ -590,7 +590,6 @@ var FlavorInfoOptionalArgs = []string{
 	"vcpus",
 	"ram",
 	"disk",
-	"properties",
 	"propmap",
 }
 var FlavorInfoAliasArgs = []string{
@@ -598,16 +597,14 @@ var FlavorInfoAliasArgs = []string{
 	"vcpus=flavorinfo.vcpus",
 	"ram=flavorinfo.ram",
 	"disk=flavorinfo.disk",
-	"properties=flavorinfo.properties",
 	"propmap=flavorinfo.propmap",
 }
 var FlavorInfoComments = map[string]string{
-	"name":       "Name of the flavor on the Cloudlet",
-	"vcpus":      "Number of VCPU cores on the Cloudlet",
-	"ram":        "Ram in MB on the Cloudlet",
-	"disk":       "Amount of disk in GB on the Cloudlet",
-	"properties": "OS Flavor Properties, if any",
-	"propmap":    "flavor properties map",
+	"name":    "Name of the flavor on the Cloudlet",
+	"vcpus":   "Number of VCPU cores on the Cloudlet",
+	"ram":     "Ram in MB on the Cloudlet",
+	"disk":    "Amount of disk in GB on the Cloudlet",
+	"propmap": "OS Flavor Properties, if any  string properties = 5 [(protogen.backend) = true]; flavor properties map",
 }
 var FlavorInfoSpecialArgs = map[string]string{
 	"propmap": "StringToString",
@@ -659,7 +656,6 @@ var CloudletInfoOptionalArgs = []string{
 	"flavors.vcpus",
 	"flavors.ram",
 	"flavors.disk",
-	"flavors.properties",
 	"flavors.propmap",
 	"status.tasknumber",
 	"status.maxtasks",
@@ -687,7 +683,6 @@ var CloudletInfoAliasArgs = []string{
 	"flavors.vcpus=cloudletinfo.flavors.vcpus",
 	"flavors.ram=cloudletinfo.flavors.ram",
 	"flavors.disk=cloudletinfo.flavors.disk",
-	"flavors.properties=cloudletinfo.flavors.properties",
 	"flavors.propmap=cloudletinfo.flavors.propmap",
 	"status.tasknumber=cloudletinfo.status.tasknumber",
 	"status.maxtasks=cloudletinfo.status.maxtasks",
@@ -715,8 +710,7 @@ var CloudletInfoComments = map[string]string{
 	"flavors.vcpus":       "Number of VCPU cores on the Cloudlet",
 	"flavors.ram":         "Ram in MB on the Cloudlet",
 	"flavors.disk":        "Amount of disk in GB on the Cloudlet",
-	"flavors.properties":  "OS Flavor Properties, if any",
-	"flavors.propmap":     "flavor properties map",
+	"flavors.propmap":     "OS Flavor Properties, if any  string properties = 5 [(protogen.backend) = true]; flavor properties map",
 	"version":             "Cloudlet version",
 	"osimages.name":       "image name",
 	"osimages.tags":       "optional tags present on image",

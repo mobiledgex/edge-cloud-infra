@@ -889,12 +889,11 @@ func GetFlavorInfo(ctx context.Context) ([]*edgeproto.FlavorInfo, []OSAZone, []O
 		finfo = append(
 			finfo,
 			&edgeproto.FlavorInfo{
-				Name:       f.Name,
-				Vcpus:      uint64(f.VCPUs),
-				Ram:        uint64(f.RAM),
-				Disk:       uint64(f.Disk),
-				Properties: f.Properties,
-				PropMap:    f.PropMap},
+				Name:    f.Name,
+				Vcpus:   uint64(f.VCPUs),
+				Ram:     uint64(f.RAM),
+				Disk:    uint64(f.Disk),
+				PropMap: f.PropMap},
 		)
 	}
 	zones, err := ListAZones(ctx)

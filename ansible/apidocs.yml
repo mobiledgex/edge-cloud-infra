@@ -73,3 +73,11 @@
         - { name: "external", port: 9090 }
         - { name: "client", port: 9091 }
         - { name: "internal", port: 9092 }
+
+    - name: Install the swagger update cronjob
+      cron:
+        name: Swagger update
+        minute: 0
+        hour: 14
+        job: "{{ swagger_cron_script }} >>{{ ansible_env.HOME }}/{{ swagger_cron_script | basename }}.log 2>&1"
+      tags: foo

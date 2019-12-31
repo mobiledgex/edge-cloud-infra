@@ -150,6 +150,11 @@ type StreamPayload struct {
 	Result *Result     `json:"result,omitempty"`
 }
 
+type WSStreamPayload struct {
+	Code int         `json:"code"`
+	Data interface{} `json:"data"`
+}
+
 // all data is for full create/delete
 
 type AllData struct {

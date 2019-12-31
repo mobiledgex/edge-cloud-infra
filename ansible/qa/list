@@ -13,7 +13,8 @@ postgres_hostname=postgres-{{ deploy_environ }}.mobiledgex.net
 azure_volume_storage_class=default
 influxdb_volume_size=1Gi
 vault_vm_hostname=vault-{{ deploy_environ }}.mobiledgex.net
-vault_port=8200
+vault_ha_domain="vault-{{ deploy_environ }}.mobiledgex.net"
+vault_port=443
 vault_firewall_setup=no
 monitor_version=latest
 letsencrypt_env=production
@@ -30,7 +31,7 @@ localhost	ansible_connection=local
 crm-qa.mobiledgex.net
 
 [mc]
-mc-qa.mobiledgex.net
+mc-qa.mobiledgex.net nginx_config_filename=mc
 
 [gitlab]
 gitlab-qa.mobiledgex.net
@@ -42,7 +43,8 @@ postgres-qa.mobiledgex.net
 console-qa.mobiledgex.net
 
 [vault]
-vault-qa.mobiledgex.net
+vault-qa-a.mobiledgex.net
+vault-qa-b.mobiledgex.net
 
 [artifactory]
 artifactory-qa.mobiledgex.net

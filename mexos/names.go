@@ -7,7 +7,7 @@ import (
 )
 
 var (
-	MEXInfraVersion    = "3.0.0"
+	MEXInfraVersion    = "3.0.1"
 	defaultOSImageName = "mobiledgex-v" + MEXInfraVersion
 
 	// Default CloudletVM/Registry paths should only be used for local testing.

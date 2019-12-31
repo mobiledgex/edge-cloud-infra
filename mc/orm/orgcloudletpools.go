@@ -65,20 +65,20 @@ func CreateOrgCloudletPoolObj(ctx context.Context, claims *UserClaims, op *ormap
 		return err
 	}
 	if !found {
-		return fmt.Errorf("Specified CloudletPool for region not found")
+		return fmt.Errorf("Specified CloudletPool %s for region %s not found", op.CloudletPool, op.Region)
 	}
 	// create org cloudletpool
 	db := loggedDB(ctx)
 	err = db.Create(&op).Error
 	if err != nil {
 		if strings.Contains(err.Error(), "violates foreign key constraint \"org_cloudlet_pools_org_fkey\"") {
-			return fmt.Errorf("Specified Organization does not exist")
+			return fmt.Errorf("Specified Organization %s does not exist", op.Org)
 		}
 		if strings.Contains(err.Error(), "violates foreign key constraint \"org_cloudlet_pools_region_fkey\"") {
-			return fmt.Errorf("Specified Region does not exist")
+			return fmt.Errorf("Specified Region %s does not exist", op.Region)
 		}
 		if strings.Contains(err.Error(), "duplicate key value violates unique") {
-			return fmt.Errorf("Already exists")
+			return fmt.Errorf("OrgCloudletPool org %s, region %s, pool %s already exists", op.Org, op.Region, op.CloudletPool)
 		}
 		return dbErr(err)
 	}
@@ -208,21 +208,23 @@ func ShowOrgCloudlet(c echo.Context) error {
 	}
 	ctx := GetContext(c)
 	oc := ormapi.OrgCloudlet{}
-	if err := c.Bind(&oc); err != nil {
-		return c.JSON(http.StatusBadRequest, Msg("Invalid POST data"))
+	success, err := ReadConn(c, &oc)
+	if !success {
+		return err
 	}
+
 	if oc.Org == "" {
-		return c.JSON(http.StatusBadRequest, Msg("Organization must be specified"))
+		return setReply(c, fmt.Errorf("Organization must be specified"), nil)
 	}
 	if oc.Region == "" {
-		return c.JSON(http.StatusBadRequest, Msg("Region must be specified"))
+		return setReply(c, fmt.Errorf("Region must be specified"), nil)
 	}
 
 	db := loggedDB(ctx)
 	org := ormapi.Organization{}
 	res := db.Where(&ormapi.Organization{Name: oc.Org}).First(&org)
 	if res.RecordNotFound() {
-		return c.JSON(http.StatusBadRequest, Msg("Specified Organization not found"))
+		return setReply(c, fmt.Errorf("Specified Organization not found"), nil)
 	}
 	if res.Error != nil {
 		return dbErr(res.Error)

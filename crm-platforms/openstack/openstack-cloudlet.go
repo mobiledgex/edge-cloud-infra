@@ -673,25 +673,25 @@ func upgradeCloudletPkgs(ctx context.Context, vmType mexos.DeploymentType, cloud
 	auth, err := cloudcommon.GetRegistryAuth(ctx, pkgUrl, vaultConfig)
 	if err != nil {
 		log.SpanLog(ctx, log.DebugLevelMexos, "warning, cannot get registry credentials from vault - assume public registry", "err", err)
-	} else {
-		if auth == nil || auth.ApiKey == "" {
-			return fmt.Errorf("Unable to find auth details for %s", pkgUrl)
-		}
-		updateCallback(edgeproto.UpdateTask, fmt.Sprintf("Fetching cloudlet image package of version: %s", cloudlet.ImageVersion))
-		if out, err := client.Output(
-			fmt.Sprintf("curl -H 'X-JFrog-Art-Api:%s' -O %s", auth.ApiKey, pkgUrl),
-		); err != nil {
-			return fmt.Errorf("Failed to fetch mobiledgex pkg from %s, %v, %s", pkgUrl, err, out)
-		}
-		pkgName := mexos.GetCloudletVMImagePkgName(cloudlet.ImageVersion)
-		updateCallback(edgeproto.UpdateTask, fmt.Sprintf("Upgrading cloudlet image package to version: %s", cloudlet.ImageVersion))
-		if out, err := client.Output(
-			fmt.Sprintf("MEXVM_TYPE=%s dpkg -i %s", vmType, pkgName),
-		); err != nil {
-			return fmt.Errorf("Failed to upgrade mobiledgex pkg %s, %v, %s", pkgName, err, out)
-		}
-		updateCallback(edgeproto.UpdateTask, fmt.Sprintf("Upgraded cloudlet image package to version %s successfully", cloudlet.ImageVersion))
+		return nil
 	}
+	if auth == nil || auth.ApiKey == "" {
+		return fmt.Errorf("Unable to find auth details for %s", pkgUrl)
+	}
+	updateCallback(edgeproto.UpdateTask, fmt.Sprintf("Fetching cloudlet image package of version: %s", cloudlet.ImageVersion))
+	if out, err := client.Output(
+		fmt.Sprintf("curl -H 'X-JFrog-Art-Api:%s' -O %s", auth.ApiKey, pkgUrl),
+	); err != nil {
+		return fmt.Errorf("Failed to fetch mobiledgex pkg from %s, %v, %s", pkgUrl, err, out)
+	}
+	pkgName := mexos.GetCloudletVMImagePkgName(cloudlet.ImageVersion)
+	updateCallback(edgeproto.UpdateTask, fmt.Sprintf("Upgrading cloudlet image package to version: %s", cloudlet.ImageVersion))
+	if out, err := client.Output(
+		fmt.Sprintf("MEXVM_TYPE=%s dpkg -i %s", vmType, pkgName),
+	); err != nil {
+		return fmt.Errorf("Failed to upgrade mobiledgex pkg %s, %v, %s", pkgName, err, out)
+	}
+	updateCallback(edgeproto.UpdateTask, fmt.Sprintf("Upgraded cloudlet image package to version %s successfully", cloudlet.ImageVersion))
 	return nil
 }
 

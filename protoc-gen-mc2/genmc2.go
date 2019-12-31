@@ -270,10 +270,6 @@ func (g *GenMC2) generateMethod(service string, method *descriptor.MethodDescrip
 	}
 	in := gensupport.GetDesc(g.Generator, method.GetInputType())
 	out := gensupport.GetDesc(g.Generator, method.GetOutputType())
-	keyStr, err := g.support.GetMessageKeyType(g.Generator, in)
-	if err != nil {
-		keyStr = "key type not found"
-	}
 	g.support.FQTypeName(g.Generator, in)
 	inname := *in.DescriptorProto.Name
 	_, found := g.regionStructs[inname]
@@ -281,8 +277,6 @@ func (g *GenMC2) generateMethod(service string, method *descriptor.MethodDescrip
 		Service:              service,
 		MethodName:           *method.Name,
 		InName:               inname,
-		InNameJson:           strings.ToLower(inname),
-		KeyName:              keyStr,
 		OutName:              *out.DescriptorProto.Name,
 		GenStruct:            !found,
 		Resource:             apiVals[0],
@@ -366,7 +360,7 @@ func (g *GenMC2) generateMethod(service string, method *descriptor.MethodDescrip
 			g.importGrpcStatus = true
 		}
 	}
-	err = tmpl.Execute(g, &args)
+	err := tmpl.Execute(g, &args)
 	if err != nil {
 		g.Fail("Failed to execute template %s: ", tmpl.Name(), err.Error())
 	}
@@ -379,8 +373,6 @@ type tmplArgs struct {
 	Service              string
 	MethodName           string
 	InName               string
-	InNameJson           string
-	KeyName              string
 	OutName              string
 	GenStruct            bool
 	GenStream            bool
@@ -407,8 +399,8 @@ type tmplArgs struct {
 var tmplApi = `
 {{- if .GenStruct}}
 type Region{{.InName}} struct {
-	Region string ` + "`json:\"region\"`" + `
-	{{.InName}} edgeproto.{{.InName}} ` + "`json:\"{{.InNameJson}}\"`" + `
+	Region string
+	{{.InName}} edgeproto.{{.InName}}
 }
 
 {{- end}}

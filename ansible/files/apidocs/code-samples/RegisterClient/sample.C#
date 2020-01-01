@@ -1,0 +1,4 @@
+using DistributedMatchEngine;
+MatchingEngine me = new MatchingEngine();
+RegisterClientRequest registerClientRequest = me.CreateRegisterClientRequest(carrierName, devName, appName, appVers, authToken);
+RegisterClientReply registerClientReply = await me.RegisterClient(registerClientRequest);

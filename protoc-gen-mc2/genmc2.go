@@ -434,7 +434,7 @@ func Stream{{.InName}}(c echo.Context) error {
 	if streamer != nil {
 		payload := ormapi.StreamPayload{}
 		streamCh := streamer.Subscribe()
-		closed := make(chan bool)
+		serverClosed := make(chan bool)
 		go func() {
 			for streamMsg := range streamCh {
 				switch out := streamMsg.(type) {
@@ -448,11 +448,12 @@ func Stream{{.InName}}(c echo.Context) error {
 				}
 			}
 			CloseConn(c)
-			closed <- true
+			serverClosed <- true
 		}()
-		// Listen for client closure, as a message is sent
-		// from client on closure
-		WaitForConnClose(c, closed)
+		// Wait for client/server to close
+		// * Server closure is set via above serverClosed flag
+		// * Client closure is sent from client via a message
+		WaitForConnClose(c, serverClosed)
 		streamer.Unsubscribe(streamCh)
         } else {
 		WriteError(c, fmt.Errorf("Key doesn't exist"))
@@ -493,13 +494,19 @@ func {{.MethodName}}(c echo.Context) error {
 
 	streamer := NewStreamer()
 	defer streamer.Stop()
-	err = stream{{.InName}}.Add(in.{{.InName}}.Key, streamer)
-	if err != nil {
-		return WriteError(c, fmt.Errorf("{{.InName}} is %v", err))
-	}
+{{- end}}
+
+{{- if and (not .Show) .Outstream}}
+	streamAdded := false
 {{- end}}
 
 	err = {{.MethodName}}Stream(ctx, rc, &in.{{.InName}}, func(res *edgeproto.{{.OutName}}) {
+{{- if and (not .Show) .Outstream}}
+		if !streamAdded{
+			stream{{.InName}}.Add(in.{{.InName}}.Key, streamer)
+			streamAdded = true
+		}
+{{- end}}
 		payload := ormapi.StreamPayload{}
 		payload.Data = res
 {{- if and (not .Show) .Outstream}}
@@ -514,7 +521,9 @@ func {{.MethodName}}(c echo.Context) error {
 		WriteError(c, err)
 	}
 {{- if and (not .Show) .Outstream}}
-	stream{{.InName}}.Remove(in.{{.InName}}.Key)
+	if streamAdded {
+		stream{{.InName}}.Remove(in.{{.InName}}.Key, streamer)
+	}
 
 {{- end}}
 	return nil

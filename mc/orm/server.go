@@ -424,7 +424,7 @@ func CloseConn(c echo.Context) {
 	}
 }
 
-func WaitForConnClose(c echo.Context, closed chan bool) {
+func WaitForConnClose(c echo.Context, serverClosed chan bool) {
 	if ws := GetWs(c); ws != nil {
 		clientClosed := make(chan error)
 		go func() {
@@ -435,7 +435,7 @@ func WaitForConnClose(c echo.Context, closed chan bool) {
 			clientClosed <- err
 		}()
 		select {
-		case <-closed:
+		case <-serverClosed:
 			return
 		case err := <-clientClosed:
 			if _, ok := err.(*websocket.CloseError); !ok {
@@ -445,7 +445,7 @@ func WaitForConnClose(c echo.Context, closed chan bool) {
 			}
 		}
 	} else {
-		if <-closed {
+		if <-serverClosed {
 			return
 		}
 	}

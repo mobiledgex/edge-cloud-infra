@@ -49,7 +49,7 @@ func StreamAppInst(c echo.Context) error {
 	if streamer != nil {
 		payload := ormapi.StreamPayload{}
 		streamCh := streamer.Subscribe()
-		closed := make(chan bool)
+		serverClosed := make(chan bool)
 		go func() {
 			for streamMsg := range streamCh {
 				switch out := streamMsg.(type) {
@@ -63,11 +63,12 @@ func StreamAppInst(c echo.Context) error {
 				}
 			}
 			CloseConn(c)
-			closed <- true
+			serverClosed <- true
 		}()
-		// Listen for client closure, as a message is sent
-		// from client on closure
-		WaitForConnClose(c, closed)
+		// Wait for client/server to close
+		// * Server closure is set via above serverClosed flag
+		// * Client closure is sent from client via a message
+		WaitForConnClose(c, serverClosed)
 		streamer.Unsubscribe(streamCh)
 	} else {
 		WriteError(c, fmt.Errorf("Key doesn't exist"))
@@ -97,12 +98,13 @@ func CreateAppInst(c echo.Context) error {
 
 	streamer := NewStreamer()
 	defer streamer.Stop()
-	err = streamAppInst.Add(in.AppInst.Key, streamer)
-	if err != nil {
-		return WriteError(c, fmt.Errorf("AppInst is %v", err))
-	}
+	streamAdded := false
 
 	err = CreateAppInstStream(ctx, rc, &in.AppInst, func(res *edgeproto.Result) {
+		if !streamAdded {
+			streamAppInst.Add(in.AppInst.Key, streamer)
+			streamAdded = true
+		}
 		payload := ormapi.StreamPayload{}
 		payload.Data = res
 		streamer.Publish(res.Message)
@@ -112,7 +114,9 @@ func CreateAppInst(c echo.Context) error {
 		streamer.Publish(err)
 		WriteError(c, err)
 	}
-	streamAppInst.Remove(in.AppInst.Key)
+	if streamAdded {
+		streamAppInst.Remove(in.AppInst.Key, streamer)
+	}
 	return nil
 }
 
@@ -182,12 +186,13 @@ func DeleteAppInst(c echo.Context) error {
 
 	streamer := NewStreamer()
 	defer streamer.Stop()
-	err = streamAppInst.Add(in.AppInst.Key, streamer)
-	if err != nil {
-		return WriteError(c, fmt.Errorf("AppInst is %v", err))
-	}
+	streamAdded := false
 
 	err = DeleteAppInstStream(ctx, rc, &in.AppInst, func(res *edgeproto.Result) {
+		if !streamAdded {
+			streamAppInst.Add(in.AppInst.Key, streamer)
+			streamAdded = true
+		}
 		payload := ormapi.StreamPayload{}
 		payload.Data = res
 		streamer.Publish(res.Message)
@@ -197,7 +202,9 @@ func DeleteAppInst(c echo.Context) error {
 		streamer.Publish(err)
 		WriteError(c, err)
 	}
-	streamAppInst.Remove(in.AppInst.Key)
+	if streamAdded {
+		streamAppInst.Remove(in.AppInst.Key, streamer)
+	}
 	return nil
 }
 
@@ -265,12 +272,13 @@ func RefreshAppInst(c echo.Context) error {
 
 	streamer := NewStreamer()
 	defer streamer.Stop()
-	err = streamAppInst.Add(in.AppInst.Key, streamer)
-	if err != nil {
-		return WriteError(c, fmt.Errorf("AppInst is %v", err))
-	}
+	streamAdded := false
 
 	err = RefreshAppInstStream(ctx, rc, &in.AppInst, func(res *edgeproto.Result) {
+		if !streamAdded {
+			streamAppInst.Add(in.AppInst.Key, streamer)
+			streamAdded = true
+		}
 		payload := ormapi.StreamPayload{}
 		payload.Data = res
 		streamer.Publish(res.Message)
@@ -280,7 +288,9 @@ func RefreshAppInst(c echo.Context) error {
 		streamer.Publish(err)
 		WriteError(c, err)
 	}
-	streamAppInst.Remove(in.AppInst.Key)
+	if streamAdded {
+		streamAppInst.Remove(in.AppInst.Key, streamer)
+	}
 	return nil
 }
 
@@ -348,12 +358,13 @@ func UpdateAppInst(c echo.Context) error {
 
 	streamer := NewStreamer()
 	defer streamer.Stop()
-	err = streamAppInst.Add(in.AppInst.Key, streamer)
-	if err != nil {
-		return WriteError(c, fmt.Errorf("AppInst is %v", err))
-	}
+	streamAdded := false
 
 	err = UpdateAppInstStream(ctx, rc, &in.AppInst, func(res *edgeproto.Result) {
+		if !streamAdded {
+			streamAppInst.Add(in.AppInst.Key, streamer)
+			streamAdded = true
+		}
 		payload := ormapi.StreamPayload{}
 		payload.Data = res
 		streamer.Publish(res.Message)
@@ -363,7 +374,9 @@ func UpdateAppInst(c echo.Context) error {
 		streamer.Publish(err)
 		WriteError(c, err)
 	}
-	streamAppInst.Remove(in.AppInst.Key)
+	if streamAdded {
+		streamAppInst.Remove(in.AppInst.Key, streamer)
+	}
 	return nil
 }
 

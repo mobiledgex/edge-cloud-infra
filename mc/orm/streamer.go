@@ -1,7 +1,6 @@
 package orm
 
 import (
-	"fmt"
 	"sync"
 )
 
@@ -28,25 +27,23 @@ func (sm *StreamObj) Get(in interface{}) *Streamer {
 	return nil
 }
 
-func (sm *StreamObj) Add(in interface{}, streamer *Streamer) error {
+func (sm *StreamObj) Add(in interface{}, streamer *Streamer) {
 	sm.mux.Lock()
 	defer sm.mux.Unlock()
 	if sm.streamMap == nil {
 		sm.streamMap = Streams{in: streamer}
 	} else {
-		if _, ok := sm.streamMap[in]; ok {
-			return fmt.Errorf("busy")
-		}
 		sm.streamMap[in] = streamer
 	}
-	return nil
 }
 
-func (sm *StreamObj) Remove(in interface{}) {
+func (sm *StreamObj) Remove(in interface{}, streamer *Streamer) {
 	sm.mux.Lock()
 	defer sm.mux.Unlock()
-	if _, ok := sm.streamMap[in]; ok {
-		delete(sm.streamMap, in)
+	if streamerObj, ok := sm.streamMap[in]; ok {
+		if streamerObj == streamer {
+			delete(sm.streamMap, in)
+		}
 	}
 }
 

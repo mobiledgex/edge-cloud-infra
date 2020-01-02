@@ -88,29 +88,37 @@ func TestStreamMaps(t *testing.T) {
 	testKey1 := TestKey{id: 1, name: "testKey1"}
 	testKey2 := TestKey{id: 2, name: "testKey2"}
 	// Msgs to be published to all subscribers
-	sendMsgs := []int{}
-	for id := 0; id < 10; id++ {
-		sendMsgs = append(sendMsgs, id)
+	sendMsgs1 := []int{}
+	for id := 0; id < 5; id++ {
+		sendMsgs1 = append(sendMsgs1, id)
+	}
+	sendMsgs2 := []int{}
+	for id := 5; id < 10; id++ {
+		sendMsgs2 = append(sendMsgs2, id)
 	}
 
-	publishMsgs := func(streamer *Streamer, key *TestKey) {
+	publishMsgs := func(key *TestKey, sendMsgs []int, streamAdded chan bool) {
+		// Start publishing messages
+		streamer := NewStreamer()
+		streamTest.Add(*key, streamer)
+		streamAdded <- true
 		defer streamer.Stop()
 		for _, msg := range sendMsgs {
 			streamer.Publish(msg)
 			time.Sleep(2 * time.Millisecond)
 		}
-		streamTest.Remove(*key)
+		streamTest.Remove(*key, streamer)
 	}
 
 	// Start publishing messages
-	streamer1 := NewStreamer()
-	err := streamTest.Add(testKey1, streamer1)
-	require.Nil(t, err, "successfully added stream")
-	go publishMsgs(streamer1, &testKey1)
+	streamAdded := make(chan bool)
+	go publishMsgs(&testKey1, sendMsgs1, streamAdded)
 
 	// Subscriber
-	subscriberFunc := func(wg *sync.WaitGroup, key interface{}, id int) {
-		defer wg.Done()
+	subscriberFunc := func(wg *sync.WaitGroup, key interface{}, id int, sendMsgs []int) {
+		if wg != nil {
+			defer wg.Done()
+		}
 		streamer := streamTest.Get(key)
 		require.NotNil(t, streamer, fmt.Sprintf("Client %d: stream exists", id))
 		streamCh := streamer.Subscribe()
@@ -118,37 +126,46 @@ func TestStreamMaps(t *testing.T) {
 		for streamMsg := range streamCh {
 			rcvdMsgs = append(rcvdMsgs, streamMsg.(int))
 		}
+		streamer.Unsubscribe(streamCh)
 		require.Equal(t, sendMsgs, rcvdMsgs, fmt.Sprintf("Client %d: match received msgs", id))
 	}
 
-	// Create multiple subscribers started with some time gap
-	for i := 0; i < 5; i++ {
-		time.Sleep(time.Duration(i) * time.Millisecond)
-		wg.Add(1)
-		go subscriberFunc(&wg, testKey1, i)
+	// Wait for publisher to start streaming msgs
+	if <-streamAdded {
+		subscriberFunc(nil, testKey1, 0, sendMsgs1)
 	}
 
-	// Start another publisher for same key
-	go func() {
-		streamer := NewStreamer()
-		defer streamer.Stop()
-		err := streamTest.Add(testKey1, streamer)
-		require.NotNil(t, err, "Publisher is busy")
-	}()
+	// Start another publisher, publishing new msgs on same key
+	streamAdded = make(chan bool)
+	go publishMsgs(&testKey1, sendMsgs2, streamAdded)
+
+	// Wait for publisher to start streaming msgs
+	if <-streamAdded {
+		require.Equal(t, 1, len((*streamTest).streamMap), "One publisher exists")
+		for i := 1; i < 3; i++ {
+			time.Sleep(time.Duration(i) * time.Millisecond)
+			wg.Add(1)
+			go subscriberFunc(&wg, testKey1, i, sendMsgs2)
+		}
+	}
 
 	// Start another publisher for different key
-	streamer2 := NewStreamer()
-	err = streamTest.Add(testKey2, streamer2)
-	require.Nil(t, err, "successfully added stream")
-	go publishMsgs(streamer2, &testKey2)
+	streamAdded = make(chan bool)
+	go publishMsgs(&testKey2, sendMsgs2, streamAdded)
 
-	// Create multiple subscribers started with some time gap
-	for i := 0; i < 3; i++ {
-		time.Sleep(time.Duration(i) * time.Millisecond)
-		wg.Add(1)
-		go subscriberFunc(&wg, testKey2, i)
+	if <-streamAdded {
+		require.Equal(t, 2, len((*streamTest).streamMap), "Two publisher exists")
+		// Create multiple subscribers started with some time gap
+		for i := 0; i < 3; i++ {
+			time.Sleep(time.Duration(i) * time.Millisecond)
+			wg.Add(1)
+			go subscriberFunc(&wg, testKey2, i, sendMsgs2)
+		}
 	}
 
 	// Wait for all subscribers to finish reading streamed messages
 	wg.Wait()
+
+	// Verify no streamObjs exists
+	require.Equal(t, 0, len((*streamTest).streamMap), "No publishers exists")
 }

@@ -334,5 +334,3 @@ replace go.uber.org/atomic => go.uber.org/atomic v1.4.0
 replace gopkg.in/check.v1 => gopkg.in/check.v1 v1.0.0-20180628173108-788fd7840127
 
 replace github.com/xtaci/smux => github.com/xtaci/smux v1.3.6
-
-replace golang.org/x/sys => golang.org/x/sys v0.0.0-20191228213918-04cbcbbfeed8

@@ -55,6 +55,7 @@ type ServerConfig struct {
 	SkipVerifyEmail bool
 	JaegerAddr      string
 	vaultConfig     *vault.Config
+	SkipOriginCheck bool
 }
 
 var DefaultDBUser = "mcuser"
@@ -252,7 +253,7 @@ func RunServer(config *ServerConfig) (*Server, error) {
 	// Use GET method for websockets as thats the method used
 	// in setting up TCP connection by most of the clients
 	// Also, authorization is handled as part of websocketUpgrade
-	ws := e.Group("ws/"+root+"/auth", websocketUpgrade)
+	ws := e.Group("ws/"+root+"/auth", server.websocketUpgrade)
 	addControllerApis("GET", ws)
 	// Metrics api route use ws to serve a query to influxDB
 	ws.GET("/metrics/app", GetMetricsCommon)
@@ -351,9 +352,15 @@ func ShowVersion(c echo.Context) error {
 	return c.JSON(http.StatusOK, ver)
 }
 
-func websocketUpgrade(next echo.HandlerFunc) echo.HandlerFunc {
+func (s *Server) websocketUpgrade(next echo.HandlerFunc) echo.HandlerFunc {
 	return func(c echo.Context) error {
 		upgrader := websocket.Upgrader{}
+		if s.config.SkipOriginCheck {
+			// Skip origin check restriction.
+			// This is to be used for testing purpose only, as it is
+			// not safe to allow all origins
+			upgrader.CheckOrigin = func(r *http.Request) bool { return true }
+		}
 		ws, err := upgrader.Upgrade(c.Response(), c.Request(), nil)
 		if err != nil {
 			return nil

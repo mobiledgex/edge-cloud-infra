@@ -203,6 +203,7 @@ func ListFlavors(client *gophercloud.ServiceClient) ([]flavors.Flavor, error) {
 		return nil, err
 	}
 	log.Debugln("flavors", actual)
+	
 	return actual, nil
 }
 

@@ -17,6 +17,7 @@ USAGE="usage: $0 [options] <environment> [<target>]
   -p <playbook>	playbook (default: \"$DEFAULT_PLAYBOOK\")
   -q		quiet mode; skip Slack notifications
   -s <tags>     skip tags (comma-separated)
+  -S		step (confirm each step)
   -t <tags>	tags (comma-separated)
   -v            verbose mode; can be repeated to increase verbosity
   -V <version>	edge-cloud version to deploy (default: \"$EC_VERSION\")
@@ -37,13 +38,14 @@ ASSUME_YES=false
 PLAYBOOK_FORCED=
 TAGS=
 SKIP_TAGS=
+STEP=false
 SKIP_GITHUB=false
 CONSOLE_VERSION=
 EC_VERSION_SET=false
 QUIET_MODE=false
 VERBOSITY=
 ENVVARS=()
-while getopts ':cC:de:Ghlnp:qs:t:vV:y' OPT; do
+while getopts ':cC:de:Ghlnp:qs:St:vV:y' OPT; do
 	case "$OPT" in
 	c)	CONFIRM=true ;;
 	C)	CONSOLE_VERSION="$OPTARG" ;;
@@ -55,6 +57,7 @@ while getopts ':cC:de:Ghlnp:qs:t:vV:y' OPT; do
 	p)	PLAYBOOK_FORCED="$OPTARG" ;;
 	q)	QUIET_MODE=true ;;
 	s)	SKIP_TAGS="$OPTARG" ;;
+	S)	STEP=true ;;
 	t)	TAGS="$OPTARG" ;;
 	v)	VERBOSITY="${VERBOSITY}v" ;;
 	V)	EC_VERSION="$OPTARG"; EC_VERSION_SET=true ;;
@@ -96,6 +99,7 @@ $EC_VERSION_SET || CONFIRM=true
 
 ARGS=()
 $DRYRUN && ARGS+=( '--check' )
+$STEP && ARGS+=( '--step' )
 [[ -n "$VERBOSITY" ]] && ARGS+=( "-${VERBOSITY}" )
 
 [[ -n "$ANSIBLE_SSH_PRIVATE_KEY_FILE" ]] \

@@ -259,7 +259,7 @@ func GetCloudletNetworkIfaceFile() string {
 	return "/etc/network/interfaces.d/50-cloud-init.cfg"
 }
 
-// optional default AZ for the cloudlet.  Can be overridden on cluster create
+// optional default AZ for the cloudlet. Can be overridden on cluster create
 func GetCloudletAvailabilityZone() string {
 	return os.Getenv("MEX_AVAILABILITY_ZONE")
 }

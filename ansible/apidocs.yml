@@ -1,0 +1,83 @@
+- hosts: swagger
+  vars:
+    apidocs_samples_script: /usr/local/bin/apidocs-samples.py
+    swagger_cron_script: /usr/local/bin/swagger.cron
+    swagger_base_dir: /var/swagger
+
+  tasks:
+
+    - import_role:
+        name: docker
+
+    - import_role:
+        name: web
+      tags: setup
+      vars:
+        nginx_config_template: apidocs/swagger-nginx-config.j2
+        nginx_config_filename: swagger
+        cert_domains: [ "{{ inventory_hostname }}" ]
+
+    - import_role:
+        name: web
+      tags: setup
+      vars:
+        nginx_config_template: apidocs/api-nginx-config.j2
+        nginx_config_filename: api
+        cert_domains: [ "{{ apidocs_domain }}" ]
+
+    - name: Load cloudflare creds
+      import_role:
+        name: load-vault-creds
+        tasks_from: cloudflare
+
+    - name: "Set up DNS CNAME for {{ apidocs_domain }}"
+      cloudflare_dns:
+        zone: "{{ cloudflare_zone }}"
+        record: "{{ apidocs_domain }}"
+        value: "{{ inventory_hostname }}"
+        type: CNAME
+        state: present
+        solo: true
+        account_email: "{{ cloudflare_account_email }}"
+        account_api_token: "{{ cloudflare_account_api_token }}"
+
+    - name: Install apidocs script
+      copy:
+        src: apidocs/apidocs-samples.py
+        dest: "{{ apidocs_samples_script }}"
+        mode: 0555
+      become: yes
+
+    - name: Install swagger generation cron script
+      template:
+        src: apidocs/swagger.cron.j2
+        dest: "{{ swagger_cron_script }}"
+        mode: 0555
+      become: yes
+
+    - name: Install the code samples
+      copy:
+        src: apidocs/code-samples
+        dest: "{{ swagger_base_dir }}"
+
+    - name: Launch the Redoc UI containers
+      docker_container:
+        name: "redoc-{{ item.name }}"
+        image: redocly/redoc:latest
+        restart_policy: unless-stopped
+        ports:
+          - "127.0.0.1:{{ item.port }}:80"
+        env:
+          SPEC_URL: "/swagger/{{ item.name }}.swagger.json"
+      loop:
+        - { name: "external", port: 9090 }
+        - { name: "client", port: 9091 }
+        - { name: "internal", port: 9092 }
+
+    - name: Install the swagger update cronjob
+      cron:
+        name: Swagger update
+        minute: 0
+        hour: 14
+        job: "{{ swagger_cron_script }} >>{{ ansible_env.HOME }}/{{ swagger_cron_script | basename }}.log 2>&1"
+      tags: foo

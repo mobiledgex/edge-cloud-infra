@@ -8,7 +8,11 @@ server {
 	server_name {{ console_vm_hostname }};
 
 	location / {
+{% if mc_websockets_support %}
+		proxy_pass https://127.0.0.1:3000;
+{% else %}
 		proxy_pass http://127.0.0.1:3000;
+{% endif %}
 		proxy_http_version 1.1;
 		proxy_set_header Upgrade $http_upgrade;
 		proxy_set_header Connection "upgrade";

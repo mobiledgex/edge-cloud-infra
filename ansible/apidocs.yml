@@ -3,11 +3,14 @@
     apidocs_samples_script: /usr/local/bin/apidocs-samples.py
     swagger_cron_script: /usr/local/bin/swagger.cron
     swagger_base_dir: /var/swagger
+    favicon: https://mobiledgex.com/favicon.ico
+    redoc_version: v2.0.0-rc.20
 
   tasks:
 
     - import_role:
         name: docker
+      tags: setup
 
     - import_role:
         name: web
@@ -29,6 +32,7 @@
       import_role:
         name: load-vault-creds
         tasks_from: cloudflare
+      tags: setup
 
     - name: "Set up DNS CNAME for {{ apidocs_domain }}"
       cloudflare_dns:
@@ -40,6 +44,7 @@
         solo: true
         account_email: "{{ cloudflare_account_email }}"
         account_api_token: "{{ cloudflare_account_api_token }}"
+      tags: setup
 
     - name: Install apidocs script
       copy:
@@ -60,19 +65,27 @@
         src: apidocs/code-samples
         dest: "{{ swagger_base_dir }}"
 
+    - name: Upload the logo
+      copy:
+        src: apidocs/logo.svg
+        dest: "{{ swagger_base_dir }}"
+
     - name: Launch the Redoc UI containers
       docker_container:
         name: "redoc-{{ item.name }}"
-        image: redocly/redoc:latest
+        image: "redocly/redoc:{{ redoc_version }}"
         restart_policy: unless-stopped
         ports:
           - "127.0.0.1:{{ item.port }}:80"
         env:
           SPEC_URL: "/swagger/{{ item.name }}.swagger.json"
+          PAGE_TITLE: "{{ item.title }}"
+          PAGE_FAVICON: "{{ favicon }}"
+        timeout: 180
       loop:
-        - { name: "external", port: 9090 }
-        - { name: "client", port: 9091 }
-        - { name: "internal", port: 9092 }
+        - { name: "external", port: 9090, title: "MobiledgeX API" }
+        - { name: "client", port: 9091, title: "MobiledgeX Client API" }
+        - { name: "internal", port: 9092, title: "MobiledgeX Internal API" }
 
     - name: Install the swagger update cronjob
       cron:
@@ -80,4 +93,3 @@
         minute: 0
         hour: 14
         job: "{{ swagger_cron_script }} >>{{ ansible_env.HOME }}/{{ swagger_cron_script | basename }}.log 2>&1"
-      tags: foo

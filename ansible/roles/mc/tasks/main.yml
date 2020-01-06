@@ -49,6 +49,11 @@
     mc_args: "{{ mc_args + [ '-artifactoryAddr', mc_artifactory_address ] }}"
   when: mc_artifactory_address is defined
 
+- name: Add flag to skip origin check for websockets
+  set_fact:
+    mc_args: "{{ mc_args + [ '-skipOriginCheck' ] }}"
+  when: mc_websockets_support
+
 - name: Compute MC name
   set_fact:
     mc_name: "{{ mc_vm_hostname.split('.')[0]|lower }}"

@@ -1,11 +1,17 @@
 #!/usr/bin/python3
 
 import argparse
+from collections import OrderedDict
 import json
 import os
 import re
 
 CODE_SAMPLES_DIR_DEF = '/var/swagger/code-samples'
+API_ORDER = [
+    '/v1/registerclient',
+    '/v1/findcloudlet',
+    '/v1/verifylocation',
+]
 
 def splice_sample(operation, sample_dir):
     operation['x-code-samples'] = []
@@ -25,6 +31,13 @@ def splice_sample(operation, sample_dir):
             "source": code,
         })
 
+def add_logo(sw):
+    sw['info']['x-logo'] = {
+        "version": "1.0",
+        "url": "/swagger/logo.svg",
+        "backgroundColor": "#fafafa",
+    }
+
 def splice_samples(swagger, samples):
     api_eps = set([d for d in os.listdir(samples) if os.path.isdir(os.path.join(samples, d))])
     with open(swagger) as f:
@@ -36,6 +49,19 @@ def splice_samples(swagger, samples):
             if opid in api_eps:
                 splice_sample(sw['paths'][path][op],
                               os.path.join(samples, opid))
+
+    paths = OrderedDict()
+    for api in API_ORDER:
+        spec = sw['paths'].pop(api, None)
+        if spec:
+            paths[api] = spec
+
+    for x in sorted(sw['paths']):
+        paths[x] = sw['paths'][x]
+
+    sw['paths'] = paths
+
+    add_logo(sw)
 
     return json.dumps(sw, indent=2)
 

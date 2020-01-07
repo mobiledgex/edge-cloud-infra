@@ -75,11 +75,13 @@ cluster.backend1234.upstream_cx_total: 15
 cluster.backend1234.upstream_cx_connect_fail: 0
 cluster.backend1234.upstream_cx_tx_bytes_total: 15
 cluster.backend1234.upstream_cx_rx_bytes_total: 30
+cluster.backend1234.upstream_cx_length_ms: No recorded values
 cluster.backend4321.upstream_cx_active: 7
 cluster.backend4321.upstream_cx_total: 10
 cluster.backend4321.upstream_cx_connect_fail: 1
 cluster.backend4321.upstream_cx_tx_bytes_total: 21
-cluster.backend4321.upstream_cx_rx_bytes_total: 28`
+cluster.backend4321.upstream_cx_rx_bytes_total: 28
+cluster.backend4321.upstream_cx_length_ms: P0(nan,2) P25(nan,5.1) P50(nan,11) P75(nan,105) P90(nan,182) P95(nan,186) P99(nan,189.2) P99.5(nan,189.6) P99.9(nan,189.92) P100(nan,190)`
 
 func setupLog() context.Context {
 	log.InitTracer("")
@@ -113,14 +115,28 @@ func TestEnvoyStats(t *testing.T) {
 	assert.Equal(t, uint64(10), testMetrics.EnvoyStats[1234].ActiveConn)
 	assert.Equal(t, uint64(15), testMetrics.EnvoyStats[1234].Accepts)
 	assert.Equal(t, uint64(15), testMetrics.EnvoyStats[1234].HandledConn)
-	assert.Equal(t, uint64(1), testMetrics.EnvoyStats[1234].AvgBytesSent)
-	assert.Equal(t, uint64(2), testMetrics.EnvoyStats[1234].AvgBytesRecvd)
+	assert.Equal(t, float64(1), testMetrics.EnvoyStats[1234].AvgBytesSent)
+	assert.Equal(t, float64(2), testMetrics.EnvoyStats[1234].AvgBytesRecvd)
+	// "No recorded values" should default to all zeros
+	for _, v := range testMetrics.EnvoyStats[1234].SessionTime {
+		assert.Equal(t, float64(0), v)
+	}
 
 	assert.Equal(t, uint64(7), testMetrics.EnvoyStats[4321].ActiveConn)
 	assert.Equal(t, uint64(10), testMetrics.EnvoyStats[4321].Accepts)
 	assert.Equal(t, uint64(9), testMetrics.EnvoyStats[4321].HandledConn)
-	assert.Equal(t, uint64(3), testMetrics.EnvoyStats[4321].AvgBytesSent)
-	assert.Equal(t, uint64(4), testMetrics.EnvoyStats[4321].AvgBytesRecvd)
+	assert.Equal(t, float64(2.1), testMetrics.EnvoyStats[4321].AvgBytesSent)
+	assert.Equal(t, float64(2.8), testMetrics.EnvoyStats[4321].AvgBytesRecvd)
+	assert.Equal(t, float64(2), testMetrics.EnvoyStats[4321].SessionTime[0])
+	assert.Equal(t, float64(5.1), testMetrics.EnvoyStats[4321].SessionTime[1])
+	assert.Equal(t, float64(11), testMetrics.EnvoyStats[4321].SessionTime[2])
+	assert.Equal(t, float64(105), testMetrics.EnvoyStats[4321].SessionTime[3])
+	assert.Equal(t, float64(182), testMetrics.EnvoyStats[4321].SessionTime[4])
+	assert.Equal(t, float64(186), testMetrics.EnvoyStats[4321].SessionTime[5])
+	assert.Equal(t, float64(189.2), testMetrics.EnvoyStats[4321].SessionTime[6])
+	assert.Equal(t, float64(189.6), testMetrics.EnvoyStats[4321].SessionTime[7])
+	assert.Equal(t, float64(189.92), testMetrics.EnvoyStats[4321].SessionTime[8])
+	assert.Equal(t, float64(190), testMetrics.EnvoyStats[4321].SessionTime[9])
 }
 
 // Tests a healthy and reachable app

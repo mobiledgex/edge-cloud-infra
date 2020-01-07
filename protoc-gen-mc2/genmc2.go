@@ -223,6 +223,7 @@ func (g *GenMC2) generatePosts() {
 				if GetMc2Api(method) == "" {
 					continue
 				}
+				g.genSwaggerSpec(method)
 				g.P("group.Match([]string{method}, \"/ctrl/", method.Name,
 					"\", ", method.Name, ")")
 				if gensupport.ServerStreaming(method) && !streamRouteAdded {
@@ -248,6 +249,17 @@ func (g *GenMC2) generatePosts() {
 	}
 	g.P("}")
 	g.P()
+}
+
+func (g *GenMC2) genSwaggerSpec(method *descriptor.MethodDescriptorProto) {
+	in := gensupport.GetDesc(g.Generator, method.GetInputType())
+	inname := *in.DescriptorProto.Name
+	g.P("// swagger:route POST /ctrl/", method.Name, " ", inname, " ", method.Name)
+	g.P("// responses:")
+	g.P("//   200: success")
+	g.P("//   400: badRequest")
+	g.P("//   403: forbidden")
+	g.P("//   404: notFound")
 }
 
 func (g *GenMC2) generateService(service *descriptor.ServiceDescriptorProto) {
@@ -397,8 +409,18 @@ type tmplArgs struct {
 }
 
 var tmplApi = `
+// Request summary for {{.MethodName}}
+// swagger:parameters {{.MethodName}}
+type swagger{{.MethodName}} struct {
+	// in: body
+	Body struct {
+		Region{{.InName}}
+	}
+}
+
 {{- if .GenStruct}}
 type Region{{.InName}} struct {
+	// Region name
 	Region string
 	{{.InName}} edgeproto.{{.InName}}
 }

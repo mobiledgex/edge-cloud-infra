@@ -44,12 +44,28 @@ build-internal:
 	go build ./...
 	go build -buildmode=plugin -o ${GOPATH}/plugins/platforms.so plugin/*.go
 	go vet ./...
+	swagger generate spec -o ./doc/apidocs.swagger.json --scan-models \
+		--include-tag Flavor \
+		--include-tag Cloudlet \
+		--include-tag ClusterInst \
+		--include-tag App \
+		--include-tag AppInst
 
 install-edge-cloud:
 	make -C ../edge-cloud install
 
 install-internal:
 	go install ./...
+
+doc:
+	swagger generate spec -o ./doc/apidocs.swagger.json --scan-models \
+		--include-tag Flavor \
+		--include-tag Cloudlet \
+		--include-tag ClusterInst \
+		--include-tag App \
+		--include-tag AppInst
+
+.PHONY: doc
 
 #
 # Linux Target OS

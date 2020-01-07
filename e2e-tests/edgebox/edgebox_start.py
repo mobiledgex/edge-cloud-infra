@@ -43,7 +43,7 @@ def checkPrereqs():
        if vaultRole != "" and vaultSecret != "":
            print("Using VAULT_ROLE_ID and VAULT_SECRET env vars")
        else:
-           print("No appropriate Vault auth found, please set GITLAB_ID or VAULT_ROLE_ID and VAULT_SECRET_ID")
+           print("No appropriate Vault auth found, please set GITHUB_ID or VAULT_ROLE_ID and VAULT_SECRET_ID")
            return False
     return True 
 

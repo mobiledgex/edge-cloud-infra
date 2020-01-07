@@ -111,9 +111,9 @@ type ConnectionsMetric struct {
 	ActiveConn    uint64
 	Accepts       uint64
 	HandledConn   uint64
-	SessionTime   []uint64
-	AvgBytesSent  uint64
-	AvgBytesRecvd uint64
+	SessionTime   []float64
+	AvgBytesSent  float64
+	AvgBytesRecvd float64
 }
 
 // We keep the name of the pod+ClusterInstKey rather than AppInstKey

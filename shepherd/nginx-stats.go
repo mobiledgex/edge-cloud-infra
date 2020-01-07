@@ -61,7 +61,7 @@ func getProxyKey(appInstKey *edgeproto.AppInstKey) string {
 }
 
 func CollectProxyStats(ctx context.Context, appInst *edgeproto.AppInst) {
-	// ignore apps not exposed to the outside world as they dont have an nginx proxy
+	// ignore apps not exposed to the outside world as they dont have a envoy/nginx proxy
 	app := edgeproto.App{}
 	found := AppCache.Get(&appInst.Key.AppKey, &app)
 	if !found {
@@ -213,11 +213,16 @@ func envoyConnections(ctx context.Context, respMap map[string]string, ports []in
 		if err != nil {
 			return fmt.Errorf("Error retrieving envoy bytes_recvd connections stats: %v", err)
 		}
-		new.AvgBytesSent = bytesSent / new.Accepts
-		new.AvgBytesRecvd = bytesRecvd / new.Accepts
+		if new.Accepts > 0 {
+			new.AvgBytesSent = float64(bytesSent) / float64(new.Accepts)
+			new.AvgBytesRecvd = float64(bytesRecvd) / float64(new.Accepts)
+		} else {
+			new.AvgBytesSent = 0
+			new.AvgBytesRecvd = 0
+		}
 
 		// session time histogram
-		var sessionTimeHistogram []uint64
+		var sessionTimeHistogram []float64
 		sessionTimeHistogram, err = getHistogramIntStats(respMap, sessionTimeSearch)
 		if err != nil {
 			return fmt.Errorf("Error retrieving envoy session time connections stats: %v", err)
@@ -275,20 +280,20 @@ func getUIntStat(respMap map[string]string, statName string) (uint64, error) {
 	return val, nil
 }
 
-func getHistogramIntStats(respMap map[string]string, statName string) ([]uint64, error) {
+func getHistogramIntStats(respMap map[string]string, statName string) ([]float64, error) {
 	histogramStr, exists := respMap[statName]
 	if !exists {
 		return nil, fmt.Errorf("stat not found: %s", statName)
 	}
 	// no connections yet so just 0 everything
 	if histogramStr == envoyUnseen {
-		return []uint64{0, 0, 0, 0, 0, 0, 0, 0, 0, 0}, nil
+		return []float64{0, 0, 0, 0, 0, 0, 0, 0, 0, 0}, nil
 	}
 	buckets := strings.Split(histogramStr, " ")
 	if len(buckets) != len(envoyHistogramBuckets) {
 		return nil, fmt.Errorf("Error parsing histogram")
 	}
-	var histogram []uint64
+	var histogram []float64
 	for i, bucket := range buckets {
 		// P0(nan,3300)
 		// check if the percentile matches
@@ -301,7 +306,7 @@ func getHistogramIntStats(respMap map[string]string, statName string) ([]uint64,
 			return nil, fmt.Errorf("Error parsing histogram")
 		}
 		start = start + 1
-		val, err := strconv.ParseUint(bucket[start:end], 10, 64)
+		val, err := strconv.ParseFloat(bucket[start:end], 64)
 		if err != nil {
 			return nil, fmt.Errorf("Error parsing histogram: %v", err)
 		}
@@ -408,12 +413,12 @@ func MarshallProxyMetric(scrapePoint ProxyScrapePoint, data *shepherd_common.Pro
 		metric.AddIntVal("active", data.EnvoyStats[port].ActiveConn)
 		metric.AddIntVal("accepts", data.EnvoyStats[port].Accepts)
 		metric.AddIntVal("handled", data.EnvoyStats[port].HandledConn)
-		metric.AddIntVal("avgBytesSent", data.EnvoyStats[port].AvgBytesSent)
-		metric.AddIntVal("avgBytesRecvd", data.EnvoyStats[port].AvgBytesRecvd)
+		metric.AddDoubleVal("avgBytesSent", data.EnvoyStats[port].AvgBytesSent)
+		metric.AddDoubleVal("avgBytesRecvd", data.EnvoyStats[port].AvgBytesRecvd)
 
 		//session time historgram
 		for i, v := range data.EnvoyStats[port].SessionTime {
-			metric.AddIntVal(envoyHistogramBuckets[i], v)
+			metric.AddDoubleVal(envoyHistogramBuckets[i], v)
 		}
 		metricList = append(metricList, &metric)
 	}

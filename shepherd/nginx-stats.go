@@ -191,7 +191,7 @@ func envoyConnections(ctx context.Context, respMap map[string]string, ports []in
 		bytesSentSearch := envoyCluster + envoyBytesSent
 		bytesRecvdSearch := envoyCluster + envoyBytesRecvd
 		sessionTimeSearch := envoyCluster + envoySessionTime
-		var droppedVal, bytesSent, bytesRecvd uint64
+		var droppedVal uint64
 		new.ActiveConn, err = getUIntStat(respMap, activeSearch)
 		if err != nil {
 			return fmt.Errorf("Error retrieving envoy active connections stats: %v", err)
@@ -205,20 +205,13 @@ func envoyConnections(ctx context.Context, respMap map[string]string, ports []in
 			return fmt.Errorf("Error retrieving envoy handled connections stats: %v", err)
 		}
 		new.HandledConn = new.Accepts - droppedVal
-		bytesSent, err = getUIntStat(respMap, bytesSentSearch)
+		new.BytesSent, err = getUIntStat(respMap, bytesSentSearch)
 		if err != nil {
 			return fmt.Errorf("Error retrieving envoy bytes_sent connections stats: %v", err)
 		}
-		bytesRecvd, err = getUIntStat(respMap, bytesRecvdSearch)
+		new.BytesRecvd, err = getUIntStat(respMap, bytesRecvdSearch)
 		if err != nil {
 			return fmt.Errorf("Error retrieving envoy bytes_recvd connections stats: %v", err)
-		}
-		if new.Accepts > 0 {
-			new.AvgBytesSent = float64(bytesSent) / float64(new.Accepts)
-			new.AvgBytesRecvd = float64(bytesRecvd) / float64(new.Accepts)
-		} else {
-			new.AvgBytesSent = 0
-			new.AvgBytesRecvd = 0
 		}
 
 		// session time histogram
@@ -413,8 +406,8 @@ func MarshallProxyMetric(scrapePoint ProxyScrapePoint, data *shepherd_common.Pro
 		metric.AddIntVal("active", data.EnvoyStats[port].ActiveConn)
 		metric.AddIntVal("accepts", data.EnvoyStats[port].Accepts)
 		metric.AddIntVal("handled", data.EnvoyStats[port].HandledConn)
-		metric.AddDoubleVal("avgBytesSent", data.EnvoyStats[port].AvgBytesSent)
-		metric.AddDoubleVal("avgBytesRecvd", data.EnvoyStats[port].AvgBytesRecvd)
+		metric.AddIntVal("bytesSent", data.EnvoyStats[port].BytesSent)
+		metric.AddIntVal("bytesRecvd", data.EnvoyStats[port].BytesRecvd)
 
 		//session time historgram
 		for i, v := range data.EnvoyStats[port].SessionTime {

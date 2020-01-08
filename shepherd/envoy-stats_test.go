@@ -73,7 +73,7 @@ backend4321::10.192.1.2:4321::health_flags::/failed_active_hc`
 var testEnvoyData = `cluster.backend1234.upstream_cx_active: 10
 cluster.backend1234.upstream_cx_total: 15
 cluster.backend1234.upstream_cx_connect_fail: 0
-cluster.backend1234.upstream_cx_tx_bytes_total: 15
+cluster.backend1234.upstream_cx_tx_bytes_total: 16
 cluster.backend1234.upstream_cx_rx_bytes_total: 30
 cluster.backend1234.upstream_cx_length_ms: No recorded values
 cluster.backend4321.upstream_cx_active: 7
@@ -115,8 +115,8 @@ func TestEnvoyStats(t *testing.T) {
 	assert.Equal(t, uint64(10), testMetrics.EnvoyStats[1234].ActiveConn)
 	assert.Equal(t, uint64(15), testMetrics.EnvoyStats[1234].Accepts)
 	assert.Equal(t, uint64(15), testMetrics.EnvoyStats[1234].HandledConn)
-	assert.Equal(t, float64(1), testMetrics.EnvoyStats[1234].AvgBytesSent)
-	assert.Equal(t, float64(2), testMetrics.EnvoyStats[1234].AvgBytesRecvd)
+	assert.Equal(t, uint64(16), testMetrics.EnvoyStats[1234].BytesSent)
+	assert.Equal(t, uint64(30), testMetrics.EnvoyStats[1234].BytesRecvd)
 	// "No recorded values" should default to all zeros
 	for _, v := range testMetrics.EnvoyStats[1234].SessionTime {
 		assert.Equal(t, float64(0), v)
@@ -125,8 +125,8 @@ func TestEnvoyStats(t *testing.T) {
 	assert.Equal(t, uint64(7), testMetrics.EnvoyStats[4321].ActiveConn)
 	assert.Equal(t, uint64(10), testMetrics.EnvoyStats[4321].Accepts)
 	assert.Equal(t, uint64(9), testMetrics.EnvoyStats[4321].HandledConn)
-	assert.Equal(t, float64(2.1), testMetrics.EnvoyStats[4321].AvgBytesSent)
-	assert.Equal(t, float64(2.8), testMetrics.EnvoyStats[4321].AvgBytesRecvd)
+	assert.Equal(t, uint64(21), testMetrics.EnvoyStats[4321].BytesSent)
+	assert.Equal(t, uint64(28), testMetrics.EnvoyStats[4321].BytesRecvd)
 	assert.Equal(t, float64(2), testMetrics.EnvoyStats[4321].SessionTime[0])
 	assert.Equal(t, float64(5.1), testMetrics.EnvoyStats[4321].SessionTime[1])
 	assert.Equal(t, float64(11), testMetrics.EnvoyStats[4321].SessionTime[2])

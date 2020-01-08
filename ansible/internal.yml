@@ -531,7 +531,8 @@
         name: web
       vars:
         nginx_config_template: "internal/jaeger/nginx-config.j2"
-        cert_domains: [ "{{ inventory_hostname }}" ]
+        cert_domains: [ "*.{{ cloudflare_zone }}" ]
+        cert_name: "{{ inventory_hostname }}"
       tags: setup
 
     - import_role:

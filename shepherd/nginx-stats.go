@@ -180,6 +180,7 @@ func QueryProxy(ctx context.Context, scrapePoint *ProxyScrapePoint) (*shepherd_c
 
 func envoyConnections(ctx context.Context, respMap map[string]string, ports []int32, metrics *shepherd_common.ProxyMetrics) error {
 	var err error
+	var droppedVal uint64
 	metrics.EnvoyStats = make(map[int32]shepherd_common.ConnectionsMetric)
 	for _, port := range ports {
 		new := shepherd_common.ConnectionsMetric{}
@@ -191,7 +192,6 @@ func envoyConnections(ctx context.Context, respMap map[string]string, ports []in
 		bytesSentSearch := envoyCluster + envoyBytesSent
 		bytesRecvdSearch := envoyCluster + envoyBytesRecvd
 		sessionTimeSearch := envoyCluster + envoySessionTime
-		var droppedVal uint64
 		new.ActiveConn, err = getUIntStat(respMap, activeSearch)
 		if err != nil {
 			return fmt.Errorf("Error retrieving envoy active connections stats: %v", err)

@@ -36,7 +36,7 @@ type GetDnsSvcActionFunc func(svc v1.Service) (*DnsSvcAction, error)
 // The passed in GetDnsSvcActionFunc function should provide this function
 // with the actions to perform for each service, since different platforms
 // will use different IPs and patching.
-func CreateAppDNS(ctx context.Context, client pc.PlatformClient, kubeNames *k8smgmt.KubeNames, getSvcAction GetDnsSvcActionFunc) error {
+func CreateAppDNS(ctx context.Context, client pc.PlatformClient, kubeNames *k8smgmt.KubeNames, overrideDns string, getSvcAction GetDnsSvcActionFunc) error {
 
 	log.SpanLog(ctx, log.DebugLevelMexos, "createAppDNS")
 	useDns := true
@@ -94,7 +94,9 @@ func CreateAppDNS(ctx context.Context, client pc.PlatformClient, kubeNames *k8sm
 		if action.AddDNS && useDns {
 			mappedAddr := GetMappedExternalIP(action.ExternalIP)
 			fqdn := cloudcommon.ServiceFQDN(sn, fqdnBase)
-
+			if overrideDns != "" {
+				fqdn = overrideDns
+			}
 			if err := cloudflare.CreateOrUpdateDNSRecord(ctx, GetCloudletDNSZone(), fqdn, "A", mappedAddr, 1, false); err != nil {
 				return fmt.Errorf("can't create DNS record for %s,%s, %v", fqdn, mappedAddr, err)
 			}
@@ -104,7 +106,7 @@ func CreateAppDNS(ctx context.Context, client pc.PlatformClient, kubeNames *k8sm
 	return nil
 }
 
-func DeleteAppDNS(ctx context.Context, client pc.PlatformClient, kubeNames *k8smgmt.KubeNames) error {
+func DeleteAppDNS(ctx context.Context, client pc.PlatformClient, kubeNames *k8smgmt.KubeNames, overrideDns string) error {
 
 	if err := cloudflare.InitAPI(GetCloudletCFUser(), GetCloudletCFKey()); err != nil {
 		return fmt.Errorf("cannot init cloudflare api, %v", err)
@@ -130,6 +132,9 @@ func DeleteAppDNS(ctx context.Context, client pc.PlatformClient, kubeNames *k8sm
 		}
 		sn := svc.ObjectMeta.Name
 		fqdn := cloudcommon.ServiceFQDN(sn, fqdnBase)
+		if overrideDns != "" {
+			fqdn = overrideDns
+		}
 		recs, derr := cloudflare.GetDNSRecords(ctx, GetCloudletDNSZone(), fqdn)
 		if derr != nil {
 			return fmt.Errorf("error getting dns records for %s, %v", GetCloudletDNSZone(), derr)

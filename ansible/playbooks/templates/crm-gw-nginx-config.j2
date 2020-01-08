@@ -11,4 +11,10 @@ stream {
               listen {{ controller_notify_port }};
               proxy_pass {{ controller_hostname }}:{{ controller_notify_port }};
         }
+        server {
+              error_log  /var/log/nginx/nginx-gw-jaeger.log debug;
+              listen {{ jaeger_port }};
+              proxy_pass {{ jaeger_hostname }}:{{ jaeger_port }};
+        }
+
 }

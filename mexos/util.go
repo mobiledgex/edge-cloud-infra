@@ -41,6 +41,7 @@ func AddProxySecurityRulesAndPatchDNS(ctx context.Context, client pc.PlatformCli
 				if err != nil {
 					log.SpanLog(ctx, log.DebugLevelMexos, "Error getting cert from vault", "err", err)
 					proxychan <- err.Error()
+					return
 				}
 				ops = append(ops, proxy.WithTLSCert(&tlsCert))
 			}

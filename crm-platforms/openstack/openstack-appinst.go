@@ -102,7 +102,7 @@ func (s *Platform) CreateAppInst(ctx context.Context, clusterInst *edgeproto.Clu
 				}
 				// If this is an internal ports, all we need is patch of kube service
 				if app.InternalPorts {
-					err = mexos.CreateAppDNS(ctx, client, names, "", getDnsAction)
+					err = mexos.CreateAppDNS(ctx, client, names, mexos.NoDnsOverride, getDnsAction)
 				} else {
 					updateCallback(edgeproto.UpdateTask, "Configuring Service: LB, Firewall Rules and DNS")
 					err = mexos.AddProxySecurityRulesAndPatchDNS(ctx, client, names, app, appInst, getDnsAction, rootLBName, masterIP, true, s.vaultConfig, proxy.WithDockerPublishPorts(), proxy.WithDockerNetwork(""))

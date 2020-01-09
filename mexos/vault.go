@@ -106,8 +106,8 @@ func DeleteDataFromVault(config *vault.Config, path string) error {
 	return vault.DeleteKV(client, metadataPath)
 }
 
-// GetCertFromVault fills in the cert fields by calling the vault  plugin.  This will return a new cert
-// if one is not already available, or a cached copy of an existing cert.
+// GetCertFromVault fills in the cert fields by calling the vault  plugin.  The vault plugin will 
+// return a new cert if one is not already available, or a cached copy of an existing cert.
 func GetCertFromVault(ctx context.Context, config *vault.Config, commonName string, tlsCert *access.TLSCert) error {
 	log.SpanLog(ctx, log.DebugLevelMexos, "GetCertFromVault", "commonName", commonName)
 	client, err := config.Login()

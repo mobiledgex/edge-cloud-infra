@@ -32,6 +32,8 @@ type DnsSvcAction struct {
 // Callback function for callers to control the behavior of DNS changes.
 type GetDnsSvcActionFunc func(svc v1.Service) (*DnsSvcAction, error)
 
+var NoDnsOverride = ""
+
 // Register DNS entries for externally visible services.
 // The passed in GetDnsSvcActionFunc function should provide this function
 // with the actions to perform for each service, since different platforms

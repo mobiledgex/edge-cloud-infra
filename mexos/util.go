@@ -30,26 +30,22 @@ func AddProxySecurityRulesAndPatchDNS(ctx context.Context, client pc.PlatformCli
 	}
 	go func() {
 		if addProxy {
-			if err != nil {
-				proxychan <- err.Error()
-				return
-			}
 			if aac.LbTlsCertCommonName != "" {
 				var tlsCert access.TLSCert
-				err = GetCertFromVault(ctx, vaultConfig, aac.LbTlsCertCommonName, &tlsCert)
+				proxyerr := GetCertFromVault(ctx, vaultConfig, aac.LbTlsCertCommonName, &tlsCert)
 				log.SpanLog(ctx, log.DebugLevelMexos, "got cert from vault", "tlsCert", tlsCert, "err", err)
-				if err != nil {
+				if proxyerr != nil {
 					log.SpanLog(ctx, log.DebugLevelMexos, "Error getting cert from vault", "err", err)
-					proxychan <- err.Error()
+					proxychan <- proxyerr.Error()
 					return
 				}
 				ops = append(ops, proxy.WithTLSCert(&tlsCert))
 			}
-			err = proxy.CreateNginxProxy(ctx, client, kubeNames.AppName, masterIP, appInst.MappedPorts, ops...)
-			if err == nil {
+			proxyerr := proxy.CreateNginxProxy(ctx, client, kubeNames.AppName, masterIP, appInst.MappedPorts, ops...)
+			if proxyerr == nil {
 				proxychan <- ""
 			} else {
-				proxychan <- err.Error()
+				proxychan <- proxyerr.Error()
 			}
 		} else {
 			proxychan <- ""

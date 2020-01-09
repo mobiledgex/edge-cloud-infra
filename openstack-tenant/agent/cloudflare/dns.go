@@ -105,6 +105,7 @@ func CreateOrUpdateDNSRecord(ctx context.Context, zone, name, rtype, content str
 	}
 	found := false
 	for _, r := range records {
+
 		found = true
 		if r.Content == content {
 			log.SpanLog(ctx, log.DebugLevelMexos, "CreateOrUpdateDNSRecord existing record matches", "name", name, "content", content)

@@ -112,7 +112,7 @@ type ConnectionsMetric struct {
 	Accepts     uint64
 	HandledConn uint64
 	// histogram of sessions times (in ms)
-	SessionTime []float64
+	SessionTime map[string]float64
 	BytesSent   uint64
 	BytesRecvd  uint64
 }

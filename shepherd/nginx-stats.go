@@ -215,7 +215,7 @@ func envoyConnections(ctx context.Context, respMap map[string]string, ports []in
 		}
 
 		// session time histogram
-		var sessionTimeHistogram []float64
+		var sessionTimeHistogram map[string]float64
 		sessionTimeHistogram, err = getHistogramIntStats(respMap, sessionTimeSearch)
 		if err != nil {
 			return fmt.Errorf("Error retrieving envoy session time connections stats: %v", err)
@@ -273,20 +273,25 @@ func getUIntStat(respMap map[string]string, statName string) (uint64, error) {
 	return val, nil
 }
 
-func getHistogramIntStats(respMap map[string]string, statName string) ([]float64, error) {
+// parses envoy histograms into a map form. Envoy histograms look like this:
+// cluster.backend4321.upstream_cx_length_ms: P0(nan,2) P25(nan,5.1) P50(nan,11) P75(nan,105) P90(nan,182) P95(nan,186) P99(nan,189.2) P99.5(nan,189.6) P99.9(nan,189.92) P100(nan,190)
+func getHistogramIntStats(respMap map[string]string, statName string) (map[string]float64, error) {
 	histogramStr, exists := respMap[statName]
 	if !exists {
 		return nil, fmt.Errorf("stat not found: %s", statName)
 	}
-	// no connections yet so just 0 everything
+	histogram := make(map[string]float64)
+	for _, v := range envoyHistogramBuckets {
+		histogram[v] = 0
+	}
+	// if theres no connections yet to measure default everything to zeros
 	if histogramStr == envoyUnseen {
-		return []float64{0, 0, 0, 0, 0, 0, 0, 0, 0, 0}, nil
+		return histogram, nil
 	}
 	buckets := strings.Split(histogramStr, " ")
 	if len(buckets) != len(envoyHistogramBuckets) {
 		return nil, fmt.Errorf("Error parsing histogram")
 	}
-	var histogram []float64
 	for i, bucket := range buckets {
 		// P0(nan,3300)
 		// check if the percentile matches
@@ -303,7 +308,7 @@ func getHistogramIntStats(respMap map[string]string, statName string) ([]float64
 		if err != nil {
 			return nil, fmt.Errorf("Error parsing histogram: %v", err)
 		}
-		histogram = append(histogram, val)
+		histogram[envoyHistogramBuckets[i]] = val
 	}
 	return histogram, nil
 }
@@ -410,8 +415,8 @@ func MarshallProxyMetric(scrapePoint ProxyScrapePoint, data *shepherd_common.Pro
 		metric.AddIntVal("bytesRecvd", data.EnvoyStats[port].BytesRecvd)
 
 		//session time historgram
-		for i, v := range data.EnvoyStats[port].SessionTime {
-			metric.AddDoubleVal(envoyHistogramBuckets[i], v)
+		for k, v := range data.EnvoyStats[port].SessionTime {
+			metric.AddDoubleVal(k, v)
 		}
 		metricList = append(metricList, &metric)
 	}

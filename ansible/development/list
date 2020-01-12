@@ -26,9 +26,6 @@ vault_ha_domain="vault-{{ deploy_environ }}.mobiledgex.net"
 [platform]
 localhost	ansible_connection=local
 
-[mc]
-mc-dev.mobiledgex.net
-
 [gitlab]
 gitlab-dev.mobiledgex.net
 

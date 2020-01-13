@@ -885,7 +885,9 @@ func GetFlavorInfo(ctx context.Context) ([]*edgeproto.FlavorInfo, []OSAZone, []O
 				props = make(map[string]string)
 				for _, m := range ms {
 					value := strings.Split(m, ":")
-					props[value[0]] = value[1]
+					if len(value) > 1 {
+						props[value[0]] = value[1]
+					}
 				}
 			}
 		}

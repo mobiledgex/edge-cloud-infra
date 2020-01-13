@@ -130,19 +130,6 @@
       loop_control:
         index_var: crm_index
 
-- hosts: mc
-  roles:
-    - role: telegraf
-      tags: [ 'monitoring', 'setup' ]
-    - role: web
-      tags: setup
-      vars:
-        nginx_config_template: "templates/mexplat/mc-nginx-config.j2"
-        cert_domains: [ "{{ mc_vm_hostname }}" ]
-    - role: docker
-      tags: setup
-    - mc
-
 - hosts: stun
   roles:
     - role: telegraf
@@ -153,12 +140,12 @@
   tasks:
     - import_role:
         name: telegraf
-      tags: monitoring
+      tags: [ 'monitoring', 'setup' ]
     - import_role:
         name: web
       vars:
         nginx_config_template: "templates/mexplat/console-nginx-config.j2"
-        cert_domains: [ "{{ console_vm_hostname }}" ]
+        cert_domains: [ "{{ inventory_hostname }}" ]
       when: skip_console_setup is not defined or not skip_console_setup
       tags: setup
     - import_role:
@@ -166,6 +153,8 @@
       tags: setup
     - import_role:
         name: console
+    - import_role:
+        name: mc
 
 - hosts: registry_replicas
   tasks:

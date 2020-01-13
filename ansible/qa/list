@@ -23,16 +23,12 @@ toksrv_url="http://mexdemo.tok.mobiledgex.net:9999/its?followURL=https://dme.mob
 dme_carrier=GDDT
 operator_key=GDDT
 deploy_target="mexplat-{{ deploy_environ }}"
-mc_websockets_support=true
 
 [platform]
 localhost	ansible_connection=local
 
 [crms]
 crm-qa.mobiledgex.net
-
-[mc]
-mc-qa.mobiledgex.net nginx_config_filename=mc
 
 [gitlab]
 gitlab-qa.mobiledgex.net

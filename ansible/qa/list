@@ -18,7 +18,7 @@ vault_port=443
 vault_firewall_setup=no
 monitor_version=latest
 letsencrypt_env=production
-locver_url="http://mexdemo.locsim.mobiledgex.net:8888/verifyLocation"
+locver_url="http://mexdemo.locsim.mobiledgex.net:8889/verifyLocation"
 toksrv_url="http://mexdemo.tok.mobiledgex.net:9999/its?followURL=https://dme.mobiledgex.net/verifyLoc"
 dme_carrier=GDDT
 operator_key=GDDT

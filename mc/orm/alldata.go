@@ -204,7 +204,7 @@ func DeleteData(c echo.Context) error {
 			streamReply(c, desc, err, &hadErr)
 		}
 		for _, ppolicy := range appdata.PrivacyPolicies {
-			desc := fmt.Sprintf("Delete AutoScalePolicy %v", ppolicy.Key)
+			desc := fmt.Sprintf("Delete PrivacyPolicy %v", ppolicy.Key)
 			_, err := DeletePrivacyPolicyObj(ctx, rc, &ppolicy)
 			streamReply(c, desc, err, &hadErr)
 		}

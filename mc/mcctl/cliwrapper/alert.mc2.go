@@ -87,6 +87,7 @@ It has these top-level messages:
 	Operator
 	OutboundSecurityRule
 	PrivacyPolicy
+	OperatorCode
 	CloudletRefs
 	ClusterRefs
 	ResTagTableKey

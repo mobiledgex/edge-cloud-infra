@@ -25,6 +25,7 @@ const (
 	UserVMDeployment     DeploymentType = "mexuservm"
 	PlatformVMDeployment DeploymentType = "mexplatformvm"
 	ClusterVMDeployment  DeploymentType = "mexclustervm"
+	SharedCluster        DeploymentType = "sharedcluster"
 )
 
 func GetPlatformVMPrefix(key *edgeproto.CloudletKey) string {

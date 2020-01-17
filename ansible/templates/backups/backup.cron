@@ -18,7 +18,7 @@ backup() {
         echo
         echo "[$(date)] Backing up $_bucket (options: \"$*\")"
         mkdir -p "$HOME/$_bucket"
-        gsutil -m rsync -r "$@" "gs://$_bucket/" "$HOME/$_bucket/"
+        gsutil -m rsync -d -r "$@" "gs://$_bucket/" "$HOME/$_bucket/"
 }
 
 echo

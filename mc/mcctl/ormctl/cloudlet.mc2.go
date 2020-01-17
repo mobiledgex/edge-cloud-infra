@@ -541,7 +541,7 @@ var CloudletComments = map[string]string{
 	"timelimits.updateappinsttimeout":     "max time to update an app instance",
 	"timelimits.deleteappinsttimeout":     "max time to delete an app instance",
 	"errors":                              "Any errors trying to create, update, or delete the Cloudlet.",
-	"state":                               "Current state of the cloudlet, one of TrackedStateUnknown, NotPresent, CreateRequested, Creating, CreateError, Ready, UpdateRequested, Updating, UpdateError, DeleteRequested, Deleting, DeleteError, DeletePrepare, CrmInitok",
+	"state":                               "Current state of the cloudlet, one of TrackedStateUnknown, NotPresent, CreateRequested, Creating, CreateError, Ready, UpdateRequested, Updating, UpdateError, DeleteRequested, Deleting, DeleteError, DeletePrepare, CrmInitok, CreatingDependencies",
 	"crmoverride":                         "Override actions to CRM, one of NoOverride, IgnoreCrmErrors, IgnoreCrm, IgnoreTransientState, IgnoreCrmAndTransientState",
 	"deploymentlocal":                     "Deploy cloudlet services locally",
 	"platformtype":                        "Platform type, one of PlatformTypeFake, PlatformTypeDind, PlatformTypeOpenstack, PlatformTypeAzure, PlatformTypeGcp, PlatformTypeEdgebox, PlatformTypeFakeinfra",
@@ -598,23 +598,25 @@ var FlavorInfoOptionalArgs = []string{
 	"vcpus",
 	"ram",
 	"disk",
-	"properties",
+	"propmap",
 }
 var FlavorInfoAliasArgs = []string{
 	"name=flavorinfo.name",
 	"vcpus=flavorinfo.vcpus",
 	"ram=flavorinfo.ram",
 	"disk=flavorinfo.disk",
-	"properties=flavorinfo.properties",
+	"propmap=flavorinfo.propmap",
 }
 var FlavorInfoComments = map[string]string{
-	"name":       "Name of the flavor on the Cloudlet",
-	"vcpus":      "Number of VCPU cores on the Cloudlet",
-	"ram":        "Ram in MB on the Cloudlet",
-	"disk":       "Amount of disk in GB on the Cloudlet",
-	"properties": "OS Flavor Properties, if any",
+	"name":    "Name of the flavor on the Cloudlet",
+	"vcpus":   "Number of VCPU cores on the Cloudlet",
+	"ram":     "Ram in MB on the Cloudlet",
+	"disk":    "Amount of disk in GB on the Cloudlet",
+	"propmap": "OS Flavor Properties, if any",
 }
-var FlavorInfoSpecialArgs = map[string]string{}
+var FlavorInfoSpecialArgs = map[string]string{
+	"propmap": "StringToString",
+}
 var OSAZoneRequiredArgs = []string{}
 var OSAZoneOptionalArgs = []string{
 	"name",
@@ -662,7 +664,7 @@ var CloudletInfoOptionalArgs = []string{
 	"flavors.vcpus",
 	"flavors.ram",
 	"flavors.disk",
-	"flavors.properties",
+	"flavors.propmap",
 	"status.tasknumber",
 	"status.maxtasks",
 	"status.taskname",
@@ -689,7 +691,7 @@ var CloudletInfoAliasArgs = []string{
 	"flavors.vcpus=cloudletinfo.flavors.vcpus",
 	"flavors.ram=cloudletinfo.flavors.ram",
 	"flavors.disk=cloudletinfo.flavors.disk",
-	"flavors.properties=cloudletinfo.flavors.properties",
+	"flavors.propmap=cloudletinfo.flavors.propmap",
 	"status.tasknumber=cloudletinfo.status.tasknumber",
 	"status.maxtasks=cloudletinfo.status.maxtasks",
 	"status.taskname=cloudletinfo.status.taskname",
@@ -716,7 +718,7 @@ var CloudletInfoComments = map[string]string{
 	"flavors.vcpus":       "Number of VCPU cores on the Cloudlet",
 	"flavors.ram":         "Ram in MB on the Cloudlet",
 	"flavors.disk":        "Amount of disk in GB on the Cloudlet",
-	"flavors.properties":  "OS Flavor Properties, if any",
+	"flavors.propmap":     "OS Flavor Properties, if any",
 	"version":             "Cloudlet version",
 	"osimages.name":       "image name",
 	"osimages.tags":       "optional tags present on image",
@@ -724,7 +726,8 @@ var CloudletInfoComments = map[string]string{
 	"osimages.diskformat": "format qcow2, img, etc",
 }
 var CloudletInfoSpecialArgs = map[string]string{
-	"errors": "StringArray",
+	"errors":          "StringArray",
+	"flavors.propmap": "StringToString",
 }
 var CloudletMetricsRequiredArgs = []string{}
 var CloudletMetricsOptionalArgs = []string{

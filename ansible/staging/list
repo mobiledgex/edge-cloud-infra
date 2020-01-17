@@ -26,9 +26,6 @@ localhost	ansible_connection=local
 [crms]
 crm-stage.mobiledgex.net
 
-[mc]
-mc-stage.mobiledgex.net	
-
 [gitlab]
 gitlab-stage.mobiledgex.net
 

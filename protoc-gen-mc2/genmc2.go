@@ -155,11 +155,14 @@ func (g *GenMC2) Generate(file *generator.FileDescriptor) {
 		if g.genctl {
 			g.generateCtlGroup(service)
 		}
+		if len(service.Method) == 0 {
+			continue
+		}
 		if g.gentestutil {
-			if len(service.Method) == 0 {
-				continue
-			}
 			g.generateRunApi(file.FileDescriptorProto, service)
+		}
+		if g.gentest {
+			g.generateTestApi(service)
 		}
 	}
 	if g.genctl {
@@ -177,14 +180,6 @@ func (g *GenMC2) Generate(file *generator.FileDescriptor) {
 			g.generatePosts()
 		}
 		g.firstFile = false
-	}
-	if g.gentest {
-		for _, msg := range file.Messages() {
-			if GetGenerateCud(msg.DescriptorProto) &&
-				!GetGenerateShowTest(msg.DescriptorProto) {
-				g.generateMessageTest(msg)
-			}
-		}
 	}
 }
 
@@ -218,12 +213,31 @@ func (g *GenMC2) generatePosts() {
 			if len(service.Method) == 0 {
 				continue
 			}
+			streamRouteAdded := false
 			for _, method := range service.Method {
 				if GetMc2Api(method) == "" {
 					continue
 				}
 				g.P("group.Match([]string{method}, \"/ctrl/", method.Name,
 					"\", ", method.Name, ")")
+				if gensupport.ServerStreaming(method) && !streamRouteAdded {
+					api := GetMc2Api(method)
+					if api == "" {
+						return
+					}
+					apiVals := strings.Split(api, ",")
+					if len(apiVals) != 3 {
+						g.Fail("invalid mc2_api string, expected ResourceType,Action,OrgNameField")
+					}
+					if apiVals[1] == "ActionView" && strings.HasPrefix(*method.Name, "Show") {
+						continue
+					}
+					streamRouteAdded = true
+					in := gensupport.GetDesc(g.Generator, method.GetInputType())
+					streamName := "Stream" + *in.DescriptorProto.Name
+					g.P("group.Match([]string{method}, \"/ctrl/", streamName,
+						"\", ", streamName, ")")
+				}
 			}
 		}
 	}
@@ -285,6 +299,9 @@ func (g *GenMC2) generateMethod(service string, method *descriptor.MethodDescrip
 	}
 	if !args.Outstream {
 		args.ReturnErrArg = "nil, "
+	}
+	if args.Outstream && !args.Show && !found {
+		args.GenStream = true
 	}
 	if !args.Show {
 		args.TargetCloudlet = GetMc2TargetCloudlet(in.DescriptorProto)
@@ -353,6 +370,7 @@ type tmplArgs struct {
 	InName               string
 	OutName              string
 	GenStruct            bool
+	GenStream            bool
 	Resource             string
 	Action               string
 	OrgField             string
@@ -384,6 +402,62 @@ type Region{{.InName}} struct {
 `
 
 var tmpl = `
+{{- if .GenStream}}
+var stream{{.InName}} = &StreamObj{}
+
+func Stream{{.InName}}(c echo.Context) error {
+	ctx := GetContext(c)
+	rc := &RegionContext{}
+	claims, err := getClaims(c)
+	if err != nil {
+		return err
+	}
+	rc.username = claims.Username
+
+	in := ormapi.Region{{.InName}}{}
+	success, err := ReadConn(c, &in)
+	if !success {
+		return err
+	}
+	rc.region = in.Region
+{{- if .OrgValid}}
+	span := log.SpanFromContext(ctx)
+	span.SetTag("org", in.{{.InName}}.{{.OrgField}})
+{{- end}}
+
+	streamer := stream{{.InName}}.Get(in.{{.InName}}.Key)
+	if streamer != nil {
+		payload := ormapi.StreamPayload{}
+		streamCh := streamer.Subscribe()
+		serverClosed := make(chan bool)
+		go func() {
+			for streamMsg := range streamCh {
+				switch out := streamMsg.(type) {
+				case string:
+					payload.Data = &edgeproto.Result{Message: out}
+					WriteStream(c, &payload)
+				case error:
+					WriteError(c, out)
+				default:
+					WriteError(c, fmt.Errorf("Unsupported message type received: %v", streamMsg))
+				}
+			}
+			CloseConn(c)
+			serverClosed <- true
+		}()
+		// Wait for client/server to close
+		// * Server closure is set via above serverClosed flag
+		// * Client closure is sent from client via a message
+		WaitForConnClose(c, serverClosed)
+		streamer.Unsubscribe(streamCh)
+        } else {
+		WriteError(c, fmt.Errorf("Key doesn't exist"))
+		CloseConn(c)
+	}
+        return nil
+}
+{{- end}}
+
 func {{.MethodName}}(c echo.Context) error {
 	ctx := GetContext(c)
 	rc := &RegionContext{}
@@ -399,6 +473,7 @@ func {{.MethodName}}(c echo.Context) error {
 	if !success {
 		return err
 	}
+	defer CloseConn(c)
 {{- else}}
 	if err := c.Bind(&in); err != nil {
 		return c.JSON(http.StatusBadRequest, Msg("Invalid POST data"))
@@ -410,15 +485,42 @@ func {{.MethodName}}(c echo.Context) error {
 	span.SetTag("org", in.{{.InName}}.{{.OrgField}})
 {{- end}}
 {{- if .Outstream}}
+{{- if and (not .Show) .Outstream}}
+
+	streamer := NewStreamer()
+	defer streamer.Stop()
+{{- end}}
+
+{{- if and (not .Show) .Outstream}}
+	streamAdded := false
+{{- end}}
 
 	err = {{.MethodName}}Stream(ctx, rc, &in.{{.InName}}, func(res *edgeproto.{{.OutName}}) {
+{{- if and (not .Show) .Outstream}}
+		if !streamAdded{
+			stream{{.InName}}.Add(in.{{.InName}}.Key, streamer)
+			streamAdded = true
+		}
+{{- end}}
 		payload := ormapi.StreamPayload{}
 		payload.Data = res
+{{- if and (not .Show) .Outstream}}
+		streamer.Publish(res.Message)
+{{- end}}
 		WriteStream(c, &payload)
 	})
 	if err != nil {
+{{- if and (not .Show) .Outstream}}
+		streamer.Publish(err)
+{{- end}}
 		WriteError(c, err)
 	}
+{{- if and (not .Show) .Outstream}}
+	if streamAdded {
+		stream{{.InName}}.Remove(in.{{.InName}}.Key, streamer)
+	}
+
+{{- end}}
 	return nil
 {{- else}}
 	resp, err := {{.MethodName}}Obj(ctx, rc, &in.{{.InName}})
@@ -681,10 +783,26 @@ func (s *Client) {{.MethodName}}(uri, token string, in *ormapi.Region{{.InName}}
 
 `
 
-func (g *GenMC2) generateMessageTest(desc *generator.Descriptor) {
-	message := desc.DescriptorProto
+func (g *GenMC2) generateTestApi(service *descriptor.ServiceDescriptorProto) {
+	// group methods by input type
+	groups := gensupport.GetMethodGroups(g.Generator, service, nil)
+	for _, group := range groups {
+		g.generateTestGroupApi(service, group)
+	}
+}
+
+func (g *GenMC2) generateTestGroupApi(service *descriptor.ServiceDescriptorProto, group *gensupport.MethodGroup) {
+	if !group.HasMc2Api {
+		return
+	}
+	message := group.In.DescriptorProto
+	if !GetGenerateCud(message) || GetGenerateShowTest(message) {
+		return
+	}
+
 	args := msgArgs{
-		Message:        *message.Name,
+		Message: group.InType,
+		//Message:        *message.Name,
 		HasUpdate:      GetGenerateCudTestUpdate(message),
 		TargetCloudlet: GetMc2TargetCloudlet(message),
 	}
@@ -711,47 +829,17 @@ func (g *GenMC2) generateMessageTest(desc *generator.Descriptor) {
 func (g *GenMC2) generateRunApi(file *descriptor.FileDescriptorProto, service *descriptor.ServiceDescriptorProto) {
 	// group methods by input type
 	groups := gensupport.GetMethodGroups(g.Generator, service, nil)
-	for inType, group := range groups {
-		g.generateRunGroupApi(file, service, inType, group)
+	for _, group := range groups {
+		g.generateRunGroupApi(file, service, group)
 	}
 }
 
-func (g *GenMC2) generateRunGroupApi(file *descriptor.FileDescriptorProto, service *descriptor.ServiceDescriptorProto, inType string, group *gensupport.MethodGroup) {
+func (g *GenMC2) generateRunGroupApi(file *descriptor.FileDescriptorProto, service *descriptor.ServiceDescriptorProto, group *gensupport.MethodGroup) {
 	if !group.HasMc2Api {
 		return
 	}
 	apiName := *service.Name + group.Suffix
-
-	/*
-		allowedActions := []string{
-			"Create",
-			"Update",
-			"Delete",
-		}
-		out := make(map[string]map[string]string)
-		for _, method := range service.Method {
-			found := false
-			action := ""
-			for _, act := range allowedActions {
-				if strings.HasPrefix(*method.Name, act) {
-					found = true
-					action = act
-					break
-				}
-			}
-			if !found {
-				continue
-			}
-			cmd := strings.TrimPrefix(*method.Name, action)
-			if _, ok := out[cmd]; ok {
-				out[cmd][action] = *method.Name
-			} else {
-				out[cmd] = map[string]string{
-					action: *method.Name,
-				}
-			}
-		}
-	*/
+	inType := group.InType
 	readMap := group.HasUpdate
 
 	objStr := strings.ToLower(string(inType[0])) + string(inType[1:len(inType)])

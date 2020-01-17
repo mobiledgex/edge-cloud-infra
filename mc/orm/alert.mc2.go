@@ -23,6 +23,7 @@ It is generated from these files:
 	node.proto
 	notice.proto
 	operator.proto
+	privacypolicy.proto
 	refs.proto
 	restagtable.proto
 	result.proto
@@ -84,6 +85,9 @@ It has these top-level messages:
 	Notice
 	OperatorKey
 	Operator
+	OperatorCode
+	OutboundSecurityRule
+	PrivacyPolicy
 	CloudletRefs
 	ClusterRefs
 	ResTagTableKey
@@ -126,6 +130,7 @@ func ShowAlert(c echo.Context) error {
 	if !success {
 		return err
 	}
+	defer CloseConn(c)
 	rc.region = in.Region
 
 	err = ShowAlertStream(ctx, rc, &in.Alert, func(res *edgeproto.Alert) {
@@ -210,6 +215,9 @@ func addControllerApis(method string, group *echo.Group) {
 	group.Match([]string{method}, "/ctrl/DeleteApp", DeleteApp)
 	group.Match([]string{method}, "/ctrl/UpdateApp", UpdateApp)
 	group.Match([]string{method}, "/ctrl/ShowApp", ShowApp)
+	group.Match([]string{method}, "/ctrl/CreateOperatorCode", CreateOperatorCode)
+	group.Match([]string{method}, "/ctrl/DeleteOperatorCode", DeleteOperatorCode)
+	group.Match([]string{method}, "/ctrl/ShowOperatorCode", ShowOperatorCode)
 	group.Match([]string{method}, "/ctrl/CreateResTagTable", CreateResTagTable)
 	group.Match([]string{method}, "/ctrl/DeleteResTagTable", DeleteResTagTable)
 	group.Match([]string{method}, "/ctrl/UpdateResTagTable", UpdateResTagTable)
@@ -218,6 +226,7 @@ func addControllerApis(method string, group *echo.Group) {
 	group.Match([]string{method}, "/ctrl/RemoveResTag", RemoveResTag)
 	group.Match([]string{method}, "/ctrl/GetResTagTable", GetResTagTable)
 	group.Match([]string{method}, "/ctrl/CreateCloudlet", CreateCloudlet)
+	group.Match([]string{method}, "/ctrl/StreamCloudlet", StreamCloudlet)
 	group.Match([]string{method}, "/ctrl/DeleteCloudlet", DeleteCloudlet)
 	group.Match([]string{method}, "/ctrl/UpdateCloudlet", UpdateCloudlet)
 	group.Match([]string{method}, "/ctrl/ShowCloudlet", ShowCloudlet)
@@ -226,10 +235,12 @@ func addControllerApis(method string, group *echo.Group) {
 	group.Match([]string{method}, "/ctrl/FindFlavorMatch", FindFlavorMatch)
 	group.Match([]string{method}, "/ctrl/ShowCloudletInfo", ShowCloudletInfo)
 	group.Match([]string{method}, "/ctrl/CreateClusterInst", CreateClusterInst)
+	group.Match([]string{method}, "/ctrl/StreamClusterInst", StreamClusterInst)
 	group.Match([]string{method}, "/ctrl/DeleteClusterInst", DeleteClusterInst)
 	group.Match([]string{method}, "/ctrl/UpdateClusterInst", UpdateClusterInst)
 	group.Match([]string{method}, "/ctrl/ShowClusterInst", ShowClusterInst)
 	group.Match([]string{method}, "/ctrl/CreateAppInst", CreateAppInst)
+	group.Match([]string{method}, "/ctrl/StreamAppInst", StreamAppInst)
 	group.Match([]string{method}, "/ctrl/DeleteAppInst", DeleteAppInst)
 	group.Match([]string{method}, "/ctrl/RefreshAppInst", RefreshAppInst)
 	group.Match([]string{method}, "/ctrl/UpdateAppInst", UpdateAppInst)
@@ -254,6 +265,10 @@ func addControllerApis(method string, group *echo.Group) {
 	group.Match([]string{method}, "/ctrl/ShowCloudletsForPool", ShowCloudletsForPool)
 	group.Match([]string{method}, "/ctrl/RunCommand", RunCommand)
 	group.Match([]string{method}, "/ctrl/ShowNode", ShowNode)
+	group.Match([]string{method}, "/ctrl/CreatePrivacyPolicy", CreatePrivacyPolicy)
+	group.Match([]string{method}, "/ctrl/DeletePrivacyPolicy", DeletePrivacyPolicy)
+	group.Match([]string{method}, "/ctrl/UpdatePrivacyPolicy", UpdatePrivacyPolicy)
+	group.Match([]string{method}, "/ctrl/ShowPrivacyPolicy", ShowPrivacyPolicy)
 	group.Match([]string{method}, "/ctrl/ShowCloudletRefs", ShowCloudletRefs)
 	group.Match([]string{method}, "/ctrl/ShowClusterRefs", ShowClusterRefs)
 }

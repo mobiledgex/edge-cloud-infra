@@ -5,10 +5,16 @@ server {
 	root /var/www/html;
 	index index.html index.htm index.nginx-debian.html;
 
-	server_name {{ console_vm_hostname }};
+	server_name {{ inventory_hostname }};
+
+        add_header 'Access-Control-Allow-Origin' '*';
+        add_header 'Access-Control-Allow-Credentials' 'true';
+        add_header 'Access-Control-Allow-Headers' 'Authorization,Accept,Origin,Keep-Alive,User-Agent,X-Requested-With,If-Modified-Since,Cache-Control,Content-Type,Content-Range,R
+ange';
+        add_header 'Access-Control-Allow-Methods' 'GET,POST,OPTIONS,PUT,DELETE,PATCH';
 
 	location / {
-		proxy_pass http://127.0.0.1:3000;
+		proxy_pass https://127.0.0.1:3000;
 		proxy_http_version 1.1;
 		proxy_set_header Upgrade $http_upgrade;
 		proxy_set_header Connection "upgrade";
@@ -18,11 +24,38 @@ server {
 		proxy_set_header X-Forwarded-Proto $scheme;
 	}
 
-	location /server {
-		rewrite /server/(.*) /$1  break;
-		proxy_pass https://127.0.0.1:13030;
-		proxy_redirect     off;
-		proxy_set_header   Host $host;
+	location ~ /(api|ws)/ {
+
+                if ($request_method ~ ^(HEAD|OPTIONS)$) {
+                        add_header 'Access-Control-Allow-Origin' '*';
+                        add_header 'Access-Control-Allow-Credentials' 'true';
+                        add_header 'Access-Control-Allow-Headers' 'Authorization,Accept,Origin,Keep-Alive,User-Agent,X-Requested-With,If-Modified-Since,Cache-Control,Content-Type,Content-Range,Range';
+                        add_header 'Access-Control-Allow-Methods' 'GET,POST,OPTIONS,PUT,DELETE,PATCH';
+                        add_header 'Access-Control-Max-Age' 1728000;
+                        add_header 'Content-Type' 'text/plain charset=UTF-8';
+                        add_header 'Content-Length' 0;
+                        return 204;
+                }
+		if ($request_method = 'POST') {
+			add_header 'Access-Control-Allow-Origin' '*';
+			add_header 'Access-Control-Allow-Methods' 'GET, POST, OPTIONS';
+			add_header 'Access-Control-Allow-Headers' 'DNT,User-Agent,X-Requested-With,If-Modified-Since,Cache-Control,Content-Type,Range,Authorization,Accept,Origin,Keep-Alive,User-Agent,X-Requested-With,If-Modified-Since,Cache-Control,Content-Type,Content-Range';
+			add_header 'Access-Control-Expose-Headers' 'Content-Length,Content-Range';
+		}
+		if ($request_method = 'GET') {
+			add_header 'Access-Control-Allow-Origin' '*';
+			add_header 'Access-Control-Allow-Methods' 'GET, POST, OPTIONS';
+			add_header 'Access-Control-Allow-Headers' 'DNT,User-Agent,X-Requested-With,If-Modified-Since,Cache-Control,Content-Type,Range,Authorization,Accept,Origin,Keep-Alive,User-Agent,X-Requested-With,If-Modified-Since,Cache-Control,Content-Type,Content-Range';
+			add_header 'Access-Control-Expose-Headers' 'Content-Length,Content-Range';
+		}
+
+		proxy_pass https://127.0.0.1:{{ mc_api_port }};
+		proxy_http_version 1.1;
+		proxy_set_header Upgrade $http_upgrade;
+		proxy_set_header Connection 'upgrade';
+		proxy_set_header Origin '';
+		proxy_buffering off;
+		proxy_read_timeout 30m;
 	}
 
 	listen [::]:443 ssl ipv6only=on;

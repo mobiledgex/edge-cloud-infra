@@ -54,9 +54,8 @@ func InitInfraCommon(ctx context.Context, vaultConfig *vault.Config) error {
 	mexEnvPath := GetVaultCloudletCommonPath("mexenv.json")
 	err := InternVaultEnv(ctx, vaultConfig, mexEnvPath)
 	if err != nil {
-		if testMode {
-			log.SpanLog(ctx, log.DebugLevelMexos, "failed to InternVaultEnv", "addr", vaultConfig.Addr, "path", mexEnvPath, "err", err)
-		} else {
+		log.SpanLog(ctx, log.DebugLevelMexos, "failed to InternVaultEnv", "addr", vaultConfig.Addr, "path", mexEnvPath, "err", err)
+		if !testMode {
 			return fmt.Errorf("failed to InternVaultEnv %s, %s: %v", vaultConfig.Addr, mexEnvPath, err)
 		}
 	}
@@ -237,6 +236,11 @@ func GetCloudletCRMGatewayIPAndPort() (string, int) {
 
 func GetCloudletNetworkIfaceFile() string {
 	return "/etc/network/interfaces.d/50-cloud-init.cfg"
+}
+
+// optional default AZ for the cloudlet. Can be overridden on cluster create
+func GetCloudletAvailabilityZone() string {
+	return os.Getenv("MEX_AVAILABILITY_ZONE")
 }
 
 // initMappedIPs takes the env var MEX_EXTERNAL_IP_MAP contents like:

@@ -53,6 +53,13 @@
   set_fact:
     mc_name: "{{ mc_vm_hostname.split('.')[0]|lower }}"
 
+- name: Stop old MC instance
+  docker_container:
+    name: "{{ mc_name }}"
+    state: stopped
+  delegate_to: "{{ mc_vm_hostname }}"
+  when: mc_vm_hostname is defined
+
 - name: Deploy the MC
   docker_container:
     name: "{{ mc_name }}"
@@ -60,7 +67,7 @@
     restart_policy: unless-stopped
     command: "{{ mc_args }}"
     ports:
-      - "127.0.0.1:{{ mc_api_internal_port }}:{{ mc_api_port }}"
+      - "127.0.0.1:{{ mc_api_port }}:{{ mc_api_port }}"
       - "{{ mc_ldap_port }}:{{ mc_ldap_port }}"
     env:
       db_name: "{{ mc_postgres_db }}"

@@ -24,3 +24,6 @@ infra.internal.mobiledgex.net
 
 [apt]
 apt.mobiledgex.net
+
+[backups]
+backups.mobiledgex.net

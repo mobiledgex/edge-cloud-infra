@@ -496,20 +496,15 @@ func handleUpgradeError(ctx context.Context, client ssh.Client) error {
 	return nil
 }
 
+// Get all the stacks of the Cloudlet based on CloudletKey & VMType
 func getCurrentStackName(ctx context.Context, key *edgeproto.CloudletKey, vmType mexos.DeploymentType) ([]string, error) {
 	stackNames := []string{}
 	stacks, err := mexos.ListHeatStacks(ctx)
 	if err != nil {
 		return stackNames, fmt.Errorf("Failed to list heat stacks: %v", err)
 	}
-	// Check if PlatformVM image upgrade is required
-	stackSuffix := mexos.GetStackSuffix(key, vmType)
 	for _, heatStack := range stacks {
-		if strings.HasSuffix(heatStack.StackName, stackSuffix) {
-			prefix := strings.TrimSuffix(heatStack.StackName, stackSuffix)
-			if prefix != "" && strings.Count(prefix, "_") > 1 {
-				continue
-			}
+		if mexos.IsStackSame(heatStack.StackName, key, vmType) {
 			stackNames = append(stackNames, heatStack.StackName)
 		}
 	}
@@ -562,7 +557,7 @@ func (s *Platform) UpdateCloudlet(ctx context.Context, cloudlet *edgeproto.Cloud
 	}
 
 	var pfClient ssh.Client
-	if upgradeRequired && cloudlet.ImageUpgrade {
+	if upgradeRequired {
 		updateCallback(edgeproto.UpdateTask, "Upgrading Platform VM")
 		pfClient, err = setupPlatformVM(ctx, cloudlet, pfConfig, pfFlavor, updateCallback)
 		if err != nil {
@@ -597,7 +592,7 @@ func (s *Platform) UpdateCloudlet(ctx context.Context, cloudlet *edgeproto.Cloud
 	err = setupPlatformService(ctx, cloudlet, pfConfig, vaultConfig, pfClient, updateCallback)
 	if err != nil {
 		log.SpanLog(ctx, log.DebugLevelMexos, "failed to setup platform services", "err", err)
-		if cloudlet.ImageUpgrade {
+		if upgradeRequired {
 			// Delete currently created stacks
 			pfStackName := mexos.GetStackName(&cloudlet.Key, cloudlet.ImageVersion, mexos.PlatformVMDeployment)
 			updateCallback(edgeproto.UpdateTask, fmt.Sprintf("Deleting Heat Stack %s", pfStackName))
@@ -638,60 +633,41 @@ func (s *Platform) UpdateCloudlet(ctx context.Context, cloudlet *edgeproto.Cloud
 		return fmt.Errorf("Upgrade failed: %v", err)
 	}
 
-	if upgradeRequired && !cloudlet.ImageUpgrade {
-		rootLBName := cloudcommon.GetRootLBFQDN(&cloudlet.Key)
-		rlbClient, err := mexos.GetSSHClient(ctx, rootLBName, mexos.GetCloudletExternalNetwork(), mexos.SSHUser)
+	rootLBName := cloudcommon.GetRootLBFQDN(&cloudlet.Key)
+	rlbClient, err := mexos.GetSSHClient(ctx, rootLBName, mexos.GetCloudletExternalNetwork(), mexos.SSHUser)
+	if err != nil {
+		return err
+	}
+	// Upgrade Cloudlet Packages
+	upgradeMap := map[mexos.DeploymentType]ssh.Client{
+		mexos.PlatformVMDeployment: pfClient,
+		mexos.RootLBVMDeployment:   rlbClient,
+	}
+	for vmType, client := range upgradeMap {
+		err = upgradeCloudletPkgs(ctx, vmType, cloudlet, pfConfig, vaultConfig, client, updateCallback)
 		if err != nil {
-			return err
-		}
-		// Upgrade Cloudlet Packages
-		upgradeMap := map[mexos.DeploymentType]ssh.Client{
-			mexos.PlatformVMDeployment: pfClient,
-			mexos.RootLBVMDeployment:   rlbClient,
-		}
-		for vmType, client := range upgradeMap {
-			err = upgradeCloudletPkgs(ctx, vmType, cloudlet, pfConfig, vaultConfig, client, updateCallback)
-			if err != nil {
-				log.SpanLog(ctx, log.DebugLevelMexos, "Failed to upgrade cloudlet packages", "VM type", vmType, "err", err)
-				return nil
-			}
+			log.SpanLog(ctx, log.DebugLevelMexos, "Failed to upgrade cloudlet packages", "VM type", vmType, "err", err)
+			updateCallback(edgeproto.UpdateTask, fmt.Sprintf("Failed to upgrade cloudlet packages of vm type %s, please upgrade them manually!", vmType))
+			return nil
 		}
 	}
 	return nil
 }
 
 func upgradeCloudletPkgs(ctx context.Context, vmType mexos.DeploymentType, cloudlet *edgeproto.Cloudlet, pfConfig *edgeproto.PlatformConfig, vaultConfig *vault.Config, client ssh.Client, updateCallback edgeproto.CacheUpdateCallback) error {
-	log.SpanLog(ctx, log.DebugLevelMexos, "Upgrading cloudlet packages", "cloudletName", cloudlet.Key.Name, "to version", cloudlet.ImageVersion)
+	log.SpanLog(ctx, log.DebugLevelMexos, "Upgrading mobiledgex base image package", "cloudletName", cloudlet.Key.Name)
 
-	pkgUrl := mexos.GetCloudletVMImagePkgPath(pfConfig.ImagePath, cloudlet.ImageVersion)
-	if pkgUrl == "" {
-		// No upgrade required
-		log.SpanLog(ctx, log.DebugLevelMexos, "No upgrade of cloudlet packages required, as pkg path is missing")
-		return nil
+	updateCallback(edgeproto.UpdateTask, "Updating apt package lists")
+	if out, err := client.Output("apt-get update"); err != nil {
+		return fmt.Errorf("Failed to update apt package lists, %v, %v", out, err)
 	}
-
-	auth, err := cloudcommon.GetRegistryAuth(ctx, pkgUrl, vaultConfig)
-	if err != nil {
-		log.SpanLog(ctx, log.DebugLevelMexos, "warning, cannot get registry credentials from vault - assume public registry", "err", err)
-		return nil
-	}
-	if auth == nil || auth.ApiKey == "" {
-		return fmt.Errorf("Unable to find auth details for %s", pkgUrl)
-	}
-	updateCallback(edgeproto.UpdateTask, fmt.Sprintf("Fetching cloudlet image package of version: %s", cloudlet.ImageVersion))
+	updateCallback(edgeproto.UpdateTask, "Upgrading mobiledgex base image package")
 	if out, err := client.Output(
-		fmt.Sprintf("curl -H 'X-JFrog-Art-Api:%s' -O %s", auth.ApiKey, pkgUrl),
+		fmt.Sprintf("MEXVM_TYPE=%s apt-get install mobiledgex", vmType),
 	); err != nil {
-		return fmt.Errorf("Failed to fetch mobiledgex pkg from %s, %v, %s", pkgUrl, err, out)
+		return fmt.Errorf("Failed to upgrade mobiledgex pkg, %v, %v", out, err)
 	}
-	pkgName := mexos.GetCloudletVMImagePkgName(cloudlet.ImageVersion)
-	updateCallback(edgeproto.UpdateTask, fmt.Sprintf("Upgrading cloudlet image package to version: %s", cloudlet.ImageVersion))
-	if out, err := client.Output(
-		fmt.Sprintf("MEXVM_TYPE=%s dpkg -i %s", vmType, pkgName),
-	); err != nil {
-		return fmt.Errorf("Failed to upgrade mobiledgex pkg %s, %v, %s", pkgName, err, out)
-	}
-	updateCallback(edgeproto.UpdateTask, fmt.Sprintf("Upgraded cloudlet image package to version %s successfully", cloudlet.ImageVersion))
+	updateCallback(edgeproto.UpdateTask, "Upgraded mobiledgex base image package successfully")
 	return nil
 }
 

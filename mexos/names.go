@@ -2,6 +2,7 @@ package mexos
 
 import (
 	"fmt"
+	"strings"
 
 	"github.com/mobiledgex/edge-cloud/edgeproto"
 )
@@ -28,6 +29,17 @@ const (
 	SharedCluster        DeploymentType = "sharedcluster"
 )
 
+func GetExt(vmType DeploymentType) string {
+	ext := ""
+	switch vmType {
+	case RootLBVMDeployment:
+		ext = "lb"
+	case PlatformVMDeployment:
+		ext = "pf"
+	}
+	return ext
+}
+
 func GetPlatformVMPrefix(key *edgeproto.CloudletKey) string {
 	return key.Name + "." + key.OperatorKey.Name
 }
@@ -36,24 +48,25 @@ func GetPlatformVMName(key *edgeproto.CloudletKey) string {
 	return GetPlatformVMPrefix(key) + ".pf"
 }
 
-func GetStackSuffix(key *edgeproto.CloudletKey, vmType DeploymentType) string {
-	ext := ""
-	switch vmType {
-	case RootLBVMDeployment:
-		ext = ".lb"
-	case PlatformVMDeployment:
-		ext = ".pf"
-	}
-	return GetPlatformVMPrefix(key) + ext
-}
-
 func GetStackName(key *edgeproto.CloudletKey, cloudletVersion string, vmType DeploymentType) string {
 	// Form stack VM name based on cloudletKey & version
 	version := cloudletVersion
 	if cloudletVersion == "" {
 		version = MEXInfraVersion
 	}
-	return version + "_" + GetStackSuffix(key, vmType)
+	return GetPlatformVMPrefix(key) + "_" + version + "_" + GetExt(vmType)
+}
+
+func IsStackSame(stackName string, key *edgeproto.CloudletKey, vmType DeploymentType) bool {
+	ext := GetExt(vmType)
+	parts := strings.Split(stackName, "_")
+	if parts[len(parts)-1] != ext {
+		return false
+	}
+	if GetPlatformVMPrefix(key) != strings.Join(parts[0:len(parts)-2], "_") {
+		return false
+	}
+	return true
 }
 
 func GetCloudletVMImageName(imgVersion string) string {

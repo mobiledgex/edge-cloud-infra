@@ -120,6 +120,12 @@ deb https://${APT_USER}:${APT_PASS}@artifactory.mobiledgex.net/artifactory/ubunt
 deb https://${APT_USER}:${APT_PASS}@artifactory.mobiledgex.net/artifactory/ubuntu-security xenial-security main restricted universe multiverse
 EOT
 
+log "Disable cloud config overwrite of APT sources"
+sudo tee /etc/cloud/cloud.cfg <<EOT
+# Preserve /etc/apt/sources.list
+apt_preserve_sources_list: true
+EOT
+
 log "Set up the APT keys"
 curl -s https://${APT_USER}:${APT_PASS}@artifactory.mobiledgex.net/artifactory/api/gpg/key/public | sudo apt-key add -
 curl -s https://${APT_USER}:${APT_PASS}@apt.mobiledgex.net/gpg.key | sudo apt-key add -

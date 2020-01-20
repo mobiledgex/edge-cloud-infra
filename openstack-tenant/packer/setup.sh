@@ -121,7 +121,7 @@ deb https://${APT_USER}:${APT_PASS}@artifactory.mobiledgex.net/artifactory/ubunt
 EOT
 
 log "Disable cloud config overwrite of APT sources"
-sudo tee /etc/cloud/cloud.cfg <<EOT
+sudo tee -a /etc/cloud/cloud.cfg <<EOT
 # Preserve /etc/apt/sources.list
 apt_preserve_sources_list: true
 EOT

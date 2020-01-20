@@ -92,8 +92,8 @@ else
 fi
 
 if ! dig google.com | grep 'status: NOERROR' >/dev/null; then
-	log "Adding 1.1.1.1 as nameserver"
-	echo "nameserver 1.1.1.1" >>/etc/resolv.conf
+	log "Setting 1.1.1.1 as nameserver"
+	echo "nameserver 1.1.1.1" >/etc/resolv.conf
 fi
 
 # TODO: Updates; and also if supported, disable run-once flag check at the top

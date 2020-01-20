@@ -28,6 +28,12 @@ server {
                 proxy_read_timeout      90s;
         }
 
+        location /mc/ {
+                include /etc/nginx/proxy_params;
+                proxy_pass              http://localhost:9094/;
+                proxy_read_timeout      90s;
+        }
+
         location /int/ {
                 include /etc/nginx/proxy_params;
                 proxy_pass              http://localhost:9092/;

@@ -313,10 +313,6 @@ func ShowData(c echo.Context) error {
 	if err == nil {
 		data.Roles = roles
 	}
-	cloudletinfos, err := ShowCloudletInfoObj(ctx, rc, &edgeproto.CloudletInfo{})
-	if err == nil {
-		appdata.CloudletInfos = cloudletinfos
-	}
 	ocs, err := ShowOrgCloudletPoolObj(ctx, claims.Username)
 	if err == nil {
 		data.OrgCloudletPools = ocs
@@ -353,6 +349,10 @@ func ShowData(c echo.Context) error {
 		cloudlets, err := ShowCloudletObj(ctx, rc, &edgeproto.Cloudlet{})
 		if err == nil {
 			appdata.Cloudlets = cloudlets
+		}
+		cloudletinfos, err := ShowCloudletInfoObj(ctx, rc, &edgeproto.CloudletInfo{})
+		if err == nil {
+			appdata.CloudletInfos = cloudletinfos
 		}
 		pools, err := ShowCloudletPoolObj(ctx, rc, &edgeproto.CloudletPool{})
 		if err == nil {

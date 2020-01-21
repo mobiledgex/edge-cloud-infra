@@ -8,26 +8,6 @@
     - deploy_environ != 'main'
     - deploy_environ != 'prod'
 
-- set_fact:
-    cert_name: "{{ dme_dns | replace('.', '-') }}"
-    cert_secret_name: "{{ dme_dns | replace('.', '-') }}-global-tls"
-
-- name: "Get wildcard DME cert from vault"
-  set_fact:
-    vault_lookup: "{{ lookup('vault', cert_path) }}"
-  vars:
-    cert_path: "certs/cert/_.dme.{{ cloudflare_zone }}:dmecert"
-
-- name: "Generate DME tls secret: {{ cert_secret_name }}"
-  k8s:
-    kubeconfig: "{{ kubeconfig_file.path }}"
-    namespace: default
-    definition: "{{ lookup('template', 'mexplat/tls-secret.yaml.j2') }}"
-    state: present
-  vars:
-    cert: "{{ vault_lookup.dmecert.cert }}"
-    key: "{{ vault_lookup.dmecert.key }}"
-
 - name: Load locapi creds
   import_role:
     name: load-vault-creds

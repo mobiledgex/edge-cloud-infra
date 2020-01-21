@@ -57,7 +57,7 @@ func appInstCb(ctx context.Context, old *edgeproto.AppInst, new *edgeproto.AppIn
 	var exists bool
 	var mapKey string
 
-	collectInterval := settings.ShepherdMetricsCollectionInterval.D()
+	collectInterval := settings.ShepherdMetricsCollectionInterval.TimeDuration()
 	// check cluster name if this is a VM App
 	if new.Key.ClusterInstKey.ClusterKey.Name == cloudcommon.DefaultVMCluster {
 		mapKey = new.Key.GetKeyString()
@@ -128,7 +128,7 @@ func clusterInstCb(ctx context.Context, old *edgeproto.ClusterInst, new *edgepro
 		log.SpanLog(ctx, log.DebugLevelMetrics, "New cluster instace", "clusterInst", new)
 		return
 	}
-	collectInterval := settings.ShepherdMetricsCollectionInterval.D()
+	collectInterval := settings.ShepherdMetricsCollectionInterval.TimeDuration()
 	var mapKey = k8smgmt.GetK8sNodeNameSuffix(&new.Key)
 	stats, exists := workerMap[mapKey]
 	if new.State == edgeproto.TrackedState_READY {

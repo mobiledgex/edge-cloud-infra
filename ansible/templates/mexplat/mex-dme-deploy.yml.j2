@@ -19,33 +19,33 @@ spec:
         image: "{{ edge_cloud_image }}:{{ edge_cloud_version }}"
         imagePullPolicy: Always
         command:
-         - "dme-server"
-         - "--region"
-         - "{{ region }}"
-         - "--apiAddr"
-         - "0.0.0.0:50051"
-         - "--httpAddr"
-         - "0.0.0.0:38001"
-         - "--notifyAddrs"
-         - "controller:37001"
-         - "--tlsApiCertFile"
-         - "/tls/tls.crt"
-         - "--tlsApiKeyFile"
-         - "/tls/tls.key"
-         - "--vaultAddr"
-         - "{{ vault_address }}"
-         - "--locverurl"
-         - "{{ locver_url }}"
-         - "--carrier"
-         - "{{ dme_carrier }}"
-         - "--d"
-         - "locapi,dmedb,dmereq"
-         - "--toksrvurl"
-         - "{{ toksrv_url }}"
-         - "--tls"
-         - "/root/tls/mex-server.crt"
-         - "--cloudletKey"
-         - "{\"operator_key\":{\"name\":\"{{ operator_key }}\"},\"name\":\"{{ deploy_target }}-cloudlet\"}"
+         - "/bin/bash"
+         - "-ecx"
+         - |
+           vault-cert _.dme.mobiledgex.net
+           exec dme-server \
+             --region "{{ region }}" \
+             --apiAddr 0.0.0.0:50051 \
+             --httpAddr 0.0.0.0:38001 \
+             --notifyAddrs controller:37001 \
+             --tlsApiCertFile /tls/tls.crt \
+             --tlsApiKeyFile /tls/tls.key \
+             --vaultAddr "{{ vault_address }}" \
+             --locverurl "{{ locver_url }}" \
+             --carrier "{{ dme_carrier }}" \
+             --cloudletKey '{"operator_key":{"name":"{{ operator_key }}"},"name":"{{ deploy_target }}-cloudlet"}' \
+             --toksrvurl "{{ toksrv_url }}" \
+             --tls /root/tls/mex-server.crt \
+             -d locapi,dmedb,dmereq
+        livenessProbe:
+          exec:
+            command:
+              - "vault-cert"
+              - "--check"
+              - _.dme.mobiledgex.net
+          periodSeconds: 28800
+          timeoutSeconds: 180
+          initialDelaySeconds: 900
         env:
          - name: LOCAPI_USER
            value: "{{ locapi_user }}"
@@ -59,14 +59,6 @@ spec:
            value: "{{ jaeger_endpoint }}"
          - name: JAEGER_TAGS
            value: "environ={{ deploy_environ }},region={{ region }},version={{ edge_cloud_version }}"
-        volumeMounts:
-         - name: tls
-           mountPath: /tls
 
       imagePullSecrets:
        - name: mexreg-secret
-
-      volumes:
-      - name: tls
-        secret:
-          secretName: {{ cert_secret_name }}

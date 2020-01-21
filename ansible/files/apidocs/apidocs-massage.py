@@ -5,8 +5,8 @@ from collections import OrderedDict
 import json
 import os
 import re
+import sys
 
-CODE_SAMPLES_DIR_DEF = '/var/swagger/code-samples'
 API_ORDER = [
     '/v1/registerclient',
     '/v1/findcloudlet',
@@ -38,10 +38,15 @@ def add_logo(sw):
         "backgroundColor": "#fafafa",
     }
 
-def splice_samples(swagger, samples):
-    api_eps = set([d for d in os.listdir(samples) if os.path.isdir(os.path.join(samples, d))])
-    with open(swagger) as f:
-        sw = json.load(f)
+def set_version(sw, vers):
+    if sw['info']['version'] == "version not set":
+        sw['info']['version'] = vers
+
+def splice_samples(sw, samples):
+    if samples:
+        api_eps = set([d for d in os.listdir(samples) if os.path.isdir(os.path.join(samples, d))])
+    else:
+        api_eps = set()
 
     for path in sw['paths']:
         for op in sw['paths'][path]:
@@ -50,6 +55,7 @@ def splice_samples(swagger, samples):
                 splice_sample(sw['paths'][path][op],
                               os.path.join(samples, opid))
 
+def order_apis(sw):
     paths = OrderedDict()
     for api in API_ORDER:
         spec = sw['paths'].pop(api, None)
@@ -61,22 +67,22 @@ def splice_samples(swagger, samples):
 
     sw['paths'] = paths
 
-    add_logo(sw)
-
-    return json.dumps(sw, indent=2)
-
 def main():
     parser = argparse.ArgumentParser()
-    parser.add_argument("swagger", help="Swagger file to splice the code samples into")
-    parser.add_argument("output", help="File to write output swagger to")
-    parser.add_argument("--samples", "-s", help="Code samples directory",
-                        default=CODE_SAMPLES_DIR_DEF)
+    parser.add_argument("--samples", "-s", help="Code samples directory")
+    parser.add_argument("--version", "-v", help="Version string, if not present in swagger",
+                        default="1.0")
     args = parser.parse_args()
 
-    output = splice_samples(args.swagger, args.samples)
+    sw = json.load(sys.stdin)
 
-    with open(args.output, "w") as f:
-        f.write(output)
+    if args.samples:
+        splice_samples(sw, args.samples)
+    order_apis(sw)
+    add_logo(sw)
+    set_version(sw, args.version)
+
+    print(json.dumps(sw, indent=2))
 
 if __name__ == "__main__":
     main()

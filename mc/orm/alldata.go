@@ -313,6 +313,10 @@ func ShowData(c echo.Context) error {
 	if err == nil {
 		data.Roles = roles
 	}
+	cloudletinfos, err := ShowCloudletInfoObj(ctx, rc, &edgeproto.CloudletInfo{})
+	if err == nil {
+		appdata.CloudletInfos = cloudletinfos
+	}
 	ocs, err := ShowOrgCloudletPoolObj(ctx, claims.Username)
 	if err == nil {
 		data.OrgCloudletPools = ocs

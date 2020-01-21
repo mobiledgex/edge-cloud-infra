@@ -13,6 +13,24 @@
     name: load-vault-creds
     tasks_from: locapi
 
+- name: Get current deployment details
+  k8s_facts:
+    name: dme
+    kind: Deployment
+    namespace: default
+    kubeconfig: "{{ kubeconfig_file.path }}"
+  register: dme_deployment
+
+- name: Delete the old DME deployment
+  k8s:
+    name: dme
+    kind: Deployment
+    namespace: default
+    kubeconfig: "{{ kubeconfig_file.path }}"
+    state: absent
+    wait: yes
+  when: "'volumes' in dme_deployment.resources.0.spec.template.spec"
+
 - name: Deploy the Mex DME
   k8s:
     kubeconfig: "{{ kubeconfig_file.path }}"

@@ -22,7 +22,7 @@ spec:
          - "/bin/bash"
          - "-ecx"
          - |
-           vault-cert _.dme.mobiledgex.net
+           vault-cert --vault "{{ vault_address }}" _.dme.mobiledgex.net
            exec dme-server \
              --region "{{ region }}" \
              --apiAddr 0.0.0.0:50051 \
@@ -41,6 +41,8 @@ spec:
           exec:
             command:
               - "vault-cert"
+              - "--vault"
+              - "{{ vault_address }}"
               - "--check"
               - _.dme.mobiledgex.net
           periodSeconds: 28800

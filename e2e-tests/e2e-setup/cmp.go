@@ -111,7 +111,7 @@ func CompareYamlFiles(firstYamlFile string, secondYamlFile string, fileType stri
 		err1 = util.ReadYamlFile(firstYamlFile, &a1)
 		err2 = util.ReadYamlFile(secondYamlFile, &a2)
 
-		// remove cloudletinfos that are offline
+		// remove cloudletinfos that are offline so they are ignored
 		for i, region := range a1.RegionData {
 			onlineCloudlets := make([]edgeproto.CloudletInfo, 0)
 			for _, cloudletinfo := range region.AppData.CloudletInfos {
@@ -120,11 +120,7 @@ func CompareYamlFiles(firstYamlFile string, secondYamlFile string, fileType stri
 				}
 			}
 			a1.RegionData[i].AppData.CloudletInfos = onlineCloudlets
-			log.Printf("a1 online cloudlets: %+v\n", onlineCloudlets)
-			log.Printf("region version: %+v\n\n\n\n", region.AppData.CloudletInfos)
 		}
-		log.Printf("a1: %+v\n\n\n\n", a1.RegionData)
-		// remove cloudletinfos that are offline
 		for i, region := range a2.RegionData {
 			onlineCloudlets := make([]edgeproto.CloudletInfo, 0)
 			for _, cloudletinfo := range region.AppData.CloudletInfos {
@@ -133,9 +129,7 @@ func CompareYamlFiles(firstYamlFile string, secondYamlFile string, fileType stri
 				}
 			}
 			a2.RegionData[i].AppData.CloudletInfos = onlineCloudlets
-			log.Printf("a2 online cloudlets: %+v\n", onlineCloudlets)
 		}
-		log.Printf("a2: %+v\n", a2.RegionData)
 
 		copts = []cmp.Option{
 			cmpopts.IgnoreTypes(time.Time{}, dmeproto.Timestamp{}),

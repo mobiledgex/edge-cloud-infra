@@ -948,3 +948,45 @@ func HeatUpdateClusterKubernetes(ctx context.Context, clusterInst *edgeproto.Clu
 	}
 	return nil
 }
+
+type HeatStackResourcesID struct {
+	ServerID string
+	SecGrpID string
+}
+
+func GetHeatResourcesID(ctx context.Context, stackName string) (*HeatStackResourcesID, error) {
+	stackResources, err := GetHeatStackResources(ctx, stackName)
+	if err != nil {
+		return nil, err
+	}
+	resIDs := HeatStackResourcesID{}
+	for _, resource := range stackResources {
+		if resource.Type == "OS::Nova::Server" {
+			resIDs.ServerID = resource.ID
+		}
+		if resource.Type == "OS::Neutron::SecurityGroup" {
+			resIDs.SecGrpID = resource.ID
+		}
+	}
+	if resIDs.ServerID == "" {
+		return nil, fmt.Errorf("unable to find server ID from HEAT stack resources: %s", stackName)
+	}
+	if resIDs.SecGrpID == "" {
+		return nil, fmt.Errorf("unable to find security group ID from HEAT stack resources: %s", stackName)
+	}
+	return &resIDs, nil
+}
+
+// Get all the stacks of the Cloudlet based on CloudletKey & VMType
+func IsStackExists(ctx context.Context, stackName string) (bool, error) {
+	stacks, err := ListHeatStacks(ctx)
+	if err != nil {
+		return false, fmt.Errorf("Failed to list heat stacks: %v", err)
+	}
+	for _, heatStack := range stacks {
+		if stackName == heatStack.StackName {
+			return true, nil
+		}
+	}
+	return false, nil
+}

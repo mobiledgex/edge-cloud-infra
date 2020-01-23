@@ -16,7 +16,7 @@ var actionAdd string = "ADD"
 var actionDelete string = "DELETE"
 
 // LBAddRouteAndSecRules adds an external route and sec rules
-func LBAddRouteAndSecRules(ctx context.Context, client pc.PlatformClient, rootLBName string) error {
+func LBAddRouteAndSecRules(ctx context.Context, client pc.PlatformClient, rootLBName string, resIDs *HeatStackResourcesID) error {
 	log.SpanLog(ctx, log.DebugLevelMexos, "Adding route to reach internal networks", "rootLBName", rootLBName)
 
 	ni, err := ParseNetSpec(ctx, GetCloudletNetworkScheme())
@@ -92,12 +92,10 @@ func LBAddRouteAndSecRules(ctx context.Context, client pc.PlatformClient, rootLB
 	}
 
 	// open the firewall for internal traffic
-	groupName := GetSecurityGroupName(ctx, rootLBName)
-
 	allowedClientCIDR := GetAllowedClientCIDR()
 	for _, p := range rootLBPorts {
 		portString := fmt.Sprintf("%d", p)
-		if err := AddSecurityRuleCIDRWithRetry(ctx, allowedClientCIDR, "tcp", groupName, portString, rootLBName); err != nil {
+		if err := AddSecurityRuleCIDRWithRetry(ctx, allowedClientCIDR, "tcp", resIDs.SecGrpID, portString, rootLBName); err != nil {
 			return err
 		}
 	}

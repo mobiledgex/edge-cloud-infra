@@ -820,6 +820,21 @@ func GetHeatStackDetail(ctx context.Context, stackName string) (*OSHeatStackDeta
 	return stackDetail, nil
 }
 
+// GetHeatStackResources gets list of resources part of stack
+func GetHeatStackResources(ctx context.Context, stackName string) ([]OSHeatStackResource, error) {
+	out, err := TimedOpenStackCommand(ctx, "openstack", "stack", "resource", "list", "-f", "json", stackName)
+	if err != nil {
+		err = fmt.Errorf("can't get stack resources for %s, %s, %v", stackName, out, err)
+		return nil, err
+	}
+	var stackResources []OSHeatStackResource
+	err = json.Unmarshal(out, &stackResources)
+	if err != nil {
+		return nil, fmt.Errorf("can't unmarshal stack resources, %v", err)
+	}
+	return stackResources, nil
+}
+
 //ListHeatStack returns list of stacks
 func ListHeatStacks(ctx context.Context) ([]OSHeatStack, error) {
 	out, err := TimedOpenStackCommand(ctx, "openstack", "stack", "list", "-f", "json", "-c", "ID", "-c", "Stack Name")

@@ -19,6 +19,7 @@ import (
 
 //MEXRootLB has rootLB data
 type MEXRootLB struct {
+	ID   string
 	Name string
 	IP   string
 }
@@ -78,23 +79,16 @@ func CreateRootLB(ctx context.Context, rootLB *MEXRootLB, vmspec *vmspec.VMCreat
 	if err != nil {
 		return err
 	}
-	sl, err := ListServers(ctx)
+	stackName := rootLB.Name
+	if vmType == RootLBVMDeployment {
+		stackName = GetStackName(cloudletKey, imgVersion, vmType)
+	}
+	found, err := IsStackExists(ctx, stackName)
 	if err != nil {
 		return err
 	}
-	found := 0
-	for _, s := range sl {
-		if s.Name == rootLB.Name {
-			log.SpanLog(ctx, log.DebugLevelMexos, "found existing rootlb", "server", s)
-			found++
-		}
-	}
-	if found == 0 {
-		log.SpanLog(ctx, log.DebugLevelMexos, "not found existing server", "name", rootLB.Name)
-		stackName := rootLB.Name
-		if vmType == RootLBVMDeployment {
-			stackName = GetStackName(cloudletKey, imgVersion, vmType)
-		}
+	if !found {
+		log.SpanLog(ctx, log.DebugLevelMexos, "not found existing stack", "name", stackName)
 		imgName, err := AddImageIfNotPresent(ctx, imgPath, imgVersion, updateCallback)
 		if err != nil {
 			return err
@@ -106,6 +100,7 @@ func CreateRootLB(ctx context.Context, rootLB *MEXRootLB, vmspec *vmspec.VMCreat
 		}
 		log.SpanLog(ctx, log.DebugLevelMexos, "created VM", "name", rootLB.Name, "image", imgName)
 	} else {
+		log.SpanLog(ctx, log.DebugLevelMexos, "found existing rootlb", "stack", stackName)
 		log.SpanLog(ctx, log.DebugLevelMexos, "re-using existing kvm instance", "name", rootLB.Name)
 	}
 	log.SpanLog(ctx, log.DebugLevelMexos, "done enabling rootlb", "name", rootLB.Name)
@@ -130,9 +125,13 @@ func SetupRootLB(
 	if err != nil {
 		return fmt.Errorf("cannot find rootlb in map %s", rootLBName)
 	}
-	sd, err := GetServerDetails(ctx, rootLBName)
-	if err == nil && sd.Name == rootLBName {
-		log.SpanLog(ctx, log.DebugLevelMexos, "server with same name as rootLB exists", "rootLBName", rootLBName)
+	stackName := rootLB.Name
+	if vmType == RootLBVMDeployment {
+		stackName = GetStackName(cloudletKey, imgVersion, vmType)
+	}
+	found, err := IsStackExists(ctx, stackName)
+	if err == nil && found {
+		log.SpanLog(ctx, log.DebugLevelMexos, "server with same name as rootLB exists", "rootLBName", rootLBName, "stackName", stackName)
 	} else if rootLBSpec != nil {
 		err = CreateRootLB(ctx, rootLB, rootLBSpec, cloudletKey, vmType, imgPath, imgVersion, updateCallback)
 		if err != nil {
@@ -141,27 +140,36 @@ func SetupRootLB(
 		}
 	}
 
+	// Use resource IDs, as there can be more than server/secGrps with same
+	// name (as old & new stack will be there in intermediate stages of upgrade)
+	resIDs, err := GetHeatResourcesID(ctx, stackName)
+	if err != nil {
+		return err
+	}
+
 	// setup SSH access to cloudlet for CRM.  Since we are getting the external IP here, this will only work
 	// when CRM accessed via public internet.
 	log.SpanLog(ctx, log.DebugLevelMexos, "setup security group for SSH access")
-	groupName := GetSecurityGroupName(ctx, rootLBName)
 	my_ip, err := GetExternalPublicAddr(ctx)
 	if err != nil {
 		// this is not necessarily fatal
 		log.InfoLog("cannot fetch public ip", "err", err)
 	} else {
-		err = AddSecurityRuleCIDRWithRetry(ctx, my_ip, "tcp", groupName, "22", rootLBName)
+		err = AddSecurityRuleCIDRWithRetry(ctx, my_ip, "tcp", resIDs.SecGrpID, "22", rootLBName)
 		if err != nil {
 			return err
 		}
 	}
 
+	rootLB.ID = resIDs.ServerID
 	err = WaitForRootLB(ctx, rootLB)
 	if err != nil {
-		log.SpanLog(ctx, log.DebugLevelMexos, "timeout waiting for agent to run", "name", rootLB.Name)
+		log.SpanLog(ctx, log.DebugLevelMexos, "timeout waiting for agent to run", "name", rootLB.Name, "ID", rootLB.ID)
 		return fmt.Errorf("Error waiting for rootLB %v", err)
 	}
-	extIP, err := GetServerIPAddr(ctx, GetCloudletExternalNetwork(), rootLBName, ExternalIPType)
+	// Use Server ID to fetch IP addr as there can be more than one RootLB VM with same name
+	// during intermediate stages of upgrade process
+	extIP, err := GetServerIPAddr(ctx, GetCloudletExternalNetwork(), rootLB.ID, ExternalIPType)
 	if err != nil {
 		return fmt.Errorf("cannot get rootLB IP %sv", err)
 	}
@@ -178,7 +186,7 @@ func SetupRootLB(
 		return fmt.Errorf("cannot copy resource-tracker to rootLb %v", err)
 	}
 
-	err = LBAddRouteAndSecRules(ctx, client, rootLBName)
+	err = LBAddRouteAndSecRules(ctx, client, rootLBName, resIDs)
 	if err != nil {
 		return fmt.Errorf("failed to LBAddRouteAndSecRules %v", err)
 	}
@@ -192,7 +200,7 @@ func SetupRootLB(
 //WaitForRootLB waits for the RootLB instance to be up and copies of SSH credentials for internal networks.
 //  Idempotent, but don't call all the time.
 func WaitForRootLB(ctx context.Context, rootLB *MEXRootLB) error {
-	log.SpanLog(ctx, log.DebugLevelMexos, "wait for rootlb", "name", rootLB.Name)
+	log.SpanLog(ctx, log.DebugLevelMexos, "wait for rootlb", "name", rootLB.Name, "ID", rootLB.ID)
 	if rootLB == nil {
 		return fmt.Errorf("cannot wait for lb, rootLB is null")
 	}
@@ -201,7 +209,7 @@ func WaitForRootLB(ctx context.Context, rootLB *MEXRootLB) error {
 	if extNet == "" {
 		return fmt.Errorf("waiting for lb, missing external network in manifest")
 	}
-	client, err := GetSSHClient(ctx, rootLB.Name, extNet, SSHUser)
+	client, err := GetSSHClient(ctx, rootLB.ID, extNet, SSHUser)
 	if err != nil {
 		return err
 	}

@@ -60,7 +60,7 @@ func GetSSHClientIP(ipaddr, userName string) (ssh.Client, error) {
 
 func SetupSSHUser(ctx context.Context, rootLB *MEXRootLB, user string) (ssh.Client, error) {
 	log.SpanLog(ctx, log.DebugLevelMexos, "setting up ssh user", "user", user)
-	client, err := GetSSHClient(ctx, rootLB.Name, GetCloudletExternalNetwork(), user)
+	client, err := GetSSHClient(ctx, rootLB.ID, GetCloudletExternalNetwork(), user)
 	if err != nil {
 		return nil, err
 	}

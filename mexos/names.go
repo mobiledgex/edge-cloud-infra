@@ -8,8 +8,9 @@ import (
 )
 
 var (
-	MEXInfraVersion    = "3.0.1"
-	defaultOSImageName = "mobiledgex-v" + MEXInfraVersion
+	MEXInfraVersion    = "3.0.2"
+	ImageNamePrefix    = "mobiledgex-v"
+	defaultOSImageName = ImageNamePrefix + MEXInfraVersion
 
 	// Default CloudletVM/Registry paths should only be used for local testing.
 	// Ansible should always specify the correct ones to the controller.
@@ -73,14 +74,18 @@ func GetCloudletVMImageName(imgVersion string) string {
 	if imgVersion == "" {
 		imgVersion = MEXInfraVersion
 	}
-	return "mobiledgex-v" + imgVersion
+	return ImageNamePrefix + imgVersion
 }
 
 func GetCloudletVMImagePath(imgPath, imgVersion string) string {
+	vmRegistryPath := DefaultVMRegistryPath + "/baseimages/"
 	if imgPath != "" {
-		return imgPath
+		vmRegistryPath = imgPath
 	}
-	return DefaultVMRegistryPath + "/baseimages/" + GetCloudletVMImageName(imgVersion) + ".qcow2"
+	if !strings.HasSuffix(vmRegistryPath, "/") {
+		vmRegistryPath = vmRegistryPath + "/"
+	}
+	return vmRegistryPath + GetCloudletVMImageName(imgVersion) + ".qcow2"
 }
 
 func GetCloudletVMImagePkgName(imgVersion string) string {

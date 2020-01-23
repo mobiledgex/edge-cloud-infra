@@ -1,6 +1,6 @@
 - hosts: swagger
   vars:
-    apidocs_samples_script: /usr/local/bin/apidocs-samples.py
+    apidocs_massage_script: /usr/local/bin/apidocs-massage.py
     swagger_cron_script: /usr/local/bin/swagger.cron
     swagger_base_dir: /var/swagger
     favicon: https://mobiledgex.com/favicon.ico
@@ -48,8 +48,8 @@
 
     - name: Install apidocs script
       copy:
-        src: apidocs/apidocs-samples.py
-        dest: "{{ apidocs_samples_script }}"
+        src: apidocs/apidocs-massage.py
+        dest: "{{ apidocs_massage_script }}"
         mode: 0555
       become: yes
 
@@ -81,6 +81,7 @@
           SPEC_URL: "/swagger/{{ item.name }}.swagger.json"
           PAGE_TITLE: "{{ item.title }}"
           PAGE_FAVICON: "{{ favicon }}"
+          REDOC_OPTIONS: 'sort-props-alphabetically="true"'
         timeout: 180
       loop:
         - { name: "external", port: 9090, title: "MobiledgeX API" }

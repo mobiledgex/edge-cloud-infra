@@ -8,7 +8,7 @@ import (
 )
 
 var (
-	MEXInfraVersion    = "3.0.2"
+	MEXInfraVersion    = "3.0.3"
 	ImageNamePrefix    = "mobiledgex-v"
 	defaultOSImageName = ImageNamePrefix + MEXInfraVersion
 
@@ -23,10 +23,10 @@ var (
 type DeploymentType string
 
 const (
-	RootLBVMDeployment   DeploymentType = "mexrootlb"
-	UserVMDeployment     DeploymentType = "mexuservm"
-	PlatformVMDeployment DeploymentType = "mexplatformvm"
-	ClusterVMDeployment  DeploymentType = "mexclustervm"
+	RootLBVMDeployment   DeploymentType = "RootLB"
+	UserVMDeployment     DeploymentType = "UserVM"
+	PlatformVMDeployment DeploymentType = "PlatformVM"
+	ClusterVMDeployment  DeploymentType = "ClusterVM"
 	SharedCluster        DeploymentType = "sharedcluster"
 )
 

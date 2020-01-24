@@ -184,7 +184,7 @@ cat <<EOF >git.yml
 
   - name: Clone edge-cloud, edge-cloud-infra, edge-proto, grpc-gateway directories
     debug:
-      msg:  "In the next step, If git clone succeeded please ignore this message. Otherwise If git clone failed because of existing changes, please do a manual merge if you need the changes or git stash them if you do not and rerun."
+      msg:  "In the next step, If git clone succeeds please ignore this message. Otherwise If git clone failed because of existing changes, please do a manual merge if you need the changes or git stash them if you do not and rerun."
 
 
   - name: Clone edge-cloud, edge-cloud-infra, edge-proto, grpc-gateway directories

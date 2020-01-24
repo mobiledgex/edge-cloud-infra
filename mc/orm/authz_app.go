@@ -72,15 +72,6 @@ func checkImagePath(ctx context.Context, obj *edgeproto.App) error {
 	if len(pathNames) == 0 {
 		return fmt.Errorf("Empty URL path in ImagePath")
 	}
-
-	// In case this is a public mobiledgex repo, we should allow access to all
-	// Example: docker.mobiledgex.net/mobiledgex/mobiledgex_public/facedetection
-	if len(pathNames) > 1 &&
-		pathNames[0] == "mobiledgex" &&
-		pathNames[1] == "mobiledgex_public" {
-		return nil
-	}
-
 	targetOrg := pathNames[0]
 	if targetOrg == "" {
 		return fmt.Errorf("Empty organization name in ImagePath")

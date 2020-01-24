@@ -5,6 +5,7 @@ if [[ ! "$PWD" == "/tmp" ]]; then
   exit
 fi
 
+
 # If getting_started_vars.yml is not there, create it
 if [[ ! -f getting_started_vars.yml ]]; then
 cat <<EOF >getting_started_vars.yml
@@ -184,7 +185,7 @@ cat <<EOF >git.yml
 
   - name: Clone edge-cloud, edge-cloud-infra, edge-proto, grpc-gateway directories
     debug:
-      msg:  "In the next step, If git clone succeeds please ignore this message. Otherwise If git clone failed because of existing changes, please do a manual merge if you need the changes or git stash them if you do not and rerun."
+      msg:  "In the next step, If git clone succeeds please ignore this message. Otherwise If git clone failed because of existing changes, please do a manual merge or checkin if you need the changes or git stash them if you do not and rerun."
 
 
   - name: Clone edge-cloud, edge-cloud-infra, edge-proto, grpc-gateway directories

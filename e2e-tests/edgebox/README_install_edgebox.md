@@ -1,4 +1,5 @@
-install_edgebox.sh sets up your environment locally so that you can run edgebox. 
+Edgebox Install Procedure
+install_edgebox.sh sets up your environment locally so that you can run edgebox.
 It essentially automates the steps on 'Getting Started' Confluence page (https://mobiledgex.atlassian.net/wiki/spaces/SWDEV/pages/22478869/Getting+Started)
 
 
@@ -15,8 +16,7 @@ Backups:
   - Please delete the backups you don't need.
   
 
-Get the install_edgebox.sh script from github.com mobiledgex repo edge-cloud-infra under e2e-tests/edgebox directory.
-Save it in a directory (say edgebox) on your macbook under your home directory and run it from there,
+Get the install_edgebox.sh script from github.com mobiledgex repo edge-cloud-infra under e2e-tests/edgebox directory. Save it in /tmp directory on your macbook under your home directory and run it from there,
 
   ./install_edgebox.sh
   

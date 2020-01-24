@@ -58,6 +58,14 @@ else
     echo go is installed
 fi
 
+which git &> /dev/null
+if [[ ! $? -eq 0  ]]; then
+    echo git not installed, installing it.
+    brew install git
+else
+    echo git is installed
+fi
+
 # Generate brew.yml
 
 cat <<EOF >brew.yml
@@ -78,8 +86,6 @@ cat <<EOF >brew.yml
       - wget
       - md5sha1sum
       - kubernetes-helm
-      - git
-
 EOF
 
 # Install brew packages
@@ -119,28 +125,32 @@ cat <<EOF >git.yml
         - ~/go/src/github.com/mobiledgex/edge-proto
         - ~/go/src/github.com/mobiledgex/edge-cloud
         - ~/go/src/github.com/mobiledgex/edge-cloud-infra
+        - ~/go/src/github.com/grpc-ecosystem/grpc-gateway
       dest: ~/edge-cloud-repos-backup.{{ '%Y-%m-%d %H:%M:%S' | strftime(ansible_date_time.epoch) }}.tgz
       format: zip
 
   - name: Remove previous edge-cloud, edge-cloud-infra and edge-proto directories
     shell:
-      cmd: "/bin/rm -rf {{ item }}"
+      cmd: "[[ -d {{ item }} ]] && /bin/rm -rf {{ item }}"
       warn: false
     loop:
       - ~/go/src/github.com/mobiledgex/edge-proto
       - ~/go/src/github.com/mobiledgex/edge-cloud
       - ~/go/src/github.com/mobiledgex/edge-cloud-infra
+      - ~/go/src/github.com/grpc-ecosystem/grpc-gateway
+
 
   - name: Clone edge-cloud, edge-cloud-infra and edge-proto directories
     git:
       name:  "{{ item.name }}"
-      dest: "~/go/src/github.com/mobiledgex/{{ item.handle }}"
+      dest: "{{ item.handle }}"
       clone: yes
       update: yes
     loop: 
-      - { name: 'https://github.com/mobiledgex/edge-cloud.git', handle: 'edge-cloud' }
-      - { name: 'https://github.com/mobiledgex/edge-cloud-infra.git', handle: 'edge-cloud-infra' }
-      - { name: 'https://github.com/mobiledgex/edge-proto.git', handle: 'edge-proto' }
+      - { name: 'https://github.com/mobiledgex/edge-cloud.git', handle: '~/go/src/github.com/mobiledgex/edge-cloud' }
+      - { name: 'https://github.com/mobiledgex/edge-cloud-infra.git', handle: '~/go/src/github.com/mobiledgex/edge-cloud-infra' }
+      - { name: 'https://github.com/mobiledgex/edge-proto.git', handle: '~/go/src/github.com/mobiledgex/edge-proto' }
+      - { name: 'https://github.com/mobiledgex/grpc-gateway.git', handle: '~/go/src/github.com/grpc-ecosystem/grpc-gateway' }
 
   - name: Run go mod download and make tools in edge-cloud directory
     shell:

@@ -12,7 +12,6 @@ cat <<EOF >getting_started_vars.yml
 golang_package_cache: /tmp/golang
 golang_version: 1.12.13
 golang_checksum: sha256:6d3de6f7d7c0e8162aaa009128839fa5afcba578dcbd6ff034a82419d82480e9 
-force_remove_existing_repos: no
 EOF
 fi 
 
@@ -161,27 +160,6 @@ cat <<EOF >git.yml
     shell:
       cmd: go get -u github.com/pseudomuto/protoc-gen-doc/cmd/protoc-gen-doc
 
-  - name: if force_remove_existing_repos is yes (default is no), create backup of pre-existing edge-cloud-infra, edge-cloud and edge-proto directories. 
-    archive:
-      path:
-        - ~/go/src/github.com/mobiledgex/edge-proto
-        - ~/go/src/github.com/mobiledgex/edge-cloud
-        - ~/go/src/github.com/mobiledgex/edge-cloud-infra
-        - ~/go/src/github.com/grpc-ecosystem/grpc-gateway
-      dest: ~/edge-cloud-repos-backup.{{ '%Y-%m-%d %H:%M:%S' | strftime(ansible_date_time.epoch) }}.tgz
-      format: zip
-    when: ( force_remove_existing_repos == 'yes' )
-
-  - name: if force_remove_existing_repos is yes (default is no), remove previous edge-cloud, edge-cloud-infra, edge-proto, grpc-gateway directories
-    shell:
-      cmd: "[[ -d {{ item }} ]] && /bin/rm -rf {{ item }}"
-      warn: false
-    loop:
-      - ~/go/src/github.com/mobiledgex/edge-proto
-      - ~/go/src/github.com/mobiledgex/edge-cloud
-      - ~/go/src/github.com/mobiledgex/edge-cloud-infra
-      - ~/go/src/github.com/grpc-ecosystem/grpc-gateway
-    when: ( force_remove_existing_repos == 'yes' )
 
   - name: Clone edge-cloud, edge-cloud-infra, edge-proto, grpc-gateway directories
     debug:

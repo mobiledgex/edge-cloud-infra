@@ -1,11 +1,5 @@
 #! /bin/bash
 
-if [[ ! "$PWD" == "/tmp" ]]; then
-  echo "$0 can be invoked only from /tmp. Please copy it to /tmp and invoke from there." 
-  exit
-fi
-
-
 # If getting_started_vars.yml is not there, create it
 if [[ ! -f getting_started_vars.yml ]]; then
 cat <<EOF >getting_started_vars.yml

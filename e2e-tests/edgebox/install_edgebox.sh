@@ -1,7 +1,7 @@
 #! /bin/bash
 
-if [[ "$PWD" =~ "go/src/github.com/mobiledgex" ]]; then
-  echo "install_edgebox.sh can not be invoked from $PWD. Please stage it under a directory which is not under $GOPATH and invoke it from there."
+if [[ ! "$PWD" =~ "/tmp" ]]; then
+  echo "install_edgebox.sh can be invoked only from /tmp. Please copy it to /tmp and invoke from there." 
   exit
 fi
 
@@ -11,6 +11,7 @@ cat <<EOF >getting_started_vars.yml
 golang_package_cache: /tmp/golang
 golang_version: 1.12.13
 golang_checksum: sha256:6d3de6f7d7c0e8162aaa009128839fa5afcba578dcbd6ff034a82419d82480e9 
+force_remove_existing_repos: no
 EOF
 fi 
 
@@ -48,7 +49,32 @@ if [[ ! $? -eq 0  ]]; then
 else
     echo ansible is installed
 fi
+# genrate golang.yml playbook
+cat <<EOF >golang.yml
+- hosts: localhost
+  vars_files:
+    - getting_started_vars.yml
+  
+  tasks: 
 
+  - name: Create golang package directory
+    file:
+      path:  '{{golang_package_cache}}'
+      state: directory
+
+  - name: Download golang
+    get_url:
+      url: 'https://dl.google.com/go/go{{golang_version}}.darwin-amd64.tar.gz'
+      dest: '{{golang_package_cache}}/go{{golang_version}}.darwin-amd64.tar.gz'
+      checksum: '{{golang_checksum}}'
+
+  - name: Install golang
+    unarchive:
+      src: '{{golang_package_cache}}/go{{golang_version}}.darwin-amd64.tar.gz'
+      dest: /usr/local
+      remote_src: true
+    become: true
+EOF
 # install golang if needed
 which go &> /dev/null
 if [[ ! $? -eq 0  ]]; then
@@ -119,7 +145,22 @@ cat <<EOF >git.yml
     - getting_started_vars.yml
   
   tasks: 
-  - name: Create backup of pre-existing edge-cloud-infra, edge-cloud and edge-proto directories. 
+  - name: Add env variables to user profile
+    lineinfile:
+      path: "{{ item.name }}"
+      line: "{{ item.value }}"
+    with_items:
+      - { name: '~/.bash_profile', value: 'export GOROOT=/usr/local/go' }
+      - { name: '~/.bash_profile', value: 'export GOPATH=~/go' }
+      - { name: '~/.bash_profile', value: 'export PATH=\$PATH:\$GOROOT/bin' }
+      - { name: '~/.bash_profile', value: 'export PATH=\$PATH:\$GOPATH/bin' }
+      - { name: '~/.bash_profile', value: 'export GO111MODULE=on' }
+
+  - name: Install Go tools
+    shell:
+      cmd: go get -u github.com/pseudomuto/protoc-gen-doc/cmd/protoc-gen-doc
+
+  - name: if force_remove_existing_repos is yes (default is no), create backup of pre-existing edge-cloud-infra, edge-cloud and edge-proto directories. 
     archive:
       path:
         - ~/go/src/github.com/mobiledgex/edge-proto
@@ -128,8 +169,9 @@ cat <<EOF >git.yml
         - ~/go/src/github.com/grpc-ecosystem/grpc-gateway
       dest: ~/edge-cloud-repos-backup.{{ '%Y-%m-%d %H:%M:%S' | strftime(ansible_date_time.epoch) }}.tgz
       format: zip
+    when: ( force_remove_existing_repos == 'yes' )
 
-  - name: Remove previous edge-cloud, edge-cloud-infra, edge-proto, grpc-gateway directories
+  - name: if force_remove_existing_repos is yes (default is no), remove previous edge-cloud, edge-cloud-infra, edge-proto, grpc-gateway directories
     shell:
       cmd: "[[ -d {{ item }} ]] && /bin/rm -rf {{ item }}"
       warn: false
@@ -138,6 +180,11 @@ cat <<EOF >git.yml
       - ~/go/src/github.com/mobiledgex/edge-cloud
       - ~/go/src/github.com/mobiledgex/edge-cloud-infra
       - ~/go/src/github.com/grpc-ecosystem/grpc-gateway
+    when: ( force_remove_existing_repos == 'yes' )
+
+  - name: Clone edge-cloud, edge-cloud-infra, edge-proto, grpc-gateway directories
+    debug:
+      msg:  "In the next step, If git clone succeeded please ignore this message. Otherwise If git clone failed because of existing changes, please do a manual merge if you need the changes or git stash them if you do not and rerun."
 
 
   - name: Clone edge-cloud, edge-cloud-infra, edge-proto, grpc-gateway directories
@@ -151,7 +198,8 @@ cat <<EOF >git.yml
       - { name: 'https://github.com/mobiledgex/edge-cloud-infra.git', handle: '~/go/src/github.com/mobiledgex/edge-cloud-infra' }
       - { name: 'https://github.com/mobiledgex/edge-proto.git', handle: '~/go/src/github.com/mobiledgex/edge-proto' }
       - { name: 'https://github.com/mobiledgex/grpc-gateway.git', handle: '~/go/src/github.com/grpc-ecosystem/grpc-gateway' }
-
+    
+  
   - name: Run go mod download and make tools in edge-cloud directory
     shell:
       cmd:  "cd ~/go/src/github.com/mobiledgex/edge-cloud; GO111MODULE=on go mod download; make tools"

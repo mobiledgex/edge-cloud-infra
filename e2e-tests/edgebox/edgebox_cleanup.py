@@ -1,4 +1,5 @@
-#!/usr/bin/python
+#!/usr/bin/env python
+
 import re
 import sys
 import os
@@ -31,7 +32,7 @@ def readConfig():
        Operator = data['operator']
        Cloudlet = data['cloudlet']
        Controller = data['controller']
-       Edgectl = "/usr/local/bin/edgectl --addr %s:55001 --tls %s/mex-client.crt" % (Controller, TlsDir)
+       Edgectl = "edgectl --addr %s:55001 --tls %s/mex-client.crt" % (Controller, TlsDir)
     
 def getAppClusterInsts():
         global Appinsts

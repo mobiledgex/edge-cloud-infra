@@ -317,17 +317,41 @@ func showMcDataSep(uri, token string, rc *bool) *ormapi.AllData {
 		OrgCloudletPools: ocs,
 	}
 	for _, ctrl := range ctrls {
+		inSettings := &ormapi.RegionSettings{
+			Region: ctrl.Region,
+		}
+		settings, status, err := mcClient.ShowSettings(uri, token, inSettings)
+		if status == http.StatusForbidden {
+			// avoid test failure when user doesn't have perms
+			settings = nil
+			status = http.StatusOK
+			err = nil
+		}
+		checkMcCtrlErr("ShowSettings", status, err, rc)
+
 		inFlavor := &ormapi.RegionFlavor{
 			Region: ctrl.Region,
 		}
 		flavors, status, err := mcClient.ShowFlavor(uri, token, inFlavor)
 		checkMcCtrlErr("ShowFlavors", status, err, rc)
 
+		inCode := &ormapi.RegionOperatorCode{
+			Region: ctrl.Region,
+		}
+		codes, status, err := mcClient.ShowOperatorCode(uri, token, inCode)
+		checkMcCtrlErr("ShowOperatorCode", status, err, rc)
+
 		inCloudlet := &ormapi.RegionCloudlet{
 			Region: ctrl.Region,
 		}
 		cloudlets, status, err := mcClient.ShowCloudlet(uri, token, inCloudlet)
 		checkMcCtrlErr("ShowCloudlet", status, err, rc)
+
+		inCloudletInfo := &ormapi.RegionCloudletInfo{
+			Region: ctrl.Region,
+		}
+		cloudletInfos, status, err := mcClient.ShowCloudletInfo(uri, token, inCloudletInfo)
+		checkMcCtrlErr("ShowCloudletInfo", status, err, rc)
 
 		inCloudletPool := &ormapi.RegionCloudletPool{
 			Region: ctrl.Region,
@@ -374,7 +398,8 @@ func showMcDataSep(uri, token string, rc *bool) *ormapi.AllData {
 		// match what alldata.go does.
 		if len(flavors) == 0 && len(cloudlets) == 0 &&
 			len(clusterInsts) == 0 && len(apps) == 0 &&
-			len(appInsts) == 0 {
+			len(appInsts) == 0 && len(codes) == 0 &&
+			len(asPolicies) == 0 && len(apPolicies) == 0 {
 			continue
 		}
 
@@ -383,6 +408,7 @@ func showMcDataSep(uri, token string, rc *bool) *ormapi.AllData {
 			AppData: edgeproto.ApplicationData{
 				Flavors:             flavors,
 				Cloudlets:           cloudlets,
+				CloudletInfos:       cloudletInfos,
 				CloudletPools:       pools,
 				CloudletPoolMembers: members,
 				ClusterInsts:        clusterInsts,
@@ -390,6 +416,8 @@ func showMcDataSep(uri, token string, rc *bool) *ormapi.AllData {
 				AppInstances:        appInsts,
 				AutoScalePolicies:   asPolicies,
 				AutoProvPolicies:    apPolicies,
+				OperatorCodes:       codes,
+				Settings:            settings,
 			},
 		}
 		showData.RegionData = append(showData.RegionData, rd)
@@ -417,6 +445,15 @@ func showMcDataFiltered(uri, token string, data *ormapi.AllData, rc *bool) *orma
 			out, status, err := mcClient.ShowFlavor(uri, token, filter)
 			checkMcCtrlErr("ShowFlavor", status, err, rc)
 			ad.Flavors = append(ad.Flavors, out...)
+		}
+		for jj, _ := range appdata.OperatorCodes {
+			filter := &ormapi.RegionOperatorCode{
+				Region:       region,
+				OperatorCode: appdata.OperatorCodes[jj],
+			}
+			out, status, err := mcClient.ShowOperatorCode(uri, token, filter)
+			checkMcCtrlErr("ShowOperatorCode", status, err, rc)
+			ad.OperatorCodes = append(ad.OperatorCodes, out...)
 		}
 		for jj, _ := range appdata.Cloudlets {
 			filter := &ormapi.RegionCloudlet{
@@ -517,7 +554,9 @@ func runRegionDataApi(mcClient ormclient.Api, uri, token string, rd *ormapi.Regi
 	case "create":
 		fallthrough
 	case "update":
+		testutil.RunMcSettingsApi(mcClient, uri, token, rd.Region, rd.AppData.Settings, appDataMap["settings"], rc, "update")
 		testutil.RunMcFlavorApi(mcClient, uri, token, rd.Region, &rd.AppData.Flavors, appDataMap["flavors"], rc, mode)
+		testutil.RunMcOperatorCodeApi(mcClient, uri, token, rd.Region, &rd.AppData.OperatorCodes, appDataMap["operatorcodes"], rc, mode)
 		testutil.RunMcCloudletApi(mcClient, uri, token, rd.Region, &rd.AppData.Cloudlets, appDataMap["cloudlets"], rc, mode)
 		testutil.RunMcCloudletPoolApi(mcClient, uri, token, rd.Region, &rd.AppData.CloudletPools, appDataMap["cloudletpools"], rc, mode)
 		testutil.RunMcCloudletPoolMemberApi(mcClient, uri, token, rd.Region, &rd.AppData.CloudletPoolMembers, appDataMap["cloudletpoolmembers"], rc, mode)
@@ -566,7 +605,9 @@ func runRegionDataApi(mcClient ormclient.Api, uri, token string, rd *ormapi.Regi
 		testutil.RunMcCloudletPoolMemberApi(mcClient, uri, token, rd.Region, &rd.AppData.CloudletPoolMembers, appDataMap["cloudletpoolmembers"], rc, mode)
 		testutil.RunMcCloudletPoolApi(mcClient, uri, token, rd.Region, &rd.AppData.CloudletPools, appDataMap["cloudletpools"], rc, mode)
 		testutil.RunMcCloudletApi(mcClient, uri, token, rd.Region, &rd.AppData.Cloudlets, appDataMap["cloudlets"], rc, mode)
+		testutil.RunMcOperatorCodeApi(mcClient, uri, token, rd.Region, &rd.AppData.OperatorCodes, appDataMap["operatorcodes"], rc, mode)
 		testutil.RunMcFlavorApi(mcClient, uri, token, rd.Region, &rd.AppData.Flavors, appDataMap["flavors"], rc, mode)
+		testutil.RunMcSettingsApi(mcClient, uri, token, rd.Region, rd.AppData.Settings, appDataMap["settings"], rc, "reset")
 	}
 }
 

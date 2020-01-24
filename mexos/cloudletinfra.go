@@ -22,7 +22,7 @@ import (
 var CloudletInfraCommon edgeproto.CloudletInfraCommon
 var OpenstackProps edgeproto.OpenStackProperties
 
-var MEXInfraVersion = "v3.0.1"
+var MEXInfraVersion = "v3.0.3"
 var defaultOSImageName = "mobiledgex-" + MEXInfraVersion
 var VaultConfig *vault.Config
 
@@ -74,9 +74,8 @@ func InitInfraCommon(ctx context.Context, vaultConfig *vault.Config) error {
 	mexEnvPath := GetVaultCloudletCommonPath("mexenv.json")
 	err := InternVaultEnv(ctx, vaultConfig, mexEnvPath)
 	if err != nil {
-		if testMode {
-			log.SpanLog(ctx, log.DebugLevelMexos, "failed to InternVaultEnv", "addr", vaultConfig.Addr, "path", mexEnvPath, "err", err)
-		} else {
+		log.SpanLog(ctx, log.DebugLevelMexos, "failed to InternVaultEnv", "addr", vaultConfig.Addr, "path", mexEnvPath, "err", err)
+		if !testMode {
 			return fmt.Errorf("failed to InternVaultEnv %s, %s: %v", vaultConfig.Addr, mexEnvPath, err)
 		}
 	}

@@ -217,6 +217,20 @@ func TestController(t *testing.T) {
 	goodPermTestCloudletPool(t, mcClient, uri, tokenAd, ctrl.Region, org2, dcnt)
 	goodPermTestCloudletPoolMember(t, mcClient, uri, tokenAd, ctrl.Region, org1, dcnt)
 	goodPermTestCloudletPoolMember(t, mcClient, uri, tokenAd, ctrl.Region, org2, dcnt)
+	// make sure admin cannot create App against non-existent org,
+	// because enforcement check for admins doesn't look at org names in rbac.
+	badApp := &edgeproto.App{}
+	badApp.Key.DeveloperKey.Name = "nonexistent"
+	_, status, err = ormtestutil.TestCreateApp(mcClient, uri, token, ctrl.Region, badApp)
+	require.NotNil(t, err)
+	require.Equal(t, http.StatusForbidden, status)
+
+	// bug 1756 - better error message for nonexisting org in image path
+	badApp.ImagePath = "docker-qa.mobiledgex.net/nonexistent/images/server_ping_threaded:5.0"
+	_, status, err = ormtestutil.TestCreateApp(mcClient, uri, token, ctrl.Region, badApp)
+	require.NotNil(t, err)
+	require.Equal(t, http.StatusBadRequest, status)
+	require.Contains(t, err.Error(), "Organization nonexistent from ImagePath not found")
 
 	// flavors, clusterflavors are special - can be seen by all
 	goodPermTestShowFlavor(t, mcClient, uri, tokenDev, ctrl.Region, "", dcnt)
@@ -432,6 +446,11 @@ func TestController(t *testing.T) {
 	goodPermTestShowCloudlet(t, mcClient, uri, tokenDev2, ctrl.Region, "", count)
 	goodPermTestShowCloudlet(t, mcClient, uri, tokenOper, ctrl.Region, "", ccount)
 	goodPermTestShowCloudlet(t, mcClient, uri, tokenOper2, ctrl.Region, "", count)
+	// bug1741 - empty args to Delete CloudletPool when pools are present
+	// Should allow delete to continue to controller which always returns success
+	_, status, err = ormtestutil.TestDeleteCloudletPool(mcClient, uri, tokenAd, ctrl.Region, &edgeproto.CloudletPool{})
+	require.Nil(t, err)
+	require.Equal(t, http.StatusOK, status)
 
 	// delete org cloudlet pools
 	status, err = mcClient.DeleteOrgCloudletPool(uri, token, &op1)

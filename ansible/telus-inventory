@@ -1,0 +1,11 @@
+[all:vars]
+controller_hostname=mexdemo-us.ctrl.mobiledgex.net
+controller_notify_port=37001
+ansible_python_interpreter=/usr/bin/python3
+jaeger_hostname=jaeger.mobiledgex.net
+jaeger_port=14268
+
+[crmgws]
+telus-regent internal_ip=100.126.250.211
+telus-toll2 internal_ip=100.126.250.195
+telus-pitfield internal_ip=100.126.250.248

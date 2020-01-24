@@ -29,6 +29,7 @@ func GetControllerCommand() *cobra.Command {
 func GetRegionCommand() *cobra.Command {
 	cmds := []*cli.Command{}
 	cmds = append(cmds, FlavorApiCmds...)
+	cmds = append(cmds, OperatorCodeApiCmds...)
 	cmds = append(cmds, CloudletApiCmds...)
 	cmds = append(cmds, CloudletPoolApiCmds...)
 	cmds = append(cmds, CloudletInfoApiCmds...)
@@ -40,5 +41,7 @@ func GetRegionCommand() *cobra.Command {
 	cmds = append(cmds, AlertApiCmds...)
 	cmds = append(cmds, AutoScalePolicyApiCmds...)
 	cmds = append(cmds, AutoProvPolicyApiCmds...)
+	cmds = append(cmds, SettingsApiCmds...)
+	cmds = append(cmds, ResTagTableApiCmds...)
 	return cli.GenGroup("region", "manage region data", cmds)
 }

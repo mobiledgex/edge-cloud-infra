@@ -531,7 +531,8 @@
         name: web
       vars:
         nginx_config_template: "internal/jaeger/nginx-config.j2"
-        cert_domains: [ "{{ inventory_hostname }}" ]
+        cert_domains: [ "*.{{ cloudflare_zone }}" ]
+        cert_name: "{{ inventory_hostname }}"
       tags: setup
 
     - import_role:
@@ -658,4 +659,144 @@
         src: templates/internal/apt/aptly.conf.j2
         dest: /etc/aptly.conf
         mode: 0444
+      become: yes
+
+- hosts: backups
+  vars:
+    gcp_service_account_path: "/etc/gcp-backup-service-principal.json"
+    backups_docker: backups_registry
+    htpasswd_file: /etc/htpasswd
+    backup_cron: /usr/local/bin/backup.cron
+    backup_log: /var/log/backup.log
+
+  tasks:
+
+    - import_role:
+        name: docker
+      vars:
+        docker_skip_registry_login: yes
+      tags: setup
+
+    - import_role:
+        name: web
+        tasks_from: certs
+      vars:
+        cert_domains: [ "{{ inventory_hostname }}" ]
+        post_renewal_hooks:
+          - hook_name: docker_restart
+            hook_content: "{{ lookup('template', 'backups/docker_restart.hook.j2') }}"
+      tags: setup
+
+    - name: Install depedencies
+      apt:
+        name:
+          - apache2-utils
+          - duplicity
+          - python-pip
+      become: yes
+      tags: setup
+
+    - name: Install pip components
+      pip:
+        name:
+          - azure-storage==0.20.0
+        executable: pip2
+      become: yes
+      tags: setup
+
+    - name: Retrieve GCP service account from vault
+      set_fact:
+        vault_lookup: "{{ lookup('vault', path) }}"
+      vars:
+        path: "secret/ansible/{{ deploy_environ }}/accounts/gcp-backup-service-principal.json:service_account"
+      register: result
+      retries: 6
+      delay: 10
+      until: result is not failed
+      tags: setup
+
+    - name: Set up GCP service account credentials
+      copy:
+        dest: "{{ gcp_service_account_path }}"
+        content: "{{ vault_lookup.service_account.data }}"
+        owner: "{{ ansible_user }}"
+        group: "{{ ansible_user }}"
+        mode: 0400
+      become: yes
+      tags: setup
+
+    - name: Register gsutil
+      command: "gcloud auth activate-service-account --key-file={{ gcp_service_account_path }}"
+      environment:
+        PATH: "/usr/bin:/bin:/snap/bin"
+      tags: setup
+
+    - name: Get backups creds
+      set_fact:
+        vault_lookup: "{{ lookup('vault', 'secret/registry/backups.mobiledgex.net:creds') }}"
+
+    - set_fact:
+        docker_user: "{{ vault_lookup.creds.data.username }}"
+        docker_pass: "{{ vault_lookup.creds.data.password }}"
+
+    - name: Generate htpasswd file
+      command: "htpasswd -Bbc {{ htpasswd_file }} {{ docker_user }} {{ docker_pass }}"
+      args:
+        creates: "{{ htpasswd_file }}"
+      become: yes
+
+    - name: Set up the backup docker registry
+      docker_container:
+        name: "{{ backups_docker }}"
+        image: registry:2
+        restart_policy: unless-stopped
+        volumes:
+          - "{{ htpasswd_file }}:{{ htpasswd_file }}"
+          - "{{ ansible_env.HOME }}/gitlab-registry:/var/lib/registry:ro"
+          - "/etc/letsencrypt/live/{{ inventory_hostname }}:/certs:ro"
+          - "/etc/letsencrypt/archive/{{ inventory_hostname }}:/archive/{{ inventory_hostname }}:ro"
+        env:
+          REGISTRY_AUTH: htpasswd
+          REGISTRY_AUTH_HTPASSWD_REALM: "Registry Realm"
+          REGISTRY_AUTH_HTPASSWD_PATH: "{{ htpasswd_file }}"
+          REGISTRY_HTTP_TLS_CERTIFICATE: /certs/fullchain.pem
+          REGISTRY_HTTP_TLS_KEY: /certs/privkey.pem
+        ports:
+          - "5000:5000"
+
+    - name: Fetch the Slack webhook
+      set_fact:
+        vault_lookup: "{{ lookup('vault', 'secret/ansible/common/accounts/slack_webhooks/support') }}"
+
+    - set_fact:
+        slack_webhook: "{{ vault_lookup.support.data.url }}"
+
+    - name: Copy cron script
+      template:
+        src: backups/backup.cron
+        dest: "{{ backup_cron }}"
+        mode: "0555"
+      become: yes
+
+    - name: Set up the log file
+      copy:
+        content: ""
+        dest: "{{ backup_log }}"
+        force: no
+        owner: "{{ ansible_user }}"
+        group: "{{ ansible_user }}"
+        mode: "0600"
+      become: yes
+
+    - name: Install the backup cronjob
+      cron:
+        name: Backup
+        minute: "25"
+        hour: "6"
+        job: "{{ backup_cron }}"
+
+    - name: Set up log rotation
+      template:
+        src: backups/logrotate.conf.j2
+        dest: /etc/logrotate.d/backups
       become: yes

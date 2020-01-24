@@ -61,7 +61,7 @@
         image: travix/tinyproxy
         name: tinyproxy
         ports:
-         - "443:8888"
+         - "{{ internal_ip }}:443:8888"
         restart_policy: unless-stopped
         state: started
         volumes:

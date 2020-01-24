@@ -18,21 +18,17 @@ vault_port=443
 vault_firewall_setup=no
 monitor_version=latest
 letsencrypt_env=production
-locver_url="http://mexdemo.locsim.mobiledgex.net:8888/verifyLocation"
+locver_url="http://mexdemo.locsim.mobiledgex.net:8889/verifyLocation"
 toksrv_url="http://mexdemo.tok.mobiledgex.net:9999/its?followURL=https://dme.mobiledgex.net/verifyLoc"
 dme_carrier=TDG
 operator_key=TDG
 deploy_target="mexplat-{{ deploy_environ }}"
-mc_websockets_support=true
 
 [platform]
 localhost	ansible_connection=local
 
 [crms]
 crm-qa.mobiledgex.net
-
-[mc]
-mc-qa.mobiledgex.net nginx_config_filename=mc
 
 [gitlab]
 gitlab-qa.mobiledgex.net

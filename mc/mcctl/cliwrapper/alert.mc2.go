@@ -23,9 +23,11 @@ It is generated from these files:
 	node.proto
 	notice.proto
 	operator.proto
+	privacypolicy.proto
 	refs.proto
 	restagtable.proto
 	result.proto
+	settings.proto
 	version.proto
 
 It has these top-level messages:
@@ -84,11 +86,15 @@ It has these top-level messages:
 	Notice
 	OperatorKey
 	Operator
+	OperatorCode
+	OutboundSecurityRule
+	PrivacyPolicy
 	CloudletRefs
 	ClusterRefs
 	ResTagTableKey
 	ResTagTable
 	Result
+	Settings
 */
 package cliwrapper
 

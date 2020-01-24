@@ -20,5 +20,5 @@
       - "127.0.0.1:3000:3000"
       - "127.0.0.1:13030:3030"
     env:
-      MC_URL: "https://{{mc_vm_hostname}}:{{mc_api_port}}"
+      REACT_APP_API_ENDPOINT: "https://{{ inventory_hostname }}"
       REACT_APP_API_USE_SERVER_SUFFIX: "true"

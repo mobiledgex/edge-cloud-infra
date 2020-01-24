@@ -155,11 +155,14 @@ func (g *GenMC2) Generate(file *generator.FileDescriptor) {
 		if g.genctl {
 			g.generateCtlGroup(service)
 		}
+		if len(service.Method) == 0 {
+			continue
+		}
 		if g.gentestutil {
-			if len(service.Method) == 0 {
-				continue
-			}
 			g.generateRunApi(file.FileDescriptorProto, service)
+		}
+		if g.gentest {
+			g.generateTestApi(service)
 		}
 	}
 	if g.genctl {
@@ -177,14 +180,6 @@ func (g *GenMC2) Generate(file *generator.FileDescriptor) {
 			g.generatePosts()
 		}
 		g.firstFile = false
-	}
-	if g.gentest {
-		for _, msg := range file.Messages() {
-			if GetGenerateCud(msg.DescriptorProto) &&
-				!GetGenerateShowTest(msg.DescriptorProto) {
-				g.generateMessageTest(msg)
-			}
-		}
 	}
 }
 
@@ -316,6 +311,7 @@ func (g *GenMC2) generateMethod(service string, method *descriptor.MethodDescrip
 	}
 	if !args.Outstream {
 		args.ReturnErrArg = "nil, "
+		args.Show = false
 	}
 	if args.Outstream && !args.Show && !found {
 		args.GenStream = true
@@ -673,7 +669,7 @@ var tmplMethodTestutil = `
 {{- if .Outstream}}
 func Test{{.MethodName}}(mcClient *ormclient.Client, uri, token, region string, in *edgeproto.{{.InName}}) ([]edgeproto.{{.OutName}}, int, error) {
 {{- else}}
-func Test{{.MethodName}}(mcClient *ormclient.Client, uri, token, region string, in *edgeproto.{{.InName}}) (edgeproto.{{.OutName}}, int, error) {
+func Test{{.MethodName}}(mcClient *ormclient.Client, uri, token, region string, in *edgeproto.{{.InName}}) (*edgeproto.{{.OutName}}, int, error) {
 {{- end}}
 	dat := &ormapi.Region{{.InName}}{}
 	dat.Region = region
@@ -684,7 +680,7 @@ func Test{{.MethodName}}(mcClient *ormclient.Client, uri, token, region string, 
 {{- if .Outstream}}
 func TestPerm{{.MethodName}}(mcClient *ormclient.Client, uri, token, region, org string{{.TargetCloudletParam}}) ([]edgeproto.{{.OutName}}, int, error) {
 {{- else}}
-func TestPerm{{.MethodName}}(mcClient *ormclient.Client, uri, token, region, org string{{.TargetCloudletParam}}) (edgeproto.{{.OutName}}, int, error) {
+func TestPerm{{.MethodName}}(mcClient *ormclient.Client, uri, token, region, org string{{.TargetCloudletParam}}) (*edgeproto.{{.OutName}}, int, error) {
 {{- end}}
 	in := &edgeproto.{{.InName}}{}
 {{- if .TargetCloudlet}}
@@ -727,10 +723,13 @@ func (s *Client) {{.MethodName}}(uri, token string, in *ormapi.Region{{.InName}}
 	return outlist, status, err
 }
 {{- else}}
-func (s *Client) {{.MethodName}}(uri, token string, in *ormapi.Region{{.InName}}) (edgeproto.{{.OutName}}, int, error) {
+func (s *Client) {{.MethodName}}(uri, token string, in *ormapi.Region{{.InName}}) (*edgeproto.{{.OutName}}, int, error) {
 	out := edgeproto.{{.OutName}}{}
 	status, err := s.PostJson(uri+"/auth/ctrl/{{.MethodName}}", token, in, &out)
-	return out, status, err
+	if err != nil {
+		return nil, status, err
+	}
+	return &out, status, err
 }
 {{- end}}
 `
@@ -799,21 +798,40 @@ func (s *Client) {{.MethodName}}(uri, token string, in *ormapi.Region{{.InName}}
 	return outlist, st, err
 }
 {{- else}}
-func (s *Client) {{.MethodName}}(uri, token string, in *ormapi.Region{{.InName}}) (edgeproto.{{.OutName}}, int, error) {
+func (s *Client) {{.MethodName}}(uri, token string, in *ormapi.Region{{.InName}}) (*edgeproto.{{.OutName}}, int, error) {
 	args := []string{"region", "{{.MethodName}}"}
 	out := edgeproto.{{.OutName}}{}
 	noconfig := strings.Split("{{.NoConfig}}", ",")
 	st, err := s.runObjs(uri, token, args, in, &out, withIgnore(noconfig))
-	return out, st, err
+	if err != nil {
+		return nil, st, err
+	}
+	return &out, st, err
 }
 {{- end}}
 
 `
 
-func (g *GenMC2) generateMessageTest(desc *generator.Descriptor) {
-	message := desc.DescriptorProto
+func (g *GenMC2) generateTestApi(service *descriptor.ServiceDescriptorProto) {
+	// group methods by input type
+	groups := gensupport.GetMethodGroups(g.Generator, service, nil)
+	for _, group := range groups {
+		g.generateTestGroupApi(service, group)
+	}
+}
+
+func (g *GenMC2) generateTestGroupApi(service *descriptor.ServiceDescriptorProto, group *gensupport.MethodGroup) {
+	if !group.HasMc2Api {
+		return
+	}
+	message := group.In.DescriptorProto
+	if !GetGenerateCudTest(message) || GetGenerateShowTest(message) {
+		return
+	}
+
 	args := msgArgs{
-		Message:        *message.Name,
+		Message: group.InType,
+		//Message:        *message.Name,
 		HasUpdate:      GetGenerateCudTestUpdate(message),
 		TargetCloudlet: GetMc2TargetCloudlet(message),
 	}
@@ -840,77 +858,41 @@ func (g *GenMC2) generateMessageTest(desc *generator.Descriptor) {
 func (g *GenMC2) generateRunApi(file *descriptor.FileDescriptorProto, service *descriptor.ServiceDescriptorProto) {
 	// group methods by input type
 	groups := gensupport.GetMethodGroups(g.Generator, service, nil)
-	for inType, group := range groups {
-		g.generateRunGroupApi(file, service, inType, group)
+	for _, group := range groups {
+		g.generateRunGroupApi(file, service, group)
 	}
 }
 
-func (g *GenMC2) generateRunGroupApi(file *descriptor.FileDescriptorProto, service *descriptor.ServiceDescriptorProto, inType string, group *gensupport.MethodGroup) {
+func (g *GenMC2) generateRunGroupApi(file *descriptor.FileDescriptorProto, service *descriptor.ServiceDescriptorProto, group *gensupport.MethodGroup) {
 	if !group.HasMc2Api {
 		return
 	}
 	apiName := *service.Name + group.Suffix
-
-	/*
-		allowedActions := []string{
-			"Create",
-			"Update",
-			"Delete",
-		}
-		out := make(map[string]map[string]string)
-		for _, method := range service.Method {
-			found := false
-			action := ""
-			for _, act := range allowedActions {
-				if strings.HasPrefix(*method.Name, act) {
-					found = true
-					action = act
-					break
-				}
-			}
-			if !found {
-				continue
-			}
-			cmd := strings.TrimPrefix(*method.Name, action)
-			if _, ok := out[cmd]; ok {
-				out[cmd][action] = *method.Name
-			} else {
-				out[cmd] = map[string]string{
-					action: *method.Name,
-				}
-			}
-		}
-	*/
-	readMap := group.HasUpdate
+	inType := group.InType
+	dataIn := "data *[]edgeproto." + inType
+	if group.SingularData {
+		dataIn = "obj *edgeproto." + inType
+	}
 
 	objStr := strings.ToLower(string(inType[0])) + string(inType[1:len(inType)])
 	g.P()
-	g.P("func RunMc", apiName, "(mcClient ormclient.Api, uri, token, region string, data *[]edgeproto.", inType, ", dataIn interface{}, rc *bool, mode string) {")
-	if readMap {
-		g.importOS = true
-		g.P("var dataInList []interface{}")
-		g.P("var ok bool")
-		g.P("if dataIn != nil {")
-		g.P("dataInList, ok = dataIn.([]interface{})")
-		g.P("if !ok {")
-		g.P("fmt.Fprintf(os.Stderr, \"invalid data in ", objStr, ": %v\\n\", dataIn)")
-		g.P("os.Exit(1)")
-		g.P("}")
-		g.P("}")
-	}
-	if readMap {
-		g.P("for ii, ", objStr, " := range *data {")
-		g.P("dataMap, ok := dataInList[ii].(map[string]interface{})")
-		g.P("if !ok {")
-		g.P("fmt.Fprintf(os.Stderr, \"invalid data in ", objStr, ": %v\\n\", dataInList[ii])")
-		g.P("os.Exit(1)")
-		g.P("}")
+	g.P("func RunMc", apiName, "(mcClient ormclient.Api, uri, token, region string, ", dataIn, ", dataMap interface{}, rc *bool, mode string) {")
+	if group.SingularData {
+		g.P("if obj == nil { return }")
 	} else {
-		g.P("for _, ", objStr, " := range *data {")
+		if group.HasUpdate {
+			g.P("for ii, ", objStr, " := range *data {")
+		} else {
+			g.P("for _, ", objStr, " := range *data {")
+		}
 	}
 	g.P("in := &ormapi.Region", inType, "{")
 	g.P("Region: region,")
-	g.P(inType, ": ", objStr, ",")
+	if group.SingularData {
+		g.P(inType, ": *obj,")
+	} else {
+		g.P(inType, ": ", objStr, ",")
+	}
 	g.P("}")
 
 	g.P("switch mode {")
@@ -921,7 +903,18 @@ func (g *GenMC2) generateRunGroupApi(file *descriptor.FileDescriptorProto, servi
 		g.P("case \"", info.Action, "\":")
 		if info.Action == "update" {
 			g.importCli = true
-			g.P("in.", inType, ".Fields = cli.GetSpecifiedFields(dataMap, &in.", inType, ", cli.YamlNamespace)")
+			g.importOS = true
+			if group.SingularData {
+				g.P("objMap, err := cli.GetGenericObj(dataMap)")
+			} else {
+				g.P("objMap, err := cli.GetGenericObjFromList(dataMap, ii)")
+			}
+			g.P("if err != nil {")
+			g.P("fmt.Fprintf(os.Stderr, \"bad dataMap for ", inType, ": %v\", err)")
+			g.P("os.Exit(1)")
+			g.P("}")
+
+			g.P("in.", inType, ".Fields = cli.GetSpecifiedFields(objMap, &in.", inType, ", cli.YamlNamespace)")
 		}
 		g.P("_, st, err := mcClient.", info.Name, "(uri, token, in)")
 		g.P("checkMcErr(\"", info.Name, "\", st, err, rc)")
@@ -929,7 +922,9 @@ func (g *GenMC2) generateRunGroupApi(file *descriptor.FileDescriptorProto, servi
 	g.P("default:")
 	g.P("return")
 	g.P("}")
-	g.P("}")
+	if !group.SingularData {
+		g.P("}")
+	}
 	g.P("}")
 }
 
@@ -1036,7 +1031,7 @@ func (g *GenMC2) generateClientInterface(service *descriptor.ServiceDescriptorPr
 			// outstream
 			g.P(method.Name, "(uri, token string, in *ormapi.Region", inname, ") ([]edgeproto.", outname, ", int, error)")
 		} else {
-			g.P(method.Name, "(uri, token string, in *ormapi.Region", inname, ") (edgeproto.", outname, ", int, error)")
+			g.P(method.Name, "(uri, token string, in *ormapi.Region", inname, ") (*edgeproto.", outname, ", int, error)")
 		}
 	}
 	g.P("}")
@@ -1090,8 +1085,8 @@ func GetMc2TargetCloudlet(message *descriptor.DescriptorProto) string {
 	return gensupport.GetStringExtension(message.Options, protogen.E_Mc2TargetCloudlet, "")
 }
 
-func GetGenerateCud(message *descriptor.DescriptorProto) bool {
-	return proto.GetBoolExtension(message.Options, protogen.E_GenerateCud, false)
+func GetGenerateCudTest(message *descriptor.DescriptorProto) bool {
+	return proto.GetBoolExtension(message.Options, protogen.E_GenerateCudTest, false)
 }
 
 func GetGenerateShowTest(message *descriptor.DescriptorProto) bool {

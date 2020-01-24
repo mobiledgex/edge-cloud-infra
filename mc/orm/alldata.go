@@ -1,12 +1,17 @@
 package orm
 
 import (
+	"context"
+	"encoding/json"
 	"fmt"
+	"io/ioutil"
 	"net/http"
 
 	"github.com/labstack/echo"
 	"github.com/mobiledgex/edge-cloud-infra/mc/ormapi"
+	"github.com/mobiledgex/edge-cloud/cli"
 	"github.com/mobiledgex/edge-cloud/edgeproto"
+	"github.com/mobiledgex/edge-cloud/log"
 	"google.golang.org/grpc"
 )
 
@@ -30,10 +35,22 @@ func CreateData(c echo.Context) error {
 	}
 	ctx := GetContext(c)
 
+	// Pull json directly so we can unmarshal twice.
+	// We also unmarshal into a generic map to be able to specify
+	// which fields are to be updated for "Settings".
+	body, err := ioutil.ReadAll(c.Request().Body)
+	if err != nil {
+		return bindErr(c, err)
+	}
 	data := ormapi.AllData{}
-	if err := c.Bind(&data); err != nil {
+	if err := json.Unmarshal(body, &data); err != nil {
 		return c.JSON(http.StatusBadRequest, Msg("Invalid POST data"))
 	}
+	dataMap := make(map[string]interface{})
+	if err = json.Unmarshal(body, &dataMap); err != nil {
+		return c.JSON(http.StatusBadRequest, Msg("Invalid POST data"))
+	}
+
 	// stream back responses
 	c.Response().Header().Set(echo.HeaderContentType, echo.MIMEApplicationJSON)
 	c.Response().WriteHeader(http.StatusOK)
@@ -54,7 +71,7 @@ func CreateData(c echo.Context) error {
 		err := AddUserRoleObj(ctx, claims, &role)
 		streamReply(c, desc, err, &hadErr)
 	}
-	for _, regionData := range data.RegionData {
+	for ii, regionData := range data.RegionData {
 		conn, err := connectController(ctx, regionData.Region)
 		if err != nil {
 			desc := fmt.Sprintf("Connect %s Controller", regionData.Region)
@@ -69,6 +86,24 @@ func CreateData(c echo.Context) error {
 		rc.conn = conn
 
 		appdata := &regionData.AppData
+		appdataMap := getAppMap(ctx, dataMap, ii)
+
+		if appdata.Settings != nil && appdataMap != nil {
+			desc := fmt.Sprintf("Update Settings")
+			objMap, err := cli.GetGenericObj(appdataMap["Settings"])
+			if err != nil {
+				err = fmt.Errorf("invalid data map for settings: %v", err)
+			} else {
+				appdata.Settings.Fields = cli.GetSpecifiedFields(objMap, appdata.Settings, cli.JsonNamespace)
+				_, err = UpdateSettingsObj(ctx, rc, appdata.Settings)
+			}
+			streamReply(c, desc, err, &hadErr)
+		}
+		for _, oc := range appdata.OperatorCodes {
+			desc := fmt.Sprintf("Create OperatorCode %s-%s", oc.Code, oc.OperatorName)
+			_, err = CreateOperatorCodeObj(ctx, rc, &oc)
+			streamReply(c, desc, err, &hadErr)
+		}
 		for _, flavor := range appdata.Flavors {
 			desc := fmt.Sprintf("Create Flavor %s", flavor.Key.Name)
 			_, err = CreateFlavorObj(ctx, rc, &flavor)
@@ -98,6 +133,11 @@ func CreateData(c echo.Context) error {
 		for _, policy := range appdata.AutoProvPolicies {
 			desc := fmt.Sprintf("Create AutoProvPolicy %v", policy.Key)
 			_, err := CreateAutoProvPolicyObj(ctx, rc, &policy)
+			streamReply(c, desc, err, &hadErr)
+		}
+		for _, ppolicy := range appdata.PrivacyPolicies {
+			desc := fmt.Sprintf("Create PrivacyPolicy %v", ppolicy.Key)
+			_, err := CreatePrivacyPolicyObj(ctx, rc, &ppolicy)
 			streamReply(c, desc, err, &hadErr)
 		}
 		for _, cinst := range appdata.ClusterInsts {
@@ -193,6 +233,11 @@ func DeleteData(c echo.Context) error {
 			_, err := DeleteAutoScalePolicyObj(ctx, rc, &policy)
 			streamReply(c, desc, err, &hadErr)
 		}
+		for _, ppolicy := range appdata.PrivacyPolicies {
+			desc := fmt.Sprintf("Delete PrivacyPolicy %v", ppolicy.Key)
+			_, err := DeletePrivacyPolicyObj(ctx, rc, &ppolicy)
+			streamReply(c, desc, err, &hadErr)
+		}
 		for _, member := range appdata.CloudletPoolMembers {
 			desc := fmt.Sprintf("Delete CloudletPoolMember %v", member)
 			_, err := DeleteCloudletPoolMemberObj(ctx, rc, &member)
@@ -212,6 +257,16 @@ func DeleteData(c echo.Context) error {
 		for _, flavor := range appdata.Flavors {
 			desc := fmt.Sprintf("Delete Flavor %s", flavor.Key.Name)
 			_, err = DeleteFlavorObj(ctx, rc, &flavor)
+			streamReply(c, desc, err, &hadErr)
+		}
+		for _, oc := range appdata.OperatorCodes {
+			desc := fmt.Sprintf("Delete OperatorCode %s-%s", oc.Code, oc.OperatorName)
+			_, err = DeleteOperatorCodeObj(ctx, rc, &oc)
+			streamReply(c, desc, err, &hadErr)
+		}
+		if appdata.Settings != nil {
+			desc := fmt.Sprintf("Reset Settings")
+			_, err = ResetSettingsObj(ctx, rc, appdata.Settings)
 			streamReply(c, desc, err, &hadErr)
 		}
 	}
@@ -287,9 +342,17 @@ func ShowData(c echo.Context) error {
 		regionData.Region = ctrl.Region
 		appdata := &regionData.AppData
 
+		settings, err := ShowSettingsObj(ctx, rc, &edgeproto.Settings{})
+		if err == nil {
+			appdata.Settings = settings
+		}
 		cloudlets, err := ShowCloudletObj(ctx, rc, &edgeproto.Cloudlet{})
 		if err == nil {
 			appdata.Cloudlets = cloudlets
+		}
+		cloudletinfos, err := ShowCloudletInfoObj(ctx, rc, &edgeproto.CloudletInfo{})
+		if err == nil {
+			appdata.CloudletInfos = cloudletinfos
 		}
 		pools, err := ShowCloudletPoolObj(ctx, rc, &edgeproto.CloudletPool{})
 		if err == nil {
@@ -323,13 +386,32 @@ func ShowData(c echo.Context) error {
 		if err == nil {
 			appdata.AppInstances = appinsts
 		}
+		codes, err := ShowOperatorCodeObj(ctx, rc, &edgeproto.OperatorCode{})
+		if err == nil {
+			appdata.OperatorCodes = codes
+		}
 
 		if len(flavors) > 0 ||
 			len(cloudlets) > 0 || len(cinsts) > 0 ||
 			len(apps) > 0 || len(appinsts) > 0 ||
-			len(aspolicies) > 0 || len(appolicies) > 0 {
+			len(aspolicies) > 0 || len(appolicies) > 0 ||
+			len(codes) > 0 {
 			data.RegionData = append(data.RegionData, *regionData)
 		}
 	}
 	return c.JSON(http.StatusOK, data)
+}
+
+func getAppMap(ctx context.Context, allDataMap map[string]interface{}, regionIndex int) map[string]interface{} {
+	regionMap, err := cli.GetGenericObjFromList(allDataMap["regiondata"], regionIndex)
+	if err != nil {
+		log.SpanLog(ctx, log.DebugLevelApi, "extract region map failed", "index", regionIndex, "err", err)
+		return nil
+	}
+	appMap, err := cli.GetGenericObj(regionMap["appdata"])
+	if err != nil {
+		log.SpanLog(ctx, log.DebugLevelApi, "extract appdata map failed", "index", regionIndex, "err", err)
+		return nil
+	}
+	return appMap
 }

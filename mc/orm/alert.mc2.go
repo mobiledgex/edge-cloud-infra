@@ -23,9 +23,11 @@ It is generated from these files:
 	node.proto
 	notice.proto
 	operator.proto
+	privacypolicy.proto
 	refs.proto
 	restagtable.proto
 	result.proto
+	settings.proto
 	version.proto
 
 It has these top-level messages:
@@ -84,11 +86,15 @@ It has these top-level messages:
 	Notice
 	OperatorKey
 	Operator
+	OperatorCode
+	OutboundSecurityRule
+	PrivacyPolicy
 	CloudletRefs
 	ClusterRefs
 	ResTagTableKey
 	ResTagTable
 	Result
+	Settings
 */
 package orm
 
@@ -211,6 +217,9 @@ func addControllerApis(method string, group *echo.Group) {
 	group.Match([]string{method}, "/ctrl/DeleteApp", DeleteApp)
 	group.Match([]string{method}, "/ctrl/UpdateApp", UpdateApp)
 	group.Match([]string{method}, "/ctrl/ShowApp", ShowApp)
+	group.Match([]string{method}, "/ctrl/CreateOperatorCode", CreateOperatorCode)
+	group.Match([]string{method}, "/ctrl/DeleteOperatorCode", DeleteOperatorCode)
+	group.Match([]string{method}, "/ctrl/ShowOperatorCode", ShowOperatorCode)
 	group.Match([]string{method}, "/ctrl/CreateResTagTable", CreateResTagTable)
 	group.Match([]string{method}, "/ctrl/DeleteResTagTable", DeleteResTagTable)
 	group.Match([]string{method}, "/ctrl/UpdateResTagTable", UpdateResTagTable)
@@ -258,6 +267,13 @@ func addControllerApis(method string, group *echo.Group) {
 	group.Match([]string{method}, "/ctrl/ShowCloudletsForPool", ShowCloudletsForPool)
 	group.Match([]string{method}, "/ctrl/RunCommand", RunCommand)
 	group.Match([]string{method}, "/ctrl/ShowNode", ShowNode)
+	group.Match([]string{method}, "/ctrl/CreatePrivacyPolicy", CreatePrivacyPolicy)
+	group.Match([]string{method}, "/ctrl/DeletePrivacyPolicy", DeletePrivacyPolicy)
+	group.Match([]string{method}, "/ctrl/UpdatePrivacyPolicy", UpdatePrivacyPolicy)
+	group.Match([]string{method}, "/ctrl/ShowPrivacyPolicy", ShowPrivacyPolicy)
 	group.Match([]string{method}, "/ctrl/ShowCloudletRefs", ShowCloudletRefs)
 	group.Match([]string{method}, "/ctrl/ShowClusterRefs", ShowClusterRefs)
+	group.Match([]string{method}, "/ctrl/UpdateSettings", UpdateSettings)
+	group.Match([]string{method}, "/ctrl/ResetSettings", ResetSettings)
+	group.Match([]string{method}, "/ctrl/ShowSettings", ShowSettings)
 }

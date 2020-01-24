@@ -35,6 +35,7 @@ require (
 	github.com/jinzhu/gorm v1.9.10
 	github.com/json-iterator/go v1.1.6 // indirect
 	github.com/kballard/go-shellquote v0.0.0-20180428030007-95032a82bc51 // indirect
+	github.com/kennygrant/sanitize v1.2.4
 	github.com/konsorten/go-windows-terminal-sequences v1.0.2 // indirect
 	github.com/labstack/echo v0.0.0-20180911044237-1abaa3049251
 	github.com/lib/pq v1.1.1
@@ -334,3 +335,5 @@ replace go.uber.org/atomic => go.uber.org/atomic v1.4.0
 replace gopkg.in/check.v1 => gopkg.in/check.v1 v1.0.0-20180628173108-788fd7840127
 
 replace github.com/xtaci/smux => github.com/xtaci/smux v1.3.6
+
+replace github.com/segmentio/ksuid => github.com/segmentio/ksuid v1.0.2

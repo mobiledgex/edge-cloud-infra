@@ -20,10 +20,13 @@ var _ = math.Inf
 
 // Auto-generated code: DO NOT EDIT
 
-func (s *Client) RunCommand(uri, token string, in *ormapi.RegionExecRequest) (edgeproto.ExecRequest, int, error) {
+func (s *Client) RunCommand(uri, token string, in *ormapi.RegionExecRequest) (*edgeproto.ExecRequest, int, error) {
 	args := []string{"region", "RunCommand"}
 	out := edgeproto.ExecRequest{}
 	noconfig := strings.Split("Offer,Answer,Err,ConsoleUrl,Console", ",")
 	st, err := s.runObjs(uri, token, args, in, &out, withIgnore(noconfig))
-	return out, st, err
+	if err != nil {
+		return nil, st, err
+	}
+	return &out, st, err
 }

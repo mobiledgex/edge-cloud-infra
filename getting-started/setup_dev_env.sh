@@ -1,7 +1,7 @@
 #! /bin/bash
 
 if [[ ! "$PWD" == "/tmp" ]]; then
-  echo "install_edgebox.sh can be invoked only from /tmp. Please copy it to /tmp and invoke from there." 
+  echo "$0 can be invoked only from /tmp. Please copy it to /tmp and invoke from there." 
   exit
 fi
 

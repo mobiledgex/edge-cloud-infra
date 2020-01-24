@@ -1,6 +1,6 @@
 MobiledgeX Development Setup Procedure
 
-setup_dev_env.sh sets up your environment locally so that you can run edgebox.
+setup_dev_env.sh sets up your environment on your macbook locally.
 It essentially automates the steps on 'Getting Started' Confluence page (https://mobiledgex.atlassian.net/wiki/spaces/SWDEV/pages/22478869/Getting+Started)
 
 

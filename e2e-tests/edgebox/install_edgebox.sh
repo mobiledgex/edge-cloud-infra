@@ -129,7 +129,7 @@ cat <<EOF >git.yml
       dest: ~/edge-cloud-repos-backup.{{ '%Y-%m-%d %H:%M:%S' | strftime(ansible_date_time.epoch) }}.tgz
       format: zip
 
-  - name: Remove previous edge-cloud, edge-cloud-infra and edge-proto directories
+  - name: Remove previous edge-cloud, edge-cloud-infra, edge-proto, grpc-gateway directories
     shell:
       cmd: "[[ -d {{ item }} ]] && /bin/rm -rf {{ item }}"
       warn: false
@@ -140,7 +140,7 @@ cat <<EOF >git.yml
       - ~/go/src/github.com/grpc-ecosystem/grpc-gateway
 
 
-  - name: Clone edge-cloud, edge-cloud-infra and edge-proto directories
+  - name: Clone edge-cloud, edge-cloud-infra, edge-proto, grpc-gateway directories
     git:
       name:  "{{ item.name }}"
       dest: "{{ item.handle }}"

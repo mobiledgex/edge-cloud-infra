@@ -152,7 +152,7 @@ cat <<EOF >git.yml
 
   - name: Install Go tools
     shell:
-      cmd: go get -u github.com/pseudomuto/protoc-gen-doc/cmd/protoc-gen-doc
+      cmd: "cd /tmp; go get -u github.com/pseudomuto/protoc-gen-doc/cmd/protoc-gen-doc"
 
 
   - name: Clone edge-cloud, edge-cloud-infra, edge-proto, grpc-gateway directories

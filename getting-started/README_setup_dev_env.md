@@ -1,7 +1,7 @@
 MobiledgeX Development Setup Procedure
 
-setup_dev_env.sh sets up your environment on your macbook locally.
-It essentially automates the steps on 'Getting Started' Confluence page (https://mobiledgex.atlassian.net/wiki/spaces/SWDEV/pages/22478869/Getting+Started)
+   - setup_dev_env.sh sets up your environment on your macbook locally.
+   - It essentially automates the steps on 'Getting Started' Confluence page (https://mobiledgex.atlassian.net/wiki/spaces/SWDEV/pages/22478869/Getting+Started)
 
 
 Make sure your git setup is working.
@@ -10,10 +10,11 @@ Make sure your git setup is working.
    - you have git personal token setup. Getting Started page has instructions.
 
 
-  
+Run following commands from a terminal on your macbook:
 
-Get the setup_dev_env.sh script from github.com mobiledgex repo edge-cloud-infra under getting-started directory. Save it in /tmp directory on your macbook under your home directory and run it from there,
-
-  ./setup_dev_env.sh
+   mkdir -p ~/go/src/github.com/mobiledgex/
+   git clone https://github.com/mobiledgex/edge-cloud-infra.git
+   cd getting-started
+   ./setup_dev_env.sh
   
 

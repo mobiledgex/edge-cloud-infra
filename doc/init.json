@@ -1,0 +1,16 @@
+{
+        "x-tagGroups": [
+                {
+                        "name": "General APIs",
+                        "tags": ["Setup", "User"]
+                },
+                {
+                        "name": "Operator APIs",
+                        "tags": ["Cloudlet"]
+                },
+                {
+                        "name": "Developer APIs",
+                        "tags": ["Cluster-Instance", "App", "App-Instance"]
+                }
+        ]
+}

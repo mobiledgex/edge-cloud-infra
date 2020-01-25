@@ -6,20 +6,147 @@
     "application/json"
   ],
   "schemes": [
-    "http",
-    "https",
-    "wss"
+    "https"
   ],
   "swagger": "2.0",
   "info": {
     "description": "This documentation describes all the MC APIs available",
     "title": "Master Controller (MC) API Documentation",
-    "version": "1.0.0"
+    "version": "0.0.1"
   },
-  "basePath": "/api/v1/auth",
+  "basePath": "/api/v1",
   "paths": {
+    "/auth/user/delete": {
+      "post": {
+        "description": "Delete a user",
+        "tags": [
+          "User"
+        ],
+        "operationId": "DeleteUser",
+        "parameters": [
+          {
+            "name": "Body",
+            "in": "body",
+            "schema": {
+              "$ref": "#/definitions/User"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "$ref": "#/responses/success"
+          },
+          "400": {
+            "$ref": "#/responses/badRequest"
+          },
+          "403": {
+            "$ref": "#/responses/forbidden"
+          },
+          "404": {
+            "$ref": "#/responses/notFound"
+          }
+        }
+      }
+    },
+    "/auth/user/show": {
+      "post": {
+        "description": "Show all users",
+        "tags": [
+          "User"
+        ],
+        "operationId": "ShowUser",
+        "parameters": [
+          {
+            "name": "Body",
+            "in": "body",
+            "schema": {
+              "$ref": "#/definitions/Organization"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "$ref": "#/responses/success"
+          },
+          "400": {
+            "$ref": "#/responses/badRequest"
+          },
+          "403": {
+            "$ref": "#/responses/forbidden"
+          },
+          "404": {
+            "$ref": "#/responses/notFound"
+          }
+        }
+      }
+    },
+    "/ctrl/AddAutoProvPolicyCloudlet": {
+      "post": {
+        "description": "Add a Cloudlet to the Auto Provisioning Policy",
+        "tags": [
+          "AutoProvPolicyCloudlet"
+        ],
+        "operationId": "AddAutoProvPolicyCloudlet",
+        "parameters": [
+          {
+            "name": "Body",
+            "in": "body",
+            "schema": {
+              "$ref": "#/definitions/RegionAutoProvPolicyCloudlet"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "$ref": "#/responses/success"
+          },
+          "400": {
+            "$ref": "#/responses/badRequest"
+          },
+          "403": {
+            "$ref": "#/responses/forbidden"
+          },
+          "404": {
+            "$ref": "#/responses/notFound"
+          }
+        }
+      }
+    },
+    "/ctrl/AddCloudletResMapping": {
+      "post": {
+        "description": "Add Optional Resource tag table",
+        "tags": [
+          "CloudletResMap"
+        ],
+        "operationId": "AddCloudletResMapping",
+        "parameters": [
+          {
+            "name": "Body",
+            "in": "body",
+            "schema": {
+              "$ref": "#/definitions/RegionCloudletResMap"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "$ref": "#/responses/success"
+          },
+          "400": {
+            "$ref": "#/responses/badRequest"
+          },
+          "403": {
+            "$ref": "#/responses/forbidden"
+          },
+          "404": {
+            "$ref": "#/responses/notFound"
+          }
+        }
+      }
+    },
     "/ctrl/AddFlavorRes": {
       "post": {
+        "description": "Add Optional Resource",
         "tags": [
           "Flavor"
         ],
@@ -29,16 +156,39 @@
             "name": "Body",
             "in": "body",
             "schema": {
-              "type": "object",
-              "properties": {
-                "Flavor": {
-                  "$ref": "#/definitions/Flavor"
-                },
-                "Region": {
-                  "description": "Region name",
-                  "type": "string"
-                }
-              }
+              "$ref": "#/definitions/RegionFlavor"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "$ref": "#/responses/success"
+          },
+          "400": {
+            "$ref": "#/responses/badRequest"
+          },
+          "403": {
+            "$ref": "#/responses/forbidden"
+          },
+          "404": {
+            "$ref": "#/responses/notFound"
+          }
+        }
+      }
+    },
+    "/ctrl/AddResTag": {
+      "post": {
+        "description": "add new tag(s) to TagTable",
+        "tags": [
+          "ResTagTable"
+        ],
+        "operationId": "AddResTag",
+        "parameters": [
+          {
+            "name": "Body",
+            "in": "body",
+            "schema": {
+              "$ref": "#/definitions/RegionResTagTable"
             }
           }
         ],
@@ -60,6 +210,7 @@
     },
     "/ctrl/CreateApp": {
       "post": {
+        "description": "Create an application",
         "tags": [
           "App"
         ],
@@ -69,16 +220,7 @@
             "name": "Body",
             "in": "body",
             "schema": {
-              "type": "object",
-              "properties": {
-                "App": {
-                  "$ref": "#/definitions/App"
-                },
-                "Region": {
-                  "description": "Region name",
-                  "type": "string"
-                }
-              }
+              "$ref": "#/definitions/RegionApp"
             }
           }
         ],
@@ -100,8 +242,9 @@
     },
     "/ctrl/CreateAppInst": {
       "post": {
+        "description": "Create an application instance",
         "tags": [
-          "AppInst"
+          "App-Instance"
         ],
         "operationId": "CreateAppInst",
         "parameters": [
@@ -109,16 +252,71 @@
             "name": "Body",
             "in": "body",
             "schema": {
-              "type": "object",
-              "properties": {
-                "AppInst": {
-                  "$ref": "#/definitions/AppInst"
-                },
-                "Region": {
-                  "description": "Region name",
-                  "type": "string"
-                }
-              }
+              "$ref": "#/definitions/RegionAppInst"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "$ref": "#/responses/success"
+          },
+          "400": {
+            "$ref": "#/responses/badRequest"
+          },
+          "403": {
+            "$ref": "#/responses/forbidden"
+          },
+          "404": {
+            "$ref": "#/responses/notFound"
+          }
+        }
+      }
+    },
+    "/ctrl/CreateAutoProvPolicy": {
+      "post": {
+        "description": "Create an Auto Provisioning Policy",
+        "tags": [
+          "AutoProvPolicy"
+        ],
+        "operationId": "CreateAutoProvPolicy",
+        "parameters": [
+          {
+            "name": "Body",
+            "in": "body",
+            "schema": {
+              "$ref": "#/definitions/RegionAutoProvPolicy"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "$ref": "#/responses/success"
+          },
+          "400": {
+            "$ref": "#/responses/badRequest"
+          },
+          "403": {
+            "$ref": "#/responses/forbidden"
+          },
+          "404": {
+            "$ref": "#/responses/notFound"
+          }
+        }
+      }
+    },
+    "/ctrl/CreateAutoScalePolicy": {
+      "post": {
+        "description": "Create an Auto Scale Policy",
+        "tags": [
+          "AutoScalePolicy"
+        ],
+        "operationId": "CreateAutoScalePolicy",
+        "parameters": [
+          {
+            "name": "Body",
+            "in": "body",
+            "schema": {
+              "$ref": "#/definitions/RegionAutoScalePolicy"
             }
           }
         ],
@@ -140,6 +338,7 @@
     },
     "/ctrl/CreateCloudlet": {
       "post": {
+        "description": "Create a Cloudlet",
         "tags": [
           "Cloudlet"
         ],
@@ -149,16 +348,71 @@
             "name": "Body",
             "in": "body",
             "schema": {
-              "type": "object",
-              "properties": {
-                "Cloudlet": {
-                  "$ref": "#/definitions/Cloudlet"
-                },
-                "Region": {
-                  "description": "Region name",
-                  "type": "string"
-                }
-              }
+              "$ref": "#/definitions/RegionCloudlet"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "$ref": "#/responses/success"
+          },
+          "400": {
+            "$ref": "#/responses/badRequest"
+          },
+          "403": {
+            "$ref": "#/responses/forbidden"
+          },
+          "404": {
+            "$ref": "#/responses/notFound"
+          }
+        }
+      }
+    },
+    "/ctrl/CreateCloudletPool": {
+      "post": {
+        "description": "Create a CloudletPool",
+        "tags": [
+          "CloudletPool"
+        ],
+        "operationId": "CreateCloudletPool",
+        "parameters": [
+          {
+            "name": "Body",
+            "in": "body",
+            "schema": {
+              "$ref": "#/definitions/RegionCloudletPool"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "$ref": "#/responses/success"
+          },
+          "400": {
+            "$ref": "#/responses/badRequest"
+          },
+          "403": {
+            "$ref": "#/responses/forbidden"
+          },
+          "404": {
+            "$ref": "#/responses/notFound"
+          }
+        }
+      }
+    },
+    "/ctrl/CreateCloudletPoolMember": {
+      "post": {
+        "description": "Add a Cloudlet to a CloudletPool",
+        "tags": [
+          "CloudletPoolMember"
+        ],
+        "operationId": "CreateCloudletPoolMember",
+        "parameters": [
+          {
+            "name": "Body",
+            "in": "body",
+            "schema": {
+              "$ref": "#/definitions/RegionCloudletPoolMember"
             }
           }
         ],
@@ -180,8 +434,9 @@
     },
     "/ctrl/CreateClusterInst": {
       "post": {
+        "description": "Create a Cluster instance",
         "tags": [
-          "ClusterInst"
+          "Cluster-Instance"
         ],
         "operationId": "CreateClusterInst",
         "parameters": [
@@ -189,16 +444,7 @@
             "name": "Body",
             "in": "body",
             "schema": {
-              "type": "object",
-              "properties": {
-                "ClusterInst": {
-                  "$ref": "#/definitions/ClusterInst"
-                },
-                "Region": {
-                  "description": "Region name",
-                  "type": "string"
-                }
-              }
+              "$ref": "#/definitions/RegionClusterInst"
             }
           }
         ],
@@ -220,6 +466,7 @@
     },
     "/ctrl/CreateFlavor": {
       "post": {
+        "description": "Create a Flavor",
         "tags": [
           "Flavor"
         ],
@@ -229,16 +476,103 @@
             "name": "Body",
             "in": "body",
             "schema": {
-              "type": "object",
-              "properties": {
-                "Flavor": {
-                  "$ref": "#/definitions/Flavor"
-                },
-                "Region": {
-                  "description": "Region name",
-                  "type": "string"
-                }
-              }
+              "$ref": "#/definitions/RegionFlavor"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "$ref": "#/responses/success"
+          },
+          "400": {
+            "$ref": "#/responses/badRequest"
+          },
+          "403": {
+            "$ref": "#/responses/forbidden"
+          },
+          "404": {
+            "$ref": "#/responses/notFound"
+          }
+        }
+      }
+    },
+    "/ctrl/CreateOperatorCode": {
+      "post": {
+        "description": "Create a code for an Operator",
+        "tags": [
+          "OperatorCode"
+        ],
+        "operationId": "CreateOperatorCode",
+        "parameters": [
+          {
+            "name": "Body",
+            "in": "body",
+            "schema": {
+              "$ref": "#/definitions/RegionOperatorCode"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "$ref": "#/responses/success"
+          },
+          "400": {
+            "$ref": "#/responses/badRequest"
+          },
+          "403": {
+            "$ref": "#/responses/forbidden"
+          },
+          "404": {
+            "$ref": "#/responses/notFound"
+          }
+        }
+      }
+    },
+    "/ctrl/CreatePrivacyPolicy": {
+      "post": {
+        "description": "Create a Privacy Policy",
+        "tags": [
+          "PrivacyPolicy"
+        ],
+        "operationId": "CreatePrivacyPolicy",
+        "parameters": [
+          {
+            "name": "Body",
+            "in": "body",
+            "schema": {
+              "$ref": "#/definitions/RegionPrivacyPolicy"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "$ref": "#/responses/success"
+          },
+          "400": {
+            "$ref": "#/responses/badRequest"
+          },
+          "403": {
+            "$ref": "#/responses/forbidden"
+          },
+          "404": {
+            "$ref": "#/responses/notFound"
+          }
+        }
+      }
+    },
+    "/ctrl/CreateResTagTable": {
+      "post": {
+        "description": "Create TagTable",
+        "tags": [
+          "ResTagTable"
+        ],
+        "operationId": "CreateResTagTable",
+        "parameters": [
+          {
+            "name": "Body",
+            "in": "body",
+            "schema": {
+              "$ref": "#/definitions/RegionResTagTable"
             }
           }
         ],
@@ -260,6 +594,7 @@
     },
     "/ctrl/DeleteApp": {
       "post": {
+        "description": "Delete an application",
         "tags": [
           "App"
         ],
@@ -269,16 +604,7 @@
             "name": "Body",
             "in": "body",
             "schema": {
-              "type": "object",
-              "properties": {
-                "App": {
-                  "$ref": "#/definitions/App"
-                },
-                "Region": {
-                  "description": "Region name",
-                  "type": "string"
-                }
-              }
+              "$ref": "#/definitions/RegionApp"
             }
           }
         ],
@@ -300,8 +626,9 @@
     },
     "/ctrl/DeleteAppInst": {
       "post": {
+        "description": "Delete an application instance",
         "tags": [
-          "AppInst"
+          "App-Instance"
         ],
         "operationId": "DeleteAppInst",
         "parameters": [
@@ -309,16 +636,71 @@
             "name": "Body",
             "in": "body",
             "schema": {
-              "type": "object",
-              "properties": {
-                "AppInst": {
-                  "$ref": "#/definitions/AppInst"
-                },
-                "Region": {
-                  "description": "Region name",
-                  "type": "string"
-                }
-              }
+              "$ref": "#/definitions/RegionAppInst"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "$ref": "#/responses/success"
+          },
+          "400": {
+            "$ref": "#/responses/badRequest"
+          },
+          "403": {
+            "$ref": "#/responses/forbidden"
+          },
+          "404": {
+            "$ref": "#/responses/notFound"
+          }
+        }
+      }
+    },
+    "/ctrl/DeleteAutoProvPolicy": {
+      "post": {
+        "description": "Delete an Auto Provisioning Policy",
+        "tags": [
+          "AutoProvPolicy"
+        ],
+        "operationId": "DeleteAutoProvPolicy",
+        "parameters": [
+          {
+            "name": "Body",
+            "in": "body",
+            "schema": {
+              "$ref": "#/definitions/RegionAutoProvPolicy"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "$ref": "#/responses/success"
+          },
+          "400": {
+            "$ref": "#/responses/badRequest"
+          },
+          "403": {
+            "$ref": "#/responses/forbidden"
+          },
+          "404": {
+            "$ref": "#/responses/notFound"
+          }
+        }
+      }
+    },
+    "/ctrl/DeleteAutoScalePolicy": {
+      "post": {
+        "description": "Delete an Auto Scale Policy",
+        "tags": [
+          "AutoScalePolicy"
+        ],
+        "operationId": "DeleteAutoScalePolicy",
+        "parameters": [
+          {
+            "name": "Body",
+            "in": "body",
+            "schema": {
+              "$ref": "#/definitions/RegionAutoScalePolicy"
             }
           }
         ],
@@ -340,6 +722,7 @@
     },
     "/ctrl/DeleteCloudlet": {
       "post": {
+        "description": "Delete a Cloudlet",
         "tags": [
           "Cloudlet"
         ],
@@ -349,16 +732,71 @@
             "name": "Body",
             "in": "body",
             "schema": {
-              "type": "object",
-              "properties": {
-                "Cloudlet": {
-                  "$ref": "#/definitions/Cloudlet"
-                },
-                "Region": {
-                  "description": "Region name",
-                  "type": "string"
-                }
-              }
+              "$ref": "#/definitions/RegionCloudlet"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "$ref": "#/responses/success"
+          },
+          "400": {
+            "$ref": "#/responses/badRequest"
+          },
+          "403": {
+            "$ref": "#/responses/forbidden"
+          },
+          "404": {
+            "$ref": "#/responses/notFound"
+          }
+        }
+      }
+    },
+    "/ctrl/DeleteCloudletPool": {
+      "post": {
+        "description": "Delete a CloudletPool",
+        "tags": [
+          "CloudletPool"
+        ],
+        "operationId": "DeleteCloudletPool",
+        "parameters": [
+          {
+            "name": "Body",
+            "in": "body",
+            "schema": {
+              "$ref": "#/definitions/RegionCloudletPool"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "$ref": "#/responses/success"
+          },
+          "400": {
+            "$ref": "#/responses/badRequest"
+          },
+          "403": {
+            "$ref": "#/responses/forbidden"
+          },
+          "404": {
+            "$ref": "#/responses/notFound"
+          }
+        }
+      }
+    },
+    "/ctrl/DeleteCloudletPoolMember": {
+      "post": {
+        "description": "Remove a Cloudlet from a CloudletPool",
+        "tags": [
+          "CloudletPoolMember"
+        ],
+        "operationId": "DeleteCloudletPoolMember",
+        "parameters": [
+          {
+            "name": "Body",
+            "in": "body",
+            "schema": {
+              "$ref": "#/definitions/RegionCloudletPoolMember"
             }
           }
         ],
@@ -380,8 +818,9 @@
     },
     "/ctrl/DeleteClusterInst": {
       "post": {
+        "description": "Delete a Cluster instance",
         "tags": [
-          "ClusterInst"
+          "Cluster-Instance"
         ],
         "operationId": "DeleteClusterInst",
         "parameters": [
@@ -389,16 +828,7 @@
             "name": "Body",
             "in": "body",
             "schema": {
-              "type": "object",
-              "properties": {
-                "ClusterInst": {
-                  "$ref": "#/definitions/ClusterInst"
-                },
-                "Region": {
-                  "description": "Region name",
-                  "type": "string"
-                }
-              }
+              "$ref": "#/definitions/RegionClusterInst"
             }
           }
         ],
@@ -420,6 +850,7 @@
     },
     "/ctrl/DeleteFlavor": {
       "post": {
+        "description": "Delete a Flavor",
         "tags": [
           "Flavor"
         ],
@@ -429,16 +860,167 @@
             "name": "Body",
             "in": "body",
             "schema": {
-              "type": "object",
-              "properties": {
-                "Flavor": {
-                  "$ref": "#/definitions/Flavor"
-                },
-                "Region": {
-                  "description": "Region name",
-                  "type": "string"
-                }
-              }
+              "$ref": "#/definitions/RegionFlavor"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "$ref": "#/responses/success"
+          },
+          "400": {
+            "$ref": "#/responses/badRequest"
+          },
+          "403": {
+            "$ref": "#/responses/forbidden"
+          },
+          "404": {
+            "$ref": "#/responses/notFound"
+          }
+        }
+      }
+    },
+    "/ctrl/DeleteOperatorCode": {
+      "post": {
+        "description": "Delete a code for an Operator",
+        "tags": [
+          "OperatorCode"
+        ],
+        "operationId": "DeleteOperatorCode",
+        "parameters": [
+          {
+            "name": "Body",
+            "in": "body",
+            "schema": {
+              "$ref": "#/definitions/RegionOperatorCode"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "$ref": "#/responses/success"
+          },
+          "400": {
+            "$ref": "#/responses/badRequest"
+          },
+          "403": {
+            "$ref": "#/responses/forbidden"
+          },
+          "404": {
+            "$ref": "#/responses/notFound"
+          }
+        }
+      }
+    },
+    "/ctrl/DeletePrivacyPolicy": {
+      "post": {
+        "description": "Delete a Privacy policy",
+        "tags": [
+          "PrivacyPolicy"
+        ],
+        "operationId": "DeletePrivacyPolicy",
+        "parameters": [
+          {
+            "name": "Body",
+            "in": "body",
+            "schema": {
+              "$ref": "#/definitions/RegionPrivacyPolicy"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "$ref": "#/responses/success"
+          },
+          "400": {
+            "$ref": "#/responses/badRequest"
+          },
+          "403": {
+            "$ref": "#/responses/forbidden"
+          },
+          "404": {
+            "$ref": "#/responses/notFound"
+          }
+        }
+      }
+    },
+    "/ctrl/DeleteResTagTable": {
+      "post": {
+        "description": "Delete TagTable",
+        "tags": [
+          "ResTagTable"
+        ],
+        "operationId": "DeleteResTagTable",
+        "parameters": [
+          {
+            "name": "Body",
+            "in": "body",
+            "schema": {
+              "$ref": "#/definitions/RegionResTagTable"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "$ref": "#/responses/success"
+          },
+          "400": {
+            "$ref": "#/responses/badRequest"
+          },
+          "403": {
+            "$ref": "#/responses/forbidden"
+          },
+          "404": {
+            "$ref": "#/responses/notFound"
+          }
+        }
+      }
+    },
+    "/ctrl/FindFlavorMatch": {
+      "post": {
+        "description": "Discover if flavor produces a matching platform flavor",
+        "tags": [
+          "FlavorMatch"
+        ],
+        "operationId": "FindFlavorMatch",
+        "parameters": [
+          {
+            "name": "Body",
+            "in": "body",
+            "schema": {
+              "$ref": "#/definitions/RegionFlavorMatch"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "$ref": "#/responses/success"
+          },
+          "400": {
+            "$ref": "#/responses/badRequest"
+          },
+          "403": {
+            "$ref": "#/responses/forbidden"
+          },
+          "404": {
+            "$ref": "#/responses/notFound"
+          }
+        }
+      }
+    },
+    "/ctrl/GetResTagTable": {
+      "post": {
+        "description": "Fetch a copy of the TagTable",
+        "tags": [
+          "ResTagTableKey"
+        ],
+        "operationId": "GetResTagTable",
+        "parameters": [
+          {
+            "name": "Body",
+            "in": "body",
+            "schema": {
+              "$ref": "#/definitions/RegionResTagTableKey"
             }
           }
         ],
@@ -460,8 +1042,9 @@
     },
     "/ctrl/RefreshAppInst": {
       "post": {
+        "description": "Refresh restarts an application instance with new App settings or image",
         "tags": [
-          "AppInst"
+          "App-Instance"
         ],
         "operationId": "RefreshAppInst",
         "parameters": [
@@ -469,16 +1052,71 @@
             "name": "Body",
             "in": "body",
             "schema": {
-              "type": "object",
-              "properties": {
-                "AppInst": {
-                  "$ref": "#/definitions/AppInst"
-                },
-                "Region": {
-                  "description": "Region name",
-                  "type": "string"
-                }
-              }
+              "$ref": "#/definitions/RegionAppInst"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "$ref": "#/responses/success"
+          },
+          "400": {
+            "$ref": "#/responses/badRequest"
+          },
+          "403": {
+            "$ref": "#/responses/forbidden"
+          },
+          "404": {
+            "$ref": "#/responses/notFound"
+          }
+        }
+      }
+    },
+    "/ctrl/RemoveAutoProvPolicyCloudlet": {
+      "post": {
+        "description": "Remove a Cloudlet from the Auto Provisioning Policy",
+        "tags": [
+          "AutoProvPolicyCloudlet"
+        ],
+        "operationId": "RemoveAutoProvPolicyCloudlet",
+        "parameters": [
+          {
+            "name": "Body",
+            "in": "body",
+            "schema": {
+              "$ref": "#/definitions/RegionAutoProvPolicyCloudlet"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "$ref": "#/responses/success"
+          },
+          "400": {
+            "$ref": "#/responses/badRequest"
+          },
+          "403": {
+            "$ref": "#/responses/forbidden"
+          },
+          "404": {
+            "$ref": "#/responses/notFound"
+          }
+        }
+      }
+    },
+    "/ctrl/RemoveCloudletResMapping": {
+      "post": {
+        "description": "Add Optional Resource tag table",
+        "tags": [
+          "CloudletResMap"
+        ],
+        "operationId": "RemoveCloudletResMapping",
+        "parameters": [
+          {
+            "name": "Body",
+            "in": "body",
+            "schema": {
+              "$ref": "#/definitions/RegionCloudletResMap"
             }
           }
         ],
@@ -500,6 +1138,7 @@
     },
     "/ctrl/RemoveFlavorRes": {
       "post": {
+        "description": "Remove Optional Resource",
         "tags": [
           "Flavor"
         ],
@@ -509,16 +1148,135 @@
             "name": "Body",
             "in": "body",
             "schema": {
-              "type": "object",
-              "properties": {
-                "Flavor": {
-                  "$ref": "#/definitions/Flavor"
-                },
-                "Region": {
-                  "description": "Region name",
-                  "type": "string"
-                }
-              }
+              "$ref": "#/definitions/RegionFlavor"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "$ref": "#/responses/success"
+          },
+          "400": {
+            "$ref": "#/responses/badRequest"
+          },
+          "403": {
+            "$ref": "#/responses/forbidden"
+          },
+          "404": {
+            "$ref": "#/responses/notFound"
+          }
+        }
+      }
+    },
+    "/ctrl/RemoveResTag": {
+      "post": {
+        "description": "remove existing tag(s) from TagTable",
+        "tags": [
+          "ResTagTable"
+        ],
+        "operationId": "RemoveResTag",
+        "parameters": [
+          {
+            "name": "Body",
+            "in": "body",
+            "schema": {
+              "$ref": "#/definitions/RegionResTagTable"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "$ref": "#/responses/success"
+          },
+          "400": {
+            "$ref": "#/responses/badRequest"
+          },
+          "403": {
+            "$ref": "#/responses/forbidden"
+          },
+          "404": {
+            "$ref": "#/responses/notFound"
+          }
+        }
+      }
+    },
+    "/ctrl/ResetSettings": {
+      "post": {
+        "description": "Reset all settings to their defaults",
+        "tags": [
+          "Settings"
+        ],
+        "operationId": "ResetSettings",
+        "parameters": [
+          {
+            "name": "Body",
+            "in": "body",
+            "schema": {
+              "$ref": "#/definitions/RegionSettings"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "$ref": "#/responses/success"
+          },
+          "400": {
+            "$ref": "#/responses/badRequest"
+          },
+          "403": {
+            "$ref": "#/responses/forbidden"
+          },
+          "404": {
+            "$ref": "#/responses/notFound"
+          }
+        }
+      }
+    },
+    "/ctrl/RunCommand": {
+      "post": {
+        "description": "Run a Command or Shell on a container or VM",
+        "tags": [
+          "ExecRequest"
+        ],
+        "operationId": "RunCommand",
+        "parameters": [
+          {
+            "name": "Body",
+            "in": "body",
+            "schema": {
+              "$ref": "#/definitions/RegionExecRequest"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "$ref": "#/responses/success"
+          },
+          "400": {
+            "$ref": "#/responses/badRequest"
+          },
+          "403": {
+            "$ref": "#/responses/forbidden"
+          },
+          "404": {
+            "$ref": "#/responses/notFound"
+          }
+        }
+      }
+    },
+    "/ctrl/ShowAlert": {
+      "post": {
+        "description": "Show alerts",
+        "tags": [
+          "Alert"
+        ],
+        "operationId": "ShowAlert",
+        "parameters": [
+          {
+            "name": "Body",
+            "in": "body",
+            "schema": {
+              "$ref": "#/definitions/RegionAlert"
             }
           }
         ],
@@ -540,6 +1298,7 @@
     },
     "/ctrl/ShowApp": {
       "post": {
+        "description": "Show applications. Any fields specified will be used to filter results",
         "tags": [
           "App"
         ],
@@ -549,16 +1308,7 @@
             "name": "Body",
             "in": "body",
             "schema": {
-              "type": "object",
-              "properties": {
-                "App": {
-                  "$ref": "#/definitions/App"
-                },
-                "Region": {
-                  "description": "Region name",
-                  "type": "string"
-                }
-              }
+              "$ref": "#/definitions/RegionApp"
             }
           }
         ],
@@ -580,8 +1330,9 @@
     },
     "/ctrl/ShowAppInst": {
       "post": {
+        "description": "Show application instances. Any fields specified will be used to filter results",
         "tags": [
-          "AppInst"
+          "App-Instance"
         ],
         "operationId": "ShowAppInst",
         "parameters": [
@@ -589,16 +1340,71 @@
             "name": "Body",
             "in": "body",
             "schema": {
-              "type": "object",
-              "properties": {
-                "AppInst": {
-                  "$ref": "#/definitions/AppInst"
-                },
-                "Region": {
-                  "description": "Region name",
-                  "type": "string"
-                }
-              }
+              "$ref": "#/definitions/RegionAppInst"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "$ref": "#/responses/success"
+          },
+          "400": {
+            "$ref": "#/responses/badRequest"
+          },
+          "403": {
+            "$ref": "#/responses/forbidden"
+          },
+          "404": {
+            "$ref": "#/responses/notFound"
+          }
+        }
+      }
+    },
+    "/ctrl/ShowAutoProvPolicy": {
+      "post": {
+        "description": "Show Auto Provisioning Policies. Any fields specified will be used to filter results",
+        "tags": [
+          "AutoProvPolicy"
+        ],
+        "operationId": "ShowAutoProvPolicy",
+        "parameters": [
+          {
+            "name": "Body",
+            "in": "body",
+            "schema": {
+              "$ref": "#/definitions/RegionAutoProvPolicy"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "$ref": "#/responses/success"
+          },
+          "400": {
+            "$ref": "#/responses/badRequest"
+          },
+          "403": {
+            "$ref": "#/responses/forbidden"
+          },
+          "404": {
+            "$ref": "#/responses/notFound"
+          }
+        }
+      }
+    },
+    "/ctrl/ShowAutoScalePolicy": {
+      "post": {
+        "description": "Show Auto Scale Policies. Any fields specified will be used to filter results",
+        "tags": [
+          "AutoScalePolicy"
+        ],
+        "operationId": "ShowAutoScalePolicy",
+        "parameters": [
+          {
+            "name": "Body",
+            "in": "body",
+            "schema": {
+              "$ref": "#/definitions/RegionAutoScalePolicy"
             }
           }
         ],
@@ -620,6 +1426,7 @@
     },
     "/ctrl/ShowCloudlet": {
       "post": {
+        "description": "Show Cloudlets",
         "tags": [
           "Cloudlet"
         ],
@@ -629,16 +1436,167 @@
             "name": "Body",
             "in": "body",
             "schema": {
-              "type": "object",
-              "properties": {
-                "Cloudlet": {
-                  "$ref": "#/definitions/Cloudlet"
-                },
-                "Region": {
-                  "description": "Region name",
-                  "type": "string"
-                }
-              }
+              "$ref": "#/definitions/RegionCloudlet"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "$ref": "#/responses/success"
+          },
+          "400": {
+            "$ref": "#/responses/badRequest"
+          },
+          "403": {
+            "$ref": "#/responses/forbidden"
+          },
+          "404": {
+            "$ref": "#/responses/notFound"
+          }
+        }
+      }
+    },
+    "/ctrl/ShowCloudletInfo": {
+      "post": {
+        "description": "Show CloudletInfos",
+        "tags": [
+          "CloudletInfo"
+        ],
+        "operationId": "ShowCloudletInfo",
+        "parameters": [
+          {
+            "name": "Body",
+            "in": "body",
+            "schema": {
+              "$ref": "#/definitions/RegionCloudletInfo"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "$ref": "#/responses/success"
+          },
+          "400": {
+            "$ref": "#/responses/badRequest"
+          },
+          "403": {
+            "$ref": "#/responses/forbidden"
+          },
+          "404": {
+            "$ref": "#/responses/notFound"
+          }
+        }
+      }
+    },
+    "/ctrl/ShowCloudletPool": {
+      "post": {
+        "description": "Show CloudletPools",
+        "tags": [
+          "CloudletPool"
+        ],
+        "operationId": "ShowCloudletPool",
+        "parameters": [
+          {
+            "name": "Body",
+            "in": "body",
+            "schema": {
+              "$ref": "#/definitions/RegionCloudletPool"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "$ref": "#/responses/success"
+          },
+          "400": {
+            "$ref": "#/responses/badRequest"
+          },
+          "403": {
+            "$ref": "#/responses/forbidden"
+          },
+          "404": {
+            "$ref": "#/responses/notFound"
+          }
+        }
+      }
+    },
+    "/ctrl/ShowCloudletPoolMember": {
+      "post": {
+        "description": "Show the Cloudlet to CloudletPool relationships",
+        "tags": [
+          "CloudletPoolMember"
+        ],
+        "operationId": "ShowCloudletPoolMember",
+        "parameters": [
+          {
+            "name": "Body",
+            "in": "body",
+            "schema": {
+              "$ref": "#/definitions/RegionCloudletPoolMember"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "$ref": "#/responses/success"
+          },
+          "400": {
+            "$ref": "#/responses/badRequest"
+          },
+          "403": {
+            "$ref": "#/responses/forbidden"
+          },
+          "404": {
+            "$ref": "#/responses/notFound"
+          }
+        }
+      }
+    },
+    "/ctrl/ShowCloudletRefs": {
+      "post": {
+        "description": "Show CloudletRefs (debug only)",
+        "tags": [
+          "CloudletRefs"
+        ],
+        "operationId": "ShowCloudletRefs",
+        "parameters": [
+          {
+            "name": "Body",
+            "in": "body",
+            "schema": {
+              "$ref": "#/definitions/RegionCloudletRefs"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "$ref": "#/responses/success"
+          },
+          "400": {
+            "$ref": "#/responses/badRequest"
+          },
+          "403": {
+            "$ref": "#/responses/forbidden"
+          },
+          "404": {
+            "$ref": "#/responses/notFound"
+          }
+        }
+      }
+    },
+    "/ctrl/ShowCloudletsForPool": {
+      "post": {
+        "description": "Show Cloudlets that belong to the Pool",
+        "tags": [
+          "CloudletPoolKey"
+        ],
+        "operationId": "ShowCloudletsForPool",
+        "parameters": [
+          {
+            "name": "Body",
+            "in": "body",
+            "schema": {
+              "$ref": "#/definitions/RegionCloudletPoolKey"
             }
           }
         ],
@@ -660,8 +1618,9 @@
     },
     "/ctrl/ShowClusterInst": {
       "post": {
+        "description": "Show Cluster instances",
         "tags": [
-          "ClusterInst"
+          "Cluster-Instance"
         ],
         "operationId": "ShowClusterInst",
         "parameters": [
@@ -669,16 +1628,39 @@
             "name": "Body",
             "in": "body",
             "schema": {
-              "type": "object",
-              "properties": {
-                "ClusterInst": {
-                  "$ref": "#/definitions/ClusterInst"
-                },
-                "Region": {
-                  "description": "Region name",
-                  "type": "string"
-                }
-              }
+              "$ref": "#/definitions/RegionClusterInst"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "$ref": "#/responses/success"
+          },
+          "400": {
+            "$ref": "#/responses/badRequest"
+          },
+          "403": {
+            "$ref": "#/responses/forbidden"
+          },
+          "404": {
+            "$ref": "#/responses/notFound"
+          }
+        }
+      }
+    },
+    "/ctrl/ShowClusterRefs": {
+      "post": {
+        "description": "Show ClusterRefs (debug only)",
+        "tags": [
+          "ClusterRefs"
+        ],
+        "operationId": "ShowClusterRefs",
+        "parameters": [
+          {
+            "name": "Body",
+            "in": "body",
+            "schema": {
+              "$ref": "#/definitions/RegionClusterRefs"
             }
           }
         ],
@@ -700,6 +1682,7 @@
     },
     "/ctrl/ShowFlavor": {
       "post": {
+        "description": "Show Flavors",
         "tags": [
           "Flavor"
         ],
@@ -709,16 +1692,199 @@
             "name": "Body",
             "in": "body",
             "schema": {
-              "type": "object",
-              "properties": {
-                "Flavor": {
-                  "$ref": "#/definitions/Flavor"
-                },
-                "Region": {
-                  "description": "Region name",
-                  "type": "string"
-                }
-              }
+              "$ref": "#/definitions/RegionFlavor"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "$ref": "#/responses/success"
+          },
+          "400": {
+            "$ref": "#/responses/badRequest"
+          },
+          "403": {
+            "$ref": "#/responses/forbidden"
+          },
+          "404": {
+            "$ref": "#/responses/notFound"
+          }
+        }
+      }
+    },
+    "/ctrl/ShowNode": {
+      "post": {
+        "description": "Show all Nodes connected to all Controllers",
+        "tags": [
+          "Node"
+        ],
+        "operationId": "ShowNode",
+        "parameters": [
+          {
+            "name": "Body",
+            "in": "body",
+            "schema": {
+              "$ref": "#/definitions/RegionNode"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "$ref": "#/responses/success"
+          },
+          "400": {
+            "$ref": "#/responses/badRequest"
+          },
+          "403": {
+            "$ref": "#/responses/forbidden"
+          },
+          "404": {
+            "$ref": "#/responses/notFound"
+          }
+        }
+      }
+    },
+    "/ctrl/ShowOperatorCode": {
+      "post": {
+        "description": "Show OperatorCodes",
+        "tags": [
+          "OperatorCode"
+        ],
+        "operationId": "ShowOperatorCode",
+        "parameters": [
+          {
+            "name": "Body",
+            "in": "body",
+            "schema": {
+              "$ref": "#/definitions/RegionOperatorCode"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "$ref": "#/responses/success"
+          },
+          "400": {
+            "$ref": "#/responses/badRequest"
+          },
+          "403": {
+            "$ref": "#/responses/forbidden"
+          },
+          "404": {
+            "$ref": "#/responses/notFound"
+          }
+        }
+      }
+    },
+    "/ctrl/ShowPoolsForCloudlet": {
+      "post": {
+        "description": "Show CloudletPools that have Cloudlet as a member",
+        "tags": [
+          "CloudletKey"
+        ],
+        "operationId": "ShowPoolsForCloudlet",
+        "parameters": [
+          {
+            "name": "Body",
+            "in": "body",
+            "schema": {
+              "$ref": "#/definitions/RegionCloudletKey"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "$ref": "#/responses/success"
+          },
+          "400": {
+            "$ref": "#/responses/badRequest"
+          },
+          "403": {
+            "$ref": "#/responses/forbidden"
+          },
+          "404": {
+            "$ref": "#/responses/notFound"
+          }
+        }
+      }
+    },
+    "/ctrl/ShowPrivacyPolicy": {
+      "post": {
+        "description": "Show Privacy Policies. Any fields specified will be used to filter results",
+        "tags": [
+          "PrivacyPolicy"
+        ],
+        "operationId": "ShowPrivacyPolicy",
+        "parameters": [
+          {
+            "name": "Body",
+            "in": "body",
+            "schema": {
+              "$ref": "#/definitions/RegionPrivacyPolicy"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "$ref": "#/responses/success"
+          },
+          "400": {
+            "$ref": "#/responses/badRequest"
+          },
+          "403": {
+            "$ref": "#/responses/forbidden"
+          },
+          "404": {
+            "$ref": "#/responses/notFound"
+          }
+        }
+      }
+    },
+    "/ctrl/ShowResTagTable": {
+      "post": {
+        "description": "show TagTable",
+        "tags": [
+          "ResTagTable"
+        ],
+        "operationId": "ShowResTagTable",
+        "parameters": [
+          {
+            "name": "Body",
+            "in": "body",
+            "schema": {
+              "$ref": "#/definitions/RegionResTagTable"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "$ref": "#/responses/success"
+          },
+          "400": {
+            "$ref": "#/responses/badRequest"
+          },
+          "403": {
+            "$ref": "#/responses/forbidden"
+          },
+          "404": {
+            "$ref": "#/responses/notFound"
+          }
+        }
+      }
+    },
+    "/ctrl/ShowSettings": {
+      "post": {
+        "description": "Show settings",
+        "tags": [
+          "Settings"
+        ],
+        "operationId": "ShowSettings",
+        "parameters": [
+          {
+            "name": "Body",
+            "in": "body",
+            "schema": {
+              "$ref": "#/definitions/RegionSettings"
             }
           }
         ],
@@ -740,6 +1906,7 @@
     },
     "/ctrl/UpdateApp": {
       "post": {
+        "description": "Update an application",
         "tags": [
           "App"
         ],
@@ -749,16 +1916,7 @@
             "name": "Body",
             "in": "body",
             "schema": {
-              "type": "object",
-              "properties": {
-                "App": {
-                  "$ref": "#/definitions/App"
-                },
-                "Region": {
-                  "description": "Region name",
-                  "type": "string"
-                }
-              }
+              "$ref": "#/definitions/RegionApp"
             }
           }
         ],
@@ -780,8 +1938,9 @@
     },
     "/ctrl/UpdateAppInst": {
       "post": {
+        "description": "Update an AppInst and then refresh it",
         "tags": [
-          "AppInst"
+          "App-Instance"
         ],
         "operationId": "UpdateAppInst",
         "parameters": [
@@ -789,16 +1948,71 @@
             "name": "Body",
             "in": "body",
             "schema": {
-              "type": "object",
-              "properties": {
-                "AppInst": {
-                  "$ref": "#/definitions/AppInst"
-                },
-                "Region": {
-                  "description": "Region name",
-                  "type": "string"
-                }
-              }
+              "$ref": "#/definitions/RegionAppInst"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "$ref": "#/responses/success"
+          },
+          "400": {
+            "$ref": "#/responses/badRequest"
+          },
+          "403": {
+            "$ref": "#/responses/forbidden"
+          },
+          "404": {
+            "$ref": "#/responses/notFound"
+          }
+        }
+      }
+    },
+    "/ctrl/UpdateAutoProvPolicy": {
+      "post": {
+        "description": "Update an Auto Provisioning Policy",
+        "tags": [
+          "AutoProvPolicy"
+        ],
+        "operationId": "UpdateAutoProvPolicy",
+        "parameters": [
+          {
+            "name": "Body",
+            "in": "body",
+            "schema": {
+              "$ref": "#/definitions/RegionAutoProvPolicy"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "$ref": "#/responses/success"
+          },
+          "400": {
+            "$ref": "#/responses/badRequest"
+          },
+          "403": {
+            "$ref": "#/responses/forbidden"
+          },
+          "404": {
+            "$ref": "#/responses/notFound"
+          }
+        }
+      }
+    },
+    "/ctrl/UpdateAutoScalePolicy": {
+      "post": {
+        "description": "Update an Auto Scale Policy",
+        "tags": [
+          "AutoScalePolicy"
+        ],
+        "operationId": "UpdateAutoScalePolicy",
+        "parameters": [
+          {
+            "name": "Body",
+            "in": "body",
+            "schema": {
+              "$ref": "#/definitions/RegionAutoScalePolicy"
             }
           }
         ],
@@ -820,6 +2034,7 @@
     },
     "/ctrl/UpdateCloudlet": {
       "post": {
+        "description": "Update a Cloudlet",
         "tags": [
           "Cloudlet"
         ],
@@ -829,16 +2044,7 @@
             "name": "Body",
             "in": "body",
             "schema": {
-              "type": "object",
-              "properties": {
-                "Cloudlet": {
-                  "$ref": "#/definitions/Cloudlet"
-                },
-                "Region": {
-                  "description": "Region name",
-                  "type": "string"
-                }
-              }
+              "$ref": "#/definitions/RegionCloudlet"
             }
           }
         ],
@@ -860,8 +2066,9 @@
     },
     "/ctrl/UpdateClusterInst": {
       "post": {
+        "description": "Update a Cluster instance",
         "tags": [
-          "ClusterInst"
+          "Cluster-Instance"
         ],
         "operationId": "UpdateClusterInst",
         "parameters": [
@@ -869,16 +2076,7 @@
             "name": "Body",
             "in": "body",
             "schema": {
-              "type": "object",
-              "properties": {
-                "ClusterInst": {
-                  "$ref": "#/definitions/ClusterInst"
-                },
-                "Region": {
-                  "description": "Region name",
-                  "type": "string"
-                }
-              }
+              "$ref": "#/definitions/RegionClusterInst"
             }
           }
         ],
@@ -900,6 +2098,7 @@
     },
     "/ctrl/UpdateFlavor": {
       "post": {
+        "description": "Update a Flavor",
         "tags": [
           "Flavor"
         ],
@@ -909,16 +2108,166 @@
             "name": "Body",
             "in": "body",
             "schema": {
-              "type": "object",
-              "properties": {
-                "Flavor": {
-                  "$ref": "#/definitions/Flavor"
-                },
-                "Region": {
-                  "description": "Region name",
-                  "type": "string"
-                }
-              }
+              "$ref": "#/definitions/RegionFlavor"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "$ref": "#/responses/success"
+          },
+          "400": {
+            "$ref": "#/responses/badRequest"
+          },
+          "403": {
+            "$ref": "#/responses/forbidden"
+          },
+          "404": {
+            "$ref": "#/responses/notFound"
+          }
+        }
+      }
+    },
+    "/ctrl/UpdatePrivacyPolicy": {
+      "post": {
+        "description": "Update a Privacy policy",
+        "tags": [
+          "PrivacyPolicy"
+        ],
+        "operationId": "UpdatePrivacyPolicy",
+        "parameters": [
+          {
+            "name": "Body",
+            "in": "body",
+            "schema": {
+              "$ref": "#/definitions/RegionPrivacyPolicy"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "$ref": "#/responses/success"
+          },
+          "400": {
+            "$ref": "#/responses/badRequest"
+          },
+          "403": {
+            "$ref": "#/responses/forbidden"
+          },
+          "404": {
+            "$ref": "#/responses/notFound"
+          }
+        }
+      }
+    },
+    "/ctrl/UpdateResTagTable": {
+      "post": {
+        "tags": [
+          "ResTagTable"
+        ],
+        "operationId": "UpdateResTagTable",
+        "parameters": [
+          {
+            "name": "Body",
+            "in": "body",
+            "schema": {
+              "$ref": "#/definitions/RegionResTagTable"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "$ref": "#/responses/success"
+          },
+          "400": {
+            "$ref": "#/responses/badRequest"
+          },
+          "403": {
+            "$ref": "#/responses/forbidden"
+          },
+          "404": {
+            "$ref": "#/responses/notFound"
+          }
+        }
+      }
+    },
+    "/ctrl/UpdateSettings": {
+      "post": {
+        "description": "Update settings",
+        "tags": [
+          "Settings"
+        ],
+        "operationId": "UpdateSettings",
+        "parameters": [
+          {
+            "name": "Body",
+            "in": "body",
+            "schema": {
+              "$ref": "#/definitions/RegionSettings"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "$ref": "#/responses/success"
+          },
+          "400": {
+            "$ref": "#/responses/badRequest"
+          },
+          "403": {
+            "$ref": "#/responses/forbidden"
+          },
+          "404": {
+            "$ref": "#/responses/notFound"
+          }
+        }
+      }
+    },
+    "/login": {
+      "post": {
+        "description": "Login to MC",
+        "tags": [
+          "Setup"
+        ],
+        "operationId": "Login",
+        "parameters": [
+          {
+            "name": "Body",
+            "in": "body",
+            "schema": {
+              "$ref": "#/definitions/UserLogin"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "$ref": "#/responses/success"
+          },
+          "400": {
+            "$ref": "#/responses/badRequest"
+          },
+          "403": {
+            "$ref": "#/responses/forbidden"
+          },
+          "404": {
+            "$ref": "#/responses/notFound"
+          }
+        }
+      }
+    },
+    "/usercreate": {
+      "post": {
+        "description": "Create new user",
+        "tags": [
+          "User"
+        ],
+        "operationId": "CreateUser",
+        "parameters": [
+          {
+            "name": "Body",
+            "in": "body",
+            "schema": {
+              "$ref": "#/definitions/CreateUser"
             }
           }
         ],
@@ -1150,7 +2499,7 @@
           "$ref": "#/definitions/FlavorKey"
         },
         "force_update": {
-          "description": "Force Appinst update when UpdateAppInst is done if revision matches",
+          "description": "Force Appinst refresh even if revision number matches App revision number.",
           "type": "boolean",
           "x-go-name": "ForceUpdate"
         },
@@ -1854,6 +3203,11 @@
           "format": "uint32",
           "x-go-name": "NumNodes"
         },
+        "privacy_policy": {
+          "description": "Optional privacy policy name",
+          "type": "string",
+          "x-go-name": "PrivacyPolicy"
+        },
         "reservable": {
           "description": "If ClusterInst is reservable",
           "type": "boolean",
@@ -2079,6 +3433,57 @@
       },
       "x-go-package": "github.com/docker/docker/api/types/container"
     },
+    "CreateUser": {
+      "type": "object",
+      "properties": {
+        "CreatedAt": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "Email": {
+          "type": "string"
+        },
+        "EmailVerified": {
+          "type": "boolean"
+        },
+        "FamilyName": {
+          "type": "string"
+        },
+        "GivenName": {
+          "type": "string"
+        },
+        "Iter": {
+          "type": "integer",
+          "format": "int64"
+        },
+        "Locked": {
+          "type": "boolean"
+        },
+        "Name": {
+          "type": "string"
+        },
+        "Nickname": {
+          "type": "string"
+        },
+        "Passhash": {
+          "type": "string"
+        },
+        "Picture": {
+          "type": "string"
+        },
+        "Salt": {
+          "type": "string"
+        },
+        "UpdatedAt": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "verify": {
+          "$ref": "#/definitions/EmailRequest"
+        }
+      },
+      "x-go-package": "github.com/mobiledgex/edge-cloud-infra/mc/ormapi"
+    },
     "DeleteType": {
       "type": "integer",
       "format": "int32",
@@ -2095,6 +3500,38 @@
         }
       },
       "x-go-package": "github.com/mobiledgex/edge-cloud/edgeproto"
+    },
+    "Duration": {
+      "type": "integer",
+      "format": "int64",
+      "x-go-package": "github.com/mobiledgex/edge-cloud/edgeproto"
+    },
+    "EmailRequest": {
+      "description": "Email request is used for password reset and to resend welcome\nverification email. It contains the information need to send\nsome kind of email to the user.",
+      "type": "object",
+      "properties": {
+        "browser": {
+          "type": "string",
+          "x-go-name": "Browser"
+        },
+        "callbackurl": {
+          "type": "string",
+          "x-go-name": "CallbackURL"
+        },
+        "clientip": {
+          "type": "string",
+          "x-go-name": "ClientIP"
+        },
+        "email": {
+          "type": "string",
+          "x-go-name": "Email"
+        },
+        "operatingsystem": {
+          "type": "string",
+          "x-go-name": "OperatingSystem"
+        }
+      },
+      "x-go-package": "github.com/mobiledgex/edge-cloud-infra/mc/ormapi"
     },
     "ExecRequest": {
       "type": "object",
@@ -2161,7 +3598,7 @@
           "$ref": "#/definitions/FlavorKey"
         },
         "opt_res_map": {
-          "description": "Optional Resources request, key = [gpu, nas, nic]",
+          "description": "Optional Resources request, key = [gpu, nas, nic] gpu kinds: [gpu, vgpu, pci]\nform: $resource=$kind:[$alias]$count ex: optresmap=gpu=vgpus:nvidia-63:1",
           "type": "object",
           "additionalProperties": {
             "type": "string"
@@ -2198,10 +3635,13 @@
           "type": "string",
           "x-go-name": "Name"
         },
-        "properties": {
+        "prop_map": {
           "description": "OS Flavor Properties, if any",
-          "type": "string",
-          "x-go-name": "Properties"
+          "type": "object",
+          "additionalProperties": {
+            "type": "string"
+          },
+          "x-go-name": "PropMap"
         },
         "ram": {
           "description": "Ram in MB on the Cloudlet",
@@ -2453,40 +3893,39 @@
       "type": "object",
       "properties": {
         "create_app_inst_timeout": {
-          "description": "max time to create an app instance",
-          "type": "integer",
-          "format": "int64",
-          "x-go-name": "CreateAppInstTimeout"
+          "$ref": "#/definitions/Duration"
         },
         "create_cluster_inst_timeout": {
-          "description": "max time to create a cluster instance",
-          "type": "integer",
-          "format": "int64",
-          "x-go-name": "CreateClusterInstTimeout"
+          "$ref": "#/definitions/Duration"
         },
         "delete_app_inst_timeout": {
-          "description": "max time to delete an app instance",
-          "type": "integer",
-          "format": "int64",
-          "x-go-name": "DeleteAppInstTimeout"
+          "$ref": "#/definitions/Duration"
         },
         "delete_cluster_inst_timeout": {
-          "description": "max time to delete a cluster instance",
-          "type": "integer",
-          "format": "int64",
-          "x-go-name": "DeleteClusterInstTimeout"
+          "$ref": "#/definitions/Duration"
         },
         "update_app_inst_timeout": {
-          "description": "max time to update an app instance",
-          "type": "integer",
-          "format": "int64",
-          "x-go-name": "UpdateAppInstTimeout"
+          "$ref": "#/definitions/Duration"
         },
         "update_cluster_inst_timeout": {
-          "description": "max time to update a cluster instance",
-          "type": "integer",
-          "format": "int64",
-          "x-go-name": "UpdateClusterInstTimeout"
+          "$ref": "#/definitions/Duration"
+        }
+      },
+      "x-go-package": "github.com/mobiledgex/edge-cloud/edgeproto"
+    },
+    "OperatorCode": {
+      "description": "OperatorCode maps a carrier code to an Operator name",
+      "type": "object",
+      "properties": {
+        "code": {
+          "description": "MCC plus MNC code, or custom carrier code designation.",
+          "type": "string",
+          "x-go-name": "Code"
+        },
+        "operator_name": {
+          "description": "MobiledgeX operator name",
+          "type": "string",
+          "x-go-name": "OperatorName"
         }
       },
       "x-go-package": "github.com/mobiledgex/edge-cloud/edgeproto"
@@ -2499,6 +3938,63 @@
           "description": "Company or Organization name of the operator",
           "type": "string",
           "x-go-name": "Name"
+        }
+      },
+      "x-go-package": "github.com/mobiledgex/edge-cloud/edgeproto"
+    },
+    "Organization": {
+      "type": "object",
+      "properties": {
+        "Address": {
+          "type": "string"
+        },
+        "CreatedAt": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "Name": {
+          "type": "string"
+        },
+        "Phone": {
+          "type": "string"
+        },
+        "PublicImages": {
+          "type": "boolean"
+        },
+        "Type": {
+          "type": "string"
+        },
+        "UpdatedAt": {
+          "type": "string",
+          "format": "date-time"
+        }
+      },
+      "x-go-package": "github.com/mobiledgex/edge-cloud-infra/mc/ormapi"
+    },
+    "OutboundSecurityRule": {
+      "type": "object",
+      "properties": {
+        "port_range_max": {
+          "description": "TCP or UDP port range end",
+          "type": "integer",
+          "format": "uint32",
+          "x-go-name": "PortRangeMax"
+        },
+        "port_range_min": {
+          "description": "TCP or UDP port range start",
+          "type": "integer",
+          "format": "uint32",
+          "x-go-name": "PortRangeMin"
+        },
+        "protocol": {
+          "description": "tcp, udp, icmp",
+          "type": "string",
+          "x-go-name": "Protocol"
+        },
+        "remote_cidr": {
+          "description": "remote CIDR X.X.X.X/X",
+          "type": "string",
+          "x-go-name": "RemoteCidr"
         }
       },
       "x-go-package": "github.com/mobiledgex/edge-cloud/edgeproto"
@@ -2589,6 +4085,357 @@
       },
       "x-go-package": "github.com/mobiledgex/edge-cloud/edgeproto"
     },
+    "PrivacyPolicy": {
+      "description": "PrivacyPolicy defines security restrictions for cluster instances\nnodes scaled up or down.",
+      "type": "object",
+      "properties": {
+        "fields": {
+          "description": "Fields are used for the Update API to specify which fields to apply",
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "x-go-name": "Fields"
+        },
+        "key": {
+          "$ref": "#/definitions/PolicyKey"
+        },
+        "outbound_security_rules": {
+          "description": "list of outbound security rules for whitelisting traffic",
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/OutboundSecurityRule"
+          },
+          "x-go-name": "OutboundSecurityRules"
+        }
+      },
+      "x-go-package": "github.com/mobiledgex/edge-cloud/edgeproto"
+    },
+    "RegionAlert": {
+      "type": "object",
+      "properties": {
+        "Alert": {
+          "$ref": "#/definitions/Alert"
+        },
+        "Region": {
+          "description": "Region name",
+          "type": "string"
+        }
+      },
+      "x-go-package": "github.com/mobiledgex/edge-cloud-infra/mc/ormapi"
+    },
+    "RegionApp": {
+      "type": "object",
+      "properties": {
+        "App": {
+          "$ref": "#/definitions/App"
+        },
+        "Region": {
+          "description": "Region name",
+          "type": "string"
+        }
+      },
+      "x-go-package": "github.com/mobiledgex/edge-cloud-infra/mc/ormapi"
+    },
+    "RegionAppInst": {
+      "type": "object",
+      "properties": {
+        "AppInst": {
+          "$ref": "#/definitions/AppInst"
+        },
+        "Region": {
+          "description": "Region name",
+          "type": "string"
+        }
+      },
+      "x-go-package": "github.com/mobiledgex/edge-cloud-infra/mc/ormapi"
+    },
+    "RegionAutoProvPolicy": {
+      "type": "object",
+      "properties": {
+        "AutoProvPolicy": {
+          "$ref": "#/definitions/AutoProvPolicy"
+        },
+        "Region": {
+          "description": "Region name",
+          "type": "string"
+        }
+      },
+      "x-go-package": "github.com/mobiledgex/edge-cloud-infra/mc/ormapi"
+    },
+    "RegionAutoProvPolicyCloudlet": {
+      "type": "object",
+      "properties": {
+        "AutoProvPolicyCloudlet": {
+          "$ref": "#/definitions/AutoProvPolicyCloudlet"
+        },
+        "Region": {
+          "description": "Region name",
+          "type": "string"
+        }
+      },
+      "x-go-package": "github.com/mobiledgex/edge-cloud-infra/mc/ormapi"
+    },
+    "RegionAutoScalePolicy": {
+      "type": "object",
+      "properties": {
+        "AutoScalePolicy": {
+          "$ref": "#/definitions/AutoScalePolicy"
+        },
+        "Region": {
+          "description": "Region name",
+          "type": "string"
+        }
+      },
+      "x-go-package": "github.com/mobiledgex/edge-cloud-infra/mc/ormapi"
+    },
+    "RegionCloudlet": {
+      "type": "object",
+      "properties": {
+        "Cloudlet": {
+          "$ref": "#/definitions/Cloudlet"
+        },
+        "Region": {
+          "description": "Region name",
+          "type": "string"
+        }
+      },
+      "x-go-package": "github.com/mobiledgex/edge-cloud-infra/mc/ormapi"
+    },
+    "RegionCloudletInfo": {
+      "type": "object",
+      "properties": {
+        "CloudletInfo": {
+          "$ref": "#/definitions/CloudletInfo"
+        },
+        "Region": {
+          "description": "Region name",
+          "type": "string"
+        }
+      },
+      "x-go-package": "github.com/mobiledgex/edge-cloud-infra/mc/ormapi"
+    },
+    "RegionCloudletKey": {
+      "type": "object",
+      "properties": {
+        "CloudletKey": {
+          "$ref": "#/definitions/CloudletKey"
+        },
+        "Region": {
+          "description": "Region name",
+          "type": "string"
+        }
+      },
+      "x-go-package": "github.com/mobiledgex/edge-cloud-infra/mc/ormapi"
+    },
+    "RegionCloudletPool": {
+      "type": "object",
+      "properties": {
+        "CloudletPool": {
+          "$ref": "#/definitions/CloudletPool"
+        },
+        "Region": {
+          "description": "Region name",
+          "type": "string"
+        }
+      },
+      "x-go-package": "github.com/mobiledgex/edge-cloud-infra/mc/ormapi"
+    },
+    "RegionCloudletPoolKey": {
+      "type": "object",
+      "properties": {
+        "CloudletPoolKey": {
+          "$ref": "#/definitions/CloudletPoolKey"
+        },
+        "Region": {
+          "description": "Region name",
+          "type": "string"
+        }
+      },
+      "x-go-package": "github.com/mobiledgex/edge-cloud-infra/mc/ormapi"
+    },
+    "RegionCloudletPoolMember": {
+      "type": "object",
+      "properties": {
+        "CloudletPoolMember": {
+          "$ref": "#/definitions/CloudletPoolMember"
+        },
+        "Region": {
+          "description": "Region name",
+          "type": "string"
+        }
+      },
+      "x-go-package": "github.com/mobiledgex/edge-cloud-infra/mc/ormapi"
+    },
+    "RegionCloudletRefs": {
+      "type": "object",
+      "properties": {
+        "CloudletRefs": {
+          "$ref": "#/definitions/CloudletRefs"
+        },
+        "Region": {
+          "description": "Region name",
+          "type": "string"
+        }
+      },
+      "x-go-package": "github.com/mobiledgex/edge-cloud-infra/mc/ormapi"
+    },
+    "RegionCloudletResMap": {
+      "type": "object",
+      "properties": {
+        "CloudletResMap": {
+          "$ref": "#/definitions/CloudletResMap"
+        },
+        "Region": {
+          "description": "Region name",
+          "type": "string"
+        }
+      },
+      "x-go-package": "github.com/mobiledgex/edge-cloud-infra/mc/ormapi"
+    },
+    "RegionClusterInst": {
+      "type": "object",
+      "properties": {
+        "ClusterInst": {
+          "$ref": "#/definitions/ClusterInst"
+        },
+        "Region": {
+          "description": "Region name",
+          "type": "string"
+        }
+      },
+      "x-go-package": "github.com/mobiledgex/edge-cloud-infra/mc/ormapi"
+    },
+    "RegionClusterRefs": {
+      "type": "object",
+      "properties": {
+        "ClusterRefs": {
+          "$ref": "#/definitions/ClusterRefs"
+        },
+        "Region": {
+          "description": "Region name",
+          "type": "string"
+        }
+      },
+      "x-go-package": "github.com/mobiledgex/edge-cloud-infra/mc/ormapi"
+    },
+    "RegionExecRequest": {
+      "type": "object",
+      "properties": {
+        "ExecRequest": {
+          "$ref": "#/definitions/ExecRequest"
+        },
+        "Region": {
+          "description": "Region name",
+          "type": "string"
+        }
+      },
+      "x-go-package": "github.com/mobiledgex/edge-cloud-infra/mc/ormapi"
+    },
+    "RegionFlavor": {
+      "type": "object",
+      "properties": {
+        "Flavor": {
+          "$ref": "#/definitions/Flavor"
+        },
+        "Region": {
+          "description": "Region name",
+          "type": "string"
+        }
+      },
+      "x-go-package": "github.com/mobiledgex/edge-cloud-infra/mc/ormapi"
+    },
+    "RegionFlavorMatch": {
+      "type": "object",
+      "properties": {
+        "FlavorMatch": {
+          "$ref": "#/definitions/FlavorMatch"
+        },
+        "Region": {
+          "description": "Region name",
+          "type": "string"
+        }
+      },
+      "x-go-package": "github.com/mobiledgex/edge-cloud-infra/mc/ormapi"
+    },
+    "RegionNode": {
+      "type": "object",
+      "properties": {
+        "Node": {
+          "$ref": "#/definitions/Node"
+        },
+        "Region": {
+          "description": "Region name",
+          "type": "string"
+        }
+      },
+      "x-go-package": "github.com/mobiledgex/edge-cloud-infra/mc/ormapi"
+    },
+    "RegionOperatorCode": {
+      "type": "object",
+      "properties": {
+        "OperatorCode": {
+          "$ref": "#/definitions/OperatorCode"
+        },
+        "Region": {
+          "description": "Region name",
+          "type": "string"
+        }
+      },
+      "x-go-package": "github.com/mobiledgex/edge-cloud-infra/mc/ormapi"
+    },
+    "RegionPrivacyPolicy": {
+      "type": "object",
+      "properties": {
+        "PrivacyPolicy": {
+          "$ref": "#/definitions/PrivacyPolicy"
+        },
+        "Region": {
+          "description": "Region name",
+          "type": "string"
+        }
+      },
+      "x-go-package": "github.com/mobiledgex/edge-cloud-infra/mc/ormapi"
+    },
+    "RegionResTagTable": {
+      "type": "object",
+      "properties": {
+        "Region": {
+          "description": "Region name",
+          "type": "string"
+        },
+        "ResTagTable": {
+          "$ref": "#/definitions/ResTagTable"
+        }
+      },
+      "x-go-package": "github.com/mobiledgex/edge-cloud-infra/mc/ormapi"
+    },
+    "RegionResTagTableKey": {
+      "type": "object",
+      "properties": {
+        "Region": {
+          "description": "Region name",
+          "type": "string"
+        },
+        "ResTagTableKey": {
+          "$ref": "#/definitions/ResTagTableKey"
+        }
+      },
+      "x-go-package": "github.com/mobiledgex/edge-cloud-infra/mc/ormapi"
+    },
+    "RegionSettings": {
+      "type": "object",
+      "properties": {
+        "Region": {
+          "description": "Region name",
+          "type": "string"
+        },
+        "Settings": {
+          "$ref": "#/definitions/Settings"
+        }
+      },
+      "x-go-package": "github.com/mobiledgex/edge-cloud-infra/mc/ormapi"
+    },
     "ResTagTable": {
       "type": "object",
       "properties": {
@@ -2609,8 +4456,8 @@
         },
         "tags": {
           "description": "one or more string tags",
-          "type": "array",
-          "items": {
+          "type": "object",
+          "additionalProperties": {
             "type": "string"
           },
           "x-go-name": "Tags"
@@ -2628,6 +4475,84 @@
         },
         "operator_key": {
           "$ref": "#/definitions/OperatorKey"
+        }
+      },
+      "x-go-package": "github.com/mobiledgex/edge-cloud/edgeproto"
+    },
+    "Result": {
+      "type": "object",
+      "properties": {
+        "code": {
+          "type": "integer",
+          "format": "int64",
+          "x-go-name": "Code"
+        },
+        "message": {
+          "type": "string",
+          "x-go-name": "Message"
+        }
+      },
+      "x-go-package": "github.com/mobiledgex/edge-cloud-infra/mc/ormapi"
+    },
+    "Settings": {
+      "description": "Global settings",
+      "type": "object",
+      "properties": {
+        "auto_deploy_interval_sec": {
+          "description": "Auto Provisioning Stats push and analysis interval (seconds)",
+          "type": "number",
+          "format": "double",
+          "x-go-name": "AutoDeployIntervalSec"
+        },
+        "auto_deploy_max_intervals": {
+          "description": "Auto Provisioning Policy max allowed intervals",
+          "type": "integer",
+          "format": "uint32",
+          "x-go-name": "AutoDeployMaxIntervals"
+        },
+        "auto_deploy_offset_sec": {
+          "description": "Auto Provisioning analysis offset from interval (seconds)",
+          "type": "number",
+          "format": "double",
+          "x-go-name": "AutoDeployOffsetSec"
+        },
+        "create_app_inst_timeout": {
+          "$ref": "#/definitions/Duration"
+        },
+        "create_cluster_inst_timeout": {
+          "$ref": "#/definitions/Duration"
+        },
+        "delete_app_inst_timeout": {
+          "$ref": "#/definitions/Duration"
+        },
+        "delete_cluster_inst_timeout": {
+          "$ref": "#/definitions/Duration"
+        },
+        "fields": {
+          "description": "Fields are used for the Update API to specify which fields to apply",
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "x-go-name": "Fields"
+        },
+        "shepherd_health_check_interval": {
+          "$ref": "#/definitions/Duration"
+        },
+        "shepherd_health_check_retries": {
+          "description": "Number of times Shepherd Health Check fails before we mark appInst down",
+          "type": "integer",
+          "format": "int32",
+          "x-go-name": "ShepherdHealthCheckRetries"
+        },
+        "shepherd_metrics_collection_interval": {
+          "$ref": "#/definitions/Duration"
+        },
+        "update_app_inst_timeout": {
+          "$ref": "#/definitions/Duration"
+        },
+        "update_cluster_inst_timeout": {
+          "$ref": "#/definitions/Duration"
         }
       },
       "x-go-package": "github.com/mobiledgex/edge-cloud/edgeproto"
@@ -2680,79 +4605,93 @@
       "format": "int32",
       "title": "TrackedState is used to track the state of an object on a remote node,",
       "x-go-package": "github.com/mobiledgex/edge-cloud/edgeproto"
+    },
+    "User": {
+      "type": "object",
+      "properties": {
+        "CreatedAt": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "Email": {
+          "type": "string"
+        },
+        "EmailVerified": {
+          "type": "boolean"
+        },
+        "FamilyName": {
+          "type": "string"
+        },
+        "GivenName": {
+          "type": "string"
+        },
+        "Iter": {
+          "type": "integer",
+          "format": "int64"
+        },
+        "Locked": {
+          "type": "boolean"
+        },
+        "Name": {
+          "type": "string"
+        },
+        "Nickname": {
+          "type": "string"
+        },
+        "Passhash": {
+          "type": "string"
+        },
+        "Picture": {
+          "type": "string"
+        },
+        "Salt": {
+          "type": "string"
+        },
+        "UpdatedAt": {
+          "type": "string",
+          "format": "date-time"
+        }
+      },
+      "x-go-package": "github.com/mobiledgex/edge-cloud-infra/mc/ormapi"
+    },
+    "UserLogin": {
+      "type": "object",
+      "properties": {
+        "password": {
+          "type": "string",
+          "x-go-name": "Password"
+        },
+        "username": {
+          "type": "string",
+          "x-go-name": "Username"
+        }
+      },
+      "x-go-package": "github.com/mobiledgex/edge-cloud-infra/mc/ormapi"
     }
   },
   "responses": {
     "badRequest": {
+      "description": "Status Bad Request",
       "schema": {
-        "type": "object",
-        "properties": {
-          "code": {
-            "description": "HTTP status code 400 - Status Bad Request",
-            "type": "integer",
-            "format": "int64",
-            "x-go-name": "Code"
-          },
-          "message": {
-            "description": "Detailed error message",
-            "type": "string",
-            "x-go-name": "Message"
-          }
-        }
+        "$ref": "#/definitions/Result"
       }
     },
     "forbidden": {
+      "description": "Forbidden",
       "schema": {
-        "type": "object",
-        "properties": {
-          "code": {
-            "description": "HTTP status code 403 - Forbidden",
-            "type": "integer",
-            "format": "int64",
-            "x-go-name": "Code"
-          },
-          "message": {
-            "description": "Detailed error message",
-            "type": "string",
-            "x-go-name": "Message"
-          }
-        }
+        "$ref": "#/definitions/Result"
       }
     },
     "notFound": {
+      "description": "Not Found",
       "schema": {
-        "type": "object",
-        "properties": {
-          "code": {
-            "description": "HTTP status code 404 - Not Found",
-            "type": "integer",
-            "format": "int64",
-            "x-go-name": "Code"
-          },
-          "message": {
-            "description": "Detailed error message",
-            "type": "string",
-            "x-go-name": "Message"
-          }
-        }
+        "$ref": "#/definitions/Result"
       }
     },
     "success": {
+      "description": "Success",
       "schema": {
-        "type": "object",
-        "properties": {
-          "code": {
-            "description": "HTTP status code 200 - Status OK",
-            "type": "integer",
-            "format": "int64",
-            "x-go-name": "Code"
-          },
-          "message": {
-            "description": "Response data from controller",
-            "type": "string",
-            "x-go-name": "Message"
-          }
-        }
+        "$ref": "#/definitions/Result"
       }
     }
   },
@@ -2762,5 +4701,28 @@
       "name": "Authorization",
       "in": "header"
     }
-  }
+  },
+  "x-tagGroups": [
+    {
+      "name": "General APIs",
+      "tags": [
+        "Setup",
+        "User"
+      ]
+    },
+    {
+      "name": "Operator APIs",
+      "tags": [
+        "Cloudlet"
+      ]
+    },
+    {
+      "name": "Developer APIs",
+      "tags": [
+        "Cluster-Instance",
+        "App",
+        "App-Instance"
+      ]
+    }
+  ]
 }

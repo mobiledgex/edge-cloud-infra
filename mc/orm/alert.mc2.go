@@ -206,74 +206,543 @@ func ShowAlertObj(ctx context.Context, rc *RegionContext, obj *edgeproto.Alert) 
 }
 
 func addControllerApis(method string, group *echo.Group) {
+	// swagger:route POST /ctrl/ShowAlert Alert ShowAlert
+	// Show alerts
+	// responses:
+	//   200: success
+	//   400: badRequest
+	//   403: forbidden
+	//   404: notFound
 	group.Match([]string{method}, "/ctrl/ShowAlert", ShowAlert)
+	// swagger:route POST /ctrl/CreateFlavor Flavor CreateFlavor
+	// Create a Flavor
+	// responses:
+	//   200: success
+	//   400: badRequest
+	//   403: forbidden
+	//   404: notFound
 	group.Match([]string{method}, "/ctrl/CreateFlavor", CreateFlavor)
+	// swagger:route POST /ctrl/DeleteFlavor Flavor DeleteFlavor
+	// Delete a Flavor
+	// responses:
+	//   200: success
+	//   400: badRequest
+	//   403: forbidden
+	//   404: notFound
 	group.Match([]string{method}, "/ctrl/DeleteFlavor", DeleteFlavor)
+	// swagger:route POST /ctrl/UpdateFlavor Flavor UpdateFlavor
+	// Update a Flavor
+	// responses:
+	//   200: success
+	//   400: badRequest
+	//   403: forbidden
+	//   404: notFound
 	group.Match([]string{method}, "/ctrl/UpdateFlavor", UpdateFlavor)
+	// swagger:route POST /ctrl/ShowFlavor Flavor ShowFlavor
+	// Show Flavors
+	// responses:
+	//   200: success
+	//   400: badRequest
+	//   403: forbidden
+	//   404: notFound
 	group.Match([]string{method}, "/ctrl/ShowFlavor", ShowFlavor)
+	// swagger:route POST /ctrl/AddFlavorRes Flavor AddFlavorRes
+	// Add Optional Resource
+	// responses:
+	//   200: success
+	//   400: badRequest
+	//   403: forbidden
+	//   404: notFound
 	group.Match([]string{method}, "/ctrl/AddFlavorRes", AddFlavorRes)
+	// swagger:route POST /ctrl/RemoveFlavorRes Flavor RemoveFlavorRes
+	// Remove Optional Resource
+	// responses:
+	//   200: success
+	//   400: badRequest
+	//   403: forbidden
+	//   404: notFound
 	group.Match([]string{method}, "/ctrl/RemoveFlavorRes", RemoveFlavorRes)
+	// swagger:route POST /ctrl/CreateApp App CreateApp
+	// Create an application
+	// responses:
+	//   200: success
+	//   400: badRequest
+	//   403: forbidden
+	//   404: notFound
 	group.Match([]string{method}, "/ctrl/CreateApp", CreateApp)
+	// swagger:route POST /ctrl/DeleteApp App DeleteApp
+	// Delete an application
+	// responses:
+	//   200: success
+	//   400: badRequest
+	//   403: forbidden
+	//   404: notFound
 	group.Match([]string{method}, "/ctrl/DeleteApp", DeleteApp)
+	// swagger:route POST /ctrl/UpdateApp App UpdateApp
+	// Update an application
+	// responses:
+	//   200: success
+	//   400: badRequest
+	//   403: forbidden
+	//   404: notFound
 	group.Match([]string{method}, "/ctrl/UpdateApp", UpdateApp)
+	// swagger:route POST /ctrl/ShowApp App ShowApp
+	// Show applications. Any fields specified will be used to filter results
+	// responses:
+	//   200: success
+	//   400: badRequest
+	//   403: forbidden
+	//   404: notFound
 	group.Match([]string{method}, "/ctrl/ShowApp", ShowApp)
+	// swagger:route POST /ctrl/CreateOperatorCode OperatorCode CreateOperatorCode
+	// Create a code for an Operator
+	// responses:
+	//   200: success
+	//   400: badRequest
+	//   403: forbidden
+	//   404: notFound
 	group.Match([]string{method}, "/ctrl/CreateOperatorCode", CreateOperatorCode)
+	// swagger:route POST /ctrl/DeleteOperatorCode OperatorCode DeleteOperatorCode
+	// Delete a code for an Operator
+	// responses:
+	//   200: success
+	//   400: badRequest
+	//   403: forbidden
+	//   404: notFound
 	group.Match([]string{method}, "/ctrl/DeleteOperatorCode", DeleteOperatorCode)
+	// swagger:route POST /ctrl/ShowOperatorCode OperatorCode ShowOperatorCode
+	// Show OperatorCodes
+	// responses:
+	//   200: success
+	//   400: badRequest
+	//   403: forbidden
+	//   404: notFound
 	group.Match([]string{method}, "/ctrl/ShowOperatorCode", ShowOperatorCode)
+	// swagger:route POST /ctrl/CreateResTagTable ResTagTable CreateResTagTable
+	// Create TagTable
+	// responses:
+	//   200: success
+	//   400: badRequest
+	//   403: forbidden
+	//   404: notFound
 	group.Match([]string{method}, "/ctrl/CreateResTagTable", CreateResTagTable)
+	// swagger:route POST /ctrl/DeleteResTagTable ResTagTable DeleteResTagTable
+	// Delete TagTable
+	// responses:
+	//   200: success
+	//   400: badRequest
+	//   403: forbidden
+	//   404: notFound
 	group.Match([]string{method}, "/ctrl/DeleteResTagTable", DeleteResTagTable)
+	// swagger:route POST /ctrl/UpdateResTagTable ResTagTable UpdateResTagTable
+	//
+	// responses:
+	//   200: success
+	//   400: badRequest
+	//   403: forbidden
+	//   404: notFound
 	group.Match([]string{method}, "/ctrl/UpdateResTagTable", UpdateResTagTable)
+	// swagger:route POST /ctrl/ShowResTagTable ResTagTable ShowResTagTable
+	// show TagTable
+	// responses:
+	//   200: success
+	//   400: badRequest
+	//   403: forbidden
+	//   404: notFound
 	group.Match([]string{method}, "/ctrl/ShowResTagTable", ShowResTagTable)
+	// swagger:route POST /ctrl/AddResTag ResTagTable AddResTag
+	// add new tag(s) to TagTable
+	// responses:
+	//   200: success
+	//   400: badRequest
+	//   403: forbidden
+	//   404: notFound
 	group.Match([]string{method}, "/ctrl/AddResTag", AddResTag)
+	// swagger:route POST /ctrl/RemoveResTag ResTagTable RemoveResTag
+	// remove existing tag(s) from TagTable
+	// responses:
+	//   200: success
+	//   400: badRequest
+	//   403: forbidden
+	//   404: notFound
 	group.Match([]string{method}, "/ctrl/RemoveResTag", RemoveResTag)
+	// swagger:route POST /ctrl/GetResTagTable ResTagTableKey GetResTagTable
+	// Fetch a copy of the TagTable
+	// responses:
+	//   200: success
+	//   400: badRequest
+	//   403: forbidden
+	//   404: notFound
 	group.Match([]string{method}, "/ctrl/GetResTagTable", GetResTagTable)
+	// swagger:route POST /ctrl/CreateCloudlet Cloudlet CreateCloudlet
+	// Create a Cloudlet
+	// responses:
+	//   200: success
+	//   400: badRequest
+	//   403: forbidden
+	//   404: notFound
 	group.Match([]string{method}, "/ctrl/CreateCloudlet", CreateCloudlet)
 	group.Match([]string{method}, "/ctrl/StreamCloudlet", StreamCloudlet)
+	// swagger:route POST /ctrl/DeleteCloudlet Cloudlet DeleteCloudlet
+	// Delete a Cloudlet
+	// responses:
+	//   200: success
+	//   400: badRequest
+	//   403: forbidden
+	//   404: notFound
 	group.Match([]string{method}, "/ctrl/DeleteCloudlet", DeleteCloudlet)
+	// swagger:route POST /ctrl/UpdateCloudlet Cloudlet UpdateCloudlet
+	// Update a Cloudlet
+	// responses:
+	//   200: success
+	//   400: badRequest
+	//   403: forbidden
+	//   404: notFound
 	group.Match([]string{method}, "/ctrl/UpdateCloudlet", UpdateCloudlet)
+	// swagger:route POST /ctrl/ShowCloudlet Cloudlet ShowCloudlet
+	// Show Cloudlets
+	// responses:
+	//   200: success
+	//   400: badRequest
+	//   403: forbidden
+	//   404: notFound
 	group.Match([]string{method}, "/ctrl/ShowCloudlet", ShowCloudlet)
+	// swagger:route POST /ctrl/AddCloudletResMapping CloudletResMap AddCloudletResMapping
+	// Add Optional Resource tag table
+	// responses:
+	//   200: success
+	//   400: badRequest
+	//   403: forbidden
+	//   404: notFound
 	group.Match([]string{method}, "/ctrl/AddCloudletResMapping", AddCloudletResMapping)
+	// swagger:route POST /ctrl/RemoveCloudletResMapping CloudletResMap RemoveCloudletResMapping
+	// Add Optional Resource tag table
+	// responses:
+	//   200: success
+	//   400: badRequest
+	//   403: forbidden
+	//   404: notFound
 	group.Match([]string{method}, "/ctrl/RemoveCloudletResMapping", RemoveCloudletResMapping)
+	// swagger:route POST /ctrl/FindFlavorMatch FlavorMatch FindFlavorMatch
+	// Discover if flavor produces a matching platform flavor
+	// responses:
+	//   200: success
+	//   400: badRequest
+	//   403: forbidden
+	//   404: notFound
 	group.Match([]string{method}, "/ctrl/FindFlavorMatch", FindFlavorMatch)
+	// swagger:route POST /ctrl/ShowCloudletInfo CloudletInfo ShowCloudletInfo
+	// Show CloudletInfos
+	// responses:
+	//   200: success
+	//   400: badRequest
+	//   403: forbidden
+	//   404: notFound
 	group.Match([]string{method}, "/ctrl/ShowCloudletInfo", ShowCloudletInfo)
+	// swagger:route POST /ctrl/CreateClusterInst Cluster-Instance CreateClusterInst
+	// Create a Cluster instance
+	// responses:
+	//   200: success
+	//   400: badRequest
+	//   403: forbidden
+	//   404: notFound
 	group.Match([]string{method}, "/ctrl/CreateClusterInst", CreateClusterInst)
 	group.Match([]string{method}, "/ctrl/StreamClusterInst", StreamClusterInst)
+	// swagger:route POST /ctrl/DeleteClusterInst Cluster-Instance DeleteClusterInst
+	// Delete a Cluster instance
+	// responses:
+	//   200: success
+	//   400: badRequest
+	//   403: forbidden
+	//   404: notFound
 	group.Match([]string{method}, "/ctrl/DeleteClusterInst", DeleteClusterInst)
+	// swagger:route POST /ctrl/UpdateClusterInst Cluster-Instance UpdateClusterInst
+	// Update a Cluster instance
+	// responses:
+	//   200: success
+	//   400: badRequest
+	//   403: forbidden
+	//   404: notFound
 	group.Match([]string{method}, "/ctrl/UpdateClusterInst", UpdateClusterInst)
+	// swagger:route POST /ctrl/ShowClusterInst Cluster-Instance ShowClusterInst
+	// Show Cluster instances
+	// responses:
+	//   200: success
+	//   400: badRequest
+	//   403: forbidden
+	//   404: notFound
 	group.Match([]string{method}, "/ctrl/ShowClusterInst", ShowClusterInst)
+	// swagger:route POST /ctrl/CreateAppInst App-Instance CreateAppInst
+	// Create an application instance
+	// responses:
+	//   200: success
+	//   400: badRequest
+	//   403: forbidden
+	//   404: notFound
 	group.Match([]string{method}, "/ctrl/CreateAppInst", CreateAppInst)
 	group.Match([]string{method}, "/ctrl/StreamAppInst", StreamAppInst)
+	// swagger:route POST /ctrl/DeleteAppInst App-Instance DeleteAppInst
+	// Delete an application instance
+	// responses:
+	//   200: success
+	//   400: badRequest
+	//   403: forbidden
+	//   404: notFound
 	group.Match([]string{method}, "/ctrl/DeleteAppInst", DeleteAppInst)
+	// swagger:route POST /ctrl/RefreshAppInst App-Instance RefreshAppInst
+	// Refresh restarts an application instance with new App settings or image
+	// responses:
+	//   200: success
+	//   400: badRequest
+	//   403: forbidden
+	//   404: notFound
 	group.Match([]string{method}, "/ctrl/RefreshAppInst", RefreshAppInst)
+	// swagger:route POST /ctrl/UpdateAppInst App-Instance UpdateAppInst
+	// Update an AppInst and then refresh it
+	// responses:
+	//   200: success
+	//   400: badRequest
+	//   403: forbidden
+	//   404: notFound
 	group.Match([]string{method}, "/ctrl/UpdateAppInst", UpdateAppInst)
+	// swagger:route POST /ctrl/ShowAppInst App-Instance ShowAppInst
+	// Show application instances. Any fields specified will be used to filter results
+	// responses:
+	//   200: success
+	//   400: badRequest
+	//   403: forbidden
+	//   404: notFound
 	group.Match([]string{method}, "/ctrl/ShowAppInst", ShowAppInst)
+	// swagger:route POST /ctrl/CreateAutoScalePolicy AutoScalePolicy CreateAutoScalePolicy
+	// Create an Auto Scale Policy
+	// responses:
+	//   200: success
+	//   400: badRequest
+	//   403: forbidden
+	//   404: notFound
 	group.Match([]string{method}, "/ctrl/CreateAutoScalePolicy", CreateAutoScalePolicy)
+	// swagger:route POST /ctrl/DeleteAutoScalePolicy AutoScalePolicy DeleteAutoScalePolicy
+	// Delete an Auto Scale Policy
+	// responses:
+	//   200: success
+	//   400: badRequest
+	//   403: forbidden
+	//   404: notFound
 	group.Match([]string{method}, "/ctrl/DeleteAutoScalePolicy", DeleteAutoScalePolicy)
+	// swagger:route POST /ctrl/UpdateAutoScalePolicy AutoScalePolicy UpdateAutoScalePolicy
+	// Update an Auto Scale Policy
+	// responses:
+	//   200: success
+	//   400: badRequest
+	//   403: forbidden
+	//   404: notFound
 	group.Match([]string{method}, "/ctrl/UpdateAutoScalePolicy", UpdateAutoScalePolicy)
+	// swagger:route POST /ctrl/ShowAutoScalePolicy AutoScalePolicy ShowAutoScalePolicy
+	// Show Auto Scale Policies. Any fields specified will be used to filter results
+	// responses:
+	//   200: success
+	//   400: badRequest
+	//   403: forbidden
+	//   404: notFound
 	group.Match([]string{method}, "/ctrl/ShowAutoScalePolicy", ShowAutoScalePolicy)
+	// swagger:route POST /ctrl/CreateAutoProvPolicy AutoProvPolicy CreateAutoProvPolicy
+	// Create an Auto Provisioning Policy
+	// responses:
+	//   200: success
+	//   400: badRequest
+	//   403: forbidden
+	//   404: notFound
 	group.Match([]string{method}, "/ctrl/CreateAutoProvPolicy", CreateAutoProvPolicy)
+	// swagger:route POST /ctrl/DeleteAutoProvPolicy AutoProvPolicy DeleteAutoProvPolicy
+	// Delete an Auto Provisioning Policy
+	// responses:
+	//   200: success
+	//   400: badRequest
+	//   403: forbidden
+	//   404: notFound
 	group.Match([]string{method}, "/ctrl/DeleteAutoProvPolicy", DeleteAutoProvPolicy)
+	// swagger:route POST /ctrl/UpdateAutoProvPolicy AutoProvPolicy UpdateAutoProvPolicy
+	// Update an Auto Provisioning Policy
+	// responses:
+	//   200: success
+	//   400: badRequest
+	//   403: forbidden
+	//   404: notFound
 	group.Match([]string{method}, "/ctrl/UpdateAutoProvPolicy", UpdateAutoProvPolicy)
+	// swagger:route POST /ctrl/ShowAutoProvPolicy AutoProvPolicy ShowAutoProvPolicy
+	// Show Auto Provisioning Policies. Any fields specified will be used to filter results
+	// responses:
+	//   200: success
+	//   400: badRequest
+	//   403: forbidden
+	//   404: notFound
 	group.Match([]string{method}, "/ctrl/ShowAutoProvPolicy", ShowAutoProvPolicy)
+	// swagger:route POST /ctrl/AddAutoProvPolicyCloudlet AutoProvPolicyCloudlet AddAutoProvPolicyCloudlet
+	// Add a Cloudlet to the Auto Provisioning Policy
+	// responses:
+	//   200: success
+	//   400: badRequest
+	//   403: forbidden
+	//   404: notFound
 	group.Match([]string{method}, "/ctrl/AddAutoProvPolicyCloudlet", AddAutoProvPolicyCloudlet)
+	// swagger:route POST /ctrl/RemoveAutoProvPolicyCloudlet AutoProvPolicyCloudlet RemoveAutoProvPolicyCloudlet
+	// Remove a Cloudlet from the Auto Provisioning Policy
+	// responses:
+	//   200: success
+	//   400: badRequest
+	//   403: forbidden
+	//   404: notFound
 	group.Match([]string{method}, "/ctrl/RemoveAutoProvPolicyCloudlet", RemoveAutoProvPolicyCloudlet)
+	// swagger:route POST /ctrl/CreateCloudletPool CloudletPool CreateCloudletPool
+	// Create a CloudletPool
+	// responses:
+	//   200: success
+	//   400: badRequest
+	//   403: forbidden
+	//   404: notFound
 	group.Match([]string{method}, "/ctrl/CreateCloudletPool", CreateCloudletPool)
+	// swagger:route POST /ctrl/DeleteCloudletPool CloudletPool DeleteCloudletPool
+	// Delete a CloudletPool
+	// responses:
+	//   200: success
+	//   400: badRequest
+	//   403: forbidden
+	//   404: notFound
 	group.Match([]string{method}, "/ctrl/DeleteCloudletPool", DeleteCloudletPool)
+	// swagger:route POST /ctrl/ShowCloudletPool CloudletPool ShowCloudletPool
+	// Show CloudletPools
+	// responses:
+	//   200: success
+	//   400: badRequest
+	//   403: forbidden
+	//   404: notFound
 	group.Match([]string{method}, "/ctrl/ShowCloudletPool", ShowCloudletPool)
+	// swagger:route POST /ctrl/CreateCloudletPoolMember CloudletPoolMember CreateCloudletPoolMember
+	// Add a Cloudlet to a CloudletPool
+	// responses:
+	//   200: success
+	//   400: badRequest
+	//   403: forbidden
+	//   404: notFound
 	group.Match([]string{method}, "/ctrl/CreateCloudletPoolMember", CreateCloudletPoolMember)
+	// swagger:route POST /ctrl/DeleteCloudletPoolMember CloudletPoolMember DeleteCloudletPoolMember
+	// Remove a Cloudlet from a CloudletPool
+	// responses:
+	//   200: success
+	//   400: badRequest
+	//   403: forbidden
+	//   404: notFound
 	group.Match([]string{method}, "/ctrl/DeleteCloudletPoolMember", DeleteCloudletPoolMember)
+	// swagger:route POST /ctrl/ShowCloudletPoolMember CloudletPoolMember ShowCloudletPoolMember
+	// Show the Cloudlet to CloudletPool relationships
+	// responses:
+	//   200: success
+	//   400: badRequest
+	//   403: forbidden
+	//   404: notFound
 	group.Match([]string{method}, "/ctrl/ShowCloudletPoolMember", ShowCloudletPoolMember)
+	// swagger:route POST /ctrl/ShowPoolsForCloudlet CloudletKey ShowPoolsForCloudlet
+	// Show CloudletPools that have Cloudlet as a member
+	// responses:
+	//   200: success
+	//   400: badRequest
+	//   403: forbidden
+	//   404: notFound
 	group.Match([]string{method}, "/ctrl/ShowPoolsForCloudlet", ShowPoolsForCloudlet)
+	// swagger:route POST /ctrl/ShowCloudletsForPool CloudletPoolKey ShowCloudletsForPool
+	// Show Cloudlets that belong to the Pool
+	// responses:
+	//   200: success
+	//   400: badRequest
+	//   403: forbidden
+	//   404: notFound
 	group.Match([]string{method}, "/ctrl/ShowCloudletsForPool", ShowCloudletsForPool)
+	// swagger:route POST /ctrl/RunCommand ExecRequest RunCommand
+	// Run a Command or Shell on a container or VM
+	// responses:
+	//   200: success
+	//   400: badRequest
+	//   403: forbidden
+	//   404: notFound
 	group.Match([]string{method}, "/ctrl/RunCommand", RunCommand)
+	// swagger:route POST /ctrl/ShowNode Node ShowNode
+	// Show all Nodes connected to all Controllers
+	// responses:
+	//   200: success
+	//   400: badRequest
+	//   403: forbidden
+	//   404: notFound
 	group.Match([]string{method}, "/ctrl/ShowNode", ShowNode)
+	// swagger:route POST /ctrl/CreatePrivacyPolicy PrivacyPolicy CreatePrivacyPolicy
+	// Create a Privacy Policy
+	// responses:
+	//   200: success
+	//   400: badRequest
+	//   403: forbidden
+	//   404: notFound
 	group.Match([]string{method}, "/ctrl/CreatePrivacyPolicy", CreatePrivacyPolicy)
+	// swagger:route POST /ctrl/DeletePrivacyPolicy PrivacyPolicy DeletePrivacyPolicy
+	// Delete a Privacy policy
+	// responses:
+	//   200: success
+	//   400: badRequest
+	//   403: forbidden
+	//   404: notFound
 	group.Match([]string{method}, "/ctrl/DeletePrivacyPolicy", DeletePrivacyPolicy)
+	// swagger:route POST /ctrl/UpdatePrivacyPolicy PrivacyPolicy UpdatePrivacyPolicy
+	// Update a Privacy policy
+	// responses:
+	//   200: success
+	//   400: badRequest
+	//   403: forbidden
+	//   404: notFound
 	group.Match([]string{method}, "/ctrl/UpdatePrivacyPolicy", UpdatePrivacyPolicy)
+	// swagger:route POST /ctrl/ShowPrivacyPolicy PrivacyPolicy ShowPrivacyPolicy
+	// Show Privacy Policies. Any fields specified will be used to filter results
+	// responses:
+	//   200: success
+	//   400: badRequest
+	//   403: forbidden
+	//   404: notFound
 	group.Match([]string{method}, "/ctrl/ShowPrivacyPolicy", ShowPrivacyPolicy)
+	// swagger:route POST /ctrl/ShowCloudletRefs CloudletRefs ShowCloudletRefs
+	// Show CloudletRefs (debug only)
+	// responses:
+	//   200: success
+	//   400: badRequest
+	//   403: forbidden
+	//   404: notFound
 	group.Match([]string{method}, "/ctrl/ShowCloudletRefs", ShowCloudletRefs)
+	// swagger:route POST /ctrl/ShowClusterRefs ClusterRefs ShowClusterRefs
+	// Show ClusterRefs (debug only)
+	// responses:
+	//   200: success
+	//   400: badRequest
+	//   403: forbidden
+	//   404: notFound
 	group.Match([]string{method}, "/ctrl/ShowClusterRefs", ShowClusterRefs)
+	// swagger:route POST /ctrl/UpdateSettings Settings UpdateSettings
+	// Update settings
+	// responses:
+	//   200: success
+	//   400: badRequest
+	//   403: forbidden
+	//   404: notFound
 	group.Match([]string{method}, "/ctrl/UpdateSettings", UpdateSettings)
+	// swagger:route POST /ctrl/ResetSettings Settings ResetSettings
+	// Reset all settings to their defaults
+	// responses:
+	//   200: success
+	//   400: badRequest
+	//   403: forbidden
+	//   404: notFound
 	group.Match([]string{method}, "/ctrl/ResetSettings", ResetSettings)
+	// swagger:route POST /ctrl/ShowSettings Settings ShowSettings
+	// Show settings
+	// responses:
+	//   200: success
+	//   400: badRequest
+	//   403: forbidden
+	//   404: notFound
 	group.Match([]string{method}, "/ctrl/ShowSettings", ShowSettings)
 }

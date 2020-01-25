@@ -1,6 +1,7 @@
 package main
 
 import (
+	"fmt"
 	"strings"
 	"text/template"
 
@@ -209,16 +210,28 @@ func (g *GenMC2) generatePosts() {
 		if len(file.Service) == 0 {
 			continue
 		}
-		for _, service := range file.Service {
+		/*
+			out := g.support.MyComments(file)
+			for ke, va := range out {
+				g.P(fmt.Sprintf("// ASHCHECK1 %s=%s\n", ke, va))
+			}
+		*/
+		for serviceIndex, service := range file.Service {
 			if len(service.Method) == 0 {
 				continue
 			}
 			streamRouteAdded := false
-			for _, method := range service.Method {
+			for methodIndex, method := range service.Method {
 				if GetMc2Api(method) == "" {
 					continue
 				}
-				g.genSwaggerSpec(method)
+
+				// 6 means service
+				// 2 means method in a service
+				summary := g.support.GetComments(file, fmt.Sprintf("6,%d,2,%d", serviceIndex, methodIndex))
+				summary = strings.TrimSpace(strings.Map(gensupport.RemoveNewLines, summary))
+				g.genSwaggerSpec(method, summary)
+
 				g.P("group.Match([]string{method}, \"/ctrl/", method.Name,
 					"\", ", method.Name, ")")
 				if gensupport.ServerStreaming(method) && !streamRouteAdded {
@@ -246,10 +259,11 @@ func (g *GenMC2) generatePosts() {
 	g.P()
 }
 
-func (g *GenMC2) genSwaggerSpec(method *descriptor.MethodDescriptorProto) {
+func (g *GenMC2) genSwaggerSpec(method *descriptor.MethodDescriptorProto, summary string) {
 	in := gensupport.GetDesc(g.Generator, method.GetInputType())
-	inname := *in.DescriptorProto.Name
-	g.P("// swagger:route POST /ctrl/", method.Name, " ", inname, " ", method.Name)
+	inname := gensupport.GetDocName(in.DescriptorProto)
+	g.P("// swagger:route POST /auth/ctrl/", method.Name, " ", inname, " ", method.Name)
+	g.P("// ", strings.TrimSuffix(summary, "."))
 	g.P("// responses:")
 	g.P("//   200: success")
 	g.P("//   400: badRequest")
@@ -409,9 +423,7 @@ var tmplApi = `
 // swagger:parameters {{.MethodName}}
 type swagger{{.MethodName}} struct {
 	// in: body
-	Body struct {
-		Region{{.InName}}
-	}
+	Body Region{{.InName}}
 }
 
 {{- if .GenStruct}}

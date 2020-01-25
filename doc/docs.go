@@ -2,9 +2,9 @@
 //
 // This documentation describes all the MC APIs available
 //
-//     Schemes: http, https, wss
-//     BasePath: /api/v1/auth
-//     Version: 1.0.0
+//     Schemes: https
+//     BasePath: /api/v1
+//     Version: 0.0.1
 //
 //     Consumes:
 //     - application/json

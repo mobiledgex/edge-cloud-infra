@@ -197,8 +197,23 @@ func RunServer(config *ServerConfig) (*Server, error) {
 
 	// login route
 	root := "api/v1"
-	e.POST(root+"/login", Login)
 	// accessible routes
+
+	// swagger:route POST /login Setup Login
+	// Login to MC
+	// responses:
+	//   200: success
+	//   400: badRequest
+	//   403: forbidden
+	//   404: notFound
+	e.POST(root+"/login", Login)
+	// swagger:route POST /usercreate User CreateUser
+	// Create new user
+	// responses:
+	//   200: success
+	//   400: badRequest
+	//   403: forbidden
+	//   404: notFound
 	e.POST(root+"/usercreate", CreateUser)
 	e.POST(root+"/passwordresetrequest", PasswordResetRequest)
 	e.POST(root+"/passwordreset", PasswordReset)
@@ -208,8 +223,23 @@ func RunServer(config *ServerConfig) (*Server, error) {
 	auth := e.Group(root + "/auth")
 	auth.Use(AuthCookie)
 	// authenticated routes - gorm router
+
+	// swagger:route POST /auth/user/show User ShowUser
+	// Show all users
+	// responses:
+	//   200: success
+	//   400: badRequest
+	//   403: forbidden
+	//   404: notFound
 	auth.POST("/user/show", ShowUser)
 	auth.POST("/user/current", CurrentUser)
+	// swagger:route POST /auth/user/delete User DeleteUser
+	// Delete a user
+	// responses:
+	//   200: success
+	//   400: badRequest
+	//   403: forbidden
+	//   404: notFound
 	auth.POST("/user/delete", DeleteUser)
 	auth.POST("/user/newpass", NewPassword)
 	auth.POST("/role/assignment/show", ShowRoleAssignment)

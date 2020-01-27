@@ -12,6 +12,9 @@ API_ORDER = [
     '/v1/findcloudlet',
     '/v1/verifylocation',
 ]
+TAG_SWITCH = {
+    'MatchEngineApi': 'MobiledgeX Client API',
+}
 
 def splice_sample(operation, sample_dir):
     operation['x-code-samples'] = []
@@ -67,6 +70,15 @@ def order_apis(sw):
 
     sw['paths'] = paths
 
+def switch_tags(sw):
+    for path in sw['paths']:
+        for op in sw['paths'][path]:
+            if not 'tags' in sw['paths'][path][op]:
+                continue
+            for i, tag in enumerate(sw['paths'][path][op]['tags']):
+                if tag in TAG_SWITCH:
+                    sw['paths'][path][op]['tags'][i] = TAG_SWITCH[tag]
+
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("--samples", "-s", help="Code samples directory")
@@ -78,6 +90,7 @@ def main():
 
     if args.samples:
         splice_samples(sw, args.samples)
+    switch_tags(sw)
     order_apis(sw)
     add_logo(sw)
     set_version(sw, args.version)

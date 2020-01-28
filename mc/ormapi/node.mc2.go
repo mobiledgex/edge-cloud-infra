@@ -25,6 +25,7 @@ type swaggerShowNode struct {
 	Body RegionNode
 }
 type RegionNode struct {
+	// required: true
 	// Region name
 	Region string
 	Node   edgeproto.Node

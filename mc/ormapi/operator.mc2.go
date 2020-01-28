@@ -25,6 +25,7 @@ type swaggerCreateOperatorCode struct {
 	Body RegionOperatorCode
 }
 type RegionOperatorCode struct {
+	// required: true
 	// Region name
 	Region       string
 	OperatorCode edgeproto.OperatorCode

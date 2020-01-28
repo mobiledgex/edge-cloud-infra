@@ -52,12 +52,9 @@ install-internal:
 	go install ./...
 
 doc:
+	go install ./protoc-gen-mc2
+	make -f proto.make
 	swagger generate spec -i ./doc/init.json -o ./doc/apidocs.swagger.json --scan-models
-#		--include-tag Cloudlet \
-#		--include-tag Cluster-Instance \
-#		--include-tag App \
-#		--include-tag App-Instance \
-#		--include-tag Login
 
 .PHONY: doc
 

@@ -26,6 +26,7 @@ type swaggerCreateCloudlet struct {
 	Body RegionCloudlet
 }
 type RegionCloudlet struct {
+	// required: true
 	// Region name
 	Region   string
 	Cloudlet edgeproto.Cloudlet
@@ -59,6 +60,7 @@ type swaggerAddCloudletResMapping struct {
 	Body RegionCloudletResMap
 }
 type RegionCloudletResMap struct {
+	// required: true
 	// Region name
 	Region         string
 	CloudletResMap edgeproto.CloudletResMap
@@ -78,6 +80,7 @@ type swaggerFindFlavorMatch struct {
 	Body RegionFlavorMatch
 }
 type RegionFlavorMatch struct {
+	// required: true
 	// Region name
 	Region      string
 	FlavorMatch edgeproto.FlavorMatch
@@ -90,6 +93,7 @@ type swaggerShowCloudletInfo struct {
 	Body RegionCloudletInfo
 }
 type RegionCloudletInfo struct {
+	// required: true
 	// Region name
 	Region       string
 	CloudletInfo edgeproto.CloudletInfo

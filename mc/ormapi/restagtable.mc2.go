@@ -25,6 +25,7 @@ type swaggerCreateResTagTable struct {
 	Body RegionResTagTable
 }
 type RegionResTagTable struct {
+	// required: true
 	// Region name
 	Region      string
 	ResTagTable edgeproto.ResTagTable
@@ -72,6 +73,7 @@ type swaggerGetResTagTable struct {
 	Body RegionResTagTableKey
 }
 type RegionResTagTableKey struct {
+	// required: true
 	// Region name
 	Region         string
 	ResTagTableKey edgeproto.ResTagTableKey

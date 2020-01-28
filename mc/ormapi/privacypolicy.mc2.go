@@ -25,6 +25,7 @@ type swaggerCreatePrivacyPolicy struct {
 	Body RegionPrivacyPolicy
 }
 type RegionPrivacyPolicy struct {
+	// required: true
 	// Region name
 	Region        string
 	PrivacyPolicy edgeproto.PrivacyPolicy

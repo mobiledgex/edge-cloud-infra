@@ -10,82 +10,23 @@
   ],
   "swagger": "2.0",
   "info": {
-    "description": "This documentation describes all the MC APIs available",
+    "description": "# Introduction\nThis documentation describes all the available MC APIs, which end-users can use for edge orchestration",
     "title": "Master Controller (MC) API Documentation",
-    "version": "0.0.1"
+    "version": "1.0.0"
   },
   "basePath": "/api/v1",
   "paths": {
-    "/auth/user/delete": {
+    "/auth/ctrl/AddAutoProvPolicyCloudlet": {
       "post": {
-        "description": "Delete a user",
-        "tags": [
-          "User"
-        ],
-        "operationId": "DeleteUser",
-        "parameters": [
+        "security": [
           {
-            "name": "Body",
-            "in": "body",
-            "schema": {
-              "$ref": "#/definitions/User"
-            }
+            "Bearer": []
           }
         ],
-        "responses": {
-          "200": {
-            "$ref": "#/responses/success"
-          },
-          "400": {
-            "$ref": "#/responses/badRequest"
-          },
-          "403": {
-            "$ref": "#/responses/forbidden"
-          },
-          "404": {
-            "$ref": "#/responses/notFound"
-          }
-        }
-      }
-    },
-    "/auth/user/show": {
-      "post": {
-        "description": "Show all users",
-        "tags": [
-          "User"
-        ],
-        "operationId": "ShowUser",
-        "parameters": [
-          {
-            "name": "Body",
-            "in": "body",
-            "schema": {
-              "$ref": "#/definitions/Organization"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "$ref": "#/responses/success"
-          },
-          "400": {
-            "$ref": "#/responses/badRequest"
-          },
-          "403": {
-            "$ref": "#/responses/forbidden"
-          },
-          "404": {
-            "$ref": "#/responses/notFound"
-          }
-        }
-      }
-    },
-    "/ctrl/AddAutoProvPolicyCloudlet": {
-      "post": {
-        "description": "Add a Cloudlet to the Auto Provisioning Policy",
         "tags": [
           "AutoProvPolicyCloudlet"
         ],
+        "summary": "Add a Cloudlet to the Auto Provisioning Policy.",
         "operationId": "AddAutoProvPolicyCloudlet",
         "parameters": [
           {
@@ -112,12 +53,17 @@
         }
       }
     },
-    "/ctrl/AddCloudletResMapping": {
+    "/auth/ctrl/AddCloudletResMapping": {
       "post": {
-        "description": "Add Optional Resource tag table",
+        "security": [
+          {
+            "Bearer": []
+          }
+        ],
         "tags": [
           "CloudletResMap"
         ],
+        "summary": "Add Optional Resource tag table.",
         "operationId": "AddCloudletResMapping",
         "parameters": [
           {
@@ -144,12 +90,17 @@
         }
       }
     },
-    "/ctrl/AddFlavorRes": {
+    "/auth/ctrl/AddFlavorRes": {
       "post": {
-        "description": "Add Optional Resource",
+        "security": [
+          {
+            "Bearer": []
+          }
+        ],
         "tags": [
           "Flavor"
         ],
+        "summary": "Add Optional Resource.",
         "operationId": "AddFlavorRes",
         "parameters": [
           {
@@ -176,12 +127,17 @@
         }
       }
     },
-    "/ctrl/AddResTag": {
+    "/auth/ctrl/AddResTag": {
       "post": {
-        "description": "add new tag(s) to TagTable",
+        "security": [
+          {
+            "Bearer": []
+          }
+        ],
         "tags": [
           "ResTagTable"
         ],
+        "summary": "add new tag(s) to TagTable.",
         "operationId": "AddResTag",
         "parameters": [
           {
@@ -208,12 +164,18 @@
         }
       }
     },
-    "/ctrl/CreateApp": {
+    "/auth/ctrl/CreateApp": {
       "post": {
-        "description": "Create an application",
+        "security": [
+          {
+            "Bearer": []
+          }
+        ],
+        "description": "Create definition for an application instance which will be deployed on a Cloudlet",
         "tags": [
           "App"
         ],
+        "summary": "Create Application.",
         "operationId": "CreateApp",
         "parameters": [
           {
@@ -240,12 +202,18 @@
         }
       }
     },
-    "/ctrl/CreateAppInst": {
+    "/auth/ctrl/CreateAppInst": {
       "post": {
-        "description": "Create an application instance",
-        "tags": [
-          "App-Instance"
+        "security": [
+          {
+            "Bearer": []
+          }
         ],
+        "description": "Creates an instance of an App on a Cloudlet where it is defined by an App plus a ClusterInst key. Many of the fields here are inherited from the App definition",
+        "tags": [
+          "AppInst"
+        ],
+        "summary": "Create Application Instance.",
         "operationId": "CreateAppInst",
         "parameters": [
           {
@@ -272,12 +240,17 @@
         }
       }
     },
-    "/ctrl/CreateAutoProvPolicy": {
+    "/auth/ctrl/CreateAutoProvPolicy": {
       "post": {
-        "description": "Create an Auto Provisioning Policy",
+        "security": [
+          {
+            "Bearer": []
+          }
+        ],
         "tags": [
           "AutoProvPolicy"
         ],
+        "summary": "Create an Auto Provisioning Policy.",
         "operationId": "CreateAutoProvPolicy",
         "parameters": [
           {
@@ -304,12 +277,17 @@
         }
       }
     },
-    "/ctrl/CreateAutoScalePolicy": {
+    "/auth/ctrl/CreateAutoScalePolicy": {
       "post": {
-        "description": "Create an Auto Scale Policy",
+        "security": [
+          {
+            "Bearer": []
+          }
+        ],
         "tags": [
           "AutoScalePolicy"
         ],
+        "summary": "Create an Auto Scale Policy.",
         "operationId": "CreateAutoScalePolicy",
         "parameters": [
           {
@@ -336,12 +314,18 @@
         }
       }
     },
-    "/ctrl/CreateCloudlet": {
+    "/auth/ctrl/CreateCloudlet": {
       "post": {
-        "description": "Create a Cloudlet",
+        "security": [
+          {
+            "Bearer": []
+          }
+        ],
+        "description": "Sets up cloudlet services on Operators compute resources and makes it part of MobiledgeX edge resource portfolio. These resources will now be managed from edge controller",
         "tags": [
           "Cloudlet"
         ],
+        "summary": "Create Cloudlet.",
         "operationId": "CreateCloudlet",
         "parameters": [
           {
@@ -368,12 +352,17 @@
         }
       }
     },
-    "/ctrl/CreateCloudletPool": {
+    "/auth/ctrl/CreateCloudletPool": {
       "post": {
-        "description": "Create a CloudletPool",
+        "security": [
+          {
+            "Bearer": []
+          }
+        ],
         "tags": [
           "CloudletPool"
         ],
+        "summary": "Create a CloudletPool.",
         "operationId": "CreateCloudletPool",
         "parameters": [
           {
@@ -400,12 +389,17 @@
         }
       }
     },
-    "/ctrl/CreateCloudletPoolMember": {
+    "/auth/ctrl/CreateCloudletPoolMember": {
       "post": {
-        "description": "Add a Cloudlet to a CloudletPool",
+        "security": [
+          {
+            "Bearer": []
+          }
+        ],
         "tags": [
           "CloudletPoolMember"
         ],
+        "summary": "Add a Cloudlet to a CloudletPool.",
         "operationId": "CreateCloudletPoolMember",
         "parameters": [
           {
@@ -432,12 +426,18 @@
         }
       }
     },
-    "/ctrl/CreateClusterInst": {
+    "/auth/ctrl/CreateClusterInst": {
       "post": {
-        "description": "Create a Cluster instance",
-        "tags": [
-          "Cluster-Instance"
+        "security": [
+          {
+            "Bearer": []
+          }
         ],
+        "description": "Creates an instance of a Cluster on a Cloudlet, defined by a Cluster Key and a Cloudlet Key.",
+        "tags": [
+          "ClusterInst"
+        ],
+        "summary": "Create Cluster Instance.",
         "operationId": "CreateClusterInst",
         "parameters": [
           {
@@ -464,12 +464,17 @@
         }
       }
     },
-    "/ctrl/CreateFlavor": {
+    "/auth/ctrl/CreateFlavor": {
       "post": {
-        "description": "Create a Flavor",
+        "security": [
+          {
+            "Bearer": []
+          }
+        ],
         "tags": [
           "Flavor"
         ],
+        "summary": "Create a Flavor.",
         "operationId": "CreateFlavor",
         "parameters": [
           {
@@ -496,12 +501,17 @@
         }
       }
     },
-    "/ctrl/CreateOperatorCode": {
+    "/auth/ctrl/CreateOperatorCode": {
       "post": {
-        "description": "Create a code for an Operator",
+        "security": [
+          {
+            "Bearer": []
+          }
+        ],
         "tags": [
           "OperatorCode"
         ],
+        "summary": "Create a code for an Operator.",
         "operationId": "CreateOperatorCode",
         "parameters": [
           {
@@ -528,12 +538,17 @@
         }
       }
     },
-    "/ctrl/CreatePrivacyPolicy": {
+    "/auth/ctrl/CreatePrivacyPolicy": {
       "post": {
-        "description": "Create a Privacy Policy",
+        "security": [
+          {
+            "Bearer": []
+          }
+        ],
         "tags": [
           "PrivacyPolicy"
         ],
+        "summary": "Create a Privacy Policy.",
         "operationId": "CreatePrivacyPolicy",
         "parameters": [
           {
@@ -560,12 +575,17 @@
         }
       }
     },
-    "/ctrl/CreateResTagTable": {
+    "/auth/ctrl/CreateResTagTable": {
       "post": {
-        "description": "Create TagTable",
+        "security": [
+          {
+            "Bearer": []
+          }
+        ],
         "tags": [
           "ResTagTable"
         ],
+        "summary": "Create TagTable.",
         "operationId": "CreateResTagTable",
         "parameters": [
           {
@@ -592,12 +612,18 @@
         }
       }
     },
-    "/ctrl/DeleteApp": {
+    "/auth/ctrl/DeleteApp": {
       "post": {
-        "description": "Delete an application",
+        "security": [
+          {
+            "Bearer": []
+          }
+        ],
+        "description": "Delete definition of an application instance. This requires that no application instance with this definition exists. If it exists, then user must delete those first",
         "tags": [
           "App"
         ],
+        "summary": "Delete Application.",
         "operationId": "DeleteApp",
         "parameters": [
           {
@@ -624,12 +650,18 @@
         }
       }
     },
-    "/ctrl/DeleteAppInst": {
+    "/auth/ctrl/DeleteAppInst": {
       "post": {
-        "description": "Delete an application instance",
-        "tags": [
-          "App-Instance"
+        "security": [
+          {
+            "Bearer": []
+          }
         ],
+        "description": "Deletes an instance of the App from the Cloudlet",
+        "tags": [
+          "AppInst"
+        ],
+        "summary": "Delete Application Instance.",
         "operationId": "DeleteAppInst",
         "parameters": [
           {
@@ -656,12 +688,17 @@
         }
       }
     },
-    "/ctrl/DeleteAutoProvPolicy": {
+    "/auth/ctrl/DeleteAutoProvPolicy": {
       "post": {
-        "description": "Delete an Auto Provisioning Policy",
+        "security": [
+          {
+            "Bearer": []
+          }
+        ],
         "tags": [
           "AutoProvPolicy"
         ],
+        "summary": "Delete an Auto Provisioning Policy.",
         "operationId": "DeleteAutoProvPolicy",
         "parameters": [
           {
@@ -688,12 +725,17 @@
         }
       }
     },
-    "/ctrl/DeleteAutoScalePolicy": {
+    "/auth/ctrl/DeleteAutoScalePolicy": {
       "post": {
-        "description": "Delete an Auto Scale Policy",
+        "security": [
+          {
+            "Bearer": []
+          }
+        ],
         "tags": [
           "AutoScalePolicy"
         ],
+        "summary": "Delete an Auto Scale Policy.",
         "operationId": "DeleteAutoScalePolicy",
         "parameters": [
           {
@@ -720,12 +762,18 @@
         }
       }
     },
-    "/ctrl/DeleteCloudlet": {
+    "/auth/ctrl/DeleteCloudlet": {
       "post": {
-        "description": "Delete a Cloudlet",
+        "security": [
+          {
+            "Bearer": []
+          }
+        ],
+        "description": "Removes cloudlet services and will no longer be managed from edge controller",
         "tags": [
           "Cloudlet"
         ],
+        "summary": "Delete Cloudlet.",
         "operationId": "DeleteCloudlet",
         "parameters": [
           {
@@ -752,12 +800,17 @@
         }
       }
     },
-    "/ctrl/DeleteCloudletPool": {
+    "/auth/ctrl/DeleteCloudletPool": {
       "post": {
-        "description": "Delete a CloudletPool",
+        "security": [
+          {
+            "Bearer": []
+          }
+        ],
         "tags": [
           "CloudletPool"
         ],
+        "summary": "Delete a CloudletPool.",
         "operationId": "DeleteCloudletPool",
         "parameters": [
           {
@@ -784,12 +837,17 @@
         }
       }
     },
-    "/ctrl/DeleteCloudletPoolMember": {
+    "/auth/ctrl/DeleteCloudletPoolMember": {
       "post": {
-        "description": "Remove a Cloudlet from a CloudletPool",
+        "security": [
+          {
+            "Bearer": []
+          }
+        ],
         "tags": [
           "CloudletPoolMember"
         ],
+        "summary": "Remove a Cloudlet from a CloudletPool.",
         "operationId": "DeleteCloudletPoolMember",
         "parameters": [
           {
@@ -816,12 +874,18 @@
         }
       }
     },
-    "/ctrl/DeleteClusterInst": {
+    "/auth/ctrl/DeleteClusterInst": {
       "post": {
-        "description": "Delete a Cluster instance",
-        "tags": [
-          "Cluster-Instance"
+        "security": [
+          {
+            "Bearer": []
+          }
         ],
+        "description": "Deletes an instance of Cluster deployed on a Cloudlet",
+        "tags": [
+          "ClusterInst"
+        ],
+        "summary": "Delete Cluster Instance.",
         "operationId": "DeleteClusterInst",
         "parameters": [
           {
@@ -848,12 +912,17 @@
         }
       }
     },
-    "/ctrl/DeleteFlavor": {
+    "/auth/ctrl/DeleteFlavor": {
       "post": {
-        "description": "Delete a Flavor",
+        "security": [
+          {
+            "Bearer": []
+          }
+        ],
         "tags": [
           "Flavor"
         ],
+        "summary": "Delete a Flavor.",
         "operationId": "DeleteFlavor",
         "parameters": [
           {
@@ -880,12 +949,17 @@
         }
       }
     },
-    "/ctrl/DeleteOperatorCode": {
+    "/auth/ctrl/DeleteOperatorCode": {
       "post": {
-        "description": "Delete a code for an Operator",
+        "security": [
+          {
+            "Bearer": []
+          }
+        ],
         "tags": [
           "OperatorCode"
         ],
+        "summary": "Delete a code for an Operator.",
         "operationId": "DeleteOperatorCode",
         "parameters": [
           {
@@ -912,12 +986,17 @@
         }
       }
     },
-    "/ctrl/DeletePrivacyPolicy": {
+    "/auth/ctrl/DeletePrivacyPolicy": {
       "post": {
-        "description": "Delete a Privacy policy",
+        "security": [
+          {
+            "Bearer": []
+          }
+        ],
         "tags": [
           "PrivacyPolicy"
         ],
+        "summary": "Delete a Privacy policy.",
         "operationId": "DeletePrivacyPolicy",
         "parameters": [
           {
@@ -944,12 +1023,17 @@
         }
       }
     },
-    "/ctrl/DeleteResTagTable": {
+    "/auth/ctrl/DeleteResTagTable": {
       "post": {
-        "description": "Delete TagTable",
+        "security": [
+          {
+            "Bearer": []
+          }
+        ],
         "tags": [
           "ResTagTable"
         ],
+        "summary": "Delete TagTable.",
         "operationId": "DeleteResTagTable",
         "parameters": [
           {
@@ -976,12 +1060,17 @@
         }
       }
     },
-    "/ctrl/FindFlavorMatch": {
+    "/auth/ctrl/FindFlavorMatch": {
       "post": {
-        "description": "Discover if flavor produces a matching platform flavor",
+        "security": [
+          {
+            "Bearer": []
+          }
+        ],
         "tags": [
           "FlavorMatch"
         ],
+        "summary": "Discover if flavor produces a matching platform flavor.",
         "operationId": "FindFlavorMatch",
         "parameters": [
           {
@@ -1008,12 +1097,17 @@
         }
       }
     },
-    "/ctrl/GetResTagTable": {
+    "/auth/ctrl/GetResTagTable": {
       "post": {
-        "description": "Fetch a copy of the TagTable",
+        "security": [
+          {
+            "Bearer": []
+          }
+        ],
         "tags": [
           "ResTagTableKey"
         ],
+        "summary": "Fetch a copy of the TagTable.",
         "operationId": "GetResTagTable",
         "parameters": [
           {
@@ -1040,12 +1134,18 @@
         }
       }
     },
-    "/ctrl/RefreshAppInst": {
+    "/auth/ctrl/RefreshAppInst": {
       "post": {
+        "security": [
+          {
+            "Bearer": []
+          }
+        ],
         "description": "Refresh restarts an application instance with new App settings or image",
         "tags": [
-          "App-Instance"
+          "AppInst"
         ],
+        "summary": "Refresh Application Instance.",
         "operationId": "RefreshAppInst",
         "parameters": [
           {
@@ -1072,12 +1172,17 @@
         }
       }
     },
-    "/ctrl/RemoveAutoProvPolicyCloudlet": {
+    "/auth/ctrl/RemoveAutoProvPolicyCloudlet": {
       "post": {
-        "description": "Remove a Cloudlet from the Auto Provisioning Policy",
+        "security": [
+          {
+            "Bearer": []
+          }
+        ],
         "tags": [
           "AutoProvPolicyCloudlet"
         ],
+        "summary": "Remove a Cloudlet from the Auto Provisioning Policy.",
         "operationId": "RemoveAutoProvPolicyCloudlet",
         "parameters": [
           {
@@ -1104,12 +1209,17 @@
         }
       }
     },
-    "/ctrl/RemoveCloudletResMapping": {
+    "/auth/ctrl/RemoveCloudletResMapping": {
       "post": {
-        "description": "Add Optional Resource tag table",
+        "security": [
+          {
+            "Bearer": []
+          }
+        ],
         "tags": [
           "CloudletResMap"
         ],
+        "summary": "Add Optional Resource tag table.",
         "operationId": "RemoveCloudletResMapping",
         "parameters": [
           {
@@ -1136,12 +1246,17 @@
         }
       }
     },
-    "/ctrl/RemoveFlavorRes": {
+    "/auth/ctrl/RemoveFlavorRes": {
       "post": {
-        "description": "Remove Optional Resource",
+        "security": [
+          {
+            "Bearer": []
+          }
+        ],
         "tags": [
           "Flavor"
         ],
+        "summary": "Remove Optional Resource.",
         "operationId": "RemoveFlavorRes",
         "parameters": [
           {
@@ -1168,12 +1283,17 @@
         }
       }
     },
-    "/ctrl/RemoveResTag": {
+    "/auth/ctrl/RemoveResTag": {
       "post": {
-        "description": "remove existing tag(s) from TagTable",
+        "security": [
+          {
+            "Bearer": []
+          }
+        ],
         "tags": [
           "ResTagTable"
         ],
+        "summary": "remove existing tag(s) from TagTable.",
         "operationId": "RemoveResTag",
         "parameters": [
           {
@@ -1200,12 +1320,17 @@
         }
       }
     },
-    "/ctrl/ResetSettings": {
+    "/auth/ctrl/ResetSettings": {
       "post": {
-        "description": "Reset all settings to their defaults",
+        "security": [
+          {
+            "Bearer": []
+          }
+        ],
         "tags": [
           "Settings"
         ],
+        "summary": "Reset all settings to their defaults.",
         "operationId": "ResetSettings",
         "parameters": [
           {
@@ -1232,12 +1357,17 @@
         }
       }
     },
-    "/ctrl/RunCommand": {
+    "/auth/ctrl/RunCommand": {
       "post": {
-        "description": "Run a Command or Shell on a container or VM",
+        "security": [
+          {
+            "Bearer": []
+          }
+        ],
         "tags": [
           "ExecRequest"
         ],
+        "summary": "Run a Command or Shell on a container or VM.",
         "operationId": "RunCommand",
         "parameters": [
           {
@@ -1264,12 +1394,17 @@
         }
       }
     },
-    "/ctrl/ShowAlert": {
+    "/auth/ctrl/ShowAlert": {
       "post": {
-        "description": "Show alerts",
+        "security": [
+          {
+            "Bearer": []
+          }
+        ],
         "tags": [
           "Alert"
         ],
+        "summary": "Show alerts.",
         "operationId": "ShowAlert",
         "parameters": [
           {
@@ -1296,12 +1431,18 @@
         }
       }
     },
-    "/ctrl/ShowApp": {
+    "/auth/ctrl/ShowApp": {
       "post": {
-        "description": "Show applications. Any fields specified will be used to filter results",
+        "security": [
+          {
+            "Bearer": []
+          }
+        ],
+        "description": "Lists all application definitions managed from edge controller. Any fields specified will be used to filter results",
         "tags": [
           "App"
         ],
+        "summary": "Show Applications.",
         "operationId": "ShowApp",
         "parameters": [
           {
@@ -1328,12 +1469,18 @@
         }
       }
     },
-    "/ctrl/ShowAppInst": {
+    "/auth/ctrl/ShowAppInst": {
       "post": {
-        "description": "Show application instances. Any fields specified will be used to filter results",
-        "tags": [
-          "App-Instance"
+        "security": [
+          {
+            "Bearer": []
+          }
         ],
+        "description": "Lists all the application instances managed by edge controller. Any fields specified will be used to filter results",
+        "tags": [
+          "AppInst"
+        ],
+        "summary": "Show Application Instances.",
         "operationId": "ShowAppInst",
         "parameters": [
           {
@@ -1360,12 +1507,18 @@
         }
       }
     },
-    "/ctrl/ShowAutoProvPolicy": {
+    "/auth/ctrl/ShowAutoProvPolicy": {
       "post": {
-        "description": "Show Auto Provisioning Policies. Any fields specified will be used to filter results",
+        "security": [
+          {
+            "Bearer": []
+          }
+        ],
+        "description": "Any fields specified will be used to filter results.",
         "tags": [
           "AutoProvPolicy"
         ],
+        "summary": "Show Auto Provisioning Policies.",
         "operationId": "ShowAutoProvPolicy",
         "parameters": [
           {
@@ -1392,12 +1545,18 @@
         }
       }
     },
-    "/ctrl/ShowAutoScalePolicy": {
+    "/auth/ctrl/ShowAutoScalePolicy": {
       "post": {
-        "description": "Show Auto Scale Policies. Any fields specified will be used to filter results",
+        "security": [
+          {
+            "Bearer": []
+          }
+        ],
+        "description": "Any fields specified will be used to filter results.",
         "tags": [
           "AutoScalePolicy"
         ],
+        "summary": "Show Auto Scale Policies.",
         "operationId": "ShowAutoScalePolicy",
         "parameters": [
           {
@@ -1424,12 +1583,18 @@
         }
       }
     },
-    "/ctrl/ShowCloudlet": {
+    "/auth/ctrl/ShowCloudlet": {
       "post": {
-        "description": "Show Cloudlets",
+        "security": [
+          {
+            "Bearer": []
+          }
+        ],
+        "description": "Lists all the cloudlets managed from edge controller",
         "tags": [
           "Cloudlet"
         ],
+        "summary": "Show Cloudlets.",
         "operationId": "ShowCloudlet",
         "parameters": [
           {
@@ -1456,12 +1621,17 @@
         }
       }
     },
-    "/ctrl/ShowCloudletInfo": {
+    "/auth/ctrl/ShowCloudletInfo": {
       "post": {
-        "description": "Show CloudletInfos",
+        "security": [
+          {
+            "Bearer": []
+          }
+        ],
         "tags": [
           "CloudletInfo"
         ],
+        "summary": "Show CloudletInfos.",
         "operationId": "ShowCloudletInfo",
         "parameters": [
           {
@@ -1488,12 +1658,17 @@
         }
       }
     },
-    "/ctrl/ShowCloudletPool": {
+    "/auth/ctrl/ShowCloudletPool": {
       "post": {
-        "description": "Show CloudletPools",
+        "security": [
+          {
+            "Bearer": []
+          }
+        ],
         "tags": [
           "CloudletPool"
         ],
+        "summary": "Show CloudletPools.",
         "operationId": "ShowCloudletPool",
         "parameters": [
           {
@@ -1520,12 +1695,17 @@
         }
       }
     },
-    "/ctrl/ShowCloudletPoolMember": {
+    "/auth/ctrl/ShowCloudletPoolMember": {
       "post": {
-        "description": "Show the Cloudlet to CloudletPool relationships",
+        "security": [
+          {
+            "Bearer": []
+          }
+        ],
         "tags": [
           "CloudletPoolMember"
         ],
+        "summary": "Show the Cloudlet to CloudletPool relationships.",
         "operationId": "ShowCloudletPoolMember",
         "parameters": [
           {
@@ -1552,12 +1732,17 @@
         }
       }
     },
-    "/ctrl/ShowCloudletRefs": {
+    "/auth/ctrl/ShowCloudletRefs": {
       "post": {
-        "description": "Show CloudletRefs (debug only)",
+        "security": [
+          {
+            "Bearer": []
+          }
+        ],
         "tags": [
           "CloudletRefs"
         ],
+        "summary": "Show CloudletRefs (debug only).",
         "operationId": "ShowCloudletRefs",
         "parameters": [
           {
@@ -1584,12 +1769,17 @@
         }
       }
     },
-    "/ctrl/ShowCloudletsForPool": {
+    "/auth/ctrl/ShowCloudletsForPool": {
       "post": {
-        "description": "Show Cloudlets that belong to the Pool",
+        "security": [
+          {
+            "Bearer": []
+          }
+        ],
         "tags": [
           "CloudletPoolKey"
         ],
+        "summary": "Show Cloudlets that belong to the Pool.",
         "operationId": "ShowCloudletsForPool",
         "parameters": [
           {
@@ -1616,12 +1806,18 @@
         }
       }
     },
-    "/ctrl/ShowClusterInst": {
+    "/auth/ctrl/ShowClusterInst": {
       "post": {
-        "description": "Show Cluster instances",
-        "tags": [
-          "Cluster-Instance"
+        "security": [
+          {
+            "Bearer": []
+          }
         ],
+        "description": "Lists all the cluster instances managed by edge controller",
+        "tags": [
+          "ClusterInst"
+        ],
+        "summary": "Show Cluster Instances.",
         "operationId": "ShowClusterInst",
         "parameters": [
           {
@@ -1648,12 +1844,17 @@
         }
       }
     },
-    "/ctrl/ShowClusterRefs": {
+    "/auth/ctrl/ShowClusterRefs": {
       "post": {
-        "description": "Show ClusterRefs (debug only)",
+        "security": [
+          {
+            "Bearer": []
+          }
+        ],
         "tags": [
           "ClusterRefs"
         ],
+        "summary": "Show ClusterRefs (debug only).",
         "operationId": "ShowClusterRefs",
         "parameters": [
           {
@@ -1680,12 +1881,17 @@
         }
       }
     },
-    "/ctrl/ShowFlavor": {
+    "/auth/ctrl/ShowFlavor": {
       "post": {
-        "description": "Show Flavors",
+        "security": [
+          {
+            "Bearer": []
+          }
+        ],
         "tags": [
           "Flavor"
         ],
+        "summary": "Show Flavors.",
         "operationId": "ShowFlavor",
         "parameters": [
           {
@@ -1712,12 +1918,17 @@
         }
       }
     },
-    "/ctrl/ShowNode": {
+    "/auth/ctrl/ShowNode": {
       "post": {
-        "description": "Show all Nodes connected to all Controllers",
+        "security": [
+          {
+            "Bearer": []
+          }
+        ],
         "tags": [
           "Node"
         ],
+        "summary": "Show all Nodes connected to all Controllers.",
         "operationId": "ShowNode",
         "parameters": [
           {
@@ -1744,12 +1955,17 @@
         }
       }
     },
-    "/ctrl/ShowOperatorCode": {
+    "/auth/ctrl/ShowOperatorCode": {
       "post": {
-        "description": "Show OperatorCodes",
+        "security": [
+          {
+            "Bearer": []
+          }
+        ],
         "tags": [
           "OperatorCode"
         ],
+        "summary": "Show OperatorCodes.",
         "operationId": "ShowOperatorCode",
         "parameters": [
           {
@@ -1776,12 +1992,17 @@
         }
       }
     },
-    "/ctrl/ShowPoolsForCloudlet": {
+    "/auth/ctrl/ShowPoolsForCloudlet": {
       "post": {
-        "description": "Show CloudletPools that have Cloudlet as a member",
+        "security": [
+          {
+            "Bearer": []
+          }
+        ],
         "tags": [
           "CloudletKey"
         ],
+        "summary": "Show CloudletPools that have Cloudlet as a member.",
         "operationId": "ShowPoolsForCloudlet",
         "parameters": [
           {
@@ -1808,12 +2029,18 @@
         }
       }
     },
-    "/ctrl/ShowPrivacyPolicy": {
+    "/auth/ctrl/ShowPrivacyPolicy": {
       "post": {
-        "description": "Show Privacy Policies. Any fields specified will be used to filter results",
+        "security": [
+          {
+            "Bearer": []
+          }
+        ],
+        "description": "Any fields specified will be used to filter results.",
         "tags": [
           "PrivacyPolicy"
         ],
+        "summary": "Show Privacy Policies.",
         "operationId": "ShowPrivacyPolicy",
         "parameters": [
           {
@@ -1840,12 +2067,17 @@
         }
       }
     },
-    "/ctrl/ShowResTagTable": {
+    "/auth/ctrl/ShowResTagTable": {
       "post": {
-        "description": "show TagTable",
+        "security": [
+          {
+            "Bearer": []
+          }
+        ],
         "tags": [
           "ResTagTable"
         ],
+        "summary": "show TagTable.",
         "operationId": "ShowResTagTable",
         "parameters": [
           {
@@ -1872,12 +2104,17 @@
         }
       }
     },
-    "/ctrl/ShowSettings": {
+    "/auth/ctrl/ShowSettings": {
       "post": {
-        "description": "Show settings",
+        "security": [
+          {
+            "Bearer": []
+          }
+        ],
         "tags": [
           "Settings"
         ],
+        "summary": "Show settings.",
         "operationId": "ShowSettings",
         "parameters": [
           {
@@ -1904,12 +2141,18 @@
         }
       }
     },
-    "/ctrl/UpdateApp": {
+    "/auth/ctrl/UpdateApp": {
       "post": {
-        "description": "Update an application",
+        "security": [
+          {
+            "Bearer": []
+          }
+        ],
+        "description": "Update definition of an application instance",
         "tags": [
           "App"
         ],
+        "summary": "Update Application.",
         "operationId": "UpdateApp",
         "parameters": [
           {
@@ -1936,12 +2179,18 @@
         }
       }
     },
-    "/ctrl/UpdateAppInst": {
+    "/auth/ctrl/UpdateAppInst": {
       "post": {
-        "description": "Update an AppInst and then refresh it",
-        "tags": [
-          "App-Instance"
+        "security": [
+          {
+            "Bearer": []
+          }
         ],
+        "description": "Updates an application instance and then refreshes it",
+        "tags": [
+          "AppInst"
+        ],
+        "summary": "Update Application Instance.",
         "operationId": "UpdateAppInst",
         "parameters": [
           {
@@ -1968,12 +2217,17 @@
         }
       }
     },
-    "/ctrl/UpdateAutoProvPolicy": {
+    "/auth/ctrl/UpdateAutoProvPolicy": {
       "post": {
-        "description": "Update an Auto Provisioning Policy",
+        "security": [
+          {
+            "Bearer": []
+          }
+        ],
         "tags": [
           "AutoProvPolicy"
         ],
+        "summary": "Update an Auto Provisioning Policy.",
         "operationId": "UpdateAutoProvPolicy",
         "parameters": [
           {
@@ -2000,12 +2254,17 @@
         }
       }
     },
-    "/ctrl/UpdateAutoScalePolicy": {
+    "/auth/ctrl/UpdateAutoScalePolicy": {
       "post": {
-        "description": "Update an Auto Scale Policy",
+        "security": [
+          {
+            "Bearer": []
+          }
+        ],
         "tags": [
           "AutoScalePolicy"
         ],
+        "summary": "Update an Auto Scale Policy.",
         "operationId": "UpdateAutoScalePolicy",
         "parameters": [
           {
@@ -2032,12 +2291,18 @@
         }
       }
     },
-    "/ctrl/UpdateCloudlet": {
+    "/auth/ctrl/UpdateCloudlet": {
       "post": {
-        "description": "Update a Cloudlet",
+        "security": [
+          {
+            "Bearer": []
+          }
+        ],
+        "description": "Updates cloudlet config and also manages upgrade of cloudlet services",
         "tags": [
           "Cloudlet"
         ],
+        "summary": "Update Cloudlet.",
         "operationId": "UpdateCloudlet",
         "parameters": [
           {
@@ -2064,12 +2329,18 @@
         }
       }
     },
-    "/ctrl/UpdateClusterInst": {
+    "/auth/ctrl/UpdateClusterInst": {
       "post": {
-        "description": "Update a Cluster instance",
-        "tags": [
-          "Cluster-Instance"
+        "security": [
+          {
+            "Bearer": []
+          }
         ],
+        "description": "Updates an instance of Cluster deployed on a Cloudlet",
+        "tags": [
+          "ClusterInst"
+        ],
+        "summary": "Update Cluster Instance.",
         "operationId": "UpdateClusterInst",
         "parameters": [
           {
@@ -2096,12 +2367,17 @@
         }
       }
     },
-    "/ctrl/UpdateFlavor": {
+    "/auth/ctrl/UpdateFlavor": {
       "post": {
-        "description": "Update a Flavor",
+        "security": [
+          {
+            "Bearer": []
+          }
+        ],
         "tags": [
           "Flavor"
         ],
+        "summary": "Update a Flavor.",
         "operationId": "UpdateFlavor",
         "parameters": [
           {
@@ -2128,12 +2404,17 @@
         }
       }
     },
-    "/ctrl/UpdatePrivacyPolicy": {
+    "/auth/ctrl/UpdatePrivacyPolicy": {
       "post": {
-        "description": "Update a Privacy policy",
+        "security": [
+          {
+            "Bearer": []
+          }
+        ],
         "tags": [
           "PrivacyPolicy"
         ],
+        "summary": "Update a Privacy policy.",
         "operationId": "UpdatePrivacyPolicy",
         "parameters": [
           {
@@ -2160,8 +2441,13 @@
         }
       }
     },
-    "/ctrl/UpdateResTagTable": {
+    "/auth/ctrl/UpdateResTagTable": {
       "post": {
+        "security": [
+          {
+            "Bearer": []
+          }
+        ],
         "tags": [
           "ResTagTable"
         ],
@@ -2191,12 +2477,17 @@
         }
       }
     },
-    "/ctrl/UpdateSettings": {
+    "/auth/ctrl/UpdateSettings": {
       "post": {
-        "description": "Update settings",
+        "security": [
+          {
+            "Bearer": []
+          }
+        ],
         "tags": [
           "Settings"
         ],
+        "summary": "Update settings.",
         "operationId": "UpdateSettings",
         "parameters": [
           {
@@ -2223,19 +2514,25 @@
         }
       }
     },
-    "/login": {
+    "/auth/org/create": {
       "post": {
-        "description": "Login to MC",
-        "tags": [
-          "Setup"
+        "security": [
+          {
+            "Bearer": []
+          }
         ],
-        "operationId": "Login",
+        "description": "Create Organization to access operator/cloudlet APIs",
+        "tags": [
+          "Organization"
+        ],
+        "summary": "Create Organization.",
+        "operationId": "CreateOrg",
         "parameters": [
           {
             "name": "Body",
             "in": "body",
             "schema": {
-              "$ref": "#/definitions/UserLogin"
+              "$ref": "#/definitions/Organization"
             }
           }
         ],
@@ -2255,12 +2552,248 @@
         }
       }
     },
-    "/usercreate": {
+    "/auth/org/delete": {
       "post": {
-        "description": "Create new user",
+        "security": [
+          {
+            "Bearer": []
+          }
+        ],
+        "description": "Delete existing Organization",
+        "tags": [
+          "Organization"
+        ],
+        "summary": "Delete Organization.",
+        "operationId": "DeleteOrg",
+        "parameters": [
+          {
+            "name": "Body",
+            "in": "body",
+            "schema": {
+              "$ref": "#/definitions/Organization"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "$ref": "#/responses/success"
+          },
+          "400": {
+            "$ref": "#/responses/badRequest"
+          },
+          "403": {
+            "$ref": "#/responses/forbidden"
+          },
+          "404": {
+            "$ref": "#/responses/notFound"
+          }
+        }
+      }
+    },
+    "/auth/org/show": {
+      "post": {
+        "security": [
+          {
+            "Bearer": []
+          }
+        ],
+        "description": "Show existing Organizations which user is authorized to access",
+        "tags": [
+          "Organization"
+        ],
+        "summary": "Show Organizations.",
+        "operationId": "ShowOrg",
+        "responses": {
+          "200": {
+            "$ref": "#/responses/listOrgs"
+          },
+          "400": {
+            "$ref": "#/responses/badRequest"
+          },
+          "403": {
+            "$ref": "#/responses/forbidden"
+          },
+          "404": {
+            "$ref": "#/responses/notFound"
+          }
+        }
+      }
+    },
+    "/auth/org/update": {
+      "post": {
+        "security": [
+          {
+            "Bearer": []
+          }
+        ],
+        "description": "API to update an existing Organization",
+        "tags": [
+          "Organization"
+        ],
+        "summary": "Update Organization.",
+        "operationId": "UpdateOrg",
+        "parameters": [
+          {
+            "name": "Body",
+            "in": "body",
+            "schema": {
+              "$ref": "#/definitions/Organization"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "$ref": "#/responses/success"
+          },
+          "400": {
+            "$ref": "#/responses/badRequest"
+          },
+          "403": {
+            "$ref": "#/responses/forbidden"
+          },
+          "404": {
+            "$ref": "#/responses/notFound"
+          }
+        }
+      }
+    },
+    "/auth/user/delete": {
+      "post": {
+        "security": [
+          {
+            "Bearer": []
+          }
+        ],
+        "description": "Delete existing user",
         "tags": [
           "User"
         ],
+        "summary": "Delete User.",
+        "operationId": "DeleteUser",
+        "parameters": [
+          {
+            "name": "Body",
+            "in": "body",
+            "schema": {
+              "$ref": "#/definitions/User"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "$ref": "#/responses/success"
+          },
+          "400": {
+            "$ref": "#/responses/badRequest"
+          },
+          "403": {
+            "$ref": "#/responses/forbidden"
+          },
+          "404": {
+            "$ref": "#/responses/notFound"
+          }
+        }
+      }
+    },
+    "/auth/user/show": {
+      "post": {
+        "security": [
+          {
+            "Bearer": []
+          }
+        ],
+        "description": "Show existing users which user is authorized to access",
+        "tags": [
+          "User"
+        ],
+        "summary": "Show Users.",
+        "operationId": "ShowUser",
+        "parameters": [
+          {
+            "name": "Body",
+            "in": "body",
+            "schema": {
+              "$ref": "#/definitions/Organization"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "$ref": "#/responses/listUsers"
+          },
+          "400": {
+            "$ref": "#/responses/badRequest"
+          },
+          "403": {
+            "$ref": "#/responses/forbidden"
+          },
+          "404": {
+            "$ref": "#/responses/notFound"
+          }
+        }
+      }
+    },
+    "/login": {
+      "post": {
+        "description": "Login to MC",
+        "tags": [
+          "Security"
+        ],
+        "summary": "Login.",
+        "operationId": "Login",
+        "parameters": [
+          {
+            "name": "Body",
+            "in": "body",
+            "schema": {
+              "$ref": "#/definitions/UserLogin"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "$ref": "#/responses/authToken"
+          },
+          "400": {
+            "$ref": "#/responses/loginBadRequest"
+          }
+        }
+      }
+    },
+    "/passwordreset": {
+      "post": {
+        "description": "If login password is lost or to be changed, this API will reset the login password",
+        "tags": [
+          "Security"
+        ],
+        "summary": "Reset login password.",
+        "operationId": "PasswdReset",
+        "parameters": [
+          {
+            "name": "Body",
+            "in": "body",
+            "schema": {
+              "$ref": "#/definitions/PasswordReset"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "$ref": "#/responses/success"
+          },
+          "400": {
+            "$ref": "#/responses/badRequest"
+          }
+        }
+      }
+    },
+    "/usercreate": {
+      "post": {
+        "description": "Create a new user who can access/manage resources",
+        "tags": [
+          "User"
+        ],
+        "summary": "Create User.",
         "operationId": "CreateUser",
         "parameters": [
           {
@@ -2337,8 +2870,12 @@
       "x-go-package": "github.com/mobiledgex/edge-cloud/edgeproto"
     },
     "App": {
+      "description": "App belongs to developers and is used to provide information about their application.",
       "type": "object",
-      "title": "App belongs to developers and is used to provide information about their application.",
+      "title": "Application",
+      "required": [
+        "key"
+      ],
       "properties": {
         "access_ports": {
           "description": "Comma separated list of protocol:port pairs that the App listens on.\nNumerical values must be decimal format.\ni.e. tcp:80,udp:10002,http:443",
@@ -2455,9 +2992,12 @@
       "x-go-package": "github.com/mobiledgex/edge-cloud/edgeproto"
     },
     "AppInst": {
-      "description": "Many of the fields here are inherited from the App definition.",
+      "description": "AppInst is an instance of an App on a Cloudlet where it is defined by an App plus a ClusterInst key.\nMany of the fields here are inherited from the App definition.",
       "type": "object",
-      "title": "AppInst is an instance of an App on a Cloudlet where it is defined by an App plus a ClusterInst key.",
+      "title": "Application Instance",
+      "required": [
+        "key"
+      ],
       "properties": {
         "auto_cluster_ip_access": {
           "$ref": "#/definitions/IpAccess"
@@ -2555,8 +3095,9 @@
       "x-go-package": "github.com/mobiledgex/edge-cloud/edgeproto"
     },
     "AppInstKey": {
+      "description": "AppInstKey uniquely identifies an Application Instance (AppInst) or Application Instance state (AppInstInfo).",
       "type": "object",
-      "title": "AppInstKey uniquely identifies an Application Instance (AppInst) or Application Instance state (AppInstInfo).",
+      "title": "App Instance Unique Key",
       "properties": {
         "app_key": {
           "$ref": "#/definitions/AppKey"
@@ -2568,7 +3109,9 @@
       "x-go-package": "github.com/mobiledgex/edge-cloud/edgeproto"
     },
     "AppInstRuntime": {
+      "description": "Runtime information of active AppInsts",
       "type": "object",
+      "title": "AppInst Runtime Info",
       "properties": {
         "container_ids": {
           "description": "List of container names",
@@ -2584,6 +3127,7 @@
     "AppKey": {
       "description": "AppKey uniquely identifies an App",
       "type": "object",
+      "title": "Application unique key",
       "properties": {
         "developer_key": {
           "$ref": "#/definitions/DeveloperKey"
@@ -2602,8 +3146,9 @@
       "x-go-package": "github.com/mobiledgex/edge-cloud/edgeproto"
     },
     "AppPort": {
+      "description": "AppPort describes an L4 or L7 public access port/path mapping. This is used to track external to internal mappings for access via a shared load balancer or reverse proxy.",
       "type": "object",
-      "title": "AppPort describes an L4 or L7 public access port/path mapping. This is used to track external to internal mappings for access via a shared load balancer or reverse proxy.",
+      "title": "Application Port",
       "properties": {
         "end_port": {
           "description": "A non-zero end port indicates a port range from internal port to end port, inclusive.",
@@ -2771,15 +3316,19 @@
       "x-go-package": "github.com/mobiledgex/edge-cloud/edgeproto"
     },
     "CRMOverride": {
-      "description": "It should only be used by administrators when bugs have caused the\nController and CRM to get out of sync. It allows commands from the\nController to ignore errors from the CRM, or ignore the CRM completely\n(messages will not be sent to CRM).",
+      "description": "CRMOverride can be applied to commands that issue requests to the CRM.\nIt should only be used by administrators when bugs have caused the\nController and CRM to get out of sync. It allows commands from the\nController to ignore errors from the CRM, or ignore the CRM completely\n(messages will not be sent to CRM).",
       "type": "integer",
       "format": "int32",
-      "title": "CRMOverride can be applied to commands that issue requests to the CRM.",
+      "title": "Overrides default CRM behaviour",
       "x-go-package": "github.com/mobiledgex/edge-cloud/edgeproto"
     },
     "Cloudlet": {
+      "description": "A Cloudlet is a set of compute resources at a particular location, provided by an Operator.",
       "type": "object",
-      "title": "A Cloudlet is a set of compute resources at a particular location, provided by an Operator.",
+      "title": "Cloudlet",
+      "required": [
+        "key"
+      ],
       "properties": {
         "access_vars": {
           "description": "Variables required to access cloudlet",
@@ -2976,8 +3525,9 @@
       "x-go-package": "github.com/mobiledgex/edge-cloud/edgeproto"
     },
     "CloudletKey": {
+      "description": "CloudletKey uniquely identifies a Cloudlet.",
       "type": "object",
-      "title": "CloudletKey uniquely identifies a Cloudlet.",
+      "title": "Cloudlet unique key",
       "properties": {
         "name": {
           "description": "Name of the cloudlet",
@@ -3115,9 +3665,12 @@
       "x-go-package": "github.com/mobiledgex/edge-cloud/edgeproto"
     },
     "ClusterInst": {
-      "description": "It is defined by a Cluster, Cloudlet, and Developer key.",
+      "description": "ClusterInst is an instance of a Cluster on a Cloudlet.\nIt is defined by a Cluster, Cloudlet, and Developer key.",
       "type": "object",
-      "title": "ClusterInst is an instance of a Cluster on a Cloudlet.",
+      "title": "Cluster Instance",
+      "required": [
+        "key"
+      ],
       "properties": {
         "allocated_ip": {
           "description": "Allocated IP for dedicated access",
@@ -3234,8 +3787,9 @@
       "x-go-package": "github.com/mobiledgex/edge-cloud/edgeproto"
     },
     "ClusterInstKey": {
+      "description": "ClusterInstKey uniquely identifies a Cluster Instance (ClusterInst) or Cluster Instance state (ClusterInstInfo).",
       "type": "object",
-      "title": "ClusterInstKey uniquely identifies a Cluster Instance (ClusterInst) or Cluster Instance state (ClusterInstInfo).",
+      "title": "Cluster Instance unique key",
       "properties": {
         "cloudlet_key": {
           "$ref": "#/definitions/CloudletKey"
@@ -3300,6 +3854,7 @@
       "x-go-package": "github.com/mobiledgex/edge-cloud/edgeproto"
     },
     "ConfigFile": {
+      "description": "ConfigFile",
       "type": "object",
       "properties": {
         "config": {
@@ -3435,48 +3990,64 @@
     },
     "CreateUser": {
       "type": "object",
+      "required": [
+        "Name"
+      ],
       "properties": {
         "CreatedAt": {
           "type": "string",
-          "format": "date-time"
+          "format": "date-time",
+          "readOnly": true
         },
         "Email": {
+          "description": "User email",
           "type": "string"
         },
         "EmailVerified": {
-          "type": "boolean"
+          "type": "boolean",
+          "readOnly": true
         },
         "FamilyName": {
+          "description": "Family Name",
           "type": "string"
         },
         "GivenName": {
+          "description": "Given Name",
           "type": "string"
         },
         "Iter": {
           "type": "integer",
-          "format": "int64"
+          "format": "int64",
+          "readOnly": true
         },
         "Locked": {
-          "type": "boolean"
+          "type": "boolean",
+          "readOnly": true
         },
         "Name": {
+          "description": "User name",
           "type": "string"
         },
         "Nickname": {
+          "description": "Nick Name",
           "type": "string"
         },
         "Passhash": {
-          "type": "string"
+          "type": "string",
+          "readOnly": true
         },
         "Picture": {
-          "type": "string"
+          "type": "string",
+          "readOnly": true
         },
         "Salt": {
-          "type": "string"
+          "type": "string",
+          "readOnly": true
         },
         "UpdatedAt": {
           "type": "string",
-          "format": "date-time"
+          "format": "date-time",
+          "readOnly": true
         },
         "verify": {
           "$ref": "#/definitions/EmailRequest"
@@ -3485,8 +4056,10 @@
       "x-go-package": "github.com/mobiledgex/edge-cloud-infra/mc/ormapi"
     },
     "DeleteType": {
+      "description": "DeleteType specifies if AppInst can be auto deleted or not",
       "type": "integer",
       "format": "int32",
+      "title": "DeleteType",
       "x-go-package": "github.com/mobiledgex/edge-cloud/edgeproto"
     },
     "DeveloperKey": {
@@ -3512,23 +4085,28 @@
       "properties": {
         "browser": {
           "type": "string",
-          "x-go-name": "Browser"
+          "x-go-name": "Browser",
+          "readOnly": true
         },
         "callbackurl": {
+          "description": "Callback URL to verify user email",
           "type": "string",
           "x-go-name": "CallbackURL"
         },
         "clientip": {
           "type": "string",
-          "x-go-name": "ClientIP"
+          "x-go-name": "ClientIP",
+          "readOnly": true
         },
         "email": {
           "type": "string",
-          "x-go-name": "Email"
+          "x-go-name": "Email",
+          "readOnly": true
         },
         "operatingsystem": {
           "type": "string",
-          "x-go-name": "OperatingSystem"
+          "x-go-name": "OperatingSystem",
+          "readOnly": true
         }
       },
       "x-go-package": "github.com/mobiledgex/edge-cloud-infra/mc/ormapi"
@@ -3578,7 +4156,9 @@
       "x-go-package": "github.com/mobiledgex/edge-cloud/edgeproto"
     },
     "Flavor": {
+      "description": "To put it simply, a flavor is an available hardware configuration for a server.\nIt defines the size of a virtual server that can be launched.",
       "type": "object",
+      "title": "Flavors define the compute, memory, and storage capacity of computing instances.",
       "properties": {
         "disk": {
           "description": "Amount of disk space in gigabytes",
@@ -3659,8 +4239,9 @@
       "x-go-package": "github.com/mobiledgex/edge-cloud/edgeproto"
     },
     "FlavorKey": {
+      "description": "FlavorKey uniquely identifies a Flavor.",
       "type": "object",
-      "title": "FlavorKey uniquely identifies a Flavor.",
+      "title": "Flavor",
       "properties": {
         "name": {
           "description": "Flavor name",
@@ -3691,24 +4272,28 @@
       "description": "Health check status gets set by external, or rootLB health check",
       "type": "integer",
       "format": "int32",
+      "title": "Health check status",
       "x-go-package": "github.com/mobiledgex/edge-cloud/edgeproto"
     },
     "ImageType": {
       "description": "ImageType specifies image type of an App",
       "type": "integer",
       "format": "int32",
+      "title": "ImageType",
       "x-go-package": "github.com/mobiledgex/edge-cloud/edgeproto"
     },
     "IpAccess": {
       "description": "IpAccess indicates the type of RootLB that Developer requires for their App",
       "type": "integer",
       "format": "int32",
+      "title": "IpAccess Options",
       "x-go-package": "github.com/mobiledgex/edge-cloud/edgeproto"
     },
     "IpSupport": {
+      "description": "Static IP support indicates a set of static public IPs are available for use, and managed by the Controller. Dynamic indicates the Cloudlet uses a DHCP server to provide public IP addresses, and the controller has no control over which IPs are assigned.",
       "type": "integer",
       "format": "int32",
-      "title": "IpSupport indicates the type of public IP support provided by the Cloudlet. Static IP support indicates a set of static public IPs are available for use, and managed by the Controller. Dynamic indicates the Cloudlet uses a DHCP server to provide public IP addresses, and the controller has no control over which IPs are assigned.",
+      "title": "Indicates the type of public IP support provided by the Cloudlet",
       "x-go-package": "github.com/mobiledgex/edge-cloud/edgeproto"
     },
     "LProto": {
@@ -3718,9 +4303,10 @@
       "x-go-package": "github.com/mobiledgex/edge-cloud/d-match-engine/dme-proto"
     },
     "Liveness": {
+      "description": "Liveness indicates if an object was created statically via an external API call, or dynamically via an internal algorithm.",
       "type": "integer",
       "format": "int32",
-      "title": "Liveness indicates if an object was created statically via an external API call, or dynamically via an internal algorithm.",
+      "title": "Liveness Options",
       "x-go-package": "github.com/mobiledgex/edge-cloud/edgeproto"
     },
     "Loc": {
@@ -3889,8 +4475,9 @@
       "x-go-package": "github.com/mobiledgex/edge-cloud/edgeproto"
     },
     "OperationTimeLimits": {
-      "description": "time limits for cloudlet create, update and delete operations",
+      "description": "Time limits for cloudlet create, update and delete operations",
       "type": "object",
+      "title": "Operation Time Limits",
       "properties": {
         "create_app_inst_timeout": {
           "$ref": "#/definitions/Duration"
@@ -3944,29 +4531,39 @@
     },
     "Organization": {
       "type": "object",
+      "required": [
+        "Name"
+      ],
       "properties": {
         "Address": {
+          "description": "Organization address",
           "type": "string"
         },
         "CreatedAt": {
           "type": "string",
-          "format": "date-time"
+          "format": "date-time",
+          "readOnly": true
         },
         "Name": {
+          "description": "Organization name",
           "type": "string"
         },
         "Phone": {
+          "description": "Organization phone number",
           "type": "string"
         },
         "PublicImages": {
-          "type": "boolean"
+          "type": "boolean",
+          "readOnly": true
         },
         "Type": {
+          "description": "Organization type: \"developer\" or \"operator\"",
           "type": "string"
         },
         "UpdatedAt": {
           "type": "string",
-          "format": "date-time"
+          "format": "date-time",
+          "readOnly": true
         }
       },
       "x-go-package": "github.com/mobiledgex/edge-cloud-infra/mc/ormapi"
@@ -3999,8 +4596,30 @@
       },
       "x-go-package": "github.com/mobiledgex/edge-cloud/edgeproto"
     },
-    "PlatformConfig": {
+    "PasswordReset": {
       "type": "object",
+      "required": [
+        "token",
+        "password"
+      ],
+      "properties": {
+        "password": {
+          "description": "User's new password",
+          "type": "string",
+          "x-go-name": "Password"
+        },
+        "token": {
+          "description": "Authentication token",
+          "type": "string",
+          "x-go-name": "Token"
+        }
+      },
+      "x-go-package": "github.com/mobiledgex/edge-cloud-infra/mc/ormapi"
+    },
+    "PlatformConfig": {
+      "description": "Platform specific configuration required for Cloudlet management",
+      "type": "object",
+      "title": "Platform Configuration",
       "properties": {
         "cleanup_mode": {
           "description": "Internal cleanup flag",
@@ -4067,6 +4686,7 @@
       "description": "PlatformType is the supported list of cloudlet types",
       "type": "integer",
       "format": "int32",
+      "title": "Platform Type",
       "x-go-package": "github.com/mobiledgex/edge-cloud/edgeproto"
     },
     "PolicyKey": {
@@ -4113,12 +4733,14 @@
     },
     "RegionAlert": {
       "type": "object",
+      "required": [
+        "Region"
+      ],
       "properties": {
         "Alert": {
           "$ref": "#/definitions/Alert"
         },
         "Region": {
-          "description": "Region name",
           "type": "string"
         }
       },
@@ -4126,12 +4748,14 @@
     },
     "RegionApp": {
       "type": "object",
+      "required": [
+        "Region"
+      ],
       "properties": {
         "App": {
           "$ref": "#/definitions/App"
         },
         "Region": {
-          "description": "Region name",
           "type": "string"
         }
       },
@@ -4139,12 +4763,14 @@
     },
     "RegionAppInst": {
       "type": "object",
+      "required": [
+        "Region"
+      ],
       "properties": {
         "AppInst": {
           "$ref": "#/definitions/AppInst"
         },
         "Region": {
-          "description": "Region name",
           "type": "string"
         }
       },
@@ -4152,12 +4778,14 @@
     },
     "RegionAutoProvPolicy": {
       "type": "object",
+      "required": [
+        "Region"
+      ],
       "properties": {
         "AutoProvPolicy": {
           "$ref": "#/definitions/AutoProvPolicy"
         },
         "Region": {
-          "description": "Region name",
           "type": "string"
         }
       },
@@ -4165,12 +4793,14 @@
     },
     "RegionAutoProvPolicyCloudlet": {
       "type": "object",
+      "required": [
+        "Region"
+      ],
       "properties": {
         "AutoProvPolicyCloudlet": {
           "$ref": "#/definitions/AutoProvPolicyCloudlet"
         },
         "Region": {
-          "description": "Region name",
           "type": "string"
         }
       },
@@ -4178,12 +4808,14 @@
     },
     "RegionAutoScalePolicy": {
       "type": "object",
+      "required": [
+        "Region"
+      ],
       "properties": {
         "AutoScalePolicy": {
           "$ref": "#/definitions/AutoScalePolicy"
         },
         "Region": {
-          "description": "Region name",
           "type": "string"
         }
       },
@@ -4191,12 +4823,14 @@
     },
     "RegionCloudlet": {
       "type": "object",
+      "required": [
+        "Region"
+      ],
       "properties": {
         "Cloudlet": {
           "$ref": "#/definitions/Cloudlet"
         },
         "Region": {
-          "description": "Region name",
           "type": "string"
         }
       },
@@ -4204,12 +4838,14 @@
     },
     "RegionCloudletInfo": {
       "type": "object",
+      "required": [
+        "Region"
+      ],
       "properties": {
         "CloudletInfo": {
           "$ref": "#/definitions/CloudletInfo"
         },
         "Region": {
-          "description": "Region name",
           "type": "string"
         }
       },
@@ -4217,12 +4853,14 @@
     },
     "RegionCloudletKey": {
       "type": "object",
+      "required": [
+        "Region"
+      ],
       "properties": {
         "CloudletKey": {
           "$ref": "#/definitions/CloudletKey"
         },
         "Region": {
-          "description": "Region name",
           "type": "string"
         }
       },
@@ -4230,12 +4868,14 @@
     },
     "RegionCloudletPool": {
       "type": "object",
+      "required": [
+        "Region"
+      ],
       "properties": {
         "CloudletPool": {
           "$ref": "#/definitions/CloudletPool"
         },
         "Region": {
-          "description": "Region name",
           "type": "string"
         }
       },
@@ -4243,12 +4883,14 @@
     },
     "RegionCloudletPoolKey": {
       "type": "object",
+      "required": [
+        "Region"
+      ],
       "properties": {
         "CloudletPoolKey": {
           "$ref": "#/definitions/CloudletPoolKey"
         },
         "Region": {
-          "description": "Region name",
           "type": "string"
         }
       },
@@ -4256,12 +4898,14 @@
     },
     "RegionCloudletPoolMember": {
       "type": "object",
+      "required": [
+        "Region"
+      ],
       "properties": {
         "CloudletPoolMember": {
           "$ref": "#/definitions/CloudletPoolMember"
         },
         "Region": {
-          "description": "Region name",
           "type": "string"
         }
       },
@@ -4269,12 +4913,14 @@
     },
     "RegionCloudletRefs": {
       "type": "object",
+      "required": [
+        "Region"
+      ],
       "properties": {
         "CloudletRefs": {
           "$ref": "#/definitions/CloudletRefs"
         },
         "Region": {
-          "description": "Region name",
           "type": "string"
         }
       },
@@ -4282,12 +4928,14 @@
     },
     "RegionCloudletResMap": {
       "type": "object",
+      "required": [
+        "Region"
+      ],
       "properties": {
         "CloudletResMap": {
           "$ref": "#/definitions/CloudletResMap"
         },
         "Region": {
-          "description": "Region name",
           "type": "string"
         }
       },
@@ -4295,12 +4943,14 @@
     },
     "RegionClusterInst": {
       "type": "object",
+      "required": [
+        "Region"
+      ],
       "properties": {
         "ClusterInst": {
           "$ref": "#/definitions/ClusterInst"
         },
         "Region": {
-          "description": "Region name",
           "type": "string"
         }
       },
@@ -4308,12 +4958,14 @@
     },
     "RegionClusterRefs": {
       "type": "object",
+      "required": [
+        "Region"
+      ],
       "properties": {
         "ClusterRefs": {
           "$ref": "#/definitions/ClusterRefs"
         },
         "Region": {
-          "description": "Region name",
           "type": "string"
         }
       },
@@ -4321,12 +4973,14 @@
     },
     "RegionExecRequest": {
       "type": "object",
+      "required": [
+        "Region"
+      ],
       "properties": {
         "ExecRequest": {
           "$ref": "#/definitions/ExecRequest"
         },
         "Region": {
-          "description": "Region name",
           "type": "string"
         }
       },
@@ -4334,12 +4988,14 @@
     },
     "RegionFlavor": {
       "type": "object",
+      "required": [
+        "Region"
+      ],
       "properties": {
         "Flavor": {
           "$ref": "#/definitions/Flavor"
         },
         "Region": {
-          "description": "Region name",
           "type": "string"
         }
       },
@@ -4347,12 +5003,14 @@
     },
     "RegionFlavorMatch": {
       "type": "object",
+      "required": [
+        "Region"
+      ],
       "properties": {
         "FlavorMatch": {
           "$ref": "#/definitions/FlavorMatch"
         },
         "Region": {
-          "description": "Region name",
           "type": "string"
         }
       },
@@ -4360,12 +5018,14 @@
     },
     "RegionNode": {
       "type": "object",
+      "required": [
+        "Region"
+      ],
       "properties": {
         "Node": {
           "$ref": "#/definitions/Node"
         },
         "Region": {
-          "description": "Region name",
           "type": "string"
         }
       },
@@ -4373,12 +5033,14 @@
     },
     "RegionOperatorCode": {
       "type": "object",
+      "required": [
+        "Region"
+      ],
       "properties": {
         "OperatorCode": {
           "$ref": "#/definitions/OperatorCode"
         },
         "Region": {
-          "description": "Region name",
           "type": "string"
         }
       },
@@ -4386,12 +5048,14 @@
     },
     "RegionPrivacyPolicy": {
       "type": "object",
+      "required": [
+        "Region"
+      ],
       "properties": {
         "PrivacyPolicy": {
           "$ref": "#/definitions/PrivacyPolicy"
         },
         "Region": {
-          "description": "Region name",
           "type": "string"
         }
       },
@@ -4399,9 +5063,11 @@
     },
     "RegionResTagTable": {
       "type": "object",
+      "required": [
+        "Region"
+      ],
       "properties": {
         "Region": {
-          "description": "Region name",
           "type": "string"
         },
         "ResTagTable": {
@@ -4412,9 +5078,11 @@
     },
     "RegionResTagTableKey": {
       "type": "object",
+      "required": [
+        "Region"
+      ],
       "properties": {
         "Region": {
-          "description": "Region name",
           "type": "string"
         },
         "ResTagTableKey": {
@@ -4425,9 +5093,11 @@
     },
     "RegionSettings": {
       "type": "object",
+      "required": [
+        "Region"
+      ],
       "properties": {
         "Region": {
-          "description": "Region name",
           "type": "string"
         },
         "Settings": {
@@ -4558,8 +5228,9 @@
       "x-go-package": "github.com/mobiledgex/edge-cloud/edgeproto"
     },
     "StatusInfo": {
-      "description": "Used to track status of create/delete/update for resources that are being modified\nby the controller via the CRM.  Tasks are the high level jobs that are to be completed.\nSteps are work items within a task.   Within the clusterinst and appinst objects this\nis converted to a string",
+      "description": "Used to track status of create/delete/update for resources that are being modified\nby the controller via the CRM.  Tasks are the high level jobs that are to be completed.\nSteps are work items within a task. Within the clusterinst and appinst objects this\nis converted to a string",
       "type": "object",
+      "title": "Status Information",
       "properties": {
         "max_tasks": {
           "type": "integer",
@@ -4599,77 +5270,126 @@
       },
       "x-go-package": "github.com/mobiledgex/edge-cloud/d-match-engine/dme-proto"
     },
+    "Token": {
+      "type": "object",
+      "properties": {
+        "token": {
+          "description": "Authentication token",
+          "type": "string",
+          "x-go-name": "Token"
+        }
+      },
+      "x-go-package": "github.com/mobiledgex/edge-cloud-infra/mc/ormapi"
+    },
     "TrackedState": {
-      "description": "i.e. track the state of a ClusterInst object on the CRM (Cloudlet).",
+      "description": "TrackedState is used to track the state of an object on a remote node,\ni.e. track the state of a ClusterInst object on the CRM (Cloudlet).",
       "type": "integer",
       "format": "int32",
-      "title": "TrackedState is used to track the state of an object on a remote node,",
+      "title": "Tracked States",
       "x-go-package": "github.com/mobiledgex/edge-cloud/edgeproto"
     },
     "User": {
       "type": "object",
+      "required": [
+        "Name"
+      ],
       "properties": {
         "CreatedAt": {
           "type": "string",
-          "format": "date-time"
+          "format": "date-time",
+          "readOnly": true
         },
         "Email": {
+          "description": "User email",
           "type": "string"
         },
         "EmailVerified": {
-          "type": "boolean"
+          "type": "boolean",
+          "readOnly": true
         },
         "FamilyName": {
+          "description": "Family Name",
           "type": "string"
         },
         "GivenName": {
+          "description": "Given Name",
           "type": "string"
         },
         "Iter": {
           "type": "integer",
-          "format": "int64"
+          "format": "int64",
+          "readOnly": true
         },
         "Locked": {
-          "type": "boolean"
+          "type": "boolean",
+          "readOnly": true
         },
         "Name": {
+          "description": "User name",
           "type": "string"
         },
         "Nickname": {
+          "description": "Nick Name",
           "type": "string"
         },
         "Passhash": {
-          "type": "string"
+          "type": "string",
+          "readOnly": true
         },
         "Picture": {
-          "type": "string"
+          "type": "string",
+          "readOnly": true
         },
         "Salt": {
-          "type": "string"
+          "type": "string",
+          "readOnly": true
         },
         "UpdatedAt": {
           "type": "string",
-          "format": "date-time"
+          "format": "date-time",
+          "readOnly": true
         }
       },
       "x-go-package": "github.com/mobiledgex/edge-cloud-infra/mc/ormapi"
     },
     "UserLogin": {
       "type": "object",
+      "required": [
+        "username",
+        "password"
+      ],
       "properties": {
         "password": {
+          "description": "User's password",
           "type": "string",
           "x-go-name": "Password"
         },
         "username": {
+          "description": "User's name",
           "type": "string",
           "x-go-name": "Username"
         }
       },
       "x-go-package": "github.com/mobiledgex/edge-cloud-infra/mc/ormapi"
+    },
+    "swaggerHttpResponse": {
+      "type": "object",
+      "properties": {
+        "message": {
+          "type": "string",
+          "x-go-name": "Message"
+        }
+      },
+      "x-go-package": "github.com/mobiledgex/edge-cloud-infra/doc"
     }
   },
   "responses": {
+    "authToken": {
+      "description": "Authentication Token",
+      "schema": {
+        "$ref": "#/definitions/Token"
+      }
+    },
     "badRequest": {
       "description": "Status Bad Request",
       "schema": {
@@ -4682,6 +5402,30 @@
         "$ref": "#/definitions/Result"
       }
     },
+    "listOrgs": {
+      "description": "List of Orgs",
+      "schema": {
+        "type": "array",
+        "items": {
+          "$ref": "#/definitions/Organization"
+        }
+      }
+    },
+    "listUsers": {
+      "description": "List of Users",
+      "schema": {
+        "type": "array",
+        "items": {
+          "$ref": "#/definitions/User"
+        }
+      }
+    },
+    "loginBadRequest": {
+      "description": "Bad Request",
+      "schema": {
+        "$ref": "#/definitions/swaggerHttpResponse"
+      }
+    },
     "notFound": {
       "description": "Not Found",
       "schema": {
@@ -4691,37 +5435,69 @@
     "success": {
       "description": "Success",
       "schema": {
-        "$ref": "#/definitions/Result"
+        "$ref": "#/definitions/swaggerHttpResponse"
       }
     }
   },
   "securityDefinitions": {
-    "bearer": {
+    "Bearer": {
+      "description": "Use [login API](#operation/Login) to generate bearer token (JWT) for authorization. Usage format - `Bearer \u003cJWT\u003e`",
       "type": "apiKey",
       "name": "Authorization",
       "in": "header"
     }
   },
+  "tags": [
+    {
+      "description": "When you sign up for an account, MobiledgeX admin will unlock your account and you part of an organization. To access the APIs you must login first and then use the generated token to access authorized APIs. MobiledgeX uses JSON Web Tokens for authentication. JWT is a short lifetime tokens that can be assigned a specific expiration time. Never share your secret keys. Keep them guarded and secure",
+      "name": "Security"
+    },
+    {
+      "description": "User belongs to an organization and can access operator/cloudlet APIs",
+      "name": "User"
+    },
+    {
+      "description": "Organization is a group whose members can access operator/cloudlet APIs",
+      "name": "Organization"
+    },
+    {
+      "description": "Cloudlet is a set of compute resources at a particular location, provided by an Operator",
+      "name": "Cloudlet"
+    },
+    {
+      "description": "ClusterInst is an instance of a Cluster on a Cloudlet. It is defined by a Cluster, Cloudlet, and Developer key",
+      "name": "ClusterInst"
+    },
+    {
+      "description": "App belongs to developers and is used to provide information about their application",
+      "name": "App"
+    },
+    {
+      "description": "AppInst is an instance of an App on a Cloudlet where it is defined by an App plus a ClusterInst key",
+      "name": "AppInst"
+    }
+  ],
   "x-tagGroups": [
     {
-      "name": "General APIs",
+      "name": "Auth \u0026 User Management API",
       "tags": [
-        "Setup",
-        "User"
+        "Security",
+        "User",
+        "Organization"
       ]
     },
     {
-      "name": "Operator APIs",
+      "name": "Operator API",
       "tags": [
         "Cloudlet"
       ]
     },
     {
-      "name": "Developer APIs",
+      "name": "Developer API",
       "tags": [
-        "Cluster-Instance",
+        "ClusterInst",
         "App",
-        "App-Instance"
+        "AppInst"
       ]
     }
   ]

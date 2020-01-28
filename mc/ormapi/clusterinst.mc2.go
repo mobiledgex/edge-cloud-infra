@@ -25,6 +25,7 @@ type swaggerCreateClusterInst struct {
 	Body RegionClusterInst
 }
 type RegionClusterInst struct {
+	// required: true
 	// Region name
 	Region      string
 	ClusterInst edgeproto.ClusterInst

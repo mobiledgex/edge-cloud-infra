@@ -25,6 +25,7 @@ type swaggerCreateFlavor struct {
 	Body RegionFlavor
 }
 type RegionFlavor struct {
+	// required: true
 	// Region name
 	Region string
 	Flavor edgeproto.Flavor

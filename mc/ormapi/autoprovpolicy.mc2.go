@@ -27,6 +27,7 @@ type swaggerCreateAutoProvPolicy struct {
 	Body RegionAutoProvPolicy
 }
 type RegionAutoProvPolicy struct {
+	// required: true
 	// Region name
 	Region         string
 	AutoProvPolicy edgeproto.AutoProvPolicy
@@ -60,6 +61,7 @@ type swaggerAddAutoProvPolicyCloudlet struct {
 	Body RegionAutoProvPolicyCloudlet
 }
 type RegionAutoProvPolicyCloudlet struct {
+	// required: true
 	// Region name
 	Region                 string
 	AutoProvPolicyCloudlet edgeproto.AutoProvPolicyCloudlet

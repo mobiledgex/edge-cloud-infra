@@ -261,9 +261,17 @@ func (g *GenMC2) generatePosts() {
 
 func (g *GenMC2) genSwaggerSpec(method *descriptor.MethodDescriptorProto, summary string) {
 	in := gensupport.GetDesc(g.Generator, method.GetInputType())
-	inname := gensupport.GetDocName(in.DescriptorProto)
+	inname := *in.DescriptorProto.Name
 	g.P("// swagger:route POST /auth/ctrl/", method.Name, " ", inname, " ", method.Name)
-	g.P("// ", strings.TrimSuffix(summary, "."))
+	out := strings.Split(summary, ".")
+	if len(out) > 1 {
+		g.P("// ", out[0], ".")
+		g.P("// ", strings.Join(out[1:len(out)], "."))
+	} else {
+		g.P("// ", out[0], ".")
+	}
+	g.P("// Security:")
+	g.P("//   Bearer:")
 	g.P("// responses:")
 	g.P("//   200: success")
 	g.P("//   400: badRequest")
@@ -428,6 +436,7 @@ type swagger{{.MethodName}} struct {
 
 {{- if .GenStruct}}
 type Region{{.InName}} struct {
+        // required: true
 	// Region name
 	Region string
 	{{.InName}} edgeproto.{{.InName}}

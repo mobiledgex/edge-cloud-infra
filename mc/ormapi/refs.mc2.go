@@ -25,6 +25,7 @@ type swaggerShowCloudletRefs struct {
 	Body RegionCloudletRefs
 }
 type RegionCloudletRefs struct {
+	// required: true
 	// Region name
 	Region       string
 	CloudletRefs edgeproto.CloudletRefs
@@ -37,6 +38,7 @@ type swaggerShowClusterRefs struct {
 	Body RegionClusterRefs
 }
 type RegionClusterRefs struct {
+	// required: true
 	// Region name
 	Region      string
 	ClusterRefs edgeproto.ClusterRefs

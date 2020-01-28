@@ -4,34 +4,6 @@ import (
 	"github.com/mobiledgex/edge-cloud-infra/mc/ormapi"
 )
 
-// Success
-// swagger:response success
-type successResponse struct {
-	// in: body
-	Body ormapi.Result
-}
-
-// Status Bad Request
-// swagger:response badRequest
-type badReqResponse struct {
-	// in:body
-	Body ormapi.Result
-}
-
-// Forbidden
-// swagger:response forbidden
-type forbiddenResponse struct {
-	// in: body
-	Body ormapi.Result
-}
-
-// Not Found
-// swagger:response notFound
-type notFoundResponse struct {
-	// in: body
-	Body ormapi.Result
-}
-
 // swagger:parameters Login
 type swaggerLogin struct {
 	// in: body
@@ -52,6 +24,18 @@ type swaggerDeleteUser struct {
 
 // swagger:parameters ShowUser
 type swaggerShowUser struct {
+	// in: body
+	Body ormapi.Organization
+}
+
+// swagger:parameters PasswdReset
+type swaggerPasswdReset struct {
+	// in: body
+	Body ormapi.PasswordReset
+}
+
+// swagger:parameters CreateOrg DeleteOrg UpdateOrg
+type swaggerCreateOrg struct {
 	// in: body
 	Body ormapi.Organization
 }

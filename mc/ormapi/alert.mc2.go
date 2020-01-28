@@ -121,6 +121,7 @@ type swaggerShowAlert struct {
 	Body RegionAlert
 }
 type RegionAlert struct {
+	// required: true
 	// Region name
 	Region string
 	Alert  edgeproto.Alert

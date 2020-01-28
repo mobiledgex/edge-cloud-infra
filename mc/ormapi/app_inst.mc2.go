@@ -27,6 +27,7 @@ type swaggerCreateAppInst struct {
 	Body RegionAppInst
 }
 type RegionAppInst struct {
+	// required: true
 	// Region name
 	Region  string
 	AppInst edgeproto.AppInst

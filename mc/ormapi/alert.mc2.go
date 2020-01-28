@@ -120,6 +120,7 @@ type swaggerShowAlert struct {
 	// in: body
 	Body RegionAlert
 }
+
 type RegionAlert struct {
 	// required: true
 	// Region name

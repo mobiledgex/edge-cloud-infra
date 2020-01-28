@@ -24,6 +24,7 @@ type swaggerCreatePrivacyPolicy struct {
 	// in: body
 	Body RegionPrivacyPolicy
 }
+
 type RegionPrivacyPolicy struct {
 	// required: true
 	// Region name

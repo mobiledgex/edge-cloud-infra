@@ -15,7 +15,6 @@ require (
 	github.com/elazarl/goproxy v0.0.0-20190410145444-c548f45dcf1d // indirect
 	github.com/elazarl/goproxy/ext v0.0.0-20190410145444-c548f45dcf1d // indirect
 	github.com/fsouza/go-dockerclient v1.3.6
-	github.com/go-openapi/spec v0.19.5
 	github.com/go-resty/resty/v2 v2.0.0
 	github.com/gogo/googleapis v1.0.0
 	github.com/gogo/protobuf v1.2.1
@@ -63,12 +62,12 @@ require (
 	github.com/tmc/scp v0.0.0-20170824174625-f7b48647feef
 	github.com/xanzy/go-gitlab v0.16.0
 	golang.org/x/crypto v0.0.0-20190426145343-a29dc8fdc734
-	golang.org/x/net v0.0.0-20190827160401-ba9fcec4b297
+	golang.org/x/net v0.0.0-20190628185345-da137c7871d7
 	golang.org/x/time v0.0.0-20190308202827-9d24e82272b4 // indirect
 	google.golang.org/genproto v0.0.0-20190404172233-64821d5d2107
 	google.golang.org/grpc v1.22.0
 	gopkg.in/ldap.v3 v3.0.3
-	gopkg.in/yaml.v2 v2.2.4
+	gopkg.in/yaml.v2 v2.2.2
 	gortc.io/stun v1.21.0
 	gotest.tools v2.2.0+incompatible
 	//	k8s.io/api v0.0.0-20190327184913-92d2ee7fc726

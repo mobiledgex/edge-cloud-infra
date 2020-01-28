@@ -25,6 +25,7 @@ type swaggerCreateCloudlet struct {
 	// in: body
 	Body RegionCloudlet
 }
+
 type RegionCloudlet struct {
 	// required: true
 	// Region name
@@ -59,6 +60,7 @@ type swaggerAddCloudletResMapping struct {
 	// in: body
 	Body RegionCloudletResMap
 }
+
 type RegionCloudletResMap struct {
 	// required: true
 	// Region name
@@ -79,6 +81,7 @@ type swaggerFindFlavorMatch struct {
 	// in: body
 	Body RegionFlavorMatch
 }
+
 type RegionFlavorMatch struct {
 	// required: true
 	// Region name
@@ -92,6 +95,7 @@ type swaggerShowCloudletInfo struct {
 	// in: body
 	Body RegionCloudletInfo
 }
+
 type RegionCloudletInfo struct {
 	// required: true
 	// Region name

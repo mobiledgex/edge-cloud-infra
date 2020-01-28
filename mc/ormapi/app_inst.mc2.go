@@ -26,6 +26,7 @@ type swaggerCreateAppInst struct {
 	// in: body
 	Body RegionAppInst
 }
+
 type RegionAppInst struct {
 	// required: true
 	// Region name

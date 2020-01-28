@@ -24,6 +24,7 @@ type swaggerCreateResTagTable struct {
 	// in: body
 	Body RegionResTagTable
 }
+
 type RegionResTagTable struct {
 	// required: true
 	// Region name
@@ -72,6 +73,7 @@ type swaggerGetResTagTable struct {
 	// in: body
 	Body RegionResTagTableKey
 }
+
 type RegionResTagTableKey struct {
 	// required: true
 	// Region name

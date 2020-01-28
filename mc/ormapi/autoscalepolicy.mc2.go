@@ -24,6 +24,7 @@ type swaggerCreateAutoScalePolicy struct {
 	// in: body
 	Body RegionAutoScalePolicy
 }
+
 type RegionAutoScalePolicy struct {
 	// required: true
 	// Region name

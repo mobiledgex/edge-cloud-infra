@@ -24,6 +24,7 @@ type swaggerShowCloudletRefs struct {
 	// in: body
 	Body RegionCloudletRefs
 }
+
 type RegionCloudletRefs struct {
 	// required: true
 	// Region name
@@ -37,6 +38,7 @@ type swaggerShowClusterRefs struct {
 	// in: body
 	Body RegionClusterRefs
 }
+
 type RegionClusterRefs struct {
 	// required: true
 	// Region name

@@ -210,12 +210,6 @@ func (g *GenMC2) generatePosts() {
 		if len(file.Service) == 0 {
 			continue
 		}
-		/*
-			out := g.support.MyComments(file)
-			for ke, va := range out {
-				g.P(fmt.Sprintf("// ASHCHECK1 %s=%s\n", ke, va))
-			}
-		*/
 		for serviceIndex, service := range file.Service {
 			if len(service.Method) == 0 {
 				continue
@@ -435,6 +429,7 @@ type swagger{{.MethodName}} struct {
 }
 
 {{- if .GenStruct}}
+
 type Region{{.InName}} struct {
         // required: true
 	// Region name

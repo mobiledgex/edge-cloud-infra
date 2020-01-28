@@ -24,6 +24,7 @@ type swaggerUpdateSettings struct {
 	// in: body
 	Body RegionSettings
 }
+
 type RegionSettings struct {
 	// required: true
 	// Region name

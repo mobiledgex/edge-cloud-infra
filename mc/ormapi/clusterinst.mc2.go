@@ -24,6 +24,7 @@ type swaggerCreateClusterInst struct {
 	// in: body
 	Body RegionClusterInst
 }
+
 type RegionClusterInst struct {
 	// required: true
 	// Region name

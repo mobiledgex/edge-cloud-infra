@@ -26,6 +26,7 @@ type swaggerCreateAutoProvPolicy struct {
 	// in: body
 	Body RegionAutoProvPolicy
 }
+
 type RegionAutoProvPolicy struct {
 	// required: true
 	// Region name
@@ -60,6 +61,7 @@ type swaggerAddAutoProvPolicyCloudlet struct {
 	// in: body
 	Body RegionAutoProvPolicyCloudlet
 }
+
 type RegionAutoProvPolicyCloudlet struct {
 	// required: true
 	// Region name

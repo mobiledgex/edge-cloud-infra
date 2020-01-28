@@ -24,6 +24,7 @@ type swaggerCreateFlavor struct {
 	// in: body
 	Body RegionFlavor
 }
+
 type RegionFlavor struct {
 	// required: true
 	// Region name

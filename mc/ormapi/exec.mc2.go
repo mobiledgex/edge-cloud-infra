@@ -24,6 +24,7 @@ type swaggerRunCommand struct {
 	// in: body
 	Body RegionExecRequest
 }
+
 type RegionExecRequest struct {
 	// required: true
 	// Region name

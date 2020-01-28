@@ -24,6 +24,7 @@ type swaggerShowNode struct {
 	// in: body
 	Body RegionNode
 }
+
 type RegionNode struct {
 	// required: true
 	// Region name

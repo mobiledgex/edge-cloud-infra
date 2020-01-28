@@ -24,6 +24,7 @@ type swaggerCreateCloudletPool struct {
 	// in: body
 	Body RegionCloudletPool
 }
+
 type RegionCloudletPool struct {
 	// required: true
 	// Region name
@@ -51,6 +52,7 @@ type swaggerCreateCloudletPoolMember struct {
 	// in: body
 	Body RegionCloudletPoolMember
 }
+
 type RegionCloudletPoolMember struct {
 	// required: true
 	// Region name
@@ -78,6 +80,7 @@ type swaggerShowPoolsForCloudlet struct {
 	// in: body
 	Body RegionCloudletKey
 }
+
 type RegionCloudletKey struct {
 	// required: true
 	// Region name
@@ -91,6 +94,7 @@ type swaggerShowCloudletsForPool struct {
 	// in: body
 	Body RegionCloudletPoolKey
 }
+
 type RegionCloudletPoolKey struct {
 	// required: true
 	// Region name

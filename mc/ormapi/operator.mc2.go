@@ -24,6 +24,7 @@ type swaggerCreateOperatorCode struct {
 	// in: body
 	Body RegionOperatorCode
 }
+
 type RegionOperatorCode struct {
 	// required: true
 	// Region name

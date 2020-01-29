@@ -9,7 +9,7 @@ import (
 // Data saved to persistent sql db, also used for API calls
 
 type User struct {
-	// User name
+	// User name. Can only contain letters, digits, underscore, period, hyphen. It cannot have leading or trailing spaces or period. It cannot start with hyphen
 	// required: true
 	Name string `gorm:"primary_key;type:citext"`
 	// User email
@@ -39,7 +39,7 @@ type User struct {
 }
 
 type Organization struct {
-	// Organization name
+	// Organization name. Can only contain letters, digits, underscore, period, hyphen. It cannot have leading or trailing spaces or period. It cannot start with hyphen
 	// required: true
 	Name string `gorm:"primary_key;type:citext"`
 	// Organization type: "developer" or "operator"
@@ -96,7 +96,7 @@ type OrgCloudlet struct {
 }
 
 type UserLogin struct {
-	// User's name
+	// User's name or email address
 	// required: true
 	Username string `form:"username" json:"username"`
 	// User's password

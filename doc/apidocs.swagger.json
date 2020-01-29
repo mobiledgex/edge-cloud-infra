@@ -4025,7 +4025,7 @@
           "readOnly": true
         },
         "Name": {
-          "description": "User name",
+          "description": "User name. Can only contain letters, digits, underscore, period, hyphen. It cannot have leading or trailing spaces or period. It cannot start with hyphen",
           "type": "string"
         },
         "Nickname": {
@@ -4545,7 +4545,7 @@
           "readOnly": true
         },
         "Name": {
-          "description": "Organization name",
+          "description": "Organization name. Can only contain letters, digits, underscore, period, hyphen. It cannot have leading or trailing spaces or period. It cannot start with hyphen",
           "type": "string"
         },
         "Phone": {
@@ -5325,7 +5325,7 @@
           "readOnly": true
         },
         "Name": {
-          "description": "User name",
+          "description": "User name. Can only contain letters, digits, underscore, period, hyphen. It cannot have leading or trailing spaces or period. It cannot start with hyphen",
           "type": "string"
         },
         "Nickname": {
@@ -5365,7 +5365,7 @@
           "x-go-name": "Password"
         },
         "username": {
-          "description": "User's name",
+          "description": "User's name or email address",
           "type": "string",
           "x-go-name": "Username"
         }
@@ -5449,15 +5449,15 @@
   },
   "tags": [
     {
-      "description": "When you sign up for an account, MobiledgeX admin will unlock your account and you part of an organization. To access the APIs you must login first and then use the generated token to access authorized APIs. MobiledgeX uses JSON Web Tokens for authentication. JWT is a short lifetime tokens that can be assigned a specific expiration time. Never share your secret keys. Keep them guarded and secure",
+      "description": "Authentication is done by a user name or email plus a password. The login function returns a JSON Web Token (JWT) once authenticated, that should be included with subsequent API calls to authenticate the user. The JWT will expire after a while for security, at which point you may need to log in again",
       "name": "Security"
     },
     {
-      "description": "User belongs to an organization and can access operator/cloudlet APIs",
+      "description": "Users can be assigned roles for Organizations, allowing them to view or manage resources associated with the Organizations",
       "name": "User"
     },
     {
-      "description": "Organization is a group whose members can access operator/cloudlet APIs",
+      "description": "Organizations group a set of resources together, for example Apps, App Instances, or Cloudlets. Users given a role in an Organization can operate on those resources in the scope provided by their role",
       "name": "Organization"
     },
     {

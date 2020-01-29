@@ -13,7 +13,7 @@ API_ORDER = [
     '/v1/verifylocation',
 ]
 TAG_SWITCH = {
-    'MatchEngineApi': 'MobiledgeX Client API',
+    'MatchEngineApi': 'Edge REST API',
 }
 
 def splice_sample(operation, sample_dir):

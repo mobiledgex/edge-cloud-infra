@@ -12,6 +12,9 @@ API_ORDER = [
     '/v1/findcloudlet',
     '/v1/verifylocation',
 ]
+TAG_SWITCH = {
+    'MatchEngineApi': 'Edge REST API',
+}
 
 def splice_sample(operation, sample_dir):
     operation['x-code-samples'] = []
@@ -67,6 +70,46 @@ def order_apis(sw):
 
     sw['paths'] = paths
 
+def switch_tags(sw):
+    for path in sw['paths']:
+        for op in sw['paths'][path]:
+            if not 'tags' in sw['paths'][path][op]:
+                continue
+            for i, tag in enumerate(sw['paths'][path][op]['tags']):
+                if tag in TAG_SWITCH:
+                    sw['paths'][path][op]['tags'][i] = TAG_SWITCH[tag]
+
+def set_required_params_for_object(obj):
+    if 'required' in obj:
+        # Object already has a required property list
+        return
+
+    reqd = []
+    found_optional = False
+    for prop in obj.get('properties', {}):
+        nsubs = 0
+        for param in ('title', 'description'):
+            value = obj['properties'][prop].get(param)
+            if value:
+                (nvalue, nsub) = re.subn(r'\s*_\(optional\)_\s*', '', value)
+                obj['properties'][prop][param] = nvalue
+                nsubs += nsub
+
+        if nsubs > 0:
+            found_optional = True
+        else:
+            reqd.append(prop)
+
+    # Only set required props list if there is at least one "_(optional)_" tag
+    if found_optional:
+        obj['required'] = reqd
+
+def set_required_params(sw):
+    for defn in sw['definitions']:
+        if sw['definitions'][defn]['type'] != "object":
+            continue
+        set_required_params_for_object(sw['definitions'][defn])
+
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("--samples", "-s", help="Code samples directory")
@@ -78,7 +121,9 @@ def main():
 
     if args.samples:
         splice_samples(sw, args.samples)
+    switch_tags(sw)
     order_apis(sw)
+    set_required_params(sw)
     add_logo(sw)
     set_version(sw, args.version)
 

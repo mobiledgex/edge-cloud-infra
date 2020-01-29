@@ -5,6 +5,7 @@ import (
 	"strings"
 
 	"github.com/mobiledgex/edge-cloud/edgeproto"
+	"github.com/mobiledgex/edge-cloud/util"
 )
 
 var (
@@ -46,7 +47,7 @@ func GetPlatformVMPrefix(key *edgeproto.CloudletKey) string {
 }
 
 func GetPlatformVMName(key *edgeproto.CloudletKey) string {
-	return GetPlatformVMPrefix(key) + ".pf"
+	return util.HeatSanitize(GetPlatformVMPrefix(key) + ".pf")
 }
 
 func GetStackName(key *edgeproto.CloudletKey, cloudletVersion string, vmType DeploymentType) string {
@@ -55,7 +56,7 @@ func GetStackName(key *edgeproto.CloudletKey, cloudletVersion string, vmType Dep
 	if cloudletVersion == "" {
 		version = MEXInfraVersion
 	}
-	return GetPlatformVMPrefix(key) + "_" + version + "_" + GetExt(vmType)
+	return util.HeatSanitize(GetPlatformVMPrefix(key) + "_" + version + "_" + GetExt(vmType))
 }
 
 func IsStackSame(stackName string, key *edgeproto.CloudletKey, vmType DeploymentType) bool {
@@ -64,7 +65,7 @@ func IsStackSame(stackName string, key *edgeproto.CloudletKey, vmType Deployment
 	if parts[len(parts)-1] != ext {
 		return false
 	}
-	if GetPlatformVMPrefix(key) != strings.Join(parts[0:len(parts)-2], "_") {
+	if util.HeatSanitize(GetPlatformVMPrefix(key)) != strings.Join(parts[0:len(parts)-2], "_") {
 		return false
 	}
 	return true

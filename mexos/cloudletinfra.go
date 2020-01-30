@@ -22,8 +22,9 @@ import (
 var CloudletInfraCommon edgeproto.CloudletInfraCommon
 var OpenstackProps edgeproto.OpenStackProperties
 
-var MEXInfraVersion = "v3.0.3"
-var defaultOSImageName = "mobiledgex-" + MEXInfraVersion
+var MEXInfraVersion = "3.0.3"
+var ImageNamePrefix = "mobiledgex-v"
+var defaultOSImageName = ImageNamePrefix + MEXInfraVersion
 var VaultConfig *vault.Config
 
 // Default CloudletVM/Registry paths should only be used for local testing.
@@ -31,7 +32,7 @@ var VaultConfig *vault.Config
 // These are not used if running the CRM manually, because these are only
 // used by CreateCloudlet to set up the CRM VM and container.
 var DefaultCloudletRegistryPath = "registry.mobiledgex.net:5000/mobiledgex/edge-cloud"
-var DefaultCloudletVMImagePath = "https://artifactory.mobiledgex.net/artifactory/baseimages/" + defaultOSImageName + ".qcow2"
+var DefaultVMRegistryPath = "https://artifactory.mobiledgex.net/artifactory/baseimages/"
 
 // NoConfigExternalRouter is used for the case in which we don't manage the external
 // router and don't add ports to it ourself, as happens with Contrail.  The router does exist in
@@ -63,6 +64,24 @@ func GetVaultCloudletCommonPath(filePath string) string {
 
 func GetCertFilePath(key *edgeproto.CloudletKey) string {
 	return fmt.Sprintf("/tmp/%s.%s.cert", key.Name, key.OperatorKey.Name)
+}
+
+func GetCloudletVMImageName(imgVersion string) string {
+	if imgVersion == "" {
+		imgVersion = MEXInfraVersion
+	}
+	return ImageNamePrefix + imgVersion
+}
+
+func GetCloudletVMImagePath(imgPath, imgVersion string) string {
+	vmRegistryPath := DefaultVMRegistryPath
+	if imgPath != "" {
+		vmRegistryPath = imgPath
+	}
+	if !strings.HasSuffix(vmRegistryPath, "/") {
+		vmRegistryPath = vmRegistryPath + "/"
+	}
+	return vmRegistryPath + GetCloudletVMImageName(imgVersion) + ".qcow2"
 }
 
 func InitInfraCommon(ctx context.Context, vaultConfig *vault.Config) error {

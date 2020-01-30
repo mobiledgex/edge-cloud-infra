@@ -5,4 +5,18 @@ vault_ha_zones:
   us: us-west2-a
   eu: europe-west3-a
 
-crm_instances: []
+crm_instances:
+
+  - cloudlet_name: automationAzureCentralCloudlet
+    operator_key: azure
+    crm_name: azure_central
+    platform: PLATFORM_TYPE_AZURE
+    azure_instance: centralus
+    controller_region: US
+
+  - cloudlet_name: automationGcpCentralCloudlet
+    operator_key: gcp
+    crm_name: gcp_central
+    platform: PLATFORM_TYPE_GCP
+    gcp_zone: us-central1-c
+    controller_region: US

@@ -10,6 +10,7 @@ It is generated from these files:
 	app_inst.proto
 	autoprovpolicy.proto
 	autoscalepolicy.proto
+	client.proto
 	cloudlet.proto
 	cloudletpool.proto
 	cluster.proto
@@ -47,6 +48,8 @@ It has these top-level messages:
 	AutoProvPolicyCloudlet
 	PolicyKey
 	AutoScalePolicy
+	AppInstClientKey
+	AppInstClient
 	CloudletKey
 	OperationTimeLimits
 	CloudletInfraCommon
@@ -257,6 +260,7 @@ func addControllerApis(method string, group *echo.Group) {
 	group.Match([]string{method}, "/ctrl/ShowAutoProvPolicy", ShowAutoProvPolicy)
 	group.Match([]string{method}, "/ctrl/AddAutoProvPolicyCloudlet", AddAutoProvPolicyCloudlet)
 	group.Match([]string{method}, "/ctrl/RemoveAutoProvPolicyCloudlet", RemoveAutoProvPolicyCloudlet)
+	group.Match([]string{method}, "/ctrl/ShowAppInstClient", ShowAppInstClient)
 	group.Match([]string{method}, "/ctrl/CreateCloudletPool", CreateCloudletPool)
 	group.Match([]string{method}, "/ctrl/DeleteCloudletPool", DeleteCloudletPool)
 	group.Match([]string{method}, "/ctrl/ShowCloudletPool", ShowCloudletPool)

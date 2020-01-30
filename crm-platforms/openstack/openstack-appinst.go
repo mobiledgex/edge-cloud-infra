@@ -252,7 +252,7 @@ func (s *Platform) CreateAppInst(ctx context.Context, clusterInst *edgeproto.Clu
 		addproxy := false
 		listenIP := "NONE"  // only applicable for proxy case
 		backendIP := "NONE" // only applicable for proxy case
-		if app.AccessType == edgeproto.AccessType_ACCESS_TYPE_LOAD_BALANCER{
+		if app.AccessType == edgeproto.AccessType_ACCESS_TYPE_LOAD_BALANCER { 
 			ops = append(ops, proxy.WithDockerPublishPorts(), proxy.WithDockerNetwork(""))
 			addproxy = true
 			listenIP = rootLBIPaddr

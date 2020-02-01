@@ -23,7 +23,18 @@ var _ = math.Inf
 func (s *Client) RunCommand(uri, token string, in *ormapi.RegionExecRequest) (*edgeproto.ExecRequest, int, error) {
 	args := []string{"region", "RunCommand"}
 	out := edgeproto.ExecRequest{}
-	noconfig := strings.Split("Offer,Answer,Err,ConsoleUrl,Console", ",")
+	noconfig := strings.Split("Log", ",")
+	st, err := s.runObjs(uri, token, args, in, &out, withIgnore(noconfig))
+	if err != nil {
+		return nil, st, err
+	}
+	return &out, st, err
+}
+
+func (s *Client) ViewLogs(uri, token string, in *ormapi.RegionExecRequest) (*edgeproto.ExecRequest, int, error) {
+	args := []string{"region", "ViewLogs"}
+	out := edgeproto.ExecRequest{}
+	noconfig := strings.Split("Cmd", ",")
 	st, err := s.runObjs(uri, token, args, in, &out, withIgnore(noconfig))
 	if err != nil {
 		return nil, st, err

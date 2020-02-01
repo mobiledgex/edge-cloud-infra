@@ -75,6 +75,8 @@ It has these top-level messages:
 	Controller
 	DeveloperKey
 	Developer
+	RunCmd
+	ViewLog
 	ExecRequest
 	FlavorKey
 	Flavor
@@ -800,6 +802,16 @@ func addControllerApis(method string, group *echo.Group) {
 	//   403: forbidden
 	//   404: notFound
 	group.Match([]string{method}, "/ctrl/RunCommand", RunCommand)
+	// swagger:route POST /auth/ctrl/ViewLogs ExecRequest ViewLogs
+	// View logs for AppInst.
+	// Security:
+	//   Bearer:
+	// responses:
+	//   200: success
+	//   400: badRequest
+	//   403: forbidden
+	//   404: notFound
+	group.Match([]string{method}, "/ctrl/ViewLogs", ViewLogs)
 	// swagger:route POST /auth/ctrl/ShowNode Node ShowNode
 	// Show all Nodes connected to all Controllers.
 	// Security:

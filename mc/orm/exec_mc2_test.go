@@ -36,3 +36,17 @@ func goodPermRunCommand(t *testing.T, mcClient *ormclient.Client, uri, token, re
 	require.Nil(t, err)
 	require.Equal(t, http.StatusOK, status)
 }
+
+var _ = edgeproto.GetFields
+
+func badPermViewLogs(t *testing.T, mcClient *ormclient.Client, uri, token, region, org string) {
+	_, status, err := testutil.TestPermViewLogs(mcClient, uri, token, region, org)
+	require.NotNil(t, err)
+	require.Equal(t, http.StatusForbidden, status)
+}
+
+func goodPermViewLogs(t *testing.T, mcClient *ormclient.Client, uri, token, region, org string) {
+	_, status, err := testutil.TestPermViewLogs(mcClient, uri, token, region, org)
+	require.Nil(t, err)
+	require.Equal(t, http.StatusOK, status)
+}

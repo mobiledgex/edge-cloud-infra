@@ -31,3 +31,15 @@ func TestPermRunCommand(mcClient *ormclient.Client, uri, token, region, org stri
 	in.AppInstKey.AppKey.DeveloperKey.Name = org
 	return TestRunCommand(mcClient, uri, token, region, in)
 }
+
+func TestViewLogs(mcClient *ormclient.Client, uri, token, region string, in *edgeproto.ExecRequest) (*edgeproto.ExecRequest, int, error) {
+	dat := &ormapi.RegionExecRequest{}
+	dat.Region = region
+	dat.ExecRequest = *in
+	return mcClient.ViewLogs(uri, token, dat)
+}
+func TestPermViewLogs(mcClient *ormclient.Client, uri, token, region, org string) (*edgeproto.ExecRequest, int, error) {
+	in := &edgeproto.ExecRequest{}
+	in.AppInstKey.AppKey.DeveloperKey.Name = org
+	return TestViewLogs(mcClient, uri, token, region, in)
+}

@@ -75,6 +75,11 @@ tests:
   apifile: '{{datadir2}}/mc_runcommand.yml'
   curuserfile: '{{datadir2}}/mc_user2.yml'
 
+- name: test ViewLogs
+  actions: [mcapi-viewlogs]
+  apifile: '{{datadir2}}/mc_viewlogs.yml'
+  curuserfile: '{{datadir2}}/mc_user2.yml'
+
 - includefile: autoprov.yml
 
   #going to need a second one for operator, or just use mexadmin instead of user2

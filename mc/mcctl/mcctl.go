@@ -22,6 +22,7 @@ func main() {
 	rootCmd.AddCommand(ormctl.GetAllDataCommand())
 	regionCmds := ormctl.GetRegionCommand()
 	regionCmds.AddCommand(ormctl.GetRunCommandCmd())
+	regionCmds.AddCommand(ormctl.GetViewLogsCmd())
 	rootCmd.AddCommand(regionCmds)
 	rootCmd.AddCommand(ormctl.GetConfigCommand())
 	rootCmd.AddCommand(ormctl.GetAuditCommand())

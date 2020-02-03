@@ -33,21 +33,34 @@ var RunCommandCmd = &cli.Command{
 	Run:          runRest("/auth/ctrl/RunCommand"),
 }
 
-var ViewLogsCmd = &cli.Command{
-	Use:          "ViewLogs",
-	RequiredArgs: strings.Join(append([]string{"region"}, ViewLogsRequiredArgs...), " "),
-	OptionalArgs: strings.Join(ViewLogsOptionalArgs, " "),
+var RunConsoleCmd = &cli.Command{
+	Use:          "RunConsole",
+	RequiredArgs: strings.Join(append([]string{"region"}, RunConsoleRequiredArgs...), " "),
+	OptionalArgs: strings.Join(RunConsoleOptionalArgs, " "),
 	AliasArgs:    strings.Join(ExecRequestAliasArgs, " "),
 	SpecialArgs:  &ExecRequestSpecialArgs,
 	Comments:     addRegionComment(ExecRequestComments),
 	ReqData:      &ormapi.RegionExecRequest{},
 	ReplyData:    &edgeproto.ExecRequest{},
-	Run:          runRest("/auth/ctrl/ViewLogs"),
+	Run:          runRest("/auth/ctrl/RunConsole"),
+}
+
+var ShowLogsCmd = &cli.Command{
+	Use:          "ShowLogs",
+	RequiredArgs: strings.Join(append([]string{"region"}, ShowLogsRequiredArgs...), " "),
+	OptionalArgs: strings.Join(ShowLogsOptionalArgs, " "),
+	AliasArgs:    strings.Join(ExecRequestAliasArgs, " "),
+	SpecialArgs:  &ExecRequestSpecialArgs,
+	Comments:     addRegionComment(ExecRequestComments),
+	ReqData:      &ormapi.RegionExecRequest{},
+	ReplyData:    &edgeproto.ExecRequest{},
+	Run:          runRest("/auth/ctrl/ShowLogs"),
 }
 
 var ExecApiCmds = []*cli.Command{
 	RunCommandCmd,
-	ViewLogsCmd,
+	RunConsoleCmd,
+	ShowLogsCmd,
 }
 
 var RunCommandRequiredArgs = []string{
@@ -57,19 +70,13 @@ var RunCommandRequiredArgs = []string{
 	"cluster",
 	"operator",
 	"cloudlet",
+	"command",
 }
 var RunCommandOptionalArgs = []string{
 	"clusterdeveloper",
 	"containerid",
-	"offer",
-	"answer",
-	"err",
-	"command",
-	"cmd.console",
-	"cmd.consoleurl",
-	"timeout",
 }
-var ViewLogsRequiredArgs = []string{
+var RunConsoleRequiredArgs = []string{
 	"developer",
 	"appname",
 	"appvers",
@@ -77,55 +84,68 @@ var ViewLogsRequiredArgs = []string{
 	"operator",
 	"cloudlet",
 }
-var ViewLogsOptionalArgs = []string{
+var RunConsoleOptionalArgs = []string{
 	"clusterdeveloper",
 	"containerid",
-	"offer",
-	"answer",
-	"err",
+}
+var ShowLogsRequiredArgs = []string{
+	"developer",
+	"appname",
+	"appvers",
+	"cluster",
+	"operator",
+	"cloudlet",
+}
+var ShowLogsOptionalArgs = []string{
+	"clusterdeveloper",
+	"containerid",
 	"since",
 	"tail",
 	"timestamps",
 	"follow",
-	"timeout",
 }
 var RunCmdRequiredArgs = []string{}
 var RunCmdOptionalArgs = []string{
 	"command",
-	"console",
-	"consoleurl",
 }
 var RunCmdAliasArgs = []string{
 	"command=runcmd.command",
-	"console=runcmd.console",
-	"consoleurl=runcmd.consoleurl",
 }
 var RunCmdComments = map[string]string{
-	"command":    "Command or Shell",
-	"console":    "VM Console",
-	"consoleurl": "VM Console URL",
+	"command": "Command or Shell",
 }
 var RunCmdSpecialArgs = map[string]string{}
-var ViewLogRequiredArgs = []string{}
-var ViewLogOptionalArgs = []string{
+var RunVMConsoleRequiredArgs = []string{}
+var RunVMConsoleOptionalArgs = []string{
+	"url",
+}
+var RunVMConsoleAliasArgs = []string{
+	"url=runvmconsole.url",
+}
+var RunVMConsoleComments = map[string]string{
+	"url": "VM Console URL",
+}
+var RunVMConsoleSpecialArgs = map[string]string{}
+var ShowLogRequiredArgs = []string{}
+var ShowLogOptionalArgs = []string{
 	"since",
 	"tail",
 	"timestamps",
 	"follow",
 }
-var ViewLogAliasArgs = []string{
-	"since=viewlog.since",
-	"tail=viewlog.tail",
-	"timestamps=viewlog.timestamps",
-	"follow=viewlog.follow",
+var ShowLogAliasArgs = []string{
+	"since=showlog.since",
+	"tail=showlog.tail",
+	"timestamps=showlog.timestamps",
+	"follow=showlog.follow",
 }
-var ViewLogComments = map[string]string{
+var ShowLogComments = map[string]string{
 	"since":      "Show logs since either a duration ago (5s, 2m, 3h) or a timestamp (RFC3339)",
 	"tail":       "Show only a recent number of lines",
 	"timestamps": "Show timestamps",
 	"follow":     "Stream data",
 }
-var ViewLogSpecialArgs = map[string]string{}
+var ShowLogSpecialArgs = map[string]string{}
 var ExecRequestRequiredArgs = []string{
 	"developer",
 	"appname",
@@ -156,12 +176,11 @@ var ExecRequestAliasArgs = []string{
 	"answer=execrequest.answer",
 	"err=execrequest.err",
 	"command=execrequest.cmd.command",
-	"cmd.console=execrequest.cmd.console",
-	"cmd.consoleurl=execrequest.cmd.consoleurl",
 	"since=execrequest.log.since",
 	"tail=execrequest.log.tail",
 	"timestamps=execrequest.log.timestamps",
 	"follow=execrequest.log.follow",
+	"console.url=execrequest.console.url",
 	"timeout=execrequest.timeout",
 }
 var ExecRequestComments = map[string]string{
@@ -177,12 +196,11 @@ var ExecRequestComments = map[string]string{
 	"answer":           "WebRTC Answer",
 	"err":              "Any error message",
 	"command":          "Command or Shell",
-	"cmd.console":      "VM Console",
-	"cmd.consoleurl":   "VM Console URL",
 	"since":            "Show logs since either a duration ago (5s, 2m, 3h) or a timestamp (RFC3339)",
 	"tail":             "Show only a recent number of lines",
 	"timestamps":       "Show timestamps",
 	"follow":           "Stream data",
+	"console.url":      "VM Console URL",
 	"timeout":          "Timeout",
 }
 var ExecRequestSpecialArgs = map[string]string{}

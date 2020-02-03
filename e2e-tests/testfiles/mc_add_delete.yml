@@ -75,9 +75,9 @@ tests:
   apifile: '{{datadir2}}/mc_runcommand.yml'
   curuserfile: '{{datadir2}}/mc_user2.yml'
 
-- name: test ViewLogs
-  actions: [mcapi-viewlogs]
-  apifile: '{{datadir2}}/mc_viewlogs.yml'
+- name: test ShowLogs
+  actions: [mcapi-showlogs]
+  apifile: '{{datadir2}}/mc_showlogs.yml'
   curuserfile: '{{datadir2}}/mc_user2.yml'
 
 - includefile: autoprov.yml

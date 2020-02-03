@@ -42,7 +42,7 @@ func RunMcAPI(api, mcname, apiFile, curUserFile, outputDir string, mods []string
 		return runMcAudit(api, uri, apiFile, curUserFile, outputDir, mods, vars)
 	} else if api == "runcommand" {
 		return runMcExec(api, uri, apiFile, curUserFile, outputDir, mods, vars)
-	} else if api == "viewlogs" {
+	} else if api == "showlogs" {
 		return runMcExec(api, uri, apiFile, curUserFile, outputDir, mods, vars)
 	}
 	return runMcDataAPI(api, uri, apiFile, curUserFile, outputDir, mods, vars)
@@ -747,7 +747,7 @@ func runMcExec(api, uri, apiFile, curUserFile, outputDir string, mods []string, 
 	if api == "runcommand" {
 		out, err = client.RunCommandOut(uri, token, &data.Request)
 	} else {
-		out, err = client.ViewLogsOut(uri, token, &data.Request)
+		out, err = client.ShowLogsOut(uri, token, &data.Request)
 	}
 	if err != nil {
 		log.Printf("Error running %s API %v\n", api, err)

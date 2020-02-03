@@ -16,19 +16,19 @@ import (
 // We don't use the auto-generated Command because the client
 // must implement the webrtc protocol.
 
-const runCommandOptionalArgs = "command containerid clusterdeveloper"
-const viewLogsOptionalArgs = "containerid tail since follow timestamp clusterdeveloper"
-
 func GetRunCommandCmd() *cobra.Command {
 	RunCommandCmd.Run = runExecRequest("/auth/ctrl/RunCommand")
-	RunCommandCmd.OptionalArgs = runCommandOptionalArgs
 	return RunCommandCmd.GenCmd()
 }
 
-func GetViewLogsCmd() *cobra.Command {
-	ViewLogsCmd.Run = runExecRequest("/auth/ctrl/ViewLogs")
-	ViewLogsCmd.OptionalArgs = viewLogsOptionalArgs
-	return ViewLogsCmd.GenCmd()
+func GetRunConsoleCmd() *cobra.Command {
+	RunConsoleCmd.Run = runExecRequest("/auth/ctrl/RunConsole")
+	return RunConsoleCmd.GenCmd()
+}
+
+func GetShowLogsCmd() *cobra.Command {
+	ShowLogsCmd.Run = runExecRequest("/auth/ctrl/ShowLogs")
+	return ShowLogsCmd.GenCmd()
 }
 
 func runExecRequest(path string) func(c *cli.Command, args []string) error {

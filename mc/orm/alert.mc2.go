@@ -76,7 +76,8 @@ It has these top-level messages:
 	DeveloperKey
 	Developer
 	RunCmd
-	ViewLog
+	RunVMConsole
+	ShowLog
 	ExecRequest
 	FlavorKey
 	Flavor
@@ -793,7 +794,7 @@ func addControllerApis(method string, group *echo.Group) {
 	//   404: notFound
 	group.Match([]string{method}, "/ctrl/ShowCloudletsForPool", ShowCloudletsForPool)
 	// swagger:route POST /auth/ctrl/RunCommand ExecRequest RunCommand
-	// Run a Command or Shell on a container or VM.
+	// Run a Command or Shell on a container.
 	// Security:
 	//   Bearer:
 	// responses:
@@ -802,7 +803,17 @@ func addControllerApis(method string, group *echo.Group) {
 	//   403: forbidden
 	//   404: notFound
 	group.Match([]string{method}, "/ctrl/RunCommand", RunCommand)
-	// swagger:route POST /auth/ctrl/ViewLogs ExecRequest ViewLogs
+	// swagger:route POST /auth/ctrl/RunConsole ExecRequest RunConsole
+	// Run console on a VM.
+	// Security:
+	//   Bearer:
+	// responses:
+	//   200: success
+	//   400: badRequest
+	//   403: forbidden
+	//   404: notFound
+	group.Match([]string{method}, "/ctrl/RunConsole", RunConsole)
+	// swagger:route POST /auth/ctrl/ShowLogs ExecRequest ShowLogs
 	// View logs for AppInst.
 	// Security:
 	//   Bearer:
@@ -811,7 +822,7 @@ func addControllerApis(method string, group *echo.Group) {
 	//   400: badRequest
 	//   403: forbidden
 	//   404: notFound
-	group.Match([]string{method}, "/ctrl/ViewLogs", ViewLogs)
+	group.Match([]string{method}, "/ctrl/ShowLogs", ShowLogs)
 	// swagger:route POST /auth/ctrl/ShowNode Node ShowNode
 	// Show all Nodes connected to all Controllers.
 	// Security:

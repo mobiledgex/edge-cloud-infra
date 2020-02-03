@@ -22,7 +22,7 @@ func (s *Platform) UpdateClusterInst(ctx context.Context, clusterInst *edgeproto
 	}
 
 	log.SpanLog(ctx, log.DebugLevelMexos, "verify if cloudlet base image exists")
-	imgName, err := mexos.AddImageIfNotPresent(ctx, s.config.ImagePath, s.config.ImageVersion, updateCallback)
+	imgName, err := mexos.AddImageIfNotPresent(ctx, s.config.CloudletVMImagePath, s.config.VMImageVersion, updateCallback)
 	if err != nil {
 		log.InfoLog("error with cloudlet base image", "imgName", imgName, "error", err)
 		return err
@@ -51,7 +51,7 @@ func (s *Platform) CreateClusterInst(ctx context.Context, clusterInst *edgeproto
 	timeout -= time.Minute
 
 	log.SpanLog(ctx, log.DebugLevelMexos, "verify if cloudlet base image exists")
-	imgName, err := mexos.AddImageIfNotPresent(ctx, s.config.ImagePath, s.config.ImageVersion, updateCallback)
+	imgName, err := mexos.AddImageIfNotPresent(ctx, s.config.CloudletVMImagePath, s.config.VMImageVersion, updateCallback)
 	if err != nil {
 		log.InfoLog("error with cloudlet base image", "imgName", imgName, "error", err)
 		return err

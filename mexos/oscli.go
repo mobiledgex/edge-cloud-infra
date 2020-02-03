@@ -1004,18 +1004,17 @@ func AddImageIfNotPresent(ctx context.Context, imgPathPrefix, imgVersion string,
 	if err != nil {
 		return "", err
 	}
-	// Validate if pfImageName is same as we expected
-	_, md5Sum, err := GetUrlInfo(ctx, imgPath)
-	if err != nil {
-		return "", err
-	}
-
 	// Use PlatformBaseImage, if not present then fetch it from MobiledgeX VM registry
 	imageDetail, err := GetImageDetail(ctx, pfImageName)
 	if err == nil && imageDetail.Status != "active" {
 		return "", fmt.Errorf("image %s is not active", pfImageName)
 	}
 	if err != nil {
+		// Validate if pfImageName is same as we expected
+		_, md5Sum, err := GetUrlInfo(ctx, imgPath)
+		if err != nil {
+			return "", err
+		}
 		// Download platform base image and Add to Openstack Glance
 		updateCallback(edgeproto.UpdateTask, "Downloading platform base image: "+pfImageName)
 		err = CreateImageFromUrl(ctx, pfImageName, imgPath, md5Sum)

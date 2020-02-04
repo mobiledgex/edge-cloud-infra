@@ -44,7 +44,7 @@ func AddProxySecurityRulesAndPatchDNS(ctx context.Context, client pc.PlatformCli
 				}
 				ops = append(ops, proxy.WithTLSCert(&tlsCert))
 			}
-			proxyerr := proxy.CreateNginxProxy(ctx, client, dockermgmt.GetContainerName(app), listenIP, backendIP, appInst.MappedPorts, ops...)
+			proxyerr := proxy.CreateNginxProxy(ctx, client, dockermgmt.GetContainerName&(app.Key), listenIP, backendIP, appInst.MappedPorts, ops...)
 			if proxyerr == nil {
 				proxychan <- ""
 			} else {

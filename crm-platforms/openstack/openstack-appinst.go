@@ -318,7 +318,7 @@ func (s *Platform) DeleteAppInst(ctx context.Context, clusterInst *edgeproto.Clu
 		// Clean up security rules and proxy if app is external
 		secGrp := mexos.GetSecurityGroupName(ctx, rootLBName)
 		if !app.InternalPorts {
-			if err := mexos.DeleteProxySecurityGroupRules(ctx, client, dockermgmt.GetContainerName(app), secGrp, appInst.MappedPorts, rootLBName); err != nil {
+			if err := mexos.DeleteProxySecurityGroupRules(ctx, client, dockermgmt.GetContainerName(&app.Key), secGrp, appInst.MappedPorts, rootLBName); err != nil {
 				log.SpanLog(ctx, log.DebugLevelMexos, "cannot delete security rules", "name", names.AppName, "rootlb", rootLBName, "error", err)
 			}
 			// Clean up DNS entries

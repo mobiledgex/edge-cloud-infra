@@ -1,5 +1,6 @@
 pipeline {
     options {
+        skipDefaultCheckout true
         timeout(time: 60, unit: 'MINUTES')
     }
     agent any
@@ -49,7 +50,7 @@ export PATH=$PATH:$WORKSPACE/go/bin:$HOME/go/bin
 export GOPATH=$WORKSPACE/go
 
 set -ex
-if ! -d grpc-ecosystem; then
+if ! test -d grpc-ecosystem; then
     mkdir -p grpc-ecosystem
     cd grpc-ecosystem
     git clone https://github.com/mobiledgex/grpc-gateway.git

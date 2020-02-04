@@ -162,8 +162,8 @@ func QueryProxy(ctx context.Context, scrapePoint *ProxyScrapePoint) (*shepherd_c
 	if err != nil && strings.Contains(resp, "No such container") {
 		// try the docker name if it fails
 		container = proxy.GetEnvoyContainerName(dockermgmt.GetContainerName(&scrapePoint.Key.AppKey))
-		request := fmt.Sprintf("docker exec %s curl http://127.0.0.1:%d/stats", container, cloudcommon.ProxyMetricsPort)
-		resp, err := scrapePoint.Client.Output(request)
+		request = fmt.Sprintf("docker exec %s curl http://127.0.0.1:%d/stats", container, cloudcommon.ProxyMetricsPort)
+		resp, err = scrapePoint.Client.Output(request)
 	}
 	if err != nil {
 		if strings.Contains(resp, "No such container") {

@@ -44,6 +44,7 @@ make clean
                 dir(path: 'go/src/github.com/mobiledgex/edge-cloud-infra') {
                     sh label: 'git clean edge-cloud-infra', script: 'git clean -f -d -x'
                 }
+                sh 'rm -f go.mod go.sum'
                 dir(path: 'go/src/github.com') {
                     sh label: 'set up dependencies', script: '''#!/bin/bash
 export PATH=$PATH:$WORKSPACE/go/bin:$HOME/go/bin

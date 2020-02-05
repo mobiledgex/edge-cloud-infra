@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"io/ioutil"
 	"net/http"
-	"net/url"
 	"os"
 	"reflect"
 	"strings"
@@ -17,7 +16,6 @@ import (
 
 var Addr string
 var Token string
-var ProxyUrl string
 var SkipVerify bool
 var client ormclient.Client
 
@@ -116,13 +114,6 @@ func PreRunE(cmd *cobra.Command, args []string) error {
 	}
 	if SkipVerify {
 		client.SkipVerify = true
-	}
-	if ProxyUrl != "" {
-		proxyUrl, err := url.Parse(ProxyUrl)
-		if err != nil {
-			return err
-		}
-		client.ProxyUrl = proxyUrl
 	}
 	return nil
 }

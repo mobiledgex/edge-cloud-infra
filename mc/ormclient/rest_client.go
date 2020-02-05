@@ -8,7 +8,6 @@ import (
 	"fmt"
 	"io"
 	"net/http"
-	"net/url"
 	"reflect"
 	"strings"
 
@@ -20,7 +19,6 @@ import (
 type Client struct {
 	SkipVerify bool
 	Debug      bool
-	ProxyUrl   *url.URL
 }
 
 func (s *Client) DoLogin(uri, user, pass string) (string, error) {
@@ -251,10 +249,12 @@ func (s *Client) PostJsonSend(uri, token string, reqData interface{}) (*http.Res
 	if s.SkipVerify {
 		tlsConfig.InsecureSkipVerify = true
 	}
-	tr := &http.Transport{TLSClientConfig: tlsConfig}
-	if s.ProxyUrl != nil {
-		tr.Proxy = http.ProxyURL(s.ProxyUrl)
+
+	tr := &http.Transport{
+		TLSClientConfig: tlsConfig,
+		Proxy:           http.ProxyFromEnvironment,
 	}
+
 	client := &http.Client{Transport: tr}
 	return client.Do(req)
 }

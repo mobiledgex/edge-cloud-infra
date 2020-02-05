@@ -34,7 +34,6 @@ func main() {
 
 	rootCmd.PersistentFlags().StringVar(&ormctl.Addr, "addr", "http://127.0.0.1:9900", "MC address")
 	rootCmd.PersistentFlags().StringVar(&ormctl.Token, "token", "", "JWT token")
-	rootCmd.PersistentFlags().StringVar(&ormctl.ProxyUrl, "proxyurl", "", "Proxy URL")
 	cli.AddInputFlags(rootCmd.PersistentFlags())
 	cli.AddOutputFlags(rootCmd.PersistentFlags())
 	cli.AddDebugFlag(rootCmd.PersistentFlags())

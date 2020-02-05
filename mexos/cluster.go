@@ -157,7 +157,7 @@ func UpdateCluster(ctx context.Context, client pc.PlatformClient, rootLBName str
 	}
 
 	dedicatedRootLB := clusterInst.IpAccess == edgeproto.IpAccess_IP_ACCESS_DEDICATED
-	err := HeatUpdateClusterKubernetes(ctx, clusterInst, privacyPolicy, rootLBName, dedicatedRootLB, updateCallback)
+	err := HeatUpdateCluster(ctx, clusterInst, privacyPolicy, rootLBName, dedicatedRootLB, updateCallback)
 	if err != nil {
 		return err
 	}
@@ -208,12 +208,16 @@ func CreateCluster(ctx context.Context, rootLBName string, clusterInst *edgeprot
 	}
 
 	if clusterInst.Deployment == cloudcommon.AppDeploymentTypeDocker {
-		//suitable for docker only
-		log.SpanLog(ctx, log.DebugLevelMexos, "creating single VM cluster with just rootLB and no k8s")
-		updateCallback(edgeproto.UpdateTask, "Creating Dedicated VM for Docker")
-		err = HeatCreateRootLBVM(ctx, rootLBName, k8smgmt.GetK8sNodeNameSuffix(&clusterInst.Key), &vmspec, &clusterInst.Key.CloudletKey, updateCallback)
+		if dedicatedRootLB {
+			// in the dedicated case for docker, the RootLB and the docker worker are the same
+			updateCallback(edgeproto.UpdateTask, "Creating Dedicated VM for Docker")
+			err = HeatCreateRootLBVM(ctx, rootLBName, k8smgmt.GetK8sNodeNameSuffix(&clusterInst.Key), &vmspec, &clusterInst.Key.CloudletKey, updateCallback)
+		} else {
+			updateCallback(edgeproto.UpdateTask, "Creating single-node cluster for docker using shared RootLB")
+			err = HeatCreateCluster(ctx, clusterInst, privacyPolicy, rootLBName, dedicatedRootLB, updateCallback)
+		}
 	} else {
-		err = HeatCreateClusterKubernetes(ctx, clusterInst, privacyPolicy, rootLBName, dedicatedRootLB, updateCallback)
+		err = HeatCreateCluster(ctx, clusterInst, privacyPolicy, rootLBName, dedicatedRootLB, updateCallback)
 	}
 	if err != nil {
 		return err

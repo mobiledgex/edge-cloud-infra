@@ -60,6 +60,9 @@ var heatStackLock sync.Mutex
 var heatCreate string = "CREATE"
 var heatUpdate string = "UPDATE"
 var heatDelete string = "DELETE"
+var clusterTypeKubernetes = "k8s"
+var clusterTypeDocker = "docker"
+
 var vmCloudConfig = `#cloud-config
 bootcmd:
  - echo MOBILEDGEX CLOUD CONFIG START
@@ -238,6 +241,7 @@ type ClusterNode struct {
 
 // ClusterParams has the info needed to populate the heat template
 type ClusterParams struct {
+	ClusterType           string
 	NodeFlavor            string
 	MEXRouterName         string
 	MEXNetworkName        string
@@ -255,7 +259,7 @@ type ClusterParams struct {
 	*VMParams             //rootlb
 }
 
-var k8sClusterTemplate = `
+var clusterTemplate = `
 heat_template_version: 2016-10-14
 description: Create a cluster
 
@@ -303,10 +307,10 @@ resources:
          port: { get_resource: router-port }
 
   {{- end}}
-   k8s-master-port:
+   {{.ClusterType}}-master-port:
       type: OS::Neutron::Port
       properties:
-         name: k8s-master-port
+         name: {{.ClusterType}}-master-port
         {{if .VnicType}}
          binding:vnic_type: {{.VnicType}}
         {{- end}}
@@ -322,10 +326,10 @@ resources:
         {{- end}}
 
   {{if .ExternalVolumeSize}}
-   k8s-master-vol:
+   {{.ClusterType}}-master-vol:
       type: OS::Cinder::Volume
       properties:
-         name: k8s-master-{{.ClusterName}}-vol
+         name: {{.ClusterType}}-master-{{.ClusterName}}-vol
          image: {{.ImageName}}
          size: {{.ExternalVolumeSize}}
         {{if .AvailabilityZone}}
@@ -333,19 +337,19 @@ resources:
         {{- end}}
   {{- end}}
   {{if .SharedVolumeSize}}
-   k8s-shared-vol:
+   {{.ClusterType}}-shared-vol:
       type: OS::Cinder::Volume
       properties:
-         name: k8s-shared-{{.ClusterName}}-vol
+         name: {{.ClusterType}}-shared-{{.ClusterName}}-vol
          size: {{.SharedVolumeSize}}
         {{if .AvailabilityZone}}
          availability_zone: {{.AvailabilityZone}}
         {{- end}}
   {{- end}}
-   k8s-master:
+   {{.ClusterType}}-master:
       type: OS::Nova::Server
       properties:
-         name: mex-k8s-master-{{.ClusterName}}
+         name: mex-{{.ClusterType}}-master-{{.ClusterName}}
         {{if .AvailabilityZone}}
          availability_zone: {{.AvailabilityZone}}
         {{- end}}
@@ -353,12 +357,12 @@ resources:
          block_device_mapping:
         {{if .ExternalVolumeSize}}
          - device_name: "vda" 
-           volume_id: { get_resource: k8s-master-vol }
+           volume_id: { get_resource: {{.ClusterType}}-master-vol }
            delete_on_termination: "false" 
         {{- end}}
         {{if .SharedVolumeSize}}
          - device_name: "vdb" 
-           volume_id: { get_resource: k8s-shared-vol }
+           volume_id: { get_resource: {{.ClusterType}}-shared-vol }
            delete_on_termination: "false"
         {{- end}}
       {{- end}}
@@ -374,19 +378,25 @@ resources:
 ` + reindent(vmCloudConfigShareMount, 12) + `
         {{- end}}
          networks:
-          - port: { get_resource: k8s-master-port }
+          - port: { get_resource: {{.ClusterType}}-master-port }
          metadata:
-            skipk8s: no
-            role: k8s-master 
-            edgeproxy: {{.GatewayIP}}
-            mex-flavor: {{.NodeFlavor}}
-            k8smaster: {{.MasterIP}}
-
+         {{if eq "k8s" .ClusterType }}
+           skipk8s: no
+           role: k8s-master 
+           edgeproxy: {{.GatewayIP}}
+           mex-flavor: {{.NodeFlavor}}
+           k8smaster: {{.MasterIP}}
+         {{else}}
+           skipk8s: yes
+           role: mex-agent-node 
+           edgeproxy: {{.GatewayIP}}
+           mex-flavor: {{.NodeFlavor}}
+         {{- end}}
   {{range .Nodes}}
    {{.NodeName}}-port:
       type: OS::Neutron::Port
       properties:
-          name: mex-k8s-{{.NodeName}}-port-{{$.ClusterName}}
+          name: mex-{{.ClusterType}}-{{.NodeName}}-port-{{$.ClusterName}}
          {{if $.VnicType}}
           binding:vnic_type: {{$.VnicType}}
          {{- end}}
@@ -415,7 +425,7 @@ resources:
 
    {{.NodeName}}:
       type: OS::Nova::Server
-      depends_on: k8s-master
+      depends_on: {{.ClusterType}}-master
       properties:
          name: {{.NodeName}}-{{$.ClusterName}}
         {{if $.AvailabilityZone}}
@@ -737,6 +747,11 @@ func getClusterParams(ctx context.Context, clusterInst *edgeproto.ClusterInst, p
 	if err != nil {
 		return nil, err
 	}
+	if clusterInst.Deployment == cloudcommon.AppDeploymentTypeDocker {
+		cp.ClusterType = clusterTypeDocker
+	} else {
+		cp.ClusterType = clusterTypeKubernetes
+	}
 	cp.NetworkType = ni.NetworkType
 
 	cp.VnicType = ni.VnicType
@@ -891,10 +906,10 @@ func HeatCreateRootLBVM(ctx context.Context, serverName string, stackName string
 	return CreateHeatStackFromTemplate(ctx, vmp, stackName, VmTemplate, updateCallback)
 }
 
-// HeatCreateClusterKubernetes creates a k8s cluster which may optionally include a dedicated root LB
-func HeatCreateClusterKubernetes(ctx context.Context, clusterInst *edgeproto.ClusterInst, privacyPolicy *edgeproto.PrivacyPolicy, rootLBName string, dedicatedRootLB bool, updateCallback edgeproto.CacheUpdateCallback) error {
+// HeatCreateCluster creates a docker or k8s cluster which may optionally include a dedicated root LB
+func HeatCreateCluster(ctx context.Context, clusterInst *edgeproto.ClusterInst, privacyPolicy *edgeproto.PrivacyPolicy, rootLBName string, dedicatedRootLB bool, updateCallback edgeproto.CacheUpdateCallback) error {
 
-	log.SpanLog(ctx, log.DebugLevelMexos, "HeatCreateClusterKubernetes", "clusterInst", clusterInst, "rootLBName", rootLBName)
+	log.SpanLog(ctx, log.DebugLevelMexos, "HeatCreateCluster", "clusterInst", clusterInst, "rootLBName", rootLBName)
 	// It is problematic to create 2 clusters at the exact same time because we will look for available subnet CIDRS when
 	// defining the template.  If 2 start at once they may end up trying to create the same subnet and one will fail.
 	// So we will do this one at a time.   It will slightly slow down the creation of the second cluster, but the heat
@@ -909,7 +924,7 @@ func HeatCreateClusterKubernetes(ctx context.Context, clusterInst *edgeproto.Clu
 	}
 	log.SpanLog(ctx, log.DebugLevelMexos, "Updated ClusterParams", "clusterParams", cp)
 
-	templateString := k8sClusterTemplate
+	templateString := clusterTemplate
 	//append the VM resources for the rootLB is dedicated
 	if dedicatedRootLB {
 		templateString += vmTemplateResources
@@ -928,17 +943,17 @@ func HeatCreateClusterKubernetes(ctx context.Context, clusterInst *edgeproto.Clu
 	return nil
 }
 
-// HeatUpdateClusterKubernetes updates a k8s cluster which may optionally include a dedicated root LB
-func HeatUpdateClusterKubernetes(ctx context.Context, clusterInst *edgeproto.ClusterInst, privacyPolicy *edgeproto.PrivacyPolicy, rootLBName string, dedicatedRootLB bool, updateCallback edgeproto.CacheUpdateCallback) error {
+// HeatUpdateCluster updates a cluster which may optionally include a dedicated root LB
+func HeatUpdateCluster(ctx context.Context, clusterInst *edgeproto.ClusterInst, privacyPolicy *edgeproto.PrivacyPolicy, rootLBName string, dedicatedRootLB bool, updateCallback edgeproto.CacheUpdateCallback) error {
 
-	log.SpanLog(ctx, log.DebugLevelMexos, "HeatUpdateClusterKubernetes", "clusterInst", clusterInst, "rootLBName", rootLBName, "dedicatedRootLB", dedicatedRootLB)
+	log.SpanLog(ctx, log.DebugLevelMexos, "HeatUpdateCluster", "clusterInst", clusterInst, "rootLBName", rootLBName, "dedicatedRootLB", dedicatedRootLB)
 
 	cp, err := getClusterParams(ctx, clusterInst, privacyPolicy, rootLBName, dedicatedRootLB, heatUpdate)
 	if err != nil {
 		return err
 	}
 
-	templateString := k8sClusterTemplate
+	templateString := clusterTemplate
 	//append the VM resources for the rootLB is specified
 	if dedicatedRootLB {
 		templateString += vmTemplateResources

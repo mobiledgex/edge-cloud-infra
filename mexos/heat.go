@@ -43,7 +43,6 @@ type VMParams struct {
 	IsInternal               bool
 	AvailabilityZone         string
 	PrivacyPolicy            *edgeproto.PrivacyPolicy
-	MasterNodeFlavor         string
 }
 
 type VMParamsOp func(vmp *VMParams) error
@@ -253,6 +252,7 @@ type ClusterParams struct {
 	RouterSecurityGroup   string // used for internal comms only if the OpenStack router is present
 	DNSServers            []string
 	Nodes                 []ClusterNode
+	MasterNodeFlavor      string
 	*VMParams             //rootlb
 }
 

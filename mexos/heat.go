@@ -252,6 +252,7 @@ type ClusterParams struct {
 	RouterSecurityGroup   string // used for internal comms only if the OpenStack router is present
 	DNSServers            []string
 	Nodes                 []ClusterNode
+	MasterNodeFlavor      string
 	*VMParams             //rootlb
 }
 
@@ -365,7 +366,7 @@ resources:
       {{- if not .ExternalVolumeSize}}
          image: {{.ImageName}}
       {{- end}}
-         flavor: {{.NodeFlavor}}
+         flavor: {{.MasterNodeFlavor}}
          config_drive: true
          user_data_format: RAW
          user_data: |
@@ -521,6 +522,9 @@ func WithPublicKey(authPublicKey string) VMParamsOp {
 
 func WithAccessPorts(accessPorts string) VMParamsOp {
 	return func(vmp *VMParams) error {
+		if accessPorts == "" {
+			return nil
+		}
 		parsedAccessPorts, err := util.ParsePorts(accessPorts)
 		if err != nil {
 			return err
@@ -830,6 +834,7 @@ func getClusterParams(ctx context.Context, clusterInst *edgeproto.ClusterInst, p
 		return nil, fmt.Errorf("Node Flavor is not set")
 	}
 	cp.NodeFlavor = clusterInst.NodeFlavor
+	cp.MasterNodeFlavor = clusterInst.NodeFlavor
 	cp.ExternalVolumeSize = clusterInst.ExternalVolumeSize
 	cp.SharedVolumeSize = clusterInst.SharedVolumeSize
 	for i := uint32(1); i <= clusterInst.NumNodes; i++ {
@@ -840,6 +845,11 @@ func getClusterParams(ctx context.Context, clusterInst *edgeproto.ClusterInst, p
 	}
 	// cloudflare primary and backup
 	cp.DNSServers = []string{"1.1.1.1", "1.0.0.1"}
+	if clusterInst.NumNodes > 0 && clusterInst.MasterNodeFlavor != "" {
+		cp.MasterNodeFlavor = clusterInst.MasterNodeFlavor
+		log.SpanLog(ctx, log.DebugLevelMexos, "HeatGetClusterParams", "MasterNodeFlavor", cp.MasterNodeFlavor)
+	}
+
 	return &cp, nil
 }
 

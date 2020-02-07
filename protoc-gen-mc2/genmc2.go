@@ -1,6 +1,7 @@
 package main
 
 import (
+	"fmt"
 	"strings"
 	"text/template"
 
@@ -209,15 +210,22 @@ func (g *GenMC2) generatePosts() {
 		if len(file.Service) == 0 {
 			continue
 		}
-		for _, service := range file.Service {
+		for serviceIndex, service := range file.Service {
 			if len(service.Method) == 0 {
 				continue
 			}
 			streamRouteAdded := false
-			for _, method := range service.Method {
+			for methodIndex, method := range service.Method {
 				if GetMc2Api(method) == "" {
 					continue
 				}
+
+				// 6 means service
+				// 2 means method in a service
+				summary := g.support.GetComments(file, fmt.Sprintf("6,%d,2,%d", serviceIndex, methodIndex))
+				summary = strings.TrimSpace(strings.Map(gensupport.RemoveNewLines, summary))
+				g.genSwaggerSpec(method, summary)
+
 				g.P("group.Match([]string{method}, \"/ctrl/", method.Name,
 					"\", ", method.Name, ")")
 				if gensupport.ServerStreaming(method) && !streamRouteAdded {
@@ -229,7 +237,7 @@ func (g *GenMC2) generatePosts() {
 					if len(apiVals) != 3 {
 						g.Fail("invalid mc2_api string, expected ResourceType,Action,OrgNameField")
 					}
-					if apiVals[1] == "ActionView" && strings.HasPrefix(*method.Name, "Show") {
+					if apiVals[1] == "ActionView" && gensupport.IsShow(method) {
 						continue
 					}
 					streamRouteAdded = true
@@ -243,6 +251,26 @@ func (g *GenMC2) generatePosts() {
 	}
 	g.P("}")
 	g.P()
+}
+
+func (g *GenMC2) genSwaggerSpec(method *descriptor.MethodDescriptorProto, summary string) {
+	in := gensupport.GetDesc(g.Generator, method.GetInputType())
+	inname := *in.DescriptorProto.Name
+	g.P("// swagger:route POST /auth/ctrl/", method.Name, " ", inname, " ", method.Name)
+	out := strings.Split(summary, ".")
+	if len(out) > 1 {
+		g.P("// ", out[0], ".")
+		g.P("// ", strings.Join(out[1:len(out)], "."))
+	} else {
+		g.P("// ", out[0], ".")
+	}
+	g.P("// Security:")
+	g.P("//   Bearer:")
+	g.P("// responses:")
+	g.P("//   200: success")
+	g.P("//   400: badRequest")
+	g.P("//   403: forbidden")
+	g.P("//   404: notFound")
 }
 
 func (g *GenMC2) generateService(service *descriptor.ServiceDescriptorProto) {
@@ -294,7 +322,7 @@ func (g *GenMC2) generateMethod(service string, method *descriptor.MethodDescrip
 		args.SkipEnforce = true
 		args.OrgValid = false
 	}
-	if args.Action == "ActionView" && strings.HasPrefix(args.MethodName, "Show") {
+	if args.Action == "ActionView" && gensupport.IsShow(method) {
 		args.Show = true
 	}
 	if !args.Outstream {
@@ -393,8 +421,18 @@ type tmplArgs struct {
 }
 
 var tmplApi = `
+// Request summary for {{.MethodName}}
+// swagger:parameters {{.MethodName}}
+type swagger{{.MethodName}} struct {
+	// in: body
+	Body Region{{.InName}}
+}
+
 {{- if .GenStruct}}
+
 type Region{{.InName}} struct {
+        // required: true
+	// Region name
 	Region string
 	{{.InName}} edgeproto.{{.InName}}
 }

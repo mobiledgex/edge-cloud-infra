@@ -87,6 +87,7 @@
         - { name: "external", port: 9090, title: "MobiledgeX API" }
         - { name: "client", port: 9091, title: "MobiledgeX Client API" }
         - { name: "internal", port: 9092, title: "MobiledgeX Internal API" }
+        - { name: "mc", port: 9094, title: "MobiledgeX Orchestration API" }
 
     - name: Install the swagger update cronjob
       cron:

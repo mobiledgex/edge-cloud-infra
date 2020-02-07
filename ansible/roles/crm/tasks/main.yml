@@ -78,6 +78,17 @@
         crm_env: "{{ crm_env | combine(crm_env_azure) }}"
   when: item.azure_instance is defined and item.azure_instance
 
+- name: Add GCP environment variables
+  block:
+    - set_fact:
+        crm_env_gcp:
+          MEX_GCP_PROJECT: "{{ gcp_project }}"
+          MEX_GCP_ZONE: "{{ item.gcp_zone }}"
+          MEXENV_URL: "https://{{ vault_vm_hostname}}:{{ vault_port }}/v1/secret/data/cloudlet/openstack/mexenv.json"
+    - set_fact:
+        crm_env: "{{ crm_env | combine(crm_env_gcp) }}"
+  when: item.gcp_zone is defined and item.gcp_zone
+
 - name: Deploy the CRM
   docker_container:
     name: "{{ crm_name }}"

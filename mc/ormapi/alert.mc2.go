@@ -78,6 +78,9 @@ It has these top-level messages:
 	Controller
 	DeveloperKey
 	Developer
+	RunCmd
+	RunVMConsole
+	ShowLog
 	ExecRequest
 	FlavorKey
 	Flavor
@@ -117,7 +120,16 @@ var _ = math.Inf
 
 // Auto-generated code: DO NOT EDIT
 
+// Request summary for ShowAlert
+// swagger:parameters ShowAlert
+type swaggerShowAlert struct {
+	// in: body
+	Body RegionAlert
+}
+
 type RegionAlert struct {
+	// required: true
+	// Region name
 	Region string
 	Alert  edgeproto.Alert
 }

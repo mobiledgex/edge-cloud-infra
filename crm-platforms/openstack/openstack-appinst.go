@@ -316,9 +316,12 @@ func (s *Platform) DeleteAppInst(ctx context.Context, clusterInst *edgeproto.Clu
 		if err != nil {
 			if strings.Contains(err.Error(), mexos.ClusterNotFoundErr) {
 				log.SpanLog(ctx, log.DebugLevelMexos, "cluster is gone, allow app deletion")
+				secGrp := mexos.GetSecurityGroupName(ctx, rootLBName)
+				if !app.InternalPorts {
+					mexos.DeleteProxySecurityGroupRules(ctx, client, dockermgmt.GetContainerName(app), secGrp, appInst.MappedPorts, rootLBName)
+				}
 				return nil
 			}
-			return err
 		}
 		// Add crm local replace variables
 		deploymentVars := crmutil.DeploymentReplaceVars{
@@ -368,11 +371,20 @@ func (s *Platform) DeleteAppInst(ctx context.Context, clusterInst *edgeproto.Clu
 		backendIP := crmutil.RemoteServerNone
 		rootLBName := s.rootLBName
 		var err error
+		client, err := s.GetPlatformClient(ctx, clusterInst)
 		if clusterInst.IpAccess == edgeproto.IpAccess_IP_ACCESS_DEDICATED {
 			rootLBName = cloudcommon.GetDedicatedLBFQDN(s.cloudletKey, &clusterInst.Key.ClusterKey)
 		} else {
 			_, backendIP, err = mexos.GetMasterNameAndIP(ctx, clusterInst)
 			if err != nil {
+				if strings.Contains(err.Error(), mexos.ClusterNotFoundErr) {
+					log.SpanLog(ctx, log.DebugLevelMexos, "cluster is gone, allow app deletion")
+					secGrp := mexos.GetSecurityGroupName(ctx, rootLBName)
+					if !app.InternalPorts {
+						mexos.DeleteProxySecurityGroupRules(ctx, client, dockermgmt.GetContainerName(app), secGrp, appInst.MappedPorts, rootLBName)
+					}
+					return nil
+				}
 				return err
 			}
 		}
@@ -384,7 +396,6 @@ func (s *Platform) DeleteAppInst(ctx context.Context, clusterInst *edgeproto.Clu
 			}
 			return err
 		}
-		client, err := s.GetPlatformClient(ctx, clusterInst)
 		if err != nil {
 			return err
 		}
@@ -396,7 +407,7 @@ func (s *Platform) DeleteAppInst(ctx context.Context, clusterInst *edgeproto.Clu
 				log.SpanLog(ctx, log.DebugLevelMexos, "cannot delete security rules", "name", name, "rootlb", rootLBName, "error", err)
 			}
 		}
-		return dockermgmt.DeleteAppInst(ctx, client, app, appInst, backendIP)
+		return dockermgmt.DeleteAppInst(ctx, s, client, app, appInst, backendIP)
 	default:
 		return fmt.Errorf("unsupported deployment type %s", deployment)
 	}

@@ -142,7 +142,7 @@ func (s *Platform) GetPlatformClient(ctx context.Context, clusterInst *edgeproto
 // this may be multiple hops
 func (s *Platform) RunRemoteCommand(ctx context.Context, client pc.PlatformClient, remoteServer, command string) (string, error) {
 	log.SpanLog(ctx, log.DebugLevelMexos, "RunRemoteCommand", "remoteServer", remoteServer, "command", command)
-	sshCmd := fmt.Sprintf("ssh -o %s -o %s -o %s -i %s %s@%s '%s'", mexos.SSHOpts[0], mexos.SSHOpts[1], mexos.SSHOpts[2], mexos.SSHPrivateKeyName, mexos.SSHUser, remoteServer, command)
+	sshCmd := fmt.Sprintf("ssh -o %s -o %s -o %s -i %s %s@%s \"%s\"", mexos.SSHOpts[0], mexos.SSHOpts[1], mexos.SSHOpts[2], mexos.SSHPrivateKeyName, mexos.SSHUser, remoteServer, command)
 	return client.Output(sshCmd)
 }
 

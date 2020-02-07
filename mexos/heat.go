@@ -522,6 +522,9 @@ func WithPublicKey(authPublicKey string) VMParamsOp {
 
 func WithAccessPorts(accessPorts string) VMParamsOp {
 	return func(vmp *VMParams) error {
+		if accessPorts == "" {
+			return nil
+		}
 		parsedAccessPorts, err := util.ParsePorts(accessPorts)
 		if err != nil {
 			return err

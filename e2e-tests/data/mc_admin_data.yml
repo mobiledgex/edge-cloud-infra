@@ -42,6 +42,7 @@ regiondata:
       updateclusterinsttimeout: 2s
       deleteclusterinsttimeout: 2s
       masternodeflavor: x1.tiny
+      loadbalancermaxportrange: 100
     flavors:
     - key:
         name: x1.tiny

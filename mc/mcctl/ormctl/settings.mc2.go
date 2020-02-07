@@ -93,6 +93,7 @@ var SettingsOptionalArgs = []string{
 	"updateclusterinsttimeout",
 	"deleteclusterinsttimeout",
 	"masternodeflavor",
+	"loadbalancermaxportrange",
 }
 var SettingsAliasArgs = []string{
 	"shepherdmetricscollectioninterval=settings.shepherdmetricscollectioninterval",
@@ -108,6 +109,7 @@ var SettingsAliasArgs = []string{
 	"updateclusterinsttimeout=settings.updateclusterinsttimeout",
 	"deleteclusterinsttimeout=settings.deleteclusterinsttimeout",
 	"masternodeflavor=settings.masternodeflavor",
+	"loadbalancermaxportrange=settings.loadbalancermaxportrange",
 }
 var SettingsComments = map[string]string{
 	"shepherdmetricscollectioninterval": "Shepherd metrics collection interval for k8s and docker appInstances (duration)",
@@ -123,5 +125,6 @@ var SettingsComments = map[string]string{
 	"updateclusterinsttimeout":          "Update ClusterInst timeout (duration)",
 	"deleteclusterinsttimeout":          "Delete ClusterInst timeout (duration)",
 	"masternodeflavor":                  "Default flavor for k8s master VM and > 0  workers",
+	"loadbalancermaxportrange":          "Max IP Port range when using a load balancer",
 }
 var SettingsSpecialArgs = map[string]string{}

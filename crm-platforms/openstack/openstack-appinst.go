@@ -19,7 +19,7 @@ import (
 	v1 "k8s.io/api/core/v1"
 )
 
-func (s *Platform) CreateAppInst(ctx context.Context, clusterInst *edgeproto.ClusterInst, app *edgeproto.App, appInst *edgeproto.AppInst, appFlavor *edgeproto.Flavor, updateCallback edgeproto.CacheUpdateCallback) error {
+func (s *Platform) CreateAppInst(ctx context.Context, clusterInst *edgeproto.ClusterInst, app *edgeproto.App, appInst *edgeproto.AppInst, appFlavor *edgeproto.Flavor, privacyPolicy *edgeproto.PrivacyPolicy, updateCallback edgeproto.CacheUpdateCallback) error {
 	var err error
 
 	switch deployment := app.Deployment; deployment {
@@ -187,6 +187,7 @@ func (s *Platform) CreateAppInst(ctx context.Context, clusterInst *edgeproto.Clu
 			mexos.WithAccessPorts(app.AccessPorts),
 			mexos.WithDeploymentManifest(app.DeploymentManifest),
 			mexos.WithCommand(app.Command),
+			mexos.WithPrivacyPolicy(privacyPolicy),
 		)
 
 		if err != nil {
@@ -248,16 +249,16 @@ func (s *Platform) CreateAppInst(ctx context.Context, clusterInst *edgeproto.Clu
 			return &action, nil
 		}
 		updateCallback(edgeproto.UpdateTask, "Configuring Firewall Rules and DNS")
-		var  ops []proxy.Op
+		var ops []proxy.Op
 		addproxy := false
 		listenIP := "NONE"  // only applicable for proxy case
 		backendIP := "NONE" // only applicable for proxy case
-		if app.AccessType == edgeproto.AccessType_ACCESS_TYPE_LOAD_BALANCER { 
+		if app.AccessType == edgeproto.AccessType_ACCESS_TYPE_LOAD_BALANCER {
 			ops = append(ops, proxy.WithDockerPublishPorts(), proxy.WithDockerNetwork(""))
 			addproxy = true
 			listenIP = rootLBIPaddr
 			backendIP = cloudcommon.IPAddrDockerHost
-		}	
+		}
 		err = mexos.AddProxySecurityRulesAndPatchDNS(ctx, client, names, app, appInst, getDnsAction, rootLBName, listenIP, backendIP, addproxy, s.vaultConfig, ops...)
 		if err != nil {
 			return fmt.Errorf("AddProxySecurityRulesAndPatchDNS error: %v", err)
@@ -318,7 +319,7 @@ func (s *Platform) DeleteAppInst(ctx context.Context, clusterInst *edgeproto.Clu
 		// Clean up security rules and proxy if app is external
 		secGrp := mexos.GetSecurityGroupName(ctx, rootLBName)
 		if !app.InternalPorts {
-			if err := mexos.DeleteProxySecurityGroupRules(ctx, client, dockermgmt.GetContainerName(app), secGrp, appInst.MappedPorts, rootLBName); err != nil {
+			if err := mexos.DeleteProxySecurityGroupRules(ctx, client, dockermgmt.GetContainerName(&app.Key), secGrp, appInst.MappedPorts, rootLBName); err != nil {
 				log.SpanLog(ctx, log.DebugLevelMexos, "cannot delete security rules", "name", names.AppName, "rootlb", rootLBName, "error", err)
 			}
 			// Clean up DNS entries
@@ -360,7 +361,7 @@ func (s *Platform) DeleteAppInst(ctx context.Context, clusterInst *edgeproto.Clu
 		if err != nil {
 			return err
 		}
-		name := dockermgmt.GetContainerName(app)
+		name := dockermgmt.GetContainerName(&app.Key)
 		if !app.InternalPorts {
 			secGrp := mexos.GetSecurityGroupName(ctx, rootLBName)
 			//  the proxy does not yet exist for docker, but it eventually will.  Secgrp rules should be deleted in either case

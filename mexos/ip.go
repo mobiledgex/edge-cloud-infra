@@ -125,6 +125,38 @@ func GetAllowedClientCIDR() string {
 	return "0.0.0.0/0"
 }
 
+func GetServerExternalIPFromAddr(ctx context.Context, networkName, addresses, serverName, returnIPType string) (string, error) {
+	its := strings.Split(addresses, ";")
+	for _, it := range its {
+		sits := strings.Split(it, "=")
+		if len(sits) != 2 {
+			return "", fmt.Errorf("GetServerIPFromAddr: Unable to parse '%s'", it)
+		}
+		if strings.Contains(sits[0], networkName) {
+			addr := sits[1]
+			// the comma indicates a floating IP is present.   If we specified to return
+			// the external IP, return the value after the comma, which is the floating IP.
+			// If we specified to return the internal IP, return the value before the comma
+			if strings.Contains(addr, ",") {
+				addrs := strings.Split(addr, ",")
+				if len(addrs) == 2 {
+					if returnIPType == ExternalIPType {
+						addr = addrs[1]
+					} else {
+						addr = addrs[0]
+					}
+				} else {
+					return "", fmt.Errorf("GetServerIPFromAddr: Unable to parse '%s'", addr)
+				}
+			}
+			addr = strings.TrimSpace(addr)
+			log.SpanLog(ctx, log.DebugLevelMexos, "retrieved server ipaddr", "ipaddr", addr, "netname", networkName, "servername", serverName)
+			return addr, nil
+		}
+	}
+	return "", fmt.Errorf("Unable to find network %s for server %s", networkName, serverName)
+}
+
 //GetServerIPAddr gets the server IP.  If the IP found is a pair of internal to floating IP, then the
 // returnIPType is used to determine which to return
 func GetServerIPAddr(ctx context.Context, networkName, serverName string, returnIPType string) (string, error) {
@@ -143,35 +175,7 @@ func GetServerIPAddr(ctx context.Context, networkName, serverName string, return
 	if err != nil {
 		return "", err
 	}
-	its := strings.Split(sd.Addresses, ";")
-	for _, it := range its {
-		sits := strings.Split(it, "=")
-		if len(sits) != 2 {
-			return "", fmt.Errorf("GetServerIPAddr: Unable to parse '%s'", it)
-		}
-		if strings.Contains(sits[0], networkName) {
-			addr := sits[1]
-			// the comma indicates a floating IP is present.   If we specified to return
-			// the external IP, return the value after the comma, which is the floating IP.
-			// If we specified to return the internal IP, return the value before the comma
-			if strings.Contains(addr, ",") {
-				addrs := strings.Split(addr, ",")
-				if len(addrs) == 2 {
-					if returnIPType == ExternalIPType {
-						addr = addrs[1]
-					} else {
-						addr = addrs[0]
-					}
-				} else {
-					return "", fmt.Errorf("GetServerIPAddr: Unable to parse '%s'", addr)
-				}
-			}
-			addr = strings.TrimSpace(addr)
-			log.SpanLog(ctx, log.DebugLevelMexos, "retrieved server ipaddr", "ipaddr", addr, "netname", networkName, "servername", serverName)
-			return addr, nil
-		}
-	}
-	return "", fmt.Errorf("GetServerIPAddr: Unable to find network %s for server %s", networkName, serverName)
+	return GetServerExternalIPFromAddr(ctx, networkName, sd.Addresses, serverName, returnIPType)
 }
 
 //FindNodeIP finds IP for the given node

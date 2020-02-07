@@ -64,3 +64,17 @@ func goodPermShowLogs(t *testing.T, mcClient *ormclient.Client, uri, token, regi
 	require.Nil(t, err)
 	require.Equal(t, http.StatusOK, status)
 }
+
+var _ = edgeproto.GetFields
+
+func badPermSetPowerState(t *testing.T, mcClient *ormclient.Client, uri, token, region, org string) {
+	_, status, err := testutil.TestPermSetPowerState(mcClient, uri, token, region, org)
+	require.NotNil(t, err)
+	require.Equal(t, http.StatusForbidden, status)
+}
+
+func goodPermSetPowerState(t *testing.T, mcClient *ormclient.Client, uri, token, region, org string) {
+	_, status, err := testutil.TestPermSetPowerState(mcClient, uri, token, region, org)
+	require.Nil(t, err)
+	require.Equal(t, http.StatusOK, status)
+}

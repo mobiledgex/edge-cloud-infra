@@ -57,10 +57,23 @@ var ShowLogsCmd = &cli.Command{
 	Run:          runRest("/auth/ctrl/ShowLogs"),
 }
 
+var SetPowerStateCmd = &cli.Command{
+	Use:          "SetPowerState",
+	RequiredArgs: strings.Join(append([]string{"region"}, SetPowerStateRequiredArgs...), " "),
+	OptionalArgs: strings.Join(SetPowerStateOptionalArgs, " "),
+	AliasArgs:    strings.Join(ExecRequestAliasArgs, " "),
+	SpecialArgs:  &ExecRequestSpecialArgs,
+	Comments:     addRegionComment(ExecRequestComments),
+	ReqData:      &ormapi.RegionExecRequest{},
+	ReplyData:    &edgeproto.ExecRequest{},
+	Run:          runRest("/auth/ctrl/SetPowerState"),
+}
+
 var ExecApiCmds = []*cli.Command{
 	RunCommandCmd,
 	RunConsoleCmd,
 	ShowLogsCmd,
+	SetPowerStateCmd,
 }
 
 var RunCommandRequiredArgs = []string{
@@ -104,6 +117,19 @@ var ShowLogsOptionalArgs = []string{
 	"timestamps",
 	"follow",
 }
+var SetPowerStateRequiredArgs = []string{
+	"developer",
+	"appname",
+	"appvers",
+	"cluster",
+	"operator",
+	"cloudlet",
+	"state",
+}
+var SetPowerStateOptionalArgs = []string{
+	"clusterdeveloper",
+	"containerid",
+}
 var RunCmdRequiredArgs = []string{}
 var RunCmdOptionalArgs = []string{
 	"command",
@@ -146,6 +172,17 @@ var ShowLogComments = map[string]string{
 	"follow":     "Stream data",
 }
 var ShowLogSpecialArgs = map[string]string{}
+var PowerStateRequiredArgs = []string{}
+var PowerStateOptionalArgs = []string{
+	"state",
+}
+var PowerStateAliasArgs = []string{
+	"state=powerstate.state",
+}
+var PowerStateComments = map[string]string{
+	"state": "Power action to be perfomed on AppInst, one of PowerOn, PowerOff, Reboot",
+}
+var PowerStateSpecialArgs = map[string]string{}
 var ExecRequestRequiredArgs = []string{
 	"developer",
 	"appname",
@@ -162,6 +199,7 @@ var ExecRequestOptionalArgs = []string{
 	"tail",
 	"timestamps",
 	"follow",
+	"state",
 }
 var ExecRequestAliasArgs = []string{
 	"developer=execrequest.appinstkey.appkey.developerkey.name",
@@ -181,6 +219,7 @@ var ExecRequestAliasArgs = []string{
 	"timestamps=execrequest.log.timestamps",
 	"follow=execrequest.log.follow",
 	"console.url=execrequest.console.url",
+	"state=execrequest.powerstate.state",
 	"timeout=execrequest.timeout",
 }
 var ExecRequestComments = map[string]string{
@@ -201,6 +240,7 @@ var ExecRequestComments = map[string]string{
 	"timestamps":       "Show timestamps",
 	"follow":           "Stream data",
 	"console.url":      "VM Console URL",
+	"state":            "Power action to be perfomed on AppInst, one of PowerOn, PowerOff, Reboot",
 	"timeout":          "Timeout",
 }
 var ExecRequestSpecialArgs = map[string]string{}

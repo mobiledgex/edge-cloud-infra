@@ -474,3 +474,77 @@ func (s *Platform) GetConsoleUrl(ctx context.Context, app *edgeproto.App) (strin
 		return "", fmt.Errorf("unsupported deployment type %s", deployment)
 	}
 }
+
+func (s *Platform) SetPowerState(ctx context.Context, app *edgeproto.App, appInst *edgeproto.AppInst, updateCallback edgeproto.CacheUpdateCallback) error {
+	powerAction := appInst.PowerAction
+	switch deployment := app.Deployment; deployment {
+	case cloudcommon.AppDeploymentTypeVM:
+		serverName := cloudcommon.GetAppFQN(&app.Key)
+		fqdn := appInst.Uri
+
+		log.SpanLog(ctx, log.DebugLevelMexos, "setting server state", "serverName", serverName, "fqdn", fqdn, "powerAction", powerAction)
+
+		updateCallback(edgeproto.UpdateTask, "Verifying AppInst state")
+		serverDetail, err := mexos.GetServerDetails(ctx, serverName)
+		if err != nil {
+			return err
+		}
+
+		serverAction := ""
+		switch powerAction {
+		case edgeproto.PowerAction_POWER_ON:
+			if serverDetail.Status == "ACTIVE" {
+				return fmt.Errorf("server %s is already active", serverName)
+			}
+			serverAction = "start"
+		case edgeproto.PowerAction_POWER_OFF:
+			if serverDetail.Status == "SHUTOFF" {
+				return fmt.Errorf("server %s is already stopped", serverName)
+			}
+			serverAction = "stop"
+		case edgeproto.PowerAction_REBOOT:
+			serverAction = "reboot"
+		default:
+			return fmt.Errorf("unsupported server power action: %s", powerAction)
+		}
+
+		updateCallback(edgeproto.UpdateTask, fmt.Sprintf("Fetching external address of %s", serverName))
+		oldServerIP, err := mexos.GetServerExternalIPFromAddr(ctx, mexos.GetCloudletExternalNetwork(), serverDetail.Addresses, serverName, mexos.ExternalIPType)
+		if err != nil || oldServerIP == "" {
+			return fmt.Errorf("unable to fetch external ip for %s, addr %s, err %v", serverName, serverDetail.Addresses, err)
+		}
+
+		updateCallback(edgeproto.UpdateTask, fmt.Sprintf("Performing action %s on %s", serverAction, serverName))
+		err := mexos.OSSetPowerState(ctx, objName, appInst.Uri, powerAction)
+		if err != nil {
+			return err
+		}
+
+		if powerAction == edgeproto.PowerAction_POWER_ON || powerAction == edgeproto.PowerAction_REBOOT {
+			updateCallback(edgeproto.UpdateTask, fmt.Sprintf("Waiting for server %s to become active", serverName))
+			serverDetail, err := mexos.GetServerDetails(ctx, serverName)
+			if err != nil {
+				return err
+			}
+			updateCallback(edgeproto.UpdateTask, fmt.Sprintf("Fetching external address of %s", serverName))
+			newServerIP, err := mexos.GetServerExternalIPFromAddr(ctx, mexos.GetCloudletExternalNetwork(), serverDetail.Addresses, serverName, mexos.ExternalIPType)
+			if err != nil || newServerIP == "" {
+				return fmt.Errorf("unable to fetch external ip for %s, addr %s, err %v", serverName, serverDetail.Addresses, err)
+			}
+			if oldServerIP != newServerIP {
+				// IP changed, update DNS entry
+				updateCallback(edgeproto.UpdateTask, fmt.Sprintf("Updating DNS entry as IP changed for %s", serverName))
+				log.SpanLog(ctx, log.DebugLevelMexos, "updating DNS entry", "serverName", serverName, "fqdn", fqdn, "ip", newServerIP)
+				err = ActivateFQDNA(ctx, fqdn, newServerIP)
+				if err != nil {
+					return fmt.Errorf("unable to update fqdn for %s, addr %s, err %v", serverName, newServerIP, err)
+				}
+			}
+		}
+		updateCallback(edgeproto.UpdateTask, "Performed power control action successfully")
+	default:
+		return fmt.Errorf("unsupported deployment type %s", deployment)
+	}
+
+	return nil
+}

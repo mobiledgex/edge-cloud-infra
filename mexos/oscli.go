@@ -995,3 +995,15 @@ func OSGetMetricsRangeForId(ctx context.Context, resId string, metric string, st
 	}
 	return measurements, nil
 }
+
+func OSSetPowerState(ctx context.Context, serverName, powerAction string) error {
+	log.SpanLog(ctx, log.DebugLevelMexos, "setting server state", "serverName", serverName, "powerAction", powerAction)
+
+	out, err := TimedOpenStackCommand(ctx, "openstack", "server", powerAction, serverName)
+	if err != nil {
+		err = fmt.Errorf("unable to %s server %s, %s, %v", powerAction, serverName, out, err)
+		return err
+	}
+
+	return nil
+}

@@ -45,3 +45,10 @@ type swaggerShowLogs struct {
 	// in: body
 	Body RegionExecRequest
 }
+
+// Request summary for SetPowerState
+// swagger:parameters SetPowerState
+type swaggerSetPowerState struct {
+	// in: body
+	Body RegionExecRequest
+}

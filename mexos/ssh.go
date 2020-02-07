@@ -10,8 +10,9 @@ import (
 	"github.com/tmc/scp"
 )
 
-var sshOpts = []string{"StrictHostKeyChecking=no", "UserKnownHostsFile=/dev/null", "LogLevel=ERROR"}
+var SSHOpts = []string{"StrictHostKeyChecking=no", "UserKnownHostsFile=/dev/null", "LogLevel=ERROR"}
 var SSHUser = "ubuntu"
+var SSHPrivateKeyName = "id_rsa_mex"
 
 //CopySSHCredential copies over the ssh credential for mex to LB
 func CopySSHCredential(ctx context.Context, serverName, networkName, userName string) error {
@@ -22,7 +23,7 @@ func CopySSHCredential(ctx context.Context, serverName, networkName, userName st
 		return err
 	}
 	kf := PrivateSSHKey()
-	out, err := sh.Command("scp", "-o", sshOpts[0], "-o", sshOpts[1], "-i", kf, kf, userName+"@"+addr+":").Output()
+	out, err := sh.Command("scp", "-o", SSHOpts[0], "-o", SSHOpts[1], "-i", kf, kf, userName+"@"+addr+":").Output()
 	if err != nil {
 		return fmt.Errorf("can't copy %s to %s, %s, %v", kf, addr, out, err)
 	}
@@ -71,9 +72,9 @@ func SetupSSHUser(ctx context.Context, rootLB *MEXRootLB, user string) (ssh.Clie
 		fmt.Sprintf("sudo cp /root/.ssh/config /home/%s/.ssh/", user),
 		fmt.Sprintf("sudo chown %s:%s /home/%s/.ssh/config", user, user, user),
 		fmt.Sprintf("sudo chmod 600 /home/%s/.ssh/config", user),
-		fmt.Sprintf("sudo cp /root/id_rsa_mex /home/%s/", user),
-		fmt.Sprintf("sudo chown %s:%s   /home/%s/id_rsa_mex", user, user, user),
-		fmt.Sprintf("sudo chmod 600   /home/%s/id_rsa_mex", user),
+		fmt.Sprintf("sudo cp /root/%s /home/%s/", SSHPrivateKeyName, user),
+		fmt.Sprintf("sudo chown %s:%s   /home/%s/%s", user, user, user, SSHPrivateKeyName),
+		fmt.Sprintf("sudo chmod 600   /home/%s/%s", user, SSHPrivateKeyName),
 	} {
 		out, err := client.Output(cmd)
 		if err != nil {

@@ -216,9 +216,17 @@ func (s *Platform) CreateAppInst(ctx context.Context, clusterInst *edgeproto.Clu
 		return nil
 	case cloudcommon.AppDeploymentTypeDocker:
 		rootLBName := s.rootLBName
+		backendIP := crmutil.RemoteServerNone
+		var err error
 		if clusterInst.IpAccess == edgeproto.IpAccess_IP_ACCESS_DEDICATED {
 			rootLBName = cloudcommon.GetDedicatedLBFQDN(s.cloudletKey, &clusterInst.Key.ClusterKey)
 			log.SpanLog(ctx, log.DebugLevelMexos, "using dedicated RootLB to create app", "rootLBName", rootLBName)
+		} else {
+			//shared access deploys on a separate VM
+			_, backendIP, err = mexos.GetMasterNameAndIP(ctx, clusterInst)
+			if err != nil {
+				return err
+			}
 		}
 		client, err := s.GetPlatformClient(ctx, clusterInst)
 		if err != nil {
@@ -233,12 +241,13 @@ func (s *Platform) CreateAppInst(ctx context.Context, clusterInst *edgeproto.Clu
 			return fmt.Errorf("get kube names failed, %v", err)
 		}
 		updateCallback(edgeproto.UpdateTask, "Seeding docker secret")
-		err = mexos.SeedDockerSecret(ctx, client, clusterInst, app, s.vaultConfig)
+		err = mexos.SeedDockerSecret(ctx, s, client, clusterInst, app, s.vaultConfig)
 		if err != nil {
 			return fmt.Errorf("seeding docker secret failed, %v", err)
 		}
 		updateCallback(edgeproto.UpdateTask, "Deploying Docker App")
-		err = dockermgmt.CreateAppInst(ctx, client, app, appInst)
+
+		err = dockermgmt.CreateAppInst(ctx, s, client, app, appInst, backendIP)
 		if err != nil {
 			return err
 		}
@@ -251,13 +260,20 @@ func (s *Platform) CreateAppInst(ctx context.Context, clusterInst *edgeproto.Clu
 		updateCallback(edgeproto.UpdateTask, "Configuring Firewall Rules and DNS")
 		var ops []proxy.Op
 		addproxy := false
-		listenIP := "NONE"  // only applicable for proxy case
-		backendIP := "NONE" // only applicable for proxy case
+		listenIP := "NONE" // only applicable for proxy case
 		if app.AccessType == edgeproto.AccessType_ACCESS_TYPE_LOAD_BALANCER {
+			if clusterInst.IpAccess == edgeproto.IpAccess_IP_ACCESS_DEDICATED {
+				backendIP = cloudcommon.IPAddrDockerHost
+			} else {
+				var err error
+				_, backendIP, err = mexos.GetMasterNameAndIP(ctx, clusterInst)
+				if err != nil {
+					return err
+				}
+			}
 			ops = append(ops, proxy.WithDockerPublishPorts(), proxy.WithDockerNetwork(""))
 			addproxy = true
 			listenIP = rootLBIPaddr
-			backendIP = cloudcommon.IPAddrDockerHost
 		}
 		err = mexos.AddProxySecurityRulesAndPatchDNS(ctx, client, names, app, appInst, getDnsAction, rootLBName, listenIP, backendIP, addproxy, s.vaultConfig, ops...)
 		if err != nil {
@@ -348,8 +364,19 @@ func (s *Platform) DeleteAppInst(ctx context.Context, clusterInst *edgeproto.Clu
 		}
 		return nil
 	case cloudcommon.AppDeploymentTypeDocker:
-		rootLBName := cloudcommon.GetDedicatedLBFQDN(s.cloudletKey, &clusterInst.Key.ClusterKey)
-		_, err := mexos.GetServerDetails(ctx, rootLBName)
+
+		backendIP := crmutil.RemoteServerNone
+		rootLBName := s.rootLBName
+		var err error
+		if clusterInst.IpAccess == edgeproto.IpAccess_IP_ACCESS_DEDICATED {
+			rootLBName = cloudcommon.GetDedicatedLBFQDN(s.cloudletKey, &clusterInst.Key.ClusterKey)
+		} else {
+			_, backendIP, err = mexos.GetMasterNameAndIP(ctx, clusterInst)
+			if err != nil {
+				return err
+			}
+		}
+		_, err = mexos.GetServerDetails(ctx, rootLBName)
 		if err != nil {
 			if strings.Contains(err.Error(), "No server with a name or ID") {
 				log.SpanLog(ctx, log.DebugLevelMexos, "Dedicated RootLB is gone, allow app deletion")
@@ -369,7 +396,7 @@ func (s *Platform) DeleteAppInst(ctx context.Context, clusterInst *edgeproto.Clu
 				log.SpanLog(ctx, log.DebugLevelMexos, "cannot delete security rules", "name", name, "rootlb", rootLBName, "error", err)
 			}
 		}
-		return dockermgmt.DeleteAppInst(ctx, client, app, appInst)
+		return dockermgmt.DeleteAppInst(ctx, client, app, appInst, backendIP)
 	default:
 		return fmt.Errorf("unsupported deployment type %s", deployment)
 	}
@@ -400,11 +427,20 @@ func (s *Platform) UpdateAppInst(ctx context.Context, clusterInst *edgeproto.Clu
 		}
 		return k8smgmt.UpdateAppInst(ctx, client, names, app, appInst)
 	case cloudcommon.AppDeploymentTypeDocker:
+		backendIP := crmutil.RemoteServerNone
+		var err error
+		if clusterInst.IpAccess == edgeproto.IpAccess_IP_ACCESS_SHARED {
+			_, backendIP, err = mexos.GetMasterNameAndIP(ctx, clusterInst)
+			if err != nil {
+				return err
+			}
+		}
+
 		client, err := s.GetPlatformClient(ctx, clusterInst)
 		if err != nil {
 			return err
 		}
-		return dockermgmt.UpdateAppInst(ctx, client, app, appInst)
+		return dockermgmt.UpdateAppInst(ctx, s, client, app, appInst, backendIP)
 	case cloudcommon.AppDeploymentTypeHelm:
 		client, err := s.GetPlatformClient(ctx, clusterInst)
 		if err != nil {

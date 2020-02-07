@@ -62,6 +62,8 @@ var heatUpdate string = "UPDATE"
 var heatDelete string = "DELETE"
 var clusterTypeKubernetes = "k8s"
 var clusterTypeDocker = "docker"
+var ClusterTypeKubernetesMasterLabel = "mex-k8s-master"
+var ClusterTypeDockerVMLabel = "mex-docker-vm"
 
 var vmCloudConfig = `#cloud-config
 bootcmd:
@@ -242,6 +244,7 @@ type ClusterNode struct {
 // ClusterParams has the info needed to populate the heat template
 type ClusterParams struct {
 	ClusterType           string
+	ClusterFirstVMLabel   string
 	NodeFlavor            string
 	MEXRouterName         string
 	MEXNetworkName        string
@@ -307,10 +310,10 @@ resources:
          port: { get_resource: router-port }
 
   {{- end}}
-   {{.ClusterType}}-master-port:
+   {{.ClusterFirstVMLabel}}-port:
       type: OS::Neutron::Port
       properties:
-         name: {{.ClusterType}}-master-port
+         name: {{.ClusterFirstVMLabel}}-port
         {{if .VnicType}}
          binding:vnic_type: {{.VnicType}}
         {{- end}}
@@ -326,10 +329,10 @@ resources:
         {{- end}}
 
   {{if .ExternalVolumeSize}}
-   {{.ClusterType}}-master-vol:
+   {{.ClusterFirstVMLabel}}-vol:
       type: OS::Cinder::Volume
       properties:
-         name: {{.ClusterType}}-master-{{.ClusterName}}-vol
+         name: {{.ClusterFirstVMLabel}}-{{.ClusterName}}-vol
          image: {{.ImageName}}
          size: {{.ExternalVolumeSize}}
         {{if .AvailabilityZone}}
@@ -346,10 +349,10 @@ resources:
          availability_zone: {{.AvailabilityZone}}
         {{- end}}
   {{- end}}
-   {{.ClusterType}}-master:
+   {{.ClusterFirstVMLabel}}:
       type: OS::Nova::Server
       properties:
-         name: mex-{{.ClusterType}}-master-{{.ClusterName}}
+         name: {{.ClusterFirstVMLabel}}-{{.ClusterName}}
         {{if .AvailabilityZone}}
          availability_zone: {{.AvailabilityZone}}
         {{- end}}
@@ -357,7 +360,7 @@ resources:
          block_device_mapping:
         {{if .ExternalVolumeSize}}
          - device_name: "vda" 
-           volume_id: { get_resource: {{.ClusterType}}-master-vol }
+           volume_id: { get_resource: {{.ClusterFirstVMLabel}}-vol }
            delete_on_termination: "false" 
         {{- end}}
         {{if .SharedVolumeSize}}
@@ -378,7 +381,7 @@ resources:
 ` + reindent(vmCloudConfigShareMount, 12) + `
         {{- end}}
          networks:
-          - port: { get_resource: {{.ClusterType}}-master-port }
+          - port: { get_resource: {{.ClusterFirstVMLabel}}-port }
          metadata:
          {{if eq "k8s" .ClusterType }}
            skipk8s: no
@@ -749,8 +752,10 @@ func getClusterParams(ctx context.Context, clusterInst *edgeproto.ClusterInst, p
 	}
 	if clusterInst.Deployment == cloudcommon.AppDeploymentTypeDocker {
 		cp.ClusterType = clusterTypeDocker
+		cp.ClusterFirstVMLabel = ClusterTypeDockerVMLabel
 	} else {
 		cp.ClusterType = clusterTypeKubernetes
+		cp.ClusterFirstVMLabel = ClusterTypeKubernetesMasterLabel
 	}
 	cp.NetworkType = ni.NetworkType
 

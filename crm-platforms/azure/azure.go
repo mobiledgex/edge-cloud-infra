@@ -148,3 +148,7 @@ func (s *Platform) GatherCloudletInfo(ctx context.Context, info *edgeproto.Cloud
 func (s *Platform) GetPlatformClient(ctx context.Context, clusterInst *edgeproto.ClusterInst) (pc.PlatformClient, error) {
 	return &pc.LocalClient{}, nil
 }
+
+func (s *Platform) RunRemoteCommand(ctx context.Context, client pc.PlatformClient, remoteServer, command string) (string, error) {
+	return "", fmt.Errorf("RunRemoteCommand not implemented on azure")
+}

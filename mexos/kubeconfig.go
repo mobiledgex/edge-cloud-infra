@@ -19,7 +19,7 @@ func GetLocalKconfName(clusterInst *edgeproto.ClusterInst) string {
 func CopyKubeConfig(ctx context.Context, rootLBClient ssh.Client, clusterInst *edgeproto.ClusterInst, rootLBName, masterIP string) error {
 	kconfname := k8smgmt.GetKconfName(clusterInst)
 	log.SpanLog(ctx, log.DebugLevelMexos, "attempt to get kubeconfig from k8s master", "masterIP", masterIP, "dest", kconfname)
-	cmd := fmt.Sprintf("scp -o %s -o %s -i id_rsa_mex %s@%s:.kube/config %s", sshOpts[0], sshOpts[1], SSHUser, masterIP, kconfname)
+	cmd := fmt.Sprintf("scp -o %s -o %s -i id_rsa_mex %s@%s:.kube/config %s", SSHOpts[0], SSHOpts[1], SSHUser, masterIP, kconfname)
 	out, err := rootLBClient.Output(cmd)
 	if err != nil {
 		return fmt.Errorf("can't copy kubeconfig from %s, %v", out, err)

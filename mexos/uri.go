@@ -101,7 +101,7 @@ func GetSCPFile(ctx context.Context, uri string) ([]byte, error) {
 	if len(fn) < 1 {
 		return nil, fmt.Errorf("malformed uri, fn too short")
 	}
-	return sh.Command("ssh", "-o", sshOpts[0], "-o", sshOpts[1], "-i", PrivateSSHKey(), addr, "cat", fn).Output()
+	return sh.Command("ssh", "-o", SSHOpts[0], "-o", SSHOpts[1], "-i", PrivateSSHKey(), addr, "cat", fn).Output()
 }
 
 // func CopyURIFile(uri string, fn string) error {

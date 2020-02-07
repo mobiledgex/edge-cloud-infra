@@ -41,6 +41,7 @@ regiondata:
       createclusterinsttimeout: 3s
       updateclusterinsttimeout: 2s
       deleteclusterinsttimeout: 2s
+      masternodeflavor: x1.tiny
     flavors:
     - key:
         name: x1.tiny

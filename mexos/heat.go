@@ -399,7 +399,7 @@ resources:
    {{.NodeName}}-port:
       type: OS::Neutron::Port
       properties:
-          name: mex-{{.ClusterType}}-{{.NodeName}}-port-{{$.ClusterName}}
+          name: mex-{{$.ClusterType}}-{{.NodeName}}-port-{{$.ClusterName}}
          {{if $.VnicType}}
           binding:vnic_type: {{$.VnicType}}
          {{- end}}
@@ -428,7 +428,7 @@ resources:
 
    {{.NodeName}}:
       type: OS::Nova::Server
-      depends_on: {{.ClusterType}}-master
+      depends_on: {{$.ClusterFirstVMLabel}}
       properties:
          name: {{.NodeName}}-{{$.ClusterName}}
         {{if $.AvailabilityZone}}

@@ -46,18 +46,8 @@ func (s *Client) ShowLogs(uri, token string, in *ormapi.RegionExecRequest) (*edg
 	return &out, status, err
 }
 
-func (s *Client) SetPowerState(uri, token string, in *ormapi.RegionExecRequest) (*edgeproto.ExecRequest, int, error) {
-	out := edgeproto.ExecRequest{}
-	status, err := s.PostJson(uri+"/auth/ctrl/SetPowerState", token, in, &out)
-	if err != nil {
-		return nil, status, err
-	}
-	return &out, status, err
-}
-
 type ExecApiClient interface {
 	RunCommand(uri, token string, in *ormapi.RegionExecRequest) (*edgeproto.ExecRequest, int, error)
 	RunConsole(uri, token string, in *ormapi.RegionExecRequest) (*edgeproto.ExecRequest, int, error)
 	ShowLogs(uri, token string, in *ormapi.RegionExecRequest) (*edgeproto.ExecRequest, int, error)
-	SetPowerState(uri, token string, in *ormapi.RegionExecRequest) (*edgeproto.ExecRequest, int, error)
 }

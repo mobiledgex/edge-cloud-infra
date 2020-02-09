@@ -61,3 +61,10 @@ type swaggerShowAppInst struct {
 	// in: body
 	Body RegionAppInst
 }
+
+// Request summary for SetAppInst
+// swagger:parameters SetAppInst
+type swaggerSetAppInst struct {
+	// in: body
+	Body RegionAppInst
+}

@@ -24,7 +24,6 @@ func main() {
 	regionCmds.AddCommand(ormctl.GetRunCommandCmd())
 	regionCmds.AddCommand(ormctl.GetRunConsoleCmd())
 	regionCmds.AddCommand(ormctl.GetShowLogsCmd())
-	regionCmds.AddCommand(ormctl.GetSetPowerStateCmd())
 	rootCmd.AddCommand(regionCmds)
 	rootCmd.AddCommand(ormctl.GetConfigCommand())
 	rootCmd.AddCommand(ormctl.GetAuditCommand())

@@ -78,7 +78,6 @@ It has these top-level messages:
 	RunCmd
 	RunVMConsole
 	ShowLog
-	PowerState
 	ExecRequest
 	FlavorKey
 	Flavor

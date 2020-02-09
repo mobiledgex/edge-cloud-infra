@@ -55,15 +55,3 @@ func TestPermShowLogs(mcClient *ormclient.Client, uri, token, region, org string
 	in.AppInstKey.AppKey.DeveloperKey.Name = org
 	return TestShowLogs(mcClient, uri, token, region, in)
 }
-
-func TestSetPowerState(mcClient *ormclient.Client, uri, token, region string, in *edgeproto.ExecRequest) (*edgeproto.ExecRequest, int, error) {
-	dat := &ormapi.RegionExecRequest{}
-	dat.Region = region
-	dat.ExecRequest = *in
-	return mcClient.SetPowerState(uri, token, dat)
-}
-func TestPermSetPowerState(mcClient *ormclient.Client, uri, token, region, org string) (*edgeproto.ExecRequest, int, error) {
-	in := &edgeproto.ExecRequest{}
-	in.AppInstKey.AppKey.DeveloperKey.Name = org
-	return TestSetPowerState(mcClient, uri, token, region, in)
-}

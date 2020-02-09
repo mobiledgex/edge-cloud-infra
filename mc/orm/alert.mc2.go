@@ -78,7 +78,6 @@ It has these top-level messages:
 	RunCmd
 	RunVMConsole
 	ShowLog
-	PowerState
 	ExecRequest
 	FlavorKey
 	Flavor
@@ -612,6 +611,17 @@ func addControllerApis(method string, group *echo.Group) {
 	//   403: forbidden
 	//   404: notFound
 	group.Match([]string{method}, "/ctrl/ShowAppInst", ShowAppInst)
+	// swagger:route POST /auth/ctrl/SetAppInst AppInst SetAppInst
+	// Set Application Instance.
+	//  Performs action on Application Instance
+	// Security:
+	//   Bearer:
+	// responses:
+	//   200: success
+	//   400: badRequest
+	//   403: forbidden
+	//   404: notFound
+	group.Match([]string{method}, "/ctrl/SetAppInst", SetAppInst)
 	// swagger:route POST /auth/ctrl/CreateAutoScalePolicy AutoScalePolicy CreateAutoScalePolicy
 	// Create an Auto Scale Policy.
 	// Security:
@@ -824,16 +834,6 @@ func addControllerApis(method string, group *echo.Group) {
 	//   403: forbidden
 	//   404: notFound
 	group.Match([]string{method}, "/ctrl/ShowLogs", ShowLogs)
-	// swagger:route POST /auth/ctrl/SetPowerState ExecRequest SetPowerState
-	// Set power state for AppInst.
-	// Security:
-	//   Bearer:
-	// responses:
-	//   200: success
-	//   400: badRequest
-	//   403: forbidden
-	//   404: notFound
-	group.Match([]string{method}, "/ctrl/SetPowerState", SetPowerState)
 	// swagger:route POST /auth/ctrl/ShowNode Node ShowNode
 	// Show all Nodes connected to all Controllers.
 	// Security:

@@ -515,7 +515,7 @@ func (s *Platform) SetPowerState(ctx context.Context, app *edgeproto.App, appIns
 		}
 
 		updateCallback(edgeproto.UpdateTask, fmt.Sprintf("Performing action %s on %s", serverAction, serverName))
-		err := mexos.OSSetPowerState(ctx, objName, appInst.Uri, powerAction)
+		err = mexos.OSSetPowerState(ctx, serverName, serverAction)
 		if err != nil {
 			return err
 		}
@@ -535,7 +535,7 @@ func (s *Platform) SetPowerState(ctx context.Context, app *edgeproto.App, appIns
 				// IP changed, update DNS entry
 				updateCallback(edgeproto.UpdateTask, fmt.Sprintf("Updating DNS entry as IP changed for %s", serverName))
 				log.SpanLog(ctx, log.DebugLevelMexos, "updating DNS entry", "serverName", serverName, "fqdn", fqdn, "ip", newServerIP)
-				err = ActivateFQDNA(ctx, fqdn, newServerIP)
+				err = mexos.ActivateFQDNA(ctx, fqdn, newServerIP)
 				if err != nil {
 					return fmt.Errorf("unable to update fqdn for %s, addr %s, err %v", serverName, newServerIP, err)
 				}

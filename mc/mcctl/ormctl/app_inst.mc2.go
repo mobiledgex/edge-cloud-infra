@@ -39,8 +39,8 @@ var CreateAppInstCmd = &cli.Command{
 
 var DeleteAppInstCmd = &cli.Command{
 	Use:                  "DeleteAppInst",
-	RequiredArgs:         strings.Join(append([]string{"region"}, AppInstRequiredArgs...), " "),
-	OptionalArgs:         strings.Join(AppInstOptionalArgs, " "),
+	RequiredArgs:         strings.Join(append([]string{"region"}, DeleteAppInstRequiredArgs...), " "),
+	OptionalArgs:         strings.Join(DeleteAppInstOptionalArgs, " "),
 	AliasArgs:            strings.Join(AppInstAliasArgs, " "),
 	SpecialArgs:          &AppInstSpecialArgs,
 	Comments:             addRegionComment(AppInstComments),
@@ -107,12 +107,27 @@ var ShowAppInstCmd = &cli.Command{
 	StreamOut:    true,
 }
 
+var SetAppInstCmd = &cli.Command{
+	Use:                  "SetAppInst",
+	RequiredArgs:         strings.Join(append([]string{"region"}, SetAppInstRequiredArgs...), " "),
+	OptionalArgs:         strings.Join(SetAppInstOptionalArgs, " "),
+	AliasArgs:            strings.Join(AppInstAliasArgs, " "),
+	SpecialArgs:          &AppInstSpecialArgs,
+	Comments:             addRegionComment(AppInstComments),
+	ReqData:              &ormapi.RegionAppInst{},
+	ReplyData:            &edgeproto.Result{},
+	Run:                  runRest("/auth/ctrl/SetAppInst"),
+	StreamOut:            true,
+	StreamOutIncremental: true,
+}
+
 var AppInstApiCmds = []*cli.Command{
 	CreateAppInstCmd,
 	DeleteAppInstCmd,
 	RefreshAppInstCmd,
 	UpdateAppInstCmd,
 	ShowAppInstCmd,
+	SetAppInstCmd,
 }
 
 var CreateAppInstRequiredArgs = []string{
@@ -129,6 +144,54 @@ var CreateAppInstOptionalArgs = []string{
 	"state",
 	"crmoverride",
 	"autoclusteripaccess",
+	"configs.kind",
+	"configs.config",
+	"sharedvolumesize",
+	"healthcheck",
+	"privacypolicy",
+}
+var DeleteAppInstRequiredArgs = []string{
+	"developer",
+	"appname",
+	"appvers",
+	"cluster",
+	"operator",
+	"cloudlet",
+}
+var DeleteAppInstOptionalArgs = []string{
+	"clusterdeveloper",
+	"cloudletloc.latitude",
+	"cloudletloc.longitude",
+	"cloudletloc.horizontalaccuracy",
+	"cloudletloc.verticalaccuracy",
+	"cloudletloc.altitude",
+	"cloudletloc.course",
+	"cloudletloc.speed",
+	"cloudletloc.timestamp.seconds",
+	"cloudletloc.timestamp.nanos",
+	"uri",
+	"liveness",
+	"mappedports.proto",
+	"mappedports.internalport",
+	"mappedports.publicport",
+	"mappedports.pathprefix",
+	"mappedports.fqdnprefix",
+	"mappedports.endport",
+	"flavor",
+	"state",
+	"errors",
+	"crmoverride",
+	"runtimeinfo.containerids",
+	"createdat.seconds",
+	"createdat.nanos",
+	"autoclusteripaccess",
+	"status.tasknumber",
+	"status.maxtasks",
+	"status.taskname",
+	"status.stepname",
+	"revision",
+	"forceupdate",
+	"updatemultiple",
 	"configs.kind",
 	"configs.config",
 	"sharedvolumesize",
@@ -161,6 +224,24 @@ var UpdateAppInstRequiredArgs = []string{
 	"cloudlet",
 }
 var UpdateAppInstOptionalArgs = []string{
+	"clusterdeveloper",
+	"crmoverride",
+	"configs.kind",
+	"configs.config",
+	"sharedvolumesize",
+	"healthcheck",
+	"privacypolicy",
+}
+var SetAppInstRequiredArgs = []string{
+	"developer",
+	"appname",
+	"appvers",
+	"cluster",
+	"operator",
+	"cloudlet",
+	"poweraction",
+}
+var SetAppInstOptionalArgs = []string{
 	"clusterdeveloper",
 	"crmoverride",
 	"configs.kind",
@@ -219,6 +300,7 @@ var AppInstOptionalArgs = []string{
 	"sharedvolumesize",
 	"healthcheck",
 	"privacypolicy",
+	"poweraction",
 }
 var AppInstAliasArgs = []string{
 	"developer=appinst.key.appkey.developerkey.name",
@@ -265,6 +347,7 @@ var AppInstAliasArgs = []string{
 	"sharedvolumesize=appinst.sharedvolumesize",
 	"healthcheck=appinst.healthcheck",
 	"privacypolicy=appinst.privacypolicy",
+	"poweraction=appinst.poweraction",
 }
 var AppInstComments = map[string]string{
 	"developer":                      "Organization or Company Name that a Developer is part of",
@@ -303,6 +386,7 @@ var AppInstComments = map[string]string{
 	"sharedvolumesize":               "shared volume size when creating auto cluster",
 	"healthcheck":                    "Health Check status, one of HealthCheckOk, HealthCheckFailRootlbOffline, HealthCheckFailServerFail",
 	"privacypolicy":                  "Optional privacy policy name",
+	"poweraction":                    "Power Action on AppInst, one of PowerNone, PowerOn, PowerOff, Reboot",
 }
 var AppInstSpecialArgs = map[string]string{
 	"errors":                   "StringArray",

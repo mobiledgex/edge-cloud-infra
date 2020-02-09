@@ -96,6 +96,21 @@ func TestPermShowAppInst(mcClient *ormclient.Client, uri, token, region, org str
 	return TestShowAppInst(mcClient, uri, token, region, in)
 }
 
+func TestSetAppInst(mcClient *ormclient.Client, uri, token, region string, in *edgeproto.AppInst) ([]edgeproto.Result, int, error) {
+	dat := &ormapi.RegionAppInst{}
+	dat.Region = region
+	dat.AppInst = *in
+	return mcClient.SetAppInst(uri, token, dat)
+}
+func TestPermSetAppInst(mcClient *ormclient.Client, uri, token, region, org string, targetCloudlet *edgeproto.CloudletKey) ([]edgeproto.Result, int, error) {
+	in := &edgeproto.AppInst{}
+	if targetCloudlet != nil {
+		in.Key.ClusterInstKey.CloudletKey = *targetCloudlet
+	}
+	in.Key.AppKey.DeveloperKey.Name = org
+	return TestSetAppInst(mcClient, uri, token, region, in)
+}
+
 func RunMcAppInstApi(mcClient ormclient.Api, uri, token, region string, data *[]edgeproto.AppInst, dataMap interface{}, rc *bool, mode string) {
 	for ii, appInst := range *data {
 		in := &ormapi.RegionAppInst{

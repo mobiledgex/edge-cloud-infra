@@ -31,11 +31,6 @@ func GetShowLogsCmd() *cobra.Command {
 	return ShowLogsCmd.GenCmd()
 }
 
-func GetSetPowerStateCmd() *cobra.Command {
-	SetPowerStateCmd.Run = runExecRequest("/auth/ctrl/SetPowerState")
-	return SetPowerStateCmd.GenCmd()
-}
-
 func runExecRequest(path string) func(c *cli.Command, args []string) error {
 	return func(c *cli.Command, args []string) error {
 		input := cli.Input{

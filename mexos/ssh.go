@@ -3,6 +3,7 @@ package mexos
 import (
 	"context"
 	"fmt"
+	"time"
 
 	sh "github.com/codeskyblue/go-sh"
 	"github.com/mobiledgex/edge-cloud/log"
@@ -10,9 +11,9 @@ import (
 	"github.com/tmc/scp"
 )
 
-var SSHOpts = []string{"StrictHostKeyChecking=no", "UserKnownHostsFile=/dev/null", "LogLevel=ERROR"}
 var SSHUser = "ubuntu"
 var SSHPrivateKeyName = "id_rsa_mex"
+var ConnectTimeout time.Duration = 10 * time.Second
 
 //CopySSHCredential copies over the ssh credential for mex to LB
 func CopySSHCredential(ctx context.Context, serverName, networkName, userName string) error {
@@ -23,7 +24,7 @@ func CopySSHCredential(ctx context.Context, serverName, networkName, userName st
 		return err
 	}
 	kf := PrivateSSHKey()
-	out, err := sh.Command("scp", "-o", SSHOpts[0], "-o", SSHOpts[1], "-i", kf, kf, userName+"@"+addr+":").Output()
+	out, err := sh.Command("scp", "-o", ssh.SSHOpts[0], "-o", ssh.SSHOpts[1], "-i", kf, kf, userName+"@"+addr+":").Output()
 	if err != nil {
 		return fmt.Errorf("can't copy %s to %s, %s, %v", kf, addr, out, err)
 	}
@@ -41,7 +42,7 @@ func GetSSHClient(ctx context.Context, serverName, networkName, userName string)
 	}
 
 	gwhost, gwport := GetCloudletCRMGatewayIPAndPort()
-	client, err := ssh.NewNativeClient(userName, addr, "SSH-2.0-mobiledgex-ssh-client-1.0", 22, gwhost, gwport, &auth, &auth, nil)
+	client, err := ssh.NewNativeClient(userName, addr, "SSH-2.0-mobiledgex-ssh-client-1.0", 22, gwhost, gwport, &auth, &auth, ConnectTimeout, nil)
 	if err != nil {
 		return nil, fmt.Errorf("cannot get ssh client for server %s on network %s, %v", serverName, networkName, err)
 	}
@@ -52,7 +53,7 @@ func GetSSHClient(ctx context.Context, serverName, networkName, userName string)
 func GetSSHClientIP(ipaddr, userName string) (ssh.Client, error) {
 	auth := ssh.Auth{Keys: []string{PrivateSSHKey()}}
 	gwhost, gwport := GetCloudletCRMGatewayIPAndPort()
-	client, err := ssh.NewNativeClient(userName, ipaddr, "SSH-2.0-mobiledgex-ssh-client-1.0", 22, gwhost, gwport, &auth, &auth, nil)
+	client, err := ssh.NewNativeClient(userName, ipaddr, "SSH-2.0-mobiledgex-ssh-client-1.0", 22, gwhost, gwport, &auth, &auth, ConnectTimeout, nil)
 	if err != nil {
 		return nil, fmt.Errorf("cannot get ssh client for ipaddr %s, %v", ipaddr, err)
 	}

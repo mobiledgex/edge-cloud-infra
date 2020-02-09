@@ -216,7 +216,7 @@ func (s *Platform) CreateAppInst(ctx context.Context, clusterInst *edgeproto.Clu
 		return nil
 	case cloudcommon.AppDeploymentTypeDocker:
 		rootLBName := s.rootLBName
-		backendIP := crmutil.RemoteServerNone
+		backendIP := cloudcommon.RemoteServerNone
 		var err error
 		if clusterInst.IpAccess == edgeproto.IpAccess_IP_ACCESS_DEDICATED {
 			rootLBName = cloudcommon.GetDedicatedLBFQDN(s.cloudletKey, &clusterInst.Key.ClusterKey)
@@ -247,7 +247,7 @@ func (s *Platform) CreateAppInst(ctx context.Context, clusterInst *edgeproto.Clu
 		}
 		updateCallback(edgeproto.UpdateTask, "Deploying Docker App")
 
-		err = dockermgmt.CreateAppInst(ctx, s, client, app, appInst, backendIP)
+		err = dockermgmt.CreateAppInst(ctx, client, app, appInst, backendIP)
 		if err != nil {
 			return err
 		}
@@ -368,7 +368,7 @@ func (s *Platform) DeleteAppInst(ctx context.Context, clusterInst *edgeproto.Clu
 		return nil
 	case cloudcommon.AppDeploymentTypeDocker:
 
-		backendIP := crmutil.RemoteServerNone
+		backendIP := cloudcommon.RemoteServerNone
 		rootLBName := s.rootLBName
 		var err error
 		client, err := s.GetPlatformClient(ctx, clusterInst)
@@ -407,7 +407,7 @@ func (s *Platform) DeleteAppInst(ctx context.Context, clusterInst *edgeproto.Clu
 				log.SpanLog(ctx, log.DebugLevelMexos, "cannot delete security rules", "name", name, "rootlb", rootLBName, "error", err)
 			}
 		}
-		return dockermgmt.DeleteAppInst(ctx, s, client, app, appInst, backendIP)
+		return dockermgmt.DeleteAppInst(ctx, client, app, appInst, backendIP)
 	default:
 		return fmt.Errorf("unsupported deployment type %s", deployment)
 	}
@@ -438,7 +438,7 @@ func (s *Platform) UpdateAppInst(ctx context.Context, clusterInst *edgeproto.Clu
 		}
 		return k8smgmt.UpdateAppInst(ctx, client, names, app, appInst)
 	case cloudcommon.AppDeploymentTypeDocker:
-		backendIP := crmutil.RemoteServerNone
+		backendIP := cloudcommon.RemoteServerNone
 		var err error
 		if clusterInst.IpAccess == edgeproto.IpAccess_IP_ACCESS_SHARED {
 			_, backendIP, err = mexos.GetMasterNameAndIP(ctx, clusterInst)
@@ -451,7 +451,7 @@ func (s *Platform) UpdateAppInst(ctx context.Context, clusterInst *edgeproto.Clu
 		if err != nil {
 			return err
 		}
-		return dockermgmt.UpdateAppInst(ctx, s, client, app, appInst, backendIP)
+		return dockermgmt.UpdateAppInst(ctx, client, app, appInst, backendIP)
 	case cloudcommon.AppDeploymentTypeHelm:
 		client, err := s.GetPlatformClient(ctx, clusterInst)
 		if err != nil {

@@ -6,7 +6,6 @@ import (
 	"io/ioutil"
 	"os"
 
-	"github.com/mobiledgex/edge-cloud/cloud-resource-manager/crmutil"
 	"github.com/mobiledgex/edge-cloud/cloud-resource-manager/platform"
 	"github.com/mobiledgex/edge-cloud/cloud-resource-manager/platform/pc"
 	"github.com/mobiledgex/edge-cloud/cloudcommon"
@@ -49,7 +48,7 @@ func SeedDockerSecret(ctx context.Context, plat platform.Platform, client pc.Pla
 	if auth.AuthType != cloudcommon.BasicAuth {
 		return fmt.Errorf("auth type for %s is not basic auth type", auth.Hostname)
 	}
-	remoteServer := crmutil.RemoteServerNone
+	remoteServer := cloudcommon.RemoteServerNone
 
 	if clusterInst.IpAccess == edgeproto.IpAccess_IP_ACCESS_SHARED {
 		_, remoteServer, err = GetMasterNameAndIP(ctx, clusterInst)
@@ -60,18 +59,31 @@ func SeedDockerSecret(ctx context.Context, plat platform.Platform, client pc.Pla
 	// XXX: not sure writing password to file buys us anything if the
 	// echo command is recorded in some history.
 	cmd := fmt.Sprintf("echo %s > .docker-pass", auth.Password)
-	out, err := crmutil.RunCommand(ctx, plat, client, remoteServer, cmd)
+	var out string
+	if remoteServer == cloudcommon.RemoteServerNone {
+		out, err = client.Output(cmd)
+	} else {
+		out, err = client.RemoteOutput(remoteServer, cmd)
+	}
 	if err != nil {
 		return fmt.Errorf("can't store docker password, %s, %v", out, err)
 	}
 	log.SpanLog(ctx, log.DebugLevelMexos, "stored docker password")
 	defer func() {
 		cmd := fmt.Sprintf("rm .docker-pass")
-		crmutil.RunCommand(ctx, plat, client, remoteServer, cmd)
+		if remoteServer == cloudcommon.RemoteServerNone {
+			client.Output(cmd)
+		} else {
+			client.RemoteOutput(remoteServer, cmd)
+		}
 	}()
 
 	cmd = fmt.Sprintf("cat .docker-pass | docker login -u %s --password-stdin %s ", auth.Username, auth.Hostname)
-	out, err = crmutil.RunCommand(ctx, plat, client, remoteServer, cmd)
+	if remoteServer == cloudcommon.RemoteServerNone {
+		out, err = client.Output(cmd)
+	} else {
+		out, err = client.RemoteOutput(remoteServer, cmd)
+	}
 	if err != nil {
 		return fmt.Errorf("can't docker login on rootlb to %s, %s, %v", auth.Hostname, out, err)
 	}

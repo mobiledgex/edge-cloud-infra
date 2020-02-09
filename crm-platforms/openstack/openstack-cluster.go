@@ -302,7 +302,7 @@ func (s *Platform) isClusterReady(ctx context.Context, clusterInst *edgeproto.Cl
 	}
 	log.SpanLog(ctx, log.DebugLevelMexos, "checking master k8s node for available nodes", "ipaddr", masterIP)
 	cmd := "kubectl get nodes"
-	out, err := s.RunRemoteCommand(ctx, client, masterIP, cmd)
+	out, err := client.RemoteOutput(masterIP, cmd)
 	if err != nil {
 		log.SpanLog(ctx, log.DebugLevelMexos, "error checking for kubernetes nodes", "out", out, "err", err)
 		return false, 0, nil //This is intentional
@@ -354,7 +354,7 @@ func (s *Platform) isClusterReady(ctx context.Context, clusterInst *edgeproto.Cl
 		log.SpanLog(ctx, log.DebugLevelMexos, "removing NoSchedule taint from master", "master", masterString)
 		cmd := fmt.Sprintf("kubectl taint nodes %s node-role.kubernetes.io/master:NoSchedule-", masterString)
 
-		out, err := s.RunRemoteCommand(ctx, client, masterIP, cmd)
+		out, err := client.RemoteOutput(masterIP, cmd)
 		if err != nil {
 			if strings.Contains(out, "not found") {
 				log.SpanLog(ctx, log.DebugLevelMexos, "master taint already gone")

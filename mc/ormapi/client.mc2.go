@@ -19,7 +19,16 @@ var _ = math.Inf
 
 // Auto-generated code: DO NOT EDIT
 
-type RegionAppInstClient struct {
-	Region        string
-	AppInstClient edgeproto.AppInstClient
+// Request summary for ShowAppInstClient
+// swagger:parameters ShowAppInstClient
+type swaggerShowAppInstClient struct {
+	// in: body
+	Body RegionAppInstClientKey
+}
+
+type RegionAppInstClientKey struct {
+	// required: true
+	// Region name
+	Region           string
+	AppInstClientKey edgeproto.AppInstClientKey
 }

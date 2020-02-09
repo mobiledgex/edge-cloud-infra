@@ -21,14 +21,14 @@ var _ = math.Inf
 
 // Auto-generated code: DO NOT EDIT
 
-func TestShowAppInstClient(mcClient *ormclient.Client, uri, token, region string, in *edgeproto.AppInstClient) ([]edgeproto.AppInstClient, int, error) {
-	dat := &ormapi.RegionAppInstClient{}
+func TestShowAppInstClient(mcClient *ormclient.Client, uri, token, region string, in *edgeproto.AppInstClientKey) ([]edgeproto.AppInstClient, int, error) {
+	dat := &ormapi.RegionAppInstClientKey{}
 	dat.Region = region
-	dat.AppInstClient = *in
+	dat.AppInstClientKey = *in
 	return mcClient.ShowAppInstClient(uri, token, dat)
 }
 func TestPermShowAppInstClient(mcClient *ormclient.Client, uri, token, region, org string) ([]edgeproto.AppInstClient, int, error) {
-	in := &edgeproto.AppInstClient{}
-	in.ClientKey.AppInstKey.AppKey.DeveloperKey.Name = org
+	in := &edgeproto.AppInstClientKey{}
+	in.Key.AppKey.DeveloperKey.Name = org
 	return TestShowAppInstClient(mcClient, uri, token, region, in)
 }

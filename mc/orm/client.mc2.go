@@ -33,7 +33,7 @@ func ShowAppInstClient(c echo.Context) error {
 	}
 	rc.username = claims.Username
 
-	in := ormapi.RegionAppInstClient{}
+	in := ormapi.RegionAppInstClientKey{}
 	success, err := ReadConn(c, &in)
 	if !success {
 		return err
@@ -41,9 +41,9 @@ func ShowAppInstClient(c echo.Context) error {
 	defer CloseConn(c)
 	rc.region = in.Region
 	span := log.SpanFromContext(ctx)
-	span.SetTag("org", in.AppInstClient.ClientKey.AppInstKey.AppKey.DeveloperKey.Name)
+	span.SetTag("org", in.AppInstClientKey.Key.AppKey.DeveloperKey.Name)
 
-	err = ShowAppInstClientStream(ctx, rc, &in.AppInstClient, func(res *edgeproto.AppInstClient) {
+	err = ShowAppInstClientStream(ctx, rc, &in.AppInstClientKey, func(res *edgeproto.AppInstClient) {
 		payload := ormapi.StreamPayload{}
 		payload.Data = res
 		WriteStream(c, &payload)
@@ -54,7 +54,7 @@ func ShowAppInstClient(c echo.Context) error {
 	return nil
 }
 
-func ShowAppInstClientStream(ctx context.Context, rc *RegionContext, obj *edgeproto.AppInstClient, cb func(res *edgeproto.AppInstClient)) error {
+func ShowAppInstClientStream(ctx context.Context, rc *RegionContext, obj *edgeproto.AppInstClientKey, cb func(res *edgeproto.AppInstClient)) error {
 	var authz *ShowAuthz
 	var err error
 	if !rc.skipAuthz {
@@ -92,7 +92,7 @@ func ShowAppInstClientStream(ctx context.Context, rc *RegionContext, obj *edgepr
 			return err
 		}
 		if !rc.skipAuthz {
-			if !authz.Ok(res.ClientKey.AppInstKey.AppKey.DeveloperKey.Name) {
+			if !authz.Ok(res.Key.AppKey.DeveloperKey.Name) {
 				continue
 			}
 		}
@@ -101,7 +101,7 @@ func ShowAppInstClientStream(ctx context.Context, rc *RegionContext, obj *edgepr
 	return nil
 }
 
-func ShowAppInstClientObj(ctx context.Context, rc *RegionContext, obj *edgeproto.AppInstClient) ([]edgeproto.AppInstClient, error) {
+func ShowAppInstClientObj(ctx context.Context, rc *RegionContext, obj *edgeproto.AppInstClientKey) ([]edgeproto.AppInstClient, error) {
 	arr := []edgeproto.AppInstClient{}
 	err := ShowAppInstClientStream(ctx, rc, obj, func(res *edgeproto.AppInstClient) {
 		arr = append(arr, *res)

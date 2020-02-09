@@ -21,7 +21,7 @@ var _ = math.Inf
 
 // Auto-generated code: DO NOT EDIT
 
-func (s *Client) ShowAppInstClient(uri, token string, in *ormapi.RegionAppInstClient) ([]edgeproto.AppInstClient, int, error) {
+func (s *Client) ShowAppInstClient(uri, token string, in *ormapi.RegionAppInstClientKey) ([]edgeproto.AppInstClient, int, error) {
 	args := []string{"region", "ShowAppInstClient"}
 	outlist := []edgeproto.AppInstClient{}
 	noconfig := strings.Split("", ",")

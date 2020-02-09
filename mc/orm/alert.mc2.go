@@ -104,28 +104,18 @@ It has these top-level messages:
 */
 package orm
 
-import (
-	"context"
-	"io"
-
-	"github.com/labstack/echo"
-	"github.com/mobiledgex/edge-cloud-infra/mc/ormapi"
-	edgeproto "github.com/mobiledgex/edge-cloud/edgeproto"
-
-	proto "github.com/gogo/protobuf/proto"
-
-	fmt "fmt"
-
-	math "math"
-
-	_ "github.com/gogo/googleapis/google/api"
-
-	_ "github.com/mobiledgex/edge-cloud/protogen"
-
-	_ "github.com/mobiledgex/edge-cloud/d-match-engine/dme-proto"
-
-	_ "github.com/gogo/protobuf/gogoproto"
-)
+import edgeproto "github.com/mobiledgex/edge-cloud/edgeproto"
+import "github.com/labstack/echo"
+import "context"
+import "io"
+import "github.com/mobiledgex/edge-cloud-infra/mc/ormapi"
+import proto "github.com/gogo/protobuf/proto"
+import fmt "fmt"
+import math "math"
+import _ "github.com/gogo/googleapis/google/api"
+import _ "github.com/mobiledgex/edge-cloud/protogen"
+import _ "github.com/mobiledgex/edge-cloud/d-match-engine/dme-proto"
+import _ "github.com/gogo/protobuf/gogoproto"
 
 // Reference imports to suppress errors if they are not otherwise used.
 var _ = proto.Marshal
@@ -726,6 +716,17 @@ func addControllerApis(method string, group *echo.Group) {
 	//   403: forbidden
 	//   404: notFound
 	group.Match([]string{method}, "/ctrl/RemoveAutoProvPolicyCloudlet", RemoveAutoProvPolicyCloudlet)
+	// swagger:route POST /auth/ctrl/ShowAppInstClient AppInstClientKey ShowAppInstClient
+	// Show application instance clients.
+	//
+	// Security:
+	//   Bearer:
+	// responses:
+	//   200: success
+	//   400: badRequest
+	//   403: forbidden
+	//   404: notFound
+	group.Match([]string{method}, "/ctrl/ShowAppInstClient", ShowAppInstClient)
 	// swagger:route POST /auth/ctrl/CreateCloudletPool CloudletPool CreateCloudletPool
 	// Create a CloudletPool.
 	// Security:

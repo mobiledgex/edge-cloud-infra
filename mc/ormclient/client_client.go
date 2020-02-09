@@ -20,7 +20,7 @@ var _ = math.Inf
 
 // Auto-generated code: DO NOT EDIT
 
-func (s *Client) ShowAppInstClient(uri, token string, in *ormapi.RegionAppInstClient) ([]edgeproto.AppInstClient, int, error) {
+func (s *Client) ShowAppInstClient(uri, token string, in *ormapi.RegionAppInstClientKey) ([]edgeproto.AppInstClient, int, error) {
 	out := edgeproto.AppInstClient{}
 	outlist := []edgeproto.AppInstClient{}
 	status, err := s.PostJsonStreamOut(uri+"/auth/ctrl/ShowAppInstClient", token, in, &out, func() {
@@ -30,5 +30,5 @@ func (s *Client) ShowAppInstClient(uri, token string, in *ormapi.RegionAppInstCl
 }
 
 type AppInstClientApiClient interface {
-	ShowAppInstClient(uri, token string, in *ormapi.RegionAppInstClient) ([]edgeproto.AppInstClient, int, error)
+	ShowAppInstClient(uri, token string, in *ormapi.RegionAppInstClientKey) ([]edgeproto.AppInstClient, int, error)
 }

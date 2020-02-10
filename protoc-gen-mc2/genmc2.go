@@ -312,6 +312,7 @@ func (g *GenMC2) generateMethod(service string, method *descriptor.MethodDescrip
 		StreamOutIncremental: gensupport.GetStreamOutIncremental(method),
 		CustomAuthz:          GetMc2CustomAuthz(method),
 		HasMethodArgs:        gensupport.HasMethodArgs(method),
+		StreamingShow:        gensupport.GetStreamingShow(method),
 	}
 	if apiVals[2] == "" {
 		args.Org = `""`
@@ -418,6 +419,7 @@ type tmplArgs struct {
 	TargetCloudletParam  string
 	TargetCloudletArg    string
 	HasMethodArgs        bool
+	StreamingShow        bool
 }
 
 var tmplApi = `
@@ -445,7 +447,9 @@ var tmpl = `
 var stream{{.InName}} = &StreamObj{}
 
 func Stream{{.InName}}(c echo.Context) error {
+{{- if .OrgValid}}
 	ctx := GetContext(c)
+{{- end}}
 	rc := &RegionContext{}
 	claims, err := getClaims(c)
 	if err != nil {
@@ -543,7 +547,7 @@ func {{.MethodName}}(c echo.Context) error {
 {{- end}}
 		payload := ormapi.StreamPayload{}
 		payload.Data = res
-{{- if and (not .Show) .Outstream}}
+{{- if and (not .Show) .Outstream (not .StreamingShow) }}
 		streamer.Publish(res.Message)
 {{- end}}
 		WriteStream(c, &payload)

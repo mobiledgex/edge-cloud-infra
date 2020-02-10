@@ -24,8 +24,8 @@ var _ = math.Inf
 
 var ShowAppInstClientCmd = &cli.Command{
 	Use:                  "ShowAppInstClient",
-	RequiredArgs:         "region",
-	OptionalArgs:         strings.Join(append(AppInstClientKeyRequiredArgs, AppInstClientKeyOptionalArgs...), " "),
+	RequiredArgs:         strings.Join(append([]string{"region"}, ShowAppInstClientRequiredArgs...), " "),
+	OptionalArgs:         strings.Join(ShowAppInstClientOptionalArgs, " "),
 	AliasArgs:            strings.Join(AppInstClientKeyAliasArgs, " "),
 	SpecialArgs:          &AppInstClientKeySpecialArgs,
 	Comments:             addRegionComment(AppInstClientKeyComments),
@@ -40,6 +40,18 @@ var AppInstClientApiCmds = []*cli.Command{
 	ShowAppInstClientCmd,
 }
 
+var ShowAppInstClientRequiredArgs = []string{
+	"developer",
+	"appname",
+	"appvers",
+	"operator",
+	"cloudlet",
+}
+var ShowAppInstClientOptionalArgs = []string{
+	"key.clusterinstkey.clusterkey.name",
+	"key.clusterinstkey.developer",
+	"uuid",
+}
 var AppInstClientKeyRequiredArgs = []string{
 	"developer",
 	"appname",

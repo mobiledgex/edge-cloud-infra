@@ -18,4 +18,6 @@ tests:
     mods: [cli,sep]
     loops: 2
   - includefile: verify_loc.yml
-  - includefile: {{edge-cloud-testfiles}}/find_cloudlet.yml
+    loops: 2
+  - includefile: fetchlogs.yml	
+  - includefile: {{edge-cloud-testfiles}}/stop_cleanup.yml

@@ -727,6 +727,7 @@ func addControllerApis(method string, group *echo.Group) {
 	//   403: forbidden
 	//   404: notFound
 	group.Match([]string{method}, "/ctrl/ShowAppInstClient", ShowAppInstClient)
+	group.Match([]string{method}, "/ctrl/StreamAppInstClientKey", StreamAppInstClientKey)
 	// swagger:route POST /auth/ctrl/CreateCloudletPool CloudletPool CreateCloudletPool
 	// Create a CloudletPool.
 	// Security:

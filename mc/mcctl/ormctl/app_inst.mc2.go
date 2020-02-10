@@ -239,7 +239,7 @@ var SetAppInstRequiredArgs = []string{
 	"cluster",
 	"operator",
 	"cloudlet",
-	"poweraction",
+	"powerstate",
 }
 var SetAppInstOptionalArgs = []string{
 	"clusterdeveloper",
@@ -300,7 +300,7 @@ var AppInstOptionalArgs = []string{
 	"sharedvolumesize",
 	"healthcheck",
 	"privacypolicy",
-	"poweraction",
+	"powerstate",
 }
 var AppInstAliasArgs = []string{
 	"developer=appinst.key.appkey.developerkey.name",
@@ -347,7 +347,7 @@ var AppInstAliasArgs = []string{
 	"sharedvolumesize=appinst.sharedvolumesize",
 	"healthcheck=appinst.healthcheck",
 	"privacypolicy=appinst.privacypolicy",
-	"poweraction=appinst.poweraction",
+	"powerstate=appinst.powerstate",
 }
 var AppInstComments = map[string]string{
 	"developer":                      "Organization or Company Name that a Developer is part of",
@@ -386,7 +386,7 @@ var AppInstComments = map[string]string{
 	"sharedvolumesize":               "shared volume size when creating auto cluster",
 	"healthcheck":                    "Health Check status, one of HealthCheckOk, HealthCheckFailRootlbOffline, HealthCheckFailServerFail",
 	"privacypolicy":                  "Optional privacy policy name",
-	"poweraction":                    "Power Action on AppInst, one of PowerNone, PowerOn, PowerOff, Reboot",
+	"powerstate":                     "Power State of the AppInst, one of PowerNone, PowerOn, PowerOff, Reboot",
 }
 var AppInstSpecialArgs = map[string]string{
 	"errors":                   "StringArray",

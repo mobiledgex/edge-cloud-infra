@@ -1025,12 +1025,12 @@ func AddImageIfNotPresent(ctx context.Context, imgPathPrefix, imgVersion string,
 	return pfImageName, nil
 }
 
-func OSSetPowerState(ctx context.Context, serverName, powerAction string) error {
-	log.SpanLog(ctx, log.DebugLevelMexos, "setting server state", "serverName", serverName, "powerAction", powerAction)
+func OSSetPowerState(ctx context.Context, serverName, serverAction string) error {
+	log.SpanLog(ctx, log.DebugLevelMexos, "setting server state", "serverName", serverName, "serverAction", serverAction)
 
-	out, err := TimedOpenStackCommand(ctx, "openstack", "server", powerAction, serverName)
+	out, err := TimedOpenStackCommand(ctx, "openstack", "server", serverAction, serverName)
 	if err != nil {
-		err = fmt.Errorf("unable to %s server %s, %s, %v", powerAction, serverName, out, err)
+		err = fmt.Errorf("unable to %s server %s, %s, %v", serverAction, serverName, out, err)
 		return err
 	}
 

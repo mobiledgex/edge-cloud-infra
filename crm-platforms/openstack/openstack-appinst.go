@@ -476,13 +476,13 @@ func (s *Platform) GetConsoleUrl(ctx context.Context, app *edgeproto.App) (strin
 }
 
 func (s *Platform) SetPowerState(ctx context.Context, app *edgeproto.App, appInst *edgeproto.AppInst, updateCallback edgeproto.CacheUpdateCallback) error {
-	powerAction := appInst.PowerAction
+	PowerState := appInst.PowerState
 	switch deployment := app.Deployment; deployment {
 	case cloudcommon.AppDeploymentTypeVM:
 		serverName := cloudcommon.GetAppFQN(&app.Key)
 		fqdn := appInst.Uri
 
-		log.SpanLog(ctx, log.DebugLevelMexos, "setting server state", "serverName", serverName, "fqdn", fqdn, "powerAction", powerAction)
+		log.SpanLog(ctx, log.DebugLevelMexos, "setting server state", "serverName", serverName, "fqdn", fqdn, "PowerState", PowerState)
 
 		updateCallback(edgeproto.UpdateTask, "Verifying AppInst state")
 		serverDetail, err := mexos.GetServerDetails(ctx, serverName)
@@ -491,21 +491,21 @@ func (s *Platform) SetPowerState(ctx context.Context, app *edgeproto.App, appIns
 		}
 
 		serverAction := ""
-		switch powerAction {
-		case edgeproto.PowerAction_POWER_ON:
+		switch PowerState {
+		case edgeproto.PowerState_POWER_ON:
 			if serverDetail.Status == "ACTIVE" {
 				return fmt.Errorf("server %s is already active", serverName)
 			}
 			serverAction = "start"
-		case edgeproto.PowerAction_POWER_OFF:
+		case edgeproto.PowerState_POWER_OFF:
 			if serverDetail.Status == "SHUTOFF" {
 				return fmt.Errorf("server %s is already stopped", serverName)
 			}
 			serverAction = "stop"
-		case edgeproto.PowerAction_REBOOT:
+		case edgeproto.PowerState_REBOOT:
 			serverAction = "reboot"
 		default:
-			return fmt.Errorf("unsupported server power action: %s", powerAction)
+			return fmt.Errorf("unsupported server power action: %s", PowerState)
 		}
 
 		updateCallback(edgeproto.UpdateTask, fmt.Sprintf("Fetching external address of %s", serverName))
@@ -520,7 +520,7 @@ func (s *Platform) SetPowerState(ctx context.Context, app *edgeproto.App, appIns
 			return err
 		}
 
-		if powerAction == edgeproto.PowerAction_POWER_ON || powerAction == edgeproto.PowerAction_REBOOT {
+		if PowerState == edgeproto.PowerState_POWER_ON || PowerState == edgeproto.PowerState_REBOOT {
 			updateCallback(edgeproto.UpdateTask, fmt.Sprintf("Waiting for server %s to become active", serverName))
 			serverDetail, err := mexos.GetServerDetails(ctx, serverName)
 			if err != nil {

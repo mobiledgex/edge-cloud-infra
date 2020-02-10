@@ -25,7 +25,7 @@ var _ = math.Inf
 func (s *Client) CreateAppInst(uri, token string, in *ormapi.RegionAppInst) ([]edgeproto.Result, int, error) {
 	args := []string{"region", "CreateAppInst"}
 	outlist := []edgeproto.Result{}
-	noconfig := strings.Split("CloudletLoc,Uri,MappedPorts,Liveness,CreatedAt,Status,Revision,Errors,RuntimeInfo,UpdateMultiple,ForceUpdate,PowerAction", ",")
+	noconfig := strings.Split("CloudletLoc,Uri,MappedPorts,Liveness,CreatedAt,Status,Revision,Errors,RuntimeInfo,UpdateMultiple,ForceUpdate,PowerState", ",")
 	ops := []runOp{
 		withIgnore(noconfig),
 		withStreamOutIncremental(),
@@ -37,7 +37,7 @@ func (s *Client) CreateAppInst(uri, token string, in *ormapi.RegionAppInst) ([]e
 func (s *Client) DeleteAppInst(uri, token string, in *ormapi.RegionAppInst) ([]edgeproto.Result, int, error) {
 	args := []string{"region", "DeleteAppInst"}
 	outlist := []edgeproto.Result{}
-	noconfig := strings.Split("PowerAction", ",")
+	noconfig := strings.Split("PowerState", ",")
 	ops := []runOp{
 		withIgnore(noconfig),
 		withStreamOutIncremental(),
@@ -49,7 +49,7 @@ func (s *Client) DeleteAppInst(uri, token string, in *ormapi.RegionAppInst) ([]e
 func (s *Client) RefreshAppInst(uri, token string, in *ormapi.RegionAppInst) ([]edgeproto.Result, int, error) {
 	args := []string{"region", "RefreshAppInst"}
 	outlist := []edgeproto.Result{}
-	noconfig := strings.Split("CloudletLoc,Uri,MappedPorts,Liveness,Flavor,State,RuntimeInfo,AutoClusterIpAccess,Errors,CreatedAt,Status,Revision,Configs,PowerAction", ",")
+	noconfig := strings.Split("CloudletLoc,Uri,MappedPorts,Liveness,Flavor,State,RuntimeInfo,AutoClusterIpAccess,Errors,CreatedAt,Status,Revision,Configs,PowerState", ",")
 	ops := []runOp{
 		withIgnore(noconfig),
 		withStreamOutIncremental(),
@@ -61,7 +61,7 @@ func (s *Client) RefreshAppInst(uri, token string, in *ormapi.RegionAppInst) ([]
 func (s *Client) UpdateAppInst(uri, token string, in *ormapi.RegionAppInst) ([]edgeproto.Result, int, error) {
 	args := []string{"region", "UpdateAppInst"}
 	outlist := []edgeproto.Result{}
-	noconfig := strings.Split("CloudletLoc,Uri,MappedPorts,Liveness,Flavor,State,RuntimeInfo,AutoClusterIpAccess,Errors,CreatedAt,Status,Revision,UpdateMultiple,ForceUpdate,PowerAction", ",")
+	noconfig := strings.Split("CloudletLoc,Uri,MappedPorts,Liveness,Flavor,State,RuntimeInfo,AutoClusterIpAccess,Errors,CreatedAt,Status,Revision,UpdateMultiple,ForceUpdate,PowerState", ",")
 	ops := []runOp{
 		withIgnore(noconfig),
 		withStreamOutIncremental(),

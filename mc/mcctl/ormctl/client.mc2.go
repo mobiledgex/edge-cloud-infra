@@ -24,8 +24,8 @@ var _ = math.Inf
 
 var ShowAppInstClientCmd = &cli.Command{
 	Use:                  "ShowAppInstClient",
-	RequiredArgs:         strings.Join(append([]string{"region"}, ShowAppInstClientRequiredArgs...), " "),
-	OptionalArgs:         strings.Join(ShowAppInstClientOptionalArgs, " "),
+	RequiredArgs:         strings.Join(append([]string{"region"}, AppInstClientKeyRequiredArgs...), " "),
+	OptionalArgs:         strings.Join(AppInstClientKeyOptionalArgs, " "),
 	AliasArgs:            strings.Join(AppInstClientKeyAliasArgs, " "),
 	SpecialArgs:          &AppInstClientKeySpecialArgs,
 	Comments:             addRegionComment(AppInstClientKeyComments),
@@ -40,26 +40,14 @@ var AppInstClientApiCmds = []*cli.Command{
 	ShowAppInstClientCmd,
 }
 
-var ShowAppInstClientRequiredArgs = []string{
-	"developer",
-	"appname",
-	"appvers",
-	"operator",
-	"cloudlet",
-}
-var ShowAppInstClientOptionalArgs = []string{
-	"key.clusterinstkey.clusterkey.name",
-	"key.clusterinstkey.developer",
-	"uuid",
-}
 var AppInstClientKeyRequiredArgs = []string{
 	"developer",
 	"appname",
 	"appvers",
-	"key.clusterinstkey.clusterkey.name",
+	"cluster",
 	"operator",
 	"cloudlet",
-	"key.clusterinstkey.developer",
+	"clusterdeveloper",
 }
 var AppInstClientKeyOptionalArgs = []string{
 	"uuid",
@@ -68,21 +56,21 @@ var AppInstClientKeyAliasArgs = []string{
 	"developer=appinstclientkey.key.appkey.developerkey.name",
 	"appname=appinstclientkey.key.appkey.name",
 	"appvers=appinstclientkey.key.appkey.version",
-	"key.clusterinstkey.clusterkey.name=appinstclientkey.key.clusterinstkey.clusterkey.name",
+	"cluster=appinstclientkey.key.clusterinstkey.clusterkey.name",
 	"operator=appinstclientkey.key.clusterinstkey.cloudletkey.operatorkey.name",
 	"cloudlet=appinstclientkey.key.clusterinstkey.cloudletkey.name",
-	"key.clusterinstkey.developer=appinstclientkey.key.clusterinstkey.developer",
+	"clusterdeveloper=appinstclientkey.key.clusterinstkey.developer",
 	"uuid=appinstclientkey.uuid",
 }
 var AppInstClientKeyComments = map[string]string{
-	"developer":                          "Organization or Company Name that a Developer is part of",
-	"appname":                            "App name",
-	"appvers":                            "App version",
-	"key.clusterinstkey.clusterkey.name": "Cluster name",
-	"operator":                           "Company or Organization name of the operator",
-	"cloudlet":                           "Name of the cloudlet",
-	"key.clusterinstkey.developer":       "Name of Developer that this cluster belongs to",
-	"uuid":                               "App name",
+	"developer":        "Organization or Company Name that a Developer is part of",
+	"appname":          "App name",
+	"appvers":          "App version",
+	"cluster":          "Cluster name",
+	"operator":         "Company or Organization name of the operator",
+	"cloudlet":         "Name of the cloudlet",
+	"clusterdeveloper": "Name of Developer that this cluster belongs to",
+	"uuid":             "AppInstClient UUID",
 }
 var AppInstClientKeySpecialArgs = map[string]string{}
 var AppInstClientRequiredArgs = []string{}
@@ -105,7 +93,6 @@ var AppInstClientOptionalArgs = []string{
 	"location.timestamp.seconds",
 	"location.timestamp.nanos",
 	"notifyid",
-	"status",
 }
 var AppInstClientAliasArgs = []string{
 	"clientkey.key.appkey.developerkey.name=appinstclient.clientkey.key.appkey.developerkey.name",
@@ -126,7 +113,6 @@ var AppInstClientAliasArgs = []string{
 	"location.timestamp.seconds=appinstclient.location.timestamp.seconds",
 	"location.timestamp.nanos=appinstclient.location.timestamp.nanos",
 	"notifyid=appinstclient.notifyid",
-	"status=appinstclient.status",
 }
 var AppInstClientComments = map[string]string{
 	"clientkey.key.appkey.developerkey.name":                    "Organization or Company Name that a Developer is part of",
@@ -136,7 +122,7 @@ var AppInstClientComments = map[string]string{
 	"clientkey.key.clusterinstkey.cloudletkey.operatorkey.name": "Company or Organization name of the operator",
 	"clientkey.key.clusterinstkey.cloudletkey.name":             "Name of the cloudlet",
 	"clientkey.key.clusterinstkey.developer":                    "Name of Developer that this cluster belongs to",
-	"clientkey.uuid":                                            "App name",
+	"clientkey.uuid":                                            "AppInstClient UUID",
 	"location.latitude":                                         "latitude in WGS 84 coordinates",
 	"location.longitude":                                        "longitude in WGS 84 coordinates",
 	"location.horizontalaccuracy":                               "horizontal accuracy (radius in meters)",
@@ -145,6 +131,5 @@ var AppInstClientComments = map[string]string{
 	"location.course":                                           "course (IOS) / bearing (Android) (degrees east relative to true north)",
 	"location.speed":                                            "speed (IOS) / velocity (Android) (meters/sec)",
 	"notifyid":                                                  "Id of client assigned by server (internal use only)",
-	"status":                                                    "Status return, one of FindUnknown, FindFound, FindNotfound",
 }
 var AppInstClientSpecialArgs = map[string]string{}

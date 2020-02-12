@@ -129,6 +129,8 @@ elif [[ "$SKIP_GITHUB" != true && -z "$CONSOLE_VERSION" ]]; then
 	export GITHUB_USER GITHUB_TOKEN
 fi
 
+[[ -z "$VAULT_TOKEN" ]] && read -p 'Vault token: ' -s VAULT_TOKEN
+
 # Limit to specified target
 [[ -n "$TARGET" ]] && ARGS+=( -l "$TARGET" )
 
@@ -173,7 +175,7 @@ if $CONFIRM && ! $DRYRUN && ! $ASSUME_YES; then
 	esac
 fi
 
-ansible-playbook "${ARGS[@]}"; RC=$?
+VAULT_TOKEN="$VAULT_TOKEN" ansible-playbook "${ARGS[@]}"; RC=$?
 
 if $DRYRUN; then
 	echo

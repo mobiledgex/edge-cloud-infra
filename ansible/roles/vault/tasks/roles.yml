@@ -1,0 +1,17 @@
+- debug:
+    msg: "Install global roles"
+
+- name: mexenv.v1 role
+  vault_role:
+    name: mexenv.v1
+    policies:
+      - approle.login.v1
+      - mexenv.read.v1
+    token_type: batch
+
+- include_role:
+    name: vault
+    tasks_from: region-roles
+  loop: "{{ regions }}"
+  loop_control:
+    loop_var: region

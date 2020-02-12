@@ -1,0 +1,20 @@
+- name: Install global policies
+  vault_policy:
+    name: "{{ item | basename | regex_replace('\\.hcl(\\.j2)?$', '')}}"
+    content: "{{ lookup('template', item) }}"
+  loop:
+    - vault/policies/approle.login.v1.hcl.j2
+    - vault/policies/certs.read.v1.hcl.j2
+    - vault/policies/noreplyemail.read.v1.hcl.j2
+    - vault/policies/gcp-auth.read.v1.hcl.j2
+    - vault/policies/mcorm-jwtkeys.read.v1.hcl.j2
+    - vault/policies/mcorm-jwtkeys.write.v1.hcl.j2
+    - vault/policies/mexenv.read.v1.hcl.j2
+    - vault/policies/registry.read.v1.hcl.j2
+
+- include_role:
+    name: vault
+    tasks_from: region-policies
+  loop: "{{ regions }}"
+  loop_control:
+    loop_var: region

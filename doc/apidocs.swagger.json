@@ -10,7 +10,7 @@
   ],
   "swagger": "2.0",
   "info": {
-    "description": "# Introduction\nThis documentation describes all the available MC APIs, which end-users can use for edge orchestration",
+    "description": "# Introduction\nThe Master Controller (MC) serves as the central gateway for orchestrating edge applications and provides several services to both application developers and operators. For application developers, these APIs allow the management and monitoring of deployments for edge applications. For infrastructure operators, these APIs provide ways to manage and monitor the usage of cloudlet infrastructures. Both developers and operators can take advantage of these APIS to manage users within the Organization.\n\nYou can leverage these functionalities and services on our easy-to-use MobiledgeX Console. If you prefer to manage these services programmatically, the available APIs and their resources are accessible from the left navigational menu.",
     "title": "Master Controller (MC) API Documentation",
     "version": "1.0.0"
   },
@@ -171,7 +171,7 @@
             "Bearer": []
           }
         ],
-        "description": "Create definition for an application instance which will be deployed on a Cloudlet",
+        "description": "Creates a definition for an application instance for Cloudlet deployment.",
         "tags": [
           "App"
         ],
@@ -209,7 +209,7 @@
             "Bearer": []
           }
         ],
-        "description": "Creates an instance of an App on a Cloudlet where it is defined by an App plus a ClusterInst key. Many of the fields here are inherited from the App definition",
+        "description": "Creates an instance of an App on a Cloudlet where it is defined by an App plus a ClusterInst key. Many of the fields here are inherited from the App definition.",
         "tags": [
           "AppInst"
         ],
@@ -321,7 +321,7 @@
             "Bearer": []
           }
         ],
-        "description": "Sets up cloudlet services on Operators compute resources and makes it part of MobiledgeX edge resource portfolio. These resources will now be managed from edge controller",
+        "description": "Sets up Cloudlet services on the Operators compute resources, and integrated as part of MobiledgeX edge resource portfolio. These resources are managed from the Edge Controller.",
         "tags": [
           "Cloudlet"
         ],
@@ -433,7 +433,7 @@
             "Bearer": []
           }
         ],
-        "description": "Creates an instance of a Cluster on a Cloudlet, defined by a Cluster Key and a Cloudlet Key.",
+        "description": "Creates an instance of a Cluster on a Cloudlet, defined by a Cluster Key and a Cloudlet Key. ClusterInst is a collection of compute resources on a Cloudlet on which AppInsts are deployed.",
         "tags": [
           "ClusterInst"
         ],
@@ -619,7 +619,7 @@
             "Bearer": []
           }
         ],
-        "description": "Delete definition of an application instance. This requires that no application instance with this definition exists. If it exists, then user must delete those first",
+        "description": "Deletes a definition of an Application instance. Make sure no other application instances exist with that definition. If they do exist, you must delete those Application instances first.",
         "tags": [
           "App"
         ],
@@ -657,7 +657,7 @@
             "Bearer": []
           }
         ],
-        "description": "Deletes an instance of the App from the Cloudlet",
+        "description": "Deletes an instance of the App from the Cloudlet.",
         "tags": [
           "AppInst"
         ],
@@ -769,7 +769,7 @@
             "Bearer": []
           }
         ],
-        "description": "Removes cloudlet services and will no longer be managed from edge controller",
+        "description": "Removes the Cloudlet services where they are no longer managed from the Edge Controller.",
         "tags": [
           "Cloudlet"
         ],
@@ -881,7 +881,7 @@
             "Bearer": []
           }
         ],
-        "description": "Deletes an instance of Cluster deployed on a Cloudlet",
+        "description": "Deletes an instance of a Cluster deployed on a Cloudlet.",
         "tags": [
           "ClusterInst"
         ],
@@ -1141,7 +1141,7 @@
             "Bearer": []
           }
         ],
-        "description": "Refresh restarts an application instance with new App settings or image",
+        "description": "Restarts an App instance with new App settings or image.",
         "tags": [
           "AppInst"
         ],
@@ -1367,8 +1367,45 @@
         "tags": [
           "ExecRequest"
         ],
-        "summary": "Run a Command or Shell on a container or VM.",
+        "summary": "Run a Command or Shell on a container.",
         "operationId": "RunCommand",
+        "parameters": [
+          {
+            "name": "Body",
+            "in": "body",
+            "schema": {
+              "$ref": "#/definitions/RegionExecRequest"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "$ref": "#/responses/success"
+          },
+          "400": {
+            "$ref": "#/responses/badRequest"
+          },
+          "403": {
+            "$ref": "#/responses/forbidden"
+          },
+          "404": {
+            "$ref": "#/responses/notFound"
+          }
+        }
+      }
+    },
+    "/auth/ctrl/RunConsole": {
+      "post": {
+        "security": [
+          {
+            "Bearer": []
+          }
+        ],
+        "tags": [
+          "ExecRequest"
+        ],
+        "summary": "Run console on a VM.",
+        "operationId": "RunConsole",
         "parameters": [
           {
             "name": "Body",
@@ -1438,7 +1475,7 @@
             "Bearer": []
           }
         ],
-        "description": "Lists all application definitions managed from edge controller. Any fields specified will be used to filter results",
+        "description": "Lists all Application definitions managed from the Edge Controller. Any fields specified will be used to filter results.",
         "tags": [
           "App"
         ],
@@ -1476,7 +1513,7 @@
             "Bearer": []
           }
         ],
-        "description": "Lists all the application instances managed by edge controller. Any fields specified will be used to filter results",
+        "description": "Lists all the Application instances managed by the Edge Controller. Any fields specified will be used to filter results.",
         "tags": [
           "AppInst"
         ],
@@ -1590,7 +1627,7 @@
             "Bearer": []
           }
         ],
-        "description": "Lists all the cloudlets managed from edge controller",
+        "description": "Lists all the cloudlets managed from edge controller.",
         "tags": [
           "Cloudlet"
         ],
@@ -1813,7 +1850,7 @@
             "Bearer": []
           }
         ],
-        "description": "Lists all the cluster instances managed by edge controller",
+        "description": "Lists all the cluster instances managed by edge controller.",
         "tags": [
           "ClusterInst"
         ],
@@ -1899,6 +1936,43 @@
             "in": "body",
             "schema": {
               "$ref": "#/definitions/RegionFlavor"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "$ref": "#/responses/success"
+          },
+          "400": {
+            "$ref": "#/responses/badRequest"
+          },
+          "403": {
+            "$ref": "#/responses/forbidden"
+          },
+          "404": {
+            "$ref": "#/responses/notFound"
+          }
+        }
+      }
+    },
+    "/auth/ctrl/ShowLogs": {
+      "post": {
+        "security": [
+          {
+            "Bearer": []
+          }
+        ],
+        "tags": [
+          "ExecRequest"
+        ],
+        "summary": "View logs for AppInst.",
+        "operationId": "ShowLogs",
+        "parameters": [
+          {
+            "name": "Body",
+            "in": "body",
+            "schema": {
+              "$ref": "#/definitions/RegionExecRequest"
             }
           }
         ],
@@ -2148,7 +2222,7 @@
             "Bearer": []
           }
         ],
-        "description": "Update definition of an application instance",
+        "description": "Updates the definition of an Application instance.",
         "tags": [
           "App"
         ],
@@ -2186,7 +2260,7 @@
             "Bearer": []
           }
         ],
-        "description": "Updates an application instance and then refreshes it",
+        "description": "Updates an Application instance and then refreshes it.",
         "tags": [
           "AppInst"
         ],
@@ -2298,7 +2372,7 @@
             "Bearer": []
           }
         ],
-        "description": "Updates cloudlet config and also manages upgrade of cloudlet services",
+        "description": "Updates the Cloudlet configuration and manages the upgrade of Cloudlet services.",
         "tags": [
           "Cloudlet"
         ],
@@ -2336,7 +2410,7 @@
             "Bearer": []
           }
         ],
-        "description": "Updates an instance of Cluster deployed on a Cloudlet",
+        "description": "Updates an instance of a Cluster deployed on a Cloudlet.",
         "tags": [
           "ClusterInst"
         ],
@@ -2521,7 +2595,7 @@
             "Bearer": []
           }
         ],
-        "description": "Create Organization to access operator/cloudlet APIs",
+        "description": "Create an Organization to access operator/cloudlet APIs.",
         "tags": [
           "Organization"
         ],
@@ -2559,7 +2633,7 @@
             "Bearer": []
           }
         ],
-        "description": "Delete existing Organization",
+        "description": "Deletes an existing Organization.",
         "tags": [
           "Organization"
         ],
@@ -2597,7 +2671,7 @@
             "Bearer": []
           }
         ],
-        "description": "Show existing Organizations which user is authorized to access",
+        "description": "Displays existing Organizations in which you are authorized to access.",
         "tags": [
           "Organization"
         ],
@@ -2626,7 +2700,7 @@
             "Bearer": []
           }
         ],
-        "description": "API to update an existing Organization",
+        "description": "API to update an existing Organization.",
         "tags": [
           "Organization"
         ],
@@ -2664,7 +2738,7 @@
             "Bearer": []
           }
         ],
-        "description": "Delete existing user",
+        "description": "Deletes existing user.",
         "tags": [
           "User"
         ],
@@ -2702,7 +2776,7 @@
             "Bearer": []
           }
         ],
-        "description": "Show existing users which user is authorized to access",
+        "description": "Displays existing users to which you are authorized to access.",
         "tags": [
           "User"
         ],
@@ -2735,7 +2809,7 @@
     },
     "/login": {
       "post": {
-        "description": "Login to MC",
+        "description": "Login to MC.",
         "tags": [
           "Security"
         ],
@@ -2762,11 +2836,11 @@
     },
     "/passwordreset": {
       "post": {
-        "description": "If login password is lost or to be changed, this API will reset the login password",
+        "description": "This resets your login password.",
         "tags": [
           "Security"
         ],
-        "summary": "Reset login password.",
+        "summary": "Reset Login Password.",
         "operationId": "PasswdReset",
         "parameters": [
           {
@@ -2789,7 +2863,7 @@
     },
     "/usercreate": {
       "post": {
-        "description": "Create a new user who can access/manage resources",
+        "description": "Creates a new user and allows them to access and manage resources.",
         "tags": [
           "User"
         ],
@@ -2822,6 +2896,11 @@
     }
   },
   "definitions": {
+    "AccessType": {
+      "type": "integer",
+      "format": "int32",
+      "x-go-package": "github.com/mobiledgex/edge-cloud/edgeproto"
+    },
     "Alert": {
       "type": "object",
       "properties": {
@@ -2882,6 +2961,9 @@
           "type": "string",
           "x-go-name": "AccessPorts"
         },
+        "access_type": {
+          "$ref": "#/definitions/AccessType"
+        },
         "android_package_name": {
           "description": "Android package name used to match the App name from the Android package",
           "type": "string",
@@ -2918,6 +3000,11 @@
         },
         "default_flavor": {
           "$ref": "#/definitions/FlavorKey"
+        },
+        "default_privacy_policy": {
+          "description": "Privacy policy when creating auto cluster",
+          "type": "string",
+          "x-go-name": "DefaultPrivacyPolicy"
         },
         "default_shared_volume_size": {
           "description": "shared volume size when creating auto cluster",
@@ -3059,6 +3146,11 @@
             "$ref": "#/definitions/AppPort"
           },
           "x-go-name": "MappedPorts"
+        },
+        "privacy_policy": {
+          "description": "Optional privacy policy name",
+          "type": "string",
+          "x-go-name": "PrivacyPolicy"
         },
         "revision": {
           "description": "Revision increments each time the App is updated.  Updating the App Instance will sync the revision with that of the App",
@@ -3341,6 +3433,11 @@
         "config": {
           "$ref": "#/definitions/PlatformConfig"
         },
+        "container_version": {
+          "description": "Cloudlet container version",
+          "type": "string",
+          "x-go-name": "ContainerVersion"
+        },
         "crm_override": {
           "$ref": "#/definitions/CRMOverride"
         },
@@ -3396,6 +3493,11 @@
           "format": "int32",
           "x-go-name": "NumDynamicIps"
         },
+        "package_version": {
+          "description": "MobiledgeX OS package version on baseimage where CRM services reside",
+          "type": "string",
+          "x-go-name": "PackageVersion"
+        },
         "physical_name": {
           "description": "Physical infrastructure cloudlet name",
           "type": "string",
@@ -3426,10 +3528,10 @@
         "time_limits": {
           "$ref": "#/definitions/OperationTimeLimits"
         },
-        "version": {
-          "description": "Cloudlet version",
+        "vm_image_version": {
+          "description": "MobiledgeX baseimage version where CRM services reside",
           "type": "string",
-          "x-go-name": "Version"
+          "x-go-name": "VmImageVersion"
         }
       },
       "x-go-package": "github.com/mobiledgex/edge-cloud/edgeproto"
@@ -3445,6 +3547,11 @@
             "$ref": "#/definitions/OSAZone"
           },
           "x-go-name": "AvailabilityZones"
+        },
+        "container_version": {
+          "description": "Cloudlet container version",
+          "type": "string",
+          "x-go-name": "ContainerVersion"
         },
         "controller": {
           "description": "Connected controller unique id",
@@ -3515,11 +3622,6 @@
         },
         "status": {
           "$ref": "#/definitions/StatusInfo"
-        },
-        "version": {
-          "description": "Cloudlet version",
-          "type": "string",
-          "x-go-name": "Version"
         }
       },
       "x-go-package": "github.com/mobiledgex/edge-cloud/edgeproto"
@@ -3738,6 +3840,11 @@
         },
         "liveness": {
           "$ref": "#/definitions/Liveness"
+        },
+        "master_node_flavor": {
+          "description": "Generic flavor for k8s master VM when worker nodes \u003e 0",
+          "type": "string",
+          "x-go-name": "MasterNodeFlavor"
         },
         "node_flavor": {
           "description": "Cloudlet specific node flavor",
@@ -4113,6 +4220,7 @@
     },
     "ExecRequest": {
       "type": "object",
+      "title": "ExecRequest is a common struct for enabling a webrtc connection do execute some work on a container.",
       "properties": {
         "answer": {
           "description": "WebRTC Answer",
@@ -4122,23 +4230,14 @@
         "app_inst_key": {
           "$ref": "#/definitions/AppInstKey"
         },
-        "command": {
-          "description": "Command or Shell",
-          "type": "string",
-          "x-go-name": "Command"
+        "cmd": {
+          "$ref": "#/definitions/RunCmd"
         },
         "console": {
-          "description": "VM Console",
-          "type": "boolean",
-          "x-go-name": "Console"
-        },
-        "console_url": {
-          "description": "VM Console URL",
-          "type": "string",
-          "x-go-name": "ConsoleUrl"
+          "$ref": "#/definitions/RunVMConsole"
         },
         "container_id": {
-          "description": "ContainerID is the name of the target container, if applicable",
+          "description": "ContainerId is the name or ID of the target container, if applicable",
           "type": "string",
           "x-go-name": "ContainerId"
         },
@@ -4147,10 +4246,16 @@
           "type": "string",
           "x-go-name": "Err"
         },
+        "log": {
+          "$ref": "#/definitions/ShowLog"
+        },
         "offer": {
           "description": "WebRTC Offer",
           "type": "string",
           "x-go-name": "Offer"
+        },
+        "timeout": {
+          "$ref": "#/definitions/Duration"
         }
       },
       "x-go-package": "github.com/mobiledgex/edge-cloud/edgeproto"
@@ -4380,6 +4485,11 @@
           "type": "string",
           "x-go-name": "BuildMaster"
         },
+        "container_version": {
+          "description": "Docker edge-cloud container version which node instance use",
+          "type": "string",
+          "x-go-name": "ContainerVersion"
+        },
         "fields": {
           "description": "Fields are used for the Update API to specify which fields to apply",
           "type": "array",
@@ -4392,11 +4502,6 @@
           "description": "Hostname",
           "type": "string",
           "x-go-name": "Hostname"
-        },
-        "image_version": {
-          "description": "Docker edge-cloud base image version",
-          "type": "string",
-          "x-go-name": "ImageVersion"
         },
         "key": {
           "$ref": "#/definitions/NodeKey"
@@ -4626,6 +4731,16 @@
           "type": "boolean",
           "x-go-name": "CleanupMode"
         },
+        "cloudlet_vm_image_path": {
+          "description": "Path to platform base image",
+          "type": "string",
+          "x-go-name": "CloudletVmImagePath"
+        },
+        "container_registry_path": {
+          "description": "Path to Docker registry holding edge-cloud image",
+          "type": "string",
+          "x-go-name": "ContainerRegistryPath"
+        },
         "env_var": {
           "description": "Environment variables",
           "type": "object",
@@ -4633,11 +4748,6 @@
             "type": "string"
           },
           "x-go-name": "EnvVar"
-        },
-        "image_path": {
-          "description": "Path to platform base image",
-          "type": "string",
-          "x-go-name": "ImagePath"
         },
         "notify_ctrl_addrs": {
           "description": "Address of controller notify port (can be multiple of these)",
@@ -4653,11 +4763,6 @@
           "description": "Region",
           "type": "string",
           "x-go-name": "Region"
-        },
-        "registry_path": {
-          "description": "Path to Docker registry holding edge-cloud image",
-          "type": "string",
-          "x-go-name": "RegistryPath"
         },
         "span": {
           "description": "Span string",
@@ -5164,6 +5269,28 @@
       },
       "x-go-package": "github.com/mobiledgex/edge-cloud-infra/mc/ormapi"
     },
+    "RunCmd": {
+      "type": "object",
+      "properties": {
+        "command": {
+          "description": "Command or Shell",
+          "type": "string",
+          "x-go-name": "Command"
+        }
+      },
+      "x-go-package": "github.com/mobiledgex/edge-cloud/edgeproto"
+    },
+    "RunVMConsole": {
+      "type": "object",
+      "properties": {
+        "url": {
+          "description": "VM Console URL",
+          "type": "string",
+          "x-go-name": "Url"
+        }
+      },
+      "x-go-package": "github.com/mobiledgex/edge-cloud/edgeproto"
+    },
     "Settings": {
       "description": "Global settings",
       "type": "object",
@@ -5206,6 +5333,17 @@
           },
           "x-go-name": "Fields"
         },
+        "load_balancer_max_port_range": {
+          "description": "Max IP Port range when using a load balancer",
+          "type": "integer",
+          "format": "int32",
+          "x-go-name": "LoadBalancerMaxPortRange"
+        },
+        "master_node_flavor": {
+          "description": "Default flavor for k8s master VM and \u003e 0  workers",
+          "type": "string",
+          "x-go-name": "MasterNodeFlavor"
+        },
         "shepherd_health_check_interval": {
           "$ref": "#/definitions/Duration"
         },
@@ -5223,6 +5361,33 @@
         },
         "update_cluster_inst_timeout": {
           "$ref": "#/definitions/Duration"
+        }
+      },
+      "x-go-package": "github.com/mobiledgex/edge-cloud/edgeproto"
+    },
+    "ShowLog": {
+      "type": "object",
+      "properties": {
+        "follow": {
+          "description": "Stream data",
+          "type": "boolean",
+          "x-go-name": "Follow"
+        },
+        "since": {
+          "description": "Show logs since either a duration ago (5s, 2m, 3h) or a timestamp (RFC3339)",
+          "type": "string",
+          "x-go-name": "Since"
+        },
+        "tail": {
+          "description": "Show only a recent number of lines",
+          "type": "integer",
+          "format": "int32",
+          "x-go-name": "Tail"
+        },
+        "timestamps": {
+          "description": "Show timestamps",
+          "type": "boolean",
+          "x-go-name": "Timestamps"
         }
       },
       "x-go-package": "github.com/mobiledgex/edge-cloud/edgeproto"
@@ -5449,31 +5614,31 @@
   },
   "tags": [
     {
-      "description": "Authentication is done by a user name or email plus a password. The login function returns a JSON Web Token (JWT) once authenticated, that should be included with subsequent API calls to authenticate the user. The JWT will expire after a while for security, at which point you may need to log in again",
+      "description": "Authentication is done by a user name or email plus a password. The login function returns a JSON Web Token (JWT) once authenticated, that should be included with subsequent API calls to authenticate the user. The JWT will expire after a while for security, at which point you may need to log in again.",
       "name": "Security"
     },
     {
-      "description": "Users can be assigned roles for Organizations, allowing them to view or manage resources associated with the Organizations",
+      "description": "Users can be assigned roles for Organizations, allowing them to view or manage resources associated with the Organizations.",
       "name": "User"
     },
     {
-      "description": "Organizations group a set of resources together, for example Apps, App Instances, or Cloudlets. Users given a role in an Organization can operate on those resources in the scope provided by their role",
+      "description": "Organizations group a set of resources together, for example Apps, App Instances, or Cloudlets. Users given a role in an Organization can operate on those resources in the scope provided by their role.",
       "name": "Organization"
     },
     {
-      "description": "Cloudlet is a set of compute resources at a particular location, provided by an Operator",
+      "description": "Cloudlet is a set of compute resources at a particular location, provided by an Operator.",
       "name": "Cloudlet"
     },
     {
-      "description": "ClusterInst is an instance of a Cluster on a Cloudlet. It is defined by a Cluster, Cloudlet, and Developer key",
+      "description": "ClusterInst is an instance of a Cluster on a Cloudlet. It is defined by a Cluster, Cloudlet, and Developer key.",
       "name": "ClusterInst"
     },
     {
-      "description": "App belongs to developers and is used to provide information about their application",
+      "description": "Provides information about the developer's application.",
       "name": "App"
     },
     {
-      "description": "AppInst is an instance of an App on a Cloudlet where it is defined by an App plus a ClusterInst key",
+      "description": "AppInst is an instance of an App on a Cloudlet where it is defined by an App plus a ClusterInst key.",
       "name": "AppInst"
     }
   ],

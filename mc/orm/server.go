@@ -345,6 +345,9 @@ func RunServer(config *ServerConfig) (*Server, error) {
 	ws.GET("/metrics/cluster", GetMetricsCommon)
 	ws.GET("/metrics/cloudlet", GetMetricsCommon)
 	ws.GET("/metrics/client", GetMetricsCommon)
+	// WebRTC based APIs
+	ws.GET("/ctrl/RunCommand", RunWebrtcStream)
+	ws.GET("/ctrl/ShowLogs", RunWebrtcStream)
 
 	go func() {
 		var err error

@@ -377,19 +377,20 @@ func (s *Client) WebsocketConn(uri, token string, reqData interface{}) (*websock
 }
 
 func (s *Client) handleWebsocketStreamOut(uri, token string, reqData, replyData interface{}, replyReady func()) (int, error) {
+	wsPayload, ok := replyData.(*ormapi.WSStreamPayload)
+	if !ok {
+		return 0, fmt.Errorf("response can only be of type WSStreamPayload")
+	}
 	ws, err := s.WebsocketConn(uri, token, reqData)
 	if err != nil {
 		return 0, fmt.Errorf("post %s client do failed, %s", uri, err.Error())
 	}
-	payload := ormapi.WSStreamPayload{}
-	if replyData != nil {
-		payload.Data = replyData
-	}
+	payload := wsPayload
 	for {
-		if replyData != nil {
+		if payload != nil {
 			// clear passed in buffer for next iteration.
-			// replyData must be pointer to object.
-			p := reflect.ValueOf(replyData).Elem()
+			// payload must be pointer to object.
+			p := reflect.ValueOf(payload).Elem()
 			p.Set(reflect.Zero(p.Type()))
 		}
 
@@ -400,6 +401,7 @@ func (s *Client) handleWebsocketStreamOut(uri, token string, reqData, replyData 
 			}
 			return http.StatusBadRequest, fmt.Errorf("post %s decode resp failed, %s", uri, err.Error())
 		}
+		ormapi.PrintFile(fmt.Sprintf(">>CLIENT>>>%v\n", payload))
 		if payload.Code != http.StatusOK {
 			if payload.Data == nil {
 				return payload.Code, nil

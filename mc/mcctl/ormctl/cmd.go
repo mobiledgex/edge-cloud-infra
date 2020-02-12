@@ -86,11 +86,27 @@ func check(c *cli.Command, status int, err error, reply interface{}) error {
 		}
 		return nil
 	}
+	ormapi.PrintFile(fmt.Sprintf("Check1: %v\n", reply))
+	if res, ok := reply.(*ormapi.WSStreamPayload); ok && !cli.Parsable {
+		ormapi.PrintFile("Check2")
+		if res.Data == nil {
+			return nil
+		}
+		ormapi.PrintFile("Check3")
+		if out, ok := res.Data.([]byte); ok {
+			fmt.Println(string(out))
+			ormapi.PrintFile("Check4")
+			return nil
+		}
+		ormapi.PrintFile("Check5")
+		reply = res.Data
+	}
 	// formatted output
 	if reply != nil {
 		// don't write output for empty slices
 		if reflect.TypeOf(reply).Kind() == reflect.Slice {
 			if reflect.ValueOf(reply).Len() == 0 {
+				ormapi.PrintFile("Check6")
 				return nil
 			}
 		}
@@ -98,6 +114,7 @@ func check(c *cli.Command, status int, err error, reply interface{}) error {
 		if err != nil {
 			return err
 		}
+		ormapi.PrintFile("Check7")
 	}
 	return nil
 }
@@ -128,6 +145,15 @@ func getUri() string {
 		Addr = "http://" + Addr
 	}
 	return Addr + "/api/v1"
+}
+
+func getWSUri() string {
+	newAddr := Addr
+	if !strings.HasPrefix(Addr, "http") {
+		newAddr = "http://" + Addr
+	}
+	newAddr = strings.Replace(Addr, "http", "ws", -1)
+	return newAddr + "/ws/api/v1"
 }
 
 func addRegionComment(comments map[string]string) map[string]string {

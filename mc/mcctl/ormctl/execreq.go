@@ -1,15 +1,10 @@
 package ormctl
 
 import (
-	"encoding/json"
-	fmt "fmt"
 	"strings"
 
 	"github.com/mobiledgex/edge-cloud-infra/mc/ormapi"
 	"github.com/mobiledgex/edge-cloud/cli"
-	edgecli "github.com/mobiledgex/edge-cloud/edgectl/cli"
-	edgeproto "github.com/mobiledgex/edge-cloud/edgeproto"
-	webrtc "github.com/pion/webrtc/v2"
 	"github.com/spf13/cobra"
 )
 
@@ -42,36 +37,12 @@ func runExecRequest(path string) func(c *cli.Command, args []string) error {
 		if err != nil {
 			return err
 		}
+		out := ormapi.WSStreamPayload{}
 
-		exchangeFunc := func(offer webrtc.SessionDescription) (*edgeproto.ExecRequest, *webrtc.SessionDescription, error) {
-			offerBytes, err := json.Marshal(&offer)
-			if err != nil {
-				return nil, nil, err
-			}
-			req.ExecRequest.Offer = string(offerBytes)
-
-			reply := edgeproto.ExecRequest{}
-			st, err := client.PostJson(getUri()+path, Token, &req, &reply)
-			err = check(c, st, err, nil)
-			if err != nil {
-				return nil, nil, err
-			}
-
-			if reply.Err != "" {
-				return nil, nil, fmt.Errorf("%s", reply.Err)
-			}
-			if reply.Answer == "" {
-				return nil, nil, fmt.Errorf("empty answer")
-			}
-
-			answer := webrtc.SessionDescription{}
-			err = json.Unmarshal([]byte(reply.Answer), &answer)
-			if err != nil {
-				return nil, nil, fmt.Errorf("unable to unmarshal answer %s, %v",
-					reply.Answer, err)
-			}
-			return &reply, &answer, nil
-		}
-		return edgecli.RunWebrtc(&req.ExecRequest, exchangeFunc)
+		// print streamed data as it comes
+		st, err := client.PostJsonStreamOut(getWSUri()+path, Token, &req, &out, func() {
+			check(c, 0, nil, out)
+		})
+		return check(c, st, err, nil)
 	}
 }

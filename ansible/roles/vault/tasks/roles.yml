@@ -1,6 +1,25 @@
 - debug:
     msg: "Install global roles"
 
+- name: autoprov.v1 role
+  vault_role:
+    name: autoprov.v1
+    policies:
+      - approle.login.v1
+      - influxdb.read.v1
+    token_type: batch
+
+- name: mcorm.v1 role
+  vault_role:
+    name: mcorm.v1
+    policies:
+      - approle.login.v1
+      - influxdb.read.v1
+      - mcorm-jwtkeys.read.v1
+      - noreplyemail.read.v1
+      - registry.read.v1
+    token_type: batch
+
 - name: mexenv.v1 role
   vault_role:
     name: mexenv.v1

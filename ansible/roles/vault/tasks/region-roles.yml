@@ -25,3 +25,12 @@
       - "{{ region_prefix }}.cloudlets.write.v1"
       - "{{ region_prefix }}.influxdb.read.v1"
     token_type: batch
+
+- name: "Install {{ region_prefix }}.dme.v1 role"
+  vault_role:
+    name: "{{ region_prefix }}.dme.v1"
+    policies:
+      - approle.login.v1
+      - certs.read.v1
+      - "{{ region_prefix }}.dme-jwtkeys.read.v1"
+    token_type: batch

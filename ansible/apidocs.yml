@@ -4,7 +4,7 @@
     swagger_cron_script: /usr/local/bin/swagger.cron
     swagger_base_dir: /var/swagger
     favicon: https://mobiledgex.com/favicon.ico
-    redoc_version: v2.0.0-rc.20
+    redoc_version: v2.0.0-rc.23
 
   tasks:
 

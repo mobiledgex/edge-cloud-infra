@@ -251,7 +251,7 @@ func (g *GenMC2) getFields(names, nums []string, desc *generator.Descriptor) []s
 		}
 		name := generator.CamelCase(*field.Name)
 		num := fmt.Sprintf("%d", *field.Number)
-		allStr = append(allStr, fmt.Sprintf("%-20s = %s", strings.Join(append(nums, num), "."), strings.Join(append(names, name), "")))
+		allStr = append(allStr, fmt.Sprintf("%s = %s", strings.Join(append(names, name), ""), strings.Join(append(nums, num), ".")))
 		if *field.Type == descriptor.FieldDescriptorProto_TYPE_MESSAGE {
 			subDesc := gensupport.GetDesc(g.Generator, field.GetTypeName())
 			allStr = append(allStr, g.getFields(append(names, name), append(nums, num), subDesc)...)

@@ -243,14 +243,14 @@ func addControllerApis(method string, group *echo.Group) {
 	// Update a Flavor.
 	// Following are `Flavor.fields` values to be used to specify which fields to update:
 	// ```
-	// 2                    = FlavorFieldKey
-	// 2.1                  = FlavorFieldKeyName
-	// 3                    = FlavorFieldRam
-	// 4                    = FlavorFieldVcpus
-	// 5                    = FlavorFieldDisk
-	// 6                    = FlavorFieldOptResMap
-	// 6.1                  = FlavorFieldOptResMapKey
-	// 6.2                  = FlavorFieldOptResMapValue
+	// FlavorFieldKey = 2
+	// FlavorFieldKeyName = 2.1
+	// FlavorFieldRam = 3
+	// FlavorFieldVcpus = 4
+	// FlavorFieldDisk = 5
+	// FlavorFieldOptResMap = 6
+	// FlavorFieldOptResMapKey = 6.1
+	// FlavorFieldOptResMapValue = 6.2
 	// ```
 	// Security:
 	//   Bearer:
@@ -317,36 +317,36 @@ func addControllerApis(method string, group *echo.Group) {
 	//  Updates the definition of an Application instance.
 	// Following are `App.fields` values to be used to specify which fields to update:
 	// ```
-	// 2                    = AppFieldKey
-	// 2.1                  = AppFieldKeyDeveloperKey
-	// 2.1.2                = AppFieldKeyDeveloperKeyName
-	// 2.2                  = AppFieldKeyName
-	// 2.3                  = AppFieldKeyVersion
-	// 4                    = AppFieldImagePath
-	// 5                    = AppFieldImageType
-	// 7                    = AppFieldAccessPorts
-	// 9                    = AppFieldDefaultFlavor
-	// 9.1                  = AppFieldDefaultFlavorName
-	// 12                   = AppFieldAuthPublicKey
-	// 13                   = AppFieldCommand
-	// 14                   = AppFieldAnnotations
-	// 15                   = AppFieldDeployment
-	// 16                   = AppFieldDeploymentManifest
-	// 17                   = AppFieldDeploymentGenerator
-	// 18                   = AppFieldAndroidPackageName
-	// 20                   = AppFieldDelOpt
-	// 21                   = AppFieldConfigs
-	// 21.1                 = AppFieldConfigsKind
-	// 21.2                 = AppFieldConfigsConfig
-	// 22                   = AppFieldScaleWithCluster
-	// 23                   = AppFieldInternalPorts
-	// 24                   = AppFieldRevision
-	// 25                   = AppFieldOfficialFqdn
-	// 26                   = AppFieldMd5Sum
-	// 27                   = AppFieldDefaultSharedVolumeSize
-	// 28                   = AppFieldAutoProvPolicy
-	// 29                   = AppFieldAccessType
-	// 30                   = AppFieldDefaultPrivacyPolicy
+	// AppFieldKey = 2
+	// AppFieldKeyDeveloperKey = 2.1
+	// AppFieldKeyDeveloperKeyName = 2.1.2
+	// AppFieldKeyName = 2.2
+	// AppFieldKeyVersion = 2.3
+	// AppFieldImagePath = 4
+	// AppFieldImageType = 5
+	// AppFieldAccessPorts = 7
+	// AppFieldDefaultFlavor = 9
+	// AppFieldDefaultFlavorName = 9.1
+	// AppFieldAuthPublicKey = 12
+	// AppFieldCommand = 13
+	// AppFieldAnnotations = 14
+	// AppFieldDeployment = 15
+	// AppFieldDeploymentManifest = 16
+	// AppFieldDeploymentGenerator = 17
+	// AppFieldAndroidPackageName = 18
+	// AppFieldDelOpt = 20
+	// AppFieldConfigs = 21
+	// AppFieldConfigsKind = 21.1
+	// AppFieldConfigsConfig = 21.2
+	// AppFieldScaleWithCluster = 22
+	// AppFieldInternalPorts = 23
+	// AppFieldRevision = 24
+	// AppFieldOfficialFqdn = 25
+	// AppFieldMd5Sum = 26
+	// AppFieldDefaultSharedVolumeSize = 27
+	// AppFieldAutoProvPolicy = 28
+	// AppFieldAccessType = 29
+	// AppFieldDefaultPrivacyPolicy = 30
 	// ```
 	// Security:
 	//   Bearer:
@@ -423,14 +423,14 @@ func addControllerApis(method string, group *echo.Group) {
 	// .
 	// Following are `ResTagTable.fields` values to be used to specify which fields to update:
 	// ```
-	// 2                    = ResTagTableFieldKey
-	// 2.1                  = ResTagTableFieldKeyName
-	// 2.2                  = ResTagTableFieldKeyOperatorKey
-	// 2.2.1                = ResTagTableFieldKeyOperatorKeyName
-	// 3                    = ResTagTableFieldTags
-	// 3.1                  = ResTagTableFieldTagsKey
-	// 3.2                  = ResTagTableFieldTagsValue
-	// 4                    = ResTagTableFieldAzone
+	// ResTagTableFieldKey = 2
+	// ResTagTableFieldKeyName = 2.1
+	// ResTagTableFieldKeyOperatorKey = 2.2
+	// ResTagTableFieldKeyOperatorKeyName = 2.2.1
+	// ResTagTableFieldTags = 3
+	// ResTagTableFieldTagsKey = 3.1
+	// ResTagTableFieldTagsValue = 3.2
+	// ResTagTableFieldAzone = 4
 	// ```
 	// Security:
 	//   Bearer:
@@ -508,74 +508,74 @@ func addControllerApis(method string, group *echo.Group) {
 	//  Updates the Cloudlet configuration and manages the upgrade of Cloudlet services.
 	// Following are `Cloudlet.fields` values to be used to specify which fields to update:
 	// ```
-	// 2                    = CloudletFieldKey
-	// 2.1                  = CloudletFieldKeyOperatorKey
-	// 2.1.1                = CloudletFieldKeyOperatorKeyName
-	// 2.2                  = CloudletFieldKeyName
-	// 5                    = CloudletFieldLocation
-	// 5.1                  = CloudletFieldLocationLatitude
-	// 5.2                  = CloudletFieldLocationLongitude
-	// 5.3                  = CloudletFieldLocationHorizontalAccuracy
-	// 5.4                  = CloudletFieldLocationVerticalAccuracy
-	// 5.5                  = CloudletFieldLocationAltitude
-	// 5.6                  = CloudletFieldLocationCourse
-	// 5.7                  = CloudletFieldLocationSpeed
-	// 5.8                  = CloudletFieldLocationTimestamp
-	// 5.8.1                = CloudletFieldLocationTimestampSeconds
-	// 5.8.2                = CloudletFieldLocationTimestampNanos
-	// 6                    = CloudletFieldIpSupport
-	// 7                    = CloudletFieldStaticIps
-	// 8                    = CloudletFieldNumDynamicIps
-	// 9                    = CloudletFieldTimeLimits
-	// 9.1                  = CloudletFieldTimeLimitsCreateClusterInstTimeout
-	// 9.2                  = CloudletFieldTimeLimitsUpdateClusterInstTimeout
-	// 9.3                  = CloudletFieldTimeLimitsDeleteClusterInstTimeout
-	// 9.4                  = CloudletFieldTimeLimitsCreateAppInstTimeout
-	// 9.5                  = CloudletFieldTimeLimitsUpdateAppInstTimeout
-	// 9.6                  = CloudletFieldTimeLimitsDeleteAppInstTimeout
-	// 10                   = CloudletFieldErrors
-	// 11                   = CloudletFieldStatus
-	// 11.1                 = CloudletFieldStatusTaskNumber
-	// 11.2                 = CloudletFieldStatusMaxTasks
-	// 11.3                 = CloudletFieldStatusTaskName
-	// 11.4                 = CloudletFieldStatusStepName
-	// 12                   = CloudletFieldState
-	// 13                   = CloudletFieldCrmOverride
-	// 14                   = CloudletFieldDeploymentLocal
-	// 15                   = CloudletFieldPlatformType
-	// 16                   = CloudletFieldNotifySrvAddr
-	// 17                   = CloudletFieldFlavor
-	// 17.1                 = CloudletFieldFlavorName
-	// 18                   = CloudletFieldPhysicalName
-	// 19                   = CloudletFieldEnvVar
-	// 19.1                 = CloudletFieldEnvVarKey
-	// 19.2                 = CloudletFieldEnvVarValue
-	// 20                   = CloudletFieldContainerVersion
-	// 21                   = CloudletFieldConfig
-	// 21.1                 = CloudletFieldConfigContainerRegistryPath
-	// 21.2                 = CloudletFieldConfigCloudletVmImagePath
-	// 21.3                 = CloudletFieldConfigNotifyCtrlAddrs
-	// 21.4                 = CloudletFieldConfigVaultAddr
-	// 21.5                 = CloudletFieldConfigTlsCertFile
-	// 21.6                 = CloudletFieldConfigEnvVar
-	// 21.6.1               = CloudletFieldConfigEnvVarKey
-	// 21.6.2               = CloudletFieldConfigEnvVarValue
-	// 21.8                 = CloudletFieldConfigPlatformTag
-	// 21.9                 = CloudletFieldConfigTestMode
-	// 21.10                = CloudletFieldConfigSpan
-	// 21.11                = CloudletFieldConfigCleanupMode
-	// 21.12                = CloudletFieldConfigRegion
-	// 22                   = CloudletFieldResTagMap
-	// 22.1                 = CloudletFieldResTagMapKey
-	// 22.2                 = CloudletFieldResTagMapValue
-	// 22.2.1               = CloudletFieldResTagMapValueName
-	// 22.2.2               = CloudletFieldResTagMapValueOperatorKey
-	// 22.2.2.1             = CloudletFieldResTagMapValueOperatorKeyName
-	// 23                   = CloudletFieldAccessVars
-	// 23.1                 = CloudletFieldAccessVarsKey
-	// 23.2                 = CloudletFieldAccessVarsValue
-	// 24                   = CloudletFieldVmImageVersion
-	// 25                   = CloudletFieldPackageVersion
+	// CloudletFieldKey = 2
+	// CloudletFieldKeyOperatorKey = 2.1
+	// CloudletFieldKeyOperatorKeyName = 2.1.1
+	// CloudletFieldKeyName = 2.2
+	// CloudletFieldLocation = 5
+	// CloudletFieldLocationLatitude = 5.1
+	// CloudletFieldLocationLongitude = 5.2
+	// CloudletFieldLocationHorizontalAccuracy = 5.3
+	// CloudletFieldLocationVerticalAccuracy = 5.4
+	// CloudletFieldLocationAltitude = 5.5
+	// CloudletFieldLocationCourse = 5.6
+	// CloudletFieldLocationSpeed = 5.7
+	// CloudletFieldLocationTimestamp = 5.8
+	// CloudletFieldLocationTimestampSeconds = 5.8.1
+	// CloudletFieldLocationTimestampNanos = 5.8.2
+	// CloudletFieldIpSupport = 6
+	// CloudletFieldStaticIps = 7
+	// CloudletFieldNumDynamicIps = 8
+	// CloudletFieldTimeLimits = 9
+	// CloudletFieldTimeLimitsCreateClusterInstTimeout = 9.1
+	// CloudletFieldTimeLimitsUpdateClusterInstTimeout = 9.2
+	// CloudletFieldTimeLimitsDeleteClusterInstTimeout = 9.3
+	// CloudletFieldTimeLimitsCreateAppInstTimeout = 9.4
+	// CloudletFieldTimeLimitsUpdateAppInstTimeout = 9.5
+	// CloudletFieldTimeLimitsDeleteAppInstTimeout = 9.6
+	// CloudletFieldErrors = 10
+	// CloudletFieldStatus = 11
+	// CloudletFieldStatusTaskNumber = 11.1
+	// CloudletFieldStatusMaxTasks = 11.2
+	// CloudletFieldStatusTaskName = 11.3
+	// CloudletFieldStatusStepName = 11.4
+	// CloudletFieldState = 12
+	// CloudletFieldCrmOverride = 13
+	// CloudletFieldDeploymentLocal = 14
+	// CloudletFieldPlatformType = 15
+	// CloudletFieldNotifySrvAddr = 16
+	// CloudletFieldFlavor = 17
+	// CloudletFieldFlavorName = 17.1
+	// CloudletFieldPhysicalName = 18
+	// CloudletFieldEnvVar = 19
+	// CloudletFieldEnvVarKey = 19.1
+	// CloudletFieldEnvVarValue = 19.2
+	// CloudletFieldContainerVersion = 20
+	// CloudletFieldConfig = 21
+	// CloudletFieldConfigContainerRegistryPath = 21.1
+	// CloudletFieldConfigCloudletVmImagePath = 21.2
+	// CloudletFieldConfigNotifyCtrlAddrs = 21.3
+	// CloudletFieldConfigVaultAddr = 21.4
+	// CloudletFieldConfigTlsCertFile = 21.5
+	// CloudletFieldConfigEnvVar = 21.6
+	// CloudletFieldConfigEnvVarKey = 21.6.1
+	// CloudletFieldConfigEnvVarValue = 21.6.2
+	// CloudletFieldConfigPlatformTag = 21.8
+	// CloudletFieldConfigTestMode = 21.9
+	// CloudletFieldConfigSpan = 21.10
+	// CloudletFieldConfigCleanupMode = 21.11
+	// CloudletFieldConfigRegion = 21.12
+	// CloudletFieldResTagMap = 22
+	// CloudletFieldResTagMapKey = 22.1
+	// CloudletFieldResTagMapValue = 22.2
+	// CloudletFieldResTagMapValueName = 22.2.1
+	// CloudletFieldResTagMapValueOperatorKey = 22.2.2
+	// CloudletFieldResTagMapValueOperatorKeyName = 22.2.2.1
+	// CloudletFieldAccessVars = 23
+	// CloudletFieldAccessVarsKey = 23.1
+	// CloudletFieldAccessVarsValue = 23.2
+	// CloudletFieldVmImageVersion = 24
+	// CloudletFieldPackageVersion = 25
 	// ```
 	// Security:
 	//   Bearer:
@@ -664,41 +664,41 @@ func addControllerApis(method string, group *echo.Group) {
 	//  Updates an instance of a Cluster deployed on a Cloudlet.
 	// Following are `ClusterInst.fields` values to be used to specify which fields to update:
 	// ```
-	// 2                    = ClusterInstFieldKey
-	// 2.1                  = ClusterInstFieldKeyClusterKey
-	// 2.1.1                = ClusterInstFieldKeyClusterKeyName
-	// 2.2                  = ClusterInstFieldKeyCloudletKey
-	// 2.2.1                = ClusterInstFieldKeyCloudletKeyOperatorKey
-	// 2.2.1.1              = ClusterInstFieldKeyCloudletKeyOperatorKeyName
-	// 2.2.2                = ClusterInstFieldKeyCloudletKeyName
-	// 2.3                  = ClusterInstFieldKeyDeveloper
-	// 3                    = ClusterInstFieldFlavor
-	// 3.1                  = ClusterInstFieldFlavorName
-	// 9                    = ClusterInstFieldLiveness
-	// 10                   = ClusterInstFieldAuto
-	// 4                    = ClusterInstFieldState
-	// 5                    = ClusterInstFieldErrors
-	// 6                    = ClusterInstFieldCrmOverride
-	// 7                    = ClusterInstFieldIpAccess
-	// 8                    = ClusterInstFieldAllocatedIp
-	// 11                   = ClusterInstFieldNodeFlavor
-	// 15                   = ClusterInstFieldDeployment
-	// 13                   = ClusterInstFieldNumMasters
-	// 14                   = ClusterInstFieldNumNodes
-	// 16                   = ClusterInstFieldStatus
-	// 16.1                 = ClusterInstFieldStatusTaskNumber
-	// 16.2                 = ClusterInstFieldStatusMaxTasks
-	// 16.3                 = ClusterInstFieldStatusTaskName
-	// 16.4                 = ClusterInstFieldStatusStepName
-	// 17                   = ClusterInstFieldExternalVolumeSize
-	// 18                   = ClusterInstFieldAutoScalePolicy
-	// 19                   = ClusterInstFieldAvailabilityZone
-	// 20                   = ClusterInstFieldImageName
-	// 21                   = ClusterInstFieldReservable
-	// 22                   = ClusterInstFieldReservedBy
-	// 23                   = ClusterInstFieldSharedVolumeSize
-	// 24                   = ClusterInstFieldPrivacyPolicy
-	// 25                   = ClusterInstFieldMasterNodeFlavor
+	// ClusterInstFieldKey = 2
+	// ClusterInstFieldKeyClusterKey = 2.1
+	// ClusterInstFieldKeyClusterKeyName = 2.1.1
+	// ClusterInstFieldKeyCloudletKey = 2.2
+	// ClusterInstFieldKeyCloudletKeyOperatorKey = 2.2.1
+	// ClusterInstFieldKeyCloudletKeyOperatorKeyName = 2.2.1.1
+	// ClusterInstFieldKeyCloudletKeyName = 2.2.2
+	// ClusterInstFieldKeyDeveloper = 2.3
+	// ClusterInstFieldFlavor = 3
+	// ClusterInstFieldFlavorName = 3.1
+	// ClusterInstFieldLiveness = 9
+	// ClusterInstFieldAuto = 10
+	// ClusterInstFieldState = 4
+	// ClusterInstFieldErrors = 5
+	// ClusterInstFieldCrmOverride = 6
+	// ClusterInstFieldIpAccess = 7
+	// ClusterInstFieldAllocatedIp = 8
+	// ClusterInstFieldNodeFlavor = 11
+	// ClusterInstFieldDeployment = 15
+	// ClusterInstFieldNumMasters = 13
+	// ClusterInstFieldNumNodes = 14
+	// ClusterInstFieldStatus = 16
+	// ClusterInstFieldStatusTaskNumber = 16.1
+	// ClusterInstFieldStatusMaxTasks = 16.2
+	// ClusterInstFieldStatusTaskName = 16.3
+	// ClusterInstFieldStatusStepName = 16.4
+	// ClusterInstFieldExternalVolumeSize = 17
+	// ClusterInstFieldAutoScalePolicy = 18
+	// ClusterInstFieldAvailabilityZone = 19
+	// ClusterInstFieldImageName = 20
+	// ClusterInstFieldReservable = 21
+	// ClusterInstFieldReservedBy = 22
+	// ClusterInstFieldSharedVolumeSize = 23
+	// ClusterInstFieldPrivacyPolicy = 24
+	// ClusterInstFieldMasterNodeFlavor = 25
 	// ```
 	// Security:
 	//   Bearer:
@@ -758,65 +758,65 @@ func addControllerApis(method string, group *echo.Group) {
 	//  Updates an Application instance and then refreshes it.
 	// Following are `AppInst.fields` values to be used to specify which fields to update:
 	// ```
-	// 2                    = AppInstFieldKey
-	// 2.1                  = AppInstFieldKeyAppKey
-	// 2.1.1                = AppInstFieldKeyAppKeyDeveloperKey
-	// 2.1.1.2              = AppInstFieldKeyAppKeyDeveloperKeyName
-	// 2.1.2                = AppInstFieldKeyAppKeyName
-	// 2.1.3                = AppInstFieldKeyAppKeyVersion
-	// 2.4                  = AppInstFieldKeyClusterInstKey
-	// 2.4.1                = AppInstFieldKeyClusterInstKeyClusterKey
-	// 2.4.1.1              = AppInstFieldKeyClusterInstKeyClusterKeyName
-	// 2.4.2                = AppInstFieldKeyClusterInstKeyCloudletKey
-	// 2.4.2.1              = AppInstFieldKeyClusterInstKeyCloudletKeyOperatorKey
-	// 2.4.2.1.1            = AppInstFieldKeyClusterInstKeyCloudletKeyOperatorKeyName
-	// 2.4.2.2              = AppInstFieldKeyClusterInstKeyCloudletKeyName
-	// 2.4.3                = AppInstFieldKeyClusterInstKeyDeveloper
-	// 3                    = AppInstFieldCloudletLoc
-	// 3.1                  = AppInstFieldCloudletLocLatitude
-	// 3.2                  = AppInstFieldCloudletLocLongitude
-	// 3.3                  = AppInstFieldCloudletLocHorizontalAccuracy
-	// 3.4                  = AppInstFieldCloudletLocVerticalAccuracy
-	// 3.5                  = AppInstFieldCloudletLocAltitude
-	// 3.6                  = AppInstFieldCloudletLocCourse
-	// 3.7                  = AppInstFieldCloudletLocSpeed
-	// 3.8                  = AppInstFieldCloudletLocTimestamp
-	// 3.8.1                = AppInstFieldCloudletLocTimestampSeconds
-	// 3.8.2                = AppInstFieldCloudletLocTimestampNanos
-	// 4                    = AppInstFieldUri
-	// 6                    = AppInstFieldLiveness
-	// 9                    = AppInstFieldMappedPorts
-	// 9.1                  = AppInstFieldMappedPortsProto
-	// 9.2                  = AppInstFieldMappedPortsInternalPort
-	// 9.3                  = AppInstFieldMappedPortsPublicPort
-	// 9.4                  = AppInstFieldMappedPortsPathPrefix
-	// 9.5                  = AppInstFieldMappedPortsFqdnPrefix
-	// 9.6                  = AppInstFieldMappedPortsEndPort
-	// 12                   = AppInstFieldFlavor
-	// 12.1                 = AppInstFieldFlavorName
-	// 14                   = AppInstFieldState
-	// 15                   = AppInstFieldErrors
-	// 16                   = AppInstFieldCrmOverride
-	// 17                   = AppInstFieldRuntimeInfo
-	// 17.1                 = AppInstFieldRuntimeInfoContainerIds
-	// 21                   = AppInstFieldCreatedAt
-	// 21.1                 = AppInstFieldCreatedAtSeconds
-	// 21.2                 = AppInstFieldCreatedAtNanos
-	// 22                   = AppInstFieldAutoClusterIpAccess
-	// 23                   = AppInstFieldStatus
-	// 23.1                 = AppInstFieldStatusTaskNumber
-	// 23.2                 = AppInstFieldStatusMaxTasks
-	// 23.3                 = AppInstFieldStatusTaskName
-	// 23.4                 = AppInstFieldStatusStepName
-	// 24                   = AppInstFieldRevision
-	// 25                   = AppInstFieldForceUpdate
-	// 26                   = AppInstFieldUpdateMultiple
-	// 27                   = AppInstFieldConfigs
-	// 27.1                 = AppInstFieldConfigsKind
-	// 27.2                 = AppInstFieldConfigsConfig
-	// 28                   = AppInstFieldSharedVolumeSize
-	// 29                   = AppInstFieldHealthCheck
-	// 30                   = AppInstFieldPrivacyPolicy
+	// AppInstFieldKey = 2
+	// AppInstFieldKeyAppKey = 2.1
+	// AppInstFieldKeyAppKeyDeveloperKey = 2.1.1
+	// AppInstFieldKeyAppKeyDeveloperKeyName = 2.1.1.2
+	// AppInstFieldKeyAppKeyName = 2.1.2
+	// AppInstFieldKeyAppKeyVersion = 2.1.3
+	// AppInstFieldKeyClusterInstKey = 2.4
+	// AppInstFieldKeyClusterInstKeyClusterKey = 2.4.1
+	// AppInstFieldKeyClusterInstKeyClusterKeyName = 2.4.1.1
+	// AppInstFieldKeyClusterInstKeyCloudletKey = 2.4.2
+	// AppInstFieldKeyClusterInstKeyCloudletKeyOperatorKey = 2.4.2.1
+	// AppInstFieldKeyClusterInstKeyCloudletKeyOperatorKeyName = 2.4.2.1.1
+	// AppInstFieldKeyClusterInstKeyCloudletKeyName = 2.4.2.2
+	// AppInstFieldKeyClusterInstKeyDeveloper = 2.4.3
+	// AppInstFieldCloudletLoc = 3
+	// AppInstFieldCloudletLocLatitude = 3.1
+	// AppInstFieldCloudletLocLongitude = 3.2
+	// AppInstFieldCloudletLocHorizontalAccuracy = 3.3
+	// AppInstFieldCloudletLocVerticalAccuracy = 3.4
+	// AppInstFieldCloudletLocAltitude = 3.5
+	// AppInstFieldCloudletLocCourse = 3.6
+	// AppInstFieldCloudletLocSpeed = 3.7
+	// AppInstFieldCloudletLocTimestamp = 3.8
+	// AppInstFieldCloudletLocTimestampSeconds = 3.8.1
+	// AppInstFieldCloudletLocTimestampNanos = 3.8.2
+	// AppInstFieldUri = 4
+	// AppInstFieldLiveness = 6
+	// AppInstFieldMappedPorts = 9
+	// AppInstFieldMappedPortsProto = 9.1
+	// AppInstFieldMappedPortsInternalPort = 9.2
+	// AppInstFieldMappedPortsPublicPort = 9.3
+	// AppInstFieldMappedPortsPathPrefix = 9.4
+	// AppInstFieldMappedPortsFqdnPrefix = 9.5
+	// AppInstFieldMappedPortsEndPort = 9.6
+	// AppInstFieldFlavor = 12
+	// AppInstFieldFlavorName = 12.1
+	// AppInstFieldState = 14
+	// AppInstFieldErrors = 15
+	// AppInstFieldCrmOverride = 16
+	// AppInstFieldRuntimeInfo = 17
+	// AppInstFieldRuntimeInfoContainerIds = 17.1
+	// AppInstFieldCreatedAt = 21
+	// AppInstFieldCreatedAtSeconds = 21.1
+	// AppInstFieldCreatedAtNanos = 21.2
+	// AppInstFieldAutoClusterIpAccess = 22
+	// AppInstFieldStatus = 23
+	// AppInstFieldStatusTaskNumber = 23.1
+	// AppInstFieldStatusMaxTasks = 23.2
+	// AppInstFieldStatusTaskName = 23.3
+	// AppInstFieldStatusStepName = 23.4
+	// AppInstFieldRevision = 24
+	// AppInstFieldForceUpdate = 25
+	// AppInstFieldUpdateMultiple = 26
+	// AppInstFieldConfigs = 27
+	// AppInstFieldConfigsKind = 27.1
+	// AppInstFieldConfigsConfig = 27.2
+	// AppInstFieldSharedVolumeSize = 28
+	// AppInstFieldHealthCheck = 29
+	// AppInstFieldPrivacyPolicy = 30
 	// ```
 	// Security:
 	//   Bearer:
@@ -861,14 +861,14 @@ func addControllerApis(method string, group *echo.Group) {
 	// Update an Auto Scale Policy.
 	// Following are `AutoScalePolicy.fields` values to be used to specify which fields to update:
 	// ```
-	// 2                    = AutoScalePolicyFieldKey
-	// 2.1                  = AutoScalePolicyFieldKeyDeveloper
-	// 2.2                  = AutoScalePolicyFieldKeyName
-	// 3                    = AutoScalePolicyFieldMinNodes
-	// 4                    = AutoScalePolicyFieldMaxNodes
-	// 5                    = AutoScalePolicyFieldScaleUpCpuThresh
-	// 6                    = AutoScalePolicyFieldScaleDownCpuThresh
-	// 7                    = AutoScalePolicyFieldTriggerTimeSec
+	// AutoScalePolicyFieldKey = 2
+	// AutoScalePolicyFieldKeyDeveloper = 2.1
+	// AutoScalePolicyFieldKeyName = 2.2
+	// AutoScalePolicyFieldMinNodes = 3
+	// AutoScalePolicyFieldMaxNodes = 4
+	// AutoScalePolicyFieldScaleUpCpuThresh = 5
+	// AutoScalePolicyFieldScaleDownCpuThresh = 6
+	// AutoScalePolicyFieldTriggerTimeSec = 7
 	// ```
 	// Security:
 	//   Bearer:
@@ -913,27 +913,27 @@ func addControllerApis(method string, group *echo.Group) {
 	// Update an Auto Provisioning Policy.
 	// Following are `AutoProvPolicy.fields` values to be used to specify which fields to update:
 	// ```
-	// 2                    = AutoProvPolicyFieldKey
-	// 2.1                  = AutoProvPolicyFieldKeyDeveloper
-	// 2.2                  = AutoProvPolicyFieldKeyName
-	// 3                    = AutoProvPolicyFieldDeployClientCount
-	// 4                    = AutoProvPolicyFieldDeployIntervalCount
-	// 5                    = AutoProvPolicyFieldCloudlets
-	// 5.1                  = AutoProvPolicyFieldCloudletsKey
-	// 5.1.1                = AutoProvPolicyFieldCloudletsKeyOperatorKey
-	// 5.1.1.1              = AutoProvPolicyFieldCloudletsKeyOperatorKeyName
-	// 5.1.2                = AutoProvPolicyFieldCloudletsKeyName
-	// 5.2                  = AutoProvPolicyFieldCloudletsLoc
-	// 5.2.1                = AutoProvPolicyFieldCloudletsLocLatitude
-	// 5.2.2                = AutoProvPolicyFieldCloudletsLocLongitude
-	// 5.2.3                = AutoProvPolicyFieldCloudletsLocHorizontalAccuracy
-	// 5.2.4                = AutoProvPolicyFieldCloudletsLocVerticalAccuracy
-	// 5.2.5                = AutoProvPolicyFieldCloudletsLocAltitude
-	// 5.2.6                = AutoProvPolicyFieldCloudletsLocCourse
-	// 5.2.7                = AutoProvPolicyFieldCloudletsLocSpeed
-	// 5.2.8                = AutoProvPolicyFieldCloudletsLocTimestamp
-	// 5.2.8.1              = AutoProvPolicyFieldCloudletsLocTimestampSeconds
-	// 5.2.8.2              = AutoProvPolicyFieldCloudletsLocTimestampNanos
+	// AutoProvPolicyFieldKey = 2
+	// AutoProvPolicyFieldKeyDeveloper = 2.1
+	// AutoProvPolicyFieldKeyName = 2.2
+	// AutoProvPolicyFieldDeployClientCount = 3
+	// AutoProvPolicyFieldDeployIntervalCount = 4
+	// AutoProvPolicyFieldCloudlets = 5
+	// AutoProvPolicyFieldCloudletsKey = 5.1
+	// AutoProvPolicyFieldCloudletsKeyOperatorKey = 5.1.1
+	// AutoProvPolicyFieldCloudletsKeyOperatorKeyName = 5.1.1.1
+	// AutoProvPolicyFieldCloudletsKeyName = 5.1.2
+	// AutoProvPolicyFieldCloudletsLoc = 5.2
+	// AutoProvPolicyFieldCloudletsLocLatitude = 5.2.1
+	// AutoProvPolicyFieldCloudletsLocLongitude = 5.2.2
+	// AutoProvPolicyFieldCloudletsLocHorizontalAccuracy = 5.2.3
+	// AutoProvPolicyFieldCloudletsLocVerticalAccuracy = 5.2.4
+	// AutoProvPolicyFieldCloudletsLocAltitude = 5.2.5
+	// AutoProvPolicyFieldCloudletsLocCourse = 5.2.6
+	// AutoProvPolicyFieldCloudletsLocSpeed = 5.2.7
+	// AutoProvPolicyFieldCloudletsLocTimestamp = 5.2.8
+	// AutoProvPolicyFieldCloudletsLocTimestampSeconds = 5.2.8.1
+	// AutoProvPolicyFieldCloudletsLocTimestampNanos = 5.2.8.2
 	// ```
 	// Security:
 	//   Bearer:
@@ -1118,14 +1118,14 @@ func addControllerApis(method string, group *echo.Group) {
 	// Update a Privacy policy.
 	// Following are `PrivacyPolicy.fields` values to be used to specify which fields to update:
 	// ```
-	// 2                    = PrivacyPolicyFieldKey
-	// 2.1                  = PrivacyPolicyFieldKeyDeveloper
-	// 2.2                  = PrivacyPolicyFieldKeyName
-	// 3                    = PrivacyPolicyFieldOutboundSecurityRules
-	// 3.1                  = PrivacyPolicyFieldOutboundSecurityRulesProtocol
-	// 3.2                  = PrivacyPolicyFieldOutboundSecurityRulesPortRangeMin
-	// 3.3                  = PrivacyPolicyFieldOutboundSecurityRulesPortRangeMax
-	// 3.4                  = PrivacyPolicyFieldOutboundSecurityRulesRemoteCidr
+	// PrivacyPolicyFieldKey = 2
+	// PrivacyPolicyFieldKeyDeveloper = 2.1
+	// PrivacyPolicyFieldKeyName = 2.2
+	// PrivacyPolicyFieldOutboundSecurityRules = 3
+	// PrivacyPolicyFieldOutboundSecurityRulesProtocol = 3.1
+	// PrivacyPolicyFieldOutboundSecurityRulesPortRangeMin = 3.2
+	// PrivacyPolicyFieldOutboundSecurityRulesPortRangeMax = 3.3
+	// PrivacyPolicyFieldOutboundSecurityRulesRemoteCidr = 3.4
 	// ```
 	// Security:
 	//   Bearer:
@@ -1170,20 +1170,20 @@ func addControllerApis(method string, group *echo.Group) {
 	// Update settings.
 	// Following are `Settings.fields` values to be used to specify which fields to update:
 	// ```
-	// 2                    = SettingsFieldShepherdMetricsCollectionInterval
-	// 3                    = SettingsFieldShepherdHealthCheckRetries
-	// 4                    = SettingsFieldShepherdHealthCheckInterval
-	// 5                    = SettingsFieldAutoDeployIntervalSec
-	// 6                    = SettingsFieldAutoDeployOffsetSec
-	// 7                    = SettingsFieldAutoDeployMaxIntervals
-	// 8                    = SettingsFieldCreateAppInstTimeout
-	// 9                    = SettingsFieldUpdateAppInstTimeout
-	// 10                   = SettingsFieldDeleteAppInstTimeout
-	// 11                   = SettingsFieldCreateClusterInstTimeout
-	// 12                   = SettingsFieldUpdateClusterInstTimeout
-	// 13                   = SettingsFieldDeleteClusterInstTimeout
-	// 14                   = SettingsFieldMasterNodeFlavor
-	// 15                   = SettingsFieldLoadBalancerMaxPortRange
+	// SettingsFieldShepherdMetricsCollectionInterval = 2
+	// SettingsFieldShepherdHealthCheckRetries = 3
+	// SettingsFieldShepherdHealthCheckInterval = 4
+	// SettingsFieldAutoDeployIntervalSec = 5
+	// SettingsFieldAutoDeployOffsetSec = 6
+	// SettingsFieldAutoDeployMaxIntervals = 7
+	// SettingsFieldCreateAppInstTimeout = 8
+	// SettingsFieldUpdateAppInstTimeout = 9
+	// SettingsFieldDeleteAppInstTimeout = 10
+	// SettingsFieldCreateClusterInstTimeout = 11
+	// SettingsFieldUpdateClusterInstTimeout = 12
+	// SettingsFieldDeleteClusterInstTimeout = 13
+	// SettingsFieldMasterNodeFlavor = 14
+	// SettingsFieldLoadBalancerMaxPortRange = 15
 	// ```
 	// Security:
 	//   Bearer:

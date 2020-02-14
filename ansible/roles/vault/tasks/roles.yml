@@ -9,6 +9,17 @@
       - influxdb.read.v1
     token_type: batch
 
+- name: crm.v1 role
+  vault_role:
+    name: crm.v1
+    policies:
+      - approle.login.v1
+      - certs.read.v1
+      - cloudlets.write.v1
+      - registry.read.v1
+      - influxdb.read.v1
+    token_type: batch
+
 - name: mcorm.v1 role
   vault_role:
     name: mcorm.v1

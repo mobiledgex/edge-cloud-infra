@@ -13,6 +13,7 @@ import (
 	"strings"
 
 	"github.com/gorilla/websocket"
+	"github.com/mitchellh/mapstructure"
 	"github.com/mobiledgex/edge-cloud-infra/mc/ormapi"
 	edgeproto "github.com/mobiledgex/edge-cloud/edgeproto"
 )
@@ -420,9 +421,10 @@ func (s *Client) HandleWebsocketStreamOut(uri, token string, reader *bufio.Reade
 			if payload.Data == nil {
 				return payload.Code, nil
 			}
-			wsRes, ok := payload.Data.(*edgeproto.Result)
-			if ok {
-				return payload.Code, errors.New(wsRes.Message)
+			errRes := edgeproto.Result{}
+			err = mapstructure.Decode(payload.Data, &errRes)
+			if err == nil {
+				return payload.Code, errors.New(errRes.Message)
 			}
 			return payload.Code, nil
 		}

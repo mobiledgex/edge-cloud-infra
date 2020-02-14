@@ -9,6 +9,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/mitchellh/mapstructure"
 	ormtestutil "github.com/mobiledgex/edge-cloud-infra/mc/orm/testutil"
 	"github.com/mobiledgex/edge-cloud-infra/mc/ormapi"
 	"github.com/mobiledgex/edge-cloud-infra/mc/ormclient"
@@ -544,7 +545,11 @@ func TestController(t *testing.T) {
 		token, &dat, &wsOut, func() {
 			// got a result, trigger next result
 			count++
-			require.Equal(t, count, int(wsOut.Code))
+			require.Equal(t, 200, int(wsOut.Code))
+			result := edgeproto.Result{}
+			err = mapstructure.Decode(wsOut.Data, &result)
+			require.Nil(t, err, "Received data of type Result")
+			require.Equal(t, count, int(result.Code))
 			sds.next <- 1
 		})
 	require.Nil(t, err, "stream test create cluster inst")

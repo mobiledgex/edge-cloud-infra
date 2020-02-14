@@ -296,13 +296,23 @@ func (s *Platform) waitClusterReady(ctx context.Context, clusterInst *edgeproto.
 func (s *Platform) isClusterReady(ctx context.Context, clusterInst *edgeproto.ClusterInst, masterName, masterIP string, rootLBName string, updateCallback edgeproto.CacheUpdateCallback) (bool, uint32, error) {
 	log.SpanLog(ctx, log.DebugLevelMexos, "checking if cluster is ready")
 
-	client, err := mexos.GetSSHClient(ctx, rootLBName, mexos.GetCloudletExternalNetwork(), mexos.SSHUser)
+	// some commands are run on the rootlb and some on the master directly, so we use separate clients
+	rootLBClient, err := mexos.GetSSHClient(ctx, rootLBName, mexos.GetCloudletExternalNetwork(), mexos.SSHUser)
 	if err != nil {
-		return false, 0, fmt.Errorf("can't get ssh client for cluser ready check, %v", err)
+		return false, 0, fmt.Errorf("can't get rootlb ssh client for cluster ready check, %v", err)
+	}
+	masterClient, err := mexos.GetSSHClient(ctx, rootLBName, mexos.GetCloudletExternalNetwork(), mexos.SSHUser)
+	if err != nil {
+		return false, 0, fmt.Errorf("can't get master ssh client for cluster ready check, %v", err)
+	}
+	// run the commands on the master
+	err = masterClient.AddHop(masterIP, 22)
+	if err != nil {
+		return false, 0, err
 	}
 	log.SpanLog(ctx, log.DebugLevelMexos, "checking master k8s node for available nodes", "ipaddr", masterIP)
 	cmd := "kubectl get nodes"
-	out, err := client.RemoteOutput(masterIP, cmd)
+	out, err := masterClient.Output(cmd)
 	if err != nil {
 		log.SpanLog(ctx, log.DebugLevelMexos, "error checking for kubernetes nodes", "out", out, "err", err)
 		return false, 0, nil //This is intentional
@@ -341,8 +351,8 @@ func (s *Platform) isClusterReady(ctx context.Context, clusterInst *edgeproto.Cl
 		return false, 0, nil
 	}
 	log.SpanLog(ctx, log.DebugLevelMexos, "cluster nodes ready", "numnodes", clusterInst.NumNodes, "nummasters", clusterInst.NumMasters, "readyCount", readyCount, "notReadyCount", notReadyCount)
-	//kcpath := MEXDir() + "/" + name[strings.LastIndex(name, "-")+1:] + ".kubeconfig"
-	if err := mexos.CopyKubeConfig(ctx, client, clusterInst, rootLBName, masterIP); err != nil {
+
+	if err := mexos.CopyKubeConfig(ctx, rootLBClient, clusterInst, rootLBName, masterIP); err != nil {
 		return false, 0, fmt.Errorf("kubeconfig copy failed, %v", err)
 	}
 	if clusterInst.NumNodes == 0 {
@@ -354,7 +364,7 @@ func (s *Platform) isClusterReady(ctx context.Context, clusterInst *edgeproto.Cl
 		log.SpanLog(ctx, log.DebugLevelMexos, "removing NoSchedule taint from master", "master", masterString)
 		cmd := fmt.Sprintf("kubectl taint nodes %s node-role.kubernetes.io/master:NoSchedule-", masterString)
 
-		out, err := client.RemoteOutput(masterIP, cmd)
+		out, err := masterClient.Output(cmd)
 		if err != nil {
 			if strings.Contains(out, "not found") {
 				log.SpanLog(ctx, log.DebugLevelMexos, "master taint already gone")

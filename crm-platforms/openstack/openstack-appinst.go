@@ -217,21 +217,41 @@ func (s *Platform) CreateAppInst(ctx context.Context, clusterInst *edgeproto.Clu
 	case cloudcommon.AppDeploymentTypeDocker:
 		rootLBName := s.rootLBName
 		backendIP := cloudcommon.RemoteServerNone
-		var err error
+		dockerNetworkMode := dockermgmt.DockerBridgeMode
+		// we need 2 clients because actions taken on the rootLB may be run on a different
+		// host than actions taken on docker
+		rootLBClient, err := s.GetPlatformClient(ctx, clusterInst)
+		if err != nil {
+			return err
+		}
+		dockerVMClient, err := s.GetPlatformClient(ctx, clusterInst)
+		if err != nil {
+			return err
+		}
 		if clusterInst.IpAccess == edgeproto.IpAccess_IP_ACCESS_DEDICATED {
 			rootLBName = cloudcommon.GetDedicatedLBFQDN(s.cloudletKey, &clusterInst.Key.ClusterKey)
 			log.SpanLog(ctx, log.DebugLevelMexos, "using dedicated RootLB to create app", "rootLBName", rootLBName)
+			if app.AccessType == edgeproto.AccessType_ACCESS_TYPE_LOAD_BALANCER {
+				backendIP = cloudcommon.IPAddrDockerHost
+			} else {
+				dockerNetworkMode = dockermgmt.DockerHostMode
+			}
 		} else {
-			//shared access deploys on a separate VM
+			// Shared access uses a separate VM for docker.  This is used both for running the docker commands
+			// and as the backend ip for the proxy
 			_, backendIP, err = mexos.GetMasterNameAndIP(ctx, clusterInst)
 			if err != nil {
 				return err
 			}
+			// add the docker VM as a hop to run docker commands on
+			err = dockerVMClient.AddHop(backendIP, 22)
+			if err != nil {
+				return err
+			}
+			// since docker will run in a separate VM from the LB, it will run in host mode
+			dockerNetworkMode = dockermgmt.DockerHostMode
 		}
-		client, err := s.GetPlatformClient(ctx, clusterInst)
-		if err != nil {
-			return err
-		}
+
 		rootLBIPaddr, err := mexos.GetServerIPAddr(ctx, mexos.GetCloudletExternalNetwork(), rootLBName, mexos.ExternalIPType)
 		if err != nil {
 			return err
@@ -241,13 +261,13 @@ func (s *Platform) CreateAppInst(ctx context.Context, clusterInst *edgeproto.Clu
 			return fmt.Errorf("get kube names failed, %v", err)
 		}
 		updateCallback(edgeproto.UpdateTask, "Seeding docker secret")
-		err = mexos.SeedDockerSecret(ctx, s, client, clusterInst, app, s.vaultConfig)
+		err = mexos.SeedDockerSecret(ctx, s, dockerVMClient, clusterInst, app, s.vaultConfig)
 		if err != nil {
 			return fmt.Errorf("seeding docker secret failed, %v", err)
 		}
 		updateCallback(edgeproto.UpdateTask, "Deploying Docker App")
 
-		err = dockermgmt.CreateAppInst(ctx, client, app, appInst, backendIP)
+		err = dockermgmt.CreateAppInst(ctx, dockerVMClient, app, appInst, dockerNetworkMode)
 		if err != nil {
 			return err
 		}
@@ -262,20 +282,11 @@ func (s *Platform) CreateAppInst(ctx context.Context, clusterInst *edgeproto.Clu
 		addproxy := false
 		listenIP := "NONE" // only applicable for proxy case
 		if app.AccessType == edgeproto.AccessType_ACCESS_TYPE_LOAD_BALANCER {
-			if clusterInst.IpAccess == edgeproto.IpAccess_IP_ACCESS_DEDICATED {
-				backendIP = cloudcommon.IPAddrDockerHost
-			} else {
-				var err error
-				_, backendIP, err = mexos.GetMasterNameAndIP(ctx, clusterInst)
-				if err != nil {
-					return err
-				}
-			}
 			ops = append(ops, proxy.WithDockerPublishPorts(), proxy.WithDockerNetwork(""))
 			addproxy = true
 			listenIP = rootLBIPaddr
 		}
-		err = mexos.AddProxySecurityRulesAndPatchDNS(ctx, client, names, app, appInst, getDnsAction, rootLBName, listenIP, backendIP, addproxy, s.vaultConfig, ops...)
+		err = mexos.AddProxySecurityRulesAndPatchDNS(ctx, rootLBClient, names, app, appInst, getDnsAction, rootLBName, listenIP, backendIP, addproxy, s.vaultConfig, ops...)
 		if err != nil {
 			return fmt.Errorf("AddProxySecurityRulesAndPatchDNS error: %v", err)
 		}
@@ -317,9 +328,7 @@ func (s *Platform) DeleteAppInst(ctx context.Context, clusterInst *edgeproto.Clu
 			if strings.Contains(err.Error(), mexos.ClusterNotFoundErr) {
 				log.SpanLog(ctx, log.DebugLevelMexos, "cluster is gone, allow app deletion")
 				secGrp := mexos.GetSecurityGroupName(ctx, rootLBName)
-				if !app.InternalPorts {
-					mexos.DeleteProxySecurityGroupRules(ctx, client, dockermgmt.GetContainerName(app), secGrp, appInst.MappedPorts, rootLBName)
-				}
+				mexos.DeleteProxySecurityGroupRules(ctx, client, dockermgmt.GetContainerName(app), secGrp, appInst.MappedPorts, app, rootLBName)
 				return nil
 			}
 		}
@@ -337,10 +346,10 @@ func (s *Platform) DeleteAppInst(ctx context.Context, clusterInst *edgeproto.Clu
 
 		// Clean up security rules and proxy if app is external
 		secGrp := mexos.GetSecurityGroupName(ctx, rootLBName)
+		if err := mexos.DeleteProxySecurityGroupRules(ctx, client, dockermgmt.GetContainerName(app), secGrp, appInst.MappedPorts, app, rootLBName); err != nil {
+			log.SpanLog(ctx, log.DebugLevelMexos, "cannot delete security rules", "name", names.AppName, "rootlb", rootLBName, "error", err)
+		}
 		if !app.InternalPorts {
-			if err := mexos.DeleteProxySecurityGroupRules(ctx, client, dockermgmt.GetContainerName(app), secGrp, appInst.MappedPorts, rootLBName); err != nil {
-				log.SpanLog(ctx, log.DebugLevelMexos, "cannot delete security rules", "name", names.AppName, "rootlb", rootLBName, "error", err)
-			}
 			// Clean up DNS entries
 			configs := append(app.Configs, appInst.Configs...)
 			aac, err := access.GetAppAccessConfig(ctx, configs)
@@ -366,25 +375,32 @@ func (s *Platform) DeleteAppInst(ctx context.Context, clusterInst *edgeproto.Clu
 			return fmt.Errorf("DeleteVMAppInst error: %v", err)
 		}
 		return nil
-	case cloudcommon.AppDeploymentTypeDocker:
 
-		backendIP := cloudcommon.RemoteServerNone
+	case cloudcommon.AppDeploymentTypeDocker:
 		rootLBName := s.rootLBName
-		var err error
-		client, err := s.GetPlatformClient(ctx, clusterInst)
+		rootLBClient, err := s.GetPlatformClient(ctx, clusterInst)
+		if err != nil {
+			return err
+		}
+		dockerVMClient, err := s.GetPlatformClient(ctx, clusterInst)
+		if err != nil {
+			return err
+		}
 		if clusterInst.IpAccess == edgeproto.IpAccess_IP_ACCESS_DEDICATED {
 			rootLBName = cloudcommon.GetDedicatedLBFQDN(s.cloudletKey, &clusterInst.Key.ClusterKey)
 		} else {
-			_, backendIP, err = mexos.GetMasterNameAndIP(ctx, clusterInst)
+			_, backendIP, err := mexos.GetMasterNameAndIP(ctx, clusterInst)
 			if err != nil {
 				if strings.Contains(err.Error(), mexos.ClusterNotFoundErr) {
 					log.SpanLog(ctx, log.DebugLevelMexos, "cluster is gone, allow app deletion")
 					secGrp := mexos.GetSecurityGroupName(ctx, rootLBName)
-					if !app.InternalPorts {
-						mexos.DeleteProxySecurityGroupRules(ctx, client, dockermgmt.GetContainerName(app), secGrp, appInst.MappedPorts, rootLBName)
-					}
+					mexos.DeleteProxySecurityGroupRules(ctx, rootLBClient, dockermgmt.GetContainerName(app), secGrp, appInst.MappedPorts, app, rootLBName)
 					return nil
 				}
+				return err
+			}
+			err = dockerVMClient.AddHop(backendIP, 22)
+			if err != nil {
 				return err
 			}
 		}
@@ -396,18 +412,14 @@ func (s *Platform) DeleteAppInst(ctx context.Context, clusterInst *edgeproto.Clu
 			}
 			return err
 		}
-		if err != nil {
-			return err
-		}
 		name := dockermgmt.GetContainerName(app)
-		if !app.InternalPorts {
-			secGrp := mexos.GetSecurityGroupName(ctx, rootLBName)
-			//  the proxy does not yet exist for docker, but it eventually will.  Secgrp rules should be deleted in either case
-			if err := mexos.DeleteProxySecurityGroupRules(ctx, client, name, secGrp, appInst.MappedPorts, rootLBName); err != nil {
-				log.SpanLog(ctx, log.DebugLevelMexos, "cannot delete security rules", "name", name, "rootlb", rootLBName, "error", err)
-			}
+		secGrp := mexos.GetSecurityGroupName(ctx, rootLBName)
+		//  the proxy does not yet exist for docker, but it eventually will.  Secgrp rules should be deleted in either case
+		if err := mexos.DeleteProxySecurityGroupRules(ctx, rootLBClient, name, secGrp, appInst.MappedPorts, app, rootLBName); err != nil {
+			log.SpanLog(ctx, log.DebugLevelMexos, "cannot delete security rules", "name", name, "rootlb", rootLBName, "error", err)
 		}
-		return dockermgmt.DeleteAppInst(ctx, client, app, appInst, backendIP)
+
+		return dockermgmt.DeleteAppInst(ctx, dockerVMClient, app, appInst)
 	default:
 		return fmt.Errorf("unsupported deployment type %s", deployment)
 	}
@@ -438,20 +450,22 @@ func (s *Platform) UpdateAppInst(ctx context.Context, clusterInst *edgeproto.Clu
 		}
 		return k8smgmt.UpdateAppInst(ctx, client, names, app, appInst)
 	case cloudcommon.AppDeploymentTypeDocker:
-		backendIP := cloudcommon.RemoteServerNone
-		var err error
+		dockerNetworkMode := dockermgmt.DockerBridgeMode
+		dockerVMClient, err := s.GetPlatformClient(ctx, clusterInst)
+		if err != nil {
+			return err
+		}
 		if clusterInst.IpAccess == edgeproto.IpAccess_IP_ACCESS_SHARED {
-			_, backendIP, err = mexos.GetMasterNameAndIP(ctx, clusterInst)
+			_, backendIP, err := mexos.GetMasterNameAndIP(ctx, clusterInst)
+			if err != nil {
+				return err
+			}
+			err = dockerVMClient.AddHop(backendIP, 22)
 			if err != nil {
 				return err
 			}
 		}
-
-		client, err := s.GetPlatformClient(ctx, clusterInst)
-		if err != nil {
-			return err
-		}
-		return dockermgmt.UpdateAppInst(ctx, client, app, appInst, backendIP)
+		return dockermgmt.UpdateAppInst(ctx, dockerVMClient, app, appInst, dockerNetworkMode)
 	case cloudcommon.AppDeploymentTypeHelm:
 		client, err := s.GetPlatformClient(ctx, clusterInst)
 		if err != nil {

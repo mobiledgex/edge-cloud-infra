@@ -601,6 +601,10 @@ func WriteError(c echo.Context, err error) error {
 			Code: http.StatusBadRequest,
 			Data: MsgErr(err),
 		}
+		out, err := json.Marshal(wsPayload)
+		if err == nil {
+			LogWsResponse(c, string(out))
+		}
 		return ws.WriteJSON(wsPayload)
 	} else {
 		res := ormapi.Result{}

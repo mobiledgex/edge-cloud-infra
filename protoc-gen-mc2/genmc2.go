@@ -521,7 +521,7 @@ func {{.MethodName}}(c echo.Context) error {
 	defer streamer.Stop()
 {{- end}}
 
-{{- if and (not .Show) .Outstream}}
+{{- if .StreamerCache}}
 	streamAdded := false
 {{- end}}
 

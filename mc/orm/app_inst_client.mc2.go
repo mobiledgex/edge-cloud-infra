@@ -24,58 +24,6 @@ var _ = math.Inf
 
 // Auto-generated code: DO NOT EDIT
 
-var streamAppInstClientKey = &StreamObj{}
-
-func StreamAppInstClientKey(c echo.Context) error {
-	ctx := GetContext(c)
-	rc := &RegionContext{}
-	claims, err := getClaims(c)
-	if err != nil {
-		return err
-	}
-	rc.username = claims.Username
-
-	in := ormapi.RegionAppInstClientKey{}
-	success, err := ReadConn(c, &in)
-	if !success {
-		return err
-	}
-	rc.region = in.Region
-	span := log.SpanFromContext(ctx)
-	span.SetTag("org", in.AppInstClientKey.Key.AppKey.DeveloperKey.Name)
-
-	streamer := streamAppInstClientKey.Get(in.AppInstClientKey.Key)
-	if streamer != nil {
-		payload := ormapi.StreamPayload{}
-		streamCh := streamer.Subscribe()
-		serverClosed := make(chan bool)
-		go func() {
-			for streamMsg := range streamCh {
-				switch out := streamMsg.(type) {
-				case string:
-					payload.Data = &edgeproto.Result{Message: out}
-					WriteStream(c, &payload)
-				case error:
-					WriteError(c, out)
-				default:
-					WriteError(c, fmt.Errorf("Unsupported message type received: %v", streamMsg))
-				}
-			}
-			CloseConn(c)
-			serverClosed <- true
-		}()
-		// Wait for client/server to close
-		// * Server closure is set via above serverClosed flag
-		// * Client closure is sent from client via a message
-		WaitForConnClose(c, serverClosed)
-		streamer.Unsubscribe(streamCh)
-	} else {
-		WriteError(c, fmt.Errorf("Key doesn't exist"))
-		CloseConn(c)
-	}
-	return nil
-}
-
 func ShowAppInstClient(c echo.Context) error {
 	ctx := GetContext(c)
 	rc := &RegionContext{}
@@ -95,26 +43,13 @@ func ShowAppInstClient(c echo.Context) error {
 	span := log.SpanFromContext(ctx)
 	span.SetTag("org", in.AppInstClientKey.Key.AppKey.DeveloperKey.Name)
 
-	streamer := NewStreamer()
-	defer streamer.Stop()
-	streamAdded := false
-
 	err = ShowAppInstClientStream(ctx, rc, &in.AppInstClientKey, func(res *edgeproto.AppInstClient) {
-		if !streamAdded {
-			streamAppInstClientKey.Add(in.AppInstClientKey.Key, streamer)
-			streamAdded = true
-		}
 		payload := ormapi.StreamPayload{}
 		payload.Data = res
-		streamer.Publish(res.Message)
 		WriteStream(c, &payload)
 	})
 	if err != nil {
-		streamer.Publish(err)
 		WriteError(c, err)
-	}
-	if streamAdded {
-		streamAppInstClientKey.Remove(in.AppInstClientKey.Key, streamer)
 	}
 	return nil
 }

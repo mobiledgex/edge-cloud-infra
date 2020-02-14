@@ -625,7 +625,6 @@ func addControllerApis(method string, group *echo.Group) {
 	//   403: forbidden
 	//   404: notFound
 	group.Match([]string{method}, "/ctrl/ShowAppInstClient", ShowAppInstClient)
-	group.Match([]string{method}, "/ctrl/StreamAppInstClientKey", StreamAppInstClientKey)
 	// swagger:route POST /auth/ctrl/CreateAutoScalePolicy AutoScalePolicy CreateAutoScalePolicy
 	// Create an Auto Scale Policy.
 	// Security:

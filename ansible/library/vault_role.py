@@ -63,17 +63,15 @@ def vault_role_absent(vault, data=None, check_mode=False):
     role = data["name"]
     meta = {}
 
-    r = vault("sys/policies/acl", method="LIST")
-    if policy in r["data"]["keys"]:
+    r = vault("auth/approle/role", method="LIST")
+    if role in r["data"]["keys"]:
         has_changed = True
-
-    if has_changed:
         if check_mode:
             meta["msg"] = "skipped, running in check mode"
         else:
-            r = vault("sys/policies/acl/{0}".format(policy), method="DELETE",
-                      success_code=204)
-            meta["msg"] = "policy deleted"
+            vault("auth/approle/role/{0}".format(role), method="DELETE",
+                  success_code=204)
+            meta["msg"] = "role deleted"
 
     return (has_changed, meta)
 

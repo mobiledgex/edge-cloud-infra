@@ -3,8 +3,8 @@
 from ansible.module_utils.basic import *
 from ansible.module_utils.vault import vault_request
 
-def vault_api_call(vault, api, method="GET", data={}, success_code=200):
-    if method != "GET":
+def vault_api_call(vault, api, method="GET", data={}, success_code=200, check_mode=False):
+    if check_mode and method != "GET":
         return (False,
                 {"msg": "Skipping {0} API call in check mode".format(method)})
 
@@ -41,7 +41,8 @@ def main():
                                          api=module.params["api"],
                                          method=module.params["method"],
                                          data=module.params["data"],
-                                         success_code=module.params["success_code"])
+                                         success_code=module.params["success_code"],
+                                         check_mode=module.check_mode)
     module.exit_json(changed=has_changed, meta=result)
 
 if __name__ == '__main__':

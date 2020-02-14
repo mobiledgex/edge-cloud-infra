@@ -136,11 +136,10 @@ func GetServices(ctx context.Context, client pc.PlatformClient, names *k8smgmt.K
 		}
 		return svcs.Items, nil
 	}
-
 	cmd := fmt.Sprintf("%s kubectl get svc -o json", names.KconfEnv)
 	out, err := client.Output(cmd)
 	if err != nil {
-		return nil, fmt.Errorf("can not get list of services, %s, %v", out, err)
+		return nil, fmt.Errorf("can not get list of services: %s, %s, %v", cmd, out, err)
 	}
 	err = json.Unmarshal([]byte(out), &svcs)
 	if err != nil {

@@ -153,8 +153,12 @@ func AddSecurityRuleCIDRWithRetry(ctx context.Context, cidr string, proto string
 	return err
 }
 
-func DeleteProxySecurityGroupRules(ctx context.Context, client pc.PlatformClient, name string, groupName string, ports []dme.AppPort, serverName string) error {
+func DeleteProxySecurityGroupRules(ctx context.Context, client pc.PlatformClient, name string, groupName string, ports []dme.AppPort, app *edgeproto.App, serverName string) error {
 	log.SpanLog(ctx, log.DebugLevelMexos, "DeleteProxySecurityGroupRules", "name", name, "ports", ports)
+	if app.InternalPorts {
+		log.SpanLog(ctx, log.DebugLevelMexos, "app is internal, nothing to delete")
+		return nil
+	}
 	err := proxy.DeleteNginxProxy(ctx, client, name)
 	if err != nil {
 		log.SpanLog(ctx, log.DebugLevelMexos, "cannot delete proxy", "name", name, "error", err)

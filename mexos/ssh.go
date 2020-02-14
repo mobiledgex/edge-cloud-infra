@@ -6,14 +6,36 @@ import (
 	"time"
 
 	sh "github.com/codeskyblue/go-sh"
+	"github.com/mobiledgex/edge-cloud/cloud-resource-manager/platform/pc"
 	"github.com/mobiledgex/edge-cloud/log"
 	ssh "github.com/mobiledgex/golang-ssh"
 	"github.com/tmc/scp"
 )
 
+var sshOpts = []string{"StrictHostKeyChecking=no", "UserKnownHostsFile=/dev/null", "LogLevel=ERROR"}
 var SSHUser = "ubuntu"
 var SSHPrivateKeyName = "id_rsa_mex"
-var ConnectTimeout time.Duration = 10 * time.Second
+var DefaultConnectTimeout time.Duration = 30 * time.Second
+var ClientVersion = "SSH-2.0-mobiledgex-ssh-client-1.0"
+
+type SSHOptions struct {
+	Timeout time.Duration
+}
+
+type SSHClientOp func(sshp *SSHOptions) error
+
+func WithTimeout(timeout time.Duration) SSHClientOp {
+	return func(op *SSHOptions) error {
+		op.Timeout = timeout
+		return nil
+	}
+}
+
+func (o *SSHOptions) Apply(ops []SSHClientOp) {
+	for _, op := range ops {
+		op(o)
+	}
+}
 
 //CopySSHCredential copies over the ssh credential for mex to LB
 func CopySSHCredential(ctx context.Context, serverName, networkName, userName string) error {
@@ -24,7 +46,7 @@ func CopySSHCredential(ctx context.Context, serverName, networkName, userName st
 		return err
 	}
 	kf := PrivateSSHKey()
-	out, err := sh.Command("scp", "-o", ssh.SSHOpts[0], "-o", ssh.SSHOpts[1], "-i", kf, kf, userName+"@"+addr+":").Output()
+	out, err := sh.Command("scp", "-o", sshOpts[0], "-o", sshOpts[1], "-i", kf, kf, userName+"@"+addr+":").Output()
 	if err != nil {
 		return fmt.Errorf("can't copy %s to %s, %s, %v", kf, addr, out, err)
 	}
@@ -32,31 +54,33 @@ func CopySSHCredential(ctx context.Context, serverName, networkName, userName st
 }
 
 //GetSSHClient returns ssh client handle for the server
-func GetSSHClient(ctx context.Context, serverName, networkName, userName string) (ssh.Client, error) {
-	auth := ssh.Auth{Keys: []string{PrivateSSHKey()}}
+func GetSSHClient(ctx context.Context, serverName, networkName, userName string, ops ...SSHClientOp) (pc.PlatformClient, error) {
 	log.SpanLog(ctx, log.DebugLevelMexos, "GetSSHClient", "serverName", serverName)
+	opts := SSHOptions{Timeout: DefaultConnectTimeout}
+	opts.Apply(ops)
 
 	addr, err := GetServerIPAddr(ctx, networkName, serverName, ExternalIPType)
 	if err != nil {
 		return nil, err
 	}
 
+	var client pc.PlatformClient
+	auth := ssh.Auth{Keys: []string{PrivateSSHKey()}}
 	gwhost, gwport := GetCloudletCRMGatewayIPAndPort()
-	client, err := ssh.NewNativeClient(userName, addr, "SSH-2.0-mobiledgex-ssh-client-1.0", 22, gwhost, gwport, &auth, &auth, ConnectTimeout, nil)
+	if gwhost != "" {
+		// start the client to GW and add the addr as next hop
+		client, err = ssh.NewNativeClient(userName, ClientVersion, gwhost, gwport, &auth, opts.Timeout, nil)
+		if err == nil {
+			err = client.AddHop(addr, 22)
+		}
+	} else {
+		client, err = ssh.NewNativeClient(userName, ClientVersion, addr, 22, &auth, opts.Timeout, nil)
+	}
+	log.SpanLog(ctx, log.DebugLevelMexos, "Created SSH Client", "addr", addr, "gwhost", gwhost, "timeout", opts.Timeout)
 	if err != nil {
 		return nil, fmt.Errorf("cannot get ssh client for server %s on network %s, %v", serverName, networkName, err)
 	}
 	//log.SpanLog(ctx,log.DebugLevelMexos, "got ssh client", "addr", addr, "key", auth)
-	return client, nil
-}
-
-func GetSSHClientIP(ipaddr, userName string) (ssh.Client, error) {
-	auth := ssh.Auth{Keys: []string{PrivateSSHKey()}}
-	gwhost, gwport := GetCloudletCRMGatewayIPAndPort()
-	client, err := ssh.NewNativeClient(userName, ipaddr, "SSH-2.0-mobiledgex-ssh-client-1.0", 22, gwhost, gwport, &auth, &auth, ConnectTimeout, nil)
-	if err != nil {
-		return nil, fmt.Errorf("cannot get ssh client for ipaddr %s, %v", ipaddr, err)
-	}
 	return client, nil
 }
 
@@ -92,18 +116,11 @@ func SCPFilePath(sshClient ssh.Client, srcPath, dstPath string) error {
 	if !ok {
 		return fmt.Errorf("unable to cast client to native client")
 	}
-
-	session, proxy, conn, err := client.Session()
+	session, _, sessionInfo, err := client.Session()
 	if err != nil {
 		return err
 	}
-	defer session.Close()
-	defer conn.Close()
-	if proxy != nil {
-		defer proxy.Close()
-	}
-
+	defer sessionInfo.CloseAll()
 	err = scp.CopyPath(srcPath, dstPath, session)
-
 	return err
 }

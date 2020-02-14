@@ -34,7 +34,6 @@ const ResourceConfig = "config"
 const ResourceAlert = "alert"
 const ResourceDeveloperPolicy = "developerpolicy"
 const ResourceResTagTable = "restagtbl"
-const ResourceAppInstClients = "appinstclient"
 
 var DeveloperResources = []string{
 	ResourceApps,
@@ -96,7 +95,6 @@ func InitRolePerms(ctx context.Context) error {
 	addPolicy(ctx, &err, RoleAdminViewer, ResourceUsers, ActionView)
 	addPolicy(ctx, &err, RoleAdminManager, ResourceResTagTable, ActionManage)
 	addPolicy(ctx, &err, RoleAdminManager, ResourceResTagTable, ActionView)
-	addPolicy(ctx, &err, RoleAdminManager, ResourceAppInstClients, ActionView)
 
 	for _, str := range DeveloperResources {
 		addPolicy(ctx, &err, RoleDeveloperManager, str, ActionManage)

@@ -241,7 +241,7 @@ func addControllerApis(method string, group *echo.Group) {
 	group.Match([]string{method}, "/ctrl/DeleteFlavor", DeleteFlavor)
 	// swagger:route POST /auth/ctrl/UpdateFlavor Flavor UpdateFlavor
 	// Update a Flavor.
-	// Following are `Flavor.fields` values to be used to specify which fields to update:
+	// The following `Flavor.fields` values are used to specify which fields to update.
 	// ```
 	// FlavorFieldKey = 2
 	// FlavorFieldKeyName = 2.1
@@ -315,7 +315,7 @@ func addControllerApis(method string, group *echo.Group) {
 	// swagger:route POST /auth/ctrl/UpdateApp App UpdateApp
 	// Update Application.
 	//  Updates the definition of an Application instance.
-	// Following are `App.fields` values to be used to specify which fields to update:
+	// The following `App.fields` values are used to specify which fields to update.
 	// ```
 	// AppFieldKey = 2
 	// AppFieldKeyDeveloperKey = 2.1
@@ -421,7 +421,7 @@ func addControllerApis(method string, group *echo.Group) {
 	group.Match([]string{method}, "/ctrl/DeleteResTagTable", DeleteResTagTable)
 	// swagger:route POST /auth/ctrl/UpdateResTagTable ResTagTable UpdateResTagTable
 	// .
-	// Following are `ResTagTable.fields` values to be used to specify which fields to update:
+	// The following `ResTagTable.fields` values are used to specify which fields to update.
 	// ```
 	// ResTagTableFieldKey = 2
 	// ResTagTableFieldKeyName = 2.1
@@ -506,7 +506,7 @@ func addControllerApis(method string, group *echo.Group) {
 	// swagger:route POST /auth/ctrl/UpdateCloudlet Cloudlet UpdateCloudlet
 	// Update Cloudlet.
 	//  Updates the Cloudlet configuration and manages the upgrade of Cloudlet services.
-	// Following are `Cloudlet.fields` values to be used to specify which fields to update:
+	// The following `Cloudlet.fields` values are used to specify which fields to update.
 	// ```
 	// CloudletFieldKey = 2
 	// CloudletFieldKeyOperatorKey = 2.1
@@ -662,7 +662,7 @@ func addControllerApis(method string, group *echo.Group) {
 	// swagger:route POST /auth/ctrl/UpdateClusterInst ClusterInst UpdateClusterInst
 	// Update Cluster Instance.
 	//  Updates an instance of a Cluster deployed on a Cloudlet.
-	// Following are `ClusterInst.fields` values to be used to specify which fields to update:
+	// The following `ClusterInst.fields` values are used to specify which fields to update.
 	// ```
 	// ClusterInstFieldKey = 2
 	// ClusterInstFieldKeyClusterKey = 2.1
@@ -756,7 +756,7 @@ func addControllerApis(method string, group *echo.Group) {
 	// swagger:route POST /auth/ctrl/UpdateAppInst AppInst UpdateAppInst
 	// Update Application Instance.
 	//  Updates an Application instance and then refreshes it.
-	// Following are `AppInst.fields` values to be used to specify which fields to update:
+	// The following `AppInst.fields` values are used to specify which fields to update.
 	// ```
 	// AppInstFieldKey = 2
 	// AppInstFieldKeyAppKey = 2.1
@@ -859,7 +859,7 @@ func addControllerApis(method string, group *echo.Group) {
 	group.Match([]string{method}, "/ctrl/DeleteAutoScalePolicy", DeleteAutoScalePolicy)
 	// swagger:route POST /auth/ctrl/UpdateAutoScalePolicy AutoScalePolicy UpdateAutoScalePolicy
 	// Update an Auto Scale Policy.
-	// Following are `AutoScalePolicy.fields` values to be used to specify which fields to update:
+	// The following `AutoScalePolicy.fields` values are used to specify which fields to update.
 	// ```
 	// AutoScalePolicyFieldKey = 2
 	// AutoScalePolicyFieldKeyDeveloper = 2.1
@@ -911,7 +911,7 @@ func addControllerApis(method string, group *echo.Group) {
 	group.Match([]string{method}, "/ctrl/DeleteAutoProvPolicy", DeleteAutoProvPolicy)
 	// swagger:route POST /auth/ctrl/UpdateAutoProvPolicy AutoProvPolicy UpdateAutoProvPolicy
 	// Update an Auto Provisioning Policy.
-	// Following are `AutoProvPolicy.fields` values to be used to specify which fields to update:
+	// The following `AutoProvPolicy.fields` values are used to specify which fields to update.
 	// ```
 	// AutoProvPolicyFieldKey = 2
 	// AutoProvPolicyFieldKeyDeveloper = 2.1
@@ -1116,7 +1116,7 @@ func addControllerApis(method string, group *echo.Group) {
 	group.Match([]string{method}, "/ctrl/DeletePrivacyPolicy", DeletePrivacyPolicy)
 	// swagger:route POST /auth/ctrl/UpdatePrivacyPolicy PrivacyPolicy UpdatePrivacyPolicy
 	// Update a Privacy policy.
-	// Following are `PrivacyPolicy.fields` values to be used to specify which fields to update:
+	// The following `PrivacyPolicy.fields` values are used to specify which fields to update.
 	// ```
 	// PrivacyPolicyFieldKey = 2
 	// PrivacyPolicyFieldKeyDeveloper = 2.1
@@ -1168,7 +1168,7 @@ func addControllerApis(method string, group *echo.Group) {
 	group.Match([]string{method}, "/ctrl/ShowClusterRefs", ShowClusterRefs)
 	// swagger:route POST /auth/ctrl/UpdateSettings Settings UpdateSettings
 	// Update settings.
-	// Following are `Settings.fields` values to be used to specify which fields to update:
+	// The following `Settings.fields` values are used to specify which fields to update.
 	// ```
 	// SettingsFieldShepherdMetricsCollectionInterval = 2
 	// SettingsFieldShepherdHealthCheckRetries = 3

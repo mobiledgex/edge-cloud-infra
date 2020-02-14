@@ -274,7 +274,7 @@ func (g *GenMC2) genSwaggerSpec(method *descriptor.MethodDescriptorProto, summar
 	}
 	if strings.HasPrefix(*method.Name, "Update") {
 		allStr := g.getFields([]string{*message.Name + "Field"}, []string{}, in)
-		g.P("// Following are `", inname, ".fields` values to be used to specify which fields to update:")
+		g.P("// The following `", inname, ".fields` values are used to specify which fields to update.")
 		g.P("// ```")
 		for _, field := range allStr {
 			g.P("// ", field)

@@ -35,8 +35,6 @@ func RunWebrtcStream(c echo.Context) error {
 	}
 	rc.region = in.Region
 
-	ormapi.PrintFile(fmt.Sprintf("in: %v\n", in))
-
 	exchangeFunc := func(offer webrtc.SessionDescription) (*edgeproto.ExecRequest, *webrtc.SessionDescription, error) {
 		offerBytes, err := json.Marshal(&offer)
 		if err != nil {

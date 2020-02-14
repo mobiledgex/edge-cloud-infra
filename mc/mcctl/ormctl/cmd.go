@@ -18,6 +18,7 @@ var Addr string
 var Token string
 var SkipVerify bool
 var client ormclient.Client
+var McProxy bool
 
 type setFieldsFunc func(in map[string]interface{})
 
@@ -86,19 +87,14 @@ func check(c *cli.Command, status int, err error, reply interface{}) error {
 		}
 		return nil
 	}
-	ormapi.PrintFile(fmt.Sprintf("Check1: %v\n", reply))
 	if res, ok := reply.(*ormapi.WSStreamPayload); ok && !cli.Parsable {
-		ormapi.PrintFile("Check2")
 		if res.Data == nil {
 			return nil
 		}
-		ormapi.PrintFile("Check3")
-		if out, ok := res.Data.([]byte); ok {
-			fmt.Println(string(out))
-			ormapi.PrintFile("Check4")
+		if out, ok := res.Data.(string); ok {
+			fmt.Print(out)
 			return nil
 		}
-		ormapi.PrintFile("Check5")
 		reply = res.Data
 	}
 	// formatted output
@@ -106,7 +102,6 @@ func check(c *cli.Command, status int, err error, reply interface{}) error {
 		// don't write output for empty slices
 		if reflect.TypeOf(reply).Kind() == reflect.Slice {
 			if reflect.ValueOf(reply).Len() == 0 {
-				ormapi.PrintFile("Check6")
 				return nil
 			}
 		}
@@ -114,7 +109,6 @@ func check(c *cli.Command, status int, err error, reply interface{}) error {
 		if err != nil {
 			return err
 		}
-		ormapi.PrintFile("Check7")
 	}
 	return nil
 }
@@ -131,6 +125,9 @@ func PreRunE(cmd *cobra.Command, args []string) error {
 	}
 	if SkipVerify {
 		client.SkipVerify = true
+	}
+	if McProxy {
+		client.McProxy = true
 	}
 	return nil
 }

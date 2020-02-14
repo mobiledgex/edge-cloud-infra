@@ -1,6 +1,7 @@
 package ormclient
 
 import (
+	"bufio"
 	"bytes"
 	"crypto/tls"
 	"encoding/json"
@@ -19,6 +20,7 @@ import (
 type Client struct {
 	SkipVerify bool
 	Debug      bool
+	McProxy    bool
 }
 
 func (s *Client) DoLogin(uri, user, pass string) (string, error) {
@@ -284,7 +286,7 @@ func (s *Client) PostJson(uri, token string, reqData interface{}, replyData inte
 
 func (s *Client) PostJsonStreamOut(uri, token string, reqData, replyData interface{}, replyReady func()) (int, error) {
 	if strings.Contains(uri, "ws/api/v1") {
-		return s.handleWebsocketStreamOut(uri, token, reqData, replyData, replyReady)
+		return s.HandleWebsocketStreamOut(uri, token, nil, reqData, replyData, replyReady)
 	} else {
 		return s.handleHttpStreamOut(uri, token, reqData, replyData, replyReady)
 	}
@@ -376,7 +378,7 @@ func (s *Client) WebsocketConn(uri, token string, reqData interface{}) (*websock
 	return ws, nil
 }
 
-func (s *Client) handleWebsocketStreamOut(uri, token string, reqData, replyData interface{}, replyReady func()) (int, error) {
+func (s *Client) HandleWebsocketStreamOut(uri, token string, reader *bufio.Reader, reqData, replyData interface{}, replyReady func()) (int, error) {
 	wsPayload, ok := replyData.(*ormapi.WSStreamPayload)
 	if !ok {
 		return 0, fmt.Errorf("response can only be of type WSStreamPayload")
@@ -384,6 +386,19 @@ func (s *Client) handleWebsocketStreamOut(uri, token string, reqData, replyData 
 	ws, err := s.WebsocketConn(uri, token, reqData)
 	if err != nil {
 		return 0, fmt.Errorf("post %s client do failed, %s", uri, err.Error())
+	}
+	if reader != nil {
+		go func() {
+			for {
+				text, err := reader.ReadString('\n')
+				if err == io.EOF {
+					break
+				}
+				if err := ws.WriteMessage(websocket.TextMessage, []byte(text)); err != nil {
+					break
+				}
+			}
+		}()
 	}
 	payload := wsPayload
 	for {
@@ -401,7 +416,6 @@ func (s *Client) handleWebsocketStreamOut(uri, token string, reqData, replyData 
 			}
 			return http.StatusBadRequest, fmt.Errorf("post %s decode resp failed, %s", uri, err.Error())
 		}
-		ormapi.PrintFile(fmt.Sprintf(">>CLIENT>>>%v\n", payload))
 		if payload.Code != http.StatusOK {
 			if payload.Data == nil {
 				return payload.Code, nil

@@ -242,8 +242,27 @@ func (g *GenMC2) generatePosts() {
 	g.P()
 }
 
+func (g *GenMC2) getFields(names, nums []string, desc *generator.Descriptor) []string {
+	allStr := []string{}
+	message := desc.DescriptorProto
+	for ii, field := range message.Field {
+		if ii == 0 && *field.Name == "fields" {
+			continue
+		}
+		name := generator.CamelCase(*field.Name)
+		num := fmt.Sprintf("%d", *field.Number)
+		allStr = append(allStr, fmt.Sprintf("%-20s = %s", strings.Join(append(nums, num), "."), strings.Join(append(names, name), "")))
+		if *field.Type == descriptor.FieldDescriptorProto_TYPE_MESSAGE {
+			subDesc := gensupport.GetDesc(g.Generator, field.GetTypeName())
+			allStr = append(allStr, g.getFields(append(names, name), append(nums, num), subDesc)...)
+		}
+	}
+	return allStr
+}
+
 func (g *GenMC2) genSwaggerSpec(method *descriptor.MethodDescriptorProto, summary string) {
 	in := gensupport.GetDesc(g.Generator, method.GetInputType())
+	message := in.DescriptorProto
 	inname := *in.DescriptorProto.Name
 	g.P("// swagger:route POST /auth/ctrl/", method.Name, " ", inname, " ", method.Name)
 	out := strings.Split(summary, ".")
@@ -252,6 +271,15 @@ func (g *GenMC2) genSwaggerSpec(method *descriptor.MethodDescriptorProto, summar
 		g.P("// ", strings.Join(out[1:len(out)], "."))
 	} else {
 		g.P("// ", out[0], ".")
+	}
+	if strings.HasPrefix(*method.Name, "Update") {
+		allStr := g.getFields([]string{*message.Name + "Field"}, []string{}, in)
+		g.P("// Following are `", inname, ".fields` values to be used to specify which fields to update:")
+		g.P("// ```")
+		for _, field := range allStr {
+			g.P("// ", field)
+		}
+		g.P("// ```")
 	}
 	g.P("// Security:")
 	g.P("//   Bearer:")

@@ -3,17 +3,27 @@
     name: "{{ item | basename | regex_replace('\\.hcl(\\.j2)?$', '')}}"
     content: "{{ lookup('template', item) }}"
   loop:
+    - policies/ansible.read.v1.hcl.j2
+    - policies/auth-approle.read.v1.hcl.j2
+    - policies/auth-approle.write.v1.hcl.j2
+    - policies/auth-github-config.read.v1.hcl.j2
+    - policies/auth-github-config.write.v1.hcl.j2
     - policies/approle.login.v1.hcl.j2
     - policies/certs.read.v1.hcl.j2
     - policies/cloudlets.read.v1.hcl.j2
     - policies/cloudlets.write.v1.hcl.j2
     - policies/influxdb.read.v1.hcl.j2
+    - policies/influxdb-internal.read.v1.hcl.j2
     - policies/noreplyemail.read.v1.hcl.j2
     - policies/gcp-auth.read.v1.hcl.j2
     - policies/mcorm-jwtkeys.read.v1.hcl.j2
     - policies/mcorm-jwtkeys.write.v1.hcl.j2
     - policies/mexenv.read.v1.hcl.j2
     - policies/registry.read.v1.hcl.j2
+    - policies/sys-auth.read.v1.hcl.j2
+    - policies/sys-auth.write.v1.hcl.j2
+    - policies/sys-policies.read.v1.hcl.j2
+    - policies/sys-policies.write.v1.hcl.j2
 
 - include_role:
     name: vault

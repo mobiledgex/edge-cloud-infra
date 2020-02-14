@@ -1,6 +1,23 @@
 - debug:
     msg: "Install global roles"
 
+- name: ansible.v1 role
+  vault_role:
+    name: ansible.v1
+    policies:
+      - approle.login.v1
+      - ansible.read.v1
+      - auth-approle.read.v1
+      - auth-github-config.read.v1
+      - certs.read.v1
+      - influxdb.read.v1
+      - influxdb-internal.read.v1
+      - registry.read.v1
+      - sys-auth.read.v1
+      - sys-policies.read.v1
+    token_type: batch
+    token_ttl: 1800   # seconds = 30 minutes
+
 - name: autoprov.v1 role
   vault_role:
     name: autoprov.v1

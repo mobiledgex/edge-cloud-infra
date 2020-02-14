@@ -4,6 +4,10 @@ from ansible.module_utils.basic import *
 from ansible.module_utils.vault import vault_request
 
 def vault_api_call(vault, api, method="GET", data={}, success_code=200):
+    if method != "GET":
+        return (False,
+                {"msg": "Skipping {0} API call in check mode".format(method)})
+
     has_changed = True
 
     meta = {}
@@ -30,7 +34,8 @@ def main():
         "vault_token": {"required": True, "type": "str"},
     }
 
-    module = AnsibleModule(argument_spec=fields)
+    module = AnsibleModule(argument_spec=fields,
+                           supports_check_mode=True)
     vault = vault_request(module.params["vault_addr"], module.params["vault_token"])
     has_changed, result = vault_api_call(vault,
                                          api=module.params["api"],

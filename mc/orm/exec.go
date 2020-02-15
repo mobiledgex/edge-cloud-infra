@@ -9,6 +9,7 @@ import (
 	"github.com/mobiledgex/edge-cloud-infra/mc/ormapi"
 	edgecli "github.com/mobiledgex/edge-cloud/edgectl/cli"
 	"github.com/mobiledgex/edge-cloud/edgeproto"
+	"github.com/mobiledgex/edge-cloud/log"
 	webrtc "github.com/pion/webrtc/v2"
 	"google.golang.org/grpc/status"
 )
@@ -35,6 +36,9 @@ func RunWebrtcStream(c echo.Context) error {
 	}
 	rc.region = in.Region
 
+	span := log.SpanFromContext(ctx)
+	span.SetTag("org", in.ExecRequest.AppInstKey.AppKey.DeveloperKey.Name)
+
 	exchangeFunc := func(offer webrtc.SessionDescription) (*edgeproto.ExecRequest, *webrtc.SessionDescription, error) {
 		offerBytes, err := json.Marshal(&offer)
 		if err != nil {
@@ -47,6 +51,8 @@ func RunWebrtcStream(c echo.Context) error {
 			reply, err = RunCommandObj(ctx, rc, &in.ExecRequest)
 		} else if strings.HasSuffix(c.Path(), "ctrl/ShowLogs") {
 			reply, err = ShowLogsObj(ctx, rc, &in.ExecRequest)
+		} else if strings.HasSuffix(c.Path(), "ctrl/RunConsole") {
+			reply, err = RunConsoleObj(ctx, rc, &in.ExecRequest)
 		} else {
 			return nil, nil, echo.ErrNotFound
 		}

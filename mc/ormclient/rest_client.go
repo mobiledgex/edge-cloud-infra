@@ -361,7 +361,14 @@ func (s *Client) WebsocketConn(uri, token string, reqData interface{}) (*websock
 		body = nil
 	}
 
-	ws, _, err := websocket.DefaultDialer.Dial(uri, nil)
+	var ws *websocket.Conn
+	var err error
+	if strings.HasPrefix(uri, "wss") {
+		d := websocket.Dialer{TLSClientConfig: &tls.Config{InsecureSkipVerify: true}}
+		ws, _, err = d.Dial(uri, nil)
+	} else {
+		ws, _, err = websocket.DefaultDialer.Dial(uri, nil)
+	}
 	if err != nil {
 		return nil, fmt.Errorf("websocket connect to %s failed, %s", uri, err.Error())
 	}

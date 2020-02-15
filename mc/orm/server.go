@@ -348,6 +348,7 @@ func RunServer(config *ServerConfig) (*Server, error) {
 	// WebRTC based APIs
 	ws.GET("/ctrl/RunCommand", RunWebrtcStream)
 	ws.GET("/ctrl/ShowLogs", RunWebrtcStream)
+	ws.GET("/ctrl/RunConsole", RunWebrtcStream)
 
 	go func() {
 		var err error

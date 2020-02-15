@@ -301,14 +301,14 @@ func (s *Platform) isClusterReady(ctx context.Context, clusterInst *edgeproto.Cl
 	if err != nil {
 		return false, 0, fmt.Errorf("can't get rootlb ssh client for cluster ready check, %v", err)
 	}
-	masterClient, err := mexos.GetSSHClient(ctx, rootLBName, mexos.GetCloudletExternalNetwork(), mexos.SSHUser)
-	if err != nil {
-		return false, 0, fmt.Errorf("can't get master ssh client for cluster ready check, %v", err)
-	}
-	// run the commands on the master
-	err = masterClient.AddHop(masterIP, 22)
+	// masterClient is to run commands on the master
+	mc, err := rootLBClient.AddHop(masterIP, 22)
 	if err != nil {
 		return false, 0, err
+	}
+	masterClient, ok := mc.(pc.PlatformClient)
+	if !ok {
+		return false, 0, fmt.Errorf("AddHop did not return PlatformClient")
 	}
 	log.SpanLog(ctx, log.DebugLevelMexos, "checking master k8s node for available nodes", "ipaddr", masterIP)
 	cmd := "kubectl get nodes"

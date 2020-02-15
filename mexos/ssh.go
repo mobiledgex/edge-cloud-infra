@@ -70,8 +70,17 @@ func GetSSHClient(ctx context.Context, serverName, networkName, userName string,
 	if gwhost != "" {
 		// start the client to GW and add the addr as next hop
 		client, err = ssh.NewNativeClient(userName, ClientVersion, gwhost, gwport, &auth, opts.Timeout, nil)
-		if err == nil {
-			err = client.AddHop(addr, 22)
+		if err != nil {
+			return nil, err
+		}
+		c2, err := client.AddHop(addr, 22)
+		if err != nil {
+			return nil, err
+		}
+		var ok bool
+		client, ok = c2.(pc.PlatformClient)
+		if !ok {
+			return nil, fmt.Errorf("AddHop returned client of wrong type")
 		}
 	} else {
 		client, err = ssh.NewNativeClient(userName, ClientVersion, addr, 22, &auth, opts.Timeout, nil)
@@ -84,7 +93,7 @@ func GetSSHClient(ctx context.Context, serverName, networkName, userName string,
 	return client, nil
 }
 
-func SetupSSHUser(ctx context.Context, rootLB *MEXRootLB, user string) (ssh.Client, error) {
+func SetupSSHUser(ctx context.Context, rootLB *MEXRootLB, user string) (pc.PlatformClient, error) {
 	log.SpanLog(ctx, log.DebugLevelMexos, "setting up ssh user", "user", user)
 	client, err := GetSSHClient(ctx, rootLB.Name, GetCloudletExternalNetwork(), user)
 	if err != nil {
@@ -116,7 +125,7 @@ func SCPFilePath(sshClient ssh.Client, srcPath, dstPath string) error {
 	if !ok {
 		return fmt.Errorf("unable to cast client to native client")
 	}
-	session, _, sessionInfo, err := client.Session()
+	session, sessionInfo, err := client.Session()
 	if err != nil {
 		return err
 	}

@@ -241,16 +241,16 @@ func addControllerApis(method string, group *echo.Group) {
 	group.Match([]string{method}, "/ctrl/DeleteFlavor", DeleteFlavor)
 	// swagger:route POST /auth/ctrl/UpdateFlavor Flavor UpdateFlavor
 	// Update a Flavor.
-	// The following `Flavor.fields` values are used to specify which fields to update.
+	// The following values should be added to `Flavor.fields` field array to specify which fields will be updated.
 	// ```
-	// FlavorFieldKey = 2
-	// FlavorFieldKeyName = 2.1
-	// FlavorFieldRam = 3
-	// FlavorFieldVcpus = 4
-	// FlavorFieldDisk = 5
-	// FlavorFieldOptResMap = 6
-	// FlavorFieldOptResMapKey = 6.1
-	// FlavorFieldOptResMapValue = 6.2
+	// Key: 2
+	// KeyName: 2.1
+	// Ram: 3
+	// Vcpus: 4
+	// Disk: 5
+	// OptResMap: 6
+	// OptResMapKey: 6.1
+	// OptResMapValue: 6.2
 	// ```
 	// Security:
 	//   Bearer:
@@ -315,38 +315,38 @@ func addControllerApis(method string, group *echo.Group) {
 	// swagger:route POST /auth/ctrl/UpdateApp App UpdateApp
 	// Update Application.
 	//  Updates the definition of an Application instance.
-	// The following `App.fields` values are used to specify which fields to update.
+	// The following values should be added to `App.fields` field array to specify which fields will be updated.
 	// ```
-	// AppFieldKey = 2
-	// AppFieldKeyDeveloperKey = 2.1
-	// AppFieldKeyDeveloperKeyName = 2.1.2
-	// AppFieldKeyName = 2.2
-	// AppFieldKeyVersion = 2.3
-	// AppFieldImagePath = 4
-	// AppFieldImageType = 5
-	// AppFieldAccessPorts = 7
-	// AppFieldDefaultFlavor = 9
-	// AppFieldDefaultFlavorName = 9.1
-	// AppFieldAuthPublicKey = 12
-	// AppFieldCommand = 13
-	// AppFieldAnnotations = 14
-	// AppFieldDeployment = 15
-	// AppFieldDeploymentManifest = 16
-	// AppFieldDeploymentGenerator = 17
-	// AppFieldAndroidPackageName = 18
-	// AppFieldDelOpt = 20
-	// AppFieldConfigs = 21
-	// AppFieldConfigsKind = 21.1
-	// AppFieldConfigsConfig = 21.2
-	// AppFieldScaleWithCluster = 22
-	// AppFieldInternalPorts = 23
-	// AppFieldRevision = 24
-	// AppFieldOfficialFqdn = 25
-	// AppFieldMd5Sum = 26
-	// AppFieldDefaultSharedVolumeSize = 27
-	// AppFieldAutoProvPolicy = 28
-	// AppFieldAccessType = 29
-	// AppFieldDefaultPrivacyPolicy = 30
+	// Key: 2
+	// KeyDeveloperKey: 2.1
+	// KeyDeveloperKeyName: 2.1.2
+	// KeyName: 2.2
+	// KeyVersion: 2.3
+	// ImagePath: 4
+	// ImageType: 5
+	// AccessPorts: 7
+	// DefaultFlavor: 9
+	// DefaultFlavorName: 9.1
+	// AuthPublicKey: 12
+	// Command: 13
+	// Annotations: 14
+	// Deployment: 15
+	// DeploymentManifest: 16
+	// DeploymentGenerator: 17
+	// AndroidPackageName: 18
+	// DelOpt: 20
+	// Configs: 21
+	// ConfigsKind: 21.1
+	// ConfigsConfig: 21.2
+	// ScaleWithCluster: 22
+	// InternalPorts: 23
+	// Revision: 24
+	// OfficialFqdn: 25
+	// Md5Sum: 26
+	// DefaultSharedVolumeSize: 27
+	// AutoProvPolicy: 28
+	// AccessType: 29
+	// DefaultPrivacyPolicy: 30
 	// ```
 	// Security:
 	//   Bearer:
@@ -421,16 +421,16 @@ func addControllerApis(method string, group *echo.Group) {
 	group.Match([]string{method}, "/ctrl/DeleteResTagTable", DeleteResTagTable)
 	// swagger:route POST /auth/ctrl/UpdateResTagTable ResTagTable UpdateResTagTable
 	// .
-	// The following `ResTagTable.fields` values are used to specify which fields to update.
+	// The following values should be added to `ResTagTable.fields` field array to specify which fields will be updated.
 	// ```
-	// ResTagTableFieldKey = 2
-	// ResTagTableFieldKeyName = 2.1
-	// ResTagTableFieldKeyOperatorKey = 2.2
-	// ResTagTableFieldKeyOperatorKeyName = 2.2.1
-	// ResTagTableFieldTags = 3
-	// ResTagTableFieldTagsKey = 3.1
-	// ResTagTableFieldTagsValue = 3.2
-	// ResTagTableFieldAzone = 4
+	// Key: 2
+	// KeyName: 2.1
+	// KeyOperatorKey: 2.2
+	// KeyOperatorKeyName: 2.2.1
+	// Tags: 3
+	// TagsKey: 3.1
+	// TagsValue: 3.2
+	// Azone: 4
 	// ```
 	// Security:
 	//   Bearer:
@@ -506,76 +506,76 @@ func addControllerApis(method string, group *echo.Group) {
 	// swagger:route POST /auth/ctrl/UpdateCloudlet Cloudlet UpdateCloudlet
 	// Update Cloudlet.
 	//  Updates the Cloudlet configuration and manages the upgrade of Cloudlet services.
-	// The following `Cloudlet.fields` values are used to specify which fields to update.
+	// The following values should be added to `Cloudlet.fields` field array to specify which fields will be updated.
 	// ```
-	// CloudletFieldKey = 2
-	// CloudletFieldKeyOperatorKey = 2.1
-	// CloudletFieldKeyOperatorKeyName = 2.1.1
-	// CloudletFieldKeyName = 2.2
-	// CloudletFieldLocation = 5
-	// CloudletFieldLocationLatitude = 5.1
-	// CloudletFieldLocationLongitude = 5.2
-	// CloudletFieldLocationHorizontalAccuracy = 5.3
-	// CloudletFieldLocationVerticalAccuracy = 5.4
-	// CloudletFieldLocationAltitude = 5.5
-	// CloudletFieldLocationCourse = 5.6
-	// CloudletFieldLocationSpeed = 5.7
-	// CloudletFieldLocationTimestamp = 5.8
-	// CloudletFieldLocationTimestampSeconds = 5.8.1
-	// CloudletFieldLocationTimestampNanos = 5.8.2
-	// CloudletFieldIpSupport = 6
-	// CloudletFieldStaticIps = 7
-	// CloudletFieldNumDynamicIps = 8
-	// CloudletFieldTimeLimits = 9
-	// CloudletFieldTimeLimitsCreateClusterInstTimeout = 9.1
-	// CloudletFieldTimeLimitsUpdateClusterInstTimeout = 9.2
-	// CloudletFieldTimeLimitsDeleteClusterInstTimeout = 9.3
-	// CloudletFieldTimeLimitsCreateAppInstTimeout = 9.4
-	// CloudletFieldTimeLimitsUpdateAppInstTimeout = 9.5
-	// CloudletFieldTimeLimitsDeleteAppInstTimeout = 9.6
-	// CloudletFieldErrors = 10
-	// CloudletFieldStatus = 11
-	// CloudletFieldStatusTaskNumber = 11.1
-	// CloudletFieldStatusMaxTasks = 11.2
-	// CloudletFieldStatusTaskName = 11.3
-	// CloudletFieldStatusStepName = 11.4
-	// CloudletFieldState = 12
-	// CloudletFieldCrmOverride = 13
-	// CloudletFieldDeploymentLocal = 14
-	// CloudletFieldPlatformType = 15
-	// CloudletFieldNotifySrvAddr = 16
-	// CloudletFieldFlavor = 17
-	// CloudletFieldFlavorName = 17.1
-	// CloudletFieldPhysicalName = 18
-	// CloudletFieldEnvVar = 19
-	// CloudletFieldEnvVarKey = 19.1
-	// CloudletFieldEnvVarValue = 19.2
-	// CloudletFieldContainerVersion = 20
-	// CloudletFieldConfig = 21
-	// CloudletFieldConfigContainerRegistryPath = 21.1
-	// CloudletFieldConfigCloudletVmImagePath = 21.2
-	// CloudletFieldConfigNotifyCtrlAddrs = 21.3
-	// CloudletFieldConfigVaultAddr = 21.4
-	// CloudletFieldConfigTlsCertFile = 21.5
-	// CloudletFieldConfigEnvVar = 21.6
-	// CloudletFieldConfigEnvVarKey = 21.6.1
-	// CloudletFieldConfigEnvVarValue = 21.6.2
-	// CloudletFieldConfigPlatformTag = 21.8
-	// CloudletFieldConfigTestMode = 21.9
-	// CloudletFieldConfigSpan = 21.10
-	// CloudletFieldConfigCleanupMode = 21.11
-	// CloudletFieldConfigRegion = 21.12
-	// CloudletFieldResTagMap = 22
-	// CloudletFieldResTagMapKey = 22.1
-	// CloudletFieldResTagMapValue = 22.2
-	// CloudletFieldResTagMapValueName = 22.2.1
-	// CloudletFieldResTagMapValueOperatorKey = 22.2.2
-	// CloudletFieldResTagMapValueOperatorKeyName = 22.2.2.1
-	// CloudletFieldAccessVars = 23
-	// CloudletFieldAccessVarsKey = 23.1
-	// CloudletFieldAccessVarsValue = 23.2
-	// CloudletFieldVmImageVersion = 24
-	// CloudletFieldPackageVersion = 25
+	// Key: 2
+	// KeyOperatorKey: 2.1
+	// KeyOperatorKeyName: 2.1.1
+	// KeyName: 2.2
+	// Location: 5
+	// LocationLatitude: 5.1
+	// LocationLongitude: 5.2
+	// LocationHorizontalAccuracy: 5.3
+	// LocationVerticalAccuracy: 5.4
+	// LocationAltitude: 5.5
+	// LocationCourse: 5.6
+	// LocationSpeed: 5.7
+	// LocationTimestamp: 5.8
+	// LocationTimestampSeconds: 5.8.1
+	// LocationTimestampNanos: 5.8.2
+	// IpSupport: 6
+	// StaticIps: 7
+	// NumDynamicIps: 8
+	// TimeLimits: 9
+	// TimeLimitsCreateClusterInstTimeout: 9.1
+	// TimeLimitsUpdateClusterInstTimeout: 9.2
+	// TimeLimitsDeleteClusterInstTimeout: 9.3
+	// TimeLimitsCreateAppInstTimeout: 9.4
+	// TimeLimitsUpdateAppInstTimeout: 9.5
+	// TimeLimitsDeleteAppInstTimeout: 9.6
+	// Errors: 10
+	// Status: 11
+	// StatusTaskNumber: 11.1
+	// StatusMaxTasks: 11.2
+	// StatusTaskName: 11.3
+	// StatusStepName: 11.4
+	// State: 12
+	// CrmOverride: 13
+	// DeploymentLocal: 14
+	// PlatformType: 15
+	// NotifySrvAddr: 16
+	// Flavor: 17
+	// FlavorName: 17.1
+	// PhysicalName: 18
+	// EnvVar: 19
+	// EnvVarKey: 19.1
+	// EnvVarValue: 19.2
+	// ContainerVersion: 20
+	// Config: 21
+	// ConfigContainerRegistryPath: 21.1
+	// ConfigCloudletVmImagePath: 21.2
+	// ConfigNotifyCtrlAddrs: 21.3
+	// ConfigVaultAddr: 21.4
+	// ConfigTlsCertFile: 21.5
+	// ConfigEnvVar: 21.6
+	// ConfigEnvVarKey: 21.6.1
+	// ConfigEnvVarValue: 21.6.2
+	// ConfigPlatformTag: 21.8
+	// ConfigTestMode: 21.9
+	// ConfigSpan: 21.10
+	// ConfigCleanupMode: 21.11
+	// ConfigRegion: 21.12
+	// ResTagMap: 22
+	// ResTagMapKey: 22.1
+	// ResTagMapValue: 22.2
+	// ResTagMapValueName: 22.2.1
+	// ResTagMapValueOperatorKey: 22.2.2
+	// ResTagMapValueOperatorKeyName: 22.2.2.1
+	// AccessVars: 23
+	// AccessVarsKey: 23.1
+	// AccessVarsValue: 23.2
+	// VmImageVersion: 24
+	// PackageVersion: 25
 	// ```
 	// Security:
 	//   Bearer:
@@ -662,43 +662,43 @@ func addControllerApis(method string, group *echo.Group) {
 	// swagger:route POST /auth/ctrl/UpdateClusterInst ClusterInst UpdateClusterInst
 	// Update Cluster Instance.
 	//  Updates an instance of a Cluster deployed on a Cloudlet.
-	// The following `ClusterInst.fields` values are used to specify which fields to update.
+	// The following values should be added to `ClusterInst.fields` field array to specify which fields will be updated.
 	// ```
-	// ClusterInstFieldKey = 2
-	// ClusterInstFieldKeyClusterKey = 2.1
-	// ClusterInstFieldKeyClusterKeyName = 2.1.1
-	// ClusterInstFieldKeyCloudletKey = 2.2
-	// ClusterInstFieldKeyCloudletKeyOperatorKey = 2.2.1
-	// ClusterInstFieldKeyCloudletKeyOperatorKeyName = 2.2.1.1
-	// ClusterInstFieldKeyCloudletKeyName = 2.2.2
-	// ClusterInstFieldKeyDeveloper = 2.3
-	// ClusterInstFieldFlavor = 3
-	// ClusterInstFieldFlavorName = 3.1
-	// ClusterInstFieldLiveness = 9
-	// ClusterInstFieldAuto = 10
-	// ClusterInstFieldState = 4
-	// ClusterInstFieldErrors = 5
-	// ClusterInstFieldCrmOverride = 6
-	// ClusterInstFieldIpAccess = 7
-	// ClusterInstFieldAllocatedIp = 8
-	// ClusterInstFieldNodeFlavor = 11
-	// ClusterInstFieldDeployment = 15
-	// ClusterInstFieldNumMasters = 13
-	// ClusterInstFieldNumNodes = 14
-	// ClusterInstFieldStatus = 16
-	// ClusterInstFieldStatusTaskNumber = 16.1
-	// ClusterInstFieldStatusMaxTasks = 16.2
-	// ClusterInstFieldStatusTaskName = 16.3
-	// ClusterInstFieldStatusStepName = 16.4
-	// ClusterInstFieldExternalVolumeSize = 17
-	// ClusterInstFieldAutoScalePolicy = 18
-	// ClusterInstFieldAvailabilityZone = 19
-	// ClusterInstFieldImageName = 20
-	// ClusterInstFieldReservable = 21
-	// ClusterInstFieldReservedBy = 22
-	// ClusterInstFieldSharedVolumeSize = 23
-	// ClusterInstFieldPrivacyPolicy = 24
-	// ClusterInstFieldMasterNodeFlavor = 25
+	// Key: 2
+	// KeyClusterKey: 2.1
+	// KeyClusterKeyName: 2.1.1
+	// KeyCloudletKey: 2.2
+	// KeyCloudletKeyOperatorKey: 2.2.1
+	// KeyCloudletKeyOperatorKeyName: 2.2.1.1
+	// KeyCloudletKeyName: 2.2.2
+	// KeyDeveloper: 2.3
+	// Flavor: 3
+	// FlavorName: 3.1
+	// Liveness: 9
+	// Auto: 10
+	// State: 4
+	// Errors: 5
+	// CrmOverride: 6
+	// IpAccess: 7
+	// AllocatedIp: 8
+	// NodeFlavor: 11
+	// Deployment: 15
+	// NumMasters: 13
+	// NumNodes: 14
+	// Status: 16
+	// StatusTaskNumber: 16.1
+	// StatusMaxTasks: 16.2
+	// StatusTaskName: 16.3
+	// StatusStepName: 16.4
+	// ExternalVolumeSize: 17
+	// AutoScalePolicy: 18
+	// AvailabilityZone: 19
+	// ImageName: 20
+	// Reservable: 21
+	// ReservedBy: 22
+	// SharedVolumeSize: 23
+	// PrivacyPolicy: 24
+	// MasterNodeFlavor: 25
 	// ```
 	// Security:
 	//   Bearer:
@@ -756,67 +756,67 @@ func addControllerApis(method string, group *echo.Group) {
 	// swagger:route POST /auth/ctrl/UpdateAppInst AppInst UpdateAppInst
 	// Update Application Instance.
 	//  Updates an Application instance and then refreshes it.
-	// The following `AppInst.fields` values are used to specify which fields to update.
+	// The following values should be added to `AppInst.fields` field array to specify which fields will be updated.
 	// ```
-	// AppInstFieldKey = 2
-	// AppInstFieldKeyAppKey = 2.1
-	// AppInstFieldKeyAppKeyDeveloperKey = 2.1.1
-	// AppInstFieldKeyAppKeyDeveloperKeyName = 2.1.1.2
-	// AppInstFieldKeyAppKeyName = 2.1.2
-	// AppInstFieldKeyAppKeyVersion = 2.1.3
-	// AppInstFieldKeyClusterInstKey = 2.4
-	// AppInstFieldKeyClusterInstKeyClusterKey = 2.4.1
-	// AppInstFieldKeyClusterInstKeyClusterKeyName = 2.4.1.1
-	// AppInstFieldKeyClusterInstKeyCloudletKey = 2.4.2
-	// AppInstFieldKeyClusterInstKeyCloudletKeyOperatorKey = 2.4.2.1
-	// AppInstFieldKeyClusterInstKeyCloudletKeyOperatorKeyName = 2.4.2.1.1
-	// AppInstFieldKeyClusterInstKeyCloudletKeyName = 2.4.2.2
-	// AppInstFieldKeyClusterInstKeyDeveloper = 2.4.3
-	// AppInstFieldCloudletLoc = 3
-	// AppInstFieldCloudletLocLatitude = 3.1
-	// AppInstFieldCloudletLocLongitude = 3.2
-	// AppInstFieldCloudletLocHorizontalAccuracy = 3.3
-	// AppInstFieldCloudletLocVerticalAccuracy = 3.4
-	// AppInstFieldCloudletLocAltitude = 3.5
-	// AppInstFieldCloudletLocCourse = 3.6
-	// AppInstFieldCloudletLocSpeed = 3.7
-	// AppInstFieldCloudletLocTimestamp = 3.8
-	// AppInstFieldCloudletLocTimestampSeconds = 3.8.1
-	// AppInstFieldCloudletLocTimestampNanos = 3.8.2
-	// AppInstFieldUri = 4
-	// AppInstFieldLiveness = 6
-	// AppInstFieldMappedPorts = 9
-	// AppInstFieldMappedPortsProto = 9.1
-	// AppInstFieldMappedPortsInternalPort = 9.2
-	// AppInstFieldMappedPortsPublicPort = 9.3
-	// AppInstFieldMappedPortsPathPrefix = 9.4
-	// AppInstFieldMappedPortsFqdnPrefix = 9.5
-	// AppInstFieldMappedPortsEndPort = 9.6
-	// AppInstFieldFlavor = 12
-	// AppInstFieldFlavorName = 12.1
-	// AppInstFieldState = 14
-	// AppInstFieldErrors = 15
-	// AppInstFieldCrmOverride = 16
-	// AppInstFieldRuntimeInfo = 17
-	// AppInstFieldRuntimeInfoContainerIds = 17.1
-	// AppInstFieldCreatedAt = 21
-	// AppInstFieldCreatedAtSeconds = 21.1
-	// AppInstFieldCreatedAtNanos = 21.2
-	// AppInstFieldAutoClusterIpAccess = 22
-	// AppInstFieldStatus = 23
-	// AppInstFieldStatusTaskNumber = 23.1
-	// AppInstFieldStatusMaxTasks = 23.2
-	// AppInstFieldStatusTaskName = 23.3
-	// AppInstFieldStatusStepName = 23.4
-	// AppInstFieldRevision = 24
-	// AppInstFieldForceUpdate = 25
-	// AppInstFieldUpdateMultiple = 26
-	// AppInstFieldConfigs = 27
-	// AppInstFieldConfigsKind = 27.1
-	// AppInstFieldConfigsConfig = 27.2
-	// AppInstFieldSharedVolumeSize = 28
-	// AppInstFieldHealthCheck = 29
-	// AppInstFieldPrivacyPolicy = 30
+	// Key: 2
+	// KeyAppKey: 2.1
+	// KeyAppKeyDeveloperKey: 2.1.1
+	// KeyAppKeyDeveloperKeyName: 2.1.1.2
+	// KeyAppKeyName: 2.1.2
+	// KeyAppKeyVersion: 2.1.3
+	// KeyClusterInstKey: 2.4
+	// KeyClusterInstKeyClusterKey: 2.4.1
+	// KeyClusterInstKeyClusterKeyName: 2.4.1.1
+	// KeyClusterInstKeyCloudletKey: 2.4.2
+	// KeyClusterInstKeyCloudletKeyOperatorKey: 2.4.2.1
+	// KeyClusterInstKeyCloudletKeyOperatorKeyName: 2.4.2.1.1
+	// KeyClusterInstKeyCloudletKeyName: 2.4.2.2
+	// KeyClusterInstKeyDeveloper: 2.4.3
+	// CloudletLoc: 3
+	// CloudletLocLatitude: 3.1
+	// CloudletLocLongitude: 3.2
+	// CloudletLocHorizontalAccuracy: 3.3
+	// CloudletLocVerticalAccuracy: 3.4
+	// CloudletLocAltitude: 3.5
+	// CloudletLocCourse: 3.6
+	// CloudletLocSpeed: 3.7
+	// CloudletLocTimestamp: 3.8
+	// CloudletLocTimestampSeconds: 3.8.1
+	// CloudletLocTimestampNanos: 3.8.2
+	// Uri: 4
+	// Liveness: 6
+	// MappedPorts: 9
+	// MappedPortsProto: 9.1
+	// MappedPortsInternalPort: 9.2
+	// MappedPortsPublicPort: 9.3
+	// MappedPortsPathPrefix: 9.4
+	// MappedPortsFqdnPrefix: 9.5
+	// MappedPortsEndPort: 9.6
+	// Flavor: 12
+	// FlavorName: 12.1
+	// State: 14
+	// Errors: 15
+	// CrmOverride: 16
+	// RuntimeInfo: 17
+	// RuntimeInfoContainerIds: 17.1
+	// CreatedAt: 21
+	// CreatedAtSeconds: 21.1
+	// CreatedAtNanos: 21.2
+	// AutoClusterIpAccess: 22
+	// Status: 23
+	// StatusTaskNumber: 23.1
+	// StatusMaxTasks: 23.2
+	// StatusTaskName: 23.3
+	// StatusStepName: 23.4
+	// Revision: 24
+	// ForceUpdate: 25
+	// UpdateMultiple: 26
+	// Configs: 27
+	// ConfigsKind: 27.1
+	// ConfigsConfig: 27.2
+	// SharedVolumeSize: 28
+	// HealthCheck: 29
+	// PrivacyPolicy: 30
 	// ```
 	// Security:
 	//   Bearer:
@@ -859,16 +859,16 @@ func addControllerApis(method string, group *echo.Group) {
 	group.Match([]string{method}, "/ctrl/DeleteAutoScalePolicy", DeleteAutoScalePolicy)
 	// swagger:route POST /auth/ctrl/UpdateAutoScalePolicy AutoScalePolicy UpdateAutoScalePolicy
 	// Update an Auto Scale Policy.
-	// The following `AutoScalePolicy.fields` values are used to specify which fields to update.
+	// The following values should be added to `AutoScalePolicy.fields` field array to specify which fields will be updated.
 	// ```
-	// AutoScalePolicyFieldKey = 2
-	// AutoScalePolicyFieldKeyDeveloper = 2.1
-	// AutoScalePolicyFieldKeyName = 2.2
-	// AutoScalePolicyFieldMinNodes = 3
-	// AutoScalePolicyFieldMaxNodes = 4
-	// AutoScalePolicyFieldScaleUpCpuThresh = 5
-	// AutoScalePolicyFieldScaleDownCpuThresh = 6
-	// AutoScalePolicyFieldTriggerTimeSec = 7
+	// Key: 2
+	// KeyDeveloper: 2.1
+	// KeyName: 2.2
+	// MinNodes: 3
+	// MaxNodes: 4
+	// ScaleUpCpuThresh: 5
+	// ScaleDownCpuThresh: 6
+	// TriggerTimeSec: 7
 	// ```
 	// Security:
 	//   Bearer:
@@ -911,29 +911,29 @@ func addControllerApis(method string, group *echo.Group) {
 	group.Match([]string{method}, "/ctrl/DeleteAutoProvPolicy", DeleteAutoProvPolicy)
 	// swagger:route POST /auth/ctrl/UpdateAutoProvPolicy AutoProvPolicy UpdateAutoProvPolicy
 	// Update an Auto Provisioning Policy.
-	// The following `AutoProvPolicy.fields` values are used to specify which fields to update.
+	// The following values should be added to `AutoProvPolicy.fields` field array to specify which fields will be updated.
 	// ```
-	// AutoProvPolicyFieldKey = 2
-	// AutoProvPolicyFieldKeyDeveloper = 2.1
-	// AutoProvPolicyFieldKeyName = 2.2
-	// AutoProvPolicyFieldDeployClientCount = 3
-	// AutoProvPolicyFieldDeployIntervalCount = 4
-	// AutoProvPolicyFieldCloudlets = 5
-	// AutoProvPolicyFieldCloudletsKey = 5.1
-	// AutoProvPolicyFieldCloudletsKeyOperatorKey = 5.1.1
-	// AutoProvPolicyFieldCloudletsKeyOperatorKeyName = 5.1.1.1
-	// AutoProvPolicyFieldCloudletsKeyName = 5.1.2
-	// AutoProvPolicyFieldCloudletsLoc = 5.2
-	// AutoProvPolicyFieldCloudletsLocLatitude = 5.2.1
-	// AutoProvPolicyFieldCloudletsLocLongitude = 5.2.2
-	// AutoProvPolicyFieldCloudletsLocHorizontalAccuracy = 5.2.3
-	// AutoProvPolicyFieldCloudletsLocVerticalAccuracy = 5.2.4
-	// AutoProvPolicyFieldCloudletsLocAltitude = 5.2.5
-	// AutoProvPolicyFieldCloudletsLocCourse = 5.2.6
-	// AutoProvPolicyFieldCloudletsLocSpeed = 5.2.7
-	// AutoProvPolicyFieldCloudletsLocTimestamp = 5.2.8
-	// AutoProvPolicyFieldCloudletsLocTimestampSeconds = 5.2.8.1
-	// AutoProvPolicyFieldCloudletsLocTimestampNanos = 5.2.8.2
+	// Key: 2
+	// KeyDeveloper: 2.1
+	// KeyName: 2.2
+	// DeployClientCount: 3
+	// DeployIntervalCount: 4
+	// Cloudlets: 5
+	// CloudletsKey: 5.1
+	// CloudletsKeyOperatorKey: 5.1.1
+	// CloudletsKeyOperatorKeyName: 5.1.1.1
+	// CloudletsKeyName: 5.1.2
+	// CloudletsLoc: 5.2
+	// CloudletsLocLatitude: 5.2.1
+	// CloudletsLocLongitude: 5.2.2
+	// CloudletsLocHorizontalAccuracy: 5.2.3
+	// CloudletsLocVerticalAccuracy: 5.2.4
+	// CloudletsLocAltitude: 5.2.5
+	// CloudletsLocCourse: 5.2.6
+	// CloudletsLocSpeed: 5.2.7
+	// CloudletsLocTimestamp: 5.2.8
+	// CloudletsLocTimestampSeconds: 5.2.8.1
+	// CloudletsLocTimestampNanos: 5.2.8.2
 	// ```
 	// Security:
 	//   Bearer:
@@ -1116,16 +1116,16 @@ func addControllerApis(method string, group *echo.Group) {
 	group.Match([]string{method}, "/ctrl/DeletePrivacyPolicy", DeletePrivacyPolicy)
 	// swagger:route POST /auth/ctrl/UpdatePrivacyPolicy PrivacyPolicy UpdatePrivacyPolicy
 	// Update a Privacy policy.
-	// The following `PrivacyPolicy.fields` values are used to specify which fields to update.
+	// The following values should be added to `PrivacyPolicy.fields` field array to specify which fields will be updated.
 	// ```
-	// PrivacyPolicyFieldKey = 2
-	// PrivacyPolicyFieldKeyDeveloper = 2.1
-	// PrivacyPolicyFieldKeyName = 2.2
-	// PrivacyPolicyFieldOutboundSecurityRules = 3
-	// PrivacyPolicyFieldOutboundSecurityRulesProtocol = 3.1
-	// PrivacyPolicyFieldOutboundSecurityRulesPortRangeMin = 3.2
-	// PrivacyPolicyFieldOutboundSecurityRulesPortRangeMax = 3.3
-	// PrivacyPolicyFieldOutboundSecurityRulesRemoteCidr = 3.4
+	// Key: 2
+	// KeyDeveloper: 2.1
+	// KeyName: 2.2
+	// OutboundSecurityRules: 3
+	// OutboundSecurityRulesProtocol: 3.1
+	// OutboundSecurityRulesPortRangeMin: 3.2
+	// OutboundSecurityRulesPortRangeMax: 3.3
+	// OutboundSecurityRulesRemoteCidr: 3.4
 	// ```
 	// Security:
 	//   Bearer:
@@ -1168,22 +1168,22 @@ func addControllerApis(method string, group *echo.Group) {
 	group.Match([]string{method}, "/ctrl/ShowClusterRefs", ShowClusterRefs)
 	// swagger:route POST /auth/ctrl/UpdateSettings Settings UpdateSettings
 	// Update settings.
-	// The following `Settings.fields` values are used to specify which fields to update.
+	// The following values should be added to `Settings.fields` field array to specify which fields will be updated.
 	// ```
-	// SettingsFieldShepherdMetricsCollectionInterval = 2
-	// SettingsFieldShepherdHealthCheckRetries = 3
-	// SettingsFieldShepherdHealthCheckInterval = 4
-	// SettingsFieldAutoDeployIntervalSec = 5
-	// SettingsFieldAutoDeployOffsetSec = 6
-	// SettingsFieldAutoDeployMaxIntervals = 7
-	// SettingsFieldCreateAppInstTimeout = 8
-	// SettingsFieldUpdateAppInstTimeout = 9
-	// SettingsFieldDeleteAppInstTimeout = 10
-	// SettingsFieldCreateClusterInstTimeout = 11
-	// SettingsFieldUpdateClusterInstTimeout = 12
-	// SettingsFieldDeleteClusterInstTimeout = 13
-	// SettingsFieldMasterNodeFlavor = 14
-	// SettingsFieldLoadBalancerMaxPortRange = 15
+	// ShepherdMetricsCollectionInterval: 2
+	// ShepherdHealthCheckRetries: 3
+	// ShepherdHealthCheckInterval: 4
+	// AutoDeployIntervalSec: 5
+	// AutoDeployOffsetSec: 6
+	// AutoDeployMaxIntervals: 7
+	// CreateAppInstTimeout: 8
+	// UpdateAppInstTimeout: 9
+	// DeleteAppInstTimeout: 10
+	// CreateClusterInstTimeout: 11
+	// UpdateClusterInstTimeout: 12
+	// DeleteClusterInstTimeout: 13
+	// MasterNodeFlavor: 14
+	// LoadBalancerMaxPortRange: 15
 	// ```
 	// Security:
 	//   Bearer:

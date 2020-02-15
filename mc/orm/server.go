@@ -498,6 +498,12 @@ func ReadConn(c echo.Context, in interface{}) (bool, error) {
 
 	if ws := GetWs(c); ws != nil {
 		err = ws.ReadJSON(in)
+		if err == nil {
+			out, err := json.Marshal(in)
+			if err == nil {
+				LogWsRequest(c, out)
+			}
+		}
 	} else {
 		err = c.Bind(in)
 	}
@@ -552,6 +558,10 @@ func WriteStream(c echo.Context, payload *ormapi.StreamPayload) error {
 			Code: http.StatusOK,
 			Data: (*payload).Data,
 		}
+		out, err := json.Marshal(wsPayload)
+		if err == nil {
+			LogWsResponse(c, string(out))
+		}
 		return ws.WriteJSON(wsPayload)
 	} else {
 		headerFlag := c.Get("WroteHeader")
@@ -593,6 +603,10 @@ func WriteError(c echo.Context, err error) error {
 		wsPayload := ormapi.WSStreamPayload{
 			Code: http.StatusBadRequest,
 			Data: MsgErr(err),
+		}
+		out, err := json.Marshal(wsPayload)
+		if err == nil {
+			LogWsResponse(c, string(out))
 		}
 		return ws.WriteJSON(wsPayload)
 	} else {

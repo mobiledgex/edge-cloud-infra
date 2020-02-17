@@ -1,0 +1,36 @@
+- set_fact:
+    region_code: "{{ region.region }}"
+    region_prefix: "{{ region.region | lower }}"
+
+- debug:
+    msg: "Installing roles for {{ region_code }}"
+
+- name: "Install {{ region_prefix }}.controller.v1 role"
+  vault_role:
+    name: "{{ region_prefix }}.controller.v1"
+    policies:
+      - approle.login.v1
+      - registry.read.v1
+      - "{{ region_prefix }}.cloudlets.write.v1"
+      - "{{ region_prefix }}.accounts.read.v1"
+    token_type: batch
+
+- name: "Install {{ region_prefix }}.crm.v1 role"
+  vault_role:
+    name: "{{ region_prefix }}.crm.v1"
+    policies:
+      - approle.login.v1
+      - certs.read.v1
+      - registry.read.v1
+      - "{{ region_prefix }}.cloudlets.write.v1"
+      - "{{ region_prefix }}.influxdb.read.v1"
+    token_type: batch
+
+- name: "Install {{ region_prefix }}.dme.v1 role"
+  vault_role:
+    name: "{{ region_prefix }}.dme.v1"
+    policies:
+      - approle.login.v1
+      - certs.read.v1
+      - "{{ region_prefix }}.dme-jwtkeys.read.v1"
+    token_type: batch

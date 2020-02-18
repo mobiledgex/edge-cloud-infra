@@ -33,6 +33,7 @@
       - approle.login.v1
       - certs.read.v1
       - cloudlets.write.v1
+      - mexenv.read.v1
       - registry.read.v1
       - influxdb.read.v1
     token_type: batch

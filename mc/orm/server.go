@@ -2,11 +2,15 @@ package orm
 
 import (
 	"context"
+	"crypto/tls"
 	"encoding/json"
 	"fmt"
 	"io"
+	"net"
 	"net/http"
+	"net/http/httputil"
 	"os"
+	"strings"
 	"time"
 
 	"github.com/gorilla/websocket"
@@ -16,6 +20,7 @@ import (
 	"github.com/mobiledgex/edge-cloud-infra/mc/ormapi"
 	"github.com/mobiledgex/edge-cloud-infra/mc/rbac"
 	"github.com/mobiledgex/edge-cloud/cloudcommon"
+	edgecli "github.com/mobiledgex/edge-cloud/edgectl/cli"
 	"github.com/mobiledgex/edge-cloud/integration/process"
 	"github.com/mobiledgex/edge-cloud/log"
 	"github.com/mobiledgex/edge-cloud/vault"
@@ -38,24 +43,25 @@ type Server struct {
 }
 
 type ServerConfig struct {
-	ServAddr        string
-	SqlAddr         string
-	VaultAddr       string
-	RunLocal        bool
-	InitLocal       bool
-	IgnoreEnv       bool
-	TlsCertFile     string
-	TlsKeyFile      string
-	LocalVault      bool
-	LDAPAddr        string
-	GitlabAddr      string
-	ArtifactoryAddr string
-	ClientCert      string
-	PingInterval    time.Duration
-	SkipVerifyEmail bool
-	JaegerAddr      string
-	vaultConfig     *vault.Config
-	SkipOriginCheck bool
+	ServAddr         string
+	SqlAddr          string
+	VaultAddr        string
+	ConsoleProxyAddr string
+	RunLocal         bool
+	InitLocal        bool
+	IgnoreEnv        bool
+	TlsCertFile      string
+	TlsKeyFile       string
+	LocalVault       bool
+	LDAPAddr         string
+	GitlabAddr       string
+	ArtifactoryAddr  string
+	ClientCert       string
+	PingInterval     time.Duration
+	SkipVerifyEmail  bool
+	JaegerAddr       string
+	vaultConfig      *vault.Config
+	SkipOriginCheck  bool
 }
 
 var DefaultDBUser = "mcuser"
@@ -185,6 +191,8 @@ func RunServer(config *ServerConfig) (*Server, error) {
 
 	server.initDataDone = make(chan struct{}, 1)
 	go InitData(ctx, Superuser, superpass, config.PingInterval, &server.stopInitData, server.initDataDone)
+
+	go server.setupConsoleProxy(ctx)
 
 	e := echo.New()
 	e.HideBanner = true
@@ -619,4 +627,73 @@ func WriteError(c echo.Context, err error) error {
 	}
 
 	return nil
+}
+
+func (s *Server) setupConsoleProxy(ctx context.Context) {
+	var err error
+
+	if s.config.ConsoleProxyAddr == "" {
+		return
+	}
+
+	log.SpanLog(ctx, log.DebugLevelInfo, "setup console proxy", "addr", s.config.ConsoleProxyAddr)
+
+	director := func(req *http.Request) {
+		token := ""
+		queryArgs := req.URL.Query()
+		tokenVals, ok := queryArgs["token"]
+		if !ok || len(tokenVals) != 1 {
+			// try token from referrer URL
+			refUrl := req.Referer()
+			if refUrl == "" {
+				return
+			}
+			out := strings.Split(refUrl, "token=")
+			if len(out) != 2 {
+				return
+			}
+			token = out[1]
+		} else {
+			token = tokenVals[0]
+		}
+		if s.config.TlsCertFile != "" {
+			req.URL.Scheme = "https"
+		} else {
+			req.URL.Scheme = "http"
+		}
+		req.URL.Host = s.config.ConsoleProxyAddr
+		port := edgecli.ConsoleProxy.Get(token)
+		if port != "" {
+			addrObj := strings.Split(s.config.ConsoleProxyAddr, ":")
+			if len(addrObj) == 2 {
+				req.URL.Host = strings.Replace(req.URL.Host, addrObj[1], port, -1)
+			}
+		}
+		if _, ok := req.Header["User-Agent"]; !ok {
+			// explicitly disable User-Agent so it's not set to default value
+			req.Header.Set("User-Agent", "")
+		}
+	}
+	proxy := &httputil.ReverseProxy{Director: director}
+
+	proxy.Transport = &http.Transport{
+		Proxy: http.ProxyFromEnvironment,
+		Dial: (&net.Dialer{
+			Timeout:   30 * time.Second,
+			KeepAlive: 30 * time.Second,
+		}).Dial,
+		TLSHandshakeTimeout: 10 * time.Second,
+		TLSClientConfig:     &tls.Config{InsecureSkipVerify: true},
+	}
+
+	http.HandleFunc("/", proxy.ServeHTTP)
+	if s.config.TlsCertFile != "" {
+		err = http.ListenAndServeTLS(s.config.ConsoleProxyAddr, s.config.TlsCertFile, s.config.TlsKeyFile, nil)
+	} else {
+		err = http.ListenAndServe(s.config.ConsoleProxyAddr, nil)
+	}
+	if err != nil && err != http.ErrServerClosed {
+		s.Stop()
+		log.FatalLog("Failed to start console proxy server", "err", err)
+	}
 }

@@ -1,5 +1,5 @@
 regions:
   - name: mexplat-dev
     location: westus2
-    region: US
+    region: EU
     kubernetes_version: 1.12.8

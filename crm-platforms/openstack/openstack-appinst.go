@@ -325,7 +325,7 @@ func (s *Platform) DeleteAppInst(ctx context.Context, clusterInst *edgeproto.Clu
 			if strings.Contains(err.Error(), mexos.ClusterNotFoundErr) {
 				log.SpanLog(ctx, log.DebugLevelMexos, "cluster is gone, allow app deletion")
 				secGrp := mexos.GetSecurityGroupName(ctx, rootLBName)
-				mexos.DeleteProxySecurityGroupRules(ctx, client, dockermgmt.GetContainerName(app), secGrp, appInst.MappedPorts, app, rootLBName)
+				mexos.DeleteProxySecurityGroupRules(ctx, client, dockermgmt.GetContainerName(&app.Key), secGrp, appInst.MappedPorts, app, rootLBName)
 				return nil
 			}
 		}
@@ -343,7 +343,7 @@ func (s *Platform) DeleteAppInst(ctx context.Context, clusterInst *edgeproto.Clu
 
 		// Clean up security rules and proxy if app is external
 		secGrp := mexos.GetSecurityGroupName(ctx, rootLBName)
-		if err := mexos.DeleteProxySecurityGroupRules(ctx, client, dockermgmt.GetContainerName(app), secGrp, appInst.MappedPorts, app, rootLBName); err != nil {
+		if err := mexos.DeleteProxySecurityGroupRules(ctx, client, dockermgmt.GetContainerName(&app.Key), secGrp, appInst.MappedPorts, app, rootLBName); err != nil {
 			log.SpanLog(ctx, log.DebugLevelMexos, "cannot delete security rules", "name", names.AppName, "rootlb", rootLBName, "error", err)
 		}
 		if !app.InternalPorts {
@@ -391,7 +391,7 @@ func (s *Platform) DeleteAppInst(ctx context.Context, clusterInst *edgeproto.Clu
 				if strings.Contains(err.Error(), mexos.ClusterNotFoundErr) {
 					log.SpanLog(ctx, log.DebugLevelMexos, "cluster is gone, allow app deletion")
 					secGrp := mexos.GetSecurityGroupName(ctx, rootLBName)
-					mexos.DeleteProxySecurityGroupRules(ctx, rootLBClient, dockermgmt.GetContainerName(app), secGrp, appInst.MappedPorts, app, rootLBName)
+					mexos.DeleteProxySecurityGroupRules(ctx, rootLBClient, dockermgmt.GetContainerName(&app.Key), secGrp, appInst.MappedPorts, app, rootLBName)
 					return nil
 				}
 				return err
@@ -410,11 +410,17 @@ func (s *Platform) DeleteAppInst(ctx context.Context, clusterInst *edgeproto.Clu
 			}
 			return err
 		}
-		name := dockermgmt.GetContainerName(app)
-		secGrp := mexos.GetSecurityGroupName(ctx, rootLBName)
-		//  the proxy does not yet exist for docker, but it eventually will.  Secgrp rules should be deleted in either case
-		if err := mexos.DeleteProxySecurityGroupRules(ctx, rootLBClient, name, secGrp, appInst.MappedPorts, app, rootLBName); err != nil {
-			log.SpanLog(ctx, log.DebugLevelMexos, "cannot delete security rules", "name", name, "rootlb", rootLBName, "error", err)
+		client, err := s.GetPlatformClient(ctx, clusterInst)
+		if err != nil {
+			return err
+		}
+		name := dockermgmt.GetContainerName(&app.Key)
+		if !app.InternalPorts {
+			secGrp := mexos.GetSecurityGroupName(ctx, rootLBName)
+			//  the proxy does not yet exist for docker, but it eventually will.  Secgrp rules should be deleted in either case
+			if err := mexos.DeleteProxySecurityGroupRules(ctx, client, name, secGrp, appInst.MappedPorts, app, rootLBName); err != nil {
+				log.SpanLog(ctx, log.DebugLevelMexos, "cannot delete security rules", "name", name, "rootlb", rootLBName, "error", err)
+			}
 		}
 
 		return dockermgmt.DeleteAppInst(ctx, dockerCommandTarget, app, appInst)
@@ -502,7 +508,7 @@ func (s *Platform) GetAppInstRuntime(ctx context.Context, clusterInst *edgeproto
 		}
 		return k8smgmt.GetAppInstRuntime(ctx, client, names, app, appInst)
 	case cloudcommon.AppDeploymentTypeDocker:
-		return dockermgmt.GetAppInstRuntime(client, app, appInst)
+		return dockermgmt.GetAppInstRuntime(ctx, client, app, appInst)
 	case cloudcommon.AppDeploymentTypeVM:
 		fallthrough
 	default:

@@ -46,10 +46,17 @@ func (s *Platform) UpdateClusterInst(ctx context.Context, clusterInst *edgeproto
 	if err != nil {
 		return err
 	}
-	return s.updateClusterInternal(ctx, client, lbName, clusterInst, privacyPolicy, updateCallback)
+
+	log.SpanLog(ctx, log.DebugLevelMexos, "verify if cloudlet base image exists")
+	imgName, err := mexos.AddImageIfNotPresent(ctx, s.config.CloudletVMImagePath, s.config.VMImageVersion, updateCallback)
+	if err != nil {
+		log.InfoLog("error with cloudlet base image", "imgName", imgName, "error", err)
+		return err
+	}
+	return s.updateClusterInternal(ctx, client, lbName, imgName, clusterInst, privacyPolicy, updateCallback)
 }
 
-func (s *Platform) updateClusterInternal(ctx context.Context, client ssh.Client, rootLBName string, clusterInst *edgeproto.ClusterInst, privacyPolicy *edgeproto.PrivacyPolicy, updateCallback edgeproto.CacheUpdateCallback) (reterr error) {
+func (s *Platform) updateClusterInternal(ctx context.Context, client ssh.Client, rootLBName, imgName string, clusterInst *edgeproto.ClusterInst, privacyPolicy *edgeproto.PrivacyPolicy, updateCallback edgeproto.CacheUpdateCallback) (reterr error) {
 	updateCallback(edgeproto.UpdateTask, "Updating Cluster Resources with Heat")
 
 	if clusterInst.Deployment == cloudcommon.AppDeploymentTypeKubernetes {
@@ -98,7 +105,8 @@ func (s *Platform) updateClusterInternal(ctx context.Context, client ssh.Client,
 	}
 
 	dedicatedRootLB := clusterInst.IpAccess == edgeproto.IpAccess_IP_ACCESS_DEDICATED
-	err := mexos.HeatUpdateCluster(ctx, clusterInst, privacyPolicy, rootLBName, dedicatedRootLB, updateCallback)
+
+	err := mexos.HeatUpdateCluster(ctx, clusterInst, privacyPolicy, rootLBName, imgName, dedicatedRootLB, updateCallback)
 	if err != nil {
 		return err
 	}
@@ -149,10 +157,17 @@ func (s *Platform) CreateClusterInst(ctx context.Context, clusterInst *edgeproto
 	//adjust the timeout just a bit to give some buffer for the API exchange and also sleep loops
 	timeout -= time.Minute
 
-	return s.createClusterInternal(ctx, lbName, clusterInst, privacyPolicy, updateCallback, timeout)
+	log.SpanLog(ctx, log.DebugLevelMexos, "verify if cloudlet base image exists")
+	imgName, err := mexos.AddImageIfNotPresent(ctx, s.config.CloudletVMImagePath, s.config.VMImageVersion, updateCallback)
+	if err != nil {
+		log.InfoLog("error with cloudlet base image", "imgName", imgName, "error", err)
+		return err
+	}
+
+	return s.createClusterInternal(ctx, lbName, imgName, clusterInst, privacyPolicy, updateCallback, timeout)
 }
 
-func (s *Platform) createClusterInternal(ctx context.Context, rootLBName string, clusterInst *edgeproto.ClusterInst, privacyPolicy *edgeproto.PrivacyPolicy, updateCallback edgeproto.CacheUpdateCallback, timeout time.Duration) (reterr error) {
+func (s *Platform) createClusterInternal(ctx context.Context, rootLBName string, imgName string, clusterInst *edgeproto.ClusterInst, privacyPolicy *edgeproto.PrivacyPolicy, updateCallback edgeproto.CacheUpdateCallback, timeout time.Duration) (reterr error) {
 	// clean-up func
 	defer func() {
 		if reterr == nil {
@@ -197,13 +212,13 @@ func (s *Platform) createClusterInternal(ctx context.Context, rootLBName string,
 		if dedicatedRootLB {
 			// in the dedicated case for docker, the RootLB and the docker worker are the same
 			updateCallback(edgeproto.UpdateTask, "Creating Dedicated VM for Docker")
-			err = mexos.HeatCreateRootLBVM(ctx, rootLBName, k8smgmt.GetK8sNodeNameSuffix(&clusterInst.Key), &vmspec, &clusterInst.Key.CloudletKey, updateCallback)
+			err = mexos.HeatCreateRootLBVM(ctx, rootLBName, k8smgmt.GetK8sNodeNameSuffix(&clusterInst.Key), imgName, &vmspec, &clusterInst.Key.CloudletKey, updateCallback)
 		} else {
 			updateCallback(edgeproto.UpdateTask, "Creating single-node cluster for docker using shared RootLB")
-			err = mexos.HeatCreateCluster(ctx, clusterInst, privacyPolicy, rootLBName, dedicatedRootLB, updateCallback)
+			err = mexos.HeatCreateCluster(ctx, clusterInst, privacyPolicy, rootLBName, imgName, dedicatedRootLB, updateCallback)
 		}
 	} else {
-		err = mexos.HeatCreateCluster(ctx, clusterInst, privacyPolicy, rootLBName, dedicatedRootLB, updateCallback)
+		err = mexos.HeatCreateCluster(ctx, clusterInst, privacyPolicy, rootLBName, imgName, dedicatedRootLB, updateCallback)
 	}
 	if err != nil {
 		return err
@@ -218,7 +233,7 @@ func (s *Platform) createClusterInternal(ctx context.Context, rootLBName string,
 			return err
 		}
 		updateCallback(edgeproto.UpdateTask, "Setting Up Root LB")
-		err = mexos.SetupRootLB(ctx, rootLBName, &vmspec, &clusterInst.Key.CloudletKey, updateCallback)
+		err = mexos.SetupRootLB(ctx, rootLBName, &vmspec, &clusterInst.Key.CloudletKey, "", "", updateCallback)
 		if err != nil {
 			return err
 		}

@@ -41,7 +41,9 @@ regiondata:
       createclusterinsttimeout: 3s
       updateclusterinsttimeout: 2s
       deleteclusterinsttimeout: 2s
+      masternodeflavor: x1.tiny
       loadbalancermaxportrange: 100
+      maxtrackeddmeclients: 100
     flavors:
     - key:
         name: x1.tiny
@@ -80,7 +82,7 @@ regiondata:
       status:
         tasknumber: 3
         taskname: Gathering Cloudlet Info
-      version: "2019-10-24"
+      containerversion: "2019-10-24"
     cloudlets:
     - key:
         operatorkey:
@@ -96,7 +98,7 @@ regiondata:
       flavor:
         name: x1.small
       physicalname: enterprise-1
-      version: 2019-10-24
+      containerversion: 2019-10-24
       state: Ready
     cloudletpools:
     - key:

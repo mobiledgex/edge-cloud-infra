@@ -68,15 +68,18 @@ variable "console_instance_name" {
   default     = "console-stage"
 }
 
+variable "vault_b_instance_name" {
+  default     = "vault-stage-b"
+}
+
+variable "vault_b_gcp_zone" {
+  default     = "europe-west3-a"
+}
+
 // DNS entries
 
 variable "crm_vm_domain_name" {
   description = "CRM VM domain name"
-  type        = "string"
-}
-
-variable "mc_vm_domain_name" {
-  description = "MC VM domain name"
   type        = "string"
 }
 
@@ -103,6 +106,14 @@ variable "gitlab_docker_domain_name" {
 variable "console_domain_name" {
   description = "Console domain name"
   type        = "string"
+}
+
+variable "vault_a_domain_name" {
+  default     = "vault-stage-a.mobiledgex.net"
+}
+
+variable "vault_b_domain_name" {
+  default     = "vault-stage-b.mobiledgex.net"
 }
 
 variable "ssh_public_key_file" {

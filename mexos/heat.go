@@ -259,6 +259,7 @@ type ClusterParams struct {
 	RouterSecurityGroup   string // used for internal comms only if the OpenStack router is present
 	DNSServers            []string
 	Nodes                 []ClusterNode
+	MasterNodeFlavor      string
 	*VMParams             //rootlb
 }
 
@@ -372,7 +373,7 @@ resources:
       {{- if not .ExternalVolumeSize}}
          image: {{.ImageName}}
       {{- end}}
-         flavor: {{.NodeFlavor}}
+         flavor: {{.MasterNodeFlavor}}
          config_drive: true
          user_data_format: RAW
          user_data: |
@@ -712,7 +713,7 @@ func CreateHeatStackFromTemplate(ctx context.Context, templateData interface{}, 
 
 // HeatDeleteCluster deletes the stack and also cleans up rootLB port if needed
 func HeatDeleteCluster(ctx context.Context, client ssh.Client, clusterInst *edgeproto.ClusterInst, rootLBName string, dedicatedRootLB bool) error {
-	cp, err := getClusterParams(ctx, clusterInst, &edgeproto.PrivacyPolicy{}, rootLBName, dedicatedRootLB, heatDelete)
+	cp, err := getClusterParams(ctx, clusterInst, &edgeproto.PrivacyPolicy{}, rootLBName, "", dedicatedRootLB, heatDelete)
 	if err == nil {
 		// no need to detach the port from the dedicated RootLB because the VM is going away with the stack.  A nil client can be passed here in
 		// some rare cases because the server was somehow deleted
@@ -741,7 +742,7 @@ func HeatDeleteStack(ctx context.Context, stackName string) error {
 }
 
 //GetClusterParams fills template parameters for the cluster.  A non blank rootLBName will add a rootlb VM
-func getClusterParams(ctx context.Context, clusterInst *edgeproto.ClusterInst, privacyPolicy *edgeproto.PrivacyPolicy, rootLBName string, dedicatedRootLB bool, action string) (*ClusterParams, error) {
+func getClusterParams(ctx context.Context, clusterInst *edgeproto.ClusterInst, privacyPolicy *edgeproto.PrivacyPolicy, rootLBName, imgName string, dedicatedRootLB bool, action string) (*ClusterParams, error) {
 	log.SpanLog(ctx, log.DebugLevelMexos, "getClusterParams", "cluster", clusterInst, "action", action)
 
 	var cp ClusterParams
@@ -760,6 +761,11 @@ func getClusterParams(ctx context.Context, clusterInst *edgeproto.ClusterInst, p
 	cp.NetworkType = ni.NetworkType
 
 	cp.VnicType = ni.VnicType
+
+	if imgName == "" {
+		imgName = GetCloudletOSImage()
+	}
+
 	// dedicated rootLB requires a rootLB VM to be created in the stack
 	if dedicatedRootLB {
 		cp.VMParams, err = GetVMParams(ctx,
@@ -767,7 +773,7 @@ func getClusterParams(ctx context.Context, clusterInst *edgeproto.ClusterInst, p
 			rootLBName,
 			clusterInst.NodeFlavor,
 			clusterInst.ExternalVolumeSize,
-			GetCloudletOSImage(),
+			imgName,
 			GetSecurityGroupName(ctx, rootLBName),
 			&clusterInst.Key.CloudletKey,
 			WithAvailabilityZone(clusterInst.AvailabilityZone),
@@ -783,7 +789,7 @@ func getClusterParams(ctx context.Context, clusterInst *edgeproto.ClusterInst, p
 			"", // no server name since no rootlb
 			clusterInst.NodeFlavor,
 			clusterInst.ExternalVolumeSize,
-			GetCloudletOSImage(),
+			imgName,
 			GetSecurityGroupName(ctx, rootLBName),
 			&clusterInst.Key.CloudletKey,
 			WithAvailabilityZone(clusterInst.AvailabilityZone),
@@ -853,6 +859,7 @@ func getClusterParams(ctx context.Context, clusterInst *edgeproto.ClusterInst, p
 		return nil, fmt.Errorf("Node Flavor is not set")
 	}
 	cp.NodeFlavor = clusterInst.NodeFlavor
+	cp.MasterNodeFlavor = clusterInst.NodeFlavor
 	cp.ExternalVolumeSize = clusterInst.ExternalVolumeSize
 	cp.SharedVolumeSize = clusterInst.SharedVolumeSize
 	for i := uint32(1); i <= clusterInst.NumNodes; i++ {
@@ -863,6 +870,11 @@ func getClusterParams(ctx context.Context, clusterInst *edgeproto.ClusterInst, p
 	}
 	// cloudflare primary and backup
 	cp.DNSServers = []string{"1.1.1.1", "1.0.0.1"}
+	if clusterInst.NumNodes > 0 && clusterInst.MasterNodeFlavor != "" {
+		cp.MasterNodeFlavor = clusterInst.MasterNodeFlavor
+		log.SpanLog(ctx, log.DebugLevelMexos, "HeatGetClusterParams", "MasterNodeFlavor", cp.MasterNodeFlavor)
+	}
+
 	return &cp, nil
 }
 
@@ -881,7 +893,7 @@ func ParseHeatNodePrefix(name string) (bool, uint32) {
 }
 
 // HeatCreateRootLBVM creates a roobLB VM
-func HeatCreateRootLBVM(ctx context.Context, serverName string, stackName string, vmspec *vmspec.VMCreationSpec, cloudletKey *edgeproto.CloudletKey, updateCallback edgeproto.CacheUpdateCallback) error {
+func HeatCreateRootLBVM(ctx context.Context, serverName, stackName, imgName string, vmspec *vmspec.VMCreationSpec, cloudletKey *edgeproto.CloudletKey, updateCallback edgeproto.CacheUpdateCallback) error {
 	log.SpanLog(ctx, log.DebugLevelMexos, "HeatCreateRootLBVM", "serverName", serverName, "stackName", stackName, "vmspec", vmspec)
 	ni, err := ParseNetSpec(ctx, GetCloudletNetworkScheme())
 	if err != nil {
@@ -894,12 +906,15 @@ func HeatCreateRootLBVM(ctx context.Context, serverName string, stackName string
 		heatStackLock.Lock()
 		defer heatStackLock.Unlock()
 	}
+	if imgName == "" {
+		imgName = GetCloudletOSImage()
+	}
 	vmp, err := GetVMParams(ctx,
 		RootLBVMDeployment,
 		serverName,
 		vmspec.FlavorName,
 		vmspec.ExternalVolumeSize,
-		GetCloudletOSImage(),
+		imgName,
 		GetSecurityGroupName(ctx, serverName),
 		cloudletKey,
 		WithAvailabilityZone(vmspec.AvailabilityZone),
@@ -912,8 +927,7 @@ func HeatCreateRootLBVM(ctx context.Context, serverName string, stackName string
 }
 
 // HeatCreateCluster creates a docker or k8s cluster which may optionally include a dedicated root LB
-func HeatCreateCluster(ctx context.Context, clusterInst *edgeproto.ClusterInst, privacyPolicy *edgeproto.PrivacyPolicy, rootLBName string, dedicatedRootLB bool, updateCallback edgeproto.CacheUpdateCallback) error {
-
+func HeatCreateCluster(ctx context.Context, clusterInst *edgeproto.ClusterInst, privacyPolicy *edgeproto.PrivacyPolicy, rootLBName string, imgName string, dedicatedRootLB bool, updateCallback edgeproto.CacheUpdateCallback) error {
 	log.SpanLog(ctx, log.DebugLevelMexos, "HeatCreateCluster", "clusterInst", clusterInst, "rootLBName", rootLBName)
 	// It is problematic to create 2 clusters at the exact same time because we will look for available subnet CIDRS when
 	// defining the template.  If 2 start at once they may end up trying to create the same subnet and one will fail.
@@ -923,7 +937,7 @@ func HeatCreateCluster(ctx context.Context, clusterInst *edgeproto.ClusterInst, 
 	heatStackLock.Lock()
 	defer heatStackLock.Unlock()
 
-	cp, err := getClusterParams(ctx, clusterInst, privacyPolicy, rootLBName, dedicatedRootLB, heatCreate)
+	cp, err := getClusterParams(ctx, clusterInst, privacyPolicy, rootLBName, imgName, dedicatedRootLB, heatCreate)
 	if err != nil {
 		return err
 	}
@@ -949,11 +963,10 @@ func HeatCreateCluster(ctx context.Context, clusterInst *edgeproto.ClusterInst, 
 }
 
 // HeatUpdateCluster updates a cluster which may optionally include a dedicated root LB
-func HeatUpdateCluster(ctx context.Context, clusterInst *edgeproto.ClusterInst, privacyPolicy *edgeproto.PrivacyPolicy, rootLBName string, dedicatedRootLB bool, updateCallback edgeproto.CacheUpdateCallback) error {
-
+func HeatUpdateCluster(ctx context.Context, clusterInst *edgeproto.ClusterInst, privacyPolicy *edgeproto.PrivacyPolicy, rootLBName string, imgName string, dedicatedRootLB bool, updateCallback edgeproto.CacheUpdateCallback) error {
 	log.SpanLog(ctx, log.DebugLevelMexos, "HeatUpdateCluster", "clusterInst", clusterInst, "rootLBName", rootLBName, "dedicatedRootLB", dedicatedRootLB)
 
-	cp, err := getClusterParams(ctx, clusterInst, privacyPolicy, rootLBName, dedicatedRootLB, heatUpdate)
+	cp, err := getClusterParams(ctx, clusterInst, privacyPolicy, rootLBName, imgName, dedicatedRootLB, heatUpdate)
 	if err != nil {
 		return err
 	}

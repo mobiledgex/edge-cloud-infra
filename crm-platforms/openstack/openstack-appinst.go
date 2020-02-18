@@ -11,7 +11,6 @@ import (
 	"github.com/mobiledgex/edge-cloud/cloud-resource-manager/crmutil"
 	"github.com/mobiledgex/edge-cloud/cloud-resource-manager/dockermgmt"
 	"github.com/mobiledgex/edge-cloud/cloud-resource-manager/k8smgmt"
-	"github.com/mobiledgex/edge-cloud/cloud-resource-manager/platform/pc"
 	"github.com/mobiledgex/edge-cloud/cloud-resource-manager/proxy"
 	"github.com/mobiledgex/edge-cloud/cloudcommon"
 	"github.com/mobiledgex/edge-cloud/edgeproto"
@@ -225,7 +224,7 @@ func (s *Platform) CreateAppInst(ctx context.Context, clusterInst *edgeproto.Clu
 		}
 		// docker commands can be run on either the rootlb or on the docker
 		// vm.  The default is to run on the rootlb client
-		var dockerCommandTarget pc.PlatformClient = rootLBClient
+		dockerCommandTarget := rootLBClient
 
 		if clusterInst.IpAccess == edgeproto.IpAccess_IP_ACCESS_DEDICATED {
 			rootLBName = cloudcommon.GetDedicatedLBFQDN(s.cloudletKey, &clusterInst.Key.ClusterKey)
@@ -243,16 +242,10 @@ func (s *Platform) CreateAppInst(ctx context.Context, clusterInst *edgeproto.Clu
 				return err
 			}
 			// docker command will run on the docker vm
-			dockerVMClient, err := rootLBClient.AddHop(backendIP, 22)
+			dockerCommandTarget, err = rootLBClient.AddHop(backendIP, 22)
 			if err != nil {
 				return err
 			}
-			var ok bool
-			dockerCommandTarget, ok = dockerVMClient.(pc.PlatformClient)
-			if !ok {
-				return fmt.Errorf("AddHop did not return a PlatformClient")
-			}
-			// since docker will run in a separate VM from the LB, it will run in host mode
 			dockerNetworkMode = dockermgmt.DockerHostMode
 		}
 
@@ -388,7 +381,7 @@ func (s *Platform) DeleteAppInst(ctx context.Context, clusterInst *edgeproto.Clu
 		}
 		// docker commands can be run on either the rootlb or on the docker
 		// vm.  The default is to run on the rootlb client
-		var dockerCommandTarget pc.PlatformClient = rootLBClient
+		dockerCommandTarget := rootLBClient
 
 		if clusterInst.IpAccess == edgeproto.IpAccess_IP_ACCESS_DEDICATED {
 			rootLBName = cloudcommon.GetDedicatedLBFQDN(s.cloudletKey, &clusterInst.Key.ClusterKey)
@@ -404,14 +397,9 @@ func (s *Platform) DeleteAppInst(ctx context.Context, clusterInst *edgeproto.Clu
 				return err
 			}
 			// docker command will run on the docker vm
-			dockerVMClient, err := rootLBClient.AddHop(backendIP, 22)
+			dockerCommandTarget, err = rootLBClient.AddHop(backendIP, 22)
 			if err != nil {
 				return err
-			}
-			var ok bool
-			dockerCommandTarget, ok = dockerVMClient.(pc.PlatformClient)
-			if !ok {
-				return fmt.Errorf("AddHop did not return a PlatformClient")
 			}
 		}
 		_, err = mexos.GetServerDetails(ctx, rootLBName)
@@ -467,7 +455,7 @@ func (s *Platform) UpdateAppInst(ctx context.Context, clusterInst *edgeproto.Clu
 		}
 		// docker commands can be run on either the rootlb or on the docker
 		// vm.  The default is to run on the rootlb client
-		var dockerCommandTarget pc.PlatformClient = rootLBClient
+		dockerCommandTarget := rootLBClient
 
 		if clusterInst.IpAccess == edgeproto.IpAccess_IP_ACCESS_SHARED {
 			_, backendIP, err := mexos.GetMasterNameAndIP(ctx, clusterInst)
@@ -475,14 +463,9 @@ func (s *Platform) UpdateAppInst(ctx context.Context, clusterInst *edgeproto.Clu
 				return err
 			}
 			// docker command will run on the docker vm
-			dockerVMClient, err := rootLBClient.AddHop(backendIP, 22)
+			dockerCommandTarget, err = rootLBClient.AddHop(backendIP, 22)
 			if err != nil {
 				return err
-			}
-			var ok bool
-			dockerCommandTarget, ok = dockerVMClient.(pc.PlatformClient)
-			if !ok {
-				return fmt.Errorf("AddHop did not return a PlatformClient")
 			}
 		}
 		return dockermgmt.UpdateAppInst(ctx, dockerCommandTarget, app, appInst, dockerNetworkMode)

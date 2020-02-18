@@ -7,11 +7,11 @@ import (
 	"os"
 
 	"github.com/mobiledgex/edge-cloud/cloud-resource-manager/platform"
-	"github.com/mobiledgex/edge-cloud/cloud-resource-manager/platform/pc"
 	"github.com/mobiledgex/edge-cloud/cloudcommon"
 	"github.com/mobiledgex/edge-cloud/edgeproto"
 	"github.com/mobiledgex/edge-cloud/log"
 	"github.com/mobiledgex/edge-cloud/vault"
+	ssh "github.com/mobiledgex/golang-ssh"
 )
 
 func PrivateSSHKey() string {
@@ -38,7 +38,7 @@ func CopyFile(src string, dst string) error {
 	return nil
 }
 
-func SeedDockerSecret(ctx context.Context, plat platform.Platform, client pc.PlatformClient, clusterInst *edgeproto.ClusterInst, app *edgeproto.App, vaultConfig *vault.Config) error {
+func SeedDockerSecret(ctx context.Context, plat platform.Platform, client ssh.Client, clusterInst *edgeproto.ClusterInst, app *edgeproto.App, vaultConfig *vault.Config) error {
 	log.SpanLog(ctx, log.DebugLevelMexos, "seed docker secret")
 
 	auth, err := cloudcommon.GetRegistryAuth(ctx, app.ImagePath, vaultConfig)

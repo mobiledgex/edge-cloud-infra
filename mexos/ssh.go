@@ -6,7 +6,6 @@ import (
 	"time"
 
 	sh "github.com/codeskyblue/go-sh"
-	"github.com/mobiledgex/edge-cloud/cloud-resource-manager/platform/pc"
 	"github.com/mobiledgex/edge-cloud/log"
 	ssh "github.com/mobiledgex/golang-ssh"
 	"github.com/tmc/scp"
@@ -54,7 +53,7 @@ func CopySSHCredential(ctx context.Context, serverName, networkName, userName st
 }
 
 //GetSSHClient returns ssh client handle for the server
-func GetSSHClient(ctx context.Context, serverName, networkName, userName string, ops ...SSHClientOp) (pc.PlatformClient, error) {
+func GetSSHClient(ctx context.Context, serverName, networkName, userName string, ops ...SSHClientOp) (ssh.Client, error) {
 	log.SpanLog(ctx, log.DebugLevelMexos, "GetSSHClient", "serverName", serverName)
 	opts := SSHOptions{Timeout: DefaultConnectTimeout}
 	opts.Apply(ops)
@@ -64,7 +63,7 @@ func GetSSHClient(ctx context.Context, serverName, networkName, userName string,
 		return nil, err
 	}
 
-	var client pc.PlatformClient
+	var client ssh.Client
 	auth := ssh.Auth{Keys: []string{PrivateSSHKey()}}
 	gwhost, gwport := GetCloudletCRMGatewayIPAndPort()
 	if gwhost != "" {
@@ -73,14 +72,9 @@ func GetSSHClient(ctx context.Context, serverName, networkName, userName string,
 		if err != nil {
 			return nil, err
 		}
-		c2, err := client.AddHop(addr, 22)
+		client, err = client.AddHop(addr, 22)
 		if err != nil {
 			return nil, err
-		}
-		var ok bool
-		client, ok = c2.(pc.PlatformClient)
-		if !ok {
-			return nil, fmt.Errorf("AddHop returned client of wrong type")
 		}
 	} else {
 		client, err = ssh.NewNativeClient(userName, ClientVersion, addr, 22, &auth, opts.Timeout, nil)
@@ -93,7 +87,7 @@ func GetSSHClient(ctx context.Context, serverName, networkName, userName string,
 	return client, nil
 }
 
-func SetupSSHUser(ctx context.Context, rootLB *MEXRootLB, user string) (pc.PlatformClient, error) {
+func SetupSSHUser(ctx context.Context, rootLB *MEXRootLB, user string) (ssh.Client, error) {
 	log.SpanLog(ctx, log.DebugLevelMexos, "setting up ssh user", "user", user)
 	client, err := GetSSHClient(ctx, rootLB.Name, GetCloudletExternalNetwork(), user)
 	if err != nil {

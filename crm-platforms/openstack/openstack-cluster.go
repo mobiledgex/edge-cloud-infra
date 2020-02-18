@@ -9,11 +9,11 @@ import (
 
 	"github.com/mobiledgex/edge-cloud-infra/mexos"
 	"github.com/mobiledgex/edge-cloud/cloud-resource-manager/k8smgmt"
-	"github.com/mobiledgex/edge-cloud/cloud-resource-manager/platform/pc"
 	"github.com/mobiledgex/edge-cloud/cloudcommon"
 	"github.com/mobiledgex/edge-cloud/edgeproto"
 	"github.com/mobiledgex/edge-cloud/log"
 	"github.com/mobiledgex/edge-cloud/vmspec"
+	ssh "github.com/mobiledgex/golang-ssh"
 )
 
 //ClusterNodeFlavor contains details of flavor for the node
@@ -49,7 +49,7 @@ func (s *Platform) UpdateClusterInst(ctx context.Context, clusterInst *edgeproto
 	return s.updateClusterInternal(ctx, client, lbName, clusterInst, privacyPolicy, updateCallback)
 }
 
-func (s *Platform) updateClusterInternal(ctx context.Context, client pc.PlatformClient, rootLBName string, clusterInst *edgeproto.ClusterInst, privacyPolicy *edgeproto.PrivacyPolicy, updateCallback edgeproto.CacheUpdateCallback) (reterr error) {
+func (s *Platform) updateClusterInternal(ctx context.Context, client ssh.Client, rootLBName string, clusterInst *edgeproto.ClusterInst, privacyPolicy *edgeproto.PrivacyPolicy, updateCallback edgeproto.CacheUpdateCallback) (reterr error) {
 	updateCallback(edgeproto.UpdateTask, "Updating Cluster Resources with Heat")
 
 	if clusterInst.Deployment == cloudcommon.AppDeploymentTypeKubernetes {
@@ -302,13 +302,9 @@ func (s *Platform) isClusterReady(ctx context.Context, clusterInst *edgeproto.Cl
 		return false, 0, fmt.Errorf("can't get rootlb ssh client for cluster ready check, %v", err)
 	}
 	// masterClient is to run commands on the master
-	mc, err := rootLBClient.AddHop(masterIP, 22)
+	masterClient, err := rootLBClient.AddHop(masterIP, 22)
 	if err != nil {
 		return false, 0, err
-	}
-	masterClient, ok := mc.(pc.PlatformClient)
-	if !ok {
-		return false, 0, fmt.Errorf("AddHop did not return PlatformClient")
 	}
 	log.SpanLog(ctx, log.DebugLevelMexos, "checking master k8s node for available nodes", "ipaddr", masterIP)
 	cmd := "kubectl get nodes"

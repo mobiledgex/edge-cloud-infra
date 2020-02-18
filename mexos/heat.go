@@ -13,12 +13,12 @@ import (
 	"time"
 
 	"github.com/mobiledgex/edge-cloud/cloud-resource-manager/k8smgmt"
-	"github.com/mobiledgex/edge-cloud/cloud-resource-manager/platform/pc"
 	"github.com/mobiledgex/edge-cloud/cloudcommon"
 	"github.com/mobiledgex/edge-cloud/edgeproto"
 	"github.com/mobiledgex/edge-cloud/log"
 	"github.com/mobiledgex/edge-cloud/util"
 	"github.com/mobiledgex/edge-cloud/vmspec"
+	ssh "github.com/mobiledgex/golang-ssh"
 )
 
 type VMParams struct {
@@ -711,7 +711,7 @@ func CreateHeatStackFromTemplate(ctx context.Context, templateData interface{}, 
 }
 
 // HeatDeleteCluster deletes the stack and also cleans up rootLB port if needed
-func HeatDeleteCluster(ctx context.Context, client pc.PlatformClient, clusterInst *edgeproto.ClusterInst, rootLBName string, dedicatedRootLB bool) error {
+func HeatDeleteCluster(ctx context.Context, client ssh.Client, clusterInst *edgeproto.ClusterInst, rootLBName string, dedicatedRootLB bool) error {
 	cp, err := getClusterParams(ctx, clusterInst, &edgeproto.PrivacyPolicy{}, rootLBName, dedicatedRootLB, heatDelete)
 	if err == nil {
 		// no need to detach the port from the dedicated RootLB because the VM is going away with the stack.  A nil client can be passed here in

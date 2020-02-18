@@ -88,6 +88,13 @@
             (result.meta.response.data.ttl != github_token_ttl) or
             (result.meta.response.data.max_ttl != github_token_ttl)
 
+    - include_role:
+        name: vault
+        tasks_from: github-teams
+      loop: "{{ vault_github_teams }}"
+      loop_control:
+        loop_var: team
+
     - import_role:
         name: vault
         tasks_from: policies

@@ -7,13 +7,14 @@ import (
 
 	"github.com/mobiledgex/edge-cloud-infra/mexos"
 	"github.com/mobiledgex/edge-cloud/cloud-resource-manager/platform"
-	"github.com/mobiledgex/edge-cloud/cloud-resource-manager/platform/pc"
 	"github.com/mobiledgex/edge-cloud/cloud-resource-manager/proxy"
 	"github.com/mobiledgex/edge-cloud/cloudcommon"
 	"github.com/mobiledgex/edge-cloud/edgeproto"
 	"github.com/mobiledgex/edge-cloud/log"
+	"github.com/mobiledgex/edge-cloud/util"
 	"github.com/mobiledgex/edge-cloud/vault"
 	"github.com/mobiledgex/edge-cloud/vmspec"
+	ssh "github.com/mobiledgex/golang-ssh"
 )
 
 const MINIMUM_DISK_SIZE uint64 = 20
@@ -32,7 +33,7 @@ func (s *Platform) GetType() string {
 }
 
 func (s *Platform) Init(ctx context.Context, platformConfig *platform.PlatformConfig, updateCallback edgeproto.CacheUpdateCallback) error {
-	rootLBName := cloudcommon.GetRootLBFQDN(platformConfig.CloudletKey)
+	rootLBName := getRootLBName(platformConfig.CloudletKey)
 	s.cloudletKey = platformConfig.CloudletKey
 	s.config = *platformConfig
 	log.SpanLog(ctx,
@@ -94,7 +95,7 @@ func (s *Platform) Init(ctx context.Context, platformConfig *platform.PlatformCo
 
 	log.SpanLog(ctx, log.DebugLevelMexos, "calling SetupRootLB")
 	updateCallback(edgeproto.UpdateTask, "Setting up RootLB")
-	err = mexos.SetupRootLB(ctx, rootLBName, vmspec, platformConfig.CloudletKey, edgeproto.DummyUpdateCallback)
+	err = mexos.SetupRootLB(ctx, rootLBName, vmspec, platformConfig.CloudletKey, platformConfig.CloudletVMImagePath, platformConfig.VMImageVersion, edgeproto.DummyUpdateCallback)
 	if err != nil {
 		return err
 	}
@@ -117,7 +118,7 @@ func (s *Platform) GatherCloudletInfo(ctx context.Context, info *edgeproto.Cloud
 	return mexos.OSGetLimits(ctx, info)
 }
 
-func (s *Platform) GetPlatformClientRootLB(ctx context.Context, rootLBName string) (pc.PlatformClient, error) {
+func (s *Platform) GetPlatformClientRootLB(ctx context.Context, rootLBName string) (ssh.Client, error) {
 	log.SpanLog(ctx, log.DebugLevelMexos, "GetPlatformClientRootLB", "rootLBName", rootLBName)
 
 	if rootLBName == "" {
@@ -129,10 +130,15 @@ func (s *Platform) GetPlatformClientRootLB(ctx context.Context, rootLBName strin
 	return mexos.GetSSHClient(ctx, rootLBName, mexos.GetCloudletExternalNetwork(), mexos.SSHUser)
 }
 
-func (s *Platform) GetPlatformClient(ctx context.Context, clusterInst *edgeproto.ClusterInst) (pc.PlatformClient, error) {
+func (s *Platform) GetPlatformClient(ctx context.Context, clusterInst *edgeproto.ClusterInst) (ssh.Client, error) {
 	rootLBName := s.rootLBName
 	if clusterInst.IpAccess == edgeproto.IpAccess_IP_ACCESS_DEDICATED {
 		rootLBName = cloudcommon.GetDedicatedLBFQDN(s.cloudletKey, &clusterInst.Key.ClusterKey)
 	}
 	return s.GetPlatformClientRootLB(ctx, rootLBName)
+}
+
+func getRootLBName(key *edgeproto.CloudletKey) string {
+	name := cloudcommon.GetRootLBFQDN(key)
+	return util.HeatSanitize(name)
 }

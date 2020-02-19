@@ -92,6 +92,9 @@ var SettingsOptionalArgs = []string{
 	"createclusterinsttimeout",
 	"updateclusterinsttimeout",
 	"deleteclusterinsttimeout",
+	"masternodeflavor",
+	"loadbalancermaxportrange",
+	"maxtrackeddmeclients",
 }
 var SettingsAliasArgs = []string{
 	"shepherdmetricscollectioninterval=settings.shepherdmetricscollectioninterval",
@@ -106,6 +109,9 @@ var SettingsAliasArgs = []string{
 	"createclusterinsttimeout=settings.createclusterinsttimeout",
 	"updateclusterinsttimeout=settings.updateclusterinsttimeout",
 	"deleteclusterinsttimeout=settings.deleteclusterinsttimeout",
+	"masternodeflavor=settings.masternodeflavor",
+	"loadbalancermaxportrange=settings.loadbalancermaxportrange",
+	"maxtrackeddmeclients=settings.maxtrackeddmeclients",
 }
 var SettingsComments = map[string]string{
 	"shepherdmetricscollectioninterval": "Shepherd metrics collection interval for k8s and docker appInstances (duration)",
@@ -120,5 +126,8 @@ var SettingsComments = map[string]string{
 	"createclusterinsttimeout":          "Create ClusterInst timeout (duration)",
 	"updateclusterinsttimeout":          "Update ClusterInst timeout (duration)",
 	"deleteclusterinsttimeout":          "Delete ClusterInst timeout (duration)",
+	"masternodeflavor":                  "Default flavor for k8s master VM and > 0  workers",
+	"loadbalancermaxportrange":          "Max IP Port range when using a load balancer",
+	"maxtrackeddmeclients":              "Max DME clients to be tracked at the same time.",
 }
 var SettingsSpecialArgs = map[string]string{}

@@ -48,6 +48,7 @@ type Api interface {
 
 	FlavorApiClient
 	CloudletApiClient
+	CloudletInfoApiClient
 	ClusterInstApiClient
 	AppApiClient
 	AppInstApiClient
@@ -59,4 +60,5 @@ type Api interface {
 	PrivacyPolicyApiClient
 	OperatorCodeApiClient
 	SettingsApiClient
+	AppInstClientApiClient
 }

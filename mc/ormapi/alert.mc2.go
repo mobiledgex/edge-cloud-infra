@@ -7,7 +7,8 @@ Package ormapi is a generated protocol buffer package.
 It is generated from these files:
 	alert.proto
 	app.proto
-	app_inst.proto
+	appinst.proto
+	appinstclient.proto
 	autoprovpolicy.proto
 	autoscalepolicy.proto
 	cloudlet.proto
@@ -40,6 +41,8 @@ It has these top-level messages:
 	AppInstRuntime
 	AppInstInfo
 	AppInstMetrics
+	AppInstClientKey
+	AppInstClient
 	AutoProvPolicy
 	AutoProvCloudlet
 	AutoProvCount
@@ -75,6 +78,9 @@ It has these top-level messages:
 	Controller
 	DeveloperKey
 	Developer
+	RunCmd
+	RunVMConsole
+	ShowLog
 	ExecRequest
 	FlavorKey
 	Flavor
@@ -114,7 +120,16 @@ var _ = math.Inf
 
 // Auto-generated code: DO NOT EDIT
 
+// Request summary for ShowAlert
+// swagger:parameters ShowAlert
+type swaggerShowAlert struct {
+	// in: body
+	Body RegionAlert
+}
+
 type RegionAlert struct {
+	// required: true
+	// Region name
 	Region string
 	Alert  edgeproto.Alert
 }

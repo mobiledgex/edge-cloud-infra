@@ -1,6 +1,7 @@
 package main
 
 import (
+	"fmt"
 	"strings"
 	"text/template"
 
@@ -209,29 +210,25 @@ func (g *GenMC2) generatePosts() {
 		if len(file.Service) == 0 {
 			continue
 		}
-		for _, service := range file.Service {
+		for serviceIndex, service := range file.Service {
 			if len(service.Method) == 0 {
 				continue
 			}
 			streamRouteAdded := false
-			for _, method := range service.Method {
+			for methodIndex, method := range service.Method {
 				if GetMc2Api(method) == "" {
 					continue
 				}
+
+				// 6 means service
+				// 2 means method in a service
+				summary := g.support.GetComments(file, fmt.Sprintf("6,%d,2,%d", serviceIndex, methodIndex))
+				summary = strings.TrimSpace(strings.Map(gensupport.RemoveNewLines, summary))
+				g.genSwaggerSpec(method, summary)
+
 				g.P("group.Match([]string{method}, \"/ctrl/", method.Name,
 					"\", ", method.Name, ")")
-				if gensupport.ServerStreaming(method) && !streamRouteAdded {
-					api := GetMc2Api(method)
-					if api == "" {
-						return
-					}
-					apiVals := strings.Split(api, ",")
-					if len(apiVals) != 3 {
-						g.Fail("invalid mc2_api string, expected ResourceType,Action,OrgNameField")
-					}
-					if apiVals[1] == "ActionView" && strings.HasPrefix(*method.Name, "Show") {
-						continue
-					}
+				if GetMc2StreamerCache(method) && !streamRouteAdded {
 					streamRouteAdded = true
 					in := gensupport.GetDesc(g.Generator, method.GetInputType())
 					streamName := "Stream" + *in.DescriptorProto.Name
@@ -243,6 +240,53 @@ func (g *GenMC2) generatePosts() {
 	}
 	g.P("}")
 	g.P()
+}
+
+func (g *GenMC2) getFields(names, nums []string, desc *generator.Descriptor) []string {
+	allStr := []string{}
+	message := desc.DescriptorProto
+	for ii, field := range message.Field {
+		if ii == 0 && *field.Name == "fields" {
+			continue
+		}
+		name := generator.CamelCase(*field.Name)
+		num := fmt.Sprintf("%d", *field.Number)
+		allStr = append(allStr, fmt.Sprintf("%s: %s", strings.Join(append(names, name), ""), strings.Join(append(nums, num), ".")))
+		if *field.Type == descriptor.FieldDescriptorProto_TYPE_MESSAGE {
+			subDesc := gensupport.GetDesc(g.Generator, field.GetTypeName())
+			allStr = append(allStr, g.getFields(append(names, name), append(nums, num), subDesc)...)
+		}
+	}
+	return allStr
+}
+
+func (g *GenMC2) genSwaggerSpec(method *descriptor.MethodDescriptorProto, summary string) {
+	in := gensupport.GetDesc(g.Generator, method.GetInputType())
+	inname := *in.DescriptorProto.Name
+	g.P("// swagger:route POST /auth/ctrl/", method.Name, " ", inname, " ", method.Name)
+	out := strings.Split(summary, ".")
+	if len(out) > 1 {
+		g.P("// ", out[0], ".")
+		g.P("// ", strings.Join(out[1:len(out)], "."))
+	} else {
+		g.P("// ", out[0], ".")
+	}
+	if strings.HasPrefix(*method.Name, "Update") {
+		allStr := g.getFields([]string{}, []string{}, in)
+		g.P("// The following values should be added to `", inname, ".fields` field array to specify which fields will be updated.")
+		g.P("// ```")
+		for _, field := range allStr {
+			g.P("// ", field)
+		}
+		g.P("// ```")
+	}
+	g.P("// Security:")
+	g.P("//   Bearer:")
+	g.P("// responses:")
+	g.P("//   200: success")
+	g.P("//   400: badRequest")
+	g.P("//   403: forbidden")
+	g.P("//   404: notFound")
 }
 
 func (g *GenMC2) generateService(service *descriptor.ServiceDescriptorProto) {
@@ -284,6 +328,8 @@ func (g *GenMC2) generateMethod(service string, method *descriptor.MethodDescrip
 		StreamOutIncremental: gensupport.GetStreamOutIncremental(method),
 		CustomAuthz:          GetMc2CustomAuthz(method),
 		HasMethodArgs:        gensupport.HasMethodArgs(method),
+		GenStream:            GetMc2StreamerCache(method) && !found,
+		StreamerCache:        GetMc2StreamerCache(method),
 	}
 	if apiVals[2] == "" {
 		args.Org = `""`
@@ -294,15 +340,12 @@ func (g *GenMC2) generateMethod(service string, method *descriptor.MethodDescrip
 		args.SkipEnforce = true
 		args.OrgValid = false
 	}
-	if args.Action == "ActionView" && strings.HasPrefix(args.MethodName, "Show") {
+	if args.Action == "ActionView" && gensupport.IsShow(method) {
 		args.Show = true
 	}
 	if !args.Outstream {
 		args.ReturnErrArg = "nil, "
 		args.Show = false
-	}
-	if args.Outstream && !args.Show && !found {
-		args.GenStream = true
 	}
 	if !args.Show {
 		args.TargetCloudlet = GetMc2TargetCloudlet(in.DescriptorProto)
@@ -390,11 +433,22 @@ type tmplArgs struct {
 	TargetCloudletParam  string
 	TargetCloudletArg    string
 	HasMethodArgs        bool
+	StreamerCache        bool
 }
 
 var tmplApi = `
+// Request summary for {{.MethodName}}
+// swagger:parameters {{.MethodName}}
+type swagger{{.MethodName}} struct {
+	// in: body
+	Body Region{{.InName}}
+}
+
 {{- if .GenStruct}}
+
 type Region{{.InName}} struct {
+        // required: true
+	// Region name
 	Region string
 	{{.InName}} edgeproto.{{.InName}}
 }
@@ -407,7 +461,9 @@ var tmpl = `
 var stream{{.InName}} = &StreamObj{}
 
 func Stream{{.InName}}(c echo.Context) error {
+{{- if .OrgValid}}
 	ctx := GetContext(c)
+{{- end}}
 	rc := &RegionContext{}
 	claims, err := getClaims(c)
 	if err != nil {
@@ -486,18 +542,18 @@ func {{.MethodName}}(c echo.Context) error {
 	span.SetTag("org", in.{{.InName}}.{{.OrgField}})
 {{- end}}
 {{- if .Outstream}}
-{{- if and (not .Show) .Outstream}}
+{{- if .StreamerCache}}
 
 	streamer := NewStreamer()
 	defer streamer.Stop()
 {{- end}}
 
-{{- if and (not .Show) .Outstream}}
+{{- if .StreamerCache}}
 	streamAdded := false
 {{- end}}
 
 	err = {{.MethodName}}Stream(ctx, rc, &in.{{.InName}}, func(res *edgeproto.{{.OutName}}) {
-{{- if and (not .Show) .Outstream}}
+{{- if .StreamerCache}}
 		if !streamAdded{
 			stream{{.InName}}.Add(in.{{.InName}}.Key, streamer)
 			streamAdded = true
@@ -505,18 +561,18 @@ func {{.MethodName}}(c echo.Context) error {
 {{- end}}
 		payload := ormapi.StreamPayload{}
 		payload.Data = res
-{{- if and (not .Show) .Outstream}}
+{{- if .StreamerCache}}
 		streamer.Publish(res.Message)
 {{- end}}
 		WriteStream(c, &payload)
 	})
 	if err != nil {
-{{- if and (not .Show) .Outstream}}
+{{- if .StreamerCache}}
 		streamer.Publish(err)
 {{- end}}
 		WriteError(c, err)
 	}
-{{- if and (not .Show) .Outstream}}
+{{- if .StreamerCache}}
 	if streamAdded {
 		stream{{.InName}}.Remove(in.{{.InName}}.Key, streamer)
 	}
@@ -1057,6 +1113,10 @@ func GetMc2Api(method *descriptor.MethodDescriptorProto) string {
 
 func GetMc2CustomAuthz(method *descriptor.MethodDescriptorProto) bool {
 	return proto.GetBoolExtension(method.Options, protogen.E_Mc2CustomAuthz, false)
+}
+
+func GetMc2StreamerCache(method *descriptor.MethodDescriptorProto) bool {
+	return proto.GetBoolExtension(method.Options, protogen.E_Mc2StreamerCache, false)
 }
 
 func GetMc2TargetCloudlet(message *descriptor.DescriptorProto) string {

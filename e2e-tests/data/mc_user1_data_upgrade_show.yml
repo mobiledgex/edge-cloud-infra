@@ -45,7 +45,7 @@ regiondata:
       flavor:
         name: DefaultPlatformFlavor
       physicalname: tmus-cloud-1
-      version: 2020-10-10
+      containerversion: 2020-10-10
     - key:
         operatorkey:
           name: tmus
@@ -58,7 +58,7 @@ regiondata:
       flavor:
         name: DefaultPlatformFlavor
       physicalname: tmus-cloud-2
-      version: 2020-10-10
+      containerversion: 2020-10-10
     - key:
         operatorkey:
           name: azure
@@ -71,7 +71,7 @@ regiondata:
       flavor:
         name: DefaultPlatformFlavor
       physicalname: azure-cloud-4
-      version: 2019-10-24
+      containerversion: 2019-10-24
     - key:
         operatorkey:
           name: gcp
@@ -84,7 +84,7 @@ regiondata:
       flavor:
         name: DefaultPlatformFlavor
       physicalname: gcp-cloud-5
-      version: 2019-10-24
+      containerversion: 2019-10-24
     flavors:
     - key:
         name: x1.small
@@ -101,3 +101,80 @@ regiondata:
       ram: 1024
       vcpus: 1
       disk: 1
+    cloudletinfos:
+    - key:
+        operatorkey:
+          name: tmus
+        name: tmus-cloud-1
+      state: CloudletStateReady
+      notifyid: 5
+      controller: MCHU-MAC.local@127.0.0.1:55001
+      osmaxram: 500
+      osmaxvcores: 50
+      osmaxvolgb: 5000
+      flavors:
+      - name: flavor1
+        vcpus: 10
+        ram: 101024
+        disk: 500
+      status:
+        tasknumber: 4
+        taskname: Deleting old CRMServer
+      containerversion: "2020-10-10"
+    - key:
+        operatorkey:
+          name: tmus
+        name: tmus-cloud-2
+      state: CloudletStateReady
+      notifyid: 6
+      controller: MCHU-MAC.local@127.0.0.1:55001
+      osmaxram: 500
+      osmaxvcores: 50
+      osmaxvolgb: 5000
+      flavors:
+      - name: flavor1
+        vcpus: 10
+        ram: 101024
+        disk: 500
+      status:
+        tasknumber: 4
+        taskname: Deleting old CRMServer
+      containerversion: "2020-10-10"
+    - key:
+        operatorkey:
+          name: azure
+        name: azure-cloud-4
+      state: CloudletStateReady
+      notifyid: 3
+      controller: MCHU-MAC.local@127.0.0.1:55001
+      osmaxram: 500
+      osmaxvcores: 50
+      osmaxvolgb: 5000
+      flavors:
+      - name: flavor1
+        vcpus: 10
+        ram: 101024
+        disk: 500
+      status:
+        tasknumber: 3
+        taskname: Gathering Cloudlet Info
+      containerversion: "2019-10-24"
+    - key:
+        operatorkey:
+          name: gcp
+        name: gcp-cloud-5
+      state: CloudletStateReady
+      notifyid: 4
+      controller: MCHU-MAC.local@127.0.0.1:55001
+      osmaxram: 500
+      osmaxvcores: 50
+      osmaxvolgb: 5000
+      flavors:
+      - name: flavor1
+        vcpus: 10
+        ram: 101024
+        disk: 500
+      status:
+        tasknumber: 3
+        taskname: Gathering Cloudlet Info
+      containerversion: "2019-10-24"

@@ -36,7 +36,7 @@ spec:
              --cloudletKey '{"operator_key":{"name":"{{ operator_key }}"},"name":"{{ deploy_target }}-cloudlet"}' \
              --toksrvurl "{{ toksrv_url }}" \
              --tls /root/tls/mex-server.crt \
-             -d locapi,dmedb,dmereq
+             -d locapi,dmedb,dmereq,notify
         livenessProbe:
           exec:
             command:

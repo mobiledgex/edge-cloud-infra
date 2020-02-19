@@ -53,13 +53,6 @@
   set_fact:
     mc_name: "{{ mc_vm_hostname.split('.')[0]|lower }}"
 
-- name: Stop old MC instance
-  docker_container:
-    name: "{{ mc_name }}"
-    state: stopped
-  delegate_to: "{{ mc_vm_hostname }}"
-  when: mc_vm_hostname is defined
-
 - name: Deploy the MC
   docker_container:
     name: "{{ mc_name }}"

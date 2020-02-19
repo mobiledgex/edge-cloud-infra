@@ -197,10 +197,31 @@ func RunServer(config *ServerConfig) (*Server, error) {
 
 	// login route
 	root := "api/v1"
-	e.POST(root+"/login", Login)
 	// accessible routes
+
+	// swagger:route POST /login Security Login
+	// Login.
+	// Login to MC.
+	// responses:
+	//   200: authToken
+	//   400: loginBadRequest
+	e.POST(root+"/login", Login)
+	// swagger:route POST /usercreate User CreateUser
+	// Create User.
+	// Creates a new user and allows them to access and manage resources.
+	// responses:
+	//   200: success
+	//   400: badRequest
+	//   403: forbidden
+	//   404: notFound
 	e.POST(root+"/usercreate", CreateUser)
 	e.POST(root+"/passwordresetrequest", PasswordResetRequest)
+	// swagger:route POST /passwordreset Security PasswdReset
+	// Reset Login Password.
+	// This resets your login password.
+	// responses:
+	//   200: success
+	//   400: badRequest
 	e.POST(root+"/passwordreset", PasswordReset)
 	e.POST(root+"/verifyemail", VerifyEmail)
 	e.POST(root+"/resendverify", ResendVerify)
@@ -208,8 +229,29 @@ func RunServer(config *ServerConfig) (*Server, error) {
 	auth := e.Group(root + "/auth")
 	auth.Use(AuthCookie)
 	// authenticated routes - gorm router
+
+	// swagger:route POST /auth/user/show User ShowUser
+	// Show Users.
+	// Displays existing users to which you are authorized to access.
+	// Security:
+	//   Bearer:
+	// responses:
+	//   200: listUsers
+	//   400: badRequest
+	//   403: forbidden
+	//   404: notFound
 	auth.POST("/user/show", ShowUser)
 	auth.POST("/user/current", CurrentUser)
+	// swagger:route POST /auth/user/delete User DeleteUser
+	// Delete User.
+	// Deletes existing user.
+	// Security:
+	//   Bearer:
+	// responses:
+	//   200: success
+	//   400: badRequest
+	//   403: forbidden
+	//   404: notFound
 	auth.POST("/user/delete", DeleteUser)
 	auth.POST("/user/newpass", NewPassword)
 	auth.POST("/role/assignment/show", ShowRoleAssignment)
@@ -218,9 +260,49 @@ func RunServer(config *ServerConfig) (*Server, error) {
 	auth.POST("/role/adduser", AddUserRole)
 	auth.POST("/role/removeuser", RemoveUserRole)
 	auth.POST("/role/showuser", ShowUserRole)
+	// swagger:route POST /auth/org/create Organization CreateOrg
+	// Create Organization.
+	// Create an Organization to access operator/cloudlet APIs.
+	// Security:
+	//   Bearer:
+	// responses:
+	//   200: success
+	//   400: badRequest
+	//   403: forbidden
+	//   404: notFound
 	auth.POST("/org/create", CreateOrg)
+	// swagger:route POST /auth/org/update Organization UpdateOrg
+	// Update Organization.
+	// API to update an existing Organization.
+	// Security:
+	//   Bearer:
+	// responses:
+	//   200: success
+	//   400: badRequest
+	//   403: forbidden
+	//   404: notFound
 	auth.POST("/org/update", UpdateOrg)
+	// swagger:route POST /auth/org/show Organization ShowOrg
+	// Show Organizations.
+	// Displays existing Organizations in which you are authorized to access.
+	// Security:
+	//   Bearer:
+	// responses:
+	//   200: listOrgs
+	//   400: badRequest
+	//   403: forbidden
+	//   404: notFound
 	auth.POST("/org/show", ShowOrg)
+	// swagger:route POST /auth/org/delete Organization DeleteOrg
+	// Delete Organization.
+	// Deletes an existing Organization.
+	// Security:
+	//   Bearer:
+	// responses:
+	//   200: success
+	//   400: badRequest
+	//   403: forbidden
+	//   404: notFound
 	auth.POST("/org/delete", DeleteOrg)
 	auth.POST("/controller/create", CreateController)
 	auth.POST("/controller/delete", DeleteController)
@@ -249,6 +331,9 @@ func RunServer(config *ServerConfig) (*Server, error) {
 	auth.POST("/metrics/cluster", GetMetricsCommon)
 	auth.POST("/metrics/cloudlet", GetMetricsCommon)
 	auth.POST("/metrics/client", GetMetricsCommon)
+	auth.POST("/events/app", GetEventsCommon)
+	auth.POST("/events/cluster", GetEventsCommon)
+	auth.POST("/events/cloudlet", GetEventsCommon)
 
 	// Use GET method for websockets as thats the method used
 	// in setting up TCP connection by most of the clients
@@ -410,6 +495,12 @@ func ReadConn(c echo.Context, in interface{}) (bool, error) {
 
 	if ws := GetWs(c); ws != nil {
 		err = ws.ReadJSON(in)
+		if err == nil {
+			out, err := json.Marshal(in)
+			if err == nil {
+				LogWsRequest(c, out)
+			}
+		}
 	} else {
 		err = c.Bind(in)
 	}
@@ -464,6 +555,10 @@ func WriteStream(c echo.Context, payload *ormapi.StreamPayload) error {
 			Code: http.StatusOK,
 			Data: (*payload).Data,
 		}
+		out, err := json.Marshal(wsPayload)
+		if err == nil {
+			LogWsResponse(c, string(out))
+		}
 		return ws.WriteJSON(wsPayload)
 	} else {
 		headerFlag := c.Get("WroteHeader")
@@ -505,6 +600,10 @@ func WriteError(c echo.Context, err error) error {
 		wsPayload := ormapi.WSStreamPayload{
 			Code: http.StatusBadRequest,
 			Data: MsgErr(err),
+		}
+		out, err := json.Marshal(wsPayload)
+		if err == nil {
+			LogWsResponse(c, string(out))
 		}
 		return ws.WriteJSON(wsPayload)
 	} else {

@@ -157,6 +157,7 @@ func TestController(t *testing.T) {
 
 	badPermTestCloudlet(t, mcClient, uri, tokenOper3, ctrl.Region, org1)
 	badPermTestMetrics(t, mcClient, uri, tokenDev3, ctrl.Region, org1)
+	badPermTestEvents(t, mcClient, uri, tokenDev3, ctrl.Region, org1)
 	// add new users to orgs
 	testAddUserRole(t, mcClient, uri, tokenDev, org1, "DeveloperContributor", dev3.Name, Success)
 	testAddUserRole(t, mcClient, uri, tokenDev, org1, "DeveloperViewer", dev4.Name, Success)
@@ -217,15 +218,21 @@ func TestController(t *testing.T) {
 	goodPermTestCloudletPool(t, mcClient, uri, tokenAd, ctrl.Region, org2, dcnt)
 	goodPermTestCloudletPoolMember(t, mcClient, uri, tokenAd, ctrl.Region, org1, dcnt)
 	goodPermTestCloudletPoolMember(t, mcClient, uri, tokenAd, ctrl.Region, org2, dcnt)
-	// make sure admin cannot create App against non-existent org,
-	// because enforcement check for admins doesn't look at org names in rbac.
-	badApp := &edgeproto.App{}
-	badApp.Key.DeveloperKey.Name = "nonexistent"
-	_, status, err = ormtestutil.TestCreateApp(mcClient, uri, token, ctrl.Region, badApp)
-	require.NotNil(t, err)
-	require.Equal(t, http.StatusForbidden, status)
+
+	// test non-existent org check
+	badPermTestNonExistent(t, mcClient, uri, tokenAd, ctrl.Region, tc3)
+	badPermTestNonExistent(t, mcClient, uri, tokenDev, ctrl.Region, tc3)
+	badPermTestNonExistent(t, mcClient, uri, tokenDev2, ctrl.Region, tc3)
+	badPermTestNonExistent(t, mcClient, uri, tokenDev3, ctrl.Region, tc3)
+	badPermTestNonExistent(t, mcClient, uri, tokenDev4, ctrl.Region, tc3)
+	badPermTestNonExistent(t, mcClient, uri, tokenOper, ctrl.Region, tc3)
+	badPermTestNonExistent(t, mcClient, uri, tokenOper2, ctrl.Region, tc3)
+	badPermTestNonExistent(t, mcClient, uri, tokenOper3, ctrl.Region, tc3)
+	badPermTestNonExistent(t, mcClient, uri, tokenOper4, ctrl.Region, tc3)
 
 	// bug 1756 - better error message for nonexisting org in image path
+	badApp := &edgeproto.App{}
+	badApp.Key.DeveloperKey.Name = "nonexistent"
 	badApp.ImagePath = "docker-qa.mobiledgex.net/nonexistent/images/server_ping_threaded:5.0"
 	_, status, err = ormtestutil.TestCreateApp(mcClient, uri, token, ctrl.Region, badApp)
 	require.NotNil(t, err)
@@ -325,6 +332,7 @@ func TestController(t *testing.T) {
 	goodPermTestAppInst(t, mcClient, uri, tokenDev3, ctrl.Region, org1, tc3, dcnt)
 	goodPermTestClusterInst(t, mcClient, uri, tokenDev3, ctrl.Region, org1, tc3, dcnt)
 	goodPermTestMetrics(t, mcClient, uri, tokenDev3, tokenOper3, ctrl.Region, org1, org3)
+	goodPermTestEvents(t, mcClient, uri, tokenDev3, tokenOper3, ctrl.Region, org1, org3)
 
 	// test users with different roles
 	goodPermTestCloudlet(t, mcClient, uri, tokenOper3, ctrl.Region, org3, ccount)
@@ -725,6 +733,26 @@ func badPermShowOrgCloudlet(t *testing.T, mcClient *ormclient.Client, uri, token
 	_, status, err := mcClient.ShowOrgCloudlet(uri, token, &oc)
 	require.NotNil(t, err)
 	require.Equal(t, http.StatusForbidden, status)
+}
+
+// Test that we get forbidden for Orgs that don't exist
+func badPermTestNonExistent(t *testing.T, mcClient *ormclient.Client, uri, token, region string, tc *edgeproto.CloudletKey) {
+	neOrg := "non-existent-org"
+	badPermCreateApp(t, mcClient, uri, token, region, neOrg)
+	badPermDeleteApp(t, mcClient, uri, token, region, neOrg)
+	badPermUpdateApp(t, mcClient, uri, token, region, neOrg)
+
+	badPermCreateAppInst(t, mcClient, uri, token, region, neOrg, tc)
+	badPermDeleteAppInst(t, mcClient, uri, token, region, neOrg, tc)
+	badPermUpdateAppInst(t, mcClient, uri, token, region, neOrg, tc)
+
+	badPermCreateCloudlet(t, mcClient, uri, token, region, neOrg)
+	badPermDeleteCloudlet(t, mcClient, uri, token, region, neOrg)
+	badPermUpdateCloudlet(t, mcClient, uri, token, region, neOrg)
+
+	badPermCreateClusterInst(t, mcClient, uri, token, region, neOrg, tc)
+	badPermDeleteClusterInst(t, mcClient, uri, token, region, neOrg, tc)
+	badPermUpdateClusterInst(t, mcClient, uri, token, region, neOrg, tc)
 }
 
 type StreamDummyServer struct {

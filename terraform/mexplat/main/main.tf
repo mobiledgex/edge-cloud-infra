@@ -97,19 +97,21 @@ module "vault_b_dns" {
   ip                            = "${module.vault_b.external_ip}"
 }
 
-module "mc" {
+# VM for console
+module "console" {
   source              = "../../modules/vm_gcp"
 
-  instance_name       = "${var.mc_instance_name}"
+  instance_name       = "${var.console_instance_name}"
   zone                = "${var.gcp_zone}"
-  tags                = [ "mexplat-${var.environ_tag}", "http-server", "https-server", "mc" ]
+  boot_disk_size      = 100
+  tags                = [ "http-server", "https-server", "console-debug", "mc" ]
   ssh_public_key_file = "${var.ssh_public_key_file}"
 }
 
-module "mc_dns" {
+module "console_dns" {
   source                        = "../../modules/cloudflare_record"
-  hostname                      = "${var.mc_vm_domain_name}"
-  ip                            = "${module.mc.external_ip}"
+  hostname                      = "${var.console_domain_name}"
+  ip                            = "${module.console.external_ip}"
 }
 
 module "fw_vault_gcp" {

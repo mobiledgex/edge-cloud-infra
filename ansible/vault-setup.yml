@@ -1,0 +1,106 @@
+- hosts: localhost
+  gather_facts: no
+  tasks:
+    - name: Look for vault token in environment
+      set_fact:
+        vault_token: "{{ lookup('env', 'VAULT_TOKEN') or 'UNSET' }}"
+
+    - name: Get vault token using ansible role
+      block:
+        - name: Log in with Ansible role/secret
+          uri:
+            url: "{{ vault_address }}/v1/auth/approle/login"
+            method: POST
+            body_format: json
+            body:
+              role_id: "{{ ansible_app_role.role_id }}"
+              secret_id: "{{ ansible_app_role.secret_id }}"
+            return_content: yes
+          register: result
+
+        - name: Set vault token
+          set_fact:
+            vault_token: "{{ result.json.auth.client_token }}"
+      when:
+        - vault_token == 'UNSET'
+
+# Set up the vault
+
+- hosts: localhost
+  gather_facts: no
+  vars:
+    github_org: mobiledgex
+    github_token_ttl: 900 # seconds
+  module_defaults:
+    vault_policy:
+      vault_addr: "{{ vault_address }}"
+      vault_token: "{{ vault_token }}"
+    vault_role:
+      vault_addr: "{{ vault_address }}"
+      vault_token: "{{ vault_token }}"
+    vault_api:
+      vault_addr: "{{ vault_address }}"
+      vault_token: "{{ vault_token }}"
+
+  tasks:
+    - name: Look up token
+      set_fact:
+        vault_token_lookup: "{{ query('vault_token', vault_token) }}"
+
+    - debug:
+        msg: "Vault token: {{ vault_token_lookup.data.display_name }}{% if vault_token_lookup.data.meta %} (\"{{ vault_token_lookup.data.meta.role_name }}\"){% endif %}"
+
+    - name: Check if Github auth is enabled
+      vault_api:
+        api: sys/auth
+      register: result
+      changed_when: no
+
+    - name: Enable Github auth
+      vault_api:
+        api: sys/auth/github
+        method: POST
+        data:
+          type: github
+          description: Log in with Github
+        success_code: 204
+      when:
+        - "'github/' not in result.meta.response"
+
+    - name: Check Github auth config
+      vault_api:
+        api: auth/github/config
+      register: result
+      changed_when: no
+      ignore_errors: yes
+
+    - name: Configure Github auth
+      vault_api:
+        api: auth/github/config
+        method: POST
+        data:
+          organization: "{{ github_org }}"
+          ttl: "{{ github_token_ttl }}s"
+          max_ttl: "{{ github_token_ttl }}s"
+        success_code: 204
+      when: ("meta" not in result) or
+            (result.meta.response.data.organization != github_org) or
+            (result.meta.response.data.ttl != github_token_ttl) or
+            (result.meta.response.data.max_ttl != github_token_ttl)
+
+    - include_role:
+        name: vault
+        tasks_from: github-teams
+      loop: "{{ vault_github_teams }}"
+      loop_control:
+        loop_var: team
+
+    - import_role:
+        name: vault
+        tasks_from: policies
+      tags: policies
+
+    - import_role:
+        name: vault
+        tasks_from: roles
+      tags: roles

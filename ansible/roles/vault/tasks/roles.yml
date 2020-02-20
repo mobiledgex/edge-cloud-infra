@@ -1,0 +1,65 @@
+- debug:
+    msg: "Install global roles"
+
+- name: ansible.v1 role
+  vault_role:
+    name: ansible.v1
+    policies:
+      - approle.login.v1
+      - ansible.read.v1
+      - auth-approle.read.v1
+      - auth-github-config.read.v1
+      - certs.read.v1
+      - influxdb.read.v1
+      - influxdb-internal.read.v1
+      - registry.read.v1
+      - sys-auth.read.v1
+      - sys-policies.read.v1
+    token_type: batch
+    token_ttl: 1800   # seconds = 30 minutes
+
+- name: autoprov.v1 role
+  vault_role:
+    name: autoprov.v1
+    policies:
+      - approle.login.v1
+      - influxdb.read.v1
+    token_type: batch
+
+- name: crm.v1 role
+  vault_role:
+    name: crm.v1
+    policies:
+      - approle.login.v1
+      - certs.read.v1
+      - cloudlets.write.v1
+      - mexenv.read.v1
+      - registry.read.v1
+      - influxdb.read.v1
+    token_type: batch
+
+- name: mcorm.v1 role
+  vault_role:
+    name: mcorm.v1
+    policies:
+      - approle.login.v1
+      - influxdb.read.v1
+      - mcorm-jwtkeys.read.v1
+      - noreplyemail.read.v1
+      - registry.read.v1
+    token_type: batch
+
+- name: mexenv.v1 role
+  vault_role:
+    name: mexenv.v1
+    policies:
+      - approle.login.v1
+      - mexenv.read.v1
+    token_type: batch
+
+- include_role:
+    name: vault
+    tasks_from: region-roles
+  loop: "{{ regions }}"
+  loop_control:
+    loop_var: region

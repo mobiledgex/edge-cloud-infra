@@ -16,13 +16,6 @@ import (
 
 func (s *Platform) CreateAppInst(ctx context.Context, clusterInst *edgeproto.ClusterInst, app *edgeproto.App, appInst *edgeproto.AppInst, flavor *edgeproto.Flavor, privacyPolicy *edgeproto.PrivacyPolicy, updateCallback edgeproto.CacheUpdateCallback) error {
 	var err error
-	// set project and zone in case container was restarted
-	if err = SetProject(s.props.Project); err != nil {
-		return err
-	}
-	if err = SetZone(s.props.Zone); err != nil {
-		return err
-	}
 	// regenerate kconf if missing because CRM in container was restarted
 	if err = SetupKconf(ctx, clusterInst); err != nil {
 		return fmt.Errorf("can't set up kconf, %s", err.Error())
@@ -74,16 +67,8 @@ func (s *Platform) CreateAppInst(ctx context.Context, clusterInst *edgeproto.Clu
 }
 
 func (s *Platform) DeleteAppInst(ctx context.Context, clusterInst *edgeproto.ClusterInst, app *edgeproto.App, appInst *edgeproto.AppInst) error {
-	var err error
-	// set project and zone in case container was restarted
-	if err = SetProject(s.props.Project); err != nil {
-		return err
-	}
-	if err = SetZone(s.props.Zone); err != nil {
-		return err
-	}
 	// regenerate kconf if missing because CRM in container was restarted
-	if err = SetupKconf(ctx, clusterInst); err != nil {
+	if err := SetupKconf(ctx, clusterInst); err != nil {
 		return fmt.Errorf("can't set up kconf, %s", err.Error())
 	}
 	client, err := s.GetPlatformClient(ctx, clusterInst)
@@ -151,16 +136,8 @@ func (s *Platform) UpdateAppInst(ctx context.Context, clusterInst *edgeproto.Clu
 }
 
 func (s *Platform) GetAppInstRuntime(ctx context.Context, clusterInst *edgeproto.ClusterInst, app *edgeproto.App, appInst *edgeproto.AppInst) (*edgeproto.AppInstRuntime, error) {
-	// set project and zone in case container was restarted
-	var err error
-	if err = SetProject(s.props.Project); err != nil {
-		return nil, err
-	}
-	if err = SetZone(s.props.Zone); err != nil {
-		return nil, err
-	}
 	// regenerate kconf if missing because CRM in container was restarted
-	if err = SetupKconf(ctx, clusterInst); err != nil {
+	if err := SetupKconf(ctx, clusterInst); err != nil {
 		return nil, fmt.Errorf("can't set up kconf, %s", err.Error())
 	}
 	client, err := s.GetPlatformClient(ctx, clusterInst)

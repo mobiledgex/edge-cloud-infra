@@ -21,6 +21,7 @@
     policies:
       - approle.login.v1
       - certs.read.v1
+      - gcp-auth.read.v1
       - registry.read.v1
       - "{{ region_prefix }}.cloudlets.write.v1"
       - "{{ region_prefix }}.influxdb.read.v1"

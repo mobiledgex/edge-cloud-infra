@@ -70,7 +70,10 @@ func (a *Adapter) createTable(ctx context.Context) error {
 			fields = append(fields, scope.Quote(field.DBName))
 		}
 	}
-	cmd := fmt.Sprintf("CREATE TABLE %v (%v, UNIQUE (%v))", scope.QuotedTableName(), strings.Join(tags, ","), strings.Join(fields, ","))
+	// Note race condition between multiple MCs starting at the same time,
+	// must allow for table already existing because table may have been
+	// created after earlier check passed.
+	cmd := fmt.Sprintf("CREATE TABLE IF NOT EXISTS %v (%v, UNIQUE (%v))", scope.QuotedTableName(), strings.Join(tags, ","), strings.Join(fields, ","))
 	return db.Exec(cmd).Error
 }
 

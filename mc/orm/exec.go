@@ -79,6 +79,6 @@ func RunWebrtcStream(c echo.Context) error {
 		}
 		return reply, &answer, nil
 	}
-	err = edgecli.RunWebrtc(&in.ExecRequest, exchangeFunc, ws)
+	err = edgecli.RunWebrtc(&in.ExecRequest, exchangeFunc, ws, edgecli.SetupLocalConsoleTunnel)
 	return setReply(c, err, nil)
 }

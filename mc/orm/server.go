@@ -643,16 +643,13 @@ func (s *Server) setupConsoleProxy(ctx context.Context) {
 		queryArgs := req.URL.Query()
 		tokenVals, ok := queryArgs["token"]
 		if !ok || len(tokenVals) != 1 {
-			// try token from referrer URL
-			refUrl := req.Referer()
-			if refUrl == "" {
-				return
+			// try token from cookies
+			for _, cookie := range req.Cookies() {
+				if cookie.Name == "mextoken" {
+					token = cookie.Value
+					break
+				}
 			}
-			out := strings.Split(refUrl, "token=")
-			if len(out) != 2 {
-				return
-			}
-			token = out[1]
 		} else {
 			token = tokenVals[0]
 		}
@@ -686,7 +683,24 @@ func (s *Server) setupConsoleProxy(ctx context.Context) {
 		TLSClientConfig:     &tls.Config{InsecureSkipVerify: true},
 	}
 
-	http.HandleFunc("/", proxy.ServeHTTP)
+	http.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
+		queryArgs := r.URL.Query()
+		tokenVals, ok := queryArgs["token"]
+		if ok && len(tokenVals) == 1 {
+			token := tokenVals[0]
+			expire := time.Now().Add(10 * time.Minute)
+			cookie := http.Cookie{
+				Name:     "mextoken",
+				Value:    tokenVals[0],
+				Expires:  expire,
+				SameSite: http.SameSiteStrictMode,
+			}
+			http.SetCookie(w, &cookie)
+			log.SpanLog(ctx, log.DebugLevelInfo, "setup console proxy cookies", "url", r.URL, "token", token)
+		}
+		proxy.ServeHTTP(w, r)
+	})
+
 	if s.config.TlsCertFile != "" {
 		err = http.ListenAndServeTLS(s.config.ConsoleProxyAddr, s.config.TlsCertFile, s.config.TlsKeyFile, nil)
 	} else {

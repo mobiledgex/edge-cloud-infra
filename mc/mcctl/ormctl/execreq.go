@@ -84,6 +84,6 @@ func runExecRequest(path string) func(c *cli.Command, args []string) error {
 			}
 			return &reply, &answer, nil
 		}
-		return edgecli.RunWebrtc(&req.ExecRequest, exchangeFunc, nil)
+		return edgecli.RunWebrtc(&req.ExecRequest, exchangeFunc, nil, edgecli.SetupLocalConsoleTunnel)
 	}
 }

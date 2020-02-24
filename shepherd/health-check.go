@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"strconv"
+	"time"
 
 	"github.com/mobiledgex/edge-cloud/cloud-resource-manager/proxy"
 	"github.com/mobiledgex/edge-cloud/cloudcommon"
@@ -13,8 +14,9 @@ import (
 )
 
 const (
-	HealthCheckEnvoyOk   = "healthy"
-	HealthCheckEnvoyFail = "/failed_active_hc"
+	HealthCheckEnvoyOk              = "healthy"
+	HealthCheckEnvoyFail            = "/failed_active_hc"
+	HealthCheckRootLbConnectTimeout = time.Second * 3
 )
 
 func SetupHealthCheckSpan(appInstKey *edgeproto.AppInstKey) (opentracing.Span, context.Context) {

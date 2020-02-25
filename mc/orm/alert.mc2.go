@@ -795,6 +795,7 @@ func addControllerApis(method string, group *echo.Group) {
 	// MappedPortsPathPrefix: 9.4
 	// MappedPortsFqdnPrefix: 9.5
 	// MappedPortsEndPort: 9.6
+	// MappedPortsTls: 9.7
 	// Flavor: 12
 	// FlavorName: 12.1
 	// State: 14

@@ -95,20 +95,6 @@ func goodPermShowAppInst(t *testing.T, mcClient *ormclient.Client, uri, token, r
 	require.Equal(t, http.StatusOK, status)
 }
 
-var _ = edgeproto.GetFields
-
-func badPermSetAppInst(t *testing.T, mcClient *ormclient.Client, uri, token, region, org string, targetCloudlet *edgeproto.CloudletKey) {
-	_, status, err := testutil.TestPermSetAppInst(mcClient, uri, token, region, org, targetCloudlet)
-	require.NotNil(t, err)
-	require.Equal(t, http.StatusForbidden, status)
-}
-
-func goodPermSetAppInst(t *testing.T, mcClient *ormclient.Client, uri, token, region, org string, targetCloudlet *edgeproto.CloudletKey) {
-	_, status, err := testutil.TestPermSetAppInst(mcClient, uri, token, region, org, targetCloudlet)
-	require.Nil(t, err)
-	require.Equal(t, http.StatusOK, status)
-}
-
 // This tests the user cannot modify the object because the obj belongs to
 // an organization that the user does not have permissions for.
 func badPermTestAppInst(t *testing.T, mcClient *ormclient.Client, uri, token, region, org string, targetCloudlet *edgeproto.CloudletKey) {

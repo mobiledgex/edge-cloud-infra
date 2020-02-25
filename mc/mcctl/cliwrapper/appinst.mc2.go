@@ -61,7 +61,7 @@ func (s *Client) RefreshAppInst(uri, token string, in *ormapi.RegionAppInst) ([]
 func (s *Client) UpdateAppInst(uri, token string, in *ormapi.RegionAppInst) ([]edgeproto.Result, int, error) {
 	args := []string{"region", "UpdateAppInst"}
 	outlist := []edgeproto.Result{}
-	noconfig := strings.Split("CloudletLoc,Uri,MappedPorts,Liveness,Flavor,State,RuntimeInfo,AutoClusterIpAccess,Errors,CreatedAt,Status,Revision,UpdateMultiple,ForceUpdate,PowerState", ",")
+	noconfig := strings.Split("CloudletLoc,Uri,MappedPorts,Liveness,Flavor,State,RuntimeInfo,AutoClusterIpAccess,Errors,CreatedAt,Status,Revision,UpdateMultiple,ForceUpdate", ",")
 	ops := []runOp{
 		withIgnore(noconfig),
 		withStreamOutIncremental(),
@@ -76,18 +76,6 @@ func (s *Client) ShowAppInst(uri, token string, in *ormapi.RegionAppInst) ([]edg
 	noconfig := strings.Split("CloudletLoc,Uri,MappedPorts,Liveness,CreatedAt,Status,Revision,Errors,RuntimeInfo", ",")
 	ops := []runOp{
 		withIgnore(noconfig),
-	}
-	st, err := s.runObjs(uri, token, args, in, &outlist, ops...)
-	return outlist, st, err
-}
-
-func (s *Client) SetAppInst(uri, token string, in *ormapi.RegionAppInst) ([]edgeproto.Result, int, error) {
-	args := []string{"region", "SetAppInst"}
-	outlist := []edgeproto.Result{}
-	noconfig := strings.Split("CloudletLoc,Uri,MappedPorts,Liveness,Flavor,State,RuntimeInfo,AutoClusterIpAccess,Errors,CreatedAt,Status,Revision,UpdateMultiple,ForceUpdate", ",")
-	ops := []runOp{
-		withIgnore(noconfig),
-		withStreamOutIncremental(),
 	}
 	st, err := s.runObjs(uri, token, args, in, &outlist, ops...)
 	return outlist, st, err

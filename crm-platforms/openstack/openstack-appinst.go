@@ -566,17 +566,17 @@ func (s *Platform) SetPowerState(ctx context.Context, app *edgeproto.App, appIns
 
 		serverAction := ""
 		switch PowerState {
-		case edgeproto.PowerState_POWER_ON:
+		case edgeproto.PowerState_POWER_ON_REQUESTED:
 			if serverDetail.Status == "ACTIVE" {
 				return fmt.Errorf("server %s is already active", serverName)
 			}
 			serverAction = "start"
-		case edgeproto.PowerState_POWER_OFF:
+		case edgeproto.PowerState_POWER_OFF_REQUESTED:
 			if serverDetail.Status == "SHUTOFF" {
 				return fmt.Errorf("server %s is already stopped", serverName)
 			}
 			serverAction = "stop"
-		case edgeproto.PowerState_REBOOT:
+		case edgeproto.PowerState_REBOOT_REQUESTED:
 			serverAction = "reboot"
 		default:
 			return fmt.Errorf("unsupported server power action: %s", PowerState)

@@ -158,15 +158,7 @@ func QueryProxy(ctx context.Context, scrapePoint *ProxyScrapePoint) (*shepherd_c
 	span, hcCtx := SetupHealthCheckSpan(&scrapePoint.Key)
 	defer span.Finish()
 	// query envoy
-	container := proxy.GetEnvoyContainerName(scrapePoint.App)
-	request := fmt.Sprintf("docker exec %s curl http://127.0.0.1:%d/stats", container, cloudcommon.ProxyMetricsPort)
-	resp, err := scrapePoint.Client.OutputWithTimeout(request, HealthCheckRootLbConnectTimeout)
-	if err != nil && strings.Contains(resp, "No such container") {
-		// try the docker name if it fails
-		container = proxy.GetEnvoyContainerName(dockermgmt.GetContainerName(&scrapePoint.Key.AppKey))
-		request = fmt.Sprintf("docker exec %s curl http://127.0.0.1:%d/stats", container, cloudcommon.ProxyMetricsPort)
-		resp, err = scrapePoint.Client.OutputWithTimeout(request, HealthCheckRootLbConnectTimeout)
-	}
+	request, resp, err := runEnvoyApi(scrapePoint, "stats", HealthCheckRootLbConnectTimeout)
 	if err != nil {
 		if strings.Contains(resp, "No such container") {
 			return QueryNginx(ctx, scrapePoint) //if envoy isnt there(for legacy apps) query nginx
@@ -454,4 +446,18 @@ func RemoveShepherdMetrics(data *shepherd_common.ProxyMetrics) {
 	data.ActiveConn = data.ActiveConn - 1
 	data.Accepts = data.Accepts - data.Requests
 	data.HandledConn = data.HandledConn - data.Requests
+}
+
+func runEnvoyApi(scrapePoint *ProxyScrapePoint, api string, timeout time.Duration) (string, string, error) {
+	// query envoy
+	container := proxy.GetEnvoyContainerName(scrapePoint.App)
+	request := fmt.Sprintf("docker exec %s curl http://127.0.0.1:%d/%s", container, cloudcommon.ProxyMetricsPort, api)
+	resp, err := scrapePoint.Client.OutputWithTimeout(request, timeout)
+	if err != nil && strings.Contains(resp, "No such container") {
+		// try the docker name if it fails
+		container = proxy.GetEnvoyContainerName(dockermgmt.GetContainerName(&scrapePoint.Key.AppKey))
+		request = fmt.Sprintf("docker exec %s curl http://127.0.0.1:%d/%s", container, cloudcommon.ProxyMetricsPort, api)
+		resp, err = scrapePoint.Client.OutputWithTimeout(request, timeout)
+	}
+	return request, resp, err
 }

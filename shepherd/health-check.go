@@ -6,7 +6,6 @@ import (
 	"strconv"
 	"time"
 
-	"github.com/mobiledgex/edge-cloud/cloud-resource-manager/proxy"
 	"github.com/mobiledgex/edge-cloud/cloudcommon"
 	"github.com/mobiledgex/edge-cloud/edgeproto"
 	"github.com/mobiledgex/edge-cloud/log"
@@ -99,9 +98,7 @@ func isEnvoyClusterHealthy(ctx context.Context, envoyResponse string, ports []in
 }
 
 func CheckEnvoyClusterHealth(ctx context.Context, scrapePoint *ProxyScrapePoint) {
-	container := proxy.GetEnvoyContainerName(scrapePoint.App)
-	request := fmt.Sprintf("docker exec %s curl http://127.0.0.1:%d/clusters", container, cloudcommon.ProxyMetricsPort)
-	resp, err := scrapePoint.Client.Output(request)
+	request, resp, err := runEnvoyApi(scrapePoint, "clusters", HealthCheckRootLbConnectTimeout)
 	if err != nil {
 		log.SpanLog(ctx, log.DebugLevelMetrics, "Cluster status unknown", "request", request, "err", err.Error())
 		return

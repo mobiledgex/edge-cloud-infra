@@ -193,11 +193,17 @@ func (s *Platform) CreateAppInst(ctx context.Context, clusterInst *edgeproto.Clu
 		if err != nil {
 			return fmt.Errorf("unable to get vm params: %v", err)
 		}
-		updateCallback(edgeproto.UpdateTask, "Deploying VM")
-		log.SpanLog(ctx, log.DebugLevelMexos, "Deploying VM", "stackName", objName, "vmspec", vmspec)
-		err = mexos.CreateHeatStackFromTemplate(ctx, vmp, objName, mexos.VmTemplate, updateCallback)
-		if err != nil {
-			return err
+		if app.AccessType == edgeproto.AccessType_ACCESS_TYPE_LOAD_BALANCER {
+			rootLBname := cloudcommon.GetDedicatedLBFQDN(s.cloudletKey, &clusterInst.Key.ClusterKey)
+			rootLBImage := mexos.GetCloudletOSImage()
+			err = mexos.HeatCreateAppVMWithRootLB(ctx, clusterInst, rootLBname, rootLBImage, objName, vmp, updateCallback)
+		} else {
+			updateCallback(edgeproto.UpdateTask, "Deploying VM standalone")
+			log.SpanLog(ctx, log.DebugLevelMexos, "Deploying VM", "stackName", objName, "vmspec", vmspec)
+			err = mexos.CreateHeatStackFromTemplate(ctx, vmp, objName, mexos.VmTemplate, updateCallback)
+			if err != nil {
+				return err
+			}
 		}
 		external_ip, err := mexos.GetServerIPAddr(ctx, mexos.GetCloudletExternalNetwork(), objName, mexos.ExternalIPType)
 		if err != nil {

@@ -63,8 +63,10 @@ var heatUpdate string = "UPDATE"
 var heatDelete string = "DELETE"
 var clusterTypeKubernetes = "k8s"
 var clusterTypeDocker = "docker"
+var clusterTypeVMApp = "vmapp"
 var ClusterTypeKubernetesMasterLabel = "mex-k8s-master"
 var ClusterTypeDockerVMLabel = "mex-docker-vm"
+var ClusterTypeVMAppLabel = "mex-vm-app"
 
 var vmCloudConfig = `#cloud-config
 bootcmd:
@@ -262,6 +264,7 @@ type ClusterParams struct {
 	Nodes                 []ClusterNode
 	MasterNodeFlavor      string
 	*VMParams             //rootlb
+	VMAppParams           *VMParams
 }
 
 var clusterTemplate = `
@@ -439,7 +442,11 @@ resources:
         {{if  $.ExternalVolumeSize}}
          block_device_mapping: [{ device_name: "vda", volume_id: { get_resource: {{.NodeName}}-vol }, delete_on_termination: "false" }]
         {{else}}
+         {{if .VMAppParams}}
          image: {{$.ImageName}}
+         {{else}}
+         image: {{$.VMAppParams.ImageName}}
+         {{- end}}
         {{- end}}
          flavor: {{$.NodeFlavor}}
          config_drive: true
@@ -759,10 +766,17 @@ func getClusterParams(ctx context.Context, clusterInst *edgeproto.ClusterInst, p
 	if err != nil {
 		return nil, err
 	}
-	if clusterInst.Deployment == cloudcommon.AppDeploymentTypeDocker {
-		cp.ClusterType = clusterTypeDocker
-		cp.ClusterFirstVMLabel = ClusterTypeDockerVMLabel
-	} else {
+	switch clusterInst.Deployment {
+
+	case cloudcommon.AppDeploymentTypeDocker:
+		if clusterInst.Deployment == cloudcommon.AppDeploymentTypeDocker {
+			cp.ClusterType = clusterTypeDocker
+			cp.ClusterFirstVMLabel = ClusterTypeDockerVMLabel
+		}
+	case cloudcommon.AppDeploymentTypeVM:
+		cp.ClusterType = ClusterTypeVMAppLabel
+		cp.ClusterFirstVMLabel = ClusterTypeVMAppLabel
+	default:
 		cp.ClusterType = clusterTypeKubernetes
 		cp.ClusterFirstVMLabel = ClusterTypeKubernetesMasterLabel
 	}
@@ -971,6 +985,40 @@ func HeatCreateCluster(ctx context.Context, clusterInst *edgeproto.ClusterInst, 
 		return AttachAndEnableRootLBInterface(ctx, client, rootLBName, cp.RootLBPortName, cp.GatewayIP)
 	}
 	return nil
+}
+
+// HeatCreateVMWithRootLB creates a VM accessed via a new rootLB
+func HeatCreateAppVMWithRootLB(ctx context.Context, rootLBName string, rootLBImage string, appVMName string, rootLBVMSpec *vmspec.VMCreationSpec, vmAppParams *VMParams, updateCallback edgeproto.CacheUpdateCallback) error {
+	log.SpanLog(ctx, log.DebugLevelMexos, "HeatCreateVMWithRootLB", "rootLBName", rootLBName, "appVMName", appVMName, "rootLBVMSpec", rootLBVMSpec, "vmAppParams", vmAppParams)
+
+	// Floating IPs can also be allocated within the stack and need to be locked as well.
+	heatStackLock.Lock()
+	defer heatStackLock.Unlock()
+
+	// there is no clusterinst for vm apps.  Popopulate one to set the params
+	var clusterInst edgeproto.ClusterInst
+
+	// we will use the cluster template because this requires subnets, etc to be created similar to a k8s or docker cluster
+	cp, err := getClusterParams(ctx, &clusterInst, vmAppParams.PrivacyPolicy, rootLBName, rootLBImage, true, heatCreate)
+	log.SpanLog(ctx, log.DebugLevelMexos, "xxxxxxxx", "cp.VMAppParams", cp.VMAppParams, "vmAppParams", vmAppParams)
+
+	cp.VMAppParams = vmAppParams
+	if err != nil {
+		return err
+	}
+	log.SpanLog(ctx, log.DebugLevelMexos, "Updated ClusterParams", "clusterParams", cp)
+
+	templateString := clusterTemplate + vmTemplateResources
+	err = CreateHeatStackFromTemplate(ctx, cp, cp.ClusterName, templateString, updateCallback)
+	if err != nil {
+		return err
+	}
+	client, err := GetSSHClient(ctx, rootLBName, GetCloudletExternalNetwork(), SSHUser)
+	if err != nil {
+		return fmt.Errorf("unable to get rootlb SSH client: %v", err)
+	}
+	return AttachAndEnableRootLBInterface(ctx, client, rootLBName, cp.RootLBPortName, cp.GatewayIP)
+
 }
 
 // HeatUpdateCluster updates a cluster which may optionally include a dedicated root LB

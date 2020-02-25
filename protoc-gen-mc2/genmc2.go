@@ -242,6 +242,24 @@ func (g *GenMC2) generatePosts() {
 	g.P()
 }
 
+func (g *GenMC2) getFields(names, nums []string, desc *generator.Descriptor) []string {
+	allStr := []string{}
+	message := desc.DescriptorProto
+	for ii, field := range message.Field {
+		if ii == 0 && *field.Name == "fields" {
+			continue
+		}
+		name := generator.CamelCase(*field.Name)
+		num := fmt.Sprintf("%d", *field.Number)
+		allStr = append(allStr, fmt.Sprintf("%s: %s", strings.Join(append(names, name), ""), strings.Join(append(nums, num), ".")))
+		if *field.Type == descriptor.FieldDescriptorProto_TYPE_MESSAGE {
+			subDesc := gensupport.GetDesc(g.Generator, field.GetTypeName())
+			allStr = append(allStr, g.getFields(append(names, name), append(nums, num), subDesc)...)
+		}
+	}
+	return allStr
+}
+
 func (g *GenMC2) genSwaggerSpec(method *descriptor.MethodDescriptorProto, summary string) {
 	in := gensupport.GetDesc(g.Generator, method.GetInputType())
 	inname := *in.DescriptorProto.Name
@@ -252,6 +270,15 @@ func (g *GenMC2) genSwaggerSpec(method *descriptor.MethodDescriptorProto, summar
 		g.P("// ", strings.Join(out[1:len(out)], "."))
 	} else {
 		g.P("// ", out[0], ".")
+	}
+	if strings.HasPrefix(*method.Name, "Update") {
+		allStr := g.getFields([]string{}, []string{}, in)
+		g.P("// The following values should be added to `", inname, ".fields` field array to specify which fields will be updated.")
+		g.P("// ```")
+		for _, field := range allStr {
+			g.P("// ", field)
+		}
+		g.P("// ```")
 	}
 	g.P("// Security:")
 	g.P("//   Bearer:")
@@ -333,6 +360,11 @@ func (g *GenMC2) generateMethod(service string, method *descriptor.MethodDescrip
 	} else if g.genclient {
 		tmpl = g.tmplMethodClient
 		g.importOrmapi = true
+		if inname == "ExecRequest" {
+			args.ExecReq = true
+			g.importStrings = true
+			g.importHttp = true
+		}
 	} else if g.gentest {
 		tmpl = g.tmplMethodTest
 		g.importOrmclient = true
@@ -357,6 +389,10 @@ func (g *GenMC2) generateMethod(service string, method *descriptor.MethodDescrip
 		args.NoConfig = gensupport.GetNoConfig(in.DescriptorProto, method)
 		g.importOrmapi = true
 		g.importStrings = true
+		if inname == "ExecRequest" {
+			args.ExecReq = true
+			g.importHttp = true
+		}
 	} else {
 		tmpl = g.tmpl
 		g.importEcho = true
@@ -407,6 +443,7 @@ type tmplArgs struct {
 	TargetCloudletArg    string
 	HasMethodArgs        bool
 	StreamerCache        bool
+	ExecReq              bool
 }
 
 var tmplApi = `
@@ -434,7 +471,9 @@ var tmpl = `
 var stream{{.InName}} = &StreamObj{}
 
 func Stream{{.InName}}(c echo.Context) error {
+{{- if .OrgValid}}
 	ctx := GetContext(c)
+{{- end}}
 	rc := &RegionContext{}
 	claims, err := getClaims(c)
 	if err != nil {
@@ -519,7 +558,7 @@ func {{.MethodName}}(c echo.Context) error {
 	defer streamer.Stop()
 {{- end}}
 
-{{- if and (not .Show) .Outstream}}
+{{- if .StreamerCache}}
 	streamAdded := false
 {{- end}}
 
@@ -737,6 +776,19 @@ func (s *Client) {{.MethodName}}(uri, token string, in *ormapi.Region{{.InName}}
 	return &out, status, err
 }
 {{- end}}
+{{- if .ExecReq}}
+func (s *Client) {{.MethodName}}Stream(uri, token string, in *ormapi.Region{{.InName}}) ([]ormapi.WSStreamPayload, int, error) {
+	out := ormapi.WSStreamPayload{}
+	outlist := []ormapi.WSStreamPayload{}
+	if !strings.HasPrefix(uri, "ws://") && !strings.HasPrefix(uri, "wss://") {
+		return nil, http.StatusBadRequest, fmt.Errorf("only websocket supported")
+	}
+	status, err := s.PostJsonStreamOut(uri+"/auth/ctrl/{{.MethodName}}", token, in, &out, func() {
+		outlist = append(outlist, out)
+	})
+	return outlist, status, err
+}
+{{- end}}
 `
 
 var tmplMethodCtl = `
@@ -812,6 +864,11 @@ func (s *Client) {{.MethodName}}(uri, token string, in *ormapi.Region{{.InName}}
 		return nil, st, err
 	}
 	return &out, st, err
+}
+{{- end}}
+{{- if .ExecReq}}
+func (s *Client) {{.MethodName}}Stream(uri, token string, in *ormapi.Region{{.InName}}) ([]ormapi.WSStreamPayload, int, error) {
+	return nil, http.StatusBadRequest, fmt.Errorf("not supported")
 }
 {{- end}}
 
@@ -1037,6 +1094,9 @@ func (g *GenMC2) generateClientInterface(service *descriptor.ServiceDescriptorPr
 			g.P(method.Name, "(uri, token string, in *ormapi.Region", inname, ") ([]edgeproto.", outname, ", int, error)")
 		} else {
 			g.P(method.Name, "(uri, token string, in *ormapi.Region", inname, ") (*edgeproto.", outname, ", int, error)")
+		}
+		if inname == "ExecRequest" {
+			g.P(method.Name, "Stream(uri, token string, in *ormapi.RegionExecRequest) ([]ormapi.WSStreamPayload, int, error)")
 		}
 	}
 	g.P("}")

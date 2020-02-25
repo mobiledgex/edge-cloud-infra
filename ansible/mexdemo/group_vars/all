@@ -1,3 +1,4 @@
 jaeger_hostname: jaeger.mobiledgex.net
 jaeger_endpoint: "https://{{ jaeger_hostname }}:14268/api/traces"
 vault_address: https://vault-main.mobiledgex.net
+vault_github_teams: []

@@ -2,11 +2,15 @@ package orm
 
 import (
 	"context"
+	"crypto/tls"
 	"encoding/json"
 	"fmt"
 	"io"
+	"net"
 	"net/http"
+	"net/http/httputil"
 	"os"
+	"strings"
 	"time"
 
 	"github.com/gorilla/websocket"
@@ -16,6 +20,7 @@ import (
 	"github.com/mobiledgex/edge-cloud-infra/mc/ormapi"
 	"github.com/mobiledgex/edge-cloud-infra/mc/rbac"
 	"github.com/mobiledgex/edge-cloud/cloudcommon"
+	edgecli "github.com/mobiledgex/edge-cloud/edgectl/cli"
 	"github.com/mobiledgex/edge-cloud/integration/process"
 	"github.com/mobiledgex/edge-cloud/log"
 	"github.com/mobiledgex/edge-cloud/vault"
@@ -38,24 +43,25 @@ type Server struct {
 }
 
 type ServerConfig struct {
-	ServAddr        string
-	SqlAddr         string
-	VaultAddr       string
-	RunLocal        bool
-	InitLocal       bool
-	IgnoreEnv       bool
-	TlsCertFile     string
-	TlsKeyFile      string
-	LocalVault      bool
-	LDAPAddr        string
-	GitlabAddr      string
-	ArtifactoryAddr string
-	ClientCert      string
-	PingInterval    time.Duration
-	SkipVerifyEmail bool
-	JaegerAddr      string
-	vaultConfig     *vault.Config
-	SkipOriginCheck bool
+	ServAddr         string
+	SqlAddr          string
+	VaultAddr        string
+	ConsoleProxyAddr string
+	RunLocal         bool
+	InitLocal        bool
+	IgnoreEnv        bool
+	TlsCertFile      string
+	TlsKeyFile       string
+	LocalVault       bool
+	LDAPAddr         string
+	GitlabAddr       string
+	ArtifactoryAddr  string
+	ClientCert       string
+	PingInterval     time.Duration
+	SkipVerifyEmail  bool
+	JaegerAddr       string
+	vaultConfig      *vault.Config
+	SkipOriginCheck  bool
 }
 
 var DefaultDBUser = "mcuser"
@@ -186,6 +192,8 @@ func RunServer(config *ServerConfig) (*Server, error) {
 	server.initDataDone = make(chan struct{}, 1)
 	go InitData(ctx, Superuser, superpass, config.PingInterval, &server.stopInitData, server.initDataDone)
 
+	go server.setupConsoleProxy(ctx)
+
 	e := echo.New()
 	e.HideBanner = true
 	server.echo = e
@@ -201,14 +209,14 @@ func RunServer(config *ServerConfig) (*Server, error) {
 
 	// swagger:route POST /login Security Login
 	// Login.
-	// Login to MC
+	// Login to MC.
 	// responses:
 	//   200: authToken
 	//   400: loginBadRequest
 	e.POST(root+"/login", Login)
 	// swagger:route POST /usercreate User CreateUser
 	// Create User.
-	// Create a new user who can access/manage resources
+	// Creates a new user and allows them to access and manage resources.
 	// responses:
 	//   200: success
 	//   400: badRequest
@@ -217,8 +225,8 @@ func RunServer(config *ServerConfig) (*Server, error) {
 	e.POST(root+"/usercreate", CreateUser)
 	e.POST(root+"/passwordresetrequest", PasswordResetRequest)
 	// swagger:route POST /passwordreset Security PasswdReset
-	// Reset login password.
-	// If login password is lost or to be changed, this API will reset the login password
+	// Reset Login Password.
+	// This resets your login password.
 	// responses:
 	//   200: success
 	//   400: badRequest
@@ -232,7 +240,7 @@ func RunServer(config *ServerConfig) (*Server, error) {
 
 	// swagger:route POST /auth/user/show User ShowUser
 	// Show Users.
-	// Show existing users which user is authorized to access
+	// Displays existing users to which you are authorized to access.
 	// Security:
 	//   Bearer:
 	// responses:
@@ -244,7 +252,7 @@ func RunServer(config *ServerConfig) (*Server, error) {
 	auth.POST("/user/current", CurrentUser)
 	// swagger:route POST /auth/user/delete User DeleteUser
 	// Delete User.
-	// Delete existing user
+	// Deletes existing user.
 	// Security:
 	//   Bearer:
 	// responses:
@@ -262,7 +270,7 @@ func RunServer(config *ServerConfig) (*Server, error) {
 	auth.POST("/role/showuser", ShowUserRole)
 	// swagger:route POST /auth/org/create Organization CreateOrg
 	// Create Organization.
-	// Create Organization to access operator/cloudlet APIs
+	// Create an Organization to access operator/cloudlet APIs.
 	// Security:
 	//   Bearer:
 	// responses:
@@ -273,7 +281,7 @@ func RunServer(config *ServerConfig) (*Server, error) {
 	auth.POST("/org/create", CreateOrg)
 	// swagger:route POST /auth/org/update Organization UpdateOrg
 	// Update Organization.
-	// API to update an existing Organization
+	// API to update an existing Organization.
 	// Security:
 	//   Bearer:
 	// responses:
@@ -284,7 +292,7 @@ func RunServer(config *ServerConfig) (*Server, error) {
 	auth.POST("/org/update", UpdateOrg)
 	// swagger:route POST /auth/org/show Organization ShowOrg
 	// Show Organizations.
-	// Show existing Organizations which user is authorized to access
+	// Displays existing Organizations in which you are authorized to access.
 	// Security:
 	//   Bearer:
 	// responses:
@@ -295,7 +303,7 @@ func RunServer(config *ServerConfig) (*Server, error) {
 	auth.POST("/org/show", ShowOrg)
 	// swagger:route POST /auth/org/delete Organization DeleteOrg
 	// Delete Organization.
-	// Delete existing Organization
+	// Deletes an existing Organization.
 	// Security:
 	//   Bearer:
 	// responses:
@@ -345,6 +353,10 @@ func RunServer(config *ServerConfig) (*Server, error) {
 	ws.GET("/metrics/cluster", GetMetricsCommon)
 	ws.GET("/metrics/cloudlet", GetMetricsCommon)
 	ws.GET("/metrics/client", GetMetricsCommon)
+	// WebRTC based APIs
+	ws.GET("/ctrl/RunCommand", RunWebrtcStream)
+	ws.GET("/ctrl/ShowLogs", RunWebrtcStream)
+	ws.GET("/ctrl/RunConsole", RunWebrtcStream)
 
 	go func() {
 		var err error
@@ -495,6 +507,12 @@ func ReadConn(c echo.Context, in interface{}) (bool, error) {
 
 	if ws := GetWs(c); ws != nil {
 		err = ws.ReadJSON(in)
+		if err == nil {
+			out, err := json.Marshal(in)
+			if err == nil {
+				LogWsRequest(c, out)
+			}
+		}
 	} else {
 		err = c.Bind(in)
 	}
@@ -549,6 +567,10 @@ func WriteStream(c echo.Context, payload *ormapi.StreamPayload) error {
 			Code: http.StatusOK,
 			Data: (*payload).Data,
 		}
+		out, err := json.Marshal(wsPayload)
+		if err == nil {
+			LogWsResponse(c, string(out))
+		}
 		return ws.WriteJSON(wsPayload)
 	} else {
 		headerFlag := c.Get("WroteHeader")
@@ -591,6 +613,10 @@ func WriteError(c echo.Context, err error) error {
 			Code: http.StatusBadRequest,
 			Data: MsgErr(err),
 		}
+		out, err := json.Marshal(wsPayload)
+		if err == nil {
+			LogWsResponse(c, string(out))
+		}
 		return ws.WriteJSON(wsPayload)
 	} else {
 		res := ormapi.Result{}
@@ -601,4 +627,87 @@ func WriteError(c echo.Context, err error) error {
 	}
 
 	return nil
+}
+
+func (s *Server) setupConsoleProxy(ctx context.Context) {
+	var err error
+
+	if s.config.ConsoleProxyAddr == "" {
+		return
+	}
+
+	log.SpanLog(ctx, log.DebugLevelInfo, "setup console proxy", "addr", s.config.ConsoleProxyAddr)
+
+	director := func(req *http.Request) {
+		token := ""
+		queryArgs := req.URL.Query()
+		tokenVals, ok := queryArgs["token"]
+		if !ok || len(tokenVals) != 1 {
+			// try token from cookies
+			for _, cookie := range req.Cookies() {
+				if cookie.Name == "mextoken" {
+					token = cookie.Value
+					break
+				}
+			}
+		} else {
+			token = tokenVals[0]
+		}
+		if s.config.TlsCertFile != "" {
+			req.URL.Scheme = "https"
+		} else {
+			req.URL.Scheme = "http"
+		}
+		req.URL.Host = s.config.ConsoleProxyAddr
+		port := edgecli.ConsoleProxy.Get(token)
+		if port != "" {
+			addrObj := strings.Split(s.config.ConsoleProxyAddr, ":")
+			if len(addrObj) == 2 {
+				req.URL.Host = strings.Replace(req.URL.Host, addrObj[1], port, -1)
+			}
+		}
+		if _, ok := req.Header["User-Agent"]; !ok {
+			// explicitly disable User-Agent so it's not set to default value
+			req.Header.Set("User-Agent", "")
+		}
+	}
+	proxy := &httputil.ReverseProxy{Director: director}
+
+	proxy.Transport = &http.Transport{
+		Proxy: http.ProxyFromEnvironment,
+		Dial: (&net.Dialer{
+			Timeout:   30 * time.Second,
+			KeepAlive: 30 * time.Second,
+		}).Dial,
+		TLSHandshakeTimeout: 10 * time.Second,
+		TLSClientConfig:     &tls.Config{InsecureSkipVerify: true},
+	}
+
+	http.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
+		queryArgs := r.URL.Query()
+		tokenVals, ok := queryArgs["token"]
+		if ok && len(tokenVals) == 1 {
+			token := tokenVals[0]
+			expire := time.Now().Add(10 * time.Minute)
+			cookie := http.Cookie{
+				Name:     "mextoken",
+				Value:    tokenVals[0],
+				Expires:  expire,
+				SameSite: http.SameSiteStrictMode,
+			}
+			http.SetCookie(w, &cookie)
+			log.SpanLog(ctx, log.DebugLevelInfo, "setup console proxy cookies", "url", r.URL, "token", token)
+		}
+		proxy.ServeHTTP(w, r)
+	})
+
+	if s.config.TlsCertFile != "" {
+		err = http.ListenAndServeTLS(s.config.ConsoleProxyAddr, s.config.TlsCertFile, s.config.TlsKeyFile, nil)
+	} else {
+		err = http.ListenAndServe(s.config.ConsoleProxyAddr, nil)
+	}
+	if err != nil && err != http.ErrServerClosed {
+		s.Stop()
+		log.FatalLog("Failed to start console proxy server", "err", err)
+	}
 }

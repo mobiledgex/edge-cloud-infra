@@ -50,6 +50,9 @@
         seconds: 30
       when: console_version_not_provided | default(false)
 
+- name: Set up vault auth, policies, and roles
+  import_playbook: vault-setup.yml
+
 - hosts: platform
   tasks:
 

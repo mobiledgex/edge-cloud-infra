@@ -48,6 +48,10 @@ func (p *MC) StartLocal(logfile string, opts ...process.StartOp) error {
 		args = append(args, "--notifySrvAddr")
 		args = append(args, p.NotifySrvAddr)
 	}
+	if p.ConsoleProxyAddr != "" {
+		args = append(args, "--consoleproxyaddr")
+		args = append(args, p.ConsoleProxyAddr)
+	}
 	args = append(args, "--hostname", p.Name)
 	args = append(args, "-skipVerifyEmail")
 	options := process.StartOptions{}

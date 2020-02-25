@@ -149,6 +149,7 @@ mcs:
   hostname: "127.0.0.1"
   ldapaddr: "127.0.0.1:9389"
   notifysrvaddr: "127.0.0.1:52001"
+  consoleproxyaddr: "127.0.0.1:6080"
 
 - name: mc2
   addr: "127.0.0.1:9901"
@@ -161,6 +162,7 @@ mcs:
   hostname: "127.0.0.1"
   ldapaddr: "127.0.0.1:9390"
   notifysrvaddr: "127.0.0.1:52002"
+  consoleproxyaddr: "127.0.0.1:6081"
 
 sqls:
 - name: sql1

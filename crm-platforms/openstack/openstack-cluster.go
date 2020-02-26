@@ -173,8 +173,12 @@ func (s *Platform) createClusterInternal(ctx context.Context, rootLBName string,
 		if reterr == nil {
 			return
 		}
-
-		log.SpanLog(ctx, log.DebugLevelMexos, "error in CreateCluster", "err", reterr)
+		if strings.Contains(reterr.Error(), "ResourceInError") &&
+			strings.Contains(reterr.Error(), "Exhausted all hosts") {
+			log.SpanLog(ctx, log.DebugLevelMexos, "error in CreateCluster using", "flavor", clusterInst.NodeFlavor, "err", reterr)
+		} else {
+			log.SpanLog(ctx, log.DebugLevelMexos, "error in CreateCluster", "err", reterr)
+		}
 		if mexos.GetCleanupOnFailure(ctx) {
 			log.SpanLog(ctx, log.DebugLevelMexos, "cleaning up cluster resources after cluster fail, set envvar CLEANUP_ON_FAILURE to 'no' to avoid this")
 			delerr := s.deleteCluster(ctx, rootLBName, clusterInst)

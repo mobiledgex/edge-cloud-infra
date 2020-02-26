@@ -10,4 +10,5 @@ vault_github_teams:
       - ansible.read.v1
       - certs.read.v1
       - cloudlets.read.v1
+      - mexenv.read.v1
       - registry.read.v1

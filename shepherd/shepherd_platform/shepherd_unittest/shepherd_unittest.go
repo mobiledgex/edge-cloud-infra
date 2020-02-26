@@ -105,5 +105,12 @@ func (s *UTClient) getUTData(command string) (string, error) {
 			return s.LocalClient.Output(split[3])
 		}
 	}
+	// "docker exec containername echo text"
+	if strings.Contains(command, "docker exec") && strings.Contains(command, "echo") {
+		split := strings.SplitN(command, " ", 4)
+		if len(split) == 4 {
+			return s.LocalClient.Output(split[3])
+		}
+	}
 	return "", fmt.Errorf("No UT Data found")
 }

@@ -307,7 +307,7 @@ func (s *Platform) DeleteAppInst(ctx context.Context, clusterInst *edgeproto.Clu
 		if clusterInst.IpAccess == edgeproto.IpAccess_IP_ACCESS_DEDICATED {
 			rootLBName = cloudcommon.GetDedicatedLBFQDN(s.cloudletKey, &clusterInst.Key.ClusterKey)
 			log.SpanLog(ctx, log.DebugLevelMexos, "using dedicated RootLB to delete app", "rootLBName", rootLBName)
-			_, err := mexos.GetServerDetails(ctx, rootLBName)
+			_, err := mexos.GetActiveServerDetails(ctx, rootLBName)
 			if err != nil {
 				if strings.Contains(err.Error(), "No server with a name or ID") {
 					log.SpanLog(ctx, log.DebugLevelMexos, "Dedicated RootLB is gone, allow app deletion")
@@ -406,7 +406,7 @@ func (s *Platform) DeleteAppInst(ctx context.Context, clusterInst *edgeproto.Clu
 				return err
 			}
 		}
-		_, err = mexos.GetServerDetails(ctx, rootLBName)
+		_, err = mexos.GetActiveServerDetails(ctx, rootLBName)
 		if err != nil {
 			if strings.Contains(err.Error(), "No server with a name or ID") {
 				log.SpanLog(ctx, log.DebugLevelMexos, "Dedicated RootLB is gone, allow app deletion")
@@ -578,6 +578,9 @@ func (s *Platform) SetPowerState(ctx context.Context, app *edgeproto.App, appIns
 			serverAction = "stop"
 		case edgeproto.PowerState_REBOOT_REQUESTED:
 			serverAction = "reboot"
+			if serverDetail.Status != "ACTIVE" {
+				return fmt.Errorf("server %s is not active", serverName)
+			}
 		default:
 			return fmt.Errorf("unsupported server power action: %s", PowerState)
 		}
@@ -594,9 +597,9 @@ func (s *Platform) SetPowerState(ctx context.Context, app *edgeproto.App, appIns
 			return err
 		}
 
-		if PowerState == edgeproto.PowerState_POWER_ON || PowerState == edgeproto.PowerState_REBOOT {
+		if PowerState == edgeproto.PowerState_POWER_ON_REQUESTED || PowerState == edgeproto.PowerState_REBOOT_REQUESTED {
 			updateCallback(edgeproto.UpdateTask, fmt.Sprintf("Waiting for server %s to become active", serverName))
-			serverDetail, err := mexos.GetServerDetails(ctx, serverName)
+			serverDetail, err := mexos.GetActiveServerDetails(ctx, serverName)
 			if err != nil {
 				return err
 			}

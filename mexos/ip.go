@@ -131,7 +131,7 @@ func GetServerExternalIPFromAddr(ctx context.Context, networkName, addresses, se
 	for _, it := range its {
 		sits := strings.Split(it, "=")
 		if len(sits) != 2 {
-			return "", fmt.Errorf("GetServerIPFromAddr: Unable to parse '%s'", it)
+			return "", fmt.Errorf("GetServerExternalIPFromAddr: Unable to parse '%s'", it)
 		}
 		if strings.Contains(sits[0], networkName) {
 			addr := sits[1]
@@ -147,7 +147,7 @@ func GetServerExternalIPFromAddr(ctx context.Context, networkName, addresses, se
 						addr = addrs[0]
 					}
 				} else {
-					return "", fmt.Errorf("GetServerIPFromAddr: Unable to parse '%s'", addr)
+					return "", fmt.Errorf("GetServerExternalIPFromAddr: Unable to parse '%s'", addr)
 				}
 			}
 			addr = strings.TrimSpace(addr)
@@ -172,7 +172,7 @@ func GetServerIPAddr(ctx context.Context, networkName, serverName string, return
 			}
 		}
 	}
-	sd, err := GetServerDetails(ctx, serverName)
+	sd, err := GetActiveServerDetails(ctx, serverName)
 	if err != nil {
 		return "", err
 	}

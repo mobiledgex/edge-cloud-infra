@@ -21,4 +21,5 @@
       - "127.0.0.1:13030:3030"
     env:
       REACT_APP_API_ENDPOINT: "https://{{ inventory_hostname }}"
+      REACT_APP_API_VM_ENDPOINT: "https://{{ console_vnc_hostname }}"
       REACT_APP_API_USE_SERVER_SUFFIX: "true"

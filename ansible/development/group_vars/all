@@ -1,5 +1,6 @@
 jaeger_hostname: jaeger-dev.mobiledgex.net
 jaeger_endpoint: "https://{{ jaeger_hostname }}:14268/api/traces"
+console_vnc_hostname: console-dev-vnc.mobiledgex.net
 vault_address: https://vault-dev.mobiledgex.net
 vault_ha_zones:
   us: us-west2-a

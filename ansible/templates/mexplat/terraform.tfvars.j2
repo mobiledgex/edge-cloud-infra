@@ -12,5 +12,6 @@
 {% if gitlab_vm_hostname is defined %}  "gitlab_domain_name": "{{ gitlab_vm_hostname }}",{{ "\n" }}{% endif %}
 {% if vault_vm_hostname is defined %}  "vault_vm_domain_name": "{{ vault_vm_hostname }}",{{ "\n" }}{% endif %}
 {% if postgres_hostname is defined %}  "postgres_domain_name": "{{ postgres_hostname }}",{{ "\n" }}{% endif %}
+{% if console_vnc_hostname is defined %}  "console_vnc_domain_name": "{{ console_vnc_hostname }}",{{ "\n" }}{% endif %}
   "__terraform_vars_done": true
 }

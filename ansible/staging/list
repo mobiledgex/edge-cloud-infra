@@ -23,6 +23,9 @@ azure_volume_storage_class=managed-premium
 influxdb_volume_size=5Gi
 letsencrypt_env=production
 
+[notifyroot]
+notifyroot-stage.mobiledgex.net
+
 [platform]
 localhost	ansible_connection=local
 

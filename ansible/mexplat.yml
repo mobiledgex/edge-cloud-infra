@@ -159,6 +159,14 @@
     - import_role:
         name: mc
 
+- hosts: notifyroot
+  tasks:
+    - import_role:
+        name: telegraf
+      tags: [ 'monitoring', 'setup' ]
+    - import_role:
+        name: notifyroot
+
 - hosts: registry_replicas
   tasks:
     - import_role:

@@ -24,6 +24,9 @@ dme_carrier=GDDT
 operator_key=GDDT
 deploy_target="mexplat-{{ deploy_environ }}"
 
+[notifyroot]
+notifyroot-qa.mobiledgex.net
+
 [platform]
 localhost	ansible_connection=local
 

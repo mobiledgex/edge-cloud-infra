@@ -28,6 +28,8 @@ spec:
          - "0.0.0.0:36001"
          - "--notifyAddr"
          - "0.0.0.0:37001"
+         - "--notifyParentAddrs"
+         - "{{ console_vm_hostname }}:{{ mc_notify_srv_port }}"
          - "--etcdUrls"  
          - "{{ etcd_cluster_client }}:2379"
          - "--vaultAddr"

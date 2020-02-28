@@ -25,6 +25,10 @@
       - mc
       - "-addr"
       - "0.0.0.0:{{ mc_api_port }}"
+      - "-notifyAddrs"
+      - "{{ notifyroot_hostname }}:{{ notifyroot_port }}"
+      - "-notifySrvAddr"
+      - "0.0.0.0:{{ mc_notify_srv_port }}"
       - "-sqlAddr"
       - "{{ postgres_hostname }}:5432"
       - "-vaultAddr"
@@ -65,6 +69,7 @@
       - "127.0.0.1:{{ mc_api_port }}:{{ mc_api_port }}"
       - "{{ mc_ldap_port }}:{{ mc_ldap_port }}"
       - "127.0.0.1:{{ mc_vnc_port }}:{{ mc_vnc_port }}"
+      - "{{ mc_notify_srv_port }}:{{ mc_notify_srv_port }}"
     env:
       db_name: "{{ mc_postgres_db }}"
       db_username: "{{ mc_postgres_username }}"

@@ -23,6 +23,9 @@ influxdb_volume_size=1Gi
 vault_firewall_setup=no
 vault_ha_domain="vault-{{ deploy_environ }}.mobiledgex.net"
 
+[notifyroot]
+notifyroot-dev.mobiledgex.net
+
 [platform]
 localhost	ansible_connection=local
 

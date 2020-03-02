@@ -105,10 +105,6 @@ $STEP && ARGS+=( '--step' )
 [[ -n "$ANSIBLE_SSH_PRIVATE_KEY_FILE" ]] \
 	&& ARGS+=( --private-key "$ANSIBLE_SSH_PRIVATE_KEY_FILE" )
 
-MAIN_VAULT="${MAIN_ANSIBLE_VAULT_PREFIX}-${ENVIRON}.yml"
-[[ ! -f "$MAIN_VAULT" ]] && MAIN_VAULT="${MAIN_ANSIBLE_VAULT_PREFIX}.yml"
-[[ -f "$MAIN_VAULT" ]] && ARGS+=( -e "@${MAIN_VAULT}" )
-
 # Add personal ansible vault to command line, if present
 if [[ -f "$PERSONAL_ANSIBLE_VAULT" ]]; then
 	ARGS+=( -e "@${PERSONAL_ANSIBLE_VAULT}" )
@@ -129,7 +125,16 @@ elif [[ "$SKIP_GITHUB" != true && -z "$CONSOLE_VERSION" ]]; then
 	export GITHUB_USER GITHUB_TOKEN
 fi
 
-#[[ -z "$VAULT_TOKEN" ]] && read -p 'Vault token: ' -s VAULT_TOKEN
+if [[ -n "$VAULT_TOKEN" ]]; then
+	echo "Authenticating using vault token" >&2
+elif [[ -n "$VAULT_ROLE_ID" && -n "$VAULT_SECRET_ID" ]]; then
+	echo "Authenticating using vault role/secret" >&2
+else
+	echo "Vault role/secret not provided; falling back to token auth" >&2
+	while [[ -z "$VAULT_TOKEN" ]]; do
+		read -p 'Vault token: ' -s VAULT_TOKEN
+	done
+fi
 
 # Limit to specified target
 [[ -n "$TARGET" ]] && ARGS+=( -l "$TARGET" )

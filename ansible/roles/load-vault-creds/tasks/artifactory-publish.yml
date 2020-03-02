@@ -1,0 +1,6 @@
+- name: Look up artifactory publish creds in vault
+  set_fact:
+    vault_lookup: "{{ lookup('vault', artifactory_publish_account_path) }}"
+
+- set_fact:
+    artifactory_publish_api_key: "{{ vault_lookup.artifactory_publish.data.apikey }}"

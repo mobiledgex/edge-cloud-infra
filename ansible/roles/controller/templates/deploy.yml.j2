@@ -55,13 +55,13 @@ spec:
          - "etcd,api,notify,upgrade"
         env:
          - name: VAULT_ROLE_ID
-           value: "{{ ctrl_vault_app_role[region].role_id }}"
+           value: "{{ controller_role.role_id }}"
          - name: VAULT_SECRET_ID
-           value: "{{ ctrl_vault_app_role[region].secret_id }}"
+           value: "{{ controller_role.secret_id }}"
          - name: VAULT_CRM_ROLE_ID
-           value: "{{ crm_vault_app_role.role_id }}"
+           value: "{{ crm_role.role_id }}"
          - name: VAULT_CRM_SECRET_ID
-           value: "{{ crm_vault_app_role.secret_id }}"
+           value: "{{ crm_role.secret_id }}"
          - name: JAEGER_ENDPOINT
            value: "{{ jaeger_endpoint }}"
          - name: JAEGER_TAGS

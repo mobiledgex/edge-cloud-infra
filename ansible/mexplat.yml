@@ -117,6 +117,10 @@
 - hosts: crms
   tasks:
     - import_role:
+        name: vault
+        tasks_from: load-token
+      delegate_to: localhost
+    - import_role:
         name: telegraf
       tags: monitoring
     - import_role:
@@ -141,6 +145,10 @@
 
 - hosts: console
   tasks:
+    - import_role:
+        name: vault
+        tasks_from: load-token
+      delegate_to: localhost
     - import_role:
         name: telegraf
       tags: [ 'monitoring', 'setup' ]

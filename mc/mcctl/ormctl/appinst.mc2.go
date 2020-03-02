@@ -162,6 +162,7 @@ var DeleteAppInstOptionalArgs = []string{
 	"mappedports.pathprefix",
 	"mappedports.fqdnprefix",
 	"mappedports.endport",
+	"mappedports.tls",
 	"flavor",
 	"state",
 	"errors",

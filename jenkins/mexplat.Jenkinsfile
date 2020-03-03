@@ -14,6 +14,7 @@ pipeline {
         AZURE_SERVICE_PRINCIPAL = credentials('azure-service-principal')
         AZURE_SUBSCRIPTION_ID = credentials('azure-subscription-id')
         AZURE_TENANT = credentials('azure-tenant-id')
+        ANSIBLE_ROLE = credentials('staging-vault-ansible-role')
     }
     stages {
         stage('Set up build tag') {
@@ -32,8 +33,11 @@ export GITHUB_USER="${GITHUB_CREDS_USR}"
 export GITHUB_TOKEN="${GITHUB_CREDS_PSW}"
 export AZURE_CLIENT_ID="${AZURE_SERVICE_PRINCIPAL_USR}"
 export AZURE_SECRET="${AZURE_SERVICE_PRINCIPAL_PSW}"
+export VAULT_ROLE_ID="${ANSIBLE_ROLE_USR}"
+export VAULT_SECRET_ID="${ANSIBLE_ROLE_PSW}"
 export ANSIBLE_FORCE_COLOR=true
-ansible-playbook -i staging -e "edge_cloud_version=${DOCKER_BUILD_TAG}" -e @ansible-mex-vault-staging.yml mexplat.yml
+
+./deploy.sh -V "$DOCKER_BUILD_TAG" -y staging
                         '''
                     }
                 }

@@ -40,6 +40,19 @@ func (p *MC) StartLocal(logfile string, opts ...process.StartOp) error {
 		args = append(args, "--clientCert")
 		args = append(args, p.TLS.ClientCert)
 	}
+	if p.LdapAddr != "" {
+		args = append(args, "--ldapAddr")
+		args = append(args, p.LdapAddr)
+	}
+	if p.NotifySrvAddr != "" {
+		args = append(args, "--notifySrvAddr")
+		args = append(args, p.NotifySrvAddr)
+	}
+	if p.ConsoleProxyAddr != "" {
+		args = append(args, "--consoleproxyaddr")
+		args = append(args, p.ConsoleProxyAddr)
+	}
+	args = append(args, "--hostname", p.Name)
 	args = append(args, "-skipVerifyEmail")
 	options := process.StartOptions{}
 	options.ApplyStartOptions(opts...)

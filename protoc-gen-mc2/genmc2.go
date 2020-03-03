@@ -330,6 +330,7 @@ func (g *GenMC2) generateMethod(service string, method *descriptor.MethodDescrip
 		HasMethodArgs:        gensupport.HasMethodArgs(method),
 		GenStream:            GetMc2StreamerCache(method) && !found,
 		StreamerCache:        GetMc2StreamerCache(method),
+		NotifyRoot:           GetMc2ApiNotifyroot(method),
 	}
 	if apiVals[2] == "" {
 		args.Org = `""`
@@ -360,6 +361,11 @@ func (g *GenMC2) generateMethod(service string, method *descriptor.MethodDescrip
 	} else if g.genclient {
 		tmpl = g.tmplMethodClient
 		g.importOrmapi = true
+		if inname == "ExecRequest" {
+			args.ExecReq = true
+			g.importStrings = true
+			g.importHttp = true
+		}
 	} else if g.gentest {
 		tmpl = g.tmplMethodTest
 		g.importOrmclient = true
@@ -384,6 +390,10 @@ func (g *GenMC2) generateMethod(service string, method *descriptor.MethodDescrip
 		args.NoConfig = gensupport.GetNoConfig(in.DescriptorProto, method)
 		g.importOrmapi = true
 		g.importStrings = true
+		if inname == "ExecRequest" {
+			args.ExecReq = true
+			g.importHttp = true
+		}
 	} else {
 		tmpl = g.tmpl
 		g.importEcho = true
@@ -434,6 +444,8 @@ type tmplArgs struct {
 	TargetCloudletArg    string
 	HasMethodArgs        bool
 	StreamerCache        bool
+	NotifyRoot           bool
+	ExecReq              bool
 }
 
 var tmplApi = `
@@ -641,7 +653,11 @@ func {{.MethodName}}Obj(ctx context.Context, rc *RegionContext, obj *edgeproto.{
 {{- end}}
 {{- end}}
 	if rc.conn == nil {
+{{- if .NotifyRoot}}
+		conn, err := connectNotifyRoot(ctx)
+{{- else}}
 		conn, err := connectController(ctx, rc.region)
+{{- end}}
 		if err != nil {
 			return {{.ReturnErrArg}}err
 		}
@@ -766,19 +782,34 @@ func (s *Client) {{.MethodName}}(uri, token string, in *ormapi.Region{{.InName}}
 	return &out, status, err
 }
 {{- end}}
+{{- if .ExecReq}}
+func (s *Client) {{.MethodName}}Stream(uri, token string, in *ormapi.Region{{.InName}}) ([]ormapi.WSStreamPayload, int, error) {
+	out := ormapi.WSStreamPayload{}
+	outlist := []ormapi.WSStreamPayload{}
+	if !strings.HasPrefix(uri, "ws://") && !strings.HasPrefix(uri, "wss://") {
+		return nil, http.StatusBadRequest, fmt.Errorf("only websocket supported")
+	}
+	status, err := s.PostJsonStreamOut(uri+"/auth/ctrl/{{.MethodName}}", token, in, &out, func() {
+		outlist = append(outlist, out)
+	})
+	return outlist, status, err
+}
+{{- end}}
 `
 
 var tmplMethodCtl = `
 var {{.MethodName}}Cmd = &cli.Command{
 	Use: "{{.MethodName}}",
 {{- if .Show}}
+{{- if not .NotifyRoot}}
 	RequiredArgs: "region",
+{{- end}}
 	OptionalArgs: strings.Join(append({{.InName}}RequiredArgs, {{.InName}}OptionalArgs...), " "),
 {{- else if .HasMethodArgs}}
-	RequiredArgs: strings.Join(append([]string{"region"}, {{.MethodName}}RequiredArgs...), " "),
+	RequiredArgs: {{if not .NotifyRoot}}"region " + {{end}}strings.Join({{.MethodName}}RequiredArgs, " "),
 	OptionalArgs: strings.Join({{.MethodName}}OptionalArgs, " "),
 {{- else}}
-	RequiredArgs: strings.Join(append([]string{"region"}, {{.InName}}RequiredArgs...), " "),
+	RequiredArgs: {{if not .NotifyRoot}}"region " + {{end}}strings.Join({{.InName}}RequiredArgs, " "),
 	OptionalArgs: strings.Join({{.InName}}OptionalArgs, " "),
 {{- end}}
 	AliasArgs: strings.Join({{.InName}}AliasArgs, " "),
@@ -841,6 +872,11 @@ func (s *Client) {{.MethodName}}(uri, token string, in *ormapi.Region{{.InName}}
 		return nil, st, err
 	}
 	return &out, st, err
+}
+{{- end}}
+{{- if .ExecReq}}
+func (s *Client) {{.MethodName}}Stream(uri, token string, in *ormapi.Region{{.InName}}) ([]ormapi.WSStreamPayload, int, error) {
+	return nil, http.StatusBadRequest, fmt.Errorf("not supported")
 }
 {{- end}}
 
@@ -1067,6 +1103,9 @@ func (g *GenMC2) generateClientInterface(service *descriptor.ServiceDescriptorPr
 		} else {
 			g.P(method.Name, "(uri, token string, in *ormapi.Region", inname, ") (*edgeproto.", outname, ", int, error)")
 		}
+		if inname == "ExecRequest" {
+			g.P(method.Name, "Stream(uri, token string, in *ormapi.RegionExecRequest) ([]ormapi.WSStreamPayload, int, error)")
+		}
 	}
 	g.P("}")
 	g.P()
@@ -1117,6 +1156,10 @@ func GetMc2CustomAuthz(method *descriptor.MethodDescriptorProto) bool {
 
 func GetMc2StreamerCache(method *descriptor.MethodDescriptorProto) bool {
 	return proto.GetBoolExtension(method.Options, protogen.E_Mc2StreamerCache, false)
+}
+
+func GetMc2ApiNotifyroot(method *descriptor.MethodDescriptorProto) bool {
+	return proto.GetBoolExtension(method.Options, protogen.E_Mc2ApiNotifyroot, false)
 }
 
 func GetMc2TargetCloudlet(message *descriptor.DescriptorProto) string {

@@ -1,0 +1,15 @@
+- name: Deploy the notifyroot service
+  docker_container:
+    name: notifyroot
+    image: "{{ edge_cloud_image }}:{{ edge_cloud_version }}"
+    restart_policy: unless-stopped
+    network_mode: host
+    command:
+      - notifyroot
+      - "--notifyAddr"
+      - "0.0.0.0:{{ notifyroot_port }}"
+      - "-tls"
+      - "/root/tls/mex-server.crt"
+    env:
+      JAEGER_ENDPOINT: "{{ jaeger_endpoint }}"
+      JAEGER_TAGS: "environ={{ deploy_environ }},version={{ edge_cloud_version }}"

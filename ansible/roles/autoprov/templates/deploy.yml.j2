@@ -40,8 +40,8 @@ spec:
          - name: JAEGER_TAGS
            value: "environ={{ deploy_environ }},version={{ edge_cloud_version }}"
          - name: VAULT_ROLE_ID
-           value: "{{ autoprov_vault_app_role.role_id }}"
+           value: "{{ autoprov_role.role_id }}"
          - name: VAULT_SECRET_ID
-           value: "{{ autoprov_vault_app_role.secret_id }}"
+           value: "{{ autoprov_role.secret_id }}"
       imagePullSecrets:
        - name: mexreg-secret 

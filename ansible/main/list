@@ -16,6 +16,9 @@ vault_firewall_setup=no
 letsencrypt_env=production
 console_vm_hostname=console.mobiledgex.net
 
+[notifyroot]
+notifyroot.mobiledgex.net
+
 [artifactory]
 artifactory.mobiledgex.net	ubuntu_release=xenial docker_skip_install=true artifactory_preconfigured=true install_webhook=true
 

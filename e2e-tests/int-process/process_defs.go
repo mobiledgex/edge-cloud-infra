@@ -7,13 +7,16 @@ import (
 )
 
 type MC struct {
-	process.Common `yaml:",inline"`
-	Addr           string
-	SqlAddr        string
-	VaultAddr      string
-	RolesFile      string
-	TLS            process.TLSCerts
-	cmd            *exec.Cmd
+	process.Common   `yaml:",inline"`
+	Addr             string
+	SqlAddr          string
+	VaultAddr        string
+	RolesFile        string
+	LdapAddr         string
+	NotifySrvAddr    string
+	ConsoleProxyAddr string
+	TLS              process.TLSCerts
+	cmd              *exec.Cmd
 }
 type Sql struct {
 	process.Common `yaml:",inline"`

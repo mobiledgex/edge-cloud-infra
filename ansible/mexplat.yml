@@ -117,6 +117,10 @@
 - hosts: crms
   tasks:
     - import_role:
+        name: vault
+        tasks_from: load-token
+      delegate_to: localhost
+    - import_role:
         name: telegraf
       tags: monitoring
     - import_role:
@@ -142,13 +146,17 @@
 - hosts: console
   tasks:
     - import_role:
+        name: vault
+        tasks_from: load-token
+      delegate_to: localhost
+    - import_role:
         name: telegraf
       tags: [ 'monitoring', 'setup' ]
     - import_role:
         name: web
       vars:
         nginx_config_template: "templates/mexplat/console-nginx-config.j2"
-        cert_domains: [ "{{ inventory_hostname }}" ]
+        cert_domains: [ "{{ inventory_hostname }}", "{{ console_vnc_hostname }}" ]
       when: skip_console_setup is not defined or not skip_console_setup
       tags: setup
     - import_role:
@@ -158,6 +166,14 @@
         name: console
     - import_role:
         name: mc
+
+- hosts: notifyroot
+  tasks:
+    - import_role:
+        name: telegraf
+      tags: [ 'monitoring', 'setup' ]
+    - import_role:
+        name: notifyroot
 
 - hosts: registry_replicas
   tasks:

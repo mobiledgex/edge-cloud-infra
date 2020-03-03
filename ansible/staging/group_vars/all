@@ -1,5 +1,7 @@
-jaeger_hostname: jaeger.mobiledgex.net
+jaeger_hostname: jaeger-stage.mobiledgex.net
 jaeger_endpoint: "https://{{ jaeger_hostname }}:14268/api/traces"
+console_vnc_hostname: console-stage-vnc.mobiledgex.net
+notifyroot_hostname: notifyroot-stage.mobiledgex.net
 vault_address: https://vault-stage.mobiledgex.net
 vault_ha_zones:
   us: us-west2-a

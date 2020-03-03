@@ -14,6 +14,9 @@ gitlab_config_path: /etc/gitlab/gitlab.rb
 etcd_opetator_crd: etcdclusters.etcd.database.coreos.com
 mc_api_port: 9900
 mc_ldap_port: 9389
+mc_vnc_port: 6080
+mc_notify_srv_port: 52001
+notifyroot_port: 53001
 postgres_server: postgres.mobiledgex.net:5432
 influxdb_name: monitoring-influxdb
 etcd_cluster_name: mex-etcd

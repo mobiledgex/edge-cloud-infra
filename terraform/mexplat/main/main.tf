@@ -104,13 +104,25 @@ module "console" {
   instance_name       = "${var.console_instance_name}"
   zone                = "${var.gcp_zone}"
   boot_disk_size      = 100
-  tags                = [ "http-server", "https-server", "console-debug", "mc" ]
+  tags                = [ "http-server", "https-server", "console-debug", "mc", "notifyroot" ]
   ssh_public_key_file = "${var.ssh_public_key_file}"
 }
 
 module "console_dns" {
   source                        = "../../modules/cloudflare_record"
   hostname                      = "${var.console_domain_name}"
+  ip                            = "${module.console.external_ip}"
+}
+
+module "console_vnc_dns" {
+  source                        = "../../modules/cloudflare_record"
+  hostname                      = "${var.console_vnc_domain_name}"
+  ip                            = "${module.console.external_ip}"
+}
+
+module "notifyroot_dns" {
+  source                        = "../../modules/cloudflare_record"
+  hostname                      = "${var.notifyroot_domain_name}"
   ip                            = "${module.console.external_ip}"
 }
 

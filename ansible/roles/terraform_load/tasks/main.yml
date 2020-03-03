@@ -1,3 +1,8 @@
+- name: Load azure creds from vault
+  import_role:
+    name: load-vault-creds
+    tasks_from: azure
+
 - name: Import terraform variables from ansible
   make:
     chdir: "../terraform/mexplat/{{ deploy_environ }}"

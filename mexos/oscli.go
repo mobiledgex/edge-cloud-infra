@@ -107,6 +107,7 @@ func GetImageDetail(ctx context.Context, name string) (*OSImageDetail, error) {
 		"-c", "status",
 		"-c", "updated_at",
 		"-c", "checksum",
+		"-c", "disk_format",
 	)
 	if err != nil {
 		err = fmt.Errorf("cannot get image Detail for %s, %s, %v", name, string(out), err)
@@ -268,8 +269,8 @@ func CreateServer(ctx context.Context, opts *OSServerOpt) error {
 	return nil
 }
 
-// GetServerDetails returns details of the KVM instance
-func GetServerDetails(ctx context.Context, name string) (*OSServerDetail, error) {
+// GetActiveServerDetails returns details of the KVM instance waiting for it to be ACTIVE
+func GetActiveServerDetails(ctx context.Context, name string) (*OSServerDetail, error) {
 	active := false
 	srvDetail := &OSServerDetail{}
 	for i := 0; i < 10; i++ {
@@ -295,6 +296,23 @@ func GetServerDetails(ctx context.Context, name string) (*OSServerDetail, error)
 		return nil, fmt.Errorf("while getting server detail, waited but server %s is too slow getting to active state", name)
 	}
 	//log.SpanLog(ctx,log.DebugLevelMexos, "server detail", "server detail", srvDetail)
+	return srvDetail, nil
+}
+
+// GetServerDetails returns details of the KVM instance
+func GetServerDetails(ctx context.Context, name string) (*OSServerDetail, error) {
+	srvDetail := &OSServerDetail{}
+	out, err := TimedOpenStackCommand(ctx, "openstack", "server", "show", "-f", "json", name)
+	if err != nil {
+		err = fmt.Errorf("can't show server %s, %s, %v", name, out, err)
+		return nil, err
+	}
+	//fmt.Printf("%s\n", out)
+	err = json.Unmarshal(out, srvDetail)
+	if err != nil {
+		err = fmt.Errorf("cannot unmarshal while getting server detail, %v", err)
+		return nil, err
+	}
 	return srvDetail, nil
 }
 
@@ -643,15 +661,15 @@ func CreateServerImage(ctx context.Context, serverName, imageName string) error 
 }
 
 //CreateImage puts images into glance
-func CreateImage(ctx context.Context, imageName, qcowFile string) error {
-	log.SpanLog(ctx, log.DebugLevelMexos, "creating image in glance", "image", imageName, "qcow", qcowFile)
+func CreateImage(ctx context.Context, imageName, fileName string) error {
+	log.SpanLog(ctx, log.DebugLevelMexos, "creating image in glance", "image", imageName, "fileName", fileName)
 	out, err := TimedOpenStackCommand(ctx, "openstack", "image", "create",
 		imageName,
-		"--disk-format", "qcow2",
+		"--disk-format", GetCloudletImageDiskFormat(),
 		"--container-format", "bare",
-		"--file", qcowFile)
+		"--file", fileName)
 	if err != nil {
-		err = fmt.Errorf("can't create image in glance, %s, %s, %s, %v", imageName, qcowFile, out, err)
+		err = fmt.Errorf("can't create image in glance, %s, %s, %s, %v", imageName, fileName, out, err)
 		return err
 	}
 	return nil
@@ -676,7 +694,7 @@ func CreateImageFromUrl(ctx context.Context, imageName, imageUrl, md5Sum string)
 		}
 		log.SpanLog(ctx, log.DebugLevelMexos, "verify md5sum", "downloaded-md5sum", fileMd5Sum, "actual-md5sum", md5Sum)
 		if fileMd5Sum != md5Sum {
-			return fmt.Errorf("mismatch in md5sum")
+			return fmt.Errorf("mismatch in md5sum for downloaded image: %s", imageName)
 		}
 	}
 
@@ -1023,4 +1041,16 @@ func AddImageIfNotPresent(ctx context.Context, imgPathPrefix, imgVersion string,
 		}
 	}
 	return pfImageName, nil
+}
+
+func OSSetPowerState(ctx context.Context, serverName, serverAction string) error {
+	log.SpanLog(ctx, log.DebugLevelMexos, "setting server state", "serverName", serverName, "serverAction", serverAction)
+
+	out, err := TimedOpenStackCommand(ctx, "openstack", "server", serverAction, serverName)
+	if err != nil {
+		err = fmt.Errorf("unable to %s server %s, %s, %v", serverAction, serverName, out, err)
+		return err
+	}
+
+	return nil
 }

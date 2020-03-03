@@ -19,6 +19,10 @@
 - set_fact:
     mc_gitlab_token: "{{ vault_lookup.token.data.apikey }}"
 
+- name: Fetch MC vault role
+  set_fact:
+    mc_role: "{{ lookup('approle', 'mcorm.v1') }}"
+
 - name: Compute mc command line
   set_fact:
     mc_args:
@@ -76,8 +80,8 @@
       db_password: "{{ mc_postgres_password }}"
       superuser: "{{ mc_superuser }}"
       superpass: "{{ mc_default_superuser_password }}"
-      VAULT_ROLE_ID: "{{ mc_vault_app_role.role_id }}"
-      VAULT_SECRET_ID: "{{ mc_vault_app_role.secret_id }}"
+      VAULT_ROLE_ID: "{{ mc_role.role_id }}"
+      VAULT_SECRET_ID: "{{ mc_role.secret_id }}"
       gitlab_token: "{{ mc_gitlab_token }}"
       JAEGER_ENDPOINT: "{{ jaeger_endpoint }}"
       JAEGER_TAGS: "mc={{ mc_name }},environ={{ deploy_environ }},version={{ edge_cloud_version }}"

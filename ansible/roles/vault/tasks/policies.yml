@@ -4,11 +4,14 @@
     content: "{{ lookup('template', item) }}"
   loop:
     - policies/ansible.read.v1.hcl.j2
+    - policies/approle.login.v1.hcl.j2
+    - policies/approle-accessors.read.v1.hcl.j2
+    - policies/approle-accessors.write.v1.hcl.j2
     - policies/auth-approle.read.v1.hcl.j2
     - policies/auth-approle.write.v1.hcl.j2
+    - policies/auth-approle.destroy.v1.hcl.j2
     - policies/auth-github-config.read.v1.hcl.j2
     - policies/auth-github-config.write.v1.hcl.j2
-    - policies/approle.login.v1.hcl.j2
     - policies/certs.read.v1.hcl.j2
     - policies/cloudlets.read.v1.hcl.j2
     - policies/cloudlets.write.v1.hcl.j2

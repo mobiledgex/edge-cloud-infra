@@ -1,6 +1,10 @@
+- name: Fetch autoprov vault role
+  set_fact:
+    autoprov_role: "{{ lookup('approle', 'autoprov.v1') }}"
+
 - name: Deploy Autoprov Service
   k8s:
     kubeconfig: "{{ kubeconfig_file.path }}"
     namespace: default
     state: present
-    definition: "{{ lookup('template', 'autoprov-svc-deploy.yml.j2') }}"
+    definition: "{{ lookup('template', 'deploy.yml.j2') }}"

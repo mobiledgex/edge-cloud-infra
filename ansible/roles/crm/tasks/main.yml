@@ -35,6 +35,10 @@
        - controller name: {{ controller_name }}
        - notify srv port: {{ notify_srv_port }}
 
+- name: Fetch CRM vault role
+  set_fact:
+    crm_role: "{{ lookup('approle', 'crm.v1', id=crm_name) }}"
+
 - name: Compute CRM command line
   set_fact:
     crm_args:
@@ -62,8 +66,8 @@
     crm_env:
       PLATFORM: "{{ item.platform | default('PLATFORM_TYPE_OPENSTACK') }}"
       MEX_EXT_NETWORK: "{{ item.mex_ext_network | default(mex_ext_network) }}"
-      VAULT_ROLE_ID: "{{ crm_vault_app_role.role_id }}"
-      VAULT_SECRET_ID: "{{ crm_vault_app_role.secret_id }}"
+      VAULT_ROLE_ID: "{{ crm_role.role_id }}"
+      VAULT_SECRET_ID: "{{ crm_role.secret_id }}"
       MEX_SECURITY_GROUP: "{{ item.mex_security_group | default(mex_security_group) }}"
       JAEGER_ENDPOINT: "{{ jaeger_endpoint }}"
       JAEGER_TAGS: "crm={{ crm_name }},cloudlet={{ item.cloudlet_name }},operator={{ item.operator_key }},environ={{ deploy_environ }},version={{ edge_cloud_version }}"

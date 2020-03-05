@@ -19,7 +19,7 @@ import (
 )
 
 // AddProxySecurityRulesAndPatchDNS Adds security rules and dns records in parallel
-func AddProxySecurityRulesAndPatchDNS(ctx context.Context, client ssh.Client, kubeNames *k8smgmt.KubeNames, app *edgeproto.App, appInst *edgeproto.AppInst, getDnsSvcAction GetDnsSvcActionFunc, rootLBName, listenIP, backendIP string, addProxy bool, vaultConfig *vault.Config, ops ...proxy.Op) error {
+func AddProxySecurityRulesAndPatchDNS(ctx context.Context, client ssh.Client, kubeNames *k8smgmt.KubeNames, app *edgeproto.App, appInst *edgeproto.AppInst, getDnsSvcAction GetDnsSvcActionFunc, rootLBName, listenIP, backendIP string, addProxy bool, addSecurityRules bool, vaultConfig *vault.Config, ops ...proxy.Op) error {
 	secchan := make(chan string)
 	dnschan := make(chan string)
 	proxychan := make(chan string)
@@ -58,11 +58,13 @@ func AddProxySecurityRulesAndPatchDNS(ctx context.Context, client ssh.Client, ku
 		}
 	}()
 	go func() {
-		err := AddSecurityRules(ctx, GetSecurityGroupName(ctx, rootLBName), appInst.MappedPorts, rootLBName)
-		if err == nil {
-			secchan <- ""
-		} else {
-			secchan <- err.Error()
+		if addSecurityRules {
+			err := AddSecurityRules(ctx, GetSecurityGroupName(ctx, rootLBName), appInst.MappedPorts, rootLBName)
+			if err == nil {
+				secchan <- ""
+			} else {
+				secchan <- err.Error()
+			}
 		}
 	}()
 	go func() {

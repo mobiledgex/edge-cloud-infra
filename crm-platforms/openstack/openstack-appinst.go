@@ -102,10 +102,10 @@ func (s *Platform) CreateAppInst(ctx context.Context, clusterInst *edgeproto.Clu
 				}
 				// If this is an internal ports, all we need is patch of kube service
 				if app.InternalPorts {
-					err = mexos.CreateAppDNS(ctx, client, names, mexos.NoDnsOverride, getDnsAction)
+					err = mexos.CreateAppDNSAndPatchKubeSvc(ctx, client, names, mexos.NoDnsOverride, getDnsAction)
 				} else {
 					updateCallback(edgeproto.UpdateTask, "Configuring Service: LB, Firewall Rules and DNS")
-					err = mexos.AddProxySecurityRulesAndPatchDNS(ctx, client, names, app, appInst, getDnsAction, rootLBName, cloudcommon.IPAddrAllInterfaces, masterIP, true, true, s.vaultConfig, proxy.WithDockerPublishPorts(), proxy.WithDockerNetwork(""))
+					err = mexos.AddProxySecurityRulesAndPatchDNS(ctx, client, names, app, appInst, getDnsAction, rootLBName, cloudcommon.IPAddrAllInterfaces, masterIP, true, true, true, s.vaultConfig, proxy.WithDockerPublishPorts(), proxy.WithDockerNetwork(""))
 				}
 			}
 		}
@@ -199,6 +199,14 @@ func (s *Platform) CreateAppInst(ctx context.Context, clusterInst *edgeproto.Clu
 		if err != nil {
 			return fmt.Errorf("unable to get vm params: %v", err)
 		}
+		deploymentVars := crmutil.DeploymentReplaceVars{
+			Deployment: crmutil.CrmReplaceVars{
+				CloudletName:  k8smgmt.NormalizeName(appInst.Key.ClusterInstKey.ClusterKey.Name),
+				DeveloperName: k8smgmt.NormalizeName(app.Key.DeveloperKey.Name),
+				DnsZone:       mexos.GetCloudletDNSZone(),
+			},
+		}
+		ctx = context.WithValue(ctx, crmutil.DeploymentReplaceVarsKey, &deploymentVars)
 
 		externalServerName := objName // which server provides external access, VM or LB
 		if app.AccessType == edgeproto.AccessType_ACCESS_TYPE_LOAD_BALANCER {
@@ -245,7 +253,7 @@ func (s *Platform) CreateAppInst(ctx context.Context, clusterInst *edgeproto.Clu
 			return err
 		}
 		if app.AccessType == edgeproto.AccessType_ACCESS_TYPE_LOAD_BALANCER {
-			updateCallback(edgeproto.UpdateTask, "Setting up load balancer")
+			updateCallback(edgeproto.UpdateTask, "Setting Up Load Balancer")
 			var ops []proxy.Op
 			client, err := s.GetPlatformClientRootLB(ctx, externalServerName)
 			if err != nil {
@@ -267,23 +275,24 @@ func (s *Platform) CreateAppInst(ctx context.Context, clusterInst *edgeproto.Clu
 			if err != nil {
 				return err
 			}
-			err = mexos.AddProxySecurityRulesAndPatchDNS(ctx, client, names, app, appInst, getDnsAction, externalServerName, cloudcommon.IPAddrAllInterfaces, vmIP, true, false, s.vaultConfig, ops...)
+			updateCallback(edgeproto.UpdateTask, "Configuring Firewall Rules")
+			err = mexos.AddProxySecurityRulesAndPatchDNS(ctx, client, names, app, appInst, getDnsAction, externalServerName, cloudcommon.IPAddrAllInterfaces, vmIP, true, false, false, s.vaultConfig, ops...)
 			if err != nil {
 				return fmt.Errorf("AddProxySecurityRulesAndPatchDNS error: %v", err)
 			}
-
-		} else {
-			if appInst.Uri != "" && externalIP != "" {
-				fqdn := appInst.Uri
-				if err = mexos.ActivateFQDNA(ctx, fqdn, externalIP); err != nil {
-					return err
-				}
-				log.SpanLog(ctx, log.DebugLevelMexos, "DNS A record activated",
-					"name", objName,
-					"fqdn", fqdn,
-					"IP", externalIP)
-			}
 		}
+		updateCallback(edgeproto.UpdateTask, "Adding DNS Entry")
+		if appInst.Uri != "" && externalIP != "" {
+			fqdn := appInst.Uri
+			if err = mexos.ActivateFQDNA(ctx, fqdn, externalIP); err != nil {
+				return err
+			}
+			log.SpanLog(ctx, log.DebugLevelMexos, "DNS A record activated",
+				"name", objName,
+				"fqdn", fqdn,
+				"IP", externalIP)
+		}
+
 		return nil
 	case cloudcommon.AppDeploymentTypeDocker:
 		rootLBName := s.rootLBName
@@ -354,7 +363,7 @@ func (s *Platform) CreateAppInst(ctx context.Context, clusterInst *edgeproto.Clu
 			addproxy = true
 			listenIP = rootLBIPaddr
 		}
-		err = mexos.AddProxySecurityRulesAndPatchDNS(ctx, rootLBClient, names, app, appInst, getDnsAction, rootLBName, listenIP, backendIP, addproxy, true, s.vaultConfig, ops...)
+		err = mexos.AddProxySecurityRulesAndPatchDNS(ctx, rootLBClient, names, app, appInst, getDnsAction, rootLBName, listenIP, backendIP, addproxy, true, true, s.vaultConfig, ops...)
 		if err != nil {
 			return fmt.Errorf("AddProxySecurityRulesAndPatchDNS error: %v", err)
 		}

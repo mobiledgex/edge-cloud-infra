@@ -19,7 +19,7 @@ import (
 )
 
 // AddProxySecurityRulesAndPatchDNS Adds security rules and dns records in parallel
-func AddProxySecurityRulesAndPatchDNS(ctx context.Context, client ssh.Client, kubeNames *k8smgmt.KubeNames, app *edgeproto.App, appInst *edgeproto.AppInst, getDnsSvcAction GetDnsSvcActionFunc, rootLBName, listenIP, backendIP string, addProxy bool, addSecurityRules bool, vaultConfig *vault.Config, ops ...proxy.Op) error {
+func AddProxySecurityRulesAndPatchDNS(ctx context.Context, client ssh.Client, kubeNames *k8smgmt.KubeNames, app *edgeproto.App, appInst *edgeproto.AppInst, getDnsSvcAction GetDnsSvcActionFunc, rootLBName, listenIP, backendIP string, addProxy bool, addSecurityRules bool, addDnsAndPatchKubeSvc bool, vaultConfig *vault.Config, ops ...proxy.Op) error {
 	secchan := make(chan string)
 	dnschan := make(chan string)
 	proxychan := make(chan string)
@@ -41,7 +41,7 @@ func AddProxySecurityRulesAndPatchDNS(ctx context.Context, client ssh.Client, ku
 				proxyerr := GetCertFromVault(ctx, vaultConfig, aac.LbTlsCertCommonName, &tlsCert)
 				log.SpanLog(ctx, log.DebugLevelMexos, "got cert from vault", "tlsCert", tlsCert, "err", err)
 				if proxyerr != nil {
-					log.SpanLog(ctx, log.DebugLevelMexos, "Error getting cert from vault", "err", err)
+					log.SpanLog(ctx, log.DebugLevelMexos, "Error getting cert from vault", "err", proxyerr)
 					proxychan <- proxyerr.Error()
 					return
 				}
@@ -65,14 +65,20 @@ func AddProxySecurityRulesAndPatchDNS(ctx context.Context, client ssh.Client, ku
 			} else {
 				secchan <- err.Error()
 			}
+		} else {
+			secchan <- ""
 		}
 	}()
 	go func() {
-		err := CreateAppDNS(ctx, client, kubeNames, aac.DnsOverride, getDnsSvcAction)
-		if err == nil {
-			dnschan <- ""
+		if addDnsAndPatchKubeSvc {
+			err := CreateAppDNSAndPatchKubeSvc(ctx, client, kubeNames, aac.DnsOverride, getDnsSvcAction)
+			if err == nil {
+				dnschan <- ""
+			} else {
+				dnschan <- err.Error()
+			}
 		} else {
-			dnschan <- err.Error()
+			dnschan <- ""
 		}
 	}()
 	proxyerr := <-proxychan

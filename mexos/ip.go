@@ -211,6 +211,7 @@ func GetMasterNameAndIP(ctx context.Context, clusterInst *edgeproto.ClusterInst)
 	if clusterInst.Deployment == cloudcommon.AppDeploymentTypeDocker {
 		namePrefix = ClusterTypeDockerVMLabel
 	}
+
 	nodeNameSuffix := k8smgmt.GetK8sNodeNameSuffix(&clusterInst.Key)
 	masterName, err := FindClusterMaster(ctx, namePrefix, nodeNameSuffix, srvs)
 	if err != nil {

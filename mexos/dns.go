@@ -38,7 +38,7 @@ var NoDnsOverride = ""
 // The passed in GetDnsSvcActionFunc function should provide this function
 // with the actions to perform for each service, since different platforms
 // will use different IPs and patching.
-func CreateAppDNS(ctx context.Context, client ssh.Client, kubeNames *k8smgmt.KubeNames, overrideDns string, getSvcAction GetDnsSvcActionFunc) error {
+func CreateAppDNSAndPatchKubeSvc(ctx context.Context, client ssh.Client, kubeNames *k8smgmt.KubeNames, overrideDns string, getSvcAction GetDnsSvcActionFunc) error {
 
 	log.SpanLog(ctx, log.DebugLevelMexos, "createAppDNS")
 	useDns := true

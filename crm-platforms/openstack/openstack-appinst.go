@@ -87,15 +87,15 @@ func (s *Platform) CreateAppInst(ctx context.Context, clusterInst *edgeproto.Clu
 		}()
 
 		// set up DNS
-		var rootLBIPaddr string
+		var rootLBIPaddr *mexos.ServerIP
 		if masterIpErr == nil {
-			rootLBIPaddr, err = mexos.GetServerIPAddr(ctx, mexos.GetCloudletExternalNetwork(), rootLBName, mexos.ExternalIPType)
+			rootLBIPaddr, err = mexos.GetServerIPAddr(ctx, mexos.GetCloudletExternalNetwork(), rootLBName)
 			if err == nil {
 				getDnsAction := func(svc v1.Service) (*mexos.DnsSvcAction, error) {
 					action := mexos.DnsSvcAction{}
 					action.PatchKube = true
 					action.PatchIP = masterIP
-					action.ExternalIP = rootLBIPaddr
+					action.ExternalIP = rootLBIPaddr.ExternalAddr
 					// Should only add DNS for external ports
 					action.AddDNS = !app.InternalPorts
 					return &action, nil
@@ -248,7 +248,7 @@ func (s *Platform) CreateAppInst(ctx context.Context, clusterInst *edgeproto.Clu
 				return err
 			}
 		}
-		externalIP, err := mexos.GetServerIPAddr(ctx, mexos.GetCloudletExternalNetwork(), externalServerName, mexos.ExternalIPType)
+		ip, err := mexos.GetServerIPAddr(ctx, mexos.GetCloudletExternalNetwork(), externalServerName)
 		if err != nil {
 			return err
 		}
@@ -268,29 +268,37 @@ func (s *Platform) CreateAppInst(ctx context.Context, clusterInst *edgeproto.Clu
 			getDnsAction := func(svc v1.Service) (*mexos.DnsSvcAction, error) {
 				action := mexos.DnsSvcAction{}
 				action.PatchKube = false
-				action.ExternalIP = externalIP
+				action.ExternalIP = ip.ExternalAddr
 				return &action, nil
 			}
-			vmIP, err := mexos.GetServerIPAddr(ctx, mexos.GetCloudletMexNetwork(), objName, mexos.ExternalIPType)
+			vmIP, err := mexos.GetServerIPAddr(ctx, mexos.GetCloudletMexNetwork(), objName)
 			if err != nil {
 				return err
 			}
 			updateCallback(edgeproto.UpdateTask, "Configuring Firewall Rules")
-			err = mexos.AddProxySecurityRulesAndPatchDNS(ctx, client, names, app, appInst, getDnsAction, externalServerName, cloudcommon.IPAddrAllInterfaces, vmIP, true, false, false, s.vaultConfig, ops...)
+			err = mexos.AddProxySecurityRulesAndPatchDNS(ctx, client, names, app, appInst, getDnsAction, externalServerName, cloudcommon.IPAddrAllInterfaces, vmIP.ExternalAddr, true, false, false, s.vaultConfig, ops...)
 			if err != nil {
 				return fmt.Errorf("AddProxySecurityRulesAndPatchDNS error: %v", err)
 			}
 		}
 		updateCallback(edgeproto.UpdateTask, "Adding DNS Entry")
-		if appInst.Uri != "" && externalIP != "" {
+		if appInst.Uri != "" && ip.ExternalAddr != "" {
 			fqdn := appInst.Uri
-			if err = mexos.ActivateFQDNA(ctx, fqdn, externalIP); err != nil {
+			configs := append(app.Configs, appInst.Configs...)
+			aac, err := access.GetAppAccessConfig(ctx, configs)
+			if err != nil {
+				return err
+			}
+			if aac.DnsOverride != "" {
+				fqdn = aac.DnsOverride
+			}
+			if err = mexos.ActivateFQDNA(ctx, fqdn, ip.ExternalAddr); err != nil {
 				return err
 			}
 			log.SpanLog(ctx, log.DebugLevelMexos, "DNS A record activated",
 				"name", objName,
 				"fqdn", fqdn,
-				"IP", externalIP)
+				"IP", ip.ExternalAddr)
 		}
 
 		return nil
@@ -329,7 +337,7 @@ func (s *Platform) CreateAppInst(ctx context.Context, clusterInst *edgeproto.Clu
 			dockerNetworkMode = dockermgmt.DockerHostMode
 		}
 
-		rootLBIPaddr, err := mexos.GetServerIPAddr(ctx, mexos.GetCloudletExternalNetwork(), rootLBName, mexos.ExternalIPType)
+		rootLBIPaddr, err := mexos.GetServerIPAddr(ctx, mexos.GetCloudletExternalNetwork(), rootLBName)
 		if err != nil {
 			return err
 		}
@@ -351,7 +359,7 @@ func (s *Platform) CreateAppInst(ctx context.Context, clusterInst *edgeproto.Clu
 		getDnsAction := func(svc v1.Service) (*mexos.DnsSvcAction, error) {
 			action := mexos.DnsSvcAction{}
 			action.PatchKube = false
-			action.ExternalIP = rootLBIPaddr
+			action.ExternalIP = rootLBIPaddr.ExternalAddr
 			return &action, nil
 		}
 		updateCallback(edgeproto.UpdateTask, "Configuring Firewall Rules and DNS")
@@ -361,7 +369,7 @@ func (s *Platform) CreateAppInst(ctx context.Context, clusterInst *edgeproto.Clu
 		if app.AccessType == edgeproto.AccessType_ACCESS_TYPE_LOAD_BALANCER {
 			ops = append(ops, proxy.WithDockerPublishPorts(), proxy.WithDockerNetwork(""))
 			addproxy = true
-			listenIP = rootLBIPaddr
+			listenIP = rootLBIPaddr.InternalAddr
 		}
 		err = mexos.AddProxySecurityRulesAndPatchDNS(ctx, rootLBClient, names, app, appInst, getDnsAction, rootLBName, listenIP, backendIP, addproxy, true, true, s.vaultConfig, ops...)
 		if err != nil {
@@ -450,6 +458,20 @@ func (s *Platform) DeleteAppInst(ctx context.Context, clusterInst *edgeproto.Clu
 		err := mexos.HeatDeleteStack(ctx, objName)
 		if err != nil {
 			return fmt.Errorf("DeleteVMAppInst error: %v", err)
+		}
+		if appInst.Uri != "" {
+			fqdn := appInst.Uri
+			configs := append(app.Configs, appInst.Configs...)
+			aac, err := access.GetAppAccessConfig(ctx, configs)
+			if err != nil {
+				return err
+			}
+			if aac.DnsOverride != "" {
+				fqdn = aac.DnsOverride
+			}
+			if err = mexos.DeleteDNSRecords(ctx, fqdn); err != nil {
+				log.SpanLog(ctx, log.DebugLevelMexos, "cannot delete DNS entries", "fqdn", fqdn)
+			}
 		}
 		return nil
 
@@ -662,8 +684,8 @@ func (s *Platform) SetPowerState(ctx context.Context, app *edgeproto.App, appIns
 		}
 
 		updateCallback(edgeproto.UpdateTask, fmt.Sprintf("Fetching external address of %s", serverName))
-		oldServerIP, err := mexos.GetServerExternalIPFromAddr(ctx, mexos.GetCloudletExternalNetwork(), serverDetail.Addresses, serverName, mexos.ExternalIPType)
-		if err != nil || oldServerIP == "" {
+		oldServerIP, err := mexos.GetServerIPFromAddrs(ctx, mexos.GetCloudletExternalNetwork(), serverDetail.Addresses, serverName)
+		if err != nil || oldServerIP.ExternalAddr == "" {
 			return fmt.Errorf("unable to fetch external ip for %s, addr %s, err %v", serverName, serverDetail.Addresses, err)
 		}
 
@@ -680,17 +702,17 @@ func (s *Platform) SetPowerState(ctx context.Context, app *edgeproto.App, appIns
 				return err
 			}
 			updateCallback(edgeproto.UpdateTask, fmt.Sprintf("Fetching external address of %s", serverName))
-			newServerIP, err := mexos.GetServerExternalIPFromAddr(ctx, mexos.GetCloudletExternalNetwork(), serverDetail.Addresses, serverName, mexos.ExternalIPType)
-			if err != nil || newServerIP == "" {
+			newServerIP, err := mexos.GetServerIPFromAddrs(ctx, mexos.GetCloudletExternalNetwork(), serverDetail.Addresses, serverName)
+			if err != nil || newServerIP.ExternalAddr == "" {
 				return fmt.Errorf("unable to fetch external ip for %s, addr %s, err %v", serverName, serverDetail.Addresses, err)
 			}
-			if oldServerIP != newServerIP {
+			if oldServerIP.ExternalAddr != newServerIP.ExternalAddr {
 				// IP changed, update DNS entry
 				updateCallback(edgeproto.UpdateTask, fmt.Sprintf("Updating DNS entry as IP changed for %s", serverName))
 				log.SpanLog(ctx, log.DebugLevelMexos, "updating DNS entry", "serverName", serverName, "fqdn", fqdn, "ip", newServerIP)
-				err = mexos.ActivateFQDNA(ctx, fqdn, newServerIP)
+				err = mexos.ActivateFQDNA(ctx, fqdn, newServerIP.ExternalAddr)
 				if err != nil {
-					return fmt.Errorf("unable to update fqdn for %s, addr %s, err %v", serverName, newServerIP, err)
+					return fmt.Errorf("unable to update fqdn for %s, addr %s, err %v", serverName, newServerIP.ExternalAddr, err)
 				}
 			}
 		}

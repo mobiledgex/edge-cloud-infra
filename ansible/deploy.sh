@@ -111,9 +111,11 @@ if [[ -f "$PERSONAL_ANSIBLE_VAULT" ]]; then
 elif [[ -f "${HOME}/${PERSONAL_ANSIBLE_VAULT}" ]]; then
 	ARGS+=( -e "@${HOME}/${PERSONAL_ANSIBLE_VAULT}" )
 elif [[ "$SKIP_GITHUB" != true && -z "$CONSOLE_VERSION" ]]; then
-	# Get Github creds from user
-	read -p 'Github username: ' GITHUB_USER
-	read -p 'Github password/token: ' -s GITHUB_TOKEN
+	if [[ -z "$GITHUB_USER" || -z "$GITHUB_TOKEN" ]]; then
+		# Get Github creds from user
+		read -p 'Github username: ' GITHUB_USER
+		read -p 'Github password/token: ' -s GITHUB_TOKEN
+	fi
 	curl --fail --user "${GITHUB_USER}:${GITHUB_TOKEN}" https://api.github.com/users/${GITHUB_USER} >/dev/null 2>&1
 	if [[ $? -ne 0 ]]; then
 		echo; echo

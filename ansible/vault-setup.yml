@@ -72,6 +72,14 @@
         loop_var: team
       tags: setup
 
+    - include_role:
+        name: vault
+        tasks_from: github-users
+      loop: "{{ vault_github_users }}"
+      loop_control:
+        loop_var: user
+      tags: setup
+
     - import_role:
         name: vault
         tasks_from: policies

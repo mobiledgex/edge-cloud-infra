@@ -7,6 +7,12 @@ vault_ha_zones:
   us: us-west2-a
   eu: europe-west3-a
 
+vault_github_users:
+  - userid: andya072071
+    role: admin
+  - userid: venkytv
+    role: admin
+
 crm_instances:
 
   - cloudlet_name: automationAzureCentralCloudlet

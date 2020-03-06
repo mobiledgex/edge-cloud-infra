@@ -5,8 +5,6 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/mobiledgex/edge-cloud/log"
-
 	"github.com/mobiledgex/edge-cloud-infra/openstack-tenant/agent/cloudflare"
 )
 
@@ -70,25 +68,4 @@ func ActivateFQDNA(ctx context.Context, fqdn, addr string) error {
 		return fmt.Errorf("cannot init cloudflare api, %v", err)
 	}
 	return cloudflare.CreateOrUpdateDNSRecord(ctx, GetCloudletDNSZone(), fqdn, "A", mappedAddr, 1, false)
-}
-
-//ActivateFQDNA deletes the FQDN
-func DeactivateFQDNA(ctx context.Context, fqdn string) error {
-
-	if err := cloudflare.InitAPI(GetCloudletCFUser(), GetCloudletCFKey()); err != nil {
-		return fmt.Errorf("cannot init cloudflare api, %v", err)
-	}
-	recs, derr := cloudflare.GetDNSRecords(ctx, GetCloudletDNSZone(), fqdn)
-	if derr != nil {
-		return fmt.Errorf("error getting dns records for %s, %v", GetCloudletDNSZone(), derr)
-	}
-	for _, rec := range recs {
-		if rec.Type == "A" && rec.Name == fqdn {
-			if err := cloudflare.DeleteDNSRecord(GetCloudletDNSZone(), rec.ID); err != nil {
-				return fmt.Errorf("cannot delete existing DNS record %v, %v", rec, err)
-			}
-			log.SpanLog(ctx, log.DebugLevelMexos, "deleted DNS record", "name", fqdn)
-		}
-	}
-	return nil
 }

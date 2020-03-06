@@ -15,7 +15,6 @@ import (
 	"github.com/mobiledgex/edge-cloud/cloudcommon"
 	"github.com/mobiledgex/edge-cloud/edgeproto"
 	"github.com/mobiledgex/edge-cloud/log"
-	"github.com/mobiledgex/edge-cloud/vmspec"
 	v1 "k8s.io/api/core/v1"
 )
 
@@ -170,20 +169,12 @@ func (s *Platform) CreateAppInst(ctx context.Context, clusterInst *edgeproto.Clu
 			}
 		}
 
-		finfo, _, _, err := mexos.GetFlavorInfo(ctx)
-		if err != nil {
-			return err
-		}
-		vmspec, err := vmspec.GetVMSpec(finfo, *appFlavor)
-		if err != nil {
-			return fmt.Errorf("unable to find closest flavor for app: %v", err)
-		}
 		objName := cloudcommon.GetAppFQN(&app.Key)
 		vmp, err := mexos.GetVMParams(ctx,
 			mexos.UserVMDeployment,
 			objName,
-			vmspec.FlavorName,
-			vmspec.ExternalVolumeSize,
+			appInst.NodeFlavor,
+			appInst.ExternalVolumeSize,
 			imageName,
 			mexos.GetSecurityGroupName(ctx, objName),
 			&clusterInst.Key.CloudletKey,
@@ -198,7 +189,7 @@ func (s *Platform) CreateAppInst(ctx context.Context, clusterInst *edgeproto.Clu
 			return fmt.Errorf("unable to get vm params: %v", err)
 		}
 		updateCallback(edgeproto.UpdateTask, "Deploying VM")
-		log.SpanLog(ctx, log.DebugLevelMexos, "Deploying VM", "stackName", objName, "vmspec", vmspec)
+		log.SpanLog(ctx, log.DebugLevelMexos, "Deploying VM", "stackName", objName, "flavor", appInst.Flavor, "ExternalVolummeSize", appInst.ExternalVolumeSize)
 		err = mexos.CreateHeatStackFromTemplate(ctx, vmp, objName, mexos.VmTemplate, updateCallback)
 		if err != nil {
 			return err

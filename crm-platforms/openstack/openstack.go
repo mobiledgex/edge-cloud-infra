@@ -41,10 +41,6 @@ func (s *Platform) GetVMSpecForRootLB() (*vmspec.VMCreationSpec, error) {
 	if err != nil {
 		return nil, fmt.Errorf("unable to get Shared RootLB Flavor: %v", err)
 	}
-	err = mexos.GetCloudletSharedRootLBFlavor(&rootlbFlavor)
-	if err != nil {
-		return nil, fmt.Errorf("unable to get Shared RootLB Flavor: %v", err)
-	}
 	vmspec, err := vmspec.GetVMSpec(s.flavorList, rootlbFlavor)
 	if err != nil {
 		return nil, fmt.Errorf("unable to find VM spec for Shared RootLB: %v", err)

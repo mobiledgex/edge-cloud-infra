@@ -1023,11 +1023,6 @@ func HeatCreateAppVMWithRootLB(ctx context.Context, rootLBName string, rootLBIma
 	if err != nil {
 		return err
 	}
-	cp.VMAppParams = vmAppParams
-
-	cp.RootLBConnectToSubnet = rootLBName
-	cp.RootLBPortName = fmt.Sprintf("%s-%s-port", rootLBName, cp.ClusterName)
-
 	log.SpanLog(ctx, log.DebugLevelMexos, "Created ClusterParams", "clusterParams", cp)
 
 	templateString := clusterTemplate + vmTemplateResources
@@ -1039,8 +1034,10 @@ func HeatCreateAppVMWithRootLB(ctx context.Context, rootLBName string, rootLBIma
 	if err != nil {
 		return fmt.Errorf("unable to get rootlb SSH client: %v", err)
 	}
-	return AttachAndEnableRootLBInterface(ctx, client, rootLBName, cp.RootLBPortName, cp.GatewayIP)
-
+	if cp.RootLBPortName != "" {
+		return AttachAndEnableRootLBInterface(ctx, client, rootLBName, cp.RootLBPortName, cp.GatewayIP)
+	}
+	return nil
 }
 
 // HeatUpdateCluster updates a cluster which may optionally include a dedicated root LB

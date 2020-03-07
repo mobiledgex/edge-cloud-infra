@@ -442,10 +442,10 @@ resources:
         {{if  $.ExternalVolumeSize}}
          block_device_mapping: [{ device_name: "vda", volume_id: { get_resource: {{.NodeName}}-vol }, delete_on_termination: "false" }]
         {{else}}
-         {{if .VMAppParams}}
-         image: {{$.ImageName}}
-         {{else}}
+         {{if $.VMAppParams}}
          image: {{$.VMAppParams.ImageName}}
+         {{else}}
+         image: {{$.ImageName}}
          {{- end}}
         {{- end}}
          flavor: {{$.NodeFlavor}}

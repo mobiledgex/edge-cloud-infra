@@ -173,7 +173,7 @@ func (s *Platform) CreateAppInst(ctx context.Context, clusterInst *edgeproto.Clu
 		vmp, err := mexos.GetVMParams(ctx,
 			mexos.UserVMDeployment,
 			objName,
-			appInst.NodeFlavor,
+			appInst.VmFlavor,
 			appInst.ExternalVolumeSize,
 			imageName,
 			mexos.GetSecurityGroupName(ctx, objName),

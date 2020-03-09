@@ -136,7 +136,7 @@ var CreateAppInstOptionalArgs = []string{
 	"privacypolicy",
 	"externalvolumesize",
 	"availabilityzone",
-	"nodeflavor",
+	"vmflavor",
 }
 var DeleteAppInstRequiredArgs = []string{
 	"developer",
@@ -187,7 +187,7 @@ var DeleteAppInstOptionalArgs = []string{
 	"privacypolicy",
 	"externalvolumesize",
 	"availabilityzone",
-	"nodeflavor",
+	"vmflavor",
 }
 var RefreshAppInstRequiredArgs = []string{
 	"developer",
@@ -207,7 +207,7 @@ var RefreshAppInstOptionalArgs = []string{
 	"privacypolicy",
 	"externalvolumesize",
 	"availabilityzone",
-	"nodeflavor",
+	"vmflavor",
 }
 var UpdateAppInstRequiredArgs = []string{
 	"developer",
@@ -228,7 +228,7 @@ var UpdateAppInstOptionalArgs = []string{
 	"powerstate",
 	"externalvolumesize",
 	"availabilityzone",
-	"nodeflavor",
+	"vmflavor",
 }
 var AppInstKeyRequiredArgs = []string{}
 var AppInstKeyOptionalArgs = []string{
@@ -283,7 +283,7 @@ var AppInstOptionalArgs = []string{
 	"powerstate",
 	"externalvolumesize",
 	"availabilityzone",
-	"nodeflavor",
+	"vmflavor",
 }
 var AppInstAliasArgs = []string{
 	"developer=appinst.key.appkey.developerkey.name",
@@ -333,7 +333,7 @@ var AppInstAliasArgs = []string{
 	"powerstate=appinst.powerstate",
 	"externalvolumesize=appinst.externalvolumesize",
 	"availabilityzone=appinst.availabilityzone",
-	"nodeflavor=appinst.nodeflavor",
+	"vmflavor=appinst.vmflavor",
 }
 var AppInstComments = map[string]string{
 	"developer":                      "Organization or Company Name that a Developer is part of",
@@ -375,7 +375,7 @@ var AppInstComments = map[string]string{
 	"powerstate":                     "Power State of the AppInst, one of PowerOn, PowerOff, Reboot",
 	"externalvolumesize":             "Size of external volume to be attached to nodes.  This is for the root partition",
 	"availabilityzone":               "Optional Availability Zone if any",
-	"nodeflavor":                     "OS node flavor to use",
+	"vmflavor":                       "OS node flavor to use",
 }
 var AppInstSpecialArgs = map[string]string{
 	"errors":                   "StringArray",

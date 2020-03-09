@@ -826,7 +826,7 @@ func addControllerApis(method string, group *echo.Group) {
 	// PowerState: 31
 	// ExternalVolumeSize: 32
 	// AvailabilityZone: 33
-	// NodeFlavor: 34
+	// VmFlavor: 34
 	// ```
 	// Security:
 	//   Bearer:

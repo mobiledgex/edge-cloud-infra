@@ -201,7 +201,7 @@ func (s *Platform) CreateAppInst(ctx context.Context, clusterInst *edgeproto.Clu
 		}
 		deploymentVars := crmutil.DeploymentReplaceVars{
 			Deployment: crmutil.CrmReplaceVars{
-				CloudletName:  k8smgmt.NormalizeName(appInst.Key.ClusterInstKey.ClusterKey.Name),
+				CloudletName:  k8smgmt.NormalizeName(appInst.Key.ClusterInstKey.CloudletKey.Name),
 				DeveloperName: k8smgmt.NormalizeName(app.Key.DeveloperKey.Name),
 				DnsZone:       mexos.GetCloudletDNSZone(),
 			},

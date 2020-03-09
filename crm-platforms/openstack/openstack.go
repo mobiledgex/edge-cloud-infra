@@ -32,7 +32,7 @@ func (s *Platform) GetType() string {
 	return "openstack"
 }
 
-// GetVMSpecForRootLB gets the VM spec for the rootLB when it is not specified within a cluster.  This is
+// GetVMSpecForRootLB gets the VM spec for the rootLB when it is not specified within a cluster. This is
 // used for Shared RootLb and for VM app based RootLb
 func (s *Platform) GetVMSpecForRootLB() (*vmspec.VMCreationSpec, error) {
 

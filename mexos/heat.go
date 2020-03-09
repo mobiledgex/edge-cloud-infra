@@ -763,8 +763,12 @@ func populateCommonClusterParamFields(ctx context.Context, cp *ClusterParams, ro
 
 	usedCidrs := make(map[string]string)
 	ni, err := ParseNetSpec(ctx, GetCloudletNetworkScheme())
+	if err != nil {
+		return "", err
+	}
 	currentSubnetName := ""
 	nodeIPPrefix := ""
+	found := false
 	cp.MEXNetworkName = GetCloudletMexNetwork()
 	cp.ApplicationSecurityGroup = GetSecurityGroupName(ctx, rootLBName)
 
@@ -782,11 +786,6 @@ func populateCommonClusterParamFields(ctx context.Context, cp *ClusterParams, ro
 		cp.RouterSecurityGroup = cloudletSecGrp
 	}
 
-	found := false
-
-	if err != nil {
-		return "", err
-	}
 	if action != heatCreate {
 		currentSubnetName = "mex-k8s-subnet-" + cp.ClusterName
 	}
@@ -830,7 +829,6 @@ func getClusterParams(ctx context.Context, clusterInst *edgeproto.ClusterInst, p
 	cp.ClusterName = util.HeatSanitize(k8smgmt.GetK8sNodeNameSuffix(&clusterInst.Key))
 
 	switch clusterInst.Deployment {
-
 	case cloudcommon.AppDeploymentTypeDocker:
 		if clusterInst.Deployment == cloudcommon.AppDeploymentTypeDocker {
 			cp.ClusterType = clusterTypeDocker

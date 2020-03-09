@@ -40,6 +40,10 @@
 - debug:
     msg: "Deploying {{ shepherd_name }} (cloudlet name: {{ item.cloudlet_name }})"
 
+- name: Fetch shepherd vault role
+  set_fact:
+    crm_role: "{{ lookup('approle', 'crm.v1', id=shepherd_name) }}"
+
 - name: Compute shepherd command line
   set_fact:
     shepherd_args:
@@ -71,8 +75,8 @@
     restart_policy: unless-stopped
     command: "{{ shepherd_args }}"
     env:
-      VAULT_ROLE_ID: "{{ crm_vault_app_role.role_id }}"
-      VAULT_SECRET_ID: "{{ crm_vault_app_role.secret_id }}"
+      VAULT_ROLE_ID: "{{ crm_role.role_id }}"
+      VAULT_SECRET_ID: "{{ crm_role.secret_id }}"
       JAEGER_ENDPOINT: "{{ jaeger_endpoint }}"
       JAEGER_TAGS: "shepherd={{ shepherd_name }},cloudlet={{ item.cloudlet_name }},operator={{ item.operator_key }},environ={{ deploy_environ }},version={{ edge_cloud_version }}"
 

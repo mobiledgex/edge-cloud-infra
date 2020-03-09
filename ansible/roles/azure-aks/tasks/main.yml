@@ -1,4 +1,9 @@
 ---
+- name: Load azure creds from vault
+  import_role:
+    name: load-vault-creds
+    tasks_from: azure
+
 - name: "Create resource group \"{{ platform_region.resource_group }}\" in \"{{ platform_region.location }}\""
   azure_rm_resourcegroup:
     name: "{{ platform_region.resource_group }}"

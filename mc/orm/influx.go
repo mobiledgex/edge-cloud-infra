@@ -24,6 +24,8 @@ var operatorInfluxDBTemplate *template.Template
 // 100 values at a time
 var queryChunkSize = 100
 
+var MaxEntriesFromInfluxDb = 2000
+
 type InfluxDBContext struct {
 	region string
 	claims *UserClaims
@@ -260,6 +262,10 @@ func fillTimeAndGetCmd(q *influxQueryArgs, tmpl *template.Template, start *time.
 			q.EndTime = string(buf)
 		}
 	}
+	// We set max number of responses we will get from InfluxDB
+	if q.Last == 0 {
+		q.Last = MaxEntriesFromInfluxDb
+	}
 	// now that we know all the details of the query - build it
 	buf := bytes.Buffer{}
 	if err := tmpl.Execute(&buf, q); err != nil {
@@ -273,7 +279,7 @@ func ClientMetricsQuery(obj *ormapi.RegionClientMetrics) string {
 	arg := influxQueryArgs{
 		Selector:      getFields(obj.Selector, CLIENT),
 		Measurement:   getMeasurementString(obj.Selector, CLIENT),
-		AppInstName:   k8smgmt.NormalizeName(obj.AppInst.AppKey.Name),
+		AppInstName:   obj.AppInst.AppKey.Name,
 		DeveloperName: obj.AppInst.AppKey.DeveloperKey.Name,
 		CloudletName:  obj.AppInst.ClusterInstKey.CloudletKey.Name,
 		ClusterName:   obj.AppInst.ClusterInstKey.ClusterKey.Name,

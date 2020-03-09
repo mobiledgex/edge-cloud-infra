@@ -39,5 +39,10 @@ vault_github_user_roles:
     - sys-policies.write.v1
 
   cloudlet_admin:
+    - certs.read.v1
     - cloudlets.write.v1
+    - gcp-auth.read.v1
+    - influxdb.read.v1
+    - mexenv.read.v1
+    - registry.read.v1
     - ui-access.v1

@@ -12,6 +12,8 @@ vault_github_users:
     role: admin
   - userid: jlmorris3827
     role: admin
+  - userid: mwilliams-mex
+    role: cloudlet_admin
   - userid: msewera
     role: cloudlet_admin
   - userid: venkytv

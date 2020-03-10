@@ -4,11 +4,45 @@ vault_checksum: sha256:e927fd4daac11f6c7b8b3f1f53f2017516e29e99585dc975b657acdea
 vault_letsencrypt_plugin: "{{ artifactory_address }}/binaries/vault-letsencrypt-plugin/1.1/letsencrypt-plugin"
 vault_letsencrypt_plugin_sha256sum: e111a2db44059d0e460178ec25eaab72c7b44667d5a0f89fcae18d37ad86155d
 certgen_image_version: 2019-11-01
+
 vault_github_teams:
   - name: edge-cloud-development-team
     policies:
-      - ansible.read.v1
-      - certs.read.v1
-      - cloudlets.read.v1
-      - mexenv.read.v1
-      - registry.read.v1
+      - default
+
+vault_github_user_roles:
+
+  viewer: &github_role_viewer
+    - ansible.read.v1
+    - auth-approle.read.v1
+    - cloudlets.read.v1
+    - gcp-auth.read.v1
+    - influxdb.read.v1
+    - mexenv.read.v1
+    - noreplyemail.read.v1
+    - registry.read.v1
+    - sys-auth.read.v1
+    - sys-policies.read.v1
+    - ui-access.v1
+
+  editor: &github_role_editor
+    - *github_role_viewer
+    - approle-accessors.read.v1
+    - auth-approle.destroy.v1
+    - auth-github-config.read.v1
+    - certs.read.v1
+    - cloudlets.write.v1
+
+  admin:
+    - *github_role_editor
+    - sys-auth.write.v1
+    - sys-policies.write.v1
+
+  cloudlet_admin:
+    - certs.read.v1
+    - cloudlets.write.v1
+    - gcp-auth.read.v1
+    - influxdb.read.v1
+    - mexenv.read.v1
+    - registry.read.v1
+    - ui-access.v1

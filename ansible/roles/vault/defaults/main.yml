@@ -29,7 +29,8 @@ vault_user_roles:
 
   editor: &vault_user_role_editor
     - *vault_user_role_viewer
-    - approle-accessors.read.v1
+    - approle-accessors.write.v1
+    - auth-approle.write.v1
     - auth-approle.destroy.v1
     - auth-github-config.read.v1
     - certs.read.v1

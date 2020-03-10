@@ -10,9 +10,7 @@ vault_github_teams:
     policies:
       - default
 
-vault_ldap_groups:
-  - name: MobiledgeX
-    role: edgebox_user
+vault_ldap_groups: []
 
 vault_user_roles:
 

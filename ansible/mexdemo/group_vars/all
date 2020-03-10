@@ -1,4 +1,20 @@
 jaeger_hostname: jaeger.mobiledgex.net
 jaeger_endpoint: "https://{{ jaeger_hostname }}:14268/api/traces"
 vault_address: https://vault-main.mobiledgex.net
-vault_github_teams: []
+
+vault_github_teams:
+  - name: edge-cloud-development-team
+    policies:
+      - default
+
+vault_github_users:
+  - userid: gainsley
+    role: admin
+  - userid: jlmorris3827
+    role: admin
+  - userid: mwilliams-mex
+    role: cloudlet_admin
+  - userid: msewera
+    role: cloudlet_admin
+  - userid: venkytv
+    role: admin

@@ -103,7 +103,7 @@ regiondata:
       disk: 4
     autoscalepolicies:
     - key:
-        developer: AcmeAppCo
+        organization: AcmeAppCo
         name: scale1
       minnodes: 1
       maxnodes: 3
@@ -117,7 +117,7 @@ regiondata:
         cloudletkey:
           organization: tmus
           name: tmus-cloud-1
-        developer: AcmeAppCo
+        organization: AcmeAppCo
       flavor:
         name: x1.small
       liveness: LivenessStatic
@@ -136,7 +136,7 @@ regiondata:
         cloudletkey:
           organization: tmus
           name: tmus-cloud-2
-        developer: AcmeAppCo
+        organization: AcmeAppCo
       flavor:
         name: x1.small
       liveness: LivenessStatic
@@ -360,7 +360,7 @@ regiondata:
           cloudletkey:
             organization: tmus
             name: tmus-cloud-1
-          developer: AcmeAppCo
+          organization: AcmeAppCo
       cloudletloc:
         latitude: 31
         longitude: -91
@@ -394,7 +394,7 @@ regiondata:
           cloudletkey:
             organization: tmus
             name: tmus-cloud-2
-          developer: AcmeAppCo
+          organization: AcmeAppCo
       cloudletloc:
         latitude: 35
         longitude: -95
@@ -421,7 +421,7 @@ regiondata:
     autoprovpolicies:
     - key:
         name: autoprov1
-        developer: AcmeAppCo
+        organization: AcmeAppCo
       deployclientcount: 3
       deployintervalcount: 3
       cloudlets:

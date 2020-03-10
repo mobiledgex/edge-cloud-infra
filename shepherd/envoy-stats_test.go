@@ -98,11 +98,11 @@ func startServer() *httptest.Server {
 func TestEnvoyStats(t *testing.T) {
 
 	testScrapePoint := ProxyScrapePoint{
-		App:     "UnitTestApp",
-		Cluster: "UnitTestCluster",
-		Dev:     "UnitTestDev",
-		Ports:   []int32{1234, 4321},
-		Client:  &shepherd_unittest.UTClient{},
+		App:          "UnitTestApp",
+		Cluster:      "UnitTestCluster",
+		DeveloperOrg: "UnitTestDev",
+		Ports:        []int32{1234, 4321},
+		Client:       &shepherd_unittest.UTClient{},
 	}
 	ctx := setupLog()
 	fakeEnvoyTestServer := startServer()

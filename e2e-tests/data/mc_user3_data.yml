@@ -8,7 +8,7 @@ regiondata:
         cloudletkey:
           organization: enterprise
           name: enterprise-1
-        developer: enterprise
+        organization: enterprise
       flavor:
         name: x1.small
       liveness: LivenessStatic
@@ -42,7 +42,7 @@ regiondata:
           cloudletkey:
             organization: enterprise
             name: enterprise-1
-          developer: enterprise
+          organization: enterprise
       cloudletloc:
         latitude: 31
         longitude: -91

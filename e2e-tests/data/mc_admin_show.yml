@@ -177,7 +177,7 @@ regiondata:
         cloudletkey:
           organization: tmus
           name: tmus-cloud-1
-        developer: AcmeAppCo
+        organization: AcmeAppCo
       flavor:
         name: x1.small
       liveness: LivenessStatic
@@ -195,7 +195,7 @@ regiondata:
         cloudletkey:
           organization: tmus
           name: tmus-cloud-2
-        developer: AcmeAppCo
+        organization: AcmeAppCo
       flavor:
         name: x1.small
       liveness: LivenessStatic
@@ -211,7 +211,7 @@ regiondata:
         cloudletkey:
           organization: enterprise
           name: enterprise-1
-        developer: enterprise
+        organization: enterprise
       flavor:
         name: x1.small
       liveness: LivenessStatic
@@ -502,7 +502,7 @@ regiondata:
           cloudletkey:
             organization: enterprise
             name: enterprise-1
-          developer: enterprise
+          organization: enterprise
       cloudletloc:
         latitude: 31
         longitude: -91
@@ -539,7 +539,7 @@ regiondata:
           cloudletkey:
             organization: tmus
             name: tmus-cloud-1
-          developer: AcmeAppCo
+          organization: AcmeAppCo
       cloudletloc:
         latitude: 31
         longitude: -91
@@ -607,7 +607,7 @@ regiondata:
           cloudletkey:
             organization: tmus
             name: tmus-cloud-2
-          developer: AcmeAppCo
+          organization: AcmeAppCo
       cloudletloc:
         latitude: 35
         longitude: -95
@@ -635,7 +635,7 @@ regiondata:
           cloudletkey:
             organization: tmus
             name: tmus-cloud-1
-          developer: AcmeAppCo
+          organization: AcmeAppCo
       cloudletloc:
         latitude: 31
         longitude: -91
@@ -672,7 +672,7 @@ regiondata:
           cloudletkey:
             organization: tmus
             name: tmus-cloud-2
-          developer: AcmeAppCo
+          organization: AcmeAppCo
       cloudletloc:
         latitude: 35
         longitude: -95
@@ -709,7 +709,7 @@ regiondata:
           cloudletkey:
             organization: enterprise
             name: enterprise-1
-          developer: enterprise
+          organization: enterprise
       cloudletloc:
         latitude: 31
         longitude: -91
@@ -737,7 +737,7 @@ regiondata:
         name: enterprise-1
     autoscalepolicies:
     - key:
-        developer: AcmeAppCo
+        organization: AcmeAppCo
         name: scale1
       minnodes: 1
       maxnodes: 3

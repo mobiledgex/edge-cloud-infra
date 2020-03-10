@@ -15,7 +15,7 @@ regiondata:
         cloudletkey:
           organization: mexdev
           name: localtest
-        developer: DevOrg
+        organization: DevOrg
       flavor:
         name: x1.medium
       liveness: LivenessStatic
@@ -89,7 +89,7 @@ regiondata:
             name: localtest
     autoscalepolicies:
     - key:
-        developer: DevOrg
+        organization: DevOrg
         name: scale1
       minnodes: 1
       maxnodes: 3

@@ -20,7 +20,7 @@ clusterinsts:
     cloudletkey:
       organization: TDG
       name: jlmcloudlet
-    developer: MobiledgeX
+    organization: MobiledgeX
   flavor:
     name: x1.medium
   liveness: LivenessStatic

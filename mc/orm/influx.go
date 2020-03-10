@@ -77,28 +77,28 @@ var ClientSelectors = []string{
 var AppFields = []string{
 	"\"app\"",
 	"\"cluster\"",
-	"\"dev\"",
+	"\"developerorg\"",
 	"\"cloudlet\"",
-	"\"operator\"",
+	"\"operatororg\"",
 }
 
 var ClusterFields = []string{
 	"\"cluster\"",
-	"\"dev\"",
+	"\"developerorg\"",
 	"\"cloudlet\"",
-	"\"operator\"",
+	"\"operatororg\"",
 }
 
 var CloudletFields = []string{
 	"\"cloudlet\"",
-	"\"operator\"",
+	"\"organization\"",
 }
 
 var ClientFields = []string{
-	"\"dev\"",
+	"\"developerorg\"",
 	"\"app\"",
 	"\"ver\"",
-	"\"oper\"",
+	"\"operatororg\"",
 	"\"cloudlet\"",
 }
 
@@ -194,11 +194,11 @@ const (
 )
 
 var devInfluDBT = `SELECT {{.Selector}} from "{{.Measurement}}"` +
-	` WHERE "dev"='{{.DeveloperOrg}}'` +
+	` WHERE "developerorg"='{{.DeveloperOrg}}'` +
 	`{{if .AppInstName}} AND "app"=~/{{.AppInstName}}/{{end}}` +
 	`{{if .ClusterName}} AND "cluster"='{{.ClusterName}}'{{end}}` +
 	`{{if .CloudletName}} AND "cloudlet"='{{.CloudletName}}'{{end}}` +
-	`{{if .Organization}} AND "operator"='{{.Organization}}'{{end}}` +
+	`{{if .OperatorOrg}} AND "operatororg"='{{.OperatorOrg}}'{{end}}` +
 	`{{if .Method}} AND "method"='{{.Method}}'{{end}}` +
 	`{{if .CellId}} AND "cellID"='{{.CellId}}'{{end}}` +
 	`{{if .StartTime}} AND time >= '{{.StartTime}}'{{end}}` +

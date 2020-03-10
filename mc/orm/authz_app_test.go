@@ -78,7 +78,7 @@ func testImagePaths(t *testing.T, ctx context.Context, mcClient *ormclient.Clien
 	require.Nil(t, err)
 	require.Equal(t, http.StatusOK, status)
 	// test publicimages enabled org
-	testImagePath(t, ctx, "DevOrg", "docker.mobiledgex.net/mobiledgex/mobiledgex_public/mobiledgexsdkdemo", true)
+	testImagePath(t, ctx, "DeveloperOrg", "docker.mobiledgex.net/mobiledgex/mobiledgex_public/mobiledgexsdkdemo", true)
 
 	status, err = mcClient.DeleteOrg(uri, tokenAd, &org1)
 	require.Nil(t, err)

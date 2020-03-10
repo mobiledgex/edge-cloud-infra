@@ -134,6 +134,9 @@ var CreateAppInstOptionalArgs = []string{
 	"sharedvolumesize",
 	"healthcheck",
 	"privacypolicy",
+	"externalvolumesize",
+	"availabilityzone",
+	"vmflavor",
 }
 var DeleteAppInstRequiredArgs = []string{
 	"organization",
@@ -183,6 +186,9 @@ var DeleteAppInstOptionalArgs = []string{
 	"sharedvolumesize",
 	"healthcheck",
 	"privacypolicy",
+	"externalvolumesize",
+	"availabilityzone",
+	"vmflavor",
 }
 var RefreshAppInstRequiredArgs = []string{
 	"organization",
@@ -200,6 +206,9 @@ var RefreshAppInstOptionalArgs = []string{
 	"sharedvolumesize",
 	"healthcheck",
 	"privacypolicy",
+	"externalvolumesize",
+	"availabilityzone",
+	"vmflavor",
 }
 var UpdateAppInstRequiredArgs = []string{
 	"organization",
@@ -218,6 +227,9 @@ var UpdateAppInstOptionalArgs = []string{
 	"healthcheck",
 	"privacypolicy",
 	"powerstate",
+	"externalvolumesize",
+	"availabilityzone",
+	"vmflavor",
 }
 var AppInstKeyRequiredArgs = []string{}
 var AppInstKeyOptionalArgs = []string{
@@ -270,6 +282,9 @@ var AppInstOptionalArgs = []string{
 	"healthcheck",
 	"privacypolicy",
 	"powerstate",
+	"externalvolumesize",
+	"availabilityzone",
+	"vmflavor",
 }
 var AppInstAliasArgs = []string{
 	"organization=appinst.key.appkey.organization",
@@ -318,6 +333,9 @@ var AppInstAliasArgs = []string{
 	"healthcheck=appinst.healthcheck",
 	"privacypolicy=appinst.privacypolicy",
 	"powerstate=appinst.powerstate",
+	"externalvolumesize=appinst.externalvolumesize",
+	"availabilityzone=appinst.availabilityzone",
+	"vmflavor=appinst.vmflavor",
 }
 var AppInstComments = map[string]string{
 	"organization":                   "Developer Organization",
@@ -358,6 +376,9 @@ var AppInstComments = map[string]string{
 	"healthcheck":                    "Health Check status, one of HealthCheckUnknown, HealthCheckFailRootlbOffline, HealthCheckFailServerFail, HealthCheckOk",
 	"privacypolicy":                  "Optional privacy policy name",
 	"powerstate":                     "Power State of the AppInst, one of PowerOn, PowerOff, Reboot",
+	"externalvolumesize":             "Size of external volume to be attached to nodes.  This is for the root partition",
+	"availabilityzone":               "Optional Availability Zone if any",
+	"vmflavor":                       "OS node flavor to use",
 }
 var AppInstSpecialArgs = map[string]string{
 	"errors":                   "StringArray",

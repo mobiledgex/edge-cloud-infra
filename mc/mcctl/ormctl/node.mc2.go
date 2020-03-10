@@ -41,29 +41,29 @@ var NodeKeyRequiredArgs = []string{}
 var NodeKeyOptionalArgs = []string{
 	"name",
 	"type",
-	"cloudletkey.operatorkey.name",
+	"cloudletkey.organization",
 	"cloudletkey.name",
 	"region",
 }
 var NodeKeyAliasArgs = []string{
 	"name=nodekey.name",
 	"type=nodekey.type",
-	"cloudletkey.operatorkey.name=nodekey.cloudletkey.operatorkey.name",
+	"cloudletkey.organization=nodekey.cloudletkey.organization",
 	"cloudletkey.name=nodekey.cloudletkey.name",
 	"region=nodekey.region",
 }
 var NodeKeyComments = map[string]string{
-	"name":                         "Name or hostname of node",
-	"type":                         "Node type",
-	"cloudletkey.operatorkey.name": "Company or Organization name of the operator",
-	"cloudletkey.name":             "Name of the cloudlet",
-	"region":                       "Region the node is in",
+	"name":                     "Name or hostname of node",
+	"type":                     "Node type",
+	"cloudletkey.organization": "Operator of the cloudlet site",
+	"cloudletkey.name":         "Name of the cloudlet",
+	"region":                   "Region the node is in",
 }
 var NodeKeySpecialArgs = map[string]string{}
 var NodeRequiredArgs = []string{
 	"name",
 	"type",
-	"operator",
+	"organization",
 	"cloudlet",
 	"region",
 }
@@ -78,7 +78,7 @@ var NodeOptionalArgs = []string{
 var NodeAliasArgs = []string{
 	"name=node.key.name",
 	"type=node.key.type",
-	"operator=node.key.cloudletkey.operatorkey.name",
+	"organization=node.key.cloudletkey.organization",
 	"cloudlet=node.key.cloudletkey.name",
 	"region=node.key.region",
 	"notifyid=node.notifyid",
@@ -91,7 +91,7 @@ var NodeAliasArgs = []string{
 var NodeComments = map[string]string{
 	"name":             "Name or hostname of node",
 	"type":             "Node type",
-	"operator":         "Company or Organization name of the operator",
+	"organization":     "Operator of the cloudlet site",
 	"cloudlet":         "Name of the cloudlet",
 	"region":           "Region the node is in",
 	"notifyid":         "Id of client assigned by server (internal use only)",

@@ -94,19 +94,19 @@ var AppApiCmds = []*cli.Command{
 
 var AppKeyRequiredArgs = []string{}
 var AppKeyOptionalArgs = []string{
-	"developerkey.name",
+	"organization",
 	"name",
 	"version",
 }
 var AppKeyAliasArgs = []string{
-	"developerkey.name=appkey.developerkey.name",
+	"organization=appkey.organization",
 	"name=appkey.name",
 	"version=appkey.version",
 }
 var AppKeyComments = map[string]string{
-	"developerkey.name": "Organization or Company Name that a Developer is part of",
-	"name":              "App name",
-	"version":           "App version",
+	"organization": "Developer Organization",
+	"name":         "App name",
+	"version":      "App version",
 }
 var AppKeySpecialArgs = map[string]string{}
 var ConfigFileRequiredArgs = []string{}
@@ -124,7 +124,7 @@ var ConfigFileComments = map[string]string{
 }
 var ConfigFileSpecialArgs = map[string]string{}
 var AppRequiredArgs = []string{
-	"developer",
+	"organization",
 	"appname",
 	"appvers",
 }
@@ -153,7 +153,7 @@ var AppOptionalArgs = []string{
 	"defaultprivacypolicy",
 }
 var AppAliasArgs = []string{
-	"developer=app.key.developerkey.name",
+	"organization=app.key.organization",
 	"appname=app.key.name",
 	"appvers=app.key.version",
 	"imagepath=app.imagepath",
@@ -181,7 +181,7 @@ var AppAliasArgs = []string{
 	"defaultprivacypolicy=app.defaultprivacypolicy",
 }
 var AppComments = map[string]string{
-	"developer":               "Organization or Company Name that a Developer is part of",
+	"organization":            "Developer Organization",
 	"appname":                 "App name",
 	"appvers":                 "App version",
 	"imagepath":               "URI of where image resides",

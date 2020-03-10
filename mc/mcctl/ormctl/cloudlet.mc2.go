@@ -139,8 +139,8 @@ var CloudletApiCmds = []*cli.Command{
 }
 
 var CreateCloudletRequiredArgs = []string{
-	"operator",
-	"name",
+	"key.organization",
+	"cloudlet",
 	"location.latitude",
 	"location.longitude",
 	"numdynamicips",
@@ -168,7 +168,7 @@ var CreateCloudletOptionalArgs = []string{
 	"containerversion",
 	"restagmap.key",
 	"restagmap.value.name",
-	"restagmap.value.operatorkey.name",
+	"restagmap.value.organization",
 	"accessvars",
 	"vmimageversion",
 	"packageversion",
@@ -193,16 +193,16 @@ var CloudletInfoApiCmds = []*cli.Command{
 
 var CloudletKeyRequiredArgs = []string{}
 var CloudletKeyOptionalArgs = []string{
-	"operator",
+	"organization",
 	"name",
 }
 var CloudletKeyAliasArgs = []string{
-	"operator=cloudletkey.operatorkey.name",
+	"organization=cloudletkey.organization",
 	"name=cloudletkey.name",
 }
 var CloudletKeyComments = map[string]string{
-	"operator": "Company or Organization name of the operator",
-	"name":     "Name of the cloudlet",
+	"organization": "Operator of the cloudlet site",
+	"name":         "Name of the cloudlet",
 }
 var CloudletKeySpecialArgs = map[string]string{}
 var OperationTimeLimitsRequiredArgs = []string{}
@@ -427,27 +427,27 @@ var PlatformConfigSpecialArgs = map[string]string{
 	"envvar": "StringToString",
 }
 var CloudletResMapRequiredArgs = []string{
-	"operator",
-	"name",
+	"key.organization",
+	"cloudlet",
 	"mapping",
 }
 var CloudletResMapOptionalArgs = []string{}
 var CloudletResMapAliasArgs = []string{
-	"operator=cloudletresmap.key.operatorkey.name",
-	"name=cloudletresmap.key.name",
+	"key.organization=cloudletresmap.key.organization",
+	"cloudlet=cloudletresmap.key.name",
 	"mapping=cloudletresmap.mapping",
 }
 var CloudletResMapComments = map[string]string{
-	"operator": "Company or Organization name of the operator",
-	"name":     "Name of the cloudlet",
-	"mapping":  "Resource mapping info",
+	"key.organization": "Operator of the cloudlet site",
+	"cloudlet":         "Name of the cloudlet",
+	"mapping":          "Resource mapping info",
 }
 var CloudletResMapSpecialArgs = map[string]string{
 	"mapping": "StringToString",
 }
 var CloudletRequiredArgs = []string{
-	"operator",
-	"name",
+	"key.organization",
+	"cloudlet",
 }
 var CloudletOptionalArgs = []string{
 	"location.latitude",
@@ -475,14 +475,14 @@ var CloudletOptionalArgs = []string{
 	"containerversion",
 	"restagmap.key",
 	"restagmap.value.name",
-	"restagmap.value.operatorkey.name",
+	"restagmap.value.organization",
 	"accessvars",
 	"vmimageversion",
 	"packageversion",
 }
 var CloudletAliasArgs = []string{
-	"operator=cloudlet.key.operatorkey.name",
-	"name=cloudlet.key.name",
+	"key.organization=cloudlet.key.organization",
+	"cloudlet=cloudlet.key.name",
 	"location.latitude=cloudlet.location.latitude",
 	"location.longitude=cloudlet.location.longitude",
 	"location.horizontalaccuracy=cloudlet.location.horizontalaccuracy",
@@ -528,14 +528,14 @@ var CloudletAliasArgs = []string{
 	"config.region=cloudlet.config.region",
 	"restagmap.key=cloudlet.restagmap.key",
 	"restagmap.value.name=cloudlet.restagmap.value.name",
-	"restagmap.value.operatorkey.name=cloudlet.restagmap.value.operatorkey.name",
+	"restagmap.value.organization=cloudlet.restagmap.value.organization",
 	"accessvars=cloudlet.accessvars",
 	"vmimageversion=cloudlet.vmimageversion",
 	"packageversion=cloudlet.packageversion",
 }
 var CloudletComments = map[string]string{
-	"operator":                            "Company or Organization name of the operator",
-	"name":                                "Name of the cloudlet",
+	"key.organization":                    "Operator of the cloudlet site",
+	"cloudlet":                            "Name of the cloudlet",
 	"location.latitude":                   "latitude in WGS 84 coordinates",
 	"location.longitude":                  "longitude in WGS 84 coordinates",
 	"location.horizontalaccuracy":         "horizontal accuracy (radius in meters)",
@@ -574,7 +574,7 @@ var CloudletComments = map[string]string{
 	"config.cleanupmode":                  "Internal cleanup flag",
 	"config.region":                       "Region",
 	"restagmap.value.name":                "Resource Table Name",
-	"restagmap.value.operatorkey.name":    "Company or Organization name of the operator",
+	"restagmap.value.organization":        "Operator organization of the cloudlet site.",
 	"accessvars":                          "Variables required to access cloudlet",
 	"vmimageversion":                      "MobiledgeX baseimage version where CRM services reside",
 	"packageversion":                      "MobiledgeX OS package version on baseimage where CRM services reside",
@@ -586,7 +586,7 @@ var CloudletSpecialArgs = map[string]string{
 	"errors":        "StringArray",
 }
 var FlavorMatchRequiredArgs = []string{
-	"operator",
+	"organization",
 	"cloudlet",
 }
 var FlavorMatchOptionalArgs = []string{
@@ -594,14 +594,14 @@ var FlavorMatchOptionalArgs = []string{
 	"availabilityzone",
 }
 var FlavorMatchAliasArgs = []string{
-	"operator=flavormatch.key.operatorkey.name",
+	"organization=flavormatch.key.organization",
 	"cloudlet=flavormatch.key.name",
 	"flavor=flavormatch.flavorname",
 	"availabilityzone=flavormatch.availabilityzone",
 }
 var FlavorMatchComments = map[string]string{
-	"operator": "Company or Organization name of the operator",
-	"cloudlet": "Name of the cloudlet",
+	"organization": "Operator of the cloudlet site",
+	"cloudlet":     "Name of the cloudlet",
 }
 var FlavorMatchSpecialArgs = map[string]string{}
 var FlavorInfoRequiredArgs = []string{}
@@ -661,8 +661,8 @@ var OSImageComments = map[string]string{
 }
 var OSImageSpecialArgs = map[string]string{}
 var CloudletInfoRequiredArgs = []string{
-	"operator",
-	"name",
+	"key.organization",
+	"cloudlet",
 }
 var CloudletInfoOptionalArgs = []string{
 	"state",
@@ -690,8 +690,8 @@ var CloudletInfoOptionalArgs = []string{
 	"osimages.diskformat",
 }
 var CloudletInfoAliasArgs = []string{
-	"operator=cloudletinfo.key.operatorkey.name",
-	"name=cloudletinfo.key.name",
+	"key.organization=cloudletinfo.key.organization",
+	"cloudlet=cloudletinfo.key.name",
 	"state=cloudletinfo.state",
 	"notifyid=cloudletinfo.notifyid",
 	"controller=cloudletinfo.controller",
@@ -717,8 +717,8 @@ var CloudletInfoAliasArgs = []string{
 	"osimages.diskformat=cloudletinfo.osimages.diskformat",
 }
 var CloudletInfoComments = map[string]string{
-	"operator":            "Company or Organization name of the operator",
-	"name":                "Name of the cloudlet",
+	"key.organization":    "Operator of the cloudlet site",
+	"cloudlet":            "Name of the cloudlet",
 	"state":               "State of cloudlet, one of CloudletStateUnknown, CloudletStateErrors, CloudletStateReady, CloudletStateOffline, CloudletStateNotPresent, CloudletStateInit, CloudletStateUpgrade",
 	"notifyid":            "Id of client assigned by server (internal use only)",
 	"controller":          "Connected controller unique id",

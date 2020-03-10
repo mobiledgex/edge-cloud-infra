@@ -31,16 +31,15 @@ backend4321::10.192.1.2:4321::health_flags::/failed_active_hc`
 	testEnvoyHealthCheckCurrent = testEnvoyHealthCheckGood
 
 	// Test App/Cluster state data
-	testOperatorKey = edgeproto.OperatorKey{Name: "testoper"}
 	testCloudletKey = edgeproto.CloudletKey{
-		OperatorKey: testOperatorKey,
-		Name:        "testcloudlet",
+		Organization: "testoperator",
+		Name:         "testcloudlet",
 	}
 	testClusterKey     = edgeproto.ClusterKey{Name: "testcluster"}
 	testClusterInstKey = edgeproto.ClusterInstKey{
-		ClusterKey:  testClusterKey,
-		CloudletKey: testCloudletKey,
-		Developer:   "",
+		ClusterKey:   testClusterKey,
+		CloudletKey:  testCloudletKey,
+		Organization: "",
 	}
 	testClusterInst = edgeproto.ClusterInst{
 		Key:        testClusterInstKey,

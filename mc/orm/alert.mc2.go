@@ -18,13 +18,12 @@ It is generated from these files:
 	common.proto
 	controller.proto
 	debug.proto
-	developer.proto
 	exec.proto
 	flavor.proto
 	metric.proto
 	node.proto
 	notice.proto
-	operator.proto
+	operatorcode.proto
 	privacypolicy.proto
 	refs.proto
 	restagtable.proto
@@ -79,8 +78,6 @@ It has these top-level messages:
 	Controller
 	DebugRequest
 	DebugReply
-	DeveloperKey
-	Developer
 	RunCmd
 	RunVMConsole
 	ShowLog
@@ -93,8 +90,6 @@ It has these top-level messages:
 	NodeKey
 	Node
 	Notice
-	OperatorKey
-	Operator
 	OperatorCode
 	OutboundSecurityRule
 	PrivacyPolicy
@@ -324,8 +319,7 @@ func addControllerApis(method string, group *echo.Group) {
 	// The following values should be added to `App.fields` field array to specify which fields will be updated.
 	// ```
 	// Key: 2
-	// KeyDeveloperKey: 2.1
-	// KeyDeveloperKeyName: 2.1.2
+	// KeyOrganization: 2.1
 	// KeyName: 2.2
 	// KeyVersion: 2.3
 	// ImagePath: 4
@@ -373,38 +367,6 @@ func addControllerApis(method string, group *echo.Group) {
 	//   403: forbidden
 	//   404: notFound
 	group.Match([]string{method}, "/ctrl/ShowApp", ShowApp)
-	// swagger:route POST /auth/ctrl/CreateOperatorCode OperatorCode CreateOperatorCode
-	// Create a code for an Operator.
-	//
-	// Security:
-	//   Bearer:
-	// responses:
-	//   200: success
-	//   400: badRequest
-	//   403: forbidden
-	//   404: notFound
-	group.Match([]string{method}, "/ctrl/CreateOperatorCode", CreateOperatorCode)
-	// swagger:route POST /auth/ctrl/DeleteOperatorCode OperatorCode DeleteOperatorCode
-	// Delete a code for an Operator.
-	//
-	// Security:
-	//   Bearer:
-	// responses:
-	//   200: success
-	//   400: badRequest
-	//   403: forbidden
-	//   404: notFound
-	group.Match([]string{method}, "/ctrl/DeleteOperatorCode", DeleteOperatorCode)
-	// swagger:route POST /auth/ctrl/ShowOperatorCode OperatorCode ShowOperatorCode
-	// Show OperatorCodes.
-	// Security:
-	//   Bearer:
-	// responses:
-	//   200: success
-	//   400: badRequest
-	//   403: forbidden
-	//   404: notFound
-	group.Match([]string{method}, "/ctrl/ShowOperatorCode", ShowOperatorCode)
 	// swagger:route POST /auth/ctrl/CreateResTagTable ResTagTable CreateResTagTable
 	// Create TagTable.
 	// Security:
@@ -431,8 +393,7 @@ func addControllerApis(method string, group *echo.Group) {
 	// ```
 	// Key: 2
 	// KeyName: 2.1
-	// KeyOperatorKey: 2.2
-	// KeyOperatorKeyName: 2.2.1
+	// KeyOrganization: 2.2
 	// Tags: 3
 	// TagsKey: 3.1
 	// TagsValue: 3.2
@@ -515,8 +476,7 @@ func addControllerApis(method string, group *echo.Group) {
 	// The following values should be added to `Cloudlet.fields` field array to specify which fields will be updated.
 	// ```
 	// Key: 2
-	// KeyOperatorKey: 2.1
-	// KeyOperatorKeyName: 2.1.1
+	// KeyOrganization: 2.1
 	// KeyName: 2.2
 	// Location: 5
 	// LocationLatitude: 5.1
@@ -575,8 +535,7 @@ func addControllerApis(method string, group *echo.Group) {
 	// ResTagMapKey: 22.1
 	// ResTagMapValue: 22.2
 	// ResTagMapValueName: 22.2.1
-	// ResTagMapValueOperatorKey: 22.2.2
-	// ResTagMapValueOperatorKeyName: 22.2.2.1
+	// ResTagMapValueOrganization: 22.2.2
 	// AccessVars: 23
 	// AccessVarsKey: 23.1
 	// AccessVarsValue: 23.2
@@ -674,10 +633,9 @@ func addControllerApis(method string, group *echo.Group) {
 	// KeyClusterKey: 2.1
 	// KeyClusterKeyName: 2.1.1
 	// KeyCloudletKey: 2.2
-	// KeyCloudletKeyOperatorKey: 2.2.1
-	// KeyCloudletKeyOperatorKeyName: 2.2.1.1
+	// KeyCloudletKeyOrganization: 2.2.1
 	// KeyCloudletKeyName: 2.2.2
-	// KeyDeveloper: 2.3
+	// KeyOrganization: 2.3
 	// Flavor: 3
 	// FlavorName: 3.1
 	// Liveness: 9
@@ -766,18 +724,16 @@ func addControllerApis(method string, group *echo.Group) {
 	// ```
 	// Key: 2
 	// KeyAppKey: 2.1
-	// KeyAppKeyDeveloperKey: 2.1.1
-	// KeyAppKeyDeveloperKeyName: 2.1.1.2
+	// KeyAppKeyOrganization: 2.1.1
 	// KeyAppKeyName: 2.1.2
 	// KeyAppKeyVersion: 2.1.3
 	// KeyClusterInstKey: 2.4
 	// KeyClusterInstKeyClusterKey: 2.4.1
 	// KeyClusterInstKeyClusterKeyName: 2.4.1.1
 	// KeyClusterInstKeyCloudletKey: 2.4.2
-	// KeyClusterInstKeyCloudletKeyOperatorKey: 2.4.2.1
-	// KeyClusterInstKeyCloudletKeyOperatorKeyName: 2.4.2.1.1
+	// KeyClusterInstKeyCloudletKeyOrganization: 2.4.2.1
 	// KeyClusterInstKeyCloudletKeyName: 2.4.2.2
-	// KeyClusterInstKeyDeveloper: 2.4.3
+	// KeyClusterInstKeyOrganization: 2.4.3
 	// CloudletLoc: 3
 	// CloudletLocLatitude: 3.1
 	// CloudletLocLongitude: 3.2
@@ -881,7 +837,7 @@ func addControllerApis(method string, group *echo.Group) {
 	// The following values should be added to `AutoScalePolicy.fields` field array to specify which fields will be updated.
 	// ```
 	// Key: 2
-	// KeyDeveloper: 2.1
+	// KeyOrganization: 2.1
 	// KeyName: 2.2
 	// MinNodes: 3
 	// MaxNodes: 4
@@ -933,14 +889,13 @@ func addControllerApis(method string, group *echo.Group) {
 	// The following values should be added to `AutoProvPolicy.fields` field array to specify which fields will be updated.
 	// ```
 	// Key: 2
-	// KeyDeveloper: 2.1
+	// KeyOrganization: 2.1
 	// KeyName: 2.2
 	// DeployClientCount: 3
 	// DeployIntervalCount: 4
 	// Cloudlets: 5
 	// CloudletsKey: 5.1
-	// CloudletsKeyOperatorKey: 5.1.1
-	// CloudletsKeyOperatorKeyName: 5.1.1.1
+	// CloudletsKeyOrganization: 5.1.1
 	// CloudletsKeyName: 5.1.2
 	// CloudletsLoc: 5.2
 	// CloudletsLocLatitude: 5.2.1
@@ -1153,6 +1108,38 @@ func addControllerApis(method string, group *echo.Group) {
 	//   403: forbidden
 	//   404: notFound
 	group.Match([]string{method}, "/ctrl/ShowLogs", ShowLogs)
+	// swagger:route POST /auth/ctrl/CreateOperatorCode OperatorCode CreateOperatorCode
+	// Create a code for an Operator.
+	//
+	// Security:
+	//   Bearer:
+	// responses:
+	//   200: success
+	//   400: badRequest
+	//   403: forbidden
+	//   404: notFound
+	group.Match([]string{method}, "/ctrl/CreateOperatorCode", CreateOperatorCode)
+	// swagger:route POST /auth/ctrl/DeleteOperatorCode OperatorCode DeleteOperatorCode
+	// Delete a code for an Operator.
+	//
+	// Security:
+	//   Bearer:
+	// responses:
+	//   200: success
+	//   400: badRequest
+	//   403: forbidden
+	//   404: notFound
+	group.Match([]string{method}, "/ctrl/DeleteOperatorCode", DeleteOperatorCode)
+	// swagger:route POST /auth/ctrl/ShowOperatorCode OperatorCode ShowOperatorCode
+	// Show OperatorCodes.
+	// Security:
+	//   Bearer:
+	// responses:
+	//   200: success
+	//   400: badRequest
+	//   403: forbidden
+	//   404: notFound
+	group.Match([]string{method}, "/ctrl/ShowOperatorCode", ShowOperatorCode)
 	// swagger:route POST /auth/ctrl/CreatePrivacyPolicy PrivacyPolicy CreatePrivacyPolicy
 	// Create a Privacy Policy.
 	// Security:
@@ -1178,7 +1165,7 @@ func addControllerApis(method string, group *echo.Group) {
 	// The following values should be added to `PrivacyPolicy.fields` field array to specify which fields will be updated.
 	// ```
 	// Key: 2
-	// KeyDeveloper: 2.1
+	// KeyOrganization: 2.1
 	// KeyName: 2.2
 	// OutboundSecurityRules: 3
 	// OutboundSecurityRulesProtocol: 3.1

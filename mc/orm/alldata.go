@@ -106,7 +106,7 @@ func CreateData(c echo.Context) error {
 			streamReply(c, desc, err, &hadErr)
 		}
 		for _, oc := range appdata.OperatorCodes {
-			desc := fmt.Sprintf("Create OperatorCode %s-%s", oc.Code, oc.OperatorName)
+			desc := fmt.Sprintf("Create OperatorCode %s-%s", oc.Code, oc.Organization)
 			_, err = CreateOperatorCodeObj(ctx, rc, &oc)
 			streamReply(c, desc, err, &hadErr)
 		}
@@ -256,7 +256,7 @@ func DeleteData(c echo.Context) error {
 			streamReply(c, desc, err, &hadErr)
 		}
 		for _, oc := range appdata.OperatorCodes {
-			desc := fmt.Sprintf("Delete OperatorCode %s-%s", oc.Code, oc.OperatorName)
+			desc := fmt.Sprintf("Delete OperatorCode %s-%s", oc.Code, oc.Organization)
 			_, err = DeleteOperatorCodeObj(ctx, rc, &oc)
 			streamReply(c, desc, err, &hadErr)
 		}

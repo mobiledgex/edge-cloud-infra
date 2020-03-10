@@ -82,7 +82,7 @@ func (p *ClusterWorker) RunNotify() {
 		select {
 		case <-time.After(p.interval):
 			span := log.StartSpan(log.DebugLevelSampled, "send-metric")
-			span.SetTag("operator", p.clusterInstKey.CloudletKey.OperatorKey.Name)
+			span.SetTag("operator", p.clusterInstKey.CloudletKey.Organization)
 			span.SetTag("cloudlet", p.clusterInstKey.CloudletKey.Name)
 			span.SetTag("cluster", p.clusterInstKey.ClusterKey.Name)
 			ctx := log.ContextWithSpan(context.Background(), span)
@@ -91,7 +91,7 @@ func (p *ClusterWorker) RunNotify() {
 
 			// create another span for alerts that is always logged
 			aspan := log.StartSpan(log.DebugLevelMetrics, "alerts check")
-			aspan.SetTag("operator", p.clusterInstKey.CloudletKey.OperatorKey.Name)
+			aspan.SetTag("operator", p.clusterInstKey.CloudletKey.Organization)
 			aspan.SetTag("cloudlet", p.clusterInstKey.CloudletKey.Name)
 			aspan.SetTag("cluster", p.clusterInstKey.ClusterKey.Name)
 			actx := log.ContextWithSpan(context.Background(), aspan)
@@ -123,10 +123,10 @@ func newMetric(clusterInstKey edgeproto.ClusterInstKey, name string, key *shephe
 	metric := edgeproto.Metric{}
 	metric.Name = name
 	metric.Timestamp = *ts
-	metric.AddTag("operator", clusterInstKey.CloudletKey.OperatorKey.Name)
+	metric.AddTag("operator", clusterInstKey.CloudletKey.Organization)
 	metric.AddTag("cloudlet", clusterInstKey.CloudletKey.Name)
 	metric.AddTag("cluster", clusterInstKey.ClusterKey.Name)
-	metric.AddTag("dev", clusterInstKey.Developer)
+	metric.AddTag("dev", clusterInstKey.Organization)
 	if key != nil {
 		metric.AddTag("app", key.Pod)
 	}
@@ -247,8 +247,8 @@ func pruneForeignAlerts(clusterInstKey *edgeproto.ClusterInstKey, keys *map[edge
 	for key, _ := range *keys {
 		edgeproto.AlertKeyStringParse(string(key), &alertFromKey)
 		if _, found := alertFromKey.Labels[cloudcommon.AlertLabelApp]; found ||
-			alertFromKey.Labels[cloudcommon.AlertLabelDev] != clusterInstKey.Developer ||
-			alertFromKey.Labels[cloudcommon.AlertLabelOperator] != clusterInstKey.CloudletKey.OperatorKey.Name ||
+			alertFromKey.Labels[cloudcommon.AlertLabelDev] != clusterInstKey.Organization ||
+			alertFromKey.Labels[cloudcommon.AlertLabelOperator] != clusterInstKey.CloudletKey.Organization ||
 			alertFromKey.Labels[cloudcommon.AlertLabelCloudlet] != clusterInstKey.CloudletKey.Name ||
 			alertFromKey.Labels[cloudcommon.AlertLabelCluster] != clusterInstKey.ClusterKey.Name {
 			delete(*keys, key)
@@ -268,8 +268,8 @@ func updateAlerts(ctx context.Context, clusterInstKey *edgeproto.ClusterInstKey,
 	changeCount := 0
 	for ii, _ := range alerts {
 		alert := &alerts[ii]
-		alert.Labels[cloudcommon.AlertLabelDev] = clusterInstKey.Developer
-		alert.Labels[cloudcommon.AlertLabelOperator] = clusterInstKey.CloudletKey.OperatorKey.Name
+		alert.Labels[cloudcommon.AlertLabelDev] = clusterInstKey.Organization
+		alert.Labels[cloudcommon.AlertLabelOperator] = clusterInstKey.CloudletKey.Organization
 		alert.Labels[cloudcommon.AlertLabelCloudlet] = clusterInstKey.CloudletKey.Name
 		alert.Labels[cloudcommon.AlertLabelCluster] = clusterInstKey.ClusterKey.Name
 
@@ -309,8 +309,8 @@ func flushAlerts(ctx context.Context, key *edgeproto.ClusterInstKey) {
 	toflush := []edgeproto.AlertKey{}
 	AlertCache.Mux.Lock()
 	for k, v := range AlertCache.Objs {
-		if v.Labels[cloudcommon.AlertLabelDev] == key.Developer &&
-			v.Labels[cloudcommon.AlertLabelOperator] == key.CloudletKey.OperatorKey.Name &&
+		if v.Labels[cloudcommon.AlertLabelDev] == key.Organization &&
+			v.Labels[cloudcommon.AlertLabelOperator] == key.CloudletKey.Organization &&
 			v.Labels[cloudcommon.AlertLabelCloudlet] == key.CloudletKey.Name &&
 			v.Labels[cloudcommon.AlertLabelCluster] == key.ClusterKey.Name {
 			toflush = append(toflush, k)

@@ -59,7 +59,7 @@ func StartProxyScraper() {
 }
 
 func getProxyKey(appInstKey *edgeproto.AppInstKey) string {
-	return appInstKey.AppKey.Name + "-" + appInstKey.ClusterInstKey.ClusterKey.Name + "-" + appInstKey.AppKey.DeveloperKey.Name
+	return appInstKey.AppKey.Name + "-" + appInstKey.ClusterInstKey.ClusterKey.Name + "-" + appInstKey.AppKey.Organization
 }
 
 // Figure out envoy proxy container name
@@ -105,7 +105,7 @@ func CollectProxyStats(ctx context.Context, appInst *edgeproto.AppInst) {
 			Key:     appInst.Key,
 			App:     k8smgmt.NormalizeName(appInst.Key.AppKey.Name),
 			Cluster: appInst.Key.ClusterInstKey.ClusterKey.Name,
-			Dev:     appInst.Key.AppKey.DeveloperKey.Name,
+			Dev:     appInst.Key.AppKey.Organization,
 			Ports:   make([]int32, 0),
 		}
 		// TODO: track udp ports as well (when we add udp to envoy)
@@ -163,7 +163,7 @@ func ProxyScraper() {
 			scrapePoints := copyMapValues()
 			for _, v := range scrapePoints {
 				span := log.StartSpan(log.DebugLevelSampled, "send-metric")
-				span.SetTag("operator", cloudletKey.OperatorKey.Name)
+				span.SetTag("operator", cloudletKey.Organization)
 				span.SetTag("cloudlet", cloudletKey.Name)
 				span.SetTag("cluster", v.Cluster)
 				ctx := log.ContextWithSpan(context.Background(), span)
@@ -434,7 +434,7 @@ func MarshallProxyMetric(scrapePoint ProxyScrapePoint, data *shepherd_common.Pro
 		metric := edgeproto.Metric{}
 		metric.Name = "appinst-connections"
 		metric.Timestamp = *data.Ts
-		metric.AddTag("operator", cloudletKey.OperatorKey.Name)
+		metric.AddTag("operator", cloudletKey.Organization)
 		metric.AddTag("cloudlet", cloudletKey.Name)
 		metric.AddTag("cluster", scrapePoint.Cluster)
 		metric.AddTag("dev", scrapePoint.Dev)
@@ -461,7 +461,7 @@ func MarshallNginxMetric(scrapePoint ProxyScrapePoint, data *shepherd_common.Pro
 	metric := edgeproto.Metric{}
 	metric.Name = "appinst-connections"
 	metric.Timestamp = *data.Ts
-	metric.AddTag("operator", cloudletKey.OperatorKey.Name)
+	metric.AddTag("operator", cloudletKey.Organization)
 	metric.AddTag("cloudlet", cloudletKey.Name)
 	metric.AddTag("cluster", scrapePoint.Cluster)
 	metric.AddTag("dev", scrapePoint.Dev)

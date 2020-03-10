@@ -93,7 +93,7 @@ func testImagePaths(t *testing.T, ctx context.Context, mcClient *ormclient.Clien
 
 func testImagePath(t *testing.T, ctx context.Context, org, imagepath string, ok bool) {
 	app := edgeproto.App{}
-	app.Key.DeveloperKey.Name = org
+	app.Key.Organization = org
 	app.ImagePath = imagepath
 	err := checkImagePath(ctx, &app)
 	if ok {

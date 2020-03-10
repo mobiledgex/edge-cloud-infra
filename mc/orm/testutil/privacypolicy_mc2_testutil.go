@@ -30,7 +30,7 @@ func TestCreatePrivacyPolicy(mcClient *ormclient.Client, uri, token, region stri
 }
 func TestPermCreatePrivacyPolicy(mcClient *ormclient.Client, uri, token, region, org string) (*edgeproto.Result, int, error) {
 	in := &edgeproto.PrivacyPolicy{}
-	in.Key.Developer = org
+	in.Key.Organization = org
 	return TestCreatePrivacyPolicy(mcClient, uri, token, region, in)
 }
 
@@ -42,7 +42,7 @@ func TestDeletePrivacyPolicy(mcClient *ormclient.Client, uri, token, region stri
 }
 func TestPermDeletePrivacyPolicy(mcClient *ormclient.Client, uri, token, region, org string) (*edgeproto.Result, int, error) {
 	in := &edgeproto.PrivacyPolicy{}
-	in.Key.Developer = org
+	in.Key.Organization = org
 	return TestDeletePrivacyPolicy(mcClient, uri, token, region, in)
 }
 
@@ -54,7 +54,7 @@ func TestUpdatePrivacyPolicy(mcClient *ormclient.Client, uri, token, region stri
 }
 func TestPermUpdatePrivacyPolicy(mcClient *ormclient.Client, uri, token, region, org string) (*edgeproto.Result, int, error) {
 	in := &edgeproto.PrivacyPolicy{}
-	in.Key.Developer = org
+	in.Key.Organization = org
 	return TestUpdatePrivacyPolicy(mcClient, uri, token, region, in)
 }
 
@@ -66,7 +66,7 @@ func TestShowPrivacyPolicy(mcClient *ormclient.Client, uri, token, region string
 }
 func TestPermShowPrivacyPolicy(mcClient *ormclient.Client, uri, token, region, org string) ([]edgeproto.PrivacyPolicy, int, error) {
 	in := &edgeproto.PrivacyPolicy{}
-	in.Key.Developer = org
+	in.Key.Organization = org
 	return TestShowPrivacyPolicy(mcClient, uri, token, region, in)
 }
 

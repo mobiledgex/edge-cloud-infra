@@ -30,7 +30,7 @@ func TestCreateAutoScalePolicy(mcClient *ormclient.Client, uri, token, region st
 }
 func TestPermCreateAutoScalePolicy(mcClient *ormclient.Client, uri, token, region, org string) (*edgeproto.Result, int, error) {
 	in := &edgeproto.AutoScalePolicy{}
-	in.Key.Developer = org
+	in.Key.Organization = org
 	return TestCreateAutoScalePolicy(mcClient, uri, token, region, in)
 }
 
@@ -42,7 +42,7 @@ func TestDeleteAutoScalePolicy(mcClient *ormclient.Client, uri, token, region st
 }
 func TestPermDeleteAutoScalePolicy(mcClient *ormclient.Client, uri, token, region, org string) (*edgeproto.Result, int, error) {
 	in := &edgeproto.AutoScalePolicy{}
-	in.Key.Developer = org
+	in.Key.Organization = org
 	return TestDeleteAutoScalePolicy(mcClient, uri, token, region, in)
 }
 
@@ -54,7 +54,7 @@ func TestUpdateAutoScalePolicy(mcClient *ormclient.Client, uri, token, region st
 }
 func TestPermUpdateAutoScalePolicy(mcClient *ormclient.Client, uri, token, region, org string) (*edgeproto.Result, int, error) {
 	in := &edgeproto.AutoScalePolicy{}
-	in.Key.Developer = org
+	in.Key.Organization = org
 	return TestUpdateAutoScalePolicy(mcClient, uri, token, region, in)
 }
 
@@ -66,7 +66,7 @@ func TestShowAutoScalePolicy(mcClient *ormclient.Client, uri, token, region stri
 }
 func TestPermShowAutoScalePolicy(mcClient *ormclient.Client, uri, token, region, org string) ([]edgeproto.AutoScalePolicy, int, error) {
 	in := &edgeproto.AutoScalePolicy{}
-	in.Key.Developer = org
+	in.Key.Organization = org
 	return TestShowAutoScalePolicy(mcClient, uri, token, region, in)
 }
 

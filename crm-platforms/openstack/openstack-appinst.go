@@ -54,7 +54,7 @@ func (s *Platform) CreateAppInst(ctx context.Context, clusterInst *edgeproto.Clu
 				ClusterIp:     masterIP,
 				CloudletName:  k8smgmt.NormalizeName(clusterInst.Key.CloudletKey.Name),
 				ClusterName:   k8smgmt.NormalizeName(clusterInst.Key.ClusterKey.Name),
-				DeveloperName: k8smgmt.NormalizeName(app.Key.DeveloperKey.Name),
+				DeveloperOrg: k8smgmt.NormalizeName(app.Key.Organization),
 				DnsZone:       mexos.GetCloudletDNSZone(),
 			},
 		}
@@ -339,7 +339,7 @@ func (s *Platform) DeleteAppInst(ctx context.Context, clusterInst *edgeproto.Clu
 				ClusterIp:     masterIP,
 				CloudletName:  k8smgmt.NormalizeName(clusterInst.Key.CloudletKey.Name),
 				ClusterName:   k8smgmt.NormalizeName(clusterInst.Key.ClusterKey.Name),
-				DeveloperName: k8smgmt.NormalizeName(app.Key.DeveloperKey.Name),
+				DeveloperOrg: k8smgmt.NormalizeName(app.Key.Organization),
 				DnsZone:       mexos.GetCloudletDNSZone(),
 			},
 		}
@@ -440,7 +440,7 @@ func (s *Platform) UpdateAppInst(ctx context.Context, clusterInst *edgeproto.Clu
 		Deployment: crmutil.CrmReplaceVars{
 			ClusterIp:     masterIP,
 			ClusterName:   k8smgmt.NormalizeName(clusterInst.Key.ClusterKey.Name),
-			DeveloperName: k8smgmt.NormalizeName(app.Key.DeveloperKey.Name),
+			DeveloperOrg: k8smgmt.NormalizeName(app.Key.Organization),
 			DnsZone:       mexos.GetCloudletDNSZone(),
 		},
 	}

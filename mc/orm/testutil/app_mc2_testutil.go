@@ -30,7 +30,7 @@ func TestCreateApp(mcClient *ormclient.Client, uri, token, region string, in *ed
 }
 func TestPermCreateApp(mcClient *ormclient.Client, uri, token, region, org string) (*edgeproto.Result, int, error) {
 	in := &edgeproto.App{}
-	in.Key.DeveloperKey.Name = org
+	in.Key.Organization = org
 	return TestCreateApp(mcClient, uri, token, region, in)
 }
 
@@ -42,7 +42,7 @@ func TestDeleteApp(mcClient *ormclient.Client, uri, token, region string, in *ed
 }
 func TestPermDeleteApp(mcClient *ormclient.Client, uri, token, region, org string) (*edgeproto.Result, int, error) {
 	in := &edgeproto.App{}
-	in.Key.DeveloperKey.Name = org
+	in.Key.Organization = org
 	return TestDeleteApp(mcClient, uri, token, region, in)
 }
 
@@ -54,7 +54,7 @@ func TestUpdateApp(mcClient *ormclient.Client, uri, token, region string, in *ed
 }
 func TestPermUpdateApp(mcClient *ormclient.Client, uri, token, region, org string) (*edgeproto.Result, int, error) {
 	in := &edgeproto.App{}
-	in.Key.DeveloperKey.Name = org
+	in.Key.Organization = org
 	return TestUpdateApp(mcClient, uri, token, region, in)
 }
 
@@ -66,7 +66,7 @@ func TestShowApp(mcClient *ormclient.Client, uri, token, region string, in *edge
 }
 func TestPermShowApp(mcClient *ormclient.Client, uri, token, region, org string) ([]edgeproto.App, int, error) {
 	in := &edgeproto.App{}
-	in.Key.DeveloperKey.Name = org
+	in.Key.Organization = org
 	return TestShowApp(mcClient, uri, token, region, in)
 }
 

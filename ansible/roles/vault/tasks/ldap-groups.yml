@@ -1,0 +1,20 @@
+- name: "Check LDAP group config: {{ group.name }}"
+  vault_api:
+    api: "auth/ldap/groups/{{ group.name }}"
+  register: result
+  changed_when: no
+  ignore_errors: yes
+
+- name: "Configure LDAP group: {{ group.name }}"
+  vault_api:
+    api: "auth/ldap/groups/{{ group.name }}"
+    method: POST
+    data:
+      policies: "{{ policy_list }}"
+    success_code: 204
+  vars:
+    policy_list: "{{ lookup('vault_user_role', group.role) }}"
+  when: ("meta" not in result) or
+        ("data" not in result.meta.response) or
+        (not result.meta.response.data) or
+        (result.meta.response.data.policies|sort|join(",") != policy_list)

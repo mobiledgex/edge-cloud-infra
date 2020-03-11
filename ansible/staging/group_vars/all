@@ -7,6 +7,10 @@ vault_ha_zones:
   us: us-west2-a
   eu: europe-west3-a
 
+vault_ldap_groups:
+  - name: EdgeBox
+    role: edgebox_user
+
 vault_github_users:
   - userid: bibingeorge1986
     role: cloudlet_admin

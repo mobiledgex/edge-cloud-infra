@@ -41,7 +41,7 @@ func GetEventsCommand() *cobra.Command {
 }
 
 var AppEventRequiredArgs = []string{
-	"developerorg",
+	"app.org",
 }
 
 var AppEventOptionalArgs = []string{
@@ -78,14 +78,14 @@ var ClusterEventOptionalArgs = []string{
 }
 
 var ClusterEventAliasArgs = []string{
-	"developerorg=clusterinst.developer",
+	"cluster.org=clusterinst.organization",
 	"cluster=clusterinst.clusterkey.name",
-	"operatororg=clusterinst.cloudletkey.organization",
+	"cloudlet.org=clusterinst.cloudletkey.organization",
 	"cloudlet=clusterinst.cloudletkey.name",
 }
 
 var CloudletEventRequiredArgs = []string{
-	"operatororg",
+	"cloudlet.org",
 }
 
 var CloudletEventOptionalArgs = []string{
@@ -96,16 +96,16 @@ var CloudletEventOptionalArgs = []string{
 }
 
 var CloudletEventAliasArgs = []string{
-	"operatororg=cloudlet.operatorkey.name",
+	"cloudlet.org=cloudlet.operatorkey.name",
 	"cloudlet=cloudlet.name",
 }
 
 var EventComments = map[string]string{
-	"developerorg": "Organization or Company Name that a Developer is part of",
+	"app.org":      "Organization or Company Name that a Developer is part of",
 	"appname":      "App name",
 	"appvers":      "App version",
 	"cluster":      "Cluster name",
-	"operatororg":  "Organization name of the operator",
+	"cloudlet.org": "Organization name owning of the cloudlet",
 	"cloudlet":     "Name of the cloudlet",
 	"last":         "Display the last X Events",
 	"starttime":    "Time to start displaying stats from",

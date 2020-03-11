@@ -41,7 +41,7 @@ func GetMetricsCommand() *cobra.Command {
 }
 
 var AppMetricRequiredArgs = []string{
-	"developerorg",
+	"app.org",
 	"selector",
 }
 
@@ -50,29 +50,29 @@ var AppMetricOptionalArgs = []string{
 	"appvers",
 	"cluster",
 	"cloudlet",
-	"operatororg",
+	"cloudlet.org",
 	"last",
 	"starttime",
 	"endtime",
 }
 
 var AppMetricAliasArgs = []string{
-	"developerorg=appinst.appkey.organization",
+	"app.org=appinst.appkey.organization",
 	"appname=appinst.appkey.name",
 	"appvers=appinst.appkey.version",
 	"cluster=appinst.clusterinstkey.clusterkey.name",
-	"operatororg=appinst.clusterinstkey.cloudletkey.organization",
+	"cloudlet.org=appinst.clusterinstkey.cloudletkey.organization",
 	"cloudlet=appinst.clusterinstkey.cloudletkey.name",
 }
 
 var ClusterMetricRequiredArgs = []string{
-	"developerorg",
+	"",
 	"selector",
 }
 
 var ClusterMetricOptionalArgs = []string{
 	"cluster",
-	"operatororg",
+	"cloudlet.org",
 	"cloudlet",
 	"last",
 	"starttime",
@@ -80,14 +80,14 @@ var ClusterMetricOptionalArgs = []string{
 }
 
 var ClusterMetricAliasArgs = []string{
-	"developerorg=clusterinst.organization",
+	"cluster.org=clusterinst.organization",
 	"cluster=clusterinst.clusterkey.name",
-	"operatororg=clusterinst.cloudletkey.organization",
+	"cloudlet.org=clusterinst.cloudletkey.organization",
 	"cloudlet=clusterinst.cloudletkey.name",
 }
 
 var CloudletMetricRequiredArgs = []string{
-	"operatororg",
+	"cloudlet.org",
 	"selector",
 }
 
@@ -99,16 +99,16 @@ var CloudletMetricOptionalArgs = []string{
 }
 
 var CloudletMetricAliasArgs = []string{
-	"operator=cloudlet.operatorkey.name",
+	"organization=cloudlet.organization",
 	"cloudlet=cloudlet.name",
 }
 
 var MetricComments = map[string]string{
-	"developerorg": "Organization or Company Name that a Developer is part of",
+	"app.org":      "Organization or Company Name that a Developer is part of",
 	"appname":      "App name",
 	"appvers":      "App version",
 	"cluster":      "Cluster name",
-	"operatororg":  "Company or Organization name of the operator",
+	"cloudlet.org": "Company or Organization name of the cloudlet",
 	"cloudlet":     "Name of the cloudlet",
 	"selector":     "Comma separated list of metrics to view",
 	"last":         "Display the last X metrics",

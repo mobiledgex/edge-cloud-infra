@@ -40,7 +40,7 @@ type ProxyScrapePoint struct {
 	FailedChecksCount int
 	App               string
 	Cluster           string
-	DeveloperOrg      string
+	AppOrg            string
 	Ports             []int32
 	Client            ssh.Client
 	ProxyContainer    string
@@ -102,11 +102,11 @@ func CollectProxyStats(ctx context.Context, appInst *edgeproto.AppInst) {
 	// add/remove from the list of proxy endpoints to hit
 	if appInst.State == edgeproto.TrackedState_READY {
 		scrapePoint := ProxyScrapePoint{
-			Key:          appInst.Key,
-			App:          k8smgmt.NormalizeName(appInst.Key.AppKey.Name),
-			Cluster:      appInst.Key.ClusterInstKey.ClusterKey.Name,
-			DeveloperOrg: appInst.Key.AppKey.Organization,
-			Ports:        make([]int32, 0),
+			Key:     appInst.Key,
+			App:     k8smgmt.NormalizeName(appInst.Key.AppKey.Name),
+			Cluster: appInst.Key.ClusterInstKey.ClusterKey.Name,
+			AppOrg:  appInst.Key.AppKey.Organization,
+			Ports:   make([]int32, 0),
 		}
 		// TODO: track udp ports as well (when we add udp to envoy)
 		for _, p := range appInst.MappedPorts {
@@ -434,10 +434,10 @@ func MarshallProxyMetric(scrapePoint ProxyScrapePoint, data *shepherd_common.Pro
 		metric := edgeproto.Metric{}
 		metric.Name = "appinst-connections"
 		metric.Timestamp = *data.Ts
-		metric.AddTag("operator", cloudletKey.Organization)
+		metric.AddTag("cloudlet.org", cloudletKey.Organization)
 		metric.AddTag("cloudlet", cloudletKey.Name)
 		metric.AddTag("cluster", scrapePoint.Cluster)
-		metric.AddTag("developerorg", scrapePoint.DeveloperOrg)
+		metric.AddTag("app.org", scrapePoint.AppOrg)
 		metric.AddTag("app", scrapePoint.App)
 		metric.AddTag("port", strconv.Itoa(int(port)))
 
@@ -461,10 +461,10 @@ func MarshallNginxMetric(scrapePoint ProxyScrapePoint, data *shepherd_common.Pro
 	metric := edgeproto.Metric{}
 	metric.Name = "appinst-connections"
 	metric.Timestamp = *data.Ts
-	metric.AddTag("operator", cloudletKey.Organization)
+	metric.AddTag("cloudlet.org", cloudletKey.Organization)
 	metric.AddTag("cloudlet", cloudletKey.Name)
 	metric.AddTag("cluster", scrapePoint.Cluster)
-	metric.AddTag("developerorg", scrapePoint.DeveloperOrg)
+	metric.AddTag("app.org", scrapePoint.AppOrg)
 	metric.AddTag("app", scrapePoint.App)
 	metric.AddTag("port", "") //nginx doesnt support stats per port
 

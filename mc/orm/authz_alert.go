@@ -31,7 +31,7 @@ func (s *AuthzAlert) Ok(obj *edgeproto.Alert) bool {
 		return true
 	}
 
-	org := obj.Labels["developerorg"]
+	org := obj.Labels["app.org"]
 	_, found := s.orgs[org]
 	return found
 }

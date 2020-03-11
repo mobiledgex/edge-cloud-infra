@@ -38,8 +38,8 @@ type influxQueryArgs struct {
 	AppInstName  string
 	ClusterName  string
 	CloudletName string
-	OperatorOrg  string
-	DeveloperOrg string
+	CloudletOrg  string
+	AppOrg       string
 	Method       string
 	CellId       string
 	StartTime    string
@@ -77,16 +77,16 @@ var ClientSelectors = []string{
 var AppFields = []string{
 	"\"app\"",
 	"\"cluster\"",
-	"\"developerorg\"",
+	"\"cluster.org\"",
 	"\"cloudlet\"",
-	"\"operatororg\"",
+	"\"cloudlet.org\"",
 }
 
 var ClusterFields = []string{
 	"\"cluster\"",
-	"\"developerorg\"",
+	"\"cluster.org\"",
 	"\"cloudlet\"",
-	"\"operatororg\"",
+	"\"cloudlet.org\"",
 }
 
 var CloudletFields = []string{
@@ -95,10 +95,10 @@ var CloudletFields = []string{
 }
 
 var ClientFields = []string{
-	"\"developerorg\"",
+	"\"app.org\"",
 	"\"app\"",
 	"\"ver\"",
-	"\"operatororg\"",
+	"\"cloudlet.org\"",
 	"\"cloudlet\"",
 }
 
@@ -194,11 +194,11 @@ const (
 )
 
 var devInfluDBT = `SELECT {{.Selector}} from "{{.Measurement}}"` +
-	` WHERE "developerorg"='{{.DeveloperOrg}}'` +
+	` WHERE "app.org"='{{.AppOrg}}'` +
 	`{{if .AppInstName}} AND "app"=~/{{.AppInstName}}/{{end}}` +
 	`{{if .ClusterName}} AND "cluster"='{{.ClusterName}}'{{end}}` +
 	`{{if .CloudletName}} AND "cloudlet"='{{.CloudletName}}'{{end}}` +
-	`{{if .OperatorOrg}} AND "operatororg"='{{.OperatorOrg}}'{{end}}` +
+	`{{if .CloudletOrg}} AND "cloudlet.org"='{{.CloudletOrg}}'{{end}}` +
 	`{{if .Method}} AND "method"='{{.Method}}'{{end}}` +
 	`{{if .CellId}} AND "cellID"='{{.CellId}}'{{end}}` +
 	`{{if .StartTime}} AND time >= '{{.StartTime}}'{{end}}` +
@@ -280,10 +280,10 @@ func ClientMetricsQuery(obj *ormapi.RegionClientMetrics) string {
 		Selector:     getFields(obj.Selector, CLIENT),
 		Measurement:  getMeasurementString(obj.Selector, CLIENT),
 		AppInstName:  k8smgmt.NormalizeName(obj.AppInst.AppKey.Name),
-		DeveloperOrg: obj.AppInst.AppKey.Organization,
+		AppOrg:       obj.AppInst.AppKey.Organization,
 		CloudletName: obj.AppInst.ClusterInstKey.CloudletKey.Name,
 		ClusterName:  obj.AppInst.ClusterInstKey.ClusterKey.Name,
-		OperatorOrg:  obj.AppInst.ClusterInstKey.CloudletKey.Organization,
+		CloudletOrg:  obj.AppInst.ClusterInstKey.CloudletKey.Organization,
 		Method:       obj.Method,
 		Last:         obj.Last,
 	}
@@ -299,10 +299,10 @@ func AppInstMetricsQuery(obj *ormapi.RegionAppInstMetrics) string {
 		Selector:     getFields(obj.Selector, APPINST),
 		Measurement:  getMeasurementString(obj.Selector, APPINST),
 		AppInstName:  k8smgmt.NormalizeName(obj.AppInst.AppKey.Name),
-		DeveloperOrg: obj.AppInst.AppKey.Organization,
+		AppOrg:       obj.AppInst.AppKey.Organization,
 		CloudletName: obj.AppInst.ClusterInstKey.CloudletKey.Name,
 		ClusterName:  obj.AppInst.ClusterInstKey.ClusterKey.Name,
-		OperatorOrg:  obj.AppInst.ClusterInstKey.CloudletKey.Organization,
+		CloudletOrg:  obj.AppInst.ClusterInstKey.CloudletKey.Organization,
 		Last:         obj.Last,
 	}
 	return fillTimeAndGetCmd(&arg, devInfluxDBTemplate, &obj.StartTime, &obj.EndTime)
@@ -315,8 +315,8 @@ func ClusterMetricsQuery(obj *ormapi.RegionClusterInstMetrics) string {
 		Measurement:  getMeasurementString(obj.Selector, CLUSTER),
 		CloudletName: obj.ClusterInst.CloudletKey.Name,
 		ClusterName:  obj.ClusterInst.ClusterKey.Name,
-		DeveloperOrg: obj.ClusterInst.Organization,
-		OperatorOrg:  obj.ClusterInst.CloudletKey.Organization,
+		AppOrg:       obj.ClusterInst.Organization,
+		CloudletOrg:  obj.ClusterInst.CloudletKey.Organization,
 		Last:         obj.Last,
 	}
 	return fillTimeAndGetCmd(&arg, devInfluxDBTemplate, &obj.StartTime, &obj.EndTime)
@@ -328,7 +328,7 @@ func CloudletMetricsQuery(obj *ormapi.RegionCloudletMetrics) string {
 		Selector:     getFields(obj.Selector, CLOUDLET),
 		Measurement:  getMeasurementString(obj.Selector, CLOUDLET),
 		CloudletName: obj.Cloudlet.Name,
-		DeveloperOrg: obj.Cloudlet.Organization,
+		CloudletOrg:  obj.Cloudlet.Organization,
 		Last:         obj.Last,
 	}
 	return fillTimeAndGetCmd(&arg, operatorInfluxDBTemplate, &obj.StartTime, &obj.EndTime)

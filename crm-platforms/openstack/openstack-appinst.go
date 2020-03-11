@@ -53,7 +53,8 @@ func (s *Platform) CreateAppInst(ctx context.Context, clusterInst *edgeproto.Clu
 				ClusterIp:    masterIP,
 				CloudletName: k8smgmt.NormalizeName(clusterInst.Key.CloudletKey.Name),
 				ClusterName:  k8smgmt.NormalizeName(clusterInst.Key.ClusterKey.Name),
-				DeveloperOrg: k8smgmt.NormalizeName(app.Key.Organization),
+				CloudletOrg:  k8smgmt.NormalizeName(clusterInst.Key.CloudletKey.Organization),
+				AppOrg:       k8smgmt.NormalizeName(app.Key.Organization),
 				DnsZone:      mexos.GetCloudletDNSZone(),
 			},
 		}
@@ -194,7 +195,8 @@ func (s *Platform) CreateAppInst(ctx context.Context, clusterInst *edgeproto.Clu
 		deploymentVars := crmutil.DeploymentReplaceVars{
 			Deployment: crmutil.CrmReplaceVars{
 				CloudletName: k8smgmt.NormalizeName(appInst.Key.ClusterInstKey.CloudletKey.Name),
-				DeveloperOrg: k8smgmt.NormalizeName(app.Key.Organization),
+				CloudletOrg:  k8smgmt.NormalizeName(clusterInst.Key.CloudletKey.Organization),
+				AppOrg:       k8smgmt.NormalizeName(app.Key.Organization),
 				DnsZone:      mexos.GetCloudletDNSZone(),
 			},
 		}
@@ -417,7 +419,8 @@ func (s *Platform) DeleteAppInst(ctx context.Context, clusterInst *edgeproto.Clu
 				ClusterIp:    masterIP,
 				CloudletName: k8smgmt.NormalizeName(clusterInst.Key.CloudletKey.Name),
 				ClusterName:  k8smgmt.NormalizeName(clusterInst.Key.ClusterKey.Name),
-				DeveloperOrg: k8smgmt.NormalizeName(app.Key.Organization),
+				CloudletOrg:  k8smgmt.NormalizeName(clusterInst.Key.CloudletKey.Organization),
+				AppOrg:       k8smgmt.NormalizeName(app.Key.Organization),
 				DnsZone:      mexos.GetCloudletDNSZone(),
 			},
 		}
@@ -532,7 +535,8 @@ func (s *Platform) UpdateAppInst(ctx context.Context, clusterInst *edgeproto.Clu
 		Deployment: crmutil.CrmReplaceVars{
 			ClusterIp:    masterIP,
 			ClusterName:  k8smgmt.NormalizeName(clusterInst.Key.ClusterKey.Name),
-			DeveloperOrg: k8smgmt.NormalizeName(app.Key.Organization),
+			CloudletName: k8smgmt.NormalizeName(clusterInst.Key.CloudletKey.Organization),
+			AppOrg:       k8smgmt.NormalizeName(app.Key.Organization),
 			DnsZone:      mexos.GetCloudletDNSZone(),
 		},
 	}

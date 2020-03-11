@@ -85,7 +85,7 @@ var CloudletRefsAliasArgs = []string{
 	"optresusedmap.value=cloudletrefs.optresusedmap.value",
 }
 var CloudletRefsComments = map[string]string{
-	"key.organization": "Operator of the cloudlet site",
+	"key.organization": "Organization of the cloudlet site",
 	"key.name":         "Name of the cloudlet",
 	"clusters.name":    "Cluster name",
 	"usedram":          "Used RAM in MB",
@@ -123,7 +123,7 @@ var ClusterRefsAliasArgs = []string{
 }
 var ClusterRefsComments = map[string]string{
 	"key.clusterkey.name":          "Cluster name",
-	"key.cloudletkey.organization": "Operator of the cloudlet site",
+	"key.cloudletkey.organization": "Organization of the cloudlet site",
 	"key.cloudletkey.name":         "Name of the cloudlet",
 	"key.organization":             "Name of Developer organization that this cluster belongs to",
 	"apps.organization":            "Developer Organization",

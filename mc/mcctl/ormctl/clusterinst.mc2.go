@@ -113,16 +113,16 @@ var ClusterInstKeyAliasArgs = []string{
 }
 var ClusterInstKeyComments = map[string]string{
 	"clusterkey.name":          "Cluster name",
-	"cloudletkey.organization": "Operator of the cloudlet site",
+	"cloudletkey.organization": "Organization of the cloudlet site",
 	"cloudletkey.name":         "Name of the cloudlet",
 	"organization":             "Name of Developer organization that this cluster belongs to",
 }
 var ClusterInstKeySpecialArgs = map[string]string{}
 var ClusterInstRequiredArgs = []string{
 	"cluster",
-	"operatororg",
+	"cloudlet.org",
 	"cloudlet",
-	"developerorg",
+	"cluster.org",
 }
 var ClusterInstOptionalArgs = []string{
 	"flavor",
@@ -143,9 +143,9 @@ var ClusterInstOptionalArgs = []string{
 }
 var ClusterInstAliasArgs = []string{
 	"cluster=clusterinst.key.clusterkey.name",
-	"operatororg=clusterinst.key.cloudletkey.organization",
+	"cloudlet.org=clusterinst.key.cloudletkey.organization",
 	"cloudlet=clusterinst.key.cloudletkey.name",
-	"developerorg=clusterinst.key.organization",
+	"cluster.org=clusterinst.key.organization",
 	"flavor=clusterinst.flavor.name",
 	"liveness=clusterinst.liveness",
 	"auto=clusterinst.auto",
@@ -174,9 +174,9 @@ var ClusterInstAliasArgs = []string{
 }
 var ClusterInstComments = map[string]string{
 	"cluster":            "Cluster name",
-	"operatororg":        "Operator of the cloudlet site",
+	"cloudlet.org":       "Organization of the cloudlet site",
 	"cloudlet":           "Name of the cloudlet",
-	"developerorg":       "Name of Developer organization that this cluster belongs to",
+	"cluster.org":        "Name of Developer organization that this cluster belongs to",
 	"flavor":             "Flavor name",
 	"liveness":           "Liveness of instance (see Liveness), one of LivenessUnknown, LivenessStatic, LivenessDynamic",
 	"auto":               "Auto is set to true when automatically created by back-end (internal use only)",
@@ -232,7 +232,7 @@ var ClusterInstInfoAliasArgs = []string{
 }
 var ClusterInstInfoComments = map[string]string{
 	"key.clusterkey.name":          "Cluster name",
-	"key.cloudletkey.organization": "Operator of the cloudlet site",
+	"key.cloudletkey.organization": "Organization of the cloudlet site",
 	"key.cloudletkey.name":         "Name of the cloudlet",
 	"key.organization":             "Name of Developer organization that this cluster belongs to",
 	"notifyid":                     "Id of client assigned by server (internal use only)",

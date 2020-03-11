@@ -345,7 +345,7 @@ func TestController(t *testing.T) {
 		appinst.Key.ClusterInstKey.Organization = cloudcommon.DeveloperMobiledgeX
 		_, status, err := ormtestutil.TestCreateAppInst(mcClient, uri, tokenDev, ctrl.Region, &appinst)
 		require.NotNil(t, err)
-		require.Contains(t, err.Error(), "AppInst developer must match ClusterInst developer")
+		require.Contains(t, err.Error(), "AppInst organization must match ClusterInst organization")
 		// but admin can
 		_, status, err = ormtestutil.TestCreateAppInst(mcClient, uri, tokenAd, ctrl.Region, &appinst)
 		require.Nil(t, err)

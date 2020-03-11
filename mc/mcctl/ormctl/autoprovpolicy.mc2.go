@@ -158,7 +158,7 @@ var AutoProvPolicyComments = map[string]string{
 	"name":                             "Policy name",
 	"deployclientcount":                "Minimum number of clients within the auto deploy interval to trigger deployment",
 	"deployintervalcount":              "Number of intervals to check before triggering deployment",
-	"cloudlets.key.organization":       "Operator of the cloudlet site",
+	"cloudlets.key.organization":       "Organization of the cloudlet site",
 	"cloudlets.key.name":               "Name of the cloudlet",
 	"cloudlets.loc.latitude":           "latitude in WGS 84 coordinates",
 	"cloudlets.loc.longitude":          "longitude in WGS 84 coordinates",
@@ -198,7 +198,7 @@ var AutoProvCloudletAliasArgs = []string{
 	"loc.timestamp.nanos=autoprovcloudlet.loc.timestamp.nanos",
 }
 var AutoProvCloudletComments = map[string]string{
-	"key.organization":       "Operator of the cloudlet site",
+	"key.organization":       "Organization of the cloudlet site",
 	"key.name":               "Name of the cloudlet",
 	"loc.latitude":           "latitude in WGS 84 coordinates",
 	"loc.longitude":          "longitude in WGS 84 coordinates",
@@ -240,12 +240,12 @@ var AutoProvCountComments = map[string]string{
 	"appkey.organization":                   "Developer Organization",
 	"appkey.name":                           "App name",
 	"appkey.version":                        "App version",
-	"cloudletkey.organization":              "Operator of the cloudlet site",
+	"cloudletkey.organization":              "Organization of the cloudlet site",
 	"cloudletkey.name":                      "Name of the cloudlet",
 	"count":                                 "FindCloudlet client count",
 	"processnow":                            "Process count immediately",
 	"deploynowkey.clusterkey.name":          "Cluster name",
-	"deploynowkey.cloudletkey.organization": "Operator of the cloudlet site",
+	"deploynowkey.cloudletkey.organization": "Organization of the cloudlet site",
 	"deploynowkey.cloudletkey.name":         "Name of the cloudlet",
 	"deploynowkey.organization":             "Name of Developer organization that this cluster belongs to",
 }
@@ -290,34 +290,34 @@ var AutoProvCountsComments = map[string]string{
 	"counts.appkey.organization":                   "Developer Organization",
 	"counts.appkey.name":                           "App name",
 	"counts.appkey.version":                        "App version",
-	"counts.cloudletkey.organization":              "Operator of the cloudlet site",
+	"counts.cloudletkey.organization":              "Organization of the cloudlet site",
 	"counts.cloudletkey.name":                      "Name of the cloudlet",
 	"counts.count":                                 "FindCloudlet client count",
 	"counts.processnow":                            "Process count immediately",
 	"counts.deploynowkey.clusterkey.name":          "Cluster name",
-	"counts.deploynowkey.cloudletkey.organization": "Operator of the cloudlet site",
+	"counts.deploynowkey.cloudletkey.organization": "Organization of the cloudlet site",
 	"counts.deploynowkey.cloudletkey.name":         "Name of the cloudlet",
 	"counts.deploynowkey.organization":             "Name of Developer organization that this cluster belongs to",
 }
 var AutoProvCountsSpecialArgs = map[string]string{}
 var AutoProvPolicyCloudletRequiredArgs = []string{
-	"developer.organization",
+	"organization",
 	"name",
 }
 var AutoProvPolicyCloudletOptionalArgs = []string{
-	"operatororg",
+	"cloudlet.org",
 	"cloudlet",
 }
 var AutoProvPolicyCloudletAliasArgs = []string{
-	"developer.organization=autoprovpolicycloudlet.key.organization",
+	"organization=autoprovpolicycloudlet.key.organization",
 	"name=autoprovpolicycloudlet.key.name",
-	"operatororg=autoprovpolicycloudlet.cloudletkey.organization",
+	"cloudlet.org=autoprovpolicycloudlet.cloudletkey.organization",
 	"cloudlet=autoprovpolicycloudlet.cloudletkey.name",
 }
 var AutoProvPolicyCloudletComments = map[string]string{
-	"developer.organization": "Name of the organization that this policy belongs to",
-	"name":                   "Policy name",
-	"operatororg":            "Operator of the cloudlet site",
-	"cloudlet":               "Name of the cloudlet",
+	"organization": "Name of the organization that this policy belongs to",
+	"name":         "Policy name",
+	"cloudlet.org": "Organization of the cloudlet site",
+	"cloudlet":     "Name of the cloudlet",
 }
 var AutoProvPolicyCloudletSpecialArgs = map[string]string{}

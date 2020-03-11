@@ -113,7 +113,7 @@ var OutboundSecurityRuleComments = map[string]string{
 }
 var OutboundSecurityRuleSpecialArgs = map[string]string{}
 var PrivacyPolicyRequiredArgs = []string{
-	"organization",
+	"anization",
 	"name",
 }
 var PrivacyPolicyOptionalArgs = []string{
@@ -123,7 +123,7 @@ var PrivacyPolicyOptionalArgs = []string{
 	"outboundsecurityrules.remotecidr",
 }
 var PrivacyPolicyAliasArgs = []string{
-	"organization=privacypolicy.key.organization",
+	"anization=privacypolicy.key.organization",
 	"name=privacypolicy.key.name",
 	"outboundsecurityrules.protocol=privacypolicy.outboundsecurityrules.protocol",
 	"outboundsecurityrules.portrangemin=privacypolicy.outboundsecurityrules.portrangemin",
@@ -131,7 +131,7 @@ var PrivacyPolicyAliasArgs = []string{
 	"outboundsecurityrules.remotecidr=privacypolicy.outboundsecurityrules.remotecidr",
 }
 var PrivacyPolicyComments = map[string]string{
-	"organization":                       "Name of the organization that this policy belongs to",
+	"anization":                          "Name of the organization that this policy belongs to",
 	"name":                               "Policy name",
 	"outboundsecurityrules.protocol":     "tcp, udp, icmp",
 	"outboundsecurityrules.portrangemin": "TCP or UDP port range start",

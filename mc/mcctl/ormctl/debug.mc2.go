@@ -85,7 +85,7 @@ var EnableDebugLevelsRequiredArgs = []string{
 var EnableDebugLevelsOptionalArgs = []string{
 	"name",
 	"type",
-	"node.cloudletkey.organization",
+	"organization",
 	"cloudlet",
 	"region",
 	"pretty",
@@ -97,7 +97,7 @@ var DisableDebugLevelsRequiredArgs = []string{
 var DisableDebugLevelsOptionalArgs = []string{
 	"name",
 	"type",
-	"node.cloudletkey.organization",
+	"organization",
 	"cloudlet",
 	"region",
 	"pretty",
@@ -107,7 +107,7 @@ var ShowDebugLevelsRequiredArgs = []string{}
 var ShowDebugLevelsOptionalArgs = []string{
 	"name",
 	"type",
-	"node.cloudletkey.organization",
+	"organization",
 	"cloudlet",
 	"region",
 	"pretty",
@@ -117,7 +117,7 @@ var RunDebugRequiredArgs = []string{}
 var RunDebugOptionalArgs = []string{
 	"name",
 	"type",
-	"node.cloudletkey.organization",
+	"organization",
 	"cloudlet",
 	"region",
 	"cmd",
@@ -128,7 +128,7 @@ var DebugRequestRequiredArgs = []string{}
 var DebugRequestOptionalArgs = []string{
 	"name",
 	"type",
-	"node.cloudletkey.organization",
+	"organization",
 	"cloudlet",
 	"region",
 	"levels",
@@ -139,7 +139,7 @@ var DebugRequestOptionalArgs = []string{
 var DebugRequestAliasArgs = []string{
 	"name=debugrequest.node.name",
 	"type=debugrequest.node.type",
-	"node.cloudletkey.organization=debugrequest.node.cloudletkey.organization",
+	"organization=debugrequest.node.cloudletkey.organization",
 	"cloudlet=debugrequest.node.cloudletkey.name",
 	"region=debugrequest.node.region",
 	"levels=debugrequest.levels",
@@ -148,15 +148,15 @@ var DebugRequestAliasArgs = []string{
 	"id=debugrequest.id",
 }
 var DebugRequestComments = map[string]string{
-	"name":                          "Name or hostname of node",
-	"type":                          "Node type",
-	"node.cloudletkey.organization": "Operator of the cloudlet site",
-	"cloudlet":                      "Name of the cloudlet",
-	"region":                        "Region the node is in",
-	"levels":                        "Comma separated list of debug level names: etcd,api,notify,dmereq,locapi,mexos,metrics,upgrade,info,sampled",
-	"cmd":                           "Debug command",
-	"pretty":                        "if possible, make output pretty",
-	"id":                            "Id used internally",
+	"name":         "Name or hostname of node",
+	"type":         "Node type",
+	"organization": "Organization of the cloudlet site",
+	"cloudlet":     "Name of the cloudlet",
+	"region":       "Region the node is in",
+	"levels":       "Comma separated list of debug level names: etcd,api,notify,dmereq,locapi,mexos,metrics,upgrade,info,sampled",
+	"cmd":          "Debug command",
+	"pretty":       "if possible, make output pretty",
+	"id":           "Id used internally",
 }
 var DebugRequestSpecialArgs = map[string]string{}
 var DebugReplyRequiredArgs = []string{}
@@ -181,7 +181,7 @@ var DebugReplyAliasArgs = []string{
 var DebugReplyComments = map[string]string{
 	"node.name":                     "Name or hostname of node",
 	"node.type":                     "Node type",
-	"node.cloudletkey.organization": "Operator of the cloudlet site",
+	"node.cloudletkey.organization": "Organization of the cloudlet site",
 	"node.cloudletkey.name":         "Name of the cloudlet",
 	"node.region":                   "Region the node is in",
 	"output":                        "Debug output, if any",

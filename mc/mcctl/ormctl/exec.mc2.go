@@ -63,40 +63,40 @@ var ExecApiCmds = []*cli.Command{
 }
 
 var RunCommandRequiredArgs = []string{
-	"organization",
+	"app.org",
 	"appname",
 	"appvers",
 	"cluster",
-	"operatororg",
+	"cloudlet.org",
 	"cloudlet",
 	"command",
 }
 var RunCommandOptionalArgs = []string{
-	"clusterdevorg",
+	"cluster.org",
 	"containerid",
 }
 var RunConsoleRequiredArgs = []string{
-	"organization",
+	"app.org",
 	"appname",
 	"appvers",
 	"cluster",
-	"operatororg",
+	"cloudlet.org",
 	"cloudlet",
 }
 var RunConsoleOptionalArgs = []string{
-	"clusterdevorg",
+	"cluster.org",
 	"containerid",
 }
 var ShowLogsRequiredArgs = []string{
-	"organization",
+	"app.org",
 	"appname",
 	"appvers",
 	"cluster",
-	"operatororg",
+	"cloudlet.org",
 	"cloudlet",
 }
 var ShowLogsOptionalArgs = []string{
-	"clusterdevorg",
+	"cluster.org",
 	"containerid",
 	"since",
 	"tail",
@@ -146,13 +146,13 @@ var ShowLogComments = map[string]string{
 }
 var ShowLogSpecialArgs = map[string]string{}
 var ExecRequestRequiredArgs = []string{
-	"organization",
+	"app.org",
 	"appname",
 	"appvers",
 	"cluster",
-	"operatororg",
+	"cloudlet.org",
 	"cloudlet",
-	"clusterdevorg",
+	"cluster.org",
 }
 var ExecRequestOptionalArgs = []string{
 	"containerid",
@@ -163,13 +163,13 @@ var ExecRequestOptionalArgs = []string{
 	"follow",
 }
 var ExecRequestAliasArgs = []string{
-	"organization=execrequest.appinstkey.appkey.organization",
+	"app.org=execrequest.appinstkey.appkey.organization",
 	"appname=execrequest.appinstkey.appkey.name",
 	"appvers=execrequest.appinstkey.appkey.version",
 	"cluster=execrequest.appinstkey.clusterinstkey.clusterkey.name",
-	"operatororg=execrequest.appinstkey.clusterinstkey.cloudletkey.organization",
+	"cloudlet.org=execrequest.appinstkey.clusterinstkey.cloudletkey.organization",
 	"cloudlet=execrequest.appinstkey.clusterinstkey.cloudletkey.name",
-	"clusterdevorg=execrequest.appinstkey.clusterinstkey.organization",
+	"cluster.org=execrequest.appinstkey.clusterinstkey.organization",
 	"containerid=execrequest.containerid",
 	"offer=execrequest.offer",
 	"answer=execrequest.answer",
@@ -183,23 +183,23 @@ var ExecRequestAliasArgs = []string{
 	"timeout=execrequest.timeout",
 }
 var ExecRequestComments = map[string]string{
-	"organization":  "Developer Organization",
-	"appname":       "App name",
-	"appvers":       "App version",
-	"cluster":       "Cluster name",
-	"operatororg":   "Operator of the cloudlet site",
-	"cloudlet":      "Name of the cloudlet",
-	"clusterdevorg": "Name of Developer organization that this cluster belongs to",
-	"containerid":   "ContainerId is the name or ID of the target container, if applicable",
-	"offer":         "WebRTC Offer",
-	"answer":        "WebRTC Answer",
-	"err":           "Any error message",
-	"command":       "Command or Shell",
-	"since":         "Show logs since either a duration ago (5s, 2m, 3h) or a timestamp (RFC3339)",
-	"tail":          "Show only a recent number of lines",
-	"timestamps":    "Show timestamps",
-	"follow":        "Stream data",
-	"console.url":   "VM Console URL",
-	"timeout":       "Timeout",
+	"app.org":      "Developer Organization",
+	"appname":      "App name",
+	"appvers":      "App version",
+	"cluster":      "Cluster name",
+	"cloudlet.org": "Organization of the cloudlet site",
+	"cloudlet":     "Name of the cloudlet",
+	"cluster.org":  "Name of Developer organization that this cluster belongs to",
+	"containerid":  "ContainerId is the name or ID of the target container, if applicable",
+	"offer":        "WebRTC Offer",
+	"answer":       "WebRTC Answer",
+	"err":          "Any error message",
+	"command":      "Command or Shell",
+	"since":        "Show logs since either a duration ago (5s, 2m, 3h) or a timestamp (RFC3339)",
+	"tail":         "Show only a recent number of lines",
+	"timestamps":   "Show timestamps",
+	"follow":       "Stream data",
+	"console.url":  "VM Console URL",
+	"timeout":      "Timeout",
 }
 var ExecRequestSpecialArgs = map[string]string{}

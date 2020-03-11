@@ -172,8 +172,8 @@ func testAutoProv(t *testing.T, ctx context.Context, ds *testutil.DummyServer, d
 				"app",
 				"cloudlet",
 				"count",
-				"developerorg",
-				"operatororg",
+				"app.org",
+				"cloudlet.org",
 				"ver",
 			},
 			Values: [][]interface{}{

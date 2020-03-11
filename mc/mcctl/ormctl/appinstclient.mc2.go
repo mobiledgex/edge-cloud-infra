@@ -41,36 +41,36 @@ var AppInstClientApiCmds = []*cli.Command{
 }
 
 var AppInstClientKeyRequiredArgs = []string{
-	"developer.organization",
+	"app.org",
 	"appname",
 	"appvers",
 	"cluster",
-	"operatororg",
+	"cloudlet.org",
 	"cloudlet",
-	"key.clusterinstkey.organization",
+	"cluster.org",
 }
 var AppInstClientKeyOptionalArgs = []string{
 	"uuid",
 }
 var AppInstClientKeyAliasArgs = []string{
-	"developer.organization=appinstclientkey.key.appkey.organization",
+	"app.org=appinstclientkey.key.appkey.organization",
 	"appname=appinstclientkey.key.appkey.name",
 	"appvers=appinstclientkey.key.appkey.version",
 	"cluster=appinstclientkey.key.clusterinstkey.clusterkey.name",
-	"operatororg=appinstclientkey.key.clusterinstkey.cloudletkey.organization",
+	"cloudlet.org=appinstclientkey.key.clusterinstkey.cloudletkey.organization",
 	"cloudlet=appinstclientkey.key.clusterinstkey.cloudletkey.name",
-	"key.clusterinstkey.organization=appinstclientkey.key.clusterinstkey.organization",
+	"cluster.org=appinstclientkey.key.clusterinstkey.organization",
 	"uuid=appinstclientkey.uuid",
 }
 var AppInstClientKeyComments = map[string]string{
-	"developer.organization":          "Developer Organization",
-	"appname":                         "App name",
-	"appvers":                         "App version",
-	"cluster":                         "Cluster name",
-	"operatororg":                     "Operator of the cloudlet site",
-	"cloudlet":                        "Name of the cloudlet",
-	"key.clusterinstkey.organization": "Name of Developer organization that this cluster belongs to",
-	"uuid":                            "AppInstClient UUID",
+	"app.org":      "Developer Organization",
+	"appname":      "App name",
+	"appvers":      "App version",
+	"cluster":      "Cluster name",
+	"cloudlet.org": "Organization of the cloudlet site",
+	"cloudlet":     "Name of the cloudlet",
+	"cluster.org":  "Name of Developer organization that this cluster belongs to",
+	"uuid":         "AppInstClient UUID",
 }
 var AppInstClientKeySpecialArgs = map[string]string{}
 var AppInstClientRequiredArgs = []string{}
@@ -119,7 +119,7 @@ var AppInstClientComments = map[string]string{
 	"clientkey.key.appkey.name":                             "App name",
 	"clientkey.key.appkey.version":                          "App version",
 	"clientkey.key.clusterinstkey.clusterkey.name":          "Cluster name",
-	"clientkey.key.clusterinstkey.cloudletkey.organization": "Operator of the cloudlet site",
+	"clientkey.key.clusterinstkey.cloudletkey.organization": "Organization of the cloudlet site",
 	"clientkey.key.clusterinstkey.cloudletkey.name":         "Name of the cloudlet",
 	"clientkey.key.clusterinstkey.organization":             "Name of Developer organization that this cluster belongs to",
 	"clientkey.uuid":                                        "AppInstClient UUID",

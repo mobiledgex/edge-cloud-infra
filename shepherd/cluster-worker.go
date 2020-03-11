@@ -119,16 +119,19 @@ func (p *ClusterWorker) RunNotify() {
 	p.waitGrp.Done()
 }
 
+// newMetric is called for both Cluster and App stats
 func newMetric(clusterInstKey edgeproto.ClusterInstKey, name string, key *shepherd_common.MetricAppInstKey, ts *types.Timestamp) *edgeproto.Metric {
 	metric := edgeproto.Metric{}
 	metric.Name = name
 	metric.Timestamp = *ts
-	metric.AddTag("cloudlet.org", clusterInstKey.CloudletKey.Organization)
+	metric.AddTag("cloudlet-org", clusterInstKey.CloudletKey.Organization)
 	metric.AddTag("cloudlet", clusterInstKey.CloudletKey.Name)
 	metric.AddTag("cluster", clusterInstKey.ClusterKey.Name)
-	metric.AddTag("cluster.org", clusterInstKey.Organization)
+	metric.AddTag("cluster-org", clusterInstKey.Organization)
 	if key != nil {
 		metric.AddTag("app", key.Pod)
+		//TODO: this should be changed when we have the actual app key
+		metric.AddTag("app-org", key.ClusterInstKey.Organization)
 	}
 	return &metric
 }
@@ -208,7 +211,7 @@ func MarshalAppMetrics(key *shepherd_common.MetricAppInstKey, stat *shepherd_com
 	}
 
 	if stat.CpuTS != nil {
-		metric = newMetric(key.ClusterInstKey, "appinst-cpu", key, stat.CpuTS)
+		metric = newMetric(key.ClusterInstKey, "", key, stat.CpuTS)
 		metric.AddDoubleVal("cpu", stat.Cpu)
 		metrics = append(metrics, metric)
 		stat.CpuTS = nil

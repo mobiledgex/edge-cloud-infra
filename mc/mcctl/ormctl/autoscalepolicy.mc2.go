@@ -93,7 +93,7 @@ var AutoScalePolicyApiCmds = []*cli.Command{
 }
 
 var CreateAutoScalePolicyRequiredArgs = []string{
-	"organization",
+	"cluster-org",
 	"name",
 	"minnodes",
 	"maxnodes",
@@ -113,12 +113,12 @@ var PolicyKeyAliasArgs = []string{
 	"name=policykey.name",
 }
 var PolicyKeyComments = map[string]string{
-	"organization": "Name of the organization that this policy belongs to",
+	"organization": "Name of the organization for the cluster that this policy will apply to",
 	"name":         "Policy name",
 }
 var PolicyKeySpecialArgs = map[string]string{}
 var AutoScalePolicyRequiredArgs = []string{
-	"organization",
+	"cluster-org",
 	"name",
 }
 var AutoScalePolicyOptionalArgs = []string{
@@ -129,7 +129,7 @@ var AutoScalePolicyOptionalArgs = []string{
 	"triggertimesec",
 }
 var AutoScalePolicyAliasArgs = []string{
-	"organization=autoscalepolicy.key.organization",
+	"cluster-org=autoscalepolicy.key.organization",
 	"name=autoscalepolicy.key.name",
 	"minnodes=autoscalepolicy.minnodes",
 	"maxnodes=autoscalepolicy.maxnodes",
@@ -138,7 +138,7 @@ var AutoScalePolicyAliasArgs = []string{
 	"triggertimesec=autoscalepolicy.triggertimesec",
 }
 var AutoScalePolicyComments = map[string]string{
-	"organization":       "Name of the organization that this policy belongs to",
+	"cluster-org":        "Name of the organization for the cluster that this policy will apply to",
 	"name":               "Policy name",
 	"minnodes":           "Minimum number of cluster nodes",
 	"maxnodes":           "Maximum number of cluster nodes",

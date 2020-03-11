@@ -41,35 +41,35 @@ var AppInstClientApiCmds = []*cli.Command{
 }
 
 var AppInstClientKeyRequiredArgs = []string{
-	"app.org",
+	"app-org",
 	"appname",
 	"appvers",
 	"cluster",
-	"cloudlet.org",
+	"cloudlet-org",
 	"cloudlet",
-	"cluster.org",
+	"cluster-org",
 }
 var AppInstClientKeyOptionalArgs = []string{
 	"uuid",
 }
 var AppInstClientKeyAliasArgs = []string{
-	"app.org=appinstclientkey.key.appkey.organization",
+	"app-org=appinstclientkey.key.appkey.organization",
 	"appname=appinstclientkey.key.appkey.name",
 	"appvers=appinstclientkey.key.appkey.version",
 	"cluster=appinstclientkey.key.clusterinstkey.clusterkey.name",
-	"cloudlet.org=appinstclientkey.key.clusterinstkey.cloudletkey.organization",
+	"cloudlet-org=appinstclientkey.key.clusterinstkey.cloudletkey.organization",
 	"cloudlet=appinstclientkey.key.clusterinstkey.cloudletkey.name",
-	"cluster.org=appinstclientkey.key.clusterinstkey.organization",
+	"cluster-org=appinstclientkey.key.clusterinstkey.organization",
 	"uuid=appinstclientkey.uuid",
 }
 var AppInstClientKeyComments = map[string]string{
-	"app.org":      "Developer Organization",
+	"app-org":      "App developer organization",
 	"appname":      "App name",
 	"appvers":      "App version",
 	"cluster":      "Cluster name",
-	"cloudlet.org": "Organization of the cloudlet site",
+	"cloudlet-org": "Organization of the cloudlet site",
 	"cloudlet":     "Name of the cloudlet",
-	"cluster.org":  "Name of Developer organization that this cluster belongs to",
+	"cluster-org":  "Name of Developer organization that this cluster belongs to",
 	"uuid":         "AppInstClient UUID",
 }
 var AppInstClientKeySpecialArgs = map[string]string{}
@@ -115,7 +115,7 @@ var AppInstClientAliasArgs = []string{
 	"notifyid=appinstclient.notifyid",
 }
 var AppInstClientComments = map[string]string{
-	"clientkey.key.appkey.organization":                     "Developer Organization",
+	"clientkey.key.appkey.organization":                     "App developer organization",
 	"clientkey.key.appkey.name":                             "App name",
 	"clientkey.key.appkey.version":                          "App version",
 	"clientkey.key.clusterinstkey.clusterkey.name":          "Cluster name",

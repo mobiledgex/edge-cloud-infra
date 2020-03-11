@@ -107,8 +107,8 @@ var TagValues = map[string]struct{}{
 	"app":          struct{}{},
 	"cloudlet":     struct{}{},
 	"cluster":      struct{}{},
-	"app.org":      struct{}{},
-	"cloudlet.org": struct{}{},
+	"app-org":      struct{}{},
+	"cloudlet-org": struct{}{},
 }
 
 var apiAddrsUpdated = false

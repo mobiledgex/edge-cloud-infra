@@ -1112,8 +1112,8 @@ func addControllerApis(method string, group *echo.Group) {
 	//   404: notFound
 	group.Match([]string{method}, "/ctrl/ShowLogs", ShowLogs)
 	// swagger:route POST /auth/ctrl/CreateOperatorCode OperatorCode CreateOperatorCode
-	// Create a code for an Operator.
-	//
+	// Create Operator Code.
+	//  Create a code for an Operator.
 	// Security:
 	//   Bearer:
 	// responses:
@@ -1123,8 +1123,8 @@ func addControllerApis(method string, group *echo.Group) {
 	//   404: notFound
 	group.Match([]string{method}, "/ctrl/CreateOperatorCode", CreateOperatorCode)
 	// swagger:route POST /auth/ctrl/DeleteOperatorCode OperatorCode DeleteOperatorCode
-	// Delete a code for an Operator.
-	//
+	// Delete Operator Code.
+	//  Delete a code for an Operator.
 	// Security:
 	//   Bearer:
 	// responses:
@@ -1134,7 +1134,8 @@ func addControllerApis(method string, group *echo.Group) {
 	//   404: notFound
 	group.Match([]string{method}, "/ctrl/DeleteOperatorCode", DeleteOperatorCode)
 	// swagger:route POST /auth/ctrl/ShowOperatorCode OperatorCode ShowOperatorCode
-	// Show OperatorCodes.
+	// Delete Operator Code.
+	//   Show Codes for an Operator
 	// Security:
 	//   Bearer:
 	// responses:

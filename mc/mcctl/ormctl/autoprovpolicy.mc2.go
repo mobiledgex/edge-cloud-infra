@@ -121,7 +121,7 @@ var AutoProvPolicyApiCmds = []*cli.Command{
 }
 
 var CreateAutoProvPolicyRequiredArgs = []string{
-	"organization",
+	"app-org",
 	"name",
 }
 var CreateAutoProvPolicyOptionalArgs = []string{
@@ -129,7 +129,7 @@ var CreateAutoProvPolicyOptionalArgs = []string{
 	"deployintervalcount",
 }
 var AutoProvPolicyRequiredArgs = []string{
-	"organization",
+	"app-org",
 	"name",
 }
 var AutoProvPolicyOptionalArgs = []string{
@@ -137,7 +137,7 @@ var AutoProvPolicyOptionalArgs = []string{
 	"deployintervalcount",
 }
 var AutoProvPolicyAliasArgs = []string{
-	"organization=autoprovpolicy.key.organization",
+	"app-org=autoprovpolicy.key.organization",
 	"name=autoprovpolicy.key.name",
 	"deployclientcount=autoprovpolicy.deployclientcount",
 	"deployintervalcount=autoprovpolicy.deployintervalcount",
@@ -154,7 +154,7 @@ var AutoProvPolicyAliasArgs = []string{
 	"cloudlets.loc.timestamp.nanos=autoprovpolicy.cloudlets.loc.timestamp.nanos",
 }
 var AutoProvPolicyComments = map[string]string{
-	"organization":                     "Name of the organization that this policy belongs to",
+	"app-org":                          "Name of the organization for the cluster that this policy will apply to",
 	"name":                             "Policy name",
 	"deployclientcount":                "Minimum number of clients within the auto deploy interval to trigger deployment",
 	"deployintervalcount":              "Number of intervals to check before triggering deployment",
@@ -237,7 +237,7 @@ var AutoProvCountAliasArgs = []string{
 	"deploynowkey.organization=autoprovcount.deploynowkey.organization",
 }
 var AutoProvCountComments = map[string]string{
-	"appkey.organization":                   "Developer Organization",
+	"appkey.organization":                   "App developer organization",
 	"appkey.name":                           "App name",
 	"appkey.version":                        "App version",
 	"cloudletkey.organization":              "Organization of the cloudlet site",
@@ -287,7 +287,7 @@ var AutoProvCountsComments = map[string]string{
 	"dmenodename":                                  "DME node name",
 	"timestamp.seconds":                            "Represents seconds of UTC time since Unix epoch 1970-01-01T00:00:00Z. Must be from 0001-01-01T00:00:00Z to 9999-12-31T23:59:59Z inclusive.",
 	"timestamp.nanos":                              "Non-negative fractions of a second at nanosecond resolution. Negative second values with fractions must still have non-negative nanos values that count forward in time. Must be from 0 to 999,999,999 inclusive.",
-	"counts.appkey.organization":                   "Developer Organization",
+	"counts.appkey.organization":                   "App developer organization",
 	"counts.appkey.name":                           "App name",
 	"counts.appkey.version":                        "App version",
 	"counts.cloudletkey.organization":              "Organization of the cloudlet site",
@@ -301,23 +301,23 @@ var AutoProvCountsComments = map[string]string{
 }
 var AutoProvCountsSpecialArgs = map[string]string{}
 var AutoProvPolicyCloudletRequiredArgs = []string{
-	"organization",
+	"app-org",
 	"name",
 }
 var AutoProvPolicyCloudletOptionalArgs = []string{
-	"cloudlet.org",
+	"cloudlet-org",
 	"cloudlet",
 }
 var AutoProvPolicyCloudletAliasArgs = []string{
-	"organization=autoprovpolicycloudlet.key.organization",
+	"app-org=autoprovpolicycloudlet.key.organization",
 	"name=autoprovpolicycloudlet.key.name",
-	"cloudlet.org=autoprovpolicycloudlet.cloudletkey.organization",
+	"cloudlet-org=autoprovpolicycloudlet.cloudletkey.organization",
 	"cloudlet=autoprovpolicycloudlet.cloudletkey.name",
 }
 var AutoProvPolicyCloudletComments = map[string]string{
-	"organization": "Name of the organization that this policy belongs to",
+	"app-org":      "Name of the organization for the cluster that this policy will apply to",
 	"name":         "Policy name",
-	"cloudlet.org": "Organization of the cloudlet site",
+	"cloudlet-org": "Organization of the cloudlet site",
 	"cloudlet":     "Name of the cloudlet",
 }
 var AutoProvPolicyCloudletSpecialArgs = map[string]string{}

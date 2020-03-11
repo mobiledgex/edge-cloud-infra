@@ -41,7 +41,7 @@ func GetMetricsCommand() *cobra.Command {
 }
 
 var AppMetricRequiredArgs = []string{
-	"app.org",
+	"cluster-org",
 	"selector",
 }
 
@@ -50,29 +50,30 @@ var AppMetricOptionalArgs = []string{
 	"appvers",
 	"cluster",
 	"cloudlet",
-	"cloudlet.org",
+	"cloudlet-org",
 	"last",
 	"starttime",
 	"endtime",
 }
 
 var AppMetricAliasArgs = []string{
-	"app.org=appinst.appkey.organization",
+	"app-org=appinst.appkey.organization",
 	"appname=appinst.appkey.name",
 	"appvers=appinst.appkey.version",
 	"cluster=appinst.clusterinstkey.clusterkey.name",
-	"cloudlet.org=appinst.clusterinstkey.cloudletkey.organization",
+	"cluster-org=appinst.clusterinstkey.clusterkey.organization",
+	"cloudlet-org=appinst.clusterinstkey.cloudletkey.organization",
 	"cloudlet=appinst.clusterinstkey.cloudletkey.name",
 }
 
 var ClusterMetricRequiredArgs = []string{
-	"",
+	"cluster-org",
 	"selector",
 }
 
 var ClusterMetricOptionalArgs = []string{
 	"cluster",
-	"cloudlet.org",
+	"cloudlet-org",
 	"cloudlet",
 	"last",
 	"starttime",
@@ -80,14 +81,14 @@ var ClusterMetricOptionalArgs = []string{
 }
 
 var ClusterMetricAliasArgs = []string{
-	"cluster.org=clusterinst.organization",
+	"cluster-org=clusterinst.organization",
 	"cluster=clusterinst.clusterkey.name",
-	"cloudlet.org=clusterinst.cloudletkey.organization",
+	"cloudlet-org=clusterinst.cloudletkey.organization",
 	"cloudlet=clusterinst.cloudletkey.name",
 }
 
 var CloudletMetricRequiredArgs = []string{
-	"cloudlet.org",
+	"cloudlet-org",
 	"selector",
 }
 
@@ -104,12 +105,13 @@ var CloudletMetricAliasArgs = []string{
 }
 
 var MetricComments = map[string]string{
-	"app.org":      "Organization or Company Name that a Developer is part of",
+	"app-org":      "Organization or Company Name that a Developer is part of",
 	"appname":      "App name",
 	"appvers":      "App version",
 	"cluster":      "Cluster name",
-	"cloudlet.org": "Company or Organization name of the cloudlet",
+	"cloudlet-org": "Company or Organization name of the cloudlet",
 	"cloudlet":     "Name of the cloudlet",
+	"cluster-org":  "Organization or Company Name that a Cluster is used by",
 	"selector":     "Comma separated list of metrics to view",
 	"last":         "Display the last X metrics",
 	"starttime":    "Time to start displaying stats from",

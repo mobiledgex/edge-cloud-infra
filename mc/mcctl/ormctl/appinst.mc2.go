@@ -116,15 +116,15 @@ var AppInstApiCmds = []*cli.Command{
 }
 
 var CreateAppInstRequiredArgs = []string{
-	"organization",
+	"app-org",
 	"appname",
 	"appvers",
 	"cluster",
-	"cloudlet.org",
+	"cloudlet-org",
 	"cloudlet",
 }
 var CreateAppInstOptionalArgs = []string{
-	"cluster.org",
+	"cluster-org",
 	"flavor",
 	"state",
 	"crmoverride",
@@ -139,15 +139,15 @@ var CreateAppInstOptionalArgs = []string{
 	"vmflavor",
 }
 var DeleteAppInstRequiredArgs = []string{
-	"organization",
+	"app-org",
 	"appname",
 	"appvers",
 	"cluster",
-	"cloudlet.org",
+	"cloudlet-org",
 	"cloudlet",
 }
 var DeleteAppInstOptionalArgs = []string{
-	"cluster.org",
+	"cluster-org",
 	"cloudletloc.latitude",
 	"cloudletloc.longitude",
 	"cloudletloc.horizontalaccuracy",
@@ -191,15 +191,15 @@ var DeleteAppInstOptionalArgs = []string{
 	"vmflavor",
 }
 var RefreshAppInstRequiredArgs = []string{
-	"organization",
+	"app-org",
 	"appname",
 	"appvers",
 }
 var RefreshAppInstOptionalArgs = []string{
 	"cluster",
-	"cloudlet.org",
+	"cloudlet-org",
 	"cloudlet",
-	"cluster.org",
+	"cluster-org",
 	"crmoverride",
 	"forceupdate",
 	"updatemultiple",
@@ -211,15 +211,15 @@ var RefreshAppInstOptionalArgs = []string{
 	"vmflavor",
 }
 var UpdateAppInstRequiredArgs = []string{
-	"organization",
+	"app-org",
 	"appname",
 	"appvers",
 	"cluster",
-	"cloudlet.org",
+	"cloudlet-org",
 	"cloudlet",
 }
 var UpdateAppInstOptionalArgs = []string{
-	"cluster.org",
+	"cluster-org",
 	"crmoverride",
 	"configs.kind",
 	"configs.config",
@@ -251,7 +251,7 @@ var AppInstKeyAliasArgs = []string{
 	"clusterinstkey.organization=appinstkey.clusterinstkey.organization",
 }
 var AppInstKeyComments = map[string]string{
-	"appkey.organization":                     "Developer Organization",
+	"appkey.organization":                     "App developer organization",
 	"appkey.name":                             "App name",
 	"appkey.version":                          "App version",
 	"clusterinstkey.clusterkey.name":          "Cluster name",
@@ -261,15 +261,15 @@ var AppInstKeyComments = map[string]string{
 }
 var AppInstKeySpecialArgs = map[string]string{}
 var AppInstRequiredArgs = []string{
-	"organization",
+	"app-org",
 	"appname",
 	"appvers",
 	"cluster",
-	"cloudlet.org",
+	"cloudlet-org",
 	"cloudlet",
 }
 var AppInstOptionalArgs = []string{
-	"cluster.org",
+	"cluster-org",
 	"flavor",
 	"state",
 	"crmoverride",
@@ -285,13 +285,13 @@ var AppInstOptionalArgs = []string{
 	"vmflavor",
 }
 var AppInstAliasArgs = []string{
-	"organization=appinst.key.appkey.organization",
+	"app-org=appinst.key.appkey.organization",
 	"appname=appinst.key.appkey.name",
 	"appvers=appinst.key.appkey.version",
 	"cluster=appinst.key.clusterinstkey.clusterkey.name",
-	"cloudlet.org=appinst.key.clusterinstkey.cloudletkey.organization",
+	"cloudlet-org=appinst.key.clusterinstkey.cloudletkey.organization",
 	"cloudlet=appinst.key.clusterinstkey.cloudletkey.name",
-	"cluster.org=appinst.key.clusterinstkey.organization",
+	"cluster-org=appinst.key.clusterinstkey.organization",
 	"cloudletloc.latitude=appinst.cloudletloc.latitude",
 	"cloudletloc.longitude=appinst.cloudletloc.longitude",
 	"cloudletloc.horizontalaccuracy=appinst.cloudletloc.horizontalaccuracy",
@@ -336,13 +336,13 @@ var AppInstAliasArgs = []string{
 	"vmflavor=appinst.vmflavor",
 }
 var AppInstComments = map[string]string{
-	"organization":                   "Developer Organization",
+	"app-org":                        "App developer organization",
 	"appname":                        "App name",
 	"appvers":                        "App version",
 	"cluster":                        "Cluster name",
-	"cloudlet.org":                   "Organization of the cloudlet site",
+	"cloudlet-org":                   "Organization of the cloudlet site",
 	"cloudlet":                       "Name of the cloudlet",
-	"cluster.org":                    "Name of Developer organization that this cluster belongs to",
+	"cluster-org":                    "Name of Developer organization that this cluster belongs to",
 	"cloudletloc.latitude":           "latitude in WGS 84 coordinates",
 	"cloudletloc.longitude":          "longitude in WGS 84 coordinates",
 	"cloudletloc.horizontalaccuracy": "horizontal accuracy (radius in meters)",
@@ -434,7 +434,7 @@ var AppInstInfoAliasArgs = []string{
 	"powerstate=appinstinfo.powerstate",
 }
 var AppInstInfoComments = map[string]string{
-	"key.appkey.organization":                     "Developer Organization",
+	"key.appkey.organization":                     "App developer organization",
 	"key.appkey.name":                             "App name",
 	"key.appkey.version":                          "App version",
 	"key.clusterinstkey.clusterkey.name":          "Cluster name",

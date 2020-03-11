@@ -104,7 +104,7 @@ var AppKeyAliasArgs = []string{
 	"version=appkey.version",
 }
 var AppKeyComments = map[string]string{
-	"organization": "Developer Organization",
+	"organization": "App developer organization",
 	"name":         "App name",
 	"version":      "App version",
 }
@@ -124,7 +124,7 @@ var ConfigFileComments = map[string]string{
 }
 var ConfigFileSpecialArgs = map[string]string{}
 var AppRequiredArgs = []string{
-	"organization",
+	"app-org",
 	"appname",
 	"appvers",
 }
@@ -153,7 +153,7 @@ var AppOptionalArgs = []string{
 	"defaultprivacypolicy",
 }
 var AppAliasArgs = []string{
-	"organization=app.key.organization",
+	"app-org=app.key.organization",
 	"appname=app.key.name",
 	"appvers=app.key.version",
 	"imagepath=app.imagepath",
@@ -181,7 +181,7 @@ var AppAliasArgs = []string{
 	"defaultprivacypolicy=app.defaultprivacypolicy",
 }
 var AppComments = map[string]string{
-	"organization":            "Developer Organization",
+	"app-org":                 "App developer organization",
 	"appname":                 "App name",
 	"appvers":                 "App version",
 	"imagepath":               "URI of where image resides",

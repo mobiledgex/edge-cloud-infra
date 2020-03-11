@@ -139,7 +139,7 @@ var CloudletApiCmds = []*cli.Command{
 }
 
 var CreateCloudletRequiredArgs = []string{
-	"organization",
+	"cloudlet-org",
 	"cloudlet",
 	"location.latitude",
 	"location.longitude",
@@ -427,26 +427,26 @@ var PlatformConfigSpecialArgs = map[string]string{
 	"envvar": "StringToString",
 }
 var CloudletResMapRequiredArgs = []string{
-	"key.organization",
+	"cloudlet-org",
 	"cloudlet",
 	"mapping",
 }
 var CloudletResMapOptionalArgs = []string{}
 var CloudletResMapAliasArgs = []string{
-	"key.organization=cloudletresmap.key.organization",
+	"cloudlet-org=cloudletresmap.key.organization",
 	"cloudlet=cloudletresmap.key.name",
 	"mapping=cloudletresmap.mapping",
 }
 var CloudletResMapComments = map[string]string{
-	"key.organization": "Organization of the cloudlet site",
-	"cloudlet":         "Name of the cloudlet",
-	"mapping":          "Resource mapping info",
+	"cloudlet-org": "Organization of the cloudlet site",
+	"cloudlet":     "Name of the cloudlet",
+	"mapping":      "Resource mapping info",
 }
 var CloudletResMapSpecialArgs = map[string]string{
 	"mapping": "StringToString",
 }
 var CloudletRequiredArgs = []string{
-	"organization",
+	"cloudlet-org",
 	"cloudlet",
 }
 var CloudletOptionalArgs = []string{
@@ -481,7 +481,7 @@ var CloudletOptionalArgs = []string{
 	"packageversion",
 }
 var CloudletAliasArgs = []string{
-	"organization=cloudlet.key.organization",
+	"cloudlet-org=cloudlet.key.organization",
 	"cloudlet=cloudlet.key.name",
 	"location.latitude=cloudlet.location.latitude",
 	"location.longitude=cloudlet.location.longitude",
@@ -534,7 +534,7 @@ var CloudletAliasArgs = []string{
 	"packageversion=cloudlet.packageversion",
 }
 var CloudletComments = map[string]string{
-	"organization":                        "Organization of the cloudlet site",
+	"cloudlet-org":                        "Organization of the cloudlet site",
 	"cloudlet":                            "Name of the cloudlet",
 	"location.latitude":                   "latitude in WGS 84 coordinates",
 	"location.longitude":                  "longitude in WGS 84 coordinates",
@@ -586,7 +586,7 @@ var CloudletSpecialArgs = map[string]string{
 	"errors":        "StringArray",
 }
 var FlavorMatchRequiredArgs = []string{
-	"organization",
+	"cloudlet-org",
 	"cloudlet",
 }
 var FlavorMatchOptionalArgs = []string{
@@ -594,13 +594,13 @@ var FlavorMatchOptionalArgs = []string{
 	"availabilityzone",
 }
 var FlavorMatchAliasArgs = []string{
-	"organization=flavormatch.key.organization",
+	"cloudlet-org=flavormatch.key.organization",
 	"cloudlet=flavormatch.key.name",
 	"flavor=flavormatch.flavorname",
 	"availabilityzone=flavormatch.availabilityzone",
 }
 var FlavorMatchComments = map[string]string{
-	"organization": "Organization of the cloudlet site",
+	"cloudlet-org": "Organization of the cloudlet site",
 	"cloudlet":     "Name of the cloudlet",
 }
 var FlavorMatchSpecialArgs = map[string]string{}
@@ -661,7 +661,7 @@ var OSImageComments = map[string]string{
 }
 var OSImageSpecialArgs = map[string]string{}
 var CloudletInfoRequiredArgs = []string{
-	"organization",
+	"cloudlet-org",
 	"cloudlet",
 }
 var CloudletInfoOptionalArgs = []string{
@@ -690,7 +690,7 @@ var CloudletInfoOptionalArgs = []string{
 	"osimages.diskformat",
 }
 var CloudletInfoAliasArgs = []string{
-	"organization=cloudletinfo.key.organization",
+	"cloudlet-org=cloudletinfo.key.organization",
 	"cloudlet=cloudletinfo.key.name",
 	"state=cloudletinfo.state",
 	"notifyid=cloudletinfo.notifyid",
@@ -717,7 +717,7 @@ var CloudletInfoAliasArgs = []string{
 	"osimages.diskformat=cloudletinfo.osimages.diskformat",
 }
 var CloudletInfoComments = map[string]string{
-	"organization":        "Organization of the cloudlet site",
+	"cloudlet-org":        "Organization of the cloudlet site",
 	"cloudlet":            "Name of the cloudlet",
 	"state":               "State of cloudlet, one of CloudletStateUnknown, CloudletStateErrors, CloudletStateReady, CloudletStateOffline, CloudletStateNotPresent, CloudletStateInit, CloudletStateUpgrade",
 	"notifyid":            "Id of client assigned by server (internal use only)",

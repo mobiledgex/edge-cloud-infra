@@ -40,6 +40,7 @@ type influxQueryArgs struct {
 	CloudletName string
 	CloudletOrg  string
 	AppOrg       string
+	ClusterOrg   string
 	Method       string
 	CellId       string
 	StartTime    string
@@ -74,31 +75,33 @@ var ClientSelectors = []string{
 	"api",
 }
 
+// AppFields are the field names used to query the DB
 var AppFields = []string{
 	"\"app\"",
 	"\"cluster\"",
-	"\"cluster.org\"",
+	"\"cluster-org\"",
 	"\"cloudlet\"",
-	"\"cloudlet.org\"",
+	"\"app-org\"",
 }
 
 var ClusterFields = []string{
 	"\"cluster\"",
-	"\"cluster.org\"",
+	"\"cluster-org\"",
 	"\"cloudlet\"",
-	"\"cloudlet.org\"",
+	"\"cloudlet-org\"",
 }
 
 var CloudletFields = []string{
 	"\"cloudlet\"",
-	"\"organization\"",
+	"\"cloudlet-org\"",
 }
 
+// ClientFields is DME metrics
 var ClientFields = []string{
-	"\"app.org\"",
+	"\"app-org\"",
 	"\"app\"",
 	"\"ver\"",
-	"\"cloudlet.org\"",
+	"\"cloudlet-org\"",
 	"\"cloudlet\"",
 }
 
@@ -194,11 +197,11 @@ const (
 )
 
 var devInfluDBT = `SELECT {{.Selector}} from "{{.Measurement}}"` +
-	` WHERE "app.org"='{{.AppOrg}}'` +
+	` WHERE "app-org"='{{.AppOrg}}'` +
 	`{{if .AppInstName}} AND "app"=~/{{.AppInstName}}/{{end}}` +
 	`{{if .ClusterName}} AND "cluster"='{{.ClusterName}}'{{end}}` +
 	`{{if .CloudletName}} AND "cloudlet"='{{.CloudletName}}'{{end}}` +
-	`{{if .CloudletOrg}} AND "cloudlet.org"='{{.CloudletOrg}}'{{end}}` +
+	`{{if .CloudletOrg}} AND "cloudlet-org"='{{.CloudletOrg}}'{{end}}` +
 	`{{if .Method}} AND "method"='{{.Method}}'{{end}}` +
 	`{{if .CellId}} AND "cellID"='{{.CellId}}'{{end}}` +
 	`{{if .StartTime}} AND time >= '{{.StartTime}}'{{end}}` +
@@ -206,7 +209,7 @@ var devInfluDBT = `SELECT {{.Selector}} from "{{.Measurement}}"` +
 	`order by time desc{{if ne .Last 0}} limit {{.Last}}{{end}}`
 
 var operatorInfluDBT = `SELECT {{.Selector}} from "{{.Measurement}}"` +
-	` WHERE "operator"='{{.Organization}}'` +
+	` WHERE "cloudlet-org"='{{.CloudletOrg}}'` +
 	`{{if .CloudletName}} AND "cloudlet"='{{.CloudletName}}'{{end}}` +
 	`{{if .StartTime}} AND time >= '{{.StartTime}}'{{end}}` +
 	`{{if .EndTime}} AND time <= '{{.EndTime}}'{{end}}` +
@@ -281,6 +284,7 @@ func ClientMetricsQuery(obj *ormapi.RegionClientMetrics) string {
 		Measurement:  getMeasurementString(obj.Selector, CLIENT),
 		AppInstName:  k8smgmt.NormalizeName(obj.AppInst.AppKey.Name),
 		AppOrg:       obj.AppInst.AppKey.Organization,
+		ClusterOrg:   obj.AppInst.ClusterInstKey.Organization,
 		CloudletName: obj.AppInst.ClusterInstKey.CloudletKey.Name,
 		ClusterName:  obj.AppInst.ClusterInstKey.ClusterKey.Name,
 		CloudletOrg:  obj.AppInst.ClusterInstKey.CloudletKey.Organization,
@@ -567,6 +571,7 @@ func GetMetricsCommon(c echo.Context) error {
 			return setReply(c, err, nil)
 		}
 		cmd = ClientMetricsQuery(&in)
+		log.InfoLog("INFLUX CMD %s\n", cmd)
 		// Check the developer against who is logged in
 		// Should the operators logged in be allowed to see the API usage of the apps on their cloudlets?
 		if !authorized(ctx, rc.claims.Username, org, ResourceAppAnalytics, ActionView) {

@@ -124,14 +124,14 @@ func newMetric(clusterInstKey edgeproto.ClusterInstKey, name string, key *shephe
 	metric := edgeproto.Metric{}
 	metric.Name = name
 	metric.Timestamp = *ts
-	metric.AddTag("cloudlet-org", clusterInstKey.CloudletKey.Organization)
+	metric.AddTag("cloudletorg", clusterInstKey.CloudletKey.Organization)
 	metric.AddTag("cloudlet", clusterInstKey.CloudletKey.Name)
 	metric.AddTag("cluster", clusterInstKey.ClusterKey.Name)
-	metric.AddTag("cluster-org", clusterInstKey.Organization)
+	metric.AddTag("clusterorg", clusterInstKey.Organization)
 	if key != nil {
 		metric.AddTag("app", key.Pod)
 		//TODO: this should be changed when we have the actual app key
-		metric.AddTag("app-org", key.ClusterInstKey.Organization)
+		metric.AddTag("apporg", key.ClusterInstKey.Organization)
 	}
 	return &metric
 }

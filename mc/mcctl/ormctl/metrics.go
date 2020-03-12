@@ -57,7 +57,7 @@ var AppMetricOptionalArgs = []string{
 }
 
 var AppMetricAliasArgs = []string{
-	"app-org=appinst.appkey.organization",
+	"apporg=appinst.appkey.organization",
 	"appname=appinst.appkey.name",
 	"appvers=appinst.appkey.version",
 	"cluster=appinst.clusterinstkey.clusterkey.name",
@@ -105,15 +105,15 @@ var CloudletMetricAliasArgs = []string{
 }
 
 var MetricComments = map[string]string{
-	"app-org":      "Organization or Company Name that a Developer is part of",
-	"appname":      "App name",
-	"appvers":      "App version",
-	"cluster":      "Cluster name",
-	"cloudlet-org": "Company or Organization name of the cloudlet",
-	"cloudlet":     "Name of the cloudlet",
-	"cluster-org":  "Organization or Company Name that a Cluster is used by",
-	"selector":     "Comma separated list of metrics to view",
-	"last":         "Display the last X metrics",
-	"starttime":    "Time to start displaying stats from",
-	"endtime":      "Time up to which to display stats",
+	"apporg":      "Organization or Company Name that a Developer is part of",
+	"appname":     "App name",
+	"appvers":     "App version",
+	"cluster":     "Cluster name",
+	"cloudletorg": "Company or Organization name of the cloudlet",
+	"cloudlet":    "Name of the cloudlet",
+	"clusterorg":  "Organization or Company Name that a Cluster is used by",
+	"selector":    "Comma separated list of metrics to view",
+	"last":        "Display the last X metrics",
+	"starttime":   "Time to start displaying stats from",
+	"endtime":     "Time up to which to display stats",
 }

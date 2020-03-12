@@ -434,11 +434,11 @@ func MarshallProxyMetric(scrapePoint ProxyScrapePoint, data *shepherd_common.Pro
 		metric := edgeproto.Metric{}
 		metric.Name = "appinst-connections"
 		metric.Timestamp = *data.Ts
-		metric.AddTag("cloudlet-org", cloudletKey.Organization)
+		metric.AddTag("cloudletorg", cloudletKey.Organization)
 		metric.AddTag("cloudlet", cloudletKey.Name)
 		metric.AddTag("cluster", scrapePoint.Cluster)
-		metric.AddTag("cluster-org", scrapePoint.ClusterOrg)
-		metric.AddTag("app-org", scrapePoint.Key.AppKey.Organization)
+		metric.AddTag("clusterorg", scrapePoint.ClusterOrg)
+		metric.AddTag("apporg", scrapePoint.Key.AppKey.Organization)
 		metric.AddTag("app", scrapePoint.App)
 		metric.AddTag("port", strconv.Itoa(int(port)))
 
@@ -465,8 +465,8 @@ func MarshallNginxMetric(scrapePoint ProxyScrapePoint, data *shepherd_common.Pro
 	metric.AddTag("cloudlet-org", cloudletKey.Organization)
 	metric.AddTag("cloudlet", cloudletKey.Name)
 	metric.AddTag("cluster", scrapePoint.Cluster)
-	metric.AddTag("cluster-org", scrapePoint.ClusterOrg)
-	metric.AddTag("app-org", scrapePoint.Key.AppKey.Organization)
+	metric.AddTag("clusterorg", scrapePoint.ClusterOrg)
+	metric.AddTag("apporg", scrapePoint.Key.AppKey.Organization)
 	metric.AddTag("app", scrapePoint.App)
 	metric.AddTag("port", "") //nginx doesnt support stats per port
 

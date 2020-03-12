@@ -81,14 +81,14 @@ var AppFields = []string{
 	"\"cluster\"",
 	"\"cluster-org\"",
 	"\"cloudlet\"",
-	"\"app-org\"",
+	"\"apporg\"",
 }
 
 var ClusterFields = []string{
 	"\"cluster\"",
-	"\"cluster-org\"",
+	"\"clusterorg\"",
 	"\"cloudlet\"",
-	"\"cloudlet-org\"",
+	"\"cloudletorg\"",
 }
 
 var CloudletFields = []string{
@@ -98,10 +98,10 @@ var CloudletFields = []string{
 
 // ClientFields is DME metrics
 var ClientFields = []string{
-	"\"app-org\"",
+	"\"apporg\"",
 	"\"app\"",
 	"\"ver\"",
-	"\"cloudlet-org\"",
+	"\"cloudletorg\"",
 	"\"cloudlet\"",
 }
 
@@ -197,11 +197,11 @@ const (
 )
 
 var devInfluDBT = `SELECT {{.Selector}} from "{{.Measurement}}"` +
-	` WHERE "app-org"='{{.AppOrg}}'` +
+	` WHERE "apporg"='{{.AppOrg}}'` +
 	`{{if .AppInstName}} AND "app"=~/{{.AppInstName}}/{{end}}` +
 	`{{if .ClusterName}} AND "cluster"='{{.ClusterName}}'{{end}}` +
 	`{{if .CloudletName}} AND "cloudlet"='{{.CloudletName}}'{{end}}` +
-	`{{if .CloudletOrg}} AND "cloudlet-org"='{{.CloudletOrg}}'{{end}}` +
+	`{{if .CloudletOrg}} AND "cloudletorg"='{{.CloudletOrg}}'{{end}}` +
 	`{{if .Method}} AND "method"='{{.Method}}'{{end}}` +
 	`{{if .CellId}} AND "cellID"='{{.CellId}}'{{end}}` +
 	`{{if .StartTime}} AND time >= '{{.StartTime}}'{{end}}` +
@@ -571,7 +571,6 @@ func GetMetricsCommon(c echo.Context) error {
 			return setReply(c, err, nil)
 		}
 		cmd = ClientMetricsQuery(&in)
-		log.InfoLog("INFLUX CMD %s\n", cmd)
 		// Check the developer against who is logged in
 		// Should the operators logged in be allowed to see the API usage of the apps on their cloudlets?
 		if !authorized(ctx, rc.claims.Username, org, ResourceAppAnalytics, ActionView) {

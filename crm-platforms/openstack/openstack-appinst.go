@@ -61,7 +61,7 @@ func (s *Platform) CreateAppInst(ctx context.Context, clusterInst *edgeproto.Clu
 
 		if deployment == cloudcommon.AppDeploymentTypeKubernetes {
 			updateCallback(edgeproto.UpdateTask, "Creating Kubernetes App")
-			err = k8smgmt.CreateAppInst(ctx, client, names, app, appInst)
+			err = k8smgmt.CreateAppInst(ctx, s.vaultConfig, client, names, app, appInst)
 		} else {
 			updateCallback(edgeproto.UpdateTask, "Creating Helm App")
 
@@ -548,7 +548,7 @@ func (s *Platform) UpdateAppInst(ctx context.Context, clusterInst *edgeproto.Clu
 		if err != nil {
 			return fmt.Errorf("get kube names failed: %s", err)
 		}
-		return k8smgmt.UpdateAppInst(ctx, client, names, app, appInst)
+		return k8smgmt.UpdateAppInst(ctx, s.vaultConfig, client, names, app, appInst)
 	case cloudcommon.AppDeploymentTypeDocker:
 		dockerNetworkMode := dockermgmt.DockerBridgeMode
 		rootLBClient, err := s.GetPlatformClient(ctx, clusterInst)

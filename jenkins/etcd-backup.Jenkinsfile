@@ -18,8 +18,8 @@ pipeline {
 set -e
 export ANSIBLE_FORCE_COLOR=true
 for DEPLOY_ENVIRON in mexdemo staging; do
-    eval export "VAULT_ROLE_ID=\$${DEPLOY_ENVIRON}_ANSIBLE_ROLE_USR"
-    eval export "VAULT_SECRET_ID=\$${DEPLOY_ENVIRON}_ANSIBLE_ROLE_PSW"
+    eval export "VAULT_ROLE_ID=\\\$${DEPLOY_ENVIRON}_ANSIBLE_ROLE_USR"
+    eval export "VAULT_SECRET_ID=\\\$${DEPLOY_ENVIRON}_ANSIBLE_ROLE_PSW"
     ./deploy.sh -p etcd-backup.yml -G -y "$DEPLOY_ENVIRON"
 done
                         '''

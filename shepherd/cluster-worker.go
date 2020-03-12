@@ -128,7 +128,9 @@ func newMetric(clusterInstKey edgeproto.ClusterInstKey, name string, key *shephe
 	metric.AddTag("cluster", clusterInstKey.ClusterKey.Name)
 	metric.AddTag("dev", clusterInstKey.Developer)
 	if key != nil {
-		metric.AddTag("app", key.Pod)
+		metric.AddTag("pod", key.Pod)
+		metric.AddTag("app", key.App)
+		metric.AddTag("ver", key.Version)
 	}
 	return &metric
 }
@@ -142,7 +144,7 @@ func MarshalClusterMetrics(key edgeproto.ClusterInstKey, cm *shepherd_common.Clu
 		return nil
 	}
 
-	//nil timestamps mean the curl request failed. So do not write the metric in
+	// nil timestamps mean the curl request failed. So do not write the metric in
 	if cm.CpuTS != nil {
 		metric = newMetric(key, "cluster-cpu", nil, cm.CpuTS)
 		metric.AddDoubleVal("cpu", cm.Cpu)

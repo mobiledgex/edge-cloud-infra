@@ -17,6 +17,7 @@ import (
 	dme "github.com/mobiledgex/edge-cloud/d-match-engine/dme-proto"
 	"github.com/mobiledgex/edge-cloud/edgeproto"
 	"github.com/mobiledgex/edge-cloud/log"
+	"github.com/mobiledgex/edge-cloud/util"
 	ssh "github.com/mobiledgex/golang-ssh"
 )
 
@@ -438,7 +439,8 @@ func MarshallProxyMetric(scrapePoint ProxyScrapePoint, data *shepherd_common.Pro
 		metric.AddTag("cloudlet", cloudletKey.Name)
 		metric.AddTag("cluster", scrapePoint.Cluster)
 		metric.AddTag("dev", scrapePoint.Dev)
-		metric.AddTag("app", scrapePoint.App)
+		metric.AddTag("app", util.DNSSanitize(scrapePoint.App))
+		metric.AddTag("ver", util.DNSSanitize(scrapePoint.Key.AppKey.Version))
 		metric.AddTag("port", strconv.Itoa(int(port)))
 
 		metric.AddIntVal("active", data.EnvoyStats[port].ActiveConn)
@@ -465,7 +467,8 @@ func MarshallNginxMetric(scrapePoint ProxyScrapePoint, data *shepherd_common.Pro
 	metric.AddTag("cloudlet", cloudletKey.Name)
 	metric.AddTag("cluster", scrapePoint.Cluster)
 	metric.AddTag("dev", scrapePoint.Dev)
-	metric.AddTag("app", scrapePoint.App)
+	metric.AddTag("app", util.DNSSanitize(scrapePoint.App))
+	metric.AddTag("ver", util.DNSSanitize(scrapePoint.Key.AppKey.Version))
 	metric.AddTag("port", "") //nginx doesnt support stats per port
 
 	metric.AddIntVal("active", data.ActiveConn)

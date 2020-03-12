@@ -16,6 +16,7 @@ import (
 	"github.com/mobiledgex/edge-cloud/cloudcommon"
 	"github.com/mobiledgex/edge-cloud/cloudcommon/influxsup"
 	"github.com/mobiledgex/edge-cloud/log"
+	"github.com/mobiledgex/edge-cloud/util"
 )
 
 var devInfluxDBTemplate *template.Template
@@ -36,6 +37,7 @@ type influxQueryArgs struct {
 	Selector      string
 	Measurement   string
 	AppInstName   string
+	AppVersion    string
 	ClusterName   string
 	DeveloperName string
 	CloudletName  string
@@ -76,6 +78,8 @@ var ClientSelectors = []string{
 
 var AppFields = []string{
 	"\"app\"",
+	"\"ver\"",
+	"\"pod\"",
 	"\"cluster\"",
 	"\"dev\"",
 	"\"cloudlet\"",
@@ -195,8 +199,9 @@ const (
 
 var devInfluDBT = `SELECT {{.Selector}} from "{{.Measurement}}"` +
 	` WHERE "dev"='{{.DeveloperName}}'` +
-	`{{if .AppInstName}} AND "app"=~/{{.AppInstName}}/{{end}}` +
+	`{{if .AppInstName}} AND "app"='{{.AppInstName}}'{{end}}` +
 	`{{if .ClusterName}} AND "cluster"='{{.ClusterName}}'{{end}}` +
+	`{{if .AppVersion}} AND "ver"='{{.AppVersion}}'{{end}}` +
 	`{{if .CloudletName}} AND "cloudlet"='{{.CloudletName}}'{{end}}` +
 	`{{if .OperatorName}} AND "operator"='{{.OperatorName}}'{{end}}` +
 	`{{if .Method}} AND "method"='{{.Method}}'{{end}}` +
@@ -280,6 +285,7 @@ func ClientMetricsQuery(obj *ormapi.RegionClientMetrics) string {
 		Selector:      getFields(obj.Selector, CLIENT),
 		Measurement:   getMeasurementString(obj.Selector, CLIENT),
 		AppInstName:   obj.AppInst.AppKey.Name,
+		AppVersion:    obj.AppInst.AppKey.Version,
 		DeveloperName: obj.AppInst.AppKey.DeveloperKey.Name,
 		CloudletName:  obj.AppInst.ClusterInstKey.CloudletKey.Name,
 		ClusterName:   obj.AppInst.ClusterInstKey.ClusterKey.Name,
@@ -299,6 +305,7 @@ func AppInstMetricsQuery(obj *ormapi.RegionAppInstMetrics) string {
 		Selector:      getFields(obj.Selector, APPINST),
 		Measurement:   getMeasurementString(obj.Selector, APPINST),
 		AppInstName:   k8smgmt.NormalizeName(obj.AppInst.AppKey.Name),
+		AppVersion:    util.DNSSanitize(obj.AppInst.AppKey.Version),
 		DeveloperName: obj.AppInst.AppKey.DeveloperKey.Name,
 		CloudletName:  obj.AppInst.ClusterInstKey.CloudletKey.Name,
 		ClusterName:   obj.AppInst.ClusterInstKey.ClusterKey.Name,

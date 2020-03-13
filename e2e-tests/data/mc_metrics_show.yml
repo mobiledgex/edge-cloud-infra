@@ -14,7 +14,7 @@
     cloudlet: tmus-cloud-1
     cluster: SmallCluster
     apporg: AcmeAppCo
-    : tmus
+    cloudletorg: tmus
   values:
     mem: 3.756834298e+09
 - name: appinst-disk
@@ -23,7 +23,7 @@
     cloudlet: tmus-cloud-1
     cluster: SmallCluster
     apporg: AcmeAppCo
-    : tmus
+    cloudletorg: tmus
   values:
     disk: 73728
 - name: appinst-cpu
@@ -32,7 +32,7 @@
     cloudlet: tmus-cloud-1
     cluster: SmallCluster
     apporg: AcmeAppCo
-    : tmus
+    cloudletorg: tmus
   values:
     cpu: 0
 - name: cluster-udp
@@ -40,7 +40,7 @@
     cloudlet: tmus-cloud-1
     cluster: SmallCluster
     apporg: AcmeAppCo
-    : tmus
+    cloudletorg: tmus
   values:
     udpRecv: 400
     udpRecvErr: 500
@@ -50,7 +50,7 @@
     cloudlet: tmus-cloud-1
     cluster: SmallCluster
     apporg: AcmeAppCo
-    : tmus
+    cloudletorg: tmus
   values:
     tcpConns: 100
     tcpRetrans: 200
@@ -59,7 +59,7 @@
     cloudlet: tmus-cloud-1
     cluster: SmallCluster
     apporg: AcmeAppCo
-    : tmus
+    cloudletorg: tmus
   values:
     recvBytes: 0
     sendBytes: 0
@@ -68,7 +68,7 @@
     cloudlet: tmus-cloud-1
     cluster: SmallCluster
     apporg: AcmeAppCo
-    : tmus
+    cloudletorg: tmus
   values:
     mem: 75
 - name: cluster-disk
@@ -76,7 +76,7 @@
     cloudlet: tmus-cloud-1
     cluster: SmallCluster
     apporg: AcmeAppCo
-    : tmus
+    cloudletorg: tmus
   values:
     disk: 42.1
 - name: cluster-cpu
@@ -84,6 +84,6 @@
     cloudlet: tmus-cloud-1
     cluster: SmallCluster
     apporg: AcmeAppCo
-    : tmus
+    cloudletorg: tmus
   values:
     cpu: 0

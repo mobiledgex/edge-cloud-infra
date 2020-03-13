@@ -326,7 +326,7 @@ var OpenStackPropertiesComments = map[string]string{
 	"openrcvars":            "openrc env vars",
 }
 var OpenStackPropertiesSpecialArgs = map[string]string{
-	"openrcvars": "StringToString",
+	"openstackproperties.openrcvars": "StringToString",
 }
 var CloudletInfraPropertiesRequiredArgs = []string{}
 var CloudletInfraPropertiesOptionalArgs = []string{
@@ -381,7 +381,7 @@ var CloudletInfraPropertiesComments = map[string]string{
 	"gcpproperties.gcpauthkeyurl":               "vault credentials link",
 }
 var CloudletInfraPropertiesSpecialArgs = map[string]string{
-	"openstackproperties.openrcvars": "StringToString",
+	"cloudletinfraproperties.openstackproperties.openrcvars": "StringToString",
 }
 var PlatformConfigRequiredArgs = []string{}
 var PlatformConfigOptionalArgs = []string{
@@ -424,7 +424,7 @@ var PlatformConfigComments = map[string]string{
 	"region":                "Region",
 }
 var PlatformConfigSpecialArgs = map[string]string{
-	"envvar": "StringToString",
+	"platformconfig.envvar": "StringToString",
 }
 var CloudletResMapRequiredArgs = []string{
 	"cloudlet-org",
@@ -443,7 +443,7 @@ var CloudletResMapComments = map[string]string{
 	"mapping":      "Resource mapping info",
 }
 var CloudletResMapSpecialArgs = map[string]string{
-	"mapping": "StringToString",
+	"cloudletresmap.mapping": "StringToString",
 }
 var CloudletRequiredArgs = []string{
 	"cloudlet-org",
@@ -481,6 +481,7 @@ var CloudletOptionalArgs = []string{
 	"packageversion",
 }
 var CloudletAliasArgs = []string{
+	"fields=cloudlet.fields",
 	"cloudlet-org=cloudlet.key.organization",
 	"cloudlet=cloudlet.key.name",
 	"location.latitude=cloudlet.location.latitude",
@@ -534,6 +535,7 @@ var CloudletAliasArgs = []string{
 	"packageversion=cloudlet.packageversion",
 }
 var CloudletComments = map[string]string{
+	"fields":                              "Fields are used for the Update API to specify which fields to apply",
 	"cloudlet-org":                        "Organization of the cloudlet site",
 	"cloudlet":                            "Name of the cloudlet",
 	"location.latitude":                   "latitude in WGS 84 coordinates",
@@ -580,10 +582,11 @@ var CloudletComments = map[string]string{
 	"packageversion":                      "MobiledgeX OS package version on baseimage where CRM services reside",
 }
 var CloudletSpecialArgs = map[string]string{
-	"accessvars":    "StringToString",
-	"config.envvar": "StringToString",
-	"envvar":        "StringToString",
-	"errors":        "StringArray",
+	"cloudlet.accessvars":    "StringToString",
+	"cloudlet.config.envvar": "StringToString",
+	"cloudlet.envvar":        "StringToString",
+	"cloudlet.errors":        "StringArray",
+	"cloudlet.fields":        "StringArray",
 }
 var FlavorMatchRequiredArgs = []string{
 	"cloudlet-org",
@@ -627,7 +630,7 @@ var FlavorInfoComments = map[string]string{
 	"propmap": "OS Flavor Properties, if any",
 }
 var FlavorInfoSpecialArgs = map[string]string{
-	"propmap": "StringToString",
+	"flavorinfo.propmap": "StringToString",
 }
 var OSAZoneRequiredArgs = []string{}
 var OSAZoneOptionalArgs = []string{
@@ -690,6 +693,7 @@ var CloudletInfoOptionalArgs = []string{
 	"osimages.diskformat",
 }
 var CloudletInfoAliasArgs = []string{
+	"fields=cloudletinfo.fields",
 	"cloudlet-org=cloudletinfo.key.organization",
 	"cloudlet=cloudletinfo.key.name",
 	"state=cloudletinfo.state",
@@ -717,6 +721,7 @@ var CloudletInfoAliasArgs = []string{
 	"osimages.diskformat=cloudletinfo.osimages.diskformat",
 }
 var CloudletInfoComments = map[string]string{
+	"fields":              "Fields are used for the Update API to specify which fields to apply",
 	"cloudlet-org":        "Organization of the cloudlet site",
 	"cloudlet":            "Name of the cloudlet",
 	"state":               "State of cloudlet, one of CloudletStateUnknown, CloudletStateErrors, CloudletStateReady, CloudletStateOffline, CloudletStateNotPresent, CloudletStateInit, CloudletStateUpgrade",
@@ -738,8 +743,9 @@ var CloudletInfoComments = map[string]string{
 	"osimages.diskformat": "format qcow2, img, etc",
 }
 var CloudletInfoSpecialArgs = map[string]string{
-	"errors":          "StringArray",
-	"flavors.propmap": "StringToString",
+	"cloudletinfo.errors":          "StringArray",
+	"cloudletinfo.fields":          "StringArray",
+	"cloudletinfo.flavors.propmap": "StringToString",
 }
 var CloudletMetricsRequiredArgs = []string{}
 var CloudletMetricsOptionalArgs = []string{

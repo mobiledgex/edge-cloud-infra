@@ -6,6 +6,7 @@ Package testutil is a generated protocol buffer package.
 
 It is generated from these files:
 	alert.proto
+	alldata.proto
 	app.proto
 	appinst.proto
 	appinstclient.proto
@@ -33,6 +34,7 @@ It is generated from these files:
 
 It has these top-level messages:
 	Alert
+	AllData
 	AppKey
 	ConfigFile
 	App
@@ -78,6 +80,7 @@ It has these top-level messages:
 	Controller
 	DebugRequest
 	DebugReply
+	DebugData
 	RunCmd
 	RunVMConsole
 	ShowLog
@@ -89,6 +92,7 @@ It has these top-level messages:
 	Metric
 	NodeKey
 	Node
+	NodeData
 	Notice
 	OperatorCode
 	OutboundSecurityRule
@@ -103,6 +107,7 @@ It has these top-level messages:
 package testutil
 
 import edgeproto "github.com/mobiledgex/edge-cloud/edgeproto"
+import "context"
 import "github.com/mobiledgex/edge-cloud-infra/mc/ormclient"
 import "github.com/mobiledgex/edge-cloud-infra/mc/ormapi"
 import proto "github.com/gogo/protobuf/proto"
@@ -129,4 +134,16 @@ func TestShowAlert(mcClient *ormclient.Client, uri, token, region string, in *ed
 func TestPermShowAlert(mcClient *ormclient.Client, uri, token, region, org string) ([]edgeproto.Alert, int, error) {
 	in := &edgeproto.Alert{}
 	return TestShowAlert(mcClient, uri, token, region, in)
+}
+
+func (s *TestClient) ShowAlert(ctx context.Context, in *edgeproto.Alert) ([]edgeproto.Alert, error) {
+	inR := &ormapi.RegionAlert{
+		Region: s.Region,
+		Alert:  *in,
+	}
+	out, status, err := s.McClient.ShowAlert(s.Uri, s.Token, inR)
+	if err == nil && status != 200 {
+		err = fmt.Errorf("status: %d\n", status)
+	}
+	return out, err
 }

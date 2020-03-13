@@ -2,10 +2,10 @@ from __future__ import (absolute_import, division, print_function)
 __metaclass__ = type
 
 DOCUMENTATION = """
-lookup: vault_github_role
-short_description: policies for vault gitub role
+lookup: vault_user_role
+short_description: policies for vault user role
 description:
-  - get list of policies for given vault gitub role
+  - get list of policies for given vault user role
 options:
   _terms:
     description:
@@ -15,7 +15,7 @@ options:
 
 EXAMPLES="""
   - set_fact:
-      policies: "{{ query('vault_github_role', 'viewer') }}"
+      policies: "{{ query('vault_user_role', 'viewer') }}"
   - debug: var=policies
 """
 
@@ -54,7 +54,7 @@ class LookupModule(LookupBase):
 
         for role in roles:
             try:
-                policies.append(myvars['vault_github_user_roles'][role])
+                policies.append(myvars['vault_user_roles'][role])
             except KeyError:
                 display.v("Github user role not found: {0}".format(role))
 

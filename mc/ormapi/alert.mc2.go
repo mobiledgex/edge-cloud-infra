@@ -6,6 +6,7 @@ Package ormapi is a generated protocol buffer package.
 
 It is generated from these files:
 	alert.proto
+	alldata.proto
 	app.proto
 	appinst.proto
 	appinstclient.proto
@@ -33,6 +34,7 @@ It is generated from these files:
 
 It has these top-level messages:
 	Alert
+	AllData
 	AppKey
 	ConfigFile
 	App
@@ -78,6 +80,7 @@ It has these top-level messages:
 	Controller
 	DebugRequest
 	DebugReply
+	DebugData
 	RunCmd
 	RunVMConsole
 	ShowLog
@@ -89,6 +92,7 @@ It has these top-level messages:
 	Metric
 	NodeKey
 	Node
+	NodeData
 	Notice
 	OperatorCode
 	OutboundSecurityRule

@@ -154,6 +154,7 @@ var ResTagTableOptionalArgs = []string{
 	"azone",
 }
 var ResTagTableAliasArgs = []string{
+	"fields=restagtable.fields",
 	"res=restagtable.key.name",
 	"organzation=restagtable.key.organization",
 	"tags=restagtable.tags",
@@ -166,5 +167,6 @@ var ResTagTableComments = map[string]string{
 	"azone":       "availability zone(s) of resource if required",
 }
 var ResTagTableSpecialArgs = map[string]string{
-	"tags": "StringToString",
+	"restagtable.fields": "StringArray",
+	"restagtable.tags":   "StringToString",
 }

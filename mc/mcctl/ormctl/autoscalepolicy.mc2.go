@@ -129,6 +129,7 @@ var AutoScalePolicyOptionalArgs = []string{
 	"triggertimesec",
 }
 var AutoScalePolicyAliasArgs = []string{
+	"fields=autoscalepolicy.fields",
 	"cluster-org=autoscalepolicy.key.organization",
 	"name=autoscalepolicy.key.name",
 	"minnodes=autoscalepolicy.minnodes",
@@ -138,6 +139,7 @@ var AutoScalePolicyAliasArgs = []string{
 	"triggertimesec=autoscalepolicy.triggertimesec",
 }
 var AutoScalePolicyComments = map[string]string{
+	"fields":             "Fields are used for the Update API to specify which fields to apply",
 	"cluster-org":        "Name of the organization for the cluster that this policy will apply to",
 	"name":               "Policy name",
 	"minnodes":           "Minimum number of cluster nodes",
@@ -146,4 +148,6 @@ var AutoScalePolicyComments = map[string]string{
 	"scaledowncputhresh": "Scale down cpu threshold (percentage 1 to 100)",
 	"triggertimesec":     "Trigger time defines how long trigger threshold must be satified in seconds before acting upon it.",
 }
-var AutoScalePolicySpecialArgs = map[string]string{}
+var AutoScalePolicySpecialArgs = map[string]string{
+	"autoscalepolicy.fields": "StringArray",
+}

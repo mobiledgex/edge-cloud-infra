@@ -119,11 +119,11 @@ var CreateAppInstRequiredArgs = []string{
 	"app-org",
 	"appname",
 	"appvers",
-	"cluster",
 	"cloudlet-org",
 	"cloudlet",
 }
 var CreateAppInstOptionalArgs = []string{
+	"cluster",
 	"cluster-org",
 	"flavor",
 	"state",
@@ -142,11 +142,11 @@ var DeleteAppInstRequiredArgs = []string{
 	"app-org",
 	"appname",
 	"appvers",
-	"cluster",
 	"cloudlet-org",
 	"cloudlet",
 }
 var DeleteAppInstOptionalArgs = []string{
+	"cluster",
 	"cluster-org",
 	"cloudletloc.latitude",
 	"cloudletloc.longitude",
@@ -214,11 +214,11 @@ var UpdateAppInstRequiredArgs = []string{
 	"app-org",
 	"appname",
 	"appvers",
-	"cluster",
 	"cloudlet-org",
 	"cloudlet",
 }
 var UpdateAppInstOptionalArgs = []string{
+	"cluster",
 	"cluster-org",
 	"crmoverride",
 	"configs.kind",
@@ -264,11 +264,11 @@ var AppInstRequiredArgs = []string{
 	"app-org",
 	"appname",
 	"appvers",
-	"cluster",
 	"cloudlet-org",
 	"cloudlet",
 }
 var AppInstOptionalArgs = []string{
+	"cluster",
 	"cluster-org",
 	"flavor",
 	"state",
@@ -285,6 +285,7 @@ var AppInstOptionalArgs = []string{
 	"vmflavor",
 }
 var AppInstAliasArgs = []string{
+	"fields=appinst.fields",
 	"app-org=appinst.key.appkey.organization",
 	"appname=appinst.key.appkey.name",
 	"appvers=appinst.key.appkey.version",
@@ -336,6 +337,7 @@ var AppInstAliasArgs = []string{
 	"vmflavor=appinst.vmflavor",
 }
 var AppInstComments = map[string]string{
+	"fields":                         "Fields are used for the Update API to specify which fields to apply",
 	"app-org":                        "App developer organization",
 	"appname":                        "App name",
 	"appvers":                        "App version",
@@ -379,8 +381,9 @@ var AppInstComments = map[string]string{
 	"vmflavor":                       "OS node flavor to use",
 }
 var AppInstSpecialArgs = map[string]string{
-	"errors":                   "StringArray",
-	"runtimeinfo.containerids": "StringArray",
+	"appinst.errors":                   "StringArray",
+	"appinst.fields":                   "StringArray",
+	"appinst.runtimeinfo.containerids": "StringArray",
 }
 var AppInstRuntimeRequiredArgs = []string{}
 var AppInstRuntimeOptionalArgs = []string{
@@ -393,7 +396,7 @@ var AppInstRuntimeComments = map[string]string{
 	"containerids": "List of container names",
 }
 var AppInstRuntimeSpecialArgs = map[string]string{
-	"containerids": "StringArray",
+	"appinstruntime.containerids": "StringArray",
 }
 var AppInstInfoRequiredArgs = []string{
 	"key.appkey.organization",
@@ -416,6 +419,7 @@ var AppInstInfoOptionalArgs = []string{
 	"powerstate",
 }
 var AppInstInfoAliasArgs = []string{
+	"fields=appinstinfo.fields",
 	"key.appkey.organization=appinstinfo.key.appkey.organization",
 	"key.appkey.name=appinstinfo.key.appkey.name",
 	"key.appkey.version=appinstinfo.key.appkey.version",
@@ -434,6 +438,7 @@ var AppInstInfoAliasArgs = []string{
 	"powerstate=appinstinfo.powerstate",
 }
 var AppInstInfoComments = map[string]string{
+	"fields":                                      "Fields are used for the Update API to specify which fields to apply",
 	"key.appkey.organization":                     "App developer organization",
 	"key.appkey.name":                             "App name",
 	"key.appkey.version":                          "App version",
@@ -448,8 +453,9 @@ var AppInstInfoComments = map[string]string{
 	"powerstate":                                  "Power State of the AppInst, one of PowerOn, PowerOff, Reboot",
 }
 var AppInstInfoSpecialArgs = map[string]string{
-	"errors":                   "StringArray",
-	"runtimeinfo.containerids": "StringArray",
+	"appinstinfo.errors":                   "StringArray",
+	"appinstinfo.fields":                   "StringArray",
+	"appinstinfo.runtimeinfo.containerids": "StringArray",
 }
 var AppInstMetricsRequiredArgs = []string{}
 var AppInstMetricsOptionalArgs = []string{

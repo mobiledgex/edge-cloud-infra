@@ -95,6 +95,7 @@ var AppInstClientOptionalArgs = []string{
 	"notifyid",
 }
 var AppInstClientAliasArgs = []string{
+	"fields=appinstclient.fields",
 	"clientkey.key.appkey.organization=appinstclient.clientkey.key.appkey.organization",
 	"clientkey.key.appkey.name=appinstclient.clientkey.key.appkey.name",
 	"clientkey.key.appkey.version=appinstclient.clientkey.key.appkey.version",
@@ -115,6 +116,7 @@ var AppInstClientAliasArgs = []string{
 	"notifyid=appinstclient.notifyid",
 }
 var AppInstClientComments = map[string]string{
+	"fields":                                                "Fields are used for the Update API to specify which fields to apply",
 	"clientkey.key.appkey.organization":                     "App developer organization",
 	"clientkey.key.appkey.name":                             "App name",
 	"clientkey.key.appkey.version":                          "App version",
@@ -132,4 +134,6 @@ var AppInstClientComments = map[string]string{
 	"location.speed":                                        "speed (IOS) / velocity (Android) (meters/sec)",
 	"notifyid":                                              "Id of client assigned by server (internal use only)",
 }
-var AppInstClientSpecialArgs = map[string]string{}
+var AppInstClientSpecialArgs = map[string]string{
+	"appinstclient.fields": "StringArray",
+}

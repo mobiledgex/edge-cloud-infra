@@ -10,10 +10,10 @@
     api: "auth/github/map/users/{{ user.userid }}"
     method: POST
     data:
-      value: "{{ lookup('vault_github_role', user.role) }}"
+      value: "{{ policy_list }}"
     success_code: 204
   vars:
-    policy_list: "{{ lookup('vault_github_role', user.role) }}"
+    policy_list: "{{ lookup('vault_user_role', user.role) }}"
   when: ("meta" not in result) or
         ("data" not in result.meta.response) or
         (not result.meta.response.data) or

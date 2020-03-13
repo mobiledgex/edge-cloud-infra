@@ -1,0 +1,353 @@
+tlscerts:
+- commonname: localserver
+  ips:
+  - 127.0.0.1
+  - 0.0.0.0
+  dnsnames: []
+locsims:
+- kind: ""
+  name: locsim1
+  hostname: 127.0.0.1
+  dockerimage: ""
+  envvars: {}
+  port: 8888
+  locfile: /Users/jimmorris/go/src/github.com/mobiledgex/edge-cloud/setup-env/e2e-tests/data/locsim.yml
+  geofile: /Users/jimmorris/go/src/github.com/mobiledgex/edge-cloud/setup-env/e2e-tests/data/geocode.dat
+  country: US
+toksims:
+- kind: ""
+  name: toksim1
+  hostname: 127.0.0.1
+  dockerimage: ""
+  envvars: {}
+  port: 9999
+  token: ""
+vaults:
+- kind: ""
+  name: vault
+  hostname: 127.0.0.1
+  dockerimage: ""
+  envvars: {}
+  dmesecret: dme-secret
+etcds:
+- kind: ""
+  name: etcd1
+  hostname: 127.0.0.1
+  dockerimage: ""
+  envvars: {}
+  datadir: /var/tmp/edge-cloud-local-etcd/etcd1
+  peeraddrs: http://127.0.0.1:30011
+  clientaddrs: http://127.0.0.1:30001
+  initialcluster: etcd1=http://127.0.0.1:30011,etcd2=http://127.0.0.1:30012,etcd3=http://127.0.0.1:30013
+- kind: ""
+  name: etcd2
+  hostname: 127.0.0.1
+  dockerimage: ""
+  envvars: {}
+  datadir: /var/tmp/edge-cloud-local-etcd/etcd2
+  peeraddrs: http://127.0.0.1:30012
+  clientaddrs: http://127.0.0.1:30002
+  initialcluster: etcd1=http://127.0.0.1:30011,etcd2=http://127.0.0.1:30012,etcd3=http://127.0.0.1:30013
+- kind: ""
+  name: etcd3
+  hostname: 127.0.0.1
+  dockerimage: ""
+  envvars: {}
+  datadir: /var/tmp/edge-cloud-local-etcd/etcd3
+  peeraddrs: http://127.0.0.1:30013
+  clientaddrs: http://127.0.0.1:30003
+  initialcluster: etcd1=http://127.0.0.1:30011,etcd2=http://127.0.0.1:30012,etcd3=http://127.0.0.1:30013
+controllers:
+- kind: ""
+  name: ctrl1
+  hostname: 127.0.0.1
+  dockerimage: ""
+  envvars: {}
+  etcdaddrs: http://127.0.0.1:30001,http://127.0.0.1:30002,http://127.0.0.1:30003
+  apiaddr: 127.0.0.1:55001
+  httpaddr: 0.0.0.0:36001
+  notifyaddr: 127.0.0.1:37001
+  notifyrootaddrs: 127.0.0.1:53001
+  notifyparentaddrs: 127.0.0.1:52001
+  vaultaddr: http://127.0.0.1:8200
+  influxaddr: ""
+  tls:
+    servercert: /Users/jimmorris/go/src/github.com/mobiledgex/edge-cloud/tls/out/mex-server.crt
+    serverkey: ""
+    cacert: ""
+    clientcert: /Users/jimmorris/go/src/github.com/mobiledgex/edge-cloud/tls/out/mex-client.crt
+    apicert: ""
+    apikey: ""
+  testmode: true
+  registryfqdn: ""
+  artifactoryfqdn: ""
+  cloudletregistrypath: ""
+  versiontag: "2019-10-24"
+  cloudletvmimagepath: ""
+- kind: ""
+  name: ctrl2
+  hostname: 127.0.0.1
+  dockerimage: ""
+  envvars: {}
+  etcdaddrs: http://127.0.0.1:30001,http://127.0.0.1:30002,http://127.0.0.1:30003
+  apiaddr: 127.0.0.1:55002
+  httpaddr: 0.0.0.0:36002
+  notifyaddr: 127.0.0.1:37002
+  notifyrootaddrs: 127.0.0.1:53001
+  notifyparentaddrs: 127.0.0.1:52002
+  vaultaddr: http://127.0.0.1:8200
+  influxaddr: ""
+  tls:
+    servercert: /Users/jimmorris/go/src/github.com/mobiledgex/edge-cloud/tls/out/mex-server.crt
+    serverkey: ""
+    cacert: ""
+    clientcert: /Users/jimmorris/go/src/github.com/mobiledgex/edge-cloud/tls/out/mex-client.crt
+    apicert: ""
+    apikey: ""
+  testmode: true
+  registryfqdn: ""
+  artifactoryfqdn: ""
+  cloudletregistrypath: ""
+  versiontag: "2019-10-24"
+  cloudletvmimagepath: ""
+dmes:
+- kind: ""
+  name: dme1
+  hostname: 127.0.0.1
+  dockerimage: ""
+  envvars:
+    LOCAPI_PASSWD: eC2835!
+    LOCAPI_USER: mexserver
+  apiaddr: 0.0.0.0:50051
+  httpaddr: 0.0.0.0:38001
+  notifyaddrs: 127.0.0.1:37001,127.0.0.1:37002
+  locverurl: http://127.0.0.1:8888/verifyLocation
+  toksrvurl: http://127.0.0.1:9999/its?followURL=https://dme.mobiledgex.net/verifyLoc
+  qosposurl: ""
+  carrier: TDG
+  cloudletkey: '{"organization":"tmus","name":"tmus-cloud-1"}'
+  vaultaddr: http://127.0.0.1:8200
+  cookieexpr: ""
+  tls:
+    servercert: /Users/jimmorris/go/src/github.com/mobiledgex/edge-cloud/tls/out/mex-server.crt
+    serverkey: /Users/jimmorris/go/src/github.com/mobiledgex/edge-cloud/tls/out/mex-server.key
+    cacert: ""
+    clientcert: /Users/jimmorris/go/src/github.com/mobiledgex/edge-cloud/tls/out/mex-client.crt
+    apicert: ""
+    apikey: ""
+- kind: ""
+  name: dme2
+  hostname: 127.0.0.1
+  dockerimage: ""
+  envvars:
+    LOCAPI_PASSWD: eC2835!
+    LOCAPI_USER: mexserver
+  apiaddr: 0.0.0.0:50052
+  httpaddr: 0.0.0.0:38002
+  notifyaddrs: 127.0.0.1:37001,127.0.0.1:37002
+  locverurl: http://127.0.0.1:8888/verifyLocation
+  toksrvurl: http://127.0.0.1:9999/its?followURL=https://dme.mobiledgex.net/verifyLoc
+  qosposurl: ""
+  carrier: TDG
+  cloudletkey: '{"organization":"tmus","name":"tmus-cloud-2"}'
+  vaultaddr: http://127.0.0.1:8200
+  cookieexpr: ""
+  tls:
+    servercert: /Users/jimmorris/go/src/github.com/mobiledgex/edge-cloud/tls/out/mex-server.crt
+    serverkey: /Users/jimmorris/go/src/github.com/mobiledgex/edge-cloud/tls/out/mex-server.key
+    cacert: ""
+    clientcert: /Users/jimmorris/go/src/github.com/mobiledgex/edge-cloud/tls/out/mex-client.crt
+    apicert: ""
+    apikey: ""
+sampleapps: []
+influxs:
+- kind: ""
+  name: influx1
+  hostname: 127.0.0.1
+  dockerimage: ""
+  envvars: {}
+  datadir: /var/tmp/edge-cloud-local-influx/influx1
+  httpaddr: http://127.0.0.1:8086
+  config: /var/tmp/edge-cloud-local-influx/influx1/influxdb.conf
+  tls:
+    servercert: ""
+    serverkey: ""
+    cacert: ""
+    clientcert: ""
+    apicert: ""
+    apikey: ""
+  auth:
+    user: ""
+    pass: ""
+clustersvcs:
+- kind: ""
+  name: cluster-svc1
+  hostname: 127.0.0.1
+  dockerimage: ""
+  envvars: {}
+  notifyaddrs: 127.0.0.1:37001,127.0.0.1:37002
+  ctrladdrs: 127.0.0.1:55001
+  promports: ""
+  influxdb: ""
+  interval: ""
+  pluginrequired: true
+  tls:
+    servercert: /Users/jimmorris/go/src/github.com/mobiledgex/edge-cloud/tls/out/mex-server.crt
+    serverkey: ""
+    cacert: ""
+    clientcert: /Users/jimmorris/go/src/github.com/mobiledgex/edge-cloud/tls/out/mex-client.crt
+    apicert: ""
+    apikey: ""
+- kind: ""
+  name: cluster-svc2
+  hostname: 127.0.0.1
+  dockerimage: ""
+  envvars: {}
+  notifyaddrs: 127.0.0.1:37001,127.0.0.1:37002
+  ctrladdrs: 127.0.0.1:55002
+  promports: ""
+  influxdb: ""
+  interval: ""
+  pluginrequired: false
+  tls:
+    servercert: /Users/jimmorris/go/src/github.com/mobiledgex/edge-cloud/tls/out/mex-server.crt
+    serverkey: ""
+    cacert: ""
+    clientcert: /Users/jimmorris/go/src/github.com/mobiledgex/edge-cloud/tls/out/mex-client.crt
+    apicert: ""
+    apikey: ""
+crms: []
+jaegers:
+- kind: ""
+  name: jaeger-e2e
+  hostname: 127.0.0.1
+  dockerimage: ""
+  envvars: {}
+  tls:
+    servercert: ""
+    serverkey: ""
+    cacert: ""
+    clientcert: ""
+    apicert: ""
+    apikey: ""
+traefiks:
+- kind: ""
+  name: traefik-e2e
+  hostname: 127.0.0.1
+  dockerimage: ""
+  envvars: {}
+  tls:
+    servercert: /Users/jimmorris/go/src/github.com/mobiledgex/edge-cloud/tls/out/mex-server.crt
+    serverkey: /Users/jimmorris/go/src/github.com/mobiledgex/edge-cloud/tls/out/mex-server.key
+    cacert: /Users/jimmorris/go/src/github.com/mobiledgex/edge-cloud/tls/out/mex-ca.crt
+    clientcert: ""
+    apicert: ""
+    apikey: ""
+notifyroots:
+- kind: ""
+  name: notifyroot
+  hostname: 127.0.0.1
+  dockerimage: ""
+  envvars: {}
+  tls:
+    servercert: /Users/jimmorris/go/src/github.com/mobiledgex/edge-cloud/tls/out/mex-server.crt
+    serverkey: ""
+    cacert: ""
+    clientcert: ""
+    apicert: ""
+    apikey: ""
+cluster:
+  mexmanifest: ""
+k8s-deployment: []
+mcs:
+- kind: ""
+  name: mc1
+  hostname: 127.0.0.1
+  dockerimage: ""
+  envvars: {}
+  addr: 127.0.0.1:9900
+  sqladdr: 127.0.0.1:5432
+  vaultaddr: http://127.0.0.1:8200
+  rolesfile: ""
+  ldapaddr: 127.0.0.1:9389
+  notifysrvaddr: 127.0.0.1:52001
+  consoleproxyaddr: 127.0.0.1:6080
+  tls:
+    servercert: /Users/jimmorris/go/src/github.com/mobiledgex/edge-cloud/tls/out/mex-server.crt
+    serverkey: /Users/jimmorris/go/src/github.com/mobiledgex/edge-cloud/tls/out/mex-server.key
+    cacert: ""
+    clientcert: /Users/jimmorris/go/src/github.com/mobiledgex/edge-cloud/tls/out/mex-client.crt
+    apicert: ""
+    apikey: ""
+- kind: ""
+  name: mc2
+  hostname: 127.0.0.1
+  dockerimage: ""
+  envvars: {}
+  addr: 127.0.0.1:9901
+  sqladdr: 127.0.0.1:5432
+  vaultaddr: http://127.0.0.1:8200
+  rolesfile: ""
+  ldapaddr: 127.0.0.1:9390
+  notifysrvaddr: 127.0.0.1:52002
+  consoleproxyaddr: 127.0.0.1:6081
+  tls:
+    servercert: /Users/jimmorris/go/src/github.com/mobiledgex/edge-cloud/tls/out/mex-server.crt
+    serverkey: /Users/jimmorris/go/src/github.com/mobiledgex/edge-cloud/tls/out/mex-server.key
+    cacert: ""
+    clientcert: /Users/jimmorris/go/src/github.com/mobiledgex/edge-cloud/tls/out/mex-client.crt
+    apicert: ""
+    apikey: ""
+sqls:
+- kind: ""
+  name: sql1
+  hostname: 127.0.0.1
+  dockerimage: ""
+  envvars: {}
+  datadir: /var/tmp/edge-cloud-local-sql/sql1
+  httpaddr: 127.0.0.1:5432
+  username: mcuser
+  dbname: mcdb
+  tls:
+    servercert: /Users/jimmorris/go/src/github.com/mobiledgex/edge-cloud/tls/out/mex-server.crt
+    serverkey: /Users/jimmorris/go/src/github.com/mobiledgex/edge-cloud/tls/out/mex-server.key
+    cacert: ""
+    clientcert: ""
+    apicert: ""
+    apikey: ""
+shepherds: []
+autoprovs:
+- kind: ""
+  name: autoprov1
+  hostname: 127.0.0.1
+  dockerimage: ""
+  envvars: {}
+  notifyaddrs: 127.0.0.1:37001,127.0.0.1:37002
+  ctrladdrs: 127.0.0.1:55001
+  vaultaddr: http://127.0.0.1:8200
+  influxaddr: http://127.0.0.1:8086
+  tls:
+    servercert: /Users/jimmorris/go/src/github.com/mobiledgex/edge-cloud/tls/out/mex-server.crt
+    serverkey: ""
+    cacert: ""
+    clientcert: /Users/jimmorris/go/src/github.com/mobiledgex/edge-cloud/tls/out/mex-client.crt
+    apicert: ""
+    apikey: ""
+cloudflare:
+  zone: ""
+  records: []
+prometheus:
+- kind: ""
+  name: prom-e2e
+  hostname: 127.0.0.1
+  dockerimage: ""
+  envvars: {}
+  port: 9090
+exporter:
+- kind: ""
+  name: fakePromExporter
+  hostname: 127.0.0.1
+  dockerimage: ""
+  envvars: {}
+  datafile: /Users/jimmorris/go/src/github.com/mobiledgex/edge-cloud-infra/e2e-tests/data/mc_metrics.yml
+  port: 9100

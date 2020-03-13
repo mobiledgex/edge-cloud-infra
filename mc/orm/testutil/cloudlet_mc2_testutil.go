@@ -4,10 +4,9 @@
 package testutil
 
 import edgeproto "github.com/mobiledgex/edge-cloud/edgeproto"
-import "os"
+import "context"
 import "github.com/mobiledgex/edge-cloud-infra/mc/ormclient"
 import "github.com/mobiledgex/edge-cloud-infra/mc/ormapi"
-import "github.com/mobiledgex/edge-cloud/cli"
 import proto "github.com/gogo/protobuf/proto"
 import fmt "fmt"
 import math "math"
@@ -106,51 +105,88 @@ func TestPermFindFlavorMatch(mcClient *ormclient.Client, uri, token, region, org
 	return TestFindFlavorMatch(mcClient, uri, token, region, in)
 }
 
-func RunMcCloudletApi(mcClient ormclient.Api, uri, token, region string, data *[]edgeproto.Cloudlet, dataMap interface{}, rc *bool, mode string) {
-	for ii, cloudlet := range *data {
-		in := &ormapi.RegionCloudlet{
-			Region:   region,
-			Cloudlet: cloudlet,
-		}
-		switch mode {
-		case "create":
-			_, st, err := mcClient.CreateCloudlet(uri, token, in)
-			checkMcErr("CreateCloudlet", st, err, rc)
-		case "delete":
-			_, st, err := mcClient.DeleteCloudlet(uri, token, in)
-			checkMcErr("DeleteCloudlet", st, err, rc)
-		case "update":
-			objMap, err := cli.GetGenericObjFromList(dataMap, ii)
-			if err != nil {
-				fmt.Fprintf(os.Stderr, "bad dataMap for Cloudlet: %v", err)
-				os.Exit(1)
-			}
-			in.Cloudlet.Fields = cli.GetSpecifiedFields(objMap, &in.Cloudlet, cli.YamlNamespace)
-			_, st, err := mcClient.UpdateCloudlet(uri, token, in)
-			checkMcErr("UpdateCloudlet", st, err, rc)
-		default:
-			return
-		}
+func (s *TestClient) CreateCloudlet(ctx context.Context, in *edgeproto.Cloudlet) ([]edgeproto.Result, error) {
+	inR := &ormapi.RegionCloudlet{
+		Region:   s.Region,
+		Cloudlet: *in,
 	}
+	out, status, err := s.McClient.CreateCloudlet(s.Uri, s.Token, inR)
+	if err == nil && status != 200 {
+		err = fmt.Errorf("status: %d\n", status)
+	}
+	return out, err
 }
 
-func RunMcCloudletApi_CloudletResMap(mcClient ormclient.Api, uri, token, region string, data *[]edgeproto.CloudletResMap, dataMap interface{}, rc *bool, mode string) {
-	for _, cloudletResMap := range *data {
-		in := &ormapi.RegionCloudletResMap{
-			Region:         region,
-			CloudletResMap: cloudletResMap,
-		}
-		switch mode {
-		case "add":
-			_, st, err := mcClient.AddCloudletResMapping(uri, token, in)
-			checkMcErr("AddCloudletResMapping", st, err, rc)
-		case "remove":
-			_, st, err := mcClient.RemoveCloudletResMapping(uri, token, in)
-			checkMcErr("RemoveCloudletResMapping", st, err, rc)
-		default:
-			return
-		}
+func (s *TestClient) DeleteCloudlet(ctx context.Context, in *edgeproto.Cloudlet) ([]edgeproto.Result, error) {
+	inR := &ormapi.RegionCloudlet{
+		Region:   s.Region,
+		Cloudlet: *in,
 	}
+	out, status, err := s.McClient.DeleteCloudlet(s.Uri, s.Token, inR)
+	if err == nil && status != 200 {
+		err = fmt.Errorf("status: %d\n", status)
+	}
+	return out, err
+}
+
+func (s *TestClient) UpdateCloudlet(ctx context.Context, in *edgeproto.Cloudlet) ([]edgeproto.Result, error) {
+	inR := &ormapi.RegionCloudlet{
+		Region:   s.Region,
+		Cloudlet: *in,
+	}
+	out, status, err := s.McClient.UpdateCloudlet(s.Uri, s.Token, inR)
+	if err == nil && status != 200 {
+		err = fmt.Errorf("status: %d\n", status)
+	}
+	return out, err
+}
+
+func (s *TestClient) ShowCloudlet(ctx context.Context, in *edgeproto.Cloudlet) ([]edgeproto.Cloudlet, error) {
+	inR := &ormapi.RegionCloudlet{
+		Region:   s.Region,
+		Cloudlet: *in,
+	}
+	out, status, err := s.McClient.ShowCloudlet(s.Uri, s.Token, inR)
+	if err == nil && status != 200 {
+		err = fmt.Errorf("status: %d\n", status)
+	}
+	return out, err
+}
+
+func (s *TestClient) AddCloudletResMapping(ctx context.Context, in *edgeproto.CloudletResMap) (*edgeproto.Result, error) {
+	inR := &ormapi.RegionCloudletResMap{
+		Region:         s.Region,
+		CloudletResMap: *in,
+	}
+	out, status, err := s.McClient.AddCloudletResMapping(s.Uri, s.Token, inR)
+	if err == nil && status != 200 {
+		err = fmt.Errorf("status: %d\n", status)
+	}
+	return out, err
+}
+
+func (s *TestClient) RemoveCloudletResMapping(ctx context.Context, in *edgeproto.CloudletResMap) (*edgeproto.Result, error) {
+	inR := &ormapi.RegionCloudletResMap{
+		Region:         s.Region,
+		CloudletResMap: *in,
+	}
+	out, status, err := s.McClient.RemoveCloudletResMapping(s.Uri, s.Token, inR)
+	if err == nil && status != 200 {
+		err = fmt.Errorf("status: %d\n", status)
+	}
+	return out, err
+}
+
+func (s *TestClient) FindFlavorMatch(ctx context.Context, in *edgeproto.FlavorMatch) (*edgeproto.FlavorMatch, error) {
+	inR := &ormapi.RegionFlavorMatch{
+		Region:      s.Region,
+		FlavorMatch: *in,
+	}
+	out, status, err := s.McClient.FindFlavorMatch(s.Uri, s.Token, inR)
+	if err == nil && status != 200 {
+		err = fmt.Errorf("status: %d\n", status)
+	}
+	return out, err
 }
 
 func TestShowCloudletInfo(mcClient *ormclient.Client, uri, token, region string, in *edgeproto.CloudletInfo) ([]edgeproto.CloudletInfo, int, error) {
@@ -163,4 +199,28 @@ func TestPermShowCloudletInfo(mcClient *ormclient.Client, uri, token, region, or
 	in := &edgeproto.CloudletInfo{}
 	in.Key.Organization = org
 	return TestShowCloudletInfo(mcClient, uri, token, region, in)
+}
+
+func (s *TestClient) ShowCloudletInfo(ctx context.Context, in *edgeproto.CloudletInfo) ([]edgeproto.CloudletInfo, error) {
+	inR := &ormapi.RegionCloudletInfo{
+		Region:       s.Region,
+		CloudletInfo: *in,
+	}
+	out, status, err := s.McClient.ShowCloudletInfo(s.Uri, s.Token, inR)
+	if err == nil && status != 200 {
+		err = fmt.Errorf("status: %d\n", status)
+	}
+	return out, err
+}
+
+func (s *TestClient) InjectCloudletInfo(ctx context.Context, in *edgeproto.CloudletInfo) (*edgeproto.Result, error) {
+	return nil, nil
+}
+
+func (s *TestClient) EvictCloudletInfo(ctx context.Context, in *edgeproto.CloudletInfo) (*edgeproto.Result, error) {
+	return nil, nil
+}
+
+func (s *TestClient) ShowCloudletMetrics(ctx context.Context, in *edgeproto.CloudletMetrics) ([]edgeproto.CloudletMetrics, error) {
+	return nil, nil
 }

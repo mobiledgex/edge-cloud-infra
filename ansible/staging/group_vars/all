@@ -12,8 +12,12 @@ vault_ldap_groups:
     role: edgebox_user
 
 vault_github_users:
+  - userid: anand12gupta
+    role: edgebox_user
   - userid: bibingeorge1986
     role: cloudlet_admin
+  - userid: franklin-huang-mobiledgex
+    role: edgebox_user
   - userid: gainsley
     role: admin
   - userid: jlmorris3827

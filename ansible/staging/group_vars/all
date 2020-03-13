@@ -14,6 +14,8 @@ vault_ldap_groups:
 vault_github_users:
   - userid: bibingeorge1986
     role: cloudlet_admin
+  - userid: franklin-huang-mobiledgex
+    role: edgebox_user
   - userid: gainsley
     role: admin
   - userid: jlmorris3827

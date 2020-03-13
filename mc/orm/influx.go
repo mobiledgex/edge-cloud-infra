@@ -79,7 +79,7 @@ var ClientSelectors = []string{
 var AppFields = []string{
 	"\"app\"",
 	"\"cluster\"",
-	"\"cluster-org\"",
+	"\"clusterorg\"",
 	"\"cloudlet\"",
 	"\"apporg\"",
 }
@@ -93,7 +93,7 @@ var ClusterFields = []string{
 
 var CloudletFields = []string{
 	"\"cloudlet\"",
-	"\"cloudlet-org\"",
+	"\"cloudletorg\"",
 }
 
 // ClientFields is DME metrics
@@ -209,7 +209,7 @@ var devInfluDBT = `SELECT {{.Selector}} from "{{.Measurement}}"` +
 	`order by time desc{{if ne .Last 0}} limit {{.Last}}{{end}}`
 
 var operatorInfluDBT = `SELECT {{.Selector}} from "{{.Measurement}}"` +
-	` WHERE "cloudlet-org"='{{.CloudletOrg}}'` +
+	` WHERE "cloudletorg"='{{.CloudletOrg}}'` +
 	`{{if .CloudletName}} AND "cloudlet"='{{.CloudletName}}'{{end}}` +
 	`{{if .StartTime}} AND time >= '{{.StartTime}}'{{end}}` +
 	`{{if .EndTime}} AND time <= '{{.EndTime}}'{{end}}` +

@@ -41,7 +41,7 @@ func GetMetricsCommand() *cobra.Command {
 }
 
 var AppMetricRequiredArgs = []string{
-	"cluster-org",
+	"clusterorg",
 	"selector",
 }
 
@@ -50,7 +50,7 @@ var AppMetricOptionalArgs = []string{
 	"appvers",
 	"cluster",
 	"cloudlet",
-	"cloudlet-org",
+	"cloudletorg",
 	"last",
 	"starttime",
 	"endtime",
@@ -61,19 +61,19 @@ var AppMetricAliasArgs = []string{
 	"appname=appinst.appkey.name",
 	"appvers=appinst.appkey.version",
 	"cluster=appinst.clusterinstkey.clusterkey.name",
-	"cluster-org=appinst.clusterinstkey.clusterkey.organization",
-	"cloudlet-org=appinst.clusterinstkey.cloudletkey.organization",
+	"clusterorg=appinst.clusterinstkey.clusterkey.organization",
+	"cloudletorg=appinst.clusterinstkey.cloudletkey.organization",
 	"cloudlet=appinst.clusterinstkey.cloudletkey.name",
 }
 
 var ClusterMetricRequiredArgs = []string{
-	"cluster-org",
+	"clusterorg",
 	"selector",
 }
 
 var ClusterMetricOptionalArgs = []string{
 	"cluster",
-	"cloudlet-org",
+	"cloudletorg",
 	"cloudlet",
 	"last",
 	"starttime",
@@ -81,14 +81,14 @@ var ClusterMetricOptionalArgs = []string{
 }
 
 var ClusterMetricAliasArgs = []string{
-	"cluster-org=clusterinst.organization",
+	"clusterorg=clusterinst.organization",
 	"cluster=clusterinst.clusterkey.name",
-	"cloudlet-org=clusterinst.cloudletkey.organization",
+	"cloudletorg=clusterinst.cloudletkey.organization",
 	"cloudlet=clusterinst.cloudletkey.name",
 }
 
 var CloudletMetricRequiredArgs = []string{
-	"cloudlet-org",
+	"cloudletorg",
 	"selector",
 }
 
@@ -105,7 +105,7 @@ var CloudletMetricAliasArgs = []string{
 }
 
 var MetricComments = map[string]string{
-	"apporg":      "Organization or Company Name that a Developer is part of",
+	"apporg":      "Organization or Company name of the App",
 	"appname":     "App name",
 	"appvers":     "App version",
 	"cluster":     "Cluster name",

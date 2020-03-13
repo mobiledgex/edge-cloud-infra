@@ -33,7 +33,7 @@ func getAlertFromAppInst(appInstKey *edgeproto.AppInstKey) *edgeproto.Alert {
 	alert.Labels = make(map[string]string)
 	alert.Annotations = make(map[string]string)
 	alert.Labels["alertname"] = cloudcommon.AlertAppInstDown
-	alert.Labels[cloudcommon.AlertLabelDev] = appInstKey.AppKey.Organization
+	alert.Labels[cloudcommon.AlertLabelClusterOrg] = appInstKey.AppKey.Organization
 	alert.Labels[cloudcommon.AlertLabelCloudletOrg] = appInstKey.ClusterInstKey.CloudletKey.Organization
 	alert.Labels[cloudcommon.AlertLabelCloudlet] = appInstKey.ClusterInstKey.CloudletKey.Name
 	alert.Labels[cloudcommon.AlertLabelCluster] = appInstKey.ClusterInstKey.ClusterKey.Name

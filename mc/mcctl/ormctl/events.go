@@ -49,7 +49,7 @@ var AppEventOptionalArgs = []string{
 	"appvers",
 	"cluster",
 	"cloudlet",
-	"cloudlet-org",
+	"cloudletorg",
 	"last",
 	"starttime",
 	"endtime",
@@ -65,12 +65,12 @@ var AppEventAliasArgs = []string{
 }
 
 var ClusterEventRequiredArgs = []string{
-	"cluster-org",
+	"clusterorg",
 }
 
 var ClusterEventOptionalArgs = []string{
 	"cluster",
-	"cloudlet-org",
+	"cloudletorg",
 	"cloudlet",
 	"last",
 	"starttime",
@@ -78,14 +78,14 @@ var ClusterEventOptionalArgs = []string{
 }
 
 var ClusterEventAliasArgs = []string{
-	"cluster-org=clusterinst.organization",
+	"clusterorg=clusterinst.organization",
 	"cluster=clusterinst.clusterkey.name",
-	"cloudlet-org=clusterinst.cloudletkey.organization",
+	"cloudletorg=clusterinst.cloudletkey.organization",
 	"cloudlet=clusterinst.cloudletkey.name",
 }
 
 var CloudletEventRequiredArgs = []string{
-	"cloudlet-org",
+	"cloudletorg",
 }
 
 var CloudletEventOptionalArgs = []string{
@@ -96,7 +96,7 @@ var CloudletEventOptionalArgs = []string{
 }
 
 var CloudletEventAliasArgs = []string{
-	"cloudlet-org=cloudlet.operatorkey.name",
+	"cloudletorg=cloudlet.operatorkey.name",
 	"cloudlet=cloudlet.name",
 }
 

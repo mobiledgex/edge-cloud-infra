@@ -251,7 +251,7 @@ func pruneForeignAlerts(clusterInstKey *edgeproto.ClusterInstKey, keys *map[edge
 		edgeproto.AlertKeyStringParse(string(key), &alertFromKey)
 		if _, found := alertFromKey.Labels[cloudcommon.AlertLabelApp]; found ||
 			alertFromKey.Labels[cloudcommon.AlertLabelDev] != clusterInstKey.Organization ||
-			alertFromKey.Labels[cloudcommon.AlertLabelOperator] != clusterInstKey.CloudletKey.Organization ||
+			alertFromKey.Labels[cloudcommon.AlertLabelCloudletOrg] != clusterInstKey.CloudletKey.Organization ||
 			alertFromKey.Labels[cloudcommon.AlertLabelCloudlet] != clusterInstKey.CloudletKey.Name ||
 			alertFromKey.Labels[cloudcommon.AlertLabelCluster] != clusterInstKey.ClusterKey.Name {
 			delete(*keys, key)
@@ -272,7 +272,7 @@ func updateAlerts(ctx context.Context, clusterInstKey *edgeproto.ClusterInstKey,
 	for ii, _ := range alerts {
 		alert := &alerts[ii]
 		alert.Labels[cloudcommon.AlertLabelDev] = clusterInstKey.Organization
-		alert.Labels[cloudcommon.AlertLabelOperator] = clusterInstKey.CloudletKey.Organization
+		alert.Labels[cloudcommon.AlertLabelCloudletOrg] = clusterInstKey.CloudletKey.Organization
 		alert.Labels[cloudcommon.AlertLabelCloudlet] = clusterInstKey.CloudletKey.Name
 		alert.Labels[cloudcommon.AlertLabelCluster] = clusterInstKey.ClusterKey.Name
 
@@ -313,7 +313,7 @@ func flushAlerts(ctx context.Context, key *edgeproto.ClusterInstKey) {
 	AlertCache.Mux.Lock()
 	for k, v := range AlertCache.Objs {
 		if v.Labels[cloudcommon.AlertLabelDev] == key.Organization &&
-			v.Labels[cloudcommon.AlertLabelOperator] == key.CloudletKey.Organization &&
+			v.Labels[cloudcommon.AlertLabelCloudletOrg] == key.CloudletKey.Organization &&
 			v.Labels[cloudcommon.AlertLabelCloudlet] == key.CloudletKey.Name &&
 			v.Labels[cloudcommon.AlertLabelCluster] == key.ClusterKey.Name {
 			toflush = append(toflush, k)

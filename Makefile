@@ -140,6 +140,9 @@ build-edgebox:
 		 edgebox_bin/bin
 	mv edgebox_bin/e2e-tests/edgebox/edgebox edgebox_bin
 	mv edgebox_bin/e2e-tests/edgebox/requirements.txt edgebox_bin
+	tar cf edgebox-bin-$(TAG).tar edgebox_bin
+	bzip2 edgebox-bin-$(TAG).tar
+	$(RM) -r edgebox_bin
 
 clean-edgebox:
 	rm -rf edgebox_bin

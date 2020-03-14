@@ -15,7 +15,6 @@ import (
 	"github.com/mobiledgex/edge-cloud/cloudcommon"
 	"github.com/mobiledgex/edge-cloud/edgeproto"
 	"github.com/mobiledgex/edge-cloud/log"
-	"github.com/mobiledgex/edge-cloud/vmspec"
 	v1 "k8s.io/api/core/v1"
 )
 
@@ -51,18 +50,19 @@ func (s *Platform) CreateAppInst(ctx context.Context, clusterInst *edgeproto.Clu
 		// Add crm local replace variables
 		deploymentVars := crmutil.DeploymentReplaceVars{
 			Deployment: crmutil.CrmReplaceVars{
-				ClusterIp:     masterIP,
-				CloudletName:  k8smgmt.NormalizeName(clusterInst.Key.CloudletKey.Name),
-				ClusterName:   k8smgmt.NormalizeName(clusterInst.Key.ClusterKey.Name),
-				DeveloperName: k8smgmt.NormalizeName(app.Key.DeveloperKey.Name),
-				DnsZone:       mexos.GetCloudletDNSZone(),
+				ClusterIp:    masterIP,
+				CloudletName: k8smgmt.NormalizeName(clusterInst.Key.CloudletKey.Name),
+				ClusterName:  k8smgmt.NormalizeName(clusterInst.Key.ClusterKey.Name),
+				CloudletOrg:  k8smgmt.NormalizeName(clusterInst.Key.CloudletKey.Organization),
+				AppOrg:       k8smgmt.NormalizeName(app.Key.Organization),
+				DnsZone:      mexos.GetCloudletDNSZone(),
 			},
 		}
 		ctx = context.WithValue(ctx, crmutil.DeploymentReplaceVarsKey, &deploymentVars)
 
 		if deployment == cloudcommon.AppDeploymentTypeKubernetes {
 			updateCallback(edgeproto.UpdateTask, "Creating Kubernetes App")
-			err = k8smgmt.CreateAppInst(ctx, client, names, app, appInst)
+			err = k8smgmt.CreateAppInst(ctx, s.vaultConfig, client, names, app, appInst)
 		} else {
 			updateCallback(edgeproto.UpdateTask, "Creating Helm App")
 
@@ -171,20 +171,12 @@ func (s *Platform) CreateAppInst(ctx context.Context, clusterInst *edgeproto.Clu
 			}
 		}
 
-		finfo, _, _, err := mexos.GetFlavorInfo(ctx)
-		if err != nil {
-			return err
-		}
-		vmspec, err := vmspec.GetVMSpec(finfo, *appFlavor)
-		if err != nil {
-			return fmt.Errorf("unable to find closest flavor for app: %v", err)
-		}
 		objName := cloudcommon.GetAppFQN(&app.Key)
 		vmAppParams, err := mexos.GetVMParams(ctx,
 			mexos.UserVMDeployment,
 			objName,
-			vmspec.FlavorName,
-			vmspec.ExternalVolumeSize,
+			appInst.VmFlavor,
+			appInst.ExternalVolumeSize,
 			imageName,
 			mexos.GetSecurityGroupName(ctx, objName),
 			&clusterInst.Key.CloudletKey,
@@ -192,19 +184,20 @@ func (s *Platform) CreateAppInst(ctx context.Context, clusterInst *edgeproto.Clu
 			mexos.WithAccessPorts(app.AccessPorts),
 			mexos.WithDeploymentManifest(app.DeploymentManifest),
 			mexos.WithCommand(app.Command),
-			mexos.WithComputeAvailabilityZone(vmspec.AvailabilityZone),
+			mexos.WithComputeAvailabilityZone(appInst.AvailabilityZone),
 			mexos.WithVolumeAvailabilityZone(mexos.GetCloudletVolumeAvailabilityZone()),
 			mexos.WithPrivacyPolicy(privacyPolicy),
 		)
-
 		if err != nil {
 			return fmt.Errorf("unable to get vm params: %v", err)
 		}
+
 		deploymentVars := crmutil.DeploymentReplaceVars{
 			Deployment: crmutil.CrmReplaceVars{
-				CloudletName:  k8smgmt.NormalizeName(appInst.Key.ClusterInstKey.CloudletKey.Name),
-				DeveloperName: k8smgmt.NormalizeName(app.Key.DeveloperKey.Name),
-				DnsZone:       mexos.GetCloudletDNSZone(),
+				CloudletName: k8smgmt.NormalizeName(appInst.Key.ClusterInstKey.CloudletKey.Name),
+				CloudletOrg:  k8smgmt.NormalizeName(clusterInst.Key.CloudletKey.Organization),
+				AppOrg:       k8smgmt.NormalizeName(app.Key.Organization),
+				DnsZone:      mexos.GetCloudletDNSZone(),
 			},
 		}
 		ctx = context.WithValue(ctx, crmutil.DeploymentReplaceVarsKey, &deploymentVars)
@@ -243,7 +236,7 @@ func (s *Platform) CreateAppInst(ctx context.Context, clusterInst *edgeproto.Clu
 			}
 		} else {
 			updateCallback(edgeproto.UpdateTask, "Deploying VM standalone")
-			log.SpanLog(ctx, log.DebugLevelMexos, "Deploying VM", "stackName", objName, "vmspec", vmspec)
+			log.SpanLog(ctx, log.DebugLevelMexos, "Deploying VM", "stackName", objName, "flavor", appInst.VmFlavor, "ExternalVolumeSize", appInst.ExternalVolumeSize)
 			err = mexos.CreateHeatStackFromTemplate(ctx, vmAppParams, objName, mexos.VmTemplate, updateCallback)
 			if err != nil {
 				return err
@@ -302,8 +295,8 @@ func (s *Platform) CreateAppInst(ctx context.Context, clusterInst *edgeproto.Clu
 				"fqdn", fqdn,
 				"IP", ip.ExternalAddr)
 		}
-
 		return nil
+
 	case cloudcommon.AppDeploymentTypeDocker:
 		rootLBName := s.rootLBName
 		backendIP := cloudcommon.RemoteServerNone
@@ -354,7 +347,7 @@ func (s *Platform) CreateAppInst(ctx context.Context, clusterInst *edgeproto.Clu
 		}
 		updateCallback(edgeproto.UpdateTask, "Deploying Docker App")
 
-		err = dockermgmt.CreateAppInst(ctx, dockerCommandTarget, app, appInst, dockerNetworkMode)
+		err = dockermgmt.CreateAppInst(ctx, s.vaultConfig, dockerCommandTarget, app, appInst, dockerNetworkMode)
 		if err != nil {
 			return err
 		}
@@ -423,11 +416,12 @@ func (s *Platform) DeleteAppInst(ctx context.Context, clusterInst *edgeproto.Clu
 		// Add crm local replace variables
 		deploymentVars := crmutil.DeploymentReplaceVars{
 			Deployment: crmutil.CrmReplaceVars{
-				ClusterIp:     masterIP,
-				CloudletName:  k8smgmt.NormalizeName(clusterInst.Key.CloudletKey.Name),
-				ClusterName:   k8smgmt.NormalizeName(clusterInst.Key.ClusterKey.Name),
-				DeveloperName: k8smgmt.NormalizeName(app.Key.DeveloperKey.Name),
-				DnsZone:       mexos.GetCloudletDNSZone(),
+				ClusterIp:    masterIP,
+				CloudletName: k8smgmt.NormalizeName(clusterInst.Key.CloudletKey.Name),
+				ClusterName:  k8smgmt.NormalizeName(clusterInst.Key.ClusterKey.Name),
+				CloudletOrg:  k8smgmt.NormalizeName(clusterInst.Key.CloudletKey.Organization),
+				AppOrg:       k8smgmt.NormalizeName(app.Key.Organization),
+				DnsZone:      mexos.GetCloudletDNSZone(),
 			},
 		}
 		ctx = context.WithValue(ctx, crmutil.DeploymentReplaceVarsKey, &deploymentVars)
@@ -528,7 +522,7 @@ func (s *Platform) DeleteAppInst(ctx context.Context, clusterInst *edgeproto.Clu
 			}
 		}
 
-		return dockermgmt.DeleteAppInst(ctx, dockerCommandTarget, app, appInst)
+		return dockermgmt.DeleteAppInst(ctx, s.vaultConfig, dockerCommandTarget, app, appInst)
 	default:
 		return fmt.Errorf("unsupported deployment type %s", deployment)
 	}
@@ -539,10 +533,11 @@ func (s *Platform) UpdateAppInst(ctx context.Context, clusterInst *edgeproto.Clu
 	// Add crm local replace variables
 	deploymentVars := crmutil.DeploymentReplaceVars{
 		Deployment: crmutil.CrmReplaceVars{
-			ClusterIp:     masterIP,
-			ClusterName:   k8smgmt.NormalizeName(clusterInst.Key.ClusterKey.Name),
-			DeveloperName: k8smgmt.NormalizeName(app.Key.DeveloperKey.Name),
-			DnsZone:       mexos.GetCloudletDNSZone(),
+			ClusterIp:    masterIP,
+			ClusterName:  k8smgmt.NormalizeName(clusterInst.Key.ClusterKey.Name),
+			CloudletName: k8smgmt.NormalizeName(clusterInst.Key.CloudletKey.Organization),
+			AppOrg:       k8smgmt.NormalizeName(app.Key.Organization),
+			DnsZone:      mexos.GetCloudletDNSZone(),
 		},
 	}
 	ctx = context.WithValue(ctx, crmutil.DeploymentReplaceVarsKey, &deploymentVars)
@@ -557,7 +552,7 @@ func (s *Platform) UpdateAppInst(ctx context.Context, clusterInst *edgeproto.Clu
 		if err != nil {
 			return fmt.Errorf("get kube names failed: %s", err)
 		}
-		return k8smgmt.UpdateAppInst(ctx, client, names, app, appInst)
+		return k8smgmt.UpdateAppInst(ctx, s.vaultConfig, client, names, app, appInst)
 	case cloudcommon.AppDeploymentTypeDocker:
 		dockerNetworkMode := dockermgmt.DockerBridgeMode
 		rootLBClient, err := s.GetPlatformClient(ctx, clusterInst)
@@ -579,7 +574,7 @@ func (s *Platform) UpdateAppInst(ctx context.Context, clusterInst *edgeproto.Clu
 				return err
 			}
 		}
-		return dockermgmt.UpdateAppInst(ctx, dockerCommandTarget, app, appInst, dockerNetworkMode)
+		return dockermgmt.UpdateAppInst(ctx, s.vaultConfig, dockerCommandTarget, app, appInst, dockerNetworkMode)
 	case cloudcommon.AppDeploymentTypeHelm:
 		client, err := s.GetPlatformClient(ctx, clusterInst)
 		if err != nil {

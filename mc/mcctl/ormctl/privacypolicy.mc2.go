@@ -113,7 +113,7 @@ var OutboundSecurityRuleComments = map[string]string{
 }
 var OutboundSecurityRuleSpecialArgs = map[string]string{}
 var PrivacyPolicyRequiredArgs = []string{
-	"developer",
+	"cluster-org",
 	"name",
 }
 var PrivacyPolicyOptionalArgs = []string{
@@ -123,7 +123,8 @@ var PrivacyPolicyOptionalArgs = []string{
 	"outboundsecurityrules.remotecidr",
 }
 var PrivacyPolicyAliasArgs = []string{
-	"developer=privacypolicy.key.developer",
+	"fields=privacypolicy.fields",
+	"cluster-org=privacypolicy.key.organization",
 	"name=privacypolicy.key.name",
 	"outboundsecurityrules.protocol=privacypolicy.outboundsecurityrules.protocol",
 	"outboundsecurityrules.portrangemin=privacypolicy.outboundsecurityrules.portrangemin",
@@ -131,11 +132,14 @@ var PrivacyPolicyAliasArgs = []string{
 	"outboundsecurityrules.remotecidr=privacypolicy.outboundsecurityrules.remotecidr",
 }
 var PrivacyPolicyComments = map[string]string{
-	"developer":                          "Name of the Developer that this policy belongs to",
+	"fields":                             "Fields are used for the Update API to specify which fields to apply",
+	"cluster-org":                        "Name of the organization for the cluster that this policy will apply to",
 	"name":                               "Policy name",
 	"outboundsecurityrules.protocol":     "tcp, udp, icmp",
 	"outboundsecurityrules.portrangemin": "TCP or UDP port range start",
 	"outboundsecurityrules.portrangemax": "TCP or UDP port range end",
 	"outboundsecurityrules.remotecidr":   "remote CIDR X.X.X.X/X",
 }
-var PrivacyPolicySpecialArgs = map[string]string{}
+var PrivacyPolicySpecialArgs = map[string]string{
+	"privacypolicy.fields": "StringArray",
+}

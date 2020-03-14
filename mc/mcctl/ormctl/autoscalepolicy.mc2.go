@@ -93,7 +93,7 @@ var AutoScalePolicyApiCmds = []*cli.Command{
 }
 
 var CreateAutoScalePolicyRequiredArgs = []string{
-	"developer",
+	"cluster-org",
 	"name",
 	"minnodes",
 	"maxnodes",
@@ -105,20 +105,20 @@ var CreateAutoScalePolicyOptionalArgs = []string{
 }
 var PolicyKeyRequiredArgs = []string{}
 var PolicyKeyOptionalArgs = []string{
-	"developer",
+	"organization",
 	"name",
 }
 var PolicyKeyAliasArgs = []string{
-	"developer=policykey.developer",
+	"organization=policykey.organization",
 	"name=policykey.name",
 }
 var PolicyKeyComments = map[string]string{
-	"developer": "Name of the Developer that this policy belongs to",
-	"name":      "Policy name",
+	"organization": "Name of the organization for the cluster that this policy will apply to",
+	"name":         "Policy name",
 }
 var PolicyKeySpecialArgs = map[string]string{}
 var AutoScalePolicyRequiredArgs = []string{
-	"developer",
+	"cluster-org",
 	"name",
 }
 var AutoScalePolicyOptionalArgs = []string{
@@ -129,7 +129,8 @@ var AutoScalePolicyOptionalArgs = []string{
 	"triggertimesec",
 }
 var AutoScalePolicyAliasArgs = []string{
-	"developer=autoscalepolicy.key.developer",
+	"fields=autoscalepolicy.fields",
+	"cluster-org=autoscalepolicy.key.organization",
 	"name=autoscalepolicy.key.name",
 	"minnodes=autoscalepolicy.minnodes",
 	"maxnodes=autoscalepolicy.maxnodes",
@@ -138,7 +139,8 @@ var AutoScalePolicyAliasArgs = []string{
 	"triggertimesec=autoscalepolicy.triggertimesec",
 }
 var AutoScalePolicyComments = map[string]string{
-	"developer":          "Name of the Developer that this policy belongs to",
+	"fields":             "Fields are used for the Update API to specify which fields to apply",
+	"cluster-org":        "Name of the organization for the cluster that this policy will apply to",
 	"name":               "Policy name",
 	"minnodes":           "Minimum number of cluster nodes",
 	"maxnodes":           "Maximum number of cluster nodes",
@@ -146,4 +148,6 @@ var AutoScalePolicyComments = map[string]string{
 	"scaledowncputhresh": "Scale down cpu threshold (percentage 1 to 100)",
 	"triggertimesec":     "Trigger time defines how long trigger threshold must be satified in seconds before acting upon it.",
 }
-var AutoScalePolicySpecialArgs = map[string]string{}
+var AutoScalePolicySpecialArgs = map[string]string{
+	"autoscalepolicy.fields": "StringArray",
+}

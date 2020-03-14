@@ -1,0 +1,20 @@
+- name: "Check Github user config: {{ user.userid }}"
+  vault_api:
+    api: "auth/github/map/users/{{ user.userid }}"
+  register: result
+  changed_when: no
+  ignore_errors: yes
+
+- name: "Configure Github user: {{ user.userid }}"
+  vault_api:
+    api: "auth/github/map/users/{{ user.userid }}"
+    method: POST
+    data:
+      value: "{{ policy_list }}"
+    success_code: 204
+  vars:
+    policy_list: "{{ lookup('vault_user_role', user.role) }}"
+  when: ("meta" not in result) or
+        ("data" not in result.meta.response) or
+        (not result.meta.response.data) or
+        (result.meta.response.data.value != policy_list)

@@ -94,19 +94,19 @@ var AppApiCmds = []*cli.Command{
 
 var AppKeyRequiredArgs = []string{}
 var AppKeyOptionalArgs = []string{
-	"developerkey.name",
+	"organization",
 	"name",
 	"version",
 }
 var AppKeyAliasArgs = []string{
-	"developerkey.name=appkey.developerkey.name",
+	"organization=appkey.organization",
 	"name=appkey.name",
 	"version=appkey.version",
 }
 var AppKeyComments = map[string]string{
-	"developerkey.name": "Organization or Company Name that a Developer is part of",
-	"name":              "App name",
-	"version":           "App version",
+	"organization": "App developer organization",
+	"name":         "App name",
+	"version":      "App version",
 }
 var AppKeySpecialArgs = map[string]string{}
 var ConfigFileRequiredArgs = []string{}
@@ -124,7 +124,7 @@ var ConfigFileComments = map[string]string{
 }
 var ConfigFileSpecialArgs = map[string]string{}
 var AppRequiredArgs = []string{
-	"developer",
+	"app-org",
 	"appname",
 	"appvers",
 }
@@ -153,7 +153,8 @@ var AppOptionalArgs = []string{
 	"defaultprivacypolicy",
 }
 var AppAliasArgs = []string{
-	"developer=app.key.developerkey.name",
+	"fields=app.fields",
+	"app-org=app.key.organization",
 	"appname=app.key.name",
 	"appvers=app.key.version",
 	"imagepath=app.imagepath",
@@ -179,9 +180,11 @@ var AppAliasArgs = []string{
 	"autoprovpolicy=app.autoprovpolicy",
 	"accesstype=app.accesstype",
 	"defaultprivacypolicy=app.defaultprivacypolicy",
+	"deleteprepare=app.deleteprepare",
 }
 var AppComments = map[string]string{
-	"developer":               "Organization or Company Name that a Developer is part of",
+	"fields":                  "Fields are used for the Update API to specify which fields to apply",
+	"app-org":                 "App developer organization",
 	"appname":                 "App name",
 	"appvers":                 "App version",
 	"imagepath":               "URI of where image resides",
@@ -207,5 +210,8 @@ var AppComments = map[string]string{
 	"autoprovpolicy":          "Auto provisioning policy name",
 	"accesstype":              "Access type, one of AccessTypeDefaultForDeployment, AccessTypeDirect, AccessTypeLoadBalancer",
 	"defaultprivacypolicy":    "Privacy policy when creating auto cluster",
+	"deleteprepare":           "Preparing to be deleted",
 }
-var AppSpecialArgs = map[string]string{}
+var AppSpecialArgs = map[string]string{
+	"app.fields": "StringArray",
+}

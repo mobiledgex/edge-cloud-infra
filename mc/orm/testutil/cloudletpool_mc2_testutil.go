@@ -4,6 +4,7 @@
 package testutil
 
 import edgeproto "github.com/mobiledgex/edge-cloud/edgeproto"
+import "context"
 import "github.com/mobiledgex/edge-cloud-infra/mc/ormclient"
 import "github.com/mobiledgex/edge-cloud-infra/mc/ormapi"
 import proto "github.com/gogo/protobuf/proto"
@@ -53,23 +54,40 @@ func TestPermShowCloudletPool(mcClient *ormclient.Client, uri, token, region, or
 	return TestShowCloudletPool(mcClient, uri, token, region, in)
 }
 
-func RunMcCloudletPoolApi(mcClient ormclient.Api, uri, token, region string, data *[]edgeproto.CloudletPool, dataMap interface{}, rc *bool, mode string) {
-	for _, cloudletPool := range *data {
-		in := &ormapi.RegionCloudletPool{
-			Region:       region,
-			CloudletPool: cloudletPool,
-		}
-		switch mode {
-		case "create":
-			_, st, err := mcClient.CreateCloudletPool(uri, token, in)
-			checkMcErr("CreateCloudletPool", st, err, rc)
-		case "delete":
-			_, st, err := mcClient.DeleteCloudletPool(uri, token, in)
-			checkMcErr("DeleteCloudletPool", st, err, rc)
-		default:
-			return
-		}
+func (s *TestClient) CreateCloudletPool(ctx context.Context, in *edgeproto.CloudletPool) (*edgeproto.Result, error) {
+	inR := &ormapi.RegionCloudletPool{
+		Region:       s.Region,
+		CloudletPool: *in,
 	}
+	out, status, err := s.McClient.CreateCloudletPool(s.Uri, s.Token, inR)
+	if err == nil && status != 200 {
+		err = fmt.Errorf("status: %d\n", status)
+	}
+	return out, err
+}
+
+func (s *TestClient) DeleteCloudletPool(ctx context.Context, in *edgeproto.CloudletPool) (*edgeproto.Result, error) {
+	inR := &ormapi.RegionCloudletPool{
+		Region:       s.Region,
+		CloudletPool: *in,
+	}
+	out, status, err := s.McClient.DeleteCloudletPool(s.Uri, s.Token, inR)
+	if err == nil && status != 200 {
+		err = fmt.Errorf("status: %d\n", status)
+	}
+	return out, err
+}
+
+func (s *TestClient) ShowCloudletPool(ctx context.Context, in *edgeproto.CloudletPool) ([]edgeproto.CloudletPool, error) {
+	inR := &ormapi.RegionCloudletPool{
+		Region:       s.Region,
+		CloudletPool: *in,
+	}
+	out, status, err := s.McClient.ShowCloudletPool(s.Uri, s.Token, inR)
+	if err == nil && status != 200 {
+		err = fmt.Errorf("status: %d\n", status)
+	}
+	return out, err
 }
 
 func TestCreateCloudletPoolMember(mcClient *ormclient.Client, uri, token, region string, in *edgeproto.CloudletPoolMember) (*edgeproto.Result, int, error) {
@@ -105,23 +123,40 @@ func TestPermShowCloudletPoolMember(mcClient *ormclient.Client, uri, token, regi
 	return TestShowCloudletPoolMember(mcClient, uri, token, region, in)
 }
 
-func RunMcCloudletPoolMemberApi(mcClient ormclient.Api, uri, token, region string, data *[]edgeproto.CloudletPoolMember, dataMap interface{}, rc *bool, mode string) {
-	for _, cloudletPoolMember := range *data {
-		in := &ormapi.RegionCloudletPoolMember{
-			Region:             region,
-			CloudletPoolMember: cloudletPoolMember,
-		}
-		switch mode {
-		case "create":
-			_, st, err := mcClient.CreateCloudletPoolMember(uri, token, in)
-			checkMcErr("CreateCloudletPoolMember", st, err, rc)
-		case "delete":
-			_, st, err := mcClient.DeleteCloudletPoolMember(uri, token, in)
-			checkMcErr("DeleteCloudletPoolMember", st, err, rc)
-		default:
-			return
-		}
+func (s *TestClient) CreateCloudletPoolMember(ctx context.Context, in *edgeproto.CloudletPoolMember) (*edgeproto.Result, error) {
+	inR := &ormapi.RegionCloudletPoolMember{
+		Region:             s.Region,
+		CloudletPoolMember: *in,
 	}
+	out, status, err := s.McClient.CreateCloudletPoolMember(s.Uri, s.Token, inR)
+	if err == nil && status != 200 {
+		err = fmt.Errorf("status: %d\n", status)
+	}
+	return out, err
+}
+
+func (s *TestClient) DeleteCloudletPoolMember(ctx context.Context, in *edgeproto.CloudletPoolMember) (*edgeproto.Result, error) {
+	inR := &ormapi.RegionCloudletPoolMember{
+		Region:             s.Region,
+		CloudletPoolMember: *in,
+	}
+	out, status, err := s.McClient.DeleteCloudletPoolMember(s.Uri, s.Token, inR)
+	if err == nil && status != 200 {
+		err = fmt.Errorf("status: %d\n", status)
+	}
+	return out, err
+}
+
+func (s *TestClient) ShowCloudletPoolMember(ctx context.Context, in *edgeproto.CloudletPoolMember) ([]edgeproto.CloudletPoolMember, error) {
+	inR := &ormapi.RegionCloudletPoolMember{
+		Region:             s.Region,
+		CloudletPoolMember: *in,
+	}
+	out, status, err := s.McClient.ShowCloudletPoolMember(s.Uri, s.Token, inR)
+	if err == nil && status != 200 {
+		err = fmt.Errorf("status: %d\n", status)
+	}
+	return out, err
 }
 
 func TestShowPoolsForCloudlet(mcClient *ormclient.Client, uri, token, region string, in *edgeproto.CloudletKey) ([]edgeproto.CloudletPool, int, error) {
@@ -144,4 +179,28 @@ func TestShowCloudletsForPool(mcClient *ormclient.Client, uri, token, region str
 func TestPermShowCloudletsForPool(mcClient *ormclient.Client, uri, token, region, org string) ([]edgeproto.Cloudlet, int, error) {
 	in := &edgeproto.CloudletPoolKey{}
 	return TestShowCloudletsForPool(mcClient, uri, token, region, in)
+}
+
+func (s *TestClient) ShowPoolsForCloudlet(ctx context.Context, in *edgeproto.CloudletKey) ([]edgeproto.CloudletPool, error) {
+	inR := &ormapi.RegionCloudletKey{
+		Region:      s.Region,
+		CloudletKey: *in,
+	}
+	out, status, err := s.McClient.ShowPoolsForCloudlet(s.Uri, s.Token, inR)
+	if err == nil && status != 200 {
+		err = fmt.Errorf("status: %d\n", status)
+	}
+	return out, err
+}
+
+func (s *TestClient) ShowCloudletsForPool(ctx context.Context, in *edgeproto.CloudletPoolKey) ([]edgeproto.Cloudlet, error) {
+	inR := &ormapi.RegionCloudletPoolKey{
+		Region:          s.Region,
+		CloudletPoolKey: *in,
+	}
+	out, status, err := s.McClient.ShowCloudletsForPool(s.Uri, s.Token, inR)
+	if err == nil && status != 200 {
+		err = fmt.Errorf("status: %d\n", status)
+	}
+	return out, err
 }

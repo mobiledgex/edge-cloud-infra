@@ -154,26 +154,30 @@ var CloudletPoolRequiredArgs = []string{
 }
 var CloudletPoolOptionalArgs = []string{}
 var CloudletPoolAliasArgs = []string{
+	"fields=cloudletpool.fields",
 	"name=cloudletpool.key.name",
 }
 var CloudletPoolComments = map[string]string{
-	"name": "CloudletPool Name",
+	"fields": "Fields are used for the Update API to specify which fields to apply",
+	"name":   "CloudletPool Name",
 }
-var CloudletPoolSpecialArgs = map[string]string{}
+var CloudletPoolSpecialArgs = map[string]string{
+	"cloudletpool.fields": "StringArray",
+}
 var CloudletPoolMemberRequiredArgs = []string{
 	"pool",
-	"operator",
+	"organization",
 	"cloudlet",
 }
 var CloudletPoolMemberOptionalArgs = []string{}
 var CloudletPoolMemberAliasArgs = []string{
 	"pool=cloudletpoolmember.poolkey.name",
-	"operator=cloudletpoolmember.cloudletkey.operatorkey.name",
+	"organization=cloudletpoolmember.cloudletkey.organization",
 	"cloudlet=cloudletpoolmember.cloudletkey.name",
 }
 var CloudletPoolMemberComments = map[string]string{
-	"pool":     "CloudletPool Name",
-	"operator": "Company or Organization name of the operator",
-	"cloudlet": "Name of the cloudlet",
+	"pool":         "CloudletPool Name",
+	"organization": "Organization of the cloudlet site",
+	"cloudlet":     "Name of the cloudlet",
 }
 var CloudletPoolMemberSpecialArgs = map[string]string{}

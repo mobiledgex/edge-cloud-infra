@@ -116,15 +116,15 @@ var AppInstApiCmds = []*cli.Command{
 }
 
 var CreateAppInstRequiredArgs = []string{
-	"developer",
+	"app-org",
 	"appname",
 	"appvers",
-	"cluster",
-	"operator",
+	"cloudlet-org",
 	"cloudlet",
 }
 var CreateAppInstOptionalArgs = []string{
-	"clusterdeveloper",
+	"cluster",
+	"cluster-org",
 	"flavor",
 	"state",
 	"crmoverride",
@@ -134,17 +134,20 @@ var CreateAppInstOptionalArgs = []string{
 	"sharedvolumesize",
 	"healthcheck",
 	"privacypolicy",
+	"externalvolumesize",
+	"availabilityzone",
+	"vmflavor",
 }
 var DeleteAppInstRequiredArgs = []string{
-	"developer",
+	"app-org",
 	"appname",
 	"appvers",
-	"cluster",
-	"operator",
+	"cloudlet-org",
 	"cloudlet",
 }
 var DeleteAppInstOptionalArgs = []string{
-	"clusterdeveloper",
+	"cluster",
+	"cluster-org",
 	"cloudletloc.latitude",
 	"cloudletloc.longitude",
 	"cloudletloc.horizontalaccuracy",
@@ -183,34 +186,40 @@ var DeleteAppInstOptionalArgs = []string{
 	"sharedvolumesize",
 	"healthcheck",
 	"privacypolicy",
+	"externalvolumesize",
+	"availabilityzone",
+	"vmflavor",
 }
 var RefreshAppInstRequiredArgs = []string{
-	"developer",
+	"app-org",
 	"appname",
 	"appvers",
 }
 var RefreshAppInstOptionalArgs = []string{
 	"cluster",
-	"operator",
+	"cloudlet-org",
 	"cloudlet",
-	"clusterdeveloper",
+	"cluster-org",
 	"crmoverride",
 	"forceupdate",
 	"updatemultiple",
 	"sharedvolumesize",
 	"healthcheck",
 	"privacypolicy",
+	"externalvolumesize",
+	"availabilityzone",
+	"vmflavor",
 }
 var UpdateAppInstRequiredArgs = []string{
-	"developer",
+	"app-org",
 	"appname",
 	"appvers",
-	"cluster",
-	"operator",
+	"cloudlet-org",
 	"cloudlet",
 }
 var UpdateAppInstOptionalArgs = []string{
-	"clusterdeveloper",
+	"cluster",
+	"cluster-org",
 	"crmoverride",
 	"configs.kind",
 	"configs.config",
@@ -218,46 +227,49 @@ var UpdateAppInstOptionalArgs = []string{
 	"healthcheck",
 	"privacypolicy",
 	"powerstate",
+	"externalvolumesize",
+	"availabilityzone",
+	"vmflavor",
 }
 var AppInstKeyRequiredArgs = []string{}
 var AppInstKeyOptionalArgs = []string{
-	"appkey.developerkey.name",
+	"appkey.organization",
 	"appkey.name",
 	"appkey.version",
 	"clusterinstkey.clusterkey.name",
-	"clusterinstkey.cloudletkey.operatorkey.name",
+	"clusterinstkey.cloudletkey.organization",
 	"clusterinstkey.cloudletkey.name",
-	"clusterinstkey.developer",
+	"clusterinstkey.organization",
 }
 var AppInstKeyAliasArgs = []string{
-	"appkey.developerkey.name=appinstkey.appkey.developerkey.name",
+	"appkey.organization=appinstkey.appkey.organization",
 	"appkey.name=appinstkey.appkey.name",
 	"appkey.version=appinstkey.appkey.version",
 	"clusterinstkey.clusterkey.name=appinstkey.clusterinstkey.clusterkey.name",
-	"clusterinstkey.cloudletkey.operatorkey.name=appinstkey.clusterinstkey.cloudletkey.operatorkey.name",
+	"clusterinstkey.cloudletkey.organization=appinstkey.clusterinstkey.cloudletkey.organization",
 	"clusterinstkey.cloudletkey.name=appinstkey.clusterinstkey.cloudletkey.name",
-	"clusterinstkey.developer=appinstkey.clusterinstkey.developer",
+	"clusterinstkey.organization=appinstkey.clusterinstkey.organization",
 }
 var AppInstKeyComments = map[string]string{
-	"appkey.developerkey.name":                    "Organization or Company Name that a Developer is part of",
-	"appkey.name":                                 "App name",
-	"appkey.version":                              "App version",
-	"clusterinstkey.clusterkey.name":              "Cluster name",
-	"clusterinstkey.cloudletkey.operatorkey.name": "Company or Organization name of the operator",
-	"clusterinstkey.cloudletkey.name":             "Name of the cloudlet",
-	"clusterinstkey.developer":                    "Name of Developer that this cluster belongs to",
+	"appkey.organization":                     "App developer organization",
+	"appkey.name":                             "App name",
+	"appkey.version":                          "App version",
+	"clusterinstkey.clusterkey.name":          "Cluster name",
+	"clusterinstkey.cloudletkey.organization": "Organization of the cloudlet site",
+	"clusterinstkey.cloudletkey.name":         "Name of the cloudlet",
+	"clusterinstkey.organization":             "Name of Developer organization that this cluster belongs to",
 }
 var AppInstKeySpecialArgs = map[string]string{}
 var AppInstRequiredArgs = []string{
-	"developer",
+	"app-org",
 	"appname",
 	"appvers",
-	"cluster",
-	"operator",
+	"cloudlet-org",
 	"cloudlet",
 }
 var AppInstOptionalArgs = []string{
-	"clusterdeveloper",
+	"cluster",
+	"cluster-org",
 	"flavor",
 	"state",
 	"crmoverride",
@@ -270,15 +282,17 @@ var AppInstOptionalArgs = []string{
 	"healthcheck",
 	"privacypolicy",
 	"powerstate",
+	"vmflavor",
 }
 var AppInstAliasArgs = []string{
-	"developer=appinst.key.appkey.developerkey.name",
+	"fields=appinst.fields",
+	"app-org=appinst.key.appkey.organization",
 	"appname=appinst.key.appkey.name",
 	"appvers=appinst.key.appkey.version",
 	"cluster=appinst.key.clusterinstkey.clusterkey.name",
-	"operator=appinst.key.clusterinstkey.cloudletkey.operatorkey.name",
+	"cloudlet-org=appinst.key.clusterinstkey.cloudletkey.organization",
 	"cloudlet=appinst.key.clusterinstkey.cloudletkey.name",
-	"clusterdeveloper=appinst.key.clusterinstkey.developer",
+	"cluster-org=appinst.key.clusterinstkey.organization",
 	"cloudletloc.latitude=appinst.cloudletloc.latitude",
 	"cloudletloc.longitude=appinst.cloudletloc.longitude",
 	"cloudletloc.horizontalaccuracy=appinst.cloudletloc.horizontalaccuracy",
@@ -318,15 +332,19 @@ var AppInstAliasArgs = []string{
 	"healthcheck=appinst.healthcheck",
 	"privacypolicy=appinst.privacypolicy",
 	"powerstate=appinst.powerstate",
+	"externalvolumesize=appinst.externalvolumesize",
+	"availabilityzone=appinst.availabilityzone",
+	"vmflavor=appinst.vmflavor",
 }
 var AppInstComments = map[string]string{
-	"developer":                      "Organization or Company Name that a Developer is part of",
+	"fields":                         "Fields are used for the Update API to specify which fields to apply",
+	"app-org":                        "App developer organization",
 	"appname":                        "App name",
 	"appvers":                        "App version",
 	"cluster":                        "Cluster name",
-	"operator":                       "Company or Organization name of the operator",
+	"cloudlet-org":                   "Organization of the cloudlet site",
 	"cloudlet":                       "Name of the cloudlet",
-	"clusterdeveloper":               "Name of Developer that this cluster belongs to",
+	"cluster-org":                    "Name of Developer organization that this cluster belongs to",
 	"cloudletloc.latitude":           "latitude in WGS 84 coordinates",
 	"cloudletloc.longitude":          "longitude in WGS 84 coordinates",
 	"cloudletloc.horizontalaccuracy": "horizontal accuracy (radius in meters)",
@@ -358,10 +376,14 @@ var AppInstComments = map[string]string{
 	"healthcheck":                    "Health Check status, one of HealthCheckUnknown, HealthCheckFailRootlbOffline, HealthCheckFailServerFail, HealthCheckOk",
 	"privacypolicy":                  "Optional privacy policy name",
 	"powerstate":                     "Power State of the AppInst, one of PowerOn, PowerOff, Reboot",
+	"externalvolumesize":             "Size of external volume to be attached to nodes.  This is for the root partition",
+	"availabilityzone":               "Optional Availability Zone if any",
+	"vmflavor":                       "OS node flavor to use",
 }
 var AppInstSpecialArgs = map[string]string{
-	"errors":                   "StringArray",
-	"runtimeinfo.containerids": "StringArray",
+	"appinst.errors":                   "StringArray",
+	"appinst.fields":                   "StringArray",
+	"appinst.runtimeinfo.containerids": "StringArray",
 }
 var AppInstRuntimeRequiredArgs = []string{}
 var AppInstRuntimeOptionalArgs = []string{
@@ -374,16 +396,16 @@ var AppInstRuntimeComments = map[string]string{
 	"containerids": "List of container names",
 }
 var AppInstRuntimeSpecialArgs = map[string]string{
-	"containerids": "StringArray",
+	"appinstruntime.containerids": "StringArray",
 }
 var AppInstInfoRequiredArgs = []string{
-	"key.appkey.developerkey.name",
+	"key.appkey.organization",
 	"key.appkey.name",
 	"key.appkey.version",
 	"key.clusterinstkey.clusterkey.name",
-	"key.clusterinstkey.cloudletkey.operatorkey.name",
+	"key.clusterinstkey.cloudletkey.organization",
 	"key.clusterinstkey.cloudletkey.name",
-	"key.clusterinstkey.developer",
+	"key.clusterinstkey.organization",
 }
 var AppInstInfoOptionalArgs = []string{
 	"notifyid",
@@ -397,13 +419,14 @@ var AppInstInfoOptionalArgs = []string{
 	"powerstate",
 }
 var AppInstInfoAliasArgs = []string{
-	"key.appkey.developerkey.name=appinstinfo.key.appkey.developerkey.name",
+	"fields=appinstinfo.fields",
+	"key.appkey.organization=appinstinfo.key.appkey.organization",
 	"key.appkey.name=appinstinfo.key.appkey.name",
 	"key.appkey.version=appinstinfo.key.appkey.version",
 	"key.clusterinstkey.clusterkey.name=appinstinfo.key.clusterinstkey.clusterkey.name",
-	"key.clusterinstkey.cloudletkey.operatorkey.name=appinstinfo.key.clusterinstkey.cloudletkey.operatorkey.name",
+	"key.clusterinstkey.cloudletkey.organization=appinstinfo.key.clusterinstkey.cloudletkey.organization",
 	"key.clusterinstkey.cloudletkey.name=appinstinfo.key.clusterinstkey.cloudletkey.name",
-	"key.clusterinstkey.developer=appinstinfo.key.clusterinstkey.developer",
+	"key.clusterinstkey.organization=appinstinfo.key.clusterinstkey.organization",
 	"notifyid=appinstinfo.notifyid",
 	"state=appinstinfo.state",
 	"errors=appinstinfo.errors",
@@ -415,22 +438,24 @@ var AppInstInfoAliasArgs = []string{
 	"powerstate=appinstinfo.powerstate",
 }
 var AppInstInfoComments = map[string]string{
-	"key.appkey.developerkey.name":                    "Organization or Company Name that a Developer is part of",
-	"key.appkey.name":                                 "App name",
-	"key.appkey.version":                              "App version",
-	"key.clusterinstkey.clusterkey.name":              "Cluster name",
-	"key.clusterinstkey.cloudletkey.operatorkey.name": "Company or Organization name of the operator",
-	"key.clusterinstkey.cloudletkey.name":             "Name of the cloudlet",
-	"key.clusterinstkey.developer":                    "Name of Developer that this cluster belongs to",
-	"notifyid":                                        "Id of client assigned by server (internal use only)",
-	"state":                                           "Current state of the AppInst on the Cloudlet, one of TrackedStateUnknown, NotPresent, CreateRequested, Creating, CreateError, Ready, UpdateRequested, Updating, UpdateError, DeleteRequested, Deleting, DeleteError, DeletePrepare, CrmInitok, CreatingDependencies",
-	"errors":                                          "Any errors trying to create, update, or delete the AppInst on the Cloudlet",
-	"runtimeinfo.containerids":                        "List of container names",
-	"powerstate":                                      "Power State of the AppInst, one of PowerOn, PowerOff, Reboot",
+	"fields":                                      "Fields are used for the Update API to specify which fields to apply",
+	"key.appkey.organization":                     "App developer organization",
+	"key.appkey.name":                             "App name",
+	"key.appkey.version":                          "App version",
+	"key.clusterinstkey.clusterkey.name":          "Cluster name",
+	"key.clusterinstkey.cloudletkey.organization": "Organization of the cloudlet site",
+	"key.clusterinstkey.cloudletkey.name":         "Name of the cloudlet",
+	"key.clusterinstkey.organization":             "Name of Developer organization that this cluster belongs to",
+	"notifyid":                                    "Id of client assigned by server (internal use only)",
+	"state":                                       "Current state of the AppInst on the Cloudlet, one of TrackedStateUnknown, NotPresent, CreateRequested, Creating, CreateError, Ready, UpdateRequested, Updating, UpdateError, DeleteRequested, Deleting, DeleteError, DeletePrepare, CrmInitok, CreatingDependencies",
+	"errors":                                      "Any errors trying to create, update, or delete the AppInst on the Cloudlet",
+	"runtimeinfo.containerids":                    "List of container names",
+	"powerstate":                                  "Power State of the AppInst, one of PowerOn, PowerOff, Reboot",
 }
 var AppInstInfoSpecialArgs = map[string]string{
-	"errors":                   "StringArray",
-	"runtimeinfo.containerids": "StringArray",
+	"appinstinfo.errors":                   "StringArray",
+	"appinstinfo.fields":                   "StringArray",
+	"appinstinfo.runtimeinfo.containerids": "StringArray",
 }
 var AppInstMetricsRequiredArgs = []string{}
 var AppInstMetricsOptionalArgs = []string{

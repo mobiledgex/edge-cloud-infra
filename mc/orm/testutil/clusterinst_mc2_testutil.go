@@ -4,10 +4,9 @@
 package testutil
 
 import edgeproto "github.com/mobiledgex/edge-cloud/edgeproto"
-import "os"
+import "context"
 import "github.com/mobiledgex/edge-cloud-infra/mc/ormclient"
 import "github.com/mobiledgex/edge-cloud-infra/mc/ormapi"
-import "github.com/mobiledgex/edge-cloud/cli"
 import proto "github.com/gogo/protobuf/proto"
 import fmt "fmt"
 import math "math"
@@ -33,7 +32,7 @@ func TestPermCreateClusterInst(mcClient *ormclient.Client, uri, token, region, o
 	if targetCloudlet != nil {
 		in.Key.CloudletKey = *targetCloudlet
 	}
-	in.Key.Developer = org
+	in.Key.Organization = org
 	return TestCreateClusterInst(mcClient, uri, token, region, in)
 }
 
@@ -48,7 +47,7 @@ func TestPermDeleteClusterInst(mcClient *ormclient.Client, uri, token, region, o
 	if targetCloudlet != nil {
 		in.Key.CloudletKey = *targetCloudlet
 	}
-	in.Key.Developer = org
+	in.Key.Organization = org
 	return TestDeleteClusterInst(mcClient, uri, token, region, in)
 }
 
@@ -63,7 +62,7 @@ func TestPermUpdateClusterInst(mcClient *ormclient.Client, uri, token, region, o
 	if targetCloudlet != nil {
 		in.Key.CloudletKey = *targetCloudlet
 	}
-	in.Key.Developer = org
+	in.Key.Organization = org
 	return TestUpdateClusterInst(mcClient, uri, token, region, in)
 }
 
@@ -75,34 +74,58 @@ func TestShowClusterInst(mcClient *ormclient.Client, uri, token, region string, 
 }
 func TestPermShowClusterInst(mcClient *ormclient.Client, uri, token, region, org string) ([]edgeproto.ClusterInst, int, error) {
 	in := &edgeproto.ClusterInst{}
-	in.Key.Developer = org
+	in.Key.Organization = org
 	return TestShowClusterInst(mcClient, uri, token, region, in)
 }
 
-func RunMcClusterInstApi(mcClient ormclient.Api, uri, token, region string, data *[]edgeproto.ClusterInst, dataMap interface{}, rc *bool, mode string) {
-	for ii, clusterInst := range *data {
-		in := &ormapi.RegionClusterInst{
-			Region:      region,
-			ClusterInst: clusterInst,
-		}
-		switch mode {
-		case "create":
-			_, st, err := mcClient.CreateClusterInst(uri, token, in)
-			checkMcErr("CreateClusterInst", st, err, rc)
-		case "delete":
-			_, st, err := mcClient.DeleteClusterInst(uri, token, in)
-			checkMcErr("DeleteClusterInst", st, err, rc)
-		case "update":
-			objMap, err := cli.GetGenericObjFromList(dataMap, ii)
-			if err != nil {
-				fmt.Fprintf(os.Stderr, "bad dataMap for ClusterInst: %v", err)
-				os.Exit(1)
-			}
-			in.ClusterInst.Fields = cli.GetSpecifiedFields(objMap, &in.ClusterInst, cli.YamlNamespace)
-			_, st, err := mcClient.UpdateClusterInst(uri, token, in)
-			checkMcErr("UpdateClusterInst", st, err, rc)
-		default:
-			return
-		}
+func (s *TestClient) CreateClusterInst(ctx context.Context, in *edgeproto.ClusterInst) ([]edgeproto.Result, error) {
+	inR := &ormapi.RegionClusterInst{
+		Region:      s.Region,
+		ClusterInst: *in,
 	}
+	out, status, err := s.McClient.CreateClusterInst(s.Uri, s.Token, inR)
+	if err == nil && status != 200 {
+		err = fmt.Errorf("status: %d\n", status)
+	}
+	return out, err
+}
+
+func (s *TestClient) DeleteClusterInst(ctx context.Context, in *edgeproto.ClusterInst) ([]edgeproto.Result, error) {
+	inR := &ormapi.RegionClusterInst{
+		Region:      s.Region,
+		ClusterInst: *in,
+	}
+	out, status, err := s.McClient.DeleteClusterInst(s.Uri, s.Token, inR)
+	if err == nil && status != 200 {
+		err = fmt.Errorf("status: %d\n", status)
+	}
+	return out, err
+}
+
+func (s *TestClient) UpdateClusterInst(ctx context.Context, in *edgeproto.ClusterInst) ([]edgeproto.Result, error) {
+	inR := &ormapi.RegionClusterInst{
+		Region:      s.Region,
+		ClusterInst: *in,
+	}
+	out, status, err := s.McClient.UpdateClusterInst(s.Uri, s.Token, inR)
+	if err == nil && status != 200 {
+		err = fmt.Errorf("status: %d\n", status)
+	}
+	return out, err
+}
+
+func (s *TestClient) ShowClusterInst(ctx context.Context, in *edgeproto.ClusterInst) ([]edgeproto.ClusterInst, error) {
+	inR := &ormapi.RegionClusterInst{
+		Region:      s.Region,
+		ClusterInst: *in,
+	}
+	out, status, err := s.McClient.ShowClusterInst(s.Uri, s.Token, inR)
+	if err == nil && status != 200 {
+		err = fmt.Errorf("status: %d\n", status)
+	}
+	return out, err
+}
+
+func (s *TestClient) ShowClusterInstInfo(ctx context.Context, in *edgeproto.ClusterInstInfo) ([]edgeproto.ClusterInstInfo, error) {
+	return nil, nil
 }

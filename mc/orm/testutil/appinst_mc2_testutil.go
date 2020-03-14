@@ -4,10 +4,9 @@
 package testutil
 
 import edgeproto "github.com/mobiledgex/edge-cloud/edgeproto"
-import "os"
+import "context"
 import "github.com/mobiledgex/edge-cloud-infra/mc/ormclient"
 import "github.com/mobiledgex/edge-cloud-infra/mc/ormapi"
-import "github.com/mobiledgex/edge-cloud/cli"
 import proto "github.com/gogo/protobuf/proto"
 import fmt "fmt"
 import math "math"
@@ -35,7 +34,7 @@ func TestPermCreateAppInst(mcClient *ormclient.Client, uri, token, region, org s
 	if targetCloudlet != nil {
 		in.Key.ClusterInstKey.CloudletKey = *targetCloudlet
 	}
-	in.Key.AppKey.DeveloperKey.Name = org
+	in.Key.AppKey.Organization = org
 	return TestCreateAppInst(mcClient, uri, token, region, in)
 }
 
@@ -50,7 +49,7 @@ func TestPermDeleteAppInst(mcClient *ormclient.Client, uri, token, region, org s
 	if targetCloudlet != nil {
 		in.Key.ClusterInstKey.CloudletKey = *targetCloudlet
 	}
-	in.Key.AppKey.DeveloperKey.Name = org
+	in.Key.AppKey.Organization = org
 	return TestDeleteAppInst(mcClient, uri, token, region, in)
 }
 
@@ -65,7 +64,7 @@ func TestPermRefreshAppInst(mcClient *ormclient.Client, uri, token, region, org 
 	if targetCloudlet != nil {
 		in.Key.ClusterInstKey.CloudletKey = *targetCloudlet
 	}
-	in.Key.AppKey.DeveloperKey.Name = org
+	in.Key.AppKey.Organization = org
 	return TestRefreshAppInst(mcClient, uri, token, region, in)
 }
 
@@ -80,7 +79,7 @@ func TestPermUpdateAppInst(mcClient *ormclient.Client, uri, token, region, org s
 	if targetCloudlet != nil {
 		in.Key.ClusterInstKey.CloudletKey = *targetCloudlet
 	}
-	in.Key.AppKey.DeveloperKey.Name = org
+	in.Key.AppKey.Organization = org
 	return TestUpdateAppInst(mcClient, uri, token, region, in)
 }
 
@@ -92,37 +91,74 @@ func TestShowAppInst(mcClient *ormclient.Client, uri, token, region string, in *
 }
 func TestPermShowAppInst(mcClient *ormclient.Client, uri, token, region, org string) ([]edgeproto.AppInst, int, error) {
 	in := &edgeproto.AppInst{}
-	in.Key.AppKey.DeveloperKey.Name = org
+	in.Key.AppKey.Organization = org
 	return TestShowAppInst(mcClient, uri, token, region, in)
 }
 
-func RunMcAppInstApi(mcClient ormclient.Api, uri, token, region string, data *[]edgeproto.AppInst, dataMap interface{}, rc *bool, mode string) {
-	for ii, appInst := range *data {
-		in := &ormapi.RegionAppInst{
-			Region:  region,
-			AppInst: appInst,
-		}
-		switch mode {
-		case "create":
-			_, st, err := mcClient.CreateAppInst(uri, token, in)
-			checkMcErr("CreateAppInst", st, err, rc)
-		case "delete":
-			_, st, err := mcClient.DeleteAppInst(uri, token, in)
-			checkMcErr("DeleteAppInst", st, err, rc)
-		case "refresh":
-			_, st, err := mcClient.RefreshAppInst(uri, token, in)
-			checkMcErr("RefreshAppInst", st, err, rc)
-		case "update":
-			objMap, err := cli.GetGenericObjFromList(dataMap, ii)
-			if err != nil {
-				fmt.Fprintf(os.Stderr, "bad dataMap for AppInst: %v", err)
-				os.Exit(1)
-			}
-			in.AppInst.Fields = cli.GetSpecifiedFields(objMap, &in.AppInst, cli.YamlNamespace)
-			_, st, err := mcClient.UpdateAppInst(uri, token, in)
-			checkMcErr("UpdateAppInst", st, err, rc)
-		default:
-			return
-		}
+func (s *TestClient) CreateAppInst(ctx context.Context, in *edgeproto.AppInst) ([]edgeproto.Result, error) {
+	inR := &ormapi.RegionAppInst{
+		Region:  s.Region,
+		AppInst: *in,
 	}
+	out, status, err := s.McClient.CreateAppInst(s.Uri, s.Token, inR)
+	if err == nil && status != 200 {
+		err = fmt.Errorf("status: %d\n", status)
+	}
+	return out, err
+}
+
+func (s *TestClient) DeleteAppInst(ctx context.Context, in *edgeproto.AppInst) ([]edgeproto.Result, error) {
+	inR := &ormapi.RegionAppInst{
+		Region:  s.Region,
+		AppInst: *in,
+	}
+	out, status, err := s.McClient.DeleteAppInst(s.Uri, s.Token, inR)
+	if err == nil && status != 200 {
+		err = fmt.Errorf("status: %d\n", status)
+	}
+	return out, err
+}
+
+func (s *TestClient) RefreshAppInst(ctx context.Context, in *edgeproto.AppInst) ([]edgeproto.Result, error) {
+	inR := &ormapi.RegionAppInst{
+		Region:  s.Region,
+		AppInst: *in,
+	}
+	out, status, err := s.McClient.RefreshAppInst(s.Uri, s.Token, inR)
+	if err == nil && status != 200 {
+		err = fmt.Errorf("status: %d\n", status)
+	}
+	return out, err
+}
+
+func (s *TestClient) UpdateAppInst(ctx context.Context, in *edgeproto.AppInst) ([]edgeproto.Result, error) {
+	inR := &ormapi.RegionAppInst{
+		Region:  s.Region,
+		AppInst: *in,
+	}
+	out, status, err := s.McClient.UpdateAppInst(s.Uri, s.Token, inR)
+	if err == nil && status != 200 {
+		err = fmt.Errorf("status: %d\n", status)
+	}
+	return out, err
+}
+
+func (s *TestClient) ShowAppInst(ctx context.Context, in *edgeproto.AppInst) ([]edgeproto.AppInst, error) {
+	inR := &ormapi.RegionAppInst{
+		Region:  s.Region,
+		AppInst: *in,
+	}
+	out, status, err := s.McClient.ShowAppInst(s.Uri, s.Token, inR)
+	if err == nil && status != 200 {
+		err = fmt.Errorf("status: %d\n", status)
+	}
+	return out, err
+}
+
+func (s *TestClient) ShowAppInstInfo(ctx context.Context, in *edgeproto.AppInstInfo) ([]edgeproto.AppInstInfo, error) {
+	return nil, nil
+}
+
+func (s *TestClient) ShowAppInstMetrics(ctx context.Context, in *edgeproto.AppInstMetrics) ([]edgeproto.AppInstMetrics, error) {
+	return nil, nil
 }

@@ -7,6 +7,28 @@ vault_ha_zones:
   us: us-west2-a
   eu: europe-west3-a
 
+vault_ldap_groups:
+  - name: EdgeBox
+    role: edgebox_user
+
+vault_github_users:
+  - userid: anand12gupta
+    role: edgebox_user
+  - userid: bibingeorge1986
+    role: cloudlet_admin
+  - userid: franklin-huang-mobiledgex
+    role: edgebox_user
+  - userid: gainsley
+    role: admin
+  - userid: jlmorris3827
+    role: admin
+  - userid: mwilliams-mex
+    role: cloudlet_admin
+  - userid: msewera
+    role: cloudlet_admin
+  - userid: venkytv
+    role: admin
+
 crm_instances:
 
   - cloudlet_name: "{{ deploy_target }}-bonn-cloudlet"

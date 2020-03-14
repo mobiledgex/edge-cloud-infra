@@ -104,11 +104,11 @@ var E2eClusterSelectors = []string{
 }
 
 var TagValues = map[string]struct{}{
-	"app":      struct{}{},
-	"cloudlet": struct{}{},
-	"cluster":  struct{}{},
-	"dev":      struct{}{},
-	"operator": struct{}{},
+	"app":         struct{}{},
+	"cloudlet":    struct{}{},
+	"cluster":     struct{}{},
+	"apporg":      struct{}{},
+	"cloudletorg": struct{}{},
 }
 
 var apiAddrsUpdated = false
@@ -355,7 +355,8 @@ func RunAction(ctx context.Context, actionSpec, outputDir string, config *e2eapi
 			fmt.Fprintf(os.Stderr, "ERROR: unmarshaling setupmex TestSpec: %v", err)
 			errors = append(errors, "Error in unmarshaling TestSpec")
 		} else {
-			errs := setupmex.RunAction(ctx, actionSpec, outputDir, &ecSpec, mods, vars)
+			retry := false
+			errs := setupmex.RunAction(ctx, actionSpec, outputDir, &ecSpec, mods, vars, &retry)
 			errors = append(errors, errs...)
 		}
 	}

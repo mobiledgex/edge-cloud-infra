@@ -89,8 +89,7 @@ regiondata:
       maxtrackeddmeclients: 100
     cloudlets:
     - key:
-        operatorkey:
-          name: tmus
+        organization: tmus
         name: tmus-cloud-1
       location:
         latitude: 31
@@ -104,8 +103,7 @@ regiondata:
         name: DefaultPlatformFlavor
       physicalname: tmus-cloud-1
     - key:
-        operatorkey:
-          name: tmus
+        organization: tmus
         name: tmus-cloud-2
       location:
         latitude: 35
@@ -118,8 +116,7 @@ regiondata:
         name: DefaultPlatformFlavor
       physicalname: tmus-cloud-2
     - key:
-        operatorkey:
-          name: azure
+        organization: azure
         name: azure-cloud-4
       location:
         latitude: 32
@@ -132,8 +129,7 @@ regiondata:
         name: DefaultPlatformFlavor
       physicalname: azure-cloud-4
     - key:
-        operatorkey:
-          name: gcp
+        organization: gcp
         name: gcp-cloud-5
       location:
         latitude: 36
@@ -146,8 +142,7 @@ regiondata:
         name: DefaultPlatformFlavor
       physicalname: gcp-cloud-5
     - key:
-        operatorkey:
-          name: enterprise
+        organization: enterprise
         name: enterprise-1
       location:
         latitude: 31
@@ -180,17 +175,16 @@ regiondata:
         clusterkey:
           name: SmallCluster
         cloudletkey:
-          operatorkey:
-            name: tmus
+          organization: tmus
           name: tmus-cloud-1
-        developer: AcmeAppCo
+        organization: AcmeAppCo
       flavor:
         name: x1.small
       liveness: LivenessStatic
       state: Ready
       ipaccess: IpAccessDedicated
       allocatedip: dynamic
-      nodeflavor: flavor1
+      nodeflavor: x1.small
       deployment: kubernetes
       nummasters: 1
       numnodes: 1
@@ -199,16 +193,15 @@ regiondata:
         clusterkey:
           name: SmallCluster
         cloudletkey:
-          operatorkey:
-            name: tmus
+          organization: tmus
           name: tmus-cloud-2
-        developer: AcmeAppCo
+        organization: AcmeAppCo
       flavor:
         name: x1.small
       liveness: LivenessStatic
       state: Ready
       ipaccess: IpAccessShared
-      nodeflavor: flavor1
+      nodeflavor: x1.small
       deployment: kubernetes
       nummasters: 1
       numnodes: 1
@@ -216,24 +209,22 @@ regiondata:
         clusterkey:
           name: SmallCluster
         cloudletkey:
-          operatorkey:
-            name: enterprise
+          organization: enterprise
           name: enterprise-1
-        developer: enterprise
+        organization: enterprise
       flavor:
         name: x1.small
       liveness: LivenessStatic
       state: Ready
       ipaccess: IpAccessDedicated
       allocatedip: dynamic
-      nodeflavor: flavor1
+      nodeflavor: x1.small
       deployment: kubernetes
       nummasters: 1
       numnodes: 1
     apps:
     - key:
-        developerkey:
-          name: MobiledgeX
+        organization: MobiledgeX
         name: MEXPrometheusAppName
         version: "1.0"
       imagepath: stable/prometheus-operator
@@ -288,8 +279,7 @@ regiondata:
             mexAppVersion: "10"
       internalports: true
     - key:
-        developerkey:
-          name: AcmeAppCo
+        organization: AcmeAppCo
         name: someapplication1
         version: "1.0"
       imagepath: registry.mobiledgex.net/mobiledgex_AcmeAppCo/someapplication1:1.0
@@ -376,8 +366,7 @@ regiondata:
       deploymentgenerator: kubernetes-basic
       androidpackagename: com.acme.someapplication1
     - key:
-        developerkey:
-          name: Samsung
+        organization: Samsung
         name: SamsungEnablingLayer
         version: "1.0"
       imagepath: registry.mobiledgex.net/dummyvalue
@@ -429,8 +418,7 @@ regiondata:
                   protocol: TCP
       deploymentgenerator: kubernetes-basic
     - key:
-        developerkey:
-          name: enterprise
+        organization: enterprise
         name: ep1
         version: "1.0"
       imagepath: registry.mobiledgex.net/mobiledgex_AcmeAppCo/ep1:1.0
@@ -508,18 +496,16 @@ regiondata:
     appinstances:
     - key:
         appkey:
-          developerkey:
-            name: enterprise
+          organization: enterprise
           name: ep1
           version: "1.0"
         clusterinstkey:
           clusterkey:
             name: SmallCluster
           cloudletkey:
-            operatorkey:
-              name: enterprise
+            organization: enterprise
             name: enterprise-1
-          developer: enterprise
+          organization: enterprise
       cloudletloc:
         latitude: 31
         longitude: -91
@@ -547,18 +533,16 @@ regiondata:
         nanos: 292580000
     - key:
         appkey:
-          developerkey:
-            name: MobiledgeX
+          organization: MobiledgeX
           name: MEXPrometheusAppName
           version: "1.0"
         clusterinstkey:
           clusterkey:
             name: SmallCluster
           cloudletkey:
-            operatorkey:
-              name: tmus
+            organization: tmus
             name: tmus-cloud-1
-          developer: AcmeAppCo
+          organization: AcmeAppCo
       cloudletloc:
         latitude: 31
         longitude: -91
@@ -617,18 +601,16 @@ regiondata:
                   minnodes: '1'
     - key:
         appkey:
-          developerkey:
-            name: MobiledgeX
+          organization: MobiledgeX
           name: MEXPrometheusAppName
           version: "1.0"
         clusterinstkey:
           clusterkey:
             name: SmallCluster
           cloudletkey:
-            operatorkey:
-              name: tmus
+            organization: tmus
             name: tmus-cloud-2
-          developer: AcmeAppCo
+          organization: AcmeAppCo
       cloudletloc:
         latitude: 35
         longitude: -95
@@ -647,18 +629,16 @@ regiondata:
         nanos: 70069000
     - key:
         appkey:
-          developerkey:
-            name: AcmeAppCo
+          organization: AcmeAppCo
           name: someapplication1
           version: "1.0"
         clusterinstkey:
           clusterkey:
             name: SmallCluster
           cloudletkey:
-            operatorkey:
-              name: tmus
+            organization: tmus
             name: tmus-cloud-1
-          developer: AcmeAppCo
+          organization: AcmeAppCo
       cloudletloc:
         latitude: 31
         longitude: -91
@@ -686,18 +666,16 @@ regiondata:
         nanos: 672179000
     - key:
         appkey:
-          developerkey:
-            name: AcmeAppCo
+          organization: AcmeAppCo
           name: someapplication1
           version: "1.0"
         clusterinstkey:
           clusterkey:
             name: SmallCluster
           cloudletkey:
-            operatorkey:
-              name: tmus
+            organization: tmus
             name: tmus-cloud-2
-          developer: AcmeAppCo
+          organization: AcmeAppCo
       cloudletloc:
         latitude: 35
         longitude: -95
@@ -725,18 +703,16 @@ regiondata:
         nanos: 745622000
     - key:
         appkey:
-          developerkey:
-            name: MobiledgeX
+          organization: MobiledgeX
           name: MEXPrometheusAppName
           version: "1.0"
         clusterinstkey:
           clusterkey:
             name: SmallCluster
           cloudletkey:
-            operatorkey:
-              name: enterprise
+            organization: enterprise
             name: enterprise-1
-          developer: enterprise
+          organization: enterprise
       cloudletloc:
         latitude: 31
         longitude: -91
@@ -760,12 +736,11 @@ regiondata:
     - poolkey:
         name: enterprise-pool
       cloudletkey:
-        operatorkey:
-          name: enterprise
+        organization: enterprise
         name: enterprise-1
     autoscalepolicies:
     - key:
-        developer: AcmeAppCo
+        organization: AcmeAppCo
         name: scale1
       minnodes: 1
       maxnodes: 3

@@ -4,6 +4,7 @@
 package testutil
 
 import edgeproto "github.com/mobiledgex/edge-cloud/edgeproto"
+import "context"
 import "github.com/mobiledgex/edge-cloud-infra/mc/ormclient"
 import "github.com/mobiledgex/edge-cloud-infra/mc/ormapi"
 import proto "github.com/gogo/protobuf/proto"
@@ -29,6 +30,22 @@ func TestShowAppInstClient(mcClient *ormclient.Client, uri, token, region string
 }
 func TestPermShowAppInstClient(mcClient *ormclient.Client, uri, token, region, org string) ([]edgeproto.AppInstClient, int, error) {
 	in := &edgeproto.AppInstClientKey{}
-	in.Key.AppKey.DeveloperKey.Name = org
+	in.Key.AppKey.Organization = org
 	return TestShowAppInstClient(mcClient, uri, token, region, in)
+}
+
+func (s *TestClient) ShowAppInstClient(ctx context.Context, in *edgeproto.AppInstClientKey) ([]edgeproto.AppInstClient, error) {
+	inR := &ormapi.RegionAppInstClientKey{
+		Region:           s.Region,
+		AppInstClientKey: *in,
+	}
+	out, status, err := s.McClient.ShowAppInstClient(s.Uri, s.Token, inR)
+	if err == nil && status != 200 {
+		err = fmt.Errorf("status: %d\n", status)
+	}
+	return out, err
+}
+
+func (s *TestClient) StreamAppInstClientsLocal(ctx context.Context, in *edgeproto.AppInstClientKey) ([]edgeproto.AppInstClient, error) {
+	return nil, nil
 }

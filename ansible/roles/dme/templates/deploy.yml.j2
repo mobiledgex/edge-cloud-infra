@@ -33,7 +33,7 @@ spec:
              --vaultAddr "{{ vault_address }}" \
              --locverurl "{{ locver_url }}" \
              --carrier "{{ dme_carrier }}" \
-             --cloudletKey '{"operator_key":{"name":"{{ operator_key }}"},"name":"{{ deploy_target }}-cloudlet"}' \
+             --cloudletKey '{"organization":"{{ operator_key }}","name":"{{ deploy_target }}-cloudlet"}' \
              --toksrvurl "{{ toksrv_url }}" \
              --tls /root/tls/mex-server.crt \
              -d locapi,dmedb,dmereq,notify

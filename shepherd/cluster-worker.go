@@ -213,7 +213,7 @@ func MarshalAppMetrics(key *shepherd_common.MetricAppInstKey, stat *shepherd_com
 	}
 
 	if stat.CpuTS != nil {
-		metric = newMetric(key.ClusterInstKey, "", key, stat.CpuTS)
+		metric = newMetric(key.ClusterInstKey, "appinst-cpu", key, stat.CpuTS)
 		metric.AddDoubleVal("cpu", stat.Cpu)
 		metrics = append(metrics, metric)
 		stat.CpuTS = nil

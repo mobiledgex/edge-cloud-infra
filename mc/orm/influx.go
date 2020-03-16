@@ -40,8 +40,9 @@ type influxQueryArgs struct {
 	AppVersion   string
 	ClusterName  string
 	CloudletName string
+	OrgField     string
+	ApiCallerOrg string
 	CloudletOrg  string
-	AppOrg       string
 	ClusterOrg   string
 	Method       string
 	CellId       string
@@ -85,6 +86,7 @@ var AppFields = []string{
 	"\"cluster\"",
 	"\"clusterorg\"",
 	"\"cloudlet\"",
+	"\"cloudletorg\"",
 	"\"apporg\"",
 }
 
@@ -201,7 +203,7 @@ const (
 )
 
 var devInfluDBT = `SELECT {{.Selector}} from "{{.Measurement}}"` +
-	` WHERE "apporg"='{{.AppOrg}}'` +
+	` WHERE "{{.OrgField}}"='{{.ApiCallerOrg}}'` +
 	`{{if .AppInstName}} AND "app"='{{.AppInstName}}'{{end}}` +
 	`{{if .ClusterName}} AND "cluster"='{{.ClusterName}}'{{end}}` +
 	`{{if .AppVersion}} AND "ver"='{{.AppVersion}}'{{end}}` +
@@ -289,7 +291,8 @@ func ClientMetricsQuery(obj *ormapi.RegionClientMetrics) string {
 		Measurement:  getMeasurementString(obj.Selector, CLIENT),
 		AppInstName:  obj.AppInst.AppKey.Name,
 		AppVersion:   obj.AppInst.AppKey.Version,
-		AppOrg:       obj.AppInst.AppKey.Organization,
+		OrgField:     "apporg",
+		ApiCallerOrg: obj.AppInst.AppKey.Organization,
 		ClusterOrg:   obj.AppInst.ClusterInstKey.Organization,
 		CloudletName: obj.AppInst.ClusterInstKey.CloudletKey.Name,
 		ClusterName:  obj.AppInst.ClusterInstKey.ClusterKey.Name,
@@ -310,7 +313,8 @@ func AppInstMetricsQuery(obj *ormapi.RegionAppInstMetrics) string {
 		Measurement:  getMeasurementString(obj.Selector, APPINST),
 		AppInstName:  k8smgmt.NormalizeName(obj.AppInst.AppKey.Name),
 		AppVersion:   util.DNSSanitize(obj.AppInst.AppKey.Version),
-		AppOrg:       obj.AppInst.AppKey.Organization,
+		OrgField:     "apporg",
+		ApiCallerOrg: obj.AppInst.AppKey.Organization,
 		CloudletName: obj.AppInst.ClusterInstKey.CloudletKey.Name,
 		ClusterName:  obj.AppInst.ClusterInstKey.ClusterKey.Name,
 		CloudletOrg:  obj.AppInst.ClusterInstKey.CloudletKey.Organization,
@@ -326,7 +330,8 @@ func ClusterMetricsQuery(obj *ormapi.RegionClusterInstMetrics) string {
 		Measurement:  getMeasurementString(obj.Selector, CLUSTER),
 		CloudletName: obj.ClusterInst.CloudletKey.Name,
 		ClusterName:  obj.ClusterInst.ClusterKey.Name,
-		AppOrg:       obj.ClusterInst.Organization,
+		OrgField:     "clusterorg",
+		ApiCallerOrg: obj.ClusterInst.Organization,
 		CloudletOrg:  obj.ClusterInst.CloudletKey.Organization,
 		Last:         obj.Last,
 	}

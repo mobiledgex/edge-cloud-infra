@@ -211,10 +211,9 @@ def getConfig():
 
      Controller = regions[Region].split(':')[0]
      CloudletOrg = prompt("Enter cloudlet org", CloudletOrg)
-     Controller = prompt("Enter controller", Controller)
 
      if Cloudlet == "UNSET":
-         Cloudlet = "hackathon-" + getpass.getuser()
+         Cloudlet = "hackathon-" + re.sub(r'\W+', '-', getpass.getuser())
      Cloudlet = prompt("Enter cloudlet", Cloudlet)
 
      if Latitude == "UNSET":

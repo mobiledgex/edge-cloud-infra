@@ -5,6 +5,7 @@ USAGE="usage: $( basename $0 ) <start|cleanup>"
 DIND_REL=v0.3.0
 DIND_CLUST=dind-cluster-v1.14.sh
 DIND_CLUST_SHA256SUM=867050c3d4a752f24f2db64de2634bfe4a2b8ee3ffc6dd04b14cdcb2be21c6dd
+NGINX_DOCKER_IMG=docker.mobiledgex.net/mobiledgex/mobiledgex_public/nginx-with-curl:latest
 
 die() {
 	echo "ERROR: $*" >&2
@@ -74,6 +75,10 @@ EOT
 
 	echo "Loading Python 3 virtualenv"
 	source "$VENV_DIR/bin/activate"
+
+	# Docker pull the nginx image
+	docker pull "$NGINX_DOCKER_IMG" \
+		|| die "Failed to pull docker image: $NGINX_DOCKER_IMG"
 }
 
 case "$1" in

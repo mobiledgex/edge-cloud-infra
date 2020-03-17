@@ -111,7 +111,7 @@ var TagValues = map[string]struct{}{
 	"apporg":      struct{}{},
 	"clusterorg":  struct{}{},
 	"cloudletorg": struct{}{},
-	// special eveent tags
+	// special event tags
 	"event":  struct{}{},
 	"status": struct{}{},
 	"flavor": struct{}{},

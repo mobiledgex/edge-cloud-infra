@@ -14,20 +14,14 @@ func authzCreateApp(ctx context.Context, region, username string, obj *edgeproto
 	if err := checkImagePath(ctx, obj); err != nil {
 		return err
 	}
-	if err := authorized(ctx, username, obj.Key.Organization, resource, action, withRequiresOrg(obj.Key.Organization)); err != nil {
-		return err
-	}
-	return nil
+	return authorized(ctx, username, obj.Key.Organization, resource, action, withRequiresOrg(obj.Key.Organization))
 }
 
 func authzUpdateApp(ctx context.Context, region, username string, obj *edgeproto.App, resource, action string) error {
 	if err := checkImagePath(ctx, obj); err != nil {
 		return err
 	}
-	if err := authorized(ctx, username, obj.Key.Organization, resource, action); err != nil {
-		return err
-	}
-	return nil
+	return authorized(ctx, username, obj.Key.Organization, resource, action)
 }
 
 // checkImagePath checks that for a mobiledgex image path, the App's org matches

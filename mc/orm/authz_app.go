@@ -6,7 +6,6 @@ import (
 	"net/url"
 	"strings"
 
-	"github.com/labstack/echo"
 	"github.com/mobiledgex/edge-cloud-infra/mc/ormapi"
 	"github.com/mobiledgex/edge-cloud/edgeproto"
 )
@@ -15,8 +14,8 @@ func authzCreateApp(ctx context.Context, region, username string, obj *edgeproto
 	if err := checkImagePath(ctx, obj); err != nil {
 		return err
 	}
-	if !authorized(ctx, username, obj.Key.Organization, resource, action) {
-		return echo.ErrForbidden
+	if err := authorized(ctx, username, obj.Key.Organization, resource, action, withRequiresOrg(obj.Key.Organization)); err != nil {
+		return err
 	}
 	return nil
 }
@@ -25,8 +24,8 @@ func authzUpdateApp(ctx context.Context, region, username string, obj *edgeproto
 	if err := checkImagePath(ctx, obj); err != nil {
 		return err
 	}
-	if !authorized(ctx, username, obj.Key.Organization, resource, action) {
-		return echo.ErrForbidden
+	if err := authorized(ctx, username, obj.Key.Organization, resource, action); err != nil {
+		return err
 	}
 	return nil
 }

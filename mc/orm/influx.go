@@ -522,8 +522,8 @@ func GetMetricsCommon(c echo.Context) error {
 		cmd = AppInstMetricsQuery(&in)
 
 		// Check the developer against who is logged in
-		if !authorized(ctx, rc.claims.Username, org, ResourceAppAnalytics, ActionView) {
-			return setReply(c, echo.ErrForbidden, nil)
+		if err := authorized(ctx, rc.claims.Username, org, ResourceAppAnalytics, ActionView); err != nil {
+			return setReply(c, err, nil)
 		}
 	} else if strings.HasSuffix(c.Path(), "metrics/cluster") {
 		in := ormapi.RegionClusterInstMetrics{}
@@ -543,8 +543,8 @@ func GetMetricsCommon(c echo.Context) error {
 		cmd = ClusterMetricsQuery(&in)
 
 		// Check the developer against who is logged in
-		if !authorized(ctx, rc.claims.Username, org, ResourceClusterAnalytics, ActionView) {
-			return echo.ErrForbidden
+		if err := authorized(ctx, rc.claims.Username, org, ResourceClusterAnalytics, ActionView); err != nil {
+			return err
 		}
 	} else if strings.HasSuffix(c.Path(), "metrics/cloudlet") {
 		in := ormapi.RegionCloudletMetrics{}
@@ -564,8 +564,8 @@ func GetMetricsCommon(c echo.Context) error {
 		cmd = CloudletMetricsQuery(&in)
 
 		// Check the operator against who is logged in
-		if !authorized(ctx, rc.claims.Username, org, ResourceCloudletAnalytics, ActionView) {
-			return setReply(c, echo.ErrForbidden, nil)
+		if err := authorized(ctx, rc.claims.Username, org, ResourceCloudletAnalytics, ActionView); err != nil {
+			return setReply(c, err, nil)
 		}
 	} else if strings.HasSuffix(c.Path(), "metrics/client") {
 		in := ormapi.RegionClientMetrics{}
@@ -585,8 +585,8 @@ func GetMetricsCommon(c echo.Context) error {
 		cmd = ClientMetricsQuery(&in)
 		// Check the developer against who is logged in
 		// Should the operators logged in be allowed to see the API usage of the apps on their cloudlets?
-		if !authorized(ctx, rc.claims.Username, org, ResourceAppAnalytics, ActionView) {
-			return setReply(c, echo.ErrForbidden, nil)
+		if err := authorized(ctx, rc.claims.Username, org, ResourceAppAnalytics, ActionView); err != nil {
+			return setReply(c, err, nil)
 		}
 	} else {
 		return setReply(c, echo.ErrNotFound, nil)

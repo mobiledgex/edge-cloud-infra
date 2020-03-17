@@ -1,0 +1,8 @@
+orgs:
+- name: tmus
+- name: AcmeAppCo
+- name: enterprise
+- name: MobiledgeX
+- name: azure
+- name: gcp
+- name: Samsung

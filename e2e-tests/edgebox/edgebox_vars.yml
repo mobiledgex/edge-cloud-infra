@@ -1,4 +1,5 @@
 cloudlet: UNSET
+cloudlet-org: mex
 controller: UNSET
 datadir: data
 datadir2: ../data
@@ -9,7 +10,6 @@ longitude: UNSET
 mc: console-stage.mobiledgex.net
 mc_pass: ENV=MC_PASSWORD
 mc_user: ENV=MC_USER
-operator: mex
-outputdir: /tmp/edgebox_out
+outputdir: /tmp/edgebox
 region: UNSET
 tlsoutdir: tlsout

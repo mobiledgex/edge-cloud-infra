@@ -51,7 +51,7 @@ func (p *AppInstWorker) Stop(ctx context.Context) {
 
 func (p *AppInstWorker) sendMetrics() {
 	span := log.StartSpan(log.DebugLevelSampled, "send-metric")
-	span.SetTag("operator", p.appInstKey.ClusterInstKey.CloudletKey.OperatorKey.Name)
+	span.SetTag("operator", p.appInstKey.ClusterInstKey.CloudletKey.Organization)
 	span.SetTag("cloudlet", p.appInstKey.ClusterInstKey.CloudletKey.Name)
 	span.SetTag("cluster", cloudcommon.DefaultVMCluster)
 	ctx := log.ContextWithSpan(context.Background(), span)
@@ -59,6 +59,8 @@ func (p *AppInstWorker) sendMetrics() {
 	key := shepherd_common.MetricAppInstKey{
 		ClusterInstKey: p.appInstKey.ClusterInstKey,
 		Pod:            p.appInstKey.AppKey.Name,
+		App:            p.appInstKey.AppKey.Name,
+		Version:        p.appInstKey.AppKey.Version,
 	}
 	log.SpanLog(ctx, log.DebugLevelMetrics, "Collecting metrics for app", "key", key)
 	stat, err := p.pf.GetVmStats(ctx, &p.appInstKey)

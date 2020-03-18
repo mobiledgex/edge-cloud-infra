@@ -136,8 +136,7 @@ func DeleteOrgObj(ctx context.Context, claims *UserClaims, org *ormapi.Organizat
 	// check for Controller objects belonging to org
 	err = orgInUse(ctx, org.Name)
 	if err != nil {
-		doMark = false
-		undoerr := markOrgForDelete(db, org.Name, doMark)
+		undoerr := markOrgForDelete(db, org.Name, !doMark)
 		if undoerr != nil {
 			log.SpanLog(ctx, log.DebugLevelApi, "undo mark org for delete", "undoerr", undoerr)
 		}

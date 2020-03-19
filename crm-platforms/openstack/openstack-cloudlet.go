@@ -168,7 +168,7 @@ func (s *Platform) setupPlatformService(ctx context.Context, cloudlet *edgeproto
 
 	// Verify if Openstack API Endpoint is reachable
 	updateCallback(edgeproto.UpdateTask, "Verifying if Openstack API Endpoint is reachable")
-	osAuthUrl := s.envVars["OS_AUTH_URL"]
+	osAuthUrl := s.openRCVars["OS_AUTH_URL"]
 	if osAuthUrl == "" {
 		return fmt.Errorf("unable to find OS_AUTH_URL")
 	}

@@ -6,13 +6,13 @@ server {
 
         location / {
                 include /etc/nginx/proxy_params;
-                proxy_pass              http://localhost:9091;
+                proxy_pass              http://localhost:9094;
                 proxy_read_timeout      90s;
         }
 
-        location /mc/ {
+        location /device/ {
                 include /etc/nginx/proxy_params;
-                proxy_pass              http://localhost:9094/;
+                proxy_pass              http://localhost:9091/;
                 proxy_read_timeout      90s;
         }
 

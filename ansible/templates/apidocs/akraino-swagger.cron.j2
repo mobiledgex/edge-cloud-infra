@@ -15,9 +15,9 @@ fi
 download_doc() {
 	local doctype="$1"; shift
 	sudo docker run --rm "$EDGECLOUD" dump-docs "$doctype" \
-		| ${APIDOCS_MASSAGE} -v "$TAG" "$@" \
-		| ${AKRAINO_POSTPROCESS} >"${DOCDIR}/${doctype}.swagger.json"
+		| ${APIDOCS_MASSAGE} -v "$TAG" \
+		| ${AKRAINO_POSTPROCESS} "$@" >"${DOCDIR}/${doctype}.swagger.json"
 }
 
-download_doc client
-download_doc mc
+download_doc client --description "Click [here](/mc) for the Edge Orchestration API."
+download_doc mc --description "Click [here](/device) for the Device API."

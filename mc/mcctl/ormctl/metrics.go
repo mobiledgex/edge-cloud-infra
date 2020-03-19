@@ -100,7 +100,7 @@ var CloudletMetricOptionalArgs = []string{
 }
 
 var CloudletMetricAliasArgs = []string{
-	"organization=cloudlet.organization",
+	"cloudletorg=cloudlet.organization",
 	"cloudlet=cloudlet.name",
 }
 

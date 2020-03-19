@@ -48,6 +48,9 @@
           - { name: "client", port: 9091, title: "MobiledgeX Client API" }
           - { name: "internal", port: 9092, title: "MobiledgeX Internal API" }
           - { name: "mc", port: 9094, title: "MobiledgeX Orchestration API" }
+        apidocs_scripts:
+          - apidocs/apidocs-massage.py
+        swagger_cron_script_template: apidocs/swagger.cron.j2
 
 - hosts: akraino
 
@@ -67,7 +70,12 @@
         name: apidocs
       vars:
         upload_logo: false
+        upload_code_samples: false
         favicon: "/swagger/favicon.ico"
         containers:
           - { name: "client", port: 9091, title: "Client API" }
           - { name: "mc", port: 9094, title: "Orchestration API" }
+        apidocs_scripts:
+          - apidocs/apidocs-massage.py
+          - apidocs/akraino-postprocess.py
+        swagger_cron_script_template: apidocs/akraino-swagger.cron.j2

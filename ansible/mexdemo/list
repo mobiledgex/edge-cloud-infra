@@ -25,3 +25,6 @@ localhost	ansible_connection=local
 
 [swagger]
 swagger.mobiledgex.net
+
+[akraino]
+api.akraino.org

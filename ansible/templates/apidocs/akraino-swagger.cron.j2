@@ -4,6 +4,7 @@ DOCDIR='/var/swagger'
 TAG=$( date +'%Y-%m-%d' )
 EDGECLOUD="registry.mobiledgex.net:5000/mobiledgex/edge-cloud:$TAG"
 APIDOCS_MASSAGE="{{ apidocs_script_dir }}/apidocs-massage.py"
+AKRAINO_POSTPROCESS="{{ apidocs_script_dir }}/akraino-postprocess.py"
 
 sudo docker run --rm "$EDGECLOUD" version >/dev/null
 if [[ $? -ne 0 ]]; then
@@ -14,10 +15,9 @@ fi
 download_doc() {
 	local doctype="$1"; shift
 	sudo docker run --rm "$EDGECLOUD" dump-docs "$doctype" \
-		| ${APIDOCS_MASSAGE} -v "$TAG" "$@" >"${DOCDIR}/${doctype}.swagger.json"
+		| ${APIDOCS_MASSAGE} -v "$TAG" \
+		| ${AKRAINO_POSTPROCESS} "$@" >"${DOCDIR}/${doctype}.swagger.json"
 }
 
-download_doc external
-download_doc internal
-download_doc client --samples "{{ swagger_base_dir }}/code-samples"
-download_doc mc
+download_doc client --description "Click [here](/mc) for the Edge Orchestration API."
+download_doc mc --description "Click [here](/device) for the Device API."

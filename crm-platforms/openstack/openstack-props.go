@@ -65,6 +65,7 @@ func (s *Platform) GetOpenRCVars(ctx context.Context, key *edgeproto.CloudletKey
 		}
 		return fmt.Errorf("Failed to source access variables from %s, %s: %v", vaultConfig.Addr, openRCPath, err)
 	}
+	s.openRCVars = make(map[string]string, 1)
 	for _, envData := range envData.Env {
 		s.openRCVars[envData.Name] = envData.Value
 	}

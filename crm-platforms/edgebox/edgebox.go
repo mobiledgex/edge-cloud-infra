@@ -24,11 +24,13 @@ type Platform struct {
 	vaultConfig   *vault.Config
 	NetworkScheme string
 	commonPf      mexos.CommonPlatform
-	envVars       map[string]string
+	envVars       map[string]*mexos.PropertyInfo
 }
 
-var edgeboxProps = map[string]string{
-	"MEX_NETWORK_SCHEME": cloudcommon.NetworkSchemePrivateIP,
+var edgeboxProps = map[string]*mexos.PropertyInfo{
+	"MEX_NETWORK_SCHEME": &mexos.PropertyInfo{
+		Value: cloudcommon.NetworkSchemePrivateIP,
+	},
 }
 
 func (s *Platform) GetType() string {
@@ -78,7 +80,7 @@ func (s *Platform) Init(ctx context.Context, platformConfig *platform.PlatformCo
 }
 
 func (s *Platform) GetCloudletNetworkScheme() string {
-	return s.envVars["MEX_NETWORK_SCHEME"]
+	return s.envVars["MEX_NETWORK_SCHEME"].Value
 }
 
 func (s *Platform) GatherCloudletInfo(ctx context.Context, info *edgeproto.CloudletInfo) error {

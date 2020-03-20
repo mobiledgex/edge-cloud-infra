@@ -24,7 +24,7 @@ type Platform struct {
 	vaultConfig  *vault.Config
 	clusterCache *edgeproto.ClusterInstInfoCache
 	commonPf     mexos.CommonPlatform
-	envVars      map[string]string
+	envVars      map[string]*mexos.PropertyInfo
 }
 
 type GCPQuotas struct {
@@ -43,11 +43,19 @@ type GCPFlavor struct {
 	Name                         string
 }
 
-var gcpProps = map[string]string{
-	"MEX_GCP_PROJECT":         "still-entity-201400",
-	"MEX_GCP_ZONE":            "",
-	"MEX_GCP_SERVICE_ACCOUNT": "",
-	"MEX_GCP_AUTH_KEY_PATH":   "/secret/data/cloudlet/gcp/auth_key.json",
+var gcpProps = map[string]*mexos.PropertyInfo{
+	"MEX_GCP_PROJECT": &mexos.PropertyInfo{
+		Value: "still-entity-201400",
+	},
+	"MEX_GCP_ZONE": &mexos.PropertyInfo{
+		Value: "",
+	},
+	"MEX_GCP_SERVICE_ACCOUNT": &mexos.PropertyInfo{
+		Value: "",
+	},
+	"MEX_GCP_AUTH_KEY_PATH": &mexos.PropertyInfo{
+		Value: "/secret/data/cloudlet/gcp/auth_key.json",
+	},
 }
 
 func (s *Platform) GetType() string {
@@ -69,22 +77,22 @@ func (s *Platform) Init(ctx context.Context, platformConfig *platform.PlatformCo
 	mexos.SetPropsFromVars(ctx, s.envVars, platformConfig.EnvVars)
 
 	s.config = *platformConfig
-	s.props.Project = s.envVars["MEX_GCP_PROJECT"]
+	s.props.Project = s.envVars["MEX_GCP_PROJECT"].Value
 	if err = SetProject(s.props.Project); err != nil {
 		return err
 	}
-	s.props.Zone = s.envVars["MEX_GCP_ZONE"]
+	s.props.Zone = s.envVars["MEX_GCP_ZONE"].Value
 	if s.props.Zone == "" {
 		return fmt.Errorf("Env variable MEX_GCP_ZONE not set")
 	}
 	if err = SetZone(s.props.Zone); err != nil {
 		return err
 	}
-	s.props.ServiceAccount = s.envVars["MEX_GCP_SERVICE_ACCOUNT"]
+	s.props.ServiceAccount = s.envVars["MEX_GCP_SERVICE_ACCOUNT"].Value
 	if s.props.ServiceAccount == "" {
 		return fmt.Errorf("Env variable MEX_GCP_SERVICE_ACCOUNT not set")
 	}
-	s.props.GcpAuthKeyUrl = s.envVars["MEX_GCP_AUTH_KEY_PATH"]
+	s.props.GcpAuthKeyUrl = s.envVars["MEX_GCP_AUTH_KEY_PATH"].Value
 	return nil
 }
 

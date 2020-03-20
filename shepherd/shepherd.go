@@ -42,6 +42,7 @@ var AppInstCache edgeproto.AppInstCache
 var ClusterInstCache edgeproto.ClusterInstCache
 var AppCache edgeproto.AppCache
 var CloudletCache edgeproto.CloudletCache
+var CloudletInfoCache edgeproto.CloudletInfoCache
 var MetricSender *notify.MetricSend
 var AlertCache edgeproto.AlertCache
 var settings edgeproto.Settings
@@ -209,6 +210,7 @@ func main() {
 
 	addrs := strings.Split(*notifyAddrs, ",")
 	notifyClient := notify.NewClient(addrs, *tlsCertFile)
+	notifyClient.SetFilterByCloudletKey()
 	notifyClient.RegisterRecvAppInstCache(&AppInstCache)
 	notifyClient.RegisterRecvClusterInstCache(&ClusterInstCache)
 	notifyClient.RegisterRecvAppCache(&AppCache)
@@ -218,12 +220,23 @@ func main() {
 	notifyClient.RegisterSend(MetricSender)
 	edgeproto.InitAlertCache(&AlertCache)
 	notifyClient.RegisterSendAlertCache(&AlertCache)
+	// register to send cloudletInfo, to receive appinst/clusterinst/cloudlet notifications from crm
+	edgeproto.InitCloudletInfoCache(&CloudletInfoCache)
+	notifyClient.RegisterSendCloudletInfoCache(&CloudletInfoCache)
 
 	nodeMgr = node.Init(ctx, "shepherd", node.WithCloudletKey(&cloudletKey))
 	nodeMgr.RegisterClient(notifyClient)
 
 	notifyClient.Start()
 	defer notifyClient.Stop()
+
+	cloudletInfo := edgeproto.CloudletInfo{
+		Key: cloudletKey,
+	}
+
+	// Send state INIT to get cloudlet obj from crm
+	cloudletInfo.State = edgeproto.CloudletState_CLOUDLET_STATE_INIT
+	CloudletInfoCache.Update(ctx, &cloudletInfo, 0)
 
 	var cloudlet edgeproto.Cloudlet
 
@@ -255,6 +268,10 @@ func main() {
 		StartProxyScraper()
 	}
 	InitPlatformMetrics()
+
+	// Send state READY to get AppInst/ClusterInst objs from crm
+	cloudletInfo.State = edgeproto.CloudletState_CLOUDLET_STATE_READY
+	CloudletInfoCache.Update(ctx, &cloudletInfo, 0)
 
 	sigChan = make(chan os.Signal, 1)
 	signal.Notify(sigChan, os.Interrupt)

@@ -15,18 +15,34 @@ import (
 	"github.com/mobiledgex/edge-cloud/vault"
 )
 
+type PropertyInfo struct {
+	Value  string
+	Secret bool
+}
+
 // Cloudlet Infra Common Properties
-var infraCommonProps = map[string]string{
+var infraCommonProps = map[string]*PropertyInfo{
 	// Property: Default-Value
-	"MEX_CF_KEY":               "",
-	"MEX_CF_USER":              "",
-	"MEX_EXTERNAL_IP_MAP":      "",
-	"MEX_REGISTRY_FILE_SERVER": "registry.mobiledgex.net",
-	"MEX_DNS_ZONE":             "mobiledgex.net",
+	"MEX_CF_KEY": &PropertyInfo{
+		Value:  "",
+		Secret: true,
+	},
+	"MEX_CF_USER": &PropertyInfo{
+		Value: "",
+	},
+	"MEX_EXTERNAL_IP_MAP": &PropertyInfo{
+		Value: "",
+	},
+	"MEX_REGISTRY_FILE_SERVER": &PropertyInfo{
+		Value: "registry.mobiledgex.net",
+	},
+	"MEX_DNS_ZONE": &PropertyInfo{
+		Value: "mobiledgex.net",
+	},
 }
 
 type CommonPlatform struct {
-	envVars map[string]string
+	envVars map[string]*PropertyInfo
 	// mapping of FQDNs the CRM knows about to externally mapped IPs. This
 	// is used mainly in lab environments that have NATed IPs which can be used to
 	// access the cloudlet externally but are not visible in any way to OpenStack
@@ -80,7 +96,7 @@ func GetCloudletVMImagePath(imgPath, imgVersion string) string {
 	return vmRegistryPath + GetCloudletVMImageName(imgVersion) + ".qcow2"
 }
 
-func SetPropsFromVars(ctx context.Context, props, vars map[string]string) {
+func SetPropsFromVars(ctx context.Context, props map[string]*PropertyInfo, vars map[string]string) {
 	if vars == nil {
 		return
 	}
@@ -88,13 +104,27 @@ func SetPropsFromVars(ctx context.Context, props, vars map[string]string) {
 	// 1. Fetch props from vars passed, if nothing set then
 	// 2. Fetch from env, if nothing set then
 	// 3. Use default value
-	for k, _ := range props {
+	for k, v := range props {
 		if val, ok := vars[k]; ok {
-			log.SpanLog(ctx, log.DebugLevelMexos, "set infra property from vars", "key", k, "val", val)
-			props[k] = val
+			if props[k].Secret {
+				log.SpanLog(ctx, log.DebugLevelMexos, "set infra property from vars", "key", k, "val", "*****")
+			} else {
+				log.SpanLog(ctx, log.DebugLevelMexos, "set infra property from vars", "key", k, "val", val)
+			}
+			props[k].Value = val
 		} else if val, ok := os.LookupEnv(k); ok {
-			log.SpanLog(ctx, log.DebugLevelMexos, "set infra property from env", "key", k, "val", val)
-			props[k] = val
+			if props[k].Secret {
+				log.SpanLog(ctx, log.DebugLevelMexos, "set infra property from env", "key", k, "val", "****")
+			} else {
+				log.SpanLog(ctx, log.DebugLevelMexos, "set infra property from env", "key", k, "val", val)
+			}
+			props[k].Value = val
+		} else {
+			if props[k].Secret {
+				log.SpanLog(ctx, log.DebugLevelMexos, "using default infra property", "key", k, "val", "****")
+			} else {
+				log.SpanLog(ctx, log.DebugLevelMexos, "using default infra property", "key", k, "val", v)
+			}
 		}
 	}
 }
@@ -121,7 +151,13 @@ func (c *CommonPlatform) InitInfraCommon(ctx context.Context, vaultConfig *vault
 		return fmt.Errorf("Failed to source access variables from %s, %s: %v", vaultConfig.Addr, mexEnvPath, err)
 	}
 	for _, envData := range envData.Env {
-		c.envVars[envData.Name] = envData.Value
+		if _, ok := c.envVars[envData.Name]; ok {
+			c.envVars[envData.Name].Value = envData.Value
+		} else {
+			c.envVars[envData.Name] = &PropertyInfo{
+				Value: envData.Value,
+			}
+		}
 	}
 
 	// fetch properties from user input
@@ -149,19 +185,19 @@ func (c *CommonPlatform) InitInfraCommon(ctx context.Context, vaultConfig *vault
 }
 
 func (c *CommonPlatform) GetCloudletDNSZone() string {
-	return c.envVars["MEX_DNS_ZONE"]
+	return c.envVars["MEX_DNS_ZONE"].Value
 }
 
 func (c *CommonPlatform) GetCloudletRegistryFileServer() string {
-	return c.envVars["MEX_REGISTRY_FILE_SERVER"]
+	return c.envVars["MEX_REGISTRY_FILE_SERVER"].Value
 }
 
 func (c *CommonPlatform) GetCloudletCFKey() string {
-	return c.envVars["MEX_CF_KEY"]
+	return c.envVars["MEX_CF_KEY"].Value
 }
 
 func (c *CommonPlatform) GetCloudletCFUser() string {
-	return c.envVars["MEX_CF_USER"]
+	return c.envVars["MEX_CF_USER"].Value
 }
 
 func SetTestMode(tMode bool) {
@@ -176,7 +212,7 @@ func GetCloudletNetworkIfaceFile() string {
 // fromip1=toip1,fromip2=toip2 and populates mappedExternalIPs
 func (c *CommonPlatform) initMappedIPs() error {
 	c.mappedExternalIPs = make(map[string]string)
-	meip := c.envVars["MEX_EXTERNAL_IP_MAP"]
+	meip := c.envVars["MEX_EXTERNAL_IP_MAP"].Value
 	if meip != "" {
 		ippair := strings.Split(meip, ",")
 		for _, i := range ippair {

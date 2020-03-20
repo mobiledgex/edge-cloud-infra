@@ -1,8 +1,11 @@
 package openstack
 
-// This file stores a global cloudlet infra properties object. The long term solution is for the controller to send this via the
-// notification channel when the cloudlet is provisioned.   The controller will do the vault access and pass this data down; this
-// is a stepping stone to start using edgepro data strucures to hold info abou the cloudlet rather than custom types and so the vault
+// This file stores a global cloudlet infra properties object.
+// The long term solution is for the controller to send this via the
+// notification channel when the cloudlet is provisioned.
+// The controller will do the vault access and pass this data down;
+// this is a stepping stone to start using edgeproto data structures
+// to hold info about the cloudlet rather than custom types and so the vault
 // is still directly accessed here as are env variable to populate some variables
 
 import (
@@ -20,25 +23,59 @@ import (
 )
 
 // Openstack Infra Properties
-var openstackProps = map[string]string{
+var openstackProps = map[string]*mexos.PropertyInfo{
 	// Property: Default-Value
-	"MEX_EXT_NETWORK":               "external-network-shared",
-	"MEX_NETWORK":                   "mex-k8s-net-1",
-	"MEX_ROUTER":                    mexos.NoExternalRouter,
-	"MEX_OS_IMAGE":                  mexos.DefaultOSImageName,
-	"MEX_SECURITY_GROUP":            "default",
-	"FLAVOR_MATCH_PATTERN":          ".*",
-	"MEX_CRM_GATEWAY_ADDR":          "",
-	"MEX_EXTERNAL_IP_MAP":           "",
-	"MEX_SHARED_ROOTLB_RAM":         "4096",
-	"MEX_SHARED_ROOTLB_VCPUS":       "2",
-	"MEX_SHARED_ROOTLB_DISK":        "40",
-	"MEX_NETWORK_SCHEME":            "name=mex-k8s-net-1,cidr=10.101.X.0/24",
-	"OS_PROJECT_NAME":               "",
-	"MEX_COMPUTE_AVAILABILITY_ZONE": "",
-	"MEX_VOLUME_AVAILABILITY_ZONE":  "",
-	"MEX_IMAGE_DISK_FORMAT":         mexos.ImageFormatQcow2,
-	"CLEANUP_ON_FAILURE":            "true",
+	"MEX_EXT_NETWORK": &mexos.PropertyInfo{
+		Value: "external-network-shared",
+	},
+	"MEX_NETWORK": &mexos.PropertyInfo{
+		Value: "mex-k8s-net-1",
+	},
+	"MEX_ROUTER": &mexos.PropertyInfo{
+		Value: mexos.NoExternalRouter,
+	},
+	"MEX_OS_IMAGE": &mexos.PropertyInfo{
+		Value: mexos.DefaultOSImageName,
+	},
+	"MEX_SECURITY_GROUP": &mexos.PropertyInfo{
+		Value: "default",
+	},
+	"FLAVOR_MATCH_PATTERN": &mexos.PropertyInfo{
+		Value: ".*",
+	},
+	"MEX_CRM_GATEWAY_ADDR": &mexos.PropertyInfo{
+		Value: "",
+	},
+	"MEX_EXTERNAL_IP_MAP": &mexos.PropertyInfo{
+		Value: "",
+	},
+	"MEX_SHARED_ROOTLB_RAM": &mexos.PropertyInfo{
+		Value: "4096",
+	},
+	"MEX_SHARED_ROOTLB_VCPUS": &mexos.PropertyInfo{
+		Value: "2",
+	},
+	"MEX_SHARED_ROOTLB_DISK": &mexos.PropertyInfo{
+		Value: "40",
+	},
+	"MEX_NETWORK_SCHEME": &mexos.PropertyInfo{
+		Value: "name=mex-k8s-net-1,cidr=10.101.X.0/24",
+	},
+	"OS_PROJECT_NAME": &mexos.PropertyInfo{
+		Value: "",
+	},
+	"MEX_COMPUTE_AVAILABILITY_ZONE": &mexos.PropertyInfo{
+		Value: "",
+	},
+	"MEX_VOLUME_AVAILABILITY_ZONE": &mexos.PropertyInfo{
+		Value: "",
+	},
+	"MEX_IMAGE_DISK_FORMAT": &mexos.PropertyInfo{
+		Value: mexos.ImageFormatQcow2,
+	},
+	"CLEANUP_ON_FAILURE": &mexos.PropertyInfo{
+		Value: "true",
+	},
 }
 
 func GetVaultCloudletAccessPath(key *edgeproto.CloudletKey, region, physicalName string) string {
@@ -103,36 +140,36 @@ func (s *Platform) InitOpenstackProps(ctx context.Context, key *edgeproto.Cloudl
 
 //GetCloudletExternalRouter returns default MEX external router name
 func (s *Platform) GetCloudletExternalRouter() string {
-	return s.envVars["MEX_ROUTER"]
+	return s.envVars["MEX_ROUTER"].Value
 }
 
 func (s *Platform) GetCloudletExternalNetwork() string {
-	return s.envVars["MEX_EXT_NETWORK"]
+	return s.envVars["MEX_EXT_NETWORK"].Value
 }
 
 // GetCloudletNetwork returns default MEX network, internal and prepped
 func (s *Platform) GetCloudletMexNetwork() string {
-	return s.envVars["MEX_NETWORK"]
+	return s.envVars["MEX_NETWORK"].Value
 }
 
 func (s *Platform) GetCloudletNetworkScheme() string {
-	return s.envVars["MEX_NETWORK_SCHEME"]
+	return s.envVars["MEX_NETWORK_SCHEME"].Value
 }
 
 func (s *Platform) GetCloudletOSImage() string {
-	return s.envVars["MEX_OS_IMAGE"]
+	return s.envVars["MEX_OS_IMAGE"].Value
 }
 
 func (s *Platform) GetCloudletProjectName() string {
-	return s.envVars["OS_PROJECT_NAME"]
+	return s.envVars["OS_PROJECT_NAME"].Value
 }
 
 func (s *Platform) GetCloudletFlavorMatchPattern() string {
-	return s.envVars["FLAVOR_MATCH_PATTERN"]
+	return s.envVars["FLAVOR_MATCH_PATTERN"].Value
 }
 
 func (s *Platform) GetCloudletCRMGatewayIPAndPort() (string, int) {
-	gw := s.envVars["MEX_CRM_GATEWAY_ADDR"]
+	gw := s.envVars["MEX_CRM_GATEWAY_ADDR"].Value
 	if gw == "" {
 		return "", 0
 	}
@@ -149,23 +186,23 @@ func (s *Platform) GetCloudletCRMGatewayIPAndPort() (string, int) {
 
 // optional default AZ for the cloudlet for compute resources (VMs).
 func (s *Platform) GetCloudletComputeAvailabilityZone() string {
-	return s.envVars["MEX_COMPUTE_AVAILABILITY_ZONE"]
+	return s.envVars["MEX_COMPUTE_AVAILABILITY_ZONE"].Value
 }
 
 // optional default AZ for the cloudlet for Volumes.
 func (s *Platform) GetCloudletVolumeAvailabilityZone() string {
-	return s.envVars["MEX_VOLUME_AVAILABILITY_ZONE"]
+	return s.envVars["MEX_VOLUME_AVAILABILITY_ZONE"].Value
 }
 
 func (s *Platform) GetCloudletImageDiskFormat() string {
-	return s.envVars["MEX_IMAGE_DISK_FORMAT"]
+	return s.envVars["MEX_IMAGE_DISK_FORMAT"].Value
 }
 
 // GetCleanupOnFailure should be true unless we want to debug the failure,
 // in which case this env var can be set to no.  We could consider making
 // this configurable at the controller but really is only needed for debugging.
 func (s *Platform) GetCleanupOnFailure(ctx context.Context) bool {
-	cleanup := s.envVars["CLEANUP_ON_FAILURE"]
+	cleanup := s.envVars["CLEANUP_ON_FAILURE"].Value
 	log.SpanLog(ctx, log.DebugLevelMexos, "GetCleanupOnFailure", "cleanup", cleanup)
 	cleanup = strings.ToLower(cleanup)
 	cleanup = strings.ReplaceAll(cleanup, "'", "")
@@ -178,7 +215,7 @@ func (s *Platform) GetCleanupOnFailure(ctx context.Context) bool {
 // GetCloudletSharedRootLBFlavor gets the flavor from defaults
 // or environment variables
 func (s *Platform) GetCloudletSharedRootLBFlavor(flavor *edgeproto.Flavor) error {
-	ram := s.envVars["MEX_SHARED_ROOTLB_RAM"]
+	ram := s.envVars["MEX_SHARED_ROOTLB_RAM"].Value
 	var err error
 	if ram != "" {
 		flavor.Ram, err = strconv.ParseUint(ram, 10, 64)
@@ -188,7 +225,7 @@ func (s *Platform) GetCloudletSharedRootLBFlavor(flavor *edgeproto.Flavor) error
 	} else {
 		flavor.Ram = 4096
 	}
-	vcpus := s.envVars["MEX_SHARED_ROOTLB_VCPUS"]
+	vcpus := s.envVars["MEX_SHARED_ROOTLB_VCPUS"].Value
 	if vcpus != "" {
 		flavor.Vcpus, err = strconv.ParseUint(vcpus, 10, 64)
 		if err != nil {
@@ -197,7 +234,7 @@ func (s *Platform) GetCloudletSharedRootLBFlavor(flavor *edgeproto.Flavor) error
 	} else {
 		flavor.Vcpus = 2
 	}
-	disk := s.envVars["MEX_SHARED_ROOTLB_DISK"]
+	disk := s.envVars["MEX_SHARED_ROOTLB_DISK"].Value
 	if disk != "" {
 		flavor.Disk, err = strconv.ParseUint(disk, 10, 64)
 		if err != nil {
@@ -212,5 +249,5 @@ func (s *Platform) GetCloudletSharedRootLBFlavor(flavor *edgeproto.Flavor) error
 // getCloudletSecurityGroupName returns the cloudlet-wide security group name.  This function cannot ever be called externally because
 // this group name can be duplicated which can cause errors in some environments.   GetCloudletSecurityGroupID should be used instead.  Note
 func (s *Platform) GetCloudletSecurityGroupName() string {
-	return s.envVars["MEX_SECURITY_GROUP"]
+	return s.envVars["MEX_SECURITY_GROUP"].Value
 }

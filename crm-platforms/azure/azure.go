@@ -21,13 +21,20 @@ type Platform struct {
 	config      platform.PlatformConfig
 	vaultConfig *vault.Config
 	commonPf    mexos.CommonPlatform
-	envVars     map[string]string
+	envVars     map[string]*mexos.PropertyInfo
 }
 
-var azureProps = map[string]string{
-	"MEX_AZURE_LOCATION": "",
-	"MEX_AZURE_USER":     "",
-	"MEX_AZURE_PASS":     "",
+var azureProps = map[string]*mexos.PropertyInfo{
+	"MEX_AZURE_LOCATION": &mexos.PropertyInfo{
+		Value: "",
+	},
+	"MEX_AZURE_USER": &mexos.PropertyInfo{
+		Value: "",
+	},
+	"MEX_AZURE_PASS": &mexos.PropertyInfo{
+		Value:  "",
+		Secret: true,
+	},
 }
 
 func (s *Platform) GetType() string {
@@ -49,7 +56,7 @@ func (s *Platform) Init(ctx context.Context, platformConfig *platform.PlatformCo
 	mexos.SetPropsFromVars(ctx, s.envVars, platformConfig.EnvVars)
 
 	s.config = *platformConfig
-	s.props.Location = s.envVars["MEX_AZURE_LOCATION"]
+	s.props.Location = s.envVars["MEX_AZURE_LOCATION"].Value
 	if s.props.Location == "" {
 		return fmt.Errorf("Env variable MEX_AZURE_LOCATION not set")
 	}
@@ -59,11 +66,11 @@ func (s *Platform) Init(ctx context.Context, platformConfig *platform.PlatformCo
 				return fmt.Errorf("Env variable MEX_AZURE_RESOURCE_GROUP not set")
 	                }
 	*/
-	s.props.UserName = s.envVars["MEX_AZURE_USER"]
+	s.props.UserName = s.envVars["MEX_AZURE_USER"].Value
 	if s.props.UserName == "" {
 		return fmt.Errorf("Env variable MEX_AZURE_USER not set, check contents of MEXENV_URL")
 	}
-	s.props.Password = s.envVars["MEX_AZURE_PASS"]
+	s.props.Password = s.envVars["MEX_AZURE_PASS"].Value
 	if s.props.Password == "" {
 		return fmt.Errorf("Env variable MEX_AZURE_PASS not set, check contents of MEXENV_URL")
 	}

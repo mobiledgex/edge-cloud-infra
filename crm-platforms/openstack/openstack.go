@@ -27,7 +27,7 @@ type Platform struct {
 	vaultConfig *vault.Config
 	openRCVars  map[string]string
 	commonPf    mexos.CommonPlatform
-	envVars     map[string]string
+	envVars     map[string]*mexos.PropertyInfo
 }
 
 func (s *Platform) GetType() string {

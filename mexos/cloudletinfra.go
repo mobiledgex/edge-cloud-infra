@@ -107,23 +107,23 @@ func SetPropsFromVars(ctx context.Context, props map[string]*PropertyInfo, vars 
 	for k, v := range props {
 		if val, ok := vars[k]; ok {
 			if props[k].Secret {
-				log.SpanLog(ctx, log.DebugLevelMexos, "set infra property from vars", "key", k, "val", "*****")
+				log.SpanLog(ctx, log.DebugLevelMexos, "set infra property (secret) from vars", "key", k)
 			} else {
 				log.SpanLog(ctx, log.DebugLevelMexos, "set infra property from vars", "key", k, "val", val)
 			}
 			props[k].Value = val
 		} else if val, ok := os.LookupEnv(k); ok {
 			if props[k].Secret {
-				log.SpanLog(ctx, log.DebugLevelMexos, "set infra property from env", "key", k, "val", "****")
+				log.SpanLog(ctx, log.DebugLevelMexos, "set infra property (secret) from env", "key", k)
 			} else {
 				log.SpanLog(ctx, log.DebugLevelMexos, "set infra property from env", "key", k, "val", val)
 			}
 			props[k].Value = val
 		} else {
 			if props[k].Secret {
-				log.SpanLog(ctx, log.DebugLevelMexos, "using default infra property", "key", k, "val", "****")
+				log.SpanLog(ctx, log.DebugLevelMexos, "using default infra property (secret)", "key", k)
 			} else {
-				log.SpanLog(ctx, log.DebugLevelMexos, "using default infra property", "key", k, "val", v)
+				log.SpanLog(ctx, log.DebugLevelMexos, "using default infra property", "key", k, "val", v.Value)
 			}
 		}
 	}

@@ -47,12 +47,8 @@ var gcpProps = map[string]*mexos.PropertyInfo{
 	"MEX_GCP_PROJECT": &mexos.PropertyInfo{
 		Value: "still-entity-201400",
 	},
-	"MEX_GCP_ZONE": &mexos.PropertyInfo{
-		Value: "",
-	},
-	"MEX_GCP_SERVICE_ACCOUNT": &mexos.PropertyInfo{
-		Value: "",
-	},
+	"MEX_GCP_ZONE":            &mexos.PropertyInfo{},
+	"MEX_GCP_SERVICE_ACCOUNT": &mexos.PropertyInfo{},
 	"MEX_GCP_AUTH_KEY_PATH": &mexos.PropertyInfo{
 		Value: "/secret/data/cloudlet/gcp/auth_key.json",
 	},

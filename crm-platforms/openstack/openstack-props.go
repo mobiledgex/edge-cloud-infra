@@ -43,12 +43,8 @@ var openstackProps = map[string]*mexos.PropertyInfo{
 	"FLAVOR_MATCH_PATTERN": &mexos.PropertyInfo{
 		Value: ".*",
 	},
-	"MEX_CRM_GATEWAY_ADDR": &mexos.PropertyInfo{
-		Value: "",
-	},
-	"MEX_EXTERNAL_IP_MAP": &mexos.PropertyInfo{
-		Value: "",
-	},
+	"MEX_CRM_GATEWAY_ADDR": &mexos.PropertyInfo{},
+	"MEX_EXTERNAL_IP_MAP":  &mexos.PropertyInfo{},
 	"MEX_SHARED_ROOTLB_RAM": &mexos.PropertyInfo{
 		Value: "4096",
 	},
@@ -61,15 +57,9 @@ var openstackProps = map[string]*mexos.PropertyInfo{
 	"MEX_NETWORK_SCHEME": &mexos.PropertyInfo{
 		Value: "name=mex-k8s-net-1,cidr=10.101.X.0/24",
 	},
-	"OS_PROJECT_NAME": &mexos.PropertyInfo{
-		Value: "",
-	},
-	"MEX_COMPUTE_AVAILABILITY_ZONE": &mexos.PropertyInfo{
-		Value: "",
-	},
-	"MEX_VOLUME_AVAILABILITY_ZONE": &mexos.PropertyInfo{
-		Value: "",
-	},
+	"OS_PROJECT_NAME":               &mexos.PropertyInfo{},
+	"MEX_COMPUTE_AVAILABILITY_ZONE": &mexos.PropertyInfo{},
+	"MEX_VOLUME_AVAILABILITY_ZONE":  &mexos.PropertyInfo{},
 	"MEX_IMAGE_DISK_FORMAT": &mexos.PropertyInfo{
 		Value: mexos.ImageFormatQcow2,
 	},

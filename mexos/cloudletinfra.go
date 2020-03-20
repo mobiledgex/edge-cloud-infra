@@ -24,15 +24,10 @@ type PropertyInfo struct {
 var infraCommonProps = map[string]*PropertyInfo{
 	// Property: Default-Value
 	"MEX_CF_KEY": &PropertyInfo{
-		Value:  "",
 		Secret: true,
 	},
-	"MEX_CF_USER": &PropertyInfo{
-		Value: "",
-	},
-	"MEX_EXTERNAL_IP_MAP": &PropertyInfo{
-		Value: "",
-	},
+	"MEX_CF_USER":         &PropertyInfo{},
+	"MEX_EXTERNAL_IP_MAP": &PropertyInfo{},
 	"MEX_REGISTRY_FILE_SERVER": &PropertyInfo{
 		Value: "registry.mobiledgex.net",
 	},

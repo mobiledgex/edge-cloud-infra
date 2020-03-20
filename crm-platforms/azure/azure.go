@@ -25,14 +25,9 @@ type Platform struct {
 }
 
 var azureProps = map[string]*mexos.PropertyInfo{
-	"MEX_AZURE_LOCATION": &mexos.PropertyInfo{
-		Value: "",
-	},
-	"MEX_AZURE_USER": &mexos.PropertyInfo{
-		Value: "",
-	},
+	"MEX_AZURE_LOCATION": &mexos.PropertyInfo{},
+	"MEX_AZURE_USER":     &mexos.PropertyInfo{},
 	"MEX_AZURE_PASS": &mexos.PropertyInfo{
-		Value:  "",
 		Secret: true,
 	},
 }

@@ -1,0 +1,49 @@
+---
+- name: Install apidocs scripts
+  copy:
+    src: "{{ item }}"
+    dest: "{{ apidocs_script_dir }}"
+    mode: 0555
+  become: yes
+  loop: "{{ apidocs_scripts }}"
+
+- name: Install swagger generation cron script
+  template:
+    src: "{{ swagger_cron_script_template }}"
+    dest: "{{ swagger_cron_script }}"
+    mode: 0555
+  become: yes
+
+- name: Install the code samples
+  copy:
+    src: apidocs/code-samples
+    dest: "{{ swagger_base_dir }}"
+  when: upload_code_samples|bool
+
+- name: Upload the logo
+  copy:
+    src: apidocs/logo.svg
+    dest: "{{ swagger_base_dir }}"
+  when: upload_logo|bool
+
+- name: Launch the Redoc UI containers
+  docker_container:
+    name: "redoc-{{ item.name }}"
+    image: "redocly/redoc:{{ redoc_version }}"
+    restart_policy: unless-stopped
+    ports:
+      - "127.0.0.1:{{ item.port }}:80"
+    env:
+      SPEC_URL: "/swagger/{{ item.name }}.swagger.json"
+      PAGE_TITLE: "{{ item.title }}"
+      PAGE_FAVICON: "{{ favicon }}"
+      REDOC_OPTIONS: 'sort-props-alphabetically="true"'
+    timeout: 180
+  loop: "{{ containers }}"
+
+- name: Install the swagger update cronjob
+  cron:
+    name: Swagger update
+    minute: 0
+    hour: 14
+    job: "{{ swagger_cron_script }} >>{{ ansible_env.HOME }}/{{ swagger_cron_script | basename }}.log 2>&1"

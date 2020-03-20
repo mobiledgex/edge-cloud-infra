@@ -8,6 +8,8 @@ vault_github_teams:
       - default
 
 vault_github_users:
+  - userid: bibingeorge1986
+    role: cloudlet_admin
   - userid: gainsley
     role: admin
   - userid: jlmorris3827

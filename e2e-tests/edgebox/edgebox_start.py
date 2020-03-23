@@ -96,7 +96,7 @@ def getLdapPassFromKeychain(vault, user):
     if len(out) < 1:
         print("\nConsole password for user \"{0}\" not found in Keychain".format(user))
         print("To add password to keychain, do the following:")
-        print("  security add-internet-password -a \"{0}\" -s {1} -T "" -w".format(
+        print("  security add-internet-password -a \"{0}\" -s {1} -T \"\" -w".format(
             user, keychain_path))
         sys.exit(2)
 

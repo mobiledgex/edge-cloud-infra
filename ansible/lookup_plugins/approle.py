@@ -144,6 +144,7 @@ class LookupModule(LookupBase):
         display.vvv("Vault token: {0}".format(vault_token))
 
         lookup_id = kwargs.get('id', role_name)
+        revoke_old = kwargs.get('revoke_old', 'yes')
         token_scope = kwargs.get('scope', None)
         if token_scope:
             scope_val = self._templar.template(myvars.get(token_scope))
@@ -156,7 +157,11 @@ class LookupModule(LookupBase):
         resp.update(lookup('secret-id'))
 
         accessor = resp.pop('secret_id_accessor')
-        self._store_accessor(vault_addr, vault_token, role_name, accessor, lookup_id)
+        if revoke_old == 'yes':
+            # Revoke old secret and store accessor for current
+            self._store_accessor(vault_addr, vault_token, role_name, accessor, lookup_id)
+        else:
+            display.v("NOT storing accessor or revoking old secret")
 
         ret.append(resp)
 

@@ -13,7 +13,7 @@
 
 - name: Fetch CRM vault role
   set_fact:
-    crm_role: "{{ lookup('approle', 'crm.v1', scope='region') }}"
+    crm_role: "{{ lookup('approle', 'crm.v1', revoke_old='no') }}"
 
 - name: Deploy the Mex Controller
   k8s:

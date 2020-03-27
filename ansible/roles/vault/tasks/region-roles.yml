@@ -11,7 +11,7 @@
     policies:
       - approle.login.v1
       - registry.read.v1
-      - "{{ region_prefix }}.cloudlets.write.v1"
+      - "{{ region_prefix }}.cloudlets.delete.v1"
       - "{{ region_prefix }}.accounts.read.v1"
     token_type: batch
 

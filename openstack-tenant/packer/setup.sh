@@ -12,13 +12,15 @@ TMPLOG="/var/tmp/creation_log.txt"
 exec &> >(tee "$TMPLOG")
 
 [[ "$TRACE" == yes ]] && set -x
+set -ex
 
 sudo mkdir -p "$LOGDIR"
 sudo chmod 700 "$LOGDIR"
 
 # Move log file into 
 archive_log() {
-	sudo mv "$LOGFILE" "${LOGFILE}.$( date +'%Y-%m-%d-%H%M' )" 2>/dev/null
+	[[ -f "$LOGFILE" ]] \
+		&& sudo mv "$LOGFILE" "${LOGFILE}.$( date +'%Y-%m-%d-%H%M' )"
 	sudo mv "$TMPLOG" "$LOGFILE"
 }
 trap 'archive_log' EXIT
@@ -62,7 +64,7 @@ download_artifactory_file() {
 	log "Downloading $arturl"
 	sudo curl -s -u "$ARTIFACTORY_CREDS" -o "$dst" "$arturl"
 	sudo test -f "$dst" || die "Failed to download file: $arturl"
-	[[ -n "$mode" ]] && sudo chmod "$mode" "$dst"
+	[[ -z "$mode" ]] || sudo chmod "$mode" "$dst"
 }
 
 # Main
@@ -118,6 +120,7 @@ deb https://${APT_USER}:${APT_PASS}@apt.mobiledgex.net stratus-deps main
 deb https://${APT_USER}:${APT_PASS}@artifactory.mobiledgex.net/artifactory/ubuntu xenial main restricted universe multiverse
 deb https://${APT_USER}:${APT_PASS}@artifactory.mobiledgex.net/artifactory/ubuntu xenial-updates main restricted universe multiverse
 deb https://${APT_USER}:${APT_PASS}@artifactory.mobiledgex.net/artifactory/ubuntu-security xenial-security main restricted universe multiverse
+deb https://${APT_USER}:${APT_PASS}@apt.mobiledgex.net/nvidia main main
 EOT
 
 log "Disable cloud config overwrite of APT sources"

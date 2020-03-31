@@ -36,21 +36,25 @@ crm_instances:
     openstack_instance: buckhorn
     operator_key: GDDT
     controller_region: EU
+    notify_srv_port: 51091
 
   - cloudlet_name: "{{ deploy_target }}-hawkins-cloudlet"
     crm_name: "crm-{{ deploy_target }}-hawkins"
     openstack_instance: hawkins
     operator_key: GDDT
     controller_region: EU
+    notify_srv_port: 51092
 
   - cloudlet_name: "{{ deploy_target }}-fairview-cloudlet"
     crm_name: "crm-{{ deploy_target }}-fairview"
     openstack_instance: fairview
     operator_key: GDDT
     controller_region: EU
+    notify_srv_port: 51093
 
   - cloudlet_name: "{{ deploy_target }}-beacon-cloudlet"
     crm_name: "crm-{{ deploy_target }}-beacon"
     openstack_instance: beacon
     operator_key: GDDT
     controller_region: EU
+    notify_srv_port: 51094

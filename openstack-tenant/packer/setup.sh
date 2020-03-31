@@ -12,7 +12,7 @@ TMPLOG="/var/tmp/creation_log.txt"
 exec &> >(tee "$TMPLOG")
 
 [[ "$TRACE" == yes ]] && set -x
-set -ex
+set -e
 
 sudo mkdir -p "$LOGDIR"
 sudo chmod 700 "$LOGDIR"

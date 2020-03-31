@@ -50,7 +50,7 @@
       - shepherd
       # notifyAddr is localhost because use use host networking for docker containers
       - "--notifyAddrs"
-      - "localhost:{{ notify_port }}"
+      - "localhost:{{ item.notify_srv_port | default(notify_port) }}"
       - "--tls"
       - "/root/tls/mex-server.crt"
       - "--platform"

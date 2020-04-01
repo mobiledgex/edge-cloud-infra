@@ -50,7 +50,7 @@
       - shepherd
       # notifyAddr is localhost because use use host networking for docker containers
       - "--notifyAddrs"
-      - "localhost:{{ notify_port }}"
+      - "localhost:{{ item.notify_srv_port | default(notify_port) }}"
       - "--tls"
       - "/root/tls/mex-server.crt"
       - "--platform"
@@ -58,7 +58,9 @@
       - "--vaultAddr"
       - "https://{{ vault_vm_hostname }}:{{ vault_port }}"
       - "--cloudletKey"
-      - "{\\\"operator_key\\\":{\\\"name\\\":\\\"{{ item.operator_key | mandatory }}\\\"},\\\"name\\\":\\\"{{ item.cloudlet_name }}\\\"}"
+      - "{\\\"organization\\\":\\\"{{ item.operator_key | mandatory }}\\\",\\\"name\\\":\\\"{{ item.cloudlet_name }}\\\"}"
+      - "--region"
+      - "{{ item.controller_region }}"
       - "-d"
       - "api,notify,mexos,metrics"
 

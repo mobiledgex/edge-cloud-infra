@@ -127,11 +127,15 @@ def fix_go_swagger_summaries(sw):
             if summary and summary.endswith('.'):
                 sw['paths'][path][op]['summary'] = summary.rstrip('.')
 
+def set_host(sw, host):
+    sw["host"] = host
+
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("--samples", "-s", help="Code samples directory")
     parser.add_argument("--version", "-v", help="Version string, if not present in swagger",
                         default="1.0")
+    parser.add_argument("--host", help="API host")
     args = parser.parse_args()
 
     sw = json.load(sys.stdin)
@@ -144,6 +148,8 @@ def main():
     set_required_params(sw)
     add_logo(sw)
     set_version(sw, args.version)
+    if args.host:
+        set_host(sw, args.host)
 
     print(json.dumps(sw, indent=2))
 

@@ -17,6 +17,7 @@
       - influxdb-internal.read.v1
       - registry.read.v1
       - sys-auth.read.v1
+      - sys-mounts.read.v1
       - sys-policies.read.v1
     token_type: batch
     token_ttl: 1800   # seconds = 30 minutes

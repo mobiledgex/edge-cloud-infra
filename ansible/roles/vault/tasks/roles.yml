@@ -22,27 +22,6 @@
     token_type: batch
     token_ttl: 1800   # seconds = 30 minutes
 
-- name: autoprov.v1 role
-  vault_role:
-    name: autoprov.v1
-    policies:
-      - approle.login.v1
-      - influxdb.read.v1
-    token_type: batch
-
-- name: crm.v1 role
-  vault_role:
-    name: crm.v1
-    policies:
-      - approle.login.v1
-      - certs.read.v1
-      - cloudlets.write.v1
-      - gcp-auth.read.v1
-      - mexenv.read.v1
-      - registry.read.v1
-      - influxdb.read.v1
-    token_type: batch
-
 - name: mcorm.v1 role
   vault_role:
     name: mcorm.v1
@@ -51,7 +30,7 @@
       - influxdb.read.v1
       - mcorm-jwtkeys.read.v1
       - noreplyemail.read.v1
-      - pki-global-issue.v1
+      - pki-global.issue.v1
       - registry.read.v1
     token_type: batch
 
@@ -68,7 +47,7 @@
     name: notifyroot.v1
     policies:
       - approle.login.v1
-      - pki-global-issue.v1
+      - pki-global.issue.v1
 
 - include_role:
     name: vault

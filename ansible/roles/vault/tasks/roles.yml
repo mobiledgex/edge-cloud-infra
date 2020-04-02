@@ -51,6 +51,7 @@
       - influxdb.read.v1
       - mcorm-jwtkeys.read.v1
       - noreplyemail.read.v1
+      - pki-global-issue.v1
       - registry.read.v1
     token_type: batch
 
@@ -61,6 +62,13 @@
       - approle.login.v1
       - mexenv.read.v1
     token_type: batch
+
+- name: notifyroot.v1 role
+  vault_role:
+    name: notifyroot.v1
+    policies:
+      - approle.login.v1
+      - pki-global-issue.v1
 
 - include_role:
     name: vault

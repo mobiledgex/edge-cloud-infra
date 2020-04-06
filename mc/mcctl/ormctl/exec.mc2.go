@@ -186,7 +186,7 @@ var ExecRequestAliasArgs = []string{
 	"console.url=execrequest.console.url",
 	"timeout=execrequest.timeout",
 	"webrtc=execrequest.webrtc",
-	"accesstoken=execrequest.accesstoken",
+	"accessurl=execrequest.accessurl",
 	"edgeturnaddr=execrequest.edgeturnaddr",
 }
 var ExecRequestComments = map[string]string{
@@ -209,7 +209,7 @@ var ExecRequestComments = map[string]string{
 	"console.url":  "VM Console URL",
 	"timeout":      "Timeout",
 	"webrtc":       "WebRTC",
-	"accesstoken":  "Access Token",
+	"accessurl":    "Access URL",
 	"edgeturnaddr": "EdgeTurn Server Address",
 }
 var ExecRequestSpecialArgs = map[string]string{}

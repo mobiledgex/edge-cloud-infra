@@ -902,6 +902,7 @@ func (s *Platform) getClusterParams(ctx context.Context, clusterInst *edgeproto.
 	// this is a hopefully short term workaround to a Contrail bug in which DNS resolution
 	// breaks when the DNS server is specified in the subnet on creation.  The workaround is to
 	// use cloud-init to specify the DNS server in the VM rather than the subnet.
+	// See EDGECLOUD-2420 for details
 	dns := []string{"1.1.1.1", "1.0.0.1"}
 	if s.GetSubnetDNS() == mexos.NoSubnetDNS {
 		log.SpanLog(ctx, log.DebugLevelMexos, "subnet DNS is NONE, using VM DNS", "dns", dns)

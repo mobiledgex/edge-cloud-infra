@@ -175,7 +175,7 @@ func (c *CommonPlatform) InitInfraCommon(ctx context.Context, platformConfig *pf
 	if err != nil {
 		return fmt.Errorf("unable to init Mapped IPs: %v", err)
 	}
-	c.RootLBName = c.GetRootLBName(c.PlatformConfig.CloudletKey)
+	c.SharedRootLBName = c.GetRootLBName(c.PlatformConfig.CloudletKey)
 	return nil
 }
 

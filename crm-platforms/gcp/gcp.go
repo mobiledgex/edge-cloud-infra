@@ -127,7 +127,3 @@ func (g *GCPPlatform) GatherCloudletInfo(ctx context.Context, info *edgeproto.Cl
 func (g *GCPPlatform) GetPlatformClient(ctx context.Context, clusterInst *edgeproto.ClusterInst) (ssh.Client, error) {
 	return &pc.LocalClient{}, nil
 }
-
-func (g *GCPPlatform) GetPlatformClientRootLB(ctx context.Context, rootLBName string) (ssh.Client, error) {
-	return &pc.LocalClient{}, nil
-}

@@ -132,11 +132,6 @@ func (c *CommonPlatform) GetCloudletSecurityGroupName() string {
 	return c.Properties["MEX_SECURITY_GROUP"].Value
 }
 
-//GetCloudletExternalRouter returns default MEX external router name
-func (c *CommonPlatform) GetCloudletExternalRouter() string {
-	return c.Properties["MEX_ROUTER"].Value
-}
-
 func (c *CommonPlatform) GetCloudletExternalNetwork() string {
 	return c.Properties["MEX_EXT_NETWORK"].Value
 }

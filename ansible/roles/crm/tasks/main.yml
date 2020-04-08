@@ -39,7 +39,7 @@
   set_fact:
     crm_role: "{{ lookup('approle', crm_role_name, id=crm_name) }}"
   vars:
-    crm_role_name: "{{ region | lower }}.crm.v1"
+    crm_role_name: "{{ item.controller_region | lower }}.crm.v1"
 
 - name: Compute CRM command line
   set_fact:

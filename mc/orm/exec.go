@@ -69,11 +69,10 @@ func RunWebrtcStream(c echo.Context) error {
 		if reply.Err != "" {
 			return nil, nil, fmt.Errorf("%s", reply.Err)
 		}
-		if reply.Answer == "" {
-			return nil, nil, fmt.Errorf("empty answer")
-		}
-
 		if offer != nil {
+			if reply.Answer == "" {
+				return nil, nil, fmt.Errorf("empty answer")
+			}
 			answer := webrtc.SessionDescription{}
 			err = json.Unmarshal([]byte(reply.Answer), &answer)
 			if err != nil {

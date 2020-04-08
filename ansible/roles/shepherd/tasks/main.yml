@@ -42,7 +42,9 @@
 
 - name: Fetch shepherd vault role
   set_fact:
-    crm_role: "{{ lookup('approle', 'crm.v1', id=shepherd_name) }}"
+    crm_role: "{{ lookup('approle', crm_role_name, id=shepherd_name) }}"
+  vars:
+    crm_role_name: "{{ region | lower }}.crm.v1"
 
 - name: Compute shepherd command line
   set_fact:

@@ -1,6 +1,12 @@
+- name: Fetch cluster_svc vault role
+  set_fact:
+    cluster_svc_role: "{{ lookup('approle', cluster_svc_role_name) }}"
+  vars:
+    cluster_svc_role_name: "{{ region | lower }}.cluster-svc.v1"
+
 - name: Deploy Cluster Service
   k8s:
     kubeconfig: "{{ kubeconfig_file.path }}"
     namespace: default
     state: present
-    definition: "{{ lookup('template', 'mexplat/mex-cluster-svc-deploy.yml.j2') }}"
+    definition: "{{ lookup('template', 'deploy.yml.j2') }}"

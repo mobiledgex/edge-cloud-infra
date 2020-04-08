@@ -1,0 +1,11 @@
+- name: "Create PKI roles for {{ region.region }}"
+  vault_pki_role:
+    path: "{{ pki_name }}"
+    rolename: "{{ region.region }}"
+    allowed_domains: "{{ cloudflare_zone }}"
+    allowed_uri_sans: "region://{{ region.region }}"
+  loop:
+    - "{{ pki_regional }}"
+    - "{{ pki_regional_cloudlet }}"
+  loop_control:
+    loop_var: pki_name

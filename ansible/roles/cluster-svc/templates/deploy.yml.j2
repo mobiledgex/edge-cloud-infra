@@ -24,6 +24,10 @@ spec:
          - "controller:37001"
          - "--ctrlAddrs"
          - "controller:55001"
+         - "--region"
+         - "{{ region }}"
+         - "--vaultAddr"
+         - "https://{{ vault_vm_hostname }}:{{ vault_port }}"
          - "--d"
          - "mexos,notify,api"
          - "--tls"
@@ -38,5 +42,9 @@ spec:
            value: "{{ jaeger_endpoint }}"
          - name: JAEGER_TAGS
            value: "environ={{ deploy_environ }},version={{ edge_cloud_version }}"
+         - name: VAULT_ROLE_ID
+           value: "{{ cluster_svc_role.role_id }}"
+         - name: VAULT_SECRET_ID
+           value: "{{ cluster_svc_role.secret_id }}"
       imagePullSecrets:
        - name: mexreg-secret 

@@ -37,7 +37,9 @@
 
 - name: Fetch CRM vault role
   set_fact:
-    crm_role: "{{ lookup('approle', 'crm.v1', id=crm_name) }}"
+    crm_role: "{{ lookup('approle', crm_role_name, id=crm_name) }}"
+  vars:
+    crm_role_name: "{{ region | lower }}.crm.v1"
 
 - name: Compute CRM command line
   set_fact:

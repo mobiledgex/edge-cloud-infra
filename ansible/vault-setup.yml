@@ -4,6 +4,9 @@
     - import_role:
         name: vault
         tasks_from: load-token
+      tags:
+        - setup
+        - pki
 
 - hosts: localhost
   gather_facts: no
@@ -11,6 +14,10 @@
     github_org: mobiledgex
     github_token_ttl: 900 # seconds
     ldap_token_ttl: 900 # seconds
+    ca_ttl: "{{ 60 * 60 * 24 * 365 * 20 }}"    # 20 years
+    pki_global: pki-global
+    pki_regional: pki-regional
+    pki_regional_cloudlet: pki-regional-cloudlet
   module_defaults:
     vault_policy:
       vault_addr: "{{ vault_address }}"
@@ -19,6 +26,12 @@
       vault_addr: "{{ vault_address }}"
       vault_token: "{{ vault_token }}"
     vault_api:
+      vault_addr: "{{ vault_address }}"
+      vault_token: "{{ vault_token }}"
+    vault_pki:
+      vault_addr: "{{ vault_address }}"
+      vault_token: "{{ vault_token }}"
+    vault_pki_role:
       vault_addr: "{{ vault_address }}"
       vault_token: "{{ vault_token }}"
 
@@ -190,3 +203,56 @@
       tags:
         - roles
         - setup
+
+    - name: Set up PKI
+      block:
+
+      - name: Enable root CA
+        vault_pki:
+          path: pki
+          max_lease_ttl: "{{ ca_ttl }}"
+
+      - name: Get root CA cert
+        vault_api:
+          api: pki/ca/pem
+          success_code:
+            - 200
+            - 204
+          raw_response: yes
+        register: result
+
+      - name: Generate root cert
+        vault_api:
+          api: pki/root/generate/internal
+          method: POST
+          data:
+            common_name: root
+            ou: "{{ deploy_environ }}"
+            ttl: "{{ ca_ttl }}"
+        when: result.meta.response == ""
+
+      - include_role:
+          name: vault
+          tasks_from: intermediate-ca
+        loop:
+          - "{{ pki_global }}"
+          - "{{ pki_regional }}"
+          - "{{ pki_regional_cloudlet }}"
+        loop_control:
+          loop_var: pki_name
+
+      - name: "Create PKI role for {{ pki_global }}"
+        vault_pki_role:
+          path: "{{ pki_global }}"
+          rolename: default
+          allowed_domains: "{{ cloudflare_zone }}"
+          allowed_uri_sans: "region://none"
+
+      - include_role:
+          name: vault
+          tasks_from: pki-region-roles
+        loop: "{{ regions }}"
+        loop_control:
+          loop_var: region
+
+      tags: pki

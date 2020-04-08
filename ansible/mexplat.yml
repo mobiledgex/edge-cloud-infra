@@ -170,6 +170,10 @@
 - hosts: notifyroot
   tasks:
     - import_role:
+        name: vault
+        tasks_from: load-token
+      delegate_to: localhost
+    - import_role:
         name: telegraf
       tags: [ 'monitoring', 'setup' ]
     - import_role:

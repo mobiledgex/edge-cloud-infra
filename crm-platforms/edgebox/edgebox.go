@@ -4,7 +4,7 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/mobiledgex/edge-cloud-infra/mexos"
+	"github.com/mobiledgex/edge-cloud-infra/infracommon"
 	"github.com/mobiledgex/edge-cloud/cloud-resource-manager/platform"
 	"github.com/mobiledgex/edge-cloud/cloud-resource-manager/platform/dind"
 	"github.com/mobiledgex/edge-cloud/cloudcommon"
@@ -18,60 +18,48 @@ import (
 // mex-specific behavior, such as setting up DNS and
 // registry.mobiledgex.net access secrets.
 
-type Platform struct {
+type EdgeboxPlatform struct {
 	generic       dind.Platform
-	config        platform.PlatformConfig
-	vaultConfig   *vault.Config
 	NetworkScheme string
-	commonPf      mexos.CommonPlatform
-	envVars       map[string]*mexos.PropertyInfo
+	commonPf      infracommon.CommonPlatform
 }
 
-var edgeboxProps = map[string]*mexos.PropertyInfo{
-	"MEX_NETWORK_SCHEME": &mexos.PropertyInfo{
+var edgeboxProps = map[string]*infracommon.PropertyInfo{
+	"MEX_NETWORK_SCHEME": &infracommon.PropertyInfo{
 		Value: cloudcommon.NetworkSchemePrivateIP,
 	},
 }
 
-func (s *Platform) GetType() string {
+func (e *EdgeboxPlatform) GetType() string {
 	return "edgebox"
 }
 
-func (s *Platform) Init(ctx context.Context, platformConfig *platform.PlatformConfig, updateCallback edgeproto.CacheUpdateCallback) error {
-	err := s.generic.Init(ctx, platformConfig, updateCallback)
-	s.config = *platformConfig
-	if err != nil {
-		return err
-	}
-
+func (e *EdgeboxPlatform) Init(ctx context.Context, platformConfig *platform.PlatformConfig, updateCallback edgeproto.CacheUpdateCallback) error {
+	err := e.generic.Init(ctx, platformConfig, updateCallback)
 	// Set the test Mode based on what is in PlatformConfig
-	mexos.SetTestMode(platformConfig.TestMode)
+	infracommon.SetTestMode(platformConfig.TestMode)
 
 	vaultConfig, err := vault.BestConfig(platformConfig.VaultAddr)
 	if err != nil {
 		return err
 	}
-	s.vaultConfig = vaultConfig
 
-	if err := s.commonPf.InitInfraCommon(ctx, vaultConfig, platformConfig.EnvVars); err != nil {
+	if err := e.commonPf.InitInfraCommon(ctx, platformConfig, edgeboxProps, vaultConfig, e, nil); err != nil {
 		return err
 	}
 
-	s.envVars = edgeboxProps
-	mexos.SetPropsFromVars(ctx, s.envVars, platformConfig.EnvVars)
-
-	s.NetworkScheme = s.GetCloudletNetworkScheme()
-	if s.NetworkScheme != cloudcommon.NetworkSchemePrivateIP &&
-		s.NetworkScheme != cloudcommon.NetworkSchemePublicIP {
-		return fmt.Errorf("Unsupported network scheme for DIND: %s", s.NetworkScheme)
+	e.NetworkScheme = e.commonPf.GetCloudletNetworkScheme()
+	if e.NetworkScheme != cloudcommon.NetworkSchemePrivateIP &&
+		e.NetworkScheme != cloudcommon.NetworkSchemePublicIP {
+		return fmt.Errorf("Unsupported network scheme for DIND: %s", e.NetworkScheme)
 	}
 
 	fqdn := cloudcommon.GetRootLBFQDN(platformConfig.CloudletKey)
-	ipaddr, err := s.GetDINDServiceIP(ctx)
+	ipaddr, err := e.GetDINDServiceIP(ctx)
 	if err != nil {
 		return fmt.Errorf("init cannot get service ip, %s", err.Error())
 	}
-	if err := s.commonPf.ActivateFQDNA(ctx, fqdn, ipaddr); err != nil {
+	if err := e.commonPf.ActivateFQDNA(ctx, fqdn, ipaddr); err != nil {
 		log.SpanLog(ctx, log.DebugLevelMexos, "error in ActivateFQDNA", "err", err)
 		return err
 	}
@@ -79,14 +67,14 @@ func (s *Platform) Init(ctx context.Context, platformConfig *platform.PlatformCo
 	return nil
 }
 
-func (s *Platform) GetCloudletNetworkScheme() string {
-	return s.envVars["MEX_NETWORK_SCHEME"].Value
+func (e *EdgeboxPlatform) GetCloudletNetworkScheme() string {
+	return e.commonPf.Properties["MEX_NETWORK_SCHEME"].Value
 }
 
-func (s *Platform) GatherCloudletInfo(ctx context.Context, info *edgeproto.CloudletInfo) error {
-	return s.generic.GatherCloudletInfo(ctx, info)
+func (e *EdgeboxPlatform) GatherCloudletInfo(ctx context.Context, info *edgeproto.CloudletInfo) error {
+	return e.generic.GatherCloudletInfo(ctx, info)
 }
 
-func (s *Platform) GetPlatformClient(ctx context.Context, clusterInst *edgeproto.ClusterInst) (ssh.Client, error) {
-	return s.generic.GetPlatformClient(ctx, clusterInst)
+func (e *EdgeboxPlatform) GetPlatformClient(ctx context.Context, clusterInst *edgeproto.ClusterInst) (ssh.Client, error) {
+	return e.generic.GetPlatformClient(ctx, clusterInst)
 }

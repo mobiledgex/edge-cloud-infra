@@ -6,7 +6,7 @@ import (
 	"strings"
 	"sync"
 
-	"github.com/mobiledgex/edge-cloud-infra/mexos"
+	"github.com/mobiledgex/edge-cloud-infra/infracommon"
 	"github.com/mobiledgex/edge-cloud/cloud-resource-manager/access"
 	"github.com/mobiledgex/edge-cloud/cloud-resource-manager/dockermgmt"
 	"github.com/mobiledgex/edge-cloud/cloud-resource-manager/k8smgmt"
@@ -14,6 +14,7 @@ import (
 	dme "github.com/mobiledgex/edge-cloud/d-match-engine/dme-proto"
 	"github.com/mobiledgex/edge-cloud/edgeproto"
 	"github.com/mobiledgex/edge-cloud/log"
+	"github.com/mobiledgex/edge-cloud/util"
 	"github.com/mobiledgex/edge-cloud/vault"
 	ssh "github.com/mobiledgex/golang-ssh"
 )
@@ -46,8 +47,8 @@ func setCachedCloudletSecgrpID(ctx context.Context, keyString, groupID string) {
 
 // GetCloudletSecurityGroupID gets the group ID for the default cloudlet-wide group for our project.  It handles
 // duplicate names.  This group should not be used for application traffic, it is for management/OAM/CRM access.
-func (s *Platform) GetCloudletSecurityGroupID(ctx context.Context, cloudletKey *edgeproto.CloudletKey) (string, error) {
-	groupName := s.GetCloudletSecurityGroupName()
+func (s *OpenstackPlatform) GetCloudletSecurityGroupID(ctx context.Context, cloudletKey *edgeproto.CloudletKey) (string, error) {
+	groupName := s.commonPf.GetCloudletSecurityGroupName()
 	keyString := cloudletKey.GetKeyString()
 
 	log.SpanLog(ctx, log.DebugLevelMexos, "GetCloudletSecurityGroupID", "groupName", groupName, "keyString", keyString)
@@ -81,9 +82,9 @@ func (s *Platform) GetCloudletSecurityGroupID(ctx context.Context, cloudletKey *
 	return "", fmt.Errorf("Unable to find cloudlet security group for project: %s", projectName)
 }
 
-func (s *Platform) AddSecurityRules(ctx context.Context, groupName string, ports []dme.AppPort, serverName string) error {
+func (s *OpenstackPlatform) AddSecurityRules(ctx context.Context, groupName string, ports []dme.AppPort, serverName string) error {
 	log.SpanLog(ctx, log.DebugLevelMexos, "AddSecurityRules", "ports", ports)
-	allowedClientCIDR := mexos.GetAllowedClientCIDR()
+	allowedClientCIDR := infracommon.GetAllowedClientCIDR()
 	for _, port := range ports {
 		//todo: distinguish already-exists errors from others
 		portString := fmt.Sprintf("%d", port.PublicPort)
@@ -104,7 +105,7 @@ func (s *Platform) AddSecurityRules(ctx context.Context, groupName string, ports
 // AddSecurityRuleCIDRWithRetry calls AddSecurityRuleCIDR, and then will retry if that fails because the group does not exist.  This can happen during
 // the transition between cloudlet-wide security groups and the newer per-LB groups.  Eventually this function can be removed once all LBs have been
 // updated with the per-cluster group
-func (s *Platform) AddSecurityRuleCIDRWithRetry(ctx context.Context, cidr string, proto string, group string, port string, serverName string) error {
+func (s *OpenstackPlatform) AddSecurityRuleCIDRWithRetry(ctx context.Context, cidr string, proto string, group string, port string, serverName string) error {
 	err := s.AddSecurityRuleCIDR(ctx, cidr, proto, group, port)
 	if err != nil {
 		if strings.Contains(err.Error(), "No SecurityGroup found") {
@@ -112,7 +113,7 @@ func (s *Platform) AddSecurityRuleCIDRWithRetry(ctx context.Context, cidr string
 			log.SpanLog(ctx, log.DebugLevelMexos, "security group does not exist, creating it", "groupName", group)
 
 			// LB can have multiple ports attached.  We need to assign this SG to the external network port only
-			ports, err := s.ListPortsServerNetwork(ctx, serverName, s.GetCloudletExternalNetwork())
+			ports, err := s.ListPortsServerNetwork(ctx, serverName, s.commonPf.GetCloudletExternalNetwork())
 			if err != nil {
 				return err
 			}
@@ -134,7 +135,7 @@ func (s *Platform) AddSecurityRuleCIDRWithRetry(ctx context.Context, cidr string
 	return err
 }
 
-func (s *Platform) DeleteProxySecurityGroupRules(ctx context.Context, client ssh.Client, name string, groupName string, ports []dme.AppPort, app *edgeproto.App, serverName string) error {
+func (s *OpenstackPlatform) DeleteProxySecurityGroupRules(ctx context.Context, client ssh.Client, name string, groupName string, ports []dme.AppPort, app *edgeproto.App, serverName string) error {
 	log.SpanLog(ctx, log.DebugLevelMexos, "DeleteProxySecurityGroupRules", "name", name, "ports", ports)
 	if app.InternalPorts {
 		log.SpanLog(ctx, log.DebugLevelMexos, "app is internal, nothing to delete")
@@ -144,7 +145,7 @@ func (s *Platform) DeleteProxySecurityGroupRules(ctx context.Context, client ssh
 	if err != nil {
 		log.SpanLog(ctx, log.DebugLevelMexos, "cannot delete proxy", "name", name, "error", err)
 	}
-	allowedClientCIDR := mexos.GetAllowedClientCIDR()
+	allowedClientCIDR := infracommon.GetAllowedClientCIDR()
 	rules, err := s.ListSecurityGroupRules(ctx, groupName)
 	if err != nil {
 		return err
@@ -176,7 +177,7 @@ type ProxyDnsSecOpts struct {
 }
 
 // AddProxySecurityRulesAndPatchDNS Adds security rules and dns records in parallel
-func (s *Platform) AddProxySecurityRulesAndPatchDNS(ctx context.Context, client ssh.Client, kubeNames *k8smgmt.KubeNames, app *edgeproto.App, appInst *edgeproto.AppInst, getDnsSvcAction mexos.GetDnsSvcActionFunc, rootLBName, listenIP, backendIP string, ops ProxyDnsSecOpts, vaultConfig *vault.Config, proxyops ...proxy.Op) error {
+func (s *OpenstackPlatform) AddProxySecurityRulesAndPatchDNS(ctx context.Context, client ssh.Client, kubeNames *k8smgmt.KubeNames, app *edgeproto.App, appInst *edgeproto.AppInst, getDnsSvcAction infracommon.GetDnsSvcActionFunc, rootLBName, listenIP, backendIP string, ops ProxyDnsSecOpts, vaultConfig *vault.Config, proxyops ...proxy.Op) error {
 	secchan := make(chan string)
 	dnschan := make(chan string)
 	proxychan := make(chan string)
@@ -237,6 +238,20 @@ func (s *Platform) AddProxySecurityRulesAndPatchDNS(ctx context.Context, client 
 
 	if proxyerr != "" || secerr != "" || dnserr != "" {
 		return fmt.Errorf("AddProxySecurityRulesAndPatchDNS error -- proxyerr: %v secerr: %v dnserr: %v", proxyerr, secerr, dnserr)
+	}
+	return nil
+}
+
+func (s *OpenstackPlatform) WhitelistSecurityRules(ctx context.Context, serverName, allowedCidr string, ports []util.PortSpec) error {
+	// open the firewall for internal traffic
+	log.SpanLog(ctx, log.DebugLevelMexos, "WhitelistSecurityRules", "serverName", serverName, "allowedCidr", allowedCidr, "ports", ports)
+	groupName := s.commonPf.GetServerSecurityGroupName(serverName)
+
+	for _, p := range ports {
+		portString := fmt.Sprintf("%d", p)
+		if err := s.AddSecurityRuleCIDRWithRetry(ctx, allowedCidr, p.Proto, groupName, portString, serverName); err != nil {
+			return err
+		}
 	}
 	return nil
 }

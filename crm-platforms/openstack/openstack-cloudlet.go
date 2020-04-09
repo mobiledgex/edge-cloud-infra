@@ -281,24 +281,24 @@ func (o *OpenstackPlatform) setupPlatformVM(ctx context.Context, cloudlet *edgep
 		return nil, fmt.Errorf("unable to find matching vm spec for platform: %v", err)
 	}
 
-	pfImageName, err := o.AddImageIfNotPresent(ctx, pfConfig.CloudletVmImagePath, cloudlet.VmImageVersion, updateCallback)
+	pfImageName, err := o.AddCloudletImageIfNotPresent(ctx, pfConfig.CloudletVmImagePath, cloudlet.VmImageVersion, updateCallback)
 	if err != nil {
 		return nil, err
 	}
 
 	// Form platform VM name based on cloudletKey
 	platform_vm_name := o.getPlatformVMName(&cloudlet.Key)
-	secGrp := GetSecurityGroupName(ctx, platform_vm_name)
+	secGrp := o.commonPf.GetServerSecurityGroupName(platform_vm_name)
 
 	vmp, err := o.GetVMParams(ctx,
-		PlatformVMDeployment,
+		infracommon.PlatformVMDeployment,
 		platform_vm_name,
 		vmspec.FlavorName,
 		vmspec.ExternalVolumeSize,
 		pfImageName,
 		secGrp,
 		&cloudlet.Key,
-		WithAccessPorts("tcp:22"),
+		infracommon.WithAccessPorts("tcp:22"),
 	)
 	if err != nil {
 		return nil, fmt.Errorf("unable to get vm params: %v", err)
@@ -535,7 +535,7 @@ func getCRMPkgVersion(ctx context.Context, client ssh.Client) (string, error) {
 	return out, nil
 }
 
-func upgradeCloudletPkgs(ctx context.Context, vmType DeploymentType, cloudlet *edgeproto.Cloudlet, pfConfig *edgeproto.PlatformConfig, vaultConfig *vault.Config, client ssh.Client, updateCallback edgeproto.CacheUpdateCallback) error {
+func upgradeCloudletPkgs(ctx context.Context, vmType infracommon.DeploymentType, cloudlet *edgeproto.Cloudlet, pfConfig *edgeproto.PlatformConfig, vaultConfig *vault.Config, client ssh.Client, updateCallback edgeproto.CacheUpdateCallback) error {
 	log.SpanLog(ctx, log.DebugLevelMexos, "Updating apt package lists", "cloudletName", cloudlet.Key.Name, "vmType", vmType)
 	if out, err := client.Output("sudo apt-get update"); err != nil {
 		return fmt.Errorf("Failed to update apt package lists, %v, %v", out, err)
@@ -580,9 +580,9 @@ func (o *OpenstackPlatform) UpdateCloudlet(ctx context.Context, cloudlet *edgepr
 	if err != nil {
 		return defCloudletAction, err
 	}
-	upgradeMap := map[DeploymentType]ssh.Client{
-		PlatformVMDeployment: pfClient,
-		RootLBVMDeployment:   rlbClient,
+	upgradeMap := map[infracommon.DeploymentType]ssh.Client{
+		infracommon.PlatformVMDeployment: pfClient,
+		infracommon.RootLBVMDeployment:   rlbClient,
 	}
 	for vmType, client := range upgradeMap {
 		if cloudlet.PackageVersion == "" {

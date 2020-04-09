@@ -13,42 +13,46 @@ import (
 
 	"github.com/mobiledgex/edge-cloud/cloud-resource-manager/platform"
 	pf "github.com/mobiledgex/edge-cloud/cloud-resource-manager/platform"
+	dme "github.com/mobiledgex/edge-cloud/d-match-engine/dme-proto"
 	"github.com/mobiledgex/edge-cloud/edgeproto"
 	"github.com/mobiledgex/edge-cloud/log"
-	"github.com/mobiledgex/edge-cloud/util"
+
 	"github.com/mobiledgex/edge-cloud/vault"
 	"github.com/mobiledgex/edge-cloud/vmspec"
 	ssh "github.com/mobiledgex/golang-ssh"
 )
 
+const ServerDoesNotExistError string = "Server does not exist"
+
 type InfraProvider interface {
 	NameSanitize(string) string
-	AddImageIfNotPresent(ctx context.Context, imgPathPrefix, imgVersion string, updateCallback edgeproto.CacheUpdateCallback) (string, error)
-	GetPlatformClientRootLB(ctx context.Context, rootLBName string) (ssh.Client, error)
+	AddCloudletImageIfNotPresent(ctx context.Context, imgPathPrefix, imgVersion string, updateCallback edgeproto.CacheUpdateCallback) (string, error)
+	AddAppImageIfNotPresent(ctx context.Context, app *edgeproto.App, updateCallback edgeproto.CacheUpdateCallback) error
 	GetServerDetail(ctx context.Context, serverName string) (*ServerDetail, error)
-	GetIPFromServerDetails(ctx, serverDetail *ServerDetail) (ServerIP, error)
 	GetIPFromServerName(ctx context.Context, networkName, serverName string) (*ServerIP, error)
 	GetClusterMasterNameAndIP(ctx context.Context, clusterInst *edgeproto.ClusterInst) (string, string, error)
-	GetClusterMaster(ctx context.Context, clusterInst *edgeproto.ClusterInst) (*ServerDetail, error)
 	AttachPortToServer(ctx context.Context, serverName, portName string) error
 	DetachPortFromServer(ctx context.Context, serverName, portName string) error
 	AddSecurityRuleCIDRWithRetry(ctx context.Context, cidr string, proto string, group string, port string, serverName string) error
+	CreateAppVM(ctx context.Context, vmAppParams *VMParams, updateCallback edgeproto.CacheUpdateCallback) error
+	CreateAppVMWithRootLB(ctx context.Context, vmAppParams, vmLbParams *VMParams, updateCallback edgeproto.CacheUpdateCallback) error
 	CreateRootLBVM(ctx context.Context, serverName, stackName, imgName string, vmspec *vmspec.VMCreationSpec, cloudletKey *edgeproto.CloudletKey, updateCallback edgeproto.CacheUpdateCallback) error
 	CreateClusterVMs(ctx context.Context, clusterInst *edgeproto.ClusterInst, privacyPolicy *edgeproto.PrivacyPolicy, rootLBName string, imgName string, dedicatedRootLB bool, updateCallback edgeproto.CacheUpdateCallback) error
 	UpdateClusterVMs(ctx context.Context, clusterInst *edgeproto.ClusterInst, privacyPolicy *edgeproto.PrivacyPolicy, rootLBName string, imgName string, dedicatedRootLB bool, updateCallback edgeproto.CacheUpdateCallback) error
-	DeleteClusterVMs(ctx context.Context, client ssh.Client, clusterInst *edgeproto.ClusterInst, updateCallback edgeproto.CacheUpdateCallback) error
+	DeleteClusterResources(ctx context.Context, client ssh.Client, clusterInst *edgeproto.ClusterInst) error
+	DeleteResources(ctx context.Context, resourceGroupName string) error
 	NetworkSetupForRootLB(ctx context.Context, client ssh.Client, rootLBName string) error
-	WhitelistSecurityRules(ctx context.Context, serverName string, allowedCIDR string, ports []util.PortSpec) error
-	Init(ctx context.Context) error // note must call prep network
-	Resync(ctx context.Context)
+	WhitelistSecurityRules(ctx context.Context, secGrpName string, serverName string, allowedCIDR string, ports []dme.AppPort) error
+	RemoveWhitelistSecurityRules(ctx context.Context, secGrpName string, allowedCIDR string, ports []dme.AppPort) error
+	GetVMParams(ctx context.Context, depType DeploymentType, serverName, flavorName string, externalVolumeSize uint64, imageName, secGrp string, cloudletKey *edgeproto.CloudletKey, opts ...VMParamsOp) (*VMParams, error)
+	Resync(ctx context.Context) error
 }
 
-/*
 // CommonInfraPlatform embeds Platform and InfraProvider
 type CommonPlatformProvider interface {
 	platform.Platform
 	InfraProvider
-}*/
+}
 
 type CommonPlatform struct {
 	Properties        map[string]*PropertyInfo
@@ -56,10 +60,10 @@ type CommonPlatform struct {
 	SharedRootLBName  string
 	SharedRootLB      *MEXRootLB
 	FlavorList        []*edgeproto.FlavorInfo
-	Platform          platform.Platform
-	PlatformConfig    *platform.PlatformConfig
-	VaultConfig       *vault.Config
-	infraProvider     InfraProvider
+	//Platform          platform.Platform
+	PlatformConfig *platform.PlatformConfig
+	VaultConfig    *vault.Config
+	infraProvider  CommonPlatformProvider
 }
 
 var MEXInfraVersion = "3.0.3"
@@ -117,14 +121,13 @@ func SetPropsFromVars(ctx context.Context, props map[string]*PropertyInfo, vars 
 	}
 }
 
-func (c *CommonPlatform) InitInfraCommon(ctx context.Context, platformConfig *pf.PlatformConfig, platformSpecificProps map[string]*PropertyInfo, vaultConfig *vault.Config, platform pf.Platform, provider InfraProvider) error {
+func (c *CommonPlatform) InitInfraCommon(ctx context.Context, platformConfig *pf.PlatformConfig, platformSpecificProps map[string]*PropertyInfo, vaultConfig *vault.Config, provider CommonPlatformProvider) error {
 	if vaultConfig.Addr == "" {
 		return fmt.Errorf("vaultAddr is not specified")
 	}
 	// set default properties
 	c.Properties = infraCommonProps
 	c.PlatformConfig = platformConfig
-	c.Platform = platform
 	c.VaultConfig = vaultConfig
 	c.infraProvider = provider
 

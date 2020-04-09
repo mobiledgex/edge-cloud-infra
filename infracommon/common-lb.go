@@ -11,10 +11,11 @@ import (
 
 	valid "github.com/asaskevich/govalidator"
 	"github.com/mobiledgex/edge-cloud/cloud-resource-manager/platform/pc"
+	"github.com/mobiledgex/edge-cloud/cloud-resource-manager/proxy"
 	"github.com/mobiledgex/edge-cloud/cloudcommon"
+	dme "github.com/mobiledgex/edge-cloud/d-match-engine/dme-proto"
 	"github.com/mobiledgex/edge-cloud/edgeproto"
 	"github.com/mobiledgex/edge-cloud/log"
-	"github.com/mobiledgex/edge-cloud/util"
 	"github.com/mobiledgex/edge-cloud/vmspec"
 	ssh "github.com/mobiledgex/golang-ssh"
 )
@@ -24,9 +25,9 @@ var udevRulesFile = "/etc/udev/rules.d/70-persistent-net.rules"
 var actionAdd string = "ADD"
 var actionDelete string = "DELETE"
 
-var RootLBPorts = []util.PortSpec{{
-	Port:  fmt.Sprintf("%d", cloudcommon.RootLBL7Port),
-	Proto: "tcp",
+var RootLBPorts = []dme.AppPort{{
+	PublicPort: cloudcommon.RootLBL7Port,
+	Proto:      dme.LProto_L_PROTO_TCP,
 }}
 
 // creates entries in the 70-persistent-net.rules files to ensure the interface names are consistent after reboot
@@ -270,13 +271,11 @@ func (c *CommonPlatform) AttachAndEnableRootLBInterface(ctx context.Context, cli
 	if err != nil {
 		return err
 	}
-
 	deterr := c.infraProvider.DetachPortFromServer(ctx, rootLBName, internalPortName)
 	if deterr != nil {
 		log.SpanLog(ctx, log.DebugLevelMexos, "fail to detach port", "err", deterr)
-	}
-	return err
 
+	}
 	err = c.configureInternalInterfaceAndExternalForwarding(ctx, client, internalPortName, sd, actionAdd)
 	if err != nil {
 		deterr := c.infraProvider.DetachPortFromServer(ctx, rootLBName, internalPortName)
@@ -389,7 +388,7 @@ func (c *CommonPlatform) CreateRootLB(
 	if c.GetCloudletExternalNetwork() == "" {
 		return fmt.Errorf("enable rootlb, missing external network in manifest")
 	}
-	imgName, err := c.infraProvider.AddImageIfNotPresent(ctx, imgPath, imgVersion, updateCallback)
+	imgName, err := c.infraProvider.AddCloudletImageIfNotPresent(ctx, imgPath, imgVersion, updateCallback)
 	if err != nil {
 		log.InfoLog("error with RootLB VM image", "name", rootLB.Name, "imgName", imgName, "error", err)
 		return err
@@ -473,7 +472,7 @@ func (c *CommonPlatform) SetupRootLB(
 	if err != nil {
 		return fmt.Errorf("failed to NetworkSetupForRootLB %v", err)
 	}
-	err = c.infraProvider.WhitelistSecurityRules(ctx, rootLBName, GetAllowedClientCIDR(), RootLBPorts)
+	err = c.infraProvider.WhitelistSecurityRules(ctx, c.GetServerSecurityGroupName(rootLBName), rootLBName, GetAllowedClientCIDR(), RootLBPorts)
 	if err != nil {
 		return fmt.Errorf("failed to WhitelistSecurityRules %v", err)
 	}
@@ -560,4 +559,15 @@ func (c *CommonPlatform) GetPlatformClientRootLB(ctx context.Context, rootLBName
 		return nil, fmt.Errorf("GetPlatformClientRootLB, missing external network in platform config")
 	}
 	return c.GetSSHClient(ctx, rootLBName, c.GetCloudletExternalNetwork(), SSHUser)
+}
+
+func (c *CommonPlatform) DeleteProxySecurityGroupRules(ctx context.Context, client ssh.Client, proxyName string, secGrpName string, ports []dme.AppPort, app *edgeproto.App, serverName string) error {
+	log.SpanLog(ctx, log.DebugLevelMexos, "DeleteProxySecurityGroupRules", "proxyName", proxyName, "ports", ports)
+
+	err := proxy.DeleteNginxProxy(ctx, client, proxyName)
+	if err != nil {
+		log.SpanLog(ctx, log.DebugLevelMexos, "cannot delete proxy", "proxyName", proxyName, "error", err)
+	}
+	allowedClientCIDR := GetAllowedClientCIDR()
+	return c.infraProvider.RemoveWhitelistSecurityRules(ctx, secGrpName, allowedClientCIDR, ports)
 }

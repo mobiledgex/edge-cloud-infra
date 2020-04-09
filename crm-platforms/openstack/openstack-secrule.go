@@ -7,27 +7,15 @@ import (
 	"sync"
 
 	"github.com/mobiledgex/edge-cloud-infra/infracommon"
-	"github.com/mobiledgex/edge-cloud/cloud-resource-manager/access"
-	"github.com/mobiledgex/edge-cloud/cloud-resource-manager/dockermgmt"
-	"github.com/mobiledgex/edge-cloud/cloud-resource-manager/k8smgmt"
-	"github.com/mobiledgex/edge-cloud/cloud-resource-manager/proxy"
 	dme "github.com/mobiledgex/edge-cloud/d-match-engine/dme-proto"
 	"github.com/mobiledgex/edge-cloud/edgeproto"
 	"github.com/mobiledgex/edge-cloud/log"
-	"github.com/mobiledgex/edge-cloud/util"
-	"github.com/mobiledgex/edge-cloud/vault"
-	ssh "github.com/mobiledgex/golang-ssh"
 )
 
 // CloudletSecurityGroupIDMap is a cache of cloudlet to security group id
 var CloudletSecurityGroupIDMap = make(map[string]string)
 
 var cloudetSecurityGroupIDLock sync.Mutex
-
-// GetSecurityGroupName gets the secgrp name based on the server name
-func GetSecurityGroupName(ctx context.Context, serverName string) string {
-	return serverName + "-sg"
-}
 
 func getCachedCloudletSecgrpID(ctx context.Context, keyString string) string {
 	cloudetSecurityGroupIDLock.Lock()
@@ -135,18 +123,11 @@ func (s *OpenstackPlatform) AddSecurityRuleCIDRWithRetry(ctx context.Context, ci
 	return err
 }
 
-func (s *OpenstackPlatform) DeleteProxySecurityGroupRules(ctx context.Context, client ssh.Client, name string, groupName string, ports []dme.AppPort, app *edgeproto.App, serverName string) error {
-	log.SpanLog(ctx, log.DebugLevelMexos, "DeleteProxySecurityGroupRules", "name", name, "ports", ports)
-	if app.InternalPorts {
-		log.SpanLog(ctx, log.DebugLevelMexos, "app is internal, nothing to delete")
-		return nil
-	}
-	err := proxy.DeleteNginxProxy(ctx, client, name)
-	if err != nil {
-		log.SpanLog(ctx, log.DebugLevelMexos, "cannot delete proxy", "name", name, "error", err)
-	}
+func (s *OpenstackPlatform) RemoveWhitelistSecurityRules(ctx context.Context, secGrpName string, allowedCIDR string, ports []dme.AppPort) error {
+	log.SpanLog(ctx, log.DebugLevelMexos, "RemoveWhitelistSecurityRules", "secGrpName", secGrpName, "ports", ports)
+
 	allowedClientCIDR := infracommon.GetAllowedClientCIDR()
-	rules, err := s.ListSecurityGroupRules(ctx, groupName)
+	rules, err := s.ListSecurityGroupRules(ctx, secGrpName)
 	if err != nil {
 		return err
 	}
@@ -170,86 +151,17 @@ func (s *OpenstackPlatform) DeleteProxySecurityGroupRules(ctx context.Context, c
 	return nil
 }
 
-type ProxyDnsSecOpts struct {
-	AddProxy              bool
-	AddDnsAndPatchKubeSvc bool
-	AddSecurityRules      bool
-}
-
-// AddProxySecurityRulesAndPatchDNS Adds security rules and dns records in parallel
-func (s *OpenstackPlatform) AddProxySecurityRulesAndPatchDNS(ctx context.Context, client ssh.Client, kubeNames *k8smgmt.KubeNames, app *edgeproto.App, appInst *edgeproto.AppInst, getDnsSvcAction infracommon.GetDnsSvcActionFunc, rootLBName, listenIP, backendIP string, ops ProxyDnsSecOpts, vaultConfig *vault.Config, proxyops ...proxy.Op) error {
-	secchan := make(chan string)
-	dnschan := make(chan string)
-	proxychan := make(chan string)
-
-	log.SpanLog(ctx, log.DebugLevelMexos, "AddProxySecurityRulesAndPatchDNS", "appname", kubeNames.AppName, "rootLBName", rootLBName, "listenIP", listenIP, "backendIP", backendIP, "ops", ops)
-	if len(appInst.MappedPorts) == 0 {
-		log.SpanLog(ctx, log.DebugLevelMexos, "no ports for application, no DNS, LB or Security rules needed", "appname", kubeNames.AppName)
-		return nil
-	}
-	configs := append(app.Configs, appInst.Configs...)
-	aac, err := access.GetAppAccessConfig(ctx, configs)
-	if err != nil {
-		return err
-	}
-	go func() {
-		if ops.AddProxy {
-			// TODO update certs once AppAccessConfig functionality is added back
-			/*if aac.LbTlsCertCommonName != "" {
-			        ... get cert here
-			}*/
-			proxyerr := proxy.CreateNginxProxy(ctx, client, dockermgmt.GetContainerName(&app.Key), listenIP, backendIP, appInst.MappedPorts, proxyops...)
-			if proxyerr == nil {
-				proxychan <- ""
-			} else {
-				proxychan <- proxyerr.Error()
-			}
-		} else {
-			proxychan <- ""
-		}
-	}()
-	go func() {
-		if ops.AddSecurityRules {
-			err := s.AddSecurityRules(ctx, GetSecurityGroupName(ctx, rootLBName), appInst.MappedPorts, rootLBName)
-			if err == nil {
-				secchan <- ""
-			} else {
-				secchan <- err.Error()
-			}
-		} else {
-			secchan <- ""
-		}
-	}()
-	go func() {
-		if ops.AddDnsAndPatchKubeSvc {
-			err := s.commonPf.CreateAppDNSAndPatchKubeSvc(ctx, client, kubeNames, aac.DnsOverride, getDnsSvcAction)
-			if err == nil {
-				dnschan <- ""
-			} else {
-				dnschan <- err.Error()
-			}
-		} else {
-			dnschan <- ""
-		}
-	}()
-	proxyerr := <-proxychan
-	secerr := <-secchan
-	dnserr := <-dnschan
-
-	if proxyerr != "" || secerr != "" || dnserr != "" {
-		return fmt.Errorf("AddProxySecurityRulesAndPatchDNS error -- proxyerr: %v secerr: %v dnserr: %v", proxyerr, secerr, dnserr)
-	}
-	return nil
-}
-
-func (s *OpenstackPlatform) WhitelistSecurityRules(ctx context.Context, serverName, allowedCidr string, ports []util.PortSpec) error {
+func (s *OpenstackPlatform) WhitelistSecurityRules(ctx context.Context, grpName, serverName, allowedCidr string, ports []dme.AppPort) error {
 	// open the firewall for internal traffic
-	log.SpanLog(ctx, log.DebugLevelMexos, "WhitelistSecurityRules", "serverName", serverName, "allowedCidr", allowedCidr, "ports", ports)
-	groupName := s.commonPf.GetServerSecurityGroupName(serverName)
+	log.SpanLog(ctx, log.DebugLevelMexos, "WhitelistSecurityRules", "grpName", grpName, "allowedCidr", allowedCidr, "ports", ports)
 
 	for _, p := range ports {
-		portString := fmt.Sprintf("%d", p)
-		if err := s.AddSecurityRuleCIDRWithRetry(ctx, allowedCidr, p.Proto, groupName, portString, serverName); err != nil {
+		portStr := fmt.Sprintf("%d", p.PublicPort)
+		proto, err := edgeproto.L4ProtoStr(p.Proto)
+		if err != nil {
+			return err
+		}
+		if err := s.AddSecurityRuleCIDRWithRetry(ctx, allowedCidr, proto, grpName, portStr, serverName); err != nil {
 			return err
 		}
 	}

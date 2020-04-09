@@ -13,6 +13,7 @@ import (
 	"github.com/mobiledgex/edge-cloud/edgeproto"
 	"github.com/mobiledgex/edge-cloud/log"
 	"github.com/mobiledgex/edge-cloud/vault"
+	"github.com/mobiledgex/edge-cloud/vmspec"
 	ssh "github.com/mobiledgex/golang-ssh"
 )
 
@@ -42,7 +43,7 @@ func (o *OpenstackPlatform) Init(ctx context.Context, platformConfig *platform.P
 	log.SpanLog(ctx, log.DebugLevelMexos, "vault auth", "type", vaultConfig.Auth.Type())
 
 	updateCallback(edgeproto.UpdateTask, "Fetching Openstack access credentials")
-	if err := o.commonPf.InitInfraCommon(ctx, platformConfig, openstackProps, vaultConfig, o, nil); err != nil {
+	if err := o.commonPf.InitInfraCommon(ctx, platformConfig, openstackProps, vaultConfig, o); err != nil {
 		return err
 	}
 
@@ -125,4 +126,91 @@ func (o *OpenstackPlatform) GetPlatformClient(ctx context.Context, clusterInst *
 		rootLBName = cloudcommon.GetDedicatedLBFQDN(o.commonPf.PlatformConfig.CloudletKey, &clusterInst.Key.ClusterKey)
 	}
 	return o.commonPf.GetPlatformClientRootLB(ctx, rootLBName)
+}
+
+func (o *OpenstackPlatform) DeleteResources(ctx context.Context, resourceGroupName string) error {
+	return o.HeatDeleteStack(ctx, resourceGroupName)
+}
+
+func (o *OpenstackPlatform) GetServerDetail(ctx context.Context, serverName string) (*infracommon.ServerDetail, error) {
+	var sd infracommon.ServerDetail
+
+	osd, err := o.GetOpenstackServerDetails(ctx, serverName)
+	if err != nil {
+		return nil, err
+	}
+	sd.Name = osd.Name
+	sd.ID = osd.ID
+	sd.Status = osd.Status
+	err = o.UpdateServerIPsFromAddrs(ctx, osd.Addresses, &sd)
+	if err != nil {
+		log.SpanLog(ctx, log.DebugLevelMexos, "unable to update server IPs", "sd", sd, "err", err)
+		return &sd, fmt.Errorf("unable to update server IPs -- %v", err)
+	}
+	return &sd, nil
+}
+
+func (o *OpenstackPlatform) CreateAppVM(ctx context.Context, vmAppParams *infracommon.VMParams, updateCallback edgeproto.CacheUpdateCallback) error {
+	return fmt.Errorf("not implemented")
+}
+
+func (o *OpenstackPlatform) CreateAppVMWithRootLB(ctx context.Context, vmAppParams, vmLbParams *infracommon.VMParams, updateCallback edgeproto.CacheUpdateCallback) error {
+	return o.HeatCreateAppVMWithRootLB(ctx, vmAppParams, vmLbParams, updateCallback)
+}
+
+func (o *OpenstackPlatform) CreateRootLBVM(ctx context.Context, serverName, stackName, imgName string, vmspec *vmspec.VMCreationSpec, cloudletKey *edgeproto.CloudletKey, updateCallback edgeproto.CacheUpdateCallback) error {
+	return fmt.Errorf("not implemented")
+}
+
+func (o *OpenstackPlatform) CreateClusterVMs(ctx context.Context, clusterInst *edgeproto.ClusterInst, privacyPolicy *edgeproto.PrivacyPolicy, rootLBName string, imgName string, dedicatedRootLB bool, updateCallback edgeproto.CacheUpdateCallback) error {
+	return o.HeatCreateCluster(ctx, clusterInst, privacyPolicy, rootLBName, imgName, dedicatedRootLB, updateCallback)
+}
+
+func (o *OpenstackPlatform) UpdateClusterVMs(ctx context.Context, clusterInst *edgeproto.ClusterInst, privacyPolicy *edgeproto.PrivacyPolicy, rootLBName string, imgName string, dedicatedRootLB bool, updateCallback edgeproto.CacheUpdateCallback) error {
+	return o.HeatUpdateCluster(ctx, clusterInst, privacyPolicy, rootLBName, imgName, dedicatedRootLB, updateCallback)
+}
+
+func (o *OpenstackPlatform) DeleteClusterResources(ctx context.Context, client ssh.Client, clusterInst *edgeproto.ClusterInst) error {
+	return fmt.Errorf("not implemented")
+}
+
+func (o *OpenstackPlatform) Resync(ctx context.Context) error {
+	return fmt.Errorf("not implemented")
+}
+
+// UpdateServerIPsFromAddrs gets the ServerIPs forthe given network from the addresses provided
+func (o *OpenstackPlatform) UpdateServerIPsFromAddrs(ctx context.Context, addresses string, serverDetail *infracommon.ServerDetail) error {
+
+	log.SpanLog(ctx, log.DebugLevelMexos, "UpdateServerIPsFromAddrs", "addresses", addresses, "serverDetail", serverDetail)
+	its := strings.Split(addresses, ";")
+
+	for _, it := range its {
+		var serverIP infracommon.ServerIP
+		sits := strings.Split(it, "=")
+		if len(sits) != 2 {
+			return fmt.Errorf("GetServerIPFromAddrs: Unable to parse '%s'", it)
+		}
+		network := sits[0]
+		serverIP.Network = network
+		addr := sits[1]
+		// the comma indicates a floating IP is present.
+		if strings.Contains(addr, ",") {
+			addrs := strings.Split(addr, ",")
+			if len(addrs) == 2 {
+				serverIP.InternalAddr = strings.TrimSpace(addrs[0])
+				serverIP.ExternalAddr = strings.TrimSpace(addrs[1])
+				serverIP.ExternalAddrIsFloating = true
+			} else {
+				return fmt.Errorf("GetServerExternalIPFromAddr: Unable to parse '%s'", addr)
+			}
+		} else {
+			// no floating IP, internal and external are the same
+			addr = strings.TrimSpace(addr)
+			serverIP.InternalAddr = addr
+			serverIP.ExternalAddr = addr
+		}
+		serverDetail.Addresses = append(serverDetail.Addresses, serverIP)
+	}
+	log.SpanLog(ctx, log.DebugLevelMexos, "Updated ServerIPS", "serverDetail", serverDetail)
+	return nil
 }

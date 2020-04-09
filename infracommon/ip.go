@@ -17,6 +17,7 @@ type ServerIP struct {
 	MacAddress             string
 	InternalAddr           string // this is the address used inside the server
 	ExternalAddr           string // this is external with respect to the server, not necessarily internet reachable.  Can be a floating IP
+	Network                string
 	ExternalAddrIsFloating bool
 }
 
@@ -33,8 +34,6 @@ type NetSpecInfo struct {
 	VnicType          string
 	RouterGatewayIP   string
 }
-
-const ClusterNotFoundErr string = "cluster not found"
 
 //ParseNetSpec decodes netspec string
 //TODO: IPv6
@@ -107,40 +106,4 @@ func ParseNetSpec(ctx context.Context, netSpec string) (*NetSpecInfo, error) {
 func GetAllowedClientCIDR() string {
 	//XXX TODO get real list of allowed clients from remote database or template configuration
 	return "0.0.0.0/0"
-}
-
-// GetServerIPFromAddrs gets the ServerIP forthe given network from the addresses provided
-func GetServerIPFromAddrs(ctx context.Context, networkName, addresses, serverName string) (*ServerIP, error) {
-	var serverIP ServerIP
-	its := strings.Split(addresses, ";")
-	for _, it := range its {
-		sits := strings.Split(it, "=")
-		if len(sits) != 2 {
-			return &serverIP, fmt.Errorf("GetServerIPFromAddrs: Unable to parse '%s'", it)
-		}
-		if strings.Contains(sits[0], networkName) {
-			addr := sits[1]
-			// the comma indicates a floating IP is present.
-			if strings.Contains(addr, ",") {
-				addrs := strings.Split(addr, ",")
-				if len(addrs) == 2 {
-					serverIP.InternalAddr = strings.TrimSpace(addrs[0])
-					serverIP.ExternalAddr = strings.TrimSpace(addrs[1])
-					serverIP.ExternalAddrIsFloating = true
-				} else {
-					return &serverIP, fmt.Errorf("GetServerExternalIPFromAddr: Unable to parse '%s'", addr)
-				}
-			} else {
-				// no floating IP, internal and external are the same
-				addr = strings.TrimSpace(addr)
-				serverIP.InternalAddr = addr
-				serverIP.ExternalAddr = addr
-			}
-			log.SpanLog(ctx, log.DebugLevelMexos, "retrieved server ipaddr", "ipaddr", addr, "netname", networkName, "servername", serverName)
-			return &serverIP, nil
-		}
-	}
-	// this is a bug
-	log.WarnLog("Unable to find network for server", "networkName", networkName, "serverName", serverName)
-	return &serverIP, fmt.Errorf("Unable to find network %s for server %s", networkName, serverName)
 }

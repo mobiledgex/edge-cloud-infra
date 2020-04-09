@@ -5,7 +5,6 @@ import (
 	"context"
 	"fmt"
 	"os"
-	"strconv"
 	"strings"
 	"sync"
 	"text/template"
@@ -16,45 +15,8 @@ import (
 	"github.com/mobiledgex/edge-cloud/cloudcommon"
 	"github.com/mobiledgex/edge-cloud/edgeproto"
 	"github.com/mobiledgex/edge-cloud/log"
-	"github.com/mobiledgex/edge-cloud/util"
 	"github.com/mobiledgex/edge-cloud/vmspec"
 	ssh "github.com/mobiledgex/golang-ssh"
-)
-
-type VMParams struct {
-	VMName                   string
-	FlavorName               string
-	ExternalVolumeSize       uint64
-	SharedVolumeSize         uint64
-	ImageName                string
-	ApplicationSecurityGroup string // access to application ports for VM or RootLB
-	CloudletSecurityGroup    string // SSH access to RootLB for OAM/CRM
-	NetworkName              string
-	SubnetName               string
-	VnicType                 string
-	MEXRouterIP              string
-	GatewayIP                string
-	FloatingIPAddressID      string
-	AuthPublicKey            string
-	AccessPorts              []util.PortSpec
-	DeploymentManifest       string
-	Command                  string
-	IsRootLB                 bool
-	IsInternal               bool
-	ComputeAvailabilityZone  string
-	VolumeAvailabilityZone   string
-	PrivacyPolicy            *edgeproto.PrivacyPolicy
-}
-
-type VMParamsOp func(vmp *VMParams) error
-
-type DeploymentType string
-
-const (
-	RootLBVMDeployment   DeploymentType = "mexrootlb"
-	UserVMDeployment     DeploymentType = "mexuservm"
-	PlatformVMDeployment DeploymentType = "mexplatformvm"
-	SharedCluster        DeploymentType = "sharedcluster"
 )
 
 var heatStackLock sync.Mutex
@@ -262,8 +224,8 @@ type ClusterParams struct {
 	DNSServers            []string
 	Nodes                 []ClusterNode
 	MasterNodeFlavor      string
-	*VMParams             //rootlb
-	VMAppParams           *VMParams
+	*infracommon.VMParams //rootlb
+	VMAppParams           *infracommon.VMParams
 }
 
 var clusterTemplate = `
@@ -527,148 +489,6 @@ func (s *OpenstackPlatform) waitForStack(ctx context.Context, stackname string, 
 	}
 }
 
-func WithPublicKey(authPublicKey string) VMParamsOp {
-	return func(vmp *VMParams) error {
-		if authPublicKey == "" {
-			return nil
-		}
-		convKey, err := util.ConvertPEMtoOpenSSH(authPublicKey)
-		if err != nil {
-			return err
-		}
-		vmp.AuthPublicKey = convKey
-		return nil
-	}
-}
-
-func WithAccessPorts(accessPorts string) VMParamsOp {
-	return func(vmp *VMParams) error {
-		if accessPorts == "" {
-			return nil
-		}
-		parsedAccessPorts, err := util.ParsePorts(accessPorts)
-		if err != nil {
-			return err
-		}
-		for _, port := range parsedAccessPorts {
-			endPort, err := strconv.ParseInt(port.EndPort, 10, 32)
-			if err != nil {
-				return err
-			}
-			if endPort == 0 {
-				port.EndPort = port.Port
-			}
-			vmp.AccessPorts = append(vmp.AccessPorts, port)
-		}
-		return nil
-	}
-}
-
-func WithDeploymentManifest(deploymentManifest string) VMParamsOp {
-	return func(vmp *VMParams) error {
-		vmp.DeploymentManifest = deploymentManifest
-		return nil
-	}
-}
-
-func WithCommand(command string) VMParamsOp {
-	return func(vmp *VMParams) error {
-		vmp.Command = command
-		return nil
-	}
-}
-
-func WithComputeAvailabilityZone(az string) VMParamsOp {
-	return func(vmp *VMParams) error {
-		vmp.ComputeAvailabilityZone = az
-		return nil
-	}
-}
-
-func WithVolumeAvailabilityZone(az string) VMParamsOp {
-	return func(vmp *VMParams) error {
-		vmp.VolumeAvailabilityZone = az
-		return nil
-	}
-}
-
-func WithPrivacyPolicy(pp *edgeproto.PrivacyPolicy) VMParamsOp {
-	return func(vmp *VMParams) error {
-		vmp.PrivacyPolicy = pp
-		return nil
-	}
-}
-
-func (o *OpenstackPlatform) GetVMParams(ctx context.Context, depType DeploymentType, serverName, flavorName string, externalVolumeSize uint64, imageName, secGrp string, cloudletKey *edgeproto.CloudletKey, opts ...VMParamsOp) (*VMParams, error) {
-	var vmp VMParams
-	var err error
-	vmp.VMName = serverName
-	vmp.FlavorName = flavorName
-	vmp.ExternalVolumeSize = externalVolumeSize
-	vmp.ImageName = imageName
-	vmp.ApplicationSecurityGroup = secGrp
-	for _, op := range opts {
-		if err := op(&vmp); err != nil {
-			return nil, err
-		}
-	}
-	if vmp.PrivacyPolicy == nil {
-		vmp.PrivacyPolicy = &edgeproto.PrivacyPolicy{}
-	}
-	ni, err := infracommon.ParseNetSpec(ctx, o.commonPf.GetCloudletNetworkScheme())
-	if err != nil {
-		// The netspec should always be present but is not set when running OpenStack from the controller.
-		// For now, tolerate this as it will work with default settings but not anywhere that requires a non-default
-		// netspec.  TODO This meeds a general fix to allow CreateCloudlet to work with floating IPs.
-		log.SpanLog(ctx, log.DebugLevelMexos, "WARNING, empty netspec")
-	}
-	if depType != UserVMDeployment {
-		vmp.IsInternal = true
-	}
-	if depType == RootLBVMDeployment {
-		vmp.GatewayIP, err = o.GetExternalGateway(ctx, o.commonPf.GetCloudletExternalNetwork())
-		if err != nil {
-			return nil, err
-		}
-		vmp.MEXRouterIP, err = o.GetMexRouterIP(ctx)
-		if err != nil {
-			return nil, err
-		}
-		vmp.IsRootLB = true
-		if cloudletKey == nil {
-			return nil, fmt.Errorf("nil cloudlet key")
-		}
-		cloudletGrp, err := o.GetCloudletSecurityGroupID(ctx, cloudletKey)
-		if err != nil {
-			return nil, err
-		}
-		vmp.CloudletSecurityGroup = cloudletGrp
-
-	}
-	if ni != nil && ni.FloatingIPNet != "" {
-		fips, err := o.ListFloatingIPs(ctx)
-		for _, f := range fips {
-			if f.Port == "" && f.FloatingIPAddress != "" {
-				vmp.FloatingIPAddressID = f.ID
-			}
-		}
-		if vmp.FloatingIPAddressID == "" {
-			return nil, fmt.Errorf("Unable to allocate a floating IP")
-		}
-		if err != nil {
-			return nil, fmt.Errorf("Unable to list floating IPs %v", err)
-		}
-		vmp.NetworkName = ni.FloatingIPNet
-		vmp.SubnetName = ni.FloatingIPSubnet
-	} else {
-		vmp.NetworkName = o.commonPf.GetCloudletExternalNetwork()
-	}
-	if ni != nil {
-		vmp.VnicType = ni.VnicType
-	}
-	return &vmp, nil
-}
-
 func (o *OpenstackPlatform) createOrUpdateHeatStackFromTemplate(ctx context.Context, templateData interface{}, stackName string, templateString string, action string, updateCallback edgeproto.CacheUpdateCallback) error {
 	log.SpanLog(ctx, log.DebugLevelMexos, "createHeatStackFromTemplate", "stackName", stackName)
 
@@ -770,7 +590,7 @@ func (o *OpenstackPlatform) populateCommonClusterParamFields(ctx context.Context
 	nodeIPPrefix := ""
 	found := false
 	cp.MEXNetworkName = o.commonPf.GetCloudletMexNetwork()
-	cp.ApplicationSecurityGroup = GetSecurityGroupName(ctx, rootLBName)
+	cp.ApplicationSecurityGroup = o.commonPf.GetServerSecurityGroupName(rootLBName)
 
 	rtr := o.GetCloudletExternalRouter()
 	if rtr == infracommon.NoConfigExternalRouter {
@@ -854,16 +674,16 @@ func (o *OpenstackPlatform) getClusterParams(ctx context.Context, clusterInst *e
 			flavor = clusterInst.NodeFlavor
 		}
 		cp.VMParams, err = o.GetVMParams(ctx,
-			RootLBVMDeployment,
+			infracommon.RootLBVMDeployment,
 			rootLBName,
 			flavor,
 			clusterInst.ExternalVolumeSize,
 			imgName,
-			GetSecurityGroupName(ctx, rootLBName),
+			o.commonPf.GetServerSecurityGroupName(rootLBName),
 			&clusterInst.Key.CloudletKey,
-			WithComputeAvailabilityZone(clusterInst.AvailabilityZone),
-			WithVolumeAvailabilityZone(o.commonPf.GetCloudletVolumeAvailabilityZone()),
-			WithPrivacyPolicy(privacyPolicy),
+			infracommon.WithComputeAvailabilityZone(clusterInst.AvailabilityZone),
+			infracommon.WithVolumeAvailabilityZone(o.commonPf.GetCloudletVolumeAvailabilityZone()),
+			infracommon.WithPrivacyPolicy(privacyPolicy),
 		)
 		if err != nil {
 			return nil, fmt.Errorf("Unable to get rootlb params: %v", err)
@@ -871,16 +691,16 @@ func (o *OpenstackPlatform) getClusterParams(ctx context.Context, clusterInst *e
 	} else {
 		// we still use the security group from the VM params even for shared
 		cp.VMParams, err = o.GetVMParams(ctx,
-			SharedCluster,
+			infracommon.SharedCluster,
 			"", // no server name since no rootlb
 			clusterInst.NodeFlavor,
 			clusterInst.ExternalVolumeSize,
 			imgName,
-			GetSecurityGroupName(ctx, rootLBName),
+			o.commonPf.GetServerSecurityGroupName(rootLBName),
 			&clusterInst.Key.CloudletKey,
-			WithComputeAvailabilityZone(clusterInst.AvailabilityZone),
-			WithVolumeAvailabilityZone(o.commonPf.GetCloudletVolumeAvailabilityZone()),
-			WithPrivacyPolicy(privacyPolicy),
+			infracommon.WithComputeAvailabilityZone(clusterInst.AvailabilityZone),
+			infracommon.WithVolumeAvailabilityZone(o.commonPf.GetCloudletVolumeAvailabilityZone()),
+			infracommon.WithPrivacyPolicy(privacyPolicy),
 		)
 		if err != nil {
 			return nil, fmt.Errorf("Unable to get shared VM params: %v", err)
@@ -938,16 +758,16 @@ func (o *OpenstackPlatform) HeatCreateRootLBVM(ctx context.Context, serverName, 
 		imgName = o.commonPf.GetCloudletOSImage()
 	}
 	vmp, err := o.GetVMParams(ctx,
-		RootLBVMDeployment,
+		infracommon.RootLBVMDeployment,
 		serverName,
 		vmspec.FlavorName,
 		vmspec.ExternalVolumeSize,
 		imgName,
-		GetSecurityGroupName(ctx, serverName),
+		o.commonPf.GetServerSecurityGroupName(serverName),
 		cloudletKey,
-		WithComputeAvailabilityZone(vmspec.AvailabilityZone),
-		WithVolumeAvailabilityZone(o.commonPf.GetCloudletVolumeAvailabilityZone()),
-		WithPrivacyPolicy(vmspec.PrivacyPolicy),
+		infracommon.WithComputeAvailabilityZone(vmspec.AvailabilityZone),
+		infracommon.WithVolumeAvailabilityZone(o.commonPf.GetCloudletVolumeAvailabilityZone()),
+		infracommon.WithPrivacyPolicy(vmspec.PrivacyPolicy),
 	)
 	if err != nil {
 		return fmt.Errorf("Unable to get VM params: %v", err)
@@ -992,8 +812,8 @@ func (o *OpenstackPlatform) HeatCreateCluster(ctx context.Context, clusterInst *
 }
 
 // HeatCreateAppVMWithRootLB creates a VM accessed via a new rootLB
-func (o *OpenstackPlatform) HeatCreateAppVMWithRootLB(ctx context.Context, rootLBName string, rootLBImage string, appVMName string, vmAppParams *VMParams, rootLBParams *VMParams, updateCallback edgeproto.CacheUpdateCallback) error {
-	log.SpanLog(ctx, log.DebugLevelMexos, "HeatCreateAppVMWithRootLB", "rootLBName", rootLBName, "appVMName", appVMName, "vmAppParams", vmAppParams, "rootLBParams", rootLBParams)
+func (o *OpenstackPlatform) HeatCreateAppVMWithRootLB(ctx context.Context, vmAppParams *infracommon.VMParams, rootLBParams *infracommon.VMParams, updateCallback edgeproto.CacheUpdateCallback) error {
+	log.SpanLog(ctx, log.DebugLevelMexos, "HeatCreateAppVMWithRootLB", "vmAppParams", vmAppParams, "rootLBParams", rootLBParams)
 
 	// Floating IPs can also be allocated within the stack and need to be locked as well.
 	heatStackLock.Lock()
@@ -1001,13 +821,13 @@ func (o *OpenstackPlatform) HeatCreateAppVMWithRootLB(ctx context.Context, rootL
 
 	var cp ClusterParams
 	cp.ClusterType = clusterTypeVMApp
-	cp.ClusterFirstVMName = appVMName
+	cp.ClusterFirstVMName = vmAppParams.VMName
 	cp.MasterNodeFlavor = vmAppParams.FlavorName
-	cp.ClusterName = appVMName
+	cp.ClusterName = vmAppParams.VMName
 	cp.VMParams = rootLBParams
 	cp.VMAppParams = vmAppParams
 
-	_, err := o.populateCommonClusterParamFields(ctx, &cp, rootLBName, vmAppParams.CloudletSecurityGroup, heatCreate)
+	_, err := o.populateCommonClusterParamFields(ctx, &cp, rootLBParams.VMName, vmAppParams.CloudletSecurityGroup, heatCreate)
 	if err != nil {
 		return err
 	}
@@ -1018,12 +838,12 @@ func (o *OpenstackPlatform) HeatCreateAppVMWithRootLB(ctx context.Context, rootL
 	if err != nil {
 		return err
 	}
-	client, err := o.commonPf.GetSSHClient(ctx, rootLBName, o.commonPf.GetCloudletExternalNetwork(), infracommon.SSHUser)
+	client, err := o.commonPf.GetSSHClient(ctx, rootLBParams.VMName, o.commonPf.GetCloudletExternalNetwork(), infracommon.SSHUser)
 	if err != nil {
 		return fmt.Errorf("unable to get rootlb SSH client: %v", err)
 	}
 	if cp.RootLBPortName != "" {
-		return o.commonPf.AttachAndEnableRootLBInterface(ctx, client, rootLBName, cp.RootLBPortName, cp.GatewayIP)
+		return o.commonPf.AttachAndEnableRootLBInterface(ctx, client, rootLBParams.VMName, cp.RootLBPortName, cp.GatewayIP)
 	}
 	return nil
 }

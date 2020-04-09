@@ -10,6 +10,7 @@ import (
 
 	"github.com/gogo/protobuf/types"
 	"github.com/mobiledgex/edge-cloud-infra/crm-platforms/openstack"
+	"github.com/mobiledgex/edge-cloud-infra/infracommon"
 	"github.com/mobiledgex/edge-cloud-infra/shepherd/shepherd_common"
 	"github.com/mobiledgex/edge-cloud/cloudcommon"
 	"github.com/mobiledgex/edge-cloud/edgeproto"
@@ -21,19 +22,20 @@ import (
 // Default Ceilometer granularity is 300 secs(5 mins)
 var VmScrapeInterval = time.Minute * 5
 
-type Platform struct {
+type ShepherdPlatform struct {
 	rootLbName      string
 	SharedClient    ssh.Client
-	pf              openstack.Platform
+	pf              openstack.OpenstackPlatform
+	commonPf        infracommon.CommonPlatform
 	collectInterval time.Duration
 	vaultConfig     *vault.Config
 }
 
-func (s *Platform) GetType() string {
+func (s *ShepherdPlatform) GetType() string {
 	return "openstack"
 }
 
-func (s *Platform) Init(ctx context.Context, key *edgeproto.CloudletKey, region, physicalName, vaultAddr string, vars map[string]string) error {
+func (s *ShepherdPlatform) Init(ctx context.Context, key *edgeproto.CloudletKey, region, physicalName, vaultAddr string, vars map[string]string) error {
 	vaultConfig, err := vault.BestConfig(vaultAddr)
 	if err != nil {
 		return err
@@ -46,7 +48,7 @@ func (s *Platform) Init(ctx context.Context, key *edgeproto.CloudletKey, region,
 	}
 	//need to have a separate one for dedicated rootlbs, see openstack.go line 111,
 	s.rootLbName = cloudcommon.GetRootLBFQDN(key)
-	s.SharedClient, err = s.pf.GetPlatformClientRootLB(ctx, s.rootLbName)
+	s.SharedClient, err = s.commonPf.GetPlatformClientRootLB(ctx, s.rootLbName)
 	if err != nil {
 		return err
 	}
@@ -56,19 +58,19 @@ func (s *Platform) Init(ctx context.Context, key *edgeproto.CloudletKey, region,
 	return nil
 }
 
-func (s *Platform) GetMetricsCollectInterval() time.Duration {
+func (s *ShepherdPlatform) GetMetricsCollectInterval() time.Duration {
 	return s.collectInterval
 }
 
-func (s *Platform) GetClusterIP(ctx context.Context, clusterInst *edgeproto.ClusterInst) (string, error) {
-	_, ip, err := s.pf.GetMasterNameAndIP(ctx, clusterInst)
+func (s *ShepherdPlatform) GetClusterIP(ctx context.Context, clusterInst *edgeproto.ClusterInst) (string, error) {
+	_, ip, err := s.pf.GetClusterMasterNameAndIP(ctx, clusterInst)
 	return ip, err
 }
 
-func (s *Platform) GetPlatformClient(ctx context.Context, clusterInst *edgeproto.ClusterInst) (ssh.Client, error) {
+func (s *ShepherdPlatform) GetPlatformClient(ctx context.Context, clusterInst *edgeproto.ClusterInst) (ssh.Client, error) {
 	if clusterInst != nil && clusterInst.IpAccess == edgeproto.IpAccess_IP_ACCESS_DEDICATED {
 		rootLb := cloudcommon.GetDedicatedLBFQDN(&clusterInst.Key.CloudletKey, &clusterInst.Key.ClusterKey)
-		pc, err := s.pf.GetPlatformClientRootLB(ctx, rootLb)
+		pc, err := s.commonPf.GetPlatformClientRootLB(ctx, rootLb)
 		return pc, err
 	} else {
 		return s.SharedClient, nil
@@ -108,8 +110,8 @@ func getIpCountFromPools(ipPools string) (uint64, error) {
 	return total, nil
 }
 
-func (s *Platform) addIpUsageDetails(ctx context.Context, metric *shepherd_common.CloudletMetrics) error {
-	externalNet, err := s.pf.GetNetworkDetail(ctx, s.pf.GetCloudletExternalNetwork())
+func (s *ShepherdPlatform) addIpUsageDetails(ctx context.Context, metric *shepherd_common.CloudletMetrics) error {
+	externalNet, err := s.pf.GetNetworkDetail(ctx, s.commonPf.GetCloudletExternalNetwork())
 	if err != nil {
 		return err
 	}
@@ -132,14 +134,14 @@ func (s *Platform) addIpUsageDetails(ctx context.Context, metric *shepherd_commo
 	}
 	metric.Ipv4Used = 0
 	for _, srv := range srvs {
-		if strings.Contains(srv.Networks, s.pf.GetCloudletExternalNetwork()) {
+		if strings.Contains(srv.Networks, s.commonPf.GetCloudletExternalNetwork()) {
 			metric.Ipv4Used++
 		}
 	}
 	return nil
 }
 
-func (s *Platform) GetPlatformStats(ctx context.Context) (shepherd_common.CloudletMetrics, error) {
+func (s *ShepherdPlatform) GetPlatformStats(ctx context.Context) (shepherd_common.CloudletMetrics, error) {
 	cloudletMetric := shepherd_common.CloudletMetrics{}
 	limits, err := s.pf.OSGetAllLimits(ctx)
 	if err != nil {
@@ -181,7 +183,7 @@ func (s *Platform) GetPlatformStats(ctx context.Context) (shepherd_common.Cloudl
 }
 
 // Helper function to asynchronously get the metric from openstack
-func (s *Platform) goGetMetricforId(ctx context.Context, id string, measurement string, osMetric *openstack.OSMetricMeasurement) chan string {
+func (s *ShepherdPlatform) goGetMetricforId(ctx context.Context, id string, measurement string, osMetric *openstack.OSMetricMeasurement) chan string {
 	waitChan := make(chan string)
 	go func() {
 		// We don't want to have a bunch of data, just get from last 2*interval
@@ -201,7 +203,7 @@ func (s *Platform) goGetMetricforId(ctx context.Context, id string, measurement 
 	return waitChan
 }
 
-func (s *Platform) GetVmStats(ctx context.Context, key *edgeproto.AppInstKey) (shepherd_common.AppMetrics, error) {
+func (s *ShepherdPlatform) GetVmStats(ctx context.Context, key *edgeproto.AppInstKey) (shepherd_common.AppMetrics, error) {
 	var Cpu, Mem, Disk, NetSent, NetRecv openstack.OSMetricMeasurement
 	netSentChan := make(chan string)
 	netRecvChan := make(chan string)

@@ -8,9 +8,6 @@ import (
 	"strings"
 
 	"github.com/mobiledgex/edge-cloud-infra/infracommon"
-	"github.com/mobiledgex/edge-cloud/cloud-resource-manager/k8smgmt"
-	"github.com/mobiledgex/edge-cloud/cloudcommon"
-	"github.com/mobiledgex/edge-cloud/edgeproto"
 	"github.com/mobiledgex/edge-cloud/log"
 )
 
@@ -58,33 +55,11 @@ func (o *OpenstackPlatform) GetIPFromServerName(ctx context.Context, networkName
 			return rootLB.IP, nil
 		}
 	}
-	sd, err := o.GetActiveServerDetails(ctx, serverName)
+	sd, err := o.GetServerDetail(ctx, serverName)
 	if err != nil {
 		return nil, err
 	}
-	return infracommon.GetServerIPFromAddrs(ctx, networkName, sd.Addresses, serverName)
-}
-
-// GetMasterNameAndIP gets the name and IP address of the cluster's master node.
-func (s *OpenstackPlatform) GetMasterNameAndIP(ctx context.Context, clusterInst *edgeproto.ClusterInst) (string, string, error) {
-	log.SpanLog(ctx, log.DebugLevelMexos, "get master IP", "cluster", clusterInst.Key.ClusterKey.Name)
-	srvs, err := s.ListServers(ctx)
-	if err != nil {
-		return "", "", fmt.Errorf("error getting server list: %v", err)
-
-	}
-	namePrefix := ClusterTypeKubernetesMasterLabel
-	if clusterInst.Deployment == cloudcommon.AppDeploymentTypeDocker {
-		namePrefix = ClusterTypeDockerVMLabel
-	}
-
-	nodeNameSuffix := k8smgmt.GetK8sNodeNameSuffix(&clusterInst.Key)
-	masterName, err := s.FindClusterMaster(ctx, namePrefix, nodeNameSuffix, srvs)
-	if err != nil {
-		return "", "", fmt.Errorf("%s -- %s, %v", infracommon.ClusterNotFoundErr, nodeNameSuffix, err)
-	}
-	masterIP, err := s.FindNodeIP(masterName, srvs)
-	return masterName, masterIP, err
+	return o.commonPf.GetIPFromServerDetails(ctx, networkName, sd)
 }
 
 //GetExternalGateway retrieves Gateway IP from the external network information. It first gets external

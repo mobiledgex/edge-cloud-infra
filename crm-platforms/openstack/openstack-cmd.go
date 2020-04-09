@@ -282,7 +282,9 @@ func (s *OpenstackPlatform) GetActiveServerDetails(ctx context.Context, name str
 	for i := 0; i < 10; i++ {
 		out, err := s.TimedOpenStackCommand(ctx, "openstack", "server", "show", "-f", "json", name)
 		if err != nil {
-			err = fmt.Errorf("can't show server %s, %s, %v", name, out, err)
+			if strings.Contains(err.Error(), "No server with a name or ID") {
+				err = fmt.Errorf("%s -- can't show server %s, %s, %v", infracommon.ServerDoesNotExistError, name, out, err)
+			}
 			return nil, err
 		}
 		//fmt.Printf("%s\n", out)
@@ -305,8 +307,7 @@ func (s *OpenstackPlatform) GetActiveServerDetails(ctx context.Context, name str
 	return srvDetail, nil
 }
 
-// GetServerDetails returns details of the KVM instance
-func (s *OpenstackPlatform) GetServerDetails(ctx context.Context, name string) (*OSServerDetail, error) {
+func (s *OpenstackPlatform) GetOpenstackServerDetails(ctx context.Context, name string) (*OSServerDetail, error) {
 	srvDetail := &OSServerDetail{}
 	out, err := s.TimedOpenStackCommand(ctx, "openstack", "server", "show", "-f", "json", name)
 	if err != nil {
@@ -1023,7 +1024,7 @@ func (s *OpenstackPlatform) OSGetMetricsRangeForId(ctx context.Context, resId st
 	return measurements, nil
 }
 
-func (s *OpenstackPlatform) AddImageIfNotPresent(ctx context.Context, imgPathPrefix, imgVersion string, updateCallback edgeproto.CacheUpdateCallback) (string, error) {
+func (s *OpenstackPlatform) AddCloudletImageIfNotPresent(ctx context.Context, imgPathPrefix, imgVersion string, updateCallback edgeproto.CacheUpdateCallback) (string, error) {
 	imgPath := infracommon.GetCloudletVMImagePath(imgPathPrefix, imgVersion)
 
 	// Fetch platform base image name

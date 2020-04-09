@@ -61,13 +61,13 @@ func (c *CommonPlatform) GetRootLBNameForCluster(ctx context.Context, clusterIns
 
 func (c *CommonPlatform) UpdateClusterInst(ctx context.Context, clusterInst *edgeproto.ClusterInst, privacyPolicy *edgeproto.PrivacyPolicy, updateCallback edgeproto.CacheUpdateCallback) error {
 	lbName := c.GetRootLBNameForCluster(ctx, clusterInst)
-	client, err := c.Platform.GetPlatformClient(ctx, clusterInst)
+	client, err := c.infraProvider.GetPlatformClient(ctx, clusterInst)
 	if err != nil {
 		return err
 	}
 
 	log.SpanLog(ctx, log.DebugLevelMexos, "verify if cloudlet base image exists")
-	imgName, err := c.infraProvider.AddImageIfNotPresent(ctx, c.PlatformConfig.CloudletVMImagePath, c.PlatformConfig.VMImageVersion, updateCallback)
+	imgName, err := c.infraProvider.AddCloudletImageIfNotPresent(ctx, c.PlatformConfig.CloudletVMImagePath, c.PlatformConfig.VMImageVersion, updateCallback)
 	if err != nil {
 		log.InfoLog("error with cloudlet base image", "imgName", imgName, "error", err)
 		return err
@@ -139,7 +139,7 @@ func (c *CommonPlatform) deleteCluster(ctx context.Context, rootLBName string, c
 	log.SpanLog(ctx, log.DebugLevelMexos, "deleting kubernetes cluster", "clusterInst", clusterInst)
 
 	dedicatedRootLB := clusterInst.IpAccess == edgeproto.IpAccess_IP_ACCESS_DEDICATED
-	client, err := c.Platform.GetPlatformClient(ctx, clusterInst)
+	client, err := c.infraProvider.GetPlatformClient(ctx, clusterInst)
 	if err != nil {
 		if strings.Contains(err.Error(), "No server with a name or ID") {
 			log.SpanLog(ctx, log.DebugLevelMexos, "Dedicated RootLB is gone, allow stack delete to proceed")
@@ -147,7 +147,7 @@ func (c *CommonPlatform) deleteCluster(ctx context.Context, rootLBName string, c
 			return err
 		}
 	}
-	err = c.infraProvider.DeleteClusterVMs(ctx, client, clusterInst, updateCallback)
+	err = c.infraProvider.DeleteClusterResources(ctx, client, clusterInst)
 	if err != nil {
 		return err
 	}
@@ -174,7 +174,7 @@ func (c *CommonPlatform) CreateClusterInst(ctx context.Context, clusterInst *edg
 	timeout -= time.Minute
 
 	log.SpanLog(ctx, log.DebugLevelMexos, "verify if cloudlet base image exists")
-	imgName, err := c.infraProvider.AddImageIfNotPresent(ctx, c.PlatformConfig.CloudletVMImagePath, c.PlatformConfig.VMImageVersion, updateCallback)
+	imgName, err := c.infraProvider.AddCloudletImageIfNotPresent(ctx, c.PlatformConfig.CloudletVMImagePath, c.PlatformConfig.VMImageVersion, updateCallback)
 	if err != nil {
 		log.InfoLog("error with cloudlet base image", "imgName", imgName, "error", err)
 		return err
@@ -253,7 +253,7 @@ func (c *CommonPlatform) createClusterInternal(ctx context.Context, rootLBName s
 			return err
 		}
 	}
-	client, err := c.Platform.GetPlatformClient(ctx, clusterInst)
+	client, err := c.infraProvider.GetPlatformClient(ctx, clusterInst)
 	if err != nil {
 		return fmt.Errorf("can't get rootLB client, %v", err)
 	}
@@ -327,7 +327,7 @@ func (c *CommonPlatform) isClusterReady(ctx context.Context, clusterInst *edgepr
 	log.SpanLog(ctx, log.DebugLevelMexos, "checking if cluster is ready")
 
 	// some commands are run on the rootlb and some on the master directly, so we use separate clients
-	rootLBClient, err := c.Platform.GetPlatformClient(ctx, clusterInst)
+	rootLBClient, err := c.infraProvider.GetPlatformClient(ctx, clusterInst)
 	if err != nil {
 		return false, 0, fmt.Errorf("can't get rootlb ssh client for cluster ready check, %v", err)
 	}

@@ -10,9 +10,11 @@ import (
 	"github.com/mobiledgex/edge-cloud-infra/infracommon"
 	"github.com/mobiledgex/edge-cloud/cloud-resource-manager/platform"
 	"github.com/mobiledgex/edge-cloud/cloud-resource-manager/platform/pc"
+	dme "github.com/mobiledgex/edge-cloud/d-match-engine/dme-proto"
 	"github.com/mobiledgex/edge-cloud/edgeproto"
 	"github.com/mobiledgex/edge-cloud/log"
 	"github.com/mobiledgex/edge-cloud/vault"
+	"github.com/mobiledgex/edge-cloud/vmspec"
 	ssh "github.com/mobiledgex/golang-ssh"
 )
 
@@ -47,7 +49,7 @@ func (g *GCPPlatform) Init(ctx context.Context, platformConfig *platform.Platfor
 	if err != nil {
 		return err
 	}
-	if err := g.commonPf.InitInfraCommon(ctx, platformConfig, gcpProps, vaultConfig, g, nil); err != nil {
+	if err := g.commonPf.InitInfraCommon(ctx, platformConfig, gcpProps, vaultConfig, g); err != nil {
 		return err
 	}
 	return nil
@@ -126,4 +128,88 @@ func (g *GCPPlatform) GatherCloudletInfo(ctx context.Context, info *edgeproto.Cl
 
 func (g *GCPPlatform) GetPlatformClient(ctx context.Context, clusterInst *edgeproto.ClusterInst) (ssh.Client, error) {
 	return &pc.LocalClient{}, nil
+}
+
+func (s *GCPPlatform) NameSanitize(string) string {
+	return "not implemented"
+}
+
+func (s *GCPPlatform) AddCloudletImageIfNotPresent(ctx context.Context, imgPathPrefix, imgVersion string, updateCallback edgeproto.CacheUpdateCallback) (string, error) {
+	return "", fmt.Errorf("not implemented")
+}
+
+func (s *GCPPlatform) AddAppImageIfNotPresent(ctx context.Context, app *edgeproto.App, updateCallback edgeproto.CacheUpdateCallback) error {
+	return fmt.Errorf("not implemented")
+}
+
+func (s *GCPPlatform) GetServerDetail(ctx context.Context, serverName string) (*infracommon.ServerDetail, error) {
+	return nil, fmt.Errorf("not implemented")
+}
+
+func (s *GCPPlatform) GetIPFromServerName(ctx context.Context, networkName, serverName string) (*infracommon.ServerIP, error) {
+	return nil, fmt.Errorf("not implemented")
+}
+
+func (s *GCPPlatform) GetClusterMasterNameAndIP(ctx context.Context, clusterInst *edgeproto.ClusterInst) (string, string, error) {
+	return "", "", fmt.Errorf("not implemented")
+}
+
+func (s *GCPPlatform) AttachPortToServer(ctx context.Context, serverName, portName string) error {
+	return fmt.Errorf("not implemented")
+}
+
+func (s *GCPPlatform) DetachPortFromServer(ctx context.Context, serverName, portName string) error {
+	return fmt.Errorf("not implemented")
+}
+
+func (s *GCPPlatform) AddSecurityRuleCIDRWithRetry(ctx context.Context, cidr string, proto string, group string, port string, serverName string) error {
+	return fmt.Errorf("not implemented")
+}
+
+func (s *GCPPlatform) CreateAppVM(ctx context.Context, vmAppParams *infracommon.VMParams, updateCallback edgeproto.CacheUpdateCallback) error {
+	return fmt.Errorf("not implemented")
+}
+
+func (s *GCPPlatform) CreateAppVMWithRootLB(ctx context.Context, vmAppParams, vmLbParams *infracommon.VMParams, updateCallback edgeproto.CacheUpdateCallback) error {
+	return fmt.Errorf("not implemented")
+}
+
+func (s *GCPPlatform) CreateRootLBVM(ctx context.Context, serverName, stackName, imgName string, vmspec *vmspec.VMCreationSpec, cloudletKey *edgeproto.CloudletKey, updateCallback edgeproto.CacheUpdateCallback) error {
+	return fmt.Errorf("not implemented")
+}
+
+func (s *GCPPlatform) CreateClusterVMs(ctx context.Context, clusterInst *edgeproto.ClusterInst, privacyPolicy *edgeproto.PrivacyPolicy, rootLBName string, imgName string, dedicatedRootLB bool, updateCallback edgeproto.CacheUpdateCallback) error {
+	return fmt.Errorf("not implemented")
+}
+
+func (s *GCPPlatform) UpdateClusterVMs(ctx context.Context, clusterInst *edgeproto.ClusterInst, privacyPolicy *edgeproto.PrivacyPolicy, rootLBName string, imgName string, dedicatedRootLB bool, updateCallback edgeproto.CacheUpdateCallback) error {
+	return fmt.Errorf("not implemented")
+}
+
+func (s *GCPPlatform) DeleteClusterResources(ctx context.Context, client ssh.Client, clusterInst *edgeproto.ClusterInst) error {
+	return fmt.Errorf("not implemented")
+}
+
+func (o *GCPPlatform) DeleteResources(ctx context.Context, resourceGroupName string) error {
+	return fmt.Errorf("not implemented")
+}
+
+func (s *GCPPlatform) NetworkSetupForRootLB(ctx context.Context, client ssh.Client, rootLBName string) error {
+	return fmt.Errorf("not implemented")
+}
+
+func (s *GCPPlatform) WhitelistSecurityRules(ctx context.Context, secGrpName string, serverName string, allowedCIDR string, ports []dme.AppPort) error {
+	return fmt.Errorf("not implemented")
+}
+
+func (s *GCPPlatform) RemoveWhitelistSecurityRules(ctx context.Context, secGrpName string, allowedCIDR string, ports []dme.AppPort) error {
+	return fmt.Errorf("not implemented")
+}
+
+func (s *GCPPlatform) GetVMParams(ctx context.Context, depType infracommon.DeploymentType, serverName, flavorName string, externalVolumeSize uint64, imageName, secGrp string, cloudletKey *edgeproto.CloudletKey, opts ...infracommon.VMParamsOp) (*infracommon.VMParams, error) {
+	return nil, fmt.Errorf("not implemented")
+}
+
+func (s *GCPPlatform) Resync(ctx context.Context) error {
+	return fmt.Errorf("not implemented")
 }

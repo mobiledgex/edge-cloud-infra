@@ -6,3 +6,4 @@ locapi_account_path: secret/ansible/common/accounts/locapi
 mex_docker_account_path: secret/ansible/common/accounts/mex_docker
 sendgrid_account_path: secret/ansible/common/accounts/sendgrid
 slack_org_mgmt_path: secret/ansible/internal/accounts/slack_org_mgmt
+mexenv_path: secret/cloudlet/openstack/mexenv.json

@@ -27,13 +27,14 @@ type Platform struct {
 	pf              openstack.Platform
 	collectInterval time.Duration
 	vaultConfig     *vault.Config
+	AuthKey         *edgeproto.AuthKeyPair
 }
 
 func (s *Platform) GetType() string {
 	return "openstack"
 }
 
-func (s *Platform) Init(ctx context.Context, key *edgeproto.CloudletKey, region, physicalName, vaultAddr string, vars map[string]string) error {
+func (s *Platform) Init(ctx context.Context, cloudlet *edgeproto.Cloudlet, region, vaultAddr string) error {
 	vaultConfig, err := vault.BestConfig(vaultAddr)
 	if err != nil {
 		return err
@@ -41,18 +42,18 @@ func (s *Platform) Init(ctx context.Context, key *edgeproto.CloudletKey, region,
 	s.vaultConfig = vaultConfig
 
 	//get the platform client so we can ssh in to make curl commands to the prometheus apps
-	if err = s.pf.InitOpenstackProps(ctx, key, region, physicalName, vaultConfig, vars); err != nil {
+	if err = s.pf.InitOpenstackProps(ctx, cloudlet, region, vaultConfig); err != nil {
 		return err
 	}
 	//need to have a separate one for dedicated rootlbs, see openstack.go line 111,
-	s.rootLbName = cloudcommon.GetRootLBFQDN(key)
-	s.SharedClient, err = s.pf.GetPlatformClientRootLB(ctx, s.rootLbName)
+	s.rootLbName = cloudcommon.GetRootLBFQDN(&cloudlet.Key)
+	s.SharedClient, err = s.pf.GetPlatformClient(ctx, s.rootLbName)
 	if err != nil {
 		return err
 	}
 	s.collectInterval = VmScrapeInterval
 	log.SpanLog(ctx, log.DebugLevelMexos, "init openstack", "rootLB", s.rootLbName,
-		"physicalName", physicalName, "vaultAddr", vaultAddr)
+		"physicalName", cloudlet.PhysicalName, "vaultAddr", vaultAddr)
 	return nil
 }
 
@@ -65,10 +66,10 @@ func (s *Platform) GetClusterIP(ctx context.Context, clusterInst *edgeproto.Clus
 	return ip, err
 }
 
-func (s *Platform) GetPlatformClient(ctx context.Context, clusterInst *edgeproto.ClusterInst) (ssh.Client, error) {
+func (s *Platform) GetPlatformClientRootLB(ctx context.Context, clusterInst *edgeproto.ClusterInst) (ssh.Client, error) {
 	if clusterInst != nil && clusterInst.IpAccess == edgeproto.IpAccess_IP_ACCESS_DEDICATED {
 		rootLb := cloudcommon.GetDedicatedLBFQDN(&clusterInst.Key.CloudletKey, &clusterInst.Key.ClusterKey)
-		pc, err := s.pf.GetPlatformClientRootLB(ctx, rootLb)
+		pc, err := s.pf.GetPlatformClient(ctx, rootLb)
 		return pc, err
 	} else {
 		return s.SharedClient, nil

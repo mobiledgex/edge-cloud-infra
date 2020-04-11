@@ -25,6 +25,7 @@ type Platform struct {
 	clusterCache *edgeproto.ClusterInstInfoCache
 	commonPf     mexos.CommonPlatform
 	envVars      map[string]*mexos.PropertyInfo
+	authKey      *edgeproto.AuthKeyPair
 }
 
 type GCPQuotas struct {
@@ -58,19 +59,21 @@ func (s *Platform) GetType() string {
 	return "gcp"
 }
 
-func (s *Platform) Init(ctx context.Context, platformConfig *platform.PlatformConfig, updateCallback edgeproto.CacheUpdateCallback) error {
+func (s *Platform) Init(ctx context.Context, cloudlet *edgeproto.Cloudlet, platformConfig *platform.PlatformConfig, updateCallback edgeproto.CacheUpdateCallback) error {
 	vaultConfig, err := vault.BestConfig(platformConfig.VaultAddr)
 	if err != nil {
 		return err
 	}
 	s.vaultConfig = vaultConfig
 
-	if err := s.commonPf.InitInfraCommon(ctx, vaultConfig, platformConfig.EnvVars); err != nil {
+	s.authKey = cloudlet.AuthKey
+
+	if err := s.commonPf.InitInfraCommon(ctx, vaultConfig, cloudlet.EnvVar); err != nil {
 		return err
 	}
 
 	s.envVars = gcpProps
-	mexos.SetPropsFromVars(ctx, s.envVars, platformConfig.EnvVars)
+	mexos.SetPropsFromVars(ctx, s.envVars, cloudlet.EnvVar)
 
 	s.config = *platformConfig
 	s.props.Project = s.envVars["MEX_GCP_PROJECT"].Value
@@ -163,6 +166,10 @@ func (s *Platform) GatherCloudletInfo(ctx context.Context, info *edgeproto.Cloud
 	return nil
 }
 
-func (s *Platform) GetPlatformClient(ctx context.Context, clusterInst *edgeproto.ClusterInst) (ssh.Client, error) {
+func (s *Platform) GetPlatformClient(ctx context.Context, serverName string) (ssh.Client, error) {
+	return &pc.LocalClient{}, nil
+}
+
+func (s *Platform) GetPlatformClientRootLB(ctx context.Context, clusterInst *edgeproto.ClusterInst) (ssh.Client, error) {
 	return &pc.LocalClient{}, nil
 }

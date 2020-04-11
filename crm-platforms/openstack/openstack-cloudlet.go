@@ -15,7 +15,6 @@ import (
 	"github.com/mobiledgex/edge-cloud/cloudcommon"
 	"github.com/mobiledgex/edge-cloud/edgeproto"
 	"github.com/mobiledgex/edge-cloud/log"
-	"github.com/mobiledgex/edge-cloud/util"
 	"github.com/mobiledgex/edge-cloud/vault"
 	"github.com/mobiledgex/edge-cloud/vmspec"
 	ssh "github.com/mobiledgex/golang-ssh"
@@ -32,11 +31,6 @@ const (
 var PlatformServices = []string{
 	ServiceTypeCRM,
 	ServiceTypeShepherd,
-}
-
-func getPlatformVMName(key *edgeproto.CloudletKey) string {
-	// Form platform VM name based on cloudletKey
-	return util.HeatSanitize(key.Name + "." + key.Organization + ".pf")
 }
 
 func startPlatformService(cloudlet *edgeproto.Cloudlet, pfConfig *edgeproto.PlatformConfig, client ssh.Client, serviceType string, updateCallback edgeproto.CacheUpdateCallback, cDone chan error) {
@@ -290,7 +284,7 @@ func (s *Platform) setupPlatformVM(ctx context.Context, cloudlet *edgeproto.Clou
 	}
 
 	// Form platform VM name based on cloudletKey
-	platform_vm_name := getPlatformVMName(&cloudlet.Key)
+	platform_vm_name := cloudcommon.GetPlatformVMName(&cloudlet.Key)
 	secGrp := GetSecurityGroupName(ctx, platform_vm_name)
 
 	vmp, err := s.GetVMParams(ctx,
@@ -348,7 +342,7 @@ func (s *Platform) CreateCloudlet(ctx context.Context, cloudlet *edgeproto.Cloud
 	}
 	// Source OpenRC file to access openstack API endpoint
 	updateCallback(edgeproto.UpdateTask, "Sourcing access variables")
-	err = s.InitOpenstackProps(ctx, &cloudlet.Key, pfConfig.Region, cloudlet.PhysicalName, vaultConfig, cloudlet.EnvVar)
+	err = s.InitOpenstackProps(ctx, cloudlet, pfConfig.Region, vaultConfig)
 	if err != nil {
 		return err
 	}
@@ -466,21 +460,21 @@ func (s *Platform) DeleteCloudlet(ctx context.Context, cloudlet *edgeproto.Cloud
 	}
 
 	// Source OpenRC file to access openstack API endpoint
-	err = s.InitOpenstackProps(ctx, &cloudlet.Key, pfConfig.Region, cloudlet.PhysicalName, vaultConfig, cloudlet.EnvVar)
+	err = s.InitOpenstackProps(ctx, cloudlet, pfConfig.Region, vaultConfig)
 	if err != nil {
 		// ignore this error, as no creation would've happened on infra, so nothing to delete
 		log.SpanLog(ctx, log.DebugLevelMexos, "failed to source platform variables", "cloudletName", cloudlet.Key.Name, "err", err)
 		return nil
 	}
 
-	platform_vm_name := getPlatformVMName(&cloudlet.Key)
+	platform_vm_name := cloudcommon.GetPlatformVMName(&cloudlet.Key)
 	updateCallback(edgeproto.UpdateTask, fmt.Sprintf("Deleting PlatformVM %s", platform_vm_name))
 	err = s.HeatDeleteStack(ctx, platform_vm_name)
 	if err != nil {
 		return fmt.Errorf("DeleteCloudlet error: %v", err)
 	}
 
-	rootLBName := getRootLBName(&cloudlet.Key)
+	rootLBName := cloudcommon.GetRootLBName(&cloudlet.Key)
 	updateCallback(edgeproto.UpdateTask, fmt.Sprintf("Deleting RootLB %s", rootLBName))
 	err = s.HeatDeleteStack(ctx, rootLBName)
 	if err != nil {
@@ -563,12 +557,12 @@ func (s *Platform) UpdateCloudlet(ctx context.Context, cloudlet *edgeproto.Cloud
 	}
 	// Source OpenRC file to access openstack API endpoint
 	updateCallback(edgeproto.UpdateTask, fmt.Sprintf("Sourcing platform variables for %s cloudlet", cloudlet.PhysicalName))
-	err = s.InitOpenstackProps(ctx, &cloudlet.Key, pfConfig.Region, cloudlet.PhysicalName, vaultConfig, cloudlet.EnvVar)
+	err = s.InitOpenstackProps(ctx, cloudlet, pfConfig.Region, vaultConfig)
 	if err != nil {
 		return defCloudletAction, err
 	}
 
-	pfClient, err := s.GetSSHClient(ctx, getPlatformVMName(&cloudlet.Key), s.GetCloudletExternalNetwork(), mexos.SSHUser)
+	pfClient, err := s.GetSSHClient(ctx, cloudcommon.GetPlatformVMName(&cloudlet.Key), s.GetCloudletExternalNetwork(), mexos.SSHUser)
 	if err != nil {
 		return defCloudletAction, err
 	}
@@ -667,7 +661,7 @@ func (s *Platform) UpdateCloudlet(ctx context.Context, cloudlet *edgeproto.Cloud
 func (s *Platform) CleanupCloudlet(ctx context.Context, cloudlet *edgeproto.Cloudlet, pfConfig *edgeproto.PlatformConfig, updateCallback edgeproto.CacheUpdateCallback) error {
 	log.SpanLog(ctx, log.DebugLevelMexos, "Cleaning up cloudlet", "cloudletName", cloudlet.Key.Name)
 
-	client, err := s.GetSSHClient(ctx, getPlatformVMName(&cloudlet.Key), s.GetCloudletExternalNetwork(), mexos.SSHUser)
+	client, err := s.GetSSHClient(ctx, cloudcommon.GetPlatformVMName(&cloudlet.Key), s.GetCloudletExternalNetwork(), mexos.SSHUser)
 	if err != nil {
 		return err
 	}

@@ -75,6 +75,22 @@ bootcmd:
  - echo 'APT::Periodic::Enable "0";' > /etc/apt/apt.conf.d/10cloudinit-disable
  - apt-get -y purge update-notifier-common ubuntu-release-upgrader-core landscape-common unattended-upgrades
  - echo "Removed APT and Ubuntu extra packages" | systemd-cat
+chpasswd: { expire: False }
+ssh_pwauth: False
+timezone: UTC
+runcmd:
+ - [ echo, MOBILEDGEX, doing, ifconfig ]
+{{if .VMDNSServers}}
+ - echo "dns-nameservers {{.VMDNSServers}}" >> /etc/network/interfaces.d/50-cloud-init.cfg
+{{end}}
+ - [ ifconfig, -a ]`
+
+var vmCloudConfigSSH = `#cloud-config
+bootcmd:
+ - echo MOBILEDGEX CLOUD CONFIG START
+ - echo 'APT::Periodic::Enable "0";' > /etc/apt/apt.conf.d/10cloudinit-disable
+ - apt-get -y purge update-notifier-common ubuntu-release-upgrader-core landscape-common unattended-upgrades
+ - echo "Removed APT and Ubuntu extra packages" | systemd-cat
 ssh_authorized_keys:
  - ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAABAQCrHlOJOJUqvd4nEOXQbdL8ODKzWaUxKVY94pF7J3diTxgZ1NTvS6omqOjRS3loiU7TOlQQU4cKnRRnmJW8QQQZSOMIGNrMMInGaEYsdm6+tr1k4DDfoOrkGMj3X/I2zXZ3U+pDPearVFbczCByPU0dqs16TWikxDoCCxJRGeeUl7duzD9a65bI8Jl+zpfQV+I7OPa81P5/fw15lTzT4+F9MhhOUVJ4PFfD+d6/BLnlUfZ94nZlvSYnT+GoZ8xTAstM7+6pvvvHtaHoV4YqRf5CelbWAQ162XNa9/pW5v/RKDrt203/JEk3e70tzx9KAfSw2vuO1QepkCZAdM9rQoCd ubuntu@registry
 chpasswd: { expire: False }
@@ -193,8 +209,13 @@ var vmTemplateResources = `
            {{- end}}
         {{- end}}
         {{if .IsInternal}}
+	{{if .AuthPublicKey}}
          user_data: |
 ` + reindent(vmCloudConfig, 12) + `
+        {{else}}
+         user_data: |
+` + reindent(vmCloudConfigSSH, 12) + `
+        {{- end}}
         {{- end}}
         {{if .DeploymentManifest}}
          user_data: |
@@ -630,6 +651,9 @@ func (s *Platform) GetVMParams(ctx context.Context, depType DeploymentType, serv
 	}
 	if depType != UserVMDeployment {
 		vmp.IsInternal = true
+		if vmp.AuthPublicKey == "" && s.authKey != nil {
+			vmp.AuthPublicKey = s.authKey.PublicKey
+		}
 	}
 	if depType == RootLBVMDeployment {
 		vmp.GatewayIP, err = s.GetExternalGateway(ctx, s.GetCloudletExternalNetwork())

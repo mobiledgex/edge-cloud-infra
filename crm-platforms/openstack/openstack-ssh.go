@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"time"
 
-	sh "github.com/codeskyblue/go-sh"
 	"github.com/mobiledgex/edge-cloud-infra/mexos"
 	"github.com/mobiledgex/edge-cloud/log"
 	ssh "github.com/mobiledgex/golang-ssh"
@@ -34,22 +33,6 @@ func (o *SSHOptions) Apply(ops []SSHClientOp) {
 	}
 }
 
-//CopySSHCredential copies over the ssh credential for mex to LB
-func (s *Platform) CopySSHCredential(ctx context.Context, serverName, networkName, userName string) error {
-	//TODO multiple keys to be copied and added to authorized_keys if needed
-	log.SpanLog(ctx, log.DebugLevelMexos, "copying ssh credentials", "server", serverName, "network", networkName, "user", userName)
-	ip, err := s.GetServerIPAddr(ctx, networkName, serverName)
-	if err != nil {
-		return err
-	}
-	kf := mexos.PrivateSSHKey()
-	out, err := sh.Command("scp", "-o", mexos.SSHOpts[0], "-o", mexos.SSHOpts[1], "-i", kf, kf, userName+"@"+ip.ExternalAddr+":").Output()
-	if err != nil {
-		return fmt.Errorf("can't copy %s to %s, %s, %v", kf, ip.ExternalAddr, out, err)
-	}
-	return nil
-}
-
 //GetSSHClient returns ssh client handle for the server
 func (s *Platform) GetSSHClient(ctx context.Context, serverName, networkName, userName string, ops ...SSHClientOp) (ssh.Client, error) {
 	log.SpanLog(ctx, log.DebugLevelMexos, "GetSSHClient", "serverName", serverName)
@@ -62,7 +45,14 @@ func (s *Platform) GetSSHClient(ctx context.Context, serverName, networkName, us
 	}
 
 	var client ssh.Client
-	auth := ssh.Auth{Keys: []string{mexos.PrivateSSHKey()}}
+	var auth ssh.Auth
+	if s.authKey != nil {
+		auth.RawKeys = [][]byte{
+			[]byte(s.authKey.PrivateKey),
+		}
+	} else {
+		auth.Keys = []string{mexos.PrivateSSHKey()}
+	}
 	gwhost, gwport := s.GetCloudletCRMGatewayIPAndPort()
 	if gwhost != "" {
 		// start the client to GW and add the addr as next hop

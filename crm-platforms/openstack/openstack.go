@@ -10,7 +10,6 @@ import (
 	"github.com/mobiledgex/edge-cloud/cloudcommon"
 	"github.com/mobiledgex/edge-cloud/edgeproto"
 	"github.com/mobiledgex/edge-cloud/log"
-	"github.com/mobiledgex/edge-cloud/util"
 	"github.com/mobiledgex/edge-cloud/vault"
 	"github.com/mobiledgex/edge-cloud/vmspec"
 	ssh "github.com/mobiledgex/golang-ssh"
@@ -28,6 +27,7 @@ type Platform struct {
 	openRCVars  map[string]string
 	commonPf    mexos.CommonPlatform
 	envVars     map[string]*mexos.PropertyInfo
+	authKey     *edgeproto.AuthKeyPair
 }
 
 func (s *Platform) GetType() string {
@@ -53,9 +53,9 @@ func (s *Platform) GetVMSpecForRootLB() (*vmspec.VMCreationSpec, error) {
 	return vmspec, nil
 }
 
-func (s *Platform) Init(ctx context.Context, platformConfig *platform.PlatformConfig, updateCallback edgeproto.CacheUpdateCallback) error {
-	rootLBName := getRootLBName(platformConfig.CloudletKey)
-	s.cloudletKey = platformConfig.CloudletKey
+func (s *Platform) Init(ctx context.Context, cloudlet *edgeproto.Cloudlet, platformConfig *platform.PlatformConfig, updateCallback edgeproto.CacheUpdateCallback) error {
+	rootLBName := cloudcommon.GetRootLBName(&cloudlet.Key)
+	s.cloudletKey = &cloudlet.Key
 	s.config = *platformConfig
 	log.SpanLog(ctx,
 		log.DebugLevelMexos, "init openstack",
@@ -72,12 +72,14 @@ func (s *Platform) Init(ctx context.Context, platformConfig *platform.PlatformCo
 	s.vaultConfig = vaultConfig
 	log.SpanLog(ctx, log.DebugLevelMexos, "vault auth", "type", vaultConfig.Auth.Type())
 
+	s.authKey = cloudlet.AuthKey
+
 	updateCallback(edgeproto.UpdateTask, "Fetching Openstack access credentials")
-	if err := s.commonPf.InitInfraCommon(ctx, vaultConfig, platformConfig.EnvVars); err != nil {
+	if err := s.commonPf.InitInfraCommon(ctx, vaultConfig, cloudlet.EnvVar); err != nil {
 		return err
 	}
 
-	if err := s.InitOpenstackProps(ctx, platformConfig.CloudletKey, platformConfig.Region, platformConfig.PhysicalName, vaultConfig, platformConfig.EnvVars); err != nil {
+	if err := s.InitOpenstackProps(ctx, cloudlet, platformConfig.Region, vaultConfig); err != nil {
 		return err
 	}
 
@@ -106,14 +108,14 @@ func (s *Platform) Init(ctx context.Context, platformConfig *platform.PlatformCo
 
 	log.SpanLog(ctx, log.DebugLevelMexos, "calling SetupRootLB")
 	updateCallback(edgeproto.UpdateTask, "Setting up RootLB")
-	err = s.SetupRootLB(ctx, rootLBName, vmspec, platformConfig.CloudletKey, platformConfig.CloudletVMImagePath, platformConfig.VMImageVersion, edgeproto.DummyUpdateCallback)
+	err = s.SetupRootLB(ctx, rootLBName, vmspec, &cloudlet.Key, platformConfig.CloudletVMImagePath, platformConfig.VMImageVersion, edgeproto.DummyUpdateCallback)
 	if err != nil {
 		return err
 	}
 	log.SpanLog(ctx, log.DebugLevelMexos, "ok, SetupRootLB")
 
 	// set up L7 load balancer
-	client, err := s.GetPlatformClientRootLB(ctx, rootLBName)
+	client, err := s.GetPlatformClient(ctx, rootLBName)
 	if err != nil {
 		return err
 	}
@@ -129,27 +131,22 @@ func (s *Platform) GatherCloudletInfo(ctx context.Context, info *edgeproto.Cloud
 	return s.OSGetLimits(ctx, info)
 }
 
-func (s *Platform) GetPlatformClientRootLB(ctx context.Context, rootLBName string) (ssh.Client, error) {
-	log.SpanLog(ctx, log.DebugLevelMexos, "GetPlatformClientRootLB", "rootLBName", rootLBName)
+func (s *Platform) GetPlatformClient(ctx context.Context, serverName string) (ssh.Client, error) {
+	log.SpanLog(ctx, log.DebugLevelMexos, "GetPlatformClient", "serverName", serverName)
 
-	if rootLBName == "" {
-		return nil, fmt.Errorf("cannot GetPlatformClientRootLB, rootLB is empty")
+	if serverName == "" {
+		return nil, fmt.Errorf("cannot GetPlatformClient, serverName is empty")
 	}
 	if s.GetCloudletExternalNetwork() == "" {
-		return nil, fmt.Errorf("GetPlatformClientRootLB, missing external network in platform config")
+		return nil, fmt.Errorf("GetPlatformClient, missing external network in platform config")
 	}
-	return s.GetSSHClient(ctx, rootLBName, s.GetCloudletExternalNetwork(), mexos.SSHUser)
+	return s.GetSSHClient(ctx, serverName, s.GetCloudletExternalNetwork(), mexos.SSHUser)
 }
 
-func (s *Platform) GetPlatformClient(ctx context.Context, clusterInst *edgeproto.ClusterInst) (ssh.Client, error) {
+func (s *Platform) GetPlatformClientRootLB(ctx context.Context, clusterInst *edgeproto.ClusterInst) (ssh.Client, error) {
 	rootLBName := s.rootLBName
 	if clusterInst.IpAccess == edgeproto.IpAccess_IP_ACCESS_DEDICATED {
 		rootLBName = cloudcommon.GetDedicatedLBFQDN(s.cloudletKey, &clusterInst.Key.ClusterKey)
 	}
-	return s.GetPlatformClientRootLB(ctx, rootLBName)
-}
-
-func getRootLBName(key *edgeproto.CloudletKey) string {
-	name := cloudcommon.GetRootLBFQDN(key)
-	return util.HeatSanitize(name)
+	return s.GetPlatformClient(ctx, rootLBName)
 }

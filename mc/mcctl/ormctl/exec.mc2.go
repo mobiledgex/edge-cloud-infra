@@ -56,10 +56,23 @@ var ShowLogsCmd = &cli.Command{
 	Run:          runRest("/auth/ctrl/ShowLogs"),
 }
 
+var AccessCloudletCmd = &cli.Command{
+	Use:          "AccessCloudlet",
+	RequiredArgs: "region " + strings.Join(AccessCloudletRequiredArgs, " "),
+	OptionalArgs: strings.Join(AccessCloudletOptionalArgs, " "),
+	AliasArgs:    strings.Join(ExecRequestAliasArgs, " "),
+	SpecialArgs:  &ExecRequestSpecialArgs,
+	Comments:     addRegionComment(ExecRequestComments),
+	ReqData:      &ormapi.RegionExecRequest{},
+	ReplyData:    &edgeproto.ExecRequest{},
+	Run:          runRest("/auth/ctrl/AccessCloudlet"),
+}
+
 var ExecApiCmds = []*cli.Command{
 	RunCommandCmd,
 	RunConsoleCmd,
 	ShowLogsCmd,
+	AccessCloudletCmd,
 }
 
 var RunCommandRequiredArgs = []string{
@@ -105,6 +118,18 @@ var ShowLogsOptionalArgs = []string{
 	"timestamps",
 	"follow",
 	"webrtc",
+}
+var AccessCloudletRequiredArgs = []string{
+	"cloudlet-org",
+	"cloudlet",
+}
+var AccessCloudletOptionalArgs = []string{
+	"app-org",
+	"appname",
+	"appvers",
+	"cluster",
+	"cluster-org",
+	"vmtype",
 }
 var RunCmdRequiredArgs = []string{}
 var RunCmdOptionalArgs = []string{
@@ -165,6 +190,7 @@ var ExecRequestOptionalArgs = []string{
 	"timestamps",
 	"follow",
 	"webrtc",
+	"vmtype",
 }
 var ExecRequestAliasArgs = []string{
 	"app-org=execrequest.appinstkey.appkey.organization",
@@ -188,6 +214,7 @@ var ExecRequestAliasArgs = []string{
 	"webrtc=execrequest.webrtc",
 	"accessurl=execrequest.accessurl",
 	"edgeturnaddr=execrequest.edgeturnaddr",
+	"vmtype=execrequest.vmtype",
 }
 var ExecRequestComments = map[string]string{
 	"app-org":      "App developer organization",
@@ -211,5 +238,6 @@ var ExecRequestComments = map[string]string{
 	"webrtc":       "WebRTC",
 	"accessurl":    "Access URL",
 	"edgeturnaddr": "EdgeTurn Server Address",
+	"vmtype":       "VM Type, one of UnknownVm, PlatformVm, SharedRootlbVm, DedicatedRootlbVm",
 }
 var ExecRequestSpecialArgs = map[string]string{}

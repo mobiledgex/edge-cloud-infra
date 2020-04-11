@@ -25,6 +25,7 @@ type Platform struct {
 	NetworkScheme string
 	commonPf      mexos.CommonPlatform
 	envVars       map[string]*mexos.PropertyInfo
+	authKey       *edgeproto.AuthKeyPair
 }
 
 var edgeboxProps = map[string]*mexos.PropertyInfo{
@@ -37,8 +38,8 @@ func (s *Platform) GetType() string {
 	return "edgebox"
 }
 
-func (s *Platform) Init(ctx context.Context, platformConfig *platform.PlatformConfig, updateCallback edgeproto.CacheUpdateCallback) error {
-	err := s.generic.Init(ctx, platformConfig, updateCallback)
+func (s *Platform) Init(ctx context.Context, cloudlet *edgeproto.Cloudlet, platformConfig *platform.PlatformConfig, updateCallback edgeproto.CacheUpdateCallback) error {
+	err := s.generic.Init(ctx, cloudlet, platformConfig, updateCallback)
 	s.config = *platformConfig
 	if err != nil {
 		return err
@@ -53,12 +54,14 @@ func (s *Platform) Init(ctx context.Context, platformConfig *platform.PlatformCo
 	}
 	s.vaultConfig = vaultConfig
 
-	if err := s.commonPf.InitInfraCommon(ctx, vaultConfig, platformConfig.EnvVars); err != nil {
+	s.authKey = cloudlet.AuthKey
+
+	if err := s.commonPf.InitInfraCommon(ctx, vaultConfig, cloudlet.EnvVar); err != nil {
 		return err
 	}
 
 	s.envVars = edgeboxProps
-	mexos.SetPropsFromVars(ctx, s.envVars, platformConfig.EnvVars)
+	mexos.SetPropsFromVars(ctx, s.envVars, cloudlet.EnvVar)
 
 	s.NetworkScheme = s.GetCloudletNetworkScheme()
 	if s.NetworkScheme != cloudcommon.NetworkSchemePrivateIP &&
@@ -66,7 +69,7 @@ func (s *Platform) Init(ctx context.Context, platformConfig *platform.PlatformCo
 		return fmt.Errorf("Unsupported network scheme for DIND: %s", s.NetworkScheme)
 	}
 
-	fqdn := cloudcommon.GetRootLBFQDN(platformConfig.CloudletKey)
+	fqdn := cloudcommon.GetRootLBFQDN(&cloudlet.Key)
 	ipaddr, err := s.GetDINDServiceIP(ctx)
 	if err != nil {
 		return fmt.Errorf("init cannot get service ip, %s", err.Error())
@@ -87,6 +90,10 @@ func (s *Platform) GatherCloudletInfo(ctx context.Context, info *edgeproto.Cloud
 	return s.generic.GatherCloudletInfo(ctx, info)
 }
 
-func (s *Platform) GetPlatformClient(ctx context.Context, clusterInst *edgeproto.ClusterInst) (ssh.Client, error) {
-	return s.generic.GetPlatformClient(ctx, clusterInst)
+func (s *Platform) GetPlatformClient(ctx context.Context, serverName string) (ssh.Client, error) {
+	return s.generic.GetPlatformClient(ctx, serverName)
+}
+
+func (s *Platform) GetPlatformClientRootLB(ctx context.Context, clusterInst *edgeproto.ClusterInst) (ssh.Client, error) {
+	return s.generic.GetPlatformClientRootLB(ctx, clusterInst)
 }

@@ -23,7 +23,7 @@ func (s *Platform) CreateClusterInst(ctx context.Context, clusterInst *edgeproto
 	if clusterInst.Deployment == cloudcommon.AppDeploymentTypeDocker {
 		return nil
 	}
-	client, err := s.generic.GetPlatformClient(ctx, clusterInst)
+	client, err := s.generic.GetPlatformClientRootLB(ctx, clusterInst)
 	if err != nil {
 		return err
 	}

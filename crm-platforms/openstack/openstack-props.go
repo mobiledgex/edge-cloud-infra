@@ -111,19 +111,21 @@ func (s *Platform) GetOpenRCVars(ctx context.Context, key *edgeproto.CloudletKey
 	return nil
 }
 
-func (s *Platform) InitOpenstackProps(ctx context.Context, key *edgeproto.CloudletKey, region, physicalName string, vaultConfig *vault.Config, vars map[string]string) error {
-	err := s.GetOpenRCVars(ctx, key, region, physicalName, vaultConfig)
+func (s *Platform) InitOpenstackProps(ctx context.Context, cloudlet *edgeproto.Cloudlet, region string, vaultConfig *vault.Config) error {
+	err := s.GetOpenRCVars(ctx, &cloudlet.Key, region, cloudlet.PhysicalName, vaultConfig)
 	if err != nil {
 		return err
 	}
 
 	s.vaultConfig = vaultConfig
 
+	s.authKey = cloudlet.AuthKey
+
 	// set default properties
 	s.envVars = openstackProps
 
 	// set user defined properties
-	mexos.SetPropsFromVars(ctx, s.envVars, vars)
+	mexos.SetPropsFromVars(ctx, s.envVars, cloudlet.EnvVar)
 
 	return nil
 }

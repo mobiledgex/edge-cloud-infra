@@ -451,6 +451,20 @@ var CloudletResMapComments = map[string]string{
 var CloudletResMapSpecialArgs = map[string]string{
 	"cloudletresmap.mapping": "StringToString",
 }
+var AuthKeyPairRequiredArgs = []string{}
+var AuthKeyPairOptionalArgs = []string{
+	"publickey",
+	"privatekey",
+}
+var AuthKeyPairAliasArgs = []string{
+	"publickey=authkeypair.publickey",
+	"privatekey=authkeypair.privatekey",
+}
+var AuthKeyPairComments = map[string]string{
+	"publickey":  "Auth Public Key",
+	"privatekey": "Auth Private Key",
+}
+var AuthKeyPairSpecialArgs = map[string]string{}
 var CloudletRequiredArgs = []string{
 	"cloudlet-org",
 	"cloudlet",
@@ -541,6 +555,8 @@ var CloudletAliasArgs = []string{
 	"accessvars=cloudlet.accessvars",
 	"vmimageversion=cloudlet.vmimageversion",
 	"packageversion=cloudlet.packageversion",
+	"authkey.publickey=cloudlet.authkey.publickey",
+	"authkey.privatekey=cloudlet.authkey.privatekey",
 }
 var CloudletComments = map[string]string{
 	"fields":                              "Fields are used for the Update API to specify which fields to apply",
@@ -590,6 +606,8 @@ var CloudletComments = map[string]string{
 	"accessvars":                          "Variables required to access cloudlet",
 	"vmimageversion":                      "MobiledgeX baseimage version where CRM services reside",
 	"packageversion":                      "MobiledgeX OS package version on baseimage where CRM services reside",
+	"authkey.publickey":                   "Auth Public Key",
+	"authkey.privatekey":                  "Auth Private Key",
 }
 var CloudletSpecialArgs = map[string]string{
 	"cloudlet.accessvars":    "StringToString",

@@ -63,6 +63,7 @@ It has these top-level messages:
 	CloudletInfraProperties
 	PlatformConfig
 	CloudletResMap
+	AuthKeyPair
 	Cloudlet
 	FlavorMatch
 	FlavorInfo
@@ -559,6 +560,9 @@ func addControllerApis(method string, group *echo.Group) {
 	// AccessVarsValue: 23.2
 	// VmImageVersion: 24
 	// PackageVersion: 25
+	// AuthKey: 26
+	// AuthKeyPublicKey: 26.1
+	// AuthKeyPrivateKey: 26.2
 	// ```
 	// Security:
 	//   Bearer:
@@ -1147,6 +1151,7 @@ func addControllerApis(method string, group *echo.Group) {
 	// ExternalVolumeSize: 32
 	// AvailabilityZone: 33
 	// VmFlavor: 34
+	// OptRes: 35
 	// ```
 	// Security:
 	//   Bearer:
@@ -1299,6 +1304,16 @@ func addControllerApis(method string, group *echo.Group) {
 	//   403: forbidden
 	//   404: notFound
 	group.Match([]string{method}, "/ctrl/ShowLogs", ShowLogs)
+	// swagger:route POST /auth/ctrl/AccessCloudlet ExecRequest AccessCloudlet
+	// Access internal VMs of Cloudlet.
+	// Security:
+	//   Bearer:
+	// responses:
+	//   200: success
+	//   400: badRequest
+	//   403: forbidden
+	//   404: notFound
+	group.Match([]string{method}, "/ctrl/AccessCloudlet", AccessCloudlet)
 	// swagger:route POST /auth/ctrl/ShowCloudletRefs CloudletRefs ShowCloudletRefs
 	// Show CloudletRefs (debug only).
 	// Security:

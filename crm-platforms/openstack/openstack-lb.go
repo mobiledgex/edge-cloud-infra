@@ -557,7 +557,7 @@ func (s *Platform) SetupRootLB(
 	log.SpanLog(ctx, log.DebugLevelMexos, "set rootLB IP to", "ip", ip)
 	rootLB.IP = ip
 
-	client, err := s.SetupSSHUser(ctx, rootLB, mexos.SSHUser)
+	client, err := s.SetupSSHUser(ctx, rootLB, SSHUser)
 	if err != nil {
 		return err
 	}
@@ -590,7 +590,7 @@ func (s *Platform) WaitForRootLB(ctx context.Context, rootLB *MEXRootLB) error {
 	if extNet == "" {
 		return fmt.Errorf("waiting for lb, missing external network in manifest")
 	}
-	client, err := s.GetSSHClient(ctx, rootLB.Name, extNet, mexos.SSHUser)
+	client, err := s.GetSSHClient(ctx, rootLB.Name, extNet, SSHUser)
 	if err != nil {
 		return err
 	}

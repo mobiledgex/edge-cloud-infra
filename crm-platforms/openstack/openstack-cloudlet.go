@@ -316,7 +316,7 @@ func (s *Platform) setupPlatformVM(ctx context.Context, cloudlet *edgeproto.Clou
 	}
 	updateCallback(edgeproto.UpdateTask, "Platform VM external IP: "+ip.ExternalAddr)
 
-	client, err := s.GetSSHClient(ctx, platform_vm_name, s.GetCloudletExternalNetwork(), mexos.SSHUser)
+	client, err := s.GetSSHClient(ctx, platform_vm_name, s.GetCloudletExternalNetwork(), SSHUser)
 	if err != nil {
 		return nil, err
 	}
@@ -562,7 +562,7 @@ func (s *Platform) UpdateCloudlet(ctx context.Context, cloudlet *edgeproto.Cloud
 		return defCloudletAction, err
 	}
 
-	pfClient, err := s.GetSSHClient(ctx, cloudcommon.GetPlatformVMName(&cloudlet.Key), s.GetCloudletExternalNetwork(), mexos.SSHUser)
+	pfClient, err := s.GetSSHClient(ctx, cloudcommon.GetPlatformVMName(&cloudlet.Key), s.GetCloudletExternalNetwork(), SSHUser)
 	if err != nil {
 		return defCloudletAction, err
 	}
@@ -573,7 +573,7 @@ func (s *Platform) UpdateCloudlet(ctx context.Context, cloudlet *edgeproto.Cloud
 	}
 
 	rootLBName := cloudcommon.GetRootLBFQDN(&cloudlet.Key)
-	rlbClient, err := s.GetSSHClient(ctx, rootLBName, s.GetCloudletExternalNetwork(), mexos.SSHUser)
+	rlbClient, err := s.GetSSHClient(ctx, rootLBName, s.GetCloudletExternalNetwork(), SSHUser)
 	if err != nil {
 		return defCloudletAction, err
 	}
@@ -661,7 +661,7 @@ func (s *Platform) UpdateCloudlet(ctx context.Context, cloudlet *edgeproto.Cloud
 func (s *Platform) CleanupCloudlet(ctx context.Context, cloudlet *edgeproto.Cloudlet, pfConfig *edgeproto.PlatformConfig, updateCallback edgeproto.CacheUpdateCallback) error {
 	log.SpanLog(ctx, log.DebugLevelMexos, "Cleaning up cloudlet", "cloudletName", cloudlet.Key.Name)
 
-	client, err := s.GetSSHClient(ctx, cloudcommon.GetPlatformVMName(&cloudlet.Key), s.GetCloudletExternalNetwork(), mexos.SSHUser)
+	client, err := s.GetSSHClient(ctx, cloudcommon.GetPlatformVMName(&cloudlet.Key), s.GetCloudletExternalNetwork(), SSHUser)
 	if err != nil {
 		return err
 	}

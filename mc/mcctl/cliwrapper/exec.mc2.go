@@ -65,7 +65,7 @@ func (s *Client) ShowLogsStream(uri, token string, in *ormapi.RegionExecRequest)
 func (s *Client) AccessCloudlet(uri, token string, in *ormapi.RegionExecRequest) (*edgeproto.ExecRequest, int, error) {
 	args := []string{"region", "AccessCloudlet"}
 	out := edgeproto.ExecRequest{}
-	noconfig := strings.Split("Offer,Answer,Err,Timeout,Cmd,Console,Log,AccessUrl,EdgeTurnAddr,Webrtc,ContainerId", ",")
+	noconfig := strings.Split("Offer,Answer,Err,Timeout,Cmd,Console,Log,AccessUrl,EdgeTurnAddr,Webrtc,ContainerId,AppInstKey.AppKey.Name,AppInstKey.AppKey.Version,AppInstKey.AppKey.Organization", ",")
 	st, err := s.runObjs(uri, token, args, in, &out, withIgnore(noconfig))
 	if err != nil {
 		return nil, st, err

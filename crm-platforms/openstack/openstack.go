@@ -140,7 +140,7 @@ func (s *Platform) GetPlatformClient(ctx context.Context, serverName string) (ss
 	if s.GetCloudletExternalNetwork() == "" {
 		return nil, fmt.Errorf("GetPlatformClient, missing external network in platform config")
 	}
-	return s.GetSSHClient(ctx, serverName, s.GetCloudletExternalNetwork(), mexos.SSHUser)
+	return s.GetSSHClient(ctx, serverName, s.GetCloudletExternalNetwork(), SSHUser)
 }
 
 func (s *Platform) GetPlatformClientRootLB(ctx context.Context, clusterInst *edgeproto.ClusterInst) (ssh.Client, error) {

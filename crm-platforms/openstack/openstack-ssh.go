@@ -13,6 +13,9 @@ import (
 
 var DefaultConnectTimeout time.Duration = 30 * time.Second
 var ClientVersion = "SSH-2.0-mobiledgex-ssh-client-1.0"
+var SSHOpts = []string{"StrictHostKeyChecking=no", "UserKnownHostsFile=/dev/null", "LogLevel=ERROR"}
+var SSHUser = "ubuntu"
+var SSHPrivateKeyName = "id_rsa_mex"
 
 type SSHOptions struct {
 	Timeout time.Duration
@@ -88,9 +91,9 @@ func (s *Platform) SetupSSHUser(ctx context.Context, rootLB *MEXRootLB, user str
 		fmt.Sprintf("sudo cp /root/.ssh/config /home/%s/.ssh/", user),
 		fmt.Sprintf("sudo chown %s:%s /home/%s/.ssh/config", user, user, user),
 		fmt.Sprintf("sudo chmod 600 /home/%s/.ssh/config", user),
-		fmt.Sprintf("sudo cp /root/%s /home/%s/", mexos.SSHPrivateKeyName, user),
-		fmt.Sprintf("sudo chown %s:%s   /home/%s/%s", user, user, user, mexos.SSHPrivateKeyName),
-		fmt.Sprintf("sudo chmod 600   /home/%s/%s", user, mexos.SSHPrivateKeyName),
+		fmt.Sprintf("sudo cp /root/%s /home/%s/", SSHPrivateKeyName, user),
+		fmt.Sprintf("sudo chown %s:%s   /home/%s/%s", user, user, user, SSHPrivateKeyName),
+		fmt.Sprintf("sudo chmod 600   /home/%s/%s", user, SSHPrivateKeyName),
 	} {
 		out, err := client.Output(cmd)
 		if err != nil {

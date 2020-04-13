@@ -24,6 +24,7 @@ import (
 
 type VMParams struct {
 	VMName                   string
+	SanitizedVMName          string
 	FlavorName               string
 	ExternalVolumeSize       uint64
 	SharedVolumeSize         uint64
@@ -209,7 +210,7 @@ var vmTemplateResources = `
            {{- end}}
         {{- end}}
         {{if .IsInternal}}
-	{{if .AuthPublicKey}}
+        {{if .AuthPublicKey}}
          user_data: |
 ` + reindent(vmCloudConfig, 12) + `
         {{else}}
@@ -231,7 +232,7 @@ var vmTemplateResources = `
    ssh_key_pair:
        type: OS::Nova::KeyPair
        properties:
-          name: {{.VMName}}-ssh-keypair
+          name: {{.SanitizedVMName}}-ssh-keypair
           public_key: "{{.AuthPublicKey}}"
   {{- end}}
   {{if .FloatingIPAddressID}}
@@ -265,32 +266,35 @@ resources:
 
 // ClusterNode is a k8s node
 type ClusterNode struct {
-	NodeName     string
-	NodeIP       string
-	VMDNSServers string
+	NodeName      string
+	NodeIP        string
+	VMDNSServers  string
+	AuthPublicKey string
 }
 
 // ClusterParams has the info needed to populate the heat template
 type ClusterParams struct {
-	ClusterType           string
-	ClusterFirstVMName    string
-	NodeFlavor            string
-	MEXRouterName         string
-	MEXNetworkName        string
-	VnicType              string
-	ClusterName           string
-	CIDR                  string
-	GatewayIP             string
-	MasterIP              string
-	RootLBConnectToSubnet string
-	RootLBPortName        string
-	NetworkType           string
-	RouterSecurityGroup   string // used for internal comms only if the OpenStack router is present
-	DNSServers            []string
-	Nodes                 []ClusterNode
-	MasterNodeFlavor      string
-	*VMParams             //rootlb
-	VMAppParams           *VMParams
+	ClusterType                 string
+	ClusterFirstVMName          string
+	SanitizedClusterFirstVMName string
+	ClusterAuthPublicKey        string
+	NodeFlavor                  string
+	MEXRouterName               string
+	MEXNetworkName              string
+	VnicType                    string
+	ClusterName                 string
+	CIDR                        string
+	GatewayIP                   string
+	MasterIP                    string
+	RootLBConnectToSubnet       string
+	RootLBPortName              string
+	NetworkType                 string
+	RouterSecurityGroup         string // used for internal comms only if the OpenStack router is present
+	DNSServers                  []string
+	Nodes                       []ClusterNode
+	MasterNodeFlavor            string
+	*VMParams                   //rootlb
+	VMAppParams                 *VMParams
 }
 
 var clusterTemplate = `
@@ -404,10 +408,16 @@ resources:
          image: {{.ImageName}}
       {{- end}}
          flavor: {{.MasterNodeFlavor}}
+        {{if .VMParams.AuthPublicKey}} key_name: { get_resource: ssh_key_pair } {{- end}}
          config_drive: true
          user_data_format: RAW
+        {{if .VMParams.AuthPublicKey}}
          user_data: |
 ` + reindent(vmCloudConfig, 12) + `
+        {{else}}
+         user_data: |
+` + reindent(vmCloudConfigSSH, 12) + `
+        {{- end}}
         {{if .SharedVolumeSize}}
 ` + reindent(vmCloudConfigShareMount, 12) + `
         {{- end}}
@@ -476,10 +486,16 @@ resources:
          {{- end}}
         {{- end}}
          flavor: {{$.NodeFlavor}}
+        {{if .AuthPublicKey}} key_name: { get_resource: ssh_key_pair } {{- end}}
          config_drive: true
          user_data_format: RAW
+        {{if .AuthPublicKey}}
          user_data: |
 ` + reindent(vmCloudConfig, 12) + `
+        {{else}}
+         user_data: |
+` + reindent(vmCloudConfigSSH, 12) + `
+        {{- end}}
          networks:
           - port: { get_resource: {{.NodeName}}-port } 
          metadata:
@@ -489,6 +505,13 @@ resources:
             mex-flavor: {{$.NodeFlavor}}
             k8smaster: {{$.MasterIP}}
   {{end}}
+  {{if .ClusterAuthPublicKey}}
+   ssh_key_pair:
+       type: OS::Nova::KeyPair
+       properties:
+          name: {{.SanitizedClusterFirstVMName}}-ssh-keypair
+          public_key: "{{.ClusterAuthPublicKey}}"
+  {{- end}}
 `
 
 func reindent(str string, indent int) string {
@@ -497,6 +520,10 @@ func reindent(str string, indent int) string {
 		out += strings.Repeat(" ", indent) + v + "\n"
 	}
 	return strings.TrimSuffix(out, "\n")
+}
+
+func sanitizeKeyPairName(str string) string {
+	return strings.Replace(str, ".", "_", -1)
 }
 
 func WriteTemplateFile(filename string, buf *bytes.Buffer) error {
@@ -630,6 +657,7 @@ func (s *Platform) GetVMParams(ctx context.Context, depType DeploymentType, serv
 	var vmp VMParams
 	var err error
 	vmp.VMName = serverName
+	vmp.SanitizedVMName = sanitizeKeyPairName(serverName)
 	vmp.FlavorName = flavorName
 	vmp.ExternalVolumeSize = externalVolumeSize
 	vmp.ImageName = imageName
@@ -871,6 +899,7 @@ func (s *Platform) getClusterParams(ctx context.Context, clusterInst *edgeproto.
 	}
 	cp.NetworkType = ni.NetworkType
 	cp.VnicType = ni.VnicType
+	cp.SanitizedClusterFirstVMName = sanitizeKeyPairName(cp.ClusterFirstVMName)
 
 	if imgName == "" {
 		imgName = s.GetCloudletOSImage()
@@ -915,6 +944,7 @@ func (s *Platform) getClusterParams(ctx context.Context, clusterInst *edgeproto.
 		if err != nil {
 			return nil, fmt.Errorf("Unable to get shared VM params: %v", err)
 		}
+		cp.ClusterAuthPublicKey = cp.VMParams.AuthPublicKey
 	}
 	cloudletGrp, err := s.GetCloudletSecurityGroupID(ctx, &clusterInst.Key.CloudletKey)
 	if err != nil {
@@ -950,7 +980,11 @@ func (s *Platform) getClusterParams(ctx context.Context, clusterInst *edgeproto.
 	for i := uint32(1); i <= clusterInst.NumNodes; i++ {
 		nn := HeatNodePrefix(i)
 		nip := fmt.Sprintf("%s.%d", nodeIPPrefix, i+100)
-		cn := ClusterNode{NodeName: nn, NodeIP: nip}
+		cn := ClusterNode{
+			NodeName:      nn,
+			NodeIP:        nip,
+			AuthPublicKey: cp.VMParams.AuthPublicKey,
+		}
 		cn.VMDNSServers = cp.VMDNSServers
 		cp.Nodes = append(cp.Nodes, cn)
 	}
@@ -1037,7 +1071,7 @@ func (s *Platform) HeatCreateCluster(ctx context.Context, clusterInst *edgeproto
 		return err
 	}
 	if cp.RootLBPortName != "" {
-		client, err := s.GetSSHClient(ctx, rootLBName, s.GetCloudletExternalNetwork(), mexos.SSHUser)
+		client, err := s.GetSSHClient(ctx, rootLBName, s.GetCloudletExternalNetwork(), SSHUser)
 		if err != nil {
 			return fmt.Errorf("unable to get rootlb SSH client: %v", err)
 		}
@@ -1057,6 +1091,7 @@ func (s *Platform) HeatCreateAppVMWithRootLB(ctx context.Context, rootLBName str
 	var cp ClusterParams
 	cp.ClusterType = clusterTypeVMApp
 	cp.ClusterFirstVMName = appVMName
+	cp.SanitizedClusterFirstVMName = sanitizeKeyPairName(appVMName)
 	cp.MasterNodeFlavor = vmAppParams.FlavorName
 	cp.ClusterName = appVMName
 	cp.VMParams = rootLBParams
@@ -1073,7 +1108,7 @@ func (s *Platform) HeatCreateAppVMWithRootLB(ctx context.Context, rootLBName str
 	if err != nil {
 		return err
 	}
-	client, err := s.GetSSHClient(ctx, rootLBName, s.GetCloudletExternalNetwork(), mexos.SSHUser)
+	client, err := s.GetSSHClient(ctx, rootLBName, s.GetCloudletExternalNetwork(), SSHUser)
 	if err != nil {
 		return fmt.Errorf("unable to get rootlb SSH client: %v", err)
 	}
@@ -1103,7 +1138,7 @@ func (s *Platform) HeatUpdateCluster(ctx context.Context, clusterInst *edgeproto
 	}
 	// It it is possible this cluster was created before the default was to use a router
 	if cp.RootLBPortName != "" {
-		client, err := s.GetSSHClient(ctx, rootLBName, s.GetCloudletExternalNetwork(), mexos.SSHUser)
+		client, err := s.GetSSHClient(ctx, rootLBName, s.GetCloudletExternalNetwork(), SSHUser)
 		if err != nil {
 			return fmt.Errorf("unable to get rootlb SSH client: %v", err)
 		}

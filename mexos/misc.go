@@ -6,6 +6,7 @@ import (
 	"io/ioutil"
 	"os"
 
+	"github.com/mobiledgex/edge-cloud/cloud-resource-manager/k8smgmt"
 	"github.com/mobiledgex/edge-cloud/cloud-resource-manager/platform"
 	"github.com/mobiledgex/edge-cloud/cloudcommon"
 	"github.com/mobiledgex/edge-cloud/edgeproto"
@@ -77,4 +78,9 @@ func SeedDockerSecret(ctx context.Context, plat platform.Platform, client ssh.Cl
 	}
 	log.SpanLog(ctx, log.DebugLevelMexos, "docker login ok")
 	return nil
+}
+
+func GetLocalKconfName(clusterInst *edgeproto.ClusterInst) string {
+	kconf := fmt.Sprintf("%s/%s", MEXDir(), k8smgmt.GetKconfName(clusterInst))
+	return kconf
 }

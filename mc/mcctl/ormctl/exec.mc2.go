@@ -122,14 +122,11 @@ var ShowLogsOptionalArgs = []string{
 var AccessCloudletRequiredArgs = []string{
 	"cloudlet-org",
 	"cloudlet",
+	"vmtype",
 }
 var AccessCloudletOptionalArgs = []string{
-	"app-org",
-	"appname",
-	"appvers",
 	"cluster",
 	"cluster-org",
-	"vmtype",
 }
 var RunCmdRequiredArgs = []string{}
 var RunCmdOptionalArgs = []string{
@@ -181,6 +178,7 @@ var ExecRequestRequiredArgs = []string{
 	"cloudlet-org",
 	"cloudlet",
 	"cluster-org",
+	"vmtype",
 }
 var ExecRequestOptionalArgs = []string{
 	"containerid",
@@ -190,7 +188,6 @@ var ExecRequestOptionalArgs = []string{
 	"timestamps",
 	"follow",
 	"webrtc",
-	"vmtype",
 }
 var ExecRequestAliasArgs = []string{
 	"app-org=execrequest.appinstkey.appkey.organization",

@@ -121,7 +121,7 @@ func (s *Platform) deleteCluster(ctx context.Context, rootLBName string, cluster
 	log.SpanLog(ctx, log.DebugLevelMexos, "deleting kubernetes cluster", "clusterInst", clusterInst)
 
 	dedicatedRootLB := clusterInst.IpAccess == edgeproto.IpAccess_IP_ACCESS_DEDICATED
-	client, err := s.GetSSHClient(ctx, rootLBName, s.GetCloudletExternalNetwork(), mexos.SSHUser)
+	client, err := s.GetSSHClient(ctx, rootLBName, s.GetCloudletExternalNetwork(), SSHUser)
 	if err != nil {
 		if strings.Contains(err.Error(), "No server with a name or ID") {
 			log.SpanLog(ctx, log.DebugLevelMexos, "Dedicated RootLB is gone, allow stack delete to proceed")
@@ -240,7 +240,7 @@ func (s *Platform) createClusterInternal(ctx context.Context, rootLBName string,
 			return err
 		}
 	}
-	client, err := s.GetSSHClient(ctx, rootLBName, s.GetCloudletExternalNetwork(), mexos.SSHUser)
+	client, err := s.GetSSHClient(ctx, rootLBName, s.GetCloudletExternalNetwork(), SSHUser)
 	if err != nil {
 		return fmt.Errorf("can't get rootLB client, %v", err)
 	}
@@ -312,12 +312,50 @@ func (s *Platform) waitClusterReady(ctx context.Context, clusterInst *edgeproto.
 	}
 }
 
+//CopyKubeConfig copies over kubeconfig from the cluster
+func (s *Platform) CopyKubeConfig(ctx context.Context, rootLBClient ssh.Client, clusterInst *edgeproto.ClusterInst, rootLBName, masterIP string) error {
+	kconfname := k8smgmt.GetKconfName(clusterInst)
+	log.SpanLog(ctx, log.DebugLevelMexos, "attempt to get kubeconfig from k8s master", "masterIP", masterIP, "dest", kconfname)
+	privKeyFile := ""
+	if s.authKey == nil {
+		privKeyFile = SSHPrivateKeyName
+	} else {
+		cmd := fmt.Sprintf("echo \"%s\" > ssh_priv_key", s.authKey.PrivateKey)
+		out, err := rootLBClient.Output(cmd)
+		if err != nil {
+			return fmt.Errorf("can't setup ssh private key of cloudlet inside rootlb %s, %s, %v", cmd, out, err)
+		}
+		cmd = fmt.Sprintf("chmod 600 ssh_priv_key")
+		out, err = rootLBClient.Output(cmd)
+		if err != nil {
+			return fmt.Errorf("can't chmod ssh private key of cloudlet inside rootlb %s, %s, %v", cmd, out, err)
+		}
+		privKeyFile = "ssh_priv_key"
+	}
+	cmd := fmt.Sprintf("scp -o %s -o %s -i %s %s@%s:.kube/config %s", SSHOpts[0], SSHOpts[1], privKeyFile, SSHUser, masterIP, kconfname)
+	out, err := rootLBClient.Output(cmd)
+	if err != nil {
+		return fmt.Errorf("can't copy kubeconfig via cmd %s, %s, %v", cmd, out, err)
+	}
+	cmd = fmt.Sprintf("cat %s", kconfname)
+	out, err = rootLBClient.Output(cmd)
+	if err != nil {
+		return fmt.Errorf("can't cat %s, %s, %v", kconfname, out, err)
+	}
+	//TODO generate per proxy password and record in vault
+	//port, serr := StartKubectlProxy(mf, rootLB, name, kconfname)
+	//if serr != nil {
+	//      return serr
+	//}
+	return nil
+}
+
 //IsClusterReady checks to see if cluster is read, i.e. rootLB is running and active.  returns ready,nodecount, error
 func (s *Platform) isClusterReady(ctx context.Context, clusterInst *edgeproto.ClusterInst, masterName, masterIP string, rootLBName string, updateCallback edgeproto.CacheUpdateCallback) (bool, uint32, error) {
 	log.SpanLog(ctx, log.DebugLevelMexos, "checking if cluster is ready")
 
 	// some commands are run on the rootlb and some on the master directly, so we use separate clients
-	rootLBClient, err := s.GetSSHClient(ctx, rootLBName, s.GetCloudletExternalNetwork(), mexos.SSHUser)
+	rootLBClient, err := s.GetSSHClient(ctx, rootLBName, s.GetCloudletExternalNetwork(), SSHUser)
 	if err != nil {
 		return false, 0, fmt.Errorf("can't get rootlb ssh client for cluster ready check, %v", err)
 	}
@@ -368,7 +406,7 @@ func (s *Platform) isClusterReady(ctx context.Context, clusterInst *edgeproto.Cl
 	}
 	log.SpanLog(ctx, log.DebugLevelMexos, "cluster nodes ready", "numnodes", clusterInst.NumNodes, "nummasters", clusterInst.NumMasters, "readyCount", readyCount, "notReadyCount", notReadyCount)
 
-	if err := mexos.CopyKubeConfig(ctx, rootLBClient, clusterInst, rootLBName, masterIP); err != nil {
+	if err := s.CopyKubeConfig(ctx, rootLBClient, clusterInst, rootLBName, masterIP); err != nil {
 		return false, 0, fmt.Errorf("kubeconfig copy failed, %v", err)
 	}
 	if clusterInst.NumNodes == 0 {

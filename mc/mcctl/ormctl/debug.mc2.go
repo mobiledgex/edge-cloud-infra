@@ -90,7 +90,6 @@ var EnableDebugLevelsOptionalArgs = []string{
 	"cloudlet",
 	"region",
 	"pretty",
-	"id",
 	"args",
 }
 var DisableDebugLevelsRequiredArgs = []string{
@@ -103,7 +102,6 @@ var DisableDebugLevelsOptionalArgs = []string{
 	"cloudlet",
 	"region",
 	"pretty",
-	"id",
 	"args",
 }
 var ShowDebugLevelsRequiredArgs = []string{}
@@ -114,7 +112,6 @@ var ShowDebugLevelsOptionalArgs = []string{
 	"cloudlet",
 	"region",
 	"pretty",
-	"id",
 	"args",
 }
 var RunDebugRequiredArgs = []string{}
@@ -126,7 +123,6 @@ var RunDebugOptionalArgs = []string{
 	"region",
 	"cmd",
 	"pretty",
-	"id",
 	"args",
 }
 var DebugRequestRequiredArgs = []string{}

@@ -403,7 +403,7 @@ var AppInstComments = map[string]string{
 	"crmoverride":                    "Override actions to CRM, one of NoOverride, IgnoreCrmErrors, IgnoreCrm, IgnoreTransientState, IgnoreCrmAndTransientState",
 	"runtimeinfo.containerids":       "List of container names",
 	"autoclusteripaccess":            "IpAccess for auto-clusters. Ignored otherwise., one of IpAccessUnknown, IpAccessDedicated, IpAccessShared",
-	"revision":                       "Revision increments each time the App is updated.  Updating the App Instance will sync the revision with that of the App",
+	"revision":                       "Revision changes each time the App is updated.  Refreshing the App Instance will sync the revision with that of the App",
 	"forceupdate":                    "Force Appinst refresh even if revision number matches App revision number.",
 	"updatemultiple":                 "Allow multiple instances to be updated at once",
 	"configs[#].kind":                "kind (type) of config, i.e. envVarsYaml, hemlCustomizationYaml",

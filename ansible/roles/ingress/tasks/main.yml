@@ -1,5 +1,5 @@
 - name: Make sure all nodes are labelled as Linux
-  command: "kubectl label node --all kubernetes.io/os=linux"
+  command: "kubectl --kubeconfig {{ kubeconfig_file.path }} label node --all kubernetes.io/os=linux"
   register: result
   changed_when: no
   failed_when:

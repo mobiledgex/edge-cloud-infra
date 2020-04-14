@@ -1,12 +1,17 @@
 ## Set up the environment
 
-* Set up the GCP service account
-    * [Create a GCP service account for yourself](https://cloud.google.com/docs/authentication/getting-started)
-    * Download the service account JSON file and copy it to `~/.gcp-terraform-service-principal.json`
-* Pull the latest version of the [mobiledgex/secrets](https://github.com/mobiledgex/secrets/blob/master/README.md) repo
-* Source the ansible environment file in your `.bashrc`/`.zshrc` file
-  ```bash
-  . ~/.mobiledgex/ansible.env
+* Set up a virtual environement for Ansible
+  ```
+  python3 -m venv ~/venv/ansible
+  . ~/venv/ansible/bin/activate
+  pip install --upgrade pip
+  ```
+* Install dependencies
+  ```
+  cd edge-cloud-infra/ansible
+
+  . ~/venv/ansible/bin/activate
+  pip install -r requirements.txt
   ```
 
 ## Examples
@@ -23,5 +28,5 @@ make deploy
 
 ```bash
 cd edge-cloud-infra/ansible
-ansible-playbook -i staging -e edge_cloud_version=2019-05-06 -e @ansible-mex-vault.yml mexplat.yml
+./deploy -V 2020-04-10 staging
 ```

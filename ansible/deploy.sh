@@ -30,6 +30,22 @@ example: $0 -n staging console"
 # See: https://github.com/ansible/ansible/issues/49207
 export OBJC_DISABLE_INITIALIZE_FORK_SAFETY=YES
 
+die() {
+	echo "ERROR: $*" >&2
+	exit 2
+}
+
+: ${ANSIBLE_VENV:=$HOME/venv/ansible}
+if [[ ! -d "$ANSIBLE_VENV" ]]; then
+	echo
+	echo "WARNING: Could not find virtualenv"
+	echo "         See ansible/README.md for details on setting up the environment"
+	echo
+else
+	echo "Using virtual environment: $ANSIBLE_VENV"
+	. $ANSIBLE_VENV/bin/activate || die "Failed to source virtul environment: $ANSIBLE_VENV"
+fi
+
 DRYRUN=false
 LIST=false
 DEBUG=false

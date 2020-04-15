@@ -54,6 +54,11 @@ vault write pki/intermediate/set-signed \
     certificate=@intermediate.cert.pem
 ```
 
+## Store the root CA certificates _very_ securely offline:
+
+* `private/ca.key.pem`
+* `certs/ca.cert.pem`
+
 ## References
 
 * https://jamielinux.com/docs/openssl-certificate-authority/create-the-root-pair.html

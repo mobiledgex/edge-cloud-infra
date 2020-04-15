@@ -59,7 +59,7 @@ type AZFlavor struct {
 }
 
 func (a *AzurePlatform) GatherCloudletInfo(ctx context.Context, info *edgeproto.CloudletInfo) error {
-	log.SpanLog(ctx, log.DebugLevelMexos, "GetLimits (Azure)")
+	log.SpanLog(ctx, log.DebugLevelInfra, "GetLimits (Azure)")
 	if err := a.AzureLogin(ctx); err != nil {
 		return err
 	}
@@ -189,7 +189,7 @@ func (o *AzurePlatform) DeleteResources(ctx context.Context, resourceGroupName s
 	return fmt.Errorf("not implemented")
 }
 
-func (a *AzurePlatform) DeleteClusterResources(ctx context.Context, client ssh.Client, clusterInst *edgeproto.ClusterInst) error {
+func (a *AzurePlatform) DeleteClusterResources(ctx context.Context, client ssh.Client, clusterInst *edgeproto.ClusterInst, rootLBName string, dedicatedRootLB bool) error {
 	return fmt.Errorf("not implemented")
 }
 

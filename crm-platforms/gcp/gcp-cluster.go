@@ -16,7 +16,7 @@ import (
 
 // GCPLogin logs into google cloud
 func (g *GCPPlatform) GCPLogin(ctx context.Context) error {
-	log.SpanLog(ctx, log.DebugLevelMexos, "doing GcpLogin", "vault url", g.GetGcpAuthKeyUrl())
+	log.SpanLog(ctx, log.DebugLevelInfra, "doing GcpLogin", "vault url", g.GetGcpAuthKeyUrl())
 	filename := "/tmp/auth_key.json"
 	err := infracommon.GetVaultDataToFile(g.commonPf.VaultConfig, g.GetGcpAuthKeyUrl(), filename)
 	if err != nil {
@@ -24,11 +24,11 @@ func (g *GCPPlatform) GCPLogin(ctx context.Context) error {
 	}
 	defer os.Remove(filename)
 	out, err := sh.Command("gcloud", "auth", "activate-service-account", GCPServiceAccount, "--key-file", filename).CombinedOutput()
-	log.SpanLog(ctx, log.DebugLevelMexos, "gcp login", "out", string(out), "err", err)
+	log.SpanLog(ctx, log.DebugLevelInfra, "gcp login", "out", string(out), "err", err)
 	if err != nil {
 		return err
 	}
-	log.SpanLog(ctx, log.DebugLevelMexos, "GCP login OK")
+	log.SpanLog(ctx, log.DebugLevelInfra, "GCP login OK")
 	return nil
 }
 
@@ -49,11 +49,11 @@ func (g *GCPPlatform) CreateClusterInst(ctx context.Context, clusterInst *edgepr
 	}
 	kconf := k8smgmt.GetKconfName(clusterInst) //XXX
 
-	log.SpanLog(ctx, log.DebugLevelMexos, "warning, using default config") //XXX
+	log.SpanLog(ctx, log.DebugLevelInfra, "warning, using default config") //XXX
 	if err = pc.CopyFile(client, infracommon.DefaultKubeconfig(), kconf); err != nil {
 		return err
 	}
-	log.SpanLog(ctx, log.DebugLevelMexos, "created gke", "name", clusterName)
+	log.SpanLog(ctx, log.DebugLevelInfra, "created gke", "name", clusterName)
 	return nil
 }
 

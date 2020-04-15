@@ -99,7 +99,7 @@ func (g *GCPPlatform) DeleteAppInst(ctx context.Context, clusterInst *edgeproto.
 
 func SetupKconf(ctx context.Context, clusterInst *edgeproto.ClusterInst) error {
 	targetFile := k8smgmt.GetKconfName(clusterInst)
-	log.SpanLog(ctx, log.DebugLevelMexos, "SetupKconf", "targetFile", targetFile)
+	log.SpanLog(ctx, log.DebugLevelInfra, "SetupKconf", "targetFile", targetFile)
 
 	if _, err := os.Stat(targetFile); err == nil {
 		// already exists

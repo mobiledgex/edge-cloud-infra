@@ -42,7 +42,7 @@ func ParseNetSpec(ctx context.Context, netSpec string) (*NetSpecInfo, error) {
 	if netSpec == "" {
 		return nil, fmt.Errorf("empty netspec")
 	}
-	log.SpanLog(ctx, log.DebugLevelMexos, "parsing netspec", "netspec", netSpec)
+	log.SpanLog(ctx, log.DebugLevelInfra, "parsing netspec", "netspec", netSpec)
 	items := strings.Split(netSpec, ",")
 	for _, i := range items {
 		kvs := strings.Split(i, "=")
@@ -91,15 +91,15 @@ func ParseNetSpec(ctx context.Context, netSpec string) (*NetSpecInfo, error) {
 		}
 	}
 	if len(ni.Octets) != 4 {
-		log.SpanLog(ctx, log.DebugLevelMexos, "invalid network address, wrong number of octets", "octets", ni.Octets)
+		log.SpanLog(ctx, log.DebugLevelInfra, "invalid network address, wrong number of octets", "octets", ni.Octets)
 		return nil, fmt.Errorf("invalid network address structure")
 	}
 	if ni.DelimiterOctet != 2 {
-		log.SpanLog(ctx, log.DebugLevelMexos, "invalid network address, third octet must be X", "delimiterOctet", ni.DelimiterOctet)
+		log.SpanLog(ctx, log.DebugLevelInfra, "invalid network address, third octet must be X", "delimiterOctet", ni.DelimiterOctet)
 		return nil, fmt.Errorf("invalid network address delimiter")
 	}
 
-	log.SpanLog(ctx, log.DebugLevelMexos, "netspec info", "ni", ni, "items", items)
+	log.SpanLog(ctx, log.DebugLevelInfra, "netspec info", "ni", ni, "items", items)
 	return ni, nil
 }
 

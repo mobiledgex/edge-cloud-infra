@@ -53,7 +53,7 @@ func (e *EdgeboxPlatform) CreateAppInst(ctx context.Context, clusterInst *edgepr
 		action := infracommon.DnsSvcAction{}
 
 		if len(svc.Spec.ExternalIPs) > 0 && svc.Spec.ExternalIPs[0] == masterIP {
-			log.SpanLog(ctx, log.DebugLevelMexos, "external IP already present in DIND, no patch required", "addr", masterIP)
+			log.SpanLog(ctx, log.DebugLevelInfra, "external IP already present in DIND, no patch required", "addr", masterIP)
 		} else {
 			action.PatchKube = true
 			action.PatchIP = masterIP
@@ -67,7 +67,7 @@ func (e *EdgeboxPlatform) CreateAppInst(ctx context.Context, clusterInst *edgepr
 		return &action, nil
 	}
 	if err = e.commonPf.CreateAppDNSAndPatchKubeSvc(ctx, client, names, infracommon.NoDnsOverride, getDnsAction); err != nil {
-		log.SpanLog(ctx, log.DebugLevelMexos, "cannot add DNS entries", "error", err)
+		log.SpanLog(ctx, log.DebugLevelInfra, "cannot add DNS entries", "error", err)
 		return err
 	}
 	return nil
@@ -88,11 +88,11 @@ func (e *EdgeboxPlatform) DeleteAppInst(ctx context.Context, clusterInst *edgepr
 	// remove DNS entries if it was added
 	if !app.InternalPorts {
 		if err = e.commonPf.DeleteAppDNS(ctx, client, names, infracommon.NoDnsOverride); err != nil {
-			log.SpanLog(ctx, log.DebugLevelMexos, "warning, cannot delete DNS record", "error", err)
+			log.SpanLog(ctx, log.DebugLevelInfra, "warning, cannot delete DNS record", "error", err)
 		}
 	}
 	if err = e.generic.DeleteAppInst(ctx, clusterInst, app, appInst); err != nil {
-		log.SpanLog(ctx, log.DebugLevelMexos, "warning, cannot delete AppInst", "error", err)
+		log.SpanLog(ctx, log.DebugLevelInfra, "warning, cannot delete AppInst", "error", err)
 		return err
 	}
 	return nil

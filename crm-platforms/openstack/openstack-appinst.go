@@ -48,6 +48,7 @@ func (o *OpenstackPlatform) GetConsoleUrl(ctx context.Context, app *edgeproto.Ap
 
 }
 
+// SetPowerState is mostly common code that could eventually move
 func (o *OpenstackPlatform) SetPowerState(ctx context.Context, app *edgeproto.App, appInst *edgeproto.AppInst, updateCallback edgeproto.CacheUpdateCallback) error {
 	PowerState := appInst.PowerState
 	switch deployment := app.Deployment; deployment {
@@ -55,7 +56,7 @@ func (o *OpenstackPlatform) SetPowerState(ctx context.Context, app *edgeproto.Ap
 		serverName := cloudcommon.GetAppFQN(&app.Key)
 		fqdn := appInst.Uri
 
-		log.SpanLog(ctx, log.DebugLevelMexos, "setting server state", "serverName", serverName, "fqdn", fqdn, "PowerState", PowerState)
+		log.SpanLog(ctx, log.DebugLevelInfra, "setting server state", "serverName", serverName, "fqdn", fqdn, "PowerState", PowerState)
 
 		updateCallback(edgeproto.UpdateTask, "Verifying AppInst state")
 		serverDetail, err := o.GetServerDetail(ctx, serverName)
@@ -110,7 +111,7 @@ func (o *OpenstackPlatform) SetPowerState(ctx context.Context, app *edgeproto.Ap
 			if oldServerIP.ExternalAddr != newServerIP.ExternalAddr {
 				// IP changed, update DNS entry
 				updateCallback(edgeproto.UpdateTask, fmt.Sprintf("Updating DNS entry as IP changed for %s", serverName))
-				log.SpanLog(ctx, log.DebugLevelMexos, "updating DNS entry", "serverName", serverName, "fqdn", fqdn, "ip", newServerIP)
+				log.SpanLog(ctx, log.DebugLevelInfra, "updating DNS entry", "serverName", serverName, "fqdn", fqdn, "ip", newServerIP)
 				err = o.commonPf.ActivateFQDNA(ctx, fqdn, newServerIP.ExternalAddr)
 				if err != nil {
 					return fmt.Errorf("unable to update fqdn for %s, addr %s, err %v", serverName, newServerIP.ExternalAddr, err)
@@ -136,7 +137,7 @@ func (o *OpenstackPlatform) AddAppImageIfNotPresent(ctx context.Context, app *ed
 	if err != nil {
 		if strings.Contains(err.Error(), "Could not find resource") {
 			// Add image to Glance
-			log.SpanLog(ctx, log.DebugLevelMexos, "image is not present in glance, add image")
+			log.SpanLog(ctx, log.DebugLevelInfra, "image is not present in glance, add image")
 			createImage = true
 		} else {
 			return err
@@ -147,7 +148,7 @@ func (o *OpenstackPlatform) AddAppImageIfNotPresent(ctx context.Context, app *ed
 		}
 		if imageDetail.Checksum != md5Sum {
 			if app.ImageType == edgeproto.ImageType_IMAGE_TYPE_QCOW && imageDetail.DiskFormat == infracommon.ImageFormatVmdk {
-				log.SpanLog(ctx, log.DebugLevelMexos, "image was imported as vmdk, checksum match not possible")
+				log.SpanLog(ctx, log.DebugLevelInfra, "image was imported as vmdk, checksum match not possible")
 			} else {
 				return fmt.Errorf("mismatch in md5sum for image in glance: %s", imageName)
 			}
@@ -199,7 +200,7 @@ func (o *OpenstackPlatform) GetVMParams(ctx context.Context, depType infracommon
 		// The netspec should always be present but is not set when running OpenStack from the controller.
 		// For now, tolerate this as it will work with default settings but not anywhere that requires a non-default
 		// netspec.  TODO This meeds a general fix to allow CreateCloudlet to work with floating IPs.
-		log.SpanLog(ctx, log.DebugLevelMexos, "WARNING, empty netspec")
+		log.SpanLog(ctx, log.DebugLevelInfra, "WARNING, empty netspec")
 	}
 	if depType != infracommon.UserVMDeployment {
 		vmp.IsInternal = true

@@ -1,8 +1,10 @@
 package infracommon
 
 import (
+	"context"
 	"fmt"
 	"net"
+	"os"
 	"strconv"
 	"strings"
 
@@ -70,7 +72,38 @@ var infraCommonProps = map[string]*PropertyInfo{
 	},
 }
 
+func SetPropsFromVars(ctx context.Context, props map[string]*PropertyInfo, vars map[string]string) {
+	// Infra Props value is fetched in following order:
+	// 1. Fetch props from vars passed, if nothing set then
+	// 2. Fetch from env, if nothing set then
+	// 3. Use default value
+	for k, v := range props {
+		if val, ok := vars[k]; ok {
+			if props[k].Secret {
+				log.SpanLog(ctx, log.DebugLevelInfra, "set infra property (secret) from vars", "key", k)
+			} else {
+				log.SpanLog(ctx, log.DebugLevelInfra, "set infra property from vars", "key", k, "val", val)
+			}
+			props[k].Value = val
+		} else if val, ok := os.LookupEnv(k); ok {
+			if props[k].Secret {
+				log.SpanLog(ctx, log.DebugLevelInfra, "set infra property (secret) from env", "key", k)
+			} else {
+				log.SpanLog(ctx, log.DebugLevelInfra, "set infra property from env", "key", k, "val", val)
+			}
+			props[k].Value = val
+		} else {
+			if props[k].Secret {
+				log.SpanLog(ctx, log.DebugLevelInfra, "using default infra property (secret)", "key", k)
+			} else {
+				log.SpanLog(ctx, log.DebugLevelInfra, "using default infra property", "key", k, "val", v.Value)
+			}
+		}
+	}
+}
+
 func GetVaultCloudletCommonPath(filePath string) string {
+	// TODO this path really should not be openstack
 	return fmt.Sprintf("/secret/data/cloudlet/openstack/%s", filePath)
 }
 

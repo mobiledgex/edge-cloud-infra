@@ -13,7 +13,7 @@ import (
 
 //FindNodeIP finds IP for the given node
 func (s *OpenstackPlatform) FindNodeIP(name string, srvs []OSServer) (string, error) {
-	//log.SpanLog(ctx,log.DebugLevelMexos, "find node ip", "name", name)
+	//log.SpanLog(ctx,log.DebugLevelInfra, "find node ip", "name", name)
 	if name == "" {
 		return "", fmt.Errorf("empty name")
 	}
@@ -24,7 +24,7 @@ func (s *OpenstackPlatform) FindNodeIP(name string, srvs []OSServer) (string, er
 			if err != nil {
 				return "", fmt.Errorf("can't get IP for %s, %v", srv.Name, err)
 			}
-			//log.SpanLog(ctx,log.DebugLevelMexos, "found node ip", "name", name, "ipaddr", ipaddr)
+			//log.SpanLog(ctx,log.DebugLevelInfra, "found node ip", "name", name, "ipaddr", ipaddr)
 			return ipaddr, nil
 		}
 	}
@@ -33,7 +33,7 @@ func (s *OpenstackPlatform) FindNodeIP(name string, srvs []OSServer) (string, er
 
 //FindClusterMaster finds cluster given a key string
 func (s *OpenstackPlatform) FindClusterMaster(ctx context.Context, namePrefix, nameSuffix string, srvs []OSServer) (string, error) {
-	log.SpanLog(ctx, log.DebugLevelMexos, "FindClusterMaster", "namePrefix", namePrefix, "nameSuffix", nameSuffix)
+	log.SpanLog(ctx, log.DebugLevelInfra, "FindClusterMaster", "namePrefix", namePrefix, "nameSuffix", nameSuffix)
 	if namePrefix == "" || nameSuffix == "" {
 		return "", fmt.Errorf("empty name component")
 	}
@@ -45,13 +45,13 @@ func (s *OpenstackPlatform) FindClusterMaster(ctx context.Context, namePrefix, n
 	return "", fmt.Errorf("VM %s not found", nameSuffix)
 }
 
-//GetServerIPAddr gets the server IP(s) for the given network
+//GetIPFromServerName gets the server IP(s) for the given network
 func (o *OpenstackPlatform) GetIPFromServerName(ctx context.Context, networkName, serverName string) (*infracommon.ServerIP, error) {
 	// if this is a root lb, look it up and get the IP if we have it cached
 	rootLB, err := o.commonPf.GetRootLB(ctx, serverName)
 	if err == nil && rootLB != nil {
 		if rootLB.IP != nil {
-			log.SpanLog(ctx, log.DebugLevelMexos, "using existing rootLB IP", "IP", rootLB.IP)
+			log.SpanLog(ctx, log.DebugLevelInfra, "using existing rootLB IP", "IP", rootLB.IP)
 			return rootLB.IP, nil
 		}
 	}
@@ -92,7 +92,7 @@ func (s *OpenstackPlatform) GetExternalGateway(ctx context.Context, extNetName s
 	if sd.GatewayIP == "" {
 		return "", fmt.Errorf("cannot get external network's gateway IP")
 	}
-	log.SpanLog(ctx, log.DebugLevelMexos, "get external gatewayIP", "gatewayIP", sd.GatewayIP, "subnet detail", sd)
+	log.SpanLog(ctx, log.DebugLevelInfra, "get external gatewayIP", "gatewayIP", sd.GatewayIP, "subnet detail", sd)
 	return sd.GatewayIP, nil
 }
 
@@ -110,7 +110,7 @@ func GetRouterDetailExternalGateway(rd *OSRouterDetail) (*OSExternalGateway, err
 	if err != nil {
 		return nil, fmt.Errorf("can't get unmarshal external gateway info, %v", err)
 	}
-	//log.SpanLog(ctx,log.DebugLevelMexos, "get router detail external gateway", "external gateway", externalGateway)
+	//log.SpanLog(ctx,log.DebugLevelInfra, "get router detail external gateway", "external gateway", externalGateway)
 	return externalGateway, nil
 }
 
@@ -125,7 +125,7 @@ func GetRouterDetailInterfaces(ctx context.Context, rd *OSRouterDetail) ([]OSRou
 	if err != nil {
 		return nil, fmt.Errorf("can't unmarshal router detail interfaces")
 	}
-	log.SpanLog(ctx, log.DebugLevelMexos, "get router detail interfaces", "interfaces", interfaces)
+	log.SpanLog(ctx, log.DebugLevelInfra, "get router detail interfaces", "interfaces", interfaces)
 	return interfaces, nil
 }
 
@@ -138,20 +138,20 @@ func (o *OpenstackPlatform) GetMexRouterIP(ctx context.Context) (string, error) 
 	if rderr != nil {
 		return "", fmt.Errorf("can't get router detail for %s, %v", rtr, rderr)
 	}
-	log.SpanLog(ctx, log.DebugLevelMexos, "router detail", "detail", rd)
+	log.SpanLog(ctx, log.DebugLevelInfra, "router detail", "detail", rd)
 	reg, regerr := GetRouterDetailExternalGateway(rd)
 	if regerr != nil {
 		// some deployments will not be able to retrieve the router GW at all, allow this
-		log.SpanLog(ctx, log.DebugLevelMexos, "can't get router external GW, continuing", "error", regerr)
+		log.SpanLog(ctx, log.DebugLevelInfra, "can't get router external GW, continuing", "error", regerr)
 		return "", nil
 	}
 	if reg != nil && len(reg.ExternalFixedIPs) > 0 {
 		fip := reg.ExternalFixedIPs[0]
-		log.SpanLog(ctx, log.DebugLevelMexos, "external fixed ips", "ips", fip)
+		log.SpanLog(ctx, log.DebugLevelInfra, "external fixed ips", "ips", fip)
 		return fip.IPAddress, nil
 	} else {
 		// some networks may not have an external fixed ip for the router.  This is not fatal
-		log.SpanLog(ctx, log.DebugLevelMexos, "can't get external fixed ips list from router detail external gateway, returning blank ip")
+		log.SpanLog(ctx, log.DebugLevelInfra, "can't get external fixed ips list from router detail external gateway, returning blank ip")
 		return "", nil
 	}
 }

@@ -62,10 +62,10 @@ func (e *EdgeboxPlatform) Init(ctx context.Context, platformConfig *platform.Pla
 		return fmt.Errorf("init cannot get service ip, %s", err.Error())
 	}
 	if err := e.commonPf.ActivateFQDNA(ctx, fqdn, ipaddr); err != nil {
-		log.SpanLog(ctx, log.DebugLevelMexos, "error in ActivateFQDNA", "err", err)
+		log.SpanLog(ctx, log.DebugLevelInfra, "error in ActivateFQDNA", "err", err)
 		return err
 	}
-	log.SpanLog(ctx, log.DebugLevelMexos, "done init edgebox")
+	log.SpanLog(ctx, log.DebugLevelInfra, "done init edgebox")
 	return nil
 }
 
@@ -137,7 +137,7 @@ func (e *EdgeboxPlatform) UpdateClusterVMs(ctx context.Context, clusterInst *edg
 	return fmt.Errorf("not implemented")
 }
 
-func (e *EdgeboxPlatform) DeleteClusterResources(ctx context.Context, client ssh.Client, clusterInst *edgeproto.ClusterInst) error {
+func (e *EdgeboxPlatform) DeleteClusterResources(ctx context.Context, client ssh.Client, clusterInst *edgeproto.ClusterInst, rootLBName string, dedicatedRootLB bool) error {
 	return fmt.Errorf("not implemented")
 }
 

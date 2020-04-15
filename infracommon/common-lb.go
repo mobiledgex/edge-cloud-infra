@@ -32,7 +32,7 @@ var RootLBPorts = []dme.AppPort{{
 
 // creates entries in the 70-persistent-net.rules files to ensure the interface names are consistent after reboot
 func persistInterfaceName(ctx context.Context, client ssh.Client, ifName, mac, action string) error {
-	log.SpanLog(ctx, log.DebugLevelMexos, "persistInterfaceName", "ifName", ifName, "mac", mac)
+	log.SpanLog(ctx, log.DebugLevelInfra, "persistInterfaceName", "ifName", ifName, "mac", mac)
 	cmd := fmt.Sprintf("sudo cat %s", udevRulesFile)
 	newFileContents := ""
 
@@ -45,7 +45,7 @@ func persistInterfaceName(ctx context.Context, client ssh.Client, ifName, mac, a
 	for _, l := range lines {
 		// if the mac is already there remove it, it will be appended later
 		if strings.Contains(l, mac) {
-			log.SpanLog(ctx, log.DebugLevelMexos, "found existing rule for mac", "line", l)
+			log.SpanLog(ctx, log.DebugLevelInfra, "found existing rule for mac", "line", l)
 		} else {
 			newFileContents = newFileContents + l + "\n"
 		}
@@ -62,17 +62,17 @@ func doIptablesCommand(ctx context.Context, client ssh.Client, rule string, rule
 	runCommand := false
 	if ruleExists {
 		if action == actionDelete {
-			log.SpanLog(ctx, log.DebugLevelMexos, "deleting existing iptables rule", "rule", rule)
+			log.SpanLog(ctx, log.DebugLevelInfra, "deleting existing iptables rule", "rule", rule)
 			runCommand = true
 		} else {
-			log.SpanLog(ctx, log.DebugLevelMexos, "do not re-add existing iptables rule", "rule", rule)
+			log.SpanLog(ctx, log.DebugLevelInfra, "do not re-add existing iptables rule", "rule", rule)
 		}
 	} else {
 		if action == actionAdd {
-			log.SpanLog(ctx, log.DebugLevelMexos, "adding new iptables rule", "rule", rule)
+			log.SpanLog(ctx, log.DebugLevelInfra, "adding new iptables rule", "rule", rule)
 			runCommand = true
 		} else {
-			log.SpanLog(ctx, log.DebugLevelMexos, "do not delete nonexistent iptables rule", "rule", rule)
+			log.SpanLog(ctx, log.DebugLevelInfra, "do not delete nonexistent iptables rule", "rule", rule)
 		}
 	}
 
@@ -89,7 +89,7 @@ func doIptablesCommand(ctx context.Context, client ssh.Client, rule string, rule
 // setupForwardingIptables creates iptables rules to allow the cluster nodes to use the LB as a
 // router for internet access
 func setupForwardingIptables(ctx context.Context, client ssh.Client, externalIfname, internalIfname, action string) error {
-	log.SpanLog(ctx, log.DebugLevelMexos, "setupForwardingIptables", "externalIfname", externalIfname, "internalIfname", internalIfname)
+	log.SpanLog(ctx, log.DebugLevelInfra, "setupForwardingIptables", "externalIfname", externalIfname, "internalIfname", internalIfname)
 	// get current iptables
 	cmd := fmt.Sprintf("sudo iptables-save|grep -e POSTROUTING -e FORWARD")
 	out, err := client.Output(cmd)
@@ -154,18 +154,18 @@ func setupForwardingIptables(ctx context.Context, client ssh.Client, externalIfn
 // traffic out the external interface
 func (c *CommonPlatform) configureInternalInterfaceAndExternalForwarding(ctx context.Context, client ssh.Client, internalPortName string, serverDetails *ServerDetail, action string) error {
 
-	log.SpanLog(ctx, log.DebugLevelMexos, "configureInternalInterfaceAndExternalForwarding", "serverDetails", serverDetails, "internalPortName", internalPortName)
+	log.SpanLog(ctx, log.DebugLevelInfra, "configureInternalInterfaceAndExternalForwarding", "serverDetails", serverDetails, "internalPortName", internalPortName)
 
-	internalIP, err := c.GetIPFromServerDetails(ctx, NetworkInternal, serverDetails)
+	internalIP, err := c.GetIPFromServerDetails(ctx, c.GetCloudletMexNetwork(), serverDetails)
 	if err != nil {
 		return err
 	}
-	externalIP, err := c.GetIPFromServerDetails(ctx, NetworkExternal, serverDetails)
+	externalIP, err := c.GetIPFromServerDetails(ctx, c.GetCloudletExternalNetwork(), serverDetails)
 	if err != nil {
 		return err
 	}
 
-	log.SpanLog(ctx, log.DebugLevelMexos, "running ifconfig to list interfaces")
+	log.SpanLog(ctx, log.DebugLevelInfra, "running ifconfig to list interfaces")
 	// list all the interfaces
 	cmd := fmt.Sprintf("sudo ifconfig -a")
 	out, err := client.Output(cmd)
@@ -177,7 +177,7 @@ func (c *CommonPlatform) configureInternalInterfaceAndExternalForwarding(ctx con
 	reg, err := regexp.Compile(matchPattern)
 	if err != nil {
 		// this is a bug if the regex does not compile
-		log.SpanLog(ctx, log.DebugLevelMexos, "failed to compile regex", "pattern", matchPattern)
+		log.SpanLog(ctx, log.DebugLevelInfra, "failed to compile regex", "pattern", matchPattern)
 		return fmt.Errorf("Internal Error compiling regex for interface")
 	}
 
@@ -190,7 +190,7 @@ func (c *CommonPlatform) configureInternalInterfaceAndExternalForwarding(ctx con
 			matches := reg.FindStringSubmatch(l)
 			ifn := matches[1]
 			mac := matches[2]
-			log.SpanLog(ctx, log.DebugLevelMexos, "found interface", "ifn", ifn, "mac", mac)
+			log.SpanLog(ctx, log.DebugLevelInfra, "found interface", "ifn", ifn, "mac", mac)
 			if mac == externalIP.MacAddress {
 				externalIfname = ifn
 			}
@@ -200,14 +200,14 @@ func (c *CommonPlatform) configureInternalInterfaceAndExternalForwarding(ctx con
 		}
 	}
 	if externalIfname == "" {
-		log.SpanLog(ctx, log.DebugLevelMexos, "unable to find external interface via MAC", "mac", externalIP.MacAddress)
+		log.SpanLog(ctx, log.DebugLevelInfra, "unable to find external interface via MAC", "mac", externalIP.MacAddress)
 		if action == actionAdd {
 			return fmt.Errorf("unable to find interface for external port mac: %s", externalIP.MacAddress)
 		}
 		// keep going on delete
 	}
 	if internalIfname == "" {
-		log.SpanLog(ctx, log.DebugLevelMexos, "unable to find internal interface via MAC", "mac", internalIP.MacAddress)
+		log.SpanLog(ctx, log.DebugLevelInfra, "unable to find internal interface via MAC", "mac", internalIP.MacAddress)
 		if action == actionAdd {
 			return fmt.Errorf("unable to find interface for internal port mac: %s", internalIP.MacAddress)
 		}
@@ -225,10 +225,10 @@ func (c *CommonPlatform) configureInternalInterfaceAndExternalForwarding(ctx con
 		}
 		// now bring the new internal interface up.
 		cmd = fmt.Sprintf("sudo ifdown --force %s;sudo ifup %s", internalIfname, internalIfname)
-		log.SpanLog(ctx, log.DebugLevelMexos, "bringing up interface", "internalIfname", internalIfname, "cmd", cmd)
+		log.SpanLog(ctx, log.DebugLevelInfra, "bringing up interface", "internalIfname", internalIfname, "cmd", cmd)
 		out, err = client.Output(cmd)
 		if err != nil {
-			log.SpanLog(ctx, log.DebugLevelMexos, "unable to run ifup", "out", out, "err", err)
+			log.SpanLog(ctx, log.DebugLevelInfra, "unable to run ifup", "out", out, "err", err)
 			return fmt.Errorf("unable to run ifup: %s - %v", out, err)
 		}
 	} else {
@@ -236,7 +236,7 @@ func (c *CommonPlatform) configureInternalInterfaceAndExternalForwarding(ctx con
 		out, err := client.Output(cmd)
 		if err != nil {
 			if strings.Contains(err.Error(), "No such file") {
-				log.SpanLog(ctx, log.DebugLevelMexos, "file already gone", "filename", filename)
+				log.SpanLog(ctx, log.DebugLevelInfra, "file already gone", "filename", filename)
 			} else {
 				return fmt.Errorf("Unexpected error removing interface file %s, %s -- %v", filename, out, err)
 			}
@@ -251,7 +251,7 @@ func (c *CommonPlatform) configureInternalInterfaceAndExternalForwarding(ctx con
 		if externalIfname != "" {
 			err = setupForwardingIptables(ctx, client, externalIfname, internalIfname, action)
 			if err != nil {
-				log.SpanLog(ctx, log.DebugLevelMexos, "setupForwardingIptables failed", "err", err)
+				log.SpanLog(ctx, log.DebugLevelInfra, "setupForwardingIptables failed", "err", err)
 			}
 		}
 	}
@@ -261,26 +261,23 @@ func (c *CommonPlatform) configureInternalInterfaceAndExternalForwarding(ctx con
 
 // AttachAndEnableRootLBInterface attaches the interface and enables it in the OS
 func (c *CommonPlatform) AttachAndEnableRootLBInterface(ctx context.Context, client ssh.Client, rootLBName string, internalPortName, internalIPAddr string) error {
-	log.SpanLog(ctx, log.DebugLevelMexos, "AttachAndEnableRootLBInterface", "rootLBName", rootLBName, "internalPortName", internalPortName)
+	log.SpanLog(ctx, log.DebugLevelInfra, "AttachAndEnableRootLBInterface", "rootLBName", rootLBName, "internalPortName", internalPortName)
 
+	err := c.infraProvider.AttachPortToServer(ctx, rootLBName, internalPortName)
+	if err != nil {
+		log.SpanLog(ctx, log.DebugLevelInfra, "fail to attach port", "err", err)
+		return err
+	}
 	sd, err := c.infraProvider.GetServerDetail(ctx, rootLBName)
 	if err != nil {
 		return err
 	}
-	err = c.infraProvider.AttachPortToServer(ctx, rootLBName, internalPortName)
-	if err != nil {
-		return err
-	}
-	deterr := c.infraProvider.DetachPortFromServer(ctx, rootLBName, internalPortName)
-	if deterr != nil {
-		log.SpanLog(ctx, log.DebugLevelMexos, "fail to detach port", "err", deterr)
-
-	}
 	err = c.configureInternalInterfaceAndExternalForwarding(ctx, client, internalPortName, sd, actionAdd)
 	if err != nil {
+		log.SpanLog(ctx, log.DebugLevelInfra, "fail to confgure internal interface, detaching port", "err", err)
 		deterr := c.infraProvider.DetachPortFromServer(ctx, rootLBName, internalPortName)
 		if deterr != nil {
-			log.SpanLog(ctx, log.DebugLevelMexos, "fail to detach port", "err", deterr)
+			log.SpanLog(ctx, log.DebugLevelInfra, "fail to detach port", "err", deterr)
 		}
 		return err
 	}
@@ -294,7 +291,7 @@ func (c *CommonPlatform) GetRootLBName(key *edgeproto.CloudletKey) string {
 
 // DetachAndDisableRootLBInterface performs some cleanup when deleting the rootLB port.
 func (c *CommonPlatform) DetachAndDisableRootLBInterface(ctx context.Context, client ssh.Client, rootLBName string, internalPortName, internalIPAddr string) error {
-	log.SpanLog(ctx, log.DebugLevelMexos, "DetachAndDisableRootLBInterface", "rootLBName", rootLBName, "internalPortName", internalPortName)
+	log.SpanLog(ctx, log.DebugLevelInfra, "DetachAndDisableRootLBInterface", "rootLBName", rootLBName, "internalPortName", internalPortName)
 
 	sd, err := c.infraProvider.GetServerDetail(ctx, rootLBName)
 	if err != nil {
@@ -302,12 +299,12 @@ func (c *CommonPlatform) DetachAndDisableRootLBInterface(ctx context.Context, cl
 	}
 	err = c.configureInternalInterfaceAndExternalForwarding(ctx, client, internalPortName, sd, actionDelete)
 	if err != nil {
-		log.SpanLog(ctx, log.DebugLevelMexos, "error in configureInternalInterfaceAndExternalForwarding", "err", err)
+		log.SpanLog(ctx, log.DebugLevelInfra, "error in configureInternalInterfaceAndExternalForwarding", "err", err)
 	}
 	err = c.infraProvider.DetachPortFromServer(ctx, rootLBName, internalPortName)
 	if err != nil {
 		// might already be gone
-		log.SpanLog(ctx, log.DebugLevelMexos, "fail to detach port", "err", err)
+		log.SpanLog(ctx, log.DebugLevelInfra, "fail to detach port", "err", err)
 	}
 	return err
 }
@@ -346,7 +343,7 @@ func (o *CommonPlatform) GetVMSpecForRootLB() (*vmspec.VMCreationSpec, error) {
 func (c *CommonPlatform) NewRootLB(ctx context.Context, rootLBName string) (*MEXRootLB, error) {
 	rootLBLock.Lock()
 	defer rootLBLock.Unlock()
-	log.SpanLog(ctx, log.DebugLevelMexos, "getting new rootLB", "rootLBName", rootLBName)
+	log.SpanLog(ctx, log.DebugLevelInfra, "getting new rootLB", "rootLBName", rootLBName)
 	if _, ok := MEXRootLBMap[rootLBName]; ok {
 		return nil, fmt.Errorf("rootlb %s already exists", rootLBName)
 	}
@@ -368,7 +365,7 @@ func (c *CommonPlatform) GetRootLB(ctx context.Context, name string) (*MEXRootLB
 		return nil, fmt.Errorf("can't find rootlb %s", name)
 	}
 	if rootLB == nil {
-		log.SpanLog(ctx, log.DebugLevelMexos, "GetRootLB, rootLB is null")
+		log.SpanLog(ctx, log.DebugLevelInfra, "GetRootLB, rootLB is null")
 	}
 	return rootLB, nil
 }
@@ -381,7 +378,7 @@ func (c *CommonPlatform) CreateRootLB(
 	imgPath, imgVersion string,
 	updateCallback edgeproto.CacheUpdateCallback,
 ) error {
-	log.SpanLog(ctx, log.DebugLevelMexos, "enable rootlb", "name", rootLB.Name, "vmspec", vmspec)
+	log.SpanLog(ctx, log.DebugLevelInfra, "enable rootlb", "name", rootLB.Name, "vmspec", vmspec)
 	if rootLB == nil {
 		return fmt.Errorf("cannot enable rootLB, rootLB is null")
 	}
@@ -398,7 +395,7 @@ func (c *CommonPlatform) CreateRootLB(
 		log.InfoLog("error while creating RootLB VM", "name", rootLB.Name, "imgName", imgName, "error", err)
 		return err
 	}
-	log.SpanLog(ctx, log.DebugLevelMexos, "done creating rootlb", "name", rootLB.Name)
+	log.SpanLog(ctx, log.DebugLevelInfra, "done creating rootlb", "name", rootLB.Name)
 	return nil
 }
 
@@ -411,7 +408,7 @@ func (c *CommonPlatform) SetupRootLB(
 	imgPath, imgVersion string,
 	updateCallback edgeproto.CacheUpdateCallback,
 ) error {
-	log.SpanLog(ctx, log.DebugLevelMexos, "SetupRootLB", "rootLBSpec", rootLBSpec)
+	log.SpanLog(ctx, log.DebugLevelInfra, "SetupRootLB", "rootLBSpec", rootLBSpec)
 	//fqdn is that of the machine/kvm-instance running the agent
 	if !valid.IsDNSName(rootLBName) {
 		return fmt.Errorf("fqdn %s is not valid", rootLBName)
@@ -420,9 +417,9 @@ func (c *CommonPlatform) SetupRootLB(
 	if err != nil {
 		return fmt.Errorf("cannot find rootlb in map %s", rootLBName)
 	}
-	_, err = c.infraProvider.GetServerDetail(ctx, rootLBName)
+	sd, err := c.infraProvider.GetServerDetail(ctx, rootLBName)
 	if err == nil {
-		log.SpanLog(ctx, log.DebugLevelMexos, "server with same name as rootLB exists", "rootLBName", rootLBName)
+		log.SpanLog(ctx, log.DebugLevelInfra, "server with same name as rootLB exists", "rootLBName", rootLBName)
 	} else if rootLBSpec != nil {
 		err = c.CreateRootLB(ctx, rootLB, rootLBSpec, cloudletKey, imgPath, imgVersion, updateCallback)
 		if err != nil {
@@ -433,7 +430,7 @@ func (c *CommonPlatform) SetupRootLB(
 
 	// setup SSH access to cloudlet for CRM.  Since we are getting the external IP here, this will only work
 	// when CRM accessed via public internet.
-	log.SpanLog(ctx, log.DebugLevelMexos, "setup security group for SSH access")
+	log.SpanLog(ctx, log.DebugLevelInfra, "setup security group for SSH access")
 	groupName := c.GetServerSecurityGroupName(rootLBName)
 	my_ip, err := GetExternalPublicAddr(ctx)
 	if err != nil {
@@ -448,21 +445,21 @@ func (c *CommonPlatform) SetupRootLB(
 
 	err = c.WaitForRootLB(ctx, rootLB)
 	if err != nil {
-		log.SpanLog(ctx, log.DebugLevelMexos, "timeout waiting for agent to run", "name", rootLB.Name)
+		log.SpanLog(ctx, log.DebugLevelInfra, "timeout waiting for agent to run", "name", rootLB.Name)
 		return fmt.Errorf("Error waiting for rootLB %v", err)
 	}
-	ip, err := c.infraProvider.GetIPFromServerName(ctx, c.GetCloudletExternalNetwork(), rootLBName)
+	ip, err := c.GetIPFromServerDetails(ctx, c.GetCloudletExternalNetwork(), sd)
 	if err != nil {
 		return fmt.Errorf("cannot get rootLB IP %sv", err)
 	}
-	log.SpanLog(ctx, log.DebugLevelMexos, "set rootLB IP to", "ip", ip)
+	log.SpanLog(ctx, log.DebugLevelInfra, "set rootLB IP to", "ip", ip)
 	rootLB.IP = ip
 
 	client, err := c.SetupSSHUser(ctx, rootLB, SSHUser)
 	if err != nil {
 		return err
 	}
-	log.SpanLog(ctx, log.DebugLevelMexos, "Copy resource-tracker to rootLb", "rootLb", rootLBName)
+	log.SpanLog(ctx, log.DebugLevelInfra, "Copy resource-tracker to rootLb", "rootLb", rootLBName)
 	err = CopyResourceTracker(client)
 	if err != nil {
 		return fmt.Errorf("cannot copy resource-tracker to rootLb %v", err)
@@ -480,49 +477,48 @@ func (c *CommonPlatform) SetupRootLB(
 	if err = c.ActivateFQDNA(ctx, rootLBName, ip.ExternalAddr); err != nil {
 		return err
 	}
-	log.SpanLog(ctx, log.DebugLevelMexos, "DNS A record activated", "name", rootLB.Name)
+	log.SpanLog(ctx, log.DebugLevelInfra, "DNS A record activated", "name", rootLB.Name)
 	return nil
 }
 
 //WaitForRootLB waits for the RootLB instance to be up and copies of SSH credentials for internal networks.
 //  Idempotent, but don't call all the time.
 func (c *CommonPlatform) WaitForRootLB(ctx context.Context, rootLB *MEXRootLB) error {
-	log.SpanLog(ctx, log.DebugLevelMexos, "wait for rootlb", "name", rootLB.Name)
+	log.SpanLog(ctx, log.DebugLevelInfra, "wait for rootlb", "name", rootLB.Name)
 	if rootLB == nil {
 		return fmt.Errorf("cannot wait for lb, rootLB is null")
 	}
-
 	extNet := c.GetCloudletExternalNetwork()
 	if extNet == "" {
 		return fmt.Errorf("waiting for lb, missing external network in manifest")
 	}
-	client, err := c.GetSSHClient(ctx, rootLB.Name, extNet, SSHUser)
+	client, err := c.GetSSHClientForServer(ctx, rootLB.Name, c.GetCloudletExternalNetwork())
 	if err != nil {
 		return err
 	}
 	start := time.Now()
 	running := false
 	for {
-		log.SpanLog(ctx, log.DebugLevelMexos, "waiting for rootlb...", "rootLB", rootLB)
+		log.SpanLog(ctx, log.DebugLevelInfra, "waiting for rootlb...", "rootLB", rootLB)
 		_, err := client.Output("sudo grep -i 'Finished mobiledgex init' /var/log/mobiledgex.log")
 		if err == nil {
-			log.SpanLog(ctx, log.DebugLevelMexos, "rootlb is running", "name", rootLB.Name)
+			log.SpanLog(ctx, log.DebugLevelInfra, "rootlb is running", "name", rootLB.Name)
 			running = true
 			break
 		} else {
-			log.SpanLog(ctx, log.DebugLevelMexos, "error checking if rootLB is running", "err", err)
+			log.SpanLog(ctx, log.DebugLevelInfra, "error checking if rootLB is running", "err", err)
 		}
 		elapsed := time.Since(start)
 		if elapsed >= (MaxRootLBWait) {
 			break
 		}
-		log.SpanLog(ctx, log.DebugLevelMexos, "sleeping 10 seconds before retry", "elapsed", elapsed)
+		log.SpanLog(ctx, log.DebugLevelInfra, "sleeping 10 seconds before retry", "elapsed", elapsed)
 		time.Sleep(10 * time.Second)
 	}
 	if !running {
 		return fmt.Errorf("timeout waiting for RootLB")
 	}
-	log.SpanLog(ctx, log.DebugLevelMexos, "done waiting for rootlb", "name", rootLB.Name)
+	log.SpanLog(ctx, log.DebugLevelInfra, "done waiting for rootlb", "name", rootLB.Name)
 
 	return nil
 }
@@ -549,24 +545,12 @@ func CopyResourceTracker(client ssh.Client) error {
 	return err
 }
 
-func (c *CommonPlatform) GetPlatformClientRootLB(ctx context.Context, rootLBName string) (ssh.Client, error) {
-	log.SpanLog(ctx, log.DebugLevelMexos, "GetPlatformClientRootLB", "rootLBName", rootLBName)
-
-	if rootLBName == "" {
-		return nil, fmt.Errorf("cannot GetPlatformClientRootLB, rootLB is empty")
-	}
-	if c.GetCloudletExternalNetwork() == "" {
-		return nil, fmt.Errorf("GetPlatformClientRootLB, missing external network in platform config")
-	}
-	return c.GetSSHClient(ctx, rootLBName, c.GetCloudletExternalNetwork(), SSHUser)
-}
-
 func (c *CommonPlatform) DeleteProxySecurityGroupRules(ctx context.Context, client ssh.Client, proxyName string, secGrpName string, ports []dme.AppPort, app *edgeproto.App, serverName string) error {
-	log.SpanLog(ctx, log.DebugLevelMexos, "DeleteProxySecurityGroupRules", "proxyName", proxyName, "ports", ports)
+	log.SpanLog(ctx, log.DebugLevelInfra, "DeleteProxySecurityGroupRules", "proxyName", proxyName, "ports", ports)
 
 	err := proxy.DeleteNginxProxy(ctx, client, proxyName)
 	if err != nil {
-		log.SpanLog(ctx, log.DebugLevelMexos, "cannot delete proxy", "proxyName", proxyName, "error", err)
+		log.SpanLog(ctx, log.DebugLevelInfra, "cannot delete proxy", "proxyName", proxyName, "error", err)
 	}
 	allowedClientCIDR := GetAllowedClientCIDR()
 	return c.infraProvider.RemoveWhitelistSecurityRules(ctx, secGrpName, allowedClientCIDR, ports)

@@ -39,14 +39,14 @@ func CopyFile(src string, dst string) error {
 }
 
 func SeedDockerSecret(ctx context.Context, client ssh.Client, clusterInst *edgeproto.ClusterInst, app *edgeproto.App, vaultConfig *vault.Config) error {
-	log.SpanLog(ctx, log.DebugLevelMexos, "seed docker secret", "imagepath", app.ImagePath)
+	log.SpanLog(ctx, log.DebugLevelInfra, "seed docker secret", "imagepath", app.ImagePath)
 
 	urlObj, err := util.ImagePathParse(app.ImagePath)
 	if err != nil {
 		return fmt.Errorf("Cannot parse image path: %s - %v", app.ImagePath, err)
 	}
 	if urlObj.Host == cloudcommon.DockerHub {
-		log.SpanLog(ctx, log.DebugLevelMexos, "no secret needed for public image")
+		log.SpanLog(ctx, log.DebugLevelInfra, "no secret needed for public image")
 		return nil
 	}
 	auth, err := cloudcommon.GetRegistryAuth(ctx, app.ImagePath, vaultConfig)
@@ -63,7 +63,7 @@ func SeedDockerSecret(ctx context.Context, client ssh.Client, clusterInst *edgep
 	if err != nil {
 		return fmt.Errorf("can't store docker password, %s, %v", out, err)
 	}
-	log.SpanLog(ctx, log.DebugLevelMexos, "stored docker password")
+	log.SpanLog(ctx, log.DebugLevelInfra, "stored docker password")
 	defer func() {
 		cmd := fmt.Sprintf("rm .docker-pass")
 		out, err = client.Output(cmd)
@@ -74,6 +74,6 @@ func SeedDockerSecret(ctx context.Context, client ssh.Client, clusterInst *edgep
 	if err != nil {
 		return fmt.Errorf("can't docker login on rootlb to %s, %s, %v", auth.Hostname, out, err)
 	}
-	log.SpanLog(ctx, log.DebugLevelMexos, "docker login ok")
+	log.SpanLog(ctx, log.DebugLevelInfra, "docker login ok")
 	return nil
 }

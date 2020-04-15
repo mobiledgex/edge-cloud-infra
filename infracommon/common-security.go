@@ -19,9 +19,9 @@ func (c *CommonPlatform) AddProxySecurityRulesAndPatchDNS(ctx context.Context, c
 	dnschan := make(chan string)
 	proxychan := make(chan string)
 
-	log.SpanLog(ctx, log.DebugLevelMexos, "AddProxySecurityRulesAndPatchDNS", "appname", kubeNames.AppName, "rootLBName", rootLBName, "listenIP", listenIP, "backendIP", backendIP, "ops", ops)
+	log.SpanLog(ctx, log.DebugLevelInfra, "AddProxySecurityRulesAndPatchDNS", "appname", kubeNames.AppName, "rootLBName", rootLBName, "listenIP", listenIP, "backendIP", backendIP, "ops", ops)
 	if len(appInst.MappedPorts) == 0 {
-		log.SpanLog(ctx, log.DebugLevelMexos, "no ports for application, no DNS, LB or Security rules needed", "appname", kubeNames.AppName)
+		log.SpanLog(ctx, log.DebugLevelInfra, "no ports for application, no DNS, LB or Security rules needed", "appname", kubeNames.AppName)
 		return nil
 	}
 	configs := append(app.Configs, appInst.Configs...)

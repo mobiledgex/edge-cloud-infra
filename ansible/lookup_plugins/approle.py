@@ -139,8 +139,8 @@ class LookupModule(LookupBase):
         vault_token_key = 'vault_token'
         try:
             vault_token = kwargs.get(vault_token_key, myvars[vault_token_key])
-        except KeyError:
-            raise AnsibleError("Failed to retrieve vault token: {0}: {1}".format(vault_token_key))
+        except Exception as e:
+            raise AnsibleError("Failed to retrieve vault token: {0}: {1}".format(vault_token_key, e))
         display.vvv("Vault token: {0}".format(vault_token))
 
         lookup_id = kwargs.get('id', role_name)

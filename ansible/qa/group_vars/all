@@ -21,6 +21,7 @@ crm_instances:
     platform: PLATFORM_TYPE_AZURE
     azure_instance: centralus
     controller_region: US
+    notify_srv_port: 51091
 
   - cloudlet_name: automationGcpCentralCloudlet
     operator_key: gcp
@@ -28,3 +29,4 @@ crm_instances:
     platform: PLATFORM_TYPE_GCP
     gcp_zone: us-central1-c
     controller_region: US
+    notify_srv_port: 51092

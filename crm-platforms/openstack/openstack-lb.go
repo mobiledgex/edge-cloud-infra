@@ -12,7 +12,7 @@ import (
 )
 
 func (c *OpenstackPlatform) NetworkSetupForRootLB(ctx context.Context, client ssh.Client, rootLBName string) error {
-	log.SpanLog(ctx, log.DebugLevelMexos, "Adding route to reach internal networks", "rootLBName", rootLBName)
+	log.SpanLog(ctx, log.DebugLevelInfra, "Adding route to reach internal networks", "rootLBName", rootLBName)
 
 	ni, err := infracommon.ParseNetSpec(ctx, c.commonPf.GetCloudletNetworkScheme())
 	if err != nil {
@@ -21,7 +21,7 @@ func (c *OpenstackPlatform) NetworkSetupForRootLB(ctx context.Context, client ss
 	if ni.FloatingIPNet != "" {
 		// For now we do nothing when we have a floating IP because it means we are using the
 		// openstack router to get everywhere anyway.
-		log.SpanLog(ctx, log.DebugLevelMexos, "No route changes needed due to floating IP")
+		log.SpanLog(ctx, log.DebugLevelInfra, "No route changes needed due to floating IP")
 		return nil
 	}
 	if rootLBName == "" {
@@ -46,7 +46,7 @@ func (c *OpenstackPlatform) NetworkSetupForRootLB(ctx context.Context, client ss
 			return err
 		}
 		fip := gw.ExternalFixedIPs
-		log.SpanLog(ctx, log.DebugLevelMexos, "external fixed ips", "ips", fip)
+		log.SpanLog(ctx, log.DebugLevelInfra, "external fixed ips", "ips", fip)
 
 		if len(fip) != 1 {
 			return fmt.Errorf("Unexpected fixed ips for mex router %v", fip)
@@ -62,7 +62,7 @@ func (c *OpenstackPlatform) NetworkSetupForRootLB(ctx context.Context, client ss
 		out, err := client.Output(cmd)
 		if err != nil {
 			if strings.Contains(out, "RTNETLINK") && strings.Contains(out, " exists") {
-				log.SpanLog(ctx, log.DebugLevelMexos, "warning, can't add existing route to rootLB", "cmd", cmd, "out", out, "error", err)
+				log.SpanLog(ctx, log.DebugLevelInfra, "warning, can't add existing route to rootLB", "cmd", cmd, "out", out, "error", err)
 			} else {
 				return fmt.Errorf("can't add route to rootlb, %s, %s, %v", cmd, out, err)
 			}
@@ -75,14 +75,14 @@ func (c *OpenstackPlatform) NetworkSetupForRootLB(ctx context.Context, client ss
 		out, err = client.Output(cmd)
 		if err != nil {
 			// grep failed so not there already
-			log.SpanLog(ctx, log.DebugLevelMexos, "adding route to interfaces file", "route", routeAddLine, "file", interfacesFile)
+			log.SpanLog(ctx, log.DebugLevelInfra, "adding route to interfaces file", "route", routeAddLine, "file", interfacesFile)
 			cmd = fmt.Sprintf("echo '%s'|sudo tee -a %s", routeAddLine, interfacesFile)
 			out, err = client.Output(cmd)
 			if err != nil {
 				return fmt.Errorf("can't add route to interfaces file: %v", err)
 			}
 		} else {
-			log.SpanLog(ctx, log.DebugLevelMexos, "route already present in interfaces file")
+			log.SpanLog(ctx, log.DebugLevelInfra, "route already present in interfaces file")
 		}
 	}
 	return nil

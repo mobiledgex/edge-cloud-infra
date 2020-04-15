@@ -39,12 +39,12 @@ func (s *OpenstackPlatform) GetCloudletSecurityGroupID(ctx context.Context, clou
 	groupName := s.commonPf.GetCloudletSecurityGroupName()
 	keyString := cloudletKey.GetKeyString()
 
-	log.SpanLog(ctx, log.DebugLevelMexos, "GetCloudletSecurityGroupID", "groupName", groupName, "keyString", keyString)
+	log.SpanLog(ctx, log.DebugLevelInfra, "GetCloudletSecurityGroupID", "groupName", groupName, "keyString", keyString)
 
 	groupID := getCachedCloudletSecgrpID(ctx, keyString)
 	if groupID != "" {
 		//cached
-		log.SpanLog(ctx, log.DebugLevelMexos, "GetCloudletSecurityGroupID using existing value", "groupID", groupID)
+		log.SpanLog(ctx, log.DebugLevelInfra, "GetCloudletSecurityGroupID using existing value", "groupID", groupID)
 		return groupID, nil
 	}
 
@@ -63,7 +63,7 @@ func (s *OpenstackPlatform) GetCloudletSecurityGroupID(ctx context.Context, clou
 				return "", err
 			}
 			setCachedCloudletSecgrpID(ctx, keyString, groupID)
-			log.SpanLog(ctx, log.DebugLevelMexos, "GetCloudletSecurityGroupID using new value", "groupID", groupID)
+			log.SpanLog(ctx, log.DebugLevelInfra, "GetCloudletSecurityGroupID using new value", "groupID", groupID)
 			return groupID, nil
 		}
 	}
@@ -71,7 +71,7 @@ func (s *OpenstackPlatform) GetCloudletSecurityGroupID(ctx context.Context, clou
 }
 
 func (s *OpenstackPlatform) AddSecurityRules(ctx context.Context, groupName string, ports []dme.AppPort, serverName string) error {
-	log.SpanLog(ctx, log.DebugLevelMexos, "AddSecurityRules", "ports", ports)
+	log.SpanLog(ctx, log.DebugLevelInfra, "AddSecurityRules", "ports", ports)
 	allowedClientCIDR := infracommon.GetAllowedClientCIDR()
 	for _, port := range ports {
 		//todo: distinguish already-exists errors from others
@@ -98,7 +98,7 @@ func (s *OpenstackPlatform) AddSecurityRuleCIDRWithRetry(ctx context.Context, ci
 	if err != nil {
 		if strings.Contains(err.Error(), "No SecurityGroup found") {
 			// it is possible this RootLB was created before the change to per-LB security groups.  Create the group separately
-			log.SpanLog(ctx, log.DebugLevelMexos, "security group does not exist, creating it", "groupName", group)
+			log.SpanLog(ctx, log.DebugLevelInfra, "security group does not exist, creating it", "groupName", group)
 
 			// LB can have multiple ports attached.  We need to assign this SG to the external network port only
 			ports, err := s.ListPortsServerNetwork(ctx, serverName, s.commonPf.GetCloudletExternalNetwork())
@@ -124,7 +124,7 @@ func (s *OpenstackPlatform) AddSecurityRuleCIDRWithRetry(ctx context.Context, ci
 }
 
 func (s *OpenstackPlatform) RemoveWhitelistSecurityRules(ctx context.Context, secGrpName string, allowedCIDR string, ports []dme.AppPort) error {
-	log.SpanLog(ctx, log.DebugLevelMexos, "RemoveWhitelistSecurityRules", "secGrpName", secGrpName, "ports", ports)
+	log.SpanLog(ctx, log.DebugLevelInfra, "RemoveWhitelistSecurityRules", "secGrpName", secGrpName, "ports", ports)
 
 	allowedClientCIDR := infracommon.GetAllowedClientCIDR()
 	rules, err := s.ListSecurityGroupRules(ctx, secGrpName)
@@ -153,7 +153,7 @@ func (s *OpenstackPlatform) RemoveWhitelistSecurityRules(ctx context.Context, se
 
 func (s *OpenstackPlatform) WhitelistSecurityRules(ctx context.Context, grpName, serverName, allowedCidr string, ports []dme.AppPort) error {
 	// open the firewall for internal traffic
-	log.SpanLog(ctx, log.DebugLevelMexos, "WhitelistSecurityRules", "grpName", grpName, "allowedCidr", allowedCidr, "ports", ports)
+	log.SpanLog(ctx, log.DebugLevelInfra, "WhitelistSecurityRules", "grpName", grpName, "allowedCidr", allowedCidr, "ports", ports)
 
 	for _, p := range ports {
 		portStr := fmt.Sprintf("%d", p.PublicPort)

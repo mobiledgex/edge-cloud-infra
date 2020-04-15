@@ -14,7 +14,7 @@ import (
 
 // GetMasterNameAndIP gets the name and IP address of the cluster's master node.
 func (s *OpenstackPlatform) GetClusterMasterNameAndIP(ctx context.Context, clusterInst *edgeproto.ClusterInst) (string, string, error) {
-	log.SpanLog(ctx, log.DebugLevelMexos, "get master IP", "cluster", clusterInst.Key.ClusterKey.Name)
+	log.SpanLog(ctx, log.DebugLevelInfra, "get master IP", "cluster", clusterInst.Key.ClusterKey.Name)
 	srvs, err := s.ListServers(ctx)
 	if err != nil {
 		return "", "", fmt.Errorf("error getting server list: %v", err)
@@ -34,14 +34,14 @@ func (s *OpenstackPlatform) GetClusterMasterNameAndIP(ctx context.Context, clust
 	return masterName, masterIP, err
 }
 
-func (s *OpenstackPlatform) UpdateClusterInst(ctx context.Context, clusterInst *edgeproto.ClusterInst, privacyPolicy *edgeproto.PrivacyPolicy, updateCallback edgeproto.CacheUpdateCallback) error {
+func (o *OpenstackPlatform) UpdateClusterInst(ctx context.Context, clusterInst *edgeproto.ClusterInst, privacyPolicy *edgeproto.PrivacyPolicy, updateCallback edgeproto.CacheUpdateCallback) error {
 	return fmt.Errorf("TODO")
 }
 
-func (s *OpenstackPlatform) CreateClusterInst(ctx context.Context, clusterInst *edgeproto.ClusterInst, privacyPolicy *edgeproto.PrivacyPolicy, updateCallback edgeproto.CacheUpdateCallback, timeout time.Duration) error {
-	return fmt.Errorf("TODO")
+func (o *OpenstackPlatform) CreateClusterInst(ctx context.Context, clusterInst *edgeproto.ClusterInst, privacyPolicy *edgeproto.PrivacyPolicy, updateCallback edgeproto.CacheUpdateCallback, timeout time.Duration) error {
+	return o.commonPf.CreateClusterInst(ctx, clusterInst, privacyPolicy, updateCallback, timeout)
 }
 
-func (s *OpenstackPlatform) DeleteClusterInst(ctx context.Context, clusterInst *edgeproto.ClusterInst) error {
-	return fmt.Errorf("TODO")
+func (o *OpenstackPlatform) DeleteClusterInst(ctx context.Context, clusterInst *edgeproto.ClusterInst) error {
+	return o.commonPf.DeleteClusterInst(ctx, clusterInst)
 }

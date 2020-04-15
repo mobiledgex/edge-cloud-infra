@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/mobiledgex/edge-cloud/cloud-resource-manager/access"
 	"github.com/mobiledgex/edge-cloud/cloud-resource-manager/crmutil"
@@ -17,6 +18,8 @@ import (
 	"github.com/mobiledgex/edge-cloud/util"
 	v1 "k8s.io/api/core/v1"
 )
+
+var MaxDockerSeedWait = 1 * time.Minute
 
 type ProxyDnsSecOpts struct {
 	AddProxy              bool
@@ -56,6 +59,7 @@ type VMParams struct {
 	ComputeAvailabilityZone  string
 	VolumeAvailabilityZone   string
 	PrivacyPolicy            *edgeproto.PrivacyPolicy
+	VMDNSServers             string
 }
 
 func WithPublicKey(authPublicKey string) VMParamsOp {
@@ -302,7 +306,7 @@ func (c *CommonPlatform) CreateAppInst(ctx context.Context, clusterInst *edgepro
 			}
 		} else {
 			updateCallback(edgeproto.UpdateTask, "Deploying VM standalone")
-			log.SpanLog(ctx, log.DebugLevelMexos, "Deploying VM", "stackName", objName, "flavor", appInst.VmFlavor, "ExternalVolumeSize", appInst.ExternalVolumeSize)
+			log.SpanLog(ctx, log.DebugLevelInfra, "Deploying VM", "stackName", objName, "flavor", appInst.VmFlavor, "ExternalVolumeSize", appInst.ExternalVolumeSize)
 			err = c.infraProvider.CreateAppVM(ctx, vmAppParams, updateCallback)
 			if err != nil {
 				return err
@@ -315,7 +319,7 @@ func (c *CommonPlatform) CreateAppInst(ctx context.Context, clusterInst *edgepro
 		if app.AccessType == edgeproto.AccessType_ACCESS_TYPE_LOAD_BALANCER {
 			updateCallback(edgeproto.UpdateTask, "Setting Up Load Balancer")
 			var proxyOps []proxy.Op
-			client, err := c.GetPlatformClientRootLB(ctx, externalServerName)
+			client, err := c.GetSSHClientForServer(ctx, externalServerName, c.GetCloudletExternalNetwork())
 			if err != nil {
 				return err
 			}
@@ -356,7 +360,7 @@ func (c *CommonPlatform) CreateAppInst(ctx context.Context, clusterInst *edgepro
 			if err = c.ActivateFQDNA(ctx, fqdn, ip.ExternalAddr); err != nil {
 				return err
 			}
-			log.SpanLog(ctx, log.DebugLevelMexos, "DNS A record activated",
+			log.SpanLog(ctx, log.DebugLevelInfra, "DNS A record activated",
 				"name", objName,
 				"fqdn", fqdn,
 				"IP", ip.ExternalAddr)
@@ -376,7 +380,7 @@ func (c *CommonPlatform) CreateAppInst(ctx context.Context, clusterInst *edgepro
 		dockerCommandTarget := rootLBClient
 
 		if clusterInst.IpAccess == edgeproto.IpAccess_IP_ACCESS_DEDICATED {
-			log.SpanLog(ctx, log.DebugLevelMexos, "using dedicated RootLB to create app", "rootLBName", rootLBName)
+			log.SpanLog(ctx, log.DebugLevelInfra, "using dedicated RootLB to create app", "rootLBName", rootLBName)
 			if app.AccessType == edgeproto.AccessType_ACCESS_TYPE_LOAD_BALANCER {
 				backendIP = cloudcommon.IPAddrDockerHost
 			} else {
@@ -406,10 +410,23 @@ func (c *CommonPlatform) CreateAppInst(ctx context.Context, clusterInst *edgepro
 			return fmt.Errorf("get kube names failed, %v", err)
 		}
 		updateCallback(edgeproto.UpdateTask, "Seeding docker secret")
-		err = SeedDockerSecret(ctx, dockerCommandTarget, clusterInst, app, c.VaultConfig)
-		if err != nil {
-			return fmt.Errorf("seeding docker secret failed, %v", err)
+
+		start := time.Now()
+		for {
+			err = SeedDockerSecret(ctx, dockerCommandTarget, clusterInst, app, c.VaultConfig)
+			if err != nil {
+				log.SpanLog(ctx, log.DebugLevelInfra, "seeding docker secret failed", "err", err)
+				elapsed := time.Since(start)
+				if elapsed > MaxDockerSeedWait {
+					return fmt.Errorf("can't seed docker secret - %v", err)
+				}
+				log.SpanLog(ctx, log.DebugLevelInfra, "retrying in 10 seconds")
+				time.Sleep(10 * time.Second)
+			} else {
+				break
+			}
 		}
+
 		updateCallback(edgeproto.UpdateTask, "Deploying Docker App")
 
 		err = dockermgmt.CreateAppInst(ctx, c.VaultConfig, dockerCommandTarget, app, appInst, dockerNetworkMode)
@@ -450,11 +467,11 @@ func (c *CommonPlatform) DeleteAppInst(ctx context.Context, clusterInst *edgepro
 	case cloudcommon.AppDeploymentTypeHelm:
 		rootLBName := c.GetRootLBNameForCluster(ctx, clusterInst)
 		if clusterInst.IpAccess == edgeproto.IpAccess_IP_ACCESS_DEDICATED {
-			log.SpanLog(ctx, log.DebugLevelMexos, "using dedicated RootLB to delete app", "rootLBName", rootLBName)
+			log.SpanLog(ctx, log.DebugLevelInfra, "using dedicated RootLB to delete app", "rootLBName", rootLBName)
 			_, err := c.infraProvider.GetServerDetail(ctx, rootLBName)
 			if err != nil {
 				if strings.Contains(err.Error(), ServerDoesNotExistError) {
-					log.SpanLog(ctx, log.DebugLevelMexos, "Dedicated RootLB is gone, allow app deletion")
+					log.SpanLog(ctx, log.DebugLevelInfra, "Dedicated RootLB is gone, allow app deletion")
 					return nil
 				}
 				return err
@@ -471,7 +488,7 @@ func (c *CommonPlatform) DeleteAppInst(ctx context.Context, clusterInst *edgepro
 		_, masterIP, err := c.infraProvider.GetClusterMasterNameAndIP(ctx, clusterInst)
 		if err != nil {
 			if strings.Contains(err.Error(), ServerDoesNotExistError) {
-				log.SpanLog(ctx, log.DebugLevelMexos, "cluster is gone, allow app deletion")
+				log.SpanLog(ctx, log.DebugLevelInfra, "cluster is gone, allow app deletion")
 				secGrp := c.GetServerSecurityGroupName(rootLBName)
 				c.DeleteProxySecurityGroupRules(ctx, client, dockermgmt.GetContainerName(&app.Key), secGrp, appInst.MappedPorts, app, rootLBName)
 				return nil
@@ -493,7 +510,7 @@ func (c *CommonPlatform) DeleteAppInst(ctx context.Context, clusterInst *edgepro
 		// Clean up security rules and proxy if app is external
 		secGrp := c.GetServerSecurityGroupName(rootLBName)
 		if err := c.DeleteProxySecurityGroupRules(ctx, client, dockermgmt.GetContainerName(&app.Key), secGrp, appInst.MappedPorts, app, rootLBName); err != nil {
-			log.SpanLog(ctx, log.DebugLevelMexos, "cannot delete security rules", "name", names.AppName, "rootlb", rootLBName, "error", err)
+			log.SpanLog(ctx, log.DebugLevelInfra, "cannot delete security rules", "name", names.AppName, "rootlb", rootLBName, "error", err)
 		}
 		if !app.InternalPorts {
 			// Clean up DNS entries
@@ -503,7 +520,7 @@ func (c *CommonPlatform) DeleteAppInst(ctx context.Context, clusterInst *edgepro
 				return err
 			}
 			if err := c.DeleteAppDNS(ctx, client, names, aac.DnsOverride); err != nil {
-				log.SpanLog(ctx, log.DebugLevelMexos, "cannot clean up DNS entries", "name", names.AppName, "rootlb", rootLBName, "error", err)
+				log.SpanLog(ctx, log.DebugLevelInfra, "cannot clean up DNS entries", "name", names.AppName, "rootlb", rootLBName, "error", err)
 			}
 		}
 
@@ -515,7 +532,7 @@ func (c *CommonPlatform) DeleteAppInst(ctx context.Context, clusterInst *edgepro
 
 	case cloudcommon.AppDeploymentTypeVM:
 		objName := cloudcommon.GetAppFQN(&app.Key)
-		log.SpanLog(ctx, log.DebugLevelMexos, "Deleting VM", "stackName", objName)
+		log.SpanLog(ctx, log.DebugLevelInfra, "Deleting VM", "stackName", objName)
 		err := c.infraProvider.DeleteResources(ctx, objName)
 		if err != nil {
 			return fmt.Errorf("DeleteVMAppInst error: %v", err)
@@ -531,7 +548,7 @@ func (c *CommonPlatform) DeleteAppInst(ctx context.Context, clusterInst *edgepro
 				fqdn = aac.DnsOverride
 			}
 			if err = c.DeleteDNSRecords(ctx, fqdn); err != nil {
-				log.SpanLog(ctx, log.DebugLevelMexos, "cannot delete DNS entries", "fqdn", fqdn)
+				log.SpanLog(ctx, log.DebugLevelInfra, "cannot delete DNS entries", "fqdn", fqdn)
 			}
 		}
 		return nil
@@ -550,7 +567,7 @@ func (c *CommonPlatform) DeleteAppInst(ctx context.Context, clusterInst *edgepro
 			_, backendIP, err := c.infraProvider.GetClusterMasterNameAndIP(ctx, clusterInst)
 			if err != nil {
 				if strings.Contains(err.Error(), ServerDoesNotExistError) {
-					log.SpanLog(ctx, log.DebugLevelMexos, "cluster is gone, allow app deletion")
+					log.SpanLog(ctx, log.DebugLevelInfra, "cluster is gone, allow app deletion")
 					secGrp := c.GetServerSecurityGroupName(rootLBName)
 					c.DeleteProxySecurityGroupRules(ctx, rootLBClient, dockermgmt.GetContainerName(&app.Key), secGrp, appInst.MappedPorts, app, rootLBName)
 					return nil
@@ -566,7 +583,7 @@ func (c *CommonPlatform) DeleteAppInst(ctx context.Context, clusterInst *edgepro
 		_, err = c.infraProvider.GetServerDetail(ctx, rootLBName)
 		if err != nil {
 			if strings.Contains(err.Error(), ServerDoesNotExistError) {
-				log.SpanLog(ctx, log.DebugLevelMexos, "Dedicated RootLB is gone, allow app deletion")
+				log.SpanLog(ctx, log.DebugLevelInfra, "Dedicated RootLB is gone, allow app deletion")
 				return nil
 			}
 			return err
@@ -580,7 +597,7 @@ func (c *CommonPlatform) DeleteAppInst(ctx context.Context, clusterInst *edgepro
 			secGrp := c.GetServerSecurityGroupName(rootLBName)
 			//  the proxy does not yet exist for docker, but it eventually will.  Secgrp rules should be deleted in either case
 			if err := c.DeleteProxySecurityGroupRules(ctx, client, name, secGrp, appInst.MappedPorts, app, rootLBName); err != nil {
-				log.SpanLog(ctx, log.DebugLevelMexos, "cannot delete security rules", "name", name, "rootlb", rootLBName, "error", err)
+				log.SpanLog(ctx, log.DebugLevelInfra, "cannot delete security rules", "name", name, "rootlb", rootLBName, "error", err)
 			}
 		}
 

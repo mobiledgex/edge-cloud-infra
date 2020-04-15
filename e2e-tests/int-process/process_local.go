@@ -4,9 +4,11 @@ import (
 	"fmt"
 	"io/ioutil"
 	"log"
+	"net/http"
 	"os"
 	"os/exec"
 	"strings"
+	"time"
 
 	"github.com/mobiledgex/edge-cloud/integration/process"
 	yaml "gopkg.in/yaml.v2"
@@ -52,6 +54,9 @@ func (p *MC) StartLocal(logfile string, opts ...process.StartOp) error {
 		args = append(args, "--consoleproxyaddr")
 		args = append(args, p.ConsoleProxyAddr)
 	}
+	if p.UseVaultCerts {
+		args = append(args, "--useVaultCerts")
+	}
 	args = append(args, "--hostname", p.Name)
 	args = append(args, "-skipVerifyEmail")
 	options := process.StartOptions{}
@@ -80,6 +85,23 @@ func (p *MC) StartLocal(logfile string, opts ...process.StartOp) error {
 
 	var err error
 	p.cmd, err = process.StartLocal(p.Name, p.GetExeName(), args, envs, logfile)
+	if err == nil {
+		// wait until server is online
+		online := false
+		for ii := 0; ii < 40; ii++ {
+			resp, serr := http.Get("http://" + p.Addr)
+			if serr == nil {
+				resp.Body.Close()
+				online = true
+				break
+			}
+			time.Sleep(100 * time.Millisecond)
+		}
+		if !online {
+			p.StopLocal()
+			return fmt.Errorf("failed to detect MC online")
+		}
+	}
 	return err
 }
 
@@ -255,6 +277,9 @@ func (p *Shepherd) GetArgs(opts ...process.StartOp) []string {
 		args = append(args, "--region")
 		args = append(args, p.Region)
 	}
+	if p.UseVaultCerts {
+		args = append(args, "--useVaultCerts")
+	}
 	options := process.StartOptions{}
 	options.ApplyStartOptions(opts...)
 	if options.Debug != "" {
@@ -266,7 +291,11 @@ func (p *Shepherd) GetArgs(opts ...process.StartOp) []string {
 func (p *Shepherd) StartLocal(logfile string, opts ...process.StartOp) error {
 	var err error
 	args := p.GetArgs(opts...)
-	p.cmd, err = process.StartLocal(p.Name, p.GetExeName(), args, nil, logfile)
+	envVars := []string{}
+	for k, v := range p.GetEnvVars() {
+		envVars = append(envVars, fmt.Sprintf("%s=%s", k, v))
+	}
+	p.cmd, err = process.StartLocal(p.Name, p.GetExeName(), args, envVars, logfile)
 	return err
 }
 
@@ -316,6 +345,13 @@ func (p *AutoProv) StartLocal(logfile string, opts ...process.StartOp) error {
 		args = append(args, "--tls")
 		args = append(args, p.TLS.ServerCert)
 	}
+	if p.Region != "" {
+		args = append(args, "--region")
+		args = append(args, p.Region)
+	}
+	if p.UseVaultCerts {
+		args = append(args, "--useVaultCerts")
+	}
 	options := process.StartOptions{}
 	options.ApplyStartOptions(opts...)
 	if options.Debug != "" {
@@ -334,9 +370,10 @@ func (p *AutoProv) StartLocal(logfile string, opts ...process.StartOp) error {
 		if err != nil {
 			return err
 		}
+		rr := roles.GetRegionRoles(p.Region)
 		envs = []string{
-			fmt.Sprintf("VAULT_ROLE_ID=%s", roles.AutoProvRoleID),
-			fmt.Sprintf("VAULT_SECRET_ID=%s", roles.AutoProvSecretID),
+			fmt.Sprintf("VAULT_ROLE_ID=%s", rr.AutoProvRoleID),
+			fmt.Sprintf("VAULT_SECRET_ID=%s", rr.AutoProvSecretID),
 		}
 		log.Printf("MC envs: %v\n", envs)
 	}
@@ -355,14 +392,23 @@ func (p *AutoProv) GetExeName() string { return "autoprov" }
 func (p *AutoProv) LookupArgs() string { return "" }
 
 type VaultRoles struct {
-	MCRoleID         string `json:"mcroleid"`
-	MCSecretID       string `json:"mcsecretid"`
-	ShepherdRoleID   string `json:"shepherdroleid"`
-	ShepherdSecretID string `json:"shepherdsecretid"`
+	MCRoleID        string `json:"mcroleid"`
+	MCSecretID      string `json:"mcsecretid"`
+	RotatorRoleID   string `json:"rotatorroleid"`
+	RotatorSecretID string `json:"rotatorsecretid"`
+	RegionRoles     map[string]*VaultRegionRoles
+}
+
+type VaultRegionRoles struct {
 	AutoProvRoleID   string `json:"autoprovroleid"`
 	AutoProvSecretID string `json:"autoprovsecretid"`
-	RotatorRoleID    string `json:"rotatorroleid"`
-	RotatorSecretID  string `json:"rotatorsecretid"`
+}
+
+func (s *VaultRoles) GetRegionRoles(region string) *VaultRegionRoles {
+	if region == "" {
+		region = "local"
+	}
+	return s.RegionRoles[region]
 }
 
 // Vault is already started by edge-cloud setup file.
@@ -378,11 +424,10 @@ func SetupVault(p *process.Vault, opts ...process.StartOp) (*VaultRoles, error) 
 		fmt.Println(out)
 		return nil, err
 	}
-
 	// get roleIDs and secretIDs
 	roles := VaultRoles{}
+	roles.RegionRoles = make(map[string]*VaultRegionRoles)
 	p.GetAppRole("", "mcorm", &roles.MCRoleID, &roles.MCSecretID, &err)
-	p.GetAppRole("", "autoprov", &roles.AutoProvRoleID, &roles.AutoProvSecretID, &err)
 	p.GetAppRole("", "rotator", &roles.RotatorRoleID, &roles.RotatorSecretID, &err)
 	p.PutSecret("", "mcorm", mcormSecret+"-old", &err)
 	p.PutSecret("", "mcorm", mcormSecret, &err)
@@ -392,6 +437,21 @@ func SetupVault(p *process.Vault, opts ...process.StartOp) (*VaultRoles, error) 
 
 	if err != nil {
 		return &roles, err
+	}
+
+	if p.Regions == "" {
+		p.Regions = "local"
+	}
+	for _, region := range strings.Split(p.Regions, ",") {
+		setup := gopath + "/src/github.com/mobiledgex/edge-cloud-infra/vault/setup-region.sh " + region
+		out := p.Run("/bin/sh", setup, &err)
+		if err != nil {
+			fmt.Println(out)
+			return nil, err
+		}
+		rr := VaultRegionRoles{}
+		p.GetAppRole("", "autoprov", &rr.AutoProvRoleID, &rr.AutoProvSecretID, &err)
+		roles.RegionRoles[region] = &rr
 	}
 	options := process.StartOptions{}
 	options.ApplyStartOptions(opts...)

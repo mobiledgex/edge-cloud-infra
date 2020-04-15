@@ -151,13 +151,13 @@ func (o *OpenstackPlatform) setupPlatformService(ctx context.Context, cloudlet *
 		if err == nil {
 			break
 		} else {
-			log.SpanLog(ctx, log.DebugLevelMexos, "error trying to connect to controller port via ssh", "out", out, "error", err)
+			log.SpanLog(ctx, log.DebugLevelInfra, "error trying to connect to controller port via ssh", "out", out, "error", err)
 			if strings.Contains(err.Error(), "ssh client timeout") || strings.Contains(err.Error(), "ssh dial fail") {
 				elapsed := time.Since(start)
 				if elapsed > PlatformVMReachableMaxWait {
 					return fmt.Errorf("timed out connecting to platform VM to test controller notification channel")
 				}
-				log.SpanLog(ctx, log.DebugLevelMexos, "sleeping 10 seconds before retry", "elapsed", elapsed)
+				log.SpanLog(ctx, log.DebugLevelInfra, "sleeping 10 seconds before retry", "elapsed", elapsed)
 				time.Sleep(10 * time.Second)
 			} else {
 				return fmt.Errorf("controller's notify port is unreachable: %v, %s\n", err, out)
@@ -201,14 +201,14 @@ func (o *OpenstackPlatform) setupPlatformService(ctx context.Context, cloudlet *
 		_, err = client.Output(cmd)
 		if err != nil {
 			// grep failed so not there already
-			log.SpanLog(ctx, log.DebugLevelMexos, "adding route to interfaces file", "route", routeAddLine, "file", interfacesFile)
+			log.SpanLog(ctx, log.DebugLevelInfra, "adding route to interfaces file", "route", routeAddLine, "file", interfacesFile)
 			cmd = fmt.Sprintf("echo '%s'|sudo tee -a %s", routeAddLine, interfacesFile)
 			out, err := client.Output(cmd)
 			if err != nil {
 				return fmt.Errorf("can't add route '%s' to interfaces file: %v, %s", routeAddLine, err, out)
 			}
 		} else {
-			log.SpanLog(ctx, log.DebugLevelMexos, "route already present in interfaces file")
+			log.SpanLog(ctx, log.DebugLevelInfra, "route already present in interfaces file")
 		}
 		// Retry
 		updateCallback(edgeproto.UpdateTask, "Retrying verification of reachability of Openstack API endpoint")
@@ -222,12 +222,14 @@ func (o *OpenstackPlatform) setupPlatformService(ctx context.Context, cloudlet *
 	}
 
 	// edge-cloud image already contains the certs
-	_, crtFile := filepath.Split(pfConfig.TlsCertFile)
-	ext := filepath.Ext(crtFile)
-	if ext == "" {
-		return fmt.Errorf("invalid tls cert file name: %s", crtFile)
+	if pfConfig.TlsCertFile != "" {
+		_, crtFile := filepath.Split(pfConfig.TlsCertFile)
+		ext := filepath.Ext(crtFile)
+		if ext == "" {
+			return fmt.Errorf("invalid tls cert file name: %s", crtFile)
+		}
+		pfConfig.TlsCertFile = "/root/tls/" + crtFile
 	}
-	pfConfig.TlsCertFile = "/root/tls/" + crtFile
 
 	// Login to docker registry
 	updateCallback(edgeproto.UpdateTask, "Setting up docker registry")
@@ -306,7 +308,7 @@ func (o *OpenstackPlatform) setupPlatformVM(ctx context.Context, cloudlet *edgep
 
 	// Deploy Platform VM
 	updateCallback(edgeproto.UpdateTask, "Deploying Platform VM")
-	log.SpanLog(ctx, log.DebugLevelMexos, "Deploying VM", "stackName", platform_vm_name, "vmspec", vmspec)
+	log.SpanLog(ctx, log.DebugLevelInfra, "Deploying VM", "stackName", platform_vm_name, "vmspec", vmspec)
 	err = o.CreateHeatStackFromTemplate(ctx, vmp, platform_vm_name, VmTemplate, updateCallback)
 	if err != nil {
 		return nil, fmt.Errorf("CreatePlatformVM error: %v", err)
@@ -319,7 +321,7 @@ func (o *OpenstackPlatform) setupPlatformVM(ctx context.Context, cloudlet *edgep
 	}
 	updateCallback(edgeproto.UpdateTask, "Platform VM external IP: "+ip.ExternalAddr)
 
-	client, err := o.commonPf.GetSSHClient(ctx, platform_vm_name, o.commonPf.GetCloudletExternalNetwork(), infracommon.SSHUser)
+	client, err := o.commonPf.GetSSHClientForServer(ctx, platform_vm_name, o.commonPf.GetCloudletExternalNetwork())
 	if err != nil {
 		return nil, err
 	}
@@ -337,7 +339,7 @@ func (o *OpenstackPlatform) setupPlatformVM(ctx context.Context, cloudlet *edgep
 func (s *OpenstackPlatform) CreateCloudlet(ctx context.Context, cloudlet *edgeproto.Cloudlet, pfConfig *edgeproto.PlatformConfig, pfFlavor *edgeproto.Flavor, updateCallback edgeproto.CacheUpdateCallback) error {
 	var err error
 
-	log.SpanLog(ctx, log.DebugLevelMexos, "Creating cloudlet", "cloudletName", cloudlet.Key.Name)
+	log.SpanLog(ctx, log.DebugLevelInfra, "Creating cloudlet", "cloudletName", cloudlet.Key.Name)
 
 	vaultConfig, err := vault.BestConfig(pfConfig.VaultAddr, vault.WithEnvMap(pfConfig.EnvVar))
 	if err != nil {
@@ -367,7 +369,7 @@ func (s *OpenstackPlatform) CreateCloudlet(ctx context.Context, cloudlet *edgepr
 }
 
 func (s *OpenstackPlatform) SaveCloudletAccessVars(ctx context.Context, cloudlet *edgeproto.Cloudlet, accessVarsIn map[string]string, pfConfig *edgeproto.PlatformConfig, updateCallback edgeproto.CacheUpdateCallback) error {
-	log.SpanLog(ctx, log.DebugLevelMexos, "Saving cloudlet access vars to vault", "cloudletName", cloudlet.Key.Name)
+	log.SpanLog(ctx, log.DebugLevelInfra, "Saving cloudlet access vars to vault", "cloudletName", cloudlet.Key.Name)
 	vaultConfig, err := vault.BestConfig(pfConfig.VaultAddr, vault.WithEnvMap(pfConfig.EnvVar))
 	if err != nil {
 		return err
@@ -429,14 +431,14 @@ func (s *OpenstackPlatform) SaveCloudletAccessVars(ctx context.Context, cloudlet
 	err = infracommon.PutDataToVault(vaultConfig, path, data)
 	if err != nil {
 		updateCallback(edgeproto.UpdateTask, "Failed to save access vars to vault")
-		log.SpanLog(ctx, log.DebugLevelMexos, err.Error(), "cloudletName", cloudlet.Key.Name)
+		log.SpanLog(ctx, log.DebugLevelInfra, err.Error(), "cloudletName", cloudlet.Key.Name)
 		return fmt.Errorf("Failed to save access vars to vault: %v", err)
 	}
 	return nil
 }
 
 func (s *OpenstackPlatform) DeleteCloudletAccessVars(ctx context.Context, cloudlet *edgeproto.Cloudlet, pfConfig *edgeproto.PlatformConfig, updateCallback edgeproto.CacheUpdateCallback) error {
-	log.SpanLog(ctx, log.DebugLevelMexos, "Deleting access vars from vault", "cloudletName", cloudlet.Key.Name)
+	log.SpanLog(ctx, log.DebugLevelInfra, "Deleting access vars from vault", "cloudletName", cloudlet.Key.Name)
 
 	updateCallback(edgeproto.UpdateTask, "Deleting access vars from secure secrets storage")
 
@@ -453,7 +455,7 @@ func (s *OpenstackPlatform) DeleteCloudletAccessVars(ctx context.Context, cloudl
 }
 
 func (o *OpenstackPlatform) DeleteCloudlet(ctx context.Context, cloudlet *edgeproto.Cloudlet, pfConfig *edgeproto.PlatformConfig, updateCallback edgeproto.CacheUpdateCallback) error {
-	log.SpanLog(ctx, log.DebugLevelMexos, "Deleting cloudlet", "cloudletName", cloudlet.Key.Name)
+	log.SpanLog(ctx, log.DebugLevelInfra, "Deleting cloudlet", "cloudletName", cloudlet.Key.Name)
 
 	updateCallback(edgeproto.UpdateTask, "Deleting cloudlet")
 
@@ -466,7 +468,7 @@ func (o *OpenstackPlatform) DeleteCloudlet(ctx context.Context, cloudlet *edgepr
 	err = o.InitOpenstackProps(ctx, &cloudlet.Key, pfConfig.Region, cloudlet.PhysicalName, vaultConfig, cloudlet.EnvVar)
 	if err != nil {
 		// ignore this error, as no creation would've happened on infra, so nothing to delete
-		log.SpanLog(ctx, log.DebugLevelMexos, "failed to source platform variables", "cloudletName", cloudlet.Key.Name, "err", err)
+		log.SpanLog(ctx, log.DebugLevelInfra, "failed to source platform variables", "cloudletName", cloudlet.Key.Name, "err", err)
 		return nil
 	}
 
@@ -492,7 +494,7 @@ func (o *OpenstackPlatform) DeleteCloudlet(ctx context.Context, cloudlet *edgepr
 
 func handleUpgradeError(ctx context.Context, client ssh.Client) error {
 	for _, pfService := range PlatformServices {
-		log.SpanLog(ctx, log.DebugLevelMexos, "restoring container names")
+		log.SpanLog(ctx, log.DebugLevelInfra, "restoring container names")
 		if out, err := client.Output(
 			fmt.Sprintf("sudo docker rename %s_old %s", pfService, pfService),
 		); err != nil {
@@ -510,7 +512,7 @@ func getCRMContainerVersion(ctx context.Context, client ssh.Client) (string, err
 	var err error
 	var out string
 
-	log.SpanLog(ctx, log.DebugLevelMexos, "fetch crmserver container version")
+	log.SpanLog(ctx, log.DebugLevelInfra, "fetch crmserver container version")
 	if out, err = client.Output(
 		fmt.Sprintf("sudo docker ps --filter name=%s --format '{{.Image}}'", ServiceTypeCRM),
 	); err != nil {
@@ -528,7 +530,7 @@ func getCRMPkgVersion(ctx context.Context, client ssh.Client) (string, error) {
 	var err error
 	var out string
 
-	log.SpanLog(ctx, log.DebugLevelMexos, "fetch Cloudlet base image package version")
+	log.SpanLog(ctx, log.DebugLevelInfra, "fetch Cloudlet base image package version")
 	if out, err = client.Output("sudo dpkg-query --showformat='${Version}' --show mobiledgex"); err != nil {
 		return "", fmt.Errorf("failed to get mobiledgex debian package version, %v, %v", out, err)
 	}
@@ -536,11 +538,11 @@ func getCRMPkgVersion(ctx context.Context, client ssh.Client) (string, error) {
 }
 
 func upgradeCloudletPkgs(ctx context.Context, vmType infracommon.DeploymentType, cloudlet *edgeproto.Cloudlet, pfConfig *edgeproto.PlatformConfig, vaultConfig *vault.Config, client ssh.Client, updateCallback edgeproto.CacheUpdateCallback) error {
-	log.SpanLog(ctx, log.DebugLevelMexos, "Updating apt package lists", "cloudletName", cloudlet.Key.Name, "vmType", vmType)
+	log.SpanLog(ctx, log.DebugLevelInfra, "Updating apt package lists", "cloudletName", cloudlet.Key.Name, "vmType", vmType)
 	if out, err := client.Output("sudo apt-get update"); err != nil {
 		return fmt.Errorf("Failed to update apt package lists, %v, %v", out, err)
 	}
-	log.SpanLog(ctx, log.DebugLevelMexos, "Upgrading mobiledgex base image package", "cloudletName", cloudlet.Key.Name, "vmType", vmType, "packageVersion", cloudlet.PackageVersion)
+	log.SpanLog(ctx, log.DebugLevelInfra, "Upgrading mobiledgex base image package", "cloudletName", cloudlet.Key.Name, "vmType", vmType, "packageVersion", cloudlet.PackageVersion)
 	if out, err := client.Output(
 		fmt.Sprintf("MEXVM_TYPE=%s sudo apt-get install -y mobiledgex=%s", vmType, cloudlet.PackageVersion),
 	); err != nil {
@@ -550,7 +552,7 @@ func upgradeCloudletPkgs(ctx context.Context, vmType infracommon.DeploymentType,
 }
 
 func (o *OpenstackPlatform) UpdateCloudlet(ctx context.Context, cloudlet *edgeproto.Cloudlet, pfConfig *edgeproto.PlatformConfig, updateCallback edgeproto.CacheUpdateCallback) (edgeproto.CloudletAction, error) {
-	log.SpanLog(ctx, log.DebugLevelMexos, "Updating cloudlet", "cloudletName", cloudlet.Key.Name)
+	log.SpanLog(ctx, log.DebugLevelInfra, "Updating cloudlet", "cloudletName", cloudlet.Key.Name)
 
 	defCloudletAction := edgeproto.CloudletAction_ACTION_NONE
 
@@ -565,7 +567,7 @@ func (o *OpenstackPlatform) UpdateCloudlet(ctx context.Context, cloudlet *edgepr
 		return defCloudletAction, err
 	}
 
-	pfClient, err := o.commonPf.GetSSHClient(ctx, o.getPlatformVMName(&cloudlet.Key), o.commonPf.GetCloudletExternalNetwork(), infracommon.SSHUser)
+	pfClient, err := o.commonPf.GetSSHClientForServer(ctx, o.getPlatformVMName(&cloudlet.Key), o.commonPf.GetCloudletExternalNetwork())
 	if err != nil {
 		return defCloudletAction, err
 	}
@@ -576,7 +578,7 @@ func (o *OpenstackPlatform) UpdateCloudlet(ctx context.Context, cloudlet *edgepr
 	}
 
 	rootLBName := cloudcommon.GetRootLBFQDN(&cloudlet.Key)
-	rlbClient, err := o.commonPf.GetSSHClient(ctx, rootLBName, o.commonPf.GetCloudletExternalNetwork(), infracommon.SSHUser)
+	rlbClient, err := o.commonPf.GetSSHClientForServer(ctx, rootLBName, o.commonPf.GetCloudletExternalNetwork())
 	if err != nil {
 		return defCloudletAction, err
 	}
@@ -600,7 +602,7 @@ func (o *OpenstackPlatform) UpdateCloudlet(ctx context.Context, cloudlet *edgepr
 		updateCallback(edgeproto.UpdateTask, fmt.Sprintf("Upgrading mobiledgex base image package for %s to version %s", vmType, cloudlet.PackageVersion))
 		err = upgradeCloudletPkgs(ctx, vmType, cloudlet, pfConfig, vaultConfig, client, updateCallback)
 		if err != nil {
-			log.SpanLog(ctx, log.DebugLevelMexos, "Failed to upgrade cloudlet packages", "VM type", vmType, "Version", cloudlet.PackageVersion, "err", err)
+			log.SpanLog(ctx, log.DebugLevelInfra, "Failed to upgrade cloudlet packages", "VM type", vmType, "Version", cloudlet.PackageVersion, "err", err)
 			updateCallback(edgeproto.UpdateTask, fmt.Sprintf("Failed to upgrade cloudlet packages of vm type %s to version %s, please upgrade them manually!", vmType, cloudlet.PackageVersion))
 			return defCloudletAction, err
 		}
@@ -615,7 +617,7 @@ func (o *OpenstackPlatform) UpdateCloudlet(ctx context.Context, cloudlet *edgepr
 	for _, pfService := range PlatformServices {
 		from := pfService
 		to := pfService + "_old"
-		log.SpanLog(ctx, log.DebugLevelMexos, "renaming existing services to bringup new ones", "from", from, "to", to)
+		log.SpanLog(ctx, log.DebugLevelInfra, "renaming existing services to bringup new ones", "from", from, "to", to)
 		if out, err := pfClient.Output(
 			fmt.Sprintf("sudo docker rename %s %s", from, to),
 		); err != nil {
@@ -633,14 +635,14 @@ func (o *OpenstackPlatform) UpdateCloudlet(ctx context.Context, cloudlet *edgepr
 	err = o.setupPlatformService(ctx, cloudlet, pfConfig, vaultConfig, pfClient, updateCallback)
 
 	if err != nil {
-		log.SpanLog(ctx, log.DebugLevelMexos, "failed to setup platform services", "err", err)
+		log.SpanLog(ctx, log.DebugLevelInfra, "failed to setup platform services", "err", err)
 		// Cleanup failed containers
 		updateCallback(edgeproto.UpdateTask, "Upgrade failed, cleaning up")
 		if out, err1 := pfClient.Output(
 			fmt.Sprintf("sudo docker rm -f %s", strings.Join(PlatformServices, " ")),
 		); err1 != nil {
 			if strings.Contains(out, "No such container") {
-				log.SpanLog(ctx, log.DebugLevelMexos, "no containers to cleanup")
+				log.SpanLog(ctx, log.DebugLevelInfra, "no containers to cleanup")
 			} else {
 				return defCloudletAction, fmt.Errorf("upgrade failed: %v and cleanup failed: %v, %s\n", err, err1, out)
 			}
@@ -649,7 +651,7 @@ func (o *OpenstackPlatform) UpdateCloudlet(ctx context.Context, cloudlet *edgepr
 		for _, pfService := range PlatformServices {
 			from := pfService + "_old"
 			to := pfService
-			log.SpanLog(ctx, log.DebugLevelMexos, "restoring old container name", "from", from, "to", to)
+			log.SpanLog(ctx, log.DebugLevelInfra, "restoring old container name", "from", from, "to", to)
 			if out, err1 := pfClient.Output(
 				fmt.Sprintf("sudo docker rename %s %s", from, to),
 			); err1 != nil {
@@ -662,9 +664,9 @@ func (o *OpenstackPlatform) UpdateCloudlet(ctx context.Context, cloudlet *edgepr
 }
 
 func (o *OpenstackPlatform) CleanupCloudlet(ctx context.Context, cloudlet *edgeproto.Cloudlet, pfConfig *edgeproto.PlatformConfig, updateCallback edgeproto.CacheUpdateCallback) error {
-	log.SpanLog(ctx, log.DebugLevelMexos, "Cleaning up cloudlet", "cloudletName", cloudlet.Key.Name)
+	log.SpanLog(ctx, log.DebugLevelInfra, "Cleaning up cloudlet", "cloudletName", cloudlet.Key.Name)
 
-	client, err := o.commonPf.GetSSHClient(ctx, o.getPlatformVMName(&cloudlet.Key), o.commonPf.GetCloudletExternalNetwork(), infracommon.SSHUser)
+	client, err := o.commonPf.GetSSHClientForServer(ctx, o.getPlatformVMName(&cloudlet.Key), o.commonPf.GetCloudletExternalNetwork())
 	if err != nil {
 		return err
 	}
@@ -674,7 +676,7 @@ func (o *OpenstackPlatform) CleanupCloudlet(ctx context.Context, cloudlet *edgep
 			fmt.Sprintf("sudo docker rm -f %s_old", pfService),
 		); err != nil {
 			if strings.Contains(out, "No such container") {
-				log.SpanLog(ctx, log.DebugLevelMexos, "no containers to cleanup")
+				log.SpanLog(ctx, log.DebugLevelInfra, "no containers to cleanup")
 				continue
 			} else {
 				return fmt.Errorf("cleanup failed: %v, %s\n", err, out)

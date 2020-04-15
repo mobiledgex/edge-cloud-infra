@@ -3,10 +3,9 @@ package infracommon
 import (
 	"context"
 	"fmt"
-)
 
-const NetworkExternal = "external"
-const NetworkInternal = "internal"
+	"github.com/mobiledgex/edge-cloud/log"
+)
 
 type NetworkType string
 
@@ -21,6 +20,7 @@ type ServerDetail struct {
 }
 
 func (c *CommonPlatform) GetIPFromServerDetails(ctx context.Context, networkName string, sd *ServerDetail) (*ServerIP, error) {
+	log.SpanLog(ctx, log.DebugLevelInfra, "GetIPFromServerDetails", "networkName", networkName, "serverDetail", sd)
 	for _, s := range sd.Addresses {
 		if s.Network == networkName {
 			return &s, nil

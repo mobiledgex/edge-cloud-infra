@@ -55,6 +55,10 @@
 
 - hosts: platform
   tasks:
+    - import_role:
+        name: vault
+        tasks_from: load-token
+      delegate_to: localhost
 
     - name: Load registry docker creds
       import_role:
@@ -95,11 +99,21 @@
       with_items: "{{ platform_regions }}"
 
 - hosts: gitlab
-  roles:
-    - role: telegraf
+  tasks:
+    - name: Update Gitlab GPG key
+      apt_key:
+        url: https://packages.gitlab.com/gpg.key
+        state: present
+      become: yes
+    - import_role:
+        name: telegraf
       tags: monitoring
-    - role: docker
-    - role: gitlab
+    - import_role:
+        name: docker
+      tags: setup
+    - import_role:
+        name: gitlab
+      tags: setup
 
 - hosts: postgres
   tasks:
@@ -169,6 +183,10 @@
 
 - hosts: notifyroot
   tasks:
+    - import_role:
+        name: vault
+        tasks_from: load-token
+      delegate_to: localhost
     - import_role:
         name: telegraf
       tags: [ 'monitoring', 'setup' ]

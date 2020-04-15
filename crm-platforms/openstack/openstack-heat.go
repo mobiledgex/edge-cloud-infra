@@ -42,6 +42,9 @@ ssh_pwauth: False
 timezone: UTC
 runcmd:
  - [ echo, MOBILEDGEX, doing, ifconfig ]
+{{if .VMDNSServers}}
+ - echo "dns-nameservers {{.VMDNSServers}}" >> /etc/network/interfaces.d/50-cloud-init.cfg
+{{end}}
  - [ ifconfig, -a ]`
 
 // vmCloudConfigShareMount is appended optionally to vmCloudConfig.   It assumes
@@ -201,8 +204,9 @@ resources:
 
 // ClusterNode is a k8s node
 type ClusterNode struct {
-	NodeName string
-	NodeIP   string
+	NodeName     string
+	NodeIP       string
+	VMDNSServers string
 }
 
 // ClusterParams has the info needed to populate the heat template
@@ -222,6 +226,7 @@ type ClusterParams struct {
 	NetworkType           string
 	RouterSecurityGroup   string // used for internal comms only if the OpenStack router is present
 	DNSServers            []string
+	VMDNSServers          string
 	Nodes                 []ClusterNode
 	MasterNodeFlavor      string
 	*infracommon.VMParams //rootlb
@@ -452,7 +457,7 @@ func WriteTemplateFile(filename string, buf *bytes.Buffer) error {
 }
 
 func (s *OpenstackPlatform) waitForStack(ctx context.Context, stackname string, action string, updateCallback edgeproto.CacheUpdateCallback) error {
-	log.SpanLog(ctx, log.DebugLevelMexos, "waiting for stack", "name", stackname, "action", action)
+	log.SpanLog(ctx, log.DebugLevelInfra, "waiting for stack", "name", stackname, "action", action)
 	start := time.Now()
 	for {
 		time.Sleep(10 * time.Second)
@@ -464,12 +469,12 @@ func (s *OpenstackPlatform) waitForStack(ctx context.Context, stackname string, 
 		if err != nil {
 			return err
 		}
-		log.SpanLog(ctx, log.DebugLevelMexos, "Got Heat Stack detail", "detail", hd)
+		log.SpanLog(ctx, log.DebugLevelInfra, "Got Heat Stack detail", "detail", hd)
 		updateCallback(edgeproto.UpdateStep, fmt.Sprintf("Heat Stack Status: %s", hd.StackStatus))
 
 		switch hd.StackStatus {
 		case action + "_COMPLETE":
-			log.SpanLog(ctx, log.DebugLevelMexos, "Heat Stack succeeded", "action", action, "stackName", stackname)
+			log.SpanLog(ctx, log.DebugLevelInfra, "Heat Stack succeeded", "action", action, "stackName", stackname)
 			return nil
 		case action + "_IN_PROGRESS":
 			elapsed := time.Since(start)
@@ -490,7 +495,7 @@ func (s *OpenstackPlatform) waitForStack(ctx context.Context, stackname string, 
 }
 
 func (o *OpenstackPlatform) createOrUpdateHeatStackFromTemplate(ctx context.Context, templateData interface{}, stackName string, templateString string, action string, updateCallback edgeproto.CacheUpdateCallback) error {
-	log.SpanLog(ctx, log.DebugLevelMexos, "createHeatStackFromTemplate", "stackName", stackName)
+	log.SpanLog(ctx, log.DebugLevelInfra, "createHeatStackFromTemplate", "stackName", stackName)
 
 	var buf bytes.Buffer
 	updateCallback(edgeproto.UpdateTask, "Creating Heat Stack for "+stackName)
@@ -557,12 +562,12 @@ func (o *OpenstackPlatform) HeatDeleteCluster(ctx context.Context, client ssh.Cl
 		if cp.RootLBPortName != "" && !dedicatedRootLB && client != nil {
 			err = o.commonPf.DetachAndDisableRootLBInterface(ctx, client, rootLBName, cp.RootLBPortName, cp.GatewayIP)
 			if err != nil {
-				log.SpanLog(ctx, log.DebugLevelMexos, "unable to detach rootLB interface, proceed with stack deletion", "err", err)
+				log.SpanLog(ctx, log.DebugLevelInfra, "unable to detach rootLB interface, proceed with stack deletion", "err", err)
 			}
 		}
 	} else {
 		// probably already gone
-		log.SpanLog(ctx, log.DebugLevelMexos, "unable to get cluster params, proceed with stack deletion", "err", err)
+		log.SpanLog(ctx, log.DebugLevelInfra, "unable to get cluster params, proceed with stack deletion", "err", err)
 	}
 	clusterName := o.NameSanitize(k8smgmt.GetK8sNodeNameSuffix(&clusterInst.Key))
 	return o.HeatDeleteStack(ctx, clusterName)
@@ -570,7 +575,7 @@ func (o *OpenstackPlatform) HeatDeleteCluster(ctx context.Context, client ssh.Cl
 
 // HeatDeleteStack deletes the VM resources
 func (o *OpenstackPlatform) HeatDeleteStack(ctx context.Context, stackName string) error {
-	log.SpanLog(ctx, log.DebugLevelMexos, "deleting heat stack for stack", "stackName", stackName)
+	log.SpanLog(ctx, log.DebugLevelInfra, "deleting heat stack for stack", "stackName", stackName)
 	err := o.deleteHeatStack(ctx, stackName)
 	if err != nil {
 		return err
@@ -579,7 +584,7 @@ func (o *OpenstackPlatform) HeatDeleteStack(ctx context.Context, stackName strin
 }
 
 func (o *OpenstackPlatform) populateCommonClusterParamFields(ctx context.Context, cp *ClusterParams, rootLBName, cloudletSecGrp, action string) (string, error) {
-	log.SpanLog(ctx, log.DebugLevelMexos, "populateCommonClusterParamFields", "clusterParams", cp, "rootLBName", rootLBName, "cloudletSecGrp", cloudletSecGrp, "action", action)
+	log.SpanLog(ctx, log.DebugLevelInfra, "populateCommonClusterParamFields", "clusterParams", cp, "rootLBName", rootLBName, "cloudletSecGrp", cloudletSecGrp, "action", action)
 
 	usedCidrs := make(map[string]string)
 	ni, err := infracommon.ParseNetSpec(ctx, o.commonPf.GetCloudletNetworkScheme())
@@ -594,13 +599,13 @@ func (o *OpenstackPlatform) populateCommonClusterParamFields(ctx context.Context
 
 	rtr := o.GetCloudletExternalRouter()
 	if rtr == infracommon.NoConfigExternalRouter {
-		log.SpanLog(ctx, log.DebugLevelMexos, "NoConfigExternalRouter in use for cluster, cluster stack with no router interfaces")
+		log.SpanLog(ctx, log.DebugLevelInfra, "NoConfigExternalRouter in use for cluster, cluster stack with no router interfaces")
 	} else if rtr == infracommon.NoExternalRouter {
-		log.SpanLog(ctx, log.DebugLevelMexos, "NoExternalRouter in use for cluster, cluster stack with rootlb connected to subnet")
+		log.SpanLog(ctx, log.DebugLevelInfra, "NoExternalRouter in use for cluster, cluster stack with rootlb connected to subnet")
 		cp.RootLBConnectToSubnet = rootLBName
 		cp.RootLBPortName = fmt.Sprintf("%s-%s-port", rootLBName, cp.ClusterName)
 	} else {
-		log.SpanLog(ctx, log.DebugLevelMexos, "External router in use for cluster, cluster stack with router interfaces")
+		log.SpanLog(ctx, log.DebugLevelInfra, "External router in use for cluster, cluster stack with router interfaces")
 		cp.MEXRouterName = rtr
 		// The cluster needs to be connected to the cloudlet level security group to have router access
 		cp.RouterSecurityGroup = cloudletSecGrp
@@ -638,7 +643,7 @@ func (o *OpenstackPlatform) populateCommonClusterParamFields(ctx context.Context
 
 //GetClusterParams fills template parameters for the cluster.  A non blank rootLBName will add a rootlb VM
 func (o *OpenstackPlatform) getClusterParams(ctx context.Context, clusterInst *edgeproto.ClusterInst, privacyPolicy *edgeproto.PrivacyPolicy, rootLBName, imgName string, dedicatedRootLB bool, action string) (*ClusterParams, error) {
-	log.SpanLog(ctx, log.DebugLevelMexos, "getClusterParams", "cluster", clusterInst, "action", action)
+	log.SpanLog(ctx, log.DebugLevelInfra, "getClusterParams", "cluster", clusterInst, "action", action)
 
 	var cp ClusterParams
 	var err error
@@ -713,6 +718,18 @@ func (o *OpenstackPlatform) getClusterParams(ctx context.Context, clusterInst *e
 	cp.PrivacyPolicy = privacyPolicy
 	cp.CloudletSecurityGroup = cloudletGrp
 
+	// this is a hopefully short term workaround to a Contrail bug in which DNS resolution
+	// breaks when the DNS server is specified in the subnet on creation.  The workaround is to
+	// use cloud-init to specify the DNS server in the VM rather than the subnet.
+	// See EDGECLOUD-2420 for details
+	dns := []string{"1.1.1.1", "1.0.0.1"}
+	if o.GetSubnetDNS() == infracommon.NoSubnetDNS {
+		log.SpanLog(ctx, log.DebugLevelInfra, "subnet DNS is NONE, using VM DNS", "dns", dns)
+		cp.VMDNSServers = strings.Join(dns, " ")
+	} else {
+		log.SpanLog(ctx, log.DebugLevelInfra, "using subnet dns", "dns", dns)
+		cp.DNSServers = dns
+	}
 	nodeIPPrefix, err := o.populateCommonClusterParamFields(ctx, &cp, rootLBName, cloudletGrp, action)
 	if err != nil {
 		return nil, err
@@ -729,20 +746,19 @@ func (o *OpenstackPlatform) getClusterParams(ctx context.Context, clusterInst *e
 		nn := infracommon.ClusterNodePrefix(i)
 		nip := fmt.Sprintf("%s.%d", nodeIPPrefix, i+100)
 		cn := ClusterNode{NodeName: nn, NodeIP: nip}
+		cn.VMDNSServers = cp.VMDNSServers
 		cp.Nodes = append(cp.Nodes, cn)
 	}
-	// cloudflare primary and backup
-	cp.DNSServers = []string{"1.1.1.1", "1.0.0.1"}
 	if clusterInst.NumNodes > 0 && clusterInst.MasterNodeFlavor != "" {
 		cp.MasterNodeFlavor = clusterInst.MasterNodeFlavor
-		log.SpanLog(ctx, log.DebugLevelMexos, "HeatGetClusterParams", "MasterNodeFlavor", cp.MasterNodeFlavor)
+		log.SpanLog(ctx, log.DebugLevelInfra, "HeatGetClusterParams", "MasterNodeFlavor", cp.MasterNodeFlavor)
 	}
 	return &cp, nil
 }
 
 // HeatCreateRootLBVM creates a roobLB VM
 func (o *OpenstackPlatform) HeatCreateRootLBVM(ctx context.Context, serverName, stackName, imgName string, vmspec *vmspec.VMCreationSpec, cloudletKey *edgeproto.CloudletKey, updateCallback edgeproto.CacheUpdateCallback) error {
-	log.SpanLog(ctx, log.DebugLevelMexos, "HeatCreateRootLBVM", "serverName", serverName, "stackName", stackName, "vmspec", vmspec)
+	log.SpanLog(ctx, log.DebugLevelInfra, "HeatCreateRootLBVM", "serverName", serverName, "stackName", stackName, "vmspec", vmspec)
 	ni, err := infracommon.ParseNetSpec(ctx, o.commonPf.GetCloudletNetworkScheme())
 	if err != nil {
 		return err
@@ -777,7 +793,7 @@ func (o *OpenstackPlatform) HeatCreateRootLBVM(ctx context.Context, serverName, 
 
 // HeatCreateCluster creates a docker or k8s cluster which may optionally include a dedicated root LB
 func (o *OpenstackPlatform) HeatCreateCluster(ctx context.Context, clusterInst *edgeproto.ClusterInst, privacyPolicy *edgeproto.PrivacyPolicy, rootLBName string, imgName string, dedicatedRootLB bool, updateCallback edgeproto.CacheUpdateCallback) error {
-	log.SpanLog(ctx, log.DebugLevelMexos, "HeatCreateCluster", "clusterInst", clusterInst, "rootLBName", rootLBName)
+	log.SpanLog(ctx, log.DebugLevelInfra, "HeatCreateCluster", "clusterInst", clusterInst, "rootLBName", rootLBName)
 	// It is problematic to create 2 clusters at the exact same time because we will look for available subnet CIDRS when
 	// defining the template.  If 2 start at once they may end up trying to create the same subnet and one will fail.
 	// So we will do this one at a time.   It will slightly slow down the creation of the second cluster, but the heat
@@ -790,7 +806,7 @@ func (o *OpenstackPlatform) HeatCreateCluster(ctx context.Context, clusterInst *
 	if err != nil {
 		return err
 	}
-	log.SpanLog(ctx, log.DebugLevelMexos, "Updated ClusterParams", "clusterParams", cp)
+	log.SpanLog(ctx, log.DebugLevelInfra, "Updated ClusterParams", "clusterParams", cp)
 
 	templateString := clusterTemplate
 	//append the VM resources for the rootLB is dedicated
@@ -802,7 +818,7 @@ func (o *OpenstackPlatform) HeatCreateCluster(ctx context.Context, clusterInst *
 		return err
 	}
 	if cp.RootLBPortName != "" {
-		client, err := o.commonPf.GetSSHClient(ctx, rootLBName, o.commonPf.GetCloudletExternalNetwork(), infracommon.SSHUser)
+		client, err := o.commonPf.GetSSHClientForServer(ctx, rootLBName, o.commonPf.GetCloudletExternalNetwork())
 		if err != nil {
 			return fmt.Errorf("unable to get rootlb SSH client: %v", err)
 		}
@@ -811,9 +827,14 @@ func (o *OpenstackPlatform) HeatCreateCluster(ctx context.Context, clusterInst *
 	return nil
 }
 
+//HeatCreateAppVM creates an App VM
+func (o *OpenstackPlatform) HeatCreateAppVM(ctx context.Context, vmAppParams *infracommon.VMParams, updateCallback edgeproto.CacheUpdateCallback) error {
+	return o.CreateHeatStackFromTemplate(ctx, vmAppParams, vmAppParams.VMName, VmTemplate, updateCallback)
+}
+
 // HeatCreateAppVMWithRootLB creates a VM accessed via a new rootLB
 func (o *OpenstackPlatform) HeatCreateAppVMWithRootLB(ctx context.Context, vmAppParams *infracommon.VMParams, rootLBParams *infracommon.VMParams, updateCallback edgeproto.CacheUpdateCallback) error {
-	log.SpanLog(ctx, log.DebugLevelMexos, "HeatCreateAppVMWithRootLB", "vmAppParams", vmAppParams, "rootLBParams", rootLBParams)
+	log.SpanLog(ctx, log.DebugLevelInfra, "HeatCreateAppVMWithRootLB", "vmAppParams", vmAppParams, "rootLBParams", rootLBParams)
 
 	// Floating IPs can also be allocated within the stack and need to be locked as well.
 	heatStackLock.Lock()
@@ -831,14 +852,14 @@ func (o *OpenstackPlatform) HeatCreateAppVMWithRootLB(ctx context.Context, vmApp
 	if err != nil {
 		return err
 	}
-	log.SpanLog(ctx, log.DebugLevelMexos, "Created ClusterParams", "clusterParams", cp)
+	log.SpanLog(ctx, log.DebugLevelInfra, "Created ClusterParams", "clusterParams", cp)
 
 	templateString := clusterTemplate + vmTemplateResources
 	err = o.CreateHeatStackFromTemplate(ctx, cp, cp.ClusterName, templateString, updateCallback)
 	if err != nil {
 		return err
 	}
-	client, err := o.commonPf.GetSSHClient(ctx, rootLBParams.VMName, o.commonPf.GetCloudletExternalNetwork(), infracommon.SSHUser)
+	client, err := o.commonPf.GetSSHClientForServer(ctx, rootLBParams.VMName, o.commonPf.GetCloudletExternalNetwork())
 	if err != nil {
 		return fmt.Errorf("unable to get rootlb SSH client: %v", err)
 	}
@@ -850,7 +871,7 @@ func (o *OpenstackPlatform) HeatCreateAppVMWithRootLB(ctx context.Context, vmApp
 
 // HeatUpdateCluster updates a cluster which may optionally include a dedicated root LB
 func (o *OpenstackPlatform) HeatUpdateCluster(ctx context.Context, clusterInst *edgeproto.ClusterInst, privacyPolicy *edgeproto.PrivacyPolicy, rootLBName string, imgName string, dedicatedRootLB bool, updateCallback edgeproto.CacheUpdateCallback) error {
-	log.SpanLog(ctx, log.DebugLevelMexos, "HeatUpdateCluster", "clusterInst", clusterInst, "rootLBName", rootLBName, "dedicatedRootLB", dedicatedRootLB)
+	log.SpanLog(ctx, log.DebugLevelInfra, "HeatUpdateCluster", "clusterInst", clusterInst, "rootLBName", rootLBName, "dedicatedRootLB", dedicatedRootLB)
 
 	cp, err := o.getClusterParams(ctx, clusterInst, privacyPolicy, rootLBName, imgName, dedicatedRootLB, heatUpdate)
 	if err != nil {
@@ -868,7 +889,7 @@ func (o *OpenstackPlatform) HeatUpdateCluster(ctx context.Context, clusterInst *
 	}
 	// It it is possible this cluster was created before the default was to use a router
 	if cp.RootLBPortName != "" {
-		client, err := o.commonPf.GetSSHClient(ctx, rootLBName, o.commonPf.GetCloudletExternalNetwork(), infracommon.SSHUser)
+		client, err := o.commonPf.GetSSHClientForServer(ctx, rootLBName, o.commonPf.GetCloudletExternalNetwork())
 		if err != nil {
 			return fmt.Errorf("unable to get rootlb SSH client: %v", err)
 		}

@@ -1,3 +1,7 @@
+- name: Fetch notifyroot vault role
+  set_fact:
+    notifyroot_role: "{{ lookup('approle', 'notifyroot.v1') }}"
+
 - name: Deploy the notifyroot service
   docker_container:
     name: notifyroot
@@ -8,8 +12,12 @@
       - notifyroot
       - "--notifyAddr"
       - "0.0.0.0:{{ notifyroot_port }}"
+      - "--vaultAddr"
+      - "https://{{ vault_vm_hostname }}:{{ vault_port }}"
       - "-tls"
       - "/root/tls/mex-server.crt"
     env:
       JAEGER_ENDPOINT: "{{ jaeger_endpoint }}"
       JAEGER_TAGS: "environ={{ deploy_environ }},version={{ edge_cloud_version }}"
+      VAULT_ROLE_ID: "{{ notifyroot_role.role_id }}"
+      VAULT_SECRET_ID: "{{ notifyroot_role.secret_id }}"

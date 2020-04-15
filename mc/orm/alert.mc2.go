@@ -543,6 +543,7 @@ func addControllerApis(method string, group *echo.Group) {
 	// ConfigCleanupMode: 21.11
 	// ConfigRegion: 21.12
 	// ConfigCommercialCerts: 21.13
+	// ConfigUseVaultCerts: 21.14
 	// ResTagMap: 22
 	// ResTagMapKey: 22.1
 	// ResTagMapValue: 22.2
@@ -1141,6 +1142,7 @@ func addControllerApis(method string, group *echo.Group) {
 	// ExternalVolumeSize: 32
 	// AvailabilityZone: 33
 	// VmFlavor: 34
+	// OptRes: 35
 	// ```
 	// Security:
 	//   Bearer:

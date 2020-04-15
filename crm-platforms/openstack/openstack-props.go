@@ -24,6 +24,7 @@ var openstackProps = map[string]*infracommon.PropertyInfo{
 	"MEX_ROUTER": &infracommon.PropertyInfo{
 		Value: NoExternalRouter,
 	},
+	"MEX_SUBNET_DNS": &infracommon.PropertyInfo{},
 }
 
 func GetVaultCloudletAccessPath(key *edgeproto.CloudletKey, region, physicalName string) string {
@@ -39,7 +40,7 @@ func (s *OpenstackPlatform) GetOpenRCVars(ctx context.Context, key *edgeproto.Cl
 		return fmt.Errorf("vaultAddr is not specified")
 	}
 	openRCPath := GetVaultCloudletAccessPath(key, region, physicalName)
-	log.SpanLog(ctx, log.DebugLevelMexos, "interning vault", "addr", vaultConfig.Addr, "path", openRCPath)
+	log.SpanLog(ctx, log.DebugLevelInfra, "interning vault", "addr", vaultConfig.Addr, "path", openRCPath)
 	envData := &infracommon.VaultEnvData{}
 	err := vault.GetData(vaultConfig, openRCPath, 0, envData)
 	if err != nil {
@@ -85,6 +86,10 @@ func (s *OpenstackPlatform) GetCloudletProjectName() string {
 }
 
 //GetCloudletExternalRouter returns default MEX external router name
-func (c *OpenstackPlatform) GetCloudletExternalRouter() string {
-	return c.commonPf.Properties["MEX_ROUTER"].Value
+func (o *OpenstackPlatform) GetCloudletExternalRouter() string {
+	return o.commonPf.Properties["MEX_ROUTER"].Value
+}
+
+func (o *OpenstackPlatform) GetSubnetDNS() string {
+	return o.commonPf.Properties["MEX_SUBNET_DNS"].Value
 }

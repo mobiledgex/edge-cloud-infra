@@ -1,5 +1,9 @@
 - debug: var=item
 
+- import_role:
+    name: load-vault-creds
+    tasks_from: mexenv
+
 - azure_rm_aks_facts:
     tags:
       - "Environment:mexplat-{{ deploy_environ }}"
@@ -37,7 +41,9 @@
 
 - name: Fetch CRM vault role
   set_fact:
-    crm_role: "{{ lookup('approle', 'crm.v1', id=crm_name) }}"
+    crm_role: "{{ lookup('approle', crm_role_name, id=crm_name) }}"
+  vars:
+    crm_role_name: "{{ item.controller_region | lower }}.crm.v1"
 
 - name: Compute CRM command line
   set_fact:
@@ -79,6 +85,8 @@
     - set_fact:
         crm_env_azure:
           MEX_AZURE_LOCATION: "{{ item.azure_instance }}"
+          MEX_AZURE_USER: "{{ mexenv.MEX_AZURE_USER }}"
+          MEX_AZURE_PASS: "{{ mexenv.MEX_AZURE_PASS }}"
           MEXENV_URL: "https://{{ vault_vm_hostname}}:{{ vault_port }}/v1/secret/data/cloudlet/openstack/mexenv.json"
     - set_fact:
         crm_env: "{{ crm_env | combine(crm_env_azure) }}"
@@ -90,6 +98,7 @@
         crm_env_gcp:
           MEX_GCP_PROJECT: "{{ gcp_project }}"
           MEX_GCP_ZONE: "{{ item.gcp_zone }}"
+          MEX_GCP_SERVICE_ACCOUNT: "{{ mexenv.MEX_GCP_SERVICE_ACCOUNT }}"
           MEXENV_URL: "https://{{ vault_vm_hostname}}:{{ vault_port }}/v1/secret/data/cloudlet/openstack/mexenv.json"
     - set_fact:
         crm_env: "{{ crm_env | combine(crm_env_gcp) }}"

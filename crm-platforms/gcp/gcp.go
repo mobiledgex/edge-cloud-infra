@@ -56,7 +56,7 @@ func (g *GCPPlatform) Init(ctx context.Context, platformConfig *platform.Platfor
 }
 
 func (g *GCPPlatform) GatherCloudletInfo(ctx context.Context, info *edgeproto.CloudletInfo) error {
-	log.SpanLog(ctx, log.DebugLevelMexos, "GetLimits (GCP)")
+	log.SpanLog(ctx, log.DebugLevelInfra, "GetLimits (GCP)")
 	err := g.GCPLogin(ctx)
 	if err != nil {
 		return err
@@ -186,7 +186,7 @@ func (s *GCPPlatform) UpdateClusterVMs(ctx context.Context, clusterInst *edgepro
 	return fmt.Errorf("not implemented")
 }
 
-func (s *GCPPlatform) DeleteClusterResources(ctx context.Context, client ssh.Client, clusterInst *edgeproto.ClusterInst) error {
+func (s *GCPPlatform) DeleteClusterResources(ctx context.Context, client ssh.Client, clusterInst *edgeproto.ClusterInst, rootLBName string, dedicatedRootLB bool) error {
 	return fmt.Errorf("not implemented")
 }
 

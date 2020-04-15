@@ -66,7 +66,7 @@ func (c *CommonPlatform) UpdateClusterInst(ctx context.Context, clusterInst *edg
 		return err
 	}
 
-	log.SpanLog(ctx, log.DebugLevelMexos, "verify if cloudlet base image exists")
+	log.SpanLog(ctx, log.DebugLevelInfra, "verify if cloudlet base image exists")
 	imgName, err := c.infraProvider.AddCloudletImageIfNotPresent(ctx, c.PlatformConfig.CloudletVMImagePath, c.PlatformConfig.VMImageVersion, updateCallback)
 	if err != nil {
 		log.InfoLog("error with cloudlet base image", "imgName", imgName, "error", err)
@@ -100,7 +100,7 @@ func (c *CommonPlatform) updateClusterInternal(ctx context.Context, client ssh.C
 			}
 			ok, num := ParseClusterNodePrefix(n)
 			if !ok {
-				log.SpanLog(ctx, log.DebugLevelMexos, "unable to parse node name, ignoring", "name", n)
+				log.SpanLog(ctx, log.DebugLevelInfra, "unable to parse node name, ignoring", "name", n)
 				continue
 			}
 			numNodes++
@@ -110,7 +110,7 @@ func (c *CommonPlatform) updateClusterInternal(ctx context.Context, client ssh.C
 			}
 		}
 		if len(toRemove) > 0 {
-			log.SpanLog(ctx, log.DebugLevelMexos, "delete nodes", "toRemove", toRemove)
+			log.SpanLog(ctx, log.DebugLevelInfra, "delete nodes", "toRemove", toRemove)
 			err = k8smgmt.DeleteNodes(ctx, client, kconfName, toRemove)
 			if err != nil {
 				return err
@@ -118,7 +118,7 @@ func (c *CommonPlatform) updateClusterInternal(ctx context.Context, client ssh.C
 		}
 		if numMaster == clusterInst.NumMasters && numNodes == clusterInst.NumNodes {
 			// nothing changing
-			log.SpanLog(ctx, log.DebugLevelMexos, "no change in nodes", "ClusterInst", clusterInst.Key, "nummaster", numMaster, "numnodes", numNodes)
+			log.SpanLog(ctx, log.DebugLevelInfra, "no change in nodes", "ClusterInst", clusterInst.Key, "nummaster", numMaster, "numnodes", numNodes)
 			return nil
 		}
 	}
@@ -135,19 +135,19 @@ func (c *CommonPlatform) updateClusterInternal(ctx context.Context, client ssh.C
 }
 
 //DeleteCluster deletes kubernetes cluster
-func (c *CommonPlatform) deleteCluster(ctx context.Context, rootLBName string, clusterInst *edgeproto.ClusterInst, updateCallback edgeproto.CacheUpdateCallback) error {
-	log.SpanLog(ctx, log.DebugLevelMexos, "deleting kubernetes cluster", "clusterInst", clusterInst)
+func (c *CommonPlatform) deleteCluster(ctx context.Context, rootLBName string, clusterInst *edgeproto.ClusterInst) error {
+	log.SpanLog(ctx, log.DebugLevelInfra, "deleting kubernetes cluster", "clusterInst", clusterInst)
 
 	dedicatedRootLB := clusterInst.IpAccess == edgeproto.IpAccess_IP_ACCESS_DEDICATED
 	client, err := c.infraProvider.GetPlatformClient(ctx, clusterInst)
 	if err != nil {
 		if strings.Contains(err.Error(), "No server with a name or ID") {
-			log.SpanLog(ctx, log.DebugLevelMexos, "Dedicated RootLB is gone, allow stack delete to proceed")
+			log.SpanLog(ctx, log.DebugLevelInfra, "Dedicated RootLB is gone, allow stack delete to proceed")
 		} else {
 			return err
 		}
 	}
-	err = c.infraProvider.DeleteClusterResources(ctx, client, clusterInst)
+	err = c.infraProvider.DeleteClusterResources(ctx, client, clusterInst, rootLBName, dedicatedRootLB)
 	if err != nil {
 		return err
 	}
@@ -160,12 +160,12 @@ func (c *CommonPlatform) deleteCluster(ctx context.Context, rootLBName string, c
 
 func (c *CommonPlatform) CreateClusterInst(ctx context.Context, clusterInst *edgeproto.ClusterInst, privacyPolicy *edgeproto.PrivacyPolicy, updateCallback edgeproto.CacheUpdateCallback, timeout time.Duration) error {
 	lbName := c.GetRootLBNameForCluster(ctx, clusterInst)
-	log.SpanLog(ctx, log.DebugLevelMexos, "OpenStack CreateClusterInst", "clusterInst", clusterInst, "lbName", lbName)
+	log.SpanLog(ctx, log.DebugLevelInfra, "OpenStack CreateClusterInst", "clusterInst", clusterInst, "lbName", lbName)
 
 	//find the flavor and check the disk size
 	for _, flavor := range c.FlavorList {
 		if flavor.Name == clusterInst.NodeFlavor && flavor.Disk < MINIMUM_DISK_SIZE && clusterInst.ExternalVolumeSize < MINIMUM_DISK_SIZE {
-			log.SpanLog(ctx, log.DebugLevelMexos, "flavor disk size too small", "flavor", flavor, "ExternalVolumeSize", clusterInst.ExternalVolumeSize)
+			log.SpanLog(ctx, log.DebugLevelInfra, "flavor disk size too small", "flavor", flavor, "ExternalVolumeSize", clusterInst.ExternalVolumeSize)
 			return fmt.Errorf("Insufficient disk size, please specify a flavor with at least %dgb", MINIMUM_DISK_SIZE)
 		}
 	}
@@ -173,7 +173,7 @@ func (c *CommonPlatform) CreateClusterInst(ctx context.Context, clusterInst *edg
 	//adjust the timeout just a bit to give some buffer for the API exchange and also sleep loops
 	timeout -= time.Minute
 
-	log.SpanLog(ctx, log.DebugLevelMexos, "verify if cloudlet base image exists")
+	log.SpanLog(ctx, log.DebugLevelInfra, "verify if cloudlet base image exists")
 	imgName, err := c.infraProvider.AddCloudletImageIfNotPresent(ctx, c.PlatformConfig.CloudletVMImagePath, c.PlatformConfig.VMImageVersion, updateCallback)
 	if err != nil {
 		log.InfoLog("error with cloudlet base image", "imgName", imgName, "error", err)
@@ -188,21 +188,20 @@ func (c *CommonPlatform) createClusterInternal(ctx context.Context, rootLBName s
 		if reterr == nil {
 			return
 		}
-
-		log.SpanLog(ctx, log.DebugLevelMexos, "error in CreateCluster", "err", reterr)
+		log.SpanLog(ctx, log.DebugLevelInfra, "error in CreateCluster", "err", reterr)
 		if c.GetCleanupOnFailure(ctx) {
-			log.SpanLog(ctx, log.DebugLevelMexos, "cleaning up cluster resources after cluster fail, set envvar CLEANUP_ON_FAILURE to 'no' to avoid this")
-			delerr := c.deleteCluster(ctx, rootLBName, clusterInst, updateCallback)
+			log.SpanLog(ctx, log.DebugLevelInfra, "cleaning up cluster resources after cluster fail, set envvar CLEANUP_ON_FAILURE to 'no' to avoid this")
+			delerr := c.deleteCluster(ctx, rootLBName, clusterInst)
 			if delerr != nil {
-				log.SpanLog(ctx, log.DebugLevelMexos, "fail to cleanup cluster")
+				log.SpanLog(ctx, log.DebugLevelInfra, "fail to cleanup cluster")
 			}
 		} else {
-			log.SpanLog(ctx, log.DebugLevelMexos, "skipping cleanup on failure")
+			log.SpanLog(ctx, log.DebugLevelInfra, "skipping cleanup on failure")
 		}
 	}()
 
 	start := time.Now()
-	log.SpanLog(ctx, log.DebugLevelMexos, "creating cluster instance", "clusterInst", clusterInst, "timeout", timeout)
+	log.SpanLog(ctx, log.DebugLevelInfra, "creating cluster instance", "clusterInst", clusterInst, "timeout", timeout)
 
 	dedicatedRootLB := false
 	if clusterInst.IpAccess == edgeproto.IpAccess_IP_ACCESS_DEDICATED {
@@ -241,7 +240,7 @@ func (c *CommonPlatform) createClusterInternal(ctx context.Context, rootLBName s
 	// the root LB was created as part of cluster creation, but it needs to be prepped and
 	// mex agent started
 	if clusterInst.IpAccess == edgeproto.IpAccess_IP_ACCESS_DEDICATED {
-		log.SpanLog(ctx, log.DebugLevelMexos, "need dedicated rootLB", "IpAccess", clusterInst.IpAccess)
+		log.SpanLog(ctx, log.DebugLevelInfra, "need dedicated rootLB", "IpAccess", clusterInst.IpAccess)
 		_, err := c.NewRootLB(ctx, rootLBName)
 		if err != nil {
 			// likely already exists which means something went really wrong
@@ -274,13 +273,13 @@ func (c *CommonPlatform) createClusterInternal(ctx context.Context, rootLBName s
 	if clusterInst.IpAccess == edgeproto.IpAccess_IP_ACCESS_DEDICATED {
 		proxy.NewDedicatedCluster(ctx, clusterInst.Key.ClusterKey.Name, client)
 	}
-	log.SpanLog(ctx, log.DebugLevelMexos, "created kubernetes cluster")
+	log.SpanLog(ctx, log.DebugLevelInfra, "created kubernetes cluster")
 	return nil
 }
 
-func (c *CommonPlatform) DeleteClusterInst(ctx context.Context, clusterInst *edgeproto.ClusterInst, updateCallback edgeproto.CacheUpdateCallback) error {
+func (c *CommonPlatform) DeleteClusterInst(ctx context.Context, clusterInst *edgeproto.ClusterInst) error {
 	lbName := c.GetRootLBNameForCluster(ctx, clusterInst)
-	return c.deleteCluster(ctx, lbName, clusterInst, updateCallback)
+	return c.deleteCluster(ctx, lbName, clusterInst)
 }
 
 func (c *CommonPlatform) waitClusterReady(ctx context.Context, clusterInst *edgeproto.ClusterInst, rootLBName string, updateCallback edgeproto.CacheUpdateCallback, timeout time.Duration) error {
@@ -288,7 +287,7 @@ func (c *CommonPlatform) waitClusterReady(ctx context.Context, clusterInst *edge
 	masterName := ""
 	masterIP := ""
 	var currReadyCount uint32
-	log.SpanLog(ctx, log.DebugLevelMexos, "waitClusterReady", "cluster", clusterInst.Key, "timeout", timeout)
+	log.SpanLog(ctx, log.DebugLevelInfra, "waitClusterReady", "cluster", clusterInst.Key, "timeout", timeout)
 
 	for {
 		if masterIP == "" {
@@ -298,7 +297,7 @@ func (c *CommonPlatform) waitClusterReady(ctx context.Context, clusterInst *edge
 			}
 		}
 		if masterIP == "" {
-			log.SpanLog(ctx, log.DebugLevelMexos, "master IP not available yet")
+			log.SpanLog(ctx, log.DebugLevelInfra, "master IP not available yet")
 		} else {
 			ready, readyCount, err := c.isClusterReady(ctx, clusterInst, masterName, masterIP, rootLBName, updateCallback)
 			if readyCount != currReadyCount {
@@ -310,21 +309,21 @@ func (c *CommonPlatform) waitClusterReady(ctx context.Context, clusterInst *edge
 				return err
 			}
 			if ready {
-				log.SpanLog(ctx, log.DebugLevelMexos, "kubernetes cluster ready")
+				log.SpanLog(ctx, log.DebugLevelInfra, "kubernetes cluster ready")
 				return nil
 			}
 			if time.Since(start) > timeout {
 				return fmt.Errorf("cluster not ready (yet)")
 			}
 		}
-		log.SpanLog(ctx, log.DebugLevelMexos, "waiting for kubernetes cluster to be ready...")
+		log.SpanLog(ctx, log.DebugLevelInfra, "waiting for kubernetes cluster to be ready...")
 		time.Sleep(30 * time.Second)
 	}
 }
 
 //IsClusterReady checks to see if cluster is read, i.e. rootLB is running and active.  returns ready,nodecount, error
 func (c *CommonPlatform) isClusterReady(ctx context.Context, clusterInst *edgeproto.ClusterInst, masterName, masterIP string, rootLBName string, updateCallback edgeproto.CacheUpdateCallback) (bool, uint32, error) {
-	log.SpanLog(ctx, log.DebugLevelMexos, "checking if cluster is ready")
+	log.SpanLog(ctx, log.DebugLevelInfra, "checking if cluster is ready")
 
 	// some commands are run on the rootlb and some on the master directly, so we use separate clients
 	rootLBClient, err := c.infraProvider.GetPlatformClient(ctx, clusterInst)
@@ -336,11 +335,11 @@ func (c *CommonPlatform) isClusterReady(ctx context.Context, clusterInst *edgepr
 	if err != nil {
 		return false, 0, err
 	}
-	log.SpanLog(ctx, log.DebugLevelMexos, "checking master k8s node for available nodes", "ipaddr", masterIP)
+	log.SpanLog(ctx, log.DebugLevelInfra, "checking master k8s node for available nodes", "ipaddr", masterIP)
 	cmd := "kubectl get nodes"
 	out, err := masterClient.Output(cmd)
 	if err != nil {
-		log.SpanLog(ctx, log.DebugLevelMexos, "error checking for kubernetes nodes", "out", out, "err", err)
+		log.SpanLog(ctx, log.DebugLevelInfra, "error checking for kubernetes nodes", "out", out, "err", err)
 		return false, 0, nil //This is intentional
 	}
 	//                   node       state               role     age     version
@@ -373,10 +372,10 @@ func (c *CommonPlatform) isClusterReady(ctx context.Context, clusterInst *edgepr
 		}
 	}
 	if readyCount < (clusterInst.NumNodes + clusterInst.NumMasters) {
-		log.SpanLog(ctx, log.DebugLevelMexos, "kubernetes cluster not ready", "readyCount", readyCount, "notReadyCount", notReadyCount)
+		log.SpanLog(ctx, log.DebugLevelInfra, "kubernetes cluster not ready", "readyCount", readyCount, "notReadyCount", notReadyCount)
 		return false, 0, nil
 	}
-	log.SpanLog(ctx, log.DebugLevelMexos, "cluster nodes ready", "numnodes", clusterInst.NumNodes, "nummasters", clusterInst.NumMasters, "readyCount", readyCount, "notReadyCount", notReadyCount)
+	log.SpanLog(ctx, log.DebugLevelInfra, "cluster nodes ready", "numnodes", clusterInst.NumNodes, "nummasters", clusterInst.NumMasters, "readyCount", readyCount, "notReadyCount", notReadyCount)
 
 	if err := CopyKubeConfig(ctx, rootLBClient, clusterInst, rootLBName, masterIP); err != nil {
 		return false, 0, fmt.Errorf("kubeconfig copy failed, %v", err)
@@ -387,20 +386,20 @@ func (c *CommonPlatform) isClusterReady(ctx context.Context, clusterInst *edgepr
 		// becomes very busy but is useful for testing and PoC type clusters.
 		// TODO: if the cluster is subsequently increased in size do we need to add the taint?
 		//For now leaving that alone since an increased cluster size means we needed more capacity.
-		log.SpanLog(ctx, log.DebugLevelMexos, "removing NoSchedule taint from master", "master", masterString)
+		log.SpanLog(ctx, log.DebugLevelInfra, "removing NoSchedule taint from master", "master", masterString)
 		cmd := fmt.Sprintf("kubectl taint nodes %s node-role.kubernetes.io/master:NoSchedule-", masterString)
 
 		out, err := masterClient.Output(cmd)
 		if err != nil {
 			if strings.Contains(out, "not found") {
-				log.SpanLog(ctx, log.DebugLevelMexos, "master taint already gone")
+				log.SpanLog(ctx, log.DebugLevelInfra, "master taint already gone")
 			} else {
 				log.InfoLog("error removing master taint", "out", out, "err", err)
 				return false, 0, fmt.Errorf("Cannot remove NoSchedule taint from master, %v", err)
 			}
 		}
 	}
-	log.SpanLog(ctx, log.DebugLevelMexos, "cluster ready.")
+	log.SpanLog(ctx, log.DebugLevelInfra, "cluster ready.")
 	return true, readyCount, nil
 }
 
@@ -409,7 +408,7 @@ func (c *CommonPlatform) isClusterReady(ctx context.Context, clusterInst *edgepr
 // this configurable at the controller but really is only needed for debugging.
 func (c *CommonPlatform) GetCleanupOnFailure(ctx context.Context) bool {
 	cleanup := c.Properties["CLEANUP_ON_FAILURE"].Value
-	log.SpanLog(ctx, log.DebugLevelMexos, "GetCleanupOnFailure", "cleanup", cleanup)
+	log.SpanLog(ctx, log.DebugLevelInfra, "GetCleanupOnFailure", "cleanup", cleanup)
 	cleanup = strings.ToLower(cleanup)
 	cleanup = strings.ReplaceAll(cleanup, "'", "")
 	if cleanup == "no" || cleanup == "false" {

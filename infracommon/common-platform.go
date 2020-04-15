@@ -39,7 +39,7 @@ type InfraProvider interface {
 	CreateRootLBVM(ctx context.Context, serverName, stackName, imgName string, vmspec *vmspec.VMCreationSpec, cloudletKey *edgeproto.CloudletKey, updateCallback edgeproto.CacheUpdateCallback) error
 	CreateClusterVMs(ctx context.Context, clusterInst *edgeproto.ClusterInst, privacyPolicy *edgeproto.PrivacyPolicy, rootLBName string, imgName string, dedicatedRootLB bool, updateCallback edgeproto.CacheUpdateCallback) error
 	UpdateClusterVMs(ctx context.Context, clusterInst *edgeproto.ClusterInst, privacyPolicy *edgeproto.PrivacyPolicy, rootLBName string, imgName string, dedicatedRootLB bool, updateCallback edgeproto.CacheUpdateCallback) error
-	DeleteClusterResources(ctx context.Context, client ssh.Client, clusterInst *edgeproto.ClusterInst) error
+	DeleteClusterResources(ctx context.Context, client ssh.Client, clusterInst *edgeproto.ClusterInst, rootLBName string, dedicatedRootLB bool) error
 	DeleteResources(ctx context.Context, resourceGroupName string) error
 	NetworkSetupForRootLB(ctx context.Context, client ssh.Client, rootLBName string) error
 	WhitelistSecurityRules(ctx context.Context, secGrpName string, serverName string, allowedCIDR string, ports []dme.AppPort) error
@@ -60,13 +60,12 @@ type CommonPlatform struct {
 	SharedRootLBName  string
 	SharedRootLB      *MEXRootLB
 	FlavorList        []*edgeproto.FlavorInfo
-	//Platform          platform.Platform
-	PlatformConfig *platform.PlatformConfig
-	VaultConfig    *vault.Config
-	infraProvider  CommonPlatformProvider
+	PlatformConfig    *platform.PlatformConfig
+	VaultConfig       *vault.Config
+	infraProvider     CommonPlatformProvider
 }
 
-var MEXInfraVersion = "3.0.3"
+var MEXInfraVersion = "3.1.0"
 var ImageNamePrefix = "mobiledgex-v"
 var DefaultOSImageName = ImageNamePrefix + MEXInfraVersion
 var ImageFormatQcow2 = "qcow2"
@@ -88,6 +87,9 @@ var NoConfigExternalRouter = "NOCONFIG"
 // this may eventually be the default and possibly only option
 var NoExternalRouter = "NONE"
 
+// NoSubnetDNS means that DNS servers are not specified when creating the subnet
+var NoSubnetDNS = "NONE"
+
 // Package level test mode variable
 var testMode = false
 
@@ -99,23 +101,23 @@ func SetPropsFromVars(ctx context.Context, props map[string]*PropertyInfo, vars 
 	for k, v := range props {
 		if val, ok := vars[k]; ok {
 			if props[k].Secret {
-				log.SpanLog(ctx, log.DebugLevelMexos, "set infra property (secret) from vars", "key", k)
+				log.SpanLog(ctx, log.DebugLevelInfra, "set infra property (secret) from vars", "key", k)
 			} else {
-				log.SpanLog(ctx, log.DebugLevelMexos, "set infra property from vars", "key", k, "val", val)
+				log.SpanLog(ctx, log.DebugLevelInfra, "set infra property from vars", "key", k, "val", val)
 			}
 			props[k].Value = val
 		} else if val, ok := os.LookupEnv(k); ok {
 			if props[k].Secret {
-				log.SpanLog(ctx, log.DebugLevelMexos, "set infra property (secret) from env", "key", k)
+				log.SpanLog(ctx, log.DebugLevelInfra, "set infra property (secret) from env", "key", k)
 			} else {
-				log.SpanLog(ctx, log.DebugLevelMexos, "set infra property from env", "key", k, "val", val)
+				log.SpanLog(ctx, log.DebugLevelInfra, "set infra property from env", "key", k, "val", val)
 			}
 			props[k].Value = val
 		} else {
 			if props[k].Secret {
-				log.SpanLog(ctx, log.DebugLevelMexos, "using default infra property (secret)", "key", k)
+				log.SpanLog(ctx, log.DebugLevelInfra, "using default infra property (secret)", "key", k)
 			} else {
-				log.SpanLog(ctx, log.DebugLevelMexos, "using default infra property", "key", k, "val", v.Value)
+				log.SpanLog(ctx, log.DebugLevelInfra, "using default infra property", "key", k, "val", v.Value)
 			}
 		}
 	}
@@ -138,7 +140,7 @@ func (c *CommonPlatform) InitInfraCommon(ctx context.Context, platformConfig *pf
 
 	// fetch properties from vault
 	mexEnvPath := GetVaultCloudletCommonPath("mexenv.json")
-	log.SpanLog(ctx, log.DebugLevelMexos, "interning vault", "addr", vaultConfig.Addr, "path", mexEnvPath)
+	log.SpanLog(ctx, log.DebugLevelInfra, "interning vault", "addr", vaultConfig.Addr, "path", mexEnvPath)
 	envData := &VaultEnvData{}
 	err := vault.GetData(vaultConfig, mexEnvPath, 0, envData)
 	if err != nil {
@@ -162,14 +164,14 @@ func (c *CommonPlatform) InitInfraCommon(ctx context.Context, platformConfig *pf
 
 	if c.GetCloudletCFKey() == "" {
 		if testMode {
-			log.SpanLog(ctx, log.DebugLevelMexos, "Env variable MEX_CF_KEY not set")
+			log.SpanLog(ctx, log.DebugLevelInfra, "Env variable MEX_CF_KEY not set")
 		} else {
 			return fmt.Errorf("Env variable MEX_CF_KEY not set")
 		}
 	}
 	if c.GetCloudletCFUser() == "" {
 		if testMode {
-			log.SpanLog(ctx, log.DebugLevelMexos, "Env variable MEX_CF_USER not set")
+			log.SpanLog(ctx, log.DebugLevelInfra, "Env variable MEX_CF_USER not set")
 		} else {
 			return fmt.Errorf("Env variable MEX_CF_USER not set")
 		}

@@ -49,6 +49,7 @@ type influxQueryArgs struct {
 	StartTime    string
 	EndTime      string
 	Last         int
+	GroupBy      string
 }
 
 var AppSelectors = []string{
@@ -217,6 +218,7 @@ var devInfluDBT = `SELECT {{.Selector}} from "{{.Measurement}}"` +
 	`{{if .CellId}} AND "cellID"='{{.CellId}}'{{end}}` +
 	`{{if .StartTime}} AND time >= '{{.StartTime}}'{{end}}` +
 	`{{if .EndTime}} AND time <= '{{.EndTime}}'{{end}}` +
+	`{{if .GroupBy}} group by {{.GroupBy}} {{end}}` +
 	`order by time desc{{if ne .Last 0}} limit {{.Last}}{{end}}`
 
 var operatorInfluDBT = `SELECT {{.Selector}} from "{{.Measurement}}"` +
@@ -323,6 +325,10 @@ func AppInstMetricsQuery(obj *ormapi.RegionAppInstMetrics) string {
 		ClusterName:  obj.AppInst.ClusterInstKey.ClusterKey.Name,
 		CloudletOrg:  obj.AppInst.ClusterInstKey.CloudletKey.Organization,
 		Last:         obj.Last,
+	}
+	// for a "last" also group by pod - this way we get the last measurement for each pod of the app
+	if obj.Last != 0 {
+		arg.GroupBy = "pod"
 	}
 	return fillTimeAndGetCmd(&arg, devInfluxDBTemplate, &obj.StartTime, &obj.EndTime)
 }

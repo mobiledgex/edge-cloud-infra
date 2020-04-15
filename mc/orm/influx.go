@@ -265,6 +265,17 @@ func getInfluxDBAddrForRegion(ctx context.Context, region string) (string, error
 }
 
 func fillTimeAndGetCmd(q *influxQueryArgs, tmpl *template.Template, start *time.Time, end *time.Time) string {
+	// We set max number of responses we will get from InfluxDB
+	if q.Last == 0 {
+		q.Last = MaxEntriesFromInfluxDb
+	} else {
+		// If last is specified but start time is not - set it to a month before now
+		// This is to limit the total number of pods
+		if start.IsZero() {
+			*start = time.Now().AddDate(0, -1, 0)
+		}
+	}
+
 	// Figure out the start/end time range for the query
 	if !start.IsZero() {
 		buf, err := start.MarshalText()
@@ -277,10 +288,6 @@ func fillTimeAndGetCmd(q *influxQueryArgs, tmpl *template.Template, start *time.
 		if err == nil {
 			q.EndTime = string(buf)
 		}
-	}
-	// We set max number of responses we will get from InfluxDB
-	if q.Last == 0 {
-		q.Last = MaxEntriesFromInfluxDb
 	}
 	// now that we know all the details of the query - build it
 	buf := bytes.Buffer{}

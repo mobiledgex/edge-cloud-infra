@@ -48,12 +48,12 @@ func (s *ShepherdPlatform) Init(ctx context.Context, key *edgeproto.CloudletKey,
 	}
 	//need to have a separate one for dedicated rootlbs, see openstack.go line 111,
 	s.rootLbName = cloudcommon.GetRootLBFQDN(key)
-	s.SharedClient, err = s.commonPf.GetPlatformClientRootLB(ctx, s.rootLbName)
+	s.SharedClient, err = s.commonPf.GetSSHClientForServer(ctx, s.rootLbName, s.commonPf.GetCloudletExternalNetwork())
 	if err != nil {
 		return err
 	}
 	s.collectInterval = VmScrapeInterval
-	log.SpanLog(ctx, log.DebugLevelMexos, "init openstack", "rootLB", s.rootLbName,
+	log.SpanLog(ctx, log.DebugLevelInfra, "init openstack", "rootLB", s.rootLbName,
 		"physicalName", physicalName, "vaultAddr", vaultAddr)
 	return nil
 }
@@ -70,7 +70,7 @@ func (s *ShepherdPlatform) GetClusterIP(ctx context.Context, clusterInst *edgepr
 func (s *ShepherdPlatform) GetPlatformClient(ctx context.Context, clusterInst *edgeproto.ClusterInst) (ssh.Client, error) {
 	if clusterInst != nil && clusterInst.IpAccess == edgeproto.IpAccess_IP_ACCESS_DEDICATED {
 		rootLb := cloudcommon.GetDedicatedLBFQDN(&clusterInst.Key.CloudletKey, &clusterInst.Key.ClusterKey)
-		pc, err := s.commonPf.GetPlatformClientRootLB(ctx, rootLb)
+		pc, err := s.commonPf.GetSSHClientForServer(ctx, rootLb, s.commonPf.GetCloudletExternalNetwork())
 		return pc, err
 	} else {
 		return s.SharedClient, nil

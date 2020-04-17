@@ -126,7 +126,6 @@ var AccessCloudletRequiredArgs = []string{
 	"node-type",
 }
 var AccessCloudletOptionalArgs = []string{
-	"cluster",
 	"command",
 	"node-name",
 	"webrtc",

@@ -114,7 +114,7 @@ func (s *Platform) Init(ctx context.Context, platformConfig *platform.PlatformCo
 	log.SpanLog(ctx, log.DebugLevelMexos, "ok, SetupRootLB")
 
 	// set up L7 load balancer
-	client, err := s.GetPlatformClient(ctx, &edgeproto.CloudletMgmtNode{Name: rootLBName})
+	client, err := s.GetNodePlatformClient(ctx, &edgeproto.CloudletMgmtNode{Name: rootLBName})
 	if err != nil {
 		return err
 	}
@@ -135,22 +135,23 @@ func (s *Platform) GetClusterPlatformClient(ctx context.Context, clusterInst *ed
 	if clusterInst.IpAccess == edgeproto.IpAccess_IP_ACCESS_DEDICATED {
 		rootLBName = cloudcommon.GetDedicatedLBFQDN(s.cloudletKey, &clusterInst.Key.ClusterKey)
 	}
-	return s.GetPlatformClient(ctx, &edgeproto.CloudletMgmtNode{Name: rootLBName})
+	return s.GetNodePlatformClient(ctx, &edgeproto.CloudletMgmtNode{Name: rootLBName})
 }
 
-func (s *Platform) GetPlatformClient(ctx context.Context, node *edgeproto.CloudletMgmtNode) (ssh.Client, error) {
-	log.SpanLog(ctx, log.DebugLevelMexos, "GetPlatformClient", "node", node)
+func (s *Platform) GetNodePlatformClient(ctx context.Context, node *edgeproto.CloudletMgmtNode) (ssh.Client, error) {
+	log.SpanLog(ctx, log.DebugLevelMexos, "GetNodePlatformClient", "node", node)
 
 	if node == nil || node.Name == "" {
-		return nil, fmt.Errorf("cannot GetPlatformClient, as node details are empty")
+		return nil, fmt.Errorf("cannot GetNodePlatformClient, as node details are empty")
 	}
 	if s.GetCloudletExternalNetwork() == "" {
-		return nil, fmt.Errorf("GetPlatformClient, missing external network in platform config")
+		return nil, fmt.Errorf("GetNodePlatformClient, missing external network in platform config")
 	}
 	return s.GetSSHClient(ctx, node.Name, s.GetCloudletExternalNetwork(), mexos.SSHUser)
 }
 
-func (s *Platform) ListCloudletMgmtNodes(clusterInsts []edgeproto.ClusterInst) ([]edgeproto.CloudletMgmtNode, error) {
+func (s *Platform) ListCloudletMgmtNodes(ctx context.Context, clusterInsts []edgeproto.ClusterInst) ([]edgeproto.CloudletMgmtNode, error) {
+	log.SpanLog(ctx, log.DebugLevelMexos, "ListCloudletMgmtNodes", "clusterInsts", clusterInsts)
 	mgmt_nodes := []edgeproto.CloudletMgmtNode{
 		edgeproto.CloudletMgmtNode{
 			Type: "platformvm",

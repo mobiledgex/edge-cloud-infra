@@ -46,7 +46,7 @@ func (s *Platform) Init(ctx context.Context, key *edgeproto.CloudletKey, region,
 	}
 	//need to have a separate one for dedicated rootlbs, see openstack.go line 111,
 	s.rootLbName = cloudcommon.GetRootLBFQDN(key)
-	s.SharedClient, err = s.pf.GetPlatformClient(ctx, &edgeproto.CloudletMgmtNode{Name: s.rootLbName})
+	s.SharedClient, err = s.pf.GetNodePlatformClient(ctx, &edgeproto.CloudletMgmtNode{Name: s.rootLbName})
 	if err != nil {
 		return err
 	}
@@ -68,7 +68,7 @@ func (s *Platform) GetClusterIP(ctx context.Context, clusterInst *edgeproto.Clus
 func (s *Platform) GetClusterPlatformClient(ctx context.Context, clusterInst *edgeproto.ClusterInst) (ssh.Client, error) {
 	if clusterInst != nil && clusterInst.IpAccess == edgeproto.IpAccess_IP_ACCESS_DEDICATED {
 		rootLb := cloudcommon.GetDedicatedLBFQDN(&clusterInst.Key.CloudletKey, &clusterInst.Key.ClusterKey)
-		pc, err := s.pf.GetPlatformClient(ctx, &edgeproto.CloudletMgmtNode{Name: rootLb})
+		pc, err := s.pf.GetNodePlatformClient(ctx, &edgeproto.CloudletMgmtNode{Name: rootLb})
 		return pc, err
 	} else {
 		return s.SharedClient, nil

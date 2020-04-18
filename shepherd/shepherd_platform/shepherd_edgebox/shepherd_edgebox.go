@@ -26,7 +26,7 @@ func (s *Platform) GetType() string {
 }
 
 func (s *Platform) Init(ctx context.Context, key *edgeproto.CloudletKey, region, physicalName, vaultAddr string, vars map[string]string) error {
-	s.SharedClient, _ = s.pf.GetPlatformClient(ctx, nil)
+	s.SharedClient, _ = s.pf.GetNodePlatformClient(ctx, nil)
 	return nil
 }
 

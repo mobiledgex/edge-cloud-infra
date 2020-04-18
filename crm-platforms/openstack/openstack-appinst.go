@@ -251,7 +251,7 @@ func (s *Platform) CreateAppInst(ctx context.Context, clusterInst *edgeproto.Clu
 		if app.AccessType == edgeproto.AccessType_ACCESS_TYPE_LOAD_BALANCER {
 			updateCallback(edgeproto.UpdateTask, "Setting Up Load Balancer")
 			var proxyOps []proxy.Op
-			client, err := s.GetPlatformClient(ctx, &edgeproto.CloudletMgmtNode{Name: externalServerName})
+			client, err := s.GetNodePlatformClient(ctx, &edgeproto.CloudletMgmtNode{Name: externalServerName})
 			if err != nil {
 				return err
 			}

@@ -211,3 +211,18 @@
       when:
         - not ansible_check_mode
       tags: notify
+
+- hosts: jaeger
+  tasks:
+    - import_role:
+        name: telegraf
+      tags:
+        - monitoring
+        - setup
+
+    - import_role:
+        name: docker
+      tags: setup
+
+    - import_role:
+        name: jaeger

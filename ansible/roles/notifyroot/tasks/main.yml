@@ -14,6 +14,7 @@
       - "0.0.0.0:{{ notifyroot_port }}"
       - "--vaultAddr"
       - "https://{{ vault_vm_hostname }}:{{ vault_port }}"
+      - "--useVaultCAs"
       - "-tls"
       - "/root/tls/mex-server.crt"
     env:

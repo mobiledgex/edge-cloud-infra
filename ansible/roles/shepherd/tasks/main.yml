@@ -59,6 +59,7 @@
       - "{{ item.platform | default('PLATFORM_TYPE_OPENSTACK') }}"
       - "--vaultAddr"
       - "https://{{ vault_vm_hostname }}:{{ vault_port }}"
+      - "--useVaultCAs"
       - "--cloudletKey"
       - "{\\\"organization\\\":\\\"{{ item.operator_key | mandatory }}\\\",\\\"name\\\":\\\"{{ item.cloudlet_name }}\\\"}"
       - "--region"

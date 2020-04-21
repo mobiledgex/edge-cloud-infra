@@ -12,7 +12,7 @@
   gather_facts: no
   vars:
     github_org: mobiledgex
-    github_token_ttl: 900 # seconds
+    github_token_ttl: 3600 # seconds
     ldap_token_ttl: 900 # seconds
     ca_ttl: "{{ 60 * 60 * 24 * 365 * 20 }}"    # 20 years
     pki_global: pki-global

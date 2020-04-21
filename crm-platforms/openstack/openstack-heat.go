@@ -10,425 +10,170 @@ import (
 	"text/template"
 	"time"
 
+	"github.com/mobiledgex/edge-cloud-infra/vmlayer"
+
 	"github.com/mobiledgex/edge-cloud-infra/infracommon"
-	"github.com/mobiledgex/edge-cloud/cloud-resource-manager/k8smgmt"
-	"github.com/mobiledgex/edge-cloud/cloudcommon"
 	"github.com/mobiledgex/edge-cloud/edgeproto"
 	"github.com/mobiledgex/edge-cloud/log"
-	"github.com/mobiledgex/edge-cloud/vmspec"
-	ssh "github.com/mobiledgex/golang-ssh"
 )
 
 var heatStackLock sync.Mutex
 var heatCreate string = "CREATE"
 var heatUpdate string = "UPDATE"
 var heatDelete string = "DELETE"
-var clusterTypeKubernetes = "k8s"
-var clusterTypeDocker = "docker"
-var clusterTypeVMApp = "vmapp"
-var ClusterTypeKubernetesMasterLabel = "mex-k8s-master"
-var ClusterTypeDockerVMLabel = "mex-docker-vm"
 
-var vmCloudConfig = `#cloud-config
-bootcmd:
- - echo MOBILEDGEX CLOUD CONFIG START
- - echo 'APT::Periodic::Enable "0";' > /etc/apt/apt.conf.d/10cloudinit-disable
- - apt-get -y purge update-notifier-common ubuntu-release-upgrader-core landscape-common unattended-upgrades
- - echo "Removed APT and Ubuntu extra packages" | systemd-cat
-ssh_authorized_keys:
- - ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAABAQCrHlOJOJUqvd4nEOXQbdL8ODKzWaUxKVY94pF7J3diTxgZ1NTvS6omqOjRS3loiU7TOlQQU4cKnRRnmJW8QQQZSOMIGNrMMInGaEYsdm6+tr1k4DDfoOrkGMj3X/I2zXZ3U+pDPearVFbczCByPU0dqs16TWikxDoCCxJRGeeUl7duzD9a65bI8Jl+zpfQV+I7OPa81P5/fw15lTzT4+F9MhhOUVJ4PFfD+d6/BLnlUfZ94nZlvSYnT+GoZ8xTAstM7+6pvvvHtaHoV4YqRf5CelbWAQ162XNa9/pW5v/RKDrt203/JEk3e70tzx9KAfSw2vuO1QepkCZAdM9rQoCd ubuntu@registry
-chpasswd: { expire: False }
-ssh_pwauth: False
-timezone: UTC
-runcmd:
- - [ echo, MOBILEDGEX, doing, ifconfig ]
-{{if .VMDNSServers}}
- - echo "dns-nameservers {{.VMDNSServers}}" >> /etc/network/interfaces.d/50-cloud-init.cfg
-{{end}}
- - [ ifconfig, -a ]`
-
-// vmCloudConfigShareMount is appended optionally to vmCloudConfig.   It assumes
-// the end of vmCloudConfig is runcmd
-var vmCloudConfigShareMount = `
- - chown nobody:nogroup /share
- - chmod 777 /share 
- - echo "/share *(rw,sync,no_subtree_check,no_root_squash)" >> /etc/exports
- - exportfs -a
- - echo "showing exported filesystems"
- - exportfs
-disk_setup:
-   /dev/vdb:
-     table_type: 'gpt'
-     overwrite: true
-     layout: true
-fs_setup:
-- label: share_fs
-  filesystem: 'ext4'
-  device: /dev/vdb
-  partition: auto
-  overwrite: true
-mounts:
-- [ "/dev/vdb1", "/share" ]`
-
-// This is the resources part of a template for a VM. It is for use within another template
-// the parameters under VMP can come from either a standalone struture (VM Create) or a cluster (for rootLB)
-var vmTemplateResources = `
-  {{if .ExternalVolumeSize}}
-   {{.VMName}}-vol:
-      type: OS::Cinder::Volume
-      properties:
-         name: {{.VMName}}-vol
-         image: {{.ImageName}}
-         size: {{.ExternalVolumeSize}}
-        {{if .VolumeAvailabilityZone}}
-         availability_zone: {{.VolumeAvailabilityZone}}
-        {{- end}}
-  {{- end }}
-
-   vm_security_group:
-       type: OS::Neutron::SecurityGroup
-       properties:
-          name: {{.ApplicationSecurityGroup}}
-          rules:
-        {{if .PrivacyPolicy.Key.Name}}
-         {{range .PrivacyPolicy.OutboundSecurityRules}}
-          - direction: egress
-            protocol: {{.Protocol}}
-           {{if .RemoteCidr}}
-            remote_ip_prefix: {{.RemoteCidr}}
-           {{end}}
-           {{if .PortRangeMin}}
-            port_range_min: {{.PortRangeMin}}
-            port_range_max: {{.PortRangeMax}}
-           {{end}}
-         {{end}}
-        {{else}}
-          - direction: egress
-        {{end}}
-        {{range .AccessPorts}}
-          - remote_ip_prefix: 0.0.0.0/0
-            protocol: {{.Proto}}
-            port_range_min: {{.Port}}
-            port_range_max: {{.EndPort}}
-        {{end}}
-
-   {{.VMName}}:
-      type: OS::Nova::Server
-      properties:
-         name: {{.VMName}}
-       {{if .ComputeAvailabilityZone}}
-         availability_zone: {{.ComputeAvailabilityZone}}
-       {{- end}}
-       {{if .ExternalVolumeSize}}
-         block_device_mapping: [{ device_name: "vda", volume_id: { get_resource: {{.VMName}}-vol }, delete_on_termination: "false" }]
-       {{else}}
-         image: {{.ImageName}}
-       {{- end}}
-        {{if not .FloatingIPAddressID}}
-         security_groups:
-           - { get_resource: vm_security_group }
-          {{if .CloudletSecurityGroup}}
-           - {{ .CloudletSecurityGroup}}
-          {{- end}}
-        {{- end}}
-         flavor: {{.FlavorName}}
-
-        {{if .AuthPublicKey}} key_name: { get_resource: ssh_key_pair } {{- end}}
-         config_drive: true       
-         user_data_format: RAW
-         networks:
-        {{if .FloatingIPAddressID}}
-          - port: { get_resource: vm-port }
-        {{else}}
-          - network: {{.NetworkName}}
-        {{- end}}
-        {{if .IsRootLB}}
-         metadata:
-            skipk8s: yes
-            role: mex-agent-node 
-            edgeproxy: {{.GatewayIP}}
-            mex-flavor: {{.FlavorName}}
-           {{if .MEXRouterIP}}
-            privaterouter: {{.MEXRouterIP}}
-           {{- end}}
-        {{- end}}
-        {{if .IsInternal}}
-         user_data: |
-` + reindent(vmCloudConfig, 12) + `
-        {{- end}}
-        {{if .DeploymentManifest}}
-         user_data: |
-{{ Indent .DeploymentManifest 13 }}
-        {{- end}}
-        {{if .Command}}
-         user_data: |
-            #cloud-config
-            runcmd:
-             - {{.Command}}
-        {{- end}}
-  {{if .AuthPublicKey}}
-   ssh_key_pair:
-       type: OS::Nova::KeyPair
-       properties:
-          name: {{.VMName}}-ssh-keypair
-          public_key: "{{.AuthPublicKey}}"
-  {{- end}}
-  {{if .FloatingIPAddressID}}
-   vm-port:
-       type: OS::Neutron::Port
-       properties:
-           name: {{.VMName}}-port
-          {{if .VnicType}}
-           binding:vnic_type: {{.VnicType}}
-          {{- end}}
-           network_id: {{.NetworkName}}
-           fixed_ips: 
-            - subnet_id: {{.SubnetName}}
-           security_groups:
-            - { get_resource: vm_security_group }
-           {{if .CloudletSecurityGroup}}
-            - {{ .CloudletSecurityGroup}}
-           {{- end}}
-   floatingip:
-       type: OS::Neutron::FloatingIPAssociation
-       properties:
-          floatingip_id: {{.FloatingIPAddressID}}
-          port_id: { get_resource: vm-port }
-  {{- end}}`
-
-var VmTemplate = `
+var VmGroupTemplate = `
 heat_template_version: 2016-10-14
-description: Create a VM
-resources:
-` + vmTemplateResources
-
-// ClusterNode is a k8s node
-type ClusterNode struct {
-	NodeName     string
-	NodeIP       string
-	VMDNSServers string
-}
-
-// ClusterParams has the info needed to populate the heat template
-type ClusterParams struct {
-	ClusterType           string
-	ClusterFirstVMName    string
-	NodeFlavor            string
-	MEXRouterName         string
-	MEXNetworkName        string
-	VnicType              string
-	ClusterName           string
-	CIDR                  string
-	GatewayIP             string
-	MasterIP              string
-	RootLBConnectToSubnet string
-	RootLBPortName        string
-	NetworkType           string
-	RouterSecurityGroup   string // used for internal comms only if the OpenStack router is present
-	DNSServers            []string
-	VMDNSServers          string
-	Nodes                 []ClusterNode
-	MasterNodeFlavor      string
-	*infracommon.VMParams //rootlb
-	VMAppParams           *infracommon.VMParams
-}
-
-var clusterTemplate = `
-heat_template_version: 2016-10-14
-description: Create a cluster
+description: Create a group of VMs
 
 resources:
-   k8s-subnet:
-      type: OS::Neutron::Subnet
-      properties:
-        cidr: {{.CIDR}}
-        network: mex-k8s-net-1
-        gateway_ip: {{.GatewayIP}}
-        enable_dhcp: false
-        dns_nameservers:
-       {{range .DNSServers}}
-         - {{.}}
-       {{end}}
-        name: 
-           mex-k8s-subnet-{{.ClusterName}}
-  {{if .RootLBConnectToSubnet}}
-   rootlb-port:
-      type: OS::Neutron::Port
-      properties:
-         name: {{.RootLBPortName}}
-         network_id: mex-k8s-net-1
-         fixed_ips:
-          - subnet: { get_resource: k8s-subnet}
-            ip_address: {{.GatewayIP}}
-         port_security_enabled: false
-  {{- end}}
-  {{if .MEXRouterName}}
-   router-port:
-       type: OS::Neutron::Port
-       properties:
-          name: mex-k8s-subnet-{{.ClusterName}}
-          network_id: mex-k8s-net-1
-          fixed_ips:
-          - subnet: { get_resource: k8s-subnet}
-            ip_address: {{.GatewayIP}}
-          security_groups:
-           - {{.RouterSecurityGroup}}
-
-   router-interface:
-      type: OS::Neutron::RouterInterface
-      properties:
-         router:  {{.MEXRouterName}}
-         port: { get_resource: router-port }
-
-  {{- end}}
-   {{.ClusterFirstVMName}}-port:
-      type: OS::Neutron::Port
-      properties:
-         name: {{.ClusterFirstVMName}}-port
-        {{if .VnicType}}
-         binding:vnic_type: {{.VnicType}}
+    {{- range .Subnets}}
+    {{.Name}}:
+        type: OS::Neutron::Subnet
+        properties:
+            cidr: {{.CIDR}}
+            network: mex-k8s-net-1
+            gateway_ip: {{.GatewayIP}}
+            enable_dhcp: {{.DHCPEnabled}}
+            dns_nameservers:
+               {{- range .DNSServers}}
+                 - {{.}}
+               {{- end}}
+            name: 
+                {{.Name}}
+    {{- end}}
+    
+    {{- range .Ports}}
+    {{.Name}}:
+        type: OS::Neutron::Port
+        properties:
+            name: {{.Name}}
+            network: {{.NetworkName}}
+            {{- if .VnicType}}
+            binding:vnic_type: {{.VnicType}}
+            {{- end}}
+            {{- if .FixedIPs}}
+            fixed_ips:
+            {{- range .FixedIPs}}
+                {{- if .Subnet.Preexisting}}
+                - subnet: {{.Subnet.Name}}
+                {{- else}}
+                - subnet: { get_resource: {{.Subnet.Name}} }
+                {{- end}}
+                {{- if .Address}}
+                  ip_address:  {{.Address}}
+                {{- end}}
+            {{- end}}
+            {{- end}}
+            {{- if .SecurityGroups}}
+            security_groups:
+            {{- range .SecurityGroups}}
+                {{- if .Preexisting}}
+                - {{.Name}}
+                {{- else}}
+                - { get_resource: {{.Name}} }
+                {{- end}}
+            {{- end}}
+            {{- else}}
+            port_security_enabled: false
+            {{- end}} 
+    {{- end}}
+    
+    {{- range .RouterInterfaces}}
+    {{.RouterName}}-interface:
+        type: OS::Neutron::RouterInterface
+        properties:
+            router:  {{.RouterName}}
+            port: { get_resource: {{.RouterPort}} }
+    {{- end}}
+    
+    {{- range .SecurityGroups}}
+    {{.Name}}:
+        type: OS::Neutron::SecurityGroup
+        properties:
+                name: {{.Name}}
+                rules:
+                {{- if .EgressRestricted}}
+                {{- range .EgressRules}}
+                    - direction: egress
+                      protocol: {{.Protocol}}
+                    {{- if .RemoteCidr}}
+                      remote_ip_prefix: {{.RemoteCidr}}
+                    {{- end}}
+                    {{- if .PortRangeMin}}
+                      port_range_min: {{.PortRangeMin}}
+                      port_range_max: {{.PortRangeMax}}
+                    {{- end}}
+                {{- end}}
+                {{- else}}
+                    - direction: egress
+                {{- end}}
+                {{- range .AccessPorts}}
+                    - direction: ingress
+                      remote_ip_prefix: 0.0.0.0/0
+                      protocol: {{.Proto}}
+                      port_range_min: {{.Port}}
+                      port_range_max: {{.EndPort}}
+                {{- end}}
+    {{- end}}
+    
+    {{- range .VMs}}
+    {{- range .Volumes}}
+    {{.Name}}:
+        type: OS::Cinder::Volume
+        image {{.ImageName}}
+        size {{.Size}}
+        {{- if .AvailabilityZone}}
+        availability_zone: {{.AvailabilityZone}}
         {{- end}}
-         network_id: {{.MEXNetworkName}}
-         fixed_ips:
-          - subnet: { get_resource: k8s-subnet} 
-            ip_address: {{.MasterIP}}
-        {{if $.RouterSecurityGroup }}
-         security_groups:
-           - {{$.RouterSecurityGroup}}
-        {{else}}
-         port_security_enabled: false
-        {{- end}}
-
-  {{if .ExternalVolumeSize}}
-   {{.ClusterFirstVMName}}-vol:
-      type: OS::Cinder::Volume
-      properties:
-         name: {{.ClusterFirstVMName}}-vol
-         image: {{.ImageName}}
-         size: {{.ExternalVolumeSize}}
-        {{if .VolumeAvailabilityZone}}
-         availability_zone: {{.VolumeAvailabilityZone}}
-        {{- end}}
-  {{- end}}
-  {{if .SharedVolumeSize}}
-   {{.ClusterType}}-shared-vol:
-      type: OS::Cinder::Volume
-      properties:
-         name: {{.ClusterType}}-shared-{{.ClusterName}}-vol
-         size: {{.SharedVolumeSize}}
-        {{if .VolumeAvailabilityZone}}
-         availability_zone: {{.VolumeAvailabilityZone}}
-        {{- end}}
-  {{- end}}
-   {{.ClusterFirstVMName}}:
-      type: OS::Nova::Server
-      properties:
-         name: {{.ClusterFirstVMName}}
-        {{if .ComputeAvailabilityZone}}
-         availability_zone: {{.ComputeAvailabilityZone}}
-        {{- end}}
-      {{if or (.ExternalVolumeSize) (.SharedVolumeSize)}}
-         block_device_mapping:
-        {{if .ExternalVolumeSize}}
-         - device_name: "vda" 
-           volume_id: { get_resource: {{.ClusterFirstVMName}}-vol }
-           delete_on_termination: "false" 
-        {{- end}}
-        {{if .SharedVolumeSize}}
-         - device_name: "vdb" 
-           volume_id: { get_resource: {{.ClusterType}}-shared-vol }
-           delete_on_termination: "false"
-        {{- end}}
-      {{- end}}
-      {{- if not .ExternalVolumeSize}}
-         image: {{.ImageName}}
-      {{- end}}
-         flavor: {{.MasterNodeFlavor}}
-         config_drive: true
-         user_data_format: RAW
-         user_data: |
-` + reindent(vmCloudConfig, 12) + `
-        {{if .SharedVolumeSize}}
-` + reindent(vmCloudConfigShareMount, 12) + `
-        {{- end}}
-         networks:
-          - port: { get_resource: {{.ClusterFirstVMName}}-port }
-         metadata:
-         {{if eq "k8s" .ClusterType }}
-           skipk8s: no
-           role: k8s-master 
-           edgeproxy: {{.GatewayIP}}
-           mex-flavor: {{.NodeFlavor}}
-           k8smaster: {{.MasterIP}}
-         {{- end}}
-         {{if eq "docker" .ClusterType }}
-           skipk8s: yes
-           role: mex-agent-node 
-           edgeproxy: {{.GatewayIP}}
-           mex-flavor: {{.NodeFlavor}}
-         {{- end}}
-  {{range .Nodes}}
-   {{.NodeName}}-port:
-      type: OS::Neutron::Port
-      properties:
-          name: mex-{{$.ClusterType}}-{{.NodeName}}-port-{{$.ClusterName}}
-         {{if $.VnicType}}
-          binding:vnic_type: {{$.VnicType}}
-         {{- end}}
-          network_id: {{$.MEXNetworkName}}
-          fixed_ips:
-          - subnet: { get_resource: k8s-subnet}
-            ip_address: {{.NodeIP}}
-         {{if $.RouterSecurityGroup }}
-          security_groups:
-           - {{$.RouterSecurityGroup}}
-         {{else}}
-          port_security_enabled: false
-         {{- end}}
-
-  {{if $.ExternalVolumeSize}}
-   {{.NodeName}}-vol:
-      type: OS::Cinder::Volume
-      properties:
-         name: {{.NodeName}}-vol
-         image: {{$.ImageName}}
-         size: {{$.ExternalVolumeSize}}
-        {{if $.VolumeAvailabilityZone}}
-         availability_zone: {{$.VolumeAvailabilityZone}}
-       {{- end}}
-  {{- end }}
-
-   {{.NodeName}}:
-      type: OS::Nova::Server
-      depends_on: {{$.ClusterFirstVMName}}
-      properties:
-         name: {{.NodeName}}-{{$.ClusterName}}
-        {{if $.ComputeAvailabilityZone}}
-         availability_zone: {{$.ComputeAvailabilityZone}}
-        {{- end}}
-        {{if  $.ExternalVolumeSize}}
-         block_device_mapping: [{ device_name: "vda", volume_id: { get_resource: {{.NodeName}}-vol }, delete_on_termination: "false" }]
-        {{else}}
-         {{if $.VMAppParams}}
-         image: {{$.VMAppParams.ImageName}}
-         {{else}}
-         image: {{$.ImageName}}
-         {{- end}}
-        {{- end}}
-         flavor: {{$.NodeFlavor}}
-         config_drive: true
-         user_data_format: RAW
-         user_data: |
-` + reindent(vmCloudConfig, 12) + `
-         networks:
-          - port: { get_resource: {{.NodeName}}-port } 
-         metadata:
-            skipk8s: no 
-            role: k8s-node
-            edgeproxy: {{$.GatewayIP}}
-            mex-flavor: {{$.NodeFlavor}}
-            k8smaster: {{$.MasterIP}}
-  {{end}}
+    {{- end}}
+        
+    {{.Name}}:
+        type: OS::Nova::Server
+        properties:
+            name: {{.Name}}
+            networks:
+                {{- range .Ports}}
+                {{- if .Preexisting}}
+                - port: {{.Name}}
+                {{- else}}
+                - port: { get_resource: {{.Name}} }
+                {{- end}}
+                {{- end}}
+            {{- if .ComputeAvailabilityZone}}
+            availability_zone: {{.ComputeAvailabilityZone}}
+            {{- end}}
+            {{- range .Volumes}}
+                block_device_mapping:
+                 - device_name: {{.DeviceName}}
+                   volume_id: { get_resource: {{.VolumeName}} }
+                   delete_on_termination: "false"       
+            {{- end}}
+            {{- if .ImageName}}
+            image: {{.ImageName}}
+            {{- end}} 
+            flavor: {{.FlavorName}}
+            config_drive: true
+            user_data_format: RAW
+            user_data: |
+{{.UserData}}
+            {{- if .MetaData}}
+            metadata:
+{{.MetaData}}
+            {{- end}}
+    {{- end}}
+    
+    {{- range .FloatingIPs}}
+    {{.Name}}:
+        type: OS::Neutron::FloatingIPAssociation
+        properties:
+            floatingip_id: {{.FloatingIpId.Name}}
+            {{- if .Port.Preexisting}}
+            port_id: {{.Port.Name}} }
+            {{- else}}
+            port_id: { get_resource: {{.Port.Name}} }
+            {{- end}}
+    {{- end}}
 `
 
 func reindent(str string, indent int) string {
@@ -437,6 +182,64 @@ func reindent(str string, indent int) string {
 		out += strings.Repeat(" ", indent) + v + "\n"
 	}
 	return strings.TrimSuffix(out, "\n")
+}
+
+func (o *OpenstackPlatform) getVMUserData(sharedVolume bool, dnsServers string, manifest string, command string) string {
+	if manifest != "" {
+		return reindent(manifest, 16)
+	}
+	if command != "" {
+		rc := `
+#cloud-config
+runcmd:
+- ` + command
+	} else {
+		rc := infracommon.VmCloudConfig
+		if dnsServers != "" {
+			rc += fmt.Sprintf("\n - echo \"dns-nameservers %s\" >> /etc/network/interfaces.d/50-cloud-init.cfg", dnsServers)
+		}
+		if sharedVolume {
+			return rc + infracommon.VmCloudConfigShareMount
+		}
+	}
+	return reindent(rc, 16)
+}
+
+func (o *OpenstackPlatform) getVMMetaData(role vmlayer.VMRole, masterIP string, command string) string {
+
+	var str string
+	if role == vmlayer.RoleUser {
+		return ""
+	}
+	skipk8s := vmlayer.SkipK8sYes
+	if role == vmlayer.RoleMaster || role == vmlayer.RoleNode {
+		skipk8s = vmlayer.SkipK8sNo
+	}
+	str = `skipk8s: ` + string(skipk8s) + `
+role: ` + string(role)
+	if masterIP != "" && masterIP != infracommon.MasterIPNone {
+		str += `
+k8smaster: ` + masterIP
+	}
+	return reindent(str, 16)
+}
+
+func (o *OpenstackPlatform) getFreeFloatingIpid(ctx context.Context) (string, error) {
+	fips, err := o.ListFloatingIPs(ctx)
+	if err != nil {
+		return "", fmt.Errorf("Unable to list floating IPs %v", err)
+	}
+	fipid := ""
+	for _, f := range fips {
+		if f.Port == "" && f.FloatingIPAddress != "" {
+			fipid = f.ID
+			break
+		}
+	}
+	if fipid == "" {
+		return "", fmt.Errorf("Unable to allocate a floating IP")
+	}
+	return fipid, nil
 }
 
 func WriteTemplateFile(filename string, buf *bytes.Buffer) error {
@@ -456,12 +259,12 @@ func WriteTemplateFile(filename string, buf *bytes.Buffer) error {
 	return nil
 }
 
-func (s *OpenstackPlatform) waitForStack(ctx context.Context, stackname string, action string, updateCallback edgeproto.CacheUpdateCallback) error {
+func (o *OpenstackPlatform) waitForStack(ctx context.Context, stackname string, action string, updateCallback edgeproto.CacheUpdateCallback) error {
 	log.SpanLog(ctx, log.DebugLevelInfra, "waiting for stack", "name", stackname, "action", action)
 	start := time.Now()
 	for {
 		time.Sleep(10 * time.Second)
-		hd, err := s.getHeatStackDetail(ctx, stackname)
+		hd, err := o.getHeatStackDetail(ctx, stackname)
 		if action == heatDelete && hd == nil {
 			// it's gone
 			return nil
@@ -553,26 +356,6 @@ func (o *OpenstackPlatform) CreateHeatStackFromTemplate(ctx context.Context, tem
 	return o.createOrUpdateHeatStackFromTemplate(ctx, templateData, stackName, templateString, heatCreate, updateCallback)
 }
 
-// HeatDeleteCluster deletes the stack and also cleans up rootLB port if needed
-func (o *OpenstackPlatform) HeatDeleteCluster(ctx context.Context, client ssh.Client, clusterInst *edgeproto.ClusterInst, rootLBName string, dedicatedRootLB bool) error {
-	cp, err := o.getClusterParams(ctx, clusterInst, &edgeproto.PrivacyPolicy{}, rootLBName, "", dedicatedRootLB, heatDelete)
-	if err == nil {
-		// no need to detach the port from the dedicated RootLB because the VM is going away with the stack.  A nil client can be passed here in
-		// some rare cases because the server was somehow deleted
-		if cp.RootLBPortName != "" && !dedicatedRootLB && client != nil {
-			err = o.commonPf.DetachAndDisableRootLBInterface(ctx, client, rootLBName, cp.RootLBPortName, cp.GatewayIP)
-			if err != nil {
-				log.SpanLog(ctx, log.DebugLevelInfra, "unable to detach rootLB interface, proceed with stack deletion", "err", err)
-			}
-		}
-	} else {
-		// probably already gone
-		log.SpanLog(ctx, log.DebugLevelInfra, "unable to get cluster params, proceed with stack deletion", "err", err)
-	}
-	clusterName := o.NameSanitize(k8smgmt.GetK8sNodeNameSuffix(&clusterInst.Key))
-	return o.HeatDeleteStack(ctx, clusterName)
-}
-
 // HeatDeleteStack deletes the VM resources
 func (o *OpenstackPlatform) HeatDeleteStack(ctx context.Context, stackName string) error {
 	log.SpanLog(ctx, log.DebugLevelInfra, "deleting heat stack for stack", "stackName", stackName)
@@ -583,317 +366,119 @@ func (o *OpenstackPlatform) HeatDeleteStack(ctx context.Context, stackName strin
 	return o.waitForStack(ctx, stackName, heatDelete, edgeproto.DummyUpdateCallback)
 }
 
-func (o *OpenstackPlatform) populateCommonClusterParamFields(ctx context.Context, cp *ClusterParams, rootLBName, cloudletSecGrp, action string) (string, error) {
-	log.SpanLog(ctx, log.DebugLevelInfra, "populateCommonClusterParamFields", "clusterParams", cp, "rootLBName", rootLBName, "cloudletSecGrp", cloudletSecGrp, "action", action)
+// populateParams fills in some details which cannot be done outside of heat
+func (o *OpenstackPlatform) populateParams(ctx context.Context, vmGroupParams *vmlayer.VMGroupParams, action string) error {
+	log.SpanLog(ctx, log.DebugLevelInfra, "populateParams", "vmGroupParams", vmGroupParams.GroupName, "action", action)
 
 	usedCidrs := make(map[string]string)
-	ni, err := infracommon.ParseNetSpec(ctx, o.commonPf.GetCloudletNetworkScheme())
-	if err != nil {
-		return "", err
+	if vmGroupParams.Netspec == nil {
+		return fmt.Errorf("Netspec is nil")
 	}
+
 	currentSubnetName := ""
-	nodeIPPrefix := ""
-	found := false
-	cp.MEXNetworkName = o.commonPf.GetCloudletMexNetwork()
-	cp.ApplicationSecurityGroup = o.commonPf.GetServerSecurityGroupName(rootLBName)
-
-	rtr := o.GetCloudletExternalRouter()
-	if rtr == infracommon.NoConfigExternalRouter {
-		log.SpanLog(ctx, log.DebugLevelInfra, "NoConfigExternalRouter in use for cluster, cluster stack with no router interfaces")
-	} else if rtr == infracommon.NoExternalRouter {
-		log.SpanLog(ctx, log.DebugLevelInfra, "NoExternalRouter in use for cluster, cluster stack with rootlb connected to subnet")
-		cp.RootLBConnectToSubnet = rootLBName
-		cp.RootLBPortName = fmt.Sprintf("%s-%s-port", rootLBName, cp.ClusterName)
-	} else {
-		log.SpanLog(ctx, log.DebugLevelInfra, "External router in use for cluster, cluster stack with router interfaces")
-		cp.MEXRouterName = rtr
-		// The cluster needs to be connected to the cloudlet level security group to have router access
-		cp.RouterSecurityGroup = cloudletSecGrp
-	}
-
 	if action != heatCreate {
-		currentSubnetName = "mex-k8s-subnet-" + cp.ClusterName
+		currentSubnetName = "mex-k8s-subnet-" + vmGroupParams.GroupName
 	}
-	sns, snserr := o.ListSubnets(ctx, ni.Name)
+	sns, snserr := o.ListSubnets(ctx, vmGroupParams.Netspec.Name)
 	if snserr != nil {
-		return nodeIPPrefix, fmt.Errorf("can't get list of subnets for %s, %v", ni.Name, snserr)
+		return fmt.Errorf("can't get list of subnets for %s, %v", vmGroupParams.Netspec.Name, snserr)
 	}
 	for _, s := range sns {
 		usedCidrs[s.Subnet] = s.Name
 	}
 
+	masterIP := ""
 	//find an available subnet or the current subnet for update and delete
-	for i := 0; i <= 255; i++ {
-		subnet := fmt.Sprintf("%s.%s.%d.%d/%s", ni.Octets[0], ni.Octets[1], i, 0, ni.NetmaskBits)
-		// either look for an unused one (create) or the current one (update)
-		if (action == heatCreate && usedCidrs[subnet] == "") || (action != heatCreate && usedCidrs[subnet] == currentSubnetName) {
-			found = true
-			cp.CIDR = subnet
-			cp.GatewayIP = fmt.Sprintf("%s.%s.%d.%d", ni.Octets[0], ni.Octets[1], i, 1)
-			cp.MasterIP = fmt.Sprintf("%s.%s.%d.%d", ni.Octets[0], ni.Octets[1], i, 10)
-			nodeIPPrefix = fmt.Sprintf("%s.%s.%d", ni.Octets[0], ni.Octets[1], i)
-			break
+	for i, s := range vmGroupParams.Subnets {
+		if s.CIDR != vmlayer.NextAvailableResource {
+			// no need to compute the CIDR
+			continue
+		}
+		found := false
+		for octet := 0; i <= 255; i++ {
+			subnet := fmt.Sprintf("%s.%s.%d.%d/%s", vmGroupParams.Netspec.Octets[0], vmGroupParams.Netspec.Octets[1], i, 0, vmGroupParams.Netspec.NetmaskBits)
+			// either look for an unused one (create) or the current one (update)
+			if (action == heatCreate && usedCidrs[subnet] == "") || (action != heatCreate && usedCidrs[subnet] == currentSubnetName) {
+				found = true
+				vmGroupParams.Subnets[i].CIDR = subnet
+				vmGroupParams.Subnets[i].GatewayIP = fmt.Sprintf("%s.%s.%d.%d", vmGroupParams.Netspec.Octets[0], vmGroupParams.Netspec.Octets[1], octet, 1)
+				vmGroupParams.Subnets[i].NodeIPPrefix = fmt.Sprintf("%s.%s.%d", vmGroupParams.Netspec.Octets[0], vmGroupParams.Netspec.Octets[1], octet)
+				masterIP = fmt.Sprintf("%s.%s.%d", vmGroupParams.Netspec.Octets[0], vmGroupParams.Netspec.Octets[1], 10)
+				break
+			}
+		}
+		if !found {
+			return fmt.Errorf("cannot find subnet cidr")
 		}
 	}
-	if !found {
-		return nodeIPPrefix, fmt.Errorf("cannot find subnet cidr")
+
+	// if there are last octets specified and not full IPs, build the full address
+	for i, p := range vmGroupParams.Ports {
+		for j, f := range p.FixedIPs {
+			if f.Address == "" && f.LastIPOctet != 0 {
+				log.SpanLog(ctx, log.DebugLevelInfra, "populating fixed ip based on subnet", "VMGroupParams", vmGroupParams)
+				found := false
+				for _, s := range vmGroupParams.Subnets {
+					if s.Name == f.Subnet.Name {
+						vmGroupParams.Ports[i].FixedIPs[j].Address = fmt.Sprintf("%s.%d", s.NodeIPPrefix, f.LastIPOctet)
+						log.SpanLog(ctx, log.DebugLevelInfra, "populating fixed ip based on subnet", "port", p.Name, "address", vmGroupParams.Ports[i].FixedIPs[j].Address)
+						found = true
+						break
+					}
+				}
+				if !found {
+					return fmt.Errorf("cannot find matching subnet for port", "port", p)
+				}
+			}
+		}
 	}
-	return nodeIPPrefix, nil
+
+	// populate the user data
+	for i, v := range vmGroupParams.VMs {
+		vmGroupParams.VMs[i].MetaData = o.getVMMetaData(v.Role, masterIP, v.Command)
+		vmGroupParams.VMs[i].UserData = o.getVMUserData(v.SharedVolume, v.DNSServers, v.DeploymentManifest)
+	}
+
+	// populate the floating ips
+	for i, f := range VMGroupParams.FloatingIPs {
+		if f.FloatingIpId.Name == infracommon.NextAvailableResource {
+			fipid, err := o.getFreeFloatingIpid(ctx)
+			if err != nil {
+				return err
+			}
+			VMGroupParams.FloatingIPs[i].FloatingIpId.Name = fipid
+		}
+	}
+
+	return nil
 }
 
-//GetClusterParams fills template parameters for the cluster.  A non blank rootLBName will add a rootlb VM
-func (o *OpenstackPlatform) getClusterParams(ctx context.Context, clusterInst *edgeproto.ClusterInst, privacyPolicy *edgeproto.PrivacyPolicy, rootLBName, imgName string, dedicatedRootLB bool, action string) (*ClusterParams, error) {
-	log.SpanLog(ctx, log.DebugLevelInfra, "getClusterParams", "cluster", clusterInst, "action", action)
+func (o *OpenstackPlatform) HeatCreateVMs(ctx context.Context, vmGroupParams *vmlayer.VMGroupParams, updateCallback edgeproto.CacheUpdateCallback) error {
+	log.SpanLog(ctx, log.DebugLevelInfra, "HeatCreateVMs", "vmGroupParams", vmGroupParams)
 
-	var cp ClusterParams
-	var err error
-	ni, err := infracommon.ParseNetSpec(ctx, o.commonPf.GetCloudletNetworkScheme())
-	if err != nil {
-		return nil, err
-	}
-	cp.ClusterName = o.NameSanitize(k8smgmt.GetK8sNodeNameSuffix(&clusterInst.Key))
-
-	switch clusterInst.Deployment {
-	case cloudcommon.AppDeploymentTypeDocker:
-		if clusterInst.Deployment == cloudcommon.AppDeploymentTypeDocker {
-			cp.ClusterType = clusterTypeDocker
-			cp.ClusterFirstVMName = ClusterTypeDockerVMLabel + "-" + cp.ClusterName
-
-		}
-	default:
-		cp.ClusterType = clusterTypeKubernetes
-		cp.ClusterFirstVMName = ClusterTypeKubernetesMasterLabel + "-" + cp.ClusterName
-	}
-	cp.NetworkType = ni.NetworkType
-	cp.VnicType = ni.VnicType
-
-	if imgName == "" {
-		imgName = o.commonPf.GetCloudletOSImage()
-	}
-
-	// dedicated rootLB requires a rootLB VM to be created in the stack
-	if dedicatedRootLB {
-		flavor := clusterInst.MasterNodeFlavor
-		if flavor == "" {
-			// master flavor not set, use the node flavor
-			flavor = clusterInst.NodeFlavor
-		}
-		cp.VMParams, err = o.GetVMParams(ctx,
-			infracommon.RootLBVMDeployment,
-			rootLBName,
-			flavor,
-			clusterInst.ExternalVolumeSize,
-			imgName,
-			o.commonPf.GetServerSecurityGroupName(rootLBName),
-			&clusterInst.Key.CloudletKey,
-			infracommon.WithComputeAvailabilityZone(clusterInst.AvailabilityZone),
-			infracommon.WithVolumeAvailabilityZone(o.commonPf.GetCloudletVolumeAvailabilityZone()),
-			infracommon.WithPrivacyPolicy(privacyPolicy),
-		)
-		if err != nil {
-			return nil, fmt.Errorf("Unable to get rootlb params: %v", err)
-		}
-	} else {
-		// we still use the security group from the VM params even for shared
-		cp.VMParams, err = o.GetVMParams(ctx,
-			infracommon.SharedCluster,
-			"", // no server name since no rootlb
-			clusterInst.NodeFlavor,
-			clusterInst.ExternalVolumeSize,
-			imgName,
-			o.commonPf.GetServerSecurityGroupName(rootLBName),
-			&clusterInst.Key.CloudletKey,
-			infracommon.WithComputeAvailabilityZone(clusterInst.AvailabilityZone),
-			infracommon.WithVolumeAvailabilityZone(o.commonPf.GetCloudletVolumeAvailabilityZone()),
-			infracommon.WithPrivacyPolicy(privacyPolicy),
-		)
-		if err != nil {
-			return nil, fmt.Errorf("Unable to get shared VM params: %v", err)
-		}
-	}
-	cloudletGrp, err := o.GetCloudletSecurityGroupID(ctx, &clusterInst.Key.CloudletKey)
-	if err != nil {
-		return nil, err
-	}
-	cp.PrivacyPolicy = privacyPolicy
-	cp.CloudletSecurityGroup = cloudletGrp
-
-	// this is a hopefully short term workaround to a Contrail bug in which DNS resolution
-	// breaks when the DNS server is specified in the subnet on creation.  The workaround is to
-	// use cloud-init to specify the DNS server in the VM rather than the subnet.
-	// See EDGECLOUD-2420 for details
-	dns := []string{"1.1.1.1", "1.0.0.1"}
-	if o.GetSubnetDNS() == infracommon.NoSubnetDNS {
-		log.SpanLog(ctx, log.DebugLevelInfra, "subnet DNS is NONE, using VM DNS", "dns", dns)
-		cp.VMDNSServers = strings.Join(dns, " ")
-	} else {
-		log.SpanLog(ctx, log.DebugLevelInfra, "using subnet dns", "dns", dns)
-		cp.DNSServers = dns
-	}
-	nodeIPPrefix, err := o.populateCommonClusterParamFields(ctx, &cp, rootLBName, cloudletGrp, action)
-	if err != nil {
-		return nil, err
-	}
-
-	if clusterInst.NodeFlavor == "" {
-		return nil, fmt.Errorf("Node Flavor is not set")
-	}
-	cp.NodeFlavor = clusterInst.NodeFlavor
-	cp.MasterNodeFlavor = clusterInst.NodeFlavor
-	cp.ExternalVolumeSize = clusterInst.ExternalVolumeSize
-	cp.SharedVolumeSize = clusterInst.SharedVolumeSize
-	for i := uint32(1); i <= clusterInst.NumNodes; i++ {
-		nn := infracommon.ClusterNodePrefix(i)
-		nip := fmt.Sprintf("%s.%d", nodeIPPrefix, i+100)
-		cn := ClusterNode{NodeName: nn, NodeIP: nip}
-		cn.VMDNSServers = cp.VMDNSServers
-		cp.Nodes = append(cp.Nodes, cn)
-	}
-	if clusterInst.NumNodes > 0 && clusterInst.MasterNodeFlavor != "" {
-		cp.MasterNodeFlavor = clusterInst.MasterNodeFlavor
-		log.SpanLog(ctx, log.DebugLevelInfra, "HeatGetClusterParams", "MasterNodeFlavor", cp.MasterNodeFlavor)
-	}
-	return &cp, nil
-}
-
-// HeatCreateRootLBVM creates a roobLB VM
-func (o *OpenstackPlatform) HeatCreateRootLBVM(ctx context.Context, serverName, stackName, imgName string, vmspec *vmspec.VMCreationSpec, cloudletKey *edgeproto.CloudletKey, updateCallback edgeproto.CacheUpdateCallback) error {
-	log.SpanLog(ctx, log.DebugLevelInfra, "HeatCreateRootLBVM", "serverName", serverName, "stackName", stackName, "vmspec", vmspec)
-	ni, err := infracommon.ParseNetSpec(ctx, o.commonPf.GetCloudletNetworkScheme())
-	if err != nil {
-		return err
-	}
-	// lock here to avoid getting the same floating IP; we need to lock until the stack is done
-	// Floating IPs are allocated both by VM and cluster creation
-	// TODO: floating IP lock should apply to developer app VMs also
-	if ni.FloatingIPNet != "" {
-		heatStackLock.Lock()
-		defer heatStackLock.Unlock()
-	}
-	if imgName == "" {
-		imgName = o.commonPf.GetCloudletOSImage()
-	}
-	vmp, err := o.GetVMParams(ctx,
-		infracommon.RootLBVMDeployment,
-		serverName,
-		vmspec.FlavorName,
-		vmspec.ExternalVolumeSize,
-		imgName,
-		o.commonPf.GetServerSecurityGroupName(serverName),
-		cloudletKey,
-		infracommon.WithComputeAvailabilityZone(vmspec.AvailabilityZone),
-		infracommon.WithVolumeAvailabilityZone(o.commonPf.GetCloudletVolumeAvailabilityZone()),
-		infracommon.WithPrivacyPolicy(vmspec.PrivacyPolicy),
-	)
-	if err != nil {
-		return fmt.Errorf("Unable to get VM params: %v", err)
-	}
-	return o.CreateHeatStackFromTemplate(ctx, vmp, stackName, VmTemplate, updateCallback)
-}
-
-// HeatCreateCluster creates a docker or k8s cluster which may optionally include a dedicated root LB
-func (o *OpenstackPlatform) HeatCreateCluster(ctx context.Context, clusterInst *edgeproto.ClusterInst, privacyPolicy *edgeproto.PrivacyPolicy, rootLBName string, imgName string, dedicatedRootLB bool, updateCallback edgeproto.CacheUpdateCallback) error {
-	log.SpanLog(ctx, log.DebugLevelInfra, "HeatCreateCluster", "clusterInst", clusterInst, "rootLBName", rootLBName)
-	// It is problematic to create 2 clusters at the exact same time because we will look for available subnet CIDRS when
-	// defining the template.  If 2 start at once they may end up trying to create the same subnet and one will fail.
-	// So we will do this one at a time.   It will slightly slow down the creation of the second cluster, but the heat
-	// stack create time is relatively quick compared to the k8s startup which can be done in parallel
-	// Floating IPs can also be allocated within the stack and need to be locked as well.
 	heatStackLock.Lock()
 	defer heatStackLock.Unlock()
 
-	cp, err := o.getClusterParams(ctx, clusterInst, privacyPolicy, rootLBName, imgName, dedicatedRootLB, heatCreate)
-	if err != nil {
-		return err
-	}
-	log.SpanLog(ctx, log.DebugLevelInfra, "Updated ClusterParams", "clusterParams", cp)
-
-	templateString := clusterTemplate
-	//append the VM resources for the rootLB is dedicated
-	if dedicatedRootLB {
-		templateString += vmTemplateResources
-	}
-	err = o.CreateHeatStackFromTemplate(ctx, cp, cp.ClusterName, templateString, updateCallback)
-	if err != nil {
-		return err
-	}
-	if cp.RootLBPortName != "" {
-		client, err := o.commonPf.GetSSHClientForServer(ctx, rootLBName, o.commonPf.GetCloudletExternalNetwork())
+	if len(vmGroupParams.Subnets) > 0 {
+		err := o.populateParams(ctx, vmGroupParams, heatCreate)
 		if err != nil {
-			return fmt.Errorf("unable to get rootlb SSH client: %v", err)
+			return err
 		}
-		return o.commonPf.AttachAndEnableRootLBInterface(ctx, client, rootLBName, cp.RootLBPortName, cp.GatewayIP)
 	}
-	return nil
+	return o.CreateHeatStackFromTemplate(ctx, vmGroupParams, vmGroupParams.GroupName, VmGroupTemplate, updateCallback)
 }
 
-//HeatCreateAppVM creates an App VM
-func (o *OpenstackPlatform) HeatCreateAppVM(ctx context.Context, vmAppParams *infracommon.VMParams, updateCallback edgeproto.CacheUpdateCallback) error {
-	return o.CreateHeatStackFromTemplate(ctx, vmAppParams, vmAppParams.VMName, VmTemplate, updateCallback)
-}
+func (o *OpenstackPlatform) HeatUpdateVMs(ctx context.Context, vmGroupParams *vmlayer.VMGroupParams, updateCallback edgeproto.CacheUpdateCallback) error {
+	log.SpanLog(ctx, log.DebugLevelInfra, "HeatUpdateVMs", "vmGroupParams", vmGroupParams)
 
-// HeatCreateAppVMWithRootLB creates a VM accessed via a new rootLB
-func (o *OpenstackPlatform) HeatCreateAppVMWithRootLB(ctx context.Context, vmAppParams *infracommon.VMParams, rootLBParams *infracommon.VMParams, updateCallback edgeproto.CacheUpdateCallback) error {
-	log.SpanLog(ctx, log.DebugLevelInfra, "HeatCreateAppVMWithRootLB", "vmAppParams", vmAppParams, "rootLBParams", rootLBParams)
-
-	// Floating IPs can also be allocated within the stack and need to be locked as well.
 	heatStackLock.Lock()
 	defer heatStackLock.Unlock()
 
-	var cp ClusterParams
-	cp.ClusterType = clusterTypeVMApp
-	cp.ClusterFirstVMName = vmAppParams.VMName
-	cp.MasterNodeFlavor = vmAppParams.FlavorName
-	cp.ClusterName = vmAppParams.VMName
-	cp.VMParams = rootLBParams
-	cp.VMAppParams = vmAppParams
-
-	_, err := o.populateCommonClusterParamFields(ctx, &cp, rootLBParams.VMName, vmAppParams.CloudletSecurityGroup, heatCreate)
-	if err != nil {
-		return err
-	}
-	log.SpanLog(ctx, log.DebugLevelInfra, "Created ClusterParams", "clusterParams", cp)
-
-	templateString := clusterTemplate + vmTemplateResources
-	err = o.CreateHeatStackFromTemplate(ctx, cp, cp.ClusterName, templateString, updateCallback)
-	if err != nil {
-		return err
-	}
-	client, err := o.commonPf.GetSSHClientForServer(ctx, rootLBParams.VMName, o.commonPf.GetCloudletExternalNetwork())
-	if err != nil {
-		return fmt.Errorf("unable to get rootlb SSH client: %v", err)
-	}
-	if cp.RootLBPortName != "" {
-		return o.commonPf.AttachAndEnableRootLBInterface(ctx, client, rootLBParams.VMName, cp.RootLBPortName, cp.GatewayIP)
-	}
-	return nil
-}
-
-// HeatUpdateCluster updates a cluster which may optionally include a dedicated root LB
-func (o *OpenstackPlatform) HeatUpdateCluster(ctx context.Context, clusterInst *edgeproto.ClusterInst, privacyPolicy *edgeproto.PrivacyPolicy, rootLBName string, imgName string, dedicatedRootLB bool, updateCallback edgeproto.CacheUpdateCallback) error {
-	log.SpanLog(ctx, log.DebugLevelInfra, "HeatUpdateCluster", "clusterInst", clusterInst, "rootLBName", rootLBName, "dedicatedRootLB", dedicatedRootLB)
-
-	cp, err := o.getClusterParams(ctx, clusterInst, privacyPolicy, rootLBName, imgName, dedicatedRootLB, heatUpdate)
-	if err != nil {
-		return err
-	}
-
-	templateString := clusterTemplate
-	//append the VM resources for the rootLB is specified
-	if dedicatedRootLB {
-		templateString += vmTemplateResources
-	}
-	err = o.UpdateHeatStackFromTemplate(ctx, cp, cp.ClusterName, templateString, updateCallback)
-	if err != nil {
-		return err
-	}
-	// It it is possible this cluster was created before the default was to use a router
-	if cp.RootLBPortName != "" {
-		client, err := o.commonPf.GetSSHClientForServer(ctx, rootLBName, o.commonPf.GetCloudletExternalNetwork())
+	if len(vmGroupParams.Subnets) > 0 {
+		err := o.populateParams(ctx, vmGroupParams, heatUpdate)
 		if err != nil {
-			return fmt.Errorf("unable to get rootlb SSH client: %v", err)
+			return err
 		}
-		return o.commonPf.AttachAndEnableRootLBInterface(ctx, client, rootLBName, cp.RootLBPortName, cp.GatewayIP)
 	}
-	return nil
+	return o.UpdateHeatStackFromTemplate(ctx, vmGroupParams, vmGroupParams.GroupName, VmGroupTemplate, updateCallback)
 }

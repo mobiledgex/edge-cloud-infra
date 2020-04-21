@@ -1,4 +1,4 @@
-package infracommon
+package vmlayer
 
 import (
 	"context"
@@ -19,7 +19,7 @@ type ServerDetail struct {
 	Status    string
 }
 
-func (c *CommonPlatform) GetIPFromServerDetails(ctx context.Context, networkName string, sd *ServerDetail) (*ServerIP, error) {
+func (c *VMPlatform) GetIPFromServerDetails(ctx context.Context, networkName string, sd *ServerDetail) (*ServerIP, error) {
 	log.SpanLog(ctx, log.DebugLevelInfra, "GetIPFromServerDetails", "networkName", networkName, "serverDetail", sd)
 	for _, s := range sd.Addresses {
 		if s.Network == networkName {

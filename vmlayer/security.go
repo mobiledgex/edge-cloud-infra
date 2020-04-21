@@ -1,9 +1,10 @@
-package infracommon
+package vmlayer
 
 import (
 	"context"
 	"fmt"
 
+	"github.com/mobiledgex/edge-cloud-infra/infracommon"
 	"github.com/mobiledgex/edge-cloud/cloud-resource-manager/access"
 	"github.com/mobiledgex/edge-cloud/cloud-resource-manager/dockermgmt"
 	"github.com/mobiledgex/edge-cloud/cloud-resource-manager/k8smgmt"
@@ -13,8 +14,13 @@ import (
 	ssh "github.com/mobiledgex/golang-ssh"
 )
 
+// GetServerSecurityGroupName gets the secgrp name based on the server name
+func (c *VMPlatform) GetServerSecurityGroupName(serverName string) string {
+	return serverName + "-sg"
+}
+
 // AddProxySecurityRulesAndPatchDNS Adds security rules and dns records in parallel
-func (c *CommonPlatform) AddProxySecurityRulesAndPatchDNS(ctx context.Context, client ssh.Client, kubeNames *k8smgmt.KubeNames, app *edgeproto.App, appInst *edgeproto.AppInst, getDnsSvcAction GetDnsSvcActionFunc, rootLBName, listenIP, backendIP string, ops ProxyDnsSecOpts, proxyops ...proxy.Op) error {
+func (v *VMPlatform) AddProxySecurityRulesAndPatchDNS(ctx context.Context, client ssh.Client, kubeNames *k8smgmt.KubeNames, app *edgeproto.App, appInst *edgeproto.AppInst, getDnsSvcAction infracommon.GetDnsSvcActionFunc, rootLBName, listenIP, backendIP string, ops ProxyDnsSecOpts, proxyops ...proxy.Op) error {
 	secchan := make(chan string)
 	dnschan := make(chan string)
 	proxychan := make(chan string)
@@ -47,7 +53,7 @@ func (c *CommonPlatform) AddProxySecurityRulesAndPatchDNS(ctx context.Context, c
 	}()
 	go func() {
 		if ops.AddSecurityRules {
-			err := c.infraProvider.WhitelistSecurityRules(ctx, c.GetServerSecurityGroupName(rootLBName), rootLBName, GetAllowedClientCIDR(), appInst.MappedPorts)
+			err := v.vmProvider.WhitelistSecurityRules(ctx, v.GetServerSecurityGroupName(rootLBName), rootLBName, GetAllowedClientCIDR(), appInst.MappedPorts)
 			if err == nil {
 				secchan <- ""
 			} else {
@@ -59,7 +65,7 @@ func (c *CommonPlatform) AddProxySecurityRulesAndPatchDNS(ctx context.Context, c
 	}()
 	go func() {
 		if ops.AddDnsAndPatchKubeSvc {
-			err := c.CreateAppDNSAndPatchKubeSvc(ctx, client, kubeNames, aac.DnsOverride, getDnsSvcAction)
+			err := v.CommonPf.CreateAppDNSAndPatchKubeSvc(ctx, client, kubeNames, aac.DnsOverride, getDnsSvcAction)
 			if err == nil {
 				dnschan <- ""
 			} else {

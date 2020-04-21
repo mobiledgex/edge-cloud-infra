@@ -5,16 +5,15 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/mobiledgex/edge-cloud-infra/infracommon"
 	"github.com/mobiledgex/edge-cloud/log"
 
 	ssh "github.com/mobiledgex/golang-ssh"
 )
 
-func (c *OpenstackPlatform) NetworkSetupForRootLB(ctx context.Context, client ssh.Client, rootLBName string) error {
+func (o *OpenstackPlatform) NetworkSetupForRootLB(ctx context.Context, client ssh.Client, rootLBName string) error {
 	log.SpanLog(ctx, log.DebugLevelInfra, "Adding route to reach internal networks", "rootLBName", rootLBName)
 
-	ni, err := infracommon.ParseNetSpec(ctx, c.commonPf.GetCloudletNetworkScheme())
+	ni, err := vmlayer.ParseNetSpec(ctx, o.vmPlatform.GetCloudletNetworkScheme())
 	if err != nil {
 		return err
 	}
@@ -34,10 +33,10 @@ func (c *OpenstackPlatform) NetworkSetupForRootLB(ctx context.Context, client ss
 	subnetNomask := fmt.Sprintf("%s.%s.0.0", ni.Octets[0], ni.Octets[1])
 	mask := "255.255.0.0"
 
-	rtr := c.GetCloudletExternalRouter()
+	rtr := o.vmPlatform.GetCloudletExternalRouter()
 	gatewayIP := ni.RouterGatewayIP
-	if gatewayIP == "" && rtr != infracommon.NoConfigExternalRouter && rtr != infracommon.NoExternalRouter {
-		rd, err := c.GetRouterDetail(ctx, c.GetCloudletExternalRouter())
+	if gatewayIP == "" && rtr != vmlayer.NoConfigExternalRouter && rtr != vmlayer.NoExternalRouter {
+		rd, err := o.GetRouterDetail(ctx, o.vmPlatform.GetCloudletExternalRouter())
 		if err != nil {
 			return err
 		}
@@ -70,7 +69,7 @@ func (c *OpenstackPlatform) NetworkSetupForRootLB(ctx context.Context, client ss
 
 		// make the route persist by adding the following line if not already present via grep.
 		routeAddLine := fmt.Sprintf("up route add -net %s netmask %s gw %s", subnetNomask, mask, gatewayIP)
-		interfacesFile := infracommon.GetCloudletNetworkIfaceFile()
+		interfacesFile := vmlayer.GetCloudletNetworkIfaceFile()
 		cmd = fmt.Sprintf("grep -l '%s' %s", routeAddLine, interfacesFile)
 		out, err = client.Output(cmd)
 		if err != nil {

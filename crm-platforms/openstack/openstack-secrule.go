@@ -36,7 +36,7 @@ func setCachedCloudletSecgrpID(ctx context.Context, keyString, groupID string) {
 // GetCloudletSecurityGroupID gets the group ID for the default cloudlet-wide group for our project.  It handles
 // duplicate names.  This group should not be used for application traffic, it is for management/OAM/CRM access.
 func (s *OpenstackPlatform) GetCloudletSecurityGroupID(ctx context.Context, cloudletKey *edgeproto.CloudletKey) (string, error) {
-	groupName := s.commonPf.GetCloudletSecurityGroupName()
+	groupName := s.vmPlatform.GetCloudletSecurityGroupName()
 	keyString := cloudletKey.GetKeyString()
 
 	log.SpanLog(ctx, log.DebugLevelInfra, "GetCloudletSecurityGroupID", "groupName", groupName, "keyString", keyString)
@@ -101,7 +101,7 @@ func (s *OpenstackPlatform) AddSecurityRuleCIDRWithRetry(ctx context.Context, ci
 			log.SpanLog(ctx, log.DebugLevelInfra, "security group does not exist, creating it", "groupName", group)
 
 			// LB can have multiple ports attached.  We need to assign this SG to the external network port only
-			ports, err := s.ListPortsServerNetwork(ctx, serverName, s.commonPf.GetCloudletExternalNetwork())
+			ports, err := s.ListPortsServerNetwork(ctx, serverName, s.vmPlatform.GetCloudletExternalNetwork())
 			if err != nil {
 				return err
 			}

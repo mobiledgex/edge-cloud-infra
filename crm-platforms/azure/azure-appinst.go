@@ -101,7 +101,7 @@ func (s *AzurePlatform) DeleteAppInst(ctx context.Context, clusterInst *edgeprot
 	if app.InternalPorts {
 		return nil
 	}
-	return s.commonPf.DeleteAppDNS(ctx, client, names, infracommon.NoDnsOverride)
+	return s.vmPlatform.DeleteAppDNS(ctx, client, names, infracommon.NoDnsOverride)
 }
 
 func (a *AzurePlatform) SetupKconf(ctx context.Context, clusterInst *edgeproto.ClusterInst) error {

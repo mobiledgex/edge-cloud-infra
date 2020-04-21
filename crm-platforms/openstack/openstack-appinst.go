@@ -14,23 +14,23 @@ import (
 )
 
 func (o *OpenstackPlatform) CreateAppInst(ctx context.Context, clusterInst *edgeproto.ClusterInst, app *edgeproto.App, appInst *edgeproto.AppInst, appFlavor *edgeproto.Flavor, privacyPolicy *edgeproto.PrivacyPolicy, updateCallback edgeproto.CacheUpdateCallback) error {
-	return o.commonPf.CreateAppInst(ctx, clusterInst, app, appInst, appFlavor, privacyPolicy, updateCallback)
+	return o.vmPlatform.CreateAppInst(ctx, clusterInst, app, appInst, appFlavor, privacyPolicy, updateCallback)
 }
 
 func (o *OpenstackPlatform) DeleteAppInst(ctx context.Context, clusterInst *edgeproto.ClusterInst, app *edgeproto.App, appInst *edgeproto.AppInst) error {
-	return o.commonPf.DeleteAppInst(ctx, clusterInst, app, appInst)
+	return o.vmPlatform.DeleteAppInst(ctx, clusterInst, app, appInst)
 }
 
 func (o *OpenstackPlatform) UpdateAppInst(ctx context.Context, clusterInst *edgeproto.ClusterInst, app *edgeproto.App, appInst *edgeproto.AppInst, updateCallback edgeproto.CacheUpdateCallback) error {
-	return o.commonPf.UpdateAppInst(ctx, clusterInst, app, appInst, updateCallback)
+	return o.vmPlatform.UpdateAppInst(ctx, clusterInst, app, appInst, updateCallback)
 }
 
 func (o *OpenstackPlatform) GetAppInstRuntime(ctx context.Context, clusterInst *edgeproto.ClusterInst, app *edgeproto.App, appInst *edgeproto.AppInst) (*edgeproto.AppInstRuntime, error) {
-	return o.commonPf.GetAppInstRuntime(ctx, clusterInst, app, appInst)
+	return o.vmPlatform.GetAppInstRuntime(ctx, clusterInst, app, appInst)
 }
 
 func (o *OpenstackPlatform) GetContainerCommand(ctx context.Context, clusterInst *edgeproto.ClusterInst, app *edgeproto.App, appInst *edgeproto.AppInst, req *edgeproto.ExecRequest) (string, error) {
-	return o.commonPf.GetContainerCommand(ctx, clusterInst, app, appInst, req)
+	return o.vmPlatform.GetContainerCommand(ctx, clusterInst, app, appInst, req)
 }
 
 func (o *OpenstackPlatform) GetConsoleUrl(ctx context.Context, app *edgeproto.App) (string, error) {
@@ -86,7 +86,7 @@ func (o *OpenstackPlatform) SetPowerState(ctx context.Context, app *edgeproto.Ap
 		}
 
 		updateCallback(edgeproto.UpdateTask, fmt.Sprintf("Fetching external address of %s", serverName))
-		oldServerIP, err := o.GetIPFromServerName(ctx, o.commonPf.GetCloudletExternalNetwork(), serverName)
+		oldServerIP, err := o.GetIPFromServerName(ctx, o.vmPlatform.GetCloudletExternalNetwork(), serverName)
 		if err != nil || oldServerIP.ExternalAddr == "" {
 			return fmt.Errorf("unable to fetch external ip for %s, err %v", serverName, err)
 		}
@@ -104,7 +104,7 @@ func (o *OpenstackPlatform) SetPowerState(ctx context.Context, app *edgeproto.Ap
 				return err
 			}
 			updateCallback(edgeproto.UpdateTask, fmt.Sprintf("Fetching external address of %s", serverName))
-			newServerIP, err := o.GetIPFromServerName(ctx, o.commonPf.GetCloudletExternalNetwork(), serverName)
+			newServerIP, err := o.GetIPFromServerName(ctx, o.vmPlatform.GetCloudletExternalNetwork(), serverName)
 			if err != nil || newServerIP.ExternalAddr == "" {
 				return fmt.Errorf("unable to fetch external ip for %s, addr %s, err %v", serverName, serverDetail.Addresses, err)
 			}
@@ -112,7 +112,7 @@ func (o *OpenstackPlatform) SetPowerState(ctx context.Context, app *edgeproto.Ap
 				// IP changed, update DNS entry
 				updateCallback(edgeproto.UpdateTask, fmt.Sprintf("Updating DNS entry as IP changed for %s", serverName))
 				log.SpanLog(ctx, log.DebugLevelInfra, "updating DNS entry", "serverName", serverName, "fqdn", fqdn, "ip", newServerIP)
-				err = o.commonPf.ActivateFQDNA(ctx, fqdn, newServerIP.ExternalAddr)
+				err = o.vmPlatform.CommonPf.ActivateFQDNA(ctx, fqdn, newServerIP.ExternalAddr)
 				if err != nil {
 					return fmt.Errorf("unable to update fqdn for %s, addr %s, err %v", serverName, newServerIP.ExternalAddr, err)
 				}
@@ -131,7 +131,7 @@ func (o *OpenstackPlatform) AddAppImageIfNotPresent(ctx context.Context, app *ed
 	if err != nil {
 		return err
 	}
-	sourceImageTime, md5Sum, err := infracommon.GetUrlInfo(ctx, o.commonPf.VaultConfig, app.ImagePath)
+	sourceImageTime, md5Sum, err := infracommon.GetUrlInfo(ctx, o.vmPlatform.CommonPf.VaultConfig, app.ImagePath)
 	imageDetail, err := o.GetImageDetail(ctx, imageName)
 	createImage := false
 	if err != nil {
@@ -177,74 +177,4 @@ func (o *OpenstackPlatform) AddAppImageIfNotPresent(ctx context.Context, app *ed
 		}
 	}
 	return nil
-}
-
-func (o *OpenstackPlatform) GetVMParams(ctx context.Context, depType infracommon.DeploymentType, serverName, flavorName string, externalVolumeSize uint64, imageName, secGrp string, cloudletKey *edgeproto.CloudletKey, opts ...infracommon.VMParamsOp) (*infracommon.VMParams, error) {
-	var vmp infracommon.VMParams
-	var err error
-	vmp.VMName = serverName
-	vmp.FlavorName = flavorName
-	vmp.ExternalVolumeSize = externalVolumeSize
-	vmp.ImageName = imageName
-	vmp.ApplicationSecurityGroup = secGrp
-	for _, op := range opts {
-		if err := op(&vmp); err != nil {
-			return nil, err
-		}
-	}
-	if vmp.PrivacyPolicy == nil {
-		vmp.PrivacyPolicy = &edgeproto.PrivacyPolicy{}
-	}
-	ni, err := infracommon.ParseNetSpec(ctx, o.commonPf.GetCloudletNetworkScheme())
-	if err != nil {
-		// The netspec should always be present but is not set when running OpenStack from the controller.
-		// For now, tolerate this as it will work with default settings but not anywhere that requires a non-default
-		// netspec.  TODO This meeds a general fix to allow CreateCloudlet to work with floating IPs.
-		log.SpanLog(ctx, log.DebugLevelInfra, "WARNING, empty netspec")
-	}
-	if depType != infracommon.UserVMDeployment {
-		vmp.IsInternal = true
-	}
-	if depType == infracommon.RootLBVMDeployment {
-		vmp.GatewayIP, err = o.GetExternalGateway(ctx, o.commonPf.GetCloudletExternalNetwork())
-		if err != nil {
-			return nil, err
-		}
-		vmp.MEXRouterIP, err = o.GetMexRouterIP(ctx)
-		if err != nil {
-			return nil, err
-		}
-		vmp.IsRootLB = true
-		if cloudletKey == nil {
-			return nil, fmt.Errorf("nil cloudlet key")
-		}
-		cloudletGrp, err := o.GetCloudletSecurityGroupID(ctx, cloudletKey)
-		if err != nil {
-			return nil, err
-		}
-		vmp.CloudletSecurityGroup = cloudletGrp
-
-	}
-	if ni != nil && ni.FloatingIPNet != "" {
-		fips, err := o.ListFloatingIPs(ctx)
-		for _, f := range fips {
-			if f.Port == "" && f.FloatingIPAddress != "" {
-				vmp.FloatingIPAddressID = f.ID
-			}
-		}
-		if vmp.FloatingIPAddressID == "" {
-			return nil, fmt.Errorf("Unable to allocate a floating IP")
-		}
-		if err != nil {
-			return nil, fmt.Errorf("Unable to list floating IPs %v", err)
-		}
-		vmp.NetworkName = ni.FloatingIPNet
-		vmp.SubnetName = ni.FloatingIPSubnet
-	} else {
-		vmp.NetworkName = o.commonPf.GetCloudletExternalNetwork()
-	}
-	if ni != nil {
-		vmp.VnicType = ni.VnicType
-	}
-	return &vmp, nil
 }

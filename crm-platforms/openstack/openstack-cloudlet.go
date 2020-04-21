@@ -12,6 +12,7 @@ import (
 
 	intprocess "github.com/mobiledgex/edge-cloud-infra/e2e-tests/int-process"
 	"github.com/mobiledgex/edge-cloud-infra/infracommon"
+	"github.com/mobiledgex/edge-cloud-infra/vmlayer"
 	"github.com/mobiledgex/edge-cloud/cloudcommon"
 	"github.com/mobiledgex/edge-cloud/edgeproto"
 	"github.com/mobiledgex/edge-cloud/log"
@@ -182,10 +183,10 @@ func (o *OpenstackPlatform) setupPlatformService(ctx context.Context, cloudlet *
 	); err != nil {
 		updateCallback(edgeproto.UpdateTask, "Adding route for API endpoint as it is unreachable")
 		// Fetch gateway IP of external network
-		gatewayAddr, err := o.GetExternalGateway(ctx, o.commonPf.GetCloudletExternalNetwork())
+		gatewayAddr, err := o.GetExternalGateway(ctx, o.vmPlatform.GetCloudletExternalNetwork())
 		if err != nil {
 			return fmt.Errorf("unable to fetch gateway IP for external network: %s, %v",
-				o.commonPf.GetCloudletExternalNetwork(), err)
+				o.vmPlatform.GetCloudletExternalNetwork(), err)
 		}
 		// Add route to reach API endpoint
 		if out, err := client.Output(
@@ -195,7 +196,7 @@ func (o *OpenstackPlatform) setupPlatformService(ctx context.Context, cloudlet *
 		); err != nil {
 			return fmt.Errorf("unable to add route to reach API endpoint: %v, %s\n", err, out)
 		}
-		interfacesFile := infracommon.GetCloudletNetworkIfaceFile()
+		interfacesFile := vmlayer.GetCloudletNetworkIfaceFile()
 		routeAddLine := fmt.Sprintf("up route add -host %s gw %s", urlObj.Hostname(), gatewayAddr)
 		cmd := fmt.Sprintf("grep -l '%s' %s", routeAddLine, interfacesFile)
 		_, err = client.Output(cmd)
@@ -278,61 +279,50 @@ func (o *OpenstackPlatform) setupPlatformVM(ctx context.Context, cloudlet *edgep
 		return nil, err
 	}
 	// Get Closest Platform Flavor
-	vmspec, err := vmspec.GetVMSpec(finfo, *pfFlavor)
+	platformVmName := o.getPlatformVMName(&cloudlet.Key)
 	if err != nil {
-		return nil, fmt.Errorf("unable to find matching vm spec for platform: %v", err)
+		return nil, fmt.Errorf("unable to find VM spec for Shared RootLB: %v", err)
 	}
-
+	vmspec, err := vmspec.GetVMSpec(o.vmPlatform.FlavorList, *pfFlavor)
+	if err != nil {
+		return nil, fmt.Errorf("unable to find VM spec for Shared RootLB: %v", err)
+	}
+	az := vmspec.AvailabilityZone
+	if az == "" {
+		az = o.vmPlatform.GetCloudletComputeAvailabilityZone()
+	}
 	pfImageName, err := o.AddCloudletImageIfNotPresent(ctx, pfConfig.CloudletVmImagePath, cloudlet.VmImageVersion, updateCallback)
 	if err != nil {
 		return nil, err
 	}
-
-	// Form platform VM name based on cloudletKey
-	platform_vm_name := o.getPlatformVMName(&cloudlet.Key)
-	secGrp := o.commonPf.GetServerSecurityGroupName(platform_vm_name)
-
-	vmp, err := o.GetVMParams(ctx,
-		infracommon.PlatformVMDeployment,
-		platform_vm_name,
-		vmspec.FlavorName,
-		vmspec.ExternalVolumeSize,
-		pfImageName,
-		secGrp,
-		&cloudlet.Key,
-		infracommon.WithAccessPorts("tcp:22"),
-	)
+	vmreqspec, err := o.vmPlatform.GetVMRequestSpec(ctx, vmlayer.VMTypePlatform, pfImageName, platformVmName, vmspec.FlavorName, true, false, vmlayer.WithExternalVolume(vmspec.ExternalVolumeSize))
+	var vms []*vmlayer.VMRequestSpec
+	vms = append(vms, vmreqspec)
+	vmgp, err := o.vmPlatform.GetVMGroupParamsFromVMSpec(ctx, platformVmName, vms, vmlayer.WithAccessPorts("tcp:22"))
 	if err != nil {
-		return nil, fmt.Errorf("unable to get vm params: %v", err)
+		return nil, err
 	}
+
+	log.SpanLog(ctx, log.DebugLevelInfra, "created vm group parms", "vmgp", vmgp)
 
 	// Deploy Platform VM
 	updateCallback(edgeproto.UpdateTask, "Deploying Platform VM")
-	log.SpanLog(ctx, log.DebugLevelInfra, "Deploying VM", "stackName", platform_vm_name, "vmspec", vmspec)
-	err = o.CreateHeatStackFromTemplate(ctx, vmp, platform_vm_name, VmTemplate, updateCallback)
+	log.SpanLog(ctx, log.DebugLevelInfra, "Deploying VM", "stackName", platformVmName, "vmspec", vmspec)
+	err = o.CreateVMs(ctx, vmgp, updateCallback)
 	if err != nil {
-		return nil, fmt.Errorf("CreatePlatformVM error: %v", err)
+		return nil, fmt.Errorf("Platform createVMs fail: %v", err)
 	}
 	updateCallback(edgeproto.UpdateTask, "Successfully Deployed Platform VM")
-
-	ip, err := o.GetIPFromServerName(ctx, o.commonPf.GetCloudletExternalNetwork(), platform_vm_name)
+	ip, err := o.GetIPFromServerName(ctx, o.vmPlatform.GetCloudletExternalNetwork(), platformVmName)
 	if err != nil {
 		return nil, err
 	}
 	updateCallback(edgeproto.UpdateTask, "Platform VM external IP: "+ip.ExternalAddr)
 
-	client, err := o.commonPf.GetSSHClientForServer(ctx, platform_vm_name, o.commonPf.GetCloudletExternalNetwork())
+	client, err := o.vmPlatform.GetSSHClientForServer(ctx, platformVmName, o.vmPlatform.GetCloudletExternalNetwork())
 	if err != nil {
 		return nil, err
 	}
-
-	// setup SSH access to cloudlet for CRM
-	updateCallback(edgeproto.UpdateTask, "Setting up security group for SSH access")
-
-	if err := o.AddSecurityRuleCIDR(ctx, ip.ExternalAddr, "tcp", secGrp, "22"); err != nil {
-		return nil, fmt.Errorf("unable to add security rule for ssh access, err: %v", err)
-	}
-
 	return client, nil
 }
 
@@ -472,14 +462,14 @@ func (o *OpenstackPlatform) DeleteCloudlet(ctx context.Context, cloudlet *edgepr
 		return nil
 	}
 
-	platform_vm_name := o.getPlatformVMName(&cloudlet.Key)
-	updateCallback(edgeproto.UpdateTask, fmt.Sprintf("Deleting PlatformVM %s", platform_vm_name))
-	err = o.HeatDeleteStack(ctx, platform_vm_name)
+	platformVMName := o.getPlatformVMName(&cloudlet.Key)
+	updateCallback(edgeproto.UpdateTask, fmt.Sprintf("Deleting PlatformVM %s", platformVMName))
+	err = o.HeatDeleteStack(ctx, platformVMName)
 	if err != nil {
 		return fmt.Errorf("DeleteCloudlet error: %v", err)
 	}
 
-	rootLBName := o.commonPf.GetRootLBName(&cloudlet.Key)
+	rootLBName := o.vmProvider.GetRootLBName(&cloudlet.Key)
 	updateCallback(edgeproto.UpdateTask, fmt.Sprintf("Deleting RootLB %s", rootLBName))
 	err = o.HeatDeleteStack(ctx, rootLBName)
 	if err != nil {
@@ -567,7 +557,7 @@ func (o *OpenstackPlatform) UpdateCloudlet(ctx context.Context, cloudlet *edgepr
 		return defCloudletAction, err
 	}
 
-	pfClient, err := o.commonPf.GetSSHClientForServer(ctx, o.getPlatformVMName(&cloudlet.Key), o.commonPf.GetCloudletExternalNetwork())
+	pfClient, err := s.vmProvider.GetSSHClientForServer(ctx, o.getPlatformVMName(&cloudlet.Key), s.vmProvider.GetCloudletExternalNetwork())
 	if err != nil {
 		return defCloudletAction, err
 	}
@@ -578,7 +568,7 @@ func (o *OpenstackPlatform) UpdateCloudlet(ctx context.Context, cloudlet *edgepr
 	}
 
 	rootLBName := cloudcommon.GetRootLBFQDN(&cloudlet.Key)
-	rlbClient, err := o.commonPf.GetSSHClientForServer(ctx, rootLBName, o.commonPf.GetCloudletExternalNetwork())
+	rlbClient, err := s.vmProvider.GetSSHClientForServer(ctx, rootLBName, s.vmProvider.GetCloudletExternalNetwork())
 	if err != nil {
 		return defCloudletAction, err
 	}
@@ -666,7 +656,7 @@ func (o *OpenstackPlatform) UpdateCloudlet(ctx context.Context, cloudlet *edgepr
 func (o *OpenstackPlatform) CleanupCloudlet(ctx context.Context, cloudlet *edgeproto.Cloudlet, pfConfig *edgeproto.PlatformConfig, updateCallback edgeproto.CacheUpdateCallback) error {
 	log.SpanLog(ctx, log.DebugLevelInfra, "Cleaning up cloudlet", "cloudletName", cloudlet.Key.Name)
 
-	client, err := o.commonPf.GetSSHClientForServer(ctx, o.getPlatformVMName(&cloudlet.Key), o.commonPf.GetCloudletExternalNetwork())
+	client, err := s.vmProvider.GetSSHClientForServer(ctx, o.getPlatformVMName(&cloudlet.Key), s.vmProvider.GetCloudletExternalNetwork())
 	if err != nil {
 		return err
 	}

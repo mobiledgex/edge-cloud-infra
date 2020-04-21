@@ -5,7 +5,8 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/mobiledgex/edge-cloud-infra/infracommon"
+	"github.com/mobiledgex/edge-cloud-infra/vmlayer"
+
 	"github.com/mobiledgex/edge-cloud/cloud-resource-manager/k8smgmt"
 	"github.com/mobiledgex/edge-cloud/cloudcommon"
 	"github.com/mobiledgex/edge-cloud/edgeproto"
@@ -20,15 +21,15 @@ func (s *OpenstackPlatform) GetClusterMasterNameAndIP(ctx context.Context, clust
 		return "", "", fmt.Errorf("error getting server list: %v", err)
 
 	}
-	namePrefix := ClusterTypeKubernetesMasterLabel
+	namePrefix := vmlayer.ClusterTypeKubernetesMasterLabel
 	if clusterInst.Deployment == cloudcommon.AppDeploymentTypeDocker {
-		namePrefix = ClusterTypeDockerVMLabel
+		namePrefix = vmlayer.ClusterTypeDockerVMLabel
 	}
 
 	nodeNameSuffix := k8smgmt.GetK8sNodeNameSuffix(&clusterInst.Key)
 	masterName, err := s.FindClusterMaster(ctx, namePrefix, nodeNameSuffix, srvs)
 	if err != nil {
-		return "", "", fmt.Errorf("%s -- %s, %v", infracommon.ServerDoesNotExistError, nodeNameSuffix, err)
+		return "", "", fmt.Errorf("%s -- %s, %v", vmlayer.ServerDoesNotExistError, nodeNameSuffix, err)
 	}
 	masterIP, err := s.FindNodeIP(masterName, srvs)
 	return masterName, masterIP, err
@@ -39,9 +40,9 @@ func (o *OpenstackPlatform) UpdateClusterInst(ctx context.Context, clusterInst *
 }
 
 func (o *OpenstackPlatform) CreateClusterInst(ctx context.Context, clusterInst *edgeproto.ClusterInst, privacyPolicy *edgeproto.PrivacyPolicy, updateCallback edgeproto.CacheUpdateCallback, timeout time.Duration) error {
-	return o.commonPf.CreateClusterInst(ctx, clusterInst, privacyPolicy, updateCallback, timeout)
+	return s.vmProvider.CreateClusterInst(ctx, clusterInst, privacyPolicy, updateCallback, timeout)
 }
 
 func (o *OpenstackPlatform) DeleteClusterInst(ctx context.Context, clusterInst *edgeproto.ClusterInst) error {
-	return o.commonPf.DeleteClusterInst(ctx, clusterInst)
+	return s.vmProvider.DeleteClusterInst(ctx, clusterInst)
 }

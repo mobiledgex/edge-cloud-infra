@@ -10,11 +10,11 @@ import (
 	"github.com/mobiledgex/edge-cloud/edgeproto"
 )
 
-func (s *OpenstackPlatform) initDebug(nodeMgr *node.NodeMgr) {
+func (o *OpenstackPlatform) initDebug(nodeMgr *node.NodeMgr) {
 	nodeMgr.Debug.AddDebugFunc("oscmd", s.runOsCmd)
 }
 
-func (s *OpenstackPlatform) runOsCmd(ctx context.Context, req *edgeproto.DebugRequest) string {
+func (o *OpenstackPlatform) runOsCmd(ctx context.Context, req *edgeproto.DebugRequest) string {
 	if req.Args == "" {
 		return "please specify openstack command in args field"
 	}

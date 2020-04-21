@@ -10,7 +10,6 @@ import (
 
 	"github.com/gogo/protobuf/types"
 	"github.com/mobiledgex/edge-cloud-infra/crm-platforms/openstack"
-	"github.com/mobiledgex/edge-cloud-infra/infracommon"
 	"github.com/mobiledgex/edge-cloud-infra/shepherd/shepherd_common"
 	"github.com/mobiledgex/edge-cloud/cloudcommon"
 	"github.com/mobiledgex/edge-cloud/edgeproto"
@@ -26,7 +25,7 @@ type ShepherdPlatform struct {
 	rootLbName      string
 	SharedClient    ssh.Client
 	pf              openstack.OpenstackPlatform
-	commonPf        infracommon.CommonPlatform
+	vmPlatform      vmlayer.VMPlatform
 	collectInterval time.Duration
 	vaultConfig     *vault.Config
 }
@@ -48,7 +47,7 @@ func (s *ShepherdPlatform) Init(ctx context.Context, key *edgeproto.CloudletKey,
 	}
 	//need to have a separate one for dedicated rootlbs, see openstack.go line 111,
 	s.rootLbName = cloudcommon.GetRootLBFQDN(key)
-	s.SharedClient, err = s.commonPf.GetSSHClientForServer(ctx, s.rootLbName, s.commonPf.GetCloudletExternalNetwork())
+	s.SharedClient, err = s.vmPlatform.GetSSHClientForServer(ctx, s.rootLbName, s.vmPlatform.GetCloudletExternalNetwork())
 	if err != nil {
 		return err
 	}
@@ -70,7 +69,7 @@ func (s *ShepherdPlatform) GetClusterIP(ctx context.Context, clusterInst *edgepr
 func (s *ShepherdPlatform) GetPlatformClient(ctx context.Context, clusterInst *edgeproto.ClusterInst) (ssh.Client, error) {
 	if clusterInst != nil && clusterInst.IpAccess == edgeproto.IpAccess_IP_ACCESS_DEDICATED {
 		rootLb := cloudcommon.GetDedicatedLBFQDN(&clusterInst.Key.CloudletKey, &clusterInst.Key.ClusterKey)
-		pc, err := s.commonPf.GetSSHClientForServer(ctx, rootLb, s.commonPf.GetCloudletExternalNetwork())
+		pc, err := s.vmPlatform.GetSSHClientForServer(ctx, rootLb, s.vmPlatform.GetCloudletExternalNetwork())
 		return pc, err
 	} else {
 		return s.SharedClient, nil
@@ -111,7 +110,7 @@ func getIpCountFromPools(ipPools string) (uint64, error) {
 }
 
 func (s *ShepherdPlatform) addIpUsageDetails(ctx context.Context, metric *shepherd_common.CloudletMetrics) error {
-	externalNet, err := s.pf.GetNetworkDetail(ctx, s.commonPf.GetCloudletExternalNetwork())
+	externalNet, err := s.pf.GetNetworkDetail(ctx, s.vmPlatform.GetCloudletExternalNetwork())
 	if err != nil {
 		return err
 	}
@@ -134,7 +133,7 @@ func (s *ShepherdPlatform) addIpUsageDetails(ctx context.Context, metric *shephe
 	}
 	metric.Ipv4Used = 0
 	for _, srv := range srvs {
-		if strings.Contains(srv.Networks, s.commonPf.GetCloudletExternalNetwork()) {
+		if strings.Contains(srv.Networks, s.vmPlatform.GetCloudletExternalNetwork()) {
 			metric.Ipv4Used++
 		}
 	}

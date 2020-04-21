@@ -1,4 +1,4 @@
-package infracommon
+package vmlayer
 
 import (
 	"context"
@@ -8,12 +8,12 @@ import (
 	"strings"
 	"time"
 
+	"github.com/mobiledgex/edge-cloud-infra/infracommon"
 	"github.com/mobiledgex/edge-cloud/cloud-resource-manager/k8smgmt"
 	"github.com/mobiledgex/edge-cloud/cloud-resource-manager/proxy"
 	"github.com/mobiledgex/edge-cloud/cloudcommon"
 	"github.com/mobiledgex/edge-cloud/edgeproto"
 	"github.com/mobiledgex/edge-cloud/log"
-	"github.com/mobiledgex/edge-cloud/vmspec"
 	ssh "github.com/mobiledgex/golang-ssh"
 )
 
@@ -51,119 +51,122 @@ func ParseClusterNodePrefix(name string) (bool, uint32) {
 	num, _ := strconv.Atoi(string(matches[1]))
 	return true, uint32(num)
 }
-func (c *CommonPlatform) GetRootLBNameForCluster(ctx context.Context, clusterInst *edgeproto.ClusterInst) string {
-	lbName := c.SharedRootLBName
+func (v *VMPlatform) GetRootLBNameForCluster(ctx context.Context, clusterInst *edgeproto.ClusterInst) string {
+	lbName := v.sharedRootLBName
 	if clusterInst.IpAccess == edgeproto.IpAccess_IP_ACCESS_DEDICATED {
-		lbName = cloudcommon.GetDedicatedLBFQDN(c.PlatformConfig.CloudletKey, &clusterInst.Key.ClusterKey)
+		lbName = cloudcommon.GetDedicatedLBFQDN(v.CommonPf.PlatformConfig.CloudletKey, &clusterInst.Key.ClusterKey)
 	}
 	return lbName
 }
 
-func (c *CommonPlatform) UpdateClusterInst(ctx context.Context, clusterInst *edgeproto.ClusterInst, privacyPolicy *edgeproto.PrivacyPolicy, updateCallback edgeproto.CacheUpdateCallback) error {
-	lbName := c.GetRootLBNameForCluster(ctx, clusterInst)
-	client, err := c.infraProvider.GetPlatformClient(ctx, clusterInst)
+func (v *VMPlatform) UpdateClusterInst(ctx context.Context, clusterInst *edgeproto.ClusterInst, privacyPolicy *edgeproto.PrivacyPolicy, updateCallback edgeproto.CacheUpdateCallback) error {
+	lbName := v.GetRootLBNameForCluster(ctx, clusterInst)
+	client, err := v.vmProvider.GetPlatformClient(ctx, clusterInst)
 	if err != nil {
 		return err
 	}
 
 	log.SpanLog(ctx, log.DebugLevelInfra, "verify if cloudlet base image exists")
-	imgName, err := c.infraProvider.AddCloudletImageIfNotPresent(ctx, c.PlatformConfig.CloudletVMImagePath, c.PlatformConfig.VMImageVersion, updateCallback)
+	imgName, err := v.vmProvider.AddCloudletImageIfNotPresent(ctx, v.CommonPf.PlatformConfig.CloudletVMImagePath, v.CommonPf.PlatformConfig.VMImageVersion, updateCallback)
 	if err != nil {
 		log.InfoLog("error with cloudlet base image", "imgName", imgName, "error", err)
 		return err
 	}
-	return c.updateClusterInternal(ctx, client, lbName, imgName, clusterInst, privacyPolicy, updateCallback)
+	return v.updateClusterInternal(ctx, client, lbName, imgName, clusterInst, privacyPolicy, updateCallback)
 }
 
-func (c *CommonPlatform) updateClusterInternal(ctx context.Context, client ssh.Client, rootLBName, imgName string, clusterInst *edgeproto.ClusterInst, privacyPolicy *edgeproto.PrivacyPolicy, updateCallback edgeproto.CacheUpdateCallback) (reterr error) {
-	updateCallback(edgeproto.UpdateTask, "Updating Cluster Resources")
+func (v *VMPlatform) updateClusterInternal(ctx context.Context, client ssh.Client, rootLBName, imgName string, clusterInst *edgeproto.ClusterInst, privacyPolicy *edgeproto.PrivacyPolicy, updateCallback edgeproto.CacheUpdateCallback) (reterr error) {
+	return fmt.Errorf("TODO") /*
+		updateCallback(edgeproto.UpdateTask, "Updating Cluster Resources")
 
-	if clusterInst.Deployment == cloudcommon.AppDeploymentTypeKubernetes {
-		// if removing nodes, need to tell kubernetes that nodes are
-		// going away forever so that tolerating pods can be migrated
-		// off immediately.
-		kconfName := k8smgmt.GetKconfName(clusterInst)
-		cmd := fmt.Sprintf("KUBECONFIG=%s kubectl get nodes --no-headers -o custom-columns=Name:.metadata.name", kconfName)
-		out, err := client.Output(cmd)
-		if err != nil {
-			return err
-		}
-		allnodes := strings.Split(strings.TrimSpace(out), "\n")
-		toRemove := []string{}
-		numMaster := uint32(0)
-		numNodes := uint32(0)
-		for _, n := range allnodes {
-			if !strings.HasPrefix(n, cloudcommon.MexNodePrefix) {
-				// skip master
-				numMaster++
-				continue
-			}
-			ok, num := ParseClusterNodePrefix(n)
-			if !ok {
-				log.SpanLog(ctx, log.DebugLevelInfra, "unable to parse node name, ignoring", "name", n)
-				continue
-			}
-			numNodes++
-			// heat will remove the higher-numbered nodes
-			if num > clusterInst.NumNodes {
-				toRemove = append(toRemove, n)
-			}
-		}
-		if len(toRemove) > 0 {
-			log.SpanLog(ctx, log.DebugLevelInfra, "delete nodes", "toRemove", toRemove)
-			err = k8smgmt.DeleteNodes(ctx, client, kconfName, toRemove)
+		if clusterInst.Deployment == cloudcommon.AppDeploymentTypeKubernetes {
+			// if removing nodes, need to tell kubernetes that nodes are
+			// going away forever so that tolerating pods can be migrated
+			// off immediately.
+			kconfName := k8smgmt.GetKconfName(clusterInst)
+			cmd := fmt.Sprintf("KUBECONFIG=%s kubectl get nodes --no-headers -o custom-columns=Name:.metadata.name", kconfName)
+			out, err := client.Output(cmd)
 			if err != nil {
 				return err
 			}
+			allnodes := strings.Split(strings.TrimSpace(out), "\n")
+			toRemove := []string{}
+			numMaster := uint32(0)
+			numNodes := uint32(0)
+			for _, n := range allnodes {
+				if !strings.HasPrefix(n, cloudcommon.MexNodePrefix) {
+					// skip master
+					numMaster++
+					continue
+				}
+				ok, num := ParseClusterNodePrefix(n)
+				if !ok {
+					log.SpanLog(ctx, log.DebugLevelInfra, "unable to parse node name, ignoring", "name", n)
+					continue
+				}
+				numNodes++
+				// heat will remove the higher-numbered nodes
+				if num > clusterInst.NumNodes {
+					toRemove = append(toRemove, n)
+				}
+			}
+			if len(toRemove) > 0 {
+				log.SpanLog(ctx, log.DebugLevelInfra, "delete nodes", "toRemove", toRemove)
+				err = k8smgmt.DeleteNodes(ctx, client, kconfName, toRemove)
+				if err != nil {
+					return err
+				}
+			}
+			if numMaster == clusterInst.NumMasters && numNodes == clusterInst.NumNodes {
+				// nothing changing
+				log.SpanLog(ctx, log.DebugLevelInfra, "no change in nodes", "ClusterInst", clusterInst.Key, "nummaster", numMaster, "numnodes", numNodes)
+				return nil
+			}
 		}
-		if numMaster == clusterInst.NumMasters && numNodes == clusterInst.NumNodes {
-			// nothing changing
-			log.SpanLog(ctx, log.DebugLevelInfra, "no change in nodes", "ClusterInst", clusterInst.Key, "nummaster", numMaster, "numnodes", numNodes)
-			return nil
+
+		dedicatedRootLB := clusterInst.IpAccess == edgeproto.IpAccess_IP_ACCESS_DEDICATED
+
+		err := v.vmProvider.UpdateClusterVMs(ctx, clusterInst, privacyPolicy, rootLBName, imgName, dedicatedRootLB, updateCallback)
+		if err != nil {
+			return err
 		}
-	}
-
-	dedicatedRootLB := clusterInst.IpAccess == edgeproto.IpAccess_IP_ACCESS_DEDICATED
-
-	err := c.infraProvider.UpdateClusterVMs(ctx, clusterInst, privacyPolicy, rootLBName, imgName, dedicatedRootLB, updateCallback)
-	if err != nil {
-		return err
-	}
-	updateCallback(edgeproto.UpdateTask, "Waiting for Cluster to Update")
-	//todo: calculate timeouts instead of hardcoded value
-	return c.waitClusterReady(ctx, clusterInst, rootLBName, updateCallback, time.Minute*15)
+		updateCallback(edgeproto.UpdateTask, "Waiting for Cluster to Update")
+		//todo: calculate timeouts instead of hardcoded value
+		return v.waitClusterReady(ctx, clusterInst, rootLBName, updateCallback, time.Minute*15)
+	*/
 }
 
 //DeleteCluster deletes kubernetes cluster
-func (c *CommonPlatform) deleteCluster(ctx context.Context, rootLBName string, clusterInst *edgeproto.ClusterInst) error {
-	log.SpanLog(ctx, log.DebugLevelInfra, "deleting kubernetes cluster", "clusterInst", clusterInst)
+func (v *VMPlatform) deleteCluster(ctx context.Context, rootLBName string, clusterInst *edgeproto.ClusterInst) error {
+	return fmt.Errorf("TODO") /*
+		log.SpanLog(ctx, log.DebugLevelInfra, "deleting kubernetes cluster", "clusterInst", clusterInst)
 
-	dedicatedRootLB := clusterInst.IpAccess == edgeproto.IpAccess_IP_ACCESS_DEDICATED
-	client, err := c.infraProvider.GetPlatformClient(ctx, clusterInst)
-	if err != nil {
-		if strings.Contains(err.Error(), "No server with a name or ID") {
-			log.SpanLog(ctx, log.DebugLevelInfra, "Dedicated RootLB is gone, allow stack delete to proceed")
-		} else {
+		dedicatedRootLB := clusterInst.IpAccess == edgeproto.IpAccess_IP_ACCESS_DEDICATED
+		client, err := v.vmProvider.GetPlatformClient(ctx, clusterInst)
+		if err != nil {
+			if strings.Contains(err.Error(), "No server with a name or ID") {
+				log.SpanLog(ctx, log.DebugLevelInfra, "Dedicated RootLB is gone, allow stack delete to proceed")
+			} else {
+				return err
+			}
+		}
+		err = v.vmProvider.DeleteClusterResources(ctx, client, clusterInst, rootLBName, dedicatedRootLB)
+		if err != nil {
 			return err
 		}
-	}
-	err = c.infraProvider.DeleteClusterResources(ctx, client, clusterInst, rootLBName, dedicatedRootLB)
-	if err != nil {
-		return err
-	}
-	if dedicatedRootLB {
-		proxy.RemoveDedicatedCluster(ctx, clusterInst.Key.ClusterKey.Name)
-		DeleteRootLB(rootLBName)
-	}
-	return nil
+		if dedicatedRootLB {
+			proxy.RemoveDedicatedCluster(ctx, clusterInst.Key.ClusterKey.Name)
+			DeleteRootLB(rootLBName)
+		}
+		return nil*/
 }
 
-func (c *CommonPlatform) CreateClusterInst(ctx context.Context, clusterInst *edgeproto.ClusterInst, privacyPolicy *edgeproto.PrivacyPolicy, updateCallback edgeproto.CacheUpdateCallback, timeout time.Duration) error {
-	lbName := c.GetRootLBNameForCluster(ctx, clusterInst)
-	log.SpanLog(ctx, log.DebugLevelInfra, "OpenStack CreateClusterInst", "clusterInst", clusterInst, "lbName", lbName)
+func (v *VMPlatform) CreateClusterInst(ctx context.Context, clusterInst *edgeproto.ClusterInst, privacyPolicy *edgeproto.PrivacyPolicy, updateCallback edgeproto.CacheUpdateCallback, timeout time.Duration) error {
+	lbName := v.GetRootLBNameForCluster(ctx, clusterInst)
+	log.SpanLog(ctx, log.DebugLevelInfra, "CreateClusterInst", "clusterInst", clusterInst, "lbName", lbName)
 
 	//find the flavor and check the disk size
-	for _, flavor := range c.FlavorList {
+	for _, flavor := range v.FlavorList {
 		if flavor.Name == clusterInst.NodeFlavor && flavor.Disk < MINIMUM_DISK_SIZE && clusterInst.ExternalVolumeSize < MINIMUM_DISK_SIZE {
 			log.SpanLog(ctx, log.DebugLevelInfra, "flavor disk size too small", "flavor", flavor, "ExternalVolumeSize", clusterInst.ExternalVolumeSize)
 			return fmt.Errorf("Insufficient disk size, please specify a flavor with at least %dgb", MINIMUM_DISK_SIZE)
@@ -174,24 +177,24 @@ func (c *CommonPlatform) CreateClusterInst(ctx context.Context, clusterInst *edg
 	timeout -= time.Minute
 
 	log.SpanLog(ctx, log.DebugLevelInfra, "verify if cloudlet base image exists")
-	imgName, err := c.infraProvider.AddCloudletImageIfNotPresent(ctx, c.PlatformConfig.CloudletVMImagePath, c.PlatformConfig.VMImageVersion, updateCallback)
+	imgName, err := v.vmProvider.AddCloudletImageIfNotPresent(ctx, v.CommonPf.PlatformConfig.CloudletVMImagePath, v.CommonPf.PlatformConfig.VMImageVersion, updateCallback)
 	if err != nil {
 		log.InfoLog("error with cloudlet base image", "imgName", imgName, "error", err)
 		return err
 	}
-	return c.createClusterInternal(ctx, lbName, imgName, clusterInst, privacyPolicy, updateCallback, timeout)
+	return v.createClusterInternal(ctx, lbName, imgName, clusterInst, privacyPolicy, updateCallback, timeout)
 }
 
-func (c *CommonPlatform) createClusterInternal(ctx context.Context, rootLBName string, imgName string, clusterInst *edgeproto.ClusterInst, privacyPolicy *edgeproto.PrivacyPolicy, updateCallback edgeproto.CacheUpdateCallback, timeout time.Duration) (reterr error) {
+func (v *VMPlatform) createClusterInternal(ctx context.Context, rootLBName string, imgName string, clusterInst *edgeproto.ClusterInst, privacyPolicy *edgeproto.PrivacyPolicy, updateCallback edgeproto.CacheUpdateCallback, timeout time.Duration) (reterr error) {
 	// clean-up func
 	defer func() {
 		if reterr == nil {
 			return
 		}
 		log.SpanLog(ctx, log.DebugLevelInfra, "error in CreateCluster", "err", reterr)
-		if c.GetCleanupOnFailure(ctx) {
+		if v.CommonPf.GetCleanupOnFailure(ctx) {
 			log.SpanLog(ctx, log.DebugLevelInfra, "cleaning up cluster resources after cluster fail, set envvar CLEANUP_ON_FAILURE to 'no' to avoid this")
-			delerr := c.deleteCluster(ctx, rootLBName, clusterInst)
+			delerr := v.deleteCluster(ctx, rootLBName, clusterInst)
 			if delerr != nil {
 				log.SpanLog(ctx, log.DebugLevelInfra, "fail to cleanup cluster")
 			}
@@ -203,56 +206,37 @@ func (c *CommonPlatform) createClusterInternal(ctx context.Context, rootLBName s
 	start := time.Now()
 	log.SpanLog(ctx, log.DebugLevelInfra, "creating cluster instance", "clusterInst", clusterInst, "timeout", timeout)
 
-	dedicatedRootLB := false
-	if clusterInst.IpAccess == edgeproto.IpAccess_IP_ACCESS_DEDICATED {
-		dedicatedRootLB = true
-	}
-
 	var err error
 	if clusterInst.AvailabilityZone == "" {
 		//use the cloudlet default AZ if it exists
-		clusterInst.AvailabilityZone = c.GetCloudletComputeAvailabilityZone()
+		clusterInst.AvailabilityZone = v.GetCloudletComputeAvailabilityZone()
 	}
-
-	vmspec := vmspec.VMCreationSpec{
-		FlavorName:         clusterInst.NodeFlavor,
-		ExternalVolumeSize: clusterInst.ExternalVolumeSize,
-		AvailabilityZone:   clusterInst.AvailabilityZone,
-		ImageName:          clusterInst.ImageName,
-		PrivacyPolicy:      privacyPolicy,
-	}
-
-	if clusterInst.Deployment == cloudcommon.AppDeploymentTypeDocker {
-		if dedicatedRootLB {
-			// in the dedicated case for docker, the RootLB and the docker worker are the same
-			updateCallback(edgeproto.UpdateTask, "Creating Dedicated VM for Docker")
-			err = c.infraProvider.CreateRootLBVM(ctx, rootLBName, k8smgmt.GetK8sNodeNameSuffix(&clusterInst.Key), imgName, &vmspec, &clusterInst.Key.CloudletKey, updateCallback)
-		} else {
-			updateCallback(edgeproto.UpdateTask, "Creating single-node cluster for docker using shared RootLB")
-			err = c.infraProvider.CreateClusterVMs(ctx, clusterInst, privacyPolicy, rootLBName, imgName, dedicatedRootLB, updateCallback)
-		}
-	} else {
-		err = c.infraProvider.CreateClusterVMs(ctx, clusterInst, privacyPolicy, rootLBName, imgName, dedicatedRootLB, updateCallback)
-	}
+	vmgp, err := v.GetVMGroupParamsForCluster(ctx, imgName, clusterInst, privacyPolicy)
 	if err != nil {
 		return err
 	}
+	err = v.vmProvider.CreateVMs(ctx, vmgp, updateCallback)
+	if err != nil {
+		log.SpanLog(ctx, log.DebugLevelInfra, "Cluster CreateVMs failed", "err", err)
+		return fmt.Errorf("Cluster VM create Failed: %v", err)
+	}
+
 	// the root LB was created as part of cluster creation, but it needs to be prepped and
 	// mex agent started
 	if clusterInst.IpAccess == edgeproto.IpAccess_IP_ACCESS_DEDICATED {
 		log.SpanLog(ctx, log.DebugLevelInfra, "need dedicated rootLB", "IpAccess", clusterInst.IpAccess)
-		_, err := c.NewRootLB(ctx, rootLBName)
+		_, err := v.NewRootLB(ctx, rootLBName)
 		if err != nil {
 			// likely already exists which means something went really wrong
 			return err
 		}
 		updateCallback(edgeproto.UpdateTask, "Setting Up Root LB")
-		err = c.SetupRootLB(ctx, rootLBName, &vmspec, &clusterInst.Key.CloudletKey, "", "", updateCallback)
+		err = v.SetupRootLB(ctx, rootLBName, &clusterInst.Key.CloudletKey, updateCallback)
 		if err != nil {
 			return err
 		}
 	}
-	client, err := c.infraProvider.GetPlatformClient(ctx, clusterInst)
+	client, err := v.vmProvider.GetPlatformClient(ctx, clusterInst)
 	if err != nil {
 		return fmt.Errorf("can't get rootLB client, %v", err)
 	}
@@ -261,12 +245,12 @@ func (c *CommonPlatform) createClusterInternal(ctx context.Context, rootLBName s
 		// subtract elapsed time from total time to get remaining time
 		timeout -= elapsed
 		updateCallback(edgeproto.UpdateTask, "Waiting for Cluster to Initialize")
-		err := c.waitClusterReady(ctx, clusterInst, rootLBName, updateCallback, timeout)
+		err := v.waitClusterReady(ctx, clusterInst, rootLBName, updateCallback, timeout)
 		if err != nil {
 			return err
 		}
 		updateCallback(edgeproto.UpdateTask, "Creating config map")
-		if err := CreateClusterConfigMap(ctx, client, clusterInst); err != nil {
+		if err := infracommon.CreateClusterConfigMap(ctx, client, clusterInst); err != nil {
 			return err
 		}
 	}
@@ -277,12 +261,12 @@ func (c *CommonPlatform) createClusterInternal(ctx context.Context, rootLBName s
 	return nil
 }
 
-func (c *CommonPlatform) DeleteClusterInst(ctx context.Context, clusterInst *edgeproto.ClusterInst) error {
-	lbName := c.GetRootLBNameForCluster(ctx, clusterInst)
-	return c.deleteCluster(ctx, lbName, clusterInst)
+func (v *VMPlatform) DeleteClusterInst(ctx context.Context, clusterInst *edgeproto.ClusterInst) error {
+	lbName := v.GetRootLBNameForCluster(ctx, clusterInst)
+	return v.deleteCluster(ctx, lbName, clusterInst)
 }
 
-func (c *CommonPlatform) waitClusterReady(ctx context.Context, clusterInst *edgeproto.ClusterInst, rootLBName string, updateCallback edgeproto.CacheUpdateCallback, timeout time.Duration) error {
+func (v *VMPlatform) waitClusterReady(ctx context.Context, clusterInst *edgeproto.ClusterInst, rootLBName string, updateCallback edgeproto.CacheUpdateCallback, timeout time.Duration) error {
 	start := time.Now()
 	masterName := ""
 	masterIP := ""
@@ -291,7 +275,7 @@ func (c *CommonPlatform) waitClusterReady(ctx context.Context, clusterInst *edge
 
 	for {
 		if masterIP == "" {
-			masterName, masterIP, _ = c.infraProvider.GetClusterMasterNameAndIP(ctx, clusterInst)
+			masterName, masterIP, _ = v.vmProvider.GetClusterMasterNameAndIP(ctx, clusterInst)
 			if masterIP != "" {
 				updateCallback(edgeproto.UpdateStep, "Checking Master for Available Nodes")
 			}
@@ -299,7 +283,7 @@ func (c *CommonPlatform) waitClusterReady(ctx context.Context, clusterInst *edge
 		if masterIP == "" {
 			log.SpanLog(ctx, log.DebugLevelInfra, "master IP not available yet")
 		} else {
-			ready, readyCount, err := c.isClusterReady(ctx, clusterInst, masterName, masterIP, rootLBName, updateCallback)
+			ready, readyCount, err := v.isClusterReady(ctx, clusterInst, masterName, masterIP, rootLBName, updateCallback)
 			if readyCount != currReadyCount {
 				numNodes := readyCount - 1
 				updateCallback(edgeproto.UpdateStep, fmt.Sprintf("%d of %d nodes active", numNodes, clusterInst.NumNodes))
@@ -322,11 +306,11 @@ func (c *CommonPlatform) waitClusterReady(ctx context.Context, clusterInst *edge
 }
 
 //IsClusterReady checks to see if cluster is read, i.e. rootLB is running and active.  returns ready,nodecount, error
-func (c *CommonPlatform) isClusterReady(ctx context.Context, clusterInst *edgeproto.ClusterInst, masterName, masterIP string, rootLBName string, updateCallback edgeproto.CacheUpdateCallback) (bool, uint32, error) {
+func (v *VMPlatform) isClusterReady(ctx context.Context, clusterInst *edgeproto.ClusterInst, masterName, masterIP string, rootLBName string, updateCallback edgeproto.CacheUpdateCallback) (bool, uint32, error) {
 	log.SpanLog(ctx, log.DebugLevelInfra, "checking if cluster is ready")
 
 	// some commands are run on the rootlb and some on the master directly, so we use separate clients
-	rootLBClient, err := c.infraProvider.GetPlatformClient(ctx, clusterInst)
+	rootLBClient, err := v.vmProvider.GetPlatformClient(ctx, clusterInst)
 	if err != nil {
 		return false, 0, fmt.Errorf("can't get rootlb ssh client for cluster ready check, %v", err)
 	}
@@ -377,7 +361,7 @@ func (c *CommonPlatform) isClusterReady(ctx context.Context, clusterInst *edgepr
 	}
 	log.SpanLog(ctx, log.DebugLevelInfra, "cluster nodes ready", "numnodes", clusterInst.NumNodes, "nummasters", clusterInst.NumMasters, "readyCount", readyCount, "notReadyCount", notReadyCount)
 
-	if err := CopyKubeConfig(ctx, rootLBClient, clusterInst, rootLBName, masterIP); err != nil {
+	if err := infracommon.CopyKubeConfig(ctx, rootLBClient, clusterInst, rootLBName, masterIP); err != nil {
 		return false, 0, fmt.Errorf("kubeconfig copy failed, %v", err)
 	}
 	if clusterInst.NumNodes == 0 {
@@ -403,16 +387,41 @@ func (c *CommonPlatform) isClusterReady(ctx context.Context, clusterInst *edgepr
 	return true, readyCount, nil
 }
 
-// GetCleanupOnFailure should be true unless we want to debug the failure,
-// in which case this env var can be set to no.  We could consider making
-// this configurable at the controller but really is only needed for debugging.
-func (c *CommonPlatform) GetCleanupOnFailure(ctx context.Context) bool {
-	cleanup := c.Properties["CLEANUP_ON_FAILURE"].Value
-	log.SpanLog(ctx, log.DebugLevelInfra, "GetCleanupOnFailure", "cleanup", cleanup)
-	cleanup = strings.ToLower(cleanup)
-	cleanup = strings.ReplaceAll(cleanup, "'", "")
-	if cleanup == "no" || cleanup == "false" {
-		return false
+func clusterRequiresNewSubnet(ctx context.Context, clusterInst *edgeproto.ClusterInst) (bool, error) {
+	switch clusterInst.Deployment {
+	case cloudcommon.AppDeploymentTypeKubernetes:
+		return true, nil
+	case cloudcommon.AppDeploymentTypeHelm:
+		return true, nil
+	case cloudcommon.AppDeploymentTypeDocker:
+		return clusterInst.IpAccess == edgeproto.IpAccess_IP_ACCESS_DEDICATED, nil
 	}
-	return true
+	return false, fmt.Errorf("unsupported deployment type for cluster: %s", clusterInst.Deployment)
+}
+
+func (v *VMPlatform) GetVMGroupParamsForCluster(ctx context.Context, imgName string, clusterInst *edgeproto.ClusterInst, privacyPolicy *edgeproto.PrivacyPolicy) (*VMGroupParams, error) {
+	name := v.vmProvider.NameSanitize(k8smgmt.GetK8sNodeNameSuffix(&clusterInst.Key))
+
+	masterFlavor := clusterInst.MasterNodeFlavor
+	if masterFlavor == "" {
+		masterFlavor = clusterInst.NodeFlavor
+	}
+	subnetname := "subnetname"
+
+	master, err := v.GetVMRequestSpec(ctx,
+		VMTypeK8sMaster,
+		"master",
+		masterFlavor,
+		v.GetCloudletOSImage(),
+		false, //connect external
+		true,  //connect internal
+		WithSharedVolume(clusterInst.SharedVolumeSize),
+		WithExternalVolume(clusterInst.ExternalVolumeSize),
+	)
+	if err != nil {
+		return nil, err
+	}
+	var vms []*VMRequestSpec
+	vms = append(vms, master)
+	return v.GetVMGroupParamsFromVMSpec(ctx, name, vms, WithNewSubnet(subnetname))
 }

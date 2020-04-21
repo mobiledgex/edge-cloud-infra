@@ -10,6 +10,7 @@ import (
 
 	sh "github.com/codeskyblue/go-sh"
 	"github.com/mobiledgex/edge-cloud-infra/infracommon"
+	"github.com/mobiledgex/edge-cloud-infra/vmlayer"
 	"github.com/mobiledgex/edge-cloud/cloudcommon"
 	"github.com/mobiledgex/edge-cloud/edgeproto"
 	"github.com/mobiledgex/edge-cloud/log"
@@ -201,7 +202,7 @@ func (s *OpenstackPlatform) ShowFlavor(ctx context.Context, flavor string) (deta
 
 //ListFlavors lists flavors known to the platform.   The ones matching the flavorMatchPattern are returned
 func (s *OpenstackPlatform) ListFlavors(ctx context.Context) ([]OSFlavorDetail, error) {
-	flavorMatchPattern := s.commonPf.GetCloudletFlavorMatchPattern()
+	flavorMatchPattern := s.vmPlatform.GetCloudletFlavorMatchPattern()
 	r, err := regexp.Compile(flavorMatchPattern)
 	if err != nil {
 		return nil, fmt.Errorf("Cannot compile flavor match pattern")
@@ -689,7 +690,7 @@ func (s *OpenstackPlatform) CreateImage(ctx context.Context, imageName, fileName
 	log.SpanLog(ctx, log.DebugLevelInfra, "creating image in glance", "image", imageName, "fileName", fileName)
 	out, err := s.TimedOpenStackCommand(ctx, "openstack", "image", "create",
 		imageName,
-		"--disk-format", s.commonPf.GetCloudletImageDiskFormat(),
+		"--disk-format", s.vmPlatform.GetCloudletImageDiskFormat(),
 		"--container-format", "bare",
 		"--file", fileName)
 	if err != nil {
@@ -712,7 +713,7 @@ func (s *OpenstackPlatform) CreateImageFromUrl(ctx context.Context, imageName, i
 			log.SpanLog(ctx, log.DebugLevelInfra, "delete file failed", "filePath", filePath)
 		}
 	}()
-	err = cloudcommon.DownloadFile(ctx, s.commonPf.VaultConfig, imageUrl, filePath, nil)
+	err = cloudcommon.DownloadFile(ctx, s.vmPlatform.CommonPf.VaultConfig, imageUrl, filePath, nil)
 	if err != nil {
 		return fmt.Errorf("error downloading image from %s, %v", imageUrl, err)
 	}
@@ -1042,7 +1043,7 @@ func (s *OpenstackPlatform) OSGetMetricsRangeForId(ctx context.Context, resId st
 }
 
 func (s *OpenstackPlatform) AddCloudletImageIfNotPresent(ctx context.Context, imgPathPrefix, imgVersion string, updateCallback edgeproto.CacheUpdateCallback) (string, error) {
-	imgPath := infracommon.GetCloudletVMImagePath(imgPathPrefix, imgVersion)
+	imgPath := vmlayer.GetCloudletVMImagePath(imgPathPrefix, imgVersion)
 
 	// Fetch platform base image name
 	pfImageName, err := cloudcommon.GetFileName(imgPath)
@@ -1056,7 +1057,7 @@ func (s *OpenstackPlatform) AddCloudletImageIfNotPresent(ctx context.Context, im
 	}
 	if err != nil {
 		// Validate if pfImageName is same as we expected
-		_, md5Sum, err := infracommon.GetUrlInfo(ctx, s.commonPf.VaultConfig, imgPath)
+		_, md5Sum, err := infracommon.GetUrlInfo(ctx, s.vmPlatform.CommonPf.VaultConfig, imgPath)
 		if err != nil {
 			return "", err
 		}

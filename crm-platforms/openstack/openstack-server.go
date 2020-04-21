@@ -5,12 +5,15 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/mobiledgex/edge-cloud-infra/vmlayer"
+	"github.com/mobiledgex/edge-cloud/edgeproto"
+
 	"github.com/mobiledgex/edge-cloud-infra/infracommon"
 	"github.com/mobiledgex/edge-cloud/log"
 )
 
-func (o *OpenstackPlatform) GetServerDetail(ctx context.Context, serverName string) (*infracommon.ServerDetail, error) {
-	var sd infracommon.ServerDetail
+func (o *OpenstackPlatform) GetServerDetail(ctx context.Context, serverName string) (*vmlayer.ServerDetail, error) {
+	var sd vmlayer.ServerDetail
 	osd, err := o.GetOpenstackServerDetails(ctx, serverName)
 	if err != nil {
 		return &sd, err
@@ -71,4 +74,15 @@ func (o *OpenstackPlatform) UpdateServerIPs(ctx context.Context, addresses strin
 	}
 	log.SpanLog(ctx, log.DebugLevelInfra, "Updated ServerIPS", "serverDetail", serverDetail)
 	return nil
+}
+
+func (o *OpenstackPlatform) CreateVMs(ctx context.Context, vmGroupParams *vmlayer.VMGroupParams, updateCallback edgeproto.CacheUpdateCallback) error {
+	return o.HeatCreateVMs(ctx, vmGroupParams, updateCallback)
+}
+func (o *OpenstackPlatform) UpdateVMs(ctx context.Context, vmGroupParams *vmlayer.VMGroupParams, updateCallback edgeproto.CacheUpdateCallback) error {
+	return o.HeatUpdateVMs(ctx, vmGroupParams, updateCallback)
+}
+
+func (o *OpenstackPlatform) DeleteVMs(ctx context.Context, vmGroupName string) error {
+	return o.deleteHeatStack(ctx, vmGroupName)
 }

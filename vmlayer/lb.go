@@ -1,4 +1,4 @@
-package infracommon
+package vmlayer
 
 import (
 	"context"
@@ -10,6 +10,7 @@ import (
 	"time"
 
 	valid "github.com/asaskevich/govalidator"
+	"github.com/mobiledgex/edge-cloud-infra/infracommon"
 	"github.com/mobiledgex/edge-cloud/cloud-resource-manager/platform/pc"
 	"github.com/mobiledgex/edge-cloud/cloud-resource-manager/proxy"
 	"github.com/mobiledgex/edge-cloud/cloudcommon"
@@ -17,6 +18,7 @@ import (
 	"github.com/mobiledgex/edge-cloud/edgeproto"
 	"github.com/mobiledgex/edge-cloud/log"
 	"github.com/mobiledgex/edge-cloud/vmspec"
+
 	ssh "github.com/mobiledgex/golang-ssh"
 )
 
@@ -152,15 +154,15 @@ func setupForwardingIptables(ctx context.Context, client ssh.Client, externalIfn
 
 // configureInternalInterfaceAndExternalForwarding sets up the new internal interface and then creates iptables rules to forward
 // traffic out the external interface
-func (c *CommonPlatform) configureInternalInterfaceAndExternalForwarding(ctx context.Context, client ssh.Client, internalPortName string, serverDetails *ServerDetail, action string) error {
+func (v *VMPlatform) configureInternalInterfaceAndExternalForwarding(ctx context.Context, client ssh.Client, internalPortName string, serverDetails *ServerDetail, action string) error {
 
 	log.SpanLog(ctx, log.DebugLevelInfra, "configureInternalInterfaceAndExternalForwarding", "serverDetails", serverDetails, "internalPortName", internalPortName)
 
-	internalIP, err := c.GetIPFromServerDetails(ctx, c.GetCloudletMexNetwork(), serverDetails)
+	internalIP, err := v.GetIPFromServerDetails(ctx, v.GetCloudletMexNetwork(), serverDetails)
 	if err != nil {
 		return err
 	}
-	externalIP, err := c.GetIPFromServerDetails(ctx, c.GetCloudletExternalNetwork(), serverDetails)
+	externalIP, err := v.GetIPFromServerDetails(ctx, v.GetCloudletExternalNetwork(), serverDetails)
 	if err != nil {
 		return err
 	}
@@ -260,22 +262,22 @@ func (c *CommonPlatform) configureInternalInterfaceAndExternalForwarding(ctx con
 }
 
 // AttachAndEnableRootLBInterface attaches the interface and enables it in the OS
-func (c *CommonPlatform) AttachAndEnableRootLBInterface(ctx context.Context, client ssh.Client, rootLBName string, internalPortName, internalIPAddr string) error {
+func (v *VMPlatform) AttachAndEnableRootLBInterface(ctx context.Context, client ssh.Client, rootLBName string, internalPortName, internalIPAddr string) error {
 	log.SpanLog(ctx, log.DebugLevelInfra, "AttachAndEnableRootLBInterface", "rootLBName", rootLBName, "internalPortName", internalPortName)
 
-	err := c.infraProvider.AttachPortToServer(ctx, rootLBName, internalPortName)
+	err := v.vmProvider.AttachPortToServer(ctx, rootLBName, internalPortName)
 	if err != nil {
 		log.SpanLog(ctx, log.DebugLevelInfra, "fail to attach port", "err", err)
 		return err
 	}
-	sd, err := c.infraProvider.GetServerDetail(ctx, rootLBName)
+	sd, err := v.vmProvider.GetServerDetail(ctx, rootLBName)
 	if err != nil {
 		return err
 	}
-	err = c.configureInternalInterfaceAndExternalForwarding(ctx, client, internalPortName, sd, actionAdd)
+	err = v.configureInternalInterfaceAndExternalForwarding(ctx, client, internalPortName, sd, actionAdd)
 	if err != nil {
 		log.SpanLog(ctx, log.DebugLevelInfra, "fail to confgure internal interface, detaching port", "err", err)
-		deterr := c.infraProvider.DetachPortFromServer(ctx, rootLBName, internalPortName)
+		deterr := v.vmProvider.DetachPortFromServer(ctx, rootLBName, internalPortName)
 		if deterr != nil {
 			log.SpanLog(ctx, log.DebugLevelInfra, "fail to detach port", "err", deterr)
 		}
@@ -284,24 +286,24 @@ func (c *CommonPlatform) AttachAndEnableRootLBInterface(ctx context.Context, cli
 	return nil
 }
 
-func (c *CommonPlatform) GetRootLBName(key *edgeproto.CloudletKey) string {
+func (v *VMPlatform) GetRootLBName(key *edgeproto.CloudletKey) string {
 	name := cloudcommon.GetRootLBFQDN(key)
-	return c.infraProvider.NameSanitize(name)
+	return v.vmProvider.NameSanitize(name)
 }
 
 // DetachAndDisableRootLBInterface performs some cleanup when deleting the rootLB port.
-func (c *CommonPlatform) DetachAndDisableRootLBInterface(ctx context.Context, client ssh.Client, rootLBName string, internalPortName, internalIPAddr string) error {
+func (v *VMPlatform) DetachAndDisableRootLBInterface(ctx context.Context, client ssh.Client, rootLBName string, internalPortName, internalIPAddr string) error {
 	log.SpanLog(ctx, log.DebugLevelInfra, "DetachAndDisableRootLBInterface", "rootLBName", rootLBName, "internalPortName", internalPortName)
 
-	sd, err := c.infraProvider.GetServerDetail(ctx, rootLBName)
+	sd, err := v.vmProvider.GetServerDetail(ctx, rootLBName)
 	if err != nil {
 		return err
 	}
-	err = c.configureInternalInterfaceAndExternalForwarding(ctx, client, internalPortName, sd, actionDelete)
+	err = v.configureInternalInterfaceAndExternalForwarding(ctx, client, internalPortName, sd, actionDelete)
 	if err != nil {
 		log.SpanLog(ctx, log.DebugLevelInfra, "error in configureInternalInterfaceAndExternalForwarding", "err", err)
 	}
-	err = c.infraProvider.DetachPortFromServer(ctx, rootLBName, internalPortName)
+	err = v.vmProvider.DetachPortFromServer(ctx, rootLBName, internalPortName)
 	if err != nil {
 		// might already be gone
 		log.SpanLog(ctx, log.DebugLevelInfra, "fail to detach port", "err", err)
@@ -322,25 +324,32 @@ var MEXRootLBMap = make(map[string]*MEXRootLB)
 
 // GetVMSpecForRootLB gets the VM spec for the rootLB when it is not specified within a cluster. This is
 // used for Shared RootLb and for VM app based RootLb
-func (o *CommonPlatform) GetVMSpecForRootLB() (*vmspec.VMCreationSpec, error) {
+func (v *VMPlatform) GetVMSpecForRootLB(ctx context.Context, name string) (*VMRequestSpec, error) {
+
+	log.SpanLog(ctx, log.DebugLevelInfra, "GetVMSpecForRootLB", "name", name)
 
 	var rootlbFlavor edgeproto.Flavor
-	err := o.GetCloudletSharedRootLBFlavor(&rootlbFlavor)
+	err := v.GetCloudletSharedRootLBFlavor(&rootlbFlavor)
 	if err != nil {
 		return nil, fmt.Errorf("unable to get Shared RootLB Flavor: %v", err)
 	}
-	vmspec, err := vmspec.GetVMSpec(o.FlavorList, rootlbFlavor)
+	vmspec, err := vmspec.GetVMSpec(v.FlavorList, rootlbFlavor)
 	if err != nil {
 		return nil, fmt.Errorf("unable to find VM spec for Shared RootLB: %v", err)
 	}
-	if vmspec.AvailabilityZone == "" {
-		vmspec.AvailabilityZone = o.GetCloudletComputeAvailabilityZone()
+	az := vmspec.AvailabilityZone
+	if az == "" {
+		az = v.GetCloudletComputeAvailabilityZone()
 	}
-	return vmspec, nil
+	imageName, err := v.vmProvider.AddCloudletImageIfNotPresent(ctx, pfConfig.CloudletVmImagePath, cloudlet.VmImageVersion, updateCallback)
+	if err != nil {
+		return nil, err
+	}
+	return v.GetVMRequestSpec(ctx, VMTypeRootLB, imageName, name, vmspec.FlavorName, true, false, WithExternalVolume(vmspec.ExternalVolumeSize))
 }
 
 //NewRootLB gets a new rootLB instance
-func (c *CommonPlatform) NewRootLB(ctx context.Context, rootLBName string) (*MEXRootLB, error) {
+func (v *VMPlatform) NewRootLB(ctx context.Context, rootLBName string) (*MEXRootLB, error) {
 	rootLBLock.Lock()
 	defer rootLBLock.Unlock()
 	log.SpanLog(ctx, log.DebugLevelInfra, "getting new rootLB", "rootLBName", rootLBName)
@@ -359,7 +368,7 @@ func DeleteRootLB(rootLBName string) {
 	delete(MEXRootLBMap, rootLBName)
 }
 
-func (c *CommonPlatform) GetRootLB(ctx context.Context, name string) (*MEXRootLB, error) {
+func (v *VMPlatform) GetRootLB(ctx context.Context, name string) (*MEXRootLB, error) {
 	rootLB, ok := MEXRootLBMap[name]
 	if !ok {
 		return nil, fmt.Errorf("can't find rootlb %s", name)
@@ -371,91 +380,105 @@ func (c *CommonPlatform) GetRootLB(ctx context.Context, name string) (*MEXRootLB
 }
 
 //CreateRootLB creates a rootLB.  It should not be called if the rootLB already exists, as to save time we don't check
-func (c *CommonPlatform) CreateRootLB(
+func (v *VMPlatform) CreateRootLB(
 	ctx context.Context, rootLB *MEXRootLB,
-	vmspec *vmspec.VMCreationSpec,
 	cloudletKey *edgeproto.CloudletKey,
 	imgPath, imgVersion string,
 	updateCallback edgeproto.CacheUpdateCallback,
 ) error {
-	log.SpanLog(ctx, log.DebugLevelInfra, "enable rootlb", "name", rootLB.Name, "vmspec", vmspec)
+
+	log.SpanLog(ctx, log.DebugLevelInfra, "create rootlb", "name", rootLB.Name)
 	if rootLB == nil {
 		return fmt.Errorf("cannot enable rootLB, rootLB is null")
 	}
-	if c.GetCloudletExternalNetwork() == "" {
+	_, err := v.vmProvider.GetServerDetail(ctx, rootLB.Name)
+	if err != nil {
+		log.SpanLog(ctx, log.DebugLevelInfra, "rootlb already exists")
+		return nil
+	}
+
+	if v.GetCloudletExternalNetwork() == "" {
 		return fmt.Errorf("enable rootlb, missing external network in manifest")
 	}
-	imgName, err := c.infraProvider.AddCloudletImageIfNotPresent(ctx, imgPath, imgVersion, updateCallback)
+	imgName, err := v.vmProvider.AddCloudletImageIfNotPresent(ctx, imgPath, imgVersion, updateCallback)
 	if err != nil {
 		log.InfoLog("error with RootLB VM image", "name", rootLB.Name, "imgName", imgName, "error", err)
 		return err
 	}
-	err = c.infraProvider.CreateRootLBVM(ctx, rootLB.Name, rootLB.Name, imgName, vmspec, cloudletKey, updateCallback)
+	vmreq, err := v.GetVMSpecForRootLB(ctx, rootLB.Name)
 	if err != nil {
-		log.InfoLog("error while creating RootLB VM", "name", rootLB.Name, "imgName", imgName, "error", err)
+		return err
+	}
+	var vms []*VMRequestSpec
+	vms = append(vms, vmreq)
+	grpspec, err := v.GetVMGroupRequestSpec(ctx, rootLB.Name, vms)
+	if err != nil {
+		return err
+	}
+	gp, err := v.GetVMGroupParams(ctx, grpspec)
+	if err != nil {
+		return err
+	}
+	log.SpanLog(ctx, log.DebugLevelInfra, "created vm group spec", "gp", gp)
+	err = v.vmProvider.CreateVMs(ctx, gp, updateCallback)
+	if err != nil {
+		log.SpanLog(ctx, log.DebugLevelInfra, "error while creating RootLB VM", "name", rootLB.Name, "imgName", imgName, "error", err)
 		return err
 	}
 	log.SpanLog(ctx, log.DebugLevelInfra, "done creating rootlb", "name", rootLB.Name)
 	return nil
+
 }
 
 //SetupRootLB prepares the RootLB. It will optionally create the rootlb if the createRootLBFlavor
 // is not blank and no existing server found
-func (c *CommonPlatform) SetupRootLB(
+func (v *VMPlatform) SetupRootLB(
 	ctx context.Context, rootLBName string,
-	rootLBSpec *vmspec.VMCreationSpec,
 	cloudletKey *edgeproto.CloudletKey,
-	imgPath, imgVersion string,
 	updateCallback edgeproto.CacheUpdateCallback,
 ) error {
-	log.SpanLog(ctx, log.DebugLevelInfra, "SetupRootLB", "rootLBSpec", rootLBSpec)
+	log.SpanLog(ctx, log.DebugLevelInfra, "SetupRootLB", "rootLBName", rootLBName)
 	//fqdn is that of the machine/kvm-instance running the agent
 	if !valid.IsDNSName(rootLBName) {
 		return fmt.Errorf("fqdn %s is not valid", rootLBName)
 	}
-	rootLB, err := c.GetRootLB(ctx, rootLBName)
+	rootLB, err := v.GetRootLB(ctx, rootLBName)
 	if err != nil {
 		return fmt.Errorf("cannot find rootlb in map %s", rootLBName)
 	}
-	sd, err := c.infraProvider.GetServerDetail(ctx, rootLBName)
+	sd, err := v.vmProvider.GetServerDetail(ctx, rootLBName)
 	if err == nil {
 		log.SpanLog(ctx, log.DebugLevelInfra, "server with same name as rootLB exists", "rootLBName", rootLBName)
-	} else if rootLBSpec != nil {
-		err = c.CreateRootLB(ctx, rootLB, rootLBSpec, cloudletKey, imgPath, imgVersion, updateCallback)
-		if err != nil {
-			log.InfoLog("can't create agent", "name", rootLB.Name, "err", err)
-			return fmt.Errorf("Failed to enable root LB %v", err)
-		}
 	}
 
 	// setup SSH access to cloudlet for CRM.  Since we are getting the external IP here, this will only work
 	// when CRM accessed via public internet.
 	log.SpanLog(ctx, log.DebugLevelInfra, "setup security group for SSH access")
-	groupName := c.GetServerSecurityGroupName(rootLBName)
-	my_ip, err := GetExternalPublicAddr(ctx)
+	groupName := v.GetServerSecurityGroupName(rootLBName)
+	my_ip, err := infracommon.GetExternalPublicAddr(ctx)
 	if err != nil {
 		// this is not necessarily fatal
 		log.InfoLog("cannot fetch public ip", "err", err)
 	} else {
-		err = c.infraProvider.AddSecurityRuleCIDRWithRetry(ctx, my_ip, "tcp", groupName, "22", rootLBName)
+		err = v.vmProvider.AddSecurityRuleCIDRWithRetry(ctx, my_ip, "tcp", groupName, "22", rootLBName)
 		if err != nil {
 			return err
 		}
 	}
 
-	err = c.WaitForRootLB(ctx, rootLB)
+	err = v.WaitForRootLB(ctx, rootLB)
 	if err != nil {
 		log.SpanLog(ctx, log.DebugLevelInfra, "timeout waiting for agent to run", "name", rootLB.Name)
 		return fmt.Errorf("Error waiting for rootLB %v", err)
 	}
-	ip, err := c.GetIPFromServerDetails(ctx, c.GetCloudletExternalNetwork(), sd)
+	ip, err := v.GetIPFromServerDetails(ctx, v.GetCloudletExternalNetwork(), sd)
 	if err != nil {
 		return fmt.Errorf("cannot get rootLB IP %sv", err)
 	}
 	log.SpanLog(ctx, log.DebugLevelInfra, "set rootLB IP to", "ip", ip)
 	rootLB.IP = ip
 
-	client, err := c.SetupSSHUser(ctx, rootLB, SSHUser)
+	client, err := v.SetupSSHUser(ctx, rootLB, infracommon.SSHUser)
 	if err != nil {
 		return err
 	}
@@ -465,16 +488,16 @@ func (c *CommonPlatform) SetupRootLB(
 		return fmt.Errorf("cannot copy resource-tracker to rootLb %v", err)
 	}
 
-	err = c.infraProvider.NetworkSetupForRootLB(ctx, client, rootLBName)
+	err = v.vmProvider.NetworkSetupForRootLB(ctx, client, rootLBName)
 	if err != nil {
 		return fmt.Errorf("failed to NetworkSetupForRootLB %v", err)
 	}
-	err = c.infraProvider.WhitelistSecurityRules(ctx, c.GetServerSecurityGroupName(rootLBName), rootLBName, GetAllowedClientCIDR(), RootLBPorts)
+	err = v.vmProvider.WhitelistSecurityRules(ctx, v.GetServerSecurityGroupName(rootLBName), rootLBName, GetAllowedClientCIDR(), RootLBPorts)
 	if err != nil {
 		return fmt.Errorf("failed to WhitelistSecurityRules %v", err)
 	}
 
-	if err = c.ActivateFQDNA(ctx, rootLBName, ip.ExternalAddr); err != nil {
+	if err = v.CommonPf.ActivateFQDNA(ctx, rootLBName, ip.ExternalAddr); err != nil {
 		return err
 	}
 	log.SpanLog(ctx, log.DebugLevelInfra, "DNS A record activated", "name", rootLB.Name)
@@ -483,16 +506,16 @@ func (c *CommonPlatform) SetupRootLB(
 
 //WaitForRootLB waits for the RootLB instance to be up and copies of SSH credentials for internal networks.
 //  Idempotent, but don't call all the time.
-func (c *CommonPlatform) WaitForRootLB(ctx context.Context, rootLB *MEXRootLB) error {
+func (v *VMPlatform) WaitForRootLB(ctx context.Context, rootLB *MEXRootLB) error {
 	log.SpanLog(ctx, log.DebugLevelInfra, "wait for rootlb", "name", rootLB.Name)
 	if rootLB == nil {
 		return fmt.Errorf("cannot wait for lb, rootLB is null")
 	}
-	extNet := c.GetCloudletExternalNetwork()
+	extNet := v.GetCloudletExternalNetwork()
 	if extNet == "" {
 		return fmt.Errorf("waiting for lb, missing external network in manifest")
 	}
-	client, err := c.GetSSHClientForServer(ctx, rootLB.Name, c.GetCloudletExternalNetwork())
+	client, err := v.GetSSHClientForServer(ctx, rootLB.Name, v.GetCloudletExternalNetwork())
 	if err != nil {
 		return err
 	}
@@ -545,7 +568,7 @@ func CopyResourceTracker(client ssh.Client) error {
 	return err
 }
 
-func (c *CommonPlatform) DeleteProxySecurityGroupRules(ctx context.Context, client ssh.Client, proxyName string, secGrpName string, ports []dme.AppPort, app *edgeproto.App, serverName string) error {
+func (v *VMPlatform) DeleteProxySecurityGroupRules(ctx context.Context, client ssh.Client, proxyName string, secGrpName string, ports []dme.AppPort, app *edgeproto.App, serverName string) error {
 	log.SpanLog(ctx, log.DebugLevelInfra, "DeleteProxySecurityGroupRules", "proxyName", proxyName, "ports", ports)
 
 	err := proxy.DeleteNginxProxy(ctx, client, proxyName)
@@ -553,5 +576,5 @@ func (c *CommonPlatform) DeleteProxySecurityGroupRules(ctx context.Context, clie
 		log.SpanLog(ctx, log.DebugLevelInfra, "cannot delete proxy", "proxyName", proxyName, "error", err)
 	}
 	allowedClientCIDR := GetAllowedClientCIDR()
-	return c.infraProvider.RemoveWhitelistSecurityRules(ctx, secGrpName, allowedClientCIDR, ports)
+	return v.vmProvider.RemoveWhitelistSecurityRules(ctx, secGrpName, allowedClientCIDR, ports)
 }

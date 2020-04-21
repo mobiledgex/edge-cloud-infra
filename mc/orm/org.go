@@ -40,7 +40,6 @@ func CreateOrg(c echo.Context) error {
 
 	err = CreateOrgObj(ctx, claims, &org)
 	if err == nil && serverConfig.Billing {
-		// TODO: Manage this error somehow
 		err = createZuoraAccount(ctx, &org)
 	}
 	return setReply(c, err, Msg("Organization created"))
@@ -155,7 +154,6 @@ func DeleteOrg(c echo.Context) error {
 
 	err = DeleteOrgObj(ctx, claims, &org)
 	if err == nil && serverConfig.Billing {
-		// TODO: manage this err
 		err = cancelZuoraSubscription(ctx, org.Name)
 	}
 	return setReply(c, err, Msg("Organization deleted"))

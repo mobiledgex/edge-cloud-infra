@@ -30,7 +30,7 @@ func (a *AzurePlatform) Init(ctx context.Context, platformConfig *platform.Platf
 	if err != nil {
 		return err
 	}
-	if err := a.commonPf.InitInfraCommon(ctx, platformConfig, azureProps, vaultConfig, a); err != nil {
+	if err := a.commonPf.InitInfraCommon(ctx, platformConfig, azureProps, vaultConfig); err != nil {
 		return err
 	}
 

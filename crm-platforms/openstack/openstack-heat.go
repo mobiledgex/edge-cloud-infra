@@ -427,7 +427,7 @@ func (o *OpenstackPlatform) populateParams(ctx context.Context, vmGroupParams *v
 					}
 				}
 				if !found {
-					return fmt.Errorf("cannot find matching subnet for port", "port", p)
+					return fmt.Errorf("cannot find matching subnet for port: %s", p.Name)
 				}
 			}
 		}

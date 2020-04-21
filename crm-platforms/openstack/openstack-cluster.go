@@ -36,13 +36,13 @@ func (s *OpenstackPlatform) GetClusterMasterNameAndIP(ctx context.Context, clust
 }
 
 func (o *OpenstackPlatform) UpdateClusterInst(ctx context.Context, clusterInst *edgeproto.ClusterInst, privacyPolicy *edgeproto.PrivacyPolicy, updateCallback edgeproto.CacheUpdateCallback) error {
-	return fmt.Errorf("TODO")
+	return o.vmPlatform.UpdateClusterInst(ctx, clusterInst, privacyPolicy, updateCallback)
 }
 
 func (o *OpenstackPlatform) CreateClusterInst(ctx context.Context, clusterInst *edgeproto.ClusterInst, privacyPolicy *edgeproto.PrivacyPolicy, updateCallback edgeproto.CacheUpdateCallback, timeout time.Duration) error {
-	return s.vmProvider.CreateClusterInst(ctx, clusterInst, privacyPolicy, updateCallback, timeout)
+	return o.vmPlatform.CreateClusterInst(ctx, clusterInst, privacyPolicy, updateCallback, timeout)
 }
 
 func (o *OpenstackPlatform) DeleteClusterInst(ctx context.Context, clusterInst *edgeproto.ClusterInst) error {
-	return s.vmProvider.DeleteClusterInst(ctx, clusterInst)
+	return o.vmPlatform.DeleteClusterInst(ctx, clusterInst)
 }

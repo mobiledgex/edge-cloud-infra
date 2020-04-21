@@ -273,16 +273,8 @@ func (o *OpenstackPlatform) setupPlatformService(ctx context.Context, cloudlet *
 //   * Sets up Security Group for access to Cloudlet
 // Returns ssh client
 func (o *OpenstackPlatform) setupPlatformVM(ctx context.Context, cloudlet *edgeproto.Cloudlet, pfConfig *edgeproto.PlatformConfig, pfFlavor *edgeproto.Flavor, updateCallback edgeproto.CacheUpdateCallback) (ssh.Client, error) {
-	// Get Flavor Info
-	finfo, _, _, err := o.GetFlavorInfo(ctx)
-	if err != nil {
-		return nil, err
-	}
 	// Get Closest Platform Flavor
 	platformVmName := o.getPlatformVMName(&cloudlet.Key)
-	if err != nil {
-		return nil, fmt.Errorf("unable to find VM spec for Shared RootLB: %v", err)
-	}
 	vmspec, err := vmspec.GetVMSpec(o.vmPlatform.FlavorList, *pfFlavor)
 	if err != nil {
 		return nil, fmt.Errorf("unable to find VM spec for Shared RootLB: %v", err)
@@ -469,7 +461,7 @@ func (o *OpenstackPlatform) DeleteCloudlet(ctx context.Context, cloudlet *edgepr
 		return fmt.Errorf("DeleteCloudlet error: %v", err)
 	}
 
-	rootLBName := o.vmProvider.GetRootLBName(&cloudlet.Key)
+	rootLBName := o.vmPlatform.GetRootLBName(&cloudlet.Key)
 	updateCallback(edgeproto.UpdateTask, fmt.Sprintf("Deleting RootLB %s", rootLBName))
 	err = o.HeatDeleteStack(ctx, rootLBName)
 	if err != nil {
@@ -527,7 +519,7 @@ func getCRMPkgVersion(ctx context.Context, client ssh.Client) (string, error) {
 	return out, nil
 }
 
-func upgradeCloudletPkgs(ctx context.Context, vmType infracommon.DeploymentType, cloudlet *edgeproto.Cloudlet, pfConfig *edgeproto.PlatformConfig, vaultConfig *vault.Config, client ssh.Client, updateCallback edgeproto.CacheUpdateCallback) error {
+func upgradeCloudletPkgs(ctx context.Context, vmType vmlayer.VMType, cloudlet *edgeproto.Cloudlet, pfConfig *edgeproto.PlatformConfig, vaultConfig *vault.Config, client ssh.Client, updateCallback edgeproto.CacheUpdateCallback) error {
 	log.SpanLog(ctx, log.DebugLevelInfra, "Updating apt package lists", "cloudletName", cloudlet.Key.Name, "vmType", vmType)
 	if out, err := client.Output("sudo apt-get update"); err != nil {
 		return fmt.Errorf("Failed to update apt package lists, %v, %v", out, err)
@@ -557,7 +549,7 @@ func (o *OpenstackPlatform) UpdateCloudlet(ctx context.Context, cloudlet *edgepr
 		return defCloudletAction, err
 	}
 
-	pfClient, err := s.vmProvider.GetSSHClientForServer(ctx, o.getPlatformVMName(&cloudlet.Key), s.vmProvider.GetCloudletExternalNetwork())
+	pfClient, err := o.vmPlatform.GetSSHClientForServer(ctx, o.getPlatformVMName(&cloudlet.Key), o.vmPlatform.GetCloudletExternalNetwork())
 	if err != nil {
 		return defCloudletAction, err
 	}
@@ -568,13 +560,13 @@ func (o *OpenstackPlatform) UpdateCloudlet(ctx context.Context, cloudlet *edgepr
 	}
 
 	rootLBName := cloudcommon.GetRootLBFQDN(&cloudlet.Key)
-	rlbClient, err := s.vmProvider.GetSSHClientForServer(ctx, rootLBName, s.vmProvider.GetCloudletExternalNetwork())
+	rlbClient, err := o.vmPlatform.GetSSHClientForServer(ctx, rootLBName, o.vmPlatform.GetCloudletExternalNetwork())
 	if err != nil {
 		return defCloudletAction, err
 	}
-	upgradeMap := map[infracommon.DeploymentType]ssh.Client{
-		infracommon.PlatformVMDeployment: pfClient,
-		infracommon.RootLBVMDeployment:   rlbClient,
+	upgradeMap := map[vmlayer.VMType]ssh.Client{
+		vmlayer.VMTypePlatform: pfClient,
+		vmlayer.VMTypeRootLB:   rlbClient,
 	}
 	for vmType, client := range upgradeMap {
 		if cloudlet.PackageVersion == "" {
@@ -656,7 +648,7 @@ func (o *OpenstackPlatform) UpdateCloudlet(ctx context.Context, cloudlet *edgepr
 func (o *OpenstackPlatform) CleanupCloudlet(ctx context.Context, cloudlet *edgeproto.Cloudlet, pfConfig *edgeproto.PlatformConfig, updateCallback edgeproto.CacheUpdateCallback) error {
 	log.SpanLog(ctx, log.DebugLevelInfra, "Cleaning up cloudlet", "cloudletName", cloudlet.Key.Name)
 
-	client, err := s.vmProvider.GetSSHClientForServer(ctx, o.getPlatformVMName(&cloudlet.Key), s.vmProvider.GetCloudletExternalNetwork())
+	client, err := o.vmPlatform.GetSSHClientForServer(ctx, o.getPlatformVMName(&cloudlet.Key), o.vmPlatform.GetCloudletExternalNetwork())
 	if err != nil {
 		return err
 	}

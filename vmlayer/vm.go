@@ -21,6 +21,14 @@ const (
 	VMTypeK8sNode   VMType = "k8s-node"
 )
 
+type ActionType string
+
+const (
+	ActionCreate ActionType = "create"
+	ActionUpdate ActionType = "update"
+	ActionDelete ActionType = "delete"
+)
+
 var ClusterTypeKubernetesMasterLabel = "mex-k8s-master"
 var ClusterTypeDockerVMLabel = "mex-docker-vm"
 
@@ -89,7 +97,7 @@ type FloatingIPParams struct {
 
 type RouterInterfaceParams struct {
 	RouterName string
-	RouterPort string
+	RouterPort ResourceReference
 }
 
 type SecurityGroupParams struct {
@@ -385,10 +393,19 @@ func (v *VMPlatform) getVMGroupParamsFromGroupSpec(ctx context.Context, spec *VM
 		log.SpanLog(ctx, log.DebugLevelInfra, "NoExternalRouter in use ")
 	} else {
 		log.SpanLog(ctx, log.DebugLevelMexos, "External router in use")
-		internalSecgrpID = cloudletSecGrpID
-		rtrInUse = true
-		return nil, fmt.Errorf("TODO: Router interface not yet implemented")
-		//  next need to create router interfaces
+		if spec.NewSubnetName != "" {
+			internalSecgrpID = cloudletSecGrpID
+			rtrInUse = true
+			routerPortName := spec.NewSubnetName + "-rtr-port"
+			routerPort := PortParams{
+				Name:        routerPortName,
+				NetworkName: internalNetName,
+				FixedIPs:    []FixedIPParams{{Address: NextAvailableResource, LastIPOctet: 1, Subnet: NewResourceReference(spec.NewSubnetName, false)}},
+			}
+			vmgp.Ports = append(vmgp.Ports, routerPort)
+			newRouterIf := RouterInterfaceParams{RouterName: v.GetCloudletExternalRouter(), RouterPort: NewResourceReference(routerPortName, false)}
+			vmgp.RouterInterfaces = append(vmgp.RouterInterfaces, newRouterIf)
+		}
 	}
 
 	newSecGrpName := spec.GroupName + "-sg"
@@ -419,7 +436,7 @@ func (v *VMPlatform) getVMGroupParamsFromGroupSpec(ctx context.Context, spec *VM
 		var role VMRole
 		var newPorts []PortParams
 		internalPortName := fmt.Sprintf("%s-%s-port", vm.Name, internalNetName)
-		externalPortName := fmt.Sprintf("%s-port", vm.Name, externalNetName)
+		externalPortName := fmt.Sprintf("%s-%s-port", vm.Name, externalNetName)
 
 		switch vm.Type {
 		case VMTypePlatform:
@@ -463,7 +480,7 @@ func (v *VMPlatform) getVMGroupParamsFromGroupSpec(ctx context.Context, spec *VM
 				}
 				newPorts = append(newPorts, internalPort)
 			} else {
-				fmt.Errorf("k8s master not specified to be connected to internal network")
+				return nil, fmt.Errorf("k8s master not specified to be connected to internal network")
 			}
 		case VMTypeK8sNode:
 			role = RoleNode
@@ -478,13 +495,13 @@ func (v *VMPlatform) getVMGroupParamsFromGroupSpec(ctx context.Context, spec *VM
 				internalPortNextOctet++
 				newPorts = append(newPorts, internalPort)
 			} else {
-				fmt.Errorf("k8s node not specified to be connected to internal network")
+				return nil, fmt.Errorf("k8s node not specified to be connected to internal network")
 			}
 		}
 		// ports contains only internal ports at this point. Optionally add the internal
 		// security group which is used when we have a router
 		if internalSecgrpID != "" {
-			for i, _ := range newPorts {
+			for i := range newPorts {
 				sec := NewResourceReference(internalSecgrpID, false)
 				newPorts[i].SecurityGroups = append(newPorts[i].SecurityGroups, sec)
 			}
@@ -549,35 +566,35 @@ func (v *VMPlatform) getVMGroupParamsFromGroupSpec(ctx context.Context, spec *VM
 	return &vmgp, nil
 }
 
-func (v *VMPlatform) CreateVMsFromVMSpec(ctx context.Context, name string, vms []*VMRequestSpec, updateCallback edgeproto.CacheUpdateCallback, opts ...VMGroupReqOp) error {
+// CreateVMsFromVMSpec calls the provider function to do the orchestation of the VMs.  It returns the updated VM group spec
+func (v *VMPlatform) CreateVMsFromVMSpec(ctx context.Context, name string, vms []*VMRequestSpec, updateCallback edgeproto.CacheUpdateCallback, opts ...VMGroupReqOp) (*VMGroupParams, error) {
 	log.SpanLog(ctx, log.DebugLevelInfra, "CreateVMsFromVMSpec", "name", name)
 	gp, err := v.GetVMGroupParamsFromVMSpec(ctx, name, vms)
 	if err != nil {
-		return err
+		return gp, err
 	}
 	log.SpanLog(ctx, log.DebugLevelInfra, "created vm group spec", "gp", gp)
 	err = v.vmProvider.CreateVMs(ctx, gp, updateCallback)
 	if err != nil {
 		log.SpanLog(ctx, log.DebugLevelInfra, "error while creating vms", "name", name, "name", "error", err)
-		return err
+		return gp, err
 	}
 	log.SpanLog(ctx, log.DebugLevelInfra, "VM create done")
-	return nil
+	return gp, nil
 }
 
-func (v *VMPlatform) UpdateVMsFromVMSpec(ctx context.Context, name string, vms []*VMRequestSpec, updateCallback edgeproto.CacheUpdateCallback, opts ...VMGroupReqOp) error {
+func (v *VMPlatform) UpdateVMsFromVMSpec(ctx context.Context, name string, vms []*VMRequestSpec, updateCallback edgeproto.CacheUpdateCallback, opts ...VMGroupReqOp) (*VMGroupParams, error) {
 	log.SpanLog(ctx, log.DebugLevelInfra, "UpdateVMsFromVMSpec", "name", name)
 	gp, err := v.GetVMGroupParamsFromVMSpec(ctx, name, vms)
 	if err != nil {
-		return err
+		return gp, err
 	}
 	log.SpanLog(ctx, log.DebugLevelInfra, "created vm group spec", "gp", gp)
 	err = v.vmProvider.UpdateVMs(ctx, gp, updateCallback)
 	if err != nil {
 		log.SpanLog(ctx, log.DebugLevelInfra, "error while updating vms", "name", name, "name", "error", err)
-		return err
+		return gp, err
 	}
 	log.SpanLog(ctx, log.DebugLevelInfra, "VM update done")
-	return nil
-
+	return gp, nil
 }

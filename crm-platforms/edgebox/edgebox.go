@@ -9,6 +9,8 @@ import (
 	"github.com/mobiledgex/edge-cloud/cloud-resource-manager/platform/dind"
 	"github.com/mobiledgex/edge-cloud/cloudcommon"
 	"github.com/mobiledgex/edge-cloud/edgeproto"
+	"github.com/mobiledgex/edge-cloud/log"
+	"github.com/mobiledgex/edge-cloud/vault"
 	ssh "github.com/mobiledgex/golang-ssh"
 )
 
@@ -23,7 +25,7 @@ type EdgeboxPlatform struct {
 }
 
 var edgeboxProps = map[string]*infracommon.PropertyInfo{
-	"MEX_NETWORK_SCHEME": &infracommon.PropertyInfo{
+	"MEX_EDGEBOX_NETWORK_SCHEME": &infracommon.PropertyInfo{
 		Value: cloudcommon.NetworkSchemePrivateIP,
 	},
 }
@@ -33,43 +35,41 @@ func (e *EdgeboxPlatform) GetType() string {
 }
 
 func (e *EdgeboxPlatform) Init(ctx context.Context, platformConfig *platform.PlatformConfig, updateCallback edgeproto.CacheUpdateCallback) error {
-	return fmt.Errorf("TODO")
-	/*
-		err := e.generic.Init(ctx, platformConfig, updateCallback)
-		// Set the test Mode based on what is in PlatformConfig
-		infracommon.SetTestMode(platformConfig.TestMode)
+	err := e.generic.Init(ctx, platformConfig, updateCallback)
+	// Set the test Mode based on what is in PlatformConfig
+	infracommon.SetTestMode(platformConfig.TestMode)
 
-		vaultConfig, err := vault.BestConfig(platformConfig.VaultAddr)
-		if err != nil {
-			return err
-		}
+	vaultConfig, err := vault.BestConfig(platformConfig.VaultAddr)
+	if err != nil {
+		return err
+	}
 
-		if err := e.commonPf.InitInfraCommon(ctx, platformConfig, edgeboxProps, vaultConfig, e); err != nil {
-			return err
-		}
+	if err := e.commonPf.InitInfraCommon(ctx, platformConfig, edgeboxProps, vaultConfig); err != nil {
+		return err
+	}
 
-		e.NetworkScheme = e.commonPf.GetCloudletNetworkScheme()
-		if e.NetworkScheme != cloudcommon.NetworkSchemePrivateIP &&
-			e.NetworkScheme != cloudcommon.NetworkSchemePublicIP {
-			return fmt.Errorf("Unsupported network scheme for DIND: %s", e.NetworkScheme)
-		}
+	e.NetworkScheme = e.GetEdgeboxNetworkScheme()
+	if e.NetworkScheme != cloudcommon.NetworkSchemePrivateIP &&
+		e.NetworkScheme != cloudcommon.NetworkSchemePublicIP {
+		return fmt.Errorf("Unsupported network scheme for DIND: %s", e.NetworkScheme)
+	}
 
-		fqdn := cloudcommon.GetRootLBFQDN(platformConfig.CloudletKey)
-		ipaddr, err := e.GetDINDServiceIP(ctx)
-		if err != nil {
-			return fmt.Errorf("init cannot get service ip, %s", err.Error())
-		}
-		if err := e.commonPf.ActivateFQDNA(ctx, fqdn, ipaddr); err != nil {
-			log.SpanLog(ctx, log.DebugLevelInfra, "error in ActivateFQDNA", "err", err)
-			return err
-		}
-		log.SpanLog(ctx, log.DebugLevelInfra, "done init edgebox")
-		return nil
-	*/
+	fqdn := cloudcommon.GetRootLBFQDN(platformConfig.CloudletKey)
+	ipaddr, err := e.GetDINDServiceIP(ctx)
+	if err != nil {
+		return fmt.Errorf("init cannot get service ip, %s", err.Error())
+	}
+	if err := e.commonPf.ActivateFQDNA(ctx, fqdn, ipaddr); err != nil {
+		log.SpanLog(ctx, log.DebugLevelInfra, "error in ActivateFQDNA", "err", err)
+		return err
+	}
+	log.SpanLog(ctx, log.DebugLevelInfra, "done init edgebox")
+	return nil
+
 }
 
-func (e *EdgeboxPlatform) GetCloudletNetworkScheme() string {
-	return e.commonPf.Properties["MEX_NETWORK_SCHEME"].Value
+func (e *EdgeboxPlatform) GetEdgeboxNetworkScheme() string {
+	return e.commonPf.Properties["MEX_EDGEBOX_NETWORK_SCHEME"].Value
 }
 
 func (e *EdgeboxPlatform) GatherCloudletInfo(ctx context.Context, info *edgeproto.CloudletInfo) error {

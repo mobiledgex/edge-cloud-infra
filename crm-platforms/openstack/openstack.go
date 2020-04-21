@@ -49,7 +49,7 @@ func (o *OpenstackPlatform) Init(ctx context.Context, platformConfig *platform.P
 	if err != nil {
 		return err
 	}
-	if err := o.vmPlatform.CommonPf.InitInfraCommon(ctx, platformConfig, vmlayer.VMProviderProps, vaultConfig, o); err != nil {
+	if err := o.vmPlatform.CommonPf.InitInfraCommon(ctx, platformConfig, vmlayer.VMProviderProps, vaultConfig); err != nil {
 		return err
 	}
 	return o.vmPlatform.InitVMProvider(ctx, o, updateCallback)

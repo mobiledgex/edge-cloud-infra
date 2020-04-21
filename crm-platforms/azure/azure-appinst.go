@@ -72,13 +72,13 @@ func (a *AzurePlatform) CreateAppInst(ctx context.Context, clusterInst *edgeprot
 	return nil
 }
 
-func (s *AzurePlatform) DeleteAppInst(ctx context.Context, clusterInst *edgeproto.ClusterInst, app *edgeproto.App, appInst *edgeproto.AppInst) error {
+func (a *AzurePlatform) DeleteAppInst(ctx context.Context, clusterInst *edgeproto.ClusterInst, app *edgeproto.App, appInst *edgeproto.AppInst) error {
 	var err error
 	// regenerate kconf if missing because CRM in container was restarted
-	if err = s.SetupKconf(ctx, clusterInst); err != nil {
+	if err = a.SetupKconf(ctx, clusterInst); err != nil {
 		return fmt.Errorf("can't set up kconf, %s", err.Error())
 	}
-	client, err := s.GetPlatformClient(ctx, clusterInst)
+	client, err := a.GetPlatformClient(ctx, clusterInst)
 	if err != nil {
 		return err
 	}
@@ -101,7 +101,7 @@ func (s *AzurePlatform) DeleteAppInst(ctx context.Context, clusterInst *edgeprot
 	if app.InternalPorts {
 		return nil
 	}
-	return s.vmPlatform.DeleteAppDNS(ctx, client, names, infracommon.NoDnsOverride)
+	return a.commonPf.DeleteAppDNS(ctx, client, names, infracommon.NoDnsOverride)
 }
 
 func (a *AzurePlatform) SetupKconf(ctx context.Context, clusterInst *edgeproto.ClusterInst) error {

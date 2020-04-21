@@ -38,6 +38,44 @@ type ClusterFlavor struct {
 	Topology       string
 }
 
+func (v *VMPlatform) GetClusterName(ctx context.Context, clusterInst *edgeproto.ClusterInst) string {
+	return v.vmProvider.NameSanitize(k8smgmt.GetK8sNodeNameSuffix(&clusterInst.Key))
+}
+
+func (v *VMPlatform) GetClusterSubnetName(ctx context.Context, clusterInst *edgeproto.ClusterInst) string {
+	return "mex-k8s-subnet-" + v.GetClusterName(ctx, clusterInst)
+}
+
+func (v *VMPlatform) GetClusterMasterName(ctx context.Context, clusterInst *edgeproto.ClusterInst) string {
+	return ClusterTypeKubernetesMasterLabel + "-" + v.GetClusterName(ctx, clusterInst)
+}
+
+func (v *VMPlatform) GetClusterNodeName(ctx context.Context, clusterInst *edgeproto.ClusterInst, nodeNum uint32) string {
+	return ClusterNodePrefix(nodeNum) + "-" + v.GetClusterName(ctx, clusterInst)
+}
+
+func (v *VMPlatform) GetClusterSharedRootLBPortName(ctx context.Context, clusterInst *edgeproto.ClusterInst) string {
+	return v.sharedRootLBName + "-" + v.GetClusterName(ctx, clusterInst) + "-port"
+}
+
+func (v *VMPlatform) GetRootLBNameForCluster(ctx context.Context, clusterInst *edgeproto.ClusterInst) string {
+	lbName := v.sharedRootLBName
+	if clusterInst.IpAccess == edgeproto.IpAccess_IP_ACCESS_DEDICATED {
+		lbName = cloudcommon.GetDedicatedLBFQDN(v.CommonPf.PlatformConfig.CloudletKey, &clusterInst.Key.ClusterKey)
+	}
+	return lbName
+}
+
+func (v *VMPlatform) GetClusterGatewayFromVMGroupParms(ctx context.Context, clusterInst *edgeproto.ClusterInst, vmgp *VMGroupParams) (string, error) {
+	subnet := v.GetClusterSubnetName(ctx, clusterInst)
+	for _, s := range vmgp.Subnets {
+		if s.Name == subnet {
+			return s.GatewayIP, nil
+		}
+	}
+	return "", fmt.Errorf("Subnet: %s not found in vm group params", subnet)
+}
+
 func ClusterNodePrefix(num uint32) string {
 	return fmt.Sprintf("%s%d", cloudcommon.MexNodePrefix, num)
 }
@@ -50,13 +88,6 @@ func ParseClusterNodePrefix(name string) (bool, uint32) {
 	}
 	num, _ := strconv.Atoi(string(matches[1]))
 	return true, uint32(num)
-}
-func (v *VMPlatform) GetRootLBNameForCluster(ctx context.Context, clusterInst *edgeproto.ClusterInst) string {
-	lbName := v.sharedRootLBName
-	if clusterInst.IpAccess == edgeproto.IpAccess_IP_ACCESS_DEDICATED {
-		lbName = cloudcommon.GetDedicatedLBFQDN(v.CommonPf.PlatformConfig.CloudletKey, &clusterInst.Key.ClusterKey)
-	}
-	return lbName
 }
 
 func (v *VMPlatform) UpdateClusterInst(ctx context.Context, clusterInst *edgeproto.ClusterInst, privacyPolicy *edgeproto.PrivacyPolicy, updateCallback edgeproto.CacheUpdateCallback) error {
@@ -76,89 +107,93 @@ func (v *VMPlatform) UpdateClusterInst(ctx context.Context, clusterInst *edgepro
 }
 
 func (v *VMPlatform) updateClusterInternal(ctx context.Context, client ssh.Client, rootLBName, imgName string, clusterInst *edgeproto.ClusterInst, privacyPolicy *edgeproto.PrivacyPolicy, updateCallback edgeproto.CacheUpdateCallback) (reterr error) {
-	return fmt.Errorf("TODO") /*
-		updateCallback(edgeproto.UpdateTask, "Updating Cluster Resources")
+	updateCallback(edgeproto.UpdateTask, "Updating Cluster Resources")
 
-		if clusterInst.Deployment == cloudcommon.AppDeploymentTypeKubernetes {
-			// if removing nodes, need to tell kubernetes that nodes are
-			// going away forever so that tolerating pods can be migrated
-			// off immediately.
-			kconfName := k8smgmt.GetKconfName(clusterInst)
-			cmd := fmt.Sprintf("KUBECONFIG=%s kubectl get nodes --no-headers -o custom-columns=Name:.metadata.name", kconfName)
-			out, err := client.Output(cmd)
-			if err != nil {
-				return err
-			}
-			allnodes := strings.Split(strings.TrimSpace(out), "\n")
-			toRemove := []string{}
-			numMaster := uint32(0)
-			numNodes := uint32(0)
-			for _, n := range allnodes {
-				if !strings.HasPrefix(n, cloudcommon.MexNodePrefix) {
-					// skip master
-					numMaster++
-					continue
-				}
-				ok, num := ParseClusterNodePrefix(n)
-				if !ok {
-					log.SpanLog(ctx, log.DebugLevelInfra, "unable to parse node name, ignoring", "name", n)
-					continue
-				}
-				numNodes++
-				// heat will remove the higher-numbered nodes
-				if num > clusterInst.NumNodes {
-					toRemove = append(toRemove, n)
-				}
-			}
-			if len(toRemove) > 0 {
-				log.SpanLog(ctx, log.DebugLevelInfra, "delete nodes", "toRemove", toRemove)
-				err = k8smgmt.DeleteNodes(ctx, client, kconfName, toRemove)
-				if err != nil {
-					return err
-				}
-			}
-			if numMaster == clusterInst.NumMasters && numNodes == clusterInst.NumNodes {
-				// nothing changing
-				log.SpanLog(ctx, log.DebugLevelInfra, "no change in nodes", "ClusterInst", clusterInst.Key, "nummaster", numMaster, "numnodes", numNodes)
-				return nil
-			}
-		}
-
-		dedicatedRootLB := clusterInst.IpAccess == edgeproto.IpAccess_IP_ACCESS_DEDICATED
-
-		err := v.vmProvider.UpdateClusterVMs(ctx, clusterInst, privacyPolicy, rootLBName, imgName, dedicatedRootLB, updateCallback)
+	if clusterInst.Deployment == cloudcommon.AppDeploymentTypeKubernetes {
+		// if removing nodes, need to tell kubernetes that nodes are
+		// going away forever so that tolerating pods can be migrated
+		// off immediately.
+		kconfName := k8smgmt.GetKconfName(clusterInst)
+		cmd := fmt.Sprintf("KUBECONFIG=%s kubectl get nodes --no-headers -o custom-columns=Name:.metadata.name", kconfName)
+		out, err := client.Output(cmd)
 		if err != nil {
 			return err
 		}
-		updateCallback(edgeproto.UpdateTask, "Waiting for Cluster to Update")
-		//todo: calculate timeouts instead of hardcoded value
-		return v.waitClusterReady(ctx, clusterInst, rootLBName, updateCallback, time.Minute*15)
-	*/
+		allnodes := strings.Split(strings.TrimSpace(out), "\n")
+		toRemove := []string{}
+		numMaster := uint32(0)
+		numNodes := uint32(0)
+		for _, n := range allnodes {
+			if !strings.HasPrefix(n, cloudcommon.MexNodePrefix) {
+				// skip master
+				numMaster++
+				continue
+			}
+			ok, num := ParseClusterNodePrefix(n)
+			if !ok {
+				log.SpanLog(ctx, log.DebugLevelInfra, "unable to parse node name, ignoring", "name", n)
+				continue
+			}
+			numNodes++
+			// heat will remove the higher-numbered nodes
+			if num > clusterInst.NumNodes {
+				toRemove = append(toRemove, n)
+			}
+		}
+		if len(toRemove) > 0 {
+			log.SpanLog(ctx, log.DebugLevelInfra, "delete nodes", "toRemove", toRemove)
+			err = k8smgmt.DeleteNodes(ctx, client, kconfName, toRemove)
+			if err != nil {
+				return err
+			}
+		}
+		if numMaster == clusterInst.NumMasters && numNodes == clusterInst.NumNodes {
+			// nothing changing
+			log.SpanLog(ctx, log.DebugLevelInfra, "no change in nodes", "ClusterInst", clusterInst.Key, "nummaster", numMaster, "numnodes", numNodes)
+			return nil
+		}
+	}
+	_, err := v.CreateOrUpdateVMsForCluster(ctx, imgName, clusterInst, privacyPolicy, ActionUpdate, updateCallback)
+	if err != nil {
+		return err
+	}
+	updateCallback(edgeproto.UpdateTask, "Waiting for Cluster to Update")
+	//todo: calculate timeouts instead of hardcoded value
+
+	return v.waitClusterReady(ctx, clusterInst, rootLBName, updateCallback, time.Minute*15)
+
 }
 
 //DeleteCluster deletes kubernetes cluster
 func (v *VMPlatform) deleteCluster(ctx context.Context, rootLBName string, clusterInst *edgeproto.ClusterInst) error {
-	return fmt.Errorf("TODO") /*
-		log.SpanLog(ctx, log.DebugLevelInfra, "deleting kubernetes cluster", "clusterInst", clusterInst)
+	log.SpanLog(ctx, log.DebugLevelInfra, "deleting kubernetes cluster", "clusterInst", clusterInst)
+	name := v.GetClusterName(ctx, clusterInst)
 
-		dedicatedRootLB := clusterInst.IpAccess == edgeproto.IpAccess_IP_ACCESS_DEDICATED
-		client, err := v.vmProvider.GetPlatformClient(ctx, clusterInst)
-		if err != nil {
-			if strings.Contains(err.Error(), "No server with a name or ID") {
-				log.SpanLog(ctx, log.DebugLevelInfra, "Dedicated RootLB is gone, allow stack delete to proceed")
-			} else {
-				return err
-			}
+	dedicatedRootLB := clusterInst.IpAccess == edgeproto.IpAccess_IP_ACCESS_DEDICATED
+	client, err := v.vmProvider.GetPlatformClient(ctx, clusterInst)
+	if err != nil {
+		if strings.Contains(err.Error(), "No server with a name or ID") {
+			log.SpanLog(ctx, log.DebugLevelInfra, "Dedicated RootLB is gone, allow stack delete to proceed")
+		} else {
+			return err
 		}
-		err = v.vmProvider.DeleteClusterResources(ctx, client, clusterInst, rootLBName, dedicatedRootLB)
+	}
+	err = v.vmProvider.DeleteVMs(ctx, name)
+	if err != nil {
+		return err
+	}
+
+	if dedicatedRootLB {
+		proxy.RemoveDedicatedCluster(ctx, clusterInst.Key.ClusterKey.Name)
+		DeleteRootLB(rootLBName)
+	} else {
+		ip, err := v.vmProvider.GetIPFromServerName(ctx, v.GetClusterSubnetName(ctx, clusterInst), rootLBName)
 		if err != nil {
 			return err
 		}
-		if dedicatedRootLB {
-			proxy.RemoveDedicatedCluster(ctx, clusterInst.Key.ClusterKey.Name)
-			DeleteRootLB(rootLBName)
-		}
-		return nil*/
+		return v.DetachAndDisableRootLBInterface(ctx, client, rootLBName, v.GetClusterSharedRootLBPortName(ctx, clusterInst), ip.InternalAddr)
+	}
+	return nil
 }
 
 func (v *VMPlatform) CreateClusterInst(ctx context.Context, clusterInst *edgeproto.ClusterInst, privacyPolicy *edgeproto.PrivacyPolicy, updateCallback edgeproto.CacheUpdateCallback, timeout time.Duration) error {
@@ -211,9 +246,14 @@ func (v *VMPlatform) createClusterInternal(ctx context.Context, rootLBName strin
 		//use the cloudlet default AZ if it exists
 		clusterInst.AvailabilityZone = v.GetCloudletComputeAvailabilityZone()
 	}
-	err = v.CreateVMsForCluster(ctx, imgName, clusterInst, privacyPolicy, updateCallback)
+	vmgp, err := v.CreateOrUpdateVMsForCluster(ctx, imgName, clusterInst, privacyPolicy, ActionCreate, updateCallback)
 	if err != nil {
 		return fmt.Errorf("Cluster VM create Failed: %v", err)
+	}
+
+	client, err := v.vmProvider.GetPlatformClient(ctx, clusterInst)
+	if err != nil {
+		return fmt.Errorf("can't get rootLB client, %v", err)
 	}
 
 	// the root LB was created as part of cluster creation, but it needs to be prepped and
@@ -230,11 +270,18 @@ func (v *VMPlatform) createClusterInternal(ctx context.Context, rootLBName strin
 		if err != nil {
 			return err
 		}
+	} else {
+		if v.GetCloudletExternalRouter() != NoExternalRouter {
+			// after vm creation, the orchestrator will update some fields in the group params including gateway IP.
+			// this IP is used on the rootLB to server as the GW for this new subnet
+			gw, err := v.GetClusterGatewayFromVMGroupParms(ctx, clusterInst, vmgp)
+			if err != nil {
+				return err
+			}
+			return v.AttachAndEnableRootLBInterface(ctx, client, rootLBName, v.GetClusterSharedRootLBPortName(ctx, clusterInst), gw)
+		}
 	}
-	client, err := v.vmProvider.GetPlatformClient(ctx, clusterInst)
-	if err != nil {
-		return fmt.Errorf("can't get rootLB client, %v", err)
-	}
+
 	if clusterInst.Deployment == cloudcommon.AppDeploymentTypeKubernetes {
 		elapsed := time.Since(start)
 		// subtract elapsed time from total time to get remaining time
@@ -394,16 +441,16 @@ func clusterRequiresNewSubnet(ctx context.Context, clusterInst *edgeproto.Cluste
 	return false, fmt.Errorf("unsupported deployment type for cluster: %s", clusterInst.Deployment)
 }
 
-func (v *VMPlatform) CreateVMsForCluster(ctx context.Context, imgName string, clusterInst *edgeproto.ClusterInst, privacyPolicy *edgeproto.PrivacyPolicy, updateCallback edgeproto.CacheUpdateCallback) error {
-	name := v.vmProvider.NameSanitize(k8smgmt.GetK8sNodeNameSuffix(&clusterInst.Key))
+func (v *VMPlatform) CreateOrUpdateVMsForCluster(ctx context.Context, imgName string, clusterInst *edgeproto.ClusterInst, privacyPolicy *edgeproto.PrivacyPolicy, action ActionType, updateCallback edgeproto.CacheUpdateCallback) (*VMGroupParams, error) {
+	name := v.GetClusterName(ctx, clusterInst)
+
 	log.SpanLog(ctx, log.DebugLevelInfo, "CreateVMsForCluster", "name", name)
 
 	masterFlavor := clusterInst.MasterNodeFlavor
 	if masterFlavor == "" {
 		masterFlavor = clusterInst.NodeFlavor
 	}
-	subnetname := "subnetname"
-
+	subnetname := v.GetClusterSubnetName(ctx, clusterInst)
 	master, err := v.GetVMRequestSpec(ctx,
 		VMTypeK8sMaster,
 		"master",
@@ -415,10 +462,16 @@ func (v *VMPlatform) CreateVMsForCluster(ctx context.Context, imgName string, cl
 		WithExternalVolume(clusterInst.ExternalVolumeSize),
 	)
 	if err != nil {
-		return err
+		return nil, err
 	}
 	var vms []*VMRequestSpec
 	vms = append(vms, master)
 	//	return v.GetVMGroupParamsFromVMSpec(ctx, name, vms, WithNewSubnet(subnetname))
-	return v.CreateVMsFromVMSpec(ctx, name, vms, updateCallback, WithNewSubnet(subnetname), WithPrivacyPolicy(privacyPolicy))
+	if action == ActionCreate {
+		return v.CreateVMsFromVMSpec(ctx, name, vms, updateCallback, WithNewSubnet(subnetname), WithPrivacyPolicy(privacyPolicy))
+	} else if action == ActionUpdate {
+		return v.UpdateVMsFromVMSpec(ctx, name, vms, updateCallback, WithNewSubnet(subnetname), WithPrivacyPolicy(privacyPolicy))
+	} else {
+		return nil, fmt.Errorf("unexpected action: %s", action)
+	}
 }

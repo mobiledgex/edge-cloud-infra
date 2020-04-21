@@ -19,9 +19,11 @@ const ServerDoesNotExistError string = "Server does not exist"
 // this is not exhaustive, currently only ResourceTypeSecurityGroup is needed
 type ResourceType string
 
-var ResourceTypeVM ResourceType = "VM"
-var ResourceTypeSubnet ResourceType = "Subnet"
-var ResourceTypeSecurityGroup ResourceType = "SecGrp"
+const (
+	ResourceTypeVM            ResourceType = "VM"
+	ResourceTypeSubnet        ResourceType = "Subnet"
+	ResourceTypeSecurityGroup ResourceType = "SecGrp"
+)
 
 type VMProvider interface {
 	NameSanitize(string) string

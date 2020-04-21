@@ -71,6 +71,7 @@ type ServerConfig struct {
 	NotifyAddrs      string
 	NotifySrvAddr    string
 	NodeMgr          *node.NodeMgr
+	Billing          bool
 }
 
 var DefaultDBUser = "mcuser"

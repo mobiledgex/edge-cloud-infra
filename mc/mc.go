@@ -1,12 +1,15 @@
 package main
 
 import (
+	"context"
 	"flag"
 	"fmt"
 	"os"
 	"os/signal"
 	"time"
 
+	"github.com/mobiledgex/edge-cloud-infra/billing"
+	"github.com/mobiledgex/edge-cloud-infra/billing/collections"
 	"github.com/mobiledgex/edge-cloud-infra/mc/orm"
 	"github.com/mobiledgex/edge-cloud/cloudcommon/node"
 	"github.com/mobiledgex/edge-cloud/log"
@@ -31,6 +34,7 @@ var skipOriginCheck = flag.Bool("skipOriginCheck", false, "skip origin check con
 var notifyAddrs = flag.String("notifyAddrs", "127.0.0.1:53001", "Parent notify listener addresses")
 var notifySrvAddr = flag.String("notifySrvAddr", "127.0.0.1:52001", "Notify listener address")
 var hostname = flag.String("hostname", "", "Unique hostname")
+var billingEnabled = flag.Bool("billing", false, "Enable billing services with zuora")
 
 var sigChan chan os.Signal
 var nodeMgr node.NodeMgr
@@ -66,12 +70,21 @@ func main() {
 		NotifyAddrs:      *notifyAddrs,
 		NotifySrvAddr:    *notifySrvAddr,
 		NodeMgr:          &nodeMgr,
+		Billing:          *billingEnabled,
 	}
 	server, err := orm.RunServer(&config)
 	if err != nil {
 		log.FatalLog("Failed to run orm server", "err", err)
 	}
 	defer server.Stop()
+
+	if *billingEnabled {
+		span := log.StartSpan(log.DebugLevelInfo, "billing")
+		defer span.Finish()
+		ctx := log.ContextWithSpan(context.Background(), span)
+		go billing.RunOAuth(ctx)
+		go collections.CollectDailyClusterUsage(ctx)
+	}
 
 	// wait until process is killed/interrupted
 	signal.Notify(sigChan, os.Interrupt)

@@ -12,6 +12,7 @@ import (
 
 	"github.com/jinzhu/gorm"
 	"github.com/labstack/echo"
+	"github.com/mobiledgex/edge-cloud-infra/billing"
 	"github.com/mobiledgex/edge-cloud-infra/mc/ormapi"
 	"github.com/mobiledgex/edge-cloud-infra/mc/rbac"
 	"github.com/mobiledgex/edge-cloud/cloudcommon"
@@ -38,7 +39,44 @@ func CreateOrg(c echo.Context) error {
 	span.SetTag("org", org.Name)
 
 	err = CreateOrgObj(ctx, claims, &org)
+	if err == nil && serverConfig.Billing {
+		// TODO: Manage this error somehow
+		err = createZuoraAccount(ctx, &org)
+	}
 	return setReply(c, err, Msg("Organization created"))
+}
+
+func createZuoraAccount(ctx context.Context, org *ormapi.Organization) error {
+	//create the account in zuora
+	if org.Type != OrgTypeDeveloper || org.Name == "mobiledgex" {
+		return nil
+	}
+	accountInfo := billing.AccountInfo{OrgName: org.Name}
+	billTo := billing.CustomerBillToContact{
+		FirstName: org.Name,
+		LastName:  org.Name,
+		WorkEmail: org.Email,
+		Address1:  org.Address,
+		City:      org.City,
+		Country:   org.Country,
+		State:     org.State,
+	}
+	currency := "USD" // for now, later on have a function that selects it based on address?
+	err := billing.CreateCustomer(org.Name, currency, &billTo, &accountInfo)
+	if err != nil {
+		return err
+	}
+
+	//put the account info in the db
+	db := loggedDB(ctx)
+	err = db.Create(&accountInfo).Error
+	if err != nil {
+		if strings.Contains(err.Error(), "duplicate key value violates unique constraint \"organizations_pkey") {
+			return fmt.Errorf("Organization with name %s (case-insensitive) already exists", org.Name)
+		}
+		return dbErr(err)
+	}
+	return nil
 }
 
 func CreateOrgObj(ctx context.Context, claims *UserClaims, org *ormapi.Organization) error {
@@ -116,7 +154,34 @@ func DeleteOrg(c echo.Context) error {
 	span.SetTag("org", org.Name)
 
 	err = DeleteOrgObj(ctx, claims, &org)
+	if err == nil && serverConfig.Billing {
+		// TODO: manage this err
+		err = cancelZuoraSubscription(ctx, org.Name)
+	}
 	return setReply(c, err, Msg("Organization deleted"))
+}
+
+func cancelZuoraSubscription(ctx context.Context, orgName string) error {
+	//cancel the zuora subscription and remove it from the db
+	// get the full accountInfo
+	info, err := GetAccountObj(ctx, orgName)
+	if err != nil {
+		return err
+	}
+	// remove account from db
+	db := loggedDB(ctx)
+	err = db.Delete(info).Error
+	if err != nil {
+		if strings.Contains(err.Error(), "violates foreign key constraint \"org_cloudlet_pools_org_fkey\"") {
+			return fmt.Errorf("Cannot delete organization because it is referenced by an OrgCloudletPool")
+		}
+		return dbErr(err)
+	}
+	err = billing.CancelSubscription(info)
+	if err != nil {
+		return err
+	}
+	return nil
 }
 
 func DeleteOrgObj(ctx context.Context, claims *UserClaims, org *ormapi.Organization) error {
@@ -406,4 +471,22 @@ func orgInUseRegion(ctx context.Context, c ormapi.Controller, orgName string) er
 		return nil
 	}
 	return fmt.Errorf(res.Message)
+}
+
+func GetAccountObj(ctx context.Context, orgName string) (*billing.AccountInfo, error) {
+	if orgName == "" {
+		return nil, fmt.Errorf("no orgName specified")
+	}
+	acc := billing.AccountInfo{
+		OrgName: orgName,
+	}
+	db := loggedDB(ctx)
+	res := db.Where(&acc).First(&acc)
+	if res.Error != nil {
+		if res.RecordNotFound() {
+			return nil, fmt.Errorf("account \"%s\" not found", orgName)
+		}
+		return nil, res.Error
+	}
+	return &acc, nil
 }

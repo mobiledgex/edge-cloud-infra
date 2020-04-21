@@ -421,7 +421,7 @@ func (v *VMPlatform) DeleteAppInst(ctx context.Context, clusterInst *edgeproto.C
 	case cloudcommon.AppDeploymentTypeVM:
 		objName := cloudcommon.GetAppFQN(&app.Key)
 		log.SpanLog(ctx, log.DebugLevelInfra, "Deleting VM", "stackName", objName)
-		err := v.vmProvider.DeleteResources(ctx, objName)
+		err := v.vmProvider.DeleteVMs(ctx, objName)
 		if err != nil {
 			return fmt.Errorf("DeleteVMAppInst error: %v", err)
 		}

@@ -324,7 +324,7 @@ var MEXRootLBMap = make(map[string]*MEXRootLB)
 
 // GetVMSpecForRootLB gets the VM spec for the rootLB when it is not specified within a cluster. This is
 // used for Shared RootLb and for VM app based RootLb
-func (v *VMPlatform) GetVMSpecForRootLB(ctx context.Context, name string) (*VMRequestSpec, error) {
+func (v *VMPlatform) GetVMSpecForRootLB(ctx context.Context, name string, updateCallback edgeproto.CacheUpdateCallback) (*VMRequestSpec, error) {
 
 	log.SpanLog(ctx, log.DebugLevelInfra, "GetVMSpecForRootLB", "name", name)
 
@@ -335,13 +335,15 @@ func (v *VMPlatform) GetVMSpecForRootLB(ctx context.Context, name string) (*VMRe
 	}
 	vmspec, err := vmspec.GetVMSpec(v.FlavorList, rootlbFlavor)
 	if err != nil {
-		return nil, fmt.Errorf("unable to find VM spec for Shared RootLB: %v", err)
+		return nil, fmt.Errorf("unable to find VM spec for RootLB: %v", err)
 	}
 	az := vmspec.AvailabilityZone
 	if az == "" {
 		az = v.GetCloudletComputeAvailabilityZone()
 	}
-	imageName, err := v.vmProvider.AddCloudletImageIfNotPresent(ctx, pfConfig.CloudletVmImagePath, cloudlet.VmImageVersion, updateCallback)
+	imgPath := v.CommonPf.PlatformConfig.CloudletVMImagePath
+	imgVersion := v.CommonPf.PlatformConfig.VMImageVersion
+	imageName, err := v.vmProvider.AddCloudletImageIfNotPresent(ctx, imgPath, imgVersion, updateCallback)
 	if err != nil {
 		return nil, err
 	}
@@ -405,22 +407,13 @@ func (v *VMPlatform) CreateRootLB(
 		log.InfoLog("error with RootLB VM image", "name", rootLB.Name, "imgName", imgName, "error", err)
 		return err
 	}
-	vmreq, err := v.GetVMSpecForRootLB(ctx, rootLB.Name)
+	vmreq, err := v.GetVMSpecForRootLB(ctx, rootLB.Name, updateCallback)
 	if err != nil {
 		return err
 	}
 	var vms []*VMRequestSpec
 	vms = append(vms, vmreq)
-	grpspec, err := v.GetVMGroupRequestSpec(ctx, rootLB.Name, vms)
-	if err != nil {
-		return err
-	}
-	gp, err := v.GetVMGroupParams(ctx, grpspec)
-	if err != nil {
-		return err
-	}
-	log.SpanLog(ctx, log.DebugLevelInfra, "created vm group spec", "gp", gp)
-	err = v.vmProvider.CreateVMs(ctx, gp, updateCallback)
+	err = v.CreateVMsFromVMSpec(ctx, rootLB.Name, vms, updateCallback)
 	if err != nil {
 		log.SpanLog(ctx, log.DebugLevelInfra, "error while creating RootLB VM", "name", rootLB.Name, "imgName", imgName, "error", err)
 		return err

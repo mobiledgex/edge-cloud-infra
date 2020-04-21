@@ -8,7 +8,6 @@ import (
 	"github.com/mobiledgex/edge-cloud-infra/vmlayer"
 	"github.com/mobiledgex/edge-cloud/edgeproto"
 
-	"github.com/mobiledgex/edge-cloud-infra/infracommon"
 	"github.com/mobiledgex/edge-cloud/log"
 )
 
@@ -35,13 +34,13 @@ func (o *OpenstackPlatform) GetServerDetail(ctx context.Context, serverName stri
 }
 
 // UpdateServerIPsFromAddrs gets the ServerIPs forthe given network from the addresses and ports
-func (o *OpenstackPlatform) UpdateServerIPs(ctx context.Context, addresses string, ports []OSPort, serverDetail *infracommon.ServerDetail) error {
+func (o *OpenstackPlatform) UpdateServerIPs(ctx context.Context, addresses string, ports []OSPort, serverDetail *vmlayer.ServerDetail) error {
 
 	log.SpanLog(ctx, log.DebugLevelInfra, "UpdateServerIPs", "addresses", addresses, "serverDetail", serverDetail)
 	its := strings.Split(addresses, ";")
 
 	for _, it := range its {
-		var serverIP infracommon.ServerIP
+		var serverIP vmlayer.ServerIP
 		sits := strings.Split(it, "=")
 		if len(sits) != 2 {
 			return fmt.Errorf("GetServerIPFromAddrs: Unable to parse '%s'", it)

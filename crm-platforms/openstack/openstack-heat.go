@@ -12,7 +12,6 @@ import (
 
 	"github.com/mobiledgex/edge-cloud-infra/vmlayer"
 
-	"github.com/mobiledgex/edge-cloud-infra/infracommon"
 	"github.com/mobiledgex/edge-cloud/edgeproto"
 	"github.com/mobiledgex/edge-cloud/log"
 )
@@ -185,27 +184,28 @@ func reindent(str string, indent int) string {
 }
 
 func (o *OpenstackPlatform) getVMUserData(sharedVolume bool, dnsServers string, manifest string, command string) string {
+	var rc string
 	if manifest != "" {
 		return reindent(manifest, 16)
 	}
 	if command != "" {
-		rc := `
+		rc = `
 #cloud-config
 runcmd:
 - ` + command
 	} else {
-		rc := infracommon.VmCloudConfig
+		rc := vmlayer.VmCloudConfig
 		if dnsServers != "" {
 			rc += fmt.Sprintf("\n - echo \"dns-nameservers %s\" >> /etc/network/interfaces.d/50-cloud-init.cfg", dnsServers)
 		}
 		if sharedVolume {
-			return rc + infracommon.VmCloudConfigShareMount
+			return rc + vmlayer.VmCloudConfigShareMount
 		}
 	}
 	return reindent(rc, 16)
 }
 
-func (o *OpenstackPlatform) getVMMetaData(role vmlayer.VMRole, masterIP string, command string) string {
+func (o *OpenstackPlatform) getVMMetaData(role vmlayer.VMRole, masterIP string) string {
 
 	var str string
 	if role == vmlayer.RoleUser {
@@ -217,7 +217,7 @@ func (o *OpenstackPlatform) getVMMetaData(role vmlayer.VMRole, masterIP string, 
 	}
 	str = `skipk8s: ` + string(skipk8s) + `
 role: ` + string(role)
-	if masterIP != "" && masterIP != infracommon.MasterIPNone {
+	if masterIP != "" && masterIP != vmlayer.MasterIPNone {
 		str += `
 k8smaster: ` + masterIP
 	}
@@ -435,18 +435,18 @@ func (o *OpenstackPlatform) populateParams(ctx context.Context, vmGroupParams *v
 
 	// populate the user data
 	for i, v := range vmGroupParams.VMs {
-		vmGroupParams.VMs[i].MetaData = o.getVMMetaData(v.Role, masterIP, v.Command)
-		vmGroupParams.VMs[i].UserData = o.getVMUserData(v.SharedVolume, v.DNSServers, v.DeploymentManifest)
+		vmGroupParams.VMs[i].MetaData = o.getVMMetaData(v.Role, masterIP)
+		vmGroupParams.VMs[i].UserData = o.getVMUserData(v.SharedVolume, v.DNSServers, v.DeploymentManifest, v.Command)
 	}
 
 	// populate the floating ips
-	for i, f := range VMGroupParams.FloatingIPs {
-		if f.FloatingIpId.Name == infracommon.NextAvailableResource {
+	for i, f := range vmGroupParams.FloatingIPs {
+		if f.FloatingIpId.Name == vmlayer.NextAvailableResource {
 			fipid, err := o.getFreeFloatingIpid(ctx)
 			if err != nil {
 				return err
 			}
-			VMGroupParams.FloatingIPs[i].FloatingIpId.Name = fipid
+			vmGroupParams.FloatingIPs[i].FloatingIpId.Name = fipid
 		}
 	}
 

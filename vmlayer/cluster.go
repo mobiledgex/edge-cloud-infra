@@ -211,13 +211,8 @@ func (v *VMPlatform) createClusterInternal(ctx context.Context, rootLBName strin
 		//use the cloudlet default AZ if it exists
 		clusterInst.AvailabilityZone = v.GetCloudletComputeAvailabilityZone()
 	}
-	vmgp, err := v.GetVMGroupParamsForCluster(ctx, imgName, clusterInst, privacyPolicy)
+	err = v.CreateVMsForCluster(ctx, imgName, clusterInst, privacyPolicy, updateCallback)
 	if err != nil {
-		return err
-	}
-	err = v.vmProvider.CreateVMs(ctx, vmgp, updateCallback)
-	if err != nil {
-		log.SpanLog(ctx, log.DebugLevelInfra, "Cluster CreateVMs failed", "err", err)
 		return fmt.Errorf("Cluster VM create Failed: %v", err)
 	}
 
@@ -399,8 +394,9 @@ func clusterRequiresNewSubnet(ctx context.Context, clusterInst *edgeproto.Cluste
 	return false, fmt.Errorf("unsupported deployment type for cluster: %s", clusterInst.Deployment)
 }
 
-func (v *VMPlatform) GetVMGroupParamsForCluster(ctx context.Context, imgName string, clusterInst *edgeproto.ClusterInst, privacyPolicy *edgeproto.PrivacyPolicy) (*VMGroupParams, error) {
+func (v *VMPlatform) CreateVMsForCluster(ctx context.Context, imgName string, clusterInst *edgeproto.ClusterInst, privacyPolicy *edgeproto.PrivacyPolicy, updateCallback edgeproto.CacheUpdateCallback) error {
 	name := v.vmProvider.NameSanitize(k8smgmt.GetK8sNodeNameSuffix(&clusterInst.Key))
+	log.SpanLog(ctx, log.DebugLevelInfo, "CreateVMsForCluster", "name", name)
 
 	masterFlavor := clusterInst.MasterNodeFlavor
 	if masterFlavor == "" {
@@ -419,9 +415,10 @@ func (v *VMPlatform) GetVMGroupParamsForCluster(ctx context.Context, imgName str
 		WithExternalVolume(clusterInst.ExternalVolumeSize),
 	)
 	if err != nil {
-		return nil, err
+		return err
 	}
 	var vms []*VMRequestSpec
 	vms = append(vms, master)
-	return v.GetVMGroupParamsFromVMSpec(ctx, name, vms, WithNewSubnet(subnetname))
+	//	return v.GetVMGroupParamsFromVMSpec(ctx, name, vms, WithNewSubnet(subnetname))
+	return v.CreateVMsFromVMSpec(ctx, name, vms, updateCallback, WithNewSubnet(subnetname), WithPrivacyPolicy(privacyPolicy))
 }

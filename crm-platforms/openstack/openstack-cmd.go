@@ -301,7 +301,7 @@ func (s *OpenstackPlatform) GetActiveServerDetails(ctx context.Context, name str
 		out, err := s.TimedOpenStackCommand(ctx, "openstack", "server", "show", "-f", "json", name)
 		if err != nil {
 			if strings.Contains(err.Error(), "No server with a name or ID") {
-				err = fmt.Errorf("%s -- can't show server %s, %s, %v", infracommon.ServerDoesNotExistError, name, out, err)
+				err = fmt.Errorf("%s -- can't show server %s, %s, %v", vmlayer.ServerDoesNotExistError, name, out, err)
 			}
 			return nil, err
 		}

@@ -329,7 +329,7 @@ func (v *VMPlatform) GetVMRequestSpec(ctx context.Context, vmtype VMType, server
 	return &vrs, nil
 }
 
-func (v *VMPlatform) GetVMGroupRequestSpec(ctx context.Context, name string, vms []*VMRequestSpec, opts ...VMGroupReqOp) (*VMGroupRequestSpec, error) {
+func (v *VMPlatform) getVMGroupRequestSpec(ctx context.Context, name string, vms []*VMRequestSpec, opts ...VMGroupReqOp) (*VMGroupRequestSpec, error) {
 	var vmgrs VMGroupRequestSpec
 	vmgrs.GroupName = name
 	vmgrs.VMs = vms
@@ -342,14 +342,14 @@ func (v *VMPlatform) GetVMGroupRequestSpec(ctx context.Context, name string, vms
 }
 
 func (v *VMPlatform) GetVMGroupParamsFromVMSpec(ctx context.Context, name string, vms []*VMRequestSpec, opts ...VMGroupReqOp) (*VMGroupParams, error) {
-	vmgp, err := v.GetVMGroupRequestSpec(ctx, name, vms, opts...)
+	vmgp, err := v.getVMGroupRequestSpec(ctx, name, vms, opts...)
 	if err != nil {
 		return nil, err
 	}
-	return v.GetVMGroupParamsFromGroupSpec(ctx, vmgp)
+	return v.getVMGroupParamsFromGroupSpec(ctx, vmgp)
 }
 
-func (v *VMPlatform) GetVMGroupParamsFromGroupSpec(ctx context.Context, spec *VMGroupRequestSpec) (*VMGroupParams, error) {
+func (v *VMPlatform) getVMGroupParamsFromGroupSpec(ctx context.Context, spec *VMGroupRequestSpec) (*VMGroupParams, error) {
 	log.SpanLog(ctx, log.DebugLevelInfra, "GetVMGroupParams", "spec", spec)
 
 	vmgp := VMGroupParams{GroupName: spec.GroupName}
@@ -547,4 +547,37 @@ func (v *VMPlatform) GetVMGroupParamsFromGroupSpec(ctx context.Context, spec *VM
 	}
 
 	return &vmgp, nil
+}
+
+func (v *VMPlatform) CreateVMsFromVMSpec(ctx context.Context, name string, vms []*VMRequestSpec, updateCallback edgeproto.CacheUpdateCallback, opts ...VMGroupReqOp) error {
+	log.SpanLog(ctx, log.DebugLevelInfra, "CreateVMsFromVMSpec", "name", name)
+	gp, err := v.GetVMGroupParamsFromVMSpec(ctx, name, vms)
+	if err != nil {
+		return err
+	}
+	log.SpanLog(ctx, log.DebugLevelInfra, "created vm group spec", "gp", gp)
+	err = v.vmProvider.CreateVMs(ctx, gp, updateCallback)
+	if err != nil {
+		log.SpanLog(ctx, log.DebugLevelInfra, "error while creating vms", "name", name, "name", "error", err)
+		return err
+	}
+	log.SpanLog(ctx, log.DebugLevelInfra, "VM create done")
+	return nil
+}
+
+func (v *VMPlatform) UpdateVMsFromVMSpec(ctx context.Context, name string, vms []*VMRequestSpec, updateCallback edgeproto.CacheUpdateCallback, opts ...VMGroupReqOp) error {
+	log.SpanLog(ctx, log.DebugLevelInfra, "UpdateVMsFromVMSpec", "name", name)
+	gp, err := v.GetVMGroupParamsFromVMSpec(ctx, name, vms)
+	if err != nil {
+		return err
+	}
+	log.SpanLog(ctx, log.DebugLevelInfra, "created vm group spec", "gp", gp)
+	err = v.vmProvider.UpdateVMs(ctx, gp, updateCallback)
+	if err != nil {
+		log.SpanLog(ctx, log.DebugLevelInfra, "error while updating vms", "name", name, "name", "error", err)
+		return err
+	}
+	log.SpanLog(ctx, log.DebugLevelInfra, "VM update done")
+	return nil
+
 }

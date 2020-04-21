@@ -5,8 +5,8 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/mobiledgex/edge-cloud-infra/vmlayer"
 	"github.com/mobiledgex/edge-cloud/log"
-
 	ssh "github.com/mobiledgex/golang-ssh"
 )
 

@@ -17,13 +17,6 @@ import (
 	"github.com/mobiledgex/edge-cloud/vault"
 )
 
-// this is not exhaustive, currently only ResourceTypeSecurityGroup is needed
-type ResourceType string
-
-var ResourceTypeVM ResourceType = "VM"
-var ResourceTypeSubnet ResourceType = "Subnet"
-var ResourceTypeSecurityGroup ResourceType = "SecGrp"
-
 type CommonPlatform struct {
 	Properties        map[string]*PropertyInfo
 	PlatformConfig    *platform.PlatformConfig
@@ -34,7 +27,7 @@ type CommonPlatform struct {
 // Package level test mode variable
 var testMode = false
 
-func (c *CommonPlatform) InitInfraCommon(ctx context.Context, platformConfig *pf.PlatformConfig, platformSpecificProps []map[string]*PropertyInfo, vaultConfig *vault.Config) error {
+func (c *CommonPlatform) InitInfraCommon(ctx context.Context, platformConfig *pf.PlatformConfig, platformSpecificProps map[string]*PropertyInfo, vaultConfig *vault.Config) error {
 	if vaultConfig.Addr == "" {
 		return fmt.Errorf("vaultAddr is not specified")
 	}
@@ -44,10 +37,8 @@ func (c *CommonPlatform) InitInfraCommon(ctx context.Context, platformConfig *pf
 	c.VaultConfig = vaultConfig
 
 	// append platform specific properties
-	for _, propmap := range platformSpecificProps {
-		for k, v := range propmap {
-			c.Properties[k] = v
-		}
+	for k, v := range platformSpecificProps {
+		c.Properties[k] = v
 	}
 
 	// fetch properties from vault

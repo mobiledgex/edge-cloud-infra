@@ -6,7 +6,7 @@ import (
 	"strings"
 	"sync"
 
-	"github.com/mobiledgex/edge-cloud-infra/infracommon"
+	"github.com/mobiledgex/edge-cloud-infra/vmlayer"
 	dme "github.com/mobiledgex/edge-cloud/d-match-engine/dme-proto"
 	"github.com/mobiledgex/edge-cloud/edgeproto"
 	"github.com/mobiledgex/edge-cloud/log"
@@ -17,10 +17,10 @@ var CloudletSecurityGroupIDMap = make(map[string]string)
 
 var cloudetSecurityGroupIDLock sync.Mutex
 
-func getCachedCloudletSecgrpID(ctx context.Context, keyString string) string {
+func getCachedSecgrpID(ctx context.Context, name string) string {
 	cloudetSecurityGroupIDLock.Lock()
 	defer cloudetSecurityGroupIDLock.Unlock()
-	groupID, ok := CloudletSecurityGroupIDMap[keyString]
+	groupID, ok := CloudletSecurityGroupIDMap[name]
 	if !ok {
 		return ""
 	}
@@ -33,15 +33,13 @@ func setCachedCloudletSecgrpID(ctx context.Context, keyString, groupID string) {
 	CloudletSecurityGroupIDMap[keyString] = groupID
 }
 
-// GetCloudletSecurityGroupID gets the group ID for the default cloudlet-wide group for our project.  It handles
-// duplicate names.  This group should not be used for application traffic, it is for management/OAM/CRM access.
-func (s *OpenstackPlatform) GetCloudletSecurityGroupID(ctx context.Context, cloudletKey *edgeproto.CloudletKey) (string, error) {
-	groupName := s.vmPlatform.GetCloudletSecurityGroupName()
-	keyString := cloudletKey.GetKeyString()
+// GetSecurityGroupIDForName gets the group ID for the given security group name.  It handles
+// duplicate names by finding the one for the project.
+func (s *OpenstackPlatform) GetSecurityGroupIDForName(ctx context.Context, groupName string) (string, error) {
 
-	log.SpanLog(ctx, log.DebugLevelInfra, "GetCloudletSecurityGroupID", "groupName", groupName, "keyString", keyString)
+	log.SpanLog(ctx, log.DebugLevelInfra, "GetCloudletSecurityGroupID", "groupName", groupName)
 
-	groupID := getCachedCloudletSecgrpID(ctx, keyString)
+	groupID := getCachedSecgrpID(ctx, groupName)
 	if groupID != "" {
 		//cached
 		log.SpanLog(ctx, log.DebugLevelInfra, "GetCloudletSecurityGroupID using existing value", "groupID", groupID)
@@ -62,17 +60,17 @@ func (s *OpenstackPlatform) GetCloudletSecurityGroupID(ctx context.Context, clou
 			if err != nil {
 				return "", err
 			}
-			setCachedCloudletSecgrpID(ctx, keyString, groupID)
+			setCachedCloudletSecgrpID(ctx, groupName, groupID)
 			log.SpanLog(ctx, log.DebugLevelInfra, "GetCloudletSecurityGroupID using new value", "groupID", groupID)
 			return groupID, nil
 		}
 	}
-	return "", fmt.Errorf("Unable to find cloudlet security group for project: %s", projectName)
+	return "", fmt.Errorf("Unable to find cloudlet security group name: %s for project: %s", groupName, projectName)
 }
 
-func (s *OpenstackPlatform) AddSecurityRules(ctx context.Context, groupName string, ports []dme.AppPort, serverName string) error {
+func (o *OpenstackPlatform) AddSecurityRules(ctx context.Context, groupName string, ports []dme.AppPort, serverName string) error {
 	log.SpanLog(ctx, log.DebugLevelInfra, "AddSecurityRules", "ports", ports)
-	allowedClientCIDR := infracommon.GetAllowedClientCIDR()
+	allowedClientCIDR := vmlayer.GetAllowedClientCIDR()
 	for _, port := range ports {
 		//todo: distinguish already-exists errors from others
 		portString := fmt.Sprintf("%d", port.PublicPort)
@@ -83,7 +81,7 @@ func (s *OpenstackPlatform) AddSecurityRules(ctx context.Context, groupName stri
 		if err != nil {
 			return err
 		}
-		if err := s.AddSecurityRuleCIDRWithRetry(ctx, allowedClientCIDR, proto, groupName, portString, serverName); err != nil {
+		if err := o.AddSecurityRuleCIDRWithRetry(ctx, allowedClientCIDR, proto, groupName, portString, serverName); err != nil {
 			return err
 		}
 	}
@@ -123,11 +121,11 @@ func (s *OpenstackPlatform) AddSecurityRuleCIDRWithRetry(ctx context.Context, ci
 	return err
 }
 
-func (s *OpenstackPlatform) RemoveWhitelistSecurityRules(ctx context.Context, secGrpName string, allowedCIDR string, ports []dme.AppPort) error {
+func (o *OpenstackPlatform) RemoveWhitelistSecurityRules(ctx context.Context, secGrpName string, allowedCIDR string, ports []dme.AppPort) error {
 	log.SpanLog(ctx, log.DebugLevelInfra, "RemoveWhitelistSecurityRules", "secGrpName", secGrpName, "ports", ports)
 
-	allowedClientCIDR := infracommon.GetAllowedClientCIDR()
-	rules, err := s.ListSecurityGroupRules(ctx, secGrpName)
+	allowedClientCIDR := vmlayer.GetAllowedClientCIDR()
+	rules, err := o.ListSecurityGroupRules(ctx, secGrpName)
 	if err != nil {
 		return err
 	}
@@ -142,7 +140,7 @@ func (s *OpenstackPlatform) RemoveWhitelistSecurityRules(ctx context.Context, se
 		}
 		for _, r := range rules {
 			if r.PortRange == portString && r.Protocol == proto && r.IPRange == allowedClientCIDR {
-				if err := s.DeleteSecurityGroupRule(ctx, r.ID); err != nil {
+				if err := o.DeleteSecurityGroupRule(ctx, r.ID); err != nil {
 					return err
 				}
 			}
@@ -151,7 +149,7 @@ func (s *OpenstackPlatform) RemoveWhitelistSecurityRules(ctx context.Context, se
 	return nil
 }
 
-func (s *OpenstackPlatform) WhitelistSecurityRules(ctx context.Context, grpName, serverName, allowedCidr string, ports []dme.AppPort) error {
+func (o *OpenstackPlatform) WhitelistSecurityRules(ctx context.Context, grpName, serverName, allowedCidr string, ports []dme.AppPort) error {
 	// open the firewall for internal traffic
 	log.SpanLog(ctx, log.DebugLevelInfra, "WhitelistSecurityRules", "grpName", grpName, "allowedCidr", allowedCidr, "ports", ports)
 
@@ -161,7 +159,7 @@ func (s *OpenstackPlatform) WhitelistSecurityRules(ctx context.Context, grpName,
 		if err != nil {
 			return err
 		}
-		if err := s.AddSecurityRuleCIDRWithRetry(ctx, allowedCidr, proto, grpName, portStr, serverName); err != nil {
+		if err := o.AddSecurityRuleCIDRWithRetry(ctx, allowedCidr, proto, grpName, portStr, serverName); err != nil {
 			return err
 		}
 	}

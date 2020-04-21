@@ -6,7 +6,6 @@ import (
 	"strings"
 	"unicode"
 
-	"github.com/mobiledgex/edge-cloud-infra/infracommon"
 	"github.com/mobiledgex/edge-cloud-infra/vmlayer"
 	"github.com/mobiledgex/edge-cloud/cloud-resource-manager/platform"
 	"github.com/mobiledgex/edge-cloud/edgeproto"
@@ -39,8 +38,6 @@ func (o *OpenstackPlatform) Init(ctx context.Context, platformConfig *platform.P
 	log.SpanLog(ctx, log.DebugLevelInfra, "vault auth", "type", vaultConfig.Auth.Type())
 
 	updateCallback(edgeproto.UpdateTask, "Fetching Openstack access credentials")
-	var platformSpecificProps = []map[string]*infracommon.PropertyInfo{vmlayer.VMProviderProps}
-
 	if err := o.InitOpenstackProps(ctx, platformConfig.CloudletKey, platformConfig.Region, platformConfig.PhysicalName, vaultConfig, platformConfig.EnvVars); err != nil {
 		return err
 	}
@@ -52,7 +49,7 @@ func (o *OpenstackPlatform) Init(ctx context.Context, platformConfig *platform.P
 	if err != nil {
 		return err
 	}
-	if err := o.vmPlatform.CommonPf.InitInfraCommon(ctx, platformConfig, platformSpecificProps, vaultConfig, o); err != nil {
+	if err := o.vmPlatform.CommonPf.InitInfraCommon(ctx, platformConfig, vmlayer.VMProviderProps, vaultConfig, o); err != nil {
 		return err
 	}
 	return o.vmPlatform.InitVMProvider(ctx, o, updateCallback)
@@ -86,48 +83,22 @@ func (o *OpenstackPlatform) NameSanitize(name string) string {
 }
 
 func (o *OpenstackPlatform) GetPlatformClient(ctx context.Context, clusterInst *edgeproto.ClusterInst) (ssh.Client, error) {
-	return o.vmlayer.GetSSHClientForCluster(ctx, clusterInst)
+	return o.vmPlatform.GetSSHClientForCluster(ctx, clusterInst)
 }
 
 func (o *OpenstackPlatform) DeleteResources(ctx context.Context, resourceGroupName string) error {
 	return o.HeatDeleteStack(ctx, resourceGroupName)
 }
 
-func (o *OpenstackPlatform) GetResourceID(ctx context.Context, resourceType infracommon.ResourceType, resourceName string) (string, error) {
+func (o *OpenstackPlatform) GetResourceID(ctx context.Context, resourceType vmlayer.ResourceType, resourceName string) (string, error) {
 	switch resourceType {
-	case infracommon.ResourceTypeSecurityGroup:
+	case vmlayer.ResourceTypeSecurityGroup:
 		return o.GetSecurityGroupIDForName(ctx, resourceName)
 		// TODO other types as needed
 	}
 	return "", fmt.Errorf("GetResourceID not implemented for resource type: %s ", resourceType)
 }
 
-/*
-func (o *OpenstackPlatform) CreateAppVM(ctx context.Context, vmAppParams *infracommon.VMParams, updateCallback edgeproto.CacheUpdateCallback) error {
-	return o.HeatCreateAppVM(ctx, vmAppParams, updateCallback)
-}
-
-func (o *OpenstackPlatform) CreateAppVMWithRootLB(ctx context.Context, vmAppParams, vmLbParams *infracommon.VMParams, updateCallback edgeproto.CacheUpdateCallback) error {
-	return o.HeatCreateAppVMWithRootLB(ctx, vmAppParams, vmLbParams, updateCallback)
-}
-
-func (o *OpenstackPlatform) CreateRootLBVM(ctx context.Context, serverName, stackName, imgName string, vmspec *vmspec.VMCreationSpec, cloudletKey *edgeproto.CloudletKey, updateCallback edgeproto.CacheUpdateCallback) error {
-	return o.HeatCreateRootLBVM(ctx, serverName, stackName, imgName, vmspec, cloudletKey, updateCallback)
-}
-
-func (o *OpenstackPlatform) CreateClusterVMs(ctx context.Context, clusterInst *edgeproto.ClusterInst, privacyPolicy *edgeproto.PrivacyPolicy, rootLBName string, imgName string, dedicatedRootLB bool, updateCallback edgeproto.CacheUpdateCallback) error {
-	return o.HeatCreateCluster(ctx, clusterInst, privacyPolicy, rootLBName, imgName, dedicatedRootLB, updateCallback)
-}
-
-func (o *OpenstackPlatform) UpdateClusterVMs(ctx context.Context, clusterInst *edgeproto.ClusterInst, privacyPolicy *edgeproto.PrivacyPolicy, rootLBName string, imgName string, dedicatedRootLB bool, updateCallback edgeproto.CacheUpdateCallback) error {
-	return o.HeatUpdateCluster(ctx, clusterInst, privacyPolicy, rootLBName, imgName, dedicatedRootLB, updateCallback)
-}
-
-func (o *OpenstackPlatform) DeleteClusterResources(ctx context.Context, client ssh.Client, clusterInst *edgeproto.ClusterInst, rootLBName string, dedicatedRootLB bool) error {
-	return o.HeatDeleteCluster(ctx, client, clusterInst, rootLBName, dedicatedRootLB)
-}
-
 func (o *OpenstackPlatform) Resync(ctx context.Context) error {
 	return fmt.Errorf("Resync not yet implemented")
 }
-*/

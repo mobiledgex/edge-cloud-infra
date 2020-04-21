@@ -44,8 +44,18 @@ type Organization struct {
 	Name string `gorm:"primary_key;type:citext"`
 	// Organization type: "developer" or "operator"
 	Type string `gorm:"not null"`
+	// Organization email
+	Email string
 	// Organization address
 	Address string
+	// Organization city
+	City string
+	// Organization Country
+	Country string
+	// Organization State
+	State string
+	// Organization Postal code
+	PostalCode string
 	// Organization phone number
 	Phone string
 	// read only: true

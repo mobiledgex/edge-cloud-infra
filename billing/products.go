@@ -23,7 +23,7 @@ func SetFlavorPrice(flavorId, pricingTier string, price float64) (string, error)
 	if price < 0 {
 		return "", fmt.Errorf("Invalid Price: %f", price)
 	}
-	return createProductRatePlanCharge(flavorId, pricingTier, "%s pricing plan", PER_UNIT_PRICING, USAGE, price, MINUTE)
+	return createProductRatePlanCharge(flavorId, pricingTier, fmt.Sprintf("%s pricing plan", flavorId), PER_UNIT_PRICING, USAGE, price, MINUTE)
 }
 
 // Creates a product and returns the product id

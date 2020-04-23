@@ -27,7 +27,7 @@
 
     - name: Get list of edge-cloud-ui tags from Github
       uri:
-        url: https://api.github.com/repos/mobiledgex/edge-cloud-ui/tags
+        url: https://api.github.com/repos/mobiledgex/edge-cloud-ui/releases/latest
         user: "{{ github_user }}"
         password: "{{ github_token }}"
         force_basic_auth: yes
@@ -38,7 +38,7 @@
 
     - name: Pick newest tag by semver
       set_fact:
-        console_version: "{{ console_tags.json | json_query('[*].name') | semver_sort(re_filter='^v[0-9]') | last }}"
+        console_version: "{{ console_tags.json.tag_name }}"
       when: console_version_not_provided | default(false)
 
     - assert:
@@ -72,7 +72,11 @@
         status_code: 200
         body_format: json
       register: response
-      failed_when: edge_cloud_version not in response.json.tags
+      retries: 6
+      delay: 10
+      until:
+        - response.json.tags
+        - edge_cloud_version in response.json.tags
       check_mode: no
 
     - name: Notify upgrade start on slack

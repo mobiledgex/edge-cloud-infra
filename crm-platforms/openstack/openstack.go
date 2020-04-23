@@ -54,8 +54,6 @@ func (o *OpenstackPlatform) Init(ctx context.Context, platformConfig *platform.P
 	}
 
 	return o.vmPlatform.InitVMProvider(ctx, o, updateCallback)
-
-	// create rootLB
 }
 
 func (o *OpenstackPlatform) GatherCloudletInfo(ctx context.Context, info *edgeproto.CloudletInfo) error {

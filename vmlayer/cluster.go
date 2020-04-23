@@ -88,7 +88,7 @@ func ParseClusterNodePrefix(name string) (bool, uint32) {
 
 func (v *VMPlatform) UpdateClusterInst(ctx context.Context, clusterInst *edgeproto.ClusterInst, privacyPolicy *edgeproto.PrivacyPolicy, updateCallback edgeproto.CacheUpdateCallback) error {
 	lbName := v.GetRootLBNameForCluster(ctx, clusterInst)
-	client, err := v.vmProvider.GetPlatformClient(ctx, clusterInst)
+	client, err := v.vmProvider.GetClusterPlatformClient(ctx, clusterInst)
 	if err != nil {
 		return err
 	}
@@ -166,7 +166,7 @@ func (v *VMPlatform) deleteCluster(ctx context.Context, rootLBName string, clust
 	name := v.GetClusterName(ctx, clusterInst)
 
 	dedicatedRootLB := clusterInst.IpAccess == edgeproto.IpAccess_IP_ACCESS_DEDICATED
-	client, err := v.vmProvider.GetPlatformClient(ctx, clusterInst)
+	client, err := v.vmProvider.GetClusterPlatformClient(ctx, clusterInst)
 	if err != nil {
 		if strings.Contains(err.Error(), "No server with a name or ID") {
 			log.SpanLog(ctx, log.DebugLevelInfra, "Dedicated RootLB is gone, allow stack delete to proceed")
@@ -247,7 +247,7 @@ func (v *VMPlatform) createClusterInternal(ctx context.Context, rootLBName strin
 		return fmt.Errorf("Cluster VM create Failed: %v", err)
 	}
 
-	client, err := v.vmProvider.GetPlatformClient(ctx, clusterInst)
+	client, err := v.vmProvider.GetClusterPlatformClient(ctx, clusterInst)
 	if err != nil {
 		return fmt.Errorf("can't get rootLB client, %v", err)
 	}
@@ -356,7 +356,7 @@ func (v *VMPlatform) isClusterReady(ctx context.Context, clusterInst *edgeproto.
 	log.SpanLog(ctx, log.DebugLevelInfra, "checking if cluster is ready")
 
 	// some commands are run on the rootlb and some on the master directly, so we use separate clients
-	rootLBClient, err := v.vmProvider.GetPlatformClient(ctx, clusterInst)
+	rootLBClient, err := v.vmProvider.GetClusterPlatformClient(ctx, clusterInst)
 	if err != nil {
 		return false, 0, fmt.Errorf("can't get rootlb ssh client for cluster ready check, %v", err)
 	}

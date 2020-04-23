@@ -37,7 +37,7 @@ func (v *VMPlatform) CreateAppInst(ctx context.Context, clusterInst *edgeproto.C
 		rootLBName := v.GetRootLBNameForCluster(ctx, clusterInst)
 		appWaitChan := make(chan string)
 
-		client, err := v.vmProvider.GetPlatformClient(ctx, clusterInst)
+		client, err := v.vmProvider.GetClusterPlatformClient(ctx, clusterInst)
 		if err != nil {
 			return err
 		}
@@ -249,7 +249,7 @@ func (v *VMPlatform) CreateAppInst(ctx context.Context, clusterInst *edgeproto.C
 		rootLBName := v.GetRootLBNameForCluster(ctx, clusterInst)
 		backendIP := cloudcommon.RemoteServerNone
 		dockerNetworkMode := dockermgmt.DockerBridgeMode
-		rootLBClient, err := v.vmProvider.GetPlatformClient(ctx, clusterInst)
+		rootLBClient, err := v.vmProvider.GetClusterPlatformClient(ctx, clusterInst)
 		if err != nil {
 			return err
 		}
@@ -354,7 +354,7 @@ func (v *VMPlatform) DeleteAppInst(ctx context.Context, clusterInst *edgeproto.C
 				return err
 			}
 		}
-		client, err := v.vmProvider.GetPlatformClient(ctx, clusterInst)
+		client, err := v.vmProvider.GetClusterPlatformClient(ctx, clusterInst)
 		if err != nil {
 			return err
 		}
@@ -432,7 +432,7 @@ func (v *VMPlatform) DeleteAppInst(ctx context.Context, clusterInst *edgeproto.C
 
 	case cloudcommon.AppDeploymentTypeDocker:
 		rootLBName := v.GetRootLBNameForCluster(ctx, clusterInst)
-		rootLBClient, err := v.vmProvider.GetPlatformClient(ctx, clusterInst)
+		rootLBClient, err := v.vmProvider.GetClusterPlatformClient(ctx, clusterInst)
 		if err != nil {
 			return err
 		}
@@ -465,7 +465,7 @@ func (v *VMPlatform) DeleteAppInst(ctx context.Context, clusterInst *edgeproto.C
 			}
 			return err
 		}
-		client, err := v.vmProvider.GetPlatformClient(ctx, clusterInst)
+		client, err := v.vmProvider.GetClusterPlatformClient(ctx, clusterInst)
 		if err != nil {
 			return err
 		}
@@ -501,7 +501,7 @@ func (v *VMPlatform) UpdateAppInst(ctx context.Context, clusterInst *edgeproto.C
 
 	switch deployment := app.Deployment; deployment {
 	case cloudcommon.AppDeploymentTypeKubernetes:
-		client, err := v.vmProvider.GetPlatformClient(ctx, clusterInst)
+		client, err := v.vmProvider.GetClusterPlatformClient(ctx, clusterInst)
 		if err != nil {
 			return err
 		}
@@ -512,7 +512,7 @@ func (v *VMPlatform) UpdateAppInst(ctx context.Context, clusterInst *edgeproto.C
 		return k8smgmt.UpdateAppInst(ctx, v.CommonPf.VaultConfig, client, names, app, appInst)
 	case cloudcommon.AppDeploymentTypeDocker:
 		dockerNetworkMode := dockermgmt.DockerBridgeMode
-		rootLBClient, err := v.vmProvider.GetPlatformClient(ctx, clusterInst)
+		rootLBClient, err := v.vmProvider.GetClusterPlatformClient(ctx, clusterInst)
 		if err != nil {
 			return err
 		}
@@ -533,7 +533,7 @@ func (v *VMPlatform) UpdateAppInst(ctx context.Context, clusterInst *edgeproto.C
 		}
 		return dockermgmt.UpdateAppInst(ctx, v.CommonPf.VaultConfig, dockerCommandTarget, app, appInst, dockerNetworkMode)
 	case cloudcommon.AppDeploymentTypeHelm:
-		client, err := v.vmProvider.GetPlatformClient(ctx, clusterInst)
+		client, err := v.vmProvider.GetClusterPlatformClient(ctx, clusterInst)
 		if err != nil {
 			return err
 		}
@@ -549,7 +549,7 @@ func (v *VMPlatform) UpdateAppInst(ctx context.Context, clusterInst *edgeproto.C
 }
 
 func (v *VMPlatform) GetAppInstRuntime(ctx context.Context, clusterInst *edgeproto.ClusterInst, app *edgeproto.App, appInst *edgeproto.AppInst) (*edgeproto.AppInstRuntime, error) {
-	client, err := v.vmProvider.GetPlatformClient(ctx, clusterInst)
+	client, err := v.vmProvider.GetClusterPlatformClient(ctx, clusterInst)
 	if err != nil {
 		return nil, err
 	}

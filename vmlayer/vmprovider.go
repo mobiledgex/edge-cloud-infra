@@ -5,8 +5,8 @@ import (
 	"fmt"
 
 	"github.com/mobiledgex/edge-cloud-infra/infracommon"
-	"github.com/mobiledgex/edge-cloud/cloud-resource-manager/platform"
 	"github.com/mobiledgex/edge-cloud/cloud-resource-manager/proxy"
+	"github.com/mobiledgex/edge-cloud/cloudcommon"
 	dme "github.com/mobiledgex/edge-cloud/d-match-engine/dme-proto"
 	"github.com/mobiledgex/edge-cloud/edgeproto"
 	"github.com/mobiledgex/edge-cloud/log"
@@ -17,6 +17,7 @@ import (
 // VMProvider is an interface that platforms implement to perform the details of interfacing with the orchestration layer
 type VMProvider interface {
 	NameSanitize(string) string
+	GetType() string
 	AddCloudletImageIfNotPresent(ctx context.Context, imgPathPrefix, imgVersion string, updateCallback edgeproto.CacheUpdateCallback) (string, error)
 	AddAppImageIfNotPresent(ctx context.Context, app *edgeproto.App, updateCallback edgeproto.CacheUpdateCallback) error
 	GetServerDetail(ctx context.Context, serverName string) (*ServerDetail, error)
@@ -29,22 +30,18 @@ type VMProvider interface {
 	WhitelistSecurityRules(ctx context.Context, secGrpName string, serverName string, allowedCIDR string, ports []dme.AppPort) error
 	RemoveWhitelistSecurityRules(ctx context.Context, secGrpName string, allowedCIDR string, ports []dme.AppPort) error
 	GetResourceID(ctx context.Context, resourceType ResourceType, resourceName string) (string, error)
+	VerifyApiEndpoint(ctx context.Context, client ssh.Client, updateCallback edgeproto.CacheUpdateCallback) error
+	GetClusterPlatformClient(ctx context.Context, clusterInst *edgeproto.ClusterInst) (ssh.Client, error)
 	CreateVMs(ctx context.Context, vmGroupOrchestrationParams *VMGroupOrchestrationParams, updateCallback edgeproto.CacheUpdateCallback) error
 	UpdateVMs(ctx context.Context, vmGroupOrchestrationParams *VMGroupOrchestrationParams, updateCallback edgeproto.CacheUpdateCallback) error
 	DeleteVMs(ctx context.Context, vmGroupName string) error
-}
-
-// VMPlatformProvider embeds Platform and VMProvider
-type VMPlatformProvider interface {
-	platform.Platform
-	VMProvider
 }
 
 // VMPlatform contains the needed by all VM based platforms
 type VMPlatform struct {
 	sharedRootLBName string
 	sharedRootLB     *MEXRootLB
-	vmProvider       VMPlatformProvider
+	vmProvider       VMProvider
 	FlavorList       []*edgeproto.FlavorInfo
 	CommonPf         infracommon.CommonPlatform
 }
@@ -62,7 +59,7 @@ type StringSanitizer func(value string) string
 
 // VMPlatform embeds Platform and VMProvider
 
-func (v *VMPlatform) InitVMProvider(ctx context.Context, provider VMPlatformProvider, updateCallback edgeproto.CacheUpdateCallback) error {
+func (v *VMPlatform) InitVMProvider(ctx context.Context, provider VMProvider, updateCallback edgeproto.CacheUpdateCallback) error {
 	updateCallback(edgeproto.UpdateTask, "InitVMProvider")
 
 	v.vmProvider = provider
@@ -90,14 +87,58 @@ func (v *VMPlatform) InitVMProvider(ctx context.Context, provider VMPlatformProv
 	log.SpanLog(ctx, log.DebugLevelInfra, "ok, SetupRootLB")
 
 	// set up L7 load balancer
-	client, err := v.GetSSHClientForServer(ctx, v.sharedRootLBName, v.GetCloudletExternalNetwork())
+	client, err := v.GetNodePlatformClient(ctx, &edgeproto.CloudletMgmtNode{Name: v.sharedRootLBName})
 	if err != nil {
 		return err
 	}
+
 	updateCallback(edgeproto.UpdateTask, "Setting up Proxy")
 	err = proxy.InitL7Proxy(ctx, client, proxy.WithDockerNetwork("host"))
 	if err != nil {
 		return err
 	}
 	return nil
+}
+
+func (v *VMPlatform) GetClusterPlatformClient(ctx context.Context, clusterInst *edgeproto.ClusterInst) (ssh.Client, error) {
+	rootLBName := v.sharedRootLBName
+	if clusterInst.IpAccess == edgeproto.IpAccess_IP_ACCESS_DEDICATED {
+		rootLBName = cloudcommon.GetDedicatedLBFQDN(v.CommonPf.PlatformConfig.CloudletKey, &clusterInst.Key.ClusterKey)
+	}
+	return v.GetNodePlatformClient(ctx, &edgeproto.CloudletMgmtNode{Name: rootLBName})
+}
+
+func (v *VMPlatform) GetNodePlatformClient(ctx context.Context, node *edgeproto.CloudletMgmtNode) (ssh.Client, error) {
+	log.SpanLog(ctx, log.DebugLevelInfra, "GetNodePlatformClient", "node", node)
+
+	if node == nil || node.Name == "" {
+		return nil, fmt.Errorf("cannot GetNodePlatformClient, as node details are empty")
+	}
+	if v.GetCloudletExternalNetwork() == "" {
+		return nil, fmt.Errorf("GetNodePlatformClient, missing external network in platform config")
+	}
+	return v.GetSSHClientForServer(ctx, node.Name, v.GetCloudletExternalNetwork())
+}
+
+func (v *VMPlatform) ListCloudletMgmtNodes(ctx context.Context, clusterInsts []edgeproto.ClusterInst) ([]edgeproto.CloudletMgmtNode, error) {
+	log.SpanLog(ctx, log.DebugLevelInfra, "ListCloudletMgmtNodes", "clusterInsts", clusterInsts)
+	mgmt_nodes := []edgeproto.CloudletMgmtNode{
+		edgeproto.CloudletMgmtNode{
+			Type: "platformvm",
+			Name: v.GetPlatformVMName(v.CommonPf.PlatformConfig.CloudletKey),
+		},
+		edgeproto.CloudletMgmtNode{
+			Type: "sharedrootlb",
+			Name: v.sharedRootLBName,
+		},
+	}
+	for _, clusterInst := range clusterInsts {
+		if clusterInst.IpAccess == edgeproto.IpAccess_IP_ACCESS_DEDICATED {
+			mgmt_nodes = append(mgmt_nodes, edgeproto.CloudletMgmtNode{
+				Type: "dedicatedrootlb",
+				Name: cloudcommon.GetDedicatedLBFQDN(v.CommonPf.PlatformConfig.CloudletKey, &clusterInst.Key.ClusterKey),
+			})
+		}
+	}
+	return mgmt_nodes, nil
 }

@@ -7,24 +7,17 @@ import (
 	"strings"
 
 	"github.com/mobiledgex/edge-cloud-infra/infracommon"
+	"github.com/mobiledgex/edge-cloud-infra/vmlayer"
 	"github.com/mobiledgex/edge-cloud/edgeproto"
 	"github.com/mobiledgex/edge-cloud/log"
 	"github.com/mobiledgex/edge-cloud/vault"
 )
 
-func GetVaultCloudletAccessPath(key *edgeproto.CloudletKey, region, physicalName string) string {
-	return fmt.Sprintf("/secret/data/%s/cloudlet/openstack/%s/%s/%s", region, key.Organization, physicalName, "openrc.json")
-}
-
-func GetCertFilePath(key *edgeproto.CloudletKey) string {
-	return fmt.Sprintf("/tmp/%s.%s.cert", key.Name, key.Organization)
-}
-
 func (o *OpenstackPlatform) GetOpenRCVars(ctx context.Context, key *edgeproto.CloudletKey, region, physicalName string, vaultConfig *vault.Config) error {
 	if vaultConfig == nil || vaultConfig.Addr == "" {
 		return fmt.Errorf("vaultAddr is not specified")
 	}
-	openRCPath := GetVaultCloudletAccessPath(key, region, physicalName)
+	openRCPath := o.vmPlatform.GetVaultCloudletAccessPath(key, region, physicalName)
 	log.SpanLog(ctx, log.DebugLevelInfra, "interning vault", "addr", vaultConfig.Addr, "path", openRCPath)
 	envData := &infracommon.VaultEnvData{}
 	err := vault.GetData(vaultConfig, openRCPath, 0, envData)
@@ -43,7 +36,7 @@ func (o *OpenstackPlatform) GetOpenRCVars(ctx context.Context, key *edgeproto.Cl
 	if authURL, ok := o.openRCVars["OS_AUTH_URL"]; ok {
 		if strings.HasPrefix(authURL, "https") {
 			if certData, ok := o.openRCVars["OS_CACERT_DATA"]; ok {
-				certFile := GetCertFilePath(key)
+				certFile := vmlayer.GetCertFilePath(key)
 				err = ioutil.WriteFile(certFile, []byte(certData), 0644)
 				if err != nil {
 					return err

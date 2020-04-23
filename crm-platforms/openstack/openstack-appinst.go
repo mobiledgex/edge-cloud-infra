@@ -3,9 +3,8 @@ package openstack
 import (
 	"context"
 	"fmt"
-	"time"
-
 	"strings"
+	"time"
 
 	"github.com/mobiledgex/edge-cloud-infra/infracommon"
 	"github.com/mobiledgex/edge-cloud/cloudcommon"
@@ -45,10 +44,8 @@ func (o *OpenstackPlatform) GetConsoleUrl(ctx context.Context, app *edgeproto.Ap
 	default:
 		return "", fmt.Errorf("unsupported deployment type %s", deployment)
 	}
-
 }
 
-// SetPowerState is mostly common code that could eventually move
 func (o *OpenstackPlatform) SetPowerState(ctx context.Context, app *edgeproto.App, appInst *edgeproto.AppInst, updateCallback edgeproto.CacheUpdateCallback) error {
 	PowerState := appInst.PowerState
 	switch deployment := app.Deployment; deployment {
@@ -59,7 +56,7 @@ func (o *OpenstackPlatform) SetPowerState(ctx context.Context, app *edgeproto.Ap
 		log.SpanLog(ctx, log.DebugLevelInfra, "setting server state", "serverName", serverName, "fqdn", fqdn, "PowerState", PowerState)
 
 		updateCallback(edgeproto.UpdateTask, "Verifying AppInst state")
-		serverDetail, err := o.GetServerDetail(ctx, serverName)
+		serverDetail, err := o.GetActiveServerDetails(ctx, serverName)
 		if err != nil {
 			return err
 		}
@@ -88,7 +85,7 @@ func (o *OpenstackPlatform) SetPowerState(ctx context.Context, app *edgeproto.Ap
 		updateCallback(edgeproto.UpdateTask, fmt.Sprintf("Fetching external address of %s", serverName))
 		oldServerIP, err := o.GetIPFromServerName(ctx, o.vmPlatform.GetCloudletExternalNetwork(), serverName)
 		if err != nil || oldServerIP.ExternalAddr == "" {
-			return fmt.Errorf("unable to fetch external ip for %s, err %v", serverName, err)
+			return fmt.Errorf("unable to fetch external ip for %s, addr %s, err %v", serverName, serverDetail.Addresses, err)
 		}
 
 		updateCallback(edgeproto.UpdateTask, fmt.Sprintf("Performing action %s on %s", serverAction, serverName))
@@ -122,7 +119,6 @@ func (o *OpenstackPlatform) SetPowerState(ctx context.Context, app *edgeproto.Ap
 	default:
 		return fmt.Errorf("unsupported deployment type %s", deployment)
 	}
-
 	return nil
 }
 

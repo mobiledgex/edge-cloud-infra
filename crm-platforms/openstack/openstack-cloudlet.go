@@ -6,166 +6,20 @@ import (
 	"fmt"
 	"io/ioutil"
 	"net/url"
-	"path/filepath"
 	"strings"
-	"time"
 
-	intprocess "github.com/mobiledgex/edge-cloud-infra/e2e-tests/int-process"
 	"github.com/mobiledgex/edge-cloud-infra/infracommon"
 	"github.com/mobiledgex/edge-cloud-infra/vmlayer"
 	"github.com/mobiledgex/edge-cloud/cloudcommon"
 	"github.com/mobiledgex/edge-cloud/edgeproto"
 	"github.com/mobiledgex/edge-cloud/log"
 	"github.com/mobiledgex/edge-cloud/vault"
-	"github.com/mobiledgex/edge-cloud/vmspec"
 	ssh "github.com/mobiledgex/golang-ssh"
 )
 
-const (
-	// Platform services
-	ServiceTypeCRM             = "crmserver"
-	ServiceTypeShepherd        = "shepherd"
-	PlatformMaxWait            = 10 * time.Second
-	PlatformVMReachableMaxWait = 2 * time.Minute
-)
+// TODO: there is still some code here that can eventually go to vmlayer
 
-var PlatformServices = []string{
-	ServiceTypeCRM,
-	ServiceTypeShepherd,
-}
-
-func (o *OpenstackPlatform) getPlatformVMName(key *edgeproto.CloudletKey) string {
-	// Form platform VM name based on cloudletKey
-	return o.NameSanitize(key.Name + "." + key.Organization + ".pf")
-}
-
-func startPlatformService(cloudlet *edgeproto.Cloudlet, pfConfig *edgeproto.PlatformConfig, client ssh.Client, serviceType string, updateCallback edgeproto.CacheUpdateCallback, cDone chan error) {
-	var service_cmd string
-	var envVars *map[string]string
-	var err error
-
-	switch serviceType {
-	case ServiceTypeShepherd:
-		service_cmd, envVars, err = intprocess.GetShepherdCmd(cloudlet, pfConfig)
-		if err != nil {
-			cDone <- fmt.Errorf("Unable to get shepherd service command: %v", err)
-			return
-		}
-
-	case ServiceTypeCRM:
-		service_cmd, envVars, err = cloudcommon.GetCRMCmd(cloudlet, pfConfig)
-		if err != nil {
-			cDone <- fmt.Errorf("Unable to get crm service command: %v", err)
-			return
-		}
-	default:
-		cDone <- fmt.Errorf("Unsupported service type: %s", serviceType)
-		return
-	}
-
-	// Use service type as container name as there can only be one of them inside platform VM
-	container_name := serviceType
-
-	// Pull docker image and start service
-	updateCallback(edgeproto.UpdateTask, "Starting "+serviceType)
-
-	var envVarsAr []string
-	for k, v := range *envVars {
-		envVarsAr = append(envVarsAr, "-e")
-		envVarsAr = append(envVarsAr, k+"="+v)
-	}
-	cmd := []string{
-		"sudo docker run",
-		"-d",
-		"--network host",
-		"-v /tmp:/tmp",
-		"--restart=unless-stopped",
-		"--name", container_name,
-		strings.Join(envVarsAr, " "),
-		pfConfig.ContainerRegistryPath + ":" + pfConfig.PlatformTag,
-		service_cmd,
-	}
-	if out, err := client.Output(strings.Join(cmd, " ")); err != nil {
-		cDone <- fmt.Errorf("Unable to start %s: %v, %s\n", serviceType, err, out)
-		return
-	}
-
-	// - Wait for docker container to start running
-	// - And also monitor the UP state for PlatformMaxTime to
-	//   catch early Fatal Logs
-	// - After which controller will monitor it using CloudletInfo
-	start := time.Now()
-	for {
-		out, err := client.Output(`sudo docker ps -a -n 1 --filter name=` + container_name + ` --format '{{.Status}}'`)
-		if err != nil {
-			cDone <- fmt.Errorf("Unable to fetch %s container status: %v, %s\n", serviceType, err, out)
-			return
-		}
-		if strings.Contains(out, "Up ") {
-			break
-		} else if !strings.Contains(out, "Created") {
-			// container exited in failure state
-			// Show Fatal Log, if not Fatal log found, then show last 10 lines of error
-			out, err = client.Output(`sudo docker logs ` + container_name + ` 2>&1 | grep FATAL | awk '{for (i=1; i<=NF-3; i++) $i = $(i+3); NF-=3; print}'`)
-			if err != nil || out == "" {
-				out, err = client.Output(`sudo docker logs ` + container_name + ` 2>&1 | tail -n 10`)
-				if err != nil {
-					cDone <- fmt.Errorf("Failed to bringup %s: %s", serviceType, err.Error())
-					return
-				}
-			}
-			cDone <- fmt.Errorf("Failed to bringup %s: %s", serviceType, out)
-			return
-		}
-		elapsed := time.Since(start)
-		if elapsed >= (PlatformMaxWait) {
-			// no issues in wait time
-			break
-		}
-		time.Sleep(1 * time.Second)
-	}
-	cDone <- nil
-	return
-}
-
-func (o *OpenstackPlatform) setupPlatformService(ctx context.Context, cloudlet *edgeproto.Cloudlet, pfConfig *edgeproto.PlatformConfig, vaultConfig *vault.Config, client ssh.Client, updateCallback edgeproto.CacheUpdateCallback) error {
-	// Gather registry credentails from Vault
-	updateCallback(edgeproto.UpdateTask, "Fetching registry auth credentials")
-	regAuth, err := cloudcommon.GetRegistryAuth(ctx, pfConfig.ContainerRegistryPath, vaultConfig)
-	if err != nil {
-		return fmt.Errorf("unable to fetch registry auth credentials")
-	}
-	if regAuth.AuthType != cloudcommon.BasicAuth {
-		return fmt.Errorf("unsupported registry auth type %s", regAuth.AuthType)
-	}
-
-	// Verify if controller's notify port is reachable
-	updateCallback(edgeproto.UpdateTask, "Verifying if controller notification channel is reachable")
-	addrPort := strings.Split(pfConfig.NotifyCtrlAddrs, ":")
-	if len(addrPort) != 2 {
-		return fmt.Errorf("notifyctrladdrs format is incorrect")
-	}
-
-	start := time.Now()
-	for {
-		out, err := client.Output(fmt.Sprintf("nc %s %s -w 5", addrPort[0], addrPort[1]))
-		if err == nil {
-			break
-		} else {
-			log.SpanLog(ctx, log.DebugLevelInfra, "error trying to connect to controller port via ssh", "out", out, "error", err)
-			if strings.Contains(err.Error(), "ssh client timeout") || strings.Contains(err.Error(), "ssh dial fail") {
-				elapsed := time.Since(start)
-				if elapsed > PlatformVMReachableMaxWait {
-					return fmt.Errorf("timed out connecting to platform VM to test controller notification channel")
-				}
-				log.SpanLog(ctx, log.DebugLevelInfra, "sleeping 10 seconds before retry", "elapsed", elapsed)
-				time.Sleep(10 * time.Second)
-			} else {
-				return fmt.Errorf("controller's notify port is unreachable: %v, %s\n", err, out)
-			}
-		}
-	}
-
+func (o *OpenstackPlatform) VerifyApiEndpoint(ctx context.Context, client ssh.Client, updateCallback edgeproto.CacheUpdateCallback) error {
 	// Verify if Openstack API Endpoint is reachable
 	updateCallback(edgeproto.UpdateTask, "Verifying if Openstack API Endpoint is reachable")
 	osAuthUrl := o.openRCVars["OS_AUTH_URL"]
@@ -221,218 +75,6 @@ func (o *OpenstackPlatform) setupPlatformService(ctx context.Context, cloudlet *
 			return fmt.Errorf("Openstack API Endpoint is unreachable: %v, %s\n", err, out)
 		}
 	}
-
-	// edge-cloud image already contains the certs
-	if pfConfig.TlsCertFile != "" {
-		_, crtFile := filepath.Split(pfConfig.TlsCertFile)
-		ext := filepath.Ext(crtFile)
-		if ext == "" {
-			return fmt.Errorf("invalid tls cert file name: %s", crtFile)
-		}
-		pfConfig.TlsCertFile = "/root/tls/" + crtFile
-	}
-
-	// Login to docker registry
-	updateCallback(edgeproto.UpdateTask, "Setting up docker registry")
-	if out, err := client.Output(
-		fmt.Sprintf(
-			`echo "%s" | sudo docker login -u %s --password-stdin %s`,
-			regAuth.Password,
-			regAuth.Username,
-			pfConfig.ContainerRegistryPath,
-		),
-	); err != nil {
-		return fmt.Errorf("unable to login to docker registry: %v, %s\n", err, out)
-	}
-
-	// Get non-conflicting port for NotifySrvAddr if actual port is 0
-	newAddr, err := cloudcommon.GetAvailablePort(cloudlet.NotifySrvAddr)
-	if err != nil {
-		return err
-	}
-	cloudlet.NotifySrvAddr = newAddr
-
-	// Start platform service on PlatformVM
-	crmChan := make(chan error, 1)
-	shepherdChan := make(chan error, 1)
-	go startPlatformService(cloudlet, pfConfig, client, ServiceTypeCRM, updateCallback, crmChan)
-	go startPlatformService(cloudlet, pfConfig, client, ServiceTypeShepherd, updateCallback, shepherdChan)
-	// Wait for platform services to come up
-	crmErr := <-crmChan
-	shepherdErr := <-shepherdChan
-	if crmErr != nil {
-		return crmErr
-	}
-	return shepherdErr
-
-}
-
-// setupPlatformVM:
-//   * Downloads Cloudlet VM base image (if not-present)
-//   * Brings up Platform VM (using HEAT stack)
-//   * Sets up Security Group for access to Cloudlet
-// Returns ssh client
-func (o *OpenstackPlatform) setupPlatformVM(ctx context.Context, cloudlet *edgeproto.Cloudlet, pfConfig *edgeproto.PlatformConfig, pfFlavor *edgeproto.Flavor, updateCallback edgeproto.CacheUpdateCallback) (ssh.Client, error) {
-	// Get Closest Platform Flavor
-	platformVmName := o.getPlatformVMName(&cloudlet.Key)
-	vmspec, err := vmspec.GetVMSpec(o.vmPlatform.FlavorList, *pfFlavor)
-	if err != nil {
-		return nil, fmt.Errorf("unable to find VM spec for Shared RootLB: %v", err)
-	}
-	az := vmspec.AvailabilityZone
-	if az == "" {
-		az = o.vmPlatform.GetCloudletComputeAvailabilityZone()
-	}
-	pfImageName, err := o.AddCloudletImageIfNotPresent(ctx, pfConfig.CloudletVmImagePath, cloudlet.VmImageVersion, updateCallback)
-	if err != nil {
-		return nil, err
-	}
-	vmreqspec, err := o.vmPlatform.GetVMRequestSpec(ctx, vmlayer.VMTypePlatform, pfImageName, platformVmName, vmspec.FlavorName, true, vmlayer.WithExternalVolume(vmspec.ExternalVolumeSize))
-	var vms []*vmlayer.VMRequestSpec
-	vms = append(vms, vmreqspec)
-	vmgp, err := o.vmPlatform.GetVMGroupOrchestrationParamsFromVMSpec(ctx, platformVmName, vms, vmlayer.WithAccessPorts("tcp:22"))
-	if err != nil {
-		return nil, err
-	}
-
-	log.SpanLog(ctx, log.DebugLevelInfra, "created vm group parms", "vmgp", vmgp)
-
-	// Deploy Platform VM
-	updateCallback(edgeproto.UpdateTask, "Deploying Platform VM")
-	log.SpanLog(ctx, log.DebugLevelInfra, "Deploying VM", "stackName", platformVmName, "vmspec", vmspec)
-	err = o.CreateVMs(ctx, vmgp, updateCallback)
-	if err != nil {
-		return nil, fmt.Errorf("Platform createVMs fail: %v", err)
-	}
-	updateCallback(edgeproto.UpdateTask, "Successfully Deployed Platform VM")
-	ip, err := o.GetIPFromServerName(ctx, o.vmPlatform.GetCloudletExternalNetwork(), platformVmName)
-	if err != nil {
-		return nil, err
-	}
-	updateCallback(edgeproto.UpdateTask, "Platform VM external IP: "+ip.ExternalAddr)
-
-	client, err := o.vmPlatform.GetSSHClientForServer(ctx, platformVmName, o.vmPlatform.GetCloudletExternalNetwork())
-	if err != nil {
-		return nil, err
-	}
-	return client, nil
-}
-
-func (s *OpenstackPlatform) CreateCloudlet(ctx context.Context, cloudlet *edgeproto.Cloudlet, pfConfig *edgeproto.PlatformConfig, pfFlavor *edgeproto.Flavor, updateCallback edgeproto.CacheUpdateCallback) error {
-	var err error
-
-	log.SpanLog(ctx, log.DebugLevelInfra, "Creating cloudlet", "cloudletName", cloudlet.Key.Name)
-
-	vaultConfig, err := vault.BestConfig(pfConfig.VaultAddr, vault.WithEnvMap(pfConfig.EnvVar))
-	if err != nil {
-		return err
-	}
-	// Source OpenRC file to access openstack API endpoint
-	updateCallback(edgeproto.UpdateTask, "Sourcing access variables")
-	err = s.InitOpenstackProps(ctx, &cloudlet.Key, pfConfig.Region, cloudlet.PhysicalName, vaultConfig, cloudlet.EnvVar)
-	if err != nil {
-		return err
-	}
-
-	// For real setups, ansible will always specify the correct
-	// cloudlet container and vm image paths to the controller.
-	// But for local testing convenience, we default to the hard-coded
-	// ones if not specified.
-	if pfConfig.ContainerRegistryPath == "" {
-		pfConfig.ContainerRegistryPath = infracommon.DefaultContainerRegistryPath
-	}
-
-	client, err := s.setupPlatformVM(ctx, cloudlet, pfConfig, pfFlavor, updateCallback)
-	if err != nil {
-		return err
-	}
-
-	return s.setupPlatformService(ctx, cloudlet, pfConfig, vaultConfig, client, updateCallback)
-}
-
-func (s *OpenstackPlatform) SaveCloudletAccessVars(ctx context.Context, cloudlet *edgeproto.Cloudlet, accessVarsIn map[string]string, pfConfig *edgeproto.PlatformConfig, updateCallback edgeproto.CacheUpdateCallback) error {
-	log.SpanLog(ctx, log.DebugLevelInfra, "Saving cloudlet access vars to vault", "cloudletName", cloudlet.Key.Name)
-	vaultConfig, err := vault.BestConfig(pfConfig.VaultAddr, vault.WithEnvMap(pfConfig.EnvVar))
-	if err != nil {
-		return err
-	}
-	openrcData, ok := accessVarsIn["OPENRC_DATA"]
-	if !ok {
-		return fmt.Errorf("Invalid accessvars, missing OPENRC_DATA")
-	}
-	out := strings.Split(openrcData, "\n")
-	if len(out) <= 1 {
-		return fmt.Errorf("Invalid accessvars, as OPENRC_DATA is invalid: %v", out)
-	}
-	accessVars := make(map[string]string)
-	for _, v := range out {
-		out1 := strings.Split(v, "=")
-		if len(out1) != 2 {
-			return fmt.Errorf("Invalid separator for key-value pair: %v", out1)
-		}
-		key := strings.TrimSpace(out1[0])
-		value := strings.TrimSpace(out1[1])
-		if !strings.HasPrefix(key, "OS_") {
-			return fmt.Errorf("Invalid accessvars: %s, must start with 'OS_' prefix", key)
-		}
-		accessVars[key] = value
-	}
-	authURL, ok := accessVars["OS_AUTH_URL"]
-	if !ok {
-		return fmt.Errorf("Invalid accessvars, missing OS_AUTH_URL")
-	}
-	if strings.HasPrefix(authURL, "https") {
-		certData, ok := accessVarsIn["CACERT_DATA"]
-		if !ok {
-			return fmt.Errorf("Invalid accessvars, missing CACERT_DATA")
-		}
-		certFile := GetCertFilePath(&cloudlet.Key)
-		err := ioutil.WriteFile(certFile, []byte(certData), 0644)
-		if err != nil {
-			return err
-		}
-		accessVars["OS_CACERT"] = certFile
-		accessVars["OS_CACERT_DATA"] = certData
-	}
-	updateCallback(edgeproto.UpdateTask, "Saving access vars to secure secrets storage (Vault)")
-	var varList infracommon.VaultEnvData
-	for key, value := range accessVars {
-		if key == "OS_CACERT" {
-			continue
-		}
-		varList.Env = append(varList.Env, infracommon.EnvData{
-			Name:  key,
-			Value: value,
-		})
-	}
-	data := map[string]interface{}{
-		"data": varList,
-	}
-
-	path := GetVaultCloudletAccessPath(&cloudlet.Key, pfConfig.Region, cloudlet.PhysicalName)
-	err = infracommon.PutDataToVault(vaultConfig, path, data)
-	if err != nil {
-		updateCallback(edgeproto.UpdateTask, "Failed to save access vars to vault")
-		log.SpanLog(ctx, log.DebugLevelInfra, err.Error(), "cloudletName", cloudlet.Key.Name)
-		return fmt.Errorf("Failed to save access vars to vault: %v", err)
-	}
-	return nil
-}
-
-func (s *OpenstackPlatform) DeleteCloudletAccessVars(ctx context.Context, cloudlet *edgeproto.Cloudlet, pfConfig *edgeproto.PlatformConfig, updateCallback edgeproto.CacheUpdateCallback) error {
-	log.SpanLog(ctx, log.DebugLevelInfra, "Deleting access vars from vault", "cloudletName", cloudlet.Key.Name)
-
-	updateCallback(edgeproto.UpdateTask, "Deleting access vars from secure secrets storage")
-
-	vaultConfig, err := vault.BestConfig(pfConfig.VaultAddr, vault.WithEnvMap(pfConfig.EnvVar))
-	if err != nil {
-		return err
-	}
-	path := GetVaultCloudletAccessPath(&cloudlet.Key, pfConfig.Region, cloudlet.PhysicalName)
-	err = infracommon.DeleteDataFromVault(vaultConfig, path)
-	if err != nil {
-		return fmt.Errorf("Failed to delete access vars from vault: %v", err)
-	}
 	return nil
 }
 
@@ -454,7 +96,7 @@ func (o *OpenstackPlatform) DeleteCloudlet(ctx context.Context, cloudlet *edgepr
 		return nil
 	}
 
-	platformVMName := o.getPlatformVMName(&cloudlet.Key)
+	platformVMName := o.vmPlatform.GetPlatformVMName(&cloudlet.Key)
 	updateCallback(edgeproto.UpdateTask, fmt.Sprintf("Deleting PlatformVM %s", platformVMName))
 	err = o.HeatDeleteStack(ctx, platformVMName)
 	if err != nil {
@@ -475,7 +117,7 @@ func (o *OpenstackPlatform) DeleteCloudlet(ctx context.Context, cloudlet *edgepr
 }
 
 func handleUpgradeError(ctx context.Context, client ssh.Client) error {
-	for _, pfService := range PlatformServices {
+	for _, pfService := range vmlayer.PlatformServices {
 		log.SpanLog(ctx, log.DebugLevelInfra, "restoring container names")
 		if out, err := client.Output(
 			fmt.Sprintf("sudo docker rename %s_old %s", pfService, pfService),
@@ -496,13 +138,13 @@ func getCRMContainerVersion(ctx context.Context, client ssh.Client) (string, err
 
 	log.SpanLog(ctx, log.DebugLevelInfra, "fetch crmserver container version")
 	if out, err = client.Output(
-		fmt.Sprintf("sudo docker ps --filter name=%s --format '{{.Image}}'", ServiceTypeCRM),
+		fmt.Sprintf("sudo docker ps --filter name=%s --format '{{.Image}}'", vmlayer.ServiceTypeCRM),
 	); err != nil {
 		return "", fmt.Errorf("unable to fetch crm version for %s, %v, %v",
-			ServiceTypeCRM, err, out)
+			vmlayer.ServiceTypeCRM, err, out)
 	}
 	if out == "" {
-		return "", fmt.Errorf("no container with name %s exists", ServiceTypeCRM)
+		return "", fmt.Errorf("no container with name %s exists", vmlayer.ServiceTypeCRM)
 	}
 	imgParts := strings.Split(out, ":")
 	return imgParts[len(imgParts)-1], nil
@@ -549,7 +191,7 @@ func (o *OpenstackPlatform) UpdateCloudlet(ctx context.Context, cloudlet *edgepr
 		return defCloudletAction, err
 	}
 
-	pfClient, err := o.vmPlatform.GetSSHClientForServer(ctx, o.getPlatformVMName(&cloudlet.Key), o.vmPlatform.GetCloudletExternalNetwork())
+	pfClient, err := o.vmPlatform.GetSSHClientForServer(ctx, o.vmPlatform.GetPlatformVMName(&cloudlet.Key), o.vmPlatform.GetCloudletExternalNetwork())
 	if err != nil {
 		return defCloudletAction, err
 	}
@@ -596,7 +238,7 @@ func (o *OpenstackPlatform) UpdateCloudlet(ctx context.Context, cloudlet *edgepr
 	}
 
 	// Rename existing containers
-	for _, pfService := range PlatformServices {
+	for _, pfService := range vmlayer.PlatformServices {
 		from := pfService
 		to := pfService + "_old"
 		log.SpanLog(ctx, log.DebugLevelInfra, "renaming existing services to bringup new ones", "from", from, "to", to)
@@ -614,14 +256,14 @@ func (o *OpenstackPlatform) UpdateCloudlet(ctx context.Context, cloudlet *edgepr
 		}
 	}
 
-	err = o.setupPlatformService(ctx, cloudlet, pfConfig, vaultConfig, pfClient, updateCallback)
+	err = o.vmPlatform.SetupPlatformService(ctx, cloudlet, pfConfig, vaultConfig, pfClient, updateCallback)
 
 	if err != nil {
 		log.SpanLog(ctx, log.DebugLevelInfra, "failed to setup platform services", "err", err)
 		// Cleanup failed containers
 		updateCallback(edgeproto.UpdateTask, "Upgrade failed, cleaning up")
 		if out, err1 := pfClient.Output(
-			fmt.Sprintf("sudo docker rm -f %s", strings.Join(PlatformServices, " ")),
+			fmt.Sprintf("sudo docker rm -f %s", strings.Join(vmlayer.PlatformServices, " ")),
 		); err1 != nil {
 			if strings.Contains(out, "No such container") {
 				log.SpanLog(ctx, log.DebugLevelInfra, "no containers to cleanup")
@@ -630,7 +272,7 @@ func (o *OpenstackPlatform) UpdateCloudlet(ctx context.Context, cloudlet *edgepr
 			}
 		}
 		// Cleanup container names
-		for _, pfService := range PlatformServices {
+		for _, pfService := range vmlayer.PlatformServices {
 			from := pfService + "_old"
 			to := pfService
 			log.SpanLog(ctx, log.DebugLevelInfra, "restoring old container name", "from", from, "to", to)
@@ -648,12 +290,12 @@ func (o *OpenstackPlatform) UpdateCloudlet(ctx context.Context, cloudlet *edgepr
 func (o *OpenstackPlatform) CleanupCloudlet(ctx context.Context, cloudlet *edgeproto.Cloudlet, pfConfig *edgeproto.PlatformConfig, updateCallback edgeproto.CacheUpdateCallback) error {
 	log.SpanLog(ctx, log.DebugLevelInfra, "Cleaning up cloudlet", "cloudletName", cloudlet.Key.Name)
 
-	client, err := o.vmPlatform.GetSSHClientForServer(ctx, o.getPlatformVMName(&cloudlet.Key), o.vmPlatform.GetCloudletExternalNetwork())
+	client, err := o.vmPlatform.GetSSHClientForServer(ctx, o.vmPlatform.GetPlatformVMName(&cloudlet.Key), o.vmPlatform.GetCloudletExternalNetwork())
 	if err != nil {
 		return err
 	}
 	updateCallback(edgeproto.UpdateTask, "Removing old containers")
-	for _, pfService := range PlatformServices {
+	for _, pfService := range vmlayer.PlatformServices {
 		if out, err := client.Output(
 			fmt.Sprintf("sudo docker rm -f %s_old", pfService),
 		); err != nil {
@@ -666,5 +308,123 @@ func (o *OpenstackPlatform) CleanupCloudlet(ctx context.Context, cloudlet *edgep
 		}
 	}
 
+	return nil
+}
+
+func (o *OpenstackPlatform) CreateCloudlet(ctx context.Context, cloudlet *edgeproto.Cloudlet, pfConfig *edgeproto.PlatformConfig, pfFlavor *edgeproto.Flavor, updateCallback edgeproto.CacheUpdateCallback) error {
+	var err error
+
+	log.SpanLog(ctx, log.DebugLevelInfra, "Creating cloudlet", "cloudletName", cloudlet.Key.Name)
+
+	vaultConfig, err := vault.BestConfig(pfConfig.VaultAddr, vault.WithEnvMap(pfConfig.EnvVar))
+	if err != nil {
+		return err
+	}
+	// Source OpenRC file to access openstack API endpoint
+	updateCallback(edgeproto.UpdateTask, "Sourcing access variables")
+	err = o.InitOpenstackProps(ctx, &cloudlet.Key, pfConfig.Region, cloudlet.PhysicalName, vaultConfig, cloudlet.EnvVar)
+	if err != nil {
+		return err
+	}
+
+	// For real setups, ansible will always specify the correct
+	// cloudlet container and vm image paths to the controller.
+	// But for local testing convenience, we default to the hard-coded
+	// ones if not specified.
+	if pfConfig.ContainerRegistryPath == "" {
+		pfConfig.ContainerRegistryPath = infracommon.DefaultContainerRegistryPath
+	}
+
+	client, err := o.vmPlatform.SetupPlatformVM(ctx, cloudlet, pfConfig, pfFlavor, updateCallback)
+	if err != nil {
+		return err
+	}
+
+	return o.vmPlatform.SetupPlatformService(ctx, cloudlet, pfConfig, vaultConfig, client, updateCallback)
+}
+
+func (o *OpenstackPlatform) SaveCloudletAccessVars(ctx context.Context, cloudlet *edgeproto.Cloudlet, accessVarsIn map[string]string, pfConfig *edgeproto.PlatformConfig, updateCallback edgeproto.CacheUpdateCallback) error {
+	log.SpanLog(ctx, log.DebugLevelInfra, "Saving cloudlet access vars to vault", "cloudletName", cloudlet.Key.Name)
+	vaultConfig, err := vault.BestConfig(pfConfig.VaultAddr, vault.WithEnvMap(pfConfig.EnvVar))
+	if err != nil {
+		return err
+	}
+	openrcData, ok := accessVarsIn["OPENRC_DATA"]
+	if !ok {
+		return fmt.Errorf("Invalid accessvars, missing OPENRC_DATA")
+	}
+	out := strings.Split(openrcData, "\n")
+	if len(out) <= 1 {
+		return fmt.Errorf("Invalid accessvars, as OPENRC_DATA is invalid: %v", out)
+	}
+	accessVars := make(map[string]string)
+	for _, v := range out {
+		out1 := strings.Split(v, "=")
+		if len(out1) != 2 {
+			return fmt.Errorf("Invalid separator for key-value pair: %v", out1)
+		}
+		key := strings.TrimSpace(out1[0])
+		value := strings.TrimSpace(out1[1])
+		if !strings.HasPrefix(key, "OS_") {
+			return fmt.Errorf("Invalid accessvars: %s, must start with 'OS_' prefix", key)
+		}
+		accessVars[key] = value
+	}
+	authURL, ok := accessVars["OS_AUTH_URL"]
+	if !ok {
+		return fmt.Errorf("Invalid accessvars, missing OS_AUTH_URL")
+	}
+	if strings.HasPrefix(authURL, "https") {
+		certData, ok := accessVarsIn["CACERT_DATA"]
+		if !ok {
+			return fmt.Errorf("Invalid accessvars, missing CACERT_DATA")
+		}
+		certFile := vmlayer.GetCertFilePath(&cloudlet.Key)
+		err := ioutil.WriteFile(certFile, []byte(certData), 0644)
+		if err != nil {
+			return err
+		}
+		accessVars["OS_CACERT"] = certFile
+		accessVars["OS_CACERT_DATA"] = certData
+	}
+	updateCallback(edgeproto.UpdateTask, "Saving access vars to secure secrets storage (Vault)")
+	var varList infracommon.VaultEnvData
+	for key, value := range accessVars {
+		if key == "OS_CACERT" {
+			continue
+		}
+		varList.Env = append(varList.Env, infracommon.EnvData{
+			Name:  key,
+			Value: value,
+		})
+	}
+	data := map[string]interface{}{
+		"data": varList,
+	}
+
+	path := o.vmPlatform.GetVaultCloudletAccessPath(&cloudlet.Key, pfConfig.Region, cloudlet.PhysicalName)
+	err = infracommon.PutDataToVault(vaultConfig, path, data)
+	if err != nil {
+		updateCallback(edgeproto.UpdateTask, "Failed to save access vars to vault")
+		log.SpanLog(ctx, log.DebugLevelInfra, err.Error(), "cloudletName", cloudlet.Key.Name)
+		return fmt.Errorf("Failed to save access vars to vault: %v", err)
+	}
+	return nil
+}
+
+func (o *OpenstackPlatform) DeleteCloudletAccessVars(ctx context.Context, cloudlet *edgeproto.Cloudlet, pfConfig *edgeproto.PlatformConfig, updateCallback edgeproto.CacheUpdateCallback) error {
+	log.SpanLog(ctx, log.DebugLevelInfra, "Deleting access vars from vault", "cloudletName", cloudlet.Key.Name)
+
+	updateCallback(edgeproto.UpdateTask, "Deleting access vars from secure secrets storage")
+
+	vaultConfig, err := vault.BestConfig(pfConfig.VaultAddr, vault.WithEnvMap(pfConfig.EnvVar))
+	if err != nil {
+		return err
+	}
+	path := o.vmPlatform.GetVaultCloudletAccessPath(&cloudlet.Key, pfConfig.Region, cloudlet.PhysicalName)
+	err = infracommon.DeleteDataFromVault(vaultConfig, path)
+	if err != nil {
+		return fmt.Errorf("Failed to delete access vars from vault: %v", err)
+	}
 	return nil
 }

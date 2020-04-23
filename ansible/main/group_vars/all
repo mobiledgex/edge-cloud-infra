@@ -7,4 +7,5 @@ vault_address: https://vault-main.mobiledgex.net
 vault_ha_zones:
   us: us-central1-a
   eu: europe-west3-a
+offline_root_cert: yes
 vault_github_teams: []

@@ -98,6 +98,18 @@ func (o *OpenstackPlatform) GetResourceID(ctx context.Context, resourceType vmla
 	return "", fmt.Errorf("GetResourceID not implemented for resource type: %s ", resourceType)
 }
 
+func (o *OpenstackPlatform) GetClusterPlatformClient(ctx context.Context, clusterInst *edgeproto.ClusterInst) (ssh.Client, error) {
+	return o.vmPlatform.GetClusterPlatformClient(ctx, clusterInst)
+}
+
+func (o *OpenstackPlatform) GetNodePlatformClient(ctx context.Context, node *edgeproto.CloudletMgmtNode) (ssh.Client, error) {
+	return o.vmPlatform.GetNodePlatformClient(ctx, node)
+}
+
+func (o *OpenstackPlatform) ListCloudletMgmtNodes(ctx context.Context, clusterInsts []edgeproto.ClusterInst) ([]edgeproto.CloudletMgmtNode, error) {
+	return o.vmPlatform.ListCloudletMgmtNodes(ctx, clusterInsts)
+}
+
 func (o *OpenstackPlatform) Resync(ctx context.Context) error {
 	return fmt.Errorf("Resync not yet implemented")
 }

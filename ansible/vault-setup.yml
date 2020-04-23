@@ -12,7 +12,7 @@
   gather_facts: no
   vars:
     github_org: mobiledgex
-    github_token_ttl: 900 # seconds
+    github_token_ttl: 3600 # seconds
     ldap_token_ttl: 900 # seconds
     ca_ttl: "{{ 60 * 60 * 24 * 365 * 20 }}"    # 20 years
     pki_global: pki-global
@@ -221,14 +221,31 @@
           raw_response: yes
         register: result
 
-      - name: Generate root cert
-        vault_api:
-          api: pki/root/generate/internal
-          method: POST
-          data:
-            common_name: root
-            ou: "{{ deploy_environ }}"
-            ttl: "{{ ca_ttl }}"
+      - name: Set up the root cert
+        block:
+
+        - name: Generate root cert
+          vault_api:
+            api: pki/root/generate/internal
+            method: POST
+            data:
+              common_name: root
+              ou: "{{ deploy_environ }}"
+              ttl: "{{ ca_ttl }}"
+          when: offline_root_cert is not defined or not offline_root_cert
+
+        - name: Wait for intermediate CA certificate to be set up
+          pause:
+            prompt: |
+              Please set up the intermediate CA certificate.
+              Refer to mgmt/vault/root-ca/README.md for details.
+          when: offline_root_cert is defined and offline_root_cert
+
+        - name: Check for root CA cert
+          vault_api:
+            api: pki/ca/pem
+            raw_response: yes
+
         when: result.meta.response == ""
 
       - include_role:

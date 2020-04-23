@@ -88,6 +88,20 @@ def switch_tags(sw):
                 if tag in TAG_SWITCH:
                     sw['x-tagGroups'][group_idx]['tags'][i] = TAG_SWITCH[tag]
 
+def remove_hidden_params_from_object(obj):
+    for prop in list(obj.get('properties', {})):
+        for param in ('title', 'description'):
+            value = obj['properties'][prop].get(param)
+            if value and "_(hidden)_" in value:
+                del obj['properties'][prop]
+                break
+
+def remove_hidden_params(sw):
+    for defn in sw['definitions']:
+        if sw['definitions'][defn]['type'] != "object":
+            continue
+        remove_hidden_params_from_object(sw['definitions'][defn])
+
 def set_required_params_for_object(obj):
     if 'required' in obj:
         # Object already has a required property list
@@ -145,6 +159,7 @@ def main():
         splice_samples(sw, args.samples)
     switch_tags(sw)
     order_apis(sw)
+    remove_hidden_params(sw)
     set_required_params(sw)
     add_logo(sw)
     set_version(sw, args.version)

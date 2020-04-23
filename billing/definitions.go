@@ -25,6 +25,7 @@ var ZuoraUrl = "https://rest.apisandbox.zuora.com"
 var FlavorProductId = "2c92c0f870d4538b0170e46c11a06e6c"
 var FlavorUsageProductRatePlanId = "2c92c0f9712998a401712de88cc44c9f"
 var FlavorUsageProductRatePlanChargeId = "2c92c0f9712998b30171369c87bd3c44"
+var usageFlavorRatePlanId = "2c92c0f9712998a401712de88cc44c9f"
 
 type OAuthToken struct {
 	AccessToken string `json:"access_token"`

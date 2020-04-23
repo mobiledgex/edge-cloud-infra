@@ -9,8 +9,6 @@ import (
 	"github.com/mobiledgex/edge-cloud/edgeproto"
 )
 
-var usageFlavorRatePlanId = "2c92c0f9712998a401712de88cc44c9f"
-
 // Creates a product rate plan for the flavors product
 func CreateFlavor(FlavorName string) (string, error) {
 	name := FlavorName

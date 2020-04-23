@@ -25,7 +25,7 @@
         console_version_not_provided: true
       when: console_version is not defined
 
-    - name: Get list of edge-cloud-ui tags from Github
+    - name: Get latest edge-cloud-ui release from Github
       uri:
         url: https://api.github.com/repos/mobiledgex/edge-cloud-ui/releases/latest
         user: "{{ github_user }}"
@@ -36,7 +36,7 @@
       check_mode: false
       when: console_version_not_provided | default(false)
 
-    - name: Pick newest tag by semver
+    - name: Pick tag for latest release
       set_fact:
         console_version: "{{ console_tags.json.tag_name }}"
       when: console_version_not_provided | default(false)

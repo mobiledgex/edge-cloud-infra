@@ -1,5 +1,13 @@
 package vmlayer
 
+//
+// This file contains the functionality needed to input data into the VMProvider orchestrator.   There are 2 categories of structs:
+// 1) Request Specs.  These contain high level info used by client code to request the creation VMs and Groups of VMs
+// 2) Orchestration Params.   These contain detailed level info used by the orchestrator to instantiate all the resources related to creating VMs,
+//    including Subnets, Ports, Security Groups, etc
+//
+// Request specs provide the input which is used to generate the detailed Orchestration Params
+
 import (
 	"context"
 	"fmt"
@@ -46,8 +54,6 @@ var RoleMaster VMRole = "k8s-master"
 var RoleNode VMRole = "k8s-node"
 var RoleUser VMRole = "user"
 
-var MasterIPNone = "NONE"
-
 // NextAvailableResource means the orchestration code needs to find an available
 // resource of the given type as the calling code won't know what is free
 var NextAvailableResource = "NextAvailable"
@@ -61,107 +67,16 @@ type ResourceReference struct {
 	Preexisting bool
 }
 
+func GetPortName(vmname, netname string) string {
+	return fmt.Sprintf("%s-%s-port", vmname, netname)
+}
+
 func NewResourceReference(name string, preexisting bool) ResourceReference {
 	// we may want to compute an id here
 	return ResourceReference{Name: name, Preexisting: preexisting}
 }
 
-type SubnetParams struct {
-	Name         string
-	CIDR         string
-	NodeIPPrefix string
-	GatewayIP    string
-	DNSServers   []string
-	DHCPEnabled  string
-}
-
-type FixedIPParams struct {
-	LastIPOctet uint32
-	Address     string
-	Subnet      ResourceReference
-}
-
-type PortParams struct {
-	Name           string
-	NetworkName    string
-	VnicType       string
-	FixedIPs       []FixedIPParams
-	SecurityGroups []ResourceReference
-}
-
-type FloatingIPParams struct {
-	Name         string
-	Port         ResourceReference
-	FloatingIpId ResourceReference
-}
-
-type RouterInterfaceParams struct {
-	RouterName string
-	RouterPort ResourceReference
-}
-
-type SecurityGroupParams struct {
-	Name             string
-	AccessPorts      []util.PortSpec
-	EgressRestricted bool
-	EgressRules      []edgeproto.OutboundSecurityRule
-}
-
-type SecgrpParamsOp func(vmp *SecurityGroupParams) error
-
-func secGrpWithEgressRules(rules []edgeproto.OutboundSecurityRule) SecgrpParamsOp {
-	return func(sp *SecurityGroupParams) error {
-		sp.EgressRules = rules
-		sp.EgressRestricted = true
-		return nil
-	}
-}
-
-func secGrpWithAccessPorts(accessPorts string) SecgrpParamsOp {
-	return func(sgp *SecurityGroupParams) error {
-		if accessPorts == "" {
-			return nil
-		}
-		parsedAccessPorts, err := util.ParsePorts(accessPorts)
-		if err != nil {
-			return err
-		}
-		for _, port := range parsedAccessPorts {
-			endPort, err := strconv.ParseInt(port.EndPort, 10, 32)
-			if err != nil {
-				return err
-			}
-			if endPort == 0 {
-				port.EndPort = port.Port
-			}
-			sgp.AccessPorts = append(sgp.AccessPorts, port)
-		}
-		return nil
-	}
-}
-
-func GetSecGrpParams(name string, opts ...SecgrpParamsOp) (*SecurityGroupParams, error) {
-	var sgp SecurityGroupParams
-	sgp.Name = name
-	for _, op := range opts {
-		if err := op(&sgp); err != nil {
-			return nil, err
-		}
-	}
-	return &sgp, nil
-}
-
-type VolumeParams struct {
-	Name             string
-	ImageName        string
-	Size             uint64
-	AvailabilityZone string
-	DeviceName       string
-}
-type VolumeParamsOp func(vmp *VolumeParams) error
-
-// VMRequestSpec has the infromation which the caller needs
-// to provide when creating a VM.
+// VMRequestSpec has the infromation which the caller needs to provide when creating a VM.
 type VMRequestSpec struct {
 	Name                    string
 	Type                    VMType
@@ -174,7 +89,8 @@ type VMRequestSpec struct {
 	DeploymentManifest      string
 	Command                 string
 	ConnectToExternalNet    bool
-	ConnectToInternalNet    bool
+	VmIsPreexisting         bool
+	ConnectToSubnet         string
 }
 
 type VMReqOp func(vmp *VMRequestSpec) error
@@ -223,9 +139,148 @@ func WithSharedVolume(size uint64) VMReqOp {
 		return nil
 	}
 }
+func WithSubnetConnection(subnetName string) VMReqOp {
+	return func(s *VMRequestSpec) error {
+		s.ConnectToSubnet = subnetName
+		return nil
+	}
+}
+func WithVmIsPreexisting(preexisting bool) VMReqOp {
+	return func(s *VMRequestSpec) error {
+		s.VmIsPreexisting = preexisting
+		return nil
+	}
+}
 
-// VMParams contains all details  that are needed by the orchestator
-type VMParams struct {
+// VMGroupRequestSpec is used to specify a set of VMs to be created.  It is used as input to create VMGroupOrchestrationParams
+type VMGroupRequestSpec struct {
+	GroupName     string
+	VMs           []*VMRequestSpec
+	NewSubnetName string
+	AccessPorts   string
+	PrivacyPolicy *edgeproto.PrivacyPolicy
+}
+
+type VMGroupReqOp func(vmp *VMGroupRequestSpec) error
+
+func WithPrivacyPolicy(pp *edgeproto.PrivacyPolicy) VMGroupReqOp {
+	return func(s *VMGroupRequestSpec) error {
+		s.PrivacyPolicy = pp
+		return nil
+	}
+}
+func WithAccessPorts(ap string) VMGroupReqOp {
+	return func(s *VMGroupRequestSpec) error {
+		s.AccessPorts = ap
+		return nil
+	}
+}
+func WithNewSubnet(sn string) VMGroupReqOp {
+	return func(s *VMGroupRequestSpec) error {
+		s.NewSubnetName = sn
+		return nil
+	}
+}
+
+type SubnetOrchestrationParams struct {
+	Name         string
+	CIDR         string
+	NodeIPPrefix string
+	GatewayIP    string
+	DNSServers   []string
+	DHCPEnabled  string
+}
+
+type FixedIPOrchestrationParams struct {
+	LastIPOctet uint32
+	Address     string
+	Subnet      ResourceReference
+}
+
+type PortOrchestrationParams struct {
+	Name           string
+	NetworkName    string
+	VnicType       string
+	SkipAttachVM   bool
+	FixedIPs       []FixedIPOrchestrationParams
+	SecurityGroups []ResourceReference
+}
+
+type FloatingIPOrchestrationParams struct {
+	Name         string
+	Port         ResourceReference
+	FloatingIpId ResourceReference
+}
+
+type RouterInterfaceOrchestrationParams struct {
+	RouterName string
+	RouterPort ResourceReference
+}
+
+type SecurityGroupOrchestrationParams struct {
+	Name             string
+	AccessPorts      []util.PortSpec
+	EgressRestricted bool
+	EgressRules      []edgeproto.OutboundSecurityRule
+}
+
+type SecgrpParamsOp func(vmp *SecurityGroupOrchestrationParams) error
+
+func secGrpWithEgressRules(rules []edgeproto.OutboundSecurityRule) SecgrpParamsOp {
+	return func(sp *SecurityGroupOrchestrationParams) error {
+		sp.EgressRules = rules
+		if len(rules) > 0 {
+			sp.EgressRestricted = true
+		}
+		return nil
+	}
+}
+
+func secGrpWithAccessPorts(accessPorts string) SecgrpParamsOp {
+	return func(sgp *SecurityGroupOrchestrationParams) error {
+		if accessPorts == "" {
+			return nil
+		}
+		parsedAccessPorts, err := util.ParsePorts(accessPorts)
+		if err != nil {
+			return err
+		}
+		for _, port := range parsedAccessPorts {
+			endPort, err := strconv.ParseInt(port.EndPort, 10, 32)
+			if err != nil {
+				return err
+			}
+			if endPort == 0 {
+				port.EndPort = port.Port
+			}
+			sgp.AccessPorts = append(sgp.AccessPorts, port)
+		}
+		return nil
+	}
+}
+
+func GetSecGrpParams(name string, opts ...SecgrpParamsOp) (*SecurityGroupOrchestrationParams, error) {
+	var sgp SecurityGroupOrchestrationParams
+	sgp.Name = name
+	for _, op := range opts {
+		if err := op(&sgp); err != nil {
+			return nil, err
+		}
+	}
+	return &sgp, nil
+}
+
+type VolumeOrchestrationParams struct {
+	Name             string
+	ImageName        string
+	Size             uint64
+	AvailabilityZone string
+	DeviceName       string
+}
+type VolumeOrchestrationParamsOp func(vmp *VolumeOrchestrationParams) error
+
+// VMOrchestrationParams contains all details  that are needed by the orchestator
+type VMOrchestrationParams struct {
 	Name                    string
 	Role                    VMRole
 	ImageName               string
@@ -238,20 +293,8 @@ type VMParams struct {
 	AuthPublicKey           string
 	DeploymentManifest      string
 	Command                 string
-	Volumes                 []VolumeParams
+	Volumes                 []VolumeOrchestrationParams
 	Ports                   []ResourceReference
-}
-
-// VMGroupParams contains all the details used by the orchestator to create a set of associated VMs
-type VMGroupParams struct {
-	GroupName        string
-	Subnets          []SubnetParams
-	Ports            []PortParams
-	RouterInterfaces []RouterInterfaceParams
-	VMs              []VMParams
-	FloatingIPs      []FloatingIPParams
-	SecurityGroups   []SecurityGroupParams
-	Netspec          *NetSpecInfo
 }
 
 var VmCloudConfig = `#cloud-config
@@ -292,37 +335,19 @@ fs_setup:
 mounts:
 - [ "/dev/vdb1", "/share" ]`
 
-// VMGroupRequestSpec is used to specify a set of VMs to be created.  It is used as input to create VMGroupParams
-type VMGroupRequestSpec struct {
-	GroupName     string
-	VMs           []*VMRequestSpec
-	NewSubnetName string
-	AccessPorts   string
-	PrivacyPolicy *edgeproto.PrivacyPolicy
+// VMGroupOrchestrationParams contains all the details used by the orchestator to create a set of associated VMs
+type VMGroupOrchestrationParams struct {
+	GroupName        string
+	Subnets          []SubnetOrchestrationParams
+	Ports            []PortOrchestrationParams
+	RouterInterfaces []RouterInterfaceOrchestrationParams
+	VMs              []VMOrchestrationParams
+	FloatingIPs      []FloatingIPOrchestrationParams
+	SecurityGroups   []SecurityGroupOrchestrationParams
+	Netspec          *NetSpecInfo
 }
 
-type VMGroupReqOp func(vmp *VMGroupRequestSpec) error
-
-func WithPrivacyPolicy(pp *edgeproto.PrivacyPolicy) VMGroupReqOp {
-	return func(s *VMGroupRequestSpec) error {
-		s.PrivacyPolicy = pp
-		return nil
-	}
-}
-func WithAccessPorts(ap string) VMGroupReqOp {
-	return func(s *VMGroupRequestSpec) error {
-		s.AccessPorts = ap
-		return nil
-	}
-}
-func WithNewSubnet(sn string) VMGroupReqOp {
-	return func(s *VMGroupRequestSpec) error {
-		s.NewSubnetName = sn
-		return nil
-	}
-}
-
-func (v *VMPlatform) GetVMRequestSpec(ctx context.Context, vmtype VMType, serverName, flavorName string, imageName string, connectExternal, connectInternal bool, opts ...VMReqOp) (*VMRequestSpec, error) {
+func (v *VMPlatform) GetVMRequestSpec(ctx context.Context, vmtype VMType, serverName, flavorName string, imageName string, connectExternal bool, opts ...VMReqOp) (*VMRequestSpec, error) {
 	var vrs VMRequestSpec
 	for _, op := range opts {
 		if err := op(&vrs); err != nil {
@@ -330,10 +355,10 @@ func (v *VMPlatform) GetVMRequestSpec(ctx context.Context, vmtype VMType, server
 		}
 	}
 	vrs.Name = serverName
+	vrs.Type = vmtype
 	vrs.FlavorName = flavorName
 	vrs.ImageName = imageName
 	vrs.ConnectToExternalNet = connectExternal
-	vrs.ConnectToInternalNet = connectInternal
 	return &vrs, nil
 }
 
@@ -349,18 +374,18 @@ func (v *VMPlatform) getVMGroupRequestSpec(ctx context.Context, name string, vms
 	return &vmgrs, nil
 }
 
-func (v *VMPlatform) GetVMGroupParamsFromVMSpec(ctx context.Context, name string, vms []*VMRequestSpec, opts ...VMGroupReqOp) (*VMGroupParams, error) {
+func (v *VMPlatform) GetVMGroupOrchestrationParamsFromVMSpec(ctx context.Context, name string, vms []*VMRequestSpec, opts ...VMGroupReqOp) (*VMGroupOrchestrationParams, error) {
 	vmgp, err := v.getVMGroupRequestSpec(ctx, name, vms, opts...)
 	if err != nil {
 		return nil, err
 	}
-	return v.getVMGroupParamsFromGroupSpec(ctx, vmgp)
+	return v.getVMGroupOrchestrationParamsFromGroupSpec(ctx, vmgp)
 }
 
-func (v *VMPlatform) getVMGroupParamsFromGroupSpec(ctx context.Context, spec *VMGroupRequestSpec) (*VMGroupParams, error) {
-	log.SpanLog(ctx, log.DebugLevelInfra, "GetVMGroupParams", "spec", spec)
+func (v *VMPlatform) getVMGroupOrchestrationParamsFromGroupSpec(ctx context.Context, spec *VMGroupRequestSpec) (*VMGroupOrchestrationParams, error) {
+	log.SpanLog(ctx, log.DebugLevelInfra, "GetVMGroupOrchestrationParams", "spec", spec)
 
-	vmgp := VMGroupParams{GroupName: spec.GroupName}
+	vmgp := VMGroupOrchestrationParams{GroupName: spec.GroupName}
 	internalNetName := v.GetCloudletMexNetwork()
 	externalNetName := v.GetCloudletExternalNetwork()
 
@@ -392,35 +417,38 @@ func (v *VMPlatform) getVMGroupParamsFromGroupSpec(ctx context.Context, spec *VM
 	} else if rtr == NoExternalRouter {
 		log.SpanLog(ctx, log.DebugLevelInfra, "NoExternalRouter in use ")
 	} else {
-		log.SpanLog(ctx, log.DebugLevelMexos, "External router in use")
+		log.SpanLog(ctx, log.DebugLevelInfra, "External router in use")
 		if spec.NewSubnetName != "" {
 			internalSecgrpID = cloudletSecGrpID
 			rtrInUse = true
 			routerPortName := spec.NewSubnetName + "-rtr-port"
-			routerPort := PortParams{
+			routerPort := PortOrchestrationParams{
 				Name:        routerPortName,
 				NetworkName: internalNetName,
-				FixedIPs:    []FixedIPParams{{Address: NextAvailableResource, LastIPOctet: 1, Subnet: NewResourceReference(spec.NewSubnetName, false)}},
+				FixedIPs:    []FixedIPOrchestrationParams{{Address: NextAvailableResource, LastIPOctet: 1, Subnet: NewResourceReference(spec.NewSubnetName, false)}},
 			}
 			vmgp.Ports = append(vmgp.Ports, routerPort)
-			newRouterIf := RouterInterfaceParams{RouterName: v.GetCloudletExternalRouter(), RouterPort: NewResourceReference(routerPortName, false)}
+			newRouterIf := RouterInterfaceOrchestrationParams{RouterName: v.GetCloudletExternalRouter(), RouterPort: NewResourceReference(routerPortName, false)}
 			vmgp.RouterInterfaces = append(vmgp.RouterInterfaces, newRouterIf)
 		}
 	}
 
 	newSecGrpName := spec.GroupName + "-sg"
-	externalSecGrp, err := GetSecGrpParams(newSecGrpName, secGrpWithAccessPorts(spec.AccessPorts), secGrpWithEgressRules(spec.PrivacyPolicy.OutboundSecurityRules))
+	var egressRules []edgeproto.OutboundSecurityRule
+	if spec.PrivacyPolicy != nil {
+		egressRules = spec.PrivacyPolicy.OutboundSecurityRules
+	}
+	externalSecGrp, err := GetSecGrpParams(newSecGrpName, secGrpWithAccessPorts(spec.AccessPorts), secGrpWithEgressRules(egressRules))
 	if err != nil {
 		return nil, err
 	}
 	vmgp.SecurityGroups = append(vmgp.SecurityGroups, *externalSecGrp)
 
-	internalSubnet := ""
 	if err != nil {
 		return nil, err
 	}
 	if spec.NewSubnetName != "" {
-		newSubnet := SubnetParams{
+		newSubnet := SubnetOrchestrationParams{
 			Name:        spec.NewSubnetName,
 			CIDR:        NextAvailableResource,
 			DHCPEnabled: "no",
@@ -432,11 +460,17 @@ func (v *VMPlatform) getVMGroupParamsFromGroupSpec(ctx context.Context, spec *VM
 	var internalPortNextOctet uint32 = 101
 	for _, vm := range spec.VMs {
 		log.SpanLog(ctx, log.DebugLevelInfra, "Defining VM", "vm", vm)
-
 		var role VMRole
-		var newPorts []PortParams
-		internalPortName := fmt.Sprintf("%s-%s-port", vm.Name, internalNetName)
-		externalPortName := fmt.Sprintf("%s-%s-port", vm.Name, externalNetName)
+		var newPorts []PortOrchestrationParams
+		internalPortName := GetPortName(vm.Name, internalNetName)
+		externalPortName := GetPortName(vm.Name, externalNetName)
+
+		connectToPreexistingSubnet := false
+		if vm.ConnectToSubnet != "" && spec.NewSubnetName != vm.ConnectToSubnet {
+			// we have specified a subnet to connect to which is not one we are creating
+			// It therefore has to be a preexisting subnet
+			connectToPreexistingSubnet = true
+		}
 
 		switch vm.Type {
 		case VMTypePlatform:
@@ -444,26 +478,27 @@ func (v *VMPlatform) getVMGroupParamsFromGroupSpec(ctx context.Context, spec *VM
 		case VMTypeRootLB:
 			role = RoleAgent
 			// if the router is used we don't create an internal port for rootlb
-			if vm.ConnectToInternalNet && !rtrInUse {
+			if vm.ConnectToSubnet != "" && !rtrInUse {
 				// no router means rootlb must be connected to other VMs directly
-				internalPort := PortParams{
-					Name:        internalPortName,
-					NetworkName: internalNetName,
-					VnicType:    vmgp.Netspec.VnicType,
-					FixedIPs:    []FixedIPParams{{Address: NextAvailableResource, LastIPOctet: 1, Subnet: NewResourceReference(internalSubnet, false)}},
+				internalPort := PortOrchestrationParams{
+					Name:         internalPortName,
+					NetworkName:  internalNetName,
+					VnicType:     vmgp.Netspec.VnicType,
+					FixedIPs:     []FixedIPOrchestrationParams{{Address: NextAvailableResource, LastIPOctet: 1, Subnet: NewResourceReference(vm.ConnectToSubnet, connectToPreexistingSubnet)}},
+					SkipAttachVM: true, //rootlb internal ports are attached in a separate step
 				}
 				newPorts = append(newPorts, internalPort)
 			}
 
 		case VMTypeAppVM:
 			role = RoleUser
-			if vm.ConnectToInternalNet {
+			if vm.ConnectToSubnet != "" {
 				// connect via internal network to LB
-				internalPort := PortParams{
+				internalPort := PortOrchestrationParams{
 					Name:        internalPortName,
 					NetworkName: internalNetName,
 					VnicType:    vmgp.Netspec.VnicType,
-					FixedIPs:    []FixedIPParams{{Address: NextAvailableResource, LastIPOctet: internalPortNextOctet, Subnet: NewResourceReference(internalSubnet, false)}},
+					FixedIPs:    []FixedIPOrchestrationParams{{Address: NextAvailableResource, LastIPOctet: internalPortNextOctet, Subnet: NewResourceReference(vm.ConnectToSubnet, connectToPreexistingSubnet)}},
 				}
 				internalPortNextOctet++
 				newPorts = append(newPorts, internalPort)
@@ -471,12 +506,12 @@ func (v *VMPlatform) getVMGroupParamsFromGroupSpec(ctx context.Context, spec *VM
 
 		case VMTypeK8sMaster:
 			role = RoleMaster
-			if vm.ConnectToInternalNet {
+			if vm.ConnectToSubnet != "" {
 				// connect via internal network to LB
-				internalPort := PortParams{
+				internalPort := PortOrchestrationParams{
 					Name:        internalPortName,
 					NetworkName: internalNetName,
-					FixedIPs:    []FixedIPParams{{Address: NextAvailableResource, LastIPOctet: 10, Subnet: NewResourceReference(internalSubnet, false)}},
+					FixedIPs:    []FixedIPOrchestrationParams{{Address: NextAvailableResource, LastIPOctet: 10, Subnet: NewResourceReference(vm.ConnectToSubnet, connectToPreexistingSubnet)}},
 				}
 				newPorts = append(newPorts, internalPort)
 			} else {
@@ -484,19 +519,21 @@ func (v *VMPlatform) getVMGroupParamsFromGroupSpec(ctx context.Context, spec *VM
 			}
 		case VMTypeK8sNode:
 			role = RoleNode
-			if vm.ConnectToInternalNet {
+			if vm.ConnectToSubnet != "" {
 				// connect via internal network to LB
-				internalPort := PortParams{
+				internalPort := PortOrchestrationParams{
 					Name:        internalPortName,
 					NetworkName: internalNetName,
 					VnicType:    vmgp.Netspec.VnicType,
-					FixedIPs:    []FixedIPParams{{Address: NextAvailableResource, LastIPOctet: internalPortNextOctet, Subnet: NewResourceReference(internalSubnet, false)}},
+					FixedIPs:    []FixedIPOrchestrationParams{{Address: NextAvailableResource, LastIPOctet: internalPortNextOctet, Subnet: NewResourceReference(vm.ConnectToSubnet, connectToPreexistingSubnet)}},
 				}
 				internalPortNextOctet++
 				newPorts = append(newPorts, internalPort)
 			} else {
 				return nil, fmt.Errorf("k8s node not specified to be connected to internal network")
 			}
+		default:
+			return nil, fmt.Errorf("unexpected VM type: %s", vm.Type)
 		}
 		// ports contains only internal ports at this point. Optionally add the internal
 		// security group which is used when we have a router
@@ -508,16 +545,16 @@ func (v *VMPlatform) getVMGroupParamsFromGroupSpec(ctx context.Context, spec *VM
 		}
 
 		if vm.ConnectToExternalNet {
-			var externalport PortParams
+			var externalport PortOrchestrationParams
 			if vmgp.Netspec.FloatingIPNet != "" {
-				externalport = PortParams{
+				externalport = PortOrchestrationParams{
 					Name:        externalPortName,
 					NetworkName: vmgp.Netspec.FloatingIPNet,
 					VnicType:    vmgp.Netspec.VnicType,
-					FixedIPs:    []FixedIPParams{{Subnet: NewResourceReference(vmgp.Netspec.FloatingIPSubnet, false)}},
+					FixedIPs:    []FixedIPOrchestrationParams{{Subnet: NewResourceReference(vmgp.Netspec.FloatingIPSubnet, false)}},
 				}
 			} else {
-				externalport = PortParams{
+				externalport = PortOrchestrationParams{
 					Name:        externalPortName,
 					NetworkName: externalNetName,
 					VnicType:    vmgp.Netspec.VnicType,
@@ -529,37 +566,46 @@ func (v *VMPlatform) getVMGroupParamsFromGroupSpec(ctx context.Context, spec *VM
 				newPorts = append(newPorts, externalport)
 			}
 		}
-		newVM := VMParams{
-			Name:                    vm.Name,
-			Role:                    role,
-			DNSServers:              vmDns,
-			ImageName:               vm.ImageName,
-			FlavorName:              vm.FlavorName,
-			DeploymentManifest:      vm.DeploymentManifest,
-			Command:                 vm.Command,
-			ComputeAvailabilityZone: vm.ComputeAvailabilityZone,
-		}
-		if vm.ExternalVolumeSize > 0 {
-			externalVolume := VolumeParams{
-				Name:       vm.Name + "-volume",
-				Size:       vm.ExternalVolumeSize,
-				DeviceName: "vda",
+		// if the vm is preexisting, we do not create it here, it is specified
+		// only for the purpose of creating ports for it
+		if !vm.VmIsPreexisting {
+			log.SpanLog(ctx, log.DebugLevelInfra, "Defining new VM orch param", "vm.Name", vm.Name, "ports", newPorts)
+			newVM := VMOrchestrationParams{
+				Name:                    vm.Name,
+				Role:                    role,
+				DNSServers:              vmDns,
+				ImageName:               vm.ImageName,
+				FlavorName:              vm.FlavorName,
+				DeploymentManifest:      vm.DeploymentManifest,
+				Command:                 vm.Command,
+				ComputeAvailabilityZone: vm.ComputeAvailabilityZone,
 			}
-			newVM.Volumes = append(newVM.Volumes, externalVolume)
-		}
-		if vm.SharedVolumeSize > 0 {
-			sharedVolume := VolumeParams{
-				Name:       vm.Name + "-shared-volume",
-				Size:       vm.ExternalVolumeSize,
-				DeviceName: "vdb",
+			if vm.ExternalVolumeSize > 0 {
+				externalVolume := VolumeOrchestrationParams{
+					Name:       vm.Name + "-volume",
+					Size:       vm.ExternalVolumeSize,
+					DeviceName: "vda",
+				}
+				newVM.Volumes = append(newVM.Volumes, externalVolume)
 			}
-			newVM.Volumes = append(newVM.Volumes, sharedVolume)
-			newVM.SharedVolume = true
+			if vm.SharedVolumeSize > 0 {
+				sharedVolume := VolumeOrchestrationParams{
+					Name:       vm.Name + "-shared-volume",
+					Size:       vm.ExternalVolumeSize,
+					DeviceName: "vdb",
+				}
+				newVM.Volumes = append(newVM.Volumes, sharedVolume)
+				newVM.SharedVolume = true
+			}
+			for _, p := range newPorts {
+				if !p.SkipAttachVM {
+					newVM.Ports = append(newVM.Ports, NewResourceReference(p.Name, false))
+				}
+			}
+			vmgp.VMs = append(vmgp.VMs, newVM)
+		} else {
+			log.SpanLog(ctx, log.DebugLevelInfra, "Preexisting vm not added to group params", "vm.Name", vm.Name, "ports", newPorts)
 		}
-		for _, p := range newPorts {
-			newVM.Ports = append(newVM.Ports, NewResourceReference(p.Name, false))
-		}
-		vmgp.VMs = append(vmgp.VMs, newVM)
 		vmgp.Ports = append(vmgp.Ports, newPorts...)
 	}
 
@@ -567,25 +613,26 @@ func (v *VMPlatform) getVMGroupParamsFromGroupSpec(ctx context.Context, spec *VM
 }
 
 // CreateVMsFromVMSpec calls the provider function to do the orchestation of the VMs.  It returns the updated VM group spec
-func (v *VMPlatform) CreateVMsFromVMSpec(ctx context.Context, name string, vms []*VMRequestSpec, updateCallback edgeproto.CacheUpdateCallback, opts ...VMGroupReqOp) (*VMGroupParams, error) {
+func (v *VMPlatform) CreateVMsFromVMSpec(ctx context.Context, name string, vms []*VMRequestSpec, updateCallback edgeproto.CacheUpdateCallback, opts ...VMGroupReqOp) (*VMGroupOrchestrationParams, error) {
 	log.SpanLog(ctx, log.DebugLevelInfra, "CreateVMsFromVMSpec", "name", name)
-	gp, err := v.GetVMGroupParamsFromVMSpec(ctx, name, vms)
+	gp, err := v.GetVMGroupOrchestrationParamsFromVMSpec(ctx, name, vms, opts...)
 	if err != nil {
+		log.SpanLog(ctx, log.DebugLevelInfra, "GetVMGroupOrchestrationParamsFromVMSpec failed", "error", err)
 		return gp, err
 	}
 	log.SpanLog(ctx, log.DebugLevelInfra, "created vm group spec", "gp", gp)
 	err = v.vmProvider.CreateVMs(ctx, gp, updateCallback)
 	if err != nil {
-		log.SpanLog(ctx, log.DebugLevelInfra, "error while creating vms", "name", name, "name", "error", err)
+		log.SpanLog(ctx, log.DebugLevelInfra, "error while creating vms", "name", name, "error", err)
 		return gp, err
 	}
 	log.SpanLog(ctx, log.DebugLevelInfra, "VM create done")
 	return gp, nil
 }
 
-func (v *VMPlatform) UpdateVMsFromVMSpec(ctx context.Context, name string, vms []*VMRequestSpec, updateCallback edgeproto.CacheUpdateCallback, opts ...VMGroupReqOp) (*VMGroupParams, error) {
+func (v *VMPlatform) UpdateVMsFromVMSpec(ctx context.Context, name string, vms []*VMRequestSpec, updateCallback edgeproto.CacheUpdateCallback, opts ...VMGroupReqOp) (*VMGroupOrchestrationParams, error) {
 	log.SpanLog(ctx, log.DebugLevelInfra, "UpdateVMsFromVMSpec", "name", name)
-	gp, err := v.GetVMGroupParamsFromVMSpec(ctx, name, vms)
+	gp, err := v.GetVMGroupOrchestrationParamsFromVMSpec(ctx, name, vms)
 	if err != nil {
 		return gp, err
 	}

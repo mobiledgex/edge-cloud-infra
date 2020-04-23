@@ -28,6 +28,8 @@ type CommonPlatform struct {
 var testMode = false
 
 func (c *CommonPlatform) InitInfraCommon(ctx context.Context, platformConfig *pf.PlatformConfig, platformSpecificProps map[string]*PropertyInfo, vaultConfig *vault.Config) error {
+	log.SpanLog(ctx, log.DebugLevelInfra, "InitInfraCommon", "cloudletKey", platformConfig.CloudletKey)
+
 	if vaultConfig.Addr == "" {
 		return fmt.Errorf("vaultAddr is not specified")
 	}
@@ -57,8 +59,12 @@ func (c *CommonPlatform) InitInfraCommon(ctx context.Context, platformConfig *pf
 		if _, ok := c.Properties[envData.Name]; ok {
 			c.Properties[envData.Name].Value = envData.Value
 		} else {
+			// quick fix for EDGECLOUD-2572.  Assume the mexenv.json item is secret if we have
+			// not defined it one way or another in code, of if the props that defines it is not
+			// run (e.g. an Azure property defined in mexenv.json when we are running openstack)
 			c.Properties[envData.Name] = &PropertyInfo{
-				Value: envData.Value,
+				Value:  envData.Value,
+				Secret: true,
 			}
 		}
 	}

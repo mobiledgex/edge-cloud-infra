@@ -44,7 +44,7 @@ func getShepherdProc(cloudlet *edgeproto.Cloudlet, pfConfig *edgeproto.PlatformC
 		envVars[envKey] = envVal
 	}
 
-	opts = append(opts, process.WithDebug("api,mexos,notify,metrics"))
+	opts = append(opts, process.WithDebug("api,infra,notify,metrics"))
 
 	return &Shepherd{
 		NotifyAddrs: notifyAddr,

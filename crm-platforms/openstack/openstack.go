@@ -41,6 +41,9 @@ func (o *OpenstackPlatform) Init(ctx context.Context, platformConfig *platform.P
 	if err := o.InitOpenstackProps(ctx, platformConfig.CloudletKey, platformConfig.Region, platformConfig.PhysicalName, vaultConfig, platformConfig.EnvVars); err != nil {
 		return err
 	}
+	if err := o.vmPlatform.CommonPf.InitInfraCommon(ctx, platformConfig, vmlayer.VMProviderProps, vaultConfig); err != nil {
+		return err
+	}
 	o.vmPlatform.FlavorList, _, _, err = o.GetFlavorInfo(ctx)
 	if err != nil {
 		return err
@@ -49,9 +52,7 @@ func (o *OpenstackPlatform) Init(ctx context.Context, platformConfig *platform.P
 	if err != nil {
 		return err
 	}
-	if err := o.vmPlatform.CommonPf.InitInfraCommon(ctx, platformConfig, vmlayer.VMProviderProps, vaultConfig); err != nil {
-		return err
-	}
+
 	return o.vmPlatform.InitVMProvider(ctx, o, updateCallback)
 
 	// create rootLB

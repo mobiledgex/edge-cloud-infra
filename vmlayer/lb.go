@@ -324,9 +324,9 @@ var MEXRootLBMap = make(map[string]*MEXRootLB)
 
 // GetVMSpecForRootLB gets the VM spec for the rootLB when it is not specified within a cluster. This is
 // used for Shared RootLb and for VM app based RootLb
-func (v *VMPlatform) GetVMSpecForRootLB(ctx context.Context, name string, updateCallback edgeproto.CacheUpdateCallback) (*VMRequestSpec, error) {
+func (v *VMPlatform) GetVMSpecForRootLB(ctx context.Context, rootLbName string, subnetConnect string, updateCallback edgeproto.CacheUpdateCallback) (*VMRequestSpec, error) {
 
-	log.SpanLog(ctx, log.DebugLevelInfra, "GetVMSpecForRootLB", "name", name)
+	log.SpanLog(ctx, log.DebugLevelInfra, "GetVMSpecForRootLB", "rootLbName", rootLbName)
 
 	var rootlbFlavor edgeproto.Flavor
 	err := v.GetCloudletSharedRootLBFlavor(&rootlbFlavor)
@@ -347,7 +347,14 @@ func (v *VMPlatform) GetVMSpecForRootLB(ctx context.Context, name string, update
 	if err != nil {
 		return nil, err
 	}
-	return v.GetVMRequestSpec(ctx, VMTypeRootLB, imageName, name, vmspec.FlavorName, true, false, WithExternalVolume(vmspec.ExternalVolumeSize))
+	return v.GetVMRequestSpec(ctx,
+		VMTypeRootLB,
+		rootLbName,
+		vmspec.FlavorName,
+		imageName,
+		true,
+		WithExternalVolume(vmspec.ExternalVolumeSize),
+		WithSubnetConnection(subnetConnect))
 }
 
 //NewRootLB gets a new rootLB instance
@@ -394,7 +401,7 @@ func (v *VMPlatform) CreateRootLB(
 		return fmt.Errorf("cannot enable rootLB, rootLB is null")
 	}
 	_, err := v.vmProvider.GetServerDetail(ctx, rootLB.Name)
-	if err != nil {
+	if err == nil {
 		log.SpanLog(ctx, log.DebugLevelInfra, "rootlb already exists")
 		return nil
 	}
@@ -407,7 +414,7 @@ func (v *VMPlatform) CreateRootLB(
 		log.InfoLog("error with RootLB VM image", "name", rootLB.Name, "imgName", imgName, "error", err)
 		return err
 	}
-	vmreq, err := v.GetVMSpecForRootLB(ctx, rootLB.Name, updateCallback)
+	vmreq, err := v.GetVMSpecForRootLB(ctx, rootLB.Name, "", updateCallback)
 	if err != nil {
 		return err
 	}

@@ -150,11 +150,21 @@ func (v *VMPlatform) CreateAppInst(ctx context.Context, clusterInst *edgeproto.C
 		// whether the app vm needs to connect to internal or external networks
 		// depends on whether it has an LB
 		appConnectsExternal := !usesLb
-		appConnectsInternal := usesLb
-
 		var vms []*VMRequestSpec
 
 		externalServerName := objName
+
+		if usesLb {
+			lbName := objName + "-lb"
+			externalServerName = lbName
+			newSubnetName = objName + "-subnet"
+			lbVm, err := v.GetVMSpecForRootLB(ctx, lbName, newSubnetName, updateCallback)
+			if err != nil {
+				return err
+			}
+			vms = append(vms, lbVm)
+		}
+
 		appVm, err := v.GetVMRequestSpec(
 			ctx,
 			VMTypeAppVM,
@@ -162,43 +172,14 @@ func (v *VMPlatform) CreateAppInst(ctx context.Context, clusterInst *edgeproto.C
 			appInst.VmFlavor,
 			imageName,
 			appConnectsExternal,
-			appConnectsInternal,
 			WithComputeAvailabilityZone(appInst.AvailabilityZone),
 			WithExternalVolume(appInst.ExternalVolumeSize),
+			WithSubnetConnection(newSubnetName),
 		)
 		if err != nil {
 			return err
 		}
 		vms = append(vms, appVm)
-
-		if usesLb {
-			lbName := objName + "-lb"
-			externalServerName = lbName
-			newSubnetName = objName + "-subnet"
-			lbVMSpec, err := v.GetVMSpecForRootLB(ctx, lbName, updateCallback)
-			if err != nil {
-				return err
-			}
-			lbImage, err := v.vmProvider.AddCloudletImageIfNotPresent(ctx, v.CommonPf.PlatformConfig.CloudletVMImagePath, v.CommonPf.PlatformConfig.VMImageVersion, updateCallback)
-			if err != nil {
-				return err
-			}
-			lbVm, err := v.GetVMRequestSpec(
-				ctx,
-				VMTypeRootLB,
-				objName+"-lb",
-				lbVMSpec.FlavorName,
-				lbImage,
-				true, // external connect
-				true, // internal connect
-				WithComputeAvailabilityZone(appInst.AvailabilityZone),
-				WithExternalVolume(lbVMSpec.ExternalVolumeSize),
-			)
-			if err != nil {
-				return err
-			}
-			vms = append(vms, lbVm)
-		}
 
 		updateCallback(edgeproto.UpdateTask, "Deploying App")
 		_, err = v.CreateVMsFromVMSpec(ctx, objName, vms, updateCallback, WithNewSubnet(newSubnetName),

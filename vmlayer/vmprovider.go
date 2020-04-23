@@ -39,8 +39,8 @@ type VMProvider interface {
 	WhitelistSecurityRules(ctx context.Context, secGrpName string, serverName string, allowedCIDR string, ports []dme.AppPort) error
 	RemoveWhitelistSecurityRules(ctx context.Context, secGrpName string, allowedCIDR string, ports []dme.AppPort) error
 	GetResourceID(ctx context.Context, resourceType ResourceType, resourceName string) (string, error)
-	CreateVMs(ctx context.Context, vmGroupParams *VMGroupParams, updateCallback edgeproto.CacheUpdateCallback) error
-	UpdateVMs(ctx context.Context, vmGroupParams *VMGroupParams, updateCallback edgeproto.CacheUpdateCallback) error
+	CreateVMs(ctx context.Context, VMGroupOrchestrationParams *VMGroupOrchestrationParams, updateCallback edgeproto.CacheUpdateCallback) error
+	UpdateVMs(ctx context.Context, VMGroupOrchestrationParams *VMGroupOrchestrationParams, updateCallback edgeproto.CacheUpdateCallback) error
 	DeleteVMs(ctx context.Context, vmGroupName string) error
 }
 
@@ -57,16 +57,16 @@ type VMPlatform struct {
 	sharedRootLB     *MEXRootLB
 	vmProvider       VMPlatformProvider
 	FlavorList       []*edgeproto.FlavorInfo
-	CommonPf         *infracommon.CommonPlatform
+	CommonPf         infracommon.CommonPlatform
 }
 
 func (v *VMPlatform) InitVMProvider(ctx context.Context, provider VMPlatformProvider, updateCallback edgeproto.CacheUpdateCallback) error {
-	v.sharedRootLBName = v.GetRootLBName(v.CommonPf.PlatformConfig.CloudletKey)
+	updateCallback(edgeproto.UpdateTask, "InitVMProvider")
+
 	v.vmProvider = provider
+	v.sharedRootLBName = v.GetRootLBName(v.CommonPf.PlatformConfig.CloudletKey)
 
 	// create rootLB
-	updateCallback(edgeproto.UpdateTask, "Creating RootLB")
-
 	crmRootLB, cerr := v.NewRootLB(ctx, v.sharedRootLBName)
 	if cerr != nil {
 		return cerr

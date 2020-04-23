@@ -287,10 +287,10 @@ func (o *OpenstackPlatform) setupPlatformVM(ctx context.Context, cloudlet *edgep
 	if err != nil {
 		return nil, err
 	}
-	vmreqspec, err := o.vmPlatform.GetVMRequestSpec(ctx, vmlayer.VMTypePlatform, pfImageName, platformVmName, vmspec.FlavorName, true, false, vmlayer.WithExternalVolume(vmspec.ExternalVolumeSize))
+	vmreqspec, err := o.vmPlatform.GetVMRequestSpec(ctx, vmlayer.VMTypePlatform, pfImageName, platformVmName, vmspec.FlavorName, true, vmlayer.WithExternalVolume(vmspec.ExternalVolumeSize))
 	var vms []*vmlayer.VMRequestSpec
 	vms = append(vms, vmreqspec)
-	vmgp, err := o.vmPlatform.GetVMGroupParamsFromVMSpec(ctx, platformVmName, vms, vmlayer.WithAccessPorts("tcp:22"))
+	vmgp, err := o.vmPlatform.GetVMGroupOrchestrationParamsFromVMSpec(ctx, platformVmName, vms, vmlayer.WithAccessPorts("tcp:22"))
 	if err != nil {
 		return nil, err
 	}

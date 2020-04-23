@@ -8,7 +8,7 @@ var azureProps = map[string]*infracommon.PropertyInfo{
 	"MEX_AZURE_LOCATION": &infracommon.PropertyInfo{},
 	"MEX_AZURE_USER":     &infracommon.PropertyInfo{},
 	"MEX_AZURE_PASS": &infracommon.PropertyInfo{
-		Secret: true,
+		Secret: true, //TODO, this prints in openstack startup because these props are not loaded
 	},
 }
 

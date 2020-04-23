@@ -194,7 +194,7 @@ func (o *OpenstackPlatform) getVMUserData(sharedVolume bool, dnsServers string, 
 runcmd:
 - ` + command
 	} else {
-		rc := vmlayer.VmCloudConfig
+		rc = vmlayer.VmCloudConfig
 		if dnsServers != "" {
 			rc += fmt.Sprintf("\n - echo \"dns-nameservers %s\" >> /etc/network/interfaces.d/50-cloud-init.cfg", dnsServers)
 		}
@@ -217,7 +217,7 @@ func (o *OpenstackPlatform) getVMMetaData(role vmlayer.VMRole, masterIP string) 
 	}
 	str = `skipk8s: ` + string(skipk8s) + `
 role: ` + string(role)
-	if masterIP != "" && masterIP != vmlayer.MasterIPNone {
+	if masterIP != "" {
 		str += `
 k8smaster: ` + masterIP
 	}
@@ -367,118 +367,119 @@ func (o *OpenstackPlatform) HeatDeleteStack(ctx context.Context, stackName strin
 }
 
 // populateParams fills in some details which cannot be done outside of heat
-func (o *OpenstackPlatform) populateParams(ctx context.Context, vmGroupParams *vmlayer.VMGroupParams, action string) error {
-	log.SpanLog(ctx, log.DebugLevelInfra, "populateParams", "vmGroupParams", vmGroupParams.GroupName, "action", action)
+func (o *OpenstackPlatform) populateParams(ctx context.Context, VMGroupOrchestrationParams *vmlayer.VMGroupOrchestrationParams, action string) error {
+	log.SpanLog(ctx, log.DebugLevelInfra, "populateParams", "VMGroupOrchestrationParams", VMGroupOrchestrationParams.GroupName, "action", action)
 
 	usedCidrs := make(map[string]string)
-	if vmGroupParams.Netspec == nil {
+	if VMGroupOrchestrationParams.Netspec == nil {
 		return fmt.Errorf("Netspec is nil")
 	}
-
-	currentSubnetName := ""
-	if action != heatCreate {
-		currentSubnetName = "mex-k8s-subnet-" + vmGroupParams.GroupName
-	}
-	sns, snserr := o.ListSubnets(ctx, vmGroupParams.Netspec.Name)
-	if snserr != nil {
-		return fmt.Errorf("can't get list of subnets for %s, %v", vmGroupParams.Netspec.Name, snserr)
-	}
-	for _, s := range sns {
-		usedCidrs[s.Subnet] = s.Name
-	}
-
 	masterIP := ""
-	//find an available subnet or the current subnet for update and delete
-	for i, s := range vmGroupParams.Subnets {
-		if s.CIDR != vmlayer.NextAvailableResource {
-			// no need to compute the CIDR
-			continue
+
+	if len(VMGroupOrchestrationParams.Subnets) > 0 {
+		currentSubnetName := ""
+		if action != heatCreate {
+			currentSubnetName = "mex-k8s-subnet-" + VMGroupOrchestrationParams.GroupName
 		}
-		found := false
-		for octet := 0; i <= 255; i++ {
-			subnet := fmt.Sprintf("%s.%s.%d.%d/%s", vmGroupParams.Netspec.Octets[0], vmGroupParams.Netspec.Octets[1], i, 0, vmGroupParams.Netspec.NetmaskBits)
-			// either look for an unused one (create) or the current one (update)
-			if (action == heatCreate && usedCidrs[subnet] == "") || (action != heatCreate && usedCidrs[subnet] == currentSubnetName) {
-				found = true
-				vmGroupParams.Subnets[i].CIDR = subnet
-				vmGroupParams.Subnets[i].GatewayIP = fmt.Sprintf("%s.%s.%d.%d", vmGroupParams.Netspec.Octets[0], vmGroupParams.Netspec.Octets[1], octet, 1)
-				vmGroupParams.Subnets[i].NodeIPPrefix = fmt.Sprintf("%s.%s.%d", vmGroupParams.Netspec.Octets[0], vmGroupParams.Netspec.Octets[1], octet)
-				masterIP = fmt.Sprintf("%s.%s.%d", vmGroupParams.Netspec.Octets[0], vmGroupParams.Netspec.Octets[1], 10)
-				break
+		sns, snserr := o.ListSubnets(ctx, VMGroupOrchestrationParams.Netspec.Name)
+		if snserr != nil {
+			return fmt.Errorf("can't get list of subnets for %s, %v", VMGroupOrchestrationParams.Netspec.Name, snserr)
+		}
+		for _, s := range sns {
+			usedCidrs[s.Subnet] = s.Name
+		}
+
+		//find an available subnet or the current subnet for update and delete
+		for i, s := range VMGroupOrchestrationParams.Subnets {
+			if s.CIDR != vmlayer.NextAvailableResource {
+				// no need to compute the CIDR
+				continue
+			}
+			found := false
+			for octet := 0; octet <= 255; octet++ {
+				subnet := fmt.Sprintf("%s.%s.%d.%d/%s", VMGroupOrchestrationParams.Netspec.Octets[0], VMGroupOrchestrationParams.Netspec.Octets[1], octet, 0, VMGroupOrchestrationParams.Netspec.NetmaskBits)
+				// either look for an unused one (create) or the current one (update)
+				if (action == heatCreate && usedCidrs[subnet] == "") || (action != heatCreate && usedCidrs[subnet] == currentSubnetName) {
+					found = true
+					VMGroupOrchestrationParams.Subnets[i].CIDR = subnet
+					VMGroupOrchestrationParams.Subnets[i].GatewayIP = fmt.Sprintf("%s.%s.%d.%d", VMGroupOrchestrationParams.Netspec.Octets[0], VMGroupOrchestrationParams.Netspec.Octets[1], octet, 1)
+					VMGroupOrchestrationParams.Subnets[i].NodeIPPrefix = fmt.Sprintf("%s.%s.%d", VMGroupOrchestrationParams.Netspec.Octets[0], VMGroupOrchestrationParams.Netspec.Octets[1], octet)
+					masterIP = fmt.Sprintf("%s.%s.%d.%d", VMGroupOrchestrationParams.Netspec.Octets[0], VMGroupOrchestrationParams.Netspec.Octets[1], octet, 10)
+					break
+				}
+			}
+			if !found {
+				return fmt.Errorf("cannot find subnet cidr")
 			}
 		}
-		if !found {
-			return fmt.Errorf("cannot find subnet cidr")
-		}
-	}
 
-	// if there are last octets specified and not full IPs, build the full address
-	for i, p := range vmGroupParams.Ports {
-		for j, f := range p.FixedIPs {
-			if f.Address == "" && f.LastIPOctet != 0 {
-				log.SpanLog(ctx, log.DebugLevelInfra, "populating fixed ip based on subnet", "VMGroupParams", vmGroupParams)
-				found := false
-				for _, s := range vmGroupParams.Subnets {
-					if s.Name == f.Subnet.Name {
-						vmGroupParams.Ports[i].FixedIPs[j].Address = fmt.Sprintf("%s.%d", s.NodeIPPrefix, f.LastIPOctet)
-						log.SpanLog(ctx, log.DebugLevelInfra, "populating fixed ip based on subnet", "port", p.Name, "address", vmGroupParams.Ports[i].FixedIPs[j].Address)
-						found = true
-						break
+		// if there are last octets specified and not full IPs, build the full address
+		for i, p := range VMGroupOrchestrationParams.Ports {
+			for j, f := range p.FixedIPs {
+				log.SpanLog(ctx, log.DebugLevelInfra, "updating fixed ip", "fixedip", f)
+				if f.Address == vmlayer.NextAvailableResource && f.LastIPOctet != 0 {
+					log.SpanLog(ctx, log.DebugLevelInfra, "populating fixed ip based on subnet", "VMGroupOrchestrationParams", VMGroupOrchestrationParams)
+					found := false
+					for _, s := range VMGroupOrchestrationParams.Subnets {
+						if s.Name == f.Subnet.Name {
+							VMGroupOrchestrationParams.Ports[i].FixedIPs[j].Address = fmt.Sprintf("%s.%d", s.NodeIPPrefix, f.LastIPOctet)
+							log.SpanLog(ctx, log.DebugLevelInfra, "populating fixed ip based on subnet", "port", p.Name, "address", VMGroupOrchestrationParams.Ports[i].FixedIPs[j].Address)
+							found = true
+							break
+						}
 					}
-				}
-				if !found {
-					return fmt.Errorf("cannot find matching subnet for port: %s", p.Name)
+					if !found {
+						return fmt.Errorf("cannot find matching subnet for port: %s", p.Name)
+					}
 				}
 			}
 		}
 	}
 
 	// populate the user data
-	for i, v := range vmGroupParams.VMs {
-		vmGroupParams.VMs[i].MetaData = o.getVMMetaData(v.Role, masterIP)
-		vmGroupParams.VMs[i].UserData = o.getVMUserData(v.SharedVolume, v.DNSServers, v.DeploymentManifest, v.Command)
+	for i, v := range VMGroupOrchestrationParams.VMs {
+		VMGroupOrchestrationParams.VMs[i].MetaData = o.getVMMetaData(v.Role, masterIP)
+		VMGroupOrchestrationParams.VMs[i].UserData = o.getVMUserData(v.SharedVolume, v.DNSServers, v.DeploymentManifest, v.Command)
 	}
 
 	// populate the floating ips
-	for i, f := range vmGroupParams.FloatingIPs {
+	for i, f := range VMGroupOrchestrationParams.FloatingIPs {
 		if f.FloatingIpId.Name == vmlayer.NextAvailableResource {
 			fipid, err := o.getFreeFloatingIpid(ctx)
 			if err != nil {
 				return err
 			}
-			vmGroupParams.FloatingIPs[i].FloatingIpId.Name = fipid
+			VMGroupOrchestrationParams.FloatingIPs[i].FloatingIpId.Name = fipid
 		}
 	}
 
 	return nil
 }
 
-func (o *OpenstackPlatform) HeatCreateVMs(ctx context.Context, vmGroupParams *vmlayer.VMGroupParams, updateCallback edgeproto.CacheUpdateCallback) error {
-	log.SpanLog(ctx, log.DebugLevelInfra, "HeatCreateVMs", "vmGroupParams", vmGroupParams)
+func (o *OpenstackPlatform) HeatCreateVMs(ctx context.Context, VMGroupOrchestrationParams *vmlayer.VMGroupOrchestrationParams, updateCallback edgeproto.CacheUpdateCallback) error {
+	log.SpanLog(ctx, log.DebugLevelInfra, "HeatCreateVMs", "VMGroupOrchestrationParams", VMGroupOrchestrationParams)
 
 	heatStackLock.Lock()
 	defer heatStackLock.Unlock()
 
-	if len(vmGroupParams.Subnets) > 0 {
-		err := o.populateParams(ctx, vmGroupParams, heatCreate)
-		if err != nil {
-			return err
-		}
+	// populate parameters which cannot be done in advance
+	err := o.populateParams(ctx, VMGroupOrchestrationParams, heatCreate)
+	if err != nil {
+		return err
 	}
-	return o.CreateHeatStackFromTemplate(ctx, vmGroupParams, vmGroupParams.GroupName, VmGroupTemplate, updateCallback)
+	return o.CreateHeatStackFromTemplate(ctx, VMGroupOrchestrationParams, VMGroupOrchestrationParams.GroupName, VmGroupTemplate, updateCallback)
 }
 
-func (o *OpenstackPlatform) HeatUpdateVMs(ctx context.Context, vmGroupParams *vmlayer.VMGroupParams, updateCallback edgeproto.CacheUpdateCallback) error {
-	log.SpanLog(ctx, log.DebugLevelInfra, "HeatUpdateVMs", "vmGroupParams", vmGroupParams)
+func (o *OpenstackPlatform) HeatUpdateVMs(ctx context.Context, VMGroupOrchestrationParams *vmlayer.VMGroupOrchestrationParams, updateCallback edgeproto.CacheUpdateCallback) error {
+	log.SpanLog(ctx, log.DebugLevelInfra, "HeatUpdateVMs", "VMGroupOrchestrationParams", VMGroupOrchestrationParams)
 
 	heatStackLock.Lock()
 	defer heatStackLock.Unlock()
 
-	if len(vmGroupParams.Subnets) > 0 {
-		err := o.populateParams(ctx, vmGroupParams, heatUpdate)
-		if err != nil {
-			return err
-		}
+	err := o.populateParams(ctx, VMGroupOrchestrationParams, heatUpdate)
+	if err != nil {
+		return err
 	}
-	return o.UpdateHeatStackFromTemplate(ctx, vmGroupParams, vmGroupParams.GroupName, VmGroupTemplate, updateCallback)
+
+	return o.UpdateHeatStackFromTemplate(ctx, VMGroupOrchestrationParams, VMGroupOrchestrationParams.GroupName, VmGroupTemplate, updateCallback)
 }

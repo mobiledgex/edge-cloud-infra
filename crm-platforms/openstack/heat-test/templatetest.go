@@ -66,9 +66,9 @@ func main() {
 	rootLbExtPortName := "rootlb-external-port"
 	rootLbIntPortName := "rootlb-internal-port"
 
-	var vmgp vmlayer.VMGroupParams
+	var vmgp vmlayer.VMGroupOrchestrationParams
 
-	rootlbExternalPort := vmlayer.PortParams{
+	rootlbExternalPort := vmlayer.PortOrchestrationParams{
 		Name:        rootLbExtPortName,
 		NetworkName: "external-network-shared",
 		SecurityGroups: []vmlayer.ResourceReference{
@@ -77,10 +77,10 @@ func main() {
 		},
 	}
 
-	rootlbInternalPort := vmlayer.PortParams{
+	rootlbInternalPort := vmlayer.PortOrchestrationParams{
 		Name:        rootLbIntPortName,
 		NetworkName: "mex-k8s-net-1",
-		FixedIPs: []vmlayer.FixedIPParams{
+		FixedIPs: []vmlayer.FixedIPOrchestrationParams{
 			{Address: "10.101.99.1", Subnet: vmlayer.ResourceReference{Name: newSubnet, Preexisting: false}},
 		},
 		SecurityGroups: []vmlayer.ResourceReference{
@@ -88,7 +88,7 @@ func main() {
 		},
 	}
 
-	rootlb := vmlayer.VMParams{
+	rootlb := vmlayer.VMOrchestrationParams{
 		Name:       "rootlb1",
 		ImageName:  "mobiledgex-v3.1.0",
 		FlavorName: "m4.medium",
@@ -102,7 +102,7 @@ func main() {
 	// fip doesn't usually go on an external network this is for test
 	fipid := "4eedb4bd-b5cb-4738-8b4f-11254e181b8b"
 
-	fip := vmlayer.FloatingIPParams{
+	fip := vmlayer.FloatingIPOrchestrationParams{
 		Name:         "fip-test1",
 		FloatingIpId: vmlayer.NewResourceReference(fipid, false),
 		Port:         vmlayer.NewResourceReference(rootLbIntPortName, false),
@@ -110,7 +110,7 @@ func main() {
 
 	vmgp.FloatingIPs = append(vmgp.FloatingIPs, fip)
 
-	secGrp := vmlayer.SecurityGroupParams{
+	secGrp := vmlayer.SecurityGroupOrchestrationParams{
 		Name: newSecGrp,
 		AccessPorts: []util.PortSpec{
 			{
@@ -136,7 +136,7 @@ func main() {
 	}
 	vmgp.SecurityGroups = append(vmgp.SecurityGroups, secGrp)
 
-	subNet := vmlayer.SubnetParams{
+	subNet := vmlayer.SubnetOrchestrationParams{
 		Name:        newSubnet,
 		CIDR:        "10.101.99.0/24",
 		DHCPEnabled: "no",
@@ -147,10 +147,10 @@ func main() {
 	vmgp.Ports = append(vmgp.Ports, rootlbExternalPort)
 	vmgp.Ports = append(vmgp.Ports, rootlbInternalPort)
 
-	masterport := vmlayer.PortParams{
+	masterport := vmlayer.PortOrchestrationParams{
 		Name:        "master-port",
 		NetworkName: "mex-k8s-net-1",
-		FixedIPs: []vmlayer.FixedIPParams{
+		FixedIPs: []vmlayer.FixedIPOrchestrationParams{
 			{Address: "10.101.99.10", Subnet: vmlayer.ResourceReference{Name: newSubnet, Preexisting: false}},
 		},
 		SecurityGroups: []vmlayer.ResourceReference{
@@ -159,7 +159,7 @@ func main() {
 	}
 	vmgp.Ports = append(vmgp.Ports, masterport)
 
-	master := vmlayer.VMParams{
+	master := vmlayer.VMOrchestrationParams{
 		Name:       "master",
 		Role:       vmlayer.RoleMaster,
 		ImageName:  "mobiledgex-v3.1.0",

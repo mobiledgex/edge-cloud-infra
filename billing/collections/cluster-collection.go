@@ -16,8 +16,6 @@ import (
 	opentracing "github.com/opentracing/opentracing-go"
 )
 
-// 100 values at a time
-var queryChunkSize = 100
 var clusterInstUsageInfluxCmd = `select "org","cloudlet","cloudletorg","cluster","clusterorg","flavor","start","end","uptime" from "clusterinst-usage"` +
 	`where time >= '%s' and time < '%s'`
 
@@ -50,10 +48,8 @@ func CollectDailyClusterUsage(ctx context.Context) {
 					continue
 				}
 				query := influxdb.Query{
-					Command:   cmd,
-					Database:  cloudcommon.EventsDbName,
-					Chunked:   false,
-					ChunkSize: queryChunkSize,
+					Command:  cmd,
+					Database: cloudcommon.EventsDbName,
 				}
 				resp, err := influx.Query(query)
 				if err != nil {

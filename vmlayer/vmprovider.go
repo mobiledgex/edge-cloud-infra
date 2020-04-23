@@ -14,17 +14,7 @@ import (
 	ssh "github.com/mobiledgex/golang-ssh"
 )
 
-const ServerDoesNotExistError string = "Server does not exist"
-
-// this is not exhaustive, currently only ResourceTypeSecurityGroup is needed
-type ResourceType string
-
-const (
-	ResourceTypeVM            ResourceType = "VM"
-	ResourceTypeSubnet        ResourceType = "Subnet"
-	ResourceTypeSecurityGroup ResourceType = "SecGrp"
-)
-
+// VMProvider is an interface that platforms implement to perform the details of interfacing with the orchestration layer
 type VMProvider interface {
 	NameSanitize(string) string
 	AddCloudletImageIfNotPresent(ctx context.Context, imgPathPrefix, imgVersion string, updateCallback edgeproto.CacheUpdateCallback) (string, error)
@@ -39,19 +29,18 @@ type VMProvider interface {
 	WhitelistSecurityRules(ctx context.Context, secGrpName string, serverName string, allowedCIDR string, ports []dme.AppPort) error
 	RemoveWhitelistSecurityRules(ctx context.Context, secGrpName string, allowedCIDR string, ports []dme.AppPort) error
 	GetResourceID(ctx context.Context, resourceType ResourceType, resourceName string) (string, error)
-	CreateVMs(ctx context.Context, VMGroupOrchestrationParams *VMGroupOrchestrationParams, updateCallback edgeproto.CacheUpdateCallback) error
-	UpdateVMs(ctx context.Context, VMGroupOrchestrationParams *VMGroupOrchestrationParams, updateCallback edgeproto.CacheUpdateCallback) error
+	CreateVMs(ctx context.Context, vmGroupOrchestrationParams *VMGroupOrchestrationParams, updateCallback edgeproto.CacheUpdateCallback) error
+	UpdateVMs(ctx context.Context, vmGroupOrchestrationParams *VMGroupOrchestrationParams, updateCallback edgeproto.CacheUpdateCallback) error
 	DeleteVMs(ctx context.Context, vmGroupName string) error
 }
 
-type StringSanitizer func(value string) string
-
-// VMPlatform embeds Platform and VMProvider
+// VMPlatformProvider embeds Platform and VMProvider
 type VMPlatformProvider interface {
 	platform.Platform
 	VMProvider
 }
 
+// VMPlatform contains the needed by all VM based platforms
 type VMPlatform struct {
 	sharedRootLBName string
 	sharedRootLB     *MEXRootLB
@@ -59,6 +48,19 @@ type VMPlatform struct {
 	FlavorList       []*edgeproto.FlavorInfo
 	CommonPf         infracommon.CommonPlatform
 }
+
+// ResourceType is not exhaustive list, currently only ResourceTypeSecurityGroup is needed
+type ResourceType string
+
+const (
+	ResourceTypeVM            ResourceType = "VM"
+	ResourceTypeSubnet        ResourceType = "Subnet"
+	ResourceTypeSecurityGroup ResourceType = "SecGrp"
+)
+
+type StringSanitizer func(value string) string
+
+// VMPlatform embeds Platform and VMProvider
 
 func (v *VMPlatform) InitVMProvider(ctx context.Context, provider VMPlatformProvider, updateCallback edgeproto.CacheUpdateCallback) error {
 	updateCallback(edgeproto.UpdateTask, "InitVMProvider")
@@ -98,8 +100,4 @@ func (v *VMPlatform) InitVMProvider(ctx context.Context, provider VMPlatformProv
 		return err
 	}
 	return nil
-}
-
-func GetCloudletNetworkIfaceFile() string {
-	return "/etc/network/interfaces.d/50-cloud-init.cfg"
 }

@@ -2,11 +2,9 @@ package vmlayer
 
 //
 // This file contains the functionality needed to input data into the VMProvider orchestrator.   There are 2 categories of structs:
-// 1) Request Specs.  These contain high level info used by client code to request the creation VMs and Groups of VMs
+// 1) Request Specs.  These contain high level info used by client code to request the creation of VMs and Groups of VMs
 // 2) Orchestration Params.   These contain detailed level info used by the orchestrator to instantiate all the resources related to creating VMs,
-//    including Subnets, Ports, Security Groups, etc
-//
-// Request specs provide the input which is used to generate the detailed Orchestration Params
+//    including Subnets, Ports, Security Groups, etc.  Orchestration Params are derived by code here from Request Specs
 
 import (
 	"context"
@@ -89,7 +87,7 @@ type VMRequestSpec struct {
 	DeploymentManifest      string
 	Command                 string
 	ConnectToExternalNet    bool
-	VmIsPreexisting         bool
+	CreatePortsOnly         bool
 	ConnectToSubnet         string
 }
 
@@ -145,9 +143,9 @@ func WithSubnetConnection(subnetName string) VMReqOp {
 		return nil
 	}
 }
-func WithVmIsPreexisting(preexisting bool) VMReqOp {
+func WithCreatePortsOnly(portsonly bool) VMReqOp {
 	return func(s *VMRequestSpec) error {
-		s.VmIsPreexisting = preexisting
+		s.CreatePortsOnly = portsonly
 		return nil
 	}
 }
@@ -566,9 +564,7 @@ func (v *VMPlatform) getVMGroupOrchestrationParamsFromGroupSpec(ctx context.Cont
 				newPorts = append(newPorts, externalport)
 			}
 		}
-		// if the vm is preexisting, we do not create it here, it is specified
-		// only for the purpose of creating ports for it
-		if !vm.VmIsPreexisting {
+		if !vm.CreatePortsOnly {
 			log.SpanLog(ctx, log.DebugLevelInfra, "Defining new VM orch param", "vm.Name", vm.Name, "ports", newPorts)
 			newVM := VMOrchestrationParams{
 				Name:                    vm.Name,

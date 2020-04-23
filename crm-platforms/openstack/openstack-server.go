@@ -75,8 +75,8 @@ func (o *OpenstackPlatform) UpdateServerIPs(ctx context.Context, addresses strin
 	return nil
 }
 
-func (o *OpenstackPlatform) CreateVMs(ctx context.Context, VMGroupOrchestrationParams *vmlayer.VMGroupOrchestrationParams, updateCallback edgeproto.CacheUpdateCallback) error {
-	return o.HeatCreateVMs(ctx, VMGroupOrchestrationParams, updateCallback)
+func (o *OpenstackPlatform) CreateVMs(ctx context.Context, vmGroupOrchestrationParams *vmlayer.VMGroupOrchestrationParams, updateCallback edgeproto.CacheUpdateCallback) error {
+	return o.HeatCreateVMs(ctx, vmGroupOrchestrationParams, updateCallback)
 }
 func (o *OpenstackPlatform) UpdateVMs(ctx context.Context, VMGroupOrchestrationParams *vmlayer.VMGroupOrchestrationParams, updateCallback edgeproto.CacheUpdateCallback) error {
 	return o.HeatUpdateVMs(ctx, VMGroupOrchestrationParams, updateCallback)

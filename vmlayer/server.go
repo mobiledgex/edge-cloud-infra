@@ -9,6 +9,8 @@ import (
 
 type NetworkType string
 
+const ServerDoesNotExistError string = "Server does not exist"
+
 var ServerActive = "ACTIVE"
 var ServerShutoff = "SHUTOFF"
 
@@ -27,4 +29,8 @@ func (c *VMPlatform) GetIPFromServerDetails(ctx context.Context, networkName str
 		}
 	}
 	return nil, fmt.Errorf("unable to find IP for server: %s on network: %s", sd.Name, networkName)
+}
+
+func GetCloudletNetworkIfaceFile() string {
+	return "/etc/network/interfaces.d/50-cloud-init.cfg"
 }

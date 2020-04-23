@@ -206,7 +206,6 @@ runcmd:
 }
 
 func (o *OpenstackPlatform) getVMMetaData(role vmlayer.VMRole, masterIP string) string {
-
 	var str string
 	if role == vmlayer.RoleUser {
 		return ""

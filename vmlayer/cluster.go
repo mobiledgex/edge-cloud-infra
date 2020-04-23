@@ -449,15 +449,15 @@ func (v *VMPlatform) CreateOrUpdateVMsForCluster(ctx context.Context, imgName st
 			return nil, err
 		}
 	} else {
-		// include the existing Shared Rootlb in the spec so we can populate the ports for it
-		// Because we specify Preexisting the VM itself will not be created
+		// include the existing Shared Rootlb in the spec so we can create new internal port
+		// Because we specify CreatePortsOnly the VM itself will not be created
 		rootlb, err = v.GetVMRequestSpec(
 			ctx,
 			VMTypeRootLB, v.sharedRootLBName,
 			"dummyflavor",
 			"dummyimage",
-			false, // do not try to create an external port to existing shared lb
-			WithVmIsPreexisting(true),
+			false, // shared RLB already has external ports
+			WithCreatePortsOnly(true),
 			WithSubnetConnection(subnetname))
 	}
 	if err != nil {

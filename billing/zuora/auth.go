@@ -2,19 +2,15 @@ package zuora
 
 import (
 	"bytes"
-	"context"
 	"encoding/json"
 	"fmt"
 	"net/http"
 	"net/url"
 	"strconv"
 	"time"
-
-	"github.com/mobiledgex/edge-cloud/log"
-	opentracing "github.com/opentracing/opentracing-go"
 )
 
-var Token OAuthToken
+var oAuthToken *OAuthToken
 
 // sample curl to get oauth token: curl -X POST -H "Content-Type: application/x-www-form-urlencoded" -d "client_id=d0858528-8ed7-4790-bd0c-e1f689f54897" --data-urlencode "client_secret=G8uAaL/bEP3xBZsAhx1VlZwV3EA9efI1=am/7rs" -d "grant_type=client_credentials" "https://rest.apisandbox.zuora.com/oauth/token"
 func getOauth(token *OAuthToken) error {
@@ -38,25 +34,18 @@ func getOauth(token *OAuthToken) error {
 	if err != nil {
 		return fmt.Errorf("Error parsing response: %v\n", err)
 	}
+	// give a 5 minute buffer to the expire time
+	token.ExpireTime = time.Now().Add(time.Second * time.Duration(token.ExpiresIn-300))
 	return nil
 }
 
-func RunOAuth(ctx context.Context) {
-	//timeout is an hour, run every 45
-	oAuthSpan := log.StartSpan(log.DebugLevelInfo, "OAuth thread", opentracing.ChildOf(log.SpanFromContext(ctx).Context()))
-	defer oAuthSpan.Finish()
-	err := getOauth(&Token)
-	if err != nil {
-		log.FatalLog(fmt.Errorf("Error getting OAuth credentials: %v", err).Error())
-	}
-	for {
-		// check if there are any new apps we need to start/stop scraping for
-		select {
-		case <-time.After(time.Minute * 45):
-			err = getOauth(&Token)
-			if err != nil {
-				log.SpanLog(ctx, log.DebugLevelInfo, "Error getting OAuth credentials", "err", err)
-			}
+func getToken() (string, string, error) {
+	if oAuthToken == nil || time.Now().After(oAuthToken.ExpireTime) {
+		oAuthToken = &OAuthToken{}
+		err := getOauth(oAuthToken)
+		if err != nil {
+			return "", "", nil
 		}
 	}
+	return oAuthToken.AccessToken, oAuthToken.TokenType, nil
 }

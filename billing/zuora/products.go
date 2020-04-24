@@ -44,7 +44,11 @@ func createProduct(name, description string) (string, error) {
 		return "", fmt.Errorf("Error creating request: %v\n", err)
 	}
 	req.Header.Add("Content-Type", "application/json")
-	req.Header.Add("Authorization", Token.TokenType+" "+Token.AccessToken)
+	token, tokentype, err := getToken()
+	if err != nil {
+		return "", fmt.Errorf("Unable to retrieve oAuth token")
+	}
+	req.Header.Add("Authorization", tokentype+" "+token)
 
 	resp, err := client.Do(req)
 	if err != nil {
@@ -79,7 +83,11 @@ func createProductRatePlan(name, description, productId string) (string, error) 
 		return "", fmt.Errorf("Error creating request: %v\n", err)
 	}
 	req.Header.Add("Content-Type", "application/json")
-	req.Header.Add("Authorization", Token.TokenType+" "+Token.AccessToken)
+	token, tokentype, err := getToken()
+	if err != nil {
+		return "", fmt.Errorf("Unable to retrieve oAuth token")
+	}
+	req.Header.Add("Authorization", tokentype+" "+token)
 
 	resp, err := client.Do(req)
 	if err != nil {
@@ -128,7 +136,11 @@ func createProductRatePlanCharge(ratePlanId, name, description string, chargeMod
 		return "", fmt.Errorf("Error creating request: %v\n", err)
 	}
 	req.Header.Add("Content-Type", "application/json")
-	req.Header.Add("Authorization", Token.TokenType+" "+Token.AccessToken)
+	token, tokentype, err := getToken()
+	if err != nil {
+		return "", fmt.Errorf("Unable to retrieve oAuth token")
+	}
+	req.Header.Add("Authorization", tokentype+" "+token)
 
 	resp, err := client.Do(req)
 	if err != nil {

@@ -50,7 +50,11 @@ func CreateCustomer(name, currency string, billToContact *CustomerBillToContact,
 	if err != nil {
 		return fmt.Errorf("Error creating request: %v\n", err)
 	}
-	req.Header.Add("Authorization", Token.TokenType+" "+Token.AccessToken)
+	token, tokentype, err := getToken()
+	if err != nil {
+		return fmt.Errorf("Unable to retrieve oAuth token")
+	}
+	req.Header.Add("Authorization", tokentype+" "+token)
 	req.Header.Set("Content-Type", "application/json")
 
 	resp, err := client.Do(req)
@@ -113,7 +117,11 @@ func CancelSubscription(accountInfo *AccountInfo) error {
 	if err != nil {
 		return fmt.Errorf("Error creating request: %v\n", err)
 	}
-	req.Header.Add("Authorization", Token.TokenType+" "+Token.AccessToken)
+	token, tokentype, err := getToken()
+	if err != nil {
+		return fmt.Errorf("Unable to retrieve oAuth token")
+	}
+	req.Header.Add("Authorization", tokentype+" "+token)
 	req.Header.Set("Content-Type", "application/json")
 
 	resp, err := client.Do(req)
@@ -145,7 +153,12 @@ func DeleteCustomer(accountInfo *AccountInfo) error {
 	if err != nil {
 		return fmt.Errorf("Error creating request: %v\n", err)
 	}
-	req.Header.Add("Authorization", Token.TokenType+" "+Token.AccessToken)
+
+	token, tokentype, err := getToken()
+	if err != nil {
+		return fmt.Errorf("Unable to retrieve oAuth token")
+	}
+	req.Header.Add("Authorization", tokentype+" "+token)
 
 	client := &http.Client{}
 	resp, err := client.Do(req)
@@ -173,7 +186,11 @@ func AddItem(rateplanId, accountNum string) error {
 	if err != nil {
 		return fmt.Errorf("Error creating request: %v\n", err)
 	}
-	req.Header.Add("Authorization", Token.TokenType+" "+Token.AccessToken)
+	token, tokentype, err := getToken()
+	if err != nil {
+		return fmt.Errorf("Unable to retrieve oAuth token")
+	}
+	req.Header.Add("Authorization", tokentype+" "+token)
 
 	resp, err := client.Do(req)
 	if err != nil {
@@ -233,7 +250,11 @@ func AddItem(rateplanId, accountNum string) error {
 	if err != nil {
 		return fmt.Errorf("Error creating request: %v\n", err)
 	}
-	req.Header.Add("Authorization", Token.TokenType+" "+Token.AccessToken)
+	token, tokentype, err = getToken()
+	if err != nil {
+		return fmt.Errorf("Unable to retrieve oAuth token")
+	}
+	req.Header.Add("Authorization", tokentype+" "+token)
 	req.Header.Set("Content-Type", "application/json")
 
 	resp, err = client.Do(req)
@@ -257,7 +278,11 @@ func getSubscription(accountNum string) (*CheckSubscriptions, error) {
 	if err != nil {
 		return nil, fmt.Errorf("Error creating request: %v\n", err)
 	}
-	req.Header.Add("Authorization", Token.TokenType+" "+Token.AccessToken)
+	token, tokentype, err := getToken()
+	if err != nil {
+		return nil, fmt.Errorf("Unable to retrieve oAuth token")
+	}
+	req.Header.Add("Authorization", tokentype+" "+token)
 
 	client := &http.Client{}
 	resp, err := client.Do(req)
@@ -285,7 +310,11 @@ func getAccountInfo(accountIdOrNum string, info *AccountInfo) error {
 	if err != nil {
 		return fmt.Errorf("Error creating request: %v\n", err)
 	}
-	req.Header.Add("Authorization", Token.TokenType+" "+Token.AccessToken)
+	token, tokentype, err := getToken()
+	if err != nil {
+		return fmt.Errorf("Unable to retrieve oAuth token")
+	}
+	req.Header.Add("Authorization", tokentype+" "+token)
 
 	client := &http.Client{}
 	resp, err := client.Do(req)

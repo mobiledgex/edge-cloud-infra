@@ -1,5 +1,7 @@
 package zuora
 
+import "time"
+
 // for oauth
 var ClientId = "f954797d-6d8a-4476-aa05-4e894d35dd3a"
 var ClientSecret = "wd6XJ=+vs9i5PYFfqAehpb9=LmRPaoiHYIqIeW"
@@ -33,6 +35,7 @@ type OAuthToken struct {
 	ExpiresIn   int    `json:"expires_in"`
 	Scope       string `json:"scope"`
 	Jti         string `json:"jti"`
+	ExpireTime  time.Time
 }
 
 // -------------------------CUSTOMER STUFF----------------------------

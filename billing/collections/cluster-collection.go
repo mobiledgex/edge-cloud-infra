@@ -8,7 +8,7 @@ import (
 
 	client "github.com/influxdata/influxdb/client/v2"
 	influxdb "github.com/influxdata/influxdb/client/v2"
-	"github.com/mobiledgex/edge-cloud-infra/billing"
+	"github.com/mobiledgex/edge-cloud-infra/billing/zuora"
 	"github.com/mobiledgex/edge-cloud-infra/mc/orm"
 	"github.com/mobiledgex/edge-cloud/cloudcommon"
 	"github.com/mobiledgex/edge-cloud/edgeproto"
@@ -20,9 +20,8 @@ var clusterInstUsageInfluxCmd = `select "org","cloudlet","cloudletorg","cluster"
 	`where time >= '%s' and time < '%s'`
 
 func CollectDailyClusterUsage(ctx context.Context) {
-	span := log.StartSpan(log.DebugLevelInfo, "Cluster usage collection thread", opentracing.ChildOf(log.SpanFromContext(ctx).Context()))
-	defer span.Finish()
 	for {
+		span := log.StartSpan(log.DebugLevelInfo, "Cluster usage collection thread", opentracing.ChildOf(log.SpanFromContext(ctx).Context()))
 		select {
 		case <-time.After(timeTilNextDay()):
 			controllers, err := orm.ShowControllerObj(ctx, nil)
@@ -101,6 +100,7 @@ func CollectDailyClusterUsage(ctx context.Context) {
 				}
 			}
 		}
+		span.Finish()
 	}
 }
 

@@ -1,4 +1,4 @@
-package billing
+package zuora
 
 // for oauth
 var ClientId = "f954797d-6d8a-4476-aa05-4e894d35dd3a"

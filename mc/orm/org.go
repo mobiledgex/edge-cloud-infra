@@ -170,9 +170,6 @@ func cancelZuoraSubscription(ctx context.Context, orgName string) error {
 	db := loggedDB(ctx)
 	err = db.Delete(info).Error
 	if err != nil {
-		if strings.Contains(err.Error(), "violates foreign key constraint \"org_cloudlet_pools_org_fkey\"") {
-			return fmt.Errorf("Cannot delete organization because it is referenced by an OrgCloudletPool")
-		}
 		return dbErr(err)
 	}
 	err = billing.CancelSubscription(info)

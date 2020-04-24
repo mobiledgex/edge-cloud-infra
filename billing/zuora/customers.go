@@ -1,4 +1,4 @@
-package billing
+package zuora
 
 import (
 	"bytes"
@@ -74,7 +74,7 @@ func CreateCustomer(name, currency string, billToContact *CustomerBillToContact,
 	// for some reason the api only returns either the account number or id but not both, so get the id manually
 	err = AddItem(FlavorUsageProductRatePlanId, info.AccountNumber) //TODO: move this when we figure out pricing structure for flavors
 	if err != nil {
-		fmt.Printf("error adding item")
+		return fmt.Errorf("error adding item")
 	}
 	return nil
 }

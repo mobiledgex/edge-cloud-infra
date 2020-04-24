@@ -3,7 +3,6 @@ package openstack
 import (
 	"context"
 	"fmt"
-	"time"
 
 	"github.com/mobiledgex/edge-cloud-infra/vmlayer"
 
@@ -33,16 +32,4 @@ func (s *OpenstackPlatform) GetClusterMasterNameAndIP(ctx context.Context, clust
 	}
 	masterIP, err := s.FindNodeIP(masterName, srvs)
 	return masterName, masterIP, err
-}
-
-func (o *OpenstackPlatform) UpdateClusterInst(ctx context.Context, clusterInst *edgeproto.ClusterInst, privacyPolicy *edgeproto.PrivacyPolicy, updateCallback edgeproto.CacheUpdateCallback) error {
-	return o.vmPlatform.UpdateClusterInst(ctx, clusterInst, privacyPolicy, updateCallback)
-}
-
-func (o *OpenstackPlatform) CreateClusterInst(ctx context.Context, clusterInst *edgeproto.ClusterInst, privacyPolicy *edgeproto.PrivacyPolicy, updateCallback edgeproto.CacheUpdateCallback, timeout time.Duration) error {
-	return o.vmPlatform.CreateClusterInst(ctx, clusterInst, privacyPolicy, updateCallback, timeout)
-}
-
-func (o *OpenstackPlatform) DeleteClusterInst(ctx context.Context, clusterInst *edgeproto.ClusterInst) error {
-	return o.vmPlatform.DeleteClusterInst(ctx, clusterInst)
 }

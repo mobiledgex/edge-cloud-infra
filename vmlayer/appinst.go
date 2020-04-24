@@ -37,7 +37,7 @@ func (v *VMPlatform) CreateAppInst(ctx context.Context, clusterInst *edgeproto.C
 		rootLBName := v.GetRootLBNameForCluster(ctx, clusterInst)
 		appWaitChan := make(chan string)
 
-		client, err := v.vmProvider.GetClusterPlatformClient(ctx, clusterInst)
+		client, err := v.VMProvider.GetClusterPlatformClient(ctx, clusterInst)
 		if err != nil {
 			return err
 		}
@@ -51,7 +51,7 @@ func (v *VMPlatform) CreateAppInst(ctx context.Context, clusterInst *edgeproto.C
 			return err
 		}
 
-		_, masterIP, masterIpErr := v.vmProvider.GetClusterMasterNameAndIP(ctx, clusterInst)
+		_, masterIP, masterIpErr := v.VMProvider.GetClusterMasterNameAndIP(ctx, clusterInst)
 		// Add crm local replace variables
 		deploymentVars := crmutil.DeploymentReplaceVars{
 			Deployment: crmutil.CrmReplaceVars{
@@ -94,7 +94,7 @@ func (v *VMPlatform) CreateAppInst(ctx context.Context, clusterInst *edgeproto.C
 		// set up DNS
 		var rootLBIPaddr *ServerIP
 		if masterIpErr == nil {
-			rootLBIPaddr, err = v.vmProvider.GetIPFromServerName(ctx, v.GetCloudletExternalNetwork(), rootLBName)
+			rootLBIPaddr, err = v.VMProvider.GetIPFromServerName(ctx, v.GetCloudletExternalNetwork(), rootLBName)
 			if err == nil {
 				getDnsAction := func(svc v1.Service) (*infracommon.DnsSvcAction, error) {
 					action := infracommon.DnsSvcAction{}
@@ -128,7 +128,7 @@ func (v *VMPlatform) CreateAppInst(ctx context.Context, clusterInst *edgeproto.C
 			return err
 		}
 
-		err = v.vmProvider.AddAppImageIfNotPresent(ctx, app, updateCallback)
+		err = v.VMProvider.AddAppImageIfNotPresent(ctx, app, updateCallback)
 		if err != nil {
 			return err
 		}
@@ -190,7 +190,7 @@ func (v *VMPlatform) CreateAppInst(ctx context.Context, clusterInst *edgeproto.C
 			return err
 		}
 
-		ip, err := v.vmProvider.GetIPFromServerName(ctx, v.GetCloudletExternalNetwork(), externalServerName)
+		ip, err := v.VMProvider.GetIPFromServerName(ctx, v.GetCloudletExternalNetwork(), externalServerName)
 		if err != nil {
 			return err
 		}
@@ -213,7 +213,7 @@ func (v *VMPlatform) CreateAppInst(ctx context.Context, clusterInst *edgeproto.C
 				action.ExternalIP = ip.ExternalAddr
 				return &action, nil
 			}
-			vmIP, err := v.vmProvider.GetIPFromServerName(ctx, v.GetCloudletMexNetwork(), objName)
+			vmIP, err := v.VMProvider.GetIPFromServerName(ctx, v.GetCloudletMexNetwork(), objName)
 			if err != nil {
 				return err
 			}
@@ -249,7 +249,7 @@ func (v *VMPlatform) CreateAppInst(ctx context.Context, clusterInst *edgeproto.C
 		rootLBName := v.GetRootLBNameForCluster(ctx, clusterInst)
 		backendIP := cloudcommon.RemoteServerNone
 		dockerNetworkMode := dockermgmt.DockerBridgeMode
-		rootLBClient, err := v.vmProvider.GetClusterPlatformClient(ctx, clusterInst)
+		rootLBClient, err := v.VMProvider.GetClusterPlatformClient(ctx, clusterInst)
 		if err != nil {
 			return err
 		}
@@ -267,7 +267,7 @@ func (v *VMPlatform) CreateAppInst(ctx context.Context, clusterInst *edgeproto.C
 		} else {
 			// Shared access uses a separate VM for docker.  This is used both for running the docker commands
 			// and as the backend ip for the proxy
-			_, backendIP, err = v.vmProvider.GetClusterMasterNameAndIP(ctx, clusterInst)
+			_, backendIP, err = v.VMProvider.GetClusterMasterNameAndIP(ctx, clusterInst)
 			if err != nil {
 				return err
 			}
@@ -279,7 +279,7 @@ func (v *VMPlatform) CreateAppInst(ctx context.Context, clusterInst *edgeproto.C
 			dockerNetworkMode = dockermgmt.DockerHostMode
 		}
 
-		rootLBIPaddr, err := v.vmProvider.GetIPFromServerName(ctx, v.GetCloudletExternalNetwork(), rootLBName)
+		rootLBIPaddr, err := v.VMProvider.GetIPFromServerName(ctx, v.GetCloudletExternalNetwork(), rootLBName)
 		if err != nil {
 			return err
 		}
@@ -345,7 +345,7 @@ func (v *VMPlatform) DeleteAppInst(ctx context.Context, clusterInst *edgeproto.C
 		rootLBName := v.GetRootLBNameForCluster(ctx, clusterInst)
 		if clusterInst.IpAccess == edgeproto.IpAccess_IP_ACCESS_DEDICATED {
 			log.SpanLog(ctx, log.DebugLevelInfra, "using dedicated RootLB to delete app", "rootLBName", rootLBName)
-			_, err := v.vmProvider.GetServerDetail(ctx, rootLBName)
+			_, err := v.VMProvider.GetServerDetail(ctx, rootLBName)
 			if err != nil {
 				if strings.Contains(err.Error(), ServerDoesNotExistError) {
 					log.SpanLog(ctx, log.DebugLevelInfra, "Dedicated RootLB is gone, allow app deletion")
@@ -354,7 +354,7 @@ func (v *VMPlatform) DeleteAppInst(ctx context.Context, clusterInst *edgeproto.C
 				return err
 			}
 		}
-		client, err := v.vmProvider.GetClusterPlatformClient(ctx, clusterInst)
+		client, err := v.VMProvider.GetClusterPlatformClient(ctx, clusterInst)
 		if err != nil {
 			return err
 		}
@@ -362,7 +362,7 @@ func (v *VMPlatform) DeleteAppInst(ctx context.Context, clusterInst *edgeproto.C
 		if err != nil {
 			return fmt.Errorf("get kube names failed: %s", err)
 		}
-		_, masterIP, err := v.vmProvider.GetClusterMasterNameAndIP(ctx, clusterInst)
+		_, masterIP, err := v.VMProvider.GetClusterMasterNameAndIP(ctx, clusterInst)
 		if err != nil {
 			if strings.Contains(err.Error(), ServerDoesNotExistError) {
 				log.SpanLog(ctx, log.DebugLevelInfra, "cluster is gone, allow app deletion")
@@ -410,7 +410,7 @@ func (v *VMPlatform) DeleteAppInst(ctx context.Context, clusterInst *edgeproto.C
 	case cloudcommon.AppDeploymentTypeVM:
 		objName := cloudcommon.GetAppFQN(&app.Key)
 		log.SpanLog(ctx, log.DebugLevelInfra, "Deleting VM", "stackName", objName)
-		err := v.vmProvider.DeleteVMs(ctx, objName)
+		err := v.VMProvider.DeleteVMs(ctx, objName)
 		if err != nil {
 			return fmt.Errorf("DeleteVMAppInst error: %v", err)
 		}
@@ -432,7 +432,7 @@ func (v *VMPlatform) DeleteAppInst(ctx context.Context, clusterInst *edgeproto.C
 
 	case cloudcommon.AppDeploymentTypeDocker:
 		rootLBName := v.GetRootLBNameForCluster(ctx, clusterInst)
-		rootLBClient, err := v.vmProvider.GetClusterPlatformClient(ctx, clusterInst)
+		rootLBClient, err := v.VMProvider.GetClusterPlatformClient(ctx, clusterInst)
 		if err != nil {
 			return err
 		}
@@ -441,7 +441,7 @@ func (v *VMPlatform) DeleteAppInst(ctx context.Context, clusterInst *edgeproto.C
 		dockerCommandTarget := rootLBClient
 
 		if clusterInst.IpAccess != edgeproto.IpAccess_IP_ACCESS_DEDICATED {
-			_, backendIP, err := v.vmProvider.GetClusterMasterNameAndIP(ctx, clusterInst)
+			_, backendIP, err := v.VMProvider.GetClusterMasterNameAndIP(ctx, clusterInst)
 			if err != nil {
 				if strings.Contains(err.Error(), ServerDoesNotExistError) {
 					log.SpanLog(ctx, log.DebugLevelInfra, "cluster is gone, allow app deletion")
@@ -457,7 +457,7 @@ func (v *VMPlatform) DeleteAppInst(ctx context.Context, clusterInst *edgeproto.C
 				return err
 			}
 		}
-		_, err = v.vmProvider.GetServerDetail(ctx, rootLBName)
+		_, err = v.VMProvider.GetServerDetail(ctx, rootLBName)
 		if err != nil {
 			if strings.Contains(err.Error(), ServerDoesNotExistError) {
 				log.SpanLog(ctx, log.DebugLevelInfra, "Dedicated RootLB is gone, allow app deletion")
@@ -465,7 +465,7 @@ func (v *VMPlatform) DeleteAppInst(ctx context.Context, clusterInst *edgeproto.C
 			}
 			return err
 		}
-		client, err := v.vmProvider.GetClusterPlatformClient(ctx, clusterInst)
+		client, err := v.VMProvider.GetClusterPlatformClient(ctx, clusterInst)
 		if err != nil {
 			return err
 		}
@@ -486,7 +486,7 @@ func (v *VMPlatform) DeleteAppInst(ctx context.Context, clusterInst *edgeproto.C
 }
 
 func (v *VMPlatform) UpdateAppInst(ctx context.Context, clusterInst *edgeproto.ClusterInst, app *edgeproto.App, appInst *edgeproto.AppInst, updateCallback edgeproto.CacheUpdateCallback) error {
-	_, masterIP, _ := v.vmProvider.GetClusterMasterNameAndIP(ctx, clusterInst)
+	_, masterIP, _ := v.VMProvider.GetClusterMasterNameAndIP(ctx, clusterInst)
 	// Add crm local replace variables
 	deploymentVars := crmutil.DeploymentReplaceVars{
 		Deployment: crmutil.CrmReplaceVars{
@@ -501,7 +501,7 @@ func (v *VMPlatform) UpdateAppInst(ctx context.Context, clusterInst *edgeproto.C
 
 	switch deployment := app.Deployment; deployment {
 	case cloudcommon.AppDeploymentTypeKubernetes:
-		client, err := v.vmProvider.GetClusterPlatformClient(ctx, clusterInst)
+		client, err := v.VMProvider.GetClusterPlatformClient(ctx, clusterInst)
 		if err != nil {
 			return err
 		}
@@ -512,7 +512,7 @@ func (v *VMPlatform) UpdateAppInst(ctx context.Context, clusterInst *edgeproto.C
 		return k8smgmt.UpdateAppInst(ctx, v.CommonPf.VaultConfig, client, names, app, appInst)
 	case cloudcommon.AppDeploymentTypeDocker:
 		dockerNetworkMode := dockermgmt.DockerBridgeMode
-		rootLBClient, err := v.vmProvider.GetClusterPlatformClient(ctx, clusterInst)
+		rootLBClient, err := v.VMProvider.GetClusterPlatformClient(ctx, clusterInst)
 		if err != nil {
 			return err
 		}
@@ -521,7 +521,7 @@ func (v *VMPlatform) UpdateAppInst(ctx context.Context, clusterInst *edgeproto.C
 		dockerCommandTarget := rootLBClient
 
 		if clusterInst.IpAccess == edgeproto.IpAccess_IP_ACCESS_SHARED {
-			_, backendIP, err := v.vmProvider.GetClusterMasterNameAndIP(ctx, clusterInst)
+			_, backendIP, err := v.VMProvider.GetClusterMasterNameAndIP(ctx, clusterInst)
 			if err != nil {
 				return err
 			}
@@ -533,7 +533,7 @@ func (v *VMPlatform) UpdateAppInst(ctx context.Context, clusterInst *edgeproto.C
 		}
 		return dockermgmt.UpdateAppInst(ctx, v.CommonPf.VaultConfig, dockerCommandTarget, app, appInst, dockerNetworkMode)
 	case cloudcommon.AppDeploymentTypeHelm:
-		client, err := v.vmProvider.GetClusterPlatformClient(ctx, clusterInst)
+		client, err := v.VMProvider.GetClusterPlatformClient(ctx, clusterInst)
 		if err != nil {
 			return err
 		}
@@ -549,7 +549,7 @@ func (v *VMPlatform) UpdateAppInst(ctx context.Context, clusterInst *edgeproto.C
 }
 
 func (v *VMPlatform) GetAppInstRuntime(ctx context.Context, clusterInst *edgeproto.ClusterInst, app *edgeproto.App, appInst *edgeproto.AppInst) (*edgeproto.AppInstRuntime, error) {
-	client, err := v.vmProvider.GetClusterPlatformClient(ctx, clusterInst)
+	client, err := v.VMProvider.GetClusterPlatformClient(ctx, clusterInst)
 	if err != nil {
 		return nil, err
 	}

@@ -48,7 +48,7 @@ func (o *OpenstackPlatform) GetOpenRCVars(ctx context.Context, key *edgeproto.Cl
 	return nil
 }
 
-func (o *OpenstackPlatform) InitOpenstackProps(ctx context.Context, key *edgeproto.CloudletKey, region, physicalName string, vaultConfig *vault.Config, vars map[string]string) error {
+func (o *OpenstackPlatform) InitApiAccessProperties(ctx context.Context, key *edgeproto.CloudletKey, region, physicalName string, vaultConfig *vault.Config, vars map[string]string) error {
 	err := o.GetOpenRCVars(ctx, key, region, physicalName, vaultConfig)
 	if err != nil {
 		return err

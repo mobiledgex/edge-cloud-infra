@@ -88,7 +88,7 @@ func GetCertFilePath(key *edgeproto.CloudletKey) string {
 }
 
 func (v *VMPlatform) GetVaultCloudletAccessPath(key *edgeproto.CloudletKey, region, physicalName string) string {
-	return fmt.Sprintf("/secret/data/%s/cloudlet/%s/%s/%s/%s", region, v.vmProvider.GetType(), key.Organization, physicalName, "openrc.json")
+	return fmt.Sprintf("/secret/data/%s/cloudlet/%s/%s/%s/%s", region, v.Type, key.Organization, physicalName, "openrc.json")
 }
 
 func GetCloudletVMImagePath(imgPath, imgVersion string) string {

@@ -391,7 +391,7 @@ func (v *VMPlatform) getVMGroupOrchestrationParamsFromGroupSpec(ctx context.Cont
 	cloudflareDns := []string{"1.1.1.1", "1.0.0.1"}
 	vmDns := ""
 	subnetDns := []string{}
-	cloudletSecGrpID, err := v.vmProvider.GetResourceID(ctx, ResourceTypeSecurityGroup, v.GetCloudletSecurityGroupName())
+	cloudletSecGrpID, err := v.VMProvider.GetResourceID(ctx, ResourceTypeSecurityGroup, v.GetCloudletSecurityGroupName())
 	internalSecgrpID := ""
 	if err != nil {
 		return nil, err
@@ -617,7 +617,7 @@ func (v *VMPlatform) CreateVMsFromVMSpec(ctx context.Context, name string, vms [
 		return gp, err
 	}
 	log.SpanLog(ctx, log.DebugLevelInfra, "created vm group spec", "gp", gp)
-	err = v.vmProvider.CreateVMs(ctx, gp, updateCallback)
+	err = v.VMProvider.CreateVMs(ctx, gp, updateCallback)
 	if err != nil {
 		log.SpanLog(ctx, log.DebugLevelInfra, "error while creating vms", "name", name, "error", err)
 		return gp, err
@@ -633,7 +633,7 @@ func (v *VMPlatform) UpdateVMsFromVMSpec(ctx context.Context, name string, vms [
 		return gp, err
 	}
 	log.SpanLog(ctx, log.DebugLevelInfra, "created vm group spec", "gp", gp)
-	err = v.vmProvider.UpdateVMs(ctx, gp, updateCallback)
+	err = v.VMProvider.UpdateVMs(ctx, gp, updateCallback)
 	if err != nil {
 		log.SpanLog(ctx, log.DebugLevelInfra, "error while updating vms", "name", name, "name", "error", err)
 		return gp, err

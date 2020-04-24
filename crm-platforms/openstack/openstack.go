@@ -7,53 +7,25 @@ import (
 	"unicode"
 
 	"github.com/mobiledgex/edge-cloud-infra/vmlayer"
-	"github.com/mobiledgex/edge-cloud/cloud-resource-manager/platform"
 	"github.com/mobiledgex/edge-cloud/edgeproto"
-	"github.com/mobiledgex/edge-cloud/log"
-	"github.com/mobiledgex/edge-cloud/vault"
 	ssh "github.com/mobiledgex/golang-ssh"
 )
 
 type OpenstackPlatform struct {
 	openRCVars map[string]string
-	vmPlatform vmlayer.VMPlatform
+	vmPlatform *vmlayer.VMPlatform
 }
 
 func (o *OpenstackPlatform) GetType() string {
 	return "openstack"
 }
 
-func (o *OpenstackPlatform) Init(ctx context.Context, platformConfig *platform.PlatformConfig, updateCallback edgeproto.CacheUpdateCallback) error {
-	log.SpanLog(ctx,
-		log.DebugLevelInfra, "init OpenstackPlatform",
-		"physicalName", platformConfig.PhysicalName,
-		"vaultAddr", platformConfig.VaultAddr)
+func (o *OpenstackPlatform) SetVMPlatform(vmPlatform *vmlayer.VMPlatform) {
+	o.vmPlatform = vmPlatform
+}
 
-	updateCallback(edgeproto.UpdateTask, "Initializing Openstack platform")
-
-	vaultConfig, err := vault.BestConfig(platformConfig.VaultAddr)
-	if err != nil {
-		return err
-	}
-	log.SpanLog(ctx, log.DebugLevelInfra, "vault auth", "type", vaultConfig.Auth.Type())
-
-	updateCallback(edgeproto.UpdateTask, "Fetching Openstack access credentials")
-	if err := o.InitOpenstackProps(ctx, platformConfig.CloudletKey, platformConfig.Region, platformConfig.PhysicalName, vaultConfig, platformConfig.EnvVars); err != nil {
-		return err
-	}
-	if err := o.vmPlatform.CommonPf.InitInfraCommon(ctx, platformConfig, vmlayer.VMProviderProps, vaultConfig); err != nil {
-		return err
-	}
-	o.vmPlatform.FlavorList, _, _, err = o.GetFlavorInfo(ctx)
-	if err != nil {
-		return err
-	}
-	err = o.PrepNetwork(ctx)
-	if err != nil {
-		return err
-	}
-
-	return o.vmPlatform.InitVMProvider(ctx, o, updateCallback)
+func (o *OpenstackPlatform) InitProvider(ctx context.Context) error {
+	return o.PrepNetwork(ctx)
 }
 
 func (o *OpenstackPlatform) GatherCloudletInfo(ctx context.Context, info *edgeproto.CloudletInfo) error {

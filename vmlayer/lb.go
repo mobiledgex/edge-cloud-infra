@@ -265,19 +265,19 @@ func (v *VMPlatform) configureInternalInterfaceAndExternalForwarding(ctx context
 func (v *VMPlatform) AttachAndEnableRootLBInterface(ctx context.Context, client ssh.Client, rootLBName string, internalPortName, internalIPAddr string) error {
 	log.SpanLog(ctx, log.DebugLevelInfra, "AttachAndEnableRootLBInterface", "rootLBName", rootLBName, "internalPortName", internalPortName)
 
-	err := v.vmProvider.AttachPortToServer(ctx, rootLBName, internalPortName)
+	err := v.VMProvider.AttachPortToServer(ctx, rootLBName, internalPortName)
 	if err != nil {
 		log.SpanLog(ctx, log.DebugLevelInfra, "fail to attach port", "err", err)
 		return err
 	}
-	sd, err := v.vmProvider.GetServerDetail(ctx, rootLBName)
+	sd, err := v.VMProvider.GetServerDetail(ctx, rootLBName)
 	if err != nil {
 		return err
 	}
 	err = v.configureInternalInterfaceAndExternalForwarding(ctx, client, internalPortName, sd, actionAdd)
 	if err != nil {
 		log.SpanLog(ctx, log.DebugLevelInfra, "fail to confgure internal interface, detaching port", "err", err)
-		deterr := v.vmProvider.DetachPortFromServer(ctx, rootLBName, internalPortName)
+		deterr := v.VMProvider.DetachPortFromServer(ctx, rootLBName, internalPortName)
 		if deterr != nil {
 			log.SpanLog(ctx, log.DebugLevelInfra, "fail to detach port", "err", deterr)
 		}
@@ -288,14 +288,14 @@ func (v *VMPlatform) AttachAndEnableRootLBInterface(ctx context.Context, client 
 
 func (v *VMPlatform) GetRootLBName(key *edgeproto.CloudletKey) string {
 	name := cloudcommon.GetRootLBFQDN(key)
-	return v.vmProvider.NameSanitize(name)
+	return v.VMProvider.NameSanitize(name)
 }
 
 // DetachAndDisableRootLBInterface performs some cleanup when deleting the rootLB port.
 func (v *VMPlatform) DetachAndDisableRootLBInterface(ctx context.Context, client ssh.Client, rootLBName string, internalPortName, internalIPAddr string) error {
 	log.SpanLog(ctx, log.DebugLevelInfra, "DetachAndDisableRootLBInterface", "rootLBName", rootLBName, "internalPortName", internalPortName)
 
-	sd, err := v.vmProvider.GetServerDetail(ctx, rootLBName)
+	sd, err := v.VMProvider.GetServerDetail(ctx, rootLBName)
 	if err != nil {
 		return err
 	}
@@ -303,7 +303,7 @@ func (v *VMPlatform) DetachAndDisableRootLBInterface(ctx context.Context, client
 	if err != nil {
 		log.SpanLog(ctx, log.DebugLevelInfra, "error in configureInternalInterfaceAndExternalForwarding", "err", err)
 	}
-	err = v.vmProvider.DetachPortFromServer(ctx, rootLBName, internalPortName)
+	err = v.VMProvider.DetachPortFromServer(ctx, rootLBName, internalPortName)
 	if err != nil {
 		// might already be gone
 		log.SpanLog(ctx, log.DebugLevelInfra, "fail to detach port", "err", err)
@@ -343,7 +343,7 @@ func (v *VMPlatform) GetVMSpecForRootLB(ctx context.Context, rootLbName string, 
 	}
 	imgPath := v.CommonPf.PlatformConfig.CloudletVMImagePath
 	imgVersion := v.CommonPf.PlatformConfig.VMImageVersion
-	imageName, err := v.vmProvider.AddCloudletImageIfNotPresent(ctx, imgPath, imgVersion, updateCallback)
+	imageName, err := v.VMProvider.AddCloudletImageIfNotPresent(ctx, imgPath, imgVersion, updateCallback)
 	if err != nil {
 		return nil, err
 	}
@@ -400,7 +400,7 @@ func (v *VMPlatform) CreateRootLB(
 	if rootLB == nil {
 		return fmt.Errorf("cannot enable rootLB, rootLB is null")
 	}
-	_, err := v.vmProvider.GetServerDetail(ctx, rootLB.Name)
+	_, err := v.VMProvider.GetServerDetail(ctx, rootLB.Name)
 	if err == nil {
 		log.SpanLog(ctx, log.DebugLevelInfra, "rootlb already exists")
 		return nil
@@ -409,7 +409,7 @@ func (v *VMPlatform) CreateRootLB(
 	if v.GetCloudletExternalNetwork() == "" {
 		return fmt.Errorf("enable rootlb, missing external network in manifest")
 	}
-	imgName, err := v.vmProvider.AddCloudletImageIfNotPresent(ctx, imgPath, imgVersion, updateCallback)
+	imgName, err := v.VMProvider.AddCloudletImageIfNotPresent(ctx, imgPath, imgVersion, updateCallback)
 	if err != nil {
 		log.InfoLog("error with RootLB VM image", "name", rootLB.Name, "imgName", imgName, "error", err)
 		return err
@@ -446,7 +446,7 @@ func (v *VMPlatform) SetupRootLB(
 	if err != nil {
 		return fmt.Errorf("cannot find rootlb in map %s", rootLBName)
 	}
-	sd, err := v.vmProvider.GetServerDetail(ctx, rootLBName)
+	sd, err := v.VMProvider.GetServerDetail(ctx, rootLBName)
 	if err == nil {
 		log.SpanLog(ctx, log.DebugLevelInfra, "server with same name as rootLB exists", "rootLBName", rootLBName)
 	}
@@ -460,7 +460,7 @@ func (v *VMPlatform) SetupRootLB(
 		// this is not necessarily fatal
 		log.InfoLog("cannot fetch public ip", "err", err)
 	} else {
-		err = v.vmProvider.AddSecurityRuleCIDRWithRetry(ctx, my_ip, "tcp", groupName, "22", rootLBName)
+		err = v.VMProvider.AddSecurityRuleCIDRWithRetry(ctx, my_ip, "tcp", groupName, "22", rootLBName)
 		if err != nil {
 			return err
 		}
@@ -488,11 +488,11 @@ func (v *VMPlatform) SetupRootLB(
 		return fmt.Errorf("cannot copy resource-tracker to rootLb %v", err)
 	}
 
-	err = v.vmProvider.NetworkSetupForRootLB(ctx, client, rootLBName)
+	err = v.VMProvider.NetworkSetupForRootLB(ctx, client, rootLBName)
 	if err != nil {
 		return fmt.Errorf("failed to NetworkSetupForRootLB %v", err)
 	}
-	err = v.vmProvider.WhitelistSecurityRules(ctx, v.GetServerSecurityGroupName(rootLBName), rootLBName, GetAllowedClientCIDR(), RootLBPorts)
+	err = v.VMProvider.WhitelistSecurityRules(ctx, v.GetServerSecurityGroupName(rootLBName), rootLBName, GetAllowedClientCIDR(), RootLBPorts)
 	if err != nil {
 		return fmt.Errorf("failed to WhitelistSecurityRules %v", err)
 	}
@@ -576,5 +576,5 @@ func (v *VMPlatform) DeleteProxySecurityGroupRules(ctx context.Context, client s
 		log.SpanLog(ctx, log.DebugLevelInfra, "cannot delete proxy", "proxyName", proxyName, "error", err)
 	}
 	allowedClientCIDR := GetAllowedClientCIDR()
-	return v.vmProvider.RemoveWhitelistSecurityRules(ctx, secGrpName, allowedClientCIDR, ports)
+	return v.VMProvider.RemoveWhitelistSecurityRules(ctx, secGrpName, allowedClientCIDR, ports)
 }

@@ -949,6 +949,11 @@ func (s *OpenstackPlatform) GetFlavorInfo(ctx context.Context) ([]*edgeproto.Fla
 	return finfo, zones, images, nil
 }
 
+func (o *OpenstackPlatform) GetFlavorList(ctx context.Context) ([]*edgeproto.FlavorInfo, error) {
+	fl, _, _, err := o.GetFlavorInfo(ctx)
+	return fl, err
+}
+
 func (s *OpenstackPlatform) GetSecurityGroupIDForProject(ctx context.Context, grpname string, projectID string) (string, error) {
 	grps, err := s.ListSecurityGroups(ctx)
 	if err != nil {
@@ -1071,15 +1076,13 @@ func (s *OpenstackPlatform) AddCloudletImageIfNotPresent(ctx context.Context, im
 	return pfImageName, nil
 }
 
-func (s *OpenstackPlatform) OSSetPowerState(ctx context.Context, serverName, serverAction string) error {
+func (s *OpenstackPlatform) SetPowerState(ctx context.Context, serverName, serverAction string) error {
 	log.SpanLog(ctx, log.DebugLevelInfra, "setting server state", "serverName", serverName, "serverAction", serverAction)
-
 	out, err := s.TimedOpenStackCommand(ctx, "openstack", "server", serverAction, serverName)
 	if err != nil {
 		err = fmt.Errorf("unable to %s server %s, %s, %v", serverAction, serverName, out, err)
 		return err
 	}
-
 	return nil
 }
 

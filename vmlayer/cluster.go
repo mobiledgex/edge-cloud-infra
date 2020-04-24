@@ -39,7 +39,7 @@ type ClusterFlavor struct {
 }
 
 func (v *VMPlatform) GetClusterName(ctx context.Context, clusterInst *edgeproto.ClusterInst) string {
-	return v.vmProvider.NameSanitize(k8smgmt.GetK8sNodeNameSuffix(&clusterInst.Key))
+	return v.VMProvider.NameSanitize(k8smgmt.GetK8sNodeNameSuffix(&clusterInst.Key))
 }
 
 func (v *VMPlatform) GetClusterSubnetName(ctx context.Context, clusterInst *edgeproto.ClusterInst) string {
@@ -88,13 +88,13 @@ func ParseClusterNodePrefix(name string) (bool, uint32) {
 
 func (v *VMPlatform) UpdateClusterInst(ctx context.Context, clusterInst *edgeproto.ClusterInst, privacyPolicy *edgeproto.PrivacyPolicy, updateCallback edgeproto.CacheUpdateCallback) error {
 	lbName := v.GetRootLBNameForCluster(ctx, clusterInst)
-	client, err := v.vmProvider.GetClusterPlatformClient(ctx, clusterInst)
+	client, err := v.VMProvider.GetClusterPlatformClient(ctx, clusterInst)
 	if err != nil {
 		return err
 	}
 
 	log.SpanLog(ctx, log.DebugLevelInfra, "verify if cloudlet base image exists")
-	imgName, err := v.vmProvider.AddCloudletImageIfNotPresent(ctx, v.CommonPf.PlatformConfig.CloudletVMImagePath, v.CommonPf.PlatformConfig.VMImageVersion, updateCallback)
+	imgName, err := v.VMProvider.AddCloudletImageIfNotPresent(ctx, v.CommonPf.PlatformConfig.CloudletVMImagePath, v.CommonPf.PlatformConfig.VMImageVersion, updateCallback)
 	if err != nil {
 		log.InfoLog("error with cloudlet base image", "imgName", imgName, "error", err)
 		return err
@@ -166,7 +166,7 @@ func (v *VMPlatform) deleteCluster(ctx context.Context, rootLBName string, clust
 	name := v.GetClusterName(ctx, clusterInst)
 
 	dedicatedRootLB := clusterInst.IpAccess == edgeproto.IpAccess_IP_ACCESS_DEDICATED
-	client, err := v.vmProvider.GetClusterPlatformClient(ctx, clusterInst)
+	client, err := v.VMProvider.GetClusterPlatformClient(ctx, clusterInst)
 	if err != nil {
 		if strings.Contains(err.Error(), "No server with a name or ID") {
 			log.SpanLog(ctx, log.DebugLevelInfra, "Dedicated RootLB is gone, allow stack delete to proceed")
@@ -174,7 +174,7 @@ func (v *VMPlatform) deleteCluster(ctx context.Context, rootLBName string, clust
 			return err
 		}
 	}
-	err = v.vmProvider.DeleteVMs(ctx, name)
+	err = v.VMProvider.DeleteVMs(ctx, name)
 	if err != nil {
 		return err
 	}
@@ -183,7 +183,7 @@ func (v *VMPlatform) deleteCluster(ctx context.Context, rootLBName string, clust
 		proxy.RemoveDedicatedCluster(ctx, clusterInst.Key.ClusterKey.Name)
 		DeleteRootLB(rootLBName)
 	} else {
-		ip, err := v.vmProvider.GetIPFromServerName(ctx, v.GetClusterSubnetName(ctx, clusterInst), rootLBName)
+		ip, err := v.VMProvider.GetIPFromServerName(ctx, v.GetClusterSubnetName(ctx, clusterInst), rootLBName)
 		if err != nil {
 			return err
 		}
@@ -208,7 +208,7 @@ func (v *VMPlatform) CreateClusterInst(ctx context.Context, clusterInst *edgepro
 	timeout -= time.Minute
 
 	log.SpanLog(ctx, log.DebugLevelInfra, "verify if cloudlet base image exists")
-	imgName, err := v.vmProvider.AddCloudletImageIfNotPresent(ctx, v.CommonPf.PlatformConfig.CloudletVMImagePath, v.CommonPf.PlatformConfig.VMImageVersion, updateCallback)
+	imgName, err := v.VMProvider.AddCloudletImageIfNotPresent(ctx, v.CommonPf.PlatformConfig.CloudletVMImagePath, v.CommonPf.PlatformConfig.VMImageVersion, updateCallback)
 	if err != nil {
 		log.InfoLog("error with cloudlet base image", "imgName", imgName, "error", err)
 		return err
@@ -247,7 +247,7 @@ func (v *VMPlatform) createClusterInternal(ctx context.Context, rootLBName strin
 		return fmt.Errorf("Cluster VM create Failed: %v", err)
 	}
 
-	client, err := v.vmProvider.GetClusterPlatformClient(ctx, clusterInst)
+	client, err := v.VMProvider.GetClusterPlatformClient(ctx, clusterInst)
 	if err != nil {
 		return fmt.Errorf("can't get rootLB client, %v", err)
 	}
@@ -321,7 +321,7 @@ func (v *VMPlatform) waitClusterReady(ctx context.Context, clusterInst *edgeprot
 
 	for {
 		if masterIP == "" {
-			masterName, masterIP, _ = v.vmProvider.GetClusterMasterNameAndIP(ctx, clusterInst)
+			masterName, masterIP, _ = v.VMProvider.GetClusterMasterNameAndIP(ctx, clusterInst)
 			if masterIP != "" {
 				updateCallback(edgeproto.UpdateStep, "Checking Master for Available Nodes")
 			}
@@ -356,7 +356,7 @@ func (v *VMPlatform) isClusterReady(ctx context.Context, clusterInst *edgeproto.
 	log.SpanLog(ctx, log.DebugLevelInfra, "checking if cluster is ready")
 
 	// some commands are run on the rootlb and some on the master directly, so we use separate clients
-	rootLBClient, err := v.vmProvider.GetClusterPlatformClient(ctx, clusterInst)
+	rootLBClient, err := v.VMProvider.GetClusterPlatformClient(ctx, clusterInst)
 	if err != nil {
 		return false, 0, fmt.Errorf("can't get rootlb ssh client for cluster ready check, %v", err)
 	}

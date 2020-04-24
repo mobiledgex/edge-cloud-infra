@@ -2,12 +2,14 @@ package vmlayer
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"path/filepath"
 	"strings"
 	"time"
 
 	intprocess "github.com/mobiledgex/edge-cloud-infra/e2e-tests/int-process"
+	"github.com/mobiledgex/edge-cloud-infra/infracommon"
 	"github.com/mobiledgex/edge-cloud/cloudcommon"
 	"github.com/mobiledgex/edge-cloud/edgeproto"
 	"github.com/mobiledgex/edge-cloud/log"
@@ -31,7 +33,50 @@ var PlatformServices = []string{
 
 func (v *VMPlatform) GetPlatformVMName(key *edgeproto.CloudletKey) string {
 	// Form platform VM name based on cloudletKey
-	return v.vmProvider.NameSanitize(key.Name + "." + key.Organization + ".pf")
+	return v.VMProvider.NameSanitize(key.Name + "." + key.Organization + ".pf")
+}
+
+func getCRMContainerVersion(ctx context.Context, client ssh.Client) (string, error) {
+	var err error
+	var out string
+
+	log.SpanLog(ctx, log.DebugLevelInfra, "fetch crmserver container version")
+	if out, err = client.Output(
+		fmt.Sprintf("sudo docker ps --filter name=%s --format '{{.Image}}'", ServiceTypeCRM),
+	); err != nil {
+		return "", fmt.Errorf("unable to fetch crm version for %s, %v, %v",
+			ServiceTypeCRM, err, out)
+	}
+	if out == "" {
+		return "", fmt.Errorf("no container with name %s exists", ServiceTypeCRM)
+	}
+	imgParts := strings.Split(out, ":")
+	return imgParts[len(imgParts)-1], nil
+}
+
+func getCRMPkgVersion(ctx context.Context, client ssh.Client) (string, error) {
+	var err error
+	var out string
+
+	log.SpanLog(ctx, log.DebugLevelInfra, "fetch Cloudlet base image package version")
+	if out, err = client.Output("sudo dpkg-query --showformat='${Version}' --show mobiledgex"); err != nil {
+		return "", fmt.Errorf("failed to get mobiledgex debian package version, %v, %v", out, err)
+	}
+	return out, nil
+}
+
+func upgradeCloudletPkgs(ctx context.Context, vmType VMType, cloudlet *edgeproto.Cloudlet, pfConfig *edgeproto.PlatformConfig, vaultConfig *vault.Config, client ssh.Client, updateCallback edgeproto.CacheUpdateCallback) error {
+	log.SpanLog(ctx, log.DebugLevelInfra, "Updating apt package lists", "cloudletName", cloudlet.Key.Name, "vmType", vmType)
+	if out, err := client.Output("sudo apt-get update"); err != nil {
+		return fmt.Errorf("Failed to update apt package lists, %v, %v", out, err)
+	}
+	log.SpanLog(ctx, log.DebugLevelInfra, "Upgrading mobiledgex base image package", "cloudletName", cloudlet.Key.Name, "vmType", vmType, "packageVersion", cloudlet.PackageVersion)
+	if out, err := client.Output(
+		fmt.Sprintf("MEXVM_TYPE=%s sudo apt-get install -y mobiledgex=%s", vmType, cloudlet.PackageVersion),
+	); err != nil {
+		return fmt.Errorf("Failed to upgrade mobiledgex pkg, %v, %v", out, err)
+	}
+	return nil
 }
 
 func startPlatformService(cloudlet *edgeproto.Cloudlet, pfConfig *edgeproto.PlatformConfig, client ssh.Client, serviceType string, updateCallback edgeproto.CacheUpdateCallback, cDone chan error) {
@@ -123,6 +168,22 @@ func startPlatformService(cloudlet *edgeproto.Cloudlet, pfConfig *edgeproto.Plat
 	return
 }
 
+func handleUpgradeError(ctx context.Context, client ssh.Client) error {
+	for _, pfService := range PlatformServices {
+		log.SpanLog(ctx, log.DebugLevelInfra, "restoring container names")
+		if out, err := client.Output(
+			fmt.Sprintf("sudo docker rename %s_old %s", pfService, pfService),
+		); err != nil {
+			if strings.Contains(out, "No such container") {
+				continue
+			}
+			return fmt.Errorf("unable to restore %s_old to %s: %v, %s\n",
+				pfService, pfService, err, out)
+		}
+	}
+	return nil
+}
+
 func (v *VMPlatform) SetupPlatformService(ctx context.Context, cloudlet *edgeproto.Cloudlet, pfConfig *edgeproto.PlatformConfig, vaultConfig *vault.Config, client ssh.Client, updateCallback edgeproto.CacheUpdateCallback) error {
 	// Gather registry credentails from Vault
 	updateCallback(edgeproto.UpdateTask, "Fetching registry auth credentials")
@@ -161,7 +222,7 @@ func (v *VMPlatform) SetupPlatformService(ctx context.Context, cloudlet *edgepro
 		}
 	}
 
-	err = v.vmProvider.VerifyApiEndpoint(ctx, client, updateCallback)
+	err = v.VMProvider.VerifyApiEndpoint(ctx, client, updateCallback)
 
 	// edge-cloud image already contains the certs
 	if pfConfig.TlsCertFile != "" {
@@ -224,7 +285,7 @@ func (v *VMPlatform) SetupPlatformVM(ctx context.Context, cloudlet *edgeproto.Cl
 	if az == "" {
 		az = v.GetCloudletComputeAvailabilityZone()
 	}
-	pfImageName, err := v.vmProvider.AddCloudletImageIfNotPresent(ctx, pfConfig.CloudletVmImagePath, cloudlet.VmImageVersion, updateCallback)
+	pfImageName, err := v.VMProvider.AddCloudletImageIfNotPresent(ctx, pfConfig.CloudletVmImagePath, cloudlet.VmImageVersion, updateCallback)
 	if err != nil {
 		return nil, err
 	}
@@ -236,7 +297,7 @@ func (v *VMPlatform) SetupPlatformVM(ctx context.Context, cloudlet *edgeproto.Cl
 	_, err = v.CreateVMsFromVMSpec(ctx, platformVmName, vms, updateCallback)
 
 	updateCallback(edgeproto.UpdateTask, "Successfully Deployed Platform VM")
-	ip, err := v.vmProvider.GetIPFromServerName(ctx, v.GetCloudletExternalNetwork(), platformVmName)
+	ip, err := v.VMProvider.GetIPFromServerName(ctx, v.GetCloudletExternalNetwork(), platformVmName)
 	if err != nil {
 		return nil, err
 	}
@@ -247,4 +308,233 @@ func (v *VMPlatform) SetupPlatformVM(ctx context.Context, cloudlet *edgeproto.Cl
 		return nil, err
 	}
 	return client, nil
+}
+
+func (v *VMPlatform) CreateCloudlet(ctx context.Context, cloudlet *edgeproto.Cloudlet, pfConfig *edgeproto.PlatformConfig, pfFlavor *edgeproto.Flavor, updateCallback edgeproto.CacheUpdateCallback) error {
+	var err error
+
+	log.SpanLog(ctx, log.DebugLevelInfra, "Creating cloudlet", "cloudletName", cloudlet.Key.Name)
+
+	vaultConfig, err := vault.BestConfig(pfConfig.VaultAddr, vault.WithEnvMap(pfConfig.EnvVar))
+	if err != nil {
+		return err
+	}
+	// Source OpenRC file to access openstack API endpoint
+	updateCallback(edgeproto.UpdateTask, "Sourcing access variables")
+	err = v.VMProvider.InitApiAccessProperties(ctx, &cloudlet.Key, pfConfig.Region, cloudlet.PhysicalName, vaultConfig, cloudlet.EnvVar)
+	if err != nil {
+		return err
+	}
+
+	// For real setups, ansible will always specify the correct
+	// cloudlet container and vm image paths to the controller.
+	// But for local testing convenience, we default to the hard-coded
+	// ones if not specified.
+	if pfConfig.ContainerRegistryPath == "" {
+		pfConfig.ContainerRegistryPath = infracommon.DefaultContainerRegistryPath
+	}
+
+	client, err := v.SetupPlatformVM(ctx, cloudlet, pfConfig, pfFlavor, updateCallback)
+	if err != nil {
+		return err
+	}
+
+	return v.SetupPlatformService(ctx, cloudlet, pfConfig, vaultConfig, client, updateCallback)
+}
+
+func (v *VMPlatform) CleanupCloudlet(ctx context.Context, cloudlet *edgeproto.Cloudlet, pfConfig *edgeproto.PlatformConfig, updateCallback edgeproto.CacheUpdateCallback) error {
+	log.SpanLog(ctx, log.DebugLevelInfra, "Cleaning up cloudlet", "cloudletName", cloudlet.Key.Name)
+
+	client, err := v.GetSSHClientForServer(ctx, v.GetPlatformVMName(&cloudlet.Key), v.GetCloudletExternalNetwork())
+	if err != nil {
+		return err
+	}
+	updateCallback(edgeproto.UpdateTask, "Removing old containers")
+	for _, pfService := range PlatformServices {
+		if out, err := client.Output(
+			fmt.Sprintf("sudo docker rm -f %s_old", pfService),
+		); err != nil {
+			if strings.Contains(out, "No such container") {
+				log.SpanLog(ctx, log.DebugLevelInfra, "no containers to cleanup")
+				continue
+			} else {
+				return fmt.Errorf("cleanup failed: %v, %s\n", err, out)
+			}
+		}
+	}
+	return nil
+}
+
+func (v *VMPlatform) DeleteCloudlet(ctx context.Context, cloudlet *edgeproto.Cloudlet, pfConfig *edgeproto.PlatformConfig, updateCallback edgeproto.CacheUpdateCallback) error {
+	log.SpanLog(ctx, log.DebugLevelInfra, "Deleting cloudlet", "cloudletName", cloudlet.Key.Name)
+
+	updateCallback(edgeproto.UpdateTask, "Deleting cloudlet")
+
+	vaultConfig, err := vault.BestConfig(pfConfig.VaultAddr, vault.WithEnvMap(pfConfig.EnvVar))
+	if err != nil {
+		return err
+	}
+
+	// Source OpenRC file to access openstack API endpoint
+	err = v.VMProvider.InitApiAccessProperties(ctx, &cloudlet.Key, pfConfig.Region, cloudlet.PhysicalName, vaultConfig, cloudlet.EnvVar)
+	if err != nil {
+		// ignore this error, as no creation would've happened on infra, so nothing to delete
+		log.SpanLog(ctx, log.DebugLevelInfra, "failed to source platform variables", "cloudletName", cloudlet.Key.Name, "err", err)
+		return nil
+	}
+
+	platformVMName := v.GetPlatformVMName(&cloudlet.Key)
+	updateCallback(edgeproto.UpdateTask, fmt.Sprintf("Deleting PlatformVM %s", platformVMName))
+	err = v.VMProvider.DeleteVMs(ctx, platformVMName)
+	if err != nil {
+		return fmt.Errorf("DeleteCloudlet error: %v", err)
+	}
+
+	rootLBName := v.GetRootLBName(&cloudlet.Key)
+	updateCallback(edgeproto.UpdateTask, fmt.Sprintf("Deleting RootLB %s", rootLBName))
+	err = v.VMProvider.DeleteVMs(ctx, rootLBName)
+	if err != nil {
+		return fmt.Errorf("DeleteCloudlet error: %v", err)
+	}
+	// Not sure if it's safe to remove vars from Vault due to testing/virtual cloudlets,
+	// so leaving them in Vault for the time being. We can always delete them manually
+
+	return nil
+}
+
+func (v *VMPlatform) UpdateCloudlet(ctx context.Context, cloudlet *edgeproto.Cloudlet, pfConfig *edgeproto.PlatformConfig, updateCallback edgeproto.CacheUpdateCallback) (edgeproto.CloudletAction, error) {
+	log.SpanLog(ctx, log.DebugLevelInfra, "Updating cloudlet", "cloudletName", cloudlet.Key.Name)
+
+	defCloudletAction := edgeproto.CloudletAction_ACTION_NONE
+
+	vaultConfig, err := vault.BestConfig(pfConfig.VaultAddr, vault.WithEnvMap(pfConfig.EnvVar))
+	if err != nil {
+		return defCloudletAction, err
+	}
+	// Source OpenRC file to access openstack API endpoint
+	updateCallback(edgeproto.UpdateTask, fmt.Sprintf("Sourcing platform variables for %s cloudlet", cloudlet.PhysicalName))
+	err = v.VMProvider.InitApiAccessProperties(ctx, &cloudlet.Key, pfConfig.Region, cloudlet.PhysicalName, vaultConfig, cloudlet.EnvVar)
+	if err != nil {
+		return defCloudletAction, err
+	}
+
+	pfClient, err := v.GetSSHClientForServer(ctx, v.GetPlatformVMName(&cloudlet.Key), v.GetCloudletExternalNetwork())
+	if err != nil {
+		return defCloudletAction, err
+	}
+
+	containerVersion, err := getCRMContainerVersion(ctx, pfClient)
+	if err != nil {
+		return defCloudletAction, err
+	}
+
+	rootLBName := cloudcommon.GetRootLBFQDN(&cloudlet.Key)
+	rlbClient, err := v.GetSSHClientForServer(ctx, rootLBName, v.GetCloudletExternalNetwork())
+	if err != nil {
+		return defCloudletAction, err
+	}
+	upgradeMap := map[VMType]ssh.Client{
+		VMTypePlatform: pfClient,
+		VMTypeRootLB:   rlbClient,
+	}
+	for vmType, client := range upgradeMap {
+		if cloudlet.PackageVersion == "" {
+			// No package upgrade required
+			break
+		}
+		pkgVersion, err := getCRMPkgVersion(ctx, client)
+		if err != nil {
+			return defCloudletAction, err
+		}
+		if cloudlet.PackageVersion == pkgVersion {
+			continue
+		}
+
+		updateCallback(edgeproto.UpdateTask, fmt.Sprintf("Upgrading mobiledgex base image package for %s to version %s", vmType, cloudlet.PackageVersion))
+		err = upgradeCloudletPkgs(ctx, vmType, cloudlet, pfConfig, vaultConfig, client, updateCallback)
+		if err != nil {
+			log.SpanLog(ctx, log.DebugLevelInfra, "Failed to upgrade cloudlet packages", "VM type", vmType, "Version", cloudlet.PackageVersion, "err", err)
+			updateCallback(edgeproto.UpdateTask, fmt.Sprintf("Failed to upgrade cloudlet packages of vm type %s to version %s, please upgrade them manually!", vmType, cloudlet.PackageVersion))
+			return defCloudletAction, err
+		}
+	}
+
+	if containerVersion == cloudlet.ContainerVersion {
+		// No service upgrade required
+		return edgeproto.CloudletAction_ACTION_DONE, nil
+	}
+
+	// Rename existing containers
+	for _, pfService := range PlatformServices {
+		from := pfService
+		to := pfService + "_old"
+		log.SpanLog(ctx, log.DebugLevelInfra, "renaming existing services to bringup new ones", "from", from, "to", to)
+		if out, err := pfClient.Output(
+			fmt.Sprintf("sudo docker rename %s %s", from, to),
+		); err != nil {
+			errStr := fmt.Sprintf("unable to rename %s to %s: %v, %s\n",
+				from, to, err, out)
+			err = handleUpgradeError(ctx, pfClient)
+			if err == nil {
+				return defCloudletAction, errors.New(errStr)
+			} else {
+				return defCloudletAction, fmt.Errorf("%s. Cleanup failed as well: %v\n", errStr, err)
+			}
+		}
+	}
+
+	err = v.SetupPlatformService(ctx, cloudlet, pfConfig, vaultConfig, pfClient, updateCallback)
+
+	if err != nil {
+		log.SpanLog(ctx, log.DebugLevelInfra, "failed to setup platform services", "err", err)
+		// Cleanup failed containers
+		updateCallback(edgeproto.UpdateTask, "Upgrade failed, cleaning up")
+		if out, err1 := pfClient.Output(
+			fmt.Sprintf("sudo docker rm -f %s", strings.Join(PlatformServices, " ")),
+		); err1 != nil {
+			if strings.Contains(out, "No such container") {
+				log.SpanLog(ctx, log.DebugLevelInfra, "no containers to cleanup")
+			} else {
+				return defCloudletAction, fmt.Errorf("upgrade failed: %v and cleanup failed: %v, %s\n", err, err1, out)
+			}
+		}
+		// Cleanup container names
+		for _, pfService := range PlatformServices {
+			from := pfService + "_old"
+			to := pfService
+			log.SpanLog(ctx, log.DebugLevelInfra, "restoring old container name", "from", from, "to", to)
+			if out, err1 := pfClient.Output(
+				fmt.Sprintf("sudo docker rename %s %s", from, to),
+			); err1 != nil {
+				return defCloudletAction, fmt.Errorf("upgrade failed: %v and unable to rename old-container: %v, %s\n", err, err1, out)
+			}
+		}
+		return defCloudletAction, err
+	}
+	return edgeproto.CloudletAction_ACTION_IN_PROGRESS, nil
+}
+
+func (v *VMPlatform) DeleteCloudletAccessVars(ctx context.Context, cloudlet *edgeproto.Cloudlet, pfConfig *edgeproto.PlatformConfig, updateCallback edgeproto.CacheUpdateCallback) error {
+	log.SpanLog(ctx, log.DebugLevelInfra, "Deleting access vars from vault", "cloudletName", cloudlet.Key.Name)
+
+	updateCallback(edgeproto.UpdateTask, "Deleting access vars from secure secrets storage")
+
+	vaultConfig, err := vault.BestConfig(pfConfig.VaultAddr, vault.WithEnvMap(pfConfig.EnvVar))
+	if err != nil {
+		return err
+	}
+	path := v.GetVaultCloudletAccessPath(&cloudlet.Key, pfConfig.Region, cloudlet.PhysicalName)
+	err = infracommon.DeleteDataFromVault(vaultConfig, path)
+	if err != nil {
+		return fmt.Errorf("Failed to delete access vars from vault: %v", err)
+	}
+	return nil
+}
+
+func (v *VMPlatform) SaveCloudletAccessVars(ctx context.Context, cloudlet *edgeproto.Cloudlet, accessVarsIn map[string]string, pfConfig *edgeproto.PlatformConfig, updateCallback edgeproto.CacheUpdateCallback) error {
+	return v.VMProvider.SaveCloudletAccessVars(ctx, cloudlet, accessVarsIn, pfConfig, updateCallback)
+}
+
+func (v *VMPlatform) GatherCloudletInfo(ctx context.Context, info *edgeproto.CloudletInfo) error {
+	return v.VMProvider.GatherCloudletInfo(ctx, info)
 }

@@ -43,7 +43,7 @@ func (s *ShepherdPlatform) Init(ctx context.Context, key *edgeproto.CloudletKey,
 	s.vaultConfig = vaultConfig
 
 	//get the platform client so we can ssh in to make curl commands to the prometheus apps
-	if err = s.pf.InitOpenstackProps(ctx, key, region, physicalName, vaultConfig, vars); err != nil {
+	if err = s.pf.InitApiAccessProperties(ctx, key, region, physicalName, vaultConfig, vars); err != nil {
 		return err
 	}
 	//need to have a separate one for dedicated rootlbs, see openstack.go line 111,

@@ -103,6 +103,7 @@ tests:
     filetype: orgdata
 
 - includefile: autoprov.yml
+  loops: 2
 
 - includefile: mc_debugtest.yml
 

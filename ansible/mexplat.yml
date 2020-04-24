@@ -72,11 +72,6 @@
         status_code: 200
         body_format: json
       register: response
-      retries: 6
-      delay: 10
-      until:
-        - response.json.tags
-        - edge_cloud_version in response.json.tags
       check_mode: no
 
     - name: Notify upgrade start on slack

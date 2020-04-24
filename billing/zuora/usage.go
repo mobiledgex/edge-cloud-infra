@@ -41,7 +41,11 @@ func RecordClusterUsage(account *AccountInfo, clusterInstKey *edgeproto.ClusterI
 	if err != nil {
 		return fmt.Errorf("Error creating request: %v\n", err)
 	}
-	req.Header.Add("Authorization", Token.TokenType+" "+Token.AccessToken)
+	token, tokentype, err := getToken()
+	if err != nil {
+		return fmt.Errorf("Unable to retrieve oAuth token")
+	}
+	req.Header.Add("Authorization", tokentype+" "+token)
 	req.Header.Set("Content-Type", "application/json")
 
 	resp, err := client.Do(req)

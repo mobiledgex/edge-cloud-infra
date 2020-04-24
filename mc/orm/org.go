@@ -12,7 +12,7 @@ import (
 
 	"github.com/jinzhu/gorm"
 	"github.com/labstack/echo"
-	"github.com/mobiledgex/edge-cloud-infra/billing"
+	"github.com/mobiledgex/edge-cloud-infra/billing/zuora"
 	"github.com/mobiledgex/edge-cloud-infra/mc/ormapi"
 	"github.com/mobiledgex/edge-cloud-infra/mc/rbac"
 	"github.com/mobiledgex/edge-cloud/cloudcommon"
@@ -39,9 +39,6 @@ func CreateOrg(c echo.Context) error {
 	span.SetTag("org", org.Name)
 
 	err = CreateOrgObj(ctx, claims, &org)
-	if err == nil && serverConfig.Billing {
-		err = createZuoraAccount(ctx, &org)
-	}
 	return setReply(c, err, Msg("Organization created"))
 }
 
@@ -50,8 +47,8 @@ func createZuoraAccount(ctx context.Context, org *ormapi.Organization) error {
 	if org.Type != OrgTypeDeveloper || org.Name == "mobiledgex" {
 		return nil
 	}
-	accountInfo := billing.AccountInfo{OrgName: org.Name}
-	billTo := billing.CustomerBillToContact{
+	accountInfo := zuora.AccountInfo{OrgName: org.Name}
+	billTo := zuora.CustomerBillToContact{
 		FirstName: org.Name,
 		LastName:  org.Name,
 		WorkEmail: org.Email,
@@ -61,7 +58,7 @@ func createZuoraAccount(ctx context.Context, org *ormapi.Organization) error {
 		State:     org.State,
 	}
 	currency := "USD" // for now, later on have a function that selects it based on address?
-	err := billing.CreateCustomer(org.Name, currency, &billTo, &accountInfo)
+	err := zuora.CreateCustomer(org.Name, currency, &billTo, &accountInfo)
 	if err != nil {
 		return err
 	}
@@ -70,8 +67,8 @@ func createZuoraAccount(ctx context.Context, org *ormapi.Organization) error {
 	db := loggedDB(ctx)
 	err = db.Create(&accountInfo).Error
 	if err != nil {
-		if strings.Contains(err.Error(), "duplicate key value violates unique constraint \"organizations_pkey") {
-			return fmt.Errorf("Organization with name %s (case-insensitive) already exists", org.Name)
+		if strings.Contains(err.Error(), "duplicate key value violates unique constraint \"accountinfo_pkey") {
+			return fmt.Errorf("AccountInfo with name %s (case-insensitive) already exists", org.Name)
 		}
 		return dbErr(err)
 	}
@@ -118,6 +115,14 @@ func CreateOrgObj(ctx context.Context, claims *UserClaims, org *ormapi.Organizat
 		}
 		return dbErr(err)
 	}
+	if serverConfig.Billing {
+		err = createZuoraAccount(ctx, org)
+		if err != nil {
+			// delete the org
+			db.Delete(&org)
+			return err
+		}
+	}
 	// set user to admin role of organization
 	psub := rbac.GetCasbinGroup(org.Name, claims.Username)
 	err = enforcer.AddGroupingPolicy(ctx, psub, role)
@@ -153,9 +158,6 @@ func DeleteOrg(c echo.Context) error {
 	span.SetTag("org", org.Name)
 
 	err = DeleteOrgObj(ctx, claims, &org)
-	if err == nil && serverConfig.Billing {
-		err = cancelZuoraSubscription(ctx, org.Name)
-	}
 	return setReply(c, err, Msg("Organization deleted"))
 }
 
@@ -172,7 +174,7 @@ func cancelZuoraSubscription(ctx context.Context, orgName string) error {
 	if err != nil {
 		return dbErr(err)
 	}
-	err = billing.CancelSubscription(info)
+	err = zuora.CancelSubscription(info)
 	if err != nil {
 		return err
 	}
@@ -205,6 +207,13 @@ func DeleteOrgObj(ctx context.Context, claims *UserClaims, org *ormapi.Organizat
 	}
 
 	// delete org
+	if serverConfig.Billing {
+		err = cancelZuoraSubscription(ctx, org.Name)
+		// if the accountInfo is not in the db, go ahead and delete the org
+		if !strings.Contains(err.Error(), fmt.Sprintf("account \"%s\" not found", org.Name)) {
+			return err
+		}
+	}
 	err = db.Delete(&org).Error
 	if err != nil {
 		undoerr := markOrgForDelete(db, org.Name, !doMark)
@@ -468,11 +477,11 @@ func orgInUseRegion(ctx context.Context, c ormapi.Controller, orgName string) er
 	return fmt.Errorf(res.Message)
 }
 
-func GetAccountObj(ctx context.Context, orgName string) (*billing.AccountInfo, error) {
+func GetAccountObj(ctx context.Context, orgName string) (*zuora.AccountInfo, error) {
 	if orgName == "" {
 		return nil, fmt.Errorf("no orgName specified")
 	}
-	acc := billing.AccountInfo{
+	acc := zuora.AccountInfo{
 		OrgName: orgName,
 	}
 	db := loggedDB(ctx)

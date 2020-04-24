@@ -8,8 +8,8 @@ import (
 	"os/signal"
 	"time"
 
-	"github.com/mobiledgex/edge-cloud-infra/billing"
 	"github.com/mobiledgex/edge-cloud-infra/billing/collections"
+	"github.com/mobiledgex/edge-cloud-infra/billing/zuora"
 	"github.com/mobiledgex/edge-cloud-infra/mc/orm"
 	"github.com/mobiledgex/edge-cloud/cloudcommon/node"
 	"github.com/mobiledgex/edge-cloud/log"
@@ -82,7 +82,7 @@ func main() {
 		span := log.StartSpan(log.DebugLevelInfo, "billing")
 		defer span.Finish()
 		ctx := log.ContextWithSpan(context.Background(), span)
-		go billing.RunOAuth(ctx)
+		go zuora.RunOAuth(ctx)
 		go collections.CollectDailyClusterUsage(ctx)
 	}
 

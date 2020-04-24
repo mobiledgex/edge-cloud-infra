@@ -87,12 +87,12 @@ func CollectDailyClusterUsage(ctx context.Context) {
 						Organization: clusterorg,
 						CloudletKey:  edgeproto.CloudletKey{Name: cloudlet, Organization: cloudletorg},
 					}
-					var accountInfo *billing.AccountInfo
+					var accountInfo *zuora.AccountInfo
 					accountInfo, err = orm.GetAccountObj(ctx, org)
 					if err != nil {
 						log.SpanLog(ctx, log.DebugLevelInfo, "Unable to get account info", "org", org, "err", err)
 					} else {
-						err = billing.RecordClusterUsage(accountInfo, &key, flavor, start, end, uptime)
+						err = zuora.RecordClusterUsage(accountInfo, &key, flavor, start, end, uptime)
 						if err != nil {
 							log.SpanLog(ctx, log.DebugLevelInfo, "Unable to record Cluster usage in Zuora", "err", err)
 						}

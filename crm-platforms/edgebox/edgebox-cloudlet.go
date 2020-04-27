@@ -35,9 +35,9 @@ func (s *Platform) UpdateCloudlet(ctx context.Context, cloudlet *edgeproto.Cloud
 	return cloudletAction, err
 }
 
-func (s *Platform) CleanupCloudlet(ctx context.Context, cloudlet *edgeproto.Cloudlet, pfConfig *edgeproto.PlatformConfig, updateCallback edgeproto.CacheUpdateCallback) error {
+func (s *Platform) CleanupCloudlet(ctx context.Context, cloudlet *edgeproto.Cloudlet, pfConfig *edgeproto.PlatformConfig, action edgeproto.CloudletAction, updateCallback edgeproto.CacheUpdateCallback) error {
 	log.SpanLog(ctx, log.DebugLevelMexos, "Cleaning up cloudlet", "cloudletName", cloudlet.Key.Name)
-	err := s.generic.CleanupCloudlet(ctx, cloudlet, pfConfig, updateCallback)
+	err := s.generic.CleanupCloudlet(ctx, cloudlet, pfConfig, action, updateCallback)
 	return err
 }
 

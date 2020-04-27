@@ -664,23 +664,60 @@ func (s *Platform) UpdateCloudlet(ctx context.Context, cloudlet *edgeproto.Cloud
 	return edgeproto.CloudletAction_ACTION_IN_PROGRESS, nil
 }
 
-func (s *Platform) CleanupCloudlet(ctx context.Context, cloudlet *edgeproto.Cloudlet, pfConfig *edgeproto.PlatformConfig, updateCallback edgeproto.CacheUpdateCallback) error {
+func (s *Platform) CleanupCloudlet(ctx context.Context, cloudlet *edgeproto.Cloudlet, pfConfig *edgeproto.PlatformConfig, action edgeproto.CloudletAction, updateCallback edgeproto.CacheUpdateCallback) error {
 	log.SpanLog(ctx, log.DebugLevelMexos, "Cleaning up cloudlet", "cloudletName", cloudlet.Key.Name)
 
 	client, err := s.GetSSHClient(ctx, getPlatformVMName(&cloudlet.Key), s.GetCloudletExternalNetwork(), mexos.SSHUser)
 	if err != nil {
 		return err
 	}
-	updateCallback(edgeproto.UpdateTask, "Removing old containers")
-	for _, pfService := range PlatformServices {
-		if out, err := client.Output(
-			fmt.Sprintf("sudo docker rm -f %s_old", pfService),
-		); err != nil {
-			if strings.Contains(out, "No such container") {
-				log.SpanLog(ctx, log.DebugLevelMexos, "no containers to cleanup")
+	switch action {
+	case edgeproto.CloudletAction_ACTION_CLEANUP:
+		updateCallback(edgeproto.UpdateTask, "Removing old containers")
+		for _, pfService := range PlatformServices {
+			if out, err := client.Output(
+				fmt.Sprintf("sudo docker rm -f %s_old", pfService),
+			); err != nil {
+				if strings.Contains(out, "No such container") {
+					log.SpanLog(ctx, log.DebugLevelMexos, "no containers to cleanup")
+					continue
+				} else {
+					return fmt.Errorf("cleanup failed: %v, %s\n", err, out)
+				}
+			}
+		}
+	case edgeproto.CloudletAction_ACTION_RESTORE:
+		updateCallback(edgeproto.UpdateTask, "Restoring containers")
+		for _, pfService := range PlatformServices {
+			pfServiceOld := fmt.Sprintf("%s_old", pfService)
+			out, err := client.Output(
+				fmt.Sprintf("sudo docker ps --filter name=%s", pfServiceOld),
+			)
+			if err != nil {
+				return fmt.Errorf("restore failed: %v, %s\n", err, out)
+			}
+			if out == "" {
+				log.SpanLog(ctx, log.DebugLevelMexos, "no container to restore", "name", pfServiceOld)
 				continue
-			} else {
-				return fmt.Errorf("cleanup failed: %v, %s\n", err, out)
+			}
+			// cleanup failed containers
+			if out, err := client.Output(
+				fmt.Sprintf("sudo docker rm -f %s", pfService),
+			); err != nil {
+				if strings.Contains(out, "No such container") {
+					log.SpanLog(ctx, log.DebugLevelMexos, "no stale container to remove", pfService)
+				} else {
+					return fmt.Errorf("restore failed: %v, %s\n", err, out)
+				}
+			}
+			// restore container names
+			from := pfServiceOld
+			to := pfService
+			log.SpanLog(ctx, log.DebugLevelMexos, "restoring container name", "from", from, "to", to)
+			if out, err := client.Output(
+				fmt.Sprintf("sudo docker rename %s %s", from, to),
+			); err != nil {
+				return fmt.Errorf("restore failed, unable to rename old-container: %v, %s\n", err, out)
 			}
 		}
 	}

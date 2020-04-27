@@ -158,4 +158,34 @@ sudo sed -i "s/cgroup-driver=systemd/cgroup-driver=cgroupfs/g" /etc/systemd/syst
 sudo kubeadm config images pull
 sudo usermod -aG docker root
 
+sudo rm -f /etc/systemd/system/ssh.service
+sudo tee /etc/systemd/system/ssh.service <<'EOT'
+[Unit]
+Description=OpenBSD Secure Shell server
+After=network.target auditd.service
+ConditionPathExists=!/etc/ssh/sshd_not_to_be_run
+
+[Service]
+EnvironmentFile=-/etc/default/ssh
+ExecStartPre=/usr/sbin/sshd -t
+ExecStart=/usr/sbin/sshd -D $SSHD_OPTS
+ExecReload=/usr/sbin/sshd -t
+ExecReload=/bin/kill -HUP $MAINPID
+KillMode=process
+Restart=on-failure
+Type=notify
+
+[Install]
+WantedBy=multi-user.target
+Alias=sshd.service
+EOT
+
+sudo tee /etc/cron.hourly/sshd-stale-session-cleanup <<'EOT'
+systemctl 2>/dev/null \
+    | grep 'scope.*abandoned' \
+    | awk '{print $1}' \
+    | sudo xargs -r systemctl stop >>/var/tmp/session-cleanup.log 2>&1
+EOT
+sudo chmod +x /etc/cron.hourly/sshd-stale-session-cleanup
+
 echo "[$(date)] Done setup.sh ($( pwd ))"

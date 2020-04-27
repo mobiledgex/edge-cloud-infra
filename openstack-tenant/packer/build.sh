@@ -2,11 +2,11 @@
 
 ARTIFACTORY_BASEURL='https://artifactory.mobiledgex.net'
 ARTIFACTORY_USER='packer'
-ARTIFACTORY_ARTIFACTS_TAG='2019-11-01'
-CLOUD_IMAGE='ubuntu-16.04-server-cloudimg-amd64-disk1.img'
+ARTIFACTORY_ARTIFACTS_TAG='2020-04-27'
+CLOUD_IMAGE='ubuntu-18.04-server-cloudimg-amd64.img'
 OUTPUT_IMAGE_NAME='mobiledgex'
 
-: ${CLOUD_IMAGE_TAG:=ubuntu-16.04-20191024}
+: ${CLOUD_IMAGE_TAG:=ubuntu-18.04-server-cloudimg-amd64}
 : ${FLAVOR:=m4.small}
 : ${FORCE:=no}
 : ${TRACE:=no}

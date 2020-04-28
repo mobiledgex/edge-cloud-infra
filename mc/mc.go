@@ -9,7 +9,6 @@ import (
 	"time"
 
 	"github.com/mobiledgex/edge-cloud-infra/billing/collections"
-	"github.com/mobiledgex/edge-cloud-infra/billing/zuora"
 	"github.com/mobiledgex/edge-cloud-infra/mc/orm"
 	"github.com/mobiledgex/edge-cloud/cloudcommon/node"
 	"github.com/mobiledgex/edge-cloud/log"
@@ -76,6 +75,7 @@ func main() {
 		NotifySrvAddr:    *notifySrvAddr,
 		NodeMgr:          &nodeMgr,
 		Billing:          billingEnabled,
+		BillingPath:      *billingPath,
 	}
 	server, err := orm.RunServer(&config)
 	if err != nil {
@@ -86,10 +86,6 @@ func main() {
 	if billingEnabled {
 		span := log.StartSpan(log.DebugLevelInfo, "billing")
 		defer span.Finish()
-		err := zuora.InitZuora(nodeMgr.VaultAddr, *billingPath)
-		if err != nil {
-			log.FatalLog("Failed to get Zuora credentials from vault", "err", err)
-		}
 		ctx := log.ContextWithSpan(context.Background(), span)
 		go collections.CollectDailyClusterUsage(ctx)
 	}

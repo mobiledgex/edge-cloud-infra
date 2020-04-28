@@ -16,6 +16,7 @@ import (
 	"github.com/gorilla/websocket"
 	"github.com/jinzhu/gorm"
 	"github.com/labstack/echo"
+	"github.com/mobiledgex/edge-cloud-infra/billing/zuora"
 	intprocess "github.com/mobiledgex/edge-cloud-infra/e2e-tests/int-process"
 	"github.com/mobiledgex/edge-cloud-infra/mc/ormapi"
 	"github.com/mobiledgex/edge-cloud-infra/mc/rbac"
@@ -72,6 +73,7 @@ type ServerConfig struct {
 	NotifySrvAddr    string
 	NodeMgr          *node.NodeMgr
 	Billing          bool
+	BillingPath      string
 }
 
 var DefaultDBUser = "mcuser"
@@ -161,6 +163,13 @@ func RunServer(config *ServerConfig) (*Server, error) {
 	log.SpanLog(ctx, log.DebugLevelInfo, "vault auth", "type", config.vaultConfig.Auth.Type())
 	server.initJWKDone = make(chan struct{}, 1)
 	InitVault(config.vaultConfig, server.initJWKDone)
+
+	if config.Billing {
+		err = zuora.InitZuora(config.vaultConfig, config.BillingPath)
+		if err != nil {
+			return nil, fmt.Errorf("Unable to initialize zuora: %v", err)
+		}
+	}
 
 	if gitlabToken == "" {
 		log.InfoLog("Note: No gitlab_token env var found")

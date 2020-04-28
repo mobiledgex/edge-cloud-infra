@@ -156,7 +156,6 @@ type VMGroupRequestSpec struct {
 	VMs           []*VMRequestSpec
 	NewSubnetName string
 	NewSecgrpName string
-
 	AccessPorts   string
 	PrivacyPolicy *edgeproto.PrivacyPolicy
 }

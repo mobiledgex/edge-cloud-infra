@@ -129,33 +129,6 @@ func GetRouterDetailInterfaces(ctx context.Context, rd *OSRouterDetail) ([]OSRou
 	return interfaces, nil
 }
 
-func (o *OpenstackPlatform) GetMexRouterIP(ctx context.Context) (string, error) {
-	rtr := o.vmPlatform.GetCloudletExternalRouter()
-	if rtr == vmlayer.NoConfigExternalRouter || rtr == vmlayer.NoExternalRouter {
-		return "", nil
-	}
-	rd, rderr := o.GetRouterDetail(ctx, rtr)
-	if rderr != nil {
-		return "", fmt.Errorf("can't get router detail for %s, %v", rtr, rderr)
-	}
-	log.SpanLog(ctx, log.DebugLevelInfra, "router detail", "detail", rd)
-	reg, regerr := GetRouterDetailExternalGateway(rd)
-	if regerr != nil {
-		// some deployments will not be able to retrieve the router GW at all, allow this
-		log.SpanLog(ctx, log.DebugLevelInfra, "can't get router external GW, continuing", "error", regerr)
-		return "", nil
-	}
-	if reg != nil && len(reg.ExternalFixedIPs) > 0 {
-		fip := reg.ExternalFixedIPs[0]
-		log.SpanLog(ctx, log.DebugLevelInfra, "external fixed ips", "ips", fip)
-		return fip.IPAddress, nil
-	} else {
-		// some networks may not have an external fixed ip for the router.  This is not fatal
-		log.SpanLog(ctx, log.DebugLevelInfra, "can't get external fixed ips list from router detail external gateway, returning blank ip")
-		return "", nil
-	}
-}
-
 func (o *OpenstackPlatform) ValidateNetwork(ctx context.Context) error {
 	nets, err := o.ListNetworks(ctx)
 	if err != nil {
@@ -365,4 +338,27 @@ func ParseFlavorProperties(f OSFlavorDetail) map[string]string {
 
 	}
 	return props
+}
+
+func (o *OpenstackPlatform) GetRouterDetail(ctx context.Context, routerName string) (*vmlayer.RouterDetail, error) {
+
+	var rd vmlayer.RouterDetail
+	rd.Name = routerName
+
+	ord, err := o.GetOpenStackRouterDetail(ctx, routerName)
+	if err != nil {
+		return nil, err
+	}
+	gw, err := GetRouterDetailExternalGateway(ord)
+	if err != nil {
+		return nil, err
+	}
+	fip := gw.ExternalFixedIPs
+	log.SpanLog(ctx, log.DebugLevelInfra, "external fixed ips", "ips", fip)
+
+	if len(fip) != 1 {
+		return nil, fmt.Errorf("Unexpected fixed ips for mex router %v", fip)
+	}
+	rd.ExternalIP = fip[0].IPAddress
+	return &rd, nil
 }

@@ -658,7 +658,7 @@ func (s *OpenstackPlatform) ListRouters(ctx context.Context) ([]OSRouter, error)
 }
 
 //GetRouterDetail returns details per router
-func (s *OpenstackPlatform) GetRouterDetail(ctx context.Context, routerName string) (*OSRouterDetail, error) {
+func (s *OpenstackPlatform) GetOpenStackRouterDetail(ctx context.Context, routerName string) (*OSRouterDetail, error) {
 	out, err := s.TimedOpenStackCommand(ctx, "openstack", "router", "show", "-f", "json", routerName)
 	if err != nil {
 		err = fmt.Errorf("can't get router details for %s, %s, %v", routerName, out, err)

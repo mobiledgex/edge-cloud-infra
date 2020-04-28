@@ -502,10 +502,9 @@ func (v *VMPlatform) SetupRootLB(
 	if err != nil {
 		return fmt.Errorf("cannot copy resource-tracker to rootLb %v", err)
 	}
-
-	err = v.VMProvider.NetworkSetupForRootLB(ctx, client, rootLBName)
+	err = v.AddRouteToServer(ctx, client, rootLBName, InternalNetworkRoute)
 	if err != nil {
-		return fmt.Errorf("failed to NetworkSetupForRootLB %v", err)
+		return fmt.Errorf("failed to AddRouteToServer %v", err)
 	}
 	err = v.VMProvider.WhitelistSecurityRules(ctx, v.GetServerSecurityGroupName(rootLBName), rootLBName, GetAllowedClientCIDR(), RootLBPorts)
 	if err != nil {

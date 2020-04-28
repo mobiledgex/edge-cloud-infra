@@ -7,7 +7,6 @@ import (
 
 	"github.com/mobiledgex/edge-cloud-infra/vmlayer"
 	"github.com/mobiledgex/edge-cloud/edgeproto"
-
 	"github.com/mobiledgex/edge-cloud/log"
 )
 

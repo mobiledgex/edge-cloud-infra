@@ -51,7 +51,10 @@ func (s *Platform) Init(ctx context.Context, key *edgeproto.CloudletKey, region,
 		return err
 	}
 	// Reuse the same ssh connection whever possible
-	s.SharedClient.StartPersistentConn(shepherd_common.ShepherdSshConnectTimeout)
+	err = s.SharedClient.StartPersistentConn(shepherd_common.ShepherdSshConnectTimeout)
+	if err != nil {
+		return err
+	}
 
 	s.collectInterval = VmScrapeInterval
 	log.SpanLog(ctx, log.DebugLevelMexos, "init openstack", "rootLB", s.rootLbName,
@@ -75,7 +78,10 @@ func (s *Platform) GetClusterPlatformClient(ctx context.Context, clusterInst *ed
 		if err != nil {
 			return nil, err
 		}
-		pc.StartPersistentConn(shepherd_common.ShepherdSshConnectTimeout)
+		err = pc.StartPersistentConn(shepherd_common.ShepherdSshConnectTimeout)
+		if err != nil {
+			return nil, err
+		}
 		return pc, err
 	} else {
 		return s.SharedClient, nil

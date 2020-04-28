@@ -20,11 +20,11 @@ import (
 type VMType string
 
 const (
-	VMTypeAppVM     VMType = "appvm"
-	VMTypeRootLB    VMType = "rootlb"
-	VMTypePlatform  VMType = "platform"
-	VMTypeK8sMaster VMType = "k8s-master"
-	VMTypeK8sNode   VMType = "k8s-node"
+	VMTypeAppVM         VMType = "appvm"
+	VMTypeRootLB        VMType = "rootlb"
+	VMTypePlatform      VMType = "platform"
+	VMTypeClusterMaster VMType = "cluster-master"
+	VMTypeClusterNode   VMType = "cluster-node"
 )
 
 type ActionType string
@@ -155,6 +155,8 @@ type VMGroupRequestSpec struct {
 	GroupName     string
 	VMs           []*VMRequestSpec
 	NewSubnetName string
+	NewSecgrpName string
+
 	AccessPorts   string
 	PrivacyPolicy *edgeproto.PrivacyPolicy
 }
@@ -176,6 +178,12 @@ func WithAccessPorts(ap string) VMGroupReqOp {
 func WithNewSubnet(sn string) VMGroupReqOp {
 	return func(s *VMGroupRequestSpec) error {
 		s.NewSubnetName = sn
+		return nil
+	}
+}
+func WithNewSecurityGroup(sg string) VMGroupReqOp {
+	return func(s *VMGroupRequestSpec) error {
+		s.NewSecgrpName = sg
 		return nil
 	}
 }
@@ -393,6 +401,8 @@ func (v *VMPlatform) getVMGroupOrchestrationParamsFromGroupSpec(ctx context.Cont
 	subnetDns := []string{}
 	cloudletSecGrpID, err := v.VMProvider.GetResourceID(ctx, ResourceTypeSecurityGroup, v.GetCloudletSecurityGroupName())
 	internalSecgrpID := ""
+	internalSecgrpPreexisting := false
+
 	if err != nil {
 		return nil, err
 	}
@@ -418,6 +428,7 @@ func (v *VMPlatform) getVMGroupOrchestrationParamsFromGroupSpec(ctx context.Cont
 		log.SpanLog(ctx, log.DebugLevelInfra, "External router in use")
 		if spec.NewSubnetName != "" {
 			internalSecgrpID = cloudletSecGrpID
+			internalSecgrpPreexisting = true
 			rtrInUse = true
 			routerPortName := spec.NewSubnetName + "-rtr-port"
 			routerPort := PortOrchestrationParams{
@@ -431,16 +442,17 @@ func (v *VMPlatform) getVMGroupOrchestrationParamsFromGroupSpec(ctx context.Cont
 		}
 	}
 
-	newSecGrpName := spec.GroupName + "-sg"
 	var egressRules []edgeproto.OutboundSecurityRule
 	if spec.PrivacyPolicy != nil {
 		egressRules = spec.PrivacyPolicy.OutboundSecurityRules
 	}
-	externalSecGrp, err := GetSecGrpParams(newSecGrpName, secGrpWithAccessPorts(spec.AccessPorts), secGrpWithEgressRules(egressRules))
-	if err != nil {
-		return nil, err
+	if spec.NewSecgrpName != "" {
+		externalSecGrp, err := GetSecGrpParams(spec.NewSecgrpName, secGrpWithAccessPorts(spec.AccessPorts), secGrpWithEgressRules(egressRules))
+		if err != nil {
+			return nil, err
+		}
+		vmgp.SecurityGroups = append(vmgp.SecurityGroups, *externalSecGrp)
 	}
-	vmgp.SecurityGroups = append(vmgp.SecurityGroups, *externalSecGrp)
 
 	if err != nil {
 		return nil, err
@@ -502,7 +514,7 @@ func (v *VMPlatform) getVMGroupOrchestrationParamsFromGroupSpec(ctx context.Cont
 				newPorts = append(newPorts, internalPort)
 			}
 
-		case VMTypeK8sMaster:
+		case VMTypeClusterMaster:
 			role = RoleMaster
 			if vm.ConnectToSubnet != "" {
 				// connect via internal network to LB
@@ -515,7 +527,7 @@ func (v *VMPlatform) getVMGroupOrchestrationParamsFromGroupSpec(ctx context.Cont
 			} else {
 				return nil, fmt.Errorf("k8s master not specified to be connected to internal network")
 			}
-		case VMTypeK8sNode:
+		case VMTypeClusterNode:
 			role = RoleNode
 			if vm.ConnectToSubnet != "" {
 				// connect via internal network to LB
@@ -537,12 +549,15 @@ func (v *VMPlatform) getVMGroupOrchestrationParamsFromGroupSpec(ctx context.Cont
 		// security group which is used when we have a router
 		if internalSecgrpID != "" {
 			for i := range newPorts {
-				sec := NewResourceReference(internalSecgrpID, false)
+				sec := NewResourceReference(internalSecgrpID, internalSecgrpPreexisting)
 				newPorts[i].SecurityGroups = append(newPorts[i].SecurityGroups, sec)
 			}
 		}
 
 		if vm.ConnectToExternalNet {
+			if spec.NewSecgrpName == "" {
+				return nil, fmt.Errorf("external network specified with no security group: %s", vm.Name)
+			}
 			var externalport PortOrchestrationParams
 			if vmgp.Netspec.FloatingIPNet != "" {
 				externalport = PortOrchestrationParams{
@@ -558,7 +573,7 @@ func (v *VMPlatform) getVMGroupOrchestrationParamsFromGroupSpec(ctx context.Cont
 					VnicType:    vmgp.Netspec.VnicType,
 				}
 				externalport.SecurityGroups = []ResourceReference{
-					NewResourceReference(newSecGrpName, false),
+					NewResourceReference(spec.NewSecgrpName, false),
 					NewResourceReference(cloudletSecGrpID, true),
 				}
 				newPorts = append(newPorts, externalport)
@@ -640,4 +655,13 @@ func (v *VMPlatform) UpdateVMsFromVMSpec(ctx context.Context, name string, vms [
 	}
 	log.SpanLog(ctx, log.DebugLevelInfra, "VM update done")
 	return gp, nil
+}
+
+func (v *VMPlatform) GetSubnetGatewayFromVMGroupParms(ctx context.Context, subnetName string, vmgp *VMGroupOrchestrationParams) (string, error) {
+	for _, s := range vmgp.Subnets {
+		if s.Name == subnetName {
+			return s.GatewayIP, nil
+		}
+	}
+	return "", fmt.Errorf("Subnet: %s not found in vm group params", subnetName)
 }

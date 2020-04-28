@@ -151,11 +151,12 @@ func (v *VMPlatform) CreateAppInst(ctx context.Context, clusterInst *edgeproto.C
 		// depends on whether it has an LB
 		appConnectsExternal := !usesLb
 		var vms []*VMRequestSpec
-
 		externalServerName := objName
+		var lbName string
+		var vmgp *VMGroupOrchestrationParams
 
 		if usesLb {
-			lbName := objName + "-lb"
+			lbName = objName + "-lb"
 			externalServerName = lbName
 			newSubnetName = objName + "-subnet"
 			lbVm, err := v.GetVMSpecForRootLB(ctx, lbName, newSubnetName, updateCallback)
@@ -175,6 +176,8 @@ func (v *VMPlatform) CreateAppInst(ctx context.Context, clusterInst *edgeproto.C
 			WithComputeAvailabilityZone(appInst.AvailabilityZone),
 			WithExternalVolume(appInst.ExternalVolumeSize),
 			WithSubnetConnection(newSubnetName),
+			WithDeploymentManifest(app.DeploymentManifest),
+			WithCommand(app.Command),
 		)
 		if err != nil {
 			return err
@@ -182,9 +185,11 @@ func (v *VMPlatform) CreateAppInst(ctx context.Context, clusterInst *edgeproto.C
 		vms = append(vms, appVm)
 
 		updateCallback(edgeproto.UpdateTask, "Deploying App")
-		_, err = v.CreateVMsFromVMSpec(ctx, objName, vms, updateCallback, WithNewSubnet(newSubnetName),
+		vmgp, err = v.CreateVMsFromVMSpec(ctx, objName, vms, updateCallback, WithNewSubnet(newSubnetName),
 			WithPrivacyPolicy(privacyPolicy),
-			WithAccessPorts(app.AccessPorts))
+			WithAccessPorts(app.AccessPorts),
+			WithNewSecurityGroup(v.GetServerSecurityGroupName(objName)),
+		)
 
 		if err != nil {
 			return err
@@ -223,6 +228,25 @@ func (v *VMPlatform) CreateAppInst(ctx context.Context, clusterInst *edgeproto.C
 			if err != nil {
 				return fmt.Errorf("AddProxySecurityRulesAndPatchDNS error: %v", err)
 			}
+
+			if v.GetCloudletExternalRouter() == NoExternalRouter {
+				log.SpanLog(ctx, log.DebugLevelInfra, "Need to attach internal interface on rootlb")
+
+				// after vm creation, the orchestrator will update some fields in the group params including gateway IP.
+				// this IP is used on the rootLB to server as the GW for this new subnet
+				gw, err := v.GetSubnetGatewayFromVMGroupParms(ctx, newSubnetName, vmgp)
+				if err != nil {
+					return err
+				}
+				err = v.AttachAndEnableRootLBInterface(ctx, client, lbName, GetPortName(lbName, v.GetCloudletMexNetwork()), gw)
+				if err != nil {
+					log.SpanLog(ctx, log.DebugLevelInfra, "AttachAndEnableRootLBInterface failed", "err", err)
+					return err
+				}
+			} else {
+				log.SpanLog(ctx, log.DebugLevelInfra, "External router in use, no internal interface for rootlb")
+			}
+
 		}
 		updateCallback(edgeproto.UpdateTask, "Adding DNS Entry")
 		if appInst.Uri != "" && ip.ExternalAddr != "" {

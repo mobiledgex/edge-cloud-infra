@@ -54,22 +54,16 @@ func (v *VMPlatform) GetClusterNodeName(ctx context.Context, clusterInst *edgepr
 	return ClusterNodePrefix(nodeNum) + "-" + v.GetClusterName(ctx, clusterInst)
 }
 
+func (v *VMPlatform) GetDockerNodeName(ctx context.Context, clusterInst *edgeproto.ClusterInst) string {
+	return "docker-node" + "-" + v.GetClusterName(ctx, clusterInst)
+}
+
 func (v *VMPlatform) GetRootLBNameForCluster(ctx context.Context, clusterInst *edgeproto.ClusterInst) string {
 	lbName := v.sharedRootLBName
 	if clusterInst.IpAccess == edgeproto.IpAccess_IP_ACCESS_DEDICATED {
 		lbName = cloudcommon.GetDedicatedLBFQDN(v.CommonPf.PlatformConfig.CloudletKey, &clusterInst.Key.ClusterKey)
 	}
 	return lbName
-}
-
-func (v *VMPlatform) GetClusterGatewayFromVMGroupParms(ctx context.Context, clusterInst *edgeproto.ClusterInst, vmgp *VMGroupOrchestrationParams) (string, error) {
-	subnet := v.GetClusterSubnetName(ctx, clusterInst)
-	for _, s := range vmgp.Subnets {
-		if s.Name == subnet {
-			return s.GatewayIP, nil
-		}
-	}
-	return "", fmt.Errorf("Subnet: %s not found in vm group params", subnet)
 }
 
 func ClusterNodePrefix(num uint32) string {
@@ -252,12 +246,12 @@ func (v *VMPlatform) createClusterInternal(ctx context.Context, rootLBName strin
 		return fmt.Errorf("can't get rootLB client, %v", err)
 	}
 
-	if v.GetCloudletExternalRouter() == NoExternalRouter {
+	if v.GetCloudletExternalRouter() == NoExternalRouter && clusterInst.Deployment == cloudcommon.AppDeploymentTypeKubernetes {
 		log.SpanLog(ctx, log.DebugLevelInfra, "Need to attach internal interface on rootlb", "IpAccess", clusterInst.IpAccess)
 
 		// after vm creation, the orchestrator will update some fields in the group params including gateway IP.
 		// this IP is used on the rootLB to server as the GW for this new subnet
-		gw, err := v.GetClusterGatewayFromVMGroupParms(ctx, clusterInst, vmgp)
+		gw, err := v.GetSubnetGatewayFromVMGroupParms(ctx, v.GetClusterSubnetName(ctx, clusterInst), vmgp)
 		if err != nil {
 			return err
 		}
@@ -433,78 +427,132 @@ func (v *VMPlatform) isClusterReady(ctx context.Context, clusterInst *edgeproto.
 	return true, readyCount, nil
 }
 
-func (v *VMPlatform) CreateOrUpdateVMsForCluster(ctx context.Context, imgName string, clusterInst *edgeproto.ClusterInst, privacyPolicy *edgeproto.PrivacyPolicy, action ActionType, updateCallback edgeproto.CacheUpdateCallback) (*VMGroupOrchestrationParams, error) {
-	name := v.GetClusterName(ctx, clusterInst)
-
-	log.SpanLog(ctx, log.DebugLevelInfo, "CreateVMsForCluster", "name", name)
-
-	subnetname := v.GetClusterSubnetName(ctx, clusterInst)
+func (v *VMPlatform) getVMRequestSpecForDockerCluster(ctx context.Context, imgName string, clusterInst *edgeproto.ClusterInst, privacyPolicy *edgeproto.PrivacyPolicy, action ActionType, updateCallback edgeproto.CacheUpdateCallback) ([]*VMRequestSpec, string, string, error) {
+	newSubnet := ""
 	var vms []*VMRequestSpec
+	dockerVmConnectExternal := false
+	var dockerVmType VMType
+	var dockerVMName string
+	var newSubnetName string
+	var newSecgrpName string
 
-	var rootlb *VMRequestSpec
-	var err error
 	if clusterInst.IpAccess == edgeproto.IpAccess_IP_ACCESS_DEDICATED {
-		rootlb, err = v.GetVMSpecForRootLB(ctx, v.GetRootLBNameForCluster(ctx, clusterInst), subnetname, updateCallback)
+		// dedicated access means the docker VM acts as its own rootLB
+		dockerVmConnectExternal = true
+		dockerVmType = VMTypeRootLB
+		dockerVMName = v.GetRootLBNameForCluster(ctx, clusterInst)
+		newSecgrpName = v.GetServerSecurityGroupName(dockerVMName)
+	} else {
+		// shared access means docker vm goes on its own subnet which is connected
+		// via shared rootlb
+		newSubnetName = v.GetClusterSubnetName(ctx, clusterInst)
+		dockerVmType = VMTypeClusterNode
+		dockerVMName = v.GetDockerNodeName(ctx, clusterInst)
+
+		if v.GetCloudletExternalRouter() != NoExternalRouter {
+			// If no router in use, create ports on the existing shared rootLB
+			rootlb, err := v.GetVMSpecForRootLBPorts(ctx, v.sharedRootLBName, newSubnet)
+			if err != nil {
+				return vms, newSubnetName, newSecgrpName, err
+			}
+			vms = append(vms, rootlb)
+		}
+	}
+	dockervm, err := v.GetVMRequestSpec(
+		ctx,
+		dockerVmType,
+		dockerVMName,
+		clusterInst.NodeFlavor,
+		imgName,
+		dockerVmConnectExternal,
+		WithExternalVolume(clusterInst.ExternalVolumeSize),
+		WithSubnetConnection(newSubnetName),
+	)
+	if err != nil {
+		return vms, newSubnetName, newSecgrpName, err
+	}
+	vms = append(vms, dockervm)
+	return vms, newSubnetName, newSecgrpName, nil
+}
+
+func (v *VMPlatform) CreateOrUpdateVMsForCluster(ctx context.Context, imgName string, clusterInst *edgeproto.ClusterInst, privacyPolicy *edgeproto.PrivacyPolicy, action ActionType, updateCallback edgeproto.CacheUpdateCallback) (*VMGroupOrchestrationParams, error) {
+	log.SpanLog(ctx, log.DebugLevelInfo, "CreateVMsForCluster", "clusterInst", clusterInst)
+
+	var vms []*VMRequestSpec
+	var err error
+	vmgroupName := v.GetClusterName(ctx, clusterInst)
+	var newSubnetName string
+	var newSecgrpName string
+
+	if clusterInst.Deployment == cloudcommon.AppDeploymentTypeDocker {
+		vms, newSubnetName, newSecgrpName, err = v.getVMRequestSpecForDockerCluster(ctx, imgName, clusterInst, privacyPolicy, action, updateCallback)
 		if err != nil {
 			return nil, err
 		}
 	} else {
-		// include the existing Shared Rootlb in the spec so we can create new internal port
-		// Because we specify CreatePortsOnly the VM itself will not be created
-		rootlb, err = v.GetVMRequestSpec(
-			ctx,
-			VMTypeRootLB, v.sharedRootLBName,
-			"dummyflavor",
-			"dummyimage",
-			false, // shared RLB already has external ports
-			WithCreatePortsOnly(true),
-			WithSubnetConnection(subnetname))
-	}
-	if err != nil {
-		return nil, err
-	}
-	vms = append(vms, rootlb)
+		newSubnetName = v.GetClusterSubnetName(ctx, clusterInst)
+		var rootlb *VMRequestSpec
+		var err error
+		if clusterInst.IpAccess == edgeproto.IpAccess_IP_ACCESS_DEDICATED {
+			// dedicated for docker means the docker VM acts as its own rootLB
+			rootlb, err = v.GetVMSpecForRootLB(ctx, v.GetRootLBNameForCluster(ctx, clusterInst), newSubnetName, updateCallback)
+			if err != nil {
+				return nil, err
+			}
+			vms = append(vms, rootlb)
+			newSecgrpName = v.GetServerSecurityGroupName(rootlb.Name)
+		} else if v.GetCloudletExternalRouter() != NoExternalRouter {
+			// If no router in use, create ports on the existing shared rootLB
+			rootlb, err = v.GetVMSpecForRootLBPorts(ctx, v.sharedRootLBName, newSubnetName)
+			if err != nil {
+				return nil, err
+			}
+			vms = append(vms, rootlb)
+			// docker goes into a new subnet, the rootlb will be connected to it later
+			newSubnetName = v.GetClusterSubnetName(ctx, clusterInst)
+		}
 
-	masterFlavor := clusterInst.MasterNodeFlavor
-	if masterFlavor == "" {
-		masterFlavor = clusterInst.NodeFlavor
-	}
-	master, err := v.GetVMRequestSpec(ctx,
-		VMTypeK8sMaster,
-		v.GetClusterMasterName(ctx, clusterInst),
-		masterFlavor,
-		v.GetCloudletOSImage(),
-		false, //connect external
-		WithSharedVolume(clusterInst.SharedVolumeSize),
-		WithExternalVolume(clusterInst.ExternalVolumeSize),
-		WithSubnetConnection(subnetname),
-	)
-	if err != nil {
-		return nil, err
-	}
-	vms = append(vms, master)
-
-	for nn := uint32(1); nn <= clusterInst.NumNodes; nn++ {
-		node, err := v.GetVMRequestSpec(ctx,
-			VMTypeK8sNode,
-			v.GetClusterNodeName(ctx, clusterInst, nn),
-			clusterInst.NodeFlavor,
+		masterFlavor := clusterInst.MasterNodeFlavor
+		if masterFlavor == "" {
+			masterFlavor = clusterInst.NodeFlavor
+		}
+		master, err := v.GetVMRequestSpec(ctx,
+			VMTypeClusterMaster,
+			v.GetClusterMasterName(ctx, clusterInst),
+			masterFlavor,
 			v.GetCloudletOSImage(),
 			false, //connect external
+			WithSharedVolume(clusterInst.SharedVolumeSize),
 			WithExternalVolume(clusterInst.ExternalVolumeSize),
-			WithSubnetConnection(subnetname),
+			WithSubnetConnection(newSubnetName),
 		)
 		if err != nil {
 			return nil, err
 		}
-		vms = append(vms, node)
+		vms = append(vms, master)
+
+		for nn := uint32(1); nn <= clusterInst.NumNodes; nn++ {
+			node, err := v.GetVMRequestSpec(ctx,
+				VMTypeClusterNode,
+				v.GetClusterNodeName(ctx, clusterInst, nn),
+				clusterInst.NodeFlavor,
+				v.GetCloudletOSImage(),
+				false, //connect external
+				WithExternalVolume(clusterInst.ExternalVolumeSize),
+				WithSubnetConnection(newSubnetName),
+			)
+			if err != nil {
+				return nil, err
+			}
+			vms = append(vms, node)
+		}
 	}
 
 	//	return v.GetVMGroupOrchestrationParamsFromVMSpec(ctx, name, vms, WithNewSubnet(subnetname))
 	if action == ActionCreate {
-		return v.CreateVMsFromVMSpec(ctx, name, vms, updateCallback, WithNewSubnet(subnetname), WithPrivacyPolicy(privacyPolicy))
+		return v.CreateVMsFromVMSpec(ctx, vmgroupName, vms, updateCallback, WithNewSubnet(newSubnetName), WithPrivacyPolicy(privacyPolicy), WithNewSecurityGroup(newSecgrpName))
 	} else if action == ActionUpdate {
-		return v.UpdateVMsFromVMSpec(ctx, name, vms, updateCallback, WithNewSubnet(subnetname), WithPrivacyPolicy(privacyPolicy))
+		return v.UpdateVMsFromVMSpec(ctx, vmgroupName, vms, updateCallback, WithNewSubnet(newSubnetName), WithPrivacyPolicy(privacyPolicy), WithNewSecurityGroup(newSecgrpName))
 	} else {
 		return nil, fmt.Errorf("unexpected action: %s", action)
 	}

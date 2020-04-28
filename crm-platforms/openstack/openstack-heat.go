@@ -83,7 +83,7 @@ resources:
         type: OS::Neutron::RouterInterface
         properties:
             router:  {{.RouterName}}
-            port: { get_resource: {{.RouterPort}} }
+            port: { get_resource: {{.RouterPort.Name}} }
     {{- end}}
     
     {{- range .SecurityGroups}}

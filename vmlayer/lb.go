@@ -357,6 +357,21 @@ func (v *VMPlatform) GetVMSpecForRootLB(ctx context.Context, rootLbName string, 
 		WithSubnetConnection(subnetConnect))
 }
 
+// GetVMSpecForRootLBPorts get a vmspec for the purpose of creating new ports to the specified subnet
+func (v *VMPlatform) GetVMSpecForRootLBPorts(ctx context.Context, rootLbName string, subnet string) (*VMRequestSpec, error) {
+	rootlb, err := v.GetVMRequestSpec(
+		ctx,
+		VMTypeRootLB,
+		rootLbName,
+		"dummyflavor",
+		"dummyimage",
+		false, // shared RLB already has external ports
+		WithCreatePortsOnly(true),
+		WithSubnetConnection(subnet),
+	)
+	return rootlb, err
+}
+
 //NewRootLB gets a new rootLB instance
 func (v *VMPlatform) NewRootLB(ctx context.Context, rootLBName string) (*MEXRootLB, error) {
 	rootLBLock.Lock()
@@ -420,7 +435,7 @@ func (v *VMPlatform) CreateRootLB(
 	}
 	var vms []*VMRequestSpec
 	vms = append(vms, vmreq)
-	_, err = v.CreateVMsFromVMSpec(ctx, rootLB.Name, vms, updateCallback)
+	_, err = v.CreateVMsFromVMSpec(ctx, rootLB.Name, vms, updateCallback, WithNewSecurityGroup(v.GetServerSecurityGroupName(rootLB.Name)))
 	if err != nil {
 		log.SpanLog(ctx, log.DebugLevelInfra, "error while creating RootLB VM", "name", rootLB.Name, "imgName", imgName, "error", err)
 		return err

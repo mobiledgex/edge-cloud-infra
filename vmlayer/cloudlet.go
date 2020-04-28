@@ -294,7 +294,7 @@ func (v *VMPlatform) SetupPlatformVM(ctx context.Context, cloudlet *edgeproto.Cl
 	vms = append(vms, vmreqspec)
 
 	updateCallback(edgeproto.UpdateTask, "Deploying Platform VM")
-	_, err = v.CreateVMsFromVMSpec(ctx, platformVmName, vms, updateCallback)
+	_, err = v.CreateVMsFromVMSpec(ctx, platformVmName, vms, updateCallback, WithNewSecurityGroup(v.GetServerSecurityGroupName(platformVmName)))
 
 	updateCallback(edgeproto.UpdateTask, "Successfully Deployed Platform VM")
 	ip, err := v.VMProvider.GetIPFromServerName(ctx, v.GetCloudletExternalNetwork(), platformVmName)

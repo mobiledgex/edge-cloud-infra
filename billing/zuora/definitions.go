@@ -3,8 +3,8 @@ package zuora
 import "time"
 
 // for oauth
-var ClientId = "f954797d-6d8a-4476-aa05-4e894d35dd3a"
-var ClientSecret = "wd6XJ=+vs9i5PYFfqAehpb9=LmRPaoiHYIqIeW"
+var clientId = "f954797d-6d8a-4476-aa05-4e894d35dd3a"
+var clientSecret = "wd6XJ=+vs9i5PYFfqAehpb9=LmRPaoiHYIqIeW"
 
 // Endpoints
 var OAuthEndpoint = "/oauth/token"
@@ -23,6 +23,7 @@ var StartDate = "2020-01-01"
 var EndDate = "2050-01-01"
 
 var ZuoraUrl = "https://rest.apisandbox.zuora.com"
+var vaultPath = "secret/data/accounts/zuora/"
 
 var FlavorProductId = "2c92c0f870d4538b0170e46c11a06e6c"
 var FlavorUsageProductRatePlanId = "2c92c0f9712998a401712de88cc44c9f"

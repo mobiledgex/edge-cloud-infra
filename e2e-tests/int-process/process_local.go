@@ -59,8 +59,14 @@ func (p *MC) StartLocal(logfile string, opts ...process.StartOp) error {
 		args = append(args, "--consoleproxyaddr")
 		args = append(args, p.ConsoleProxyAddr)
 	}
+<<<<<<< HEAD
 	if p.UseVaultCAs {
 		args = append(args, "--useVaultCAs")
+=======
+	if p.BillingPath != "" {
+		args = append(args, "--billingPath")
+		args = append(args, p.BillingPath)
+>>>>>>> move zuora creds to vault
 	}
 	if p.UseVaultCerts {
 		args = append(args, "--useVaultCerts")

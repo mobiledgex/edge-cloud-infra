@@ -34,7 +34,7 @@ var skipOriginCheck = flag.Bool("skipOriginCheck", false, "skip origin check con
 var notifyAddrs = flag.String("notifyAddrs", "127.0.0.1:53001", "Parent notify listener addresses")
 var notifySrvAddr = flag.String("notifySrvAddr", "127.0.0.1:52001", "Notify listener address")
 var hostname = flag.String("hostname", "", "Unique hostname")
-var billingEnabled = flag.Bool("billing", false, "Enable billing services with zuora")
+var billingPath = flag.String("billingPath", "", "Zuora account path in vault")
 
 var sigChan chan os.Signal
 var nodeMgr node.NodeMgr
@@ -47,6 +47,11 @@ func main() {
 	defer log.FinishTracer()
 
 	sigChan = make(chan os.Signal, 1)
+
+	billingEnabled := false
+	if *billingPath != "" {
+		billingEnabled = true
+	}
 
 	config := orm.ServerConfig{
 		ServAddr:         *addr,
@@ -70,7 +75,7 @@ func main() {
 		NotifyAddrs:      *notifyAddrs,
 		NotifySrvAddr:    *notifySrvAddr,
 		NodeMgr:          &nodeMgr,
-		Billing:          *billingEnabled,
+		Billing:          billingEnabled,
 	}
 	server, err := orm.RunServer(&config)
 	if err != nil {
@@ -78,9 +83,13 @@ func main() {
 	}
 	defer server.Stop()
 
-	if *billingEnabled {
+	if billingEnabled {
 		span := log.StartSpan(log.DebugLevelInfo, "billing")
 		defer span.Finish()
+		err := zuora.InitZuora(nodeMgr.VaultAddr, *billingPath)
+		if err != nil {
+			log.FatalLog("Failed to get Zuora credentials from vault", "err", err)
+		}
 		ctx := log.ContextWithSpan(context.Background(), span)
 		go collections.CollectDailyClusterUsage(ctx)
 	}

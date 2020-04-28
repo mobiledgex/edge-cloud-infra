@@ -17,6 +17,7 @@ type MC struct {
 	ConsoleProxyAddr string
 	UseVaultCAs      bool
 	UseVaultCerts    bool
+	BillingPath      string
 	TLS              process.TLSCerts
 	cmd              *exec.Cmd
 }

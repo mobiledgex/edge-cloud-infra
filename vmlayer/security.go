@@ -65,7 +65,7 @@ func (v *VMPlatform) AddProxySecurityRulesAndPatchDNS(ctx context.Context, clien
 	}()
 	go func() {
 		if ops.AddDnsAndPatchKubeSvc {
-			err := v.CommonPf.CreateAppDNSAndPatchKubeSvc(ctx, client, kubeNames, aac.DnsOverride, getDnsSvcAction)
+			err := v.VMProperties.CommonPf.CreateAppDNSAndPatchKubeSvc(ctx, client, kubeNames, aac.DnsOverride, getDnsSvcAction)
 			if err == nil {
 				dnschan <- ""
 			} else {

@@ -120,7 +120,7 @@ func GetAllowedClientCIDR() string {
 func (v *VMPlatform) AddRouteToServer(ctx context.Context, client ssh.Client, serverName string, cidr string) error {
 	log.SpanLog(ctx, log.DebugLevelInfra, "AddRouteToServer", "serverName", serverName, "cidr", cidr)
 
-	ni, err := ParseNetSpec(ctx, v.GetCloudletNetworkScheme())
+	ni, err := ParseNetSpec(ctx, v.VMProperties.GetCloudletNetworkScheme())
 	if err != nil {
 		return err
 	}
@@ -136,11 +136,11 @@ func (v *VMPlatform) AddRouteToServer(ctx context.Context, client ssh.Client, se
 		return fmt.Errorf("Invalid cidr for SetupVMRoute %s - %v", cidr, err)
 	}
 	maskStr := net.IP(netw.Mask)
-	rtr := v.GetCloudletExternalRouter()
+	rtr := v.VMProperties.GetCloudletExternalRouter()
 	gatewayIP := ni.RouterGatewayIP
 
 	if gatewayIP == "" && rtr != NoConfigExternalRouter && rtr != NoExternalRouter {
-		rd, err := v.VMProvider.GetRouterDetail(ctx, v.GetCloudletExternalRouter())
+		rd, err := v.VMProvider.GetRouterDetail(ctx, v.VMProperties.GetCloudletExternalRouter())
 		if err != nil {
 			return err
 		}

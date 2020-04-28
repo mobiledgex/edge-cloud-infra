@@ -48,7 +48,7 @@ func (o *OpenstackPlatform) FindClusterMaster(ctx context.Context, namePrefix, n
 //GetIPFromServerName gets the server IP(s) for the given network
 func (o *OpenstackPlatform) GetIPFromServerName(ctx context.Context, networkName, serverName string) (*vmlayer.ServerIP, error) {
 	// if this is a root lb, look it up and get the IP if we have it cached
-	rootLB, err := o.vmPlatform.GetRootLB(ctx, serverName)
+	rootLB, err := vmlayer.GetRootLB(ctx, serverName)
 	if err == nil && rootLB != nil {
 		if rootLB.IP != nil {
 			log.SpanLog(ctx, log.DebugLevelInfra, "using existing rootLB IP", "IP", rootLB.IP)
@@ -59,7 +59,7 @@ func (o *OpenstackPlatform) GetIPFromServerName(ctx context.Context, networkName
 	if err != nil {
 		return nil, err
 	}
-	return o.vmPlatform.GetIPFromServerDetails(ctx, networkName, sd)
+	return vmlayer.GetIPFromServerDetails(ctx, networkName, sd)
 }
 
 //GetExternalGateway retrieves Gateway IP from the external network information. It first gets external
@@ -137,27 +137,27 @@ func (o *OpenstackPlatform) ValidateNetwork(ctx context.Context) error {
 
 	found := false
 	for _, n := range nets {
-		if n.Name == o.vmPlatform.GetCloudletExternalNetwork() {
+		if n.Name == o.vmProperties.GetCloudletExternalNetwork() {
 			found = true
 			break
 		}
 	}
 	if !found {
-		return fmt.Errorf("cannot find external network %s", o.vmPlatform.GetCloudletExternalNetwork())
+		return fmt.Errorf("cannot find external network %s", o.vmProperties.GetCloudletExternalNetwork())
 	}
 
 	found = false
 	for _, n := range nets {
-		if n.Name == o.vmPlatform.GetCloudletMexNetwork() {
+		if n.Name == o.vmProperties.GetCloudletMexNetwork() {
 			found = true
 			break
 		}
 	}
 	if !found {
-		return fmt.Errorf("cannot find network %s", o.vmPlatform.GetCloudletMexNetwork())
+		return fmt.Errorf("cannot find network %s", o.vmProperties.GetCloudletMexNetwork())
 	}
 
-	rtr := o.vmPlatform.GetCloudletExternalRouter()
+	rtr := o.vmProperties.GetCloudletExternalRouter()
 	if rtr != vmlayer.NoConfigExternalRouter && rtr != vmlayer.NoExternalRouter {
 		routers, err := o.ListRouters(ctx)
 		if err != nil {
@@ -166,13 +166,13 @@ func (o *OpenstackPlatform) ValidateNetwork(ctx context.Context) error {
 
 		found = false
 		for _, r := range routers {
-			if r.Name == o.vmPlatform.GetCloudletExternalRouter() {
+			if r.Name == o.vmProperties.GetCloudletExternalRouter() {
 				found = true
 				break
 			}
 		}
 		if !found {
-			return fmt.Errorf("ext router %s not found", o.vmPlatform.GetCloudletExternalRouter())
+			return fmt.Errorf("ext router %s not found", o.vmProperties.GetCloudletExternalRouter())
 		}
 	}
 
@@ -188,35 +188,35 @@ func (o *OpenstackPlatform) PrepNetwork(ctx context.Context) error {
 
 	found := false
 	for _, n := range nets {
-		if n.Name == o.vmPlatform.GetCloudletExternalNetwork() {
+		if n.Name == o.vmProperties.GetCloudletExternalNetwork() {
 			found = true
 			break
 		}
 	}
 	if !found {
-		return fmt.Errorf("cannot find ext net %s", o.vmPlatform.GetCloudletExternalNetwork())
+		return fmt.Errorf("cannot find ext net %s", o.vmProperties.GetCloudletExternalNetwork())
 	}
 
 	found = false
 	for _, n := range nets {
-		if n.Name == o.vmPlatform.GetCloudletMexNetwork() {
+		if n.Name == o.vmProperties.GetCloudletMexNetwork() {
 			found = true
 			break
 		}
 	}
 	if !found {
-		ni, err := vmlayer.ParseNetSpec(ctx, o.vmPlatform.GetCloudletNetworkScheme())
+		ni, err := vmlayer.ParseNetSpec(ctx, o.vmProperties.GetCloudletNetworkScheme())
 		if err != nil {
 			return err
 		}
 		// We need at least one network for `mex` clusters
-		err = o.CreateNetwork(ctx, o.vmPlatform.GetCloudletMexNetwork(), ni.NetworkType)
+		err = o.CreateNetwork(ctx, o.vmProperties.GetCloudletMexNetwork(), ni.NetworkType)
 		if err != nil {
-			return fmt.Errorf("cannot create mex network %s, %v", o.vmPlatform.GetCloudletMexNetwork(), err)
+			return fmt.Errorf("cannot create mex network %s, %v", o.vmProperties.GetCloudletMexNetwork(), err)
 		}
 	}
 
-	rtr := o.vmPlatform.GetCloudletExternalRouter()
+	rtr := o.vmProperties.GetCloudletExternalRouter()
 	if rtr != vmlayer.NoConfigExternalRouter && rtr != vmlayer.NoExternalRouter {
 		routers, err := o.ListRouters(ctx)
 		if err != nil {
@@ -225,20 +225,20 @@ func (o *OpenstackPlatform) PrepNetwork(ctx context.Context) error {
 
 		found = false
 		for _, r := range routers {
-			if r.Name == o.vmPlatform.GetCloudletExternalRouter() {
+			if r.Name == o.vmProperties.GetCloudletExternalRouter() {
 				found = true
 				break
 			}
 		}
 		if !found {
 			// We need at least one router for our `mex` network and external network
-			err = o.CreateRouter(ctx, o.vmPlatform.GetCloudletExternalRouter())
+			err = o.CreateRouter(ctx, o.vmProperties.GetCloudletExternalRouter())
 			if err != nil {
-				return fmt.Errorf("cannot create the ext router %s, %v", o.vmPlatform.GetCloudletExternalRouter(), err)
+				return fmt.Errorf("cannot create the ext router %s, %v", o.vmProperties.GetCloudletExternalRouter(), err)
 			}
-			err = o.SetRouter(ctx, o.vmPlatform.GetCloudletExternalRouter(), o.vmPlatform.GetCloudletExternalNetwork())
+			err = o.SetRouter(ctx, o.vmProperties.GetCloudletExternalRouter(), o.vmProperties.GetCloudletExternalNetwork())
 			if err != nil {
-				return fmt.Errorf("cannot set default network to router %s, %v", o.vmPlatform.GetCloudletExternalRouter(), err)
+				return fmt.Errorf("cannot set default network to router %s, %v", o.vmProperties.GetCloudletExternalRouter(), err)
 			}
 		}
 	}
@@ -248,7 +248,7 @@ func (o *OpenstackPlatform) PrepNetwork(ctx context.Context) error {
 
 //GetCloudletSubnets returns subnets inside MEX Network
 func (o *OpenstackPlatform) GetCloudletSubnets(ctx context.Context) ([]string, error) {
-	nd, err := o.GetNetworkDetail(ctx, o.vmPlatform.GetCloudletMexNetwork())
+	nd, err := o.GetNetworkDetail(ctx, o.vmProperties.GetCloudletMexNetwork())
 	if err != nil {
 		return nil, fmt.Errorf("can't get MEX network detail, %v", err)
 	}
@@ -283,12 +283,12 @@ func GetServerNetworkIP(networks, netmatch string) (string, error) {
 }
 
 func (o *OpenstackPlatform) GetServerExternalIP(networks string) (string, error) {
-	extNet := o.vmPlatform.GetCloudletExternalNetwork()
+	extNet := o.vmProperties.GetCloudletExternalNetwork()
 	return GetServerNetworkIP(networks, extNet)
 }
 
 func (o *OpenstackPlatform) GetServerInternalIP(networks string) (string, error) {
-	mexNet := o.vmPlatform.GetCloudletMexNetwork()
+	mexNet := o.vmProperties.GetCloudletMexNetwork()
 	return GetServerNetworkIP(networks, mexNet)
 }
 

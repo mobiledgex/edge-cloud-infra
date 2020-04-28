@@ -391,34 +391,34 @@ func (v *VMPlatform) getVMGroupOrchestrationParamsFromGroupSpec(ctx context.Cont
 	log.SpanLog(ctx, log.DebugLevelInfra, "GetVMGroupOrchestrationParams", "spec", spec)
 
 	vmgp := VMGroupOrchestrationParams{GroupName: spec.GroupName}
-	internalNetName := v.GetCloudletMexNetwork()
-	externalNetName := v.GetCloudletExternalNetwork()
+	internalNetName := v.VMProperties.GetCloudletMexNetwork()
+	externalNetName := v.VMProperties.GetCloudletExternalNetwork()
 
 	// DNS is applied either at the subnet or VM level
 	cloudflareDns := []string{"1.1.1.1", "1.0.0.1"}
 	vmDns := ""
 	subnetDns := []string{}
-	cloudletSecGrpID, err := v.VMProvider.GetResourceID(ctx, ResourceTypeSecurityGroup, v.GetCloudletSecurityGroupName())
+	cloudletSecGrpID, err := v.VMProvider.GetResourceID(ctx, ResourceTypeSecurityGroup, v.VMProperties.GetCloudletSecurityGroupName())
 	internalSecgrpID := ""
 	internalSecgrpPreexisting := false
 
 	if err != nil {
 		return nil, err
 	}
-	if v.GetSubnetDNS() == NoSubnetDNS {
+	if v.VMProperties.GetSubnetDNS() == NoSubnetDNS {
 		// Contrail workaround, see EDGECLOUD-2420 for details
 		vmDns = strings.Join(cloudflareDns, " ")
 	} else {
 		subnetDns = cloudflareDns
 	}
 
-	vmgp.Netspec, err = ParseNetSpec(ctx, v.GetCloudletNetworkScheme())
+	vmgp.Netspec, err = ParseNetSpec(ctx, v.VMProperties.GetCloudletNetworkScheme())
 	if err != nil {
 		return nil, err
 	}
 
 	rtrInUse := false
-	rtr := v.GetCloudletExternalRouter()
+	rtr := v.VMProperties.GetCloudletExternalRouter()
 	if rtr == NoConfigExternalRouter {
 		log.SpanLog(ctx, log.DebugLevelInfra, "NoConfigExternalRouter in use")
 	} else if rtr == NoExternalRouter {
@@ -436,7 +436,7 @@ func (v *VMPlatform) getVMGroupOrchestrationParamsFromGroupSpec(ctx context.Cont
 				FixedIPs:    []FixedIPOrchestrationParams{{Address: NextAvailableResource, LastIPOctet: 1, Subnet: NewResourceReference(spec.NewSubnetName, false)}},
 			}
 			vmgp.Ports = append(vmgp.Ports, routerPort)
-			newRouterIf := RouterInterfaceOrchestrationParams{RouterName: v.GetCloudletExternalRouter(), RouterPort: NewResourceReference(routerPortName, false)}
+			newRouterIf := RouterInterfaceOrchestrationParams{RouterName: v.VMProperties.GetCloudletExternalRouter(), RouterPort: NewResourceReference(routerPortName, false)}
 			vmgp.RouterInterfaces = append(vmgp.RouterInterfaces, newRouterIf)
 		}
 	}

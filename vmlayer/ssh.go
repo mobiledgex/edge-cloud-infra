@@ -65,7 +65,7 @@ func (v *VMPlatform) GetSSHClientFromIPAddr(ctx context.Context, ipaddr string, 
 	var client ssh.Client
 	var err error
 	auth := ssh.Auth{Keys: []string{infracommon.PrivateSSHKey()}}
-	gwhost, gwport := v.CommonPf.GetCloudletCRMGatewayIPAndPort()
+	gwhost, gwport := v.VMProperties.GetCloudletCRMGatewayIPAndPort()
 	if gwhost != "" {
 		// start the client to GW and add the addr as next hop
 		client, err = ssh.NewNativeClient(opts.User, infracommon.ClientVersion, gwhost, gwport, &auth, opts.Timeout, nil)
@@ -88,18 +88,18 @@ func (v *VMPlatform) GetSSHClientFromIPAddr(ctx context.Context, ipaddr string, 
 }
 
 func (v *VMPlatform) GetSSHClientForCluster(ctx context.Context, clusterInst *edgeproto.ClusterInst) (ssh.Client, error) {
-	rootLBName := v.sharedRootLBName
+	rootLBName := v.VMProperties.sharedRootLBName
 	if clusterInst.IpAccess == edgeproto.IpAccess_IP_ACCESS_DEDICATED {
-		rootLBName = cloudcommon.GetDedicatedLBFQDN(v.CommonPf.PlatformConfig.CloudletKey, &clusterInst.Key.ClusterKey)
+		rootLBName = cloudcommon.GetDedicatedLBFQDN(v.VMProperties.CommonPf.PlatformConfig.CloudletKey, &clusterInst.Key.ClusterKey)
 	}
-	return v.GetSSHClientForServer(ctx, rootLBName, v.GetCloudletExternalNetwork())
+	return v.GetSSHClientForServer(ctx, rootLBName, v.VMProperties.GetCloudletExternalNetwork())
 }
 
 //GetSSHClient returns ssh client handle for the server
 func (v *VMPlatform) GetSSHClientForServer(ctx context.Context, serverName, networkName string, ops ...SSHClientOp) (ssh.Client, error) {
 	// if this is a rootLB we may have the IP cached already
 	var externalAddr string
-	rootLB, err := v.GetRootLB(ctx, serverName)
+	rootLB, err := GetRootLB(ctx, serverName)
 	if err == nil && rootLB != nil {
 		if rootLB.IP != nil {
 			log.SpanLog(ctx, log.DebugLevelInfra, "using existing rootLB IP", "IP", rootLB.IP)
@@ -118,7 +118,7 @@ func (v *VMPlatform) GetSSHClientForServer(ctx context.Context, serverName, netw
 
 func (v *VMPlatform) SetupSSHUser(ctx context.Context, rootLB *MEXRootLB, user string) (ssh.Client, error) {
 	log.SpanLog(ctx, log.DebugLevelInfra, "setting up ssh user", "user", user)
-	client, err := v.GetSSHClientForServer(ctx, rootLB.Name, v.GetCloudletExternalNetwork(), WithUser(user))
+	client, err := v.GetSSHClientForServer(ctx, rootLB.Name, v.VMProperties.GetCloudletExternalNetwork(), WithUser(user))
 	if err != nil {
 		return nil, err
 	}

@@ -202,7 +202,7 @@ func (s *OpenstackPlatform) ShowFlavor(ctx context.Context, flavor string) (deta
 
 //ListFlavors lists flavors known to the platform.   The ones matching the flavorMatchPattern are returned
 func (s *OpenstackPlatform) ListFlavors(ctx context.Context) ([]OSFlavorDetail, error) {
-	flavorMatchPattern := s.vmPlatform.GetCloudletFlavorMatchPattern()
+	flavorMatchPattern := s.vmProperties.GetCloudletFlavorMatchPattern()
 	r, err := regexp.Compile(flavorMatchPattern)
 	if err != nil {
 		return nil, fmt.Errorf("Cannot compile flavor match pattern")
@@ -690,7 +690,7 @@ func (s *OpenstackPlatform) CreateImage(ctx context.Context, imageName, fileName
 	log.SpanLog(ctx, log.DebugLevelInfra, "creating image in glance", "image", imageName, "fileName", fileName)
 	out, err := s.TimedOpenStackCommand(ctx, "openstack", "image", "create",
 		imageName,
-		"--disk-format", s.vmPlatform.GetCloudletImageDiskFormat(),
+		"--disk-format", s.vmProperties.GetCloudletImageDiskFormat(),
 		"--container-format", "bare",
 		"--file", fileName)
 	if err != nil {
@@ -713,7 +713,7 @@ func (s *OpenstackPlatform) CreateImageFromUrl(ctx context.Context, imageName, i
 			log.SpanLog(ctx, log.DebugLevelInfra, "delete file failed", "filePath", filePath)
 		}
 	}()
-	err = cloudcommon.DownloadFile(ctx, s.vmPlatform.CommonPf.VaultConfig, imageUrl, filePath, nil)
+	err = cloudcommon.DownloadFile(ctx, s.vmProperties.CommonPf.VaultConfig, imageUrl, filePath, nil)
 	if err != nil {
 		return fmt.Errorf("error downloading image from %s, %v", imageUrl, err)
 	}
@@ -1062,7 +1062,7 @@ func (s *OpenstackPlatform) AddCloudletImageIfNotPresent(ctx context.Context, im
 	}
 	if err != nil {
 		// Validate if pfImageName is same as we expected
-		_, md5Sum, err := infracommon.GetUrlInfo(ctx, s.vmPlatform.CommonPf.VaultConfig, imgPath)
+		_, md5Sum, err := infracommon.GetUrlInfo(ctx, s.vmProperties.CommonPf.VaultConfig, imgPath)
 		if err != nil {
 			return "", err
 		}

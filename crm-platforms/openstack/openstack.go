@@ -8,20 +8,19 @@ import (
 
 	"github.com/mobiledgex/edge-cloud-infra/vmlayer"
 	"github.com/mobiledgex/edge-cloud/edgeproto"
-	ssh "github.com/mobiledgex/golang-ssh"
 )
 
 type OpenstackPlatform struct {
-	openRCVars map[string]string
-	vmPlatform *vmlayer.VMPlatform
+	openRCVars   map[string]string
+	vmProperties *vmlayer.VMProperties
 }
 
 func (o *OpenstackPlatform) GetType() string {
 	return "openstack"
 }
 
-func (o *OpenstackPlatform) SetVMPlatform(vmPlatform *vmlayer.VMPlatform) {
-	o.vmPlatform = vmPlatform
+func (o *OpenstackPlatform) SetVMProperties(vmProperties *vmlayer.VMProperties) {
+	o.vmProperties = vmProperties
 }
 
 func (o *OpenstackPlatform) InitProvider(ctx context.Context) error {
@@ -53,10 +52,6 @@ func (o *OpenstackPlatform) NameSanitize(name string) string {
 	return str
 }
 
-func (o *OpenstackPlatform) GetPlatformClient(ctx context.Context, clusterInst *edgeproto.ClusterInst) (ssh.Client, error) {
-	return o.vmPlatform.GetSSHClientForCluster(ctx, clusterInst)
-}
-
 func (o *OpenstackPlatform) DeleteResources(ctx context.Context, resourceGroupName string) error {
 	return o.HeatDeleteStack(ctx, resourceGroupName)
 }
@@ -68,20 +63,4 @@ func (o *OpenstackPlatform) GetResourceID(ctx context.Context, resourceType vmla
 		// TODO other types as needed
 	}
 	return "", fmt.Errorf("GetResourceID not implemented for resource type: %s ", resourceType)
-}
-
-func (o *OpenstackPlatform) GetClusterPlatformClient(ctx context.Context, clusterInst *edgeproto.ClusterInst) (ssh.Client, error) {
-	return o.vmPlatform.GetClusterPlatformClient(ctx, clusterInst)
-}
-
-func (o *OpenstackPlatform) GetNodePlatformClient(ctx context.Context, node *edgeproto.CloudletMgmtNode) (ssh.Client, error) {
-	return o.vmPlatform.GetNodePlatformClient(ctx, node)
-}
-
-func (o *OpenstackPlatform) ListCloudletMgmtNodes(ctx context.Context, clusterInsts []edgeproto.ClusterInst) ([]edgeproto.CloudletMgmtNode, error) {
-	return o.vmPlatform.ListCloudletMgmtNodes(ctx, clusterInsts)
-}
-
-func (o *OpenstackPlatform) Resync(ctx context.Context) error {
-	return fmt.Errorf("Resync not yet implemented")
 }

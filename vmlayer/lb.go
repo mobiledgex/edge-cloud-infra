@@ -158,11 +158,11 @@ func (v *VMPlatform) configureInternalInterfaceAndExternalForwarding(ctx context
 
 	log.SpanLog(ctx, log.DebugLevelInfra, "configureInternalInterfaceAndExternalForwarding", "serverDetails", serverDetails, "internalPortName", internalPortName)
 
-	internalIP, err := v.GetIPFromServerDetails(ctx, v.GetCloudletMexNetwork(), serverDetails)
+	internalIP, err := GetIPFromServerDetails(ctx, v.VMProperties.GetCloudletMexNetwork(), serverDetails)
 	if err != nil {
 		return err
 	}
-	externalIP, err := v.GetIPFromServerDetails(ctx, v.GetCloudletExternalNetwork(), serverDetails)
+	externalIP, err := GetIPFromServerDetails(ctx, v.VMProperties.GetCloudletExternalNetwork(), serverDetails)
 	if err != nil {
 		return err
 	}
@@ -329,7 +329,7 @@ func (v *VMPlatform) GetVMSpecForRootLB(ctx context.Context, rootLbName string, 
 	log.SpanLog(ctx, log.DebugLevelInfra, "GetVMSpecForRootLB", "rootLbName", rootLbName)
 
 	var rootlbFlavor edgeproto.Flavor
-	err := v.GetCloudletSharedRootLBFlavor(&rootlbFlavor)
+	err := v.VMProperties.GetCloudletSharedRootLBFlavor(&rootlbFlavor)
 	if err != nil {
 		return nil, fmt.Errorf("unable to get Shared RootLB Flavor: %v", err)
 	}
@@ -339,10 +339,10 @@ func (v *VMPlatform) GetVMSpecForRootLB(ctx context.Context, rootLbName string, 
 	}
 	az := vmspec.AvailabilityZone
 	if az == "" {
-		az = v.GetCloudletComputeAvailabilityZone()
+		az = v.VMProperties.GetCloudletComputeAvailabilityZone()
 	}
-	imgPath := v.CommonPf.PlatformConfig.CloudletVMImagePath
-	imgVersion := v.CommonPf.PlatformConfig.VMImageVersion
+	imgPath := v.VMProperties.CommonPf.PlatformConfig.CloudletVMImagePath
+	imgVersion := v.VMProperties.CommonPf.PlatformConfig.VMImageVersion
 	imageName, err := v.VMProvider.AddCloudletImageIfNotPresent(ctx, imgPath, imgVersion, updateCallback)
 	if err != nil {
 		return nil, err
@@ -392,7 +392,7 @@ func DeleteRootLB(rootLBName string) {
 	delete(MEXRootLBMap, rootLBName)
 }
 
-func (v *VMPlatform) GetRootLB(ctx context.Context, name string) (*MEXRootLB, error) {
+func GetRootLB(ctx context.Context, name string) (*MEXRootLB, error) {
 	rootLB, ok := MEXRootLBMap[name]
 	if !ok {
 		return nil, fmt.Errorf("can't find rootlb %s", name)
@@ -421,7 +421,7 @@ func (v *VMPlatform) CreateRootLB(
 		return nil
 	}
 
-	if v.GetCloudletExternalNetwork() == "" {
+	if v.VMProperties.GetCloudletExternalNetwork() == "" {
 		return fmt.Errorf("enable rootlb, missing external network in manifest")
 	}
 	imgName, err := v.VMProvider.AddCloudletImageIfNotPresent(ctx, imgPath, imgVersion, updateCallback)
@@ -457,7 +457,7 @@ func (v *VMPlatform) SetupRootLB(
 	if !valid.IsDNSName(rootLBName) {
 		return fmt.Errorf("fqdn %s is not valid", rootLBName)
 	}
-	rootLB, err := v.GetRootLB(ctx, rootLBName)
+	rootLB, err := GetRootLB(ctx, rootLBName)
 	if err != nil {
 		return fmt.Errorf("cannot find rootlb in map %s", rootLBName)
 	}
@@ -486,7 +486,7 @@ func (v *VMPlatform) SetupRootLB(
 		log.SpanLog(ctx, log.DebugLevelInfra, "timeout waiting for agent to run", "name", rootLB.Name)
 		return fmt.Errorf("Error waiting for rootLB %v", err)
 	}
-	ip, err := v.GetIPFromServerDetails(ctx, v.GetCloudletExternalNetwork(), sd)
+	ip, err := GetIPFromServerDetails(ctx, v.VMProperties.GetCloudletExternalNetwork(), sd)
 	if err != nil {
 		return fmt.Errorf("cannot get rootLB IP %sv", err)
 	}
@@ -511,7 +511,7 @@ func (v *VMPlatform) SetupRootLB(
 		return fmt.Errorf("failed to WhitelistSecurityRules %v", err)
 	}
 
-	if err = v.CommonPf.ActivateFQDNA(ctx, rootLBName, ip.ExternalAddr); err != nil {
+	if err = v.VMProperties.CommonPf.ActivateFQDNA(ctx, rootLBName, ip.ExternalAddr); err != nil {
 		return err
 	}
 	log.SpanLog(ctx, log.DebugLevelInfra, "DNS A record activated", "name", rootLB.Name)
@@ -525,11 +525,11 @@ func (v *VMPlatform) WaitForRootLB(ctx context.Context, rootLB *MEXRootLB) error
 	if rootLB == nil {
 		return fmt.Errorf("cannot wait for lb, rootLB is null")
 	}
-	extNet := v.GetCloudletExternalNetwork()
+	extNet := v.VMProperties.GetCloudletExternalNetwork()
 	if extNet == "" {
 		return fmt.Errorf("waiting for lb, missing external network in manifest")
 	}
-	client, err := v.GetSSHClientForServer(ctx, rootLB.Name, v.GetCloudletExternalNetwork())
+	client, err := v.GetSSHClientForServer(ctx, rootLB.Name, v.VMProperties.GetCloudletExternalNetwork())
 	if err != nil {
 		return err
 	}

@@ -283,7 +283,7 @@ func (v *VMPlatform) SetupPlatformVM(ctx context.Context, cloudlet *edgeproto.Cl
 	}
 	az := vmspec.AvailabilityZone
 	if az == "" {
-		az = v.GetCloudletComputeAvailabilityZone()
+		az = v.VMProperties.GetCloudletComputeAvailabilityZone()
 	}
 	pfImageName, err := v.VMProvider.AddCloudletImageIfNotPresent(ctx, pfConfig.CloudletVmImagePath, cloudlet.VmImageVersion, updateCallback)
 	if err != nil {
@@ -297,13 +297,13 @@ func (v *VMPlatform) SetupPlatformVM(ctx context.Context, cloudlet *edgeproto.Cl
 	_, err = v.CreateVMsFromVMSpec(ctx, platformVmName, vms, updateCallback, WithNewSecurityGroup(v.GetServerSecurityGroupName(platformVmName)))
 
 	updateCallback(edgeproto.UpdateTask, "Successfully Deployed Platform VM")
-	ip, err := v.VMProvider.GetIPFromServerName(ctx, v.GetCloudletExternalNetwork(), platformVmName)
+	ip, err := v.VMProvider.GetIPFromServerName(ctx, v.VMProperties.GetCloudletExternalNetwork(), platformVmName)
 	if err != nil {
 		return nil, err
 	}
 	updateCallback(edgeproto.UpdateTask, "Platform VM external IP: "+ip.ExternalAddr)
 
-	client, err := v.GetSSHClientForServer(ctx, platformVmName, v.GetCloudletExternalNetwork())
+	client, err := v.GetSSHClientForServer(ctx, platformVmName, v.VMProperties.GetCloudletExternalNetwork())
 	if err != nil {
 		return nil, err
 	}
@@ -345,7 +345,7 @@ func (v *VMPlatform) CreateCloudlet(ctx context.Context, cloudlet *edgeproto.Clo
 func (v *VMPlatform) CleanupCloudlet(ctx context.Context, cloudlet *edgeproto.Cloudlet, pfConfig *edgeproto.PlatformConfig, updateCallback edgeproto.CacheUpdateCallback) error {
 	log.SpanLog(ctx, log.DebugLevelInfra, "Cleaning up cloudlet", "cloudletName", cloudlet.Key.Name)
 
-	client, err := v.GetSSHClientForServer(ctx, v.GetPlatformVMName(&cloudlet.Key), v.GetCloudletExternalNetwork())
+	client, err := v.GetSSHClientForServer(ctx, v.GetPlatformVMName(&cloudlet.Key), v.VMProperties.GetCloudletExternalNetwork())
 	if err != nil {
 		return err
 	}
@@ -418,7 +418,7 @@ func (v *VMPlatform) UpdateCloudlet(ctx context.Context, cloudlet *edgeproto.Clo
 		return defCloudletAction, err
 	}
 
-	pfClient, err := v.GetSSHClientForServer(ctx, v.GetPlatformVMName(&cloudlet.Key), v.GetCloudletExternalNetwork())
+	pfClient, err := v.GetSSHClientForServer(ctx, v.GetPlatformVMName(&cloudlet.Key), v.VMProperties.GetCloudletExternalNetwork())
 	if err != nil {
 		return defCloudletAction, err
 	}
@@ -429,7 +429,7 @@ func (v *VMPlatform) UpdateCloudlet(ctx context.Context, cloudlet *edgeproto.Clo
 	}
 
 	rootLBName := cloudcommon.GetRootLBFQDN(&cloudlet.Key)
-	rlbClient, err := v.GetSSHClientForServer(ctx, rootLBName, v.GetCloudletExternalNetwork())
+	rlbClient, err := v.GetSSHClientForServer(ctx, rootLBName, v.VMProperties.GetCloudletExternalNetwork())
 	if err != nil {
 		return defCloudletAction, err
 	}
@@ -523,7 +523,7 @@ func (v *VMPlatform) DeleteCloudletAccessVars(ctx context.Context, cloudlet *edg
 	if err != nil {
 		return err
 	}
-	path := v.GetVaultCloudletAccessPath(&cloudlet.Key, pfConfig.Region, cloudlet.PhysicalName)
+	path := GetVaultCloudletAccessPath(&cloudlet.Key, v.Type, pfConfig.Region, cloudlet.PhysicalName)
 	err = infracommon.DeleteDataFromVault(vaultConfig, path)
 	if err != nil {
 		return fmt.Errorf("Failed to delete access vars from vault: %v", err)

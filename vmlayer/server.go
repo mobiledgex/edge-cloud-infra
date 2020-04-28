@@ -23,7 +23,7 @@ type ServerDetail struct {
 	Status    string
 }
 
-func (v *VMPlatform) GetIPFromServerDetails(ctx context.Context, networkName string, sd *ServerDetail) (*ServerIP, error) {
+func GetIPFromServerDetails(ctx context.Context, networkName string, sd *ServerDetail) (*ServerIP, error) {
 	log.SpanLog(ctx, log.DebugLevelInfra, "GetIPFromServerDetails", "networkName", networkName, "serverDetail", sd)
 	for _, s := range sd.Addresses {
 		if s.Network == networkName {
@@ -84,9 +84,9 @@ func (v *VMPlatform) SetPowerState(ctx context.Context, app *edgeproto.App, appI
 		}
 
 		updateCallback(edgeproto.UpdateTask, fmt.Sprintf("Fetching external address of %s", serverName))
-		oldServerIP, err := v.GetIPFromServerDetails(ctx, v.GetCloudletExternalNetwork(), serverDetail)
+		oldServerIP, err := GetIPFromServerDetails(ctx, v.VMProperties.GetCloudletExternalNetwork(), serverDetail)
 		if err != nil || oldServerIP.ExternalAddr == "" {
-			return fmt.Errorf("unable to fetch external ip for %s, addr %s, err %v", serverName, v.GetCloudletExternalNetwork(), err)
+			return fmt.Errorf("unable to fetch external ip for %s, addr %s, err %v", serverName, v.VMProperties.GetCloudletExternalNetwork(), err)
 		}
 		updateCallback(edgeproto.UpdateTask, fmt.Sprintf("Performing action %s on %s", serverAction, serverName))
 		err = v.VMProvider.SetPowerState(ctx, serverName, serverAction)
@@ -101,15 +101,15 @@ func (v *VMPlatform) SetPowerState(ctx context.Context, app *edgeproto.App, appI
 				return err
 			}
 			updateCallback(edgeproto.UpdateTask, fmt.Sprintf("Fetching external address of %s", serverName))
-			newServerIP, err := v.GetIPFromServerDetails(ctx, v.GetCloudletExternalNetwork(), serverDetail)
+			newServerIP, err := GetIPFromServerDetails(ctx, v.VMProperties.GetCloudletExternalNetwork(), serverDetail)
 			if err != nil || newServerIP.ExternalAddr == "" {
-				return fmt.Errorf("unable to fetch external ip for %s, addr %s, err %v", serverName, v.GetCloudletExternalNetwork(), err)
+				return fmt.Errorf("unable to fetch external ip for %s, addr %s, err %v", serverName, v.VMProperties.GetCloudletExternalNetwork(), err)
 			}
 			if oldServerIP.ExternalAddr != newServerIP.ExternalAddr {
 				// IP changed, update DNS entry
 				updateCallback(edgeproto.UpdateTask, fmt.Sprintf("Updating DNS entry as IP changed for %s", serverName))
 				log.SpanLog(ctx, log.DebugLevelInfra, "updating DNS entry", "serverName", serverName, "fqdn", fqdn, "ip", newServerIP)
-				err = v.CommonPf.ActivateFQDNA(ctx, fqdn, newServerIP.ExternalAddr)
+				err = v.VMProperties.CommonPf.ActivateFQDNA(ctx, fqdn, newServerIP.ExternalAddr)
 				if err != nil {
 					return fmt.Errorf("unable to update fqdn for %s, addr %s, err %v", serverName, newServerIP.ExternalAddr, err)
 				}

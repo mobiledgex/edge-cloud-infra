@@ -58,14 +58,6 @@ func (v *VMPlatform) GetDockerNodeName(ctx context.Context, clusterInst *edgepro
 	return "docker-node" + "-" + v.GetClusterName(ctx, clusterInst)
 }
 
-func (v *VMPlatform) GetRootLBNameForCluster(ctx context.Context, clusterInst *edgeproto.ClusterInst) string {
-	lbName := v.sharedRootLBName
-	if clusterInst.IpAccess == edgeproto.IpAccess_IP_ACCESS_DEDICATED {
-		lbName = cloudcommon.GetDedicatedLBFQDN(v.CommonPf.PlatformConfig.CloudletKey, &clusterInst.Key.ClusterKey)
-	}
-	return lbName
-}
-
 func ClusterNodePrefix(num uint32) string {
 	return fmt.Sprintf("%s%d", cloudcommon.MexNodePrefix, num)
 }
@@ -81,14 +73,14 @@ func ParseClusterNodePrefix(name string) (bool, uint32) {
 }
 
 func (v *VMPlatform) UpdateClusterInst(ctx context.Context, clusterInst *edgeproto.ClusterInst, privacyPolicy *edgeproto.PrivacyPolicy, updateCallback edgeproto.CacheUpdateCallback) error {
-	lbName := v.GetRootLBNameForCluster(ctx, clusterInst)
-	client, err := v.VMProvider.GetClusterPlatformClient(ctx, clusterInst)
+	lbName := v.VMProperties.GetRootLBNameForCluster(ctx, clusterInst)
+	client, err := v.GetClusterPlatformClient(ctx, clusterInst)
 	if err != nil {
 		return err
 	}
 
 	log.SpanLog(ctx, log.DebugLevelInfra, "verify if cloudlet base image exists")
-	imgName, err := v.VMProvider.AddCloudletImageIfNotPresent(ctx, v.CommonPf.PlatformConfig.CloudletVMImagePath, v.CommonPf.PlatformConfig.VMImageVersion, updateCallback)
+	imgName, err := v.VMProvider.AddCloudletImageIfNotPresent(ctx, v.VMProperties.CommonPf.PlatformConfig.CloudletVMImagePath, v.VMProperties.CommonPf.PlatformConfig.VMImageVersion, updateCallback)
 	if err != nil {
 		log.InfoLog("error with cloudlet base image", "imgName", imgName, "error", err)
 		return err
@@ -160,7 +152,7 @@ func (v *VMPlatform) deleteCluster(ctx context.Context, rootLBName string, clust
 	name := v.GetClusterName(ctx, clusterInst)
 
 	dedicatedRootLB := clusterInst.IpAccess == edgeproto.IpAccess_IP_ACCESS_DEDICATED
-	client, err := v.VMProvider.GetClusterPlatformClient(ctx, clusterInst)
+	client, err := v.GetClusterPlatformClient(ctx, clusterInst)
 	if err != nil {
 		if strings.Contains(err.Error(), "No server with a name or ID") {
 			log.SpanLog(ctx, log.DebugLevelInfra, "Dedicated RootLB is gone, allow stack delete to proceed")
@@ -181,13 +173,13 @@ func (v *VMPlatform) deleteCluster(ctx context.Context, rootLBName string, clust
 		if err != nil {
 			return err
 		}
-		return v.DetachAndDisableRootLBInterface(ctx, client, rootLBName, GetPortName(rootLBName, v.GetCloudletMexNetwork()), ip.InternalAddr)
+		return v.DetachAndDisableRootLBInterface(ctx, client, rootLBName, GetPortName(rootLBName, v.VMProperties.GetCloudletMexNetwork()), ip.InternalAddr)
 	}
 	return nil
 }
 
 func (v *VMPlatform) CreateClusterInst(ctx context.Context, clusterInst *edgeproto.ClusterInst, privacyPolicy *edgeproto.PrivacyPolicy, updateCallback edgeproto.CacheUpdateCallback, timeout time.Duration) error {
-	lbName := v.GetRootLBNameForCluster(ctx, clusterInst)
+	lbName := v.VMProperties.GetRootLBNameForCluster(ctx, clusterInst)
 	log.SpanLog(ctx, log.DebugLevelInfra, "CreateClusterInst", "clusterInst", clusterInst, "lbName", lbName)
 
 	//find the flavor and check the disk size
@@ -202,7 +194,7 @@ func (v *VMPlatform) CreateClusterInst(ctx context.Context, clusterInst *edgepro
 	timeout -= time.Minute
 
 	log.SpanLog(ctx, log.DebugLevelInfra, "verify if cloudlet base image exists")
-	imgName, err := v.VMProvider.AddCloudletImageIfNotPresent(ctx, v.CommonPf.PlatformConfig.CloudletVMImagePath, v.CommonPf.PlatformConfig.VMImageVersion, updateCallback)
+	imgName, err := v.VMProvider.AddCloudletImageIfNotPresent(ctx, v.VMProperties.CommonPf.PlatformConfig.CloudletVMImagePath, v.VMProperties.CommonPf.PlatformConfig.VMImageVersion, updateCallback)
 	if err != nil {
 		log.InfoLog("error with cloudlet base image", "imgName", imgName, "error", err)
 		return err
@@ -217,7 +209,7 @@ func (v *VMPlatform) createClusterInternal(ctx context.Context, rootLBName strin
 			return
 		}
 		log.SpanLog(ctx, log.DebugLevelInfra, "error in CreateCluster", "err", reterr)
-		if v.CommonPf.GetCleanupOnFailure(ctx) {
+		if v.VMProperties.CommonPf.GetCleanupOnFailure(ctx) {
 			log.SpanLog(ctx, log.DebugLevelInfra, "cleaning up cluster resources after cluster fail, set envvar CLEANUP_ON_FAILURE to 'no' to avoid this")
 			delerr := v.deleteCluster(ctx, rootLBName, clusterInst)
 			if delerr != nil {
@@ -234,19 +226,19 @@ func (v *VMPlatform) createClusterInternal(ctx context.Context, rootLBName strin
 	var err error
 	if clusterInst.AvailabilityZone == "" {
 		//use the cloudlet default AZ if it exists
-		clusterInst.AvailabilityZone = v.GetCloudletComputeAvailabilityZone()
+		clusterInst.AvailabilityZone = v.VMProperties.GetCloudletComputeAvailabilityZone()
 	}
 	vmgp, err := v.CreateOrUpdateVMsForCluster(ctx, imgName, clusterInst, privacyPolicy, ActionCreate, updateCallback)
 	if err != nil {
 		return fmt.Errorf("Cluster VM create Failed: %v", err)
 	}
 
-	client, err := v.VMProvider.GetClusterPlatformClient(ctx, clusterInst)
+	client, err := v.GetClusterPlatformClient(ctx, clusterInst)
 	if err != nil {
 		return fmt.Errorf("can't get rootLB client, %v", err)
 	}
 
-	if v.GetCloudletExternalRouter() == NoExternalRouter && clusterInst.Deployment == cloudcommon.AppDeploymentTypeKubernetes {
+	if v.VMProperties.GetCloudletExternalRouter() == NoExternalRouter && clusterInst.Deployment == cloudcommon.AppDeploymentTypeKubernetes {
 		log.SpanLog(ctx, log.DebugLevelInfra, "Need to attach internal interface on rootlb", "IpAccess", clusterInst.IpAccess)
 
 		// after vm creation, the orchestrator will update some fields in the group params including gateway IP.
@@ -255,7 +247,7 @@ func (v *VMPlatform) createClusterInternal(ctx context.Context, rootLBName strin
 		if err != nil {
 			return err
 		}
-		err = v.AttachAndEnableRootLBInterface(ctx, client, rootLBName, GetPortName(rootLBName, v.GetCloudletMexNetwork()), gw)
+		err = v.AttachAndEnableRootLBInterface(ctx, client, rootLBName, GetPortName(rootLBName, v.VMProperties.GetCloudletMexNetwork()), gw)
 		if err != nil {
 			log.SpanLog(ctx, log.DebugLevelInfra, "AttachAndEnableRootLBInterface failed", "err", err)
 			return err
@@ -302,7 +294,7 @@ func (v *VMPlatform) createClusterInternal(ctx context.Context, rootLBName strin
 }
 
 func (v *VMPlatform) DeleteClusterInst(ctx context.Context, clusterInst *edgeproto.ClusterInst) error {
-	lbName := v.GetRootLBNameForCluster(ctx, clusterInst)
+	lbName := v.VMProperties.GetRootLBNameForCluster(ctx, clusterInst)
 	return v.deleteCluster(ctx, lbName, clusterInst)
 }
 
@@ -350,7 +342,7 @@ func (v *VMPlatform) isClusterReady(ctx context.Context, clusterInst *edgeproto.
 	log.SpanLog(ctx, log.DebugLevelInfra, "checking if cluster is ready")
 
 	// some commands are run on the rootlb and some on the master directly, so we use separate clients
-	rootLBClient, err := v.VMProvider.GetClusterPlatformClient(ctx, clusterInst)
+	rootLBClient, err := v.GetClusterPlatformClient(ctx, clusterInst)
 	if err != nil {
 		return false, 0, fmt.Errorf("can't get rootlb ssh client for cluster ready check, %v", err)
 	}
@@ -440,7 +432,7 @@ func (v *VMPlatform) getVMRequestSpecForDockerCluster(ctx context.Context, imgNa
 		// dedicated access means the docker VM acts as its own rootLB
 		dockerVmConnectExternal = true
 		dockerVmType = VMTypeRootLB
-		dockerVMName = v.GetRootLBNameForCluster(ctx, clusterInst)
+		dockerVMName = v.VMProperties.GetRootLBNameForCluster(ctx, clusterInst)
 		newSecgrpName = v.GetServerSecurityGroupName(dockerVMName)
 	} else {
 		// shared access means docker vm goes on its own subnet which is connected
@@ -449,9 +441,9 @@ func (v *VMPlatform) getVMRequestSpecForDockerCluster(ctx context.Context, imgNa
 		dockerVmType = VMTypeClusterNode
 		dockerVMName = v.GetDockerNodeName(ctx, clusterInst)
 
-		if v.GetCloudletExternalRouter() != NoExternalRouter {
+		if v.VMProperties.GetCloudletExternalRouter() != NoExternalRouter {
 			// If no router in use, create ports on the existing shared rootLB
-			rootlb, err := v.GetVMSpecForRootLBPorts(ctx, v.sharedRootLBName, newSubnet)
+			rootlb, err := v.GetVMSpecForRootLBPorts(ctx, v.VMProperties.sharedRootLBName, newSubnet)
 			if err != nil {
 				return vms, newSubnetName, newSecgrpName, err
 			}
@@ -495,15 +487,15 @@ func (v *VMPlatform) CreateOrUpdateVMsForCluster(ctx context.Context, imgName st
 		var err error
 		if clusterInst.IpAccess == edgeproto.IpAccess_IP_ACCESS_DEDICATED {
 			// dedicated for docker means the docker VM acts as its own rootLB
-			rootlb, err = v.GetVMSpecForRootLB(ctx, v.GetRootLBNameForCluster(ctx, clusterInst), newSubnetName, updateCallback)
+			rootlb, err = v.GetVMSpecForRootLB(ctx, v.VMProperties.GetRootLBNameForCluster(ctx, clusterInst), newSubnetName, updateCallback)
 			if err != nil {
 				return nil, err
 			}
 			vms = append(vms, rootlb)
 			newSecgrpName = v.GetServerSecurityGroupName(rootlb.Name)
-		} else if v.GetCloudletExternalRouter() != NoExternalRouter {
+		} else if v.VMProperties.GetCloudletExternalRouter() != NoExternalRouter {
 			// If no router in use, create ports on the existing shared rootLB
-			rootlb, err = v.GetVMSpecForRootLBPorts(ctx, v.sharedRootLBName, newSubnetName)
+			rootlb, err = v.GetVMSpecForRootLBPorts(ctx, v.VMProperties.sharedRootLBName, newSubnetName)
 			if err != nil {
 				return nil, err
 			}
@@ -520,7 +512,7 @@ func (v *VMPlatform) CreateOrUpdateVMsForCluster(ctx context.Context, imgName st
 			VMTypeClusterMaster,
 			v.GetClusterMasterName(ctx, clusterInst),
 			masterFlavor,
-			v.GetCloudletOSImage(),
+			v.VMProperties.GetCloudletOSImage(),
 			false, //connect external
 			WithSharedVolume(clusterInst.SharedVolumeSize),
 			WithExternalVolume(clusterInst.ExternalVolumeSize),
@@ -536,7 +528,7 @@ func (v *VMPlatform) CreateOrUpdateVMsForCluster(ctx context.Context, imgName st
 				VMTypeClusterNode,
 				v.GetClusterNodeName(ctx, clusterInst, nn),
 				clusterInst.NodeFlavor,
-				v.GetCloudletOSImage(),
+				v.VMProperties.GetCloudletOSImage(),
 				false, //connect external
 				WithExternalVolume(clusterInst.ExternalVolumeSize),
 				WithSubnetConnection(newSubnetName),

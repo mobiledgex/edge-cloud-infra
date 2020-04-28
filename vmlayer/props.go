@@ -1,13 +1,23 @@
 package vmlayer
 
 import (
+	"context"
 	"fmt"
+	"net"
 	"strconv"
 	"strings"
 
 	"github.com/mobiledgex/edge-cloud-infra/infracommon"
+	"github.com/mobiledgex/edge-cloud/cloudcommon"
 	"github.com/mobiledgex/edge-cloud/edgeproto"
+	"github.com/mobiledgex/edge-cloud/log"
 )
+
+type VMProperties struct {
+	CommonPf         infracommon.CommonPlatform
+	sharedRootLBName string
+	sharedRootLB     *MEXRootLB
+}
 
 var ImageFormatQcow2 = "qcow2"
 var ImageFormatVmdk = "vmdk"
@@ -69,6 +79,8 @@ var VMProviderProps = map[string]*infracommon.PropertyInfo{
 	"MEX_ROUTER": &infracommon.PropertyInfo{
 		Value: NoExternalRouter,
 	},
+	"MEX_CRM_GATEWAY_ADDR": &infracommon.PropertyInfo{},
+	"MEX_SUBNET_DNS":       &infracommon.PropertyInfo{},
 }
 
 func GetVaultCloudletCommonPath(filePath string) string {
@@ -87,8 +99,8 @@ func GetCertFilePath(key *edgeproto.CloudletKey) string {
 	return fmt.Sprintf("/tmp/%s.%s.cert", key.Name, key.Organization)
 }
 
-func (v *VMPlatform) GetVaultCloudletAccessPath(key *edgeproto.CloudletKey, region, physicalName string) string {
-	return fmt.Sprintf("/secret/data/%s/cloudlet/%s/%s/%s/%s", region, v.Type, key.Organization, physicalName, "openrc.json")
+func GetVaultCloudletAccessPath(key *edgeproto.CloudletKey, region, cloudletType, physicalName string) string {
+	return fmt.Sprintf("/secret/data/%s/cloudlet/%s/%s/%s/%s", region, cloudletType, key.Organization, physicalName, "openrc.json")
 }
 
 func GetCloudletVMImagePath(imgPath, imgVersion string) string {
@@ -104,8 +116,8 @@ func GetCloudletVMImagePath(imgPath, imgVersion string) string {
 
 // GetCloudletSharedRootLBFlavor gets the flavor from defaults
 // or environment variables
-func (v *VMPlatform) GetCloudletSharedRootLBFlavor(flavor *edgeproto.Flavor) error {
-	ram := v.CommonPf.Properties["MEX_SHARED_ROOTLB_RAM"].Value
+func (vp *VMProperties) GetCloudletSharedRootLBFlavor(flavor *edgeproto.Flavor) error {
+	ram := vp.CommonPf.Properties["MEX_SHARED_ROOTLB_RAM"].Value
 	var err error
 	if ram != "" {
 		flavor.Ram, err = strconv.ParseUint(ram, 10, 64)
@@ -115,7 +127,7 @@ func (v *VMPlatform) GetCloudletSharedRootLBFlavor(flavor *edgeproto.Flavor) err
 	} else {
 		flavor.Ram = 4096
 	}
-	vcpus := v.CommonPf.Properties["MEX_SHARED_ROOTLB_VCPUS"].Value
+	vcpus := vp.CommonPf.Properties["MEX_SHARED_ROOTLB_VCPUS"].Value
 	if vcpus != "" {
 		flavor.Vcpus, err = strconv.ParseUint(vcpus, 10, 64)
 		if err != nil {
@@ -124,7 +136,7 @@ func (v *VMPlatform) GetCloudletSharedRootLBFlavor(flavor *edgeproto.Flavor) err
 	} else {
 		flavor.Vcpus = 2
 	}
-	disk := v.CommonPf.Properties["MEX_SHARED_ROOTLB_DISK"].Value
+	disk := vp.CommonPf.Properties["MEX_SHARED_ROOTLB_DISK"].Value
 	if disk != "" {
 		flavor.Disk, err = strconv.ParseUint(disk, 10, 64)
 		if err != nil {
@@ -136,48 +148,71 @@ func (v *VMPlatform) GetCloudletSharedRootLBFlavor(flavor *edgeproto.Flavor) err
 	return nil
 }
 
-func (v *VMPlatform) GetCloudletSecurityGroupName() string {
-	return v.CommonPf.Properties["MEX_SECURITY_GROUP"].Value
+func (vp *VMProperties) GetCloudletSecurityGroupName() string {
+	return vp.CommonPf.Properties["MEX_SECURITY_GROUP"].Value
 }
 
-func (v *VMPlatform) GetCloudletExternalNetwork() string {
-	return v.CommonPf.Properties["MEX_EXT_NETWORK"].Value
+func (vp *VMProperties) GetCloudletExternalNetwork() string {
+	return vp.CommonPf.Properties["MEX_EXT_NETWORK"].Value
 }
 
 // GetCloudletNetwork returns default MEX network, internal and prepped
-func (v *VMPlatform) GetCloudletMexNetwork() string {
-	return v.CommonPf.Properties["MEX_NETWORK"].Value
+func (vp *VMProperties) GetCloudletMexNetwork() string {
+	return vp.CommonPf.Properties["MEX_NETWORK"].Value
 }
 
-func (v *VMPlatform) GetCloudletNetworkScheme() string {
-	return v.CommonPf.Properties["MEX_NETWORK_SCHEME"].Value
+func (vp *VMProperties) GetCloudletNetworkScheme() string {
+	return vp.CommonPf.Properties["MEX_NETWORK_SCHEME"].Value
 }
 
-func (v *VMPlatform) GetCloudletVolumeAvailabilityZone() string {
-	return v.CommonPf.Properties["MEX_VOLUME_AVAILABILITY_ZONE"].Value
+func (vp *VMProperties) GetCloudletVolumeAvailabilityZone() string {
+	return vp.CommonPf.Properties["MEX_VOLUME_AVAILABILITY_ZONE"].Value
 }
 
-func (v *VMPlatform) GetCloudletComputeAvailabilityZone() string {
-	return v.CommonPf.Properties["MEX_COMPUTE_AVAILABILITY_ZONE"].Value
+func (vp *VMProperties) GetCloudletComputeAvailabilityZone() string {
+	return vp.CommonPf.Properties["MEX_COMPUTE_AVAILABILITY_ZONE"].Value
 }
 
-func (v *VMPlatform) GetCloudletImageDiskFormat() string {
-	return v.CommonPf.Properties["MEX_IMAGE_DISK_FORMAT"].Value
+func (vp *VMProperties) GetCloudletImageDiskFormat() string {
+	return vp.CommonPf.Properties["MEX_IMAGE_DISK_FORMAT"].Value
 }
 
-func (v *VMPlatform) GetCloudletOSImage() string {
-	return v.CommonPf.Properties["MEX_OS_IMAGE"].Value
+func (vp *VMProperties) GetCloudletOSImage() string {
+	return vp.CommonPf.Properties["MEX_OS_IMAGE"].Value
 }
 
-func (v *VMPlatform) GetCloudletFlavorMatchPattern() string {
-	return v.CommonPf.Properties["FLAVOR_MATCH_PATTERN"].Value
+func (vp *VMProperties) GetCloudletFlavorMatchPattern() string {
+	return vp.CommonPf.Properties["FLAVOR_MATCH_PATTERN"].Value
 }
 
-//GetCloudletExternalRouter returns default MEX external router name
-func (v *VMPlatform) GetCloudletExternalRouter() string {
-	return v.CommonPf.Properties["MEX_ROUTER"].Value
+func (vp *VMProperties) GetCloudletExternalRouter() string {
+	return vp.CommonPf.Properties["MEX_ROUTER"].Value
 }
 
-func (v *VMPlatform) GetSubnetDNS() string {
-	return v.CommonPf.Properties["MEX_SUBNET_DNS"].Value
+func (vp *VMProperties) GetSubnetDNS() string {
+	return vp.CommonPf.Properties["MEX_SUBNET_DNS"].Value
+}
+
+func (vp *VMProperties) GetRootLBNameForCluster(ctx context.Context, clusterInst *edgeproto.ClusterInst) string {
+	lbName := vp.sharedRootLBName
+	if clusterInst.IpAccess == edgeproto.IpAccess_IP_ACCESS_DEDICATED {
+		lbName = cloudcommon.GetDedicatedLBFQDN(vp.CommonPf.PlatformConfig.CloudletKey, &clusterInst.Key.ClusterKey)
+	}
+	return lbName
+}
+
+func (vp *VMProperties) GetCloudletCRMGatewayIPAndPort() (string, int) {
+	gw := vp.CommonPf.Properties["MEX_CRM_GATEWAY_ADDR"].Value
+	if gw == "" {
+		return "", 0
+	}
+	host, portstr, err := net.SplitHostPort(gw)
+	if err != nil {
+		log.FatalLog("Error in MEX_CRM_GATEWAY_ADDR format")
+	}
+	port, err := strconv.Atoi(portstr)
+	if err != nil {
+		log.FatalLog("Error in MEX_CRM_GATEWAY_ADDR port format")
+	}
+	return host, port
 }

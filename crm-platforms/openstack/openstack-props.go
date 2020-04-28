@@ -17,7 +17,7 @@ func (o *OpenstackPlatform) GetOpenRCVars(ctx context.Context, key *edgeproto.Cl
 	if vaultConfig == nil || vaultConfig.Addr == "" {
 		return fmt.Errorf("vaultAddr is not specified")
 	}
-	openRCPath := o.vmPlatform.GetVaultCloudletAccessPath(key, region, physicalName)
+	openRCPath := vmlayer.GetVaultCloudletAccessPath(key, region, o.GetType(), physicalName)
 	log.SpanLog(ctx, log.DebugLevelInfra, "interning vault", "addr", vaultConfig.Addr, "path", openRCPath)
 	envData := &infracommon.VaultEnvData{}
 	err := vault.GetData(vaultConfig, openRCPath, 0, envData)

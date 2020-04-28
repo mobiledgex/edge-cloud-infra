@@ -34,10 +34,10 @@ func (v *VMPlatform) CreateAppInst(ctx context.Context, clusterInst *edgeproto.C
 	case cloudcommon.AppDeploymentTypeKubernetes:
 		fallthrough
 	case cloudcommon.AppDeploymentTypeHelm:
-		rootLBName := v.GetRootLBNameForCluster(ctx, clusterInst)
+		rootLBName := v.VMProperties.GetRootLBNameForCluster(ctx, clusterInst)
 		appWaitChan := make(chan string)
 
-		client, err := v.VMProvider.GetClusterPlatformClient(ctx, clusterInst)
+		client, err := v.GetClusterPlatformClient(ctx, clusterInst)
 		if err != nil {
 			return err
 		}
@@ -46,7 +46,7 @@ func (v *VMPlatform) CreateAppInst(ctx context.Context, clusterInst *edgeproto.C
 			return err
 		}
 		updateCallback(edgeproto.UpdateTask, "Setting up registry secret")
-		err = infracommon.CreateDockerRegistrySecret(ctx, client, clusterInst, app, v.CommonPf.VaultConfig, names)
+		err = infracommon.CreateDockerRegistrySecret(ctx, client, clusterInst, app, v.VMProperties.CommonPf.VaultConfig, names)
 		if err != nil {
 			return err
 		}
@@ -60,14 +60,14 @@ func (v *VMPlatform) CreateAppInst(ctx context.Context, clusterInst *edgeproto.C
 				ClusterName:  k8smgmt.NormalizeName(clusterInst.Key.ClusterKey.Name),
 				CloudletOrg:  k8smgmt.NormalizeName(clusterInst.Key.CloudletKey.Organization),
 				AppOrg:       k8smgmt.NormalizeName(app.Key.Organization),
-				DnsZone:      v.CommonPf.GetCloudletDNSZone(),
+				DnsZone:      v.VMProperties.CommonPf.GetCloudletDNSZone(),
 			},
 		}
 		ctx = context.WithValue(ctx, crmutil.DeploymentReplaceVarsKey, &deploymentVars)
 
 		if deployment == cloudcommon.AppDeploymentTypeKubernetes {
 			updateCallback(edgeproto.UpdateTask, "Creating Kubernetes App")
-			err = k8smgmt.CreateAppInst(ctx, v.CommonPf.VaultConfig, client, names, app, appInst)
+			err = k8smgmt.CreateAppInst(ctx, v.VMProperties.CommonPf.VaultConfig, client, names, app, appInst)
 		} else {
 			updateCallback(edgeproto.UpdateTask, "Creating Helm App")
 
@@ -94,7 +94,7 @@ func (v *VMPlatform) CreateAppInst(ctx context.Context, clusterInst *edgeproto.C
 		// set up DNS
 		var rootLBIPaddr *ServerIP
 		if masterIpErr == nil {
-			rootLBIPaddr, err = v.VMProvider.GetIPFromServerName(ctx, v.GetCloudletExternalNetwork(), rootLBName)
+			rootLBIPaddr, err = v.VMProvider.GetIPFromServerName(ctx, v.VMProperties.GetCloudletExternalNetwork(), rootLBName)
 			if err == nil {
 				getDnsAction := func(svc v1.Service) (*infracommon.DnsSvcAction, error) {
 					action := infracommon.DnsSvcAction{}
@@ -107,7 +107,7 @@ func (v *VMPlatform) CreateAppInst(ctx context.Context, clusterInst *edgeproto.C
 				}
 				// If this is an internal ports, all we need is patch of kube service
 				if app.InternalPorts {
-					err = v.CommonPf.CreateAppDNSAndPatchKubeSvc(ctx, client, names, infracommon.NoDnsOverride, getDnsAction)
+					err = v.VMProperties.CommonPf.CreateAppDNSAndPatchKubeSvc(ctx, client, names, infracommon.NoDnsOverride, getDnsAction)
 				} else {
 					updateCallback(edgeproto.UpdateTask, "Configuring Service: LB, Firewall Rules and DNS")
 					ops := ProxyDnsSecOpts{AddProxy: true, AddDnsAndPatchKubeSvc: true, AddSecurityRules: true}
@@ -142,7 +142,7 @@ func (v *VMPlatform) CreateAppInst(ctx context.Context, clusterInst *edgeproto.C
 				CloudletName: k8smgmt.NormalizeName(appInst.Key.ClusterInstKey.CloudletKey.Name),
 				CloudletOrg:  k8smgmt.NormalizeName(clusterInst.Key.CloudletKey.Organization),
 				AppOrg:       k8smgmt.NormalizeName(app.Key.Organization),
-				DnsZone:      v.CommonPf.GetCloudletDNSZone(),
+				DnsZone:      v.VMProperties.CommonPf.GetCloudletDNSZone(),
 			},
 		}
 		ctx = context.WithValue(ctx, crmutil.DeploymentReplaceVarsKey, &deploymentVars)
@@ -195,14 +195,14 @@ func (v *VMPlatform) CreateAppInst(ctx context.Context, clusterInst *edgeproto.C
 			return err
 		}
 
-		ip, err := v.VMProvider.GetIPFromServerName(ctx, v.GetCloudletExternalNetwork(), externalServerName)
+		ip, err := v.VMProvider.GetIPFromServerName(ctx, v.VMProperties.GetCloudletExternalNetwork(), externalServerName)
 		if err != nil {
 			return err
 		}
 		if usesLb {
 			updateCallback(edgeproto.UpdateTask, "Setting Up Load Balancer")
 			var proxyOps []proxy.Op
-			client, err := v.GetSSHClientForServer(ctx, externalServerName, v.GetCloudletExternalNetwork())
+			client, err := v.GetSSHClientForServer(ctx, externalServerName, v.VMProperties.GetCloudletExternalNetwork())
 			if err != nil {
 				return err
 			}
@@ -218,7 +218,7 @@ func (v *VMPlatform) CreateAppInst(ctx context.Context, clusterInst *edgeproto.C
 				action.ExternalIP = ip.ExternalAddr
 				return &action, nil
 			}
-			vmIP, err := v.VMProvider.GetIPFromServerName(ctx, v.GetCloudletMexNetwork(), objName)
+			vmIP, err := v.VMProvider.GetIPFromServerName(ctx, v.VMProperties.GetCloudletMexNetwork(), objName)
 			if err != nil {
 				return err
 			}
@@ -229,7 +229,7 @@ func (v *VMPlatform) CreateAppInst(ctx context.Context, clusterInst *edgeproto.C
 				return fmt.Errorf("AddProxySecurityRulesAndPatchDNS error: %v", err)
 			}
 
-			if v.GetCloudletExternalRouter() == NoExternalRouter {
+			if v.VMProperties.GetCloudletExternalRouter() == NoExternalRouter {
 				log.SpanLog(ctx, log.DebugLevelInfra, "Need to attach internal interface on rootlb")
 
 				// after vm creation, the orchestrator will update some fields in the group params including gateway IP.
@@ -238,7 +238,7 @@ func (v *VMPlatform) CreateAppInst(ctx context.Context, clusterInst *edgeproto.C
 				if err != nil {
 					return err
 				}
-				err = v.AttachAndEnableRootLBInterface(ctx, client, lbName, GetPortName(lbName, v.GetCloudletMexNetwork()), gw)
+				err = v.AttachAndEnableRootLBInterface(ctx, client, lbName, GetPortName(lbName, v.VMProperties.GetCloudletMexNetwork()), gw)
 				if err != nil {
 					log.SpanLog(ctx, log.DebugLevelInfra, "AttachAndEnableRootLBInterface failed", "err", err)
 					return err
@@ -259,7 +259,7 @@ func (v *VMPlatform) CreateAppInst(ctx context.Context, clusterInst *edgeproto.C
 			if aac.DnsOverride != "" {
 				fqdn = aac.DnsOverride
 			}
-			if err = v.CommonPf.ActivateFQDNA(ctx, fqdn, ip.ExternalAddr); err != nil {
+			if err = v.VMProperties.CommonPf.ActivateFQDNA(ctx, fqdn, ip.ExternalAddr); err != nil {
 				return err
 			}
 			log.SpanLog(ctx, log.DebugLevelInfra, "DNS A record activated",
@@ -270,10 +270,10 @@ func (v *VMPlatform) CreateAppInst(ctx context.Context, clusterInst *edgeproto.C
 		return nil
 
 	case cloudcommon.AppDeploymentTypeDocker:
-		rootLBName := v.GetRootLBNameForCluster(ctx, clusterInst)
+		rootLBName := v.VMProperties.GetRootLBNameForCluster(ctx, clusterInst)
 		backendIP := cloudcommon.RemoteServerNone
 		dockerNetworkMode := dockermgmt.DockerBridgeMode
-		rootLBClient, err := v.VMProvider.GetClusterPlatformClient(ctx, clusterInst)
+		rootLBClient, err := v.GetClusterPlatformClient(ctx, clusterInst)
 		if err != nil {
 			return err
 		}
@@ -303,7 +303,7 @@ func (v *VMPlatform) CreateAppInst(ctx context.Context, clusterInst *edgeproto.C
 			dockerNetworkMode = dockermgmt.DockerHostMode
 		}
 
-		rootLBIPaddr, err := v.VMProvider.GetIPFromServerName(ctx, v.GetCloudletExternalNetwork(), rootLBName)
+		rootLBIPaddr, err := v.VMProvider.GetIPFromServerName(ctx, v.VMProperties.GetCloudletExternalNetwork(), rootLBName)
 		if err != nil {
 			return err
 		}
@@ -315,7 +315,7 @@ func (v *VMPlatform) CreateAppInst(ctx context.Context, clusterInst *edgeproto.C
 
 		start := time.Now()
 		for {
-			err = infracommon.SeedDockerSecret(ctx, dockerCommandTarget, clusterInst, app, v.CommonPf.VaultConfig)
+			err = infracommon.SeedDockerSecret(ctx, dockerCommandTarget, clusterInst, app, v.VMProperties.CommonPf.VaultConfig)
 			if err != nil {
 				log.SpanLog(ctx, log.DebugLevelInfra, "seeding docker secret failed", "err", err)
 				elapsed := time.Since(start)
@@ -331,7 +331,7 @@ func (v *VMPlatform) CreateAppInst(ctx context.Context, clusterInst *edgeproto.C
 
 		updateCallback(edgeproto.UpdateTask, "Deploying Docker App")
 
-		err = dockermgmt.CreateAppInst(ctx, v.CommonPf.VaultConfig, dockerCommandTarget, app, appInst, dockerNetworkMode)
+		err = dockermgmt.CreateAppInst(ctx, v.VMProperties.CommonPf.VaultConfig, dockerCommandTarget, app, appInst, dockerNetworkMode)
 		if err != nil {
 			return err
 		}
@@ -366,7 +366,7 @@ func (v *VMPlatform) DeleteAppInst(ctx context.Context, clusterInst *edgeproto.C
 	case cloudcommon.AppDeploymentTypeKubernetes:
 		fallthrough
 	case cloudcommon.AppDeploymentTypeHelm:
-		rootLBName := v.GetRootLBNameForCluster(ctx, clusterInst)
+		rootLBName := v.VMProperties.GetRootLBNameForCluster(ctx, clusterInst)
 		if clusterInst.IpAccess == edgeproto.IpAccess_IP_ACCESS_DEDICATED {
 			log.SpanLog(ctx, log.DebugLevelInfra, "using dedicated RootLB to delete app", "rootLBName", rootLBName)
 			_, err := v.VMProvider.GetServerDetail(ctx, rootLBName)
@@ -378,7 +378,7 @@ func (v *VMPlatform) DeleteAppInst(ctx context.Context, clusterInst *edgeproto.C
 				return err
 			}
 		}
-		client, err := v.VMProvider.GetClusterPlatformClient(ctx, clusterInst)
+		client, err := v.GetClusterPlatformClient(ctx, clusterInst)
 		if err != nil {
 			return err
 		}
@@ -403,7 +403,7 @@ func (v *VMPlatform) DeleteAppInst(ctx context.Context, clusterInst *edgeproto.C
 				ClusterName:  k8smgmt.NormalizeName(clusterInst.Key.ClusterKey.Name),
 				CloudletOrg:  k8smgmt.NormalizeName(clusterInst.Key.CloudletKey.Organization),
 				AppOrg:       k8smgmt.NormalizeName(app.Key.Organization),
-				DnsZone:      v.CommonPf.GetCloudletDNSZone(),
+				DnsZone:      v.VMProperties.CommonPf.GetCloudletDNSZone(),
 			},
 		}
 		ctx = context.WithValue(ctx, crmutil.DeploymentReplaceVarsKey, &deploymentVars)
@@ -420,7 +420,7 @@ func (v *VMPlatform) DeleteAppInst(ctx context.Context, clusterInst *edgeproto.C
 			if err != nil {
 				return err
 			}
-			if err := v.CommonPf.DeleteAppDNS(ctx, client, names, aac.DnsOverride); err != nil {
+			if err := v.VMProperties.CommonPf.DeleteAppDNS(ctx, client, names, aac.DnsOverride); err != nil {
 				log.SpanLog(ctx, log.DebugLevelInfra, "cannot clean up DNS entries", "name", names.AppName, "rootlb", rootLBName, "error", err)
 			}
 		}
@@ -448,15 +448,15 @@ func (v *VMPlatform) DeleteAppInst(ctx context.Context, clusterInst *edgeproto.C
 			if aac.DnsOverride != "" {
 				fqdn = aac.DnsOverride
 			}
-			if err = v.CommonPf.DeleteDNSRecords(ctx, fqdn); err != nil {
+			if err = v.VMProperties.CommonPf.DeleteDNSRecords(ctx, fqdn); err != nil {
 				log.SpanLog(ctx, log.DebugLevelInfra, "cannot delete DNS entries", "fqdn", fqdn)
 			}
 		}
 		return nil
 
 	case cloudcommon.AppDeploymentTypeDocker:
-		rootLBName := v.GetRootLBNameForCluster(ctx, clusterInst)
-		rootLBClient, err := v.VMProvider.GetClusterPlatformClient(ctx, clusterInst)
+		rootLBName := v.VMProperties.GetRootLBNameForCluster(ctx, clusterInst)
+		rootLBClient, err := v.GetClusterPlatformClient(ctx, clusterInst)
 		if err != nil {
 			return err
 		}
@@ -489,7 +489,7 @@ func (v *VMPlatform) DeleteAppInst(ctx context.Context, clusterInst *edgeproto.C
 			}
 			return err
 		}
-		client, err := v.VMProvider.GetClusterPlatformClient(ctx, clusterInst)
+		client, err := v.GetClusterPlatformClient(ctx, clusterInst)
 		if err != nil {
 			return err
 		}
@@ -502,7 +502,7 @@ func (v *VMPlatform) DeleteAppInst(ctx context.Context, clusterInst *edgeproto.C
 			}
 		}
 
-		return dockermgmt.DeleteAppInst(ctx, v.CommonPf.VaultConfig, dockerCommandTarget, app, appInst)
+		return dockermgmt.DeleteAppInst(ctx, v.VMProperties.CommonPf.VaultConfig, dockerCommandTarget, app, appInst)
 	default:
 		return fmt.Errorf("unsupported deployment type %s", deployment)
 	}
@@ -518,14 +518,14 @@ func (v *VMPlatform) UpdateAppInst(ctx context.Context, clusterInst *edgeproto.C
 			ClusterName:  k8smgmt.NormalizeName(clusterInst.Key.ClusterKey.Name),
 			CloudletName: k8smgmt.NormalizeName(clusterInst.Key.CloudletKey.Organization),
 			AppOrg:       k8smgmt.NormalizeName(app.Key.Organization),
-			DnsZone:      v.CommonPf.GetCloudletDNSZone(),
+			DnsZone:      v.VMProperties.CommonPf.GetCloudletDNSZone(),
 		},
 	}
 	ctx = context.WithValue(ctx, crmutil.DeploymentReplaceVarsKey, &deploymentVars)
 
 	switch deployment := app.Deployment; deployment {
 	case cloudcommon.AppDeploymentTypeKubernetes:
-		client, err := v.VMProvider.GetClusterPlatformClient(ctx, clusterInst)
+		client, err := v.GetClusterPlatformClient(ctx, clusterInst)
 		if err != nil {
 			return err
 		}
@@ -533,10 +533,10 @@ func (v *VMPlatform) UpdateAppInst(ctx context.Context, clusterInst *edgeproto.C
 		if err != nil {
 			return fmt.Errorf("get kube names failed: %s", err)
 		}
-		return k8smgmt.UpdateAppInst(ctx, v.CommonPf.VaultConfig, client, names, app, appInst)
+		return k8smgmt.UpdateAppInst(ctx, v.VMProperties.CommonPf.VaultConfig, client, names, app, appInst)
 	case cloudcommon.AppDeploymentTypeDocker:
 		dockerNetworkMode := dockermgmt.DockerBridgeMode
-		rootLBClient, err := v.VMProvider.GetClusterPlatformClient(ctx, clusterInst)
+		rootLBClient, err := v.GetClusterPlatformClient(ctx, clusterInst)
 		if err != nil {
 			return err
 		}
@@ -555,9 +555,9 @@ func (v *VMPlatform) UpdateAppInst(ctx context.Context, clusterInst *edgeproto.C
 				return err
 			}
 		}
-		return dockermgmt.UpdateAppInst(ctx, v.CommonPf.VaultConfig, dockerCommandTarget, app, appInst, dockerNetworkMode)
+		return dockermgmt.UpdateAppInst(ctx, v.VMProperties.CommonPf.VaultConfig, dockerCommandTarget, app, appInst, dockerNetworkMode)
 	case cloudcommon.AppDeploymentTypeHelm:
-		client, err := v.VMProvider.GetClusterPlatformClient(ctx, clusterInst)
+		client, err := v.GetClusterPlatformClient(ctx, clusterInst)
 		if err != nil {
 			return err
 		}
@@ -573,7 +573,7 @@ func (v *VMPlatform) UpdateAppInst(ctx context.Context, clusterInst *edgeproto.C
 }
 
 func (v *VMPlatform) GetAppInstRuntime(ctx context.Context, clusterInst *edgeproto.ClusterInst, app *edgeproto.App, appInst *edgeproto.AppInst) (*edgeproto.AppInstRuntime, error) {
-	client, err := v.VMProvider.GetClusterPlatformClient(ctx, clusterInst)
+	client, err := v.GetClusterPlatformClient(ctx, clusterInst)
 	if err != nil {
 		return nil, err
 	}

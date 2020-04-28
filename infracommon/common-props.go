@@ -3,9 +3,7 @@ package infracommon
 import (
 	"context"
 	"fmt"
-	"net"
 	"os"
-	"strconv"
 	"strings"
 
 	"github.com/mobiledgex/edge-cloud/log"
@@ -46,8 +44,6 @@ var infraCommonProps = map[string]*PropertyInfo{
 	"FLAVOR_MATCH_PATTERN": &PropertyInfo{
 		Value: ".*",
 	},
-	"MEX_CRM_GATEWAY_ADDR": &PropertyInfo{},
-	"MEX_SUBNET_DNS":       &PropertyInfo{},
 	"CLEANUP_ON_FAILURE": &PropertyInfo{
 		Value: "true",
 	},
@@ -100,37 +96,4 @@ func (v *CommonPlatform) GetCleanupOnFailure(ctx context.Context) bool {
 		return false
 	}
 	return true
-}
-
-func (c *CommonPlatform) GetCloudletCRMGatewayIPAndPort() (string, int) {
-	gw := c.Properties["MEX_CRM_GATEWAY_ADDR"].Value
-	if gw == "" {
-		return "", 0
-	}
-	host, portstr, err := net.SplitHostPort(gw)
-	if err != nil {
-		log.FatalLog("Error in MEX_CRM_GATEWAY_ADDR format")
-	}
-	port, err := strconv.Atoi(portstr)
-	if err != nil {
-		log.FatalLog("Error in MEX_CRM_GATEWAY_ADDR port format")
-	}
-	return host, port
-}
-
-func (c *CommonPlatform) GetCloudletOSImage() string {
-	return c.Properties["MEX_OS_IMAGE"].Value
-}
-
-func (c *CommonPlatform) GetCloudletFlavorMatchPattern() string {
-	return c.Properties["FLAVOR_MATCH_PATTERN"].Value
-}
-
-//GetCloudletExternalRouter returns default MEX external router name
-func (c *CommonPlatform) GetCloudletExternalRouter() string {
-	return c.Properties["MEX_ROUTER"].Value
-}
-
-func (c *CommonPlatform) GetSubnetDNS() string {
-	return c.Properties["MEX_SUBNET_DNS"].Value
 }

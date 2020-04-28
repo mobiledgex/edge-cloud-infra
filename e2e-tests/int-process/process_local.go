@@ -54,6 +54,10 @@ func (p *MC) StartLocal(logfile string, opts ...process.StartOp) error {
 		args = append(args, "--consoleproxyaddr")
 		args = append(args, p.ConsoleProxyAddr)
 	}
+	if p.BillingPath != "" {
+		args = append(args, "--billingPath")
+		args = append(args, p.BillingPath)
+	}
 	if p.UseVaultCerts {
 		args = append(args, "--useVaultCerts")
 	}

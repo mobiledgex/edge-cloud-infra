@@ -48,7 +48,17 @@ path "secret/data/registry/*" {
 path "pki-global/issue/*" {
   capabilities = [ "read", "update" ]
 }
+
+path "secret/data/accounts/zuora/sandbox" {
+  capabilities = [ "read" ]
+}
 EOF
+
+vault kv put secret/accounts/zuora/sandbox \
+    clientId=f954797d-6d8a-4476-aa05-4e894d35dd3a \
+    clientSecret="wd6XJ=+vs9i5PYFfqAehpb9=LmRPaoiHYIqIeW" \
+    url="https://rest.apisandbox.zuora.com"
+
 vault policy write mcorm /tmp/mcorm-pol.hcl
 rm /tmp/mcorm-pol.hcl
 vault write auth/approle/role/mcorm period="720h" policies="mcorm"

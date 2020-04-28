@@ -16,6 +16,7 @@ type MC struct {
 	NotifySrvAddr    string
 	ConsoleProxyAddr string
 	UseVaultCerts    bool
+	BillingPath      string
 	TLS              process.TLSCerts
 	cmd              *exec.Cmd
 }

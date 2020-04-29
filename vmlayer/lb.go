@@ -167,6 +167,12 @@ func (v *VMPlatform) configureInternalInterfaceAndExternalForwarding(ctx context
 		return err
 	}
 
+	err = WaitServerSSHReachable(ctx, client, externalIP.ExternalAddr, time.Minute*1)
+	if err != nil {
+		log.SpanLog(ctx, log.DebugLevelInfra, "server not reachable", "err", err)
+		return err
+	}
+
 	log.SpanLog(ctx, log.DebugLevelInfra, "running ifconfig to list interfaces")
 	// list all the interfaces
 	cmd := fmt.Sprintf("sudo ifconfig -a")
@@ -220,6 +226,22 @@ func (v *VMPlatform) configureInternalInterfaceAndExternalForwarding(ctx context
 	contents := fmt.Sprintf("auto %s\niface %s inet static\n   address %s/24", internalIfname, internalIfname, internalIP.InternalAddr)
 
 	if action == actionAdd {
+		// cleanup any interfaces files that may be sitting around with our new interface, perhaps from some old failure
+		cmd := fmt.Sprintf("grep -l ' %s ' /etc/network/interfaces.d/*-port.cfg", internalIfname)
+		out, err = client.Output(cmd)
+		log.SpanLog(ctx, log.DebugLevelInfra, "cleanup old interface files with interface", "internalIfname", internalIfname, "out", out, "err", err)
+		if err == nil {
+			files := strings.Split(out, "\n")
+			for _, f := range files {
+				log.SpanLog(ctx, log.DebugLevelInfra, "cleanup old interfaces file", "file", f)
+				cmd := fmt.Sprintf("sudo rm -f %s", f)
+				out, err := client.Output(cmd)
+				if err != nil {
+					log.SpanLog(ctx, log.DebugLevelInfra, "unable to delete file", "file", f, "out", out, "err", err)
+				}
+			}
+		}
+
 		err = pc.WriteFile(client, filename, contents, "ifconfig", pc.SudoOn)
 		// now create the file
 		if err != nil {

@@ -201,6 +201,11 @@ func (v *VMPlatform) CreateAppInst(ctx context.Context, clusterInst *edgeproto.C
 		}
 		if usesLb {
 			updateCallback(edgeproto.UpdateTask, "Setting Up Load Balancer")
+			err = v.SetupRootLB(ctx, lbName, &clusterInst.Key.CloudletKey, updateCallback)
+			if err != nil {
+				return err
+			}
+
 			var proxyOps []proxy.Op
 			client, err := v.GetSSHClientForServer(ctx, externalServerName, v.VMProperties.GetCloudletExternalNetwork())
 			if err != nil {

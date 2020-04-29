@@ -120,11 +120,12 @@ resources:
     {{- range .Volumes}}
     {{.Name}}:
         type: OS::Cinder::Volume
-        image {{.ImageName}}
-        size {{.Size}}
-        {{- if .AvailabilityZone}}
-        availability_zone: {{.AvailabilityZone}}
-        {{- end}}
+        properties:
+            image: {{.ImageName}}
+            size: {{.Size}}
+            {{- if .AvailabilityZone}}
+            availability_zone: {{.AvailabilityZone}}
+            {{- end}}
     {{- end}}
         
     {{.Name}}:
@@ -143,10 +144,10 @@ resources:
             availability_zone: {{.ComputeAvailabilityZone}}
             {{- end}}
             {{- range .Volumes}}
-                block_device_mapping:
-                 - device_name: {{.DeviceName}}
-                   volume_id: { get_resource: {{.VolumeName}} }
-                   delete_on_termination: "false"       
+            block_device_mapping:
+                - device_name: {{.DeviceName}}
+                  volume_id: { get_resource: {{.Name}} }
+                  delete_on_termination: "false"
             {{- end}}
             {{- if .ImageName}}
             image: {{.ImageName}}
@@ -199,7 +200,7 @@ runcmd:
 			rc += fmt.Sprintf("\n - echo \"dns-nameservers %s\" >> /etc/network/interfaces.d/50-cloud-init.cfg", dnsServers)
 		}
 		if sharedVolume {
-			return rc + vmlayer.VmCloudConfigShareMount
+			return reindent(rc+vmlayer.VmCloudConfigShareMount, 16)
 		}
 	}
 	return reindent(rc, 16)

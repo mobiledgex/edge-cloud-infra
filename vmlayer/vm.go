@@ -320,25 +320,25 @@ runcmd:
 // vmCloudConfigShareMount is appended optionally to vmCloudConfig.   It assumes
 // the end of vmCloudConfig is runcmd
 var VmCloudConfigShareMount = `
-- chown nobody:nogroup /share
-- chmod 777 /share 
-- echo "/share *(rw,sync,no_subtree_check,no_root_squash)" >> /etc/exports
-- exportfs -a
-- echo "showing exported filesystems"
-- exportfs
+ - chown nobody:nogroup /share
+ - chmod 777 /share 
+ - echo "/share *(rw,sync,no_subtree_check,no_root_squash)" >> /etc/exports
+ - exportfs -a
+ - echo "showing exported filesystems"
+ - exportfs
 disk_setup:
   /dev/vdb:
     table_type: 'gpt'
     overwrite: true
     layout: true
 fs_setup:
-- label: share_fs
- filesystem: 'ext4'
- device: /dev/vdb
- partition: auto
- overwrite: true
+ - label: share_fs
+   filesystem: 'ext4'
+   device: /dev/vdb
+   partition: auto
+   overwrite: true
 mounts:
-- [ "/dev/vdb1", "/share" ]`
+ - [ "/dev/vdb1", "/share" ]`
 
 // VMGroupOrchestrationParams contains all the details used by the orchestator to create a set of associated VMs
 type VMGroupOrchestrationParams struct {
@@ -594,14 +594,17 @@ func (v *VMPlatform) getVMGroupOrchestrationParamsFromGroupSpec(ctx context.Cont
 				externalVolume := VolumeOrchestrationParams{
 					Name:       vm.Name + "-volume",
 					Size:       vm.ExternalVolumeSize,
+					ImageName:  vm.ImageName,
 					DeviceName: "vda",
 				}
+				newVM.ImageName = ""
 				newVM.Volumes = append(newVM.Volumes, externalVolume)
 			}
 			if vm.SharedVolumeSize > 0 {
 				sharedVolume := VolumeOrchestrationParams{
 					Name:       vm.Name + "-shared-volume",
-					Size:       vm.ExternalVolumeSize,
+					Size:       vm.SharedVolumeSize,
+					ImageName:  vm.ImageName,
 					DeviceName: "vdb",
 				}
 				newVM.Volumes = append(newVM.Volumes, sharedVolume)

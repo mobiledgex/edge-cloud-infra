@@ -14,13 +14,6 @@ type PropertyInfo struct {
 	Secret bool
 }
 
-var ImageFormatQcow2 = "qcow2"
-var ImageFormatVmdk = "vmdk"
-
-var MEXInfraVersion = "3.1.0"
-var ImageNamePrefix = "mobiledgex-v"
-var DefaultOSImageName = ImageNamePrefix + MEXInfraVersion
-
 // Default CloudletVM/Registry paths should only be used for local testing.
 // Ansible should always specify the correct ones to the controller.
 // These are not used if running the CRM manually, because these are only

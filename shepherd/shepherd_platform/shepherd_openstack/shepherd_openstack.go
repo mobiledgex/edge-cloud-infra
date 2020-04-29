@@ -24,6 +24,9 @@ import (
 // Default Ceilometer granularity is 300 secs(5 mins)
 var VmScrapeInterval = time.Minute * 5
 
+// TODO: ShepherdPlatform should not have references
+// to both vmlayer and openstack platforms, this is an interim step.
+// We need some refactor of this file to split things out into vmlayer
 type ShepherdPlatform struct {
 	rootLbName      string
 	SharedClient    ssh.Client

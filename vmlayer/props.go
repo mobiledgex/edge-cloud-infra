@@ -19,6 +19,8 @@ type VMProperties struct {
 	sharedRootLB     *MEXRootLB
 }
 
+// note that qcow2 must be understood by vsphere and vmdk must
+// be known by openstack so they can be converted back and forth
 var ImageFormatQcow2 = "qcow2"
 var ImageFormatVmdk = "vmdk"
 

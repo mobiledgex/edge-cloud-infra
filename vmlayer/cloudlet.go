@@ -10,6 +10,7 @@ import (
 
 	intprocess "github.com/mobiledgex/edge-cloud-infra/e2e-tests/int-process"
 	"github.com/mobiledgex/edge-cloud-infra/infracommon"
+	pf "github.com/mobiledgex/edge-cloud/cloud-resource-manager/platform"
 	"github.com/mobiledgex/edge-cloud/cloudcommon"
 	"github.com/mobiledgex/edge-cloud/edgeproto"
 	"github.com/mobiledgex/edge-cloud/log"
@@ -194,10 +195,10 @@ func (v *VMPlatform) SetupPlatformService(ctx context.Context, cloudlet *edgepro
 	if regAuth.AuthType != cloudcommon.BasicAuth {
 		return fmt.Errorf("unsupported registry auth type %s", regAuth.AuthType)
 	}
-
 	// Verify if controller's notify port is reachable
 	updateCallback(edgeproto.UpdateTask, "Verifying if controller notification channel is reachable")
 	addrPort := strings.Split(pfConfig.NotifyCtrlAddrs, ":")
+
 	if len(addrPort) != 2 {
 		return fmt.Errorf("notifyctrladdrs format is incorrect")
 	}
@@ -208,7 +209,7 @@ func (v *VMPlatform) SetupPlatformService(ctx context.Context, cloudlet *edgepro
 		if err == nil {
 			break
 		} else {
-			log.SpanLog(ctx, log.DebugLevelInfra, "error trying to connect to controller port via ssh", "out", out, "error", err)
+			log.SpanLog(ctx, log.DebugLevelInfra, "error trying to connect to controller port via ssh", "addrPort", addrPort, "out", out, "error", err)
 			if strings.Contains(err.Error(), "ssh client timeout") || strings.Contains(err.Error(), "ssh dial fail") {
 				elapsed := time.Since(start)
 				if elapsed > PlatformVMReachableMaxWait {
@@ -276,6 +277,15 @@ func (v *VMPlatform) SetupPlatformService(ctx context.Context, cloudlet *edgepro
 // Returns ssh client
 func (v *VMPlatform) SetupPlatformVM(ctx context.Context, cloudlet *edgeproto.Cloudlet, pfConfig *edgeproto.PlatformConfig, pfFlavor *edgeproto.Flavor, updateCallback edgeproto.CacheUpdateCallback) (ssh.Client, error) {
 	// Get Closest Platform Flavor
+
+	log.SpanLog(ctx, log.DebugLevelInfra, "SetupPlatformVM", "cloudlet", cloudlet)
+
+	var err error
+	v.FlavorList, err = v.VMProvider.GetFlavorList(ctx)
+	if err != nil {
+		return nil, err
+	}
+
 	platformVmName := v.GetPlatformVMName(&cloudlet.Key)
 	vmspec, err := vmspec.GetVMSpec(v.FlavorList, *pfFlavor)
 	if err != nil {
@@ -289,12 +299,34 @@ func (v *VMPlatform) SetupPlatformVM(ctx context.Context, cloudlet *edgeproto.Cl
 	if err != nil {
 		return nil, err
 	}
-	vmreqspec, err := v.GetVMRequestSpec(ctx, VMTypePlatform, pfImageName, platformVmName, vmspec.FlavorName, true, WithExternalVolume(vmspec.ExternalVolumeSize))
-	var vms []*VMRequestSpec
-	vms = append(vms, vmreqspec)
 
 	updateCallback(edgeproto.UpdateTask, "Deploying Platform VM")
-	_, err = v.CreateVMsFromVMSpec(ctx, platformVmName, vms, updateCallback, WithNewSecurityGroup(v.GetServerSecurityGroupName(platformVmName)))
+
+	var vms []*VMRequestSpec
+	platvm, err := v.GetVMRequestSpec(
+		ctx,
+		VMTypePlatform,
+		platformVmName,
+		vmspec.FlavorName,
+		pfImageName,
+		true, //connec texternal
+		WithExternalVolume(vmspec.ExternalVolumeSize),
+	)
+	if err != nil {
+		return nil, err
+	}
+	vms = append(vms, platvm)
+	_, err = v.CreateVMsFromVMSpec(
+		ctx, platformVmName,
+		vms,
+		updateCallback,
+		WithNewSecurityGroup(v.GetServerSecurityGroupName(platformVmName)),
+		WithAccessPorts("tcp:22"),
+	)
+	if err != nil {
+		log.SpanLog(ctx, log.DebugLevelInfra, "error while creating platform VM", "vms request spec", vms)
+		return nil, err
+	}
 
 	updateCallback(edgeproto.UpdateTask, "Successfully Deployed Platform VM")
 	ip, err := v.VMProvider.GetIPFromServerName(ctx, v.VMProperties.GetCloudletExternalNetwork(), platformVmName)
@@ -321,7 +353,26 @@ func (v *VMPlatform) CreateCloudlet(ctx context.Context, cloudlet *edgeproto.Clo
 	}
 	// Source OpenRC file to access openstack API endpoint
 	updateCallback(edgeproto.UpdateTask, "Sourcing access variables")
+	log.SpanLog(ctx, log.DebugLevelInfra, "Sourcing access variables", "region", pfConfig.Region, "cloudletKey", cloudlet.Key, "PhysicalName", cloudlet.PhysicalName)
 	err = v.VMProvider.InitApiAccessProperties(ctx, &cloudlet.Key, pfConfig.Region, cloudlet.PhysicalName, vaultConfig, cloudlet.EnvVar)
+	if err != nil {
+		return err
+	}
+
+	// TODO there's a lot of overlap between platform.PlatformConfig and edgeproto.PlatformConfig
+	pc := pf.PlatformConfig{
+		CloudletKey:         &cloudlet.Key,
+		PhysicalName:        cloudlet.PhysicalName,
+		VaultAddr:           pfConfig.VaultAddr,
+		Region:              pfConfig.Region,
+		TestMode:            pfConfig.TestMode,
+		CloudletVMImagePath: pfConfig.CloudletVmImagePath,
+		VMImageVersion:      cloudlet.VmImageVersion,
+		PackageVersion:      cloudlet.PackageVersion,
+		EnvVars:             pfConfig.EnvVar,
+	}
+
+	err = v.InitProps(ctx, &pc, vaultConfig)
 	if err != nil {
 		return err
 	}

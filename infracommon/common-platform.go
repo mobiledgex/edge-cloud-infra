@@ -10,7 +10,6 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/mobiledgex/edge-cloud/cloud-resource-manager/platform"
 	pf "github.com/mobiledgex/edge-cloud/cloud-resource-manager/platform"
 	"github.com/mobiledgex/edge-cloud/log"
 
@@ -19,7 +18,7 @@ import (
 
 type CommonPlatform struct {
 	Properties        map[string]*PropertyInfo
-	PlatformConfig    *platform.PlatformConfig
+	PlatformConfig    *pf.PlatformConfig
 	VaultConfig       *vault.Config
 	MappedExternalIPs map[string]string
 }

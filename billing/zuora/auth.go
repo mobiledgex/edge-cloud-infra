@@ -38,7 +38,6 @@ func getOauth(token *OAuthToken) error {
 	if err != nil {
 		return fmt.Errorf("Error parsing response: %v\n", err)
 	}
-	// give a 5 minute buffer to the expire time
 	token.ExpireTime = time.Now().Add(time.Second * time.Duration(token.ExpiresIn))
 	return nil
 }
@@ -46,6 +45,7 @@ func getOauth(token *OAuthToken) error {
 func getToken() (string, string, error) {
 	oAuthMux.Lock()
 	defer oAuthMux.Unlock()
+	// give a 5 minute buffer to the expire time
 	if oAuthToken == nil || time.Now().Add(time.Minute*5).After(oAuthToken.ExpireTime) {
 		oAuthToken = &OAuthToken{}
 		err := getOauth(oAuthToken)

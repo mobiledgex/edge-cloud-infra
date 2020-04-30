@@ -33,7 +33,15 @@ func (a *AzurePlatform) Init(ctx context.Context, platformConfig *platform.Platf
 	if err := a.commonPf.InitInfraCommon(ctx, platformConfig, azureProps, vaultConfig); err != nil {
 		return err
 	}
-
+	if a.GetAzureLocation() == "" {
+		return fmt.Errorf("Env variable MEX_AZURE_LOCATION not set")
+	}
+	if a.GetAzureUser() == "" {
+		return fmt.Errorf("Env variable MEX_AZURE_USER not set, check contents of MEXENV_URL")
+	}
+	if a.GetAzurePass() == "" {
+		return fmt.Errorf("Env variable MEX_AZURE_PASS not set, check contents of MEXENV_URL")
+	}
 	return nil
 }
 

@@ -16,8 +16,6 @@ import (
 	ssh "github.com/mobiledgex/golang-ssh"
 )
 
-var GCPServiceAccount string //temp
-
 type GCPPlatform struct {
 	commonPf infracommon.CommonPlatform
 }
@@ -50,6 +48,9 @@ func (g *GCPPlatform) Init(ctx context.Context, platformConfig *platform.Platfor
 	}
 	if err := g.commonPf.InitInfraCommon(ctx, platformConfig, gcpProps, vaultConfig); err != nil {
 		return err
+	}
+	if g.GetGcpZone() == "" {
+		return fmt.Errorf("Env variable MEX_GCP_ZONE not set")
 	}
 	return nil
 }

@@ -23,7 +23,7 @@ func (g *GCPPlatform) GCPLogin(ctx context.Context) error {
 		return fmt.Errorf("unable to write auth file %s: %s", filename, err.Error())
 	}
 	defer os.Remove(filename)
-	out, err := sh.Command("gcloud", "auth", "activate-service-account", GCPServiceAccount, "--key-file", filename).CombinedOutput()
+	out, err := sh.Command("gcloud", "auth", "activate-service-account", "--key-file", filename).CombinedOutput()
 	log.SpanLog(ctx, log.DebugLevelInfra, "gcp login", "out", string(out), "err", err)
 	if err != nil {
 		return err

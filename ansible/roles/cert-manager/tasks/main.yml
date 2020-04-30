@@ -5,15 +5,23 @@
     kind: Namespace
 
 - name: Disable resource validation in namespace
-  command: "kubectl --kubeconfig {{ kubeconfig_file.path }} label namespace {{ namespace }} certmanager.k8s.io/disable-validation=true"
+  command: "kubectl --kubeconfig {{ kubeconfig_file.path }} label namespace {{ namespace }} cert-manager.io/disable-validation=true"
   register: result
   changed_when: no
   failed_when:
     - result.rc != 0
     - '"already has a value (true)" not in result.stderr'
 
+- set_fact:
+    cert_manager_manifest: cert-manager-legacy.yaml
+  when: kubernetes_version is version('1.15', '<')
+
+- set_fact:
+    cert_manager_manifest: cert-manager.yaml
+  when: cert_manager_manifest is not defined or not cert_manager_manifest
+
 - name: "Install cert-manager {{ cert_manager_version }}"
-  command: "kubectl --kubeconfig {{ kubeconfig_file.path }} apply -f https://github.com/jetstack/cert-manager/releases/download/{{ cert_manager_version }}/cert-manager.yaml --validate=false"
+  command: "kubectl --kubeconfig {{ kubeconfig_file.path }} apply -f https://github.com/jetstack/cert-manager/releases/download/{{ cert_manager_version }}/{{ cert_manager_manifest }} --validate=false"
   changed_when: no
 
 - set_fact:

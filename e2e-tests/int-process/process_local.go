@@ -54,6 +54,9 @@ func (p *MC) StartLocal(logfile string, opts ...process.StartOp) error {
 		args = append(args, "--consoleproxyaddr")
 		args = append(args, p.ConsoleProxyAddr)
 	}
+	if p.UseVaultCAs {
+		args = append(args, "--useVaultCAs")
+	}
 	if p.UseVaultCerts {
 		args = append(args, "--useVaultCerts")
 	}
@@ -277,6 +280,9 @@ func (p *Shepherd) GetArgs(opts ...process.StartOp) []string {
 		args = append(args, "--region")
 		args = append(args, p.Region)
 	}
+	if p.UseVaultCAs {
+		args = append(args, "--useVaultCAs")
+	}
 	if p.UseVaultCerts {
 		args = append(args, "--useVaultCerts")
 	}
@@ -348,6 +354,9 @@ func (p *AutoProv) StartLocal(logfile string, opts ...process.StartOp) error {
 	if p.Region != "" {
 		args = append(args, "--region")
 		args = append(args, p.Region)
+	}
+	if p.UseVaultCAs {
+		args = append(args, "--useVaultCAs")
 	}
 	if p.UseVaultCerts {
 		args = append(args, "--useVaultCerts")

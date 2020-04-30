@@ -15,8 +15,6 @@ import (
 	ssh "github.com/mobiledgex/golang-ssh"
 )
 
-// TODO: there is still some code here that can eventually go to vmlayer
-
 func (o *OpenstackPlatform) VerifyApiEndpoint(ctx context.Context, client ssh.Client, updateCallback edgeproto.CacheUpdateCallback) error {
 	// Verify if Openstack API Endpoint is reachable
 	updateCallback(edgeproto.UpdateTask, "Verifying if Openstack API Endpoint is reachable")

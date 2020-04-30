@@ -337,6 +337,7 @@ fs_setup:
    device: /dev/vdb
    partition: auto
    overwrite: true
+   layout: true
 mounts:
  - [ "/dev/vdb1", "/share" ]`
 

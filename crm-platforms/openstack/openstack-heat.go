@@ -20,6 +20,7 @@ var heatStackLock sync.Mutex
 var heatCreate string = "CREATE"
 var heatUpdate string = "UPDATE"
 var heatDelete string = "DELETE"
+var heatTest string = "TEST"
 
 var VmGroupTemplate = `
 heat_template_version: 2016-10-14
@@ -298,7 +299,7 @@ func (o *OpenstackPlatform) waitForStack(ctx context.Context, stackname string, 
 }
 
 func (o *OpenstackPlatform) createOrUpdateHeatStackFromTemplate(ctx context.Context, templateData interface{}, stackName string, templateString string, action string, updateCallback edgeproto.CacheUpdateCallback) error {
-	log.SpanLog(ctx, log.DebugLevelInfra, "createHeatStackFromTemplate", "stackName", stackName)
+	log.SpanLog(ctx, log.DebugLevelInfra, "createHeatStackFromTemplate", "stackName", stackName, "action", action)
 
 	var buf bytes.Buffer
 	updateCallback(edgeproto.UpdateTask, "Creating Heat Stack for "+stackName)
@@ -333,6 +334,11 @@ func (o *OpenstackPlatform) createOrUpdateHeatStackFromTemplate(ctx context.Cont
 	err = WriteTemplateFile(filename, &buf)
 	if err != nil {
 		return fmt.Errorf("WriteTemplateFile failed: %s", err)
+	}
+	if action == heatTest {
+		log.SpanLog(ctx, log.DebugLevelInfra, "test action only, no heat operation performed")
+
+		return nil
 	}
 	if action == heatCreate {
 		err = o.createHeatStack(ctx, filename, stackName)
@@ -381,12 +387,16 @@ func (o *OpenstackPlatform) populateParams(ctx context.Context, VMGroupOrchestra
 		if action != heatCreate {
 			currentSubnetName = "mex-k8s-subnet-" + VMGroupOrchestrationParams.GroupName
 		}
-		sns, snserr := o.ListSubnets(ctx, VMGroupOrchestrationParams.Netspec.Name)
-		if snserr != nil {
-			return fmt.Errorf("can't get list of subnets for %s, %v", VMGroupOrchestrationParams.Netspec.Name, snserr)
-		}
-		for _, s := range sns {
-			usedCidrs[s.Subnet] = s.Name
+		var sns []OSSubnet
+		var snserr error
+		if action != heatTest {
+			sns, snserr = o.ListSubnets(ctx, VMGroupOrchestrationParams.Netspec.Name)
+			if snserr != nil {
+				return fmt.Errorf("can't get list of subnets for %s, %v", VMGroupOrchestrationParams.Netspec.Name, snserr)
+			}
+			for _, s := range sns {
+				usedCidrs[s.Subnet] = s.Name
+			}
 		}
 
 		//find an available subnet or the current subnet for update and delete
@@ -399,7 +409,8 @@ func (o *OpenstackPlatform) populateParams(ctx context.Context, VMGroupOrchestra
 			for octet := 0; octet <= 255; octet++ {
 				subnet := fmt.Sprintf("%s.%s.%d.%d/%s", VMGroupOrchestrationParams.Netspec.Octets[0], VMGroupOrchestrationParams.Netspec.Octets[1], octet, 0, VMGroupOrchestrationParams.Netspec.NetmaskBits)
 				// either look for an unused one (create) or the current one (update)
-				if (action == heatCreate && usedCidrs[subnet] == "") || (action != heatCreate && usedCidrs[subnet] == currentSubnetName) {
+				newSubnet := action == heatCreate || action == heatTest
+				if (newSubnet && usedCidrs[subnet] == "") || (!newSubnet && usedCidrs[subnet] == currentSubnetName) {
 					found = true
 					VMGroupOrchestrationParams.Subnets[i].CIDR = subnet
 					VMGroupOrchestrationParams.Subnets[i].GatewayIP = fmt.Sprintf("%s.%s.%d.%d", VMGroupOrchestrationParams.Netspec.Octets[0], VMGroupOrchestrationParams.Netspec.Octets[1], octet, 1)
@@ -443,11 +454,18 @@ func (o *OpenstackPlatform) populateParams(ctx context.Context, VMGroupOrchestra
 	}
 
 	// populate the floating ips
+
 	for i, f := range VMGroupOrchestrationParams.FloatingIPs {
 		if f.FloatingIpId.Name == vmlayer.NextAvailableResource {
-			fipid, err := o.getFreeFloatingIpid(ctx)
-			if err != nil {
-				return err
+			var fipid string
+			var err error
+			if action == heatTest {
+				fipid = "test-fip-id"
+			} else {
+				fipid, err = o.getFreeFloatingIpid(ctx)
+				if err != nil {
+					return err
+				}
 			}
 			VMGroupOrchestrationParams.FloatingIPs[i].FloatingIpId.Name = fipid
 		}

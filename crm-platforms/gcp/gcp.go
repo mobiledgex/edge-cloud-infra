@@ -12,6 +12,7 @@ import (
 	"github.com/mobiledgex/edge-cloud/cloud-resource-manager/platform/pc"
 	"github.com/mobiledgex/edge-cloud/edgeproto"
 	"github.com/mobiledgex/edge-cloud/log"
+	"github.com/mobiledgex/edge-cloud/vault"
 	ssh "github.com/mobiledgex/golang-ssh"
 )
 
@@ -42,16 +43,15 @@ func (g *GCPPlatform) GetType() string {
 }
 
 func (g *GCPPlatform) Init(ctx context.Context, platformConfig *platform.PlatformConfig, updateCallback edgeproto.CacheUpdateCallback) error {
-	return fmt.Errorf("TODO") /*
-		vaultConfig, err := vault.BestConfig(platformConfig.VaultAddr)
-		if err != nil {
-			return err
-		}
-		if err := g.commonPf.InitInfraCommon(ctx, platformConfig, gcpProps, vaultConfig, g); err != nil {
-			return err
-		}
-		return nil
-	*/
+
+	vaultConfig, err := vault.BestConfig(platformConfig.VaultAddr)
+	if err != nil {
+		return err
+	}
+	if err := g.commonPf.InitInfraCommon(ctx, platformConfig, gcpProps, vaultConfig); err != nil {
+		return err
+	}
+	return nil
 }
 
 func (g *GCPPlatform) GatherCloudletInfo(ctx context.Context, info *edgeproto.CloudletInfo) error {

@@ -13,6 +13,7 @@ import (
 type OpenstackPlatform struct {
 	openRCVars   map[string]string
 	vmProperties *vmlayer.VMProperties
+	TestMode     bool
 }
 
 func (o *OpenstackPlatform) GetType() string {
@@ -59,6 +60,10 @@ func (o *OpenstackPlatform) DeleteResources(ctx context.Context, resourceGroupNa
 func (o *OpenstackPlatform) GetResourceID(ctx context.Context, resourceType vmlayer.ResourceType, resourceName string) (string, error) {
 	switch resourceType {
 	case vmlayer.ResourceTypeSecurityGroup:
+		// for testing mode, don't try to run APIs just fake a value
+		if o.TestMode {
+			return resourceName + "-testingID", nil
+		}
 		return o.GetSecurityGroupIDForName(ctx, resourceName)
 		// TODO other types as needed
 	}

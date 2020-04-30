@@ -160,6 +160,17 @@ func (v *VMPlatform) deleteCluster(ctx context.Context, rootLBName string, clust
 			return err
 		}
 	}
+	if !dedicatedRootLB {
+		ip, err := v.VMProvider.GetIPFromServerName(ctx, v.GetClusterSubnetName(ctx, clusterInst), rootLBName)
+		if err != nil {
+			log.SpanLog(ctx, log.DebugLevelInfra, "unable to get ips from server, proceed with VM deletion", "err", err)
+		} else {
+			err = v.DetachAndDisableRootLBInterface(ctx, client, rootLBName, GetPortName(rootLBName, v.VMProperties.GetCloudletMexNetwork()), ip.InternalAddr)
+			if err != nil {
+				log.SpanLog(ctx, log.DebugLevelInfra, "unable to detach rootLB interface, proceed with VM deletion", "err", err)
+			}
+		}
+	}
 	err = v.VMProvider.DeleteVMs(ctx, name)
 	if err != nil {
 		return err
@@ -168,12 +179,6 @@ func (v *VMPlatform) deleteCluster(ctx context.Context, rootLBName string, clust
 	if dedicatedRootLB {
 		proxy.RemoveDedicatedCluster(ctx, clusterInst.Key.ClusterKey.Name)
 		DeleteRootLB(rootLBName)
-	} else {
-		ip, err := v.VMProvider.GetIPFromServerName(ctx, v.GetClusterSubnetName(ctx, clusterInst), rootLBName)
-		if err != nil {
-			return err
-		}
-		return v.DetachAndDisableRootLBInterface(ctx, client, rootLBName, GetPortName(rootLBName, v.VMProperties.GetCloudletMexNetwork()), ip.InternalAddr)
 	}
 	return nil
 }
@@ -441,7 +446,7 @@ func (v *VMPlatform) getVMRequestSpecForDockerCluster(ctx context.Context, imgNa
 		dockerVmType = VMTypeClusterNode
 		dockerVMName = v.GetDockerNodeName(ctx, clusterInst)
 
-		if v.VMProperties.GetCloudletExternalRouter() != NoExternalRouter {
+		if v.VMProperties.GetCloudletExternalRouter() == NoExternalRouter {
 			// If no router in use, create ports on the existing shared rootLB
 			rootlb, err := v.GetVMSpecForRootLBPorts(ctx, v.VMProperties.sharedRootLBName, newSubnet)
 			if err != nil {
@@ -493,7 +498,7 @@ func (v *VMPlatform) CreateOrUpdateVMsForCluster(ctx context.Context, imgName st
 			}
 			vms = append(vms, rootlb)
 			newSecgrpName = v.GetServerSecurityGroupName(rootlb.Name)
-		} else if v.VMProperties.GetCloudletExternalRouter() != NoExternalRouter {
+		} else if v.VMProperties.GetCloudletExternalRouter() == NoExternalRouter {
 			// If no router in use, create ports on the existing shared rootLB
 			rootlb, err = v.GetVMSpecForRootLBPorts(ctx, v.VMProperties.sharedRootLBName, newSubnetName)
 			if err != nil {

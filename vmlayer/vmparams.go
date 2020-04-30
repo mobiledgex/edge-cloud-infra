@@ -646,14 +646,14 @@ func (v *VMPlatform) CreateVMsFromVMSpec(ctx context.Context, name string, vms [
 
 func (v *VMPlatform) UpdateVMsFromVMSpec(ctx context.Context, name string, vms []*VMRequestSpec, updateCallback edgeproto.CacheUpdateCallback, opts ...VMGroupReqOp) (*VMGroupOrchestrationParams, error) {
 	log.SpanLog(ctx, log.DebugLevelInfra, "UpdateVMsFromVMSpec", "name", name)
-	gp, err := v.GetVMGroupOrchestrationParamsFromVMSpec(ctx, name, vms)
+	gp, err := v.GetVMGroupOrchestrationParamsFromVMSpec(ctx, name, vms, opts...)
 	if err != nil {
 		return gp, err
 	}
 	log.SpanLog(ctx, log.DebugLevelInfra, "created vm group spec", "gp", gp)
 	err = v.VMProvider.UpdateVMs(ctx, gp, updateCallback)
 	if err != nil {
-		log.SpanLog(ctx, log.DebugLevelInfra, "error while updating vms", "name", name, "name", "error", err)
+		log.SpanLog(ctx, log.DebugLevelInfra, "error while updating vms", "name", name, "error", err)
 		return gp, err
 	}
 	log.SpanLog(ctx, log.DebugLevelInfra, "VM update done")

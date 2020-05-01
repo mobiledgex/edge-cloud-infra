@@ -4,6 +4,8 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"os"
+	"os/exec"
 	"time"
 
 	"github.com/mobiledgex/edge-cloud/edgeproto"
@@ -11,6 +13,16 @@ import (
 	"github.com/mobiledgex/edge-cloud/log"
 	"github.com/mobiledgex/edge-cloud/util"
 )
+
+var CloudletPrometheusContainer = "cloudletPrometheus"
+
+var prometheusConfig = `scrape_configs:
+- job_name: envoy_targets
+  scrape_interval: 5s
+  file_sd_configs:
+  - files:
+    - '/tmp/prom_targets.json'
+`
 
 func getShepherdProc(cloudlet *edgeproto.Cloudlet, pfConfig *edgeproto.PlatformConfig) (*Shepherd, []process.StartOp, error) {
 	opts := []process.StartOp{}
@@ -108,4 +120,38 @@ func StopShepherdService(ctx context.Context, cloudlet *edgeproto.Cloudlet) erro
 
 	log.SpanLog(ctx, log.DebugLevelMexos, "stopped Shepherdserver", "msg", <-c)
 	return nil
+}
+
+// Starts prometheus container and connects it to the default ports
+func StartCloudletPromettheus(ctx context.Context) error {
+	cfgFile := "/tmp/prometheus.yml"
+	f, err := os.Create(cfgFile)
+	if err != nil {
+		return err
+	}
+	defer f.Close()
+	_, err = f.WriteString(prometheusConfig)
+	if err != nil {
+		return err
+	}
+
+	args := []string{
+		"run", "--rm", "--name", CloudletPrometheusContainer,
+		"-p", "9092:9090", // container interface
+		"-v", "/tmp:/tmp",
+		"-v", cfgFile + ":/etc/prometheus/prometheus.yml",
+		"prom/prometheus:latest",
+		"--config.file=/etc/prometheus/prometheus.yml",
+	}
+	cmd, err := process.StartLocal(CloudletPrometheusContainer, "docker", args, nil, "/tmp/cloudlet_prometheus.log")
+	log.SpanLog(ctx, log.DebugLevelMexos, "start Promettheus", "command", cmd, "error", err)
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
+func StopCloudletPromettheus(ctx context.Context) error {
+	cmd := exec.Command("docker", "kill", CloudletPrometheusContainer)
+	return cmd.Run()
 }

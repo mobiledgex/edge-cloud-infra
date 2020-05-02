@@ -59,7 +59,7 @@ func (s *Platform) CleanupCloudlet(ctx context.Context, cloudlet *edgeproto.Clou
 	return intprocess.StopCloudletPromettheus(ctx)
 }
 
-// Start prometheus conttainer
+// Start prometheus container
 func CloudletPrometheusStartup(ctx context.Context, cloudlet *edgeproto.Cloudlet, pfConfig *edgeproto.PlatformConfig, updateCallback edgeproto.CacheUpdateCallback) error {
 	updateCallback(edgeproto.UpdateTask, "Starting Cloudlet Monitoring")
 	return intprocess.StartCloudletPromettheus(ctx)

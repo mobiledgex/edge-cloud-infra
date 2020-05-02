@@ -153,5 +153,6 @@ func StartCloudletPromettheus(ctx context.Context) error {
 
 func StopCloudletPromettheus(ctx context.Context) error {
 	cmd := exec.Command("docker", "kill", CloudletPrometheusContainer)
-	return cmd.Run()
+	cmd.Run()
+	return nil
 }

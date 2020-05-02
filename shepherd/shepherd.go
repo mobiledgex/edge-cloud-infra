@@ -307,26 +307,30 @@ func main() {
 		log.FatalLog("Failed to get platform", "platformName", platformName, "err", err)
 	}
 
-	// Init prometheus targets template
-	promTargetTemplate = template.Must(template.New("prometheustarget").Parse(promTargetT))
+	// This works for edgebox and openstack cloudlets for now
+	if *platformName == "PLATFORM_TYPE_EDGEBOX" ||
+		*platformName == "PLATFORM_TYPE_OPENSTACK" {
+		// Init prometheus targets template
+		promTargetTemplate = template.Must(template.New("prometheustarget").Parse(promTargetT))
 
-	// Init http metricsProxy for Prometheus API endpoints
-	var nullLogger baselog.Logger
-	nullLogger.SetOutput(ioutil.Discard)
+		// Init http metricsProxy for Prometheus API endpoints
+		var nullLogger baselog.Logger
+		nullLogger.SetOutput(ioutil.Discard)
 
-	http.HandleFunc("/list", targetsList)
-	http.HandleFunc("/metrics/", metricsProxy)
-	httpServer := &http.Server{
-		Addr: *metricsAddr,
-		//		Handler:   mux,
-		ErrorLog: &nullLogger,
-	}
-	go func() {
-		err = httpServer.ListenAndServe()
-		if err != nil && err != http.ErrServerClosed {
-			log.FatalLog("Failed to serve metrics", "err", err)
+		http.HandleFunc("/list", targetsList)
+		http.HandleFunc("/metrics/", metricsProxy)
+		httpServer := &http.Server{
+			Addr: *metricsAddr,
+			//		Handler:   mux,
+			ErrorLog: &nullLogger,
 		}
-	}()
+		go func() {
+			err = httpServer.ListenAndServe()
+			if err != nil && err != http.ErrServerClosed {
+				log.FatalLog("Failed to serve metrics", "err", err)
+			}
+		}()
+	}
 
 	// register shepherd to receive appinst and clusterinst notifications from crm
 	edgeproto.InitAppInstCache(&AppInstCache)

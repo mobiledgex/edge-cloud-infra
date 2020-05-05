@@ -9,15 +9,15 @@ import (
 func GetOrgCommand() *cobra.Command {
 	cmds := []*cli.Command{&cli.Command{
 		Use:          "create",
-		RequiredArgs: "name type phone address",
+		RequiredArgs: "name type",
 		OptionalArgs: "city country state postalcode email publicimages", //this is temporary, will change again after implementing parent-child
-		ReqData:      &ormapi.Organization{},
+		ReqData:      &ormapi.OrgInfo{},
 		Run:          runRest("/auth/org/create"),
 	}, &cli.Command{
 		Use:          "update",
 		RequiredArgs: "name",
-		OptionalArgs: "address phone publicimages",
-		ReqData:      &ormapi.Organization{},
+		OptionalArgs: "publicimages",
+		ReqData:      &ormapi.OrgInfo{},
 		Run:          runRest("/auth/org/update"),
 	}, &cli.Command{
 		Use:          "delete",

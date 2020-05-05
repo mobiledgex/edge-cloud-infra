@@ -38,12 +38,47 @@ type User struct {
 	Locked bool
 }
 
+// contains both fields from Org and billingOrg for when they create an org, we can automatically create the billingOrg if they add billingInfo
+type OrgInfo struct {
+	Name       string
+	Type       string
+	FirstName  string
+	LastName   string
+	Email      string
+	Address    string
+	City       string
+	Country    string
+	State      string
+	PostalCode string
+	Phone      string
+}
+
 type Organization struct {
 	// Organization name. Can only contain letters, digits, underscore, period, hyphen. It cannot have leading or trailing spaces or period. It cannot start with hyphen
 	// required: true
 	Name string `gorm:"primary_key;type:citext"`
 	// Organization type: "developer" or "operator"
 	Type string `gorm:"not null"`
+	// read only: true
+	CreatedAt time.Time `json:",omitempty"`
+	// read only: true
+	UpdatedAt time.Time `json:",omitempty"`
+	// read only: true
+	PublicImages bool `json:",omitempty"`
+	// read only: true
+	DeleteInProgress bool `json:",omitempty"`
+}
+
+type BillingOrganization struct {
+	// Organization name. Can only contain letters, digits, underscore, period, hyphen. It cannot have leading or trailing spaces or period. It cannot start with hyphen
+	// required: true
+	Name string `gorm:"primary_key;type:citext"`
+	// Organization type: "parent" or "self"
+	Type string `gorm:"not null"`
+	// Billing Info First Name
+	FirstName string
+	// Billing info last name
+	LastName string
 	// Organization email
 	Email string
 	// Organization address
@@ -58,12 +93,16 @@ type Organization struct {
 	PostalCode string
 	// Organization phone number
 	Phone string
+	// Zuora Account number
+	AccountNumber string
+	// Zuora AccountId
+	AccountId string
+	// Zuora SubscriptionNumber
+	SubscriptionNumber string
 	// read only: true
 	CreatedAt time.Time `json:",omitempty"`
 	// read only: true
 	UpdatedAt time.Time `json:",omitempty"`
-	// read only: true
-	PublicImages bool `json:",omitempty"`
 	// read only: true
 	DeleteInProgress bool `json:",omitempty"`
 }

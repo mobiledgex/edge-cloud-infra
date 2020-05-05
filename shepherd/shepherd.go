@@ -31,7 +31,7 @@ import (
 
 var debugLevels = flag.String("d", "", fmt.Sprintf("comma separated list of %v", log.DebugLevelStrings))
 var notifyAddrs = flag.String("notifyAddrs", "127.0.0.1:51001", "CRM notify listener addresses")
-var metricsAddr = flag.String("metricsAddr", "0.0.0.0:9091", "CRM notify listener addresses")
+var metricsAddr = flag.String("metricsAddr", "0.0.0.0:9091", "Metrics Porxy Address")
 var platformName = flag.String("platform", "", "Platform type of Cloudlet")
 var physicalName = flag.String("physicalName", "", "Physical infrastructure cloudlet name, defaults to cloudlet name in cloudletKey")
 var cloudletKeyStr = flag.String("cloudletKey", "", "Json or Yaml formatted cloudletKey for the cloudlet in which this CRM is instantiated; e.g. '{\"operator_key\":{\"name\":\"TMUS\"},\"name\":\"tmocloud1\"}'")

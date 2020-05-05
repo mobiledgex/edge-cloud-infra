@@ -124,6 +124,10 @@ func StopShepherdService(ctx context.Context, cloudlet *edgeproto.Cloudlet) erro
 	return nil
 }
 
+// TODO ---
+//func getCloudletPrometheusProc(cloudlet *edgeproto.Cloudlet, pfConfig *edgeproto.PlatformConfig) (*Shepherd, []process.StartOp, error) {
+//}
+
 // TODO - get a process
 func GetCloudletPrometheusCmd(cloudlet *edgeproto.Cloudlet, pfConfig *edgeproto.PlatformConfig) (string, *map[string]string, error) {
 	envVars := make(map[string]string)

@@ -23,15 +23,17 @@ import (
 
 const (
 	// Platform services
-	ServiceTypeCRM             = "crmserver"
-	ServiceTypeShepherd        = "shepherd"
-	PlatformMaxWait            = 10 * time.Second
-	PlatformVMReachableMaxWait = 2 * time.Minute
+	ServiceTypeCRM                = "crmserver"
+	ServiceTypeShepherd           = "shepherd"
+	ServiceTypeCloudletPrometheus = "cloudletPrometheus"
+	PlatformMaxWait               = 10 * time.Second
+	PlatformVMReachableMaxWait    = 2 * time.Minute
 )
 
 var PlatformServices = []string{
 	ServiceTypeCRM,
 	ServiceTypeShepherd,
+	ServiceTypeCloudletPrometheus,
 }
 
 func getPlatformVMName(key *edgeproto.CloudletKey) string {
@@ -54,6 +56,12 @@ func startPlatformService(cloudlet *edgeproto.Cloudlet, pfConfig *edgeproto.Plat
 
 	case ServiceTypeCRM:
 		service_cmd, envVars, err = cloudcommon.GetCRMCmd(cloudlet, pfConfig)
+		if err != nil {
+			cDone <- fmt.Errorf("Unable to get crm service command: %v", err)
+			return
+		}
+	case ServiceTypeCloudletPrometheus:
+		service_cmd, envVars, err = intprocess.GetCloudletPrometheusCmd(cloudlet, pfConfig)
 		if err != nil {
 			cDone <- fmt.Errorf("Unable to get crm service command: %v", err)
 			return
@@ -255,16 +263,21 @@ func (s *Platform) setupPlatformService(ctx context.Context, cloudlet *edgeproto
 	// Start platform service on PlatformVM
 	crmChan := make(chan error, 1)
 	shepherdChan := make(chan error, 1)
+	promChan := make(chan error, 1)
 	go startPlatformService(cloudlet, pfConfig, client, ServiceTypeCRM, updateCallback, crmChan)
 	go startPlatformService(cloudlet, pfConfig, client, ServiceTypeShepherd, updateCallback, shepherdChan)
+	go startPlatformService(cloudlet, pfConfig, client, ServiceTypeCloudletPrometheus, updateCallback, promChan)
 	// Wait for platform services to come up
 	crmErr := <-crmChan
 	shepherdErr := <-shepherdChan
+	promErr := <-promChan
 	if crmErr != nil {
 		return crmErr
 	}
-	return shepherdErr
-
+	if shepherdErr != nil {
+		return shepherdErr
+	}
+	return promErr
 }
 
 // setupPlatformVM:
@@ -622,6 +635,10 @@ func (s *Platform) UpdateCloudlet(ctx context.Context, cloudlet *edgeproto.Cloud
 		if out, err := pfClient.Output(
 			fmt.Sprintf("sudo docker rename %s %s", from, to),
 		); err != nil {
+			if strings.Contains(out, "No such container") {
+				log.SpanLog(ctx, log.DebugLevelMexos, "no containers to rename")
+				continue
+			}
 			errStr := fmt.Sprintf("unable to rename %s to %s: %v, %s\n",
 				from, to, err, out)
 			err = handleUpgradeError(ctx, pfClient)

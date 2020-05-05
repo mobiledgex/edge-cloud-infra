@@ -16,7 +16,9 @@ import (
 
 var CloudletPrometheusContainer = "cloudletPrometheus"
 
-var prometheusConfig = `scrape_configs:
+var prometheusConfig = `rule_files:
+- "/tmp/prom_rules.yml"
+scrape_configs:
 - job_name: envoy_targets
   scrape_interval: 5s
   file_sd_configs:
@@ -120,6 +122,12 @@ func StopShepherdService(ctx context.Context, cloudlet *edgeproto.Cloudlet) erro
 
 	log.SpanLog(ctx, log.DebugLevelMexos, "stopped Shepherdserver", "msg", <-c)
 	return nil
+}
+
+// TODO - get a process
+func GetCloudletPrometheusCmd(cloudlet *edgeproto.Cloudlet, pfConfig *edgeproto.PlatformConfig) (string, *map[string]string, error) {
+	envVars := make(map[string]string)
+	return "", &envVars, nil
 }
 
 // Starts prometheus container and connects it to the default ports

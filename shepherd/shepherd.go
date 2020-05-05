@@ -39,6 +39,7 @@ var name = flag.String("name", "shepherd", "Unique name to identify a process")
 var parentSpan = flag.String("span", "", "Use parent span for logging")
 var region = flag.String("region", "local", "Region name")
 var promTargetsFile = flag.String("targetsFile", "/tmp/prom_targets.json", "Prometheus targets file")
+var promAlertsFile = flag.String("alertsFile", "/tmp/prom_rules.yml", "Prometheus alerts file")
 
 var defaultPrometheusPort = cloudcommon.PrometheusPort
 
@@ -77,6 +78,16 @@ var promTargetT = `
 		"__metrics_path__":"{{.EnvoyMetricsPath}}"
 	}
 }`
+
+var promHealthCheckAlerts = `groups:
+- name: StaticRules
+  rules:
+  - alert: RootLbProxyDown
+    expr: up == 0
+    for: 1m
+  - alert: HealthCheck
+    expr: envoy_cluster_health_check_healthy == 0
+`
 
 type targetData struct {
 	MetricsProxyAddr string
@@ -262,6 +273,7 @@ func metricsProxy(w http.ResponseWriter, r *http.Request) {
 		request := fmt.Sprintf("docker exec %s curl -s -S http://127.0.0.1:%d/stats/prometheus", target.ProxyContainer, cloudcommon.ProxyMetricsPort)
 		resp, err := target.Client.OutputWithTimeout(request, shepherd_common.ShepherdSshConnectTimeout)
 		if err != nil {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
 			return
 		}
 		w.Write([]byte(resp))
@@ -312,6 +324,8 @@ func main() {
 		*platformName == "PLATFORM_TYPE_OPENSTACK" {
 		// Init prometheus targets template
 		promTargetTemplate = template.Must(template.New("prometheustarget").Parse(promTargetT))
+		// write alerting rules
+		ioutil.WriteFile(*promAlertsFile, []byte(promHealthCheckAlerts), 0600)
 
 		// Init http metricsProxy for Prometheus API endpoints
 		var nullLogger baselog.Logger
@@ -320,8 +334,7 @@ func main() {
 		http.HandleFunc("/list", targetsList)
 		http.HandleFunc("/metrics/", metricsProxy)
 		httpServer := &http.Server{
-			Addr: *metricsAddr,
-			//		Handler:   mux,
+			Addr:     *metricsAddr,
 			ErrorLog: &nullLogger,
 		}
 		go func() {

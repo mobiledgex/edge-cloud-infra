@@ -33,6 +33,7 @@ type Shepherd struct {
 	NotifyAddrs    string
 	Platform       string
 	VaultAddr      string
+	MetrticsAddr   string
 	PhysicalName   string
 	CloudletKey    string
 	UseVaultCerts  bool

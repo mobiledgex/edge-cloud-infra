@@ -117,10 +117,9 @@ sudo rm -rf /etc/apt/sources.list.d
 sudo tee /etc/apt/sources.list <<EOT
 deb https://${APT_USER}:${APT_PASS}@artifactory.mobiledgex.net/artifactory/packages stratus main
 deb https://${APT_USER}:${APT_PASS}@apt.mobiledgex.net stratus-deps main
-deb https://${APT_USER}:${APT_PASS}@artifactory.mobiledgex.net/artifactory/ubuntu xenial main restricted universe multiverse
-deb https://${APT_USER}:${APT_PASS}@artifactory.mobiledgex.net/artifactory/ubuntu xenial-updates main restricted universe multiverse
-deb https://${APT_USER}:${APT_PASS}@artifactory.mobiledgex.net/artifactory/ubuntu-security xenial-security main restricted universe multiverse
-deb https://${APT_USER}:${APT_PASS}@apt.mobiledgex.net/nvidia main main
+deb https://${APT_USER}:${APT_PASS}@artifactory.mobiledgex.net/artifactory/ubuntu bionic main restricted universe multiverse
+deb https://${APT_USER}:${APT_PASS}@artifactory.mobiledgex.net/artifactory/ubuntu bionic-updates main restricted universe multiverse
+deb https://${APT_USER}:${APT_PASS}@artifactory.mobiledgex.net/artifactory/ubuntu-security bionic-security main restricted universe multiverse
 EOT
 
 log "Disable cloud config overwrite of APT sources"

@@ -8,7 +8,7 @@ register_response = requests.post(
     json={
         "app_name": "MobiledgeX SDK Demo",
         "app_vers": "2.0",
-        "dev_name": "MobiledgeX",
+        "org_name": "MobiledgeX",
         "ver": 1,
     }).json()
 

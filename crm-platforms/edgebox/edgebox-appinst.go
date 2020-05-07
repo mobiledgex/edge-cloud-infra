@@ -32,8 +32,9 @@ func (e *EdgeboxPlatform) CreateAppInst(ctx context.Context, clusterInst *edgepr
 	}
 
 	// Use generic DIND to create the AppInst
-	err = e.generic.CreateAppInst(ctx, clusterInst, app, appInst, flavor, privacyPolicy, updateCallback)
+	err = e.generic.CreateAppInstInternal(ctx, clusterInst, app, appInst, names)
 	if err != nil {
+		log.SpanLog(ctx, log.DebugLevelInfra, "cannot create app", "error", err)
 		return err
 	}
 

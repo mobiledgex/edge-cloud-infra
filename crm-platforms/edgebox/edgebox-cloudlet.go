@@ -5,6 +5,7 @@ import (
 
 	"github.com/mobiledgex/edge-cloud-infra/crm-platforms/fakeinfra"
 	intprocess "github.com/mobiledgex/edge-cloud-infra/e2e-tests/int-process"
+	pf "github.com/mobiledgex/edge-cloud/cloud-resource-manager/platform"
 	"github.com/mobiledgex/edge-cloud/edgeproto"
 	"github.com/mobiledgex/edge-cloud/log"
 )
@@ -48,5 +49,10 @@ func (e *EdgeboxPlatform) SaveCloudletAccessVars(ctx context.Context, cloudlet *
 
 func (e *EdgeboxPlatform) DeleteCloudletAccessVars(ctx context.Context, cloudlet *edgeproto.Cloudlet, pfConfig *edgeproto.PlatformConfig, updateCallback edgeproto.CacheUpdateCallback) error {
 	log.SpanLog(ctx, log.DebugLevelInfra, "Deleting cloudlet access vars", "cloudletName", cloudlet.Key.Name)
+	return nil
+}
+
+func (e *EdgeboxPlatform) SyncControllerData(ctx context.Context, controllerData *pf.ControllerData) error {
+	log.SpanLog(ctx, log.DebugLevelInfra, "SyncControllerData")
 	return nil
 }

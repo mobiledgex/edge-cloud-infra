@@ -357,6 +357,7 @@ func (v *VMPlatform) GetVMSpecForRootLB(ctx context.Context, rootLbName string, 
 	}
 	vmspec, err := vmspec.GetVMSpec(v.FlavorList, rootlbFlavor)
 	if err != nil {
+		log.SpanLog(ctx, log.DebugLevelInfra, "RootLB GetVMSpec error", "v.FlavorList", v.FlavorList, "rootlbFlavor", rootlbFlavor, "err", err)
 		return nil, fmt.Errorf("unable to find VM spec for RootLB: %v", err)
 	}
 	az := vmspec.AvailabilityZone

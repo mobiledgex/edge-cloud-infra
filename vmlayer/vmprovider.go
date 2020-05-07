@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 
+	"github.com/mobiledgex/edge-cloud-infra/infracommon"
 	"github.com/mobiledgex/edge-cloud/cloud-resource-manager/platform"
 	"github.com/mobiledgex/edge-cloud/cloud-resource-manager/proxy"
 	"github.com/mobiledgex/edge-cloud/cloudcommon"
@@ -18,26 +19,28 @@ import (
 // VMProvider is an interface that platforms implement to perform the details of interfacing with the orchestration layer
 type VMProvider interface {
 	NameSanitize(string) string
+	IdSanitize(string) string
+	GetProviderSpecificProps() map[string]*infracommon.PropertyInfo
 	SetVMProperties(vmProperties *VMProperties)
-	InitProvider(ctx context.Context) error
+	InitProvider(ctx context.Context, updateCallback edgeproto.CacheUpdateCallback) error
 	GetFlavorList(ctx context.Context) ([]*edgeproto.FlavorInfo, error)
 	AddCloudletImageIfNotPresent(ctx context.Context, imgPathPrefix, imgVersion string, updateCallback edgeproto.CacheUpdateCallback) (string, error)
 	AddAppImageIfNotPresent(ctx context.Context, app *edgeproto.App, updateCallback edgeproto.CacheUpdateCallback) error
 	GetServerDetail(ctx context.Context, serverName string) (*ServerDetail, error)
 	GetConsoleUrl(ctx context.Context, serverName string) (string, error)
-	GetIPFromServerName(ctx context.Context, networkName, serverName string) (*ServerIP, error)
-	GetClusterMasterNameAndIP(ctx context.Context, clusterInst *edgeproto.ClusterInst) (string, string, error)
 	AttachPortToServer(ctx context.Context, serverName, portName string) error
 	DetachPortFromServer(ctx context.Context, serverName, portName string) error
 	AddSecurityRuleCIDRWithRetry(ctx context.Context, cidr string, proto string, group string, port string, serverName string) error
 	WhitelistSecurityRules(ctx context.Context, secGrpName string, serverName string, allowedCIDR string, ports []dme.AppPort) error
 	RemoveWhitelistSecurityRules(ctx context.Context, secGrpName string, allowedCIDR string, ports []dme.AppPort) error
 	GetResourceID(ctx context.Context, resourceType ResourceType, resourceName string) (string, error)
+	GetApiAccessFilename() string
 	InitApiAccessProperties(ctx context.Context, key *edgeproto.CloudletKey, region, physicalName string, vaultConfig *vault.Config, vars map[string]string) error
 	VerifyApiEndpoint(ctx context.Context, client ssh.Client, updateCallback edgeproto.CacheUpdateCallback) error
 	SaveCloudletAccessVars(ctx context.Context, cloudlet *edgeproto.Cloudlet, accessVarsIn map[string]string, pfConfig *edgeproto.PlatformConfig, updateCallback edgeproto.CacheUpdateCallback) error
 	SetPowerState(ctx context.Context, serverName, serverAction string) error
 	GatherCloudletInfo(ctx context.Context, info *edgeproto.CloudletInfo) error
+	SyncControllerData(ctx context.Context, controllerData *platform.ControllerData) error
 	GetRouterDetail(ctx context.Context, routerName string) (*RouterDetail, error)
 	CreateVMs(ctx context.Context, vmGroupOrchestrationParams *VMGroupOrchestrationParams, updateCallback edgeproto.CacheUpdateCallback) error
 	UpdateVMs(ctx context.Context, vmGroupOrchestrationParams *VMGroupOrchestrationParams, updateCallback edgeproto.CacheUpdateCallback) error
@@ -118,7 +121,12 @@ func (v *VMPlatform) ListCloudletMgmtNodes(ctx context.Context, clusterInsts []e
 }
 
 func (v *VMPlatform) InitProps(ctx context.Context, platformConfig *platform.PlatformConfig, vaultConfig *vault.Config) error {
-	err := v.VMProperties.CommonPf.InitInfraCommon(ctx, platformConfig, VMProviderProps, vaultConfig)
+	//infraSpecifcProps :=
+	providerProps := v.VMProvider.GetProviderSpecificProps()
+	for k, v := range VMProviderProps {
+		providerProps[k] = v
+	}
+	err := v.VMProperties.CommonPf.InitInfraCommon(ctx, platformConfig, providerProps, vaultConfig)
 	if err != nil {
 		return err
 	}
@@ -126,7 +134,7 @@ func (v *VMPlatform) InitProps(ctx context.Context, platformConfig *platform.Pla
 	return nil
 }
 
-func (v *VMPlatform) Init(ctx context.Context, platformConfig *platform.PlatformConfig, updateCallback edgeproto.CacheUpdateCallback) error {
+func (v *VMPlatform) Init(ctx context.Context, platformConfig *platform.PlatformConfig, controllerData *platform.ControllerData, updateCallback edgeproto.CacheUpdateCallback) error {
 	log.SpanLog(ctx,
 		log.DebugLevelInfra, "Init VMPlatform",
 		"physicalName", platformConfig.PhysicalName,
@@ -151,7 +159,10 @@ func (v *VMPlatform) Init(ctx context.Context, platformConfig *platform.Platform
 		return err
 	}
 	log.SpanLog(ctx, log.DebugLevelInfra, "doing init provider")
-	if err := v.VMProvider.InitProvider(ctx); err != nil {
+	if err := v.VMProvider.InitProvider(ctx, updateCallback); err != nil {
+		return err
+	}
+	if err := v.VMProvider.SyncControllerData(ctx, controllerData); err != nil {
 		return err
 	}
 	v.FlavorList, err = v.VMProvider.GetFlavorList(ctx)
@@ -173,8 +184,10 @@ func (v *VMPlatform) Init(ctx context.Context, platformConfig *platform.Platform
 	v.VMProperties.sharedRootLB = crmRootLB
 	log.SpanLog(ctx, log.DebugLevelInfra, "created shared rootLB", "name", v.VMProperties.sharedRootLBName)
 
-	v.CreateRootLB(ctx, crmRootLB, v.VMProperties.CommonPf.PlatformConfig.CloudletKey, v.VMProperties.CommonPf.PlatformConfig.CloudletVMImagePath, v.VMProperties.CommonPf.PlatformConfig.VMImageVersion, updateCallback)
-
+	err = v.CreateRootLB(ctx, crmRootLB, v.VMProperties.CommonPf.PlatformConfig.CloudletKey, v.VMProperties.CommonPf.PlatformConfig.CloudletVMImagePath, v.VMProperties.CommonPf.PlatformConfig.VMImageVersion, updateCallback)
+	if err != nil {
+		return fmt.Errorf("Error creating rootLB: %v", err)
+	}
 	log.SpanLog(ctx, log.DebugLevelInfra, "calling SetupRootLB")
 	updateCallback(edgeproto.UpdateTask, "Setting up RootLB")
 	err = v.SetupRootLB(ctx, v.VMProperties.sharedRootLBName, v.VMProperties.CommonPf.PlatformConfig.CloudletKey, updateCallback)

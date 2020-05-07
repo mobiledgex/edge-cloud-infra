@@ -17,11 +17,9 @@ import (
 )
 
 func (s *OpenstackPlatform) TimedOpenStackCommand(ctx context.Context, name string, a ...string) ([]byte, error) {
-	parmstr := ""
+	parmstr := strings.Join(a, " ")
 	start := time.Now()
-	for _, a := range a {
-		parmstr += a + " "
-	}
+
 	log.SpanLog(ctx, log.DebugLevelInfra, "OpenStack Command Start", "name", name, "parms", parmstr)
 	newSh := sh.NewSession()
 	for key, val := range s.openRCVars {
@@ -202,7 +200,7 @@ func (s *OpenstackPlatform) ShowFlavor(ctx context.Context, flavor string) (deta
 
 //ListFlavors lists flavors known to the platform.   The ones matching the flavorMatchPattern are returned
 func (s *OpenstackPlatform) ListFlavors(ctx context.Context) ([]OSFlavorDetail, error) {
-	flavorMatchPattern := s.vmProperties.GetCloudletFlavorMatchPattern()
+	flavorMatchPattern := s.VMProperties.GetCloudletFlavorMatchPattern()
 	r, err := regexp.Compile(flavorMatchPattern)
 	if err != nil {
 		return nil, fmt.Errorf("Cannot compile flavor match pattern")
@@ -690,7 +688,7 @@ func (s *OpenstackPlatform) CreateImage(ctx context.Context, imageName, fileName
 	log.SpanLog(ctx, log.DebugLevelInfra, "creating image in glance", "image", imageName, "fileName", fileName)
 	out, err := s.TimedOpenStackCommand(ctx, "openstack", "image", "create",
 		imageName,
-		"--disk-format", s.vmProperties.GetCloudletImageDiskFormat(),
+		"--disk-format", s.VMProperties.GetCloudletImageDiskFormat(),
 		"--container-format", "bare",
 		"--file", fileName)
 	if err != nil {
@@ -713,7 +711,7 @@ func (s *OpenstackPlatform) CreateImageFromUrl(ctx context.Context, imageName, i
 			log.SpanLog(ctx, log.DebugLevelInfra, "delete file failed", "filePath", filePath)
 		}
 	}()
-	err = cloudcommon.DownloadFile(ctx, s.vmProperties.CommonPf.VaultConfig, imageUrl, filePath, nil)
+	err = cloudcommon.DownloadFile(ctx, s.VMProperties.CommonPf.VaultConfig, imageUrl, filePath, nil)
 	if err != nil {
 		return fmt.Errorf("error downloading image from %s, %v", imageUrl, err)
 	}
@@ -1062,7 +1060,7 @@ func (s *OpenstackPlatform) AddCloudletImageIfNotPresent(ctx context.Context, im
 	}
 	if err != nil {
 		// Validate if pfImageName is same as we expected
-		_, md5Sum, err := infracommon.GetUrlInfo(ctx, s.vmProperties.CommonPf.VaultConfig, imgPath)
+		_, md5Sum, err := infracommon.GetUrlInfo(ctx, s.VMProperties.CommonPf.VaultConfig, imgPath)
 		if err != nil {
 			return "", err
 		}

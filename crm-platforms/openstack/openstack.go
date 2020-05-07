@@ -7,12 +7,13 @@ import (
 	"unicode"
 
 	"github.com/mobiledgex/edge-cloud-infra/vmlayer"
+	"github.com/mobiledgex/edge-cloud/cloud-resource-manager/platform"
 	"github.com/mobiledgex/edge-cloud/edgeproto"
 )
 
 type OpenstackPlatform struct {
 	openRCVars   map[string]string
-	vmProperties *vmlayer.VMProperties
+	VMProperties *vmlayer.VMProperties
 	TestMode     bool
 }
 
@@ -21,15 +22,19 @@ func (o *OpenstackPlatform) GetType() string {
 }
 
 func (o *OpenstackPlatform) SetVMProperties(vmProperties *vmlayer.VMProperties) {
-	o.vmProperties = vmProperties
+	o.VMProperties = vmProperties
 }
 
-func (o *OpenstackPlatform) InitProvider(ctx context.Context) error {
+func (o *OpenstackPlatform) InitProvider(ctx context.Context, updateCallback edgeproto.CacheUpdateCallback) error {
 	return o.PrepNetwork(ctx)
 }
 
 func (o *OpenstackPlatform) GatherCloudletInfo(ctx context.Context, info *edgeproto.CloudletInfo) error {
 	return o.OSGetLimits(ctx, info)
+}
+
+func (o *OpenstackPlatform) SyncControllerData(ctx context.Context, controllerData *platform.ControllerData) error {
+	return nil
 }
 
 // alphanumeric plus -_. first char must be alpha, <= 255 chars.
@@ -51,6 +56,11 @@ func (o *OpenstackPlatform) NameSanitize(name string) string {
 		str = str[:254]
 	}
 	return str
+}
+
+// Openstack IdSanitize is the same as NameSanitize
+func (o *OpenstackPlatform) IdSanitize(name string) string {
+	return o.NameSanitize(name)
 }
 
 func (o *OpenstackPlatform) DeleteResources(ctx context.Context, resourceGroupName string) error {

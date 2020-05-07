@@ -38,24 +38,28 @@ type ClusterFlavor struct {
 	Topology       string
 }
 
-func (v *VMPlatform) GetClusterName(ctx context.Context, clusterInst *edgeproto.ClusterInst) string {
-	return v.VMProvider.NameSanitize(k8smgmt.GetK8sNodeNameSuffix(&clusterInst.Key))
+func GetClusterName(ctx context.Context, clusterInst *edgeproto.ClusterInst) string {
+	return k8smgmt.GetK8sNodeNameSuffix(&clusterInst.Key)
 }
 
 func (v *VMPlatform) GetClusterSubnetName(ctx context.Context, clusterInst *edgeproto.ClusterInst) string {
-	return "mex-k8s-subnet-" + v.GetClusterName(ctx, clusterInst)
+	return "mex-k8s-subnet-" + GetClusterName(ctx, clusterInst)
 }
 
-func (v *VMPlatform) GetClusterMasterName(ctx context.Context, clusterInst *edgeproto.ClusterInst) string {
-	return ClusterTypeKubernetesMasterLabel + "-" + v.GetClusterName(ctx, clusterInst)
+func GetClusterMasterName(ctx context.Context, clusterInst *edgeproto.ClusterInst) string {
+	namePrefix := ClusterTypeKubernetesMasterLabel
+	if clusterInst.Deployment == cloudcommon.AppDeploymentTypeDocker {
+		namePrefix = ClusterTypeDockerVMLabel
+	}
+	return namePrefix + "-" + GetClusterName(ctx, clusterInst)
 }
 
-func (v *VMPlatform) GetClusterNodeName(ctx context.Context, clusterInst *edgeproto.ClusterInst, nodeNum uint32) string {
-	return ClusterNodePrefix(nodeNum) + "-" + v.GetClusterName(ctx, clusterInst)
+func GetClusterNodeName(ctx context.Context, clusterInst *edgeproto.ClusterInst, nodeNum uint32) string {
+	return ClusterNodePrefix(nodeNum) + "-" + GetClusterName(ctx, clusterInst)
 }
 
 func (v *VMPlatform) GetDockerNodeName(ctx context.Context, clusterInst *edgeproto.ClusterInst) string {
-	return "docker-node" + "-" + v.GetClusterName(ctx, clusterInst)
+	return "docker-node" + "-" + GetClusterName(ctx, clusterInst)
 }
 
 func ClusterNodePrefix(num uint32) string {
@@ -149,7 +153,7 @@ func (v *VMPlatform) updateClusterInternal(ctx context.Context, client ssh.Clien
 //DeleteCluster deletes kubernetes cluster
 func (v *VMPlatform) deleteCluster(ctx context.Context, rootLBName string, clusterInst *edgeproto.ClusterInst) error {
 	log.SpanLog(ctx, log.DebugLevelInfra, "deleting kubernetes cluster", "clusterInst", clusterInst)
-	name := v.GetClusterName(ctx, clusterInst)
+	name := GetClusterName(ctx, clusterInst)
 
 	dedicatedRootLB := clusterInst.IpAccess == edgeproto.IpAccess_IP_ACCESS_DEDICATED
 	client, err := v.GetClusterPlatformClient(ctx, clusterInst)
@@ -161,7 +165,7 @@ func (v *VMPlatform) deleteCluster(ctx context.Context, rootLBName string, clust
 		}
 	}
 	if !dedicatedRootLB {
-		ip, err := v.VMProvider.GetIPFromServerName(ctx, v.GetClusterSubnetName(ctx, clusterInst), rootLBName)
+		ip, err := v.GetIPFromServerName(ctx, v.GetClusterSubnetName(ctx, clusterInst), rootLBName)
 		if err != nil {
 			log.SpanLog(ctx, log.DebugLevelInfra, "unable to get ips from server, proceed with VM deletion", "err", err)
 		} else {
@@ -312,9 +316,11 @@ func (v *VMPlatform) waitClusterReady(ctx context.Context, clusterInst *edgeprot
 
 	for {
 		if masterIP == "" {
-			masterName, masterIP, _ = v.VMProvider.GetClusterMasterNameAndIP(ctx, clusterInst)
-			if masterIP != "" {
+			mip, err := v.GetIPFromServerName(ctx, v.VMProperties.GetCloudletMexNetwork(), GetClusterMasterName(ctx, clusterInst))
+			if err != nil {
+				masterIP = mip.ExternalAddr
 				updateCallback(edgeproto.UpdateStep, "Checking Master for Available Nodes")
+
 			}
 		}
 		if masterIP == "" {
@@ -477,7 +483,7 @@ func (v *VMPlatform) CreateOrUpdateVMsForCluster(ctx context.Context, imgName st
 
 	var vms []*VMRequestSpec
 	var err error
-	vmgroupName := v.GetClusterName(ctx, clusterInst)
+	vmgroupName := GetClusterName(ctx, clusterInst)
 	var newSubnetName string
 	var newSecgrpName string
 
@@ -515,7 +521,7 @@ func (v *VMPlatform) CreateOrUpdateVMsForCluster(ctx context.Context, imgName st
 		}
 		master, err := v.GetVMRequestSpec(ctx,
 			VMTypeClusterMaster,
-			v.GetClusterMasterName(ctx, clusterInst),
+			GetClusterMasterName(ctx, clusterInst),
 			masterFlavor,
 			v.VMProperties.GetCloudletOSImage(),
 			false, //connect external
@@ -531,7 +537,7 @@ func (v *VMPlatform) CreateOrUpdateVMsForCluster(ctx context.Context, imgName st
 		for nn := uint32(1); nn <= clusterInst.NumNodes; nn++ {
 			node, err := v.GetVMRequestSpec(ctx,
 				VMTypeClusterNode,
-				v.GetClusterNodeName(ctx, clusterInst, nn),
+				GetClusterNodeName(ctx, clusterInst, nn),
 				clusterInst.NodeFlavor,
 				v.VMProperties.GetCloudletOSImage(),
 				false, //connect external

@@ -329,7 +329,7 @@ func (v *VMPlatform) SetupPlatformVM(ctx context.Context, cloudlet *edgeproto.Cl
 	}
 
 	updateCallback(edgeproto.UpdateTask, "Successfully Deployed Platform VM")
-	ip, err := v.VMProvider.GetIPFromServerName(ctx, v.VMProperties.GetCloudletExternalNetwork(), platformVmName)
+	ip, err := v.GetIPFromServerName(ctx, v.VMProperties.GetCloudletExternalNetwork(), platformVmName)
 	if err != nil {
 		return nil, err
 	}
@@ -574,7 +574,7 @@ func (v *VMPlatform) DeleteCloudletAccessVars(ctx context.Context, cloudlet *edg
 	if err != nil {
 		return err
 	}
-	path := GetVaultCloudletAccessPath(&cloudlet.Key, v.Type, pfConfig.Region, cloudlet.PhysicalName)
+	path := GetVaultCloudletAccessPath(&cloudlet.Key, v.Type, pfConfig.Region, cloudlet.PhysicalName, v.VMProvider.GetApiAccessFilename())
 	err = infracommon.DeleteDataFromVault(vaultConfig, path)
 	if err != nil {
 		return fmt.Errorf("Failed to delete access vars from vault: %v", err)
@@ -588,4 +588,9 @@ func (v *VMPlatform) SaveCloudletAccessVars(ctx context.Context, cloudlet *edgep
 
 func (v *VMPlatform) GatherCloudletInfo(ctx context.Context, info *edgeproto.CloudletInfo) error {
 	return v.VMProvider.GatherCloudletInfo(ctx, info)
+}
+
+func (s *VMPlatform) SyncControllerData(ctx context.Context, controllerData *pf.ControllerData) error {
+	log.SpanLog(ctx, log.DebugLevelInfra, "SyncControllerData")
+	return nil
 }

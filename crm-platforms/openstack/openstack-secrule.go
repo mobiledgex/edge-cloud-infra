@@ -99,7 +99,7 @@ func (s *OpenstackPlatform) AddSecurityRuleCIDRWithRetry(ctx context.Context, ci
 			log.SpanLog(ctx, log.DebugLevelInfra, "security group does not exist, creating it", "groupName", group)
 
 			// LB can have multiple ports attached.  We need to assign this SG to the external network port only
-			ports, err := s.ListPortsServerNetwork(ctx, serverName, s.vmProperties.GetCloudletExternalNetwork())
+			ports, err := s.ListPortsServerNetwork(ctx, serverName, s.VMProperties.GetCloudletExternalNetwork())
 			if err != nil {
 				return err
 			}

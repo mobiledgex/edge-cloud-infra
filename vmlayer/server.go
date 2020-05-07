@@ -23,6 +23,22 @@ type ServerDetail struct {
 	Status    string
 }
 
+func (v *VMPlatform) GetIPFromServerName(ctx context.Context, networkName, serverName string) (*ServerIP, error) {
+	// if this is a root lb, look it up and get the IP if we have it cached
+	rootLB, err := GetRootLB(ctx, serverName)
+	if err == nil && rootLB != nil {
+		if rootLB.IP != nil {
+			log.SpanLog(ctx, log.DebugLevelInfra, "using existing rootLB IP", "IP", rootLB.IP)
+			return rootLB.IP, nil
+		}
+	}
+	sd, err := v.VMProvider.GetServerDetail(ctx, serverName)
+	if err != nil {
+		return nil, err
+	}
+	return GetIPFromServerDetails(ctx, networkName, sd)
+}
+
 func GetIPFromServerDetails(ctx context.Context, networkName string, sd *ServerDetail) (*ServerIP, error) {
 	log.SpanLog(ctx, log.DebugLevelInfra, "GetIPFromServerDetails", "networkName", networkName, "serverDetail", sd)
 	for _, s := range sd.Addresses {
@@ -30,6 +46,7 @@ func GetIPFromServerDetails(ctx context.Context, networkName string, sd *ServerD
 			return &s, nil
 		}
 	}
+	log.SpanLog(ctx, log.DebugLevelInfra, "unable to find IP for server", "networkName", networkName, "serverDetail", sd)
 	return nil, fmt.Errorf("unable to find IP for server: %s on network: %s", sd.Name, networkName)
 }
 
@@ -65,18 +82,18 @@ func (v *VMPlatform) SetPowerState(ctx context.Context, app *edgeproto.App, appI
 		serverAction := ""
 		switch PowerState {
 		case edgeproto.PowerState_POWER_ON_REQUESTED:
-			if serverDetail.Status == "ACTIVE" {
+			if serverDetail.Status == ServerActive {
 				return fmt.Errorf("server %s is already active", serverName)
 			}
 			serverAction = "start"
 		case edgeproto.PowerState_POWER_OFF_REQUESTED:
-			if serverDetail.Status == "SHUTOFF" {
+			if serverDetail.Status == ServerShutoff {
 				return fmt.Errorf("server %s is already stopped", serverName)
 			}
 			serverAction = "stop"
 		case edgeproto.PowerState_REBOOT_REQUESTED:
 			serverAction = "reboot"
-			if serverDetail.Status != "ACTIVE" {
+			if serverDetail.Status != ServerActive {
 				return fmt.Errorf("server %s is not active", serverName)
 			}
 		default:

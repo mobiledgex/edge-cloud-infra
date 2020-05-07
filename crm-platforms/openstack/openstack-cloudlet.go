@@ -33,10 +33,10 @@ func (o *OpenstackPlatform) VerifyApiEndpoint(ctx context.Context, client ssh.Cl
 	); err != nil {
 		updateCallback(edgeproto.UpdateTask, "Adding route for API endpoint as it is unreachable")
 		// Fetch gateway IP of external network
-		gatewayAddr, err := o.GetExternalGateway(ctx, o.vmProperties.GetCloudletExternalNetwork())
+		gatewayAddr, err := o.GetExternalGateway(ctx, o.VMProperties.GetCloudletExternalNetwork())
 		if err != nil {
 			return fmt.Errorf("unable to fetch gateway IP for external network: %s, %v",
-				o.vmProperties.GetCloudletExternalNetwork(), err)
+				o.VMProperties.GetCloudletExternalNetwork(), err)
 		}
 		// Add route to reach API endpoint
 		if out, err := client.Output(
@@ -133,7 +133,7 @@ func (o *OpenstackPlatform) SaveCloudletAccessVars(ctx context.Context, cloudlet
 		"data": varList,
 	}
 
-	path := vmlayer.GetVaultCloudletAccessPath(&cloudlet.Key, pfConfig.Region, o.GetType(), cloudlet.PhysicalName)
+	path := vmlayer.GetVaultCloudletAccessPath(&cloudlet.Key, pfConfig.Region, o.GetType(), cloudlet.PhysicalName, o.GetApiAccessFilename())
 	err = infracommon.PutDataToVault(vaultConfig, path, data)
 	if err != nil {
 		updateCallback(edgeproto.UpdateTask, "Failed to save access vars to vault")

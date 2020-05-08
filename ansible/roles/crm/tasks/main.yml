@@ -63,7 +63,7 @@
       - "--tls"
       - "/root/tls/mex-server.crt"
       - "-d"
-      - "api,notify,mexos"
+      - "api,notify,infra"
 
 - name: Add openstack parameters
   set_fact:

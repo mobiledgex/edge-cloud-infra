@@ -65,7 +65,7 @@
       - "--region"
       - "{{ item.controller_region }}"
       - "-d"
-      - "api,notify,mexos,metrics"
+      - "api,notify,infra,metrics"
 
 - name: Add openstack parameters
   set_fact:

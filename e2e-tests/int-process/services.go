@@ -159,7 +159,7 @@ func StartCloudletPromettheus(ctx context.Context) error {
 		"--config.file=/etc/prometheus/prometheus.yml",
 	}
 	cmd, err := process.StartLocal(CloudletPrometheusContainer, "docker", args, nil, "/tmp/cloudlet_prometheus.log")
-	log.SpanLog(ctx, log.DebugLevelMexos, "start Promettheus", "command", cmd, "error", err)
+	log.SpanLog(ctx, log.DebugLevelInfra, "start Promettheus", "command", cmd, "error", err)
 	if err != nil {
 		return err
 	}

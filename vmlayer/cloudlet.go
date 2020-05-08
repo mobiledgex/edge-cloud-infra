@@ -537,7 +537,7 @@ func (v *VMPlatform) UpdateCloudlet(ctx context.Context, cloudlet *edgeproto.Clo
 			fmt.Sprintf("sudo docker rename %s %s", from, to),
 		); err != nil {
 			if strings.Contains(out, "No such container") {
-				log.SpanLog(ctx, log.DebugLevelMexos, "no containers to rename")
+				log.SpanLog(ctx, log.DebugLevelInfra, "no containers to rename")
 				continue
 			}
 			errStr := fmt.Sprintf("unable to rename %s to %s: %v, %s\n",

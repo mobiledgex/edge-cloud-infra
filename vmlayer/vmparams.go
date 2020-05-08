@@ -666,6 +666,7 @@ func (v *VMPlatform) getVMGroupOrchestrationParamsFromGroupSpec(ctx context.Cont
 			for _, p := range newPorts {
 				if !p.SkipAttachVM {
 					newVM.Ports = append(newVM.Ports, NewPortResourceReference(p.Name, p.Id, p.NetworkId, p.SubnetId, false))
+					newVM.FixedIPs = append(newVM.FixedIPs, p.FixedIPs...)
 				}
 			}
 			vmgp.VMs = append(vmgp.VMs, newVM)

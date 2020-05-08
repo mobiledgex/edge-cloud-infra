@@ -23,7 +23,7 @@ type ServerDetail struct {
 	Status    string
 }
 
-func (v *VMPlatform) GetIPFromServerName(ctx context.Context, networkName, serverName string) (*ServerIP, error) {
+func (v *VMPlatform) GetIPFromServerName(ctx context.Context, networkName, subnetName, serverName string) (*ServerIP, error) {
 	// if this is a root lb, look it up and get the IP if we have it cached
 	rootLB, err := GetRootLB(ctx, serverName)
 	if err == nil && rootLB != nil {
@@ -36,17 +36,17 @@ func (v *VMPlatform) GetIPFromServerName(ctx context.Context, networkName, serve
 	if err != nil {
 		return nil, err
 	}
-	return GetIPFromServerDetails(ctx, networkName, sd)
+	return GetIPFromServerDetails(ctx, networkName, subnetName, sd)
 }
 
-func GetIPFromServerDetails(ctx context.Context, networkName string, sd *ServerDetail) (*ServerIP, error) {
-	log.SpanLog(ctx, log.DebugLevelInfra, "GetIPFromServerDetails", "networkName", networkName, "serverDetail", sd)
+func GetIPFromServerDetails(ctx context.Context, networkName string, subnetName string, sd *ServerDetail) (*ServerIP, error) {
+	log.SpanLog(ctx, log.DebugLevelInfra, "GetIPFromServerDetails", "networkName", networkName, "subnetName", subnetName, "serverDetail", sd)
 	for _, s := range sd.Addresses {
-		if s.Network == networkName {
+		if s.Network == networkName || s.Network == subnetName {
 			return &s, nil
 		}
 	}
-	log.SpanLog(ctx, log.DebugLevelInfra, "unable to find IP for server", "networkName", networkName, "serverDetail", sd)
+	log.SpanLog(ctx, log.DebugLevelInfra, "unable to find IP for server", "networkName", networkName, "subnetName", subnetName, "serverDetail", sd)
 	return nil, fmt.Errorf("unable to find IP for server: %s on network: %s", sd.Name, networkName)
 }
 
@@ -101,7 +101,7 @@ func (v *VMPlatform) SetPowerState(ctx context.Context, app *edgeproto.App, appI
 		}
 
 		updateCallback(edgeproto.UpdateTask, fmt.Sprintf("Fetching external address of %s", serverName))
-		oldServerIP, err := GetIPFromServerDetails(ctx, v.VMProperties.GetCloudletExternalNetwork(), serverDetail)
+		oldServerIP, err := GetIPFromServerDetails(ctx, v.VMProperties.GetCloudletExternalNetwork(), "", serverDetail)
 		if err != nil || oldServerIP.ExternalAddr == "" {
 			return fmt.Errorf("unable to fetch external ip for %s, addr %s, err %v", serverName, v.VMProperties.GetCloudletExternalNetwork(), err)
 		}
@@ -118,7 +118,7 @@ func (v *VMPlatform) SetPowerState(ctx context.Context, app *edgeproto.App, appI
 				return err
 			}
 			updateCallback(edgeproto.UpdateTask, fmt.Sprintf("Fetching external address of %s", serverName))
-			newServerIP, err := GetIPFromServerDetails(ctx, v.VMProperties.GetCloudletExternalNetwork(), serverDetail)
+			newServerIP, err := GetIPFromServerDetails(ctx, v.VMProperties.GetCloudletExternalNetwork(), "", serverDetail)
 			if err != nil || newServerIP.ExternalAddr == "" {
 				return fmt.Errorf("unable to fetch external ip for %s, addr %s, err %v", serverName, v.VMProperties.GetCloudletExternalNetwork(), err)
 			}

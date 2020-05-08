@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"html"
 	"html/template"
+	"sync"
 	"time"
 
 	"github.com/codeskyblue/go-sh"
@@ -14,6 +15,8 @@ import (
 	"github.com/mobiledgex/edge-cloud/edgeproto"
 	"github.com/mobiledgex/edge-cloud/log"
 )
+
+var terraformLock sync.Mutex
 
 var TerraformDir = "terraformdir"
 
@@ -35,6 +38,9 @@ type TerraformStateData struct {
 }
 
 func TimedTerraformCommand(ctx context.Context, dir string, name string, a ...string) (string, error) {
+
+	terraformLock.Lock()
+	defer terraformLock.Unlock()
 	parmstr := ""
 	start := time.Now()
 	for _, a := range a {

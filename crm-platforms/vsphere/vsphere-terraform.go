@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/base64"
 	"fmt"
+	"io/ioutil"
 	"os"
 	"strings"
 
@@ -16,6 +17,10 @@ import (
 var NumRetries = 2
 
 var VmipTag = "vmip"
+
+var terraformCreate string = "CREATE"
+var terraformUpdate string = "UPDATE"
+var terraformTest string = "TEST"
 
 type VSphereGeneralParams struct {
 	VsphereUser       string
@@ -33,6 +38,69 @@ type VSphereGeneralParams struct {
 type VSphereVMGroupParams struct {
 	*VSphereGeneralParams
 	*vmlayer.VMGroupOrchestrationParams
+}
+
+func (v *VSpherePlatform) TerraformRefresh(ctx context.Context) error {
+	log.SpanLog(ctx, log.DebugLevelInfra, "TerraformRefresh")
+	_, err := terraform.TimedTerraformCommand(ctx, terraform.TerraformDir, "terraform", "refresh")
+	return err
+}
+
+func (v *VSpherePlatform) ImportVMToTerraform(ctx context.Context, vmName string) error {
+	log.SpanLog(ctx, log.DebugLevelInfra, "ImportVMToTerraform", "vmName", vmName)
+	vmpath := "/" + v.GetDatacenterName(ctx) + "/vm/" + vmName
+	_, err := terraform.TimedTerraformCommand(ctx, terraform.TerraformDir, "terraform", "import", "vsphere_virtual_machine."+vmName, vmpath)
+	return err
+}
+
+func (v *VSpherePlatform) AttachPortToServer(ctx context.Context, serverName, subnetName, portName, ipaddr string) error {
+	fileName := terraform.TerraformDir + "/" + serverName + ".tf"
+	log.SpanLog(ctx, log.DebugLevelInfra, "AttachPortToServer", "serverName", serverName, "fileName", fileName, "ipaddr", ipaddr)
+	tagName := serverName + "__" + subnetName + "__" + ipaddr
+	tagId := v.IdSanitize(tagName)
+
+	interfaceContents := fmt.Sprintf(`
+		## BEGIN ADDITIONAL INTERFACE FOR `+subnetName+`
+		network_interface {
+			network_id = vsphere_distributed_port_group.%s.id
+		}
+		## END ADDITIONAL INTERFACE FOR `+subnetName+`
+		`, subnetName)
+
+	tagContents := fmt.Sprintf(`
+	## BEGIN ADDITIONAL TAGS FOR `+serverName+`
+	resource "vsphere_tag" "%s" {
+		name = "%s"
+		category_id = "${vsphere_tag_category.%s.id}"
+	}
+	## END ADDITIONAL TAGS FOR `+serverName+`
+		`, tagId, tagName, VmipTag)
+
+	input, err := ioutil.ReadFile(fileName)
+	if err != nil {
+		return err
+	}
+
+	lines := strings.Split(string(input), "\n")
+	var newlines []string
+	for _, line := range lines {
+		if strings.Contains(line, "## END NETWORK INTERFACES for "+serverName) {
+			newlines = append(newlines, interfaceContents)
+		}
+		newlines = append(newlines, line)
+	}
+	newlines = append(newlines, tagContents)
+	output := strings.Join(newlines, "\n")
+	err = ioutil.WriteFile(fileName, []byte(output), 0644)
+
+	if err != nil {
+		return err
+	}
+	out, err := terraform.TimedTerraformCommand(ctx, terraform.TerraformDir, "terraform", "apply", "--auto-approve")
+	if err != nil {
+		log.SpanLog(ctx, log.DebugLevelInfra, "Terraform apply failed for attach port", "out", out, "fileName", fileName)
+	}
+	return err
 }
 
 func (v *VSpherePlatform) populateGeneralParams(ctx context.Context, planName string, vgp *VSphereGeneralParams) error {
@@ -53,7 +121,7 @@ func (v *VSpherePlatform) populateGeneralParams(ctx context.Context, planName st
 	return nil
 }
 
-func (v *VSpherePlatform) populateVMOrchParams(ctx context.Context, vmgp *vmlayer.VMGroupOrchestrationParams) error {
+func (v *VSpherePlatform) populateVMOrchParams(ctx context.Context, vmgp *vmlayer.VMGroupOrchestrationParams, action string) error {
 	log.SpanLog(ctx, log.DebugLevelInfra, "populateVMOrchParams")
 
 	masterIP := ""
@@ -62,44 +130,106 @@ func (v *VSpherePlatform) populateVMOrchParams(ctx context.Context, vmgp *vmlaye
 		return nil
 	}
 
-	// populate vm fields
-	for i, vm := range vmgp.VMs {
-		var vmtags []string
-		vmgp.VMs[i].MetaData = vmlayer.GetVMMetaData(vm.Role, masterIP, vmsphereMetaDataFormatter)
-		vmgp.VMs[i].UserData = vmlayer.GetVMUserData(vm.SharedVolume, vm.DNSServers, vm.DeploymentManifest, vm.Command, vmsphereUserDataFormatter)
-		vmgp.VMs[i].DNSServers = "\"1.1.1.1\", \"1.0.0.1\""
-		for _, f := range flavors {
-			if f.Name == vm.FlavorName {
-				vmgp.VMs[i].Vcpus = f.Vcpus
-				vmgp.VMs[i].Disk = f.Disk
-				vmgp.VMs[i].Ram = f.Ram
+	usedCidrs, err := v.GetUsedCIDRs(ctx)
+	if err != nil {
+		return nil
+	}
+	currentSubnetName := ""
+	if action != terraformCreate {
+		currentSubnetName = "mex-k8s-subnet-" + vmgp.GroupName
+	}
+
+	//find an available subnet or the current subnet for update and delete
+	for i, s := range vmgp.Subnets {
+		if s.CIDR != vmlayer.NextAvailableResource {
+			// no need to compute the CIDR
+			continue
+		}
+		found := false
+		for octet := 0; octet <= 255; octet++ {
+			subnet := fmt.Sprintf("%s.%s.%d.%d/%s", vmgp.Netspec.Octets[0], vmgp.Netspec.Octets[1], octet, 0, vmgp.Netspec.NetmaskBits)
+			// either look for an unused one (create) or the current one (update)
+			newSubnet := action == terraformCreate || action == terraformTest
+			if (newSubnet && usedCidrs[subnet] == "") || (!newSubnet && usedCidrs[subnet] == currentSubnetName) {
+				found = true
+				vmgp.Subnets[i].CIDR = subnet
+				vmgp.Subnets[i].GatewayIP = fmt.Sprintf("%s.%s.%d.%d", vmgp.Netspec.Octets[0], vmgp.Netspec.Octets[1], octet, 1)
+				vmgp.Subnets[i].NodeIPPrefix = fmt.Sprintf("%s.%s.%d", vmgp.Netspec.Octets[0], vmgp.Netspec.Octets[1], octet)
+				masterIP = fmt.Sprintf("%s.%s.%d.%d", vmgp.Netspec.Octets[0], vmgp.Netspec.Octets[1], octet, 10)
+				break
 			}
 		}
-		for _, port := range vm.Ports {
-			log.SpanLog(ctx, log.DebugLevelInfra, "updating VM port", "port", port)
-			if port.Id == v.IdSanitize(v.vmProperties.GetCloudletExternalNetwork()) {
+		if !found {
+			return fmt.Errorf("cannot find subnet cidr")
+		}
+	}
+
+	// populate vm fields
+	for vmidx, vm := range vmgp.VMs {
+		//var vmtags []string
+		vmgp.VMs[vmidx].MetaData = vmlayer.GetVMMetaData(vm.Role, masterIP, vmsphereMetaDataFormatter)
+		vmgp.VMs[vmidx].UserData = vmlayer.GetVMUserData(vm.SharedVolume, vm.DNSServers, vm.DeploymentManifest, vm.Command, vmsphereUserDataFormatter)
+		vmgp.VMs[vmidx].DNSServers = "\"1.1.1.1\", \"1.0.0.1\""
+		for _, f := range flavors {
+			if f.Name == vm.FlavorName {
+				vmgp.VMs[vmidx].Vcpus = f.Vcpus
+				vmgp.VMs[vmidx].Disk = f.Disk
+				vmgp.VMs[vmidx].Ram = f.Ram
+			}
+		}
+
+		// populate external ips
+		for _, portref := range vm.Ports {
+			log.SpanLog(ctx, log.DebugLevelInfra, "updating VM port", "portref", portref)
+			if portref.NetworkId == v.IdSanitize(v.vmProperties.GetCloudletExternalNetwork()) {
 				eip, err := v.GetFreeExternalIP(ctx)
 				if err != nil {
 					return err
 				}
 				fip := vmlayer.FixedIPOrchestrationParams{
-					Subnet:  vmlayer.NewResourceReference(port.Name, port.Id, false),
+					Subnet:  vmlayer.NewResourceReference(portref.Name, portref.Id, false),
 					Mask:    v.GetExternalNetmask(),
 					Address: eip,
 				}
-				vmgp.VMs[i].FixedIPs = append(vmgp.VMs[i].FixedIPs, fip)
-				tagname := vm.Name + "__" + port.Id + "__" + eip
+				vmgp.VMs[vmidx].FixedIPs = append(vmgp.VMs[vmidx].FixedIPs, fip)
+				tagname := vm.Name + "__" + portref.Id + "__" + eip
 				tagid := v.IdSanitize(tagname)
-				vmtags = append(vmtags, tagname)
+				//	vmtags = append(vmtags, tagname)
 				vmgp.Tags = append(vmgp.Tags, vmlayer.TagOrchestrationParams{Category: VmipTag, Id: tagid, Name: tagname})
-				vmgp.VMs[i].ExternalGateway = v.GetExternalGateway()
+				vmgp.VMs[vmidx].ExternalGateway = v.GetExternalGateway()
 			}
 		}
-		vmgp.VMs[i].Tags = strings.Join(vmtags, ",")
-	}
+
+		// update fixedips from subnet found
+		for fipidx, fip := range vm.FixedIPs {
+			if fip.Address == vmlayer.NextAvailableResource {
+				found := false
+				for _, s := range vmgp.Subnets {
+					if s.Name == fip.Subnet.Name {
+						found = true
+						vmgp.VMs[vmidx].FixedIPs[fipidx].Address = fmt.Sprintf("%s.%d", s.NodeIPPrefix, fip.LastIPOctet)
+						vmgp.VMs[vmidx].FixedIPs[fipidx].Mask = v.GetInternalNetmask()
+						vmgp.VMs[vmidx].ExternalGateway = s.GatewayIP
+						tagname := vm.Name + "__" + s.Id + "__" + vmgp.VMs[vmidx].FixedIPs[fipidx].Address
+						tagid := v.IdSanitize(tagname)
+						//	vmtags = append(vmtags, tagname)
+						vmgp.Tags = append(vmgp.Tags, vmlayer.TagOrchestrationParams{Category: VmipTag, Id: tagid, Name: tagname})
+						log.SpanLog(ctx, log.DebugLevelInfra, "updating address for VM", "vmname", vmgp.VMs[vmidx].Name, "address", vmgp.VMs[vmidx].FixedIPs[fipidx].Address)
+					}
+				}
+				if !found {
+					return fmt.Errorf("found not find subnet for vm %s", vm.Name)
+				}
+			}
+		}
+
+	} //for vm
 
 	return nil
 }
+
+//return nil
+//}
 
 func getResourcePool(planName string) string {
 	return planName + "-pool"
@@ -188,12 +318,13 @@ var vmGroupTemplate = `
   		{{- range .Ports}}
 		network_interface {
 			{{- if .SubnetId}}
-			network_id = data.vsphere_distributed_port_group.{{.SubnetId}}.id
+			network_id = vsphere_distributed_port_group.{{.SubnetId}}.id
 			{{- else}}
 			network_id = data.vsphere_network.{{.NetworkId}}.id
 			{{- end}}
-  		}
+		}
 		{{- end}}
+		## END NETWORK INTERFACES for {{.Name}}
 
   		disk {
 			label = "disk0"
@@ -293,7 +424,7 @@ func (v *VSpherePlatform) CreateVMs(ctx context.Context, vmGroupOrchestrationPar
 	if err != nil {
 		return err
 	}
-	err = v.populateVMOrchParams(ctx, vmGroupOrchestrationParams)
+	err = v.populateVMOrchParams(ctx, vmGroupOrchestrationParams, terraformCreate)
 	if err != nil {
 		return err
 	}

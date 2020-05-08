@@ -90,7 +90,8 @@ func (s *ShepherdPlatform) GetClusterIP(ctx context.Context, clusterInst *edgepr
 		return "", err
 	}
 	mexNet := s.opf.VMProperties.GetCloudletMexNetwork()
-	sip, err := vmlayer.GetIPFromServerDetails(ctx, mexNet, sd)
+	subnetName := vmlayer.GetClusterSubnetName(ctx, clusterInst)
+	sip, err := vmlayer.GetIPFromServerDetails(ctx, mexNet, subnetName, sd)
 	if err != nil {
 		return "", err
 	}

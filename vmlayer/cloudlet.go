@@ -329,7 +329,7 @@ func (v *VMPlatform) SetupPlatformVM(ctx context.Context, cloudlet *edgeproto.Cl
 	}
 
 	updateCallback(edgeproto.UpdateTask, "Successfully Deployed Platform VM")
-	ip, err := v.GetIPFromServerName(ctx, v.VMProperties.GetCloudletExternalNetwork(), platformVmName)
+	ip, err := v.GetIPFromServerName(ctx, v.VMProperties.GetCloudletExternalNetwork(), "", platformVmName)
 	if err != nil {
 		return nil, err
 	}

@@ -42,7 +42,7 @@ func GetClusterName(ctx context.Context, clusterInst *edgeproto.ClusterInst) str
 	return k8smgmt.GetK8sNodeNameSuffix(&clusterInst.Key)
 }
 
-func (v *VMPlatform) GetClusterSubnetName(ctx context.Context, clusterInst *edgeproto.ClusterInst) string {
+func GetClusterSubnetName(ctx context.Context, clusterInst *edgeproto.ClusterInst) string {
 	return "mex-k8s-subnet-" + GetClusterName(ctx, clusterInst)
 }
 
@@ -165,11 +165,11 @@ func (v *VMPlatform) deleteCluster(ctx context.Context, rootLBName string, clust
 		}
 	}
 	if !dedicatedRootLB {
-		ip, err := v.GetIPFromServerName(ctx, v.GetClusterSubnetName(ctx, clusterInst), rootLBName)
+		ip, err := v.GetIPFromServerName(ctx, GetClusterSubnetName(ctx, clusterInst), GetClusterSubnetName(ctx, clusterInst), rootLBName)
 		if err != nil {
 			log.SpanLog(ctx, log.DebugLevelInfra, "unable to get ips from server, proceed with VM deletion", "err", err)
 		} else {
-			err = v.DetachAndDisableRootLBInterface(ctx, client, rootLBName, GetPortName(rootLBName, v.VMProperties.GetCloudletMexNetwork()), ip.InternalAddr)
+			err = v.DetachAndDisableRootLBInterface(ctx, client, rootLBName, GetClusterSubnetName(ctx, clusterInst), GetPortName(rootLBName, v.VMProperties.GetCloudletMexNetwork()), ip.InternalAddr)
 			if err != nil {
 				log.SpanLog(ctx, log.DebugLevelInfra, "unable to detach rootLB interface, proceed with VM deletion", "err", err)
 			}
@@ -252,11 +252,12 @@ func (v *VMPlatform) createClusterInternal(ctx context.Context, rootLBName strin
 
 		// after vm creation, the orchestrator will update some fields in the group params including gateway IP.
 		// this IP is used on the rootLB to server as the GW for this new subnet
-		gw, err := v.GetSubnetGatewayFromVMGroupParms(ctx, v.GetClusterSubnetName(ctx, clusterInst), vmgp)
+		subnetName := GetClusterSubnetName(ctx, clusterInst)
+		gw, err := v.GetSubnetGatewayFromVMGroupParms(ctx, subnetName, vmgp)
 		if err != nil {
 			return err
 		}
-		err = v.AttachAndEnableRootLBInterface(ctx, client, rootLBName, GetPortName(rootLBName, v.VMProperties.GetCloudletMexNetwork()), gw)
+		err = v.AttachAndEnableRootLBInterface(ctx, client, rootLBName, subnetName, GetPortName(rootLBName, v.VMProperties.GetCloudletMexNetwork()), gw)
 		if err != nil {
 			log.SpanLog(ctx, log.DebugLevelInfra, "AttachAndEnableRootLBInterface failed", "err", err)
 			return err
@@ -316,11 +317,10 @@ func (v *VMPlatform) waitClusterReady(ctx context.Context, clusterInst *edgeprot
 
 	for {
 		if masterIP == "" {
-			mip, err := v.GetIPFromServerName(ctx, v.VMProperties.GetCloudletMexNetwork(), GetClusterMasterName(ctx, clusterInst))
-			if err != nil {
+			mip, err := v.GetIPFromServerName(ctx, v.VMProperties.GetCloudletMexNetwork(), GetClusterSubnetName(ctx, clusterInst), GetClusterMasterName(ctx, clusterInst))
+			if err == nil {
 				masterIP = mip.ExternalAddr
 				updateCallback(edgeproto.UpdateStep, "Checking Master for Available Nodes")
-
 			}
 		}
 		if masterIP == "" {
@@ -448,7 +448,7 @@ func (v *VMPlatform) getVMRequestSpecForDockerCluster(ctx context.Context, imgNa
 	} else {
 		// shared access means docker vm goes on its own subnet which is connected
 		// via shared rootlb
-		newSubnetName = v.GetClusterSubnetName(ctx, clusterInst)
+		newSubnetName = GetClusterSubnetName(ctx, clusterInst)
 		dockerVmType = VMTypeClusterNode
 		dockerVMName = v.GetDockerNodeName(ctx, clusterInst)
 
@@ -493,7 +493,7 @@ func (v *VMPlatform) CreateOrUpdateVMsForCluster(ctx context.Context, imgName st
 			return nil, err
 		}
 	} else {
-		newSubnetName = v.GetClusterSubnetName(ctx, clusterInst)
+		newSubnetName = GetClusterSubnetName(ctx, clusterInst)
 		var rootlb *VMRequestSpec
 		var err error
 		if clusterInst.IpAccess == edgeproto.IpAccess_IP_ACCESS_DEDICATED {
@@ -512,7 +512,7 @@ func (v *VMPlatform) CreateOrUpdateVMsForCluster(ctx context.Context, imgName st
 			}
 			vms = append(vms, rootlb)
 			// docker goes into a new subnet, the rootlb will be connected to it later
-			newSubnetName = v.GetClusterSubnetName(ctx, clusterInst)
+			newSubnetName = GetClusterSubnetName(ctx, clusterInst)
 		}
 
 		masterFlavor := clusterInst.MasterNodeFlavor

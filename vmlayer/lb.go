@@ -154,15 +154,15 @@ func setupForwardingIptables(ctx context.Context, client ssh.Client, externalIfn
 
 // configureInternalInterfaceAndExternalForwarding sets up the new internal interface and then creates iptables rules to forward
 // traffic out the external interface
-func (v *VMPlatform) configureInternalInterfaceAndExternalForwarding(ctx context.Context, client ssh.Client, internalPortName string, serverDetails *ServerDetail, action string) error {
+func (v *VMPlatform) configureInternalInterfaceAndExternalForwarding(ctx context.Context, client ssh.Client, subnetName, internalPortName string, serverDetails *ServerDetail, action string) error {
 
 	log.SpanLog(ctx, log.DebugLevelInfra, "configureInternalInterfaceAndExternalForwarding", "serverDetails", serverDetails, "internalPortName", internalPortName)
 
-	internalIP, err := GetIPFromServerDetails(ctx, v.VMProperties.GetCloudletMexNetwork(), serverDetails)
+	internalIP, err := GetIPFromServerDetails(ctx, v.VMProperties.GetCloudletMexNetwork(), subnetName, serverDetails)
 	if err != nil {
 		return err
 	}
-	externalIP, err := GetIPFromServerDetails(ctx, v.VMProperties.GetCloudletExternalNetwork(), serverDetails)
+	externalIP, err := GetIPFromServerDetails(ctx, v.VMProperties.GetCloudletExternalNetwork(), subnetName, serverDetails)
 	if err != nil {
 		return err
 	}
@@ -247,6 +247,20 @@ func (v *VMPlatform) configureInternalInterfaceAndExternalForwarding(ctx context
 		if err != nil {
 			return fmt.Errorf("unable to write interface config file: %s -- %v", filename, err)
 		}
+
+		// in some OS the interfaces file may not refer to interfaces.d
+		ifFile := "/etc/network/interfaces"
+		cmd = fmt.Sprintf("grep -l interfaces.d %s", ifFile)
+		out, err = client.Output(cmd)
+		if err != nil {
+			log.SpanLog(ctx, log.DebugLevelInfra, "adding source line to interfaces file")
+			cmd = fmt.Sprintf("echo '%s'|sudo tee -a %s", "source /etc/network/interfaces.d/*-port.cfg", ifFile)
+			out, err = client.Output(cmd)
+			if err != nil {
+				return fmt.Errorf("can't add source reference to interfaces file: %v", err)
+			}
+		}
+
 		// now bring the new internal interface up.
 		cmd = fmt.Sprintf("sudo ifdown --force %s;sudo ifup %s", internalIfname, internalIfname)
 		log.SpanLog(ctx, log.DebugLevelInfra, "bringing up interface", "internalIfname", internalIfname, "cmd", cmd)
@@ -284,10 +298,10 @@ func (v *VMPlatform) configureInternalInterfaceAndExternalForwarding(ctx context
 }
 
 // AttachAndEnableRootLBInterface attaches the interface and enables it in the OS
-func (v *VMPlatform) AttachAndEnableRootLBInterface(ctx context.Context, client ssh.Client, rootLBName string, internalPortName, internalIPAddr string) error {
-	log.SpanLog(ctx, log.DebugLevelInfra, "AttachAndEnableRootLBInterface", "rootLBName", rootLBName, "internalPortName", internalPortName)
+func (v *VMPlatform) AttachAndEnableRootLBInterface(ctx context.Context, client ssh.Client, rootLBName string, subnetName, internalPortName, internalIPAddr string) error {
+	log.SpanLog(ctx, log.DebugLevelInfra, "AttachAndEnableRootLBInterface", "rootLBName", rootLBName, "subnetName", subnetName, "internalPortName", internalPortName)
 
-	err := v.VMProvider.AttachPortToServer(ctx, rootLBName, internalPortName)
+	err := v.VMProvider.AttachPortToServer(ctx, rootLBName, subnetName, internalPortName, internalIPAddr)
 	if err != nil {
 		log.SpanLog(ctx, log.DebugLevelInfra, "fail to attach port", "err", err)
 		return err
@@ -296,7 +310,7 @@ func (v *VMPlatform) AttachAndEnableRootLBInterface(ctx context.Context, client 
 	if err != nil {
 		return err
 	}
-	err = v.configureInternalInterfaceAndExternalForwarding(ctx, client, internalPortName, sd, actionAdd)
+	err = v.configureInternalInterfaceAndExternalForwarding(ctx, client, subnetName, internalPortName, sd, actionAdd)
 	if err != nil {
 		log.SpanLog(ctx, log.DebugLevelInfra, "fail to confgure internal interface, detaching port", "err", err)
 		deterr := v.VMProvider.DetachPortFromServer(ctx, rootLBName, internalPortName)
@@ -314,14 +328,14 @@ func (v *VMPlatform) GetRootLBName(key *edgeproto.CloudletKey) string {
 }
 
 // DetachAndDisableRootLBInterface performs some cleanup when deleting the rootLB port.
-func (v *VMPlatform) DetachAndDisableRootLBInterface(ctx context.Context, client ssh.Client, rootLBName string, internalPortName, internalIPAddr string) error {
-	log.SpanLog(ctx, log.DebugLevelInfra, "DetachAndDisableRootLBInterface", "rootLBName", rootLBName, "internalPortName", internalPortName)
+func (v *VMPlatform) DetachAndDisableRootLBInterface(ctx context.Context, client ssh.Client, rootLBName, subnetName, internalPortName, internalIPAddr string) error {
+	log.SpanLog(ctx, log.DebugLevelInfra, "DetachAndDisableRootLBInterface", "rootLBName", rootLBName, "subnetName", subnetName, "internalPortName", internalPortName)
 
 	sd, err := v.VMProvider.GetServerDetail(ctx, rootLBName)
 	if err != nil {
 		return err
 	}
-	err = v.configureInternalInterfaceAndExternalForwarding(ctx, client, internalPortName, sd, actionDelete)
+	err = v.configureInternalInterfaceAndExternalForwarding(ctx, client, subnetName, internalPortName, sd, actionDelete)
 	if err != nil {
 		log.SpanLog(ctx, log.DebugLevelInfra, "error in configureInternalInterfaceAndExternalForwarding", "err", err)
 	}
@@ -509,7 +523,7 @@ func (v *VMPlatform) SetupRootLB(
 		log.SpanLog(ctx, log.DebugLevelInfra, "timeout waiting for agent to run", "name", rootLB.Name)
 		return fmt.Errorf("Error waiting for rootLB %v", err)
 	}
-	ip, err := GetIPFromServerDetails(ctx, v.VMProperties.GetCloudletExternalNetwork(), sd)
+	ip, err := GetIPFromServerDetails(ctx, v.VMProperties.GetCloudletExternalNetwork(), "", sd)
 	if err != nil {
 		return fmt.Errorf("cannot get rootLB IP %sv", err)
 	}

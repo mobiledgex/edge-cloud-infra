@@ -28,7 +28,7 @@ type VMProvider interface {
 	AddAppImageIfNotPresent(ctx context.Context, app *edgeproto.App, updateCallback edgeproto.CacheUpdateCallback) error
 	GetServerDetail(ctx context.Context, serverName string) (*ServerDetail, error)
 	GetConsoleUrl(ctx context.Context, serverName string) (string, error)
-	AttachPortToServer(ctx context.Context, serverName, portName string) error
+	AttachPortToServer(ctx context.Context, serverName, subnetName, portName, ipaddr string) error
 	DetachPortFromServer(ctx context.Context, serverName, portName string) error
 	AddSecurityRuleCIDRWithRetry(ctx context.Context, cidr string, proto string, group string, port string, serverName string) error
 	WhitelistSecurityRules(ctx context.Context, secGrpName string, serverName string, allowedCIDR string, ports []dme.AppPort) error

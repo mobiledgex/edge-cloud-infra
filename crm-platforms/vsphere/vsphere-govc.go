@@ -64,6 +64,17 @@ func (v *VSpherePlatform) TimedGovcCommand(ctx context.Context, name string, a .
 	return out, nil
 }
 
+func (v *VSpherePlatform) GetUsedCIDRs(ctx context.Context) (map[string]string, error) {
+	cidrUsed := make(map[string]string)
+	return cidrUsed, nil
+}
+
+func (v *VSpherePlatform) GetIpFromTagsForVM(ctx context.Context, vmName, netname string) string {
+	//TODO.. really implement
+	log.SpanLog(ctx, log.DebugLevelInfra, "GetIpFromTagsForVM TODO")
+	return "10.101.0.1"
+}
+
 func (v *VSpherePlatform) GetUsedExternalIPs(ctx context.Context) (map[string]string, error) {
 	log.SpanLog(ctx, log.DebugLevelInfra, "GetUsedExternalIPs")
 
@@ -117,16 +128,20 @@ func (v *VSpherePlatform) getServerDetailFromGovcVm(ctx context.Context, govcVm 
 	for _, net := range govcVm.Guest.Net {
 		var sip vmlayer.ServerIP
 		// govc network includes port group (subnet) which we remove for internal nets only
-		if net.Network == v.vmProperties.GetCloudletExternalNetwork() {
-			sip.Network = net.Network
-		} else {
-			ns := strings.Split(net.Network, "-")
-			sip.Network = strings.Join(ns[:len(ns)-1], "-")
-		}
+		//	if net.Network == v.vmProperties.GetCloudletExternalNetwork() {
+		sip.Network = net.Network
+		//	} else {
+		//		ns := strings.Split(net.Network, "-")
+		//		sip.Network = strings.Join(ns[:len(ns)-1], "-")
+		//	}
 		sip.MacAddress = net.MacAddress
 		if len(net.IpAddress) > 0 {
 			sip.ExternalAddr = net.IpAddress[0]
 			sip.InternalAddr = net.IpAddress[0]
+		} else {
+			ip := v.GetIpFromTagsForVM(ctx, sd.Name, sip.Network)
+			sip.ExternalAddr = ip
+			sip.InternalAddr = ip
 		}
 		sd.Addresses = append(sd.Addresses, sip)
 	}
@@ -200,10 +215,6 @@ func (v *VSpherePlatform) GetVSphereServers(ctx context.Context) ([]*vmlayer.Ser
 		sds = append(sds, v.getServerDetailFromGovcVm(ctx, &vm))
 	}
 	return sds, nil
-}
-
-func (v *VSpherePlatform) AttachPortToServer(ctx context.Context, serverName, portName string) error {
-	return fmt.Errorf("AttachPortToServer TODO")
 }
 
 func (v *VSpherePlatform) DetachPortFromServer(ctx context.Context, serverName, portName string) error {

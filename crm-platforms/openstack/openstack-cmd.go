@@ -359,7 +359,7 @@ func (s *OpenstackPlatform) GetPortDetails(ctx context.Context, name string) (*O
 }
 
 // AttachPortToServer attaches a port to a server
-func (s *OpenstackPlatform) AttachPortToServer(ctx context.Context, serverName, portName string) error {
+func (s *OpenstackPlatform) AttachPortToServer(ctx context.Context, serverName, subnetName, portName, ipaddr string) error {
 	log.SpanLog(ctx, log.DebugLevelInfra, "AttachPortToServer", "serverName", serverName, "portName", portName)
 
 	out, err := s.TimedOpenStackCommand(ctx, "openstack", "server", "add", "port", serverName, portName)

@@ -221,7 +221,7 @@ replace github.com/mitchellh/copystructure => github.com/mitchellh/copystructure
 
 replace github.com/mitchellh/go-testing-interface => github.com/mitchellh/go-testing-interface v1.0.0
 
-replace github.com/mitchellh/mapstructure => github.com/mitchellh/mapstructure v1.1.2
+replace github.com/mitchellh/mapstructure => github.com/mobiledgex/mapstructure v1.2.4-0.20200429201435-a2efef9031f5
 
 replace github.com/modern-go/concurrent => github.com/modern-go/concurrent v0.0.0-20180306012644-bacd9c7ef1dd
 

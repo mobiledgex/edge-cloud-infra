@@ -231,158 +231,6 @@ var OperationTimeLimitsComments = map[string]string{
 	"deleteappinsttimeout":     "override default max time to delete an app instance (duration)",
 }
 var OperationTimeLimitsSpecialArgs = map[string]string{}
-var CloudletInfraCommonRequiredArgs = []string{}
-var CloudletInfraCommonOptionalArgs = []string{
-	"dockerregistry",
-	"dnszone",
-	"registryfileserver",
-	"cfkey",
-	"cfuser",
-	"dockerregpass",
-	"networkscheme",
-	"dockerregistrysecret",
-}
-var CloudletInfraCommonAliasArgs = []string{
-	"dockerregistry=cloudletinfracommon.dockerregistry",
-	"dnszone=cloudletinfracommon.dnszone",
-	"registryfileserver=cloudletinfracommon.registryfileserver",
-	"cfkey=cloudletinfracommon.cfkey",
-	"cfuser=cloudletinfracommon.cfuser",
-	"dockerregpass=cloudletinfracommon.dockerregpass",
-	"networkscheme=cloudletinfracommon.networkscheme",
-	"dockerregistrysecret=cloudletinfracommon.dockerregistrysecret",
-}
-var CloudletInfraCommonComments = map[string]string{
-	"dockerregistry":       "the mex docker registry, e.g.  registry.mobiledgex.net:5000.",
-	"dnszone":              "DNS Zone",
-	"registryfileserver":   "registry file server contains files which get pulled on instantiation such as certs and images",
-	"cfkey":                "Cloudflare key",
-	"cfuser":               "Cloudflare key",
-	"dockerregpass":        "Docker registry password",
-	"networkscheme":        "network scheme",
-	"dockerregistrysecret": "the name of the docker registry secret, e.g. mexgitlabsecret",
-}
-var CloudletInfraCommonSpecialArgs = map[string]string{}
-var AzurePropertiesRequiredArgs = []string{}
-var AzurePropertiesOptionalArgs = []string{
-	"location",
-	"resourcegroup",
-	"username",
-	"password",
-}
-var AzurePropertiesAliasArgs = []string{
-	"location=azureproperties.location",
-	"resourcegroup=azureproperties.resourcegroup",
-	"username=azureproperties.username",
-	"password=azureproperties.password",
-}
-var AzurePropertiesComments = map[string]string{
-	"location":      "azure region e.g. uswest2",
-	"resourcegroup": "azure resource group",
-	"username":      "azure username",
-	"password":      "azure password",
-}
-var AzurePropertiesSpecialArgs = map[string]string{}
-var GcpPropertiesRequiredArgs = []string{}
-var GcpPropertiesOptionalArgs = []string{
-	"project",
-	"zone",
-	"serviceaccount",
-	"gcpauthkeyurl",
-}
-var GcpPropertiesAliasArgs = []string{
-	"project=gcpproperties.project",
-	"zone=gcpproperties.zone",
-	"serviceaccount=gcpproperties.serviceaccount",
-	"gcpauthkeyurl=gcpproperties.gcpauthkeyurl",
-}
-var GcpPropertiesComments = map[string]string{
-	"project":        "gcp project for billing",
-	"zone":           "availability zone",
-	"serviceaccount": "service account to login with",
-	"gcpauthkeyurl":  "vault credentials link",
-}
-var GcpPropertiesSpecialArgs = map[string]string{}
-var OpenStackPropertiesRequiredArgs = []string{}
-var OpenStackPropertiesOptionalArgs = []string{
-	"osexternalnetworkname",
-	"osimagename",
-	"osexternalroutername",
-	"osmexnetwork",
-	"openrcvars",
-}
-var OpenStackPropertiesAliasArgs = []string{
-	"osexternalnetworkname=openstackproperties.osexternalnetworkname",
-	"osimagename=openstackproperties.osimagename",
-	"osexternalroutername=openstackproperties.osexternalroutername",
-	"osmexnetwork=openstackproperties.osmexnetwork",
-	"openrcvars=openstackproperties.openrcvars",
-}
-var OpenStackPropertiesComments = map[string]string{
-	"osexternalnetworkname": "name of the external network, e.g. external-network-shared",
-	"osimagename":           "openstack image , e.g. mobiledgex",
-	"osexternalroutername":  "openstack router",
-	"osmexnetwork":          "openstack internal network",
-	"openrcvars":            "openrc env vars",
-}
-var OpenStackPropertiesSpecialArgs = map[string]string{
-	"openstackproperties.openrcvars": "StringToString",
-}
-var CloudletInfraPropertiesRequiredArgs = []string{}
-var CloudletInfraPropertiesOptionalArgs = []string{
-	"cloudletkind",
-	"mexoscontainerimagename",
-	"openstackproperties.osexternalnetworkname",
-	"openstackproperties.osimagename",
-	"openstackproperties.osexternalroutername",
-	"openstackproperties.osmexnetwork",
-	"openstackproperties.openrcvars",
-	"azureproperties.location",
-	"azureproperties.resourcegroup",
-	"azureproperties.username",
-	"azureproperties.password",
-	"gcpproperties.project",
-	"gcpproperties.zone",
-	"gcpproperties.serviceaccount",
-	"gcpproperties.gcpauthkeyurl",
-}
-var CloudletInfraPropertiesAliasArgs = []string{
-	"cloudletkind=cloudletinfraproperties.cloudletkind",
-	"mexoscontainerimagename=cloudletinfraproperties.mexoscontainerimagename",
-	"openstackproperties.osexternalnetworkname=cloudletinfraproperties.openstackproperties.osexternalnetworkname",
-	"openstackproperties.osimagename=cloudletinfraproperties.openstackproperties.osimagename",
-	"openstackproperties.osexternalroutername=cloudletinfraproperties.openstackproperties.osexternalroutername",
-	"openstackproperties.osmexnetwork=cloudletinfraproperties.openstackproperties.osmexnetwork",
-	"openstackproperties.openrcvars=cloudletinfraproperties.openstackproperties.openrcvars",
-	"azureproperties.location=cloudletinfraproperties.azureproperties.location",
-	"azureproperties.resourcegroup=cloudletinfraproperties.azureproperties.resourcegroup",
-	"azureproperties.username=cloudletinfraproperties.azureproperties.username",
-	"azureproperties.password=cloudletinfraproperties.azureproperties.password",
-	"gcpproperties.project=cloudletinfraproperties.gcpproperties.project",
-	"gcpproperties.zone=cloudletinfraproperties.gcpproperties.zone",
-	"gcpproperties.serviceaccount=cloudletinfraproperties.gcpproperties.serviceaccount",
-	"gcpproperties.gcpauthkeyurl=cloudletinfraproperties.gcpproperties.gcpauthkeyurl",
-}
-var CloudletInfraPropertiesComments = map[string]string{
-	"cloudletkind":                              "what kind of infrastructure: Azure, GCP, Openstack",
-	"mexoscontainerimagename":                   "name and version of the docker image container image that mexos runs in",
-	"openstackproperties.osexternalnetworkname": "name of the external network, e.g. external-network-shared",
-	"openstackproperties.osimagename":           "openstack image , e.g. mobiledgex",
-	"openstackproperties.osexternalroutername":  "openstack router",
-	"openstackproperties.osmexnetwork":          "openstack internal network",
-	"openstackproperties.openrcvars":            "openrc env vars",
-	"azureproperties.location":                  "azure region e.g. uswest2",
-	"azureproperties.resourcegroup":             "azure resource group",
-	"azureproperties.username":                  "azure username",
-	"azureproperties.password":                  "azure password",
-	"gcpproperties.project":                     "gcp project for billing",
-	"gcpproperties.zone":                        "availability zone",
-	"gcpproperties.serviceaccount":              "service account to login with",
-	"gcpproperties.gcpauthkeyurl":               "vault credentials link",
-}
-var CloudletInfraPropertiesSpecialArgs = map[string]string{
-	"cloudletinfraproperties.openstackproperties.openrcvars": "StringToString",
-}
 var PlatformConfigRequiredArgs = []string{}
 var PlatformConfigOptionalArgs = []string{
 	"containerregistrypath",
@@ -398,6 +246,7 @@ var PlatformConfigOptionalArgs = []string{
 	"region",
 	"commercialcerts",
 	"usevaultcerts",
+	"usevaultcas",
 }
 var PlatformConfigAliasArgs = []string{
 	"containerregistrypath=platformconfig.containerregistrypath",
@@ -413,6 +262,7 @@ var PlatformConfigAliasArgs = []string{
 	"region=platformconfig.region",
 	"commercialcerts=platformconfig.commercialcerts",
 	"usevaultcerts=platformconfig.usevaultcerts",
+	"usevaultcas=platformconfig.usevaultcas",
 }
 var PlatformConfigComments = map[string]string{
 	"containerregistrypath": "Path to Docker registry holding edge-cloud image",
@@ -428,6 +278,7 @@ var PlatformConfigComments = map[string]string{
 	"region":                "Region",
 	"commercialcerts":       "Get certs from vault or generate your own for the root load balancer",
 	"usevaultcerts":         "Use Vault certs for internal TLS communication",
+	"usevaultcas":           "Use Vault CAs to authenticate TLS communication",
 }
 var PlatformConfigSpecialArgs = map[string]string{
 	"platformconfig.envvar": "StringToString",
@@ -535,6 +386,7 @@ var CloudletAliasArgs = []string{
 	"config.region=cloudlet.config.region",
 	"config.commercialcerts=cloudlet.config.commercialcerts",
 	"config.usevaultcerts=cloudlet.config.usevaultcerts",
+	"config.usevaultcas=cloudlet.config.usevaultcas",
 	"restagmap:#.key=cloudlet.restagmap:#.key",
 	"restagmap:#.value.name=cloudlet.restagmap:#.value.name",
 	"restagmap:#.value.organization=cloudlet.restagmap:#.value.organization",
@@ -566,7 +418,7 @@ var CloudletComments = map[string]string{
 	"state":                               "Current state of the cloudlet, one of TrackedStateUnknown, NotPresent, CreateRequested, Creating, CreateError, Ready, UpdateRequested, Updating, UpdateError, DeleteRequested, Deleting, DeleteError, DeletePrepare, CrmInitok, CreatingDependencies",
 	"crmoverride":                         "Override actions to CRM, one of NoOverride, IgnoreCrmErrors, IgnoreCrm, IgnoreTransientState, IgnoreCrmAndTransientState",
 	"deploymentlocal":                     "Deploy cloudlet services locally",
-	"platformtype":                        "Platform type, one of PlatformTypeFake, PlatformTypeDind, PlatformTypeOpenstack, PlatformTypeAzure, PlatformTypeGcp, PlatformTypeEdgebox, PlatformTypeFakeinfra",
+	"platformtype":                        "Platform type, one of PlatformTypeFake, PlatformTypeDind, PlatformTypeOpenstack, PlatformTypeAzure, PlatformTypeGcp, PlatformTypeEdgebox, PlatformTypeFakeinfra, PlatformTypeVsphere",
 	"notifysrvaddr":                       "Address for the CRM notify listener to run on",
 	"flavor.name":                         "Flavor name",
 	"physicalname":                        "Physical infrastructure cloudlet name",
@@ -585,6 +437,7 @@ var CloudletComments = map[string]string{
 	"config.region":                       "Region",
 	"config.commercialcerts":              "Get certs from vault or generate your own for the root load balancer",
 	"config.usevaultcerts":                "Use Vault certs for internal TLS communication",
+	"config.usevaultcas":                  "Use Vault CAs to authenticate TLS communication",
 	"restagmap:#.value.name":              "Resource Table Name",
 	"restagmap:#.value.organization":      "Operator organization of the cloudlet site.",
 	"accessvars":                          "Variables required to access cloudlet",

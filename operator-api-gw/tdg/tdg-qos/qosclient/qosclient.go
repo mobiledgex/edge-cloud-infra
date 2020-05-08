@@ -6,7 +6,7 @@ import (
 	"io"
 	"time"
 
-	"github.com/mobiledgex/edge-cloud-infra/mexos"
+	"github.com/mobiledgex/edge-cloud-infra/infracommon"
 	tdgproto "github.com/mobiledgex/edge-cloud-infra/operator-api-gw/tdg/proto"
 	dme "github.com/mobiledgex/edge-cloud/d-match-engine/dme-proto"
 	"github.com/mobiledgex/edge-cloud/log"
@@ -32,7 +32,7 @@ func GetQosCertsFromVault(vaultConfig *vault.Config) error {
 		certPath := fmt.Sprintf("/secret/data/accounts/tdg/qosapi/%s", cert)
 		log.DebugLog(log.DebugLevelDmereq, "Fetching Cert", "certPath", certPath)
 		fileName := "/tmp/" + cert
-		err := mexos.GetVaultDataToFile(vaultConfig, certPath, fileName)
+		err := infracommon.GetVaultDataToFile(vaultConfig, certPath, fileName)
 		if err != nil {
 			return grpc.Errorf(codes.Internal, "Unable to get cert from file: %s, %v", cert, err)
 		}

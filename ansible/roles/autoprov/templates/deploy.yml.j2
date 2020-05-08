@@ -34,7 +34,7 @@ spec:
          - "https://{{ vault_vm_hostname }}:{{ vault_port }}"
          - "--useVaultCAs"
          - "-d"
-         - "mexos,notify,api"
+         - "infra,notify,api"
         env:
          - name: JAEGER_ENDPOINT
            value: "{{ jaeger_endpoint }}"

@@ -179,6 +179,7 @@
         name: console
     - import_role:
         name: mc
+      tags: mc
 
 - hosts: notifyroot
   tasks:

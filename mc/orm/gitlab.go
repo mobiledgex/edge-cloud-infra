@@ -89,7 +89,7 @@ func gitlabDeleteLDAPUser(ctx context.Context, username string) {
 	}
 }
 
-func gitlabCreateGroup(ctx context.Context, org *ormapi.OrgInfo) {
+func gitlabCreateGroup(ctx context.Context, org *ormapi.Organization) {
 	if org.Type == OrgTypeOperator {
 		// no operator orgs needed in gitlab
 		return

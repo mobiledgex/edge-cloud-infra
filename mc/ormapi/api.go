@@ -38,21 +38,6 @@ type User struct {
 	Locked bool
 }
 
-// contains both fields from Org and billingOrg for when they create an org, we can automatically create the billingOrg if they add billingInfo
-type OrgInfo struct {
-	Name       string
-	Type       string
-	FirstName  string
-	LastName   string
-	Email      string
-	Address    string
-	City       string
-	Country    string
-	State      string
-	PostalCode string
-	Phone      string
-}
-
 type Organization struct {
 	// Organization name. Can only contain letters, digits, underscore, period, hyphen. It cannot have leading or trailing spaces or period. It cannot start with hyphen
 	// required: true

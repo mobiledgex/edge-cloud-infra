@@ -31,72 +31,32 @@ func CreateOrg(c echo.Context) error {
 		return err
 	}
 	ctx := GetContext(c)
-<<<<<<< HEAD
 	org := ormapi.Organization{}
 	if err := c.Bind(&org); err != nil {
-		return bindErr(c, err)
-=======
-	orgInfo := ormapi.OrgInfo{}
-	if err := c.Bind(&orgInfo); err != nil {
 		return c.JSON(http.StatusBadRequest, Msg("Invalid POST data"))
->>>>>>> started billing org
 	}
 	span := log.SpanFromContext(ctx)
-	span.SetTag("org", orgInfo.Name)
+	span.SetTag("org", org.Name)
 
-	err = CreateOrgObj(ctx, claims, &orgInfo)
+	err = CreateOrgObj(ctx, claims, &org)
 	return setReply(c, err, Msg("Organization created"))
 }
 
-func createZuoraAccount(ctx context.Context, info *ormapi.BillingOrganization) error {
-	//create the account in zuora
-	if info.Type != OrgTypeDeveloper || info.Name == "mobiledgex" {
-		return nil
-	}
-	accountInfo := zuora.AccountInfo{OrgName: info.Name}
-	billTo := zuora.CustomerBillToContact{
-		FirstName: info.Name,
-		LastName:  info.Name,
-		WorkEmail: info.Email,
-		Address1:  info.Address,
-		City:      info.City,
-		Country:   info.Country,
-		State:     info.State,
-	}
-	currency := "USD" // for now, later on have a function that selects it based on address?
-	err := zuora.CreateCustomer(info.Name, currency, &billTo, &accountInfo)
-	if err != nil {
-		return err
-	}
-
-	//put the account info in the db
-	db := loggedDB(ctx)
-	err = db.Create(&accountInfo).Error
-	if err != nil {
-		if strings.Contains(err.Error(), "duplicate key value violates unique constraint \"accountinfo_pkey") {
-			return fmt.Errorf("AccountInfo with name %s (case-insensitive) already exists", info.Name)
-		}
-		return dbErr(err)
-	}
-	return nil
-}
-
-func CreateOrgObj(ctx context.Context, claims *UserClaims, orgInfo *ormapi.OrgInfo) error {
-	org := ormapi.Organization{
-		Name: orgInfo.Name,
-		Type: orgInfo.Type,
-	}
+func CreateOrgObj(ctx context.Context, claims *UserClaims, org *ormapi.Organization) error {
 	if org.Name == "" {
 		return fmt.Errorf("Name not specified")
 	}
-	err := ValidName(orgInfo.Name)
+	err := ValidName(org.Name)
 	if err != nil {
 		return err
+	}
+	if orgCheck, _ := billingOrgExists(ctx, org.Name); orgCheck != nil {
+		return fmt.Errorf("A BillingOrganization with this name already exists")
 	}
 	// any user can create their own organization
 
 	role := ""
-	if orgInfo.Type == OrgTypeDeveloper {
+	if org.Type == OrgTypeDeveloper {
 		role = RoleDeveloperManager
 	} else if org.Type == OrgTypeOperator {
 		role = RoleOperatorManager
@@ -111,15 +71,6 @@ func CreateOrgObj(ctx context.Context, claims *UserClaims, orgInfo *ormapi.OrgIn
 			return fmt.Errorf("Not authorized to create reserved org %s", org.Name)
 		}
 	}
-	createBilling, err := checkBillingInfo(orgInfo)
-	if err != nil {
-		return err
-	}
-	// make sure that the name isnt already in use in a billingOrg
-	exists, _ := billingOrgExists(ctx, orgInfo.Name)
-	if exists != nil {
-		return fmt.Errorf("Org name not available")
-	}
 	db := loggedDB(ctx)
 	err = db.Create(&org).Error
 	if err != nil {
@@ -128,29 +79,6 @@ func CreateOrgObj(ctx context.Context, claims *UserClaims, orgInfo *ormapi.OrgIn
 		}
 		return dbErr(err)
 	}
-	if serverConfig.Billing && createBilling {
-		// TODO: create a billingOrganization
-		// add this user to the admin role of the billingOrganization
-		billOrg := ormapi.BillingOrganization{
-			Name:       orgInfo.Name,
-			Type:       BillingOrgTypeSelf,
-			FirstName:  orgInfo.FirstName,
-			LastName:   orgInfo.LastName,
-			Email:      orgInfo.Email,
-			Address:    orgInfo.Address,
-			City:       orgInfo.City,
-			Country:    orgInfo.Country,
-			State:      orgInfo.State,
-			PostalCode: orgInfo.PostalCode,
-			Phone:      orgInfo.Phone,
-		}
-		err = createZuoraAccount(ctx, &billOrg)
-		if err != nil {
-			// delete the org
-			db.Delete(&org)
-			return err
-		}
-	}
 	// set user to admin role of organization
 	psub := rbac.GetCasbinGroup(org.Name, claims.Username)
 	err = enforcer.AddGroupingPolicy(ctx, psub, role)
@@ -158,7 +86,7 @@ func CreateOrgObj(ctx context.Context, claims *UserClaims, orgInfo *ormapi.OrgIn
 		return dbErr(err)
 	}
 
-	gitlabCreateGroup(ctx, orgInfo)
+	gitlabCreateGroup(ctx, org)
 	r := ormapi.Role{
 		Org:      org.Name,
 		Username: claims.Username,
@@ -180,33 +108,13 @@ func DeleteOrg(c echo.Context) error {
 	ctx := GetContext(c)
 	org := ormapi.Organization{}
 	if err := c.Bind(&org); err != nil {
-		return bindErr(c, err)
+		return c.JSON(http.StatusBadRequest, Msg("Invalid POST data"))
 	}
 	span := log.SpanFromContext(ctx)
 	span.SetTag("org", org.Name)
 
 	err = DeleteOrgObj(ctx, claims, &org)
 	return setReply(c, err, Msg("Organization deleted"))
-}
-
-func cancelZuoraSubscription(ctx context.Context, orgName string) error {
-	//cancel the zuora subscription and remove it from the db
-	// get the full accountInfo
-	info, err := GetAccountObj(ctx, orgName)
-	if err != nil {
-		return err
-	}
-	// remove account from db
-	db := loggedDB(ctx)
-	err = db.Delete(info).Error
-	if err != nil {
-		return dbErr(err)
-	}
-	err = zuora.CancelSubscription(info)
-	if err != nil {
-		return err
-	}
-	return nil
 }
 
 func DeleteOrgObj(ctx context.Context, claims *UserClaims, org *ormapi.Organization) error {
@@ -235,13 +143,6 @@ func DeleteOrgObj(ctx context.Context, claims *UserClaims, org *ormapi.Organizat
 	}
 
 	// delete org
-	if serverConfig.Billing {
-		err = cancelZuoraSubscription(ctx, org.Name)
-		// if the accountInfo is not in the db, go ahead and delete the org
-		if !strings.Contains(err.Error(), fmt.Sprintf("account \"%s\" not found", org.Name)) {
-			return err
-		}
-	}
 	err = db.Delete(&org).Error
 	if err != nil {
 		undoerr := markOrgForDelete(db, org.Name, !doMark)
@@ -503,114 +404,4 @@ func orgInUseRegion(ctx context.Context, c ormapi.Controller, orgName string) er
 		return nil
 	}
 	return fmt.Errorf(res.Message)
-}
-
-func GetAccountObj(ctx context.Context, orgName string) (*zuora.AccountInfo, error) {
-	if orgName == "" {
-		return nil, fmt.Errorf("no orgName specified")
-	}
-	acc := zuora.AccountInfo{
-		OrgName: orgName,
-	}
-	db := loggedDB(ctx)
-	res := db.Where(&acc).First(&acc)
-	if res.Error != nil {
-		if res.RecordNotFound() {
-			return nil, fmt.Errorf("account \"%s\" not found", orgName)
-		}
-		return nil, res.Error
-	}
-	return &acc, nil
-}
-
-// TODO: move everything to its own file
-var BillingOrgTypeSelf = "self"
-var BillingOrgTypeParent = "parent"
-
-// checks to see if the user entered in billing information and if they did, that it is all there
-func checkBillingInfo(orgInfo *ormapi.OrgInfo) (bool, error) {
-	if orgInfo.Type == OrgTypeOperator {
-		return false, nil
-	}
-	fn := orgInfo.FirstName
-	ln := orgInfo.LastName
-	e := orgInfo.Email
-	a := orgInfo.Address
-	cy := orgInfo.City
-	c := orgInfo.Country
-	s := orgInfo.State
-	p := orgInfo.PostalCode
-	if fn == "" && ln == "" && e == "" && a == "" && cy == "" && c == "" && s == "" && p == "" {
-		return false, nil
-		// at least one of them was not blank, make sure none of them are
-	} else if fn == "" {
-		return false, fmt.Errorf("If sepcifying billing information, must include FirstName")
-	} else if ln == "" {
-		return false, fmt.Errorf("If sepcifying billing information, must include LastName")
-	} else if e == "" {
-		return false, fmt.Errorf("If sepcifying billing information, must include email")
-	} else if a == "" {
-		return false, fmt.Errorf("If sepcifying billing information, must include address")
-	} else if cy == "" {
-		return false, fmt.Errorf("If sepcifying billing information, must include city")
-	} else if c == "" {
-		return false, fmt.Errorf("If sepcifying billing information, must include country")
-	} else if s == "" {
-		return false, fmt.Errorf("If sepcifying billing information, must include state")
-	} else if p == "" {
-		return false, fmt.Errorf("If sepcifying billing information, must include postalCode")
-	} else {
-		return true, nil
-	}
-}
-
-func billingOrgExists(ctx context.Context, orgName string) (*ormapi.BillingOrganization, error) {
-	lookup := ormapi.BillingOrganization{
-		Name: orgName,
-	}
-	db := loggedDB(ctx)
-	org := ormapi.BillingOrganization{}
-	res := db.Where(&lookup).First(&org)
-	if res.RecordNotFound() {
-		return nil, nil
-	}
-	if res.Error != nil {
-		return nil, res.Error
-	}
-	return &org, nil
-}
-
-func createBillingOrgObj(ctx context.Context, claims *UserClaims, org *ormapi.BillingOrganization) error {
-	err := ValidName(org.Name)
-	if err != nil {
-		return err
-	}
-	db := loggedDB(ctx)
-	err = db.Create(&org).Error
-	if err != nil {
-		if strings.Contains(err.Error(), "duplicate key value violates unique constraint \"organizations_pkey") {
-			return fmt.Errorf("Billing Organization with name %s (case-insensitive) already exists", org.Name)
-		}
-		return dbErr(err)
-	}
-
-	// TODO: set user to admin role of organization
-	return nil
-}
-
-func CreateBillingOrg(c echo.Context) error {
-	claims, err := getClaims(c)
-	if err != nil {
-		return err
-	}
-	ctx := GetContext(c)
-	bOrg := ormapi.BillingOrganization{}
-	if err := c.Bind(&bOrg); err != nil {
-		return c.JSON(http.StatusBadRequest, Msg("Invalid POST data"))
-	}
-	span := log.SpanFromContext(ctx)
-	span.SetTag("org", orgInfo.Name)
-
-	err = CreateOrgObj(ctx, claims, &orgInfo)
-	return setReply(c, err, Msg("Organization created"))
 }

@@ -16,11 +16,11 @@ import (
 
 var NumRetries = 2
 
-var VmipTag = "vmip"
-
 var terraformCreate string = "CREATE"
 var terraformUpdate string = "UPDATE"
 var terraformTest string = "TEST"
+
+const TagDelimiter = "__"
 
 type VSphereGeneralParams struct {
 	VsphereUser       string
@@ -33,11 +33,21 @@ type VSphereGeneralParams struct {
 	ExternalNetworkId string
 	InternalDVS       string
 	DataStore         string
+	VmIpTagCategory   string
+	SubnetTagCategory string
 }
 
 type VSphereVMGroupParams struct {
 	*VSphereGeneralParams
 	*vmlayer.VMGroupOrchestrationParams
+}
+
+func (v *VSpherePlatform) GetVmIpTagCategory(ctx context.Context) string {
+	return v.GetDatacenterName(ctx) + "-vmip"
+}
+
+func (v *VSpherePlatform) GetSubnetTagCategory(ctx context.Context) string {
+	return v.GetDatacenterName(ctx) + "-subnet"
 }
 
 func (v *VSpherePlatform) TerraformRefresh(ctx context.Context) error {
@@ -53,28 +63,75 @@ func (v *VSpherePlatform) ImportVMToTerraform(ctx context.Context, vmName string
 	return err
 }
 
-func (v *VSpherePlatform) AttachPortToServer(ctx context.Context, serverName, subnetName, portName, ipaddr string) error {
-	fileName := terraform.TerraformDir + "/" + serverName + ".tf"
-	log.SpanLog(ctx, log.DebugLevelInfra, "AttachPortToServer", "serverName", serverName, "fileName", fileName, "ipaddr", ipaddr)
-	tagName := serverName + "__" + subnetName + "__" + ipaddr
+func (v *VSpherePlatform) DetachPortFromServer(ctx context.Context, serverName, vmGroupName, subnetName, portName string) error {
+	fileName := terraform.TerraformDir + "/" + vmGroupName + ".tf"
+	log.SpanLog(ctx, log.DebugLevelInfra, "DetachPortFromServer", "serverName", "serverName", "vmGroupName", vmGroupName, "subnetName", subnetName, "portName", portName, "fileName", fileName)
+
+	input, err := ioutil.ReadFile(fileName)
+	if err != nil {
+		return err
+	}
+
+	beginIf := "## BEGIN ADDITIONAL INTERFACE FOR " + subnetName + "__" + serverName
+	endIf := "## END ADDITIONAL INTERFACE FOR " + subnetName + "__" + serverName
+
+	beginTag := "## BEGIN ADDITIONAL TAGS FOR " + subnetName + "__" + serverName
+	endTag := "## END ADDITIONAL TAGS FOR " + subnetName + "__" + serverName
+
+	// remove the lines between the delimters above
+	lines := strings.Split(string(input), "\n")
+	var newlines []string
+	skipLine := false
+	for i, line := range lines {
+		if strings.Contains(line, beginIf) || strings.Contains(line, beginTag) {
+			log.SpanLog(ctx, log.DebugLevelInfra, "skipping lines starting from", "linenum", i, "fileName", fileName)
+			skipLine = true
+		}
+		if !skipLine {
+			newlines = append(newlines, line)
+		}
+		if strings.Contains(line, endIf) || strings.Contains(line, endTag) {
+			skipLine = false
+			log.SpanLog(ctx, log.DebugLevelInfra, "resuming lines starting from", "linenum", i, "fileName", fileName)
+
+		}
+	}
+	output := strings.Join(newlines, "\n")
+	err = ioutil.WriteFile(fileName, []byte(output), 0644)
+	if err != nil {
+		return err
+	}
+	log.SpanLog(ctx, log.DebugLevelInfra, "DetachPortFromServer doing apply after removing interfaces and tags", "serverName", serverName, "portName", portName)
+
+	out, err := terraform.TimedTerraformCommand(ctx, terraform.TerraformDir, "terraform", "apply", "--auto-approve")
+	if err != nil {
+		log.SpanLog(ctx, log.DebugLevelInfra, "Terraform apply failed for detach port", "out", out, "fileName", fileName)
+	}
+	return err
+}
+
+func (v *VSpherePlatform) AttachPortToServer(ctx context.Context, serverName, vmGroupName, subnetName, portName, ipaddr string) error {
+	fileName := terraform.TerraformDir + "/" + vmGroupName + ".tf"
+	log.SpanLog(ctx, log.DebugLevelInfra, "AttachPortToServer", "serverName", serverName, "vmGroupName", vmGroupName, "fileName", fileName, "ipaddr", ipaddr)
+	tagName := serverName + TagDelimiter + subnetName + TagDelimiter + ipaddr
 	tagId := v.IdSanitize(tagName)
 
 	interfaceContents := fmt.Sprintf(`
-		## BEGIN ADDITIONAL INTERFACE FOR `+subnetName+`
+		## BEGIN ADDITIONAL INTERFACE FOR `+subnetName+"__"+serverName+`
 		network_interface {
 			network_id = vsphere_distributed_port_group.%s.id
 		}
-		## END ADDITIONAL INTERFACE FOR `+subnetName+`
+		## END ADDITIONAL INTERFACE FOR `+subnetName+"__"+serverName+`
 		`, subnetName)
 
 	tagContents := fmt.Sprintf(`
-	## BEGIN ADDITIONAL TAGS FOR `+serverName+`
+	## BEGIN ADDITIONAL TAGS FOR `+subnetName+"__"+serverName+`
 	resource "vsphere_tag" "%s" {
 		name = "%s"
 		category_id = "${vsphere_tag_category.%s.id}"
 	}
-	## END ADDITIONAL TAGS FOR `+serverName+`
-		`, tagId, tagName, VmipTag)
+	## END ADDITIONAL TAGS FOR `+subnetName+"__"+serverName+`
+		`, tagId, tagName, v.GetVmIpTagCategory(ctx))
 
 	input, err := ioutil.ReadFile(fileName)
 	if err != nil {
@@ -96,6 +153,7 @@ func (v *VSpherePlatform) AttachPortToServer(ctx context.Context, serverName, su
 	if err != nil {
 		return err
 	}
+	log.SpanLog(ctx, log.DebugLevelInfra, "AttachPortToServer doing apply after adding interfaces and tags", "serverName", serverName, "portName", portName)
 	out, err := terraform.TimedTerraformCommand(ctx, terraform.TerraformDir, "terraform", "apply", "--auto-approve")
 	if err != nil {
 		log.SpanLog(ctx, log.DebugLevelInfra, "Terraform apply failed for attach port", "out", out, "fileName", fileName)
@@ -118,6 +176,9 @@ func (v *VSpherePlatform) populateGeneralParams(ctx context.Context, planName st
 	vgp.DataStore = v.GetDataStore()
 	vgp.InternalDVS = v.GetInternalVSwitch()
 	vgp.ResourcePool = v.IdSanitize(getResourcePool(planName))
+	vgp.SubnetTagCategory = v.GetSubnetTagCategory(ctx)
+	vgp.VmIpTagCategory = v.GetVmIpTagCategory(ctx)
+
 	return nil
 }
 
@@ -130,7 +191,7 @@ func (v *VSpherePlatform) populateVMOrchParams(ctx context.Context, vmgp *vmlaye
 		return nil
 	}
 
-	usedCidrs, err := v.GetUsedCIDRs(ctx)
+	usedCidrs, err := v.GetUsedSubnetCIDRs(ctx)
 	if err != nil {
 		return nil
 	}
@@ -156,8 +217,13 @@ func (v *VSpherePlatform) populateVMOrchParams(ctx context.Context, vmgp *vmlaye
 				vmgp.Subnets[i].GatewayIP = fmt.Sprintf("%s.%s.%d.%d", vmgp.Netspec.Octets[0], vmgp.Netspec.Octets[1], octet, 1)
 				vmgp.Subnets[i].NodeIPPrefix = fmt.Sprintf("%s.%s.%d", vmgp.Netspec.Octets[0], vmgp.Netspec.Octets[1], octet)
 				masterIP = fmt.Sprintf("%s.%s.%d.%d", vmgp.Netspec.Octets[0], vmgp.Netspec.Octets[1], octet, 10)
+
+				tagname := s.Name + TagDelimiter + subnet
+				tagid := v.IdSanitize(tagname)
+				vmgp.Tags = append(vmgp.Tags, vmlayer.TagOrchestrationParams{Category: v.GetSubnetTagCategory(ctx), Id: tagid, Name: tagname})
 				break
 			}
+
 		}
 		if !found {
 			return fmt.Errorf("cannot find subnet cidr")
@@ -192,10 +258,9 @@ func (v *VSpherePlatform) populateVMOrchParams(ctx context.Context, vmgp *vmlaye
 					Address: eip,
 				}
 				vmgp.VMs[vmidx].FixedIPs = append(vmgp.VMs[vmidx].FixedIPs, fip)
-				tagname := vm.Name + "__" + portref.Id + "__" + eip
+				tagname := vm.Name + TagDelimiter + portref.NetworkId + TagDelimiter + eip
 				tagid := v.IdSanitize(tagname)
-				//	vmtags = append(vmtags, tagname)
-				vmgp.Tags = append(vmgp.Tags, vmlayer.TagOrchestrationParams{Category: VmipTag, Id: tagid, Name: tagname})
+				vmgp.Tags = append(vmgp.Tags, vmlayer.TagOrchestrationParams{Category: v.GetVmIpTagCategory(ctx), Id: tagid, Name: tagname})
 				vmgp.VMs[vmidx].ExternalGateway = v.GetExternalGateway()
 			}
 		}
@@ -210,11 +275,11 @@ func (v *VSpherePlatform) populateVMOrchParams(ctx context.Context, vmgp *vmlaye
 						vmgp.VMs[vmidx].FixedIPs[fipidx].Address = fmt.Sprintf("%s.%d", s.NodeIPPrefix, fip.LastIPOctet)
 						vmgp.VMs[vmidx].FixedIPs[fipidx].Mask = v.GetInternalNetmask()
 						vmgp.VMs[vmidx].ExternalGateway = s.GatewayIP
-						tagname := vm.Name + "__" + s.Id + "__" + vmgp.VMs[vmidx].FixedIPs[fipidx].Address
+						tagname := vm.Name + TagDelimiter + s.Id + TagDelimiter + vmgp.VMs[vmidx].FixedIPs[fipidx].Address
 						tagid := v.IdSanitize(tagname)
-						//	vmtags = append(vmtags, tagname)
-						vmgp.Tags = append(vmgp.Tags, vmlayer.TagOrchestrationParams{Category: VmipTag, Id: tagid, Name: tagname})
+						vmgp.Tags = append(vmgp.Tags, vmlayer.TagOrchestrationParams{Category: v.GetVmIpTagCategory(ctx), Id: tagid, Name: tagname})
 						log.SpanLog(ctx, log.DebugLevelInfra, "updating address for VM", "vmname", vmgp.VMs[vmidx].Name, "address", vmgp.VMs[vmidx].FixedIPs[fipidx].Address)
+						break
 					}
 				}
 				if !found {
@@ -268,10 +333,20 @@ var vcenterTemplate = `
 		datacenter_id = "${data.vsphere_datacenter.dc.id}"
 	}
 
-	resource "vsphere_tag_category" "vmip" {
-		name        = "vmip"
+	resource "vsphere_tag_category" "{{.VmIpTagCategory}}" {
+		name        = "{{.VmIpTagCategory}}"
 		cardinality = "SINGLE"
 		description = "VM IP Addresses"
+	  
+		associable_types = [
+		  "VirtualMachine",
+		]
+	}
+
+	resource "vsphere_tag_category" "{{.SubnetTagCategory}}" {
+		name        = "{{.SubnetTagCategory}}"
+		cardinality = "SINGLE"
+		description = "Subnets Allocated"
 	  
 		associable_types = [
 		  "VirtualMachine",
@@ -414,8 +489,8 @@ func (v *VSpherePlatform) TerraformSetupVsphere(ctx context.Context, updateCallb
 	)
 }
 
-func (v *VSpherePlatform) CreateVMs(ctx context.Context, vmGroupOrchestrationParams *vmlayer.VMGroupOrchestrationParams, updateCallback edgeproto.CacheUpdateCallback) error {
-	log.SpanLog(ctx, log.DebugLevelInfra, "Terraform CreateVMs")
+func (v *VSpherePlatform) createOrUpdateVMs(ctx context.Context, vmGroupOrchestrationParams *vmlayer.VMGroupOrchestrationParams, action string, updateCallback edgeproto.CacheUpdateCallback) error {
+	log.SpanLog(ctx, log.DebugLevelInfra, "Terraform createOrUpdateVMs")
 
 	planName := v.NameSanitize(vmGroupOrchestrationParams.GroupName)
 	var vvgp VSphereVMGroupParams
@@ -424,7 +499,7 @@ func (v *VSpherePlatform) CreateVMs(ctx context.Context, vmGroupOrchestrationPar
 	if err != nil {
 		return err
 	}
-	err = v.populateVMOrchParams(ctx, vmGroupOrchestrationParams, terraformCreate)
+	err = v.populateVMOrchParams(ctx, vmGroupOrchestrationParams, action)
 	if err != nil {
 		return err
 	}
@@ -445,18 +520,14 @@ func (v *VSpherePlatform) CreateVMs(ctx context.Context, vmGroupOrchestrationPar
 	)
 }
 
+func (v *VSpherePlatform) CreateVMs(ctx context.Context, vmGroupOrchestrationParams *vmlayer.VMGroupOrchestrationParams, updateCallback edgeproto.CacheUpdateCallback) error {
+	log.SpanLog(ctx, log.DebugLevelInfra, "CreateVMs")
+	return v.createOrUpdateVMs(ctx, vmGroupOrchestrationParams, terraformCreate, updateCallback)
+}
+
 func (v *VSpherePlatform) UpdateVMs(ctx context.Context, vmGroupOrchestrationParams *vmlayer.VMGroupOrchestrationParams, updateCallback edgeproto.CacheUpdateCallback) error {
 	log.SpanLog(ctx, log.DebugLevelInfra, "UpdateVMs", "vmGroupOrchestrationParams", vmGroupOrchestrationParams)
-
-	return terraform.CreateTerraformPlanFromTemplate(
-		ctx,
-		vmGroupOrchestrationParams,
-		vmGroupOrchestrationParams.GroupName,
-		vmGroupTemplate,
-		updateCallback,
-		terraform.WithCleanupOnFailure(v.vmProperties.CommonPf.GetCleanupOnFailure(ctx)),
-		terraform.WithRetries(1),
-	)
+	return v.createOrUpdateVMs(ctx, vmGroupOrchestrationParams, terraformUpdate, updateCallback)
 }
 
 func (v *VSpherePlatform) DeleteVMs(ctx context.Context, vmGroupName string) error {

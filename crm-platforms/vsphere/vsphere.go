@@ -47,6 +47,7 @@ func (v *VSpherePlatform) NameSanitize(name string) string {
 		" ", "",
 		"&", "",
 		",", "",
+		"/", "_",
 		"!", "")
 	str := r.Replace(name)
 	if str == "" {

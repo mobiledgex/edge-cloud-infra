@@ -158,18 +158,19 @@ func (v *VMPlatform) deleteCluster(ctx context.Context, rootLBName string, clust
 	dedicatedRootLB := clusterInst.IpAccess == edgeproto.IpAccess_IP_ACCESS_DEDICATED
 	client, err := v.GetClusterPlatformClient(ctx, clusterInst)
 	if err != nil {
-		if strings.Contains(err.Error(), "No server with a name or ID") {
+		if strings.Contains(err.Error(), ServerDoesNotExistError) {
 			log.SpanLog(ctx, log.DebugLevelInfra, "Dedicated RootLB is gone, allow stack delete to proceed")
 		} else {
 			return err
 		}
 	}
 	if !dedicatedRootLB {
-		ip, err := v.GetIPFromServerName(ctx, GetClusterSubnetName(ctx, clusterInst), GetClusterSubnetName(ctx, clusterInst), rootLBName)
+		clusterSnName := GetClusterSubnetName(ctx, clusterInst)
+		ip, err := v.GetIPFromServerName(ctx, clusterSnName, clusterSnName, rootLBName)
 		if err != nil {
 			log.SpanLog(ctx, log.DebugLevelInfra, "unable to get ips from server, proceed with VM deletion", "err", err)
 		} else {
-			err = v.DetachAndDisableRootLBInterface(ctx, client, rootLBName, GetClusterSubnetName(ctx, clusterInst), GetPortName(rootLBName, v.VMProperties.GetCloudletMexNetwork()), ip.InternalAddr)
+			err = v.DetachAndDisableRootLBInterface(ctx, client, rootLBName, rootLBName, clusterSnName, GetPortName(rootLBName, clusterSnName), ip.InternalAddr)
 			if err != nil {
 				log.SpanLog(ctx, log.DebugLevelInfra, "unable to detach rootLB interface, proceed with VM deletion", "err", err)
 			}
@@ -257,7 +258,12 @@ func (v *VMPlatform) createClusterInternal(ctx context.Context, rootLBName strin
 		if err != nil {
 			return err
 		}
-		err = v.AttachAndEnableRootLBInterface(ctx, client, rootLBName, subnetName, GetPortName(rootLBName, v.VMProperties.GetCloudletMexNetwork()), gw)
+
+		grpname := vmgp.GroupName
+		if clusterInst.IpAccess == edgeproto.IpAccess_IP_ACCESS_SHARED {
+			grpname = rootLBName
+		}
+		err = v.AttachAndEnableRootLBInterface(ctx, client, rootLBName, grpname, subnetName, GetPortName(rootLBName, subnetName), gw)
 		if err != nil {
 			log.SpanLog(ctx, log.DebugLevelInfra, "AttachAndEnableRootLBInterface failed", "err", err)
 			return err

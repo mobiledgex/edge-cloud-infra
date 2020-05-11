@@ -298,10 +298,10 @@ func (v *VMPlatform) configureInternalInterfaceAndExternalForwarding(ctx context
 }
 
 // AttachAndEnableRootLBInterface attaches the interface and enables it in the OS
-func (v *VMPlatform) AttachAndEnableRootLBInterface(ctx context.Context, client ssh.Client, rootLBName string, subnetName, internalPortName, internalIPAddr string) error {
-	log.SpanLog(ctx, log.DebugLevelInfra, "AttachAndEnableRootLBInterface", "rootLBName", rootLBName, "subnetName", subnetName, "internalPortName", internalPortName)
+func (v *VMPlatform) AttachAndEnableRootLBInterface(ctx context.Context, client ssh.Client, rootLBName string, vmGroupName, subnetName, internalPortName, internalIPAddr string) error {
+	log.SpanLog(ctx, log.DebugLevelInfra, "AttachAndEnableRootLBInterface", "rootLBName", rootLBName, "vmGroupName", vmGroupName, "subnetName", subnetName, "internalPortName", internalPortName)
 
-	err := v.VMProvider.AttachPortToServer(ctx, rootLBName, subnetName, internalPortName, internalIPAddr)
+	err := v.VMProvider.AttachPortToServer(ctx, rootLBName, vmGroupName, subnetName, internalPortName, internalIPAddr)
 	if err != nil {
 		log.SpanLog(ctx, log.DebugLevelInfra, "fail to attach port", "err", err)
 		return err
@@ -313,7 +313,7 @@ func (v *VMPlatform) AttachAndEnableRootLBInterface(ctx context.Context, client 
 	err = v.configureInternalInterfaceAndExternalForwarding(ctx, client, subnetName, internalPortName, sd, actionAdd)
 	if err != nil {
 		log.SpanLog(ctx, log.DebugLevelInfra, "fail to confgure internal interface, detaching port", "err", err)
-		deterr := v.VMProvider.DetachPortFromServer(ctx, rootLBName, internalPortName)
+		deterr := v.VMProvider.DetachPortFromServer(ctx, rootLBName, vmGroupName, subnetName, internalPortName)
 		if deterr != nil {
 			log.SpanLog(ctx, log.DebugLevelInfra, "fail to detach port", "err", deterr)
 		}
@@ -328,8 +328,8 @@ func (v *VMPlatform) GetRootLBName(key *edgeproto.CloudletKey) string {
 }
 
 // DetachAndDisableRootLBInterface performs some cleanup when deleting the rootLB port.
-func (v *VMPlatform) DetachAndDisableRootLBInterface(ctx context.Context, client ssh.Client, rootLBName, subnetName, internalPortName, internalIPAddr string) error {
-	log.SpanLog(ctx, log.DebugLevelInfra, "DetachAndDisableRootLBInterface", "rootLBName", rootLBName, "subnetName", subnetName, "internalPortName", internalPortName)
+func (v *VMPlatform) DetachAndDisableRootLBInterface(ctx context.Context, client ssh.Client, rootLBName, vmGroupName, subnetName, internalPortName, internalIPAddr string) error {
+	log.SpanLog(ctx, log.DebugLevelInfra, "DetachAndDisableRootLBInterface", "rootLBName", rootLBName, "vmGroupName", vmGroupName, "subnetName", subnetName, "internalPortName", internalPortName)
 
 	sd, err := v.VMProvider.GetServerDetail(ctx, rootLBName)
 	if err != nil {
@@ -339,7 +339,7 @@ func (v *VMPlatform) DetachAndDisableRootLBInterface(ctx context.Context, client
 	if err != nil {
 		log.SpanLog(ctx, log.DebugLevelInfra, "error in configureInternalInterfaceAndExternalForwarding", "err", err)
 	}
-	err = v.VMProvider.DetachPortFromServer(ctx, rootLBName, internalPortName)
+	err = v.VMProvider.DetachPortFromServer(ctx, rootLBName, vmGroupName, subnetName, internalPortName)
 	if err != nil {
 		// might already be gone
 		log.SpanLog(ctx, log.DebugLevelInfra, "fail to detach port", "err", err)

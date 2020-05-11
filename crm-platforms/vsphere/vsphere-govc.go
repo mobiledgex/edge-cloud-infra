@@ -64,15 +64,70 @@ func (v *VSpherePlatform) TimedGovcCommand(ctx context.Context, name string, a .
 	return out, nil
 }
 
-func (v *VSpherePlatform) GetUsedCIDRs(ctx context.Context) (map[string]string, error) {
+func (v *VSpherePlatform) GetUsedSubnetCIDRs(ctx context.Context) (map[string]string, error) {
+	log.SpanLog(ctx, log.DebugLevelInfra, "GetUsedSubnetCIDRs")
+
 	cidrUsed := make(map[string]string)
+	out, err := v.TimedGovcCommand(ctx, "govc", "tags.ls", "-c", v.GetSubnetTagCategory(ctx), "-json")
+	if err != nil {
+		return nil, err
+	}
+	var tags []GovcTag
+	err = json.Unmarshal(out, &tags)
+	if err != nil {
+		log.SpanLog(ctx, log.DebugLevelInfra, "GetUsedSubnetCIDRs unmarshal fail", "out", string(out), "err", err)
+		err = fmt.Errorf("cannot unmarshal govc subnet tags, %v", err)
+		return nil, err
+	}
+	for _, t := range tags {
+		// tags are format subnet__cidr
+		ts := strings.Split(t.Name, TagDelimiter)
+		if len(ts) != 2 {
+			log.SpanLog(ctx, log.DebugLevelInfra, "incorrect subnet tag format", "tag", t)
+			return nil, fmt.Errorf("incorrect subnet tag format %s", t)
+		}
+		sn := ts[0]
+		cidr := ts[1]
+		cidrUsed[cidr] = sn
+	}
+
 	return cidrUsed, nil
 }
 
-func (v *VSpherePlatform) GetIpFromTagsForVM(ctx context.Context, vmName, netname string) string {
-	//TODO.. really implement
-	log.SpanLog(ctx, log.DebugLevelInfra, "GetIpFromTagsForVM TODO")
-	return "10.101.0.1"
+func (v *VSpherePlatform) getTagsForCategory(ctx context.Context, category string) ([]GovcTag, error) {
+	out, err := v.TimedGovcCommand(ctx, "govc", "tags.ls", "-c", category, "-json")
+
+	var tags []GovcTag
+	err = json.Unmarshal(out, &tags)
+	if err != nil {
+		log.SpanLog(ctx, log.DebugLevelInfra, "getTagsForCategory unmarshal fail", "out", string(out), "err", err)
+		err = fmt.Errorf("cannot unmarshal govc subnet tags, %v", err)
+		return nil, err
+	}
+	return tags, nil
+}
+
+func (v *VSpherePlatform) GetIpFromTagsForVM(ctx context.Context, vmName, netname string) (string, error) {
+	log.SpanLog(ctx, log.DebugLevelInfra, "GetIpFromTagsForVM")
+	tags, err := v.getTagsForCategory(ctx, v.GetVmIpTagCategory(ctx))
+	if err != nil {
+		return "", err
+	}
+	for _, t := range tags {
+		// vmtags are format vm__network__cidr
+		ts := strings.Split(t.Name, TagDelimiter)
+		if len(ts) != 3 {
+			log.SpanLog(ctx, log.DebugLevelInfra, "incorrect tag format", "tag", t)
+			continue
+		}
+		vm := ts[0]
+		net := ts[1]
+		ip := ts[2]
+		if vm == vmName && net == netname {
+			return ip, nil
+		}
+	}
+	return "", fmt.Errorf("no ip found from tags for %s", vmName)
 }
 
 func (v *VSpherePlatform) GetUsedExternalIPs(ctx context.Context) (map[string]string, error) {
@@ -81,27 +136,21 @@ func (v *VSpherePlatform) GetUsedExternalIPs(ctx context.Context) (map[string]st
 	ipsUsed := make(map[string]string)
 	extNetId := v.IdSanitize(v.vmProperties.GetCloudletExternalNetwork())
 
-	out, err := v.TimedGovcCommand(ctx, "govc", "tags.ls", "-c", VmipTag, "-json")
+	tags, err := v.getTagsForCategory(ctx, v.GetVmIpTagCategory(ctx))
 	if err != nil {
 		return nil, err
 	}
-	var tags []GovcTag
-	err = json.Unmarshal(out, &tags)
-	if err != nil {
-		log.SpanLog(ctx, log.DebugLevelInfra, "updateServerIPsFromTags unmarshal fail", "out", string(out), "err", err)
-		err = fmt.Errorf("cannot unmarshal govc tags, %v", err)
-		return nil, err
-	}
+	log.SpanLog(ctx, log.DebugLevelInfra, "GetUsedExternalIPs tags found", "tags", tags)
+
 	for _, t := range tags {
 		// tags are format vm__network__ip
-		ts := strings.Split(t.Name, "___")
+		ts := strings.Split(t.Name, TagDelimiter)
 		if len(ts) != 3 {
-			log.SpanLog(ctx, log.DebugLevelInfra, "notice: incorrect tag format", "tag", t)
-			continue
+			return nil, fmt.Errorf("notice: incorrect tag format for tag: %s", t)
 		}
 		if ts[1] == extNetId {
-			log.SpanLog(ctx, log.DebugLevelInfra, "Found external ip", "server", ts[0], "ip", ts[1])
-			ipsUsed[ts[1]] = ts[0]
+			log.SpanLog(ctx, log.DebugLevelInfra, "Found external ip", "server", ts[0], "ip", ts[2])
+			ipsUsed[ts[2]] = ts[0]
 		}
 	}
 	return ipsUsed, nil
@@ -139,9 +188,13 @@ func (v *VSpherePlatform) getServerDetailFromGovcVm(ctx context.Context, govcVm 
 			sip.ExternalAddr = net.IpAddress[0]
 			sip.InternalAddr = net.IpAddress[0]
 		} else {
-			ip := v.GetIpFromTagsForVM(ctx, sd.Name, sip.Network)
-			sip.ExternalAddr = ip
-			sip.InternalAddr = ip
+			ip, err := v.GetIpFromTagsForVM(ctx, sd.Name, sip.Network)
+			if err != nil {
+				log.SpanLog(ctx, log.DebugLevelInfra, "GetIpFromTagsForVM failed", "err", err)
+			} else {
+				sip.ExternalAddr = ip
+				sip.InternalAddr = ip
+			}
 		}
 		sd.Addresses = append(sd.Addresses, sip)
 	}
@@ -215,10 +268,6 @@ func (v *VSpherePlatform) GetVSphereServers(ctx context.Context) ([]*vmlayer.Ser
 		sds = append(sds, v.getServerDetailFromGovcVm(ctx, &vm))
 	}
 	return sds, nil
-}
-
-func (v *VSpherePlatform) DetachPortFromServer(ctx context.Context, serverName, portName string) error {
-	return fmt.Errorf("DetachPortFromServer TODO")
 }
 
 func (v *VSpherePlatform) SetPowerState(ctx context.Context, serverName, serverAction string) error {

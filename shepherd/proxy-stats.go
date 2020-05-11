@@ -60,7 +60,7 @@ func StartProxyScraper() {
 }
 
 func getProxyKey(appInstKey *edgeproto.AppInstKey) string {
-	return appInstKey.AppKey.Name + "-" + appInstKey.ClusterInstKey.ClusterKey.Name + "-" + appInstKey.AppKey.Organization
+	return appInstKey.AppKey.Name + "-" + appInstKey.ClusterInstKey.ClusterKey.Name + "-" + appInstKey.AppKey.Organization + "-" + appInstKey.AppKey.Version
 }
 
 // Figure out envoy proxy container name

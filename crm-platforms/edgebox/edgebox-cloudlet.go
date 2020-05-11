@@ -29,7 +29,7 @@ func (e *EdgeboxPlatform) DeleteCloudlet(ctx context.Context, cloudlet *edgeprot
 		return err
 	}
 	updateCallback(edgeproto.UpdateTask, "Stopping Cloudlet Monitoring")
-	intprocess.StartCloudletPromettheus(ctx)
+	intprocess.StartCloudletPrometheus(ctx, cloudlet)
 	updateCallback(edgeproto.UpdateTask, "Stopping Shepherd")
 	return intprocess.StopShepherdService(ctx, cloudlet)
 }

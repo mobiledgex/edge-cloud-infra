@@ -339,7 +339,7 @@ func RunAction(ctx context.Context, actionSpec, outputDir string, config *e2eapi
 		if err != nil {
 			errors = append(errors, err.Error())
 		}
-		err = intprocess.StopCloudletPromettheus(ctx)
+		err = intprocess.StopAllCloudletPrometheus(ctx)
 		if err != nil {
 			errors = append(errors, err.Error())
 		}

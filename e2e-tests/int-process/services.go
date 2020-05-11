@@ -1,11 +1,13 @@
 package intprocess
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	"fmt"
 	"os"
 	"os/exec"
+	"strings"
 	"time"
 
 	"github.com/mobiledgex/edge-cloud/edgeproto"
@@ -138,7 +140,7 @@ func GetCloudletPrometheusCmd(cloudlet *edgeproto.Cloudlet, pfConfig *edgeproto.
 }
 
 // Starts prometheus container and connects it to the default ports
-func StartCloudletPromettheus(ctx context.Context) error {
+func StartCloudletPrometheus(ctx context.Context, cloudlet *edgeproto.Cloudlet) error {
 	cfgFile := "/tmp/prometheus.yml"
 	f, err := os.Create(cfgFile)
 	if err != nil {
@@ -150,24 +152,73 @@ func StartCloudletPromettheus(ctx context.Context) error {
 		return err
 	}
 
+	// label with a cloudlet name and org
+	cloudletName := util.DockerSanitize(cloudlet.Key.Name)
+	cloudletOrg := util.DockerSanitize(cloudlet.Key.Organization)
+
 	args := []string{
 		"run", "--rm", "--name", CloudletPrometheusContainer,
+		"-l", "cloudlet=" + cloudletName,
+		"-l", "cloudletorg=" + cloudletOrg,
 		"-p", "9092:9090", // container interface
 		"-v", "/tmp:/tmp",
 		"-v", cfgFile + ":/etc/prometheus/prometheus.yml",
 		"prom/prometheus:latest",
 		"--config.file=/etc/prometheus/prometheus.yml",
 	}
-	cmd, err := process.StartLocal(CloudletPrometheusContainer, "docker", args, nil, "/tmp/cloudlet_prometheus.log")
-	log.SpanLog(ctx, log.DebugLevelInfra, "start Promettheus", "command", cmd, "error", err)
+	_, err = process.StartLocal(CloudletPrometheusContainer, "docker", args, nil, "/tmp/cloudlet_prometheus.log")
 	if err != nil {
 		return err
 	}
 	return nil
 }
 
-func StopCloudletPromettheus(ctx context.Context) error {
+func StopCloudletPrometheus(ctx context.Context, cloudlet *edgeproto.Cloudlet) error {
+	// label with a cloudlet name and org
+	cloudletName := util.DockerSanitize(cloudlet.Key.Name)
+	cloudletOrg := util.DockerSanitize(cloudlet.Key.Organization)
+
+	// kill the container that matches the cloudlet
+	cmd := exec.Command("docker", "ps", "-q",
+		"--filter", "label=cloudlet="+cloudletName,
+		"--filter", "label=cloudletorg="+cloudletOrg,
+		"--filter", "name="+CloudletPrometheusContainer)
+	out, err := cmd.CombinedOutput()
+	if err != nil {
+		return err
+	}
+	if string(out) == "" {
+		log.SpanLog(ctx, log.DebugLevelInfo, "StopCloudletPormetheus no container existst for cloudlet",
+			"cloudlet", cloudlet)
+		return nil
+	}
+	// kill the container we found
+	var output bytes.Buffer
+	cmd.Stdout = &output
+	cmd.Stderr = &output
+	cmd = exec.Command("docker", "kill", string(out))
+	err = cmd.Run()
+	if err != nil {
+		log.SpanLog(ctx, log.DebugLevelInfo, "Failed to kill prometheus docker container", "command", cmd, "error", err, "output", output)
+		return err
+	}
+	return nil
+}
+
+func StopAllCloudletPrometheus(ctx context.Context) error {
 	cmd := exec.Command("docker", "kill", CloudletPrometheusContainer)
 	cmd.Run()
 	return nil
+}
+
+func CloudletPrometheusExists(ctx context.Context) bool {
+	cmd := exec.Command("docker", "logs", CloudletPrometheusContainer)
+	var out bytes.Buffer
+	cmd.Stdout = &out
+	cmd.Stderr = &out
+	err := cmd.Run()
+	if err != nil && strings.Contains(out.String(), "No such container") {
+		return false
+	}
+	return true
 }

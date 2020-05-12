@@ -47,3 +47,6 @@ vault-stage-b.mobiledgex.net
 
 [jaeger]
 jaeger-stage.mobiledgex.net	nginx_config_filename=jaeger jaeger_ui_port=8443
+
+[swagger]
+swagger.mobiledgex.net

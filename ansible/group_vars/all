@@ -43,3 +43,4 @@ mex_ca_cert_pem: "{{ mex_ca_cert_dir }}/mex-ca.crt"
 vault_ha_instance_port: 8200
 vault_cluster_port: 8201
 gcp_project: still-entity-201400
+apidocs_domain: api.mobiledgex.net

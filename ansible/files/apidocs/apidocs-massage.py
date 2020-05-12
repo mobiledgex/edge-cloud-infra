@@ -37,10 +37,10 @@ def splice_sample(operation, sample_dir):
             "source": code,
         })
 
-def add_logo(sw):
+def add_logo(sw, logo):
     sw['info']['x-logo'] = {
         "version": "1.0",
-        "url": "/swagger/logo.svg",
+        "url": logo,
         "backgroundColor": "#fafafa",
     }
 
@@ -147,6 +147,7 @@ def set_host(sw, host):
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("--samples", "-s", help="Code samples directory")
+    parser.add_argument("--logo", "-l", help="Logo URL", default="/swagger/logo.svg")
     parser.add_argument("--version", "-v", help="Version string, if not present in swagger",
                         default="1.0")
     parser.add_argument("--host", help="API host")
@@ -161,7 +162,7 @@ def main():
     order_apis(sw)
     remove_hidden_params(sw)
     set_required_params(sw)
-    add_logo(sw)
+    add_logo(sw, args.logo)
     set_version(sw, args.version)
     if args.host:
         set_host(sw, args.host)

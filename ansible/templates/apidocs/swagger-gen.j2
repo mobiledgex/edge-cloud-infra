@@ -1,7 +1,11 @@
 #!/bin/bash
 
-DOCDIR='/var/swagger'
+{% if swagger_gen_run_once %}
+TAG="{{ edge_cloud_version }}"
+{% else %}
 TAG=$( date +'%Y-%m-%d' )
+{% endif %}
+
 EDGECLOUD="registry.mobiledgex.net:5000/mobiledgex/edge-cloud:$TAG"
 APIDOCS_MASSAGE="{{ apidocs_script_dir }}/apidocs-massage.py"
 
@@ -14,7 +18,7 @@ fi
 download_doc() {
 	local doctype="$1"; shift
 	sudo docker run --rm "$EDGECLOUD" dump-docs "$doctype" \
-		| ${APIDOCS_MASSAGE} -v "$TAG" "$@" >"${DOCDIR}/${doctype}.swagger.json"
+		| ${APIDOCS_MASSAGE} -v "$TAG" --logo "{{ logo_url }}" "$@" >"{{ swagger_base_dir }}/${doctype}.swagger.json"
 }
 
 download_doc external

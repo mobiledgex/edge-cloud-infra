@@ -11,6 +11,7 @@ import (
 	intprocess "github.com/mobiledgex/edge-cloud-infra/e2e-tests/int-process"
 	"github.com/mobiledgex/edge-cloud-infra/infracommon"
 	pf "github.com/mobiledgex/edge-cloud/cloud-resource-manager/platform"
+	"github.com/mobiledgex/edge-cloud/cloud-resource-manager/platform/pc"
 	"github.com/mobiledgex/edge-cloud/cloudcommon"
 	"github.com/mobiledgex/edge-cloud/edgeproto"
 	"github.com/mobiledgex/edge-cloud/log"
@@ -23,7 +24,7 @@ const (
 	// Platform services
 	ServiceTypeCRM                = "crmserver"
 	ServiceTypeShepherd           = "shepherd"
-	ServiceTypeCloudletPrometheus = "cloudletPrometheus"
+	ServiceTypeCloudletPrometheus = intprocess.PrometheusContainer
 	PlatformMaxWait               = 10 * time.Second
 	PlatformVMReachableMaxWait    = 2 * time.Minute
 )
@@ -82,42 +83,14 @@ func upgradeCloudletPkgs(ctx context.Context, vmType VMType, cloudlet *edgeproto
 	return nil
 }
 
-func startPlatformService(cloudlet *edgeproto.Cloudlet, pfConfig *edgeproto.PlatformConfig, client ssh.Client, serviceType string, updateCallback edgeproto.CacheUpdateCallback, cDone chan error) {
-	var service_cmd string
-	var envVars *map[string]string
-	var err error
-
-	switch serviceType {
-	case ServiceTypeShepherd:
-		service_cmd, envVars, err = intprocess.GetShepherdCmd(cloudlet, pfConfig)
-		if err != nil {
-			cDone <- fmt.Errorf("Unable to get shepherd service command: %v", err)
-			return
-		}
-
-	case ServiceTypeCRM:
-		service_cmd, envVars, err = cloudcommon.GetCRMCmd(cloudlet, pfConfig)
-		if err != nil {
-			cDone <- fmt.Errorf("Unable to get crm service command: %v", err)
-			return
-		}
-	case ServiceTypeCloudletPrometheus:
-		service_cmd, envVars, err = intprocess.GetCloudletPrometheusCmd(cloudlet, pfConfig)
-		if err != nil {
-			cDone <- fmt.Errorf("Unable to get crm service command: %v", err)
-			return
-		}
-	default:
-		cDone <- fmt.Errorf("Unsupported service type: %s", serviceType)
-		return
+func getPlatformServiceContainerCmd(cloudlet *edgeproto.Cloudlet, pfConfig *edgeproto.PlatformConfig, serviceType string, envVars *map[string]string, service_cmd string) string {
+	// Cloudlet prometheus command is the same as a local one, just add 'sudo'
+	if serviceType == ServiceTypeCloudletPrometheus {
+		args := intprocess.GetCloudletPrometheusDockerArgs(cloudlet, intprocess.GetCloudletPrometheusConfigHostFilePath())
+		// add platform vm options
+		args = append([]string{"sudo docker run", "-d", "--restart=unless-stopped"}, args...)
+		return strings.Join(args, " ")
 	}
-
-	// Use service type as container name as there can only be one of them inside platform VM
-	container_name := serviceType
-
-	// Pull docker image and start service
-	updateCallback(edgeproto.UpdateTask, "Starting "+serviceType)
-
 	var envVarsAr []string
 	for k, v := range *envVars {
 		envVarsAr = append(envVarsAr, "-e")
@@ -129,12 +102,51 @@ func startPlatformService(cloudlet *edgeproto.Cloudlet, pfConfig *edgeproto.Plat
 		"--network host",
 		"-v /tmp:/tmp",
 		"--restart=unless-stopped",
-		"--name", container_name,
+		"--name", serviceType,
 		strings.Join(envVarsAr, " "),
 		pfConfig.ContainerRegistryPath + ":" + pfConfig.PlatformTag,
 		service_cmd,
 	}
-	if out, err := client.Output(strings.Join(cmd, " ")); err != nil {
+	return strings.Join(cmd, " ")
+}
+
+func startPlatformService(cloudlet *edgeproto.Cloudlet, pfConfig *edgeproto.PlatformConfig, client ssh.Client, serviceType string, updateCallback edgeproto.CacheUpdateCallback, cDone chan error) {
+	var service_cmd, docker_cmd string
+	var envVars *map[string]string
+	var err error
+
+	switch serviceType {
+	case ServiceTypeShepherd:
+		service_cmd, envVars, err = intprocess.GetShepherdCmd(cloudlet, pfConfig)
+		if err != nil {
+			cDone <- fmt.Errorf("Unable to get shepherd service command: %v", err)
+			return
+		}
+	case ServiceTypeCRM:
+		service_cmd, envVars, err = cloudcommon.GetCRMCmd(cloudlet, pfConfig)
+		if err != nil {
+			cDone <- fmt.Errorf("Unable to get crm service command: %v", err)
+			return
+		}
+	case ServiceTypeCloudletPrometheus:
+		// Need to write a config file for prometheus first
+		// command, and other options are not needed
+		err = pc.WriteFile(client, intprocess.GetCloudletPrometheusConfigHostFilePath(),
+			intprocess.GetCloudletPrometheusConfig(), "promConfig", pc.SudoOn)
+	default:
+		cDone <- fmt.Errorf("Unsupported service type: %s", serviceType)
+		return
+	}
+
+	// Use service type as container name as there can only be one of them inside platform VM
+	container_name := serviceType
+
+	// Pull docker image and start service
+	updateCallback(edgeproto.UpdateTask, "Starting "+serviceType)
+
+	docker_cmd = getPlatformServiceContainerCmd(cloudlet, pfConfig, container_name, envVars, service_cmd)
+
+	if out, err := client.Output(docker_cmd); err != nil {
 		cDone <- fmt.Errorf("Unable to start %s: %v, %s\n", serviceType, err, out)
 		return
 	}

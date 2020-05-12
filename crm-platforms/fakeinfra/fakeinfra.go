@@ -55,7 +55,7 @@ func (s *Platform) CleanupCloudlet(ctx context.Context, cloudlet *edgeproto.Clou
 	if err != nil {
 		return err
 	}
-	return intprocess.StopCloudletPrometheus(ctx, cloudlet)
+	return nil
 }
 
 // Start prometheus container

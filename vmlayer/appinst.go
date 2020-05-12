@@ -246,7 +246,8 @@ func (v *VMPlatform) CreateAppInst(ctx context.Context, clusterInst *edgeproto.C
 				if err != nil {
 					return err
 				}
-				err = v.AttachAndEnableRootLBInterface(ctx, client, lbName, objName, newSubnetName, GetPortName(lbName, newSubnetName), gw)
+				attachPort := v.VMProvider.GetInternalPortPolicy() == AttachPortAfterCreate
+				err = v.AttachAndEnableRootLBInterface(ctx, client, lbName, attachPort, newSubnetName, GetPortName(lbName, newSubnetName), gw)
 				if err != nil {
 					log.SpanLog(ctx, log.DebugLevelInfra, "AttachAndEnableRootLBInterface failed", "err", err)
 					return err

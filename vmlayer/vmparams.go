@@ -496,6 +496,13 @@ func (v *VMPlatform) getVMGroupOrchestrationParamsFromGroupSpec(ctx context.Cont
 			fallthrough
 		case VMTypeRootLB:
 			role = RoleAgent
+			// do not attach the port to the VM if the policy is to do it after creation
+			skipAttachVM := true
+			internalPortSubnet := ""
+			if v.VMProvider.GetInternalPortPolicy() == AttachPortDuringCreate {
+				skipAttachVM = false
+				internalPortSubnet = v.VMProvider.NameSanitize(spec.NewSubnetName)
+			}
 			// if the router is used we don't create an internal port for rootlb
 			if vm.ConnectToSubnet != "" && !rtrInUse {
 				// no router means rootlb must be connected to other VMs directly
@@ -504,6 +511,7 @@ func (v *VMPlatform) getVMGroupOrchestrationParamsFromGroupSpec(ctx context.Cont
 					Id:          v.VMProvider.NameSanitize(internalPortName),
 					NetworkName: internalNetName,
 					NetworkId:   internalNetId,
+					SubnetId:    internalPortSubnet,
 					VnicType:    vmgp.Netspec.VnicType,
 					FixedIPs: []FixedIPOrchestrationParams{
 						{
@@ -512,7 +520,7 @@ func (v *VMPlatform) getVMGroupOrchestrationParamsFromGroupSpec(ctx context.Cont
 							Subnet:      NewResourceReference(vm.ConnectToSubnet, vm.ConnectToSubnet, connectToPreexistingSubnet),
 						},
 					},
-					SkipAttachVM: true, //rootlb internal ports are attached in a separate step
+					SkipAttachVM: skipAttachVM, //rootlb internal ports are attached in a separate step
 				}
 				newPorts = append(newPorts, internalPort)
 			}

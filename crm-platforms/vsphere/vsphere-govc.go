@@ -130,6 +130,20 @@ func (v *VSpherePlatform) GetIpFromTagsForVM(ctx context.Context, vmName, netnam
 	return "", fmt.Errorf("no ip found from tags for %s", vmName)
 }
 
+func (v *VSpherePlatform) GetExternalIPForServer(ctx context.Context, server string) (string, error) {
+	log.SpanLog(ctx, log.DebugLevelInfra, "GetExternalIPForServer", "server", server)
+	ips, err := v.GetUsedExternalIPs(ctx)
+	if err != nil {
+		return "", err
+	}
+	for ip, svr := range ips {
+		if svr == server {
+			return ip, nil
+		}
+	}
+	return "", fmt.Errorf("no external ip found for server: %s", server)
+}
+
 func (v *VSpherePlatform) GetUsedExternalIPs(ctx context.Context) (map[string]string, error) {
 	log.SpanLog(ctx, log.DebugLevelInfra, "GetUsedExternalIPs")
 

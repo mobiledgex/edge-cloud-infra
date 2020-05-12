@@ -63,9 +63,9 @@ func (v *VSpherePlatform) ImportVMToTerraform(ctx context.Context, vmName string
 	return err
 }
 
-func (v *VSpherePlatform) DetachPortFromServer(ctx context.Context, serverName, vmGroupName, subnetName, portName string) error {
-	fileName := terraform.TerraformDir + "/" + vmGroupName + ".tf"
-	log.SpanLog(ctx, log.DebugLevelInfra, "DetachPortFromServer", "serverName", "serverName", "vmGroupName", vmGroupName, "subnetName", subnetName, "portName", portName, "fileName", fileName)
+func (v *VSpherePlatform) DetachPortFromServer(ctx context.Context, serverName, subnetName, portName string) error {
+	fileName := terraform.TerraformDir + "/" + serverName + ".tf"
+	log.SpanLog(ctx, log.DebugLevelInfra, "DetachPortFromServer", "serverName", "serverName", "subnetName", subnetName, "portName", portName, "fileName", fileName)
 
 	input, err := ioutil.ReadFile(fileName)
 	if err != nil {
@@ -110,9 +110,9 @@ func (v *VSpherePlatform) DetachPortFromServer(ctx context.Context, serverName, 
 	return err
 }
 
-func (v *VSpherePlatform) AttachPortToServer(ctx context.Context, serverName, vmGroupName, subnetName, portName, ipaddr string) error {
-	fileName := terraform.TerraformDir + "/" + vmGroupName + ".tf"
-	log.SpanLog(ctx, log.DebugLevelInfra, "AttachPortToServer", "serverName", serverName, "vmGroupName", vmGroupName, "fileName", fileName, "ipaddr", ipaddr)
+func (v *VSpherePlatform) AttachPortToServer(ctx context.Context, serverName, subnetName, portName, ipaddr string) error {
+	fileName := terraform.TerraformDir + "/" + serverName + ".tf"
+	log.SpanLog(ctx, log.DebugLevelInfra, "AttachPortToServer", "serverName", serverName, "fileName", fileName, "ipaddr", ipaddr)
 	tagName := serverName + TagDelimiter + subnetName + TagDelimiter + ipaddr
 	tagId := v.IdSanitize(tagName)
 
@@ -248,10 +248,17 @@ func (v *VSpherePlatform) populateVMOrchParams(ctx context.Context, vmgp *vmlaye
 		for _, portref := range vm.Ports {
 			log.SpanLog(ctx, log.DebugLevelInfra, "updating VM port", "portref", portref)
 			if portref.NetworkId == v.IdSanitize(v.vmProperties.GetCloudletExternalNetwork()) {
-				eip, err := v.GetFreeExternalIP(ctx)
+				var eip string
+				if action == terraformUpdate {
+					log.SpanLog(ctx, log.DebugLevelInfra, "using current ip for update", "server", vm.Name)
+					eip, err = v.GetExternalIPForServer(ctx, vm.Name)
+				} else {
+					eip, err = v.GetFreeExternalIP(ctx)
+				}
 				if err != nil {
 					return err
 				}
+
 				fip := vmlayer.FixedIPOrchestrationParams{
 					Subnet:  vmlayer.NewResourceReference(portref.Name, portref.Id, false),
 					Mask:    v.GetExternalNetmask(),
@@ -274,7 +281,9 @@ func (v *VSpherePlatform) populateVMOrchParams(ctx context.Context, vmgp *vmlaye
 						found = true
 						vmgp.VMs[vmidx].FixedIPs[fipidx].Address = fmt.Sprintf("%s.%d", s.NodeIPPrefix, fip.LastIPOctet)
 						vmgp.VMs[vmidx].FixedIPs[fipidx].Mask = v.GetInternalNetmask()
-						vmgp.VMs[vmidx].ExternalGateway = s.GatewayIP
+						if vmgp.VMs[vmidx].ExternalGateway == "" {
+							vmgp.VMs[vmidx].ExternalGateway = s.GatewayIP
+						}
 						tagname := vm.Name + TagDelimiter + s.Id + TagDelimiter + vmgp.VMs[vmidx].FixedIPs[fipidx].Address
 						tagid := v.IdSanitize(tagname)
 						vmgp.Tags = append(vmgp.Tags, vmlayer.TagOrchestrationParams{Category: v.GetVmIpTagCategory(ctx), Id: tagid, Name: tagname})

@@ -22,10 +22,21 @@ import (
 	ssh "github.com/mobiledgex/golang-ssh"
 )
 
+// InternalPortAttachPolicy is for dedicated clusters to define whether the internal port should be created when the rootlb
+// is spun up, or afterwards.
+type InternalPortAttachPolicy string
+
+const AttachPortDuringCreate InternalPortAttachPolicy = "AttachPortDuringCreate"
+const AttachPortAfterCreate InternalPortAttachPolicy = "AttachPortAfterCreate"
+
 var udevRulesFile = "/etc/udev/rules.d/70-persistent-net.rules"
 
-var actionAdd string = "ADD"
-var actionDelete string = "DELETE"
+type InterfaceActionsOp struct {
+	addInterface    bool
+	deleteInterface bool
+	createIptables  bool
+	deleteIptables  bool
+}
 
 var RootLBPorts = []dme.AppPort{{
 	PublicPort: cloudcommon.RootLBL7Port,
@@ -33,7 +44,7 @@ var RootLBPorts = []dme.AppPort{{
 }}
 
 // creates entries in the 70-persistent-net.rules files to ensure the interface names are consistent after reboot
-func persistInterfaceName(ctx context.Context, client ssh.Client, ifName, mac, action string) error {
+func persistInterfaceName(ctx context.Context, client ssh.Client, ifName, mac string, action *InterfaceActionsOp) error {
 	log.SpanLog(ctx, log.DebugLevelInfra, "persistInterfaceName", "ifName", ifName, "mac", mac)
 	cmd := fmt.Sprintf("sudo cat %s", udevRulesFile)
 	newFileContents := ""
@@ -53,24 +64,24 @@ func persistInterfaceName(ctx context.Context, client ssh.Client, ifName, mac, a
 		}
 	}
 	newRule := fmt.Sprintf("SUBSYSTEM==\"net\", ACTION==\"add\", DRIVERS==\"?*\", ATTR{address}==\"%s\", NAME=\"%s\"", mac, ifName)
-	if action == actionAdd {
+	if action.addInterface {
 		newFileContents = newFileContents + newRule + "\n"
 	}
 	return pc.WriteFile(client, udevRulesFile, newFileContents, "udev-rules", pc.SudoOn)
 }
 
 // run an iptables add or delete conditionally based on whether the entry already exists or not
-func doIptablesCommand(ctx context.Context, client ssh.Client, rule string, ruleExists bool, action string) error {
+func doIptablesCommand(ctx context.Context, client ssh.Client, rule string, ruleExists bool, action *InterfaceActionsOp) error {
 	runCommand := false
 	if ruleExists {
-		if action == actionDelete {
+		if action.deleteIptables {
 			log.SpanLog(ctx, log.DebugLevelInfra, "deleting existing iptables rule", "rule", rule)
 			runCommand = true
 		} else {
 			log.SpanLog(ctx, log.DebugLevelInfra, "do not re-add existing iptables rule", "rule", rule)
 		}
 	} else {
-		if action == actionAdd {
+		if action.createIptables {
 			log.SpanLog(ctx, log.DebugLevelInfra, "adding new iptables rule", "rule", rule)
 			runCommand = true
 		} else {
@@ -90,8 +101,8 @@ func doIptablesCommand(ctx context.Context, client ssh.Client, rule string, rule
 
 // setupForwardingIptables creates iptables rules to allow the cluster nodes to use the LB as a
 // router for internet access
-func setupForwardingIptables(ctx context.Context, client ssh.Client, externalIfname, internalIfname, action string) error {
-	log.SpanLog(ctx, log.DebugLevelInfra, "setupForwardingIptables", "externalIfname", externalIfname, "internalIfname", internalIfname)
+func setupForwardingIptables(ctx context.Context, client ssh.Client, externalIfname, internalIfname string, action *InterfaceActionsOp) error {
+	log.SpanLog(ctx, log.DebugLevelInfra, "setupForwardingIptables", "externalIfname", externalIfname, "internalIfname", internalIfname, "action", fmt.Sprintf("%+v", action))
 	// get current iptables
 	cmd := fmt.Sprintf("sudo iptables-save|grep -e POSTROUTING -e FORWARD")
 	out, err := client.Output(cmd)
@@ -100,7 +111,7 @@ func setupForwardingIptables(ctx context.Context, client ssh.Client, externalIfn
 	}
 	// add or remove rules based on the action
 	option := "-A"
-	if action == actionDelete {
+	if action.deleteIptables {
 		option = "-D"
 	}
 	// we are looking only for the FORWARD or postrouting entries
@@ -127,7 +138,7 @@ func setupForwardingIptables(ctx context.Context, client ssh.Client, externalIfn
 			forwardInternalRuleExists = true
 		}
 	}
-	if action == actionAdd {
+	if action.createIptables {
 		// this rule is never deleted because it applies to all subnets.   Multiple adds will
 		// not create duplicates
 		err = doIptablesCommand(ctx, client, masqueradeRule, masqueradeRuleExists, action)
@@ -154,15 +165,15 @@ func setupForwardingIptables(ctx context.Context, client ssh.Client, externalIfn
 
 // configureInternalInterfaceAndExternalForwarding sets up the new internal interface and then creates iptables rules to forward
 // traffic out the external interface
-func (v *VMPlatform) configureInternalInterfaceAndExternalForwarding(ctx context.Context, client ssh.Client, subnetName, internalPortName string, serverDetails *ServerDetail, action string) error {
+func (v *VMPlatform) configureInternalInterfaceAndExternalForwarding(ctx context.Context, client ssh.Client, subnetName, internalPortName string, serverDetails *ServerDetail, action *InterfaceActionsOp) error {
 
-	log.SpanLog(ctx, log.DebugLevelInfra, "configureInternalInterfaceAndExternalForwarding", "serverDetails", serverDetails, "internalPortName", internalPortName)
+	log.SpanLog(ctx, log.DebugLevelInfra, "configureInternalInterfaceAndExternalForwarding", "serverDetails", serverDetails, "internalPortName", internalPortName, "action", fmt.Sprintf("%+v", action))
 
 	internalIP, err := GetIPFromServerDetails(ctx, v.VMProperties.GetCloudletMexNetwork(), subnetName, serverDetails)
 	if err != nil {
 		return err
 	}
-	externalIP, err := GetIPFromServerDetails(ctx, v.VMProperties.GetCloudletExternalNetwork(), subnetName, serverDetails)
+	externalIP, err := GetIPFromServerDetails(ctx, v.VMProperties.GetCloudletExternalNetwork(), "", serverDetails)
 	if err != nil {
 		return err
 	}
@@ -209,23 +220,22 @@ func (v *VMPlatform) configureInternalInterfaceAndExternalForwarding(ctx context
 	}
 	if externalIfname == "" {
 		log.SpanLog(ctx, log.DebugLevelInfra, "unable to find external interface via MAC", "mac", externalIP.MacAddress)
-		if action == actionAdd {
+		if action.addInterface {
 			return fmt.Errorf("unable to find interface for external port mac: %s", externalIP.MacAddress)
 		}
 		// keep going on delete
 	}
 	if internalIfname == "" {
 		log.SpanLog(ctx, log.DebugLevelInfra, "unable to find internal interface via MAC", "mac", internalIP.MacAddress)
-		if action == actionAdd {
+		if action.addInterface {
 			return fmt.Errorf("unable to find interface for internal port mac: %s", internalIP.MacAddress)
 		}
 		// keep going on delete
 	}
-
 	filename := "/etc/network/interfaces.d/" + internalPortName + ".cfg"
 	contents := fmt.Sprintf("auto %s\niface %s inet static\n   address %s/24", internalIfname, internalIfname, internalIP.InternalAddr)
 
-	if action == actionAdd {
+	if action.addInterface {
 		// cleanup any interfaces files that may be sitting around with our new interface, perhaps from some old failure
 		cmd := fmt.Sprintf("grep -l ' %s ' /etc/network/interfaces.d/*-port.cfg", internalIfname)
 		out, err = client.Output(cmd)
@@ -269,7 +279,7 @@ func (v *VMPlatform) configureInternalInterfaceAndExternalForwarding(ctx context
 			log.SpanLog(ctx, log.DebugLevelInfra, "unable to run ifup", "out", out, "err", err)
 			return fmt.Errorf("unable to run ifup: %s - %v", out, err)
 		}
-	} else {
+	} else if action.deleteInterface {
 		cmd := fmt.Sprintf("sudo rm %s", filename)
 		out, err := client.Output(cmd)
 		if err != nil {
@@ -282,40 +292,52 @@ func (v *VMPlatform) configureInternalInterfaceAndExternalForwarding(ctx context
 	}
 	// we can get here on some error cases in which the ifname were not found
 	if internalIfname != "" {
-		err = persistInterfaceName(ctx, client, internalIfname, internalIP.MacAddress, action)
-		if err != nil {
-			return nil
-		}
-		if externalIfname != "" {
-			err = setupForwardingIptables(ctx, client, externalIfname, internalIfname, action)
+		if action.addInterface || action.deleteInterface {
+			err = persistInterfaceName(ctx, client, internalIfname, internalIP.MacAddress, action)
 			if err != nil {
-				log.SpanLog(ctx, log.DebugLevelInfra, "setupForwardingIptables failed", "err", err)
+				return nil
 			}
 		}
+		if action.createIptables || action.deleteIptables {
+			if externalIfname != "" {
+				err = setupForwardingIptables(ctx, client, externalIfname, internalIfname, action)
+				if err != nil {
+					log.SpanLog(ctx, log.DebugLevelInfra, "setupForwardingIptables failed", "err", err)
+				}
+			}
+		}
+	} else {
+		log.SpanLog(ctx, log.DebugLevelInfra, "persistInterfaceName and setupForwardingIptables skipped due to empty internalIfName")
 	}
-
 	return err
 }
 
 // AttachAndEnableRootLBInterface attaches the interface and enables it in the OS
-func (v *VMPlatform) AttachAndEnableRootLBInterface(ctx context.Context, client ssh.Client, rootLBName string, vmGroupName, subnetName, internalPortName, internalIPAddr string) error {
-	log.SpanLog(ctx, log.DebugLevelInfra, "AttachAndEnableRootLBInterface", "rootLBName", rootLBName, "vmGroupName", vmGroupName, "subnetName", subnetName, "internalPortName", internalPortName)
+func (v *VMPlatform) AttachAndEnableRootLBInterface(ctx context.Context, client ssh.Client, rootLBName string, attachPort bool, subnetName, internalPortName, internalIPAddr string) error {
+	log.SpanLog(ctx, log.DebugLevelInfra, "AttachAndEnableRootLBInterface", "rootLBName", rootLBName, "attachPort", attachPort, "subnetName", subnetName, "internalPortName", internalPortName)
 
-	err := v.VMProvider.AttachPortToServer(ctx, rootLBName, vmGroupName, subnetName, internalPortName, internalIPAddr)
-	if err != nil {
-		log.SpanLog(ctx, log.DebugLevelInfra, "fail to attach port", "err", err)
-		return err
+	var action InterfaceActionsOp
+	action.createIptables = true
+	if attachPort {
+		action.addInterface = true
+		err := v.VMProvider.AttachPortToServer(ctx, rootLBName, subnetName, internalPortName, internalIPAddr)
+		if err != nil {
+			log.SpanLog(ctx, log.DebugLevelInfra, "fail to attach port", "err", err)
+			return err
+		}
 	}
 	sd, err := v.VMProvider.GetServerDetail(ctx, rootLBName)
 	if err != nil {
 		return err
 	}
-	err = v.configureInternalInterfaceAndExternalForwarding(ctx, client, subnetName, internalPortName, sd, actionAdd)
+	err = v.configureInternalInterfaceAndExternalForwarding(ctx, client, subnetName, internalPortName, sd, &action)
 	if err != nil {
-		log.SpanLog(ctx, log.DebugLevelInfra, "fail to confgure internal interface, detaching port", "err", err)
-		deterr := v.VMProvider.DetachPortFromServer(ctx, rootLBName, vmGroupName, subnetName, internalPortName)
-		if deterr != nil {
-			log.SpanLog(ctx, log.DebugLevelInfra, "fail to detach port", "err", deterr)
+		if attachPort {
+			log.SpanLog(ctx, log.DebugLevelInfra, "fail to confgure internal interface, detaching port", "err", err)
+			deterr := v.VMProvider.DetachPortFromServer(ctx, rootLBName, subnetName, internalPortName)
+			if deterr != nil {
+				log.SpanLog(ctx, log.DebugLevelInfra, "fail to detach port", "err", deterr)
+			}
 		}
 		return err
 	}
@@ -328,21 +350,29 @@ func (v *VMPlatform) GetRootLBName(key *edgeproto.CloudletKey) string {
 }
 
 // DetachAndDisableRootLBInterface performs some cleanup when deleting the rootLB port.
-func (v *VMPlatform) DetachAndDisableRootLBInterface(ctx context.Context, client ssh.Client, rootLBName, vmGroupName, subnetName, internalPortName, internalIPAddr string) error {
-	log.SpanLog(ctx, log.DebugLevelInfra, "DetachAndDisableRootLBInterface", "rootLBName", rootLBName, "vmGroupName", vmGroupName, "subnetName", subnetName, "internalPortName", internalPortName)
+func (v *VMPlatform) DetachAndDisableRootLBInterface(ctx context.Context, client ssh.Client, rootLBName string, detachPort bool, subnetName, internalPortName, internalIPAddr string) error {
+	log.SpanLog(ctx, log.DebugLevelInfra, "DetachAndDisableRootLBInterface", "rootLBName", rootLBName, "subnetName", subnetName, "internalPortName", internalPortName)
 
+	var action InterfaceActionsOp
+	action.deleteIptables = true
+	if detachPort {
+		action.deleteInterface = true
+	}
 	sd, err := v.VMProvider.GetServerDetail(ctx, rootLBName)
 	if err != nil {
 		return err
 	}
-	err = v.configureInternalInterfaceAndExternalForwarding(ctx, client, subnetName, internalPortName, sd, actionDelete)
+
+	err = v.configureInternalInterfaceAndExternalForwarding(ctx, client, subnetName, internalPortName, sd, &action)
 	if err != nil {
 		log.SpanLog(ctx, log.DebugLevelInfra, "error in configureInternalInterfaceAndExternalForwarding", "err", err)
 	}
-	err = v.VMProvider.DetachPortFromServer(ctx, rootLBName, vmGroupName, subnetName, internalPortName)
-	if err != nil {
-		// might already be gone
-		log.SpanLog(ctx, log.DebugLevelInfra, "fail to detach port", "err", err)
+	if detachPort {
+		err = v.VMProvider.DetachPortFromServer(ctx, rootLBName, subnetName, internalPortName)
+		if err != nil {
+			// might already be gone
+			log.SpanLog(ctx, log.DebugLevelInfra, "fail to detach port", "err", err)
+		}
 	}
 	return err
 }

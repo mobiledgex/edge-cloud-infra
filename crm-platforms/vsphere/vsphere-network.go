@@ -77,3 +77,7 @@ func (v *VSpherePlatform) GetFreeExternalIP(ctx context.Context) (string, error)
 func (v *VSpherePlatform) GetRouterDetail(ctx context.Context, routerName string) (*vmlayer.RouterDetail, error) {
 	return nil, fmt.Errorf("Router not supported for VSphere")
 }
+
+func (v *VSpherePlatform) GetInternalPortPolicy() vmlayer.InternalPortAttachPolicy {
+	return vmlayer.AttachPortDuringCreate
+}

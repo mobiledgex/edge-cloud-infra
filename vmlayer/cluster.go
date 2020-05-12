@@ -170,7 +170,8 @@ func (v *VMPlatform) deleteCluster(ctx context.Context, rootLBName string, clust
 		if err != nil {
 			log.SpanLog(ctx, log.DebugLevelInfra, "unable to get ips from server, proceed with VM deletion", "err", err)
 		} else {
-			err = v.DetachAndDisableRootLBInterface(ctx, client, rootLBName, rootLBName, clusterSnName, GetPortName(rootLBName, clusterSnName), ip.InternalAddr)
+			detachPort := v.VMProvider.GetInternalPortPolicy() == AttachPortAfterCreate
+			err = v.DetachAndDisableRootLBInterface(ctx, client, rootLBName, detachPort, clusterSnName, GetPortName(rootLBName, clusterSnName), ip.InternalAddr)
 			if err != nil {
 				log.SpanLog(ctx, log.DebugLevelInfra, "unable to detach rootLB interface, proceed with VM deletion", "err", err)
 			}
@@ -259,11 +260,11 @@ func (v *VMPlatform) createClusterInternal(ctx context.Context, rootLBName strin
 			return err
 		}
 
-		grpname := vmgp.GroupName
-		if clusterInst.IpAccess == edgeproto.IpAccess_IP_ACCESS_SHARED {
-			grpname = rootLBName
+		attachPort := true
+		if clusterInst.IpAccess == edgeproto.IpAccess_IP_ACCESS_DEDICATED && v.VMProvider.GetInternalPortPolicy() == AttachPortDuringCreate {
+			attachPort = false
 		}
-		err = v.AttachAndEnableRootLBInterface(ctx, client, rootLBName, grpname, subnetName, GetPortName(rootLBName, subnetName), gw)
+		err = v.AttachAndEnableRootLBInterface(ctx, client, rootLBName, attachPort, subnetName, GetPortName(rootLBName, subnetName), gw)
 		if err != nil {
 			log.SpanLog(ctx, log.DebugLevelInfra, "AttachAndEnableRootLBInterface failed", "err", err)
 			return err

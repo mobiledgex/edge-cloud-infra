@@ -311,3 +311,7 @@ func (o *OpenstackPlatform) GetRouterDetail(ctx context.Context, routerName stri
 	rd.ExternalIP = fip[0].IPAddress
 	return &rd, nil
 }
+
+func (o *OpenstackPlatform) GetInternalPortPolicy() vmlayer.InternalPortAttachPolicy {
+	return vmlayer.AttachPortDuringCreate
+}

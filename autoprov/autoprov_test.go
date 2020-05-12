@@ -168,8 +168,6 @@ func testAutoProv(t *testing.T, ctx context.Context, ds *testutil.DummyServer, d
 	notify.WaitFor(&autoProvPolicyHandler.cache, 2)
 
 	// check stats exist for app, check cached policy values
-	autoProvAggr.mux.Lock()
-	autoProvAggr.mux.Unlock()
 	appStats, found := autoProvAggr.allStats[app.Key]
 	require.True(t, found)
 	ap1, found := appStats.policies[policy.Key.Name]

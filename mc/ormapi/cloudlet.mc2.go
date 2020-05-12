@@ -54,6 +54,13 @@ type swaggerShowCloudlet struct {
 	Body RegionCloudlet
 }
 
+// Request summary for ShowCloudletManifest
+// swagger:parameters ShowCloudletManifest
+type swaggerShowCloudletManifest struct {
+	// in: body
+	Body RegionCloudlet
+}
+
 // Request summary for AddCloudletResMapping
 // swagger:parameters AddCloudletResMapping
 type swaggerAddCloudletResMapping struct {

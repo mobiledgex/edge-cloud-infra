@@ -92,6 +92,18 @@ var ShowCloudletCmd = &cli.Command{
 	StreamOut:    true,
 }
 
+var ShowCloudletManifestCmd = &cli.Command{
+	Use:          "ShowCloudletManifest",
+	RequiredArgs: "region " + strings.Join(CloudletRequiredArgs, " "),
+	OptionalArgs: strings.Join(CloudletOptionalArgs, " "),
+	AliasArgs:    strings.Join(CloudletAliasArgs, " "),
+	SpecialArgs:  &CloudletSpecialArgs,
+	Comments:     addRegionComment(CloudletComments),
+	ReqData:      &ormapi.RegionCloudlet{},
+	ReplyData:    &edgeproto.Result{},
+	Run:          runRest("/auth/ctrl/ShowCloudletManifest"),
+}
+
 var AddCloudletResMappingCmd = &cli.Command{
 	Use:          "AddCloudletResMapping",
 	RequiredArgs: "region " + strings.Join(CloudletResMapRequiredArgs, " "),
@@ -133,6 +145,7 @@ var CloudletApiCmds = []*cli.Command{
 	DeleteCloudletCmd,
 	UpdateCloudletCmd,
 	ShowCloudletCmd,
+	ShowCloudletManifestCmd,
 	AddCloudletResMappingCmd,
 	RemoveCloudletResMappingCmd,
 	FindFlavorMatchCmd,
@@ -172,6 +185,12 @@ var CreateCloudletOptionalArgs = []string{
 	"accessvars",
 	"vmimageversion",
 	"packageversion",
+	"infraaccesstype",
+	"deploymenttype",
+	"nummasters",
+	"numnodes",
+	"infraexternalnetwork",
+	"infraflavorname",
 }
 
 var ShowCloudletInfoCmd = &cli.Command{
@@ -247,6 +266,7 @@ var PlatformConfigOptionalArgs = []string{
 	"commercialcerts",
 	"usevaultcerts",
 	"usevaultcas",
+	"chefserverpath",
 }
 var PlatformConfigAliasArgs = []string{
 	"containerregistrypath=platformconfig.containerregistrypath",
@@ -263,6 +283,7 @@ var PlatformConfigAliasArgs = []string{
 	"commercialcerts=platformconfig.commercialcerts",
 	"usevaultcerts=platformconfig.usevaultcerts",
 	"usevaultcas=platformconfig.usevaultcas",
+	"chefserverpath=platformconfig.chefserverpath",
 }
 var PlatformConfigComments = map[string]string{
 	"containerregistrypath": "Path to Docker registry holding edge-cloud image",
@@ -279,6 +300,7 @@ var PlatformConfigComments = map[string]string{
 	"commercialcerts":       "Get certs from vault or generate your own for the root load balancer",
 	"usevaultcerts":         "Use Vault certs for internal TLS communication",
 	"usevaultcas":           "Use Vault CAs to authenticate TLS communication",
+	"chefserverpath":        "Path to Chef Server",
 }
 var PlatformConfigSpecialArgs = map[string]string{
 	"platformconfig.envvar": "StringToString",
@@ -336,6 +358,12 @@ var CloudletOptionalArgs = []string{
 	"accessvars",
 	"vmimageversion",
 	"packageversion",
+	"infraaccesstype",
+	"deploymenttype",
+	"nummasters",
+	"numnodes",
+	"infraexternalnetwork",
+	"infraflavorname",
 }
 var CloudletAliasArgs = []string{
 	"fields=cloudlet.fields",
@@ -387,12 +415,19 @@ var CloudletAliasArgs = []string{
 	"config.commercialcerts=cloudlet.config.commercialcerts",
 	"config.usevaultcerts=cloudlet.config.usevaultcerts",
 	"config.usevaultcas=cloudlet.config.usevaultcas",
+	"config.chefserverpath=cloudlet.config.chefserverpath",
 	"restagmap:#.key=cloudlet.restagmap:#.key",
 	"restagmap:#.value.name=cloudlet.restagmap:#.value.name",
 	"restagmap:#.value.organization=cloudlet.restagmap:#.value.organization",
 	"accessvars=cloudlet.accessvars",
 	"vmimageversion=cloudlet.vmimageversion",
 	"packageversion=cloudlet.packageversion",
+	"infraaccesstype=cloudlet.infraaccesstype",
+	"deploymenttype=cloudlet.deploymenttype",
+	"nummasters=cloudlet.nummasters",
+	"numnodes=cloudlet.numnodes",
+	"infraexternalnetwork=cloudlet.infraexternalnetwork",
+	"infraflavorname=cloudlet.infraflavorname",
 }
 var CloudletComments = map[string]string{
 	"fields":                              "Fields are used for the Update API to specify which fields to apply",
@@ -438,11 +473,18 @@ var CloudletComments = map[string]string{
 	"config.commercialcerts":              "Get certs from vault or generate your own for the root load balancer",
 	"config.usevaultcerts":                "Use Vault certs for internal TLS communication",
 	"config.usevaultcas":                  "Use Vault CAs to authenticate TLS communication",
+	"config.chefserverpath":               "Path to Chef Server",
 	"restagmap:#.value.name":              "Resource Table Name",
 	"restagmap:#.value.organization":      "Operator organization of the cloudlet site.",
 	"accessvars":                          "Variables required to access cloudlet",
 	"vmimageversion":                      "MobiledgeX baseimage version where CRM services reside",
 	"packageversion":                      "MobiledgeX OS package version on baseimage where CRM services reside",
+	"infraaccesstype":                     "Infra Access Type is the type of access available to Infra API Endpoint, one of AccessTypePublic, AccessTypePrivate",
+	"deploymenttype":                      "Type of deployment to bring up CRM services, one of DeploymentTypeDocker, DeploymentTypeK8S",
+	"nummasters":                          "Number of k8s masters (Only valid for k8s deployment)",
+	"numnodes":                            "Number of k8s nodes (Only valid for k8s deployment)",
+	"infraexternalnetwork":                "External network name on infra",
+	"infraflavorname":                     "Flavor name on infra",
 }
 var CloudletSpecialArgs = map[string]string{
 	"cloudlet.accessvars":    "StringToString",

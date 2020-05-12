@@ -7,7 +7,6 @@ import (
 	"os"
 	"strings"
 	"sync"
-	"text/template"
 	"time"
 
 	"github.com/mobiledgex/edge-cloud-infra/vmlayer"
@@ -301,37 +300,13 @@ func (o *OpenstackPlatform) waitForStack(ctx context.Context, stackname string, 
 func (o *OpenstackPlatform) createOrUpdateHeatStackFromTemplate(ctx context.Context, templateData interface{}, stackName string, templateString string, action string, updateCallback edgeproto.CacheUpdateCallback) error {
 	log.SpanLog(ctx, log.DebugLevelInfra, "createHeatStackFromTemplate", "stackName", stackName, "action", action)
 
-	var buf bytes.Buffer
 	updateCallback(edgeproto.UpdateTask, "Creating Heat Stack for "+stackName)
-
-	funcMap := template.FuncMap{
-		"Indent": func(values ...interface{}) string {
-			s := values[0].(string)
-			l := 4
-			if len(values) > 1 {
-				l = values[1].(int)
-			}
-			var newStr []string
-			for _, v := range strings.Split(string(s), "\n") {
-				nV := fmt.Sprintf("%s%s", strings.Repeat(" ", l), v)
-				newStr = append(newStr, nV)
-			}
-			return strings.Join(newStr, "\n")
-		},
-	}
-
-	tmpl, err := template.New(stackName).Funcs(funcMap).Parse(templateString)
+	buf, err := vmlayer.ExecTemplate(stackName, templateString, templateData)
 	if err != nil {
-		// this is a bug
-		log.WarnLog("template new failed", "templateString", templateString, "err", err)
-		return fmt.Errorf("template new failed: %s", err)
-	}
-	err = tmpl.Execute(&buf, templateData)
-	if err != nil {
-		return fmt.Errorf("Template Execute Failed: %s", err)
+		return err
 	}
 	filename := stackName + "-heat.yaml"
-	err = WriteTemplateFile(filename, &buf)
+	err = WriteTemplateFile(filename, buf)
 	if err != nil {
 		return fmt.Errorf("WriteTemplateFile failed: %s", err)
 	}
@@ -362,7 +337,7 @@ func (o *OpenstackPlatform) CreateHeatStackFromTemplate(ctx context.Context, tem
 	return o.createOrUpdateHeatStackFromTemplate(ctx, templateData, stackName, templateString, heatCreate, updateCallback)
 }
 
-// HeatDeleteStack deletes the VM resources
+// heatDeleteStack deletes the VM resources
 func (o *OpenstackPlatform) HeatDeleteStack(ctx context.Context, stackName string) error {
 	log.SpanLog(ctx, log.DebugLevelInfra, "deleting heat stack for stack", "stackName", stackName)
 	err := o.deleteHeatStack(ctx, stackName)

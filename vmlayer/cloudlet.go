@@ -316,12 +316,19 @@ func (v *VMPlatform) SetupPlatformVM(ctx context.Context, cloudlet *edgeproto.Cl
 		return nil, err
 	}
 	vms = append(vms, platvm)
+	/*
+		vms, err := v.GetCloudletVMsSpec(ctx, cloudlet, pfConfig)
+		if err != nil {
+			return nil, err
+		}
+	*/
 	_, err = v.CreateVMsFromVMSpec(
 		ctx, platformVmName,
 		vms,
 		updateCallback,
 		WithNewSecurityGroup(v.GetServerSecurityGroupName(platformVmName)),
 		WithAccessPorts("tcp:22"),
+		WithSkipDefaultSecGrp(true),
 	)
 	if err != nil {
 		log.SpanLog(ctx, log.DebugLevelInfra, "error while creating platform VM", "vms request spec", vms)
@@ -588,4 +595,147 @@ func (v *VMPlatform) SaveCloudletAccessVars(ctx context.Context, cloudlet *edgep
 
 func (v *VMPlatform) GatherCloudletInfo(ctx context.Context, info *edgeproto.CloudletInfo) error {
 	return v.VMProvider.GatherCloudletInfo(ctx, info)
+}
+
+func (v *VMPlatform) GetCloudletVMsSpec(ctx context.Context, cloudlet *edgeproto.Cloudlet, pfConfig *edgeproto.PlatformConfig) ([]*VMRequestSpec, error) {
+	log.SpanLog(ctx, log.DebugLevelInfra, "Get cloudlet manifest", "cloudletName", cloudlet.Key.Name)
+	vaultConfig, err := vault.BestConfig(pfConfig.VaultAddr, vault.WithEnvMap(pfConfig.EnvVar))
+	if err != nil {
+		return nil, err
+	}
+	log.SpanLog(ctx, log.DebugLevelInfra, "Sourcing access variables", "region", pfConfig.Region, "cloudletKey", cloudlet.Key, "PhysicalName", cloudlet.PhysicalName)
+	err = v.VMProvider.InitApiAccessProperties(ctx, &cloudlet.Key, pfConfig.Region, cloudlet.PhysicalName, vaultConfig, cloudlet.EnvVar)
+	if err != nil {
+		return nil, err
+	}
+	// TODO there's a lot of overlap between platform.PlatformConfig and edgeproto.PlatformConfig
+	pc := pf.PlatformConfig{
+		CloudletKey:         &cloudlet.Key,
+		PhysicalName:        cloudlet.PhysicalName,
+		VaultAddr:           pfConfig.VaultAddr,
+		Region:              pfConfig.Region,
+		TestMode:            pfConfig.TestMode,
+		CloudletVMImagePath: pfConfig.CloudletVmImagePath,
+		VMImageVersion:      cloudlet.VmImageVersion,
+		PackageVersion:      cloudlet.PackageVersion,
+		EnvVars:             pfConfig.EnvVar,
+	}
+
+	err = v.InitProps(ctx, &pc, vaultConfig)
+	if err != nil {
+		return nil, err
+	}
+
+	regAuth, err := cloudcommon.GetRegistryAuth(ctx, pfConfig.ChefServerPath, vaultConfig)
+	if err != nil {
+		return nil, fmt.Errorf("Unable to find chef validation key, %v", err)
+	}
+	chefKey := regAuth.ApiKey
+	if chefKey == "" {
+		return nil, fmt.Errorf("Unable to find chef validation key")
+	}
+
+	if cloudlet.InfraExternalNetwork != "" {
+		v.VMProperties.SetCloudletExternalNetwork(cloudlet.InfraExternalNetwork)
+	}
+
+	platformVmName := v.GetPlatformVMName(&cloudlet.Key)
+	imgPath := GetCloudletVMImagePath(pfConfig.CloudletVmImagePath, cloudlet.VmImageVersion)
+	pfImageName, err := cloudcommon.GetFileName(imgPath)
+	if err != nil {
+		return nil, err
+	}
+
+	chefParams := ChefParams{
+		NodeName:      v.VMProvider.NameSanitize(cloudlet.Key.Name + "." + cloudlet.Key.Organization),
+		ServerPath:    pfConfig.ChefServerPath,
+		ValidationKey: chefKey,
+		Recipe:        "docker_crm_services@0.0.1",
+	}
+	chefAttributes := make(map[string][]string)
+	var serviceCmd string
+	var envVars *map[string]string
+
+	chefAttributes["tag"] = []string{cloudlet.ContainerVersion}
+	for _, serviceType := range PlatformServices {
+		switch serviceType {
+		case ServiceTypeShepherd:
+			serviceCmd, envVars, err = intprocess.GetShepherdCmd(cloudlet, pfConfig)
+			if err != nil {
+				return nil, err
+			}
+		case ServiceTypeCRM:
+			serviceCmd, envVars, err = cloudcommon.GetCRMCmd(cloudlet, pfConfig)
+			if err != nil {
+				return nil, err
+			}
+		default:
+			return nil, err
+		}
+		chefAttributes[serviceType] = []string{serviceCmd}
+		if envVars != nil {
+			if _, ok := chefAttributes["env"]; !ok {
+				chefAttributes["env"] = []string{}
+			}
+			for k, v := range *envVars {
+				envVar := fmt.Sprintf("'%s=%s'", k, v)
+				chefAttributes["env"] = append(chefAttributes["env"], envVar)
+			}
+		}
+	}
+	for k, v := range chefAttributes {
+		valStr := ""
+		if len(v) == 1 {
+			valStr = fmt.Sprintf(`"%s"`, v[0])
+		} else {
+			valStr = fmt.Sprintf(`[%s]`, strings.Join(v, ","))
+		}
+		attrObj := ChefAttribute{
+			Attribute:    k,
+			AttributeVal: valStr,
+		}
+		chefParams.Attributes = append(chefParams.Attributes, attrObj)
+	}
+	log.SpanLog(ctx, log.DebugLevelInfra, "chef attributes", "attributes", chefParams.Attributes)
+	buf, err := ExecTemplate(chefParams.NodeName, VmChefConfig, chefParams)
+	if err != nil {
+		return nil, err
+	}
+	chefManifest := buf.String()
+
+	var vms []*VMRequestSpec
+	platvm, err := v.GetVMRequestSpec(
+		ctx,
+		VMTypePlatform,
+		platformVmName,
+		cloudlet.InfraFlavorName,
+		pfImageName,
+		true, //connect external
+		WithDeploymentManifest(chefManifest),
+	)
+	if err != nil {
+		return nil, err
+	}
+	vms = append(vms, platvm)
+	return vms, nil
+}
+
+func (v *VMPlatform) GetCloudletManifest(ctx context.Context, cloudlet *edgeproto.Cloudlet, pfConfig *edgeproto.PlatformConfig) (string, error) {
+	platvms, err := v.GetCloudletVMsSpec(ctx, cloudlet, pfConfig)
+	if err != nil {
+		return "", err
+	}
+	platformVmName := v.GetPlatformVMName(&cloudlet.Key)
+	gp, err := v.GetVMGroupOrchestrationParamsFromVMSpec(
+		ctx,
+		platformVmName,
+		platvms,
+		WithNewSecurityGroup(v.GetServerSecurityGroupName(platformVmName)),
+		WithAccessPorts("tcp:22"),
+		WithSkipDefaultSecGrp(true),
+	)
+	if err != nil {
+		return "", err
+	}
+	return v.VMProvider.GetCloudletManifest(ctx, platformVmName, gp)
 }

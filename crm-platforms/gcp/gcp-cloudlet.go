@@ -36,3 +36,8 @@ func (g *GCPPlatform) DeleteCloudletAccessVars(ctx context.Context, cloudlet *ed
 	log.SpanLog(ctx, log.DebugLevelInfra, "Deleting cloudlet access vars", "cloudletName", cloudlet.Key.Name)
 	return nil
 }
+
+func (g *GCPPlatform) GetCloudletManifest(ctx context.Context, cloudlet *edgeproto.Cloudlet, pfConfig *edgeproto.PlatformConfig) (string, error) {
+	log.SpanLog(ctx, log.DebugLevelInfra, "Get cloudlet manifest", "cloudletName", cloudlet.Key.Name)
+	return "", nil
+}

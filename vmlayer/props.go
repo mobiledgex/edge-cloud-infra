@@ -158,6 +158,10 @@ func (vp *VMProperties) GetCloudletExternalNetwork() string {
 	return vp.CommonPf.Properties["MEX_EXT_NETWORK"].Value
 }
 
+func (vp *VMProperties) SetCloudletExternalNetwork(name string) {
+	vp.CommonPf.Properties["MEX_EXT_NETWORK"].Value = name
+}
+
 // GetCloudletNetwork returns default MEX network, internal and prepped
 func (vp *VMProperties) GetCloudletMexNetwork() string {
 	return vp.CommonPf.Properties["MEX_NETWORK"].Value

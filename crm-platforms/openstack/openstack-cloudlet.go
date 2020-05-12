@@ -142,3 +142,17 @@ func (o *OpenstackPlatform) SaveCloudletAccessVars(ctx context.Context, cloudlet
 	}
 	return nil
 }
+
+func (o *OpenstackPlatform) GetCloudletManifest(ctx context.Context, name string, VMGroupOrchestrationParams *vmlayer.VMGroupOrchestrationParams) (string, error) {
+	log.SpanLog(ctx, log.DebugLevelInfra, "GetCloudletManifest", "name", name, "VMGroupOrchestrationParams", VMGroupOrchestrationParams)
+	err := o.populateParams(ctx, VMGroupOrchestrationParams, heatCreate)
+	if err != nil {
+		return "", err
+	}
+
+	buf, err := vmlayer.ExecTemplate(name, VmGroupTemplate, VMGroupOrchestrationParams)
+	if err != nil {
+		return "", err
+	}
+	return buf.String(), nil
+}

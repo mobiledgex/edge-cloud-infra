@@ -50,3 +50,8 @@ func (e *EdgeboxPlatform) DeleteCloudletAccessVars(ctx context.Context, cloudlet
 	log.SpanLog(ctx, log.DebugLevelInfra, "Deleting cloudlet access vars", "cloudletName", cloudlet.Key.Name)
 	return nil
 }
+
+func (e *EdgeboxPlatform) GetCloudletManifest(ctx context.Context, cloudlet *edgeproto.Cloudlet, pfConfig *edgeproto.PlatformConfig) (string, error) {
+	log.SpanLog(ctx, log.DebugLevelInfra, "Get cloudlet manifest", "cloudletName", cloudlet.Key.Name)
+	return e.generic.GetCloudletManifest(ctx, cloudlet, pfConfig)
+}

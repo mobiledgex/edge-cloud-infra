@@ -30,9 +30,10 @@ const (
 type ActionType string
 
 const (
-	ActionCreate ActionType = "create"
-	ActionUpdate ActionType = "update"
-	ActionDelete ActionType = "delete"
+	ActionCreate ActionType = "CREATE"
+	ActionUpdate ActionType = "UPDATE"
+	ActionDelete ActionType = "DELETE"
+	ActionTest   ActionType = "TEST"
 )
 
 var ClusterTypeKubernetesMasterLabel = "mex-k8s-master"
@@ -152,12 +153,13 @@ func WithCreatePortsOnly(portsonly bool) VMReqOp {
 
 // VMGroupRequestSpec is used to specify a set of VMs to be created.  It is used as input to create VMGroupOrchestrationParams
 type VMGroupRequestSpec struct {
-	GroupName     string
-	VMs           []*VMRequestSpec
-	NewSubnetName string
-	NewSecgrpName string
-	AccessPorts   string
-	PrivacyPolicy *edgeproto.PrivacyPolicy
+	GroupName         string
+	VMs               []*VMRequestSpec
+	NewSubnetName     string
+	NewSecgrpName     string
+	AccessPorts       string
+	PrivacyPolicy     *edgeproto.PrivacyPolicy
+	SkipDefaultSecGrp bool
 }
 
 type VMGroupReqOp func(vmp *VMGroupRequestSpec) error
@@ -183,6 +185,12 @@ func WithNewSubnet(sn string) VMGroupReqOp {
 func WithNewSecurityGroup(sg string) VMGroupReqOp {
 	return func(s *VMGroupRequestSpec) error {
 		s.NewSecgrpName = sg
+		return nil
+	}
+}
+func WithSkipDefaultSecGrp(skip bool) VMGroupReqOp {
+	return func(s *VMGroupRequestSpec) error {
+		s.SkipDefaultSecGrp = skip
 		return nil
 	}
 }
@@ -341,6 +349,43 @@ fs_setup:
 mounts:
  - [ "/dev/vdb1", "/share" ]`
 
+type ChefAttribute struct {
+	Attribute    string
+	AttributeVal string
+}
+
+type ChefParams struct {
+	NodeName      string
+	ServerPath    string
+	ValidationKey string
+	Recipe        string
+	Attributes    []ChefAttribute
+}
+
+var VmChefConfig = `
+chef:
+  server_url: {{.ServerPath}}
+  node_name: {{.NodeName}}
+  validation_name: mobiledgex-validator
+  validation_cert: |
+{{ Indent .ValidationKey 10 }}
+  exec: true
+  exec_arguments:
+  - "-d"
+  - "1"
+  - "-i"
+  - "900"
+  - "-s"
+  - "20"
+  - "--chef-license"
+  - "accept"
+  run_list:
+  - "recipe[{{.Recipe}}]"
+  initial_attributes:
+  {{- range .Attributes}}
+    {{.Attribute}}: {{.AttributeVal}}
+  {{- end}}`
+
 // VMGroupOrchestrationParams contains all the details used by the orchestator to create a set of associated VMs
 type VMGroupOrchestrationParams struct {
 	GroupName        string
@@ -399,7 +444,11 @@ func (v *VMPlatform) getVMGroupOrchestrationParamsFromGroupSpec(ctx context.Cont
 	cloudflareDns := []string{"1.1.1.1", "1.0.0.1"}
 	vmDns := ""
 	subnetDns := []string{}
-	cloudletSecGrpID, err := v.VMProvider.GetResourceID(ctx, ResourceTypeSecurityGroup, v.VMProperties.GetCloudletSecurityGroupName())
+	var err error
+	cloudletSecGrpID := ""
+	if !spec.SkipDefaultSecGrp {
+		cloudletSecGrpID, err = v.VMProvider.GetResourceID(ctx, ResourceTypeSecurityGroup, v.VMProperties.GetCloudletSecurityGroupName())
+	}
 	internalSecgrpID := ""
 	internalSecgrpPreexisting := false
 
@@ -427,6 +476,9 @@ func (v *VMPlatform) getVMGroupOrchestrationParamsFromGroupSpec(ctx context.Cont
 	} else {
 		log.SpanLog(ctx, log.DebugLevelInfra, "External router in use")
 		if spec.NewSubnetName != "" {
+			if spec.SkipDefaultSecGrp {
+				return nil, fmt.Errorf("SkipDefaultSecGrp flag should not be set, missing cloudlet sec group ID")
+			}
 			internalSecgrpID = cloudletSecGrpID
 			internalSecgrpPreexisting = true
 			rtrInUse = true
@@ -574,7 +626,9 @@ func (v *VMPlatform) getVMGroupOrchestrationParamsFromGroupSpec(ctx context.Cont
 				}
 				externalport.SecurityGroups = []ResourceReference{
 					NewResourceReference(spec.NewSecgrpName, false),
-					NewResourceReference(cloudletSecGrpID, true),
+				}
+				if !spec.SkipDefaultSecGrp {
+					externalport.SecurityGroups = append(externalport.SecurityGroups, NewResourceReference(cloudletSecGrpID, true))
 				}
 				newPorts = append(newPorts, externalport)
 			}

@@ -33,6 +33,7 @@ const (
 	ActionCreate ActionType = "create"
 	ActionUpdate ActionType = "update"
 	ActionDelete ActionType = "delete"
+	ActionSync   ActionType = "sync"
 )
 
 var ClusterTypeKubernetesMasterLabel = "mex-k8s-master"
@@ -687,37 +688,28 @@ func (v *VMPlatform) getVMGroupOrchestrationParamsFromGroupSpec(ctx context.Cont
 	return &vmgp, nil
 }
 
-// CreateVMsFromVMSpec calls the provider function to do the orchestation of the VMs.  It returns the updated VM group spec
-func (v *VMPlatform) CreateVMsFromVMSpec(ctx context.Context, name string, vms []*VMRequestSpec, updateCallback edgeproto.CacheUpdateCallback, opts ...VMGroupReqOp) (*VMGroupOrchestrationParams, error) {
-	log.SpanLog(ctx, log.DebugLevelInfra, "CreateVMsFromVMSpec", "name", name)
+// OrchestrateVMsFromVMSpec calls the provider function to do the orchestation of the VMs.  It returns the updated VM group spec
+func (v *VMPlatform) OrchestrateVMsFromVMSpec(ctx context.Context, name string, vms []*VMRequestSpec, action ActionType, updateCallback edgeproto.CacheUpdateCallback, opts ...VMGroupReqOp) (*VMGroupOrchestrationParams, error) {
+	log.SpanLog(ctx, log.DebugLevelInfra, "OrchestrateVMsFromVMSpec", "name", name)
 	gp, err := v.GetVMGroupOrchestrationParamsFromVMSpec(ctx, name, vms, opts...)
 	if err != nil {
 		log.SpanLog(ctx, log.DebugLevelInfra, "GetVMGroupOrchestrationParamsFromVMSpec failed", "error", err)
 		return gp, err
 	}
 	log.SpanLog(ctx, log.DebugLevelInfra, "created vm group spec", "gp", gp)
-	err = v.VMProvider.CreateVMs(ctx, gp, updateCallback)
+	switch action {
+	case ActionCreate:
+		err = v.VMProvider.CreateVMs(ctx, gp, updateCallback)
+	case ActionUpdate:
+		err = v.VMProvider.UpdateVMs(ctx, gp, updateCallback)
+	case ActionSync:
+		err = v.VMProvider.SyncVMs(ctx, gp, updateCallback)
+	}
 	if err != nil {
-		log.SpanLog(ctx, log.DebugLevelInfra, "error while creating vms", "name", name, "error", err)
+		log.SpanLog(ctx, log.DebugLevelInfra, "error while orchestrating vms", "name", name, "action", action, "err", err)
 		return gp, err
 	}
-	log.SpanLog(ctx, log.DebugLevelInfra, "VM create done")
-	return gp, nil
-}
-
-func (v *VMPlatform) UpdateVMsFromVMSpec(ctx context.Context, name string, vms []*VMRequestSpec, updateCallback edgeproto.CacheUpdateCallback, opts ...VMGroupReqOp) (*VMGroupOrchestrationParams, error) {
-	log.SpanLog(ctx, log.DebugLevelInfra, "UpdateVMsFromVMSpec", "name", name)
-	gp, err := v.GetVMGroupOrchestrationParamsFromVMSpec(ctx, name, vms, opts...)
-	if err != nil {
-		return gp, err
-	}
-	log.SpanLog(ctx, log.DebugLevelInfra, "created vm group spec", "gp", gp)
-	err = v.VMProvider.UpdateVMs(ctx, gp, updateCallback)
-	if err != nil {
-		log.SpanLog(ctx, log.DebugLevelInfra, "error while updating vms", "name", name, "error", err)
-		return gp, err
-	}
-	log.SpanLog(ctx, log.DebugLevelInfra, "VM update done")
+	log.SpanLog(ctx, log.DebugLevelInfra, "VM action done", "action", action)
 	return gp, nil
 }
 

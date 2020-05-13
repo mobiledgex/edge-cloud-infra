@@ -18,9 +18,12 @@ var NumRetries = 2
 
 var terraformCreate string = "CREATE"
 var terraformUpdate string = "UPDATE"
+var terraformSync string = "SYNC"
 var terraformTest string = "TEST"
 
 const TagDelimiter = "__"
+
+const DoesNotExistError string = "does not exist"
 
 type VSphereGeneralParams struct {
 	VsphereUser       string
@@ -61,6 +64,29 @@ func (v *VSpherePlatform) ImportVMToTerraform(ctx context.Context, vmName string
 	vmpath := "/" + v.GetDatacenterName(ctx) + "/vm/" + vmName
 	_, err := terraform.TimedTerraformCommand(ctx, terraform.TerraformDir, "terraform", "import", "vsphere_virtual_machine."+vmName, vmpath)
 	return err
+}
+
+func (v *VSpherePlatform) ImportTagCategories(ctx context.Context) error {
+	log.SpanLog(ctx, log.DebugLevelInfra, "ImportTagCategories")
+
+	subnetCat := v.GetSubnetTagCategory(ctx)
+	out, err := terraform.TimedTerraformCommand(ctx, terraform.TerraformDir, "terraform", "import", "vsphere_tag_category."+subnetCat, subnetCat)
+	if strings.Contains(out, "not found") {
+		return fmt.Errorf(DoesNotExistError)
+	}
+	if err != nil {
+		return err
+	}
+
+	vmipCat := v.GetVmIpTagCategory(ctx)
+	out, err = terraform.TimedTerraformCommand(ctx, terraform.TerraformDir, "terraform", "import", "vsphere_tag_category."+vmipCat, vmipCat)
+	if strings.Contains(out, "not found") {
+		return fmt.Errorf(DoesNotExistError)
+	}
+	if err != nil {
+		return err
+	}
+	return nil
 }
 
 func (v *VSpherePlatform) DetachPortFromServer(ctx context.Context, serverName, subnetName, portName string) error {
@@ -487,19 +513,33 @@ func (v *VSpherePlatform) TerraformSetupVsphere(ctx context.Context, updateCallb
 		return err
 	}
 
-	return terraform.CreateTerraformPlanFromTemplate(
+	terraformFile, err := terraform.CreateTerraformPlanFromTemplate(
 		ctx,
 		vgp,
 		planName,
 		vcenterTemplate, updateCallback,
-		terraform.WithInit(true),
-		terraform.WithCleanupOnFailure(v.vmProperties.CommonPf.GetCleanupOnFailure(ctx)),
-		terraform.WithRetries(1),
 	)
+
+	if err != nil {
+		return err
+	}
+
+	err = v.ImportTagCategories(ctx)
+	if err != nil {
+		log.SpanLog(ctx, log.DebugLevelInfra, "import tags error", "err", err)
+
+		if strings.Contains(err.Error(), DoesNotExistError) {
+			log.SpanLog(ctx, log.DebugLevelInfra, "tags not yet created")
+		} else {
+			return err
+		}
+	}
+
+	return terraform.ApplyTerraformPlan(ctx, terraformFile, updateCallback, terraform.WithInit(true))
 }
 
-func (v *VSpherePlatform) createOrUpdateVMs(ctx context.Context, vmGroupOrchestrationParams *vmlayer.VMGroupOrchestrationParams, action string, updateCallback edgeproto.CacheUpdateCallback) error {
-	log.SpanLog(ctx, log.DebugLevelInfra, "Terraform createOrUpdateVMs")
+func (v *VSpherePlatform) orchestrateVMs(ctx context.Context, vmGroupOrchestrationParams *vmlayer.VMGroupOrchestrationParams, action string, updateCallback edgeproto.CacheUpdateCallback) error {
+	log.SpanLog(ctx, log.DebugLevelInfra, "Terraform orchestrateVMs")
 
 	planName := v.NameSanitize(vmGroupOrchestrationParams.GroupName)
 	var vvgp VSphereVMGroupParams
@@ -518,27 +558,39 @@ func (v *VSpherePlatform) createOrUpdateVMs(ctx context.Context, vmGroupOrchestr
 	vvgp.VMGroupOrchestrationParams = vmGroupOrchestrationParams
 	vvgp.VSphereGeneralParams = &vgp
 
-	return terraform.CreateTerraformPlanFromTemplate(
+	terraformFile, err := terraform.CreateTerraformPlanFromTemplate(
 		ctx,
 		vvgp,
 		planName,
 		vmGroupTemplate,
 		updateCallback,
-		terraform.WithCleanupOnFailure(v.vmProperties.CommonPf.GetCleanupOnFailure(ctx)),
-		terraform.WithRetries(1),
 	)
+	if err != nil {
+		return err
+	}
+	return terraform.ApplyTerraformPlan(
+		ctx,
+		terraformFile,
+		updateCallback,
+		terraform.WithCleanupOnFailure(v.vmProperties.CommonPf.GetCleanupOnFailure(ctx)),
+		terraform.WithRetries(1))
 }
 
 func (v *VSpherePlatform) CreateVMs(ctx context.Context, vmGroupOrchestrationParams *vmlayer.VMGroupOrchestrationParams, updateCallback edgeproto.CacheUpdateCallback) error {
 	log.SpanLog(ctx, log.DebugLevelInfra, "CreateVMs")
-	return v.createOrUpdateVMs(ctx, vmGroupOrchestrationParams, terraformCreate, updateCallback)
+	return v.orchestrateVMs(ctx, vmGroupOrchestrationParams, terraformCreate, updateCallback)
 }
 
 func (v *VSpherePlatform) UpdateVMs(ctx context.Context, vmGroupOrchestrationParams *vmlayer.VMGroupOrchestrationParams, updateCallback edgeproto.CacheUpdateCallback) error {
 	log.SpanLog(ctx, log.DebugLevelInfra, "UpdateVMs", "vmGroupOrchestrationParams", vmGroupOrchestrationParams)
-	return v.createOrUpdateVMs(ctx, vmGroupOrchestrationParams, terraformUpdate, updateCallback)
+	return v.orchestrateVMs(ctx, vmGroupOrchestrationParams, terraformUpdate, updateCallback)
 }
 
 func (v *VSpherePlatform) DeleteVMs(ctx context.Context, vmGroupName string) error {
 	return terraform.DeleteTerraformPlan(ctx, vmGroupName)
+}
+
+func (v *VSpherePlatform) SyncVMs(ctx context.Context, vmGroupOrchestrationParams *vmlayer.VMGroupOrchestrationParams, updateCallback edgeproto.CacheUpdateCallback) error {
+	log.SpanLog(ctx, log.DebugLevelInfra, "SyncVMs", "vmGroupOrchestrationParams", vmGroupOrchestrationParams)
+	return v.orchestrateVMs(ctx, vmGroupOrchestrationParams, terraformSync, updateCallback)
 }

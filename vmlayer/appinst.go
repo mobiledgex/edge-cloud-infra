@@ -184,7 +184,7 @@ func (v *VMPlatform) CreateAppInst(ctx context.Context, clusterInst *edgeproto.C
 		vms = append(vms, appVm)
 
 		updateCallback(edgeproto.UpdateTask, "Deploying App")
-		vmgp, err = v.CreateVMsFromVMSpec(ctx, objName, vms, updateCallback, WithNewSubnet(newSubnetName),
+		vmgp, err = v.OrchestrateVMsFromVMSpec(ctx, objName, vms, ActionCreate, updateCallback, WithNewSubnet(newSubnetName),
 			WithPrivacyPolicy(privacyPolicy),
 			WithAccessPorts(app.AccessPorts),
 			WithNewSecurityGroup(v.GetServerSecurityGroupName(objName)),

@@ -10,6 +10,7 @@ import (
 
 	"github.com/mobiledgex/edge-cloud-infra/infracommon"
 	"github.com/mobiledgex/edge-cloud/cloud-resource-manager/k8smgmt"
+	"github.com/mobiledgex/edge-cloud/cloud-resource-manager/platform"
 	"github.com/mobiledgex/edge-cloud/cloud-resource-manager/proxy"
 	"github.com/mobiledgex/edge-cloud/cloudcommon"
 	"github.com/mobiledgex/edge-cloud/edgeproto"
@@ -139,7 +140,7 @@ func (v *VMPlatform) updateClusterInternal(ctx context.Context, client ssh.Clien
 			return nil
 		}
 	}
-	_, err := v.CreateOrUpdateVMsForCluster(ctx, imgName, clusterInst, privacyPolicy, ActionUpdate, updateCallback)
+	_, err := v.PerformOrchestrationForCluster(ctx, imgName, clusterInst, privacyPolicy, ActionUpdate, updateCallback)
 	if err != nil {
 		return err
 	}
@@ -239,7 +240,7 @@ func (v *VMPlatform) createClusterInternal(ctx context.Context, rootLBName strin
 		//use the cloudlet default AZ if it exists
 		clusterInst.AvailabilityZone = v.VMProperties.GetCloudletComputeAvailabilityZone()
 	}
-	vmgp, err := v.CreateOrUpdateVMsForCluster(ctx, imgName, clusterInst, privacyPolicy, ActionCreate, updateCallback)
+	vmgp, err := v.PerformOrchestrationForCluster(ctx, imgName, clusterInst, privacyPolicy, ActionCreate, updateCallback)
 	if err != nil {
 		return fmt.Errorf("Cluster VM create Failed: %v", err)
 	}
@@ -485,8 +486,50 @@ func (v *VMPlatform) getVMRequestSpecForDockerCluster(ctx context.Context, imgNa
 	return vms, newSubnetName, newSecgrpName, nil
 }
 
-func (v *VMPlatform) CreateOrUpdateVMsForCluster(ctx context.Context, imgName string, clusterInst *edgeproto.ClusterInst, privacyPolicy *edgeproto.PrivacyPolicy, action ActionType, updateCallback edgeproto.CacheUpdateCallback) (*VMGroupOrchestrationParams, error) {
-	log.SpanLog(ctx, log.DebugLevelInfo, "CreateVMsForCluster", "clusterInst", clusterInst)
+func (v *VMPlatform) SyncClusterInst(ctx context.Context, clusterInst *edgeproto.ClusterInst, privacyPolicy *edgeproto.PrivacyPolicy, updateCallback edgeproto.CacheUpdateCallback) error {
+	log.SpanLog(ctx, log.DebugLevelInfra, "SyncClusterInst", "clusterInst", clusterInst)
+	imgName, err := v.VMProvider.AddCloudletImageIfNotPresent(ctx, v.VMProperties.CommonPf.PlatformConfig.CloudletVMImagePath, v.VMProperties.CommonPf.PlatformConfig.VMImageVersion, updateCallback)
+	if err != nil {
+		log.InfoLog("error with cloudlet base image", "imgName", imgName, "error", err)
+		return err
+	}
+	_, err = v.PerformOrchestrationForCluster(ctx, imgName, clusterInst, privacyPolicy, ActionSync, updateCallback)
+	return err
+}
+
+func (v *VMPlatform) SyncClusterInsts(ctx context.Context, controllerData *platform.ControllerData, updateCallback edgeproto.CacheUpdateCallback) error {
+	log.SpanLog(ctx, log.DebugLevelInfra, "SyncClusterInsts")
+
+	clusterKeys := make(map[edgeproto.ClusterInstKey]context.Context)
+	controllerData.ClusterInstCache.GetAllKeys(ctx, clusterKeys)
+	for k := range clusterKeys {
+		log.SpanLog(ctx, log.DebugLevelInfra, "SyncClusterInsts found cluster", "key", k)
+		var clus edgeproto.ClusterInst
+		if controllerData.ClusterInstCache.Get(&k, &clus) {
+
+			policy := edgeproto.PrivacyPolicy{}
+			if clus.PrivacyPolicy != "" {
+				policy.Key.Organization = clus.Key.Organization
+				policy.Key.Name = clus.PrivacyPolicy
+				if !controllerData.PrivacyPolicyCache.Get(&policy.Key, &policy) {
+					log.SpanLog(ctx, log.DebugLevelInfra, "Privacy Policy not found for ClusterInst", "policyName", policy.Key.Name)
+					return fmt.Errorf("unable to sync clusterinst, privacy policy not found: %s", clus.PrivacyPolicy)
+				}
+			}
+			err := v.SyncClusterInst(ctx, &clus, &policy, updateCallback)
+			if err != nil {
+				return err
+			}
+		} else {
+			return fmt.Errorf("fail to fetch cluster %s", k)
+		}
+	}
+	log.FatalLog("bye")
+	return nil
+}
+
+func (v *VMPlatform) PerformOrchestrationForCluster(ctx context.Context, imgName string, clusterInst *edgeproto.ClusterInst, privacyPolicy *edgeproto.PrivacyPolicy, action ActionType, updateCallback edgeproto.CacheUpdateCallback) (*VMGroupOrchestrationParams, error) {
+	log.SpanLog(ctx, log.DebugLevelInfo, "PerformOrchestrationForCluster", "clusterInst", clusterInst, "action", action)
 
 	var vms []*VMRequestSpec
 	var err error
@@ -557,13 +600,5 @@ func (v *VMPlatform) CreateOrUpdateVMsForCluster(ctx context.Context, imgName st
 			vms = append(vms, node)
 		}
 	}
-
-	//	return v.GetVMGroupOrchestrationParamsFromVMSpec(ctx, name, vms, WithNewSubnet(subnetname))
-	if action == ActionCreate {
-		return v.CreateVMsFromVMSpec(ctx, vmgroupName, vms, updateCallback, WithNewSubnet(newSubnetName), WithPrivacyPolicy(privacyPolicy), WithNewSecurityGroup(newSecgrpName))
-	} else if action == ActionUpdate {
-		return v.UpdateVMsFromVMSpec(ctx, vmgroupName, vms, updateCallback, WithNewSubnet(newSubnetName), WithPrivacyPolicy(privacyPolicy), WithNewSecurityGroup(newSecgrpName))
-	} else {
-		return nil, fmt.Errorf("unexpected action: %s", action)
-	}
+	return v.OrchestrateVMsFromVMSpec(ctx, vmgroupName, vms, action, updateCallback, WithNewSubnet(newSubnetName), WithPrivacyPolicy(privacyPolicy), WithNewSecurityGroup(newSecgrpName))
 }

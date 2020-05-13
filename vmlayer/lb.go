@@ -502,7 +502,7 @@ func (v *VMPlatform) CreateRootLB(
 	}
 	var vms []*VMRequestSpec
 	vms = append(vms, vmreq)
-	_, err = v.CreateVMsFromVMSpec(ctx, rootLB.Name, vms, updateCallback, WithNewSecurityGroup(v.GetServerSecurityGroupName(rootLB.Name)))
+	_, err = v.OrchestrateVMsFromVMSpec(ctx, rootLB.Name, vms, ActionCreate, updateCallback, WithNewSecurityGroup(v.GetServerSecurityGroupName(rootLB.Name)))
 	if err != nil {
 		log.SpanLog(ctx, log.DebugLevelInfra, "error while creating RootLB VM", "name", rootLB.Name, "imgName", imgName, "error", err)
 		return err

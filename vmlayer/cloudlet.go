@@ -316,9 +316,10 @@ func (v *VMPlatform) SetupPlatformVM(ctx context.Context, cloudlet *edgeproto.Cl
 		return nil, err
 	}
 	vms = append(vms, platvm)
-	_, err = v.CreateVMsFromVMSpec(
+	_, err = v.OrchestrateVMsFromVMSpec(
 		ctx, platformVmName,
 		vms,
+		ActionCreate,
 		updateCallback,
 		WithNewSecurityGroup(v.GetServerSecurityGroupName(platformVmName)),
 		WithAccessPorts("tcp:22"),

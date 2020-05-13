@@ -33,7 +33,7 @@ func (o *OpenstackPlatform) GatherCloudletInfo(ctx context.Context, info *edgepr
 	return o.OSGetLimits(ctx, info)
 }
 
-func (o *OpenstackPlatform) SyncControllerData(ctx context.Context, controllerData *platform.ControllerData) error {
+func (o *OpenstackPlatform) SyncControllerData(ctx context.Context, controllerData *platform.ControllerData, updateCallback edgeproto.CacheUpdateCallback) error {
 	return nil
 }
 

@@ -3,6 +3,7 @@ package vmlayer
 import (
 	"context"
 	"fmt"
+	"time"
 
 	"github.com/mobiledgex/edge-cloud-infra/infracommon"
 	"github.com/mobiledgex/edge-cloud/cloud-resource-manager/platform"
@@ -41,10 +42,11 @@ type VMProvider interface {
 	SaveCloudletAccessVars(ctx context.Context, cloudlet *edgeproto.Cloudlet, accessVarsIn map[string]string, pfConfig *edgeproto.PlatformConfig, updateCallback edgeproto.CacheUpdateCallback) error
 	SetPowerState(ctx context.Context, serverName, serverAction string) error
 	GatherCloudletInfo(ctx context.Context, info *edgeproto.CloudletInfo) error
-	SyncControllerData(ctx context.Context, controllerData *platform.ControllerData) error
+	SyncControllerData(ctx context.Context, controllerData *platform.ControllerData, updateCallback edgeproto.CacheUpdateCallback) error
 	GetRouterDetail(ctx context.Context, routerName string) (*RouterDetail, error)
 	CreateVMs(ctx context.Context, vmGroupOrchestrationParams *VMGroupOrchestrationParams, updateCallback edgeproto.CacheUpdateCallback) error
 	UpdateVMs(ctx context.Context, vmGroupOrchestrationParams *VMGroupOrchestrationParams, updateCallback edgeproto.CacheUpdateCallback) error
+	SyncVMs(ctx context.Context, vmGroupOrchestrationParams *VMGroupOrchestrationParams, updateCallback edgeproto.CacheUpdateCallback) error
 	DeleteVMs(ctx context.Context, vmGroupName string) error
 }
 
@@ -163,7 +165,11 @@ func (v *VMPlatform) Init(ctx context.Context, platformConfig *platform.Platform
 	if err := v.VMProvider.InitProvider(ctx, updateCallback); err != nil {
 		return err
 	}
-	if err := v.VMProvider.SyncControllerData(ctx, controllerData); err != nil {
+	if err := v.VMProvider.SyncControllerData(ctx, controllerData, updateCallback); err != nil {
+		return err
+	}
+	time.Sleep(10 * time.Second)
+	if err := v.SyncClusterInsts(ctx, controllerData, updateCallback); err != nil {
 		return err
 	}
 	v.FlavorList, err = v.VMProvider.GetFlavorList(ctx)

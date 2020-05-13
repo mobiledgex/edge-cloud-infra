@@ -227,7 +227,7 @@ func (v *VMPlatform) CreateAppInst(ctx context.Context, clusterInst *edgeproto.C
 				action.ExternalIP = ip.ExternalAddr
 				return &action, nil
 			}
-			vmIP, err := v.VMProvider.GetIPFromServerName(ctx, v.VMProperties.GetCloudletMexNetwork(), objName)
+			vmIP, err := v.VMProvider.GetIPFromServerName(ctx, newSubnetName, objName)
 			if err != nil {
 				return err
 			}

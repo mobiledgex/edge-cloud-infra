@@ -88,7 +88,7 @@ func (o *OpenstackPlatform) UpdateServerIPs(ctx context.Context, addresses strin
 					}
 					if ipnet.Contains(ipaddr) {
 						var serverIP vmlayer.ServerIP
-						serverIP.Network = s.Subnet
+						serverIP.Network = s.Name
 						serverIP.InternalAddr = addr
 						serverIP.ExternalAddr = addr
 						serverDetail.Addresses = append(serverDetail.Addresses, serverIP)
@@ -101,9 +101,7 @@ func (o *OpenstackPlatform) UpdateServerIPs(ctx context.Context, addresses strin
 					return fmt.Errorf("no subnet found for internal addr: %s", addr)
 				}
 			}
-
 		}
-
 		// now look through the ports and assign port name and mac addresses
 		for _, port := range ports {
 			for ai, serverAddr := range serverDetail.Addresses {
@@ -114,7 +112,7 @@ func (o *OpenstackPlatform) UpdateServerIPs(ctx context.Context, addresses strin
 			}
 		}
 	}
-	log.SpanLog(ctx, log.DebugLevelInfra, "Updated ServerIPS", "serverDetail", serverDetail)
+	log.SpanLog(ctx, log.DebugLevelInfra, "Updated ServerIPs", "serverDetail", serverDetail)
 	return nil
 }
 

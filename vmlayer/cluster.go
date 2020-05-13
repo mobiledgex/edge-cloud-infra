@@ -161,7 +161,7 @@ func (v *VMPlatform) deleteCluster(ctx context.Context, rootLBName string, clust
 		}
 	}
 	if !dedicatedRootLB {
-		ip, err := v.VMProvider.GetIPFromServerName(ctx, v.VMProperties.GetCloudletMexNetwork(), rootLBName)
+		ip, err := v.VMProvider.GetIPFromServerName(ctx, v.GetClusterSubnetName(ctx, clusterInst), rootLBName)
 		if err != nil {
 			log.SpanLog(ctx, log.DebugLevelInfra, "unable to get ips from server, proceed with VM deletion", "err", err)
 		} else {

@@ -153,6 +153,7 @@ func GetCloudletPrometheusDockerArgs(cloudlet *edgeproto.Cloudlet, cfgFile strin
 		"-v", cfgFile + ":/etc/prometheus/prometheus.yml",
 		"prom/prometheus:latest",
 		"--config.file=/etc/prometheus/prometheus.yml",
+		"--web.enable-lifecycle",
 	}
 }
 

@@ -288,6 +288,23 @@ func targetsList(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
+// Write prometheus rules file and reload rules
+func writeCloudletPormetheusAlerts(ctx context.Context, alertsBuf []byte) error {
+	// write alerting rules
+	err := ioutil.WriteFile(*promAlertsFile, alertsBuf, 0644)
+	if err != nil {
+		return err
+	}
+	// need to force prometheus to re-read the rules file
+	resp, err := http.Post("http://0.0.0.0:9092/-/reload", "", bytes.NewBuffer([]byte{}))
+	if err != nil {
+		log.SpanLog(ctx, log.DebugLevelInfo, "Failed to reload prometheus", "err", err)
+		return nil
+	}
+	resp.Body.Close()
+	return nil
+}
+
 func main() {
 	nodeMgr.InitFlags()
 	flag.Parse()
@@ -324,9 +341,11 @@ func main() {
 		*platformName == "PLATFORM_TYPE_OPENSTACK" {
 		// Init prometheus targets template
 		promTargetTemplate = template.Must(template.New("prometheustarget").Parse(promTargetT))
-		// write alerting rules
-		ioutil.WriteFile(*promAlertsFile, []byte(promHealthCheckAlerts), 0644)
-
+		err := writeCloudletPormetheusAlerts(ctx, []byte(promHealthCheckAlerts))
+		if err != nil {
+			log.FatalLog("Failed to write prometheus rules", "file", *promAlertsFile, "rules",
+				promHealthCheckAlerts, "err", err)
+		}
 		// Init http metricsProxy for Prometheus API endpoints
 		var nullLogger baselog.Logger
 		nullLogger.SetOutput(ioutil.Discard)

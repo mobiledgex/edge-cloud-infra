@@ -132,7 +132,7 @@ func writePrometheusTargetsFile() {
 		return nil
 	})
 	targets += "]"
-	ioutil.WriteFile(*promTargetsFile, []byte(targets), 0600)
+	ioutil.WriteFile(*promTargetsFile, []byte(targets), 0644)
 }
 
 func appInstCb(ctx context.Context, old *edgeproto.AppInst, new *edgeproto.AppInst) {
@@ -325,7 +325,7 @@ func main() {
 		// Init prometheus targets template
 		promTargetTemplate = template.Must(template.New("prometheustarget").Parse(promTargetT))
 		// write alerting rules
-		ioutil.WriteFile(*promAlertsFile, []byte(promHealthCheckAlerts), 0600)
+		ioutil.WriteFile(*promAlertsFile, []byte(promHealthCheckAlerts), 0644)
 
 		// Init http metricsProxy for Prometheus API endpoints
 		var nullLogger baselog.Logger

@@ -133,6 +133,17 @@ func startPlatformService(cloudlet *edgeproto.Cloudlet, pfConfig *edgeproto.Plat
 		// command, and other options are not needed
 		err = pc.WriteFile(client, intprocess.GetCloudletPrometheusConfigHostFilePath(),
 			intprocess.GetCloudletPrometheusConfig(), "promConfig", pc.SudoOn)
+		if err != nil {
+			cDone <- fmt.Errorf("Unable to write prometheus config file: %v", err)
+			return
+		}
+		// make it executable
+		cmd := fmt.Sprintf("sudo chmod 0644 %s", intprocess.GetCloudletPrometheusConfigHostFilePath())
+		_, err = client.Output(cmd)
+		if err != nil {
+			cDone <- fmt.Errorf("Unable to set permissions on prometheus config file: %v", err)
+			return
+		}
 	default:
 		cDone <- fmt.Errorf("Unsupported service type: %s", serviceType)
 		return

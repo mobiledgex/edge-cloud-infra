@@ -22,7 +22,7 @@ type RegionContext struct {
 func connectController(ctx context.Context, region string) (*grpc.ClientConn, error) {
 	addr, err := getControllerAddrForRegion(ctx, region)
 	if err != nil {
-		return nil, echo.NewHTTPError(http.StatusBadRequest, err)
+		return nil, err
 	}
 	return connectGrpcAddr(addr)
 }

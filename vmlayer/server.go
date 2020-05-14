@@ -24,7 +24,12 @@ type ServerDetail struct {
 }
 
 func (v *VMPlatform) GetIPFromServerName(ctx context.Context, networkName, subnetName, serverName string) (*ServerIP, error) {
+	log.SpanLog(ctx, log.DebugLevelInfra, "GetIPFromServerName", "networkName", networkName, "subnetName", subnetName, "serverName", serverName)
 	// if this is a root lb, look it up and get the IP if we have it cached
+	portName := ""
+	if subnetName != "" {
+		portName = GetPortName(serverName, subnetName)
+	}
 	rootLB, err := GetRootLB(ctx, serverName)
 	if err == nil && rootLB != nil {
 		if rootLB.IP != nil {
@@ -36,18 +41,18 @@ func (v *VMPlatform) GetIPFromServerName(ctx context.Context, networkName, subne
 	if err != nil {
 		return nil, err
 	}
-	return GetIPFromServerDetails(ctx, networkName, subnetName, sd)
+
+	return GetIPFromServerDetails(ctx, networkName, portName, sd)
 }
 
-func GetIPFromServerDetails(ctx context.Context, networkName string, subnetName string, sd *ServerDetail) (*ServerIP, error) {
-	log.SpanLog(ctx, log.DebugLevelInfra, "GetIPFromServerDetails", "networkName", networkName, "subnetName", subnetName, "serverDetail", sd)
+func GetIPFromServerDetails(ctx context.Context, networkName string, portName string, sd *ServerDetail) (*ServerIP, error) {
+	log.SpanLog(ctx, log.DebugLevelInfra, "GetIPFromServerDetails", "networkName", networkName, "portName", portName, "serverDetail", sd)
 	for _, s := range sd.Addresses {
-		if s.Network == networkName || s.Network == subnetName {
+		if (networkName != "" && s.Network == networkName) || (portName != "" && s.PortName == portName) {
 			return &s, nil
 		}
 	}
-	log.SpanLog(ctx, log.DebugLevelInfra, "unable to find IP for server", "networkName", networkName, "subnetName", subnetName, "serverDetail", sd)
-	return nil, fmt.Errorf("unable to find IP for server: %s on network: %s", sd.Name, networkName)
+	return nil, fmt.Errorf("unable to find IP for server: %s on network: %s port: %s", sd.Name, networkName, portName)
 }
 
 func GetCloudletNetworkIfaceFile() string {

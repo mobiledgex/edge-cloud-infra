@@ -57,7 +57,7 @@ spec:
          - "/root/tls/mex-server.crt"
          - "--autoUpgrade"
          - "-d"
-         - "etcd,api,notify,upgrade"
+         - "etcd,api,notify,upgrade,infra"
         env:
          - name: VAULT_ROLE_ID
            value: "{{ controller_role.role_id }}"

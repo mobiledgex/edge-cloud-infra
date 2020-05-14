@@ -79,28 +79,11 @@ func (v *VSpherePlatform) SyncControllerFlavors(ctx context.Context, controllerD
 	return nil
 }
 
-/*
-func (v *VSpherePlatform) SyncControllerClusters(ctx context.Context, controllerData *platform.ControllerData) error {
-	log.SpanLog(ctx, log.DebugLevelInfra, "SyncControllerClusters")
-
-	clusterKeys := make(map[edgeproto.ClusterInstKey]context.Context)
-	controllerData.ClusterInstCache.GetAllKeys(ctx, clusterKeys)
-	for k := range clusterKeys {
-		var clus edgeproto.ClusterInst
-		if controllerData.ClusterCache.Get(&k, &clus) {
-            v.SyncCluster(ctx, &clus)
-		} else {
-			return fmt.Errorf("fail to fetch cluster %s", k)
-		}
+func (v *VSpherePlatform) SyncControllerData(ctx context.Context, controllerData *platform.ControllerData, cloudletState edgeproto.CloudletState) error {
+	log.SpanLog(ctx, log.DebugLevelInfra, "SyncControllerData", "state", cloudletState)
+	var err error
+	if cloudletState == edgeproto.CloudletState_CLOUDLET_STATE_INIT {
+		err = v.SyncControllerFlavors(ctx, controllerData)
 	}
-	return nil
-}*/
-
-func (v *VSpherePlatform) SyncControllerData(ctx context.Context, controllerData *platform.ControllerData, updateCallback edgeproto.CacheUpdateCallback) error {
-	log.SpanLog(ctx, log.DebugLevelInfra, "XXXXXXX SyncControllerData")
-	err := v.SyncControllerFlavors(ctx, controllerData)
-	if err != nil {
-		return err
-	}
-	return nil
+	return err
 }

@@ -9,6 +9,8 @@ import (
 	"sync"
 	"time"
 
+	"github.com/mobiledgex/edge-cloud/cloud-resource-manager/platform"
+
 	valid "github.com/asaskevich/govalidator"
 	"github.com/mobiledgex/edge-cloud-infra/infracommon"
 	"github.com/mobiledgex/edge-cloud/cloud-resource-manager/platform/pc"
@@ -169,7 +171,7 @@ func (v *VMPlatform) configureInternalInterfaceAndExternalForwarding(ctx context
 
 	log.SpanLog(ctx, log.DebugLevelInfra, "configureInternalInterfaceAndExternalForwarding", "serverDetails", serverDetails, "internalPortName", internalPortName, "action", fmt.Sprintf("%+v", action))
 
-	internalIP, err := GetIPFromServerDetails(ctx, v.VMProperties.GetCloudletMexNetwork(), subnetName, serverDetails)
+	internalIP, err := GetIPFromServerDetails(ctx, "", internalPortName, serverDetails)
 	if err != nil {
 		return err
 	}
@@ -320,7 +322,7 @@ func (v *VMPlatform) AttachAndEnableRootLBInterface(ctx context.Context, client 
 	action.createIptables = true
 	if attachPort {
 		action.addInterface = true
-		err := v.VMProvider.AttachPortToServer(ctx, rootLBName, subnetName, internalPortName, internalIPAddr)
+		err := v.VMProvider.AttachPortToServer(ctx, rootLBName, subnetName, internalPortName, internalIPAddr, ActionCreate)
 		if err != nil {
 			log.SpanLog(ctx, log.DebugLevelInfra, "fail to attach port", "err", err)
 			return err
@@ -475,6 +477,7 @@ func (v *VMPlatform) CreateRootLB(
 	ctx context.Context, rootLB *MEXRootLB,
 	cloudletKey *edgeproto.CloudletKey,
 	imgPath, imgVersion string,
+	action ActionType,
 	updateCallback edgeproto.CacheUpdateCallback,
 ) error {
 
@@ -482,19 +485,12 @@ func (v *VMPlatform) CreateRootLB(
 	if rootLB == nil {
 		return fmt.Errorf("cannot enable rootLB, rootLB is null")
 	}
-	_, err := v.VMProvider.GetServerDetail(ctx, rootLB.Name)
-	if err == nil {
-		log.SpanLog(ctx, log.DebugLevelInfra, "rootlb already exists")
-		return nil
-	}
-
-	if v.VMProperties.GetCloudletExternalNetwork() == "" {
-		return fmt.Errorf("enable rootlb, missing external network in manifest")
-	}
-	imgName, err := v.VMProvider.AddCloudletImageIfNotPresent(ctx, imgPath, imgVersion, updateCallback)
-	if err != nil {
-		log.InfoLog("error with RootLB VM image", "name", rootLB.Name, "imgName", imgName, "error", err)
-		return err
+	if action == ActionCreate {
+		_, err := v.VMProvider.GetServerDetail(ctx, rootLB.Name)
+		if err == nil {
+			log.SpanLog(ctx, log.DebugLevelInfra, "rootlb already exists")
+			return nil
+		}
 	}
 	vmreq, err := v.GetVMSpecForRootLB(ctx, rootLB.Name, "", updateCallback)
 	if err != nil {
@@ -502,9 +498,9 @@ func (v *VMPlatform) CreateRootLB(
 	}
 	var vms []*VMRequestSpec
 	vms = append(vms, vmreq)
-	_, err = v.OrchestrateVMsFromVMSpec(ctx, rootLB.Name, vms, ActionCreate, updateCallback, WithNewSecurityGroup(v.GetServerSecurityGroupName(rootLB.Name)))
+	_, err = v.OrchestrateVMsFromVMSpec(ctx, rootLB.Name, vms, action, updateCallback, WithNewSecurityGroup(v.GetServerSecurityGroupName(rootLB.Name)))
 	if err != nil {
-		log.SpanLog(ctx, log.DebugLevelInfra, "error while creating RootLB VM", "name", rootLB.Name, "imgName", imgName, "error", err)
+		log.SpanLog(ctx, log.DebugLevelInfra, "error while creating RootLB VM", "name", rootLB.Name, "error", err)
 		return err
 	}
 	log.SpanLog(ctx, log.DebugLevelInfra, "done creating rootlb", "name", rootLB.Name)
@@ -658,4 +654,41 @@ func (v *VMPlatform) DeleteProxySecurityGroupRules(ctx context.Context, client s
 	}
 	allowedClientCIDR := GetAllowedClientCIDR()
 	return v.VMProvider.RemoveWhitelistSecurityRules(ctx, secGrpName, allowedClientCIDR, ports)
+}
+
+func (v *VMPlatform) SyncSharedRootLB(ctx context.Context, controllerData *platform.ControllerData) error {
+	log.SpanLog(ctx, log.DebugLevelInfra, "SyncSharedRootLB")
+
+	err := v.CreateRootLB(ctx, v.VMProperties.sharedRootLB, v.VMProperties.CommonPf.PlatformConfig.CloudletKey, v.VMProperties.CommonPf.PlatformConfig.CloudletVMImagePath, v.VMProperties.CommonPf.PlatformConfig.VMImageVersion, ActionSync, edgeproto.DummyUpdateCallback)
+	if err != nil {
+		return err
+	}
+	// now we need to attach ports from clusters unless there is a router
+	if v.VMProperties.GetCloudletExternalRouter() != NoExternalRouter {
+		return nil
+	}
+	clusterKeys := make(map[edgeproto.ClusterInstKey]context.Context)
+	controllerData.ClusterInstCache.GetAllKeys(ctx, clusterKeys)
+	for k := range clusterKeys {
+		log.SpanLog(ctx, log.DebugLevelInfra, "SyncClusterInsts found cluster", "key", k)
+		var clus edgeproto.ClusterInst
+		if !controllerData.ClusterInstCache.Get(&k, &clus) {
+			return fmt.Errorf("fail to fetch cluster %s", k)
+		}
+
+		if clus.IpAccess == edgeproto.IpAccess_IP_ACCESS_SHARED {
+			subnetName := GetClusterSubnetName(ctx, &clus)
+			portName := GetPortName(v.VMProperties.sharedRootLBName, subnetName)
+			ipaddr, err := v.GetIPFromServerName(ctx, "", subnetName, v.VMProperties.sharedRootLBName)
+			if err != nil {
+				return err
+			}
+			err = v.VMProvider.AttachPortToServer(ctx, v.VMProperties.sharedRootLBName, subnetName, portName, ipaddr.InternalAddr, ActionSync)
+			if err != nil {
+				log.SpanLog(ctx, log.DebugLevelInfra, "fail to attach port", "err", err)
+				return err
+			}
+		}
+	}
+	return nil
 }

@@ -1,5 +1,5 @@
 REGCLIENT=$( curl -s -X POST https://eu-mexdemo.dme.mobiledgex.net:38001/v1/registerclient \
-        -d '{"app_name": "MobiledgeX SDK Demo", "app_vers": "2.0", "dev_name": "MobiledgeX"}' )
+        -d '{"app_name": "MobiledgeX SDK Demo", "app_vers": "2.0", "org_name": "MobiledgeX"}' )
 
 SESSCOOKIE=$( echo "$REGCLIENT" | jq -r .session_cookie )
 

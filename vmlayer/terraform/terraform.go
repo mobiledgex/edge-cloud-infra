@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"html"
 	"html/template"
+	"strings"
 	"sync"
 	"time"
 
@@ -41,11 +42,8 @@ func TimedTerraformCommand(ctx context.Context, dir string, name string, a ...st
 
 	terraformLock.Lock()
 	defer terraformLock.Unlock()
-	parmstr := ""
+	parmstr := strings.Join(a, " ")
 	start := time.Now()
-	for _, a := range a {
-		parmstr += a + " "
-	}
 	log.SpanLog(ctx, log.DebugLevelInfra, "Terraform Command Start", "dir", dir, "name", name, "parms", parmstr)
 	out, err := sh.NewSession().SetDir(dir).Command(name, a).CombinedOutput()
 	if err != nil {
@@ -153,9 +151,8 @@ func ApplyTerraformPlan(ctx context.Context, fileName string, updateCallback edg
 			return err
 		}
 	}
-
 	var err error
-	for i := 0; i < topts.numRetries; i++ {
+	for i := 0; i <= topts.numRetries; i++ {
 		log.SpanLog(ctx, log.DebugLevelInfra, "Doing terraform apply", "fileName", fileName)
 		_, err = TimedTerraformCommand(ctx, TerraformDir, "terraform", "apply", "--auto-approve")
 		if err != nil {

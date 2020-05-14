@@ -13,6 +13,7 @@ import (
 	"github.com/labstack/echo/middleware"
 	"github.com/mobiledgex/edge-cloud-infra/mc/ormapi"
 	"github.com/mobiledgex/edge-cloud/cloudcommon"
+	edgeproto "github.com/mobiledgex/edge-cloud/edgeproto"
 	"github.com/mobiledgex/edge-cloud/log"
 	"github.com/mobiledgex/edge-cloud/tls"
 )
@@ -26,8 +27,10 @@ func logger(next echo.HandlerFunc) echo.HandlerFunc {
 
 		lvl := log.DebugLevelApi
 
+		path := strings.Split(req.RequestURI, "/")
+		method := path[len(path)-1]
 		if strings.Contains(req.RequestURI, "show") ||
-			strings.Contains(req.RequestURI, "Show") ||
+			edgeproto.IsShow(method) ||
 			strings.Contains(req.RequestURI, "/auth/user/current") ||
 			strings.Contains(req.RequestURI, "/metrics/") ||
 			strings.Contains(req.RequestURI, "/ctrl/Stream") ||
@@ -171,7 +174,7 @@ func ShowAuditSelf(c echo.Context) error {
 
 	query := ormapi.AuditQuery{}
 	if err := c.Bind(&query); err != nil {
-		return c.JSON(http.StatusBadRequest, Msg("Invalid POST data"))
+		return bindErr(c, err)
 	}
 
 	tags := make(map[string]string)
@@ -197,7 +200,7 @@ func ShowAuditOrg(c echo.Context) error {
 
 	query := ormapi.AuditQuery{}
 	if err := c.Bind(&query); err != nil {
-		return c.JSON(http.StatusBadRequest, Msg("Invalid POST data"))
+		return bindErr(c, err)
 	}
 
 	if err := authorized(ctx, claims.Username, query.Org, ResourceUsers, ActionView, withShowAudit()); err != nil {

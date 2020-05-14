@@ -108,7 +108,7 @@ func (v *VSpherePlatform) getTagsForCategory(ctx context.Context, category strin
 }
 
 func (v *VSpherePlatform) GetIpFromTagsForVM(ctx context.Context, vmName, netname string) (string, error) {
-	log.SpanLog(ctx, log.DebugLevelInfra, "GetIpFromTagsForVM")
+	log.SpanLog(ctx, log.DebugLevelInfra, "GetIpFromTagsForVM", "vmName", vmName, "netname", netname)
 	tags, err := v.getTagsForCategory(ctx, v.GetVmIpTagCategory(ctx))
 	if err != nil {
 		return "", err
@@ -184,20 +184,16 @@ func (v *VSpherePlatform) getServerDetailFromGovcVm(ctx context.Context, govcVm 
 		log.SpanLog(ctx, log.DebugLevelInfra, "unexpected power state", "state", govcVm.Runtime.PowerState)
 		sd.Status = "unknown"
 	}
-	/*  The below code works but is not reliable in the following cases:
+	/*  The below code works but not in the following cases:
 	1) the VM is powered off
 	2) the VM has not yet reported the IPs to VC after startup
 	*/
 	for _, net := range govcVm.Guest.Net {
 		var sip vmlayer.ServerIP
-		// govc network includes port group (subnet) which we remove for internal nets only
-		//	if net.Network == v.vmProperties.GetCloudletExternalNetwork() {
+
 		sip.Network = net.Network
-		//	} else {
-		//		ns := strings.Split(net.Network, "-")
-		//		sip.Network = strings.Join(ns[:len(ns)-1], "-")
-		//	}
 		sip.MacAddress = net.MacAddress
+		sip.PortName = vmlayer.GetPortName(govcVm.Name, net.Network)
 		if len(net.IpAddress) > 0 {
 			sip.ExternalAddr = net.IpAddress[0]
 			sip.InternalAddr = net.IpAddress[0]

@@ -590,8 +590,3 @@ func (v *VMPlatform) SaveCloudletAccessVars(ctx context.Context, cloudlet *edgep
 func (v *VMPlatform) GatherCloudletInfo(ctx context.Context, info *edgeproto.CloudletInfo) error {
 	return v.VMProvider.GatherCloudletInfo(ctx, info)
 }
-
-func (s *VMPlatform) SyncControllerData(ctx context.Context, controllerData *pf.ControllerData) error {
-	log.SpanLog(ctx, log.DebugLevelInfra, "SyncControllerData")
-	return nil
-}

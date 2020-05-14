@@ -3,7 +3,6 @@ package vmlayer
 import (
 	"context"
 	"fmt"
-	"time"
 
 	"github.com/mobiledgex/edge-cloud-infra/infracommon"
 	"github.com/mobiledgex/edge-cloud/cloud-resource-manager/platform"
@@ -18,6 +17,7 @@ import (
 )
 
 // VMProvider is an interface that platforms implement to perform the details of interfacing with the orchestration layer
+
 type VMProvider interface {
 	NameSanitize(string) string
 	IdSanitize(string) string
@@ -30,7 +30,7 @@ type VMProvider interface {
 	GetServerDetail(ctx context.Context, serverName string) (*ServerDetail, error)
 	GetConsoleUrl(ctx context.Context, serverName string) (string, error)
 	GetInternalPortPolicy() InternalPortAttachPolicy
-	AttachPortToServer(ctx context.Context, serverName, subnetName, portName, ipaddr string) error
+	AttachPortToServer(ctx context.Context, serverName, subnetName, portName, ipaddr string, action ActionType) error
 	DetachPortFromServer(ctx context.Context, serverName, subnetName, portName string) error
 	AddSecurityRuleCIDRWithRetry(ctx context.Context, cidr string, proto string, group string, port string, serverName string) error
 	WhitelistSecurityRules(ctx context.Context, secGrpName string, serverName string, allowedCIDR string, ports []dme.AppPort) error
@@ -42,7 +42,7 @@ type VMProvider interface {
 	SaveCloudletAccessVars(ctx context.Context, cloudlet *edgeproto.Cloudlet, accessVarsIn map[string]string, pfConfig *edgeproto.PlatformConfig, updateCallback edgeproto.CacheUpdateCallback) error
 	SetPowerState(ctx context.Context, serverName, serverAction string) error
 	GatherCloudletInfo(ctx context.Context, info *edgeproto.CloudletInfo) error
-	SyncControllerData(ctx context.Context, controllerData *platform.ControllerData, updateCallback edgeproto.CacheUpdateCallback) error
+	SyncControllerData(ctx context.Context, controllerData *platform.ControllerData, cloudletState edgeproto.CloudletState) error
 	GetRouterDetail(ctx context.Context, routerName string) (*RouterDetail, error)
 	CreateVMs(ctx context.Context, vmGroupOrchestrationParams *VMGroupOrchestrationParams, updateCallback edgeproto.CacheUpdateCallback) error
 	UpdateVMs(ctx context.Context, vmGroupOrchestrationParams *VMGroupOrchestrationParams, updateCallback edgeproto.CacheUpdateCallback) error
@@ -165,11 +165,8 @@ func (v *VMPlatform) Init(ctx context.Context, platformConfig *platform.Platform
 	if err := v.VMProvider.InitProvider(ctx, updateCallback); err != nil {
 		return err
 	}
-	if err := v.VMProvider.SyncControllerData(ctx, controllerData, updateCallback); err != nil {
-		return err
-	}
-	time.Sleep(10 * time.Second)
-	if err := v.SyncClusterInsts(ctx, controllerData, updateCallback); err != nil {
+	// perform initial sync during init
+	if err := v.VMProvider.SyncControllerData(ctx, controllerData, edgeproto.CloudletState_CLOUDLET_STATE_INIT); err != nil {
 		return err
 	}
 	v.FlavorList, err = v.VMProvider.GetFlavorList(ctx)
@@ -191,7 +188,7 @@ func (v *VMPlatform) Init(ctx context.Context, platformConfig *platform.Platform
 	v.VMProperties.sharedRootLB = crmRootLB
 	log.SpanLog(ctx, log.DebugLevelInfra, "created shared rootLB", "name", v.VMProperties.sharedRootLBName)
 
-	err = v.CreateRootLB(ctx, crmRootLB, v.VMProperties.CommonPf.PlatformConfig.CloudletKey, v.VMProperties.CommonPf.PlatformConfig.CloudletVMImagePath, v.VMProperties.CommonPf.PlatformConfig.VMImageVersion, updateCallback)
+	err = v.CreateRootLB(ctx, crmRootLB, v.VMProperties.CommonPf.PlatformConfig.CloudletKey, v.VMProperties.CommonPf.PlatformConfig.CloudletVMImagePath, v.VMProperties.CommonPf.PlatformConfig.VMImageVersion, ActionCreate, updateCallback)
 	if err != nil {
 		return fmt.Errorf("Error creating rootLB: %v", err)
 	}
@@ -215,4 +212,20 @@ func (v *VMPlatform) Init(ctx context.Context, platformConfig *platform.Platform
 		return err
 	}
 	return nil
+}
+
+func (v *VMPlatform) SyncControllerData(ctx context.Context, controllerData *platform.ControllerData, cloudletState edgeproto.CloudletState) error {
+	log.SpanLog(ctx, log.DebugLevelInfra, "SyncControllerData", "cloudletState", cloudletState)
+	err := v.VMProvider.SyncControllerData(ctx, controllerData, cloudletState)
+	if err != nil {
+		return err
+	}
+	if cloudletState == edgeproto.CloudletState_CLOUDLET_STATE_READY {
+		err = v.SyncClusterInsts(ctx, controllerData, edgeproto.DummyUpdateCallback)
+		if err != nil {
+			return err
+		}
+		err = v.SyncSharedRootLB(ctx, controllerData)
+	}
+	return err
 }

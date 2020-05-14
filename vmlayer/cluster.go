@@ -60,7 +60,7 @@ func GetClusterNodeName(ctx context.Context, clusterInst *edgeproto.ClusterInst,
 }
 
 func (v *VMPlatform) GetDockerNodeName(ctx context.Context, clusterInst *edgeproto.ClusterInst) string {
-	return "docker-node" + "-" + GetClusterName(ctx, clusterInst)
+	return ClusterTypeDockerVMLabel + "-" + GetClusterName(ctx, clusterInst)
 }
 
 func ClusterNodePrefix(num uint32) string {
@@ -250,25 +250,30 @@ func (v *VMPlatform) createClusterInternal(ctx context.Context, rootLBName strin
 		return fmt.Errorf("can't get rootLB client, %v", err)
 	}
 
-	if v.VMProperties.GetCloudletExternalRouter() == NoExternalRouter && clusterInst.Deployment == cloudcommon.AppDeploymentTypeKubernetes {
-		log.SpanLog(ctx, log.DebugLevelInfra, "Need to attach internal interface on rootlb", "IpAccess", clusterInst.IpAccess)
+	if v.VMProperties.GetCloudletExternalRouter() == NoExternalRouter {
+		if clusterInst.Deployment == cloudcommon.AppDeploymentTypeKubernetes ||
+			(clusterInst.Deployment == cloudcommon.AppDeploymentTypeDocker && clusterInst.IpAccess == edgeproto.IpAccess_IP_ACCESS_SHARED) {
+			log.SpanLog(ctx, log.DebugLevelInfra, "Need to attach internal interface on rootlb", "IpAccess", clusterInst.IpAccess, "deployment", clusterInst.Deployment)
 
-		// after vm creation, the orchestrator will update some fields in the group params including gateway IP.
-		// this IP is used on the rootLB to server as the GW for this new subnet
-		subnetName := GetClusterSubnetName(ctx, clusterInst)
-		gw, err := v.GetSubnetGatewayFromVMGroupParms(ctx, subnetName, vmgp)
-		if err != nil {
-			return err
-		}
+			// after vm creation, the orchestrator will update some fields in the group params including gateway IP.
+			// this IP is used on the rootLB to server as the GW for this new subnet
+			subnetName := GetClusterSubnetName(ctx, clusterInst)
+			gw, err := v.GetSubnetGatewayFromVMGroupParms(ctx, subnetName, vmgp)
+			if err != nil {
+				return err
+			}
 
-		attachPort := true
-		if clusterInst.IpAccess == edgeproto.IpAccess_IP_ACCESS_DEDICATED && v.VMProvider.GetInternalPortPolicy() == AttachPortDuringCreate {
-			attachPort = false
-		}
-		err = v.AttachAndEnableRootLBInterface(ctx, client, rootLBName, attachPort, subnetName, GetPortName(rootLBName, subnetName), gw)
-		if err != nil {
-			log.SpanLog(ctx, log.DebugLevelInfra, "AttachAndEnableRootLBInterface failed", "err", err)
-			return err
+			attachPort := true
+			if clusterInst.IpAccess == edgeproto.IpAccess_IP_ACCESS_DEDICATED && v.VMProvider.GetInternalPortPolicy() == AttachPortDuringCreate {
+				attachPort = false
+			}
+			err = v.AttachAndEnableRootLBInterface(ctx, client, rootLBName, attachPort, subnetName, GetPortName(rootLBName, subnetName), gw)
+			if err != nil {
+				log.SpanLog(ctx, log.DebugLevelInfra, "AttachAndEnableRootLBInterface failed", "err", err)
+				return err
+			}
+		} else {
+			log.SpanLog(ctx, log.DebugLevelInfra, "No internal interface on rootlb", "IpAccess", clusterInst.IpAccess, "deployment", clusterInst.Deployment)
 		}
 	} else {
 		log.SpanLog(ctx, log.DebugLevelInfra, "External router in use, no internal interface for rootlb")
@@ -439,7 +444,9 @@ func (v *VMPlatform) isClusterReady(ctx context.Context, clusterInst *edgeproto.
 }
 
 func (v *VMPlatform) getVMRequestSpecForDockerCluster(ctx context.Context, imgName string, clusterInst *edgeproto.ClusterInst, privacyPolicy *edgeproto.PrivacyPolicy, action ActionType, updateCallback edgeproto.CacheUpdateCallback) ([]*VMRequestSpec, string, string, error) {
-	newSubnet := ""
+
+	log.SpanLog(ctx, log.DebugLevelInfo, "getVMRequestSpecForDockerCluster", "clusterInst", clusterInst)
+
 	var vms []*VMRequestSpec
 	dockerVmConnectExternal := false
 	var dockerVmType VMType
@@ -454,6 +461,8 @@ func (v *VMPlatform) getVMRequestSpecForDockerCluster(ctx context.Context, imgNa
 		dockerVMName = v.VMProperties.GetRootLBNameForCluster(ctx, clusterInst)
 		newSecgrpName = v.GetServerSecurityGroupName(dockerVMName)
 	} else {
+
+		log.SpanLog(ctx, log.DebugLevelInfo, "creating shared rootlb port")
 		// shared access means docker vm goes on its own subnet which is connected
 		// via shared rootlb
 		newSubnetName = GetClusterSubnetName(ctx, clusterInst)
@@ -462,7 +471,7 @@ func (v *VMPlatform) getVMRequestSpecForDockerCluster(ctx context.Context, imgNa
 
 		if v.VMProperties.GetCloudletExternalRouter() == NoExternalRouter {
 			// If no router in use, create ports on the existing shared rootLB
-			rootlb, err := v.GetVMSpecForRootLBPorts(ctx, v.VMProperties.sharedRootLBName, newSubnet)
+			rootlb, err := v.GetVMSpecForRootLBPorts(ctx, v.VMProperties.sharedRootLBName, newSubnetName)
 			if err != nil {
 				return vms, newSubnetName, newSecgrpName, err
 			}
@@ -486,8 +495,8 @@ func (v *VMPlatform) getVMRequestSpecForDockerCluster(ctx context.Context, imgNa
 	return vms, newSubnetName, newSecgrpName, nil
 }
 
-func (v *VMPlatform) SyncClusterInst(ctx context.Context, clusterInst *edgeproto.ClusterInst, privacyPolicy *edgeproto.PrivacyPolicy, updateCallback edgeproto.CacheUpdateCallback) error {
-	log.SpanLog(ctx, log.DebugLevelInfra, "SyncClusterInst", "clusterInst", clusterInst)
+func (v *VMPlatform) syncClusterInst(ctx context.Context, clusterInst *edgeproto.ClusterInst, privacyPolicy *edgeproto.PrivacyPolicy, updateCallback edgeproto.CacheUpdateCallback) error {
+	log.SpanLog(ctx, log.DebugLevelInfra, "syncClusterInst", "clusterInst", clusterInst)
 	imgName, err := v.VMProvider.AddCloudletImageIfNotPresent(ctx, v.VMProperties.CommonPf.PlatformConfig.CloudletVMImagePath, v.VMProperties.CommonPf.PlatformConfig.VMImageVersion, updateCallback)
 	if err != nil {
 		log.InfoLog("error with cloudlet base image", "imgName", imgName, "error", err)
@@ -499,14 +508,12 @@ func (v *VMPlatform) SyncClusterInst(ctx context.Context, clusterInst *edgeproto
 
 func (v *VMPlatform) SyncClusterInsts(ctx context.Context, controllerData *platform.ControllerData, updateCallback edgeproto.CacheUpdateCallback) error {
 	log.SpanLog(ctx, log.DebugLevelInfra, "SyncClusterInsts")
-
 	clusterKeys := make(map[edgeproto.ClusterInstKey]context.Context)
 	controllerData.ClusterInstCache.GetAllKeys(ctx, clusterKeys)
 	for k := range clusterKeys {
 		log.SpanLog(ctx, log.DebugLevelInfra, "SyncClusterInsts found cluster", "key", k)
 		var clus edgeproto.ClusterInst
 		if controllerData.ClusterInstCache.Get(&k, &clus) {
-
 			policy := edgeproto.PrivacyPolicy{}
 			if clus.PrivacyPolicy != "" {
 				policy.Key.Organization = clus.Key.Organization
@@ -516,7 +523,7 @@ func (v *VMPlatform) SyncClusterInsts(ctx context.Context, controllerData *platf
 					return fmt.Errorf("unable to sync clusterinst, privacy policy not found: %s", clus.PrivacyPolicy)
 				}
 			}
-			err := v.SyncClusterInst(ctx, &clus, &policy, updateCallback)
+			err := v.syncClusterInst(ctx, &clus, &policy, updateCallback)
 			if err != nil {
 				return err
 			}
@@ -524,7 +531,8 @@ func (v *VMPlatform) SyncClusterInsts(ctx context.Context, controllerData *platf
 			return fmt.Errorf("fail to fetch cluster %s", k)
 		}
 	}
-	log.FatalLog("bye")
+	log.SpanLog(ctx, log.DebugLevelInfra, "SyncClusterInsts done")
+
 	return nil
 }
 

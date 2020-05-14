@@ -52,7 +52,7 @@ func (e *EdgeboxPlatform) DeleteCloudletAccessVars(ctx context.Context, cloudlet
 	return nil
 }
 
-func (e *EdgeboxPlatform) SyncControllerData(ctx context.Context, controllerData *pf.ControllerData) error {
-	log.SpanLog(ctx, log.DebugLevelInfra, "SyncControllerData")
+func (e *EdgeboxPlatform) SyncControllerData(ctx context.Context, controllerData *pf.ControllerData, cloudletState edgeproto.CloudletState) error {
+	log.SpanLog(ctx, log.DebugLevelInfra, "SyncControllerData", "cloudletState", cloudletState)
 	return nil
 }

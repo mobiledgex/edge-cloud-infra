@@ -171,8 +171,7 @@ func (v *VMPlatform) deleteCluster(ctx context.Context, rootLBName string, clust
 		if err != nil {
 			log.SpanLog(ctx, log.DebugLevelInfra, "unable to get ips from server, proceed with VM deletion", "err", err)
 		} else {
-			detachPort := v.VMProvider.GetInternalPortPolicy() == AttachPortAfterCreate
-			err = v.DetachAndDisableRootLBInterface(ctx, client, rootLBName, detachPort, clusterSnName, GetPortName(rootLBName, clusterSnName), ip.InternalAddr)
+			err = v.DetachAndDisableRootLBInterface(ctx, client, rootLBName, true, clusterSnName, GetPortName(rootLBName, clusterSnName), ip.InternalAddr)
 			if err != nil {
 				log.SpanLog(ctx, log.DebugLevelInfra, "unable to detach rootLB interface, proceed with VM deletion", "err", err)
 			}

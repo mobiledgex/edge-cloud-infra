@@ -220,12 +220,11 @@ func (v *VMPlatform) SyncControllerData(ctx context.Context, controllerData *pla
 	if err != nil {
 		return err
 	}
-	if cloudletState == edgeproto.CloudletState_CLOUDLET_STATE_READY {
-		err = v.SyncClusterInsts(ctx, controllerData, edgeproto.DummyUpdateCallback)
-		if err != nil {
-			return err
-		}
-		err = v.SyncSharedRootLB(ctx, controllerData)
+	err = v.SyncClusterInsts(ctx, controllerData, edgeproto.DummyUpdateCallback)
+	if err != nil {
+		return err
 	}
+	err = v.SyncSharedRootLB(ctx, controllerData)
+
 	return err
 }

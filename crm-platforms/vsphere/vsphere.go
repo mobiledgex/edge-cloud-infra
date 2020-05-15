@@ -31,9 +31,11 @@ func (v *VSpherePlatform) InitProvider(ctx context.Context, updateCallback edgep
 }
 
 func (v *VSpherePlatform) GatherCloudletInfo(ctx context.Context, info *edgeproto.CloudletInfo) error {
-	log.SpanLog(ctx, log.DebugLevelInfra, "GatherCloudletInfo - TODO -- CPU and RAM Info")
+	log.SpanLog(ctx, log.DebugLevelInfra, "GatherCloudletInfo ")
 	var err error
 	info.Flavors, err = v.GetFlavorList(ctx)
+	info.State = edgeproto.CloudletState_CLOUDLET_STATE_NEED_SYNC
+
 	return err
 }
 

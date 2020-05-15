@@ -30,11 +30,13 @@ func (v *VMPlatform) GetIPFromServerName(ctx context.Context, networkName, subne
 	if subnetName != "" {
 		portName = GetPortName(serverName, subnetName)
 	}
-	rootLB, err := GetRootLB(ctx, serverName)
-	if err == nil && rootLB != nil {
-		if rootLB.IP != nil {
-			log.SpanLog(ctx, log.DebugLevelInfra, "using existing rootLB IP", "IP", rootLB.IP)
-			return rootLB.IP, nil
+	if networkName == v.VMProperties.GetCloudletExternalNetwork() {
+		rootLB, err := GetRootLB(ctx, serverName)
+		if err == nil && rootLB != nil {
+			if rootLB.IP != nil {
+				log.SpanLog(ctx, log.DebugLevelInfra, "using existing rootLB IP", "IP", rootLB.IP)
+				return rootLB.IP, nil
+			}
 		}
 	}
 	sd, err := v.VMProvider.GetServerDetail(ctx, serverName)

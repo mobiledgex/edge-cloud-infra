@@ -285,9 +285,9 @@ func (p *Shepherd) GetArgs(opts ...process.StartOp) []string {
 	if p.UseVaultCerts {
 		args = append(args, "--useVaultCerts")
 	}
-	if p.MetrticsAddr != "" {
+	if p.MetricsAddr != "" {
 		args = append(args, "--metricsAddr")
-		args = append(args, p.MetrticsAddr)
+		args = append(args, p.MetricsAddr)
 	}
 
 	options := process.StartOptions{}

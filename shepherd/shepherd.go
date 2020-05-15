@@ -1,20 +1,14 @@
 package main
 
 import (
-	"bytes"
 	"context"
 	"flag"
 	"fmt"
-	"io/ioutil"
-	baselog "log"
-	"net/http"
 	"os"
 	"os/signal"
 	"strings"
-	"text/template"
 	"time"
 
-	"github.com/mobiledgex/edge-cloud-infra/shepherd/shepherd_common"
 	platform "github.com/mobiledgex/edge-cloud-infra/shepherd/shepherd_platform"
 	"github.com/mobiledgex/edge-cloud-infra/shepherd/shepherd_platform/shepherd_edgebox"
 	"github.com/mobiledgex/edge-cloud-infra/shepherd/shepherd_platform/shepherd_fake"
@@ -31,7 +25,7 @@ import (
 
 var debugLevels = flag.String("d", "", fmt.Sprintf("comma separated list of %v", log.DebugLevelStrings))
 var notifyAddrs = flag.String("notifyAddrs", "127.0.0.1:51001", "CRM notify listener addresses")
-var metricsAddr = flag.String("metricsAddr", "0.0.0.0:9091", "Metrics Porxy Address")
+var metricsAddr = flag.String("metricsAddr", "0.0.0.0:9091", "Metrics Proxy Address")
 var platformName = flag.String("platform", "", "Platform type of Cloudlet")
 var physicalName = flag.String("physicalName", "", "Physical infrastructure cloudlet name, defaults to cloudlet name in cloudletKey")
 var cloudletKeyStr = flag.String("cloudletKey", "", "Json or Yaml formatted cloudletKey for the cloudlet in which this CRM is instantiated; e.g. '{\"operator_key\":{\"name\":\"TMUS\"},\"name\":\"tmocloud1\"}'")
@@ -61,79 +55,6 @@ var myPlatform platform.Platform
 var nodeMgr node.NodeMgr
 
 var sigChan chan os.Signal
-
-var promTargetTemplate *template.Template
-
-var promTargetT = `
-{
-	"targets": ["{{.MetricsProxyAddr}}"],
-	"labels": {
-		"app": "{{.Key.AppKey.Name}}",
-		"ver": "{{.Key.AppKey.Version}}",
-		"apporg": "{{.Key.AppKey.Organization}}",
-		"cluster": "{{.Key.ClusterInstKey.ClusterKey.Name}}",
-		"clusterorg": "{{.Key.ClusterInstKey.Organization}}",
-		"cloudlet": "{{.Key.ClusterInstKey.CloudletKey.Name}}",
-		"cloudletorg": "{{.Key.ClusterInstKey.CloudletKey.Organization}}",
-		"__metrics_path__":"{{.EnvoyMetricsPath}}"
-	}
-}`
-
-var promHealthCheckAlerts = `groups:
-- name: StaticRules
-  rules:
-  - alert: RootLbProxyDown
-    expr: up == 0
-    for: 1m
-  - alert: HealthCheck
-    expr: envoy_cluster_health_check_healthy == 0
-`
-
-type targetData struct {
-	MetricsProxyAddr string
-	Key              edgeproto.AppInstKey
-	EnvoyMetricsPath string
-}
-
-func getAppInstPrometheusTargetString(appInst *edgeproto.AppInst) (string, error) {
-	host := *metricsAddr
-	switch *platformName {
-	case "PLATFORM_TYPE_EDGEBOX":
-		fallthrough
-	case "PLATFORM_TYPE_FAKEINFRA":
-		host = "host.docker.internal:9091"
-	}
-	target := targetData{
-		MetricsProxyAddr: host,
-		Key:              appInst.GetKeyVal(),
-		EnvoyMetricsPath: "/metrics/" + getProxyKey(&appInst.Key),
-	}
-	buf := bytes.Buffer{}
-	if err := promTargetTemplate.Execute(&buf, target); err != nil {
-		log.DebugLog(log.DebugLevelMetrics, "Failed to create a target", "template", promTargetTemplate,
-			"data", target, "error", err)
-		return "", err
-	}
-	return buf.String(), nil
-}
-
-// Walk through AppInstances and write out the targets
-func writePrometheusTargetsFile() {
-	var targets = "["
-	AppInstCache.Show(&edgeproto.AppInst{}, func(obj *edgeproto.AppInst) error {
-		if targets != "[" {
-			targets += ","
-		}
-		promTargetJson, err := getAppInstPrometheusTargetString(obj)
-		if err == nil {
-			targets += promTargetJson
-		}
-		// just skip the targets that we are unable to fill
-		return nil
-	})
-	targets += "]"
-	ioutil.WriteFile(*promTargetsFile, []byte(targets), 0644)
-}
 
 func appInstCb(ctx context.Context, old *edgeproto.AppInst, new *edgeproto.AppInst) {
 	// LB metrics are not supported in fake mode
@@ -262,49 +183,6 @@ func getPlatform() (platform.Platform, error) {
 	return plat, err
 }
 
-func metricsProxy(w http.ResponseWriter, r *http.Request) {
-	app := r.URL.Path[len("/metrics/"):]
-	if app != "" {
-		// Search ProxyMap for the names
-		target := getProxyScrapePoint(app)
-		if target.ProxyContainer == "nginx" {
-			return
-		}
-		request := fmt.Sprintf("docker exec %s curl -s -S http://127.0.0.1:%d/stats/prometheus", target.ProxyContainer, cloudcommon.ProxyMetricsPort)
-		resp, err := target.Client.OutputWithTimeout(request, shepherd_common.ShepherdSshConnectTimeout)
-		if err != nil {
-			http.Error(w, err.Error(), http.StatusInternalServerError)
-			return
-		}
-		w.Write([]byte(resp))
-	}
-}
-
-func targetsList(w http.ResponseWriter, r *http.Request) {
-	fmt.Fprintf(w, "<h1>%s</h1>", "List all targets")
-	targets := copyMapValues()
-	for ii, v := range targets {
-		fmt.Fprintf(w, "<h1>Target %d</h1><div>%s</div>", ii, getProxyKey(&v.Key))
-	}
-}
-
-// Write prometheus rules file and reload rules
-func writeCloudletPormetheusAlerts(ctx context.Context, alertsBuf []byte) error {
-	// write alerting rules
-	err := ioutil.WriteFile(*promAlertsFile, alertsBuf, 0644)
-	if err != nil {
-		return err
-	}
-	// need to force prometheus to re-read the rules file
-	resp, err := http.Post("http://0.0.0.0:9092/-/reload", "", bytes.NewBuffer([]byte{}))
-	if err != nil {
-		log.SpanLog(ctx, log.DebugLevelInfo, "Failed to reload prometheus", "err", err)
-		return nil
-	}
-	resp.Body.Close()
-	return nil
-}
-
 func main() {
 	nodeMgr.InitFlags()
 	flag.Parse()
@@ -336,32 +214,8 @@ func main() {
 		log.FatalLog("Failed to get platform", "platformName", platformName, "err", err)
 	}
 
-	// This works for edgebox and openstack cloudlets for now
-	if *platformName == "PLATFORM_TYPE_EDGEBOX" ||
-		*platformName == "PLATFORM_TYPE_OPENSTACK" {
-		// Init prometheus targets template
-		promTargetTemplate = template.Must(template.New("prometheustarget").Parse(promTargetT))
-		err := writeCloudletPormetheusAlerts(ctx, []byte(promHealthCheckAlerts))
-		if err != nil {
-			log.FatalLog("Failed to write prometheus rules", "file", *promAlertsFile, "rules",
-				promHealthCheckAlerts, "err", err)
-		}
-		// Init http metricsProxy for Prometheus API endpoints
-		var nullLogger baselog.Logger
-		nullLogger.SetOutput(ioutil.Discard)
-
-		http.HandleFunc("/list", targetsList)
-		http.HandleFunc("/metrics/", metricsProxy)
-		httpServer := &http.Server{
-			Addr:     *metricsAddr,
-			ErrorLog: &nullLogger,
-		}
-		go func() {
-			err = httpServer.ListenAndServe()
-			if err != nil && err != http.ErrServerClosed {
-				log.FatalLog("Failed to serve metrics", "err", err)
-			}
-		}()
+	if err = startPrometheusMetricsProxy(ctx); err != nil {
+		log.FatalLog("Failed to start prometheus metrics proxy", "err", err)
 	}
 
 	// register shepherd to receive appinst and clusterinst notifications from crm

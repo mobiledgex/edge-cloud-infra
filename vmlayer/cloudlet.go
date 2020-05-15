@@ -83,14 +83,7 @@ func upgradeCloudletPkgs(ctx context.Context, vmType VMType, cloudlet *edgeproto
 	return nil
 }
 
-func getPlatformServiceContainerCmd(cloudlet *edgeproto.Cloudlet, pfConfig *edgeproto.PlatformConfig, serviceType string, envVars *map[string]string, service_cmd string) string {
-	// Cloudlet prometheus command is the same as a local one, just add 'sudo'
-	if serviceType == ServiceTypeCloudletPrometheus {
-		args := intprocess.GetCloudletPrometheusDockerArgs(cloudlet, intprocess.GetCloudletPrometheusConfigHostFilePath())
-		// add platform vm options
-		args = append([]string{"sudo docker run", "-d", "--restart=unless-stopped"}, args...)
-		return strings.Join(args, " ")
-	}
+func getPlatformServiceContainerCmd(cloudlet *edgeproto.Cloudlet, pfConfig *edgeproto.PlatformConfig, containerName, imagePath, serviceCmd string, dockerArgs []string, envVars *map[string]string) string {
 	var envVarsAr []string
 	for k, v := range *envVars {
 		envVarsAr = append(envVarsAr, "-e")
@@ -102,28 +95,29 @@ func getPlatformServiceContainerCmd(cloudlet *edgeproto.Cloudlet, pfConfig *edge
 		"--network host",
 		"-v /tmp:/tmp",
 		"--restart=unless-stopped",
-		"--name", serviceType,
-		strings.Join(envVarsAr, " "),
-		pfConfig.ContainerRegistryPath + ":" + pfConfig.PlatformTag,
-		service_cmd,
 	}
+	cmd = append(cmd, dockerArgs...)
+	cmd = append(cmd,
+		[]string{"--name", containerName, strings.Join(envVarsAr, " "), imagePath, serviceCmd}...)
 	return strings.Join(cmd, " ")
 }
 
 func startPlatformService(cloudlet *edgeproto.Cloudlet, pfConfig *edgeproto.PlatformConfig, client ssh.Client, serviceType string, updateCallback edgeproto.CacheUpdateCallback, cDone chan error) {
-	var service_cmd, docker_cmd string
+	var serviceCmd, dockerCmd, imagePath string
+	var dockerArgs []string
 	var envVars *map[string]string
 	var err error
 
+	imagePath = pfConfig.ContainerRegistryPath + ":" + pfConfig.PlatformTag
 	switch serviceType {
 	case ServiceTypeShepherd:
-		service_cmd, envVars, err = intprocess.GetShepherdCmd(cloudlet, pfConfig)
+		serviceCmd, envVars, err = intprocess.GetShepherdCmd(cloudlet, pfConfig)
 		if err != nil {
 			cDone <- fmt.Errorf("Unable to get shepherd service command: %v", err)
 			return
 		}
 	case ServiceTypeCRM:
-		service_cmd, envVars, err = cloudcommon.GetCRMCmd(cloudlet, pfConfig)
+		serviceCmd, envVars, err = cloudcommon.GetCRMCmd(cloudlet, pfConfig)
 		if err != nil {
 			cDone <- fmt.Errorf("Unable to get crm service command: %v", err)
 			return
@@ -144,20 +138,26 @@ func startPlatformService(cloudlet *edgeproto.Cloudlet, pfConfig *edgeproto.Plat
 			cDone <- fmt.Errorf("Unable to set permissions on prometheus config file: %v", err)
 			return
 		}
+		// set image path for Promtheus
+		imagePath = intprocess.PrometheusImagePath
+		serviceCmd = strings.Join(intprocess.GetCloudletPrometheusCmdArgs(), " ")
+		// docker args for prometheus
+		dockerArgs = intprocess.GetCloudletPrometheusDockerArgs(cloudlet, intprocess.GetCloudletPrometheusConfigHostFilePath())
 	default:
 		cDone <- fmt.Errorf("Unsupported service type: %s", serviceType)
 		return
 	}
 
 	// Use service type as container name as there can only be one of them inside platform VM
-	container_name := serviceType
+	containerName := serviceType
 
 	// Pull docker image and start service
 	updateCallback(edgeproto.UpdateTask, "Starting "+serviceType)
 
-	docker_cmd = getPlatformServiceContainerCmd(cloudlet, pfConfig, container_name, envVars, service_cmd)
+	dockerCmd = getPlatformServiceContainerCmd(cloudlet, pfConfig, containerName, imagePath, serviceCmd,
+		dockerArgs, envVars)
 
-	if out, err := client.Output(docker_cmd); err != nil {
+	if out, err := client.Output(dockerCmd); err != nil {
 		cDone <- fmt.Errorf("Unable to start %s: %v, %s\n", serviceType, err, out)
 		return
 	}
@@ -168,7 +168,7 @@ func startPlatformService(cloudlet *edgeproto.Cloudlet, pfConfig *edgeproto.Plat
 	// - After which controller will monitor it using CloudletInfo
 	start := time.Now()
 	for {
-		out, err := client.Output(`sudo docker ps -a -n 1 --filter name=` + container_name + ` --format '{{.Status}}'`)
+		out, err := client.Output(`sudo docker ps -a -n 1 --filter name=` + containerName + ` --format '{{.Status}}'`)
 		if err != nil {
 			cDone <- fmt.Errorf("Unable to fetch %s container status: %v, %s\n", serviceType, err, out)
 			return
@@ -178,9 +178,9 @@ func startPlatformService(cloudlet *edgeproto.Cloudlet, pfConfig *edgeproto.Plat
 		} else if !strings.Contains(out, "Created") {
 			// container exited in failure state
 			// Show Fatal Log, if not Fatal log found, then show last 10 lines of error
-			out, err = client.Output(`sudo docker logs ` + container_name + ` 2>&1 | grep FATAL | awk '{for (i=1; i<=NF-3; i++) $i = $(i+3); NF-=3; print}'`)
+			out, err = client.Output(`sudo docker logs ` + containerName + ` 2>&1 | grep FATAL | awk '{for (i=1; i<=NF-3; i++) $i = $(i+3); NF-=3; print}'`)
 			if err != nil || out == "" {
-				out, err = client.Output(`sudo docker logs ` + container_name + ` 2>&1 | tail -n 10`)
+				out, err = client.Output(`sudo docker logs ` + containerName + ` 2>&1 | tail -n 10`)
 				if err != nil {
 					cDone <- fmt.Errorf("Failed to bringup %s: %s", serviceType, err.Error())
 					return

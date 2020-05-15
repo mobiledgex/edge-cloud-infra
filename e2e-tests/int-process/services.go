@@ -16,7 +16,10 @@ import (
 	"github.com/mobiledgex/edge-cloud/util"
 )
 
-const PrometheusContainer = "cloudletPrometheus"
+const (
+	PrometheusContainer = "cloudletPrometheus"
+	PrometheusImagePath = "prom/prometheus:latest"
+)
 
 var prometheusConfig = `rule_files:
 - "/tmp/prom_rules.yml"
@@ -137,6 +140,14 @@ func GetCloudletPrometheusConfigHostFilePath() string {
 	return "/tmp/prometheus.yml"
 }
 
+// command line options for prometheus container
+func GetCloudletPrometheusCmdArgs() []string {
+	return []string{
+		"--config.file=/etc/prometheus/prometheus.yml",
+		"--web.enable-lifecycle",
+	}
+}
+
 // base docker run args
 func GetCloudletPrometheusDockerArgs(cloudlet *edgeproto.Cloudlet, cfgFile string) []string {
 
@@ -145,15 +156,12 @@ func GetCloudletPrometheusDockerArgs(cloudlet *edgeproto.Cloudlet, cfgFile strin
 	cloudletOrg := util.DockerSanitize(cloudlet.Key.Organization)
 
 	return []string{
-		"--name", PrometheusContainer,
 		"-l", "cloudlet=" + cloudletName,
 		"-l", "cloudletorg=" + cloudletOrg,
 		"-p", "9092:9090", // container interface
 		"-v", "/tmp:/tmp",
 		"-v", cfgFile + ":/etc/prometheus/prometheus.yml",
-		"prom/prometheus:latest",
-		"--config.file=/etc/prometheus/prometheus.yml",
-		"--web.enable-lifecycle",
+		"-v", "/tmp:/tmp",
 	}
 }
 
@@ -171,8 +179,13 @@ func StartCloudletPrometheus(ctx context.Context, cloudlet *edgeproto.Cloudlet) 
 	}
 
 	args := GetCloudletPrometheusDockerArgs(cloudlet, cfgFile)
+	cmdOpts := GetCloudletPrometheusCmdArgs()
+
 	// local container specific options
 	args = append([]string{"run", "--rm"}, args...)
+	// set name and image path
+	args = append(args, []string{"--name", PrometheusContainer, PrometheusImagePath}...)
+	args = append(args, cmdOpts...)
 
 	_, err = process.StartLocal(PrometheusContainer, "docker", args, nil, "/tmp/cloudlet_prometheus.log")
 	if err != nil {

@@ -21,6 +21,7 @@ type VMProvider interface {
 	SetVMProperties(vmProperties *VMProperties)
 	InitProvider(ctx context.Context) error
 	GetFlavorList(ctx context.Context) ([]*edgeproto.FlavorInfo, error)
+	GetNetworkList(ctx context.Context) ([]string, error)
 	AddCloudletImageIfNotPresent(ctx context.Context, imgPathPrefix, imgVersion string, updateCallback edgeproto.CacheUpdateCallback) (string, error)
 	AddAppImageIfNotPresent(ctx context.Context, app *edgeproto.App, updateCallback edgeproto.CacheUpdateCallback) error
 	GetServerDetail(ctx context.Context, serverName string) (*ServerDetail, error)
@@ -35,6 +36,8 @@ type VMProvider interface {
 	GetResourceID(ctx context.Context, resourceType ResourceType, resourceName string) (string, error)
 	InitApiAccessProperties(ctx context.Context, key *edgeproto.CloudletKey, region, physicalName string, vaultConfig *vault.Config, vars map[string]string) error
 	VerifyApiEndpoint(ctx context.Context, client ssh.Client, updateCallback edgeproto.CacheUpdateCallback) error
+	GetApiEndpointAddr(ctx context.Context) (string, error)
+	GetExternalGateway(ctx context.Context, extNetName string) (string, error)
 	SaveCloudletAccessVars(ctx context.Context, cloudlet *edgeproto.Cloudlet, accessVarsIn map[string]string, pfConfig *edgeproto.PlatformConfig, updateCallback edgeproto.CacheUpdateCallback) error
 	SetPowerState(ctx context.Context, serverName, serverAction string) error
 	GatherCloudletInfo(ctx context.Context, info *edgeproto.CloudletInfo) error

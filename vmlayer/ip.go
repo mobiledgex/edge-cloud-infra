@@ -42,6 +42,7 @@ type NetSpecInfo struct {
 	FloatingIPSubnet  string
 	VnicType          string
 	RouterGatewayIP   string
+	SkipSubnetGw      bool
 }
 
 //ParseNetSpec decodes netspec string

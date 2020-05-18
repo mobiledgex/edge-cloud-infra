@@ -160,6 +160,7 @@ type VMGroupRequestSpec struct {
 	AccessPorts       string
 	PrivacyPolicy     *edgeproto.PrivacyPolicy
 	SkipDefaultSecGrp bool
+	SkipSubnetGw      bool
 }
 
 type VMGroupReqOp func(vmp *VMGroupRequestSpec) error
@@ -191,6 +192,12 @@ func WithNewSecurityGroup(sg string) VMGroupReqOp {
 func WithSkipDefaultSecGrp(skip bool) VMGroupReqOp {
 	return func(s *VMGroupRequestSpec) error {
 		s.SkipDefaultSecGrp = skip
+		return nil
+	}
+}
+func WithSkipSubnetGw(skip bool) VMGroupReqOp {
+	return func(s *VMGroupRequestSpec) error {
+		s.SkipSubnetGw = skip
 		return nil
 	}
 }
@@ -358,8 +365,8 @@ type ChefParams struct {
 	NodeName      string
 	ServerPath    string
 	ValidationKey string
-	Recipe        string
-	Attributes    []ChefAttribute
+	Role          string
+	Attributes    string
 }
 
 var VmChefConfig = `
@@ -380,11 +387,9 @@ chef:
   - "--chef-license"
   - "accept"
   run_list:
-  - "recipe[{{.Recipe}}]"
+  - "role[{{.Role}}]"
   initial_attributes:
-  {{- range .Attributes}}
-    {{.Attribute}}: {{.AttributeVal}}
-  {{- end}}`
+{{ Indent .Attributes 4 }}`
 
 // VMGroupOrchestrationParams contains all the details used by the orchestator to create a set of associated VMs
 type VMGroupOrchestrationParams struct {
@@ -466,6 +471,9 @@ func (v *VMPlatform) getVMGroupOrchestrationParamsFromGroupSpec(ctx context.Cont
 	if err != nil {
 		return nil, err
 	}
+	if spec.SkipSubnetGw {
+		vmgp.Netspec.SkipSubnetGw = true
+	}
 
 	rtrInUse := false
 	rtr := v.VMProperties.GetCloudletExternalRouter()
@@ -476,11 +484,11 @@ func (v *VMPlatform) getVMGroupOrchestrationParamsFromGroupSpec(ctx context.Cont
 	} else {
 		log.SpanLog(ctx, log.DebugLevelInfra, "External router in use")
 		if spec.NewSubnetName != "" {
-			if spec.SkipDefaultSecGrp {
-				return nil, fmt.Errorf("SkipDefaultSecGrp flag should not be set, missing cloudlet sec group ID")
+			if !spec.SkipDefaultSecGrp {
+				log.SpanLog(ctx, log.DebugLevelInfra, "SkipDefaultSecGrp flag set")
+				internalSecgrpID = cloudletSecGrpID
+				internalSecgrpPreexisting = true
 			}
-			internalSecgrpID = cloudletSecGrpID
-			internalSecgrpPreexisting = true
 			rtrInUse = true
 			routerPortName := spec.NewSubnetName + "-rtr-port"
 			routerPort := PortOrchestrationParams{

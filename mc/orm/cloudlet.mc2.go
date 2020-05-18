@@ -453,7 +453,7 @@ func ShowCloudletManifest(c echo.Context) error {
 	return setReply(c, err, resp)
 }
 
-func ShowCloudletManifestObj(ctx context.Context, rc *RegionContext, obj *edgeproto.Cloudlet) (*edgeproto.Result, error) {
+func ShowCloudletManifestObj(ctx context.Context, rc *RegionContext, obj *edgeproto.Cloudlet) (*edgeproto.CloudletManifest, error) {
 	if !rc.skipAuthz {
 		if err := authorized(ctx, rc.username, obj.Key.Organization,
 			ResourceCloudlets, ActionManage); err != nil {

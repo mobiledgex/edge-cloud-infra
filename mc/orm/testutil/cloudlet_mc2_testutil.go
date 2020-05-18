@@ -69,13 +69,13 @@ func TestPermShowCloudlet(mcClient *ormclient.Client, uri, token, region, org st
 	return TestShowCloudlet(mcClient, uri, token, region, in)
 }
 
-func TestShowCloudletManifest(mcClient *ormclient.Client, uri, token, region string, in *edgeproto.Cloudlet) (*edgeproto.Result, int, error) {
+func TestShowCloudletManifest(mcClient *ormclient.Client, uri, token, region string, in *edgeproto.Cloudlet) (*edgeproto.CloudletManifest, int, error) {
 	dat := &ormapi.RegionCloudlet{}
 	dat.Region = region
 	dat.Cloudlet = *in
 	return mcClient.ShowCloudletManifest(uri, token, dat)
 }
-func TestPermShowCloudletManifest(mcClient *ormclient.Client, uri, token, region, org string) (*edgeproto.Result, int, error) {
+func TestPermShowCloudletManifest(mcClient *ormclient.Client, uri, token, region, org string) (*edgeproto.CloudletManifest, int, error) {
 	in := &edgeproto.Cloudlet{}
 	in.Key.Organization = org
 	return TestShowCloudletManifest(mcClient, uri, token, region, in)
@@ -165,7 +165,7 @@ func (s *TestClient) ShowCloudlet(ctx context.Context, in *edgeproto.Cloudlet) (
 	return out, err
 }
 
-func (s *TestClient) ShowCloudletManifest(ctx context.Context, in *edgeproto.Cloudlet) (*edgeproto.Result, error) {
+func (s *TestClient) ShowCloudletManifest(ctx context.Context, in *edgeproto.Cloudlet) (*edgeproto.CloudletManifest, error) {
 	inR := &ormapi.RegionCloudlet{
 		Region:   s.Region,
 		Cloudlet: *in,

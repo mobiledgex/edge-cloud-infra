@@ -60,6 +60,7 @@ It has these top-level messages:
 	CloudletResMap
 	Cloudlet
 	FlavorMatch
+	CloudletManifest
 	FlavorInfo
 	OSAZone
 	OSImage
@@ -559,10 +560,8 @@ func addControllerApis(method string, group *echo.Group) {
 	// PackageVersion: 25
 	// InfraAccessType: 26
 	// DeploymentType: 27
-	// NumMasters: 28
-	// NumNodes: 29
-	// InfraExternalNetwork: 30
-	// InfraFlavorName: 31
+	// InfraExternalNetwork: 28
+	// InfraFlavorName: 29
 	// ```
 	// Security:
 	//   Bearer:

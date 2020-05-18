@@ -143,6 +143,16 @@ func (o *OpenstackPlatform) SaveCloudletAccessVars(ctx context.Context, cloudlet
 	return nil
 }
 
+func (o *OpenstackPlatform) GetApiEndpointAddr(ctx context.Context) (string, error) {
+	osAuthUrl := o.openRCVars["OS_AUTH_URL"]
+	log.SpanLog(ctx, log.DebugLevelInfra, "GetApiEndpointAddr", "authUrl", osAuthUrl)
+
+	if osAuthUrl == "" {
+		return "", fmt.Errorf("unable to find OS_AUTH_URL")
+	}
+	return osAuthUrl, nil
+}
+
 func (o *OpenstackPlatform) GetCloudletManifest(ctx context.Context, name string, VMGroupOrchestrationParams *vmlayer.VMGroupOrchestrationParams) (string, error) {
 	log.SpanLog(ctx, log.DebugLevelInfra, "GetCloudletManifest", "name", name, "VMGroupOrchestrationParams", VMGroupOrchestrationParams)
 	err := o.populateParams(ctx, VMGroupOrchestrationParams, heatCreate)

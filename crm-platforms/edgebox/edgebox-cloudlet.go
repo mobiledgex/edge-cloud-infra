@@ -51,7 +51,7 @@ func (e *EdgeboxPlatform) DeleteCloudletAccessVars(ctx context.Context, cloudlet
 	return nil
 }
 
-func (e *EdgeboxPlatform) GetCloudletManifest(ctx context.Context, cloudlet *edgeproto.Cloudlet, pfConfig *edgeproto.PlatformConfig) (string, error) {
+func (e *EdgeboxPlatform) GetCloudletManifest(ctx context.Context, cloudlet *edgeproto.Cloudlet, pfConfig *edgeproto.PlatformConfig, flavor *edgeproto.Flavor) (*edgeproto.CloudletManifest, error) {
 	log.SpanLog(ctx, log.DebugLevelInfra, "Get cloudlet manifest", "cloudletName", cloudlet.Key.Name)
-	return e.generic.GetCloudletManifest(ctx, cloudlet, pfConfig)
+	return e.generic.GetCloudletManifest(ctx, cloudlet, pfConfig, flavor)
 }

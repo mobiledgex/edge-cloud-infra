@@ -162,7 +162,6 @@ func GetCloudletPrometheusDockerArgs(cloudlet *edgeproto.Cloudlet, cfgFile strin
 		"-p", "9092:9092", // container interface
 		"-v", "/tmp:/tmp",
 		"-v", cfgFile + ":/etc/prometheus/prometheus.yml",
-		"-v", "/tmp:/tmp",
 	}
 }
 

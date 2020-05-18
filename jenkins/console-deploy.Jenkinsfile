@@ -23,7 +23,7 @@ pipeline {
             steps {
                 dir(path: 'ansible') {
                     ansiColor('xterm') {
-                        sh label: 'Run ansible playbook', script: '''$!/bin/bash
+                        sh label: 'Run ansible playbook', script: '''#!/bin/bash
 export ANSIBLE_FORCE_COLOR=true
 export GITHUB_USER="${GITHUB_CREDS_USR}"
 export GITHUB_TOKEN="${GITHUB_CREDS_PSW}"

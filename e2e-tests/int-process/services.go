@@ -144,6 +144,7 @@ func GetCloudletPrometheusConfigHostFilePath() string {
 func GetCloudletPrometheusCmdArgs() []string {
 	return []string{
 		"--config.file=/etc/prometheus/prometheus.yml",
+		"--web.listen-address=:9092",
 		"--web.enable-lifecycle",
 	}
 }
@@ -158,7 +159,7 @@ func GetCloudletPrometheusDockerArgs(cloudlet *edgeproto.Cloudlet, cfgFile strin
 	return []string{
 		"-l", "cloudlet=" + cloudletName,
 		"-l", "cloudletorg=" + cloudletOrg,
-		"-p", "9092:9090", // container interface
+		"-p", "9092:9092", // container interface
 		"-v", "/tmp:/tmp",
 		"-v", cfgFile + ":/etc/prometheus/prometheus.yml",
 		"-v", "/tmp:/tmp",

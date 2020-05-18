@@ -143,6 +143,8 @@ func startPlatformService(cloudlet *edgeproto.Cloudlet, pfConfig *edgeproto.Plat
 		serviceCmd = strings.Join(intprocess.GetCloudletPrometheusCmdArgs(), " ")
 		// docker args for prometheus
 		dockerArgs = intprocess.GetCloudletPrometheusDockerArgs(cloudlet, intprocess.GetCloudletPrometheusConfigHostFilePath())
+		// env vars for promtheeus is empty for now
+		envVars = &map[string]string{}
 	default:
 		cDone <- fmt.Errorf("Unsupported service type: %s", serviceType)
 		return

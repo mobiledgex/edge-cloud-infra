@@ -41,6 +41,7 @@
           BADGER_EPHEMERAL: "false"
           BADGER_DIRECTORY_VALUE: /badger/data
           BADGER_DIRECTORY_KEY: /badger/key
+          BADGER_TRUNCATE: "true"
         volumes:
           - "{{ jaeger_local_storage_dir }}:/badger"
         ports:

@@ -568,8 +568,6 @@ func (v *VMPlatform) PerformOrchestrationForCluster(ctx context.Context, imgName
 				return nil, err
 			}
 			vms = append(vms, rootlb)
-			// docker goes into a new subnet, the rootlb will be connected to it later
-			newSubnetName = GetClusterSubnetName(ctx, clusterInst)
 		}
 
 		masterFlavor := clusterInst.MasterNodeFlavor

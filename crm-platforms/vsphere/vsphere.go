@@ -50,7 +50,6 @@ func (v *VSpherePlatform) GatherCloudletInfo(ctx context.Context, info *edgeprot
 	var err error
 	info.Flavors, err = v.GetFlavorList(ctx)
 	info.State = edgeproto.CloudletState_CLOUDLET_STATE_NEED_SYNC
-
 	return err
 }
 

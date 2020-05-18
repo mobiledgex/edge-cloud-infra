@@ -15,31 +15,31 @@ import (
 
 var VSphereProps = map[string]*infracommon.PropertyInfo{
 
-	"MEX_COMPUTE_CLUSTER": &infracommon.PropertyInfo{
+	"MEX_COMPUTE_CLUSTER": {
 		Value: "compute-cluster",
 	},
-	"MEX_DATASTORE": &infracommon.PropertyInfo{
+	"MEX_DATASTORE": {
 		Mandatory: true,
 	},
-	"MEX_EXTERNAL_IP_RANGES": &infracommon.PropertyInfo{
+	"MEX_EXTERNAL_IP_RANGES": {
 		Mandatory: true,
 	},
-	"MEX_EXTERNAL_NETWORK_MASK": &infracommon.PropertyInfo{
+	"MEX_EXTERNAL_NETWORK_MASK": {
 		Mandatory: true,
 	},
-	"MEX_EXTERNAL_NETWORK_GATEWAY": &infracommon.PropertyInfo{
+	"MEX_EXTERNAL_NETWORK_GATEWAY": {
 		Mandatory: true,
 	},
-	"MEX_INTERNAL_NETWORK_MASK": &infracommon.PropertyInfo{
+	"MEX_INTERNAL_NETWORK_MASK": {
 		Value: "24",
 	},
-	"MEX_EXTERNAL_VSWITCH": &infracommon.PropertyInfo{
+	"MEX_EXTERNAL_VSWITCH": {
 		Value: "ExternalVSwitch",
 	},
-	"MEX_INTERNAL_VSWITCH": &infracommon.PropertyInfo{
+	"MEX_INTERNAL_VSWITCH": {
 		Value: "InternalVSwitch",
 	},
-	"MEX_TEMPLATE_FOLDER": &infracommon.PropertyInfo{
+	"MEX_TEMPLATE_FOLDER": {
 		Value: "templates",
 	},
 }
@@ -108,7 +108,7 @@ func (v *VSpherePlatform) GetVCenterAddress() (string, string, error) {
 	}
 	host, portstr, err := net.SplitHostPort(vcaddr)
 	if err != nil {
-		return "", "", fmt.Errorf("unable to parse VCENTER_ADDR: %s, %v\n", vcaddr, err)
+		return "", "", fmt.Errorf("Unable to parse VCENTER_ADDR: %s, %v\n", vcaddr, err)
 	}
 	return host, portstr, nil
 }

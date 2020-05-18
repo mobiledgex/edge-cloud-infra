@@ -313,5 +313,5 @@ func (o *OpenstackPlatform) GetRouterDetail(ctx context.Context, routerName stri
 }
 
 func (o *OpenstackPlatform) GetInternalPortPolicy() vmlayer.InternalPortAttachPolicy {
-	return vmlayer.AttachPortDuringCreate
+	return vmlayer.AttachPortAfterCreate
 }

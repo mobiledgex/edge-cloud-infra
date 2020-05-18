@@ -97,19 +97,6 @@ func (v *VSpherePlatform) ImportDataFromInfra(ctx context.Context) error {
 		}
 	}
 
-	/* category import is done in TerraformSetupVsphere
-	cats, err := v.GetTagCategories(ctx)
-	if err != nil {
-		return err
-	}
-	log.SpanLog(ctx, log.DebugLevelInfra, "Import Tag Categories")
-	for _, c := range cats {
-		err = v.ImportTerraformTagCategory(ctx, c.Name)
-		if err != nil {
-			return err
-		}
-	}*/
-
 	log.SpanLog(ctx, log.DebugLevelInfra, "Import Tags")
 	tags, err := v.GetTags(ctx)
 	if err != nil {

@@ -183,7 +183,6 @@ func ApplyTerraformPlan(ctx context.Context, fileName string, updateCallback edg
 
 	if err != nil {
 		log.SpanLog(ctx, log.DebugLevelInfra, "Apply failed", "fileName", fileName)
-		// TODO: do destroy optionally base
 		if topts.cleanupOnFailure {
 			if delerr := infracommon.DeleteFile(fileName); delerr != nil {
 				log.SpanLog(ctx, log.DebugLevelInfra, "delete terraform file failed", "fileName", fileName)

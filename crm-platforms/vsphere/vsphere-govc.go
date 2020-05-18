@@ -227,7 +227,7 @@ func (v *VSpherePlatform) GetTagCategories(ctx context.Context) ([]GovcTagCatego
 		return nil, err
 
 	}
-	// exclude the ones not in our RC
+	// exclude the ones not in our datacenter
 	for _, c := range foundcats {
 		if strings.HasPrefix(c.Name, dcName) {
 			returnedcats = append(returnedcats, c)

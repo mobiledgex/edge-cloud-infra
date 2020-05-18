@@ -6,6 +6,8 @@ import (
 	"strings"
 	"unicode"
 
+	"github.com/mobiledgex/edge-cloud/cloud-resource-manager/platform"
+
 	"github.com/mobiledgex/edge-cloud-infra/vmlayer"
 	"github.com/mobiledgex/edge-cloud-infra/vmlayer/terraform"
 	"github.com/mobiledgex/edge-cloud/edgeproto"
@@ -26,8 +28,21 @@ func (v *VSpherePlatform) SetVMProperties(vmProperties *vmlayer.VMProperties) {
 	v.vmProperties = vmProperties
 }
 
-func (v *VSpherePlatform) InitProvider(ctx context.Context, updateCallback edgeproto.CacheUpdateCallback) error {
-	return v.TerraformSetupVsphere(ctx, updateCallback)
+func (v *VSpherePlatform) InitProvider(ctx context.Context, controllerData *platform.ControllerData, updateCallback edgeproto.CacheUpdateCallback) error {
+	log.SpanLog(ctx, log.DebugLevelInfra, "InitProvider for VSphere")
+	err := v.GetControllerFlavors(ctx, controllerData)
+	if err != nil {
+		return err
+	}
+
+	err = v.TerraformSetupVsphere(ctx, updateCallback)
+	if err != nil {
+		log.SpanLog(ctx, log.DebugLevelInfra, "TerraformSetupVsphere failed", "err", err)
+		return fmt.Errorf("TerraformSetupVsphere failed - %v", err)
+	}
+
+	return nil
+
 }
 
 func (v *VSpherePlatform) GatherCloudletInfo(ctx context.Context, info *edgeproto.CloudletInfo) error {

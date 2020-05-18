@@ -20,6 +20,30 @@ type GovcVMNet struct {
 	Network    string
 }
 
+type DistributedPortGroup struct {
+	Name string
+	Path string
+}
+
+type GovcNetwork struct {
+	Type  string
+	Value string
+}
+type GovcNetworkElementSummary struct {
+	Name    string
+	Network GovcNetwork
+}
+
+type GovcNetworkObject struct {
+	Summary GovcNetworkElementSummary
+}
+type GovcNetworkElement struct {
+	Object GovcNetworkObject
+}
+type GovcNetworkObjects struct {
+	Elements []GovcNetworkElement `json:"elements"`
+}
+
 type GovcRuntime struct {
 	PowerState string
 }
@@ -33,16 +57,29 @@ type GovcVM struct {
 	Name    string
 	Runtime GovcRuntime
 	Guest   GovcVMGuest
+	Path    string
 }
 
 type GovcVMs struct {
 	VirtualMachines []GovcVM
 }
 
+type GovcTagCategory struct {
+	Name string `json:"name"`
+}
+
 type GovcTag struct {
 	Id       string `json:"id"`
 	Name     string `json:"name"`
 	Category string `json:"category_id"`
+}
+
+type GovcPool struct {
+	Name string
+	Path string
+}
+type GovcPools struct {
+	ResourcePools []GovcPool
 }
 
 func (v *VSpherePlatform) TimedGovcCommand(ctx context.Context, name string, a ...string) ([]byte, error) {
@@ -62,6 +99,62 @@ func (v *VSpherePlatform) TimedGovcCommand(ctx context.Context, name string, a .
 	}
 	log.SpanLog(ctx, log.DebugLevelInfra, "Govc Command Done", "parmstr", parmstr, "elapsed time", time.Since(start))
 	return out, nil
+}
+
+func (v *VSpherePlatform) GetDistributedPortGroups(ctx context.Context) ([]DistributedPortGroup, error) {
+	log.SpanLog(ctx, log.DebugLevelInfra, "GetDistributedPortGroups")
+
+	var pgrps []DistributedPortGroup
+	dcName := v.GetDatacenterName(ctx)
+	networkSearchPath := fmt.Sprintf("/%s/network", dcName)
+	out, err := v.TimedGovcCommand(ctx, "govc", "ls", "-json", networkSearchPath)
+	if err != nil {
+		return nil, err
+	}
+
+	var objs GovcNetworkObjects
+	err = json.Unmarshal(out, &objs)
+	if err != nil {
+		return nil, err
+	}
+	for _, element := range objs.Elements {
+		if element.Object.Summary.Network.Type == "DistributedVirtualPortgroup" {
+
+			if strings.Contains(element.Object.Summary.Name, "subnet") {
+				var pgrp DistributedPortGroup
+				pgrp.Name = element.Object.Summary.Name
+				pgrp.Path = networkSearchPath + "/" + pgrp.Name
+				pgrps = append(pgrps, pgrp)
+			}
+		}
+	}
+	return pgrps, nil
+}
+
+func (v *VSpherePlatform) GetResourcePools(ctx context.Context) (*GovcPools, error) {
+	log.SpanLog(ctx, log.DebugLevelInfra, "GetResourcePools")
+
+	dcName := v.GetDatacenterName(ctx)
+	computeCluster := v.GetComputeCluster()
+	pathPrefix := fmt.Sprintf("/%s/host/%s/Resources/", dcName, computeCluster)
+	poolSearchPath := pathPrefix + "*"
+
+	out, err := v.TimedGovcCommand(ctx, "govc", "pool.info", "-json", "-dc", dcName, poolSearchPath)
+	if err != nil {
+		return nil, err
+	}
+
+	var pools GovcPools
+	err = json.Unmarshal(out, &pools)
+
+	if err != nil {
+		return nil, err
+	}
+	for i, p := range pools.ResourcePools {
+		log.SpanLog(ctx, log.DebugLevelInfra, "Found resource pool", "pool", p.Name)
+		pools.ResourcePools[i].Path = pathPrefix + p.Name
+	}
+	return &pools, err
 }
 
 func (v *VSpherePlatform) GetUsedSubnetCIDRs(ctx context.Context) (map[string]string, error) {
@@ -94,6 +187,18 @@ func (v *VSpherePlatform) GetUsedSubnetCIDRs(ctx context.Context) (map[string]st
 	return cidrUsed, nil
 }
 
+func (v *VSpherePlatform) GetTags(ctx context.Context) ([]GovcTag, error) {
+	out, err := v.TimedGovcCommand(ctx, "govc", "tags.ls", "-json")
+	var tags []GovcTag
+	err = json.Unmarshal(out, &tags)
+	if err != nil {
+		log.SpanLog(ctx, log.DebugLevelInfra, "GetTags unmarshal fail", "out", string(out), "err", err)
+		err = fmt.Errorf("cannot unmarshal govc subnet tags, %v", err)
+		return nil, err
+	}
+	return tags, nil
+}
+
 func (v *VSpherePlatform) getTagsForCategory(ctx context.Context, category string) ([]GovcTag, error) {
 	out, err := v.TimedGovcCommand(ctx, "govc", "tags.ls", "-c", category, "-json")
 
@@ -105,6 +210,30 @@ func (v *VSpherePlatform) getTagsForCategory(ctx context.Context, category strin
 		return nil, err
 	}
 	return tags, nil
+}
+
+func (v *VSpherePlatform) GetTagCategories(ctx context.Context) ([]GovcTagCategory, error) {
+	dcName := v.GetDatacenterName(ctx)
+
+	out, err := v.TimedGovcCommand(ctx, "govc", "tags.category.ls", "-json")
+	if err != nil {
+		return nil, err
+	}
+
+	var foundcats []GovcTagCategory
+	var returnedcats []GovcTagCategory
+	err = json.Unmarshal(out, &foundcats)
+	if err != nil {
+		return nil, err
+
+	}
+	// exclude the ones not in our RC
+	for _, c := range foundcats {
+		if strings.HasPrefix(c.Name, dcName) {
+			returnedcats = append(returnedcats, c)
+		}
+	}
+	return returnedcats, err
 }
 
 func (v *VSpherePlatform) GetIpFromTagsForVM(ctx context.Context, vmName, netname string) (string, error) {
@@ -217,10 +346,10 @@ func (v *VSpherePlatform) GetServerDetail(ctx context.Context, vmname string) (*
 	log.SpanLog(ctx, log.DebugLevelInfra, "GetServerDetail", "vmname", vmname)
 	var sd *vmlayer.ServerDetail
 	dcName := v.GetDatacenterName(ctx)
-	vmpath := "vm/" + vmname
+	vmPath := "/" + dcName + "/vm/" + vmname
 	start := time.Now()
 	for {
-		out, err := v.TimedGovcCommand(ctx, "govc", "vm.info", "-dc", dcName, "-json", vmpath)
+		out, err := v.TimedGovcCommand(ctx, "govc", "vm.info", "-dc", dcName, "-json", vmPath)
 		if err != nil {
 			return nil, err
 		}
@@ -257,27 +386,26 @@ func (v *VSpherePlatform) GetServerDetail(ctx context.Context, vmname string) (*
 	return sd, nil
 }
 
-func (v *VSpherePlatform) GetVSphereServers(ctx context.Context) ([]*vmlayer.ServerDetail, error) {
-	log.SpanLog(ctx, log.DebugLevelInfra, "GetVSphereServers")
-	var sds []*vmlayer.ServerDetail
+func (v *VSpherePlatform) GetVMs(ctx context.Context) (*GovcVMs, error) {
+	log.SpanLog(ctx, log.DebugLevelInfra, "GetVMs")
+	var vms GovcVMs
 	dcName := v.GetDatacenterName(ctx)
 
-	vmpath := "/" + dcName + "/vm/*"
-	out, err := v.TimedGovcCommand(ctx, "govc", "vm.info", "-json", vmpath)
+	vmPath := "/" + dcName + "/vm/"
+	out, err := v.TimedGovcCommand(ctx, "govc", "vm.info", "-json", vmPath+"*")
 	if err != nil {
 		return nil, err
 	}
-	var vms GovcVMs
 	err = json.Unmarshal(out, &vms)
 	if err != nil {
-		log.SpanLog(ctx, log.DebugLevelInfra, "GetVSphereServers unmarshal fail", "out", string(out), "err", err)
+		log.SpanLog(ctx, log.DebugLevelInfra, "GetVMs unmarshal fail", "out", string(out), "err", err)
 		err = fmt.Errorf("cannot unmarshal govc vms, %v", err)
 		return nil, err
 	}
-	for _, vm := range vms.VirtualMachines {
-		sds = append(sds, v.getServerDetailFromGovcVm(ctx, &vm))
+	for i, vm := range vms.VirtualMachines {
+		vms.VirtualMachines[i].Path = vmPath + vm.Name
 	}
-	return sds, nil
+	return &vms, nil
 }
 
 func (v *VSpherePlatform) SetPowerState(ctx context.Context, serverName, serverAction string) error {

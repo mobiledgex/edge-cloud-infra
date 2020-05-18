@@ -481,7 +481,7 @@ func (v *VMPlatform) CreateRootLB(
 	updateCallback edgeproto.CacheUpdateCallback,
 ) error {
 
-	log.SpanLog(ctx, log.DebugLevelInfra, "create rootlb", "name", rootLB.Name)
+	log.SpanLog(ctx, log.DebugLevelInfra, "create rootlb", "name", rootLB.Name, "action", action)
 	if rootLB == nil {
 		return fmt.Errorf("cannot enable rootLB, rootLB is null")
 	}

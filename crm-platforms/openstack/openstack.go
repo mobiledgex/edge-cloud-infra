@@ -25,16 +25,12 @@ func (o *OpenstackPlatform) SetVMProperties(vmProperties *vmlayer.VMProperties) 
 	o.VMProperties = vmProperties
 }
 
-func (o *OpenstackPlatform) InitProvider(ctx context.Context, updateCallback edgeproto.CacheUpdateCallback) error {
+func (o *OpenstackPlatform) InitProvider(ctx context.Context, controllerData *platform.ControllerData, updateCallback edgeproto.CacheUpdateCallback) error {
 	return o.PrepNetwork(ctx)
 }
 
 func (o *OpenstackPlatform) GatherCloudletInfo(ctx context.Context, info *edgeproto.CloudletInfo) error {
 	return o.OSGetLimits(ctx, info)
-}
-
-func (o *OpenstackPlatform) SyncControllerData(ctx context.Context, controllerData *platform.ControllerData, cloudletState edgeproto.CloudletState) error {
-	return nil
 }
 
 // alphanumeric plus -_. first char must be alpha, <= 255 chars.

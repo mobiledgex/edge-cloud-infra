@@ -142,3 +142,8 @@ func (o *OpenstackPlatform) SaveCloudletAccessVars(ctx context.Context, cloudlet
 	}
 	return nil
 }
+
+func (o *OpenstackPlatform) ImportDataFromInfra(ctx context.Context) error {
+	// nothing to do
+	return nil
+}

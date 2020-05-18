@@ -39,6 +39,9 @@ var VSphereProps = map[string]*infracommon.PropertyInfo{
 	"MEX_INTERNAL_VSWITCH": &infracommon.PropertyInfo{
 		Value: "InternalVSwitch",
 	},
+	"MEX_TEMPLATE_FOLDER": &infracommon.PropertyInfo{
+		Value: "templates",
+	},
 }
 
 func (v *VSpherePlatform) GetApiAccessFilename() string {
@@ -168,6 +171,13 @@ func (v *VSpherePlatform) GetExternalGateway() string {
 
 func (v *VSpherePlatform) GetInternalNetmask() string {
 	if val, ok := v.vmProperties.CommonPf.Properties["MEX_INTERNAL_NETWORK_MASK"]; ok {
+		return val.Value
+	}
+	return ""
+}
+
+func (v *VSpherePlatform) GetTemplateFolder() string {
+	if val, ok := v.vmProperties.CommonPf.Properties["MEX_TEMPLATE_FOLDER"]; ok {
 		return val.Value
 	}
 	return ""

@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"sync"
 
+	"github.com/mobiledgex/edge-cloud-infra/vmlayer/terraform"
 	"github.com/mobiledgex/edge-cloud/cloud-resource-manager/platform"
 	"github.com/mobiledgex/edge-cloud/edgeproto"
 	"github.com/mobiledgex/edge-cloud/log"
@@ -41,12 +42,14 @@ func (o *VSpherePlatform) SaveCloudletAccessVars(ctx context.Context, cloudlet *
 
 func (v *VSpherePlatform) AddCloudletImageIfNotPresent(ctx context.Context, imgPathPrefix, imgVersion string, updateCallback edgeproto.CacheUpdateCallback) (string, error) {
 	// we don't currently have the ability to download and setup the template, but we will verify it is there
-	imgPath := v.vmProperties.GetCloudletOSImage()
+	//imgPath := v.GetTemplateFolder() + "/" + v.vmProperties.GetCloudletOSImage()
+	img := v.vmProperties.GetCloudletOSImage()
+	imgPath := v.GetTemplateFolder() + "/" + img
 	_, err := v.GetServerDetail(ctx, imgPath)
 	if err != nil {
 		return "", fmt.Errorf("Vsphere base image template not present: %s", imgPath)
 	}
-	return imgPath, nil
+	return img, nil
 }
 
 func (v *VSpherePlatform) GetFlavorList(ctx context.Context) ([]*edgeproto.FlavorInfo, error) {
@@ -56,14 +59,14 @@ func (v *VSpherePlatform) GetFlavorList(ctx context.Context) ([]*edgeproto.Flavo
 	return flavors, nil
 }
 
-func (v *VSpherePlatform) SyncControllerFlavors(ctx context.Context, controllerData *platform.ControllerData) error {
-	log.SpanLog(ctx, log.DebugLevelInfra, "SyncControllerFlavors")
+func (v *VSpherePlatform) GetControllerFlavors(ctx context.Context, controllerData *platform.ControllerData) error {
+	log.SpanLog(ctx, log.DebugLevelInfra, "GetControllerFlavors")
 	flavorLock.Lock()
 	defer flavorLock.Unlock()
 	flavorkeys := make(map[edgeproto.FlavorKey]context.Context)
 	controllerData.FlavorCache.GetAllKeys(ctx, flavorkeys)
 	for k := range flavorkeys {
-		log.SpanLog(ctx, log.DebugLevelInfra, "SyncControllerFlavors found flavor", "key", k)
+		log.SpanLog(ctx, log.DebugLevelInfra, "GetControllerFlavors found flavor", "key", k)
 		var flav edgeproto.Flavor
 		if controllerData.FlavorCache.Get(&k, &flav) {
 			var flavInfo edgeproto.FlavorInfo
@@ -79,11 +82,68 @@ func (v *VSpherePlatform) SyncControllerFlavors(ctx context.Context, controllerD
 	return nil
 }
 
-func (v *VSpherePlatform) SyncControllerData(ctx context.Context, controllerData *platform.ControllerData, cloudletState edgeproto.CloudletState) error {
-	log.SpanLog(ctx, log.DebugLevelInfra, "SyncControllerData", "state", cloudletState)
-	var err error
-	if cloudletState == edgeproto.CloudletState_CLOUDLET_STATE_INIT {
-		err = v.SyncControllerFlavors(ctx, controllerData)
+func (v *VSpherePlatform) ImportDataFromInfra(ctx context.Context) error {
+	log.SpanLog(ctx, log.DebugLevelInfra, "ImportDataFromInfra")
+	// first import existing resources
+	pools, err := v.GetResourcePools(ctx)
+	if err != nil {
+		return err
 	}
-	return err
+	log.SpanLog(ctx, log.DebugLevelInfra, "Import Resource Pools")
+	for _, p := range pools.ResourcePools {
+		err = v.ImportTerraformResourcePool(ctx, p.Name, p.Path)
+		if err != nil {
+			return err
+		}
+	}
+
+	/* category import is done in TerraformSetupVsphere
+	cats, err := v.GetTagCategories(ctx)
+	if err != nil {
+		return err
+	}
+	log.SpanLog(ctx, log.DebugLevelInfra, "Import Tag Categories")
+	for _, c := range cats {
+		err = v.ImportTerraformTagCategory(ctx, c.Name)
+		if err != nil {
+			return err
+		}
+	}*/
+
+	log.SpanLog(ctx, log.DebugLevelInfra, "Import Tags")
+	tags, err := v.GetTags(ctx)
+	if err != nil {
+		return err
+	}
+	for _, c := range tags {
+		err = v.ImportTerraformTag(ctx, c.Name, c.Category)
+		if err != nil {
+			return err
+		}
+	}
+
+	log.SpanLog(ctx, log.DebugLevelInfra, "Import Distributed Port Groups")
+	pgrps, err := v.GetDistributedPortGroups(ctx)
+	if err != nil {
+		return err
+	}
+	for _, p := range pgrps {
+		err = v.ImportTerraformDistributedPortGrp(ctx, p.Name, p.Path)
+		if err != nil {
+			return err
+		}
+	}
+
+	log.SpanLog(ctx, log.DebugLevelInfra, "Import VMs")
+	vms, err := v.GetVMs(ctx)
+	if err != nil {
+		return err
+	}
+	for _, vm := range vms.VirtualMachines {
+		err = v.ImportTerraformVirtualMachine(ctx, vm.Name, vm.Path)
+		if err != nil {
+			return err
+		}
+	}
+	return terraform.RunTerraformApply(ctx, terraform.WithRetries(NumTerraformRetries))
 }

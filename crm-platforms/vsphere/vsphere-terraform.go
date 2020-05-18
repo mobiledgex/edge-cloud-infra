@@ -16,7 +16,7 @@ import (
 	"github.com/mobiledgex/edge-cloud/log"
 )
 
-var NumRetries = 2
+var NumTerraformRetries = 2
 
 var terraformCreate string = "CREATE"
 var terraformUpdate string = "UPDATE"
@@ -56,35 +56,19 @@ func (v *VSpherePlatform) GetSubnetTagCategory(ctx context.Context) string {
 	return v.GetDatacenterName(ctx) + "-subnet"
 }
 
-func (v *VSpherePlatform) TerraformRefresh(ctx context.Context) error {
-	log.SpanLog(ctx, log.DebugLevelInfra, "TerraformRefresh")
-	_, err := terraform.TimedTerraformCommand(ctx, terraform.TerraformDir, "terraform", "refresh")
-	return err
-}
-
-/*
 func (v *VSpherePlatform) ImportTagCategories(ctx context.Context) error {
 	log.SpanLog(ctx, log.DebugLevelInfra, "ImportTagCategories")
 
 	subnetCat := v.GetSubnetTagCategory(ctx)
-	out, err := terraform.TimedTerraformCommand(ctx, terraform.TerraformDir, "terraform", "import", "vsphere_tag_category."+subnetCat, subnetCat)
-	if strings.Contains(out, "not found") {
-		return fmt.Errorf(DoesNotExistError)
-	}
+	err := v.ImportTerraformTagCategory(ctx, subnetCat)
 	if err != nil {
 		return err
 	}
 
 	vmipCat := v.GetVmIpTagCategory(ctx)
-	out, err = terraform.TimedTerraformCommand(ctx, terraform.TerraformDir, "terraform", "import", "vsphere_tag_category."+vmipCat, vmipCat)
-	if strings.Contains(out, "not found") {
-		return fmt.Errorf(DoesNotExistError)
-	}
-	if err != nil {
-		return err
-	}
-	return nil
-}*/
+	return v.ImportTerraformTagCategory(ctx, vmipCat)
+
+}
 
 func (v *VSpherePlatform) DetachPortFromServer(ctx context.Context, serverName, subnetName, portName string) error {
 	fileName := terraform.TerraformDir + "/" + serverName + ".tf"
@@ -184,7 +168,8 @@ func (v *VSpherePlatform) AttachPortToServer(ctx context.Context, serverName, su
 			log.SpanLog(ctx, log.DebugLevelInfra, "Terraform apply failed for attach port", "out", out, "fileName", fileName)
 		}
 	} else if action == vmlayer.ActionSync {
-		return v.ImportTerraformPlan(ctx, serverName, edgeproto.DummyUpdateCallback)
+		return nil
+		//return v.ImportTerraformPlan(ctx, serverName, edgeproto.DummyUpdateCallback)
 	}
 	return err
 }
@@ -503,6 +488,63 @@ func vmsphereMetaDataFormatter(instring string) string {
 	return base64.StdEncoding.EncodeToString([]byte(withMeta))
 }
 
+func (v *VSpherePlatform) doTerraformImport(ctx context.Context, resourceID, resourceVal string) error {
+	log.SpanLog(ctx, log.DebugLevelInfra, "doTerraformImport", "resourceID", resourceID, "resourceVal", resourceVal)
+	notfoundReg := regexp.MustCompile("Error: .* not found")
+	out, err := terraform.TimedTerraformCommand(ctx, terraform.TerraformDir, "terraform", "import", "--allow-missing-config", resourceID, resourceVal)
+	if err != nil {
+		if strings.Contains(out, "Resource already managed by Terraform") {
+			log.SpanLog(ctx, log.DebugLevelInfra, "resource already in terraform state")
+		} else if notfoundReg.MatchString(out) {
+			log.SpanLog(ctx, log.DebugLevelInfra, "resource does not exist")
+		} else {
+			return fmt.Errorf("Terraform import fail: %v", err)
+		}
+	} else {
+		log.SpanLog(ctx, log.DebugLevelInfra, "Import success", "resourceID", resourceID)
+	}
+
+	return nil
+
+}
+
+func (v *VSpherePlatform) ImportTerraformVirtualMachine(ctx context.Context, vmName string, vmPath string) error {
+	log.SpanLog(ctx, log.DebugLevelInfra, "ImportTerraformVirtualMachine", "vmName", vmName, "vmPath", vmPath)
+	vmID := "vsphere_virtual_machine." + v.IdSanitize(vmName)
+	return v.doTerraformImport(ctx, vmID, vmPath)
+}
+
+func (v *VSpherePlatform) ImportTerraformResourcePool(ctx context.Context, poolName string, poolPath string) error {
+	log.SpanLog(ctx, log.DebugLevelInfra, "ImportTerraformResourcePool", "poolName", poolName, "poolPath", poolPath)
+	poolID := "vsphere_resource_pool." + v.IdSanitize(poolName)
+	return v.doTerraformImport(ctx, poolID, poolPath)
+}
+
+func (v *VSpherePlatform) ImportTerraformDistributedPortGrp(ctx context.Context, prgpName string, pgrpPath string) error {
+	log.SpanLog(ctx, log.DebugLevelInfra, "ImportTerraformDistributedPortGrp", "prgpName", prgpName, "pgrpPath", pgrpPath)
+	pgrpID := "vsphere_distributed_port_group." + v.IdSanitize(prgpName)
+	return v.doTerraformImport(ctx, pgrpID, pgrpPath)
+}
+
+func (v *VSpherePlatform) ImportTerraformTagCategory(ctx context.Context, catName string) error {
+	log.SpanLog(ctx, log.DebugLevelInfra, "ImportTerraformTagCategory", "catName", catName)
+	catID := "vsphere_tag_category." + v.IdSanitize(catName)
+	return v.doTerraformImport(ctx, catID, catName)
+}
+
+func (v *VSpherePlatform) ImportTerraformPortGroup(ctx context.Context, portGrpName, path string) error {
+	log.SpanLog(ctx, log.DebugLevelInfra, "ImportTerraformPortGroup", "portgrpname", portGrpName)
+	pgrpID := "vsphere_tag_category." + v.IdSanitize(portGrpName)
+	return v.doTerraformImport(ctx, pgrpID, path)
+}
+
+func (v *VSpherePlatform) ImportTerraformTag(ctx context.Context, tagname, catname string) error {
+	log.SpanLog(ctx, log.DebugLevelInfra, "ImportTerraformTag", "tagname", tagname, "catname", catname)
+	tagID := "vsphere_tag." + v.IdSanitize(tagname)
+	tagval := fmt.Sprintf("{\"category_name\":\"%s\",\"tag_name\":\"%s\"}", catname, tagname)
+	return v.doTerraformImport(ctx, tagID, tagval)
+}
+
 func (v *VSpherePlatform) ImportTerraformPlan(ctx context.Context, planName string, updateCallback edgeproto.CacheUpdateCallback) error {
 	log.SpanLog(ctx, log.DebugLevelInfra, "ImportTerraformPlan", "planName", planName)
 
@@ -536,6 +578,7 @@ func (v *VSpherePlatform) ImportTerraformPlan(ctx context.Context, planName stri
 	return nil
 }
 
+// TerraformSetupVsphere creates the basic plan for the cloudlet.  It does not apply it
 func (v *VSpherePlatform) TerraformSetupVsphere(ctx context.Context, updateCallback edgeproto.CacheUpdateCallback) error {
 	log.SpanLog(ctx, log.DebugLevelInfra, "TerraformSetupVsphere")
 
@@ -571,12 +614,20 @@ func (v *VSpherePlatform) TerraformSetupVsphere(ctx context.Context, updateCallb
 	if err != nil {
 		return err
 	}
-	err = v.ImportTerraformPlan(ctx, planName, updateCallback)
+
+	// this
+	err = v.ImportTagCategories(ctx)
 	if err != nil {
 		return err
 	}
 
-	return terraform.ApplyTerraformPlan(ctx, terraformFile, updateCallback)
+	log.SpanLog(ctx, log.DebugLevelInfra, "created terraform file", "terraformFile", terraformFile)
+	err = terraform.ApplyTerraformPlan(ctx, terraformFile, updateCallback)
+	if err != nil {
+		log.SpanLog(ctx, log.DebugLevelInfra, "Apply failed for setup vsphere", "terraformFile", terraformFile)
+		return err
+	}
+	return nil
 }
 
 func (v *VSpherePlatform) orchestrateVMs(ctx context.Context, vmGroupOrchestrationParams *vmlayer.VMGroupOrchestrationParams, action string, updateCallback edgeproto.CacheUpdateCallback) error {
@@ -610,14 +661,16 @@ func (v *VSpherePlatform) orchestrateVMs(ctx context.Context, vmGroupOrchestrati
 		return err
 	}
 	if action == terraformSync {
-		return v.ImportTerraformPlan(ctx, planName, updateCallback)
+		log.SpanLog(ctx, log.DebugLevelInfra, "SKIP IMPORT FOR NOW", "terraformFile", terraformFile)
+		return nil
+		//return v.ImportTerraformPlan(ctx, planName, updateCallback)
 	}
 	return terraform.ApplyTerraformPlan(
 		ctx,
 		terraformFile,
 		updateCallback,
 		terraform.WithCleanupOnFailure(v.vmProperties.CommonPf.GetCleanupOnFailure(ctx)),
-		terraform.WithRetries(1))
+		terraform.WithRetries(NumTerraformRetries))
 }
 
 func (v *VSpherePlatform) CreateVMs(ctx context.Context, vmGroupOrchestrationParams *vmlayer.VMGroupOrchestrationParams, updateCallback edgeproto.CacheUpdateCallback) error {

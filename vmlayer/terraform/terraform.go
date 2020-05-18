@@ -42,9 +42,11 @@ func TimedTerraformCommand(ctx context.Context, dir string, name string, a ...st
 
 	terraformLock.Lock()
 	defer terraformLock.Unlock()
+
 	parmstr := strings.Join(a, " ")
 	start := time.Now()
 	log.SpanLog(ctx, log.DebugLevelInfra, "Terraform Command Start", "dir", dir, "name", name, "parms", parmstr)
+
 	out, err := sh.NewSession().SetDir(dir).Command(name, a).CombinedOutput()
 	if err != nil {
 		log.SpanLog(ctx, log.DebugLevelInfra, "Terraform command returned error", "parms", parmstr, "out", string(out), "err", err, "elapsed time", time.Since(start))
@@ -141,10 +143,34 @@ func CreateTerraformPlanFromTemplate(ctx context.Context, templateData interface
 	return filename, nil
 }
 
+func RunTerraformApply(ctx context.Context, opts ...TerraformOp) error {
+	log.SpanLog(ctx, log.DebugLevelInfra, "Running terraform apply")
+	var topts TerraformOpts
+	var err error
+	for _, op := range opts {
+		if err = op(&topts); err != nil {
+			return err
+		}
+	}
+
+	for i := 0; i <= topts.numRetries; i++ {
+		log.SpanLog(ctx, log.DebugLevelInfra, "Doing terraform apply")
+		_, err := TimedTerraformCommand(ctx, TerraformDir, "terraform", "apply", "--auto-approve")
+		if err != nil {
+			log.SpanLog(ctx, log.DebugLevelInfra, "Apply failed")
+			if i < topts.numRetries {
+				log.SpanLog(ctx, log.DebugLevelInfra, "Retry terraform apply", "retry num", i+1)
+			}
+		} else {
+			break
+		}
+	}
+	return err
+}
+
 func ApplyTerraformPlan(ctx context.Context, fileName string, updateCallback edgeproto.CacheUpdateCallback, opts ...TerraformOp) error {
 	log.SpanLog(ctx, log.DebugLevelInfra, "ApplyTerraformPlan", "fileName", fileName)
 	updateCallback(edgeproto.UpdateTask, "Applying Terraform Plan for "+fileName)
-
 	var topts TerraformOpts
 	for _, op := range opts {
 		if err := op(&topts); err != nil {
@@ -152,18 +178,9 @@ func ApplyTerraformPlan(ctx context.Context, fileName string, updateCallback edg
 		}
 	}
 	var err error
-	for i := 0; i <= topts.numRetries; i++ {
-		log.SpanLog(ctx, log.DebugLevelInfra, "Doing terraform apply", "fileName", fileName)
-		_, err = TimedTerraformCommand(ctx, TerraformDir, "terraform", "apply", "--auto-approve")
-		if err != nil {
-			log.SpanLog(ctx, log.DebugLevelInfra, "Apply failed", "fileName", fileName)
-			if i < topts.numRetries {
-				log.SpanLog(ctx, log.DebugLevelInfra, "Retry terraform apply", "fileName", fileName, "retry num", i+1)
-			}
-		} else {
-			break
-		}
-	}
+	log.SpanLog(ctx, log.DebugLevelInfra, "Doing terraform apply", "fileName", fileName)
+	err = RunTerraformApply(ctx, opts...)
+
 	if err != nil {
 		log.SpanLog(ctx, log.DebugLevelInfra, "Apply failed", "fileName", fileName)
 		// TODO: do destroy optionally base
@@ -172,7 +189,7 @@ func ApplyTerraformPlan(ctx context.Context, fileName string, updateCallback edg
 				log.SpanLog(ctx, log.DebugLevelInfra, "delete terraform file failed", "fileName", fileName)
 			}
 			// no re-apply without the current plan to remove
-			_, err2 := TimedTerraformCommand(ctx, TerraformDir, "terraform", "apply", "--auto-approve")
+			err2 := RunTerraformApply(ctx)
 			if err2 != nil {
 				log.SpanLog(ctx, log.DebugLevelInfra, "terraform apply after delete failed", "fileName", fileName, "err", err)
 			}
@@ -182,8 +199,7 @@ func ApplyTerraformPlan(ctx context.Context, fileName string, updateCallback edg
 		}
 		return err
 	}
-	log.SpanLog(ctx, log.DebugLevelInfra, "Doing terraform apply OK", "fileName", fileName)
-
+	log.SpanLog(ctx, log.DebugLevelInfra, "Terraform apply OK", "fileName", fileName)
 	return nil
 }
 

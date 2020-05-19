@@ -9,7 +9,6 @@ import (
 	"strings"
 
 	cloudflare "github.com/cloudflare/cloudflare-go"
-	"github.com/mobiledgex/edge-cloud/cloudcommon"
 )
 
 var (
@@ -69,7 +68,7 @@ func doAudit() error {
 		fmt.Printf("invalid regexp match pattern: %v", err)
 		os.Exit(1)
 	}
-	zoneID, err = api.ZoneIDByName(cloudcommon.AppDNSRoot)
+	zoneID, err = api.ZoneIDByName("mobiledgex.net")
 	if err != nil {
 		fmt.Printf("Cloudflare zone error: %v\n", err)
 		return err

@@ -6,13 +6,11 @@ import (
 	"sync"
 
 	"github.com/mobiledgex/edge-cloud-infra/vmlayer/terraform"
-	"github.com/mobiledgex/edge-cloud/cloud-resource-manager/platform"
 	"github.com/mobiledgex/edge-cloud/edgeproto"
 	"github.com/mobiledgex/edge-cloud/log"
 	ssh "github.com/mobiledgex/golang-ssh"
 )
 
-var flavorLock sync.Mutex
 var clusterLock sync.Mutex
 var appLock sync.Mutex
 
@@ -53,22 +51,13 @@ func (v *VSpherePlatform) AddCloudletImageIfNotPresent(ctx context.Context, imgP
 }
 
 func (v *VSpherePlatform) GetFlavorList(ctx context.Context) ([]*edgeproto.FlavorInfo, error) {
-	flavorLock.Lock()
-	defer flavorLock.Unlock()
 	// we just send the controller back the same list of flavors it gave us, because VSphere has no flavor concept
-	return flavors, nil
-}
-
-func (v *VSpherePlatform) GetControllerFlavors(ctx context.Context, controllerData *platform.ControllerData) error {
-	log.SpanLog(ctx, log.DebugLevelInfra, "GetControllerFlavors")
-	flavorLock.Lock()
-	defer flavorLock.Unlock()
 	flavorkeys := make(map[edgeproto.FlavorKey]context.Context)
-	controllerData.FlavorCache.GetAllKeys(ctx, flavorkeys)
+	v.caches.FlavorCache.GetAllKeys(ctx, flavorkeys)
 	for k := range flavorkeys {
-		log.SpanLog(ctx, log.DebugLevelInfra, "GetControllerFlavors found flavor", "key", k)
+		log.SpanLog(ctx, log.DebugLevelInfra, "GetFlavorList found flavor", "key", k)
 		var flav edgeproto.Flavor
-		if controllerData.FlavorCache.Get(&k, &flav) {
+		if v.caches.FlavorCache.Get(&k, &flav) {
 			var flavInfo edgeproto.FlavorInfo
 			flavInfo.Name = flav.Key.Name
 			flavInfo.Disk = flav.Disk
@@ -76,10 +65,11 @@ func (v *VSpherePlatform) GetControllerFlavors(ctx context.Context, controllerDa
 			flavInfo.Vcpus = flav.Vcpus
 			flavors = append(flavors, &flavInfo)
 		} else {
-			return fmt.Errorf("fail to fetch flavor %s", k)
+			return nil, fmt.Errorf("fail to fetch flavor %s", k)
 		}
 	}
-	return nil
+	// we just send the controller back the same list of flavors it gave us, because VSphere has no flavor concept
+	return flavors, nil
 }
 
 func (v *VSpherePlatform) ImportDataFromInfra(ctx context.Context) error {

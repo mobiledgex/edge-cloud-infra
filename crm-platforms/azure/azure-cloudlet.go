@@ -38,7 +38,7 @@ func (s *AzurePlatform) DeleteCloudletAccessVars(ctx context.Context, cloudlet *
 	return nil
 }
 
-func (s *AzurePlatform) SyncControllerData(ctx context.Context, controllerData *pf.ControllerData, cloudletState edgeproto.CloudletState) error {
-	log.SpanLog(ctx, log.DebugLevelInfra, "SyncControllerData", "cloudletState", cloudletState)
+func (s *AzurePlatform) SyncControllerCache(ctx context.Context, caches *pf.Caches, cloudletState edgeproto.CloudletState) error {
+	log.SpanLog(ctx, log.DebugLevelInfra, "SyncControllerCache", "cloudletState", cloudletState)
 	return nil
 }

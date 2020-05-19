@@ -40,7 +40,7 @@ func (g *GCPPlatform) GetType() string {
 	return "gcp"
 }
 
-func (g *GCPPlatform) Init(ctx context.Context, platformConfig *platform.PlatformConfig, controllerData *platform.ControllerData, updateCallback edgeproto.CacheUpdateCallback) error {
+func (g *GCPPlatform) Init(ctx context.Context, platformConfig *platform.PlatformConfig, caches *platform.Caches, updateCallback edgeproto.CacheUpdateCallback) error {
 
 	vaultConfig, err := vault.BestConfig(platformConfig.VaultAddr)
 	if err != nil {

@@ -52,6 +52,9 @@ func (v *VMPlatform) CreateAppInst(ctx context.Context, clusterInst *edgeproto.C
 		}
 		masterIP, masterIpErr := v.GetIPFromServerName(ctx, v.VMProperties.GetCloudletMexNetwork(), GetClusterSubnetName(ctx, clusterInst), GetClusterMasterName(ctx, clusterInst))
 		// Add crm local replace variables
+		if masterIpErr != nil {
+			return masterIpErr
+		}
 		deploymentVars := crmutil.DeploymentReplaceVars{
 			Deployment: crmutil.CrmReplaceVars{
 				ClusterIp:    masterIP.ExternalAddr,
@@ -92,28 +95,27 @@ func (v *VMPlatform) CreateAppInst(ctx context.Context, clusterInst *edgeproto.C
 
 		// set up DNS
 		var rootLBIPaddr *ServerIP
-		if masterIpErr == nil {
-			rootLBIPaddr, err = v.GetIPFromServerName(ctx, v.VMProperties.GetCloudletExternalNetwork(), GetClusterSubnetName(ctx, clusterInst), rootLBName)
-			if err == nil {
-				getDnsAction := func(svc v1.Service) (*infracommon.DnsSvcAction, error) {
-					action := infracommon.DnsSvcAction{}
-					action.PatchKube = true
-					action.PatchIP = masterIP.ExternalAddr
-					action.ExternalIP = rootLBIPaddr.ExternalAddr
-					// Should only add DNS for external ports
-					action.AddDNS = !app.InternalPorts
-					return &action, nil
-				}
-				// If this is an internal ports, all we need is patch of kube service
-				if app.InternalPorts {
-					err = v.VMProperties.CommonPf.CreateAppDNSAndPatchKubeSvc(ctx, client, names, infracommon.NoDnsOverride, getDnsAction)
-				} else {
-					updateCallback(edgeproto.UpdateTask, "Configuring Service: LB, Firewall Rules and DNS")
-					ops := ProxyDnsSecOpts{AddProxy: true, AddDnsAndPatchKubeSvc: true, AddSecurityRules: true}
-					err = v.AddProxySecurityRulesAndPatchDNS(ctx, client, names, app, appInst, getDnsAction, rootLBName, cloudcommon.IPAddrAllInterfaces, masterIP.ExternalAddr, ops, proxy.WithDockerPublishPorts(), proxy.WithDockerNetwork(""))
-				}
+		rootLBIPaddr, err = v.GetIPFromServerName(ctx, v.VMProperties.GetCloudletExternalNetwork(), GetClusterSubnetName(ctx, clusterInst), rootLBName)
+		if err == nil {
+			getDnsAction := func(svc v1.Service) (*infracommon.DnsSvcAction, error) {
+				action := infracommon.DnsSvcAction{}
+				action.PatchKube = true
+				action.PatchIP = masterIP.ExternalAddr
+				action.ExternalIP = rootLBIPaddr.ExternalAddr
+				// Should only add DNS for external ports
+				action.AddDNS = !app.InternalPorts
+				return &action, nil
+			}
+			// If this is an internal ports, all we need is patch of kube service
+			if app.InternalPorts {
+				err = v.VMProperties.CommonPf.CreateAppDNSAndPatchKubeSvc(ctx, client, names, infracommon.NoDnsOverride, getDnsAction)
+			} else {
+				updateCallback(edgeproto.UpdateTask, "Configuring Service: LB, Firewall Rules and DNS")
+				ops := ProxyDnsSecOpts{AddProxy: true, AddDnsAndPatchKubeSvc: true, AddSecurityRules: true}
+				err = v.AddProxySecurityRulesAndPatchDNS(ctx, client, names, app, appInst, getDnsAction, rootLBName, cloudcommon.IPAddrAllInterfaces, masterIP.ExternalAddr, ops, proxy.WithDockerPublishPorts(), proxy.WithDockerNetwork(""))
 			}
 		}
+
 		appWaitErr := <-appWaitChan
 		if appWaitErr != "" {
 			return fmt.Errorf("app wait error, %v", appWaitErr)

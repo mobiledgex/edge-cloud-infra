@@ -23,7 +23,7 @@ type VMProvider interface {
 	IdSanitize(string) string
 	GetProviderSpecificProps() map[string]*infracommon.PropertyInfo
 	SetVMProperties(vmProperties *VMProperties)
-	InitProvider(ctx context.Context, controllerData *platform.ControllerData, updateCallback edgeproto.CacheUpdateCallback) error
+	InitProvider(ctx context.Context, caches *platform.Caches, updateCallback edgeproto.CacheUpdateCallback) error
 	ImportDataFromInfra(ctx context.Context) error
 	GetFlavorList(ctx context.Context) ([]*edgeproto.FlavorInfo, error)
 	AddCloudletImageIfNotPresent(ctx context.Context, imgPathPrefix, imgVersion string, updateCallback edgeproto.CacheUpdateCallback) (string, error)
@@ -137,7 +137,7 @@ func (v *VMPlatform) InitProps(ctx context.Context, platformConfig *platform.Pla
 	return nil
 }
 
-func (v *VMPlatform) Init(ctx context.Context, platformConfig *platform.PlatformConfig, controllerData *platform.ControllerData, updateCallback edgeproto.CacheUpdateCallback) error {
+func (v *VMPlatform) Init(ctx context.Context, platformConfig *platform.PlatformConfig, caches *platform.Caches, updateCallback edgeproto.CacheUpdateCallback) error {
 	log.SpanLog(ctx,
 		log.DebugLevelInfra, "Init VMPlatform",
 		"physicalName", platformConfig.PhysicalName,
@@ -162,7 +162,7 @@ func (v *VMPlatform) Init(ctx context.Context, platformConfig *platform.Platform
 		return err
 	}
 	log.SpanLog(ctx, log.DebugLevelInfra, "doing init provider")
-	if err := v.VMProvider.InitProvider(ctx, controllerData, updateCallback); err != nil {
+	if err := v.VMProvider.InitProvider(ctx, caches, updateCallback); err != nil {
 		return err
 	}
 	v.FlavorList, err = v.VMProvider.GetFlavorList(ctx)
@@ -210,15 +210,15 @@ func (v *VMPlatform) Init(ctx context.Context, platformConfig *platform.Platform
 	return nil
 }
 
-func (v *VMPlatform) SyncControllerData(ctx context.Context, controllerData *platform.ControllerData, cloudletState edgeproto.CloudletState) error {
-	log.SpanLog(ctx, log.DebugLevelInfra, "SyncControllerData", "cloudletState", cloudletState)
+func (v *VMPlatform) SyncControllerCache(ctx context.Context, caches *platform.Caches, cloudletState edgeproto.CloudletState) error {
+	log.SpanLog(ctx, log.DebugLevelInfra, "SyncControllerCache", "cloudletState", cloudletState)
 
-	err := v.SyncClusterInsts(ctx, controllerData, edgeproto.DummyUpdateCallback)
+	err := v.SyncClusterInsts(ctx, caches, edgeproto.DummyUpdateCallback)
 	if err != nil {
 		return err
 	}
 	// TODO v.SyncAppInsts
-	err = v.SyncSharedRootLB(ctx, controllerData)
+	err = v.SyncSharedRootLB(ctx, caches)
 	if err != nil {
 		return err
 	}

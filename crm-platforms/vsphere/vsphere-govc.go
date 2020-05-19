@@ -161,15 +161,8 @@ func (v *VSpherePlatform) GetUsedSubnetCIDRs(ctx context.Context) (map[string]st
 	log.SpanLog(ctx, log.DebugLevelInfra, "GetUsedSubnetCIDRs")
 
 	cidrUsed := make(map[string]string)
-	out, err := v.TimedGovcCommand(ctx, "govc", "tags.ls", "-c", v.GetSubnetTagCategory(ctx), "-json")
+	tags, err := v.getTagsForCategory(ctx, v.GetSubnetTagCategory(ctx))
 	if err != nil {
-		return nil, err
-	}
-	var tags []GovcTag
-	err = json.Unmarshal(out, &tags)
-	if err != nil {
-		log.SpanLog(ctx, log.DebugLevelInfra, "GetUsedSubnetCIDRs unmarshal fail", "out", string(out), "err", err)
-		err = fmt.Errorf("cannot unmarshal govc subnet tags, %v", err)
 		return nil, err
 	}
 	for _, t := range tags {

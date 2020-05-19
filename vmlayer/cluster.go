@@ -505,33 +505,34 @@ func (v *VMPlatform) syncClusterInst(ctx context.Context, clusterInst *edgeproto
 	return err
 }
 
-func (v *VMPlatform) SyncClusterInsts(ctx context.Context, controllerData *platform.ControllerData, updateCallback edgeproto.CacheUpdateCallback) error {
+func (v *VMPlatform) SyncClusterInsts(ctx context.Context, caches *platform.Caches, updateCallback edgeproto.CacheUpdateCallback) error {
 	log.SpanLog(ctx, log.DebugLevelInfra, "SyncClusterInsts")
 	clusterKeys := make(map[edgeproto.ClusterInstKey]context.Context)
-	controllerData.ClusterInstCache.GetAllKeys(ctx, clusterKeys)
+	caches.ClusterInstCache.GetAllKeys(ctx, clusterKeys)
 	for k := range clusterKeys {
 		log.SpanLog(ctx, log.DebugLevelInfra, "SyncClusterInsts found cluster", "key", k)
 		var clus edgeproto.ClusterInst
-		if controllerData.ClusterInstCache.Get(&k, &clus) {
+		if caches.ClusterInstCache.Get(&k, &clus) {
 			policy := edgeproto.PrivacyPolicy{}
 			if clus.PrivacyPolicy != "" {
 				policy.Key.Organization = clus.Key.Organization
 				policy.Key.Name = clus.PrivacyPolicy
-				if !controllerData.PrivacyPolicyCache.Get(&policy.Key, &policy) {
+				if !caches.PrivacyPolicyCache.Get(&policy.Key, &policy) {
 					log.SpanLog(ctx, log.DebugLevelInfra, "Privacy Policy not found for ClusterInst", "policyName", policy.Key.Name)
 					return fmt.Errorf("unable to sync clusterinst, privacy policy not found: %s", clus.PrivacyPolicy)
 				}
 			}
 			err := v.syncClusterInst(ctx, &clus, &policy, updateCallback)
 			if err != nil {
-				return err
+				log.SpanLog(ctx, log.DebugLevelInfra, "syncClusterInst failed", "err", err)
+				clus.State = edgeproto.TrackedState_CREATE_ERROR
+				caches.ClusterInstCache.Update(ctx, &clus, 0)
 			}
 		} else {
 			return fmt.Errorf("fail to fetch cluster %s", k)
 		}
 	}
 	log.SpanLog(ctx, log.DebugLevelInfra, "SyncClusterInsts done")
-
 	return nil
 }
 

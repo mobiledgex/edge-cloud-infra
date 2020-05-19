@@ -18,6 +18,7 @@ type VSpherePlatform struct {
 	vcenterVars  map[string]string
 	vmProperties *vmlayer.VMProperties
 	TestMode     bool
+	caches       *platform.Caches
 }
 
 func (v *VSpherePlatform) GetType() string {
@@ -28,14 +29,10 @@ func (v *VSpherePlatform) SetVMProperties(vmProperties *vmlayer.VMProperties) {
 	v.vmProperties = vmProperties
 }
 
-func (v *VSpherePlatform) InitProvider(ctx context.Context, controllerData *platform.ControllerData, updateCallback edgeproto.CacheUpdateCallback) error {
+func (v *VSpherePlatform) InitProvider(ctx context.Context, caches *platform.Caches, updateCallback edgeproto.CacheUpdateCallback) error {
 	log.SpanLog(ctx, log.DebugLevelInfra, "InitProvider for VSphere")
-	err := v.GetControllerFlavors(ctx, controllerData)
-	if err != nil {
-		return err
-	}
-
-	err = v.TerraformSetupVsphere(ctx, updateCallback)
+	v.caches = caches
+	err := v.TerraformSetupVsphere(ctx, updateCallback)
 	if err != nil {
 		log.SpanLog(ctx, log.DebugLevelInfra, "TerraformSetupVsphere failed", "err", err)
 		return fmt.Errorf("TerraformSetupVsphere failed - %v", err)

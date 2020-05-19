@@ -656,7 +656,7 @@ func (v *VMPlatform) DeleteProxySecurityGroupRules(ctx context.Context, client s
 	return v.VMProvider.RemoveWhitelistSecurityRules(ctx, secGrpName, allowedClientCIDR, ports)
 }
 
-func (v *VMPlatform) SyncSharedRootLB(ctx context.Context, controllerData *platform.ControllerData) error {
+func (v *VMPlatform) SyncSharedRootLB(ctx context.Context, caches *platform.Caches) error {
 	log.SpanLog(ctx, log.DebugLevelInfra, "SyncSharedRootLB")
 
 	err := v.CreateRootLB(ctx, v.VMProperties.sharedRootLB, v.VMProperties.CommonPf.PlatformConfig.CloudletKey, v.VMProperties.CommonPf.PlatformConfig.CloudletVMImagePath, v.VMProperties.CommonPf.PlatformConfig.VMImageVersion, ActionSync, edgeproto.DummyUpdateCallback)
@@ -668,15 +668,15 @@ func (v *VMPlatform) SyncSharedRootLB(ctx context.Context, controllerData *platf
 		return nil
 	}
 	clusterKeys := make(map[edgeproto.ClusterInstKey]context.Context)
-	controllerData.ClusterInstCache.GetAllKeys(ctx, clusterKeys)
+	caches.ClusterInstCache.GetAllKeys(ctx, clusterKeys)
 	for k := range clusterKeys {
 		log.SpanLog(ctx, log.DebugLevelInfra, "SyncClusterInsts found cluster", "key", k)
 		var clus edgeproto.ClusterInst
-		if !controllerData.ClusterInstCache.Get(&k, &clus) {
+		if !caches.ClusterInstCache.Get(&k, &clus) {
 			return fmt.Errorf("fail to fetch cluster %s", k)
 		}
 
-		if clus.IpAccess == edgeproto.IpAccess_IP_ACCESS_SHARED {
+		if clus.IpAccess == edgeproto.IpAccess_IP_ACCESS_SHARED && clus.State == edgeproto.TrackedState_READY {
 			subnetName := GetClusterSubnetName(ctx, &clus)
 			portName := GetPortName(v.VMProperties.sharedRootLBName, subnetName)
 			ipaddr, err := v.GetIPFromServerName(ctx, "", subnetName, v.VMProperties.sharedRootLBName)

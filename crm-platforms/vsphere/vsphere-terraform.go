@@ -8,6 +8,7 @@ import (
 	"os"
 	"regexp"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/mobiledgex/edge-cloud-infra/vmlayer"
@@ -26,6 +27,8 @@ var terraformTest string = "TEST"
 const TagDelimiter = "__"
 
 const DoesNotExistError string = "does not exist"
+
+var vmOrchestrateLock sync.Mutex
 
 type VSphereGeneralParams struct {
 	VsphereUser       string
@@ -46,6 +49,15 @@ type VSphereGeneralParams struct {
 type VSphereVMGroupParams struct {
 	*VSphereGeneralParams
 	*vmlayer.VMGroupOrchestrationParams
+}
+
+const COMMENT_BEGIN = "BEGIN"
+const COMMENT_END = "END"
+const COMMENT_INTERFACE = "INTERFACE"
+const COMMENT_TAGS = "TAGS"
+
+func getCommentLabel(beginOrEnd, objectType, object string) string {
+	return fmt.Sprintf("## %s ADDITIONAL %s FOR %s", beginOrEnd, objectType, object)
 }
 
 func (v *VSpherePlatform) GetVmIpTagCategory(ctx context.Context) string {
@@ -79,11 +91,11 @@ func (v *VSpherePlatform) DetachPortFromServer(ctx context.Context, serverName, 
 		return err
 	}
 
-	beginIf := "## BEGIN ADDITIONAL INTERFACE FOR " + subnetName + "__" + serverName
-	endIf := "## END ADDITIONAL INTERFACE FOR " + subnetName + "__" + serverName
+	beginIf := getCommentLabel(COMMENT_BEGIN, COMMENT_INTERFACE, subnetName+"__"+serverName)
+	endIf := getCommentLabel(COMMENT_END, COMMENT_INTERFACE, subnetName+"__"+serverName)
 
-	beginTag := "## BEGIN ADDITIONAL TAGS FOR " + subnetName + "__" + serverName
-	endTag := "## END ADDITIONAL TAGS FOR " + subnetName + "__" + serverName
+	beginTag := getCommentLabel(COMMENT_BEGIN, COMMENT_TAGS, subnetName+"__"+serverName)
+	endTag := getCommentLabel(COMMENT_END, COMMENT_TAGS, subnetName+"__"+serverName)
 
 	// remove the lines between the delimters above
 	lines := strings.Split(string(input), "\n")
@@ -124,21 +136,21 @@ func (v *VSpherePlatform) AttachPortToServer(ctx context.Context, serverName, su
 	tagId := v.IdSanitize(tagName)
 
 	interfaceContents := fmt.Sprintf(`
-		## BEGIN ADDITIONAL INTERFACE FOR `+subnetName+"__"+serverName+`
+		`+getCommentLabel(COMMENT_BEGIN, COMMENT_INTERFACE, subnetName+"__"+serverName)+`
 		network_interface {
 			network_id = vsphere_distributed_port_group.%s.id
 		}
-		## END ADDITIONAL INTERFACE FOR `+subnetName+"__"+serverName+`
+		`+getCommentLabel(COMMENT_END, COMMENT_INTERFACE, subnetName+"__"+serverName)+`
 		`, subnetName)
 
 	tagContents := fmt.Sprintf(`
-	## BEGIN ADDITIONAL TAGS FOR `+subnetName+"__"+serverName+`
+	`+getCommentLabel(COMMENT_BEGIN, COMMENT_TAGS, subnetName+"__"+serverName)+`
 	## import vsphere_tag.%s {"category_name":"%s","tag_name":"%s"}
 	resource "vsphere_tag" "%s" {
 		name = "%s"
 		category_id = "${vsphere_tag_category.%s.id}"
 	}
-	## END ADDITIONAL TAGS FOR `+subnetName+"__"+serverName+`
+	`+getCommentLabel(COMMENT_END, COMMENT_TAGS, subnetName+"__"+serverName)+`
 		`, tagId, v.GetVmIpTagCategory(ctx), tagName, tagId, tagName, v.GetVmIpTagCategory(ctx))
 
 	input, err := ioutil.ReadFile(fileName)
@@ -169,7 +181,6 @@ func (v *VSpherePlatform) AttachPortToServer(ctx context.Context, serverName, su
 		}
 	} else if action == vmlayer.ActionSync {
 		return nil
-		//return v.ImportTerraformPlan(ctx, serverName, edgeproto.DummyUpdateCallback)
 	}
 	return err
 }
@@ -633,6 +644,11 @@ func (v *VSpherePlatform) TerraformSetupVsphere(ctx context.Context, updateCallb
 func (v *VSpherePlatform) orchestrateVMs(ctx context.Context, vmGroupOrchestrationParams *vmlayer.VMGroupOrchestrationParams, action string, updateCallback edgeproto.CacheUpdateCallback) error {
 	log.SpanLog(ctx, log.DebugLevelInfra, "Terraform orchestrateVMs", "action", action)
 
+	// because we look for free IPs when defining the orchestration parms which are not reserved
+	// until the plan is created, we need to lock this whole function
+	vmOrchestrateLock.Lock()
+	defer vmOrchestrateLock.Unlock()
+
 	planName := v.NameSanitize(vmGroupOrchestrationParams.GroupName)
 	var vvgp VSphereVMGroupParams
 	var vgp VSphereGeneralParams
@@ -663,7 +679,6 @@ func (v *VSpherePlatform) orchestrateVMs(ctx context.Context, vmGroupOrchestrati
 	if action == terraformSync {
 		log.SpanLog(ctx, log.DebugLevelInfra, "SKIP IMPORT FOR NOW", "terraformFile", terraformFile)
 		return nil
-		//return v.ImportTerraformPlan(ctx, planName, updateCallback)
 	}
 	return terraform.ApplyTerraformPlan(
 		ctx,

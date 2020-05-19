@@ -24,7 +24,7 @@ func (a *AzurePlatform) GetType() string {
 	return "azure"
 }
 
-func (a *AzurePlatform) Init(ctx context.Context, platformConfig *platform.PlatformConfig, controllerData *platform.ControllerData, updateCallback edgeproto.CacheUpdateCallback) error {
+func (a *AzurePlatform) Init(ctx context.Context, platformConfig *platform.PlatformConfig, caches *platform.Caches, updateCallback edgeproto.CacheUpdateCallback) error {
 
 	vaultConfig, err := vault.BestConfig(platformConfig.VaultAddr)
 	if err != nil {

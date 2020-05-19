@@ -25,7 +25,7 @@ func (o *OpenstackPlatform) SetVMProperties(vmProperties *vmlayer.VMProperties) 
 	o.VMProperties = vmProperties
 }
 
-func (o *OpenstackPlatform) InitProvider(ctx context.Context, controllerData *platform.ControllerData, updateCallback edgeproto.CacheUpdateCallback) error {
+func (o *OpenstackPlatform) InitProvider(ctx context.Context, caches *platform.Caches, updateCallback edgeproto.CacheUpdateCallback) error {
 	return o.PrepNetwork(ctx)
 }
 

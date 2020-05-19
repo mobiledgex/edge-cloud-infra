@@ -34,7 +34,7 @@ var parentSpan = flag.String("span", "", "Use parent span for logging")
 var region = flag.String("region", "local", "Region name")
 var promTargetsFile = flag.String("targetsFile", "/tmp/prom_targets.json", "Prometheus targets file")
 var promAlertsFile = flag.String("alertsFile", "/tmp/prom_rules.yml", "Prometheus alerts file")
-var appDNSRoot = flag.String("appDNSRoot", "local", "App domain name root")
+var appDNSRoot = flag.String("appDNSRoot", "mobiledgex.net", "App domain name root")
 
 var defaultPrometheusPort = cloudcommon.PrometheusPort
 

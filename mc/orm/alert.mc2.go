@@ -103,6 +103,7 @@ It has these top-level messages:
 	PrivacyPolicy
 	CloudletRefs
 	ClusterRefs
+	AppInstRefs
 	ResTagTableKey
 	ResTagTable
 	Result
@@ -1350,4 +1351,14 @@ func addControllerApis(method string, group *echo.Group) {
 	//   403: forbidden
 	//   404: notFound
 	group.Match([]string{method}, "/ctrl/ShowClusterRefs", ShowClusterRefs)
+	// swagger:route POST /auth/ctrl/ShowAppInstRefs AppInstRefs ShowAppInstRefs
+	// Show AppInstRefs (debug only).
+	// Security:
+	//   Bearer:
+	// responses:
+	//   200: success
+	//   400: badRequest
+	//   403: forbidden
+	//   404: notFound
+	group.Match([]string{method}, "/ctrl/ShowAppInstRefs", ShowAppInstRefs)
 }

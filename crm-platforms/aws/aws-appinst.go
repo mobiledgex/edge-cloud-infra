@@ -107,8 +107,8 @@ func SetupKconf(ctx context.Context, clusterInst *edgeproto.ClusterInst) error {
 		return nil
 	}
 	clusterName := clusterInst.Key.ClusterKey.Name
-	if err := GetGKECredentials(clusterName); err != nil {
-		return fmt.Errorf("unable to get GKE credentials %v", err)
+	if err := GetEKSCredentials(clusterName); err != nil {
+		return fmt.Errorf("unable to get EKS credentials %v", err)
 	}
 	src := infracommon.DefaultKubeconfig()
 	if err := infracommon.CopyFile(src, targetFile); err != nil {

@@ -55,6 +55,8 @@ func (a *AWSPlatform) Init(ctx context.Context, platformConfig *platform.Platfor
 	return nil
 }
 
+// aws ec2 describe-instance-types --filters 'Name=instance-storage-supported,Values=true' \
+// --query 'InstanceTypes[].[InstanceType,VCpuInfo.DefaultVCpus,VCpuInfo.DefaultCores,MemoryInfo.SizeInMiB,InstanceStorageInfo.TotalSizeInGB]'
 func (a *AWSPlatform) GatherCloudletInfo(ctx context.Context, info *edgeproto.CloudletInfo) error {
 	log.SpanLog(ctx, log.DebugLevelInfra, "GetLimits (AWS)")
 	err := a.AWSLogin(ctx)
@@ -63,13 +65,17 @@ func (a *AWSPlatform) GatherCloudletInfo(ctx context.Context, info *edgeproto.Cl
 	}
 	var quotas []AWSQuotasList
 
-	filter := fmt.Sprintf("name=(%s) AND quotas.metric=(CPUS, DISKS_TOTAL_GB)", a.GetAWSZone())
+	//filter := fmt.Sprintf("name=(%s) AND quotas.metric=(CPUS, DISKS_TOTAL_GB)", a.GetAWSZone())
+	filter := "Name=instance-storage-supported,Values=true"
 	flatten := "quotas[]"
 	format := "json(quotas.metric,quotas.limit)"
-
-	out, err := sh.Command("gcloud", "compute", "regions", "list",
-		"--project", a.GetAWSProject(), "--filter", filter, "--flatten", flatten,
-		"--format", format, sh.Dir("/tmp")).CombinedOutput()
+	query := "InstanceTypes[].[InstanceType,VCpuInfo.DefaultVCpus,VCpuInfo.DefaultCores,MemoryInfo.SizeInMiB,InstanceStorageInfo.TotalSizeInGB]"
+	
+	out, err := sh.Command("aws", "ec2", "describe-instance-types",
+	    "--filter", filter,
+		"--query", query,
+		"--flatten", flatten,
+		"--output", "json", sh.Dir("/tmp")).CombinedOutput()
 	if err != nil {
 		err = fmt.Errorf("cannot get resource quotas from AWS, %s, %s", out, err.Error())
 		return err

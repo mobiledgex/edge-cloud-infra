@@ -68,7 +68,6 @@ func (v *VSpherePlatform) GetFlavorList(ctx context.Context) ([]*edgeproto.Flavo
 			return nil, fmt.Errorf("fail to fetch flavor %s", k)
 		}
 	}
-	// we just send the controller back the same list of flavors it gave us, because VSphere has no flavor concept
 	return flavors, nil
 }
 

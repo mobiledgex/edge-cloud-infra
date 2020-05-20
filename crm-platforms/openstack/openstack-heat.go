@@ -176,13 +176,16 @@ resources:
     {{- end}}
 `
 
-func reindent(str string) string {
-	indent := 16
+func reindent(str string, indent int) string {
 	out := ""
 	for _, v := range strings.Split(str, "\n") {
 		out += strings.Repeat(" ", indent) + v + "\n"
 	}
 	return strings.TrimSuffix(out, "\n")
+}
+
+func reindent16(str string) string {
+	return reindent(str, 16)
 }
 
 func (o *OpenstackPlatform) getFreeFloatingIpid(ctx context.Context) (string, error) {
@@ -328,7 +331,7 @@ func (o *OpenstackPlatform) populateParams(ctx context.Context, VMGroupOrchestra
 	if len(VMGroupOrchestrationParams.Subnets) > 0 {
 		currentSubnetName := ""
 		if action != heatCreate {
-			currentSubnetName = "mex-k8s-subnet-" + VMGroupOrchestrationParams.GroupName
+			currentSubnetName = vmlayer.MexSubnetPrefix + VMGroupOrchestrationParams.GroupName
 		}
 		var sns []OSSubnet
 		var snserr error
@@ -392,8 +395,8 @@ func (o *OpenstackPlatform) populateParams(ctx context.Context, VMGroupOrchestra
 
 	// populate the user data
 	for i, v := range VMGroupOrchestrationParams.VMs {
-		VMGroupOrchestrationParams.VMs[i].MetaData = vmlayer.GetVMMetaData(v.Role, masterIP, reindent)
-		VMGroupOrchestrationParams.VMs[i].UserData = vmlayer.GetVMUserData(v.SharedVolume, v.DNSServers, v.DeploymentManifest, v.Command, reindent)
+		VMGroupOrchestrationParams.VMs[i].MetaData = vmlayer.GetVMMetaData(v.Role, masterIP, reindent16)
+		VMGroupOrchestrationParams.VMs[i].UserData = vmlayer.GetVMUserData(v.SharedVolume, v.DNSServers, v.DeploymentManifest, v.Command, reindent16)
 	}
 
 	// populate the floating ips

@@ -18,6 +18,8 @@ import (
 	ssh "github.com/mobiledgex/golang-ssh"
 )
 
+const MexSubnetPrefix = "mex-k8s-subnet-"
+
 //ClusterNodeFlavor contains details of flavor for the node
 type ClusterNodeFlavor struct {
 	Type string
@@ -44,7 +46,7 @@ func GetClusterName(ctx context.Context, clusterInst *edgeproto.ClusterInst) str
 }
 
 func GetClusterSubnetName(ctx context.Context, clusterInst *edgeproto.ClusterInst) string {
-	return "mex-k8s-subnet-" + GetClusterName(ctx, clusterInst)
+	return MexSubnetPrefix + GetClusterName(ctx, clusterInst)
 }
 
 func GetClusterMasterName(ctx context.Context, clusterInst *edgeproto.ClusterInst) string {

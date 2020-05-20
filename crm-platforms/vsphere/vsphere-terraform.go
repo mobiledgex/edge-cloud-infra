@@ -224,7 +224,7 @@ func (v *VSpherePlatform) populateVMOrchParams(ctx context.Context, vmgp *vmlaye
 	}
 	currentSubnetName := ""
 	if action != terraformCreate {
-		currentSubnetName = "mex-k8s-subnet-" + vmgp.GroupName
+		currentSubnetName = vmlayer.MexSubnetPrefix + vmgp.GroupName
 	}
 
 	//find an available subnet or the current subnet for update and delete
@@ -319,7 +319,7 @@ func (v *VSpherePlatform) populateVMOrchParams(ctx context.Context, vmgp *vmlaye
 					}
 				}
 				if !found {
-					return fmt.Errorf("found not find subnet for vm %s", vm.Name)
+					return fmt.Errorf("subnet for vm %s not found", vm.Name)
 				}
 			}
 		}
@@ -328,9 +328,6 @@ func (v *VSpherePlatform) populateVMOrchParams(ctx context.Context, vmgp *vmlaye
 
 	return nil
 }
-
-//return nil
-//}
 
 func getResourcePool(planName string) string {
 	return planName + "-pool"

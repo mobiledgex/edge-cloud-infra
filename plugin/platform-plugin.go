@@ -29,10 +29,6 @@ func GetPlatform(plat string) (platform.Platform, error) {
 			Type:       vmlayer.VMProviderVSphere,
 			VMProvider: &vsphereProvider,
 		}
-	//case "PLATFORM_TYPE_VSPHERE":
-	//	outPlatform = &vmlayer.VMPlatform{
-	//		Type: vmlayer.VMProviderVSphere,
-	//	}
 	case "PLATFORM_TYPE_AZURE":
 		outPlatform = &azure.AzurePlatform{}
 	case "PLATFORM_TYPE_GCP":

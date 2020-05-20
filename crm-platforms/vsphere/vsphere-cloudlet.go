@@ -52,8 +52,11 @@ func (v *VSpherePlatform) AddCloudletImageIfNotPresent(ctx context.Context, imgP
 
 func (v *VSpherePlatform) GetFlavorList(ctx context.Context) ([]*edgeproto.FlavorInfo, error) {
 	// we just send the controller back the same list of flavors it gave us, because VSphere has no flavor concept
-	flavorkeys := make(map[edgeproto.FlavorKey]context.Context)
-	v.caches.FlavorCache.GetAllKeys(ctx, flavorkeys)
+
+	flavorkeys := make(map[edgeproto.FlavorKey]struct{})
+	v.caches.FlavorCache.GetAllKeys(ctx, func(k *edgeproto.FlavorKey, modRev int64) {
+		flavorkeys[*k] = struct{}{}
+	})
 	for k := range flavorkeys {
 		log.SpanLog(ctx, log.DebugLevelInfra, "GetFlavorList found flavor", "key", k)
 		var flav edgeproto.Flavor

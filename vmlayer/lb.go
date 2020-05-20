@@ -667,8 +667,10 @@ func (v *VMPlatform) SyncSharedRootLB(ctx context.Context, caches *platform.Cach
 	if v.VMProperties.GetCloudletExternalRouter() != NoExternalRouter {
 		return nil
 	}
-	clusterKeys := make(map[edgeproto.ClusterInstKey]context.Context)
-	caches.ClusterInstCache.GetAllKeys(ctx, clusterKeys)
+	clusterKeys := make(map[edgeproto.ClusterInstKey]struct{})
+	caches.ClusterInstCache.GetAllKeys(ctx, func(k *edgeproto.ClusterInstKey, modRev int64) {
+		clusterKeys[*k] = struct{}{}
+	})
 	for k := range clusterKeys {
 		log.SpanLog(ctx, log.DebugLevelInfra, "SyncClusterInsts found cluster", "key", k)
 		var clus edgeproto.ClusterInst

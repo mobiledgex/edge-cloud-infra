@@ -122,7 +122,6 @@ func gitlabCreateGroup(ctx context.Context, org *ormapi.Organization) {
 	gitlabCreateProject(ctx, grp.ID, DefaultProjectName)
 }
 
-// TODO: change org to an OrgInfo
 func gitlabDeleteGroup(ctx context.Context, org *ormapi.Organization) {
 	if org.Type == OrgTypeOperator {
 		// no operator orgs needed in gitlab

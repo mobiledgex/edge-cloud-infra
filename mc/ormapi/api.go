@@ -52,6 +52,8 @@ type Organization struct {
 	PublicImages bool `json:",omitempty"`
 	// read only: true
 	DeleteInProgress bool `json:",omitempty"`
+	// read only: true
+	Parent string `json:",omitempty"`
 }
 
 type BillingOrganization struct {
@@ -61,29 +63,27 @@ type BillingOrganization struct {
 	// Organization type: "parent" or "self"
 	Type string `gorm:"not null"`
 	// Billing Info First Name
-	FirstName string
+	FirstName string `json:",omitempty"`
 	// Billing info last name
-	LastName string
+	LastName string `json:",omitempty"`
 	// Organization email
-	Email string
+	Email string `json:",omitempty"`
 	// Organization address
-	Address string
+	Address string `json:",omitempty"`
 	// Organization city
-	City string
+	City string `json:",omitempty"`
 	// Organization Country
-	Country string
+	Country string `json:",omitempty"`
 	// Organization State
-	State string
+	State string `json:",omitempty"`
 	// Organization Postal code
-	PostalCode string
+	PostalCode string `json:",omitempty"`
 	// Organization phone number
-	Phone string
-	// Zuora Account number
-	AccountNumber string
-	// Zuora AccountId
-	AccountId string
-	// Zuora SubscriptionNumber
-	SubscriptionNumber string
+	Phone string `json:",omitempty"`
+	// Currency
+	Currency string `json:",omitempty"` // currently only allow "USD"
+	// Children belonging to this BillingOrganization
+	Children string `json:",omitempty"`
 	// read only: true
 	CreatedAt time.Time `json:",omitempty"`
 	// read only: true

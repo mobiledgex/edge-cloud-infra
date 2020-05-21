@@ -11,7 +11,7 @@ var vaultPath = "secret/data/accounts/zuora/"
 // Endpoints
 var OAuthEndpoint = "/oauth/token"
 var AccountsEndPoint = "/v1/accounts"
-var DeleteAccountsEndpoint = "/v1/object/account/"
+var ObjectAccountsEndpoint = "/v1/object/account/"
 var ProductEndpoint = "/v1/object/product"
 var ProductRatePlanEndpoint = "/v1/object/product-rate-plan"
 var ProductRatePlanChargeEndpoint = "/v1/object/product-rate-plan-charge"
@@ -53,17 +53,19 @@ type NewAccount struct {
 	AutoPay                  bool                   `json:"autoPay"`
 	BillCycleDay             int                    `json:"billCycleDay,omitempty"`
 	BillToContact            *CustomerBillToContact `json:"billToContact,omitempty"`
+	SoldToContact            *CustomerBillToContact `json:"soldToContact,omitempty"`
 	Currency                 string                 `json:"currency,omitempty"`
 	Name                     string                 `json:"name,omitempty"`
 	Notes                    string                 `json:"notes,omitempty"`
 	PaymentTerm              string                 `json:"paymentTerm,omitempty"`
 	PaymentMethod            *PaymentMethod         `json:"paymentMethod,omitempty"`
+	ParentId                 string                 `json:"parentId,omitempty"`
 }
 
 type CustomerBillToContact struct {
-	FirstName  string `json:"firstName"`
-	LastName   string `json:"lastName"`
-	WorkEmail  string `json:"workEmail"`
+	FirstName  string `json:"firstName,omitempty"`
+	LastName   string `json:"lastName,omitempty"`
+	WorkEmail  string `json:"workEmail,omitempty"`
 	Address1   string `json:"address1,omitempty"`
 	Address2   string `json:"address2,omitempty"`
 	City       string `json:"city,omitempty"`

@@ -12,7 +12,6 @@ import (
 
 	"github.com/jinzhu/gorm"
 	"github.com/labstack/echo"
-	"github.com/mobiledgex/edge-cloud-infra/billing/zuora"
 	"github.com/mobiledgex/edge-cloud-infra/mc/ormapi"
 	"github.com/mobiledgex/edge-cloud-infra/mc/rbac"
 	"github.com/mobiledgex/edge-cloud/cloudcommon"
@@ -71,6 +70,9 @@ func CreateOrgObj(ctx context.Context, claims *UserClaims, org *ormapi.Organizat
 			return fmt.Errorf("Not authorized to create reserved org %s", org.Name)
 		}
 	}
+	// set the billingOrg parent to none
+	org.Parent = ""
+
 	db := loggedDB(ctx)
 	err = db.Create(&org).Error
 	if err != nil {
@@ -142,6 +144,18 @@ func DeleteOrgObj(ctx context.Context, claims *UserClaims, org *ormapi.Organizat
 		return err
 	}
 
+	// check to see if this org had a billingOrg attached
+	selfOrg := false
+	orgCheck, err := orgExists(ctx, org.Name)
+	if err != nil {
+		return err
+	}
+	if orgCheck.Parent == orgCheck.Name {
+		selfOrg = true
+	} else if orgCheck.Parent != "" {
+		return fmt.Errorf("Organization is still part of Parent BillingOrganization %s", orgCheck.Parent)
+	}
+
 	// delete org
 	err = db.Delete(&org).Error
 	if err != nil {
@@ -153,6 +167,13 @@ func DeleteOrgObj(ctx context.Context, claims *UserClaims, org *ormapi.Organizat
 			return fmt.Errorf("Cannot delete organization because it is referenced by an OrgCloudletPool")
 		}
 		return dbErr(err)
+	}
+
+	if selfOrg {
+		err = DeleteBillingOrgObj(ctx, claims, &ormapi.BillingOrganization{Name: org.Name})
+		if err != nil {
+			return err
+		}
 	}
 	// delete all casbin groups associated with org
 	groups, err := enforcer.GetGroupingPolicy()
@@ -265,10 +286,20 @@ func ShowOrgObj(ctx context.Context, claims *UserClaims) ([]ormapi.Organization,
 				org := ormapi.Organization{}
 				org.Name = orguser[0]
 				err := db.Where(&org).First(&org).Error
+				show := true
 				if err != nil {
-					return nil, dbErr(err)
+					// check to make sure it wasnt a billing org before throwing an error
+					billOrg := ormapi.BillingOrganization{Name: orguser[0]}
+					billErr := db.Where(&billOrg).First(&billOrg).Error
+					if billErr == nil {
+						show = false
+					} else {
+						return nil, dbErr(err)
+					}
 				}
-				orgs = append(orgs, org)
+				if show {
+					orgs = append(orgs, org)
+				}
 			}
 		}
 	}

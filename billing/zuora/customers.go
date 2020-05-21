@@ -9,7 +9,7 @@ import (
 )
 
 //Create customer with a empty monthly subscription (with no payment method for now)
-func CreateCustomer(name, currency string, billToContact *CustomerBillToContact, info *AccountInfo) error {
+func CreateCustomer(name, currency, parent string, billToContact *CustomerBillToContact, info *AccountInfo) error {
 	account := NewAccount{
 		Name:          name,
 		BillToContact: billToContact,
@@ -17,6 +17,9 @@ func CreateCustomer(name, currency string, billToContact *CustomerBillToContact,
 		PaymentTerm:   "Due Upon Receipt",
 		BillCycleDay:  1,
 		AutoPay:       false, //required if you dont add a payment method
+	}
+	if parent != "" {
+		account.ParentId = parent
 	}
 	// Create an empty subscription for the customer
 	newSub := CreateOrder{
@@ -79,6 +82,46 @@ func CreateCustomer(name, currency string, billToContact *CustomerBillToContact,
 	err = AddItem(FlavorUsageProductRatePlanId, info.AccountNumber) //TODO: move this when we figure out pricing structure for flavors
 	if err != nil {
 		return fmt.Errorf("error adding item")
+	}
+	return nil
+}
+
+//Updates the customers billingInfo
+func UpdateCustomer(info *AccountInfo, billToContact *CustomerBillToContact) error {
+	account := NewAccount{
+		BillToContact: billToContact,
+		SoldToContact: billToContact, // for now keep them the same TODO: figure out what these actually mean
+	}
+
+	payload, err := json.Marshal(account)
+	if err != nil {
+		return fmt.Errorf("Could not marshal %+v, err: %v", account, err)
+	}
+	fmt.Printf("payload: %s\n", payload)
+	client := &http.Client{}
+	req, err := http.NewRequest("PUT", ZuoraUrl+AccountsEndPoint+"/"+info.AccountNumber, bytes.NewReader(payload))
+	if err != nil {
+		return fmt.Errorf("Error creating request: %v\n", err)
+	}
+	token, tokentype, err := getToken()
+	if err != nil {
+		return fmt.Errorf("Unable to retrieve oAuth token")
+	}
+	req.Header.Add("Authorization", tokentype+" "+token)
+	req.Header.Set("Content-Type", "application/json")
+
+	resp, err := client.Do(req)
+	if err != nil {
+		return fmt.Errorf("Error sending request: %v\n", err)
+	}
+	parsedResp := GenericResp{}
+	defer resp.Body.Close()
+	err = json.NewDecoder(resp.Body).Decode(&parsedResp)
+	if err != nil {
+		return fmt.Errorf("Error parsing response: %v\n", err)
+	}
+	if !parsedResp.Success {
+		return fmt.Errorf("Error updating customer")
 	}
 	return nil
 }
@@ -149,7 +192,7 @@ func getNextBillDay() string {
 
 // Delete a customer
 func DeleteCustomer(accountInfo *AccountInfo) error {
-	req, err := http.NewRequest("DELETE", ZuoraUrl+DeleteAccountsEndpoint+accountInfo.AccountID, nil)
+	req, err := http.NewRequest("DELETE", ZuoraUrl+ObjectAccountsEndpoint+accountInfo.AccountID, nil)
 	if err != nil {
 		return fmt.Errorf("Error creating request: %v\n", err)
 	}

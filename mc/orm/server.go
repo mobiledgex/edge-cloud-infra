@@ -338,6 +338,75 @@ func RunServer(config *ServerConfig) (*Server, error) {
 	//   403: forbidden
 	//   404: notFound
 	auth.POST("/org/delete", DeleteOrg)
+
+	// swagger:route POST /auth/billingorg/create BillingOrganization CreateBillingOrg
+	// Create BillingOrganization.
+	// Create a BillingOrganization to set up billing info.
+	// Security:
+	//   Bearer:
+	// responses:
+	//   200: success
+	//   400: badRequest
+	//   403: forbidden
+	//   404: notFound
+	auth.POST("/billingorg/create", CreateBillingOrg)
+	// swagger:route POST /auth/billingorg/update BillingOrganization UpdateBillingOrg
+	// Update BillingOrganization.
+	// API to update an existing BillingOrganization.
+	// Security:
+	//   Bearer:
+	// responses:
+	//   200: success
+	//   400: badRequest
+	//   403: forbidden
+	//   404: notFound
+	auth.POST("/billingorg/update", UpdateBillingOrg)
+	// swagger:route POST /auth/billingorg/addchild BillingOrganization AddChildOrg
+	// Add Child to BillingOrganization.
+	// Adds an Organization to an existing parent BillingOrganization.
+	// Security:
+	//   Bearer:
+	// responses:
+	//   200: success
+	//   400: badRequest
+	//   403: forbidden
+	//   404: notFound
+	auth.POST("/billingorg/addchild", AddChildOrg)
+	// swagger:route POST /auth/billingorg/removechild BillingOrganization RemoveChildOrg
+	// Remove Child from BillingOrganization.
+	// Removes an Organization from an existing parent BillingOrganization.
+	// Security:
+	//   Bearer:
+	// responses:
+	//   200: success
+	//   400: badRequest
+	//   403: forbidden
+	//   404: notFound
+	auth.POST("/billingorg/removechild", RemoveChildOrg)
+	// swagger:route POST /auth/billingorg/show BillingOrganization ShowBillingOrg
+	// Show BillingOrganizations.
+	// Displays existing BillingOrganizations in which you are authorized to access.
+	// Security:
+	//   Bearer:
+	// responses:
+	//   200: listBillingOrgs
+	//   400: badRequest
+	//   403: forbidden
+	//   404: notFound
+	auth.POST("/billingorg/show", ShowBillingOrg)
+	// swagger:route POST /auth/billingorg/delete BillingOrganization DeleteBillingOrg
+	// Delete BillingOrganization.
+	// Deletes an existing BillingOrganization.
+	// Security:
+	//   Bearer:
+	// responses:
+	//   200: success
+	//   400: badRequest
+	//   403: forbidden
+	//   404: notFound
+	auth.POST("/billingorg/delete", DeleteBillingOrg)
+	// TODO: add in AddChild and RemoveChild
+
 	auth.POST("/controller/create", CreateController)
 	auth.POST("/controller/delete", DeleteController)
 	auth.POST("/controller/show", ShowController)

@@ -2,7 +2,7 @@ package cliwrapper
 
 import "github.com/mobiledgex/edge-cloud-infra/mc/ormapi"
 
-func (s *Client) CreateOrg(uri, token string, org *ormapi.OrgInfo) (int, error) {
+func (s *Client) CreateOrg(uri, token string, org *ormapi.Organization) (int, error) {
 	args := []string{"org", "create"}
 	return s.runObjs(uri, token, args, org, nil)
 }

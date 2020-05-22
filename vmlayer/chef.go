@@ -3,12 +3,13 @@ package vmlayer
 import (
 	"context"
 	"fmt"
+	"reflect"
 	"strings"
+	"time"
 
 	"github.com/go-chef/chef"
-	"github.com/mobiledgex/edge-cloud/cloudcommon"
+	"github.com/mitchellh/mapstructure"
 	"github.com/mobiledgex/edge-cloud/log"
-	"github.com/mobiledgex/edge-cloud/util"
 	"github.com/mobiledgex/edge-cloud/vault"
 )
 
@@ -17,19 +18,41 @@ type ChefAuthKey struct {
 	ValidationKey string `json:"validationkey"`
 }
 
-func GetChefAuthKeys(ctx context.Context, vaultConfig *vault.Config, chefServerPath string) (*ChefAuthKey, error) {
-	log.SpanLog(ctx, log.DebugLevelInfra, "fetch chef auth keys", "chefServerPath", chefServerPath)
-	urlObj, err := util.ImagePathParse(chefServerPath)
-	if err != nil {
-		return nil, err
-	}
-	hostname := strings.Split(urlObj.Host, ":")
-	if len(hostname) < 1 {
-		return nil, fmt.Errorf("chef server path is empty")
-	}
-	vaultPath := cloudcommon.GetVaultRegistryPath(hostname[0])
+type ChefResource struct {
+	CookbookName string   `mapstructure:"cookbook_name"`
+	RecipeName   string   `mapstructure:"recipe_name"`
+	Action       []string `mapstructure:"action"`
+	Resource     string   `mapstructure:"resource"`
+	ResourceType string   `mapstructure:"resource_type"`
+	Updated      bool     `mapstructure:"updated"`
+}
+
+type ChefRunStatus struct {
+	Status    string         `mapstructure:"status"`
+	Start     string         `mapstructure:"start"`
+	End       string         `mapstructure:"end"`
+	Backtrace []string       `mapstructure:"backtrace"`
+	Exception string         `mapstructure:"exception"`
+	Resources []ChefResource `mapstructure:"resources"`
+}
+
+type ChefStatusInfo struct {
+	Message string
+	Failed  bool
+}
+
+const (
+	ResourceDockerRegistry  = "docker_registry"
+	ResourceDockerImage     = "docker_image"
+	ResourceDockerContainer = "docker_container"
+	ChefTimeLayout          = "2006-01-02 15:04:05 +0000"
+)
+
+func GetChefAuthKeys(ctx context.Context, vaultConfig *vault.Config) (*ChefAuthKey, error) {
+	log.SpanLog(ctx, log.DebugLevelInfra, "fetch chef auth keys")
+	vaultPath := "/secret/data/accounts/chef"
 	auth := &ChefAuthKey{}
-	err = vault.GetData(vaultConfig, vaultPath, 0, auth)
+	err := vault.GetData(vaultConfig, vaultPath, 0, auth)
 	if err != nil {
 		return nil, fmt.Errorf("Unable to find chef auth keys from vault path %s, %v", vaultPath, err)
 	}
@@ -99,4 +122,89 @@ func ChefClientDelete(ctx context.Context, client *chef.Client, clientName strin
 		}
 	}
 	return nil
+}
+
+func stringToDateTimeHook(f reflect.Type, t reflect.Type, data interface{}) (interface{}, error) {
+	if t == reflect.TypeOf(time.Time{}) && f == reflect.TypeOf("") {
+		return time.Parse(ChefTimeLayout, data.(string))
+	}
+	return data, nil
+}
+
+func ChefNodeRunStatus(ctx context.Context, client *chef.Client, nodeName string, startTime time.Time) ([]ChefStatusInfo, error) {
+	log.SpanLog(ctx, log.DebugLevelInfra, "fetch chef node's run status", "node name", nodeName)
+	nodeInfo, err := client.Nodes.Get(nodeName)
+	if err != nil {
+		return nil, fmt.Errorf("Unable to get chef node info: %s, %v", nodeName, err)
+	}
+	if _, ok := nodeInfo.NormalAttributes["runstatus"]; !ok {
+		//return nil, fmt.Errorf("unable to find runstatus attributes")
+		log.SpanLog(ctx, log.DebugLevelInfra, "unable to find runstatus attributes")
+		return nil, nil
+	}
+	runStatusAttr := nodeInfo.NormalAttributes["runstatus"]
+	var runStatus ChefRunStatus
+
+	config := mapstructure.DecoderConfig{
+		DecodeHook: stringToDateTimeHook,
+		Result:     &runStatus,
+	}
+
+	decoder, err := mapstructure.NewDecoder(&config)
+	if err != nil {
+		return nil, fmt.Errorf("failed to initialize new decoder: %v", err)
+	}
+
+	err = decoder.Decode(runStatusAttr)
+	if err != nil {
+		return nil, fmt.Errorf("unable to decode runstatus attributes: %s, error: %v", runStatusAttr, err)
+	}
+
+	chefStartTime, err := time.Parse(ChefTimeLayout, runStatus.Start)
+	if err != nil {
+		//return nil, fmt.Errorf("unable to parse runstatus start time: %s, %v", runStatus.Start, err)
+		log.SpanLog(ctx, log.DebugLevelInfra, "unable to parse runstatus start time", "start time", runStatus.Start, "err", err)
+	}
+
+	var statusInfo []ChefStatusInfo
+
+	if chefStartTime.Before(startTime) {
+		// Ignore status info as it is of old run
+		log.SpanLog(ctx, log.DebugLevelInfra, "ASHISH: TIME CHECK", "runstatus", runStatusAttr)
+		log.SpanLog(ctx, log.DebugLevelInfra, "skipping chef node status info as it is of old run",
+			"node name", nodeName, "runstatus time", chefStartTime, "start time", startTime)
+		//return statusInfo, nil
+	}
+
+	failed := false
+	for ii, res := range runStatus.Resources {
+		msg := ""
+		switch res.ResourceType {
+		case ResourceDockerRegistry:
+			msg = "Log in to docker registry"
+		case ResourceDockerImage:
+			msg = "Fetch docker image to start cloudlet services"
+		case ResourceDockerContainer:
+			msg = fmt.Sprintf("Start %s", res.Resource)
+		default:
+			msg = res.Resource
+		}
+
+		if ii == len(statusInfo)-1 && runStatus.Exception != "" {
+			msg = fmt.Sprintf("Failed to %s", msg)
+			failed = true
+			log.SpanLog(ctx, log.DebugLevelInfra, "failure message from chef node run status", "message", msg, "exception", runStatus.Exception)
+		}
+
+		if !failed && !res.Updated {
+			log.SpanLog(ctx, log.DebugLevelInfra, "skipping chef node status as it is not executed", "message", msg)
+			continue
+		}
+
+		statusInfo = append(statusInfo, ChefStatusInfo{
+			Message: msg,
+			Failed:  failed,
+		})
+	}
+	return statusInfo, nil
 }

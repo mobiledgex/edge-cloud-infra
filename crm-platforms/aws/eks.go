@@ -6,41 +6,40 @@ import (
 	"github.com/codeskyblue/go-sh"
 )
 
-//SetProject sets the project in gcloud config
-func SetProject(project string) error {
+//SetOrganizationUnit sets the OrganizationUnit for AWS
+func SetOrganizationUnit(awsOu string) error {
 	return nil
 }
 
-//SetZone sets the zone in gcloud config
+//SetZone sets the zone in AWS
 func SetZone(zone string) error {
 	return nil
 }
 
 //CreateEKSCluster creates a kubernetes cluster on AWS
 func CreateEKSCluster(name string) error {
-	out, err := sh.Command("eksctl", "create", "cluster", "--name", name).CombinedOutput()
+	// output log messages
+	out, err := sh.Command("eksctl", "create", "cluster", "--name", name, "--managed").CombinedOutput()
 	if err != nil {
 		return fmt.Errorf("%s %v", out, err)
 	}
 	return nil
 }
 
-//GetGKECredentials retrieves kubeconfig credentials from gcloud. Often this retrieves wrong x509 certs. This
-//  may require you to use `--insecure-skip-tls-verify=true` to `kubectl`
-
-// aws eks --region region-code update-kubeconfig --name cluster_name
-
+//GetEKSCredentials retrieves kubeconfig credentials from AWS
+// eksctl utils write-kubeconfig myawscluster
+// Alternate: aws eks --region region-code update-kubeconfig --name cluster_name
 func GetEKSCredentials(name string) error {
-	out, err := sh.Command("gcloud", "container", "clusters", "get-credentials", name).CombinedOutput()
+	out, err := sh.Command("eksctl", "utils", "write-kubeconfig", name).CombinedOutput()
 	if err != nil {
 		return fmt.Errorf("%s %v", out, err)
 	}
 	return nil
 }
 
-//DeleteGKECluster removes kubernetes cluster on gcloud
+//DeleteEKSCluster removes kubernetes cluster on AWS
 func DeleteEKSCluster(name string) error {
-	out, err := sh.Command("gcloud", "container", "clusters", "delete", "--quiet", name).CombinedOutput()
+	out, err := sh.Command("eksctl", "delete", "cluster", "--name", name).CombinedOutput()
 	if err != nil {
 		return fmt.Errorf("%s %v", out, err)
 	}

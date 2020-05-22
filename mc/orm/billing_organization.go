@@ -127,7 +127,12 @@ func createZuoraAccount(ctx context.Context, info *ormapi.BillingOrganization) e
 		Country:   info.Country,
 		State:     info.State,
 	}
-	err := zuora.CreateCustomer(info.Name, info.Currency, "", &billTo, &accountInfo)
+	var err error
+	if info.Type == BillingOrgTypeSelf {
+		err = zuora.CreateCustomer(info.Name, info.Currency, &billTo, nil, &accountInfo)
+	} else {
+		err = zuora.CreateParentCustomer(info.Name, info.Currency, &billTo, &accountInfo)
+	}
 	if err != nil {
 		return err
 	}
@@ -225,11 +230,11 @@ func AddChildOrgObj(ctx context.Context, claims *UserClaims, billing *ormapi.Bil
 	}
 	// get the parent and child
 	parent, err := billingOrgExists(ctx, billing.Name)
-	if err != nil {
+	if err != nil || parent == nil {
 		return fmt.Errorf("Unable to find BillingOrganization: %s", billing.Name)
 	}
 	child, err := orgExists(ctx, billing.Children)
-	if err != nil {
+	if err != nil || child == nil {
 		return fmt.Errorf("Unable to find Organization: %s", billing.Children)
 	}
 
@@ -290,11 +295,11 @@ func RemoveChildOrgObj(ctx context.Context, claims *UserClaims, billing *ormapi.
 	}
 	// get the parent and child
 	parent, err := billingOrgExists(ctx, billing.Name)
-	if err != nil {
+	if err != nil || parent == nil {
 		return fmt.Errorf("Unable to find BillingOrganization: %s", billing.Name)
 	}
 	child, err := orgExists(ctx, billing.Children)
-	if err != nil {
+	if err != nil || child == nil {
 		return fmt.Errorf("Unable to find Organization: %s", billing.Children)
 	}
 	// check to make sure the child is really a child of the billingOrg
@@ -329,8 +334,7 @@ func RemoveChildOrgObj(ctx context.Context, claims *UserClaims, billing *ormapi.
 		return dbErr(err)
 	}
 
-	// mirror this in the accountInfo struct
-	err = unlinkZuoraAccounts(ctx, parent.Name, child.Name)
+	err = cancelZuoraSubscription(ctx, child.Name)
 	if err != nil {
 		return err
 	}
@@ -649,7 +653,7 @@ func linkZuoraAccounts(ctx context.Context, parent *ormapi.BillingOrganization, 
 		Country:   parent.Country,
 		State:     parent.State,
 	}
-	err = zuora.CreateCustomer(child, parent.Currency, parentAcc.AccountID, &billTo, &accountInfo)
+	err = zuora.CreateCustomer(child, parent.Currency, &billTo, parentAcc, &accountInfo)
 	if err != nil {
 		return err
 	}
@@ -663,16 +667,6 @@ func linkZuoraAccounts(ctx context.Context, parent *ormapi.BillingOrganization, 
 		}
 		return dbErr(err)
 	}
-	return nil
-}
-
-// TODO: maybe have this in zuora files
-func unlinkZuoraAccounts(ctx context.Context, parent, child string) error {
-	if !serverConfig.Billing {
-		return nil
-	}
-	// TODO: link the accountInfos and do the zuora backend
-	// remove the accountInfo of the child, and cancel the subscription
 	return nil
 }
 

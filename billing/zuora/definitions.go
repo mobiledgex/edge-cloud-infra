@@ -45,7 +45,8 @@ type AccountInfo struct {
 	AccountNumber      string
 	AccountID          string
 	SubscriptionNumber string
-	ParentId           string
+	ParentID           string
+	ParentNumber       string
 }
 
 type NewAccount struct {
@@ -60,6 +61,12 @@ type NewAccount struct {
 	PaymentTerm              string                 `json:"paymentTerm,omitempty"`
 	PaymentMethod            *PaymentMethod         `json:"paymentMethod,omitempty"`
 	ParentId                 string                 `json:"parentId,omitempty"`
+}
+
+type AccountResp struct {
+	Success       bool   `json:"success"`
+	AccountId     string `json:"accountId"`
+	AccountNumber string `json:"accountNumber"`
 }
 
 type CustomerBillToContact struct {
@@ -144,7 +151,8 @@ type CancelSub struct {
 }
 
 type CreateSubscription struct {
-	Terms CreateSubscriptionTerms `json:"terms,omitempty"`
+	Terms                       CreateSubscriptionTerms `json:"terms,omitempty"`
+	NewSubscriptionOwnerAccount *NewAccount             `json:"newSubscriptionOwnerAccount,omitempty"`
 }
 
 type CreateSubscriptionTerms struct {
@@ -199,6 +207,12 @@ type CheckSubscriptions struct {
 			} `json:"ratePlanCharges"`
 		} `json:"ratePlans"`
 	} `json:"subscriptions"`
+}
+
+type GetSubscriptionByKey struct {
+	Success       bool   `json:"success"`
+	AccountId     string `json:"accountId"`
+	AccountNumber string `json:"accountNumber"`
 }
 
 // -------------------------PRODUCT STUFF-----------------------------

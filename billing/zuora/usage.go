@@ -18,8 +18,8 @@ func RecordClusterUsage(account *AccountInfo, clusterInstKey *edgeproto.ClusterI
 	if err != nil {
 		return fmt.Errorf("unable to get charge number: %v", err)
 	}
-	desc := fmt.Sprintf("Clusterinst: %s, Cloudlet: %s, Flavor: %s",
-		clusterInstKey.ClusterKey.Name, clusterInstKey.CloudletKey.Name, flavorName)
+	desc := fmt.Sprintf("Org: %s, Clusterinst: %s, Cloudlet: %s, Flavor: %s",
+		clusterInstKey.Organization, clusterInstKey.ClusterKey.Name, clusterInstKey.CloudletKey.Name, flavorName)
 	newUsage := CreateUsage{
 		AccountNumber:      account.AccountNumber,
 		SubscriptionNumber: account.SubscriptionNumber,

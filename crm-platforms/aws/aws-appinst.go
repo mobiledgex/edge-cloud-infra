@@ -51,11 +51,12 @@ func (a *AWSPlatform) CreateAppInst(ctx context.Context, clusterInst *edgeproto.
 	// set up dns
 	getDnsAction := func(svc v1.Service) (*infracommon.DnsSvcAction, error) {
 		action := infracommon.DnsSvcAction{}
-		externalIP, err := infracommon.GetSvcExternalIP(ctx, client, names, svc.ObjectMeta.Name)
+		_,dnsName,err := infracommon.GetSvcExternalIpOrHost(ctx, client, names, svc.ObjectMeta.Name)
 		if err != nil {
 			return nil, err
 		}
-		action.ExternalIP = externalIP
+		
+		action.Hostname = dnsName
 		// no patching needed since AWS already does it.
 		// Should only add DNS for external ports
 		action.AddDNS = !app.InternalPorts

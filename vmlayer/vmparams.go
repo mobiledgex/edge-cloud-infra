@@ -153,14 +153,15 @@ func WithCreatePortsOnly(portsonly bool) VMReqOp {
 
 // VMGroupRequestSpec is used to specify a set of VMs to be created.  It is used as input to create VMGroupOrchestrationParams
 type VMGroupRequestSpec struct {
-	GroupName         string
-	VMs               []*VMRequestSpec
-	NewSubnetName     string
-	NewSecgrpName     string
-	AccessPorts       string
-	PrivacyPolicy     *edgeproto.PrivacyPolicy
-	SkipDefaultSecGrp bool
-	SkipSubnetGw      bool
+	GroupName            string
+	VMs                  []*VMRequestSpec
+	NewSubnetName        string
+	NewSecgrpName        string
+	AccessPorts          string
+	PrivacyPolicy        *edgeproto.PrivacyPolicy
+	SkipDefaultSecGrp    bool
+	SkipSubnetGw         bool
+	SkipSubnetRangeCheck bool
 }
 
 type VMGroupReqOp func(vmp *VMGroupRequestSpec) error
@@ -198,6 +199,12 @@ func WithSkipDefaultSecGrp(skip bool) VMGroupReqOp {
 func WithSkipSubnetGw(skip bool) VMGroupReqOp {
 	return func(s *VMGroupRequestSpec) error {
 		s.SkipSubnetGw = skip
+		return nil
+	}
+}
+func WithSkipSubnetRangeCheck(skip bool) VMGroupReqOp {
+	return func(s *VMGroupRequestSpec) error {
+		s.SkipSubnetRangeCheck = skip
 		return nil
 	}
 }
@@ -387,6 +394,7 @@ chef:
   - "--chef-license"
   - "accept"
   run_list:
+  - "role[base]"
   - "role[{{.Role}}]"
   initial_attributes:
 {{ Indent .Attributes 4 }}`
@@ -473,6 +481,9 @@ func (v *VMPlatform) getVMGroupOrchestrationParamsFromGroupSpec(ctx context.Cont
 	}
 	if spec.SkipSubnetGw {
 		vmgp.Netspec.SkipSubnetGw = true
+	}
+	if spec.SkipSubnetRangeCheck {
+		vmgp.Netspec.SkipSubnetRangeCheck = true
 	}
 
 	rtrInUse := false

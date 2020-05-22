@@ -31,18 +31,19 @@ type RouterDetail struct {
 }
 
 type NetSpecInfo struct {
-	Name, CIDR        string
-	NetworkType       string
-	NetworkAddress    string
-	NetmaskBits       string
-	Octets            []string
-	MasterIPLastOctet string
-	DelimiterOctet    int // this is the X
-	FloatingIPNet     string
-	FloatingIPSubnet  string
-	VnicType          string
-	RouterGatewayIP   string
-	SkipSubnetGw      bool
+	Name, CIDR           string
+	NetworkType          string
+	NetworkAddress       string
+	NetmaskBits          string
+	Octets               []string
+	MasterIPLastOctet    string
+	DelimiterOctet       int // this is the X
+	FloatingIPNet        string
+	FloatingIPSubnet     string
+	VnicType             string
+	RouterGatewayIP      string
+	SkipSubnetGw         bool
+	SkipSubnetRangeCheck bool
 }
 
 //ParseNetSpec decodes netspec string

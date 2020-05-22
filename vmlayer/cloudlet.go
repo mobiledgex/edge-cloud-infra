@@ -45,6 +45,10 @@ func (v *VMPlatform) GetPlatformVMName(key *edgeproto.CloudletKey) string {
 	return v.VMProvider.NameSanitize(key.Name + "-" + key.Organization + "-pf")
 }
 
+func (v *VMPlatform) GetChefClientName(key *edgeproto.CloudletKey, region string) string {
+	return v.VMProvider.NameSanitize(key.Name + "-" + key.Organization + "-" + region + "-pf")
+}
+
 func (v *VMPlatform) GetPlatformSubnetName(key *edgeproto.CloudletKey) string {
 	return "mex-k8s-subnet-" + v.GetPlatformVMName(key)
 }
@@ -335,7 +339,7 @@ func (v *VMPlatform) CreateCloudlet(ctx context.Context, cloudlet *edgeproto.Clo
 	}
 
 	updateCallback(edgeproto.UpdateTask, "Fetching chef auth keys")
-	chefAuth, err := GetChefAuthKeys(ctx, vaultConfig, pfConfig.ChefServerPath)
+	chefAuth, err := GetChefAuthKeys(ctx, vaultConfig)
 	if err != nil {
 		return err
 	}
@@ -379,6 +383,8 @@ func (v *VMPlatform) CreateCloudlet(ctx context.Context, cloudlet *edgeproto.Clo
 		pfConfig.ContainerRegistryPath = infracommon.DefaultContainerRegistryPath
 	}
 
+	startTime := time.Now()
+
 	err = v.SetupPlatformVM(ctx, vaultConfig, cloudlet, pfConfig, pfFlavor, updateCallback)
 	if err != nil {
 		return err
@@ -386,8 +392,8 @@ func (v *VMPlatform) CreateCloudlet(ctx context.Context, cloudlet *edgeproto.Clo
 
 	updateCallback(edgeproto.UpdateTask, "Waiting for Platform VM to connect to Chef Server")
 	// Wait for VM to connect to Chef Server
-	clientName := v.GetPlatformVMName(&cloudlet.Key)
-	timeout := time.After(10 * time.Minute)
+	clientName := v.GetChefClientName(&cloudlet.Key, pfConfig.Region)
+	timeout := time.After(5 * time.Minute)
 	tick := time.Tick(30 * time.Second)
 	for {
 		found := false
@@ -406,10 +412,32 @@ func (v *VMPlatform) CreateCloudlet(ctx context.Context, cloudlet *edgeproto.Clo
 		}
 	}
 
-	// TODO Fetch chef run list status
+	// Fetch chef run list status
 	updateCallback(edgeproto.UpdateTask, "Waiting for run lists to be executed on Platform VM")
-
-	time.Sleep(10 * time.Second)
+	timeout = time.After(10 * time.Minute)
+	tick = time.Tick(30 * time.Second)
+	for {
+		var statusInfo []ChefStatusInfo
+		select {
+		case <-timeout:
+			return fmt.Errorf("timed out waiting for platform VM to connect to Chef Server")
+		case <-tick:
+			statusInfo, err = ChefNodeRunStatus(ctx, chefClient, clientName, startTime)
+			if err != nil {
+				return err
+			}
+		}
+		if len(statusInfo) > 0 {
+			updateCallback(edgeproto.UpdateTask, "Performed following actions:")
+			for _, info := range statusInfo {
+				if info.Failed {
+					return fmt.Errorf(info.Message)
+				}
+				updateCallback(edgeproto.UpdateStep, info.Message)
+			}
+			break
+		}
+	}
 
 	return nil
 }
@@ -447,7 +475,7 @@ func (v *VMPlatform) DeleteCloudlet(ctx context.Context, cloudlet *edgeproto.Clo
 		return err
 	}
 
-	chefAuth, err := GetChefAuthKeys(ctx, vaultConfig, pfConfig.ChefServerPath)
+	chefAuth, err := GetChefAuthKeys(ctx, vaultConfig)
 	if err != nil {
 		return err
 	}
@@ -457,33 +485,37 @@ func (v *VMPlatform) DeleteCloudlet(ctx context.Context, cloudlet *edgeproto.Clo
 		return err
 	}
 
-	// Source OpenRC file to access openstack API endpoint
-	err = v.VMProvider.InitApiAccessProperties(ctx, &cloudlet.Key, pfConfig.Region, cloudlet.PhysicalName, vaultConfig, cloudlet.EnvVar)
-	if err != nil {
-		// ignore this error, as no creation would've happened on infra, so nothing to delete
-		log.SpanLog(ctx, log.DebugLevelInfra, "failed to source platform variables", "cloudletName", cloudlet.Key.Name, "err", err)
-		return nil
+	if cloudlet.InfraAccessType == edgeproto.InfraAccessType_ACCESS_TYPE_PUBLIC {
+		// Source OpenRC file to access openstack API endpoint
+		err = v.VMProvider.InitApiAccessProperties(ctx, &cloudlet.Key, pfConfig.Region, cloudlet.PhysicalName, vaultConfig, cloudlet.EnvVar)
+		if err != nil {
+			// ignore this error, as no creation would've happened on infra, so nothing to delete
+			log.SpanLog(ctx, log.DebugLevelInfra, "failed to source platform variables", "cloudletName", cloudlet.Key.Name, "err", err)
+			return nil
+		}
+
+		platformVMName := v.GetPlatformVMName(&cloudlet.Key)
+		updateCallback(edgeproto.UpdateTask, fmt.Sprintf("Deleting PlatformVM %s", platformVMName))
+		err = v.VMProvider.DeleteVMs(ctx, platformVMName)
+		if err != nil {
+			return fmt.Errorf("DeleteCloudlet error: %v", err)
+		}
+
+		rootLBName := v.GetRootLBName(&cloudlet.Key)
+		updateCallback(edgeproto.UpdateTask, fmt.Sprintf("Deleting RootLB %s", rootLBName))
+		err = v.VMProvider.DeleteVMs(ctx, rootLBName)
+		if err != nil {
+			return fmt.Errorf("DeleteCloudlet error: %v", err)
+		}
 	}
 
-	platformVMName := v.GetPlatformVMName(&cloudlet.Key)
-	updateCallback(edgeproto.UpdateTask, fmt.Sprintf("Deleting PlatformVM %s", platformVMName))
-	err = v.VMProvider.DeleteVMs(ctx, platformVMName)
-	if err != nil {
-		return fmt.Errorf("DeleteCloudlet error: %v", err)
-	}
-
+	clientName := v.GetChefClientName(&cloudlet.Key, pfConfig.Region)
 	updateCallback(edgeproto.UpdateTask, "Deleting client from Chef Server")
-	err = ChefClientDelete(ctx, chefClient, platformVMName)
+	err = ChefClientDelete(ctx, chefClient, clientName)
 	if err != nil {
-		log.SpanLog(ctx, log.DebugLevelInfra, "failed to delete client from Chef Server", "clientName", platformVMName, "err", err)
+		log.SpanLog(ctx, log.DebugLevelInfra, "failed to delete client from Chef Server", "clientName", clientName, "err", err)
 	}
 
-	rootLBName := v.GetRootLBName(&cloudlet.Key)
-	updateCallback(edgeproto.UpdateTask, fmt.Sprintf("Deleting RootLB %s", rootLBName))
-	err = v.VMProvider.DeleteVMs(ctx, rootLBName)
-	if err != nil {
-		return fmt.Errorf("DeleteCloudlet error: %v", err)
-	}
 	// Not sure if it's safe to remove vars from Vault due to testing/virtual cloudlets,
 	// so leaving them in Vault for the time being. We can always delete them manually
 
@@ -664,8 +696,8 @@ func (v *VMPlatform) GetCloudletVMsSpec(ctx context.Context, vaultConfig *vault.
 		pfConfig.ContainerRegistryPath = infracommon.DefaultContainerRegistryPath
 	}
 
-	chefAuth, err := GetChefAuthKeys(ctx, vaultConfig, pfConfig.ChefServerPath)
-	if chefAuth.ValidationKey == "" {
+	chefAuth, err := GetChefAuthKeys(ctx, vaultConfig)
+	if err != nil {
 		return nil, err
 	}
 
@@ -722,6 +754,7 @@ func (v *VMPlatform) GetCloudletVMsSpec(ctx context.Context, vaultConfig *vault.
 	}
 
 	platformVmName := v.GetPlatformVMName(&cloudlet.Key)
+	chefNodeName := v.GetChefClientName(&cloudlet.Key, pfConfig.Region)
 	imgPath := GetCloudletVMImagePath(pfConfig.CloudletVmImagePath, cloudlet.VmImageVersion)
 	pfImageName, err := cloudcommon.GetFileName(imgPath)
 	if err != nil {
@@ -732,7 +765,7 @@ func (v *VMPlatform) GetCloudletVMsSpec(ctx context.Context, vaultConfig *vault.
 	var envVars *map[string]string
 
 	chefParams := ChefParams{
-		NodeName:      platformVmName,
+		NodeName:      chefNodeName,
 		ServerPath:    pfConfig.ChefServerPath,
 		ValidationKey: chefAuth.ValidationKey,
 	}
@@ -881,18 +914,39 @@ func (v *VMPlatform) GetCloudletManifest(ctx context.Context, cloudlet *edgeprot
 	if err != nil {
 		return nil, err
 	}
+
 	platformVmName := v.GetPlatformVMName(&cloudlet.Key)
-	subnetName := v.GetPlatformSubnetName(&cloudlet.Key)
-	gp, err := v.GetVMGroupOrchestrationParamsFromVMSpec(
-		ctx,
-		platformVmName,
-		platvms,
-		WithNewSecurityGroup(v.GetServerSecurityGroupName(platformVmName)),
-		WithAccessPorts("tcp:22"),
-		WithSkipDefaultSecGrp(true),
-		WithNewSubnet(subnetName),
-		WithSkipSubnetGw(true),
-	)
+
+	var gp *VMGroupOrchestrationParams
+	if cloudlet.DeploymentType == edgeproto.DeploymentType_DEPLOYMENT_TYPE_DOCKER {
+		gp, err = v.GetVMGroupOrchestrationParamsFromVMSpec(
+			ctx,
+			platformVmName,
+			platvms,
+			WithNewSecurityGroup(v.GetServerSecurityGroupName(platformVmName)),
+			WithAccessPorts("tcp:22"),
+			WithSkipDefaultSecGrp(true),
+		)
+	} else {
+		subnetName := v.GetPlatformSubnetName(&cloudlet.Key)
+		skipSubnetRangeCheck := false
+		if cloudlet.InfraAccessType == edgeproto.InfraAccessType_ACCESS_TYPE_PRIVATE {
+			// It'll be end-users responsibility to make sure subnet range
+			// is not confliciting with existing subnets
+			skipSubnetRangeCheck = true
+		}
+		gp, err = v.GetVMGroupOrchestrationParamsFromVMSpec(
+			ctx,
+			platformVmName,
+			platvms,
+			WithNewSecurityGroup(v.GetServerSecurityGroupName(platformVmName)),
+			WithAccessPorts("tcp:22"),
+			WithSkipDefaultSecGrp(true),
+			WithNewSubnet(subnetName),
+			WithSkipSubnetGw(true),
+			WithSkipSubnetRangeCheck(skipSubnetRangeCheck),
+		)
+	}
 	if err != nil {
 		return nil, err
 	}

@@ -362,9 +362,9 @@ func (o *OpenstackPlatform) populateParams(ctx context.Context, VMGroupOrchestra
 		if action != heatCreate {
 			currentSubnetName = "mex-k8s-subnet-" + VMGroupOrchestrationParams.GroupName
 		}
-		var sns []OSSubnet
-		var snserr error
-		if action != heatTest {
+		if action != heatTest && !VMGroupOrchestrationParams.Netspec.SkipSubnetRangeCheck {
+			var sns []OSSubnet
+			var snserr error
 			sns, snserr = o.ListSubnets(ctx, VMGroupOrchestrationParams.Netspec.Name)
 			if snserr != nil {
 				return fmt.Errorf("can't get list of subnets for %s, %v", VMGroupOrchestrationParams.Netspec.Name, snserr)

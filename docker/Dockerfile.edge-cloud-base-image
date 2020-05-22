@@ -35,10 +35,8 @@ RUN apt-get update && apt-get install -y \
 	google-cloud-sdk=267.0.0-0 \
 	kubectl=1.16.2-00
 
-RUN pip install \
-	python-heatclient==1.18.0 \
-	python-openstackclient==3.18.0 \
-	gnocchiclient==7.0.5
+COPY requirements.txt .
+RUN pip install -r requirements.txt
 
 ## GOVC
 RUN curl -sL https://github.com/vmware/govmomi/releases/download/v0.20.0/govc_linux_amd64.gz \

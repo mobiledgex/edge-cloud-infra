@@ -18,18 +18,19 @@ import (
 
 // Health check vars
 var (
-	testEnvoyHealthCheckGood       = `backend1234::10.192.1.2:1234::health_flags::healthy`
-	testEnvoyHealthCheckBad        = `backend1234::10.192.1.2:1234::health_flags::/failed_active_hc`
-	testEnvoy2PortsHealthCheckGood = `
-backend1234::10.192.1.2:1234::health_flags::healthy
-backend4321::10.192.1.2:4321::health_flags::healthy`
-	testEnvoy2PortsHealthCheck1Bad = `
-backend1234::10.192.1.2:1234::health_flags::healthy
-backend4321::10.192.1.2:4321::health_flags::/failed_active_hc`
+	/*
+	   	testEnvoyHealthCheckGood       = `backend1234::10.192.1.2:1234::health_flags::healthy`
+	   	testEnvoyHealthCheckBad        = `backend1234::10.192.1.2:1234::health_flags::/failed_active_hc`
+	   	testEnvoy2PortsHealthCheckGood = `
+	   backend1234::10.192.1.2:1234::health_flags::healthy
+	   backend4321::10.192.1.2:4321::health_flags::healthy`
+	   	testEnvoy2PortsHealthCheck1Bad = `
+	   backend1234::10.192.1.2:1234::health_flags::healthy
+	   backend4321::10.192.1.2:4321::health_flags::/failed_active_hc`
 
-	// Current state
-	testEnvoyHealthCheckCurrent = testEnvoyHealthCheckGood
-
+	   	// Current state
+	   	testEnvoyHealthCheckCurrent = testEnvoyHealthCheckGood
+	*/
 	// Test App/Cluster state data
 	testCloudletKey = edgeproto.CloudletKey{
 		Organization: "testoperator",
@@ -139,6 +140,7 @@ func TestEnvoyStats(t *testing.T) {
 	assert.Equal(t, float64(190), testMetrics.EnvoyStats[4321].SessionTime["P100"])
 }
 
+/*
 // Tests a healthy and reachable app
 func testHealthCheckOK(t *testing.T, ctx context.Context) {
 	scrapePoints := copyMapValues()
@@ -267,13 +269,15 @@ func TestHealthChecks(t *testing.T) {
 	AppInstCache.Update(ctx, &testAppInst, 0)
 
 }
-
+*/
 func envoyHandler(w http.ResponseWriter, r *http.Request) {
 	if r.URL.String() == "/stats" {
 		w.Write([]byte(testEnvoyData))
 	}
-	// For health checking
-	if r.URL.String() == "/clusters" {
-		w.Write([]byte(testEnvoyHealthCheckCurrent))
-	}
+	/*
+		// For health checking
+		if r.URL.String() == "/clusters" {
+			w.Write([]byte(testEnvoyHealthCheckCurrent))
+		}
+	*/
 }

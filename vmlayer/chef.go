@@ -121,6 +121,17 @@ func ChefClientDelete(ctx context.Context, client *chef.Client, clientName strin
 			return client.Clients.Delete(k)
 		}
 	}
+	nodeList, err := client.Nodes.List()
+	if err != nil {
+		log.SpanLog(ctx, log.DebugLevelInfra, "unable to delete node", "node name", clientName)
+		// ignore error as its not harmful
+		return nil
+	}
+	for k, _ := range nodeList {
+		if k == clientName {
+			return client.Nodes.Delete(k)
+		}
+	}
 	return nil
 }
 

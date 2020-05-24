@@ -394,7 +394,7 @@ func (v *VMPlatform) CreateCloudlet(ctx context.Context, cloudlet *edgeproto.Clo
 	// Wait for VM to connect to Chef Server
 	clientName := v.GetChefClientName(&cloudlet.Key, pfConfig.Region)
 	timeout := time.After(5 * time.Minute)
-	tick := time.Tick(30 * time.Second)
+	tick := time.Tick(5 * time.Second)
 	for {
 		found := false
 		select {
@@ -415,7 +415,7 @@ func (v *VMPlatform) CreateCloudlet(ctx context.Context, cloudlet *edgeproto.Clo
 	// Fetch chef run list status
 	updateCallback(edgeproto.UpdateTask, "Waiting for run lists to be executed on Platform VM")
 	timeout = time.After(10 * time.Minute)
-	tick = time.Tick(30 * time.Second)
+	tick = time.Tick(5 * time.Second)
 	for {
 		var statusInfo []ChefStatusInfo
 		select {
@@ -765,9 +765,10 @@ func (v *VMPlatform) GetCloudletVMsSpec(ctx context.Context, vaultConfig *vault.
 	var envVars *map[string]string
 
 	chefParams := ChefParams{
-		NodeName:      chefNodeName,
-		ServerPath:    pfConfig.ChefServerPath,
-		ValidationKey: chefAuth.ValidationKey,
+		NodeName:       chefNodeName,
+		ServerPath:     pfConfig.ChefServerPath,
+		ValidationKey:  chefAuth.ValidationKey,
+		ClientInterval: pfConfig.ChefClientInterval,
 	}
 	if cloudlet.DeploymentType == edgeproto.DeploymentType_DEPLOYMENT_TYPE_DOCKER {
 		chefParams.Role = ChefRoleDocker

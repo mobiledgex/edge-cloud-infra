@@ -369,11 +369,12 @@ type ChefAttribute struct {
 }
 
 type ChefParams struct {
-	NodeName      string
-	ServerPath    string
-	ValidationKey string
-	Role          string
-	Attributes    string
+	NodeName       string
+	ServerPath     string
+	ValidationKey  string
+	Role           string
+	Attributes     string
+	ClientInterval int32
 }
 
 var VmChefConfig = `
@@ -388,7 +389,7 @@ chef:
   - "-d"
   - "1"
   - "-i"
-  - "900"
+  - "{{.ClientInterval}}"
   - "-s"
   - "20"
   - "--chef-license"
@@ -396,6 +397,7 @@ chef:
   run_list:
   - "role[base]"
   - "role[{{.Role}}]"
+  firstboot_path: /etc/chef/cloud_init.json
   initial_attributes:
 {{ Indent .Attributes 4 }}`
 

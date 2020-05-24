@@ -265,6 +265,7 @@ var PlatformConfigOptionalArgs = []string{
 	"usevaultcerts",
 	"usevaultcas",
 	"chefserverpath",
+	"chefclientinterval",
 }
 var PlatformConfigAliasArgs = []string{
 	"containerregistrypath=platformconfig.containerregistrypath",
@@ -282,6 +283,7 @@ var PlatformConfigAliasArgs = []string{
 	"usevaultcerts=platformconfig.usevaultcerts",
 	"usevaultcas=platformconfig.usevaultcas",
 	"chefserverpath=platformconfig.chefserverpath",
+	"chefclientinterval=platformconfig.chefclientinterval",
 }
 var PlatformConfigComments = map[string]string{
 	"containerregistrypath": "Path to Docker registry holding edge-cloud image",
@@ -299,6 +301,7 @@ var PlatformConfigComments = map[string]string{
 	"usevaultcerts":         "Use Vault certs for internal TLS communication",
 	"usevaultcas":           "Use Vault CAs to authenticate TLS communication",
 	"chefserverpath":        "Path to Chef Server",
+	"chefclientinterval":    "Chef client interval",
 }
 var PlatformConfigSpecialArgs = map[string]string{
 	"platformconfig.envvar": "StringToString",
@@ -412,6 +415,7 @@ var CloudletAliasArgs = []string{
 	"config.usevaultcerts=cloudlet.config.usevaultcerts",
 	"config.usevaultcas=cloudlet.config.usevaultcas",
 	"config.chefserverpath=cloudlet.config.chefserverpath",
+	"config.chefclientinterval=cloudlet.config.chefclientinterval",
 	"restagmap:#.key=cloudlet.restagmap:#.key",
 	"restagmap:#.value.name=cloudlet.restagmap:#.value.name",
 	"restagmap:#.value.organization=cloudlet.restagmap:#.value.organization",
@@ -468,6 +472,7 @@ var CloudletComments = map[string]string{
 	"config.usevaultcerts":                "Use Vault certs for internal TLS communication",
 	"config.usevaultcas":                  "Use Vault CAs to authenticate TLS communication",
 	"config.chefserverpath":               "Path to Chef Server",
+	"config.chefclientinterval":           "Chef client interval",
 	"restagmap:#.value.name":              "Resource Table Name",
 	"restagmap:#.value.organization":      "Operator organization of the cloudlet site.",
 	"accessvars":                          "Variables required to access cloudlet",

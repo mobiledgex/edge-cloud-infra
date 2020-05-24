@@ -247,6 +247,7 @@ func addControllerApis(method string, group *echo.Group) {
 	// MasterNodeFlavor: 14
 	// LoadBalancerMaxPortRange: 15
 	// MaxTrackedDmeClients: 16
+	// ChefClientInterval: 17
 	// ```
 	// Security:
 	//   Bearer:
@@ -548,6 +549,7 @@ func addControllerApis(method string, group *echo.Group) {
 	// ConfigUseVaultCerts: 21.14
 	// ConfigUseVaultCas: 21.15
 	// ConfigChefServerPath: 21.16
+	// ConfigChefClientInterval: 21.17
 	// ResTagMap: 22
 	// ResTagMapKey: 22.1
 	// ResTagMapValue: 22.2

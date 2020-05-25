@@ -397,7 +397,6 @@ chef:
   run_list:
   - "role[base]"
   - "role[{{.Role}}]"
-  firstboot_path: /etc/chef/cloud_init.json
   initial_attributes:
 {{ Indent .Attributes 4 }}`
 

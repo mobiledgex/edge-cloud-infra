@@ -617,6 +617,9 @@ func billingOrgDeletable(ctx context.Context, orgName string) error {
 
 // Check to make sure Organization is attached able to be charged
 func isBillable(ctx context.Context, orgName string) bool {
+	if !serverConfig.Billing {
+		return true
+	}
 	if strings.ToLower(orgName) == strings.ToLower(cloudcommon.OrganizationMobiledgeX) || strings.ToLower(orgName) == strings.ToLower(cloudcommon.OrganizationEdgeBox) {
 		return true
 	}

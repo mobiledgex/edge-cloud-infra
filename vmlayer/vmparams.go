@@ -372,8 +372,6 @@ type ChefParams struct {
 	NodeName       string
 	ServerPath     string
 	ValidationKey  string
-	Role           string
-	Attributes     string
 	ClientInterval int32
 }
 
@@ -393,12 +391,7 @@ chef:
   - "-s"
   - "20"
   - "--chef-license"
-  - "accept"
-  run_list:
-  - "role[base]"
-  - "role[{{.Role}}]"
-  initial_attributes:
-{{ Indent .Attributes 4 }}`
+  - "accept"`
 
 // VMGroupOrchestrationParams contains all the details used by the orchestator to create a set of associated VMs
 type VMGroupOrchestrationParams struct {

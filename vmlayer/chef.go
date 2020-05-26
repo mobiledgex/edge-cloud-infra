@@ -118,14 +118,16 @@ func ChefClientDelete(ctx context.Context, client *chef.Client, clientName strin
 	}
 	for k, _ := range clientList {
 		if k == clientName {
-			return client.Clients.Delete(k)
+			err = client.Clients.Delete(k)
+			if err != nil {
+				return err
+			}
+			break
 		}
 	}
 	nodeList, err := client.Nodes.List()
 	if err != nil {
-		log.SpanLog(ctx, log.DebugLevelInfra, "unable to delete node", "node name", clientName)
-		// ignore error as its not harmful
-		return nil
+		return fmt.Errorf("unable to get chef nodes: %v", err)
 	}
 	for k, _ := range nodeList {
 		if k == clientName {
@@ -218,4 +220,48 @@ func ChefNodeRunStatus(ctx context.Context, client *chef.Client, nodeName string
 		})
 	}
 	return statusInfo, nil
+}
+
+func ChefNodeCreate(ctx context.Context, client *chef.Client, nodeName, roleName string, attributes map[string]interface{}) error {
+	nodeObj := chef.Node{
+		Name:        nodeName,
+		Environment: "_default",
+		ChefType:    "node",
+		JsonClass:   "Chef::Node",
+		RunList: []string{
+			"role[base]",
+			roleName,
+		},
+		NormalAttributes: attributes,
+	}
+	_, err := client.Nodes.Post(nodeObj)
+	if err != nil {
+		return fmt.Errorf("failed to create node %s: %v", nodeName, err)
+	}
+
+	acl := chef.NewACL("update", []string{nodeName}, []string{"clients", "admins", "users"})
+	err = client.ACLs.Put("nodes", nodeName, "update", acl)
+	if err != nil {
+		return fmt.Errorf("failed to setup update permissions for node %s: %v", nodeName, err)
+	}
+	return nil
+}
+
+func GetChefArgs(ctx context.Context, cmdArgs []string) map[string]string {
+	chefArgs := make(map[string]string)
+	ii := 0
+	for ii < len(cmdArgs) {
+		if !strings.HasPrefix(cmdArgs[ii], "-") {
+			continue
+		}
+		argKey := strings.TrimLeft(cmdArgs[ii], "-")
+		argVal := ""
+		ii += 1
+		if ii < len(cmdArgs) && !strings.HasPrefix(cmdArgs[ii], "-") {
+			argVal = cmdArgs[ii]
+			ii += 1
+		}
+		chefArgs[argKey] = argVal
+	}
+	return chefArgs
 }

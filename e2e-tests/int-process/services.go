@@ -77,6 +77,15 @@ func GetShepherdCmd(cloudlet *edgeproto.Cloudlet, pfConfig *edgeproto.PlatformCo
 	return ShepherdProc.String(opts...), &ShepherdProc.Common.EnvVars, nil
 }
 
+func GetShepherdCmdArgs(cloudlet *edgeproto.Cloudlet, pfConfig *edgeproto.PlatformConfig) ([]string, *map[string]string, error) {
+	ShepherdProc, opts, err := getShepherdProc(cloudlet, pfConfig)
+	if err != nil {
+		return nil, nil, err
+	}
+
+	return ShepherdProc.GetArgs(opts...), &ShepherdProc.Common.EnvVars, nil
+}
+
 func StartShepherdService(ctx context.Context, cloudlet *edgeproto.Cloudlet, pfConfig *edgeproto.PlatformConfig) (*Shepherd, error) {
 	shepherdProc, opts, err := getShepherdProc(cloudlet, pfConfig)
 	if err != nil {

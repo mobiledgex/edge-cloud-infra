@@ -223,6 +223,7 @@ func ChefNodeRunStatus(ctx context.Context, client *chef.Client, nodeName string
 }
 
 func ChefNodeCreate(ctx context.Context, client *chef.Client, nodeName, roleName string, attributes map[string]interface{}) error {
+	log.SpanLog(ctx, log.DebugLevelInfra, "chef node create", "node name", nodeName, "role name", roleName)
 	nodeObj := chef.Node{
 		Name:        nodeName,
 		Environment: "_default",
@@ -237,12 +238,6 @@ func ChefNodeCreate(ctx context.Context, client *chef.Client, nodeName, roleName
 	_, err := client.Nodes.Post(nodeObj)
 	if err != nil {
 		return fmt.Errorf("failed to create node %s: %v", nodeName, err)
-	}
-
-	acl := chef.NewACL("update", []string{nodeName}, []string{"clients", "admins", "users"})
-	err = client.ACLs.Put("nodes", nodeName, "update", acl)
-	if err != nil {
-		return fmt.Errorf("failed to setup update permissions for node %s: %v", nodeName, err)
 	}
 	return nil
 }

@@ -19,6 +19,8 @@ import (
 	"github.com/mobiledgex/edge-cloud/log"
 )
 
+var CloudletPrometheusAddr = "0.0.0.0:" + intprocess.CloudletPrometheusPort
+
 var promTargetTemplate, promAlertTemplate *template.Template
 
 var promTargetT = `

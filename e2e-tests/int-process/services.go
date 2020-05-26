@@ -23,7 +23,9 @@ const (
 	CloudletPrometheusPort = "9092"
 )
 
-var prometheusConfig = `rule_files:
+var prometheusConfig = `global:
+  evaluation_interval: 15s
+rule_files:
 - "/tmp/` + PormtheusRulesPrefix + `*"
 scrape_configs:
 - job_name: envoy_targets

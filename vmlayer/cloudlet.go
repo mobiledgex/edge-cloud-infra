@@ -354,9 +354,10 @@ func (v *VMPlatform) SetupPlatformVM(ctx context.Context, cloudlet *edgeproto.Cl
 		return nil, err
 	}
 	vms = append(vms, platvm)
-	_, err = v.CreateVMsFromVMSpec(
+	_, err = v.OrchestrateVMsFromVMSpec(
 		ctx, platformVmName,
 		vms,
+		ActionCreate,
 		updateCallback,
 		WithNewSecurityGroup(v.GetServerSecurityGroupName(platformVmName)),
 		WithAccessPorts("tcp:22"),
@@ -367,7 +368,7 @@ func (v *VMPlatform) SetupPlatformVM(ctx context.Context, cloudlet *edgeproto.Cl
 	}
 
 	updateCallback(edgeproto.UpdateTask, "Successfully Deployed Platform VM")
-	ip, err := v.VMProvider.GetIPFromServerName(ctx, v.VMProperties.GetCloudletExternalNetwork(), platformVmName)
+	ip, err := v.GetIPFromServerName(ctx, v.VMProperties.GetCloudletExternalNetwork(), "", platformVmName)
 	if err != nil {
 		return nil, err
 	}
@@ -408,6 +409,7 @@ func (v *VMPlatform) CreateCloudlet(ctx context.Context, cloudlet *edgeproto.Clo
 		VMImageVersion:      cloudlet.VmImageVersion,
 		PackageVersion:      cloudlet.PackageVersion,
 		EnvVars:             pfConfig.EnvVar,
+		AppDNSRoot:          pfConfig.AppDnsRoot,
 	}
 
 	err = v.InitProps(ctx, &pc, vaultConfig)
@@ -517,7 +519,7 @@ func (v *VMPlatform) UpdateCloudlet(ctx context.Context, cloudlet *edgeproto.Clo
 		return defCloudletAction, err
 	}
 
-	rootLBName := cloudcommon.GetRootLBFQDN(&cloudlet.Key)
+	rootLBName := cloudcommon.GetRootLBFQDN(&cloudlet.Key, v.VMProperties.CommonPf.PlatformConfig.AppDNSRoot)
 	rlbClient, err := v.GetSSHClientForServer(ctx, rootLBName, v.VMProperties.GetCloudletExternalNetwork())
 	if err != nil {
 		return defCloudletAction, err
@@ -616,7 +618,7 @@ func (v *VMPlatform) DeleteCloudletAccessVars(ctx context.Context, cloudlet *edg
 	if err != nil {
 		return err
 	}
-	path := GetVaultCloudletAccessPath(&cloudlet.Key, v.Type, pfConfig.Region, cloudlet.PhysicalName)
+	path := GetVaultCloudletAccessPath(&cloudlet.Key, v.Type, pfConfig.Region, cloudlet.PhysicalName, v.VMProvider.GetApiAccessFilename())
 	err = infracommon.DeleteDataFromVault(vaultConfig, path)
 	if err != nil {
 		return fmt.Errorf("Failed to delete access vars from vault: %v", err)

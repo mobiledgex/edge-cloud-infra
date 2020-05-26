@@ -247,6 +247,7 @@ var PlatformConfigOptionalArgs = []string{
 	"commercialcerts",
 	"usevaultcerts",
 	"usevaultcas",
+	"appdnsroot",
 }
 var PlatformConfigAliasArgs = []string{
 	"containerregistrypath=platformconfig.containerregistrypath",
@@ -263,6 +264,7 @@ var PlatformConfigAliasArgs = []string{
 	"commercialcerts=platformconfig.commercialcerts",
 	"usevaultcerts=platformconfig.usevaultcerts",
 	"usevaultcas=platformconfig.usevaultcas",
+	"appdnsroot=platformconfig.appdnsroot",
 }
 var PlatformConfigComments = map[string]string{
 	"containerregistrypath": "Path to Docker registry holding edge-cloud image",
@@ -279,6 +281,7 @@ var PlatformConfigComments = map[string]string{
 	"commercialcerts":       "Get certs from vault or generate your own for the root load balancer",
 	"usevaultcerts":         "Use Vault certs for internal TLS communication",
 	"usevaultcas":           "Use Vault CAs to authenticate TLS communication",
+	"appdnsroot":            "App domain name root",
 }
 var PlatformConfigSpecialArgs = map[string]string{
 	"platformconfig.envvar": "StringToString",
@@ -387,6 +390,7 @@ var CloudletAliasArgs = []string{
 	"config.commercialcerts=cloudlet.config.commercialcerts",
 	"config.usevaultcerts=cloudlet.config.usevaultcerts",
 	"config.usevaultcas=cloudlet.config.usevaultcas",
+	"config.appdnsroot=cloudlet.config.appdnsroot",
 	"restagmap:#.key=cloudlet.restagmap:#.key",
 	"restagmap:#.value.name=cloudlet.restagmap:#.value.name",
 	"restagmap:#.value.organization=cloudlet.restagmap:#.value.organization",
@@ -438,6 +442,7 @@ var CloudletComments = map[string]string{
 	"config.commercialcerts":              "Get certs from vault or generate your own for the root load balancer",
 	"config.usevaultcerts":                "Use Vault certs for internal TLS communication",
 	"config.usevaultcas":                  "Use Vault CAs to authenticate TLS communication",
+	"config.appdnsroot":                   "App domain name root",
 	"restagmap:#.value.name":              "Resource Table Name",
 	"restagmap:#.value.organization":      "Operator organization of the cloudlet site.",
 	"accessvars":                          "Variables required to access cloudlet",
@@ -554,6 +559,7 @@ var CloudletInfoOptionalArgs = []string{
 	"osimages:#.tags",
 	"osimages:#.properties",
 	"osimages:#.diskformat",
+	"controllercachereceived",
 }
 var CloudletInfoAliasArgs = []string{
 	"fields=cloudletinfo.fields",
@@ -582,28 +588,30 @@ var CloudletInfoAliasArgs = []string{
 	"osimages:#.tags=cloudletinfo.osimages:#.tags",
 	"osimages:#.properties=cloudletinfo.osimages:#.properties",
 	"osimages:#.diskformat=cloudletinfo.osimages:#.diskformat",
+	"controllercachereceived=cloudletinfo.controllercachereceived",
 }
 var CloudletInfoComments = map[string]string{
-	"fields":                "Fields are used for the Update API to specify which fields to apply",
-	"cloudlet-org":          "Organization of the cloudlet site",
-	"cloudlet":              "Name of the cloudlet",
-	"state":                 "State of cloudlet, one of CloudletStateUnknown, CloudletStateErrors, CloudletStateReady, CloudletStateOffline, CloudletStateNotPresent, CloudletStateInit, CloudletStateUpgrade",
-	"notifyid":              "Id of client assigned by server (internal use only)",
-	"controller":            "Connected controller unique id",
-	"osmaxram":              "Maximum Ram in MB on the Cloudlet",
-	"osmaxvcores":           "Maximum number of VCPU cores on the Cloudlet",
-	"osmaxvolgb":            "Maximum amount of disk in GB on the Cloudlet",
-	"errors":                "Any errors encountered while making changes to the Cloudlet",
-	"flavors:#.name":        "Name of the flavor on the Cloudlet",
-	"flavors:#.vcpus":       "Number of VCPU cores on the Cloudlet",
-	"flavors:#.ram":         "Ram in MB on the Cloudlet",
-	"flavors:#.disk":        "Amount of disk in GB on the Cloudlet",
-	"flavors:#.propmap":     "OS Flavor Properties, if any",
-	"containerversion":      "Cloudlet container version",
-	"osimages:#.name":       "image name",
-	"osimages:#.tags":       "optional tags present on image",
-	"osimages:#.properties": "image properties/metadata",
-	"osimages:#.diskformat": "format qcow2, img, etc",
+	"fields":                  "Fields are used for the Update API to specify which fields to apply",
+	"cloudlet-org":            "Organization of the cloudlet site",
+	"cloudlet":                "Name of the cloudlet",
+	"state":                   "State of cloudlet, one of CloudletStateUnknown, CloudletStateErrors, CloudletStateReady, CloudletStateOffline, CloudletStateNotPresent, CloudletStateInit, CloudletStateUpgrade, CloudletStateNeedSync",
+	"notifyid":                "Id of client assigned by server (internal use only)",
+	"controller":              "Connected controller unique id",
+	"osmaxram":                "Maximum Ram in MB on the Cloudlet",
+	"osmaxvcores":             "Maximum number of VCPU cores on the Cloudlet",
+	"osmaxvolgb":              "Maximum amount of disk in GB on the Cloudlet",
+	"errors":                  "Any errors encountered while making changes to the Cloudlet",
+	"flavors:#.name":          "Name of the flavor on the Cloudlet",
+	"flavors:#.vcpus":         "Number of VCPU cores on the Cloudlet",
+	"flavors:#.ram":           "Ram in MB on the Cloudlet",
+	"flavors:#.disk":          "Amount of disk in GB on the Cloudlet",
+	"flavors:#.propmap":       "OS Flavor Properties, if any",
+	"containerversion":        "Cloudlet container version",
+	"osimages:#.name":         "image name",
+	"osimages:#.tags":         "optional tags present on image",
+	"osimages:#.properties":   "image properties/metadata",
+	"osimages:#.diskformat":   "format qcow2, img, etc",
+	"controllercachereceived": "Indicates all controller data has been sent to CRM",
 }
 var CloudletInfoSpecialArgs = map[string]string{
 	"cloudletinfo.errors":            "StringArray",

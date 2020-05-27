@@ -48,19 +48,11 @@ var RootLBPorts = []dme.AppPort{{
 func persistInterfaceName(ctx context.Context, client ssh.Client, ifName, mac string, action *InterfaceActionsOp) error {
 	log.SpanLog(ctx, log.DebugLevelInfra, "persistInterfaceName", "ifName", ifName, "mac", mac)
 	newFileContents := ""
-	out, err := client.Output("cat /etc/issue")
-	// won't work for centos, does this happen? Rather not consider distros here.
-	if err != nil {
-		return fmt.Errorf("unable to cat /etc/issue: %s - %v", out, err)
-	}
-	if strings.Contains(out, "16.04") {
-		cmd := fmt.Sprintf("sudo cat %s", udevRulesFile)
 
-		out, err := client.Output(cmd)
-		if err != nil {
-			return fmt.Errorf("unable to cat udev rules file: %s - %v", out, err)
-		}
-
+	cmd := fmt.Sprintf("sudo cat %s", udevRulesFile)
+	out, err := client.Output(cmd)
+	// if the file exists, check for old entries
+	if err == nil {
 		lines := strings.Split(out, "\n")
 		for _, l := range lines {
 			// if the mac is already there remove it, it will be appended later
@@ -75,6 +67,7 @@ func persistInterfaceName(ctx context.Context, client ssh.Client, ifName, mac st
 	if action.addInterface {
 		newFileContents = newFileContents + newRule + "\n"
 	}
+	// preexisting or not, write it
 	return pc.WriteFile(client, udevRulesFile, newFileContents, "udev-rules", pc.SudoOn)
 }
 

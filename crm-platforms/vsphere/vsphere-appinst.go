@@ -2,6 +2,7 @@ package vsphere
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"strings"
 	"time"
@@ -13,6 +14,8 @@ import (
 	"github.com/mobiledgex/edge-cloud/edgeproto"
 	"github.com/mobiledgex/edge-cloud/log"
 )
+
+var qcowConvertTimeout = 5 * time.Minute
 
 func (v *VSpherePlatform) AddAppImageIfNotPresent(ctx context.Context, app *edgeproto.App, updateCallback edgeproto.CacheUpdateCallback) error {
 	log.SpanLog(ctx, log.DebugLevelInfra, "AddAppImageIfNotPresent", "app.ImagePath", app.ImagePath)
@@ -42,8 +45,10 @@ func (v *VSpherePlatform) AddAppImageIfNotPresent(ctx context.Context, app *edge
 		if delerr := infracommon.DeleteFile(filePath); delerr != nil {
 			log.SpanLog(ctx, log.DebugLevelInfra, "delete file failed", "filePath", filePath)
 		}
-		if delerr := infracommon.DeleteFile(vmdkFile); delerr != nil {
-			log.SpanLog(ctx, log.DebugLevelInfra, "delete file failed", "vmdkFile", vmdkFile)
+		if app.ImageType == edgeproto.ImageType_IMAGE_TYPE_QCOW {
+			if delerr := infracommon.DeleteFile(vmdkFile); delerr != nil {
+				log.SpanLog(ctx, log.DebugLevelInfra, "delete file failed", "vmdkFile", vmdkFile)
+			}
 		}
 	}()
 	return v.ImportImage(ctx, vmdkFile)
@@ -51,13 +56,28 @@ func (v *VSpherePlatform) AddAppImageIfNotPresent(ctx context.Context, app *edge
 
 func (v *VSpherePlatform) ConvertQcowToVmdk(ctx context.Context, sourceFile string) (string, error) {
 	log.SpanLog(ctx, log.DebugLevelInfra, "ConvertQcowToVmdk", "sourceFile", sourceFile)
-	time.Sleep(time.Second * 60)
 	destFile := strings.ReplaceAll(sourceFile, ".qcow2", "")
 	destFile = destFile + ".vmdk"
-	out, err := sh.Command("qemu-img", "convert", "-O", "vmdk", "-o", "subformat=streamOptimized", sourceFile, destFile).CombinedOutput()
-	if err != nil {
-		log.SpanLog(ctx, log.DebugLevelInfra, "qemu-img convert failed", "out", string(out), "err", err)
-		return "", fmt.Errorf("qemu-img convert failed: %s %v", out, err)
+
+	convertChan := make(chan string, 1)
+	var convertErr string
+	go func() {
+		out, err := sh.Command("qemu-img", "convert", "-O", "vmdk", "-o", "subformat=streamOptimized", sourceFile, destFile).CombinedOutput()
+		if err != nil {
+			log.SpanLog(ctx, log.DebugLevelInfra, "qemu-img convert failed", "out", string(out), "err", err)
+			convertChan <- fmt.Sprintf("qemu-img convert failed: %s %v", out, err)
+		} else {
+			convertChan <- ""
+
+		}
+	}()
+	select {
+	case convertErr = <-convertChan:
+	case <-time.After(qcowConvertTimeout):
+		return "", fmt.Errorf("ConvertQcowToVmdk timed out")
+	}
+	if convertErr != "" {
+		return "", errors.New(convertErr)
 	}
 	return destFile, nil
 }

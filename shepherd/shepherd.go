@@ -202,6 +202,10 @@ func main() {
 	cloudcommon.ParseMyCloudletKey(false, cloudletKeyStr, &cloudletKey)
 
 	err := nodeMgr.Init(ctx, "shepherd", node.WithCloudletKey(&cloudletKey), node.WithRegion(*region))
+	if err != nil {
+		span.Finish()
+		log.FatalLog(err.Error())
+	}
 	clientTlsConfig, err := nodeMgr.InternalPki.GetClientTlsConfig(ctx,
 		nodeMgr.CommonName(),
 		node.CertIssuerRegionalCloudlet,
@@ -209,6 +213,7 @@ func main() {
 	if err != nil {
 		log.FatalLog("Failed to get internal pki tls config", "err", err)
 	}
+	InitDebug(&nodeMgr)
 
 	myPlatform, err = getPlatform()
 	if err != nil {

@@ -175,7 +175,7 @@ func ProxyScraper() {
 		case <-time.After(settings.ShepherdMetricsCollectionInterval.TimeDuration()):
 			scrapePoints := copyMapValues()
 			for _, v := range scrapePoints {
-				span := log.StartSpan(log.DebugLevelSampled, "send-metric")
+				span := log.StartSpan(WorkerDebugLevel, "send-metric")
 				span.SetTag("operator", cloudletKey.Organization)
 				span.SetTag("cloudlet", cloudletKey.Name)
 				span.SetTag("cluster", v.Cluster)

@@ -16,7 +16,7 @@ var cloudletMetrics shepherd_common.CloudletMetrics
 // Don't need to do much, just spin up a metrics collection thread
 func InitPlatformMetrics() {
 	go CloudletScraper()
-	go CloudletPromtheusScraper()
+	go CloudletPrometheusScraper()
 }
 
 func CloudletScraper() {
@@ -42,7 +42,7 @@ func CloudletScraper() {
 	}
 }
 
-func CloudletPromtheusScraper() {
+func CloudletPrometheusScraper() {
 	for {
 		// check if there are any new apps we need to start/stop scraping for
 		select {

@@ -371,7 +371,7 @@ type ChefAttribute struct {
 type ChefParams struct {
 	NodeName       string
 	ServerPath     string
-	ValidationKey  string
+	ClientKey      string
 	ClientInterval int32
 }
 
@@ -380,8 +380,9 @@ chef:
   server_url: {{.ServerPath}}
   node_name: {{.NodeName}}
   validation_name: mobiledgex-validator
+  validation_key: /etc/chef/client.pem
   validation_cert: |
-{{ Indent .ValidationKey 10 }}
+{{ Indent .ClientKey 10 }}
   exec: true
   exec_arguments:
   - "-d"

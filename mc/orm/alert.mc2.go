@@ -564,6 +564,7 @@ func addControllerApis(method string, group *echo.Group) {
 	// DeploymentType: 27
 	// InfraExternalNetwork: 28
 	// InfraFlavorName: 29
+	// ChefClientKey: 30
 	// ```
 	// Security:
 	//   Bearer:

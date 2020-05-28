@@ -144,52 +144,26 @@ func stringToDateTimeHook(f reflect.Type, t reflect.Type, data interface{}) (int
 	return data, nil
 }
 
-func ChefNodeRunStatus(ctx context.Context, client *chef.Client, nodeName string, startTime time.Time) ([]ChefStatusInfo, error) {
-	log.SpanLog(ctx, log.DebugLevelInfra, "fetch chef node's run status", "node name", nodeName)
-	nodeInfo, err := client.Nodes.Get(nodeName)
+func ChefClientRunStatus(ctx context.Context, client *chef.Client, clientName string, startTime time.Time) ([]ChefStatusInfo, error) {
+	log.SpanLog(ctx, log.DebugLevelInfra, "fetch chef client's run status", "client name", clientName)
+	nodeInfo, err := client.Nodes.Get(clientName)
 	if err != nil {
-		return nil, fmt.Errorf("Unable to get chef node info: %s, %v", nodeName, err)
+		return nil, fmt.Errorf("Unable to get chef node info: %s, %v", clientName, err)
 	}
 	if _, ok := nodeInfo.NormalAttributes["runstatus"]; !ok {
-		//return nil, fmt.Errorf("unable to find runstatus attributes")
 		log.SpanLog(ctx, log.DebugLevelInfra, "unable to find runstatus attributes")
 		return nil, nil
 	}
 	runStatusAttr := nodeInfo.NormalAttributes["runstatus"]
+
 	var runStatus ChefRunStatus
-
-	config := mapstructure.DecoderConfig{
-		DecodeHook: stringToDateTimeHook,
-		Result:     &runStatus,
-	}
-
-	decoder, err := mapstructure.NewDecoder(&config)
-	if err != nil {
-		return nil, fmt.Errorf("failed to initialize new decoder: %v", err)
-	}
-
-	err = decoder.Decode(runStatusAttr)
+	err = mapstructure.Decode(runStatusAttr, &runStatus)
 	if err != nil {
 		return nil, fmt.Errorf("unable to decode runstatus attributes: %s, error: %v", runStatusAttr, err)
 	}
 
-	chefStartTime, err := time.Parse(ChefTimeLayout, runStatus.Start)
-	if err != nil {
-		//return nil, fmt.Errorf("unable to parse runstatus start time: %s, %v", runStatus.Start, err)
-		log.SpanLog(ctx, log.DebugLevelInfra, "unable to parse runstatus start time", "start time", runStatus.Start, "err", err)
-	}
-
-	var statusInfo []ChefStatusInfo
-
-	if chefStartTime.Before(startTime) {
-		// Ignore status info as it is of old run
-		log.SpanLog(ctx, log.DebugLevelInfra, "ASHISH: TIME CHECK", "runstatus", runStatusAttr)
-		log.SpanLog(ctx, log.DebugLevelInfra, "skipping chef node status info as it is of old run",
-			"node name", nodeName, "runstatus time", chefStartTime, "start time", startTime)
-		//return statusInfo, nil
-	}
-
 	failed := false
+	var statusInfo []ChefStatusInfo
 	for ii, res := range runStatus.Resources {
 		msg := ""
 		switch res.ResourceType {
@@ -222,10 +196,25 @@ func ChefNodeRunStatus(ctx context.Context, client *chef.Client, nodeName string
 	return statusInfo, nil
 }
 
-func ChefNodeCreate(ctx context.Context, client *chef.Client, nodeName, roleName string, attributes map[string]interface{}) error {
-	log.SpanLog(ctx, log.DebugLevelInfra, "chef node create", "node name", nodeName, "role name", roleName)
+func ChefClientCreate(ctx context.Context, client *chef.Client, clientName, roleName string, attributes map[string]interface{}) (string, error) {
+	log.SpanLog(ctx, log.DebugLevelInfra, "chef client create", "client name", clientName, "role name", roleName)
+	clientObj := chef.ApiNewClient{
+		Name:      clientName,
+		Validator: false,
+		Admin:     false,
+		CreateKey: true,
+	}
+	out, err := client.Clients.Create(clientObj)
+	if err != nil {
+		return "", fmt.Errorf("failed to create client %s: %v", clientName, err)
+	}
+	clientKey := out.ChefKey.PrivateKey
+	if clientKey == "" {
+		return "", fmt.Errorf("unable to get private key of the client %s", clientName)
+	}
+
 	nodeObj := chef.Node{
-		Name:        nodeName,
+		Name:        clientName,
 		Environment: "_default",
 		ChefType:    "node",
 		JsonClass:   "Chef::Node",
@@ -235,11 +224,17 @@ func ChefNodeCreate(ctx context.Context, client *chef.Client, nodeName, roleName
 		},
 		NormalAttributes: attributes,
 	}
-	_, err := client.Nodes.Post(nodeObj)
+	_, err = client.Nodes.Post(nodeObj)
 	if err != nil {
-		return fmt.Errorf("failed to create node %s: %v", nodeName, err)
+		return "", fmt.Errorf("failed to create node %s: %v", clientName, err)
 	}
-	return nil
+
+	acl := chef.NewACL("update", []string{clientName}, []string{"clients", "admins", "users"})
+	err = client.ACLs.Put("nodes", clientName, "update", acl)
+	if err != nil {
+		return "", fmt.Errorf("unable to add update acl for node %s", clientName)
+	}
+	return clientKey, nil
 }
 
 func GetChefArgs(ctx context.Context, cmdArgs []string) map[string]string {

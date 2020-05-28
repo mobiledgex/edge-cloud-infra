@@ -426,6 +426,7 @@ var CloudletAliasArgs = []string{
 	"deploymenttype=cloudlet.deploymenttype",
 	"infraexternalnetwork=cloudlet.infraexternalnetwork",
 	"infraflavorname=cloudlet.infraflavorname",
+	"chefclientkey=cloudlet.chefclientkey",
 }
 var CloudletComments = map[string]string{
 	"fields":                              "Fields are used for the Update API to specify which fields to apply",
@@ -482,6 +483,7 @@ var CloudletComments = map[string]string{
 	"deploymenttype":                      "Type of deployment to bring up CRM services, one of DeploymentTypeDocker, DeploymentTypeK8S",
 	"infraexternalnetwork":                "External network name on infra",
 	"infraflavorname":                     "Flavor name on infra",
+	"chefclientkey":                       "Chef client key",
 }
 var CloudletSpecialArgs = map[string]string{
 	"cloudlet.accessvars":    "StringToString",

@@ -333,6 +333,7 @@ func (v *VMPlatform) SetupPlatformVM(ctx context.Context, vaultConfig *vault.Con
 			WithAccessPorts("tcp:22"),
 			WithSkipDefaultSecGrp(true),
 			WithNewSubnet(subnetName),
+			WithSkipSubnetGw(true),
 			WithSkipSubnetRangeCheck(skipSubnetRangeCheck),
 		)
 	}
@@ -411,11 +412,12 @@ func (v *VMPlatform) CreateCloudlet(ctx context.Context, cloudlet *edgeproto.Clo
 		chefRole = ChefRoleK8s
 	}
 	updateCallback(edgeproto.UpdateTask, "Creating chef node with cloudlet attributes")
-	chefNodeName := v.GetChefClientName(&cloudlet.Key, pfConfig.Region)
-	err = ChefNodeCreate(ctx, chefClient, chefNodeName, chefRole, chefAttributes)
+	clientName := v.GetChefClientName(&cloudlet.Key, pfConfig.Region)
+	clientKey, err := ChefClientCreate(ctx, chefClient, clientName, chefRole, chefAttributes)
 	if err != nil {
 		return err
 	}
+	cloudlet.ChefClientKey = clientKey
 	if cloudlet.InfraAccessType == edgeproto.InfraAccessType_ACCESS_TYPE_PRIVATE {
 		// Return as for PRIVATE access type, end-user will setup the platform VM
 		return nil
@@ -430,7 +432,6 @@ func (v *VMPlatform) CreateCloudlet(ctx context.Context, cloudlet *edgeproto.Clo
 
 	updateCallback(edgeproto.UpdateTask, "Waiting for Platform VM to connect to Chef Server")
 	// Wait for VM to connect to Chef Server
-	clientName := v.GetChefClientName(&cloudlet.Key, pfConfig.Region)
 	timeout := time.After(5 * time.Minute)
 	tick := time.Tick(5 * time.Second)
 	for {
@@ -460,7 +461,7 @@ func (v *VMPlatform) CreateCloudlet(ctx context.Context, cloudlet *edgeproto.Clo
 		case <-timeout:
 			return fmt.Errorf("timed out waiting for platform VM to connect to Chef Server")
 		case <-tick:
-			statusInfo, err = ChefNodeRunStatus(ctx, chefClient, clientName, startTime)
+			statusInfo, err = ChefClientRunStatus(ctx, chefClient, clientName, startTime)
 			if err != nil {
 				return err
 			}
@@ -513,16 +514,6 @@ func (v *VMPlatform) DeleteCloudlet(ctx context.Context, cloudlet *edgeproto.Clo
 		return err
 	}
 
-	chefAuth, err := GetChefAuthKeys(ctx, vaultConfig)
-	if err != nil {
-		return err
-	}
-
-	chefClient, err := GetChefClient(ctx, chefAuth.ApiKey, pfConfig.ChefServerPath)
-	if err != nil {
-		return err
-	}
-
 	if cloudlet.InfraAccessType == edgeproto.InfraAccessType_ACCESS_TYPE_PUBLIC {
 		// Source OpenRC file to access openstack API endpoint
 		err = v.VMProvider.InitApiAccessProperties(ctx, &cloudlet.Key, pfConfig.Region, cloudlet.PhysicalName, vaultConfig, cloudlet.EnvVar)
@@ -547,11 +538,21 @@ func (v *VMPlatform) DeleteCloudlet(ctx context.Context, cloudlet *edgeproto.Clo
 		}
 	}
 
-	clientName := v.GetChefClientName(&cloudlet.Key, pfConfig.Region)
-	updateCallback(edgeproto.UpdateTask, "Deleting client from Chef Server")
-	err = ChefClientDelete(ctx, chefClient, clientName)
-	if err != nil {
-		log.SpanLog(ctx, log.DebugLevelInfra, "failed to delete client from Chef Server", "clientName", clientName, "err", err)
+	chefAuth, err := GetChefAuthKeys(ctx, vaultConfig)
+	if err == nil {
+		chefClient, err := GetChefClient(ctx, chefAuth.ApiKey, pfConfig.ChefServerPath)
+		if err != nil {
+			return err
+		}
+
+		clientName := v.GetChefClientName(&cloudlet.Key, pfConfig.Region)
+		updateCallback(edgeproto.UpdateTask, "Deleting client from Chef Server")
+		err = ChefClientDelete(ctx, chefClient, clientName)
+		if err != nil {
+			log.SpanLog(ctx, log.DebugLevelInfra, "failed to delete client from Chef Server", "clientName", clientName, "err", err)
+		}
+	} else {
+		log.SpanLog(ctx, log.DebugLevelInfra, "failed to fetch chef auth keys", "err", err)
 	}
 
 	// Not sure if it's safe to remove vars from Vault due to testing/virtual cloudlets,
@@ -869,18 +870,13 @@ func (v *VMPlatform) GetCloudletVMsSpec(ctx context.Context, vaultConfig *vault.
 	}
 
 	// Setup Chef parameters in cloud-config
-	chefNodeName := v.GetChefClientName(&cloudlet.Key, pfConfig.Region)
-	chefAuth, err := GetChefAuthKeys(ctx, vaultConfig)
-	if err != nil {
-		return nil, err
-	}
+	clientName := v.GetChefClientName(&cloudlet.Key, pfConfig.Region)
 	chefParams := ChefParams{
-		NodeName:       chefNodeName,
+		NodeName:       clientName,
 		ServerPath:     pfConfig.ChefServerPath,
-		ValidationKey:  chefAuth.ValidationKey,
+		ClientKey:      cloudlet.ChefClientKey,
 		ClientInterval: pfConfig.ChefClientInterval,
 	}
-
 	buf, err := ExecTemplate(chefParams.NodeName, VmChefConfig, chefParams)
 	if err != nil {
 		return nil, err
@@ -888,9 +884,7 @@ func (v *VMPlatform) GetCloudletVMsSpec(ctx context.Context, vaultConfig *vault.
 	chefManifest := buf.String()
 
 	var vms []*VMRequestSpec
-
 	subnetName := v.GetPlatformSubnetName(&cloudlet.Key)
-
 	if cloudlet.DeploymentType == edgeproto.DeploymentType_DEPLOYMENT_TYPE_DOCKER {
 		platvm, err := v.GetVMRequestSpec(
 			ctx,
@@ -906,35 +900,15 @@ func (v *VMPlatform) GetCloudletVMsSpec(ctx context.Context, vaultConfig *vault.
 		}
 		vms = append(vms, platvm)
 	} else {
-		rootlb, err := v.GetVMRequestSpec(
-			ctx,
-			VMTypeRootLB,
-			platformVmName+"-lb",
-			flavorName,
-			v.VMProperties.GetCloudletOSImage(),
-			true, //connect external
-			WithSubnetConnection(subnetName),
-			WithDeploymentManifest(VmCloudConfig+chefManifest),
-		)
-		if err != nil {
-			return nil, err
-		}
-		vms = append(vms, rootlb)
-		// create ports on the rootLB
-		rootlbPort, err := v.GetVMSpecForRootLBPorts(ctx, platformVmName+"-lb", subnetName)
-		if err != nil {
-			return nil, err
-		}
-		vms = append(vms, rootlbPort)
 		master, err := v.GetVMRequestSpec(
 			ctx,
 			VMTypeClusterMaster,
 			platformVmName+"-master",
 			flavorName,
 			v.VMProperties.GetCloudletOSImage(),
-			false, //connect external
+			true, //connect external
 			WithSubnetConnection(subnetName),
-			WithDeploymentManifest(VmCloudConfig),
+			WithDeploymentManifest(VmCloudConfig+chefManifest),
 		)
 		if err != nil {
 			return nil, err
@@ -946,7 +920,7 @@ func (v *VMPlatform) GetCloudletVMsSpec(ctx context.Context, vaultConfig *vault.
 				fmt.Sprintf("%s-node-%d", platformVmName, nn),
 				flavorName,
 				v.VMProperties.GetCloudletOSImage(),
-				false, //connect external
+				true, //connect external
 				WithSubnetConnection(subnetName),
 				WithDeploymentManifest(VmCloudConfig),
 			)
@@ -999,9 +973,9 @@ func (v *VMPlatform) GetCloudletManifest(ctx context.Context, cloudlet *edgeprot
 			platvms,
 			WithNewSecurityGroup(v.GetServerSecurityGroupName(platformVmName)),
 			WithAccessPorts("tcp:22"),
-			WithSkipDefaultSecGrp(true),
 			WithNewSubnet(subnetName),
-			//WithSkipSubnetGw(true),
+			WithSkipDefaultSecGrp(true),
+			WithSkipSubnetGw(true),
 			WithSkipSubnetRangeCheck(skipSubnetRangeCheck),
 		)
 	}

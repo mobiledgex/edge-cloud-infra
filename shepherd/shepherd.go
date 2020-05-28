@@ -211,16 +211,19 @@ func main() {
 		node.CertIssuerRegionalCloudlet,
 		[]node.MatchCA{node.SameRegionalCloudletMatchCA()})
 	if err != nil {
+		span.Finish()
 		log.FatalLog("Failed to get internal pki tls config", "err", err)
 	}
 	InitDebug(&nodeMgr)
 
 	myPlatform, err = getPlatform()
 	if err != nil {
+		span.Finish()
 		log.FatalLog("Failed to get platform", "platformName", platformName, "err", err)
 	}
 
 	if err = startPrometheusMetricsProxy(ctx); err != nil {
+		span.Finish()
 		log.FatalLog("Failed to start prometheus metrics proxy", "err", err)
 	}
 
@@ -276,12 +279,14 @@ func main() {
 		time.Sleep(1 * time.Second)
 	}
 	if !found {
+		span.Finish()
 		log.FatalLog("failed to fetch cloudlet cache from controller")
 	}
 	log.SpanLog(ctx, log.DebugLevelInfo, "fetched cloudlet cache from controller", "cloudlet", cloudlet)
 
 	err = myPlatform.Init(ctx, &cloudletKey, *region, *physicalName, nodeMgr.VaultAddr, *appDNSRoot, cloudlet.EnvVar)
 	if err != nil {
+		span.Finish()
 		log.FatalLog("Failed to initialize platform", "platformName", platformName, "err", err)
 	}
 	workerMap = make(map[string]*ClusterWorker)

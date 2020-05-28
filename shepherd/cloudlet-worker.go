@@ -52,7 +52,7 @@ func CloudletPromtheusScraper() {
 			aspan.SetTag("operator", cloudletKey.Organization)
 			aspan.SetTag("cloudlet", cloudletKey.Name)
 			actx := log.ContextWithSpan(context.Background(), aspan)
-			// plarform client is a local ssh
+			// platform client is a local ssh
 			alerts, err := getPromAlerts(actx, CloudletPrometheusAddr, &pc.LocalClient{})
 			if err != nil {
 				log.SpanLog(actx, log.DebugLevelMetrics, "Could not collect alerts",

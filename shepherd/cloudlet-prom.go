@@ -19,9 +19,11 @@ import (
 	"github.com/mobiledgex/edge-cloud/log"
 )
 
+const HealthCheckRulesPrefix = "healthcheck"
+
 var CloudletPrometheusAddr = "0.0.0.0:" + intprocess.CloudletPrometheusPort
 
-var promTargetTemplate, promAlertTemplate *template.Template
+var promTargetTemplate, promAutoProvAlertTemplate *template.Template
 
 var promTargetT = `
 {
@@ -169,8 +171,8 @@ func metricsProxy(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-func getPromtheusFileName(name string) string {
-	return "/tmp/" + intprocess.PormtheusRulesPrefix + name + ".yml"
+func getPrometheusFileName(name string) string {
+	return "/tmp/" + intprocess.PrometheusRulesPrefix + name + ".yml"
 }
 
 // Starts Cloudlet Prometheus MetricsProxy thread to serve as a target for metrics
@@ -180,8 +182,8 @@ func startPrometheusMetricsProxy(ctx context.Context) error {
 		*platformName == "PLATFORM_TYPE_OPENSTACK" {
 		// Init prometheus targets and alert templates
 		promTargetTemplate = template.Must(template.New("prometheustarget").Parse(promTargetT))
-		promAlertTemplate = template.Must(template.New("alert").Parse(promAutoProvAlertT))
-		healthCeckFile := getPromtheusFileName("healthcheck")
+		promAutoProvAlertTemplate = template.Must(template.New("autoprovalert").Parse(promAutoProvAlertT))
+		healthCeckFile := getPrometheusFileName(HealthCheckRulesPrefix)
 		err := writeCloudletPrometheusAlerts(ctx, healthCeckFile, []byte(promHealthCheckAlerts))
 		if err != nil {
 			return fmt.Errorf("Failed to write prometheus rules to %s, err: %s",
@@ -224,7 +226,7 @@ func shouldAddAutoDeprovPolicy(ctx context.Context, appInst *edgeproto.AppInst, 
 			log.SpanLog(ctx, log.DebugLevelMetrics, "Unable to find polocy", "policy", polKey)
 			continue
 		}
-		// Check if the cloudlets should be this onee are one of those
+		// Check if one of the cloudlets in the policy matches ours
 		for _, cloudlet := range policy.Cloudlets {
 			if cloudletKey.Matches(&cloudlet.Key) {
 				return true
@@ -235,10 +237,10 @@ func shouldAddAutoDeprovPolicy(ctx context.Context, appInst *edgeproto.AppInst, 
 	return false
 }
 
-func writePromtheusAlertRuleForAppInst(ctx context.Context, appInst *edgeproto.AppInst) {
+func writePrometheusAlertRuleForAppInst(ctx context.Context, appInst *edgeproto.AppInst) {
 	// AppInst is being deleted - delete rules
 	if appInst.State != edgeproto.TrackedState_READY {
-		fileName := getPromtheusFileName(k8smgmt.NormalizeName(appInst.Key.AppKey.Name))
+		fileName := getPrometheusFileName(k8smgmt.NormalizeName(appInst.Key.AppKey.Name))
 		if err := deleteCloudletPrometheusAlertFile(ctx, fileName); err != nil {
 			log.SpanLog(ctx, log.DebugLevelMetrics, "Failed to delete prometheus rules", "file", fileName, "err", err)
 		}
@@ -251,19 +253,19 @@ func writePromtheusAlertRuleForAppInst(ctx context.Context, appInst *edgeproto.A
 		log.SpanLog(ctx, log.DebugLevelMetrics, "Unable to find app", "app", appInst.Key.AppKey.Name)
 		return
 	}
-	// check if there is an auto-scale policy first
+	// check if there is an auto-prov policy first
 	if !shouldAddAutoDeprovPolicy(ctx, appInst, &app) {
 		log.SpanLog(ctx, log.DebugLevelMetrics, "no autoprovisioning for this AppInst", "appInst", appInst, "app", app)
 		return
 	}
 	buf := bytes.Buffer{}
-	if err := promAlertTemplate.Execute(&buf, appInst.Key); err != nil {
-		log.DebugLog(log.DebugLevelMetrics, "Failed to create autoprov alerts", "template", promAlertTemplate,
+	if err := promAutoProvAlertTemplate.Execute(&buf, appInst.Key); err != nil {
+		log.DebugLog(log.DebugLevelMetrics, "Failed to create autoprov alerts", "template", promAutoProvAlertTemplate,
 			"data", appInst, "error", err)
 		return
 	}
 
-	fileName := getPromtheusFileName(k8smgmt.NormalizeName(appInst.Key.AppKey.Name))
+	fileName := getPrometheusFileName(k8smgmt.NormalizeName(appInst.Key.AppKey.Name))
 	err := writeCloudletPrometheusAlerts(ctx, fileName, buf.Bytes())
 	if err != nil {
 		log.SpanLog(ctx, log.DebugLevelMetrics, "Failed to write prometheus rules", "file", fileName, "err", err)

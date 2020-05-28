@@ -20,41 +20,41 @@ func addClusterDetailsToAlerts(alerts []edgeproto.Alert, clusterInstKey *edgepro
 }
 
 // Don't consider alerts, which are not destined for this cluster Instance and not clusterInst alerts
-func pruneClusterForeignAlerts(key interface{}, keys *map[edgeproto.AlertKey]struct{}) *map[edgeproto.AlertKey]struct{} {
+func pruneClusterForeignAlerts(key interface{}, keys map[edgeproto.AlertKey]struct{}) map[edgeproto.AlertKey]struct{} {
 	clusterInstKey, ok := key.(*edgeproto.ClusterInstKey)
 	if !ok {
 		// just return original list
 		return keys
 	}
 	alertFromKey := edgeproto.Alert{}
-	for key, _ := range *keys {
+	for key, _ := range keys {
 		edgeproto.AlertKeyStringParse(string(key), &alertFromKey)
 		if _, found := alertFromKey.Labels[cloudcommon.AlertLabelApp]; found ||
 			alertFromKey.Labels[cloudcommon.AlertLabelClusterOrg] != clusterInstKey.Organization ||
 			alertFromKey.Labels[cloudcommon.AlertLabelCloudletOrg] != clusterInstKey.CloudletKey.Organization ||
 			alertFromKey.Labels[cloudcommon.AlertLabelCloudlet] != clusterInstKey.CloudletKey.Name ||
 			alertFromKey.Labels[cloudcommon.AlertLabelCluster] != clusterInstKey.ClusterKey.Name {
-			delete(*keys, key)
+			delete(keys, key)
 		}
 	}
 	return keys
 }
 
 // We have only a pre-defined set of alerts that are available at the cloudlet level
-func pruneCloudletForeignAlerts(key interface{}, keys *map[edgeproto.AlertKey]struct{}) *map[edgeproto.AlertKey]struct{} {
+func pruneCloudletForeignAlerts(key interface{}, keys map[edgeproto.AlertKey]struct{}) map[edgeproto.AlertKey]struct{} {
 	alertFromKey := edgeproto.Alert{}
-	for key, _ := range *keys {
+	for key, _ := range keys {
 		edgeproto.AlertKeyStringParse(string(key), &alertFromKey)
 		if alertName, found := alertFromKey.Labels["alertname"]; !found ||
 			(alertName != cloudcommon.AlertAppInstDown &&
 				alertName != cloudcommon.AlertAutoProvDown) {
-			delete(*keys, key)
+			delete(keys, key)
 		}
 	}
 	return keys
 }
 
-func UpdateAlerts(ctx context.Context, alerts []edgeproto.Alert, filterKey interface{}, pruneFunc func(filterKey interface{}, keys *map[edgeproto.AlertKey]struct{}) *map[edgeproto.AlertKey]struct{}) {
+func UpdateAlerts(ctx context.Context, alerts []edgeproto.Alert, filterKey interface{}, pruneFunc func(filterKey interface{}, keys map[edgeproto.AlertKey]struct{}) map[edgeproto.AlertKey]struct{}) {
 	if alerts == nil {
 		// some error occurred, do not modify existing cache set
 		return
@@ -84,7 +84,7 @@ func UpdateAlerts(ctx context.Context, alerts []edgeproto.Alert, filterKey inter
 		})
 		delete(stale, alert.GetKeyVal())
 	}
-	pruneFunc(filterKey, &stale)
+	pruneFunc(filterKey, stale)
 	// delete our stale entries
 	for key, _ := range stale {
 		buf := edgeproto.Alert{}

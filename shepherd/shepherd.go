@@ -62,7 +62,7 @@ func appInstCb(ctx context.Context, old *edgeproto.AppInst, new *edgeproto.AppIn
 	if myPlatform.GetType() != "fake" {
 		if target := CollectProxyStats(ctx, new); target != "" {
 			go writePrometheusTargetsFile()
-			go writePromtheusAlertRuleForAppInst(ctx, new)
+			go writePrometheusAlertRuleForAppInst(ctx, new)
 		}
 	}
 	var port int32

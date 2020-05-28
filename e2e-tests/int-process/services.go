@@ -19,14 +19,14 @@ import (
 const (
 	PrometheusContainer    = "cloudletPrometheus"
 	PrometheusImagePath    = "prom/prometheus:latest"
-	PormtheusRulesPrefix   = "rulefile_"
+	PrometheusRulesPrefix  = "rulefile_"
 	CloudletPrometheusPort = "9092"
 )
 
 var prometheusConfig = `global:
   evaluation_interval: 15s
 rule_files:
-- "/tmp/` + PormtheusRulesPrefix + `*"
+- "/tmp/` + PrometheusRulesPrefix + `*"
 scrape_configs:
 - job_name: envoy_targets
   scrape_interval: 5s

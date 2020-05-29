@@ -190,6 +190,9 @@ func main() {
 	log.SetDebugLevelStrs(*debugLevels)
 	log.InitTracer(nodeMgr.TlsCertFile)
 	defer log.FinishTracer()
+
+	// Enable sampling for shepherd
+	log.SamplingEnabled = true
 	var span opentracing.Span
 	if *parentSpan != "" {
 		span = log.NewSpanFromString(log.DebugLevelInfo, *parentSpan, "main")
@@ -214,7 +217,6 @@ func main() {
 		span.Finish()
 		log.FatalLog("Failed to get internal pki tls config", "err", err)
 	}
-	InitDebug(&nodeMgr)
 
 	myPlatform, err = getPlatform()
 	if err != nil {

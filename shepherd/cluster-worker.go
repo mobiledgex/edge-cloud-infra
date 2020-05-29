@@ -87,7 +87,7 @@ func (p *ClusterWorker) RunNotify() {
 	for !done {
 		select {
 		case <-time.After(p.interval):
-			span := log.StartSpan(WorkerDebugLevel, "send-metric")
+			span := log.StartSpan(log.DebugLevelSampled|log.DebugLevelInfo, "send-metric")
 			span.SetTag("operator", p.clusterInstKey.CloudletKey.Organization)
 			span.SetTag("cloudlet", p.clusterInstKey.CloudletKey.Name)
 			span.SetTag("cluster", p.clusterInstKey.ClusterKey.Name)

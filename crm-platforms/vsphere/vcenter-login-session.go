@@ -22,14 +22,16 @@ func basicAuth(username, password string) string {
 }
 
 // GetConsoleSessionCookie does a UI login with the console user to get a cookie which can then
-// be used to login remotely to the VM console
+// be used to login remotely to the VM console.  The login is a 3 part process
+// 1) GET to UI login Page
+// 2) Redirect to SAML Request URL
+// 3) POST to SSO login page with form data based on SAMLResponse
 func (v *VSpherePlatform) GetVCenterConsoleSessionCookie(ctx context.Context) (string, error) {
 
 	log.SpanLog(ctx, log.DebugLevelInfra, "GetConsoleSessionCookie")
 
-	consoleUser := v.GetVCenterUser()     // v.GetVCenterConsoleUser()
-	consolePass := v.GetVCenterPassword() // v.GetVCenterConsolePassword()
-
+	consoleUser := v.GetVCenterConsoleUser()
+	consolePass := v.GetVCenterConsolePassword()
 	if consoleUser == "" || consolePass == "" {
 		return "", fmt.Errorf("vcenter console credentials not configured in vault")
 	}
@@ -41,7 +43,6 @@ func (v *VSpherePlatform) GetVCenterConsoleSessionCookie(ctx context.Context) (s
 		CheckRedirect: func(req *http.Request, via []*http.Request) error {
 			return http.ErrUseLastResponse
 		}}
-
 	vchost, _, err := v.GetVCenterAddress()
 	if err != nil {
 		return "", err
@@ -56,7 +57,6 @@ func (v *VSpherePlatform) GetVCenterConsoleSessionCookie(ctx context.Context) (s
 		return "", fmt.Errorf("Could not reach VCenter login page, %v", err)
 	}
 	defer resp.Body.Close()
-	//	loginCookies := resp.Cookies()
 	hdrs := resp.Header
 
 	// we should get a redirect with a location header
@@ -69,7 +69,7 @@ func (v *VSpherePlatform) GetVCenterConsoleSessionCookie(ctx context.Context) (s
 	}
 	samlLocation := locationHdr[0]
 	log.SpanLog(ctx, log.DebugLevelInfra, "received redirect to location", "redirectLocation", samlLocation)
-	setcookie, ok := hdrs["Set-Cookie"]
+	samlRedirSetCookie, ok := hdrs["Set-Cookie"]
 	if !ok {
 		// we expect to get a session cookie back
 		return "", fmt.Errorf("No cookies received from vcenter login page")
@@ -78,23 +78,21 @@ func (v *VSpherePlatform) GetVCenterConsoleSessionCookie(ctx context.Context) (s
 	// now post to the redirected response.  This is a SAML2 SSO URL
 	req, err = http.NewRequest("POST", samlLocation, nil)
 	if err != nil {
-		return "", fmt.Errorf("Error in POST to vcenter SAML redirect -- %v", err)
+		return "", fmt.Errorf("Error creating new POST request to location %s -- %v", samlLocation, err)
 	}
 	req.SetBasicAuth(consoleUser, consolePass)
-	// add the cookie for the sessionid from the previous set-cookie
-	req.Header.Add("Cookie", setcookie[0])
+	req.Header.Add("Cookie", samlRedirSetCookie[0])
 	req.Header.Add("Referer", samlLocation)
 
-	// in addition to basic auth we add a castle auth header with the same creds.  Because VMware.
+	// in addition to basic auth we add a castle auth header with the same creds.
 	castleAuth := basicAuth(consoleUser, consolePass)
 	form := url.Values{}
 	form.Add("CastleAuthorization", "Basic "+castleAuth)
-
-	log.SpanLog(ctx, log.DebugLevelInfra, "sending POST", "URL", samlLocation)
+	log.SpanLog(ctx, log.DebugLevelInfra, "Sending POST to redirect location", "URL", samlLocation)
 
 	resp, err = client.PostForm(samlLocation, form) //send request as a POST with the castle login as form data
 	if err != nil {
-		return "", fmt.Errorf("Error in POST to vcenter SAML2 redirect -- %v", err)
+		return "", fmt.Errorf("Error in POST to vcenter SAML redirect -- %v", err)
 	}
 	defer resp.Body.Close()
 
@@ -138,16 +136,13 @@ func (v *VSpherePlatform) GetVCenterConsoleSessionCookie(ctx context.Context) (s
 	req.Header.Add("Referer", samlLocation)
 
 	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
-	req.Header.Add("Cookie", setcookie[0])
+	req.Header.Add("Cookie", samlRedirSetCookie[0])
 	reqtxt := fmt.Sprintf("%+v", req)
 	log.SpanLog(ctx, log.DebugLevelInfra, "sending POST", "URL", ssoUrl, "req", reqtxt)
 	resp, err = client.Do(req) //send request
 	if err != nil {
 		return "", fmt.Errorf("Error in POST to SSO with SAMLResponse")
 	}
-	rsptext := fmt.Sprintf("%+v", resp)
-
-	log.SpanLog(ctx, log.DebugLevelInfra, "Got response", "resp", rsptext)
 
 	defer resp.Body.Close()
 	ssoCookies := resp.Cookies() //save cookies

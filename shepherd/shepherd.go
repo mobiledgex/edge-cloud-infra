@@ -191,8 +191,6 @@ func main() {
 	log.InitTracer(nodeMgr.TlsCertFile)
 	defer log.FinishTracer()
 
-	// Enable sampling for shepherd
-	log.SamplingEnabled = true
 	var span opentracing.Span
 	if *parentSpan != "" {
 		span = log.NewSpanFromString(log.DebugLevelInfo, *parentSpan, "main")

@@ -191,6 +191,5 @@ sudo chmod +x /etc/cron.hourly/sshd-stale-session-cleanup
 # Create Chef related files required during cloud-init
 sudo mkdir -p /etc/chef
 sudo touch /etc/chef/client.rb
-sudo touch /etc/chef/firstboot.json
 
 echo "[$(date)] Done setup.sh ($( pwd ))"

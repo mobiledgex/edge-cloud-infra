@@ -319,7 +319,7 @@ func (v *VMPlatform) SetupPlatformVM(ctx context.Context, vaultConfig *vault.Con
 	} else {
 		subnetName := v.GetPlatformSubnetName(&cloudlet.Key)
 		skipSubnetRangeCheck := false
-		if cloudlet.InfraAccessType == edgeproto.InfraAccessType_ACCESS_TYPE_PRIVATE {
+		if cloudlet.InfraApiAccess == edgeproto.InfraApiAccess_RESTRICTED_ACCESS {
 			// It'll be end-users responsibility to make sure subnet range
 			// is not confliciting with existing subnets
 			skipSubnetRangeCheck = true
@@ -418,8 +418,8 @@ func (v *VMPlatform) CreateCloudlet(ctx context.Context, cloudlet *edgeproto.Clo
 		return err
 	}
 	cloudlet.ChefClientKey = clientKey
-	if cloudlet.InfraAccessType == edgeproto.InfraAccessType_ACCESS_TYPE_PRIVATE {
-		// Return as for PRIVATE access type, end-user will setup the platform VM
+	if cloudlet.InfraApiAccess == edgeproto.InfraApiAccess_RESTRICTED_ACCESS {
+		// Return, as end-user will setup the platform VM
 		return nil
 	}
 
@@ -514,7 +514,7 @@ func (v *VMPlatform) DeleteCloudlet(ctx context.Context, cloudlet *edgeproto.Clo
 		return err
 	}
 
-	if cloudlet.InfraAccessType == edgeproto.InfraAccessType_ACCESS_TYPE_PUBLIC {
+	if cloudlet.InfraApiAccess == edgeproto.InfraApiAccess_DIRECT_ACCESS {
 		// Source OpenRC file to access openstack API endpoint
 		err = v.VMProvider.InitApiAccessProperties(ctx, &cloudlet.Key, pfConfig.Region, cloudlet.PhysicalName, vaultConfig, cloudlet.EnvVar)
 		if err != nil {
@@ -761,7 +761,7 @@ func (v *VMPlatform) GetChefNodeAttributes(ctx context.Context, cloudlet *edgepr
 	}
 	chefAttributes["infraApiAddr"] = endpointIp
 	chefAttributes["infraApiPort"] = hostname[1]
-	if cloudlet.InfraAccessType == edgeproto.InfraAccessType_ACCESS_TYPE_PUBLIC {
+	if cloudlet.InfraApiAccess == edgeproto.InfraApiAccess_DIRECT_ACCESS {
 		// Fetch gateway IP of external network
 		gatewayAddr, err := v.VMProvider.GetExternalGateway(ctx, v.VMProperties.GetCloudletExternalNetwork())
 		if err != nil {
@@ -810,14 +810,14 @@ func (v *VMPlatform) GetCloudletVMsSpec(ctx context.Context, vaultConfig *vault.
 		pfConfig.ContainerRegistryPath = infracommon.DefaultContainerRegistryPath
 	}
 
-	if cloudlet.InfraExternalNetwork != "" {
-		v.VMProperties.SetCloudletExternalNetwork(cloudlet.InfraExternalNetwork)
+	if cloudlet.InfraConfig.ExternalNetworkName != "" {
+		v.VMProperties.SetCloudletExternalNetwork(cloudlet.InfraConfig.ExternalNetworkName)
 	}
 
-	flavorName := cloudlet.InfraFlavorName
-	if cloudlet.InfraAccessType == edgeproto.InfraAccessType_ACCESS_TYPE_PUBLIC {
+	flavorName := cloudlet.InfraConfig.FlavorName
+	if cloudlet.InfraApiAccess == edgeproto.InfraApiAccess_DIRECT_ACCESS {
 		// Validate infra external network provided by user
-		if cloudlet.InfraExternalNetwork != "" {
+		if cloudlet.InfraConfig.ExternalNetworkName != "" {
 			nets, err := v.VMProvider.GetNetworkList(ctx)
 			if err != nil {
 				return nil, err
@@ -825,20 +825,20 @@ func (v *VMPlatform) GetCloudletVMsSpec(ctx context.Context, vaultConfig *vault.
 
 			found := false
 			for _, n := range nets {
-				if n == cloudlet.InfraExternalNetwork {
+				if n == cloudlet.InfraConfig.ExternalNetworkName {
 					found = true
 					break
 				}
 			}
 			if !found {
-				return nil, fmt.Errorf("cannot find infra external network %s", cloudlet.InfraExternalNetwork)
+				return nil, fmt.Errorf("cannot find infra external network %s", cloudlet.InfraConfig.ExternalNetworkName)
 			}
 		}
 		flavorList, err := v.VMProvider.GetFlavorList(ctx)
 		if err != nil {
 			return nil, err
 		}
-		if cloudlet.InfraFlavorName == "" {
+		if cloudlet.InfraConfig.FlavorName == "" {
 			vmspec, err := vmspec.GetVMSpec(flavorList, *pfFlavor)
 			if err != nil {
 				return nil, fmt.Errorf("unable to find VM spec for Shared RootLB: %v", err)
@@ -847,13 +847,13 @@ func (v *VMPlatform) GetCloudletVMsSpec(ctx context.Context, vaultConfig *vault.
 		} else {
 			// Validate infra flavor name provided by user
 			for _, finfo := range flavorList {
-				if finfo.Name == cloudlet.InfraFlavorName {
-					flavorName = cloudlet.InfraFlavorName
+				if finfo.Name == cloudlet.InfraConfig.FlavorName {
+					flavorName = cloudlet.InfraConfig.FlavorName
 					break
 				}
 			}
 			if flavorName == "" {
-				return nil, fmt.Errorf("invalid infraflavorname, does not exist")
+				return nil, fmt.Errorf("invalid InfraConfig.FlavorName, does not exist")
 			}
 		}
 
@@ -962,7 +962,7 @@ func (v *VMPlatform) GetCloudletManifest(ctx context.Context, cloudlet *edgeprot
 	} else {
 		subnetName := v.GetPlatformSubnetName(&cloudlet.Key)
 		skipSubnetRangeCheck := false
-		if cloudlet.InfraAccessType == edgeproto.InfraAccessType_ACCESS_TYPE_PRIVATE {
+		if cloudlet.InfraApiAccess == edgeproto.InfraApiAccess_RESTRICTED_ACCESS {
 			// It'll be end-users responsibility to make sure subnet range
 			// is not confliciting with existing subnets
 			skipSubnetRangeCheck = true

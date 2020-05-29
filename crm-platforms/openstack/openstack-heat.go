@@ -337,7 +337,7 @@ func (o *OpenstackPlatform) CreateHeatStackFromTemplate(ctx context.Context, tem
 	return o.createOrUpdateHeatStackFromTemplate(ctx, templateData, stackName, templateString, heatCreate, updateCallback)
 }
 
-// heatDeleteStack deletes the VM resources
+// HeatDeleteStack deletes the VM resources
 func (o *OpenstackPlatform) HeatDeleteStack(ctx context.Context, stackName string) error {
 	log.SpanLog(ctx, log.DebugLevelInfra, "deleting heat stack for stack", "stackName", stackName)
 	err := o.deleteHeatStack(ctx, stackName)

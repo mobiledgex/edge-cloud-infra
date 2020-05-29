@@ -58,6 +58,7 @@ It has these top-level messages:
 	OperationTimeLimits
 	PlatformConfig
 	CloudletResMap
+	InfraConfig
 	Cloudlet
 	FlavorMatch
 	CloudletManifest
@@ -560,11 +561,12 @@ func addControllerApis(method string, group *echo.Group) {
 	// AccessVarsValue: 23.2
 	// VmImageVersion: 24
 	// PackageVersion: 25
-	// InfraAccessType: 26
-	// DeploymentType: 27
-	// InfraExternalNetwork: 28
-	// InfraFlavorName: 29
-	// ChefClientKey: 30
+	// DeploymentType: 26
+	// InfraApiAccess: 27
+	// InfraConfig: 28
+	// InfraConfigExternalNetworkName: 28.1
+	// InfraConfigFlavorName: 28.2
+	// ChefClientKey: 29
 	// ```
 	// Security:
 	//   Bearer:

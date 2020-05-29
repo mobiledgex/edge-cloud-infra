@@ -3,7 +3,6 @@ package vmlayer
 import (
 	"context"
 	"fmt"
-	"reflect"
 	"strings"
 	"time"
 
@@ -45,7 +44,6 @@ const (
 	ResourceDockerRegistry  = "docker_registry"
 	ResourceDockerImage     = "docker_image"
 	ResourceDockerContainer = "docker_container"
-	ChefTimeLayout          = "2006-01-02 15:04:05 +0000"
 )
 
 func GetChefAuthKeys(ctx context.Context, vaultConfig *vault.Config) (*ChefAuthKey, error) {
@@ -73,7 +71,7 @@ func GetChefClient(ctx context.Context, apiKey, chefServerPath string) (*chef.Cl
 	client, err := chef.NewClient(&chef.Config{
 		Name:    "chefadmin",
 		Key:     apiKey,
-		SkipSSL: true,
+		SkipSSL: false,
 		BaseURL: chefServerPath,
 	})
 	if err != nil {
@@ -135,13 +133,6 @@ func ChefClientDelete(ctx context.Context, client *chef.Client, clientName strin
 		}
 	}
 	return nil
-}
-
-func stringToDateTimeHook(f reflect.Type, t reflect.Type, data interface{}) (interface{}, error) {
-	if t == reflect.TypeOf(time.Time{}) && f == reflect.TypeOf("") {
-		return time.Parse(ChefTimeLayout, data.(string))
-	}
-	return data, nil
 }
 
 func ChefClientRunStatus(ctx context.Context, client *chef.Client, clientName string, startTime time.Time) ([]ChefStatusInfo, error) {

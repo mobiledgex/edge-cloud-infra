@@ -33,7 +33,6 @@ const (
 	ActionCreate ActionType = "CREATE"
 	ActionUpdate ActionType = "UPDATE"
 	ActionDelete ActionType = "DELETE"
-	ActionTest   ActionType = "TEST"
 )
 
 var ClusterTypeKubernetesMasterLabel = "mex-k8s-master"
@@ -362,11 +361,6 @@ fs_setup:
    layout: true
 mounts:
  - [ "/dev/vdb1", "/share" ]`
-
-type ChefAttribute struct {
-	Attribute    string
-	AttributeVal string
-}
 
 type ChefParams struct {
 	NodeName       string

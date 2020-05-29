@@ -59,7 +59,6 @@ set_metadata_param ROLE .meta.role
 set_metadata_param SKIPK8S .meta.skipk8s
 set_metadata_param MASTERADDR .meta.k8smaster
 set_metadata_param UPDATEHOSTNAME .meta.updatehostname
-set_metadata_param DEFGATEWAY .meta.setdefaultgw
 
 set_network_param IPADDR '.networks[0].ip_address'
 set_network_param NETMASK '.networks[0].netmask'
@@ -90,11 +89,6 @@ if [[ -z "$ROLE" ]]; then
 	log "WARNING: Role is empty"
 else
 	log "ROLE: $ROLE"
-fi
-
-if [[ ! -z "$DEFGATEWAY" ]]; then
-	log "Setting up default gateway route"
-	route add default gw $DEFGATEWAY
 fi
 
 if ! dig google.com | grep 'status: NOERROR' >/dev/null; then

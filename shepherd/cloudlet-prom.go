@@ -46,11 +46,11 @@ var promHealthCheckAlerts = `groups:
   - alert: ` + cloudcommon.AlertAppInstDown + `
     expr: up == 0
     for: 15s
-    annotations:
+    labels:
       ` + cloudcommon.AlertHealthCheckStatus + ": " + strconv.Itoa(int(edgeproto.HealthCheck_HEALTH_CHECK_FAIL_ROOTLB_OFFLINE)) + `
   - alert: ` + cloudcommon.AlertAppInstDown + `
     expr: envoy_cluster_health_check_healthy == 0
-    annotations:
+    labels:
       ` + cloudcommon.AlertHealthCheckStatus + ": " + strconv.Itoa(int(edgeproto.HealthCheck_HEALTH_CHECK_FAIL_SERVER_FAIL))
 
 var promAutoProvAlertT = `groups:

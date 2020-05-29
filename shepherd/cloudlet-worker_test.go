@@ -53,11 +53,9 @@ var failAlerts = `{
 			"` + cloudcommon.AlertLabelCloudletOrg + `": "` + shepherd_test.TestCloudletKey.Organization + `",
 			"` + cloudcommon.AlertLabelCluster + `": "` + shepherd_test.TestClusterKey.Name + `",
 			"` + cloudcommon.AlertLabelClusterOrg + `": "` + shepherd_test.TestClusterInstKey.Organization + `",
+			"` + cloudcommon.AlertHealthCheckStatus + `": "` + strconv.Itoa(int(edgeproto.HealthCheck_HEALTH_CHECK_FAIL_ROOTLB_OFFLINE)) + `",
 			"instance": "host.docker.internal:9091",
 			"job": "envoy_targets"
-		  },
-		  "annotations": {
-			"` + cloudcommon.AlertHealthCheckStatus + `": "` + strconv.Itoa(int(edgeproto.HealthCheck_HEALTH_CHECK_FAIL_ROOTLB_OFFLINE)) + `"
 		  },
 		  "state": "firing",
 		  "activeAt": "2020-05-24T17:42:08.399557679Z",
@@ -73,12 +71,10 @@ var failAlerts = `{
 			"` + cloudcommon.AlertLabelCloudletOrg + `": "` + shepherd_test.TestCloudletKey.Organization + `",
 			"` + cloudcommon.AlertLabelCluster + `": "` + shepherd_test.TestClusterKey.Name + `",
 			"` + cloudcommon.AlertLabelClusterOrg + `": "` + shepherd_test.TestClusterInstKey.Organization + `",
+			"` + cloudcommon.AlertHealthCheckStatus + `": "` + strconv.Itoa(int(edgeproto.HealthCheck_HEALTH_CHECK_FAIL_SERVER_FAIL)) + `",
 			"envoy_cluster_name": "backend7777",
 			"instance": "host.docker.internal:9091",
 			"job": "envoy_targets"
-		  },
-		  "annotations": {
-			"` + cloudcommon.AlertHealthCheckStatus + `": "` + strconv.Itoa(int(edgeproto.HealthCheck_HEALTH_CHECK_FAIL_SERVER_FAIL)) + `"
 		  },
 		  "state": "firing",
 		  "activeAt": "2020-05-24T17:42:53.399557679Z",
@@ -154,8 +150,8 @@ func TestCCloudletAlerts(t *testing.T) {
 		assert.Equal(t, shepherd_test.TestClusterKey.Name, alert.Obj.Labels[cloudcommon.AlertLabelCluster])
 		assert.Equal(t, shepherd_test.TestClusterInstKey.Organization, alert.Obj.Labels[cloudcommon.AlertLabelClusterOrg])
 		// make sure the alert status is not OK, or UNKNOWN
-		assert.NotEqual(t, strconv.Itoa(int(edgeproto.HealthCheck_HEALTH_CHECK_OK)), alert.Obj.Annotations[cloudcommon.AlertHealthCheckStatus])
-		assert.NotEqual(t, strconv.Itoa(int(edgeproto.HealthCheck_HEALTH_CHECK_UNKNOWN)), alert.Obj.Annotations[cloudcommon.AlertHealthCheckStatus])
+		assert.NotEqual(t, strconv.Itoa(int(edgeproto.HealthCheck_HEALTH_CHECK_OK)), alert.Obj.Labels[cloudcommon.AlertHealthCheckStatus])
+		assert.NotEqual(t, strconv.Itoa(int(edgeproto.HealthCheck_HEALTH_CHECK_UNKNOWN)), alert.Obj.Labels[cloudcommon.AlertHealthCheckStatus])
 	}
 }
 

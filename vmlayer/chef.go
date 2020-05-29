@@ -229,7 +229,7 @@ func ChefClientCreate(ctx context.Context, client *chef.Client, clientName, role
 		return "", fmt.Errorf("failed to create node %s: %v", clientName, err)
 	}
 
-	acl := chef.NewACL("update", []string{clientName}, []string{"clients", "admins", "users"})
+	acl := chef.NewACL("update", []string{clientName}, []string{"admins", "users"})
 	err = client.ACLs.Put("nodes", clientName, "update", acl)
 	if err != nil {
 		return "", fmt.Errorf("unable to add update acl for node %s", clientName)

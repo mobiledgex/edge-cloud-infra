@@ -40,6 +40,7 @@ It has these top-level messages:
 	AppKey
 	ConfigFile
 	App
+	AppAutoProvPolicy
 	AppInstKey
 	AppInst
 	AppInstRuntime
@@ -549,8 +550,9 @@ func addControllerApis(method string, group *echo.Group) {
 	// ConfigCommercialCerts: 21.13
 	// ConfigUseVaultCerts: 21.14
 	// ConfigUseVaultCas: 21.15
-	// ConfigChefServerPath: 21.16
-	// ConfigChefClientInterval: 21.17
+	// ConfigAppDnsRoot: 21.16
+	// ConfigChefServerPath: 21.17
+	// ConfigChefClientInterval: 21.18
 	// ResTagMap: 22
 	// ResTagMapKey: 22.1
 	// ResTagMapValue: 22.2
@@ -827,6 +829,7 @@ func addControllerApis(method string, group *echo.Group) {
 	// AccessType: 29
 	// DefaultPrivacyPolicy: 30
 	// DeletePrepare: 31
+	// AutoProvPolicies: 32
 	// ```
 	// Security:
 	//   Bearer:
@@ -847,6 +850,26 @@ func addControllerApis(method string, group *echo.Group) {
 	//   403: forbidden
 	//   404: notFound
 	group.Match([]string{method}, "/ctrl/ShowApp", ShowApp)
+	// swagger:route POST /auth/ctrl/AddAppAutoProvPolicy AppAutoProvPolicy AddAppAutoProvPolicy
+	// .
+	// Security:
+	//   Bearer:
+	// responses:
+	//   200: success
+	//   400: badRequest
+	//   403: forbidden
+	//   404: notFound
+	group.Match([]string{method}, "/ctrl/AddAppAutoProvPolicy", AddAppAutoProvPolicy)
+	// swagger:route POST /auth/ctrl/RemoveAppAutoProvPolicy AppAutoProvPolicy RemoveAppAutoProvPolicy
+	// .
+	// Security:
+	//   Bearer:
+	// responses:
+	//   200: success
+	//   400: badRequest
+	//   403: forbidden
+	//   404: notFound
+	group.Match([]string{method}, "/ctrl/RemoveAppAutoProvPolicy", RemoveAppAutoProvPolicy)
 	// swagger:route POST /auth/ctrl/CreateClusterInst ClusterInst CreateClusterInst
 	// Create Cluster Instance.
 	//  Creates an instance of a Cluster on a Cloudlet, defined by a Cluster Key and a Cloudlet Key. ClusterInst is a collection of compute resources on a Cloudlet on which AppInsts are deployed.

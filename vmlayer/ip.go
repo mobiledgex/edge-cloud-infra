@@ -22,6 +22,7 @@ type ServerIP struct {
 	InternalAddr           string // this is the address used inside the server
 	ExternalAddr           string // this is external with respect to the server, not necessarily internet reachable.  Can be a floating IP
 	Network                string
+	PortName               string
 	ExternalAddrIsFloating bool
 }
 
@@ -31,19 +32,20 @@ type RouterDetail struct {
 }
 
 type NetSpecInfo struct {
-	Name, CIDR           string
-	NetworkType          string
-	NetworkAddress       string
-	NetmaskBits          string
-	Octets               []string
-	MasterIPLastOctet    string
-	DelimiterOctet       int // this is the X
-	FloatingIPNet        string
-	FloatingIPSubnet     string
-	VnicType             string
-	RouterGatewayIP      string
-	SkipSubnetGw         bool
-	SkipSubnetRangeCheck bool
+	CIDR                  string
+	NetworkType           string
+	NetworkAddress        string
+	NetmaskBits           string
+	Octets                []string
+	MasterIPLastOctet     string
+	DelimiterOctet        int // this is the X
+	FloatingIPNet         string
+	FloatingIPSubnet      string
+	FloatingIPExternalNet string
+	VnicType              string
+	RouterGatewayIP       string
+	SkipSubnetGw          bool
+	SkipSubnetRangeCheck  bool
 }
 
 //ParseNetSpec decodes netspec string
@@ -65,13 +67,15 @@ func ParseNetSpec(ctx context.Context, netSpec string) (*NetSpecInfo, error) {
 
 		switch k {
 		case "name":
-			ni.Name = v
+			log.SpanLog(ctx, log.DebugLevelInfra, "netspec name obsolete")
 		case "cidr":
 			ni.CIDR = v
 		case "floatingipnet":
 			ni.FloatingIPNet = v
 		case "floatingipsubnet":
 			ni.FloatingIPSubnet = v
+		case "floatingipextnet":
+			ni.FloatingIPExternalNet = v
 		case "vnictype":
 			ni.VnicType = v
 		case "routergateway":
@@ -81,9 +85,6 @@ func ParseNetSpec(ctx context.Context, netSpec string) (*NetSpecInfo, error) {
 		default:
 			return nil, fmt.Errorf("unknown netspec item key: %s", k)
 		}
-	}
-	if ni.Name == "" {
-		return nil, fmt.Errorf("Missing name=(value) in netspec")
 	}
 	if ni.CIDR == "" {
 		return nil, fmt.Errorf("Missing cidr=(value) in netspec")

@@ -34,6 +34,7 @@ type Shepherd struct {
 	NotifyAddrs    string
 	Platform       string
 	VaultAddr      string
+	MetricsAddr    string
 	PhysicalName   string
 	CloudletKey    string
 	UseVaultCAs    bool
@@ -42,6 +43,7 @@ type Shepherd struct {
 	cmd            *exec.Cmd
 	Span           string
 	Region         string
+	AppDNSRoot     string
 }
 type AutoProv struct {
 	process.Common `yaml:",inline"`

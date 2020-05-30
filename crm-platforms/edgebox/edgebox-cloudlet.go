@@ -5,6 +5,7 @@ import (
 
 	"github.com/mobiledgex/edge-cloud-infra/crm-platforms/fakeinfra"
 	intprocess "github.com/mobiledgex/edge-cloud-infra/e2e-tests/int-process"
+	pf "github.com/mobiledgex/edge-cloud/cloud-resource-manager/platform"
 	"github.com/mobiledgex/edge-cloud/edgeproto"
 	"github.com/mobiledgex/edge-cloud/log"
 )
@@ -15,7 +16,11 @@ func (e *EdgeboxPlatform) CreateCloudlet(ctx context.Context, cloudlet *edgeprot
 	if err != nil {
 		return err
 	}
-	return fakeinfra.ShepherdStartup(ctx, cloudlet, pfConfig, updateCallback)
+	if err = fakeinfra.ShepherdStartup(ctx, cloudlet, pfConfig, updateCallback); err != nil {
+		return err
+	}
+
+	return fakeinfra.CloudletPrometheusStartup(ctx, cloudlet, pfConfig, updateCallback)
 }
 
 func (e *EdgeboxPlatform) DeleteCloudlet(ctx context.Context, cloudlet *edgeproto.Cloudlet, pfConfig *edgeproto.PlatformConfig, updateCallback edgeproto.CacheUpdateCallback) error {
@@ -24,7 +29,8 @@ func (e *EdgeboxPlatform) DeleteCloudlet(ctx context.Context, cloudlet *edgeprot
 	if err != nil {
 		return err
 	}
-
+	updateCallback(edgeproto.UpdateTask, "Stopping Cloudlet Monitoring")
+	intprocess.StartCloudletPrometheus(ctx, cloudlet)
 	updateCallback(edgeproto.UpdateTask, "Stopping Shepherd")
 	return intprocess.StopShepherdService(ctx, cloudlet)
 }
@@ -48,6 +54,11 @@ func (e *EdgeboxPlatform) SaveCloudletAccessVars(ctx context.Context, cloudlet *
 
 func (e *EdgeboxPlatform) DeleteCloudletAccessVars(ctx context.Context, cloudlet *edgeproto.Cloudlet, pfConfig *edgeproto.PlatformConfig, updateCallback edgeproto.CacheUpdateCallback) error {
 	log.SpanLog(ctx, log.DebugLevelInfra, "Deleting cloudlet access vars", "cloudletName", cloudlet.Key.Name)
+	return nil
+}
+
+func (e *EdgeboxPlatform) SyncControllerCache(ctx context.Context, caches *pf.Caches, cloudletState edgeproto.CloudletState) error {
+	log.SpanLog(ctx, log.DebugLevelInfra, "SyncControllerCache", "cloudletState", cloudletState)
 	return nil
 }
 

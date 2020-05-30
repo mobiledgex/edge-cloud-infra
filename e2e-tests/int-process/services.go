@@ -1,9 +1,13 @@
 package intprocess
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	"fmt"
+	"os"
+	"os/exec"
+	"strings"
 	"time"
 
 	"github.com/mobiledgex/edge-cloud/edgeproto"
@@ -11,6 +15,25 @@ import (
 	"github.com/mobiledgex/edge-cloud/log"
 	"github.com/mobiledgex/edge-cloud/util"
 )
+
+const (
+	PrometheusContainer    = "cloudletPrometheus"
+	PrometheusImagePath    = "prom/prometheus:latest"
+	PrometheusRulesPrefix  = "rulefile_"
+	CloudletPrometheusPort = "9092"
+)
+
+var prometheusConfig = `global:
+  evaluation_interval: 15s
+rule_files:
+- "/tmp/` + PrometheusRulesPrefix + `*"
+scrape_configs:
+- job_name: envoy_targets
+  scrape_interval: 5s
+  file_sd_configs:
+  - files:
+    - '/tmp/prom_targets.json'
+`
 
 func getShepherdProc(cloudlet *edgeproto.Cloudlet, pfConfig *edgeproto.PlatformConfig) (*Shepherd, []process.StartOp, error) {
 	opts := []process.StartOp{}
@@ -28,6 +51,7 @@ func getShepherdProc(cloudlet *edgeproto.Cloudlet, pfConfig *edgeproto.PlatformC
 	region := ""
 	useVaultCAs := false
 	useVaultCerts := false
+	appDNSRoot := ""
 	if pfConfig != nil {
 		// Same vault role-id/secret-id as CRM
 		for k, v := range pfConfig.EnvVar {
@@ -40,6 +64,7 @@ func getShepherdProc(cloudlet *edgeproto.Cloudlet, pfConfig *edgeproto.PlatformC
 		region = pfConfig.Region
 		useVaultCAs = pfConfig.UseVaultCas
 		useVaultCerts = pfConfig.UseVaultCerts
+		appDNSRoot = pfConfig.AppDnsRoot
 	}
 
 	for envKey, envVal := range cloudlet.EnvVar {
@@ -65,6 +90,7 @@ func getShepherdProc(cloudlet *edgeproto.Cloudlet, pfConfig *edgeproto.PlatformC
 		Region:        region,
 		UseVaultCAs:   useVaultCAs,
 		UseVaultCerts: useVaultCerts,
+		AppDNSRoot:    appDNSRoot,
 	}, opts, nil
 }
 
@@ -120,4 +146,84 @@ func StopShepherdService(ctx context.Context, cloudlet *edgeproto.Cloudlet) erro
 
 	log.SpanLog(ctx, log.DebugLevelInfra, "stopped Shepherdserver", "msg", <-c)
 	return nil
+}
+
+// Prometheus config is common for all the types of deployement
+func GetCloudletPrometheusConfig() string {
+	return prometheusConfig
+}
+func GetCloudletPrometheusConfigHostFilePath() string {
+	return "/tmp/prometheus.yml"
+}
+
+// command line options for prometheus container
+func GetCloudletPrometheusCmdArgs() []string {
+	return []string{
+		"--config.file=/etc/prometheus/prometheus.yml",
+		"--web.listen-address=:" + CloudletPrometheusPort,
+		"--web.enable-lifecycle",
+	}
+}
+
+// base docker run args
+func GetCloudletPrometheusDockerArgs(cloudlet *edgeproto.Cloudlet, cfgFile string) []string {
+
+	// label with a cloudlet name and org
+	cloudletName := util.DockerSanitize(cloudlet.Key.Name)
+	cloudletOrg := util.DockerSanitize(cloudlet.Key.Organization)
+
+	return []string{
+		"-l", "cloudlet=" + cloudletName,
+		"-l", "cloudletorg=" + cloudletOrg,
+		"-p", CloudletPrometheusPort + ":" + CloudletPrometheusPort, // container interface
+		"-v", "/tmp:/tmp",
+		"-v", cfgFile + ":/etc/prometheus/prometheus.yml",
+	}
+}
+
+// Starts prometheus container and connects it to the default ports
+func StartCloudletPrometheus(ctx context.Context, cloudlet *edgeproto.Cloudlet) error {
+	cfgFile := GetCloudletPrometheusConfigHostFilePath()
+	f, err := os.Create(cfgFile)
+	if err != nil {
+		return err
+	}
+	defer f.Close()
+	_, err = f.WriteString(GetCloudletPrometheusConfig())
+	if err != nil {
+		return err
+	}
+
+	args := GetCloudletPrometheusDockerArgs(cloudlet, cfgFile)
+	cmdOpts := GetCloudletPrometheusCmdArgs()
+
+	// local container specific options
+	args = append([]string{"run", "--rm"}, args...)
+	// set name and image path
+	args = append(args, []string{"--name", PrometheusContainer, PrometheusImagePath}...)
+	args = append(args, cmdOpts...)
+
+	_, err = process.StartLocal(PrometheusContainer, "docker", args, nil, "/tmp/cloudlet_prometheus.log")
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
+func StopCloudletPrometheus(ctx context.Context) error {
+	cmd := exec.Command("docker", "kill", PrometheusContainer)
+	cmd.Run()
+	return nil
+}
+
+func CloudletPrometheusExists(ctx context.Context) bool {
+	cmd := exec.Command("docker", "logs", PrometheusContainer)
+	var out bytes.Buffer
+	cmd.Stdout = &out
+	cmd.Stderr = &out
+	err := cmd.Run()
+	if err != nil && strings.Contains(out.String(), "No such container") {
+		return false
+	}
+	return true
 }

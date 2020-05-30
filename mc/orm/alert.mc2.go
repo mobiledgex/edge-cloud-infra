@@ -563,7 +563,7 @@ func addControllerApis(method string, group *echo.Group) {
 	// AccessVarsValue: 23.2
 	// VmImageVersion: 24
 	// PackageVersion: 25
-	// DeploymentType: 26
+	// Deployment: 26
 	// InfraApiAccess: 27
 	// InfraConfig: 28
 	// InfraConfigExternalNetworkName: 28.1
@@ -589,7 +589,7 @@ func addControllerApis(method string, group *echo.Group) {
 	//   403: forbidden
 	//   404: notFound
 	group.Match([]string{method}, "/ctrl/ShowCloudlet", ShowCloudlet)
-	// swagger:route POST /auth/ctrl/ShowCloudletManifest Cloudlet ShowCloudletManifest
+	// swagger:route POST /auth/ctrl/GetCloudletManifest Cloudlet GetCloudletManifest
 	// Get Cloudlet Manifest.
 	//  Shows deployment manifest required to setup cloudlet
 	// Security:
@@ -599,7 +599,7 @@ func addControllerApis(method string, group *echo.Group) {
 	//   400: badRequest
 	//   403: forbidden
 	//   404: notFound
-	group.Match([]string{method}, "/ctrl/ShowCloudletManifest", ShowCloudletManifest)
+	group.Match([]string{method}, "/ctrl/GetCloudletManifest", GetCloudletManifest)
 	// swagger:route POST /auth/ctrl/AddCloudletResMapping CloudletResMap AddCloudletResMapping
 	// Add Optional Resource tag table.
 	// Security:

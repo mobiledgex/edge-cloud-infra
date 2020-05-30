@@ -56,9 +56,9 @@ func (s *Client) ShowCloudlet(uri, token string, in *ormapi.RegionCloudlet) ([]e
 	return outlist, status, err
 }
 
-func (s *Client) ShowCloudletManifest(uri, token string, in *ormapi.RegionCloudlet) (*edgeproto.CloudletManifest, int, error) {
+func (s *Client) GetCloudletManifest(uri, token string, in *ormapi.RegionCloudlet) (*edgeproto.CloudletManifest, int, error) {
 	out := edgeproto.CloudletManifest{}
-	status, err := s.PostJson(uri+"/auth/ctrl/ShowCloudletManifest", token, in, &out)
+	status, err := s.PostJson(uri+"/auth/ctrl/GetCloudletManifest", token, in, &out)
 	if err != nil {
 		return nil, status, err
 	}
@@ -97,7 +97,7 @@ type CloudletApiClient interface {
 	DeleteCloudlet(uri, token string, in *ormapi.RegionCloudlet) ([]edgeproto.Result, int, error)
 	UpdateCloudlet(uri, token string, in *ormapi.RegionCloudlet) ([]edgeproto.Result, int, error)
 	ShowCloudlet(uri, token string, in *ormapi.RegionCloudlet) ([]edgeproto.Cloudlet, int, error)
-	ShowCloudletManifest(uri, token string, in *ormapi.RegionCloudlet) (*edgeproto.CloudletManifest, int, error)
+	GetCloudletManifest(uri, token string, in *ormapi.RegionCloudlet) (*edgeproto.CloudletManifest, int, error)
 	AddCloudletResMapping(uri, token string, in *ormapi.RegionCloudletResMap) (*edgeproto.Result, int, error)
 	RemoveCloudletResMapping(uri, token string, in *ormapi.RegionCloudletResMap) (*edgeproto.Result, int, error)
 	FindFlavorMatch(uri, token string, in *ormapi.RegionFlavorMatch) (*edgeproto.FlavorMatch, int, error)

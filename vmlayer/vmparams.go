@@ -166,15 +166,15 @@ func WithCreatePortsOnly(portsonly bool) VMReqOp {
 
 // VMGroupRequestSpec is used to specify a set of VMs to be created.  It is used as input to create VMGroupOrchestrationParams
 type VMGroupRequestSpec struct {
-	GroupName            string
-	VMs                  []*VMRequestSpec
-	NewSubnetName        string
-	NewSecgrpName        string
-	AccessPorts          string
-	PrivacyPolicy        *edgeproto.PrivacyPolicy
-	SkipDefaultSecGrp    bool
-	SkipSubnetGw         bool
-	SkipSubnetRangeCheck bool
+	GroupName              string
+	VMs                    []*VMRequestSpec
+	NewSubnetName          string
+	NewSecgrpName          string
+	AccessPorts            string
+	PrivacyPolicy          *edgeproto.PrivacyPolicy
+	SkipDefaultSecGrp      bool
+	SkipSubnetGateway      bool
+	SkipInfraSpecificCheck bool
 }
 
 type VMGroupReqOp func(vmp *VMGroupRequestSpec) error
@@ -209,15 +209,15 @@ func WithSkipDefaultSecGrp(skip bool) VMGroupReqOp {
 		return nil
 	}
 }
-func WithSkipSubnetGw(skip bool) VMGroupReqOp {
+func WithSkipSubnetGateway(skip bool) VMGroupReqOp {
 	return func(s *VMGroupRequestSpec) error {
-		s.SkipSubnetGw = skip
+		s.SkipSubnetGateway = skip
 		return nil
 	}
 }
-func WithSkipSubnetRangeCheck(skip bool) VMGroupReqOp {
+func WithSkipInfraSpecificCheck(skip bool) VMGroupReqOp {
 	return func(s *VMGroupRequestSpec) error {
-		s.SkipSubnetRangeCheck = skip
+		s.SkipInfraSpecificCheck = skip
 		return nil
 	}
 }
@@ -231,6 +231,7 @@ type SubnetOrchestrationParams struct {
 	DNSServers   []string
 	DHCPEnabled  string
 	Vlan         uint32
+	SkipGateway  bool
 }
 
 type FixedIPOrchestrationParams struct {
@@ -363,7 +364,7 @@ type ChefParams struct {
 	NodeName       string
 	ServerPath     string
 	ClientKey      string
-	ClientInterval int32
+	ClientInterval edgeproto.Duration
 }
 
 var VmChefConfig = `
@@ -387,15 +388,17 @@ chef:
 
 // VMGroupOrchestrationParams contains all the details used by the orchestator to create a set of associated VMs
 type VMGroupOrchestrationParams struct {
-	GroupName        string
-	Subnets          []SubnetOrchestrationParams
-	Ports            []PortOrchestrationParams
-	RouterInterfaces []RouterInterfaceOrchestrationParams
-	VMs              []VMOrchestrationParams
-	FloatingIPs      []FloatingIPOrchestrationParams
-	SecurityGroups   []SecurityGroupOrchestrationParams
-	Netspec          *NetSpecInfo
-	Tags             []TagOrchestrationParams
+	GroupName              string
+	Subnets                []SubnetOrchestrationParams
+	Ports                  []PortOrchestrationParams
+	RouterInterfaces       []RouterInterfaceOrchestrationParams
+	VMs                    []VMOrchestrationParams
+	FloatingIPs            []FloatingIPOrchestrationParams
+	SecurityGroups         []SecurityGroupOrchestrationParams
+	Netspec                *NetSpecInfo
+	Tags                   []TagOrchestrationParams
+	SkipInfraSpecificCheck bool
+	SkipSubnetGateway      bool
 }
 
 func (v *VMPlatform) GetVMRequestSpec(ctx context.Context, vmtype VMType, serverName, flavorName string, imageName string, connectExternal bool, opts ...VMReqOp) (*VMRequestSpec, error) {
@@ -467,11 +470,8 @@ func (v *VMPlatform) getVMGroupOrchestrationParamsFromGroupSpec(ctx context.Cont
 	if err != nil {
 		return nil, err
 	}
-	if spec.SkipSubnetGw {
-		vmgp.Netspec.SkipSubnetGw = true
-	}
-	if spec.SkipSubnetRangeCheck {
-		vmgp.Netspec.SkipSubnetRangeCheck = true
+	if spec.SkipInfraSpecificCheck {
+		vmgp.SkipInfraSpecificCheck = true
 	}
 
 	rtrInUse := false
@@ -535,6 +535,9 @@ func (v *VMPlatform) getVMGroupOrchestrationParamsFromGroupSpec(ctx context.Cont
 			CIDR:        NextAvailableResource,
 			DHCPEnabled: "no",
 			DNSServers:  subnetDns,
+		}
+		if spec.SkipSubnetGateway {
+			newSubnet.SkipGateway = true
 		}
 		vmgp.Subnets = append(vmgp.Subnets, newSubnet)
 	}

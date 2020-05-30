@@ -119,9 +119,9 @@ func (v *VMPlatform) CreateAppInst(ctx context.Context, clusterInst *edgeproto.C
 
 	var err error
 	switch deployment := app.Deployment; deployment {
-	case cloudcommon.AppDeploymentTypeKubernetes:
+	case cloudcommon.DeploymentTypeKubernetes:
 		fallthrough
-	case cloudcommon.AppDeploymentTypeHelm:
+	case cloudcommon.DeploymentTypeHelm:
 		rootLBName := v.VMProperties.GetRootLBNameForCluster(ctx, clusterInst)
 		appWaitChan := make(chan string)
 
@@ -155,7 +155,7 @@ func (v *VMPlatform) CreateAppInst(ctx context.Context, clusterInst *edgeproto.C
 		}
 		ctx = context.WithValue(ctx, crmutil.DeploymentReplaceVarsKey, &deploymentVars)
 
-		if deployment == cloudcommon.AppDeploymentTypeKubernetes {
+		if deployment == cloudcommon.DeploymentTypeKubernetes {
 			updateCallback(edgeproto.UpdateTask, "Creating Kubernetes App")
 			err = k8smgmt.CreateAppInst(ctx, v.VMProperties.CommonPf.VaultConfig, client, names, app, appInst)
 		} else {
@@ -169,7 +169,7 @@ func (v *VMPlatform) CreateAppInst(ctx context.Context, clusterInst *edgeproto.C
 
 		// wait for the appinst in parallel with other tasks
 		go func() {
-			if deployment == cloudcommon.AppDeploymentTypeKubernetes {
+			if deployment == cloudcommon.DeploymentTypeKubernetes {
 				waitErr := k8smgmt.WaitForAppInst(ctx, client, names, app, k8smgmt.WaitRunning)
 				if waitErr == nil {
 					appWaitChan <- ""
@@ -211,7 +211,7 @@ func (v *VMPlatform) CreateAppInst(ctx context.Context, clusterInst *edgeproto.C
 		if err != nil {
 			return err
 		}
-	case cloudcommon.AppDeploymentTypeVM:
+	case cloudcommon.DeploymentTypeVM:
 		objName := cloudcommon.GetAppFQN(&app.Key)
 		orchVals, err := v.PerformOrchestrationForVMApp(ctx, app, appInst, privacyPolicy, ActionCreate, updateCallback)
 		if err != nil {
@@ -301,7 +301,7 @@ func (v *VMPlatform) CreateAppInst(ctx context.Context, clusterInst *edgeproto.C
 		}
 		return nil
 
-	case cloudcommon.AppDeploymentTypeDocker:
+	case cloudcommon.DeploymentTypeDocker:
 		rootLBName := v.VMProperties.GetRootLBNameForCluster(ctx, clusterInst)
 		backendIP := cloudcommon.RemoteServerNone
 		dockerNetworkMode := dockermgmt.DockerBridgeMode
@@ -395,9 +395,9 @@ func (v *VMPlatform) CreateAppInst(ctx context.Context, clusterInst *edgeproto.C
 
 func (v *VMPlatform) DeleteAppInst(ctx context.Context, clusterInst *edgeproto.ClusterInst, app *edgeproto.App, appInst *edgeproto.AppInst) error {
 	switch deployment := app.Deployment; deployment {
-	case cloudcommon.AppDeploymentTypeKubernetes:
+	case cloudcommon.DeploymentTypeKubernetes:
 		fallthrough
-	case cloudcommon.AppDeploymentTypeHelm:
+	case cloudcommon.DeploymentTypeHelm:
 		rootLBName := v.VMProperties.GetRootLBNameForCluster(ctx, clusterInst)
 		if clusterInst.IpAccess == edgeproto.IpAccess_IP_ACCESS_DEDICATED {
 			log.SpanLog(ctx, log.DebugLevelInfra, "using dedicated RootLB to delete app", "rootLBName", rootLBName)
@@ -457,13 +457,13 @@ func (v *VMPlatform) DeleteAppInst(ctx context.Context, clusterInst *edgeproto.C
 			}
 		}
 
-		if deployment == cloudcommon.AppDeploymentTypeKubernetes {
+		if deployment == cloudcommon.DeploymentTypeKubernetes {
 			return k8smgmt.DeleteAppInst(ctx, client, names, app, appInst)
 		} else {
 			return k8smgmt.DeleteHelmAppInst(ctx, client, names, clusterInst)
 		}
 
-	case cloudcommon.AppDeploymentTypeVM:
+	case cloudcommon.DeploymentTypeVM:
 		objName := cloudcommon.GetAppFQN(&app.Key)
 		log.SpanLog(ctx, log.DebugLevelInfra, "Deleting VM", "stackName", objName)
 		err := v.VMProvider.DeleteVMs(ctx, objName)
@@ -494,7 +494,7 @@ func (v *VMPlatform) DeleteAppInst(ctx context.Context, clusterInst *edgeproto.C
 		}
 		return nil
 
-	case cloudcommon.AppDeploymentTypeDocker:
+	case cloudcommon.DeploymentTypeDocker:
 		rootLBName := v.VMProperties.GetRootLBNameForCluster(ctx, clusterInst)
 		rootLBClient, err := v.GetClusterPlatformClient(ctx, clusterInst)
 		if err != nil {
@@ -568,7 +568,7 @@ func (v *VMPlatform) UpdateAppInst(ctx context.Context, clusterInst *edgeproto.C
 	ctx = context.WithValue(ctx, crmutil.DeploymentReplaceVarsKey, &deploymentVars)
 
 	switch deployment := app.Deployment; deployment {
-	case cloudcommon.AppDeploymentTypeKubernetes:
+	case cloudcommon.DeploymentTypeKubernetes:
 		client, err := v.GetClusterPlatformClient(ctx, clusterInst)
 		if err != nil {
 			return err
@@ -578,7 +578,7 @@ func (v *VMPlatform) UpdateAppInst(ctx context.Context, clusterInst *edgeproto.C
 			return fmt.Errorf("get kube names failed: %s", err)
 		}
 		return k8smgmt.UpdateAppInst(ctx, v.VMProperties.CommonPf.VaultConfig, client, names, app, appInst)
-	case cloudcommon.AppDeploymentTypeDocker:
+	case cloudcommon.DeploymentTypeDocker:
 		dockerNetworkMode := dockermgmt.DockerBridgeMode
 		rootLBClient, err := v.GetClusterPlatformClient(ctx, clusterInst)
 		if err != nil {
@@ -600,7 +600,7 @@ func (v *VMPlatform) UpdateAppInst(ctx context.Context, clusterInst *edgeproto.C
 			}
 		}
 		return dockermgmt.UpdateAppInst(ctx, v.VMProperties.CommonPf.VaultConfig, dockerCommandTarget, app, appInst, dockerNetworkMode)
-	case cloudcommon.AppDeploymentTypeHelm:
+	case cloudcommon.DeploymentTypeHelm:
 		client, err := v.GetClusterPlatformClient(ctx, clusterInst)
 		if err != nil {
 			return err
@@ -623,17 +623,17 @@ func (v *VMPlatform) GetAppInstRuntime(ctx context.Context, clusterInst *edgepro
 	}
 
 	switch deployment := app.Deployment; deployment {
-	case cloudcommon.AppDeploymentTypeKubernetes:
+	case cloudcommon.DeploymentTypeKubernetes:
 		fallthrough
-	case cloudcommon.AppDeploymentTypeHelm:
+	case cloudcommon.DeploymentTypeHelm:
 		names, err := k8smgmt.GetKubeNames(clusterInst, app, appInst)
 		if err != nil {
 			return nil, err
 		}
 		return k8smgmt.GetAppInstRuntime(ctx, client, names, app, appInst)
-	case cloudcommon.AppDeploymentTypeDocker:
+	case cloudcommon.DeploymentTypeDocker:
 		return dockermgmt.GetAppInstRuntime(ctx, client, app, appInst)
-	case cloudcommon.AppDeploymentTypeVM:
+	case cloudcommon.DeploymentTypeVM:
 		fallthrough
 	default:
 		return nil, fmt.Errorf("unsupported deployment type %s", deployment)
@@ -642,13 +642,13 @@ func (v *VMPlatform) GetAppInstRuntime(ctx context.Context, clusterInst *edgepro
 
 func (v *VMPlatform) GetContainerCommand(ctx context.Context, clusterInst *edgeproto.ClusterInst, app *edgeproto.App, appInst *edgeproto.AppInst, req *edgeproto.ExecRequest) (string, error) {
 	switch deployment := app.Deployment; deployment {
-	case cloudcommon.AppDeploymentTypeKubernetes:
+	case cloudcommon.DeploymentTypeKubernetes:
 		fallthrough
-	case cloudcommon.AppDeploymentTypeHelm:
+	case cloudcommon.DeploymentTypeHelm:
 		return k8smgmt.GetContainerCommand(ctx, clusterInst, app, appInst, req)
-	case cloudcommon.AppDeploymentTypeDocker:
+	case cloudcommon.DeploymentTypeDocker:
 		return dockermgmt.GetContainerCommand(clusterInst, app, appInst, req)
-	case cloudcommon.AppDeploymentTypeVM:
+	case cloudcommon.DeploymentTypeVM:
 		fallthrough
 	default:
 		return "", fmt.Errorf("unsupported deployment type %s", deployment)
@@ -699,7 +699,7 @@ func (v *VMPlatform) SyncAppInsts(ctx context.Context, caches *platform.Caches, 
 		if !caches.AppCache.Get(&k.AppKey, &app) {
 			return fmt.Errorf("Failed to get app from cache: %s", k.AppKey.String())
 		}
-		if app.Deployment != cloudcommon.AppDeploymentTypeVM {
+		if app.Deployment != cloudcommon.DeploymentTypeVM {
 			// only vm apps need sync
 			continue
 		}

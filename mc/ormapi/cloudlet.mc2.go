@@ -54,9 +54,9 @@ type swaggerShowCloudlet struct {
 	Body RegionCloudlet
 }
 
-// Request summary for ShowCloudletManifest
-// swagger:parameters ShowCloudletManifest
-type swaggerShowCloudletManifest struct {
+// Request summary for GetCloudletManifest
+// swagger:parameters GetCloudletManifest
+type swaggerGetCloudletManifest struct {
 	// in: body
 	Body RegionCloudlet
 }

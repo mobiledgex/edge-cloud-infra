@@ -133,7 +133,7 @@ var SettingsComments = map[string]string{
 	"masternodeflavor":                  "Default flavor for k8s master VM and > 0  workers",
 	"loadbalancermaxportrange":          "Max IP Port range when using a load balancer",
 	"maxtrackeddmeclients":              "Max DME clients to be tracked at the same time.",
-	"chefclientinterval":                "Default chef client interval (seconds)",
+	"chefclientinterval":                "Default chef client interval (duration)",
 }
 var SettingsSpecialArgs = map[string]string{
 	"settings.fields": "StringArray",

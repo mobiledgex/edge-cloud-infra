@@ -92,8 +92,8 @@ var ShowCloudletCmd = &cli.Command{
 	StreamOut:    true,
 }
 
-var ShowCloudletManifestCmd = &cli.Command{
-	Use:          "ShowCloudletManifest",
+var GetCloudletManifestCmd = &cli.Command{
+	Use:          "GetCloudletManifest",
 	RequiredArgs: "region " + strings.Join(CloudletRequiredArgs, " "),
 	OptionalArgs: strings.Join(CloudletOptionalArgs, " "),
 	AliasArgs:    strings.Join(CloudletAliasArgs, " "),
@@ -101,7 +101,7 @@ var ShowCloudletManifestCmd = &cli.Command{
 	Comments:     addRegionComment(CloudletComments),
 	ReqData:      &ormapi.RegionCloudlet{},
 	ReplyData:    &edgeproto.CloudletManifest{},
-	Run:          runRest("/auth/ctrl/ShowCloudletManifest"),
+	Run:          runRest("/auth/ctrl/GetCloudletManifest"),
 }
 
 var AddCloudletResMappingCmd = &cli.Command{
@@ -145,7 +145,7 @@ var CloudletApiCmds = []*cli.Command{
 	DeleteCloudletCmd,
 	UpdateCloudletCmd,
 	ShowCloudletCmd,
-	ShowCloudletManifestCmd,
+	GetCloudletManifestCmd,
 	AddCloudletResMappingCmd,
 	RemoveCloudletResMappingCmd,
 	FindFlavorMatchCmd,
@@ -185,7 +185,7 @@ var CreateCloudletOptionalArgs = []string{
 	"accessvars",
 	"vmimageversion",
 	"packageversion",
-	"deploymenttype",
+	"deployment",
 	"infraapiaccess",
 	"infraconfig.externalnetworkname",
 	"infraconfig.flavorname",
@@ -376,7 +376,7 @@ var CloudletOptionalArgs = []string{
 	"accessvars",
 	"vmimageversion",
 	"packageversion",
-	"deploymenttype",
+	"deployment",
 	"infraapiaccess",
 	"infraconfig.externalnetworkname",
 	"infraconfig.flavorname",
@@ -440,7 +440,7 @@ var CloudletAliasArgs = []string{
 	"accessvars=cloudlet.accessvars",
 	"vmimageversion=cloudlet.vmimageversion",
 	"packageversion=cloudlet.packageversion",
-	"deploymenttype=cloudlet.deploymenttype",
+	"deployment=cloudlet.deployment",
 	"infraapiaccess=cloudlet.infraapiaccess",
 	"infraconfig.externalnetworkname=cloudlet.infraconfig.externalnetworkname",
 	"infraconfig.flavorname=cloudlet.infraconfig.flavorname",
@@ -498,7 +498,7 @@ var CloudletComments = map[string]string{
 	"accessvars":                          "Variables required to access cloudlet",
 	"vmimageversion":                      "MobiledgeX baseimage version where CRM services reside",
 	"packageversion":                      "MobiledgeX OS package version on baseimage where CRM services reside",
-	"deploymenttype":                      "Type of deployment to bring up CRM services, one of DeploymentTypeDocker, DeploymentTypeK8S",
+	"deployment":                          "Deployment type to bring up CRM services (docker, kubernetes)",
 	"infraapiaccess":                      "Infra Access Type is the type of access available to Infra API Endpoint, one of DirectAccess, RestrictedAccess",
 	"infraconfig.externalnetworkname":     "Infra specific external network name",
 	"infraconfig.flavorname":              "Infra specific flavor name",

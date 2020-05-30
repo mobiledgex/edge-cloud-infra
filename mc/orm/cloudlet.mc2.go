@@ -428,7 +428,7 @@ func ShowCloudletObj(ctx context.Context, rc *RegionContext, obj *edgeproto.Clou
 	return arr, err
 }
 
-func ShowCloudletManifest(c echo.Context) error {
+func GetCloudletManifest(c echo.Context) error {
 	ctx := GetContext(c)
 	rc := &RegionContext{}
 	claims, err := getClaims(c)
@@ -444,7 +444,7 @@ func ShowCloudletManifest(c echo.Context) error {
 	rc.region = in.Region
 	span := log.SpanFromContext(ctx)
 	span.SetTag("org", in.Cloudlet.Key.Organization)
-	resp, err := ShowCloudletManifestObj(ctx, rc, &in.Cloudlet)
+	resp, err := GetCloudletManifestObj(ctx, rc, &in.Cloudlet)
 	if err != nil {
 		if st, ok := status.FromError(err); ok {
 			err = fmt.Errorf("%s", st.Message())
@@ -453,7 +453,7 @@ func ShowCloudletManifest(c echo.Context) error {
 	return setReply(c, err, resp)
 }
 
-func ShowCloudletManifestObj(ctx context.Context, rc *RegionContext, obj *edgeproto.Cloudlet) (*edgeproto.CloudletManifest, error) {
+func GetCloudletManifestObj(ctx context.Context, rc *RegionContext, obj *edgeproto.Cloudlet) (*edgeproto.CloudletManifest, error) {
 	if !rc.skipAuthz {
 		if err := authorized(ctx, rc.username, obj.Key.Organization,
 			ResourceCloudlets, ActionManage); err != nil {
@@ -472,7 +472,7 @@ func ShowCloudletManifestObj(ctx context.Context, rc *RegionContext, obj *edgepr
 		}()
 	}
 	api := edgeproto.NewCloudletApiClient(rc.conn)
-	return api.ShowCloudletManifest(ctx, obj)
+	return api.GetCloudletManifest(ctx, obj)
 }
 
 func AddCloudletResMapping(c echo.Context) error {

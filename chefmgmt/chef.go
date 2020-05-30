@@ -1,4 +1,4 @@
-package vmlayer
+package chefmgmt
 
 import (
 	"context"
@@ -10,6 +10,14 @@ import (
 	"github.com/mitchellh/mapstructure"
 	"github.com/mobiledgex/edge-cloud/log"
 	"github.com/mobiledgex/edge-cloud/vault"
+)
+
+const (
+	// Chef Roles
+	ChefRoleDocker = "role[setup_crm_docker]"
+	ChefRoleK8s    = "role[setup_crm_k8s]"
+
+	DefaultChefServerPath = "https://chef.mobiledgex.net/organizations/mobiledgex"
 )
 
 type ChefAuthKey struct {
@@ -64,6 +72,10 @@ func GetChefAuthKeys(ctx context.Context, vaultConfig *vault.Config) (*ChefAuthK
 }
 
 func GetChefClient(ctx context.Context, apiKey, chefServerPath string) (*chef.Client, error) {
+	if chefServerPath == "" {
+		chefServerPath = DefaultChefServerPath
+	}
+
 	log.SpanLog(ctx, log.DebugLevelInfra, "get chef client", "chefServerPath", chefServerPath)
 	if !strings.HasSuffix(chefServerPath, "/") {
 		chefServerPath = chefServerPath + "/"

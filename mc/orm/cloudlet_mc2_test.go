@@ -82,14 +82,14 @@ func goodPermShowCloudlet(t *testing.T, mcClient *ormclient.Client, uri, token, 
 
 var _ = edgeproto.GetFields
 
-func badPermShowCloudletManifest(t *testing.T, mcClient *ormclient.Client, uri, token, region, org string) {
-	_, status, err := testutil.TestPermShowCloudletManifest(mcClient, uri, token, region, org)
+func badPermGetCloudletManifest(t *testing.T, mcClient *ormclient.Client, uri, token, region, org string) {
+	_, status, err := testutil.TestPermGetCloudletManifest(mcClient, uri, token, region, org)
 	require.NotNil(t, err)
 	require.Equal(t, http.StatusForbidden, status)
 }
 
-func goodPermShowCloudletManifest(t *testing.T, mcClient *ormclient.Client, uri, token, region, org string) {
-	_, status, err := testutil.TestPermShowCloudletManifest(mcClient, uri, token, region, org)
+func goodPermGetCloudletManifest(t *testing.T, mcClient *ormclient.Client, uri, token, region, org string) {
+	_, status, err := testutil.TestPermGetCloudletManifest(mcClient, uri, token, region, org)
 	require.Nil(t, err)
 	require.Equal(t, http.StatusOK, status)
 }

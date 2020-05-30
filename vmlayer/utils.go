@@ -19,9 +19,9 @@ func ExecTemplate(templateName, templateString string, templateData interface{})
 				l = values[1].(int)
 			}
 			var newStr []string
+			indent := strings.Repeat(" ", l)
 			for _, v := range strings.Split(string(s), "\n") {
-				nV := fmt.Sprintf("%s%s", strings.Repeat(" ", l), v)
-				newStr = append(newStr, nV)
+				newStr = append(newStr, indent+v)
 			}
 			return strings.Join(newStr, "\n")
 		},

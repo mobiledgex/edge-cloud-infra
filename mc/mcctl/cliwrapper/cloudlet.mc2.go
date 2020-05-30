@@ -68,8 +68,8 @@ func (s *Client) ShowCloudlet(uri, token string, in *ormapi.RegionCloudlet) ([]e
 	return outlist, st, err
 }
 
-func (s *Client) ShowCloudletManifest(uri, token string, in *ormapi.RegionCloudlet) (*edgeproto.CloudletManifest, int, error) {
-	args := []string{"region", "ShowCloudletManifest"}
+func (s *Client) GetCloudletManifest(uri, token string, in *ormapi.RegionCloudlet) (*edgeproto.CloudletManifest, int, error) {
+	args := []string{"region", "GetCloudletManifest"}
 	out := edgeproto.CloudletManifest{}
 	noconfig := strings.Split("Location.HorizontalAccuracy,Location.VerticalAccuracy,Location.Course,Location.Speed,Location.Timestamp,Status,Config,NotifySrvAddr,ChefClientKey", ",")
 	st, err := s.runObjs(uri, token, args, in, &out, withIgnore(noconfig))

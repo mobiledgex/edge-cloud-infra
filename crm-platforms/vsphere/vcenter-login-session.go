@@ -14,8 +14,6 @@ import (
 	"github.com/mobiledgex/edge-cloud/log"
 )
 
-//var cookie []*http.Cookie
-
 func basicAuth(username, password string) string {
 	auth := username + ":" + password
 	return base64.StdEncoding.EncodeToString([]byte(auth))

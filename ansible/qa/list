@@ -23,6 +23,7 @@ toksrv_url="http://mexdemo.tok.mobiledgex.net:9999/its?followURL=https://dme.mob
 dme_carrier=TDG
 operator_key=TDG
 deploy_target="mexplat-{{ deploy_environ }}"
+console_prod=no
 
 [notifyroot]
 notifyroot-qa.mobiledgex.net

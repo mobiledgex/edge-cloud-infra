@@ -33,7 +33,6 @@ var name = flag.String("name", "shepherd", "Unique name to identify a process")
 var parentSpan = flag.String("span", "", "Use parent span for logging")
 var region = flag.String("region", "local", "Region name")
 var promTargetsFile = flag.String("targetsFile", "/tmp/prom_targets.json", "Prometheus targets file")
-var promAlertsFile = flag.String("alertsFile", "/tmp/prom_rules.yml", "Prometheus alerts file")
 var appDNSRoot = flag.String("appDNSRoot", "mobiledgex.net", "App domain name root")
 
 var defaultPrometheusPort = cloudcommon.PrometheusPort
@@ -49,6 +48,7 @@ var CloudletCache edgeproto.CloudletCache
 var CloudletInfoCache edgeproto.CloudletInfoCache
 var MetricSender *notify.MetricSend
 var AlertCache edgeproto.AlertCache
+var AutoProvPoliciesCache edgeproto.AutoProvPolicyCache
 var settings edgeproto.Settings
 
 var cloudletKey edgeproto.CloudletKey
@@ -62,6 +62,7 @@ func appInstCb(ctx context.Context, old *edgeproto.AppInst, new *edgeproto.AppIn
 	if myPlatform.GetType() != "fake" {
 		if target := CollectProxyStats(ctx, new); target != "" {
 			go writePrometheusTargetsFile()
+			go writePrometheusAlertRuleForAppInst(ctx, new)
 		}
 	}
 	var port int32
@@ -190,6 +191,7 @@ func main() {
 	log.SetDebugLevelStrs(*debugLevels)
 	log.InitTracer(nodeMgr.TlsCertFile)
 	defer log.FinishTracer()
+
 	var span opentracing.Span
 	if *parentSpan != "" {
 		span = log.NewSpanFromString(log.DebugLevelInfo, *parentSpan, "main")
@@ -202,20 +204,27 @@ func main() {
 	cloudcommon.ParseMyCloudletKey(false, cloudletKeyStr, &cloudletKey)
 
 	err := nodeMgr.Init(ctx, "shepherd", node.WithCloudletKey(&cloudletKey), node.WithRegion(*region))
+	if err != nil {
+		span.Finish()
+		log.FatalLog(err.Error())
+	}
 	clientTlsConfig, err := nodeMgr.InternalPki.GetClientTlsConfig(ctx,
 		nodeMgr.CommonName(),
 		node.CertIssuerRegionalCloudlet,
 		[]node.MatchCA{node.SameRegionalCloudletMatchCA()})
 	if err != nil {
+		span.Finish()
 		log.FatalLog("Failed to get internal pki tls config", "err", err)
 	}
 
 	myPlatform, err = getPlatform()
 	if err != nil {
+		span.Finish()
 		log.FatalLog("Failed to get platform", "platformName", platformName, "err", err)
 	}
 
 	if err = startPrometheusMetricsProxy(ctx); err != nil {
+		span.Finish()
 		log.FatalLog("Failed to start prometheus metrics proxy", "err", err)
 	}
 
@@ -225,6 +234,7 @@ func main() {
 	edgeproto.InitClusterInstCache(&ClusterInstCache)
 	ClusterInstCache.SetUpdatedCb(clusterInstCb)
 	edgeproto.InitAppCache(&AppCache)
+	edgeproto.InitAutoProvPolicyCache(&AutoProvPoliciesCache)
 	// also register to receive cloudlet details
 	edgeproto.InitCloudletCache(&CloudletCache)
 
@@ -235,6 +245,7 @@ func main() {
 	notifyClient.RegisterRecvClusterInstCache(&ClusterInstCache)
 	notifyClient.RegisterRecvAppCache(&AppCache)
 	notifyClient.RegisterRecvCloudletCache(&CloudletCache)
+	notifyClient.RegisterRecvAutoProvPolicyCache(&AutoProvPoliciesCache)
 	// register to send metrics
 	MetricSender = notify.NewMetricSend()
 	notifyClient.RegisterSend(MetricSender)
@@ -271,12 +282,14 @@ func main() {
 		time.Sleep(1 * time.Second)
 	}
 	if !found {
+		span.Finish()
 		log.FatalLog("failed to fetch cloudlet cache from controller")
 	}
 	log.SpanLog(ctx, log.DebugLevelInfo, "fetched cloudlet cache from controller", "cloudlet", cloudlet)
 
 	err = myPlatform.Init(ctx, &cloudletKey, *region, *physicalName, nodeMgr.VaultAddr, *appDNSRoot, cloudlet.EnvVar)
 	if err != nil {
+		span.Finish()
 		log.FatalLog("Failed to initialize platform", "platformName", platformName, "err", err)
 	}
 	workerMap = make(map[string]*ClusterWorker)

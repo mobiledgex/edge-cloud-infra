@@ -107,7 +107,7 @@ func (s *ShepherdPlatform) GetClusterPlatformClient(ctx context.Context, cluster
 
 func (s *ShepherdPlatform) GetPlatformStats(ctx context.Context) (shepherd_common.CloudletMetrics, error) {
 	cloudletMetric := shepherd_common.CloudletMetrics{}
-	platformResources, err := s.vmpf.VMProvider.GetPlatformResoruceInfo(ctx)
+	platformResources, err := s.vmpf.VMProvider.GetPlatformResourceInfo(ctx)
 	if err != nil {
 		return cloudletMetric, err
 	}

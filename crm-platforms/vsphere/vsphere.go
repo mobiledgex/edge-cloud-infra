@@ -102,6 +102,6 @@ func (o *VSpherePlatform) GetVMStats(ctx context.Context, key *edgeproto.AppInst
 	return nil, fmt.Errorf("vm stats not supported for VSphere")
 }
 
-func (s *VSpherePlatform) GetPlatformResoruceInfo(ctx context.Context) (*vmlayer.PlatformResources, error) {
+func (s *VSpherePlatform) GetPlatformResourceInfo(ctx context.Context) (*vmlayer.PlatformResources, error) {
 	return nil, fmt.Errorf("platform resource stats not supported for VSphere")
 }

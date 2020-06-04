@@ -51,7 +51,7 @@ type VMProvider interface {
 	SyncVMs(ctx context.Context, vmGroupOrchestrationParams *VMGroupOrchestrationParams, updateCallback edgeproto.CacheUpdateCallback) error
 	DeleteVMs(ctx context.Context, vmGroupName string) error
 	GetVMStats(ctx context.Context, key *edgeproto.AppInstKey) (*VMMetrics, error)
-	GetPlatformResoruceInfo(ctx context.Context) (*PlatformResources, error)
+	GetPlatformResourceInfo(ctx context.Context) (*PlatformResources, error)
 }
 
 // VMPlatform contains the needed by all VM based platforms

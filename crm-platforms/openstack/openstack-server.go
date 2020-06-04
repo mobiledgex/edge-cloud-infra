@@ -300,41 +300,41 @@ func (s *OpenstackPlatform) addIpUsageDetails(ctx context.Context, platformRes *
 	return nil
 }
 
-func (s *OpenstackPlatform) GetPlatformResoruceInfo(ctx context.Context) (*vmlayer.PlatformResources, error) {
-	platrormRes := vmlayer.PlatformResources{}
+func (s *OpenstackPlatform) GetPlatformResourceInfo(ctx context.Context) (*vmlayer.PlatformResources, error) {
+	platformRes := vmlayer.PlatformResources{}
 	limits, err := s.OSGetAllLimits(ctx)
 	if err != nil {
 		log.SpanLog(ctx, log.DebugLevelMetrics, "openstack limits", "error", err)
-		return &platrormRes, err
+		return &platformRes, err
 	}
 
-	platrormRes.CollectTime, _ = types.TimestampProto(time.Now())
+	platformRes.CollectTime, _ = types.TimestampProto(time.Now())
 	// Openstack limits for RAM in MB and Disk is in GBs
 	for _, l := range limits {
 
 		if l.Name == "maxTotalRAMSize" {
-			platrormRes.MemMax = uint64(l.Value)
+			platformRes.MemMax = uint64(l.Value)
 		} else if l.Name == "totalRAMUsed" {
-			platrormRes.MemUsed = uint64(l.Value)
+			platformRes.MemUsed = uint64(l.Value)
 		} else if l.Name == "maxTotalCores" {
-			platrormRes.VCpuMax = uint64(l.Value)
+			platformRes.VCpuMax = uint64(l.Value)
 		} else if l.Name == "totalCoresUsed" {
-			platrormRes.VCpuUsed = uint64(l.Value)
+			platformRes.VCpuUsed = uint64(l.Value)
 		} else if l.Name == "maxTotalVolumeGigabytes" {
-			platrormRes.DiskMax = uint64(l.Value)
+			platformRes.DiskMax = uint64(l.Value)
 		} else if l.Name == "totalGigabytesUsed" {
-			platrormRes.DiskUsed = uint64(l.Value)
+			platformRes.DiskUsed = uint64(l.Value)
 		} else if l.Name == "maxTotalFloatingIps" {
-			platrormRes.FloatingIpsMax = uint64(l.Value)
+			platformRes.FloatingIpsMax = uint64(l.Value)
 		} else if l.Name == "totalFloatingIpsUsed" {
-			platrormRes.FloatingIpsUsed = uint64(l.Value)
+			platformRes.FloatingIpsUsed = uint64(l.Value)
 		}
 	}
 	// TODO - collect network data for all the VM instances
 
 	// Get Ip pool usage
-	if s.addIpUsageDetails(ctx, &platrormRes) != nil {
+	if s.addIpUsageDetails(ctx, &platformRes) != nil {
 		log.SpanLog(ctx, log.DebugLevelMetrics, "get ip pool information", "error", err)
 	}
-	return &platrormRes, nil
+	return &platformRes, nil
 }

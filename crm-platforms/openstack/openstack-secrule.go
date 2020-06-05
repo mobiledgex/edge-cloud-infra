@@ -187,7 +187,7 @@ func (s *Platform) AddProxySecurityRulesAndPatchDNS(ctx context.Context, client 
 		return nil
 	}
 	configs := append(app.Configs, appInst.Configs...)
-	aac, err := access.GetAppAccessConfig(ctx, configs)
+	aac, err := access.GetAppAccessConfig(ctx, configs, app.TemplateDelimiter)
 	if err != nil {
 		return err
 	}

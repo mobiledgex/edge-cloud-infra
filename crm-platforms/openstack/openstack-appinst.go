@@ -282,7 +282,7 @@ func (s *Platform) CreateAppInst(ctx context.Context, clusterInst *edgeproto.Clu
 		if appInst.Uri != "" && ip.ExternalAddr != "" {
 			fqdn := appInst.Uri
 			configs := append(app.Configs, appInst.Configs...)
-			aac, err := access.GetAppAccessConfig(ctx, configs)
+			aac, err := access.GetAppAccessConfig(ctx, configs, app.TemplateDelimiter)
 			if err != nil {
 				return err
 			}
@@ -450,7 +450,7 @@ func (s *Platform) DeleteAppInst(ctx context.Context, clusterInst *edgeproto.Clu
 		if !app.InternalPorts {
 			// Clean up DNS entries
 			configs := append(app.Configs, appInst.Configs...)
-			aac, err := access.GetAppAccessConfig(ctx, configs)
+			aac, err := access.GetAppAccessConfig(ctx, configs, app.TemplateDelimiter)
 			if err != nil {
 				return err
 			}
@@ -475,7 +475,7 @@ func (s *Platform) DeleteAppInst(ctx context.Context, clusterInst *edgeproto.Clu
 		if appInst.Uri != "" {
 			fqdn := appInst.Uri
 			configs := append(app.Configs, appInst.Configs...)
-			aac, err := access.GetAppAccessConfig(ctx, configs)
+			aac, err := access.GetAppAccessConfig(ctx, configs, app.TemplateDelimiter)
 			if err != nil {
 				return err
 			}

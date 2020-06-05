@@ -152,6 +152,7 @@ var AppOptionalArgs = []string{
 	"autoprovpolicy",
 	"accesstype",
 	"defaultprivacypolicy",
+	"templatedelimiter",
 }
 var AppAliasArgs = []string{
 	"fields=app.fields",
@@ -182,6 +183,7 @@ var AppAliasArgs = []string{
 	"accesstype=app.accesstype",
 	"defaultprivacypolicy=app.defaultprivacypolicy",
 	"deleteprepare=app.deleteprepare",
+	"templatedelimiter=app.templatedelimiter",
 }
 var AppComments = map[string]string{
 	"fields":                  "Fields are used for the Update API to specify which fields to apply",
@@ -212,6 +214,7 @@ var AppComments = map[string]string{
 	"accesstype":              "Access type, one of AccessTypeDefaultForDeployment, AccessTypeDirect, AccessTypeLoadBalancer",
 	"defaultprivacypolicy":    "Privacy policy when creating auto cluster",
 	"deleteprepare":           "Preparing to be deleted",
+	"templatedelimiter":       "Delimiter to be used for template parsing, defaults to [[ ]]",
 }
 var AppSpecialArgs = map[string]string{
 	"app.fields": "StringArray",

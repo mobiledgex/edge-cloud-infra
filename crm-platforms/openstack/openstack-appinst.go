@@ -428,6 +428,7 @@ func (s *Platform) DeleteAppInst(ctx context.Context, clusterInst *edgeproto.Clu
 				s.DeleteProxySecurityGroupRules(ctx, client, dockermgmt.GetContainerName(&app.Key), secGrp, appInst.MappedPorts, app, rootLBName)
 				return nil
 			}
+			return err
 		}
 		// Add crm local replace variables
 		deploymentVars := crmutil.DeploymentReplaceVars{

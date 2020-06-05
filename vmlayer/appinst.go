@@ -78,7 +78,7 @@ func (v *VMPlatform) PerformOrchestrationForVMApp(ctx context.Context, app *edge
 		orchVals.lbName = objName + "-lb"
 		orchVals.externalServerName = lbName
 		orchVals.newSubnetName = objName + "-subnet"
-		lbVm, err := v.GetVMSpecForRootLB(ctx, orchVals.lbName, orchVals.newSubnetName, appInst.Key.ClusterInstKey.CloudletKey, updateCallback)
+		lbVm, err := v.GetVMSpecForRootLB(ctx, orchVals.lbName, orchVals.newSubnetName, updateCallback)
 		if err != nil {
 			return &orchVals, err
 		}

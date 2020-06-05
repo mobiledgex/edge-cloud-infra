@@ -371,7 +371,7 @@ var MEXRootLBMap = make(map[string]*MEXRootLB)
 
 // GetVMSpecForRootLB gets the VM spec for the rootLB when it is not specified within a cluster. This is
 // used for Shared RootLb and for VM app based RootLb
-func (v *VMPlatform) GetVMSpecForRootLB(ctx context.Context, rootLbName string, subnetConnect string, updateCallback edgeproto.CacheUpdateCallback) (*VMRequestSpec, error) {
+func (v *VMPlatform) GetVMSpecForRootLB(ctx context.Context, rootLbName string, subnetConnect string, cldkey edgeproto.CloudletKey, updateCallback edgeproto.CacheUpdateCallback) (*VMRequestSpec, error) {
 
 	log.SpanLog(ctx, log.DebugLevelInfra, "GetVMSpecForRootLB", "rootLbName", rootLbName)
 
@@ -380,7 +380,10 @@ func (v *VMPlatform) GetVMSpecForRootLB(ctx context.Context, rootLbName string, 
 	if err != nil {
 		return nil, fmt.Errorf("unable to get Shared RootLB Flavor: %v", err)
 	}
-	vmspec, err := vmspec.GetVMSpec(v.FlavorList, rootlbFlavor)
+	cli := edgeproto.CloudletInfo{}
+	cli.Key = cldkey
+	cli.Flavors = v.FlavorList
+	vmspec, err := vmspec.GetVMSpec(ctx, rootlbFlavor, cli, ResTbls)
 	if err != nil {
 		log.SpanLog(ctx, log.DebugLevelInfra, "RootLB GetVMSpec error", "v.FlavorList", v.FlavorList, "rootlbFlavor", rootlbFlavor, "err", err)
 		return nil, fmt.Errorf("unable to find VM spec for RootLB: %v", err)
@@ -395,6 +398,7 @@ func (v *VMPlatform) GetVMSpecForRootLB(ctx context.Context, rootLbName string, 
 	if err != nil {
 		return nil, err
 	}
+	log.SpanLog(ctx, log.DebugLevelInfra, "mapped mex ", "flavor", rootlbFlavor, "to flavor", vmspec.FlavorName)
 	return v.GetVMRequestSpec(ctx,
 		VMTypeRootLB,
 		rootLbName,
@@ -471,7 +475,7 @@ func (v *VMPlatform) CreateRootLB(
 			return nil
 		}
 	}
-	vmreq, err := v.GetVMSpecForRootLB(ctx, rootLB.Name, "", updateCallback)
+	vmreq, err := v.GetVMSpecForRootLB(ctx, rootLB.Name, "", *cloudletKey, updateCallback)
 	if err != nil {
 		return err
 	}

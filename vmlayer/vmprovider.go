@@ -81,6 +81,10 @@ func (v *VMPlatform) GetType() string {
 	return v.Type
 }
 
+type ResTagTables map[string]*edgeproto.ResTagTable
+
+var ResTbls ResTagTables = make(map[string]*edgeproto.ResTagTable)
+
 func (v *VMPlatform) GetClusterPlatformClient(ctx context.Context, clusterInst *edgeproto.ClusterInst) (ssh.Client, error) {
 	rootLBName := v.VMProperties.sharedRootLBName
 	if clusterInst.IpAccess == edgeproto.IpAccess_IP_ACCESS_DEDICATED {
@@ -185,6 +189,17 @@ func (v *VMPlatform) Init(ctx context.Context, platformConfig *platform.Platform
 	v.VMProperties.sharedRootLB = crmRootLB
 	log.SpanLog(ctx, log.DebugLevelInfra, "created shared rootLB", "name", v.VMProperties.sharedRootLBName)
 
+	if caches.ResTagTableCache != nil {
+		// Any ResTagTables found in our cache apply to this crm/platform and flavors
+		// so we don't need to match clouldlet ResTagMap keys to restagtables in our cache.
+		// If we have no restagtables at all, we still run the risk of returning a flavor
+		// that supports an option resource if one exists in platforms flavors list.
+		for res, tbl := range caches.ResTagTableCache.Objs {
+			ResTbls[res.Name] = tbl.Obj
+		}
+	} else {
+		log.SpanLog(ctx, log.DebugLevelInfra, "No Resource tables found in cache, no OpenStack optional resource flavors expected")
+	}
 	err = v.CreateRootLB(ctx, crmRootLB, v.VMProperties.CommonPf.PlatformConfig.CloudletKey, v.VMProperties.CommonPf.PlatformConfig.CloudletVMImagePath, v.VMProperties.CommonPf.PlatformConfig.VMImageVersion, ActionCreate, updateCallback)
 	if err != nil {
 		return fmt.Errorf("Error creating rootLB: %v", err)

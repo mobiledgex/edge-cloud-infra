@@ -92,6 +92,13 @@ func GetVaultCloudletCommonPath(filePath string) string {
 }
 
 func GetCloudletVMImageName(imgVersion string) string {
+
+	// Perfer env var if present
+	img := VMProviderProps["MEX_OS_IMAGE"]
+	if img.Value != "" {
+		return img.Value
+	}
+
 	if imgVersion == "" {
 		imgVersion = MEXInfraVersion
 	}
@@ -148,6 +155,8 @@ func (vp *VMProperties) GetCloudletSharedRootLBFlavor(flavor *edgeproto.Flavor) 
 	} else {
 		flavor.Disk = 40
 	}
+	// and give it a name for logging
+	flavor.Key.Name = "mex-sharedrootlbflavor"
 	return nil
 }
 

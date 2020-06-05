@@ -325,10 +325,15 @@ func (v *VMPlatform) SetupPlatformVM(ctx context.Context, cloudlet *edgeproto.Cl
 	}
 
 	platformVmName := v.GetPlatformVMName(&cloudlet.Key)
-	vmspec, err := vmspec.GetVMSpec(v.FlavorList, *pfFlavor)
+	cli := edgeproto.CloudletInfo{}
+	cli.Flavors = v.FlavorList
+	cli.Key = cloudlet.Key
+
+	vmspec, err := vmspec.GetVMSpec(ctx, *pfFlavor, cli, ResTbls)
 	if err != nil {
 		return nil, fmt.Errorf("unable to find VM spec for Shared RootLB: %v", err)
 	}
+	log.SpanLog(ctx, log.DebugLevelInfra, "SetupPlatformVM", "flavor", vmspec.FlavorName)
 	az := vmspec.AvailabilityZone
 	if az == "" {
 		az = v.VMProperties.GetCloudletComputeAvailabilityZone()

@@ -12,14 +12,27 @@ import (
 
 var referenceTime = "2006-01-02T15:04:05"
 
-func RecordClusterUsage(account *AccountInfo, clusterInstKey *edgeproto.ClusterInstKey, flavorName string, startTime, endTime time.Time, runTime float64) error {
-	chargeId := getProductRatePlanChargeId(clusterInstKey, flavorName)
+var UsageTypeCluster = "cluster"
+var UsageTypeVmApp = "VmApp"
+
+func RecordUsage(account *AccountInfo, key interface{}, usageType, flavorName string, startTime, endTime time.Time, runTime float64) error {
+	var chargeId, desc string
+	if usageType == UsageTypeCluster {
+		clusterInstKey := key.(edgeproto.ClusterInstKey)
+		chargeId = getProductRatePlanChargeId(&clusterInstKey, flavorName)
+		desc = fmt.Sprintf("Org: %s, Clusterinst: %s, Cloudlet: %s, Flavor: %s",
+			clusterInstKey.Organization, clusterInstKey.ClusterKey.Name, clusterInstKey.CloudletKey.Name, flavorName)
+	} else if usageType == UsageTypeVmApp {
+		appInstKey := key.(edgeproto.AppInstKey)
+		// TODO: right now getProductRatePlan returns a static chargeID, accomodate it for App flavors when that part gets fleshed out
+		chargeId = getProductRatePlanChargeId(nil, flavorName)
+		desc = fmt.Sprintf("App: %s, Org: %s, Version: %s, Cloudlet: %s, Flavor: %s",
+			appInstKey.AppKey.Name, appInstKey.AppKey.Organization, appInstKey.AppKey.Version, appInstKey.ClusterInstKey.CloudletKey.Name, flavorName)
+	}
 	chargeNumber, err := getSubChargeNumber(account.AccountNumber, chargeId)
 	if err != nil {
 		return fmt.Errorf("unable to get charge number: %v", err)
 	}
-	desc := fmt.Sprintf("Org: %s, Clusterinst: %s, Cloudlet: %s, Flavor: %s",
-		clusterInstKey.Organization, clusterInstKey.ClusterKey.Name, clusterInstKey.CloudletKey.Name, flavorName)
 	newUsage := CreateUsage{
 		AccountNumber:      account.AccountNumber,
 		SubscriptionNumber: account.SubscriptionNumber,
@@ -32,7 +45,6 @@ func RecordClusterUsage(account *AccountInfo, clusterInstKey *edgeproto.ClusterI
 	}
 
 	payload, err := json.Marshal(newUsage)
-	fmt.Printf("payload: %s\n", payload)
 	if err != nil {
 		return fmt.Errorf("Could not marshal %+v, err: %v", newUsage, err)
 	}

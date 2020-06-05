@@ -87,7 +87,7 @@ func main() {
 		span := log.StartSpan(log.DebugLevelInfo, "billing")
 		defer span.Finish()
 		ctx := log.ContextWithSpan(context.Background(), span)
-		go collections.CollectDailyClusterUsage(ctx)
+		go collections.CollectDailyUsage(ctx)
 	}
 
 	// wait until process is killed/interrupted

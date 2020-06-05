@@ -161,5 +161,9 @@ func createProductRatePlanCharge(ratePlanId, name, description string, chargeMod
 func getProductRatePlanChargeId(key *edgeproto.ClusterInstKey, flavorName string) string {
 	// return a set rateplan charge id for now until we actually figure out what the pricing model is going to be
 	// product rate plan id: 2c92c0f9712998a401712de88cc44c9f
+	// just to make things different for apps (key is nil) use usage prices rate 5
+	if key == nil {
+		return "2c92c0f8712986160171369e86d94ce9"
+	}
 	return "2c92c0f9712998b30171369c87bd3c44" // usage prices rate 1
 }

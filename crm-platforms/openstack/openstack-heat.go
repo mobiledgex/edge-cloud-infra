@@ -370,7 +370,11 @@ func (o *OpenstackPlatform) populateParams(ctx context.Context, VMGroupOrchestra
 	// populate the user data
 	for i, v := range VMGroupOrchestrationParams.VMs {
 		VMGroupOrchestrationParams.VMs[i].MetaData = vmlayer.GetVMMetaData(v.Role, masterIP, reindent16)
-		VMGroupOrchestrationParams.VMs[i].UserData = vmlayer.GetVMUserData(v.SharedVolume, v.DNSServers, v.DeploymentManifest, v.Command, reindent16)
+		userdata, err := vmlayer.GetVMUserData(v.SharedVolume, v.DNSServers, v.DeploymentManifest, v.Command, v.ChefParams, reindent16)
+		if err != nil {
+			return err
+		}
+		VMGroupOrchestrationParams.VMs[i].UserData = userdata
 	}
 
 	// populate the floating ips

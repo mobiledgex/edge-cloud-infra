@@ -1,0 +1,7 @@
+{
+  "name": "base",
+  "description": "Base role for common recipes to be executed",
+  "run_list": [
+    "recipe[runstatus_handler]"
+  ]
+}

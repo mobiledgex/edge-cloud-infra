@@ -12,6 +12,7 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/mobiledgex/edge-cloud-infra/chefmgmt"
 	"github.com/mobiledgex/edge-cloud/edgeproto"
 	"github.com/mobiledgex/edge-cloud/log"
 	"github.com/mobiledgex/edge-cloud/util"
@@ -20,11 +21,13 @@ import (
 type VMType string
 
 const (
-	VMTypeAppVM         VMType = "appvm"
-	VMTypeRootLB        VMType = "rootlb"
-	VMTypePlatform      VMType = "platform"
-	VMTypeClusterMaster VMType = "cluster-master"
-	VMTypeClusterNode   VMType = "cluster-node"
+	VMTypeAppVM                 VMType = "appvm"
+	VMTypeRootLB                VMType = "rootlb"
+	VMTypePlatform              VMType = "platform"
+	VMTypePlatformClusterMaster VMType = "platform-cluster-master"
+	VMTypePlatformClusterNode   VMType = "platform-cluster-node"
+	VMTypeClusterMaster         VMType = "cluster-master"
+	VMTypeClusterNode           VMType = "cluster-node"
 )
 
 type ActionType string
@@ -103,6 +106,7 @@ type VMRequestSpec struct {
 	ConnectToExternalNet    bool
 	CreatePortsOnly         bool
 	ConnectToSubnet         string
+	ChefParams              *chefmgmt.VMChefParams
 }
 
 type VMReqOp func(vmp *VMRequestSpec) error
@@ -160,6 +164,12 @@ func WithSubnetConnection(subnetName string) VMReqOp {
 func WithCreatePortsOnly(portsonly bool) VMReqOp {
 	return func(s *VMRequestSpec) error {
 		s.CreatePortsOnly = portsonly
+		return nil
+	}
+}
+func WithChefParams(chefParams *chefmgmt.VMChefParams) VMReqOp {
+	return func(s *VMRequestSpec) error {
+		s.ChefParams = chefParams
 		return nil
 	}
 }
@@ -358,33 +368,35 @@ type VMOrchestrationParams struct {
 	ExternalGateway         string
 	Tags                    string
 	CustomizeGuest          bool
+	ChefParams              *chefmgmt.VMChefParams
 }
 
-type ChefParams struct {
-	NodeName       string
-	ServerPath     string
-	ClientKey      string
-	ClientInterval edgeproto.Duration
+var (
+	ChefClientKeyType     = true
+	ChefValidationKeyType = false
+)
+
+func (v *VMPlatform) GetChefClientName(name string) string {
+	// Prefix with region name
+	return v.VMProperties.GetRegion() + "-" + name
 }
 
-var VmChefConfig = `
-chef:
-  server_url: {{.ServerPath}}
-  node_name: {{.NodeName}}
-  validation_name: mobiledgex-validator
-  validation_key: /etc/chef/client.pem
-  validation_cert: |
-{{ Indent .ClientKey 10 }}
-  exec: true
-  exec_arguments:
-  - "-d"
-  - "1"
-  - "-i"
-  - "{{.ClientInterval}}"
-  - "-s"
-  - "20"
-  - "--chef-license"
-  - "accept"`
+func (v *VMPlatform) GetVMChefParams(nodeName, clientKey string, runList []string, attributes map[string]interface{}) *chefmgmt.VMChefParams {
+	chefServerPath := v.VMProperties.GetChefServerPath()
+
+	chefRunList := []string{"role[base]"}
+	if runList != nil {
+		chefRunList = append(chefRunList, runList...)
+	}
+
+	return &chefmgmt.VMChefParams{
+		NodeName:   nodeName,
+		ServerPath: chefServerPath,
+		ClientKey:  clientKey,
+		RunList:    chefRunList,
+		Attributes: attributes,
+	}
+}
 
 // VMGroupOrchestrationParams contains all the details used by the orchestator to create a set of associated VMs
 type VMGroupOrchestrationParams struct {
@@ -719,6 +731,7 @@ func (v *VMPlatform) getVMGroupOrchestrationParamsFromGroupSpec(ctx context.Cont
 				DeploymentManifest:      vm.DeploymentManifest,
 				Command:                 vm.Command,
 				ComputeAvailabilityZone: vm.ComputeAvailabilityZone,
+				ChefParams:              vm.ChefParams,
 			}
 			if vm.ExternalVolumeSize > 0 {
 				externalVolume := VolumeOrchestrationParams{
@@ -759,6 +772,10 @@ func (v *VMPlatform) getVMGroupOrchestrationParamsFromGroupSpec(ctx context.Cont
 // OrchestrateVMsFromVMSpec calls the provider function to do the orchestation of the VMs.  It returns the updated VM group spec
 func (v *VMPlatform) OrchestrateVMsFromVMSpec(ctx context.Context, name string, vms []*VMRequestSpec, action ActionType, updateCallback edgeproto.CacheUpdateCallback, opts ...VMGroupReqOp) (*VMGroupOrchestrationParams, error) {
 	log.SpanLog(ctx, log.DebugLevelInfra, "OrchestrateVMsFromVMSpec", "name", name)
+	chefClient := v.VMProperties.GetChefClient()
+	if chefClient == nil {
+		return nil, fmt.Errorf("Chef client is not initialzied")
+	}
 	gp, err := v.GetVMGroupOrchestrationParamsFromVMSpec(ctx, name, vms, opts...)
 	if err != nil {
 		log.SpanLog(ctx, log.DebugLevelInfra, "GetVMGroupOrchestrationParamsFromVMSpec failed", "error", err)
@@ -767,6 +784,19 @@ func (v *VMPlatform) OrchestrateVMsFromVMSpec(ctx context.Context, name string, 
 	log.SpanLog(ctx, log.DebugLevelInfra, "created vm group spec", "gp", gp)
 	switch action {
 	case ActionCreate:
+		for _, vm := range vms {
+			if vm.CreatePortsOnly || vm.Type == VMTypeAppVM {
+				continue
+			}
+			if vm.ChefParams == nil {
+				return gp, fmt.Errorf("chef params doesn't exist for %s", vm.Name)
+			}
+			clientKey, err := chefmgmt.ChefClientCreate(ctx, chefClient, vm.ChefParams)
+			if err != nil {
+				return gp, err
+			}
+			vm.ChefParams.ClientKey = clientKey
+		}
 		err = v.VMProvider.CreateVMs(ctx, gp, updateCallback)
 	case ActionUpdate:
 		err = v.VMProvider.UpdateVMs(ctx, gp, updateCallback)

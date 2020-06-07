@@ -506,6 +506,7 @@ var CloudletComments = map[string]string{
 }
 var CloudletSpecialArgs = map[string]string{
 	"cloudlet.accessvars":    "StringToString",
+	"cloudlet.chefclientkey": "StringToString",
 	"cloudlet.config.envvar": "StringToString",
 	"cloudlet.envvar":        "StringToString",
 	"cloudlet.errors":        "StringArray",

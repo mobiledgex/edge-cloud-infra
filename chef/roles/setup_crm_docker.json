@@ -1,0 +1,9 @@
+{
+  "name": "setup_crm_docker",
+  "description": "Uses docker containers to setup cloudlet services",
+  "run_list": [
+    "recipe[setup_infra]",
+    "recipe[preflight_crm_checks]",
+    "recipe[setup_services::docker]"
+  ]
+}

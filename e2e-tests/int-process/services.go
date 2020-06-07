@@ -18,7 +18,8 @@ import (
 
 const (
 	PrometheusContainer    = "cloudletPrometheus"
-	PrometheusImagePath    = "prom/prometheus:latest"
+	PrometheusImagePath    = "prom/prometheus"
+	PrometheusImageVersion = "latest"
 	PrometheusRulesPrefix  = "rulefile_"
 	CloudletPrometheusPort = "9092"
 )
@@ -159,8 +160,10 @@ func GetCloudletPrometheusConfigHostFilePath() string {
 // command line options for prometheus container
 func GetCloudletPrometheusCmdArgs() []string {
 	return []string{
-		"--config.file=/etc/prometheus/prometheus.yml",
-		"--web.listen-address=:" + CloudletPrometheusPort,
+		"--config.file",
+		"/etc/prometheus/prometheus.yml",
+		"--web.listen-address",
+		":" + CloudletPrometheusPort,
 		"--web.enable-lifecycle",
 	}
 }
@@ -173,11 +176,11 @@ func GetCloudletPrometheusDockerArgs(cloudlet *edgeproto.Cloudlet, cfgFile strin
 	cloudletOrg := util.DockerSanitize(cloudlet.Key.Organization)
 
 	return []string{
-		"-l", "cloudlet=" + cloudletName,
-		"-l", "cloudletorg=" + cloudletOrg,
-		"-p", CloudletPrometheusPort + ":" + CloudletPrometheusPort, // container interface
-		"-v", "/tmp:/tmp",
-		"-v", cfgFile + ":/etc/prometheus/prometheus.yml",
+		"--label", "cloudlet=" + cloudletName,
+		"--label", "cloudletorg=" + cloudletOrg,
+		"--publish", CloudletPrometheusPort + ":" + CloudletPrometheusPort, // container interface
+		"--volume", "/tmp:/tmp",
+		"--volume", cfgFile + ":/etc/prometheus/prometheus.yml",
 	}
 }
 
@@ -200,7 +203,8 @@ func StartCloudletPrometheus(ctx context.Context, cloudlet *edgeproto.Cloudlet) 
 	// local container specific options
 	args = append([]string{"run", "--rm"}, args...)
 	// set name and image path
-	args = append(args, []string{"--name", PrometheusContainer, PrometheusImagePath}...)
+	promImage := PrometheusImagePath + ":" + PrometheusImageVersion
+	args = append(args, []string{"--name", PrometheusContainer, promImage}...)
 	args = append(args, cmdOpts...)
 
 	_, err = process.StartLocal(PrometheusContainer, "docker", args, nil, "/tmp/cloudlet_prometheus.log")

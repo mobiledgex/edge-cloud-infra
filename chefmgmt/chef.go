@@ -20,6 +20,20 @@ const (
 	DefaultChefServerPath = "https://chef.mobiledgex.net/organizations/mobiledgex"
 )
 
+var ValidDockerArgs = map[string]string{
+	"label":   "list",
+	"publish": "string",
+	"volume":  "list",
+}
+
+type VMChefParams struct {
+	NodeName   string
+	ServerPath string
+	ClientKey  string
+	RunList    []string
+	Attributes map[string]interface{}
+}
+
 type ChefAuthKey struct {
 	ApiKey        string `json:"apikey"`
 	ValidationKey string `json:"validationkey"`
@@ -180,7 +194,7 @@ func ChefClientRunStatus(ctx context.Context, client *chef.Client, clientName st
 			msg = res.Resource
 		}
 
-		if ii == len(statusInfo)-1 && runStatus.Exception != "" {
+		if ii == len(runStatus.Resources)-1 && runStatus.Exception != "" {
 			msg = fmt.Sprintf("Failed to %s", msg)
 			failed = true
 			log.SpanLog(ctx, log.DebugLevelInfra, "failure message from chef node run status", "message", msg, "exception", runStatus.Exception)
@@ -199,8 +213,12 @@ func ChefClientRunStatus(ctx context.Context, client *chef.Client, clientName st
 	return statusInfo, nil
 }
 
-func ChefClientCreate(ctx context.Context, client *chef.Client, clientName, roleName string, attributes map[string]interface{}) (string, error) {
-	log.SpanLog(ctx, log.DebugLevelInfra, "chef client create", "client name", clientName, "role name", roleName)
+func ChefClientCreate(ctx context.Context, client *chef.Client, chefParams *VMChefParams) (string, error) {
+	if chefParams == nil {
+		return "", fmt.Errorf("unable to get chef params")
+	}
+	clientName := chefParams.NodeName
+	log.SpanLog(ctx, log.DebugLevelInfra, "chef client create", "client name", clientName, "params", *chefParams)
 	clientObj := chef.ApiNewClient{
 		Name:      clientName,
 		Validator: false,
@@ -217,15 +235,12 @@ func ChefClientCreate(ctx context.Context, client *chef.Client, clientName, role
 	}
 
 	nodeObj := chef.Node{
-		Name:        clientName,
-		Environment: "_default",
-		ChefType:    "node",
-		JsonClass:   "Chef::Node",
-		RunList: []string{
-			"role[base]",
-			roleName,
-		},
-		NormalAttributes: attributes,
+		Name:             clientName,
+		Environment:      "_default",
+		ChefType:         "node",
+		JsonClass:        "Chef::Node",
+		RunList:          chefParams.RunList,
+		NormalAttributes: chefParams.Attributes,
 	}
 	_, err = client.Nodes.Post(nodeObj)
 	if err != nil {
@@ -240,7 +255,7 @@ func ChefClientCreate(ctx context.Context, client *chef.Client, clientName, role
 	return clientKey, nil
 }
 
-func GetChefArgs(ctx context.Context, cmdArgs []string) map[string]string {
+func GetChefArgs(cmdArgs []string) map[string]string {
 	chefArgs := make(map[string]string)
 	ii := 0
 	for ii < len(cmdArgs) {
@@ -255,6 +270,46 @@ func GetChefArgs(ctx context.Context, cmdArgs []string) map[string]string {
 			ii += 1
 		}
 		chefArgs[argKey] = argVal
+	}
+	return chefArgs
+}
+
+func GetChefDockerArgs(cmdArgs []string) map[string]interface{} {
+	chefArgs := make(map[string]interface{})
+	ii := 0
+	for ii < len(cmdArgs) {
+		if !strings.HasPrefix(cmdArgs[ii], "-") {
+			continue
+		}
+		argKey := strings.TrimLeft(cmdArgs[ii], "-")
+		argVal := ""
+		ii += 1
+		if ii < len(cmdArgs) && !strings.HasPrefix(cmdArgs[ii], "-") {
+			argVal = cmdArgs[ii]
+			ii += 1
+		}
+		keyType := ""
+		var ok bool
+		if keyType, ok = ValidDockerArgs[argKey]; !ok {
+			continue
+		}
+		if argKey == "label" {
+			// Chef docker cookbook requires label to in format key:val
+			// But docker requires it in format key=val.
+			// Hence the special handling
+			argVal = strings.Replace(argVal, "=", ":", 1)
+		}
+		if keyType == "list" {
+			newVal := []string{argVal}
+			if existVal, ok := chefArgs[argKey]; ok {
+				if eVal, ok := existVal.([]string); ok {
+					newVal = append(newVal, eVal...)
+				}
+			}
+			chefArgs[argKey] = newVal
+		} else {
+			chefArgs[argKey] = argVal
+		}
 	}
 	return chefArgs
 }

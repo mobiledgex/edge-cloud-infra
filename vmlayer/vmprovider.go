@@ -189,6 +189,7 @@ func (v *VMPlatform) Init(ctx context.Context, platformConfig *platform.Platform
 	log.SpanLog(ctx, log.DebugLevelInfra, "created shared rootLB", "name", v.VMProperties.sharedRootLBName)
 
 	tags := []string{
+		platformConfig.DeploymentTag,
 		platformConfig.Region,
 		platformConfig.CloudletKey.Name,
 		platformConfig.CloudletKey.Organization,

@@ -646,6 +646,7 @@ func (v *VMPlatform) SyncSharedRootLB(ctx context.Context, caches *platform.Cach
 	log.SpanLog(ctx, log.DebugLevelInfra, "SyncSharedRootLB")
 
 	tags := []string{
+		v.VMProperties.CommonPf.PlatformConfig.DeploymentTag,
 		v.VMProperties.CommonPf.PlatformConfig.Region,
 		v.VMProperties.CommonPf.PlatformConfig.CloudletKey.Name,
 		v.VMProperties.CommonPf.PlatformConfig.CloudletKey.Organization,

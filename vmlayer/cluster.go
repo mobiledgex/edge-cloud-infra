@@ -521,8 +521,10 @@ func (v *VMPlatform) getVMRequestSpecForDockerCluster(ctx context.Context, imgNa
 		}
 	}
 	region := v.VMProperties.GetRegion()
+	deploymentTag := v.VMProperties.GetDeploymentTag()
 	chefAttributes := make(map[string]interface{})
 	chefAttributes["tags"] = []string{
+		deploymentTag,
 		clusterInst.Key.ClusterKey.Name,
 		clusterInst.Key.CloudletKey.Name,
 		clusterInst.Key.CloudletKey.Organization,
@@ -604,6 +606,7 @@ func (v *VMPlatform) PerformOrchestrationForCluster(ctx context.Context, imgName
 	var newSecgrpName string
 
 	region := v.VMProperties.GetRegion()
+	deploymentTag := v.VMProperties.GetDeploymentTag()
 
 	if clusterInst.Deployment == cloudcommon.DeploymentTypeDocker {
 		vms, newSubnetName, newSecgrpName, err = v.getVMRequestSpecForDockerCluster(ctx, imgName, clusterInst, privacyPolicy, action, updateCallback)
@@ -617,10 +620,11 @@ func (v *VMPlatform) PerformOrchestrationForCluster(ctx context.Context, imgName
 		if clusterInst.IpAccess == edgeproto.IpAccess_IP_ACCESS_DEDICATED {
 			// dedicated for docker means the docker VM acts as its own rootLB
 			tags := []string{
+				deploymentTag,
+				region,
 				clusterInst.Key.ClusterKey.Name,
 				clusterInst.Key.CloudletKey.Name,
 				clusterInst.Key.CloudletKey.Organization,
-				region,
 				string(VMTypeRootLB),
 			}
 			rootlb, err = v.GetVMSpecForRootLB(ctx, v.VMProperties.GetRootLBNameForCluster(ctx, clusterInst), newSubnetName, tags, updateCallback)
@@ -640,10 +644,11 @@ func (v *VMPlatform) PerformOrchestrationForCluster(ctx context.Context, imgName
 
 		chefAttributes := make(map[string]interface{})
 		chefAttributes["tags"] = []string{
+			deploymentTag,
+			region,
 			clusterInst.Key.ClusterKey.Name,
 			clusterInst.Key.CloudletKey.Name,
 			clusterInst.Key.CloudletKey.Organization,
-			region,
 			string(VMTypeClusterMaster),
 		}
 		clientName := v.GetChefClientName(GetClusterMasterName(ctx, clusterInst))
@@ -671,10 +676,11 @@ func (v *VMPlatform) PerformOrchestrationForCluster(ctx context.Context, imgName
 
 		chefAttributes = make(map[string]interface{})
 		chefAttributes["tags"] = []string{
+			region,
+			deploymentTag,
 			clusterInst.Key.ClusterKey.Name,
 			clusterInst.Key.CloudletKey.Name,
 			clusterInst.Key.CloudletKey.Organization,
-			region,
 			string(VMTypeClusterNode),
 		}
 		for nn := uint32(1); nn <= clusterInst.NumNodes; nn++ {

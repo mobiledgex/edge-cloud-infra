@@ -1,9 +1,0 @@
-{
-  "name": "setup_crm_k8s",
-  "description": "Uses k8s to setup cloudlet services",
-  "run_list": [
-    "recipe[setup_infra]",
-    "recipe[preflight_crm_checks]",
-    "recipe[setup_services::k8s]"
-  ]
-}

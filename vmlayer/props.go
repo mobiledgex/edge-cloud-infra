@@ -26,7 +26,7 @@ type VMProperties struct {
 var ImageFormatQcow2 = "qcow2"
 var ImageFormatVmdk = "vmdk"
 
-var MEXInfraVersion = "2.0.0-chef"
+var MEXInfraVersion = "3.1.2"
 var ImageNamePrefix = "mobiledgex-v"
 var DefaultOSImageName = ImageNamePrefix + MEXInfraVersion
 
@@ -243,4 +243,8 @@ func (vp *VMProperties) GetChefServerPath() string {
 
 func (vp *VMProperties) GetRegion() string {
 	return vp.CommonPf.PlatformConfig.Region
+}
+
+func (vp *VMProperties) GetDeploymentTag() string {
+	return vp.CommonPf.DeploymentTag
 }

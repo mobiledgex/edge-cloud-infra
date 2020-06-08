@@ -1,0 +1,51 @@
+{
+  "revision_id": "ba54c46e2e0b6684f86bf2a325d2a11d926190779d1225d0680615565ef5f69f",
+  "name": "base",
+  "run_list": [
+    "recipe[runstatus_handler::default]"
+  ],
+  "included_policy_locks": [
+
+  ],
+  "cookbook_locks": {
+    "runstatus_handler": {
+      "version": "1.0.0",
+      "identifier": "e6428861117e0ed95a9dd545b1e3b9446c87bbec",
+      "dotted_decimal_identifier": "64812398154972686.61179703880692195.203703529749484",
+      "source": "../cookbooks/runstatus_handler",
+      "cache_key": null,
+      "scm_info": {
+        "scm": "git",
+        "remote": null,
+        "revision": "71158f3e7b61d756feaf8b84f893504af95929ac",
+        "working_tree_clean": false,
+        "published": true,
+        "synchronized_remote_branches": [
+          "origin/chefcloudlet"
+        ]
+      },
+      "source_options": {
+        "path": "../cookbooks/runstatus_handler"
+      }
+    }
+  },
+  "default_attributes": {
+
+  },
+  "override_attributes": {
+
+  },
+  "solution_dependencies": {
+    "Policyfile": [
+      [
+        "runstatus_handler",
+        "= 1.0.0"
+      ]
+    ],
+    "dependencies": {
+      "runstatus_handler (1.0.0)": [
+
+      ]
+    }
+  }
+}

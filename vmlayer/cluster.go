@@ -530,7 +530,7 @@ func (v *VMPlatform) getVMRequestSpecForDockerCluster(ctx context.Context, imgNa
 		string(dockerVmType),
 	}
 	clientName := v.GetChefClientName(dockerVMName)
-	chefParams := v.GetVMChefParams(clientName, "", nil, chefAttributes)
+	chefParams := v.GetVMChefParams(clientName, "", chefmgmt.ChefPolicyBase, chefAttributes)
 	dockervm, err := v.GetVMRequestSpec(
 		ctx,
 		dockerVmType,
@@ -647,7 +647,7 @@ func (v *VMPlatform) PerformOrchestrationForCluster(ctx context.Context, imgName
 			string(VMTypeClusterMaster),
 		}
 		clientName := v.GetChefClientName(GetClusterMasterName(ctx, clusterInst))
-		chefParams := v.GetVMChefParams(clientName, "", nil, chefAttributes)
+		chefParams := v.GetVMChefParams(clientName, "", chefmgmt.ChefPolicyBase, chefAttributes)
 
 		masterFlavor := clusterInst.MasterNodeFlavor
 		if masterFlavor == "" {
@@ -679,7 +679,7 @@ func (v *VMPlatform) PerformOrchestrationForCluster(ctx context.Context, imgName
 		}
 		for nn := uint32(1); nn <= clusterInst.NumNodes; nn++ {
 			clientName := v.GetChefClientName(GetClusterNodeName(ctx, clusterInst, nn))
-			chefParams := v.GetVMChefParams(clientName, "", nil, chefAttributes)
+			chefParams := v.GetVMChefParams(clientName, "", chefmgmt.ChefPolicyBase, chefAttributes)
 			node, err := v.GetVMRequestSpec(ctx,
 				VMTypeClusterNode,
 				GetClusterNodeName(ctx, clusterInst, nn),

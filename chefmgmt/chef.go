@@ -13,9 +13,10 @@ import (
 )
 
 const (
-	// Chef Roles
-	ChefRoleDocker = "role[setup_crm_docker]"
-	ChefRoleK8s    = "role[setup_crm_k8s]"
+	// Chef Policies
+	ChefPolicyBase   = "base"
+	ChefPolicyDocker = "docker_crm"
+	ChefPolicyK8s    = "k8s_crm"
 
 	DefaultChefServerPath = "https://chef.mobiledgex.net/organizations/mobiledgex"
 )
@@ -27,11 +28,12 @@ var ValidDockerArgs = map[string]string{
 }
 
 type VMChefParams struct {
-	NodeName   string
-	ServerPath string
-	ClientKey  string
-	RunList    []string
-	Attributes map[string]interface{}
+	NodeName    string
+	ServerPath  string
+	ClientKey   string
+	Attributes  map[string]interface{}
+	PolicyName  string
+	PolicyGroup string
 }
 
 type ChefAuthKey struct {
@@ -239,8 +241,9 @@ func ChefClientCreate(ctx context.Context, client *chef.Client, chefParams *VMCh
 		Environment:      "_default",
 		ChefType:         "node",
 		JsonClass:        "Chef::Node",
-		RunList:          chefParams.RunList,
 		NormalAttributes: chefParams.Attributes,
+		PolicyName:       chefParams.PolicyName,
+		PolicyGroup:      chefParams.PolicyGroup,
 	}
 	_, err = client.Nodes.Post(nodeObj)
 	if err != nil {

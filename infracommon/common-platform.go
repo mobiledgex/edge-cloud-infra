@@ -24,6 +24,7 @@ type CommonPlatform struct {
 	MappedExternalIPs map[string]string
 	ChefClient        *chef.Client
 	ChefServerPath    string
+	DeploymentTag     string
 }
 
 // Package level test mode variable
@@ -91,6 +92,10 @@ func (c *CommonPlatform) InitInfraCommon(ctx context.Context, platformConfig *pf
 		return nil
 	}
 
+	if platformConfig.DeploymentTag == "" {
+		return fmt.Errorf("missing deployment tag")
+	}
+
 	chefAuth, err := chefmgmt.GetChefAuthKeys(ctx, vaultConfig)
 	if err != nil {
 		return err
@@ -109,6 +114,7 @@ func (c *CommonPlatform) InitInfraCommon(ctx context.Context, platformConfig *pf
 	// no connection has formed with chef server
 	c.ChefClient = chefClient
 	c.ChefServerPath = chefServerPath
+	c.DeploymentTag = platformConfig.DeploymentTag
 	return nil
 }
 

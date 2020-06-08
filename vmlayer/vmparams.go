@@ -378,23 +378,20 @@ var (
 
 func (v *VMPlatform) GetChefClientName(name string) string {
 	// Prefix with region name
-	return v.VMProperties.GetRegion() + "-" + name
+	return v.VMProperties.GetDeploymentTag() + "-" + v.VMProperties.GetRegion() + "-" + name
 }
 
-func (v *VMPlatform) GetVMChefParams(nodeName, clientKey string, runList []string, attributes map[string]interface{}) *chefmgmt.VMChefParams {
+func (v *VMPlatform) GetVMChefParams(nodeName, clientKey string, policyName string, attributes map[string]interface{}) *chefmgmt.VMChefParams {
 	chefServerPath := v.VMProperties.GetChefServerPath()
-
-	chefRunList := []string{"role[base]"}
-	if runList != nil {
-		chefRunList = append(chefRunList, runList...)
-	}
+	deploymentTag := v.VMProperties.GetDeploymentTag()
 
 	return &chefmgmt.VMChefParams{
-		NodeName:   nodeName,
-		ServerPath: chefServerPath,
-		ClientKey:  clientKey,
-		RunList:    chefRunList,
-		Attributes: attributes,
+		NodeName:    nodeName,
+		ServerPath:  chefServerPath,
+		ClientKey:   clientKey,
+		Attributes:  attributes,
+		PolicyName:  policyName,
+		PolicyGroup: deploymentTag,
 	}
 }
 

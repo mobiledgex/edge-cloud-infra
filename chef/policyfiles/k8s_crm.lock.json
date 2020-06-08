@@ -1,0 +1,174 @@
+{
+  "revision_id": "10209553287c19768e84fe2ccd097b62db80e51ea8b02b06564a19d3c6dcb5a0",
+  "name": "k8s_crm",
+  "run_list": [
+    "recipe[runstatus_handler::default]",
+    "recipe[setup_infra::default]",
+    "recipe[preflight_crm_checks::default]",
+    "recipe[setup_services::k8s]"
+  ],
+  "included_policy_locks": [
+
+  ],
+  "cookbook_locks": {
+    "docker": {
+      "version": "6.0.2",
+      "identifier": "0e78b3937b1b878e0c882365b2495886844e60d0",
+      "dotted_decimal_identifier": "4073362342747015.39983225541866057.97334768591056",
+      "cache_key": "docker-6.0.2-supermarket.chef.io",
+      "origin": "https://supermarket.chef.io:443/api/v1/cookbooks/docker/versions/6.0.2/download",
+      "source_options": {
+        "artifactserver": "https://supermarket.chef.io:443/api/v1/cookbooks/docker/versions/6.0.2/download",
+        "version": "6.0.2"
+      }
+    },
+    "iptables": {
+      "version": "7.0.0",
+      "identifier": "99881ad6d2ea32b76343bcd6af57594ff2b6a55c",
+      "dotted_decimal_identifier": "43215320291404338.51619063320194903.98199909344604",
+      "cache_key": "iptables-7.0.0-supermarket.chef.io",
+      "origin": "https://supermarket.chef.io:443/api/v1/cookbooks/iptables/versions/7.0.0/download",
+      "source_options": {
+        "artifactserver": "https://supermarket.chef.io:443/api/v1/cookbooks/iptables/versions/7.0.0/download",
+        "version": "7.0.0"
+      }
+    },
+    "preflight_crm_checks": {
+      "version": "1.0.0",
+      "identifier": "6f487b9da391428aa40abd05de7baa4b58c542eb",
+      "dotted_decimal_identifier": "31323418177802562.39023912813977211.187240588591851",
+      "source": "../cookbooks/preflight_crm_checks",
+      "cache_key": null,
+      "scm_info": {
+        "scm": "git",
+        "remote": null,
+        "revision": "71158f3e7b61d756feaf8b84f893504af95929ac",
+        "working_tree_clean": false,
+        "published": true,
+        "synchronized_remote_branches": [
+          "origin/chefcloudlet"
+        ]
+      },
+      "source_options": {
+        "path": "../cookbooks/preflight_crm_checks"
+      }
+    },
+    "runstatus_handler": {
+      "version": "1.0.0",
+      "identifier": "e6428861117e0ed95a9dd545b1e3b9446c87bbec",
+      "dotted_decimal_identifier": "64812398154972686.61179703880692195.203703529749484",
+      "source": "../cookbooks/runstatus_handler",
+      "cache_key": null,
+      "scm_info": {
+        "scm": "git",
+        "remote": null,
+        "revision": "71158f3e7b61d756feaf8b84f893504af95929ac",
+        "working_tree_clean": false,
+        "published": true,
+        "synchronized_remote_branches": [
+          "origin/chefcloudlet"
+        ]
+      },
+      "source_options": {
+        "path": "../cookbooks/runstatus_handler"
+      }
+    },
+    "setup_infra": {
+      "version": "1.0.0",
+      "identifier": "d47da5ce41714ecbf7796ab1ba4e0f686738a54b",
+      "dotted_decimal_identifier": "59810846146130254.57411521125399118.16941082781003",
+      "source": "../cookbooks/setup_infra",
+      "cache_key": null,
+      "scm_info": {
+        "scm": "git",
+        "remote": null,
+        "revision": "71158f3e7b61d756feaf8b84f893504af95929ac",
+        "working_tree_clean": false,
+        "published": true,
+        "synchronized_remote_branches": [
+          "origin/chefcloudlet"
+        ]
+      },
+      "source_options": {
+        "path": "../cookbooks/setup_infra"
+      }
+    },
+    "setup_services": {
+      "version": "1.0.0",
+      "identifier": "2b09c2b2bd5f8bec94ff4e5cde43b583bbf2c757",
+      "dotted_decimal_identifier": "12114155825618827.66591918755995203.199577398593367",
+      "source": "../cookbooks/setup_services",
+      "cache_key": null,
+      "scm_info": {
+        "scm": "git",
+        "remote": null,
+        "revision": "71158f3e7b61d756feaf8b84f893504af95929ac",
+        "working_tree_clean": false,
+        "published": true,
+        "synchronized_remote_branches": [
+          "origin/chefcloudlet"
+        ]
+      },
+      "source_options": {
+        "path": "../cookbooks/setup_services"
+      }
+    }
+  },
+  "default_attributes": {
+
+  },
+  "override_attributes": {
+
+  },
+  "solution_dependencies": {
+    "Policyfile": [
+      [
+        "docker",
+        "= 6.0.2"
+      ],
+      [
+        "iptables",
+        "= 7.0.0"
+      ],
+      [
+        "preflight_crm_checks",
+        "= 1.0.0"
+      ],
+      [
+        "runstatus_handler",
+        "= 1.0.0"
+      ],
+      [
+        "setup_infra",
+        "= 1.0.0"
+      ],
+      [
+        "setup_services",
+        "= 1.0.0"
+      ]
+    ],
+    "dependencies": {
+      "docker (6.0.2)": [
+
+      ],
+      "iptables (7.0.0)": [
+
+      ],
+      "preflight_crm_checks (1.0.0)": [
+
+      ],
+      "runstatus_handler (1.0.0)": [
+
+      ],
+      "setup_infra (1.0.0)": [
+
+      ],
+      "setup_services (1.0.0)": [
+        [
+          "docker",
+          ">= 0.0.0"
+        ]
+      ]
+    }
+  }
+}

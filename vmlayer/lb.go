@@ -11,6 +11,7 @@ import (
 	"github.com/mobiledgex/edge-cloud/cloud-resource-manager/platform"
 
 	valid "github.com/asaskevich/govalidator"
+	"github.com/mobiledgex/edge-cloud-infra/chefmgmt"
 	"github.com/mobiledgex/edge-cloud-infra/infracommon"
 	"github.com/mobiledgex/edge-cloud/cloud-resource-manager/platform/pc"
 	"github.com/mobiledgex/edge-cloud/cloud-resource-manager/proxy"
@@ -398,7 +399,7 @@ func (v *VMPlatform) GetVMSpecForRootLB(ctx context.Context, rootLbName string, 
 	chefAttributes := make(map[string]interface{})
 	chefAttributes["tags"] = tags
 	clientName := v.GetChefClientName(rootLbName)
-	chefParams := v.GetVMChefParams(clientName, "", nil, chefAttributes)
+	chefParams := v.GetVMChefParams(clientName, "", chefmgmt.ChefPolicyBase, chefAttributes)
 	return v.GetVMRequestSpec(ctx,
 		VMTypeRootLB,
 		rootLbName,

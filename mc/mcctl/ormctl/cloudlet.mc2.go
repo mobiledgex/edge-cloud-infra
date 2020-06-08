@@ -267,6 +267,7 @@ var PlatformConfigOptionalArgs = []string{
 	"appdnsroot",
 	"chefserverpath",
 	"chefclientinterval",
+	"deploymenttag",
 }
 var PlatformConfigAliasArgs = []string{
 	"containerregistrypath=platformconfig.containerregistrypath",
@@ -286,6 +287,7 @@ var PlatformConfigAliasArgs = []string{
 	"appdnsroot=platformconfig.appdnsroot",
 	"chefserverpath=platformconfig.chefserverpath",
 	"chefclientinterval=platformconfig.chefclientinterval",
+	"deploymenttag=platformconfig.deploymenttag",
 }
 var PlatformConfigComments = map[string]string{
 	"containerregistrypath": "Path to Docker registry holding edge-cloud image",
@@ -305,6 +307,7 @@ var PlatformConfigComments = map[string]string{
 	"appdnsroot":            "App domain name root",
 	"chefserverpath":        "Path to Chef Server",
 	"chefclientinterval":    "Chef client interval",
+	"deploymenttag":         "Deployment Tag",
 }
 var PlatformConfigSpecialArgs = map[string]string{
 	"platformconfig.envvar": "StringToString",
@@ -434,6 +437,7 @@ var CloudletAliasArgs = []string{
 	"config.appdnsroot=cloudlet.config.appdnsroot",
 	"config.chefserverpath=cloudlet.config.chefserverpath",
 	"config.chefclientinterval=cloudlet.config.chefclientinterval",
+	"config.deploymenttag=cloudlet.config.deploymenttag",
 	"restagmap:#.key=cloudlet.restagmap:#.key",
 	"restagmap:#.value.name=cloudlet.restagmap:#.value.name",
 	"restagmap:#.value.organization=cloudlet.restagmap:#.value.organization",
@@ -493,6 +497,7 @@ var CloudletComments = map[string]string{
 	"config.appdnsroot":                   "App domain name root",
 	"config.chefserverpath":               "Path to Chef Server",
 	"config.chefclientinterval":           "Chef client interval",
+	"config.deploymenttag":                "Deployment Tag",
 	"restagmap:#.value.name":              "Resource Table Name",
 	"restagmap:#.value.organization":      "Operator organization of the cloudlet site.",
 	"accessvars":                          "Variables required to access cloudlet",

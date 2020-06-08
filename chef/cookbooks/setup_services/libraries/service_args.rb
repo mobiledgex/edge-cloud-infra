@@ -45,7 +45,8 @@ class Chef
         "useVaultCAs" => false,
         "useVaultCerts" => false,
         "cleanupMode" => false,
-	"chefServerPath" => true
+	"chefServerPath" => true,
+	"deploymentTag" => true
       }
       cmd = extract_cmd("crmserver", argsmap, false, false) 
       cmd

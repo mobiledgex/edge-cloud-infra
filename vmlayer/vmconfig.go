@@ -10,6 +10,7 @@ var VmCloudConfig = `#cloud-config
 chef:
   server_url: {{.ServerPath}}
   node_name: {{.NodeName}}
+  environment: ""
   validation_name: mobiledgex-validator
   validation_key: /etc/chef/client.pem
   validation_cert: |

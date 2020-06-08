@@ -810,6 +810,7 @@ func addControllerApis(method string, group *echo.Group) {
 	// DeletePrepare: 31
 	// AutoProvPolicies: 32
 	// TemplateDelimiter: 33
+	// SkipHcPorts: 34
 	// ```
 	// Security:
 	//   Bearer:
@@ -1140,6 +1141,7 @@ func addControllerApis(method string, group *echo.Group) {
 	// MappedPortsFqdnPrefix: 9.5
 	// MappedPortsEndPort: 9.6
 	// MappedPortsTls: 9.7
+	// MappedPortsSkipHealthCheck: 9.8
 	// Flavor: 12
 	// FlavorName: 12.1
 	// State: 14

@@ -108,6 +108,7 @@ resources:
                 chef:
                   server_url: cheftestserver.mobiledgex.net/organizations/mobiledgex
                   node_name: rootlb-xyz
+                  environment: ""
                   validation_name: mobiledgex-validator
                   validation_key: /etc/chef/client.pem
                   validation_cert: |
@@ -155,6 +156,7 @@ resources:
                 chef:
                   server_url: cheftestserver.mobiledgex.net/organizations/mobiledgex
                   node_name: master-xyz
+                  environment: ""
                   validation_name: mobiledgex-validator
                   validation_key: /etc/chef/client.pem
                   validation_cert: |
@@ -193,6 +195,7 @@ resources:
                 chef:
                   server_url: cheftestserver.mobiledgex.net/organizations/mobiledgex
                   node_name: node1-xyz
+                  environment: ""
                   validation_name: mobiledgex-validator
                   validation_key: /etc/chef/client.pem
                   validation_cert: |
@@ -231,6 +234,7 @@ resources:
                 chef:
                   server_url: cheftestserver.mobiledgex.net/organizations/mobiledgex
                   node_name: node2-xyz
+                  environment: ""
                   validation_name: mobiledgex-validator
                   validation_key: /etc/chef/client.pem
                   validation_cert: |

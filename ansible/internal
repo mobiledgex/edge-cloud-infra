@@ -22,3 +22,6 @@ apt.mobiledgex.net
 
 [backups]
 backups.mobiledgex.net
+
+[chef]
+chef.mobiledgex.net

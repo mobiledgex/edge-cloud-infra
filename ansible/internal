@@ -15,10 +15,13 @@ vouch.mobiledgex.net
 es01.es.mobiledgex.net		cert_wildcard_domain=es.mobiledgex.net es_instance=main
 
 [slack]
-infra.internal.mobiledgex.net
+spook.mobiledgex.net
 
 [apt]
 apt.mobiledgex.net
 
 [backups]
 backups.mobiledgex.net
+
+[chef]
+chef.mobiledgex.net

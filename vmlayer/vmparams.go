@@ -744,7 +744,6 @@ func (v *VMPlatform) getVMGroupOrchestrationParamsFromGroupSpec(ctx context.Cont
 				sharedVolume := VolumeOrchestrationParams{
 					Name:       vm.Name + "-shared-volume",
 					Size:       vm.SharedVolumeSize,
-					ImageName:  vm.ImageName,
 					DeviceName: "vdb",
 				}
 				newVM.Volumes = append(newVM.Volumes, sharedVolume)

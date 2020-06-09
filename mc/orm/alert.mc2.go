@@ -105,6 +105,7 @@ It has these top-level messages:
 	PrivacyPolicy
 	CloudletRefs
 	ClusterRefs
+	AppInstRefs
 	ResTagTableKey
 	ResTagTable
 	Result
@@ -833,6 +834,7 @@ func addControllerApis(method string, group *echo.Group) {
 	// DefaultPrivacyPolicy: 30
 	// DeletePrepare: 31
 	// AutoProvPolicies: 32
+	// TemplateDelimiter: 33
 	// ```
 	// Security:
 	//   Bearer:
@@ -1213,6 +1215,36 @@ func addControllerApis(method string, group *echo.Group) {
 	//   403: forbidden
 	//   404: notFound
 	group.Match([]string{method}, "/ctrl/ShowAppInst", ShowAppInst)
+	// swagger:route POST /auth/ctrl/ShowCloudletRefs CloudletRefs ShowCloudletRefs
+	// Show CloudletRefs (debug only).
+	// Security:
+	//   Bearer:
+	// responses:
+	//   200: success
+	//   400: badRequest
+	//   403: forbidden
+	//   404: notFound
+	group.Match([]string{method}, "/ctrl/ShowCloudletRefs", ShowCloudletRefs)
+	// swagger:route POST /auth/ctrl/ShowClusterRefs ClusterRefs ShowClusterRefs
+	// Show ClusterRefs (debug only).
+	// Security:
+	//   Bearer:
+	// responses:
+	//   200: success
+	//   400: badRequest
+	//   403: forbidden
+	//   404: notFound
+	group.Match([]string{method}, "/ctrl/ShowClusterRefs", ShowClusterRefs)
+	// swagger:route POST /auth/ctrl/ShowAppInstRefs AppInstRefs ShowAppInstRefs
+	// Show AppInstRefs (debug only).
+	// Security:
+	//   Bearer:
+	// responses:
+	//   200: success
+	//   400: badRequest
+	//   403: forbidden
+	//   404: notFound
+	group.Match([]string{method}, "/ctrl/ShowAppInstRefs", ShowAppInstRefs)
 	// swagger:route POST /auth/ctrl/ShowAppInstClient AppInstClientKey ShowAppInstClient
 	// Show application instance clients.
 	//
@@ -1355,24 +1387,4 @@ func addControllerApis(method string, group *echo.Group) {
 	//   403: forbidden
 	//   404: notFound
 	group.Match([]string{method}, "/ctrl/AccessCloudlet", AccessCloudlet)
-	// swagger:route POST /auth/ctrl/ShowCloudletRefs CloudletRefs ShowCloudletRefs
-	// Show CloudletRefs (debug only).
-	// Security:
-	//   Bearer:
-	// responses:
-	//   200: success
-	//   400: badRequest
-	//   403: forbidden
-	//   404: notFound
-	group.Match([]string{method}, "/ctrl/ShowCloudletRefs", ShowCloudletRefs)
-	// swagger:route POST /auth/ctrl/ShowClusterRefs ClusterRefs ShowClusterRefs
-	// Show ClusterRefs (debug only).
-	// Security:
-	//   Bearer:
-	// responses:
-	//   200: success
-	//   400: badRequest
-	//   403: forbidden
-	//   404: notFound
-	group.Match([]string{method}, "/ctrl/ShowClusterRefs", ShowClusterRefs)
 }

@@ -294,7 +294,7 @@ func (v *VMPlatform) CreateAppInst(ctx context.Context, clusterInst *edgeproto.C
 		if appInst.Uri != "" && ip.ExternalAddr != "" {
 			fqdn := appInst.Uri
 			configs := append(app.Configs, appInst.Configs...)
-			aac, err := access.GetAppAccessConfig(ctx, configs)
+			aac, err := access.GetAppAccessConfig(ctx, configs, app.TemplateDelimiter)
 			if err != nil {
 				return err
 			}
@@ -436,6 +436,7 @@ func (v *VMPlatform) DeleteAppInst(ctx context.Context, clusterInst *edgeproto.C
 				v.DeleteProxySecurityGroupRules(ctx, client, dockermgmt.GetContainerName(&app.Key), secGrp, appInst.MappedPorts, app, rootLBName)
 				return nil
 			}
+			return err
 		}
 		// Add crm local replace variables
 		deploymentVars := crmutil.DeploymentReplaceVars{
@@ -458,7 +459,7 @@ func (v *VMPlatform) DeleteAppInst(ctx context.Context, clusterInst *edgeproto.C
 		if !app.InternalPorts {
 			// Clean up DNS entries
 			configs := append(app.Configs, appInst.Configs...)
-			aac, err := access.GetAppAccessConfig(ctx, configs)
+			aac, err := access.GetAppAccessConfig(ctx, configs, app.TemplateDelimiter)
 			if err != nil {
 				return err
 			}
@@ -491,7 +492,7 @@ func (v *VMPlatform) DeleteAppInst(ctx context.Context, clusterInst *edgeproto.C
 		if appInst.Uri != "" {
 			fqdn := appInst.Uri
 			configs := append(app.Configs, appInst.Configs...)
-			aac, err := access.GetAppAccessConfig(ctx, configs)
+			aac, err := access.GetAppAccessConfig(ctx, configs, app.TemplateDelimiter)
 			if err != nil {
 				return err
 			}

@@ -502,7 +502,6 @@
     slack_org_mgmt_log: slack-org-mgmt.log
     skipped_channel_file: "{{ ansible_env.HOME }}/skipped-channels.txt"
     support_users:
-      - michal.skiba@mobiledgex.com
       - thomas.vits@mobiledgex.com
       - wonho.park@mobiledgex.com
 
@@ -766,3 +765,9 @@
         src: backups/logrotate.conf.j2
         dest: /etc/logrotate.d/backups
       become: yes
+
+- hosts: chef
+
+  tasks:
+    - import_role:
+        name: chef

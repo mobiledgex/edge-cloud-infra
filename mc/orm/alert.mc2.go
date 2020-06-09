@@ -1000,6 +1000,8 @@ func addControllerApis(method string, group *echo.Group) {
 	// CloudletsLocTimestamp: 5.2.8
 	// CloudletsLocTimestampSeconds: 5.2.8.1
 	// CloudletsLocTimestampNanos: 5.2.8.2
+	// MinActiveInstances: 6
+	// MaxInstances: 7
 	// ```
 	// Security:
 	//   Bearer:

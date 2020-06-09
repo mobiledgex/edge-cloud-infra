@@ -25,5 +25,5 @@
   tags:
     cloudlet: tmus-cloud-1
     cloudletorg: tmus
-    event: UPDATE_COMPLETE
+    event: CREATED
     status: UP

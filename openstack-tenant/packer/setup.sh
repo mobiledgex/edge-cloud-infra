@@ -188,4 +188,44 @@ systemctl 2>/dev/null \
 EOT
 sudo chmod +x /etc/cron.hourly/sshd-stale-session-cleanup
 
+# Create Chef related files required during cloud-init
+sudo mkdir -p /etc/chef
+sudo touch /etc/chef/client.rb
+
+# systemd unit file for chef-client
+sudo tee /etc/default/chef-client <<'EOT'
+# Chef client config file
+CONFIG=/etc/chef/client.rb
+
+# Interval in seconds
+INTERVAL=600
+
+# Splay interval in seconds
+SPLAY=20
+
+# Other options
+OPTIONS="-d 1 --chef-license accept"
+EOT
+
+sudo tee /etc/systemd/system/chef-client.service <<'EOT'
+[Unit]
+Description = Chef Client daemon
+After = network.target auditd.service
+
+[Service]
+Type = forking
+EnvironmentFile = /etc/default/chef-client
+PIDFile = /var/run/chef/client.pid
+ExecStart = /usr/bin/chef-client -c $CONFIG -i $INTERVAL -s $SPLAY $OPTIONS
+ExecReload = /bin/kill -HUP $MAINPID
+SuccessExitStatus = 3
+Restart = always
+
+[Install]
+WantedBy = multi-user.target
+EOT
+
+log "Enabling the chef-client service"
+sudo systemctl enable chef-client
+
 echo "[$(date)] Done setup.sh ($( pwd ))"

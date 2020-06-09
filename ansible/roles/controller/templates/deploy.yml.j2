@@ -55,6 +55,8 @@ spec:
          - "{{ controller_hostname }}"
          - "--tls"
          - "/root/tls/mex-server.crt"
+         - "--deploymentTag"
+         - "{{ deploy_environ }}"
          - "--autoUpgrade"
          - "-d"
          - "etcd,api,notify,upgrade,infra"

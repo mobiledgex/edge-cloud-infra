@@ -626,7 +626,6 @@ func (v *VMPlatform) getVMGroupOrchestrationParamsFromGroupSpec(ctx context.Cont
 						},
 					},
 				}
-				vm.ImageName = ""
 				internalPortNextOctet++
 				newPorts = append(newPorts, internalPort)
 			}

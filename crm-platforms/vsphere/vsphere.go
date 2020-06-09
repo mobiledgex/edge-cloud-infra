@@ -133,8 +133,6 @@ func (v *VSpherePlatform) GetVMStats(ctx context.Context, key *edgeproto.AppInst
 	if err != nil || vms == nil || len(vms.VirtualMachines) != 1 {
 		return &vmMetrics, fmt.Errorf("unable to get VMs - %v", err)
 	}
-	log.DebugLog(log.DebugLevelSampled, "GetVMStats layout", "LayoutEx", vms.VirtualMachines[0].LayoutEx)
-
 	for _, f := range vms.VirtualMachines[0].LayoutEx.File {
 		vmMetrics.Disk += f.Size
 	}

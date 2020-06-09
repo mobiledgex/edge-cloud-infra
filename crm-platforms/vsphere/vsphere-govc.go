@@ -637,7 +637,6 @@ func (v *VSpherePlatform) DeleteImage(ctx context.Context, folder, image string)
 	return err
 }
 
-// GetLatestNetworkStats returns
 func (v *VSpherePlatform) GetMetrics(ctx context.Context, vmMatch string, collectRequest *MetricsCollectionRequestType) (*MetricsResult, error) {
 	log.SpanLog(ctx, log.DebugLevelMetrics, "GetMetrics", "vm", vmMatch)
 	var result MetricsResult

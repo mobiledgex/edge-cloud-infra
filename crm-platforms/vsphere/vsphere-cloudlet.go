@@ -9,31 +9,12 @@ import (
 	"github.com/mobiledgex/edge-cloud-infra/vmlayer/terraform"
 	"github.com/mobiledgex/edge-cloud/edgeproto"
 	"github.com/mobiledgex/edge-cloud/log"
-	ssh "github.com/mobiledgex/golang-ssh"
 )
 
 var clusterLock sync.Mutex
 var appLock sync.Mutex
 
 var flavors []*edgeproto.FlavorInfo
-
-func (v *VSpherePlatform) VerifyApiEndpoint(ctx context.Context, client ssh.Client, updateCallback edgeproto.CacheUpdateCallback) error {
-	// Verify if Openstack API Endpoint is reachable
-	updateCallback(edgeproto.UpdateTask, "Verifying if VCenter API Endpoint is reachable")
-	host, portstr, err := v.GetVCenterAddress()
-	if err != nil {
-		return err
-	}
-	_, err = client.Output(
-		fmt.Sprintf(
-			"nc %s %s -w 5", host, portstr,
-		),
-	)
-	if err != nil {
-		return fmt.Errorf("unable to reach Vcenter Address: %s", host)
-	}
-	return nil
-}
 
 func (o *VSpherePlatform) SaveCloudletAccessVars(ctx context.Context, cloudlet *edgeproto.Cloudlet, accessVarsIn map[string]string, pfConfig *edgeproto.PlatformConfig, updateCallback edgeproto.CacheUpdateCallback) error {
 	return fmt.Errorf("SaveCloudletAccessVars not implemented for vsphere")

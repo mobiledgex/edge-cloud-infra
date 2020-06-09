@@ -564,7 +564,6 @@ func addControllerApis(method string, group *echo.Group) {
 	// AccessVarsKey: 23.1
 	// AccessVarsValue: 23.2
 	// VmImageVersion: 24
-	// PackageVersion: 25
 	// Deployment: 26
 	// InfraApiAccess: 27
 	// InfraConfig: 28

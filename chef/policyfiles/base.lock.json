@@ -1,5 +1,5 @@
 {
-  "revision_id": "ba54c46e2e0b6684f86bf2a325d2a11d926190779d1225d0680615565ef5f69f",
+  "revision_id": "486d3b4bf0dd7d2b32ff7b369132d30b60588490bca08ed129bd3b36006474c5",
   "name": "base",
   "run_list": [
     "recipe[runstatus_handler::default]"
@@ -10,22 +10,13 @@
   "cookbook_locks": {
     "runstatus_handler": {
       "version": "1.0.0",
-      "identifier": "e6428861117e0ed95a9dd545b1e3b9446c87bbec",
-      "dotted_decimal_identifier": "64812398154972686.61179703880692195.203703529749484",
-      "source": "../cookbooks/runstatus_handler",
-      "cache_key": null,
-      "scm_info": {
-        "scm": "git",
-        "remote": null,
-        "revision": "71158f3e7b61d756feaf8b84f893504af95929ac",
-        "working_tree_clean": false,
-        "published": true,
-        "synchronized_remote_branches": [
-          "origin/chefcloudlet"
-        ]
-      },
+      "identifier": "9753ebd571a62add318f1eb5b018dd4ed3d3cf0a",
+      "dotted_decimal_identifier": "42594993846724138.62260460618362904.243330631061258",
+      "cache_key": "runstatus_handler-1.0.0",
+      "origin": "https://chef.mobiledgex.net/organizations/mobiledgex",
       "source_options": {
-        "path": "../cookbooks/runstatus_handler"
+        "chef_server": "https://chef.mobiledgex.net/organizations/mobiledgex",
+        "version": "1.0.0"
       }
     }
   },

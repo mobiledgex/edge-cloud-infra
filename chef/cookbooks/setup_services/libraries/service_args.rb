@@ -44,7 +44,6 @@ class Chef
         "commercialCerts" => false,
         "useVaultCAs" => false,
         "useVaultCerts" => false,
-        "cleanupMode" => false,
 	"chefServerPath" => true,
 	"deploymentTag" => true
       }

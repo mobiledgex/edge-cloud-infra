@@ -3,11 +3,8 @@
 # A name that describes what the system you're building with Chef does.
 name 'docker_crm'
 
-# This lets you source cookbooks from your chef-repo.
-default_source :chef_repo, '../'
-
 # Where to find external cookbooks:
-default_source :supermarket
+default_source :chef_server, "https://chef.mobiledgex.net/organizations/mobiledgex"
 
 # run_list: chef-client will run these recipes in the order specified.
 run_list 'recipe[runstatus_handler]', 'recipe[setup_infra]', 'recipe[preflight_crm_checks]', 'recipe[setup_services::docker]'

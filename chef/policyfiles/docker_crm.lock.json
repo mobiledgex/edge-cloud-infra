@@ -1,5 +1,5 @@
 {
-  "revision_id": "f90daeae68de6f167ac08018723d494658464f03e6ecadec7531b9e20c863917",
+  "revision_id": "f2d34ded99b91cef88c5072ced20d42b2c7311e1c3c5a70a5dc75d327c9f3633",
   "name": "docker_crm",
   "run_list": [
     "recipe[runstatus_handler::default]",
@@ -15,91 +15,55 @@
       "version": "6.0.0",
       "identifier": "29b972085b22551e5092bb06b334f579f77d44cc",
       "dotted_decimal_identifier": "11744373462737493.8532840434545460.269904192029900",
-      "cache_key": "docker-6.0.0-supermarket.chef.io",
-      "origin": "https://supermarket.chef.io:443/api/v1/cookbooks/docker/versions/6.0.0/download",
+      "cache_key": "docker-6.0.0",
+      "origin": "https://chef.mobiledgex.net/organizations/mobiledgex",
       "source_options": {
-        "artifactserver": "https://supermarket.chef.io:443/api/v1/cookbooks/docker/versions/6.0.0/download",
+        "chef_server": "https://chef.mobiledgex.net/organizations/mobiledgex",
         "version": "6.0.0"
       }
     },
     "preflight_crm_checks": {
       "version": "1.0.0",
-      "identifier": "6f487b9da391428aa40abd05de7baa4b58c542eb",
-      "dotted_decimal_identifier": "31323418177802562.39023912813977211.187240588591851",
-      "source": "../cookbooks/preflight_crm_checks",
-      "cache_key": null,
-      "scm_info": {
-        "scm": "git",
-        "remote": null,
-        "revision": "71158f3e7b61d756feaf8b84f893504af95929ac",
-        "working_tree_clean": false,
-        "published": true,
-        "synchronized_remote_branches": [
-          "origin/chefcloudlet"
-        ]
-      },
+      "identifier": "514572253e8f2fc7e27a141225ba87f56dca35be",
+      "dotted_decimal_identifier": "22875829667008303.56262534316041658.149488178705854",
+      "cache_key": "preflight_crm_checks-1.0.0",
+      "origin": "https://chef.mobiledgex.net/organizations/mobiledgex",
       "source_options": {
-        "path": "../cookbooks/preflight_crm_checks"
+        "chef_server": "https://chef.mobiledgex.net/organizations/mobiledgex",
+        "version": "1.0.0"
       }
     },
     "runstatus_handler": {
       "version": "1.0.0",
-      "identifier": "e6428861117e0ed95a9dd545b1e3b9446c87bbec",
-      "dotted_decimal_identifier": "64812398154972686.61179703880692195.203703529749484",
-      "source": "../cookbooks/runstatus_handler",
-      "cache_key": null,
-      "scm_info": {
-        "scm": "git",
-        "remote": null,
-        "revision": "71158f3e7b61d756feaf8b84f893504af95929ac",
-        "working_tree_clean": false,
-        "published": true,
-        "synchronized_remote_branches": [
-          "origin/chefcloudlet"
-        ]
-      },
+      "identifier": "9753ebd571a62add318f1eb5b018dd4ed3d3cf0a",
+      "dotted_decimal_identifier": "42594993846724138.62260460618362904.243330631061258",
+      "cache_key": "runstatus_handler-1.0.0",
+      "origin": "https://chef.mobiledgex.net/organizations/mobiledgex",
       "source_options": {
-        "path": "../cookbooks/runstatus_handler"
+        "chef_server": "https://chef.mobiledgex.net/organizations/mobiledgex",
+        "version": "1.0.0"
       }
     },
     "setup_infra": {
       "version": "1.0.0",
-      "identifier": "d47da5ce41714ecbf7796ab1ba4e0f686738a54b",
-      "dotted_decimal_identifier": "59810846146130254.57411521125399118.16941082781003",
-      "source": "../cookbooks/setup_infra",
-      "cache_key": null,
-      "scm_info": {
-        "scm": "git",
-        "remote": null,
-        "revision": "71158f3e7b61d756feaf8b84f893504af95929ac",
-        "working_tree_clean": false,
-        "published": true,
-        "synchronized_remote_branches": [
-          "origin/chefcloudlet"
-        ]
-      },
+      "identifier": "6434c04864fe3f3214434f4d874bc3cf694d946b",
+      "dotted_decimal_identifier": "28205498124009023.14096028161378123.215295592338539",
+      "cache_key": "setup_infra-1.0.0",
+      "origin": "https://chef.mobiledgex.net/organizations/mobiledgex",
       "source_options": {
-        "path": "../cookbooks/setup_infra"
+        "chef_server": "https://chef.mobiledgex.net/organizations/mobiledgex",
+        "version": "1.0.0"
       }
     },
     "setup_services": {
       "version": "1.0.0",
-      "identifier": "2b09c2b2bd5f8bec94ff4e5cde43b583bbf2c757",
-      "dotted_decimal_identifier": "12114155825618827.66591918755995203.199577398593367",
-      "source": "../cookbooks/setup_services",
-      "cache_key": null,
-      "scm_info": {
-        "scm": "git",
-        "remote": null,
-        "revision": "71158f3e7b61d756feaf8b84f893504af95929ac",
-        "working_tree_clean": false,
-        "published": true,
-        "synchronized_remote_branches": [
-          "origin/chefcloudlet"
-        ]
-      },
+      "identifier": "f43aa030a2a0862f87dca1be6f07954dc6ac72a8",
+      "dotted_decimal_identifier": "68744354002542726.13378705581567751.164161278210728",
+      "cache_key": "setup_services-1.0.0",
+      "origin": "https://chef.mobiledgex.net/organizations/mobiledgex",
       "source_options": {
-        "path": "../cookbooks/setup_services"
+        "chef_server": "https://chef.mobiledgex.net/organizations/mobiledgex",
+        "version": "1.0.0"
       }
     }
   },

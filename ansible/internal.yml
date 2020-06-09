@@ -765,3 +765,9 @@
         src: backups/logrotate.conf.j2
         dest: /etc/logrotate.d/backups
       become: yes
+
+- hosts: chef
+
+  tasks:
+    - import_role:
+        name: chef

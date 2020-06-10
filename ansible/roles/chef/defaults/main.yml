@@ -1,0 +1,2 @@
+chef_package: https://packages.chef.io/files/stable/chef-server/13.2.0/ubuntu/18.04/chef-server-core_13.2.0-1_amd64.deb
+chef_package_checksum: sha256:c80d63471e173188f656ff36e74afbbc97524f764f3a41cdcc51bd4fedc659a8

@@ -346,3 +346,5 @@ replace github.com/jcelliott/lumber => github.com/jcelliott/lumber v0.0.0-201603
 replace github.com/mobiledgex/golang-ssh => github.com/mobiledgex/golang-ssh v0.0.8
 
 replace github.com/rogpeppe/fastuuid => github.com/rogpeppe/fastuuid v1.2.0
+
+replace github.com/crossdock/crossdock-go => github.com/crossdock/crossdock-go v0.0.0-20160816171116-049aabb0122b

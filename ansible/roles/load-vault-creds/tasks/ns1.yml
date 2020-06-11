@@ -1,0 +1,6 @@
+- name: Look up NS1 creds in vault
+  set_fact:
+    vault_lookup: "{{ lookup('vault', ns1_account_path) }}"
+
+- set_fact:
+    ns1_apikey: "{{ vault_lookup.ns1.data.apikey }}"

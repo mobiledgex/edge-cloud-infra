@@ -537,7 +537,7 @@ func getVmNamesForDomain(ctx context.Context, domainMatch vmlayer.VMDomain, tags
 	for _, tag := range tags {
 		ts := strings.Split(tag.Name, vmlayer.TagDelimiter)
 		if len(ts) != 2 {
-			return nil, fmt.Errorf("Incorrect vmlabel tag format %s", ts)
+			return nil, fmt.Errorf("Incorrect VM Domain tag format %s", ts)
 		}
 		vmname := ts[0]
 		domain := ts[1]

@@ -62,6 +62,8 @@
       - "{{ controller_name }}.ctrl.{{ cloudflare_zone }}:37001"
       - "--tls"
       - "/root/tls/mex-server.crt"
+      - "--deploymentTag"
+      - "{{ deploy_environ }}"
       - "-d"
       - "api,notify,infra"
 

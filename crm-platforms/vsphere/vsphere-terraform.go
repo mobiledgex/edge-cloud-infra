@@ -261,12 +261,18 @@ func (v *VSpherePlatform) populateVMOrchParams(ctx context.Context, vmgp *vmlaye
 		}
 		vmgp.VMs[vmidx].UserData = userdata
 		vmgp.VMs[vmidx].DNSServers = "\"1.1.1.1\", \"1.0.0.1\""
+		flavormatch := false
 		for _, f := range flavors {
 			if f.Name == vm.FlavorName {
 				vmgp.VMs[vmidx].Vcpus = f.Vcpus
 				vmgp.VMs[vmidx].Disk = f.Disk
 				vmgp.VMs[vmidx].Ram = f.Ram
+				flavormatch = true
+				break
 			}
+		}
+		if !flavormatch {
+			return fmt.Errorf("No match in flavor cache for flavor name: %s", vm.FlavorName)
 		}
 		if vm.Role == vmlayer.RoleVMApplication {
 			// AppVMs use a generic template with the disk attached separately
@@ -715,6 +721,12 @@ func (v *VSpherePlatform) orchestrateVMs(ctx context.Context, vmGroupOrchestrati
 
 func (v *VSpherePlatform) CreateVMs(ctx context.Context, vmGroupOrchestrationParams *vmlayer.VMGroupOrchestrationParams, updateCallback edgeproto.CacheUpdateCallback) error {
 	log.SpanLog(ctx, log.DebugLevelInfra, "CreateVMs")
+	if vmGroupOrchestrationParams.InitOrchestrator {
+		err := v.TerraformSetupVsphere(ctx, updateCallback)
+		if err != nil {
+			return err
+		}
+	}
 	return v.orchestrateVMs(ctx, vmGroupOrchestrationParams, terraformCreate, updateCallback)
 }
 

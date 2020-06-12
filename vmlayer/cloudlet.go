@@ -90,6 +90,7 @@ func (v *VMPlatform) SetupPlatformVM(ctx context.Context, vaultConfig *vault.Con
 			WithNewSecurityGroup(v.GetServerSecurityGroupName(platformVmName)),
 			WithAccessPorts("tcp:22"),
 			WithSkipDefaultSecGrp(true),
+			WithInitOrchestrator(true),
 		)
 	} else {
 		subnetName := v.GetPlatformSubnetName(&cloudlet.Key)
@@ -111,6 +112,7 @@ func (v *VMPlatform) SetupPlatformVM(ctx context.Context, vaultConfig *vault.Con
 			WithNewSubnet(subnetName),
 			WithSkipSubnetGateway(true),
 			WithSkipInfraSpecificCheck(skipInfraSpecificCheck),
+			WithInitOrchestrator(true),
 		)
 	}
 	if err != nil {
@@ -132,7 +134,7 @@ func (v *VMPlatform) SetupPlatformVM(ctx context.Context, vaultConfig *vault.Con
 	return nil
 }
 
-func (v *VMPlatform) CreateCloudlet(ctx context.Context, cloudlet *edgeproto.Cloudlet, pfConfig *edgeproto.PlatformConfig, pfFlavor *edgeproto.Flavor, updateCallback edgeproto.CacheUpdateCallback) error {
+func (v *VMPlatform) CreateCloudlet(ctx context.Context, cloudlet *edgeproto.Cloudlet, pfConfig *edgeproto.PlatformConfig, pfFlavor *edgeproto.Flavor, caches *pf.Caches, updateCallback edgeproto.CacheUpdateCallback) error {
 	var err error
 
 	log.SpanLog(ctx, log.DebugLevelInfra, "Creating cloudlet", "cloudletName", cloudlet.Key.Name)
@@ -141,6 +143,8 @@ func (v *VMPlatform) CreateCloudlet(ctx context.Context, cloudlet *edgeproto.Clo
 	if err != nil {
 		return err
 	}
+	// save caches needed for flavors
+	v.VMProvider.SetCaches(ctx, caches)
 
 	// Source OpenRC file to access openstack API endpoint
 	updateCallback(edgeproto.UpdateTask, "Sourcing access variables")
@@ -482,7 +486,7 @@ func (v *VMPlatform) GetChefCloudletAttributes(ctx context.Context, cloudlet *ed
 }
 
 func (v *VMPlatform) GetCloudletVMsSpec(ctx context.Context, vaultConfig *vault.Config, cloudlet *edgeproto.Cloudlet, pfConfig *edgeproto.PlatformConfig, pfFlavor *edgeproto.Flavor) ([]*VMRequestSpec, error) {
-	log.SpanLog(ctx, log.DebugLevelInfra, "Sourcing access variables", "region", pfConfig.Region, "cloudletKey", cloudlet.Key, "PhysicalName", cloudlet.PhysicalName)
+	log.SpanLog(ctx, log.DebugLevelInfra, "GetCloudletVMsSpec", "region", pfConfig.Region, "cloudletKey", cloudlet.Key, "pfFlavor", pfFlavor)
 	err := v.VMProvider.InitApiAccessProperties(ctx, &cloudlet.Key, pfConfig.Region, cloudlet.PhysicalName, vaultConfig, cloudlet.EnvVar)
 	if err != nil {
 		return nil, err
@@ -519,6 +523,9 @@ func (v *VMPlatform) GetCloudletVMsSpec(ctx context.Context, vaultConfig *vault.
 		pfConfig.ContainerRegistryPath = infracommon.DefaultContainerRegistryPath
 	}
 
+	if cloudlet.InfraConfig == nil {
+		return nil, fmt.Errorf("Nil InfraConfig")
+	}
 	if cloudlet.InfraConfig.ExternalNetworkName != "" {
 		v.VMProperties.SetCloudletExternalNetwork(cloudlet.InfraConfig.ExternalNetworkName)
 	}
@@ -572,12 +579,16 @@ func (v *VMPlatform) GetCloudletVMsSpec(ctx context.Context, vaultConfig *vault.
 	}
 
 	platformVmName := v.GetPlatformVMName(&cloudlet.Key)
-	imgPath := GetCloudletVMImagePath(pfConfig.CloudletVmImagePath, cloudlet.VmImageVersion)
-	pfImageName, err := cloudcommon.GetFileName(imgPath)
-	if err != nil {
-		return nil, err
-	}
 
+	pfImageName := v.VMProperties.GetCloudletOSImage()
+	if pfImageName == DefaultOSImageName {
+		// GetCloudletOSImage is the default so use the value from the controller
+		imgPath := GetCloudletVMImagePath(pfConfig.CloudletVmImagePath, cloudlet.VmImageVersion)
+		pfImageName, err = cloudcommon.GetFileName(imgPath)
+		if err != nil {
+			return nil, err
+		}
+	}
 	// Setup Chef parameters
 	chefAttributes, err := v.GetChefCloudletAttributes(ctx, cloudlet, pfConfig)
 	if err != nil {

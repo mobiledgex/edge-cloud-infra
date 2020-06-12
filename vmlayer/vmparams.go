@@ -192,6 +192,7 @@ type VMGroupRequestSpec struct {
 	SkipDefaultSecGrp      bool
 	SkipSubnetGateway      bool
 	SkipInfraSpecificCheck bool
+	InitOrchestrator       bool
 }
 
 type VMGroupReqOp func(vmp *VMGroupRequestSpec) error
@@ -235,6 +236,12 @@ func WithSkipSubnetGateway(skip bool) VMGroupReqOp {
 func WithSkipInfraSpecificCheck(skip bool) VMGroupReqOp {
 	return func(s *VMGroupRequestSpec) error {
 		s.SkipInfraSpecificCheck = skip
+		return nil
+	}
+}
+func WithInitOrchestrator(init bool) VMGroupReqOp {
+	return func(s *VMGroupRequestSpec) error {
+		s.InitOrchestrator = init
 		return nil
 	}
 }
@@ -416,6 +423,7 @@ type VMGroupOrchestrationParams struct {
 	Tags                   []TagOrchestrationParams
 	SkipInfraSpecificCheck bool
 	SkipSubnetGateway      bool
+	InitOrchestrator       bool
 }
 
 func (v *VMPlatform) GetVMRequestSpec(ctx context.Context, vmtype VMType, serverName, flavorName string, imageName string, connectExternal bool, opts ...VMReqOp) (*VMRequestSpec, error) {
@@ -456,7 +464,7 @@ func (v *VMPlatform) GetVMGroupOrchestrationParamsFromVMSpec(ctx context.Context
 func (v *VMPlatform) getVMGroupOrchestrationParamsFromGroupSpec(ctx context.Context, spec *VMGroupRequestSpec) (*VMGroupOrchestrationParams, error) {
 	log.SpanLog(ctx, log.DebugLevelInfra, "GetVMGroupOrchestrationParams", "spec", spec)
 
-	vmgp := VMGroupOrchestrationParams{GroupName: spec.GroupName}
+	vmgp := VMGroupOrchestrationParams{GroupName: spec.GroupName, InitOrchestrator: spec.InitOrchestrator}
 	internalNetName := v.VMProperties.GetCloudletMexNetwork()
 	internalNetId := v.VMProvider.NameSanitize(internalNetName)
 	externalNetName := v.VMProperties.GetCloudletExternalNetwork()

@@ -31,17 +31,20 @@ func (v *VSpherePlatform) SetVMProperties(vmProperties *vmlayer.VMProperties) {
 	v.vmProperties = vmProperties
 }
 
+func (v *VSpherePlatform) SetCaches(ctx context.Context, caches *platform.Caches) {
+	log.SpanLog(ctx, log.DebugLevelInfra, "SetCaches")
+	v.caches = caches
+}
+
 func (v *VSpherePlatform) InitProvider(ctx context.Context, caches *platform.Caches, updateCallback edgeproto.CacheUpdateCallback) error {
 	log.SpanLog(ctx, log.DebugLevelInfra, "InitProvider for VSphere")
-	v.caches = caches
+	v.SetCaches(ctx, caches)
 	err := v.TerraformSetupVsphere(ctx, updateCallback)
 	if err != nil {
 		log.SpanLog(ctx, log.DebugLevelInfra, "TerraformSetupVsphere failed", "err", err)
 		return fmt.Errorf("TerraformSetupVsphere failed - %v", err)
 	}
-
 	return nil
-
 }
 
 func (v *VSpherePlatform) GatherCloudletInfo(ctx context.Context, info *edgeproto.CloudletInfo) error {

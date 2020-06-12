@@ -132,7 +132,7 @@ func (v *VSpherePlatform) GetVMStats(ctx context.Context, key *edgeproto.AppInst
 	vmMetrics.Mem = mets.MemUsageBytes
 	vmMetrics.MemTS = ts
 
-	vms, err := v.GetVMs(ctx, vmName)
+	vms, err := v.GetVMs(ctx, vmName, vmlayer.VMDomainAny)
 	if err != nil || vms == nil || len(vms.VirtualMachines) != 1 {
 		return &vmMetrics, fmt.Errorf("unable to get VMs - %v", err)
 	}
@@ -162,7 +162,7 @@ func (v *VSpherePlatform) GetPlatformResourceInfo(ctx context.Context) (*vmlayer
 		platformRes.MemMax = uint64(platformRes.MemMax / (1024 * 1024))
 	}
 
-	vms, err := v.GetVMs(ctx, VMMatchAny)
+	vms, err := v.GetVMs(ctx, VMMatchAny, vmlayer.VMDomainAny)
 	if err != nil {
 		return &platformRes, err
 	}

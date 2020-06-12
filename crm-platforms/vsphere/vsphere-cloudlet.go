@@ -129,7 +129,8 @@ func (v *VSpherePlatform) ImportDataFromInfra(ctx context.Context) error {
 	}
 
 	log.SpanLog(ctx, log.DebugLevelInfra, "Import VMs")
-	vms, err := v.GetVMs(ctx, VMMatchAny)
+	// filter on compute VMs so we don't delete anything else
+	vms, err := v.GetVMs(ctx, VMMatchAny, vmlayer.VMDomainCompute)
 	if err != nil {
 		return err
 	}

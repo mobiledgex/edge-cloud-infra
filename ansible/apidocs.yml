@@ -95,3 +95,4 @@
           - apidocs/apidocs-massage.py
           - apidocs/akraino-postprocess.py
         swagger_gen_script_template: apidocs/akraino-swagger.cron.j2
+        swagger_gen_run_once: yes

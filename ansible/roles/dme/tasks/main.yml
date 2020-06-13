@@ -78,3 +78,7 @@
     solo: true
     account_email: "{{ cloudflare_account_email }}"
     account_api_token: "{{ cloudflare_account_api_token }}"
+
+- name: Record DME details
+  set_fact:
+    dme_details: '{{ dme_details + [ {"region": region, "ip": dme_ip, "latitude": latitude, "longitude": longitude} ] }}'

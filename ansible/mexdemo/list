@@ -7,6 +7,8 @@ operator_key=GDDT
 dme_carrier=GDDT
 locver_url="http://mexdemo.locsim.mobiledgex.net:8888/verifyLocation"
 toksrv_url="http://mexdemo.tok.mobiledgex.net:9999/its?followURL=https://dme.mobiledgex.net/verifyLoc"
+global_dme_dns=wifi.dme
+ns1_global_dme_dns="{{ deploy_environ }}"
 postgres_hostname=postgres.mobiledgex.net
 vault_vm_hostname=vault-main.mobiledgex.net
 vault_port=443

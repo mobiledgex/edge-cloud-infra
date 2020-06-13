@@ -91,14 +91,26 @@
         name: azure-aks
         tasks_from: platform-regions-load
 
+    - set_fact:
+        dme_details: []
+
     - include_role:
         name: mexplat_k8s
       vars:
         k8s_cluster_name: "{{ item.name }}"
         region: "{{ item.region }}"
+        latitude: "{{ item.latitude }}"
+        longitude: "{{ item.longitude }}"
         resource_group: "{{ item.resource_group }}"
         dme_aliases: "{{ item.global_dme_aliases }}"
       with_items: "{{ platform_regions }}"
+
+    - debug: var=dme_details
+      tags: [ 'never', 'debug' ]
+
+    - import_role:
+        name: ns1
+        tasks_from: global-dme
 
 - hosts: gitlab
   tasks:

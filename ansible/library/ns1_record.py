@@ -131,6 +131,7 @@ def ns1_dns_record(module):
                         "zone": zone,
                         "domain": domain,
                         "type": "A",
+                        "ttl": 300,
                         "filters": FILTER_LIST,
                         "answers": rec_answers,
                     })

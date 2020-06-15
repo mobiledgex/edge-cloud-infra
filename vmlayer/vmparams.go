@@ -36,7 +36,7 @@ type VMDomain string
 const (
 	VMDomainCompute  VMDomain = "compute"
 	VMDomainPlatform VMDomain = "platform"
-	VMDomainAny      VMDomain = "any" //used for matching only
+	VMDomainAny      VMDomain = "any" // used for matching only
 
 )
 
@@ -66,7 +66,7 @@ var RoleMaster VMRole = "k8s-master"
 var RoleNode VMRole = "k8s-node"
 var RoleVMApplication VMRole = "vmapp"
 var RoleVMPlatform VMRole = "platform"
-var RoleMatchAny VMRole = "any" //not a real role, used for matching
+var RoleMatchAny VMRole = "any" // not a real role, used for matching
 
 const TagDelimiter = "__"
 

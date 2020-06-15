@@ -523,9 +523,6 @@ func (v *VMPlatform) GetCloudletVMsSpec(ctx context.Context, vaultConfig *vault.
 		pfConfig.ContainerRegistryPath = infracommon.DefaultContainerRegistryPath
 	}
 
-	if cloudlet.InfraConfig == nil {
-		return nil, fmt.Errorf("Nil InfraConfig")
-	}
 	if cloudlet.InfraConfig.ExternalNetworkName != "" {
 		v.VMProperties.SetCloudletExternalNetwork(cloudlet.InfraConfig.ExternalNetworkName)
 	}

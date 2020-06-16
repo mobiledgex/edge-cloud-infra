@@ -31,25 +31,20 @@ func (s *ShepherdPlatform) GetType() string {
 	return s.VMPlatform.Type
 }
 
-func (s *ShepherdPlatform) Init(ctx context.Context, key *edgeproto.CloudletKey, region, physicalName, vaultAddr, appDNSRoot string, vars map[string]string) error {
+func (s *ShepherdPlatform) Init(ctx context.Context, pc *platform.PlatformConfig) error {
+	key := pc.CloudletKey
+	vaultAddr := pc.VaultAddr
 	vaultConfig, err := vault.BestConfig(vaultAddr)
 	if err != nil {
 		return err
 	}
 	s.vaultConfig = vaultConfig
-	s.appDNSRoot = appDNSRoot
+	s.appDNSRoot = pc.AppDNSRoot
 
-	pc := platform.PlatformConfig{
-		CloudletKey: key,
-		VaultAddr:   vaultAddr,
-		Region:      region,
-		EnvVars:     vars,
-	}
-
-	if err = s.VMPlatform.InitProps(ctx, &pc, vaultConfig); err != nil {
+	if err = s.VMPlatform.InitProps(ctx, pc, vaultConfig); err != nil {
 		return err
 	}
-	if err = s.VMPlatform.VMProvider.InitApiAccessProperties(ctx, key, region, physicalName, vaultConfig, vars); err != nil {
+	if err = s.VMPlatform.VMProvider.InitApiAccessProperties(ctx, key, pc.Region, pc.PhysicalName, vaultConfig, pc.EnvVars); err != nil {
 		return err
 	}
 
@@ -67,7 +62,7 @@ func (s *ShepherdPlatform) Init(ctx context.Context, key *edgeproto.CloudletKey,
 
 	s.collectInterval = VmScrapeInterval
 	log.SpanLog(ctx, log.DebugLevelInfra, "init openstack", "rootLB", s.rootLbName,
-		"physicalName", physicalName, "vaultAddr", vaultAddr)
+		"physicalName", pc.PhysicalName, "vaultAddr", pc.VaultAddr)
 	return nil
 }
 

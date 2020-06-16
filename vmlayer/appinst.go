@@ -315,8 +315,8 @@ func (v *VMPlatform) CreateAppInst(ctx context.Context, clusterInst *edgeproto.C
 		// docker commands can be run on either the rootlb or on the docker
 		// vm.  The default is to run on the rootlb client
 		dockerCommandTarget := rootLBClient
-		// if a load balancer access, a separate VM is always used for docker, and we
-		// always use host networking mode
+		// if using a load balancer access, a separate VM is always used for
+		// docker vs the LB, and we always use host networking mode
 		if app.AccessType == edgeproto.AccessType_ACCESS_TYPE_LOAD_BALANCER {
 			sip, err := v.GetIPFromServerName(ctx, v.VMProperties.GetCloudletMexNetwork(), GetClusterSubnetName(ctx, clusterInst), GetClusterMasterName(ctx, clusterInst))
 			if err != nil {

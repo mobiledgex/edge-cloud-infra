@@ -103,6 +103,7 @@ var SettingsOptionalArgs = []string{
 	"loadbalancermaxportrange",
 	"maxtrackeddmeclients",
 	"chefclientinterval",
+	"influxdbmetricsretention",
 	"cloudletmaintenancetimeout",
 }
 var SettingsAliasArgs = []string{
@@ -123,6 +124,7 @@ var SettingsAliasArgs = []string{
 	"loadbalancermaxportrange=settings.loadbalancermaxportrange",
 	"maxtrackeddmeclients=settings.maxtrackeddmeclients",
 	"chefclientinterval=settings.chefclientinterval",
+	"influxdbmetricsretention=settings.influxdbmetricsretention",
 	"cloudletmaintenancetimeout=settings.cloudletmaintenancetimeout",
 }
 var SettingsComments = map[string]string{
@@ -143,6 +145,7 @@ var SettingsComments = map[string]string{
 	"loadbalancermaxportrange":          "Max IP Port range when using a load balancer",
 	"maxtrackeddmeclients":              "Max DME clients to be tracked at the same time.",
 	"chefclientinterval":                "Default chef client interval (duration)",
+	"influxdbmetricsretention":          "Default influxDB metrics retention policy (duration)",
 	"cloudletmaintenancetimeout":        "Default Cloudlet Maintenance timeout (used twice for AutoProv and Cloudlet)",
 }
 var SettingsSpecialArgs = map[string]string{

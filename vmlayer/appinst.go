@@ -341,18 +341,20 @@ func (v *VMPlatform) CreateAppInst(ctx context.Context, clusterInst *edgeproto.C
 		updateCallback(edgeproto.UpdateTask, "Seeding docker secret")
 
 		start := time.Now()
-		for {
-			err = infracommon.SeedDockerSecret(ctx, dockerCommandTarget, clusterInst, app, v.VMProperties.CommonPf.VaultConfig)
-			if err != nil {
-				log.SpanLog(ctx, log.DebugLevelInfra, "seeding docker secret failed", "err", err)
-				elapsed := time.Since(start)
-				if elapsed > MaxDockerSeedWait {
-					return fmt.Errorf("can't seed docker secret - %v", err)
+		for _, imagePath := range names.ImagePaths {
+			for {
+				err = infracommon.SeedDockerSecret(ctx, dockerCommandTarget, clusterInst, imagePath, v.VMProperties.CommonPf.VaultConfig)
+				if err != nil {
+					log.SpanLog(ctx, log.DebugLevelInfra, "seeding docker secret failed", "err", err)
+					elapsed := time.Since(start)
+					if elapsed > MaxDockerSeedWait {
+						return fmt.Errorf("can't seed docker secret - %v", err)
+					}
+					log.SpanLog(ctx, log.DebugLevelInfra, "retrying in 10 seconds")
+					time.Sleep(10 * time.Second)
+				} else {
+					break
 				}
-				log.SpanLog(ctx, log.DebugLevelInfra, "retrying in 10 seconds")
-				time.Sleep(10 * time.Second)
-			} else {
-				break
 			}
 		}
 

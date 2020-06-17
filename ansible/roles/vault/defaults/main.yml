@@ -34,6 +34,8 @@ vault_user_roles:
     - root-ca.read.v1
     - sys-auth.read.v1
     - sys-mounts.read.v1
+    - sys-plugins-catalog.read.v1
+    - sys-plugins-certs-config.read.v1
     - sys-policies.read.v1
     - ui-access.v1
 

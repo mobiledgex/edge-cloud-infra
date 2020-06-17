@@ -36,11 +36,58 @@
       vault_token: "{{ vault_token }}"
 
   tasks:
-    - name: Check if Github auth is enabled
+
+    - name: Get a list of enabled secret engines
+      vault_api:
+        api: sys/mounts
+      register: secret_engines
+      changed_when: no
+      tags: setup
+
+    - name: Get a list of enabled auth methods
       vault_api:
         api: sys/auth
-      register: result
+      register: auth_methods
       changed_when: no
+      tags: setup
+
+    - name: Enable KV secret engines
+      include_role:
+        name: vault
+        tasks_from: kv-secret-engine
+      loop:
+        - path: secret
+          config:
+            default_lease_ttl: 768h
+            max_lease_ttl: 768h
+        - path: jwtkeys
+          kv_config:
+            max_versions: 2
+      loop_control:
+        loop_var: secret_engine
+
+    - set_fact:
+        region_jwtkeys: "{{ region_jwtkeys|default([]) + [{'path': item.region + '/jwtkeys', 'kv_config': {'max_versions': 2}}] }}"
+      with_items: "{{ regions }}"
+
+    - name: Enable region-specific JWT keys engines
+      include_role:
+        name: vault
+        tasks_from: kv-secret-engine
+      loop: "{{ region_jwtkeys }}"
+      loop_control:
+        loop_var: secret_engine
+
+    - name: Enable AppRole auth
+      vault_api:
+        api: sys/auth/approle
+        method: POST
+        data:
+          type: approle
+          description: AppRole auth method
+        success_code: 204
+      when:
+        - "'approle/' not in auth_methods.meta.response"
       tags: setup
 
     - name: Enable Github auth
@@ -52,7 +99,7 @@
           description: Log in with Github
         success_code: 204
       when:
-        - "'github/' not in result.meta.response"
+        - "'github/' not in auth_methods.meta.response"
       tags: setup
 
     - name: Check Github auth config
@@ -94,13 +141,6 @@
         loop_var: user
       tags: setup
 
-    - name: Check if LDAP auth is enabled
-      vault_api:
-        api: sys/auth
-      register: result
-      changed_when: no
-      tags: setup
-
     - name: Enable LDAP auth
       vault_api:
         api: sys/auth/ldap
@@ -110,7 +150,7 @@
           description: Log in with MC LDAP
         success_code: 204
       when:
-        - "'ldap/' not in result.meta.response"
+        - "'ldap/' not in auth_methods.meta.response"
       tags: setup
 
     - name: Check LDAP mount defaults
@@ -150,11 +190,20 @@
         ldap_groupattr: memberOf
         ldap_starttls: false
 
-    - name: Get mex CA cert
-      set_fact:
-        vault_lookup: "{{ lookup('vault', ca_path) }}"
-      vars:
-        ca_path: "{{ vault_mex_ca_cert_path }}:ca"
+    - block:
+      - name: Get mex CA cert
+        set_fact:
+          vault_lookup: "{{ lookup('vault', ca_path) }}"
+        vars:
+          ca_path: "{{ vault_mex_ca_cert_path }}:ca"
+      rescue:
+        - pause:
+            prompt: "Please add the mex CA cert to the path: {{ vault_mex_ca_cert_path }}"
+        - name: Get mex CA cert
+          set_fact:
+            vault_lookup: "{{ lookup('vault', ca_path) }}"
+          vars:
+            ca_path: "{{ vault_mex_ca_cert_path }}:ca"
 
     - set_fact:
         mex_ca_cert: "{{ vault_lookup.ca.data.pem }}"
@@ -273,3 +322,9 @@
           loop_var: region
 
       tags: pki
+
+    - import_role:
+        name: vault
+        tasks_from: cert-plugin
+      tags:
+        - setup

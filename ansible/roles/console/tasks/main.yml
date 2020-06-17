@@ -1,16 +1,4 @@
 ---
-- name: Disable any running native services
-  systemd:
-    state: stopped
-    enabled: no
-    name: "{{ item }}"
-  with_items:
-    - mex-mongodb
-    - mex-console-server
-    - mex-console-ui
-  ignore_errors: yes
-  become: yes
-
 - name: Deploy the console
   docker_container:
     name: "console-{{ deploy_environ }}"

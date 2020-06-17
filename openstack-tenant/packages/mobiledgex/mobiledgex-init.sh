@@ -4,7 +4,10 @@
 
 set -x
 
+systemctl status open-vm-tools > /var/log/openvmtool.status.log
+systemctl start open-vm-tools
 INIT_COMPLETE_FLAG=/etc/mobiledgex/init-complete
+
 if [[ -f "$INIT_COMPLETE_FLAG" ]]; then
 	echo "Already initialized; nothing to do" >&2
 	exit 2
@@ -21,18 +24,26 @@ log() {
 }
 
 MCONF=/mnt/mobiledgex-config
+METADIR="$MCONF/openstack/latest"
+METADATA="$METADIR/meta_data.json"
+NETDATA="$METADIR/network_data.json"
+VMWARE_CLOUDINIT=/etc/cloud/cloud.cfg.d/99-DataSourceVMwareGuestInfo.cfg
 
 # Main
-
 log "Starting mobiledgex init"
+
+if [[ -f "$VMWARE_CLOUDINIT" ]]; then
+        log "show userdata"
+        vmtoolsd --cmd "info-get guestinfo.userdata" > /var/log/userdata.log
+        log "VMware cloud-init case, fetch metadata from vmtoolsd"
+        mkdir -p $METADIR
+        vmtoolsd --cmd "info-get guestinfo.metadata"|base64 -d|python3 -c 'import sys, yaml, json; json.dump(yaml.load(sys.stdin), sys.stdout)' > $METADATA 
+fi
 
 mkdir -p $MCONF
 mount `blkid -t LABEL="config-2" -odevice` $MCONF
 
 # Load parameters
-METADATA="$MCONF/openstack/latest/meta_data.json"
-NETDATA="$MCONF/openstack/latest/network_data.json"
-
 set_param() {
 	local file="$1"
 	local var="$2"

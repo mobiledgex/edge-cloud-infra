@@ -141,6 +141,11 @@ echo iptables-persistent iptables-persistent/autosave_v4 boolean true | sudo deb
 sudo apt-get install -y mobiledgex=${TAG#v}
 [[ $? -ne 0 ]] && die "Failed to install extra packages"
 
+
+log "Adding VMWare cloud-init Guestinfo"
+sudo curl  -sSL https://raw.githubusercontent.com/vmware/cloud-init-vmware-guestinfo/v1.3.1/install.sh |sudo sh -
+
+
 log "dhclient $INTERFACE"
 sudo dhclient "$INTERFACE"
 ip addr
@@ -148,6 +153,13 @@ ip route
 
 log "Enabling the mobiledgex service"
 sudo systemctl enable mobiledgex
+
+log "Updating dhclient timeout"
+sudo perl -i -p -e s/'timeout 300;'/'timeout 15;'/g /etc/dhcp/dhclient.conf
+
+log "Removing serial console from grub"
+sudo perl -i -p -e s/'"console=tty1 console=ttyS0"'/'""'/g /etc/default/grub.d/50-cloudimg-settings.cfg
+sudo grub-mkconfig -o /boot/grub/grub.cfg
 
 log "Setting the root password"
 echo "root:$ROOT_PASS" | sudo chpasswd

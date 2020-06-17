@@ -1,5 +1,4 @@
 #!/bin/bash
-
 ARTIFACTORY_BASEURL='https://artifactory.mobiledgex.net'
 ARTIFACTORY_USER='packer'
 ARTIFACTORY_ARTIFACTS_TAG='2019-11-01'
@@ -172,4 +171,4 @@ if [[ $? -ne 0 ]]; then
 	exit 2
 fi
 
-rm "$IMAGE_FNAME"
+#rm "$IMAGE_FNAME"

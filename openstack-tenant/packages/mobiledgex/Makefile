@@ -1,5 +1,5 @@
 PACKAGE = mobiledgex
-VERSION = 3.1.2
+VERSION = 3.1.2-vsphere
 DISTRIBUTION = stratus
 COMPONENT = main
 
@@ -20,11 +20,16 @@ $(PKGDIR)/etc/systemd/system/%: %
 	mkdir -p $(dir $@)
 	cp $< $@
 
+$(PKGDIR)/tmp/%: %
+	mkdir -p $(dir $@)
+	cp $< $@
+
 setup_files: \
 	$(PKGDIR)/etc/mobiledgex/install-k8s-master.sh \
 	$(PKGDIR)/etc/mobiledgex/install-k8s-node.sh \
 	$(PKGDIR)/etc/systemd/system/mobiledgex.service \
-	$(PKGDIR)/usr/local/bin/mobiledgex-init.sh
+	$(PKGDIR)/usr/local/bin/mobiledgex-init.sh \
+	$(PKGDIR)/tmp/open-vm-tools.service 
 
 clean:
 	$(RM) -r $(PKGDIR)

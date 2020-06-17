@@ -5,14 +5,6 @@
     tasks_from: ca-certs
   tags: setup
 
-- name: Copy CA cert
-  copy:
-    dest: "{{ mex_ca_cert_path }}"
-    content: "{{ ca_certs | join('\n') }}"
-    backup: yes
-  become: yes
-  tags: setup
-
 - name: Set up reverse proxy
   import_role:
     name: web
@@ -20,6 +12,14 @@
     nginx_config_template: "internal/jaeger/nginx-config.j2"
     cert_domains: [ "*.{{ cloudflare_zone }}" ]
     cert_name: "{{ inventory_hostname }}"
+  tags: setup
+
+- name: Copy CA cert
+  copy:
+    dest: "{{ mex_ca_cert_path }}"
+    content: "{{ ca_certs | join('\n') }}"
+    backup: yes
+  become: yes
   tags: setup
 
 - name: Deploy all-in-one jaeger

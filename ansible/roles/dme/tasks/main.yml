@@ -21,16 +21,6 @@
     kubeconfig: "{{ kubeconfig_file.path }}"
   register: dme_deployment
 
-- name: Delete the old DME deployment
-  k8s:
-    name: dme
-    kind: Deployment
-    namespace: default
-    kubeconfig: "{{ kubeconfig_file.path }}"
-    state: absent
-    wait: yes
-  when: "'volumes' in dme_deployment.resources.0.spec.template.spec"
-
 - name: Fetch DME vault role
   set_fact:
     dme_role: "{{ lookup('approle', dme_role_name) }}"

@@ -19,8 +19,8 @@ def vault_role_present(vault, data, check_mode=False):
     meta = {}
     set_params = {}
 
-    r = vault("auth/approle/role", method="LIST")
-    if role in r["data"]["keys"]:
+    r = vault("auth/approle/role", method="LIST", success_code=[200, 404])
+    if "data" in r and role in r["data"]["keys"]:
         r = vault("auth/approle/role/{0}".format(role))
 
         for param in PARAM_DEFAULTS:

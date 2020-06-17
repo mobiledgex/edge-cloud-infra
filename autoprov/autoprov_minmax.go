@@ -500,7 +500,7 @@ func (s *AppChecker) checkPolicy(ctx context.Context, pname string, prevPolicyCl
 	// Check min
 	createKeys := s.chooseCreate(ctx, potentialCreate, int(policy.MinActiveInstances)-onlineCount)
 	if len(createKeys) < int(policy.MinActiveInstances)-onlineCount {
-		log.SpanLog(ctx, log.DebugLevelMetrics, "Not enough potential Cloudlets to meet min constraint")
+		log.SpanLog(ctx, log.DebugLevelMetrics, "Not enough potential Cloudlets to meet min constraint", "App", s.appKey, "policy", pname, "min", policy.MinActiveInstances)
 		str := fmt.Sprintf("Not enough potential cloudlets to deploy to for App %s to meet policy %s min constraint %d", s.appKey.GetKeyString(), pname, policy.MinActiveInstances)
 		for _, f := range failovers {
 			f.Errors = append(f.Errors, str)
@@ -520,7 +520,7 @@ func (s *AppChecker) checkPolicy(ctx context.Context, pname string, prevPolicyCl
 				for _, f := range failovers {
 					f.Completed = append(f.Completed, str)
 				}
-			} else if err != nil && !strings.Contains(err.Error(), "Create to satisfy min already met, ignoring") {
+			} else if !strings.Contains(err.Error(), "Create to satisfy min already met, ignoring") {
 				str := fmt.Sprintf("Failed to create AppInst %s to meet policy %s min constraint %d: %s", inst.Key.GetKeyString(), pname, policy.MinActiveInstances, err)
 				for _, f := range failovers {
 					f.Errors = append(f.Errors, str)

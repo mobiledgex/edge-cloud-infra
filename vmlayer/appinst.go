@@ -17,6 +17,7 @@ import (
 	"github.com/mobiledgex/edge-cloud/cloudcommon"
 	"github.com/mobiledgex/edge-cloud/edgeproto"
 	"github.com/mobiledgex/edge-cloud/log"
+	"github.com/mobiledgex/edge-cloud/util"
 	"github.com/mobiledgex/edge-cloud/vault"
 
 	v1 "k8s.io/api/core/v1"
@@ -338,6 +339,21 @@ func (v *VMPlatform) CreateAppInst(ctx context.Context, clusterInst *edgeproto.C
 		if err != nil {
 			return fmt.Errorf("get kube names failed, %v", err)
 		}
+		// Fetch image paths from zip file
+		if app.DeploymentManifest != "" && strings.HasSuffix(app.DeploymentManifest, ".zip") {
+			filename := util.DockerSanitize(app.Key.Name + app.Key.Organization + app.Key.Version)
+			zipfile := "/tmp/" + filename + ".zip"
+			zipContainers, err := cloudcommon.GetRemoteZipDockerManifests(ctx, v.VMProperties.CommonPf.VaultConfig, app.DeploymentManifest, zipfile, cloudcommon.Download)
+			if err != nil {
+				return err
+			}
+			for _, containers := range zipContainers {
+				for _, container := range containers {
+					names.ImagePaths = append(names.ImagePaths, container.Image)
+				}
+			}
+		}
+
 		updateCallback(edgeproto.UpdateTask, "Seeding docker secret")
 
 		start := time.Now()

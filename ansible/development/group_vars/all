@@ -33,3 +33,5 @@ vault_github_users:
     role: cloudlet_admin
   - userid: venkytv
     role: admin
+  - userid: anand12gupta
+    role: admin

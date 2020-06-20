@@ -14,6 +14,7 @@
     - policies/auth-github-config.write.v1.hcl.j2
     - policies/auth-ldap-config.read.v1.hcl.j2
     - policies/auth-ldap-config.write.v1.hcl.j2
+    - policies/aws-auth.read.v1.hcl.j2
     - policies/certs.read.v1.hcl.j2
     - policies/cloudlets.read.v1.hcl.j2
     - policies/cloudlets.write.v1.hcl.j2

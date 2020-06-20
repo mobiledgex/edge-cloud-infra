@@ -26,7 +26,6 @@ type AWSQuotas struct {
 
 type AWSInstanceType []interface{}
 
-
 type AWSQuotasList struct {
 	Quotas AWSQuotas
 }
@@ -41,18 +40,32 @@ type AWSFlavor struct {
 func (a *AWSPlatform) GetType() string {
 	return "AWS"
 }
+
 //Init initializes the AWS Platform Config
 func (a *AWSPlatform) Init(ctx context.Context, platformConfig *platform.PlatformConfig, updateCallback edgeproto.CacheUpdateCallback) error {
-
+	var path string = "secret/cloudlet/aws/credentials"
 	vaultConfig, err := vault.BestConfig(platformConfig.VaultAddr)
 	if err != nil {
+		err = fmt.Errorf("cannot get best config from vault %s", err.Error())
 		return err
 	}
 	if err := a.commonPf.InitInfraCommon(ctx, platformConfig, AWSProps, vaultConfig); err != nil {
+		err = fmt.Errorf("cannot get instance types from AWS %s", err.Error())
 		return err
 	}
-	if a.GetAWSZone() == "" {
-		return fmt.Errorf("Env variable MEX_AWS_ZONE not set")
+	envData := &infracommon.VaultEnvData{}
+	err = vault.GetData(vaultConfig, path, 0, envData)
+	if err != nil {
+		// Put Error Message
+		err = fmt.Errorf("cannot get vault data from vault %s", err.Error())
+		return err
+	}
+
+	err = infracommon.InternVaultEnv(ctx, vaultConfig, path)
+	if err != nil {
+		// Put Error Message
+		err = fmt.Errorf("cannot intern vault data from vault %s", err.Error())
+		return err
 	}
 	return nil
 }

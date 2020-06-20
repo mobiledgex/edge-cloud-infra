@@ -5,7 +5,7 @@ go 1.12
 require (
 	cloud.google.com/go v0.37.4 // indirect
 	github.com/AsGz/geo v0.0.0-20170331085501-324ae0e80045
-	github.com/asaskevich/govalidator v0.0.0-20180720115003-f9ffefc3facf
+	github.com/asaskevich/govalidator v0.0.0-20200108200545-475eaeb16496
 	github.com/atlassian/go-artifactory/v2 v2.3.0
 	github.com/cloudflare/cloudflare-go v0.8.5
 	github.com/codeskyblue/go-sh v0.0.0-20170112005953-b097669b1569
@@ -16,16 +16,17 @@ require (
 	github.com/elazarl/goproxy/ext v0.0.0-20190410145444-c548f45dcf1d // indirect
 	github.com/fsouza/go-dockerclient v1.3.6
 	github.com/go-chef/chef v0.20.1
+	github.com/go-openapi/strfmt v0.19.5
 	github.com/go-resty/resty/v2 v2.0.0
 	github.com/gogo/googleapis v1.0.0
-	github.com/gogo/protobuf v1.2.1
+	github.com/gogo/protobuf v1.3.1
 	github.com/golang/protobuf v1.3.2
 	github.com/google/go-cmp v0.4.0
 	github.com/googleapis/gnostic v0.3.1 // indirect
 	github.com/gophercloud/gophercloud v0.0.0-20190330013820-4d3066f119fa
 	github.com/gorilla/websocket v1.4.0
 	github.com/gregjones/httpcache v0.0.0-20190611155906-901d90724c79 // indirect
-	github.com/grpc-ecosystem/grpc-gateway v1.8.5
+	github.com/grpc-ecosystem/grpc-gateway v1.9.5
 	github.com/hashicorp/vault v0.11.5
 	github.com/hashicorp/vault/sdk v0.1.13
 	github.com/imdario/mergo v0.3.7 // indirect
@@ -33,40 +34,41 @@ require (
 	github.com/jaegertracing/jaeger v1.13.1
 	github.com/jarcoal/httpmock v1.0.4
 	github.com/jinzhu/gorm v1.9.10
-	github.com/json-iterator/go v1.1.6 // indirect
+	github.com/jpillora/backoff v1.0.0 // indirect
+	github.com/julienschmidt/httprouter v1.3.0 // indirect
 	github.com/kballard/go-shellquote v0.0.0-20180428030007-95032a82bc51 // indirect
 	github.com/kennygrant/sanitize v1.2.4
-	github.com/konsorten/go-windows-terminal-sequences v1.0.2 // indirect
 	github.com/labstack/echo v0.0.0-20180911044237-1abaa3049251
 	github.com/lib/pq v1.1.1
-	github.com/miekg/dns v1.1.15
+	github.com/miekg/dns v1.1.26
 	github.com/mitchellh/mapstructure v1.2.4
 	github.com/mobiledgex/edge-cloud v1.0.1
 	github.com/mobiledgex/golang-ssh v0.0.8
 	github.com/mobiledgex/yaml/v2 v2.2.5
-	github.com/modern-go/reflect2 v1.0.1 // indirect
 	github.com/moul/http2curl v1.0.0 // indirect
+	github.com/mwitkow/go-conntrack v0.0.0-20190716064945-2f068394615f // indirect
 	github.com/nmcclain/asn1-ber v0.0.0-20170104154839-2661553a0484
 	github.com/nmcclain/ldap v0.0.0-20160601145537-6e14e8271933
 	github.com/opentracing/opentracing-go v1.1.0
 	github.com/parnurzeal/gorequest v0.2.15
 	github.com/peterbourgon/diskv v2.0.1+incompatible // indirect
 	github.com/pion/webrtc/v2 v2.0.24
-	github.com/pkg/errors v0.8.1
-	github.com/prometheus/client_golang v0.9.3-0.20190127221311-3c4408c8b829
+	github.com/pkg/errors v0.9.1
+	github.com/prometheus/alertmanager v0.21.0
+	github.com/prometheus/client_golang v1.6.0
+	github.com/prometheus/common v0.10.0
 	github.com/shirou/gopsutil v2.18.12+incompatible
-	github.com/sirupsen/logrus v1.4.1
+	github.com/sirupsen/logrus v1.4.2
 	github.com/spf13/cobra v0.0.4
 	github.com/stretchr/testify v1.6.0
 	github.com/tmc/scp v0.0.0-20170824174625-f7b48647feef
 	github.com/xanzy/go-gitlab v0.16.0
-	golang.org/x/crypto v0.0.0-20190426145343-a29dc8fdc734
-	golang.org/x/net v0.0.0-20190628185345-da137c7871d7
-	golang.org/x/time v0.0.0-20190308202827-9d24e82272b4 // indirect
-	google.golang.org/genproto v0.0.0-20190404172233-64821d5d2107
-	google.golang.org/grpc v1.22.0
+	golang.org/x/crypto v0.0.0-20191011191535-87dc89f01550
+	golang.org/x/net v0.0.0-20200513185701-a91f0712d120
+	google.golang.org/genproto v0.0.0-20190530194941-fb225487d101
+	google.golang.org/grpc v1.26.0
 	gopkg.in/ldap.v3 v3.0.3
-	gopkg.in/yaml.v2 v2.2.2
+	gopkg.in/yaml.v2 v2.3.0
 	gortc.io/stun v1.21.0
 	gotest.tools v2.2.0+incompatible
 	//	k8s.io/api v0.0.0-20190327184913-92d2ee7fc726

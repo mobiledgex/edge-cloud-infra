@@ -45,7 +45,7 @@ var failAlerts = `{
 	  "alerts": [
 		{
 		  "labels": {
-			"alertname": "AppInstDown",
+			"alertname": "` + cloudcommon.AlertAppInstDown + `",
 			"` + cloudcommon.AlertLabelApp + `": "` + shepherd_test.TestApp.Key.Name + `",
 			"` + cloudcommon.AlertLabelAppOrg + `": "` + shepherd_test.TestApp.Key.Organization + `",
 			"` + cloudcommon.AlertLabelAppVer + `": "` + shepherd_test.TestApp.Key.Version + `",
@@ -63,7 +63,7 @@ var failAlerts = `{
 		},
 		{
 		  "labels": {
-			"alertname": "AppInstDown",
+			"alertname": "` + cloudcommon.AlertAppInstDown + `",
 			"` + cloudcommon.AlertLabelApp + `": "` + shepherd_test.TestApp.Key.Name + `",
 			"` + cloudcommon.AlertLabelAppOrg + `": "` + shepherd_test.TestApp.Key.Organization + `",
 			"` + cloudcommon.AlertLabelAppVer + `": "` + shepherd_test.TestApp.Key.Version + `",
@@ -106,7 +106,7 @@ func alertHandler(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-func TestCCloudletAlerts(t *testing.T) {
+func TestCloudletAlerts(t *testing.T) {
 	ctx := setupLog()
 	defer log.FinishTracer()
 	fakePrometheusAlertServer := startAlertServer()

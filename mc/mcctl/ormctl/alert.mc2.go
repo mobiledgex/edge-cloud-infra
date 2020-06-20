@@ -160,6 +160,7 @@ var AlertOptionalArgs = []string{
 	"value",
 	"notifyid",
 	"controller",
+	"region",
 }
 var AlertAliasArgs = []string{
 	"labels=alert.labels",
@@ -170,6 +171,7 @@ var AlertAliasArgs = []string{
 	"value=alert.value",
 	"notifyid=alert.notifyid",
 	"controller=alert.controller",
+	"region=alert.region",
 }
 var AlertComments = map[string]string{
 	"labels":      "Labels uniquely define the alert",
@@ -178,6 +180,7 @@ var AlertComments = map[string]string{
 	"value":       "Any value associated with alert",
 	"notifyid":    "Id of client assigned by server (internal use only)",
 	"controller":  "Connected controller unique id",
+	"region":      "Reegion where this alert got raised in",
 }
 var AlertSpecialArgs = map[string]string{
 	"alert.annotations": "StringToString",

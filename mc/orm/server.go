@@ -22,6 +22,7 @@ import (
 	"github.com/mobiledgex/edge-cloud/cloudcommon"
 	"github.com/mobiledgex/edge-cloud/cloudcommon/node"
 	edgecli "github.com/mobiledgex/edge-cloud/edgectl/cli"
+	edgeproto "github.com/mobiledgex/edge-cloud/edgeproto"
 	"github.com/mobiledgex/edge-cloud/integration/process"
 	"github.com/mobiledgex/edge-cloud/log"
 	"github.com/mobiledgex/edge-cloud/notify"
@@ -71,6 +72,7 @@ type ServerConfig struct {
 	NotifyAddrs      string
 	NotifySrvAddr    string
 	NodeMgr          *node.NodeMgr
+	AlertCache       *edgeproto.AlertCache
 }
 
 var DefaultDBUser = "mcuser"
@@ -395,6 +397,8 @@ func RunServer(config *ServerConfig) (*Server, error) {
 		}
 		addrs := strings.Split(config.NotifyAddrs, ",")
 		server.notifyClient = notify.NewClient(addrs, edgetls.GetGrpcDialOption(tlsConfig))
+		edgeproto.InitAlertCache(config.AlertCache)
+		server.notifyClient.RegisterRecvAlertCache(config.AlertCache)
 		nodeMgr.RegisterClient(server.notifyClient)
 
 		server.notifyClient.Start()

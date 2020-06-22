@@ -227,6 +227,29 @@ func TestAppChecker(t *testing.T) {
 	err = dc.waitForAppInsts(0)
 	require.Nil(t, err)
 
+	// Check it works the same with MaxInstances=0
+	pt1.policy.MinActiveInstances = 2
+	pt1.policy.MaxInstances = 0
+	pt1.updatePolicy(ctx)
+	pt2.policy.MinActiveInstances = 3
+	pt2.policy.MaxInstances = 0
+	pt2.updatePolicy(ctx)
+	minmax.runIter(ctx)
+	countMin = int(pt1.policy.MinActiveInstances + pt2.policy.MinActiveInstances)
+	err = dc.waitForAppInsts(countMin)
+	require.Nil(t, err)
+
+	// set min/max to 0 to clean up everything
+	pt1.policy.MinActiveInstances = 0
+	pt1.policy.MaxInstances = 0
+	pt1.updatePolicy(ctx)
+	pt2.policy.MinActiveInstances = 0
+	pt2.policy.MaxInstances = 0
+	pt2.updatePolicy(ctx)
+	minmax.runIter(ctx)
+	err = dc.waitForAppInsts(0)
+	require.Nil(t, err)
+
 	// go back to reasonable settings (only using one policy from now)
 	pt1.policy.MinActiveInstances = 2
 	pt1.policy.MaxInstances = 3
@@ -427,6 +450,31 @@ func TestAppChecker(t *testing.T) {
 	minmax.runIter(ctx)
 	err = dc.waitForAppInsts(0)
 	require.Nil(t, err)
+
+	// create App with MobiledgeX org, no policies
+	// make sure they don't get deleted (edgecloud-3053)
+	app2 := edgeproto.App{}
+	app2.Key.Name = "app2"
+	app2.Key.Organization = cloudcommon.OrganizationMobiledgeX
+	cacheData.appCache.Update(ctx, &app2, 0)
+
+	refs2 := edgeproto.AppInstRefs{}
+	refs2.Key = app2.Key
+	refs2.Insts = make(map[string]uint32)
+	cacheData.appInstRefsCache.Update(ctx, &refs2, 0)
+
+	insts = pt1.getAppInsts(&app2.Key)
+	for _, inst := range insts {
+		inst.Key.ClusterInstKey.Organization = cloudcommon.OrganizationMobiledgeX
+		dc.updateAppInst(ctx, &inst)
+	}
+	minmax.runIter(ctx)
+	err = dc.waitForAppInsts(len(insts))
+	require.Nil(t, err)
+	// clean up
+	for _, inst := range insts {
+		dc.deleteAppInst(ctx, &inst)
+	}
 }
 
 type policyTest struct {

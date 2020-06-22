@@ -51,8 +51,6 @@ func NewAlertMgrServer(alertMgrAddr string, alertCache *edgeproto.AlertCache) *A
 
 // Update callback for a new alert - should send to alertmanager right away
 func (s *AlertMrgServer) UpdateAlert(ctx context.Context, old *edgeproto.Alert, new *edgeproto.Alert) {
-	// Add region label
-	new.Labels["region"] = new.Region
 	s.AlertMgrAddAlerts(ctx, new)
 }
 
@@ -63,7 +61,6 @@ func (s *AlertMrgServer) Start() {
 }
 
 func (s *AlertMrgServer) runServer() {
-	// TODO - start thread to send alerts to alertMrg periordically
 	done := false
 	for !done {
 		// check if there are any new apps we need to start/stop scraping for
@@ -75,14 +72,16 @@ func (s *AlertMrgServer) runServer() {
 				s.AlertMrgAddr)
 			curAlerts := []*edgeproto.Alert{}
 			s.AlertCache.Show(&edgeproto.Alert{}, func(obj *edgeproto.Alert) error {
-				obj.Labels["region"] = obj.Region
 				curAlerts = append(curAlerts, obj)
 				return nil
 			})
-			err := s.AlertMgrAddAlerts(ctx, curAlerts...)
-			if err != nil {
-				log.SpanLog(ctx, log.DebugLevelInfo, "Error sending Alerts to AlertMgr", "AlertMrgAddr",
-					s.AlertMrgAddr, "err", err)
+			// Send out alerts if any alerts need updating
+			if len(curAlerts) > 0 {
+				err := s.AlertMgrAddAlerts(ctx, curAlerts...)
+				if err != nil {
+					log.SpanLog(ctx, log.DebugLevelInfo, "Error sending Alerts to AlertMgr", "AlertMrgAddr",
+						s.AlertMrgAddr, "err", err)
+				}
 			}
 			span.Finish()
 		case <-s.stop:
@@ -101,15 +100,20 @@ func alertsToOpenAPIAlerts(alerts []*edgeproto.Alert) models.PostableAlerts {
 	openAPIAlerts := models.PostableAlerts{}
 	for _, a := range alerts {
 		start := strfmt.DateTime(time.Unix(a.ActiveAt.Seconds, int64(a.ActiveAt.Nanos)))
+		// Add region label to differentiate these at the global level
+		labels := make(map[string]string)
+		for k, v := range a.Labels {
+			labels[k] = v
+		}
+		labels["region"] = a.Region
 		openAPIAlerts = append(openAPIAlerts, &models.PostableAlert{
 			Annotations: labelsToOpenAPILabelSet(a.Annotations),
 			StartsAt:    start,
 			Alert: models.Alert{
-				Labels: labelsToOpenAPILabelSet(a.Labels),
+				Labels: labelsToOpenAPILabelSet(labels),
 			},
 		})
 	}
-
 	return openAPIAlerts
 }
 
@@ -119,6 +123,13 @@ func labelsToOpenAPILabelSet(labels map[string]string) models.LabelSet {
 		apiLabelSet[k] = v
 	}
 	return apiLabelSet
+}
+
+// Show all alerts in the alertmgr
+// TODO Future: alerts api can take filters to make rbac simpler
+func (s *AlertMrgServer) AlertMgrShowAlerts(ctx context.Context) ([]edgeproto.Alert, error) {
+	//TODO
+	return []edgeproto.Alert{}, nil
 }
 
 // Marshal edgeproto.Alert into json payload suitabe for alertmanager api

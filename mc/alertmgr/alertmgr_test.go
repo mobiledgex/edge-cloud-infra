@@ -18,9 +18,15 @@ import (
 )
 
 type AlertmanagerMock struct {
-	addr      string
-	alerts    map[string]model.Alert
-	receivers []open_api_models.Receiver
+	addr            string
+	alerts          map[string]model.Alert
+	receivers       []open_api_models.Receiver
+	AlertPosts      int
+	AlertGets       int
+	ReceiversGets   int
+	SilencesGets    int
+	SilencesPosts   int
+	SilencesDeletes int
 }
 
 func NewAlertmanagerMock(addr string) *AlertmanagerMock {
@@ -61,6 +67,7 @@ func (s *AlertmanagerMock) registerCreateAlerts() {
 					s.alerts[key] = alert
 				}
 			}
+			s.AlertPosts++
 			return httpmock.NewStringResponse(200, "Success"), nil
 		},
 	)
@@ -73,6 +80,7 @@ func (s *AlertmanagerMock) registerGetAlerts() {
 			for _, alert := range s.alerts {
 				alerts = append(alerts, alert)
 			}
+			s.AlertGets++
 			return httpmock.NewJsonResponse(200, alerts)
 		},
 	)
@@ -82,6 +90,7 @@ func (s *AlertmanagerMock) registerCreateSilences() {
 	httpmock.RegisterResponder("POST", s.addr+"/"+SilenceApi,
 		func(req *http.Request) (*http.Response, error) {
 			// TODO
+			s.SilencesPosts++
 			return httpmock.NewStringResponse(200, "Success"), nil
 		},
 	)
@@ -91,6 +100,7 @@ func (s *AlertmanagerMock) rgisterDeleteSilences() {
 	httpmock.RegisterResponder("DELETE", s.addr+"/"+SilenceApi,
 		func(req *http.Request) (*http.Response, error) {
 			// TODO
+			s.SilencesDeletes++
 			return httpmock.NewStringResponse(200, "Success"), nil
 		},
 	)
@@ -100,6 +110,7 @@ func (s *AlertmanagerMock) registerGetSilences() {
 	httpmock.RegisterResponder("GET", s.addr+"/"+SilenceApi,
 		func(req *http.Request) (*http.Response, error) {
 			// TODO
+			s.SilencesGets++
 			return httpmock.NewStringResponse(200, "Success"), nil
 		},
 	)
@@ -109,6 +120,7 @@ func (s *AlertmanagerMock) registerGetReceivers() {
 	httpmock.RegisterResponder("GET", s.addr+"/"+ReceiverApi,
 		func(req *http.Request) (*http.Response, error) {
 			// TODO
+			s.ReceiversGets++
 			return httpmock.NewStringResponse(200, "Success"), nil
 		},
 	)
@@ -139,6 +151,15 @@ func (s *AlertmanagerMock) verifyReceiversCnt(t *testing.T, cnt int) {
 	require.Equal(t, cnt, len(s.receivers))
 }
 
+func (s *AlertmanagerMock) resetCounters() {
+	s.AlertPosts = 0
+	s.AlertGets = 0
+	s.SilencesDeletes = 0
+	s.SilencesGets = 0
+	s.SilencesPosts = 0
+	s.ReceiversGets = 0
+}
+
 var testRegion1 = "testRegion1"
 var testRegion2 = "testRegion2"
 
@@ -158,8 +179,7 @@ func TestAlertMgrServer(t *testing.T) {
 	log.InitTracer("")
 	defer log.FinishTracer()
 	ctx := log.StartTestSpan(context.Background())
-	// TODO
-	log.SpanLog(ctx, log.DebugLevelInfo, "Testing Alertmgr interface")
+
 	// mock http to redirect requests
 	httpmock.Activate()
 	defer httpmock.DeactivateAndReset()
@@ -171,27 +191,51 @@ func TestAlertMgrServer(t *testing.T) {
 	fakeAlertmanager := NewAlertmanagerMock(testAlertMgrAddr)
 	fakeAlertmanager.verifyEmpty(t)
 
-	// 1. Create a connection to fake alertmanager
+	// Create a connection to fake alertmanager
 	var testAlertCache edgeproto.AlertCache
 	edgeproto.InitAlertCache(&testAlertCache)
-	alertRefreshInterval = 1 * time.Second
+	alertRefreshInterval = 100 * time.Millisecond
 	testAlertMgrServer := NewAlertMgrServer(testAlertMgrAddr, &testAlertCache)
 	require.NotNil(t, testAlertMgrServer)
 	testAlertCache.SetUpdatedCb(testAlertMgrServer.UpdateAlert)
 
-	// 2. Check that an alert notification triggers an api call to alertmgr
+	// Check that an alert notification triggers an api call to alertmgr
 	testAlertCache.Update(ctx, &testAlertRootLbDown, 0)
+	// Test alertmgr create alert api
 	fakeAlertmanager.verifyAlertCnt(t, 1)
 	fakeAlertmanager.verifyAlertPresent(t, &testAlertRootLbDown)
+	require.Equal(t, 1, fakeAlertmanager.AlertPosts)
 
 	// Start server after testing the watcher
 	testAlertMgrServer.Start()
-	// 3. Wait refresh interval and check that the same alert is refreshed
-
-	// 4. Delete alert and check that alert doesn't get refreshed
+	// Wait refresh interval and check that the same alert is refreshed
+	time.Sleep(alertRefreshInterval * 2)
+	require.GreaterOrEqual(t, 2, fakeAlertmanager.AlertPosts)
+	fakeAlertmanager.verifyAlertCnt(t, 1)
+	fakeAlertmanager.verifyAlertPresent(t, &testAlertRootLbDown)
+	// Delete alert and check that alert doesn't get refreshed
+	testAlertCache.Delete(ctx, &testAlertRootLbDown, 0)
+	cnt := fakeAlertmanager.AlertPosts
+	time.Sleep(alertRefreshInterval * 2)
+	require.Equal(t, cnt, fakeAlertmanager.AlertPosts)
+	// TODO - how to test alert timeout
+	//fakeAlertmanager.verifyAlertCnt(t, 0)
 	//    4.1. Can we delete alert from alertmgr right away?
-	// 5. Test alertmgr create alert api
-	// 6. Test alertmgr show alert api
+	//    TODO
+	// Create the alert again
+	fakeAlertmanager.resetCounters()
+	testAlertCache.Update(ctx, &testAlertRootLbDown, 0)
+	fakeAlertmanager.verifyAlertCnt(t, 1)
+	fakeAlertmanager.verifyAlertPresent(t, &testAlertRootLbDown)
+	require.GreaterOrEqual(t, 1, fakeAlertmanager.AlertPosts)
+	// Create the same alert, but in a different region
+	testAlertRootLbDown.Region = testRegion2
+	testAlertCache.Update(ctx, &testAlertRootLbDown, 0)
+	fakeAlertmanager.verifyAlertCnt(t, 2)
+	fakeAlertmanager.verifyAlertPresent(t, &testAlertRootLbDown)
+	// Test alertmgr show alert api
+	// TODO
+
 	// 7. Test alertmgr create reciever api
 	// ...
 

@@ -33,6 +33,13 @@ VMWARE_CLOUDINIT=/etc/cloud/cloud.cfg.d/99-DataSourceVMwareGuestInfo.cfg
 log "Starting mobiledgex init"
 
 if [[ -f "$VMWARE_CLOUDINIT" ]]; then
+        log "VMware cloud-init case, fetch metadata from vmtoolsd"
+        # check that metadata exists, if it does not then exit.
+        if ! vmtoolsd --cmd "info-get guestinfo.metadata";
+        then
+            log "VMware metadata is empty, quitting"
+            exit 0
+        fi
         log "show userdata"
         vmtoolsd --cmd "info-get guestinfo.userdata" > /var/log/userdata.log
         log "VMware cloud-init case, fetch metadata from vmtoolsd"

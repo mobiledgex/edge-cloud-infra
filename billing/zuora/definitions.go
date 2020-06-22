@@ -186,27 +186,33 @@ type OrderResp struct {
 }
 
 type CheckSubscriptions struct {
-	Success       bool `json:"success"`
-	Subscriptions []struct {
-		ID                 string `json:"id"`
-		SubscriptionNumber string `json:"subscriptionNumber"`
-		RatePlans          []struct {
-			ID                string `json:"id"`
-			ProductID         string `json:"productId"`
-			ProductName       string `json:"productName"`
-			ProductSku        string `json:"productSku"`
-			ProductRatePlanID string `json:"productRatePlanId"`
-			RatePlanName      string `json:"ratePlanName"`
-			RatePlanCharges   []struct {
-				ID                      string `json:"id"`
-				OriginalChargeID        string `json:"originalChargeId"`
-				ProductRatePlanChargeID string `json:"productRatePlanChargeId"`
-				Number                  string `json:"number"`
-				Name                    string `json:"name"`
-				Description             string `json:"description"`
-			} `json:"ratePlanCharges"`
-		} `json:"ratePlans"`
-	} `json:"subscriptions"`
+	Success       bool   `json:"success"`
+	Subscriptions []Subs `json:"subscriptions"`
+}
+
+type Subs struct {
+	ID                 string         `json:"id"`
+	SubscriptionNumber string         `json:"subscriptionNumber"`
+	RatePlans          []SubRatePlans `json:"ratePlans"`
+}
+
+type SubRatePlans struct {
+	ID                string               `json:"id"`
+	ProductID         string               `json:"productId"`
+	ProductName       string               `json:"productName"`
+	ProductSku        string               `json:"productSku"`
+	ProductRatePlanID string               `json:"productRatePlanId"`
+	RatePlanName      string               `json:"ratePlanName"`
+	RatePlanCharges   []SubRatePlanCharges `json:"ratePlanCharges"`
+}
+
+type SubRatePlanCharges struct {
+	ID                      string `json:"id"`
+	OriginalChargeID        string `json:"originalChargeId"`
+	ProductRatePlanChargeID string `json:"productRatePlanChargeId"`
+	Number                  string `json:"number"`
+	Name                    string `json:"name"`
+	Description             string `json:"description"`
 }
 
 type GetSubscriptionByKey struct {

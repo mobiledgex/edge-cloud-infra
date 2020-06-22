@@ -44,7 +44,7 @@ func CreateCustomer(name, currency string, billToContact *CustomerBillToContact,
 	if parent == nil {
 		newSub.NewAccount = &account
 	} else {
-		// this sets the invocie owner, so for family relationships we use the parent
+		// this sets the invoice owner, so for family relationships we use the parent
 		newSub.ExistingAccountNumber = parent.AccountNumber
 		account.ParentId = parent.AccountID
 		newAction.CreateSubscription.NewSubscriptionOwnerAccount = &account
@@ -167,7 +167,6 @@ func UpdateCustomer(info *AccountInfo, billToContact *CustomerBillToContact) err
 	if err != nil {
 		return fmt.Errorf("Could not marshal %+v, err: %v", account, err)
 	}
-	fmt.Printf("payload: %s\n", payload)
 	client := &http.Client{}
 	req, err := http.NewRequest("PUT", ZuoraUrl+AccountsEndPoint+"/"+info.AccountNumber, bytes.NewReader(payload))
 	if err != nil {

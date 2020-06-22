@@ -15,11 +15,12 @@ require (
 	github.com/elazarl/goproxy v0.0.0-20190410145444-c548f45dcf1d // indirect
 	github.com/elazarl/goproxy/ext v0.0.0-20190410145444-c548f45dcf1d // indirect
 	github.com/fsouza/go-dockerclient v1.3.6
+	github.com/go-chef/chef v0.20.1
 	github.com/go-resty/resty/v2 v2.0.0
 	github.com/gogo/googleapis v1.0.0
 	github.com/gogo/protobuf v1.2.1
 	github.com/golang/protobuf v1.3.2
-	github.com/google/go-cmp v0.2.1-0.20190312032427-6f77996f0c42
+	github.com/google/go-cmp v0.4.0
 	github.com/googleapis/gnostic v0.3.1 // indirect
 	github.com/gophercloud/gophercloud v0.0.0-20190330013820-4d3066f119fa
 	github.com/gorilla/websocket v1.4.0
@@ -42,7 +43,7 @@ require (
 	github.com/mitchellh/mapstructure v1.2.4
 	github.com/mobiledgex/edge-cloud v1.0.1
 	github.com/mobiledgex/golang-ssh v0.0.8
-	github.com/mobiledgex/yaml/v2 v2.2.4
+	github.com/mobiledgex/yaml/v2 v2.2.5
 	github.com/modern-go/reflect2 v1.0.1 // indirect
 	github.com/moul/http2curl v1.0.0 // indirect
 	github.com/nmcclain/asn1-ber v0.0.0-20170104154839-2661553a0484
@@ -55,9 +56,8 @@ require (
 	github.com/prometheus/client_golang v0.9.3-0.20190127221311-3c4408c8b829
 	github.com/shirou/gopsutil v2.18.12+incompatible
 	github.com/sirupsen/logrus v1.4.1
-	github.com/smartystreets/goconvey v0.0.0-20190330032615-68dc04aab96a // indirect
 	github.com/spf13/cobra v0.0.4
-	github.com/stretchr/testify v1.3.0
+	github.com/stretchr/testify v1.6.0
 	github.com/tmc/scp v0.0.0-20170824174625-f7b48647feef
 	github.com/xanzy/go-gitlab v0.16.0
 	golang.org/x/crypto v0.0.0-20190426145343-a29dc8fdc734
@@ -255,7 +255,7 @@ replace github.com/spf13/cobra => github.com/spf13/cobra v0.0.4
 
 replace github.com/spf13/pflag => github.com/spf13/pflag v1.0.3
 
-replace github.com/stretchr/testify => github.com/stretchr/testify v1.3.0
+replace github.com/stretchr/testify => github.com/stretchr/testify v1.6.0
 
 replace github.com/tmc/grpc-websocket-proxy => github.com/tmc/grpc-websocket-proxy v0.0.0-20190109142713-0ad062ec5ee5
 
@@ -295,7 +295,7 @@ replace k8s.io/client-go => k8s.io/client-go v0.0.0-20180517072830-4bb327ea2f8e
 
 replace sigs.k8s.io/yaml => sigs.k8s.io/yaml v1.1.0
 
-replace github.com/mobiledgex/yaml/v2 => github.com/mobiledgex/yaml/v2 v2.2.4
+replace github.com/mobiledgex/yaml/v2 => github.com/mobiledgex/yaml/v2 v2.2.5
 
 replace github.com/kr/pty => github.com/kr/pty v1.1.3
 

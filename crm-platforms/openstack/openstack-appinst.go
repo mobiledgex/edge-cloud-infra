@@ -21,12 +21,12 @@ func (o *OpenstackPlatform) GetConsoleUrl(ctx context.Context, serverName string
 	return consoleUrl.Url, nil
 }
 
-func (o *OpenstackPlatform) AddAppImageIfNotPresent(ctx context.Context, app *edgeproto.App, updateCallback edgeproto.CacheUpdateCallback) error {
+func (o *OpenstackPlatform) AddAppImageIfNotPresent(ctx context.Context, app *edgeproto.App, flavor string, updateCallback edgeproto.CacheUpdateCallback) error {
 	imageName, err := cloudcommon.GetFileName(app.ImagePath)
 	if err != nil {
 		return err
 	}
-	sourceImageTime, md5Sum, err := infracommon.GetUrlInfo(ctx, o.vmProperties.CommonPf.VaultConfig, app.ImagePath)
+	sourceImageTime, md5Sum, err := infracommon.GetUrlInfo(ctx, o.VMProperties.CommonPf.VaultConfig, app.ImagePath)
 	imageDetail, err := o.GetImageDetail(ctx, imageName)
 	createImage := false
 	if err != nil {
@@ -56,7 +56,7 @@ func (o *OpenstackPlatform) AddAppImageIfNotPresent(ctx context.Context, app *ed
 			if sourceImageTime.Sub(glanceImageTime) > 0 {
 				// Update the image in Glance
 				updateCallback(edgeproto.UpdateTask, "Image in store is outdated, deleting old image")
-				err = o.DeleteImage(ctx, imageName)
+				err = o.DeleteImage(ctx, "", imageName)
 				if err != nil {
 					return err
 				}

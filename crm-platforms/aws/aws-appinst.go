@@ -30,13 +30,15 @@ func (a *AWSPlatform) CreateAppInst(ctx context.Context, clusterInst *edgeproto.
 	if err != nil {
 		return err
 	}
-	err = infracommon.CreateDockerRegistrySecret(ctx, client, clusterInst, app, a.commonPf.VaultConfig, names)
-	if err != nil {
-		return err
+	for _, imagePath := range names.ImagePaths {
+		err = infracommon.CreateDockerRegistrySecret(ctx, client, clusterInst, imagePath, a.commonPf.VaultConfig, names)
+		if err != nil {
+			return err
+		}
 	}
 
 	switch deployment := app.Deployment; deployment {
-	case cloudcommon.AppDeploymentTypeKubernetes:
+	case cloudcommon.DeploymentTypeKubernetes:
 		err = k8smgmt.CreateAppInst(ctx, a.commonPf.VaultConfig, client, names, app, appInst)
 		if err == nil {
 			err = k8smgmt.WaitForAppInst(ctx, client, names, app, k8smgmt.WaitRunning)
@@ -51,11 +53,11 @@ func (a *AWSPlatform) CreateAppInst(ctx context.Context, clusterInst *edgeproto.
 	// set up dns
 	getDnsAction := func(svc v1.Service) (*infracommon.DnsSvcAction, error) {
 		action := infracommon.DnsSvcAction{}
-		_,dnsName,err := infracommon.GetSvcExternalIpOrHost(ctx, client, names, svc.ObjectMeta.Name)
+		_, dnsName, err := infracommon.GetSvcExternalIpOrHost(ctx, client, names, svc.ObjectMeta.Name)
 		if err != nil {
 			return nil, err
 		}
-		
+
 		action.Hostname = dnsName
 		// no patching needed since AWS already does it.
 		// Should only add DNS for external ports
@@ -84,7 +86,7 @@ func (a *AWSPlatform) DeleteAppInst(ctx context.Context, clusterInst *edgeproto.
 	}
 
 	switch deployment := app.Deployment; deployment {
-	case cloudcommon.AppDeploymentTypeKubernetes:
+	case cloudcommon.DeploymentTypeKubernetes:
 		err = k8smgmt.DeleteAppInst(ctx, client, names, app, appInst)
 	default:
 		err = fmt.Errorf("unsupported deployment type %s", deployment)

@@ -7,13 +7,18 @@ import (
 	"os"
 	"os/signal"
 	"strings"
+	"sync"
 	"time"
 
+	"github.com/mobiledgex/edge-cloud-infra/crm-platforms/openstack"
+	"github.com/mobiledgex/edge-cloud-infra/crm-platforms/vsphere"
 	platform "github.com/mobiledgex/edge-cloud-infra/shepherd/shepherd_platform"
 	"github.com/mobiledgex/edge-cloud-infra/shepherd/shepherd_platform/shepherd_edgebox"
 	"github.com/mobiledgex/edge-cloud-infra/shepherd/shepherd_platform/shepherd_fake"
-	"github.com/mobiledgex/edge-cloud-infra/shepherd/shepherd_platform/shepherd_openstack"
+	"github.com/mobiledgex/edge-cloud-infra/shepherd/shepherd_platform/shepherd_vmprovider"
+	"github.com/mobiledgex/edge-cloud-infra/vmlayer"
 	"github.com/mobiledgex/edge-cloud/cloud-resource-manager/k8smgmt"
+	pf "github.com/mobiledgex/edge-cloud/cloud-resource-manager/platform"
 	"github.com/mobiledgex/edge-cloud/cloudcommon"
 	"github.com/mobiledgex/edge-cloud/cloudcommon/node"
 	"github.com/mobiledgex/edge-cloud/edgeproto"
@@ -33,12 +38,14 @@ var name = flag.String("name", "shepherd", "Unique name to identify a process")
 var parentSpan = flag.String("span", "", "Use parent span for logging")
 var region = flag.String("region", "local", "Region name")
 var promTargetsFile = flag.String("targetsFile", "/tmp/prom_targets.json", "Prometheus targets file")
-var promAlertsFile = flag.String("alertsFile", "/tmp/prom_rules.yml", "Prometheus alerts file")
+var appDNSRoot = flag.String("appDNSRoot", "mobiledgex.net", "App domain name root")
+var deploymentTag = flag.String("deploymentTag", "", "Tag to indicate type of deployment setup. Ex: production, staging, etc")
 
 var defaultPrometheusPort = cloudcommon.PrometheusPort
 
 //map keeping track of all the currently running prometheuses
 var workerMap map[string]*ClusterWorker
+var workerMapMutex *sync.Mutex
 var vmAppWorkerMap map[string]*AppInstWorker
 var MEXPrometheusAppName = cloudcommon.MEXPrometheusAppName
 var AppInstCache edgeproto.AppInstCache
@@ -48,6 +55,7 @@ var CloudletCache edgeproto.CloudletCache
 var CloudletInfoCache edgeproto.CloudletInfoCache
 var MetricSender *notify.MetricSend
 var AlertCache edgeproto.AlertCache
+var AutoProvPoliciesCache edgeproto.AutoProvPolicyCache
 var settings edgeproto.Settings
 
 var cloudletKey edgeproto.CloudletKey
@@ -61,6 +69,7 @@ func appInstCb(ctx context.Context, old *edgeproto.AppInst, new *edgeproto.AppIn
 	if myPlatform.GetType() != "fake" {
 		if target := CollectProxyStats(ctx, new); target != "" {
 			go writePrometheusTargetsFile()
+			go writePrometheusAlertRuleForAppInst(ctx, new)
 		}
 	}
 	var port int32
@@ -75,7 +84,7 @@ func appInstCb(ctx context.Context, old *edgeproto.AppInst, new *edgeproto.AppIn
 		log.SpanLog(ctx, log.DebugLevelMetrics, "Unable to find app", "app", new.Key.AppKey.Name)
 		return
 	}
-	if app.Deployment == cloudcommon.AppDeploymentTypeVM {
+	if app.Deployment == cloudcommon.DeploymentTypeVM {
 		mapKey = new.Key.GetKeyString()
 		stats, exists := vmAppWorkerMap[mapKey]
 		if new.State == edgeproto.TrackedState_READY && !exists {
@@ -97,6 +106,8 @@ func appInstCb(ctx context.Context, old *edgeproto.AppInst, new *edgeproto.AppIn
 	} else {
 		return
 	}
+	workerMapMutex.Lock()
+	defer workerMapMutex.Unlock()
 	stats, exists := workerMap[mapKey]
 	if new.State == edgeproto.TrackedState_READY {
 		log.SpanLog(ctx, log.DebugLevelMetrics, "New Prometheus instance detected", "clustername", mapKey, "appInst", new)
@@ -139,24 +150,31 @@ func appInstCb(ctx context.Context, old *edgeproto.AppInst, new *edgeproto.AppIn
 }
 
 func clusterInstCb(ctx context.Context, old *edgeproto.ClusterInst, new *edgeproto.ClusterInst) {
+	var mapKey = k8smgmt.GetK8sNodeNameSuffix(&new.Key)
+	workerMapMutex.Lock()
+	defer workerMapMutex.Unlock()
+	stats, exists := workerMap[mapKey]
+	if new.State == edgeproto.TrackedState_READY && exists {
+		log.SpanLog(ctx, log.DebugLevelMetrics, "Update cluster details", "old", old, "new", new)
+		if new.Reservable {
+			log.SpanLog(ctx, log.DebugLevelMetrics, "Update reserved-by setting")
+			stats.reservedBy = new.ReservedBy
+			workerMap[mapKey] = stats
+		}
+		return
+	}
 	// This is for Docker deployments only
-	if new.Deployment != cloudcommon.AppDeploymentTypeDocker {
+	if new.Deployment != cloudcommon.DeploymentTypeDocker {
 		log.SpanLog(ctx, log.DebugLevelMetrics, "New cluster instace", "clusterInst", new)
 		return
 	}
 	collectInterval := settings.ShepherdMetricsCollectionInterval.TimeDuration()
-	var mapKey = k8smgmt.GetK8sNodeNameSuffix(&new.Key)
-	stats, exists := workerMap[mapKey]
 	if new.State == edgeproto.TrackedState_READY {
 		log.SpanLog(ctx, log.DebugLevelMetrics, "New Docker cluster detected", "clustername", mapKey, "clusterInst", new)
-		if !exists {
-			stats, err := NewClusterWorker(ctx, "", collectInterval, MetricSender.Update, new, myPlatform)
-			if err == nil {
-				workerMap[mapKey] = stats
-				stats.Start(ctx)
-			}
-		} else { //somehow this cluster's prometheus was already registered
-			log.SpanLog(ctx, log.DebugLevelMetrics, "Error, This cluster is already registered")
+		stats, err := NewClusterWorker(ctx, "", collectInterval, MetricSender.Update, new, myPlatform)
+		if err == nil {
+			workerMap[mapKey] = stats
+			stats.Start(ctx)
 		}
 	} else { //if its anything other than ready just stop it
 		//try to remove it from the workerMap
@@ -174,7 +192,23 @@ func getPlatform() (platform.Platform, error) {
 	case "PLATFORM_TYPE_EDGEBOX":
 		plat = &shepherd_edgebox.Platform{}
 	case "PLATFORM_TYPE_OPENSTACK":
-		plat = &shepherd_openstack.ShepherdPlatform{}
+		osProvider := openstack.OpenstackPlatform{}
+		vmPlatform := vmlayer.VMPlatform{
+			Type:       vmlayer.VMProviderOpenstack,
+			VMProvider: &osProvider,
+		}
+		plat = &shepherd_vmprovider.ShepherdPlatform{
+			VMPlatform: &vmPlatform,
+		}
+	case "PLATFORM_TYPE_VSPHERE":
+		vsphereProvider := vsphere.VSpherePlatform{}
+		vmPlatform := vmlayer.VMPlatform{
+			Type:       vmlayer.VMProviderVSphere,
+			VMProvider: &vsphereProvider,
+		}
+		plat = &shepherd_vmprovider.ShepherdPlatform{
+			VMPlatform: &vmPlatform,
+		}
 	case "PLATFORM_TYPE_FAKEINFRA":
 		plat = &shepherd_fake.Platform{}
 	default:
@@ -189,6 +223,7 @@ func main() {
 	log.SetDebugLevelStrs(*debugLevels)
 	log.InitTracer(nodeMgr.TlsCertFile)
 	defer log.FinishTracer()
+
 	var span opentracing.Span
 	if *parentSpan != "" {
 		span = log.NewSpanFromString(log.DebugLevelInfo, *parentSpan, "main")
@@ -201,20 +236,27 @@ func main() {
 	cloudcommon.ParseMyCloudletKey(false, cloudletKeyStr, &cloudletKey)
 
 	err := nodeMgr.Init(ctx, "shepherd", node.WithCloudletKey(&cloudletKey), node.WithRegion(*region))
+	if err != nil {
+		span.Finish()
+		log.FatalLog(err.Error())
+	}
 	clientTlsConfig, err := nodeMgr.InternalPki.GetClientTlsConfig(ctx,
 		nodeMgr.CommonName(),
 		node.CertIssuerRegionalCloudlet,
 		[]node.MatchCA{node.SameRegionalCloudletMatchCA()})
 	if err != nil {
+		span.Finish()
 		log.FatalLog("Failed to get internal pki tls config", "err", err)
 	}
 
 	myPlatform, err = getPlatform()
 	if err != nil {
+		span.Finish()
 		log.FatalLog("Failed to get platform", "platformName", platformName, "err", err)
 	}
 
 	if err = startPrometheusMetricsProxy(ctx); err != nil {
+		span.Finish()
 		log.FatalLog("Failed to start prometheus metrics proxy", "err", err)
 	}
 
@@ -224,6 +266,7 @@ func main() {
 	edgeproto.InitClusterInstCache(&ClusterInstCache)
 	ClusterInstCache.SetUpdatedCb(clusterInstCb)
 	edgeproto.InitAppCache(&AppCache)
+	edgeproto.InitAutoProvPolicyCache(&AutoProvPoliciesCache)
 	// also register to receive cloudlet details
 	edgeproto.InitCloudletCache(&CloudletCache)
 
@@ -234,6 +277,7 @@ func main() {
 	notifyClient.RegisterRecvClusterInstCache(&ClusterInstCache)
 	notifyClient.RegisterRecvAppCache(&AppCache)
 	notifyClient.RegisterRecvCloudletCache(&CloudletCache)
+	notifyClient.RegisterRecvAutoProvPolicyCache(&AutoProvPoliciesCache)
 	// register to send metrics
 	MetricSender = notify.NewMetricSend()
 	notifyClient.RegisterSend(MetricSender)
@@ -270,15 +314,28 @@ func main() {
 		time.Sleep(1 * time.Second)
 	}
 	if !found {
+		span.Finish()
 		log.FatalLog("failed to fetch cloudlet cache from controller")
 	}
 	log.SpanLog(ctx, log.DebugLevelInfo, "fetched cloudlet cache from controller", "cloudlet", cloudlet)
 
-	err = myPlatform.Init(ctx, &cloudletKey, *region, *physicalName, nodeMgr.VaultAddr, cloudlet.EnvVar)
+	pc := pf.PlatformConfig{
+		CloudletKey:   &cloudletKey,
+		VaultAddr:     nodeMgr.VaultAddr,
+		Region:        *region,
+		EnvVars:       cloudlet.EnvVar,
+		DeploymentTag: *deploymentTag,
+		PhysicalName:  *physicalName,
+		AppDNSRoot:    *appDNSRoot,
+	}
+
+	err = myPlatform.Init(ctx, &pc)
 	if err != nil {
+		span.Finish()
 		log.FatalLog("Failed to initialize platform", "platformName", platformName, "err", err)
 	}
 	workerMap = make(map[string]*ClusterWorker)
+	workerMapMutex = &sync.Mutex{}
 	vmAppWorkerMap = make(map[string]*AppInstWorker)
 	// LB metrics are not supported in fake mode
 	if myPlatform.GetType() != "fake" {

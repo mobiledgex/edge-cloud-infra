@@ -1,24 +1,11 @@
 ---
-- name: Disable any running native services
-  systemd:
-    state: stopped
-    enabled: no
-    name: "{{ item }}"
-  with_items:
-    - mex-mongodb
-    - mex-console-server
-    - mex-console-ui
-  ignore_errors: yes
-  become: yes
-
 - name: Deploy the console
   docker_container:
     name: "console-{{ deploy_environ }}"
-    image: "{{ console_image }}:{{ console_version }}"
+    image: "{% if console_prod|bool %}{{ console_prod_image }}{% else %}{{ console_image }}{% endif %}:{{ console_version }}"
     restart_policy: unless-stopped
     ports:
-      - "127.0.0.1:3000:3000"
-      - "127.0.0.1:13030:3030"
+      - "127.0.0.1:3000:{% if console_prod|bool %}80{% else %}3000{% endif %}"
     env:
       REACT_APP_API_ENDPOINT: "https://{{ inventory_hostname }}"
       REACT_APP_API_VM_ENDPOINT: "https://{{ console_vnc_hostname }}"

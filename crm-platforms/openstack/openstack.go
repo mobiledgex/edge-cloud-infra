@@ -7,12 +7,13 @@ import (
 	"unicode"
 
 	"github.com/mobiledgex/edge-cloud-infra/vmlayer"
+	"github.com/mobiledgex/edge-cloud/cloud-resource-manager/platform"
 	"github.com/mobiledgex/edge-cloud/edgeproto"
 )
 
 type OpenstackPlatform struct {
 	openRCVars   map[string]string
-	vmProperties *vmlayer.VMProperties
+	VMProperties *vmlayer.VMProperties
 	TestMode     bool
 }
 
@@ -21,12 +22,16 @@ func (o *OpenstackPlatform) GetType() string {
 }
 
 func (o *OpenstackPlatform) SetVMProperties(vmProperties *vmlayer.VMProperties) {
-	o.vmProperties = vmProperties
+	o.VMProperties = vmProperties
 }
 
-func (o *OpenstackPlatform) InitProvider(ctx context.Context) error {
-	o.initDebug(o.vmProperties.CommonPf.PlatformConfig.NodeMgr)
+func (o *OpenstackPlatform) InitProvider(ctx context.Context, caches *platform.Caches, updateCallback edgeproto.CacheUpdateCallback) error {
+	o.initDebug(o.VMProperties.CommonPf.PlatformConfig.NodeMgr)
 	return o.PrepNetwork(ctx)
+}
+
+func (o *OpenstackPlatform) SetCaches(ctx context.Context, caches *platform.Caches) {
+	// openstack doesn't need caches
 }
 
 func (o *OpenstackPlatform) GatherCloudletInfo(ctx context.Context, info *edgeproto.CloudletInfo) error {
@@ -52,6 +57,11 @@ func (o *OpenstackPlatform) NameSanitize(name string) string {
 		str = str[:254]
 	}
 	return str
+}
+
+// Openstack IdSanitize is the same as NameSanitize
+func (o *OpenstackPlatform) IdSanitize(name string) string {
+	return o.NameSanitize(name)
 }
 
 func (o *OpenstackPlatform) DeleteResources(ctx context.Context, resourceGroupName string) error {

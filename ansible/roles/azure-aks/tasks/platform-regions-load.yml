@@ -5,6 +5,8 @@
           'name': pr.name,
           'location': pr.location,
           'region': pr.region,
+          'latitude': pr.latitude,
+          'longitude': pr.longitude,
           'dns_prefix': dns_pref,
           'resource_group': rg,
           'kubernetes_version': kver,
@@ -16,6 +18,20 @@
     dns_pref: "{{ pr.dns_prefix | default(pr.name) }}"
     gdme: "{{ pr.global_dme_aliases | default([]) | map('regex_replace', '$', global_dme_suffix) | list }}"
   loop: "{{ regions }}"
+  loop_control:
+    loop_var: pr
+
+- assert:
+    that:
+      - pr.name != ""
+      - pr.location != ""
+      - pr.region != ""
+      - pr.latitude != ""
+      - pr.longitude != ""
+      - pr.dns_prefix != ""
+      - pr.resource_group != ""
+      - pr.kubernetes_version != ""
+  loop: "{{ platform_regions }}"
   loop_control:
     loop_var: pr
 

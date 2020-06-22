@@ -13,6 +13,7 @@
       - auth-github-config.read.v1
       - auth-ldap-config.read.v1
       - certs.read.v1
+      - chef.read.v1
       - influxdb.read.v1
       - influxdb-internal.read.v1
       - mexenv.read.v1
@@ -27,6 +28,8 @@
       - root-ca.read.v1
       - sys-auth.read.v1
       - sys-mounts.read.v1
+      - sys-plugins-catalog.read.v1
+      - sys-plugins-certs-config.read.v1
       - sys-policies.read.v1
     token_type: batch
     token_ttl: 1800   # seconds = 30 minutes

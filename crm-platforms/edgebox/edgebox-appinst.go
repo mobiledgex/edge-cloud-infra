@@ -24,10 +24,12 @@ func (e *EdgeboxPlatform) CreateAppInst(ctx context.Context, clusterInst *edgepr
 	if err != nil {
 		return err
 	}
-	if app.Deployment != cloudcommon.AppDeploymentTypeDocker {
-		err = infracommon.CreateDockerRegistrySecret(ctx, client, clusterInst, app, e.commonPf.VaultConfig, names)
-		if err != nil {
-			return err
+	if app.Deployment != cloudcommon.DeploymentTypeDocker {
+		for _, imagePath := range names.ImagePaths {
+			err = infracommon.CreateDockerRegistrySecret(ctx, client, clusterInst, imagePath, e.commonPf.VaultConfig, names)
+			if err != nil {
+				return err
+			}
 		}
 	}
 
@@ -39,7 +41,7 @@ func (e *EdgeboxPlatform) CreateAppInst(ctx context.Context, clusterInst *edgepr
 	}
 
 	// The rest is k8s specific
-	if clusterInst.Deployment != cloudcommon.AppDeploymentTypeKubernetes {
+	if clusterInst.Deployment != cloudcommon.DeploymentTypeKubernetes {
 		return nil
 	}
 

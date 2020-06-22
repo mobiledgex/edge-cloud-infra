@@ -82,6 +82,20 @@ func goodPermShowCloudlet(t *testing.T, mcClient *ormclient.Client, uri, token, 
 
 var _ = edgeproto.GetFields
 
+func badPermGetCloudletManifest(t *testing.T, mcClient *ormclient.Client, uri, token, region, org string) {
+	_, status, err := testutil.TestPermGetCloudletManifest(mcClient, uri, token, region, org)
+	require.NotNil(t, err)
+	require.Equal(t, http.StatusForbidden, status)
+}
+
+func goodPermGetCloudletManifest(t *testing.T, mcClient *ormclient.Client, uri, token, region, org string) {
+	_, status, err := testutil.TestPermGetCloudletManifest(mcClient, uri, token, region, org)
+	require.Nil(t, err)
+	require.Equal(t, http.StatusOK, status)
+}
+
+var _ = edgeproto.GetFields
+
 func badPermAddCloudletResMapping(t *testing.T, mcClient *ormclient.Client, uri, token, region, org string) {
 	_, status, err := testutil.TestPermAddCloudletResMapping(mcClient, uri, token, region, org)
 	require.NotNil(t, err)
@@ -199,6 +213,34 @@ func badPermShowCloudletInfo(t *testing.T, mcClient *ormclient.Client, uri, toke
 
 func goodPermShowCloudletInfo(t *testing.T, mcClient *ormclient.Client, uri, token, region, org string) {
 	_, status, err := testutil.TestPermShowCloudletInfo(mcClient, uri, token, region, org)
+	require.Nil(t, err)
+	require.Equal(t, http.StatusOK, status)
+}
+
+var _ = edgeproto.GetFields
+
+func badPermInjectCloudletInfo(t *testing.T, mcClient *ormclient.Client, uri, token, region, org string) {
+	_, status, err := testutil.TestPermInjectCloudletInfo(mcClient, uri, token, region, org)
+	require.NotNil(t, err)
+	require.Equal(t, http.StatusForbidden, status)
+}
+
+func goodPermInjectCloudletInfo(t *testing.T, mcClient *ormclient.Client, uri, token, region, org string) {
+	_, status, err := testutil.TestPermInjectCloudletInfo(mcClient, uri, token, region, org)
+	require.Nil(t, err)
+	require.Equal(t, http.StatusOK, status)
+}
+
+var _ = edgeproto.GetFields
+
+func badPermEvictCloudletInfo(t *testing.T, mcClient *ormclient.Client, uri, token, region, org string) {
+	_, status, err := testutil.TestPermEvictCloudletInfo(mcClient, uri, token, region, org)
+	require.NotNil(t, err)
+	require.Equal(t, http.StatusForbidden, status)
+}
+
+func goodPermEvictCloudletInfo(t *testing.T, mcClient *ormclient.Client, uri, token, region, org string) {
+	_, status, err := testutil.TestPermEvictCloudletInfo(mcClient, uri, token, region, org)
 	require.Nil(t, err)
 	require.Equal(t, http.StatusOK, status)
 }

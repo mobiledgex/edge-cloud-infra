@@ -53,14 +53,17 @@ It has these top-level messages:
 	AutoProvCount
 	AutoProvCounts
 	AutoProvPolicyCloudlet
+	AutoProvInfo
 	PolicyKey
 	AutoScalePolicy
 	CloudletKey
 	OperationTimeLimits
 	PlatformConfig
 	CloudletResMap
+	InfraConfig
 	Cloudlet
 	FlavorMatch
+	CloudletManifest
 	FlavorInfo
 	OSAZone
 	OSImage
@@ -103,6 +106,7 @@ It has these top-level messages:
 	PrivacyPolicy
 	CloudletRefs
 	ClusterRefs
+	AppInstRefs
 	ResTagTableKey
 	ResTagTable
 	Result
@@ -247,6 +251,9 @@ func addControllerApis(method string, group *echo.Group) {
 	// MasterNodeFlavor: 14
 	// LoadBalancerMaxPortRange: 15
 	// MaxTrackedDmeClients: 16
+	// ChefClientInterval: 17
+	// InfluxDbMetricsRetention: 18
+	// CloudletMaintenanceTimeout: 19
 	// ```
 	// Security:
 	//   Bearer:
@@ -547,6 +554,10 @@ func addControllerApis(method string, group *echo.Group) {
 	// ConfigCommercialCerts: 21.13
 	// ConfigUseVaultCerts: 21.14
 	// ConfigUseVaultCas: 21.15
+	// ConfigAppDnsRoot: 21.16
+	// ConfigChefServerPath: 21.17
+	// ConfigChefClientInterval: 21.18
+	// ConfigDeploymentTag: 21.19
 	// ResTagMap: 22
 	// ResTagMapKey: 22.1
 	// ResTagMapValue: 22.2
@@ -556,7 +567,15 @@ func addControllerApis(method string, group *echo.Group) {
 	// AccessVarsKey: 23.1
 	// AccessVarsValue: 23.2
 	// VmImageVersion: 24
-	// PackageVersion: 25
+	// Deployment: 26
+	// InfraApiAccess: 27
+	// InfraConfig: 28
+	// InfraConfigExternalNetworkName: 28.1
+	// InfraConfigFlavorName: 28.2
+	// ChefClientKey: 29
+	// ChefClientKeyKey: 29.1
+	// ChefClientKeyValue: 29.2
+	// MaintenanceState: 30
 	// ```
 	// Security:
 	//   Bearer:
@@ -577,6 +596,17 @@ func addControllerApis(method string, group *echo.Group) {
 	//   403: forbidden
 	//   404: notFound
 	group.Match([]string{method}, "/ctrl/ShowCloudlet", ShowCloudlet)
+	// swagger:route POST /auth/ctrl/GetCloudletManifest Cloudlet GetCloudletManifest
+	// Get Cloudlet Manifest.
+	//  Shows deployment manifest required to setup cloudlet
+	// Security:
+	//   Bearer:
+	// responses:
+	//   200: success
+	//   400: badRequest
+	//   403: forbidden
+	//   404: notFound
+	group.Match([]string{method}, "/ctrl/GetCloudletManifest", GetCloudletManifest)
 	// swagger:route POST /auth/ctrl/AddCloudletResMapping CloudletResMap AddCloudletResMapping
 	// Add Optional Resource tag table.
 	// Security:
@@ -617,6 +647,26 @@ func addControllerApis(method string, group *echo.Group) {
 	//   403: forbidden
 	//   404: notFound
 	group.Match([]string{method}, "/ctrl/ShowCloudletInfo", ShowCloudletInfo)
+	// swagger:route POST /auth/ctrl/InjectCloudletInfo CloudletInfo InjectCloudletInfo
+	// Inject (create) a CloudletInfo for regression testing.
+	// Security:
+	//   Bearer:
+	// responses:
+	//   200: success
+	//   400: badRequest
+	//   403: forbidden
+	//   404: notFound
+	group.Match([]string{method}, "/ctrl/InjectCloudletInfo", InjectCloudletInfo)
+	// swagger:route POST /auth/ctrl/EvictCloudletInfo CloudletInfo EvictCloudletInfo
+	// Evict (delete) a CloudletInfo for regression testing.
+	// Security:
+	//   Bearer:
+	// responses:
+	//   200: success
+	//   400: badRequest
+	//   403: forbidden
+	//   404: notFound
+	group.Match([]string{method}, "/ctrl/EvictCloudletInfo", EvictCloudletInfo)
 	// swagger:route POST /auth/ctrl/CreateCloudletPool CloudletPool CreateCloudletPool
 	// Create a CloudletPool.
 	// Security:
@@ -807,6 +857,8 @@ func addControllerApis(method string, group *echo.Group) {
 	// DefaultPrivacyPolicy: 30
 	// DeletePrepare: 31
 	// AutoProvPolicies: 32
+	// TemplateDelimiter: 33
+	// SkipHcPorts: 34
 	// ```
 	// Security:
 	//   Bearer:
@@ -973,6 +1025,8 @@ func addControllerApis(method string, group *echo.Group) {
 	// CloudletsLocTimestamp: 5.2.8
 	// CloudletsLocTimestampSeconds: 5.2.8.1
 	// CloudletsLocTimestampNanos: 5.2.8.2
+	// MinActiveInstances: 6
+	// MaxInstances: 7
 	// ```
 	// Security:
 	//   Bearer:
@@ -1187,6 +1241,36 @@ func addControllerApis(method string, group *echo.Group) {
 	//   403: forbidden
 	//   404: notFound
 	group.Match([]string{method}, "/ctrl/ShowAppInst", ShowAppInst)
+	// swagger:route POST /auth/ctrl/ShowCloudletRefs CloudletRefs ShowCloudletRefs
+	// Show CloudletRefs (debug only).
+	// Security:
+	//   Bearer:
+	// responses:
+	//   200: success
+	//   400: badRequest
+	//   403: forbidden
+	//   404: notFound
+	group.Match([]string{method}, "/ctrl/ShowCloudletRefs", ShowCloudletRefs)
+	// swagger:route POST /auth/ctrl/ShowClusterRefs ClusterRefs ShowClusterRefs
+	// Show ClusterRefs (debug only).
+	// Security:
+	//   Bearer:
+	// responses:
+	//   200: success
+	//   400: badRequest
+	//   403: forbidden
+	//   404: notFound
+	group.Match([]string{method}, "/ctrl/ShowClusterRefs", ShowClusterRefs)
+	// swagger:route POST /auth/ctrl/ShowAppInstRefs AppInstRefs ShowAppInstRefs
+	// Show AppInstRefs (debug only).
+	// Security:
+	//   Bearer:
+	// responses:
+	//   200: success
+	//   400: badRequest
+	//   403: forbidden
+	//   404: notFound
+	group.Match([]string{method}, "/ctrl/ShowAppInstRefs", ShowAppInstRefs)
 	// swagger:route POST /auth/ctrl/ShowAppInstClient AppInstClientKey ShowAppInstClient
 	// Show application instance clients.
 	//
@@ -1329,24 +1413,4 @@ func addControllerApis(method string, group *echo.Group) {
 	//   403: forbidden
 	//   404: notFound
 	group.Match([]string{method}, "/ctrl/AccessCloudlet", AccessCloudlet)
-	// swagger:route POST /auth/ctrl/ShowCloudletRefs CloudletRefs ShowCloudletRefs
-	// Show CloudletRefs (debug only).
-	// Security:
-	//   Bearer:
-	// responses:
-	//   200: success
-	//   400: badRequest
-	//   403: forbidden
-	//   404: notFound
-	group.Match([]string{method}, "/ctrl/ShowCloudletRefs", ShowCloudletRefs)
-	// swagger:route POST /auth/ctrl/ShowClusterRefs ClusterRefs ShowClusterRefs
-	// Show ClusterRefs (debug only).
-	// Security:
-	//   Bearer:
-	// responses:
-	//   200: success
-	//   400: badRequest
-	//   403: forbidden
-	//   404: notFound
-	group.Match([]string{method}, "/ctrl/ShowClusterRefs", ShowClusterRefs)
 }

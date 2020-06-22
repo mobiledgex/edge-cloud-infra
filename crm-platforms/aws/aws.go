@@ -42,22 +42,11 @@ func (a *AWSPlatform) GetType() string {
 }
 
 //Init initializes the AWS Platform Config
-func (a *AWSPlatform) Init(ctx context.Context, platformConfig *platform.PlatformConfig, updateCallback edgeproto.CacheUpdateCallback) error {
-	var path string = "secret/cloudlet/aws/credentials"
+func (a *AWSPlatform) Init(ctx context.Context, platformConfig *platform.PlatformConfig, caches *platform.Caches, updateCallback edgeproto.CacheUpdateCallback) error {
+	var path string = "/secret/cloudlet/aws/credentials"
 	vaultConfig, err := vault.BestConfig(platformConfig.VaultAddr)
 	if err != nil {
 		err = fmt.Errorf("cannot get best config from vault %s", err.Error())
-		return err
-	}
-	if err := a.commonPf.InitInfraCommon(ctx, platformConfig, AWSProps, vaultConfig); err != nil {
-		err = fmt.Errorf("cannot get instance types from AWS %s", err.Error())
-		return err
-	}
-	envData := &infracommon.VaultEnvData{}
-	err = vault.GetData(vaultConfig, path, 0, envData)
-	if err != nil {
-		// Put Error Message
-		err = fmt.Errorf("cannot get vault data from vault %s", err.Error())
 		return err
 	}
 
@@ -67,6 +56,12 @@ func (a *AWSPlatform) Init(ctx context.Context, platformConfig *platform.Platfor
 		err = fmt.Errorf("cannot intern vault data from vault %s", err.Error())
 		return err
 	}
+
+	if err := a.commonPf.InitInfraCommon(ctx, platformConfig, AWSProps, vaultConfig); err != nil {
+		err = fmt.Errorf("cannot get instance types from AWS %s", err.Error())
+		return err
+	}
+
 	return nil
 }
 

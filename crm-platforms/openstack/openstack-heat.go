@@ -1,17 +1,14 @@
 package openstack
 
 import (
-	"bytes"
 	"context"
 	"fmt"
-	"os"
 	"strings"
 	"sync"
-	"text/template"
 	"time"
 
+	"github.com/mobiledgex/edge-cloud-infra/infracommon"
 	"github.com/mobiledgex/edge-cloud-infra/vmlayer"
-
 	"github.com/mobiledgex/edge-cloud/edgeproto"
 	"github.com/mobiledgex/edge-cloud/log"
 )
@@ -122,7 +119,10 @@ resources:
     {{.Name}}:
         type: OS::Cinder::Volume
         properties:
+            {{- if .ImageName}}
             image: {{.ImageName}}
+            {{- end}}
+            name: {{.Name}}
             size: {{.Size}}
             {{- if .AvailabilityZone}}
             availability_zone: {{.AvailabilityZone}}
@@ -185,48 +185,12 @@ func reindent(str string, indent int) string {
 	return strings.TrimSuffix(out, "\n")
 }
 
-func (o *OpenstackPlatform) getVMUserData(sharedVolume bool, dnsServers string, manifest string, command string) string {
-	var rc string
-	if manifest != "" {
-		return reindent(manifest, 16)
-	}
-	if command != "" {
-		rc = `
-#cloud-config
-runcmd:
-- ` + command
-	} else {
-		rc = vmlayer.VmCloudConfig
-		if dnsServers != "" {
-			rc += fmt.Sprintf("\n - echo \"dns-nameservers %s\" >> /etc/network/interfaces.d/50-cloud-init.cfg", dnsServers)
-		}
-		if sharedVolume {
-			return reindent(rc+vmlayer.VmCloudConfigShareMount, 16)
-		}
-	}
-	return reindent(rc, 16)
-}
-
-func (o *OpenstackPlatform) getVMMetaData(role vmlayer.VMRole, masterIP string) string {
-	var str string
-	if role == vmlayer.RoleUser {
-		return ""
-	}
-	skipk8s := vmlayer.SkipK8sYes
-	if role == vmlayer.RoleMaster || role == vmlayer.RoleNode {
-		skipk8s = vmlayer.SkipK8sNo
-	}
-	str = `skipk8s: ` + string(skipk8s) + `
-role: ` + string(role)
-	if masterIP != "" {
-		str += `
-k8smaster: ` + masterIP
-	}
+func reindent16(str string) string {
 	return reindent(str, 16)
 }
 
-func (o *OpenstackPlatform) getFreeFloatingIpid(ctx context.Context) (string, error) {
-	fips, err := o.ListFloatingIPs(ctx)
+func (o *OpenstackPlatform) getFreeFloatingIpid(ctx context.Context, extNet string) (string, error) {
+	fips, err := o.ListFloatingIPs(ctx, extNet)
 	if err != nil {
 		return "", fmt.Errorf("Unable to list floating IPs %v", err)
 	}
@@ -241,23 +205,6 @@ func (o *OpenstackPlatform) getFreeFloatingIpid(ctx context.Context) (string, er
 		return "", fmt.Errorf("Unable to allocate a floating IP")
 	}
 	return fipid, nil
-}
-
-func WriteTemplateFile(filename string, buf *bytes.Buffer) error {
-	outFile, err := os.OpenFile(filename, os.O_TRUNC|os.O_CREATE|os.O_WRONLY, 0644)
-	if err != nil {
-		return fmt.Errorf("unable to write heat template %s: %s", filename, err.Error())
-	}
-	_, err = outFile.WriteString(buf.String())
-
-	if err != nil {
-		outFile.Close()
-		os.Remove(filename)
-		return fmt.Errorf("unable to write heat template file %s: %s", filename, err.Error())
-	}
-	outFile.Sync()
-	outFile.Close()
-	return nil
 }
 
 func (o *OpenstackPlatform) waitForStack(ctx context.Context, stackname string, action string, updateCallback edgeproto.CacheUpdateCallback) error {
@@ -301,37 +248,13 @@ func (o *OpenstackPlatform) waitForStack(ctx context.Context, stackname string, 
 func (o *OpenstackPlatform) createOrUpdateHeatStackFromTemplate(ctx context.Context, templateData interface{}, stackName string, templateString string, action string, updateCallback edgeproto.CacheUpdateCallback) error {
 	log.SpanLog(ctx, log.DebugLevelInfra, "createHeatStackFromTemplate", "stackName", stackName, "action", action)
 
-	var buf bytes.Buffer
 	updateCallback(edgeproto.UpdateTask, "Creating Heat Stack for "+stackName)
-
-	funcMap := template.FuncMap{
-		"Indent": func(values ...interface{}) string {
-			s := values[0].(string)
-			l := 4
-			if len(values) > 1 {
-				l = values[1].(int)
-			}
-			var newStr []string
-			for _, v := range strings.Split(string(s), "\n") {
-				nV := fmt.Sprintf("%s%s", strings.Repeat(" ", l), v)
-				newStr = append(newStr, nV)
-			}
-			return strings.Join(newStr, "\n")
-		},
-	}
-
-	tmpl, err := template.New(stackName).Funcs(funcMap).Parse(templateString)
+	buf, err := vmlayer.ExecTemplate(stackName, templateString, templateData)
 	if err != nil {
-		// this is a bug
-		log.WarnLog("template new failed", "templateString", templateString, "err", err)
-		return fmt.Errorf("template new failed: %s", err)
-	}
-	err = tmpl.Execute(&buf, templateData)
-	if err != nil {
-		return fmt.Errorf("Template Execute Failed: %s", err)
+		return err
 	}
 	filename := stackName + "-heat.yaml"
-	err = WriteTemplateFile(filename, &buf)
+	err = infracommon.WriteTemplateFile(filename, buf)
 	if err != nil {
 		return fmt.Errorf("WriteTemplateFile failed: %s", err)
 	}
@@ -385,14 +308,12 @@ func (o *OpenstackPlatform) populateParams(ctx context.Context, VMGroupOrchestra
 	if len(VMGroupOrchestrationParams.Subnets) > 0 {
 		currentSubnetName := ""
 		if action != heatCreate {
-			currentSubnetName = "mex-k8s-subnet-" + VMGroupOrchestrationParams.GroupName
+			currentSubnetName = vmlayer.MexSubnetPrefix + VMGroupOrchestrationParams.GroupName
 		}
-		var sns []OSSubnet
-		var snserr error
-		if action != heatTest {
-			sns, snserr = o.ListSubnets(ctx, VMGroupOrchestrationParams.Netspec.Name)
+		if action != heatTest && !VMGroupOrchestrationParams.SkipInfraSpecificCheck {
+			sns, snserr := o.ListSubnets(ctx, o.VMProperties.GetCloudletMexNetwork())
 			if snserr != nil {
-				return fmt.Errorf("can't get list of subnets for %s, %v", VMGroupOrchestrationParams.Netspec.Name, snserr)
+				return fmt.Errorf("can't get list of subnets for %s, %v", o.VMProperties.GetCloudletMexNetwork(), snserr)
 			}
 			for _, s := range sns {
 				usedCidrs[s.Subnet] = s.Name
@@ -413,7 +334,9 @@ func (o *OpenstackPlatform) populateParams(ctx context.Context, VMGroupOrchestra
 				if (newSubnet && usedCidrs[subnet] == "") || (!newSubnet && usedCidrs[subnet] == currentSubnetName) {
 					found = true
 					VMGroupOrchestrationParams.Subnets[i].CIDR = subnet
-					VMGroupOrchestrationParams.Subnets[i].GatewayIP = fmt.Sprintf("%s.%s.%d.%d", VMGroupOrchestrationParams.Netspec.Octets[0], VMGroupOrchestrationParams.Netspec.Octets[1], octet, 1)
+					if !VMGroupOrchestrationParams.Subnets[i].SkipGateway {
+						VMGroupOrchestrationParams.Subnets[i].GatewayIP = fmt.Sprintf("%s.%s.%d.%d", VMGroupOrchestrationParams.Netspec.Octets[0], VMGroupOrchestrationParams.Netspec.Octets[1], octet, 1)
+					}
 					VMGroupOrchestrationParams.Subnets[i].NodeIPPrefix = fmt.Sprintf("%s.%s.%d", VMGroupOrchestrationParams.Netspec.Octets[0], VMGroupOrchestrationParams.Netspec.Octets[1], octet)
 					masterIP = fmt.Sprintf("%s.%s.%d.%d", VMGroupOrchestrationParams.Netspec.Octets[0], VMGroupOrchestrationParams.Netspec.Octets[1], octet, 10)
 					break
@@ -449,8 +372,12 @@ func (o *OpenstackPlatform) populateParams(ctx context.Context, VMGroupOrchestra
 
 	// populate the user data
 	for i, v := range VMGroupOrchestrationParams.VMs {
-		VMGroupOrchestrationParams.VMs[i].MetaData = o.getVMMetaData(v.Role, masterIP)
-		VMGroupOrchestrationParams.VMs[i].UserData = o.getVMUserData(v.SharedVolume, v.DNSServers, v.DeploymentManifest, v.Command)
+		VMGroupOrchestrationParams.VMs[i].MetaData = vmlayer.GetVMMetaData(v.Role, masterIP, reindent16)
+		userdata, err := vmlayer.GetVMUserData(v.SharedVolume, v.DNSServers, v.DeploymentManifest, v.Command, v.ChefParams, reindent16)
+		if err != nil {
+			return err
+		}
+		VMGroupOrchestrationParams.VMs[i].UserData = userdata
 	}
 
 	// populate the floating ips
@@ -462,7 +389,7 @@ func (o *OpenstackPlatform) populateParams(ctx context.Context, VMGroupOrchestra
 			if action == heatTest {
 				fipid = "test-fip-id"
 			} else {
-				fipid, err = o.getFreeFloatingIpid(ctx)
+				fipid, err = o.getFreeFloatingIpid(ctx, VMGroupOrchestrationParams.Netspec.FloatingIPExternalNet)
 				if err != nil {
 					return err
 				}

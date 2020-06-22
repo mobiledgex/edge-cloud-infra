@@ -15,10 +15,10 @@ resources:
                  - 1.0.0.1
             name: 
                 subnet-test
-    rootlb-xyz-mex-k8s-net-1-port:
+    rootlb-xyz-subnet-test-port:
         type: OS::Neutron::Port
         properties:
-            name: rootlb-xyz-mex-k8s-net-1-port
+            name: rootlb-xyz-subnet-test-port
             network: mex-k8s-net-1
             fixed_ips:
                 - subnet: { get_resource: subnet-test }
@@ -32,10 +32,10 @@ resources:
             security_groups:
                 - { get_resource: testvmgroup-sg }
                 - default-testingID
-    master-xyz-mex-k8s-net-1-port:
+    master-xyz-subnet-test-port:
         type: OS::Neutron::Port
         properties:
-            name: master-xyz-mex-k8s-net-1-port
+            name: master-xyz-subnet-test-port
             network: mex-k8s-net-1
             fixed_ips:
                 - subnet: { get_resource: subnet-test }
@@ -49,19 +49,19 @@ resources:
             security_groups:
                 - { get_resource: testvmgroup-sg }
                 - default-testingID
-    node1-xyz-mex-k8s-net-1-port:
+    node1-xyz-subnet-test-port:
         type: OS::Neutron::Port
         properties:
-            name: node1-xyz-mex-k8s-net-1-port
+            name: node1-xyz-subnet-test-port
             network: mex-k8s-net-1
             fixed_ips:
                 - subnet: { get_resource: subnet-test }
                   ip_address:  10.101.0.101
             port_security_enabled: false
-    node2-xyz-mex-k8s-net-1-port:
+    node2-xyz-subnet-test-port:
         type: OS::Neutron::Port
         properties:
-            name: node2-xyz-mex-k8s-net-1-port
+            name: node2-xyz-subnet-test-port
             network: mex-k8s-net-1
             fixed_ips:
                 - subnet: { get_resource: subnet-test }
@@ -87,6 +87,7 @@ resources:
         type: OS::Cinder::Volume
         properties:
             image: mobiledgex-v9.9.9
+            name: rootlb-xyz-volume
             size: 100
         
     rootlb-xyz:
@@ -105,6 +106,14 @@ resources:
             user_data_format: RAW
             user_data: |
                 #cloud-config
+                chef:
+                  server_url: cheftestserver.mobiledgex.net/organizations/mobiledgex
+                  node_name: rootlb-xyz
+                  environment: ""
+                  validation_name: mobiledgex-validator
+                  validation_key: /etc/chef/client.pem
+                  validation_cert: |
+                          testKey
                 bootcmd:
                  - echo MOBILEDGEX CLOUD CONFIG START
                  - echo 'APT::Periodic::Enable "0";' > /etc/apt/apt.conf.d/10cloudinit-disable
@@ -126,6 +135,7 @@ resources:
         type: OS::Cinder::Volume
         properties:
             image: mobiledgex-v9.9.9
+            name: master-xyz-volume
             size: 100
         
     master-xyz:
@@ -133,7 +143,7 @@ resources:
         properties:
             name: master-xyz
             networks:
-                - port: { get_resource: master-xyz-mex-k8s-net-1-port }
+                - port: { get_resource: master-xyz-subnet-test-port }
                 - port: { get_resource: master-xyz-external-network-shared-port }
             availability_zone: nova1
             block_device_mapping:
@@ -145,6 +155,14 @@ resources:
             user_data_format: RAW
             user_data: |
                 #cloud-config
+                chef:
+                  server_url: cheftestserver.mobiledgex.net/organizations/mobiledgex
+                  node_name: master-xyz
+                  environment: ""
+                  validation_name: mobiledgex-validator
+                  validation_key: /etc/chef/client.pem
+                  validation_cert: |
+                          testKey
                 bootcmd:
                  - echo MOBILEDGEX CLOUD CONFIG START
                  - echo 'APT::Periodic::Enable "0";' > /etc/apt/apt.conf.d/10cloudinit-disable
@@ -168,7 +186,7 @@ resources:
         properties:
             name: node1-xyz
             networks:
-                - port: { get_resource: node1-xyz-mex-k8s-net-1-port }
+                - port: { get_resource: node1-xyz-subnet-test-port }
             availability_zone: nova1
             image: mobiledgex-v9.9.9 
             flavor: m1.medium
@@ -176,6 +194,14 @@ resources:
             user_data_format: RAW
             user_data: |
                 #cloud-config
+                chef:
+                  server_url: cheftestserver.mobiledgex.net/organizations/mobiledgex
+                  node_name: node1-xyz
+                  environment: ""
+                  validation_name: mobiledgex-validator
+                  validation_key: /etc/chef/client.pem
+                  validation_cert: |
+                          testKey
                 bootcmd:
                  - echo MOBILEDGEX CLOUD CONFIG START
                  - echo 'APT::Periodic::Enable "0";' > /etc/apt/apt.conf.d/10cloudinit-disable
@@ -199,7 +225,7 @@ resources:
         properties:
             name: node2-xyz
             networks:
-                - port: { get_resource: node2-xyz-mex-k8s-net-1-port }
+                - port: { get_resource: node2-xyz-subnet-test-port }
             availability_zone: nova1
             image: mobiledgex-v9.9.9 
             flavor: m1.medium
@@ -207,6 +233,14 @@ resources:
             user_data_format: RAW
             user_data: |
                 #cloud-config
+                chef:
+                  server_url: cheftestserver.mobiledgex.net/organizations/mobiledgex
+                  node_name: node2-xyz
+                  environment: ""
+                  validation_name: mobiledgex-validator
+                  validation_key: /etc/chef/client.pem
+                  validation_cert: |
+                          testKey
                 bootcmd:
                  - echo MOBILEDGEX CLOUD CONFIG START
                  - echo 'APT::Periodic::Enable "0";' > /etc/apt/apt.conf.d/10cloudinit-disable

@@ -44,3 +44,6 @@ vault_ha_instance_port: 8200
 vault_cluster_port: 8201
 gcp_project: still-entity-201400
 apidocs_domain: api.mobiledgex.net
+ns1_zone: global.dme.mobiledgex.net
+letsencrypt_path: certs
+letsencrypt_backend: letsencrypt-certs

@@ -18,6 +18,7 @@ import (
 // For each cluster the notify worker is created
 type ClusterWorker struct {
 	clusterInstKey edgeproto.ClusterInstKey
+	reservedBy     string
 	deployment     string
 	promAddr       string
 	interval       time.Duration
@@ -44,13 +45,13 @@ func NewClusterWorker(ctx context.Context, promAddr string, interval time.Durati
 	}
 	log.SpanLog(ctx, log.DebugLevelMetrics, "NewClusterWorker", "cluster", clusterInst.Key, "promAddr", promAddr)
 	// only support K8s deployments
-	if p.deployment == cloudcommon.AppDeploymentTypeKubernetes {
+	if p.deployment == cloudcommon.DeploymentTypeKubernetes {
 		p.clusterStat = &K8sClusterStats{
 			key:      p.clusterInstKey,
 			client:   p.client,
 			promAddr: p.promAddr,
 		}
-	} else if p.deployment == cloudcommon.AppDeploymentTypeDocker {
+	} else if p.deployment == cloudcommon.DeploymentTypeDocker {
 		p.clusterStat = &DockerClusterStats{
 			key:    p.clusterInstKey,
 			client: p.client,
@@ -58,7 +59,9 @@ func NewClusterWorker(ctx context.Context, promAddr string, interval time.Durati
 	} else {
 		return nil, fmt.Errorf("Unsupported deployment %s", clusterInst.Deployment)
 	}
-
+	if clusterInst.Reservable {
+		p.reservedBy = clusterInst.ReservedBy
+	}
 	return &p, nil
 }
 
@@ -108,14 +111,14 @@ func (p *ClusterWorker) RunNotify() {
 					p.send(ctx, metric)
 				}
 			}
-			clusterMetrics := MarshalClusterMetrics(p.clusterInstKey, clusterStats)
+			clusterMetrics := p.MarshalClusterMetrics(clusterStats)
 			for _, metric := range clusterMetrics {
 				p.send(ctx, metric)
 			}
 
 			clusterAlerts := p.clusterStat.GetAlerts(actx)
-			updateAlerts(actx, &p.clusterInstKey, clusterAlerts)
-
+			clusterAlerts = addClusterDetailsToAlerts(clusterAlerts, &p.clusterInstKey)
+			UpdateAlerts(actx, clusterAlerts, &p.clusterInstKey, pruneClusterForeignAlerts)
 			span.Finish()
 			aspan.Finish()
 		case <-p.stop:
@@ -126,14 +129,18 @@ func (p *ClusterWorker) RunNotify() {
 }
 
 // newMetric is called for both Cluster and App stats
-func newMetric(clusterInstKey edgeproto.ClusterInstKey, name string, key *shepherd_common.MetricAppInstKey, ts *types.Timestamp) *edgeproto.Metric {
+func newMetric(clusterInstKey edgeproto.ClusterInstKey, reservedBy string, name string, key *shepherd_common.MetricAppInstKey, ts *types.Timestamp) *edgeproto.Metric {
 	metric := edgeproto.Metric{}
 	metric.Name = name
 	metric.Timestamp = *ts
 	metric.AddTag("cloudletorg", clusterInstKey.CloudletKey.Organization)
 	metric.AddTag("cloudlet", clusterInstKey.CloudletKey.Name)
 	metric.AddTag("cluster", clusterInstKey.ClusterKey.Name)
-	metric.AddTag("clusterorg", clusterInstKey.Organization)
+	if reservedBy != "" {
+		metric.AddTag("clusterorg", reservedBy)
+	} else {
+		metric.AddTag("clusterorg", clusterInstKey.Organization)
+	}
 	if key != nil {
 		metric.AddTag("pod", key.Pod)
 		metric.AddTag("app", key.App)
@@ -144,7 +151,7 @@ func newMetric(clusterInstKey edgeproto.ClusterInstKey, name string, key *shephe
 	return &metric
 }
 
-func MarshalClusterMetrics(key edgeproto.ClusterInstKey, cm *shepherd_common.ClusterMetrics) []*edgeproto.Metric {
+func (p *ClusterWorker) MarshalClusterMetrics(cm *shepherd_common.ClusterMetrics) []*edgeproto.Metric {
 	var metrics []*edgeproto.Metric
 	var metric *edgeproto.Metric
 
@@ -155,7 +162,7 @@ func MarshalClusterMetrics(key edgeproto.ClusterInstKey, cm *shepherd_common.Clu
 
 	// nil timestamps mean the curl request failed. So do not write the metric in
 	if cm.CpuTS != nil {
-		metric = newMetric(key, "cluster-cpu", nil, cm.CpuTS)
+		metric = newMetric(p.clusterInstKey, p.reservedBy, "cluster-cpu", nil, cm.CpuTS)
 		metric.AddDoubleVal("cpu", cm.Cpu)
 		metrics = append(metrics, metric)
 		//reset to nil for the next collection
@@ -163,14 +170,14 @@ func MarshalClusterMetrics(key edgeproto.ClusterInstKey, cm *shepherd_common.Clu
 	}
 
 	if cm.MemTS != nil {
-		metric = newMetric(key, "cluster-mem", nil, cm.MemTS)
+		metric = newMetric(p.clusterInstKey, p.reservedBy, "cluster-mem", nil, cm.MemTS)
 		metric.AddDoubleVal("mem", cm.Mem)
 		metrics = append(metrics, metric)
 		cm.MemTS = nil
 	}
 
 	if cm.DiskTS != nil {
-		metric = newMetric(key, "cluster-disk", nil, cm.DiskTS)
+		metric = newMetric(p.clusterInstKey, p.reservedBy, "cluster-disk", nil, cm.DiskTS)
 		metric.AddDoubleVal("disk", cm.Disk)
 		metrics = append(metrics, metric)
 		cm.DiskTS = nil
@@ -178,7 +185,7 @@ func MarshalClusterMetrics(key edgeproto.ClusterInstKey, cm *shepherd_common.Clu
 
 	if cm.NetSentTS != nil && cm.NetRecvTS != nil {
 		//for measurements with multiple values just pick one timestamp to use
-		metric = newMetric(key, "cluster-network", nil, cm.NetSentTS)
+		metric = newMetric(p.clusterInstKey, p.reservedBy, "cluster-network", nil, cm.NetSentTS)
 		metric.AddIntVal("sendBytes", cm.NetSent)
 		metric.AddIntVal("recvBytes", cm.NetRecv)
 		metrics = append(metrics, metric)
@@ -187,7 +194,7 @@ func MarshalClusterMetrics(key edgeproto.ClusterInstKey, cm *shepherd_common.Clu
 	cm.NetRecvTS = nil
 
 	if cm.TcpConnsTS != nil && cm.TcpRetransTS != nil {
-		metric = newMetric(key, "cluster-tcp", nil, cm.TcpConnsTS)
+		metric = newMetric(p.clusterInstKey, p.reservedBy, "cluster-tcp", nil, cm.TcpConnsTS)
 		metric.AddIntVal("tcpConns", cm.TcpConns)
 		metric.AddIntVal("tcpRetrans", cm.TcpRetrans)
 		metrics = append(metrics, metric)
@@ -196,7 +203,7 @@ func MarshalClusterMetrics(key edgeproto.ClusterInstKey, cm *shepherd_common.Clu
 	cm.NetRecvTS = nil
 
 	if cm.UdpSentTS != nil && cm.UdpRecvTS != nil && cm.UdpRecvErrTS != nil {
-		metric = newMetric(key, "cluster-udp", nil, cm.UdpSentTS)
+		metric = newMetric(p.clusterInstKey, p.reservedBy, "cluster-udp", nil, cm.UdpSentTS)
 		metric.AddIntVal("udpSent", cm.UdpSent)
 		metric.AddIntVal("udpRecv", cm.UdpRecv)
 		metric.AddIntVal("udpRecvErr", cm.UdpRecvErr)
@@ -219,21 +226,21 @@ func MarshalAppMetrics(key *shepherd_common.MetricAppInstKey, stat *shepherd_com
 	}
 
 	if stat.CpuTS != nil {
-		metric = newMetric(key.ClusterInstKey, "appinst-cpu", key, stat.CpuTS)
+		metric = newMetric(key.ClusterInstKey, "", "appinst-cpu", key, stat.CpuTS)
 		metric.AddDoubleVal("cpu", stat.Cpu)
 		metrics = append(metrics, metric)
 		stat.CpuTS = nil
 	}
 
 	if stat.MemTS != nil {
-		metric = newMetric(key.ClusterInstKey, "appinst-mem", key, stat.MemTS)
+		metric = newMetric(key.ClusterInstKey, "", "appinst-mem", key, stat.MemTS)
 		metric.AddIntVal("mem", stat.Mem)
 		metrics = append(metrics, metric)
 		stat.MemTS = nil
 	}
 
 	if stat.DiskTS != nil {
-		metric = newMetric(key.ClusterInstKey, "appinst-disk", key, stat.DiskTS)
+		metric = newMetric(key.ClusterInstKey, "", "appinst-disk", key, stat.DiskTS)
 		metric.AddIntVal("disk", stat.Disk)
 		metrics = append(metrics, metric)
 		stat.DiskTS = nil
@@ -241,7 +248,7 @@ func MarshalAppMetrics(key *shepherd_common.MetricAppInstKey, stat *shepherd_com
 
 	if stat.NetSentTS != nil && stat.NetRecvTS != nil {
 		//for measurements with multiple values just pick one timestamp to use
-		metric = newMetric(key.ClusterInstKey, "appinst-network", key, stat.NetSentTS)
+		metric = newMetric(key.ClusterInstKey, "", "appinst-network", key, stat.NetSentTS)
 		metric.AddIntVal("sendBytes", stat.NetSent)
 		metric.AddIntVal("recvBytes", stat.NetRecv)
 		metrics = append(metrics, metric)
@@ -250,90 +257,4 @@ func MarshalAppMetrics(key *shepherd_common.MetricAppInstKey, stat *shepherd_com
 	stat.NetRecvTS = nil
 
 	return metrics
-}
-
-// Don't consider alerts, which are not destined for this cluster Instance and not clusterInst alerts
-func pruneForeignAlerts(clusterInstKey *edgeproto.ClusterInstKey, keys *map[edgeproto.AlertKey]struct{}) {
-	alertFromKey := edgeproto.Alert{}
-	for key, _ := range *keys {
-		edgeproto.AlertKeyStringParse(string(key), &alertFromKey)
-		if _, found := alertFromKey.Labels[cloudcommon.AlertLabelApp]; found ||
-			alertFromKey.Labels[cloudcommon.AlertLabelClusterOrg] != clusterInstKey.Organization ||
-			alertFromKey.Labels[cloudcommon.AlertLabelCloudletOrg] != clusterInstKey.CloudletKey.Organization ||
-			alertFromKey.Labels[cloudcommon.AlertLabelCloudlet] != clusterInstKey.CloudletKey.Name ||
-			alertFromKey.Labels[cloudcommon.AlertLabelCluster] != clusterInstKey.ClusterKey.Name {
-			delete(*keys, key)
-		}
-	}
-}
-
-func updateAlerts(ctx context.Context, clusterInstKey *edgeproto.ClusterInstKey, alerts []edgeproto.Alert) {
-	if alerts == nil {
-		// some error occurred, do not modify existing cache set
-		return
-	}
-
-	stale := make(map[edgeproto.AlertKey]struct{})
-	AlertCache.GetAllKeys(ctx, func(k *edgeproto.AlertKey, modRev int64) {
-		stale[*k] = struct{}{}
-	})
-
-	changeCount := 0
-	for ii, _ := range alerts {
-		alert := &alerts[ii]
-		alert.Labels[cloudcommon.AlertLabelClusterOrg] = clusterInstKey.Organization
-		alert.Labels[cloudcommon.AlertLabelCloudletOrg] = clusterInstKey.CloudletKey.Organization
-		alert.Labels[cloudcommon.AlertLabelCloudlet] = clusterInstKey.CloudletKey.Name
-		alert.Labels[cloudcommon.AlertLabelCluster] = clusterInstKey.ClusterKey.Name
-
-		AlertCache.UpdateModFunc(ctx, alert.GetKey(), 0, func(old *edgeproto.Alert) (*edgeproto.Alert, bool) {
-			if old == nil {
-				log.SpanLog(ctx, log.DebugLevelMetrics, "Update alert", "alert", alert)
-				changeCount++
-				return alert, true
-			}
-			// don't update if nothing changed
-			changed := !alert.Matches(old)
-			if changed {
-				changeCount++
-				log.SpanLog(ctx, log.DebugLevelMetrics, "Update alert", "alert", alert)
-			}
-			return alert, changed
-		})
-		delete(stale, alert.GetKeyVal())
-	}
-	// delete our stale entries
-	pruneForeignAlerts(clusterInstKey, &stale)
-	for key, _ := range stale {
-		buf := edgeproto.Alert{}
-		buf.SetKey(&key)
-		AlertCache.Delete(ctx, &buf, 0)
-		changeCount++
-	}
-	if changeCount == 0 {
-		// suppress span log since nothing logged
-		span := log.SpanFromContext(ctx)
-		log.NoLogSpan(span)
-	}
-}
-
-// flushAlerts removes Alerts for clusters that have been deleted
-func flushAlerts(ctx context.Context, key *edgeproto.ClusterInstKey) {
-	toflush := []edgeproto.AlertKey{}
-	AlertCache.Mux.Lock()
-	for k, data := range AlertCache.Objs {
-		v := data.Obj
-		if v.Labels[cloudcommon.AlertLabelClusterOrg] == key.Organization &&
-			v.Labels[cloudcommon.AlertLabelCloudletOrg] == key.CloudletKey.Organization &&
-			v.Labels[cloudcommon.AlertLabelCloudlet] == key.CloudletKey.Name &&
-			v.Labels[cloudcommon.AlertLabelCluster] == key.ClusterKey.Name {
-			toflush = append(toflush, k)
-		}
-	}
-	AlertCache.Mux.Unlock()
-	for _, k := range toflush {
-		buf := edgeproto.Alert{}
-		buf.SetKey(&k)
-		AlertCache.Delete(ctx, &buf, 0)
-	}
 }

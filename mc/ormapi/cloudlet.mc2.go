@@ -54,6 +54,13 @@ type swaggerShowCloudlet struct {
 	Body RegionCloudlet
 }
 
+// Request summary for GetCloudletManifest
+// swagger:parameters GetCloudletManifest
+type swaggerGetCloudletManifest struct {
+	// in: body
+	Body RegionCloudlet
+}
+
 // Request summary for AddCloudletResMapping
 // swagger:parameters AddCloudletResMapping
 type swaggerAddCloudletResMapping struct {
@@ -101,4 +108,18 @@ type RegionCloudletInfo struct {
 	// Region name
 	Region       string
 	CloudletInfo edgeproto.CloudletInfo
+}
+
+// Request summary for InjectCloudletInfo
+// swagger:parameters InjectCloudletInfo
+type swaggerInjectCloudletInfo struct {
+	// in: body
+	Body RegionCloudletInfo
+}
+
+// Request summary for EvictCloudletInfo
+// swagger:parameters EvictCloudletInfo
+type swaggerEvictCloudletInfo struct {
+	// in: body
+	Body RegionCloudletInfo
 }

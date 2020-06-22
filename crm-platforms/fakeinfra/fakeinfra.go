@@ -7,6 +7,7 @@ import (
 	"time"
 
 	intprocess "github.com/mobiledgex/edge-cloud-infra/e2e-tests/int-process"
+	pf "github.com/mobiledgex/edge-cloud/cloud-resource-manager/platform"
 	"github.com/mobiledgex/edge-cloud/cloud-resource-manager/platform/fake"
 	"github.com/mobiledgex/edge-cloud/cloudcommon"
 	"github.com/mobiledgex/edge-cloud/edgeproto"
@@ -16,8 +17,8 @@ type Platform struct {
 	fake.Platform
 }
 
-func (s *Platform) CreateCloudlet(ctx context.Context, cloudlet *edgeproto.Cloudlet, pfConfig *edgeproto.PlatformConfig, flavor *edgeproto.Flavor, updateCallback edgeproto.CacheUpdateCallback) error {
-	err := s.Platform.CreateCloudlet(ctx, cloudlet, pfConfig, flavor, updateCallback)
+func (s *Platform) CreateCloudlet(ctx context.Context, cloudlet *edgeproto.Cloudlet, pfConfig *edgeproto.PlatformConfig, flavor *edgeproto.Flavor, caches *pf.Caches, updateCallback edgeproto.CacheUpdateCallback) error {
+	err := s.Platform.CreateCloudlet(ctx, cloudlet, pfConfig, flavor, nil, updateCallback)
 	if err != nil {
 		return err
 	}
@@ -34,28 +35,6 @@ func (s *Platform) DeleteCloudlet(ctx context.Context, cloudlet *edgeproto.Cloud
 	}
 	updateCallback(edgeproto.UpdateTask, "Stopping Shepherd")
 	return intprocess.StopShepherdService(ctx, cloudlet)
-}
-
-func (s *Platform) UpdateCloudlet(ctx context.Context, cloudlet *edgeproto.Cloudlet, pfConfig *edgeproto.PlatformConfig, updateCallback edgeproto.CacheUpdateCallback) (edgeproto.CloudletAction, error) {
-	updateCallback(edgeproto.UpdateTask, "Stopping old Shepherd service")
-	err := intprocess.StopShepherdService(ctx, cloudlet)
-	if err != nil {
-		return edgeproto.CloudletAction_ACTION_NONE, err
-	}
-	cloudletAction, err := s.Platform.UpdateCloudlet(ctx, cloudlet, pfConfig, updateCallback)
-	if err != nil {
-		return edgeproto.CloudletAction_ACTION_NONE, err
-	}
-	err = ShepherdStartup(ctx, cloudlet, pfConfig, updateCallback)
-	return cloudletAction, err
-}
-
-func (s *Platform) CleanupCloudlet(ctx context.Context, cloudlet *edgeproto.Cloudlet, pfConfig *edgeproto.PlatformConfig, updateCallback edgeproto.CacheUpdateCallback) error {
-	err := s.Platform.CleanupCloudlet(ctx, cloudlet, pfConfig, updateCallback)
-	if err != nil {
-		return err
-	}
-	return nil
 }
 
 // Start prometheus container

@@ -52,8 +52,8 @@ var DeleteCloudletCmd = &cli.Command{
 
 var UpdateCloudletCmd = &cli.Command{
 	Use:          "UpdateCloudlet",
-	RequiredArgs: "region " + strings.Join(CloudletRequiredArgs, " "),
-	OptionalArgs: strings.Join(CloudletOptionalArgs, " "),
+	RequiredArgs: "region " + strings.Join(UpdateCloudletRequiredArgs, " "),
+	OptionalArgs: strings.Join(UpdateCloudletOptionalArgs, " "),
 	AliasArgs:    strings.Join(CloudletAliasArgs, " "),
 	SpecialArgs:  &CloudletSpecialArgs,
 	Comments:     addRegionComment(CloudletComments),
@@ -76,7 +76,14 @@ func setUpdateCloudletFields(in map[string]interface{}) {
 	if !ok {
 		return
 	}
-	objmap["fields"] = cli.GetSpecifiedFields(objmap, &edgeproto.Cloudlet{}, cli.JsonNamespace)
+	fields := cli.GetSpecifiedFields(objmap, &edgeproto.Cloudlet{}, cli.JsonNamespace)
+	// include fields already specified
+	if inFields, found := objmap["fields"]; found {
+		if fieldsArr, ok := inFields.([]string); ok {
+			fields = append(fields, fieldsArr...)
+		}
+	}
+	objmap["fields"] = fields
 }
 
 var ShowCloudletCmd = &cli.Command{
@@ -90,6 +97,18 @@ var ShowCloudletCmd = &cli.Command{
 	ReplyData:    &edgeproto.Cloudlet{},
 	Run:          runRest("/auth/ctrl/ShowCloudlet"),
 	StreamOut:    true,
+}
+
+var GetCloudletManifestCmd = &cli.Command{
+	Use:          "GetCloudletManifest",
+	RequiredArgs: "region " + strings.Join(CloudletRequiredArgs, " "),
+	OptionalArgs: strings.Join(CloudletOptionalArgs, " "),
+	AliasArgs:    strings.Join(CloudletAliasArgs, " "),
+	SpecialArgs:  &CloudletSpecialArgs,
+	Comments:     addRegionComment(CloudletComments),
+	ReqData:      &ormapi.RegionCloudlet{},
+	ReplyData:    &edgeproto.CloudletManifest{},
+	Run:          runRest("/auth/ctrl/GetCloudletManifest"),
 }
 
 var AddCloudletResMappingCmd = &cli.Command{
@@ -133,6 +152,7 @@ var CloudletApiCmds = []*cli.Command{
 	DeleteCloudletCmd,
 	UpdateCloudletCmd,
 	ShowCloudletCmd,
+	GetCloudletManifestCmd,
 	AddCloudletResMappingCmd,
 	RemoveCloudletResMappingCmd,
 	FindFlavorMatchCmd,
@@ -171,7 +191,41 @@ var CreateCloudletOptionalArgs = []string{
 	"restagmap:#.value.organization",
 	"accessvars",
 	"vmimageversion",
-	"packageversion",
+	"deployment",
+	"infraapiaccess",
+	"infraconfig.externalnetworkname",
+	"infraconfig.flavorname",
+	"maintenancestate",
+}
+var UpdateCloudletRequiredArgs = []string{
+	"cloudlet-org",
+	"cloudlet",
+}
+var UpdateCloudletOptionalArgs = []string{
+	"location.latitude",
+	"location.longitude",
+	"location.horizontalaccuracy",
+	"location.verticalaccuracy",
+	"location.altitude",
+	"location.course",
+	"location.speed",
+	"location.timestamp.seconds",
+	"location.timestamp.nanos",
+	"ipsupport",
+	"staticips",
+	"numdynamicips",
+	"timelimits.createclusterinsttimeout",
+	"timelimits.updateclusterinsttimeout",
+	"timelimits.deleteclusterinsttimeout",
+	"timelimits.createappinsttimeout",
+	"timelimits.updateappinsttimeout",
+	"timelimits.deleteappinsttimeout",
+	"crmoverride",
+	"restagmap:#.key",
+	"restagmap:#.value.name",
+	"restagmap:#.value.organization",
+	"accessvars",
+	"maintenancestate",
 }
 
 var ShowCloudletInfoCmd = &cli.Command{
@@ -187,8 +241,34 @@ var ShowCloudletInfoCmd = &cli.Command{
 	StreamOut:    true,
 }
 
+var InjectCloudletInfoCmd = &cli.Command{
+	Use:          "InjectCloudletInfo",
+	RequiredArgs: "region " + strings.Join(CloudletInfoRequiredArgs, " "),
+	OptionalArgs: strings.Join(CloudletInfoOptionalArgs, " "),
+	AliasArgs:    strings.Join(CloudletInfoAliasArgs, " "),
+	SpecialArgs:  &CloudletInfoSpecialArgs,
+	Comments:     addRegionComment(CloudletInfoComments),
+	ReqData:      &ormapi.RegionCloudletInfo{},
+	ReplyData:    &edgeproto.Result{},
+	Run:          runRest("/auth/ctrl/InjectCloudletInfo"),
+}
+
+var EvictCloudletInfoCmd = &cli.Command{
+	Use:          "EvictCloudletInfo",
+	RequiredArgs: "region " + strings.Join(CloudletInfoRequiredArgs, " "),
+	OptionalArgs: strings.Join(CloudletInfoOptionalArgs, " "),
+	AliasArgs:    strings.Join(CloudletInfoAliasArgs, " "),
+	SpecialArgs:  &CloudletInfoSpecialArgs,
+	Comments:     addRegionComment(CloudletInfoComments),
+	ReqData:      &ormapi.RegionCloudletInfo{},
+	ReplyData:    &edgeproto.Result{},
+	Run:          runRest("/auth/ctrl/EvictCloudletInfo"),
+}
+
 var CloudletInfoApiCmds = []*cli.Command{
 	ShowCloudletInfoCmd,
+	InjectCloudletInfoCmd,
+	EvictCloudletInfoCmd,
 }
 
 var CloudletKeyRequiredArgs = []string{}
@@ -247,6 +327,10 @@ var PlatformConfigOptionalArgs = []string{
 	"commercialcerts",
 	"usevaultcerts",
 	"usevaultcas",
+	"appdnsroot",
+	"chefserverpath",
+	"chefclientinterval",
+	"deploymenttag",
 }
 var PlatformConfigAliasArgs = []string{
 	"containerregistrypath=platformconfig.containerregistrypath",
@@ -263,6 +347,10 @@ var PlatformConfigAliasArgs = []string{
 	"commercialcerts=platformconfig.commercialcerts",
 	"usevaultcerts=platformconfig.usevaultcerts",
 	"usevaultcas=platformconfig.usevaultcas",
+	"appdnsroot=platformconfig.appdnsroot",
+	"chefserverpath=platformconfig.chefserverpath",
+	"chefclientinterval=platformconfig.chefclientinterval",
+	"deploymenttag=platformconfig.deploymenttag",
 }
 var PlatformConfigComments = map[string]string{
 	"containerregistrypath": "Path to Docker registry holding edge-cloud image",
@@ -279,6 +367,10 @@ var PlatformConfigComments = map[string]string{
 	"commercialcerts":       "Get certs from vault or generate your own for the root load balancer",
 	"usevaultcerts":         "Use Vault certs for internal TLS communication",
 	"usevaultcas":           "Use Vault CAs to authenticate TLS communication",
+	"appdnsroot":            "App domain name root",
+	"chefserverpath":        "Path to Chef Server",
+	"chefclientinterval":    "Chef client interval",
+	"deploymenttag":         "Deployment Tag",
 }
 var PlatformConfigSpecialArgs = map[string]string{
 	"platformconfig.envvar": "StringToString",
@@ -302,6 +394,20 @@ var CloudletResMapComments = map[string]string{
 var CloudletResMapSpecialArgs = map[string]string{
 	"cloudletresmap.mapping": "StringToString",
 }
+var InfraConfigRequiredArgs = []string{}
+var InfraConfigOptionalArgs = []string{
+	"externalnetworkname",
+	"flavorname",
+}
+var InfraConfigAliasArgs = []string{
+	"externalnetworkname=infraconfig.externalnetworkname",
+	"flavorname=infraconfig.flavorname",
+}
+var InfraConfigComments = map[string]string{
+	"externalnetworkname": "Infra specific external network name",
+	"flavorname":          "Infra specific flavor name",
+}
+var InfraConfigSpecialArgs = map[string]string{}
 var CloudletRequiredArgs = []string{
 	"cloudlet-org",
 	"cloudlet",
@@ -335,7 +441,11 @@ var CloudletOptionalArgs = []string{
 	"restagmap:#.value.organization",
 	"accessvars",
 	"vmimageversion",
-	"packageversion",
+	"deployment",
+	"infraapiaccess",
+	"infraconfig.externalnetworkname",
+	"infraconfig.flavorname",
+	"maintenancestate",
 }
 var CloudletAliasArgs = []string{
 	"fields=cloudlet.fields",
@@ -387,12 +497,21 @@ var CloudletAliasArgs = []string{
 	"config.commercialcerts=cloudlet.config.commercialcerts",
 	"config.usevaultcerts=cloudlet.config.usevaultcerts",
 	"config.usevaultcas=cloudlet.config.usevaultcas",
+	"config.appdnsroot=cloudlet.config.appdnsroot",
+	"config.chefserverpath=cloudlet.config.chefserverpath",
+	"config.chefclientinterval=cloudlet.config.chefclientinterval",
+	"config.deploymenttag=cloudlet.config.deploymenttag",
 	"restagmap:#.key=cloudlet.restagmap:#.key",
 	"restagmap:#.value.name=cloudlet.restagmap:#.value.name",
 	"restagmap:#.value.organization=cloudlet.restagmap:#.value.organization",
 	"accessvars=cloudlet.accessvars",
 	"vmimageversion=cloudlet.vmimageversion",
-	"packageversion=cloudlet.packageversion",
+	"deployment=cloudlet.deployment",
+	"infraapiaccess=cloudlet.infraapiaccess",
+	"infraconfig.externalnetworkname=cloudlet.infraconfig.externalnetworkname",
+	"infraconfig.flavorname=cloudlet.infraconfig.flavorname",
+	"chefclientkey=cloudlet.chefclientkey",
+	"maintenancestate=cloudlet.maintenancestate",
 }
 var CloudletComments = map[string]string{
 	"fields":                              "Fields are used for the Update API to specify which fields to apply",
@@ -438,14 +557,24 @@ var CloudletComments = map[string]string{
 	"config.commercialcerts":              "Get certs from vault or generate your own for the root load balancer",
 	"config.usevaultcerts":                "Use Vault certs for internal TLS communication",
 	"config.usevaultcas":                  "Use Vault CAs to authenticate TLS communication",
+	"config.appdnsroot":                   "App domain name root",
+	"config.chefserverpath":               "Path to Chef Server",
+	"config.chefclientinterval":           "Chef client interval",
+	"config.deploymenttag":                "Deployment Tag",
 	"restagmap:#.value.name":              "Resource Table Name",
 	"restagmap:#.value.organization":      "Operator organization of the cloudlet site.",
 	"accessvars":                          "Variables required to access cloudlet",
 	"vmimageversion":                      "MobiledgeX baseimage version where CRM services reside",
-	"packageversion":                      "MobiledgeX OS package version on baseimage where CRM services reside",
+	"deployment":                          "Deployment type to bring up CRM services (docker, kubernetes)",
+	"infraapiaccess":                      "Infra Access Type is the type of access available to Infra API Endpoint, one of DirectAccess, RestrictedAccess",
+	"infraconfig.externalnetworkname":     "Infra specific external network name",
+	"infraconfig.flavorname":              "Infra specific flavor name",
+	"chefclientkey":                       "Chef client key",
+	"maintenancestate":                    "State for maintenance, one of NormalOperation, MaintenanceStart, MaintenanceStartNoFailover",
 }
 var CloudletSpecialArgs = map[string]string{
 	"cloudlet.accessvars":    "StringToString",
+	"cloudlet.chefclientkey": "StringToString",
 	"cloudlet.config.envvar": "StringToString",
 	"cloudlet.envvar":        "StringToString",
 	"cloudlet.errors":        "StringArray",
@@ -470,6 +599,20 @@ var FlavorMatchComments = map[string]string{
 	"cloudlet":     "Name of the cloudlet",
 }
 var FlavorMatchSpecialArgs = map[string]string{}
+var CloudletManifestRequiredArgs = []string{}
+var CloudletManifestOptionalArgs = []string{
+	"imagepath",
+	"manifest",
+}
+var CloudletManifestAliasArgs = []string{
+	"imagepath=cloudletmanifest.imagepath",
+	"manifest=cloudletmanifest.manifest",
+}
+var CloudletManifestComments = map[string]string{
+	"imagepath": "Image path of cloudlet VM base image",
+	"manifest":  "Manifest to bringup cloudlet VM and services",
+}
+var CloudletManifestSpecialArgs = map[string]string{}
 var FlavorInfoRequiredArgs = []string{}
 var FlavorInfoOptionalArgs = []string{
 	"name",
@@ -554,6 +697,8 @@ var CloudletInfoOptionalArgs = []string{
 	"osimages:#.tags",
 	"osimages:#.properties",
 	"osimages:#.diskformat",
+	"controllercachereceived",
+	"maintenancestate",
 }
 var CloudletInfoAliasArgs = []string{
 	"fields=cloudletinfo.fields",
@@ -582,28 +727,32 @@ var CloudletInfoAliasArgs = []string{
 	"osimages:#.tags=cloudletinfo.osimages:#.tags",
 	"osimages:#.properties=cloudletinfo.osimages:#.properties",
 	"osimages:#.diskformat=cloudletinfo.osimages:#.diskformat",
+	"controllercachereceived=cloudletinfo.controllercachereceived",
+	"maintenancestate=cloudletinfo.maintenancestate",
 }
 var CloudletInfoComments = map[string]string{
-	"fields":                "Fields are used for the Update API to specify which fields to apply",
-	"cloudlet-org":          "Organization of the cloudlet site",
-	"cloudlet":              "Name of the cloudlet",
-	"state":                 "State of cloudlet, one of CloudletStateUnknown, CloudletStateErrors, CloudletStateReady, CloudletStateOffline, CloudletStateNotPresent, CloudletStateInit, CloudletStateUpgrade",
-	"notifyid":              "Id of client assigned by server (internal use only)",
-	"controller":            "Connected controller unique id",
-	"osmaxram":              "Maximum Ram in MB on the Cloudlet",
-	"osmaxvcores":           "Maximum number of VCPU cores on the Cloudlet",
-	"osmaxvolgb":            "Maximum amount of disk in GB on the Cloudlet",
-	"errors":                "Any errors encountered while making changes to the Cloudlet",
-	"flavors:#.name":        "Name of the flavor on the Cloudlet",
-	"flavors:#.vcpus":       "Number of VCPU cores on the Cloudlet",
-	"flavors:#.ram":         "Ram in MB on the Cloudlet",
-	"flavors:#.disk":        "Amount of disk in GB on the Cloudlet",
-	"flavors:#.propmap":     "OS Flavor Properties, if any",
-	"containerversion":      "Cloudlet container version",
-	"osimages:#.name":       "image name",
-	"osimages:#.tags":       "optional tags present on image",
-	"osimages:#.properties": "image properties/metadata",
-	"osimages:#.diskformat": "format qcow2, img, etc",
+	"fields":                  "Fields are used for the Update API to specify which fields to apply",
+	"cloudlet-org":            "Organization of the cloudlet site",
+	"cloudlet":                "Name of the cloudlet",
+	"state":                   "State of cloudlet, one of CloudletStateUnknown, CloudletStateErrors, CloudletStateReady, CloudletStateOffline, CloudletStateNotPresent, CloudletStateInit, CloudletStateUpgrade, CloudletStateNeedSync",
+	"notifyid":                "Id of client assigned by server (internal use only)",
+	"controller":              "Connected controller unique id",
+	"osmaxram":                "Maximum Ram in MB on the Cloudlet",
+	"osmaxvcores":             "Maximum number of VCPU cores on the Cloudlet",
+	"osmaxvolgb":              "Maximum amount of disk in GB on the Cloudlet",
+	"errors":                  "Any errors encountered while making changes to the Cloudlet",
+	"flavors:#.name":          "Name of the flavor on the Cloudlet",
+	"flavors:#.vcpus":         "Number of VCPU cores on the Cloudlet",
+	"flavors:#.ram":           "Ram in MB on the Cloudlet",
+	"flavors:#.disk":          "Amount of disk in GB on the Cloudlet",
+	"flavors:#.propmap":       "OS Flavor Properties, if any",
+	"containerversion":        "Cloudlet container version",
+	"osimages:#.name":         "image name",
+	"osimages:#.tags":         "optional tags present on image",
+	"osimages:#.properties":   "image properties/metadata",
+	"osimages:#.diskformat":   "format qcow2, img, etc",
+	"controllercachereceived": "Indicates all controller data has been sent to CRM",
+	"maintenancestate":        "State for maintenance, one of NormalOperation, MaintenanceStart, MaintenanceStartNoFailover",
 }
 var CloudletInfoSpecialArgs = map[string]string{
 	"cloudletinfo.errors":            "StringArray",

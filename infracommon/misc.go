@@ -1,6 +1,7 @@
 package infracommon
 
 import (
+	"bytes"
 	"context"
 	"fmt"
 	"io/ioutil"
@@ -46,20 +47,21 @@ func CopyFile(src string, dst string) error {
 	return nil
 }
 
-func SeedDockerSecret(ctx context.Context, client ssh.Client, clusterInst *edgeproto.ClusterInst, app *edgeproto.App, vaultConfig *vault.Config) error {
-	log.SpanLog(ctx, log.DebugLevelInfra, "seed docker secret", "imagepath", app.ImagePath)
+func SeedDockerSecret(ctx context.Context, client ssh.Client, clusterInst *edgeproto.ClusterInst, imagePath string, vaultConfig *vault.Config) error {
+	log.SpanLog(ctx, log.DebugLevelInfra, "seed docker secret", "imagepath", imagePath)
 
-	urlObj, err := util.ImagePathParse(app.ImagePath)
+	urlObj, err := util.ImagePathParse(imagePath)
 	if err != nil {
-		return fmt.Errorf("Cannot parse image path: %s - %v", app.ImagePath, err)
+		return fmt.Errorf("Cannot parse image path: %s - %v", imagePath, err)
 	}
 	if urlObj.Host == cloudcommon.DockerHub {
 		log.SpanLog(ctx, log.DebugLevelInfra, "no secret needed for public image")
 		return nil
 	}
-	auth, err := cloudcommon.GetRegistryAuth(ctx, app.ImagePath, vaultConfig)
+	auth, err := cloudcommon.GetRegistryAuth(ctx, imagePath, vaultConfig)
 	if err != nil {
-		return err
+		log.SpanLog(ctx, log.DebugLevelInfra, "warning, cannot get docker registry secret from vault - assume public registry", "err", err)
+		return nil
 	}
 	if auth.AuthType != cloudcommon.BasicAuth {
 		return fmt.Errorf("auth type for %s is not basic auth type", auth.Hostname)
@@ -83,5 +85,22 @@ func SeedDockerSecret(ctx context.Context, client ssh.Client, clusterInst *edgep
 		return fmt.Errorf("can't docker login on rootlb to %s, %s, %v", auth.Hostname, out, err)
 	}
 	log.SpanLog(ctx, log.DebugLevelInfra, "docker login ok")
+	return nil
+}
+
+func WriteTemplateFile(filename string, buf *bytes.Buffer) error {
+	outFile, err := os.OpenFile(filename, os.O_TRUNC|os.O_CREATE|os.O_WRONLY, 0644)
+	if err != nil {
+		return fmt.Errorf("unable to write heat template %s: %s", filename, err.Error())
+	}
+	_, err = outFile.WriteString(buf.String())
+
+	if err != nil {
+		outFile.Close()
+		os.Remove(filename)
+		return fmt.Errorf("unable to write heat template file %s: %s", filename, err.Error())
+	}
+	outFile.Sync()
+	outFile.Close()
 	return nil
 }

@@ -47,7 +47,7 @@ func (o *SSHOptions) Apply(ops []SSHClientOp) {
 func (v *VMPlatform) CopySSHCredential(ctx context.Context, serverName, networkName, userName string) error {
 	//TODO multiple keys to be copied and added to authorized_keys if needed
 	log.SpanLog(ctx, log.DebugLevelInfra, "copying ssh credentials", "server", serverName, "network", networkName, "user", userName)
-	ip, err := v.VMProvider.GetIPFromServerName(ctx, networkName, serverName)
+	ip, err := v.GetIPFromServerName(ctx, networkName, "", serverName)
 	if err != nil {
 		return err
 	}
@@ -91,7 +91,7 @@ func (v *VMPlatform) GetSSHClientFromIPAddr(ctx context.Context, ipaddr string, 
 func (v *VMPlatform) GetSSHClientForCluster(ctx context.Context, clusterInst *edgeproto.ClusterInst) (ssh.Client, error) {
 	rootLBName := v.VMProperties.sharedRootLBName
 	if clusterInst.IpAccess == edgeproto.IpAccess_IP_ACCESS_DEDICATED {
-		rootLBName = cloudcommon.GetDedicatedLBFQDN(v.VMProperties.CommonPf.PlatformConfig.CloudletKey, &clusterInst.Key.ClusterKey)
+		rootLBName = cloudcommon.GetDedicatedLBFQDN(v.VMProperties.CommonPf.PlatformConfig.CloudletKey, &clusterInst.Key.ClusterKey, v.VMProperties.CommonPf.PlatformConfig.AppDNSRoot)
 	}
 	return v.GetSSHClientForServer(ctx, rootLBName, v.VMProperties.GetCloudletExternalNetwork())
 }
@@ -108,7 +108,7 @@ func (v *VMPlatform) GetSSHClientForServer(ctx context.Context, serverName, netw
 		}
 	}
 	if externalAddr == "" {
-		serverIp, err := v.VMProvider.GetIPFromServerName(ctx, networkName, serverName)
+		serverIp, err := v.GetIPFromServerName(ctx, networkName, "", serverName)
 		if err != nil {
 			return nil, err
 		}

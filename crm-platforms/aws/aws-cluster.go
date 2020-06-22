@@ -16,19 +16,6 @@ import (
 
 // AWSLogin logs into Amazon AWS web services
 func (a *AWSPlatform) AWSLogin(ctx context.Context) error {
-	// log.SpanLog(ctx, log.DebugLevelInfra, "doing AwsLogin", "vault url", a.GetAwsAuthKeyUrl())
-	// filename := "/tmp/auth_key.json"
-	// err := infracommon.GetVaultDataToFile(a.commonPf.VaultConfig, a.GetAwsAuthKeyUrl(), filename)
-	// if err != nil {
-	// 	return fmt.Errorf("unable to write auth file %s: %s", filename, err.Error())
-	// }
-	// defer os.Remove(filename)
-	// out, err := sh.Command("aws", "auth", "activate-service-account", "--key-file", filename).CombinedOutput() // What is AWS equivalent?
-	// log.SpanLog(ctx, log.DebugLevelInfra, "aws login", "out", string(out), "err", err)
-	// if err != nil {
-	// 	return err
-	// }
-	// log.SpanLog(ctx, log.DebugLevelInfra, "AWS login OK")
 	return nil
 }
 

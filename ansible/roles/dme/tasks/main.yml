@@ -21,16 +21,6 @@
     kubeconfig: "{{ kubeconfig_file.path }}"
   register: dme_deployment
 
-- name: Delete the old DME deployment
-  k8s:
-    name: dme
-    kind: Deployment
-    namespace: default
-    kubeconfig: "{{ kubeconfig_file.path }}"
-    state: absent
-    wait: yes
-  when: "'volumes' in dme_deployment.resources.0.spec.template.spec"
-
 - name: Fetch DME vault role
   set_fact:
     dme_role: "{{ lookup('approle', dme_role_name) }}"
@@ -78,3 +68,7 @@
     solo: true
     account_email: "{{ cloudflare_account_email }}"
     account_api_token: "{{ cloudflare_account_api_token }}"
+
+- name: Record DME details
+  set_fact:
+    dme_details: '{{ dme_details + [ {"region": region, "ip": dme_ip, "latitude": latitude, "longitude": longitude} ] }}'

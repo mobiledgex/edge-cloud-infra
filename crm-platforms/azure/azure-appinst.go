@@ -31,13 +31,15 @@ func (a *AzurePlatform) CreateAppInst(ctx context.Context, clusterInst *edgeprot
 	}
 	updateCallback(edgeproto.UpdateTask, "Creating Registry Secret")
 
-	err = infracommon.CreateDockerRegistrySecret(ctx, client, clusterInst, app, a.commonPf.VaultConfig, names)
-	if err != nil {
-		return err
+	for _, imagePath := range names.ImagePaths {
+		err = infracommon.CreateDockerRegistrySecret(ctx, client, clusterInst, imagePath, a.commonPf.VaultConfig, names)
+		if err != nil {
+			return err
+		}
 	}
 
 	switch deployment := app.Deployment; deployment {
-	case cloudcommon.AppDeploymentTypeKubernetes:
+	case cloudcommon.DeploymentTypeKubernetes:
 		err = k8smgmt.CreateAppInst(ctx, a.commonPf.VaultConfig, client, names, app, appInst)
 		if err == nil {
 			updateCallback(edgeproto.UpdateTask, "Waiting for AppInst to Start")
@@ -89,7 +91,7 @@ func (a *AzurePlatform) DeleteAppInst(ctx context.Context, clusterInst *edgeprot
 	}
 
 	switch deployment := app.Deployment; deployment {
-	case cloudcommon.AppDeploymentTypeKubernetes:
+	case cloudcommon.DeploymentTypeKubernetes:
 		err = k8smgmt.DeleteAppInst(ctx, client, names, app, appInst)
 	default:
 		err = fmt.Errorf("unsupported deployment type %s", deployment)

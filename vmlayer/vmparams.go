@@ -198,6 +198,7 @@ type VMGroupRequestSpec struct {
 	SkipInfraSpecificCheck bool
 	InitOrchestrator       bool
 	Domain                 string
+	ChefUpdateInfo         map[string]string
 }
 
 type VMGroupReqOp func(vmp *VMGroupRequestSpec) error
@@ -253,6 +254,12 @@ func WithInitOrchestrator(init bool) VMGroupReqOp {
 func WithDomain(domain VMDomain) VMGroupReqOp {
 	return func(s *VMGroupRequestSpec) error {
 		s.Domain = string(domain)
+		return nil
+	}
+}
+func WithChefUpdateInfo(updateInfo map[string]string) VMGroupReqOp {
+	return func(s *VMGroupRequestSpec) error {
+		s.ChefUpdateInfo = updateInfo
 		return nil
 	}
 }
@@ -435,6 +442,7 @@ type VMGroupOrchestrationParams struct {
 	SkipSubnetGateway      bool
 	InitOrchestrator       bool
 	VMDomain               string
+	ChefUpdateInfo         map[string]string
 }
 
 func (v *VMPlatform) GetVMRequestSpec(ctx context.Context, vmtype VMType, serverName, flavorName string, imageName string, connectExternal bool, opts ...VMReqOp) (*VMRequestSpec, error) {
@@ -512,6 +520,9 @@ func (v *VMPlatform) getVMGroupOrchestrationParamsFromGroupSpec(ctx context.Cont
 	vmgp.VMDomain = spec.Domain
 	if vmgp.VMDomain == "" {
 		vmgp.VMDomain = string(VMDomainCompute)
+	}
+	if spec.ChefUpdateInfo != nil {
+		vmgp.ChefUpdateInfo = spec.ChefUpdateInfo
 	}
 
 	rtrInUse := false
@@ -826,6 +837,34 @@ func (v *VMPlatform) OrchestrateVMsFromVMSpec(ctx context.Context, name string, 
 		}
 		err = v.VMProvider.CreateVMs(ctx, gp, updateCallback)
 	case ActionUpdate:
+		if gp.ChefUpdateInfo != nil {
+			for _, vm := range vms {
+				if vm.CreatePortsOnly || vm.Type == VMTypeAppVM {
+					continue
+				}
+				actionType, ok := gp.ChefUpdateInfo[vm.Name]
+				if !ok || actionType != ActionAdd {
+					continue
+				}
+				if vm.ChefParams == nil {
+					return gp, fmt.Errorf("chef params doesn't exist for %s", vm.Name)
+				}
+				clientKey, err := chefmgmt.ChefClientCreate(ctx, chefClient, vm.ChefParams)
+				if err != nil {
+					return gp, err
+				}
+				vm.ChefParams.ClientKey = clientKey
+			}
+			for vmName, actionType := range gp.ChefUpdateInfo {
+				if actionType != ActionRemove {
+					continue
+				}
+				err = chefmgmt.ChefClientDelete(ctx, chefClient, v.GetChefClientName(vmName))
+				if err != nil {
+					return gp, err
+				}
+			}
+		}
 		err = v.VMProvider.UpdateVMs(ctx, gp, updateCallback)
 	case ActionSync:
 		err = v.VMProvider.SyncVMs(ctx, gp, updateCallback)

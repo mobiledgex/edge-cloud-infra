@@ -51,8 +51,8 @@ var DeleteClusterInstCmd = &cli.Command{
 
 var UpdateClusterInstCmd = &cli.Command{
 	Use:          "UpdateClusterInst",
-	RequiredArgs: "region " + strings.Join(ClusterInstRequiredArgs, " "),
-	OptionalArgs: strings.Join(ClusterInstOptionalArgs, " "),
+	RequiredArgs: "region " + strings.Join(UpdateClusterInstRequiredArgs, " "),
+	OptionalArgs: strings.Join(UpdateClusterInstOptionalArgs, " "),
 	AliasArgs:    strings.Join(ClusterInstAliasArgs, " "),
 	SpecialArgs:  &ClusterInstSpecialArgs,
 	Comments:     addRegionComment(ClusterInstComments),
@@ -105,6 +105,22 @@ var ClusterInstApiCmds = []*cli.Command{
 	ShowClusterInstCmd,
 }
 
+var UpdateClusterInstRequiredArgs = []string{
+	"cluster",
+	"cloudlet-org",
+	"cloudlet",
+	"cluster-org",
+}
+var UpdateClusterInstOptionalArgs = []string{
+	"state",
+	"errors",
+	"crmoverride",
+	"ipaccess",
+	"deployment",
+	"numnodes",
+	"autoscalepolicy",
+	"imagename",
+}
 var ClusterInstKeyRequiredArgs = []string{}
 var ClusterInstKeyOptionalArgs = []string{
 	"clusterkey.name",
@@ -146,7 +162,6 @@ var ClusterInstOptionalArgs = []string{
 	"reservable",
 	"sharedvolumesize",
 	"privacypolicy",
-	"masternodeflavor",
 }
 var ClusterInstAliasArgs = []string{
 	"fields=clusterinst.fields",

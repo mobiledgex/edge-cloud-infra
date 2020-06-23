@@ -204,11 +204,7 @@ var UpdateCloudletRequiredArgs = []string{
 var UpdateCloudletOptionalArgs = []string{
 	"location.latitude",
 	"location.longitude",
-	"location.horizontalaccuracy",
-	"location.verticalaccuracy",
 	"location.altitude",
-	"location.course",
-	"location.speed",
 	"location.timestamp.seconds",
 	"location.timestamp.nanos",
 	"ipsupport",

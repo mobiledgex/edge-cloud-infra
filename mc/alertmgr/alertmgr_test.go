@@ -8,10 +8,12 @@ import (
 	"testing"
 	"time"
 
+	"github.com/go-openapi/strfmt"
 	"github.com/jarcoal/httpmock"
 	"github.com/mobiledgex/edge-cloud/cloudcommon"
 	"github.com/mobiledgex/edge-cloud/edgeproto"
 	"github.com/mobiledgex/edge-cloud/log"
+	"github.com/prometheus/alertmanager/api/v2/models"
 	open_api_models "github.com/prometheus/alertmanager/api/v2/models"
 	"github.com/prometheus/common/model"
 	"github.com/stretchr/testify/require"
@@ -45,7 +47,7 @@ func (s *AlertmanagerMock) registerMockResponders() {
 	// Create/Delete/Get silences
 	s.registerCreateSilences()
 	s.registerGetSilences()
-	s.rgisterDeleteSilences()
+	s.registerDeleteSilences()
 
 	// Get receivers
 	s.registerGetReceivers()
@@ -76,9 +78,29 @@ func (s *AlertmanagerMock) registerCreateAlerts() {
 func (s *AlertmanagerMock) registerGetAlerts() {
 	httpmock.RegisterResponder("GET", s.addr+"/"+AlertApi,
 		func(req *http.Request) (*http.Response, error) {
-			alerts := []model.Alert{}
+			//alerts := []model.Alert{}
+			alerts := open_api_models.GettableAlerts{}
 			for _, alert := range s.alerts {
-				alerts = append(alerts, alert)
+				labels := open_api_models.LabelSet{}
+				annotations := open_api_models.LabelSet{}
+				for k, v := range alert.Labels {
+					labels[string(k)] = string(v)
+				}
+				for k, v := range alert.Annotations {
+					annotations[string(k)] = string(v)
+				}
+
+				start := strfmt.DateTime(alert.StartsAt)
+				end := strfmt.DateTime(alert.EndsAt)
+
+				alerts = append(alerts, &open_api_models.GettableAlert{
+					Alert: models.Alert{
+						Labels: labels,
+					},
+					Annotations: annotations,
+					StartsAt:    &start,
+					EndsAt:      &end,
+				})
 			}
 			s.AlertGets++
 			return httpmock.NewJsonResponse(200, alerts)
@@ -96,7 +118,7 @@ func (s *AlertmanagerMock) registerCreateSilences() {
 	)
 }
 
-func (s *AlertmanagerMock) rgisterDeleteSilences() {
+func (s *AlertmanagerMock) registerDeleteSilences() {
 	httpmock.RegisterResponder("DELETE", s.addr+"/"+SilenceApi,
 		func(req *http.Request) (*http.Response, error) {
 			// TODO
@@ -234,7 +256,34 @@ func TestAlertMgrServer(t *testing.T) {
 	fakeAlertmanager.verifyAlertCnt(t, 2)
 	fakeAlertmanager.verifyAlertPresent(t, &testAlertRootLbDown)
 	// Test alertmgr show alert api
-	// TODO
+	alerts, err := testAlertMgrServer.ShowAlerts(ctx, nil)
+	require.Nil(t, err)
+	require.Equal(t, 1, fakeAlertmanager.AlertGets)
+	require.Equal(t, 2, len(alerts))
+	for _, alert := range alerts {
+		val, found := alert.Labels["alertname"]
+		require.True(t, found)
+		require.Equal(t, cloudcommon.AlertAppInstDown, val)
+		val, found = alert.Labels[cloudcommon.AlertLabelApp]
+		require.True(t, found)
+		require.Equal(t, "testapp", val)
+		val, found = alert.Labels[cloudcommon.AlertLabelAppOrg]
+		require.True(t, found)
+		require.Equal(t, "testorg", val)
+		val, found = alert.Labels[cloudcommon.AlertLabelAppVer]
+		require.True(t, found)
+		require.Equal(t, "1.0", val)
+		val, found = alert.Labels[cloudcommon.AlertLabelCloudlet]
+		require.True(t, found)
+		require.Equal(t, "testcloudlet", val)
+		val, found = alert.Labels[cloudcommon.AlertHealthCheckStatus]
+		require.True(t, found)
+		require.Equal(t, strconv.Itoa(int(edgeproto.HealthCheck_HEALTH_CHECK_FAIL_ROOTLB_OFFLINE)), val)
+		if alert.Region != testRegion1 {
+			require.Equal(t, testRegion2, alert.Region)
+		}
+	}
+	// TODO - test for filter
 
 	// 7. Test alertmgr create reciever api
 	// ...

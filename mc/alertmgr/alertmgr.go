@@ -5,11 +5,13 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"io/ioutil"
 	"net/http"
 	"sync"
 	"time"
 
 	"github.com/go-openapi/strfmt"
+	dme "github.com/mobiledgex/edge-cloud/d-match-engine/dme-proto"
 	"github.com/mobiledgex/edge-cloud/edgeproto"
 	"github.com/mobiledgex/edge-cloud/log"
 	"github.com/prometheus/alertmanager/api/v2/models"
@@ -51,7 +53,7 @@ func NewAlertMgrServer(alertMgrAddr string, alertCache *edgeproto.AlertCache) *A
 
 // Update callback for a new alert - should send to alertmanager right away
 func (s *AlertMrgServer) UpdateAlert(ctx context.Context, old *edgeproto.Alert, new *edgeproto.Alert) {
-	s.AlertMgrAddAlerts(ctx, new)
+	s.AddAlerts(ctx, new)
 }
 
 func (s *AlertMrgServer) Start() {
@@ -77,7 +79,7 @@ func (s *AlertMrgServer) runServer() {
 			})
 			// Send out alerts if any alerts need updating
 			if len(curAlerts) > 0 {
-				err := s.AlertMgrAddAlerts(ctx, curAlerts...)
+				err := s.AddAlerts(ctx, curAlerts...)
 				if err != nil {
 					log.SpanLog(ctx, log.DebugLevelInfo, "Error sending Alerts to AlertMgr", "AlertMrgAddr",
 						s.AlertMrgAddr, "err", err)
@@ -107,17 +109,17 @@ func alertsToOpenAPIAlerts(alerts []*edgeproto.Alert) models.PostableAlerts {
 		}
 		labels["region"] = a.Region
 		openAPIAlerts = append(openAPIAlerts, &models.PostableAlert{
-			Annotations: labelsToOpenAPILabelSet(a.Annotations),
+			Annotations: copyMap(a.Annotations),
 			StartsAt:    start,
 			Alert: models.Alert{
-				Labels: labelsToOpenAPILabelSet(labels),
+				Labels: copyMap(labels),
 			},
 		})
 	}
 	return openAPIAlerts
 }
 
-func labelsToOpenAPILabelSet(labels map[string]string) models.LabelSet {
+func copyMap(labels map[string]string) map[string]string {
 	apiLabelSet := models.LabelSet{}
 	for k, v := range labels {
 		apiLabelSet[k] = v
@@ -125,15 +127,48 @@ func labelsToOpenAPILabelSet(labels map[string]string) models.LabelSet {
 	return apiLabelSet
 }
 
+func alertManagerAlertsToEdgeprotoAlerts(openAPIAlerts models.GettableAlerts) []edgeproto.Alert {
+	alerts := []edgeproto.Alert{}
+	for _, openAPIAlert := range openAPIAlerts {
+		alert := edgeproto.Alert{}
+		if openAPIAlert.StartsAt != nil {
+			alert.ActiveAt = dme.Timestamp{
+				Seconds: time.Time(*openAPIAlert.StartsAt).Unix(),
+				Nanos:   int32(time.Time(*openAPIAlert.StartsAt).UnixNano()),
+			}
+		}
+		alert.Labels = copyMap(openAPIAlert.Labels)
+		// Populate region with label value
+		if region, found := alert.Labels["region"]; found {
+			alert.Region = region
+			delete(alert.Labels, "region")
+		}
+		alert.Annotations = copyMap(openAPIAlert.Annotations)
+		alerts = append(alerts, alert)
+	}
+	return alerts
+}
+
 // Show all alerts in the alertmgr
 // TODO Future: alerts api can take filters to make rbac simpler
-func (s *AlertMrgServer) AlertMgrShowAlerts(ctx context.Context) ([]edgeproto.Alert, error) {
-	//TODO
-	return []edgeproto.Alert{}, nil
+func (s *AlertMrgServer) ShowAlerts(ctx context.Context, filter *edgeproto.Alert) ([]edgeproto.Alert, error) {
+	data, err := s.alertMgrApi(ctx, "GET", AlertApi, "", nil)
+	if err != nil {
+		log.SpanLog(ctx, log.DebugLevelInfo, "Unable to GET Alerts", "err", err, "filter", filter)
+		return nil, err
+	}
+	openAPIAlerts := models.GettableAlerts{}
+	err = json.Unmarshal(data, &openAPIAlerts)
+	if err != nil {
+		log.SpanLog(ctx, log.DebugLevelInfo, "Unable to unmarshal Alerts", "err", err, "data", data)
+		return nil, err
+	}
+	alerts := alertManagerAlertsToEdgeprotoAlerts(openAPIAlerts)
+	return alerts, nil
 }
 
 // Marshal edgeproto.Alert into json payload suitabe for alertmanager api
-func (s *AlertMrgServer) AlertMgrAddAlerts(ctx context.Context, alerts ...*edgeproto.Alert) error {
+func (s *AlertMrgServer) AddAlerts(ctx context.Context, alerts ...*edgeproto.Alert) error {
 
 	openApiAlerts := alertsToOpenAPIAlerts(alerts)
 	data, err := json.Marshal(openApiAlerts)
@@ -142,29 +177,41 @@ func (s *AlertMrgServer) AlertMgrAddAlerts(ctx context.Context, alerts ...*edgep
 		return err
 	}
 	log.SpanLog(ctx, log.DebugLevelInfo, "marshal alerts", "alerts", string(data))
-	return s.alertMgrApi(ctx, "POST", AlertApi, data)
+	_, err = s.alertMgrApi(ctx, "POST", AlertApi, "", data)
+	return err
 }
 
 // Common function to send an api call to alertmanager
-func (s *AlertMrgServer) alertMgrApi(ctx context.Context, method, api string, payload []byte) error {
+func (s *AlertMrgServer) alertMgrApi(ctx context.Context, method, api, options string, payload []byte) ([]byte, error) {
 	url := s.AlertMrgAddr + "/" + api
+	if options != "" {
+		url += "?" + options
+	}
 	client := http.DefaultClient
 	req, err := http.NewRequest(method, url, bytes.NewReader(payload))
 	if err != nil {
 		log.SpanLog(ctx, log.DebugLevelInfo, "Failed to create a new alerts request", "err", err, "url", url)
-		return err
+		return nil, err
 	}
 	req.Header.Set("User-Agent", s.McAlertmanagerAgentName)
-	req.Header.Set("Content-Type", "application/json")
+	if method == "POST" {
+		req.Header.Set("Content-Type", "application/json")
+	}
 	resp, err := client.Do(req)
 	if err != nil {
 		log.SpanLog(ctx, log.DebugLevelInfo, "Failed to send request to the alertmanager", "err", err, "request", req)
-		return err
+		return nil, err
 	}
+	defer resp.Body.Close()
 	// HTTP status 2xx is ok
 	if resp.StatusCode/100 != 2 {
 		log.SpanLog(ctx, log.DebugLevelInfo, "Alertmanager responded with an error", "request", req, "response", resp)
-		return fmt.Errorf("bad response status %s", resp.Status)
+		return nil, fmt.Errorf("bad response status %s", resp.Status)
 	}
-	return nil
+	body, err := ioutil.ReadAll(resp.Body)
+	if err != nil {
+		log.SpanLog(ctx, log.DebugLevelInfo, "Unable to read response body", "request", req, "response", resp)
+		return nil, err
+	}
+	return body, nil
 }

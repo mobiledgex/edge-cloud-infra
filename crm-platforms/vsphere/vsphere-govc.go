@@ -658,6 +658,8 @@ func (v *VSpherePlatform) CreateTemplateFromImage(ctx context.Context, imageFold
 	folder := v.GetTemplateFolder()
 	extNet := v.vmProperties.GetCloudletExternalNetwork()
 	pool := fmt.Sprintf("/%s/host/%s/Resources", v.GetDatacenterName(ctx), v.GetComputeCluster())
+
+	// create the VM which will become our template
 	out, err := v.TimedGovcCommand(ctx, "govc", "vm.create", "-g", "ubuntu64Guest", "-pool", pool, "-ds", ds, "-dc", dcName, "-folder", folder, "-disk", imageFolder+"/"+imageFile+".vmdk", "-net", extNet, templateName)
 	if err != nil {
 		log.SpanLog(ctx, log.DebugLevelInfra, "Failed to create template VM", "out", string(out), "err", err)
@@ -674,7 +676,7 @@ func (v *VSpherePlatform) CreateTemplateFromImage(ctx context.Context, imageFold
 	if err != nil {
 		return err
 	}
-	// mark the VM as template
+	// mark the VM as a template
 	out, err = v.TimedGovcCommand(ctx, "govc", "vm.markastemplate", "-dc", dcName, templateName)
 	if err != nil {
 		log.SpanLog(ctx, log.DebugLevelInfra, "Failed to mark VM as template", "out", string(out), "err", err)

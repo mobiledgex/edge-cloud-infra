@@ -25,7 +25,7 @@ func (v *VSpherePlatform) GetCloudletImageSuffix(ctx context.Context) string {
 	return "-vsphere.qcow2"
 }
 
-//CreateImageFromUrl downloads image from URL and then puts into glance
+//CreateImageFromUrl downloads image from URL and then imports to the datastore
 func (v *VSpherePlatform) CreateImageFromUrl(ctx context.Context, imageName, imageUrl, md5Sum string) error {
 
 	filePath, err := vmlayer.DownloadVMImage(ctx, v.vmProperties.CommonPf.VaultConfig, imageName, imageUrl, md5Sum)
@@ -56,6 +56,7 @@ func (v *VSpherePlatform) AddCloudletImageIfNotPresent(ctx context.Context, imgP
 	if err != nil {
 		return "", err
 	}
+	// see if a template already exists based on this image
 	templatePath := v.GetTemplateFolder() + "/" + pfImageName
 	_, err = v.GetServerDetail(ctx, templatePath)
 
@@ -70,7 +71,7 @@ func (v *VSpherePlatform) AddCloudletImageIfNotPresent(ctx context.Context, imgP
 		if err != nil {
 			return "", err
 		}
-		// Download platform base image and Add to Openstack Glance
+		// Download platform image and create a vsphere template from it
 		updateCallback(edgeproto.UpdateTask, "Downloading platform base image: "+pfImageName)
 		err = v.CreateImageFromUrl(ctx, pfImageName, imgPath, md5Sum)
 		if err != nil {
@@ -81,7 +82,6 @@ func (v *VSpherePlatform) AddCloudletImageIfNotPresent(ctx context.Context, imgP
 			return "", fmt.Errorf("Error in creating baseimage template: %v", err)
 		}
 	}
-
 	return imgPath, nil
 }
 

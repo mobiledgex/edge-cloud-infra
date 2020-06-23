@@ -97,7 +97,6 @@ func (v *VMPlatform) SetupPlatformVM(ctx context.Context, vaultConfig *vault.Con
 			ActionCreate,
 			updateCallback,
 			WithNewSecurityGroup(v.GetServerSecurityGroupName(platformVmName)),
-			WithAccessPorts("tcp:22"),
 			WithSkipDefaultSecGrp(true),
 			WithInitOrchestrator(true),
 			WithDomain(VMDomainPlatform),
@@ -117,7 +116,6 @@ func (v *VMPlatform) SetupPlatformVM(ctx context.Context, vaultConfig *vault.Con
 			ActionCreate,
 			updateCallback,
 			WithNewSecurityGroup(v.GetServerSecurityGroupName(platformVmName)),
-			WithAccessPorts("tcp:22"),
 			WithSkipDefaultSecGrp(true),
 			WithNewSubnet(subnetName),
 			WithSkipSubnetGateway(true),
@@ -702,7 +700,6 @@ func (v *VMPlatform) GetCloudletManifest(ctx context.Context, cloudlet *edgeprot
 			platformVmName,
 			platvms,
 			WithNewSecurityGroup(v.GetServerSecurityGroupName(platformVmName)),
-			WithAccessPorts("tcp:22"),
 			WithSkipDefaultSecGrp(true),
 		)
 	} else {
@@ -718,7 +715,6 @@ func (v *VMPlatform) GetCloudletManifest(ctx context.Context, cloudlet *edgeprot
 			platformVmName,
 			platvms,
 			WithNewSecurityGroup(v.GetServerSecurityGroupName(platformVmName)),
-			WithAccessPorts("tcp:22"),
 			WithNewSubnet(subnetName),
 			WithSkipDefaultSecGrp(true),
 			WithSkipSubnetGateway(true),

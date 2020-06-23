@@ -3,6 +3,7 @@ package aws
 import (
 	"context"
 	"fmt"
+
 	//"os"
 	"time"
 
@@ -20,8 +21,13 @@ func (a *AWSPlatform) AWSLogin(ctx context.Context) error {
 }
 
 func (a *AWSPlatform) CreateClusterInst(ctx context.Context, clusterInst *edgeproto.ClusterInst, privacyPolicy *edgeproto.PrivacyPolicy, updateCallback edgeproto.CacheUpdateCallback, timeout time.Duration) error {
+
 	clusterName := clusterInst.Key.ClusterKey.Name
-	if err := CreateEKSCluster(clusterName); err != nil {
+
+	log.SpanLog(ctx, log.DebugLevelInfra, "Received ", "clusterInst", clusterInst,
+		"NumNodes", clusterInst.NumNodes)
+
+	if err := CreateEKSCluster(clusterName, clusterInst.NodeFlavor, clusterInst.NumNodes); err != nil {
 		return err
 	}
 	//race condition exists where the config file is not ready until just after the cluster create is done

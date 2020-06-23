@@ -4,6 +4,7 @@ import (
 	"fmt"
 
 	"github.com/codeskyblue/go-sh"
+	"github.com/mobiledgex/edge-cloud/log"
 )
 
 //SetOrganizationUnit sets the OrganizationUnit for AWS
@@ -17,12 +18,16 @@ func SetZone(zone string) error {
 }
 
 //CreateEKSCluster creates a kubernetes cluster on AWS
-func CreateEKSCluster(name string) error {
+func CreateEKSCluster(name string, nodeFlavorName string, numNodes uint32) error {
 	// output log messages
-	out, err := sh.Command("eksctl", "create", "cluster", "--name", name, "--managed").CombinedOutput()
+	log.DebugLog(log.DebugLevelInfra, "CreateEKSCluster Received", "numNodes:", numNodes)
+	log.DebugLog(log.DebugLevelInfra, "CreateEKSCluster Received", "nodeFlavorName", nodeFlavorName)
+	out, err := sh.Command("eksctl", "create", "cluster", "--name", name, "--node-type", nodeFlavorName, "--nodes", fmt.Sprintf("%d", numNodes), "--managed").CombinedOutput()
+
 	if err != nil {
 		return fmt.Errorf("%s %v", out, err)
 	}
+
 	return nil
 }
 

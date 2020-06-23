@@ -43,7 +43,7 @@ func (a *AWSPlatform) GetType() string {
 
 //Init initializes the AWS Platform Config
 func (a *AWSPlatform) Init(ctx context.Context, platformConfig *platform.PlatformConfig, caches *platform.Caches, updateCallback edgeproto.CacheUpdateCallback) error {
-	var path string = "/secret/cloudlet/aws/credentials"
+	var path string = "/secret/data/cloudlet/aws/credentials"
 	vaultConfig, err := vault.BestConfig(platformConfig.VaultAddr)
 	if err != nil {
 		err = fmt.Errorf("cannot get best config from vault %s", err.Error())

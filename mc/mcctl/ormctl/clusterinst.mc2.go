@@ -112,14 +112,9 @@ var UpdateClusterInstRequiredArgs = []string{
 	"cluster-org",
 }
 var UpdateClusterInstOptionalArgs = []string{
-	"state",
-	"errors",
 	"crmoverride",
-	"ipaccess",
-	"deployment",
 	"numnodes",
 	"autoscalepolicy",
-	"imagename",
 }
 var ClusterInstKeyRequiredArgs = []string{}
 var ClusterInstKeyOptionalArgs = []string{
@@ -149,8 +144,6 @@ var ClusterInstRequiredArgs = []string{
 }
 var ClusterInstOptionalArgs = []string{
 	"flavor",
-	"state",
-	"errors",
 	"crmoverride",
 	"ipaccess",
 	"deployment",

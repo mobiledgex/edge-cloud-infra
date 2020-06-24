@@ -18,7 +18,5 @@ nvidia-container-toolkit        1.0.5-1
 python                          2.7.12-1~16.04
 software-properties-common      0.96.20.9
 unzip                           6.0-20ubuntu1
-nfs-kernel-server               1:1.2.8-9ubuntu12.2
+nfs-kernel-server               1:1.2.8-9ubuntu12.3
 chef				15.10.12-1
-python3-pip			8.1.1-2ubuntu0.4
-open-vm-tools			2:10.2.0-3~ubuntu0.16.04.1

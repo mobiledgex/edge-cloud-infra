@@ -68,7 +68,7 @@ download_artifactory_file() {
 }
 
 # Main
-echo "[$(date)] Starting setup.sh ($( pwd ))"
+echo "[$(date)] Starting setup.sh for platform \"$OUTPUT_PLATFORM\" ($( pwd ))"
 
 echo "127.0.0.1 $( hostname )" | sudo tee -a /etc/hosts >/dev/null
 log_file_contents /etc/hosts
@@ -98,6 +98,7 @@ MEX_BUILD_TAG=$TAG
 MEX_BUILD_FLAVOR=$FLAVOR
 MEX_BUILD_SRC_IMG=$SRC_IMG
 MEX_BUILD_SRC_IMG_CHECKSUM=$SRC_IMG_CHECKSUM
+MEX_PLATFORM_FLAVOR=$OUTPUT_PLATFORM
 EOT
 
 log "Set up docker log file rotation"
@@ -141,10 +142,10 @@ echo iptables-persistent iptables-persistent/autosave_v4 boolean true | sudo deb
 sudo apt-get install -y mobiledgex=${TAG#v}
 [[ $? -ne 0 ]] && die "Failed to install extra packages"
 
-
-log "Adding VMWare cloud-init Guestinfo"
-sudo curl  -sSL https://raw.githubusercontent.com/vmware/cloud-init-vmware-guestinfo/v1.3.1/install.sh |sudo sh -
-
+if [[ "$OUTPUT_PLATFORM" == vsphere ]]; then
+	log "Adding VMWare cloud-init Guestinfo"
+	sudo curl  -sSL https://raw.githubusercontent.com/vmware/cloud-init-vmware-guestinfo/v1.3.1/install.sh |sudo sh -
+fi
 
 log "dhclient $INTERFACE"
 sudo dhclient "$INTERFACE"
@@ -157,9 +158,11 @@ sudo systemctl enable mobiledgex
 log "Updating dhclient timeout"
 sudo perl -i -p -e s/'timeout 300;'/'timeout 15;'/g /etc/dhcp/dhclient.conf
 
-log "Removing serial console from grub"
-sudo perl -i -p -e s/'"console=tty1 console=ttyS0"'/'""'/g /etc/default/grub.d/50-cloudimg-settings.cfg
-sudo grub-mkconfig -o /boot/grub/grub.cfg
+if [[ "$OUTPUT_PLATFORM" == vsphere ]]; then
+	log "Removing serial console from grub"
+	sudo perl -i -p -e s/'"console=tty1 console=ttyS0"'/'""'/g /etc/default/grub.d/50-cloudimg-settings.cfg
+	sudo grub-mkconfig -o /boot/grub/grub.cfg
+fi
 
 log "Setting the root password"
 echo "root:$ROOT_PASS" | sudo chpasswd
@@ -239,5 +242,26 @@ EOT
 
 log "Enabling the chef-client service"
 sudo systemctl enable chef-client
+
+if [[ "$OUTPUT_PLATFORM" == vsphere ]]; then
+	sudo tee /lib/systemd/system/open-vm-tools.service <<'EOT'
+[Unit]
+Description=Service for virtual machines hosted on VMware
+Documentation=http://open-vm-tools.sourceforge.net/about.php
+ConditionVirtualization=vmware
+DefaultDependencies=no
+Requires=dbus.socket
+After=dbus.socket
+[Service]
+ExecStart=/usr/bin/vmtoolsd
+TimeoutStopSec=10
+
+[Install]
+WantedBy=multi-user.target
+EOT
+
+	log "Enabling the open-vm-tools service"
+	sudo systemctl enable open-vm-tools
+fi
 
 echo "[$(date)] Done setup.sh ($( pwd ))"

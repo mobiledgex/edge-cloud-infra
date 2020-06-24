@@ -1,11 +1,23 @@
 PACKAGE = mobiledgex
-VERSION = 3.1.2-vsphere
+VERSION = 3.1.3
 DISTRIBUTION = stratus
 COMPONENT = main
 
 PKGDIR = $(PACKAGE)_$(VERSION)
 
-all: builddir setup_files
+all: openstack vsphere
+
+openstack:
+	$(MAKE) package
+
+vsphere:
+	$(MAKE) package FLAVOR=vsphere VERSION=$(VERSION)-vsphere
+
+package: builddir setup_files
+	cp dependencies.common dependencies
+ifdef FLAVOR
+	cat dependencies.$(FLAVOR) >>dependencies
+endif
 	../build.sh $(PACKAGE) $(VERSION) $(DISTRIBUTION) $(COMPONENT)
 
 builddir:
@@ -20,17 +32,12 @@ $(PKGDIR)/etc/systemd/system/%: %
 	mkdir -p $(dir $@)
 	cp $< $@
 
-$(PKGDIR)/tmp/%: %
-	mkdir -p $(dir $@)
-	cp $< $@
-
 setup_files: \
 	$(PKGDIR)/etc/mobiledgex/install-k8s-master.sh \
 	$(PKGDIR)/etc/mobiledgex/install-k8s-node.sh \
 	$(PKGDIR)/etc/systemd/system/mobiledgex.service \
 	$(PKGDIR)/usr/local/bin/mobiledgex-init.sh \
-	$(PKGDIR)/tmp/open-vm-tools.service 
 
 clean:
-	$(RM) -r $(PKGDIR)
-	$(RM) $(PKGDIR).deb
+	$(RM) -r $(PKGDIR) $(PKGDIR)-vsphere
+	$(RM) $(PKGDIR).deb $(PKGDIR)-vsphere.deb dependencies

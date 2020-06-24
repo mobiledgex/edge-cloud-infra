@@ -36,7 +36,7 @@ setup_files: \
 	$(PKGDIR)/etc/mobiledgex/install-k8s-master.sh \
 	$(PKGDIR)/etc/mobiledgex/install-k8s-node.sh \
 	$(PKGDIR)/etc/systemd/system/mobiledgex.service \
-	$(PKGDIR)/usr/local/bin/mobiledgex-init.sh \
+	$(PKGDIR)/usr/local/bin/mobiledgex-init.sh
 
 clean:
 	$(RM) -r $(PKGDIR) $(PKGDIR)-vsphere

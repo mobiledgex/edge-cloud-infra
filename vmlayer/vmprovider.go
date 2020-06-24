@@ -137,6 +137,10 @@ func (v *VMPlatform) GetType() string {
 	return v.Type
 }
 
+type ResTagTables map[string]*edgeproto.ResTagTable
+
+var ResTbls ResTagTables = make(map[string]*edgeproto.ResTagTable)
+
 func (v *VMPlatform) GetClusterPlatformClient(ctx context.Context, clusterInst *edgeproto.ClusterInst) (ssh.Client, error) {
 	rootLBName := v.VMProperties.sharedRootLBName
 	if clusterInst.IpAccess == edgeproto.IpAccess_IP_ACCESS_DEDICATED {
@@ -178,6 +182,39 @@ func (v *VMPlatform) ListCloudletMgmtNodes(ctx context.Context, clusterInsts []e
 		}
 	}
 	return mgmt_nodes, nil
+}
+
+func (v *VMPlatform) DeletedResTableCb(ctx context.Context, key *edgeproto.ResTagTableKey) {
+
+	delete(ResTbls, key.Name)
+}
+func (v *VMPlatform) UpdatedResTableCb(ctx context.Context, old *edgeproto.ResTagTable, new *edgeproto.ResTagTable) {
+
+	if old != nil {
+		delete(ResTbls, old.Key.Name)
+	}
+	if new != nil {
+		ResTbls[new.Key.Name] = new
+	}
+
+	return
+}
+
+func (v *VMPlatform) GetResTablesForCloudlet(ctx context.Context, cl *edgeproto.Cloudlet, resCache *edgeproto.ResTagTableCache, updateCallback edgeproto.CacheUpdateCallback) error {
+
+	// for all resource tag tbls keys found in cloudlet
+	if len(resCache.Objs) == 0 {
+		return nil
+	}
+
+	for res, mapKey := range cl.ResTagMap {
+		// now find the table in ResTagTableCache with this key
+		key := edgeproto.ResTagTableKey{}
+		key = *mapKey
+		tbl := resCache.Objs[key].Obj
+		ResTbls[res] = tbl
+	}
+	return nil
 }
 
 func (v *VMPlatform) InitProps(ctx context.Context, platformConfig *platform.PlatformConfig, vaultConfig *vault.Config) error {
@@ -239,6 +276,15 @@ func (v *VMPlatform) Init(ctx context.Context, platformConfig *platform.Platform
 	}
 	v.VMProperties.sharedRootLB = crmRootLB
 	log.SpanLog(ctx, log.DebugLevelInfra, "created shared rootLB", "name", v.VMProperties.sharedRootLBName)
+
+	cl := platformConfig.Cloudlet
+	if len(caches.ResTagTableCache.Objs) != 0 {
+		caches.ResTagTableCache.SetDeletedKeyCb(v.DeletedResTableCb)
+		caches.ResTagTableCache.SetUpdatedCb(v.UpdatedResTableCb)
+		v.GetResTablesForCloudlet(ctx, cl, caches.ResTagTableCache, updateCallback)
+	} else {
+		log.SpanLog(ctx, log.DebugLevelInfra, "No Resource tables found in cache, no OpenStack optional resource flavors expected")
+	}
 
 	tags := GetChefRootLBTags(platformConfig)
 	err = v.CreateRootLB(ctx, crmRootLB, v.VMProperties.CommonPf.PlatformConfig.CloudletKey, v.VMProperties.CommonPf.PlatformConfig.CloudletVMImagePath, v.VMProperties.CommonPf.PlatformConfig.VMImageVersion, ActionCreate, tags, updateCallback)

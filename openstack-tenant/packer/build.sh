@@ -187,4 +187,4 @@ if [[ $? -ne 0 ]]; then
 	exit 2
 fi
 
-#rm "$IMAGE_FNAME"
+rm "$IMAGE_FNAME"

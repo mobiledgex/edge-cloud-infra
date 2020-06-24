@@ -4,10 +4,14 @@
 
 set -x
 
-systemctl status open-vm-tools > /var/log/openvmtool.status.log
-systemctl start open-vm-tools
-INIT_COMPLETE_FLAG=/etc/mobiledgex/init-complete
+. /etc/mex-release
 
+if [[ "$MEX_PLATFORM_FLAVOR" == vsphere ]]; then
+	systemctl status open-vm-tools > /var/log/openvmtool.status.log
+	systemctl start open-vm-tools
+fi
+
+INIT_COMPLETE_FLAG=/etc/mobiledgex/init-complete
 if [[ -f "$INIT_COMPLETE_FLAG" ]]; then
 	echo "Already initialized; nothing to do" >&2
 	exit 2

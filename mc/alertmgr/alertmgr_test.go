@@ -13,7 +13,6 @@ import (
 	"github.com/mobiledgex/edge-cloud/cloudcommon"
 	"github.com/mobiledgex/edge-cloud/edgeproto"
 	"github.com/mobiledgex/edge-cloud/log"
-	"github.com/prometheus/alertmanager/api/v2/models"
 	open_api_models "github.com/prometheus/alertmanager/api/v2/models"
 	"github.com/prometheus/common/model"
 	"github.com/stretchr/testify/require"
@@ -94,7 +93,7 @@ func (s *AlertmanagerMock) registerGetAlerts() {
 				end := strfmt.DateTime(alert.EndsAt)
 
 				alerts = append(alerts, &open_api_models.GettableAlert{
-					Alert: models.Alert{
+					Alert: open_api_models.Alert{
 						Labels: labels,
 					},
 					Annotations: annotations,

@@ -18,9 +18,9 @@ require (
 	github.com/go-chef/chef v0.20.1
 	github.com/go-openapi/strfmt v0.19.5
 	github.com/go-resty/resty/v2 v2.0.0
-	github.com/gogo/googleapis v1.0.0
+	github.com/gogo/googleapis v1.1.0
 	github.com/gogo/protobuf v1.3.1
-	github.com/golang/protobuf v1.3.2
+	github.com/golang/protobuf v1.4.0
 	github.com/google/go-cmp v0.4.0
 	github.com/googleapis/gnostic v0.3.1 // indirect
 	github.com/gophercloud/gophercloud v0.0.0-20190330013820-4d3066f119fa
@@ -65,7 +65,7 @@ require (
 	github.com/xanzy/go-gitlab v0.16.0
 	golang.org/x/crypto v0.0.0-20191011191535-87dc89f01550
 	golang.org/x/net v0.0.0-20200513185701-a91f0712d120
-	google.golang.org/genproto v0.0.0-20190530194941-fb225487d101
+	google.golang.org/genproto v0.0.0-20190819201941-24fa4b261c55
 	google.golang.org/grpc v1.26.0
 	gopkg.in/ldap.v3 v3.0.3
 	gopkg.in/yaml.v2 v2.3.0

@@ -10,7 +10,6 @@ import (
 	"sync"
 	"time"
 
-	fakeZuora "github.com/mobiledgex/edge-cloud-infra/zuora/fake"
 	"github.com/mobiledgex/edge-cloud/vault"
 )
 
@@ -64,11 +63,11 @@ type accountCreds struct {
 }
 
 func InitZuora(vaultConfig *vault.Config, path string) error {
-	if path == fakeZuora.BillingPath {
-		fakeZuora.RunFakeZuora()
-		clientId = fakeZuora.ClientID
-		clientSecret = fakeZuora.ClientSecret
-		ZuoraUrl = fakeZuora.Endpoint
+	if path == fakeBillingPath {
+		runFakeZuora()
+		clientId = fakeClientID
+		clientSecret = fakeClientSecret
+		ZuoraUrl = fakeURL
 	}
 	// pull it from vault and if you cant throw a fatal error
 	creds := accountCreds{}

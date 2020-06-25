@@ -1,15 +1,14 @@
-package fake
+package zuora
 
 import (
 	"encoding/json"
 	"fmt"
 	"net/http"
 	"strconv"
-
-	"github.com/mobiledgex/edge-cloud-infra/billing/zuora"
+	"strings"
 )
 
-func FakeAuth(w http.ResponseWriter, req *http.Request) {
+func fakeAuth(w http.ResponseWriter, req *http.Request) {
 	if req.Method == "POST" {
 		if err := req.ParseForm(); err != nil {
 			http.Error(w, "Error parsing input", http.StatusInternalServerError)
@@ -17,11 +16,11 @@ func FakeAuth(w http.ResponseWriter, req *http.Request) {
 		}
 		id := req.FormValue("client_id")
 		secret := req.FormValue("client_secret")
-		if id != ClientID || secret != ClientSecret {
+		if id != fakeClientID || secret != fakeClientSecret {
 			http.Error(w, fmt.Sprintf("invalid fake credentials, id: %s, secret: %s", id, secret), http.StatusInternalServerError)
 			return
 		}
-		token := zuora.OAuthToken{
+		token := OAuthToken{
 			AccessToken: "faketoken",
 			TokenType:   "Bearer",
 			ExpiresIn:   600000, //10,000 minutes, so this will only have to be called once per test run
@@ -36,13 +35,13 @@ func FakeAuth(w http.ResponseWriter, req *http.Request) {
 	}
 }
 
-func FakeOrder(w http.ResponseWriter, req *http.Request) {
+func fakeOrder(w http.ResponseWriter, req *http.Request) {
 	if req.Method != "POST" {
 		http.Error(w, fmt.Sprintf("Unsupported method for order request %s", req.Method), http.StatusBadRequest)
 		return
 	}
-	var order zuora.CreateOrder
-	err := json.NewDecoder(r.Body).Decode(&order)
+	var order CreateOrder
+	err := json.NewDecoder(req.Body).Decode(&order)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
@@ -53,14 +52,14 @@ func FakeOrder(w http.ResponseWriter, req *http.Request) {
 		return
 	}
 	action := order.Subscriptions[0].OrderActions[0]
-	resp = zuora.OrderResp{}
+	resp := OrderResp{}
 	switch action.Type {
 	case "CreateSubscription":
 		if action.CreateSubscription == nil || action.CreateSubscription.NewSubscriptionOwnerAccount == nil {
 			http.Error(w, "create subscription fields empty", http.StatusBadRequest)
 			return
 		}
-		acccount = action.CreateSubscriptionOwnerAccount
+		account := action.CreateSubscription.NewSubscriptionOwnerAccount
 		accountMux.Lock()
 		subMux.Lock()
 		accountId := strconv.Itoa(accountIdCounter)
@@ -91,12 +90,12 @@ func FakeOrder(w http.ResponseWriter, req *http.Request) {
 			http.Error(w, "add product fields empty", http.StatusBadRequest)
 			return
 		}
-		if resp.Success = true
+		resp.Success = true
 	default:
 		http.Error(w, "unknown order type "+action.Type, http.StatusBadRequest)
 		return
 	}
-	payload, err := json.Marhsal(resp)
+	payload, err := json.Marshal(resp)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
@@ -105,31 +104,31 @@ func FakeOrder(w http.ResponseWriter, req *http.Request) {
 	w.Write(payload)
 }
 
-func FakeAccounts(w http.ResponseWriter, req *http.Request) {
+func fakeAccounts(w http.ResponseWriter, req *http.Request) {
 	if req.Method != "POST" {
 		http.Error(w, fmt.Sprintf("Unsupported method for order request %s", req.Method), http.StatusBadRequest)
 		return
 	}
 	switch req.Method {
 	case "POST": // create a new customer(Parent)
-		var order zuora.NewAccount
-		err := json.NewDecoder(r.Body).Decode(&order)
+		var order NewAccount
+		err := json.NewDecoder(req.Body).Decode(&order)
 		if err != nil {
 			http.Error(w, err.Error(), http.StatusBadRequest)
 			return
 		}
-		resp := zoura.AccountResp{}
+		resp := AccountResp{}
 		resp.Success = true
 		accountMux.Lock()
-		resp.AccountID = strconv.Itoa(accountIdCounter)
+		resp.AccountId = strconv.Itoa(accountIdCounter)
 		resp.AccountNumber = resp.AccountId
 		accountIdCounter = accountIdCounter + 1
 		accountMux.Unlock()
 		// only parent orgs are created here so setup an entry for them in the family map
 		familyMux.Lock()
-		families[resp.AccountNumber] = make([]string,0)
+		families[resp.AccountNumber] = make([]string, 0)
 		familyMux.Unlock()
-		payload, err := json.Marhsal(resp)
+		payload, err := json.Marshal(resp)
 		if err != nil {
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 			return
@@ -146,12 +145,12 @@ func FakeAccounts(w http.ResponseWriter, req *http.Request) {
 		accountStr := pathSplit[len(pathSplit)-1]
 		accountNum, err := strconv.Atoi(accountStr)
 		if err != nil {
-			http.Error(w, "error parsing accountNumber: "+ accountStr, http.StatusBadRequest)
+			http.Error(w, "error parsing accountNumber: "+accountStr, http.StatusBadRequest)
 			return
 		}
 		if accountNum < accountIdCounter {
 			for _, deleted := range deletedAccounts {
-				if deleted == accountNum {
+				if deleted == accountStr {
 					http.Error(w, "cannot update a deleted account", http.StatusBadRequest)
 					return
 				}
@@ -161,8 +160,8 @@ func FakeAccounts(w http.ResponseWriter, req *http.Request) {
 			return
 		}
 
-		resp := zoura.GenericResp{Success: true}
-		payload, err := json.Marhsal(resp)
+		resp := GenericResp{Success: true}
+		payload, err := json.Marshal(resp)
 		if err != nil {
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 			return
@@ -179,17 +178,17 @@ func FakeAccounts(w http.ResponseWriter, req *http.Request) {
 		accountStr := pathSplit[len(pathSplit)-1]
 		accountNum, err := strconv.Atoi(accountStr)
 		if err != nil {
-			http.Error(w, "error parsing accountNumber: "+ accountStr, http.StatusBadRequest)
+			http.Error(w, "error parsing accountNumber: "+accountStr, http.StatusBadRequest)
 			return
 		}
-		resp := zuora.GetAccount{
+		resp := GetAccount{
 			Success: true,
-			BasicInfo: zuora.BasicInfo{
-				Id: accountNum,
-				AccountNumber: accountNum,
-			}
+			BasicInfo: BasicInfo{
+				Id:            strconv.Itoa(accountNum),
+				AccountNumber: strconv.Itoa(accountNum),
+			},
 		}
-		payload, err := json.Marhsal(resp)
+		payload, err := json.Marshal(resp)
 		if err != nil {
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 			return
@@ -197,14 +196,14 @@ func FakeAccounts(w http.ResponseWriter, req *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
 		w.Write(payload)
 	default:
-		http.Error(w, "unsupported http method: "+ req.Method, http.StatusBadRequest)
+		http.Error(w, "unsupported http method: "+req.Method, http.StatusBadRequest)
 		return
 	}
 }
 
-func FakeDeleteAccounts(w http.ResponseWriter, req *http.Request) {
+func fakeDeleteAccounts(w http.ResponseWriter, req *http.Request) {
 	if req.Method != "DELETE" {
-		http.Error(w, "unsupported http method: "+ req.Method, http.StatusBadRequest)
+		http.Error(w, "unsupported http method: "+req.Method, http.StatusBadRequest)
 		return
 	}
 	pathSplit := strings.Split(req.URL.Path, "/")
@@ -214,37 +213,32 @@ func FakeDeleteAccounts(w http.ResponseWriter, req *http.Request) {
 		return
 	}
 	accountStr := pathSplit[len(pathSplit)-1]
-	accountNum, err := strconv.Atoi(accountStr)
-	if err != nil {
-		http.Error(w, "error parsing accountNumber: "+ accountStr, http.StatusBadRequest)
-		return
-	}
-	deletedAccounts = append(deletedAccounts, accountNum)
+	deletedAccounts = append(deletedAccounts, accountStr)
 }
 
-func FakeGetSubs(w http.ResponseWriter, req *http.Request) {
-	resp := zuora.CheckSubscriptions{
+func fakeGetSubs(w http.ResponseWriter, req *http.Request) {
+	resp := CheckSubscriptions{
 		Success: true,
-		Subscriptions: []zuora.Subs{ zuora.Subs{
-				RatePlans: []zuora.SubRatePlans {
-					zuora.SubRatePlans{
-						RatePlanCharges: []zuora.SubRatePlanCharges {
-							// include the two rate plan numbers getRatePlanChargeId currently returns
-							zuora.SubRatePlanCharges {
-								ProductRatePlanChargeID: "2c92c0f8712986160171369e86d94ce9",
-								Number: "Rate1",
-							},
-							zuora.SubRatePlanCharges {
-								ProductRatePlanChargeID: "2c92c0f9712998b30171369c87bd3c44",
-								Number: "Rate2",
-							},
+		Subscriptions: []Subs{Subs{
+			RatePlans: []SubRatePlans{
+				SubRatePlans{
+					RatePlanCharges: []SubRatePlanCharges{
+						// include the two rate plan numbers getRatePlanChargeId currently returns
+						SubRatePlanCharges{
+							ProductRatePlanChargeID: "2c92c0f8712986160171369e86d94ce9",
+							Number:                  "Rate1",
 						},
-					}
+						SubRatePlanCharges{
+							ProductRatePlanChargeID: "2c92c0f9712998b30171369c87bd3c44",
+							Number:                  "Rate2",
+						},
+					},
 				},
 			},
 		},
+		},
 	}
-	payload, err := json.Marhsal(resp)
+	payload, err := json.Marshal(resp)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
@@ -253,9 +247,9 @@ func FakeGetSubs(w http.ResponseWriter, req *http.Request) {
 	w.Write(payload)
 }
 
-func FakeCheckSubOwner(w http.ResponseWriter, req *http.Request) {
+func fakeCheckSubOwner(w http.ResponseWriter, req *http.Request) {
 	if req.Method != "GET" {
-		http.Error(w, "Unsupported http method: " + req.Method, http.StatusBadRequest)
+		http.Error(w, "Unsupported http method: "+req.Method, http.StatusBadRequest)
 		return
 	}
 	pathSplit := strings.Split(req.URL.Path, "/")
@@ -265,13 +259,51 @@ func FakeCheckSubOwner(w http.ResponseWriter, req *http.Request) {
 		return
 	}
 	subStr := pathSplit[len(pathSplit)-1]
-	accountNum = subOwner[subStr]
-	resp := zuora.GetSubscriptionByKey{
-		Success: true,
-		AccountId: accountNum.
-		AccountNumber: accountNUm,
+	accountNum := subOwners[subStr]
+	resp := GetSubscriptionByKey{
+		Success:       true,
+		AccountId:     accountNum,
+		AccountNumber: accountNum,
 	}
-	payload, err := json.Marhsal(resp)
+	payload, err := json.Marshal(resp)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.Write(payload)
+}
+
+func fakeUsageRecord(w http.ResponseWriter, req *http.Request) {
+	if req.Method != "POST" {
+		http.Error(w, "Unsupported http method: "+req.Method, http.StatusBadRequest)
+		return
+	}
+	// just ensure the account number is valid and they put in valid runtimes
+	var record CreateUsage
+	err := json.NewDecoder(req.Body).Decode(&record)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+	acc, err := strconv.Atoi(record.AccountNumber)
+	if err != nil || acc < accountIdCounter {
+		http.Error(w, "Invalid accountNumber: "+record.AccountNumber, http.StatusBadRequest)
+		return
+	}
+	sub, err := strconv.Atoi(record.SubscriptionNumber)
+	if err != nil || sub < subIdCounter {
+		http.Error(w, "Invalid SubscriptionNumber: "+record.SubscriptionNumber, http.StatusBadRequest)
+		return
+	}
+	if record.Quantity < 0 {
+		http.Error(w, fmt.Sprintf("Invalid Quantity specified: %f", record.Quantity), http.StatusBadRequest)
+		return
+	}
+	resp := GenericResp{
+		Success: true,
+	}
+	payload, err := json.Marshal(resp)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return

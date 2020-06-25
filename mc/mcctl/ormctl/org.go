@@ -10,13 +10,13 @@ func GetOrgCommand() *cobra.Command {
 	cmds := []*cli.Command{&cli.Command{
 		Use:          "create",
 		RequiredArgs: "name type",
-		OptionalArgs: "publicimages",
+		OptionalArgs: "address phone publicimages",
 		ReqData:      &ormapi.Organization{},
 		Run:          runRest("/auth/org/create"),
 	}, &cli.Command{
 		Use:          "update",
 		RequiredArgs: "name",
-		OptionalArgs: "publicimages",
+		OptionalArgs: "address phone publicimages",
 		ReqData:      &ormapi.Organization{},
 		Run:          runRest("/auth/org/update"),
 	}, &cli.Command{

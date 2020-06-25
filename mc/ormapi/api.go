@@ -44,6 +44,10 @@ type Organization struct {
 	Name string `gorm:"primary_key;type:citext"`
 	// Organization type: "developer" or "operator"
 	Type string `gorm:"not null"`
+	// Organization address
+	Address string
+	// Organization phone number
+	Phone string
 	// read only: true
 	CreatedAt time.Time `json:",omitempty"`
 	// read only: true
@@ -52,8 +56,6 @@ type Organization struct {
 	PublicImages bool `json:",omitempty"`
 	// read only: true
 	DeleteInProgress bool `json:",omitempty"`
-	// read only: true
-	Parent string `json:",omitempty"`
 }
 
 type BillingOrganization struct {

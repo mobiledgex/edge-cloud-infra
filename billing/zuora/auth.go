@@ -63,11 +63,13 @@ type accountCreds struct {
 }
 
 func InitZuora(vaultConfig *vault.Config, path string) error {
+	// for testing
 	if path == fakeBillingPath {
 		runFakeZuora()
 		clientId = fakeClientID
 		clientSecret = fakeClientSecret
 		ZuoraUrl = fakeURL
+		return nil
 	}
 	// pull it from vault and if you cant throw a fatal error
 	creds := accountCreds{}

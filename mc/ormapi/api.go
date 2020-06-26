@@ -45,9 +45,9 @@ type Organization struct {
 	// Organization type: "developer" or "operator"
 	Type string `gorm:"not null"`
 	// Organization address
-	Address string
+	Address string `json:",omitempty"`
 	// Organization phone number
-	Phone string
+	Phone string `json:",omitempty"`
 	// read only: true
 	CreatedAt time.Time `json:",omitempty"`
 	// read only: true
@@ -56,6 +56,8 @@ type Organization struct {
 	PublicImages bool `json:",omitempty"`
 	// read only: true
 	DeleteInProgress bool `json:",omitempty"`
+	// read only: true
+	Parent string `json:",omitempty"`
 }
 
 type BillingOrganization struct {

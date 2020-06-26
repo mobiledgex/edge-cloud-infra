@@ -55,11 +55,18 @@ func fakeOrder(w http.ResponseWriter, req *http.Request) {
 	resp := OrderResp{}
 	switch action.Type {
 	case "CreateSubscription":
-		if action.CreateSubscription == nil || action.CreateSubscription.NewSubscriptionOwnerAccount == nil {
+		if action.CreateSubscription == nil {
 			http.Error(w, "create subscription fields empty", http.StatusBadRequest)
 			return
 		}
 		account := action.CreateSubscription.NewSubscriptionOwnerAccount
+		if account == nil {
+			account = order.NewAccount // there is a parent account
+			if account == nil {
+				http.Error(w, "No Account specified", http.StatusBadRequest)
+				return
+			}
+		}
 		accountMux.Lock()
 		subMux.Lock()
 		accountId := strconv.Itoa(accountIdCounter)
@@ -76,7 +83,7 @@ func fakeOrder(w http.ResponseWriter, req *http.Request) {
 			familyMux.Unlock()
 		}
 		resp.Success = true
-		resp.Status = "Completeted"
+		resp.Status = "Completed"
 		resp.AccountNumber = accountId
 		resp.SubscriptionNumbers = []string{subId}
 	case "CancelSubscription":
@@ -91,6 +98,8 @@ func fakeOrder(w http.ResponseWriter, req *http.Request) {
 			return
 		}
 		resp.Success = true
+		resp.Status = "Completed"
+		resp.SubscriptionNumbers = []string{"placeholderSubNumber"}
 	default:
 		http.Error(w, "unknown order type "+action.Type, http.StatusBadRequest)
 		return
@@ -105,10 +114,6 @@ func fakeOrder(w http.ResponseWriter, req *http.Request) {
 }
 
 func fakeAccounts(w http.ResponseWriter, req *http.Request) {
-	if req.Method != "POST" {
-		http.Error(w, fmt.Sprintf("Unsupported method for order request %s", req.Method), http.StatusBadRequest)
-		return
-	}
 	switch req.Method {
 	case "POST": // create a new customer(Parent)
 		var order NewAccount

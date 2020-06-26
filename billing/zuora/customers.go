@@ -68,6 +68,7 @@ func CreateCustomer(name, currency string, billToContact *CustomerBillToContact,
 	req.Header.Add("Authorization", tokentype+" "+token)
 	req.Header.Set("Content-Type", "application/json")
 
+	fmt.Printf("sending request: %+v\n", req)
 	resp, err := client.Do(req)
 	if err != nil {
 		return fmt.Errorf("Error sending request: %v\n", err)

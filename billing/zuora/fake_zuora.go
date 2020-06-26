@@ -8,7 +8,7 @@ import (
 var fakeBillingPath = "fake"
 var fakeClientID = "fakeID"
 var fakeClientSecret = "fakeSecret"
-var fakeURL = "127.0.0.1:65122"
+var fakeURL = "http://localhost:65122"
 
 // for accounts and subs ids and nums will be the same
 var accountMux sync.Mutex
@@ -32,11 +32,12 @@ func runFakeZuora() {
 }
 
 func runServer() {
-	http.HandleFunc(OAuthEndpoint+"/", fakeAuth)
-	http.HandleFunc(OrdersEndpoint+"/", fakeOrder)
+	http.HandleFunc(OAuthEndpoint, fakeAuth)
+	http.HandleFunc(OrdersEndpoint, fakeOrder)
+	http.HandleFunc(AccountsEndPoint, fakeAccounts) // call again bc POSTS to AccountsEndPoint will be turned in to GETs to AccountsEndpoint/
 	http.HandleFunc(AccountsEndPoint+"/", fakeAccounts)
-	http.HandleFunc(ObjectAccountsEndpoint+"/", fakeDeleteAccounts)
-	http.HandleFunc(GetSubscriptionEndpoint+"/", fakeGetSubs)
+	http.HandleFunc(ObjectAccountsEndpoint, fakeDeleteAccounts)
+	http.HandleFunc(GetSubscriptionEndpoint, fakeGetSubs)
 	http.HandleFunc("/v1/subscriptions/", fakeCheckSubOwner)
 	http.HandleFunc(UsageEndpoint, fakeUsageRecord)
 

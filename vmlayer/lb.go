@@ -384,8 +384,8 @@ func (v *VMPlatform) GetVMSpecForRootLB(ctx context.Context, rootLbName string, 
 	cli := edgeproto.CloudletInfo{}
 	cli.Key = *v.VMProperties.CommonPf.PlatformConfig.CloudletKey
 	cli.Flavors = v.FlavorList
-
-	vmspec, err := vmspec.GetVMSpec(ctx, rootlbFlavor, cli, ResTbls)
+	restbls := v.GetResTablesForCloudlet(ctx, &cli.Key)
+	vmspec, err := vmspec.GetVMSpec(ctx, rootlbFlavor, cli, restbls)
 
 	if err != nil {
 		log.SpanLog(ctx, log.DebugLevelInfra, "RootLB GetVMSpec error", "v.FlavorList", v.FlavorList, "rootlbFlavor", rootlbFlavor, "err", err)

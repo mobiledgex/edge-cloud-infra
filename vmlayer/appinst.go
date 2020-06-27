@@ -308,8 +308,12 @@ func (v *VMPlatform) CreateAppInst(ctx context.Context, clusterInst *edgeproto.C
 
 	case cloudcommon.DeploymentTypeDocker:
 		rootLBName := v.VMProperties.GetRootLBNameForCluster(ctx, clusterInst)
+		rootLBClient, err := v.GetClusterPlatformClient(ctx, clusterInst, cloudcommon.ClientTypeRootLB)
+		if err != nil {
+			return err
+		}
 		clientType := cloudcommon.GetAppClientType(app)
-		client, err := v.GetClusterPlatformClient(ctx, clusterInst, clientType)
+		appClient, err := v.GetClusterPlatformClient(ctx, clusterInst, clientType)
 		if err != nil {
 			return err
 		}
@@ -350,7 +354,7 @@ func (v *VMPlatform) CreateAppInst(ctx context.Context, clusterInst *edgeproto.C
 		start := time.Now()
 		for _, imagePath := range names.ImagePaths {
 			for {
-				err = infracommon.SeedDockerSecret(ctx, client, clusterInst, imagePath, v.VMProperties.CommonPf.VaultConfig)
+				err = infracommon.SeedDockerSecret(ctx, appClient, clusterInst, imagePath, v.VMProperties.CommonPf.VaultConfig)
 				if err != nil {
 					log.SpanLog(ctx, log.DebugLevelInfra, "seeding docker secret failed", "err", err)
 					elapsed := time.Since(start)
@@ -367,7 +371,7 @@ func (v *VMPlatform) CreateAppInst(ctx context.Context, clusterInst *edgeproto.C
 
 		updateCallback(edgeproto.UpdateTask, "Deploying Docker App")
 
-		err = dockermgmt.CreateAppInst(ctx, v.VMProperties.CommonPf.VaultConfig, client, app, appInst)
+		err = dockermgmt.CreateAppInst(ctx, v.VMProperties.CommonPf.VaultConfig, appClient, app, appInst)
 		if err != nil {
 			return err
 		}
@@ -387,7 +391,7 @@ func (v *VMPlatform) CreateAppInst(ctx context.Context, clusterInst *edgeproto.C
 			listenIP = rootLBIPaddr.InternalAddr
 		}
 		ops := ProxyDnsSecOpts{AddProxy: addproxy, AddDnsAndPatchKubeSvc: true, AddSecurityRules: true}
-		err = v.AddProxySecurityRulesAndPatchDNS(ctx, client, names, app, appInst, getDnsAction, rootLBName, listenIP, backendIP, ops, proxyOps...)
+		err = v.AddProxySecurityRulesAndPatchDNS(ctx, rootLBClient, names, app, appInst, getDnsAction, rootLBName, listenIP, backendIP, ops, proxyOps...)
 		if err != nil {
 			return fmt.Errorf("AddProxySecurityRulesAndPatchDNS error: %v", err)
 		}

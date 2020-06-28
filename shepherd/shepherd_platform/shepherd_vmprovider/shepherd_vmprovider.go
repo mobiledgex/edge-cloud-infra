@@ -82,7 +82,15 @@ func (s *ShepherdPlatform) GetClusterIP(ctx context.Context, clusterInst *edgepr
 }
 
 func (s *ShepherdPlatform) GetClusterPlatformClient(ctx context.Context, clusterInst *edgeproto.ClusterInst, clientType string) (ssh.Client, error) {
-	return s.VMPlatform.GetClusterPlatformClient(ctx, clusterInst, clientType)
+	pc, err := s.VMPlatform.GetClusterPlatformClient(ctx, clusterInst, clientType)
+	if err != nil {
+		return nil, err
+	}
+	err = pc.StartPersistentConn(shepherd_common.ShepherdSshConnectTimeout)
+	if err != nil {
+		return nil, err
+	}
+	return pc, nil
 }
 
 func (s *ShepherdPlatform) GetPlatformStats(ctx context.Context) (shepherd_common.CloudletMetrics, error) {

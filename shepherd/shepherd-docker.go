@@ -78,7 +78,7 @@ func (c *DockerClusterStats) GetContainerStats(ctx context.Context) (*DockerStat
 		log.SpanLog(ctx, log.DebugLevelMetrics, errstr, "err", err.Error())
 		return nil, err
 	}
-	respVM, err := c.clusterClient.Output(dockerStatsCmd)
+	respVM, err := c.clusterClient.Output(dockerStatsCmd) // check the VM for LoadBalancer docker apps
 	if err != nil {
 		errstr := fmt.Sprintf("Failed to run <%s> on ClusterVM", dockerStatsCmd)
 		log.SpanLog(ctx, log.DebugLevelMetrics, errstr, "err", err.Error())

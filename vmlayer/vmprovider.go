@@ -139,6 +139,7 @@ func (v *VMPlatform) GetType() string {
 
 func (v *VMPlatform) GetClusterPlatformClient(ctx context.Context, clusterInst *edgeproto.ClusterInst, clientType string) (ssh.Client, error) {
 	rootLBName := v.VMProperties.sharedRootLBName
+
 	if clusterInst.IpAccess == edgeproto.IpAccess_IP_ACCESS_DEDICATED {
 		rootLBName = cloudcommon.GetDedicatedLBFQDN(v.VMProperties.CommonPf.PlatformConfig.CloudletKey, &clusterInst.Key.ClusterKey, v.VMProperties.CommonPf.PlatformConfig.AppDNSRoot)
 	}
@@ -204,6 +205,7 @@ func (v *VMPlatform) InitProps(ctx context.Context, platformConfig *platform.Pla
 		return err
 	}
 	v.VMProvider.SetVMProperties(&v.VMProperties)
+	v.VMProperties.sharedRootLBName = v.GetRootLBName(v.VMProperties.CommonPf.PlatformConfig.CloudletKey)
 	return nil
 }
 
@@ -240,8 +242,6 @@ func (v *VMPlatform) Init(ctx context.Context, platformConfig *platform.Platform
 		return err
 	}
 	log.SpanLog(ctx, log.DebugLevelInfra, "got flavor list", "flavorList", v.FlavorList)
-
-	v.VMProperties.sharedRootLBName = v.GetRootLBName(v.VMProperties.CommonPf.PlatformConfig.CloudletKey)
 
 	// create rootLB
 	crmRootLB, cerr := v.NewRootLB(ctx, v.VMProperties.sharedRootLBName)

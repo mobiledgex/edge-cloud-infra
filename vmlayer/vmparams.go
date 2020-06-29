@@ -366,6 +366,7 @@ type VolumeOrchestrationParams struct {
 	AvailabilityZone   string
 	DeviceName         string
 	AttachExternalDisk bool
+	UnitNumber         uint64
 }
 type VolumeOrchestrationParamsOp func(vmp *VolumeOrchestrationParams) error
 
@@ -790,6 +791,7 @@ func (v *VMPlatform) getVMGroupOrchestrationParamsFromGroupSpec(ctx context.Cont
 					Name:       vm.Name + "-shared-volume",
 					Size:       vm.SharedVolumeSize,
 					DeviceName: "vdb",
+					UnitNumber: 1,
 				}
 				newVM.Volumes = append(newVM.Volumes, sharedVolume)
 				newVM.SharedVolume = true

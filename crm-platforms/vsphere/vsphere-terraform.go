@@ -492,6 +492,7 @@ var vmGroupTemplate = `
 		memory   = {{.Ram}}
 		memory_reservation = {{.Ram}}
 		guest_id = "ubuntu64Guest"
+		scsi_type = "pvscsi"
 
   		{{- range .Ports}}
 		network_interface {
@@ -518,6 +519,7 @@ var vmGroupTemplate = `
 			size = {{.Size}}
 			thin_provisioned = true
 			eagerly_scrub = false
+			unit_number = {{.UnitNumber}}
 		}
 		{{- end}}
 		{{- end}}
@@ -554,6 +556,8 @@ var vmGroupTemplate = `
 
 // user data is encoded as base64
 func vmsphereUserDataFormatter(instring string) string {
+	// despite the use of paravirtualized drivers, vSphere gets get name sda, sdb
+	instring = strings.ReplaceAll(instring, "/dev/vd", "/dev/sd")
 	return base64.StdEncoding.EncodeToString([]byte(instring))
 }
 

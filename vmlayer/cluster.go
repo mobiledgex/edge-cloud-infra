@@ -88,7 +88,7 @@ func ParseClusterNodePrefix(name string) (bool, uint32) {
 
 func (v *VMPlatform) UpdateClusterInst(ctx context.Context, clusterInst *edgeproto.ClusterInst, privacyPolicy *edgeproto.PrivacyPolicy, updateCallback edgeproto.CacheUpdateCallback) error {
 	lbName := v.VMProperties.GetRootLBNameForCluster(ctx, clusterInst)
-	client, err := v.GetClusterPlatformClient(ctx, clusterInst)
+	client, err := v.GetClusterPlatformClient(ctx, clusterInst, cloudcommon.ClientTypeRootLB)
 	if err != nil {
 		return err
 	}
@@ -133,12 +133,13 @@ func (v *VMPlatform) updateClusterInternal(ctx context.Context, client ssh.Clien
 				continue
 			}
 			numNodes++
+			nodeName := GetClusterNodeName(ctx, clusterInst, num)
 			// heat will remove the higher-numbered nodes
 			if num > clusterInst.NumNodes {
 				toRemove = append(toRemove, n)
-				chefUpdateInfo[n] = ActionRemove
+				chefUpdateInfo[nodeName] = ActionRemove
 			} else {
-				chefUpdateInfo[n] = ActionNone
+				chefUpdateInfo[nodeName] = ActionNone
 			}
 		}
 		if len(toRemove) > 0 {
@@ -180,7 +181,7 @@ func (v *VMPlatform) deleteCluster(ctx context.Context, rootLBName string, clust
 	name := GetClusterName(ctx, clusterInst)
 
 	dedicatedRootLB := clusterInst.IpAccess == edgeproto.IpAccess_IP_ACCESS_DEDICATED
-	client, err := v.GetClusterPlatformClient(ctx, clusterInst)
+	client, err := v.GetClusterPlatformClient(ctx, clusterInst, cloudcommon.ClientTypeRootLB)
 	if err != nil {
 		if strings.Contains(err.Error(), ServerDoesNotExistError) {
 			log.SpanLog(ctx, log.DebugLevelInfra, "Dedicated RootLB is gone, allow stack delete to proceed")
@@ -313,7 +314,7 @@ func (v *VMPlatform) createClusterInternal(ctx context.Context, rootLBName strin
 }
 
 func (v *VMPlatform) setupClusterRootLBAndNodes(ctx context.Context, rootLBName string, clusterInst *edgeproto.ClusterInst, updateCallback edgeproto.CacheUpdateCallback, start time.Time, timeout time.Duration, vmgp *VMGroupOrchestrationParams, action ActionType) (reterr error) {
-	client, err := v.GetClusterPlatformClient(ctx, clusterInst)
+	client, err := v.GetClusterPlatformClient(ctx, clusterInst, cloudcommon.ClientTypeRootLB)
 	if err != nil {
 		return fmt.Errorf("can't get rootLB client, %v", err)
 	}
@@ -435,7 +436,7 @@ func (v *VMPlatform) isClusterReady(ctx context.Context, clusterInst *edgeproto.
 	log.SpanLog(ctx, log.DebugLevelInfra, "checking if cluster is ready")
 
 	// some commands are run on the rootlb and some on the master directly, so we use separate clients
-	rootLBClient, err := v.GetClusterPlatformClient(ctx, clusterInst)
+	rootLBClient, err := v.GetClusterPlatformClient(ctx, clusterInst, cloudcommon.ClientTypeRootLB)
 	if err != nil {
 		return false, 0, fmt.Errorf("can't get rootlb ssh client for cluster ready check, %v", err)
 	}

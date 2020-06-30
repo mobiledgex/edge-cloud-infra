@@ -287,3 +287,15 @@ type RegionCloudletEvents struct {
 	EndTime   time.Time `json:",omitempty"`
 	Last      int       `json:",omitempty"`
 }
+
+// Configurable part of AlertManager Receiver
+type AlertReceiver struct {
+	// Receiver Name
+	Name string
+	// Receiver type. Eg. email, slack, pagerduty
+	Type string
+	// Alert severify filter
+	Severity string
+	// User string, hidden from API
+	User string `json:"-"`
+}

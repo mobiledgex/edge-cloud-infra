@@ -21,7 +21,7 @@ func (a *AWSPlatform) CreateAppInst(ctx context.Context, clusterInst *edgeproto.
 		return fmt.Errorf("can't set up kconf, %s", err.Error())
 	}
 
-	client, err := a.GetClusterPlatformClient(ctx, clusterInst)
+	client, err := a.GetClusterPlatformClient(ctx, clusterInst, cloudcommon.ClientTypeRootLB)
 	if err != nil {
 		return err
 	}
@@ -75,7 +75,7 @@ func (a *AWSPlatform) DeleteAppInst(ctx context.Context, clusterInst *edgeproto.
 	if err := SetupKconf(ctx, clusterInst); err != nil {
 		return fmt.Errorf("can't set up kconf, %s", err.Error())
 	}
-	client, err := a.GetClusterPlatformClient(ctx, clusterInst)
+	client, err := a.GetClusterPlatformClient(ctx, clusterInst, cloudcommon.ClientTypeRootLB)
 	if err != nil {
 		return err
 	}
@@ -126,7 +126,7 @@ func (a *AWSPlatform) UpdateAppInst(ctx context.Context, clusterInst *edgeproto.
 	if err != nil {
 		return err
 	}
-	client, err := a.GetClusterPlatformClient(ctx, clusterInst)
+	client, err := a.GetClusterPlatformClient(ctx, clusterInst, cloudcommon.ClientTypeRootLB)
 	if err != nil {
 		return err
 	}
@@ -144,7 +144,7 @@ func (a *AWSPlatform) GetAppInstRuntime(ctx context.Context, clusterInst *edgepr
 	if err := SetupKconf(ctx, clusterInst); err != nil {
 		return nil, fmt.Errorf("can't set up kconf, %s", err.Error())
 	}
-	client, err := a.GetClusterPlatformClient(ctx, clusterInst)
+	client, err := a.GetClusterPlatformClient(ctx, clusterInst, cloudcommon.ClientTypeRootLB)
 	if err != nil {
 		return nil, err
 	}

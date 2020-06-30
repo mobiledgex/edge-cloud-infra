@@ -113,7 +113,7 @@ func CollectProxyStats(ctx context.Context, appInst *edgeproto.AppInst) string {
 		// TODO: track udp ports as well (when we add udp to envoy)
 		for _, p := range appInst.MappedPorts {
 			if p.Proto == dme.LProto_L_PROTO_TCP {
-				scrapePoint.Ports = append(scrapePoint.Ports, p.PublicPort)
+				scrapePoint.Ports = append(scrapePoint.Ports, p.InternalPort)
 			}
 		}
 
@@ -176,8 +176,7 @@ func ProxyScraper() {
 			scrapePoints := copyMapValues()
 			for _, v := range scrapePoints {
 				span := log.StartSpan(log.DebugLevelSampled, "send-metric")
-				span.SetTag("operator", cloudletKey.Organization)
-				span.SetTag("cloudlet", cloudletKey.Name)
+				log.SetTags(span, cloudletKey.GetTags())
 				span.SetTag("cluster", v.Cluster)
 				ctx := log.ContextWithSpan(context.Background(), span)
 

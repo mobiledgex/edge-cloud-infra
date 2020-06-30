@@ -926,8 +926,6 @@ func (s *OpenstackPlatform) OSGetAllLimits(ctx context.Context) ([]OSLimit, erro
 
 func (s *OpenstackPlatform) GetFlavorInfo(ctx context.Context) ([]*edgeproto.FlavorInfo, []OSAZone, []OSImage, error) {
 
-	var props map[string]string
-
 	osflavors, err := s.ListFlavors(ctx)
 	if err != nil {
 		return nil, nil, nil, fmt.Errorf("failed to get flavors, %v", err.Error())
@@ -937,6 +935,7 @@ func (s *OpenstackPlatform) GetFlavorInfo(ctx context.Context) ([]*edgeproto.Fla
 	}
 	var finfo []*edgeproto.FlavorInfo
 	for _, f := range osflavors {
+		var props map[string]string
 		if f.Properties != "" {
 			props = ParseFlavorProperties(f)
 		}
@@ -1057,8 +1056,12 @@ func (s *OpenstackPlatform) OSGetMetricsRangeForId(ctx context.Context, resId st
 	return measurements, nil
 }
 
+func (o *OpenstackPlatform) GetCloudletImageSuffix(ctx context.Context) string {
+	return ".qcow2"
+}
+
 func (s *OpenstackPlatform) AddCloudletImageIfNotPresent(ctx context.Context, imgPathPrefix, imgVersion string, updateCallback edgeproto.CacheUpdateCallback) (string, error) {
-	imgPath := vmlayer.GetCloudletVMImagePath(imgPathPrefix, imgVersion)
+	imgPath := vmlayer.GetCloudletVMImagePath(imgPathPrefix, imgVersion, s.GetCloudletImageSuffix(ctx))
 
 	// Fetch platform base image name
 	pfImageName, err := cloudcommon.GetFileName(imgPath)

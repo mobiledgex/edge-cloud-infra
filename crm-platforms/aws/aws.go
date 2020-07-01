@@ -94,7 +94,8 @@ func (a *AWSPlatform) GatherCloudletInfo(ctx context.Context, info *edgeproto.Cl
 		err = fmt.Errorf("cannot unmarshal, %s, %v", out, err)
 		return err
 	}
-	fmt.Println(instanceTypes)
+
+	log.DebugLog(log.DebugLevelInfra, "AWS ", "instance types", instanceTypes)
 
 	for _, m := range instanceTypes {
 		name, ok := m[0].(string)

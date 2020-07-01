@@ -3,17 +3,13 @@ package aws
 import (
 	"context"
 	"fmt"
-
-	//"os"
-	"time"
-
-	// sh "github.com/codeskyblue/go-sh"
 	"github.com/mobiledgex/edge-cloud-infra/infracommon"
 	"github.com/mobiledgex/edge-cloud/cloud-resource-manager/k8smgmt"
 	"github.com/mobiledgex/edge-cloud/cloud-resource-manager/platform/pc"
+	"github.com/mobiledgex/edge-cloud/cloudcommon"
 	"github.com/mobiledgex/edge-cloud/edgeproto"
 	"github.com/mobiledgex/edge-cloud/log"
-        "github.com/mobiledgex/edge-cloud/cloudcommon"
+	"time"
 )
 
 // AWSLogin logs into Amazon AWS web services

@@ -22,11 +22,18 @@ func CreateEKSCluster(name string, nodeFlavorName string, numNodes uint32) error
 	// output log messages
 	log.DebugLog(log.DebugLevelInfra, "CreateEKSCluster Received", "numNodes:", numNodes)
 	log.DebugLog(log.DebugLevelInfra, "CreateEKSCluster Received", "nodeFlavorName", nodeFlavorName)
-	out, err := sh.Command("eksctl", "create", "cluster", "--name", name, "--node-type", nodeFlavorName, "--nodes", fmt.Sprintf("%d", numNodes), "--managed").CombinedOutput()
-
-	if err != nil {
+        // Can not create a managed cluster if numNodes is 0
+        if numNodes == 0 { 
+	      out, err := sh.Command("eksctl", "create", "cluster", "--name", name, "--node-type", nodeFlavorName, "--nodes", fmt.Sprintf("%d", numNodes)).CombinedOutput()
+	    if err != nil {
 		return fmt.Errorf("%s %v", out, err)
-	}
+	    }
+        } else {
+	      out, err := sh.Command("eksctl", "create", "cluster", "--name", name, "--node-type", nodeFlavorName, "--nodes", fmt.Sprintf("%d", numNodes), "--managed").CombinedOutput()
+	     if err != nil {
+		return fmt.Errorf("%s %v", out, err)
+	     }
+        }
 
 	return nil
 }

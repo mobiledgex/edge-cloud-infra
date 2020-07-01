@@ -134,7 +134,6 @@ func CreateParentCustomer(name, currency string, billToContact *CustomerBillToCo
 	if err != nil {
 		return fmt.Errorf("Unable to retrieve oAuth token")
 	}
-	fmt.Printf("payload: %s\n", payload)
 	req.Header.Add("Authorization", tokentype+" "+token)
 	req.Header.Set("Content-Type", "application/json")
 

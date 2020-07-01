@@ -81,11 +81,11 @@ func TestServer(t *testing.T) {
 	policies, status, err := showRolePerms(mcClient, uri, token)
 	require.Nil(t, err, "show role perms err")
 	require.Equal(t, http.StatusOK, status, "show role perms status")
-	require.Equal(t, 141, len(policies), "number of role perms")
+	require.Equal(t, 142, len(policies), "number of role perms")
 	roles, status, err := showRoles(mcClient, uri, token)
 	require.Nil(t, err, "show roles err")
 	require.Equal(t, http.StatusOK, status, "show roles status")
-	require.Equal(t, 9, len(roles), "number of roles")
+	require.Equal(t, 10, len(roles), "number of roles")
 
 	// create new user1
 	user1 := ormapi.User{

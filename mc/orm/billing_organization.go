@@ -392,9 +392,6 @@ func DeleteBillingOrgObj(ctx context.Context, claims *UserClaims, org *ormapi.Bi
 		if undoerr != nil {
 			log.SpanLog(ctx, log.DebugLevelApi, "undo mark org for delete", "undoerr", undoerr)
 		}
-		if strings.Contains(err.Error(), "violates foreign key constraint \"org_cloudlet_pools_org_fkey\"") {
-			return fmt.Errorf("Cannot delete organization because it is referenced by an OrgCloudletPool")
-		}
 		return dbErr(err)
 	}
 
@@ -420,6 +417,21 @@ func DeleteBillingOrgObj(ctx context.Context, claims *UserClaims, org *ormapi.Bi
 					return dbErr(err)
 				}
 			}
+		}
+	} else {
+		lookup := ormapi.Organization{
+			Name: org.Name,
+		}
+		org := ormapi.Organization{}
+		db := loggedDB(ctx)
+		res := db.Where(&lookup).First(&org)
+		if res.RecordNotFound() {
+			return fmt.Errorf("unable to find corresponding Organization")
+		}
+		org.Parent = ""
+		err = db.Save(&org).Error
+		if err != nil {
+			return dbErr(err)
 		}
 	}
 	return nil

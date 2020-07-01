@@ -248,11 +248,12 @@ type WSStreamPayload struct {
 // all data is for full create/delete
 
 type AllData struct {
-	Controllers      []Controller      `json:"controllers,omitempty"`
-	Orgs             []Organization    `json:"orgs,omitempty"`
-	Roles            []Role            `json:"roles,omitempty"`
-	OrgCloudletPools []OrgCloudletPool `json:"orgcloudletpools,omitempty"`
-	RegionData       []RegionData      `json:"regiondata,omitempty"`
+	Controllers      []Controller          `json:"controllers,omitempty"`
+	BillingOrgs      []BillingOrganization `json:"billingorgs,omitempty"`
+	Orgs             []Organization        `json:"orgs,omitempty"`
+	Roles            []Role                `json:"roles,omitempty"`
+	OrgCloudletPools []OrgCloudletPool     `json:"orgcloudletpools,omitempty"`
+	RegionData       []RegionData          `json:"regiondata,omitempty"`
 }
 
 type RegionData struct {

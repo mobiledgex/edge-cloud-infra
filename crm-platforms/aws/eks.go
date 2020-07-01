@@ -2,19 +2,10 @@ package aws
 
 import (
 	"fmt"
+
 	"github.com/codeskyblue/go-sh"
 	"github.com/mobiledgex/edge-cloud/log"
 )
-
-//SetOrganizationUnit sets the OrganizationUnit for AWS
-func SetOrganizationUnit(awsOu string) error {
-	return nil
-}
-
-//SetZone sets the zone in AWS
-func SetZone(zone string) error {
-	return nil
-}
 
 //CreateEKSCluster creates a kubernetes cluster on AWS
 func CreateEKSCluster(name string, nodeFlavorName string, numNodes uint32) error {

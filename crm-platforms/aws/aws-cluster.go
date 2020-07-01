@@ -3,13 +3,14 @@ package aws
 import (
 	"context"
 	"fmt"
+	"time"
+
 	"github.com/mobiledgex/edge-cloud-infra/infracommon"
 	"github.com/mobiledgex/edge-cloud/cloud-resource-manager/k8smgmt"
 	"github.com/mobiledgex/edge-cloud/cloud-resource-manager/platform/pc"
 	"github.com/mobiledgex/edge-cloud/cloudcommon"
 	"github.com/mobiledgex/edge-cloud/edgeproto"
 	"github.com/mobiledgex/edge-cloud/log"
-	"time"
 )
 
 // AWSLogin logs into Amazon AWS web services
@@ -37,9 +38,9 @@ func (a *AWSPlatform) CreateClusterInst(ctx context.Context, clusterInst *edgepr
 	if err = GetEKSCredentials(clusterName); err != nil {
 		return err
 	}
-	kconf := k8smgmt.GetKconfName(clusterInst) //XXX
+	kconf := k8smgmt.GetKconfName(clusterInst)
 
-	log.SpanLog(ctx, log.DebugLevelInfra, "warning, using default config") //XXX
+	log.SpanLog(ctx, log.DebugLevelInfra, "warning, using default config")
 	if err = pc.CopyFile(client, infracommon.DefaultKubeconfig(), kconf); err != nil {
 		return err
 	}

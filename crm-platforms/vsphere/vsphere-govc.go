@@ -512,8 +512,9 @@ func (v *VSpherePlatform) GetNetworkListForGovcVm(ctx context.Context, vmname st
 	}
 	networkPattern := "\\s*Network:\\s+(.*)"
 	nreg := regexp.MustCompile(networkPattern)
-	//Network:              DPGAdminDEV, mex-k8s-subnet-dev-cluster2-mobiledgex
 	lines := strings.Split(string(out), "\n")
+	// Example format for what we are looking for
+	// Network:              DPGAdminDEV, mex-k8s-subnet-dev-cluster2-mobiledge
 	for _, line := range lines {
 		if nreg.MatchString(line) {
 			matches := nreg.FindStringSubmatch(line)

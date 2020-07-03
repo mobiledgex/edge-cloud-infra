@@ -84,7 +84,6 @@ func TestCloudletPrometheusFuncs(t *testing.T) {
 	// clean up file
 	err = os.Remove(*promTargetsFile)
 	assert.Nil(t, err)
-
 }
 
 // generate Apps to populate cache

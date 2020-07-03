@@ -51,6 +51,7 @@ func TestCollectProxyStats(t *testing.T) {
 		obj.MappedPorts = ports
 		obj.State = edgeproto.TrackedState_READY
 
+		// For each appInst in testutil.AppInstData the reslt might differ
 		switch ii {
 		case 0, 1, 2, 3, 4, 6, 7:
 			// tcp,udp,http ports, load-balancer access
@@ -69,7 +70,5 @@ func TestCollectProxyStats(t *testing.T) {
 			assert.Empty(t, target)
 		}
 		AppInstCache.Update(ctx, &testutil.AppInstData[ii], 0)
-
 	}
-
 }

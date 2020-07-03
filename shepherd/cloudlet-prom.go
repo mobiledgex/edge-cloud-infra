@@ -110,7 +110,6 @@ func writePrometheusTargetsFile() {
 		if err == nil {
 			targets += promTargetJson
 		}
-
 	}
 	targets += "]"
 	ioutil.WriteFile(*promTargetsFile, []byte(targets), 0644)

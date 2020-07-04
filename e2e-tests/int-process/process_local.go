@@ -1,6 +1,11 @@
 package intprocess
 
 import (
+	"crypto/rand"
+	"crypto/rsa"
+	"crypto/x509"
+	"encoding/json"
+	"encoding/pem"
 	"fmt"
 	"io/ioutil"
 	"log"
@@ -432,6 +437,37 @@ func (s *VaultRoles) GetRegionRoles(region string) *VaultRegionRoles {
 	return s.RegionRoles[region]
 }
 
+func GetDummyPrivateKey(fileName string) error {
+	outFile, err := os.Create(fileName)
+	if err != nil {
+		return err
+	}
+
+	chefApiKey := struct {
+		ApiKey string `json:"apikey"`
+	}{}
+
+	key, err := rsa.GenerateKey(rand.Reader, 2048)
+	if err != nil {
+		return err
+	}
+
+	out := pem.EncodeToMemory(
+		&pem.Block{
+			Type:  "PRIVATE KEY",
+			Bytes: x509.MarshalPKCS1PrivateKey(key),
+		},
+	)
+	chefApiKey.ApiKey = string(out)
+	jsonKey, err := json.Marshal(chefApiKey)
+	if err != nil {
+		return err
+	}
+	outFile.Write(jsonKey)
+
+	return nil
+}
+
 // Vault is already started by edge-cloud setup file.
 func SetupVault(p *process.Vault, opts ...process.StartOp) (*VaultRoles, error) {
 	var err error
@@ -455,7 +491,17 @@ func SetupVault(p *process.Vault, opts ...process.StartOp) (*VaultRoles, error) 
 	// Set up local mexenv.json in the vault to allow local edgebox to run
 	localMexenv := gopath + "/src/github.com/mobiledgex/edge-cloud-infra/mgmt/cloudlets/mexenv.json"
 	p.Run("vault", fmt.Sprintf("write %s @%s", "/secret/data/cloudlet/openstack/mexenv.json", localMexenv), &err)
+	if err != nil {
+		return &roles, err
+	}
 
+	// Setup up chef key to allow local edgebox to use chef to provision cloudlet
+	chefApiKeyPath := "/tmp/dummyChefApiKey.json"
+	err = GetDummyPrivateKey(chefApiKeyPath)
+	if err != nil {
+		return &roles, err
+	}
+	p.Run("vault", fmt.Sprintf("kv put %s @%s", "/secret/accounts/chef", chefApiKeyPath), &err)
 	if err != nil {
 		return &roles, err
 	}
@@ -548,3 +594,36 @@ func (p *Exporter) StopLocal() {
 func (p *Exporter) GetExeName() string { return "fakepromexporter" }
 
 func (p *Exporter) LookupArgs() string { return "" }
+
+func (p *ChefServer) StartLocal(logfile string, opts ...process.StartOp) error {
+	args := []string{}
+	if p.Port > 0 {
+		args = append(args, "--port")
+		args = append(args, fmt.Sprintf("%d", p.Port))
+	} else {
+		args = append(args, "--port")
+		args = append(args, "8889")
+	}
+
+	var err error
+	p.cmd, err = process.StartLocal(p.Name, p.GetExeName(), args, nil, logfile)
+	if err != nil {
+		return err
+	}
+
+	cmd := exec.Command("./chef/local-setup/setup.sh")
+	_, err = cmd.CombinedOutput()
+	if err != nil {
+		return err
+	}
+
+	return err
+}
+
+func (p *ChefServer) StopLocal() {
+	process.StopLocal(p.cmd)
+}
+
+func (p *ChefServer) GetExeName() string { return "chef-zero" }
+
+func (p *ChefServer) LookupArgs() string { return fmt.Sprintf("--port %d", p.Port) }

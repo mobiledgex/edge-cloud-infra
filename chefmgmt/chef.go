@@ -81,9 +81,6 @@ func GetChefAuthKeys(ctx context.Context, vaultConfig *vault.Config) (*ChefAuthK
 	if auth.ApiKey == "" {
 		return nil, fmt.Errorf("Unable to find chef API key")
 	}
-	if auth.ValidationKey == "" {
-		return nil, fmt.Errorf("Unable to find chef validation key")
-	}
 	return auth, nil
 }
 
@@ -248,6 +245,13 @@ func ChefClientCreate(ctx context.Context, client *chef.Client, chefParams *VMCh
 	_, err = client.Nodes.Post(nodeObj)
 	if err != nil {
 		return "", fmt.Errorf("failed to create node %s: %v", clientName, err)
+	}
+
+	if client.BaseURL != nil {
+		// If Chef Server is running locally, then it doesn't support acls
+		if strings.Contains(client.BaseURL.Host, "127.0.0.1") {
+			return clientKey, nil
+		}
 	}
 
 	aclTypes := []string{"update", "create", "delete", "read"}

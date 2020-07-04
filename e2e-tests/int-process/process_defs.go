@@ -71,3 +71,9 @@ type Exporter struct {
 	Port           int
 	cmd            *exec.Cmd
 }
+
+type ChefServer struct {
+	process.Common `yaml:",inline"`
+	Port           int
+	cmd            *exec.Cmd
+}

@@ -1,3 +1,8 @@
+if node.attribute?("edgeCloudVersionOverride")
+  Chef::Log.info("Override edgeCloudVersion from #{node['edgeCloudVersion']} to #{node['edgeCloudVersionOverride']}")
+  node['edgeCloudVersion'] = node['edgeCloudVersionOverride']
+end
+
 docker_registry "#{node['edgeCloudImage']}" do
   regsecrets = data_bag_item('mexsecrets', 'docker_registry')
   Chef::Log.info("Login to registry: #{node['edgeCloudImage']} as user #{regsecrets['mex_docker_username']}")

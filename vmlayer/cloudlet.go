@@ -213,7 +213,7 @@ func (v *VMPlatform) CreateCloudlet(ctx context.Context, cloudlet *edgeproto.Clo
 		pfConfig.ContainerRegistryPath = infracommon.DefaultContainerRegistryPath
 	}
 
-	chefAttributes, err := v.GetChefCloudletAttributes(ctx, cloudlet, pfConfig)
+	chefAttributes, err := v.GetChefPlatformAttributes(ctx, cloudlet, pfConfig)
 	if err != nil {
 		return err
 	}
@@ -409,8 +409,8 @@ func GetChefCloudletTags(cloudlet *edgeproto.Cloudlet, pfConfig *edgeproto.Platf
 	}
 }
 
-func (v *VMPlatform) GetChefCloudletAttributes(ctx context.Context, cloudlet *edgeproto.Cloudlet, pfConfig *edgeproto.PlatformConfig) (map[string]interface{}, error) {
-	log.SpanLog(ctx, log.DebugLevelInfra, "GetChefCloudletAttributes", "region", pfConfig.Region, "cloudletKey", cloudlet.Key, "PhysicalName", cloudlet.PhysicalName)
+func GetChefCloudletAttributes(ctx context.Context, cloudlet *edgeproto.Cloudlet, pfConfig *edgeproto.PlatformConfig) (map[string]interface{}, error) {
+	log.SpanLog(ctx, log.DebugLevelInfra, "GetChefCloudletAttributes", "region", pfConfig.Region, "cloudletKey", cloudlet.Key)
 
 	chefAttributes := make(map[string]interface{})
 
@@ -419,6 +419,9 @@ func (v *VMPlatform) GetChefCloudletAttributes(ctx context.Context, cloudlet *ed
 	}
 	chefAttributes["edgeCloudImage"] = pfConfig.ContainerRegistryPath
 	chefAttributes["edgeCloudVersion"] = cloudlet.ContainerVersion
+	if cloudlet.PolicyOverride {
+		chefAttributes["edgeCloudVersionOverride"] = cloudlet.ContainerVersion
+	}
 	chefAttributes["notifyAddrs"] = pfConfig.NotifyCtrlAddrs
 
 	chefAttributes["tags"] = GetChefCloudletTags(cloudlet, pfConfig, VMTypePlatform)
@@ -479,6 +482,16 @@ func (v *VMPlatform) GetChefCloudletAttributes(ctx context.Context, cloudlet *ed
 			serviceObj["env"] = envVarArr
 		}
 		chefAttributes[serviceType] = serviceObj
+	}
+	return chefAttributes, nil
+}
+
+func (v *VMPlatform) GetChefPlatformAttributes(ctx context.Context, cloudlet *edgeproto.Cloudlet, pfConfig *edgeproto.PlatformConfig) (map[string]interface{}, error) {
+	log.SpanLog(ctx, log.DebugLevelInfra, "GetChefPlatformAttributes", "region", pfConfig.Region, "cloudletKey", cloudlet.Key, "PhysicalName", cloudlet.PhysicalName)
+
+	chefAttributes, err := GetChefCloudletAttributes(ctx, cloudlet, pfConfig)
+	if err != nil {
+		return nil, err
 	}
 
 	apiAddr, err := v.VMProvider.GetApiEndpointAddr(ctx)
@@ -614,7 +627,7 @@ func (v *VMPlatform) GetCloudletVMsSpec(ctx context.Context, vaultConfig *vault.
 		}
 	}
 	// Setup Chef parameters
-	chefAttributes, err := v.GetChefCloudletAttributes(ctx, cloudlet, pfConfig)
+	chefAttributes, err := v.GetChefPlatformAttributes(ctx, cloudlet, pfConfig)
 	if err != nil {
 		return nil, err
 	}

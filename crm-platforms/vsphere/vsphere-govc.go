@@ -390,17 +390,26 @@ func (v *VSpherePlatform) GetIpsFromTagsForVM(ctx context.Context, vmName string
 			continue
 		}
 
-		sip := vmlayer.ServerIP{
-			InternalAddr: ip,
-			ExternalAddr: ip,
-			Network:      net,
-			PortName:     vmlayer.GetPortName(vmName, net),
+		// see if there is an existing port in the server details and update it
+		found := false
+		for i, s := range sd.Addresses {
+			if s.Network == net {
+				log.SpanLog(ctx, log.DebugLevelInfra, "Updated address via tag", "vm", vm, "net", net, "ip", ip)
+				sd.Addresses[i].ExternalAddr = ip
+				sd.Addresses[i].InternalAddr = ip
+				found = true
+			}
 		}
-		log.SpanLog(ctx, log.DebugLevelInfra, "Found IP via tag", "sip", sip)
-		sd.Addresses = append(sd.Addresses, sip)
-	}
-	if len(sd.Addresses) == 0 {
-		return fmt.Errorf("no ip found from tags for %s", vmName)
+		if !found {
+			sip := vmlayer.ServerIP{
+				InternalAddr: ip,
+				ExternalAddr: ip,
+				Network:      net,
+				PortName:     vmlayer.GetPortName(vmName, net),
+			}
+			sd.Addresses = append(sd.Addresses, sip)
+			log.SpanLog(ctx, log.DebugLevelInfra, "Added address via tag", "vm", vm, "net", net, "ip", ip)
+		}
 	}
 	return nil
 }
@@ -474,20 +483,16 @@ func (v *VSpherePlatform) getServerDetailFromGovcVm(ctx context.Context, govcVm 
 		if len(net.IpAddress) > 0 {
 			sip.ExternalAddr = net.IpAddress[0]
 			sip.InternalAddr = net.IpAddress[0]
-			sd.Addresses = append(sd.Addresses, sip)
 		}
+		sd.Addresses = append(sd.Addresses, sip)
 	}
 	// if there is not guest net info, populate what is available from tags for the external network
 	// this can happen for VMs which do not have vmtools installed
-	if len(govcVm.Guest.Net) == 0 {
-		var sip vmlayer.ServerIP
-		sip.Network = v.vmProperties.GetCloudletExternalNetwork()
-		sip.PortName = vmlayer.GetPortName(govcVm.Name, sip.Network)
-		err := v.GetIpsFromTagsForVM(ctx, sd.Name, &sd)
-		if err != nil {
-			log.SpanLog(ctx, log.DebugLevelInfra, "GetIpsFromTagsForVM failed", "net", sip.Network, "err", err)
-		}
+	err := v.GetIpsFromTagsForVM(ctx, sd.Name, &sd)
+	if err != nil {
+		log.SpanLog(ctx, log.DebugLevelInfra, "GetIpsFromTagsForVM failed", "err", err)
 	}
+
 	return &sd
 }
 

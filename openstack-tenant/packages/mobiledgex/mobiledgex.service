@@ -1,6 +1,6 @@
 [Unit]
 Description=Mobiledgex init service
-
+After=open-vm-tools.service
 [Service]
 ExecStart=/usr/local/bin/mobiledgex-init.sh
 

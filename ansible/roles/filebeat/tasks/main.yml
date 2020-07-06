@@ -1,0 +1,36 @@
+---
+- name: Add elasticsearch GPG key
+  apt_key:
+    url: https://artifacts.elastic.co/GPG-KEY-elasticsearch
+    state: present
+  become: yes
+
+- name: Add elasticsearch 7.x repository
+  apt_repository:
+    repo: deb https://artifacts.elastic.co/packages/7.x/apt stable main
+    state: present
+  become: yes
+
+- name: Install filebeat
+  apt:
+    name: filebeat
+    state: present
+    update_cache: yes
+  become: yes
+
+- name: Set up fields definition
+  template:
+    src: "{{ fields_template }}"
+    dest: "{{ fields_path }}"
+  become: yes
+  notify: Restart filebeat
+
+- name: Set up filebeat config
+  template:
+    src: "{{ config_template }}"
+    dest: "{{ config_path }}"
+    owner: root
+    group: root
+    mode: "0400"
+  become: yes
+  notify: Restart filebeat

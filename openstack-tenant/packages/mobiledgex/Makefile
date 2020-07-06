@@ -1,11 +1,23 @@
 PACKAGE = mobiledgex
-VERSION = 3.1.2
+VERSION = 3.1.3
 DISTRIBUTION = stratus
 COMPONENT = main
 
 PKGDIR = $(PACKAGE)_$(VERSION)
 
-all: builddir setup_files
+all: openstack vsphere
+
+openstack:
+	$(MAKE) package
+
+vsphere:
+	$(MAKE) package FLAVOR=vsphere VERSION=$(VERSION)-vsphere
+
+package: builddir setup_files
+	cp dependencies.common dependencies
+ifdef FLAVOR
+	cat dependencies.$(FLAVOR) >>dependencies
+endif
 	../build.sh $(PACKAGE) $(VERSION) $(DISTRIBUTION) $(COMPONENT)
 
 builddir:
@@ -27,5 +39,5 @@ setup_files: \
 	$(PKGDIR)/usr/local/bin/mobiledgex-init.sh
 
 clean:
-	$(RM) -r $(PKGDIR)
-	$(RM) $(PKGDIR).deb
+	$(RM) -r $(PKGDIR) $(PKGDIR)-vsphere
+	$(RM) $(PKGDIR).deb $(PKGDIR)-vsphere.deb dependencies

@@ -8,6 +8,7 @@ import (
 
 	"github.com/mobiledgex/edge-cloud/cloud-resource-manager/platform"
 
+	"github.com/mobiledgex/edge-cloud-infra/chefmgmt"
 	"github.com/mobiledgex/edge-cloud-infra/infracommon"
 	"github.com/mobiledgex/edge-cloud/cloud-resource-manager/access"
 	"github.com/mobiledgex/edge-cloud/cloud-resource-manager/crmutil"
@@ -32,7 +33,6 @@ type ProxyDnsSecOpts struct {
 }
 
 type vmAppOrchValues struct {
-	objName            string
 	lbName             string
 	externalServerName string
 	vmgp               *VMGroupOrchestrationParams
@@ -56,7 +56,6 @@ func (v *VMPlatform) PerformOrchestrationForVMApp(ctx context.Context, app *edge
 
 	objName := cloudcommon.GetAppFQN(&app.Key)
 	usesLb := app.AccessType == edgeproto.AccessType_ACCESS_TYPE_LOAD_BALANCER
-	newSubnetName := ""
 
 	deploymentVars := crmutil.DeploymentReplaceVars{
 		Deployment: crmutil.CrmReplaceVars{
@@ -73,11 +72,10 @@ func (v *VMPlatform) PerformOrchestrationForVMApp(ctx context.Context, app *edge
 	appConnectsExternal := !usesLb
 	var vms []*VMRequestSpec
 	orchVals.externalServerName = objName
-	var lbName string
 
 	if usesLb {
-		orchVals.lbName = objName + "-lb"
-		orchVals.externalServerName = lbName
+		orchVals.lbName = cloudcommon.GetVMAppFQDN(&appInst.Key, &appInst.Key.ClusterInstKey.CloudletKey, v.VMProperties.CommonPf.PlatformConfig.AppDNSRoot)
+		orchVals.externalServerName = orchVals.lbName
 		orchVals.newSubnetName = objName + "-subnet"
 		tags := v.GetChefClusterTags(&appInst.Key.ClusterInstKey, VMTypeRootLB)
 		lbVm, err := v.GetVMSpecForRootLB(ctx, orchVals.lbName, orchVals.newSubnetName, tags, updateCallback)
@@ -106,10 +104,10 @@ func (v *VMPlatform) PerformOrchestrationForVMApp(ctx context.Context, app *edge
 	}
 	vms = append(vms, appVm)
 	updateCallback(edgeproto.UpdateTask, "Deploying App")
-	vmgp, err := v.OrchestrateVMsFromVMSpec(ctx, objName, vms, action, updateCallback, WithNewSubnet(newSubnetName),
+	vmgp, err := v.OrchestrateVMsFromVMSpec(ctx, objName, vms, action, updateCallback, WithNewSubnet(orchVals.newSubnetName),
 		WithPrivacyPolicy(privacyPolicy),
 		WithAccessPorts(app.AccessPorts),
-		WithNewSecurityGroup(v.GetServerSecurityGroupName(orchVals.objName)),
+		WithNewSecurityGroup(v.GetServerSecurityGroupName(orchVals.externalServerName)),
 	)
 	if err != nil {
 		return &orchVals, err
@@ -188,7 +186,7 @@ func (v *VMPlatform) CreateAppInst(ctx context.Context, clusterInst *edgeproto.C
 
 		// set up DNS
 		var rootLBIPaddr *ServerIP
-		rootLBIPaddr, err = v.GetIPFromServerName(ctx, v.VMProperties.GetCloudletExternalNetwork(), GetClusterSubnetName(ctx, clusterInst), rootLBName)
+		rootLBIPaddr, err = v.GetIPFromServerName(ctx, v.VMProperties.GetCloudletExternalNetwork(), "", rootLBName)
 		if err == nil {
 			getDnsAction := func(svc v1.Service) (*infracommon.DnsSvcAction, error) {
 				action := infracommon.DnsSvcAction{}
@@ -283,7 +281,8 @@ func (v *VMPlatform) CreateAppInst(ctx context.Context, clusterInst *edgeproto.C
 			} else {
 				log.SpanLog(ctx, log.DebugLevelInfra, "External router in use, no internal interface for rootlb")
 			}
-
+			// DNS entry is already added while setting up RootLB
+			return nil
 		}
 		updateCallback(edgeproto.UpdateTask, "Adding DNS Entry")
 		if appInst.Uri != "" && ip.ExternalAddr != "" {
@@ -402,6 +401,10 @@ func (v *VMPlatform) CreateAppInst(ctx context.Context, clusterInst *edgeproto.C
 }
 
 func (v *VMPlatform) DeleteAppInst(ctx context.Context, clusterInst *edgeproto.ClusterInst, app *edgeproto.App, appInst *edgeproto.AppInst) error {
+	chefClient := v.VMProperties.GetChefClient()
+	if chefClient == nil {
+		return fmt.Errorf("Chef client is not initialzied")
+	}
 	switch deployment := app.Deployment; deployment {
 	case cloudcommon.DeploymentTypeKubernetes:
 		fallthrough
@@ -478,6 +481,15 @@ func (v *VMPlatform) DeleteAppInst(ctx context.Context, clusterInst *edgeproto.C
 		err := v.VMProvider.DeleteVMs(ctx, objName)
 		if err != nil {
 			return fmt.Errorf("DeleteVMAppInst error: %v", err)
+		}
+		if app.AccessType == edgeproto.AccessType_ACCESS_TYPE_LOAD_BALANCER {
+			lbName := cloudcommon.GetVMAppFQDN(&appInst.Key, &appInst.Key.ClusterInstKey.CloudletKey, v.VMProperties.CommonPf.PlatformConfig.AppDNSRoot)
+			clientName := v.GetChefClientName(lbName)
+			err = chefmgmt.ChefClientDelete(ctx, chefClient, clientName)
+			if err != nil {
+				log.SpanLog(ctx, log.DebugLevelInfra, "failed to delete client from Chef Server", "clientName", clientName, "err", err)
+			}
+			DeleteRootLB(lbName)
 		}
 		imgName, err := cloudcommon.GetFileName(app.ImagePath)
 		if err != nil {

@@ -9,7 +9,6 @@ import (
 	"regexp"
 	"strings"
 	"sync"
-	"time"
 
 	"github.com/mobiledgex/edge-cloud-infra/vmlayer"
 	"github.com/mobiledgex/edge-cloud-infra/vmlayer/terraform"
@@ -45,6 +44,7 @@ type VSphereGeneralParams struct {
 	VmIpTagCategory          string
 	VmDomainTagCategory      string
 	SubnetTagCategory        string
+	SessionPath              string
 }
 
 type VSphereVMGroupParams struct {
@@ -213,6 +213,7 @@ func (v *VSpherePlatform) populateGeneralParams(ctx context.Context, planName, d
 	vgp.SubnetTagCategory = v.GetSubnetTagCategory(ctx)
 	vgp.VmIpTagCategory = v.GetVmIpTagCategory(ctx)
 	vgp.VmDomainTagCategory = v.GetVMDomainTagCategory(ctx)
+	vgp.SessionPath = "sessions"
 	return nil
 }
 
@@ -289,20 +290,33 @@ func (v *VSpherePlatform) populateVMOrchParams(ctx context.Context, vmgp *vmlaye
 		if !flavormatch {
 			return fmt.Errorf("No match in flavor cache for flavor name: %s", vm.FlavorName)
 		}
-		if vm.Role == vmlayer.RoleVMApplication {
+		if vm.AttachExternalDisk {
 			// AppVMs use a generic template with the disk attached separately
-			if action != terraformSync {
+			var vol vmlayer.VolumeOrchestrationParams
+			if action == terraformSync {
 				// do not reattach on sync
-
-				vol := vmlayer.VolumeOrchestrationParams{
+				vol = vmlayer.VolumeOrchestrationParams{
 					Name:      "disk0",
+					Size:      vmgp.VMs[vmidx].Disk,
 					ImageName: vmgp.VMs[vmidx].ImageFolder + "/" + vmgp.VMs[vmidx].ImageName + ".vmdk",
 				}
-				vmgp.VMs[vmidx].Volumes = append(vmgp.VMs[vmidx].Volumes, vol)
+			} else {
+				vol = vmlayer.VolumeOrchestrationParams{
+					Name:               "disk0",
+					ImageName:          vmgp.VMs[vmidx].ImageFolder + "/" + vmgp.VMs[vmidx].ImageName + ".vmdk",
+					AttachExternalDisk: true,
+				}
 			}
+			vmgp.VMs[vmidx].Volumes = append(vmgp.VMs[vmidx].Volumes, vol)
 			vmgp.VMs[vmidx].ImageName = ""
 			vmgp.VMs[vmidx].CustomizeGuest = false
 		} else {
+			vol := vmlayer.VolumeOrchestrationParams{
+				Name:               "disk0",
+				Size:               vmgp.VMs[vmidx].Disk,
+				AttachExternalDisk: false,
+			}
+			vmgp.VMs[vmidx].Volumes = append(vmgp.VMs[vmidx].Volumes, vol)
 			if action != terraformSync {
 				vmgp.VMs[vmidx].CustomizeGuest = true
 			}
@@ -383,6 +397,9 @@ var vcenterTemplate = `
 		# If you have a self-signed cert
 		allow_unverified_ssl = true
 		version = "{{.TerraformProviderVersion}}"
+		persist_session = true
+		rest_session_path = "{{.SessionPath}}"
+		vim_session_path = "{{.SessionPath}}"
 	}
   
   	data "vsphere_datacenter" "dc" {
@@ -486,6 +503,7 @@ var vmGroupTemplate = `
 		memory   = {{.Ram}}
 		memory_reservation = {{.Ram}}
 		guest_id = "ubuntu64Guest"
+		scsi_type = "pvscsi"
 
   		{{- range .Ports}}
 		network_interface {
@@ -498,22 +516,23 @@ var vmGroupTemplate = `
 		{{- end}}
 		## END NETWORK INTERFACES for {{.Name}}
 
-		{{- if .Volumes}}
 		{{- range .Volumes}}
+		{{if .AttachExternalDisk}}
 		disk {
 			label = "{{.Name}}"
 			path = "{{.ImageName}}"
 			datastore_id = data.vsphere_datastore.datastore.id
 			attach = true
 		}
-		{{- end}}
 		{{- else}}
-  		disk {
-			label = "disk0"
-			size = {{.Disk}}
+		disk {
+			label = "{{.Name}}"
+			size = {{.Size}}
 			thin_provisioned = true
 			eagerly_scrub = false
+			unit_number = {{.UnitNumber}}
 		}
+		{{- end}}
 		{{- end}}
 
 		{{- if .CustomizeGuest}}
@@ -548,6 +567,8 @@ var vmGroupTemplate = `
 
 // user data is encoded as base64
 func vmsphereUserDataFormatter(instring string) string {
+	// despite the use of paravirtualized drivers, vSphere gets get name sda, sdb
+	instring = strings.ReplaceAll(instring, "/dev/vd", "/dev/sd")
 	return base64.StdEncoding.EncodeToString([]byte(instring))
 }
 
@@ -670,13 +691,16 @@ func (v *VSpherePlatform) TerraformSetupVsphere(ctx context.Context, updateCallb
 	planName := v.NameSanitize(v.GetDatacenterName(ctx))
 	_, staterr := os.Stat(terraformDir)
 	if staterr == nil {
-		timestamp := time.Now().Format("2006-01-02T150405")
-		backdir := v.getTerraformDir(ctx) + "-" + timestamp
+		backdir := v.getTerraformDir(ctx) + "." + "bak"
 		log.SpanLog(ctx, log.DebugLevelInfra, "backing up terraformdir", "backdir", backdir)
-
+		// remove old backup dir
+		rmerr := os.RemoveAll(backdir)
+		if rmerr != nil {
+			return fmt.Errorf("unable to remove backup dir: %s - %v", backdir, rmerr)
+		}
 		err := os.Rename(v.getTerraformDir(ctx), backdir)
 		if err != nil {
-			return fmt.Errorf("unable to backup terraformDir: %s %s - %v", terraformDir, timestamp, err)
+			return fmt.Errorf("unable to backup terraformDir: %s %s - %v", terraformDir, backdir, err)
 		}
 	}
 	err := os.Mkdir(terraformDir, 0755)

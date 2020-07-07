@@ -133,12 +133,13 @@ func (v *VMPlatform) updateClusterInternal(ctx context.Context, client ssh.Clien
 				continue
 			}
 			numNodes++
+			nodeName := GetClusterNodeName(ctx, clusterInst, num)
 			// heat will remove the higher-numbered nodes
 			if num > clusterInst.NumNodes {
 				toRemove = append(toRemove, n)
-				chefUpdateInfo[n] = ActionRemove
+				chefUpdateInfo[nodeName] = ActionRemove
 			} else {
-				chefUpdateInfo[n] = ActionNone
+				chefUpdateInfo[nodeName] = ActionNone
 			}
 		}
 		if len(toRemove) > 0 {
@@ -639,9 +640,12 @@ func (v *VMPlatform) PerformOrchestrationForCluster(ctx context.Context, imgName
 			return nil, err
 		}
 	} else {
+		pfImage, err := v.GetCloudletImageToUse(ctx, updateCallback)
+		if err != nil {
+			return nil, err
+		}
 		newSubnetName = GetClusterSubnetName(ctx, clusterInst)
 		var rootlb *VMRequestSpec
-		var err error
 		if clusterInst.IpAccess == edgeproto.IpAccess_IP_ACCESS_DEDICATED {
 			// dedicated for docker means the docker VM acts as its own rootLB
 			tags := v.GetChefClusterTags(&clusterInst.Key, VMTypeRootLB)
@@ -674,7 +678,7 @@ func (v *VMPlatform) PerformOrchestrationForCluster(ctx context.Context, imgName
 			VMTypeClusterMaster,
 			GetClusterMasterName(ctx, clusterInst),
 			masterFlavor,
-			v.VMProperties.GetCloudletOSImage(),
+			pfImage,
 			false, //connect external
 			WithSharedVolume(clusterInst.SharedVolumeSize),
 			WithExternalVolume(clusterInst.ExternalVolumeSize),
@@ -695,7 +699,7 @@ func (v *VMPlatform) PerformOrchestrationForCluster(ctx context.Context, imgName
 				VMTypeClusterNode,
 				GetClusterNodeName(ctx, clusterInst, nn),
 				clusterInst.NodeFlavor,
-				v.VMProperties.GetCloudletOSImage(),
+				pfImage,
 				false, //connect external
 				WithExternalVolume(clusterInst.ExternalVolumeSize),
 				WithSubnetConnection(newSubnetName),

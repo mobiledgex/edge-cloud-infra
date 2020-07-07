@@ -11,7 +11,7 @@
 
 - set_fact:
     instance_group_name: "vault-{{ deploy_environ }}-{{ item.zone_name }}-instance-group"
-    vault_instances: "{{ result | json_query('items') }}"
+    vault_instances: "{{ result.resources }}"
 
 - name: "Create instance group {{ instance_group_name }}"
   gcp_compute_instance_group:

@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/url"
+	"regexp"
 	"strings"
 	"time"
 
@@ -207,7 +208,7 @@ func (v *VSpherePlatform) GetDistributedPortGroups(ctx context.Context) ([]Distr
 	var pgrps []DistributedPortGroup
 	dcName := v.GetDatacenterName(ctx)
 	networkSearchPath := fmt.Sprintf("/%s/network", dcName)
-	out, err := v.TimedGovcCommand(ctx, "govc", "ls", "-json", networkSearchPath)
+	out, err := v.TimedGovcCommand(ctx, "govc", "ls", "-dc", dcName, "-json", networkSearchPath)
 	if err != nil {
 		return nil, err
 	}
@@ -342,6 +343,14 @@ func (v *VSpherePlatform) getTagsForCategory(ctx context.Context, category strin
 		err = fmt.Errorf("cannot unmarshal govc subnet tags, %v", err)
 		return nil, err
 	}
+	// due to an intermittent govc bug (or maybe a vsphere bug), sometimes the category id in the tag is a UUID instead
+	// of a name so we will update it here before returning to get consistent results
+	for i, t := range tags {
+		if t.Category != category {
+			log.SpanLog(ctx, log.DebugLevelInfra, "Updating category for tag", "orig category", t.Category, "category", category)
+			tags[i].Category = category
+		}
+	}
 	return tags, nil
 }
 
@@ -369,11 +378,11 @@ func (v *VSpherePlatform) GetTagCategories(ctx context.Context) ([]GovcTagCatego
 	return returnedcats, err
 }
 
-func (v *VSpherePlatform) GetIpFromTagsForVM(ctx context.Context, vmName, netname string) (string, error) {
-	log.SpanLog(ctx, log.DebugLevelInfra, "GetIpFromTagsForVM", "vmName", vmName, "netname", netname)
+func (v *VSpherePlatform) GetIpsFromTagsForVM(ctx context.Context, vmName string, sd *vmlayer.ServerDetail) error {
+	log.SpanLog(ctx, log.DebugLevelInfra, "GetIpsFromTagsForVM", "vmName", vmName)
 	tags, err := v.getTagsForCategory(ctx, v.GetVmIpTagCategory(ctx))
 	if err != nil {
-		return "", err
+		return err
 	}
 	for _, t := range tags {
 		// vmtags are format vm__network__cidr
@@ -385,11 +394,32 @@ func (v *VSpherePlatform) GetIpFromTagsForVM(ctx context.Context, vmName, netnam
 		vm := ts[0]
 		net := ts[1]
 		ip := ts[2]
-		if vm == vmName && net == netname {
-			return ip, nil
+		if vm != vmName {
+			continue
+		}
+
+		// see if there is an existing port in the server details and update it
+		found := false
+		for i, s := range sd.Addresses {
+			if s.Network == net {
+				log.SpanLog(ctx, log.DebugLevelInfra, "Updated address via tag", "vm", vm, "net", net, "ip", ip)
+				sd.Addresses[i].ExternalAddr = ip
+				sd.Addresses[i].InternalAddr = ip
+				found = true
+			}
+		}
+		if !found {
+			sip := vmlayer.ServerIP{
+				InternalAddr: ip,
+				ExternalAddr: ip,
+				Network:      net,
+				PortName:     vmlayer.GetPortName(vmName, net),
+			}
+			sd.Addresses = append(sd.Addresses, sip)
+			log.SpanLog(ctx, log.DebugLevelInfra, "Added address via tag", "vm", vm, "net", net, "ip", ip)
 		}
 	}
-	return "", fmt.Errorf("no ip found from tags for %s", vmName)
+	return nil
 }
 
 func (v *VSpherePlatform) GetExternalIPForServer(ctx context.Context, server string) (string, error) {
@@ -461,34 +491,44 @@ func (v *VSpherePlatform) getServerDetailFromGovcVm(ctx context.Context, govcVm 
 		if len(net.IpAddress) > 0 {
 			sip.ExternalAddr = net.IpAddress[0]
 			sip.InternalAddr = net.IpAddress[0]
-		} else {
-			ip, err := v.GetIpFromTagsForVM(ctx, sd.Name, sip.Network)
-			if err != nil {
-				log.SpanLog(ctx, log.DebugLevelInfra, "GetIpFromTagsForVM failed", "net", sip.Network, "err", err)
-			} else {
-				sip.ExternalAddr = ip
-				sip.InternalAddr = ip
-			}
 		}
 		sd.Addresses = append(sd.Addresses, sip)
 	}
 	// if there is not guest net info, populate what is available from tags for the external network
 	// this can happen for VMs which do not have vmtools installed
-	if len(govcVm.Guest.Net) == 0 {
-		var sip vmlayer.ServerIP
-		sip.Network = v.vmProperties.GetCloudletExternalNetwork()
-		sip.PortName = vmlayer.GetPortName(govcVm.Name, sip.Network)
-		ip, err := v.GetIpFromTagsForVM(ctx, sd.Name, sip.Network)
-		if err != nil {
-			log.SpanLog(ctx, log.DebugLevelInfra, "GetIpFromTagsForVM failed", "net", sip.Network, "err", err)
-		} else {
-			sip.ExternalAddr = ip
-			sip.InternalAddr = ip
-			sd.Addresses = append(sd.Addresses, sip)
+	err := v.GetIpsFromTagsForVM(ctx, sd.Name, &sd)
+	if err != nil {
+		log.SpanLog(ctx, log.DebugLevelInfra, "GetIpsFromTagsForVM failed", "err", err)
+	}
+
+	return &sd
+}
+
+// a vSphere7/Govc interaction problem in which vm.info does not return port group names, but
+// only UUIDs for the vswitch which is not one to one with a portgroup.  The non-json output
+func (v *VSpherePlatform) GetNetworkListForGovcVm(ctx context.Context, vmname string) ([]string, error) {
+	log.SpanLog(ctx, log.DebugLevelInfra, "GetNetworkListForGovcVm", "name", vmname)
+
+	dcName := v.GetDatacenterName(ctx)
+	vmPath := "/" + dcName + "/vm/" + vmname
+
+	out, err := v.TimedGovcCommand(ctx, "govc", "vm.info", "-r", "-dc", dcName, vmPath)
+	if err != nil {
+		return nil, fmt.Errorf("Unable to get network summary for vm: %s - %v", vmname, err)
+	}
+	networkPattern := "\\s*Network:\\s+(.*)"
+	nreg := regexp.MustCompile(networkPattern)
+	lines := strings.Split(string(out), "\n")
+	// Example format for what we are looking for
+	// Network:              DPGAdminDEV, mex-k8s-subnet-dev-cluster2-mobiledge
+	for _, line := range lines {
+		if nreg.MatchString(line) {
+			matches := nreg.FindStringSubmatch(line)
+			networks := strings.TrimSpace(matches[1])
+			return strings.Split(networks, ","), nil
 		}
 	}
-	return &sd
-
+	return nil, fmt.Errorf("no networks found for vm: %s", vmname)
 }
 
 func (v *VSpherePlatform) GetServerDetail(ctx context.Context, vmname string) (*vmlayer.ServerDetail, error) {
@@ -567,7 +607,7 @@ func (v *VSpherePlatform) GetVMs(ctx context.Context, vmNameMatch string, domain
 	}
 
 	vmPath := "/" + dcName + "/vm/"
-	out, err := v.TimedGovcCommand(ctx, "govc", "vm.info", "-json", vmPath+vmNameMatch)
+	out, err := v.TimedGovcCommand(ctx, "govc", "vm.info", "-dc", dcName, "-json", vmPath+vmNameMatch)
 	if err != nil {
 		return nil, err
 	}
@@ -610,11 +650,11 @@ func (v *VSpherePlatform) SetPowerState(ctx context.Context, serverName, serverA
 
 	switch serverAction {
 	case vmlayer.ActionStop:
-		_, err = v.TimedGovcCommand(ctx, "govc", "vm.power", "-off", vmPath)
+		_, err = v.TimedGovcCommand(ctx, "govc", "vm.power", "-dc", dcName, "-off", vmPath)
 	case vmlayer.ActionStart:
-		_, err = v.TimedGovcCommand(ctx, "govc", "vm.power", "-on", vmPath)
+		_, err = v.TimedGovcCommand(ctx, "govc", "vm.power", "-dc", dcName, "-on", vmPath)
 	case vmlayer.ActionReboot:
-		_, err = v.TimedGovcCommand(ctx, "govc", "vm.power", "-reset", vmPath)
+		_, err = v.TimedGovcCommand(ctx, "govc", "vm.power", "-dc", dcName, "-reset", vmPath)
 	default:
 		return fmt.Errorf("unsupported server action: %s", serverAction)
 	}
@@ -625,7 +665,7 @@ func (v *VSpherePlatform) GetConsoleUrl(ctx context.Context, serverName string) 
 	log.SpanLog(ctx, log.DebugLevelInfra, "GetConsoleUrl", "serverName", serverName)
 	dcName := v.GetDatacenterName(ctx)
 	vmPath := "/" + dcName + "/vm/" + serverName
-	out, err := v.TimedGovcCommand(ctx, "govc", "vm.console", "-h5", vmPath)
+	out, err := v.TimedGovcCommand(ctx, "govc", "vm.console", "-dc", dcName, "-h5", vmPath)
 
 	consoleUrl := strings.TrimSpace(string(out))
 	urlObj, err := url.Parse(consoleUrl)

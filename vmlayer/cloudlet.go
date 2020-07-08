@@ -97,7 +97,7 @@ func (v *VMPlatform) SetupPlatformVM(ctx context.Context, vaultConfig *vault.Con
 
 	updateCallback(edgeproto.UpdateTask, "Deploying Platform VM")
 
-	vms, err := v.GetCloudletVMsSpec(ctx, vaultConfig, cloudlet, pfConfig, pfFlavor)
+	vms, err := v.GetCloudletVMsSpec(ctx, vaultConfig, cloudlet, pfConfig, pfFlavor, updateCallback)
 	if err != nil {
 		return err
 	}
@@ -318,13 +318,18 @@ func (v *VMPlatform) DeleteCloudlet(ctx context.Context, cloudlet *edgeproto.Clo
 	if pfConfig.ChefServerPath == "" {
 		pfConfig.ChefServerPath = chefmgmt.DefaultChefServerPath
 	}
-
 	pc := pf.PlatformConfig{
-		CloudletKey:    &cloudlet.Key,
-		Region:         pfConfig.Region,
-		AppDNSRoot:     pfConfig.AppDnsRoot,
-		ChefServerPath: pfConfig.ChefServerPath,
-		DeploymentTag:  pfConfig.DeploymentTag,
+		CloudletKey:         &cloudlet.Key,
+		PhysicalName:        cloudlet.PhysicalName,
+		VaultAddr:           pfConfig.VaultAddr,
+		Region:              pfConfig.Region,
+		TestMode:            pfConfig.TestMode,
+		CloudletVMImagePath: pfConfig.CloudletVmImagePath,
+		VMImageVersion:      cloudlet.VmImageVersion,
+		EnvVars:             pfConfig.EnvVar,
+		AppDNSRoot:          pfConfig.AppDnsRoot,
+		ChefServerPath:      pfConfig.ChefServerPath,
+		DeploymentTag:       pfConfig.DeploymentTag,
 	}
 
 	err = v.InitProps(ctx, &pc, vaultConfig)
@@ -339,6 +344,10 @@ func (v *VMPlatform) DeleteCloudlet(ctx context.Context, cloudlet *edgeproto.Clo
 
 	rootLBName := v.GetRootLBName(&cloudlet.Key)
 	if cloudlet.InfraApiAccess == edgeproto.InfraApiAccess_DIRECT_ACCESS {
+		err = v.VMProvider.ImportDataFromInfra(ctx, VMDomainAny)
+		if err != nil {
+			return fmt.Errorf("ImportDataFromInfra error: %v", err)
+		}
 		nodes := v.GetPlatformNodes(cloudlet)
 		for _, nodeName := range nodes {
 			updateCallback(edgeproto.UpdateTask, fmt.Sprintf("Deleting PlatformVM %s", nodeName))
@@ -347,7 +356,6 @@ func (v *VMPlatform) DeleteCloudlet(ctx context.Context, cloudlet *edgeproto.Clo
 				return fmt.Errorf("DeleteCloudlet error: %v", err)
 			}
 		}
-
 		updateCallback(edgeproto.UpdateTask, fmt.Sprintf("Deleting RootLB %s", rootLBName))
 		err = v.VMProvider.DeleteVMs(ctx, rootLBName)
 		if err != nil {
@@ -543,7 +551,7 @@ func GetDockerCrtFile(crtFilePath string) (string, error) {
 	return "/root/tls/" + crtFile, nil
 }
 
-func (v *VMPlatform) GetCloudletVMsSpec(ctx context.Context, vaultConfig *vault.Config, cloudlet *edgeproto.Cloudlet, pfConfig *edgeproto.PlatformConfig, pfFlavor *edgeproto.Flavor) ([]*VMRequestSpec, error) {
+func (v *VMPlatform) GetCloudletVMsSpec(ctx context.Context, vaultConfig *vault.Config, cloudlet *edgeproto.Cloudlet, pfConfig *edgeproto.PlatformConfig, pfFlavor *edgeproto.Flavor, updateCallback edgeproto.CacheUpdateCallback) ([]*VMRequestSpec, error) {
 	log.SpanLog(ctx, log.DebugLevelInfra, "GetCloudletVMsSpec", "region", pfConfig.Region, "cloudletKey", cloudlet.Key, "pfFlavor", pfFlavor)
 	err := v.VMProvider.InitApiAccessProperties(ctx, &cloudlet.Key, pfConfig.Region, cloudlet.PhysicalName, vaultConfig, cloudlet.EnvVar)
 	if err != nil {
@@ -634,16 +642,11 @@ func (v *VMPlatform) GetCloudletVMsSpec(ctx context.Context, vaultConfig *vault.
 	}
 
 	platformVmName := v.GetPlatformVMName(&cloudlet.Key)
-
-	pfImageName := v.VMProperties.GetCloudletOSImage()
-	if pfImageName == DefaultOSImageName {
-		// GetCloudletOSImage is the default so use the value from the controller
-		imgPath := GetCloudletVMImagePath(pfConfig.CloudletVmImagePath, cloudlet.VmImageVersion, v.VMProvider.GetCloudletImageSuffix(ctx))
-		pfImageName, err = cloudcommon.GetFileName(imgPath)
-		if err != nil {
-			return nil, err
-		}
+	pfImageName, err := v.GetCloudletImageToUse(ctx, updateCallback)
+	if err != nil {
+		return nil, err
 	}
+
 	// Setup Chef parameters
 	chefAttributes, err := v.GetChefPlatformAttributes(ctx, cloudlet, pfConfig)
 	if err != nil {
@@ -695,7 +698,7 @@ func (v *VMPlatform) GetCloudletVMsSpec(ctx context.Context, vaultConfig *vault.
 					VMTypeClusterMaster,
 					nodeName,
 					flavorName,
-					v.VMProperties.GetCloudletOSImage(),
+					pfImageName,
 					true, //connect external
 					WithSubnetConnection(subnetName),
 					WithChefParams(chefParams),
@@ -708,7 +711,7 @@ func (v *VMPlatform) GetCloudletVMsSpec(ctx context.Context, vaultConfig *vault.
 					VMTypeClusterNode,
 					nodeName,
 					flavorName,
-					v.VMProperties.GetCloudletOSImage(),
+					pfImageName,
 					true, //connect external
 					WithSubnetConnection(subnetName),
 					WithChefParams(chefParams),
@@ -736,7 +739,7 @@ func (v *VMPlatform) GetCloudletManifest(ctx context.Context, cloudlet *edgeprot
 		return nil, err
 	}
 
-	platvms, err := v.GetCloudletVMsSpec(ctx, vaultConfig, cloudlet, pfConfig, pfFlavor)
+	platvms, err := v.GetCloudletVMsSpec(ctx, vaultConfig, cloudlet, pfConfig, pfFlavor, edgeproto.DummyUpdateCallback)
 	if err != nil {
 		return nil, err
 	}

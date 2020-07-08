@@ -63,7 +63,7 @@
       - "--tls"
       - "/root/tls/mex-server.crt"
       - "--deploymentTag"
-      - "{{ deploy_environ }}"
+      - "{{ deployment_tag_override | default(deploy_environ) }}"
       - "-d"
       - "api,notify,infra"
 

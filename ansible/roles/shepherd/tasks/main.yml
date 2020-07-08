@@ -64,6 +64,8 @@
       - "{\\\"organization\\\":\\\"{{ item.operator_key | mandatory }}\\\",\\\"name\\\":\\\"{{ item.cloudlet_name }}\\\"}"
       - "--region"
       - "{{ item.controller_region }}"
+      - "--deploymentTag"
+      - "{{ deployment_tag_override | default(deploy_environ) }}"
       - "-d"
       - "api,notify,infra,metrics"
 

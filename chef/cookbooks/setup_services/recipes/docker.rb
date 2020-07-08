@@ -31,6 +31,7 @@ docker_container "crmserver" do
   network_mode 'host'
   restart_policy 'unless-stopped'
   env node['crmserver']['env']
+  volumes ['/tmp:/tmp']
   command cmd
 end
 
@@ -49,8 +50,6 @@ end
 
 cookbook_file '/tmp/prometheus.yml' do
   source 'prometheus.yml'
-  owner 'root'
-  group 'root'
   mode '0644'
   action :create
 end

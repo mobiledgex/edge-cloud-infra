@@ -302,6 +302,10 @@ func (p *Shepherd) GetArgs(opts ...process.StartOp) []string {
 		args = append(args, "--deploymentTag")
 		args = append(args, p.DeploymentTag)
 	}
+	if p.ChefServerPath != "" {
+		args = append(args, "--chefServerPath")
+		args = append(args, p.ChefServerPath)
+	}
 
 	options := process.StartOptions{}
 	options.ApplyStartOptions(opts...)
@@ -604,6 +608,7 @@ func (p *ChefServer) StartLocal(logfile string, opts ...process.StartOp) error {
 		args = append(args, "--port")
 		args = append(args, "8889")
 	}
+	args = append(args, "--multi-org")
 
 	var err error
 	p.cmd, err = process.StartLocal(p.Name, p.GetExeName(), args, nil, logfile)
@@ -611,7 +616,7 @@ func (p *ChefServer) StartLocal(logfile string, opts ...process.StartOp) error {
 		return err
 	}
 
-	cmd := exec.Command("./chef/local-setup/setup.sh")
+	cmd := exec.Command("./e2e-tests/chef/setup.sh")
 	_, err = cmd.CombinedOutput()
 	if err != nil {
 		return err
@@ -626,4 +631,4 @@ func (p *ChefServer) StopLocal() {
 
 func (p *ChefServer) GetExeName() string { return "chef-zero" }
 
-func (p *ChefServer) LookupArgs() string { return fmt.Sprintf("--port %d", p.Port) }
+func (p *ChefServer) LookupArgs() string { return fmt.Sprintf("--port %d --multi-org", p.Port) }

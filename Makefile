@@ -124,6 +124,13 @@ edgebox-start:
 edgebox-stop:
 	e2e-tests -testfile ./e2e-tests/testfiles/delete_edgebox_stop_cleanup.yml -setupfile ./e2e-tests/setups/local_edgebox.yml -varsfile ./e2e-tests/vars.yml -notimestamp
 
+## note: chef requires chef-zero & knife to be installed
+chef-start:
+	e2e-tests -testfile ./e2e-tests/testfiles/deploy_start_create_chef.yml -setupfile ./e2e-tests/setups/local_chef.yml -varsfile ./e2e-tests/vars.yml -notimestamp -stop
+
+chef-stop:
+	e2e-tests -testfile ./e2e-tests/testfiles/delete_chef_stop_cleanup.yml -setupfile ./e2e-tests/setups/local_chef.yml -varsfile ./e2e-tests/vars.yml -notimestamp
+
 build-edgebox:
 	mkdir edgebox_bin
 	mkdir edgebox_bin/ansible

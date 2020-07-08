@@ -4,10 +4,13 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"io/ioutil"
 	"log"
 	"os"
+	"os/exec"
 	"path"
 	"strconv"
+	"strings"
 	"time"
 
 	intprocess "github.com/mobiledgex/edge-cloud-infra/e2e-tests/int-process"
@@ -177,6 +180,49 @@ func setupVault(rolesfile string) bool {
 		return false
 	}
 	return true
+}
+
+type ChefClient struct {
+	NodeName   string   `yaml:"nodename"`
+	JsonAttrs  string   `yaml:"jsonattrs"`
+	ConfigFile string   `yaml:"configfile"`
+	Runlist    []string `yaml:"runlist"`
+}
+
+// RunChefClient executes a single chef client run
+func RunChefClient(apiFile string, vars map[string]string) error {
+	chefClient := ChefClient{}
+	err := util.ReadYamlFile(apiFile, &chefClient, util.WithVars(vars), util.ValidateReplacedVars())
+	if err != nil {
+		if !util.IsYamlOk(err, "runchefclient") {
+			log.Printf("error in unmarshal for file, %s\n", apiFile)
+		}
+		return err
+	}
+	var cmdargs = []string{
+		"--node-name", chefClient.NodeName,
+	}
+	if chefClient.JsonAttrs != "" {
+		err = ioutil.WriteFile("/tmp/chefattrs.json", []byte(chefClient.JsonAttrs), 0644)
+		if err != nil {
+			log.Printf("write to file failed, %s, %v\n", chefClient.JsonAttrs, err)
+			return err
+		}
+		cmdargs = append(cmdargs, "-j", "/tmp/chefattrs.json")
+	}
+	if chefClient.Runlist != nil {
+		runlistStr := strings.Join(chefClient.Runlist, ",")
+		cmdargs = append(cmdargs, "--runlist", runlistStr)
+	}
+	cmdargs = append(cmdargs, "-c", chefClient.ConfigFile)
+	cmd := exec.Command("chef-client", cmdargs[0:]...)
+	output, err := cmd.CombinedOutput()
+	log.Printf("chef-client run with args: %v output:\n%v\n", cmdargs, string(output))
+	if err != nil {
+		log.Printf("Failed to run chef client, %v\n", err)
+		return err
+	}
+	return nil
 }
 
 func StartProcesses(processName string, args []string, outputDir string) bool {
@@ -366,6 +412,11 @@ func RunAction(ctx context.Context, actionSpec, outputDir string, config *e2eapi
 			time.Sleep(time.Second * time.Duration(t))
 		} else {
 			errors = append(errors, "Error in parsing sleeptime")
+		}
+	case "runchefclient":
+		err := RunChefClient(spec.ApiFile, vars)
+		if err != nil {
+			errors = append(errors, err.Error())
 		}
 	default:
 		ecSpec := setupmex.TestSpec{}

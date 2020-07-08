@@ -177,6 +177,15 @@ func (v *VMPlatform) CreateCloudlet(ctx context.Context, cloudlet *edgeproto.Clo
 		return err
 	}
 
+	// edge-cloud image already contains the certs
+	if pfConfig.TlsCertFile != "" {
+		crtFile, err := GetDockerCrtFile(pfConfig.TlsCertFile)
+		if err != nil {
+			return err
+		}
+		pfConfig.TlsCertFile = crtFile
+	}
+
 	if pfConfig.ChefServerPath == "" {
 		pfConfig.ChefServerPath = chefmgmt.DefaultChefServerPath
 	}
@@ -525,6 +534,15 @@ func (v *VMPlatform) GetChefPlatformAttributes(ctx context.Context, cloudlet *ed
 	return chefAttributes, nil
 }
 
+func GetDockerCrtFile(crtFilePath string) (string, error) {
+	_, crtFile := filepath.Split(crtFilePath)
+	ext := filepath.Ext(crtFile)
+	if ext == "" {
+		return "", fmt.Errorf("invalid tls cert file name: %s", crtFile)
+	}
+	return "/root/tls/" + crtFile, nil
+}
+
 func (v *VMPlatform) GetCloudletVMsSpec(ctx context.Context, vaultConfig *vault.Config, cloudlet *edgeproto.Cloudlet, pfConfig *edgeproto.PlatformConfig, pfFlavor *edgeproto.Flavor) ([]*VMRequestSpec, error) {
 	log.SpanLog(ctx, log.DebugLevelInfra, "GetCloudletVMsSpec", "region", pfConfig.Region, "cloudletKey", cloudlet.Key, "pfFlavor", pfFlavor)
 	err := v.VMProvider.InitApiAccessProperties(ctx, &cloudlet.Key, pfConfig.Region, cloudlet.PhysicalName, vaultConfig, cloudlet.EnvVar)
@@ -533,13 +551,13 @@ func (v *VMPlatform) GetCloudletVMsSpec(ctx context.Context, vaultConfig *vault.
 	}
 	// edge-cloud image already contains the certs
 	if pfConfig.TlsCertFile != "" {
-		_, crtFile := filepath.Split(pfConfig.TlsCertFile)
-		ext := filepath.Ext(crtFile)
-		if ext == "" {
-			return nil, fmt.Errorf("invalid tls cert file name: %s", crtFile)
+		crtFile, err := GetDockerCrtFile(pfConfig.TlsCertFile)
+		if err != nil {
+			return nil, err
 		}
-		pfConfig.TlsCertFile = "/root/tls/" + crtFile
+		pfConfig.TlsCertFile = crtFile
 	}
+
 	// TODO there's a lot of overlap between platform.PlatformConfig and edgeproto.PlatformConfig
 	pc := pf.PlatformConfig{
 		CloudletKey:         &cloudlet.Key,

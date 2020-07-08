@@ -66,6 +66,7 @@ class Chef
         "d" => true,
         "useVaultCAs" => false,
         "useVaultCerts" => false,
+	"chefServerPath" => true,
 	"deploymentTag" => true
       }
       cmd = extract_cmd("shepherd", argsmap, false, false)

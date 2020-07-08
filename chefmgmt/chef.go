@@ -216,6 +216,15 @@ func ChefClientCreate(ctx context.Context, client *chef.Client, chefParams *VMCh
 	if chefParams == nil {
 		return "", fmt.Errorf("unable to get chef params")
 	}
+
+	localMode := false
+	if client.BaseURL != nil {
+		if strings.Contains(client.BaseURL.Host, "127.0.0.1") {
+			// chef server running locally
+			localMode = true
+		}
+	}
+
 	clientName := chefParams.NodeName
 	log.SpanLog(ctx, log.DebugLevelInfra, "chef client create", "client name", clientName, "params", *chefParams)
 	clientObj := chef.ApiNewClient{
@@ -239,19 +248,21 @@ func ChefClientCreate(ctx context.Context, client *chef.Client, chefParams *VMCh
 		ChefType:         "node",
 		JsonClass:        "Chef::Node",
 		NormalAttributes: chefParams.Attributes,
-		PolicyName:       chefParams.PolicyName,
-		PolicyGroup:      chefParams.PolicyGroup,
+	}
+	// In local mode, do use policy groups (some issue with chef server)
+	// We'll directly use cookbooks from repo
+	if !localMode {
+		nodeObj.PolicyName = chefParams.PolicyName
+		nodeObj.PolicyGroup = chefParams.PolicyGroup
 	}
 	_, err = client.Nodes.Post(nodeObj)
 	if err != nil {
 		return "", fmt.Errorf("failed to create node %s: %v", clientName, err)
 	}
 
-	if client.BaseURL != nil {
-		// If Chef Server is running locally, then it doesn't support acls
-		if strings.Contains(client.BaseURL.Host, "127.0.0.1") {
-			return clientKey, nil
-		}
+	if localMode {
+		// if chef server is running locally, then it doesn't support acls
+		return clientKey, nil
 	}
 
 	aclTypes := []string{"update", "create", "delete", "read"}

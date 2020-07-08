@@ -73,14 +73,14 @@ func (v *VSpherePlatform) GetVMDomainTagCategory(ctx context.Context) string {
 	return v.GetDatacenterName(ctx) + "-vmdomain"
 }
 
-func (v *VSpherePlatform) GetVmIpTag(ctx context.Context, vmName, network, ipaddr string) string {
-	return vmName + vmlayer.TagDelimiter + network + vmlayer.TagDelimiter + ipaddr + vmlayer.TagDelimiter + string(v.vmProperties.Domain)
-}
-
 // GetDomainFromTag get the domain from the tag which is always the last field
 func (v *VSpherePlatform) GetDomainFromTag(ctx context.Context, tag string) string {
 	ts := strings.Split(tag, vmlayer.TagDelimiter)
 	return ts[len(ts)-1]
+}
+
+func (v *VSpherePlatform) GetVmIpTag(ctx context.Context, vmName, network, ipaddr string) string {
+	return vmName + vmlayer.TagDelimiter + network + vmlayer.TagDelimiter + ipaddr + vmlayer.TagDelimiter + string(v.vmProperties.Domain)
 }
 
 // ParseVMIpTag returns vmname, network, ipaddr, domain

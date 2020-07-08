@@ -251,12 +251,6 @@ func WithInitOrchestrator(init bool) VMGroupReqOp {
 		return nil
 	}
 }
-func WithDomain(domain VMDomain) VMGroupReqOp {
-	return func(s *VMGroupRequestSpec) error {
-		s.Domain = string(domain)
-		return nil
-	}
-}
 func WithChefUpdateInfo(updateInfo map[string]string) VMGroupReqOp {
 	return func(s *VMGroupRequestSpec) error {
 		s.ChefUpdateInfo = updateInfo
@@ -445,7 +439,6 @@ type VMGroupOrchestrationParams struct {
 	SkipInfraSpecificCheck bool
 	SkipSubnetGateway      bool
 	InitOrchestrator       bool
-	VMDomain               string
 	ChefUpdateInfo         map[string]string
 }
 
@@ -520,10 +513,6 @@ func (v *VMPlatform) getVMGroupOrchestrationParamsFromGroupSpec(ctx context.Cont
 	}
 	if spec.SkipInfraSpecificCheck {
 		vmgp.SkipInfraSpecificCheck = true
-	}
-	vmgp.VMDomain = spec.Domain
-	if vmgp.VMDomain == "" {
-		vmgp.VMDomain = string(VMDomainCompute)
 	}
 	if spec.ChefUpdateInfo != nil {
 		vmgp.ChefUpdateInfo = spec.ChefUpdateInfo

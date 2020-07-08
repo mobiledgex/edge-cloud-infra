@@ -343,7 +343,10 @@ func (v *VSpherePlatform) getTagsForCategory(ctx context.Context, category strin
 	// due to an intermittent govc bug (or maybe a vsphere bug), sometimes the category id in the tag is a UUID instead
 	// of a name so we will update it here before returning to get consistent results
 	for _, t := range tags {
-		domain := v.GetDomainFromTag(ctx, t.Name)
+		domain, err := v.GetDomainFromTag(ctx, t.Name)
+		if err != nil {
+			return nil, err
+		}
 		if domainMatch == vmlayer.VMDomainAny || domain == string(domainMatch) {
 			if t.Category != category {
 				log.SpanLog(ctx, log.DebugLevelInfra, "Updating category for tag", "orig category", t.Category, "category", category)

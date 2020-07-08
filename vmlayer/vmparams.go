@@ -58,8 +58,6 @@ var RoleVMApplication VMRole = "vmapp"
 var RoleVMPlatform VMRole = "platform"
 var RoleMatchAny VMRole = "any" // not a real role, used for matching
 
-const TagDelimiter = "__"
-
 // NextAvailableResource means the orchestration code needs to find an available
 // resource of the given type as the calling code won't know what is free
 var NextAvailableResource = "NextAvailable"

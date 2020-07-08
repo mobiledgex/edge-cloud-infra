@@ -27,6 +27,13 @@ var terraformTest string = "TEST"
 
 const DoesNotExistError string = "does not exist"
 
+const TagFieldDomain = "domain"
+const TagFieldIp = "ip"
+const TagFieldSubnetName = "subnetname"
+const TagFieldCidr = "cidr"
+const TagFieldVmName = "vmname"
+const TagFieldNetName = "netname"
+
 var vmOrchestrateLock sync.Mutex
 
 type VSphereGeneralParams struct {
@@ -73,49 +80,106 @@ func (v *VSpherePlatform) GetVMDomainTagCategory(ctx context.Context) string {
 	return v.GetDatacenterName(ctx) + "-vmdomain"
 }
 
+func getTagFieldMap(tag string) (map[string]string, error) {
+	fieldMap := make(map[string]string)
+	ts := strings.Split(tag, ",")
+	for _, field := range ts {
+		fs := strings.Split(field, "=")
+		if len(fs) != 2 {
+			return nil, fmt.Errorf("incorrectly formatted tag: %s", tag)
+		}
+		fieldMap[fs[0]] = fs[1]
+	}
+	return fieldMap, nil
+}
+
 // GetDomainFromTag get the domain from the tag which is always the last field
-func (v *VSpherePlatform) GetDomainFromTag(ctx context.Context, tag string) string {
-	ts := strings.Split(tag, vmlayer.TagDelimiter)
-	return ts[len(ts)-1]
+func (v *VSpherePlatform) GetDomainFromTag(ctx context.Context, tag string) (string, error) {
+	fm, err := getTagFieldMap(tag)
+	if err != nil {
+		return "", err
+	}
+	domain, ok := fm[TagFieldDomain]
+	if !ok {
+		return "", fmt.Errorf("No domain found for tag")
+	}
+	return domain, nil
+
 }
 
 func (v *VSpherePlatform) GetVmIpTag(ctx context.Context, vmName, network, ipaddr string) string {
-	return vmName + vmlayer.TagDelimiter + network + vmlayer.TagDelimiter + ipaddr + vmlayer.TagDelimiter + string(v.vmProperties.Domain)
+	return TagFieldVmName + "=" + vmName + "," + TagFieldNetName + "=" + network + "," + TagFieldIp + "=" + ipaddr + "," + TagFieldDomain + "=" + string(v.vmProperties.Domain)
 }
 
 // ParseVMIpTag returns vmname, network, ipaddr, domain
 func (v *VSpherePlatform) ParseVMIpTag(ctx context.Context, tag string) (string, string, string, string, error) {
-	ts := strings.Split(tag, vmlayer.TagDelimiter)
-	if len(ts) != 4 {
-		return "", "", "", "", fmt.Errorf("unable to parse vmip tag: %s", tag)
+	fm, err := getTagFieldMap(tag)
+	if err != nil {
+		return "", "", "", "", err
 	}
-	return ts[0], ts[1], ts[2], ts[3], nil
+	vmname, ok := fm[TagFieldVmName]
+	if !ok {
+		return "", "", "", "", fmt.Errorf("No vmname in vmip tag")
+	}
+	network, ok := fm[TagFieldNetName]
+	if !ok {
+		return "", "", "", "", fmt.Errorf("No netname in vmip tag")
+	}
+	ip, ok := fm[TagFieldIp]
+	if !ok {
+		return "", "", "", "", fmt.Errorf("No ip in vmip tag")
+	}
+	domain, ok := fm[TagFieldDomain]
+	if !ok {
+		return "", "", "", "", fmt.Errorf("No domain in vmip tag")
+	}
+	return vmname, network, ip, domain, nil
 }
 
 func (v *VSpherePlatform) GetSubnetTag(ctx context.Context, subnetName, cidr string) string {
-	return subnetName + vmlayer.TagDelimiter + cidr + vmlayer.TagDelimiter + string(v.vmProperties.Domain)
+	return TagFieldSubnetName + "=" + subnetName + "," + TagFieldCidr + "=" + cidr + "," + TagFieldDomain + "=" + string(v.vmProperties.Domain)
 }
 
 // ParseSubnetTag returns subnetName, cidr, domain
 func (v *VSpherePlatform) ParseSubnetTag(ctx context.Context, tag string) (string, string, string, error) {
-	ts := strings.Split(tag, vmlayer.TagDelimiter)
-	if len(ts) != 3 {
-		return "", "", "", fmt.Errorf("unable to parse subnet tag: %s", tag)
+	fm, err := getTagFieldMap(tag)
+	if err != nil {
+		return "", "", "", err
 	}
-	return ts[0], ts[1], ts[2], nil
+	subnetName, ok := fm[TagFieldSubnetName]
+	if !ok {
+		return "", "", "", fmt.Errorf("No subnetname in subnet tag")
+	}
+	cidr, ok := fm[TagFieldCidr]
+	if !ok {
+		return "", "", "", fmt.Errorf("No cidr in subnet tag")
+	}
+	domain, ok := fm[TagFieldDomain]
+	if !ok {
+		return "", "", "", fmt.Errorf("No domain in subnet tag")
+	}
+	return subnetName, cidr, domain, nil
 }
 
 func (v *VSpherePlatform) GetVmDomainTag(ctx context.Context, vmName string) string {
-	return vmName + vmlayer.TagDelimiter + string(v.vmProperties.Domain)
+	return TagFieldVmName + "=" + vmName + "," + TagFieldDomain + "=" + string(v.vmProperties.Domain)
 }
 
 // ParseVMDomainTag returns vmname, domain
 func (v *VSpherePlatform) ParseVMDomainTag(ctx context.Context, tag string) (string, string, error) {
-	ts := strings.Split(tag, vmlayer.TagDelimiter)
-	if len(ts) != 2 {
-		return "", "", fmt.Errorf("unable to parse subnet tag: %s", tag)
+	fm, err := getTagFieldMap(tag)
+	if err != nil {
+		return "", "", err
 	}
-	return ts[0], ts[1], nil
+	vmName, ok := fm[TagFieldVmName]
+	if !ok {
+		return "", "", fmt.Errorf("No subnetname in vmdomain tag")
+	}
+	domain, ok := fm[TagFieldDomain]
+	if !ok {
+		return "", "", fmt.Errorf("No domain in vmdomain tag")
+	}
+	return vmName, domain, nil
 }
 
 func (v *VSpherePlatform) ImportTagCategories(ctx context.Context) error {

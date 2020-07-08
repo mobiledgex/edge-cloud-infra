@@ -3,6 +3,7 @@ deploy_environ=mexdemo
 ubuntu_release=bionic
 monitor_version=latest
 deploy_target="mexplat-{{ deploy_environ }}"
+deployment_tag_override=main
 operator_key=TDG
 dme_carrier=TDG
 locver_url="http://mexdemo.locsim.mobiledgex.net:8888/verifyLocation"

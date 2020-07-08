@@ -186,7 +186,7 @@ func (v *VSpherePlatform) ImportDataFromInfra(ctx context.Context, domain vmlaye
 	categories = append(categories, v.GetSubnetTagCategory(ctx))
 	categories = append(categories, v.GetVMDomainTagCategory(ctx))
 	for _, cat := range categories {
-		tags, err := v.getTagsForCategory(ctx, cat, v.vmProperties.Domain)
+		tags, err := v.getTagsForCategory(ctx, cat, domain)
 		if err != nil {
 			return err
 		}

@@ -322,11 +322,6 @@ func (v *VSpherePlatform) GetUsedSubnetCIDRs(ctx context.Context) (map[string]st
 }
 
 func (v *VSpherePlatform) GetTags(ctx context.Context) ([]GovcTag, error) {
-
-	_, err := v.GetTagCategories(ctx)
-	if err != nil {
-		return nil, fmt.Errorf("cannot get tag categories, %v", err)
-	}
 	out, err := v.TimedGovcCommand(ctx, "govc", "tags.ls", "-json")
 	var tags []GovcTag
 	err = json.Unmarshal(out, &tags)

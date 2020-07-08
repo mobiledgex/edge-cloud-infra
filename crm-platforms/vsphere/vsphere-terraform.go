@@ -157,7 +157,7 @@ func (v *VSpherePlatform) AttachPortToServer(ctx context.Context, serverName, su
 	## import vsphere_tag.%s {"category_name":"%s","tag_name":"%s"}
 	resource "vsphere_tag" "%s" {
 		name = "%s"
-		category_id = "${vsphere_tag_category.%s.id}"
+		category_id = vsphere_tag_category.%s.id
 	}
 	`+getCommentLabel(COMMENT_END, COMMENT_TAGS, subnetName+"__"+serverName)+`
 		`, tagId, v.GetVmIpTagCategory(ctx), tagName, tagId, tagName, v.GetVmIpTagCategory(ctx))
@@ -408,7 +408,7 @@ var vcenterTemplate = `
 
 	data "vsphere_compute_cluster" "{{.ComputeCluster}}" {
 		name          = "{{.ComputeCluster}}"
-		datacenter_id = "${data.vsphere_datacenter.dc.id}"
+		datacenter_id = data.vsphere_datacenter.dc.id
 	}
 
 	data "vsphere_datastore" "datastore" {
@@ -423,7 +423,7 @@ var vcenterTemplate = `
 
 	data "vsphere_distributed_virtual_switch" "{{.InternalDVS}}" {
 		name          = "{{.InternalDVS}}"
-		datacenter_id = "${data.vsphere_datacenter.dc.id}"
+		datacenter_id = data.vsphere_datacenter.dc.id
 	}
 
 	## import vsphere_tag_category.{{.VmIpTagCategory}} {{.VmIpTagCategory}}
@@ -465,14 +465,14 @@ var vmGroupTemplate = `
 	## import vsphere_resource_pool.{{.ResourcePool}} /{{.DataCenterName}}/host/{{.ComputeCluster}}/Resources/{{.ResourcePool}}
 	resource "vsphere_resource_pool" "{{.ResourcePool}}" {  
 		name          = "{{.ResourcePool}}"
-		parent_resource_pool_id = "${data.vsphere_compute_cluster.{{.ComputeCluster}}.resource_pool_id}"
+		parent_resource_pool_id = data.vsphere_compute_cluster.{{.ComputeCluster}}.resource_pool_id
 	}
 
 	{{- range .Subnets}}
 	## import vsphere_distributed_port_group.{{.Id}} /{{$.DataCenterName}}/network/{{.Name}}
 	resource "vsphere_distributed_port_group" "{{.Id}}" {
 		name                            = "{{.Name}}"
-		distributed_virtual_switch_uuid = "${data.vsphere_distributed_virtual_switch.{{$.InternalDVS}}.id}"
+		distributed_virtual_switch_uuid = data.vsphere_distributed_virtual_switch.{{$.InternalDVS}}.id
 		vlan_id                         = {{.Vlan}}
 	}
 	{{- end}}
@@ -481,7 +481,7 @@ var vmGroupTemplate = `
 	## import vsphere_tag.{{.Id}} {"category_name":"{{.Category}}","tag_name":"{{.Name}}"}
 	resource "vsphere_tag" "{{.Id}}" {
 		name = "{{.Name}}"
-		category_id = "${vsphere_tag_category.{{.Category}}.id}"
+		category_id = "vsphere_tag_category.{{.Category}}.id"
 	}
 	{{- end}}
 
@@ -489,7 +489,7 @@ var vmGroupTemplate = `
 	{{- if .ImageName}}
 	data "vsphere_virtual_machine" "{{.TemplateId}}" {
 		name          = "{{.ImageName}}"
-		datacenter_id = "${data.vsphere_datacenter.dc.id}"
+		datacenter_id = data.vsphere_datacenter.dc.id
 	}
 	{{- end}}
 
@@ -543,7 +543,7 @@ var vmGroupTemplate = `
 			"guestinfo.metadata.encoding" = "base64"
 		}
 		clone {
-			template_uuid = "${data.vsphere_virtual_machine.{{.TemplateId}}.id}"
+			template_uuid = data.vsphere_virtual_machine.{{.TemplateId}}.id
 			customize{
 				linux_options {
 					host_name = "{{.HostName}}"
@@ -681,6 +681,12 @@ func (v *VSpherePlatform) ImportTerraformPlan(ctx context.Context, planName stri
 		}
 	}
 	return nil
+}
+
+func (v *VSpherePlatform) IsTerraformInitialized(ctx context.Context) bool {
+	terraformDir := v.getTerraformDir(ctx)
+	_, err := os.Stat(terraformDir)
+	return err == nil
 }
 
 // TerraformSetupVsphere creates the basic plan for the cloudlet.  It does not apply it

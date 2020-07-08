@@ -499,7 +499,7 @@ func SetupVault(p *process.Vault, opts ...process.StartOp) (*VaultRoles, error) 
 		return &roles, err
 	}
 
-	// Setup up chef key to allow local edgebox to use chef to provision cloudlet
+	// Setup up dummy key to be used with local chef server to provision cloudlets
 	chefApiKeyPath := "/tmp/dummyChefApiKey.json"
 	err = GetDummyPrivateKey(chefApiKeyPath)
 	if err != nil {

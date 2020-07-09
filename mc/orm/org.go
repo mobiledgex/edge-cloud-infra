@@ -297,14 +297,7 @@ func ShowOrgObj(ctx context.Context, claims *UserClaims) ([]ormapi.Organization,
 				err := db.Where(&org).First(&org).Error
 				show := true
 				if err != nil {
-					// check to make sure it wasnt a billing org before throwing an error
-					billOrg := ormapi.BillingOrganization{Name: orguser[0]}
-					billErr := db.Where(&billOrg).First(&billOrg).Error
-					if billErr == nil {
-						show = false
-					} else {
-						return nil, dbErr(err)
-					}
+					return nil, dbErr(err)
 				}
 				if show {
 					orgs = append(orgs, org)

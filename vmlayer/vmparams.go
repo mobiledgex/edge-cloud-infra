@@ -298,7 +298,7 @@ type PortOrchestrationParams struct {
 type FloatingIPOrchestrationParams struct {
 	Name         string
 	Port         ResourceReference
-	FloatingIpId ResourceReference
+	FloatingIpId string
 }
 
 type RouterInterfaceOrchestrationParams struct {
@@ -735,12 +735,14 @@ func (v *VMPlatform) getVMGroupOrchestrationParamsFromGroupSpec(ctx context.Cont
 					NetworkName: vmgp.Netspec.FloatingIPNet,
 					NetworkId:   v.VMProvider.NameSanitize(vmgp.Netspec.FloatingIPNet),
 					VnicType:    vmgp.Netspec.VnicType,
-					FixedIPs: []FixedIPOrchestrationParams{
-						{
-							Subnet: NewResourceReference(vmgp.Netspec.FloatingIPSubnet, vmgp.Netspec.FloatingIPSubnet, false),
-						},
-					},
 				}
+				fip := FloatingIPOrchestrationParams{
+					Name:         externalPortName + "-fip",
+					FloatingIpId: NextAvailableResource,
+					Port:         NewResourceReference(externalport.Name, externalport.Id, false),
+				}
+				vmgp.FloatingIPs = append(vmgp.FloatingIPs, fip)
+
 			} else {
 				externalport = PortOrchestrationParams{
 					Name:        externalPortName,
@@ -749,15 +751,15 @@ func (v *VMPlatform) getVMGroupOrchestrationParamsFromGroupSpec(ctx context.Cont
 					NetworkId:   v.VMProvider.IdSanitize(externalNetName),
 					VnicType:    vmgp.Netspec.VnicType,
 				}
-
-				externalport.SecurityGroups = []ResourceReference{
-					NewResourceReference(spec.NewSecgrpName, spec.NewSecgrpName, false),
-				}
-				if !spec.SkipDefaultSecGrp {
-					externalport.SecurityGroups = append(externalport.SecurityGroups, NewResourceReference(cloudletSecGrpID, cloudletSecGrpID, true))
-				}
-				newPorts = append(newPorts, externalport)
 			}
+			externalport.SecurityGroups = []ResourceReference{
+				NewResourceReference(spec.NewSecgrpName, spec.NewSecgrpName, false),
+			}
+			if !spec.SkipDefaultSecGrp {
+				externalport.SecurityGroups = append(externalport.SecurityGroups, NewResourceReference(cloudletSecGrpID, cloudletSecGrpID, true))
+			}
+			newPorts = append(newPorts, externalport)
+
 		}
 		if !vm.CreatePortsOnly {
 			log.SpanLog(ctx, log.DebugLevelInfra, "Defining new VM orch param", "vm.Name", vm.Name, "ports", newPorts)

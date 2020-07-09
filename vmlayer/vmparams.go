@@ -493,11 +493,7 @@ func (v *VMPlatform) getVMGroupOrchestrationParamsFromGroupSpec(ctx context.Cont
 	cloudflareDns := []string{"1.1.1.1", "1.0.0.1"}
 	vmDns := ""
 	subnetDns := []string{}
-	var err error
-	cloudletSecGrpID := ""
-	if !spec.SkipDefaultSecGrp {
-		cloudletSecGrpID, err = v.VMProvider.GetResourceID(ctx, ResourceTypeSecurityGroup, v.VMProperties.GetCloudletSecurityGroupName())
-	}
+	cloudletSecGrpID, err := v.VMProvider.GetResourceID(ctx, ResourceTypeSecurityGroup, v.VMProperties.GetCloudletSecurityGroupName())
 	internalSecgrpID := ""
 	internalSecgrpPreexisting := false
 
@@ -535,11 +531,9 @@ func (v *VMPlatform) getVMGroupOrchestrationParamsFromGroupSpec(ctx context.Cont
 	} else {
 		log.SpanLog(ctx, log.DebugLevelInfra, "External router in use")
 		if spec.NewSubnetName != "" {
-			if !spec.SkipDefaultSecGrp {
-				log.SpanLog(ctx, log.DebugLevelInfra, "SkipDefaultSecGrp flag set")
-				internalSecgrpID = cloudletSecGrpID
-				internalSecgrpPreexisting = true
-			}
+			internalSecgrpID = cloudletSecGrpID
+			internalSecgrpPreexisting = true
+
 			rtrInUse = true
 			routerPortName := spec.NewSubnetName + "-rtr-port"
 			routerPort := PortOrchestrationParams{

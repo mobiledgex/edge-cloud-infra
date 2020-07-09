@@ -58,8 +58,6 @@ var RoleVMApplication VMRole = "vmapp"
 var RoleVMPlatform VMRole = "platform"
 var RoleMatchAny VMRole = "any" // not a real role, used for matching
 
-const TagDelimiter = "__"
-
 // NextAvailableResource means the orchestration code needs to find an available
 // resource of the given type as the calling code won't know what is free
 var NextAvailableResource = "NextAvailable"
@@ -251,12 +249,6 @@ func WithInitOrchestrator(init bool) VMGroupReqOp {
 		return nil
 	}
 }
-func WithDomain(domain VMDomain) VMGroupReqOp {
-	return func(s *VMGroupRequestSpec) error {
-		s.Domain = string(domain)
-		return nil
-	}
-}
 func WithChefUpdateInfo(updateInfo map[string]string) VMGroupReqOp {
 	return func(s *VMGroupRequestSpec) error {
 		s.ChefUpdateInfo = updateInfo
@@ -298,7 +290,7 @@ type PortOrchestrationParams struct {
 type FloatingIPOrchestrationParams struct {
 	Name         string
 	Port         ResourceReference
-	FloatingIpId ResourceReference
+	FloatingIpId string
 }
 
 type RouterInterfaceOrchestrationParams struct {
@@ -445,7 +437,6 @@ type VMGroupOrchestrationParams struct {
 	SkipInfraSpecificCheck bool
 	SkipSubnetGateway      bool
 	InitOrchestrator       bool
-	VMDomain               string
 	ChefUpdateInfo         map[string]string
 }
 
@@ -520,10 +511,6 @@ func (v *VMPlatform) getVMGroupOrchestrationParamsFromGroupSpec(ctx context.Cont
 	}
 	if spec.SkipInfraSpecificCheck {
 		vmgp.SkipInfraSpecificCheck = true
-	}
-	vmgp.VMDomain = spec.Domain
-	if vmgp.VMDomain == "" {
-		vmgp.VMDomain = string(VMDomainCompute)
 	}
 	if spec.ChefUpdateInfo != nil {
 		vmgp.ChefUpdateInfo = spec.ChefUpdateInfo
@@ -735,12 +722,14 @@ func (v *VMPlatform) getVMGroupOrchestrationParamsFromGroupSpec(ctx context.Cont
 					NetworkName: vmgp.Netspec.FloatingIPNet,
 					NetworkId:   v.VMProvider.NameSanitize(vmgp.Netspec.FloatingIPNet),
 					VnicType:    vmgp.Netspec.VnicType,
-					FixedIPs: []FixedIPOrchestrationParams{
-						{
-							Subnet: NewResourceReference(vmgp.Netspec.FloatingIPSubnet, vmgp.Netspec.FloatingIPSubnet, false),
-						},
-					},
 				}
+				fip := FloatingIPOrchestrationParams{
+					Name:         externalPortName + "-fip",
+					FloatingIpId: NextAvailableResource,
+					Port:         NewResourceReference(externalport.Name, externalport.Id, false),
+				}
+				vmgp.FloatingIPs = append(vmgp.FloatingIPs, fip)
+
 			} else {
 				externalport = PortOrchestrationParams{
 					Name:        externalPortName,
@@ -749,15 +738,15 @@ func (v *VMPlatform) getVMGroupOrchestrationParamsFromGroupSpec(ctx context.Cont
 					NetworkId:   v.VMProvider.IdSanitize(externalNetName),
 					VnicType:    vmgp.Netspec.VnicType,
 				}
-
-				externalport.SecurityGroups = []ResourceReference{
-					NewResourceReference(spec.NewSecgrpName, spec.NewSecgrpName, false),
-				}
-				if !spec.SkipDefaultSecGrp {
-					externalport.SecurityGroups = append(externalport.SecurityGroups, NewResourceReference(cloudletSecGrpID, cloudletSecGrpID, true))
-				}
-				newPorts = append(newPorts, externalport)
 			}
+			externalport.SecurityGroups = []ResourceReference{
+				NewResourceReference(spec.NewSecgrpName, spec.NewSecgrpName, false),
+			}
+			if !spec.SkipDefaultSecGrp {
+				externalport.SecurityGroups = append(externalport.SecurityGroups, NewResourceReference(cloudletSecGrpID, cloudletSecGrpID, true))
+			}
+			newPorts = append(newPorts, externalport)
+
 		}
 		if !vm.CreatePortsOnly {
 			log.SpanLog(ctx, log.DebugLevelInfra, "Defining new VM orch param", "vm.Name", vm.Name, "ports", newPorts)

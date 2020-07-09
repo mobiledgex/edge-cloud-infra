@@ -113,7 +113,6 @@ func (v *VMPlatform) SetupPlatformVM(ctx context.Context, vaultConfig *vault.Con
 			WithAccessPorts("tcp:22"),
 			WithSkipDefaultSecGrp(true),
 			WithInitOrchestrator(true),
-			WithDomain(VMDomainPlatform),
 		)
 	} else {
 		subnetName := v.GetPlatformSubnetName(&cloudlet.Key)
@@ -190,6 +189,7 @@ func (v *VMPlatform) CreateCloudlet(ctx context.Context, cloudlet *edgeproto.Clo
 		pfConfig.ChefServerPath = chefmgmt.DefaultChefServerPath
 	}
 
+	v.VMProperties.Domain = VMDomainPlatform
 	// TODO there's a lot of overlap between platform.PlatformConfig and edgeproto.PlatformConfig
 	pc := pf.PlatformConfig{
 		CloudletKey:         &cloudlet.Key,
@@ -318,6 +318,7 @@ func (v *VMPlatform) DeleteCloudlet(ctx context.Context, cloudlet *edgeproto.Clo
 	if pfConfig.ChefServerPath == "" {
 		pfConfig.ChefServerPath = chefmgmt.DefaultChefServerPath
 	}
+	v.VMProperties.Domain = VMDomainPlatform
 	pc := pf.PlatformConfig{
 		CloudletKey:         &cloudlet.Key,
 		PhysicalName:        cloudlet.PhysicalName,

@@ -405,7 +405,6 @@ func RunServer(config *ServerConfig) (*Server, error) {
 	//   403: forbidden
 	//   404: notFound
 	auth.POST("/billingorg/delete", DeleteBillingOrg)
-	// TODO: add in AddChild and RemoveChild
 
 	auth.POST("/controller/create", CreateController)
 	auth.POST("/controller/delete", DeleteController)

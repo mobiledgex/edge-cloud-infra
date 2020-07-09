@@ -556,6 +556,7 @@ func (v *VMPlatform) getVMGroupOrchestrationParamsFromGroupSpec(ctx context.Cont
 					},
 				},
 			}
+			routerPort.SecurityGroups = append(routerPort.SecurityGroups, NewResourceReference(cloudletSecGrpID, cloudletSecGrpID, true))
 			vmgp.Ports = append(vmgp.Ports, routerPort)
 			newRouterIf := RouterInterfaceOrchestrationParams{
 				RouterName: v.VMProperties.GetCloudletExternalRouter(),

@@ -286,7 +286,7 @@ func (v *VMPlatform) createClusterInternal(ctx context.Context, rootLBName strin
 			return
 		}
 		log.SpanLog(ctx, log.DebugLevelInfra, "error in CreateCluster", "err", reterr)
-		if !clusterInst.SkipCleanupOnFailure {
+		if !clusterInst.SkipCrmCleanupOnFailure {
 			delerr := v.deleteCluster(ctx, rootLBName, clusterInst)
 			if delerr != nil {
 				log.SpanLog(ctx, log.DebugLevelInfra, "fail to cleanup cluster")
@@ -719,6 +719,6 @@ func (v *VMPlatform) PerformOrchestrationForCluster(ctx context.Context, imgName
 		WithPrivacyPolicy(privacyPolicy),
 		WithNewSecurityGroup(newSecgrpName),
 		WithChefUpdateInfo(updateInfo),
-		WithSkipCleanupOnFailure(clusterInst.SkipCleanupOnFailure),
+		WithSkipCleanupOnFailure(clusterInst.SkipCrmCleanupOnFailure),
 	)
 }

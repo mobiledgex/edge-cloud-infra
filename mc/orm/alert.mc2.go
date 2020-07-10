@@ -961,7 +961,7 @@ func addControllerApis(method string, group *echo.Group) {
 	// SharedVolumeSize: 23
 	// PrivacyPolicy: 24
 	// MasterNodeFlavor: 25
-	// SkipCleanupOnFailure: 26
+	// SkipCrmCleanupOnFailure: 26
 	// ```
 	// Security:
 	//   Bearer:

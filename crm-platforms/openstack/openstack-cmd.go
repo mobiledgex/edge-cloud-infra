@@ -610,58 +610,6 @@ func (s *OpenstackPlatform) ListProjects(ctx context.Context) ([]OSProject, erro
 	return projects, nil
 }
 
-//ListSecurityGroups returns a list of security groups
-func (s *OpenstackPlatform) ListSecurityGroups(ctx context.Context) ([]OSSecurityGroup, error) {
-	out, err := s.TimedOpenStackCommand(ctx, "openstack", "security", "group", "list", "-f", "json")
-	if err != nil {
-		err = fmt.Errorf("can't get a list of security groups, %s, %v", out, err)
-		return nil, err
-	}
-	secgrps := []OSSecurityGroup{}
-	err = json.Unmarshal(out, &secgrps)
-	if err != nil {
-		err = fmt.Errorf("can't unmarshal security groups, %v", err)
-		return nil, err
-	}
-	log.SpanLog(ctx, log.DebugLevelInfra, "list security groups", "security groups", secgrps)
-	return secgrps, nil
-}
-
-//ListSecurityGroups returns a list of security groups
-func (s *OpenstackPlatform) ListSecurityGroupRules(ctx context.Context, secGrp string) ([]OSSecurityGroupRule, error) {
-	out, err := s.TimedOpenStackCommand(ctx, "openstack", "security", "group", "rule", "list", secGrp, "-f", "json")
-	if err != nil {
-		err = fmt.Errorf("can't get a list of security group rules, %s, %v", out, err)
-		return nil, err
-	}
-	rules := []OSSecurityGroupRule{}
-	err = json.Unmarshal(out, &rules)
-	if err != nil {
-		err = fmt.Errorf("can't unmarshal security group rules, %v", err)
-		return nil, err
-	}
-	log.SpanLog(ctx, log.DebugLevelInfra, "list security group rules", "security groups", rules)
-	return rules, nil
-}
-
-func (s *OpenstackPlatform) CreateSecurityGroup(ctx context.Context, groupName string) error {
-	out, err := s.TimedOpenStackCommand(ctx, "openstack", "security", "group", "create", groupName)
-	if err != nil {
-		err = fmt.Errorf("can't create security group, %s, %v", out, err)
-		return err
-	}
-	return nil
-}
-
-func (s *OpenstackPlatform) AddSecurityGroupToPort(ctx context.Context, portID, groupName string) error {
-	out, err := s.TimedOpenStackCommand(ctx, "openstack", "port", "set", "--security-group", groupName, portID)
-	if err != nil {
-		err = fmt.Errorf("can't add security group to port, %s, %v", out, err)
-		return err
-	}
-	return nil
-}
-
 //ListRouters returns a list of routers available
 func (s *OpenstackPlatform) ListRouters(ctx context.Context) ([]OSRouter, error) {
 	out, err := s.TimedOpenStackCommand(ctx, "openstack", "router", "list", "-f", "json")

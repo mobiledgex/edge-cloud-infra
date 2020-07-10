@@ -963,28 +963,6 @@ func (o *OpenstackPlatform) GetFlavorList(ctx context.Context) ([]*edgeproto.Fla
 	return fl, err
 }
 
-func (s *OpenstackPlatform) GetSecurityGroupIDForProject(ctx context.Context, grpname string, projectID string) (string, error) {
-	grps, err := s.ListSecurityGroups(ctx)
-	if err != nil {
-		return "", err
-	}
-	for _, g := range grps {
-		if g.Name == grpname {
-			if g.Project == projectID {
-				log.SpanLog(ctx, log.DebugLevelInfra, "GetSecurityGroupIDForProject", "projectID", projectID, "group", grpname)
-				return g.ID, nil
-			}
-			if g.Project == "" {
-				// This is an openstack bug in some environments in which it may not show the project ids when listing the group
-				// all we can do is hope for no conflicts in this case
-				log.SpanLog(ctx, log.DebugLevelInfra, "Warning: no project id returned for security group", "group", grpname)
-				return g.ID, nil
-			}
-		}
-	}
-	return "", fmt.Errorf("unable to find security group %s project %s", grpname, projectID)
-}
-
 func (s *OpenstackPlatform) OSGetConsoleUrl(ctx context.Context, serverName string) (*OSConsoleUrl, error) {
 	log.SpanLog(ctx, log.DebugLevelInfra, "get console url", "server", serverName)
 	out, err := s.TimedOpenStackCommand(ctx, "openstack", "console", "url", "show", "-f", "json", "-c", "url", "--novnc", serverName)
@@ -1095,26 +1073,6 @@ func (s *OpenstackPlatform) SetPowerState(ctx context.Context, serverName, serve
 	if err != nil {
 		err = fmt.Errorf("unable to %s server %s, %s, %v", serverAction, serverName, out, err)
 		return err
-	}
-	return nil
-}
-
-func (s *OpenstackPlatform) AddSecurityRuleCIDR(ctx context.Context, cidr string, proto string, groupName string, port string) error {
-	out, err := s.TimedOpenStackCommand(ctx, "openstack", "security", "group", "rule", "create", "--remote-ip", cidr, "--proto", proto, "--dst-port", port, "--ingress", groupName)
-	if err != nil {
-		if strings.Contains(string(out), "Security group rule already exists") {
-			log.SpanLog(ctx, log.DebugLevelInfra, "security group rule already exists, proceeding")
-		} else {
-			return fmt.Errorf("can't add security group rule for port %s to %s,%s,%v", port, groupName, string(out), err)
-		}
-	}
-	return nil
-}
-
-func (s *OpenstackPlatform) DeleteSecurityGroupRule(ctx context.Context, ruleID string) error {
-	out, err := s.TimedOpenStackCommand(ctx, "openstack", "security", "group", "rule", "delete", ruleID)
-	if err != nil {
-		return fmt.Errorf("can't delete security group rule %s,%s,%v", ruleID, string(out), err)
 	}
 	return nil
 }

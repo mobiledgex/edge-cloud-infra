@@ -233,6 +233,9 @@ func (v *VMPlatform) Init(ctx context.Context, platformConfig *platform.Platform
 	if err := v.VMProvider.InitApiAccessProperties(ctx, platformConfig.CloudletKey, platformConfig.Region, platformConfig.PhysicalName, vaultConfig, platformConfig.EnvVars); err != nil {
 		return err
 	}
+
+	v.VMProperties.PlatformSecgrpName = v.GetServerSecurityGroupName(v.GetPlatformVMName(v.VMProperties.CommonPf.PlatformConfig.CloudletKey))
+
 	log.SpanLog(ctx, log.DebugLevelInfra, "doing init provider")
 	if err := v.VMProvider.InitProvider(ctx, caches, updateCallback); err != nil {
 		return err

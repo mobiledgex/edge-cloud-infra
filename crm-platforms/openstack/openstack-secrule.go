@@ -17,6 +17,8 @@ var CloudletSecurityGroupIDMap = make(map[string]string)
 
 var cloudetSecurityGroupIDLock sync.Mutex
 
+const SecgrpDoesNotExist string = "Security group does not exist"
+
 func getCachedSecgrpID(ctx context.Context, name string) string {
 	cloudetSecurityGroupIDLock.Lock()
 	defer cloudetSecurityGroupIDLock.Unlock()
@@ -67,7 +69,20 @@ func (s *OpenstackPlatform) GetSecurityGroupIDForName(ctx context.Context, group
 			return groupID, nil
 		}
 	}
-	return "", fmt.Errorf("Unable to find cloudlet security group name: %s for project: %s", groupName, projectName)
+	return "", fmt.Errorf("Unable to find cloudlet project: %s", projectName)
+}
+
+func (o *OpenstackPlatform) AddSecurityRulesForRemoteGroup(ctx context.Context, groupId, remoteGroupId, protocol, direction string) error {
+	log.SpanLog(ctx, log.DebugLevelInfra, "AddSecurityRulesForRemoteGroup", "groupId", groupId, "remoteGroupId", remoteGroupId, "protocol", protocol, "direction", direction)
+	out, err := o.TimedOpenStackCommand(ctx, "openstack", "security", "group", "rule", "create", "--"+direction, "--proto", protocol, "--remote-group", remoteGroupId, groupId)
+	if err != nil {
+		if strings.Contains(string(out), "Security group rule already exists") {
+			log.SpanLog(ctx, log.DebugLevelInfra, "security group rule already exists, proceeding")
+		} else {
+			return fmt.Errorf("can't add rule for security group %s protocol %s direction %s to remote %s,%v", groupId, protocol, direction, remoteGroupId, err)
+		}
+	}
+	return nil
 }
 
 func (o *OpenstackPlatform) AddSecurityRules(ctx context.Context, groupName string, ports []dme.AppPort, serverName string) error {
@@ -86,6 +101,26 @@ func (o *OpenstackPlatform) AddSecurityRules(ctx context.Context, groupName stri
 		if err := o.AddSecurityRuleCIDRWithRetry(ctx, allowedClientCIDR, proto, groupName, portString, serverName); err != nil {
 			return err
 		}
+	}
+	return nil
+}
+
+func (s *OpenstackPlatform) AddSecurityRuleCIDR(ctx context.Context, cidr string, proto string, groupName string, port string) error {
+	out, err := s.TimedOpenStackCommand(ctx, "openstack", "security", "group", "rule", "create", "--remote-ip", cidr, "--proto", proto, "--dst-port", port, "--ingress", groupName)
+	if err != nil {
+		if strings.Contains(string(out), "Security group rule already exists") {
+			log.SpanLog(ctx, log.DebugLevelInfra, "security group rule already exists, proceeding")
+		} else {
+			return fmt.Errorf("can't add security group rule for port %s to %s,%s,%v", port, groupName, string(out), err)
+		}
+	}
+	return nil
+}
+
+func (s *OpenstackPlatform) DeleteSecurityGroupRule(ctx context.Context, ruleID string) error {
+	out, err := s.TimedOpenStackCommand(ctx, "openstack", "security", "group", "rule", "delete", ruleID)
+	if err != nil {
+		return fmt.Errorf("can't delete security group rule %s,%s,%v", ruleID, string(out), err)
 	}
 	return nil
 }
@@ -163,6 +198,79 @@ func (o *OpenstackPlatform) WhitelistSecurityRules(ctx context.Context, grpName,
 		}
 		if err := o.AddSecurityRuleCIDRWithRetry(ctx, allowedCidr, proto, grpName, portStr, serverName); err != nil {
 			return err
+		}
+	}
+	return nil
+}
+
+func (s *OpenstackPlatform) GetSecurityGroupIDForProject(ctx context.Context, grpname string, projectID string) (string, error) {
+	grps, err := s.ListSecurityGroups(ctx)
+	if err != nil {
+		return "", err
+	}
+	for _, g := range grps {
+		if g.Name == grpname {
+			if g.Project == projectID {
+				log.SpanLog(ctx, log.DebugLevelInfra, "GetSecurityGroupIDForProject", "projectID", projectID, "group", grpname)
+				return g.ID, nil
+			}
+			if g.Project == "" {
+				// This is an openstack bug in some environments in which it may not show the project ids when listing the group
+				// all we can do is hope for no conflicts in this case
+				log.SpanLog(ctx, log.DebugLevelInfra, "Warning: no project id returned for security group", "group", grpname)
+				return g.ID, nil
+			}
+		}
+	}
+	return "", fmt.Errorf("%s: %s project %s", SecgrpDoesNotExist, grpname, projectID)
+}
+
+// PrepareCloudletSecurityGroup creates the cloudlet group if it does not exist and ensures
+// that the remote-group rules are present to allow platform components to communicate
+func (o *OpenstackPlatform) PrepareCloudletSecurityGroup(ctx context.Context) error {
+	grpName := o.VMProperties.GetCloudletSecurityGroupName()
+	log.SpanLog(ctx, log.DebugLevelInfra, "PrepareCloudletSecurityGroup", "grpName", grpName)
+
+	_, err := o.GetSecurityGroupIDForName(ctx, grpName)
+	if err != nil {
+		if strings.Contains(err.Error(), SecgrpDoesNotExist) {
+			// create the group
+			log.SpanLog(ctx, log.DebugLevelInfra, "Cloudlet group does not exist, creating", "grpName", grpName)
+			err := o.CreateSecurityGroup(ctx, grpName)
+			if err != nil {
+				return err
+			}
+		} else {
+			return err
+		}
+	}
+	cloudletGrpId, err := o.GetSecurityGroupIDForName(ctx, grpName)
+	if err != nil {
+		return err
+	}
+	log.SpanLog(ctx, log.DebugLevelInfra, "Creating remote-group rules from cloudlet grp to itself", "cloudletGrpId", cloudletGrpId)
+
+	// Add cloudlet group rules to itself and to the platform secrgrp if one exists
+	directions := []string{"ingress", "egress"}
+	remoteGroups := []string{cloudletGrpId}
+
+	platGrpId, err := o.GetSecurityGroupIDForName(ctx, o.VMProperties.PlatformSecgrpName)
+	if err != nil {
+		if strings.Contains(err.Error(), SecgrpDoesNotExist) {
+			// this should only happen if CreateCloudlet was not used to onboard and the CRM was created manually
+			log.SpanLog(ctx, log.DebugLevelInfra, "Platform group does not exist", "platform group", o.VMProperties.PlatformSecgrpName)
+		} else {
+			return err
+		}
+	} else {
+		remoteGroups = append(remoteGroups, platGrpId)
+	}
+	for _, remote := range remoteGroups {
+		for _, dir := range directions {
+			err = o.AddSecurityRulesForRemoteGroup(ctx, cloudletGrpId, remote, "any", dir)
+			if err != nil {
+				return err
+			}
 		}
 	}
 	return nil

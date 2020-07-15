@@ -7,6 +7,8 @@ import (
 	"fmt"
 	"io/ioutil"
 	"net/http"
+	"os"
+	"strings"
 	"sync"
 	"time"
 
@@ -15,11 +17,38 @@ import (
 	dme "github.com/mobiledgex/edge-cloud/d-match-engine/dme-proto"
 	"github.com/mobiledgex/edge-cloud/edgeproto"
 	"github.com/mobiledgex/edge-cloud/log"
+	"github.com/mobiledgex/edge-cloud/vault"
 	"github.com/prometheus/alertmanager/api/v2/models"
 	alertmanager_config "github.com/prometheus/alertmanager/config"
 )
 
 var alertRefreshInterval = 30 * time.Second
+
+// TODO - since alertmanager is the source of truth here, we should have this as a common volume instead of /tmp
+var AlertManagerConfigPath = "/tmp/alertmanager.yml"
+
+// Default alertmanager configuration
+const DefaultAlertmanagerConfigFmt = `global:
+  resolve_timeout: 5m
+  smtp_from: %s
+  smtp_smarthost: %s
+  smtp_auth_username: %s
+  smtp_auth_secret: %s
+route:
+  group_wait: 30s
+  group_interval: 5m
+  repeat_interval: 2h
+  receiver: default
+receivers:
+- name: default
+`
+const (
+	AlertReceiverTypeEmail = "email"
+	AlertReceiverTypeSlack = "slack"
+	AlertSeverityError     = "error"
+	AlertSeverityWarn      = "warning"
+	AlertSeverityInfo      = "info"
+)
 
 // We will use this to read and write alertmanager config file
 // Use AlertManagerGlobalConfig.String() to get the new file
@@ -32,7 +61,7 @@ const (
 	AlertApi        string = "api/v2/alerts"
 	ReceiverApi     string = "api/v2/receivers"
 	SilenceApi      string = "api/v2/silences"
-	ReloadConfigApi string = "/-/reload"
+	ReloadConfigApi string = "-/reload"
 )
 
 // AlertMrgServer does two things - it periodically updates AlertManager about the
@@ -44,8 +73,17 @@ type AlertMrgServer struct {
 	McAlertmanagerAgentName string
 	AlertMgrConfigPath      string
 	AlertCache              *edgeproto.AlertCache
+	vaultConfig             *vault.Config
+	localVault              bool
 	waitGrp                 sync.WaitGroup
 	stop                    chan struct{}
+}
+
+type smtpInfo struct {
+	Email string `json:"email"`
+	User  string `json:"user"`
+	Token string `json:"token"`
+	Smtp  string `json:"smtp"`
 }
 
 // TODO - use version to track where this alert came from
@@ -53,13 +91,75 @@ func setAgentName() string {
 	return "MasterControllerV1"
 }
 
-func NewAlertMgrServer(alertMgrAddr string, alertCache *edgeproto.AlertCache) *AlertMrgServer {
+func NewAlertMgrServer(alertMgrAddr string, configPath string, vaultConfig *vault.Config, localVault bool, alertCache *edgeproto.AlertCache) (*AlertMrgServer, error) {
 	server := AlertMrgServer{
 		AlertMrgAddr:            alertMgrAddr,
 		AlertCache:              alertCache,
 		McAlertmanagerAgentName: setAgentName(),
+		AlertMgrConfigPath:      configPath,
+		vaultConfig:             vaultConfig,
+		localVault:              localVault,
 	}
-	return &server
+	span := log.StartSpan(log.DebugLevelApi, "AlertMgrServer")
+	ctx := log.ContextWithSpan(context.Background(), span)
+
+	if err := server.readConfigFile(ctx); err != nil {
+		return nil, err
+	}
+	return &server, nil
+}
+
+func (s *AlertMrgServer) getAlertmanagertSmtpConfig(ctx context.Context) (*smtpInfo, error) {
+	log.SpanLog(ctx, log.DebugLevelApi, "lookup Vault smtp info")
+	if s.localVault {
+		log.SpanLog(ctx, log.DebugLevelApi, "Using dummy smtp credentials")
+		return &testSmtpInfo, nil
+	}
+	alertMgrAcct := smtpInfo{}
+	err := vault.GetData(s.vaultConfig,
+		"/secret/data/accounts/alertmanagersmtp", 0, &alertMgrAcct)
+	if err != nil {
+		return nil, err
+	}
+	return &alertMgrAcct, nil
+}
+
+func (s *AlertMrgServer) readConfigFile(ctx context.Context) error {
+	// grab config lock
+	configLock.Lock()
+	defer configLock.Unlock()
+	// Check that the config File exists
+	_, err := os.Open(s.AlertMgrConfigPath)
+	if err != nil {
+		// Doesn't exist - need to load up a default config
+		if os.IsNotExist(err) {
+			email, err := s.getAlertmanagertSmtpConfig(ctx)
+			config := fmt.Sprintf(DefaultAlertmanagerConfigFmt, email.Email, email.Smtp+":587", email.User, email.Token)
+
+			err = ioutil.WriteFile(s.AlertMgrConfigPath, []byte(config), 0644)
+			if err != nil {
+				log.SpanLog(ctx, log.DebugLevelInfo, "Failed to write default alertmanager config", "err", err, "file", s.AlertMgrConfigPath)
+				return err
+			}
+			// trigger reload of the config
+			res, err := s.alertMgrApi(ctx, "POST", ReloadConfigApi, "", nil)
+			if err != nil {
+				log.SpanLog(ctx, log.DebugLevelInfo, "Failed to reeload alertmanager config", "err", err, "result", res)
+				return err
+			}
+		} else {
+			log.SpanLog(ctx, log.DebugLevelInfo, "Failed to access alertmanager config", "err", err, "file", s.AlertMgrConfigPath)
+			return err
+		}
+	}
+	// Read config
+	AlertManagerConfig, err = alertmanager_config.LoadFile(s.AlertMgrConfigPath)
+	if err != nil {
+		log.SpanLog(ctx, log.DebugLevelInfo, "Failed to parse alertmanager config file", "err", err,
+			"file", s.AlertMgrConfigPath)
+		return err
+	}
+	return nil
 }
 
 // Update callback for a new alert - should send to alertmanager right away
@@ -187,29 +287,65 @@ func (s *AlertMrgServer) AddAlerts(ctx context.Context, alerts ...*edgeproto.Ale
 		log.SpanLog(ctx, log.DebugLevelInfo, "Failed to marshal alerts", "err", err, "alerts", alerts)
 		return err
 	}
-	log.SpanLog(ctx, log.DebugLevelInfo, "marshal alerts", "alerts", string(data))
-	_, err = s.alertMgrApi(ctx, "POST", AlertApi, "", data)
+	res, err := s.alertMgrApi(ctx, "POST", AlertApi, "", data)
+	log.SpanLog(ctx, log.DebugLevelInfo, "marshal alerts", "alerts", string(data), "err", err, "res", res)
 	return err
 }
 
-// TODO - receiver includes a route and a receiver which will receive the alert
-// we create a route on the org tags for a given appInstance
-func (s *AlertMrgServer) CreateReceiver(ctx context.Context, receiver *ormapi.AlertReceiver, routeMatchLabels map[string]string, cfg interface{}) error {
+// Note - this grabs configLock
+func (s *AlertMrgServer) readAlertManagerConfigAndLock(ctx context.Context, config *alertmanager_config.Config) error {
 	var err error
-
 	// grab config lock
 	configLock.Lock()
-	defer configLock.Unlock()
 
 	// Read config
-	AlertManagerConfig, err = alertmanager_config.LoadFile(s.AlertMgrConfigPath)
+	config, err = alertmanager_config.LoadFile(s.AlertMgrConfigPath)
 	if err != nil {
 		log.SpanLog(ctx, log.DebugLevelInfo, "Failed to parse alertmanager config file", "err", err,
 			"file", s.AlertMgrConfigPath)
 		return err
 	}
+	return nil
+}
+
+// Note - we should hold configLock prior to calling this function
+func (s *AlertMrgServer) writeAlertManagerConfigLocked(ctx context.Context, config *alertmanager_config.Config) error {
+	// write config out
+	err := ioutil.WriteFile(s.AlertMgrConfigPath, []byte(config.String()), 0644)
+	if err != nil {
+		log.SpanLog(ctx, log.DebugLevelInfo, "Unable to write alertmanager config file",
+			"file", s.AlertMgrConfigPath, "config", config.String())
+		return err
+	}
+	// restart alertmanager - call api
+	res, err := s.alertMgrApi(ctx, "POST", ReloadConfigApi, "", nil)
+	if err != nil {
+		log.SpanLog(ctx, log.DebugLevelInfo, "Failed to reload alertmanager config", "err", err, "res", res)
+	}
+	return err
+}
+
+func getAlertmgrReceiverName(receiver *ormapi.AlertReceiver) string {
+	return receiver.Name + "-" + receiver.User + "-" + receiver.Severity + receiver.Type
+}
+
+// Receiver includes a route and a receiver which will receive the alert
+// we create a route on the org tags for a given appInstance
+func (s *AlertMrgServer) CreateReceiver(ctx context.Context, receiver *ormapi.AlertReceiver, routeMatchLabels map[string]string, cfg interface{}) error {
+	// sanity - certain characters should not be part of the receiver name
+	if strings.ContainsAny(receiver.Name, "-:") {
+		return fmt.Errorf("Receiver name cannot contain dashes(\"-\"), or colons(\":\")")
+	}
+
+	// read file and greab a lock
+	err := s.readAlertManagerConfigAndLock(ctx, AlertManagerConfig)
+	defer configLock.Unlock()
+	if err != nil {
+		return err
+	}
+
 	// We create one entry per receiver, to make it simpler
-	receiverName := receiver.Name + receiver.Severity + receiver.Type + receiver.Name
+	receiverName := getAlertmgrReceiverName(receiver)
 	for _, rec := range AlertManagerConfig.Receivers {
 		if rec.Name == receiverName {
 			log.SpanLog(ctx, log.DebugLevelInfo, "Receiver Exists - delete it first")
@@ -218,15 +354,14 @@ func (s *AlertMrgServer) CreateReceiver(ctx context.Context, receiver *ormapi.Al
 	}
 	// add a new reciever
 	switch receiver.Type {
-	case "email":
-		user, ok := cfg.(ormapi.User)
+	case AlertReceiverTypeEmail:
+		user, ok := cfg.(*ormapi.User)
 		if !ok {
 			log.SpanLog(ctx, log.DebugLevelInfo, "Passed in struct is not a user struct")
 			return fmt.Errorf("Passed in struct is not a user struct")
 		}
 		emailCfg := alertmanager_config.EmailConfig{
 			To:   user.Email,
-			From: "alerts@mobiledgex.net",
 			Text: "TODO - write me",
 		}
 		rec := &alertmanager_config.Receiver{
@@ -235,7 +370,7 @@ func (s *AlertMrgServer) CreateReceiver(ctx context.Context, receiver *ormapi.Al
 			EmailConfigs: []*alertmanager_config.EmailConfig{&emailCfg},
 		}
 		AlertManagerConfig.Receivers = append(AlertManagerConfig.Receivers, rec)
-	case "slack":
+	case AlertReceiverTypeSlack:
 		// TODO - need to figure out where to add slack details; as in which struct
 		fallthrough
 	default:
@@ -251,28 +386,48 @@ func (s *AlertMrgServer) CreateReceiver(ctx context.Context, receiver *ormapi.Al
 	}
 	AlertManagerConfig.Route.Routes = append(AlertManagerConfig.Route.Routes, &route)
 	// write config out
-	err = ioutil.WriteFile(s.AlertMgrConfigPath, []byte(AlertManagerConfig.String()), 0644)
-	if err != nil {
-		log.SpanLog(ctx, log.DebugLevelInfo, "Unable to write alertmanager config file",
-			"file", s.AlertMgrConfigPath, "config", AlertManagerConfig.String())
-		return err
-	}
-	// restart alertmanager - call api
-	_, err = s.alertMgrApi(ctx, "POST", ReloadConfigApi, "", nil)
-	return err
+	return s.writeAlertManagerConfigLocked(ctx, AlertManagerConfig)
 }
 
-// TODO
-func (s *AlertMrgServer) DeleteReceiver(ctx context.Context, receivers *ormapi.AlertReceiver) error {
-	// grab config lock
-	// read config
-	// find receiver and remove it from the config
-	// write config back
-	// reestart alertmanager
+func (s *AlertMrgServer) DeleteReceiver(ctx context.Context, receiver *ormapi.AlertReceiver) error {
+	// sanity - certain characters should not be part of the receiver name
+	if strings.ContainsAny(receiver.Name, "-:") {
+		return fmt.Errorf("Receiver name cannot contain dashes(\"-\"), or colons(\":\")")
+	}
+
+	// read file and greab a lock
+	err := s.readAlertManagerConfigAndLock(ctx, AlertManagerConfig)
+	defer configLock.Unlock()
+	if err != nil {
+		return err
+	}
+
+	// We create one entry per receiver, to make it simpler
+	receiverName := getAlertmgrReceiverName(receiver)
+	for ii, rec := range AlertManagerConfig.Receivers {
+		if rec.Name == receiverName {
+			log.SpanLog(ctx, log.DebugLevelInfo, "Found Receiver - now delete it")
+			// remove from the receivers
+			AlertManagerConfig.Receivers = append(AlertManagerConfig.Receivers[:ii],
+				AlertManagerConfig.Receivers[ii+1:]...)
+			// remove from routes
+			for jj, route := range AlertManagerConfig.Route.Routes {
+				if route.Receiver == receiverName {
+					AlertManagerConfig.Route.Routes = append(AlertManagerConfig.Route.Routes[:jj],
+						AlertManagerConfig.Route.Routes[jj+1:]...)
+					break
+				}
+			}
+			// write config out and return
+			return s.writeAlertManagerConfigLocked(ctx, AlertManagerConfig)
+
+		}
+	}
+	// nothing changed - just return nil
 	return nil
 }
 
-// TODO
+// TODO - use local version of AlertManagerConfig
 func (s *AlertMrgServer) ShowReceivers(ctx context.Context, filter ormapi.AlertReceiver) ([]ormapi.AlertReceiver, error) {
 	// grab config lock
 	// read config

@@ -765,3 +765,7 @@ func (s *Server) setupConsoleProxy(ctx context.Context) {
 		log.FatalLog("Failed to start console proxy server", "err", err)
 	}
 }
+
+func (s *Server) GetVaultConfig() *vault.Config {
+	return s.config.vaultConfig
+}

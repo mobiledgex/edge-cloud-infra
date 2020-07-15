@@ -78,7 +78,11 @@ func main() {
 	}
 	defer server.Stop()
 
-	alertMgrServer := alertmgr.NewAlertMgrServer(*alertMgrAddr, &alertCache)
+	alertMgrServer, err := alertmgr.NewAlertMgrServer(*alertMgrAddr, alertmgr.AlertManagerConfigPath,
+		server.GetVaultConfig(), *localVault, &alertCache)
+	if err != nil {
+		log.FatalLog("Failed to run alertmanager server", "err", err)
+	}
 	// sets the callback to be the alertMgr thread callback
 	alertCache.SetUpdatedCb(alertMgrServer.UpdateAlert)
 	alertMgrServer.Start()

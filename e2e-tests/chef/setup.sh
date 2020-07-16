@@ -36,14 +36,17 @@ PATCHOK=$(cat $CHEFOMNIPATH/cookbook-omnifetch/metadata_based_installer.rb | gre
 knife opc org create mobiledgex MobiledgeX Org --filename $VALIDATIONKEY -c $KNIFECFG
 
 # Upload dependent cookbooks
-for remoteCookbook in "docker" "iptables"; do
-  if [ ! -f /tmp/chef_$remoteCookbook.tar.gz ]; then
-    knife supermarket download $remoteCookbook -f /tmp/chef_$remoteCookbook.tar.gz
+for remoteCookbook in "docker 6.0.3" "iptables 7.0.0"; do
+  parts=(${remoteCookbook})
+  name=${parts[0]}
+  version=${parts[1]}
+  if [ ! -f /tmp/chef_$name.tar.gz ]; then
+    knife supermarket download $name $version -f /tmp/chef_$name.tar.gz
   fi
-  tar -xzf /tmp/chef_$remoteCookbook.tar.gz -C /tmp/
-  knife cookbook upload $remoteCookbook -c $KNIFECFG --cookbook-path /tmp/
-  [[ $? -ne 0 ]] && die "Failed to upload cookbook $remoteCookbook"
-  rm -r /tmp/$remoteCookbook
+  tar -xzf /tmp/chef_$name.tar.gz -C /tmp/
+  knife cookbook upload $name -c $KNIFECFG --cookbook-path /tmp/
+  [[ $? -ne 0 ]] && die "Failed to upload cookbook $name"
+  rm -r /tmp/$name
 done
 
 # Upload cookbooks from our repository
@@ -58,11 +61,9 @@ do
 done
 
 policyGroup="local"
-for policyFile in `ls $CHEFPATH/policyfiles/*.lock.json`
-do
-  echo "Upload policy $policyFile to group $policyGroup"
-  ( cd $CHEFPATH/policyfiles ; chef push $policyGroup $policyFile -c $KNIFECFG )
-  [[ $? -ne 0 ]] && die "Failed to push policyfile $policyFile to policy group $policyGroup"
-done
+policyFile="$CHEFPATH/policyfiles/local_crm.lock.json"
+echo "Upload policy $policyFile to group $policyGroup"
+( cd $CHEFPATH/policyfiles ; chef push $policyGroup $policyFile -c $KNIFECFG )
+[[ $? -ne 0 ]] && die "Failed to push policyfile $policyFile to policy group $policyGroup"
 
 exit 0

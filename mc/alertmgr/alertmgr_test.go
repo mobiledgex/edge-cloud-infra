@@ -17,9 +17,19 @@ import (
 	"github.com/mobiledgex/edge-cloud/edgeproto"
 	"github.com/mobiledgex/edge-cloud/log"
 	"github.com/mobiledgex/edge-cloud/vault"
-	open_api_models "github.com/prometheus/alertmanager/api/v2/models"
-	alertmanager_config "github.com/prometheus/alertmanager/config"
-	"github.com/prometheus/common/model"
+
+	//	open_api_models "github.com/prometheus/alertmanager/api/v2/models"
+	// TODO - below is to replace the above for right now - once we update go and modules we can use prometheus directly
+	open_api_models "github.com/mobiledgex/edge-cloud-infra/mc/alertmgr/prometheus_structs/models"
+
+	// alertmanager_config "github.com/prometheus/alertmanager/config"
+	// TODO - below is to replace the above for right now - once we update go and modules we can use prometheus directly
+	alertmanager_config "github.com/mobiledgex/edge-cloud-infra/mc/alertmgr/prometheus_structs/config"
+
+	//	"github.com/prometheus/common/model"
+	// TODO - below is to replace the above for right now - once we update go and modules we can use prometheus directly
+	model "github.com/mobiledgex/edge-cloud-infra/mc/alertmgr/prometheus_structs/model"
+
 	"github.com/stretchr/testify/require"
 )
 
@@ -119,7 +129,6 @@ func (s *AlertmanagerMock) registerCreateAlerts() {
 func (s *AlertmanagerMock) registerGetAlerts() {
 	httpmock.RegisterResponder("GET", s.addr+"/"+AlertApi,
 		func(req *http.Request) (*http.Response, error) {
-			//alerts := []model.Alert{}
 			alerts := open_api_models.GettableAlerts{}
 			for _, alert := range s.alerts {
 				labels := open_api_models.LabelSet{}

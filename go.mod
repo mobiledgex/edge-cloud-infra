@@ -16,7 +16,10 @@ require (
 	github.com/elazarl/goproxy/ext v0.0.0-20190410145444-c548f45dcf1d // indirect
 	github.com/fsouza/go-dockerclient v1.3.6
 	github.com/go-chef/chef v0.20.1
+	github.com/go-openapi/errors v0.19.4
 	github.com/go-openapi/strfmt v0.19.5
+	github.com/go-openapi/swag v0.19.9
+	github.com/go-openapi/validate v0.19.8
 	github.com/go-resty/resty/v2 v2.0.0
 	github.com/gogo/googleapis v1.1.0
 	github.com/gogo/protobuf v1.3.1

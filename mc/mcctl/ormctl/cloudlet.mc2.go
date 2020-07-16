@@ -218,7 +218,6 @@ var UpdateCloudletOptionalArgs = []string{
 	"crmoverride",
 	"accessvars",
 	"maintenancestate",
-	"overridepolicycontainerversion",
 }
 
 var ShowCloudletInfoCmd = &cli.Command{

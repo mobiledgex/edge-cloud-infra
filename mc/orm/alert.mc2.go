@@ -576,7 +576,7 @@ func addControllerApis(method string, group *echo.Group) {
 	// ChefClientKeyKey: 29.1
 	// ChefClientKeyValue: 29.2
 	// MaintenanceState: 30
-	// PolicyOverride: 31
+	// OverridePolicyContainerVersion: 31
 	// ```
 	// Security:
 	//   Bearer:

@@ -13,6 +13,7 @@ TLSPATH=$ECPATH/tls/out/mex-server.crt
 REGION="local"
 POLICYGROUP="local"
 DEPLOYMENT_TYPE="docker"
+TEST_MODE="cookbook"
 
 USAGE="usage: $( basename $0 ) <options>
 
@@ -21,11 +22,12 @@ USAGE="usage: $( basename $0 ) <options>
  -t <deployment-type>  Deployment Type [\"local\", \"docker\"] (default: \"$DEPLOYMENT_TYPE\")
  -r <region>           Region (default: \"$REGION\")
  -p <registry-pwd>     Password to access docker registry
+ -m <mode>             Test Mode [\"cookbook\", \"policy\"] (default: \"$TEST_MODE\")
 
  -h                    Display this help message
 "
 
-while getopts ":hc:o:t:r:p:" OPT; do
+while getopts ":hc:o:t:r:p:m:" OPT; do
         case "$OPT" in
         h) echo "$USAGE"; exit 0 ;;
         c) CLOUDLET="$OPTARG" ;;
@@ -33,6 +35,7 @@ while getopts ":hc:o:t:r:p:" OPT; do
         t) DEPLOYMENT_TYPE="$OPTARG" ;;
         r) REGION="$OPTARG" ;;
         p) REGISTRY_PASS="$OPTARG" ;;
+        m) TEST_MODE="$OPTARG" ;;
         esac
 done
 shift $(( OPTIND - 1 ))
@@ -82,15 +85,25 @@ else
 fi
 
 # Fetch client key for the node
-edgectl --tls $ECPATH/tls/out/mex-client.crt controller ShowCloudlet cloudlet=chef-test-1 cloudlet-org=TDG --output-format json | jq -r '.[] | "\(.chef_client_key[])"' > $CLIENT_KEY_PATH
+edgectl --tls $ECPATH/tls/out/mex-client.crt controller ShowCloudlet cloudlet=$CLOUDLET cloudlet-org=$CLOUDLET_ORG --output-format json | jq -r '.[] | "\(.chef_client_key[])"' > $CLIENT_KEY_PATH
 [[ $? -ne 0 ]] && die "Failed to fetch client key: cloudlet=$CLOUDLET, cloudlet-org=$CLOUDLET_ORG"
 
-# Set run_list and skip using policyfile for testing
-knife node run_list set $CLIENT_NAME "recipe[runstatus_handler]" "recipe[setup_infra]" "recipe[preflight_crm_checks]" "recipe[setup_services::$DEPLOYMENT_TYPE]" -c $KNIFECFG
-[[ $? -ne 0 ]] && die "Failed to set run_list: client-name=$CLIENT_NAME"
+if [[ "$TEST_MODE" == "cookbook" ]]; then
+  # Set run_list and skip using policyfile for testing
+  knife node run_list set $CLIENT_NAME "recipe[runstatus_handler]" "recipe[setup_infra]" "recipe[preflight_crm_checks]" "recipe[setup_services::$DEPLOYMENT_TYPE]" -c $KNIFECFG
+  [[ $? -ne 0 ]] && die "Failed to set run_list: client-name=$CLIENT_NAME"
+else
+  knife node policy set $CLIENT_NAME "local" "local_crm" -c $KNIFECFG
+  [[ $? -ne 0 ]] && die "Failed to set run_list: client-name=$CLIENT_NAME"
+
+  if [[ "$DEPLOYMENT_TYPE" == "local" ]]; then
+    NAMEDRUNLIST="--named-run-list local"
+  fi
+fi
 
 # Start chef-client run
-chef-client --node-name $CLIENT_NAME --client_key $CLIENT_KEY_PATH -c $CLIENTCFG
+chef-client --node-name $CLIENT_NAME --client_key $CLIENT_KEY_PATH $NAMEDRUNLIST -c $CLIENTCFG
+
 
 echo
 echo "Notes:"

@@ -7,7 +7,7 @@ services.each { |service,service_cmd|
 
   Chef::Log.info("Starting #{service} #{cKey}")
   envvars = {}
-  node['crmserver']['env'].each { |envvar|
+  node[service]['env'].each { |envvar|
     keyval = envvar.split('=')
     envvars[keyval[0]] = keyval[1]
   }

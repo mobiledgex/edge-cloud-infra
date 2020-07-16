@@ -249,8 +249,7 @@ func ChefClientCreate(ctx context.Context, client *chef.Client, chefParams *VMCh
 		JsonClass:        "Chef::Node",
 		NormalAttributes: chefParams.Attributes,
 	}
-	// In local mode, do use policy groups (some issue with chef server)
-	// We'll directly use cookbooks from repo
+	// In local mode, don't use policyfile, this gives us flexibility in our testing
 	if !localMode {
 		nodeObj.PolicyName = chefParams.PolicyName
 		nodeObj.PolicyGroup = chefParams.PolicyGroup
@@ -258,11 +257,6 @@ func ChefClientCreate(ctx context.Context, client *chef.Client, chefParams *VMCh
 	_, err = client.Nodes.Post(nodeObj)
 	if err != nil {
 		return "", fmt.Errorf("failed to create node %s: %v", clientName, err)
-	}
-
-	if localMode {
-		// if chef server is running locally, then it doesn't support acls
-		return clientKey, nil
 	}
 
 	aclTypes := []string{"update", "create", "delete", "read"}

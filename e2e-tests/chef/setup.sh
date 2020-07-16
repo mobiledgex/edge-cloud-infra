@@ -1,7 +1,9 @@
 #!/bin/sh
 
-# exit immediately on failure
-set -e
+die() {
+        echo "ERROR: $*"
+        exit 2
+}
 
 # Make sure required binaries exists
 type chef-client > /dev/null
@@ -17,6 +19,20 @@ CHEFTESTPATH=$ROOTPATH/e2e-tests/chef
 KNIFECFG=$CHEFTESTPATH/knife_local.rb
 VALIDATIONKEY=/tmp/validation_key.pem
 
+# Apply following patch as policyFiles doesn't work with chef-zero without this fix
+# Will remove it, once it is part of next chef release
+# Refer this issue: https://github.com/chef/chef-cli/issues/111
+CHEFLIBPATH=$(knife exec -E 'puts $LOAD_PATH' | grep "chef-1.*" | uniq)
+[[ -z $CHEFLIBPATH ]] && die "Missing chef lib path, make sure chef is installed properly"
+PATCHOK=$(cat $CHEFLIBPATH/chef/http/authenticator.rb | grep 'DEFAULT_SERVER_API_VERSION = "2".freeze')
+[[ -z $PATCHOK ]] && die "Please execute following command to patch a fix for tests to work:\nsudo sed -i -e 's/DEFAULT_SERVER_API_VERSION = \"1\".freeze/DEFAULT_SERVER_API_VERSION = \"2\".freeze/g' $CHEFLIBPATH/chef/http/authenticator.rb"
+
+# https://github.com/chef/cookbook-omnifetch/issues/30
+CHEFOMNIPATH=$(knife exec -E 'puts $LOAD_PATH' | grep "cookbook-omnifetch" | uniq)
+[[ -z $CHEFOMNIPATH ]] && die "Missing chef cookbook-omnifetch, make sure chef is installed properly"
+PATCHOK=$(cat $CHEFOMNIPATH/cookbook-omnifetch/metadata_based_installer.rb | grep 'all_files')
+[[ -z $PATCHOK ]] && die "Please execute following command to patch a fix for tests to work:\ncd $CHEFOMNIPATH/cookbook-omnifetch/; sudo patch -p1 < $CHEFTESTPATH/omnifetch_patch.diff; cd -"
+
 knife opc org create mobiledgex MobiledgeX Org --filename $VALIDATIONKEY -c $KNIFECFG
 
 # Upload dependent cookbooks
@@ -26,6 +42,7 @@ for remoteCookbook in "docker" "iptables"; do
   fi
   tar -xzf /tmp/chef_$remoteCookbook.tar.gz -C /tmp/
   knife cookbook upload $remoteCookbook -c $KNIFECFG --cookbook-path /tmp/
+  [[ $? -ne 0 ]] && die "Failed to upload cookbook $remoteCookbook"
   rm -r /tmp/$remoteCookbook
 done
 
@@ -36,6 +53,7 @@ do
   if [ -d "$CHEFPATH/cookbooks/$cookbook" ]; then
     echo "Upload cookbook $cookbook"
     knife cookbook upload $cookbook -c $KNIFECFG
+    [[ $? -ne 0 ]] && die "Failed to upload cookbook $cookbook"
   fi
 done
 
@@ -44,4 +62,7 @@ for policyFile in `ls $CHEFPATH/policyfiles/*.lock.json`
 do
   echo "Upload policy $policyFile to group $policyGroup"
   ( cd $CHEFPATH/policyfiles ; chef push $policyGroup $policyFile -c $KNIFECFG )
+  [[ $? -ne 0 ]] && die "Failed to push policyfile $policyFile to policy group $policyGroup"
 done
+
+exit 0

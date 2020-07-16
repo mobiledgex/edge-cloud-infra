@@ -617,9 +617,9 @@ func (p *ChefServer) StartLocal(logfile string, opts ...process.StartOp) error {
 	}
 
 	cmd := exec.Command("./e2e-tests/chef/setup.sh")
-	_, err = cmd.CombinedOutput()
+	out, err := cmd.CombinedOutput()
 	if err != nil {
-		return err
+		return fmt.Errorf("Failed to execute ./e2e-tests/chef/setup.sh: %v, %s", err, out)
 	}
 
 	return err

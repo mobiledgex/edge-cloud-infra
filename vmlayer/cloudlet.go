@@ -437,7 +437,7 @@ func GetChefCloudletAttributes(ctx context.Context, cloudlet *edgeproto.Cloudlet
 	}
 	chefAttributes["edgeCloudImage"] = pfConfig.ContainerRegistryPath
 	chefAttributes["edgeCloudVersion"] = cloudlet.ContainerVersion
-	if cloudlet.PolicyOverride {
+	if cloudlet.OverridePolicyContainerVersion {
 		chefAttributes["edgeCloudVersionOverride"] = cloudlet.ContainerVersion
 	}
 	chefAttributes["notifyAddrs"] = pfConfig.NotifyCtrlAddrs

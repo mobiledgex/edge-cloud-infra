@@ -322,10 +322,6 @@ func (v *VMPlatform) AttachAndEnableRootLBInterface(ctx context.Context, client 
 	}
 	var action InterfaceActionsOp
 	action.createIptables = true
-	sd1, err := v.VMProvider.GetServerDetail(ctx, rootLBName)
-	if err != nil {
-		return fmt.Errorf("fail to get sd1 after attach %v", err)
-	}
 	if attachPort {
 		action.addInterface = true
 		err := v.VMProvider.AttachPortToServer(ctx, rootLBName, subnetName, internalPortName, internalIPAddr, ActionCreate)
@@ -349,13 +345,6 @@ func (v *VMPlatform) AttachAndEnableRootLBInterface(ctx context.Context, client 
 		}
 		return err
 	}
-	sd2, err := v.VMProvider.GetServerDetail(ctx, rootLBName)
-	if err != nil {
-		return fmt.Errorf("FAIL TO GET SD AFTER ATTACH - %v", err)
-	}
-	log.SpanLog(ctx, log.DebugLevelInfra, "XXXXX old server detail after attach", "sd1", sd1)
-	log.SpanLog(ctx, log.DebugLevelInfra, "XXXXX new server detail after attach", "sd2", sd2)
-	v.compareSips(ctx, "attachport:"+subnetName, sd1, sd2)
 	return nil
 }
 
@@ -393,52 +382,8 @@ func (v *VMPlatform) DetachAndDisableRootLBInterface(ctx context.Context, client
 		// might already be gone
 		log.SpanLog(ctx, log.DebugLevelInfra, "fail to detach port", "err", err)
 	}
-	sd2, err := v.VMProvider.GetServerDetail(ctx, rootLBName)
-	if err != nil {
-		log.WarnLog("FAIL TO GET SD after detach, sleep try again", "err", err)
-		time.Sleep(5 * time.Second)
-		sd2, err = v.VMProvider.GetServerDetail(ctx, rootLBName)
-		log.WarnLog("FAIL TO GET SD second time after detach, sleep try again", "err", err)
-		return err
-	}
-	log.SpanLog(ctx, log.DebugLevelInfra, "XXXXX old server detail after detach", "subnet", subnetName, "sd1", sd)
-	log.SpanLog(ctx, log.DebugLevelInfra, "XXXXX new server detail after detach", "subnet", subnetName, "sd2", sd2)
-	v.compareSips(ctx, "detachport:"+subnetName, sd, sd2)
 
 	return err
-}
-
-func (v *VMPlatform) compareSips(ctx context.Context, label string, oldsd, newsd *ServerDetail) {
-	log.SpanLog(ctx, log.DebugLevelInfra, "XXXXX compareSips", "label", label, "oldsas", len(oldsd.Addresses), "newsas", len(newsd.Addresses))
-
-	for _, saold := range oldsd.Addresses {
-		found := false
-		newnet := ""
-		for _, sanew := range newsd.Addresses {
-			if sanew.MacAddress == saold.MacAddress {
-				found = true
-				newnet = sanew.Network
-			}
-		}
-		if !found {
-			log.SpanLog(ctx, log.DebugLevelInfra, "XXXXX compareSips mac removed", "label", label, "mac", saold.MacAddress, "network", saold.Network)
-		} else {
-			if saold.Network != newnet {
-				log.SpanLog(ctx, log.DebugLevelInfra, "XXXXX compareSips net changed", "label", label, "mac", saold.MacAddress, "oldnet", saold.Network, "newnet", newnet)
-			}
-		}
-	}
-	for _, sanew := range newsd.Addresses {
-		found := false
-		for _, saold := range oldsd.Addresses {
-			if saold.MacAddress == sanew.MacAddress {
-				found = true
-			}
-		}
-		if !found {
-			log.SpanLog(ctx, log.DebugLevelInfra, "XXXXX compareSips mac added", "label", label, "mac", sanew.MacAddress, "network", sanew.Network)
-		}
-	}
 }
 
 //MEXRootLB has rootLB data
@@ -449,7 +394,6 @@ type MEXRootLB struct {
 
 var rootLBLock sync.Mutex
 var MaxRootLBWait = 5 * time.Minute
-
 var MEXRootLBMap = make(map[string]*MEXRootLB)
 
 // GetVMSpecForRootLB gets the VM spec for the rootLB when it is not specified within a cluster. This is

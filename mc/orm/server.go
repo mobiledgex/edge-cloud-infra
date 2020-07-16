@@ -184,7 +184,7 @@ func RunServer(config *ServerConfig) (*Server, error) {
 		if config.InitLocal || os.IsNotExist(err) {
 			sql.InitDataDir()
 		}
-		err = sql.StartLocal("")
+		err = sql.StartLocal("", process.WithCleanStartup())
 		if err != nil {
 			return nil, fmt.Errorf("local sql start failed, %s",
 				err.Error())
@@ -384,7 +384,7 @@ func RunServer(config *ServerConfig) (*Server, error) {
 		if err != nil {
 			return nil, err
 		}
-		server.notifyServer.Start(config.NotifySrvAddr, tlsConfig)
+		server.notifyServer.Start(nodeMgr.Name(), config.NotifySrvAddr, tlsConfig)
 	}
 	if config.NotifyAddrs != "" {
 		tlsConfig, err := nodeMgr.InternalPki.GetClientTlsConfig(ctx,
@@ -395,7 +395,7 @@ func RunServer(config *ServerConfig) (*Server, error) {
 			return nil, err
 		}
 		addrs := strings.Split(config.NotifyAddrs, ",")
-		server.notifyClient = notify.NewClient(addrs, edgetls.GetGrpcDialOption(tlsConfig))
+		server.notifyClient = notify.NewClient(nodeMgr.Name(), addrs, edgetls.GetGrpcDialOption(tlsConfig))
 		nodeMgr.RegisterClient(server.notifyClient)
 
 		server.notifyClient.Start()

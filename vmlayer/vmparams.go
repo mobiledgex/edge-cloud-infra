@@ -197,6 +197,7 @@ type VMGroupRequestSpec struct {
 	InitOrchestrator       bool
 	Domain                 string
 	ChefUpdateInfo         map[string]string
+	SkipCleanupOnFailure   bool
 }
 
 type VMGroupReqOp func(vmp *VMGroupRequestSpec) error
@@ -252,6 +253,12 @@ func WithInitOrchestrator(init bool) VMGroupReqOp {
 func WithChefUpdateInfo(updateInfo map[string]string) VMGroupReqOp {
 	return func(s *VMGroupRequestSpec) error {
 		s.ChefUpdateInfo = updateInfo
+		return nil
+	}
+}
+func WithSkipCleanupOnFailure(skip bool) VMGroupReqOp {
+	return func(s *VMGroupRequestSpec) error {
+		s.SkipCleanupOnFailure = skip
 		return nil
 	}
 }
@@ -438,6 +445,7 @@ type VMGroupOrchestrationParams struct {
 	SkipSubnetGateway      bool
 	InitOrchestrator       bool
 	ChefUpdateInfo         map[string]string
+	SkipCleanupOnFailure   bool
 }
 
 func (v *VMPlatform) GetVMRequestSpec(ctx context.Context, vmtype VMType, serverName, flavorName string, imageName string, connectExternal bool, opts ...VMReqOp) (*VMRequestSpec, error) {
@@ -478,7 +486,7 @@ func (v *VMPlatform) GetVMGroupOrchestrationParamsFromVMSpec(ctx context.Context
 func (v *VMPlatform) getVMGroupOrchestrationParamsFromGroupSpec(ctx context.Context, spec *VMGroupRequestSpec) (*VMGroupOrchestrationParams, error) {
 	log.SpanLog(ctx, log.DebugLevelInfra, "GetVMGroupOrchestrationParams", "spec", spec)
 
-	vmgp := VMGroupOrchestrationParams{GroupName: spec.GroupName, InitOrchestrator: spec.InitOrchestrator}
+	vmgp := VMGroupOrchestrationParams{GroupName: spec.GroupName, InitOrchestrator: spec.InitOrchestrator, SkipCleanupOnFailure: spec.SkipCleanupOnFailure}
 	internalNetName := v.VMProperties.GetCloudletMexNetwork()
 	internalNetId := v.VMProvider.NameSanitize(internalNetName)
 	externalNetName := v.VMProperties.GetCloudletExternalNetwork()
@@ -487,11 +495,7 @@ func (v *VMPlatform) getVMGroupOrchestrationParamsFromGroupSpec(ctx context.Cont
 	cloudflareDns := []string{"1.1.1.1", "1.0.0.1"}
 	vmDns := ""
 	subnetDns := []string{}
-	var err error
-	cloudletSecGrpID := ""
-	if !spec.SkipDefaultSecGrp {
-		cloudletSecGrpID, err = v.VMProvider.GetResourceID(ctx, ResourceTypeSecurityGroup, v.VMProperties.GetCloudletSecurityGroupName())
-	}
+	cloudletSecGrpID, err := v.VMProvider.GetResourceID(ctx, ResourceTypeSecurityGroup, v.VMProperties.GetCloudletSecurityGroupName())
 	internalSecgrpID := ""
 	internalSecgrpPreexisting := false
 
@@ -525,11 +529,9 @@ func (v *VMPlatform) getVMGroupOrchestrationParamsFromGroupSpec(ctx context.Cont
 	} else {
 		log.SpanLog(ctx, log.DebugLevelInfra, "External router in use")
 		if spec.NewSubnetName != "" {
-			if !spec.SkipDefaultSecGrp {
-				log.SpanLog(ctx, log.DebugLevelInfra, "SkipDefaultSecGrp flag set")
-				internalSecgrpID = cloudletSecGrpID
-				internalSecgrpPreexisting = true
-			}
+			internalSecgrpID = cloudletSecGrpID
+			internalSecgrpPreexisting = true
+
 			rtrInUse = true
 			routerPortName := spec.NewSubnetName + "-rtr-port"
 			routerPort := PortOrchestrationParams{
@@ -546,6 +548,7 @@ func (v *VMPlatform) getVMGroupOrchestrationParamsFromGroupSpec(ctx context.Cont
 					},
 				},
 			}
+			routerPort.SecurityGroups = append(routerPort.SecurityGroups, NewResourceReference(cloudletSecGrpID, cloudletSecGrpID, true))
 			vmgp.Ports = append(vmgp.Ports, routerPort)
 			newRouterIf := RouterInterfaceOrchestrationParams{
 				RouterName: v.VMProperties.GetCloudletExternalRouter(),

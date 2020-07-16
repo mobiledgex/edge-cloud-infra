@@ -79,6 +79,7 @@
           ES_INDEX_PREFIX: "{{ es_index_prefix | default('main') }}"
           ES_USERNAME: "{{ jaeger_es_user }}"
           ES_PASSWORD: "{{ jaeger_es_pass }}"
+          ES_MAX_SPAN_AGE: "720h"
 
     - name: Deploy jaeger query
       docker_container:
@@ -93,6 +94,7 @@
           ES_INDEX_PREFIX: "{{ es_index_prefix | default('main') }}"
           ES_USERNAME: "{{ jaeger_es_user }}"
           ES_PASSWORD: "{{ jaeger_es_pass }}"
+          ES_MAX_SPAN_AGE: "720h"
 
     - name: Install dependencies
       apt:

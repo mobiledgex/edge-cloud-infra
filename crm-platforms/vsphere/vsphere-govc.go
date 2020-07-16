@@ -506,14 +506,11 @@ func (v *VSpherePlatform) getServerDetailFromGovcVm(ctx context.Context, govcVm 
 
 	for i, sip := range sd.Addresses {
 		macFound := ""
-
 		log.SpanLog(ctx, log.DebugLevelInfra, "Looking for mac for server ip", "sip", sip)
-
 		for _, dev := range govcVm.Config.Hardware.Device {
 			if dev.MacAddress != "" {
 				pgrpId := dev.Backing.Port.PortgroupKey
 				pgrp, ok := pgrps[pgrpId]
-				log.SpanLog(ctx, log.DebugLevelInfra, "Found device with MAC", "MacAddress", dev.MacAddress, "pgrp", pgrp)
 				if !ok {
 					return nil, fmt.Errorf("Port group id not found: %s for VM %s", pgrpId, govcVm.Name)
 				}
@@ -534,7 +531,6 @@ func (v *VSpherePlatform) getServerDetailFromGovcVm(ctx context.Context, govcVm 
 			log.SpanLog(ctx, log.DebugLevelInfra, "Could not find port group to locate MAC for server address on net", "net", sip.Network)
 		}
 	}
-
 	return &sd, nil
 }
 

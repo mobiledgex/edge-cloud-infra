@@ -33,6 +33,8 @@ const AttachPortAfterCreate InternalPortAttachPolicy = "AttachPortAfterCreate"
 
 var udevRulesFile = "/etc/udev/rules.d/70-persistent-net.rules"
 
+var sharedRootLBPortLock sync.Mutex
+
 type InterfaceActionsOp struct {
 	addInterface    bool
 	deleteInterface bool
@@ -47,7 +49,7 @@ var RootLBPorts = []dme.AppPort{{
 
 // creates entries in the 70-persistent-net.rules files to ensure the interface names are consistent after reboot
 func persistInterfaceName(ctx context.Context, client ssh.Client, ifName, mac string, action *InterfaceActionsOp) error {
-	log.SpanLog(ctx, log.DebugLevelInfra, "persistInterfaceName", "ifName", ifName, "mac", mac)
+	log.SpanLog(ctx, log.DebugLevelInfra, "persistInterfaceName", "ifName", ifName, "mac", mac, "action", action)
 	newFileContents := ""
 
 	cmd := fmt.Sprintf("sudo cat %s", udevRulesFile)
@@ -253,23 +255,37 @@ func (v *VMPlatform) configureInternalInterfaceAndExternalForwarding(ctx context
 
 		// now bring the new internal interface up.
 
-		cmd = fmt.Sprintf("sudo ip addr add %s/24 dev  %s; sudo ip link set dev %s up", internalIP.InternalAddr, internalIfname, internalIfname)
-		log.SpanLog(ctx, log.DebugLevelInfra, "bringing up interface", "internalIfname", internalIfname, "cmd", cmd)
-		out, err = client.Output(cmd)
-		if err != nil {
-			log.SpanLog(ctx, log.DebugLevelInfra, "unable to run ", "cmd", cmd, "out", out, "err", err)
-			return fmt.Errorf("unable to run ip link up: %s - %v", out, err)
+		var ipcmds []string
+		linkCmd := fmt.Sprintf("sudo ip link set dev %s up", internalIfname)
+		ipcmds = append(ipcmds, linkCmd)
+		flushCmd := fmt.Sprintf("sudo ip addr flush %s", internalIfname)
+		ipcmds = append(ipcmds, flushCmd)
+		addrCmd := fmt.Sprintf("sudo ip addr add %s/24 dev %s", internalIP.InternalAddr, internalIfname)
+		ipcmds = append(ipcmds, addrCmd)
+		for _, c := range ipcmds {
+			log.SpanLog(ctx, log.DebugLevelInfra, "bringing up interface", "internalIfname", internalIfname, "cmd", c)
+			out, err = client.Output(c)
+			if err != nil {
+				log.SpanLog(ctx, log.DebugLevelInfra, "unable to run", "cmd", c, "out", out, "err", err)
+				return fmt.Errorf("unable to run ip command: %s - %v", out, err)
+			}
 		}
 
 	} else if action.deleteInterface {
 		cmd := fmt.Sprintf("sudo rm %s", filename)
 		out, err := client.Output(cmd)
 		if err != nil {
-			if strings.Contains(err.Error(), "No such file") {
+			if strings.Contains(out, "No such file") {
 				log.SpanLog(ctx, log.DebugLevelInfra, "file already gone", "filename", filename)
 			} else {
 				return fmt.Errorf("Unexpected error removing interface file %s, %s -- %v", filename, out, err)
 			}
+		}
+		cmd = fmt.Sprintf("sudo ip addr flush %s", internalIfname)
+		log.SpanLog(ctx, log.DebugLevelInfra, "removing ip from interface", "internalIfname", internalIfname, "cmd", internalIfname)
+		out, err = client.Output(cmd)
+		if err != nil {
+			log.SpanLog(ctx, log.DebugLevelInfra, "unable to run ", "cmd", cmd, "out", out, "err", err)
 		}
 	}
 	// we can get here on some error cases in which the ifname were not found
@@ -298,8 +314,18 @@ func (v *VMPlatform) configureInternalInterfaceAndExternalForwarding(ctx context
 func (v *VMPlatform) AttachAndEnableRootLBInterface(ctx context.Context, client ssh.Client, rootLBName string, attachPort bool, subnetName, internalPortName, internalIPAddr string) error {
 	log.SpanLog(ctx, log.DebugLevelInfra, "AttachAndEnableRootLBInterface", "rootLBName", rootLBName, "attachPort", attachPort, "subnetName", subnetName, "internalPortName", internalPortName)
 
+	if rootLBName == v.VMProperties.SharedRootLBName {
+		log.SpanLog(ctx, log.DebugLevelInfra, "AttachAndEnableRootLBInterface Wait for sharedRootLBPortLock ", "rootLBName", rootLBName)
+		sharedRootLBPortLock.Lock()
+		log.SpanLog(ctx, log.DebugLevelInfra, "AttachAndEnableRootLBInterface sharedRootLBPortLock acquired ", "rootLBName", rootLBName)
+		defer sharedRootLBPortLock.Unlock()
+	}
 	var action InterfaceActionsOp
 	action.createIptables = true
+	sd1, err := v.VMProvider.GetServerDetail(ctx, rootLBName)
+	if err != nil {
+		return fmt.Errorf("fail to get sd1 after attach %v", err)
+	}
 	if attachPort {
 		action.addInterface = true
 		err := v.VMProvider.AttachPortToServer(ctx, rootLBName, subnetName, internalPortName, internalIPAddr, ActionCreate)
@@ -323,6 +349,13 @@ func (v *VMPlatform) AttachAndEnableRootLBInterface(ctx context.Context, client 
 		}
 		return err
 	}
+	sd2, err := v.VMProvider.GetServerDetail(ctx, rootLBName)
+	if err != nil {
+		return fmt.Errorf("FAIL TO GET SD AFTER ATTACH - %v", err)
+	}
+	log.SpanLog(ctx, log.DebugLevelInfra, "XXXXX old server detail after attach", "sd1", sd1)
+	log.SpanLog(ctx, log.DebugLevelInfra, "XXXXX new server detail after attach", "sd2", sd2)
+	v.compareSips(ctx, "attachport:"+subnetName, sd1, sd2)
 	return nil
 }
 
@@ -332,14 +365,19 @@ func (v *VMPlatform) GetRootLBName(key *edgeproto.CloudletKey) string {
 }
 
 // DetachAndDisableRootLBInterface performs some cleanup when deleting the rootLB port.
-func (v *VMPlatform) DetachAndDisableRootLBInterface(ctx context.Context, client ssh.Client, rootLBName string, detachPort bool, subnetName, internalPortName, internalIPAddr string) error {
+func (v *VMPlatform) DetachAndDisableRootLBInterface(ctx context.Context, client ssh.Client, rootLBName string, subnetName, internalPortName, internalIPAddr string) error {
 	log.SpanLog(ctx, log.DebugLevelInfra, "DetachAndDisableRootLBInterface", "rootLBName", rootLBName, "subnetName", subnetName, "internalPortName", internalPortName)
+	if rootLBName == v.VMProperties.SharedRootLBName {
+		log.SpanLog(ctx, log.DebugLevelInfra, "DetachAndDisableRootLBInterface Wait for sharedRootLBPortLock ", "rootLBName", rootLBName)
+		sharedRootLBPortLock.Lock()
+		log.SpanLog(ctx, log.DebugLevelInfra, "DetachAndDisableRootLBInterface sharedRootLBPortLock acquired ", "rootLBName", rootLBName)
+		defer sharedRootLBPortLock.Unlock()
+	}
 
 	var action InterfaceActionsOp
 	action.deleteIptables = true
-	if detachPort {
-		action.deleteInterface = true
-	}
+	action.deleteInterface = true
+
 	sd, err := v.VMProvider.GetServerDetail(ctx, rootLBName)
 	if err != nil {
 		return err
@@ -349,14 +387,58 @@ func (v *VMPlatform) DetachAndDisableRootLBInterface(ctx context.Context, client
 	if err != nil {
 		log.SpanLog(ctx, log.DebugLevelInfra, "error in configureInternalInterfaceAndExternalForwarding", "err", err)
 	}
-	if detachPort {
-		err = v.VMProvider.DetachPortFromServer(ctx, rootLBName, subnetName, internalPortName)
-		if err != nil {
-			// might already be gone
-			log.SpanLog(ctx, log.DebugLevelInfra, "fail to detach port", "err", err)
+
+	err = v.VMProvider.DetachPortFromServer(ctx, rootLBName, subnetName, internalPortName)
+	if err != nil {
+		// might already be gone
+		log.SpanLog(ctx, log.DebugLevelInfra, "fail to detach port", "err", err)
+	}
+	sd2, err := v.VMProvider.GetServerDetail(ctx, rootLBName)
+	if err != nil {
+		log.WarnLog("FAIL TO GET SD after detach, sleep try again", "err", err)
+		time.Sleep(5 * time.Second)
+		sd2, err = v.VMProvider.GetServerDetail(ctx, rootLBName)
+		log.WarnLog("FAIL TO GET SD second time after detach, sleep try again", "err", err)
+		return err
+	}
+	log.SpanLog(ctx, log.DebugLevelInfra, "XXXXX old server detail after detach", "subnet", subnetName, "sd1", sd)
+	log.SpanLog(ctx, log.DebugLevelInfra, "XXXXX new server detail after detach", "subnet", subnetName, "sd2", sd2)
+	v.compareSips(ctx, "detachport:"+subnetName, sd, sd2)
+
+	return err
+}
+
+func (v *VMPlatform) compareSips(ctx context.Context, label string, oldsd, newsd *ServerDetail) {
+	log.SpanLog(ctx, log.DebugLevelInfra, "XXXXX compareSips", "label", label, "oldsas", len(oldsd.Addresses), "newsas", len(newsd.Addresses))
+
+	for _, saold := range oldsd.Addresses {
+		found := false
+		newnet := ""
+		for _, sanew := range newsd.Addresses {
+			if sanew.MacAddress == saold.MacAddress {
+				found = true
+				newnet = sanew.Network
+			}
+		}
+		if !found {
+			log.SpanLog(ctx, log.DebugLevelInfra, "XXXXX compareSips mac removed", "label", label, "mac", saold.MacAddress, "network", saold.Network)
+		} else {
+			if saold.Network != newnet {
+				log.SpanLog(ctx, log.DebugLevelInfra, "XXXXX compareSips net changed", "label", label, "mac", saold.MacAddress, "oldnet", saold.Network, "newnet", newnet)
+			}
 		}
 	}
-	return err
+	for _, sanew := range newsd.Addresses {
+		found := false
+		for _, saold := range oldsd.Addresses {
+			if saold.MacAddress == sanew.MacAddress {
+				found = true
+			}
+		}
+		if !found {
+			log.SpanLog(ctx, log.DebugLevelInfra, "XXXXX compareSips mac added", "label", label, "mac", sanew.MacAddress, "network", sanew.Network)
+		}
+	}
 }
 
 //MEXRootLB has rootLB data
@@ -658,38 +740,5 @@ func (v *VMPlatform) SyncSharedRootLB(ctx context.Context, caches *platform.Cach
 	log.SpanLog(ctx, log.DebugLevelInfra, "SyncSharedRootLB")
 
 	tags := GetChefRootLBTags(v.VMProperties.CommonPf.PlatformConfig)
-	err := v.CreateRootLB(ctx, v.VMProperties.sharedRootLB, v.VMProperties.CommonPf.PlatformConfig.CloudletKey, v.VMProperties.CommonPf.PlatformConfig.CloudletVMImagePath, v.VMProperties.CommonPf.PlatformConfig.VMImageVersion, ActionSync, tags, edgeproto.DummyUpdateCallback)
-	if err != nil {
-		return err
-	}
-	// now we need to attach ports from clusters unless there is a router
-	if v.VMProperties.GetCloudletExternalRouter() != NoExternalRouter {
-		return nil
-	}
-	clusterKeys := make(map[edgeproto.ClusterInstKey]struct{})
-	caches.ClusterInstCache.GetAllKeys(ctx, func(k *edgeproto.ClusterInstKey, modRev int64) {
-		clusterKeys[*k] = struct{}{}
-	})
-	for k := range clusterKeys {
-		log.SpanLog(ctx, log.DebugLevelInfra, "SyncClusterInsts found cluster", "key", k)
-		var clus edgeproto.ClusterInst
-		if !caches.ClusterInstCache.Get(&k, &clus) {
-			return fmt.Errorf("fail to fetch cluster %s", k)
-		}
-
-		if clus.IpAccess == edgeproto.IpAccess_IP_ACCESS_SHARED && clus.State == edgeproto.TrackedState_READY {
-			subnetName := GetClusterSubnetName(ctx, &clus)
-			portName := GetPortName(v.VMProperties.sharedRootLBName, subnetName)
-			ipaddr, err := v.GetIPFromServerName(ctx, "", subnetName, v.VMProperties.sharedRootLBName)
-			if err != nil {
-				return err
-			}
-			err = v.VMProvider.AttachPortToServer(ctx, v.VMProperties.sharedRootLBName, subnetName, portName, ipaddr.InternalAddr, ActionSync)
-			if err != nil {
-				log.SpanLog(ctx, log.DebugLevelInfra, "fail to attach port", "err", err)
-				return err
-			}
-		}
-	}
-	return nil
+	return v.CreateRootLB(ctx, v.VMProperties.sharedRootLB, v.VMProperties.CommonPf.PlatformConfig.CloudletKey, v.VMProperties.CommonPf.PlatformConfig.CloudletVMImagePath, v.VMProperties.CommonPf.PlatformConfig.VMImageVersion, ActionSync, tags, edgeproto.DummyUpdateCallback)
 }

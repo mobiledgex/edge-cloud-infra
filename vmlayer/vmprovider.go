@@ -26,11 +26,12 @@ type VMProvider interface {
 	SetVMProperties(vmProperties *VMProperties)
 	SetCaches(ctx context.Context, caches *platform.Caches)
 	InitProvider(ctx context.Context, caches *platform.Caches, updateCallback edgeproto.CacheUpdateCallback) error
-	ImportDataFromInfra(ctx context.Context) error
+	ImportDataFromInfra(ctx context.Context, domain VMDomain) error
 	GetFlavorList(ctx context.Context) ([]*edgeproto.FlavorInfo, error)
 	GetNetworkList(ctx context.Context) ([]string, error)
 	AddCloudletImageIfNotPresent(ctx context.Context, imgPathPrefix, imgVersion string, updateCallback edgeproto.CacheUpdateCallback) (string, error)
 	AddAppImageIfNotPresent(ctx context.Context, app *edgeproto.App, flavor string, updateCallback edgeproto.CacheUpdateCallback) error
+	GetCloudletImageSuffix(ctx context.Context) string
 	DeleteImage(ctx context.Context, folder, image string) error
 	GetServerDetail(ctx context.Context, serverName string) (*ServerDetail, error)
 	GetConsoleUrl(ctx context.Context, serverName string) (string, error)
@@ -136,12 +137,26 @@ func (v *VMPlatform) GetType() string {
 	return v.Type
 }
 
-func (v *VMPlatform) GetClusterPlatformClient(ctx context.Context, clusterInst *edgeproto.ClusterInst) (ssh.Client, error) {
+func (v *VMPlatform) GetClusterPlatformClient(ctx context.Context, clusterInst *edgeproto.ClusterInst, clientType string) (ssh.Client, error) {
 	rootLBName := v.VMProperties.sharedRootLBName
 	if clusterInst.IpAccess == edgeproto.IpAccess_IP_ACCESS_DEDICATED {
 		rootLBName = cloudcommon.GetDedicatedLBFQDN(v.VMProperties.CommonPf.PlatformConfig.CloudletKey, &clusterInst.Key.ClusterKey, v.VMProperties.CommonPf.PlatformConfig.AppDNSRoot)
 	}
-	return v.GetNodePlatformClient(ctx, &edgeproto.CloudletMgmtNode{Name: rootLBName})
+	client, err := v.GetNodePlatformClient(ctx, &edgeproto.CloudletMgmtNode{Name: rootLBName})
+	if err != nil {
+		return nil, err
+	}
+	if clientType == cloudcommon.ClientTypeClusterVM {
+		vmIP, err := v.GetIPFromServerName(ctx, v.VMProperties.GetCloudletMexNetwork(), GetClusterSubnetName(ctx, clusterInst), GetClusterMasterName(ctx, clusterInst))
+		if err != nil {
+			return nil, err
+		}
+		client, err = client.AddHop(vmIP.ExternalAddr, 22)
+		if err != nil {
+			return nil, err
+		}
+	}
+	return client, nil
 }
 
 func (v *VMPlatform) GetNodePlatformClient(ctx context.Context, node *edgeproto.CloudletMgmtNode) (ssh.Client, error) {
@@ -189,6 +204,8 @@ func (v *VMPlatform) InitProps(ctx context.Context, platformConfig *platform.Pla
 		return err
 	}
 	v.VMProvider.SetVMProperties(&v.VMProperties)
+	v.VMProperties.sharedRootLBName = v.GetRootLBName(v.VMProperties.CommonPf.PlatformConfig.CloudletKey)
+	v.VMProperties.PlatformSecgrpName = v.GetServerSecurityGroupName(v.GetPlatformVMName(v.VMProperties.CommonPf.PlatformConfig.CloudletKey))
 	return nil
 }
 
@@ -201,6 +218,7 @@ func (v *VMPlatform) Init(ctx context.Context, platformConfig *platform.Platform
 		v.Type)
 
 	updateCallback(edgeproto.UpdateTask, "Initializing VM platform type: "+v.Type)
+	v.VMProperties.Domain = VMDomainCompute
 
 	vaultConfig, err := vault.BestConfig(platformConfig.VaultAddr)
 	if err != nil {
@@ -216,6 +234,7 @@ func (v *VMPlatform) Init(ctx context.Context, platformConfig *platform.Platform
 	if err := v.VMProvider.InitApiAccessProperties(ctx, platformConfig.CloudletKey, platformConfig.Region, platformConfig.PhysicalName, vaultConfig, platformConfig.EnvVars); err != nil {
 		return err
 	}
+
 	log.SpanLog(ctx, log.DebugLevelInfra, "doing init provider")
 	if err := v.VMProvider.InitProvider(ctx, caches, updateCallback); err != nil {
 		return err
@@ -225,8 +244,6 @@ func (v *VMPlatform) Init(ctx context.Context, platformConfig *platform.Platform
 		return err
 	}
 	log.SpanLog(ctx, log.DebugLevelInfra, "got flavor list", "flavorList", v.FlavorList)
-
-	v.VMProperties.sharedRootLBName = v.GetRootLBName(v.VMProperties.CommonPf.PlatformConfig.CloudletKey)
 
 	// create rootLB
 	crmRootLB, cerr := v.NewRootLB(ctx, v.VMProperties.sharedRootLBName)
@@ -282,6 +299,5 @@ func (v *VMPlatform) SyncControllerCache(ctx context.Context, caches *platform.C
 	if err != nil {
 		return err
 	}
-	return v.VMProvider.ImportDataFromInfra(ctx)
-
+	return v.VMProvider.ImportDataFromInfra(ctx, VMDomainCompute)
 }

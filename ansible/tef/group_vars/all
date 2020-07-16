@@ -13,12 +13,18 @@ vault_github_teams:
       - default
 
 vault_github_users:
+  - userid: andya072071
+    role: editor
+  - userid: angshuman2508
+    role: editor
   - userid: bibingeorge1986
     role: admin
   - userid: gainsley
     role: admin
   - userid: jlmorris3827
     role: admin
+  - userid: LeonAdams
+    role: editor
   - userid: msewera
     role: admin
   - userid: venkytv

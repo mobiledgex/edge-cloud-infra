@@ -64,7 +64,7 @@ func (v *VSpherePlatform) NameSanitize(name string) string {
 	r := strings.NewReplacer(
 		" ", "",
 		"&", "",
-		",", "",
+		",", "_",
 		"/", "_",
 		"!", "")
 	str := r.Replace(name)
@@ -85,11 +85,12 @@ func (v *VSpherePlatform) NameSanitize(name string) string {
 func (v *VSpherePlatform) IdSanitize(name string) string {
 	str := v.NameSanitize(name)
 	str = strings.ReplaceAll(str, ".", "-")
+	str = strings.ReplaceAll(str, "=", "-")
 	return str
 }
 
 func (v *VSpherePlatform) DeleteResources(ctx context.Context, resourceGroupName string) error {
-	return terraform.DeleteTerraformPlan(ctx, resourceGroupName)
+	return terraform.DeleteTerraformPlan(ctx, v.getTerraformDir(ctx), resourceGroupName)
 }
 
 func (v *VSpherePlatform) GetResourceID(ctx context.Context, resourceType vmlayer.ResourceType, resourceName string) (string, error) {

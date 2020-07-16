@@ -390,9 +390,7 @@ func (v *VMPlatform) GetVMSpecForRootLB(ctx context.Context, rootLbName string, 
 	if az == "" {
 		az = v.VMProperties.GetCloudletComputeAvailabilityZone()
 	}
-	imgPath := v.VMProperties.CommonPf.PlatformConfig.CloudletVMImagePath
-	imgVersion := v.VMProperties.CommonPf.PlatformConfig.VMImageVersion
-	imageName, err := v.VMProvider.AddCloudletImageIfNotPresent(ctx, imgPath, imgVersion, updateCallback)
+	imageName, err := v.GetCloudletImageToUse(ctx, updateCallback)
 	if err != nil {
 		return nil, err
 	}
@@ -551,7 +549,11 @@ func (v *VMPlatform) SetupRootLB(
 	if err != nil {
 		return fmt.Errorf("cannot copy resource-tracker to rootLb %v", err)
 	}
-	err = v.AddRouteToServer(ctx, client, rootLBName, InternalNetworkRoute)
+	route, err := v.GetInternalNetworkRoute(ctx)
+	if err != nil {
+		return err
+	}
+	err = v.AddRouteToServer(ctx, client, rootLBName, route)
 	if err != nil {
 		return fmt.Errorf("failed to AddRouteToServer %v", err)
 	}

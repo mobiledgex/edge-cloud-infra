@@ -37,7 +37,7 @@ func NewClusterWorker(ctx context.Context, promAddr string, interval time.Durati
 	p.interval = interval
 	p.send = send
 	p.clusterInstKey = clusterInst.Key
-	p.client, err = pf.GetClusterPlatformClient(ctx, clusterInst)
+	p.client, err = pf.GetClusterPlatformClient(ctx, clusterInst, cloudcommon.ClientTypeRootLB)
 	if err != nil {
 		// If we cannot get a platform client no point in trying to get metrics
 		log.SpanLog(ctx, log.DebugLevelMetrics, "Failed to acquire platform client", "cluster", clusterInst.Key, "error", err)
@@ -52,9 +52,16 @@ func NewClusterWorker(ctx context.Context, promAddr string, interval time.Durati
 			promAddr: p.promAddr,
 		}
 	} else if p.deployment == cloudcommon.DeploymentTypeDocker {
+		clusterClient, err := pf.GetClusterPlatformClient(ctx, clusterInst, cloudcommon.ClientTypeClusterVM)
+		if err != nil {
+			// If we cannot get a platform client no point in trying to get metrics
+			log.SpanLog(ctx, log.DebugLevelMetrics, "Failed to acquire clusterVM client", "cluster", clusterInst.Key, "error", err)
+			return nil, err
+		}
 		p.clusterStat = &DockerClusterStats{
-			key:    p.clusterInstKey,
-			client: p.client,
+			key:           p.clusterInstKey,
+			client:        p.client,
+			clusterClient: clusterClient,
 		}
 	} else {
 		return nil, fmt.Errorf("Unsupported deployment %s", clusterInst.Deployment)
@@ -91,18 +98,14 @@ func (p *ClusterWorker) RunNotify() {
 		select {
 		case <-time.After(p.interval):
 			span := log.StartSpan(log.DebugLevelSampled, "send-metric")
-			span.SetTag("operator", p.clusterInstKey.CloudletKey.Organization)
-			span.SetTag("cloudlet", p.clusterInstKey.CloudletKey.Name)
-			span.SetTag("cluster", p.clusterInstKey.ClusterKey.Name)
+			log.SetTags(span, p.clusterInstKey.GetTags())
 			ctx := log.ContextWithSpan(context.Background(), span)
 			clusterStats := p.clusterStat.GetClusterStats(ctx)
 			appStatsMap := p.clusterStat.GetAppStats(ctx)
 
 			// create another span for alerts that is always logged
 			aspan := log.StartSpan(log.DebugLevelMetrics, "alerts check")
-			aspan.SetTag("operator", p.clusterInstKey.CloudletKey.Organization)
-			aspan.SetTag("cloudlet", p.clusterInstKey.CloudletKey.Name)
-			aspan.SetTag("cluster", p.clusterInstKey.ClusterKey.Name)
+			log.SetTags(aspan, p.clusterInstKey.GetTags())
 			actx := log.ContextWithSpan(context.Background(), aspan)
 
 			for key, stat := range appStatsMap {

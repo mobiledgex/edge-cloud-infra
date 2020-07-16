@@ -58,8 +58,6 @@ var RoleVMApplication VMRole = "vmapp"
 var RoleVMPlatform VMRole = "platform"
 var RoleMatchAny VMRole = "any" // not a real role, used for matching
 
-const TagDelimiter = "__"
-
 // NextAvailableResource means the orchestration code needs to find an available
 // resource of the given type as the calling code won't know what is free
 var NextAvailableResource = "NextAvailable"
@@ -199,6 +197,7 @@ type VMGroupRequestSpec struct {
 	InitOrchestrator       bool
 	Domain                 string
 	ChefUpdateInfo         map[string]string
+	SkipCleanupOnFailure   bool
 }
 
 type VMGroupReqOp func(vmp *VMGroupRequestSpec) error
@@ -251,15 +250,15 @@ func WithInitOrchestrator(init bool) VMGroupReqOp {
 		return nil
 	}
 }
-func WithDomain(domain VMDomain) VMGroupReqOp {
-	return func(s *VMGroupRequestSpec) error {
-		s.Domain = string(domain)
-		return nil
-	}
-}
 func WithChefUpdateInfo(updateInfo map[string]string) VMGroupReqOp {
 	return func(s *VMGroupRequestSpec) error {
 		s.ChefUpdateInfo = updateInfo
+		return nil
+	}
+}
+func WithSkipCleanupOnFailure(skip bool) VMGroupReqOp {
+	return func(s *VMGroupRequestSpec) error {
+		s.SkipCleanupOnFailure = skip
 		return nil
 	}
 }
@@ -298,7 +297,7 @@ type PortOrchestrationParams struct {
 type FloatingIPOrchestrationParams struct {
 	Name         string
 	Port         ResourceReference
-	FloatingIpId ResourceReference
+	FloatingIpId string
 }
 
 type RouterInterfaceOrchestrationParams struct {
@@ -360,11 +359,13 @@ func GetSecGrpParams(name string, opts ...SecgrpParamsOp) (*SecurityGroupOrchest
 }
 
 type VolumeOrchestrationParams struct {
-	Name             string
-	ImageName        string
-	Size             uint64
-	AvailabilityZone string
-	DeviceName       string
+	Name               string
+	ImageName          string
+	Size               uint64
+	AvailabilityZone   string
+	DeviceName         string
+	AttachExternalDisk bool
+	UnitNumber         uint64
 }
 type VolumeOrchestrationParamsOp func(vmp *VolumeOrchestrationParams) error
 
@@ -380,6 +381,7 @@ type VMOrchestrationParams struct {
 	Name                    string
 	Role                    VMRole
 	ImageName               string
+	TemplateId              string
 	ImageFolder             string
 	HostName                string
 	DNSDomain               string
@@ -400,6 +402,7 @@ type VMOrchestrationParams struct {
 	FixedIPs                []FixedIPOrchestrationParams // to VMs directly
 	ExternalGateway         string
 	CustomizeGuest          bool
+	AttachExternalDisk      bool
 	ChefParams              *chefmgmt.VMChefParams
 }
 
@@ -441,8 +444,8 @@ type VMGroupOrchestrationParams struct {
 	SkipInfraSpecificCheck bool
 	SkipSubnetGateway      bool
 	InitOrchestrator       bool
-	VMDomain               string
 	ChefUpdateInfo         map[string]string
+	SkipCleanupOnFailure   bool
 }
 
 func (v *VMPlatform) GetVMRequestSpec(ctx context.Context, vmtype VMType, serverName, flavorName string, imageName string, connectExternal bool, opts ...VMReqOp) (*VMRequestSpec, error) {
@@ -483,7 +486,7 @@ func (v *VMPlatform) GetVMGroupOrchestrationParamsFromVMSpec(ctx context.Context
 func (v *VMPlatform) getVMGroupOrchestrationParamsFromGroupSpec(ctx context.Context, spec *VMGroupRequestSpec) (*VMGroupOrchestrationParams, error) {
 	log.SpanLog(ctx, log.DebugLevelInfra, "GetVMGroupOrchestrationParams", "spec", spec)
 
-	vmgp := VMGroupOrchestrationParams{GroupName: spec.GroupName, InitOrchestrator: spec.InitOrchestrator}
+	vmgp := VMGroupOrchestrationParams{GroupName: spec.GroupName, InitOrchestrator: spec.InitOrchestrator, SkipCleanupOnFailure: spec.SkipCleanupOnFailure}
 	internalNetName := v.VMProperties.GetCloudletMexNetwork()
 	internalNetId := v.VMProvider.NameSanitize(internalNetName)
 	externalNetName := v.VMProperties.GetCloudletExternalNetwork()
@@ -492,11 +495,7 @@ func (v *VMPlatform) getVMGroupOrchestrationParamsFromGroupSpec(ctx context.Cont
 	cloudflareDns := []string{"1.1.1.1", "1.0.0.1"}
 	vmDns := ""
 	subnetDns := []string{}
-	var err error
-	cloudletSecGrpID := ""
-	if !spec.SkipDefaultSecGrp {
-		cloudletSecGrpID, err = v.VMProvider.GetResourceID(ctx, ResourceTypeSecurityGroup, v.VMProperties.GetCloudletSecurityGroupName())
-	}
+	cloudletSecGrpID, err := v.VMProvider.GetResourceID(ctx, ResourceTypeSecurityGroup, v.VMProperties.GetCloudletSecurityGroupName())
 	internalSecgrpID := ""
 	internalSecgrpPreexisting := false
 
@@ -517,10 +516,6 @@ func (v *VMPlatform) getVMGroupOrchestrationParamsFromGroupSpec(ctx context.Cont
 	if spec.SkipInfraSpecificCheck {
 		vmgp.SkipInfraSpecificCheck = true
 	}
-	vmgp.VMDomain = spec.Domain
-	if vmgp.VMDomain == "" {
-		vmgp.VMDomain = string(VMDomainCompute)
-	}
 	if spec.ChefUpdateInfo != nil {
 		vmgp.ChefUpdateInfo = spec.ChefUpdateInfo
 	}
@@ -534,11 +529,9 @@ func (v *VMPlatform) getVMGroupOrchestrationParamsFromGroupSpec(ctx context.Cont
 	} else {
 		log.SpanLog(ctx, log.DebugLevelInfra, "External router in use")
 		if spec.NewSubnetName != "" {
-			if !spec.SkipDefaultSecGrp {
-				log.SpanLog(ctx, log.DebugLevelInfra, "SkipDefaultSecGrp flag set")
-				internalSecgrpID = cloudletSecGrpID
-				internalSecgrpPreexisting = true
-			}
+			internalSecgrpID = cloudletSecGrpID
+			internalSecgrpPreexisting = true
+
 			rtrInUse = true
 			routerPortName := spec.NewSubnetName + "-rtr-port"
 			routerPort := PortOrchestrationParams{
@@ -555,6 +548,7 @@ func (v *VMPlatform) getVMGroupOrchestrationParamsFromGroupSpec(ctx context.Cont
 					},
 				},
 			}
+			routerPort.SecurityGroups = append(routerPort.SecurityGroups, NewResourceReference(cloudletSecGrpID, cloudletSecGrpID, true))
 			vmgp.Ports = append(vmgp.Ports, routerPort)
 			newRouterIf := RouterInterfaceOrchestrationParams{
 				RouterName: v.VMProperties.GetCloudletExternalRouter(),
@@ -731,12 +725,14 @@ func (v *VMPlatform) getVMGroupOrchestrationParamsFromGroupSpec(ctx context.Cont
 					NetworkName: vmgp.Netspec.FloatingIPNet,
 					NetworkId:   v.VMProvider.NameSanitize(vmgp.Netspec.FloatingIPNet),
 					VnicType:    vmgp.Netspec.VnicType,
-					FixedIPs: []FixedIPOrchestrationParams{
-						{
-							Subnet: NewResourceReference(vmgp.Netspec.FloatingIPSubnet, vmgp.Netspec.FloatingIPSubnet, false),
-						},
-					},
 				}
+				fip := FloatingIPOrchestrationParams{
+					Name:         externalPortName + "-fip",
+					FloatingIpId: NextAvailableResource,
+					Port:         NewResourceReference(externalport.Name, externalport.Id, false),
+				}
+				vmgp.FloatingIPs = append(vmgp.FloatingIPs, fip)
+
 			} else {
 				externalport = PortOrchestrationParams{
 					Name:        externalPortName,
@@ -745,15 +741,15 @@ func (v *VMPlatform) getVMGroupOrchestrationParamsFromGroupSpec(ctx context.Cont
 					NetworkId:   v.VMProvider.IdSanitize(externalNetName),
 					VnicType:    vmgp.Netspec.VnicType,
 				}
-
-				externalport.SecurityGroups = []ResourceReference{
-					NewResourceReference(spec.NewSecgrpName, spec.NewSecgrpName, false),
-				}
-				if !spec.SkipDefaultSecGrp {
-					externalport.SecurityGroups = append(externalport.SecurityGroups, NewResourceReference(cloudletSecGrpID, cloudletSecGrpID, true))
-				}
-				newPorts = append(newPorts, externalport)
 			}
+			externalport.SecurityGroups = []ResourceReference{
+				NewResourceReference(spec.NewSecgrpName, spec.NewSecgrpName, false),
+			}
+			if !spec.SkipDefaultSecGrp {
+				externalport.SecurityGroups = append(externalport.SecurityGroups, NewResourceReference(cloudletSecGrpID, cloudletSecGrpID, true))
+			}
+			newPorts = append(newPorts, externalport)
+
 		}
 		if !vm.CreatePortsOnly {
 			log.SpanLog(ctx, log.DebugLevelInfra, "Defining new VM orch param", "vm.Name", vm.Name, "ports", newPorts)
@@ -787,9 +783,13 @@ func (v *VMPlatform) getVMGroupOrchestrationParamsFromGroupSpec(ctx context.Cont
 					Name:       vm.Name + "-shared-volume",
 					Size:       vm.SharedVolumeSize,
 					DeviceName: "vdb",
+					UnitNumber: 1,
 				}
 				newVM.Volumes = append(newVM.Volumes, sharedVolume)
 				newVM.SharedVolume = true
+			}
+			if newVM.Role == RoleVMApplication {
+				newVM.AttachExternalDisk = true
 			}
 			for _, p := range newPorts {
 				if !p.SkipAttachVM {

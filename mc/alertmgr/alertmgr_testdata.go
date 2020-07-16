@@ -21,10 +21,10 @@ var testAlerts = []edgeproto.Alert{
 	edgeproto.Alert{
 		Labels: map[string]string{
 			"alertname":                        cloudcommon.AlertAppInstDown,
-			cloudcommon.AlertLabelApp:          "testapp",
-			cloudcommon.AlertLabelAppOrg:       "testorg",
-			cloudcommon.AlertLabelAppVer:       "1.0",
-			cloudcommon.AlertLabelCloudlet:     "testcloudlet",
+			edgeproto.AppKeyTagName:            "testapp",
+			edgeproto.AppKeyTagOrganization:    "testorg",
+			edgeproto.AppKeyTagVersion:         "1.0",
+			edgeproto.CloudletKeyTagName:       "testcloudlet",
 			cloudcommon.AlertHealthCheckStatus: strconv.Itoa(int(edgeproto.HealthCheck_HEALTH_CHECK_FAIL_ROOTLB_OFFLINE)),
 		},
 		Region: testRegions[0],
@@ -32,10 +32,10 @@ var testAlerts = []edgeproto.Alert{
 	edgeproto.Alert{ //testAlerts[0], but in a different region
 		Labels: map[string]string{
 			"alertname":                        cloudcommon.AlertAppInstDown,
-			cloudcommon.AlertLabelApp:          "testapp",
-			cloudcommon.AlertLabelAppOrg:       "testorg",
-			cloudcommon.AlertLabelAppVer:       "1.0",
-			cloudcommon.AlertLabelCloudlet:     "testcloudlet",
+			edgeproto.AppKeyTagName:            "testapp",
+			edgeproto.AppKeyTagOrganization:    "testorg",
+			edgeproto.AppKeyTagVersion:         "1.0",
+			edgeproto.CloudletKeyTagName:       "testcloudlet",
 			cloudcommon.AlertHealthCheckStatus: strconv.Itoa(int(edgeproto.HealthCheck_HEALTH_CHECK_FAIL_ROOTLB_OFFLINE)),
 		},
 		Region: testRegions[1],

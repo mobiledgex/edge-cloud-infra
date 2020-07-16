@@ -9,7 +9,6 @@ import (
 	"regexp"
 	"strings"
 	"sync"
-	"time"
 
 	"github.com/mobiledgex/edge-cloud-infra/vmlayer"
 	"github.com/mobiledgex/edge-cloud-infra/vmlayer/terraform"
@@ -28,6 +27,13 @@ var terraformTest string = "TEST"
 
 const DoesNotExistError string = "does not exist"
 
+const TagFieldDomain = "domain"
+const TagFieldIp = "ip"
+const TagFieldSubnetName = "subnetname"
+const TagFieldCidr = "cidr"
+const TagFieldVmName = "vmname"
+const TagFieldNetName = "netname"
+
 var vmOrchestrateLock sync.Mutex
 
 type VSphereGeneralParams struct {
@@ -45,6 +51,7 @@ type VSphereGeneralParams struct {
 	VmIpTagCategory          string
 	VmDomainTagCategory      string
 	SubnetTagCategory        string
+	SessionPath              string
 }
 
 type VSphereVMGroupParams struct {
@@ -73,6 +80,108 @@ func (v *VSpherePlatform) GetVMDomainTagCategory(ctx context.Context) string {
 	return v.GetDatacenterName(ctx) + "-vmdomain"
 }
 
+func getTagFieldMap(tag string) (map[string]string, error) {
+	fieldMap := make(map[string]string)
+	ts := strings.Split(tag, ",")
+	for _, field := range ts {
+		fs := strings.Split(field, "=")
+		if len(fs) != 2 {
+			return nil, fmt.Errorf("incorrectly formatted tag: %s", tag)
+		}
+		fieldMap[fs[0]] = fs[1]
+	}
+	return fieldMap, nil
+}
+
+// GetDomainFromTag get the domain from the tag which is always the last field
+func (v *VSpherePlatform) GetDomainFromTag(ctx context.Context, tag string) (string, error) {
+	fm, err := getTagFieldMap(tag)
+	if err != nil {
+		return "", err
+	}
+	domain, ok := fm[TagFieldDomain]
+	if !ok {
+		return "", fmt.Errorf("No domain found for tag")
+	}
+	return domain, nil
+
+}
+
+func (v *VSpherePlatform) GetVmIpTag(ctx context.Context, vmName, network, ipaddr string) string {
+	return TagFieldVmName + "=" + vmName + "," + TagFieldNetName + "=" + network + "," + TagFieldIp + "=" + ipaddr + "," + TagFieldDomain + "=" + string(v.vmProperties.Domain)
+}
+
+// ParseVMIpTag returns vmname, network, ipaddr, domain
+func (v *VSpherePlatform) ParseVMIpTag(ctx context.Context, tag string) (string, string, string, string, error) {
+	fm, err := getTagFieldMap(tag)
+	if err != nil {
+		return "", "", "", "", err
+	}
+	vmname, ok := fm[TagFieldVmName]
+	if !ok {
+		return "", "", "", "", fmt.Errorf("No vmname in vmip tag")
+	}
+	network, ok := fm[TagFieldNetName]
+	if !ok {
+		return "", "", "", "", fmt.Errorf("No netname in vmip tag")
+	}
+	ip, ok := fm[TagFieldIp]
+	if !ok {
+		return "", "", "", "", fmt.Errorf("No ip in vmip tag")
+	}
+	domain, ok := fm[TagFieldDomain]
+	if !ok {
+		return "", "", "", "", fmt.Errorf("No domain in vmip tag")
+	}
+	return vmname, network, ip, domain, nil
+}
+
+func (v *VSpherePlatform) GetSubnetTag(ctx context.Context, subnetName, cidr string) string {
+	return TagFieldSubnetName + "=" + subnetName + "," + TagFieldCidr + "=" + cidr + "," + TagFieldDomain + "=" + string(v.vmProperties.Domain)
+}
+
+// ParseSubnetTag returns subnetName, cidr, domain
+func (v *VSpherePlatform) ParseSubnetTag(ctx context.Context, tag string) (string, string, string, error) {
+	fm, err := getTagFieldMap(tag)
+	if err != nil {
+		return "", "", "", err
+	}
+	subnetName, ok := fm[TagFieldSubnetName]
+	if !ok {
+		return "", "", "", fmt.Errorf("No subnetname in subnet tag")
+	}
+	cidr, ok := fm[TagFieldCidr]
+	if !ok {
+		return "", "", "", fmt.Errorf("No cidr in subnet tag")
+	}
+	domain, ok := fm[TagFieldDomain]
+	if !ok {
+		return "", "", "", fmt.Errorf("No domain in subnet tag")
+	}
+	return subnetName, cidr, domain, nil
+}
+
+func (v *VSpherePlatform) GetVmDomainTag(ctx context.Context, vmName string) string {
+	return TagFieldVmName + "=" + vmName + "," + TagFieldDomain + "=" + string(v.vmProperties.Domain)
+}
+
+// ParseVMDomainTag returns vmname, domain
+func (v *VSpherePlatform) ParseVMDomainTag(ctx context.Context, tag string) (string, string, error) {
+	fm, err := getTagFieldMap(tag)
+	if err != nil {
+		return "", "", err
+	}
+	vmName, ok := fm[TagFieldVmName]
+	if !ok {
+		return "", "", fmt.Errorf("No subnetname in vmdomain tag")
+	}
+	domain, ok := fm[TagFieldDomain]
+	if !ok {
+		return "", "", fmt.Errorf("No domain in vmdomain tag")
+	}
+	return vmName, domain, nil
+}
+
 func (v *VSpherePlatform) ImportTagCategories(ctx context.Context) error {
 	log.SpanLog(ctx, log.DebugLevelInfra, "ImportTagCategories")
 
@@ -92,7 +201,7 @@ func (v *VSpherePlatform) ImportTagCategories(ctx context.Context) error {
 }
 
 func (v *VSpherePlatform) DetachPortFromServer(ctx context.Context, serverName, subnetName, portName string) error {
-	fileName := terraform.TerraformDir + "/" + serverName + ".tf"
+	fileName := v.getTerraformDir(ctx) + "/" + serverName + ".tf"
 	log.SpanLog(ctx, log.DebugLevelInfra, "DetachPortFromServer", "serverName", "serverName", "subnetName", subnetName, "portName", portName, "fileName", fileName)
 
 	input, err := ioutil.ReadFile(fileName)
@@ -131,7 +240,7 @@ func (v *VSpherePlatform) DetachPortFromServer(ctx context.Context, serverName, 
 	}
 	log.SpanLog(ctx, log.DebugLevelInfra, "DetachPortFromServer doing apply after removing interfaces and tags", "serverName", serverName, "portName", portName)
 
-	out, err := terraform.TimedTerraformCommand(ctx, terraform.TerraformDir, "terraform", "apply", "--auto-approve")
+	out, err := terraform.TimedTerraformCommand(ctx, v.getTerraformDir(ctx), "terraform", "apply", "--auto-approve")
 	if err != nil {
 		log.SpanLog(ctx, log.DebugLevelInfra, "Terraform apply failed for detach port", "out", out, "fileName", fileName)
 	}
@@ -139,9 +248,9 @@ func (v *VSpherePlatform) DetachPortFromServer(ctx context.Context, serverName, 
 }
 
 func (v *VSpherePlatform) AttachPortToServer(ctx context.Context, serverName, subnetName, portName, ipaddr string, action vmlayer.ActionType) error {
-	fileName := terraform.TerraformDir + "/" + serverName + ".tf"
+	fileName := v.getTerraformDir(ctx) + "/" + serverName + ".tf"
 	log.SpanLog(ctx, log.DebugLevelInfra, "AttachPortToServer", "serverName", serverName, "fileName", fileName, "ipaddr", ipaddr, "action", action)
-	tagName := serverName + vmlayer.TagDelimiter + subnetName + vmlayer.TagDelimiter + ipaddr
+	tagName := v.GetVmIpTag(ctx, serverName, subnetName, ipaddr)
 	tagId := v.IdSanitize(tagName)
 
 	interfaceContents := fmt.Sprintf(`
@@ -184,7 +293,7 @@ func (v *VSpherePlatform) AttachPortToServer(ctx context.Context, serverName, su
 	}
 	if action == vmlayer.ActionCreate {
 		log.SpanLog(ctx, log.DebugLevelInfra, "AttachPortToServer doing apply after adding interfaces and tags", "serverName", serverName, "portName", portName)
-		out, err := terraform.TimedTerraformCommand(ctx, terraform.TerraformDir, "terraform", "apply", "--auto-approve")
+		out, err := terraform.TimedTerraformCommand(ctx, v.getTerraformDir(ctx), "terraform", "apply", "--auto-approve")
 		if err != nil {
 			log.SpanLog(ctx, log.DebugLevelInfra, "Terraform apply failed for attach port", "out", out, "fileName", fileName)
 		}
@@ -194,7 +303,7 @@ func (v *VSpherePlatform) AttachPortToServer(ctx context.Context, serverName, su
 	return err
 }
 
-func (v *VSpherePlatform) populateGeneralParams(ctx context.Context, planName, domain string, vgp *VSphereGeneralParams, action string) error {
+func (v *VSpherePlatform) populateGeneralParams(ctx context.Context, planName string, vgp *VSphereGeneralParams, action string) error {
 	vcaddr, _, err := v.GetVCenterAddress()
 	if err != nil {
 		return err
@@ -209,10 +318,11 @@ func (v *VSpherePlatform) populateGeneralParams(ctx context.Context, planName, d
 	vgp.ComputeCluster = v.GetComputeCluster()
 	vgp.DataStore = v.GetDataStore()
 	vgp.InternalDVS = v.GetInternalVSwitch()
-	vgp.ResourcePool = v.IdSanitize(getResourcePool(planName, domain))
+	vgp.ResourcePool = v.IdSanitize(getResourcePool(planName, string(v.vmProperties.Domain)))
 	vgp.SubnetTagCategory = v.GetSubnetTagCategory(ctx)
 	vgp.VmIpTagCategory = v.GetVmIpTagCategory(ctx)
 	vgp.VmDomainTagCategory = v.GetVMDomainTagCategory(ctx)
+	vgp.SessionPath = "sessions"
 	return nil
 }
 
@@ -251,8 +361,7 @@ func (v *VSpherePlatform) populateVMOrchParams(ctx context.Context, vmgp *vmlaye
 				vmgp.Subnets[i].GatewayIP = fmt.Sprintf("%s.%s.%d.%d", vmgp.Netspec.Octets[0], vmgp.Netspec.Octets[1], octet, 1)
 				vmgp.Subnets[i].NodeIPPrefix = fmt.Sprintf("%s.%s.%d", vmgp.Netspec.Octets[0], vmgp.Netspec.Octets[1], octet)
 				masterIP = fmt.Sprintf("%s.%s.%d.%d", vmgp.Netspec.Octets[0], vmgp.Netspec.Octets[1], octet, 10)
-
-				tagname := s.Name + vmlayer.TagDelimiter + subnet
+				tagname := v.GetSubnetTag(ctx, s.Name, subnet)
 				tagid := v.IdSanitize(tagname)
 				vmgp.Tags = append(vmgp.Tags, vmlayer.TagOrchestrationParams{Category: v.GetSubnetTagCategory(ctx), Id: tagid, Name: tagname})
 				break
@@ -283,23 +392,39 @@ func (v *VSpherePlatform) populateVMOrchParams(ctx context.Context, vmgp *vmlaye
 				break
 			}
 		}
+		if vm.ImageName != "" {
+			vmgp.VMs[vmidx].TemplateId = v.IdSanitize(vm.ImageName) + "-tmplt-" + vm.Id
+		}
 		if !flavormatch {
 			return fmt.Errorf("No match in flavor cache for flavor name: %s", vm.FlavorName)
 		}
-		if vm.Role == vmlayer.RoleVMApplication {
+		if vm.AttachExternalDisk {
 			// AppVMs use a generic template with the disk attached separately
-			if action != terraformSync {
+			var vol vmlayer.VolumeOrchestrationParams
+			if action == terraformSync {
 				// do not reattach on sync
-
-				vol := vmlayer.VolumeOrchestrationParams{
+				vol = vmlayer.VolumeOrchestrationParams{
 					Name:      "disk0",
+					Size:      vmgp.VMs[vmidx].Disk,
 					ImageName: vmgp.VMs[vmidx].ImageFolder + "/" + vmgp.VMs[vmidx].ImageName + ".vmdk",
 				}
-				vmgp.VMs[vmidx].Volumes = append(vmgp.VMs[vmidx].Volumes, vol)
+			} else {
+				vol = vmlayer.VolumeOrchestrationParams{
+					Name:               "disk0",
+					ImageName:          vmgp.VMs[vmidx].ImageFolder + "/" + vmgp.VMs[vmidx].ImageName + ".vmdk",
+					AttachExternalDisk: true,
+				}
 			}
+			vmgp.VMs[vmidx].Volumes = append(vmgp.VMs[vmidx].Volumes, vol)
 			vmgp.VMs[vmidx].ImageName = ""
 			vmgp.VMs[vmidx].CustomizeGuest = false
 		} else {
+			vol := vmlayer.VolumeOrchestrationParams{
+				Name:               "disk0",
+				Size:               vmgp.VMs[vmidx].Disk,
+				AttachExternalDisk: false,
+			}
+			vmgp.VMs[vmidx].Volumes = append(vmgp.VMs[vmidx].Volumes, vol)
 			if action != terraformSync {
 				vmgp.VMs[vmidx].CustomizeGuest = true
 			}
@@ -326,7 +451,7 @@ func (v *VSpherePlatform) populateVMOrchParams(ctx context.Context, vmgp *vmlaye
 					Address: eip,
 				}
 				vmgp.VMs[vmidx].FixedIPs = append(vmgp.VMs[vmidx].FixedIPs, fip)
-				tagname := vm.Name + vmlayer.TagDelimiter + portref.NetworkId + vmlayer.TagDelimiter + eip
+				tagname := v.GetVmIpTag(ctx, vm.Name, portref.NetworkId, eip)
 				tagid := v.IdSanitize(tagname)
 				vmgp.Tags = append(vmgp.Tags, vmlayer.TagOrchestrationParams{Category: v.GetVmIpTagCategory(ctx), Id: tagid, Name: tagname})
 				vmgp.VMs[vmidx].ExternalGateway, _ = v.GetExternalGateway(ctx, "")
@@ -345,7 +470,7 @@ func (v *VSpherePlatform) populateVMOrchParams(ctx context.Context, vmgp *vmlaye
 						if vmgp.VMs[vmidx].ExternalGateway == "" {
 							vmgp.VMs[vmidx].ExternalGateway = s.GatewayIP
 						}
-						tagname := vm.Name + vmlayer.TagDelimiter + s.Id + vmlayer.TagDelimiter + vmgp.VMs[vmidx].FixedIPs[fipidx].Address
+						tagname := v.GetVmIpTag(ctx, vm.Name, s.Id, vmgp.VMs[vmidx].FixedIPs[fipidx].Address)
 						tagid := v.IdSanitize(tagname)
 						vmgp.Tags = append(vmgp.Tags, vmlayer.TagOrchestrationParams{Category: v.GetVmIpTagCategory(ctx), Id: tagid, Name: tagname})
 						log.SpanLog(ctx, log.DebugLevelInfra, "updating address for VM", "vmname", vmgp.VMs[vmidx].Name, "address", vmgp.VMs[vmidx].FixedIPs[fipidx].Address)
@@ -357,11 +482,9 @@ func (v *VSpherePlatform) populateVMOrchParams(ctx context.Context, vmgp *vmlaye
 				}
 			}
 		}
-		if vmgp.VMDomain != "" {
-			tagname := vm.Name + vmlayer.TagDelimiter + vmgp.VMDomain
-			tagid := v.IdSanitize(tagname)
-			vmgp.Tags = append(vmgp.Tags, vmlayer.TagOrchestrationParams{Category: v.GetVMDomainTagCategory(ctx), Id: tagid, Name: tagname})
-		}
+		tagname := v.GetVmDomainTag(ctx, vm.Name)
+		tagid := v.IdSanitize(tagname)
+		vmgp.Tags = append(vmgp.Tags, vmlayer.TagOrchestrationParams{Category: v.GetVMDomainTagCategory(ctx), Id: tagid, Name: tagname})
 
 	} //for vm
 
@@ -380,6 +503,9 @@ var vcenterTemplate = `
 		# If you have a self-signed cert
 		allow_unverified_ssl = true
 		version = "{{.TerraformProviderVersion}}"
+		persist_session = true
+		rest_session_path = "{{.SessionPath}}"
+		vim_session_path = "{{.SessionPath}}"
 	}
   
   	data "vsphere_datacenter" "dc" {
@@ -467,7 +593,7 @@ var vmGroupTemplate = `
 
 	{{- range .VMs}}
 	{{- if .ImageName}}
-	data "vsphere_virtual_machine" "{{.ImageName}}-tmplt-{{.Id}}" {
+	data "vsphere_virtual_machine" "{{.TemplateId}}" {
 		name          = "{{.ImageName}}"
 		datacenter_id = "${data.vsphere_datacenter.dc.id}"
 	}
@@ -483,6 +609,7 @@ var vmGroupTemplate = `
 		memory   = {{.Ram}}
 		memory_reservation = {{.Ram}}
 		guest_id = "ubuntu64Guest"
+		scsi_type = "pvscsi"
 
   		{{- range .Ports}}
 		network_interface {
@@ -495,22 +622,23 @@ var vmGroupTemplate = `
 		{{- end}}
 		## END NETWORK INTERFACES for {{.Name}}
 
-		{{- if .Volumes}}
 		{{- range .Volumes}}
+		{{if .AttachExternalDisk}}
 		disk {
 			label = "{{.Name}}"
 			path = "{{.ImageName}}"
 			datastore_id = data.vsphere_datastore.datastore.id
 			attach = true
 		}
-		{{- end}}
 		{{- else}}
-  		disk {
-			label = "disk0"
-			size = {{.Disk}}
+		disk {
+			label = "{{.Name}}"
+			size = {{.Size}}
 			thin_provisioned = true
 			eagerly_scrub = false
+			unit_number = {{.UnitNumber}}
 		}
+		{{- end}}
 		{{- end}}
 
 		{{- if .CustomizeGuest}}
@@ -521,7 +649,7 @@ var vmGroupTemplate = `
 			"guestinfo.metadata.encoding" = "base64"
 		}
 		clone {
-			template_uuid = "${data.vsphere_virtual_machine.{{.ImageName}}-tmplt-{{.Id}}.id}"
+			template_uuid = "${data.vsphere_virtual_machine.{{.TemplateId}}.id}"
 			customize{
 				linux_options {
 					host_name = "{{.HostName}}"
@@ -545,6 +673,8 @@ var vmGroupTemplate = `
 
 // user data is encoded as base64
 func vmsphereUserDataFormatter(instring string) string {
+	// despite the use of paravirtualized drivers, vSphere gets get name sda, sdb
+	instring = strings.ReplaceAll(instring, "/dev/vd", "/dev/sd")
 	return base64.StdEncoding.EncodeToString([]byte(instring))
 }
 
@@ -558,10 +688,14 @@ func vmsphereMetaDataFormatter(instring string) string {
 	return base64.StdEncoding.EncodeToString([]byte(withMeta))
 }
 
+func (v *VSpherePlatform) getTerraformDir(ctx context.Context) string {
+	return "terraform-" + v.GetDatacenterName(ctx)
+}
+
 func (v *VSpherePlatform) doTerraformImport(ctx context.Context, resourceID, resourceVal string) error {
 	log.SpanLog(ctx, log.DebugLevelInfra, "doTerraformImport", "resourceID", resourceID, "resourceVal", resourceVal)
 	notfoundReg := regexp.MustCompile("Error: .* not found")
-	out, err := terraform.TimedTerraformCommand(ctx, terraform.TerraformDir, "terraform", "import", "--allow-missing-config", resourceID, resourceVal)
+	out, err := terraform.TimedTerraformCommand(ctx, v.getTerraformDir(ctx), "terraform", "import", "--allow-missing-config", resourceID, resourceVal)
 	if err != nil {
 		if strings.Contains(out, "Resource already managed by Terraform") {
 			log.SpanLog(ctx, log.DebugLevelInfra, "resource already in terraform state")
@@ -582,7 +716,7 @@ func (v *VSpherePlatform) ImportTerraformVirtualMachine(ctx context.Context, vmN
 	log.SpanLog(ctx, log.DebugLevelInfra, "ImportTerraformVirtualMachine", "vmName", vmName, "vmPath", vmPath)
 	vmID := "vsphere_virtual_machine." + v.IdSanitize(vmName)
 	// remove existing VM from the state
-	_, err := terraform.TimedTerraformCommand(ctx, terraform.TerraformDir, "terraform", "state", "rm", vmID)
+	_, err := terraform.TimedTerraformCommand(ctx, v.getTerraformDir(ctx), "terraform", "state", "rm", vmID)
 	if err != nil {
 		// remove only returns an error on a syntax or other issue, if the resource does not exist there is no error
 		log.SpanLog(ctx, log.DebugLevelInfra, "error in deleting existing vm in terraform state", "err", err)
@@ -625,7 +759,7 @@ func (v *VSpherePlatform) ImportTerraformTag(ctx context.Context, tagname, catna
 func (v *VSpherePlatform) ImportTerraformPlan(ctx context.Context, planName string, updateCallback edgeproto.CacheUpdateCallback) error {
 	log.SpanLog(ctx, log.DebugLevelInfra, "ImportTerraformPlan", "planName", planName)
 
-	fileName := terraform.TerraformDir + "/" + planName + ".tf"
+	fileName := v.getTerraformDir(ctx) + "/" + planName + ".tf"
 	notfoundReg := regexp.MustCompile("Error: .* not found")
 	input, err := ioutil.ReadFile(fileName)
 	if err != nil {
@@ -638,7 +772,7 @@ func (v *VSpherePlatform) ImportTerraformPlan(ctx context.Context, planName stri
 			importCmd := strings.ReplaceAll(line, "## import", "import")
 			log.SpanLog(ctx, log.DebugLevelInfra, "Found import", "importCmd", importCmd)
 			args := strings.Split(importCmd, " ")
-			out, err := terraform.TimedTerraformCommand(ctx, terraform.TerraformDir, "terraform", args...)
+			out, err := terraform.TimedTerraformCommand(ctx, v.getTerraformDir(ctx), "terraform", args...)
 			if err != nil {
 				if strings.Contains(out, "Resource already managed by Terraform") {
 					log.SpanLog(ctx, log.DebugLevelInfra, "resource already in terraform state")
@@ -655,34 +789,45 @@ func (v *VSpherePlatform) ImportTerraformPlan(ctx context.Context, planName stri
 	return nil
 }
 
+func (v *VSpherePlatform) IsTerraformInitialized(ctx context.Context) bool {
+	terraformDir := v.getTerraformDir(ctx)
+	_, err := os.Stat(terraformDir)
+	return err == nil
+}
+
 // TerraformSetupVsphere creates the basic plan for the cloudlet.  It does not apply it
 func (v *VSpherePlatform) TerraformSetupVsphere(ctx context.Context, updateCallback edgeproto.CacheUpdateCallback) error {
 	log.SpanLog(ctx, log.DebugLevelInfra, "TerraformSetupVsphere")
 
+	terraformDir := v.getTerraformDir(ctx)
 	planName := v.NameSanitize(v.GetDatacenterName(ctx))
-	_, staterr := os.Stat(terraform.TerraformDir)
+	_, staterr := os.Stat(terraformDir)
 	if staterr == nil {
-		timestamp := time.Now().Format("2006-01-02T150405")
-		backdir := terraform.TerraformDir + "-" + timestamp
+		backdir := v.getTerraformDir(ctx) + "." + "bak"
 		log.SpanLog(ctx, log.DebugLevelInfra, "backing up terraformdir", "backdir", backdir)
-
-		err := os.Rename(terraform.TerraformDir, backdir)
+		// remove old backup dir
+		rmerr := os.RemoveAll(backdir)
+		if rmerr != nil {
+			return fmt.Errorf("unable to remove backup dir: %s - %v", backdir, rmerr)
+		}
+		err := os.Rename(v.getTerraformDir(ctx), backdir)
 		if err != nil {
-			return fmt.Errorf("unable to backup terraformDir: %s %s - %v", terraform.TerraformDir, timestamp, err)
+			return fmt.Errorf("unable to backup terraformDir: %s %s - %v", terraformDir, backdir, err)
 		}
 	}
-	err := os.Mkdir(terraform.TerraformDir, 0755)
+	err := os.Mkdir(terraformDir, 0755)
 	if err != nil {
-		return fmt.Errorf("unable to create terraformDir: %s - %v", terraform.TerraformDir, err)
+		return fmt.Errorf("unable to create terraformDir: %s - %v", terraformDir, err)
 	}
 
 	var vgp VSphereGeneralParams
-	err = v.populateGeneralParams(ctx, planName, "", &vgp, terraformCreate)
+	err = v.populateGeneralParams(ctx, planName, &vgp, terraformCreate)
 	if err != nil {
 		return err
 	}
 	terraformFile, err := terraform.CreateTerraformPlanFromTemplate(
 		ctx,
+		v.getTerraformDir(ctx),
 		vgp,
 		planName,
 		vcenterTemplate, updateCallback,
@@ -699,7 +844,7 @@ func (v *VSpherePlatform) TerraformSetupVsphere(ctx context.Context, updateCallb
 	}
 
 	log.SpanLog(ctx, log.DebugLevelInfra, "created terraform file", "terraformFile", terraformFile)
-	err = terraform.ApplyTerraformPlan(ctx, terraformFile, updateCallback)
+	err = terraform.ApplyTerraformPlan(ctx, v.getTerraformDir(ctx), terraformFile, updateCallback)
 	if err != nil {
 		log.SpanLog(ctx, log.DebugLevelInfra, "Apply failed for setup vsphere", "terraformFile", terraformFile)
 		return err
@@ -718,7 +863,7 @@ func (v *VSpherePlatform) orchestrateVMs(ctx context.Context, vmGroupOrchestrati
 	planName := v.NameSanitize(vmGroupOrchestrationParams.GroupName)
 	var vvgp VSphereVMGroupParams
 	var vgp VSphereGeneralParams
-	err := v.populateGeneralParams(ctx, planName, vmGroupOrchestrationParams.VMDomain, &vgp, action)
+	err := v.populateGeneralParams(ctx, planName, &vgp, action)
 	if err != nil {
 		return err
 	}
@@ -734,6 +879,7 @@ func (v *VSpherePlatform) orchestrateVMs(ctx context.Context, vmGroupOrchestrati
 
 	terraformFile, err := terraform.CreateTerraformPlanFromTemplate(
 		ctx,
+		v.getTerraformDir(ctx),
 		vvgp,
 		planName,
 		vmGroupTemplate,
@@ -747,9 +893,10 @@ func (v *VSpherePlatform) orchestrateVMs(ctx context.Context, vmGroupOrchestrati
 	}
 	return terraform.ApplyTerraformPlan(
 		ctx,
+		v.getTerraformDir(ctx),
 		terraformFile,
 		updateCallback,
-		terraform.WithCleanupOnFailure(v.vmProperties.CommonPf.GetCleanupOnFailure(ctx)),
+		terraform.WithSkipCleanupOnFailure(vvgp.SkipCleanupOnFailure),
 		terraform.WithRetries(NumTerraformRetries))
 }
 
@@ -770,7 +917,7 @@ func (v *VSpherePlatform) UpdateVMs(ctx context.Context, vmGroupOrchestrationPar
 }
 
 func (v *VSpherePlatform) DeleteVMs(ctx context.Context, vmGroupName string) error {
-	return terraform.DeleteTerraformPlan(ctx, vmGroupName)
+	return terraform.DeleteTerraformPlan(ctx, v.getTerraformDir(ctx), vmGroupName)
 }
 
 func (v *VSpherePlatform) SyncVMs(ctx context.Context, vmGroupOrchestrationParams *vmlayer.VMGroupOrchestrationParams, updateCallback edgeproto.CacheUpdateCallback) error {

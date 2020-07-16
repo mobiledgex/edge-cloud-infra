@@ -1,0 +1,2 @@
+fields_path: /etc/filebeat/fields.yml
+config_path: /etc/filebeat/filebeat.yml

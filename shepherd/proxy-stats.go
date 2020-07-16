@@ -113,8 +113,12 @@ func CollectProxyStats(ctx context.Context, appInst *edgeproto.AppInst) string {
 		// TODO: track udp ports as well (when we add udp to envoy)
 		for _, p := range appInst.MappedPorts {
 			if p.Proto == dme.LProto_L_PROTO_TCP {
-				scrapePoint.Ports = append(scrapePoint.Ports, p.PublicPort)
+				scrapePoint.Ports = append(scrapePoint.Ports, p.InternalPort)
 			}
+		}
+		// Don't need to scrape anything if no ports are trackable
+		if len(scrapePoint.Ports) == 0 {
+			return ""
 		}
 
 		clusterInst := edgeproto.ClusterInst{}
@@ -124,7 +128,7 @@ func CollectProxyStats(ctx context.Context, appInst *edgeproto.AppInst) string {
 			return ""
 		}
 		var err error
-		scrapePoint.Client, err = myPlatform.GetClusterPlatformClient(ctx, &clusterInst)
+		scrapePoint.Client, err = myPlatform.GetClusterPlatformClient(ctx, &clusterInst, cloudcommon.ClientTypeRootLB)
 		if err != nil {
 			// If we cannot get a platform client no point in trying to get metrics
 			log.SpanLog(ctx, log.DebugLevelMetrics, "Failed to acquire platform client", "cluster", clusterInst.Key, "error", err)
@@ -136,15 +140,19 @@ func CollectProxyStats(ctx context.Context, appInst *edgeproto.AppInst) string {
 			log.SpanLog(ctx, log.DebugLevelMetrics, "Failed to find envoy proxy for app", "scrapepoint", scrapePoint, "err", err)
 			return ""
 		}
+		log.SpanLog(ctx, log.DebugLevelMetrics, "Creating Proxy Stats "+appInst.Key.AppKey.Name, "scrape point", scrapePoint)
 		ProxyMutex.Lock()
 		ProxyMap[ProxyMapKey] = scrapePoint
 		ProxyMutex.Unlock()
 		return ProxyMapKey
 	}
-	// if the app is anything other than ready, stop tracking it
+	// if the app is anything other than ready, stop tracking it if it exists
 	ProxyMutex.Lock()
+	defer ProxyMutex.Unlock()
+	if _, found := ProxyMap[ProxyMapKey]; !found {
+		return ""
+	}
 	delete(ProxyMap, ProxyMapKey)
-	ProxyMutex.Unlock()
 	return ProxyMapKey
 }
 
@@ -176,8 +184,7 @@ func ProxyScraper() {
 			scrapePoints := copyMapValues()
 			for _, v := range scrapePoints {
 				span := log.StartSpan(log.DebugLevelSampled, "send-metric")
-				span.SetTag("operator", cloudletKey.Organization)
-				span.SetTag("cloudlet", cloudletKey.Name)
+				log.SetTags(span, cloudletKey.GetTags())
 				span.SetTag("cluster", v.Cluster)
 				ctx := log.ContextWithSpan(context.Background(), span)
 

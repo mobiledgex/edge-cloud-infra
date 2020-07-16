@@ -16,9 +16,11 @@ import (
 )
 
 type VMProperties struct {
-	CommonPf         infracommon.CommonPlatform
-	sharedRootLBName string
-	sharedRootLB     *MEXRootLB
+	CommonPf           infracommon.CommonPlatform
+	sharedRootLBName   string
+	sharedRootLB       *MEXRootLB
+	Domain             VMDomain
+	PlatformSecgrpName string
 }
 
 // note that qcow2 must be understood by vsphere and vmdk must
@@ -26,7 +28,7 @@ type VMProperties struct {
 var ImageFormatQcow2 = "qcow2"
 var ImageFormatVmdk = "vmdk"
 
-var MEXInfraVersion = "3.1.2"
+var MEXInfraVersion = "3.1.3"
 var ImageNamePrefix = "mobiledgex-v"
 var DefaultOSImageName = ImageNamePrefix + MEXInfraVersion
 
@@ -110,7 +112,7 @@ func GetVaultCloudletAccessPath(key *edgeproto.CloudletKey, region, cloudletType
 	return fmt.Sprintf("/secret/data/%s/cloudlet/%s/%s/%s/%s", region, cloudletType, key.Organization, physicalName, filename)
 }
 
-func GetCloudletVMImagePath(imgPath, imgVersion string) string {
+func GetCloudletVMImagePath(imgPath, imgVersion string, imgSuffix string) string {
 	vmRegistryPath := DefaultCloudletVMImagePath
 	if imgPath != "" {
 		vmRegistryPath = imgPath
@@ -118,7 +120,7 @@ func GetCloudletVMImagePath(imgPath, imgVersion string) string {
 	if !strings.HasSuffix(vmRegistryPath, "/") {
 		vmRegistryPath = vmRegistryPath + "/"
 	}
-	return vmRegistryPath + GetCloudletVMImageName(imgVersion) + ".qcow2"
+	return vmRegistryPath + GetCloudletVMImageName(imgVersion) + imgSuffix
 }
 
 // GetCloudletSharedRootLBFlavor gets the flavor from defaults

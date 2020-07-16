@@ -9,6 +9,7 @@ import (
 	"net/http"
 	"os"
 	"strconv"
+	"sync"
 	"text/template"
 
 	intprocess "github.com/mobiledgex/edge-cloud-infra/e2e-tests/int-process"
@@ -24,18 +25,19 @@ const HealthCheckRulesPrefix = "healthcheck"
 var CloudletPrometheusAddr = "0.0.0.0:" + intprocess.CloudletPrometheusPort
 
 var promTargetTemplate, promAutoProvAlertTemplate *template.Template
+var targetsLock sync.Mutex
 
 var promTargetT = `
 {
 	"targets": ["{{.MetricsProxyAddr}}"],
 	"labels": {
-		"` + cloudcommon.AlertLabelApp + `": "{{.Key.AppKey.Name}}",
-		"` + cloudcommon.AlertLabelAppVer + `": "{{.Key.AppKey.Version}}",
-		"` + cloudcommon.AlertLabelAppOrg + `": "{{.Key.AppKey.Organization}}",
-		"` + cloudcommon.AlertLabelCluster + `": "{{.Key.ClusterInstKey.ClusterKey.Name}}",
-		"` + cloudcommon.AlertLabelClusterOrg + `": "{{.Key.ClusterInstKey.Organization}}",
-		"` + cloudcommon.AlertLabelCloudlet + `": "{{.Key.ClusterInstKey.CloudletKey.Name}}",
-		"` + cloudcommon.AlertLabelCloudletOrg + `": "{{.Key.ClusterInstKey.CloudletKey.Organization}}",
+		"` + edgeproto.AppKeyTagName + `": "{{.Key.AppKey.Name}}",
+		"` + edgeproto.AppKeyTagVersion + `": "{{.Key.AppKey.Version}}",
+		"` + edgeproto.AppKeyTagOrganization + `": "{{.Key.AppKey.Organization}}",
+		"` + edgeproto.ClusterKeyTagName + `": "{{.Key.ClusterInstKey.ClusterKey.Name}}",
+		"` + edgeproto.ClusterInstKeyTagOrganization + `": "{{.Key.ClusterInstKey.Organization}}",
+		"` + edgeproto.CloudletKeyTagName + `": "{{.Key.ClusterInstKey.CloudletKey.Name}}",
+		"` + edgeproto.CloudletKeyTagOrganization + `": "{{.Key.ClusterInstKey.CloudletKey.Organization}}",
 		"__metrics_path__":"{{.EnvoyMetricsPath}}"
 	}
 }`
@@ -57,7 +59,7 @@ var promAutoProvAlertT = `groups:
 - name: ` + cloudcommon.AlertAutoProvDown + `
   rules:
   - alert: ScaleDown
-    expr: envoy_cluster_upstream_cx_active{` + cloudcommon.AlertLabelApp + `="{{.AppKey.Name}}",` + cloudcommon.AlertLabelAppVer + `="{{.AppKey.Version}}",` + cloudcommon.AlertLabelAppOrg + `="{{.AppKey.Organization}}"} == 0
+    expr: envoy_cluster_upstream_cx_active{` + edgeproto.AppKeyTagName + `="{{.AppKey.Name}}",` + edgeproto.AppKeyTagVersion + `="{{.AppKey.Version}}",` + edgeproto.AppKeyTagOrganization + `="{{.AppKey.Organization}}"} == 0
     for: 5m
 `
 
@@ -67,7 +69,12 @@ type targetData struct {
 	EnvoyMetricsPath string
 }
 
-func getAppInstPrometheusTargetString(appInst *edgeproto.AppInst) (string, error) {
+func init() {
+	promTargetTemplate = template.Must(template.New("prometheustarget").Parse(promTargetT))
+	promAutoProvAlertTemplate = template.Must(template.New("autoprovalert").Parse(promAutoProvAlertT))
+}
+
+func getAppInstPrometheusTargetString(appInstKey *edgeproto.AppInstKey) (string, error) {
 	host := *metricsAddr
 	switch *platformName {
 	case "PLATFORM_TYPE_EDGEBOX":
@@ -77,8 +84,8 @@ func getAppInstPrometheusTargetString(appInst *edgeproto.AppInst) (string, error
 	}
 	target := targetData{
 		MetricsProxyAddr: host,
-		Key:              appInst.GetKeyVal(),
-		EnvoyMetricsPath: "/metrics/" + getProxyKey(&appInst.Key),
+		Key:              *appInstKey,
+		EnvoyMetricsPath: "/metrics/" + getProxyKey(appInstKey),
 	}
 	buf := bytes.Buffer{}
 	if err := promTargetTemplate.Execute(&buf, target); err != nil {
@@ -91,18 +98,19 @@ func getAppInstPrometheusTargetString(appInst *edgeproto.AppInst) (string, error
 
 // Walk through AppInstances and write out the targets
 func writePrometheusTargetsFile() {
+	targetsLock.Lock()
+	defer targetsLock.Unlock()
 	var targets = "["
-	AppInstCache.Show(&edgeproto.AppInst{}, func(obj *edgeproto.AppInst) error {
+	proxyScrapePoints := copyMapValues()
+	for _, val := range proxyScrapePoints {
 		if targets != "[" {
 			targets += ","
 		}
-		promTargetJson, err := getAppInstPrometheusTargetString(obj)
+		promTargetJson, err := getAppInstPrometheusTargetString(&val.Key)
 		if err == nil {
 			targets += promTargetJson
 		}
-		// just skip the targets that we are unable to fill
-		return nil
-	})
+	}
 	targets += "]"
 	ioutil.WriteFile(*promTargetsFile, []byte(targets), 0644)
 }
@@ -181,8 +189,6 @@ func startPrometheusMetricsProxy(ctx context.Context) error {
 	if *platformName == "PLATFORM_TYPE_EDGEBOX" ||
 		*platformName == "PLATFORM_TYPE_OPENSTACK" {
 		// Init prometheus targets and alert templates
-		promTargetTemplate = template.Must(template.New("prometheustarget").Parse(promTargetT))
-		promAutoProvAlertTemplate = template.Must(template.New("autoprovalert").Parse(promAutoProvAlertT))
 		healthCeckFile := getPrometheusFileName(HealthCheckRulesPrefix)
 		err := writeCloudletPrometheusAlerts(ctx, healthCeckFile, []byte(promHealthCheckAlerts))
 		if err != nil {

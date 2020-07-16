@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/url"
+	"regexp"
 	"strings"
 	"time"
 
@@ -207,7 +208,7 @@ func (v *VSpherePlatform) GetDistributedPortGroups(ctx context.Context) ([]Distr
 	var pgrps []DistributedPortGroup
 	dcName := v.GetDatacenterName(ctx)
 	networkSearchPath := fmt.Sprintf("/%s/network", dcName)
-	out, err := v.TimedGovcCommand(ctx, "govc", "ls", "-json", networkSearchPath)
+	out, err := v.TimedGovcCommand(ctx, "govc", "ls", "-dc", dcName, "-json", networkSearchPath)
 	if err != nil {
 		return nil, err
 	}
@@ -301,19 +302,15 @@ func (v *VSpherePlatform) GetUsedSubnetCIDRs(ctx context.Context) (map[string]st
 	log.SpanLog(ctx, log.DebugLevelInfra, "GetUsedSubnetCIDRs")
 
 	cidrUsed := make(map[string]string)
-	tags, err := v.getTagsForCategory(ctx, v.GetSubnetTagCategory(ctx))
+	tags, err := v.getTagsForCategory(ctx, v.GetSubnetTagCategory(ctx), vmlayer.VMDomainAny)
 	if err != nil {
 		return nil, err
 	}
 	for _, t := range tags {
-		// tags are format subnet__cidr
-		ts := strings.Split(t.Name, vmlayer.TagDelimiter)
-		if len(ts) != 2 {
-			log.SpanLog(ctx, log.DebugLevelInfra, "incorrect subnet tag format", "tag", t)
-			return nil, fmt.Errorf("incorrect subnet tag format %s", t)
+		sn, cidr, _, err := v.ParseSubnetTag(ctx, t.Name)
+		if err != nil {
+			return nil, err
 		}
-		sn := ts[0]
-		cidr := ts[1]
 		cidrUsed[cidr] = sn
 	}
 
@@ -332,17 +329,33 @@ func (v *VSpherePlatform) GetTags(ctx context.Context) ([]GovcTag, error) {
 	return tags, nil
 }
 
-func (v *VSpherePlatform) getTagsForCategory(ctx context.Context, category string) ([]GovcTag, error) {
+func (v *VSpherePlatform) getTagsForCategory(ctx context.Context, category string, domainMatch vmlayer.VMDomain) ([]GovcTag, error) {
 	out, err := v.TimedGovcCommand(ctx, "govc", "tags.ls", "-c", category, "-json")
 
 	var tags []GovcTag
+	var matchedTags []GovcTag
 	err = json.Unmarshal(out, &tags)
 	if err != nil {
 		log.SpanLog(ctx, log.DebugLevelInfra, "getTagsForCategory unmarshal fail", "out", string(out), "err", err)
 		err = fmt.Errorf("cannot unmarshal govc subnet tags, %v", err)
 		return nil, err
 	}
-	return tags, nil
+	// due to an intermittent govc bug (or maybe a vsphere bug), sometimes the category id in the tag is a UUID instead
+	// of a name so we will update it here before returning to get consistent results
+	for _, t := range tags {
+		domain, err := v.GetDomainFromTag(ctx, t.Name)
+		if err != nil {
+			return nil, err
+		}
+		if domainMatch == vmlayer.VMDomainAny || domain == string(domainMatch) {
+			if t.Category != category {
+				log.SpanLog(ctx, log.DebugLevelInfra, "Updating category for tag", "orig category", t.Category, "category", category)
+				t.Category = category
+			}
+			matchedTags = append(matchedTags, t)
+		}
+	}
+	return matchedTags, nil
 }
 
 func (v *VSpherePlatform) GetTagCategories(ctx context.Context) ([]GovcTagCategory, error) {
@@ -369,27 +382,43 @@ func (v *VSpherePlatform) GetTagCategories(ctx context.Context) ([]GovcTagCatego
 	return returnedcats, err
 }
 
-func (v *VSpherePlatform) GetIpFromTagsForVM(ctx context.Context, vmName, netname string) (string, error) {
-	log.SpanLog(ctx, log.DebugLevelInfra, "GetIpFromTagsForVM", "vmName", vmName, "netname", netname)
-	tags, err := v.getTagsForCategory(ctx, v.GetVmIpTagCategory(ctx))
+func (v *VSpherePlatform) GetIpsFromTagsForVM(ctx context.Context, vmName string, sd *vmlayer.ServerDetail) error {
+	log.SpanLog(ctx, log.DebugLevelInfra, "GetIpsFromTagsForVM", "vmName", vmName)
+	tags, err := v.getTagsForCategory(ctx, v.GetVmIpTagCategory(ctx), vmlayer.VMDomainAny)
 	if err != nil {
-		return "", err
+		return err
 	}
 	for _, t := range tags {
-		// vmtags are format vm__network__cidr
-		ts := strings.Split(t.Name, vmlayer.TagDelimiter)
-		if len(ts) != 3 {
-			log.SpanLog(ctx, log.DebugLevelInfra, "incorrect tag format", "tag", t)
+		vm, net, ip, _, err := v.ParseVMIpTag(ctx, t.Name)
+		if err != nil {
+			return err
+		}
+		if vm != vmName {
 			continue
 		}
-		vm := ts[0]
-		net := ts[1]
-		ip := ts[2]
-		if vm == vmName && net == netname {
-			return ip, nil
+
+		// see if there is an existing port in the server details and update it
+		found := false
+		for i, s := range sd.Addresses {
+			if s.Network == net {
+				log.SpanLog(ctx, log.DebugLevelInfra, "Updated address via tag", "vm", vm, "net", net, "ip", ip)
+				sd.Addresses[i].ExternalAddr = ip
+				sd.Addresses[i].InternalAddr = ip
+				found = true
+			}
+		}
+		if !found {
+			sip := vmlayer.ServerIP{
+				InternalAddr: ip,
+				ExternalAddr: ip,
+				Network:      net,
+				PortName:     vmlayer.GetPortName(vmName, net),
+			}
+			sd.Addresses = append(sd.Addresses, sip)
+			log.SpanLog(ctx, log.DebugLevelInfra, "Added address via tag", "vm", vm, "net", net, "ip", ip)
 		}
 	}
-	return "", fmt.Errorf("no ip found from tags for %s", vmName)
+	return nil
 }
 
 func (v *VSpherePlatform) GetExternalIPForServer(ctx context.Context, server string) (string, error) {
@@ -412,7 +441,7 @@ func (v *VSpherePlatform) GetUsedExternalIPs(ctx context.Context) (map[string]st
 	ipsUsed := make(map[string]string)
 	extNetId := v.IdSanitize(v.vmProperties.GetCloudletExternalNetwork())
 
-	tags, err := v.getTagsForCategory(ctx, v.GetVmIpTagCategory(ctx))
+	tags, err := v.getTagsForCategory(ctx, v.GetVmIpTagCategory(ctx), vmlayer.VMDomainAny)
 	if err != nil {
 		return nil, err
 	}
@@ -420,13 +449,13 @@ func (v *VSpherePlatform) GetUsedExternalIPs(ctx context.Context) (map[string]st
 
 	for _, t := range tags {
 		// tags are format vm__network__ip
-		ts := strings.Split(t.Name, vmlayer.TagDelimiter)
-		if len(ts) != 3 {
-			return nil, fmt.Errorf("notice: incorrect tag format for tag: %s", t)
+		vm, net, ip, _, err := v.ParseVMIpTag(ctx, t.Name)
+		if err != nil {
+			return nil, err
 		}
-		if ts[1] == extNetId {
-			log.SpanLog(ctx, log.DebugLevelInfra, "Found external ip", "server", ts[0], "ip", ts[2])
-			ipsUsed[ts[2]] = ts[0]
+		if net == extNetId {
+			log.SpanLog(ctx, log.DebugLevelInfra, "Found external ip", "vm", vm, "ip", ip)
+			ipsUsed[ip] = vm
 		}
 	}
 	return ipsUsed, nil
@@ -461,34 +490,44 @@ func (v *VSpherePlatform) getServerDetailFromGovcVm(ctx context.Context, govcVm 
 		if len(net.IpAddress) > 0 {
 			sip.ExternalAddr = net.IpAddress[0]
 			sip.InternalAddr = net.IpAddress[0]
-		} else {
-			ip, err := v.GetIpFromTagsForVM(ctx, sd.Name, sip.Network)
-			if err != nil {
-				log.SpanLog(ctx, log.DebugLevelInfra, "GetIpFromTagsForVM failed", "net", sip.Network, "err", err)
-			} else {
-				sip.ExternalAddr = ip
-				sip.InternalAddr = ip
-			}
 		}
 		sd.Addresses = append(sd.Addresses, sip)
 	}
 	// if there is not guest net info, populate what is available from tags for the external network
 	// this can happen for VMs which do not have vmtools installed
-	if len(govcVm.Guest.Net) == 0 {
-		var sip vmlayer.ServerIP
-		sip.Network = v.vmProperties.GetCloudletExternalNetwork()
-		sip.PortName = vmlayer.GetPortName(govcVm.Name, sip.Network)
-		ip, err := v.GetIpFromTagsForVM(ctx, sd.Name, sip.Network)
-		if err != nil {
-			log.SpanLog(ctx, log.DebugLevelInfra, "GetIpFromTagsForVM failed", "net", sip.Network, "err", err)
-		} else {
-			sip.ExternalAddr = ip
-			sip.InternalAddr = ip
-			sd.Addresses = append(sd.Addresses, sip)
+	err := v.GetIpsFromTagsForVM(ctx, sd.Name, &sd)
+	if err != nil {
+		log.SpanLog(ctx, log.DebugLevelInfra, "GetIpsFromTagsForVM failed", "err", err)
+	}
+
+	return &sd
+}
+
+// a vSphere7/Govc interaction problem in which vm.info does not return port group names, but
+// only UUIDs for the vswitch which is not one to one with a portgroup.  The non-json output
+func (v *VSpherePlatform) GetNetworkListForGovcVm(ctx context.Context, vmname string) ([]string, error) {
+	log.SpanLog(ctx, log.DebugLevelInfra, "GetNetworkListForGovcVm", "name", vmname)
+
+	dcName := v.GetDatacenterName(ctx)
+	vmPath := "/" + dcName + "/vm/" + vmname
+
+	out, err := v.TimedGovcCommand(ctx, "govc", "vm.info", "-r", "-dc", dcName, vmPath)
+	if err != nil {
+		return nil, fmt.Errorf("Unable to get network summary for vm: %s - %v", vmname, err)
+	}
+	networkPattern := "\\s*Network:\\s+(.*)"
+	nreg := regexp.MustCompile(networkPattern)
+	lines := strings.Split(string(out), "\n")
+	// Example format for what we are looking for
+	// Network:              DPGAdminDEV, mex-k8s-subnet-dev-cluster2-mobiledge
+	for _, line := range lines {
+		if nreg.MatchString(line) {
+			matches := nreg.FindStringSubmatch(line)
+			networks := strings.TrimSpace(matches[1])
+			return strings.Split(networks, ","), nil
 		}
 	}
-	return &sd
-
+	return nil, fmt.Errorf("no networks found for vm: %s", vmname)
 }
 
 func (v *VSpherePlatform) GetServerDetail(ctx context.Context, vmname string) (*vmlayer.ServerDetail, error) {
@@ -496,6 +535,7 @@ func (v *VSpherePlatform) GetServerDetail(ctx context.Context, vmname string) (*
 	var sd *vmlayer.ServerDetail
 	dcName := v.GetDatacenterName(ctx)
 	vmPath := "/" + dcName + "/vm/" + vmname
+	var err error
 	start := time.Now()
 	for {
 		out, err := v.TimedGovcCommand(ctx, "govc", "vm.info", "-dc", dcName, "-json", vmPath)
@@ -520,33 +560,33 @@ func (v *VSpherePlatform) GetServerDetail(ctx context.Context, vmname string) (*
 		}
 
 		sd = v.getServerDetailFromGovcVm(ctx, &vms.VirtualMachines[0])
-		if len(vms.VirtualMachines[0].Guest.Net) > 0 || sd.Status == vmlayer.ServerShutoff || vms.VirtualMachines[0].Guest.ToolsStatus == "toolsNotInstalled" {
+		if len(vms.VirtualMachines[0].Guest.Net) > 0 || sd.Status == vmlayer.ServerShutoff {
+			break
+		}
+		if vms.VirtualMachines[0].Guest.ToolsStatus == "toolsNotInstalled" && len(sd.Addresses) > 0 {
+			// indicates we got an IP from tags
 			break
 		}
 		elapsed := time.Since(start)
 		if elapsed >= (maxGuestWait) {
 			log.SpanLog(ctx, log.DebugLevelInfra, "max guest wait time expired")
+			err = fmt.Errorf("max guest wait time expired for VM: %s", vms.VirtualMachines[0].Name)
 			break
 		}
 		log.SpanLog(ctx, log.DebugLevelInfra, "VM powered on but guest net is not ready, sleep 5 seconds and retry", "elaspsed", elapsed)
 		time.Sleep(5 * time.Second)
 	}
-
-	return sd, nil
+	return sd, err
 }
 
-func getVmNamesForDomain(ctx context.Context, domainMatch vmlayer.VMDomain, tags []GovcTag) (map[string]string, error) {
+func (v *VSpherePlatform) getVmNamesFromTags(ctx context.Context, tags []GovcTag) (map[string]string, error) {
 	names := make(map[string]string)
 	for _, tag := range tags {
-		ts := strings.Split(tag.Name, vmlayer.TagDelimiter)
-		if len(ts) != 2 {
-			return nil, fmt.Errorf("Incorrect VM Domain tag format %s", ts)
+		vmname, _, err := v.ParseVMDomainTag(ctx, tag.Name)
+		if err != nil {
+			return nil, err
 		}
-		vmname := ts[0]
-		domain := ts[1]
-		if domainMatch == vmlayer.VMDomainAny || domain == string(domainMatch) {
-			names[vmname] = vmname
-		}
+		names[vmname] = vmname
 	}
 	return names, nil
 }
@@ -556,13 +596,13 @@ func (v *VSpherePlatform) GetVMs(ctx context.Context, vmNameMatch string, domain
 	var vms GovcVMs
 	dcName := v.GetDatacenterName(ctx)
 
-	vmtags, err := v.getTagsForCategory(ctx, v.GetVMDomainTagCategory(ctx))
+	vmtags, err := v.getTagsForCategory(ctx, v.GetVMDomainTagCategory(ctx), domainMatch)
 	if err != nil {
 		return nil, err
 	}
 
 	vmPath := "/" + dcName + "/vm/"
-	out, err := v.TimedGovcCommand(ctx, "govc", "vm.info", "-json", vmPath+vmNameMatch)
+	out, err := v.TimedGovcCommand(ctx, "govc", "vm.info", "-dc", dcName, "-json", vmPath+vmNameMatch)
 	if err != nil {
 		return nil, err
 	}
@@ -579,14 +619,14 @@ func (v *VSpherePlatform) GetVMs(ctx context.Context, vmNameMatch string, domain
 		// no tag filtering
 		return &vms, nil
 	}
-	namematch, err := getVmNamesForDomain(ctx, domainMatch, vmtags)
+	vmnames, err := v.getVmNamesFromTags(ctx, vmtags)
 	if err != nil {
 		return nil, err
 	}
 	// filter the list
 	var matchedVms GovcVMs
 	for _, vm := range vms.VirtualMachines {
-		_, ok := namematch[vm.Name]
+		_, ok := vmnames[vm.Name]
 		if ok {
 			log.SpanLog(ctx, log.DebugLevelInfra, "VM Matched tag", "vmName", vm.Name, "tagMatch", domainMatch)
 			matchedVms.VirtualMachines = append(matchedVms.VirtualMachines, vm)
@@ -605,11 +645,11 @@ func (v *VSpherePlatform) SetPowerState(ctx context.Context, serverName, serverA
 
 	switch serverAction {
 	case vmlayer.ActionStop:
-		_, err = v.TimedGovcCommand(ctx, "govc", "vm.power", "-off", vmPath)
+		_, err = v.TimedGovcCommand(ctx, "govc", "vm.power", "-dc", dcName, "-off", vmPath)
 	case vmlayer.ActionStart:
-		_, err = v.TimedGovcCommand(ctx, "govc", "vm.power", "-on", vmPath)
+		_, err = v.TimedGovcCommand(ctx, "govc", "vm.power", "-dc", dcName, "-on", vmPath)
 	case vmlayer.ActionReboot:
-		_, err = v.TimedGovcCommand(ctx, "govc", "vm.power", "-reset", vmPath)
+		_, err = v.TimedGovcCommand(ctx, "govc", "vm.power", "-dc", dcName, "-reset", vmPath)
 	default:
 		return fmt.Errorf("unsupported server action: %s", serverAction)
 	}
@@ -620,7 +660,7 @@ func (v *VSpherePlatform) GetConsoleUrl(ctx context.Context, serverName string) 
 	log.SpanLog(ctx, log.DebugLevelInfra, "GetConsoleUrl", "serverName", serverName)
 	dcName := v.GetDatacenterName(ctx)
 	vmPath := "/" + dcName + "/vm/" + serverName
-	out, err := v.TimedGovcCommand(ctx, "govc", "vm.console", "-h5", vmPath)
+	out, err := v.TimedGovcCommand(ctx, "govc", "vm.console", "-dc", dcName, "-h5", vmPath)
 
 	consoleUrl := strings.TrimSpace(string(out))
 	urlObj, err := url.Parse(consoleUrl)
@@ -645,28 +685,67 @@ func (v *VSpherePlatform) GetConsoleUrl(ctx context.Context, serverName string) 
 	return urlObj.String() + "&" + "sessioncookie=" + cookie64, nil
 }
 
+func (v *VSpherePlatform) CreateTemplateFromImage(ctx context.Context, imageFolder string, imageFile string) error {
+	log.SpanLog(ctx, log.DebugLevelInfra, "CreateTemplateFromImage", "imageFile", imageFile)
+	ds := v.GetDataStore()
+	dcName := v.GetDatacenterName(ctx)
+	templateName := imageFile
+	folder := v.GetTemplateFolder()
+	extNet := v.vmProperties.GetCloudletExternalNetwork()
+	pool := fmt.Sprintf("/%s/host/%s/Resources", v.GetDatacenterName(ctx), v.GetComputeCluster())
+
+	// create the VM which will become our template
+	out, err := v.TimedGovcCommand(ctx, "govc", "vm.create", "-g", "ubuntu64Guest", "-pool", pool, "-ds", ds, "-dc", dcName, "-folder", folder, "-disk", imageFolder+"/"+imageFile+".vmdk", "-net", extNet, templateName)
+	if err != nil {
+		log.SpanLog(ctx, log.DebugLevelInfra, "Failed to create template VM", "out", string(out), "err", err)
+		return fmt.Errorf("Failed to create template VM: %v", err)
+	}
+
+	// try to get server detail which will ensure vmtools is running which needs to be set in the template's data
+	_, err = v.GetServerDetail(ctx, folder+"/"+templateName)
+	if err != nil {
+		return err
+	}
+	// shut off the VM
+	err = v.SetPowerState(ctx, folder+"/"+templateName, vmlayer.ActionStop)
+	if err != nil {
+		return err
+	}
+	// mark the VM as a template
+	out, err = v.TimedGovcCommand(ctx, "govc", "vm.markastemplate", "-dc", dcName, templateName)
+	if err != nil {
+		log.SpanLog(ctx, log.DebugLevelInfra, "Failed to mark VM as template", "out", string(out), "err", err)
+		return fmt.Errorf("Failed to mark VM as template: %v", err)
+	}
+	return nil
+}
+
 func (v *VSpherePlatform) ImportImage(ctx context.Context, folder, imageFile string) error {
 	log.SpanLog(ctx, log.DebugLevelInfra, "ImportImage", "imageFile", imageFile)
 	ds := v.GetDataStore()
+	dcName := v.GetDatacenterName(ctx)
 
 	// first delete anything that may be there for this image
 	v.DeleteImage(ctx, folder, imageFile)
 
 	pool := fmt.Sprintf("/%s/host/%s/Resources", v.GetDatacenterName(ctx), v.GetComputeCluster())
-	out, err := v.TimedGovcCommand(ctx, "govc", "import.vmdk", "-force", "-pool", pool, "-ds", ds, imageFile, folder)
+	out, err := v.TimedGovcCommand(ctx, "govc", "import.vmdk", "-force", "-pool", pool, "-ds", ds, "-dc", dcName, imageFile, folder)
 
 	if err != nil {
 		log.SpanLog(ctx, log.DebugLevelInfra, "ImportImage fail", "out", string(out), "err", err)
+		return fmt.Errorf("Import Image Fail: %v", err)
 	} else {
 		log.SpanLog(ctx, log.DebugLevelInfra, "ImportImage OK", "out", string(out))
 	}
-	return err
+	return nil
 }
 
 func (v *VSpherePlatform) DeleteImage(ctx context.Context, folder, image string) error {
 	log.SpanLog(ctx, log.DebugLevelInfra, "DeleteImage", "image", image)
 	ds := v.GetDataStore()
-	out, err := v.TimedGovcCommand(ctx, "govc", "datastore.rm", "-ds", ds, folder)
+	dcName := v.GetDatacenterName(ctx)
+
+	out, err := v.TimedGovcCommand(ctx, "govc", "datastore.rm", "-ds", ds, "-dc", dcName, folder)
 	if err != nil {
 		if strings.Contains(string(out), "not found") {
 			log.SpanLog(ctx, log.DebugLevelInfra, "DeleteImage -- dir does not exist", "out", string(out), "err", err)

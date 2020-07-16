@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"path/filepath"
 	"strings"
 	"time"
 
@@ -30,6 +31,7 @@ func (v *VSpherePlatform) AddAppImageIfNotPresent(ctx context.Context, app *edge
 	}
 	_, md5Sum, err := infracommon.GetUrlInfo(ctx, v.vmProperties.CommonPf.VaultConfig, app.ImagePath)
 
+	updateCallback(edgeproto.UpdateTask, "Downloading VM Image")
 	filePath, err := vmlayer.DownloadVMImage(ctx, v.vmProperties.CommonPf.VaultConfig, imageName, app.ImagePath, md5Sum)
 	if err != nil {
 		return err
@@ -38,6 +40,7 @@ func (v *VSpherePlatform) AddAppImageIfNotPresent(ctx context.Context, app *edge
 
 	vmdkFile := filePath
 	if app.ImageType == edgeproto.ImageType_IMAGE_TYPE_QCOW {
+		updateCallback(edgeproto.UpdateTask, "Converting Image to VMDK")
 		vmdkFile, err = v.ConvertQcowToVmdk(ctx, filePath, f.Disk)
 		if err != nil {
 			return err
@@ -60,7 +63,7 @@ func (v *VSpherePlatform) AddAppImageIfNotPresent(ctx context.Context, app *edge
 
 func (v *VSpherePlatform) ConvertQcowToVmdk(ctx context.Context, sourceFile string, size uint64) (string, error) {
 	log.SpanLog(ctx, log.DebugLevelInfra, "ConvertQcowToVmdk", "sourceFile", sourceFile, "size", size)
-	destFile := strings.ReplaceAll(sourceFile, ".qcow2", "")
+	destFile := strings.TrimSuffix(sourceFile, filepath.Ext(sourceFile))
 	destFile = destFile + ".vmdk"
 
 	convertChan := make(chan string, 1)
@@ -75,6 +78,7 @@ func (v *VSpherePlatform) ConvertQcowToVmdk(ctx context.Context, sourceFile stri
 			log.SpanLog(ctx, log.DebugLevelInfra, "qemu-img resize failed", "out", string(out), "err", err)
 			convertChan <- fmt.Sprintf("qemu-img resize failed: %s %v", out, err)
 		}
+		log.SpanLog(ctx, log.DebugLevelInfra, "doing qemu-img convert", "destFile", destFile)
 		out, err = sh.Command("qemu-img", "convert", "-O", "vmdk", "-o", "subformat=streamOptimized", sourceFile, destFile).CombinedOutput()
 		if err != nil {
 			log.SpanLog(ctx, log.DebugLevelInfra, "qemu-img convert failed", "out", string(out), "err", err)

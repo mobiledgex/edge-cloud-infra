@@ -347,16 +347,16 @@ func TestAlertMgrServer(t *testing.T) {
 		val, found := alert.Labels["alertname"]
 		require.True(t, found)
 		require.Equal(t, cloudcommon.AlertAppInstDown, val)
-		val, found = alert.Labels[cloudcommon.AlertLabelApp]
+		val, found = alert.Labels[edgeproto.AppKeyTagName]
 		require.True(t, found)
 		require.Equal(t, "testapp", val)
-		val, found = alert.Labels[cloudcommon.AlertLabelAppOrg]
+		val, found = alert.Labels[edgeproto.AppKeyTagOrganization]
 		require.True(t, found)
 		require.Equal(t, "testorg", val)
-		val, found = alert.Labels[cloudcommon.AlertLabelAppVer]
+		val, found = alert.Labels[edgeproto.AppKeyTagVersion]
 		require.True(t, found)
 		require.Equal(t, "1.0", val)
-		val, found = alert.Labels[cloudcommon.AlertLabelCloudlet]
+		val, found = alert.Labels[edgeproto.CloudletKeyTagName]
 		require.True(t, found)
 		require.Equal(t, "testcloudlet", val)
 		val, found = alert.Labels[cloudcommon.AlertHealthCheckStatus]

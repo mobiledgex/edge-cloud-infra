@@ -315,9 +315,7 @@ func (v *VMPlatform) AttachAndEnableRootLBInterface(ctx context.Context, client 
 	log.SpanLog(ctx, log.DebugLevelInfra, "AttachAndEnableRootLBInterface", "rootLBName", rootLBName, "attachPort", attachPort, "subnetName", subnetName, "internalPortName", internalPortName)
 
 	if rootLBName == v.VMProperties.SharedRootLBName {
-		log.SpanLog(ctx, log.DebugLevelInfra, "AttachAndEnableRootLBInterface Wait for sharedRootLBPortLock ", "rootLBName", rootLBName)
 		sharedRootLBPortLock.Lock()
-		log.SpanLog(ctx, log.DebugLevelInfra, "AttachAndEnableRootLBInterface sharedRootLBPortLock acquired ", "rootLBName", rootLBName)
 		defer sharedRootLBPortLock.Unlock()
 	}
 	var action InterfaceActionsOp
@@ -357,9 +355,7 @@ func (v *VMPlatform) GetRootLBName(key *edgeproto.CloudletKey) string {
 func (v *VMPlatform) DetachAndDisableRootLBInterface(ctx context.Context, client ssh.Client, rootLBName string, subnetName, internalPortName, internalIPAddr string) error {
 	log.SpanLog(ctx, log.DebugLevelInfra, "DetachAndDisableRootLBInterface", "rootLBName", rootLBName, "subnetName", subnetName, "internalPortName", internalPortName)
 	if rootLBName == v.VMProperties.SharedRootLBName {
-		log.SpanLog(ctx, log.DebugLevelInfra, "DetachAndDisableRootLBInterface Wait for sharedRootLBPortLock ", "rootLBName", rootLBName)
 		sharedRootLBPortLock.Lock()
-		log.SpanLog(ctx, log.DebugLevelInfra, "DetachAndDisableRootLBInterface sharedRootLBPortLock acquired ", "rootLBName", rootLBName)
 		defer sharedRootLBPortLock.Unlock()
 	}
 

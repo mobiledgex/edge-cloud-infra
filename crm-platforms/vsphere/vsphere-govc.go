@@ -497,8 +497,6 @@ func (v *VSpherePlatform) getServerDetailFromGovcVm(ctx context.Context, govcVm 
 		log.SpanLog(ctx, log.DebugLevelInfra, "unexpected power state", "state", govcVm.Runtime.PowerState)
 		sd.Status = "unknown"
 	}
-	// if there is not guest net info, populate what is available from tags for the external network
-	// this can happen for VMs which do not have vmtools installed
 	err = v.GetIpsFromTagsForVM(ctx, sd.Name, &sd)
 	if err != nil {
 		log.SpanLog(ctx, log.DebugLevelInfra, "GetIpsFromTagsForVM failed", "err", err)

@@ -33,24 +33,8 @@ func createProduct(name, description string) (string, error) {
 		EffectiveStartDate: StartDate,
 		EffectiveEndDate:   EndDate,
 	}
-	payload, err := json.Marshal(productReq)
-	if err != nil {
-		return "", fmt.Errorf("Could not marshal %s, err: %v", productReq, err)
-	}
 
-	client := &http.Client{}
-	req, err := http.NewRequest("POST", ZuoraUrl+ProductEndpoint, bytes.NewReader(payload))
-	if err != nil {
-		return "", fmt.Errorf("Error creating request: %v\n", err)
-	}
-	req.Header.Add("Content-Type", "application/json")
-	token, tokentype, err := getToken()
-	if err != nil {
-		return "", fmt.Errorf("Unable to retrieve oAuth token")
-	}
-	req.Header.Add("Authorization", tokentype+" "+token)
-
-	resp, err := client.Do(req)
+	resp, err := newZuoraReq("POST", ZuoraUrl+ProductEndpoint, productReq)
 	if err != nil {
 		return "", fmt.Errorf("Error sending request: %v\n", err)
 	}
@@ -72,24 +56,7 @@ func createProductRatePlan(name, description, productId string) (string, error) 
 		Description: description,
 		ProductID:   productId,
 	}
-	payload, err := json.Marshal(reqBody)
-	if err != nil {
-		return "", fmt.Errorf("Could not marshal %+v, err: %v", reqBody, err)
-	}
-
-	client := &http.Client{}
-	req, err := http.NewRequest("POST", ZuoraUrl+ProductRatePlanEndpoint, bytes.NewReader(payload))
-	if err != nil {
-		return "", fmt.Errorf("Error creating request: %v\n", err)
-	}
-	req.Header.Add("Content-Type", "application/json")
-	token, tokentype, err := getToken()
-	if err != nil {
-		return "", fmt.Errorf("Unable to retrieve oAuth token")
-	}
-	req.Header.Add("Authorization", tokentype+" "+token)
-
-	resp, err := client.Do(req)
+	resp, err := newZuoraReq("POST", ZuoraUrl+ProductRatePlanEndpoint, reqBody)
 	if err != nil {
 		return "", fmt.Errorf("Error sending request: %v\n", err)
 	}
@@ -125,24 +92,8 @@ func createProductRatePlanCharge(ratePlanId, name, description string, chargeMod
 	if chargeModel == PER_UNIT_PRICING {
 		reqBody.RatingGroup = "ByUsageRecord"
 	}
-	payload, err := json.Marshal(reqBody)
-	if err != nil {
-		return "", fmt.Errorf("Could not marshal %+v, err: %v", reqBody, err)
-	}
 
-	client := &http.Client{}
-	req, err := http.NewRequest("POST", ZuoraUrl+ProductRatePlanChargeEndpoint, bytes.NewReader(payload))
-	if err != nil {
-		return "", fmt.Errorf("Error creating request: %v\n", err)
-	}
-	req.Header.Add("Content-Type", "application/json")
-	token, tokentype, err := getToken()
-	if err != nil {
-		return "", fmt.Errorf("Unable to retrieve oAuth token")
-	}
-	req.Header.Add("Authorization", tokentype+" "+token)
-
-	resp, err := client.Do(req)
+	resp, err := newZuoraReq("POST", ZuoraUrl+ProductRatePlanChargeEndpoint, reqBody)
 	if err != nil {
 		return "", fmt.Errorf("Error sending request: %v\n", err)
 	}

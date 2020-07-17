@@ -1,10 +1,8 @@
 package zuora
 
 import (
-	"bytes"
 	"encoding/json"
 	"fmt"
-	"net/http"
 	"time"
 
 	"github.com/mobiledgex/edge-cloud/edgeproto"
@@ -44,23 +42,7 @@ func RecordUsage(account *AccountInfo, key interface{}, usageType, flavorName st
 		Description:        desc,
 	}
 
-	payload, err := json.Marshal(newUsage)
-	if err != nil {
-		return fmt.Errorf("Could not marshal %+v, err: %v", newUsage, err)
-	}
-	client := &http.Client{}
-	req, err := http.NewRequest("POST", ZuoraUrl+UsageEndpoint, bytes.NewReader(payload))
-	if err != nil {
-		return fmt.Errorf("Error creating request: %v\n", err)
-	}
-	token, tokentype, err := getToken()
-	if err != nil {
-		return fmt.Errorf("Unable to retrieve oAuth token")
-	}
-	req.Header.Add("Authorization", tokentype+" "+token)
-	req.Header.Set("Content-Type", "application/json")
-
-	resp, err := client.Do(req)
+	resp, err := newZuoraReq("POST", ZuoraUrl+UsageEndpoint, newUsage)
 	if err != nil {
 		return fmt.Errorf("Error sending request: %v\n", err)
 	}

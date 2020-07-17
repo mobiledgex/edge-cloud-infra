@@ -30,7 +30,7 @@ func CollectDailyUsage(ctx context.Context) {
 			controllers, err := orm.ShowControllerObj(ctx, nil)
 			if err != nil {
 				log.SpanLog(ctx, log.DebugLevelInfo, "Unable to get regions to query influx", "err", err)
-				return
+				continue
 			}
 			regions := make(map[string]bool)
 			for _, controller := range controllers {
@@ -39,10 +39,10 @@ func CollectDailyUsage(ctx context.Context) {
 			// get usage from every region
 			now := time.Now()
 			// grab usage from the day before
-			// today := time.Date(now.Year(), now.Month(), now.Day(), 0, 0, 0, 0, time.UTC)
-			// yesterday := time.Date(now.Year(), now.Month(), now.Day()-1, 0, 0, 0, 0, time.UTC)
-			today := now
-			yesterday := now.Add(-3 * time.Minute)
+			today := time.Date(now.Year(), now.Month(), now.Day(), 0, 0, 0, 0, time.UTC)
+			yesterday := time.Date(now.Year(), now.Month(), now.Day()-1, 0, 0, 0, 0, time.UTC)
+			// today := now
+			// yesterday := now.Add(-3 * time.Minute)
 			clusterCmd := fmt.Sprintf(clusterInstUsageInfluxCmd, yesterday.Format(time.RFC3339), today.Format(time.RFC3339))
 			appCmd := fmt.Sprintf(appInstUsageInfluxCmd, yesterday.Format(time.RFC3339), today.Format(time.RFC3339))
 			for region, _ := range regions {
@@ -181,18 +181,18 @@ func RecordAppUsages(ctx context.Context, resp *client.Response) {
 }
 
 // This one is for demo purposes (to please the wonho)
-func timeTilNextDay() time.Duration {
-	// make sure to change today and yesterday in CollectDailyClusterUsage to the following if you enable this version
-	// today := now
-	// yesterday := now.Add(-3 * time.Minute)
-	return time.Minute * 3
-}
-
 // func timeTilNextDay() time.Duration {
-// 	now := time.Now()
-// 	nextDay := time.Date(now.Year(), now.Month(), now.Day()+1, 0, 30, 0, 0, time.UTC)
-// 	return nextDay.Sub(now)
+// 	// make sure to change today and yesterday in CollectDailyClusterUsage to the following if you enable this version
+// 	// today := now
+// 	// yesterday := now.Add(-3 * time.Minute)
+// 	return time.Minute * 3
 // }
+
+func timeTilNextDay() time.Duration {
+	now := time.Now()
+	nextDay := time.Date(now.Year(), now.Month(), now.Day()+1, 0, 30, 0, 0, time.UTC)
+	return nextDay.Sub(now)
+}
 
 func checkInfluxQueryOutput(result []client.Result, dbName string) (bool, error) {
 	empty := false

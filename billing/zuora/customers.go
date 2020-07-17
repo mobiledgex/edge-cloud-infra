@@ -4,9 +4,35 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
+	"io"
 	"net/http"
 	"time"
 )
+
+func newZuoraReq(method, url string, payload interface{}) (*http.Response, error) {
+	var body io.Reader
+	if payload != nil {
+		marshalled, err := json.Marshal(payload)
+		if err != nil {
+			return nil, fmt.Errorf("Could not marshal %+v, err: %v", payload, err)
+		}
+		body = bytes.NewReader(marshalled)
+	}
+	req, err := http.NewRequest(method, url, body)
+	if err != nil {
+		return nil, fmt.Errorf("Error creating request: %v\n", err)
+	}
+	// get oAuth token
+	token, tokentype, err := getToken()
+	if err != nil {
+		return nil, fmt.Errorf("Unable to retrieve oAuth token")
+	}
+	req.Header.Add("Authorization", tokentype+" "+token)
+	req.Header.Set("Content-Type", "application/json")
+
+	client := &http.Client{}
+	return client.Do(req)
+}
 
 //Create customer with a empty monthly subscription (with no payment method for now)
 func CreateCustomer(name, currency string, billToContact *CustomerBillToContact, parent, info *AccountInfo) error {
@@ -52,24 +78,7 @@ func CreateCustomer(name, currency string, billToContact *CustomerBillToContact,
 
 	newSub.Subscriptions = []OrderSubscription{OrderSubscription{OrderActions: []OrderAction{newAction}}}
 
-	payload, err := json.Marshal(newSub)
-	if err != nil {
-		return fmt.Errorf("Could not marshal %+v, err: %v", newSub, err)
-	}
-	client := &http.Client{}
-	req, err := http.NewRequest("POST", ZuoraUrl+OrdersEndpoint, bytes.NewReader(payload))
-	if err != nil {
-		return fmt.Errorf("Error creating request: %v\n", err)
-	}
-	token, tokentype, err := getToken()
-	if err != nil {
-		return fmt.Errorf("Unable to retrieve oAuth token")
-	}
-	req.Header.Add("Authorization", tokentype+" "+token)
-	req.Header.Set("Content-Type", "application/json")
-
-	fmt.Printf("sending request: %+v\n", req)
-	resp, err := client.Do(req)
+	resp, err := newZuoraReq("POST", ZuoraUrl+OrdersEndpoint, newSub)
 	if err != nil {
 		return fmt.Errorf("Error sending request: %v\n", err)
 	}
@@ -121,23 +130,7 @@ func CreateParentCustomer(name, currency string, billToContact *CustomerBillToCo
 		AutoPay:       false, //required if you dont add a payment method
 	}
 
-	payload, err := json.Marshal(account)
-	if err != nil {
-		return fmt.Errorf("Could not marshal %+v, err: %v", account, err)
-	}
-	client := &http.Client{}
-	req, err := http.NewRequest("POST", ZuoraUrl+AccountsEndPoint, bytes.NewReader(payload))
-	if err != nil {
-		return fmt.Errorf("Error creating request: %v\n", err)
-	}
-	token, tokentype, err := getToken()
-	if err != nil {
-		return fmt.Errorf("Unable to retrieve oAuth token")
-	}
-	req.Header.Add("Authorization", tokentype+" "+token)
-	req.Header.Set("Content-Type", "application/json")
-
-	resp, err := client.Do(req)
+	resp, err := newZuoraReq("POST", ZuoraUrl+AccountsEndPoint, account)
 	if err != nil {
 		return fmt.Errorf("Error sending request: %v\n", err)
 	}
@@ -163,23 +156,7 @@ func UpdateCustomer(info *AccountInfo, billToContact *CustomerBillToContact) err
 		SoldToContact: billToContact, // for now keep them the same TODO: figure out what these actually mean
 	}
 
-	payload, err := json.Marshal(account)
-	if err != nil {
-		return fmt.Errorf("Could not marshal %+v, err: %v", account, err)
-	}
-	client := &http.Client{}
-	req, err := http.NewRequest("PUT", ZuoraUrl+AccountsEndPoint+"/"+info.AccountNumber, bytes.NewReader(payload))
-	if err != nil {
-		return fmt.Errorf("Error creating request: %v\n", err)
-	}
-	token, tokentype, err := getToken()
-	if err != nil {
-		return fmt.Errorf("Unable to retrieve oAuth token")
-	}
-	req.Header.Add("Authorization", tokentype+" "+token)
-	req.Header.Set("Content-Type", "application/json")
-
-	resp, err := client.Do(req)
+	resp, err := newZuoraReq("PUT", ZuoraUrl+AccountsEndPoint+"/"+info.AccountNumber, account)
 	if err != nil {
 		return fmt.Errorf("Error sending request: %v\n", err)
 	}
@@ -220,23 +197,7 @@ func CancelSubscription(accountInfo *AccountInfo) error {
 		},
 	}
 
-	payload, err := json.Marshal(newSub)
-	if err != nil {
-		return fmt.Errorf("Could not marshal %+v, err: %v", newSub, err)
-	}
-	client := &http.Client{}
-	req, err := http.NewRequest("POST", ZuoraUrl+OrdersEndpoint, bytes.NewReader(payload))
-	if err != nil {
-		return fmt.Errorf("Error creating request: %v\n", err)
-	}
-	token, tokentype, err := getToken()
-	if err != nil {
-		return fmt.Errorf("Unable to retrieve oAuth token")
-	}
-	req.Header.Add("Authorization", tokentype+" "+token)
-	req.Header.Set("Content-Type", "application/json")
-
-	resp, err := client.Do(req)
+	resp, err := newZuoraReq("POST", ZuoraUrl+OrdersEndpoint, newSub)
 	if err != nil {
 		return fmt.Errorf("Error sending request: %v\n", err)
 	}
@@ -261,19 +222,7 @@ func getNextBillDay() string {
 
 // Delete a customer
 func DeleteCustomer(accountInfo *AccountInfo) error {
-	req, err := http.NewRequest("DELETE", ZuoraUrl+ObjectAccountsEndpoint+accountInfo.AccountID, nil)
-	if err != nil {
-		return fmt.Errorf("Error creating request: %v\n", err)
-	}
-
-	token, tokentype, err := getToken()
-	if err != nil {
-		return fmt.Errorf("Unable to retrieve oAuth token")
-	}
-	req.Header.Add("Authorization", tokentype+" "+token)
-
-	client := &http.Client{}
-	resp, err := client.Do(req)
+	resp, err := newZuoraReq("DELETE", ZuoraUrl+ObjectAccountsEndpoint+accountInfo.AccountID, nil)
 	if err != nil {
 		return fmt.Errorf("Error sending request: %v\n", err)
 	}
@@ -293,18 +242,7 @@ func DeleteCustomer(accountInfo *AccountInfo) error {
 // Creates a subscription for the customer with the product if he doesnt already have one, otherwise just adds the product onto the existing subscription
 func AddItem(rateplanId, accountNum, invOwner string) error {
 	// Check if they already have an existing subscription
-	client := &http.Client{}
-	req, err := http.NewRequest("GET", ZuoraUrl+GetSubscriptionEndpoint+accountNum, nil)
-	if err != nil {
-		return fmt.Errorf("Error creating request: %v\n", err)
-	}
-	token, tokentype, err := getToken()
-	if err != nil {
-		return fmt.Errorf("Unable to retrieve oAuth token")
-	}
-	req.Header.Add("Authorization", tokentype+" "+token)
-
-	resp, err := client.Do(req)
+	resp, err := newZuoraReq("GET", ZuoraUrl+GetSubscriptionEndpoint+accountNum, nil)
 	if err != nil {
 		return fmt.Errorf("Error sending request: %v\n", err)
 	}
@@ -353,23 +291,7 @@ func AddItem(rateplanId, accountNum, invOwner string) error {
 		},
 	}
 
-	payload, err := json.Marshal(newOrder)
-	if err != nil {
-		return fmt.Errorf("Could not marshal %+v, err: %v", newOrder, err)
-	}
-	client = &http.Client{}
-	req, err = http.NewRequest("POST", ZuoraUrl+OrdersEndpoint, bytes.NewReader(payload))
-	if err != nil {
-		return fmt.Errorf("Error creating request: %v\n", err)
-	}
-	token, tokentype, err = getToken()
-	if err != nil {
-		return fmt.Errorf("Unable to retrieve oAuth token")
-	}
-	req.Header.Add("Authorization", tokentype+" "+token)
-	req.Header.Set("Content-Type", "application/json")
-
-	resp, err = client.Do(req)
+	resp, err = newZuoraReq("POST", ZuoraUrl+OrdersEndpoint, newOrder)
 	if err != nil {
 		return fmt.Errorf("Error sending request: %v\n", err)
 	}
@@ -386,18 +308,7 @@ func AddItem(rateplanId, accountNum, invOwner string) error {
 }
 
 func getSubscription(accountNum string) (*CheckSubscriptions, error) {
-	req, err := http.NewRequest("GET", ZuoraUrl+GetSubscriptionEndpoint+accountNum, nil)
-	if err != nil {
-		return nil, fmt.Errorf("Error creating request: %v\n", err)
-	}
-	token, tokentype, err := getToken()
-	if err != nil {
-		return nil, fmt.Errorf("Unable to retrieve oAuth token")
-	}
-	req.Header.Add("Authorization", tokentype+" "+token)
-
-	client := &http.Client{}
-	resp, err := client.Do(req)
+	resp, err := newZuoraReq("GET", ZuoraUrl+GetSubscriptionEndpoint+accountNum, nil)
 	if err != nil {
 		return nil, fmt.Errorf("Error sending request: %v\n", err)
 	}
@@ -418,18 +329,7 @@ func getSubscription(accountNum string) (*CheckSubscriptions, error) {
 
 // takes either the account id or account number and gives the other number, along with the parent(if there is one)
 func getAccountInfo(accountIdOrNum string, info *AccountInfo) error {
-	req, err := http.NewRequest("GET", ZuoraUrl+AccountsEndPoint+"/"+accountIdOrNum, nil)
-	if err != nil {
-		return fmt.Errorf("Error creating request: %v\n", err)
-	}
-	token, tokentype, err := getToken()
-	if err != nil {
-		return fmt.Errorf("Unable to retrieve oAuth token")
-	}
-	req.Header.Add("Authorization", tokentype+" "+token)
-
-	client := &http.Client{}
-	resp, err := client.Do(req)
+	resp, err := newZuoraReq("GET", ZuoraUrl+AccountsEndPoint+"/"+accountIdOrNum, nil)
 	if err != nil {
 		return fmt.Errorf("Error sending request: %v\n", err)
 	}
@@ -449,18 +349,7 @@ func getAccountInfo(accountIdOrNum string, info *AccountInfo) error {
 }
 
 func getSubscriptionOwner(subNum string) (string, string, error) {
-	req, err := http.NewRequest("GET", ZuoraUrl+"/v1/subscriptions/"+subNum, nil)
-	if err != nil {
-		return "", "", fmt.Errorf("Error creating request: %v\n", err)
-	}
-	token, tokentype, err := getToken()
-	if err != nil {
-		return "", "", fmt.Errorf("Unable to retrieve oAuth token")
-	}
-	req.Header.Add("Authorization", tokentype+" "+token)
-
-	client := &http.Client{}
-	resp, err := client.Do(req)
+	resp, err := newZuoraReq("GET", ZuoraUrl+"/v1/subscriptions/"+subNum, nil)
 	if err != nil {
 		return "", "", fmt.Errorf("Error sending request: %v\n", err)
 	}

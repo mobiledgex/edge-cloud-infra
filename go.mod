@@ -354,3 +354,5 @@ replace github.com/jcelliott/lumber => github.com/jcelliott/lumber v0.0.0-201603
 replace github.com/mobiledgex/golang-ssh => github.com/mobiledgex/golang-ssh v0.0.8
 
 replace github.com/rogpeppe/fastuuid => github.com/rogpeppe/fastuuid v1.2.0
+
+replace gopkg.in/yaml.v3 => gopkg.in/yaml.v3 v3.0.0-20200313102051-9f266ea9e77c

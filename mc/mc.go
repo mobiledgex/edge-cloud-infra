@@ -32,7 +32,7 @@ var skipVerifyEmail = flag.Bool("skipVerifyEmail", false, "skip email verificati
 var skipOriginCheck = flag.Bool("skipOriginCheck", false, "skip origin check constraint, for testing only")
 var notifyAddrs = flag.String("notifyAddrs", "127.0.0.1:53001", "Parent notify listener addresses")
 var notifySrvAddr = flag.String("notifySrvAddr", "127.0.0.1:52001", "Notify listener address")
-var alertMgrAddr = flag.String("alertMgrAddr", "127.0.0.1:9093", "Global Alertmanager api address")
+var alertMgrAddr = flag.String("alertMgrAddr", "http://127.0.0.1:9093", "Global Alertmanager api address")
 var hostname = flag.String("hostname", "", "Unique hostname")
 
 var sigChan chan os.Signal
@@ -78,6 +78,11 @@ func main() {
 	}
 	defer server.Stop()
 
+	// Wair for server to set up the vault first
+	err = server.WaitUntilReady()
+	if err != nil {
+		log.FatalLog("Server could not be started", "err", err)
+	}
 	alertMgrServer, err := alertmgr.NewAlertMgrServer(*alertMgrAddr, alertmgr.AlertManagerConfigPath,
 		server.GetVaultConfig(), *localVault, &alertCache)
 	if err != nil {

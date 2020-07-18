@@ -140,6 +140,10 @@ func (s *AlertMrgServer) readConfigFile(ctx context.Context) error {
 		// Doesn't exist - need to load up a default config
 		if os.IsNotExist(err) {
 			email, err := s.getAlertmanagertSmtpConfig(ctx)
+			if err != nil {
+				log.SpanLog(ctx, log.DebugLevelInfo, "Failed to get Smtp from vault", "err", err, "cfg", s.vaultConfig)
+				return err
+			}
 			config := fmt.Sprintf(DefaultAlertmanagerConfigFmt, email.Email, email.Smtp+":587", email.User, email.Token)
 
 			err = ioutil.WriteFile(s.AlertMgrConfigPath, []byte(config), 0644)

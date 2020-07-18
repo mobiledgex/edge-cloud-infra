@@ -25,6 +25,13 @@ vaults:
 - name: vault
   hostname: "127.0.0.1"
   regions: local,locala
+  vaultdatas:
+  - path: /secret/accounts/alertmanagersmtp
+    data:
+      email : "alerts@localhost"
+      user : "testuser"
+      token : "12345"
+      smtp : "localhost"
 
 influxs:
 - name: influx1
@@ -32,7 +39,6 @@ influxs:
   httpaddr: "http://127.0.0.1:8086"
   hostname: "127.0.0.1"
 
-influxs:
 - name: influxa1
   datadir: /var/tmp/edge-cloud-local-influx/influx2
   httpaddr: "http://127.0.0.1:8087"

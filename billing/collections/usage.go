@@ -26,7 +26,7 @@ func CollectDailyUsage(ctx context.Context) {
 	for {
 		span := log.StartSpan(log.DebugLevelInfo, "Usage collection thread", opentracing.ChildOf(log.SpanFromContext(ctx).Context()))
 		select {
-		case <-time.After(timeTilNextDay()):
+		case <-time.After(timeTilNextDay(ctx)):
 			controllers, err := orm.ShowControllerObj(ctx, nil)
 			if err != nil {
 				log.SpanLog(ctx, log.DebugLevelInfo, "Unable to get regions to query influx", "err", err)
@@ -41,8 +41,12 @@ func CollectDailyUsage(ctx context.Context) {
 			// grab usage from the day before
 			today := time.Date(now.Year(), now.Month(), now.Day(), 0, 0, 0, 0, time.UTC)
 			yesterday := time.Date(now.Year(), now.Month(), now.Day()-1, 0, 0, 0, 0, time.UTC)
-			// today := now
-			// yesterday := now.Add(-3 * time.Minute)
+			testInterval, ok := ctx.Value("test").(time.Duration)
+			if ok {
+				today = now
+				yesterday = now.Add(-1 * testInterval)
+			}
+
 			clusterCmd := fmt.Sprintf(clusterInstUsageInfluxCmd, yesterday.Format(time.RFC3339), today.Format(time.RFC3339))
 			appCmd := fmt.Sprintf(appInstUsageInfluxCmd, yesterday.Format(time.RFC3339), today.Format(time.RFC3339))
 			for region, _ := range regions {
@@ -180,15 +184,12 @@ func RecordAppUsages(ctx context.Context, resp *client.Response) {
 	}
 }
 
-// This one is for demo purposes (to please the wonho)
-// func timeTilNextDay() time.Duration {
-// 	// make sure to change today and yesterday in CollectDailyClusterUsage to the following if you enable this version
-// 	// today := now
-// 	// yesterday := now.Add(-3 * time.Minute)
-// 	return time.Minute * 3
-// }
+func timeTilNextDay(ctx context.Context) time.Duration {
+	testInterval, ok := ctx.Value("test").(time.Duration)
+	if ok {
+		return testInterval
+	}
 
-func timeTilNextDay() time.Duration {
 	now := time.Now()
 	nextDay := time.Date(now.Year(), now.Month(), now.Day()+1, 0, 30, 0, 0, time.UTC)
 	return nextDay.Sub(now)

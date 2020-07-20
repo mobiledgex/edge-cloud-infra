@@ -28,7 +28,7 @@ func CreateBillingOrg(c echo.Context) error {
 	ctx := GetContext(c)
 	org := ormapi.BillingOrganization{}
 	if err := c.Bind(&org); err != nil {
-		return c.JSON(http.StatusBadRequest, Msg("Invalid POST data"))
+		return bindErr(c, err)
 	}
 	span := log.SpanFromContext(ctx)
 	span.SetTag("billing org", org.Name)
@@ -215,7 +215,7 @@ func AddChildOrg(c echo.Context) error {
 	ctx := GetContext(c)
 	org := ormapi.BillingOrganization{}
 	if err := c.Bind(&org); err != nil {
-		return c.JSON(http.StatusBadRequest, Msg("Invalid POST data"))
+		return bindErr(c, err)
 	}
 	span := log.SpanFromContext(ctx)
 	span.SetTag("billing org", org.Name)
@@ -280,7 +280,7 @@ func RemoveChildOrg(c echo.Context) error {
 	ctx := GetContext(c)
 	org := ormapi.BillingOrganization{}
 	if err := c.Bind(&org); err != nil {
-		return c.JSON(http.StatusBadRequest, Msg("Invalid POST data"))
+		return bindErr(c, err)
 	}
 	span := log.SpanFromContext(ctx)
 	span.SetTag("billing org", org.Name)
@@ -350,7 +350,7 @@ func DeleteBillingOrg(c echo.Context) error {
 	ctx := GetContext(c)
 	org := ormapi.BillingOrganization{}
 	if err := c.Bind(&org); err != nil {
-		return c.JSON(http.StatusBadRequest, Msg("Invalid POST data"))
+		return bindErr(c, err)
 	}
 	span := log.SpanFromContext(ctx)
 	span.SetTag("billing org", org.Name)

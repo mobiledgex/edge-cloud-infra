@@ -34,6 +34,7 @@ var notifyAddrs = flag.String("notifyAddrs", "127.0.0.1:53001", "Parent notify l
 var notifySrvAddr = flag.String("notifySrvAddr", "127.0.0.1:52001", "Notify listener address")
 var hostname = flag.String("hostname", "", "Unique hostname")
 var billingPath = flag.String("billingPath", "", "Zuora account path in vault")
+var testCollectionInterval = flag.Duration("testCollectionInterval", -1*time.Second, "Collection interval, for testing only")
 
 var sigChan chan os.Signal
 var nodeMgr node.NodeMgr
@@ -87,6 +88,9 @@ func main() {
 		span := log.StartSpan(log.DebugLevelInfo, "billing")
 		defer span.Finish()
 		ctx := log.ContextWithSpan(context.Background(), span)
+		if testCollectionInterval.Seconds() > float64(0) { // if positive, we are in testing mode
+			ctx = context.WithValue(ctx, "test", *testCollectionInterval)
+		}
 		go collections.CollectDailyUsage(ctx)
 	}
 

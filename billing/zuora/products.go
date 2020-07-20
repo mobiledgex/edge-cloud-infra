@@ -1,10 +1,8 @@
 package zuora
 
 import (
-	"bytes"
 	"encoding/json"
 	"fmt"
-	"net/http"
 
 	"github.com/mobiledgex/edge-cloud/edgeproto"
 )

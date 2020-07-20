@@ -17,6 +17,7 @@ import (
 	"github.com/jinzhu/gorm"
 	"github.com/labstack/echo"
 	intprocess "github.com/mobiledgex/edge-cloud-infra/e2e-tests/int-process"
+	"github.com/mobiledgex/edge-cloud-infra/mc/orm/alertmgr"
 	"github.com/mobiledgex/edge-cloud-infra/mc/ormapi"
 	"github.com/mobiledgex/edge-cloud-infra/mc/rbac"
 	"github.com/mobiledgex/edge-cloud/cloudcommon"
@@ -73,6 +74,7 @@ type ServerConfig struct {
 	NotifySrvAddr    string
 	NodeMgr          *node.NodeMgr
 	AlertCache       *edgeproto.AlertCache
+	AlertMgrAddr     string
 }
 
 var DefaultDBUser = "mcuser"
@@ -209,6 +211,12 @@ func RunServer(config *ServerConfig) (*Server, error) {
 
 	server.initDataDone = make(chan struct{}, 1)
 	go InitData(ctx, Superuser, superpass, config.PingInterval, &server.stopInitData, server.initDataDone)
+
+	alertMgrServer, err := alertmgr.NewAlertMgrServer(config.AlertMgrAddr, alertmgr.AlertManagerConfigPath,
+		config.vaultConfig, config.LocalVault, config.AlertCache)
+	if err != nil {
+		log.FatalLog("Failed to run alertmanager server", "err", err)
+	}
 
 	go server.setupConsoleProxy(ctx)
 
@@ -399,6 +407,8 @@ func RunServer(config *ServerConfig) (*Server, error) {
 		addrs := strings.Split(config.NotifyAddrs, ",")
 		server.notifyClient = notify.NewClient(nodeMgr.Name(), addrs, edgetls.GetGrpcDialOption(tlsConfig))
 		edgeproto.InitAlertCache(config.AlertCache)
+		// sets the callback to be the alertMgr thread callback
+		config.AlertCache.SetUpdatedCb(alertMgrServer.UpdateAlert)
 		server.notifyClient.RegisterRecvAlertCache(config.AlertCache)
 		nodeMgr.RegisterClient(server.notifyClient)
 
@@ -438,10 +448,11 @@ func RunServer(config *ServerConfig) (*Server, error) {
 	gitlabSync = GitlabNewSync()
 	artifactorySync = ArtifactoryNewSync()
 
-	// gitlab/artifactory sync requires data to be initialized
+	// gitlab/artifactory sync and alertmanager requires data to be initialized
 	<-server.initDataDone
 	gitlabSync.Start()
 	artifactorySync.Start()
+	alertMgrServer.Start()
 
 	return &server, err
 }
@@ -764,8 +775,4 @@ func (s *Server) setupConsoleProxy(ctx context.Context) {
 		s.Stop()
 		log.FatalLog("Failed to start console proxy server", "err", err)
 	}
-}
-
-func (s *Server) GetVaultConfig() *vault.Config {
-	return s.config.vaultConfig
 }

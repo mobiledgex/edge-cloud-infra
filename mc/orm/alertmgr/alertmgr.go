@@ -21,11 +21,11 @@ import (
 
 	//"github.com/prometheus/alertmanager/api/v2/models"
 	// TODO - below is to replace the above for right now - once we update go and modules we can use prometheus directly
-	models "github.com/mobiledgex/edge-cloud-infra/mc/alertmgr/prometheus_structs/models"
+	models "github.com/mobiledgex/edge-cloud-infra/mc/orm/alertmgr/prometheus_structs/models"
 
 	//	alertmanager_config "github.com/prometheus/alertmanager/config"
 	// TODO - below is to replace the above for right now - once we update go and modules we can use prometheus directly
-	alertmanager_config "github.com/mobiledgex/edge-cloud-infra/mc/alertmgr/prometheus_structs/config"
+	alertmanager_config "github.com/mobiledgex/edge-cloud-infra/mc/orm/alertmgr/prometheus_structs/config"
 )
 
 var alertRefreshInterval = 30 * time.Second

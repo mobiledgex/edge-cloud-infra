@@ -7,7 +7,6 @@ import (
 	"os/signal"
 	"time"
 
-	"github.com/mobiledgex/edge-cloud-infra/mc/alertmgr"
 	"github.com/mobiledgex/edge-cloud-infra/mc/orm"
 	"github.com/mobiledgex/edge-cloud/cloudcommon/node"
 	"github.com/mobiledgex/edge-cloud/edgeproto"
@@ -70,6 +69,7 @@ func main() {
 		NotifyAddrs:      *notifyAddrs,
 		NotifySrvAddr:    *notifySrvAddr,
 		NodeMgr:          &nodeMgr,
+		AlertMgrAddr:     *alertMgrAddr,
 		AlertCache:       &alertCache,
 	}
 	server, err := orm.RunServer(&config)
@@ -78,20 +78,11 @@ func main() {
 	}
 	defer server.Stop()
 
-	// Wair for server to set up the vault first
+	// Wait for server to set up the vault first
 	err = server.WaitUntilReady()
 	if err != nil {
 		log.FatalLog("Server could not be started", "err", err)
 	}
-	alertMgrServer, err := alertmgr.NewAlertMgrServer(*alertMgrAddr, alertmgr.AlertManagerConfigPath,
-		server.GetVaultConfig(), *localVault, &alertCache)
-	if err != nil {
-		log.FatalLog("Failed to run alertmanager server", "err", err)
-	}
-	// sets the callback to be the alertMgr thread callback
-	alertCache.SetUpdatedCb(alertMgrServer.UpdateAlert)
-	alertMgrServer.Start()
-
 	// wait until process is killed/interrupted
 	signal.Notify(sigChan, os.Interrupt)
 	<-sigChan

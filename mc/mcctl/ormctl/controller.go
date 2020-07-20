@@ -34,6 +34,7 @@ func GetRegionCommand() *cobra.Command {
 	cmds = append(cmds, CloudletPoolApiCmds...)
 	cmds = append(cmds, CloudletInfoApiCmds...)
 	cmds = append(cmds, CloudletPoolMemberApiCmds...)
+	cmds = append(cmds, CloudletVMPoolApiCmds...)
 	cmds = append(cmds, ClusterInstApiCmds...)
 	cmds = append(cmds, AppApiCmds...)
 	cmds = append(cmds, AppInstApiCmds...)

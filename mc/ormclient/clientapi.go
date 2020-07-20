@@ -55,6 +55,7 @@ type Api interface {
 	FlavorApiClient
 	CloudletApiClient
 	CloudletInfoApiClient
+	CloudletVMPoolApiClient
 	ClusterInstApiClient
 	AppApiClient
 	AppInstApiClient

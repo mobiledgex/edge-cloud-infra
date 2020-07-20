@@ -14,6 +14,7 @@ It is generated from these files:
 	autoscalepolicy.proto
 	cloudlet.proto
 	cloudletpool.proto
+	cloudletvmpool.proto
 	cluster.proto
 	clusterinst.proto
 	common.proto
@@ -72,6 +73,12 @@ It has these top-level messages:
 	CloudletPoolKey
 	CloudletPool
 	CloudletPoolMember
+	CloudletVMNetInfo
+	CloudletVM
+	CloudletVMPool
+	CloudletVMPoolMember
+	CloudletVMSpec
+	CloudletVMPoolInfo
 	ClusterKey
 	ClusterInstKey
 	ClusterInst
@@ -748,6 +755,90 @@ func addControllerApis(method string, group *echo.Group) {
 	//   403: forbidden
 	//   404: notFound
 	group.Match([]string{method}, "/ctrl/ShowCloudletsForPool", ShowCloudletsForPool)
+	// swagger:route POST /auth/ctrl/CreateCloudletVMPool CloudletVMPool CreateCloudletVMPool
+	// Create CloudletVMPool.
+	//  Creates Cloudlet VM pool which will have Cloudlet VMs defined.
+	// Security:
+	//   Bearer:
+	// responses:
+	//   200: success
+	//   400: badRequest
+	//   403: forbidden
+	//   404: notFound
+	group.Match([]string{method}, "/ctrl/CreateCloudletVMPool", CreateCloudletVMPool)
+	// swagger:route POST /auth/ctrl/DeleteCloudletVMPool CloudletVMPool DeleteCloudletVMPool
+	// Delete CloudletVMPool.
+	//  Deletes Cloudlet VM pool given that none of Cloudlet VMs part of this pool is used.
+	// Security:
+	//   Bearer:
+	// responses:
+	//   200: success
+	//   400: badRequest
+	//   403: forbidden
+	//   404: notFound
+	group.Match([]string{method}, "/ctrl/DeleteCloudletVMPool", DeleteCloudletVMPool)
+	// swagger:route POST /auth/ctrl/UpdateCloudletVMPool CloudletVMPool UpdateCloudletVMPool
+	// Update CloudletVMPool.
+	//  Updates a Cloudlet VM pools VMs.
+	// The following values should be added to `CloudletVMPool.fields` field array to specify which fields will be updated.
+	// ```
+	// Key: 2
+	// KeyOrganization: 2.1
+	// KeyName: 2.2
+	// CloudletVms: 3
+	// CloudletVmsName: 3.1
+	// CloudletVmsNetInfo: 3.2
+	// CloudletVmsNetInfoExternalIp: 3.2.1
+	// CloudletVmsNetInfoInternalIp: 3.2.2
+	// CloudletVmsUser: 3.3
+	// CloudletVmsState: 3.4
+	// CloudletVmsUpdatedAt: 3.5
+	// CloudletVmsUpdatedAtSeconds: 3.5.1
+	// CloudletVmsUpdatedAtNanos: 3.5.2
+	// Action: 4
+	// Error: 5
+	// ```
+	// Security:
+	//   Bearer:
+	// responses:
+	//   200: success
+	//   400: badRequest
+	//   403: forbidden
+	//   404: notFound
+	group.Match([]string{method}, "/ctrl/UpdateCloudletVMPool", UpdateCloudletVMPool)
+	// swagger:route POST /auth/ctrl/ShowCloudletVMPool CloudletVMPool ShowCloudletVMPool
+	// Show CloudletVMPools.
+	//  Lists all the Cloudlet VMs part of the Cloudlet VM pool.
+	// Security:
+	//   Bearer:
+	// responses:
+	//   200: success
+	//   400: badRequest
+	//   403: forbidden
+	//   404: notFound
+	group.Match([]string{method}, "/ctrl/ShowCloudletVMPool", ShowCloudletVMPool)
+	// swagger:route POST /auth/ctrl/AddCloudletVMPoolMember CloudletVMPoolMember AddCloudletVMPoolMember
+	// Add CloudletVMPoolMember.
+	//  Adds a Cloudlet VM to existing Cloudlet VM Pool.
+	// Security:
+	//   Bearer:
+	// responses:
+	//   200: success
+	//   400: badRequest
+	//   403: forbidden
+	//   404: notFound
+	group.Match([]string{method}, "/ctrl/AddCloudletVMPoolMember", AddCloudletVMPoolMember)
+	// swagger:route POST /auth/ctrl/RemoveCloudletVMPoolMember CloudletVMPoolMember RemoveCloudletVMPoolMember
+	// Remove CloudletVMPoolMember.
+	//  Removes a Cloudlet VM from existing Cloudlet VM Pool.
+	// Security:
+	//   Bearer:
+	// responses:
+	//   200: success
+	//   400: badRequest
+	//   403: forbidden
+	//   404: notFound
+	group.Match([]string{method}, "/ctrl/RemoveCloudletVMPoolMember", RemoveCloudletVMPoolMember)
 	// swagger:route POST /auth/ctrl/CreateAutoScalePolicy AutoScalePolicy CreateAutoScalePolicy
 	// Create an Auto Scale Policy.
 	// Security:

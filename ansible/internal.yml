@@ -502,7 +502,7 @@
     slack_org_mgmt_log: slack-org-mgmt.log
     skipped_channel_file: "{{ ansible_env.HOME }}/skipped-channels.txt"
     support_users:
-      - thomas.vits@mobiledgex.com
+      - thomas.vits.external@mobiledgex.com
       - vasanth.mohan@mobiledgex.com
       - wonho.park@mobiledgex.com
 

@@ -123,3 +123,7 @@
     timeout: 60
   vars:
     ansible_connection: local
+
+- name: Clean up old images
+  command: docker system prune --all --force
+  changed_when: false

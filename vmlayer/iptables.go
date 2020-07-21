@@ -34,6 +34,8 @@ type FirewallRule struct {
 	Protocol     string
 	RemoteCidr   string
 	PortRange    string
+	InterfaceIn  string
+	InterfaceOut string
 	PortEndpoint PortSourceOrDestChoice
 }
 
@@ -110,8 +112,8 @@ func parseFirewallRules(ctx context.Context, ruleString string) ([]FirewallRule,
 				return nil, fmt.Errorf("unable to parse firewall rule, bad key: %s", key)
 			}
 		}
-		if firewallRule.Protocol == "" || firewallRule.RemoteCidr == "" {
-			return nil, fmt.Errorf("invalid firewall rule, missing field")
+		if firewallRule.RemoteCidr == "" {
+			return nil, fmt.Errorf("invalid firewall rule, missing cidr")
 		}
 		if firewallRule.Protocol == "udp" {
 			// add udp as both source and dest
@@ -146,23 +148,42 @@ func (v *VMProperties) CreateCloudletFirewallRules(ctx context.Context, client s
 }
 
 func GetIpTablesEntryForRule(ctx context.Context, direction string, secGrp string, rule *FirewallRule) string {
-	dirStr := "INPUT -s"
+	log.SpanLog(ctx, log.DebugLevelInfra, "GetIpTablesEntryForRule", "rule", rule)
+	dirStr := "INPUT"
+	cidrStr := ""
 	if direction == "egress" {
-		dirStr = "OUTPUT -d"
+		dirStr = "OUTPUT"
+		if rule.RemoteCidr != "0.0.0.0/0" {
+			cidrStr = "-d " + rule.RemoteCidr
+		}
+	} else {
+		dirStr = "INPUT"
+		if rule.RemoteCidr != "0.0.0.0/0" {
+			cidrStr = "-s " + rule.RemoteCidr
+		}
 	}
 	portStr := ""
 	if rule.PortRange != "" {
 		portStr = "--" + string(rule.PortEndpoint) + " " + rule.PortRange
 	}
-
 	icmpType := ""
 	if rule.Protocol == "icmp" {
 		icmpType = " --icmp-type any"
 	}
-	rulestr := fmt.Sprintf("%s %s -p %s -m %s%s %s -m comment --comment \"secgrp %s\" -j ACCEPT", dirStr, rule.RemoteCidr, rule.Protocol, rule.Protocol, icmpType, portStr, secGrp)
-	// remove 0.0.0.0/0 as iptables drops it
-	rulestr = strings.Replace(rulestr, "-d 0.0.0.0/0 ", "", 1)
-	rulestr = strings.Replace(rulestr, "-s 0.0.0.0/0 ", "", 1)
+	protostr := ""
+	if rule.Protocol != "" {
+		protostr = fmt.Sprintf("-p %s -m %s", rule.Protocol, rule.Protocol)
+	}
+	ifstr := ""
+	if rule.InterfaceIn != "" {
+		ifstr = "-i " + rule.InterfaceIn
+	} else if rule.InterfaceOut != "" {
+		ifstr = "-o " + rule.InterfaceOut
+	}
+	rulestr := fmt.Sprintf("%s %s %s %s %s %s -m comment --comment \"secgrp %s\" -j ACCEPT", dirStr, ifstr, cidrStr, protostr, icmpType, portStr, secGrp)
+
+	// remove double spaces
+	rulestr = strings.Join(strings.Fields(rulestr), " ")
 	return rulestr
 }
 
@@ -178,7 +199,7 @@ func getCurrentIptableRulesForSecGrp(ctx context.Context, client ssh.Client, sec
 	}
 	lines := strings.Split(out, "\n")
 	for _, line := range lines {
-		if strings.Contains(line, "\""+secGrp+"\"") && strings.HasPrefix(line, "-A") {
+		if strings.Contains(line, "\"secgrp "+secGrp+"\"") && strings.HasPrefix(line, "-A") {
 			log.SpanLog(ctx, log.DebugLevelInfra, "Found existing rule", "line", line)
 			rules[line] = line
 		}
@@ -195,23 +216,31 @@ func addIptablesWhitelistRule(ctx context.Context, client ssh.Client, direction 
 	return doIptablesCommand(ctx, client, addCmd, exists, &action)
 }
 
-func AddDefaultRules(ctx context.Context, client ssh.Client) error {
-	log.SpanLog(ctx, log.DebugLevelInfra, "AddDropDefaultIptablesPolicy")
+func AddDefaultIptablesRules(ctx context.Context, client ssh.Client, secGrp string) error {
+	log.SpanLog(ctx, log.DebugLevelInfra, "AddDefaultIptablesRules")
+
+	var rules FirewallRules
+	// local loopback traffic is open
+	loopInRule := FirewallRule{
+		RemoteCidr:  "0.0.0.0/0",
+		InterfaceIn: "lo",
+	}
+	rules.IngressRules = append(rules.IngressRules, loopInRule)
+	loopOutRule := FirewallRule{
+		RemoteCidr:   "0.0.0.0/0",
+		InterfaceOut: "lo",
+	}
+	rules.EgressRules = append(rules.EgressRules, loopOutRule)
+	err := AddIptablesWhitelistRules(ctx, client, secGrp, &rules)
+	if err != nil {
+		return err
+	}
+
+	// anything not matching the chain is dropped.   These will not create
+	// duplicate entries if done multiple times
+	dropInputPolicy := "-P INPUT DROP"
+	dropOutputPolicy := "-P OUTPUT DROP"
 	action := InterfaceActionsOp{createIptables: true}
-	loopbackIn := "-A INPUT -i lo -j ACCEPT"
-	loopbackOut := "-A OUTPUT -o lo -j ACCEPT"
-
-	err := doIptablesCommand(ctx, client, loopbackIn, false, &action)
-	if err != nil {
-		return err
-	}
-	err = doIptablesCommand(ctx, client, loopbackOut, false, &action)
-	if err != nil {
-		return err
-	}
-	dropInputPolicy := "-A INPUT -j REJECT --reject-with icmp-host-prohibited"
-	dropOutputPolicy := "-A OUTPUT -j REJECT --reject-with icmp-host-prohibited"
-
 	err = doIptablesCommand(ctx, client, dropInputPolicy, false, &action)
 	if err != nil {
 		return err

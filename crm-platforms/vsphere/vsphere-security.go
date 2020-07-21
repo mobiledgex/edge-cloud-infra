@@ -51,5 +51,5 @@ func (v *VSpherePlatform) PrepareRootLB(ctx context.Context, client ssh.Client, 
 	if err != nil {
 		return err
 	}
-	return vmlayer.AddDefaultRules(ctx, client)
+	return vmlayer.AddDefaultIptablesRules(ctx, client, v.vmProperties.GetCloudletSecurityGroupName())
 }

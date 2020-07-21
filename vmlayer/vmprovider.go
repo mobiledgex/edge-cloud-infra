@@ -65,6 +65,7 @@ type VMPlatform struct {
 	VMProvider   VMProvider
 	VMProperties VMProperties
 	FlavorList   []*edgeproto.FlavorInfo
+	Caches       *platform.Caches
 }
 
 // VMMetrics contains stats and timestamp
@@ -200,20 +201,20 @@ func (v *VMPlatform) ListCloudletMgmtNodes(ctx context.Context, clusterInsts []e
 
 func (v *VMPlatform) GetResTablesForCloudlet(ctx context.Context, ckey *edgeproto.CloudletKey) ResTagTables {
 
-	if pCaches == nil {
+	if v.Caches == nil {
 		return nil
 	}
 	var tbls = make(ResTagTables)
 	cl := edgeproto.Cloudlet{}
-	if !pCaches.CloudletCache.Get(ckey, &cl) {
+	if !v.Caches.CloudletCache.Get(ckey, &cl) {
 		return nil
 	}
 	for res, resKey := range cl.ResTagMap {
 		var tbl edgeproto.ResTagTable
-		if pCaches.ResTagTableCache == nil {
+		if v.Caches.ResTagTableCache == nil {
 			return nil
 		}
-		if !pCaches.ResTagTableCache.Get(resKey, &tbl) {
+		if !v.Caches.ResTagTableCache.Get(resKey, &tbl) {
 			continue
 		}
 		tbls[res] = &tbl
@@ -245,7 +246,7 @@ func (v *VMPlatform) Init(ctx context.Context, platformConfig *platform.Platform
 		v.Type)
 
 	updateCallback(edgeproto.UpdateTask, "Initializing VM platform type: "+v.Type)
-	pCaches = caches
+	v.Caches = caches
 	v.VMProperties.Domain = VMDomainCompute
 	vaultConfig, err := vault.BestConfig(platformConfig.VaultAddr)
 	if err != nil {

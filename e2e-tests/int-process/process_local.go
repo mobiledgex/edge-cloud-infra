@@ -66,9 +66,9 @@ func (p *MC) StartLocal(logfile string, opts ...process.StartOp) error {
 		args = append(args, "--billingPath")
 		args = append(args, p.BillingPath)
 	}
-	if p.TestCollectionInterval != "" {
-		args = append(args, "--testCollectionInterval")
-		args = append(args, p.TestCollectionInterval)
+	if p.UsageCollectionInterval != "" {
+		args = append(args, "--usageCollectionInterval")
+		args = append(args, p.UsageCollectionInterval)
 	}
 	if p.UseVaultCerts {
 		args = append(args, "--useVaultCerts")

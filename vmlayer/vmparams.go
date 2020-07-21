@@ -267,6 +267,7 @@ func WithChefUpdateInfo(updateInfo map[string]string) VMGroupReqOp {
 type SubnetOrchestrationParams struct {
 	Id           string
 	Name         string
+	NetworkName  string
 	CIDR         string
 	NodeIPPrefix string
 	GatewayIP    string
@@ -582,6 +583,7 @@ func (v *VMPlatform) getVMGroupOrchestrationParamsFromGroupSpec(ctx context.Cont
 			CIDR:        NextAvailableResource,
 			DHCPEnabled: "no",
 			DNSServers:  subnetDns,
+			NetworkName: v.VMProperties.GetCloudletMexNetwork(),
 		}
 		if spec.SkipSubnetGateway {
 			newSubnet.SkipGateway = true

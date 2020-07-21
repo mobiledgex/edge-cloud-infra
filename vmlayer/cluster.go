@@ -592,12 +592,10 @@ func (v *VMPlatform) syncClusterInst(ctx context.Context, clusterInst *edgeproto
 
 func (v *VMPlatform) SyncClusterInsts(ctx context.Context, caches *platform.Caches, updateCallback edgeproto.CacheUpdateCallback) error {
 	log.SpanLog(ctx, log.DebugLevelInfra, "SyncClusterInsts")
-
 	clusterKeys := make(map[edgeproto.ClusterInstKey]struct{})
 	caches.ClusterInstCache.GetAllKeys(ctx, func(k *edgeproto.ClusterInstKey, modRev int64) {
 		clusterKeys[*k] = struct{}{}
 	})
-
 	for k := range clusterKeys {
 		log.SpanLog(ctx, log.DebugLevelInfra, "SyncClusterInsts found cluster", "key", k)
 		var clus edgeproto.ClusterInst

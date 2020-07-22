@@ -51,7 +51,7 @@ func (v *VSpherePlatform) PrepareRootLB(ctx context.Context, client ssh.Client, 
 		PortRange:    "1:65535",
 		PortEndpoint: vmlayer.DestPort,
 	}
-	fwRules.EgressRules = append(fwRules.IngressRules, sshEgress)
+	fwRules.EgressRules = append(fwRules.EgressRules, sshEgress)
 
 	// all traffic between the internal networks is allowed
 	internalRoute, err := v.vmProperties.GetInternalNetworkRoute(ctx)

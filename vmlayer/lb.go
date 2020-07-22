@@ -504,9 +504,6 @@ func (v *VMPlatform) SetupRootLB(
 	log.SpanLog(ctx, log.DebugLevelInfra, "DNS A record activated", "name", rootLB.Name)
 
 	// perform provider specific prep of the rootLB
-	if err != nil {
-		return err
-	}
 	return v.VMProvider.PrepareRootLB(ctx, client, rootLBName, v.GetServerSecurityGroupName(rootLBName), privacyPolicy)
 }
 

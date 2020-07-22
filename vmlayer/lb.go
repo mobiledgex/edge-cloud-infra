@@ -426,6 +426,7 @@ func (v *VMPlatform) CreateRootLB(
 func (v *VMPlatform) SetupRootLB(
 	ctx context.Context, rootLBName string,
 	cloudletKey *edgeproto.CloudletKey,
+	privacyPolicy *edgeproto.PrivacyPolicy,
 	updateCallback edgeproto.CacheUpdateCallback,
 ) error {
 	log.SpanLog(ctx, log.DebugLevelInfra, "SetupRootLB", "rootLBName", rootLBName)
@@ -440,6 +441,12 @@ func (v *VMPlatform) SetupRootLB(
 	sd, err := v.VMProvider.GetServerDetail(ctx, rootLBName)
 	if err == nil {
 		log.SpanLog(ctx, log.DebugLevelInfra, "server with same name as rootLB exists", "rootLBName", rootLBName)
+	}
+
+	err = v.WaitForRootLB(ctx, rootLB)
+	if err != nil {
+		log.SpanLog(ctx, log.DebugLevelInfra, "timeout waiting for agent to run", "name", rootLB.Name)
+		return fmt.Errorf("Error waiting for rootLB %v", err)
 	}
 
 	client, err := v.SetupSSHUser(ctx, rootLB, infracommon.SSHUser)
@@ -466,11 +473,6 @@ func (v *VMPlatform) SetupRootLB(
 		}
 	}
 
-	err = v.WaitForRootLB(ctx, rootLB)
-	if err != nil {
-		log.SpanLog(ctx, log.DebugLevelInfra, "timeout waiting for agent to run", "name", rootLB.Name)
-		return fmt.Errorf("Error waiting for rootLB %v", err)
-	}
 	ip, err := GetIPFromServerDetails(ctx, v.VMProperties.GetCloudletExternalNetwork(), "", sd)
 	if err != nil {
 		return fmt.Errorf("cannot get rootLB IP %sv", err)
@@ -483,7 +485,7 @@ func (v *VMPlatform) SetupRootLB(
 	if err != nil {
 		return fmt.Errorf("cannot copy resource-tracker to rootLb %v", err)
 	}
-	route, err := v.GetInternalNetworkRoute(ctx)
+	route, err := v.VMProperties.GetInternalNetworkRoute(ctx)
 	if err != nil {
 		return err
 	}
@@ -505,7 +507,7 @@ func (v *VMPlatform) SetupRootLB(
 	if err != nil {
 		return err
 	}
-	return v.VMProvider.PrepareRootLB(ctx, client, rootLBName, v.GetServerSecurityGroupName(rootLBName))
+	return v.VMProvider.PrepareRootLB(ctx, client, rootLBName, v.GetServerSecurityGroupName(rootLBName), privacyPolicy)
 }
 
 //WaitForRootLB waits for the RootLB instance to be up and copies of SSH credentials for internal networks.
@@ -551,45 +553,23 @@ func (v *VMPlatform) WaitForRootLB(ctx context.Context, rootLB *MEXRootLB) error
 }
 
 // This function copies resource-tracker from crm to rootLb - we need this to provide docker metrics
-func CopyResourceTracker(ctx context.Context, client ssh.Client) error {
+func CopyResourceTracker(client ssh.Client) error {
 	path, err := exec.LookPath("resource-tracker")
 	if err != nil {
 		return err
 	}
-	localSum, err := infracommon.Md5SumFile(path)
+	err = SCPFilePath(client, path, "/tmp/resource-tracker")
 	if err != nil {
 		return err
 	}
-	doScp := true
-	md5cmd := "md5sum /usr/local/bin/resource-tracker"
-	md5result, err := client.Output(md5cmd)
-	if err == nil {
-		remoteSum := strings.Split(md5result, " ")[0]
-		if localSum == remoteSum {
-			log.SpanLog(ctx, log.DebugLevelInfra, "resource tracker already current", "md5sum", localSum)
-			doScp = false // skip the scp but still do the chmod just in case
-		} else {
-			log.SpanLog(ctx, log.DebugLevelInfra, "resource tracker needs update", "localSum", localSum, "remoteSum", remoteSum)
-		}
-	} else {
-		// likely it does not exist
-		log.SpanLog(ctx, log.DebugLevelInfra, "cannot run md5sum on remote resource tracker", "out", md5result, "err", err)
-	}
-
-	if doScp {
-		err = SCPFilePath(client, path, "/tmp/resource-tracker")
-		if err != nil {
-			return err
-		}
-		// copy to /usr/local/bin/resource-tracker
-		cmd := fmt.Sprintf("sudo cp /tmp/resource-tracker /usr/local/bin/resource-tracker")
-		_, err = client.Output(cmd)
-		if err != nil {
-			return err
-		}
+	// copy to /usr/local/bin/resource-tracker
+	cmd := fmt.Sprintf("sudo cp /tmp/resource-tracker /usr/local/bin/resource-tracker")
+	_, err = client.Output(cmd)
+	if err != nil {
+		return err
 	}
 	// make it executable
-	cmd := fmt.Sprintf("sudo chmod a+rx /usr/local/bin/resource-tracker")
+	cmd = fmt.Sprintf("sudo chmod a+rx /usr/local/bin/resource-tracker")
 	_, err = client.Output(cmd)
 	return err
 }

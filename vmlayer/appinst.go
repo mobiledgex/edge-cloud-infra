@@ -231,7 +231,7 @@ func (v *VMPlatform) CreateAppInst(ctx context.Context, clusterInst *edgeproto.C
 				// likely already exists which means something went really wrong
 				return err
 			}
-			err = v.SetupRootLB(ctx, orchVals.lbName, &clusterInst.Key.CloudletKey, updateCallback)
+			err = v.SetupRootLB(ctx, orchVals.lbName, &clusterInst.Key.CloudletKey, privacyPolicy, updateCallback)
 			if err != nil {
 				return err
 			}

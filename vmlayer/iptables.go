@@ -5,19 +5,13 @@ import (
 	"fmt"
 	"net"
 	"regexp"
+	"strings"
 
 	dme "github.com/mobiledgex/edge-cloud/d-match-engine/dme-proto"
 	"github.com/mobiledgex/edge-cloud/edgeproto"
 	"github.com/mobiledgex/edge-cloud/log"
-
 	ssh "github.com/mobiledgex/golang-ssh"
-
-	"strings"
 )
-
-type IptablesAction string
-
-type FirewallRuleDirection string
 
 type FirewallRules struct {
 	EgressRules  []FirewallRule
@@ -37,9 +31,10 @@ type FirewallRule struct {
 	InterfaceIn  string
 	InterfaceOut string
 	PortEndpoint PortSourceOrDestChoice
+	Conntrack    string
 }
 
-// run an iptables add or delete conditionally based on whether the entry already exists or not
+// doIptablesCommand runs an iptables add or delete conditionally based on whether the entry already exists or not
 func doIptablesCommand(ctx context.Context, client ssh.Client, rule string, ruleExists bool, action *InterfaceActionsOp) error {
 	runCommand := false
 	if ruleExists {
@@ -71,7 +66,6 @@ func doIptablesCommand(ctx context.Context, client ssh.Client, rule string, rule
 
 //	parseFirewallRules parses rules in the format:
 // Value: "protocol=tcp,portrange=1:65535,remotecidr=0.0.0.0/0;protocol=udp,portrange=1:65535,remotecidr=0.0.0.0/0;protocol=icmp,remotecidr=0.0.0.0/0",
-
 func parseFirewallRules(ctx context.Context, ruleString string) ([]FirewallRule, error) {
 	log.SpanLog(ctx, log.DebugLevelInfra, "parseFirewallRules", "ruleString", ruleString)
 
@@ -127,8 +121,9 @@ func parseFirewallRules(ctx context.Context, ruleString string) ([]FirewallRule,
 	return firewallRules, nil
 }
 
+// CreateCloudletFirewallRules adds cloudlet-wide egress rules based on properties
 func (v *VMProperties) CreateCloudletFirewallRules(ctx context.Context, client ssh.Client) error {
-	log.SpanLog(ctx, log.DebugLevelInfra, "getCurrentIptableRulesForSecGrp")
+	log.SpanLog(ctx, log.DebugLevelInfra, "CreateCloudletFirewallRules")
 
 	var firewallRules FirewallRules
 	var err error
@@ -144,9 +139,10 @@ func (v *VMProperties) CreateCloudletFirewallRules(ctx context.Context, client s
 			return err
 		}
 	}
-	return AddIptablesWhitelistRules(ctx, client, v.GetCloudletSecurityGroupName(), &firewallRules)
+	return AddIptablesRules(ctx, client, v.GetCloudletSecurityGroupName(), &firewallRules)
 }
 
+// GetIpTablesEntryForRule gets the iptables string for the rule
 func GetIpTablesEntryForRule(ctx context.Context, direction string, secGrp string, rule *FirewallRule) string {
 	log.SpanLog(ctx, log.DebugLevelInfra, "GetIpTablesEntryForRule", "rule", rule)
 	dirStr := "INPUT"
@@ -180,13 +176,18 @@ func GetIpTablesEntryForRule(ctx context.Context, direction string, secGrp strin
 	} else if rule.InterfaceOut != "" {
 		ifstr = "-o " + rule.InterfaceOut
 	}
-	rulestr := fmt.Sprintf("%s %s %s %s %s %s -m comment --comment \"secgrp %s\" -j ACCEPT", dirStr, ifstr, cidrStr, protostr, icmpType, portStr, secGrp)
+	conntrackStr := ""
+	if rule.Conntrack != "" {
+		conntrackStr = "-m conntrack --ctstate " + rule.Conntrack
+	}
+	rulestr := fmt.Sprintf("%s %s %s %s %s %s %s -m comment --comment \"secgrp %s\" -j ACCEPT", dirStr, ifstr, conntrackStr, cidrStr, protostr, icmpType, portStr, secGrp)
 
 	// remove double spaces
 	rulestr = strings.Join(strings.Fields(rulestr), " ")
 	return rulestr
 }
 
+// getCurrentIptableRulesForSecGrp retrieves the current rules matching the group
 func getCurrentIptableRulesForSecGrp(ctx context.Context, client ssh.Client, secGrp string) (map[string]string, error) {
 	log.SpanLog(ctx, log.DebugLevelInfra, "getCurrentIptableRulesForSecGrp", "secGrp", secGrp)
 
@@ -200,15 +201,15 @@ func getCurrentIptableRulesForSecGrp(ctx context.Context, client ssh.Client, sec
 	lines := strings.Split(out, "\n")
 	for _, line := range lines {
 		if strings.Contains(line, "\"secgrp "+secGrp+"\"") && strings.HasPrefix(line, "-A") {
-			log.SpanLog(ctx, log.DebugLevelInfra, "Found existing rule", "line", line)
 			rules[line] = line
 		}
 	}
 	return rules, nil
 }
 
-func addIptablesWhitelistRule(ctx context.Context, client ssh.Client, direction string, secGrp string, rule *FirewallRule, currentRules map[string]string) error {
-	log.SpanLog(ctx, log.DebugLevelInfra, "AddIptablesWhitelistRule", "direction", direction, "secGrp", secGrp, "rule", rule)
+// AddIptablesRule adds a rule
+func AddIptablesRule(ctx context.Context, client ssh.Client, direction string, secGrp string, rule *FirewallRule, currentRules map[string]string) error {
+	log.SpanLog(ctx, log.DebugLevelInfra, "AddIptablesRule", "direction", direction, "secGrp", secGrp, "rule", rule)
 	entry := GetIpTablesEntryForRule(ctx, direction, secGrp, rule)
 	addCmd := "-A " + entry
 	_, exists := currentRules[addCmd]
@@ -216,6 +217,63 @@ func addIptablesWhitelistRule(ctx context.Context, client ssh.Client, direction 
 	return doIptablesCommand(ctx, client, addCmd, exists, &action)
 }
 
+// RemoveIptablesRule removes a rule
+func RemoveIptablesRule(ctx context.Context, client ssh.Client, direction string, secGrp string, rule *FirewallRule, currentRules map[string]string) error {
+	log.SpanLog(ctx, log.DebugLevelInfra, "RemoveIptablesRule", "direction", direction, "secGrp", secGrp, "rule", rule)
+	entry := GetIpTablesEntryForRule(ctx, direction, secGrp, rule)
+	addCmd := "-A " + entry
+	delCmd := "-D " + entry
+	_, exists := currentRules[addCmd]
+	action := InterfaceActionsOp{deleteIptables: true}
+	return doIptablesCommand(ctx, client, delCmd, exists, &action)
+}
+
+// AddIptablesRules adds a set of rules
+func AddIptablesRules(ctx context.Context, client ssh.Client, secGrp string, rules *FirewallRules) error {
+	log.SpanLog(ctx, log.DebugLevelInfra, "AddIptablesRules", "rules", rules)
+	currentRules, err := getCurrentIptableRulesForSecGrp(ctx, client, secGrp)
+	if err != nil {
+		return err
+	}
+	for _, erule := range rules.EgressRules {
+		err := AddIptablesRule(ctx, client, "egress", secGrp, &erule, currentRules)
+		if err != nil {
+			return err
+		}
+	}
+	for _, irule := range rules.IngressRules {
+		err := AddIptablesRule(ctx, client, "ingress", secGrp, &irule, currentRules)
+		if err != nil {
+			return err
+		}
+	}
+	return PersistIptablesRules(ctx, client)
+}
+
+// DeleteIptablesRules deletes a set of rules
+func DeleteIptablesRules(ctx context.Context, client ssh.Client, secGrp string, rules *FirewallRules) error {
+	log.SpanLog(ctx, log.DebugLevelInfra, "DeleteIptablesRules", "rules", rules)
+	currentRules, err := getCurrentIptableRulesForSecGrp(ctx, client, secGrp)
+	if err != nil {
+		return err
+	}
+	for _, erule := range rules.EgressRules {
+		err := RemoveIptablesRule(ctx, client, "egress", secGrp, &erule, currentRules)
+		if err != nil {
+			return err
+		}
+	}
+	for _, irule := range rules.IngressRules {
+		err := RemoveIptablesRule(ctx, client, "ingress", secGrp, &irule, currentRules)
+		if err != nil {
+			return err
+		}
+	}
+	// make this an option?
+	return PersistIptablesRules(ctx, client)
+}
+
+// AddDefaultIptablesRules adds the default set of rules which are always needed
 func AddDefaultIptablesRules(ctx context.Context, client ssh.Client, secGrp string) error {
 	log.SpanLog(ctx, log.DebugLevelInfra, "AddDefaultIptablesRules")
 
@@ -231,7 +289,20 @@ func AddDefaultIptablesRules(ctx context.Context, client ssh.Client, secGrp stri
 		InterfaceOut: "lo",
 	}
 	rules.EgressRules = append(rules.EgressRules, loopOutRule)
-	err := AddIptablesWhitelistRules(ctx, client, secGrp, &rules)
+
+	// allow established sessions
+	conntrackInRule := FirewallRule{
+		RemoteCidr: "0.0.0.0/0",
+		Conntrack:  "ESTABLISHED,RELATED",
+	}
+	rules.IngressRules = append(rules.IngressRules, conntrackInRule)
+	conntrackOutRule := FirewallRule{
+		RemoteCidr: "0.0.0.0/0",
+		Conntrack:  "ESTABLISHED,RELATED",
+	}
+	rules.EgressRules = append(rules.EgressRules, conntrackOutRule)
+
+	err := AddIptablesRules(ctx, client, secGrp, &rules)
 	if err != nil {
 		return err
 	}
@@ -248,29 +319,8 @@ func AddDefaultIptablesRules(ctx context.Context, client ssh.Client, secGrp stri
 	return doIptablesCommand(ctx, client, dropOutputPolicy, false, &action)
 }
 
-func AddIptablesWhitelistRules(ctx context.Context, client ssh.Client, secGrp string, rules *FirewallRules) error {
-	log.SpanLog(ctx, log.DebugLevelInfra, "AddIptablesWhitelistRules", "rules", rules)
-	currentRules, err := getCurrentIptableRulesForSecGrp(ctx, client, secGrp)
-	if err != nil {
-		return err
-	}
-	for _, erule := range rules.EgressRules {
-		err := addIptablesWhitelistRule(ctx, client, "egress", secGrp, &erule, currentRules)
-		if err != nil {
-			return err
-		}
-	}
-	for _, irule := range rules.IngressRules {
-		err := addIptablesWhitelistRule(ctx, client, "ingress", secGrp, &irule, currentRules)
-		if err != nil {
-			return err
-		}
-	}
-	// make this an option?
-	return PersistIptablesRules(ctx, client)
-}
-
-func AddIngressIptablesWhitelistRules(ctx context.Context, client ssh.Client, secGrpName string, allowedCIDR string, ports []dme.AppPort) error {
+// getFirewallRulesFromAppPorts accepts a CIDR and a set of AppPorts and converts to a set of rules
+func getFirewallRulesFromAppPorts(ctx context.Context, cidr string, ports []dme.AppPort) (*FirewallRules, error) {
 	var fwRules FirewallRules
 	for _, p := range ports {
 		portStr := fmt.Sprintf("%d", p.PublicPort)
@@ -279,44 +329,37 @@ func AddIngressIptablesWhitelistRules(ctx context.Context, client ssh.Client, se
 		}
 		proto, err := edgeproto.L4ProtoStr(p.Proto)
 		if err != nil {
-			return err
-		}
-		if proto == "udp" {
-			// for udp also add a rule for the source port
-			fwRuleSrc := FirewallRule{
-				Protocol:     proto,
-				RemoteCidr:   allowedCIDR,
-				PortRange:    portStr,
-				PortEndpoint: SourcePort,
-			}
-			fwRules.IngressRules = append(fwRules.IngressRules, fwRuleSrc)
+			return nil, err
 		}
 		fwRuleDest := FirewallRule{
 			Protocol:     proto,
-			RemoteCidr:   allowedCIDR,
+			RemoteCidr:   cidr,
 			PortRange:    portStr,
 			PortEndpoint: DestPort,
 		}
 		fwRules.IngressRules = append(fwRules.IngressRules, fwRuleDest)
 	}
-	return AddIptablesWhitelistRules(ctx, client, secGrpName, &fwRules)
+	return &fwRules, nil
 }
 
-func DeleteAllIptablesRulesForGroup(ctx context.Context, client ssh.Client, secGrp string) error {
-	log.SpanLog(ctx, log.DebugLevelInfra, "DeleteAllIptablesRulesForGroup", "secGrp", secGrp)
-	rules, err := getCurrentIptableRulesForSecGrp(ctx, client, secGrp)
+// AddIngressIptablesRules adds rules using a CIDR and AppPorts as input
+func AddIngressIptablesRules(ctx context.Context, client ssh.Client, secGrpName string, cidr string, ports []dme.AppPort) error {
+	fwRules, err := getFirewallRulesFromAppPorts(ctx, cidr, ports)
 	if err != nil {
 		return err
 	}
-	for _, rule := range rules {
-		delCmd := "sudo iptables " + strings.Replace(rule, "-A", "-D", 1)
-		log.SpanLog(ctx, log.DebugLevelInfra, "Running iptables delete", "delCmd", delCmd)
-		out, err := client.Output(delCmd)
-		if err != nil {
-			return fmt.Errorf("Failed to run iptables delete: %s - %v", out, err)
-		}
+	return AddIptablesRules(ctx, client, secGrpName, fwRules)
+}
+
+// RemoveIngressIptablesRules removes rules using a CIDR and AppPorts as input
+func RemoveIngressIptablesRules(ctx context.Context, client ssh.Client, secGrpName string, cidr string, ports []dme.AppPort) error {
+	log.SpanLog(ctx, log.DebugLevelInfra, "RemoveIngressIptablesRules", "secGrp", secGrpName)
+
+	fwRules, err := getFirewallRulesFromAppPorts(ctx, cidr, ports)
+	if err != nil {
+		return err
 	}
-	return PersistIptablesRules(ctx, client)
+	return DeleteIptablesRules(ctx, client, secGrpName, fwRules)
 }
 
 func PersistIptablesRules(ctx context.Context, client ssh.Client) error {

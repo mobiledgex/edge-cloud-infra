@@ -1,4 +1,4 @@
-package generic
+package vmpool
 
 import (
 	"context"
@@ -12,37 +12,37 @@ import (
 	"github.com/mobiledgex/edge-cloud/log"
 )
 
-type GenericPlatform struct {
+type VMPoolPlatform struct {
 	openRCVars   map[string]string
 	VMProperties *vmlayer.VMProperties
 	TestMode     bool
 	caches       *platform.Caches
 }
 
-func (o *GenericPlatform) GetType() string {
-	return "generic"
+func (o *VMPoolPlatform) GetType() string {
+	return "vmpool"
 }
 
-func (o *GenericPlatform) SetVMProperties(vmProperties *vmlayer.VMProperties) {
+func (o *VMPoolPlatform) SetVMProperties(vmProperties *vmlayer.VMProperties) {
 	o.VMProperties = vmProperties
 }
 
-func (o *GenericPlatform) GetCloudletKey() *edgeproto.CloudletKey {
+func (o *VMPoolPlatform) GetCloudletKey() *edgeproto.CloudletKey {
 	return o.VMProperties.CommonPf.PlatformConfig.CloudletKey
 }
 
-func (o *GenericPlatform) InitProvider(ctx context.Context, caches *platform.Caches, updateCallback edgeproto.CacheUpdateCallback) error {
+func (o *VMPoolPlatform) InitProvider(ctx context.Context, caches *platform.Caches, updateCallback edgeproto.CacheUpdateCallback) error {
 	log.SpanLog(ctx, log.DebugLevelInfra, "InitProvider for VSphere")
 	o.SetCaches(ctx, caches)
 	return nil
 }
 
-func (o *GenericPlatform) SetCaches(ctx context.Context, caches *platform.Caches) {
+func (o *VMPoolPlatform) SetCaches(ctx context.Context, caches *platform.Caches) {
 	log.SpanLog(ctx, log.DebugLevelInfra, "SetCaches")
 	o.caches = caches
 }
 
-func (o *GenericPlatform) GatherCloudletInfo(ctx context.Context, info *edgeproto.CloudletInfo) error {
+func (o *VMPoolPlatform) GatherCloudletInfo(ctx context.Context, info *edgeproto.CloudletInfo) error {
 	log.SpanLog(ctx, log.DebugLevelInfra, "GatherCloudletInfo ")
 	var err error
 	info.Flavors, err = o.GetFlavorList(ctx)
@@ -50,7 +50,7 @@ func (o *GenericPlatform) GatherCloudletInfo(ctx context.Context, info *edgeprot
 }
 
 // alphanumeric plus -_. first char must be alpha, <= 255 chars.
-func (o *GenericPlatform) NameSanitize(name string) string {
+func (o *VMPoolPlatform) NameSanitize(name string) string {
 	r := strings.NewReplacer(
 		" ", "",
 		"&", "",
@@ -70,12 +70,12 @@ func (o *GenericPlatform) NameSanitize(name string) string {
 	return str
 }
 
-// Generic IdSanitize is the same as NameSanitize
-func (o *GenericPlatform) IdSanitize(name string) string {
+// VMPool IdSanitize is the same as NameSanitize
+func (o *VMPoolPlatform) IdSanitize(name string) string {
 	return o.NameSanitize(name)
 }
 
-func (o *GenericPlatform) GetResourceID(ctx context.Context, resourceType vmlayer.ResourceType, resourceName string) (string, error) {
+func (o *VMPoolPlatform) GetResourceID(ctx context.Context, resourceType vmlayer.ResourceType, resourceName string) (string, error) {
 	switch resourceType {
 	case vmlayer.ResourceTypeSecurityGroup:
 		// not exists, just return same value

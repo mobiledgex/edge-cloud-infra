@@ -1,4 +1,4 @@
-package generic
+package vmpool
 
 import (
 	"context"
@@ -10,9 +10,9 @@ import (
 	"github.com/mobiledgex/edge-cloud/log"
 )
 
-func (s *GenericPlatform) GetFlavorList(ctx context.Context) ([]*edgeproto.FlavorInfo, error) {
+func (s *VMPoolPlatform) GetFlavorList(ctx context.Context) ([]*edgeproto.FlavorInfo, error) {
 	// we just send the controller back the same list of flavors it gave us,
-	// because currently generic platform has no flavors
+	// because currently vmpool platform has no flavors
 	// Make sure each flavor is at least a minimum size to run the platform
 	// FIXME: Copy of Vsphere code
 	var flavors []*edgeproto.FlavorInfo
@@ -67,16 +67,16 @@ func (s *GenericPlatform) GetFlavorList(ctx context.Context) ([]*edgeproto.Flavo
 	return flavors, nil
 }
 
-func (s *GenericPlatform) SetPowerState(ctx context.Context, serverName, serverAction string) error {
+func (s *VMPoolPlatform) SetPowerState(ctx context.Context, serverName, serverAction string) error {
 	log.SpanLog(ctx, log.DebugLevelInfra, "SetPowerState not supported")
 	return nil
 }
 
-func (s *GenericPlatform) GetCloudletImageSuffix(ctx context.Context) string {
+func (s *VMPoolPlatform) GetCloudletImageSuffix(ctx context.Context) string {
 	return ".qcow2"
 }
 
-func (s *GenericPlatform) AddCloudletImageIfNotPresent(ctx context.Context, imgPathPrefix, imgVersion string, updateCallback edgeproto.CacheUpdateCallback) (string, error) {
+func (s *VMPoolPlatform) AddCloudletImageIfNotPresent(ctx context.Context, imgPathPrefix, imgVersion string, updateCallback edgeproto.CacheUpdateCallback) (string, error) {
 	log.SpanLog(ctx, log.DebugLevelInfra, "AddCloudletImageIfNotPresent not supported")
 	imgPath := vmlayer.GetCloudletVMImagePath(imgPathPrefix, imgVersion, s.GetCloudletImageSuffix(ctx))
 
@@ -88,21 +88,21 @@ func (s *GenericPlatform) AddCloudletImageIfNotPresent(ctx context.Context, imgP
 	return pfImageName, nil
 }
 
-func (s *GenericPlatform) DeleteImage(ctx context.Context, folder, imageName string) error {
+func (s *VMPoolPlatform) DeleteImage(ctx context.Context, folder, imageName string) error {
 	log.SpanLog(ctx, log.DebugLevelInfra, "DeleteImage not supported")
 	return nil
 }
 
-func (s *GenericPlatform) AttachPortToServer(ctx context.Context, serverName, subnetName, portName, ipaddr string, action vmlayer.ActionType) error {
+func (s *VMPoolPlatform) AttachPortToServer(ctx context.Context, serverName, subnetName, portName, ipaddr string, action vmlayer.ActionType) error {
 	log.SpanLog(ctx, log.DebugLevelInfra, "AttachPortToServer not supported")
 	return nil
 }
 
-func (s *GenericPlatform) DetachPortFromServer(ctx context.Context, serverName, subnetName string, portName string) error {
+func (s *VMPoolPlatform) DetachPortFromServer(ctx context.Context, serverName, subnetName string, portName string) error {
 	log.SpanLog(ctx, log.DebugLevelInfra, "DetachPortFromServer not supported")
 	return nil
 }
 
-func (s *GenericPlatform) GetNetworkList(ctx context.Context) ([]string, error) {
+func (s *VMPoolPlatform) GetNetworkList(ctx context.Context) ([]string, error) {
 	return []string{}, nil
 }

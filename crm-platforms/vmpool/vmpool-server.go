@@ -1,4 +1,4 @@
-package generic
+package vmpool
 
 import (
 	"context"
@@ -10,7 +10,7 @@ import (
 	"github.com/mobiledgex/edge-cloud/log"
 )
 
-func (o *GenericPlatform) GetServerDetail(ctx context.Context, serverName string) (*vmlayer.ServerDetail, error) {
+func (o *VMPoolPlatform) GetServerDetail(ctx context.Context, serverName string) (*vmlayer.ServerDetail, error) {
 	if o.caches == nil {
 		return nil, fmt.Errorf("cache is nil")
 	}
@@ -21,8 +21,8 @@ func (o *GenericPlatform) GetServerDetail(ctx context.Context, serverName string
 	}
 
 	sd := vmlayer.ServerDetail{}
-	var vmPool edgeproto.CloudletVMPool
-	if o.caches.CloudletVMPoolCache.Get(cKey, &vmPool) {
+	var vmPool edgeproto.VMPool
+	if o.caches.VMPoolCache.Get(cKey, &vmPool) {
 		log.SpanLog(ctx, log.DebugLevelInfra, "GetServerDetail", "server name", serverName, "vmPool", vmPool)
 		for _, cVm := range vmPool.CloudletVms {
 			if cVm.InternalName != serverName {
@@ -54,11 +54,11 @@ func (o *GenericPlatform) GetServerDetail(ctx context.Context, serverName string
 	return &sd, fmt.Errorf("No server with a name or ID: %s exists", serverName)
 }
 
-func (o *GenericPlatform) waitForAction(key *edgeproto.CloudletKey, action edgeproto.CloudletVMAction) (*edgeproto.CloudletVMPoolInfo, error) {
-	info := edgeproto.CloudletVMPoolInfo{}
+func (o *VMPoolPlatform) waitForAction(key *edgeproto.CloudletKey, action edgeproto.CloudletVMAction) (*edgeproto.VMPoolInfo, error) {
+	info := edgeproto.VMPoolInfo{}
 	var lastAction edgeproto.CloudletVMAction
 	for i := 0; i < 10; i++ {
-		if o.caches.CloudletVMPoolInfoCache.Get(key, &info) {
+		if o.caches.VMPoolInfoCache.Get(key, &info) {
 			if info.Action == action {
 				return &info, nil
 			}
@@ -69,7 +69,7 @@ func (o *GenericPlatform) waitForAction(key *edgeproto.CloudletKey, action edgep
 	return nil, fmt.Errorf("Unable to get desired Cloudlet VM Pool action, actual action %s, desired action %s", lastAction, action)
 }
 
-func (o *GenericPlatform) createVMsInternal(ctx context.Context, rootLBVMName string, info *edgeproto.CloudletVMPoolInfo, vmRoles map[string]vmlayer.VMRole, updateCallback edgeproto.CacheUpdateCallback) error {
+func (o *VMPoolPlatform) createVMsInternal(ctx context.Context, rootLBVMName string, info *edgeproto.VMPoolInfo, vmRoles map[string]vmlayer.VMRole, updateCallback edgeproto.CacheUpdateCallback) error {
 	if o.caches == nil {
 		return fmt.Errorf("cache is nil")
 	}
@@ -79,9 +79,9 @@ func (o *GenericPlatform) createVMsInternal(ctx context.Context, rootLBVMName st
 	log.SpanLog(ctx, log.DebugLevelInfra, "CreateVMs, requestion allocation of VMs", "info", info)
 
 	updateCallback(edgeproto.UpdateTask, fmt.Sprintf("Allocating VMs"))
-	o.caches.CloudletVMPoolInfoCache.Update(ctx, info, 0)
+	o.caches.VMPoolInfoCache.Update(ctx, info, 0)
 
-	// wait for cloudletvmpoolinfo action to get changed to done
+	// wait for vmpoolinfo action to get changed to done
 	infoFound, err := o.waitForAction(&info.Key, edgeproto.CloudletVMAction_CLOUDLET_VM_ACTION_DONE)
 	if err != nil {
 		return err
@@ -204,14 +204,14 @@ func (o *GenericPlatform) createVMsInternal(ctx context.Context, rootLBVMName st
 	return nil
 }
 
-func (o *GenericPlatform) CreateVMs(ctx context.Context, vmGroupOrchestrationParams *vmlayer.VMGroupOrchestrationParams, updateCallback edgeproto.CacheUpdateCallback) error {
+func (o *VMPoolPlatform) CreateVMs(ctx context.Context, vmGroupOrchestrationParams *vmlayer.VMGroupOrchestrationParams, updateCallback edgeproto.CacheUpdateCallback) error {
 	cKey := o.GetCloudletKey()
 	if cKey == nil || cKey.Name == "" {
 		return fmt.Errorf("missing cloudlet key")
 	}
 
 	// Allocate VMs from the pool
-	info := edgeproto.CloudletVMPoolInfo{}
+	info := edgeproto.VMPoolInfo{}
 	info.Key = *cKey
 	info.User = vmGroupOrchestrationParams.GroupName
 	info.VmSpecs = []edgeproto.CloudletVMSpec{}
@@ -237,7 +237,7 @@ func (o *GenericPlatform) CreateVMs(ctx context.Context, vmGroupOrchestrationPar
 	return o.createVMsInternal(ctx, rootLBVMName, &info, vmRoles, updateCallback)
 }
 
-func (o *GenericPlatform) UpdateVMs(ctx context.Context, VMGroupOrchestrationParams *vmlayer.VMGroupOrchestrationParams, updateCallback edgeproto.CacheUpdateCallback) error {
+func (o *VMPoolPlatform) UpdateVMs(ctx context.Context, VMGroupOrchestrationParams *vmlayer.VMGroupOrchestrationParams, updateCallback edgeproto.CacheUpdateCallback) error {
 	if o.caches == nil {
 		return fmt.Errorf("cache is nil")
 	}
@@ -248,9 +248,9 @@ func (o *GenericPlatform) UpdateVMs(ctx context.Context, VMGroupOrchestrationPar
 	}
 
 	// Get already created VMs
-	var vmPool edgeproto.CloudletVMPool
+	var vmPool edgeproto.VMPool
 	existingVms := make(map[string]bool)
-	if o.caches.CloudletVMPoolCache.Get(cKey, &vmPool) {
+	if o.caches.VMPoolCache.Get(cKey, &vmPool) {
 		log.SpanLog(ctx, log.DebugLevelInfra, "found vmpool", "vmPool", vmPool)
 		for _, cVm := range vmPool.CloudletVms {
 			if cVm.User != VMGroupOrchestrationParams.GroupName {
@@ -260,7 +260,7 @@ func (o *GenericPlatform) UpdateVMs(ctx context.Context, VMGroupOrchestrationPar
 		}
 	}
 
-	info := edgeproto.CloudletVMPoolInfo{}
+	info := edgeproto.VMPoolInfo{}
 	info.Key = *cKey
 	info.User = VMGroupOrchestrationParams.GroupName
 	info.VmSpecs = []edgeproto.CloudletVMSpec{}
@@ -317,14 +317,14 @@ func (o *GenericPlatform) UpdateVMs(ctx context.Context, VMGroupOrchestrationPar
 	return nil
 }
 
-func (o *GenericPlatform) SyncVMs(ctx context.Context, VMGroupOrchestrationParams *vmlayer.VMGroupOrchestrationParams, updateCallback edgeproto.CacheUpdateCallback) error {
+func (o *VMPoolPlatform) SyncVMs(ctx context.Context, VMGroupOrchestrationParams *vmlayer.VMGroupOrchestrationParams, updateCallback edgeproto.CacheUpdateCallback) error {
 	log.SpanLog(ctx, log.DebugLevelInfra, "SyncVMs")
 	// nothing to do right now
 	return nil
 
 }
 
-func (o *GenericPlatform) deleteVMsInternal(ctx context.Context, info *edgeproto.CloudletVMPoolInfo) error {
+func (o *VMPoolPlatform) deleteVMsInternal(ctx context.Context, info *edgeproto.VMPoolInfo) error {
 	if o.caches == nil {
 		return fmt.Errorf("cache is nil")
 	}
@@ -345,8 +345,8 @@ func (o *GenericPlatform) deleteVMsInternal(ctx context.Context, info *edgeproto
 	}
 
 	// Cleanup VMs if possible
-	var vmPool edgeproto.CloudletVMPool
-	if o.caches.CloudletVMPoolCache.Get(cKey, &vmPool) {
+	var vmPool edgeproto.VMPool
+	if o.caches.VMPoolCache.Get(cKey, &vmPool) {
 		log.SpanLog(ctx, log.DebugLevelInfra, "found vmpool", "vmPool", vmPool)
 		rootLBVMIp := ""
 		sharedRootLBVMIp := ""
@@ -400,9 +400,9 @@ func (o *GenericPlatform) deleteVMsInternal(ctx context.Context, info *edgeproto
 
 	// Release VMs from the pool
 	info.Action = edgeproto.CloudletVMAction_CLOUDLET_VM_ACTION_RELEASE
-	o.caches.CloudletVMPoolInfoCache.Update(ctx, info, 0)
+	o.caches.VMPoolInfoCache.Update(ctx, info, 0)
 
-	// wait for cloudletvmpoolinfo action to get changed to done
+	// wait for vmpoolinfo action to get changed to done
 	infoFound, err := o.waitForAction(&info.Key, edgeproto.CloudletVMAction_CLOUDLET_VM_ACTION_DONE)
 	if err != nil {
 		return err
@@ -414,14 +414,14 @@ func (o *GenericPlatform) deleteVMsInternal(ctx context.Context, info *edgeproto
 	return nil
 }
 
-func (o *GenericPlatform) DeleteVMs(ctx context.Context, vmGroupName string) error {
+func (o *VMPoolPlatform) DeleteVMs(ctx context.Context, vmGroupName string) error {
 	cKey := o.GetCloudletKey()
 	if cKey == nil || cKey.Name == "" {
 		return fmt.Errorf("missing cloudlet key")
 	}
 
 	// Release VMs from the pool
-	info := edgeproto.CloudletVMPoolInfo{}
+	info := edgeproto.VMPoolInfo{}
 	info.Key = *cKey
 	info.User = vmGroupName
 	info.Action = edgeproto.CloudletVMAction_CLOUDLET_VM_ACTION_RELEASE
@@ -430,12 +430,12 @@ func (o *GenericPlatform) DeleteVMs(ctx context.Context, vmGroupName string) err
 	return o.deleteVMsInternal(ctx, &info)
 }
 
-func (s *GenericPlatform) GetVMStats(ctx context.Context, key *edgeproto.AppInstKey) (*vmlayer.VMMetrics, error) {
+func (s *VMPoolPlatform) GetVMStats(ctx context.Context, key *edgeproto.AppInstKey) (*vmlayer.VMMetrics, error) {
 	log.SpanLog(ctx, log.DebugLevelMetrics, "GetVMStats not supported")
 	return &vmlayer.VMMetrics{}, nil
 }
 
-func (s *GenericPlatform) GetPlatformResourceInfo(ctx context.Context) (*vmlayer.PlatformResources, error) {
+func (s *VMPoolPlatform) GetPlatformResourceInfo(ctx context.Context) (*vmlayer.PlatformResources, error) {
 	log.SpanLog(ctx, log.DebugLevelMetrics, "GetPlatformResourceInfo not supported")
 	return nil, nil
 }

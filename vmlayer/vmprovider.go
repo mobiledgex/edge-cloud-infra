@@ -127,7 +127,7 @@ const (
 const (
 	VMProviderOpenstack string = "openstack"
 	VMProviderVSphere   string = "vsphere"
-	VMProviderGeneric   string = "generic"
+	VMProviderVMPool    string = "vmpool"
 )
 
 type StringSanitizer func(value string) string

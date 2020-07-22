@@ -14,7 +14,6 @@ It is generated from these files:
 	autoscalepolicy.proto
 	cloudlet.proto
 	cloudletpool.proto
-	cloudletvmpool.proto
 	cluster.proto
 	clusterinst.proto
 	common.proto
@@ -34,6 +33,7 @@ It is generated from these files:
 	result.proto
 	settings.proto
 	version.proto
+	vmpool.proto
 
 It has these top-level messages:
 	Alert
@@ -73,12 +73,6 @@ It has these top-level messages:
 	CloudletPoolKey
 	CloudletPool
 	CloudletPoolMember
-	CloudletVMNetInfo
-	CloudletVM
-	CloudletVMPool
-	CloudletVMPoolMember
-	CloudletVMSpec
-	CloudletVMPoolInfo
 	ClusterKey
 	ClusterInstKey
 	ClusterInst
@@ -118,6 +112,12 @@ It has these top-level messages:
 	ResTagTable
 	Result
 	Settings
+	CloudletVMNetInfo
+	CloudletVM
+	VMPool
+	VMPoolMember
+	CloudletVMSpec
+	VMPoolInfo
 */
 package orm
 
@@ -755,8 +755,8 @@ func addControllerApis(method string, group *echo.Group) {
 	//   403: forbidden
 	//   404: notFound
 	group.Match([]string{method}, "/ctrl/ShowCloudletsForPool", ShowCloudletsForPool)
-	// swagger:route POST /auth/ctrl/CreateCloudletVMPool CloudletVMPool CreateCloudletVMPool
-	// Create CloudletVMPool.
+	// swagger:route POST /auth/ctrl/CreateVMPool VMPool CreateVMPool
+	// Create VMPool.
 	//  Creates Cloudlet VM pool which will have Cloudlet VMs defined.
 	// Security:
 	//   Bearer:
@@ -765,9 +765,9 @@ func addControllerApis(method string, group *echo.Group) {
 	//   400: badRequest
 	//   403: forbidden
 	//   404: notFound
-	group.Match([]string{method}, "/ctrl/CreateCloudletVMPool", CreateCloudletVMPool)
-	// swagger:route POST /auth/ctrl/DeleteCloudletVMPool CloudletVMPool DeleteCloudletVMPool
-	// Delete CloudletVMPool.
+	group.Match([]string{method}, "/ctrl/CreateVMPool", CreateVMPool)
+	// swagger:route POST /auth/ctrl/DeleteVMPool VMPool DeleteVMPool
+	// Delete VMPool.
 	//  Deletes Cloudlet VM pool given that none of Cloudlet VMs part of this pool is used.
 	// Security:
 	//   Bearer:
@@ -776,11 +776,11 @@ func addControllerApis(method string, group *echo.Group) {
 	//   400: badRequest
 	//   403: forbidden
 	//   404: notFound
-	group.Match([]string{method}, "/ctrl/DeleteCloudletVMPool", DeleteCloudletVMPool)
-	// swagger:route POST /auth/ctrl/UpdateCloudletVMPool CloudletVMPool UpdateCloudletVMPool
-	// Update CloudletVMPool.
+	group.Match([]string{method}, "/ctrl/DeleteVMPool", DeleteVMPool)
+	// swagger:route POST /auth/ctrl/UpdateVMPool VMPool UpdateVMPool
+	// Update VMPool.
 	//  Updates a Cloudlet VM pools VMs.
-	// The following values should be added to `CloudletVMPool.fields` field array to specify which fields will be updated.
+	// The following values should be added to `VMPool.fields` field array to specify which fields will be updated.
 	// ```
 	// Key: 2
 	// KeyOrganization: 2.1
@@ -806,9 +806,9 @@ func addControllerApis(method string, group *echo.Group) {
 	//   400: badRequest
 	//   403: forbidden
 	//   404: notFound
-	group.Match([]string{method}, "/ctrl/UpdateCloudletVMPool", UpdateCloudletVMPool)
-	// swagger:route POST /auth/ctrl/ShowCloudletVMPool CloudletVMPool ShowCloudletVMPool
-	// Show CloudletVMPools.
+	group.Match([]string{method}, "/ctrl/UpdateVMPool", UpdateVMPool)
+	// swagger:route POST /auth/ctrl/ShowVMPool VMPool ShowVMPool
+	// Show VMPools.
 	//  Lists all the Cloudlet VMs part of the Cloudlet VM pool.
 	// Security:
 	//   Bearer:
@@ -817,9 +817,9 @@ func addControllerApis(method string, group *echo.Group) {
 	//   400: badRequest
 	//   403: forbidden
 	//   404: notFound
-	group.Match([]string{method}, "/ctrl/ShowCloudletVMPool", ShowCloudletVMPool)
-	// swagger:route POST /auth/ctrl/AddCloudletVMPoolMember CloudletVMPoolMember AddCloudletVMPoolMember
-	// Add CloudletVMPoolMember.
+	group.Match([]string{method}, "/ctrl/ShowVMPool", ShowVMPool)
+	// swagger:route POST /auth/ctrl/AddVMPoolMember VMPoolMember AddVMPoolMember
+	// Add VMPoolMember.
 	//  Adds a Cloudlet VM to existing Cloudlet VM Pool.
 	// Security:
 	//   Bearer:
@@ -828,9 +828,9 @@ func addControllerApis(method string, group *echo.Group) {
 	//   400: badRequest
 	//   403: forbidden
 	//   404: notFound
-	group.Match([]string{method}, "/ctrl/AddCloudletVMPoolMember", AddCloudletVMPoolMember)
-	// swagger:route POST /auth/ctrl/RemoveCloudletVMPoolMember CloudletVMPoolMember RemoveCloudletVMPoolMember
-	// Remove CloudletVMPoolMember.
+	group.Match([]string{method}, "/ctrl/AddVMPoolMember", AddVMPoolMember)
+	// swagger:route POST /auth/ctrl/RemoveVMPoolMember VMPoolMember RemoveVMPoolMember
+	// Remove VMPoolMember.
 	//  Removes a Cloudlet VM from existing Cloudlet VM Pool.
 	// Security:
 	//   Bearer:
@@ -839,7 +839,7 @@ func addControllerApis(method string, group *echo.Group) {
 	//   400: badRequest
 	//   403: forbidden
 	//   404: notFound
-	group.Match([]string{method}, "/ctrl/RemoveCloudletVMPoolMember", RemoveCloudletVMPoolMember)
+	group.Match([]string{method}, "/ctrl/RemoveVMPoolMember", RemoveVMPoolMember)
 	// swagger:route POST /auth/ctrl/CreateAutoScalePolicy AutoScalePolicy CreateAutoScalePolicy
 	// Create an Auto Scale Policy.
 	// Security:

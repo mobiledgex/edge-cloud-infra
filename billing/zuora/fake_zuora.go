@@ -12,6 +12,7 @@ var fakeURL = "http://localhost:65122"
 
 // for accounts and subs ids and nums will be the same
 var accountMux sync.Mutex
+var deleteMux sync.Mutex
 var subMux sync.Mutex
 var familyMux sync.Mutex
 var accountIdCounter int

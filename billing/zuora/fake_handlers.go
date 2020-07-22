@@ -154,12 +154,15 @@ func fakeAccounts(w http.ResponseWriter, req *http.Request) {
 			return
 		}
 		if accountNum < accountIdCounter {
+			deleteMux.Lock()
 			for _, deleted := range deletedAccounts {
 				if deleted == accountStr {
 					http.Error(w, "cannot update a deleted account", http.StatusBadRequest)
+					deleteMux.Unlock()
 					return
 				}
 			}
+			deleteMux.Unlock()
 		} else {
 			http.Error(w, fmt.Sprintf("account %d does not exist", accountNum), http.StatusBadRequest)
 			return
@@ -218,7 +221,9 @@ func fakeDeleteAccounts(w http.ResponseWriter, req *http.Request) {
 		return
 	}
 	accountStr := pathSplit[len(pathSplit)-1]
+	deleteMux.Lock()
 	deletedAccounts = append(deletedAccounts, accountStr)
+	deleteMux.Unlock()
 }
 
 func fakeGetSubs(w http.ResponseWriter, req *http.Request) {

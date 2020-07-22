@@ -61,7 +61,7 @@ type Organization struct {
 }
 
 type BillingOrganization struct {
-	// Organization name. Can only contain letters, digits, underscore, period, hyphen. It cannot have leading or trailing spaces or period. It cannot start with hyphen
+	// BillingOrganization name. Can only contain letters, digits, underscore, period, hyphen. It cannot have leading or trailing spaces or period. It cannot start with hyphen
 	// required: true
 	Name string `gorm:"primary_key;type:citext"`
 	// Organization type: "parent" or "self"

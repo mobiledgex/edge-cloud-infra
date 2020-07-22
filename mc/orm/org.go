@@ -295,13 +295,10 @@ func ShowOrgObj(ctx context.Context, claims *UserClaims) ([]ormapi.Organization,
 				org := ormapi.Organization{}
 				org.Name = orguser[0]
 				err := db.Where(&org).First(&org).Error
-				show := true
 				if err != nil {
 					return nil, dbErr(err)
 				}
-				if show {
-					orgs = append(orgs, org)
-				}
+				orgs = append(orgs, org)
 			}
 		}
 	}

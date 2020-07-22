@@ -443,20 +443,14 @@ func (v *VMPlatform) SetupRootLB(
 		log.SpanLog(ctx, log.DebugLevelInfra, "server with same name as rootLB exists", "rootLBName", rootLBName)
 	}
 
-	err = v.WaitForRootLB(ctx, rootLB)
-	if err != nil {
-		log.SpanLog(ctx, log.DebugLevelInfra, "timeout waiting for agent to run", "name", rootLB.Name)
-		return fmt.Errorf("Error waiting for rootLB %v", err)
-	}
-
-	client, err := v.SetupSSHUser(ctx, rootLB, infracommon.SSHUser)
-	if err != nil {
-		return err
-	}
 	// setup SSH access to cloudlet for CRM.  Since we are getting the external IP here, this will only work
 	// when CRM accessed via public internet.
 	log.SpanLog(ctx, log.DebugLevelInfra, "setup security group for SSH access")
 	groupName := v.GetServerSecurityGroupName(rootLBName)
+	client, err := v.GetSSHClientForServer(ctx, rootLB.Name, v.VMProperties.GetCloudletExternalNetwork(), WithUser(infracommon.SSHUser))
+	if err != nil {
+		return err
+	}
 	myIp, err := infracommon.GetExternalPublicAddr(ctx)
 	if err != nil {
 		// this is not necessarily fatal
@@ -472,13 +466,21 @@ func (v *VMPlatform) SetupRootLB(
 			return err
 		}
 	}
-
+	err = v.WaitForRootLB(ctx, rootLB)
+	if err != nil {
+		log.SpanLog(ctx, log.DebugLevelInfra, "timeout waiting for agent to run", "name", rootLB.Name)
+		return fmt.Errorf("Error waiting for rootLB %v", err)
+	}
 	ip, err := GetIPFromServerDetails(ctx, v.VMProperties.GetCloudletExternalNetwork(), "", sd)
 	if err != nil {
 		return fmt.Errorf("cannot get rootLB IP %sv", err)
 	}
 	log.SpanLog(ctx, log.DebugLevelInfra, "set rootLB IP to", "ip", ip)
 	rootLB.IP = ip
+	_, err = v.SetupSSHUser(ctx, rootLB, infracommon.SSHUser)
+	if err != nil {
+		return err
+	}
 
 	log.SpanLog(ctx, log.DebugLevelInfra, "Copy resource-tracker to rootLb", "rootLb", rootLBName)
 	err = CopyResourceTracker(client)

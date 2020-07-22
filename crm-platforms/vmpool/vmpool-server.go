@@ -24,20 +24,20 @@ func (o *VMPoolPlatform) GetServerDetail(ctx context.Context, serverName string)
 	var vmPool edgeproto.VMPool
 	if o.caches.VMPoolCache.Get(cKey, &vmPool) {
 		log.SpanLog(ctx, log.DebugLevelInfra, "GetServerDetail", "server name", serverName, "vmPool", vmPool)
-		for _, cVm := range vmPool.CloudletVms {
-			if cVm.InternalName != serverName {
+		for _, vm := range vmPool.Vms {
+			if vm.InternalName != serverName {
 				continue
 			}
-			sd.Name = cVm.InternalName
+			sd.Name = vm.InternalName
 			sd.Status = vmlayer.ServerActive
 			sip := vmlayer.ServerIP{}
-			if cVm.NetInfo.InternalIp != "" {
-				sip.InternalAddr = cVm.NetInfo.InternalIp
+			if vm.NetInfo.InternalIp != "" {
+				sip.InternalAddr = vm.NetInfo.InternalIp
 			}
-			if cVm.NetInfo.ExternalIp == "" {
-				sip.ExternalAddr = cVm.NetInfo.InternalIp
+			if vm.NetInfo.ExternalIp == "" {
+				sip.ExternalAddr = vm.NetInfo.InternalIp
 			} else {
-				sip.ExternalAddr = cVm.NetInfo.ExternalIp
+				sip.ExternalAddr = vm.NetInfo.ExternalIp
 			}
 			// Add two addresses with network name:
 			// 1. External network
@@ -54,9 +54,9 @@ func (o *VMPoolPlatform) GetServerDetail(ctx context.Context, serverName string)
 	return &sd, fmt.Errorf("No server with a name or ID: %s exists", serverName)
 }
 
-func (o *VMPoolPlatform) waitForAction(key *edgeproto.CloudletKey, action edgeproto.CloudletVMAction) (*edgeproto.VMPoolInfo, error) {
+func (o *VMPoolPlatform) waitForAction(key *edgeproto.CloudletKey, action edgeproto.VMAction) (*edgeproto.VMPoolInfo, error) {
 	info := edgeproto.VMPoolInfo{}
-	var lastAction edgeproto.CloudletVMAction
+	var lastAction edgeproto.VMAction
 	for i := 0; i < 10; i++ {
 		if o.caches.VMPoolInfoCache.Get(key, &info) {
 			if info.Action == action {
@@ -75,14 +75,14 @@ func (o *VMPoolPlatform) createVMsInternal(ctx context.Context, rootLBVMName str
 	}
 
 	// Allocate VMs from the pool
-	info.Action = edgeproto.CloudletVMAction_CLOUDLET_VM_ACTION_ALLOCATE
+	info.Action = edgeproto.VMAction_VM_ACTION_ALLOCATE
 	log.SpanLog(ctx, log.DebugLevelInfra, "CreateVMs, requestion allocation of VMs", "info", info)
 
 	updateCallback(edgeproto.UpdateTask, fmt.Sprintf("Allocating VMs"))
 	o.caches.VMPoolInfoCache.Update(ctx, info, 0)
 
 	// wait for vmpoolinfo action to get changed to done
-	infoFound, err := o.waitForAction(&info.Key, edgeproto.CloudletVMAction_CLOUDLET_VM_ACTION_DONE)
+	infoFound, err := o.waitForAction(&info.Key, edgeproto.VMAction_VM_ACTION_DONE)
 	if err != nil {
 		return err
 	}
@@ -105,7 +105,7 @@ func (o *VMPoolPlatform) createVMsInternal(ctx context.Context, rootLBVMName str
 		rootLBVMIP = sd.Addresses[0].ExternalAddr
 	} else {
 		log.SpanLog(ctx, log.DebugLevelInfra, "CreateVMs, get dedicated rootlb IP", "rootLBVMName", rootLBVMName)
-		for _, vm := range infoFound.CloudletVms {
+		for _, vm := range infoFound.Vms {
 			if vm.InternalName == rootLBVMName {
 				rootLBVMIP = vm.NetInfo.ExternalIp
 				break
@@ -123,7 +123,7 @@ func (o *VMPoolPlatform) createVMsInternal(ctx context.Context, rootLBVMName str
 
 	// Setup Cluster Nodes
 	masterAddr := ""
-	for _, vm := range infoFound.CloudletVms {
+	for _, vm := range infoFound.Vms {
 		role, ok := vmRoles[vm.InternalName]
 		if !ok {
 			return fmt.Errorf("missing role for vm role %s", vm.InternalName)
@@ -184,7 +184,7 @@ func (o *VMPoolPlatform) createVMsInternal(ctx context.Context, rootLBVMName str
 	if masterAddr != "" {
 		// bring other nodes once master node is up (if deployment is k8s)
 		updateCallback(edgeproto.UpdateTask, fmt.Sprintf("Setting up kubernetes worker nodes"))
-		for _, vm := range infoFound.CloudletVms {
+		for _, vm := range infoFound.Vms {
 			if vmRoles[vm.InternalName] != vmlayer.RoleNode {
 				continue
 			}
@@ -213,15 +213,15 @@ func (o *VMPoolPlatform) CreateVMs(ctx context.Context, vmGroupOrchestrationPara
 	// Allocate VMs from the pool
 	info := edgeproto.VMPoolInfo{}
 	info.Key = *cKey
-	info.User = vmGroupOrchestrationParams.GroupName
-	info.VmSpecs = []edgeproto.CloudletVMSpec{}
-	info.Action = edgeproto.CloudletVMAction_CLOUDLET_VM_ACTION_ALLOCATE
+	info.GroupName = vmGroupOrchestrationParams.GroupName
+	info.VmSpecs = []edgeproto.VMSpec{}
+	info.Action = edgeproto.VMAction_VM_ACTION_ALLOCATE
 
 	vmRoles := make(map[string]vmlayer.VMRole)
 	rootLBVMName := o.VMProperties.SharedRootLBName
 	for _, vm := range vmGroupOrchestrationParams.VMs {
 		vmRoles[vm.Name] = vm.Role
-		vmSpec := edgeproto.CloudletVMSpec{}
+		vmSpec := edgeproto.VMSpec{}
 		vmSpec.InternalName = vm.Name
 		for _, p := range vm.Ports {
 			if p.NetworkType == vmlayer.NetTypeExternal {
@@ -252,24 +252,24 @@ func (o *VMPoolPlatform) UpdateVMs(ctx context.Context, VMGroupOrchestrationPara
 	existingVms := make(map[string]bool)
 	if o.caches.VMPoolCache.Get(cKey, &vmPool) {
 		log.SpanLog(ctx, log.DebugLevelInfra, "found vmpool", "vmPool", vmPool)
-		for _, cVm := range vmPool.CloudletVms {
-			if cVm.User != VMGroupOrchestrationParams.GroupName {
+		for _, vm := range vmPool.Vms {
+			if vm.GroupName != VMGroupOrchestrationParams.GroupName {
 				continue
 			}
-			existingVms[cVm.InternalName] = false
+			existingVms[vm.InternalName] = false
 		}
 	}
 
 	info := edgeproto.VMPoolInfo{}
 	info.Key = *cKey
-	info.User = VMGroupOrchestrationParams.GroupName
-	info.VmSpecs = []edgeproto.CloudletVMSpec{}
+	info.GroupName = VMGroupOrchestrationParams.GroupName
+	info.VmSpecs = []edgeproto.VMSpec{}
 
 	vmRoles := make(map[string]vmlayer.VMRole)
 	rootLBVMName := o.VMProperties.SharedRootLBName
 	for _, vm := range VMGroupOrchestrationParams.VMs {
 		vmRoles[vm.Name] = vm.Role
-		vmSpec := edgeproto.CloudletVMSpec{}
+		vmSpec := edgeproto.VMSpec{}
 		vmSpec.InternalName = vm.Name
 		for _, p := range vm.Ports {
 			if p.NetworkType == vmlayer.NetTypeExternal {
@@ -286,15 +286,15 @@ func (o *VMPoolPlatform) UpdateVMs(ctx context.Context, VMGroupOrchestrationPara
 		info.VmSpecs = append(info.VmSpecs, vmSpec)
 	}
 
-	updateAction := edgeproto.CloudletVMAction_CLOUDLET_VM_ACTION_ALLOCATE
+	updateAction := edgeproto.VMAction_VM_ACTION_ALLOCATE
 	if len(info.VmSpecs) == 0 {
 		// no new VMs to be added, see if something is to be removed
 		for vName, vPresent := range existingVms {
 			if !vPresent {
-				vmSpec := edgeproto.CloudletVMSpec{}
+				vmSpec := edgeproto.VMSpec{}
 				vmSpec.InternalName = vName
 				info.VmSpecs = append(info.VmSpecs, vmSpec)
-				updateAction = edgeproto.CloudletVMAction_CLOUDLET_VM_ACTION_RELEASE
+				updateAction = edgeproto.VMAction_VM_ACTION_RELEASE
 			}
 		}
 	}
@@ -308,9 +308,9 @@ func (o *VMPoolPlatform) UpdateVMs(ctx context.Context, VMGroupOrchestrationPara
 	log.SpanLog(ctx, log.DebugLevelInfra, "UpdateVMs", "info", info)
 
 	switch updateAction {
-	case edgeproto.CloudletVMAction_CLOUDLET_VM_ACTION_ALLOCATE:
+	case edgeproto.VMAction_VM_ACTION_ALLOCATE:
 		return o.createVMsInternal(ctx, rootLBVMName, &info, vmRoles, updateCallback)
-	case edgeproto.CloudletVMAction_CLOUDLET_VM_ACTION_RELEASE:
+	case edgeproto.VMAction_VM_ACTION_RELEASE:
 		return o.deleteVMsInternal(ctx, &info)
 	}
 
@@ -351,19 +351,19 @@ func (o *VMPoolPlatform) deleteVMsInternal(ctx context.Context, info *edgeproto.
 		rootLBVMIp := ""
 		sharedRootLBVMIp := ""
 		rootLBName := ""
-		for _, cVm := range vmPool.CloudletVms {
-			if cVm.InternalName == o.VMProperties.SharedRootLBName {
-				sharedRootLBVMIp = cVm.NetInfo.ExternalIp
+		for _, vm := range vmPool.Vms {
+			if vm.InternalName == o.VMProperties.SharedRootLBName {
+				sharedRootLBVMIp = vm.NetInfo.ExternalIp
 				continue
 			}
-			if cVm.User != info.User {
+			if vm.GroupName != info.GroupName {
 				continue
 			}
-			if cVm.NetInfo.ExternalIp == "" {
+			if vm.NetInfo.ExternalIp == "" {
 				continue
 			}
-			rootLBVMIp = cVm.NetInfo.ExternalIp
-			rootLBName = cVm.InternalName
+			rootLBVMIp = vm.NetInfo.ExternalIp
+			rootLBName = vm.InternalName
 			break
 		}
 		if rootLBVMIp == "" {
@@ -375,17 +375,17 @@ func (o *VMPoolPlatform) deleteVMsInternal(ctx context.Context, info *edgeproto.
 			log.SpanLog(ctx, log.DebugLevelInfra, "DeleteVMs, can't get rootlb ssh client for %s %v", rootLBVMIp, err)
 		} else {
 			client := rootLBClient
-			for _, cVm := range vmPool.CloudletVms {
-				if cVm.User != info.User {
+			for _, vm := range vmPool.Vms {
+				if vm.GroupName != info.GroupName {
 					continue
 				}
-				if cVm.InternalName != rootLBName {
-					client, err = rootLBClient.AddHop(cVm.NetInfo.InternalIp, 22)
+				if vm.InternalName != rootLBName {
+					client, err = rootLBClient.AddHop(vm.NetInfo.InternalIp, 22)
 					if err != nil {
 						return err
 					}
 				}
-				_, ok := vmNames[cVm.InternalName]
+				_, ok := vmNames[vm.InternalName]
 				if ok || deleteAll {
 					// Run cleanup script
 					cmd := fmt.Sprintf("sudo bash /etc/mobiledgex/cleanup-vm.sh")
@@ -399,11 +399,11 @@ func (o *VMPoolPlatform) deleteVMsInternal(ctx context.Context, info *edgeproto.
 	}
 
 	// Release VMs from the pool
-	info.Action = edgeproto.CloudletVMAction_CLOUDLET_VM_ACTION_RELEASE
+	info.Action = edgeproto.VMAction_VM_ACTION_RELEASE
 	o.caches.VMPoolInfoCache.Update(ctx, info, 0)
 
 	// wait for vmpoolinfo action to get changed to done
-	infoFound, err := o.waitForAction(&info.Key, edgeproto.CloudletVMAction_CLOUDLET_VM_ACTION_DONE)
+	infoFound, err := o.waitForAction(&info.Key, edgeproto.VMAction_VM_ACTION_DONE)
 	if err != nil {
 		return err
 	}
@@ -423,9 +423,9 @@ func (o *VMPoolPlatform) DeleteVMs(ctx context.Context, vmGroupName string) erro
 	// Release VMs from the pool
 	info := edgeproto.VMPoolInfo{}
 	info.Key = *cKey
-	info.User = vmGroupName
-	info.Action = edgeproto.CloudletVMAction_CLOUDLET_VM_ACTION_RELEASE
-	info.VmSpecs = []edgeproto.CloudletVMSpec{} // empty means delete all VMs
+	info.GroupName = vmGroupName
+	info.Action = edgeproto.VMAction_VM_ACTION_RELEASE
+	info.VmSpecs = []edgeproto.VMSpec{} // empty means delete all VMs
 
 	return o.deleteVMsInternal(ctx, &info)
 }

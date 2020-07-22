@@ -112,11 +112,11 @@ It has these top-level messages:
 	ResTagTable
 	Result
 	Settings
-	CloudletVMNetInfo
-	CloudletVM
+	VMNetInfo
+	VM
 	VMPool
 	VMPoolMember
-	CloudletVMSpec
+	VMSpec
 	VMPoolInfo
 */
 package orm
@@ -757,7 +757,7 @@ func addControllerApis(method string, group *echo.Group) {
 	group.Match([]string{method}, "/ctrl/ShowCloudletsForPool", ShowCloudletsForPool)
 	// swagger:route POST /auth/ctrl/CreateVMPool VMPool CreateVMPool
 	// Create VMPool.
-	//  Creates Cloudlet VM pool which will have Cloudlet VMs defined.
+	//  Creates VM pool which will have VMs defined.
 	// Security:
 	//   Bearer:
 	// responses:
@@ -768,7 +768,7 @@ func addControllerApis(method string, group *echo.Group) {
 	group.Match([]string{method}, "/ctrl/CreateVMPool", CreateVMPool)
 	// swagger:route POST /auth/ctrl/DeleteVMPool VMPool DeleteVMPool
 	// Delete VMPool.
-	//  Deletes Cloudlet VM pool given that none of Cloudlet VMs part of this pool is used.
+	//  Deletes VM pool given that none of VMs part of this pool is used.
 	// Security:
 	//   Bearer:
 	// responses:
@@ -779,23 +779,23 @@ func addControllerApis(method string, group *echo.Group) {
 	group.Match([]string{method}, "/ctrl/DeleteVMPool", DeleteVMPool)
 	// swagger:route POST /auth/ctrl/UpdateVMPool VMPool UpdateVMPool
 	// Update VMPool.
-	//  Updates a Cloudlet VM pools VMs.
+	//  Updates a VM pools VMs.
 	// The following values should be added to `VMPool.fields` field array to specify which fields will be updated.
 	// ```
 	// Key: 2
 	// KeyOrganization: 2.1
 	// KeyName: 2.2
-	// CloudletVms: 3
-	// CloudletVmsName: 3.1
-	// CloudletVmsNetInfo: 3.2
-	// CloudletVmsNetInfoExternalIp: 3.2.1
-	// CloudletVmsNetInfoInternalIp: 3.2.2
-	// CloudletVmsUser: 3.3
-	// CloudletVmsState: 3.4
-	// CloudletVmsUpdatedAt: 3.5
-	// CloudletVmsUpdatedAtSeconds: 3.5.1
-	// CloudletVmsUpdatedAtNanos: 3.5.2
-	// CloudletVmsInternalName: 3.6
+	// Vms: 3
+	// VmsName: 3.1
+	// VmsNetInfo: 3.2
+	// VmsNetInfoExternalIp: 3.2.1
+	// VmsNetInfoInternalIp: 3.2.2
+	// VmsGroupName: 3.3
+	// VmsState: 3.4
+	// VmsUpdatedAt: 3.5
+	// VmsUpdatedAtSeconds: 3.5.1
+	// VmsUpdatedAtNanos: 3.5.2
+	// VmsInternalName: 3.6
 	// Action: 4
 	// Error: 5
 	// ```
@@ -809,7 +809,7 @@ func addControllerApis(method string, group *echo.Group) {
 	group.Match([]string{method}, "/ctrl/UpdateVMPool", UpdateVMPool)
 	// swagger:route POST /auth/ctrl/ShowVMPool VMPool ShowVMPool
 	// Show VMPools.
-	//  Lists all the Cloudlet VMs part of the Cloudlet VM pool.
+	//  Lists all the VMs part of the VM pool.
 	// Security:
 	//   Bearer:
 	// responses:
@@ -820,7 +820,7 @@ func addControllerApis(method string, group *echo.Group) {
 	group.Match([]string{method}, "/ctrl/ShowVMPool", ShowVMPool)
 	// swagger:route POST /auth/ctrl/AddVMPoolMember VMPoolMember AddVMPoolMember
 	// Add VMPoolMember.
-	//  Adds a Cloudlet VM to existing Cloudlet VM Pool.
+	//  Adds a VM to existing VM Pool.
 	// Security:
 	//   Bearer:
 	// responses:
@@ -831,7 +831,7 @@ func addControllerApis(method string, group *echo.Group) {
 	group.Match([]string{method}, "/ctrl/AddVMPoolMember", AddVMPoolMember)
 	// swagger:route POST /auth/ctrl/RemoveVMPoolMember VMPoolMember RemoveVMPoolMember
 	// Remove VMPoolMember.
-	//  Removes a Cloudlet VM from existing Cloudlet VM Pool.
+	//  Removes a VM from existing VM Pool.
 	// Security:
 	//   Bearer:
 	// responses:

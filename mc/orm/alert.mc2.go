@@ -795,6 +795,7 @@ func addControllerApis(method string, group *echo.Group) {
 	// CloudletVmsUpdatedAt: 3.5
 	// CloudletVmsUpdatedAtSeconds: 3.5.1
 	// CloudletVmsUpdatedAtNanos: 3.5.2
+	// CloudletVmsInternalName: 3.6
 	// Action: 4
 	// Error: 5
 	// ```

@@ -13,6 +13,13 @@ MYIP=$3
 echo "Interface $INTF"
 echo "Master IP $MASTERIP"
 echo "My IP Address: $MYIP"
+
+systemctl is-active --quiet kubelet
+if [[ $? -ne 0 ]]; then
+  systemctl start kubelet
+  systemctl enable kubelet
+fi
+
 #nohup consul agent -data-dir=/tmp/consul -node=`hostname` -syslog -config-dir=/etc/consul/conf.d -bind=$MYIP &
 #consul info
 #while [ $? -ne 0 ] ; do

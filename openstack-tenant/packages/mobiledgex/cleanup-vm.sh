@@ -1,0 +1,54 @@
+#!/bin/bash
+# must be run as root
+
+[[ "$TRACE" == yes ]] && set -x
+
+LOGDIR="/etc/mobiledgex"
+LOGFILE="${LOGDIR}/mobiledgex_vm_cleanup.txt"
+exec &> >(tee "$LOGFILE")
+
+sudo mkdir -p "$LOGDIR"
+sudo chmod 700 "$LOGDIR"
+
+log() {
+        echo "[$(date)] $*"
+}
+
+systemctl is-active --quiet kubelet
+if [[ $? -eq 0 ]]; then
+  log "Cleanup kubernetes setup"
+  kubeadm reset -f
+
+  if [[ -f $HOME/.kube/config ]]; then
+    rm $HOME/.kube/config
+  fi
+
+  log "Disable kubelet service"
+  systemctl stop kubelet
+  systemctl disable kubelet
+
+  log "Flush iptables"
+  iptables -F && iptables -t nat -F && iptables -t mangle -F && iptables -X
+
+  log "Restart docker service"
+  systemctl restart docker
+fi
+
+if [[ -d /home/ubuntu/envoy ]]; then
+  log "Remove envoy directory"
+  rm -r /home/ubuntu/envoy
+fi
+
+# Cleanup docker setup
+containers=$(docker ps -a -q)
+images=$(docker ps --format "{{.Image}}" | uniq)
+if [[ ! -z $containers ]]; then
+  log "Cleanup docker containers: $containers"
+  docker stop $containers
+  docker rm -f $containers
+
+  log "Cleanup docker images: $images"
+  docker rmi -f $images
+fi
+
+echo "[$(date)] Done cleanup-vm.sh ($( pwd ))"

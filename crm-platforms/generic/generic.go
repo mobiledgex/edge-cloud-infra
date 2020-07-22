@@ -27,6 +27,10 @@ func (o *GenericPlatform) SetVMProperties(vmProperties *vmlayer.VMProperties) {
 	o.VMProperties = vmProperties
 }
 
+func (o *GenericPlatform) GetCloudletKey() *edgeproto.CloudletKey {
+	return o.VMProperties.CommonPf.PlatformConfig.CloudletKey
+}
+
 func (o *GenericPlatform) InitProvider(ctx context.Context, caches *platform.Caches, updateCallback edgeproto.CacheUpdateCallback) error {
 	log.SpanLog(ctx, log.DebugLevelInfra, "InitProvider for VSphere")
 	o.SetCaches(ctx, caches)
@@ -39,7 +43,10 @@ func (o *GenericPlatform) SetCaches(ctx context.Context, caches *platform.Caches
 }
 
 func (o *GenericPlatform) GatherCloudletInfo(ctx context.Context, info *edgeproto.CloudletInfo) error {
-	return nil
+	log.SpanLog(ctx, log.DebugLevelInfra, "GatherCloudletInfo ")
+	var err error
+	info.Flavors, err = o.GetFlavorList(ctx)
+	return err
 }
 
 // alphanumeric plus -_. first char must be alpha, <= 255 chars.

@@ -8,6 +8,7 @@ import (
 	"github.com/mobiledgex/edge-cloud-infra/crm-platforms/edgebox"
 	"github.com/mobiledgex/edge-cloud-infra/crm-platforms/fakeinfra"
 	"github.com/mobiledgex/edge-cloud-infra/crm-platforms/gcp"
+	"github.com/mobiledgex/edge-cloud-infra/crm-platforms/generic"
 	"github.com/mobiledgex/edge-cloud-infra/crm-platforms/openstack"
 	"github.com/mobiledgex/edge-cloud-infra/crm-platforms/vsphere"
 	"github.com/mobiledgex/edge-cloud-infra/plugin/common"
@@ -29,6 +30,12 @@ func GetPlatform(plat string) (platform.Platform, error) {
 		outPlatform = &vmlayer.VMPlatform{
 			Type:       vmlayer.VMProviderVSphere,
 			VMProvider: &vsphereProvider,
+		}
+	case "PLATFORM_TYPE_GENERIC":
+		genericProvider := generic.GenericPlatform{}
+		outPlatform = &vmlayer.VMPlatform{
+			Type:       vmlayer.VMProviderGeneric,
+			VMProvider: &genericProvider,
 		}
 	case "PLATFORM_TYPE_AZURE":
 		outPlatform = &azure.AzurePlatform{}

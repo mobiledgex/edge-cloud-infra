@@ -102,3 +102,7 @@ func (s *GenericPlatform) DetachPortFromServer(ctx context.Context, serverName, 
 	log.SpanLog(ctx, log.DebugLevelInfra, "DetachPortFromServer not supported")
 	return nil
 }
+
+func (s *GenericPlatform) GetNetworkList(ctx context.Context) ([]string, error) {
+	return []string{}, nil
+}

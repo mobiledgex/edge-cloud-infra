@@ -16,3 +16,8 @@ func (o *GenericPlatform) RemoveWhitelistSecurityRules(ctx context.Context, secG
 	log.SpanLog(ctx, log.DebugLevelInfra, "RemoveWhitelistSecurityRules not supported")
 	return nil
 }
+
+func (o *GenericPlatform) WhitelistSecurityRules(ctx context.Context, grpName, serverName, allowedCidr string, ports []dme.AppPort) error {
+	log.SpanLog(ctx, log.DebugLevelInfra, "WhitelistSecurityRules not supported")
+	return nil
+}

@@ -25,7 +25,7 @@ var _ = math.Inf
 func (s *Client) CreateCloudletVMPool(uri, token string, in *ormapi.RegionCloudletVMPool) (*edgeproto.Result, int, error) {
 	args := []string{"region", "CreateCloudletVMPool"}
 	out := edgeproto.Result{}
-	noconfig := strings.Split("CloudletVms:#.User,CloudletVms:#.State,CloudletVms:#.UpdatedAt.Seconds,CloudletVms:#.UpdatedAt.Nanos,Action,Error", ",")
+	noconfig := strings.Split("CloudletVms:#.User,CloudletVms:#.InternalName,CloudletVms:#.State,CloudletVms:#.UpdatedAt.Seconds,CloudletVms:#.UpdatedAt.Nanos,Action,Error", ",")
 	st, err := s.runObjs(uri, token, args, in, &out, withIgnore(noconfig))
 	if err != nil {
 		return nil, st, err
@@ -36,7 +36,7 @@ func (s *Client) CreateCloudletVMPool(uri, token string, in *ormapi.RegionCloudl
 func (s *Client) DeleteCloudletVMPool(uri, token string, in *ormapi.RegionCloudletVMPool) (*edgeproto.Result, int, error) {
 	args := []string{"region", "DeleteCloudletVMPool"}
 	out := edgeproto.Result{}
-	noconfig := strings.Split("CloudletVms:#.User,CloudletVms:#.State,CloudletVms:#.UpdatedAt.Seconds,CloudletVms:#.UpdatedAt.Nanos,Action,Error", ",")
+	noconfig := strings.Split("CloudletVms:#.User,CloudletVms:#.InternalName,CloudletVms:#.State,CloudletVms:#.UpdatedAt.Seconds,CloudletVms:#.UpdatedAt.Nanos,Action,Error", ",")
 	st, err := s.runObjs(uri, token, args, in, &out, withIgnore(noconfig))
 	if err != nil {
 		return nil, st, err
@@ -47,7 +47,7 @@ func (s *Client) DeleteCloudletVMPool(uri, token string, in *ormapi.RegionCloudl
 func (s *Client) UpdateCloudletVMPool(uri, token string, in *ormapi.RegionCloudletVMPool) (*edgeproto.Result, int, error) {
 	args := []string{"region", "UpdateCloudletVMPool"}
 	out := edgeproto.Result{}
-	noconfig := strings.Split("CloudletVms:#.User,CloudletVms:#.State,CloudletVms:#.UpdatedAt.Seconds,CloudletVms:#.UpdatedAt.Nanos,Action,Error", ",")
+	noconfig := strings.Split("CloudletVms:#.User,CloudletVms:#.InternalName,CloudletVms:#.State,CloudletVms:#.UpdatedAt.Seconds,CloudletVms:#.UpdatedAt.Nanos,Action,Error", ",")
 	st, err := s.runObjs(uri, token, args, in, &out, withIgnore(noconfig))
 	if err != nil {
 		return nil, st, err
@@ -58,7 +58,7 @@ func (s *Client) UpdateCloudletVMPool(uri, token string, in *ormapi.RegionCloudl
 func (s *Client) ShowCloudletVMPool(uri, token string, in *ormapi.RegionCloudletVMPool) ([]edgeproto.CloudletVMPool, int, error) {
 	args := []string{"region", "ShowCloudletVMPool"}
 	outlist := []edgeproto.CloudletVMPool{}
-	noconfig := strings.Split("CloudletVms:#.User,CloudletVms:#.State,CloudletVms:#.UpdatedAt.Seconds,CloudletVms:#.UpdatedAt.Nanos,Action,Error", ",")
+	noconfig := strings.Split("CloudletVms:#.User,CloudletVms:#.InternalName,CloudletVms:#.State,CloudletVms:#.UpdatedAt.Seconds,CloudletVms:#.UpdatedAt.Nanos,Action,Error", ",")
 	ops := []runOp{
 		withIgnore(noconfig),
 	}

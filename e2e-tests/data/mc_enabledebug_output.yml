@@ -139,10 +139,3 @@ requests:
         name: tmus-cloud-1
       region: local
     output: api,notify,infra,metrics,info,sampled
-  - node:
-      type: shepherd
-      cloudletkey:
-        organization: tmus
-        name: tmus-cloud-3
-      region: locala
-    output: api,notify,infra,metrics,info,sampled

@@ -481,7 +481,7 @@ func (v *VMPlatform) SetupRootLB(
 	rootLB.IP = ip
 
 	log.SpanLog(ctx, log.DebugLevelInfra, "Copy resource-tracker to rootLb", "rootLb", rootLBName)
-	err = CopyResourceTracker(ctx, client)
+	err = CopyResourceTracker(client)
 	if err != nil {
 		return fmt.Errorf("cannot copy resource-tracker to rootLb %v", err)
 	}

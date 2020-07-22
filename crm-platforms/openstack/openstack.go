@@ -82,7 +82,7 @@ func (o *OpenstackPlatform) GetResourceID(ctx context.Context, resourceType vmla
 	return "", fmt.Errorf("GetResourceID not implemented for resource type: %s ", resourceType)
 }
 
-func (o *OpenstackPlatform) PrepareRootLB(ctx context.Context, client ssh.Client, rootLBName string, secGrpName string) error {
+func (o *OpenstackPlatform) PrepareRootLB(ctx context.Context, client ssh.Client, rootLBName string, secGrpName string, privacyPolicy *edgeproto.PrivacyPolicy) error {
 	// nothing to do
 	return nil
 }

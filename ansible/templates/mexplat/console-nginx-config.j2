@@ -7,11 +7,10 @@ server {
 
 	server_name {{ inventory_hostname }};
 
-        add_header 'Access-Control-Allow-Origin' '*';
-        add_header 'Access-Control-Allow-Credentials' 'true';
-        add_header 'Access-Control-Allow-Headers' 'Authorization,Accept,Origin,Keep-Alive,User-Agent,X-Requested-With,If-Modified-Since,Cache-Control,Content-Type,Content-Range,R
-ange';
-        add_header 'Access-Control-Allow-Methods' 'GET,POST,OPTIONS,PUT,DELETE,PATCH';
+	add_header 'Access-Control-Allow-Origin' '*';
+	add_header 'Access-Control-Allow-Credentials' 'true';
+	add_header 'Access-Control-Allow-Headers' 'Authorization,Accept,Origin,Keep-Alive,User-Agent,X-Requested-With,If-Modified-Since,Cache-Control,Content-Type,Content-Range,Range';
+	add_header 'Access-Control-Allow-Methods' 'GET,POST,OPTIONS,PUT,DELETE,PATCH';
 
 	location / {
 

@@ -298,4 +298,9 @@ type AlertReceiver struct {
 	Severity string
 	// User string, hidden from API
 	User string `json:"-"`
+	// TODO - add slack notification details(optional)
+	// Cloudlet spec for alerts
+	Cloudlet edgeproto.CloudletKey `json:",omitempty"`
+	// AppInst spec for alerts
+	AppInst edgeproto.AppInstKey `json:",omitempty"`
 }

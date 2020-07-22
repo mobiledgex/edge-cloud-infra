@@ -30,9 +30,6 @@ import (
 
 var alertRefreshInterval = 30 * time.Second
 
-// TODO - since alertmanager is the source of truth here, we should have this as a common volume instead of /tmp
-var AlertManagerConfigPath = "/tmp/alertmanager.yml"
-
 // Default alertmanager configuration
 const DefaultAlertmanagerConfigFmt = `global:
   resolve_timeout: 5m
@@ -106,9 +103,17 @@ func NewAlertMgrServer(alertMgrAddr string, configPath string, vaultConfig *vaul
 		vaultConfig:             vaultConfig,
 		localVault:              localVault,
 	}
-	span := log.StartSpan(log.DebugLevelApi, "AlertMgrServer")
+	span := log.StartSpan(log.DebugLevelApi|log.DebugLevelInfo, "AlertMgrServer")
 	ctx := log.ContextWithSpan(context.Background(), span)
 
+	// We might need to wait for alertmanager to be up first
+	for ii := 0; ii < 10; ii++ {
+		_, err := server.alertMgrApi(ctx, "GET", "", "", nil)
+		if err == nil {
+			break
+		}
+		time.Sleep(1 * time.Second)
+	}
 	if err := server.readConfigFile(ctx); err != nil {
 		return nil, err
 	}
@@ -116,7 +121,6 @@ func NewAlertMgrServer(alertMgrAddr string, configPath string, vaultConfig *vaul
 }
 
 func (s *AlertMrgServer) getAlertmanagertSmtpConfig(ctx context.Context) (*smtpInfo, error) {
-	log.SpanLog(ctx, log.DebugLevelApi, "lookup Vault smtp info")
 	if s.localVault {
 		log.SpanLog(ctx, log.DebugLevelApi, "Using dummy smtp credentials")
 		return &testSmtpInfo, nil
@@ -125,36 +129,50 @@ func (s *AlertMrgServer) getAlertmanagertSmtpConfig(ctx context.Context) (*smtpI
 	err := vault.GetData(s.vaultConfig,
 		"/secret/data/accounts/alertmanagersmtp", 0, &alertMgrAcct)
 	if err != nil {
+		log.SpanLog(ctx, log.DebugLevelApi, "Failed to get data from vault", "err", err)
 		return nil, err
 	}
 	return &alertMgrAcct, nil
 }
 
+// Load default configuration into Alertmanager
+// Note configLock should be held prior to calling this
+func (s *AlertMrgServer) loadDefaultConfigFileLocked(ctx context.Context) error {
+	email, err := s.getAlertmanagertSmtpConfig(ctx)
+	if err != nil {
+		log.SpanLog(ctx, log.DebugLevelInfo, "Failed to get Smtp from vault", "err", err, "cfg", s.vaultConfig)
+		return err
+	}
+	config := fmt.Sprintf(DefaultAlertmanagerConfigFmt, email.Email, email.Smtp+":587", email.User, email.Token)
+
+	err = ioutil.WriteFile(s.AlertMgrConfigPath, []byte(config), 0644)
+	if err != nil {
+		log.SpanLog(ctx, log.DebugLevelInfo, "Failed to write default alertmanager config", "err", err, "file", s.AlertMgrConfigPath)
+		return err
+	}
+	// trigger reload of the config
+	res, err := s.alertMgrApi(ctx, "POST", ReloadConfigApi, "", nil)
+	if err != nil {
+		log.SpanLog(ctx, log.DebugLevelInfo, "Failed to reeload alertmanager config", "err", err, "result", res)
+		return err
+	}
+	return nil
+}
+
+// Read config from the alermgr config file.
+// There are two passes here - one if a file exists and another if a file exists,
+// but doesn' container required fields
 func (s *AlertMrgServer) readConfigFile(ctx context.Context) error {
 	// grab config lock
 	configLock.Lock()
 	defer configLock.Unlock()
 	// Check that the config File exists
-	_, err := os.Open(s.AlertMgrConfigPath)
+	file, err := os.Open(s.AlertMgrConfigPath)
 	if err != nil {
 		// Doesn't exist - need to load up a default config
 		if os.IsNotExist(err) {
-			email, err := s.getAlertmanagertSmtpConfig(ctx)
-			if err != nil {
-				log.SpanLog(ctx, log.DebugLevelInfo, "Failed to get Smtp from vault", "err", err, "cfg", s.vaultConfig)
-				return err
-			}
-			config := fmt.Sprintf(DefaultAlertmanagerConfigFmt, email.Email, email.Smtp+":587", email.User, email.Token)
-
-			err = ioutil.WriteFile(s.AlertMgrConfigPath, []byte(config), 0644)
-			if err != nil {
-				log.SpanLog(ctx, log.DebugLevelInfo, "Failed to write default alertmanager config", "err", err, "file", s.AlertMgrConfigPath)
-				return err
-			}
-			// trigger reload of the config
-			res, err := s.alertMgrApi(ctx, "POST", ReloadConfigApi, "", nil)
-			if err != nil {
-				log.SpanLog(ctx, log.DebugLevelInfo, "Failed to reeload alertmanager config", "err", err, "result", res)
+			log.SpanLog(ctx, log.DebugLevelInfo, "Loading default cofig - no file found")
+			if err = s.loadDefaultConfigFileLocked(ctx); err != nil {
 				return err
 			}
 		} else {
@@ -162,12 +180,27 @@ func (s *AlertMrgServer) readConfigFile(ctx context.Context) error {
 			return err
 		}
 	}
+	file.Close()
 	// Read config
 	AlertManagerConfig, err = alertmanager_config.LoadFile(s.AlertMgrConfigPath)
 	if err != nil {
 		log.SpanLog(ctx, log.DebugLevelInfo, "Failed to parse alertmanager config file", "err", err,
 			"file", s.AlertMgrConfigPath)
 		return err
+	}
+	// Make sure that snmp defails are present
+	if AlertManagerConfig.Global.SMTPSmarthost.Host == "" || AlertManagerConfig.Global.SMTPFrom == "" {
+		log.SpanLog(ctx, log.DebugLevelInfo, "Writing correct default file")
+		if err = s.loadDefaultConfigFileLocked(ctx); err != nil {
+			return err
+		}
+		// Read config
+		AlertManagerConfig, err = alertmanager_config.LoadFile(s.AlertMgrConfigPath)
+		if err != nil {
+			log.SpanLog(ctx, log.DebugLevelInfo, "Failed to parse alertmanager config file", "err", err,
+				"file", s.AlertMgrConfigPath)
+			return err
+		}
 	}
 	return nil
 }

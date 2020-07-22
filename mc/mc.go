@@ -32,6 +32,7 @@ var skipOriginCheck = flag.Bool("skipOriginCheck", false, "skip origin check con
 var notifyAddrs = flag.String("notifyAddrs", "127.0.0.1:53001", "Parent notify listener addresses")
 var notifySrvAddr = flag.String("notifySrvAddr", "127.0.0.1:52001", "Notify listener address")
 var alertMgrAddr = flag.String("alertMgrAddr", "http://127.0.0.1:9093", "Global Alertmanager api address")
+var alertMgrConfig = flag.String("alertMgrConfigPath", "/tmp/alertmanager.yml", "Path to the configuration file for global alertmanager")
 var hostname = flag.String("hostname", "", "Unique hostname")
 
 var sigChan chan os.Signal
@@ -48,29 +49,30 @@ func main() {
 	sigChan = make(chan os.Signal, 1)
 
 	config := orm.ServerConfig{
-		ServAddr:         *addr,
-		SqlAddr:          *sqlAddr,
-		VaultAddr:        nodeMgr.VaultAddr,
-		ConsoleProxyAddr: *consoleProxyAddr,
-		RunLocal:         *localSql,
-		InitLocal:        *initSql,
-		LocalVault:       *localVault,
-		TlsCertFile:      nodeMgr.TlsCertFile,
-		TlsKeyFile:       *tlsKeyFile,
-		LDAPAddr:         *ldapAddr,
-		GitlabAddr:       *gitlabAddr,
-		ArtifactoryAddr:  *artifactoryAddr,
-		ClientCert:       *clientCert,
-		PingInterval:     *pingInterval,
-		SkipVerifyEmail:  *skipVerifyEmail,
-		JaegerAddr:       *jaegerAddr,
-		SkipOriginCheck:  *skipOriginCheck,
-		Hostname:         *hostname,
-		NotifyAddrs:      *notifyAddrs,
-		NotifySrvAddr:    *notifySrvAddr,
-		NodeMgr:          &nodeMgr,
-		AlertMgrAddr:     *alertMgrAddr,
-		AlertCache:       &alertCache,
+		ServAddr:           *addr,
+		SqlAddr:            *sqlAddr,
+		VaultAddr:          nodeMgr.VaultAddr,
+		ConsoleProxyAddr:   *consoleProxyAddr,
+		RunLocal:           *localSql,
+		InitLocal:          *initSql,
+		LocalVault:         *localVault,
+		TlsCertFile:        nodeMgr.TlsCertFile,
+		TlsKeyFile:         *tlsKeyFile,
+		LDAPAddr:           *ldapAddr,
+		GitlabAddr:         *gitlabAddr,
+		ArtifactoryAddr:    *artifactoryAddr,
+		ClientCert:         *clientCert,
+		PingInterval:       *pingInterval,
+		SkipVerifyEmail:    *skipVerifyEmail,
+		JaegerAddr:         *jaegerAddr,
+		SkipOriginCheck:    *skipOriginCheck,
+		Hostname:           *hostname,
+		NotifyAddrs:        *notifyAddrs,
+		NotifySrvAddr:      *notifySrvAddr,
+		NodeMgr:            &nodeMgr,
+		AlertMgrAddr:       *alertMgrAddr,
+		AlertCache:         &alertCache,
+		AlertMgrConfigPath: *alertMgrConfig,
 	}
 	server, err := orm.RunServer(&config)
 	if err != nil {

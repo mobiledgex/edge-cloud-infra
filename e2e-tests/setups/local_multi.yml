@@ -28,7 +28,7 @@ vaults:
   vaultdatas:
   - path: /secret/accounts/alertmanagersmtp
     data:
-      email : "alerts@localhost"
+      email : "alerts@mobiledgex.com"
       user : "testuser"
       token : "12345"
       smtp : "localhost"
@@ -379,3 +379,9 @@ edgeturns:
   proxyaddr: "127.0.0.1:9443"
   tls:
     servercert: "{{tlsoutdir}}/mex-server.crt"
+
+alertmanagers:
+- name: alertmanager
+  configfile: "{{datadir2}}/alertmanager.yml"
+  port: 9093
+  hostname: "127.0.0.1"

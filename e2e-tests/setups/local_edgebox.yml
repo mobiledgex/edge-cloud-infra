@@ -18,6 +18,13 @@ toksims:
 vaults:
 - name: vault
   hostname: "127.0.0.1"
+  vaultdatas:
+  - path: /secret/accounts/alertmanagersmtp
+    data:
+      email : "alerts@mobiledgex.com"
+      user : "testuser"
+      token : "12345"
+      smtp : "localhost"
 
 influxs:
 - name: influx1
@@ -142,3 +149,9 @@ notifyroots:
   hostname: "127.0.0.1"
   tls:
     servercert: "{{tlsoutdir}}/mex-server.crt"
+
+alertmanagers:
+- name: alertmanager
+  configfile: "{{datadir2}}/alertmanager.yml"
+  port: 9093
+  hostname: "127.0.0.1"

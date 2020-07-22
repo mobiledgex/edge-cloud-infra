@@ -50,31 +50,32 @@ type Server struct {
 }
 
 type ServerConfig struct {
-	ServAddr         string
-	SqlAddr          string
-	VaultAddr        string
-	ConsoleProxyAddr string
-	RunLocal         bool
-	InitLocal        bool
-	IgnoreEnv        bool
-	TlsCertFile      string
-	TlsKeyFile       string
-	LocalVault       bool
-	LDAPAddr         string
-	GitlabAddr       string
-	ArtifactoryAddr  string
-	ClientCert       string
-	PingInterval     time.Duration
-	SkipVerifyEmail  bool
-	JaegerAddr       string
-	vaultConfig      *vault.Config
-	SkipOriginCheck  bool
-	Hostname         string
-	NotifyAddrs      string
-	NotifySrvAddr    string
-	NodeMgr          *node.NodeMgr
-	AlertCache       *edgeproto.AlertCache
-	AlertMgrAddr     string
+	ServAddr           string
+	SqlAddr            string
+	VaultAddr          string
+	ConsoleProxyAddr   string
+	RunLocal           bool
+	InitLocal          bool
+	IgnoreEnv          bool
+	TlsCertFile        string
+	TlsKeyFile         string
+	LocalVault         bool
+	LDAPAddr           string
+	GitlabAddr         string
+	ArtifactoryAddr    string
+	ClientCert         string
+	PingInterval       time.Duration
+	SkipVerifyEmail    bool
+	JaegerAddr         string
+	vaultConfig        *vault.Config
+	SkipOriginCheck    bool
+	Hostname           string
+	NotifyAddrs        string
+	NotifySrvAddr      string
+	NodeMgr            *node.NodeMgr
+	AlertCache         *edgeproto.AlertCache
+	AlertMgrAddr       string
+	AlertMgrConfigPath string
 }
 
 var DefaultDBUser = "mcuser"
@@ -93,6 +94,7 @@ var gitlabClient *gitlab.Client
 var gitlabSync *AppStoreSync
 var artifactorySync *AppStoreSync
 var nodeMgr *node.NodeMgr
+var AlertManagerServer *alertmgr.AlertMrgServer
 
 func RunServer(config *ServerConfig) (*Server, error) {
 	server := Server{config: config}
@@ -212,7 +214,7 @@ func RunServer(config *ServerConfig) (*Server, error) {
 	server.initDataDone = make(chan struct{}, 1)
 	go InitData(ctx, Superuser, superpass, config.PingInterval, &server.stopInitData, server.initDataDone)
 
-	alertMgrServer, err := alertmgr.NewAlertMgrServer(config.AlertMgrAddr, alertmgr.AlertManagerConfigPath,
+	AlertManagerServer, err = alertmgr.NewAlertMgrServer(config.AlertMgrAddr, config.AlertMgrConfigPath,
 		config.vaultConfig, config.LocalVault, config.AlertCache)
 	if err != nil {
 		log.FatalLog("Failed to run alertmanager server", "err", err)
@@ -368,6 +370,11 @@ func RunServer(config *ServerConfig) (*Server, error) {
 	auth.POST("/events/cluster", GetEventsCommon)
 	auth.POST("/events/cloudlet", GetEventsCommon)
 
+	// Alertmanager apis
+	auth.POST("/alert/receiver/create", CreateAlertReceiver)
+	auth.POST("/alert/receiver/delete", DeleteAlertReceiver)
+	auth.POST("/alert/receiver/show", ShowAlertReceiver)
+
 	// Use GET method for websockets as thats the method used
 	// in setting up TCP connection by most of the clients
 	// Also, authorization is handled as part of websocketUpgrade
@@ -408,7 +415,7 @@ func RunServer(config *ServerConfig) (*Server, error) {
 		server.notifyClient = notify.NewClient(nodeMgr.Name(), addrs, edgetls.GetGrpcDialOption(tlsConfig))
 		edgeproto.InitAlertCache(config.AlertCache)
 		// sets the callback to be the alertMgr thread callback
-		config.AlertCache.SetUpdatedCb(alertMgrServer.UpdateAlert)
+		config.AlertCache.SetUpdatedCb(AlertManagerServer.UpdateAlert)
 		server.notifyClient.RegisterRecvAlertCache(config.AlertCache)
 		nodeMgr.RegisterClient(server.notifyClient)
 
@@ -452,7 +459,7 @@ func RunServer(config *ServerConfig) (*Server, error) {
 	<-server.initDataDone
 	gitlabSync.Start()
 	artifactorySync.Start()
-	alertMgrServer.Start()
+	AlertManagerServer.Start()
 
 	return &server, err
 }

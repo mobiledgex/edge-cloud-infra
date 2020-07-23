@@ -184,7 +184,7 @@ func getIpTablesEntryForRule(ctx context.Context, direction string, label string
 
 // getCurrentIptableRulesForLabel retrieves the current rules matching the label
 func getCurrentIptableRulesForLabel(ctx context.Context, client ssh.Client, label string) (map[string]string, error) {
-	log.SpanLog(ctx, log.DebugLevelInfra, "getCurrentIptableRulesForSecGrp", "label", label)
+	log.SpanLog(ctx, log.DebugLevelInfra, "getCurrentIptableRulesForLabel", "label", label)
 
 	rules := make(map[string]string)
 

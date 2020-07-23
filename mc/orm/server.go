@@ -403,8 +403,7 @@ func RunServer(config *ServerConfig) (*Server, error) {
 		}
 		edgeproto.InitAlertCache(config.AlertCache)
 		// sets the callback to be the alertMgr thread callback
-		//server.notifyServer.RegisterRecvAlertCache(config.AlertCache)
-		notify.ServerMgrOne.RegisterRecv(notify.NewAlertRecvMany(config.AlertCache))
+		server.notifyServer.RegisterRecvAlertCache(config.AlertCache)
 		config.AlertCache.SetUpdatedCb(AlertManagerServer.UpdateAlert)
 		server.notifyServer.Start(nodeMgr.Name(), config.NotifySrvAddr, tlsConfig)
 	}

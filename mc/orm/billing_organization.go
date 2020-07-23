@@ -233,14 +233,34 @@ func AddChildOrgObj(ctx context.Context, claims *UserClaims, billing *ormapi.Bil
 	if err != nil || parent == nil {
 		return fmt.Errorf("Unable to find BillingOrganization: %s", billing.Name)
 	}
-	child, err := orgExists(ctx, billing.Children)
-	if err != nil || child == nil {
-		return fmt.Errorf("Unable to find Organization: %s", billing.Children)
+	if parent.Type != BillingOrgTypeParent {
+		return fmt.Errorf("Cannot add children to a non-parent Billing Org")
 	}
 
-	if parent.Type != BillingOrgTypeParent {
-		return fmt.Errorf("Cannot add a child to a non-parent Billing Org")
+	childrenNames := strings.Split(billing.Children, ",")
+	children := []*ormapi.Organization{}
+	for _, childrenName := range childrenNames {
+		child, err := orgExists(ctx, childrenName)
+		if err != nil || child == nil {
+			return fmt.Errorf("Unable to find Organization: %s", billing.Children)
+		}
+		children = append(children, child)
 	}
+
+	addErrors := make(map[string]error)
+	for _, child := range children {
+		err = addChild(ctx, child, parent)
+		if err != nil {
+			addErrors[child.Name] = err
+		}
+	}
+	if len(addErrors) > 0 {
+		return fmt.Errorf("Unable to add one or more children: %v", addErrors)
+	}
+	return nil
+}
+
+func addChild(ctx context.Context, child *ormapi.Organization, parent *ormapi.BillingOrganization) error {
 	if child.Type != OrgTypeDeveloper {
 		return fmt.Errorf("Can only add %s orgs to a billing org", OrgTypeDeveloper)
 	}
@@ -248,7 +268,7 @@ func AddChildOrgObj(ctx context.Context, claims *UserClaims, billing *ormapi.Bil
 		return fmt.Errorf("Organization %s is already linked to a billing org: %s.", child.Name, child.Parent)
 	}
 
-	err = linkZuoraAccounts(ctx, parent, child.Name)
+	err := linkZuoraAccounts(ctx, parent, child.Name)
 	if err != nil {
 		return err
 	}
@@ -298,10 +318,31 @@ func RemoveChildOrgObj(ctx context.Context, claims *UserClaims, billing *ormapi.
 	if err != nil || parent == nil {
 		return fmt.Errorf("Unable to find BillingOrganization: %s", billing.Name)
 	}
-	child, err := orgExists(ctx, billing.Children)
-	if err != nil || child == nil {
-		return fmt.Errorf("Unable to find Organization: %s", billing.Children)
+
+	childrenNames := strings.Split(billing.Children, ",")
+	children := []*ormapi.Organization{}
+	for _, childrenName := range childrenNames {
+		child, err := orgExists(ctx, childrenName)
+		if err != nil || child == nil {
+			return fmt.Errorf("Unable to find Organization: %s", billing.Children)
+		}
+		children = append(children, child)
 	}
+
+	remErrors := make(map[string]error)
+	for _, child := range children {
+		err = removeChild(ctx, child, parent)
+		if err != nil {
+			remErrors[child.Name] = err
+		}
+	}
+	if len(remErrors) > 0 {
+		return fmt.Errorf("Unable to add one or more children: %v", remErrors)
+	}
+	return nil
+}
+
+func removeChild(ctx context.Context, child *ormapi.Organization, parent *ormapi.BillingOrganization) error {
 	// check to make sure the child is really a child of the billingOrg
 	isChild := false
 	var index int
@@ -325,7 +366,7 @@ func RemoveChildOrgObj(ctx context.Context, claims *UserClaims, billing *ormapi.
 	child.Parent = ""
 	parent.Children = strings.Join(append(children[0:index], children[index+1:len(children)]...), ",")
 	db := loggedDB(ctx)
-	err = db.Save(&child).Error
+	err := db.Save(&child).Error
 	if err != nil {
 		return dbErr(err)
 	}

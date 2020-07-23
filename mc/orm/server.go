@@ -401,6 +401,11 @@ func RunServer(config *ServerConfig) (*Server, error) {
 		if err != nil {
 			return nil, err
 		}
+		edgeproto.InitAlertCache(config.AlertCache)
+		// sets the callback to be the alertMgr thread callback
+		//server.notifyServer.RegisterRecvAlertCache(config.AlertCache)
+		notify.ServerMgrOne.RegisterRecv(notify.NewAlertRecvMany(config.AlertCache))
+		config.AlertCache.SetUpdatedCb(AlertManagerServer.UpdateAlert)
 		server.notifyServer.Start(nodeMgr.Name(), config.NotifySrvAddr, tlsConfig)
 	}
 	if config.NotifyAddrs != "" {
@@ -413,10 +418,6 @@ func RunServer(config *ServerConfig) (*Server, error) {
 		}
 		addrs := strings.Split(config.NotifyAddrs, ",")
 		server.notifyClient = notify.NewClient(nodeMgr.Name(), addrs, edgetls.GetGrpcDialOption(tlsConfig))
-		edgeproto.InitAlertCache(config.AlertCache)
-		// sets the callback to be the alertMgr thread callback
-		config.AlertCache.SetUpdatedCb(AlertManagerServer.UpdateAlert)
-		server.notifyClient.RegisterRecvAlertCache(config.AlertCache)
 		nodeMgr.RegisterClient(server.notifyClient)
 
 		server.notifyClient.Start()

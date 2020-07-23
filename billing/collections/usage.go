@@ -22,16 +22,43 @@ var clusterInstUsageInfluxCmd = `select "org","cloudlet","cloudletorg","cluster"
 var appInstUsageInfluxCmd = `select "app","org","ver","cloudlet","cloudletorg","cluster","clusterorg","flavor","start","end","uptime" from "VMappinst-usage"` +
 	`where time >= '%s' and time < '%s'`
 
+var retryMax = 3
+var retryPercentage = 0.05 // this number is a percentage, so that the retryDuration is based off of the collectionInterval
+
 func CollectDailyUsage(ctx context.Context) {
+	// keep track of how many checkpoints back we need to look when collecting usage, this number should always be at least 1
+	// and resets down to 1 on a successful usage collection and increments every time a usage collection failed
+	prevSuccessfulCheckpoint := 1
+	retryInterval := 5 * time.Minute
+	usageInterval, intervalSpecified := ctx.Value("usageInterval").(time.Duration)
+	if intervalSpecified {
+		retryInterval = time.Duration(retryPercentage * float64(usageInterval))
+	}
 	for {
 		span := log.StartSpan(log.DebugLevelInfo, "Usage collection thread", opentracing.ChildOf(log.SpanFromContext(ctx).Context()))
 		select {
 		case <-time.After(timeTilNextCollection(ctx)):
 			controllers, err := orm.ShowControllerObj(ctx, nil)
 			if err != nil {
-				log.SpanLog(ctx, log.DebugLevelInfo, "Unable to get regions to query influx", "err", err)
-				continue
+				retryCount := 0
+				for retryCount < retryMax {
+					log.SpanLog(ctx, log.DebugLevelInfo, fmt.Sprintf("Unable to get regions to query influx, retrying in %v", retryInterval), "err", err)
+					time.Sleep(retryInterval)
+					controllers, err = orm.ShowControllerObj(ctx, nil)
+					if err == nil {
+						break
+					}
+					retryCount = retryCount + 1
+				}
+				if err != nil {
+					prevSuccessfulCheckpoint = prevSuccessfulCheckpoint + 1
+					log.SpanLog(ctx, log.DebugLevelInfo, "Unable to get regions to query influx, waiting until next collection period", "err", err)
+					continue
+				} else {
+					prevSuccessfulCheckpoint = 1
+				}
 			}
+
 			regions := make(map[string]bool)
 			for _, controller := range controllers {
 				regions[controller.Region] = true
@@ -40,11 +67,10 @@ func CollectDailyUsage(ctx context.Context) {
 			now := time.Now()
 			// grab usage from the previous collection period
 			today := time.Date(now.Year(), now.Month(), now.Day(), 0, 0, 0, 0, time.UTC)
-			yesterday := time.Date(now.Year(), now.Month(), now.Day()-1, 0, 0, 0, 0, time.UTC)
-			usageInterval, ok := ctx.Value("usageInterval").(time.Duration)
-			if ok {
+			yesterday := time.Date(now.Year(), now.Month(), now.Day()-(1*prevSuccessfulCheckpoint), 0, 0, 0, 0, time.UTC)
+			if intervalSpecified {
 				today = now
-				yesterday = now.Add(-1 * usageInterval)
+				yesterday = now.Add(time.Duration(-1*prevSuccessfulCheckpoint) * usageInterval)
 			}
 
 			clusterCmd := fmt.Sprintf(clusterInstUsageInfluxCmd, yesterday.Format(time.RFC3339), today.Format(time.RFC3339))

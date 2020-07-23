@@ -180,7 +180,7 @@ func (s *OpenstackPlatform) DeleteSecurityGroupRule(ctx context.Context, ruleID 
 	return nil
 }
 
-func (o *OpenstackPlatform) RemoveWhitelistSecurityRules(ctx context.Context, client ssh.Client, secGrpName string, allowedCIDR string, ports []dme.AppPort) error {
+func (o *OpenstackPlatform) RemoveWhitelistSecurityRules(ctx context.Context, client ssh.Client, secGrpName, label, allowedCIDR string, ports []dme.AppPort) error {
 	log.SpanLog(ctx, log.DebugLevelInfra, "RemoveWhitelistSecurityRules", "secGrpName", secGrpName, "ports", ports)
 
 	allowedClientCIDR := vmlayer.GetAllowedClientCIDR()
@@ -208,7 +208,7 @@ func (o *OpenstackPlatform) RemoveWhitelistSecurityRules(ctx context.Context, cl
 	return nil
 }
 
-func (o *OpenstackPlatform) WhitelistSecurityRules(ctx context.Context, client ssh.Client, grpName, serverName, allowedCidr string, ports []dme.AppPort) error {
+func (o *OpenstackPlatform) WhitelistSecurityRules(ctx context.Context, client ssh.Client, grpName, server, label, allowedCidr string, ports []dme.AppPort) error {
 	// open the firewall for internal traffic
 	log.SpanLog(ctx, log.DebugLevelInfra, "WhitelistSecurityRules", "grpName", grpName, "allowedCidr", allowedCidr, "ports", ports)
 

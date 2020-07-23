@@ -461,7 +461,7 @@ func (v *VMPlatform) SetupRootLB(
 			Proto:      dme.LProto_L_PROTO_TCP,
 		}}
 		myCidr := myIp + "/32"
-		err = v.VMProvider.WhitelistSecurityRules(ctx, client, groupName, rootLBName, myCidr, sshPort)
+		err = v.VMProvider.WhitelistSecurityRules(ctx, client, groupName, rootLBName, "rootlb-ssh", myCidr, sshPort)
 		if err != nil {
 			return err
 		}
@@ -495,7 +495,7 @@ func (v *VMPlatform) SetupRootLB(
 	if err != nil {
 		return fmt.Errorf("failed to AddRouteToServer %v", err)
 	}
-	err = v.VMProvider.WhitelistSecurityRules(ctx, client, v.GetServerSecurityGroupName(rootLBName), rootLBName, GetAllowedClientCIDR(), RootLBPorts)
+	err = v.VMProvider.WhitelistSecurityRules(ctx, client, v.GetServerSecurityGroupName(rootLBName), rootLBName, "rootlb-ports", GetAllowedClientCIDR(), RootLBPorts)
 	if err != nil {
 		return fmt.Errorf("failed to WhitelistSecurityRules %v", err)
 	}
@@ -573,7 +573,7 @@ func CopyResourceTracker(client ssh.Client) error {
 	return err
 }
 
-func (v *VMPlatform) DeleteProxySecurityGroupRules(ctx context.Context, client ssh.Client, proxyName string, secGrpName string, ports []dme.AppPort, app *edgeproto.App, serverName string) error {
+func (v *VMPlatform) DeleteProxySecurityGroupRules(ctx context.Context, client ssh.Client, proxyName string, secGrpName string, label string, ports []dme.AppPort, app *edgeproto.App, serverName string) error {
 	log.SpanLog(ctx, log.DebugLevelInfra, "DeleteProxySecurityGroupRules", "proxyName", proxyName, "ports", ports)
 
 	err := proxy.DeleteNginxProxy(ctx, client, proxyName)
@@ -581,7 +581,7 @@ func (v *VMPlatform) DeleteProxySecurityGroupRules(ctx context.Context, client s
 		log.SpanLog(ctx, log.DebugLevelInfra, "cannot delete proxy", "proxyName", proxyName, "error", err)
 	}
 	allowedClientCIDR := GetAllowedClientCIDR()
-	return v.VMProvider.RemoveWhitelistSecurityRules(ctx, client, secGrpName, allowedClientCIDR, ports)
+	return v.VMProvider.RemoveWhitelistSecurityRules(ctx, client, secGrpName, label, allowedClientCIDR, ports)
 }
 
 func GetChefRootLBTags(platformConfig *platform.PlatformConfig) []string {

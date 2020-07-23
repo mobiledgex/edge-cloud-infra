@@ -3,15 +3,21 @@ dbrp "cloudflare"."autogen"
 var name = 'Cloudflare DNS Entries'
 
 var info = 2500
+
 var warn = 3000
+
 var crit = 3250
 
 var period = 60m
+
 var every = 60m
 
 var outputDB = 'chronograf'
+
 var outputRP = 'autogen'
+
 var outputMeasurement = 'alerts'
+
 var triggerType = 'threshold'
 
 // Dataframe
@@ -28,6 +34,7 @@ var alert = data
         .info(lambda: "nrecs" > info)
         .warn(lambda: "nrecs" > warn)
         .crit(lambda: "nrecs" > crit)
+        .pagerDuty2()
         .slack()
         .channel('#alerts')
 

@@ -54,9 +54,10 @@ var trigger = data
     |alert()
         .id(idVar)
         .message(' {{ .ID }} is {{.Level}}: {{ index .Fields "stat_round" }}% mean memory usage')
-        .info(lambda: "stat" > info OR "sigma" > infoSig)
-        .warn(lambda: "stat" > warn OR "sigma" > warnSig)
-        .crit(lambda: "stat" > crit OR "sigma" > critSig)
+        .info(lambda: "stat" > info)
+        .warn(lambda: "stat" > warn)
+        .crit(lambda: "stat" > crit)
+        .pagerDuty2()
         .slack()
 
 trigger

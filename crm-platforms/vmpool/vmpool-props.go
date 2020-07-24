@@ -9,16 +9,18 @@ import (
 	"github.com/mobiledgex/edge-cloud/vault"
 )
 
+var VMPoolProps = map[string]*infracommon.PropertyInfo{
+	"MEX_ROUTER": {
+		// For VMPool, we don't mess with internal networking
+		Value: vmlayer.NoConfigExternalRouter,
+	},
+}
+
 func (o *VMPoolPlatform) GetProviderSpecificProps() map[string]*infracommon.PropertyInfo {
-	return map[string]*infracommon.PropertyInfo{}
+	return VMPoolProps
 }
 
 func (o *VMPoolPlatform) InitApiAccessProperties(ctx context.Context, key *edgeproto.CloudletKey, region, physicalName string, vaultConfig *vault.Config, vars map[string]string) error {
-	if _, ok := vars["MEX_ROUTER"]; !ok {
-		o.VMProperties.CommonPf.Properties["MEX_ROUTER"] = &infracommon.PropertyInfo{
-			Value: vmlayer.NoConfigExternalRouter,
-		}
-	}
 	return nil
 }
 

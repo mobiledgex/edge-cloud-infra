@@ -197,11 +197,15 @@ func (v *VMPlatform) ListCloudletMgmtNodes(ctx context.Context, clusterInsts []e
 }
 
 func (v *VMPlatform) InitProps(ctx context.Context, platformConfig *platform.PlatformConfig, vaultConfig *vault.Config) error {
-	providerProps := v.VMProvider.GetProviderSpecificProps()
+	props := make(map[string]*infracommon.PropertyInfo)
 	for k, v := range VMProviderProps {
-		providerProps[k] = v
+		props[k] = v
 	}
-	err := v.VMProperties.CommonPf.InitInfraCommon(ctx, platformConfig, providerProps, vaultConfig)
+	providerProps := v.VMProvider.GetProviderSpecificProps()
+	for k, v := range providerProps {
+		props[k] = v
+	}
+	err := v.VMProperties.CommonPf.InitInfraCommon(ctx, platformConfig, props, vaultConfig)
 	if err != nil {
 		return err
 	}

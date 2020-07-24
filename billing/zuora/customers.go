@@ -89,6 +89,7 @@ func CreateCustomer(name, currency string, billToContact *CustomerBillToContact,
 		return fmt.Errorf("Error parsing response: %v\n", err)
 	}
 	if !orderResp.Success || orderResp.Status != "Completed" || len(orderResp.SubscriptionNumbers) != 1 {
+		// TODO: Add in error reasons when we get access to zuora again
 		return fmt.Errorf("Error creating customer")
 	}
 	info.SubscriptionNumber = orderResp.SubscriptionNumbers[0]

@@ -32,9 +32,11 @@ func (o *VMPoolPlatform) GetCloudletKey() *edgeproto.CloudletKey {
 }
 
 func (o *VMPoolPlatform) InitProvider(ctx context.Context, caches *platform.Caches, updateCallback edgeproto.CacheUpdateCallback) error {
-	log.SpanLog(ctx, log.DebugLevelInfra, "InitProvider for VSphere")
+	log.SpanLog(ctx, log.DebugLevelInfra, "InitProvider for VM Pool")
+
 	o.SetCaches(ctx, caches)
-	return nil
+	updateCallback(edgeproto.UpdateTask, "Verifying VMs")
+	return o.VerifyVMs(ctx, caches.VMPool.Vms)
 }
 
 func (o *VMPoolPlatform) SetCaches(ctx context.Context, caches *platform.Caches) {

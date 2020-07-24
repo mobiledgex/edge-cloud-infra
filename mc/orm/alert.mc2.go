@@ -114,6 +114,7 @@ It has these top-level messages:
 	Settings
 	VMNetInfo
 	VM
+	VMPoolKey
 	VMPool
 	VMPoolMember
 	VMSpec
@@ -261,6 +262,7 @@ func addControllerApis(method string, group *echo.Group) {
 	// ChefClientInterval: 17
 	// InfluxDbMetricsRetention: 18
 	// CloudletMaintenanceTimeout: 19
+	// UpdateVmPoolTimeout: 20
 	// ```
 	// Security:
 	//   Bearer:
@@ -584,6 +586,7 @@ func addControllerApis(method string, group *echo.Group) {
 	// ChefClientKeyValue: 29.2
 	// MaintenanceState: 30
 	// OverridePolicyContainerVersion: 31
+	// VmPool: 32
 	// ```
 	// Security:
 	//   Bearer:
@@ -796,8 +799,13 @@ func addControllerApis(method string, group *echo.Group) {
 	// VmsUpdatedAtSeconds: 3.5.1
 	// VmsUpdatedAtNanos: 3.5.2
 	// VmsInternalName: 3.6
-	// Action: 4
-	// Error: 5
+	// State: 4
+	// Errors: 5
+	// Status: 6
+	// StatusTaskNumber: 6.1
+	// StatusMaxTasks: 6.2
+	// StatusTaskName: 6.3
+	// StatusStepName: 6.4
 	// ```
 	// Security:
 	//   Bearer:

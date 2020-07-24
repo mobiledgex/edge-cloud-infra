@@ -166,7 +166,3 @@ func (s *TestClient) RemoveVMPoolMember(ctx context.Context, in *edgeproto.VMPoo
 	}
 	return out, err
 }
-
-func (s *TestClient) ShowVMPoolInfo(ctx context.Context, in *edgeproto.VMPoolInfo) ([]edgeproto.VMPoolInfo, error) {
-	return nil, nil
-}

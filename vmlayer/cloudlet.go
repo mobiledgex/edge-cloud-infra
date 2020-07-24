@@ -791,3 +791,7 @@ func (v *VMPlatform) GetCloudletManifest(ctx context.Context, cloudlet *edgeprot
 		ImagePath: imgPath,
 	}, nil
 }
+
+func (v *VMPlatform) VerifyVMs(ctx context.Context, vms []edgeproto.VM) error {
+	return v.VMProvider.VerifyVMs(ctx, vms)
+}

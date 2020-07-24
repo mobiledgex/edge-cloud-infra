@@ -57,6 +57,7 @@ type VMProvider interface {
 	DeleteVMs(ctx context.Context, vmGroupName string) error
 	GetVMStats(ctx context.Context, key *edgeproto.AppInstKey) (*VMMetrics, error)
 	GetPlatformResourceInfo(ctx context.Context) (*PlatformResources, error)
+	VerifyVMs(ctx context.Context, vms []edgeproto.VM) error
 }
 
 // VMPlatform contains the needed by all VM based platforms

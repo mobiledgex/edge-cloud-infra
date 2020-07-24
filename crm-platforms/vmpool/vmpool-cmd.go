@@ -3,67 +3,95 @@ package vmpool
 import (
 	"context"
 	"fmt"
+	"math"
+	"strconv"
+	"strings"
 
 	"github.com/mobiledgex/edge-cloud-infra/vmlayer"
 	"github.com/mobiledgex/edge-cloud/cloudcommon"
 	"github.com/mobiledgex/edge-cloud/edgeproto"
 	"github.com/mobiledgex/edge-cloud/log"
+	ssh "github.com/mobiledgex/golang-ssh"
 )
 
 func (s *VMPoolPlatform) GetFlavorList(ctx context.Context) ([]*edgeproto.FlavorInfo, error) {
-	// we just send the controller back the same list of flavors it gave us,
-	// because currently vmpool platform has no flavors
-	// Make sure each flavor is at least a minimum size to run the platform
-	// FIXME: Copy of Vsphere code
 	var flavors []*edgeproto.FlavorInfo
 	if s.caches == nil {
-		log.WarnLog("flavor cache is nil")
-		return nil, fmt.Errorf("Flavor cache is nil")
-	}
-	flavorkeys := make(map[edgeproto.FlavorKey]struct{})
-	s.caches.FlavorCache.GetAllKeys(ctx, func(k *edgeproto.FlavorKey, modRev int64) {
-		flavorkeys[*k] = struct{}{}
-	})
-	for k := range flavorkeys {
-		log.SpanLog(ctx, log.DebugLevelInfra, "GetFlavorList found flavor", "key", k)
-		var flav edgeproto.Flavor
-		if s.caches.FlavorCache.Get(&k, &flav) {
-			var flavInfo edgeproto.FlavorInfo
-			flavInfo.Name = flav.Key.Name
-			if flav.Ram >= vmlayer.MINIMUM_RAM_SIZE {
-				flavInfo.Ram = flav.Ram
-			} else {
-				flavInfo.Ram = vmlayer.MINIMUM_RAM_SIZE
-			}
-			if flav.Vcpus >= vmlayer.MINIMUM_VCPUS {
-				flavInfo.Vcpus = flav.Vcpus
-			} else {
-				flavInfo.Vcpus = vmlayer.MINIMUM_VCPUS
-			}
-			if flav.Disk >= vmlayer.MINIMUM_DISK_SIZE {
-				flavInfo.Disk = flav.Disk
-			} else {
-				flavInfo.Disk = vmlayer.MINIMUM_DISK_SIZE
-			}
-			flavors = append(flavors, &flavInfo)
-		} else {
-			return nil, fmt.Errorf("fail to fetch flavor %s", k)
-		}
+		return nil, fmt.Errorf("cache is nil")
 	}
 
-	// add the default platform flavor as well
-	var rlbFlav edgeproto.Flavor
-	err := s.VMProperties.GetCloudletSharedRootLBFlavor(&rlbFlav)
+	accessIP := ""
+	// find one of the VM with external IP
+	// we'll use this VM to access VMs with just internal network access
+	for _, poolVM := range s.caches.VMPool.Vms {
+		if poolVM.NetInfo.ExternalIp != "" {
+			accessIP = poolVM.NetInfo.ExternalIp
+			break
+		}
+	}
+	if accessIP == "" {
+		return nil, fmt.Errorf("atleast one VM should have access to external network")
+	}
+	accessClient, err := s.VMProperties.GetSSHClientFromIPAddr(ctx, accessIP)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("can't get ssh client for %s, %v", accessIP, err)
 	}
-	rootlbFlavorInfo := edgeproto.FlavorInfo{
-		Name:  "mex-rootlb-flavor",
-		Vcpus: rlbFlav.Vcpus,
-		Ram:   rlbFlav.Ram,
-		Disk:  rlbFlav.Disk,
+
+	flavorMap := make(map[string]string)
+	for _, vm := range s.caches.VMPool.Vms {
+		var client ssh.Client
+		if vm.NetInfo.ExternalIp != "" {
+			client, err = s.VMProperties.GetSSHClientFromIPAddr(ctx, vm.NetInfo.ExternalIp)
+			if err != nil {
+				return nil, fmt.Errorf("failed to verify vm %s, can't get ssh client for %s, %v", vm.Name, vm.NetInfo.ExternalIp, err)
+			}
+		} else if vm.NetInfo.InternalIp != "" {
+
+			client, err = accessClient.AddHop(vm.NetInfo.InternalIp, 22)
+			if err != nil {
+				return nil, fmt.Errorf("failed to verify vm %s, can't get ssh client for %s, %v", vm.Name, vm.NetInfo.InternalIp, err)
+			}
+		} else {
+			return nil, fmt.Errorf("VM %s is missing network info", vm.Name)
+		}
+		out, err := client.Output("sudo bash /etc/mobiledgex/get-flavor.sh")
+		if err != nil {
+			return nil, fmt.Errorf("failed to get flavor info for %s: %s - %v", vm.Name, out, err)
+		}
+		flavorMap[out] = vm.Name
 	}
-	flavors = append(flavors, &rootlbFlavorInfo)
+
+	count := 1
+	for fID, vmName := range flavorMap {
+		parts := strings.Split(fID, ",")
+		if len(parts) != 3 {
+			return nil, fmt.Errorf("invalid flavor info for %s: %s", vmName, fID)
+		}
+
+		memKb, err := strconv.Atoi(parts[0])
+		if err != nil {
+			return nil, fmt.Errorf("invalid memory info %s for %s: %v", parts[0], vmName, err)
+		}
+		memMb := math.Ceil((float64(memKb) / (1024 * 1024))) * 1024
+
+		vcpus, err := strconv.Atoi(parts[1])
+		if err != nil {
+			return nil, fmt.Errorf("invalid vcpu info %s for %s: %v", parts[1], vmName, err)
+		}
+
+		diskGb, err := strconv.Atoi(parts[2])
+		if err != nil {
+			return nil, fmt.Errorf("invalid disk info %s for %s: %v", parts[2], vmName, err)
+		}
+
+		var flavInfo edgeproto.FlavorInfo
+		flavInfo.Name = fmt.Sprintf("flavor%d", count)
+		flavInfo.Ram = uint64(memMb)
+		flavInfo.Vcpus = uint64(vcpus)
+		flavInfo.Disk = uint64(diskGb)
+		flavors = append(flavors, &flavInfo)
+	}
+
 	return flavors, nil
 }
 

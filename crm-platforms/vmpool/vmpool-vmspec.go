@@ -11,7 +11,7 @@ import (
 )
 
 func AllocateVMsFromPool(ctx context.Context, groupName string, vmPool *edgeproto.VMPool, vmSpecs []edgeproto.VMSpec) (map[string]edgeproto.VM, error) {
-	log.DebugLog(log.DebugLevelNotify, "AllocateVMsFromPool", "group", groupName, "vmPool", vmPool, "vmSpecs", vmSpecs)
+	log.SpanLog(ctx, log.DebugLevelInfra, "AllocateVMsFromPool", "group", groupName, "vmPool", vmPool, "vmSpecs", vmSpecs)
 
 	// Group available VMs
 	bothNetVms := []string{}
@@ -89,12 +89,12 @@ func AllocateVMsFromPool(ctx context.Context, groupName string, vmPool *edgeprot
 		vmPool.Vms[ii] = vm
 		allocatedVms[vm.Name] = vm
 	}
-	log.DebugLog(log.DebugLevelNotify, "allocated VMs", "allocated VMs", allocatedVms)
+	log.SpanLog(ctx, log.DebugLevelInfra, "allocated VMs", "allocated VMs", allocatedVms)
 	return allocatedVms, nil
 }
 
 func ReleaseVMsFromPool(ctx context.Context, groupName string, vmPool *edgeproto.VMPool, vmSpecs []edgeproto.VMSpec) (map[string]edgeproto.VM, error) {
-	log.DebugLog(log.DebugLevelNotify, "ReleaseVMsFromPool", "group", groupName, "vmPool", vmPool, "vmSpecs", vmSpecs)
+	log.SpanLog(ctx, log.DebugLevelInfra, "ReleaseVMsFromPool", "group", groupName, "vmPool", vmPool, "vmSpecs", vmSpecs)
 	freeAll := false
 	if len(vmSpecs) == 0 {
 		// free all vms
@@ -131,6 +131,6 @@ func ReleaseVMsFromPool(ctx context.Context, groupName string, vmPool *edgeproto
 			releasedVms[vm.Name] = vm
 		}
 	}
-	log.DebugLog(log.DebugLevelNotify, "released VMs", "group", groupName, "released VMs", releasedVms)
+	log.SpanLog(ctx, log.DebugLevelInfra, "released VMs", "group", groupName, "released VMs", releasedVms)
 	return releasedVms, nil
 }

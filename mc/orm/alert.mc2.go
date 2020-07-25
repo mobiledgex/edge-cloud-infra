@@ -264,7 +264,7 @@ func addControllerApis(method string, group *echo.Group) {
 	// ChefClientInterval: 17
 	// InfluxDbMetricsRetention: 18
 	// CloudletMaintenanceTimeout: 19
-	// UpdateVmPoolTimeout: 20
+	// UpdateVmPoolTimeout: 21
 	// ```
 	// Security:
 	//   Bearer:

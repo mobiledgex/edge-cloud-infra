@@ -10,6 +10,7 @@ import (
 	"github.com/mobiledgex/edge-cloud/cloud-resource-manager/platform"
 	"github.com/mobiledgex/edge-cloud/edgeproto"
 	"github.com/mobiledgex/edge-cloud/log"
+	ssh "github.com/mobiledgex/golang-ssh"
 )
 
 type VMPoolPlatform struct {
@@ -84,4 +85,9 @@ func (o *VMPoolPlatform) GetResourceID(ctx context.Context, resourceType vmlayer
 		return resourceName, nil
 	}
 	return "", fmt.Errorf("GetResourceID not implemented for resource type: %s ", resourceType)
+}
+
+func (o *VMPoolPlatform) PrepareRootLB(ctx context.Context, client ssh.Client, rootLBName string, secGrpName string, privacyPolicy *edgeproto.PrivacyPolicy) error {
+	// nothing to do
+	return nil
 }

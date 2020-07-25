@@ -12,5 +12,5 @@ func (o *VMPoolPlatform) GetRouterDetail(ctx context.Context, routerName string)
 }
 
 func (o *VMPoolPlatform) GetInternalPortPolicy() vmlayer.InternalPortAttachPolicy {
-	return vmlayer.AttachPortAfterCreate
+	return vmlayer.AttachPortNotSupported
 }

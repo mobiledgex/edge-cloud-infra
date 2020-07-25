@@ -10,8 +10,8 @@ import (
 	context "golang.org/x/net/context"
 )
 
-func AllocateVMsFromPool(ctx context.Context, groupName string, vmPool *edgeproto.VMPool, vmSpecs []edgeproto.VMSpec) (map[string]edgeproto.VM, error) {
-	log.SpanLog(ctx, log.DebugLevelInfra, "AllocateVMsFromPool", "group", groupName, "vmPool", vmPool, "vmSpecs", vmSpecs)
+func markVMsForAllocation(ctx context.Context, groupName string, vmPool *edgeproto.VMPool, vmSpecs []edgeproto.VMSpec) (map[string]edgeproto.VM, error) {
+	log.SpanLog(ctx, log.DebugLevelInfra, "markVMsForAllocation", "group", groupName, "vmPool", vmPool, "vmSpecs", vmSpecs)
 
 	// Group available VMs
 	bothNetVms := []string{}
@@ -93,8 +93,8 @@ func AllocateVMsFromPool(ctx context.Context, groupName string, vmPool *edgeprot
 	return allocatedVms, nil
 }
 
-func ReleaseVMsFromPool(ctx context.Context, groupName string, vmPool *edgeproto.VMPool, vmSpecs []edgeproto.VMSpec) (map[string]edgeproto.VM, error) {
-	log.SpanLog(ctx, log.DebugLevelInfra, "ReleaseVMsFromPool", "group", groupName, "vmPool", vmPool, "vmSpecs", vmSpecs)
+func markVMsForRelease(ctx context.Context, groupName string, vmPool *edgeproto.VMPool, vmSpecs []edgeproto.VMSpec) (map[string]edgeproto.VM, error) {
+	log.SpanLog(ctx, log.DebugLevelInfra, "markVMsForRelease", "group", groupName, "vmPool", vmPool, "vmSpecs", vmSpecs)
 	freeAll := false
 	if len(vmSpecs) == 0 {
 		// free all vms
@@ -123,8 +123,6 @@ func ReleaseVMsFromPool(ctx context.Context, groupName string, vmPool *edgeproto
 	for ii, vm := range vmPool.Vms {
 		if _, ok := selectedVms[vm.Name]; ok {
 			vm.State = edgeproto.VMState_VM_IN_PROGRESS
-			vm.GroupName = ""
-			vm.InternalName = ""
 			ts, _ := types.TimestampProto(time.Now())
 			vm.UpdatedAt = *ts
 			vmPool.Vms[ii] = vm

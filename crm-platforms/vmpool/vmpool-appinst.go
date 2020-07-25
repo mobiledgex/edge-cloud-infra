@@ -8,7 +8,7 @@ import (
 )
 
 func (o *VMPoolPlatform) GetConsoleUrl(ctx context.Context, serverName string) (string, error) {
-	log.SpanLog(ctx, log.DebugLevelInfra, "VMPoolPlatform not supported")
+	log.SpanLog(ctx, log.DebugLevelInfra, "GetConsoleUrl not supported")
 	return "", nil
 }
 

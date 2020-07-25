@@ -17,13 +17,9 @@ const (
 )
 
 func (o *VMPoolPlatform) GetServerDetail(ctx context.Context, serverName string) (*vmlayer.ServerDetail, error) {
+	log.SpanLog(ctx, log.DebugLevelInfra, "GetServerDetail", "serverName", serverName)
 	if o.caches == nil {
 		return nil, fmt.Errorf("cache is nil")
-	}
-
-	cKey := o.GetCloudletKey()
-	if cKey == nil || cKey.Name == "" {
-		return nil, fmt.Errorf("missing cloudlet key")
 	}
 
 	sd := vmlayer.ServerDetail{}
@@ -60,6 +56,7 @@ func (o *VMPoolPlatform) GetServerDetail(ctx context.Context, serverName string)
 	return &sd, fmt.Errorf("No server with a name or ID: %s exists", serverName)
 }
 
+// Assumes VM pool lock is held
 func (o *VMPoolPlatform) UpdateVMPoolInfo(ctx context.Context) {
 	info := edgeproto.VMPoolInfo{}
 	info.Key = o.caches.VMPool.Key
@@ -67,7 +64,24 @@ func (o *VMPoolPlatform) UpdateVMPoolInfo(ctx context.Context) {
 	o.caches.VMPoolInfoCache.Update(ctx, &info, 0)
 }
 
-func (o *VMPoolPlatform) PerformVMPoolAction(ctx context.Context, action string, groupName string, vmSpecs []edgeproto.VMSpec) (map[string]edgeproto.VM, error) {
+func (o *VMPoolPlatform) SaveVMStateInVMPool(ctx context.Context, vms map[string]edgeproto.VM, state edgeproto.VMState) {
+	o.caches.VMPoolMux.Lock()
+	defer o.caches.VMPoolMux.Unlock()
+
+	for ii, vm := range o.caches.VMPool.Vms {
+		if _, ok := vms[vm.Name]; ok {
+			o.caches.VMPool.Vms[ii].State = state
+			if state == edgeproto.VMState_VM_FREE {
+				o.caches.VMPool.Vms[ii].GroupName = ""
+				o.caches.VMPool.Vms[ii].InternalName = ""
+			}
+		}
+	}
+
+	o.UpdateVMPoolInfo(ctx)
+}
+
+func (o *VMPoolPlatform) markVMsForAction(ctx context.Context, action string, groupName string, vmSpecs []edgeproto.VMSpec) (map[string]edgeproto.VM, error) {
 	o.caches.VMPoolMux.Lock()
 	defer o.caches.VMPoolMux.Unlock()
 
@@ -76,9 +90,9 @@ func (o *VMPoolPlatform) PerformVMPoolAction(ctx context.Context, action string,
 	var vms map[string]edgeproto.VM
 	var err error
 	if action == ActionAllocate {
-		vms, err = AllocateVMsFromPool(ctx, groupName, vmPool, vmSpecs)
+		vms, err = markVMsForAllocation(ctx, groupName, vmPool, vmSpecs)
 	} else {
-		vms, err = ReleaseVMsFromPool(ctx, groupName, vmPool, vmSpecs)
+		vms, err = markVMsForRelease(ctx, groupName, vmPool, vmSpecs)
 	}
 	if err != nil {
 		return nil, err
@@ -91,7 +105,7 @@ func (o *VMPoolPlatform) PerformVMPoolAction(ctx context.Context, action string,
 	return vms, nil
 }
 
-func (o *VMPoolPlatform) createVMsInternal(ctx context.Context, rootLBVMName string, allocatedVMs map[string]edgeproto.VM, vmRoles map[string]vmlayer.VMRole, updateCallback edgeproto.CacheUpdateCallback) error {
+func (o *VMPoolPlatform) createVMsInternal(ctx context.Context, rootLBVMName string, markedVMs map[string]edgeproto.VM, vmRoles map[string]vmlayer.VMRole, updateCallback edgeproto.CacheUpdateCallback) error {
 	// Verify & get RootLB SSH Client
 	rootLBVMIP := ""
 	if rootLBVMName == o.VMProperties.SharedRootLBName {
@@ -106,7 +120,7 @@ func (o *VMPoolPlatform) createVMsInternal(ctx context.Context, rootLBVMName str
 		rootLBVMIP = sd.Addresses[0].ExternalAddr
 	} else {
 		log.SpanLog(ctx, log.DebugLevelInfra, "CreateVMs, get dedicated rootlb IP", "rootLBVMName", rootLBVMName)
-		for _, vm := range allocatedVMs {
+		for _, vm := range markedVMs {
 			if vm.InternalName == rootLBVMName {
 				rootLBVMIP = vm.NetInfo.ExternalIp
 				break
@@ -124,7 +138,7 @@ func (o *VMPoolPlatform) createVMsInternal(ctx context.Context, rootLBVMName str
 
 	// Setup Cluster Nodes
 	masterAddr := ""
-	for _, vm := range allocatedVMs {
+	for _, vm := range markedVMs {
 		role, ok := vmRoles[vm.InternalName]
 		if !ok {
 			return fmt.Errorf("missing role for vm role %s", vm.InternalName)
@@ -185,7 +199,7 @@ func (o *VMPoolPlatform) createVMsInternal(ctx context.Context, rootLBVMName str
 	if masterAddr != "" {
 		// bring other nodes once master node is up (if deployment is k8s)
 		updateCallback(edgeproto.UpdateTask, fmt.Sprintf("Setting up kubernetes worker nodes"))
-		for _, vm := range allocatedVMs {
+		for _, vm := range markedVMs {
 			if vmRoles[vm.InternalName] != vmlayer.RoleNode {
 				continue
 			}
@@ -211,6 +225,9 @@ func (o *VMPoolPlatform) CreateVMs(ctx context.Context, vmGroupOrchestrationPara
 	vmRoles := make(map[string]vmlayer.VMRole)
 	rootLBVMName := o.VMProperties.SharedRootLBName
 	for _, vm := range vmGroupOrchestrationParams.VMs {
+		if vm.Role == vmlayer.RoleVMApplication {
+			return fmt.Errorf("VM based applications are not support by PlatformTypeVmPool")
+		}
 		vmRoles[vm.Name] = vm.Role
 		vmSpec := edgeproto.VMSpec{}
 		vmSpec.InternalName = vm.Name
@@ -228,27 +245,19 @@ func (o *VMPoolPlatform) CreateVMs(ctx context.Context, vmGroupOrchestrationPara
 	groupName := vmGroupOrchestrationParams.GroupName
 
 	updateCallback(edgeproto.UpdateTask, fmt.Sprintf("Allocating VMs"))
-	allocatedVMs, err := o.PerformVMPoolAction(ctx, ActionAllocate, groupName, vmSpecs)
+	markedVMs, err := o.markVMsForAction(ctx, ActionAllocate, groupName, vmSpecs)
 	if err != nil {
 		return err
 	}
 
 	state := edgeproto.VMState_VM_IN_USE
-	err = o.createVMsInternal(ctx, rootLBVMName, allocatedVMs, vmRoles, updateCallback)
+	err = o.createVMsInternal(ctx, rootLBVMName, markedVMs, vmRoles, updateCallback)
 	if err != nil {
 		// failed to create, mark VM as free
 		state = edgeproto.VMState_VM_FREE
 	}
+	o.SaveVMStateInVMPool(ctx, markedVMs, state)
 
-	// Save state
-	o.caches.VMPoolMux.Lock()
-	defer o.caches.VMPoolMux.Unlock()
-	for ii, vm := range o.caches.VMPool.Vms {
-		if _, ok := allocatedVMs[vm.Name]; ok {
-			o.caches.VMPool.Vms[ii].State = state
-		}
-	}
-	o.UpdateVMPoolInfo(ctx)
 	return err
 }
 
@@ -264,7 +273,7 @@ func (o *VMPoolPlatform) GetVMSharedRootLBIP(ctx context.Context) (string, error
 	return "", fmt.Errorf("unable to get shared rootlb ip")
 }
 
-func (o *VMPoolPlatform) deleteVMsInternal(ctx context.Context, releasedVMs map[string]edgeproto.VM) error {
+func (o *VMPoolPlatform) deleteVMsInternal(ctx context.Context, markedVMs map[string]edgeproto.VM) error {
 
 	// Cleanup VMs if possible
 	var rootLBClient ssh.Client
@@ -277,7 +286,7 @@ func (o *VMPoolPlatform) deleteVMsInternal(ctx context.Context, releasedVMs map[
 		log.SpanLog(ctx, log.DebugLevelInfra, "DeleteVMs, can't get rootlb ssh client for %s %v", rootLBVMIP, err)
 		return nil
 	}
-	for _, vm := range releasedVMs {
+	for _, vm := range markedVMs {
 		var client ssh.Client
 		if vm.NetInfo.ExternalIp != "" {
 			client, err = o.VMProperties.GetSSHClientFromIPAddr(ctx, vm.NetInfo.ExternalIp)
@@ -302,27 +311,18 @@ func (o *VMPoolPlatform) deleteVMsInternal(ctx context.Context, releasedVMs map[
 func (o *VMPoolPlatform) DeleteVMs(ctx context.Context, vmGroupName string) error {
 	log.SpanLog(ctx, log.DebugLevelInfra, "DeleteVMs", "vmGroup", vmGroupName)
 
-	releasedVMs, err := o.PerformVMPoolAction(ctx, ActionRelease, vmGroupName, []edgeproto.VMSpec{})
+	markedVMs, err := o.markVMsForAction(ctx, ActionRelease, vmGroupName, []edgeproto.VMSpec{})
 	if err != nil {
 		return err
 	}
 
 	state := edgeproto.VMState_VM_FREE
-	err = o.deleteVMsInternal(ctx, releasedVMs)
+	err = o.deleteVMsInternal(ctx, markedVMs)
 	if err != nil {
 		// failed to cleanup, mark VM as in-use
 		state = edgeproto.VMState_VM_IN_USE
 	}
-
-	// Save state
-	o.caches.VMPoolMux.Lock()
-	defer o.caches.VMPoolMux.Unlock()
-	for ii, vm := range o.caches.VMPool.Vms {
-		if _, ok := releasedVMs[vm.Name]; ok {
-			o.caches.VMPool.Vms[ii].State = state
-		}
-	}
-	o.UpdateVMPoolInfo(ctx)
+	o.SaveVMStateInVMPool(ctx, markedVMs, state)
 
 	return err
 }
@@ -382,7 +382,7 @@ func (o *VMPoolPlatform) updateVMsInternal(ctx context.Context, vmGroupOrchestra
 		}
 	}
 
-	var vms map[string]edgeproto.VM
+	var markedVMs map[string]edgeproto.VM
 	var err error
 
 	if len(vmSpecs) == 0 {
@@ -391,23 +391,25 @@ func (o *VMPoolPlatform) updateVMsInternal(ctx context.Context, vmGroupOrchestra
 	}
 
 	if updateAction == ActionAllocate {
-		vms, err = AllocateVMsFromPool(ctx, groupName, vmPool, vmSpecs)
+		markedVMs, err = markVMsForAllocation(ctx, groupName, vmPool, vmSpecs)
 	} else {
-		vms, err = ReleaseVMsFromPool(ctx, groupName, vmPool, vmSpecs)
+		markedVMs, err = markVMsForRelease(ctx, groupName, vmPool, vmSpecs)
 	}
 	if err != nil {
 		return nil, nil, "", err
 	}
 
-	o.UpdateVMPoolInfo(ctx)
+	if len(markedVMs) > 0 {
+		o.UpdateVMPoolInfo(ctx)
+	}
 
-	return vms, vmRoles, updateAction, nil
+	return markedVMs, vmRoles, updateAction, nil
 }
 
 func (o *VMPoolPlatform) UpdateVMs(ctx context.Context, vmGroupOrchestrationParams *vmlayer.VMGroupOrchestrationParams, updateCallback edgeproto.CacheUpdateCallback) error {
 	log.SpanLog(ctx, log.DebugLevelInfra, "UpdateVMs", "params", vmGroupOrchestrationParams)
 
-	vms, vmRoles, updateAction, err := o.updateVMsInternal(ctx, vmGroupOrchestrationParams, updateCallback)
+	markedVMs, vmRoles, updateAction, err := o.updateVMsInternal(ctx, vmGroupOrchestrationParams, updateCallback)
 	if err != nil {
 		return err
 	}
@@ -424,30 +426,21 @@ func (o *VMPoolPlatform) UpdateVMs(ctx context.Context, vmGroupOrchestrationPara
 				}
 			}
 		}
-		err = o.createVMsInternal(ctx, rootLBVMName, vms, vmRoles, updateCallback)
+		err = o.createVMsInternal(ctx, rootLBVMName, markedVMs, vmRoles, updateCallback)
 		if err == nil {
 			state = edgeproto.VMState_VM_IN_USE
 		} else {
 			state = edgeproto.VMState_VM_FREE
 		}
 	case ActionRelease:
-		err = o.deleteVMsInternal(ctx, vms)
+		err = o.deleteVMsInternal(ctx, markedVMs)
 		if err == nil {
 			state = edgeproto.VMState_VM_FREE
 		} else {
 			state = edgeproto.VMState_VM_IN_USE
 		}
 	}
-
-	// Save state
-	o.caches.VMPoolMux.Lock()
-	defer o.caches.VMPoolMux.Unlock()
-	for ii, vm := range o.caches.VMPool.Vms {
-		if _, ok := vms[vm.Name]; ok {
-			o.caches.VMPool.Vms[ii].State = state
-		}
-	}
-	o.UpdateVMPoolInfo(ctx)
+	o.SaveVMStateInVMPool(ctx, markedVMs, state)
 
 	return nil
 }
@@ -469,6 +462,11 @@ func (s *VMPoolPlatform) GetPlatformResourceInfo(ctx context.Context) (*vmlayer.
 }
 
 func (s *VMPoolPlatform) VerifyVMs(ctx context.Context, vms []edgeproto.VM) error {
+	if len(vms) == 0 {
+		// nothing to verify
+		return nil
+	}
+
 	accessIP := ""
 	// find one of the VM with external IP
 	// we'll use this VM to test internal network access of all the VMs

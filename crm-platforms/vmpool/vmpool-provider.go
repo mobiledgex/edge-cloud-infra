@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 
+	"github.com/mobiledgex/edge-cloud-infra/chefmgmt"
 	"github.com/mobiledgex/edge-cloud-infra/vmlayer"
 	"github.com/mobiledgex/edge-cloud/edgeproto"
 	"github.com/mobiledgex/edge-cloud/log"
@@ -18,8 +19,8 @@ const (
 
 func (o *VMPoolPlatform) GetServerDetail(ctx context.Context, serverName string) (*vmlayer.ServerDetail, error) {
 	log.SpanLog(ctx, log.DebugLevelInfra, "GetServerDetail", "serverName", serverName)
-	if o.caches == nil {
-		return nil, fmt.Errorf("cache is nil")
+	if o.caches == nil || o.caches.VMPool == nil {
+		return nil, fmt.Errorf("missing vmpool")
 	}
 
 	sd := vmlayer.ServerDetail{}
@@ -58,6 +59,10 @@ func (o *VMPoolPlatform) GetServerDetail(ctx context.Context, serverName string)
 
 // Assumes VM pool lock is held
 func (o *VMPoolPlatform) UpdateVMPoolInfo(ctx context.Context) {
+	if o.caches == nil || o.caches.VMPool == nil {
+		return
+	}
+
 	info := edgeproto.VMPoolInfo{}
 	info.Key = o.caches.VMPool.Key
 	info.Vms = o.caches.VMPool.Vms
@@ -65,6 +70,10 @@ func (o *VMPoolPlatform) UpdateVMPoolInfo(ctx context.Context) {
 }
 
 func (o *VMPoolPlatform) SaveVMStateInVMPool(ctx context.Context, vms map[string]edgeproto.VM, state edgeproto.VMState) {
+	if o.caches == nil || o.caches.VMPool == nil {
+		return
+	}
+
 	o.caches.VMPoolMux.Lock()
 	defer o.caches.VMPoolMux.Unlock()
 
@@ -82,6 +91,10 @@ func (o *VMPoolPlatform) SaveVMStateInVMPool(ctx context.Context, vms map[string
 }
 
 func (o *VMPoolPlatform) markVMsForAction(ctx context.Context, action string, groupName string, vmSpecs []edgeproto.VMSpec) (map[string]edgeproto.VM, error) {
+	if o.caches == nil || o.caches.VMPool == nil {
+		return nil, fmt.Errorf("caches is nil")
+	}
+
 	o.caches.VMPoolMux.Lock()
 	defer o.caches.VMPoolMux.Unlock()
 
@@ -105,7 +118,7 @@ func (o *VMPoolPlatform) markVMsForAction(ctx context.Context, action string, gr
 	return vms, nil
 }
 
-func (o *VMPoolPlatform) createVMsInternal(ctx context.Context, rootLBVMName string, markedVMs map[string]edgeproto.VM, vmRoles map[string]vmlayer.VMRole, updateCallback edgeproto.CacheUpdateCallback) error {
+func (o *VMPoolPlatform) createVMsInternal(ctx context.Context, rootLBVMName string, markedVMs map[string]edgeproto.VM, orchVMs []vmlayer.VMOrchestrationParams, updateCallback edgeproto.CacheUpdateCallback) error {
 	// Verify & get RootLB SSH Client
 	rootLBVMIP := ""
 	if rootLBVMName == o.VMProperties.SharedRootLBName {
@@ -131,6 +144,14 @@ func (o *VMPoolPlatform) createVMsInternal(ctx context.Context, rootLBVMName str
 		return fmt.Errorf("failed to get rootLB IP for %s", rootLBVMName)
 	}
 
+	vmRoles := make(map[string]vmlayer.VMRole)
+	vmChefParams := make(map[string]*chefmgmt.VMChefParams)
+	for _, vm := range orchVMs {
+		vmRoles[vm.Name] = vm.Role
+		vmChefParams[vm.Name] = vm.ChefParams
+	}
+	log.SpanLog(ctx, log.DebugLevelInfra, "Fetch VM info", "vmRoles", vmRoles, "chefParams", vmChefParams)
+
 	rootLBClient, err := o.VMProperties.GetSSHClientFromIPAddr(ctx, rootLBVMIP)
 	if err != nil {
 		return fmt.Errorf("can't get rootlb ssh client for %s %v", rootLBVMIP, err)
@@ -154,10 +175,28 @@ func (o *VMPoolPlatform) createVMsInternal(ctx context.Context, rootLBVMName str
 		}
 
 		// Run cleanup script
+		log.SpanLog(ctx, log.DebugLevelInfra, "Cleaning up VM", "vm", vm.Name)
 		cmd := fmt.Sprintf("sudo bash /etc/mobiledgex/cleanup-vm.sh")
 		out, err := client.Output(cmd)
 		if err != nil {
 			return fmt.Errorf("can't cleanup vm: %s, %v", out, err)
+		}
+
+		// Setup Chef
+		chefParams, ok := vmChefParams[vm.InternalName]
+		if ok && chefParams != nil {
+			// Setup chef client key
+			log.SpanLog(ctx, log.DebugLevelInfra, "Setting up chef-client", "vm", vm.Name)
+			cmd := fmt.Sprintf(`sudo echo -e "%s" > /home/ubuntu/client.pem`, chefParams.ClientKey)
+			if out, err := client.Output(cmd); err != nil {
+				return fmt.Errorf("failed to copy chef client key: %s, %v", out, err)
+			}
+
+			// Start chef service
+			cmd = fmt.Sprintf("sudo bash /etc/mobiledgex/setup-chef.sh -s %s -n %s", chefParams.ServerPath, chefParams.NodeName)
+			if out, err := client.Output(cmd); err != nil {
+				return fmt.Errorf("can't cleanup vm: %s, %v", out, err)
+			}
 		}
 
 		switch role {
@@ -222,13 +261,11 @@ func (o *VMPoolPlatform) CreateVMs(ctx context.Context, vmGroupOrchestrationPara
 	log.SpanLog(ctx, log.DebugLevelInfra, "createVMs", "params", vmGroupOrchestrationParams)
 	vmSpecs := []edgeproto.VMSpec{}
 
-	vmRoles := make(map[string]vmlayer.VMRole)
 	rootLBVMName := o.VMProperties.SharedRootLBName
 	for _, vm := range vmGroupOrchestrationParams.VMs {
 		if vm.Role == vmlayer.RoleVMApplication {
 			return fmt.Errorf("VM based applications are not support by PlatformTypeVmPool")
 		}
-		vmRoles[vm.Name] = vm.Role
 		vmSpec := edgeproto.VMSpec{}
 		vmSpec.InternalName = vm.Name
 		for _, p := range vm.Ports {
@@ -251,7 +288,7 @@ func (o *VMPoolPlatform) CreateVMs(ctx context.Context, vmGroupOrchestrationPara
 	}
 
 	state := edgeproto.VMState_VM_IN_USE
-	err = o.createVMsInternal(ctx, rootLBVMName, markedVMs, vmRoles, updateCallback)
+	err = o.createVMsInternal(ctx, rootLBVMName, markedVMs, vmGroupOrchestrationParams.VMs, updateCallback)
 	if err != nil {
 		// failed to create, mark VM as free
 		state = edgeproto.VMState_VM_FREE
@@ -262,6 +299,10 @@ func (o *VMPoolPlatform) CreateVMs(ctx context.Context, vmGroupOrchestrationPara
 }
 
 func (o *VMPoolPlatform) GetVMSharedRootLBIP(ctx context.Context) (string, error) {
+	if o.caches == nil || o.caches.VMPool == nil {
+		return "", fmt.Errorf("caches is nil")
+	}
+
 	o.caches.VMPoolMux.Lock()
 	defer o.caches.VMPoolMux.Unlock()
 
@@ -327,9 +368,9 @@ func (o *VMPoolPlatform) DeleteVMs(ctx context.Context, vmGroupName string) erro
 	return err
 }
 
-func (o *VMPoolPlatform) updateVMsInternal(ctx context.Context, vmGroupOrchestrationParams *vmlayer.VMGroupOrchestrationParams, updateCallback edgeproto.CacheUpdateCallback) (map[string]edgeproto.VM, map[string]vmlayer.VMRole, string, error) {
-	if o.caches == nil {
-		return nil, nil, "", fmt.Errorf("cache is nil")
+func (o *VMPoolPlatform) updateVMsInternal(ctx context.Context, vmGroupOrchestrationParams *vmlayer.VMGroupOrchestrationParams, updateCallback edgeproto.CacheUpdateCallback) (map[string]edgeproto.VM, string, error) {
+	if o.caches == nil || o.caches.VMPool == nil {
+		return nil, "", fmt.Errorf("missing vmpool")
 	}
 
 	o.caches.VMPoolMux.Lock()
@@ -350,9 +391,7 @@ func (o *VMPoolPlatform) updateVMsInternal(ctx context.Context, vmGroupOrchestra
 
 	vmSpecs := []edgeproto.VMSpec{}
 
-	vmRoles := make(map[string]vmlayer.VMRole)
 	for _, vm := range vmGroupOrchestrationParams.VMs {
-		vmRoles[vm.Name] = vm.Role
 		vmSpec := edgeproto.VMSpec{}
 		vmSpec.InternalName = vm.Name
 		for _, p := range vm.Ports {
@@ -387,7 +426,7 @@ func (o *VMPoolPlatform) updateVMsInternal(ctx context.Context, vmGroupOrchestra
 
 	if len(vmSpecs) == 0 {
 		log.SpanLog(ctx, log.DebugLevelInfra, "UpdateVMs, nothing to update")
-		return nil, nil, ActionNone, nil
+		return nil, ActionNone, nil
 	}
 
 	if updateAction == ActionAllocate {
@@ -396,20 +435,20 @@ func (o *VMPoolPlatform) updateVMsInternal(ctx context.Context, vmGroupOrchestra
 		markedVMs, err = markVMsForRelease(ctx, groupName, vmPool, vmSpecs)
 	}
 	if err != nil {
-		return nil, nil, "", err
+		return nil, "", err
 	}
 
 	if len(markedVMs) > 0 {
 		o.UpdateVMPoolInfo(ctx)
 	}
 
-	return markedVMs, vmRoles, updateAction, nil
+	return markedVMs, updateAction, nil
 }
 
 func (o *VMPoolPlatform) UpdateVMs(ctx context.Context, vmGroupOrchestrationParams *vmlayer.VMGroupOrchestrationParams, updateCallback edgeproto.CacheUpdateCallback) error {
 	log.SpanLog(ctx, log.DebugLevelInfra, "UpdateVMs", "params", vmGroupOrchestrationParams)
 
-	markedVMs, vmRoles, updateAction, err := o.updateVMsInternal(ctx, vmGroupOrchestrationParams, updateCallback)
+	markedVMs, updateAction, err := o.updateVMsInternal(ctx, vmGroupOrchestrationParams, updateCallback)
 	if err != nil {
 		return err
 	}
@@ -426,7 +465,7 @@ func (o *VMPoolPlatform) UpdateVMs(ctx context.Context, vmGroupOrchestrationPara
 				}
 			}
 		}
-		err = o.createVMsInternal(ctx, rootLBVMName, markedVMs, vmRoles, updateCallback)
+		err = o.createVMsInternal(ctx, rootLBVMName, markedVMs, vmGroupOrchestrationParams.VMs, updateCallback)
 		if err == nil {
 			state = edgeproto.VMState_VM_IN_USE
 		} else {

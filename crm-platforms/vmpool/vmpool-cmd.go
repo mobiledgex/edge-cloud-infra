@@ -16,7 +16,7 @@ import (
 
 func (s *VMPoolPlatform) GetFlavorList(ctx context.Context) ([]*edgeproto.FlavorInfo, error) {
 	var flavors []*edgeproto.FlavorInfo
-	if s.caches == nil {
+	if s.caches == nil || s.caches.VMPool == nil {
 		return nil, fmt.Errorf("cache is nil")
 	}
 

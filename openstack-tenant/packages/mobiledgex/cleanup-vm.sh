@@ -51,4 +51,19 @@ if [[ ! -z $containers ]]; then
   docker rmi -f $images
 fi
 
+# Cleanup Chef
+if [[ -f /home/ubuntu/client.pem ]]; then
+  log "Remove chef client.pem file"
+  rm /home/ubuntu/client.pem
+fi
+if [[ -f /etc/chef/client.rb ]]; then
+  log "Remove chef client.rb file"
+  rm /etc/chef/client.rb
+fi
+systemctl is-active --quiet chef-client
+if [[ $? -eq 0 ]]; then
+  log "Stop chef-client"
+  systemctl stop chef-client
+fi
+
 echo "[$(date)] Done cleanup-vm.sh ($( pwd ))"

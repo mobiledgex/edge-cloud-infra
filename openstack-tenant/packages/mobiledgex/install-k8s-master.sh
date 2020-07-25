@@ -13,6 +13,13 @@ MYIP=$3
 echo "Interface $INTF"
 echo "Master IP $MASTERIP"
 echo "My IP Address: $MYIP"
+
+systemctl is-active --quiet kubelet
+if [[ $? -ne 0 ]]; then
+  systemctl start kubelet
+  systemctl enable kubelet
+fi
+
 which kubeadm
 if [ $? -ne 0 ]; then
     echo missing kubeadm

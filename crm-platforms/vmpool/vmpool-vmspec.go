@@ -75,7 +75,7 @@ func markVMsForAllocation(ctx context.Context, groupName string, vmPool *edgepro
 	}
 
 	// Mark allocated VMs as IN_USE
-	allocatedVms := make(map[string]edgeproto.VM)
+	markedVMs := make(map[string]edgeproto.VM)
 	for ii, vm := range vmPool.Vms {
 		internalName, ok := selectedVms[vm.Name]
 		if !ok {
@@ -87,10 +87,10 @@ func markVMsForAllocation(ctx context.Context, groupName string, vmPool *edgepro
 		ts, _ := types.TimestampProto(time.Now())
 		vm.UpdatedAt = *ts
 		vmPool.Vms[ii] = vm
-		allocatedVms[vm.Name] = vm
+		markedVMs[vm.Name] = vm
 	}
-	log.SpanLog(ctx, log.DebugLevelInfra, "allocated VMs", "allocated VMs", allocatedVms)
-	return allocatedVms, nil
+	log.SpanLog(ctx, log.DebugLevelInfra, "markVMsForAllocation", "marked VMs", markedVMs)
+	return markedVMs, nil
 }
 
 func markVMsForRelease(ctx context.Context, groupName string, vmPool *edgeproto.VMPool, vmSpecs []edgeproto.VMSpec) (map[string]edgeproto.VM, error) {
@@ -119,16 +119,16 @@ func markVMsForRelease(ctx context.Context, groupName string, vmPool *edgeproto.
 		}
 	}
 
-	releasedVms := make(map[string]edgeproto.VM)
+	markedVMs := make(map[string]edgeproto.VM)
 	for ii, vm := range vmPool.Vms {
 		if _, ok := selectedVms[vm.Name]; ok {
 			vm.State = edgeproto.VMState_VM_IN_PROGRESS
 			ts, _ := types.TimestampProto(time.Now())
 			vm.UpdatedAt = *ts
 			vmPool.Vms[ii] = vm
-			releasedVms[vm.Name] = vm
+			markedVMs[vm.Name] = vm
 		}
 	}
-	log.SpanLog(ctx, log.DebugLevelInfra, "released VMs", "group", groupName, "released VMs", releasedVms)
-	return releasedVms, nil
+	log.SpanLog(ctx, log.DebugLevelInfra, "markVMsForRelease", "group", groupName, "marked VMs", markedVMs)
+	return markedVMs, nil
 }

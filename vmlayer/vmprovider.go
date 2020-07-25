@@ -38,9 +38,9 @@ type VMProvider interface {
 	GetInternalPortPolicy() InternalPortAttachPolicy
 	AttachPortToServer(ctx context.Context, serverName, subnetName, portName, ipaddr string, action ActionType) error
 	DetachPortFromServer(ctx context.Context, serverName, subnetName, portName string) error
-	AddSecurityRuleCIDRWithRetry(ctx context.Context, cidr string, proto string, group string, port string, serverName string) error
-	WhitelistSecurityRules(ctx context.Context, secGrpName string, serverName string, allowedCIDR string, ports []dme.AppPort) error
-	RemoveWhitelistSecurityRules(ctx context.Context, secGrpName string, allowedCIDR string, ports []dme.AppPort) error
+	PrepareRootLB(ctx context.Context, client ssh.Client, rootLBName string, secGrpName string, privacyPolicy *edgeproto.PrivacyPolicy) error
+	WhitelistSecurityRules(ctx context.Context, client ssh.Client, secGrpName string, serverName, label, allowedCIDR string, ports []dme.AppPort) error
+	RemoveWhitelistSecurityRules(ctx context.Context, client ssh.Client, secGrpName, label string, allowedCIDR string, ports []dme.AppPort) error
 	GetResourceID(ctx context.Context, resourceType ResourceType, resourceName string) (string, error)
 	GetApiAccessFilename() string
 	InitApiAccessProperties(ctx context.Context, key *edgeproto.CloudletKey, region, physicalName string, vaultConfig *vault.Config, vars map[string]string) error
@@ -66,6 +66,7 @@ type VMPlatform struct {
 	VMProvider   VMProvider
 	VMProperties VMProperties
 	FlavorList   []*edgeproto.FlavorInfo
+	Caches       *platform.Caches
 }
 
 // VMMetrics contains stats and timestamp
@@ -133,6 +134,10 @@ const (
 
 type StringSanitizer func(value string) string
 
+type ResTagTables map[string]*edgeproto.ResTagTable
+
+var pCaches *platform.Caches
+
 // VMPlatform embeds Platform and VMProvider
 
 func (v *VMPlatform) GetType() string {
@@ -196,6 +201,32 @@ func (v *VMPlatform) ListCloudletMgmtNodes(ctx context.Context, clusterInsts []e
 	return mgmt_nodes, nil
 }
 
+func (v *VMPlatform) GetResTablesForCloudlet(ctx context.Context, ckey *edgeproto.CloudletKey) ResTagTables {
+
+	if v.Caches == nil {
+		log.SpanLog(ctx, log.DebugLevelInfra, "nil caches")
+		return nil
+	}
+	var tbls = make(ResTagTables)
+	cl := edgeproto.Cloudlet{}
+	if !v.Caches.CloudletCache.Get(ckey, &cl) {
+		log.SpanLog(ctx, log.DebugLevelInfra, "Not found in cache", "cloudlet", ckey.Name)
+		return nil
+	}
+	for res, resKey := range cl.ResTagMap {
+		var tbl edgeproto.ResTagTable
+		if v.Caches.ResTagTableCache == nil {
+			log.SpanLog(ctx, log.DebugLevelInfra, "Caches.ResTagTableCache nil")
+			return nil
+		}
+		if !v.Caches.ResTagTableCache.Get(resKey, &tbl) {
+			continue
+		}
+		tbls[res] = &tbl
+	}
+	return tbls
+}
+
 func (v *VMPlatform) InitProps(ctx context.Context, platformConfig *platform.PlatformConfig, vaultConfig *vault.Config) error {
 	props := make(map[string]*infracommon.PropertyInfo)
 	for k, v := range VMProviderProps {
@@ -224,8 +255,8 @@ func (v *VMPlatform) Init(ctx context.Context, platformConfig *platform.Platform
 		v.Type)
 
 	updateCallback(edgeproto.UpdateTask, "Initializing VM platform type: "+v.Type)
+	v.Caches = caches
 	v.VMProperties.Domain = VMDomainCompute
-
 	vaultConfig, err := vault.BestConfig(platformConfig.VaultAddr)
 	if err != nil {
 		return err
@@ -269,7 +300,7 @@ func (v *VMPlatform) Init(ctx context.Context, platformConfig *platform.Platform
 	}
 	log.SpanLog(ctx, log.DebugLevelInfra, "calling SetupRootLB")
 	updateCallback(edgeproto.UpdateTask, "Setting up RootLB")
-	err = v.SetupRootLB(ctx, v.VMProperties.SharedRootLBName, v.VMProperties.CommonPf.PlatformConfig.CloudletKey, updateCallback)
+	err = v.SetupRootLB(ctx, v.VMProperties.SharedRootLBName, v.VMProperties.CommonPf.PlatformConfig.CloudletKey, nil, updateCallback)
 	if err != nil {
 		return err
 	}
@@ -296,7 +327,6 @@ func (v *VMPlatform) SyncControllerCache(ctx context.Context, caches *platform.C
 	if err != nil {
 		return err
 	}
-	// TODO v.SyncAppInsts
 	err = v.SyncSharedRootLB(ctx, caches)
 	if err != nil {
 		return err

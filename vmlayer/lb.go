@@ -75,99 +75,6 @@ func persistInterfaceName(ctx context.Context, client ssh.Client, ifName, mac st
 	return pc.WriteFile(client, udevRulesFile, newFileContents, "udev-rules", pc.SudoOn)
 }
 
-// run an iptables add or delete conditionally based on whether the entry already exists or not
-func doIptablesCommand(ctx context.Context, client ssh.Client, rule string, ruleExists bool, action *InterfaceActionsOp) error {
-	runCommand := false
-	if ruleExists {
-		if action.deleteIptables {
-			log.SpanLog(ctx, log.DebugLevelInfra, "deleting existing iptables rule", "rule", rule)
-			runCommand = true
-		} else {
-			log.SpanLog(ctx, log.DebugLevelInfra, "do not re-add existing iptables rule", "rule", rule)
-		}
-	} else {
-		if action.createIptables {
-			log.SpanLog(ctx, log.DebugLevelInfra, "adding new iptables rule", "rule", rule)
-			runCommand = true
-		} else {
-			log.SpanLog(ctx, log.DebugLevelInfra, "do not delete nonexistent iptables rule", "rule", rule)
-		}
-	}
-
-	if runCommand {
-		cmd := fmt.Sprintf("sudo iptables %s", rule)
-		out, err := client.Output(cmd)
-		if err != nil {
-			return fmt.Errorf("unable to modify iptables rule: %s, %s - %v", rule, out, err)
-		}
-	}
-	return nil
-}
-
-// setupForwardingIptables creates iptables rules to allow the cluster nodes to use the LB as a
-// router for internet access
-func setupForwardingIptables(ctx context.Context, client ssh.Client, externalIfname, internalIfname string, action *InterfaceActionsOp) error {
-	log.SpanLog(ctx, log.DebugLevelInfra, "setupForwardingIptables", "externalIfname", externalIfname, "internalIfname", internalIfname, "action", fmt.Sprintf("%+v", action))
-	// get current iptables
-	cmd := fmt.Sprintf("sudo iptables-save|grep -e POSTROUTING -e FORWARD")
-	out, err := client.Output(cmd)
-	if err != nil {
-		return fmt.Errorf("unable to run iptables-save: %s - %v", out, err)
-	}
-	// add or remove rules based on the action
-	option := "-A"
-	if action.deleteIptables {
-		option = "-D"
-	}
-	// we are looking only for the FORWARD or postrouting entries
-	masqueradeRuleMatch := fmt.Sprintf("POSTROUTING -o %s -j MASQUERADE", externalIfname)
-	masqueradeRule := fmt.Sprintf("-t nat %s %s", option, masqueradeRuleMatch)
-	forwardExternalRuleMatch := fmt.Sprintf("FORWARD -i %s -o %s -m state --state RELATED,ESTABLISHED -j ACCEPT", externalIfname, internalIfname)
-	forwardExternalRule := fmt.Sprintf("%s %s", option, forwardExternalRuleMatch)
-	forwardInternalRuleMatch := fmt.Sprintf("FORWARD -i %s -j ACCEPT", internalIfname)
-	forwardInternalRule := fmt.Sprintf("%s %s", option, forwardInternalRuleMatch)
-
-	masqueradeRuleExists := false
-	forwardExternalRuleExists := false
-	forwardInternalRuleExists := false
-
-	lines := strings.Split(out, "\n")
-	for _, l := range lines {
-		if strings.Contains(l, masqueradeRuleMatch) {
-			masqueradeRuleExists = true
-		}
-		if strings.Contains(l, forwardExternalRuleMatch) {
-			forwardExternalRuleExists = true
-		}
-		if strings.Contains(l, forwardInternalRuleMatch) {
-			forwardInternalRuleExists = true
-		}
-	}
-	if action.createIptables {
-		// this rule is never deleted because it applies to all subnets.   Multiple adds will
-		// not create duplicates
-		err = doIptablesCommand(ctx, client, masqueradeRule, masqueradeRuleExists, action)
-		if err != nil {
-			return err
-		}
-	}
-	err = doIptablesCommand(ctx, client, forwardExternalRule, forwardExternalRuleExists, action)
-	if err != nil {
-		return err
-	}
-	err = doIptablesCommand(ctx, client, forwardInternalRule, forwardInternalRuleExists, action)
-	if err != nil {
-		return err
-	}
-	//now persist the rules
-	cmd = fmt.Sprintf("sudo bash -c 'iptables-save > /etc/iptables/rules.v4'")
-	out, err = client.Output(cmd)
-	if err != nil {
-		return fmt.Errorf("unable to run iptables-save to persistent rules file: %s - %v", out, err)
-	}
-	return nil
-}
-
 // configureInternalInterfaceAndExternalForwarding sets up the new internal interface and then creates iptables rules to forward
 // traffic out the external interface
 func (v *VMPlatform) configureInternalInterfaceAndExternalForwarding(ctx context.Context, client ssh.Client, subnetName, internalPortName string, serverDetails *ServerDetail, action *InterfaceActionsOp) error {
@@ -404,11 +311,17 @@ func (v *VMPlatform) GetVMSpecForRootLB(ctx context.Context, rootLbName string, 
 	if err != nil {
 		return nil, fmt.Errorf("unable to get Shared RootLB Flavor: %v", err)
 	}
-	vmspec, err := vmspec.GetVMSpec(v.FlavorList, rootlbFlavor)
+
+	cli := edgeproto.CloudletInfo{}
+	cli.Key = *v.VMProperties.CommonPf.PlatformConfig.CloudletKey
+	cli.Flavors = v.FlavorList
+	restbls := v.GetResTablesForCloudlet(ctx, &cli.Key)
+	vmspec, err := vmspec.GetVMSpec(ctx, rootlbFlavor, cli, restbls)
 	if err != nil {
 		log.SpanLog(ctx, log.DebugLevelInfra, "RootLB GetVMSpec error", "v.FlavorList", v.FlavorList, "rootlbFlavor", rootlbFlavor, "err", err)
 		return nil, fmt.Errorf("unable to find VM spec for RootLB: %v", err)
 	}
+	log.SpanLog(ctx, log.DebugLevelInfra, "GetVMSpec returned", "flavor", vmspec.FlavorName, "for mex flavor", rootlbFlavor)
 	az := vmspec.AvailabilityZone
 	if az == "" {
 		az = v.VMProperties.GetCloudletComputeAvailabilityZone()
@@ -520,6 +433,7 @@ func (v *VMPlatform) CreateRootLB(
 func (v *VMPlatform) SetupRootLB(
 	ctx context.Context, rootLBName string,
 	cloudletKey *edgeproto.CloudletKey,
+	privacyPolicy *edgeproto.PrivacyPolicy,
 	updateCallback edgeproto.CacheUpdateCallback,
 ) error {
 	log.SpanLog(ctx, log.DebugLevelInfra, "SetupRootLB", "rootLBName", rootLBName)
@@ -540,17 +454,25 @@ func (v *VMPlatform) SetupRootLB(
 	// when CRM accessed via public internet.
 	log.SpanLog(ctx, log.DebugLevelInfra, "setup security group for SSH access")
 	groupName := v.GetServerSecurityGroupName(rootLBName)
-	my_ip, err := infracommon.GetExternalPublicAddr(ctx)
+	client, err := v.GetSSHClientForServer(ctx, rootLB.Name, v.VMProperties.GetCloudletExternalNetwork(), WithUser(infracommon.SSHUser))
+	if err != nil {
+		return err
+	}
+	myIp, err := infracommon.GetExternalPublicAddr(ctx)
 	if err != nil {
 		// this is not necessarily fatal
 		log.InfoLog("cannot fetch public ip", "err", err)
 	} else {
-		err = v.VMProvider.AddSecurityRuleCIDRWithRetry(ctx, my_ip, "tcp", groupName, "22", rootLBName)
+		var sshPort = []dme.AppPort{{
+			PublicPort: 22,
+			Proto:      dme.LProto_L_PROTO_TCP,
+		}}
+		myCidr := myIp + "/32"
+		err = v.VMProvider.WhitelistSecurityRules(ctx, client, groupName, rootLBName, "rootlb-ssh", myCidr, sshPort)
 		if err != nil {
 			return err
 		}
 	}
-
 	err = v.WaitForRootLB(ctx, rootLB)
 	if err != nil {
 		log.SpanLog(ctx, log.DebugLevelInfra, "timeout waiting for agent to run", "name", rootLB.Name)
@@ -562,17 +484,17 @@ func (v *VMPlatform) SetupRootLB(
 	}
 	log.SpanLog(ctx, log.DebugLevelInfra, "set rootLB IP to", "ip", ip)
 	rootLB.IP = ip
-
-	client, err := v.SetupSSHUser(ctx, rootLB, infracommon.SSHUser)
+	_, err = v.SetupSSHUser(ctx, rootLB, infracommon.SSHUser)
 	if err != nil {
 		return err
 	}
+
 	log.SpanLog(ctx, log.DebugLevelInfra, "Copy resource-tracker to rootLb", "rootLb", rootLBName)
 	err = CopyResourceTracker(client)
 	if err != nil {
 		return fmt.Errorf("cannot copy resource-tracker to rootLb %v", err)
 	}
-	route, err := v.GetInternalNetworkRoute(ctx)
+	route, err := v.VMProperties.GetInternalNetworkRoute(ctx)
 	if err != nil {
 		return err
 	}
@@ -580,7 +502,7 @@ func (v *VMPlatform) SetupRootLB(
 	if err != nil {
 		return fmt.Errorf("failed to AddRouteToServer %v", err)
 	}
-	err = v.VMProvider.WhitelistSecurityRules(ctx, v.GetServerSecurityGroupName(rootLBName), rootLBName, GetAllowedClientCIDR(), RootLBPorts)
+	err = v.VMProvider.WhitelistSecurityRules(ctx, client, v.GetServerSecurityGroupName(rootLBName), rootLBName, "rootlb-ports", GetAllowedClientCIDR(), RootLBPorts)
 	if err != nil {
 		return fmt.Errorf("failed to WhitelistSecurityRules %v", err)
 	}
@@ -589,7 +511,9 @@ func (v *VMPlatform) SetupRootLB(
 		return err
 	}
 	log.SpanLog(ctx, log.DebugLevelInfra, "DNS A record activated", "name", rootLB.Name)
-	return nil
+
+	// perform provider specific prep of the rootLB
+	return v.VMProvider.PrepareRootLB(ctx, client, rootLBName, v.GetServerSecurityGroupName(rootLBName), privacyPolicy)
 }
 
 //WaitForRootLB waits for the RootLB instance to be up and copies of SSH credentials for internal networks.
@@ -656,7 +580,7 @@ func CopyResourceTracker(client ssh.Client) error {
 	return err
 }
 
-func (v *VMPlatform) DeleteProxySecurityGroupRules(ctx context.Context, client ssh.Client, proxyName string, secGrpName string, ports []dme.AppPort, app *edgeproto.App, serverName string) error {
+func (v *VMPlatform) DeleteProxySecurityGroupRules(ctx context.Context, client ssh.Client, proxyName string, secGrpName string, label string, ports []dme.AppPort, app *edgeproto.App, serverName string) error {
 	log.SpanLog(ctx, log.DebugLevelInfra, "DeleteProxySecurityGroupRules", "proxyName", proxyName, "ports", ports)
 
 	err := proxy.DeleteNginxProxy(ctx, client, proxyName)
@@ -664,7 +588,7 @@ func (v *VMPlatform) DeleteProxySecurityGroupRules(ctx context.Context, client s
 		log.SpanLog(ctx, log.DebugLevelInfra, "cannot delete proxy", "proxyName", proxyName, "error", err)
 	}
 	allowedClientCIDR := GetAllowedClientCIDR()
-	return v.VMProvider.RemoveWhitelistSecurityRules(ctx, secGrpName, allowedClientCIDR, ports)
+	return v.VMProvider.RemoveWhitelistSecurityRules(ctx, client, secGrpName, label, allowedClientCIDR, ports)
 }
 
 func GetChefRootLBTags(platformConfig *platform.PlatformConfig) []string {

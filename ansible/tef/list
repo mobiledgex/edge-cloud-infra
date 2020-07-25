@@ -47,4 +47,4 @@ vault-tef-a.mobiledgex.net
 vault-tef-b.mobiledgex.net
 
 [jaeger]
-jaeger-tef.mobiledgex.net
+jaeger-tef.mobiledgex.net es_instance=tef

@@ -23,7 +23,6 @@ vcpus=$(grep -c processor /proc/cpuinfo)
 totalDiskSectors=0
 for block in $(ls -l /sys/block/ | grep -v "devices/virtual" | awk '{print $9}'); do
   if [[ ! -z $block ]]; then
-    echo $block
     if [[ -f /sys/block/$block/size ]]; then
       sectors=$(cat /sys/block/$block/size)
       if isNum $sectors; then

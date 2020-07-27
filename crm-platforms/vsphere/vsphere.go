@@ -39,11 +39,6 @@ func (v *VSpherePlatform) SetCaches(ctx context.Context, caches *platform.Caches
 func (v *VSpherePlatform) InitProvider(ctx context.Context, caches *platform.Caches, updateCallback edgeproto.CacheUpdateCallback) error {
 	log.SpanLog(ctx, log.DebugLevelInfra, "InitProvider for VSphere")
 	v.SetCaches(ctx, caches)
-	err := v.TerraformSetupVsphere(ctx, updateCallback)
-	if err != nil {
-		log.SpanLog(ctx, log.DebugLevelInfra, "TerraformSetupVsphere failed", "err", err)
-		return fmt.Errorf("TerraformSetupVsphere failed - %v", err)
-	}
 	return nil
 }
 
@@ -51,7 +46,6 @@ func (v *VSpherePlatform) GatherCloudletInfo(ctx context.Context, info *edgeprot
 	log.SpanLog(ctx, log.DebugLevelInfra, "GatherCloudletInfo ")
 	var err error
 	info.Flavors, err = v.GetFlavorList(ctx)
-	info.State = edgeproto.CloudletState_CLOUDLET_STATE_NEED_SYNC
 	return err
 }
 

@@ -54,7 +54,7 @@ func (o *VMPoolPlatform) GetServerDetail(ctx context.Context, serverName string)
 		}
 		return &sd, nil
 	}
-	return &sd, fmt.Errorf("No server with a name or ID: %s exists", serverName)
+	return &sd, fmt.Errorf("Server does not exist: %s", serverName)
 }
 
 // Assumes VM pool lock is held

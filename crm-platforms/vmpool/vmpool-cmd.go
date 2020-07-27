@@ -58,6 +58,7 @@ func (s *VMPoolPlatform) GetFlavorList(ctx context.Context) ([]*edgeproto.Flavor
 			return nil, fmt.Errorf("failed to get flavor info for %s: %s - %v", vm.Name, out, err)
 		}
 		flavorMap[out] = vm.Name
+		log.SpanLog(ctx, log.DebugLevelInfra, "GetFlavorList, found resource", "vm", vm.Name, "resource info", out)
 	}
 
 	count := 1

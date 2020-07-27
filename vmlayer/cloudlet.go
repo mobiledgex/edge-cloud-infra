@@ -166,6 +166,7 @@ func (v *VMPlatform) CreateCloudlet(ctx context.Context, cloudlet *edgeproto.Clo
 		return err
 	}
 	// save caches needed for flavors
+	v.Caches = caches
 	v.VMProvider.SetCaches(ctx, caches)
 
 	// Source OpenRC file to access openstack API endpoint
@@ -308,6 +309,7 @@ func (v *VMPlatform) DeleteCloudlet(ctx context.Context, cloudlet *edgeproto.Clo
 	}
 
 	// save caches
+	v.Caches = caches
 	v.VMProvider.SetCaches(ctx, caches)
 
 	// Source OpenRC file to access openstack API endpoint

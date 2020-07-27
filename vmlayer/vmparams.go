@@ -36,7 +36,6 @@ const (
 	ActionCreate ActionType = "create"
 	ActionUpdate ActionType = "update"
 	ActionDelete ActionType = "delete"
-	ActionSync   ActionType = "sync"
 )
 
 var ClusterTypeKubernetesMasterLabel = "mex-k8s-master"
@@ -402,7 +401,6 @@ type VMOrchestrationParams struct {
 	Ports                   []PortResourceReference      // depending on the orchestrator, IPs may be assigned to ports or
 	FixedIPs                []FixedIPOrchestrationParams // to VMs directly
 	ExternalGateway         string
-	CustomizeGuest          bool
 	AttachExternalDisk      bool
 	ChefParams              *chefmgmt.VMChefParams
 }
@@ -869,8 +867,7 @@ func (v *VMPlatform) OrchestrateVMsFromVMSpec(ctx context.Context, name string, 
 			}
 		}
 		err = v.VMProvider.UpdateVMs(ctx, gp, updateCallback)
-	case ActionSync:
-		err = v.VMProvider.SyncVMs(ctx, gp, updateCallback)
+
 	}
 	if err != nil {
 		log.SpanLog(ctx, log.DebugLevelInfra, "error while orchestrating vms", "name", name, "action", action, "err", err)

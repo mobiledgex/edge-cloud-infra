@@ -26,7 +26,6 @@ type VMProvider interface {
 	SetVMProperties(vmProperties *VMProperties)
 	SetCaches(ctx context.Context, caches *platform.Caches)
 	InitProvider(ctx context.Context, caches *platform.Caches, updateCallback edgeproto.CacheUpdateCallback) error
-	ImportDataFromInfra(ctx context.Context, domain VMDomain) error
 	GetFlavorList(ctx context.Context) ([]*edgeproto.FlavorInfo, error)
 	GetNetworkList(ctx context.Context) ([]string, error)
 	AddCloudletImageIfNotPresent(ctx context.Context, imgPathPrefix, imgVersion string, updateCallback edgeproto.CacheUpdateCallback) (string, error)
@@ -53,7 +52,6 @@ type VMProvider interface {
 	GetRouterDetail(ctx context.Context, routerName string) (*RouterDetail, error)
 	CreateVMs(ctx context.Context, vmGroupOrchestrationParams *VMGroupOrchestrationParams, updateCallback edgeproto.CacheUpdateCallback) error
 	UpdateVMs(ctx context.Context, vmGroupOrchestrationParams *VMGroupOrchestrationParams, updateCallback edgeproto.CacheUpdateCallback) error
-	SyncVMs(ctx context.Context, vmGroupOrchestrationParams *VMGroupOrchestrationParams, updateCallback edgeproto.CacheUpdateCallback) error
 	DeleteVMs(ctx context.Context, vmGroupName string) error
 	GetVMStats(ctx context.Context, key *edgeproto.AppInstKey) (*VMMetrics, error)
 	GetPlatformResourceInfo(ctx context.Context) (*PlatformResources, error)
@@ -313,18 +311,5 @@ func (v *VMPlatform) Init(ctx context.Context, platformConfig *platform.Platform
 
 func (v *VMPlatform) SyncControllerCache(ctx context.Context, caches *platform.Caches, cloudletState edgeproto.CloudletState) error {
 	log.SpanLog(ctx, log.DebugLevelInfra, "SyncControllerCache", "cloudletState", cloudletState)
-
-	err := v.SyncClusterInsts(ctx, caches, edgeproto.DummyUpdateCallback)
-	if err != nil {
-		return err
-	}
-	err = v.SyncSharedRootLB(ctx, caches)
-	if err != nil {
-		return err
-	}
-	err = v.SyncAppInsts(ctx, caches, edgeproto.DummyUpdateCallback)
-	if err != nil {
-		return err
-	}
-	return v.VMProvider.ImportDataFromInfra(ctx, VMDomainCompute)
+	return nil
 }

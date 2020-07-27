@@ -28,6 +28,7 @@ import (
 // is spun up, or afterwards.
 type InternalPortAttachPolicy string
 
+const AttachPortNotSupported InternalPortAttachPolicy = "AttachPortNotSupported"
 const AttachPortDuringCreate InternalPortAttachPolicy = "AttachPortDuringCreate"
 const AttachPortAfterCreate InternalPortAttachPolicy = "AttachPortAfterCreate"
 
@@ -316,11 +317,11 @@ func (v *VMPlatform) GetVMSpecForRootLB(ctx context.Context, rootLbName string, 
 	cli.Flavors = v.FlavorList
 	restbls := v.GetResTablesForCloudlet(ctx, &cli.Key)
 	vmspec, err := vmspec.GetVMSpec(ctx, rootlbFlavor, cli, restbls)
-
 	if err != nil {
 		log.SpanLog(ctx, log.DebugLevelInfra, "RootLB GetVMSpec error", "v.FlavorList", v.FlavorList, "rootlbFlavor", rootlbFlavor, "err", err)
 		return nil, fmt.Errorf("unable to find VM spec for RootLB: %v", err)
 	}
+	log.SpanLog(ctx, log.DebugLevelInfra, "GetVMSpec returned", "flavor", vmspec.FlavorName, "for mex flavor", rootlbFlavor)
 	az := vmspec.AvailabilityZone
 	if az == "" {
 		az = v.VMProperties.GetCloudletComputeAvailabilityZone()

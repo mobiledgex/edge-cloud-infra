@@ -1,6 +1,8 @@
 #!/bin/bash
 # must be run as root
 
+[[ "$TRACE" == yes ]] && set -x
+
 USAGE="usage: $( basename $0 ) <options>
 
  -s <chef-server-url> Chef Server URL
@@ -27,12 +29,16 @@ die() {
 
 cat > /etc/chef/client.rb <<EOT
 log_level              :info
+log_location           "/tmp/chef-client.log"
 ssl_verify_mode        :verify_none
 client_key             "/home/ubuntu/client.pem"
 chef_server_url        "$CHEFSERVERURL"
 node_name              "$NODENAME"
+pid_file               "/var/run/chef/client.pid"
 Chef::Log::Formatter.show_time = true
 EOT
 
 systemctl restart chef-client
 [[ $? -ne 0 ]] && die "Failed to restart chef-client service"
+
+echo "Done setting up chef-client for node $NODENAME"

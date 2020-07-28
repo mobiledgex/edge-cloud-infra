@@ -85,11 +85,13 @@ download_artifactory_file keys/id_rsa_mobiledgex.pub /tmp/id_rsa_mobiledgex.pub
 log "Setting up SSH"
 sudo cp /etc/mobiledgex/id_rsa_mex /root/id_rsa_mex
 sudo chmod 600 /root/id_rsa_mex
-sudo mkdir -p /root/.ssh
-sudo cat /tmp/id_rsa_mex.pub /tmp/id_rsa_mobiledgex.pub | sudo tee /root/.ssh/authorized_keys
-sudo chmod 700 /root/.ssh
-sudo chmod 600 /root/.ssh/authorized_keys
-sudo rm -f /root/.ssh/known_hosts
+for SSH_HOME in /root /home/ubuntu; do
+	sudo mkdir -p ${SSH_HOME}/.ssh
+	sudo cat /tmp/id_rsa_mex.pub /tmp/id_rsa_mobiledgex.pub | sudo tee ${SSH_HOME}/.ssh/authorized_keys
+	sudo chmod 700 ${SSH_HOME}/.ssh
+	sudo chmod 600 ${SSH_HOME}/.ssh/authorized_keys
+	sudo rm -f ${SSH_HOME}/.ssh/known_hosts
+done
 
 log "Setting up $MEX_RELEASE"
 sudo tee "$MEX_RELEASE" <<EOT

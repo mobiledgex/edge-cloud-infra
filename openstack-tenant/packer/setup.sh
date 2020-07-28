@@ -5,7 +5,6 @@ LOGDIR="/etc/mobiledgex"
 LOGFILE="${LOGDIR}/creation_log.txt"
 DEFAULT_INTERFACE=ens3
 ARTIFACTORY_BASEURL='https://artifactory.mobiledgex.net'
-DEFAULT_ROOT_PASS=sandhill
 MEX_RELEASE=/etc/mex-release
 
 TMPLOG="/var/tmp/creation_log.txt"
@@ -27,7 +26,8 @@ trap 'archive_log' EXIT
 
 # Defaults for environment variables
 : ${TAG:=master}
-: ${ROOT_PASS:=$DEFAULT_ROOT_PASS}
+: ${VAULT:=main}
+
 if [[ -z "$INTERFACE" ]]; then
 	INTERFACE=$( ls -d /sys/class/net/*/device 2>/dev/null \
 			| head -n 1 \
@@ -56,17 +56,6 @@ die() {
 	exit 2
 }
 
-download_artifactory_file() {
-	local src="$1"
-	local dst="$2"
-	local mode="$3"
-	local arturl="${ARTIFACTORY_BASEURL}/artifactory/baseimage-build/${ARTIFACTORY_ARTIFACTS_TAG}/${src}"
-	log "Downloading $arturl"
-	sudo curl -s -u "$ARTIFACTORY_CREDS" -o "$dst" "$arturl"
-	sudo test -f "$dst" || die "Failed to download file: $arturl"
-	[[ -z "$mode" ]] || sudo chmod "$mode" "$dst"
-}
-
 # Main
 echo "[$(date)] Starting setup.sh for platform \"$OUTPUT_PLATFORM\" ($( pwd ))"
 
@@ -75,21 +64,6 @@ log_file_contents /etc/hosts
 
 echo "nameserver 1.1.1.1" | sudo tee -a /etc/resolv.conf >/dev/null
 log_file_contents /etc/resolv.conf
-
-log "Downloading files from artifactory for tag $ARTIFACTORY_ARTIFACTS_TAG"
-download_artifactory_file ssh.config /root/.ssh/config 600
-download_artifactory_file keys/id_rsa_mex /etc/mobiledgex/id_rsa_mex 600
-download_artifactory_file keys/id_rsa_mex.pub /tmp/id_rsa_mex.pub
-download_artifactory_file keys/id_rsa_mobiledgex.pub /tmp/id_rsa_mobiledgex.pub
-
-log "Setting up SSH"
-sudo cp /etc/mobiledgex/id_rsa_mex /root/id_rsa_mex
-sudo chmod 600 /root/id_rsa_mex
-sudo mkdir -p /root/.ssh
-sudo cat /tmp/id_rsa_mex.pub /tmp/id_rsa_mobiledgex.pub | sudo tee /root/.ssh/authorized_keys
-sudo chmod 700 /root/.ssh
-sudo chmod 600 /root/.ssh/authorized_keys
-sudo rm -f /root/.ssh/known_hosts
 
 log "Setting up $MEX_RELEASE"
 sudo tee "$MEX_RELEASE" <<EOT
@@ -100,6 +74,13 @@ MEX_BUILD_SRC_IMG=$SRC_IMG
 MEX_BUILD_SRC_IMG_CHECKSUM=$SRC_IMG_CHECKSUM
 MEX_PLATFORM_FLAVOR=$OUTPUT_PLATFORM
 EOT
+
+SSH_CA_KEY_FILE=/etc/ssh/trusted-user-ca-keys.pem
+VAULT_URL="https://vault-${VAULT}.mobiledgex.net/v1/ssh/public_key"
+log "Set up SSH CA key: $VAULT_URL"
+curl --silent --fail "$VAULT_URL" | sudo tee "$SSH_CA_KEY_FILE"
+grep "ssh-rsa" "$SSH_CA_KEY_FILE" >/dev/null 2>&1
+echo "TrustedUserCAKeys $SSH_CA_KEY_FILE" | sudo tee -a /etc/ssh/sshd_config
 
 log "Set up docker log file rotation"
 sudo mkdir -p /etc/docker
@@ -163,9 +144,6 @@ if [[ "$OUTPUT_PLATFORM" == vsphere ]]; then
 	sudo perl -i -p -e s/'"console=tty1 console=ttyS0"'/'""'/g /etc/default/grub.d/50-cloudimg-settings.cfg
 	sudo grub-mkconfig -o /boot/grub/grub.cfg
 fi
-
-log "Setting the root password"
-echo "root:$ROOT_PASS" | sudo chpasswd
 
 log "System setup"
 sudo swapoff -a

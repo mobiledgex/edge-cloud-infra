@@ -51,6 +51,11 @@
       changed_when: no
       tags: setup
 
+    - name: Set up the SSH secrets engine
+      include_role:
+        name: vault
+        tasks_from: ssh-secret-engine
+
     - name: Enable KV secret engines
       include_role:
         name: vault

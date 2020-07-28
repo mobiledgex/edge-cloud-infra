@@ -7,6 +7,7 @@ OUTPUT_IMAGE_NAME='mobiledgex'
 
 : ${CLOUD_IMAGE_TAG:=ubuntu-16.04-20191024}
 : ${FLAVOR:=m4.small}
+: ${VAULT:=main}
 : ${FORCE:=no}
 : ${TRACE:=no}
 : ${DEBUG:=false}
@@ -144,6 +145,7 @@ PACKER_LOG=1 "${CMDLINE[@]}" \
 	-var "TAG=$TAG" \
 	-var "GITTAG=$GITTAG" \
 	-var "FLAVOR=$FLAVOR" \
+	-var "VAULT=$VAULT" \
 	-var "TRACE=$TRACE" \
 	-var "MEX_BUILD=$( git describe --long --tags )" \
 	-var "OUTPUT_PLATFORM=$OUTPUT_PLATFORM" \

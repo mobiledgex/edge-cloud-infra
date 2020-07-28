@@ -8,7 +8,7 @@ certgen_image_version: 2019-11-01
 vault_github_teams:
   - name: edge-cloud-development-team
     policies:
-      - default
+      - ssh-user.sign.v1
 
 vault_ldap_groups: []
 
@@ -34,6 +34,7 @@ vault_user_roles:
     - registry.read.v1
     - root-ca.read.v1
     - sys-auth.read.v1
+    - ssh-user.sign.v1
     - sys-mounts.read.v1
     - sys-plugins-catalog.read.v1
     - sys-plugins-certs-config.read.v1
@@ -67,4 +68,5 @@ vault_user_roles:
     - influxdb.read.v1
     - mexenv.read.v1
     - registry.read.v1
+    - ssh-user.sign.v1
     - ui-access.v1

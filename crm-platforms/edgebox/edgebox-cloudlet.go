@@ -23,9 +23,9 @@ func (e *EdgeboxPlatform) CreateCloudlet(ctx context.Context, cloudlet *edgeprot
 	return fakeinfra.CloudletPrometheusStartup(ctx, cloudlet, pfConfig, caches, updateCallback)
 }
 
-func (e *EdgeboxPlatform) DeleteCloudlet(ctx context.Context, cloudlet *edgeproto.Cloudlet, pfConfig *edgeproto.PlatformConfig, updateCallback edgeproto.CacheUpdateCallback) error {
+func (e *EdgeboxPlatform) DeleteCloudlet(ctx context.Context, cloudlet *edgeproto.Cloudlet, pfConfig *edgeproto.PlatformConfig, caches *pf.Caches, updateCallback edgeproto.CacheUpdateCallback) error {
 	log.SpanLog(ctx, log.DebugLevelInfra, "delete cloudlet for edgebox")
-	err := e.generic.DeleteCloudlet(ctx, cloudlet, pfConfig, updateCallback)
+	err := e.generic.DeleteCloudlet(ctx, cloudlet, pfConfig, caches, updateCallback)
 	if err != nil {
 		return err
 	}
@@ -53,4 +53,8 @@ func (e *EdgeboxPlatform) SyncControllerCache(ctx context.Context, caches *pf.Ca
 func (e *EdgeboxPlatform) GetCloudletManifest(ctx context.Context, cloudlet *edgeproto.Cloudlet, pfConfig *edgeproto.PlatformConfig, flavor *edgeproto.Flavor) (*edgeproto.CloudletManifest, error) {
 	log.SpanLog(ctx, log.DebugLevelInfra, "Get cloudlet manifest", "cloudletName", cloudlet.Key.Name)
 	return e.generic.GetCloudletManifest(ctx, cloudlet, pfConfig, flavor)
+}
+
+func (e *EdgeboxPlatform) VerifyVMs(ctx context.Context, vms []edgeproto.VM) error {
+	return e.generic.VerifyVMs(ctx, vms)
 }

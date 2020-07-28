@@ -3,10 +3,13 @@ dbrp "etcd"."autogen"
 var name = 'Etcd DB Size'
 
 var info = 70
+
 var warn = 80
+
 var crit = 90
 
 var period = 15m
+
 var every = 15m
 
 var triggerType = 'threshold'
@@ -29,4 +32,5 @@ var alert = data
         .warn(lambda: "dbsize" > warn)
         .crit(lambda: "dbsize" > crit)
         .message('{{ .Level }}: Etcd DB Size: {{ index .Tags "env" }}: {{ index .Fields "dbsize" }} MB')
+        .pagerDuty2()
         .slack()

@@ -179,6 +179,9 @@
       delegate_to: localhost
     - import_role:
         name: telegraf
+      vars:
+        telegraf_additional_config:
+          - input/nginx.conf.j2
       tags: [ 'monitoring', 'setup' ]
     - import_role:
         name: web

@@ -13,7 +13,7 @@ func (s *AzurePlatform) CreateCloudlet(ctx context.Context, cloudlet *edgeproto.
 	return nil
 }
 
-func (s *AzurePlatform) DeleteCloudlet(ctx context.Context, cloudlet *edgeproto.Cloudlet, pfConfig *edgeproto.PlatformConfig, updateCallback edgeproto.CacheUpdateCallback) error {
+func (s *AzurePlatform) DeleteCloudlet(ctx context.Context, cloudlet *edgeproto.Cloudlet, pfConfig *edgeproto.PlatformConfig, caches *pf.Caches, updateCallback edgeproto.CacheUpdateCallback) error {
 	log.SpanLog(ctx, log.DebugLevelInfra, "delete cloudlet for azure")
 	return nil
 }
@@ -36,4 +36,8 @@ func (s *AzurePlatform) SyncControllerCache(ctx context.Context, caches *pf.Cach
 func (s *AzurePlatform) GetCloudletManifest(ctx context.Context, cloudlet *edgeproto.Cloudlet, pfConfig *edgeproto.PlatformConfig, flavor *edgeproto.Flavor) (*edgeproto.CloudletManifest, error) {
 	log.SpanLog(ctx, log.DebugLevelInfra, "Get cloudlet manifest", "cloudletName", cloudlet.Key.Name)
 	return nil, nil
+}
+
+func (s *AzurePlatform) VerifyVMs(ctx context.Context, vms []edgeproto.VM) error {
+	return nil
 }

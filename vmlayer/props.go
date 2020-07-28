@@ -28,7 +28,7 @@ type VMProperties struct {
 var ImageFormatQcow2 = "qcow2"
 var ImageFormatVmdk = "vmdk"
 
-var MEXInfraVersion = "3.1.3"
+var MEXInfraVersion = "3.1.5"
 var ImageNamePrefix = "mobiledgex-v"
 var DefaultOSImageName = ImageNamePrefix + MEXInfraVersion
 
@@ -90,6 +90,12 @@ var VMProviderProps = map[string]*infracommon.PropertyInfo{
 	},
 	"MEX_CRM_GATEWAY_ADDR": {},
 	"MEX_SUBNET_DNS":       {},
+	"MEX_CLOUDLET_FIREWALL_WHITELIST_EGRESS": {
+		Value: "protocol=tcp,portrange=1:65535,remotecidr=0.0.0.0/0;protocol=udp,portrange=1:65535,remotecidr=0.0.0.0/0;protocol=icmp,remotecidr=0.0.0.0/0",
+	},
+	"MEX_CLOUDLET_FIREWALL_WHITELIST_INGRESS": {
+		Value: "remotecidr=0.0.0.0/0,protocol=udp,portrange=53",
+	},
 }
 
 func GetVaultCloudletCommonPath(filePath string) string {

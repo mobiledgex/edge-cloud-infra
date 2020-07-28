@@ -84,6 +84,7 @@ type PortResourceReference struct {
 	SubnetId    string
 	Preexisting bool
 	NetworkType NetType
+	PortGroup   string
 }
 
 func GetPortName(vmname, netname string) string {

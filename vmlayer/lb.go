@@ -85,9 +85,15 @@ func (v *VMPlatform) configureInternalInterfaceAndExternalForwarding(ctx context
 	if err != nil {
 		return err
 	}
+	if internalIP.MacAddress == "" {
+		return fmt.Errorf("No MAC address for internal interface: %s", internalPortName)
+	}
 	externalIP, err := GetIPFromServerDetails(ctx, v.VMProperties.GetCloudletExternalNetwork(), "", serverDetails)
 	if err != nil {
 		return err
+	}
+	if externalIP.MacAddress == "" {
+		return fmt.Errorf("No MAC address for external interface: %s", externalIP.Network)
 	}
 
 	err = WaitServerSSHReachable(ctx, client, externalIP.ExternalAddr, time.Minute*1)

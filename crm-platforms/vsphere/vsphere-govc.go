@@ -265,7 +265,6 @@ func (v *VSpherePlatform) GetResourcePools(ctx context.Context) (*GovcPools, err
 
 	var pools GovcPools
 	err = json.Unmarshal(out, &pools)
-
 	if err != nil {
 		return nil, err
 	}
@@ -341,13 +340,35 @@ func (v *VSpherePlatform) GetTags(ctx context.Context) ([]GovcTag, error) {
 	err = json.Unmarshal(out, &tags)
 	if err != nil {
 		log.SpanLog(ctx, log.DebugLevelInfra, "GetTags unmarshal fail", "out", string(out), "err", err)
-		err = fmt.Errorf("cannot unmarshal govc subnet tags, %v", err)
+		err = fmt.Errorf("cannot unmarshal govc tags, %v", err)
 		return nil, err
 	}
 	return tags, nil
 }
 
+func (v *VSpherePlatform) GetTagsMatchingField(ctx context.Context, fieldName string, fieldValue string, category string) ([]GovcTag, error) {
+	var matchTags []GovcTag
+	catTags, err := v.getTagsForCategory(ctx, category, vmlayer.VMDomainAny)
+	if err != nil {
+		return nil, err
+	}
+	for _, t := range catTags {
+		fm, err := getTagFieldMap(t.Name)
+		if err != nil {
+			return nil, err
+		}
+		tagval, ok := fm[fieldName]
+		if ok && tagval == fieldValue {
+			matchTags = append(matchTags, t)
+		}
+	}
+	//	vmipTags :=
+	return matchTags, nil
+}
+
 func (v *VSpherePlatform) getTagsForCategory(ctx context.Context, category string, domainMatch vmlayer.VMDomain) ([]GovcTag, error) {
+	log.SpanLog(ctx, log.DebugLevelInfra, "getTagsForCategory", "category", category, "domainMatch", domainMatch)
+
 	out, err := v.TimedGovcCommand(ctx, "govc", "tags.ls", "-c", category, "-json")
 
 	var tags []GovcTag
@@ -398,6 +419,31 @@ func (v *VSpherePlatform) GetTagCategories(ctx context.Context) ([]GovcTagCatego
 		}
 	}
 	return returnedcats, err
+}
+
+func (v *VSpherePlatform) CreateTag(ctx context.Context, tag *vmlayer.TagOrchestrationParams) error {
+	log.SpanLog(ctx, log.DebugLevelInfra, "CreateTag", "tag", tag)
+
+	out, err := v.TimedGovcCommand(ctx, "govc", "tags.create", "-c", tag.Category, tag.Name)
+	if err != nil {
+		if strings.Contains(string(out), "ALREADY_EXISTS") {
+			log.SpanLog(ctx, log.DebugLevelInfra, "Tag already exists", "tag", tag)
+			return nil
+		}
+		return fmt.Errorf("Error in creating tag: %s - %v", tag.Name, err)
+	}
+	return nil
+}
+
+func (v *VSpherePlatform) DeleteTag(ctx context.Context, tagname string) error {
+	log.SpanLog(ctx, log.DebugLevelInfra, "DeleteTag", "tagname", tagname)
+
+	out, err := v.TimedGovcCommand(ctx, "govc", "tags.rm", tagname)
+	if err != nil {
+		log.SpanLog(ctx, log.DebugLevelInfra, "Tag delete fail", "out", out, "err", err)
+		return fmt.Errorf("Error in deleting tag: %s - %v", tagname, err)
+	}
+	return nil
 }
 
 func (v *VSpherePlatform) GetIpsFromTagsForVM(ctx context.Context, vmName string, sd *vmlayer.ServerDetail) error {
@@ -479,8 +525,33 @@ func (v *VSpherePlatform) GetUsedExternalIPs(ctx context.Context) (map[string]st
 	return ipsUsed, nil
 }
 
+func (v *VSpherePlatform) IsPortgrpAttached(ctx context.Context, serverName, portGrpName string) (bool, error) {
+	log.SpanLog(ctx, log.DebugLevelInfra, "IsPortgrpAttached", "serverName", serverName, "portGrpName", portGrpName)
+
+	govcVm, err := v.GetGovcVm(ctx, serverName)
+	if err != nil {
+		return false, err
+	}
+	pgrps, err := v.GetDistributedPortGroups(ctx, PortGrpMatchAny)
+	if err != nil {
+		return false, fmt.Errorf("Failed to get distributed port groups: %v", err)
+	}
+	for _, dev := range govcVm.Config.Hardware.Device {
+		if dev.MacAddress != "" {
+			pgrpId := dev.Backing.Port.PortgroupKey
+			pgrp, ok := pgrps[pgrpId]
+			if ok && pgrp.Name == portGrpName {
+				log.SpanLog(ctx, log.DebugLevelInfra, "IsPortgrpAttached found portgrp")
+				return true, nil
+			}
+		}
+	}
+	log.SpanLog(ctx, log.DebugLevelInfra, "IsPortgrpAttached portgrp not found")
+	return false, nil
+}
+
 func (v *VSpherePlatform) getServerDetailFromGovcVm(ctx context.Context, govcVm *GovcVM) (*vmlayer.ServerDetail, error) {
-	log.SpanLog(ctx, log.DebugLevelInfra, "getServerDetailFromGovcVm", "name", govcVm.Name, "guest state", govcVm.Guest.GuestState)
+	log.SpanLog(ctx, log.DebugLevelInfra, "getServerDetailFromGovcVm", "name", govcVm.Name)
 
 	pgrps, err := v.GetDistributedPortGroups(ctx, PortGrpMatchAny)
 	if err != nil {
@@ -503,8 +574,13 @@ func (v *VSpherePlatform) getServerDetailFromGovcVm(ctx context.Context, govcVm 
 	}
 
 	for i, sip := range sd.Addresses {
+		portGrpNameFromVlan := ""
+		vlan, err := v.GetVlanForSubnet(ctx, sip.Network)
+		if err == nil {
+			portGrpNameFromVlan = getPortGroupNameForVlan(vlan)
+		}
 		macFound := ""
-		log.SpanLog(ctx, log.DebugLevelInfra, "Looking for mac for server ip", "sip", sip)
+		log.SpanLog(ctx, log.DebugLevelInfra, "Looking for mac for server ip", "sip", sip, "portGrpNameFromVlan", portGrpNameFromVlan)
 		for _, dev := range govcVm.Config.Hardware.Device {
 			if dev.MacAddress != "" {
 				pgrpId := dev.Backing.Port.PortgroupKey
@@ -512,7 +588,9 @@ func (v *VSpherePlatform) getServerDetailFromGovcVm(ctx context.Context, govcVm 
 				if !ok {
 					return nil, fmt.Errorf("Port group id not found: %s for VM %s", pgrpId, govcVm.Name)
 				}
-				if sip.Network == pgrp.Name {
+				log.SpanLog(ctx, log.DebugLevelInfra, "Found a MAC", "MacAddress", dev.MacAddress, "pgrp", pgrp)
+
+				if sip.Network == pgrp.Name || (portGrpNameFromVlan != "" && portGrpNameFromVlan == pgrp.Name) {
 					if macFound != "" {
 						log.SpanLog(ctx, log.DebugLevelInfra, "MAC already on different network", "macFound", macFound, "dev.MacAddress", dev.MacAddress)
 						return nil, fmt.Errorf("multiple MACs found for network: %s", pgrp.Name)
@@ -558,8 +636,8 @@ func (v *VSpherePlatform) GetNetworkListForVm(ctx context.Context, vmname string
 	return nil, fmt.Errorf("no networks found for vm: %s", vmname)
 }
 
-func (v *VSpherePlatform) GetServerDetail(ctx context.Context, vmname string) (*vmlayer.ServerDetail, error) {
-	log.SpanLog(ctx, log.DebugLevelInfra, "GetServerDetail", "vmname", vmname)
+func (v *VSpherePlatform) GetGovcVm(ctx context.Context, vmname string) (*GovcVM, error) {
+	log.SpanLog(ctx, log.DebugLevelInfra, "GetGovcVm", "vmname", vmname)
 	dcName := v.GetDatacenterName(ctx)
 	vmPath := "/" + dcName + "/vm/" + vmname
 	var err error
@@ -571,21 +649,30 @@ func (v *VSpherePlatform) GetServerDetail(ctx context.Context, vmname string) (*
 	var vms GovcVMs
 	err = json.Unmarshal(out, &vms)
 	if err != nil {
-		log.SpanLog(ctx, log.DebugLevelInfra, "GetVSphereServer unmarshal fail", "vmname", vmname, "out", string(out), "err", err)
+		log.SpanLog(ctx, log.DebugLevelInfra, "GetGovcVm unmarshal fail", "vmname", vmname, "out", string(out), "err", err)
 		err = fmt.Errorf("cannot unmarshal, %v", err)
 		return nil, err
 	}
-	log.SpanLog(ctx, log.DebugLevelInfra, "GetServerDetail num vms found", "numVMs", len(vms.VirtualMachines))
+	log.SpanLog(ctx, log.DebugLevelInfra, "GetGovcVm num vms found", "numVMs", len(vms.VirtualMachines))
 	if len(vms.VirtualMachines) == 0 {
-		log.SpanLog(ctx, log.DebugLevelInfra, "GetServerDetail not found", "vmname", vmname)
+		log.SpanLog(ctx, log.DebugLevelInfra, "GetGovcVm not found", "vmname", vmname)
 		return nil, fmt.Errorf(vmlayer.ServerDoesNotExistError)
 	}
 	if len(vms.VirtualMachines) > 1 {
 		log.SpanLog(ctx, log.DebugLevelInfra, "unexpected number of VM found", "vmname", vmname, "vms", vms, "out", string(out), "err", err)
 		return nil, fmt.Errorf("unexpected number of VM found: %d", len(vms.VirtualMachines))
 	}
+	return &vms.VirtualMachines[0], nil
+}
 
-	return v.getServerDetailFromGovcVm(ctx, &vms.VirtualMachines[0])
+func (v *VSpherePlatform) GetServerDetail(ctx context.Context, vmname string) (*vmlayer.ServerDetail, error) {
+	log.SpanLog(ctx, log.DebugLevelInfra, "GetServerDetail", "vmname", vmname)
+
+	govcVm, err := v.GetGovcVm(ctx, vmname)
+	if err != nil {
+		return nil, err
+	}
+	return v.getServerDetailFromGovcVm(ctx, govcVm)
 }
 
 func (v *VSpherePlatform) getVmNamesFromTags(ctx context.Context, tags []GovcTag) (map[string]string, error) {

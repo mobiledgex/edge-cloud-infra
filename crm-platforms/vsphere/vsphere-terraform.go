@@ -4,21 +4,18 @@ import (
 	"context"
 	"encoding/base64"
 	"fmt"
-	"io/ioutil"
 	"os"
 	"strings"
 	"sync"
 
-	"github.com/mobiledgex/edge-cloud-infra/infracommon"
 	"github.com/mobiledgex/edge-cloud-infra/vmlayer"
-	"github.com/mobiledgex/edge-cloud-infra/vmlayer/terraform"
-	"github.com/mobiledgex/edge-cloud/log"
 )
 
 var NumTerraformRetries = 2
 
 const DoesNotExistError string = "does not exist"
 
+const TagFieldGroup = "group"
 const TagFieldDomain = "domain"
 const TagFieldIp = "ip"
 const TagFieldSubnetName = "subnetname"
@@ -101,8 +98,8 @@ func (v *VSpherePlatform) GetDomainFromTag(ctx context.Context, tag string) (str
 
 }
 
-func (v *VSpherePlatform) GetVmIpTag(ctx context.Context, vmName, network, ipaddr string) string {
-	return TagFieldVmName + "=" + vmName + "," + TagFieldNetName + "=" + network + "," + TagFieldIp + "=" + ipaddr + "," + TagFieldDomain + "=" + string(v.vmProperties.Domain)
+func (v *VSpherePlatform) GetVmIpTag(ctx context.Context, group, vmName, network, ipaddr string) string {
+	return TagFieldGroup + "=" + group + "," + TagFieldVmName + "=" + vmName + "," + TagFieldNetName + "=" + network + "," + TagFieldIp + "=" + ipaddr + "," + TagFieldDomain + "=" + string(v.vmProperties.Domain)
 }
 
 // ParseVMIpTag returns vmname, network, ipaddr, domain
@@ -130,8 +127,8 @@ func (v *VSpherePlatform) ParseVMIpTag(ctx context.Context, tag string) (string,
 	return vmname, network, ip, domain, nil
 }
 
-func (v *VSpherePlatform) GetSubnetTag(ctx context.Context, subnetName, cidr string) string {
-	return TagFieldSubnetName + "=" + subnetName + "," + TagFieldCidr + "=" + cidr + "," + TagFieldDomain + "=" + string(v.vmProperties.Domain)
+func (v *VSpherePlatform) GetSubnetTag(ctx context.Context, group, subnetName, cidr string) string {
+	return TagFieldGroup + "=" + group + "," + TagFieldSubnetName + "=" + subnetName + "," + TagFieldCidr + "=" + cidr + "," + TagFieldDomain + "=" + string(v.vmProperties.Domain)
 }
 
 // ParseSubnetTag returns subnetName, cidr, domain
@@ -155,8 +152,8 @@ func (v *VSpherePlatform) ParseSubnetTag(ctx context.Context, tag string) (strin
 	return subnetName, cidr, domain, nil
 }
 
-func (v *VSpherePlatform) GetVmDomainTag(ctx context.Context, vmName string) string {
-	return TagFieldVmName + "=" + vmName + "," + TagFieldDomain + "=" + string(v.vmProperties.Domain)
+func (v *VSpherePlatform) GetVmDomainTag(ctx context.Context, group, vmName string) string {
+	return TagFieldGroup + "=" + group + "," + TagFieldVmName + "=" + vmName + "," + TagFieldDomain + "=" + string(v.vmProperties.Domain)
 }
 
 // ParseVMDomainTag returns vmname, domain
@@ -174,147 +171,6 @@ func (v *VSpherePlatform) ParseVMDomainTag(ctx context.Context, tag string) (str
 		return "", "", fmt.Errorf("No domain in vmdomain tag")
 	}
 	return vmName, domain, nil
-}
-
-func (v *VSpherePlatform) DetachPortFromServer(ctx context.Context, serverName, subnetName, portName string) error {
-	fileName := v.getTerraformDir(ctx) + "/" + serverName + ".tf"
-	log.SpanLog(ctx, log.DebugLevelInfra, "DetachPortFromServer", "serverName", "serverName", "subnetName", subnetName, "portName", portName, "fileName", fileName)
-
-	// backup file
-	backupFile := fileName + ".bak"
-	if err := infracommon.CopyFile(fileName, backupFile); err != nil {
-		return fmt.Errorf("can't backup file %s, %v", fileName, err)
-	}
-	defer os.Remove(backupFile)
-	input, err := ioutil.ReadFile(fileName)
-	if err != nil {
-		return err
-	}
-
-	beginTag := getCommentLabel(COMMENT_BEGIN, COMMENT_TAGS, subnetName+"__"+serverName)
-	endTag := getCommentLabel(COMMENT_END, COMMENT_TAGS, subnetName+"__"+serverName)
-
-	// remove the lines between the delimters above
-	lines := strings.Split(string(input), "\n")
-	var newlines []string
-	skipSection := false
-	currentNetId := fmt.Sprintf("network_id = vsphere_distributed_port_group.%s.id", subnetName)
-	unusedNetId := fmt.Sprintf("network_id = vsphere_distributed_port_group.%s.id", UnusedPortgroup)
-
-	for i, line := range lines {
-		line = strings.ReplaceAll(line, currentNetId, unusedNetId)
-		if strings.Contains(line, beginTag) {
-			log.SpanLog(ctx, log.DebugLevelInfra, "skipping lines starting from", "linenum", i, "fileName", fileName)
-			skipSection = true
-		}
-
-		if !skipSection {
-			newlines = append(newlines, line)
-		}
-		if strings.Contains(line, endTag) {
-			skipSection = false
-			log.SpanLog(ctx, log.DebugLevelInfra, "resuming lines starting from", "linenum", i, "fileName", fileName)
-		}
-	}
-	output := strings.Join(newlines, "\n")
-	err = ioutil.WriteFile(fileName, []byte(output), 0644)
-	if err != nil {
-		return err
-	}
-	log.SpanLog(ctx, log.DebugLevelInfra, "DetachPortFromServer doing apply after removing interfaces and tags", "serverName", serverName, "portName", portName)
-
-	out, err := terraform.TimedTerraformCommand(ctx, v.getTerraformDir(ctx), "terraform", "apply", "--auto-approve")
-	if err != nil {
-		log.SpanLog(ctx, log.DebugLevelInfra, "Terraform apply failed for detach port", "out", out, "fileName", fileName)
-		// revert backup file
-		revertErr := infracommon.CopyFile(backupFile, fileName)
-		if revertErr != nil {
-			log.SpanLog(ctx, log.DebugLevelInfra, "error in reverting backup file", "err", err, "backupFile", backupFile)
-		}
-	}
-	return err
-}
-
-func (v *VSpherePlatform) AttachPortToServer(ctx context.Context, serverName, subnetName, portName, ipaddr string, action vmlayer.ActionType) error {
-	fileName := v.getTerraformDir(ctx) + "/" + serverName + ".tf"
-	log.SpanLog(ctx, log.DebugLevelInfra, "AttachPortToServer", "serverName", serverName, "subnetName", subnetName, "fileName", fileName, "ipaddr", ipaddr, "action", action)
-	// backup file
-	backupFile := fileName + ".bak"
-	if err := infracommon.CopyFile(fileName, backupFile); err != nil {
-		return fmt.Errorf("can't backup file %s, %v", fileName, err)
-	}
-	defer os.Remove(backupFile)
-
-	newNetId := fmt.Sprintf("network_id = vsphere_distributed_port_group.%s.id", subnetName)
-	unusedNetId := fmt.Sprintf("network_id = vsphere_distributed_port_group.%s.id", UnusedPortgroup)
-
-	tagContents := ""
-	if ipaddr != "" {
-		tagName := v.GetVmIpTag(ctx, serverName, subnetName, ipaddr)
-		tagId := v.IdSanitize(tagName)
-
-		tagContents = fmt.Sprintf("	"+getCommentLabel(COMMENT_BEGIN, COMMENT_TAGS, subnetName+"__"+serverName)+`
-	## import vsphere_tag.%s {"category_name":"%s","tag_name":"%s"}
-	resource "vsphere_tag" "%s" {
-		name = "%s"
-		category_id = "${vsphere_tag_category.%s.id}"
-	}
-	`+getCommentLabel(COMMENT_END, COMMENT_TAGS, subnetName+"__"+serverName)+`
-		`, tagId, v.GetVmIpTagCategory(ctx), tagName, tagId, tagName, v.GetVmIpTagCategory(ctx))
-	}
-
-	input, err := ioutil.ReadFile(fileName)
-	if err != nil {
-		return err
-	}
-
-	lines := strings.Split(string(input), "\n")
-	var newlines []string
-	replacedUnusedIf := false
-	newInterface := fmt.Sprintf("		"+`network_interface {
-			%s
-		}`, newNetId)
-
-	for _, line := range lines {
-		// find an unused entry to fill, unless we are doing a sync action
-		// in which case we can be adding unused entries.
-		if !replacedUnusedIf {
-			if strings.Contains(line, unusedNetId) {
-				line = strings.ReplaceAll(line, unusedNetId, newNetId)
-				replacedUnusedIf = true
-			}
-		}
-		if strings.Contains(line, "## END NETWORK INTERFACES for "+serverName) {
-			if !replacedUnusedIf {
-				newlines = append(newlines, newInterface)
-			}
-		}
-		newlines = append(newlines, line)
-	}
-
-	if tagContents != "" {
-		newlines = append(newlines, tagContents)
-	}
-	output := strings.Join(newlines, "\n")
-
-	err = ioutil.WriteFile(fileName, []byte(output), 0644)
-	if err != nil {
-		return err
-	}
-	if action == vmlayer.ActionCreate {
-		log.SpanLog(ctx, log.DebugLevelInfra, "AttachPortToServer doing apply after adding interfaces and tags", "serverName", serverName, "portName", portName)
-		out, err := terraform.TimedTerraformCommand(ctx, v.getTerraformDir(ctx), "terraform", "apply", "--auto-approve")
-		if err != nil {
-			log.SpanLog(ctx, log.DebugLevelInfra, "Terraform apply failed for attach port", "out", out, "fileName", fileName)
-			// revert backup file
-			revertErr := infracommon.CopyFile(backupFile, fileName)
-			if revertErr != nil {
-				log.SpanLog(ctx, log.DebugLevelInfra, "error in reverting backup file", "err", err, "backupFile", backupFile)
-			}
-			return err
-		}
-	}
-	return err
 }
 
 func (v *VSpherePlatform) populateGeneralParams(ctx context.Context, planName string, vgp *VSphereGeneralParams) error {

@@ -9,7 +9,6 @@ import (
 
 	"github.com/gogo/protobuf/types"
 	"github.com/mobiledgex/edge-cloud-infra/vmlayer"
-	"github.com/mobiledgex/edge-cloud-infra/vmlayer/terraform"
 	"github.com/mobiledgex/edge-cloud/cloud-resource-manager/platform"
 	"github.com/mobiledgex/edge-cloud/cloudcommon"
 	"github.com/mobiledgex/edge-cloud/edgeproto"
@@ -81,10 +80,6 @@ func (v *VSpherePlatform) IdSanitize(name string) string {
 	str = strings.ReplaceAll(str, ".", "-")
 	str = strings.ReplaceAll(str, "=", "-")
 	return str
-}
-
-func (v *VSpherePlatform) DeleteResources(ctx context.Context, resourceGroupName string) error {
-	return terraform.DeleteTerraformPlan(ctx, v.getTerraformDir(ctx), resourceGroupName)
 }
 
 func (v *VSpherePlatform) GetResourceID(ctx context.Context, resourceType vmlayer.ResourceType, resourceName string) (string, error) {

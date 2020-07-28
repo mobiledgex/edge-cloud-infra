@@ -481,7 +481,7 @@ func (v *VMPlatform) isClusterReady(ctx context.Context, clusterInst *edgeproto.
 	}
 	if readyCount < (clusterInst.NumNodes + clusterInst.NumMasters) {
 		log.SpanLog(ctx, log.DebugLevelInfra, "kubernetes cluster not ready", "readyCount", readyCount, "notReadyCount", notReadyCount)
-		return false, 0, nil
+		return false, readyCount, nil
 	}
 	log.SpanLog(ctx, log.DebugLevelInfra, "cluster nodes ready", "numnodes", clusterInst.NumNodes, "nummasters", clusterInst.NumMasters, "readyCount", readyCount, "notReadyCount", notReadyCount)
 

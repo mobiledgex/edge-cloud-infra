@@ -319,7 +319,7 @@ func (v *VSpherePlatform) GetUsedSubnetCIDRs(ctx context.Context) (map[string]st
 	log.SpanLog(ctx, log.DebugLevelInfra, "GetUsedSubnetCIDRs")
 
 	cidrUsed := make(map[string]string)
-	tags, err := v.getTagsForCategory(ctx, v.GetSubnetTagCategory(ctx), vmlayer.VMDomainAny)
+	tags, err := v.GetTagsForCategory(ctx, v.GetSubnetTagCategory(ctx), vmlayer.VMDomainAny)
 	if err != nil {
 		return nil, err
 	}
@@ -348,141 +348,18 @@ func (v *VSpherePlatform) GetTags(ctx context.Context) ([]GovcTag, error) {
 
 func (v *VSpherePlatform) GetTagsMatchingField(ctx context.Context, fieldName string, fieldValue string, category string) ([]GovcTag, error) {
 	var matchTags []GovcTag
-	catTags, err := v.getTagsForCategory(ctx, category, vmlayer.VMDomainAny)
+	catTags, err := v.GetTagsForCategory(ctx, category, vmlayer.VMDomainAny)
 	if err != nil {
 		return nil, err
 	}
 	for _, t := range catTags {
-		fm, err := getTagFieldMap(t.Name)
-		if err != nil {
-			return nil, err
-		}
-		tagval, ok := fm[fieldName]
-		if ok && tagval == fieldValue {
+		tagval, err := v.GetValueForTagField(t.Name, fieldName)
+		if err == nil && tagval == fieldValue {
 			matchTags = append(matchTags, t)
 		}
 	}
 	//	vmipTags :=
 	return matchTags, nil
-}
-
-func (v *VSpherePlatform) getTagsForCategory(ctx context.Context, category string, domainMatch vmlayer.VMDomain) ([]GovcTag, error) {
-	log.SpanLog(ctx, log.DebugLevelInfra, "getTagsForCategory", "category", category, "domainMatch", domainMatch)
-
-	out, err := v.TimedGovcCommand(ctx, "govc", "tags.ls", "-c", category, "-json")
-
-	var tags []GovcTag
-	var matchedTags []GovcTag
-	err = json.Unmarshal(out, &tags)
-	if err != nil {
-		log.SpanLog(ctx, log.DebugLevelInfra, "getTagsForCategory unmarshal fail", "out", string(out), "err", err)
-		err = fmt.Errorf("cannot unmarshal govc subnet tags, %v", err)
-		return nil, err
-	}
-	// due to an intermittent govc bug (or maybe a vsphere bug), sometimes the category id in the tag is a UUID instead
-	// of a name so we will update it here before returning to get consistent results
-	for _, t := range tags {
-		domain, err := v.GetDomainFromTag(ctx, t.Name)
-		if err != nil {
-			return nil, err
-		}
-		if domainMatch == vmlayer.VMDomainAny || domain == string(domainMatch) {
-			if t.Category != category {
-				log.SpanLog(ctx, log.DebugLevelInfra, "Updating category for tag", "orig category", t.Category, "category", category)
-				t.Category = category
-			}
-			matchedTags = append(matchedTags, t)
-		}
-	}
-	return matchedTags, nil
-}
-
-func (v *VSpherePlatform) GetTagCategories(ctx context.Context) ([]GovcTagCategory, error) {
-	dcName := v.GetDatacenterName(ctx)
-
-	out, err := v.TimedGovcCommand(ctx, "govc", "tags.category.ls", "-json")
-	if err != nil {
-		return nil, err
-	}
-
-	var foundcats []GovcTagCategory
-	var returnedcats []GovcTagCategory
-	err = json.Unmarshal(out, &foundcats)
-	if err != nil {
-		return nil, err
-
-	}
-	// exclude the ones not in our datacenter
-	for _, c := range foundcats {
-		if strings.HasPrefix(c.Name, dcName) {
-			returnedcats = append(returnedcats, c)
-		}
-	}
-	return returnedcats, err
-}
-
-func (v *VSpherePlatform) CreateTag(ctx context.Context, tag *vmlayer.TagOrchestrationParams) error {
-	log.SpanLog(ctx, log.DebugLevelInfra, "CreateTag", "tag", tag)
-
-	out, err := v.TimedGovcCommand(ctx, "govc", "tags.create", "-c", tag.Category, tag.Name)
-	if err != nil {
-		if strings.Contains(string(out), "ALREADY_EXISTS") {
-			log.SpanLog(ctx, log.DebugLevelInfra, "Tag already exists", "tag", tag)
-			return nil
-		}
-		return fmt.Errorf("Error in creating tag: %s - %v", tag.Name, err)
-	}
-	return nil
-}
-
-func (v *VSpherePlatform) DeleteTag(ctx context.Context, tagname string) error {
-	log.SpanLog(ctx, log.DebugLevelInfra, "DeleteTag", "tagname", tagname)
-
-	out, err := v.TimedGovcCommand(ctx, "govc", "tags.rm", tagname)
-	if err != nil {
-		log.SpanLog(ctx, log.DebugLevelInfra, "Tag delete fail", "out", out, "err", err)
-		return fmt.Errorf("Error in deleting tag: %s - %v", tagname, err)
-	}
-	return nil
-}
-
-func (v *VSpherePlatform) GetIpsFromTagsForVM(ctx context.Context, vmName string, sd *vmlayer.ServerDetail) error {
-	log.SpanLog(ctx, log.DebugLevelInfra, "GetIpsFromTagsForVM", "vmName", vmName)
-	tags, err := v.getTagsForCategory(ctx, v.GetVmIpTagCategory(ctx), vmlayer.VMDomainAny)
-	if err != nil {
-		return err
-	}
-	for _, t := range tags {
-		vm, net, ip, _, err := v.ParseVMIpTag(ctx, t.Name)
-		if err != nil {
-			return err
-		}
-		if vm != vmName {
-			continue
-		}
-
-		// see if there is an existing port in the server details and update it
-		found := false
-		for i, s := range sd.Addresses {
-			if s.Network == net {
-				log.SpanLog(ctx, log.DebugLevelInfra, "Updated address via tag", "vm", vm, "net", net, "ip", ip)
-				sd.Addresses[i].ExternalAddr = ip
-				sd.Addresses[i].InternalAddr = ip
-				found = true
-			}
-		}
-		if !found {
-			sip := vmlayer.ServerIP{
-				InternalAddr: ip,
-				ExternalAddr: ip,
-				Network:      net,
-				PortName:     vmlayer.GetPortName(vmName, net),
-			}
-			sd.Addresses = append(sd.Addresses, sip)
-			log.SpanLog(ctx, log.DebugLevelInfra, "Added address via tag", "vm", vm, "net", net, "ip", ip)
-		}
-	}
-	return nil
 }
 
 func (v *VSpherePlatform) GetExternalIPForServer(ctx context.Context, server string) (string, error) {
@@ -505,7 +382,7 @@ func (v *VSpherePlatform) GetUsedExternalIPs(ctx context.Context) (map[string]st
 	ipsUsed := make(map[string]string)
 	extNetId := v.IdSanitize(v.vmProperties.GetCloudletExternalNetwork())
 
-	tags, err := v.getTagsForCategory(ctx, v.GetVmIpTagCategory(ctx), vmlayer.VMDomainAny)
+	tags, err := v.GetTagsForCategory(ctx, v.GetVmIpTagCategory(ctx), vmlayer.VMDomainAny)
 	if err != nil {
 		return nil, err
 	}
@@ -675,24 +552,12 @@ func (v *VSpherePlatform) GetServerDetail(ctx context.Context, vmname string) (*
 	return v.getServerDetailFromGovcVm(ctx, govcVm)
 }
 
-func (v *VSpherePlatform) getVmNamesFromTags(ctx context.Context, tags []GovcTag) (map[string]string, error) {
-	names := make(map[string]string)
-	for _, tag := range tags {
-		vmname, _, err := v.ParseVMDomainTag(ctx, tag.Name)
-		if err != nil {
-			return nil, err
-		}
-		names[vmname] = vmname
-	}
-	return names, nil
-}
-
 func (v *VSpherePlatform) GetVMs(ctx context.Context, vmNameMatch string, domainMatch vmlayer.VMDomain) (*GovcVMs, error) {
 	log.SpanLog(ctx, log.DebugLevelInfra, "GetVMs", "vmNameMatch", vmNameMatch, "domainMatch", domainMatch)
 	var vms GovcVMs
 	dcName := v.GetDatacenterName(ctx)
 
-	vmtags, err := v.getTagsForCategory(ctx, v.GetVMDomainTagCategory(ctx), domainMatch)
+	vmtags, err := v.GetTagsForCategory(ctx, v.GetVMDomainTagCategory(ctx), domainMatch)
 	if err != nil {
 		return nil, err
 	}
@@ -715,7 +580,7 @@ func (v *VSpherePlatform) GetVMs(ctx context.Context, vmNameMatch string, domain
 		// no tag filtering
 		return &vms, nil
 	}
-	vmnames, err := v.getVmNamesFromTags(ctx, vmtags)
+	vmnames, err := v.GetVmNamesFromTags(ctx, vmtags)
 	if err != nil {
 		return nil, err
 	}
@@ -779,80 +644,6 @@ func (v *VSpherePlatform) GetConsoleUrl(ctx context.Context, serverName string) 
 	cookie64 := base64.StdEncoding.EncodeToString([]byte(cookieString))
 
 	return urlObj.String() + "&" + "sessioncookie=" + cookie64, nil
-}
-
-func (v *VSpherePlatform) CreateTemplateFromImage(ctx context.Context, imageFolder string, imageFile string) error {
-	log.SpanLog(ctx, log.DebugLevelInfra, "CreateTemplateFromImage", "imageFile", imageFile)
-	ds := v.GetDataStore()
-	dcName := v.GetDatacenterName(ctx)
-	templateName := imageFile
-	folder := v.GetTemplateFolder()
-	extNet := v.vmProperties.GetCloudletExternalNetwork()
-	pool := fmt.Sprintf("/%s/host/%s/Resources", v.GetDatacenterName(ctx), v.GetComputeCluster())
-
-	// create the VM which will become our template
-	out, err := v.TimedGovcCommand(ctx, "govc", "vm.create", "-g", "ubuntu64Guest", "-pool", pool, "-ds", ds, "-dc", dcName, "-folder", folder, "-disk", imageFolder+"/"+imageFile+".vmdk", "-net", extNet, templateName)
-	if err != nil {
-		log.SpanLog(ctx, log.DebugLevelInfra, "Failed to create template VM", "out", string(out), "err", err)
-		return fmt.Errorf("Failed to create template VM: %v", err)
-	}
-
-	// try to get server detail which will ensure vmtools is running which needs to be set in the template's data
-	_, err = v.GetServerDetail(ctx, folder+"/"+templateName)
-	if err != nil {
-		return err
-	}
-	// shut off the VM
-	err = v.SetPowerState(ctx, folder+"/"+templateName, vmlayer.ActionStop)
-	if err != nil {
-		return err
-	}
-	// mark the VM as a template
-	out, err = v.TimedGovcCommand(ctx, "govc", "vm.markastemplate", "-dc", dcName, templateName)
-	if err != nil {
-		log.SpanLog(ctx, log.DebugLevelInfra, "Failed to mark VM as template", "out", string(out), "err", err)
-		return fmt.Errorf("Failed to mark VM as template: %v", err)
-	}
-	return nil
-}
-
-func (v *VSpherePlatform) ImportImage(ctx context.Context, folder, imageFile string) error {
-	log.SpanLog(ctx, log.DebugLevelInfra, "ImportImage", "imageFile", imageFile)
-	ds := v.GetDataStore()
-	dcName := v.GetDatacenterName(ctx)
-
-	// first delete anything that may be there for this image
-	v.DeleteImage(ctx, folder, imageFile)
-
-	pool := fmt.Sprintf("/%s/host/%s/Resources", v.GetDatacenterName(ctx), v.GetComputeCluster())
-	out, err := v.TimedGovcCommand(ctx, "govc", "import.vmdk", "-force", "-pool", pool, "-ds", ds, "-dc", dcName, imageFile, folder)
-
-	if err != nil {
-		log.SpanLog(ctx, log.DebugLevelInfra, "ImportImage fail", "out", string(out), "err", err)
-		return fmt.Errorf("Import Image Fail: %v", err)
-	} else {
-		log.SpanLog(ctx, log.DebugLevelInfra, "ImportImage OK", "out", string(out))
-	}
-	return nil
-}
-
-func (v *VSpherePlatform) DeleteImage(ctx context.Context, folder, image string) error {
-	log.SpanLog(ctx, log.DebugLevelInfra, "DeleteImage", "image", image)
-	ds := v.GetDataStore()
-	dcName := v.GetDatacenterName(ctx)
-
-	out, err := v.TimedGovcCommand(ctx, "govc", "datastore.rm", "-ds", ds, "-dc", dcName, folder)
-	if err != nil {
-		if strings.Contains(string(out), "not found") {
-			log.SpanLog(ctx, log.DebugLevelInfra, "DeleteImage -- dir does not exist", "out", string(out), "err", err)
-		} else {
-			log.SpanLog(ctx, log.DebugLevelInfra, "DeleteImage fail", "out", string(out), "err", err)
-		}
-	} else {
-		log.SpanLog(ctx, log.DebugLevelInfra, "DeleteImage OK", "out", string(out))
-	}
-
-	return err
 }
 
 func (v *VSpherePlatform) GetMetrics(ctx context.Context, vmMatch string, collectRequest *MetricsCollectionRequestType) (*MetricsResult, error) {

@@ -163,27 +163,8 @@ func (v *VSpherePlatform) GetApiEndpointAddr(ctx context.Context) (string, error
 
 func (v *VSpherePlatform) GetCloudletManifest(ctx context.Context, name string, VMGroupOrchestrationParams *vmlayer.VMGroupOrchestrationParams) (string, error) {
 	log.SpanLog(ctx, log.DebugLevelInfra, "GetCloudletManifest", "name", name, "VMGroupOrchestrationParams", VMGroupOrchestrationParams)
-	// because we look for free IPs when defining the orchestration parms which are not reserved
-	// until the plan is created, we need to lock this whole function
-	vmOrchestrateLock.Lock()
-	defer vmOrchestrateLock.Unlock()
-
-	planName := v.NameSanitize(VMGroupOrchestrationParams.GroupName)
-	var vgp VSphereGeneralParams
-	err := v.populateGeneralParams(ctx, planName, &vgp)
-	if err != nil {
-		return "", err
-	}
-	err = v.populateOrchestrationParams(ctx, VMGroupOrchestrationParams, vmlayer.ActionCreate)
-	if err != nil {
-		return "", err
-	}
-
-	buf, err := vmlayer.ExecTemplate(name, vmGroupTemplate, VMGroupOrchestrationParams)
-	if err != nil {
-		return "", err
-	}
-	return buf.String(), nil
+	// this will be done via an OVF template
+	return "", fmt.Errorf("GetCloudletManifest not yet implemented for vSphere")
 }
 
 func (s *VSpherePlatform) VerifyVMs(ctx context.Context, vms []edgeproto.VM) error {

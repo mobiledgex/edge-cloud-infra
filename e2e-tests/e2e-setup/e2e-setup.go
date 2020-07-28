@@ -75,6 +75,7 @@ type DeploymentData struct {
 	Exporters           []*intprocess.Exporter     `yaml:"exporter"`
 	ChefServers         []*intprocess.ChefServer   `yaml:"chefserver"`
 	Alertmanagers       []*intprocess.Alertmanager `yaml:"alertmanagers"`
+	Maildevs            []*intprocess.Maildev      `yaml:"maildevs"`
 }
 
 // a comparison and yaml friendly version of AllMetrics for e2e-tests
@@ -147,6 +148,9 @@ func GetAllProcesses() []process.Process {
 		all = append(all, p)
 	}
 	for _, p := range Deployment.ChefServers {
+		all = append(all, p)
+	}
+	for _, p := range Deployment.Maildevs {
 		all = append(all, p)
 	}
 	return all
@@ -293,6 +297,11 @@ func StartProcesses(processName string, args []string, outputDir string) bool {
 		}
 	}
 	for _, p := range Deployment.ChefServers {
+		if !setupmex.StartLocal(processName, outputDir, p, opts...) {
+			return false
+		}
+	}
+	for _, p := range Deployment.Maildevs {
 		if !setupmex.StartLocal(processName, outputDir, p, opts...) {
 			return false
 		}

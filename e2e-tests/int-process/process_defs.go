@@ -85,3 +85,10 @@ type Alertmanager struct {
 	Port           int
 	cmd            *exec.Cmd
 }
+
+type Maildev struct {
+	process.Common `yaml:",inline"`
+	Uiport         int
+	Mailport       int
+	cmd            *exec.Cmd
+}

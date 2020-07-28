@@ -13,7 +13,10 @@ var testSmtpInfo = smtpInfo{
 	User:  "testuser",
 	Token: "12345",
 	Smtp:  "localhost",
+	Port:  "25",
+	Tls:   "false",
 }
+
 var testRegions = []string{"testRegion1", "testRegion2"}
 var testUsers = []string{"testuser1", "testuser2"}
 

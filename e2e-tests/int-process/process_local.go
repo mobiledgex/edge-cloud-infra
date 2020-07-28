@@ -672,3 +672,26 @@ func (p *Alertmanager) StopLocal() {
 func (p *Alertmanager) GetExeName() string { return "docker" }
 
 func (p *Alertmanager) LookupArgs() string { return p.Name }
+
+func (p *Maildev) StartLocal(logfile string, opts ...process.StartOp) error {
+	args := []string{
+		"run", "--rm",
+		"-p", fmt.Sprintf("%d:%d", p.Uiport, 80),
+		"-p", fmt.Sprintf("%d:%d", p.Mailport, 25),
+		"--name", p.Name,
+		"maildev/maildev:1.1.0",
+	}
+	var err error
+	p.cmd, err = process.StartLocal(p.Name, p.GetExeName(), args, nil, logfile)
+	return err
+}
+
+func (p *Maildev) StopLocal() {
+	process.StopLocal(p.cmd)
+	cmd := exec.Command("docker", "kill", p.Name)
+	cmd.Run()
+}
+
+func (p *Maildev) GetExeName() string { return "docker" }
+
+func (p *Maildev) LookupArgs() string { return p.Name }

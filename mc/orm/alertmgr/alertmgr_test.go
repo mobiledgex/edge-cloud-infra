@@ -310,6 +310,14 @@ func TestAlertMgrServer(t *testing.T) {
 	fakeAlertmanager.verifyAlertCnt(t, 0)
 	// Default is one receiver
 	fakeAlertmanager.verifyReceiversCnt(t, 1)
+	// Make sure that the values for the global config are correct
+	require.Equal(t, testSmtpInfo.Email, AlertManagerConfig.Global.SMTPFrom)
+	require.Equal(t, testSmtpInfo.User, AlertManagerConfig.Global.SMTPAuthUsername)
+	require.Equal(t, testSmtpInfo.Smtp, AlertManagerConfig.Global.SMTPSmarthost.Host)
+	require.Equal(t, testSmtpInfo.Port, AlertManagerConfig.Global.SMTPSmarthost.Port)
+	require.Equal(t, testSmtpInfo.Token, string(AlertManagerConfig.Global.SMTPAuthPassword))
+	require.Equal(t, (testSmtpInfo.Tls == "true"), AlertManagerConfig.Global.SMTPRequireTLS)
+
 	testAlertCache.SetUpdatedCb(testAlertMgrServer.UpdateAlert)
 
 	// Check that an alert notification triggers an api call to alertmgr

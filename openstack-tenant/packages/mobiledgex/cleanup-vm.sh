@@ -60,10 +60,7 @@ if [[ -f /etc/chef/client.rb ]]; then
   log "Remove chef client.rb file"
   rm /etc/chef/client.rb
 fi
-systemctl is-active --quiet chef-client
-if [[ $? -eq 0 ]]; then
-  log "Stop chef-client"
-  systemctl stop chef-client
-fi
+log "Stop chef-client"
+systemctl stop chef-client
 
 echo "[$(date)] Done cleanup-vm.sh ($( pwd ))"

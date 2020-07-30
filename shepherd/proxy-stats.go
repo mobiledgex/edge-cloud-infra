@@ -141,7 +141,7 @@ func CollectProxyStats(ctx context.Context, appInst *edgeproto.AppInst) string {
 			}
 		}
 		// Don't need to scrape anything if no ports are trackable
-		if len(scrapePoint.Ports) == 0 {
+		if len(scrapePoint.Ports) == 0 && len(scrapePoint.UdpPorts) == 0 {
 			return ""
 		}
 

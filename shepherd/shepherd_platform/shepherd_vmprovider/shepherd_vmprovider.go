@@ -77,6 +77,7 @@ func (s *ShepherdPlatform) SetVMPool(ctx context.Context, vmPool *edgeproto.VMPo
 		}
 		caches.VMPoolMux.Lock()
 		defer caches.VMPoolMux.Unlock()
+		caches.VMPool = vmPool
 		s.VMPlatform.VMProvider.SetCaches(ctx, caches)
 	}
 }

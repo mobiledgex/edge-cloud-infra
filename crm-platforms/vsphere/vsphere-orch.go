@@ -633,10 +633,10 @@ func (v *VSpherePlatform) UpdateVMs(ctx context.Context, vmgp *vmlayer.VMGroupOr
 
 	log.SpanLog(ctx, log.DebugLevelInfra, "UpdateVMs", "num VMs to create", len(vmsToCreate), "num VMs to delete", len(vmsToDelete), "VMS", vmsToCreate)
 	for _, tag := range vmgp.Tags {
-		// apply any tags that related to a new vm
+		// apply any tags that relate to a new vm
 		vmname, err := v.GetValueForTagField(tag.Name, TagFieldVmName)
-		log.SpanLog(ctx, log.DebugLevelInfra, "UpdateVMs found tag", "tag", tag.Name, "vmname", vmname, "err", err)
 		if err == nil {
+			log.SpanLog(ctx, log.DebugLevelInfra, "UpdateVMs found tag", "tag", tag.Name, "vmname", vmname, "err", err)
 			_, isnew := vmsToCreate[vmname]
 			if isnew {
 				err := v.CreateTag(ctx, &tag)

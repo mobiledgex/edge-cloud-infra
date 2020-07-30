@@ -24,8 +24,7 @@ type VMProvider interface {
 	IdSanitize(string) string
 	GetProviderSpecificProps() map[string]*infracommon.PropertyInfo
 	SetVMProperties(vmProperties *VMProperties)
-	SetCaches(ctx context.Context, caches *platform.Caches)
-	InitProvider(ctx context.Context, caches *platform.Caches, updateCallback edgeproto.CacheUpdateCallback) error
+	InitProvider(ctx context.Context, caches *platform.Caches, stage ProviderInitStage, updateCallback edgeproto.CacheUpdateCallback) error
 	GetFlavorList(ctx context.Context) ([]*edgeproto.FlavorInfo, error)
 	GetNetworkList(ctx context.Context) ([]string, error)
 	AddCloudletImageIfNotPresent(ctx context.Context, imgPathPrefix, imgVersion string, updateCallback edgeproto.CacheUpdateCallback) (string, error)
@@ -128,6 +127,14 @@ const (
 	VMProviderOpenstack string = "openstack"
 	VMProviderVSphere   string = "vsphere"
 	VMProviderVMPool    string = "vmpool"
+)
+
+type ProviderInitStage string
+
+const (
+	ProviderInitCreateCloudlet ProviderInitStage = "CreateCloudlet"
+	ProviderInitPlatformStart  ProviderInitStage = "PlatformStart"
+	ProviderInitDeleteCloudlet ProviderInitStage = "DeleteCloudlet"
 )
 
 type StringSanitizer func(value string) string
@@ -271,7 +278,7 @@ func (v *VMPlatform) Init(ctx context.Context, platformConfig *platform.Platform
 	}
 
 	log.SpanLog(ctx, log.DebugLevelInfra, "doing init provider")
-	if err := v.VMProvider.InitProvider(ctx, caches, updateCallback); err != nil {
+	if err := v.VMProvider.InitProvider(ctx, caches, ProviderInitPlatformStart, updateCallback); err != nil {
 		return err
 	}
 	v.FlavorList, err = v.VMProvider.GetFlavorList(ctx)

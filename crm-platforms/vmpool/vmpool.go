@@ -32,17 +32,15 @@ func (o *VMPoolPlatform) GetCloudletKey() *edgeproto.CloudletKey {
 	return o.VMProperties.CommonPf.PlatformConfig.CloudletKey
 }
 
-func (o *VMPoolPlatform) InitProvider(ctx context.Context, caches *platform.Caches, updateCallback edgeproto.CacheUpdateCallback) error {
-	log.SpanLog(ctx, log.DebugLevelInfra, "InitProvider for VM Pool")
-
-	o.SetCaches(ctx, caches)
-	updateCallback(edgeproto.UpdateTask, "Verifying VMs")
-	return o.VerifyVMs(ctx, caches.VMPool.Vms)
-}
-
-func (o *VMPoolPlatform) SetCaches(ctx context.Context, caches *platform.Caches) {
-	log.SpanLog(ctx, log.DebugLevelInfra, "SetCaches")
+func (o *VMPoolPlatform) InitProvider(ctx context.Context, caches *platform.Caches, stage vmlayer.ProviderInitStage, updateCallback edgeproto.CacheUpdateCallback) error {
+	log.SpanLog(ctx, log.DebugLevelInfra, "InitProvider for VM Pool", "stage", stage)
 	o.caches = caches
+	updateCallback(edgeproto.UpdateTask, "Verifying VMs")
+	// should we do this on create cloudlet as well?
+	if stage == vmlayer.ProviderInitPlatformStart {
+		return o.VerifyVMs(ctx, caches.VMPool.Vms)
+	}
+	return nil
 }
 
 func (o *VMPoolPlatform) GatherCloudletInfo(ctx context.Context, info *edgeproto.CloudletInfo) error {

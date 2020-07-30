@@ -26,13 +26,12 @@ func (o *OpenstackPlatform) SetVMProperties(vmProperties *vmlayer.VMProperties) 
 	o.VMProperties = vmProperties
 }
 
-func (o *OpenstackPlatform) InitProvider(ctx context.Context, caches *platform.Caches, updateCallback edgeproto.CacheUpdateCallback) error {
+func (o *OpenstackPlatform) InitProvider(ctx context.Context, caches *platform.Caches, stage vmlayer.ProviderInitStage, updateCallback edgeproto.CacheUpdateCallback) error {
 	o.initDebug(o.VMProperties.CommonPf.PlatformConfig.NodeMgr)
-	return o.PrepNetwork(ctx)
-}
-
-func (o *OpenstackPlatform) SetCaches(ctx context.Context, caches *platform.Caches) {
-	// openstack doesn't need caches
+	if stage == vmlayer.ProviderInitPlatformStart {
+		return o.PrepNetwork(ctx)
+	}
+	return nil
 }
 
 func (o *OpenstackPlatform) GatherCloudletInfo(ctx context.Context, info *edgeproto.CloudletInfo) error {

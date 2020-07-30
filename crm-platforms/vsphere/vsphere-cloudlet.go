@@ -161,10 +161,13 @@ func (v *VSpherePlatform) GetApiEndpointAddr(ctx context.Context) (string, error
 	return vcaddr, nil
 }
 
+// GetCloudletManifest follows the standard practice for vSphere to use OVF for this purpose.  We store the OVF
+// in artifactory along with with the vmdk formatted disk.  No customization is needed per cloudlet as the OVF
+// import tool will prompt for datastore and portgroup.
 func (v *VSpherePlatform) GetCloudletManifest(ctx context.Context, name string, VMGroupOrchestrationParams *vmlayer.VMGroupOrchestrationParams) (string, error) {
 	log.SpanLog(ctx, log.DebugLevelInfra, "GetCloudletManifest", "name", name, "VMGroupOrchestrationParams", VMGroupOrchestrationParams)
-	// this will be done via an OVF template
-	return "", fmt.Errorf("GetCloudletManifest not yet implemented for vSphere")
+	ovfLocation := vmlayer.DefaultCloudletVMImagePath + "/vsphere-ovf-" + vmlayer.MEXInfraVersion
+	return fmt.Sprintf("Download OVF template from: %s", ovfLocation), nil
 }
 
 func (s *VSpherePlatform) VerifyVMs(ctx context.Context, vms []edgeproto.VM) error {

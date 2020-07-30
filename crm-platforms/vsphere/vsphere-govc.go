@@ -214,7 +214,7 @@ func (v *VSpherePlatform) TimedGovcCommand(ctx context.Context, name string, a .
 
 	out, err := newSh.Command(name, a).CombinedOutput()
 	if err != nil {
-		log.InfoLog("Govc command returned error", "parms", parmstr, "out", string(out), "err", err, "elapsed time", time.Since(start))
+		log.SpanLog(ctx, log.DebugLevelInfra, "Govc command returned error", "parms", parmstr, "out", string(out), "err", err, "elapsed time", time.Since(start))
 		return out, err
 	}
 	log.SpanLog(ctx, log.DebugLevelInfra, "Govc Command Done", "parmstr", parmstr, "elapsed time", time.Since(start))
@@ -332,34 +332,6 @@ func (v *VSpherePlatform) GetUsedSubnetCIDRs(ctx context.Context) (map[string]st
 	}
 
 	return cidrUsed, nil
-}
-
-func (v *VSpherePlatform) GetTags(ctx context.Context) ([]GovcTag, error) {
-	out, err := v.TimedGovcCommand(ctx, "govc", "tags.ls", "-json")
-	var tags []GovcTag
-	err = json.Unmarshal(out, &tags)
-	if err != nil {
-		log.SpanLog(ctx, log.DebugLevelInfra, "GetTags unmarshal fail", "out", string(out), "err", err)
-		err = fmt.Errorf("cannot unmarshal govc tags, %v", err)
-		return nil, err
-	}
-	return tags, nil
-}
-
-func (v *VSpherePlatform) GetTagsMatchingField(ctx context.Context, fieldName string, fieldValue string, category string) ([]GovcTag, error) {
-	var matchTags []GovcTag
-	catTags, err := v.GetTagsForCategory(ctx, category, vmlayer.VMDomainAny)
-	if err != nil {
-		return nil, err
-	}
-	for _, t := range catTags {
-		tagval, err := v.GetValueForTagField(t.Name, fieldName)
-		if err == nil && tagval == fieldValue {
-			matchTags = append(matchTags, t)
-		}
-	}
-	//	vmipTags :=
-	return matchTags, nil
 }
 
 func (v *VSpherePlatform) GetExternalIPForServer(ctx context.Context, server string) (string, error) {
@@ -698,4 +670,20 @@ func (v *VSpherePlatform) GetMetrics(ctx context.Context, vmMatch string, collec
 		}
 	}
 	return &result, nil
+}
+
+func (v *VSpherePlatform) CreateTemplateFolder(ctx context.Context) error {
+	log.SpanLog(ctx, log.DebugLevelMetrics, "CreateTemplateFolder")
+
+	dcName := v.GetDatacenterName(ctx)
+	folderPath := fmt.Sprintf("/%s/vm/%s", dcName, v.GetTemplateFolder())
+	out, err := v.TimedGovcCommand(ctx, "govc", "folder.create", "-dc", dcName, folderPath)
+	if err != nil {
+		if strings.Contains(string(out), "already exists") {
+			log.SpanLog(ctx, log.DebugLevelMetrics, "Template folder %s already exists", folderPath)
+			return nil
+		}
+		return fmt.Errorf("unable to create template folder: %s", folderPath)
+	}
+	return nil
 }

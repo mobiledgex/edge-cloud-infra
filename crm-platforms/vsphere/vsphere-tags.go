@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"strconv"
 	"strings"
+	"sync"
 
 	"github.com/mobiledgex/edge-cloud-infra/vmlayer"
 	"github.com/mobiledgex/edge-cloud/log"
@@ -21,6 +22,11 @@ const TagFieldVmName = "vmname"
 const TagFieldNetName = "netname"
 
 const TagNotFound = "tag not found"
+
+// vCenter has a bug in which if the tag query API is run while a tag delete is in progress, the query
+// will return and error, even if the tag being deleted is just one of many.  To avoid this, lock around
+// all tag operations.  These are fairly fast and so will not slow things down much to lock around.
+var tagMux sync.Mutex
 
 func (v *VSpherePlatform) GetTagFieldMap(tag string) (map[string]string, error) {
 	fieldMap := make(map[string]string)
@@ -48,16 +54,16 @@ func (v *VSpherePlatform) GetValueForTagField(tag string, fieldName string) (str
 
 }
 
-func (v *VSpherePlatform) GetVmIpTagCategory(ctx context.Context) string {
-	return v.GetDatacenterName(ctx) + "-vmip"
+func (v *VSpherePlatform) GetVMDomainTagCategory(ctx context.Context) string {
+	return v.GetDatacenterName(ctx) + "-vmdomain"
 }
 
 func (v *VSpherePlatform) GetSubnetTagCategory(ctx context.Context) string {
 	return v.GetDatacenterName(ctx) + "-subnet"
 }
 
-func (v *VSpherePlatform) GetVMDomainTagCategory(ctx context.Context) string {
-	return v.GetDatacenterName(ctx) + "-vmdomain"
+func (v *VSpherePlatform) GetVmIpTagCategory(ctx context.Context) string {
+	return v.GetDatacenterName(ctx) + "-vmip"
 }
 
 // GetDomainFromTag get the domain from the tag which is always the last field
@@ -191,6 +197,9 @@ func (v *VSpherePlatform) GetIpsFromTagsForVM(ctx context.Context, vmName string
 func (v *VSpherePlatform) CreateTag(ctx context.Context, tag *vmlayer.TagOrchestrationParams) error {
 	log.SpanLog(ctx, log.DebugLevelInfra, "CreateTag", "tag", tag)
 
+	tagMux.Lock()
+	defer tagMux.Unlock()
+
 	out, err := v.TimedGovcCommand(ctx, "govc", "tags.create", "-c", tag.Category, tag.Name)
 	if err != nil {
 		if strings.Contains(string(out), "ALREADY_EXISTS") {
@@ -204,6 +213,9 @@ func (v *VSpherePlatform) CreateTag(ctx context.Context, tag *vmlayer.TagOrchest
 
 func (v *VSpherePlatform) DeleteTag(ctx context.Context, tagname string) error {
 	log.SpanLog(ctx, log.DebugLevelInfra, "DeleteTag", "tagname", tagname)
+
+	tagMux.Lock()
+	defer tagMux.Unlock()
 
 	out, err := v.TimedGovcCommand(ctx, "govc", "tags.rm", tagname)
 	if err != nil {
@@ -235,6 +247,9 @@ func (v *VSpherePlatform) GetTagMatchingField(ctx context.Context, category, fie
 func (v *VSpherePlatform) GetTagsForCategory(ctx context.Context, category string, domainMatch vmlayer.VMDomain) ([]GovcTag, error) {
 	log.SpanLog(ctx, log.DebugLevelInfra, "GetTagsForCategory", "category", category, "domainMatch", domainMatch)
 
+	tagMux.Lock()
+	defer tagMux.Unlock()
+
 	out, err := v.TimedGovcCommand(ctx, "govc", "tags.ls", "-c", category, "-json")
 
 	var tags []GovcTag
@@ -263,6 +278,21 @@ func (v *VSpherePlatform) GetTagsForCategory(ctx context.Context, category strin
 	return matchedTags, nil
 }
 
+func (v *VSpherePlatform) GetTagsMatchingField(ctx context.Context, fieldName string, fieldValue string, category string) ([]GovcTag, error) {
+	var matchTags []GovcTag
+	catTags, err := v.GetTagsForCategory(ctx, category, vmlayer.VMDomainAny)
+	if err != nil {
+		return nil, err
+	}
+	for _, t := range catTags {
+		tagval, err := v.GetValueForTagField(t.Name, fieldName)
+		if err == nil && tagval == fieldValue {
+			matchTags = append(matchTags, t)
+		}
+	}
+	return matchTags, nil
+}
+
 func (v *VSpherePlatform) GetTagCategories(ctx context.Context) ([]GovcTagCategory, error) {
 	dcName := v.GetDatacenterName(ctx)
 
@@ -285,6 +315,37 @@ func (v *VSpherePlatform) GetTagCategories(ctx context.Context) ([]GovcTagCatego
 		}
 	}
 	return returnedcats, err
+}
+
+func (v *VSpherePlatform) CreateTagCategory(ctx context.Context, category string) error {
+	log.SpanLog(ctx, log.DebugLevelInfra, "CreateTagCategory", "category", category)
+	out, err := v.TimedGovcCommand(ctx, "govc", "tags.category.create", category)
+	if err != nil {
+		if strings.Contains(string(out), "ALREADY_EXISTS") {
+			log.SpanLog(ctx, log.DebugLevelInfra, "Tag category already exists", "category", category)
+			return nil
+		}
+		return fmt.Errorf("failed to create tag category: %s", category)
+	}
+	return nil
+}
+
+func (v *VSpherePlatform) CreateTagCategories(ctx context.Context) error {
+	log.SpanLog(ctx, log.DebugLevelInfra, "CreateTagCategories")
+
+	err := v.CreateTagCategory(ctx, v.GetVMDomainTagCategory(ctx))
+	if err != nil {
+		return err
+	}
+	err = v.CreateTagCategory(ctx, v.GetSubnetTagCategory(ctx))
+	if err != nil {
+		return err
+	}
+	err = v.CreateTagCategory(ctx, v.GetVmIpTagCategory(ctx))
+	if err != nil {
+		return err
+	}
+	return nil
 }
 
 func (v *VSpherePlatform) GetVmNamesFromTags(ctx context.Context, tags []GovcTag) (map[string]string, error) {

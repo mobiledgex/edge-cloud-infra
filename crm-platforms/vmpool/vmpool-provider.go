@@ -570,7 +570,7 @@ func (s *VMPoolPlatform) VerifyVMs(ctx context.Context, vms []edgeproto.VM) erro
 
 			out, err := client.Output("echo test")
 			if err != nil {
-				return fmt.Errorf("failed to verify if vm %s is accessible over internal network: %s - %v", vm.Name, out, err)
+				return fmt.Errorf("failed to verify if vm %s is accessible over internal network from %s: %s - %v", vm.Name, accessIP, out, err)
 			}
 		}
 	}

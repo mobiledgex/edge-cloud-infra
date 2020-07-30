@@ -10,6 +10,8 @@ import (
 	"github.com/mobiledgex/edge-cloud/log"
 )
 
+const PortDoesNotExist = "Port does not exist"
+
 func incrIP(ip net.IP) {
 	for j := len(ip) - 1; j >= 0; j-- {
 		ip[j]++
@@ -113,4 +115,21 @@ func (v *VSpherePlatform) GetInternalPortPolicy() vmlayer.InternalPortAttachPoli
 
 func (v *VSpherePlatform) GetNetworkList(ctx context.Context) ([]string, error) {
 	return []string{v.vmProperties.GetCloudletExternalNetwork()}, nil
+}
+
+func (v *VSpherePlatform) GetPortGroup(ctx context.Context, serverName, network string) (string, error) {
+	log.SpanLog(ctx, log.DebugLevelInfra, "GetPortGroup", "serverName", serverName, "network", network)
+
+	if network == v.vmProperties.GetCloudletExternalNetwork() {
+		return v.vmProperties.GetCloudletExternalNetwork(), nil
+	}
+	subnetTag, err := v.GetTagMatchingField(ctx, v.GetSubnetTagCategory(ctx), TagFieldSubnetName, network)
+	if err != nil {
+		return "", fmt.Errorf("Error in GetPortName: %v", err)
+	}
+	_, _, _, vlan, err := v.ParseSubnetTag(ctx, subnetTag.Name)
+	if err != nil {
+		return "", err
+	}
+	return fmt.Sprintf("VLAN-%d", vlan), nil
 }

@@ -324,7 +324,7 @@ func (v *VSpherePlatform) GetUsedSubnetCIDRs(ctx context.Context) (map[string]st
 		return nil, err
 	}
 	for _, t := range tags {
-		sn, cidr, _, err := v.ParseSubnetTag(ctx, t.Name)
+		sn, cidr, _, _, err := v.ParseSubnetTag(ctx, t.Name)
 		if err != nil {
 			return nil, err
 		}
@@ -451,13 +451,12 @@ func (v *VSpherePlatform) getServerDetailFromGovcVm(ctx context.Context, govcVm 
 	}
 
 	for i, sip := range sd.Addresses {
-		portGrpNameFromVlan := ""
-		vlan, err := v.GetVlanForSubnet(ctx, sip.Network)
-		if err == nil {
-			portGrpNameFromVlan = getPortGroupNameForVlan(vlan)
+		portGrp, err := v.GetPortGroup(ctx, govcVm.Name, sip.Network)
+		if err != nil {
+			return nil, err
 		}
 		macFound := ""
-		log.SpanLog(ctx, log.DebugLevelInfra, "Looking for mac for server ip", "sip", sip, "portGrpNameFromVlan", portGrpNameFromVlan)
+		log.SpanLog(ctx, log.DebugLevelInfra, "Looking for mac for server ip", "sip", sip, "portGrp", portGrp)
 		for _, dev := range govcVm.Config.Hardware.Device {
 			if dev.MacAddress != "" {
 				pgrpId := dev.Backing.Port.PortgroupKey
@@ -467,7 +466,7 @@ func (v *VSpherePlatform) getServerDetailFromGovcVm(ctx context.Context, govcVm 
 				}
 				log.SpanLog(ctx, log.DebugLevelInfra, "Found a MAC", "MacAddress", dev.MacAddress, "pgrp", pgrp)
 
-				if sip.Network == pgrp.Name || (portGrpNameFromVlan != "" && portGrpNameFromVlan == pgrp.Name) {
+				if portGrp == pgrp.Name {
 					if macFound != "" {
 						log.SpanLog(ctx, log.DebugLevelInfra, "MAC already on different network", "macFound", macFound, "dev.MacAddress", dev.MacAddress)
 						return nil, fmt.Errorf("multiple MACs found for network: %s", pgrp.Name)

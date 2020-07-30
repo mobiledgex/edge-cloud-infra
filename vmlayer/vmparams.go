@@ -287,6 +287,7 @@ type FixedIPOrchestrationParams struct {
 	Address     string
 	Mask        string
 	Subnet      ResourceReference
+	Gateway     string
 }
 
 type PortOrchestrationParams struct {
@@ -408,7 +409,6 @@ type VMOrchestrationParams struct {
 	Volumes                 []VolumeOrchestrationParams
 	Ports                   []PortResourceReference      // depending on the orchestrator, IPs may be assigned to ports or
 	FixedIPs                []FixedIPOrchestrationParams // to VMs directly
-	ExternalGateway         string
 	AttachExternalDisk      bool
 	ChefParams              *chefmgmt.VMChefParams
 }

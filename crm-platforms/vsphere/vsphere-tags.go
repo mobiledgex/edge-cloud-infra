@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"strconv"
 	"strings"
 
 	"github.com/mobiledgex/edge-cloud-infra/vmlayer"
@@ -15,6 +16,7 @@ const TagFieldDomain = "domain"
 const TagFieldIp = "ip"
 const TagFieldSubnetName = "subnetname"
 const TagFieldCidr = "cidr"
+const TagFieldVlan = "vlan"
 const TagFieldVmName = "vmname"
 const TagFieldNetName = "netname"
 
@@ -92,29 +94,37 @@ func (v *VSpherePlatform) ParseVMIpTag(ctx context.Context, tag string) (string,
 	return vmname, network, ip, domain, nil
 }
 
-func (v *VSpherePlatform) GetSubnetTag(ctx context.Context, group, subnetName, cidr string) string {
-	return TagFieldGroup + "=" + group + "," + TagFieldSubnetName + "=" + subnetName + "," + TagFieldCidr + "=" + cidr + "," + TagFieldDomain + "=" + string(v.vmProperties.Domain)
+func (v *VSpherePlatform) GetSubnetTag(ctx context.Context, group, subnetName, cidr string, vlan uint32) string {
+	return TagFieldGroup + "=" + group + "," + TagFieldSubnetName + "=" + subnetName + "," + TagFieldCidr + "=" + cidr + "," + TagFieldVlan + "=" + fmt.Sprintf("%d", vlan) + "," + TagFieldDomain + "=" + string(v.vmProperties.Domain)
 }
 
-// ParseSubnetTag returns subnetName, cidr, domain
-func (v *VSpherePlatform) ParseSubnetTag(ctx context.Context, tag string) (string, string, string, error) {
+// ParseSubnetTag returns subnetName, cidr, vlan, domain
+func (v *VSpherePlatform) ParseSubnetTag(ctx context.Context, tag string) (string, string, string, uint32, error) {
 	fm, err := v.GetTagFieldMap(tag)
 	if err != nil {
-		return "", "", "", err
+		return "", "", "", 0, err
 	}
 	subnetName, ok := fm[TagFieldSubnetName]
 	if !ok {
-		return "", "", "", fmt.Errorf("No subnetname in subnet tag")
+		return "", "", "", 0, fmt.Errorf("No subnetname in subnet tag")
 	}
 	cidr, ok := fm[TagFieldCidr]
 	if !ok {
-		return "", "", "", fmt.Errorf("No cidr in subnet tag")
+		return "", "", "", 0, fmt.Errorf("No cidr in subnet tag")
 	}
 	domain, ok := fm[TagFieldDomain]
 	if !ok {
-		return "", "", "", fmt.Errorf("No domain in subnet tag")
+		return "", "", "", 0, fmt.Errorf("No domain in subnet tag")
 	}
-	return subnetName, cidr, domain, nil
+	vlanstr, ok := fm[TagFieldVlan]
+	if !ok {
+		return "", "", "", 0, fmt.Errorf("No vlan in subnet tag")
+	}
+	vlan, err := strconv.ParseUint(vlanstr, 10, 32)
+	if err != nil {
+		return "", "", "", 0, fmt.Errorf("Fail to parse VLAN in subnet tag: %v", err)
+	}
+	return subnetName, cidr, domain, uint32(vlan), nil
 }
 
 func (v *VSpherePlatform) GetVmDomainTag(ctx context.Context, group, vmName string) string {
@@ -164,11 +174,12 @@ func (v *VSpherePlatform) GetIpsFromTagsForVM(ctx context.Context, vmName string
 			}
 		}
 		if !found {
+			portName := vmlayer.GetPortName(vmName, net)
 			sip := vmlayer.ServerIP{
 				InternalAddr: ip,
 				ExternalAddr: ip,
 				Network:      net,
-				PortName:     vmlayer.GetPortName(vmName, net),
+				PortName:     portName,
 			}
 			sd.Addresses = append(sd.Addresses, sip)
 			log.SpanLog(ctx, log.DebugLevelInfra, "Added address via tag", "vm", vm, "net", net, "ip", ip)
@@ -200,6 +211,25 @@ func (v *VSpherePlatform) DeleteTag(ctx context.Context, tagname string) error {
 		return fmt.Errorf("Error in deleting tag: %s - %v", tagname, err)
 	}
 	return nil
+}
+
+func (v *VSpherePlatform) GetTagMatchingField(ctx context.Context, category, fieldName, fieldVal string) (*GovcTag, error) {
+	log.SpanLog(ctx, log.DebugLevelInfra, "GetTagsForCategory", "category", category, "fieldName", fieldName, "fieldVal", fieldVal)
+	tags, err := v.GetTagsForCategory(ctx, category, v.vmProperties.Domain)
+	if err != nil {
+		return nil, err
+	}
+
+	for _, t := range tags {
+		val, err := v.GetValueForTagField(t.Name, fieldName)
+		if err != nil {
+			return nil, err
+		}
+		if val == fieldVal {
+			return &t, nil
+		}
+	}
+	return nil, fmt.Errorf(TagNotFound)
 }
 
 func (v *VSpherePlatform) GetTagsForCategory(ctx context.Context, category string, domainMatch vmlayer.VMDomain) ([]GovcTag, error) {

@@ -70,6 +70,8 @@ func RunMcAPI(api, mcname, apiFile, curUserFile, outputDir string, mods []string
 		return showMcAlerts(uri, apiFile, curUserFile, outputDir, vars)
 	} else if strings.HasPrefix(api, "debug") {
 		return runMcDebug(api, uri, apiFile, curUserFile, outputDir, mods, vars)
+	} else if api == "showalertreceivers" {
+		return showMcAlertReceivers(uri, apiFile, curUserFile, outputDir, vars)
 	}
 	return runMcDataAPI(api, uri, apiFile, curUserFile, outputDir, mods, vars, retry)
 }
@@ -519,6 +521,10 @@ func createMcData(uri, token, tag string, data *ormapi.AllData, dataMap map[stri
 		st, err := mcClient.CreateOrgCloudletPool(uri, token, &oc)
 		outMcErr(output, fmt.Sprintf("CreateOrgCloudletPool[%d]", ii), st, err)
 	}
+	for ii, ar := range data.AlertReceivers {
+		st, err := mcClient.CreateAlertReceiver(uri, token, &ar)
+		outMcErr(output, fmt.Sprintf("CreateAlertReceiver[%d]", ii), st, err)
+	}
 }
 
 func deleteMcData(uri, token, tag string, data *ormapi.AllData, dataMap map[string]interface{}, output *AllDataOut, rc *bool) {
@@ -911,6 +917,24 @@ func showMcAlerts(uri, apiFile, curUserFile, outputDir string, vars map[string]s
 
 	alerts, status, err := mcClient.ShowAlert(uri, token, &filter)
 	checkMcErr("ShowAlert", status, err, &rc)
+
+	util.PrintToYamlFile("show-commands.yml", outputDir, alerts, true)
+	return rc
+}
+
+func showMcAlertReceivers(uri, apiFile, curUserFile, outputDir string, vars map[string]string) bool {
+	if apiFile == "" {
+		log.Println("Error: Cannot run MC audit APIs without API file")
+		return false
+	}
+	log.Printf("Running MC showalert APIs for %s\n", apiFile)
+
+	token, rc := loginCurUser(uri, curUserFile, vars)
+	if !rc {
+		return false
+	}
+	alerts, status, err := mcClient.ShowAlertReceiver(uri, token)
+	checkMcErr("ShowAlertReceiver", status, err, &rc)
 
 	util.PrintToYamlFile("show-commands.yml", outputDir, alerts, true)
 	return rc

@@ -6,7 +6,6 @@ import (
 	"github.com/labstack/echo"
 	"github.com/mobiledgex/edge-cloud-infra/mc/orm/alertmgr"
 	"github.com/mobiledgex/edge-cloud-infra/mc/ormapi"
-	"github.com/mobiledgex/edge-cloud/edgeproto"
 	"github.com/mobiledgex/edge-cloud/log"
 )
 
@@ -22,7 +21,6 @@ func CreateAlertReceiver(c echo.Context) error {
 		return err
 	}
 	ctx := GetContext(c)
-	log.SpanLog(ctx, log.DebugLevelInfo, "Create Alertmanager Receiver", "context", c, "clainms", claims)
 	in := ormapi.AlertReceiver{}
 	success, err := ReadConn(c, &in)
 	if !success {
@@ -33,44 +31,17 @@ func CreateAlertReceiver(c echo.Context) error {
 		return setReply(c,
 			fmt.Errorf("Either cloudlet, or app instance details have to be specified"), nil)
 	}
-	// set up labels
-	labels := map[string]string{}
 	// Check that user is allowed to access either of the orgs
 	if in.Cloudlet.Organization != "" {
 		if err := authorized(ctx, claims.Username, in.Cloudlet.Organization,
-			ResourceAppAnalytics, ActionView); err != nil {
+			ResourceAlert, ActionView); err != nil {
 			return setReply(c, err, nil)
-		}
-		// add labes for the cloudlet
-		labels[edgeproto.CloudletKeyTagOrganization] = in.Cloudlet.Organization
-		if in.Cloudlet.Name != "" {
-			labels[edgeproto.CloudletKeyTagName] = in.Cloudlet.Name
 		}
 	}
 	if in.AppInst.AppKey.Organization != "" {
 		if err := authorized(ctx, claims.Username, in.AppInst.AppKey.Organization,
-			ResourceAppAnalytics, ActionView); err != nil {
+			ResourceAlert, ActionView); err != nil {
 			return setReply(c, err, nil)
-		}
-		// add labels for app instance
-		labels[edgeproto.AppKeyTagOrganization] = in.AppInst.AppKey.Organization
-		if in.AppInst.AppKey.Name != "" {
-			labels[edgeproto.AppKeyTagName] = in.AppInst.AppKey.Name
-		}
-		if in.AppInst.AppKey.Version != "" {
-			labels[edgeproto.AppKeyTagVersion] = in.AppInst.AppKey.Version
-		}
-		if in.AppInst.ClusterInstKey.CloudletKey.Name != "" {
-			labels[edgeproto.CloudletKeyTagName] = in.AppInst.ClusterInstKey.CloudletKey.Name
-		}
-		if in.AppInst.ClusterInstKey.CloudletKey.Organization != "" {
-			labels[edgeproto.CloudletKeyTagOrganization] = in.AppInst.ClusterInstKey.CloudletKey.Organization
-		}
-		if in.AppInst.ClusterInstKey.ClusterKey.Name != "" {
-			labels[edgeproto.ClusterKeyTagName] = in.AppInst.ClusterInstKey.ClusterKey.Name
-		}
-		if in.AppInst.ClusterInstKey.Organization != "" {
-			labels[edgeproto.ClusterInstKeyTagOrganization] = in.AppInst.ClusterInstKey.Organization
 		}
 	}
 
@@ -80,7 +51,7 @@ func CreateAlertReceiver(c echo.Context) error {
 			Name:  claims.Username,
 			Email: claims.Email,
 		}
-		err = AlertManagerServer.CreateReceiver(ctx, &in, labels, &user)
+		err = AlertManagerServer.CreateReceiver(ctx, &in, &user)
 		if err != nil {
 			log.SpanLog(ctx, log.DebugLevelInfo, "Failed to create a receiver", "err", err)
 			return setReply(c, fmt.Errorf("Unable to create a receiver - %s", err.Error()),
@@ -96,13 +67,56 @@ func CreateAlertReceiver(c echo.Context) error {
 }
 
 // Delete alert receiver api handler
-// TODO
 func DeleteAlertReceiver(c echo.Context) error {
+	claims, err := getClaims(c)
+	if err != nil {
+		return err
+	}
+	ctx := GetContext(c)
+	log.SpanLog(ctx, log.DebugLevelInfo, "Delete Alertmanager Receiver", "context", c, "clainms", claims)
+	in := ormapi.AlertReceiver{}
+	success, err := ReadConn(c, &in)
+	if !success {
+		return err
+	}
+	in.User = claims.Username
+	// Since we actually use claims.Username, don't need to in fact authorize as the receivers are unique
+	err = AlertManagerServer.DeleteReceiver(ctx, &in)
+	if err != nil {
+		log.SpanLog(ctx, log.DebugLevelInfo, "Failed to delete a receiver", "err", err)
+		return setReply(c, fmt.Errorf("Unable to delete a receiver - %s", err.Error()),
+			nil)
+	}
 	return nil
 }
 
 // Show alert receivers api handler
-// TODO
 func ShowAlertReceiver(c echo.Context) error {
-	return nil
+	log.DebugLog(log.DebugLevelApi, "Running Show Alerts API")
+	alertRecs := []ormapi.AlertReceiver{}
+	claims, err := getClaims(c)
+	if err != nil {
+		return err
+	}
+	ctx := GetContext(c)
+	log.SpanLog(ctx, log.DebugLevelApi, "Show Alertmanager Receivers", "context", c, "clainms", claims)
+
+	receivers, err := AlertManagerServer.ShowReceivers(ctx, nil)
+	if err != nil {
+		return err
+	}
+	for ii := range receivers {
+		if receivers[ii].Cloudlet.Organization != "" {
+			if err := authorized(ctx, claims.Username, receivers[ii].Cloudlet.Organization,
+				ResourceAlert, ActionView); err == nil {
+				alertRecs = append(alertRecs, receivers[ii])
+			}
+		} else {
+			if err := authorized(ctx, claims.Username, receivers[ii].AppInst.AppKey.Organization,
+				ResourceAlert, ActionView); err == nil {
+				alertRecs = append(alertRecs, receivers[ii])
+			}
+		}
+	}
+	return setReply(c, err, alertRecs)
 }

@@ -433,6 +433,11 @@ func RunAction(ctx context.Context, actionSpec, outputDir string, config *e2eapi
 		if err != nil {
 			errors = append(errors, err.Error())
 		}
+	case "email":
+		err := RunEmailAPI(actionSubtype, spec.ApiFile, outputDir)
+		if err != nil {
+			errors = append(errors, err.Error())
+		}
 	default:
 		ecSpec := setupmex.TestSpec{}
 		err := json.Unmarshal([]byte(specStr), &ecSpec)

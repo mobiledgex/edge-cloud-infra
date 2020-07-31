@@ -421,7 +421,6 @@ func alertsToOpenAPIAlerts(alerts []*edgeproto.Alert) models.PostableAlerts {
 		for k, v := range a.Labels {
 			labels[k] = v
 		}
-		labels["region"] = a.Region
 		openAPIAlerts = append(openAPIAlerts, &models.PostableAlert{
 			Annotations: copyMap(a.Annotations),
 			StartsAt:    start,
@@ -452,11 +451,6 @@ func alertManagerAlertsToEdgeprotoAlerts(openAPIAlerts models.GettableAlerts) []
 			}
 		}
 		alert.Labels = copyMap(openAPIAlert.Labels)
-		// Populate region with label value
-		if region, found := alert.Labels["region"]; found {
-			alert.Region = region
-			delete(alert.Labels, "region")
-		}
 		alert.Annotations = copyMap(openAPIAlert.Annotations)
 		alerts = append(alerts, alert)
 	}
@@ -496,19 +490,18 @@ func (s *AlertMrgServer) AddAlerts(ctx context.Context, alerts ...*edgeproto.Ale
 }
 
 // Note - this grabs configLock
-func (s *AlertMrgServer) readAlertManagerConfigAndLock(ctx context.Context, config *alertmanager_config.Config) error {
-	var err error
+func (s *AlertMrgServer) readAlertManagerConfigAndLock(ctx context.Context) (*alertmanager_config.Config, error) {
 	// grab config lock
 	configLock.Lock()
 
 	// Read config
-	config, err = alertmanager_config.LoadFile(s.AlertMgrConfigPath)
+	config, err := alertmanager_config.LoadFile(s.AlertMgrConfigPath)
 	if err != nil {
 		log.SpanLog(ctx, log.DebugLevelInfo, "Failed to parse alertmanager config file", "err", err,
 			"file", s.AlertMgrConfigPath)
-		return err
+		return nil, err
 	}
-	return nil
+	return config, nil
 }
 
 // Note - we should hold configLock prior to calling this function
@@ -532,19 +525,55 @@ func (s *AlertMrgServer) writeAlertManagerConfigLocked(ctx context.Context, conf
 }
 
 func getAlertmgrReceiverName(receiver *ormapi.AlertReceiver) string {
-	return receiver.Name + "-" + receiver.User + "-" + receiver.Severity + receiver.Type
+	return receiver.Name + "-" + receiver.User + "-" + receiver.Severity + "-" + receiver.Type
+}
+
+func getRouteMatchLabelsFromAlertReceiver(in *ormapi.AlertReceiver) map[string]string {
+	labels := map[string]string{}
+	if in.Cloudlet.Organization != "" {
+		// add labes for the cloudlet
+		labels[edgeproto.CloudletKeyTagOrganization] = in.Cloudlet.Organization
+		if in.Cloudlet.Name != "" {
+			labels[edgeproto.CloudletKeyTagName] = in.Cloudlet.Name
+		}
+	}
+	if in.AppInst.AppKey.Organization != "" {
+		// add labels for app instance
+		labels[edgeproto.AppKeyTagOrganization] = in.AppInst.AppKey.Organization
+		if in.AppInst.AppKey.Name != "" {
+			labels[edgeproto.AppKeyTagName] = in.AppInst.AppKey.Name
+		}
+		if in.AppInst.AppKey.Version != "" {
+			labels[edgeproto.AppKeyTagVersion] = in.AppInst.AppKey.Version
+		}
+		if in.AppInst.ClusterInstKey.CloudletKey.Name != "" {
+			labels[edgeproto.CloudletKeyTagName] = in.AppInst.ClusterInstKey.CloudletKey.Name
+		}
+		if in.AppInst.ClusterInstKey.CloudletKey.Organization != "" {
+			labels[edgeproto.CloudletKeyTagOrganization] = in.AppInst.ClusterInstKey.CloudletKey.Organization
+		}
+		if in.AppInst.ClusterInstKey.ClusterKey.Name != "" {
+			labels[edgeproto.ClusterKeyTagName] = in.AppInst.ClusterInstKey.ClusterKey.Name
+		}
+		if in.AppInst.ClusterInstKey.Organization != "" {
+			labels[edgeproto.ClusterInstKeyTagOrganization] = in.AppInst.ClusterInstKey.Organization
+		}
+	}
+	return labels
 }
 
 // Receiver includes a route and a receiver which will receive the alert
 // we create a route on the org tags for a given appInstance
-func (s *AlertMrgServer) CreateReceiver(ctx context.Context, receiver *ormapi.AlertReceiver, routeMatchLabels map[string]string, cfg interface{}) error {
+func (s *AlertMrgServer) CreateReceiver(ctx context.Context, receiver *ormapi.AlertReceiver, cfg interface{}) error {
 	// sanity - certain characters should not be part of the receiver name
 	if strings.ContainsAny(receiver.Name, "-:") {
 		return fmt.Errorf("Receiver name cannot contain dashes(\"-\"), or colons(\":\")")
 	}
+	// get a labelset from the receiver
+	routeMatchLabels := getRouteMatchLabelsFromAlertReceiver(receiver)
 
 	// read file and greab a lock
-	err := s.readAlertManagerConfigAndLock(ctx, AlertManagerConfig)
+	AlertManagerConfig, err := s.readAlertManagerConfigAndLock(ctx)
 	defer configLock.Unlock()
 	if err != nil {
 		return err
@@ -610,7 +639,7 @@ func (s *AlertMrgServer) DeleteReceiver(ctx context.Context, receiver *ormapi.Al
 	}
 
 	// read file and greab a lock
-	err := s.readAlertManagerConfigAndLock(ctx, AlertManagerConfig)
+	AlertManagerConfig, err := s.readAlertManagerConfigAndLock(ctx)
 	defer configLock.Unlock()
 	if err != nil {
 		return err
@@ -634,19 +663,84 @@ func (s *AlertMrgServer) DeleteReceiver(ctx context.Context, receiver *ormapi.Al
 			}
 			// write config out and return
 			return s.writeAlertManagerConfigLocked(ctx, AlertManagerConfig)
-
 		}
 	}
 	// nothing changed - just return nil
 	return nil
 }
 
-// TODO - use local version of AlertManagerConfig
-func (s *AlertMrgServer) ShowReceivers(ctx context.Context, filter ormapi.AlertReceiver) ([]ormapi.AlertReceiver, error) {
-	// grab config lock
-	// read config
-	// show receivers
-	return nil, nil
+func getAlertReceiverFromName(name string) (*ormapi.AlertReceiver, error) {
+	receiver := ormapi.AlertReceiver{}
+	vals := strings.Split(name, "-")
+	if len(vals) != 4 {
+		return nil, fmt.Errorf("Unable to parse receiver name: %s", name)
+	}
+	receiver.Name = vals[0]
+	receiver.User = vals[1]
+	receiver.Severity = vals[2]
+	receiver.Type = vals[3]
+	return &receiver, nil
+}
+
+func (s *AlertMrgServer) ShowReceivers(ctx context.Context, filter *ormapi.AlertReceiver) ([]ormapi.AlertReceiver, error) {
+	// For show we just need a snapshot, so don't use global AlertManagerConfig
+	showConfig, err := s.readAlertManagerConfigAndLock(ctx)
+	configLock.Unlock()
+	if err != nil {
+		return nil, err
+	}
+	alertReceivers := []ormapi.AlertReceiver{}
+	// walk config receivers and create an ormReceiver from it
+	for _, rec := range showConfig.Receivers {
+		// skip default reciever
+		if rec.Name == "default" {
+			continue
+		}
+		receiver, err := getAlertReceiverFromName(rec.Name)
+		if err != nil {
+			log.SpanLog(ctx, log.DebugLevelApi, "Unable to parse receiver", "receiver", rec, "err", err)
+			continue
+		}
+		// find Route associated with this receiver
+		for _, route := range showConfig.Route.Routes {
+			if route.Receiver == rec.Name {
+				// Based on the labels it's either cloudlet, or appInst
+				if apporg, ok := route.Match[edgeproto.AppKeyTagOrganization]; ok {
+					// appinst
+					receiver.AppInst.AppKey.Organization = apporg
+					if appname, ok := route.Match[edgeproto.AppKeyTagName]; ok {
+						receiver.AppInst.AppKey.Name = appname
+					}
+					if ver, ok := route.Match[edgeproto.AppKeyTagVersion]; ok {
+						receiver.AppInst.AppKey.Version = ver
+					}
+					if cluster, ok := route.Match[edgeproto.ClusterKeyTagName]; ok {
+						receiver.AppInst.ClusterInstKey.ClusterKey.Name = cluster
+					}
+					if clusterorg, ok := route.Match[edgeproto.ClusterInstKeyTagOrganization]; ok {
+						receiver.AppInst.ClusterInstKey.Organization = clusterorg
+					}
+					if cloudlet, ok := route.Match[edgeproto.CloudletKeyTagName]; ok {
+						receiver.AppInst.ClusterInstKey.CloudletKey.Name = cloudlet
+					}
+					if cloudletorg, ok := route.Match[edgeproto.CloudletKeyTagOrganization]; ok {
+						receiver.AppInst.ClusterInstKey.CloudletKey.Organization = cloudletorg
+					}
+				} else if cloudletorg, ok := route.Match[edgeproto.CloudletKeyTagOrganization]; ok {
+					// cloudlet
+					receiver.Cloudlet.Organization = cloudletorg
+					if cloudlet, ok := route.Match[edgeproto.CloudletKeyTagName]; ok {
+						receiver.Cloudlet.Name = cloudlet
+					}
+				} else {
+					log.SpanLog(ctx, log.DebugLevelApi, "Unexpected receiver map data for route", "route", route)
+					continue
+				}
+				alertReceivers = append(alertReceivers, *receiver)
+			}
+		}
+	}
+	return alertReceivers, nil
 }
 
 // Common function to send an api call to alertmanager

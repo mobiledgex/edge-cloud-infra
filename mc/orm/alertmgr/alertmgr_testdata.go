@@ -24,24 +24,24 @@ var testAlerts = []edgeproto.Alert{
 	edgeproto.Alert{
 		Labels: map[string]string{
 			"alertname":                        cloudcommon.AlertAppInstDown,
+			"region":                           testRegions[0],
 			edgeproto.AppKeyTagName:            "testapp",
 			edgeproto.AppKeyTagOrganization:    "testorg",
 			edgeproto.AppKeyTagVersion:         "1.0",
 			edgeproto.CloudletKeyTagName:       "testcloudlet",
 			cloudcommon.AlertHealthCheckStatus: strconv.Itoa(int(edgeproto.HealthCheck_HEALTH_CHECK_FAIL_ROOTLB_OFFLINE)),
 		},
-		Region: testRegions[0],
 	},
 	edgeproto.Alert{ //testAlerts[0], but in a different region
 		Labels: map[string]string{
 			"alertname":                        cloudcommon.AlertAppInstDown,
+			"region":                           testRegions[1],
 			edgeproto.AppKeyTagName:            "testapp",
 			edgeproto.AppKeyTagOrganization:    "testorg",
 			edgeproto.AppKeyTagVersion:         "1.0",
 			edgeproto.CloudletKeyTagName:       "testcloudlet",
 			cloudcommon.AlertHealthCheckStatus: strconv.Itoa(int(edgeproto.HealthCheck_HEALTH_CHECK_FAIL_ROOTLB_OFFLINE)),
 		},
-		Region: testRegions[1],
 	},
 }
 
@@ -57,12 +57,23 @@ var testAlertReceivers = []ormapi.AlertReceiver{
 		Type:     AlertReceiverTypeEmail,
 		Severity: AlertSeverityError,
 		User:     testUsers[0],
-	},
-}
-
-var testAlertReceiversMatchLabels = []map[string]string{
-	map[string]string{
-		"test": "test",
+		AppInst: edgeproto.AppInstKey{
+			AppKey: edgeproto.AppKey{
+				Name:         "testApp",
+				Organization: "testAppOrg",
+				Version:      "v1.0",
+			},
+			ClusterInstKey: edgeproto.ClusterInstKey{
+				ClusterKey: edgeproto.ClusterKey{
+					Name: "testCluster",
+				},
+				CloudletKey: edgeproto.CloudletKey{
+					Name:         "testCloudlet",
+					Organization: "testCloudletOrg",
+				},
+				Organization: "testClusterOrg",
+			},
+		},
 	},
 }
 

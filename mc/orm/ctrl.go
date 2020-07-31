@@ -138,6 +138,7 @@ func ShowController(c echo.Context) error {
 	if err != nil {
 		return err
 	}
+	log.SpanLog(ctx, log.DebugLevelApi, "Show controllers", "context", c, "clainms", claims)
 	ctrls, err := ShowControllerObj(ctx, claims)
 	return setReply(c, err, ctrls)
 }

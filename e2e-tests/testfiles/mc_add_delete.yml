@@ -113,6 +113,8 @@ tests:
 - includefile: autoprov.yml
   loops: 2
 
+- includefile: alerttest.yml
+
 - includefile: mc_debugtest.yml
 
 - name: Check AppInst, ClusterInst, and Cloudlet events

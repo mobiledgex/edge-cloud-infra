@@ -209,6 +209,7 @@ type AllData struct {
 	Orgs             []Organization    `json:"orgs,omitempty"`
 	Roles            []Role            `json:"roles,omitempty"`
 	OrgCloudletPools []OrgCloudletPool `json:"orgcloudletpools,omitempty"`
+	AlertReceivers   []AlertReceiver   `json:"alertreceivers,omitempty"`
 	RegionData       []RegionData      `json:"regiondata,omitempty"`
 }
 

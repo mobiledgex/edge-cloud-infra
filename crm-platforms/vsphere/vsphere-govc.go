@@ -680,7 +680,7 @@ func (v *VSpherePlatform) CreateTemplateFolder(ctx context.Context) error {
 	out, err := v.TimedGovcCommand(ctx, "govc", "folder.create", "-dc", dcName, folderPath)
 	if err != nil {
 		if strings.Contains(string(out), "already exists") {
-			log.SpanLog(ctx, log.DebugLevelMetrics, "Template folder %s already exists", folderPath)
+			log.SpanLog(ctx, log.DebugLevelMetrics, "Template folder already exists", "folderPath", folderPath)
 			return nil
 		}
 		return fmt.Errorf("unable to create template folder: %s", folderPath)

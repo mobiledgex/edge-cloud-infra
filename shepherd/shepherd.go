@@ -74,9 +74,11 @@ var nodeMgr node.NodeMgr
 
 var sigChan chan os.Signal
 var notifyClient *notify.Client
-var cloudletWaitDelay = time.Second
+var cloudletWait = make(chan bool, 1)
 
 var targetsFileWorkerKey = "write-targets"
+
+var CRMTimeout = 1 * time.Minute
 
 func appInstCb(ctx context.Context, old *edgeproto.AppInst, new *edgeproto.AppInst) {
 	if target := CollectProxyStats(ctx, new); target != "" {
@@ -254,6 +256,14 @@ func vmPoolInfoCb(ctx context.Context, old *edgeproto.VMPoolInfo, new *edgeproto
 	myPlatform.SetVMPool(ctx, &vmPool)
 }
 
+func cloudletCb(ctx context.Context, old *edgeproto.Cloudlet, new *edgeproto.Cloudlet) {
+	select {
+	case cloudletWait <- true:
+		// Got cloudlet object
+	default:
+	}
+}
+
 func getPlatform() (platform.Platform, error) {
 	var plat platform.Platform
 	var err error
@@ -361,23 +371,24 @@ func start() {
 	edgeproto.InitSettingsCache(&SettingsCache)
 	AppInstByAutoProvPolicy.Init()
 	// also register to receive cloudlet details
-	edgeproto.InitCloudletCache(&CloudletCache)
 	edgeproto.InitVMPoolCache(&VMPoolCache)
 	edgeproto.InitVMPoolInfoCache(&VMPoolInfoCache)
+	edgeproto.InitCloudletCache(&CloudletCache)
 
 	addrs := strings.Split(*notifyAddrs, ",")
 	notifyClient = notify.NewClient(nodeMgr.Name(), addrs, tls.GetGrpcDialOption(clientTlsConfig))
 	notifyClient.SetFilterByCloudletKey()
 	notifyClient.RegisterRecvSettingsCache(&SettingsCache)
+	notifyClient.RegisterRecvVMPoolCache(&VMPoolCache)
+	notifyClient.RegisterRecvVMPoolInfoCache(&VMPoolInfoCache)
 	notifyClient.RegisterRecvAppInstCache(&AppInstCache)
 	notifyClient.RegisterRecvClusterInstCache(&ClusterInstCache)
 	notifyClient.RegisterRecvAppCache(&AppCache)
-	notifyClient.RegisterRecvVMPoolCache(&VMPoolCache)
-	notifyClient.RegisterRecvVMPoolInfoCache(&VMPoolInfoCache)
 	notifyClient.RegisterRecvCloudletCache(&CloudletCache)
 	notifyClient.RegisterRecvAutoProvPolicyCache(&AutoProvPoliciesCache)
 	SettingsCache.SetUpdatedCb(settingsCb)
 	VMPoolInfoCache.SetUpdatedCb(vmPoolInfoCb)
+	CloudletCache.SetUpdatedCb(cloudletCb)
 	// register to send metrics
 	MetricSender = notify.NewMetricSend()
 	notifyClient.RegisterSend(MetricSender)
@@ -402,19 +413,16 @@ func start() {
 
 	var cloudlet edgeproto.Cloudlet
 
-	// Fetch cloudlet cache from controller
+	// Fetch cloudlet cache from controller->crm->shepherd
 	// This also ensures that cloudlet is up before we start collecting metrics
-	found := false
 	log.SpanLog(ctx, log.DebugLevelInfo, "wait for cloudlet cache", "key", cloudletKey)
-	for i := 0; i < 50; i++ {
-		if CloudletCache.Get(&cloudletKey, &cloudlet) {
-			found = true
-			break
+	select {
+	case <-cloudletWait:
+		if !CloudletCache.Get(&cloudletKey, &cloudlet) {
+			log.FatalLog("failed to fetch cloudlet cache from controller")
 		}
-		time.Sleep(cloudletWaitDelay)
-	}
-	if !found {
-		log.FatalLog("failed to fetch cloudlet cache from controller")
+	case <-time.After(CRMTimeout):
+		log.FatalLog("Timed out waiting for cloudlet cache from controller")
 	}
 	log.SpanLog(ctx, log.DebugLevelInfo, "fetched cloudlet cache from controller", "cloudlet", cloudlet)
 
@@ -430,7 +438,6 @@ func start() {
 		if !VMPoolCache.Get(&vmPoolKey, &vmPool) {
 			log.FatalLog("failed to fetch vm pool cache from controller")
 		}
-
 	}
 
 	pc := pf.PlatformConfig{

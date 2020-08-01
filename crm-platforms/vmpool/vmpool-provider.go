@@ -287,7 +287,7 @@ func (o *VMPoolPlatform) createVMsInternal(ctx context.Context, markedVMs map[st
 		close(wgError)
 		return err
 	case <-time.After(CreateVMTimeout):
-		return fmt.Errorf("timeout setting up VMs")
+		return fmt.Errorf("Timed out setting up VMs")
 	}
 
 	return nil

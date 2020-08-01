@@ -15,7 +15,7 @@ echo "Master IP $MASTERIP"
 echo "My IP Address: $MYIP"
 
 systemctl is-active --quiet kubelet
-if [[ $? -ne 0 ]]; then
+if [ $? -ne 0 ]; then
   systemctl start kubelet
   systemctl enable kubelet
 fi

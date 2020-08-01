@@ -3,12 +3,15 @@ package vmpool
 import (
 	"context"
 	"fmt"
+	"strings"
 	"sync"
+	"time"
 
 	"github.com/mobiledgex/edge-cloud-infra/chefmgmt"
 	"github.com/mobiledgex/edge-cloud-infra/vmlayer"
 	"github.com/mobiledgex/edge-cloud/edgeproto"
 	"github.com/mobiledgex/edge-cloud/log"
+	"github.com/mobiledgex/edge-cloud/util"
 	ssh "github.com/mobiledgex/golang-ssh"
 )
 
@@ -16,6 +19,8 @@ const (
 	ActionNone     string = "none"
 	ActionAllocate string = "allocate"
 	ActionRelease  string = "release"
+
+	CreateVMTimeout = 20 * time.Minute
 )
 
 func (o *VMPoolPlatform) GetServerDetail(ctx context.Context, serverName string) (*vmlayer.ServerDetail, error) {
@@ -119,8 +124,10 @@ func (o *VMPoolPlatform) markVMsForAction(ctx context.Context, action string, gr
 	return vms, nil
 }
 
-func setupHostname(ctx context.Context, client ssh.Client, hostname string) error {
-	log.SpanLog(ctx, log.DebugLevelInfra, "Setting up hostname", "hostname", hostname)
+func setupHostname(ctx context.Context, client ssh.Client, name string) error {
+	log.SpanLog(ctx, log.DebugLevelInfra, "Setting up hostname", "name", name)
+	// sanitize hostname
+	hostname := util.HostnameSanitize(strings.Split(name, ".")[0])
 	cmd := fmt.Sprintf("sudo hostnamectl set-hostname %s", hostname)
 	out, err := client.Output(cmd)
 	if err != nil {
@@ -279,6 +286,8 @@ func (o *VMPoolPlatform) createVMsInternal(ctx context.Context, markedVMs map[st
 	case err := <-wgError:
 		close(wgError)
 		return err
+	case <-time.After(CreateVMTimeout):
+		return fmt.Errorf("timeout setting up VMs")
 	}
 
 	return nil

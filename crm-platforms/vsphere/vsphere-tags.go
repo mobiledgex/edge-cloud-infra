@@ -22,6 +22,7 @@ const TagFieldVmName = "vmname"
 const TagFieldNetName = "netname"
 
 const TagNotFound = "tag not found"
+const TagAlreadyExists = "ALREADY_EXISTS"
 
 // vCenter has a bug in which if the tag query API is run while a tag delete is in progress, the query
 // will return and error, even if the tag being deleted is just one of many.  To avoid this, lock around
@@ -202,7 +203,7 @@ func (v *VSpherePlatform) CreateTag(ctx context.Context, tag *vmlayer.TagOrchest
 
 	out, err := v.TimedGovcCommand(ctx, "govc", "tags.create", "-c", tag.Category, tag.Name)
 	if err != nil {
-		if strings.Contains(string(out), "ALREADY_EXISTS") {
+		if strings.Contains(string(out), TagAlreadyExists) {
 			log.SpanLog(ctx, log.DebugLevelInfra, "Tag already exists", "tag", tag)
 			return nil
 		}
@@ -251,6 +252,9 @@ func (v *VSpherePlatform) GetTagsForCategory(ctx context.Context, category strin
 	defer tagMux.Unlock()
 
 	out, err := v.TimedGovcCommand(ctx, "govc", "tags.ls", "-c", category, "-json")
+	if err != nil {
+		return nil, err
+	}
 
 	var tags []GovcTag
 	var matchedTags []GovcTag
@@ -321,7 +325,7 @@ func (v *VSpherePlatform) CreateTagCategory(ctx context.Context, category string
 	log.SpanLog(ctx, log.DebugLevelInfra, "CreateTagCategory", "category", category)
 	out, err := v.TimedGovcCommand(ctx, "govc", "tags.category.create", category)
 	if err != nil {
-		if strings.Contains(string(out), "ALREADY_EXISTS") {
+		if strings.Contains(string(out), TagAlreadyExists) {
 			log.SpanLog(ctx, log.DebugLevelInfra, "Tag category already exists", "category", category)
 			return nil
 		}

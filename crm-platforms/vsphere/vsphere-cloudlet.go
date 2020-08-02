@@ -168,7 +168,7 @@ func (v *VSpherePlatform) GetCloudletManifest(ctx context.Context, name string, 
 	log.SpanLog(ctx, log.DebugLevelInfra, "GetCloudletManifest", "name", name, "VMGroupOrchestrationParams", VMGroupOrchestrationParams)
 	ovfLocation := vmlayer.DefaultCloudletVMImagePath + "/vsphere-ovf-" + vmlayer.MEXInfraVersion
 	instructions := `
-1) Download OVF template from: %s ` + ovfLocation + `
+1) Download OVF template from: ` + ovfLocation + `
 2) Import the OVF into vCenter: VMs and Templates -> Deploy OVF Template -> Select downloaded files
 3) Select cluster and datastore
 4) Update port group when prompted 

@@ -121,7 +121,7 @@ func (v *VSpherePlatform) GetPortGroup(ctx context.Context, serverName, network 
 	log.SpanLog(ctx, log.DebugLevelInfra, "GetPortGroup", "serverName", serverName, "network", network)
 
 	if network == v.vmProperties.GetCloudletExternalNetwork() {
-		return v.vmProperties.GetCloudletExternalNetwork(), nil
+		return network, nil
 	}
 	subnetTag, err := v.GetTagMatchingField(ctx, v.GetSubnetTagCategory(ctx), TagFieldSubnetName, network)
 	if err != nil {

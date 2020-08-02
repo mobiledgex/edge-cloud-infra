@@ -16,6 +16,8 @@ import (
 	"github.com/tmc/scp"
 )
 
+const SSHReachableDefaultTimeout = 2 * time.Minute
+
 type SSHOptions struct {
 	Timeout time.Duration
 	User    string

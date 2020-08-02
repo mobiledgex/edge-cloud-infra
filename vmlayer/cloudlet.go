@@ -353,7 +353,6 @@ func (v *VMPlatform) DeleteCloudlet(ctx context.Context, cloudlet *edgeproto.Clo
 
 	rootLBName := v.GetRootLBName(&cloudlet.Key)
 	if cloudlet.InfraApiAccess == edgeproto.InfraApiAccess_DIRECT_ACCESS {
-
 		nodes := v.GetPlatformNodes(cloudlet)
 		for _, nodeName := range nodes {
 			updateCallback(edgeproto.UpdateTask, fmt.Sprintf("Deleting PlatformVM %s", nodeName))

@@ -33,16 +33,26 @@ func (o *VMPoolPlatform) GetCloudletKey() *edgeproto.CloudletKey {
 }
 
 func (o *VMPoolPlatform) SetCaches(ctx context.Context, caches *platform.Caches) {
-	// vmpool doesn't need caches
+	o.caches = caches
 }
 
 func (o *VMPoolPlatform) InitProvider(ctx context.Context, caches *platform.Caches, stage vmlayer.ProviderInitStage, updateCallback edgeproto.CacheUpdateCallback) error {
 	log.SpanLog(ctx, log.DebugLevelInfra, "InitProvider for VM Pool", "stage", stage)
-	o.caches = caches
+	o.SetCaches(ctx, caches)
 	updateCallback(edgeproto.UpdateTask, "Verifying VMs")
-	// should we do this on create cloudlet as well?
-	if stage == vmlayer.ProviderInitPlatformStart {
+
+	switch stage {
+
+	case vmlayer.ProviderInitCreateCloudlet:
+		// A VerifyVMs error fails CreateCloudlet
 		return o.VerifyVMs(ctx, caches.VMPool.Vms)
+	case vmlayer.ProviderInitPlatformStart:
+		err := o.VerifyVMs(ctx, caches.VMPool.Vms)
+		if err != nil {
+			// do not fail CRM startup, but alerts should be generated for any failed VMs
+			// EDGECLOUD-3366 -- TODO
+			log.SpanLog(ctx, log.DebugLevelInfra, "Error in VerifyVMs", "err", err)
+		}
 	}
 	return nil
 }

@@ -96,7 +96,7 @@ func (v *VMPlatform) configureInternalInterfaceAndExternalForwarding(ctx context
 		return fmt.Errorf("No MAC address for external interface: %s", externalIP.Network)
 	}
 
-	err = WaitServerSSHReachable(ctx, client, externalIP.ExternalAddr, time.Minute*2)
+	err = WaitServerSSHReachable(ctx, client, externalIP.ExternalAddr, SSHReachableDefaultTimeout)
 	if err != nil {
 		log.SpanLog(ctx, log.DebugLevelInfra, "server not reachable", "err", err)
 		return err

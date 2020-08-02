@@ -482,7 +482,10 @@ func (v *VSpherePlatform) CreateVMs(ctx context.Context, vmgp *vmlayer.VMGroupOr
 
 	// lock until all the tags are created, meaning we have the IPs picked
 	orchVmLock.Lock()
-	v.populateOrchestrationParams(ctx, vmgp, vmlayer.ActionCreate)
+	err := v.populateOrchestrationParams(ctx, vmgp, vmlayer.ActionCreate)
+	if err != nil {
+		return err
+	}
 	log.SpanLog(ctx, log.DebugLevelInfra, "Updated Group Orch Parms", "vmgp", vmgp)
 
 	updateCallback(edgeproto.UpdateTask, "Creating vCenter Tags")
@@ -506,7 +509,7 @@ func (v *VSpherePlatform) CreateVMs(ctx context.Context, vmgp *vmlayer.VMGroupOr
 	}
 
 	poolName := getResourcePoolName(vmgp.GroupName, string(v.vmProperties.Domain))
-	err := v.CreatePool(ctx, poolName)
+	err = v.CreatePool(ctx, poolName)
 	if err != nil {
 		return err
 	}
@@ -591,7 +594,10 @@ func (v *VSpherePlatform) UpdateVMs(ctx context.Context, vmgp *vmlayer.VMGroupOr
 	log.SpanLog(ctx, log.DebugLevelInfra, "UpdateVMs", "vmGroupName", vmgp.GroupName)
 
 	orchVmLock.Lock()
-	v.populateOrchestrationParams(ctx, vmgp, vmlayer.ActionUpdate)
+	err := v.populateOrchestrationParams(ctx, vmgp, vmlayer.ActionUpdate)
+	if err != nil {
+		return err
+	}
 
 	// Get existing VMs
 	vmTags, err := v.GetTagsMatchingField(ctx, TagFieldGroup, vmgp.GroupName, v.GetVMDomainTagCategory(ctx))
@@ -696,7 +702,7 @@ func (v *VSpherePlatform) AttachPortToServer(ctx context.Context, serverName, su
 	if err != nil {
 		return err
 	}
-	attached, err := v.IsPortgrpAttached(ctx, serverName, portGrp)
+	attached, err := v.IsPortGrpAttached(ctx, serverName, portGrp)
 	if err != nil {
 		return err
 	}
@@ -775,7 +781,7 @@ func (v *VSpherePlatform) CreateTemplateFromImage(ctx context.Context, imageFold
 			return fmt.Errorf("timed out waiting for VM tools %s", templateName)
 		}
 		log.SpanLog(ctx, log.DebugLevelInfra, "Sleep and check guest tools again", "templateName", templateName, "GuestState", vm.Guest.GuestState)
-		time.Sleep(10 * time.Second)
+		time.Sleep(5 * time.Second)
 	}
 
 	// shut off the VM
@@ -823,6 +829,7 @@ func (v *VSpherePlatform) DeleteImage(ctx context.Context, folder, image string)
 	if err != nil {
 		if strings.Contains(string(out), "not found") {
 			log.SpanLog(ctx, log.DebugLevelInfra, "DeleteImage -- dir does not exist", "out", string(out), "err", err)
+			err = nil
 		} else {
 			log.SpanLog(ctx, log.DebugLevelInfra, "DeleteImage fail", "out", string(out), "err", err)
 		}

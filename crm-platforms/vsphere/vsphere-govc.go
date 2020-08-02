@@ -374,8 +374,8 @@ func (v *VSpherePlatform) GetUsedExternalIPs(ctx context.Context) (map[string]st
 	return ipsUsed, nil
 }
 
-func (v *VSpherePlatform) IsPortgrpAttached(ctx context.Context, serverName, portGrpName string) (bool, error) {
-	log.SpanLog(ctx, log.DebugLevelInfra, "IsPortgrpAttached", "serverName", serverName, "portGrpName", portGrpName)
+func (v *VSpherePlatform) IsPortGrpAttached(ctx context.Context, serverName, portGrpName string) (bool, error) {
+	log.SpanLog(ctx, log.DebugLevelInfra, "IsPortGrpAttached", "serverName", serverName, "portGrpName", portGrpName)
 
 	govcVm, err := v.GetGovcVm(ctx, serverName)
 	if err != nil {
@@ -390,12 +390,12 @@ func (v *VSpherePlatform) IsPortgrpAttached(ctx context.Context, serverName, por
 			pgrpId := dev.Backing.Port.PortgroupKey
 			pgrp, ok := pgrps[pgrpId]
 			if ok && pgrp.Name == portGrpName {
-				log.SpanLog(ctx, log.DebugLevelInfra, "IsPortgrpAttached found portgrp")
+				log.SpanLog(ctx, log.DebugLevelInfra, "IsPortGrpAttached found portgrp")
 				return true, nil
 			}
 		}
 	}
-	log.SpanLog(ctx, log.DebugLevelInfra, "IsPortgrpAttached portgrp not found")
+	log.SpanLog(ctx, log.DebugLevelInfra, "IsPortGrpAttached portgrp not found")
 	return false, nil
 }
 
@@ -680,7 +680,7 @@ func (v *VSpherePlatform) CreateTemplateFolder(ctx context.Context) error {
 	out, err := v.TimedGovcCommand(ctx, "govc", "folder.create", "-dc", dcName, folderPath)
 	if err != nil {
 		if strings.Contains(string(out), "already exists") {
-			log.SpanLog(ctx, log.DebugLevelMetrics, "Template folder already exists", "folderPath", folderPath)
+			log.SpanLog(ctx, log.DebugLevelInfra, "Template folder already exists", "folderPath", folderPath)
 			return nil
 		}
 		return fmt.Errorf("unable to create template folder: %s", folderPath)

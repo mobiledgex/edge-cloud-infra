@@ -220,19 +220,14 @@ func (o *VMPoolPlatform) createVMsInternal(ctx context.Context, markedVMs map[st
 
 		// bringup k8s master nodes first, then k8s worker nodes
 		if role == vmlayer.RoleMaster {
-			wg.Add(1)
-			go func(client ssh.Client, nodeName string, wg *sync.WaitGroup) {
-				updateCallback(edgeproto.UpdateTask, fmt.Sprintf("Setting up kubernetes master node"))
-				log.SpanLog(ctx, log.DebugLevelInfra, "CreateVMs, setup kubernetes master node")
-				cmd := fmt.Sprintf("sudo sh -x /etc/mobiledgex/install-k8s-master.sh \"ens3\" \"%s\" \"%s\"", masterAddr, masterAddr)
-				out, err := client.Output(cmd)
-				if err != nil {
-					log.SpanLog(ctx, log.DebugLevelInfra, "failed to setup k8s master", "masterAddr", masterAddr, "nodename", nodeName, "err", err)
-					wgError <- fmt.Errorf("can't setup k8s master on vm %s with masteraddr %s, %s, %v", nodeName, masterAddr, out, err)
-					return
-				}
-				wg.Done()
-			}(client, vm.InternalName, &wg)
+			updateCallback(edgeproto.UpdateTask, fmt.Sprintf("Setting up kubernetes master node"))
+			log.SpanLog(ctx, log.DebugLevelInfra, "CreateVMs, setup kubernetes master node", "masterAddr", masterAddr)
+			cmd := fmt.Sprintf("sudo sh -x /etc/mobiledgex/install-k8s-master.sh \"ens3\" \"%s\" \"%s\"", masterAddr, masterAddr)
+			out, err := client.Output(cmd)
+			if err != nil {
+				log.SpanLog(ctx, log.DebugLevelInfra, "failed to setup k8s master", "masterAddr", masterAddr, "nodename", vm.InternalName, "err", err)
+				return fmt.Errorf("can't setup k8s master on vm %s with masteraddr %s, %s, %v", vm.InternalName, masterAddr, out, err)
+			}
 		}
 	}
 	if masterAddr == "" {

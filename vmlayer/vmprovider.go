@@ -6,6 +6,7 @@ import (
 
 	"github.com/gogo/protobuf/types"
 	"github.com/mobiledgex/edge-cloud/cloud-resource-manager/platform"
+	"github.com/mobiledgex/edge-cloud/cloud-resource-manager/proxy"
 	"github.com/mobiledgex/edge-cloud/cloudcommon"
 	dme "github.com/mobiledgex/edge-cloud/d-match-engine/dme-proto"
 	"github.com/mobiledgex/edge-cloud/edgeproto"
@@ -310,6 +311,17 @@ func (v *VMPlatform) Init(ctx context.Context, platformConfig *platform.Platform
 	}
 	log.SpanLog(ctx, log.DebugLevelInfra, "ok, SetupRootLB")
 
+	// deletes exisitng l7 proxies for backwards compatibility, since we got rid of http. can be removed later
+	client, err := v.GetNodePlatformClient(ctx, &edgeproto.CloudletMgmtNode{Name: v.VMProperties.SharedRootLBName})
+	if err != nil {
+		return err
+	}
+
+	updateCallback(edgeproto.UpdateTask, "Setting up Proxy")
+	err = proxy.InitL7Proxy(ctx, client, proxy.WithDockerNetwork("host"))
+	if err != nil {
+		return err
+	}
 	return nil
 }
 

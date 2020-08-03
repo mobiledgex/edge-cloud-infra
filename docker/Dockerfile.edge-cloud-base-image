@@ -44,12 +44,6 @@ RUN curl -sL https://github.com/vmware/govmomi/releases/download/v0.23.0/govc_li
 	| gunzip >/usr/local/bin/govc \
 	&& chmod ug+rx /usr/local/bin/govc
 
-## TERRAFORM
-RUN curl -sL https://releases.hashicorp.com/terraform/0.12.24/terraform_0.12.24_linux_amd64.zip >terraform.zip \
-	&& unzip terraform.zip \
-	&& mv terraform /usr/local/bin/ \
-	&& rm -f terraform.zip
-
 COPY edge-cloud-base-image.root/_ssh /root/.ssh
 COPY edge-cloud-base-image.root/_mobiledgex /root/.mobiledgex
 RUN chmod 400 /root/.mobiledgex/id_rsa_mex /root/.mobiledgex/id_rsa_mobiledgex

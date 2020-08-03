@@ -38,6 +38,8 @@ const (
 	ActionDelete ActionType = "delete"
 )
 
+var CloudflareDns = []string{"1.1.1.1", "1.0.0.1"}
+
 var ClusterTypeKubernetesMasterLabel = "mex-k8s-master"
 var ClusterTypeDockerVMLabel = "mex-docker-vm"
 
@@ -499,7 +501,6 @@ func (v *VMPlatform) getVMGroupOrchestrationParamsFromGroupSpec(ctx context.Cont
 	externalNetName := v.VMProperties.GetCloudletExternalNetwork()
 
 	// DNS is applied either at the subnet or VM level
-	cloudflareDns := []string{"1.1.1.1", "1.0.0.1"}
 	vmDns := ""
 	subnetDns := []string{}
 	cloudletSecGrpID, err := v.VMProvider.GetResourceID(ctx, ResourceTypeSecurityGroup, v.VMProperties.GetCloudletSecurityGroupName())
@@ -511,9 +512,9 @@ func (v *VMPlatform) getVMGroupOrchestrationParamsFromGroupSpec(ctx context.Cont
 	}
 	if v.VMProperties.GetSubnetDNS() == NoSubnetDNS {
 		// Contrail workaround, see EDGECLOUD-2420 for details
-		vmDns = strings.Join(cloudflareDns, " ")
+		vmDns = strings.Join(CloudflareDns, " ")
 	} else {
-		subnetDns = cloudflareDns
+		subnetDns = CloudflareDns
 	}
 
 	vmgp.Netspec, err = ParseNetSpec(ctx, v.VMProperties.GetCloudletNetworkScheme())

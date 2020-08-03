@@ -87,7 +87,7 @@ func (v *VSpherePlatform) DeleteResourcesForGroup(ctx context.Context, groupName
 		return err
 	}
 	for _, ipTag := range ipTags {
-		v.DeleteTag(ctx, ipTag.Name)
+		err = v.DeleteTag(ctx, ipTag.Name)
 		if err != nil {
 			log.SpanLog(ctx, log.DebugLevelInfra, "DeleteTag error", "err", err)
 		}
@@ -642,12 +642,12 @@ func (v *VSpherePlatform) getVMListsForUpdate(ctx context.Context, vmgp *vmlayer
 			vmLists.vmsToDelete[oldvm] = oldvm
 		}
 	}
-	log.SpanLog(ctx, log.DebugLevelInfra, "UpdateVMs", "num VMs to create", len(vmLists.vmsToCreate), "num VMs to delete", len(vmLists.vmsToDelete), "VMS", vmLists.vmsToCreate)
+	log.SpanLog(ctx, log.DebugLevelInfra, "getVMListsForUpdate", "num VMs to create", len(vmLists.vmsToCreate), "num VMs to delete", len(vmLists.vmsToDelete), "VMS", vmLists.vmsToCreate)
 	for _, tag := range vmgp.Tags {
 		// apply any tags that relate to a new vm
 		vmname, err := v.GetValueForTagField(tag.Name, TagFieldVmName)
 		if err == nil {
-			log.SpanLog(ctx, log.DebugLevelInfra, "UpdateVMs found tag", "tag", tag.Name, "vmname", vmname)
+			log.SpanLog(ctx, log.DebugLevelInfra, "getVMListsForUpdate found tag", "tag", tag.Name, "vmname", vmname)
 			_, isnew := vmLists.vmsToCreate[vmname]
 			if isnew {
 				err := v.CreateTag(ctx, &tag)

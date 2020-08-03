@@ -56,7 +56,7 @@ type ProxyScrapePoint struct {
 	App               string
 	Cluster           string
 	ClusterOrg        string
-	Ports             []int32
+	TcpPorts          []int32
 	UdpPorts          []int32
 	Client            ssh.Client
 	ProxyContainer    string
@@ -128,20 +128,20 @@ func CollectProxyStats(ctx context.Context, appInst *edgeproto.AppInst) string {
 			App:        k8smgmt.NormalizeName(appInst.Key.AppKey.Name),
 			Cluster:    appInst.Key.ClusterInstKey.ClusterKey.Name,
 			ClusterOrg: appInst.Key.ClusterInstKey.Organization,
-			Ports:      make([]int32, 0),
+			TcpPorts:   make([]int32, 0),
 			UdpPorts:   make([]int32, 0),
 		}
 
 		for _, p := range appInst.MappedPorts {
 			if p.Proto == dme.LProto_L_PROTO_TCP {
-				scrapePoint.Ports = append(scrapePoint.Ports, p.InternalPort)
+				scrapePoint.TcpPorts = append(scrapePoint.TcpPorts, p.InternalPort)
 			}
 			if p.Proto == dme.LProto_L_PROTO_UDP && !p.Nginx {
 				scrapePoint.UdpPorts = append(scrapePoint.UdpPorts, p.InternalPort)
 			}
 		}
 		// Don't need to scrape anything if no ports are trackable
-		if len(scrapePoint.Ports) == 0 && len(scrapePoint.UdpPorts) == 0 {
+		if len(scrapePoint.TcpPorts) == 0 && len(scrapePoint.UdpPorts) == 0 {
 			return ""
 		}
 
@@ -259,7 +259,7 @@ func QueryProxy(ctx context.Context, scrapePoint *ProxyScrapePoint) (*shepherd_c
 	}
 	metrics := &shepherd_common.ProxyMetrics{Nginx: false}
 	respMap := parseEnvoyResp(ctx, resp)
-	err = envoyTcpConnections(ctx, respMap, scrapePoint.Ports, metrics)
+	err = envoyTcpConnections(ctx, respMap, scrapePoint.TcpPorts, metrics)
 	if err != nil {
 		return nil, fmt.Errorf("Error parsing response: %v", err)
 	}
@@ -540,7 +540,7 @@ func MarshallTcpProxyMetric(scrapePoint ProxyScrapePoint, data *shepherd_common.
 		return []*edgeproto.Metric{MarshallNginxMetric(scrapePoint, data)}
 	}
 	metricList := make([]*edgeproto.Metric, 0)
-	for _, port := range scrapePoint.Ports {
+	for _, port := range scrapePoint.TcpPorts {
 		metric := edgeproto.Metric{}
 		metric.Name = "appinst-connections"
 		metric.Timestamp = *data.Ts

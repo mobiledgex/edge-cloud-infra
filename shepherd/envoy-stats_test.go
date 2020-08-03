@@ -61,7 +61,7 @@ func TestEnvoyStats(t *testing.T) {
 		App:        "UnitTestApp",
 		Cluster:    "UnitTestCluster",
 		ClusterOrg: "UnitTestDev",
-		Ports:      []int32{1234, 4321},
+		TcpPorts:   []int32{1234, 4321},
 		UdpPorts:   []int32{5678, 8765},
 		Client:     &shepherd_unittest.UTClient{},
 	}

@@ -157,9 +157,6 @@ func (o *VMPoolPlatform) createVMsInternal(ctx context.Context, markedVMs map[st
 
 	// Setup Cluster Nodes
 	masterAddr := ""
-	wgError := make(chan error)
-	wgDone := make(chan bool)
-	var wg sync.WaitGroup
 	for _, vm := range markedVMs {
 		role, ok := vmRoles[vm.InternalName]
 		if !ok {
@@ -247,6 +244,10 @@ func (o *VMPoolPlatform) createVMsInternal(ctx context.Context, markedVMs map[st
 		}
 	}
 	if masterAddr != "" {
+		wgError := make(chan error)
+		wgDone := make(chan bool)
+		var wg sync.WaitGroup
+
 		// bring other nodes once master node is up (if deployment is k8s)
 		updateCallback(edgeproto.UpdateTask, fmt.Sprintf("Setting up kubernetes worker nodes"))
 		for _, vm := range markedVMs {
@@ -271,22 +272,22 @@ func (o *VMPoolPlatform) createVMsInternal(ctx context.Context, markedVMs map[st
 				wg.Done()
 			}(client, vm.InternalName, &wg)
 		}
-	}
 
-	go func() {
-		wg.Wait()
-		close(wgDone)
-	}()
+		go func() {
+			wg.Wait()
+			close(wgDone)
+		}()
 
-	// Wait until either WaitGroup is done or an error is received through the channel
-	select {
-	case <-wgDone:
-		break
-	case err := <-wgError:
-		close(wgError)
-		return err
-	case <-time.After(CreateVMTimeout):
-		return fmt.Errorf("Timed out setting up VMs")
+		// Wait until either WaitGroup is done or an error is received through the channel
+		select {
+		case <-wgDone:
+			break
+		case err := <-wgError:
+			close(wgError)
+			return err
+		case <-time.After(CreateVMTimeout):
+			return fmt.Errorf("Timed out setting up VMs")
+		}
 	}
 
 	return nil

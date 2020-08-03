@@ -222,8 +222,8 @@ func (o *VMPoolPlatform) createVMsInternal(ctx context.Context, markedVMs map[st
 			cmd := fmt.Sprintf("sudo sh -x /etc/mobiledgex/install-k8s-master.sh \"ens3\" \"%s\" \"%s\"", masterAddr, masterAddr)
 			out, err := client.Output(cmd)
 			if err != nil {
-				log.SpanLog(ctx, log.DebugLevelInfra, "failed to setup k8s master", "masterAddr", masterAddr, "nodename", vm.InternalName, "err", err)
-				return fmt.Errorf("can't setup k8s master on vm %s with masteraddr %s, %s, %v", vm.InternalName, masterAddr, out, err)
+				log.SpanLog(ctx, log.DebugLevelInfra, "failed to setup k8s master", "masterAddr", masterAddr, "nodename", vm.InternalName, "out", out, "err", err)
+				return fmt.Errorf("can't setup k8s master on vm %s with masteraddr %s", vm.InternalName, masterAddr)
 			}
 		}
 	}
@@ -265,8 +265,8 @@ func (o *VMPoolPlatform) createVMsInternal(ctx context.Context, markedVMs map[st
 				cmd := fmt.Sprintf("sudo sh -x /etc/mobiledgex/install-k8s-node.sh \"ens3\" \"%s\" \"%s\"", masterAddr, masterAddr)
 				out, err := client.Output(cmd)
 				if err != nil {
-					log.SpanLog(ctx, log.DebugLevelInfra, "failed to setup k8s node", "masterAddr", masterAddr, "nodename", nodeName, "err", err)
-					wgError <- fmt.Errorf("can't setup k8s node on vm %s with masteraddr %s, %s, %v", nodeName, masterAddr, out, err)
+					log.SpanLog(ctx, log.DebugLevelInfra, "failed to setup k8s node", "masterAddr", masterAddr, "nodename", nodeName, "out", out, "err", err)
+					wgError <- fmt.Errorf("can't setup k8s node on vm %s with masteraddr %s", nodeName, masterAddr)
 					return
 				}
 				wg.Done()

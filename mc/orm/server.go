@@ -215,12 +215,14 @@ func RunServer(config *ServerConfig) (*Server, error) {
 	server.initDataDone = make(chan struct{}, 1)
 	go InitData(ctx, Superuser, superpass, config.PingInterval, &server.stopInitData, server.initDataDone)
 
-	AlertManagerServer, err = alertmgr.NewAlertMgrServer(config.AlertMgrAddr, config.AlertMgrConfigPath,
-		config.vaultConfig, config.LocalVault, config.AlertCache, config.AlertmgrResolveTimout)
-	if err != nil {
-		log.FatalLog("Failed to run alertmanager server", "err", err)
+	if config.AlertMgrAddr != "" {
+		AlertManagerServer, err = alertmgr.NewAlertMgrServer(config.AlertMgrAddr, config.AlertMgrConfigPath,
+			config.vaultConfig, config.LocalVault, config.AlertCache, config.AlertmgrResolveTimout)
+		if err != nil {
+			// TODO - this needs to be a fatal failure when we add alertmanager deployment to the ansible scripts
+			log.SpanLog(ctx, log.DebugLevelInfo, "Failed to start alertmanger seerver", "error", err)
+		}
 	}
-
 	go server.setupConsoleProxy(ctx)
 
 	e := echo.New()
@@ -405,7 +407,9 @@ func RunServer(config *ServerConfig) (*Server, error) {
 		edgeproto.InitAlertCache(config.AlertCache)
 		// sets the callback to be the alertMgr thread callback
 		server.notifyServer.RegisterRecvAlertCache(config.AlertCache)
-		config.AlertCache.SetUpdatedCb(AlertManagerServer.UpdateAlert)
+		if AlertManagerServer != nil {
+			config.AlertCache.SetUpdatedCb(AlertManagerServer.UpdateAlert)
+		}
 		server.notifyServer.Start(nodeMgr.Name(), config.NotifySrvAddr, tlsConfig)
 	}
 	if config.NotifyAddrs != "" {
@@ -460,7 +464,9 @@ func RunServer(config *ServerConfig) (*Server, error) {
 	<-server.initDataDone
 	gitlabSync.Start()
 	artifactorySync.Start()
-	AlertManagerServer.Start()
+	if AlertManagerServer != nil {
+		AlertManagerServer.Start()
+	}
 
 	return &server, err
 }
@@ -499,6 +505,9 @@ func (s *Server) Stop() {
 	}
 	if s.notifyClient != nil {
 		s.notifyClient.Stop()
+	}
+	if AlertManagerServer != nil {
+		AlertManagerServer.Stop()
 	}
 }
 

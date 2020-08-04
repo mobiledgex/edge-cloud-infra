@@ -72,8 +72,8 @@ func GetMaildev(name string) *intprocess.Maildev {
 			return maildev
 		}
 	}
-	log.Fatalf("Error: could not find specified influx: %s\n", name)
-	return nil // unreachable
+	log.Fatalf("Error: could not find maildev container: %s\n", name)
+	return nil
 }
 
 // get api

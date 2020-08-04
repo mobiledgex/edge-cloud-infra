@@ -468,7 +468,6 @@ func alertManagerAlertsToEdgeprotoAlerts(openAPIAlerts models.GettableAlerts) []
 }
 
 // Show all alerts in the alertmgr
-// TODO Future: alerts api can take filters to make rbac simpler
 func (s *AlertMrgServer) ShowAlerts(ctx context.Context, filter *edgeproto.Alert) ([]edgeproto.Alert, error) {
 	data, err := s.alertMgrApi(ctx, "GET", AlertApi, "", nil)
 	if err != nil {
@@ -487,7 +486,6 @@ func (s *AlertMrgServer) ShowAlerts(ctx context.Context, filter *edgeproto.Alert
 
 // Marshal edgeproto.Alert into json payload suitabe for alertmanager api
 func (s *AlertMrgServer) AddAlerts(ctx context.Context, alerts ...*edgeproto.Alert) error {
-
 	openApiAlerts := s.alertsToOpenAPIAlerts(alerts)
 	data, err := json.Marshal(openApiAlerts)
 	if err != nil {

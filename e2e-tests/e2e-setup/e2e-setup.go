@@ -262,7 +262,6 @@ func StartProcesses(processName string, args []string, outputDir string) bool {
 			return false
 		}
 	}
-
 	for _, p := range Deployment.Mcs {
 		opts = append(opts, process.WithRolesFile(rolesfile))
 		opts = append(opts, process.WithDebug("api,metrics"))

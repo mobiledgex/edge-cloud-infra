@@ -14,7 +14,6 @@ type AlertManagerContext struct {
 }
 
 // Create alert receiver api handler
-// TODO - make the list generic with respect to what type of user creates an alert
 func CreateAlertReceiver(c echo.Context) error {
 	claims, err := getClaims(c)
 	if err != nil {

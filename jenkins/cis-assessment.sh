@@ -84,6 +84,8 @@ trap 'cleanup' EXIT
 
 # Main
 
+[[ -z "$BASE_IMAGE_URL" ]] && die "Mandatory parameter: BASE_IMAGE_URL"
+
 . ${HOME}/.cloudlets/${LOCATION}_cloudlet/openrc.mex
 
 IMAGE=$( basename $BASE_IMAGE_URL .qcow2)

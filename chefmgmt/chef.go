@@ -235,7 +235,19 @@ func ChefClientCreate(ctx context.Context, client *chef.Client, chefParams *VMCh
 	}
 	out, err := client.Clients.Create(clientObj)
 	if err != nil {
-		return "", fmt.Errorf("failed to create client %s: %v", clientName, err)
+		if strings.Contains(err.Error(), " 409") {
+			log.SpanLog(ctx, log.DebugLevelInfra, "chef client already exists, deleting and trying again", "client name", clientName)
+			err = ChefClientDelete(ctx, client, clientName)
+			if err != nil {
+				return "", err
+			}
+			out, err = client.Clients.Create(clientObj)
+			if err != nil {
+				return "", fmt.Errorf("failed to create client after delete and retry %s: %v", clientName, err)
+			}
+		} else {
+			return "", fmt.Errorf("failed to create client %s: %v", clientName, err)
+		}
 	}
 	clientKey := out.ChefKey.PrivateKey
 	if clientKey == "" {

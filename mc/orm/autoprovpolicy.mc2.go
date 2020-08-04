@@ -53,8 +53,8 @@ func CreateAutoProvPolicy(c echo.Context) error {
 
 func CreateAutoProvPolicyObj(ctx context.Context, rc *RegionContext, obj *edgeproto.AutoProvPolicy) (*edgeproto.Result, error) {
 	if !rc.skipAuthz {
-		if err := authorized(ctx, rc.username, obj.Key.Organization,
-			ResourceDeveloperPolicy, ActionManage, withRequiresOrg(obj.Key.Organization)); err != nil {
+		if err := authzCreateAutoProvPolicy(ctx, rc.region, rc.username, obj,
+			ResourceDeveloperPolicy, ActionManage); err != nil {
 			return nil, err
 		}
 	}
@@ -147,7 +147,7 @@ func UpdateAutoProvPolicy(c echo.Context) error {
 
 func UpdateAutoProvPolicyObj(ctx context.Context, rc *RegionContext, obj *edgeproto.AutoProvPolicy) (*edgeproto.Result, error) {
 	if !rc.skipAuthz {
-		if err := authorized(ctx, rc.username, obj.Key.Organization,
+		if err := authzUpdateAutoProvPolicy(ctx, rc.region, rc.username, obj,
 			ResourceDeveloperPolicy, ActionManage); err != nil {
 			return nil, err
 		}
@@ -198,10 +198,10 @@ func ShowAutoProvPolicy(c echo.Context) error {
 }
 
 func ShowAutoProvPolicyStream(ctx context.Context, rc *RegionContext, obj *edgeproto.AutoProvPolicy, cb func(res *edgeproto.AutoProvPolicy)) error {
-	var authz *ShowAuthz
+	var authz *AuthzShow
 	var err error
 	if !rc.skipAuthz {
-		authz, err = NewShowAuthz(ctx, rc.region, rc.username, ResourceDeveloperPolicy, ActionView)
+		authz, err = newShowAuthz(ctx, rc.region, rc.username, ResourceDeveloperPolicy, ActionView)
 		if err == echo.ErrForbidden {
 			return nil
 		}
@@ -279,7 +279,7 @@ func AddAutoProvPolicyCloudlet(c echo.Context) error {
 
 func AddAutoProvPolicyCloudletObj(ctx context.Context, rc *RegionContext, obj *edgeproto.AutoProvPolicyCloudlet) (*edgeproto.Result, error) {
 	if !rc.skipAuthz {
-		if err := authorized(ctx, rc.username, obj.Key.Organization,
+		if err := authzAddAutoProvPolicyCloudlet(ctx, rc.region, rc.username, obj,
 			ResourceDeveloperPolicy, ActionManage); err != nil {
 			return nil, err
 		}

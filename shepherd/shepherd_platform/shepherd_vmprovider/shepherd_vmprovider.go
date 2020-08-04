@@ -2,6 +2,7 @@ package shepherd_vmprovider
 
 import (
 	"context"
+	"sync"
 	"time"
 
 	"github.com/mobiledgex/edge-cloud/cloud-resource-manager/platform"
@@ -17,6 +18,8 @@ import (
 
 // Default Ceilometer granularity is 300 secs(5 mins)
 var VmScrapeInterval = time.Minute * 5
+
+var caches *platform.Caches
 
 type ShepherdPlatform struct {
 	rootLbName      string
@@ -64,21 +67,27 @@ func (s *ShepherdPlatform) Init(ctx context.Context, pc *platform.PlatformConfig
 	return nil
 }
 
+func (s *ShepherdPlatform) SetVMPool(ctx context.Context, vmPool *edgeproto.VMPool) {
+	log.SpanLog(ctx, log.DebugLevelInfra, "set vmpool", "vmpool", vmPool)
+	if s.VMPlatform != nil {
+		if caches == nil {
+			var vmPoolMux sync.Mutex
+			caches = &platform.Caches{}
+			caches.VMPoolMux = &vmPoolMux
+		}
+		caches.VMPoolMux.Lock()
+		defer caches.VMPoolMux.Unlock()
+		caches.VMPool = vmPool
+		s.VMPlatform.VMProvider.SetCaches(ctx, caches)
+	}
+}
+
 func (s *ShepherdPlatform) GetMetricsCollectInterval() time.Duration {
 	return s.collectInterval
 }
 
 func (s *ShepherdPlatform) GetClusterIP(ctx context.Context, clusterInst *edgeproto.ClusterInst) (string, error) {
-	sd, err := s.VMPlatform.VMProvider.GetServerDetail(ctx, vmlayer.GetClusterMasterName(ctx, clusterInst))
-	if err != nil {
-		return "", err
-	}
-	subnetName := vmlayer.GetClusterSubnetName(ctx, clusterInst)
-	sip, err := vmlayer.GetIPFromServerDetails(ctx, subnetName, "", sd)
-	if err != nil {
-		return "", err
-	}
-	return sip.ExternalAddr, nil
+	return s.VMPlatform.GetClusterAccessIP(ctx, clusterInst)
 }
 
 func (s *ShepherdPlatform) GetClusterPlatformClient(ctx context.Context, clusterInst *edgeproto.ClusterInst, clientType string) (ssh.Client, error) {

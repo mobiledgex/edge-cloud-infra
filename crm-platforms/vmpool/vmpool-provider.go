@@ -3,11 +3,15 @@ package vmpool
 import (
 	"context"
 	"fmt"
+	"strings"
+	"sync"
+	"time"
 
 	"github.com/mobiledgex/edge-cloud-infra/chefmgmt"
 	"github.com/mobiledgex/edge-cloud-infra/vmlayer"
 	"github.com/mobiledgex/edge-cloud/edgeproto"
 	"github.com/mobiledgex/edge-cloud/log"
+	"github.com/mobiledgex/edge-cloud/util"
 	ssh "github.com/mobiledgex/golang-ssh"
 )
 
@@ -15,6 +19,8 @@ const (
 	ActionNone     string = "none"
 	ActionAllocate string = "allocate"
 	ActionRelease  string = "release"
+
+	CreateVMTimeout = 20 * time.Minute
 )
 
 func (o *VMPoolPlatform) GetServerDetail(ctx context.Context, serverName string) (*vmlayer.ServerDetail, error) {
@@ -92,7 +98,7 @@ func (o *VMPoolPlatform) SaveVMStateInVMPool(ctx context.Context, vms map[string
 
 func (o *VMPoolPlatform) markVMsForAction(ctx context.Context, action string, groupName string, vmSpecs []edgeproto.VMSpec) (map[string]edgeproto.VM, error) {
 	if o.caches == nil || o.caches.VMPool == nil {
-		return nil, fmt.Errorf("caches is nil")
+		return nil, fmt.Errorf("missing VM pool")
 	}
 
 	o.caches.VMPoolMux.Lock()
@@ -118,30 +124,27 @@ func (o *VMPoolPlatform) markVMsForAction(ctx context.Context, action string, gr
 	return vms, nil
 }
 
-func (o *VMPoolPlatform) createVMsInternal(ctx context.Context, rootLBVMName string, markedVMs map[string]edgeproto.VM, orchVMs []vmlayer.VMOrchestrationParams, updateCallback edgeproto.CacheUpdateCallback) error {
-	// Verify & get RootLB SSH Client
-	rootLBVMIP := ""
-	if rootLBVMName == o.VMProperties.SharedRootLBName {
-		log.SpanLog(ctx, log.DebugLevelInfra, "CreateVMs, get shared rootlb IP", "rootLBVMName", rootLBVMName)
-		sd, err := o.GetServerDetail(ctx, rootLBVMName)
-		if err != nil {
-			return fmt.Errorf("failed to get shared rootLB IP for %s, %v", rootLBVMName, err)
-		}
-		if sd == nil || len(sd.Addresses) == 0 || sd.Addresses[0].ExternalAddr == "" {
-			return fmt.Errorf("missing shared rootLB IP for %s from info %v", rootLBVMName, sd)
-		}
-		rootLBVMIP = sd.Addresses[0].ExternalAddr
-	} else {
-		log.SpanLog(ctx, log.DebugLevelInfra, "CreateVMs, get dedicated rootlb IP", "rootLBVMName", rootLBVMName)
-		for _, vm := range markedVMs {
-			if vm.InternalName == rootLBVMName {
-				rootLBVMIP = vm.NetInfo.ExternalIp
-				break
-			}
-		}
+func setupHostname(ctx context.Context, client ssh.Client, name string) error {
+	log.SpanLog(ctx, log.DebugLevelInfra, "Setting up hostname", "name", name)
+	// sanitize hostname
+	hostname := util.HostnameSanitize(strings.Split(name, ".")[0])
+	cmd := fmt.Sprintf("sudo hostnamectl set-hostname %s", hostname)
+	out, err := client.Output(cmd)
+	if err != nil {
+		return fmt.Errorf("failed to execute hostnamectl: %s, %v", out, err)
 	}
-	if rootLBVMIP == "" {
-		return fmt.Errorf("failed to get rootLB IP for %s", rootLBVMName)
+	cmd = fmt.Sprintf(`sudo sed -i "/localhost/! s/127.0.0.1 \+.\+/127.0.0.1 %s/" /etc/hosts`, hostname)
+	out, err = client.Output(cmd)
+	if err != nil {
+		return fmt.Errorf("failed to update /etc/hosts file: %s, %v", out, err)
+	}
+	return nil
+}
+
+func (o *VMPoolPlatform) createVMsInternal(ctx context.Context, markedVMs map[string]edgeproto.VM, orchVMs []vmlayer.VMOrchestrationParams, updateCallback edgeproto.CacheUpdateCallback) error {
+	accessClient, err := o.GetAccessClient(ctx)
+	if err != nil {
+		return err
 	}
 
 	vmRoles := make(map[string]vmlayer.VMRole)
@@ -152,11 +155,6 @@ func (o *VMPoolPlatform) createVMsInternal(ctx context.Context, rootLBVMName str
 	}
 	log.SpanLog(ctx, log.DebugLevelInfra, "Fetch VM info", "vmRoles", vmRoles, "chefParams", vmChefParams)
 
-	rootLBClient, err := o.VMProperties.GetSSHClientFromIPAddr(ctx, rootLBVMIP)
-	if err != nil {
-		return fmt.Errorf("can't get rootlb ssh client for %s %v", rootLBVMIP, err)
-	}
-
 	// Setup Cluster Nodes
 	masterAddr := ""
 	for _, vm := range markedVMs {
@@ -165,13 +163,17 @@ func (o *VMPoolPlatform) createVMsInternal(ctx context.Context, rootLBVMName str
 			return fmt.Errorf("missing role for vm role %s", vm.InternalName)
 		}
 
-		client := rootLBClient
-		if vm.InternalName != rootLBVMName {
-			client, err = rootLBClient.AddHop(vm.NetInfo.InternalIp, 22)
+		var client ssh.Client
+		if vm.NetInfo.ExternalIp == "" {
+			client, err = accessClient.AddHop(vm.NetInfo.InternalIp, 22)
 			if err != nil {
 				return err
 			}
-
+		} else {
+			client, err = o.VMProperties.GetSSHClientFromIPAddr(ctx, vm.NetInfo.ExternalIp)
+			if err != nil {
+				return fmt.Errorf("can't get ssh client for %s %v", vm.NetInfo.ExternalIp, err)
+			}
 		}
 
 		// Run cleanup script
@@ -180,6 +182,11 @@ func (o *VMPoolPlatform) createVMsInternal(ctx context.Context, rootLBVMName str
 		out, err := client.Output(cmd)
 		if err != nil {
 			return fmt.Errorf("can't cleanup vm: %s, %v", out, err)
+		}
+		// Setup Hostname - Required for UpdateClusterInst
+		err = setupHostname(ctx, client, vm.InternalName)
+		if err != nil {
+			log.SpanLog(ctx, log.DebugLevelInfra, "failed to setup hostname", "vm", vm.Name, "hostname", vm.InternalName, "err", err)
 		}
 
 		// Setup Chef
@@ -211,11 +218,12 @@ func (o *VMPoolPlatform) createVMsInternal(ctx context.Context, rootLBVMName str
 		// bringup k8s master nodes first, then k8s worker nodes
 		if role == vmlayer.RoleMaster {
 			updateCallback(edgeproto.UpdateTask, fmt.Sprintf("Setting up kubernetes master node"))
-			log.SpanLog(ctx, log.DebugLevelInfra, "CreateVMs, setup kubernetes master node")
+			log.SpanLog(ctx, log.DebugLevelInfra, "CreateVMs, setup kubernetes master node", "masterAddr", masterAddr)
 			cmd := fmt.Sprintf("sudo sh -x /etc/mobiledgex/install-k8s-master.sh \"ens3\" \"%s\" \"%s\"", masterAddr, masterAddr)
 			out, err := client.Output(cmd)
 			if err != nil {
-				return fmt.Errorf("can't setup k8s master on vm %s with masteraddr %s, %s, %v", vm.InternalName, masterAddr, out, err)
+				log.SpanLog(ctx, log.DebugLevelInfra, "failed to setup k8s master", "masterAddr", masterAddr, "nodename", vm.InternalName, "out", out, "err", err)
+				return fmt.Errorf("can't setup k8s master on vm %s with masteraddr %s", vm.InternalName, masterAddr)
 			}
 		}
 	}
@@ -236,24 +244,52 @@ func (o *VMPoolPlatform) createVMsInternal(ctx context.Context, rootLBVMName str
 		}
 	}
 	if masterAddr != "" {
+		wgError := make(chan error)
+		wgDone := make(chan bool)
+		var wg sync.WaitGroup
+
 		// bring other nodes once master node is up (if deployment is k8s)
 		updateCallback(edgeproto.UpdateTask, fmt.Sprintf("Setting up kubernetes worker nodes"))
 		for _, vm := range markedVMs {
 			if vmRoles[vm.InternalName] != vmlayer.RoleNode {
 				continue
 			}
-			client, err := rootLBClient.AddHop(vm.NetInfo.InternalIp, 22)
+			client, err := accessClient.AddHop(vm.NetInfo.InternalIp, 22)
 			if err != nil {
 				return err
 			}
-			log.SpanLog(ctx, log.DebugLevelInfra, "CreateVMs, setup kubernetes worker node", "masterAddr", masterAddr, "nodename", vm.InternalName)
-			cmd := fmt.Sprintf("sudo sh -x /etc/mobiledgex/install-k8s-node.sh \"ens3\" \"%s\" \"%s\"", masterAddr, masterAddr)
-			out, err := client.Output(cmd)
-			if err != nil {
-				return fmt.Errorf("can't setup k8s node on vm %s with masteraddr %s, %s, %v", vm.InternalName, masterAddr, out, err)
-			}
+
+			wg.Add(1)
+			go func(client ssh.Client, nodeName string, wg *sync.WaitGroup) {
+				log.SpanLog(ctx, log.DebugLevelInfra, "CreateVMs, setup kubernetes worker node", "masterAddr", masterAddr, "nodename", nodeName)
+				cmd := fmt.Sprintf("sudo sh -x /etc/mobiledgex/install-k8s-node.sh \"ens3\" \"%s\" \"%s\"", masterAddr, masterAddr)
+				out, err := client.Output(cmd)
+				if err != nil {
+					log.SpanLog(ctx, log.DebugLevelInfra, "failed to setup k8s node", "masterAddr", masterAddr, "nodename", nodeName, "out", out, "err", err)
+					wgError <- fmt.Errorf("can't setup k8s node on vm %s with masteraddr %s", nodeName, masterAddr)
+					return
+				}
+				wg.Done()
+			}(client, vm.InternalName, &wg)
+		}
+
+		go func() {
+			wg.Wait()
+			close(wgDone)
+		}()
+
+		// Wait until either WaitGroup is done or an error is received through the channel
+		select {
+		case <-wgDone:
+			break
+		case err := <-wgError:
+			close(wgError)
+			return err
+		case <-time.After(CreateVMTimeout):
+			return fmt.Errorf("Timed out setting up VMs")
 		}
 	}
+
 	return nil
 }
 
@@ -261,7 +297,6 @@ func (o *VMPoolPlatform) CreateVMs(ctx context.Context, vmGroupOrchestrationPara
 	log.SpanLog(ctx, log.DebugLevelInfra, "createVMs", "params", vmGroupOrchestrationParams)
 	vmSpecs := []edgeproto.VMSpec{}
 
-	rootLBVMName := o.VMProperties.SharedRootLBName
 	for _, vm := range vmGroupOrchestrationParams.VMs {
 		if vm.Role == vmlayer.RoleVMApplication {
 			return fmt.Errorf("VM based applications are not support by PlatformTypeVmPool")
@@ -271,7 +306,6 @@ func (o *VMPoolPlatform) CreateVMs(ctx context.Context, vmGroupOrchestrationPara
 		for _, p := range vm.Ports {
 			if p.NetworkType == vmlayer.NetTypeExternal {
 				vmSpec.ExternalNetwork = true
-				rootLBVMName = vm.Name
 				break
 			}
 		}
@@ -288,7 +322,7 @@ func (o *VMPoolPlatform) CreateVMs(ctx context.Context, vmGroupOrchestrationPara
 	}
 
 	state := edgeproto.VMState_VM_IN_USE
-	err = o.createVMsInternal(ctx, rootLBVMName, markedVMs, vmGroupOrchestrationParams.VMs, updateCallback)
+	err = o.createVMsInternal(ctx, markedVMs, vmGroupOrchestrationParams.VMs, updateCallback)
 	if err != nil {
 		// failed to create, mark VM as free
 		state = edgeproto.VMState_VM_FREE
@@ -298,33 +332,51 @@ func (o *VMPoolPlatform) CreateVMs(ctx context.Context, vmGroupOrchestrationPara
 	return err
 }
 
-func (o *VMPoolPlatform) GetVMSharedRootLBIP(ctx context.Context) (string, error) {
+func (o *VMPoolPlatform) GetAccessClient(ctx context.Context) (ssh.Client, error) {
 	if o.caches == nil || o.caches.VMPool == nil {
-		return "", fmt.Errorf("caches is nil")
+		return nil, fmt.Errorf("missing VM pool")
 	}
 
 	o.caches.VMPoolMux.Lock()
 	defer o.caches.VMPoolMux.Unlock()
 
+	// This will be used to access nodes which are only reachable
+	// over internal network, and via external network
+
+	sharedRootLBIP := ""
+	accessIP := ""
 	for _, vm := range o.caches.VMPool.Vms {
 		if vm.InternalName == o.VMProperties.SharedRootLBName {
-			return vm.NetInfo.ExternalIp, nil
+			sharedRootLBIP = vm.NetInfo.ExternalIp
+		}
+		if vm.NetInfo.ExternalIp != "" {
+			accessIP = vm.NetInfo.ExternalIp
 		}
 	}
-	return "", fmt.Errorf("unable to get shared rootlb ip")
+
+	if sharedRootLBIP != "" {
+		// prefer shared rootLB's IP
+		accessIP = sharedRootLBIP
+	}
+
+	if accessIP == "" {
+		return nil, fmt.Errorf("unable to find any VM with external IP")
+	}
+
+	accessClient, err := o.VMProperties.GetSSHClientFromIPAddr(ctx, accessIP)
+	if err != nil {
+		return nil, fmt.Errorf("can't get ssh client for %s %v", accessIP, err)
+	}
+	return accessClient, nil
 }
 
 func (o *VMPoolPlatform) deleteVMsInternal(ctx context.Context, markedVMs map[string]edgeproto.VM) error {
-
 	// Cleanup VMs if possible
-	var rootLBClient ssh.Client
-	rootLBVMIP, err := o.GetVMSharedRootLBIP(ctx)
-	if err == nil {
-		rootLBClient, err = o.VMProperties.GetSSHClientFromIPAddr(ctx, rootLBVMIP)
-	}
+	var accessClient ssh.Client
+	accessClient, err := o.GetAccessClient(ctx)
 	if err != nil {
 		// skip, as cleanup happens as part of creation as well
-		log.SpanLog(ctx, log.DebugLevelInfra, "DeleteVMs, can't get rootlb ssh client for %s %v", rootLBVMIP, err)
+		log.SpanLog(ctx, log.DebugLevelInfra, "DeleteVMs, failed to get access client", "err", err)
 		return nil
 	}
 	for _, vm := range markedVMs {
@@ -332,11 +384,11 @@ func (o *VMPoolPlatform) deleteVMsInternal(ctx context.Context, markedVMs map[st
 		if vm.NetInfo.ExternalIp != "" {
 			client, err = o.VMProperties.GetSSHClientFromIPAddr(ctx, vm.NetInfo.ExternalIp)
 		} else if vm.NetInfo.InternalIp != "" {
-			client, err = rootLBClient.AddHop(vm.NetInfo.InternalIp, 22)
+			client, err = accessClient.AddHop(vm.NetInfo.InternalIp, 22)
 		}
 		if err != nil {
 			// skip, as cleanup happens as part of creation as well
-			log.SpanLog(ctx, log.DebugLevelInfra, "DeleteVMs, can't get ssh client for %s, %v", vm.Name, err)
+			log.SpanLog(ctx, log.DebugLevelInfra, "DeleteVMs, can't get ssh client", "vm", vm.Name, "err", err)
 			continue
 		}
 		// Run cleanup script
@@ -344,6 +396,11 @@ func (o *VMPoolPlatform) deleteVMsInternal(ctx context.Context, markedVMs map[st
 		out, err := client.Output(cmd)
 		if err != nil {
 			return fmt.Errorf("can't cleanup vm: %s, %v", out, err)
+		}
+		// Reset Hostname
+		err = setupHostname(ctx, client, vm.Name)
+		if err != nil {
+			log.SpanLog(ctx, log.DebugLevelInfra, "failed to setup hostname", "vm", vm.Name, "err", err)
 		}
 	}
 	return nil
@@ -456,16 +513,7 @@ func (o *VMPoolPlatform) UpdateVMs(ctx context.Context, vmGroupOrchestrationPara
 	state := edgeproto.VMState_VM_IN_USE
 	switch updateAction {
 	case ActionAllocate:
-		rootLBVMName := o.VMProperties.SharedRootLBName
-		for _, vm := range vmGroupOrchestrationParams.VMs {
-			for _, p := range vm.Ports {
-				if p.NetworkType == vmlayer.NetTypeExternal {
-					rootLBVMName = vm.Name
-					break
-				}
-			}
-		}
-		err = o.createVMsInternal(ctx, rootLBVMName, markedVMs, vmGroupOrchestrationParams.VMs, updateCallback)
+		err = o.createVMsInternal(ctx, markedVMs, vmGroupOrchestrationParams.VMs, updateCallback)
 		if err == nil {
 			state = edgeproto.VMState_VM_IN_USE
 		} else {
@@ -481,7 +529,7 @@ func (o *VMPoolPlatform) UpdateVMs(ctx context.Context, vmGroupOrchestrationPara
 	}
 	o.SaveVMStateInVMPool(ctx, markedVMs, state)
 
-	return nil
+	return err
 }
 
 func (o *VMPoolPlatform) SyncVMs(ctx context.Context, vmGroupOrchestrationParams *vmlayer.VMGroupOrchestrationParams, updateCallback edgeproto.CacheUpdateCallback) error {
@@ -497,7 +545,7 @@ func (s *VMPoolPlatform) GetVMStats(ctx context.Context, key *edgeproto.AppInstK
 
 func (s *VMPoolPlatform) GetPlatformResourceInfo(ctx context.Context) (*vmlayer.PlatformResources, error) {
 	log.SpanLog(ctx, log.DebugLevelMetrics, "GetPlatformResourceInfo not supported")
-	return nil, nil
+	return &vmlayer.PlatformResources{}, nil
 }
 
 func (s *VMPoolPlatform) VerifyVMs(ctx context.Context, vms []edgeproto.VM) error {
@@ -517,7 +565,7 @@ func (s *VMPoolPlatform) VerifyVMs(ctx context.Context, vms []edgeproto.VM) erro
 		}
 	}
 	if accessIP == "" {
-		return fmt.Errorf("atleast one VM should have access to external network")
+		return fmt.Errorf("At least one VM should have access to external network")
 	}
 	accessClient, err := s.VMProperties.GetSSHClientFromIPAddr(ctx, accessIP)
 	if err != nil {
@@ -544,7 +592,7 @@ func (s *VMPoolPlatform) VerifyVMs(ctx context.Context, vms []edgeproto.VM) erro
 
 			out, err := client.Output("echo test")
 			if err != nil {
-				return fmt.Errorf("failed to verify if vm %s is accessible over internal network: %s - %v", vm.Name, out, err)
+				return fmt.Errorf("failed to verify if vm %s is accessible over internal network from %s: %s - %v", vm.Name, accessIP, out, err)
 			}
 		}
 	}

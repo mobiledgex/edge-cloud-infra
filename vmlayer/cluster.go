@@ -547,7 +547,7 @@ func (v *VMPlatform) getVMRequestSpecForDockerCluster(ctx context.Context, imgNa
 
 	if clusterInst.IpAccess == edgeproto.IpAccess_IP_ACCESS_DEDICATED {
 		tags := v.GetChefClusterTags(&clusterInst.Key, VMTypeRootLB)
-		rootlb, err := v.GetVMSpecForRootLB(ctx, v.VMProperties.GetRootLBNameForCluster(ctx, clusterInst), newSubnetName, tags, updateCallback)
+		rootlb, err := v.GetVMSpecForRootLB(ctx, v.VMProperties.GetRootLBNameForCluster(ctx, clusterInst), newSubnetName, tags, clusterInst.ChefClientKey, updateCallback)
 		if err != nil {
 			return vms, newSubnetName, newSecgrpName, err
 		}
@@ -613,7 +613,7 @@ func (v *VMPlatform) PerformOrchestrationForCluster(ctx context.Context, imgName
 		if clusterInst.IpAccess == edgeproto.IpAccess_IP_ACCESS_DEDICATED {
 			// dedicated for docker means the docker VM acts as its own rootLB
 			tags := v.GetChefClusterTags(&clusterInst.Key, VMTypeRootLB)
-			rootlb, err = v.GetVMSpecForRootLB(ctx, v.VMProperties.GetRootLBNameForCluster(ctx, clusterInst), newSubnetName, tags, updateCallback)
+			rootlb, err = v.GetVMSpecForRootLB(ctx, v.VMProperties.GetRootLBNameForCluster(ctx, clusterInst), newSubnetName, tags, clusterInst.ChefClientKey, updateCallback)
 			if err != nil {
 				return nil, err
 			}
@@ -632,7 +632,13 @@ func (v *VMPlatform) PerformOrchestrationForCluster(ctx context.Context, imgName
 		chefAttributes["tags"] = v.GetChefClusterTags(&clusterInst.Key, VMTypeClusterMaster)
 
 		clientName := v.GetChefClientName(GetClusterMasterName(ctx, clusterInst))
-		chefParams := v.GetVMChefParams(clientName, "", chefmgmt.ChefPolicyBase, chefAttributes)
+		clientKey := ""
+		if clusterInst.ChefClientKey != nil {
+			if _, ok := clusterInst.ChefClientKey[clientName]; ok {
+				clientKey = clusterInst.ChefClientKey[clientName]
+			}
+		}
+		chefParams := v.GetVMChefParams(clientName, clientKey, chefmgmt.ChefPolicyBase, chefAttributes)
 
 		masterFlavor := clusterInst.MasterNodeFlavor
 		if masterFlavor == "" {
@@ -658,7 +664,13 @@ func (v *VMPlatform) PerformOrchestrationForCluster(ctx context.Context, imgName
 		chefAttributes["tags"] = v.GetChefClusterTags(&clusterInst.Key, VMTypeClusterNode)
 		for nn := uint32(1); nn <= clusterInst.NumNodes; nn++ {
 			clientName := v.GetChefClientName(GetClusterNodeName(ctx, clusterInst, nn))
-			chefParams := v.GetVMChefParams(clientName, "", chefmgmt.ChefPolicyBase, chefAttributes)
+			clientKey = ""
+			if clusterInst.ChefClientKey != nil {
+				if _, ok := clusterInst.ChefClientKey[clientName]; ok {
+					clientKey = clusterInst.ChefClientKey[clientName]
+				}
+			}
+			chefParams := v.GetVMChefParams(clientName, clientKey, chefmgmt.ChefPolicyBase, chefAttributes)
 			node, err := v.GetVMRequestSpec(ctx,
 				VMTypeClusterNode,
 				GetClusterNodeName(ctx, clusterInst, nn),
@@ -675,7 +687,8 @@ func (v *VMPlatform) PerformOrchestrationForCluster(ctx context.Context, imgName
 			vms = append(vms, node)
 		}
 	}
-	return v.OrchestrateVMsFromVMSpec(ctx,
+
+	gp, err := v.OrchestrateVMsFromVMSpec(ctx,
 		vmgroupName,
 		vms,
 		action,
@@ -686,4 +699,17 @@ func (v *VMPlatform) PerformOrchestrationForCluster(ctx context.Context, imgName
 		WithChefUpdateInfo(updateInfo),
 		WithSkipCleanupOnFailure(clusterInst.SkipCrmCleanupOnFailure),
 	)
+	if err == nil {
+		// Copy client keys from vms
+		for _, vm := range vms {
+			if vm.ChefParams == nil {
+				continue
+			}
+			if clusterInst.ChefClientKey == nil {
+				clusterInst.ChefClientKey = make(map[string]string)
+			}
+			clusterInst.ChefClientKey[vm.ChefParams.NodeName] = vm.ChefParams.ClientKey
+		}
+	}
+	return gp, err
 }

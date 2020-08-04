@@ -190,6 +190,7 @@ var ClusterInstAliasArgs = []string{
 	"privacypolicy=clusterinst.privacypolicy",
 	"masternodeflavor=clusterinst.masternodeflavor",
 	"skipcrmcleanuponfailure=clusterinst.skipcrmcleanuponfailure",
+	"chefclientkey=clusterinst.chefclientkey",
 }
 var ClusterInstComments = map[string]string{
 	"fields":                  "Fields are used for the Update API to specify which fields to apply",
@@ -219,10 +220,12 @@ var ClusterInstComments = map[string]string{
 	"privacypolicy":           "Optional privacy policy name",
 	"masternodeflavor":        "Generic flavor for k8s master VM when worker nodes > 0",
 	"skipcrmcleanuponfailure": "Prevents cleanup of resources on failure within CRM, used for diagnostic purposes",
+	"chefclientkey":           "Chef client key",
 }
 var ClusterInstSpecialArgs = map[string]string{
-	"clusterinst.errors": "StringArray",
-	"clusterinst.fields": "StringArray",
+	"clusterinst.chefclientkey": "StringToString",
+	"clusterinst.errors":        "StringArray",
+	"clusterinst.fields":        "StringArray",
 }
 var ClusterInstInfoRequiredArgs = []string{
 	"key.clusterkey.name",
@@ -238,6 +241,7 @@ var ClusterInstInfoOptionalArgs = []string{
 	"status.maxtasks",
 	"status.taskname",
 	"status.stepname",
+	"chefclientkey",
 }
 var ClusterInstInfoAliasArgs = []string{
 	"fields=clusterinstinfo.fields",
@@ -252,6 +256,7 @@ var ClusterInstInfoAliasArgs = []string{
 	"status.maxtasks=clusterinstinfo.status.maxtasks",
 	"status.taskname=clusterinstinfo.status.taskname",
 	"status.stepname=clusterinstinfo.status.stepname",
+	"chefclientkey=clusterinstinfo.chefclientkey",
 }
 var ClusterInstInfoComments = map[string]string{
 	"fields":                       "Fields are used for the Update API to specify which fields to apply",
@@ -262,8 +267,10 @@ var ClusterInstInfoComments = map[string]string{
 	"notifyid":                     "Id of client assigned by server (internal use only)",
 	"state":                        "State of the cluster instance, one of TrackedStateUnknown, NotPresent, CreateRequested, Creating, CreateError, Ready, UpdateRequested, Updating, UpdateError, DeleteRequested, Deleting, DeleteError, DeletePrepare, CrmInitok, CreatingDependencies",
 	"errors":                       "Any errors trying to create, update, or delete the ClusterInst on the Cloudlet.",
+	"chefclientkey":                "Chef client key",
 }
 var ClusterInstInfoSpecialArgs = map[string]string{
-	"clusterinstinfo.errors": "StringArray",
-	"clusterinstinfo.fields": "StringArray",
+	"clusterinstinfo.chefclientkey": "StringToString",
+	"clusterinstinfo.errors":        "StringArray",
+	"clusterinstinfo.fields":        "StringArray",
 }

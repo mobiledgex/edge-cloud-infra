@@ -1054,6 +1054,9 @@ func addControllerApis(method string, group *echo.Group) {
 	// PrivacyPolicy: 24
 	// MasterNodeFlavor: 25
 	// SkipCrmCleanupOnFailure: 26
+	// ChefClientKey: 27
+	// ChefClientKeyKey: 27.1
+	// ChefClientKeyValue: 27.2
 	// ```
 	// Security:
 	//   Bearer:

@@ -308,7 +308,7 @@ var MEXRootLBMap = make(map[string]*MEXRootLB)
 
 // GetVMSpecForRootLB gets the VM spec for the rootLB when it is not specified within a cluster. This is
 // used for Shared RootLb and for VM app based RootLb
-func (v *VMPlatform) GetVMSpecForRootLB(ctx context.Context, rootLbName string, subnetConnect string, tags []string, updateCallback edgeproto.CacheUpdateCallback) (*VMRequestSpec, error) {
+func (v *VMPlatform) GetVMSpecForRootLB(ctx context.Context, rootLbName string, subnetConnect string, tags []string, chefKeys map[string]string, updateCallback edgeproto.CacheUpdateCallback) (*VMRequestSpec, error) {
 
 	log.SpanLog(ctx, log.DebugLevelInfra, "GetVMSpecForRootLB", "rootLbName", rootLbName)
 
@@ -339,7 +339,13 @@ func (v *VMPlatform) GetVMSpecForRootLB(ctx context.Context, rootLbName string, 
 	chefAttributes := make(map[string]interface{})
 	chefAttributes["tags"] = tags
 	clientName := v.GetChefClientName(rootLbName)
-	chefParams := v.GetVMChefParams(clientName, "", chefmgmt.ChefPolicyBase, chefAttributes)
+	clientKey := ""
+	if chefKeys != nil {
+		if _, ok := chefKeys[clientName]; ok {
+			clientKey = chefKeys[clientName]
+		}
+	}
+	chefParams := v.GetVMChefParams(clientName, clientKey, chefmgmt.ChefPolicyBase, chefAttributes)
 	return v.GetVMRequestSpec(ctx,
 		VMTypeRootLB,
 		rootLbName,
@@ -418,7 +424,7 @@ func (v *VMPlatform) CreateRootLB(
 			return nil
 		}
 	}
-	vmreq, err := v.GetVMSpecForRootLB(ctx, rootLB.Name, "", tags, updateCallback)
+	vmreq, err := v.GetVMSpecForRootLB(ctx, rootLB.Name, "", tags, nil, updateCallback)
 	if err != nil {
 		return err
 	}

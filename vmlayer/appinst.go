@@ -80,7 +80,7 @@ func (v *VMPlatform) PerformOrchestrationForVMApp(ctx context.Context, app *edge
 		orchVals.externalServerName = orchVals.lbName
 		orchVals.newSubnetName = objName + "-subnet"
 		tags := v.GetChefClusterTags(&appInst.Key.ClusterInstKey, VMTypeRootLB)
-		lbVm, err := v.GetVMSpecForRootLB(ctx, orchVals.lbName, orchVals.newSubnetName, tags, updateCallback)
+		lbVm, err := v.GetVMSpecForRootLB(ctx, orchVals.lbName, orchVals.newSubnetName, tags, nil, updateCallback)
 		if err != nil {
 			return &orchVals, err
 		}

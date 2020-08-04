@@ -8,6 +8,7 @@ import (
 	"io/ioutil"
 	"net/http"
 	"os"
+	"strconv"
 	"strings"
 	"sync"
 	"text/template"
@@ -36,11 +37,11 @@ var defaultConfigTemplate *template.Template
 
 // Notes on the default values:
 //   resolve_timeout - since we refresh  this every minute, 3xmins should be sufficient
-//   group_wait - since we are not grouping alerts right now, 5sec is good enough
+//   group_wait - since we are not grouping alerts right now, 1 sec for instant alert send
 //   group_interval - since we are grouping this setting doesn't do anything, but we might use it in the future
 //   repeat_interval - re-send every 2hrs until resolved
 const DefaultAlertmanagerConfigT = `global:
-  resolve_timeout: 3m
+  resolve_timeout: {{.ResolveTimeout}}
   smtp_from: "{{.Email}}"
   smtp_smarthost: {{.Smtp}}:{{.Port}}
   smtp_auth_username: "{{.User}}"
@@ -48,8 +49,8 @@ const DefaultAlertmanagerConfigT = `global:
   smtp_auth_password: "{{.Token}}"
   {{if .Tls}}smtp_require_tls: {{.Tls}}{{end}}
 route:
-  group_wait: 5s
-  group_interval: 5m
+  group_wait: 1s
+  group_interval: 1s
   repeat_interval: 2h
   receiver: default
 receivers:
@@ -228,6 +229,7 @@ type AlertMrgServer struct {
 	AlertMrgAddr            string
 	McAlertmanagerAgentName string
 	AlertMgrConfigPath      string
+	AlertResolutionTimout   time.Duration
 	AlertCache              *edgeproto.AlertCache
 	vaultConfig             *vault.Config
 	localVault              bool
@@ -236,12 +238,13 @@ type AlertMrgServer struct {
 }
 
 type smtpInfo struct {
-	Email string `json:"email"`
-	User  string `json:"user,omitempty"`
-	Token string `json:"token,omitempty"`
-	Smtp  string `json:"smtp"`
-	Port  string `json:"port"`
-	Tls   string `json:"tls,omitempty"`
+	Email          string `json:"email"`
+	User           string `json:"user,omitempty"`
+	Token          string `json:"token,omitempty"`
+	Smtp           string `json:"smtp"`
+	Port           string `json:"port"`
+	Tls            string `json:"tls,omitempty"`
+	ResolveTimeout string `json:"-"`
 }
 
 // TODO - use version to track where this alert came from
@@ -249,7 +252,7 @@ func setAgentName() string {
 	return "MasterControllerV1"
 }
 
-func NewAlertMgrServer(alertMgrAddr string, configPath string, vaultConfig *vault.Config, localVault bool, alertCache *edgeproto.AlertCache) (*AlertMrgServer, error) {
+func NewAlertMgrServer(alertMgrAddr string, configPath string, vaultConfig *vault.Config, localVault bool, alertCache *edgeproto.AlertCache, resolveTimeout time.Duration) (*AlertMrgServer, error) {
 	server := AlertMrgServer{
 		AlertMrgAddr:            alertMgrAddr,
 		AlertCache:              alertCache,
@@ -257,6 +260,7 @@ func NewAlertMgrServer(alertMgrAddr string, configPath string, vaultConfig *vaul
 		AlertMgrConfigPath:      configPath,
 		vaultConfig:             vaultConfig,
 		localVault:              localVault,
+		AlertResolutionTimout:   resolveTimeout,
 	}
 	span := log.StartSpan(log.DebugLevelApi|log.DebugLevelInfo, "AlertMgrServer")
 	ctx := log.ContextWithSpan(context.Background(), span)
@@ -298,6 +302,9 @@ func (s *AlertMrgServer) loadDefaultConfigFileLocked(ctx context.Context) error 
 		log.SpanLog(ctx, log.DebugLevelInfo, "Failed to get Smtp from vault", "err", err, "cfg", s.vaultConfig)
 		return err
 	}
+	var secs = int(s.AlertResolutionTimout.Seconds()) //round it to the second
+	smtpInfo.ResolveTimeout = strconv.Itoa(secs) + "s"
+
 	defaultConfigTemplate = template.Must(template.New("alertmanagerconfig").Parse(DefaultAlertmanagerConfigT))
 	config := bytes.Buffer{}
 	if err = defaultConfigTemplate.Execute(&config, smtpInfo); err != nil {
@@ -412,10 +419,12 @@ func (s *AlertMrgServer) Stop() {
 	s.waitGrp.Wait()
 }
 
-func alertsToOpenAPIAlerts(alerts []*edgeproto.Alert) models.PostableAlerts {
+func (s *AlertMrgServer) alertsToOpenAPIAlerts(alerts []*edgeproto.Alert) models.PostableAlerts {
 	openAPIAlerts := models.PostableAlerts{}
 	for _, a := range alerts {
 		start := strfmt.DateTime(time.Unix(a.ActiveAt.Seconds, int64(a.ActiveAt.Nanos)))
+		// Set endsAt to now + s.AlertResolutionTimout
+		end := strfmt.DateTime(time.Unix(a.ActiveAt.Seconds+int64(s.AlertResolutionTimout.Seconds()), int64(a.ActiveAt.Nanos)))
 		// Add region label to differentiate these at the global level
 		labels := make(map[string]string)
 		for k, v := range a.Labels {
@@ -424,6 +433,7 @@ func alertsToOpenAPIAlerts(alerts []*edgeproto.Alert) models.PostableAlerts {
 		openAPIAlerts = append(openAPIAlerts, &models.PostableAlert{
 			Annotations: copyMap(a.Annotations),
 			StartsAt:    start,
+			EndsAt:      end,
 			Alert: models.Alert{
 				Labels: copyMap(labels),
 			},
@@ -478,7 +488,7 @@ func (s *AlertMrgServer) ShowAlerts(ctx context.Context, filter *edgeproto.Alert
 // Marshal edgeproto.Alert into json payload suitabe for alertmanager api
 func (s *AlertMrgServer) AddAlerts(ctx context.Context, alerts ...*edgeproto.Alert) error {
 
-	openApiAlerts := alertsToOpenAPIAlerts(alerts)
+	openApiAlerts := s.alertsToOpenAPIAlerts(alerts)
 	data, err := json.Marshal(openApiAlerts)
 	if err != nil {
 		log.SpanLog(ctx, log.DebugLevelInfo, "Failed to marshal alerts", "err", err, "alerts", alerts)

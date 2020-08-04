@@ -59,6 +59,10 @@ func (p *MC) StartLocal(logfile string, opts ...process.StartOp) error {
 		args = append(args, "--consoleproxyaddr")
 		args = append(args, p.ConsoleProxyAddr)
 	}
+	if p.AlertResolveTimeout != "" {
+		args = append(args, "--alertResolveTimeout")
+		args = append(args, p.AlertResolveTimeout)
+	}
 	if p.UseVaultCAs {
 		args = append(args, "--useVaultCAs")
 	}

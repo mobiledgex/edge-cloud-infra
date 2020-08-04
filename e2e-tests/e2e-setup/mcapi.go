@@ -71,7 +71,8 @@ func RunMcAPI(api, mcname, apiFile, curUserFile, outputDir string, mods []string
 	} else if strings.HasPrefix(api, "debug") {
 		return runMcDebug(api, uri, apiFile, curUserFile, outputDir, mods, vars)
 	} else if api == "showalertreceivers" {
-		return showMcAlertReceivers(uri, apiFile, curUserFile, outputDir, vars)
+		*retry = true
+		return showMcAlertReceivers(uri, curUserFile, outputDir, vars)
 	}
 	return runMcDataAPI(api, uri, apiFile, curUserFile, outputDir, mods, vars, retry)
 }
@@ -549,6 +550,10 @@ func deleteMcData(uri, token, tag string, data *ormapi.AllData, dataMap map[stri
 		st, err := mcClient.DeleteController(uri, token, &ctrl)
 		outMcErr(output, fmt.Sprintf("DeleteController[%d]", ii), st, err)
 	}
+	for ii, ar := range data.AlertReceivers {
+		st, err := mcClient.DeleteAlertReceiver(uri, token, &ar)
+		outMcErr(output, fmt.Sprintf("DeleteAlertReceiver[%d]", ii), st, err)
+	}
 }
 
 func updateMcData(mode, uri, token, tag string, data *ormapi.AllData, dataMap map[string]interface{}, output *AllDataOut, rc *bool) {
@@ -922,20 +927,20 @@ func showMcAlerts(uri, apiFile, curUserFile, outputDir string, vars map[string]s
 	return rc
 }
 
-func showMcAlertReceivers(uri, apiFile, curUserFile, outputDir string, vars map[string]string) bool {
-	if apiFile == "" {
-		log.Println("Error: Cannot run MC audit APIs without API file")
-		return false
-	}
-	log.Printf("Running MC showalert APIs for %s\n", apiFile)
+func showMcAlertReceivers(uri, curUserFile, outputDir string, vars map[string]string) bool {
+	var err error
+	var status int
+
+	log.Printf("Running MC showalert receivers APIs\n")
 
 	token, rc := loginCurUser(uri, curUserFile, vars)
 	if !rc {
 		return false
 	}
-	alerts, status, err := mcClient.ShowAlertReceiver(uri, token)
+	showData := ormapi.AllData{}
+	showData.AlertReceivers, status, err = mcClient.ShowAlertReceiver(uri, token)
 	checkMcErr("ShowAlertReceiver", status, err, &rc)
 
-	util.PrintToYamlFile("show-commands.yml", outputDir, alerts, true)
+	util.PrintToYamlFile("show-commands.yml", outputDir, showData, true)
 	return rc
 }

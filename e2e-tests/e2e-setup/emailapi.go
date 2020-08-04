@@ -83,14 +83,12 @@ func RunEmailAPI(api, apiFile, outputDir string) error {
 		// get default
 		proc := GetMaildev("")
 		apiUrl := fmt.Sprintf("0.0.0.0:%d/email", proc.Uiport)
-		log.Printf("Email api: %s\n", apiUrl)
 		cmd := exec.Command("curl", "-s", "-S", apiUrl)
 		out, err := cmd.CombinedOutput()
 		if err != nil {
 			log.Printf("err: %v\n", err)
 			return err
 		}
-		log.Printf("Email api returned: %s\n", string(out))
 		// unmarshal and marshal back to get just the fields we want
 		emails := []MailDevEmail{}
 		err = json.Unmarshal(out, &emails)
@@ -106,6 +104,16 @@ func RunEmailAPI(api, apiFile, outputDir string) error {
 		}
 		truncate := true
 		util.PrintToFile("show-commands.yml", outputDir, string(ymlOut), truncate)
+	case "deleteall":
+		// get default
+		proc := GetMaildev("")
+		apiUrl := fmt.Sprintf("0.0.0.0:%d/email/all", proc.Uiport)
+		cmd := exec.Command("curl", "-s", "-S", "-X", "DELETE", apiUrl)
+		_, err := cmd.CombinedOutput()
+		if err != nil {
+			log.Printf("err: %v\n", err)
+			return err
+		}
 	default:
 		return fmt.Errorf("Unknown action for email subsystem")
 	}

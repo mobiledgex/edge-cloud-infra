@@ -50,32 +50,33 @@ type Server struct {
 }
 
 type ServerConfig struct {
-	ServAddr           string
-	SqlAddr            string
-	VaultAddr          string
-	ConsoleProxyAddr   string
-	RunLocal           bool
-	InitLocal          bool
-	IgnoreEnv          bool
-	TlsCertFile        string
-	TlsKeyFile         string
-	LocalVault         bool
-	LDAPAddr           string
-	GitlabAddr         string
-	ArtifactoryAddr    string
-	ClientCert         string
-	PingInterval       time.Duration
-	SkipVerifyEmail    bool
-	JaegerAddr         string
-	vaultConfig        *vault.Config
-	SkipOriginCheck    bool
-	Hostname           string
-	NotifyAddrs        string
-	NotifySrvAddr      string
-	NodeMgr            *node.NodeMgr
-	AlertCache         *edgeproto.AlertCache
-	AlertMgrAddr       string
-	AlertMgrConfigPath string
+	ServAddr              string
+	SqlAddr               string
+	VaultAddr             string
+	ConsoleProxyAddr      string
+	RunLocal              bool
+	InitLocal             bool
+	IgnoreEnv             bool
+	TlsCertFile           string
+	TlsKeyFile            string
+	LocalVault            bool
+	LDAPAddr              string
+	GitlabAddr            string
+	ArtifactoryAddr       string
+	ClientCert            string
+	PingInterval          time.Duration
+	SkipVerifyEmail       bool
+	JaegerAddr            string
+	vaultConfig           *vault.Config
+	SkipOriginCheck       bool
+	Hostname              string
+	NotifyAddrs           string
+	NotifySrvAddr         string
+	NodeMgr               *node.NodeMgr
+	AlertCache            *edgeproto.AlertCache
+	AlertMgrAddr          string
+	AlertMgrConfigPath    string
+	AlertmgrResolveTimout time.Duration
 }
 
 var DefaultDBUser = "mcuser"
@@ -215,7 +216,7 @@ func RunServer(config *ServerConfig) (*Server, error) {
 	go InitData(ctx, Superuser, superpass, config.PingInterval, &server.stopInitData, server.initDataDone)
 
 	AlertManagerServer, err = alertmgr.NewAlertMgrServer(config.AlertMgrAddr, config.AlertMgrConfigPath,
-		config.vaultConfig, config.LocalVault, config.AlertCache)
+		config.vaultConfig, config.LocalVault, config.AlertCache, config.AlertmgrResolveTimout)
 	if err != nil {
 		log.FatalLog("Failed to run alertmanager server", "err", err)
 	}
@@ -371,9 +372,9 @@ func RunServer(config *ServerConfig) (*Server, error) {
 	auth.POST("/events/cloudlet", GetEventsCommon)
 
 	// Alertmanager apis
-	auth.POST("/alert/receiver/create", CreateAlertReceiver)
-	auth.POST("/alert/receiver/delete", DeleteAlertReceiver)
-	auth.POST("/alert/receiver/show", ShowAlertReceiver)
+	auth.POST("/alertreceiver/create", CreateAlertReceiver)
+	auth.POST("/alertreceiver/delete", DeleteAlertReceiver)
+	auth.POST("/alertreceiver/show", ShowAlertReceiver)
 
 	// Use GET method for websockets as thats the method used
 	// in setting up TCP connection by most of the clients

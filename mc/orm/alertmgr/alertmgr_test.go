@@ -298,7 +298,7 @@ func TestAlertMgrServer(t *testing.T) {
 	edgeproto.InitAlertCache(&testAlertCache)
 	alertRefreshInterval = 100 * time.Millisecond
 	testAlertMgrServer, err := NewAlertMgrServer(testAlertMgrAddr, testAlertMgrConfig,
-		&vault.Config{}, true, &testAlertCache)
+		&vault.Config{}, true, &testAlertCache, 2*time.Minute)
 	require.Nil(t, err)
 	require.NotNil(t, testAlertMgrServer)
 	require.Equal(t, 1, fakeAlertmanager.ConfigReloads)
@@ -386,7 +386,6 @@ func TestAlertMgrServer(t *testing.T) {
 			}
 		}
 	}
-	// TODO - test for filter
 
 	// 7. Test alertmgr create reciever api
 	// Invalid receiver test

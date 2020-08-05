@@ -221,11 +221,11 @@ const (
 	ReloadConfigApi string = "-/reload"
 )
 
-// AlertMrgServer does two things - it periodically updates AlertManager about the
+// AlertMgrServer does two things - it periodically updates AlertManager about the
 // current alerts on the system, and also handles configuration for the alert receivers
 // i.e. backend handlers for the MC apis.
 // NOTE: it does not perform any RBAC control here - this is done in ORM handlers
-type AlertMrgServer struct {
+type AlertMgrServer struct {
 	AlertMrgAddr            string
 	McAlertmanagerAgentName string
 	AlertMgrConfigPath      string
@@ -252,8 +252,8 @@ func setAgentName() string {
 	return "MasterControllerV1"
 }
 
-func NewAlertMgrServer(alertMgrAddr string, configPath string, vaultConfig *vault.Config, localVault bool, alertCache *edgeproto.AlertCache, resolveTimeout time.Duration) (*AlertMrgServer, error) {
-	server := AlertMrgServer{
+func NewAlertMgrServer(alertMgrAddr string, configPath string, vaultConfig *vault.Config, localVault bool, alertCache *edgeproto.AlertCache, resolveTimeout time.Duration) (*AlertMgrServer, error) {
+	server := AlertMgrServer{
 		AlertMrgAddr:            alertMgrAddr,
 		AlertCache:              alertCache,
 		McAlertmanagerAgentName: setAgentName(),
@@ -279,7 +279,7 @@ func NewAlertMgrServer(alertMgrAddr string, configPath string, vaultConfig *vaul
 	return &server, nil
 }
 
-func (s *AlertMrgServer) getAlertmanagertSmtpConfig(ctx context.Context) (*smtpInfo, error) {
+func (s *AlertMgrServer) getAlertmanagertSmtpConfig(ctx context.Context) (*smtpInfo, error) {
 	if s.localVault {
 		log.SpanLog(ctx, log.DebugLevelApi, "Using dummy smtp credentials")
 		return &testSmtpInfo, nil
@@ -296,7 +296,7 @@ func (s *AlertMrgServer) getAlertmanagertSmtpConfig(ctx context.Context) (*smtpI
 
 // Load default configuration into Alertmanager
 // Note configLock should be held prior to calling this
-func (s *AlertMrgServer) loadDefaultConfigFileLocked(ctx context.Context) error {
+func (s *AlertMgrServer) loadDefaultConfigFileLocked(ctx context.Context) error {
 	smtpInfo, err := s.getAlertmanagertSmtpConfig(ctx)
 	if err != nil {
 		log.SpanLog(ctx, log.DebugLevelInfo, "Failed to get Smtp from vault", "err", err, "cfg", s.vaultConfig)
@@ -328,8 +328,8 @@ func (s *AlertMrgServer) loadDefaultConfigFileLocked(ctx context.Context) error 
 
 // Read config from the alermgr config file.
 // There are two passes here - one if a file exists and another if a file exists,
-// but doesn' container required fields
-func (s *AlertMrgServer) readConfigFile(ctx context.Context) error {
+// but doesn't contain required fields
+func (s *AlertMgrServer) readConfigFile(ctx context.Context) error {
 	// grab config lock
 	configLock.Lock()
 	defer configLock.Unlock()
@@ -373,17 +373,17 @@ func (s *AlertMrgServer) readConfigFile(ctx context.Context) error {
 }
 
 // Update callback for a new alert - should send to alertmanager right away
-func (s *AlertMrgServer) UpdateAlert(ctx context.Context, old *edgeproto.Alert, new *edgeproto.Alert) {
+func (s *AlertMgrServer) UpdateAlert(ctx context.Context, old *edgeproto.Alert, new *edgeproto.Alert) {
 	s.AddAlerts(ctx, new)
 }
 
-func (s *AlertMrgServer) Start() {
+func (s *AlertMgrServer) Start() {
 	s.stop = make(chan struct{})
 	s.waitGrp.Add(1)
 	go s.runServer()
 }
 
-func (s *AlertMrgServer) runServer() {
+func (s *AlertMgrServer) runServer() {
 	done := false
 	for !done {
 		// check if there are any new apps we need to start/stop scraping for
@@ -414,12 +414,12 @@ func (s *AlertMrgServer) runServer() {
 	s.waitGrp.Done()
 }
 
-func (s *AlertMrgServer) Stop() {
+func (s *AlertMgrServer) Stop() {
 	close(s.stop)
 	s.waitGrp.Wait()
 }
 
-func (s *AlertMrgServer) alertsToOpenAPIAlerts(alerts []*edgeproto.Alert) models.PostableAlerts {
+func (s *AlertMgrServer) alertsToOpenAPIAlerts(alerts []*edgeproto.Alert) models.PostableAlerts {
 	openAPIAlerts := models.PostableAlerts{}
 	for _, a := range alerts {
 		start := strfmt.DateTime(time.Unix(a.ActiveAt.Seconds, int64(a.ActiveAt.Nanos)))
@@ -468,7 +468,7 @@ func alertManagerAlertsToEdgeprotoAlerts(openAPIAlerts models.GettableAlerts) []
 }
 
 // Show all alerts in the alertmgr
-func (s *AlertMrgServer) ShowAlerts(ctx context.Context, filter *edgeproto.Alert) ([]edgeproto.Alert, error) {
+func (s *AlertMgrServer) ShowAlerts(ctx context.Context, filter *edgeproto.Alert) ([]edgeproto.Alert, error) {
 	data, err := s.alertMgrApi(ctx, "GET", AlertApi, "", nil)
 	if err != nil {
 		log.SpanLog(ctx, log.DebugLevelInfo, "Unable to GET Alerts", "err", err, "filter", filter)
@@ -485,7 +485,7 @@ func (s *AlertMrgServer) ShowAlerts(ctx context.Context, filter *edgeproto.Alert
 }
 
 // Marshal edgeproto.Alert into json payload suitabe for alertmanager api
-func (s *AlertMrgServer) AddAlerts(ctx context.Context, alerts ...*edgeproto.Alert) error {
+func (s *AlertMgrServer) AddAlerts(ctx context.Context, alerts ...*edgeproto.Alert) error {
 	openApiAlerts := s.alertsToOpenAPIAlerts(alerts)
 	data, err := json.Marshal(openApiAlerts)
 	if err != nil {
@@ -498,7 +498,7 @@ func (s *AlertMrgServer) AddAlerts(ctx context.Context, alerts ...*edgeproto.Ale
 }
 
 // Note - this grabs configLock
-func (s *AlertMrgServer) readAlertManagerConfigAndLock(ctx context.Context) (*alertmanager_config.Config, error) {
+func (s *AlertMgrServer) readAlertManagerConfigAndLock(ctx context.Context) (*alertmanager_config.Config, error) {
 	// grab config lock
 	configLock.Lock()
 
@@ -513,7 +513,7 @@ func (s *AlertMrgServer) readAlertManagerConfigAndLock(ctx context.Context) (*al
 }
 
 // Note - we should hold configLock prior to calling this function
-func (s *AlertMrgServer) writeAlertManagerConfigLocked(ctx context.Context, config *alertmanager_config.Config) error {
+func (s *AlertMgrServer) writeAlertManagerConfigLocked(ctx context.Context, config *alertmanager_config.Config) error {
 	// write config out
 	// NOTE: Alertmanager native unmarshal hides smtp password when marshalling.
 	// See: https://github.com/prometheus/alertmanager/issues/1985
@@ -572,7 +572,7 @@ func getRouteMatchLabelsFromAlertReceiver(in *ormapi.AlertReceiver) map[string]s
 
 // Receiver includes a route and a receiver which will receive the alert
 // we create a route on the org tags for a given appInstance
-func (s *AlertMrgServer) CreateReceiver(ctx context.Context, receiver *ormapi.AlertReceiver, cfg interface{}) error {
+func (s *AlertMgrServer) CreateReceiver(ctx context.Context, receiver *ormapi.AlertReceiver, cfg interface{}) error {
 	// sanity - certain characters should not be part of the receiver name
 	if strings.ContainsAny(receiver.Name, "-:") {
 		return fmt.Errorf("Receiver name cannot contain dashes(\"-\"), or colons(\":\")")
@@ -640,7 +640,7 @@ func (s *AlertMrgServer) CreateReceiver(ctx context.Context, receiver *ormapi.Al
 	return s.writeAlertManagerConfigLocked(ctx, AlertManagerConfig)
 }
 
-func (s *AlertMrgServer) DeleteReceiver(ctx context.Context, receiver *ormapi.AlertReceiver) error {
+func (s *AlertMgrServer) DeleteReceiver(ctx context.Context, receiver *ormapi.AlertReceiver) error {
 	// sanity - certain characters should not be part of the receiver name
 	if strings.ContainsAny(receiver.Name, "-:") {
 		return fmt.Errorf("Receiver name cannot contain dashes(\"-\"), or colons(\":\")")
@@ -690,7 +690,7 @@ func getAlertReceiverFromName(name string) (*ormapi.AlertReceiver, error) {
 	return &receiver, nil
 }
 
-func (s *AlertMrgServer) ShowReceivers(ctx context.Context, filter *ormapi.AlertReceiver) ([]ormapi.AlertReceiver, error) {
+func (s *AlertMgrServer) ShowReceivers(ctx context.Context, filter *ormapi.AlertReceiver) ([]ormapi.AlertReceiver, error) {
 	// For show we just need a snapshot, so don't use global AlertManagerConfig
 	showConfig, err := s.readAlertManagerConfigAndLock(ctx)
 	configLock.Unlock()
@@ -752,7 +752,7 @@ func (s *AlertMrgServer) ShowReceivers(ctx context.Context, filter *ormapi.Alert
 }
 
 // Common function to send an api call to alertmanager
-func (s *AlertMrgServer) alertMgrApi(ctx context.Context, method, api, options string, payload []byte) ([]byte, error) {
+func (s *AlertMgrServer) alertMgrApi(ctx context.Context, method, api, options string, payload []byte) ([]byte, error) {
 	url := s.AlertMrgAddr + "/" + api
 	if options != "" {
 		url += "?" + options

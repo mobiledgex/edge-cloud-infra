@@ -656,7 +656,7 @@ func (p *Alertmanager) StartLocal(logfile string, opts ...process.StartOp) error
 		"run", "--rm", "-p", fmt.Sprintf("%d:%d", p.Port, p.Port),
 		"-v", configFile + ":/etc/prometheus/alertmanager.yml",
 		"--name", p.Name,
-		"prom/alertmanager:latest",
+		"prom/alertmanager:v0.21.0",
 		"--web.listen-address", fmt.Sprintf(":%d", p.Port),
 		"--config.file", "/etc/prometheus/alertmanager.yml",
 	}

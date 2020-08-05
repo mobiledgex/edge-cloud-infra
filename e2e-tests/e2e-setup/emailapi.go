@@ -86,7 +86,7 @@ func RunEmailAPI(api, apiFile, outputDir string) error {
 		cmd := exec.Command("curl", "-s", "-S", apiUrl)
 		out, err := cmd.CombinedOutput()
 		if err != nil {
-			log.Printf("err: %v\n", err)
+			log.Printf("Error running show emails API on port %d, err: %v\n", proc.Uiport, err)
 			return err
 		}
 		// unmarshal and marshal back to get just the fields we want

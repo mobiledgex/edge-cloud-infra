@@ -95,7 +95,7 @@ var gitlabClient *gitlab.Client
 var gitlabSync *AppStoreSync
 var artifactorySync *AppStoreSync
 var nodeMgr *node.NodeMgr
-var AlertManagerServer *alertmgr.AlertMrgServer
+var AlertManagerServer *alertmgr.AlertMgrServer
 
 func RunServer(config *ServerConfig) (*Server, error) {
 	server := Server{config: config}

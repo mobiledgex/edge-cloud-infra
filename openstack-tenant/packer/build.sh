@@ -1,5 +1,4 @@
 #!/bin/bash
-
 ARTIFACTORY_BASEURL='https://artifactory.mobiledgex.net'
 ARTIFACTORY_USER='packer'
 ARTIFACTORY_ARTIFACTS_TAG='2020-04-27'
@@ -10,15 +9,18 @@ OUTPUT_IMAGE_NAME='mobiledgex'
 : ${FLAVOR:=m4.small}
 : ${FORCE:=no}
 : ${TRACE:=no}
+: ${DEBUG:=false}
 
 GITTAG=$( git describe --tags )
 [[ -z "$TAG" ]] && TAG="$GITTAG"
 
 USAGE="usage: $( basename $0 ) <options>
 
+ -d               Run in debug mode
  -f <flavor>      Image flavor (default: \"$FLAVOR\")
  -i <image-tag>   Glance source image tag (default: \"$CLOUD_IMAGE_TAG\")
  -o <output-tag>  Output image tag (default: same as tag below)
+ -p <platform>    Output platform flavor; one of \"openstack\" (default) or \"vsphere\"
  -t <tag>         Image tag name (default: \"$TAG\")
  -F               Ignore source image checksum mismatch
  -T               Print trace debug messages during build
@@ -27,12 +29,14 @@ USAGE="usage: $( basename $0 ) <options>
  -h               Display this help message
 "
 
-while getopts ":hf:i:o:t:FTu:" OPT; do
+while getopts ":dhf:i:o:p:t:FTu:" OPT; do
 	case "$OPT" in
+	d) DEBUG=true ;;
 	h) echo "$USAGE"; exit 0 ;;
 	i) CLOUD_IMAGE_TAG="$OPTARG" ;;
 	f) FLAVOR="$OPTARG" ;;
 	o) OUTPUT_TAG="$OPTARG" ;;
+	p) OUTPUT_PLATFORM="$OPTARG" ;;
 	t) TAG="$OPTARG" ;;
 	F) FORCE=yes ;;
 	T) TRACE=yes ;;
@@ -41,13 +45,20 @@ while getopts ":hf:i:o:t:FTu:" OPT; do
 done
 shift $(( OPTIND - 1 ))
 
-TAG=${TAG#v}
-[[ -z "$OUTPUT_TAG" ]] && OUTPUT_TAG="v$TAG"
-
 die() {
 	echo "ERROR: $*" >&2
 	exit 2
 }
+
+[[ -z "$OUTPUT_PLATFORM" ]] && OUTPUT_PLATFORM=openstack
+case "$OUTPUT_PLATFORM" in
+	openstack)	true ;;
+	vsphere)	TAG="${TAG%-vsphere}-vsphere" ;;
+	*)		die "Unknown platform type: $OUTPUT_PLATFORM" ;;
+esac
+
+TAG=${TAG#v}
+[[ -z "$OUTPUT_TAG" ]] && OUTPUT_TAG="v$TAG"
 
 ARTIFACTORY_APIKEY_FILE="${HOME}/.mobiledgex/artifactory.apikey"
 if [[ -f "$ARTIFACTORY_APIKEY_FILE" ]]; then
@@ -110,6 +121,7 @@ BUILD PARAMETERS:
      New Image Name: $OUTPUT_IMAGE_NAME
              Flavor: $FLAVOR
    Artifactory User: $ARTIFACTORY_USER
+    Output Platform: $OUTPUT_PLATFORM
 
 EOT
 
@@ -119,7 +131,9 @@ case "$RESP" in
 	*)	echo "Aborting build..."; exit 1 ;;
 esac
 
-PACKER_LOG=1 packer build -on-error=ask \
+CMDLINE=( packer build -on-error=ask )
+$DEBUG && CMDLINE+=( -debug )
+PACKER_LOG=1 "${CMDLINE[@]}" \
 	-var "OUTPUT_IMAGE_NAME=$OUTPUT_IMAGE_NAME" \
 	-var "SRC_IMG=$SRC_IMG" \
 	-var "SRC_IMG_CHECKSUM=$SRC_IMG_CHECKSUM" \
@@ -132,6 +146,7 @@ PACKER_LOG=1 packer build -on-error=ask \
 	-var "FLAVOR=$FLAVOR" \
 	-var "TRACE=$TRACE" \
 	-var "MEX_BUILD=$( git describe --long --tags )" \
+	-var "OUTPUT_PLATFORM=$OUTPUT_PLATFORM" \
 	packer_template.mobiledgex.json
 
 if [[ $? -ne 0 ]]; then

@@ -9,7 +9,19 @@ regiondata:
           version: "1.0"
         clusterinstkey:
           clusterkey:
-            name: Reservable1
+            name: Reservable2
+          cloudletkey:
+            organization: tmus
+            name: tmus-cloud-2
+          organization: MobiledgeX
+    - key:
+        appkey:
+          organization: AcmeAppCo
+          name: autoprovappd
+          version: "1.0"
+        clusterinstkey:
+          clusterkey:
+            name: ReservableD
           cloudletkey:
             organization: tmus
             name: tmus-cloud-1

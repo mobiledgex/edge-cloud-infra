@@ -48,6 +48,7 @@ var OperatorResources = []string{
 	ResourceCloudlets,
 	ResourceCloudletAnalytics,
 	ResourceResTagTable,
+	ResourceCloudletPools,
 }
 
 // built-in roles
@@ -244,7 +245,7 @@ func AddUserRole(c echo.Context) error {
 	}
 	role := ormapi.Role{}
 	if err := c.Bind(&role); err != nil {
-		return c.JSON(http.StatusBadRequest, Msg("Invalid POST data"))
+		return bindErr(c, err)
 	}
 	err = AddUserRoleObj(GetContext(c), claims, &role)
 	return setReply(c, err, Msg("Role added to user"))
@@ -379,7 +380,7 @@ func RemoveUserRole(c echo.Context) error {
 
 	role := ormapi.Role{}
 	if err := c.Bind(&role); err != nil {
-		return c.JSON(http.StatusBadRequest, Msg("Invalid POST data"))
+		return bindErr(c, err)
 	}
 	err = RemoveUserRoleObj(ctx, claims, &role)
 	return setReply(c, err, Msg("Role removed from user"))
@@ -472,7 +473,7 @@ func ShowUserRoleObj(ctx context.Context, username string) ([]ormapi.Role, error
 	if err != nil {
 		return nil, dbErr(err)
 	}
-	authz, err := newShowAuthz(ctx, username, ResourceUsers, ActionView)
+	authz, err := newShowAuthz(ctx, "", username, ResourceUsers, ActionView)
 	if err != nil {
 		return nil, err
 	}
@@ -482,7 +483,7 @@ func ShowUserRoleObj(ctx context.Context, username string) ([]ormapi.Role, error
 		if role == nil {
 			continue
 		}
-		if !authz.Ok(ctx, role.Org) {
+		if !authz.Ok(role.Org) {
 			continue
 		}
 		roles = append(roles, *role)

@@ -51,8 +51,8 @@ var DeleteClusterInstCmd = &cli.Command{
 
 var UpdateClusterInstCmd = &cli.Command{
 	Use:          "UpdateClusterInst",
-	RequiredArgs: "region " + strings.Join(ClusterInstRequiredArgs, " "),
-	OptionalArgs: strings.Join(ClusterInstOptionalArgs, " "),
+	RequiredArgs: "region " + strings.Join(UpdateClusterInstRequiredArgs, " "),
+	OptionalArgs: strings.Join(UpdateClusterInstOptionalArgs, " "),
 	AliasArgs:    strings.Join(ClusterInstAliasArgs, " "),
 	SpecialArgs:  &ClusterInstSpecialArgs,
 	Comments:     addRegionComment(ClusterInstComments),
@@ -75,7 +75,14 @@ func setUpdateClusterInstFields(in map[string]interface{}) {
 	if !ok {
 		return
 	}
-	objmap["fields"] = cli.GetSpecifiedFields(objmap, &edgeproto.ClusterInst{}, cli.JsonNamespace)
+	fields := cli.GetSpecifiedFields(objmap, &edgeproto.ClusterInst{}, cli.JsonNamespace)
+	// include fields already specified
+	if inFields, found := objmap["fields"]; found {
+		if fieldsArr, ok := inFields.([]string); ok {
+			fields = append(fields, fieldsArr...)
+		}
+	}
+	objmap["fields"] = fields
 }
 
 var ShowClusterInstCmd = &cli.Command{
@@ -98,6 +105,18 @@ var ClusterInstApiCmds = []*cli.Command{
 	ShowClusterInstCmd,
 }
 
+var UpdateClusterInstRequiredArgs = []string{
+	"cluster",
+	"cloudlet-org",
+	"cloudlet",
+	"cluster-org",
+}
+var UpdateClusterInstOptionalArgs = []string{
+	"crmoverride",
+	"numnodes",
+	"autoscalepolicy",
+	"skipcrmcleanuponfailure",
+}
 var ClusterInstKeyRequiredArgs = []string{}
 var ClusterInstKeyOptionalArgs = []string{
 	"clusterkey.name",
@@ -126,8 +145,6 @@ var ClusterInstRequiredArgs = []string{
 }
 var ClusterInstOptionalArgs = []string{
 	"flavor",
-	"state",
-	"errors",
 	"crmoverride",
 	"ipaccess",
 	"deployment",
@@ -139,7 +156,7 @@ var ClusterInstOptionalArgs = []string{
 	"reservable",
 	"sharedvolumesize",
 	"privacypolicy",
-	"masternodeflavor",
+	"skipcrmcleanuponfailure",
 }
 var ClusterInstAliasArgs = []string{
 	"fields=clusterinst.fields",
@@ -172,34 +189,36 @@ var ClusterInstAliasArgs = []string{
 	"sharedvolumesize=clusterinst.sharedvolumesize",
 	"privacypolicy=clusterinst.privacypolicy",
 	"masternodeflavor=clusterinst.masternodeflavor",
+	"skipcrmcleanuponfailure=clusterinst.skipcrmcleanuponfailure",
 }
 var ClusterInstComments = map[string]string{
-	"fields":             "Fields are used for the Update API to specify which fields to apply",
-	"cluster":            "Cluster name",
-	"cloudlet-org":       "Organization of the cloudlet site",
-	"cloudlet":           "Name of the cloudlet",
-	"cluster-org":        "Name of Developer organization that this cluster belongs to",
-	"flavor":             "Flavor name",
-	"liveness":           "Liveness of instance (see Liveness), one of LivenessUnknown, LivenessStatic, LivenessDynamic",
-	"auto":               "Auto is set to true when automatically created by back-end (internal use only)",
-	"state":              "State of the cluster instance, one of TrackedStateUnknown, NotPresent, CreateRequested, Creating, CreateError, Ready, UpdateRequested, Updating, UpdateError, DeleteRequested, Deleting, DeleteError, DeletePrepare, CrmInitok, CreatingDependencies",
-	"errors":             "Any errors trying to create, update, or delete the ClusterInst on the Cloudlet.",
-	"crmoverride":        "Override actions to CRM, one of NoOverride, IgnoreCrmErrors, IgnoreCrm, IgnoreTransientState, IgnoreCrmAndTransientState",
-	"ipaccess":           "IP access type (RootLB Type), one of IpAccessUnknown, IpAccessDedicated, IpAccessShared",
-	"allocatedip":        "Allocated IP for dedicated access",
-	"nodeflavor":         "Cloudlet specific node flavor",
-	"deployment":         "Deployment type (kubernetes or docker)",
-	"nummasters":         "Number of k8s masters (In case of docker deployment, this field is not required)",
-	"numnodes":           "Number of k8s nodes (In case of docker deployment, this field is not required)",
-	"externalvolumesize": "Size of external volume to be attached to nodes.  This is for the root partition",
-	"autoscalepolicy":    "Auto scale policy name",
-	"availabilityzone":   "Optional Resource AZ if any",
-	"imagename":          "Optional resource specific image to launch",
-	"reservable":         "If ClusterInst is reservable",
-	"reservedby":         "For reservable MobiledgeX ClusterInsts, the current developer tenant",
-	"sharedvolumesize":   "Size of an optional shared volume to be mounted on the master",
-	"privacypolicy":      "Optional privacy policy name",
-	"masternodeflavor":   "Generic flavor for k8s master VM when worker nodes > 0",
+	"fields":                  "Fields are used for the Update API to specify which fields to apply",
+	"cluster":                 "Cluster name",
+	"cloudlet-org":            "Organization of the cloudlet site",
+	"cloudlet":                "Name of the cloudlet",
+	"cluster-org":             "Name of Developer organization that this cluster belongs to",
+	"flavor":                  "Flavor name",
+	"liveness":                "Liveness of instance (see Liveness), one of LivenessUnknown, LivenessStatic, LivenessDynamic, LivenessAutoprov",
+	"auto":                    "Auto is set to true when automatically created by back-end (internal use only)",
+	"state":                   "State of the cluster instance, one of TrackedStateUnknown, NotPresent, CreateRequested, Creating, CreateError, Ready, UpdateRequested, Updating, UpdateError, DeleteRequested, Deleting, DeleteError, DeletePrepare, CrmInitok, CreatingDependencies",
+	"errors":                  "Any errors trying to create, update, or delete the ClusterInst on the Cloudlet.",
+	"crmoverride":             "Override actions to CRM, one of NoOverride, IgnoreCrmErrors, IgnoreCrm, IgnoreTransientState, IgnoreCrmAndTransientState",
+	"ipaccess":                "IP access type (RootLB Type), one of IpAccessUnknown, IpAccessDedicated, IpAccessShared",
+	"allocatedip":             "Allocated IP for dedicated access",
+	"nodeflavor":              "Cloudlet specific node flavor",
+	"deployment":              "Deployment type (kubernetes or docker)",
+	"nummasters":              "Number of k8s masters (In case of docker deployment, this field is not required)",
+	"numnodes":                "Number of k8s nodes (In case of docker deployment, this field is not required)",
+	"externalvolumesize":      "Size of external volume to be attached to nodes.  This is for the root partition",
+	"autoscalepolicy":         "Auto scale policy name",
+	"availabilityzone":        "Optional Resource AZ if any",
+	"imagename":               "Optional resource specific image to launch",
+	"reservable":              "If ClusterInst is reservable",
+	"reservedby":              "For reservable MobiledgeX ClusterInsts, the current developer tenant",
+	"sharedvolumesize":        "Size of an optional shared volume to be mounted on the master",
+	"privacypolicy":           "Optional privacy policy name",
+	"masternodeflavor":        "Generic flavor for k8s master VM when worker nodes > 0",
+	"skipcrmcleanuponfailure": "Prevents cleanup of resources on failure within CRM, used for diagnostic purposes",
 }
 var ClusterInstSpecialArgs = map[string]string{
 	"clusterinst.errors": "StringArray",

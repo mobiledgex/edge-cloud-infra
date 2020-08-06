@@ -91,7 +91,14 @@ func setUpdateAppInstFields(in map[string]interface{}) {
 	if !ok {
 		return
 	}
-	objmap["fields"] = cli.GetSpecifiedFields(objmap, &edgeproto.AppInst{}, cli.JsonNamespace)
+	fields := cli.GetSpecifiedFields(objmap, &edgeproto.AppInst{}, cli.JsonNamespace)
+	// include fields already specified
+	if inFields, found := objmap["fields"]; found {
+		if fieldsArr, ok := inFields.([]string); ok {
+			fields = append(fields, fieldsArr...)
+		}
+	}
+	objmap["fields"] = fields
 }
 
 var ShowAppInstCmd = &cli.Command{
@@ -125,15 +132,7 @@ var CreateAppInstRequiredArgs = []string{
 var CreateAppInstOptionalArgs = []string{
 	"cluster",
 	"cluster-org",
-	"mappedports:#.proto",
-	"mappedports:#.internalport",
-	"mappedports:#.publicport",
-	"mappedports:#.pathprefix",
-	"mappedports:#.fqdnprefix",
-	"mappedports:#.endport",
-	"mappedports:#.tls",
 	"flavor",
-	"state",
 	"crmoverride",
 	"autoclusteripaccess",
 	"configs:#.kind",
@@ -141,8 +140,6 @@ var CreateAppInstOptionalArgs = []string{
 	"sharedvolumesize",
 	"healthcheck",
 	"privacypolicy",
-	"externalvolumesize",
-	"availabilityzone",
 	"vmflavor",
 	"optres",
 }
@@ -156,37 +153,9 @@ var DeleteAppInstRequiredArgs = []string{
 var DeleteAppInstOptionalArgs = []string{
 	"cluster",
 	"cluster-org",
-	"cloudletloc.latitude",
-	"cloudletloc.longitude",
-	"cloudletloc.horizontalaccuracy",
-	"cloudletloc.verticalaccuracy",
-	"cloudletloc.altitude",
-	"cloudletloc.course",
-	"cloudletloc.speed",
-	"cloudletloc.timestamp.seconds",
-	"cloudletloc.timestamp.nanos",
-	"uri",
-	"liveness",
-	"mappedports:#.proto",
-	"mappedports:#.internalport",
-	"mappedports:#.publicport",
-	"mappedports:#.pathprefix",
-	"mappedports:#.fqdnprefix",
-	"mappedports:#.endport",
-	"mappedports:#.tls",
 	"flavor",
-	"state",
-	"errors",
 	"crmoverride",
-	"runtimeinfo.containerids",
-	"createdat.seconds",
-	"createdat.nanos",
 	"autoclusteripaccess",
-	"status.tasknumber",
-	"status.maxtasks",
-	"status.taskname",
-	"status.stepname",
-	"revision",
 	"forceupdate",
 	"updatemultiple",
 	"configs:#.kind",
@@ -194,8 +163,6 @@ var DeleteAppInstOptionalArgs = []string{
 	"sharedvolumesize",
 	"healthcheck",
 	"privacypolicy",
-	"externalvolumesize",
-	"availabilityzone",
 	"vmflavor",
 	"optres",
 }
@@ -209,25 +176,9 @@ var RefreshAppInstOptionalArgs = []string{
 	"cloudlet-org",
 	"cloudlet",
 	"cluster-org",
-	"mappedports:#.proto",
-	"mappedports:#.internalport",
-	"mappedports:#.publicport",
-	"mappedports:#.pathprefix",
-	"mappedports:#.fqdnprefix",
-	"mappedports:#.endport",
-	"mappedports:#.tls",
 	"crmoverride",
 	"forceupdate",
 	"updatemultiple",
-	"configs:#.kind",
-	"configs:#.config",
-	"sharedvolumesize",
-	"healthcheck",
-	"privacypolicy",
-	"externalvolumesize",
-	"availabilityzone",
-	"vmflavor",
-	"optres",
 }
 var UpdateAppInstRequiredArgs = []string{
 	"app-org",
@@ -239,24 +190,10 @@ var UpdateAppInstRequiredArgs = []string{
 var UpdateAppInstOptionalArgs = []string{
 	"cluster",
 	"cluster-org",
-	"mappedports:#.proto",
-	"mappedports:#.internalport",
-	"mappedports:#.publicport",
-	"mappedports:#.pathprefix",
-	"mappedports:#.fqdnprefix",
-	"mappedports:#.endport",
-	"mappedports:#.tls",
 	"crmoverride",
 	"configs:#.kind",
 	"configs:#.config",
-	"sharedvolumesize",
-	"healthcheck",
-	"privacypolicy",
 	"powerstate",
-	"externalvolumesize",
-	"availabilityzone",
-	"vmflavor",
-	"optres",
 }
 var AppInstKeyRequiredArgs = []string{}
 var AppInstKeyOptionalArgs = []string{
@@ -297,15 +234,7 @@ var AppInstRequiredArgs = []string{
 var AppInstOptionalArgs = []string{
 	"cluster",
 	"cluster-org",
-	"mappedports:#.proto",
-	"mappedports:#.internalport",
-	"mappedports:#.publicport",
-	"mappedports:#.pathprefix",
-	"mappedports:#.fqdnprefix",
-	"mappedports:#.endport",
-	"mappedports:#.tls",
 	"flavor",
-	"state",
 	"crmoverride",
 	"autoclusteripaccess",
 	"forceupdate",
@@ -389,7 +318,7 @@ var AppInstComments = map[string]string{
 	"cloudletloc.course":             "course (IOS) / bearing (Android) (degrees east relative to true north)",
 	"cloudletloc.speed":              "speed (IOS) / velocity (Android) (meters/sec)",
 	"uri":                            "Base FQDN (not really URI) for the App. See Service FQDN for endpoint access.",
-	"liveness":                       "Liveness of instance (see Liveness), one of LivenessUnknown, LivenessStatic, LivenessDynamic",
+	"liveness":                       "Liveness of instance (see Liveness), one of LivenessUnknown, LivenessStatic, LivenessDynamic, LivenessAutoprov",
 	"mappedports:#.proto":            "TCP (L4), UDP (L4), or HTTP (L7) protocol, one of LProtoUnknown, LProtoTcp, LProtoUdp, LProtoHttp",
 	"mappedports:#.internalport":     "Container port",
 	"mappedports:#.publicport":       "Public facing port for TCP/UDP (may be mapped on shared LB reverse proxy)",
@@ -406,7 +335,7 @@ var AppInstComments = map[string]string{
 	"revision":                       "Revision changes each time the App is updated.  Refreshing the App Instance will sync the revision with that of the App",
 	"forceupdate":                    "Force Appinst refresh even if revision number matches App revision number.",
 	"updatemultiple":                 "Allow multiple instances to be updated at once",
-	"configs:#.kind":                 "kind (type) of config, i.e. envVarsYaml, hemlCustomizationYaml",
+	"configs:#.kind":                 "kind (type) of config, i.e. envVarsYaml, helmCustomizationYaml",
 	"configs:#.config":               "config file contents or URI reference",
 	"sharedvolumesize":               "shared volume size when creating auto cluster",
 	"healthcheck":                    "Health Check status, one of HealthCheckUnknown, HealthCheckFailRootlbOffline, HealthCheckFailServerFail, HealthCheckOk",
@@ -505,3 +434,39 @@ var AppInstMetricsComments = map[string]string{
 	"something": "what goes here? Note that metrics for grpc calls can be done by a prometheus interceptor in grpc, so adding call metrics here may be redundant unless theyre needed for billing.",
 }
 var AppInstMetricsSpecialArgs = map[string]string{}
+var AppInstLookupRequiredArgs = []string{
+	"key.appkey.organization",
+	"key.appkey.name",
+	"key.appkey.version",
+	"key.clusterinstkey.clusterkey.name",
+	"key.clusterinstkey.cloudletkey.organization",
+	"key.clusterinstkey.cloudletkey.name",
+	"key.clusterinstkey.organization",
+}
+var AppInstLookupOptionalArgs = []string{
+	"policykey.organization",
+	"policykey.name",
+}
+var AppInstLookupAliasArgs = []string{
+	"key.appkey.organization=appinstlookup.key.appkey.organization",
+	"key.appkey.name=appinstlookup.key.appkey.name",
+	"key.appkey.version=appinstlookup.key.appkey.version",
+	"key.clusterinstkey.clusterkey.name=appinstlookup.key.clusterinstkey.clusterkey.name",
+	"key.clusterinstkey.cloudletkey.organization=appinstlookup.key.clusterinstkey.cloudletkey.organization",
+	"key.clusterinstkey.cloudletkey.name=appinstlookup.key.clusterinstkey.cloudletkey.name",
+	"key.clusterinstkey.organization=appinstlookup.key.clusterinstkey.organization",
+	"policykey.organization=appinstlookup.policykey.organization",
+	"policykey.name=appinstlookup.policykey.name",
+}
+var AppInstLookupComments = map[string]string{
+	"key.appkey.organization":                     "App developer organization",
+	"key.appkey.name":                             "App name",
+	"key.appkey.version":                          "App version",
+	"key.clusterinstkey.clusterkey.name":          "Cluster name",
+	"key.clusterinstkey.cloudletkey.organization": "Organization of the cloudlet site",
+	"key.clusterinstkey.cloudletkey.name":         "Name of the cloudlet",
+	"key.clusterinstkey.organization":             "Name of Developer organization that this cluster belongs to",
+	"policykey.organization":                      "Name of the organization for the cluster that this policy will apply to",
+	"policykey.name":                              "Policy name",
+}
+var AppInstLookupSpecialArgs = map[string]string{}

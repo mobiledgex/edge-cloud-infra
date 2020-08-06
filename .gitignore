@@ -71,3 +71,14 @@ mgmt/vault/root-ca/index.txt*
 mgmt/vault/root-ca/serial
 mgmt/vault/root-ca/intermediate/index.txt*
 mgmt/vault/root-ca/intermediate/serial
+
+ansible/mex_inventory
+ansible/playbooks/setup.yml
+
+e2e-tests/chef/chef_guid
+e2e-tests/chef/syntaxcache
+
+# leftovers after regression tests
+envoy/certs/envoyTlsCerts.key
+envoy/certs/envoyTlsCerts.crt
+plugin/common/foo

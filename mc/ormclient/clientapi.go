@@ -40,12 +40,14 @@ type Api interface {
 	ShowCloudletEvents(uri, token string, query *ormapi.RegionCloudletEvents) (*ormapi.AllMetrics, int, error)
 
 	UpdateConfig(uri, token string, config map[string]interface{}) (int, error)
+	ResetConfig(uri, token string) (int, error)
 	ShowConfig(uri, token string) (*ormapi.Config, int, error)
 
 	CreateOrgCloudletPool(uri, token string, op *ormapi.OrgCloudletPool) (int, error)
 	DeleteOrgCloudletPool(uri, token string, op *ormapi.OrgCloudletPool) (int, error)
 	ShowOrgCloudletPool(uri, token string) ([]ormapi.OrgCloudletPool, int, error)
 	ShowOrgCloudlet(uri, token string, in *ormapi.OrgCloudlet) ([]edgeproto.Cloudlet, int, error)
+	ShowOrgCloudletInfo(uri, token string, in *ormapi.OrgCloudlet) ([]edgeproto.CloudletInfo, int, error)
 
 	ShowAuditSelf(uri, token string, query *ormapi.AuditQuery) ([]ormapi.AuditResponse, int, error)
 	ShowAuditOrg(uri, token string, query *ormapi.AuditQuery) ([]ormapi.AuditResponse, int, error)
@@ -53,12 +55,11 @@ type Api interface {
 	FlavorApiClient
 	CloudletApiClient
 	CloudletInfoApiClient
+	VMPoolApiClient
 	ClusterInstApiClient
 	AppApiClient
 	AppInstApiClient
 	CloudletPoolApiClient
-	CloudletPoolMemberApiClient
-	CloudletPoolShowApiClient
 	AutoScalePolicyApiClient
 	ResTagTableApiClient
 	AutoProvPolicyApiClient
@@ -72,5 +73,6 @@ type Api interface {
 	ExecApiClient
 	CloudletRefsApiClient
 	ClusterRefsApiClient
+	AppInstRefsApiClient
 	DeviceApiClient
 }

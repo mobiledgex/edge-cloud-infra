@@ -2,10 +2,13 @@ package shepherd_common
 
 import (
 	"context"
+	"time"
 
 	"github.com/gogo/protobuf/types"
 	"github.com/mobiledgex/edge-cloud/edgeproto"
 )
+
+const ShepherdSshConnectTimeout = time.Second * 3
 
 // Prerequisite - install small edge-cloud utility on the VM running this docker containers
 var ResTrackerCmd = "resource-tracker"
@@ -26,14 +29,19 @@ type ClusterStats interface {
 }
 
 type AppMetrics struct {
-	Cpu       float64
-	CpuTS     *types.Timestamp
-	Mem       uint64
-	MemTS     *types.Timestamp
-	Disk      uint64
-	DiskTS    *types.Timestamp
+	// Cpu is a percentage
+	Cpu   float64
+	CpuTS *types.Timestamp
+	// Mem is bytes used
+	Mem   uint64
+	MemTS *types.Timestamp
+	// Disk is bytes used
+	Disk   uint64
+	DiskTS *types.Timestamp
+	// NetSent is bytes/second average
 	NetSent   uint64
 	NetSentTS *types.Timestamp
+	// NetRecv is bytes/second average
 	NetRecv   uint64
 	NetRecvTS *types.Timestamp
 }
@@ -65,7 +73,7 @@ type ClusterMetrics struct {
 // It tracks the Max Available and currently used set of
 // resources
 type CloudletMetrics struct {
-	ComputeTS *types.Timestamp
+	CollectTime *types.Timestamp
 	// Total number of CPUs
 	VCpuMax uint64
 	// Current number of CPUs used
@@ -82,12 +90,10 @@ type CloudletMetrics struct {
 	FloatingIpsMax uint64
 	// Currently used number of Floating IPs
 	FloatingIpsUsed uint64
-	NetworkTS       *types.Timestamp
 	// Total KBytes received
 	NetRecv uint64
 	// Total KBytes sent
-	NetSent   uint64
-	IpUsageTS *types.Timestamp
+	NetSent uint64
 	// Total available IP addresses
 	Ipv4Max uint64
 	// Currently used IP addrs

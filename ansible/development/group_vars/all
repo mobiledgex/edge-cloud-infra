@@ -16,6 +16,7 @@ vault_github_teams:
       - auth-approle.write.v1
       - certs.read.v1
       - cloudlets.read.v1
+      - chef.read.v1
       - influxdb.read.v1
       - mexenv.read.v1
       - registry.read.v1
@@ -32,4 +33,6 @@ vault_github_users:
   - userid: msewera
     role: cloudlet_admin
   - userid: venkytv
+    role: admin
+  - userid: anand12gupta
     role: admin

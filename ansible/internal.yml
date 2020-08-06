@@ -4,11 +4,11 @@
     chronograf_google_creds_path: "secret/ansible/{{ deploy_environ }}/accounts/chronograf_google"
     influxdb_conf_file: /etc/influxdb/influxdb.conf
     ansible_managed_header: "MANAGED BY ANSIBLE"
-    chronograf_version: 1.7.12
-    chronograf_checksum: "sha256:ea261d5de9ad7738980f091cb78c5762ee57cdac8bf56ec1fdf36953351ff2cc"
+    chronograf_version: 1.8.5
+    chronograf_checksum: "sha256:fb52a9bc691949ce9131574586bb69d3422d5c64085a77923da26f78bc57387f"
     chronograf_canned_path: /usr/share/chronograf/canned
-    kapacitor_version: 1.5.3
-    kapacitor_checksum: "md5:2fb06503a66e3cc5fb1f9b86875da39d"
+    kapacitor_version: 1.5.4-1
+    kapacitor_checksum: "md5:fcb4b7ee7a9be484f0d0a73a61795a29"
     kapacitor_conf_file: /etc/kapacitor/kapacitor.conf
     kapacitor_load_dir: /etc/kapacitor/load
 
@@ -502,8 +502,8 @@
     slack_org_mgmt_log: slack-org-mgmt.log
     skipped_channel_file: "{{ ansible_env.HOME }}/skipped-channels.txt"
     support_users:
-      - michal.skiba@mobiledgex.com
-      - thomas.vits@mobiledgex.com
+      - thomas.vits.external@mobiledgex.com
+      - vasanth.mohan@mobiledgex.com
       - wonho.park@mobiledgex.com
 
   tasks:
@@ -766,3 +766,9 @@
         src: backups/logrotate.conf.j2
         dest: /etc/logrotate.d/backups
       become: yes
+
+- hosts: chef
+
+  tasks:
+    - import_role:
+        name: chef

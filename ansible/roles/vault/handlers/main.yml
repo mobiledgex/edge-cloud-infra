@@ -30,12 +30,9 @@
       $ vault secrets enable -path=certs -plugin-name=letsencrypt-certs plugin
 
 - name: Reload letsencrypt backend
-  uri:
-    url: "{{ lookup('env','VAULT_ADDR') }}/v1/sys/plugins/reload/backend"
+  vault_api:
+    api: sys/plugins/reload/backend
     method: PUT
-    headers:
-      X-Vault-Token: "{{ lookup('env','VAULT_TOKEN') }}"
-    body:
-      plugin: letsencrypt-certs
-    body_format: json
-    status_code: 204
+    data:
+      plugin: "{{ letsencrypt_backend }}"
+    success_code: 204

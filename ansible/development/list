@@ -19,9 +19,10 @@ gitlab_email_enabled=false
 gitlab_slack_notifications=false
 gitlab_docker_hostname="docker-{{ deploy_environ }}.mobiledgex.net"
 azure_volume_storage_class=default
-influxdb_volume_size=1Gi
+influxdb_volume_size=2Gi
 vault_firewall_setup=no
 vault_ha_domain="vault-{{ deploy_environ }}.mobiledgex.net"
+console_prod=no
 
 [notifyroot]
 notifyroot-dev.mobiledgex.net

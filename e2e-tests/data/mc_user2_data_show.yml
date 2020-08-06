@@ -44,7 +44,7 @@ regiondata:
       physicalname: tmus-cloud-1
       envvar:
         foo: bar
-      containerversion: 2020-10-10
+      containerversion: 2019-10-24
     - key:
         organization: tmus
         name: tmus-cloud-2
@@ -59,7 +59,7 @@ regiondata:
       flavor:
         name: DefaultPlatformFlavor
       physicalname: tmus-cloud-2
-      containerversion: 2020-10-10
+      containerversion: 2019-10-24
     - key:
         organization: azure
         name: azure-cloud-4
@@ -299,6 +299,18 @@ regiondata:
       deploymentgenerator: kubernetes-basic
       autoprovpolicy: autoprov1
     - key:
+        organization: AcmeAppCo
+        name: autoprovappd
+        version: "1.0"
+      imagepath: registry.mobiledgex.net/AcmeAppCo/someapplication1:1.0
+      imagetype: ImageTypeDocker
+      accessports: tcp:81
+      defaultflavor:
+        name: x1.small
+      deployment: docker
+      autoprovpolicy: autoprov1
+      accesstype: AccessTypeLoadBalancer
+    - key:
         organization: Samsung
         name: SamsungEnablingLayer
         version: "1.0"
@@ -429,6 +441,8 @@ regiondata:
         organization: AcmeAppCo
       deployclientcount: 3
       deployintervalcount: 3
+      undeployclientcount: 1
+      undeployintervalcount: 3
       cloudlets:
       - key:
           organization: tmus
@@ -442,6 +456,28 @@ regiondata:
         loc:
           latitude: 35
           longitude: -95
+    appinstrefs:
+    - key:
+        organization: AcmeAppCo
+        name: someapplication1
+        version: "1.0"
+      insts:
+        ? '{"app_key":{"organization":"AcmeAppCo","name":"someapplication1","version":"1.0"},"cluster_inst_key":{"cluster_key":{"name":"SmallCluster"},"cloudlet_key":{"organization":"tmus","name":"tmus-cloud-1"},"organization":"AcmeAppCo"}}'
+        : 1
+        ? '{"app_key":{"organization":"AcmeAppCo","name":"someapplication1","version":"1.0"},"cluster_inst_key":{"cluster_key":{"name":"SmallCluster"},"cloudlet_key":{"organization":"tmus","name":"tmus-cloud-2"},"organization":"AcmeAppCo"}}'
+        : 1
+    - key:
+        organization: AcmeAppCo
+        name: autoprovapp
+        version: "1.0"
+    - key:
+        organization: AcmeAppCo
+        name: autoprovappd
+        version: "1.0"
+    - key:
+        organization: Samsung
+        name: SamsungEnablingLayer
+        version: "1.0"
 - region: locala
   appdata:
     flavors:
@@ -470,7 +506,7 @@ regiondata:
       ipsupport: IpSupportDynamic
       numdynamicips: 254
       state: Ready
-      platformtype: PlatformTypeFakeinfra
+      platformtype: PlatformTypeFake
       notifysrvaddr: 127.0.0.1:51017
       flavor:
         name: DefaultPlatformFlavor
@@ -496,6 +532,8 @@ regiondata:
         name: autoprov1
       deployclientcount: 3
       deployintervalcount: 3
+      undeployclientcount: 1
+      undeployintervalcount: 3
       cloudlets:
       - key:
           organization: tmus
@@ -828,3 +866,21 @@ regiondata:
         nanos: 585740000
       powerstate: PowerOn
       vmflavor: x1.small
+    appinstrefs:
+    - key:
+        organization: AcmeAppCo
+        name: someapplication1
+        version: "1.0"
+      insts:
+        ? '{"app_key":{"organization":"AcmeAppCo","name":"someapplication1","version":"1.0"},"cluster_inst_key":{"cluster_key":{"name":"SmallCluster"},"cloudlet_key":{"organization":"tmus","name":"tmus-cloud-3"},"organization":"AcmeAppCo"}}'
+        : 1
+        ? '{"app_key":{"organization":"AcmeAppCo","name":"someapplication1","version":"1.0"},"cluster_inst_key":{"cluster_key":{"name":"SmallCluster"},"cloudlet_key":{"organization":"tmus","name":"tmus-cloud-4"},"organization":"AcmeAppCo"}}'
+        : 1
+    - key:
+        organization: AcmeAppCo
+        name: autoprovapp
+        version: "1.0"
+    - key:
+        organization: Samsung
+        name: SamsungEnablingLayer
+        version: "1.0"

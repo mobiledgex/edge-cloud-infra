@@ -5,7 +5,6 @@ package orm
 
 import edgeproto "github.com/mobiledgex/edge-cloud/edgeproto"
 import "github.com/labstack/echo"
-import "net/http"
 import "context"
 import "io"
 import "github.com/mobiledgex/edge-cloud/log"
@@ -429,6 +428,53 @@ func ShowCloudletObj(ctx context.Context, rc *RegionContext, obj *edgeproto.Clou
 	return arr, err
 }
 
+func GetCloudletManifest(c echo.Context) error {
+	ctx := GetContext(c)
+	rc := &RegionContext{}
+	claims, err := getClaims(c)
+	if err != nil {
+		return err
+	}
+	rc.username = claims.Username
+
+	in := ormapi.RegionCloudlet{}
+	if err := c.Bind(&in); err != nil {
+		return bindErr(c, err)
+	}
+	rc.region = in.Region
+	span := log.SpanFromContext(ctx)
+	span.SetTag("org", in.Cloudlet.Key.Organization)
+	resp, err := GetCloudletManifestObj(ctx, rc, &in.Cloudlet)
+	if err != nil {
+		if st, ok := status.FromError(err); ok {
+			err = fmt.Errorf("%s", st.Message())
+		}
+	}
+	return setReply(c, err, resp)
+}
+
+func GetCloudletManifestObj(ctx context.Context, rc *RegionContext, obj *edgeproto.Cloudlet) (*edgeproto.CloudletManifest, error) {
+	if !rc.skipAuthz {
+		if err := authorized(ctx, rc.username, obj.Key.Organization,
+			ResourceCloudlets, ActionManage); err != nil {
+			return nil, err
+		}
+	}
+	if rc.conn == nil {
+		conn, err := connectController(ctx, rc.region)
+		if err != nil {
+			return nil, err
+		}
+		rc.conn = conn
+		defer func() {
+			rc.conn.Close()
+			rc.conn = nil
+		}()
+	}
+	api := edgeproto.NewCloudletApiClient(rc.conn)
+	return api.GetCloudletManifest(ctx, obj)
+}
+
 func AddCloudletResMapping(c echo.Context) error {
 	ctx := GetContext(c)
 	rc := &RegionContext{}
@@ -440,7 +486,7 @@ func AddCloudletResMapping(c echo.Context) error {
 
 	in := ormapi.RegionCloudletResMap{}
 	if err := c.Bind(&in); err != nil {
-		return c.JSON(http.StatusBadRequest, Msg("Invalid POST data"))
+		return bindErr(c, err)
 	}
 	rc.region = in.Region
 	span := log.SpanFromContext(ctx)
@@ -487,7 +533,7 @@ func RemoveCloudletResMapping(c echo.Context) error {
 
 	in := ormapi.RegionCloudletResMap{}
 	if err := c.Bind(&in); err != nil {
-		return c.JSON(http.StatusBadRequest, Msg("Invalid POST data"))
+		return bindErr(c, err)
 	}
 	rc.region = in.Region
 	span := log.SpanFromContext(ctx)
@@ -534,7 +580,7 @@ func FindFlavorMatch(c echo.Context) error {
 
 	in := ormapi.RegionFlavorMatch{}
 	if err := c.Bind(&in); err != nil {
-		return c.JSON(http.StatusBadRequest, Msg("Invalid POST data"))
+		return bindErr(c, err)
 	}
 	rc.region = in.Region
 	span := log.SpanFromContext(ctx)
@@ -601,10 +647,10 @@ func ShowCloudletInfo(c echo.Context) error {
 }
 
 func ShowCloudletInfoStream(ctx context.Context, rc *RegionContext, obj *edgeproto.CloudletInfo, cb func(res *edgeproto.CloudletInfo)) error {
-	var authz *ShowAuthz
+	var authz *AuthzShow
 	var err error
 	if !rc.skipAuthz {
-		authz, err = NewShowAuthz(ctx, rc.region, rc.username, ResourceCloudletAnalytics, ActionView)
+		authz, err = newShowAuthz(ctx, rc.region, rc.username, ResourceCloudletAnalytics, ActionView)
 		if err == echo.ErrForbidden {
 			return nil
 		}
@@ -653,4 +699,98 @@ func ShowCloudletInfoObj(ctx context.Context, rc *RegionContext, obj *edgeproto.
 		arr = append(arr, *res)
 	})
 	return arr, err
+}
+
+func InjectCloudletInfo(c echo.Context) error {
+	ctx := GetContext(c)
+	rc := &RegionContext{}
+	claims, err := getClaims(c)
+	if err != nil {
+		return err
+	}
+	rc.username = claims.Username
+
+	in := ormapi.RegionCloudletInfo{}
+	if err := c.Bind(&in); err != nil {
+		return bindErr(c, err)
+	}
+	rc.region = in.Region
+	span := log.SpanFromContext(ctx)
+	span.SetTag("org", in.CloudletInfo.Key.Organization)
+	resp, err := InjectCloudletInfoObj(ctx, rc, &in.CloudletInfo)
+	if err != nil {
+		if st, ok := status.FromError(err); ok {
+			err = fmt.Errorf("%s", st.Message())
+		}
+	}
+	return setReply(c, err, resp)
+}
+
+func InjectCloudletInfoObj(ctx context.Context, rc *RegionContext, obj *edgeproto.CloudletInfo) (*edgeproto.Result, error) {
+	if !rc.skipAuthz {
+		if err := authorized(ctx, rc.username, obj.Key.Organization,
+			ResourceCloudlets, ActionManage); err != nil {
+			return nil, err
+		}
+	}
+	if rc.conn == nil {
+		conn, err := connectController(ctx, rc.region)
+		if err != nil {
+			return nil, err
+		}
+		rc.conn = conn
+		defer func() {
+			rc.conn.Close()
+			rc.conn = nil
+		}()
+	}
+	api := edgeproto.NewCloudletInfoApiClient(rc.conn)
+	return api.InjectCloudletInfo(ctx, obj)
+}
+
+func EvictCloudletInfo(c echo.Context) error {
+	ctx := GetContext(c)
+	rc := &RegionContext{}
+	claims, err := getClaims(c)
+	if err != nil {
+		return err
+	}
+	rc.username = claims.Username
+
+	in := ormapi.RegionCloudletInfo{}
+	if err := c.Bind(&in); err != nil {
+		return bindErr(c, err)
+	}
+	rc.region = in.Region
+	span := log.SpanFromContext(ctx)
+	span.SetTag("org", in.CloudletInfo.Key.Organization)
+	resp, err := EvictCloudletInfoObj(ctx, rc, &in.CloudletInfo)
+	if err != nil {
+		if st, ok := status.FromError(err); ok {
+			err = fmt.Errorf("%s", st.Message())
+		}
+	}
+	return setReply(c, err, resp)
+}
+
+func EvictCloudletInfoObj(ctx context.Context, rc *RegionContext, obj *edgeproto.CloudletInfo) (*edgeproto.Result, error) {
+	if !rc.skipAuthz {
+		if err := authorized(ctx, rc.username, obj.Key.Organization,
+			ResourceCloudlets, ActionManage); err != nil {
+			return nil, err
+		}
+	}
+	if rc.conn == nil {
+		conn, err := connectController(ctx, rc.region)
+		if err != nil {
+			return nil, err
+		}
+		rc.conn = conn
+		defer func() {
+			rc.conn.Close()
+			rc.conn = nil
+		}()
+	}
+	api := edgeproto.NewCloudletInfoApiClient(rc.conn)
+	return api.EvictCloudletInfo(ctx, obj)
 }

@@ -33,6 +33,7 @@ It is generated from these files:
 	result.proto
 	settings.proto
 	version.proto
+	vmpool.proto
 
 It has these top-level messages:
 	Alert
@@ -40,11 +41,13 @@ It has these top-level messages:
 	AppKey
 	ConfigFile
 	App
+	AppAutoProvPolicy
 	AppInstKey
 	AppInst
 	AppInstRuntime
 	AppInstInfo
 	AppInstMetrics
+	AppInstLookup
 	AppInstClientKey
 	AppInstClient
 	AutoProvPolicy
@@ -52,19 +55,17 @@ It has these top-level messages:
 	AutoProvCount
 	AutoProvCounts
 	AutoProvPolicyCloudlet
+	AutoProvInfo
 	PolicyKey
 	AutoScalePolicy
 	CloudletKey
 	OperationTimeLimits
-	CloudletInfraCommon
-	AzureProperties
-	GcpProperties
-	OpenStackProperties
-	CloudletInfraProperties
 	PlatformConfig
 	CloudletResMap
+	InfraConfig
 	Cloudlet
 	FlavorMatch
+	CloudletManifest
 	FlavorInfo
 	OSAZone
 	OSImage
@@ -86,6 +87,7 @@ It has these top-level messages:
 	DeviceReport
 	DeviceKey
 	Device
+	DeviceData
 	CloudletMgmtNode
 	RunCmd
 	RunVMConsole
@@ -107,10 +109,18 @@ It has these top-level messages:
 	PrivacyPolicy
 	CloudletRefs
 	ClusterRefs
+	AppInstRefs
 	ResTagTableKey
 	ResTagTable
 	Result
 	Settings
+	VMNetInfo
+	VM
+	VMPoolKey
+	VMPool
+	VMPoolMember
+	VMSpec
+	VMPoolInfo
 */
 package orm
 
@@ -137,14 +147,14 @@ var _ = math.Inf
 
 var _ = edgeproto.GetFields
 
-func badPermShowAlert(t *testing.T, mcClient *ormclient.Client, uri, token, region, org string) {
-	_, status, err := testutil.TestPermShowAlert(mcClient, uri, token, region, org)
+func badPermShowAlert(t *testing.T, mcClient *ormclient.Client, uri, token, region, org string, modFuncs ...func(*edgeproto.Alert)) {
+	_, status, err := testutil.TestPermShowAlert(mcClient, uri, token, region, org, modFuncs...)
 	require.NotNil(t, err)
 	require.Equal(t, http.StatusForbidden, status)
 }
 
-func goodPermShowAlert(t *testing.T, mcClient *ormclient.Client, uri, token, region, org string) {
-	_, status, err := testutil.TestPermShowAlert(mcClient, uri, token, region, org)
+func goodPermShowAlert(t *testing.T, mcClient *ormclient.Client, uri, token, region, org string, modFuncs ...func(*edgeproto.Alert)) {
+	_, status, err := testutil.TestPermShowAlert(mcClient, uri, token, region, org, modFuncs...)
 	require.Nil(t, err)
 	require.Equal(t, http.StatusOK, status)
 }

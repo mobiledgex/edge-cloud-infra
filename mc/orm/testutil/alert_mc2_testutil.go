@@ -33,6 +33,7 @@ It is generated from these files:
 	result.proto
 	settings.proto
 	version.proto
+	vmpool.proto
 
 It has these top-level messages:
 	Alert
@@ -40,11 +41,13 @@ It has these top-level messages:
 	AppKey
 	ConfigFile
 	App
+	AppAutoProvPolicy
 	AppInstKey
 	AppInst
 	AppInstRuntime
 	AppInstInfo
 	AppInstMetrics
+	AppInstLookup
 	AppInstClientKey
 	AppInstClient
 	AutoProvPolicy
@@ -52,19 +55,17 @@ It has these top-level messages:
 	AutoProvCount
 	AutoProvCounts
 	AutoProvPolicyCloudlet
+	AutoProvInfo
 	PolicyKey
 	AutoScalePolicy
 	CloudletKey
 	OperationTimeLimits
-	CloudletInfraCommon
-	AzureProperties
-	GcpProperties
-	OpenStackProperties
-	CloudletInfraProperties
 	PlatformConfig
 	CloudletResMap
+	InfraConfig
 	Cloudlet
 	FlavorMatch
+	CloudletManifest
 	FlavorInfo
 	OSAZone
 	OSImage
@@ -86,6 +87,7 @@ It has these top-level messages:
 	DeviceReport
 	DeviceKey
 	Device
+	DeviceData
 	CloudletMgmtNode
 	RunCmd
 	RunVMConsole
@@ -107,10 +109,18 @@ It has these top-level messages:
 	PrivacyPolicy
 	CloudletRefs
 	ClusterRefs
+	AppInstRefs
 	ResTagTableKey
 	ResTagTable
 	Result
 	Settings
+	VMNetInfo
+	VM
+	VMPoolKey
+	VMPool
+	VMPoolMember
+	VMSpec
+	VMPoolInfo
 */
 package testutil
 
@@ -133,15 +143,18 @@ var _ = math.Inf
 
 // Auto-generated code: DO NOT EDIT
 
-func TestShowAlert(mcClient *ormclient.Client, uri, token, region string, in *edgeproto.Alert) ([]edgeproto.Alert, int, error) {
+func TestShowAlert(mcClient *ormclient.Client, uri, token, region string, in *edgeproto.Alert, modFuncs ...func(*edgeproto.Alert)) ([]edgeproto.Alert, int, error) {
 	dat := &ormapi.RegionAlert{}
 	dat.Region = region
 	dat.Alert = *in
+	for _, fn := range modFuncs {
+		fn(&dat.Alert)
+	}
 	return mcClient.ShowAlert(uri, token, dat)
 }
-func TestPermShowAlert(mcClient *ormclient.Client, uri, token, region, org string) ([]edgeproto.Alert, int, error) {
+func TestPermShowAlert(mcClient *ormclient.Client, uri, token, region, org string, modFuncs ...func(*edgeproto.Alert)) ([]edgeproto.Alert, int, error) {
 	in := &edgeproto.Alert{}
-	return TestShowAlert(mcClient, uri, token, region, in)
+	return TestShowAlert(mcClient, uri, token, region, in, modFuncs...)
 }
 
 func (s *TestClient) ShowAlert(ctx context.Context, in *edgeproto.Alert) ([]edgeproto.Alert, error) {

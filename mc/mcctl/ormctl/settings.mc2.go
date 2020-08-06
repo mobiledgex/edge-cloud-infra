@@ -45,7 +45,14 @@ func setUpdateSettingsFields(in map[string]interface{}) {
 	if !ok {
 		return
 	}
-	objmap["fields"] = cli.GetSpecifiedFields(objmap, &edgeproto.Settings{}, cli.JsonNamespace)
+	fields := cli.GetSpecifiedFields(objmap, &edgeproto.Settings{}, cli.JsonNamespace)
+	// include fields already specified
+	if inFields, found := objmap["fields"]; found {
+		if fieldsArr, ok := inFields.([]string); ok {
+			fields = append(fields, fieldsArr...)
+		}
+	}
+	objmap["fields"] = fields
 }
 
 var ResetSettingsCmd = &cli.Command{
@@ -81,6 +88,7 @@ var SettingsApiCmds = []*cli.Command{
 var SettingsRequiredArgs = []string{}
 var SettingsOptionalArgs = []string{
 	"shepherdmetricscollectioninterval",
+	"shepherdalertevaluationinterval",
 	"shepherdhealthcheckretries",
 	"shepherdhealthcheckinterval",
 	"autodeployintervalsec",
@@ -95,10 +103,15 @@ var SettingsOptionalArgs = []string{
 	"masternodeflavor",
 	"loadbalancermaxportrange",
 	"maxtrackeddmeclients",
+	"chefclientinterval",
+	"influxdbmetricsretention",
+	"cloudletmaintenancetimeout",
+	"updatevmpooltimeout",
 }
 var SettingsAliasArgs = []string{
 	"fields=settings.fields",
 	"shepherdmetricscollectioninterval=settings.shepherdmetricscollectioninterval",
+	"shepherdalertevaluationinterval=settings.shepherdalertevaluationinterval",
 	"shepherdhealthcheckretries=settings.shepherdhealthcheckretries",
 	"shepherdhealthcheckinterval=settings.shepherdhealthcheckinterval",
 	"autodeployintervalsec=settings.autodeployintervalsec",
@@ -113,10 +126,15 @@ var SettingsAliasArgs = []string{
 	"masternodeflavor=settings.masternodeflavor",
 	"loadbalancermaxportrange=settings.loadbalancermaxportrange",
 	"maxtrackeddmeclients=settings.maxtrackeddmeclients",
+	"chefclientinterval=settings.chefclientinterval",
+	"influxdbmetricsretention=settings.influxdbmetricsretention",
+	"cloudletmaintenancetimeout=settings.cloudletmaintenancetimeout",
+	"updatevmpooltimeout=settings.updatevmpooltimeout",
 }
 var SettingsComments = map[string]string{
 	"fields":                            "Fields are used for the Update API to specify which fields to apply",
 	"shepherdmetricscollectioninterval": "Shepherd metrics collection interval for k8s and docker appInstances (duration)",
+	"shepherdalertevaluationinterval":   "Shepherd alert evaluation interval for k8s and docker appInstances (duration)",
 	"shepherdhealthcheckretries":        "Number of times Shepherd Health Check fails before we mark appInst down",
 	"shepherdhealthcheckinterval":       "Health Checking probing frequency (duration)",
 	"autodeployintervalsec":             "Auto Provisioning Stats push and analysis interval (seconds)",
@@ -131,6 +149,10 @@ var SettingsComments = map[string]string{
 	"masternodeflavor":                  "Default flavor for k8s master VM and > 0  workers",
 	"loadbalancermaxportrange":          "Max IP Port range when using a load balancer",
 	"maxtrackeddmeclients":              "Max DME clients to be tracked at the same time.",
+	"chefclientinterval":                "Default chef client interval (duration)",
+	"influxdbmetricsretention":          "Default influxDB metrics retention policy (duration)",
+	"cloudletmaintenancetimeout":        "Default Cloudlet Maintenance timeout (used twice for AutoProv and Cloudlet)",
+	"updatevmpooltimeout":               "Update VM pool timeout (duration)",
 }
 var SettingsSpecialArgs = map[string]string{
 	"settings.fields": "StringArray",

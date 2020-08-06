@@ -55,9 +55,11 @@ spec:
          - "{{ controller_hostname }}"
          - "--tls"
          - "/root/tls/mex-server.crt"
+         - "--deploymentTag"
+         - "{{ deployment_tag_override | default(deploy_environ) }}"
          - "--autoUpgrade"
          - "-d"
-         - "etcd,api,notify,upgrade"
+         - "etcd,api,notify,upgrade,infra"
         env:
          - name: VAULT_ROLE_ID
            value: "{{ controller_role.role_id }}"

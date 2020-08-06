@@ -43,8 +43,9 @@ type DockerStats struct {
 
 // Docker Cluster
 type DockerClusterStats struct {
-	key    edgeproto.ClusterInstKey
-	client ssh.Client
+	key           edgeproto.ClusterInstKey
+	client        ssh.Client
+	clusterClient ssh.Client
 	shepherd_common.ClusterMetrics
 }
 
@@ -70,15 +71,23 @@ func (c *DockerClusterStats) GetAppStats(ctx context.Context) map[shepherd_commo
 // Container stats give a list of all AppInst containers
 // Walk the appInst cache for a given clusterInst and match to the container_ids
 func (c *DockerClusterStats) GetContainerStats(ctx context.Context) (*DockerStats, error) {
-	containers := make(map[string]ContainerStats)
-	resp, err := c.client.Output(dockerStatsCmd)
+	containers := make(map[string]*ContainerStats)
+	respLB, err := c.client.Output(dockerStatsCmd)
 	if err != nil {
-		errstr := fmt.Sprintf("Failed to run <%s>", dockerStatsCmd)
+		errstr := fmt.Sprintf("Failed to run <%s> on LB VM", dockerStatsCmd)
+		log.SpanLog(ctx, log.DebugLevelMetrics, errstr, "err", err.Error())
+		return nil, err
+	}
+	respVM, err := c.clusterClient.Output(dockerStatsCmd) // check the VM for LoadBalancer docker apps
+	if err != nil {
+		errstr := fmt.Sprintf("Failed to run <%s> on ClusterVM", dockerStatsCmd)
 		log.SpanLog(ctx, log.DebugLevelMetrics, errstr, "err", err.Error())
 		return nil, err
 	}
 	dockerResp := &DockerStats{}
-	stats := strings.Split(resp, "\n")
+	stats := strings.Split(respLB, "\n")
+	statsVM := strings.Split(respVM, "\n")
+	stats = append(stats, statsVM...)
 	for _, stat := range stats {
 		if stat == "" {
 			// last string is an empty string
@@ -90,7 +99,7 @@ func (c *DockerClusterStats) GetContainerStats(ctx context.Context) (*DockerStat
 			continue
 		}
 		// save results in a hash based on the container name
-		containers[containerStat.Container] = containerStat
+		containers[containerStat.Container] = &containerStat
 	}
 
 	// Walk AppInstCache with a filter and add appName
@@ -100,14 +109,17 @@ func (c *DockerClusterStats) GetContainerStats(ctx context.Context) (*DockerStat
 		},
 	}
 	err = AppInstCache.Show(&filter, func(obj *edgeproto.AppInst) error {
-		var cData ContainerStats
+		var cData *ContainerStats
 		var found bool
+
 		for _, cID := range obj.RuntimeInfo.ContainerIds {
 			cData, found = containers[cID]
+
 			if found {
 				cData.App = util.DNSSanitize(obj.Key.AppKey.Name)
 				cData.Version = util.DNSSanitize(obj.Key.AppKey.Version)
-				dockerResp.Containers = append(dockerResp.Containers, cData)
+				dockerResp.Containers = append(dockerResp.Containers, *cData)
+
 			}
 		}
 		return nil
@@ -117,7 +129,7 @@ func (c *DockerClusterStats) GetContainerStats(ctx context.Context) (*DockerStat
 		if container.App == "" {
 			// container and app are the same here
 			container.App = util.DNSSanitize(container.Container)
-			dockerResp.Containers = append(dockerResp.Containers, container)
+			dockerResp.Containers = append(dockerResp.Containers, *container)
 		}
 	}
 	return dockerResp, nil

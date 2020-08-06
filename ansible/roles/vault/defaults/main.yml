@@ -17,7 +17,9 @@ vault_user_roles:
   viewer: &vault_user_role_viewer
     - ansible.read.v1
     - auth-approle.read.v1
+    - aws-auth.read.v1
     - cloudlets.read.v1
+    - chef.read.v1
     - gcp-auth.read.v1
     - influxdb.read.v1
     - mexenv.read.v1
@@ -33,6 +35,8 @@ vault_user_roles:
     - root-ca.read.v1
     - sys-auth.read.v1
     - sys-mounts.read.v1
+    - sys-plugins-catalog.read.v1
+    - sys-plugins-certs-config.read.v1
     - sys-policies.read.v1
     - ui-access.v1
 

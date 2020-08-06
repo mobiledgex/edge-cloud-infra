@@ -10,6 +10,8 @@ vault_ha_zones:
 vault_github_users:
   - userid: andya072071
     role: admin
+  - userid: angshuman2508
+    role: editor
   - userid: venkytv
     role: admin
 

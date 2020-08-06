@@ -9,6 +9,7 @@ import (
 
 	"github.com/gogo/protobuf/types"
 	"github.com/mobiledgex/edge-cloud-infra/shepherd/shepherd_common"
+	"github.com/mobiledgex/edge-cloud/cloud-resource-manager/platform"
 	"github.com/mobiledgex/edge-cloud/cloud-resource-manager/platform/pc"
 	"github.com/mobiledgex/edge-cloud/edgeproto"
 	"github.com/mobiledgex/edge-cloud/log"
@@ -29,15 +30,18 @@ func (s *Platform) GetType() string {
 	return "unit test"
 }
 
-func (s *Platform) Init(ctx context.Context, key *edgeproto.CloudletKey, region, physicalName, vaultAddr string, vars map[string]string) error {
+func (s *Platform) Init(ctx context.Context, pc *platform.PlatformConfig) error {
 	return nil
+}
+
+func (s *Platform) SetVMPool(ctx context.Context, vmPool *edgeproto.VMPool) {
 }
 
 func (s *Platform) GetClusterIP(ctx context.Context, clusterInst *edgeproto.ClusterInst) (string, error) {
 	return "localhost", nil
 }
 
-func (s *Platform) GetClusterPlatformClient(ctx context.Context, clusterInst *edgeproto.ClusterInst) (ssh.Client, error) {
+func (s *Platform) GetClusterPlatformClient(ctx context.Context, clusterInst *edgeproto.ClusterInst, clientType string) (ssh.Client, error) {
 	return &UTClient{pf: s}, nil
 }
 

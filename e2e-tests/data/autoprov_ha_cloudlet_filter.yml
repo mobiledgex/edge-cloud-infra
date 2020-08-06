@@ -1,0 +1,7 @@
+regiondata:
+- region: local
+  appdata:
+    cloudlets:
+    - key:
+        organization: tmus
+        name: tmus-cloud-1

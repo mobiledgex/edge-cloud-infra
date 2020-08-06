@@ -53,10 +53,10 @@ func ShowCloudletRefs(c echo.Context) error {
 }
 
 func ShowCloudletRefsStream(ctx context.Context, rc *RegionContext, obj *edgeproto.CloudletRefs, cb func(res *edgeproto.CloudletRefs)) error {
-	var authz *ShowAuthz
+	var authz *AuthzShow
 	var err error
 	if !rc.skipAuthz {
-		authz, err = NewShowAuthz(ctx, rc.region, rc.username, ResourceCloudlets, ActionView)
+		authz, err = newShowAuthz(ctx, rc.region, rc.username, ResourceCloudlets, ActionView)
 		if err == echo.ErrForbidden {
 			return nil
 		}
@@ -136,10 +136,10 @@ func ShowClusterRefs(c echo.Context) error {
 }
 
 func ShowClusterRefsStream(ctx context.Context, rc *RegionContext, obj *edgeproto.ClusterRefs, cb func(res *edgeproto.ClusterRefs)) error {
-	var authz *ShowAuthz
+	var authz *AuthzShow
 	var err error
 	if !rc.skipAuthz {
-		authz, err = NewShowAuthz(ctx, rc.region, rc.username, ResourceClusterInsts, ActionView)
+		authz, err = newShowAuthz(ctx, rc.region, rc.username, ResourceClusterInsts, ActionView)
 		if err == echo.ErrForbidden {
 			return nil
 		}
@@ -185,6 +185,91 @@ func ShowClusterRefsStream(ctx context.Context, rc *RegionContext, obj *edgeprot
 func ShowClusterRefsObj(ctx context.Context, rc *RegionContext, obj *edgeproto.ClusterRefs) ([]edgeproto.ClusterRefs, error) {
 	arr := []edgeproto.ClusterRefs{}
 	err := ShowClusterRefsStream(ctx, rc, obj, func(res *edgeproto.ClusterRefs) {
+		arr = append(arr, *res)
+	})
+	return arr, err
+}
+
+func ShowAppInstRefs(c echo.Context) error {
+	ctx := GetContext(c)
+	rc := &RegionContext{}
+	claims, err := getClaims(c)
+	if err != nil {
+		return err
+	}
+	rc.username = claims.Username
+
+	in := ormapi.RegionAppInstRefs{}
+	success, err := ReadConn(c, &in)
+	if !success {
+		return err
+	}
+	defer CloseConn(c)
+	rc.region = in.Region
+	span := log.SpanFromContext(ctx)
+	span.SetTag("org", in.AppInstRefs.Key.Organization)
+
+	err = ShowAppInstRefsStream(ctx, rc, &in.AppInstRefs, func(res *edgeproto.AppInstRefs) {
+		payload := ormapi.StreamPayload{}
+		payload.Data = res
+		WriteStream(c, &payload)
+	})
+	if err != nil {
+		WriteError(c, err)
+	}
+	return nil
+}
+
+func ShowAppInstRefsStream(ctx context.Context, rc *RegionContext, obj *edgeproto.AppInstRefs, cb func(res *edgeproto.AppInstRefs)) error {
+	var authz *AuthzShow
+	var err error
+	if !rc.skipAuthz {
+		authz, err = newShowAuthz(ctx, rc.region, rc.username, ResourceAppInsts, ActionView)
+		if err == echo.ErrForbidden {
+			return nil
+		}
+		if err != nil {
+			return err
+		}
+	}
+	if rc.conn == nil {
+		conn, err := connectController(ctx, rc.region)
+		if err != nil {
+			return err
+		}
+		rc.conn = conn
+		defer func() {
+			rc.conn.Close()
+			rc.conn = nil
+		}()
+	}
+	api := edgeproto.NewAppInstRefsApiClient(rc.conn)
+	stream, err := api.ShowAppInstRefs(ctx, obj)
+	if err != nil {
+		return err
+	}
+	for {
+		res, err := stream.Recv()
+		if err == io.EOF {
+			err = nil
+			break
+		}
+		if err != nil {
+			return err
+		}
+		if !rc.skipAuthz {
+			if !authz.Ok(res.Key.Organization) {
+				continue
+			}
+		}
+		cb(res)
+	}
+	return nil
+}
+
+func ShowAppInstRefsObj(ctx context.Context, rc *RegionContext, obj *edgeproto.AppInstRefs) ([]edgeproto.AppInstRefs, error) {
+	arr := []edgeproto.AppInstRefs{}
+	err := ShowAppInstRefsStream(ctx, rc, obj, func(res *edgeproto.AppInstRefs) {
 		arr = append(arr, *res)
 	})
 	return arr, err

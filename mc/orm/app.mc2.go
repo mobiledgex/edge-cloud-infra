@@ -5,7 +5,6 @@ package orm
 
 import edgeproto "github.com/mobiledgex/edge-cloud/edgeproto"
 import "github.com/labstack/echo"
-import "net/http"
 import "context"
 import "io"
 import "github.com/mobiledgex/edge-cloud/log"
@@ -36,7 +35,7 @@ func CreateApp(c echo.Context) error {
 
 	in := ormapi.RegionApp{}
 	if err := c.Bind(&in); err != nil {
-		return c.JSON(http.StatusBadRequest, Msg("Invalid POST data"))
+		return bindErr(c, err)
 	}
 	rc.region = in.Region
 	span := log.SpanFromContext(ctx)
@@ -83,7 +82,7 @@ func DeleteApp(c echo.Context) error {
 
 	in := ormapi.RegionApp{}
 	if err := c.Bind(&in); err != nil {
-		return c.JSON(http.StatusBadRequest, Msg("Invalid POST data"))
+		return bindErr(c, err)
 	}
 	rc.region = in.Region
 	span := log.SpanFromContext(ctx)
@@ -130,7 +129,7 @@ func UpdateApp(c echo.Context) error {
 
 	in := ormapi.RegionApp{}
 	if err := c.Bind(&in); err != nil {
-		return c.JSON(http.StatusBadRequest, Msg("Invalid POST data"))
+		return bindErr(c, err)
 	}
 	rc.region = in.Region
 	span := log.SpanFromContext(ctx)
@@ -197,10 +196,10 @@ func ShowApp(c echo.Context) error {
 }
 
 func ShowAppStream(ctx context.Context, rc *RegionContext, obj *edgeproto.App, cb func(res *edgeproto.App)) error {
-	var authz *ShowAuthz
+	var authz *AuthzShow
 	var err error
 	if !rc.skipAuthz {
-		authz, err = NewShowAuthz(ctx, rc.region, rc.username, ResourceApps, ActionView)
+		authz, err = newShowAuthz(ctx, rc.region, rc.username, ResourceApps, ActionView)
 		if err == echo.ErrForbidden {
 			return nil
 		}
@@ -249,4 +248,98 @@ func ShowAppObj(ctx context.Context, rc *RegionContext, obj *edgeproto.App) ([]e
 		arr = append(arr, *res)
 	})
 	return arr, err
+}
+
+func AddAppAutoProvPolicy(c echo.Context) error {
+	ctx := GetContext(c)
+	rc := &RegionContext{}
+	claims, err := getClaims(c)
+	if err != nil {
+		return err
+	}
+	rc.username = claims.Username
+
+	in := ormapi.RegionAppAutoProvPolicy{}
+	if err := c.Bind(&in); err != nil {
+		return bindErr(c, err)
+	}
+	rc.region = in.Region
+	span := log.SpanFromContext(ctx)
+	span.SetTag("org", in.AppAutoProvPolicy.AppKey.Organization)
+	resp, err := AddAppAutoProvPolicyObj(ctx, rc, &in.AppAutoProvPolicy)
+	if err != nil {
+		if st, ok := status.FromError(err); ok {
+			err = fmt.Errorf("%s", st.Message())
+		}
+	}
+	return setReply(c, err, resp)
+}
+
+func AddAppAutoProvPolicyObj(ctx context.Context, rc *RegionContext, obj *edgeproto.AppAutoProvPolicy) (*edgeproto.Result, error) {
+	if !rc.skipAuthz {
+		if err := authorized(ctx, rc.username, obj.AppKey.Organization,
+			ResourceApps, ActionManage); err != nil {
+			return nil, err
+		}
+	}
+	if rc.conn == nil {
+		conn, err := connectController(ctx, rc.region)
+		if err != nil {
+			return nil, err
+		}
+		rc.conn = conn
+		defer func() {
+			rc.conn.Close()
+			rc.conn = nil
+		}()
+	}
+	api := edgeproto.NewAppApiClient(rc.conn)
+	return api.AddAppAutoProvPolicy(ctx, obj)
+}
+
+func RemoveAppAutoProvPolicy(c echo.Context) error {
+	ctx := GetContext(c)
+	rc := &RegionContext{}
+	claims, err := getClaims(c)
+	if err != nil {
+		return err
+	}
+	rc.username = claims.Username
+
+	in := ormapi.RegionAppAutoProvPolicy{}
+	if err := c.Bind(&in); err != nil {
+		return bindErr(c, err)
+	}
+	rc.region = in.Region
+	span := log.SpanFromContext(ctx)
+	span.SetTag("org", in.AppAutoProvPolicy.AppKey.Organization)
+	resp, err := RemoveAppAutoProvPolicyObj(ctx, rc, &in.AppAutoProvPolicy)
+	if err != nil {
+		if st, ok := status.FromError(err); ok {
+			err = fmt.Errorf("%s", st.Message())
+		}
+	}
+	return setReply(c, err, resp)
+}
+
+func RemoveAppAutoProvPolicyObj(ctx context.Context, rc *RegionContext, obj *edgeproto.AppAutoProvPolicy) (*edgeproto.Result, error) {
+	if !rc.skipAuthz {
+		if err := authorized(ctx, rc.username, obj.AppKey.Organization,
+			ResourceApps, ActionManage); err != nil {
+			return nil, err
+		}
+	}
+	if rc.conn == nil {
+		conn, err := connectController(ctx, rc.region)
+		if err != nil {
+			return nil, err
+		}
+		rc.conn = conn
+		defer func() {
+			rc.conn.Close()
+			rc.conn = nil
+		}()
+	}
+	api := edgeproto.NewAppApiClient(rc.conn)
+	return api.RemoveAppAutoProvPolicy(ctx, obj)
 }

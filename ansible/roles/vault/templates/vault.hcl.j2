@@ -7,6 +7,10 @@ listener "tcp" {
   tls_disable = 0
   tls_cert_file = "/etc/letsencrypt/live/{{ inventory_hostname }}/fullchain.pem"
   tls_key_file = "/etc/letsencrypt/live/{{ inventory_hostname }}/privkey.pem"
+  x_forwarded_for_authorized_addrs = "35.191.0.0/16,130.211.0.0/22"
+  x_forwarded_for_reject_not_authorized = "false"
+  x_forwarded_for_reject_not_present = "false"
+  x_forwarded_for_hop_skips = "1"
 }
 storage "gcs" {
   bucket = "{{ storage_bucket_name }}"

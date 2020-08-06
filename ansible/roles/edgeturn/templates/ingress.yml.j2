@@ -4,7 +4,7 @@ metadata:
   name: edgeturn-ingress
   annotations:
     kubernetes.io/ingress.class: nginx
-    certmanager.k8s.io/cluster-issuer: "letsencrypt-dns01"
+    cert-manager.io/cluster-issuer: "letsencrypt-dns01"
 spec:
   tls:
   - hosts:

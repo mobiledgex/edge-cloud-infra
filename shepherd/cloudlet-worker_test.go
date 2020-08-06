@@ -4,12 +4,19 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"net/http"
+	"net/http/httptest"
+	"strconv"
+	"strings"
 	"testing"
 	"time"
 
 	"github.com/gogo/protobuf/types"
 	"github.com/mobiledgex/edge-cloud-infra/shepherd/shepherd_common"
 	"github.com/mobiledgex/edge-cloud-infra/shepherd/shepherd_platform/shepherd_unittest"
+	"github.com/mobiledgex/edge-cloud-infra/shepherd/shepherd_test"
+	"github.com/mobiledgex/edge-cloud/cloud-resource-manager/platform/pc"
+	"github.com/mobiledgex/edge-cloud/cloudcommon"
 	"github.com/mobiledgex/edge-cloud/edgeproto"
 	"github.com/mobiledgex/edge-cloud/log"
 	"github.com/stretchr/testify/assert"
@@ -31,6 +38,123 @@ var testCloudletData = shepherd_common.CloudletMetrics{
 	Ipv4Used:        50,
 }
 
+// Failing two alerts
+var failAlerts = `{
+	"status": "success",
+	"data": {
+	  "alerts": [
+		{
+		  "labels": {
+			"alertname": "AppInstDown",
+			"` + edgeproto.AppKeyTagName + `": "` + shepherd_test.TestApp.Key.Name + `",
+			"` + edgeproto.AppKeyTagOrganization + `": "` + shepherd_test.TestApp.Key.Organization + `",
+			"` + edgeproto.AppKeyTagVersion + `": "` + shepherd_test.TestApp.Key.Version + `",
+			"` + edgeproto.CloudletKeyTagName + `": "` + shepherd_test.TestCloudletKey.Name + `",
+			"` + edgeproto.CloudletKeyTagOrganization + `": "` + shepherd_test.TestCloudletKey.Organization + `",
+			"` + edgeproto.ClusterKeyTagName + `": "` + shepherd_test.TestClusterKey.Name + `",
+			"` + edgeproto.ClusterInstKeyTagOrganization + `": "` + shepherd_test.TestClusterInstKey.Organization + `",
+			"` + cloudcommon.AlertHealthCheckStatus + `": "` + strconv.Itoa(int(edgeproto.HealthCheck_HEALTH_CHECK_FAIL_ROOTLB_OFFLINE)) + `",
+			"instance": "host.docker.internal:9091",
+			"job": "envoy_targets"
+		  },
+		  "state": "firing",
+		  "activeAt": "2020-05-24T17:42:08.399557679Z",
+		  "value": "0e+00"
+		},
+		{
+		  "labels": {
+			"alertname": "AppInstDown",
+			"` + edgeproto.AppKeyTagName + `": "` + shepherd_test.TestApp.Key.Name + `",
+			"` + edgeproto.AppKeyTagOrganization + `": "` + shepherd_test.TestApp.Key.Organization + `",
+			"` + edgeproto.AppKeyTagVersion + `": "` + shepherd_test.TestApp.Key.Version + `",
+			"` + edgeproto.CloudletKeyTagName + `": "` + shepherd_test.TestCloudletKey.Name + `",
+			"` + edgeproto.CloudletKeyTagOrganization + `": "` + shepherd_test.TestCloudletKey.Organization + `",
+			"` + edgeproto.ClusterKeyTagName + `": "` + shepherd_test.TestClusterKey.Name + `",
+			"` + edgeproto.ClusterInstKeyTagOrganization + `": "` + shepherd_test.TestClusterInstKey.Organization + `",
+			"` + cloudcommon.AlertHealthCheckStatus + `": "` + strconv.Itoa(int(edgeproto.HealthCheck_HEALTH_CHECK_FAIL_SERVER_FAIL)) + `",
+			"envoy_cluster_name": "backend7777",
+			"instance": "host.docker.internal:9091",
+			"job": "envoy_targets"
+		  },
+		  "state": "firing",
+		  "activeAt": "2020-05-24T17:42:53.399557679Z",
+		  "value": "0e+00"
+		}
+	  ]
+	}
+}`
+
+var noAlerts = `{
+	"status": "success",
+	"data": {
+	  "alerts": []
+	}
+}`
+
+// Start with everything healthy
+var currentAlerts = noAlerts
+
+func startAlertServer() *httptest.Server {
+	server := httptest.NewServer(http.HandlerFunc(alertHandler))
+	CloudletPrometheusAddr = strings.TrimPrefix(server.URL, "http://")
+	return server
+}
+
+func alertHandler(w http.ResponseWriter, r *http.Request) {
+	if r.URL.String() == "/api/v1/alerts" {
+		w.Write([]byte(currentAlerts))
+	}
+}
+
+func TestCloudletAlerts(t *testing.T) {
+	ctx := setupLog()
+	defer log.FinishTracer()
+	fakePrometheusAlertServer := startAlertServer()
+	defer fakePrometheusAlertServer.Close()
+
+	edgeproto.InitClusterInstCache(&ClusterInstCache)
+	ClusterInstCache.Update(ctx, &shepherd_test.TestClusterInst, 0)
+	edgeproto.InitAppCache(&AppCache)
+	AppCache.Update(ctx, &shepherd_test.TestApp, 0)
+
+	edgeproto.InitAppInstCache(&AppInstCache)
+	AppInstCache.Update(ctx, &shepherd_test.TestAppInst, 0)
+	edgeproto.InitAlertCache(&AlertCache)
+	myPlatform = &shepherd_unittest.Platform{}
+	settings = *edgeproto.GetDefaultSettings()
+
+	currentAlerts = noAlerts
+	alerts, err := getPromAlerts(ctx, CloudletPrometheusAddr, &pc.LocalClient{})
+	assert.Nil(t, err)
+	assert.Equal(t, 0, len(alerts))
+	UpdateAlerts(ctx, alerts, nil, pruneCloudletForeignAlerts)
+	//should be no alerts
+	assert.Equal(t, 0, len(AlertCache.Objs))
+
+	// emulate alerts from shepherd
+	currentAlerts = failAlerts
+	alerts, err = getPromAlerts(ctx, CloudletPrometheusAddr, &pc.LocalClient{})
+	assert.Nil(t, err)
+	assert.Equal(t, 2, len(alerts))
+	UpdateAlerts(ctx, alerts, nil, pruneCloudletForeignAlerts)
+	//should be no alerts
+	assert.Equal(t, 2, len(AlertCache.Objs))
+	// check each alert and make sure it has correct data
+	for _, alert := range AlertCache.Objs {
+		assert.Equal(t, cloudcommon.AlertAppInstDown, alert.Obj.Labels["alertname"])
+		assert.Equal(t, shepherd_test.TestApp.Key.Name, alert.Obj.Labels[edgeproto.AppKeyTagName])
+		assert.Equal(t, shepherd_test.TestApp.Key.Organization, alert.Obj.Labels[edgeproto.AppKeyTagOrganization])
+		assert.Equal(t, shepherd_test.TestApp.Key.Version, alert.Obj.Labels[edgeproto.AppKeyTagVersion])
+		assert.Equal(t, shepherd_test.TestCloudletKey.Name, alert.Obj.Labels[edgeproto.CloudletKeyTagName])
+		assert.Equal(t, shepherd_test.TestCloudletKey.Organization, alert.Obj.Labels[edgeproto.CloudletKeyTagOrganization])
+		assert.Equal(t, shepherd_test.TestClusterKey.Name, alert.Obj.Labels[edgeproto.ClusterKeyTagName])
+		assert.Equal(t, shepherd_test.TestClusterInstKey.Organization, alert.Obj.Labels[edgeproto.ClusterInstKeyTagOrganization])
+		// make sure the alert status is not OK, or UNKNOWN
+		assert.NotEqual(t, strconv.Itoa(int(edgeproto.HealthCheck_HEALTH_CHECK_OK)), alert.Obj.Labels[cloudcommon.AlertHealthCheckStatus])
+		assert.NotEqual(t, strconv.Itoa(int(edgeproto.HealthCheck_HEALTH_CHECK_UNKNOWN)), alert.Obj.Labels[cloudcommon.AlertHealthCheckStatus])
+	}
+}
+
 func TestCloudletStats(t *testing.T) {
 	var err error
 	log.InitTracer("")
@@ -44,10 +168,8 @@ func TestCloudletStats(t *testing.T) {
 
 	// Test null handling
 	assert.Nil(t, MarshalCloudletMetrics(nil))
-	testCloudletData.ComputeTS, err = types.TimestampProto(time.Now())
+	testCloudletData.CollectTime, err = types.TimestampProto(time.Now())
 	assert.Nil(t, err, "Couldn't get current timestamp")
-	testCloudletData.NetworkTS = testCloudletData.ComputeTS
-	testCloudletData.IpUsageTS = testCloudletData.ComputeTS
 	buf, err := json.Marshal(testCloudletData)
 	assert.Nil(t, err, "marshal cloudlet metrics")
 	myPlatform = &shepherd_unittest.Platform{

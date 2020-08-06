@@ -4,11 +4,12 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"io/ioutil"
 	"log"
 	"os"
+	"os/exec"
 	"path"
-	"strconv"
-	"time"
+	"strings"
 
 	intprocess "github.com/mobiledgex/edge-cloud-infra/e2e-tests/int-process"
 	"github.com/mobiledgex/edge-cloud/edgeproto"
@@ -63,15 +64,16 @@ type K8CopyFile struct {
 
 type DeploymentData struct {
 	util.DeploymentData `yaml:",inline"`
-	Cluster             ClusterInfo            `yaml:"cluster"`
-	K8sDeployment       []*K8sDeploymentStep   `yaml:"k8s-deployment"`
-	Mcs                 []*intprocess.MC       `yaml:"mcs"`
-	Sqls                []*intprocess.Sql      `yaml:"sqls"`
-	Shepherds           []*intprocess.Shepherd `yaml:"shepherds"`
-	AutoProvs           []*intprocess.AutoProv `yaml:"autoprovs"`
-	Cloudflare          CloudflareDNS          `yaml:"cloudflare"`
-	Prometheus          []*intprocess.PromE2e  `yaml:"prometheus"`
-	Exporters           []*intprocess.Exporter `yaml:"exporter"`
+	Cluster             ClusterInfo              `yaml:"cluster"`
+	K8sDeployment       []*K8sDeploymentStep     `yaml:"k8s-deployment"`
+	Mcs                 []*intprocess.MC         `yaml:"mcs"`
+	Sqls                []*intprocess.Sql        `yaml:"sqls"`
+	Shepherds           []*intprocess.Shepherd   `yaml:"shepherds"`
+	AutoProvs           []*intprocess.AutoProv   `yaml:"autoprovs"`
+	Cloudflare          CloudflareDNS            `yaml:"cloudflare"`
+	Prometheus          []*intprocess.PromE2e    `yaml:"prometheus"`
+	Exporters           []*intprocess.Exporter   `yaml:"exporter"`
+	ChefServers         []*intprocess.ChefServer `yaml:"chefserver"`
 }
 
 // a comparison and yaml friendly version of AllMetrics for e2e-tests
@@ -140,6 +142,9 @@ func GetAllProcesses() []process.Process {
 	for _, p := range Deployment.Exporters {
 		all = append(all, p)
 	}
+	for _, p := range Deployment.ChefServers {
+		all = append(all, p)
+	}
 	return all
 }
 
@@ -173,6 +178,49 @@ func setupVault(rolesfile string) bool {
 		return false
 	}
 	return true
+}
+
+type ChefClient struct {
+	NodeName   string   `yaml:"nodename"`
+	JsonAttrs  string   `yaml:"jsonattrs"`
+	ConfigFile string   `yaml:"configfile"`
+	Runlist    []string `yaml:"runlist"`
+}
+
+// RunChefClient executes a single chef client run
+func RunChefClient(apiFile string, vars map[string]string) error {
+	chefClient := ChefClient{}
+	err := util.ReadYamlFile(apiFile, &chefClient, util.WithVars(vars), util.ValidateReplacedVars())
+	if err != nil {
+		if !util.IsYamlOk(err, "runchefclient") {
+			log.Printf("error in unmarshal for file, %s\n", apiFile)
+		}
+		return err
+	}
+	var cmdargs = []string{
+		"--node-name", chefClient.NodeName,
+	}
+	if chefClient.JsonAttrs != "" {
+		err = ioutil.WriteFile("/tmp/chefattrs.json", []byte(chefClient.JsonAttrs), 0644)
+		if err != nil {
+			log.Printf("write to file failed, %s, %v\n", chefClient.JsonAttrs, err)
+			return err
+		}
+		cmdargs = append(cmdargs, "-j", "/tmp/chefattrs.json")
+	}
+	if chefClient.Runlist != nil {
+		runlistStr := strings.Join(chefClient.Runlist, ",")
+		cmdargs = append(cmdargs, "--runlist", runlistStr)
+	}
+	cmdargs = append(cmdargs, "-c", chefClient.ConfigFile)
+	cmd := exec.Command("chef-client", cmdargs[0:]...)
+	output, err := cmd.CombinedOutput()
+	log.Printf("chef-client run with args: %v output:\n%v\n", cmdargs, string(output))
+	if err != nil {
+		log.Printf("Failed to run chef client, %v\n", err)
+		return err
+	}
+	return nil
 }
 
 func StartProcesses(processName string, args []string, outputDir string) bool {
@@ -229,6 +277,11 @@ func StartProcesses(processName string, args []string, outputDir string) bool {
 	}
 	for _, p := range Deployment.Exporters {
 		opts := append(opts, process.WithCleanStartup())
+		if !setupmex.StartLocal(processName, outputDir, p, opts...) {
+			return false
+		}
+	}
+	for _, p := range Deployment.ChefServers {
 		if !setupmex.StartLocal(processName, outputDir, p, opts...) {
 			return false
 		}
@@ -339,6 +392,14 @@ func RunAction(ctx context.Context, actionSpec, outputDir string, config *e2eapi
 		if err != nil {
 			errors = append(errors, err.Error())
 		}
+		err = intprocess.StopCloudletPrometheus(ctx)
+		if err != nil {
+			errors = append(errors, err.Error())
+		}
+		err = intprocess.StopFakeEnvoyExporters(ctx)
+		if err != nil {
+			errors = append(errors, err.Error())
+		}
 		err = setupmex.Cleanup(ctx)
 		if err != nil {
 			errors = append(errors, err.Error())
@@ -347,12 +408,10 @@ func RunAction(ctx context.Context, actionSpec, outputDir string, config *e2eapi
 		if !FetchRemoteLogs(outputDir) {
 			errors = append(errors, "fetch failed")
 		}
-	case "sleep":
-		t, err := strconv.ParseUint(actionParam, 10, 32)
-		if err == nil {
-			time.Sleep(time.Second * time.Duration(t))
-		} else {
-			errors = append(errors, "Error in parsing sleeptime")
+	case "runchefclient":
+		err := RunChefClient(spec.ApiFile, vars)
+		if err != nil {
+			errors = append(errors, err.Error())
 		}
 	default:
 		ecSpec := setupmex.TestSpec{}

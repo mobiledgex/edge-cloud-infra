@@ -5,7 +5,6 @@ package orm
 
 import edgeproto "github.com/mobiledgex/edge-cloud/edgeproto"
 import "github.com/labstack/echo"
-import "net/http"
 import "context"
 import "io"
 import "github.com/mobiledgex/edge-cloud-infra/mc/ormapi"
@@ -36,7 +35,7 @@ func InjectDevice(c echo.Context) error {
 
 	in := ormapi.RegionDevice{}
 	if err := c.Bind(&in); err != nil {
-		return c.JSON(http.StatusBadRequest, Msg("Invalid POST data"))
+		return bindErr(c, err)
 	}
 	rc.region = in.Region
 	resp, err := InjectDeviceObj(ctx, rc, &in.Device)
@@ -99,10 +98,10 @@ func ShowDevice(c echo.Context) error {
 }
 
 func ShowDeviceStream(ctx context.Context, rc *RegionContext, obj *edgeproto.Device, cb func(res *edgeproto.Device)) error {
-	var authz *ShowAuthz
+	var authz *AuthzShow
 	var err error
 	if !rc.skipAuthz {
-		authz, err = NewShowAuthz(ctx, rc.region, rc.username, ResourceConfig, ActionView)
+		authz, err = newShowAuthz(ctx, rc.region, rc.username, ResourceConfig, ActionView)
 		if err == echo.ErrForbidden {
 			return nil
 		}
@@ -164,7 +163,7 @@ func EvictDevice(c echo.Context) error {
 
 	in := ormapi.RegionDevice{}
 	if err := c.Bind(&in); err != nil {
-		return c.JSON(http.StatusBadRequest, Msg("Invalid POST data"))
+		return bindErr(c, err)
 	}
 	rc.region = in.Region
 	resp, err := EvictDeviceObj(ctx, rc, &in.Device)
@@ -227,10 +226,10 @@ func ShowDeviceReport(c echo.Context) error {
 }
 
 func ShowDeviceReportStream(ctx context.Context, rc *RegionContext, obj *edgeproto.DeviceReport, cb func(res *edgeproto.Device)) error {
-	var authz *ShowAuthz
+	var authz *AuthzShow
 	var err error
 	if !rc.skipAuthz {
-		authz, err = NewShowAuthz(ctx, rc.region, rc.username, ResourceConfig, ActionView)
+		authz, err = newShowAuthz(ctx, rc.region, rc.username, ResourceConfig, ActionView)
 		if err == echo.ErrForbidden {
 			return nil
 		}

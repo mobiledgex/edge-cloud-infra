@@ -22,7 +22,7 @@ import (
 )
 
 var ProxyMap map[string]ProxyScrapePoint
-var ProxyMutex *sync.Mutex
+var ProxyMutex sync.Mutex
 
 // stat names in envoy
 var envoyClusterName = "cluster.backend"
@@ -49,7 +49,6 @@ type ProxyScrapePoint struct {
 
 func InitProxyScraper() {
 	ProxyMap = make(map[string]ProxyScrapePoint)
-	ProxyMutex = &sync.Mutex{}
 }
 
 func StartProxyScraper() {
@@ -59,12 +58,12 @@ func StartProxyScraper() {
 	go ProxyScraper()
 }
 
-func getProxyKey(appInstKey *edgeproto.AppInstKey) string {
-	return appInstKey.AppKey.Name + "-" + appInstKey.ClusterInstKey.ClusterKey.Name + "-" + appInstKey.AppKey.Organization
-}
-
 // Figure out envoy proxy container name
 func getProxyContainerName(ctx context.Context, scrapePoint ProxyScrapePoint) (string, error) {
+	log.SpanLog(ctx, log.DebugLevelMetrics, "getProxyContainerName", "type", myPlatform.GetType())
+	if myPlatform.GetType() == "fake" {
+		return "fakeEnvoy", nil
+	}
 	container := proxy.GetEnvoyContainerName(scrapePoint.App)
 	request := fmt.Sprintf("docker exec %s echo hello", container)
 	resp, err := scrapePoint.Client.Output(request)
@@ -87,21 +86,28 @@ func getProxyContainerName(ctx context.Context, scrapePoint ProxyScrapePoint) (s
 	return container, nil
 }
 
-func CollectProxyStats(ctx context.Context, appInst *edgeproto.AppInst) {
+func CollectProxyStats(ctx context.Context, appInst *edgeproto.AppInst) string {
 	// ignore apps not exposed to the outside world as they dont have a envoy/nginx proxy
 	app := edgeproto.App{}
 	found := AppCache.Get(&appInst.Key.AppKey, &app)
 	if !found {
 		log.SpanLog(ctx, log.DebugLevelMetrics, "Unable to find app", "app", appInst.Key.AppKey.Name)
-		return
-	} else if app.InternalPorts {
-		return
-	} else if app.AccessType != edgeproto.AccessType_ACCESS_TYPE_LOAD_BALANCER {
-		return
+		return ""
 	}
-	ProxyMapKey := getProxyKey(appInst.GetKey())
+	if !shepherd_common.ShouldRunEnvoy(&app, appInst) {
+		return ""
+	}
+	ProxyMapKey := shepherd_common.GetProxyKey(appInst.GetKey())
 	// add/remove from the list of proxy endpoints to hit
 	if appInst.State == edgeproto.TrackedState_READY {
+		// if we already have this in the map, don't create a new one
+		ProxyMutex.Lock()
+		if _, found := ProxyMap[ProxyMapKey]; found {
+			ProxyMutex.Unlock()
+			return ""
+		}
+		ProxyMutex.Unlock()
+
 		scrapePoint := ProxyScrapePoint{
 			Key:        appInst.Key,
 			App:        k8smgmt.NormalizeName(appInst.Key.AppKey.Name),
@@ -112,38 +118,61 @@ func CollectProxyStats(ctx context.Context, appInst *edgeproto.AppInst) {
 		// TODO: track udp ports as well (when we add udp to envoy)
 		for _, p := range appInst.MappedPorts {
 			if p.Proto == dme.LProto_L_PROTO_TCP {
-				scrapePoint.Ports = append(scrapePoint.Ports, p.PublicPort)
+				scrapePoint.Ports = append(scrapePoint.Ports, p.InternalPort)
 			}
+		}
+		// Don't need to scrape anything if no ports are trackable
+		if len(scrapePoint.Ports) == 0 {
+			return ""
 		}
 
 		clusterInst := edgeproto.ClusterInst{}
 		found := ClusterInstCache.Get(&appInst.Key.ClusterInstKey, &clusterInst)
 		if !found {
 			log.SpanLog(ctx, log.DebugLevelMetrics, "Unable to find clusterInst for "+appInst.Key.AppKey.Name)
-			return
+			return ""
 		}
 		var err error
-		scrapePoint.Client, err = myPlatform.GetClusterPlatformClient(ctx, &clusterInst)
+		scrapePoint.Client, err = myPlatform.GetClusterPlatformClient(ctx, &clusterInst, cloudcommon.ClientTypeRootLB)
 		if err != nil {
 			// If we cannot get a platform client no point in trying to get metrics
 			log.SpanLog(ctx, log.DebugLevelMetrics, "Failed to acquire platform client", "cluster", clusterInst.Key, "error", err)
-			return
+			return ""
 		}
 		// Now that we have a client - figure out what container name we should ping
 		scrapePoint.ProxyContainer, err = getProxyContainerName(ctx, scrapePoint)
 		if err != nil {
 			log.SpanLog(ctx, log.DebugLevelMetrics, "Failed to find envoy proxy for app", "scrapepoint", scrapePoint, "err", err)
-			return
+			scrapePoint.Client.StopPersistentConn()
+			return ""
 		}
+		// If this was created between last check and now
+		ProxyMutex.Lock()
+		if _, found := ProxyMap[ProxyMapKey]; found {
+			ProxyMutex.Unlock()
+			scrapePoint.Client.StopPersistentConn()
+			return ""
+		}
+		ProxyMutex.Unlock()
+
+		log.SpanLog(ctx, log.DebugLevelMetrics, "Creating Proxy Stats", "app inst", appInst.Key, "scrape point key", ProxyMapKey, "container", scrapePoint.ProxyContainer)
 		ProxyMutex.Lock()
 		ProxyMap[ProxyMapKey] = scrapePoint
 		ProxyMutex.Unlock()
-	} else {
-		// if the app is anything other than ready, stop tracking it
-		ProxyMutex.Lock()
-		delete(ProxyMap, ProxyMapKey)
-		ProxyMutex.Unlock()
+		return ProxyMapKey
 	}
+	// if the app is anything other than ready, stop tracking it if it exists
+	ProxyMutex.Lock()
+	defer ProxyMutex.Unlock()
+	scrapePoint, found := ProxyMap[ProxyMapKey]
+	if !found {
+		return ""
+	}
+
+	// Close the ssh session
+	scrapePoint.Client.StopPersistentConn()
+	delete(ProxyMap, ProxyMapKey)
+	return ProxyMapKey
 }
 
 func copyMapValues() []ProxyScrapePoint {
@@ -156,6 +185,16 @@ func copyMapValues() []ProxyScrapePoint {
 	return scrapePoints
 }
 
+func getProxyScrapePoint(key string) *ProxyScrapePoint {
+	ProxyMutex.Lock()
+	defer ProxyMutex.Unlock()
+	scrapePoint, found := ProxyMap[key]
+	if !found {
+		return nil
+	}
+	return &scrapePoint
+}
+
 func ProxyScraper() {
 	for {
 		// check if there are any new apps we need to start/stop scraping for
@@ -164,8 +203,7 @@ func ProxyScraper() {
 			scrapePoints := copyMapValues()
 			for _, v := range scrapePoints {
 				span := log.StartSpan(log.DebugLevelSampled, "send-metric")
-				span.SetTag("operator", cloudletKey.Organization)
-				span.SetTag("cloudlet", cloudletKey.Name)
+				log.SetTags(span, cloudletKey.GetTags())
 				span.SetTag("cluster", v.Cluster)
 				ctx := log.ContextWithSpan(context.Background(), span)
 
@@ -186,23 +224,16 @@ func ProxyScraper() {
 }
 
 func QueryProxy(ctx context.Context, scrapePoint *ProxyScrapePoint) (*shepherd_common.ProxyMetrics, error) {
-	// set up health check context
-	span, hcCtx := SetupHealthCheckSpan(&scrapePoint.Key)
-	defer span.Finish()
 	// query envoy
 	if scrapePoint.ProxyContainer == "nginx" {
 		return QueryNginx(ctx, scrapePoint) //if envoy isnt there(for legacy apps) query nginx
 	}
 	request := fmt.Sprintf("docker exec %s curl -s -S http://127.0.0.1:%d/stats", scrapePoint.ProxyContainer, cloudcommon.ProxyMetricsPort)
-	resp, err := scrapePoint.Client.OutputWithTimeout(request, HealthCheckRootLbConnectTimeout)
+	resp, err := scrapePoint.Client.OutputWithTimeout(request, shepherd_common.ShepherdSshConnectTimeout)
 	if err != nil {
 		log.SpanLog(ctx, log.DebugLevelMetrics, "Failed to run request", "request", request, "err", err.Error())
-		// Also this means that we need to notify the controller that this AppInst is no longer recheable
-		HealthCheckRootLbDown(hcCtx, &scrapePoint.Key)
 		return nil, err
 	}
-	HealthCheckRootLbUp(hcCtx, &scrapePoint.Key)
-	CheckEnvoyClusterHealth(hcCtx, scrapePoint)
 	metrics := &shepherd_common.ProxyMetrics{Nginx: false}
 	respMap := parseEnvoyResp(ctx, resp)
 	err = envoyConnections(ctx, respMap, scrapePoint.Ports, metrics)
@@ -349,29 +380,24 @@ func getHistogramIntStats(respMap map[string]string, statName string) (map[strin
 
 func QueryNginx(ctx context.Context, scrapePoint *ProxyScrapePoint) (*shepherd_common.ProxyMetrics, error) {
 	// set up health check context
-	span, hcCtx := SetupHealthCheckSpan(&scrapePoint.Key)
-	defer span.Finish()
 	// build the query
 	request := fmt.Sprintf("docker exec %s curl http://127.0.0.1:%d/nginx_metrics", scrapePoint.App, cloudcommon.ProxyMetricsPort)
-	resp, err := scrapePoint.Client.OutputWithTimeout(request, HealthCheckRootLbConnectTimeout)
+	resp, err := scrapePoint.Client.OutputWithTimeout(request, shepherd_common.ShepherdSshConnectTimeout)
 	// if this is the first time, or the container got restarted, install curl (for old deployments)
 	if strings.Contains(resp, "executable file not found") {
-		log.SpanLog(ctx, log.DebugLevelMexos, "Installing curl onto docker container ", "Container", scrapePoint.App)
+		log.SpanLog(ctx, log.DebugLevelInfra, "Installing curl onto docker container ", "Container", scrapePoint.App)
 		installer := fmt.Sprintf("docker exec %s apt-get update; docker exec %s apt-get --assume-yes install curl", scrapePoint.App, scrapePoint.App)
 		resp, err = scrapePoint.Client.Output(installer)
 		if err != nil {
 			return nil, fmt.Errorf("can't install curl on nginx container %s, %s, %v", *name, resp, err)
 		}
 		// now retry curling
-		resp, err = scrapePoint.Client.OutputWithTimeout(request, HealthCheckRootLbConnectTimeout)
+		resp, err = scrapePoint.Client.OutputWithTimeout(request, shepherd_common.ShepherdSshConnectTimeout)
 	}
 	if err != nil {
 		log.SpanLog(ctx, log.DebugLevelMetrics, "Failed to run request", "request", request, "err", err.Error())
-		// Also this means that we need to notify the controller that this AppInst is no longer recheable
-		HealthCheckRootLbDown(hcCtx, &scrapePoint.Key)
 		return nil, err
 	}
-	HealthCheckRootLbUp(hcCtx, &scrapePoint.Key)
 	metrics := &shepherd_common.ProxyMetrics{Nginx: true}
 	err = parseNginxResp(resp, metrics)
 	if err != nil {

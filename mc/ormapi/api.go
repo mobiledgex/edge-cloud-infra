@@ -67,15 +67,21 @@ type Controller struct {
 }
 
 type Config struct {
-	ID                 int `gorm:"primary_key;auto_increment:false"`
-	LockNewAccounts    bool
+	// read only: true
+	ID int `gorm:"primary_key;auto_increment:false"`
+	// Lock new accounts (must be unlocked by admin)
+	LockNewAccounts bool
+	// Email to notify when locked account is created
 	NotifyEmailAddress string
+	// Skip email verification for new accounts (testing only)
+	SkipVerifyEmail bool
 }
 
 type OrgCloudletPool struct {
-	Org          string `gorm:"type:citext REFERENCES organizations(name)"`
-	Region       string `gorm:"type:text REFERENCES controllers(region)"`
-	CloudletPool string `gorm:"not null"`
+	Org             string `gorm:"type:citext REFERENCES organizations(name)"`
+	Region          string `gorm:"type:text REFERENCES controllers(region)"`
+	CloudletPool    string `gorm:"not null"`
+	CloudletPoolOrg string `gorm:"type:citext REFERENCES organizations(name)"`
 }
 
 // Structs used for API calls
@@ -116,9 +122,13 @@ type CreateUser struct {
 }
 
 type AuditQuery struct {
-	Username string `json:"username"`
-	Org      string `form:"org" json:"org"`
-	Limit    int    `json:"limit"`
+	Username  string        `json:"username"`
+	Org       string        `form:"org" json:"org"`
+	Limit     int           `json:"limit"`
+	StartTime time.Time     `json:"starttime"`
+	EndTime   time.Time     `json:"endtime"`
+	StartAge  time.Duration `json:"startage"`
+	EndAge    time.Duration `json:"endage"`
 }
 
 type AuditResponse struct {

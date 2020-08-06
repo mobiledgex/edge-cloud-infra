@@ -32,7 +32,7 @@ func CreateOrg(c echo.Context) error {
 	ctx := GetContext(c)
 	org := ormapi.Organization{}
 	if err := c.Bind(&org); err != nil {
-		return c.JSON(http.StatusBadRequest, Msg("Invalid POST data"))
+		return bindErr(c, err)
 	}
 	span := log.SpanFromContext(ctx)
 	span.SetTag("org", org.Name)
@@ -110,7 +110,7 @@ func DeleteOrg(c echo.Context) error {
 	ctx := GetContext(c)
 	org := ormapi.Organization{}
 	if err := c.Bind(&org); err != nil {
-		return c.JSON(http.StatusBadRequest, Msg("Invalid POST data"))
+		return bindErr(c, err)
 	}
 	span := log.SpanFromContext(ctx)
 	span.SetTag("org", org.Name)
@@ -147,6 +147,10 @@ func DeleteOrgObj(ctx context.Context, claims *UserClaims, org *ormapi.Organizat
 	// delete org
 	err = db.Delete(&org).Error
 	if err != nil {
+		undoerr := markOrgForDelete(db, org.Name, !doMark)
+		if undoerr != nil {
+			log.SpanLog(ctx, log.DebugLevelApi, "undo mark org for delete", "undoerr", undoerr)
+		}
 		if strings.Contains(err.Error(), "violates foreign key constraint \"org_cloudlet_pools_org_fkey\"") {
 			return fmt.Errorf("Cannot delete organization because it is referenced by an OrgCloudletPool")
 		}
@@ -273,32 +277,6 @@ func ShowOrgObj(ctx context.Context, claims *UserClaims) ([]ormapi.Organization,
 	return orgs, nil
 }
 
-// getUserOrgnames gets a map of all the org names the user belongs to.
-// If this is an admin, return boolean will be true.
-func getUserOrgnames(username string) (bool, map[string]struct{}, error) {
-	orgnames := make(map[string]struct{})
-	admin := false
-
-	groupings, err := enforcer.GetGroupingPolicy()
-	if err != nil {
-		return false, nil, err
-	}
-	for _, grp := range groupings {
-		if len(grp) < 2 {
-			continue
-		}
-		if grp[0] == username {
-			admin = true
-			continue
-		}
-		orguser := strings.Split(grp[0], "::")
-		if len(orguser) > 1 && orguser[1] == username {
-			orgnames[orguser[0]] = struct{}{}
-		}
-	}
-	return admin, orgnames, nil
-}
-
 func GetAllOrgs(ctx context.Context) (map[string]*ormapi.Organization, error) {
 	orgsT := make(map[string]*ormapi.Organization)
 	orgs := []ormapi.Organization{}
@@ -335,6 +313,11 @@ func orgExists(ctx context.Context, orgName string) (*ormapi.Organization, error
 	}
 	if res.Error != nil {
 		return nil, res.Error
+	}
+	// SQL lookup by org name is case-insensitive.
+	// Make sure org name matches (case-sensitive).
+	if org.Name != orgName {
+		return nil, fmt.Errorf("lookup %s but found %s", orgName, org.Name)
 	}
 	return &org, nil
 }

@@ -68,7 +68,7 @@ download_artifactory_file() {
 }
 
 # Main
-echo "[$(date)] Starting setup.sh ($( pwd ))"
+echo "[$(date)] Starting setup.sh for platform \"$OUTPUT_PLATFORM\" ($( pwd ))"
 
 echo "127.0.0.1 $( hostname )" | sudo tee -a /etc/hosts >/dev/null
 log_file_contents /etc/hosts
@@ -85,11 +85,13 @@ download_artifactory_file keys/id_rsa_mobiledgex.pub /tmp/id_rsa_mobiledgex.pub
 log "Setting up SSH"
 sudo cp /etc/mobiledgex/id_rsa_mex /root/id_rsa_mex
 sudo chmod 600 /root/id_rsa_mex
-sudo mkdir -p /root/.ssh
-sudo cat /tmp/id_rsa_mex.pub /tmp/id_rsa_mobiledgex.pub | sudo tee /root/.ssh/authorized_keys
-sudo chmod 700 /root/.ssh
-sudo chmod 600 /root/.ssh/authorized_keys
-sudo rm -f /root/.ssh/known_hosts
+for SSH_HOME in /root /home/ubuntu; do
+	sudo mkdir -p ${SSH_HOME}/.ssh
+	sudo cat /tmp/id_rsa_mex.pub /tmp/id_rsa_mobiledgex.pub | sudo tee ${SSH_HOME}/.ssh/authorized_keys
+	sudo chmod 700 ${SSH_HOME}/.ssh
+	sudo chmod 600 ${SSH_HOME}/.ssh/authorized_keys
+	sudo rm -f ${SSH_HOME}/.ssh/known_hosts
+done
 
 log "Setting up $MEX_RELEASE"
 sudo tee "$MEX_RELEASE" <<EOT
@@ -98,6 +100,7 @@ MEX_BUILD_TAG=$TAG
 MEX_BUILD_FLAVOR=$FLAVOR
 MEX_BUILD_SRC_IMG=$SRC_IMG
 MEX_BUILD_SRC_IMG_CHECKSUM=$SRC_IMG_CHECKSUM
+MEX_PLATFORM_FLAVOR=$OUTPUT_PLATFORM
 EOT
 
 log "Set up docker log file rotation"
@@ -140,6 +143,11 @@ echo iptables-persistent iptables-persistent/autosave_v4 boolean true | sudo deb
 sudo apt-get install -y mobiledgex=${TAG#v}
 [[ $? -ne 0 ]] && die "Failed to install extra packages"
 
+if [[ "$OUTPUT_PLATFORM" == vsphere ]]; then
+	log "Adding VMWare cloud-init Guestinfo"
+	sudo curl  -sSL https://raw.githubusercontent.com/vmware/cloud-init-vmware-guestinfo/v1.3.1/install.sh |sudo sh -
+fi
+
 log "dhclient $INTERFACE"
 sudo dhclient "$INTERFACE"
 ip addr
@@ -147,6 +155,15 @@ ip route
 
 log "Enabling the mobiledgex service"
 sudo systemctl enable mobiledgex
+
+log "Updating dhclient timeout"
+sudo perl -i -p -e s/'timeout 300;'/'timeout 15;'/g /etc/dhcp/dhclient.conf
+
+if [[ "$OUTPUT_PLATFORM" == vsphere ]]; then
+	log "Removing serial console from grub"
+	sudo perl -i -p -e s/'"console=tty1 console=ttyS0"'/'""'/g /etc/default/grub.d/50-cloudimg-settings.cfg
+	sudo grub-mkconfig -o /boot/grub/grub.cfg
+fi
 
 log "Setting the root password"
 echo "root:$ROOT_PASS" | sudo chpasswd
@@ -156,5 +173,96 @@ sudo swapoff -a
 sudo sed -i "s/cgroup-driver=systemd/cgroup-driver=cgroupfs/g" /etc/systemd/system/kubelet.service.d/10-kubeadm.conf
 sudo kubeadm config images pull
 sudo usermod -aG docker root
+
+sudo rm -f /etc/systemd/system/ssh.service
+sudo tee /etc/systemd/system/ssh.service <<'EOT'
+[Unit]
+Description=OpenBSD Secure Shell server
+After=network.target auditd.service
+ConditionPathExists=!/etc/ssh/sshd_not_to_be_run
+
+[Service]
+EnvironmentFile=-/etc/default/ssh
+ExecStartPre=/usr/sbin/sshd -t
+ExecStart=/usr/sbin/sshd -D $SSHD_OPTS
+ExecReload=/usr/sbin/sshd -t
+ExecReload=/bin/kill -HUP $MAINPID
+KillMode=process
+Restart=on-failure
+Type=notify
+
+[Install]
+WantedBy=multi-user.target
+Alias=sshd.service
+EOT
+
+sudo tee /etc/cron.hourly/sshd-stale-session-cleanup <<'EOT'
+systemctl 2>/dev/null \
+    | grep 'scope.*abandoned' \
+    | awk '{print $1}' \
+    | sudo xargs -r systemctl stop >>/var/tmp/session-cleanup.log 2>&1
+EOT
+sudo chmod +x /etc/cron.hourly/sshd-stale-session-cleanup
+
+# Create Chef related files required during cloud-init
+sudo mkdir -p /etc/chef
+sudo touch /etc/chef/client.rb
+
+# systemd unit file for chef-client
+sudo tee /etc/default/chef-client <<'EOT'
+# Chef client config file
+CONFIG=/etc/chef/client.rb
+
+# Interval in seconds
+INTERVAL=600
+
+# Splay interval in seconds
+SPLAY=20
+
+# Other options
+OPTIONS="-d 1 --chef-license accept"
+EOT
+
+sudo tee /etc/systemd/system/chef-client.service <<'EOT'
+[Unit]
+Description = Chef Client daemon
+After = network.target auditd.service
+
+[Service]
+Type = forking
+EnvironmentFile = /etc/default/chef-client
+PIDFile = /var/run/chef/client.pid
+ExecStart = /usr/bin/chef-client -c $CONFIG -i $INTERVAL -s $SPLAY $OPTIONS
+ExecReload = /bin/kill -HUP $MAINPID
+SuccessExitStatus = 3
+Restart = always
+
+[Install]
+WantedBy = multi-user.target
+EOT
+
+log "Enabling the chef-client service"
+sudo systemctl enable chef-client
+
+if [[ "$OUTPUT_PLATFORM" == vsphere ]]; then
+	sudo tee /lib/systemd/system/open-vm-tools.service <<'EOT'
+[Unit]
+Description=Service for virtual machines hosted on VMware
+Documentation=http://open-vm-tools.sourceforge.net/about.php
+ConditionVirtualization=vmware
+DefaultDependencies=no
+Requires=dbus.socket
+After=dbus.socket
+[Service]
+ExecStart=/usr/bin/vmtoolsd
+TimeoutStopSec=10
+
+[Install]
+WantedBy=multi-user.target
+EOT
+
+	log "Enabling the open-vm-tools service"
+	sudo systemctl enable open-vm-tools
+fi
 
 echo "[$(date)] Done setup.sh ($( pwd ))"

@@ -335,6 +335,7 @@ func RunServer(config *ServerConfig) (*Server, error) {
 	auth.POST("/artifactory/resync", ArtifactoryResync)
 	auth.POST("/artifactory/summary", ArtifactorySummary)
 	auth.POST("/config/update", UpdateConfig)
+	auth.POST("/config/reset", ResetConfig)
 	auth.POST("/config/show", ShowConfig)
 	auth.POST("/config/version", ShowVersion)
 	auth.POST("/restricted/user/update", RestrictedUserUpdate)
@@ -344,6 +345,7 @@ func RunServer(config *ServerConfig) (*Server, error) {
 	auth.POST("/orgcloudletpool/delete", DeleteOrgCloudletPool)
 	auth.POST("/orgcloudletpool/show", ShowOrgCloudletPool)
 	auth.POST("/orgcloudlet/show", ShowOrgCloudlet)
+	auth.POST("/orgcloudletinfo/show", ShowOrgCloudletInfo)
 
 	// Support multiple connection types: HTTP(s), Websockets
 	addControllerApis("POST", auth)
@@ -382,7 +384,7 @@ func RunServer(config *ServerConfig) (*Server, error) {
 		if err != nil {
 			return nil, err
 		}
-		server.notifyServer.Start(config.NotifySrvAddr, tlsConfig)
+		server.notifyServer.Start(nodeMgr.Name(), config.NotifySrvAddr, tlsConfig)
 	}
 	if config.NotifyAddrs != "" {
 		tlsConfig, err := nodeMgr.InternalPki.GetClientTlsConfig(ctx,
@@ -393,7 +395,7 @@ func RunServer(config *ServerConfig) (*Server, error) {
 			return nil, err
 		}
 		addrs := strings.Split(config.NotifyAddrs, ",")
-		server.notifyClient = notify.NewClient(addrs, edgetls.GetGrpcDialOption(tlsConfig))
+		server.notifyClient = notify.NewClient(nodeMgr.Name(), addrs, edgetls.GetGrpcDialOption(tlsConfig))
 		nodeMgr.RegisterClient(server.notifyClient)
 
 		server.notifyClient.Start()

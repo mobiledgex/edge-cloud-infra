@@ -15,6 +15,7 @@ RUN apt-get update && apt-get install -y \
 	software-properties-common \
 	systemd \
 	tzdata \
+	unzip \
 	vim \
 	wget
 
@@ -23,20 +24,31 @@ RUN sed -i 's/"1"/"0"/' /etc/apt/apt.conf.d/20auto-upgrades
 
 RUN echo "deb [arch=amd64] https://packages.microsoft.com/repos/azure-cli/ bionic main" >/etc/apt/sources.list.d/azure-cli.list
 RUN echo "deb http://packages.cloud.google.com/apt cloud-sdk-bionic main" >/etc/apt/sources.list.d/google-cloud-sdk.list
-RUN apt-key --keyring /etc/apt/trusted.gpg.d/Microsoft.gpg adv \
-	--keyserver packages.microsoft.com \
-	--recv-keys BC528686B50D79E339D3721CEB3E94ADBE1229CF
-RUN curl https://packages.cloud.google.com/apt/doc/apt-key.gpg \
+RUN curl -sL https://packages.microsoft.com/keys/microsoft.asc \
+	| gpg --dearmor >/etc/apt/trusted.gpg.d/microsoft.asc.gpg
+RUN curl -sL https://packages.cloud.google.com/apt/doc/apt-key.gpg \
 	| apt-key add -
 RUN echo "deb https://apt.kubernetes.io/ kubernetes-xenial main" >/etc/apt/sources.list.d/kubernetes.list
 
 RUN apt-get update && apt-get install -y \
-	azure-cli \
-	google-cloud-sdk \
-	kubectl 
-RUN pip install python-heatclient==1.18.0
-RUN pip install python-openstackclient==3.18.0
-RUN pip install gnocchiclient
+	azure-cli=2.0.75-1~bionic \
+	google-cloud-sdk=267.0.0-0 \
+	kubectl=1.16.2-00 \
+	qemu-utils=1:2.11+dfsg-1ubuntu7.29
+
+COPY requirements.txt .
+RUN pip install -r requirements.txt
+
+## GOVC
+RUN curl -sL https://github.com/vmware/govmomi/releases/download/v0.23.0/govc_linux_amd64.gz \
+	| gunzip >/usr/local/bin/govc \
+	&& chmod ug+rx /usr/local/bin/govc
+
+## TERRAFORM
+RUN curl -sL https://releases.hashicorp.com/terraform/0.12.24/terraform_0.12.24_linux_amd64.zip >terraform.zip \
+	&& unzip terraform.zip \
+	&& mv terraform /usr/local/bin/ \
+	&& rm -f terraform.zip
 
 COPY edge-cloud-base-image.root/_ssh /root/.ssh
 COPY edge-cloud-base-image.root/_mobiledgex /root/.mobiledgex

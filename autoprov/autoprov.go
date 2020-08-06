@@ -26,14 +26,12 @@ var region = flag.String("region", "local", "region name")
 var hostname = flag.String("hostname", "", "Unique hostname")
 
 var sigChan chan os.Signal
-var alertCache edgeproto.AlertCache
-var appHandler AppHandler
-var autoProvPolicyHandler AutoProvPolicyHandler
-var frClusterInsts edgeproto.FreeReservableClusterInstCache
+var cacheData CacheData
 var dialOpts grpc.DialOption
 var notifyClient *notify.Client
 var vaultConfig *vault.Config
 var autoProvAggr *AutoProvAggr
+var minMaxChecker *MinMaxChecker
 var settings edgeproto.Settings
 var nodeMgr node.NodeMgr
 
@@ -82,25 +80,18 @@ func start() error {
 	}
 	dialOpts = tls.GetGrpcDialOption(clientTlsConfig)
 
-	edgeproto.InitAlertCache(&alertCache)
-	appHandler.Init()
-	autoProvPolicyHandler.Init()
-	frClusterInsts.Init()
+	cacheData.init()
+	autoProvAggr = NewAutoProvAggr(settings.AutoDeployIntervalSec, settings.AutoDeployOffsetSec, &cacheData)
+	minMaxChecker = newMinMaxChecker(&cacheData)
+	cacheData.alertCache.AddUpdatedCb(alertChanged)
 
-	autoProvAggr = NewAutoProvAggr(settings.AutoDeployIntervalSec, settings.AutoDeployOffsetSec, &appHandler.cache, &autoProvPolicyHandler.cache, &frClusterInsts)
 	autoProvAggr.Start()
 
 	addrs := strings.Split(*notifyAddrs, ",")
-	notifyClient = notify.NewClient(addrs, dialOpts)
+	notifyClient = notify.NewClient(nodeMgr.Name(), addrs, dialOpts)
 	notifyClient.RegisterRecv(notify.GlobalSettingsRecv(&settings, settingsUpdated))
-	notifyClient.RegisterRecvAlertCache(&alertCache)
-	notifyClient.RegisterRecv(notify.NewAutoProvPolicyRecv(&autoProvPolicyHandler))
-	notifyClient.RegisterRecv(notify.NewAppRecv(&appHandler))
-	frRecv := notify.NewClusterInstRecv(&frClusterInsts)
-	notifyClient.RegisterRecv(frRecv)
+	cacheData.initNotifyClient(notifyClient)
 	nodeMgr.RegisterClient(notifyClient)
-
-	alertCache.SetUpdatedCb(alertChanged)
 
 	notifyClient.Start()
 	return nil

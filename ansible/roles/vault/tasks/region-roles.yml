@@ -38,6 +38,8 @@
     name: "{{ region_prefix }}.crm.v1"
     policies:
       - approle.login.v1
+      - aws-auth.read.v1
+      - chef.read.v1
       - certs.read.v1
       - gcp-auth.read.v1
       - mexenv.read.v1

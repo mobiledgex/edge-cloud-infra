@@ -62,8 +62,10 @@
       - "{{ controller_name }}.ctrl.{{ cloudflare_zone }}:37001"
       - "--tls"
       - "/root/tls/mex-server.crt"
+      - "--deploymentTag"
+      - "{{ deployment_tag_override | default(deploy_environ) }}"
       - "-d"
-      - "api,notify,mexos"
+      - "api,notify,infra"
 
 - name: Add openstack parameters
   set_fact:
@@ -121,3 +123,7 @@
     timeout: 60
   vars:
     ansible_connection: local
+
+- name: Clean up old images
+  command: docker system prune --all --force
+  changed_when: false

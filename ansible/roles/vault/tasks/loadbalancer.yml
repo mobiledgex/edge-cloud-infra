@@ -39,9 +39,9 @@
     register: be_get
 
   - set_fact:
-      backend_srv: "{{ be_get['items'][0] }}"
+      backend_srv: "{{ be_get['resources'][0] }}"
     when:
-      - "be_get['items']|length > 0"
+      - "be_get['resources']|length > 0"
 
   - block:
 
@@ -63,7 +63,7 @@
       register: be_get
 
     - set_fact:
-        backend_srv: "{{ be_get['items'][0] }}"
+        backend_srv: "{{ be_get['resources'][0] }}"
 
   - assert:
       that:
@@ -85,7 +85,7 @@
     command: "gcloud beta compute ssl-certificates create {{ vault_cert_name }} --domains {{ vault_ha_domain }} --global"
     register: cert_create
     when:
-      - "vault_cert['items']|length < 1"
+      - "vault_cert['resources']|length < 1"
 
   - name: Check SSL cert
     gcp_compute_ssl_certificate_facts:
@@ -97,7 +97,7 @@
     gcp_compute_target_https_proxy:
       name: "{{ vault_https_proxy }}"
       ssl_certificates:
-        - "{{ vault_cert['items'][0] }}"
+        - "{{ vault_cert['resources'][0] }}"
       url_map: "{{ url_map }}"
     register: target_https_proxy
 

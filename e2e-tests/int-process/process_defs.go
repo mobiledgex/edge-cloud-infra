@@ -15,6 +15,7 @@ type MC struct {
 	LdapAddr         string
 	NotifySrvAddr    string
 	ConsoleProxyAddr string
+	UseVaultCAs      bool
 	UseVaultCerts    bool
 	TLS              process.TLSCerts
 	cmd              *exec.Cmd
@@ -33,13 +34,18 @@ type Shepherd struct {
 	NotifyAddrs    string
 	Platform       string
 	VaultAddr      string
+	MetricsAddr    string
 	PhysicalName   string
 	CloudletKey    string
+	UseVaultCAs    bool
 	UseVaultCerts  bool
 	TLS            process.TLSCerts
 	cmd            *exec.Cmd
 	Span           string
 	Region         string
+	AppDNSRoot     string
+	DeploymentTag  string
+	ChefServerPath string
 }
 type AutoProv struct {
 	process.Common `yaml:",inline"`
@@ -48,6 +54,7 @@ type AutoProv struct {
 	VaultAddr      string
 	InfluxAddr     string
 	Region         string
+	UseVaultCAs    bool
 	UseVaultCerts  bool
 	TLS            process.TLSCerts
 	cmd            *exec.Cmd
@@ -62,6 +69,12 @@ type PromE2e struct {
 type Exporter struct {
 	process.Common `yaml:",inline"`
 	DataFile       string
+	Port           int
+	cmd            *exec.Cmd
+}
+
+type ChefServer struct {
+	process.Common `yaml:",inline"`
 	Port           int
 	cmd            *exec.Cmd
 }

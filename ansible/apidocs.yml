@@ -40,7 +40,7 @@
         account_api_token: "{{ cloudflare_account_api_token }}"
       tags: setup
 
-    - import_role:
+    - include_role:
         name: apidocs
       vars:
         containers:
@@ -50,7 +50,23 @@
           - { name: "mc", port: 9094, title: "MobiledgeX Orchestration API" }
         apidocs_scripts:
           - apidocs/apidocs-massage.py
-        swagger_cron_script_template: apidocs/swagger.cron.j2
+        swagger_gen_script_template: apidocs/swagger-gen.j2
+        swagger_gen_run_once: yes
+      when: ( deploy_environ == 'mexdemo' ) or ( deploy_environ == 'prod' )
+
+    - include_role:
+        name: apidocs
+      vars:
+        containers:
+          - { name: "external", port: 9190, title: "MobiledgeX API" }
+          - { name: "client", port: 9191, title: "MobiledgeX Client API" }
+          - { name: "internal", port: 9192, title: "MobiledgeX Internal API" }
+          - { name: "mc", port: 9194, title: "MobiledgeX Orchestration API" }
+        apidocs_scripts:
+          - apidocs/apidocs-massage.py
+        swagger_gen_script_template: apidocs/swagger-gen.j2
+        swagger_gen_run_once: no
+      when: deploy_environ == 'stage'
 
 - hosts: akraino
 
@@ -78,4 +94,5 @@
         apidocs_scripts:
           - apidocs/apidocs-massage.py
           - apidocs/akraino-postprocess.py
-        swagger_cron_script_template: apidocs/akraino-swagger.cron.j2
+        swagger_gen_script_template: apidocs/akraino-swagger.cron.j2
+        swagger_gen_run_once: yes

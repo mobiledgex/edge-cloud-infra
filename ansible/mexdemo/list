@@ -3,10 +3,13 @@ deploy_environ=mexdemo
 ubuntu_release=bionic
 monitor_version=latest
 deploy_target="mexplat-{{ deploy_environ }}"
+deployment_tag_override=main
 operator_key=TDG
 dme_carrier=TDG
 locver_url="http://mexdemo.locsim.mobiledgex.net:8888/verifyLocation"
 toksrv_url="http://mexdemo.tok.mobiledgex.net:9999/its?followURL=https://dme.mobiledgex.net/verifyLoc"
+global_dme_dns=wifi.dme
+ns1_global_dme_dns="{{ deploy_environ }}"
 postgres_hostname=postgres.mobiledgex.net
 vault_vm_hostname=vault-main.mobiledgex.net
 vault_port=443
@@ -17,8 +20,8 @@ console_vm_hostname=console.mobiledgex.net
 gitlab_email_enabled=false
 gitlab_docker_hostname="docker.mobiledgex.net"
 azure_volume_storage_class=managed-premium
-influxdb_volume_size=5Gi
-apidocs_domain=api.mobiledgex.net
+influxdb_volume_size=10Gi
+console_prod=yes
 
 [platform]
 localhost	ansible_connection=local

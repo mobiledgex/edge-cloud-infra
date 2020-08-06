@@ -29,8 +29,16 @@ func dbErr(err error) error {
 }
 
 func bindErr(c echo.Context, err error) error {
-	msg := "Invalid POST data, " + err.Error()
-	return c.JSON(http.StatusBadRequest, Msg(msg))
+	var code int
+	var msg string
+	if e, ok := err.(*echo.HTTPError); ok {
+		code = e.Code
+		msg = fmt.Sprintf("%v", e.Message)
+	} else {
+		code = http.StatusBadRequest
+		msg = err.Error()
+	}
+	return c.JSON(code, Msg("Invalid POST data, "+msg))
 }
 
 func setReply(c echo.Context, err error, data interface{}) error {
@@ -61,6 +69,11 @@ func setReply(c echo.Context, err error, data interface{}) error {
 		return ws.WriteJSON(wsPayload)
 	}
 	if err != nil {
+		// If error is HTTPError, pull out the message to prevent redundant status code info
+		if e, ok := err.(*echo.HTTPError); ok {
+			err = fmt.Errorf("%v", e.Message)
+			code = e.Code
+		}
 		return c.JSON(code, MsgErr(err))
 	}
 	return c.JSON(code, data)

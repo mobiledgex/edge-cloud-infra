@@ -12,31 +12,19 @@ server {
 
         location / {
                 include /etc/nginx/proxy_params;
-                proxy_pass              http://localhost:9090;
+                proxy_pass              http://localhost:9191;
                 proxy_read_timeout      90s;
         }
 
-        location /client/ {
+        location /oper/ {
                 include /etc/nginx/proxy_params;
-                proxy_pass              http://localhost:9091/;
-                proxy_read_timeout      90s;
-        }
-
-        location /client-test/ {
-                include /etc/nginx/proxy_params;
-                proxy_pass              http://localhost:9093/;
+                proxy_pass              http://localhost:9190/;
                 proxy_read_timeout      90s;
         }
 
         location /mc/ {
                 include /etc/nginx/proxy_params;
-                proxy_pass              http://localhost:9094/;
-                proxy_read_timeout      90s;
-        }
-
-        location /int/ {
-                include /etc/nginx/proxy_params;
-                proxy_pass              http://localhost:9092/;
+                proxy_pass              http://localhost:9194/;
                 proxy_read_timeout      90s;
         }
 

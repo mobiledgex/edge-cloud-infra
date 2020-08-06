@@ -2,4 +2,6 @@ regions:
   - name: mexplat-dev
     location: westus2
     region: EU
+    latitude: 47.233
+    longitude: -119.852
     kubernetes_version: 1.13.11

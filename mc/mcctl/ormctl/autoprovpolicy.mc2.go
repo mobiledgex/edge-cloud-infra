@@ -71,7 +71,14 @@ func setUpdateAutoProvPolicyFields(in map[string]interface{}) {
 	if !ok {
 		return
 	}
-	objmap["fields"] = cli.GetSpecifiedFields(objmap, &edgeproto.AutoProvPolicy{}, cli.JsonNamespace)
+	fields := cli.GetSpecifiedFields(objmap, &edgeproto.AutoProvPolicy{}, cli.JsonNamespace)
+	// include fields already specified
+	if inFields, found := objmap["fields"]; found {
+		if fieldsArr, ok := inFields.([]string); ok {
+			fields = append(fields, fieldsArr...)
+		}
+	}
+	objmap["fields"] = fields
 }
 
 var ShowAutoProvPolicyCmd = &cli.Command{
@@ -138,6 +145,10 @@ var CreateAutoProvPolicyOptionalArgs = []string{
 	"cloudlets:#.loc.speed",
 	"cloudlets:#.loc.timestamp.seconds",
 	"cloudlets:#.loc.timestamp.nanos",
+	"minactiveinstances",
+	"maxinstances",
+	"undeployclientcount",
+	"undeployintervalcount",
 }
 var AutoProvPolicyRequiredArgs = []string{
 	"app-org",
@@ -157,6 +168,10 @@ var AutoProvPolicyOptionalArgs = []string{
 	"cloudlets:#.loc.speed",
 	"cloudlets:#.loc.timestamp.seconds",
 	"cloudlets:#.loc.timestamp.nanos",
+	"minactiveinstances",
+	"maxinstances",
+	"undeployclientcount",
+	"undeployintervalcount",
 }
 var AutoProvPolicyAliasArgs = []string{
 	"fields=autoprovpolicy.fields",
@@ -175,6 +190,10 @@ var AutoProvPolicyAliasArgs = []string{
 	"cloudlets:#.loc.speed=autoprovpolicy.cloudlets:#.loc.speed",
 	"cloudlets:#.loc.timestamp.seconds=autoprovpolicy.cloudlets:#.loc.timestamp.seconds",
 	"cloudlets:#.loc.timestamp.nanos=autoprovpolicy.cloudlets:#.loc.timestamp.nanos",
+	"minactiveinstances=autoprovpolicy.minactiveinstances",
+	"maxinstances=autoprovpolicy.maxinstances",
+	"undeployclientcount=autoprovpolicy.undeployclientcount",
+	"undeployintervalcount=autoprovpolicy.undeployintervalcount",
 }
 var AutoProvPolicyComments = map[string]string{
 	"fields":                             "Fields are used for the Update API to specify which fields to apply",
@@ -191,6 +210,10 @@ var AutoProvPolicyComments = map[string]string{
 	"cloudlets:#.loc.altitude":           "On android only lat and long are guaranteed to be supplied altitude in meters",
 	"cloudlets:#.loc.course":             "course (IOS) / bearing (Android) (degrees east relative to true north)",
 	"cloudlets:#.loc.speed":              "speed (IOS) / velocity (Android) (meters/sec)",
+	"minactiveinstances":                 "Minimum number of active instances for High-Availability",
+	"maxinstances":                       "Maximum number of instances (active or not)",
+	"undeployclientcount":                "Number of active clients for the undeploy interval below which trigers undeployment, 0 (default) disables auto undeploy",
+	"undeployintervalcount":              "Number of intervals to check before triggering undeployment",
 }
 var AutoProvPolicySpecialArgs = map[string]string{
 	"autoprovpolicy.fields": "StringArray",
@@ -347,3 +370,36 @@ var AutoProvPolicyCloudletComments = map[string]string{
 	"cloudlet":     "Name of the cloudlet",
 }
 var AutoProvPolicyCloudletSpecialArgs = map[string]string{}
+var AutoProvInfoRequiredArgs = []string{
+	"key.organization",
+	"key.name",
+}
+var AutoProvInfoOptionalArgs = []string{
+	"notifyid",
+	"maintenancestate",
+	"completed",
+	"errors",
+}
+var AutoProvInfoAliasArgs = []string{
+	"fields=autoprovinfo.fields",
+	"key.organization=autoprovinfo.key.organization",
+	"key.name=autoprovinfo.key.name",
+	"notifyid=autoprovinfo.notifyid",
+	"maintenancestate=autoprovinfo.maintenancestate",
+	"completed=autoprovinfo.completed",
+	"errors=autoprovinfo.errors",
+}
+var AutoProvInfoComments = map[string]string{
+	"fields":           "Fields are used for the Update API to specify which fields to apply",
+	"key.organization": "Organization of the cloudlet site",
+	"key.name":         "Name of the cloudlet",
+	"notifyid":         "Id of client assigned by server (internal use only)",
+	"maintenancestate": "failover result state, one of NormalOperation, MaintenanceStart, MaintenanceStartNoFailover",
+	"completed":        "Failover actions done if any",
+	"errors":           "Errors if any",
+}
+var AutoProvInfoSpecialArgs = map[string]string{
+	"autoprovinfo.completed": "StringArray",
+	"autoprovinfo.errors":    "StringArray",
+	"autoprovinfo.fields":    "StringArray",
+}

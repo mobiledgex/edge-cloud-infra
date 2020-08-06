@@ -1,60 +1,69 @@
 dbrp "telegraf"."autogen"
 
-var name = 'CPU Alert Usage'
+var name = 'CPU Usage Alert'
+
 var db = 'telegraf'
+
 var rp = 'autogen'
 
-var info = 30
-var warn = 60
+var info = 70
+
+var warn = 80
+
 var crit = 90
 
-var infoSig = 2.5
-var warnSig = 3
-var critSig = 3.5
+var infoSig = 4
 
-var period = 5m
-var every = 5m
+var warnSig = 5
+
+var critSig = 6
+
+var period = 1h
+
+var every = 1h
 
 var idVar = name + ':{{.Group}}'
+
 var idTag = 'alertID'
+
 var outputDB = 'chronograf'
+
 var outputRP = 'autogen'
+
 var outputMeasurement = 'alerts'
+
 var triggerType = 'threshold'
 
 // Dataframe
-var data = stream
-    |from()
-        .database('telegraf')
-        .retentionPolicy('autogen')
-        .measurement('cpu')
-        .groupBy('host')
-        .where(lambda: "cpu" == 'cpu-total')
-    |eval(lambda: 100.0 - "usage_idle")
-        .as('used')
-    |window()
+var data = batch
+    |query(''' SELECT mean("usage_idle") AS "mean_usage_idle" FROM "telegraf"."autogen"."cpu" ''')
         .period(period)
         .every(every)
+        .groupBy('host')
+    |eval(lambda: 100.0 - "mean_usage_idle")
+        .as('used')
     |mean('used')
         .as('stat')
-    |eval(lambda: floor("used" * 100.0) / 100.0)
-        .as('stat_round')
 
 // Thresholds
 var trigger = data
     |eval(lambda: sigma("stat"))
         .as('sigma')
         .keep()
+    |eval(lambda: floor("stat" * 100.0) / 100.0)
+        .as('stat_round')
+        .keep()
     |alert()
         .id(idVar)
-        .message('{{ .ID }} is {{.Level}}: {{ index .Fields "stat_round" }}')
-        .info(lambda: "stat" > info OR "sigma" > infoSig)
-        .warn(lambda: "stat" > warn OR "sigma" > warnSig)
-        .crit(lambda: "stat" > crit OR "sigma" > critSig)
+        .message(' {{ .ID }} is {{.Level}}: {{ index .Fields "stat_round" }}% mean CPU usage')
+        .info(lambda: "stat" > info)
+        .warn(lambda: "stat" > warn)
+        .crit(lambda: "stat" > crit)
+        .pagerDuty2()
         .slack()
 
 trigger
-    |eval(lambda: float("used"))
+    |eval(lambda: float("stat"))
         .as('used')
         .keep()
     |influxDBOut()
@@ -64,6 +73,3 @@ trigger
         .measurement(outputMeasurement)
         .tag('alertName', name)
         .tag('triggerType', triggerType)
-
-trigger
-    |httpOut('output')

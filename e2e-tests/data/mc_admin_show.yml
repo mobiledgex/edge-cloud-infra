@@ -74,6 +74,7 @@ regiondata:
   appdata:
     settings:
       shepherdmetricscollectioninterval: 1s
+      shepherdalertevaluationinterval: 1s
       shepherdhealthcheckretries: 3
       shepherdhealthcheckinterval: 5s
       autodeployintervalsec: 1
@@ -87,6 +88,8 @@ regiondata:
       deleteclusterinsttimeout: 2s
       loadbalancermaxportrange: 100
       maxtrackeddmeclients: 100
+      chefclientinterval: 10m
+      cloudletmaintenancetimeout: 2s
     cloudlets:
     - key:
         organization: tmus

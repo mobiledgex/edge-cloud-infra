@@ -91,6 +91,7 @@ var EnableDebugLevelsOptionalArgs = []string{
 	"region",
 	"pretty",
 	"args",
+	"timeout",
 }
 var DisableDebugLevelsRequiredArgs = []string{
 	"levels",
@@ -103,6 +104,7 @@ var DisableDebugLevelsOptionalArgs = []string{
 	"region",
 	"pretty",
 	"args",
+	"timeout",
 }
 var ShowDebugLevelsRequiredArgs = []string{}
 var ShowDebugLevelsOptionalArgs = []string{
@@ -113,17 +115,20 @@ var ShowDebugLevelsOptionalArgs = []string{
 	"region",
 	"pretty",
 	"args",
+	"timeout",
 }
-var RunDebugRequiredArgs = []string{}
+var RunDebugRequiredArgs = []string{
+	"cmd",
+}
 var RunDebugOptionalArgs = []string{
 	"name",
 	"type",
 	"organization",
 	"cloudlet",
 	"region",
-	"cmd",
 	"pretty",
 	"args",
+	"timeout",
 }
 var DebugRequestRequiredArgs = []string{}
 var DebugRequestOptionalArgs = []string{
@@ -137,6 +142,7 @@ var DebugRequestOptionalArgs = []string{
 	"pretty",
 	"id",
 	"args",
+	"timeout",
 }
 var DebugRequestAliasArgs = []string{
 	"name=debugrequest.node.name",
@@ -149,6 +155,7 @@ var DebugRequestAliasArgs = []string{
 	"pretty=debugrequest.pretty",
 	"id=debugrequest.id",
 	"args=debugrequest.args",
+	"timeout=debugrequest.timeout",
 }
 var DebugRequestComments = map[string]string{
 	"name":         "Name or hostname of node",
@@ -156,11 +163,12 @@ var DebugRequestComments = map[string]string{
 	"organization": "Organization of the cloudlet site",
 	"cloudlet":     "Name of the cloudlet",
 	"region":       "Region the node is in",
-	"levels":       "Comma separated list of debug level names: etcd,api,notify,dmereq,locapi,mexos,metrics,upgrade,info,sampled",
-	"cmd":          "Debug command",
+	"levels":       "Comma separated list of debug level names: etcd,api,notify,dmereq,locapi,infra,metrics,upgrade,info,sampled",
+	"cmd":          "Debug command (use help to see available commands)",
 	"pretty":       "if possible, make output pretty",
 	"id":           "Id used internally",
 	"args":         "Additional arguments for cmd",
+	"timeout":      "custom timeout (duration, defaults to 10s)",
 }
 var DebugRequestSpecialArgs = map[string]string{}
 var DebugReplyRequiredArgs = []string{}
@@ -204,6 +212,7 @@ var DebugDataOptionalArgs = []string{
 	"requests:#.pretty",
 	"requests:#.id",
 	"requests:#.args",
+	"requests:#.timeout",
 }
 var DebugDataAliasArgs = []string{
 	"requests:#.node.name=debugdata.requests:#.node.name",
@@ -216,6 +225,7 @@ var DebugDataAliasArgs = []string{
 	"requests:#.pretty=debugdata.requests:#.pretty",
 	"requests:#.id=debugdata.requests:#.id",
 	"requests:#.args=debugdata.requests:#.args",
+	"requests:#.timeout=debugdata.requests:#.timeout",
 }
 var DebugDataComments = map[string]string{
 	"requests:#.node.name":                     "Name or hostname of node",
@@ -223,10 +233,11 @@ var DebugDataComments = map[string]string{
 	"requests:#.node.cloudletkey.organization": "Organization of the cloudlet site",
 	"requests:#.node.cloudletkey.name":         "Name of the cloudlet",
 	"requests:#.node.region":                   "Region the node is in",
-	"requests:#.levels":                        "Comma separated list of debug level names: etcd,api,notify,dmereq,locapi,mexos,metrics,upgrade,info,sampled",
-	"requests:#.cmd":                           "Debug command",
+	"requests:#.levels":                        "Comma separated list of debug level names: etcd,api,notify,dmereq,locapi,infra,metrics,upgrade,info,sampled",
+	"requests:#.cmd":                           "Debug command (use help to see available commands)",
 	"requests:#.pretty":                        "if possible, make output pretty",
 	"requests:#.id":                            "Id used internally",
 	"requests:#.args":                          "Additional arguments for cmd",
+	"requests:#.timeout":                       "custom timeout (duration, defaults to 10s)",
 }
 var DebugDataSpecialArgs = map[string]string{}

@@ -7,16 +7,21 @@
   become: yes
   loop: "{{ apidocs_scripts }}"
 
-- name: Install swagger generation cron script
+- name: Install swagger generation script
   template:
-    src: "{{ swagger_cron_script_template }}"
-    dest: "{{ swagger_cron_script }}"
+    src: "{{ swagger_gen_script_template }}"
+    dest: "{{ swagger_gen_script }}"
     mode: 0555
   become: yes
 
+- name: Make the base directory
+  file:
+    path: "{{ swagger_base_dir }}"
+    state: directory
+
 - name: Install the code samples
   copy:
-    src: apidocs/code-samples
+    src: "apidocs/{{ deploy_environ }}/code-samples"
     dest: "{{ swagger_base_dir }}"
   when: upload_code_samples|bool
 
@@ -28,13 +33,13 @@
 
 - name: Launch the Redoc UI containers
   docker_container:
-    name: "redoc-{{ item.name }}"
+    name: "redoc-{{ item.name }}-{{ deploy_environ }}"
     image: "redocly/redoc:{{ redoc_version }}"
     restart_policy: unless-stopped
     ports:
       - "127.0.0.1:{{ item.port }}:80"
     env:
-      SPEC_URL: "/swagger/{{ item.name }}.swagger.json"
+      SPEC_URL: "/swagger/{{ deploy_environ }}/{{ item.name }}.swagger.json"
       PAGE_TITLE: "{{ item.title }}"
       PAGE_FAVICON: "{{ favicon }}"
       REDOC_OPTIONS: 'sort-props-alphabetically="true"'
@@ -46,4 +51,9 @@
     name: Swagger update
     minute: 0
     hour: 14
-    job: "{{ swagger_cron_script }} >>{{ ansible_env.HOME }}/{{ swagger_cron_script | basename }}.log 2>&1"
+    job: "{{ swagger_gen_script }} >>{{ ansible_env.HOME }}/{{ swagger_gen_script | basename }}.log 2>&1"
+  when: not swagger_gen_run_once
+
+- name: Run the swagger update job
+  command: "{{ swagger_gen_script }}"
+  when: swagger_gen_run_once

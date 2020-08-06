@@ -5,37 +5,41 @@ import (
 )
 
 var AWSProps = map[string]*infracommon.PropertyInfo{
-	"AWS_ACCESS_KEY_ID": &infracommon.PropertyInfo{
+	"AWS_ACCESS_KEY_ID": {
 		Secret:    true,
 		Mandatory: true,
 	},
-	"AWS_SECRET_ACCESS_KEY": &infracommon.PropertyInfo{
+	"AWS_SECRET_ACCESS_KEY": {
 		Secret:    true,
 		Mandatory: true,
 	},
 
-	"AWS_DEFAULT_REGION": &infracommon.PropertyInfo{
+	"AWS_DEFAULT_REGION": {
 		Value:     "us-west-2",
 		Mandatory: true,
 	},
 }
 
+func (a *AWSPlatform) GetK8sProviderSpecificProps() map[string]*infracommon.PropertyInfo {
+	return AWSProps
+}
+
 func (a *AWSPlatform) GetAwsAccessKeyId() string {
-	if val, ok := a.commonPf.Properties["AWS_ACCESS_KEY_ID"]; ok {
+	if val, ok := a.ManagedK8sProperties.CommonPf.Properties["AWS_ACCESS_KEY_ID"]; ok {
 		return val.Value
 	}
 	return ""
 }
 
 func (a *AWSPlatform) GetAwsSecretAccessKey() string {
-	if val, ok := a.commonPf.Properties["AWS_SECRET_ACCESS_KEY"]; ok {
+	if val, ok := a.ManagedK8sProperties.CommonPf.Properties["AWS_SECRET_ACCESS_KEY"]; ok {
 		return val.Value
 	}
 	return ""
 }
 
 func (a *AWSPlatform) GetAwsDefaultRegion() string {
-	if val, ok := a.commonPf.Properties["AWS_DEFAULT_REGION"]; ok {
+	if val, ok := a.ManagedK8sProperties.CommonPf.Properties["AWS_DEFAULT_REGION"]; ok {
 		return val.Value
 	}
 	return ""

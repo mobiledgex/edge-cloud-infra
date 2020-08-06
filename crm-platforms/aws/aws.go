@@ -6,17 +6,13 @@ import (
 	"fmt"
 
 	sh "github.com/codeskyblue/go-sh"
-	"github.com/mobiledgex/edge-cloud-infra/infracommon"
-	"github.com/mobiledgex/edge-cloud/cloud-resource-manager/platform"
-	"github.com/mobiledgex/edge-cloud/cloud-resource-manager/platform/pc"
+	"github.com/mobiledgex/edge-cloud-infra/managedk8s"
 	"github.com/mobiledgex/edge-cloud/edgeproto"
 	"github.com/mobiledgex/edge-cloud/log"
-	"github.com/mobiledgex/edge-cloud/vault"
-	ssh "github.com/mobiledgex/golang-ssh"
 )
 
 type AWSPlatform struct {
-	commonPf infracommon.CommonPlatform
+	ManagedK8sProperties managedk8s.ManagedK8sProperties
 }
 
 type AWSQuotas struct {
@@ -37,44 +33,11 @@ type AWSFlavor struct {
 	DiskGb   uint
 }
 
-func (a *AWSPlatform) GetType() string {
-	return "AWS"
-}
-
-//Init initializes the AWS Platform Config
-func (a *AWSPlatform) Init(ctx context.Context, platformConfig *platform.PlatformConfig, caches *platform.Caches, updateCallback edgeproto.CacheUpdateCallback) error {
-	var path string = "/secret/data/cloudlet/aws/credentials"
-	vaultConfig, err := vault.BestConfig(platformConfig.VaultAddr)
-	if err != nil {
-		err = fmt.Errorf("cannot get best config from vault %s", err.Error())
-		return err
-	}
-
-	err = infracommon.InternVaultEnv(ctx, vaultConfig, path)
-	if err != nil {
-		// Put Error Message
-		err = fmt.Errorf("cannot intern vault data from vault %s", err.Error())
-		return err
-	}
-
-	if err := a.commonPf.InitInfraCommon(ctx, platformConfig, AWSProps, vaultConfig); err != nil {
-		err = fmt.Errorf("cannot get instance types from AWS %s", err.Error())
-		return err
-	}
-
-	return nil
-}
-
 //GatherCloudletInfo does following query to populate flavor info:
 // aws ec2 describe-instance-types --filters 'Name=instance-storage-supported,Values=true' \
 // --query 'InstanceTypes[].[InstanceType,VCpuInfo.DefaultVCpus,MemoryInfo.SizeInMiB,InstanceStorageInfo.TotalSizeInGB]'
 func (a *AWSPlatform) GatherCloudletInfo(ctx context.Context, info *edgeproto.CloudletInfo) error {
-	log.SpanLog(ctx, log.DebugLevelInfra, "GetLimits (AWS)")
-	err := a.AWSLogin(ctx)
-	if err != nil {
-		return err
-	}
-
+	log.SpanLog(ctx, log.DebugLevelInfra, "GatherCloudletInfo (AWS)")
 	filter := "Name=instance-storage-supported,Values=true"
 	query := "InstanceTypes[].[InstanceType,VCpuInfo.DefaultVCpus,MemoryInfo.SizeInMiB,InstanceStorageInfo.TotalSizeInGB]"
 
@@ -133,14 +96,10 @@ func (a *AWSPlatform) GatherCloudletInfo(ctx context.Context, info *edgeproto.Cl
 	return nil
 }
 
-func (a *AWSPlatform) GetClusterPlatformClient(ctx context.Context, clusterInst *edgeproto.ClusterInst, clientType string) (ssh.Client, error) {
-	return &pc.LocalClient{}, nil
+func (a *AWSPlatform) Login(ctx context.Context) error {
+	return nil
 }
 
-func (a *AWSPlatform) GetNodePlatformClient(ctx context.Context, node *edgeproto.CloudletMgmtNode) (ssh.Client, error) {
-	return &pc.LocalClient{}, nil
-}
-
-func (a *AWSPlatform) ListCloudletMgmtNodes(ctx context.Context, clusterInsts []edgeproto.ClusterInst) ([]edgeproto.CloudletMgmtNode, error) {
-	return []edgeproto.CloudletMgmtNode{}, nil
+func (a *AWSPlatform) NameSanitize(clusterName string) string {
+	return clusterName
 }

@@ -4,16 +4,15 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"os"
 	"strconv"
 
 	sh "github.com/codeskyblue/go-sh"
 	"github.com/mobiledgex/edge-cloud-infra/infracommon"
 	"github.com/mobiledgex/edge-cloud/cloud-resource-manager/platform"
-	"github.com/mobiledgex/edge-cloud/cloud-resource-manager/platform/pc"
 	"github.com/mobiledgex/edge-cloud/edgeproto"
 	"github.com/mobiledgex/edge-cloud/log"
 	"github.com/mobiledgex/edge-cloud/vault"
-	ssh "github.com/mobiledgex/golang-ssh"
 )
 
 type GCPPlatform struct {
@@ -54,7 +53,7 @@ func (g *GCPPlatform) Init(ctx context.Context, platformConfig *platform.Platfor
 
 func (g *GCPPlatform) GatherCloudletInfo(ctx context.Context, info *edgeproto.CloudletInfo) error {
 	log.SpanLog(ctx, log.DebugLevelInfra, "GetLimits (GCP)")
-	err := g.GCPLogin(ctx)
+	err := g.Login(ctx)
 	if err != nil {
 		return err
 	}
@@ -123,14 +122,24 @@ func (g *GCPPlatform) GatherCloudletInfo(ctx context.Context, info *edgeproto.Cl
 	return nil
 }
 
-func (g *GCPPlatform) GetClusterPlatformClient(ctx context.Context, clusterInst *edgeproto.ClusterInst, clientType string) (ssh.Client, error) {
-	return &pc.LocalClient{}, nil
+// GCPLogin logs into google cloud
+func (g *GCPPlatform) Login(ctx context.Context) error {
+	log.SpanLog(ctx, log.DebugLevelInfra, "doing GcpLogin", "vault url", g.GetGcpAuthKeyUrl())
+	filename := "/tmp/auth_key.json"
+	err := infracommon.GetVaultDataToFile(g.commonPf.VaultConfig, g.GetGcpAuthKeyUrl(), filename)
+	if err != nil {
+		return fmt.Errorf("unable to write auth file %s: %s", filename, err.Error())
+	}
+	defer os.Remove(filename)
+	out, err := sh.Command("gcloud", "auth", "activate-service-account", "--key-file", filename).CombinedOutput()
+	log.SpanLog(ctx, log.DebugLevelInfra, "gcp login", "out", string(out), "err", err)
+	if err != nil {
+		return err
+	}
+	log.SpanLog(ctx, log.DebugLevelInfra, "GCP login OK")
+	return nil
 }
 
-func (g *GCPPlatform) GetNodePlatformClient(ctx context.Context, node *edgeproto.CloudletMgmtNode) (ssh.Client, error) {
-	return &pc.LocalClient{}, nil
-}
-
-func (g *GCPPlatform) ListCloudletMgmtNodes(ctx context.Context, clusterInsts []edgeproto.ClusterInst) ([]edgeproto.CloudletMgmtNode, error) {
-	return []edgeproto.CloudletMgmtNode{}, nil
+func (a *GCPPlatform) NameSanitize(clusterName string) string {
+	return clusterName
 }

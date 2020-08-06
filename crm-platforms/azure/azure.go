@@ -5,35 +5,18 @@ import (
 	"encoding/json"
 	"fmt"
 	"strconv"
+	"strings"
 
 	"github.com/codeskyblue/go-sh"
-	"github.com/mobiledgex/edge-cloud-infra/infracommon"
-	"github.com/mobiledgex/edge-cloud/cloud-resource-manager/platform"
+	"github.com/mobiledgex/edge-cloud-infra/managedk8s"
 	"github.com/mobiledgex/edge-cloud/cloud-resource-manager/platform/pc"
 	"github.com/mobiledgex/edge-cloud/edgeproto"
 	"github.com/mobiledgex/edge-cloud/log"
-	"github.com/mobiledgex/edge-cloud/vault"
 	ssh "github.com/mobiledgex/golang-ssh"
 )
 
 type AzurePlatform struct {
-	commonPf infracommon.CommonPlatform
-}
-
-func (a *AzurePlatform) GetType() string {
-	return "azure"
-}
-
-func (a *AzurePlatform) Init(ctx context.Context, platformConfig *platform.PlatformConfig, caches *platform.Caches, updateCallback edgeproto.CacheUpdateCallback) error {
-
-	vaultConfig, err := vault.BestConfig(platformConfig.VaultAddr)
-	if err != nil {
-		return err
-	}
-	if err := a.commonPf.InitInfraCommon(ctx, platformConfig, azureProps, vaultConfig); err != nil {
-		return err
-	}
-	return nil
+	ManagedK8sProperties managedk8s.ManagedK8sProperties
 }
 
 type AZName struct {
@@ -57,7 +40,7 @@ type AZFlavor struct {
 
 func (a *AzurePlatform) GatherCloudletInfo(ctx context.Context, info *edgeproto.CloudletInfo) error {
 	log.SpanLog(ctx, log.DebugLevelInfra, "GetLimits (Azure)")
-	if err := a.AzureLogin(ctx); err != nil {
+	if err := a.Login(ctx); err != nil {
 		return err
 	}
 
@@ -132,4 +115,22 @@ func (a *AzurePlatform) GetNodePlatformClient(ctx context.Context, node *edgepro
 
 func (a *AzurePlatform) ListCloudletMgmtNodes(ctx context.Context, clusterInsts []edgeproto.ClusterInst) ([]edgeproto.CloudletMgmtNode, error) {
 	return []edgeproto.CloudletMgmtNode{}, nil
+}
+
+// Login logs into azure
+func (a *AzurePlatform) Login(ctx context.Context) error {
+	log.SpanLog(ctx, log.DebugLevelInfra, "doing azure login")
+	out, err := sh.Command("az", "login", "--username", a.GetAzureUser(), "--password", a.GetAzurePass()).CombinedOutput()
+	if err != nil {
+		return fmt.Errorf("Login Failed: %s %v", out, err)
+	}
+	return nil
+}
+
+func (a *AzurePlatform) GetResourceGroupForCluster(clusterInst *edgeproto.ClusterInst) string {
+	return clusterInst.Key.CloudletKey.Name + "_" + clusterInst.Key.ClusterKey.Name
+}
+
+func (a *AzurePlatform) NameSanitize(clusterName string) string {
+	return strings.NewReplacer(".", "").Replace(clusterName)
 }

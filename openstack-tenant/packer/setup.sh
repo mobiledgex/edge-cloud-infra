@@ -208,6 +208,7 @@ Alias=sshd.service
 EOT
 
 sudo tee /etc/cron.hourly/sshd-stale-session-cleanup <<'EOT'
+#!/bin/sh
 systemctl 2>/dev/null \
     | grep 'scope.*abandoned' \
     | awk '{print $1}' \

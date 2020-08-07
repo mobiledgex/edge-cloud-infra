@@ -136,7 +136,7 @@ while [[ "$COUNTDOWN" -gt 0 ]]; do
         -o UserKnownHostsFile=/dev/null \
         -o StrictHostKeyChecking=no \
         -vv \
-        root@${IP} cat /etc/os-release /etc/mex-release 2>/dev/null
+        ubuntu@${IP} cat /etc/os-release /etc/mex-release 2>/dev/null
     [[ $? -eq 0 ]] && break
     COUNTDOWN=$(( COUNTDOWN - 1 ))
 done
@@ -145,7 +145,7 @@ cd "$HOME/Assessor-CLI"
 cat >config/sessions.properties <<EOT
 session.1.type=ssh
 session.1.host=${IP}
-session.1.user=root
+session.1.user=ubuntu
 #session.1.cred=
 session.1.identity=${SSH_KEY}
 session.1.port=22

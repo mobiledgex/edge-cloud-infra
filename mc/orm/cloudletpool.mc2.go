@@ -98,7 +98,7 @@ func DeleteCloudletPool(c echo.Context) error {
 
 func DeleteCloudletPoolObj(ctx context.Context, rc *RegionContext, obj *edgeproto.CloudletPool) (*edgeproto.Result, error) {
 	if !rc.skipAuthz {
-		if err := authorized(ctx, rc.username, obj.Key.Organization,
+		if err := authzDeleteCloudletPool(ctx, rc.region, rc.username, obj,
 			ResourceCloudletPools, ActionManage); err != nil {
 			return nil, err
 		}

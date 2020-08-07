@@ -17,9 +17,11 @@ import (
 type ManagedK8sProvider interface {
 	GatherCloudletInfo(ctx context.Context, info *edgeproto.CloudletInfo) error
 	GetK8sProviderSpecificProps() map[string]*infracommon.PropertyInfo
+	SetCommonPlatform(cpf *infracommon.CommonPlatform)
 	Login(ctx context.Context) error
 	GetCredentials(ctx context.Context, clusterInst *edgeproto.ClusterInst) error
 	NameSanitize(name string) string
+	CreateClusterPrerequisites(ctx context.Context, clusterInst *edgeproto.ClusterInst) error
 	RunClusterCreateCommand(ctx context.Context, clusterInst *edgeproto.ClusterInst) error
 	RunClusterDeleteCommand(ctx context.Context, clusterInst *edgeproto.ClusterInst) error
 }
@@ -29,10 +31,6 @@ const (
 	ManagedK8sProviderGCP   string = "gcp"
 	ManagedK8sProviderAWS   string = "aws"
 )
-
-type ManagedK8sProperties struct {
-	CommonPf infracommon.CommonPlatform
-}
 
 // ManagedK8sPlatform contains info needed by all Managed Kubernetes Providers
 type ManagedK8sPlatform struct {
@@ -57,6 +55,7 @@ func (m *ManagedK8sPlatform) Init(ctx context.Context, platformConfig *platform.
 		log.SpanLog(ctx, log.DebugLevelInfra, "InitInfraCommon failed", "err", err)
 		return err
 	}
+	m.Provider.SetCommonPlatform(&m.CommonPf)
 	return m.Provider.Login(ctx)
 }
 

@@ -11,7 +11,10 @@ var gcpProps = map[string]*infracommon.PropertyInfo{
 	"MEX_GCP_ZONE": {
 		Mandatory: true,
 	},
-	"MEX_GCP_SERVICE_ACCOUNT": {},
+	"MEX_GCP_SERVICE_ACCOUNT": {
+		Mandatory: true,
+		Secret:    true,
+	},
 	"MEX_GCP_AUTH_KEY_PATH": {
 		Value: "/secret/data/cloudlet/gcp/auth_key.json",
 	},

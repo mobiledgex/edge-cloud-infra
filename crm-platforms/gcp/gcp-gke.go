@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 
+	"github.com/mobiledgex/edge-cloud/cloud-resource-manager/k8smgmt"
 	"github.com/mobiledgex/edge-cloud/log"
 
 	"github.com/codeskyblue/go-sh"
@@ -29,10 +30,16 @@ func (g *GCPPlatform) SetZone(ctx context.Context, zone string) error {
 	return nil
 }
 
+// CreateClusterPrerequisites currently does nothing
+func (a *GCPPlatform) CreateClusterPrerequisites(ctx context.Context, clusterInst *edgeproto.ClusterInst) error {
+	return nil
+}
+
 // CreateGKECluster creates a kubernetes cluster on gcloud
 func (g *GCPPlatform) RunClusterCreateCommand(ctx context.Context, clusterInst *edgeproto.ClusterInst) error {
-	log.SpanLog(ctx, log.DebugLevelInfra, "RunClusterCreateCommand", "clusterInst", clusterInst)
-	out, err := sh.Command("gcloud", "container", "clusters", "create", clusterInst.Key.ClusterKey.Name).CombinedOutput()
+	clusterName := g.NameSanitize(k8smgmt.GetClusterName(clusterInst))
+	log.SpanLog(ctx, log.DebugLevelInfra, "RunClusterCreateCommand", "clusterInst", clusterInst, "clusterName", clusterName)
+	out, err := sh.Command("gcloud", "container", "clusters", "create", clusterName).CombinedOutput()
 	if err != nil {
 		log.SpanLog(ctx, log.DebugLevelInfra, "Error in cluster create", "out", out, "err", err)
 		return fmt.Errorf("Error in cluster create: %s %v", out, err)
@@ -43,7 +50,8 @@ func (g *GCPPlatform) RunClusterCreateCommand(ctx context.Context, clusterInst *
 // RunClusterDeleteCommand removes kubernetes cluster on gcloud
 func (g *GCPPlatform) RunClusterDeleteCommand(ctx context.Context, clusterInst *edgeproto.ClusterInst) error {
 	log.SpanLog(ctx, log.DebugLevelInfra, "RunClusterDeleteCommand", "clusterInst", clusterInst)
-	out, err := sh.Command("gcloud", "container", "clusters", "delete", "--quiet", clusterInst.Key.ClusterKey.Name).CombinedOutput()
+	clusterName := g.NameSanitize(k8smgmt.GetClusterName(clusterInst))
+	out, err := sh.Command("gcloud", "container", "clusters", "delete", "--quiet", clusterName).CombinedOutput()
 	if err != nil {
 		return fmt.Errorf("%s %v", out, err)
 	}
@@ -52,7 +60,8 @@ func (g *GCPPlatform) RunClusterDeleteCommand(ctx context.Context, clusterInst *
 
 // GetCredentials retrieves kubeconfig credentials from gcloud.
 func (g *GCPPlatform) GetCredentials(ctx context.Context, clusterInst *edgeproto.ClusterInst) error {
-	out, err := sh.Command("gcloud", "container", "clusters", "get-credentials", clusterInst.Key.ClusterKey.Name).CombinedOutput()
+	clusterName := g.NameSanitize(k8smgmt.GetClusterName(clusterInst))
+	out, err := sh.Command("gcloud", "container", "clusters", "get-credentials", clusterName).CombinedOutput()
 	if err != nil {
 		return fmt.Errorf("%s %v", out, err)
 	}

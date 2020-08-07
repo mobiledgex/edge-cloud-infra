@@ -20,8 +20,15 @@ func (m *ManagedK8sPlatform) CreateClusterInst(ctx context.Context, clusterInst 
 	if err = m.Provider.Login(ctx); err != nil {
 		return err
 	}
+
+	// perform any actions to create prereq resource before the cluster
+	if err = m.Provider.CreateClusterPrerequisites(ctx, clusterInst); err != nil {
+		log.SpanLog(ctx, log.DebugLevelInfra, "Error in creating cluster prereqs", "err", err)
+		return err
+	}
+
 	if err = m.Provider.RunClusterCreateCommand(ctx, clusterInst); err != nil {
-		log.SpanLog(ctx, log.DebugLevelInfra, "Error in creating cluster: %v", err)
+		log.SpanLog(ctx, log.DebugLevelInfra, "Error in creating cluster", "err", err)
 		return err
 	}
 	// race condition exists where the config file is not ready until just after the cluster create is done

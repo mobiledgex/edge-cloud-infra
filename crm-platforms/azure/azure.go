@@ -8,7 +8,7 @@ import (
 	"strings"
 
 	"github.com/codeskyblue/go-sh"
-	"github.com/mobiledgex/edge-cloud-infra/managedk8s"
+	"github.com/mobiledgex/edge-cloud-infra/infracommon"
 	"github.com/mobiledgex/edge-cloud/cloud-resource-manager/platform/pc"
 	"github.com/mobiledgex/edge-cloud/edgeproto"
 	"github.com/mobiledgex/edge-cloud/log"
@@ -16,7 +16,7 @@ import (
 )
 
 type AzurePlatform struct {
-	ManagedK8sProperties managedk8s.ManagedK8sProperties
+	commonPf *infracommon.CommonPlatform
 }
 
 type AZName struct {
@@ -128,9 +128,13 @@ func (a *AzurePlatform) Login(ctx context.Context) error {
 }
 
 func (a *AzurePlatform) GetResourceGroupForCluster(clusterInst *edgeproto.ClusterInst) string {
-	return clusterInst.Key.CloudletKey.Name + "_" + clusterInst.Key.ClusterKey.Name
+	return a.NameSanitize(clusterInst.Key.CloudletKey.Name + "_" + clusterInst.Key.ClusterKey.Name)
 }
 
 func (a *AzurePlatform) NameSanitize(clusterName string) string {
 	return strings.NewReplacer(".", "").Replace(clusterName)
+}
+
+func (a *AzurePlatform) SetCommonPlatform(cpf *infracommon.CommonPlatform) {
+	a.commonPf = cpf
 }

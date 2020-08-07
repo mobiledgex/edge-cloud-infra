@@ -6,17 +6,16 @@ import (
 	"fmt"
 	"os"
 	"strconv"
+	"strings"
 
 	sh "github.com/codeskyblue/go-sh"
 	"github.com/mobiledgex/edge-cloud-infra/infracommon"
-	"github.com/mobiledgex/edge-cloud/cloud-resource-manager/platform"
 	"github.com/mobiledgex/edge-cloud/edgeproto"
 	"github.com/mobiledgex/edge-cloud/log"
-	"github.com/mobiledgex/edge-cloud/vault"
 )
 
 type GCPPlatform struct {
-	commonPf infracommon.CommonPlatform
+	commonPf *infracommon.CommonPlatform
 }
 
 type GCPQuotas struct {
@@ -35,24 +34,8 @@ type GCPFlavor struct {
 	Name                         string
 }
 
-func (g *GCPPlatform) GetType() string {
-	return "gcp"
-}
-
-func (g *GCPPlatform) Init(ctx context.Context, platformConfig *platform.PlatformConfig, caches *platform.Caches, updateCallback edgeproto.CacheUpdateCallback) error {
-
-	vaultConfig, err := vault.BestConfig(platformConfig.VaultAddr)
-	if err != nil {
-		return err
-	}
-	if err := g.commonPf.InitInfraCommon(ctx, platformConfig, gcpProps, vaultConfig); err != nil {
-		return err
-	}
-	return nil
-}
-
 func (g *GCPPlatform) GatherCloudletInfo(ctx context.Context, info *edgeproto.CloudletInfo) error {
-	log.SpanLog(ctx, log.DebugLevelInfra, "GetLimits (GCP)")
+	log.SpanLog(ctx, log.DebugLevelInfra, "GatherCloudletInfo")
 	err := g.Login(ctx)
 	if err != nil {
 		return err
@@ -63,6 +46,7 @@ func (g *GCPPlatform) GatherCloudletInfo(ctx context.Context, info *edgeproto.Cl
 	flatten := "quotas[]"
 	format := "json(quotas.metric,quotas.limit)"
 
+	log.SpanLog(ctx, log.DebugLevelInfra, "list regions", "filter", filter)
 	out, err := sh.Command("gcloud", "compute", "regions", "list",
 		"--project", g.GetGcpProject(), "--filter", filter, "--flatten", flatten,
 		"--format", format, sh.Dir("/tmp")).CombinedOutput()
@@ -72,8 +56,12 @@ func (g *GCPPlatform) GatherCloudletInfo(ctx context.Context, info *edgeproto.Cl
 	}
 	err = json.Unmarshal(out, &quotas)
 	if err != nil {
-		err = fmt.Errorf("cannot unmarshal, %s, %v", out, err)
+		log.SpanLog(ctx, log.DebugLevelInfra, "list regions unmarshal fail", "out", string(out), "err", err)
+		err = fmt.Errorf("cannot unmarshal list regions output")
 		return err
+	}
+	if len(quotas) == 0 {
+		return fmt.Errorf("No quotas found for zone: %s -- check that zone is valid", g.GetGcpZone())
 	}
 	for _, q := range quotas {
 		if q.Quotas.Metric == "CPUS" {
@@ -88,9 +76,9 @@ func (g *GCPPlatform) GatherCloudletInfo(ctx context.Context, info *edgeproto.Cl
 	}
 
 	var machinetypes []GCPFlavor
-	filter = fmt.Sprintf("zone=(%s) AND name:(standard)", g.GetGcpZone())
+	filter = fmt.Sprintf("zone:(%s) AND name:(standard)", g.GetGcpZone())
 	format = "json(name,guestCpus,memoryMb,maximumPersistentDisksSizeGb)"
-
+	log.SpanLog(ctx, log.DebugLevelInfra, "list compute machine-types", "filter", filter, "format", format)
 	out, err = sh.Command("gcloud", "compute", "machine-types", "list",
 		"--project", g.GetGcpProject(), "--filter", filter,
 		"--format", format, sh.Dir("/tmp")).CombinedOutput()
@@ -100,13 +88,15 @@ func (g *GCPPlatform) GatherCloudletInfo(ctx context.Context, info *edgeproto.Cl
 	}
 	err = json.Unmarshal(out, &machinetypes)
 	if err != nil {
-		err = fmt.Errorf("cannot unmarshal, %s, %v", out, err)
+		log.SpanLog(ctx, log.DebugLevelInfra, "compute machines-type list unmarshal fail", "out", string(out), "err", err)
+		err = fmt.Errorf("compute machines-type list output")
 		return err
 	}
 	for _, m := range machinetypes {
 		disk, err := strconv.Atoi(m.MaximumPersistentDisksSizeGb)
 		if err != nil {
-			err = fmt.Errorf("failed to parse gcp output, %s", err.Error())
+			log.SpanLog(ctx, log.DebugLevelInfra, "failed to parse machine types", "out", string(out), "err", err)
+			err = fmt.Errorf("failed to parse gcp machine types output")
 			return err
 		}
 		info.Flavors = append(
@@ -141,5 +131,9 @@ func (g *GCPPlatform) Login(ctx context.Context) error {
 }
 
 func (a *GCPPlatform) NameSanitize(clusterName string) string {
-	return clusterName
+	return strings.NewReplacer(".", "").Replace(clusterName)
+}
+
+func (g *GCPPlatform) SetCommonPlatform(cpf *infracommon.CommonPlatform) {
+	g.commonPf = cpf
 }

@@ -6,13 +6,13 @@ import (
 	"fmt"
 
 	sh "github.com/codeskyblue/go-sh"
-	"github.com/mobiledgex/edge-cloud-infra/managedk8s"
+	"github.com/mobiledgex/edge-cloud-infra/infracommon"
 	"github.com/mobiledgex/edge-cloud/edgeproto"
 	"github.com/mobiledgex/edge-cloud/log"
 )
 
 type AWSPlatform struct {
-	ManagedK8sProperties managedk8s.ManagedK8sProperties
+	commonPf *infracommon.CommonPlatform
 }
 
 type AWSQuotas struct {
@@ -102,4 +102,8 @@ func (a *AWSPlatform) Login(ctx context.Context) error {
 
 func (a *AWSPlatform) NameSanitize(clusterName string) string {
 	return clusterName
+}
+
+func (a *AWSPlatform) SetCommonPlatform(cpf *infracommon.CommonPlatform) {
+	a.commonPf = cpf
 }

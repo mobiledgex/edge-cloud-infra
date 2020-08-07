@@ -22,21 +22,21 @@ func (a *AzurePlatform) GetK8sProviderSpecificProps() map[string]*infracommon.Pr
 }
 
 func (a *AzurePlatform) GetAzureLocation() string {
-	if val, ok := a.ManagedK8sProperties.CommonPf.Properties["MEX_AZURE_LOCATION"]; ok {
+	if val, ok := a.commonPf.Properties["MEX_AZURE_LOCATION"]; ok {
 		return val.Value
 	}
 	return ""
 }
 
 func (a *AzurePlatform) GetAzureUser() string {
-	if val, ok := a.ManagedK8sProperties.CommonPf.Properties["MEX_AZURE_USER"]; ok {
+	if val, ok := a.commonPf.Properties["MEX_AZURE_USER"]; ok {
 		return val.Value
 	}
 	return ""
 }
 
 func (a *AzurePlatform) GetAzurePass() string {
-	if val, ok := a.ManagedK8sProperties.CommonPf.Properties["MEX_AZURE_PASS"]; ok {
+	if val, ok := a.commonPf.Properties["MEX_AZURE_PASS"]; ok {
 		return val.Value
 	}
 	return ""

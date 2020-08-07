@@ -73,6 +73,11 @@ echo "[$(date)] Starting setup.sh for platform \"$OUTPUT_PLATFORM\" ($( pwd ))"
 echo "127.0.0.1 $( hostname )" | sudo tee -a /etc/hosts >/dev/null
 log_file_contents /etc/hosts
 
+sudo tee /etc/systemd/resolved.conf <<EOT
+[Resolve]
+DNS=1.1.1.1
+FallbackDNS=1.0.0.1
+EOT
 echo "nameserver 1.1.1.1" | sudo tee -a /etc/resolv.conf >/dev/null
 log_file_contents /etc/resolv.conf
 
@@ -136,6 +141,11 @@ curl -s https://${APT_USER}:${APT_PASS}@artifactory.mobiledgex.net/artifactory/a
 curl -s https://${APT_USER}:${APT_PASS}@apt.mobiledgex.net/gpg.key | sudo apt-key add -
 sudo apt-get update
 
+log "Switch networking back to ifupdown"
+sudo apt-get install -y ifupdown
+sudo apt-get purge -y netplan.io
+echo "source /etc/network/interfaces.d/*.cfg" | sudo tee -a /etc/network/interfaces
+
 log "Install mobiledgex ${TAG#v}"
 # avoid interactive for iptables-persistent
 echo iptables-persistent iptables-persistent/autosave_v6 boolean true | sudo debconf-set-selections
@@ -174,6 +184,7 @@ sudo sed -i "s/cgroup-driver=systemd/cgroup-driver=cgroupfs/g" /etc/systemd/syst
 sudo kubeadm config images pull
 sudo usermod -aG docker root
 
+echo "d /run/sshd 0755 root root" | sudo tee -a /usr/lib/tmpfiles.d/sshd.conf
 sudo rm -f /etc/systemd/system/ssh.service
 sudo tee /etc/systemd/system/ssh.service <<'EOT'
 [Unit]

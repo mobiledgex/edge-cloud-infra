@@ -474,12 +474,7 @@ func start() {
 }
 
 func stop() {
-	var span opentracing.Span
-	if *parentSpan != "" {
-		span = log.NewSpanFromString(log.DebugLevelInfo, *parentSpan, "stop shepherd")
-	} else {
-		span = log.StartSpan(log.DebugLevelInfo, "stop shepherd")
-	}
+	span := log.StartSpan(log.DebugLevelInfo, "stop shepherd")
 	defer span.Finish()
 	ctx := log.ContextWithSpan(context.Background(), span)
 

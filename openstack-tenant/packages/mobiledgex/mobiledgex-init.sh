@@ -17,6 +17,7 @@ if [[ -f "$INIT_COMPLETE_FLAG" ]]; then
 	exit 2
 fi
 
+umask 027
 LOGFILE=/var/log/mobiledgex.log
 log() {
 	if [[ $# -gt 0 ]]; then

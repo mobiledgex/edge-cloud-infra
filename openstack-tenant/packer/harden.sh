@@ -43,6 +43,7 @@ log "1.3.2 Ensure filesystem integrity is regularly checked"
 sudo rm -f /etc/cron.daily/aide
 sudo tee /etc/cron.weekly/aide <<'EOT'
 #!/bin/sh
+umask 027
 /usr/bin/aide.wrapper --config /etc/aide/aide.conf --check >/var/log/aide-check.log 2>&1
 EOT
 sudo chmod a+rx /etc/cron.weekly/aide
@@ -52,11 +53,17 @@ sudo chown root:root /boot/grub/grub.cfg
 sudo chmod og-rwx /boot/grub/grub.cfg
 
 log "1.5.1 Ensure core dumps are restricted"
+sudo systemctl disable apport
 echo "* hard core 0" | sudo tee -a /etc/security/limits.conf
 echo "fs.suid_dumpable = 0" | sudo tee -a /etc/sysctl.conf
 
 log "1.5.3 Ensure address space layout randomization (ASLR) is enabled"
 echo "kernel.randomize_va_space = 2" | sudo tee -a /etc/sysctl.conf
+
+log "1.7.1.4 Ensure permissions on /etc/motd are configured"
+sudo touch /etc/motd
+sudo chown root:root /etc/motd
+sudo chmod 644 /etc/motd
 
 log "2.2.15 Ensure mail transfer agent is configured for local-only mode"
 sudo sed -i "/^inet_interfaces/s/=.*/= loopback-only/" /etc/postfix/main.cf
@@ -65,7 +72,7 @@ log "2.2.16 Ensure rsync service is not enabled"
 sudo systemctl disable rsync
 
 log "2.3.4 Ensure telnet client is not installed"
-sudo apt-get remove -y telnet
+sudo apt-get purge -y telnet
 
 log "3.4.1 Ensure TCP Wrappers is installed"
 sudo apt-get install -y tcpd
@@ -150,8 +157,8 @@ set_sshd_param PermitEmptyPasswords no
 log "5.2.10 Ensure SSH PermitUserEnvironment is disabled"
 set_sshd_param PermitUserEnvironment no
 
-#log "5.2.11 Ensure only approved MAC algorithms are used"
-#set_sshd_param MACs hmac-sha2-512-etm@openssh.com,hmac-sha2-256-etm@openssh.com,umac-128-etm@openssh.com,hmac-sha2-512,hmac-sha2-256,umac-128@openssh.com
+log "5.2.11 Ensure only approved MAC algorithms are used"
+set_sshd_param MACs hmac-sha2-512-etm@openssh.com,hmac-sha2-256-etm@openssh.com,umac-128-etm@openssh.com,hmac-sha2-512,hmac-sha2-256,umac-128@openssh.com
 
 log "5.2.12 Ensure SSH Idle Timeout Interval is configured"
 set_sshd_param ClientAliveInterval 300
@@ -167,10 +174,81 @@ log "5.2.15 Ensure SSH warning banner is configured"
 ## TODO: Set warning banner message
 set_sshd_param Banner /etc/issue.net
 
+log "5.3.1 Ensure password creation requirements are configured"
+sudo apt-get install -y libpam-pwquality
+sudo tee /etc/security/pwquality.conf <<'EOT'
+minlen = 14
+dcredit = -1
+ucredit = -1
+ocredit = -1
+lcredit = -1
+usercheck = 1
+EOT
+
+log "5.3.2 Ensure lockout for failed password attempts is configured"
+sudo tee /usr/share/pam-configs/tally2 <<'EOT'
+Name: Failed login counter module
+Default: yes
+Priority: 500
+Auth-Type: Primary
+Auth:
+	required			pam_tally2.so onerr=fail audit silent deny=5 unlock_time=900
+Auth-Initial:
+	required			pam_tally2.so onerr=fail audit silent deny=5 unlock_time=900
+Account-Type: Primary
+Account:
+	required			pam_tally2.so
+Account-Initial:
+	required			pam_tally2.so
+EOT
+sudo pam-auth-update --enable tally2
+
+log "5.3.3 Ensure password reuse is limited"
+sudo tee /usr/share/pam-configs/pwhistory <<'EOT'
+Name: Module to remember last passwords
+Default: yes
+Priority: 1000
+Password-Type: Primary
+Password:
+        required			pam_pwhistory.so remember=5
+Password-Initial:
+	required			pam_pwhistory.so remember=5
+EOT
+sudo pam-auth-update --enable pwhistory
+
+set_login_defs_param() {
+	param="$1"
+	value="$2"
+	if sudo grep "^#*${param}" /etc/login.defs >/dev/null; then
+		sudo sed -i -e "/^#${param}/s/^#//" \
+			    -e "s|^${param}.*$|${param} ${value}|" \
+			    /etc/login.defs
+	else
+		echo "$param $value" | sudo tee -a /etc/login.defs
+	fi
+}
+
+log "5.4.1.1 Ensure password expiration is 365 days or less"
+set_login_defs_param PASS_MAX_DAYS 365
+for user in `awk -F: '($3 > 0) {print $1 }' /etc/passwd`; do
+	sudo chage --maxdays 365 "$user"
+done
+# Ensure that the root password does not expire
+sudo chage -m 0 -M 99999 -I -1 -E -1 root
+
+log "5.4.1.2 Ensure minimum days between password changes is 7 or more"
+set_login_defs_param PASS_MIN_DAYS 7
+for user in `awk -F: '($3 > 0) {print $1 }' /etc/passwd`; do
+	sudo chage --mindays 7 "$user"
+done
+
+log "5.4.1.4 Ensure inactive password lock is 30 days or less"
+sudo useradd -D -f 30
+
 log "5.4.2 Ensure system accounts are non-login"
 for user in `awk -F: '($3 < 1000) {print $1 }' /etc/passwd`; do
 	if [ $user != "root" ]; then
-		sudo usermod -L $user
+		sudo usermod -L $user >/dev/null
 		if [ $user != "sync" ] && [ $user != "shutdown" ] && [ $user != "halt" ]; then
 			sudo usermod -s /usr/sbin/nologin $user
 		fi
@@ -185,6 +263,9 @@ done
 log "5.6 Ensure access to the su command is restricted"
 sudo sed -i 's/^# *\(auth[ 	]*required[ 	]*pam_wheel.so$\)/\1/' \
 	/etc/pam.d/su
+
+log "6.2.8 Ensure users' home directories permissions are 750 or more restrictive"
+sudo chmod 750 /home/ubuntu
 
 # Final step
 log "Initialize the AIDE database"

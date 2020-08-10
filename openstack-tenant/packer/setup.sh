@@ -141,6 +141,10 @@ curl -s https://${APT_USER}:${APT_PASS}@artifactory.mobiledgex.net/artifactory/a
 curl -s https://${APT_USER}:${APT_PASS}@apt.mobiledgex.net/gpg.key | sudo apt-key add -
 sudo apt-get update
 
+log "Disable snap"
+sudo apt purge -y snapd
+sudo rm -rf /snap /var/snap /var/cache/snapd /var/lib/snapd
+
 log "Switch networking back to ifupdown"
 sudo apt-get install -y ifupdown
 sudo apt-get purge -y netplan.io
@@ -276,5 +280,8 @@ EOT
 	log "Enabling the open-vm-tools service"
 	sudo systemctl enable open-vm-tools
 fi
+
+log "Cleanup"
+sudo apt-get autoremove -y
 
 echo "[$(date)] Done setup.sh ($( pwd ))"

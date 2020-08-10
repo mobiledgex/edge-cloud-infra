@@ -4,18 +4,17 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/mobiledgex/edge-cloud/cloud-resource-manager/k8smgmt"
-	"github.com/mobiledgex/edge-cloud/log"
-
 	"github.com/codeskyblue/go-sh"
-	"github.com/mobiledgex/edge-cloud/edgeproto"
+	"github.com/mobiledgex/edge-cloud/log"
 )
 
 // SetProject sets the project in gcloud config
-func (g *GCPPlatform) SetProject(project string) error {
+func (g *GCPPlatform) SetProject(ctx context.Context, project string) error {
+	log.SpanLog(ctx, log.DebugLevelInfra, "SetProject", "project", project)
 	out, err := sh.Command("gcloud", "config", "set", "project", project).CombinedOutput()
 	if err != nil {
-		return fmt.Errorf("%s %v", out, err)
+		log.SpanLog(ctx, log.DebugLevelInfra, "Error in SetProject", "out", string(out), "err", err)
+		return fmt.Errorf("Error in SetProject - %v", err)
 	}
 	return nil
 }
@@ -25,45 +24,46 @@ func (g *GCPPlatform) SetZone(ctx context.Context, zone string) error {
 	log.SpanLog(ctx, log.DebugLevelInfra, "SetZone", "zone", zone)
 	out, err := sh.Command("gcloud", "config", "set", "compute/zone", zone).CombinedOutput()
 	if err != nil {
-		return fmt.Errorf("%s %v", out, err)
+		log.SpanLog(ctx, log.DebugLevelInfra, "Error in SetZone", "zone", zone, "out", string(out), "err", err)
+		return fmt.Errorf("Error in SetZone - %v", err)
 	}
 	return nil
 }
 
 // CreateClusterPrerequisites currently does nothing
-func (a *GCPPlatform) CreateClusterPrerequisites(ctx context.Context, clusterInst *edgeproto.ClusterInst) error {
+func (a *GCPPlatform) CreateClusterPrerequisites(ctx context.Context, clusterName string) error {
 	return nil
 }
 
-// CreateGKECluster creates a kubernetes cluster on gcloud
-func (g *GCPPlatform) RunClusterCreateCommand(ctx context.Context, clusterInst *edgeproto.ClusterInst) error {
-	clusterName := g.NameSanitize(k8smgmt.GetClusterName(clusterInst))
-	log.SpanLog(ctx, log.DebugLevelInfra, "RunClusterCreateCommand", "clusterInst", clusterInst, "clusterName", clusterName)
-	out, err := sh.Command("gcloud", "container", "clusters", "create", clusterName).CombinedOutput()
+// RunClusterCreateCommand creates a kubernetes cluster on gcloud
+func (g *GCPPlatform) RunClusterCreateCommand(ctx context.Context, clusterName string, numNodes uint32, flavor string) error {
+	log.SpanLog(ctx, log.DebugLevelInfra, "RunClusterCreateCommand", "clusterName", clusterName)
+	numNodesStr := fmt.Sprintf("%d", numNodes)
+	out, err := sh.Command("gcloud", "container", "clusters", "create", "--num-nodes="+numNodesStr, "--machine-type="+flavor, clusterName).CombinedOutput()
 	if err != nil {
-		log.SpanLog(ctx, log.DebugLevelInfra, "Error in cluster create", "out", out, "err", err)
-		return fmt.Errorf("Error in cluster create: %s %v", out, err)
+		log.SpanLog(ctx, log.DebugLevelInfra, "Error in cluster create", "out", string(out), "err", err)
+		return fmt.Errorf("Error in cluster create - %v", err)
 	}
 	return nil
 }
 
 // RunClusterDeleteCommand removes kubernetes cluster on gcloud
-func (g *GCPPlatform) RunClusterDeleteCommand(ctx context.Context, clusterInst *edgeproto.ClusterInst) error {
-	log.SpanLog(ctx, log.DebugLevelInfra, "RunClusterDeleteCommand", "clusterInst", clusterInst)
-	clusterName := g.NameSanitize(k8smgmt.GetClusterName(clusterInst))
+func (g *GCPPlatform) RunClusterDeleteCommand(ctx context.Context, clusterName string) error {
+	log.SpanLog(ctx, log.DebugLevelInfra, "RunClusterDeleteCommand", "clusterName", clusterName)
 	out, err := sh.Command("gcloud", "container", "clusters", "delete", "--quiet", clusterName).CombinedOutput()
 	if err != nil {
-		return fmt.Errorf("%s %v", out, err)
+		log.SpanLog(ctx, log.DebugLevelInfra, "Error in cluster delete", "out", string(out), "err", err)
+		return fmt.Errorf("Error in cluster delete - %v", err)
 	}
 	return nil
 }
 
 // GetCredentials retrieves kubeconfig credentials from gcloud.
-func (g *GCPPlatform) GetCredentials(ctx context.Context, clusterInst *edgeproto.ClusterInst) error {
-	clusterName := g.NameSanitize(k8smgmt.GetClusterName(clusterInst))
+func (g *GCPPlatform) GetCredentials(ctx context.Context, clusterName string) error {
 	out, err := sh.Command("gcloud", "container", "clusters", "get-credentials", clusterName).CombinedOutput()
 	if err != nil {
-		return fmt.Errorf("%s %v", out, err)
+		log.SpanLog(ctx, log.DebugLevelInfra, "Error in GetCredentials", "out", string(out), "err", err)
+		return fmt.Errorf("Error in GetCredential - %v", err)
 	}
 	return nil
 }

@@ -127,8 +127,9 @@ func (a *AzurePlatform) Login(ctx context.Context) error {
 	return nil
 }
 
-func (a *AzurePlatform) GetResourceGroupForCluster(clusterInst *edgeproto.ClusterInst) string {
-	return a.NameSanitize(clusterInst.Key.CloudletKey.Name + "_" + clusterInst.Key.ClusterKey.Name)
+func (a *AzurePlatform) GetResourceGroupForCluster(clusterName string) string {
+	cloudletKeyName := a.commonPf.PlatformConfig.CloudletKey.Name
+	return a.NameSanitize(cloudletKeyName + "_" + clusterName)
 }
 
 func (a *AzurePlatform) NameSanitize(clusterName string) string {

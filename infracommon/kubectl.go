@@ -17,7 +17,7 @@ import (
 	v1 "k8s.io/api/core/v1"
 )
 
-func CreateDockerRegistrySecret(ctx context.Context, client ssh.Client, clusterInst *edgeproto.ClusterInst, imagePath string, vaultConfig *vault.Config, names *k8smgmt.KubeNames) error {
+func CreateDockerRegistrySecret(ctx context.Context, client ssh.Client, kconf string, imagePath string, vaultConfig *vault.Config, names *k8smgmt.KubeNames) error {
 	var out string
 	log.SpanLog(ctx, log.DebugLevelInfra, "creating docker registry secret in kubernetes cluster", "imagePath", imagePath)
 	auth, err := cloudcommon.GetRegistryAuth(ctx, imagePath, vaultConfig)
@@ -45,7 +45,7 @@ func CreateDockerRegistrySecret(ctx context.Context, client ssh.Client, clusterI
 		"--docker-server=%s --docker-username=%s --docker-password=%s "+
 		"--docker-email=mobiledgex@mobiledgex.com --kubeconfig=%s",
 		secretName, dockerServer, auth.Username, auth.Password,
-		k8smgmt.GetKconfName(clusterInst))
+		kconf)
 	log.SpanLog(ctx, log.DebugLevelInfra, "CreateDockerRegistrySecret", "secretName", secretName)
 	out, err = client.Output(cmd)
 	if err != nil {

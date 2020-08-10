@@ -5,56 +5,51 @@ import (
 	"fmt"
 
 	"github.com/codeskyblue/go-sh"
-	"github.com/mobiledgex/edge-cloud/cloud-resource-manager/k8smgmt"
-	"github.com/mobiledgex/edge-cloud/edgeproto"
 	"github.com/mobiledgex/edge-cloud/log"
 )
 
 // CreateClusterPrerequisites does nothing to do now, but for outpost may need to create a vpc
-func (a *AWSPlatform) CreateClusterPrerequisites(ctx context.Context, clusterInst *edgeproto.ClusterInst) error {
+func (a *AWSPlatform) CreateClusterPrerequisites(ctx context.Context, clusterName string) error {
 	return nil
 }
 
 // RunClusterCreateCommand creates a kubernetes cluster on AWS
-func (a *AWSPlatform) RunClusterCreateCommand(ctx context.Context, clusterInst *edgeproto.ClusterInst) error {
-	// output log messages
-	log.DebugLog(log.DebugLevelInfra, "RunClusterCreateCommand", "numNodes:", clusterInst.NumNodes, "NodeFlavor", clusterInst.NodeFlavor)
-	clusterName := a.NameSanitize(k8smgmt.GetClusterName(clusterInst))
+func (a *AWSPlatform) RunClusterCreateCommand(ctx context.Context, clusterName string, numNodes uint32, flavor string) error {
+	log.DebugLog(log.DebugLevelInfra, "RunClusterCreateCommand", "clusterName", clusterName, "numNodes:", numNodes, "NodeFlavor", flavor)
 	// Can not create a managed cluster if numNodes is 0
-	if clusterInst.NumNodes == 0 {
-		// TODO: why are we passing numnodes when it is zero?
-		out, err := sh.Command("eksctl", "create", "cluster", "--name", clusterName, "--node-type", clusterInst.NodeFlavor, "--nodes", fmt.Sprintf("%d", clusterInst.NumNodes)).CombinedOutput()
-		if err != nil {
-			return fmt.Errorf("%s %v", out, err)
-		}
+	var out []byte
+	var err error
+	region := a.GetAwsRegion()
+	if numNodes == 0 {
+		out, err = sh.Command("eksctl", "create", "--region", region, "cluster", "--name", clusterName, "--node-type", flavor, "--nodes", fmt.Sprintf("%d", numNodes)).CombinedOutput()
 	} else {
-		out, err := sh.Command("eksctl", "create", "cluster", "--name", clusterName, "--node-type", clusterInst.NodeFlavor, "--nodes", fmt.Sprintf("%d", clusterInst.NumNodes), "--managed").CombinedOutput()
-		if err != nil {
-			return fmt.Errorf("%s %v", out, err)
-		}
+		out, err = sh.Command("eksctl", "create", "--region", region, "cluster", "--name", clusterName, "--node-type", flavor, "--nodes", fmt.Sprintf("%d", numNodes), "--managed").CombinedOutput()
+	}
+	if err != nil {
+		log.DebugLog(log.DebugLevelInfra, "Create eks cluster failed", "clusterName", clusterName, "out", string(out), "err", err)
+		return fmt.Errorf("Create eks cluster failed: %v", err)
 	}
 	return nil
 }
 
 // RunClusterDeleteCommand removes the kubernetes cluster on AWS
-func (a *AWSPlatform) RunClusterDeleteCommand(ctx context.Context, clusterInst *edgeproto.ClusterInst) error {
-	clusterName := a.NameSanitize(k8smgmt.GetClusterName(clusterInst))
+func (a *AWSPlatform) RunClusterDeleteCommand(ctx context.Context, clusterName string) error {
 	log.DebugLog(log.DebugLevelInfra, "RunClusterDeleteCommand", "clusterName:", clusterName)
 	out, err := sh.Command("eksctl", "delete", "cluster", "--name", clusterName).CombinedOutput()
 	if err != nil {
-		return fmt.Errorf("%s %v", out, err)
+		log.DebugLog(log.DebugLevelInfra, "Delete eks cluster failed", "clusterName", clusterName, "out", string(out), "err", err)
+		return fmt.Errorf("Delete eks cluster failed - %v", err)
 	}
 	return nil
 }
 
-//GetCredentials retrieves kubeconfig credentials from AWS
-// eksctl utils write-kubeconfig myawscluster
-// Alternate: aws eks --region region-code update-kubeconfig --name cluster_name
-func (a *AWSPlatform) GetCredentials(ctx context.Context, clusterInst *edgeproto.ClusterInst) error {
-	clusterName := a.NameSanitize(k8smgmt.GetClusterName(clusterInst))
+// GetCredentials retrieves kubeconfig credentials from AWS
+func (a *AWSPlatform) GetCredentials(ctx context.Context, clusterName string) error {
+	log.DebugLog(log.DebugLevelInfra, "GetCredentials", "clusterName:", clusterName)
 	out, err := sh.Command("eksctl", "utils", "write-kubeconfig", clusterName).CombinedOutput()
 	if err != nil {
-		return fmt.Errorf("%s %v", out, err)
+		log.DebugLog(log.DebugLevelInfra, "Error in write-kubeconfig", "out", string(out), "err", err)
+		return fmt.Errorf("Error in write-kubeconfig - %v", err)
 	}
 	return nil
 }

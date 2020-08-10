@@ -1,8 +1,15 @@
 package gcp
 
 import (
+	"context"
+	"fmt"
+
 	"github.com/mobiledgex/edge-cloud-infra/infracommon"
+	"github.com/mobiledgex/edge-cloud/log"
+	"github.com/mobiledgex/edge-cloud/vault"
 )
+
+const gcpVaultPath string = "/secret/data/cloudlet/gcp/credentials"
 
 var gcpProps = map[string]*infracommon.PropertyInfo{
 	"MEX_GCP_PROJECT": {
@@ -43,4 +50,15 @@ func (g *GCPPlatform) GetGcpProject() string {
 		return val.Value
 	}
 	return ""
+}
+
+func (a *GCPPlatform) InitApiAccessProperties(ctx context.Context, region string, vaultConfig *vault.Config, vars map[string]string) error {
+	log.SpanLog(ctx, log.DebugLevelInfra, "InitApiAccessProperties")
+	err := infracommon.InternVaultEnv(ctx, vaultConfig, gcpVaultPath)
+	if err != nil {
+		log.SpanLog(ctx, log.DebugLevelInfra, "Failed to intern vault data for API access", "err", err)
+		err = fmt.Errorf("cannot intern vault data from vault %s", err.Error())
+		return err
+	}
+	return nil
 }

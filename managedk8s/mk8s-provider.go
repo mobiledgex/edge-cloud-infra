@@ -17,13 +17,14 @@ import (
 type ManagedK8sProvider interface {
 	GatherCloudletInfo(ctx context.Context, info *edgeproto.CloudletInfo) error
 	GetK8sProviderSpecificProps() map[string]*infracommon.PropertyInfo
+	InitApiAccessProperties(ctx context.Context, region string, vaultConfig *vault.Config, vars map[string]string) error
 	SetCommonPlatform(cpf *infracommon.CommonPlatform)
 	Login(ctx context.Context) error
-	GetCredentials(ctx context.Context, clusterInst *edgeproto.ClusterInst) error
+	GetCredentials(ctx context.Context, clusterName string) error
 	NameSanitize(name string) string
-	CreateClusterPrerequisites(ctx context.Context, clusterInst *edgeproto.ClusterInst) error
-	RunClusterCreateCommand(ctx context.Context, clusterInst *edgeproto.ClusterInst) error
-	RunClusterDeleteCommand(ctx context.Context, clusterInst *edgeproto.ClusterInst) error
+	CreateClusterPrerequisites(ctx context.Context, clusterName string) error
+	RunClusterCreateCommand(ctx context.Context, clusterName string, numNodes uint32, flavor string) error
+	RunClusterDeleteCommand(ctx context.Context, clusterName string) error
 }
 
 const (
@@ -51,6 +52,10 @@ func (m *ManagedK8sPlatform) Init(ctx context.Context, platformConfig *platform.
 		return err
 	}
 	props := m.Provider.GetK8sProviderSpecificProps()
+	err = m.Provider.InitApiAccessProperties(ctx, platformConfig.Region, vaultConfig, platformConfig.EnvVars)
+	if err != nil {
+		return err
+	}
 	if err := m.CommonPf.InitInfraCommon(ctx, platformConfig, props, vaultConfig); err != nil {
 		log.SpanLog(ctx, log.DebugLevelInfra, "InitInfraCommon failed", "err", err)
 		return err

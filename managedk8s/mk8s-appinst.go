@@ -7,9 +7,12 @@ import (
 
 	"github.com/mobiledgex/edge-cloud-infra/infracommon"
 	"github.com/mobiledgex/edge-cloud/cloud-resource-manager/k8smgmt"
+	"github.com/mobiledgex/edge-cloud/cloud-resource-manager/platform/pc"
 	"github.com/mobiledgex/edge-cloud/cloudcommon"
+	"github.com/mobiledgex/edge-cloud/deploygen"
 	"github.com/mobiledgex/edge-cloud/edgeproto"
 	"github.com/mobiledgex/edge-cloud/log"
+	"github.com/mobiledgex/edge-cloud/vault"
 	v1 "k8s.io/api/core/v1"
 )
 
@@ -33,7 +36,7 @@ func (m *ManagedK8sPlatform) CreateAppInst(ctx context.Context, clusterInst *edg
 	updateCallback(edgeproto.UpdateTask, "Creating Registry Secret")
 
 	for _, imagePath := range names.ImagePaths {
-		err = infracommon.CreateDockerRegistrySecret(ctx, client, clusterInst, imagePath, m.CommonPf.VaultConfig, names)
+		err = infracommon.CreateDockerRegistrySecret(ctx, client, k8smgmt.GetKconfName(clusterInst), imagePath, m.CommonPf.VaultConfig, names)
 		if err != nil {
 			return err
 		}
@@ -151,7 +154,8 @@ func (m *ManagedK8sPlatform) SetupKconf(ctx context.Context, clusterInst *edgepr
 		// already exists
 		return nil
 	}
-	if err := m.Provider.GetCredentials(ctx, clusterInst); err != nil {
+	clusterName := m.Provider.NameSanitize(k8smgmt.GetClusterName(clusterInst))
+	if err := m.Provider.GetCredentials(ctx, clusterName); err != nil {
 		return fmt.Errorf("unable to get credentials %v", err)
 	}
 	src := infracommon.DefaultKubeconfig()
@@ -171,4 +175,34 @@ func (m *ManagedK8sPlatform) GetConsoleUrl(ctx context.Context, app *edgeproto.A
 
 func (m *ManagedK8sPlatform) SetPowerState(ctx context.Context, app *edgeproto.App, appInst *edgeproto.AppInst, updateCallback edgeproto.CacheUpdateCallback) error {
 	return fmt.Errorf("Unsupported command for platform")
+}
+
+func (m *ManagedK8sPlatform) CreatePlatformApp(ctx context.Context, name string, kconf string, vaultConfig *vault.Config, pfConfig *edgeproto.PlatformConfig) error {
+	log.SpanLog(ctx, log.DebugLevelInfra, "CreatePlatformApp")
+	client := &pc.LocalClient{}
+	var kubeNames k8smgmt.KubeNames
+	imagePath := "registry.mobiledgex.net:5000/mobiledgex/edge-cloud:2020-08-07"
+	err := infracommon.CreateDockerRegistrySecret(ctx, client, kconf, imagePath, vaultConfig, &kubeNames)
+	if err != nil {
+		return err
+	}
+	var app edgeproto.App
+	app.Key.Name = name
+	app.Key.Organization = "mobiledgex"
+	app.Key.Version = pfConfig.PlatformTag
+	app.ImagePath = imagePath
+	app.Deployment = cloudcommon.DeploymentTypeKubernetes
+	app.DeploymentGenerator = deploygen.KubernetesBasic
+	app.Command = fmt.Sprintf("crmserver" +
+		" --cloudletKey '{\"organization\":\"azure\",\"name\":\"jlmcloudlet\"}'" +
+		" --tls /root/tls/mex-server.crt --platform PLATFORM_TYPE_AZURE" +
+		" --vaultAddr https://vault-main.mobiledgex.net" +
+		" -d api,notify,infra --region US --deploymentTag dev" +
+		" --notifyAddrs " + pfConfig.NotifyCtrlAddrs)
+
+	mani, err := cloudcommon.GenerateManifest(&app)
+	if err != nil {
+		return fmt.Errorf("create CRM manifest failed")
+	}
+	return pc.WriteFile(client, "crmmanifest.yml", mani, "manifest", pc.NoSudo)
 }

@@ -58,7 +58,6 @@ func (a *AWSPlatform) GatherCloudletInfo(ctx context.Context, info *edgeproto.Cl
 	}
 
 	log.DebugLog(log.DebugLevelInfra, "AWS ", "instance types", instanceTypes)
-
 	for _, m := range instanceTypes {
 		name, ok := m[0].(string)
 		if !ok {

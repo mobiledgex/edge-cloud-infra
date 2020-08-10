@@ -5,9 +5,8 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/mobiledgex/edge-cloud/log"
-
 	"github.com/codeskyblue/go-sh"
+	"github.com/mobiledgex/edge-cloud/log"
 )
 
 const NotFound = "could not be found"
@@ -66,7 +65,7 @@ func (a *AzurePlatform) RunClusterDeleteCommand(ctx context.Context, clusterName
 	return nil
 }
 
-//GetCredentials retrieves kubeconfig credentials from azure for the cluster just created
+// GetCredentials retrieves kubeconfig credentials from azure for the cluster just created
 func (a *AzurePlatform) GetCredentials(ctx context.Context, clusterName string) error {
 	log.SpanLog(ctx, log.DebugLevelInfra, "GetCredentials", "clusterName", clusterName)
 	rg := a.GetResourceGroupForCluster(clusterName)

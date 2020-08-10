@@ -15,24 +15,22 @@ import (
 )
 
 func (m *ManagedK8sPlatform) CreateAppInst(ctx context.Context, clusterInst *edgeproto.ClusterInst, app *edgeproto.App, appInst *edgeproto.AppInst, flavor *edgeproto.Flavor, privacyPolicy *edgeproto.PrivacyPolicy, updateCallback edgeproto.CacheUpdateCallback) error {
+	log.SpanLog(ctx, log.DebugLevelInfra, "CreateAppInst", "appInst", appInst)
 	updateCallback(edgeproto.UpdateTask, "Creating AppInst")
 
-	var err error
-	// regenerate kconf if missing because CRM in container was restarted
-	if err = m.SetupKconf(ctx, clusterInst); err != nil {
+	if err := m.SetupKconf(ctx, clusterInst); err != nil {
 		return fmt.Errorf("can't set up kconf, %s", err.Error())
 	}
 	client, err := m.GetClusterPlatformClient(ctx, clusterInst, cloudcommon.ClientTypeRootLB)
 	if err != nil {
 		return err
 	}
-
 	names, err := k8smgmt.GetKubeNames(clusterInst, app, appInst)
 	if err != nil {
 		return err
 	}
-	updateCallback(edgeproto.UpdateTask, "Creating Registry Secret")
 
+	updateCallback(edgeproto.UpdateTask, "Creating Registry Secret")
 	for _, imagePath := range names.ImagePaths {
 		err = infracommon.CreateDockerRegistrySecret(ctx, client, k8smgmt.GetKconfName(clusterInst), imagePath, m.CommonPf.VaultConfig, names)
 		if err != nil {
@@ -70,8 +68,6 @@ func (m *ManagedK8sPlatform) CreateAppInst(ctx context.Context, clusterInst *edg
 		} else {
 			return nil, fmt.Errorf("Did not get either an IP or a hostname from GetSvcExternalIpOrHost")
 		}
-		// no patching needed since Azure already does it.
-		// Should only add DNS for external ports
 		action.AddDNS = !app.InternalPorts
 		return &action, nil
 	}
@@ -83,8 +79,9 @@ func (m *ManagedK8sPlatform) CreateAppInst(ctx context.Context, clusterInst *edg
 }
 
 func (m *ManagedK8sPlatform) DeleteAppInst(ctx context.Context, clusterInst *edgeproto.ClusterInst, app *edgeproto.App, appInst *edgeproto.AppInst) error {
+	log.SpanLog(ctx, log.DebugLevelInfra, "DeleteAppInst", "appInst", appInst)
 	var err error
-	// regenerate kconf if missing because CRM in container was restarted
+	// regenerate kconf in case CRM was restarted
 	if err = m.SetupKconf(ctx, clusterInst); err != nil {
 		return fmt.Errorf("can't set up kconf, %s", err.Error())
 	}
@@ -112,7 +109,7 @@ func (m *ManagedK8sPlatform) DeleteAppInst(ctx context.Context, clusterInst *edg
 }
 
 func (m *ManagedK8sPlatform) GetAppInstRuntime(ctx context.Context, clusterInst *edgeproto.ClusterInst, app *edgeproto.App, appInst *edgeproto.AppInst) (*edgeproto.AppInstRuntime, error) {
-	// regenerate kconf if missing because CRM in container was restarted
+	log.SpanLog(ctx, log.DebugLevelInfra, "GetAppInstRuntime", "appInst", appInst)
 	if err := m.SetupKconf(ctx, clusterInst); err != nil {
 		return nil, fmt.Errorf("can't set up kconf, %s", err.Error())
 	}
@@ -129,7 +126,8 @@ func (m *ManagedK8sPlatform) GetAppInstRuntime(ctx context.Context, clusterInst 
 }
 
 func (m *ManagedK8sPlatform) UpdateAppInst(ctx context.Context, clusterInst *edgeproto.ClusterInst, app *edgeproto.App, appInst *edgeproto.AppInst, updateCallback edgeproto.CacheUpdateCallback) error {
-	updateCallback(edgeproto.UpdateTask, "Updating Azure AppInst")
+	log.SpanLog(ctx, log.DebugLevelInfra, "UpdateAppInst", "appInst", appInst)
+	updateCallback(edgeproto.UpdateTask, "Updating AppInst")
 	names, err := k8smgmt.GetKubeNames(clusterInst, app, appInst)
 	if err != nil {
 		return err

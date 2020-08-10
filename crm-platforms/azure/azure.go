@@ -39,7 +39,7 @@ type AZFlavor struct {
 }
 
 func (a *AzurePlatform) GatherCloudletInfo(ctx context.Context, info *edgeproto.CloudletInfo) error {
-	log.SpanLog(ctx, log.DebugLevelInfra, "GetLimits (Azure)")
+	log.SpanLog(ctx, log.DebugLevelInfra, "GatherCloudletInfo")
 	if err := a.Login(ctx); err != nil {
 		return err
 	}

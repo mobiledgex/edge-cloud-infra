@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"strings"
 
 	sh "github.com/codeskyblue/go-sh"
 	"github.com/mobiledgex/edge-cloud-infra/infracommon"
@@ -33,9 +34,7 @@ type AWSFlavor struct {
 	DiskGb   uint
 }
 
-//GatherCloudletInfo does following query to populate flavor info:
-// aws ec2 describe-instance-types --filters 'Name=instance-storage-supported,Values=true' \
-// --query 'InstanceTypes[].[InstanceType,VCpuInfo.DefaultVCpus,MemoryInfo.SizeInMiB,InstanceStorageInfo.TotalSizeInGB]'
+// GatherCloudletInfo gets flavor info from AWS
 func (a *AWSPlatform) GatherCloudletInfo(ctx context.Context, info *edgeproto.CloudletInfo) error {
 	log.SpanLog(ctx, log.DebugLevelInfra, "GatherCloudletInfo (AWS)")
 	filter := "Name=instance-storage-supported,Values=true"
@@ -101,7 +100,7 @@ func (a *AWSPlatform) Login(ctx context.Context) error {
 }
 
 func (a *AWSPlatform) NameSanitize(clusterName string) string {
-	return clusterName
+	return strings.NewReplacer(".", "").Replace(clusterName)
 }
 
 func (a *AWSPlatform) SetCommonPlatform(cpf *infracommon.CommonPlatform) {

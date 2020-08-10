@@ -50,8 +50,6 @@ func (m *ManagedK8sPlatform) CreateCloudlet(ctx context.Context, cloudlet *edgep
 		return fmt.Errorf("Only kubernetes deployment supported for cloudlet platform: %s", m.Type)
 	}
 	vaultConfig, err := vault.BestConfig(pfConfig.VaultAddr)
-	log.WarnLog("XXXXXXX BESTCONFIG", "best", vaultConfig)
-
 	if err != nil {
 		log.SpanLog(ctx, log.DebugLevelInfra, "Failed to get vault configs", "vaultAddr", pfConfig.VaultAddr, "err", err)
 		return err

@@ -7,9 +7,7 @@ import (
 
 	"github.com/mobiledgex/edge-cloud-infra/infracommon"
 	"github.com/mobiledgex/edge-cloud/cloud-resource-manager/k8smgmt"
-	"github.com/mobiledgex/edge-cloud/cloud-resource-manager/platform/pc"
 	"github.com/mobiledgex/edge-cloud/cloudcommon"
-	"github.com/mobiledgex/edge-cloud/deploygen"
 	"github.com/mobiledgex/edge-cloud/edgeproto"
 	"github.com/mobiledgex/edge-cloud/log"
 	"github.com/mobiledgex/edge-cloud/vault"
@@ -61,11 +59,17 @@ func (m *ManagedK8sPlatform) CreateAppInst(ctx context.Context, clusterInst *edg
 	// set up dns
 	getDnsAction := func(svc v1.Service) (*infracommon.DnsSvcAction, error) {
 		action := infracommon.DnsSvcAction{}
-		externalIP, _, err := infracommon.GetSvcExternalIpOrHost(ctx, client, names, svc.ObjectMeta.Name)
+		externalIP, hostName, err := infracommon.GetSvcExternalIpOrHost(ctx, client, names, svc.ObjectMeta.Name)
 		if err != nil {
 			return nil, err
 		}
-		action.ExternalIP = externalIP
+		if externalIP != "" {
+			action.ExternalIP = externalIP
+		} else if hostName != "" {
+			action.Hostname = hostName
+		} else {
+			return nil, fmt.Errorf("Did not get either an IP or a hostname from GetSvcExternalIpOrHost")
+		}
 		// no patching needed since Azure already does it.
 		// Should only add DNS for external ports
 		action.AddDNS = !app.InternalPorts
@@ -88,10 +92,14 @@ func (m *ManagedK8sPlatform) DeleteAppInst(ctx context.Context, clusterInst *edg
 	if err != nil {
 		return err
 	}
-
 	names, err := k8smgmt.GetKubeNames(clusterInst, app, appInst)
 	if err != nil {
 		return err
+	}
+	if !app.InternalPorts {
+		if err = m.CommonPf.DeleteAppDNS(ctx, client, names, infracommon.NoDnsOverride); err != nil {
+			log.SpanLog(ctx, log.DebugLevelInfra, "warning, cannot delete DNS record", "error", err)
+		}
 	}
 
 	switch deployment := app.Deployment; deployment {
@@ -100,14 +108,7 @@ func (m *ManagedK8sPlatform) DeleteAppInst(ctx context.Context, clusterInst *edg
 	default:
 		err = fmt.Errorf("unsupported deployment type %s", deployment)
 	}
-	if err != nil {
-		return err
-	}
-	// No DNS entry if ports are internal
-	if app.InternalPorts {
-		return nil
-	}
-	return m.CommonPf.DeleteAppDNS(ctx, client, names, infracommon.NoDnsOverride)
+	return err
 }
 
 func (m *ManagedK8sPlatform) GetAppInstRuntime(ctx context.Context, clusterInst *edgeproto.ClusterInst, app *edgeproto.App, appInst *edgeproto.AppInst) (*edgeproto.AppInstRuntime, error) {
@@ -178,31 +179,7 @@ func (m *ManagedK8sPlatform) SetPowerState(ctx context.Context, app *edgeproto.A
 }
 
 func (m *ManagedK8sPlatform) CreatePlatformApp(ctx context.Context, name string, kconf string, vaultConfig *vault.Config, pfConfig *edgeproto.PlatformConfig) error {
-	log.SpanLog(ctx, log.DebugLevelInfra, "CreatePlatformApp")
-	client := &pc.LocalClient{}
-	var kubeNames k8smgmt.KubeNames
-	imagePath := "registry.mobiledgex.net:5000/mobiledgex/edge-cloud:2020-08-07"
-	err := infracommon.CreateDockerRegistrySecret(ctx, client, kconf, imagePath, vaultConfig, &kubeNames)
-	if err != nil {
-		return err
-	}
-	var app edgeproto.App
-	app.Key.Name = name
-	app.Key.Organization = "mobiledgex"
-	app.Key.Version = pfConfig.PlatformTag
-	app.ImagePath = imagePath
-	app.Deployment = cloudcommon.DeploymentTypeKubernetes
-	app.DeploymentGenerator = deploygen.KubernetesBasic
-	app.Command = fmt.Sprintf("crmserver" +
-		" --cloudletKey '{\"organization\":\"azure\",\"name\":\"jlmcloudlet\"}'" +
-		" --tls /root/tls/mex-server.crt --platform PLATFORM_TYPE_AZURE" +
-		" --vaultAddr https://vault-main.mobiledgex.net" +
-		" -d api,notify,infra --region US --deploymentTag dev" +
-		" --notifyAddrs " + pfConfig.NotifyCtrlAddrs)
-
-	mani, err := cloudcommon.GenerateManifest(&app)
-	if err != nil {
-		return fmt.Errorf("create CRM manifest failed")
-	}
-	return pc.WriteFile(client, "crmmanifest.yml", mani, "manifest", pc.NoSudo)
+	// TODO: we can either create the crm app directly here on the cloudlet cluster, or we can create some kind
+	// of chef sidecar app that then runs and creates/maintains the crm pod
+	return fmt.Errorf("CreatePlatformApp not yet implemented")
 }

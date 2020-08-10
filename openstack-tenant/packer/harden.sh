@@ -65,6 +65,10 @@ sudo touch /etc/motd
 sudo chown root:root /etc/motd
 sudo chmod 644 /etc/motd
 
+log "2.2.7 Ensure NFS and RPC are not enabled"
+sudo systemctl disable nfs-server
+sudo systemctl disable rpcbind
+
 log "2.2.15 Ensure mail transfer agent is configured for local-only mode"
 sudo sed -i "/^inet_interfaces/s/=.*/= loopback-only/" /etc/postfix/main.cf
 
@@ -73,6 +77,40 @@ sudo systemctl disable rsync
 
 log "2.3.4 Ensure telnet client is not installed"
 sudo apt-get purge -y telnet
+
+log "3.2.1 Ensure source routed packets are not accepted"
+sudo tee /etc/sysctl.d/50-source-routed-packets.conf <<'EOT'
+net.ipv4.conf.all.accept_source_route = 0
+net.ipv4.conf.default.accept_source_route = 0
+EOT
+
+log "3.2.2 Ensure ICMP redirects are not accepted"
+sudo tee /etc/sysctl.d/50-icmp-redirects.conf <<'EOT'
+net.ipv4.conf.all.accept_redirects = 0
+net.ipv4.conf.default.accept_redirects = 0
+EOT
+
+log "3.2.3 Ensure secure ICMP redirects are not accepted"
+sudo tee /etc/sysctl.d/50-secure-icmp-redirects.conf <<'EOT'
+net.ipv4.conf.all.secure_redirects = 0
+net.ipv4.conf.default.secure_redirects = 0
+EOT
+
+log "3.2.4 Ensure suspicious packets are logged"
+sudo tee /etc/sysctl.d/50-log-suspicious-packets.conf <<'EOT'
+net.ipv4.conf.all.log_martians = 1
+net.ipv4.conf.default.log_martians = 1
+EOT
+
+log "3.2.5 Ensure broadcast ICMP requests are ignored"
+sudo tee /etc/sysctl.d/50-broadcast-icmp-requests.conf <<'EOT'
+net.ipv4.icmp_echo_ignore_broadcasts = 1
+EOT
+
+log "3.2.6 Ensure bogus ICMP responses are ignored"
+sudo tee /etc/sysctl.d/50-bogus-icmp-reponses.conf <<'EOT'
+net.ipv4.icmp_ignore_bogus_error_responses = 1
+EOT
 
 log "3.4.1 Ensure TCP Wrappers is installed"
 sudo apt-get install -y tcpd

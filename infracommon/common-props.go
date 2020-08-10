@@ -6,14 +6,9 @@ import (
 	"os"
 	"strings"
 
+	"github.com/mobiledgex/edge-cloud/edgeproto"
 	"github.com/mobiledgex/edge-cloud/log"
 )
-
-type PropertyInfo struct {
-	Value     string
-	Secret    bool
-	Mandatory bool
-}
 
 // Default CloudletVM/Registry paths should only be used for local testing.
 // Ansible should always specify the correct ones to the controller.
@@ -22,28 +17,44 @@ type PropertyInfo struct {
 var DefaultContainerRegistryPath = "registry.mobiledgex.net:5000/mobiledgex/edge-cloud"
 
 // Cloudlet Infra Common Properties
-var infraCommonProps = map[string]*PropertyInfo{
+var InfraCommonProps = map[string]*edgeproto.PropertyInfo{
 	// Property: Default-Value
-	"MEX_CF_KEY": &PropertyInfo{
-		Secret:    true,
-		Mandatory: true,
+	"MEX_CF_KEY": &edgeproto.PropertyInfo{
+		Name:        "Cloudflare Key",
+		Description: "Cloudflare Key",
+		Secret:      true,
+		Mandatory:   true,
+		Internal:    true,
 	},
-	"MEX_CF_USER": &PropertyInfo{
-		Mandatory: true,
+	"MEX_CF_USER": &edgeproto.PropertyInfo{
+		Name:        "Cloudflare User",
+		Description: "Cloudflare User",
+		Mandatory:   true,
+		Internal:    true,
 	},
-	"MEX_EXTERNAL_IP_MAP": &PropertyInfo{},
-	"MEX_REGISTRY_FILE_SERVER": &PropertyInfo{
-		Value: "registry.mobiledgex.net",
+	"MEX_EXTERNAL_IP_MAP": &edgeproto.PropertyInfo{
+		Name:        "External IP Map",
+		Description: "External IP Map",
 	},
-	"FLAVOR_MATCH_PATTERN": &PropertyInfo{
-		Value: ".*",
+	"MEX_REGISTRY_FILE_SERVER": &edgeproto.PropertyInfo{
+		Name:        "Registry File Serve",
+		Description: "Registry File Serve",
+		Value:       "registry.mobiledgex.net",
 	},
-	"CLEANUP_ON_FAILURE": &PropertyInfo{
-		Value: "true",
+	"FLAVOR_MATCH_PATTERN": &edgeproto.PropertyInfo{
+		Name:        "Flavor Match Pattern",
+		Description: "Flavors matching this pattern will be used by Cloudlet to bringup VMs",
+		Value:       ".*",
+	},
+	"CLEANUP_ON_FAILURE": &edgeproto.PropertyInfo{
+		Name:        "Cleanup On Failure Flag",
+		Description: `Set 'false' to debug failures`,
+		Value:       "true",
+		Internal:    true,
 	},
 }
 
-func SetPropsFromVars(ctx context.Context, props map[string]*PropertyInfo, vars map[string]string) {
+func SetPropsFromVars(ctx context.Context, props map[string]*edgeproto.PropertyInfo, vars map[string]string) {
 	// Infra Props value is fetched in following order:
 	// 1. Fetch props from vars passed, if nothing set then
 	// 2. Fetch from env, if nothing set then

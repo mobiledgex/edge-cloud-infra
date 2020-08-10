@@ -1,22 +1,30 @@
 package aws
 
 import (
-	"github.com/mobiledgex/edge-cloud-infra/infracommon"
+	"context"
+
+	"github.com/mobiledgex/edge-cloud/edgeproto"
 )
 
-var AWSProps = map[string]*infracommon.PropertyInfo{
-	"AWS_ACCESS_KEY_ID": &infracommon.PropertyInfo{
-		Secret:    true,
-		Mandatory: true,
+var AWSProps = map[string]*edgeproto.PropertyInfo{
+	"AWS_ACCESS_KEY_ID": &edgeproto.PropertyInfo{
+		Name:        "Access Key ID",
+		Description: "Access Key ID",
+		Secret:      true,
+		Mandatory:   true,
 	},
-	"AWS_SECRET_ACCESS_KEY": &infracommon.PropertyInfo{
-		Secret:    true,
-		Mandatory: true,
+	"AWS_SECRET_ACCESS_KEY": &edgeproto.PropertyInfo{
+		Name:        "Secret Access Key",
+		Description: "Secret Access Key",
+		Secret:      true,
+		Mandatory:   true,
 	},
 
-	"AWS_DEFAULT_REGION": &infracommon.PropertyInfo{
-		Value:     "us-west-2",
-		Mandatory: true,
+	"AWS_DEFAULT_REGION": &edgeproto.PropertyInfo{
+		Name:        "Default Region",
+		Description: "Default Region",
+		Value:       "us-west-2",
+		Mandatory:   true,
 	},
 }
 
@@ -39,4 +47,8 @@ func (a *AWSPlatform) GetAwsDefaultRegion() string {
 		return val.Value
 	}
 	return ""
+}
+
+func (a *AWSPlatform) GetCloudletProps(ctx context.Context) (*edgeproto.CloudletProps, error) {
+	return &edgeproto.CloudletProps{Properties: AWSProps}, nil
 }

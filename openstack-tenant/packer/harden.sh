@@ -119,6 +119,7 @@ log "3.6.3 Ensure loopback traffic is configured"
 sudo iptables -A INPUT -i lo -j ACCEPT
 sudo iptables -A OUTPUT -o lo -j ACCEPT
 sudo iptables -A INPUT -s 127.0.0.0/8 -j DROP
+sudo iptables-save | sudo tee /etc/iptables/rules.v4
 
 log "4.2.4 Ensure permissions on all logfiles are configured"
 sudo chmod -R g-wx,o-rwx /var/log/*

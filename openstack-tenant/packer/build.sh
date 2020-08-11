@@ -6,6 +6,7 @@ CLOUD_IMAGE='ubuntu-18.04-server-cloudimg-amd64.img'
 OUTPUT_IMAGE_NAME='mobiledgex'
 
 : ${CLOUD_IMAGE_TAG:=ubuntu-18.04-server-cloudimg-amd64}
+: ${VAULT:=vault-main.mobiledgex.net}
 : ${FLAVOR:=m4.small}
 : ${FORCE:=no}
 : ${TRACE:=no}
@@ -66,6 +67,14 @@ if [[ -f "$ARTIFACTORY_APIKEY_FILE" ]]; then
 else
 	read -s -p "Artifactory password/api-key: " ARTIFACTORY_APIKEY
 	echo
+fi
+
+VAULT_PATH="secret/accounts/baseimage"
+export VAULT_ADDR="https://${VAULT}"
+ROOT_PASS=$( vault kv get -field=value "${VAULT_PATH}/password" )
+TOTP_KEY=$( vault kv get -field=value "${VAULT_PATH}/totp-key" )
+if [[ -z "$ROOT_PASS" || -z "$TOTP_KEY" ]]; then
+	die "Unable to read vault secrets: ${VAULT} ${VAULT_PATH}"
 fi
 
 jq_VERSION=$( jq --version 2>/dev/null )
@@ -141,6 +150,8 @@ PACKER_LOG=1 "${CMDLINE[@]}" \
 	-var "ARTIFACTORY_USER=$ARTIFACTORY_USER" \
 	-var "ARTIFACTORY_APIKEY=$ARTIFACTORY_APIKEY" \
 	-var "ARTIFACTORY_ARTIFACTS_TAG=$ARTIFACTORY_ARTIFACTS_TAG" \
+	-var "ROOT_PASS=$ROOT_PASS" \
+	-var "TOTP_KEY=$TOTP_KEY" \
 	-var "TAG=$TAG" \
 	-var "GITTAG=$GITTAG" \
 	-var "FLAVOR=$FLAVOR" \

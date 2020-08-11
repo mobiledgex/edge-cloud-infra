@@ -6,6 +6,8 @@
 	"OUTPUT_PLATFORM": "openstack",
 	"APT_USER": "apt",
 	"APT_PASS": "mobiledgex",
+	"ROOT_PASS": "",
+	"TOTP_KEY": "",
 	"ARTIFACTORY_ARTIFACTS_TAG": ""
     },
     "builders": [{
@@ -31,6 +33,8 @@
 		"OUTPUT_PLATFORM={{ user `OUTPUT_PLATFORM` }}",
 		"APT_USER={{ user `APT_USER` }}",
 		"APT_PASS={{ user `APT_PASS` }}",
+		"ROOT_PASS={{ user `ROOT_PASS` }}",
+		"TOTP_KEY={{ user `TOTP_KEY` }}",
 		"ARTIFACTORY_ARTIFACTS_TAG={{ user `ARTIFACTORY_ARTIFACTS_TAG` }}",
 		"SRC_IMG={{ user `SRC_IMG` }}",
 		"SRC_IMG_CHECKSUM={{ user `SRC_IMG_CHECKSUM` }}"

@@ -5,7 +5,6 @@ LOGDIR="/etc/mobiledgex"
 LOGFILE="${LOGDIR}/creation_log.txt"
 DEFAULT_INTERFACE=ens3
 ARTIFACTORY_BASEURL='https://artifactory.mobiledgex.net'
-DEFAULT_ROOT_PASS=sandhill
 MEX_RELEASE=/etc/mex-release
 
 TMPLOG="/var/tmp/creation_log.txt"
@@ -24,6 +23,14 @@ archive_log() {
 	sudo mv "$TMPLOG" "$LOGFILE"
 }
 trap 'archive_log' EXIT
+
+if [[ -z "$ROOT_PASS" ]]; then
+	echo "Root password not found" >&2
+	exit 2
+elif [[ -z "$TOTP_KEY" ]]; then
+	echo "TOTP key not found" >&2
+	exit 2
+fi
 
 # Defaults for environment variables
 : ${TAG:=master}
@@ -181,6 +188,19 @@ fi
 
 log "Setting the root password"
 echo "root:$ROOT_PASS" | sudo chpasswd
+
+log "Setting up root TOTP"
+sudo apt-get install -y libpam-google-authenticator
+echo "auth required pam_google_authenticator.so" \
+	| sudo tee -a /etc/pam.d/login
+sudo tee /root/.google_authenticator >/dev/null <<EOT
+$TOTP_KEY
+" RATE_LIMIT 3 30
+" WINDOW_SIZE 17
+" DISALLOW_REUSE
+" TOTP_AUTH
+EOT
+sudo chmod 400 /root/.google_authenticator
 
 log "System setup"
 sudo swapoff -a

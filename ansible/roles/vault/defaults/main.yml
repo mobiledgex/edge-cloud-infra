@@ -18,6 +18,8 @@ vault_user_roles:
     - ansible.read.v1
     - auth-approle.read.v1
     - aws-auth.read.v1
+    - baseimage-password.read.v1
+    - baseimage-totp.read.v1
     - cloudlets.read.v1
     - chef.read.v1
     - gcp-auth.read.v1
@@ -52,8 +54,7 @@ vault_user_roles:
 
   admin:
     - *vault_user_role_editor
-    - baseimage-password.read.v1
-    - baseimage-totp.read.v1
+    - baseimage-totp-key.read.v1
     - sys-auth.write.v1
     - sys-policies.write.v1
 
@@ -64,6 +65,7 @@ vault_user_roles:
 
   cloudlet_admin:
     - baseimage-password.read.v1
+    - baseimage-totp.read.v1
     - certs.read.v1
     - cloudlets.write.v1
     - gcp-auth.read.v1

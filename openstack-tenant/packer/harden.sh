@@ -115,6 +115,11 @@ EOT
 log "3.4.1 Ensure TCP Wrappers is installed"
 sudo apt-get install -y tcpd
 
+log "3.6.3 Ensure loopback traffic is configured"
+sudo iptables -A INPUT -i lo -j ACCEPT
+sudo iptables -A OUTPUT -o lo -j ACCEPT
+sudo iptables -A INPUT -s 127.0.0.0/8 -j DROP
+
 log "4.2.4 Ensure permissions on all logfiles are configured"
 sudo chmod -R g-wx,o-rwx /var/log/*
 

@@ -27,7 +27,7 @@ var gcpProps = map[string]*infracommon.PropertyInfo{
 	},
 }
 
-func (a *GCPPlatform) GetK8sProviderSpecificProps() map[string]*infracommon.PropertyInfo {
+func (g *GCPPlatform) GetK8sProviderSpecificProps() map[string]*infracommon.PropertyInfo {
 	return gcpProps
 }
 
@@ -52,7 +52,7 @@ func (g *GCPPlatform) GetGcpProject() string {
 	return ""
 }
 
-func (a *GCPPlatform) InitApiAccessProperties(ctx context.Context, region string, vaultConfig *vault.Config, vars map[string]string) error {
+func (g *GCPPlatform) InitApiAccessProperties(ctx context.Context, region string, vaultConfig *vault.Config, vars map[string]string) error {
 	log.SpanLog(ctx, log.DebugLevelInfra, "InitApiAccessProperties")
 	err := infracommon.InternVaultEnv(ctx, vaultConfig, gcpVaultPath)
 	if err != nil {

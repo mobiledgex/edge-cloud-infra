@@ -53,7 +53,6 @@ func (m *ManagedK8sPlatform) createClusterInstInternal(ctx context.Context, clie
 		return err
 	}
 	return nil
-
 }
 
 func (m *ManagedK8sPlatform) DeleteClusterInst(ctx context.Context, clusterInst *edgeproto.ClusterInst) error {

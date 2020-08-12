@@ -130,7 +130,7 @@ func (g *GCPPlatform) Login(ctx context.Context) error {
 	return nil
 }
 
-func (a *GCPPlatform) NameSanitize(clusterName string) string {
+func (g *GCPPlatform) NameSanitize(clusterName string) string {
 	return strings.NewReplacer(".", "").Replace(clusterName)
 }
 

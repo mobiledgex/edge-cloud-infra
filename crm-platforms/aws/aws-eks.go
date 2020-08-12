@@ -8,7 +8,7 @@ import (
 	"github.com/mobiledgex/edge-cloud/log"
 )
 
-// CreateClusterPrerequisites does nothing to do now, but for outpost may need to create a vpc
+// CreateClusterPrerequisites does nothing for now, but for outpost may need to create a vpc
 func (a *AWSPlatform) CreateClusterPrerequisites(ctx context.Context, clusterName string) error {
 	return nil
 }

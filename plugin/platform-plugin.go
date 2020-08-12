@@ -14,7 +14,6 @@ import (
 	"github.com/mobiledgex/edge-cloud-infra/managedk8s"
 	"github.com/mobiledgex/edge-cloud-infra/plugin/common"
 	"github.com/mobiledgex/edge-cloud-infra/vmlayer"
-
 	"github.com/mobiledgex/edge-cloud/cloud-resource-manager/platform"
 )
 

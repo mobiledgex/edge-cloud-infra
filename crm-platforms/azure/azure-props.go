@@ -5,22 +5,29 @@ import (
 	"fmt"
 
 	"github.com/mobiledgex/edge-cloud-infra/infracommon"
+	"github.com/mobiledgex/edge-cloud/edgeproto"
 	"github.com/mobiledgex/edge-cloud/log"
 	"github.com/mobiledgex/edge-cloud/vault"
 )
 
-const azureVaultPath string = "/secret/data/cloudlet/azure/credentials"
-
-var azureProps = map[string]*infracommon.PropertyInfo{
+var azureProps = map[string]*edgeproto.PropertyInfo{
 	"MEX_AZURE_LOCATION": {
-		Mandatory: true,
+		Name:        "Azure Location",
+		Description: "Azure Location",
+		Mandatory:   true,
 	},
 	"MEX_AZURE_USER": {
-		Mandatory: true,
+		Name:        "Azure User",
+		Description: "Azure User",
+		Mandatory:   true,
+		Internal:    true,
 	},
 	"MEX_AZURE_PASS": {
-		Secret:    true,
-		Mandatory: true,
+		Name:        "Azure Password",
+		Description: "Azure Password",
+		Secret:      true,
+		Mandatory:   true,
+		Internal:    true,
 	},
 }
 
@@ -58,4 +65,8 @@ func (a *AzurePlatform) InitApiAccessProperties(ctx context.Context, region stri
 		return err
 	}
 	return nil
+}
+
+func (a *AzurePlatform) GetCloudletProps(ctx context.Context) (*edgeproto.CloudletProps, error) {
+	return &edgeproto.CloudletProps{Properties: azureProps}, nil
 }

@@ -5,23 +5,31 @@ import (
 	"fmt"
 
 	"github.com/mobiledgex/edge-cloud-infra/infracommon"
+	"github.com/mobiledgex/edge-cloud/edgeproto"
 	"github.com/mobiledgex/edge-cloud/log"
 	"github.com/mobiledgex/edge-cloud/vault"
 )
 
 const awsVaultPath string = "/secret/data/cloudlet/aws/credentials"
 
-var AWSProps = map[string]*infracommon.PropertyInfo{
-	"AWS_ACCESS_KEY_ID": {
-		Secret:    true,
-		Mandatory: true,
+var AWSProps = map[string]*edgeproto.PropertyInfo{
+	"AWS_ACCESS_KEY_ID": &edgeproto.PropertyInfo{
+		Name:        "AWS Access Key ID",
+		Description: "AWS Access Key ID",
+		Secret:      true,
+		Mandatory:   true,
 	},
-	"AWS_SECRET_ACCESS_KEY": {
-		Secret:    true,
-		Mandatory: true,
+	"AWS_SECRET_ACCESS_KEY": &edgeproto.PropertyInfo{
+		Name:        "AWS Secret Access Key",
+		Description: "AWS Secret Access Key",
+		Secret:      true,
+		Mandatory:   true,
 	},
-	"AWS_REGION": {
-		Mandatory: true,
+
+	"AWS_REGION": &edgeproto.PropertyInfo{
+		Name:        "AWS Region",
+		Description: "AWS Region",
+		Mandatory:   true,
 	},
 }
 
@@ -59,4 +67,8 @@ func (a *AWSPlatform) InitApiAccessProperties(ctx context.Context, region string
 		return err
 	}
 	return nil
+}
+
+func (a *AWSPlatform) GetCloudletProps(ctx context.Context) (*edgeproto.CloudletProps, error) {
+	return &edgeproto.CloudletProps{Properties: AWSProps}, nil
 }

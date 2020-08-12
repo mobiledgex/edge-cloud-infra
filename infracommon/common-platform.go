@@ -37,14 +37,19 @@ func (c *CommonPlatform) InitInfraCommon(ctx context.Context, platformConfig *pf
 	if vaultConfig.Addr == "" {
 		return fmt.Errorf("vaultAddr is not specified")
 	}
-	// set default properties
-	c.Properties = InfraCommonProps
+	c.Properties = make(map[string]*edgeproto.PropertyInfo)
 	c.PlatformConfig = platformConfig
 	c.VaultConfig = vaultConfig
 
+	// set default properties
+	for k, v := range InfraCommonProps {
+		p := *v
+		c.Properties[k] = &p
+	}
 	// append platform specific properties
 	for k, v := range platformSpecificProps {
-		c.Properties[k] = v
+		p := *v
+		c.Properties[k] = &p
 	}
 
 	// fetch properties from vault

@@ -10,6 +10,8 @@ import (
 	"github.com/mobiledgex/edge-cloud/vault"
 )
 
+const gcpVaultPath string = "/secret/data/cloudlet/gcp/credentials"
+
 var gcpProps = map[string]*edgeproto.PropertyInfo{
 	"MEX_GCP_PROJECT": {
 		Name:        "GCP Project Name",
@@ -36,7 +38,7 @@ var gcpProps = map[string]*edgeproto.PropertyInfo{
 	},
 }
 
-func (g *GCPPlatform) GetK8sProviderSpecificProps() map[string]*infracommon.PropertyInfo {
+func (g *GCPPlatform) GetK8sProviderSpecificProps() map[string]*edgeproto.PropertyInfo {
 	return gcpProps
 }
 
@@ -70,8 +72,4 @@ func (g *GCPPlatform) InitApiAccessProperties(ctx context.Context, region string
 		return err
 	}
 	return nil
-}
-
-func (a *GCPPlatform) GetCloudletProps(ctx context.Context) (*edgeproto.CloudletProps, error) {
-	return &edgeproto.CloudletProps{Properties: gcpProps}, nil
 }

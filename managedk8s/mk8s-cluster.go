@@ -19,7 +19,7 @@ const MaxKubeCredentialsWait = 10 * time.Second
 
 func (m *ManagedK8sPlatform) CreateClusterInst(ctx context.Context, clusterInst *edgeproto.ClusterInst, privacyPolicy *edgeproto.PrivacyPolicy, updateCallback edgeproto.CacheUpdateCallback, timeout time.Duration) error {
 	log.SpanLog(ctx, log.DebugLevelInfra, "CreateClusterInst", "clusterInst", clusterInst)
-	clusterName := m.Provider.NameSanitize(k8smgmt.GetClusterName(clusterInst))
+	clusterName := m.Provider.NameSanitize(k8smgmt.GetCloudletClusterName(clusterInst))
 	updateCallback(edgeproto.UpdateTask, "Creating Kubernetes Cluster: "+clusterName)
 	client, err := m.GetClusterPlatformClient(ctx, clusterInst, cloudcommon.ClientTypeRootLB)
 	if err != nil {
@@ -84,7 +84,7 @@ func (m *ManagedK8sPlatform) createClusterInstInternal(ctx context.Context, clie
 
 func (m *ManagedK8sPlatform) DeleteClusterInst(ctx context.Context, clusterInst *edgeproto.ClusterInst) error {
 	log.SpanLog(ctx, log.DebugLevelInfra, "DeleteClusterInst", "clusterInst", clusterInst)
-	clusterName := m.Provider.NameSanitize(k8smgmt.GetClusterName(clusterInst))
+	clusterName := m.Provider.NameSanitize(k8smgmt.GetCloudletClusterName(clusterInst))
 	return m.deleteClusterInstInternal(ctx, clusterName)
 }
 

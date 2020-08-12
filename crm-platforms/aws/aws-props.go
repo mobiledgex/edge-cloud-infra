@@ -33,7 +33,7 @@ var AWSProps = map[string]*edgeproto.PropertyInfo{
 	},
 }
 
-func (a *AWSPlatform) GetK8sProviderSpecificProps() map[string]*infracommon.PropertyInfo {
+func (a *AWSPlatform) GetK8sProviderSpecificProps() map[string]*edgeproto.PropertyInfo {
 	return AWSProps
 }
 
@@ -67,8 +67,4 @@ func (a *AWSPlatform) InitApiAccessProperties(ctx context.Context, region string
 		return err
 	}
 	return nil
-}
-
-func (a *AWSPlatform) GetCloudletProps(ctx context.Context) (*edgeproto.CloudletProps, error) {
-	return &edgeproto.CloudletProps{Properties: AWSProps}, nil
 }

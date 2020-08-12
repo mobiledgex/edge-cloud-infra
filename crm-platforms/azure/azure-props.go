@@ -10,6 +10,8 @@ import (
 	"github.com/mobiledgex/edge-cloud/vault"
 )
 
+const azureVaultPath string = "/secret/data/cloudlet/azure/credentials"
+
 var azureProps = map[string]*edgeproto.PropertyInfo{
 	"MEX_AZURE_LOCATION": {
 		Name:        "Azure Location",
@@ -31,7 +33,7 @@ var azureProps = map[string]*edgeproto.PropertyInfo{
 	},
 }
 
-func (a *AzurePlatform) GetK8sProviderSpecificProps() map[string]*infracommon.PropertyInfo {
+func (a *AzurePlatform) GetK8sProviderSpecificProps() map[string]*edgeproto.PropertyInfo {
 	return azureProps
 }
 
@@ -65,8 +67,4 @@ func (a *AzurePlatform) InitApiAccessProperties(ctx context.Context, region stri
 		return err
 	}
 	return nil
-}
-
-func (a *AzurePlatform) GetCloudletProps(ctx context.Context) (*edgeproto.CloudletProps, error) {
-	return &edgeproto.CloudletProps{Properties: azureProps}, nil
 }

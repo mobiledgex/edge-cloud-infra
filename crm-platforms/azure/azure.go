@@ -15,6 +15,8 @@ import (
 	ssh "github.com/mobiledgex/golang-ssh"
 )
 
+const AzureMaxResourceGroupNameLen int = 80
+
 type AzurePlatform struct {
 	commonPf *infracommon.CommonPlatform
 }
@@ -128,12 +130,21 @@ func (a *AzurePlatform) Login(ctx context.Context) error {
 }
 
 func (a *AzurePlatform) GetResourceGroupForCluster(clusterName string) string {
-	cloudletKeyName := a.commonPf.PlatformConfig.CloudletKey.Name
-	return a.NameSanitize(cloudletKeyName + "_" + clusterName)
+	return clusterName
 }
 
 func (a *AzurePlatform) NameSanitize(clusterName string) string {
-	return strings.NewReplacer(".", "").Replace(clusterName)
+	// azure will create a "node resource group" which will append the
+	// clustername to the resource group name plus several other characters:
+	// MC_clustername_rgname_region.
+	clusterName = strings.NewReplacer(".", "").Replace(clusterName)
+	regionNameLen := len(a.GetAzureLocation())
+	fixedPartLen := 5 // "MC_" and 2 underscores
+	allowedLenForcluster := (AzureMaxResourceGroupNameLen - fixedPartLen - regionNameLen) / 2
+	if len(clusterName) > allowedLenForcluster {
+		clusterName = clusterName[:allowedLenForcluster]
+	}
+	return clusterName
 }
 
 func (a *AzurePlatform) SetCommonPlatform(cpf *infracommon.CommonPlatform) {

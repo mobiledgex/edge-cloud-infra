@@ -14,6 +14,8 @@ import (
 	"github.com/mobiledgex/edge-cloud/log"
 )
 
+const GcpMaxClusterNameLen int = 40
+
 type GCPPlatform struct {
 	commonPf *infracommon.CommonPlatform
 }
@@ -131,7 +133,11 @@ func (g *GCPPlatform) Login(ctx context.Context) error {
 }
 
 func (g *GCPPlatform) NameSanitize(clusterName string) string {
-	return strings.NewReplacer(".", "").Replace(clusterName)
+	clusterName = strings.NewReplacer(".", "").Replace(clusterName)
+	if len(clusterName) > GcpMaxClusterNameLen {
+		clusterName = clusterName[:GcpMaxClusterNameLen]
+	}
+	return clusterName
 }
 
 func (g *GCPPlatform) SetCommonPlatform(cpf *infracommon.CommonPlatform) {

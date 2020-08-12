@@ -33,10 +33,10 @@ func (a *AzurePlatform) CreateClusterPrerequisites(ctx context.Context, clusterN
 	return nil
 }
 
-// CreateAKSCluster creates kubernetes cluster on azure
+// RunClusterCreateCommand creates a kubernetes cluster on azure
 func (a *AzurePlatform) RunClusterCreateCommand(ctx context.Context, clusterName string, numNodes uint32, flavor string) error {
-	log.SpanLog(ctx, log.DebugLevelInfra, "RunClusterCreateCommand", "clusterName", clusterName)
 	rg := a.GetResourceGroupForCluster(clusterName)
+	log.SpanLog(ctx, log.DebugLevelInfra, "RunClusterCreateCommand", "clusterName", clusterName, "rgName", rg)
 	numNodesStr := fmt.Sprintf("%d", numNodes)
 	out, err := sh.Command("az", "aks", "create", "--resource-group", rg,
 		"--name", clusterName, "--generate-ssh-keys",

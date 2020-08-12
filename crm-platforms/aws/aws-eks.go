@@ -27,7 +27,7 @@ func (a *AWSPlatform) RunClusterCreateCommand(ctx context.Context, clusterName s
 	}
 	if err != nil {
 		log.DebugLog(log.DebugLevelInfra, "Create eks cluster failed", "clusterName", clusterName, "out", string(out), "err", err)
-		return fmt.Errorf("Create eks cluster failed: %v", err)
+		return fmt.Errorf("Create eks cluster failed: %s - %v", string(out), err)
 	}
 	return nil
 }
@@ -38,7 +38,7 @@ func (a *AWSPlatform) RunClusterDeleteCommand(ctx context.Context, clusterName s
 	out, err := sh.Command("eksctl", "delete", "cluster", "--name", clusterName).CombinedOutput()
 	if err != nil {
 		log.DebugLog(log.DebugLevelInfra, "Delete eks cluster failed", "clusterName", clusterName, "out", string(out), "err", err)
-		return fmt.Errorf("Delete eks cluster failed - %v", err)
+		return fmt.Errorf("Delete eks cluster failed: %s - %v", string(out), err)
 	}
 	return nil
 }
@@ -49,7 +49,7 @@ func (a *AWSPlatform) GetCredentials(ctx context.Context, clusterName string) er
 	out, err := sh.Command("eksctl", "utils", "write-kubeconfig", clusterName).CombinedOutput()
 	if err != nil {
 		log.DebugLog(log.DebugLevelInfra, "Error in write-kubeconfig", "out", string(out), "err", err)
-		return fmt.Errorf("Error in write-kubeconfig - %v", err)
+		return fmt.Errorf("Error in write-kubeconfig: %s - %v", string(out), err)
 	}
 	return nil
 }

@@ -14,7 +14,7 @@ func (g *GCPPlatform) SetProject(ctx context.Context, project string) error {
 	out, err := sh.Command("gcloud", "config", "set", "project", project).CombinedOutput()
 	if err != nil {
 		log.SpanLog(ctx, log.DebugLevelInfra, "Error in SetProject", "out", string(out), "err", err)
-		return fmt.Errorf("Error in SetProject - %v", err)
+		return fmt.Errorf("Error in SetProject: %s - %v", string(out), err)
 	}
 	return nil
 }
@@ -25,7 +25,7 @@ func (g *GCPPlatform) SetZone(ctx context.Context, zone string) error {
 	out, err := sh.Command("gcloud", "config", "set", "compute/zone", zone).CombinedOutput()
 	if err != nil {
 		log.SpanLog(ctx, log.DebugLevelInfra, "Error in SetZone", "zone", zone, "out", string(out), "err", err)
-		return fmt.Errorf("Error in SetZone - %v", err)
+		return fmt.Errorf("Error in SetZone: %s - %v", string(out), err)
 	}
 	return nil
 }
@@ -42,7 +42,7 @@ func (g *GCPPlatform) RunClusterCreateCommand(ctx context.Context, clusterName s
 	out, err := sh.Command("gcloud", "container", "clusters", "create", "--num-nodes="+numNodesStr, "--machine-type="+flavor, clusterName).CombinedOutput()
 	if err != nil {
 		log.SpanLog(ctx, log.DebugLevelInfra, "Error in cluster create", "out", string(out), "err", err)
-		return fmt.Errorf("Error in cluster create - %v", err)
+		return fmt.Errorf("Error in cluster create: %s - %v", string(out), err)
 	}
 	return nil
 }
@@ -53,7 +53,7 @@ func (g *GCPPlatform) RunClusterDeleteCommand(ctx context.Context, clusterName s
 	out, err := sh.Command("gcloud", "container", "clusters", "delete", "--quiet", clusterName).CombinedOutput()
 	if err != nil {
 		log.SpanLog(ctx, log.DebugLevelInfra, "Error in cluster delete", "out", string(out), "err", err)
-		return fmt.Errorf("Error in cluster delete - %v", err)
+		return fmt.Errorf("Error in cluster delete: %s - %v", string(out), err)
 	}
 	return nil
 }
@@ -63,7 +63,7 @@ func (g *GCPPlatform) GetCredentials(ctx context.Context, clusterName string) er
 	out, err := sh.Command("gcloud", "container", "clusters", "get-credentials", clusterName).CombinedOutput()
 	if err != nil {
 		log.SpanLog(ctx, log.DebugLevelInfra, "Error in GetCredentials", "out", string(out), "err", err)
-		return fmt.Errorf("Error in GetCredential - %v", err)
+		return fmt.Errorf("Error in GetCredential: %s - %v", string(out), err)
 	}
 	return nil
 }

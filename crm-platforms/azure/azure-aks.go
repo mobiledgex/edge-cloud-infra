@@ -17,7 +17,7 @@ func (a *AzurePlatform) CreateResourceGroup(ctx context.Context, group, location
 	out, err := sh.Command("az", "group", "create", "-l", location, "-n", group).CombinedOutput()
 	if err != nil {
 		log.SpanLog(ctx, log.DebugLevelInfra, "Error in CreateResourceGroup", "out", string(out), "err", err)
-		return fmt.Errorf("Error in CreateResourceGroup - %v", err)
+		return fmt.Errorf("Error in CreateResourceGroup: %s - %v", string(out), err)
 	}
 	return nil
 }
@@ -44,7 +44,7 @@ func (a *AzurePlatform) RunClusterCreateCommand(ctx context.Context, clusterName
 		"--node-count", numNodesStr).CombinedOutput()
 	if err != nil {
 		log.SpanLog(ctx, log.DebugLevelInfra, "Error in aks create", "out", string(out), "err", err)
-		return fmt.Errorf("Error in aks create - %v", err)
+		return fmt.Errorf("Error in aks create: %s - %v", string(out), err)
 	}
 	return nil
 }
@@ -60,7 +60,7 @@ func (a *AzurePlatform) RunClusterDeleteCommand(ctx context.Context, clusterName
 			return nil
 		}
 		log.SpanLog(ctx, log.DebugLevelInfra, "Error in aks delete", "out", string(out), "err", err)
-		return fmt.Errorf("Error in aks delete - %v", err)
+		return fmt.Errorf("Error in aks delete: %s - %v", string(out), err)
 	}
 	return nil
 }
@@ -72,7 +72,7 @@ func (a *AzurePlatform) GetCredentials(ctx context.Context, clusterName string) 
 	out, err := sh.Command("az", "aks", "get-credentials", "--resource-group", rg, "--name", clusterName).CombinedOutput()
 	if err != nil {
 		log.SpanLog(ctx, log.DebugLevelInfra, "Error in Azure GetCredentials", "out", string(out), "err", err)
-		return fmt.Errorf("Error in GetCredentials - %v", err)
+		return fmt.Errorf("Error in GetCredentials: %s - %v", string(out), err)
 	}
 	return nil
 }

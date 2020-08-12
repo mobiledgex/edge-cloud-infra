@@ -4,7 +4,6 @@ import (
 	"context"
 	"fmt"
 	"os"
-	"strings"
 
 	"github.com/mobiledgex/edge-cloud/edgeproto"
 	"github.com/mobiledgex/edge-cloud/log"
@@ -37,20 +36,14 @@ var InfraCommonProps = map[string]*edgeproto.PropertyInfo{
 		Description: "External IP Map",
 	},
 	"MEX_REGISTRY_FILE_SERVER": &edgeproto.PropertyInfo{
-		Name:        "Registry File Serve",
-		Description: "Registry File Serve",
+		Name:        "Registry File Server",
+		Description: "Registry File Server",
 		Value:       "registry.mobiledgex.net",
 	},
 	"FLAVOR_MATCH_PATTERN": &edgeproto.PropertyInfo{
 		Name:        "Flavor Match Pattern",
 		Description: "Flavors matching this pattern will be used by Cloudlet to bringup VMs",
 		Value:       ".*",
-	},
-	"CLEANUP_ON_FAILURE": &edgeproto.PropertyInfo{
-		Name:        "Cleanup On Failure Flag",
-		Description: `Set 'false' to debug failures`,
-		Value:       "true",
-		Internal:    true,
 	},
 }
 
@@ -87,18 +80,4 @@ func SetPropsFromVars(ctx context.Context, props map[string]*edgeproto.PropertyI
 func GetVaultCloudletCommonPath(filePath string) string {
 	// TODO this path really should not be openstack
 	return fmt.Sprintf("/secret/data/cloudlet/openstack/%s", filePath)
-}
-
-// GetCleanupOnFailure should be true unless we want to debug the failure,
-// in which case this env var can be set to no.  We could consider making
-// this configurable at the controller but really is only needed for debugging.
-func (v *CommonPlatform) GetCleanupOnFailure(ctx context.Context) bool {
-	cleanup := v.Properties["CLEANUP_ON_FAILURE"].Value
-	log.SpanLog(ctx, log.DebugLevelInfra, "GetCleanupOnFailure", "cleanup", cleanup)
-	cleanup = strings.ToLower(cleanup)
-	cleanup = strings.ReplaceAll(cleanup, "'", "")
-	if cleanup == "no" || cleanup == "false" {
-		return false
-	}
-	return true
 }

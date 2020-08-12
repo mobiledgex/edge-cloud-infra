@@ -8,21 +8,21 @@ import (
 
 var AWSProps = map[string]*edgeproto.PropertyInfo{
 	"AWS_ACCESS_KEY_ID": &edgeproto.PropertyInfo{
-		Name:        "Access Key ID",
-		Description: "Access Key ID",
+		Name:        "AWS Access Key ID",
+		Description: "AWS Access Key ID",
 		Secret:      true,
 		Mandatory:   true,
 	},
 	"AWS_SECRET_ACCESS_KEY": &edgeproto.PropertyInfo{
-		Name:        "Secret Access Key",
-		Description: "Secret Access Key",
+		Name:        "AWS Secret Access Key",
+		Description: "AWS Secret Access Key",
 		Secret:      true,
 		Mandatory:   true,
 	},
 
 	"AWS_DEFAULT_REGION": &edgeproto.PropertyInfo{
-		Name:        "Default Region",
-		Description: "Default Region",
+		Name:        "AWS Default Region",
+		Description: "AWS Default Region",
 		Value:       "us-west-2",
 		Mandatory:   true,
 	},

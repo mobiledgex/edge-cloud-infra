@@ -65,7 +65,7 @@ var VMProviderProps = map[string]*edgeproto.PropertyInfo{
 	// note OS_IMAGE refers to Operating System
 	"MEX_OS_IMAGE": {
 		Name:        "Cloudlet Image Name",
-		Description: "Name of the VM base image to be used for bringup Cloudlet VMs",
+		Description: "Name of the VM base image to be used for bring up Cloudlet VMs",
 		Value:       DefaultOSImageName,
 	},
 	"MEX_SECURITY_GROUP": {
@@ -75,17 +75,17 @@ var VMProviderProps = map[string]*edgeproto.PropertyInfo{
 	},
 	"MEX_SHARED_ROOTLB_RAM": {
 		Name:        "Security Group Name",
-		Description: "Name of the security group to which cloudlet VMs will be part of",
+		Description: "Size of RAM (MB) required to bring up shared RootLB",
 		Value:       "4096",
 	},
 	"MEX_SHARED_ROOTLB_VCPUS": {
 		Name:        "RootLB vCPUs",
-		Description: "Number of vCPUs required to bringup shared RootLB",
+		Description: "Number of vCPUs required to bring up shared RootLB",
 		Value:       "2",
 	},
 	"MEX_SHARED_ROOTLB_DISK": {
 		Name:        "RootLB Disk",
-		Description: "Size of disk (GB) required to bringup shared RootLB",
+		Description: "Size of disk (GB) required to bring up shared RootLB",
 		Value:       "40",
 	},
 	"MEX_NETWORK_SCHEME": {

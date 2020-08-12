@@ -16,12 +16,14 @@ var azureProps = map[string]*edgeproto.PropertyInfo{
 		Name:        "Azure User",
 		Description: "Azure User",
 		Mandatory:   true,
+		Internal:    true,
 	},
 	"MEX_AZURE_PASS": &edgeproto.PropertyInfo{
 		Name:        "Azure Password",
 		Description: "Azure Password",
 		Secret:      true,
 		Mandatory:   true,
+		Internal:    true,
 	},
 }
 

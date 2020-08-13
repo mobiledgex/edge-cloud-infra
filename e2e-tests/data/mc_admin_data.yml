@@ -20,7 +20,8 @@ orgs:
   type: developer
   address: enterprise headquarters
   phone: 123-123-1234
-  adminusername: mexadin
+  adminusername: mexadmin
+  parent: user3org
 
 billingorgs:
 - name: user3org

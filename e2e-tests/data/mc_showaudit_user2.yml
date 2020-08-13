@@ -101,25 +101,3 @@
   tags:
     policy: scale1
     policyorg: AcmeAppCo
-- operationname: /api/v1/auth/ctrl/DeleteClusterInst
-  username: user2
-  org: AcmeAppCo
-  clientip: 127.0.0.1
-  status: 200
-  starttime: "2019-08-11T09:36:02.782934-07:00"
-  duration: 114.968ms
-  request: '{"Region":"locala","ClusterInst":{"key":{"cluster_key":{"name":"SmallCluster"},"cloudlet_key":{"organization":"tmus","name":"tmus-cloud-4"},"organization":"AcmeAppCo"},"flavor":{"name":"x1.small"},"liveness":1,"ip_access":3,"node_flavor":"x1.small","num_masters":1,"num_nodes":1,"status":{}}}'
-  response: |
-    {"data":{"message":"Autodeleting AppInst MEXPrometheusAppName"}}
-    {"data":{"message":"Deleting"}}
-    {"data":{"message":"NotPresent"}}
-    {"data":{"message":"Deleted AppInst successfully"}}
-    {"data":{"message":"Deleting"}}
-    {"data":{"message":"NotPresent"}}
-    {"data":{"message":"Deleted ClusterInst successfully"}}
-  traceid: 35078d27e23052f5
-  tags:
-    cloudlet: tmus-cloud-4
-    cloudletorg: tmus
-    cluster: SmallCluster
-    clusterorg: AcmeAppCo

@@ -366,6 +366,7 @@ func (v *VSpherePlatform) CreateVM(ctx context.Context, vm *vmlayer.VMOrchestrat
 	log.SpanLog(ctx, log.DebugLevelInfra, "CreateVM", "vmName", vm.Name, "poolName", poolName)
 
 	dcName := v.GetDatacenterName(ctx)
+	dsName := v.GetDataStore()
 	computeCluster := v.GetComputeCluster()
 	pathPrefix := fmt.Sprintf("/%s/host/%s/Resources/", dcName, computeCluster)
 	poolPath := pathPrefix + poolName
@@ -398,6 +399,7 @@ func (v *VSpherePlatform) CreateVM(ctx context.Context, vm *vmlayer.VMOrchestrat
 		}
 		out, err := v.TimedGovcCommand(ctx, "govc", "vm.clone",
 			"-dc", dcName,
+			"-ds", dsName,
 			"-on=false",
 			"-vm", vm.ImageName,
 			"-pool", poolPath,
@@ -794,14 +796,14 @@ func (v *VSpherePlatform) CreateTemplateFromImage(ctx context.Context, imageFold
 		if err != nil {
 			return err
 		}
-		if vm.Guest.GuestState == "running" {
+		if vm.Guest.ToolsStatus == "toolsOk" {
 			break
 		}
 		elapsed := time.Since(start)
 		if elapsed > maxGuestWait {
 			return fmt.Errorf("timed out waiting for VM tools %s", templateName)
 		}
-		log.SpanLog(ctx, log.DebugLevelInfra, "Sleep and check guest tools again", "templateName", templateName, "GuestState", vm.Guest.GuestState)
+		log.SpanLog(ctx, log.DebugLevelInfra, "Sleep and check guest tools again", "templateName", templateName, "ToolsStatus", vm.Guest.ToolsStatus)
 		time.Sleep(5 * time.Second)
 	}
 

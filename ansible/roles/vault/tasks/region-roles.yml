@@ -27,6 +27,9 @@
     name: "{{ region_prefix }}.controller.v1"
     policies:
       - approle.login.v1
+      - aws-auth.read.v1
+      - azure-auth.read.v1
+      - gcp-auth.read.v1
       - registry.read.v1
       - "{{ region_prefix }}.cloudlets.delete.v1"
       - "{{ region_prefix }}.accounts.read.v1"
@@ -39,6 +42,7 @@
     policies:
       - approle.login.v1
       - aws-auth.read.v1
+      - azure-auth.read.v1
       - chef.read.v1
       - certs.read.v1
       - gcp-auth.read.v1

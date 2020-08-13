@@ -130,11 +130,16 @@ EOT
 log "Setting up APT sources"
 sudo rm -rf /etc/apt/sources.list.d
 sudo tee /etc/apt/sources.list <<EOT
-deb https://${APT_USER}:${APT_PASS}@artifactory.mobiledgex.net/artifactory/packages stratus main
-deb https://${APT_USER}:${APT_PASS}@apt.mobiledgex.net stratus-deps main
-deb https://${APT_USER}:${APT_PASS}@artifactory.mobiledgex.net/artifactory/ubuntu bionic main restricted universe multiverse
-deb https://${APT_USER}:${APT_PASS}@artifactory.mobiledgex.net/artifactory/ubuntu bionic-updates main restricted universe multiverse
-deb https://${APT_USER}:${APT_PASS}@artifactory.mobiledgex.net/artifactory/ubuntu-security bionic-security main restricted universe multiverse
+deb https://artifactory.mobiledgex.net/artifactory/packages cirrus main
+deb https://apt.mobiledgex.net stratus-deps main
+deb https://artifactory.mobiledgex.net/artifactory/ubuntu bionic main restricted universe multiverse
+deb https://artifactory.mobiledgex.net/artifactory/ubuntu bionic-updates main restricted universe multiverse
+deb https://artifactory.mobiledgex.net/artifactory/ubuntu-security bionic-security main restricted universe multiverse
+deb https://apt.mobiledgex.net/nvidia-1804 main main
+EOT
+sudo tee /etc/apt/auth.conf.d/mobiledgex.net.conf <<EOT
+machine artifactory.mobiledgex.net login ${APT_USER} password ${APT_PASS}
+machine apt.mobiledgex.net login ${APT_USER} password ${APT_PASS}
 EOT
 
 log "Disable cloud config overwrite of APT sources"
@@ -146,6 +151,7 @@ EOT
 log "Set up the APT keys"
 curl -s https://${APT_USER}:${APT_PASS}@artifactory.mobiledgex.net/artifactory/api/gpg/key/public | sudo apt-key add -
 curl -s https://${APT_USER}:${APT_PASS}@apt.mobiledgex.net/gpg.key | sudo apt-key add -
+curl -s -L https://nvidia.github.io/nvidia-docker/gpgkey | sudo apt-key add -
 sudo apt-get update
 
 log "Disable snap"

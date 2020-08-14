@@ -208,7 +208,11 @@ func (v *VMPlatform) CreateCloudlet(ctx context.Context, cloudlet *edgeproto.Clo
 
 	// save caches needed for flavors
 	v.Caches = caches
-	err = v.VMProvider.InitProvider(ctx, caches, ProviderInitCreateCloudlet, updateCallback)
+	stage := ProviderInitCreateCloudletDirect
+	if cloudlet.InfraApiAccess == edgeproto.InfraApiAccess_RESTRICTED_ACCESS {
+		stage = ProviderInitCreateCloudletRestricted
+	}
+	err = v.VMProvider.InitProvider(ctx, caches, stage, updateCallback)
 	if err != nil {
 		return err
 	}

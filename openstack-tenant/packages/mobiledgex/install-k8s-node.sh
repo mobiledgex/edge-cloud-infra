@@ -41,11 +41,11 @@ fi
 #done
 echo installing k8s node, wait...
 cd /tmp
-scp -i /etc/mobiledgex/id_rsa_mex $MASTERIP:/tmp/k8s-join-cmd .
+sudo scp -i /etc/mobiledgex/id_rsa_mex $MASTERIP:/tmp/k8s-join-cmd .
 if [ $? -ne 0 ]; then
 	sleep 60
 	echo waiting for join-cmd
-	scp -i /etc/mobiledgex/id_rsa_mex $MASTERIP:/tmp/k8s-join-cmd .
+	sudo scp -i /etc/mobiledgex/id_rsa_mex $MASTERIP:/tmp/k8s-join-cmd .
 	while [ $? -ne 0 ]; do
 		sleep 7
 		sudo scp -i /etc/mobiledgex/id_rsa_mex ubuntu@$MASTERIP:/tmp/k8s-join-cmd .

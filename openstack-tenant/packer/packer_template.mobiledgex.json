@@ -23,6 +23,11 @@
     }],
     "provisioners": [
 	{
+	    "type": "file",
+	    "source": "pkg-cleanup.txt",
+	    "destination": "/tmp/pkg-cleanup.txt"
+	},
+	{
 	    "type": "shell",
 	    "script": "setup.sh",
 	    "environment_vars": [

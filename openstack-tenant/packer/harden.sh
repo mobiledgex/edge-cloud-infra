@@ -53,7 +53,6 @@ sudo chown root:root /boot/grub/grub.cfg
 sudo chmod og-rwx /boot/grub/grub.cfg
 
 log "1.5.1 Ensure core dumps are restricted"
-sudo systemctl disable apport
 echo "* hard core 0" | sudo tee -a /etc/security/limits.conf
 echo "fs.suid_dumpable = 0" | sudo tee -a /etc/sysctl.conf
 

@@ -163,6 +163,10 @@ sudo apt-get install -y ifupdown
 sudo apt-get purge -y netplan.io
 echo "source /etc/network/interfaces.d/*.cfg" | sudo tee -a /etc/network/interfaces
 
+log "Remove unnecessary packages"
+cat /tmp/pkg-cleanup.txt | sudo xargs apt-get purge -y
+sudo rm -f /tmp/pkg-cleanup.txt
+
 log "Install mobiledgex ${TAG#v}"
 # avoid interactive for iptables-persistent
 echo iptables-persistent iptables-persistent/autosave_v6 boolean true | sudo debconf-set-selections
@@ -309,5 +313,9 @@ fi
 
 log "Cleanup"
 sudo apt-get autoremove -y
+sudo rm -f /var/cache/apt/archives/*.deb
+
+log "Package list"
+dpkg -l
 
 echo "[$(date)] Done setup.sh ($( pwd ))"

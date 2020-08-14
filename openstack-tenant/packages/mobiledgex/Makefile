@@ -1,5 +1,5 @@
 PACKAGE = mobiledgex
-VERSION = 4.0.0-alpha6
+VERSION = 4.0.0
 DISTRIBUTION = cirrus
 COMPONENT = main
 

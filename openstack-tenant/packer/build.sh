@@ -71,6 +71,13 @@ fi
 
 VAULT_PATH="secret/accounts/baseimage"
 export VAULT_ADDR="https://${VAULT}"
+if ! vault token lookup >/dev/null 2>&1; then
+	echo "Logging in to $VAULT_ADDR"
+	vault login -method=github
+	[[ $? -eq 0 ]] || die "Failed to log in to vault: $VAULT_ADDR"
+	echo
+fi
+
 ROOT_PASS=$( vault kv get -field=value "${VAULT_PATH}/password" )
 TOTP_KEY=$( vault kv get -field=value "${VAULT_PATH}/totp-key" )
 if [[ -z "$ROOT_PASS" || -z "$TOTP_KEY" ]]; then

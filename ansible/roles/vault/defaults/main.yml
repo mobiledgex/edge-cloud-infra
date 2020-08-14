@@ -18,6 +18,7 @@ vault_user_roles:
     - ansible.read.v1
     - auth-approle.read.v1
     - aws-auth.read.v1
+    - azure-auth.read.v1
     - baseimage-password.read.v1
     - baseimage-totp.read.v1
     - cloudlets.read.v1

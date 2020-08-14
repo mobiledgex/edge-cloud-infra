@@ -11,6 +11,21 @@ orgs:
   address: enterprise headquarters
   phone: 123-123-1234
   adminusername: mexadmin
+  parent: user3org
+billingorgs:
+- name: user3org
+  type: self
+  firstname: user3
+  lastname: dev
+  email: john@enterprise.com
+  address: enterprise hq
+  city: Gainesville
+  country: US
+  state: FL
+  postalcode: 32604
+  phone: 123-123-1234
+  currency: USD
+  children: user3org
 roles:
 - org: user3org
   username: mexadmin
@@ -140,7 +155,7 @@ regiondata:
         version: "1.0"
       imagepath: registry.mobiledgex.net/user3org/ep1:1.0
       imagetype: ImageTypeDocker
-      accessports: tcp:80,http:443,udp:10002
+      accessports: tcp:80,tcp:443,udp:10002
       accesstype: AccessTypeLoadBalancer
       defaultflavor:
         name: x1.small
@@ -159,7 +174,7 @@ regiondata:
             protocol: TCP
             port: 80
             targetPort: 80
-          - name: http443
+          - name: tcp443
             protocol: TCP
             port: 443
             targetPort: 443

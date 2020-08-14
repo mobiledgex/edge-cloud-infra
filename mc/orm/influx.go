@@ -57,6 +57,7 @@ var AppSelectors = []string{
 	"disk",
 	"network",
 	"connections",
+	"udp",
 }
 
 var ClusterSelectors = []string{
@@ -177,6 +178,18 @@ var ConnectionsFields = []string{
 	"\"P100\"",
 }
 
+var appUdpFields = []string{
+	"\"port\"",
+	"\"bytesSent\"",
+	"\"bytesRecvd\"",
+	"\"datagramsSent\"",
+	"\"datagramsRecvd\"",
+	"\"sentErrs\"",
+	"\"recvErrs\"",
+	"\"overflow\"",
+	"\"missed\"",
+}
+
 var UtilizationFields = []string{
 	"\"vCpuUsed\"",
 	"\"vCpuMax\"",
@@ -230,7 +243,7 @@ func init() {
 	operatorInfluxDBTemplate = template.Must(template.New("influxquery").Parse(operatorInfluDBT))
 }
 
-func connectInfluxDB(ctx context.Context, region string) (influxdb.Client, error) {
+func ConnectInfluxDB(ctx context.Context, region string) (influxdb.Client, error) {
 	addr, err := getInfluxDBAddrForRegion(ctx, region)
 	if err != nil {
 		return nil, err
@@ -357,7 +370,7 @@ func CloudletMetricsQuery(obj *ormapi.RegionCloudletMetrics) string {
 // doesn't implement it in a way could really be using it
 func influxStream(ctx context.Context, rc *InfluxDBContext, database, dbQuery string, cb func(Data interface{})) error {
 	if rc.conn == nil {
-		conn, err := connectInfluxDB(ctx, rc.region)
+		conn, err := ConnectInfluxDB(ctx, rc.region)
 		if err != nil {
 			return err
 		}
@@ -487,7 +500,11 @@ func getFields(selector, measurementType string) string {
 		case "tcp":
 			fields = append(fields, TcpFields...)
 		case "udp":
-			fields = append(fields, UdpFields...)
+			if measurementType == "appinst" {
+				fields = append(fields, appUdpFields...)
+			} else {
+				fields = append(fields, UdpFields...)
+			}
 		case "utilization":
 			fields = append(fields, UtilizationFields...)
 		case "ipusage":

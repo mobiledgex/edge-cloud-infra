@@ -617,7 +617,7 @@ func (v *VMPlatform) GetCloudletVMsSpec(ctx context.Context, vaultConfig *vault.
 	}
 	if flavorName == "" {
 		// give some default flavor name, user can fix this later
-		flavorName = "m4.medium"
+		flavorName = "<ADD_FLAVOR_HERE>"
 	}
 
 	platformVmName := v.GetPlatformVMName(&cloudlet.Key)

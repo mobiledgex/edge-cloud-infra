@@ -27,6 +27,23 @@ log() {
 	fi
 }
 
+usermod -aG docker ubuntu
+chmod a+rw /var/run/docker.sock
+
+ifconfig -a | log
+ip route | log
+
+if [[ -z "$ROLE" ]]; then
+	log "WARNING: Role is empty"
+else
+	log "ROLE: $ROLE"
+fi
+
+if ! dig google.com | grep 'status: NOERROR' >/dev/null; then
+	log "Setting 1.1.1.1 as nameserver"
+	echo "nameserver 1.1.1.1" >/etc/resolv.conf
+fi
+
 MCONF=/mnt/mobiledgex-config
 METADIR="$MCONF/openstack/latest"
 METADATA="$METADIR/meta_data.json"
@@ -42,6 +59,7 @@ if [[ -f "$VMWARE_CLOUDINIT" ]]; then
         if ! vmtoolsd --cmd "info-get guestinfo.metadata";
         then
             log "VMware metadata is empty, quitting"
+            log "Finished mobiledgex init"
             exit 0
         fi
         log "show userdata"
@@ -96,26 +114,9 @@ fi
 echo 127.0.0.1 `hostname` >> /etc/hosts
 [[ "$UPDATEHOSTNAME" == yes ]] && sed -i "s|^\(127\.0\.1\.1 \).*|\1${HOSTNAME}|" /etc/hosts
 
-usermod -aG docker ubuntu
-chmod a+rw /var/run/docker.sock
-
 if [[ "$SKIPINIT" == yes ]]; then
 	log "Skipping mobiledgex init as instructed"
 	exit 0
-fi
-
-ifconfig -a | log
-ip route | log
-
-if [[ -z "$ROLE" ]]; then
-	log "WARNING: Role is empty"
-else
-	log "ROLE: $ROLE"
-fi
-
-if ! dig google.com | grep 'status: NOERROR' >/dev/null; then
-	log "Setting 1.1.1.1 as nameserver"
-	echo "nameserver 1.1.1.1" >/etc/resolv.conf
 fi
 
 # TODO: Updates; and also if supported, disable run-once flag check at the top

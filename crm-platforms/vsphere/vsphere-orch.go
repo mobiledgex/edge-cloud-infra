@@ -160,14 +160,21 @@ func (v *VSpherePlatform) populateOrchestrationParams(ctx context.Context, vmgp 
 
 	subnetToVlan := make(map[string]uint32)
 	masterIP := ""
-	flavors, err := v.GetFlavorList(ctx)
-	if err != nil {
-		return nil
+	var flavors []*edgeproto.FlavorInfo
+	var err error
+	if !vmgp.SkipInfraSpecificCheck {
+		flavors, err = v.GetFlavorList(ctx)
+		if err != nil {
+			return nil
+		}
 	}
 
-	usedCidrs, err := v.GetUsedSubnetCIDRs(ctx)
-	if err != nil {
-		return nil
+	var usedCidrs map[string]string
+	if !vmgp.SkipInfraSpecificCheck {
+		usedCidrs, err = v.GetUsedSubnetCIDRs(ctx)
+		if err != nil {
+			return nil
+		}
 	}
 	currentSubnetName := ""
 	if action != vmlayer.ActionCreate {
@@ -176,7 +183,7 @@ func (v *VSpherePlatform) populateOrchestrationParams(ctx context.Context, vmgp 
 
 	// find an available subnet or the current subnet for update and delete
 	for i, s := range vmgp.Subnets {
-		if s.CIDR != vmlayer.NextAvailableResource {
+		if s.CIDR != vmlayer.NextAvailableResource || vmgp.SkipInfraSpecificCheck {
 			// no need to compute the CIDR
 			continue
 		}
@@ -228,7 +235,7 @@ func (v *VSpherePlatform) populateOrchestrationParams(ctx context.Context, vmgp 
 		if vm.ImageName != "" {
 			vmgp.VMs[vmidx].TemplateId = v.IdSanitize(vm.ImageName) + "-tmplt-" + vm.Id
 		}
-		if !flavormatch {
+		if !flavormatch && !vmgp.SkipInfraSpecificCheck {
 			return fmt.Errorf("No match in flavor cache for flavor name: %s", vm.FlavorName)
 		}
 		if vm.AttachExternalDisk {
@@ -251,69 +258,72 @@ func (v *VSpherePlatform) populateOrchestrationParams(ctx context.Context, vmgp 
 		}
 
 		// populate external ips
-		for pi, portref := range vm.Ports {
-			log.SpanLog(ctx, log.DebugLevelInfra, "updating VM port", "portref", portref)
-			if portref.NetworkId == v.IdSanitize(v.vmProperties.GetCloudletExternalNetwork()) {
-				vmHasExternalIp = true
-				var eip string
-				if action == vmlayer.ActionUpdate {
-					eip, err = v.GetExternalIPForServer(ctx, vm.Name)
-					log.SpanLog(ctx, log.DebugLevelInfra, "using current ip for action", "eip", eip, "action", action, "server", vm.Name)
+		if !vmgp.SkipInfraSpecificCheck {
+			for pi, portref := range vm.Ports {
+				log.SpanLog(ctx, log.DebugLevelInfra, "updating VM port", "portref", portref)
+				if portref.NetworkId == v.IdSanitize(v.vmProperties.GetCloudletExternalNetwork()) {
+					vmHasExternalIp = true
+					var eip string
+					if action == vmlayer.ActionUpdate {
+						eip, err = v.GetExternalIPForServer(ctx, vm.Name)
+						log.SpanLog(ctx, log.DebugLevelInfra, "using current ip for action", "eip", eip, "action", action, "server", vm.Name)
+					} else {
+						eip, err = v.GetFreeExternalIP(ctx)
+					}
+					if err != nil {
+						return err
+					}
+
+					gw, err := v.GetExternalGateway(ctx, "")
+					if err != nil {
+						return err
+					}
+					fip := vmlayer.FixedIPOrchestrationParams{
+						Subnet:  vmlayer.NewResourceReference(portref.Name, portref.Id, false),
+						Mask:    v.GetExternalNetmask(),
+						Address: eip,
+						Gateway: gw,
+					}
+					vmgp.VMs[vmidx].FixedIPs = append(vmgp.VMs[vmidx].FixedIPs, fip)
+					tagname := v.GetVmIpTag(ctx, vmgp.GroupName, vm.Name, portref.NetworkId, eip)
+					tagid := v.IdSanitize(tagname)
+					vmgp.Tags = append(vmgp.Tags, vmlayer.TagOrchestrationParams{Category: v.GetVmIpTagCategory(ctx), Id: tagid, Name: tagname})
 				} else {
-					eip, err = v.GetFreeExternalIP(ctx)
+					vlan, ok := subnetToVlan[portref.SubnetId]
+					if !ok {
+						return fmt.Errorf("cannot find vlan for subnet: %s", portref.SubnetId)
+					}
+					vm.Ports[pi].PortGroup = getPortGroupNameForVlan(vlan)
 				}
-				if err != nil {
-					return err
-				}
-
-				gw, err := v.GetExternalGateway(ctx, "")
-				if err != nil {
-					return err
-				}
-				fip := vmlayer.FixedIPOrchestrationParams{
-					Subnet:  vmlayer.NewResourceReference(portref.Name, portref.Id, false),
-					Mask:    v.GetExternalNetmask(),
-					Address: eip,
-					Gateway: gw,
-				}
-				vmgp.VMs[vmidx].FixedIPs = append(vmgp.VMs[vmidx].FixedIPs, fip)
-				tagname := v.GetVmIpTag(ctx, vmgp.GroupName, vm.Name, portref.NetworkId, eip)
-				tagid := v.IdSanitize(tagname)
-				vmgp.Tags = append(vmgp.Tags, vmlayer.TagOrchestrationParams{Category: v.GetVmIpTagCategory(ctx), Id: tagid, Name: tagname})
-			} else {
-				vlan, ok := subnetToVlan[portref.SubnetId]
-				if !ok {
-					return fmt.Errorf("cannot find vlan for subnet: %s", portref.SubnetId)
-				}
-				vm.Ports[pi].PortGroup = getPortGroupNameForVlan(vlan)
 			}
-		}
 
-		// update fixedips from subnet found
-		for fipidx, fip := range vm.FixedIPs {
-			if fip.Address == vmlayer.NextAvailableResource {
-				found := false
-				for _, s := range vmgp.Subnets {
-					if s.Name == fip.Subnet.Name {
-						found = true
-						vmgp.VMs[vmidx].FixedIPs[fipidx].Address = fmt.Sprintf("%s.%d", s.NodeIPPrefix, fip.LastIPOctet)
-						vmgp.VMs[vmidx].FixedIPs[fipidx].Mask = v.GetInternalNetmask()
+			// update fixedips from subnet found
+			for fipidx, fip := range vm.FixedIPs {
+				if fip.Address == vmlayer.NextAvailableResource {
+					found := false
+					for _, s := range vmgp.Subnets {
+						if s.Name == fip.Subnet.Name {
+							found = true
+							vmgp.VMs[vmidx].FixedIPs[fipidx].Address = fmt.Sprintf("%s.%d", s.NodeIPPrefix, fip.LastIPOctet)
+							vmgp.VMs[vmidx].FixedIPs[fipidx].Mask = v.GetInternalNetmask()
 
-						if !vmHasExternalIp {
-							vm.FixedIPs[fipidx].Gateway = s.GatewayIP
+							if !vmHasExternalIp {
+								vm.FixedIPs[fipidx].Gateway = s.GatewayIP
+							}
+							tagname := v.GetVmIpTag(ctx, vmgp.GroupName, vm.Name, s.Id, vmgp.VMs[vmidx].FixedIPs[fipidx].Address)
+							tagid := v.IdSanitize(tagname)
+							vmgp.Tags = append(vmgp.Tags, vmlayer.TagOrchestrationParams{Category: v.GetVmIpTagCategory(ctx), Id: tagid, Name: tagname})
+							log.SpanLog(ctx, log.DebugLevelInfra, "updating address for VM", "vmname", vmgp.VMs[vmidx].Name, "address", vmgp.VMs[vmidx].FixedIPs[fipidx].Address)
+							break
 						}
-						tagname := v.GetVmIpTag(ctx, vmgp.GroupName, vm.Name, s.Id, vmgp.VMs[vmidx].FixedIPs[fipidx].Address)
-						tagid := v.IdSanitize(tagname)
-						vmgp.Tags = append(vmgp.Tags, vmlayer.TagOrchestrationParams{Category: v.GetVmIpTagCategory(ctx), Id: tagid, Name: tagname})
-						log.SpanLog(ctx, log.DebugLevelInfra, "updating address for VM", "vmname", vmgp.VMs[vmidx].Name, "address", vmgp.VMs[vmidx].FixedIPs[fipidx].Address)
-						break
+					}
+					if !found {
+						return fmt.Errorf("subnet for vm %s not found", vm.Name)
 					}
 				}
-				if !found {
-					return fmt.Errorf("subnet for vm %s not found", vm.Name)
-				}
 			}
-		}
+		} //  !vmgp.SkipInfraSpecificCheck
+
 		// we need to put the fip with the GW in first, so re-sort the fixed ips accordingly
 		var sortedFips []vmlayer.FixedIPOrchestrationParams
 		for f, fip := range vmgp.VMs[vmidx].FixedIPs {

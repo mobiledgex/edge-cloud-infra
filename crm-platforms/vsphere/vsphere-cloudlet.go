@@ -16,7 +16,7 @@ import (
 var clusterLock sync.Mutex
 var appLock sync.Mutex
 
-func (o *VSpherePlatform) SaveCloudletAccessVars(ctx context.Context, cloudlet *edgeproto.Cloudlet, accessVarsIn map[string]string, pfConfig *edgeproto.PlatformConfig, updateCallback edgeproto.CacheUpdateCallback) error {
+func (v *VSpherePlatform) SaveCloudletAccessVars(ctx context.Context, cloudlet *edgeproto.Cloudlet, accessVarsIn map[string]string, pfConfig *edgeproto.PlatformConfig, updateCallback edgeproto.CacheUpdateCallback) error {
 	return fmt.Errorf("SaveCloudletAccessVars not implemented for vsphere")
 }
 
@@ -164,14 +164,28 @@ func (v *VSpherePlatform) GetApiEndpointAddr(ctx context.Context) (string, error
 // GetCloudletManifest follows the standard practice for vSphere to use OVF for this purpose.  We store the OVF
 // in artifactory along with with the vmdk formatted disk.  No customization is needed per cloudlet as the OVF
 // import tool will prompt for datastore and portgroup.
-func (v *VSpherePlatform) GetCloudletManifest(ctx context.Context, name string, VMGroupOrchestrationParams *vmlayer.VMGroupOrchestrationParams) (string, error) {
-	log.SpanLog(ctx, log.DebugLevelInfra, "GetCloudletManifest", "name", name, "VMGroupOrchestrationParams", VMGroupOrchestrationParams)
+func (v *VSpherePlatform) GetCloudletManifest(ctx context.Context, name string, vmgp *vmlayer.VMGroupOrchestrationParams) (string, error) {
+	log.SpanLog(ctx, log.DebugLevelInfra, "GetCloudletManifest", "name", name, "vmgp", vmgp)
 	ovfLocation := vmlayer.DefaultCloudletVMImagePath + "/vsphere-ovf-" + vmlayer.MEXInfraVersion
+	vmgp.SkipInfraSpecificCheck = true
+	err := v.populateOrchestrationParams(ctx, vmgp, vmlayer.ActionCreate)
+	if err != nil {
+		return "", fmt.Errorf("unable to populate orchestration params: %v", err)
+	}
+	custSpec, err := v.GetCustomizationSpec(ctx, vmgp)
+	if err != nil {
+		return "", err
+	}
 	instructions := `
 1) Download OVF template from: ` + ovfLocation + `
 2) Import the OVF into vCenter: VMs and Templates -> Deploy OVF Template -> Select downloaded files
 3) Select cluster and datastore
 4) Update port group when prompted 
+
+Save the section below as a textfile and import it:
+---------------------------------------------------------
+` +
+		custSpec + `
 `
 	return instructions, nil
 }

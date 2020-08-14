@@ -285,6 +285,7 @@ mcs:
   notifysrvaddr: "127.0.0.1:52001"
   consoleproxyaddr: "127.0.0.1:6080"
   alertresolvetimeout: 3s
+  billingpath: "fake"
 
 - name: mc2
   addr: "127.0.0.1:9901"

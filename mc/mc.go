@@ -1,12 +1,14 @@
 package main
 
 import (
+	"context"
 	"flag"
 	"fmt"
 	"os"
 	"os/signal"
 	"time"
 
+	"github.com/mobiledgex/edge-cloud-infra/billing/collections"
 	"github.com/mobiledgex/edge-cloud-infra/mc/orm"
 	"github.com/mobiledgex/edge-cloud/cloudcommon/node"
 	"github.com/mobiledgex/edge-cloud/edgeproto"
@@ -35,6 +37,8 @@ var alertMgrAddr = flag.String("alertMgrAddr", "http://127.0.0.1:9093", "Global 
 var alertMgrConfig = flag.String("alertMgrConfigPath", "/tmp/alertmanager.yml", "Path to the configuration file for global alertmanager")
 var alertMgrResolveTimeout = flag.Duration("alertResolveTimeout", 3*time.Minute, "Alertmanager alert Resolution timeout")
 var hostname = flag.String("hostname", "", "Unique hostname")
+var billingPath = flag.String("billingPath", "", "Zuora account path in vault")
+var usageCollectionInterval = flag.Duration("usageCollectionInterval", -1*time.Second, "Collection interval")
 
 var sigChan chan os.Signal
 var nodeMgr node.NodeMgr
@@ -48,6 +52,11 @@ func main() {
 	defer log.FinishTracer()
 
 	sigChan = make(chan os.Signal, 1)
+
+	billingEnabled := false
+	if *billingPath != "" {
+		billingEnabled = true
+	}
 
 	config := orm.ServerConfig{
 		ServAddr:              *addr,
@@ -71,6 +80,8 @@ func main() {
 		NotifyAddrs:           *notifyAddrs,
 		NotifySrvAddr:         *notifySrvAddr,
 		NodeMgr:               &nodeMgr,
+		Billing:               billingEnabled,
+		BillingPath:           *billingPath,
 		AlertMgrAddr:          *alertMgrAddr,
 		AlertCache:            &alertCache,
 		AlertMgrConfigPath:    *alertMgrConfig,
@@ -87,6 +98,16 @@ func main() {
 	if err != nil {
 		log.FatalLog("Server could not be started", "err", err)
 	}
+	if billingEnabled {
+		span := log.StartSpan(log.DebugLevelInfo, "billing")
+		defer span.Finish()
+		ctx := log.ContextWithSpan(context.Background(), span)
+		if usageCollectionInterval.Seconds() > float64(0) { // if positive, use it
+			ctx = context.WithValue(ctx, "usageInterval", *usageCollectionInterval)
+		}
+		go collections.CollectDailyUsage(ctx)
+	}
+
 	// wait until process is killed/interrupted
 	signal.Notify(sigChan, os.Interrupt)
 	<-sigChan

@@ -311,6 +311,9 @@ EOT
 	sudo systemctl enable open-vm-tools
 fi
 
+# Clear /etc/machine-id so that it is uniquely generated on every clone
+echo "" | sudo tee /etc/machine-id
+
 log "Cleanup"
 sudo apt-get autoremove -y
 sudo rm -f /var/cache/apt/archives/*.deb

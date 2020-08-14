@@ -266,4 +266,7 @@ EOT
 	sudo systemctl enable open-vm-tools
 fi
 
+# Clear /etc/machine-id so that it is uniquely generated on every clone
+echo "" | sudo tee /etc/machine-id
+
 echo "[$(date)] Done setup.sh ($( pwd ))"

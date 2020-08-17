@@ -3,6 +3,7 @@
     name: "{{ item | basename | regex_replace('\\.hcl(\\.j2)?$', '')}}"
     content: "{{ lookup('template', item) }}"
   loop:
+    - policies/alertmanagersmtp.read.v1.hcl.j2
     - policies/ansible.read.v1.hcl.j2
     - policies/approle.login.v1.hcl.j2
     - policies/approle-accessors.read.v1.hcl.j2

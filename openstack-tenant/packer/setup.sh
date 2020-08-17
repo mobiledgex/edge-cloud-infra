@@ -5,7 +5,6 @@ LOGDIR="/etc/mobiledgex"
 LOGFILE="${LOGDIR}/creation_log.txt"
 DEFAULT_INTERFACE=ens3
 ARTIFACTORY_BASEURL='https://artifactory.mobiledgex.net'
-DEFAULT_ROOT_PASS=sandhill
 MEX_RELEASE=/etc/mex-release
 
 TMPLOG="/var/tmp/creation_log.txt"
@@ -24,6 +23,14 @@ archive_log() {
 	sudo mv "$TMPLOG" "$LOGFILE"
 }
 trap 'archive_log' EXIT
+
+if [[ -z "$ROOT_PASS" ]]; then
+	echo "Root password not found" >&2
+	exit 2
+elif [[ -z "$TOTP_KEY" ]]; then
+	echo "TOTP key not found" >&2
+	exit 2
+fi
 
 # Defaults for environment variables
 : ${TAG:=master}
@@ -73,6 +80,11 @@ echo "[$(date)] Starting setup.sh for platform \"$OUTPUT_PLATFORM\" ($( pwd ))"
 echo "127.0.0.1 $( hostname )" | sudo tee -a /etc/hosts >/dev/null
 log_file_contents /etc/hosts
 
+sudo tee /etc/systemd/resolved.conf <<EOT
+[Resolve]
+DNS=1.1.1.1
+FallbackDNS=1.0.0.1
+EOT
 echo "nameserver 1.1.1.1" | sudo tee -a /etc/resolv.conf >/dev/null
 log_file_contents /etc/resolv.conf
 
@@ -118,12 +130,16 @@ EOT
 log "Setting up APT sources"
 sudo rm -rf /etc/apt/sources.list.d
 sudo tee /etc/apt/sources.list <<EOT
-deb https://${APT_USER}:${APT_PASS}@artifactory.mobiledgex.net/artifactory/packages stratus main
-deb https://${APT_USER}:${APT_PASS}@apt.mobiledgex.net stratus-deps main
-deb https://${APT_USER}:${APT_PASS}@artifactory.mobiledgex.net/artifactory/ubuntu xenial main restricted universe multiverse
-deb https://${APT_USER}:${APT_PASS}@artifactory.mobiledgex.net/artifactory/ubuntu xenial-updates main restricted universe multiverse
-deb https://${APT_USER}:${APT_PASS}@artifactory.mobiledgex.net/artifactory/ubuntu-security xenial-security main restricted universe multiverse
-deb https://${APT_USER}:${APT_PASS}@apt.mobiledgex.net/nvidia main main
+deb https://artifactory.mobiledgex.net/artifactory/packages cirrus main
+deb https://apt.mobiledgex.net stratus-deps main
+deb https://artifactory.mobiledgex.net/artifactory/ubuntu bionic main restricted universe multiverse
+deb https://artifactory.mobiledgex.net/artifactory/ubuntu bionic-updates main restricted universe multiverse
+deb https://artifactory.mobiledgex.net/artifactory/ubuntu-security bionic-security main restricted universe multiverse
+deb https://apt.mobiledgex.net/nvidia-1804 main main
+EOT
+sudo tee /etc/apt/auth.conf.d/mobiledgex.net.conf <<EOT
+machine artifactory.mobiledgex.net login ${APT_USER} password ${APT_PASS}
+machine apt.mobiledgex.net login ${APT_USER} password ${APT_PASS}
 EOT
 
 log "Disable cloud config overwrite of APT sources"
@@ -135,7 +151,21 @@ EOT
 log "Set up the APT keys"
 curl -s https://${APT_USER}:${APT_PASS}@artifactory.mobiledgex.net/artifactory/api/gpg/key/public | sudo apt-key add -
 curl -s https://${APT_USER}:${APT_PASS}@apt.mobiledgex.net/gpg.key | sudo apt-key add -
+curl -s -L https://nvidia.github.io/nvidia-docker/gpgkey | sudo apt-key add -
 sudo apt-get update
+
+log "Disable snap"
+sudo apt purge -y snapd
+sudo rm -rf /snap /var/snap /var/cache/snapd /var/lib/snapd
+
+log "Switch networking back to ifupdown"
+sudo apt-get install -y ifupdown
+sudo apt-get purge -y netplan.io
+echo "source /etc/network/interfaces.d/*.cfg" | sudo tee -a /etc/network/interfaces
+
+log "Remove unnecessary packages"
+cat /tmp/pkg-cleanup.txt | sudo xargs apt-get purge -y
+sudo rm -f /tmp/pkg-cleanup.txt
 
 log "Install mobiledgex ${TAG#v}"
 # avoid interactive for iptables-persistent
@@ -169,12 +199,26 @@ fi
 log "Setting the root password"
 echo "root:$ROOT_PASS" | sudo chpasswd
 
+log "Setting up root TOTP"
+sudo apt-get install -y libpam-google-authenticator
+echo "auth required pam_google_authenticator.so" \
+	| sudo tee -a /etc/pam.d/login
+sudo tee /root/.google_authenticator >/dev/null <<EOT
+$TOTP_KEY
+" RATE_LIMIT 3 30
+" WINDOW_SIZE 17
+" DISALLOW_REUSE
+" TOTP_AUTH
+EOT
+sudo chmod 400 /root/.google_authenticator
+
 log "System setup"
 sudo swapoff -a
 sudo sed -i "s/cgroup-driver=systemd/cgroup-driver=cgroupfs/g" /etc/systemd/system/kubelet.service.d/10-kubeadm.conf
 sudo kubeadm config images pull
 sudo usermod -aG docker root
 
+echo "d /run/sshd 0755 root root" | sudo tee -a /usr/lib/tmpfiles.d/sshd.conf
 sudo rm -f /etc/systemd/system/ssh.service
 sudo tee /etc/systemd/system/ssh.service <<'EOT'
 [Unit]
@@ -198,6 +242,7 @@ Alias=sshd.service
 EOT
 
 sudo tee /etc/cron.hourly/sshd-stale-session-cleanup <<'EOT'
+#!/bin/sh
 systemctl 2>/dev/null \
     | grep 'scope.*abandoned' \
     | awk '{print $1}' \
@@ -268,5 +313,12 @@ fi
 
 # Clear /etc/machine-id so that it is uniquely generated on every clone
 echo "" | sudo tee /etc/machine-id
+
+log "Cleanup"
+sudo apt-get autoremove -y
+sudo rm -f /var/cache/apt/archives/*.deb
+
+log "Package list"
+dpkg -l
 
 echo "[$(date)] Done setup.sh ($( pwd ))"

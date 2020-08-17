@@ -2,7 +2,7 @@ PACKAGE = crictl
 VERSION = 1.16.1
 SHA256SUM = 19fed421710fccfe58f5573383bb137c19438a9056355556f1a15da8d23b3ad1
 
-DISTRIBUTION = stratus
+DISTRIBUTION = cirrus
 COMPONENT = main
 
 PKGURL = https://github.com/kubernetes-sigs/cri-tools/releases/download/v$(VERSION)/crictl-v$(VERSION)-linux-amd64.tar.gz

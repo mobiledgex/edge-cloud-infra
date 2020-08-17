@@ -38,6 +38,7 @@
   vault_role:
     name: mcorm.v1
     policies:
+      - alertmanagersmtp.read.v1
       - approle.login.v1
       - influxdb.read.v1
       - mcorm-jwtkeys.read.v1

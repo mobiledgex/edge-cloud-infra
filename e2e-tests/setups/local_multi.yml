@@ -25,16 +25,6 @@ vaults:
 - name: vault
   hostname: "127.0.0.1"
   regions: local,locala
-  vaultdatas:
-  - path: /secret/accounts/alertmanagersmtp
-    data:
-      email: alerts@mobiledgex.com
-      user: alerts@mobiledgex.com
-      token: test123
-      smtp: host.docker.internal
-      port: 1025
-# maildev does not support STARTTLS protocol, so disable encrtyption for local testing
-      tls: false
 
 influxs:
 - name: influx1
@@ -385,12 +375,6 @@ edgeturns:
   proxyaddr: "127.0.0.1:9443"
   tls:
     servercert: "{{tlsoutdir}}/mex-server.crt"
-
-alertmanagers:
-- name: alertmanager
-  configfile: "{{datadir2}}/alertmanager.yml"
-  port: 9093
-  hostname: "127.0.0.1"
 
 maildevs:
 - name: maildev

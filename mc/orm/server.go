@@ -231,6 +231,7 @@ func RunServer(config *ServerConfig) (*Server, error) {
 		if err != nil {
 			// TODO - this needs to be a fatal failure when we add alertmanager deployment to the ansible scripts
 			log.SpanLog(ctx, log.DebugLevelInfo, "Failed to start alertmanger seerver", "error", err)
+			err = nil
 		}
 	}
 	go server.setupConsoleProxy(ctx)

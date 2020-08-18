@@ -1,6 +1,7 @@
 package orm
 
 import (
+	"context"
 	"fmt"
 	"strings"
 
@@ -89,9 +90,75 @@ func CloudletEventsQuery(obj *ormapi.RegionCloudletEvents) string {
 	return fillTimeAndGetCmd(&arg, operatorInfluxDBTemplate, &obj.StartTime, &obj.EndTime)
 }
 
+func GetAppEventsCmd(ctx context.Context, c echo.Context, rc *InfluxDBContext) (string, error) {
+	in := ormapi.RegionAppInstEvents{}
+	success, err := ReadConn(c, &in)
+	if !success {
+		return "", err
+	}
+	// Developer name has to be specified
+	if in.AppInst.AppKey.Organization == "" {
+		return "", setReply(c, fmt.Errorf("App details must be present"), nil)
+	}
+	rc.region = in.Region
+	org := in.AppInst.AppKey.Organization
+
+	cmd := AppInstEventsQuery(&in)
+
+	// Check the developer against who is logged in
+	if err := authorized(ctx, rc.claims.Username, org, ResourceAppAnalytics, ActionView); err != nil {
+		return "", setReply(c, err, nil)
+	}
+	return cmd, nil
+}
+
+func GetClusterEventsCmd(ctx context.Context, c echo.Context, rc *InfluxDBContext) (string, error) {
+	in := ormapi.RegionClusterInstEvents{}
+	success, err := ReadConn(c, &in)
+	if !success {
+		return "", err
+	}
+	// Developer org name has to be specified
+	if in.ClusterInst.Organization == "" {
+		return "", setReply(c, fmt.Errorf("Cluster details must be present"), nil)
+	}
+	rc.region = in.Region
+	org := in.ClusterInst.Organization
+
+	cmd := ClusterEventsQuery(&in)
+
+	// Check the developer org against who is logged in
+	if err := authorized(ctx, rc.claims.Username, org, ResourceClusterAnalytics, ActionView); err != nil {
+		return "", err
+	}
+	return cmd, nil
+}
+
+func GetCloudletEventsCmd(ctx context.Context, c echo.Context, rc *InfluxDBContext) (string, error) {
+	in := ormapi.RegionCloudletEvents{}
+	success, err := ReadConn(c, &in)
+	if !success {
+		return "", err
+	}
+	// Operator name has to be specified
+	if in.Cloudlet.Organization == "" {
+		return "", setReply(c, fmt.Errorf("Cloudlet details must be present"), nil)
+	}
+	rc.region = in.Region
+	org := in.Cloudlet.Organization
+
+	cmd := CloudletEventsQuery(&in)
+
+	// Check the operator against who is logged in
+	if err := authorized(ctx, rc.claims.Username, org, ResourceCloudletAnalytics, ActionView); err != nil {
+		return "", setReply(c, err, nil)
+	}
+	return cmd, nil
+}
+
 // Common method to handle both app and cluster metrics
 func GetEventsCommon(c echo.Context) error {
-	var cmd, org string
+	var cmd string
 
 	rc := &InfluxDBContext{}
 	claims, err := getClaims(c)
@@ -102,61 +169,19 @@ func GetEventsCommon(c echo.Context) error {
 	ctx := GetContext(c)
 
 	if strings.HasSuffix(c.Path(), "events/app") {
-		in := ormapi.RegionAppInstEvents{}
-		success, err := ReadConn(c, &in)
-		if !success {
+		cmd, err = GetAppEventsCmd(ctx, c, rc)
+		if err != nil {
 			return err
-		}
-		// Developer name has to be specified
-		if in.AppInst.AppKey.Organization == "" {
-			return setReply(c, fmt.Errorf("App details must be present"), nil)
-		}
-		rc.region = in.Region
-		org = in.AppInst.AppKey.Organization
-
-		cmd = AppInstEventsQuery(&in)
-
-		// Check the developer against who is logged in
-		if err := authorized(ctx, rc.claims.Username, org, ResourceAppAnalytics, ActionView); err != nil {
-			return setReply(c, err, nil)
 		}
 	} else if strings.HasSuffix(c.Path(), "events/cluster") {
-		in := ormapi.RegionClusterInstEvents{}
-		success, err := ReadConn(c, &in)
-		if !success {
-			return err
-		}
-		// Developer org name has to be specified
-		if in.ClusterInst.Organization == "" {
-			return setReply(c, fmt.Errorf("Cluster details must be present"), nil)
-		}
-		rc.region = in.Region
-		org = in.ClusterInst.Organization
-
-		cmd = ClusterEventsQuery(&in)
-
-		// Check the developer org against who is logged in
-		if err := authorized(ctx, rc.claims.Username, org, ResourceClusterAnalytics, ActionView); err != nil {
+		cmd, err = GetClusterEventsCmd(ctx, c, rc)
+		if err != nil {
 			return err
 		}
 	} else if strings.HasSuffix(c.Path(), "events/cloudlet") {
-		in := ormapi.RegionCloudletEvents{}
-		success, err := ReadConn(c, &in)
-		if !success {
+		cmd, err = GetCloudletEventsCmd(ctx, c, rc)
+		if err != nil {
 			return err
-		}
-		// Operator name has to be specified
-		if in.Cloudlet.Organization == "" {
-			return setReply(c, fmt.Errorf("Cloudlet details must be present"), nil)
-		}
-		rc.region = in.Region
-		org = in.Cloudlet.Organization
-
-		cmd = CloudletEventsQuery(&in)
-
-		// Check the operator against who is logged in
-		if err := authorized(ctx, rc.claims.Username, org, ResourceCloudletAnalytics, ActionView); err != nil {
-			return setReply(c, err, nil)
 		}
 	} else {
 		return setReply(c, echo.ErrNotFound, nil)

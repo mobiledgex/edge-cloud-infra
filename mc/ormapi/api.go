@@ -343,6 +343,39 @@ type RegionCloudletEvents struct {
 	Last      int       `json:",omitempty"`
 }
 
+type AllUsage struct {
+	Data []UsageRecord `json:"data"`
+}
+
+type UsageRecord struct {
+	Region       string        `json:"region"`
+	Organization string        `json:"organization"`
+	AppName      string        `json:"app,omitempty"`
+	Version      string        `json:"version,omitempty"`
+	ClusterName  string        `json:"cluster"`
+	Cloudlet     string        `json:"cloudlet"`
+	CloudletOrg  string        `json:"cloudletOrg"`
+	StartTime    time.Time     `json:"startTime"`
+	EndTime      time.Time     `json:"endTime"`
+	Duration     time.Duration `json:"duration"`
+}
+
+type RegionAppInstUsage struct {
+	Region    string
+	AppInst   edgeproto.AppInstKey
+	StartTime time.Time `json:",omitempty"`
+	EndTime   time.Time `json:",omitempty"`
+	Current   bool      `json:"omitempty"`
+}
+
+type RegionClusterInstUsage struct {
+	Region      string
+	ClusterInst edgeproto.ClusterInstKey
+	StartTime   time.Time `json:",omitempty"`
+	EndTime     time.Time `json:",omitempty"`
+	Current     bool      `json:"omitempty"`
+}
+
 // Configurable part of AlertManager Receiver
 type AlertReceiver struct {
 	// Receiver Name

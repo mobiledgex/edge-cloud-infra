@@ -455,10 +455,15 @@ func RunServer(config *ServerConfig) (*Server, error) {
 	auth.POST("/events/app", GetEventsCommon)
 	auth.POST("/events/cluster", GetEventsCommon)
 	auth.POST("/events/cloudlet", GetEventsCommon)
+<<<<<<< HEAD
 	// new events/audit apis
 	auth.POST("/events/show", ShowEvents)
 	auth.POST("/events/find", FindEvents)
 	auth.POST("/events/terms", EventTerms)
+=======
+	auth.POST("/usage/app", GetUsageCommon)
+	auth.POST("/usage/cluster", GetUsageCommon)
+>>>>>>> usage api in the works
 
 	// Alertmanager apis
 	auth.POST("/alertreceiver/create", CreateAlertReceiver)

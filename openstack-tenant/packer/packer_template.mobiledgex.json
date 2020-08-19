@@ -7,6 +7,7 @@
 	"APT_USER": "apt",
 	"APT_PASS": "mobiledgex",
 	"ROOT_PASS": "",
+	"GRUB_PW_HASH": "",
 	"TOTP_KEY": "",
 	"ARTIFACTORY_ARTIFACTS_TAG": ""
     },
@@ -39,6 +40,7 @@
 		"APT_USER={{ user `APT_USER` }}",
 		"APT_PASS={{ user `APT_PASS` }}",
 		"ROOT_PASS={{ user `ROOT_PASS` }}",
+		"GRUB_PW_HASH={{ user `GRUB_PW_HASH` }}",
 		"TOTP_KEY={{ user `TOTP_KEY` }}",
 		"ARTIFACTORY_ARTIFACTS_TAG={{ user `ARTIFACTORY_ARTIFACTS_TAG` }}",
 		"SRC_IMG={{ user `SRC_IMG` }}",

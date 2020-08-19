@@ -58,6 +58,7 @@ log "Starting mobiledgex init"
 chmod u-x,go-rwx /etc/passwd-
 chmod u-x,go-rwx /etc/shadow-
 chmod og-rwx /boot/grub/grub.cfg
+find /var/log -type f -exec chmod g-wx,o-rwx "{}" + -o -type d -exec chmod g-w,o-rwx "{}" +
 
 if [[ -f "$VMWARE_CLOUDINIT" ]]; then
         log "VMware cloud-init case, fetch metadata from vmtoolsd"

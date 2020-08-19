@@ -79,8 +79,9 @@ if ! vault token lookup >/dev/null 2>&1; then
 fi
 
 ROOT_PASS=$( vault kv get -field=value "${VAULT_PATH}/password" )
+GRUB_PW_HASH=$( vault kv get -field=grub_pw_hash "${VAULT_PATH}/password" )
 TOTP_KEY=$( vault kv get -field=value "${VAULT_PATH}/totp-key" )
-if [[ -z "$ROOT_PASS" || -z "$TOTP_KEY" ]]; then
+if [[ -z "$ROOT_PASS" || -z "$GRUB_PW_HASH" || -z "$TOTP_KEY" ]]; then
 	die "Unable to read vault secrets: ${VAULT} ${VAULT_PATH}"
 fi
 
@@ -158,6 +159,7 @@ PACKER_LOG=1 "${CMDLINE[@]}" \
 	-var "ARTIFACTORY_APIKEY=$ARTIFACTORY_APIKEY" \
 	-var "ARTIFACTORY_ARTIFACTS_TAG=$ARTIFACTORY_ARTIFACTS_TAG" \
 	-var "ROOT_PASS=$ROOT_PASS" \
+	-var "GRUB_PW_HASH=$GRUB_PW_HASH" \
 	-var "TOTP_KEY=$TOTP_KEY" \
 	-var "TAG=$TAG" \
 	-var "GITTAG=$GITTAG" \

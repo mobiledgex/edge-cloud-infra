@@ -20,6 +20,7 @@ func CreateAlertReceiver(c echo.Context) error {
 		return err
 	}
 	ctx := GetContext(c)
+	log.SpanLog(ctx, log.DebugLevelInfo, "Create Alertmanager Receiver", "context", c, "claims", claims)
 	in := ormapi.AlertReceiver{}
 	success, err := ReadConn(c, &in)
 	if !success {
@@ -72,7 +73,7 @@ func DeleteAlertReceiver(c echo.Context) error {
 		return err
 	}
 	ctx := GetContext(c)
-	log.SpanLog(ctx, log.DebugLevelInfo, "Delete Alertmanager Receiver", "context", c, "clainms", claims)
+	log.SpanLog(ctx, log.DebugLevelInfo, "Delete Alertmanager Receiver", "context", c, "claims", claims)
 	in := ormapi.AlertReceiver{}
 	success, err := ReadConn(c, &in)
 	if !success {
@@ -98,7 +99,7 @@ func ShowAlertReceiver(c echo.Context) error {
 		return err
 	}
 	ctx := GetContext(c)
-	log.SpanLog(ctx, log.DebugLevelApi, "Show Alertmanager Receivers", "context", c, "clainms", claims)
+	log.SpanLog(ctx, log.DebugLevelApi, "Show Alertmanager Receivers", "context", c, "claims", claims)
 
 	receivers, err := AlertManagerServer.ShowReceivers(ctx, nil)
 	if err != nil {

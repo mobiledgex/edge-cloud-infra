@@ -38,7 +38,6 @@ var defaultConfigTemplate *template.Template
 // NOTE: it does not perform any RBAC control here - this is done in ORM handlers
 type AlertMgrServer struct {
 	AlertMrgAddr          string
-	AlertMgrConfigPath    string
 	AlertResolutionTimout time.Duration
 	AlertCache            *edgeproto.AlertCache
 	vaultConfig           *vault.Config
@@ -62,12 +61,11 @@ func getAgentName() string {
 	return "MasterControllerV1"
 }
 
-func NewAlertMgrServer(alertMgrAddr string, configPath string, vaultConfig *vault.Config, localVault bool, alertCache *edgeproto.AlertCache, resolveTimeout time.Duration) (*AlertMgrServer, error) {
+func NewAlertMgrServer(alertMgrAddr string, vaultConfig *vault.Config, localVault bool, alertCache *edgeproto.AlertCache, resolveTimeout time.Duration) (*AlertMgrServer, error) {
 	var err error
 	server := AlertMgrServer{
 		AlertMrgAddr:          alertMgrAddr,
 		AlertCache:            alertCache,
-		AlertMgrConfigPath:    configPath,
 		vaultConfig:           vaultConfig,
 		localVault:            localVault,
 		AlertResolutionTimout: resolveTimeout,
@@ -355,7 +353,6 @@ func (s *AlertMgrServer) CreateReceiver(ctx context.Context, receiver *ormapi.Al
 		log.SpanLog(ctx, log.DebugLevelInfo, "Failed to get marshal sidecar Receiver Config info", "err", err, "cfg", sidecarRec)
 		return err
 	}
-
 	res, err := alertMgrApi(ctx, s.AlertMrgAddr, "POST", mobiledgeXReceiverApi, "", data)
 	if err != nil {
 		log.SpanLog(ctx, log.DebugLevelInfo, "Failed to create alertmanager receiver", "err", err, "res", res)
@@ -486,18 +483,23 @@ func alertMgrApi(ctx context.Context, addr, method, api, options string, payload
 	}
 	resp, err := client.Do(req)
 	if err != nil {
-		log.SpanLog(ctx, log.DebugLevelInfo, "Failed to send request to the alertmanager", "err", err, "request", req)
+		log.SpanLog(ctx, log.DebugLevelInfo, "Failed to send request to the alertmanager", "err", err,
+			"method", req.Method, "url", req.URL, "payload", payload)
 		return nil, err
 	}
 	defer resp.Body.Close()
 	// HTTP status 2xx is ok
 	if resp.StatusCode/100 != 2 {
-		log.SpanLog(ctx, log.DebugLevelInfo, "Alertmanager responded with an error", "request", req, "response", resp)
+		log.SpanLog(ctx, log.DebugLevelInfo, "Alertmanager responded with an error", "method", req.Method,
+			"url", req.URL, "payload", payload, "response code", resp.Status,
+			"response length", resp.ContentLength)
 		return nil, fmt.Errorf("bad response status %s", resp.Status)
 	}
 	body, err := ioutil.ReadAll(resp.Body)
 	if err != nil {
-		log.SpanLog(ctx, log.DebugLevelInfo, "Unable to read response body", "request", req, "response", resp)
+		log.SpanLog(ctx, log.DebugLevelInfo, "Unable to read response body", "method", req.Method,
+			"url", req.URL, "payload", payload, "response code", resp.Status,
+			"response length", resp.ContentLength)
 		return nil, err
 	}
 	return body, nil

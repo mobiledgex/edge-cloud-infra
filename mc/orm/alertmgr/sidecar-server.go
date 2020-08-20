@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"fmt"
 	"io/ioutil"
 	"net"
 	"net/http"
@@ -89,7 +90,8 @@ func (s *SidecarServer) Run() error {
 func (s *SidecarServer) proxyHandler(w http.ResponseWriter, r *http.Request) {
 	url, err := url.Parse(s.alertMgrAddr)
 	if err != nil {
-		http.Error(w, "Proxy URL is not parsable", http.StatusInternalServerError)
+		str := fmt.Sprintf("Proxy URL is not parsable - %s", s.alertMgrAddr)
+		http.Error(w, str, http.StatusInternalServerError)
 		return
 	}
 	proxy := httputil.NewSingleHostReverseProxy(url)
@@ -107,6 +109,7 @@ func (s *SidecarServer) alertReceiver(w http.ResponseWriter, req *http.Request) 
 	defer span.Finish()
 	ctx := log.ContextWithSpan(context.Background(), span)
 
+	// Show Receivers
 	if req.Method == http.MethodGet {
 		config, err := s.readAlertManagerConfigAndLock(ctx)
 		configLock.Unlock()
@@ -164,6 +167,7 @@ func (s *SidecarServer) alertReceiver(w http.ResponseWriter, req *http.Request) 
 	}
 	writeConfig = false
 	if req.Method == http.MethodPost {
+		// Create receiver
 		writeConfig = true
 		for _, rec := range config.Receivers {
 			if rec.Name == receiverConfig.Receiver.Name {
@@ -175,6 +179,7 @@ func (s *SidecarServer) alertReceiver(w http.ResponseWriter, req *http.Request) 
 		config.Receivers = append(config.Receivers, &receiverConfig.Receiver)
 		config.Route.Routes = append(config.Route.Routes, &receiverConfig.Route)
 	} else if req.Method == http.MethodDelete {
+		// Delete receiver
 		for ii, rec := range config.Receivers {
 			if rec.Name == receiverConfig.Receiver.Name {
 				log.SpanLog(ctx, log.DebugLevelInfo, "Found Receiver - now delete it")

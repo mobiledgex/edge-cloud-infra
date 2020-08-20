@@ -314,13 +314,13 @@ func TestAlertMgrServer(t *testing.T) {
 	var testAlertCache edgeproto.AlertCache
 	edgeproto.InitAlertCache(&testAlertCache)
 	alertRefreshInterval = 100 * time.Millisecond
-	testAlertMgrServer, err := NewAlertMgrServer("http://"+sidecarServerAddr, testAlertMgrConfig,
+	testAlertMgrServer, err := NewAlertMgrServer("http://"+sidecarServerAddr,
 		&vault.Config{}, true, &testAlertCache, 2*time.Minute)
 	require.Nil(t, err)
 	require.NotNil(t, testAlertMgrServer)
 	require.Equal(t, 1, fakeAlertmanager.ConfigReloads)
 	// start another test alertMgrServer to test multiple inits
-	testAlertMgrServer2, err := NewAlertMgrServer("http://"+sidecarServerAddr, testAlertMgrConfig,
+	testAlertMgrServer2, err := NewAlertMgrServer("http://"+sidecarServerAddr,
 		&vault.Config{}, true, &testAlertCache, 2*time.Minute)
 	require.Nil(t, err)
 	require.NotNil(t, testAlertMgrServer2)

@@ -117,6 +117,7 @@ mcs:
   hostname: "127.0.0.1"
   billingpath: "fake"
   testcollectioninterval: 3m
+  alertmgrapiaddr: "http://127.0.0.1:9094"
 
 sqls:
 - name: sql1
@@ -160,6 +161,14 @@ alertmanagers:
 - name: alertmanager
   configfile: "{{datadir2}}/alertmanager.yml"
   port: 9093
+  hostname: "127.0.0.1"
+
+alertmanagersidecars:
+- name: alertmgrsidecar
+  alertmgraddr: "http://127.0.0.1:9093"
+  # config is copied by the alertmanager startup from datadir to /tmp so use default
+  #configfile: "/tmp/alertmanager.yml"
+  httpaddr: "127.0.0.1:9094"
   hostname: "127.0.0.1"
 
 maildevs:

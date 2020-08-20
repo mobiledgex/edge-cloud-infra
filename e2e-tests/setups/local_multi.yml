@@ -285,6 +285,7 @@ mcs:
   notifysrvaddr: "127.0.0.1:52001"
   consoleproxyaddr: "127.0.0.1:6080"
   alertresolvetimeout: 3s
+  alertmgrapiaddr: "http://127.0.0.1:9094"
   billingpath: "fake"
 
 - name: mc2
@@ -299,6 +300,7 @@ mcs:
   ldapaddr: "127.0.0.1:9390"
   notifysrvaddr: "127.0.0.1:52002"
   consoleproxyaddr: "127.0.0.1:6081"
+  alertmgrapiaddr: "http://127.0.0.1:9094"
   alertresolvetimeout: 3s
 
 sqls:
@@ -390,6 +392,14 @@ alertmanagers:
 - name: alertmanager
   configfile: "{{datadir2}}/alertmanager.yml"
   port: 9093
+  hostname: "127.0.0.1"
+
+alertmanagersidecars:
+- name: alertmgrsidecar
+  alertmgraddr: "http://127.0.0.1:9093"
+  # config is copied by the alertmanager startup from datadir to /tmp so use default
+  #configfile: "/tmp/alertmanager.yml"
+  httpaddr: "127.0.0.1:9094"
   hostname: "127.0.0.1"
 
 maildevs:

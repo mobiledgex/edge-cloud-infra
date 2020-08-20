@@ -89,10 +89,21 @@ func (s *AlertmanagerMock) registerMockResponders() {
 
 	// Reload method
 	s.registerConfigReload()
+
+	// Base URL handler
+	s.registerBaseUrl()
+}
+
+func (s *AlertmanagerMock) registerBaseUrl() {
+	httpmock.RegisterResponder("GET", s.addr+"/",
+		func(req *http.Request) (*http.Response, error) {
+			return httpmock.NewStringResponse(200, "Success"), nil
+		},
+	)
 }
 
 func (s *AlertmanagerMock) registerConfigReload() {
-	httpmock.RegisterResponder("POST", s.addr+"/"+ReloadConfigApi,
+	httpmock.RegisterResponder("POST", s.addr+ReloadConfigApi,
 		func(req *http.Request) (*http.Response, error) {
 			err := s.readConfig()
 			s.ConfigReloads++
@@ -105,7 +116,7 @@ func (s *AlertmanagerMock) registerConfigReload() {
 }
 
 func (s *AlertmanagerMock) registerCreateAlerts() {
-	httpmock.RegisterResponder("POST", s.addr+"/"+AlertApi,
+	httpmock.RegisterResponder("POST", s.addr+AlertApi,
 		func(req *http.Request) (*http.Response, error) {
 			alerts := []model.Alert{}
 			err := json.NewDecoder(req.Body).Decode(&alerts)
@@ -127,7 +138,7 @@ func (s *AlertmanagerMock) registerCreateAlerts() {
 }
 
 func (s *AlertmanagerMock) registerGetAlerts() {
-	httpmock.RegisterResponder("GET", s.addr+"/"+AlertApi,
+	httpmock.RegisterResponder("GET", s.addr+AlertApi,
 		func(req *http.Request) (*http.Response, error) {
 			alerts := open_api_models.GettableAlerts{}
 			for _, alert := range s.alerts {
@@ -159,7 +170,7 @@ func (s *AlertmanagerMock) registerGetAlerts() {
 }
 
 func (s *AlertmanagerMock) registerCreateSilences() {
-	httpmock.RegisterResponder("POST", s.addr+"/"+SilenceApi,
+	httpmock.RegisterResponder("POST", s.addr+SilenceApi,
 		func(req *http.Request) (*http.Response, error) {
 			// TODO
 			s.SilencesPosts++
@@ -169,7 +180,7 @@ func (s *AlertmanagerMock) registerCreateSilences() {
 }
 
 func (s *AlertmanagerMock) registerDeleteSilences() {
-	httpmock.RegisterResponder("DELETE", s.addr+"/"+SilenceApi,
+	httpmock.RegisterResponder("DELETE", s.addr+SilenceApi,
 		func(req *http.Request) (*http.Response, error) {
 			// TODO
 			s.SilencesDeletes++
@@ -179,7 +190,7 @@ func (s *AlertmanagerMock) registerDeleteSilences() {
 }
 
 func (s *AlertmanagerMock) registerGetSilences() {
-	httpmock.RegisterResponder("GET", s.addr+"/"+SilenceApi,
+	httpmock.RegisterResponder("GET", s.addr+SilenceApi,
 		func(req *http.Request) (*http.Response, error) {
 			// TODO
 			s.SilencesGets++
@@ -189,7 +200,7 @@ func (s *AlertmanagerMock) registerGetSilences() {
 }
 
 func (s *AlertmanagerMock) registerGetReceivers() {
-	httpmock.RegisterResponder("GET", s.addr+"/"+ReceiverApi,
+	httpmock.RegisterResponder("GET", s.addr+ReceiverApi,
 		func(req *http.Request) (*http.Response, error) {
 			names := []string{}
 			for _, receiver := range s.receivers {
@@ -259,10 +270,7 @@ func TestAlertMgrServer(t *testing.T) {
 	httpmock.Activate()
 	defer httpmock.DeactivateAndReset()
 	// any requests that don't have a registered URL will be fetched normally
-	httpmock.RegisterNoResponder(func(req *http.Request) (*http.Response, error) {
-		// return OK
-		return httpmock.NewJsonResponse(200, nil)
-	})
+	httpmock.RegisterNoResponder(httpmock.InitialTransport.RoundTrip)
 
 	// // Run MC to test the actual MC apis
 	// // master controller
@@ -296,29 +304,41 @@ func TestAlertMgrServer(t *testing.T) {
 	fakeAlertmanager.verifyAlertCnt(t, 0)
 	fakeAlertmanager.verifyReceiversCnt(t, 0)
 
+	// Start up a sidecar server on an available port
+	sidecarServer := NewSidecarServer(testAlertMgrAddr, testAlertMgrConfig, ":0")
+	err = sidecarServer.Run()
+	require.Nil(t, err)
+	sidecarServerAddr := sidecarServer.GetApiAddr()
+
 	// Create a connection to fake alertmanager
 	var testAlertCache edgeproto.AlertCache
 	edgeproto.InitAlertCache(&testAlertCache)
 	alertRefreshInterval = 100 * time.Millisecond
-	testAlertMgrServer, err := NewAlertMgrServer(testAlertMgrAddr, testAlertMgrConfig,
+	testAlertMgrServer, err := NewAlertMgrServer("http://"+sidecarServerAddr, testAlertMgrConfig,
 		&vault.Config{}, true, &testAlertCache, 2*time.Minute)
 	require.Nil(t, err)
 	require.NotNil(t, testAlertMgrServer)
 	require.Equal(t, 1, fakeAlertmanager.ConfigReloads)
-	// test readConfigFile - on an existing file
-	err = testAlertMgrServer.readConfigFile(ctx)
+	// start another test alertMgrServer to test multiple inits
+	testAlertMgrServer2, err := NewAlertMgrServer("http://"+sidecarServerAddr, testAlertMgrConfig,
+		&vault.Config{}, true, &testAlertCache, 2*time.Minute)
 	require.Nil(t, err)
+	require.NotNil(t, testAlertMgrServer2)
+	// config is already set up, don't need to reload
+	require.Equal(t, 1, fakeAlertmanager.ConfigReloads)
 	// We should still not have any configuration
 	fakeAlertmanager.verifyAlertCnt(t, 0)
 	// Default is one receiver
 	fakeAlertmanager.verifyReceiversCnt(t, 1)
 	// Make sure that the values for the global config are correct
-	require.Equal(t, testSmtpInfo.Email, AlertManagerConfig.Global.SMTPFrom)
-	require.Equal(t, testSmtpInfo.User, AlertManagerConfig.Global.SMTPAuthUsername)
-	require.Equal(t, testSmtpInfo.Smtp, AlertManagerConfig.Global.SMTPSmarthost.Host)
-	require.Equal(t, testSmtpInfo.Port, AlertManagerConfig.Global.SMTPSmarthost.Port)
-	require.Equal(t, testSmtpInfo.Token, string(AlertManagerConfig.Global.SMTPAuthPassword))
-	require.Equal(t, (testSmtpInfo.Tls == "true"), AlertManagerConfig.Global.SMTPRequireTLS)
+	config, err := alertmanager_config.LoadFile(testAlertMgrConfig)
+	require.Nil(t, err)
+	require.Equal(t, testSmtpInfo.Email, config.Global.SMTPFrom)
+	require.Equal(t, testSmtpInfo.User, config.Global.SMTPAuthUsername)
+	require.Equal(t, testSmtpInfo.Smtp, config.Global.SMTPSmarthost.Host)
+	require.Equal(t, testSmtpInfo.Port, config.Global.SMTPSmarthost.Port)
+	require.Equal(t, testSmtpInfo.Token, string(config.Global.SMTPAuthPassword))
+	require.Equal(t, (testSmtpInfo.Tls == "true"), config.Global.SMTPRequireTLS)
 
 	testAlertCache.SetUpdatedCb(testAlertMgrServer.UpdateAlert)
 
@@ -390,7 +410,7 @@ func TestAlertMgrServer(t *testing.T) {
 		}
 	}
 
-	// 7. Test alertmgr create reciever api
+	// 7. Test alertmgr create receiver api
 	// Invalid receiver test
 	err = testAlertMgrServer.CreateReceiver(ctx, &testAlertReceivers[0], nil)
 	require.NotNil(t, err)

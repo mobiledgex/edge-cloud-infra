@@ -45,14 +45,6 @@ type InterfaceActionsOp struct {
 
 var RootLBPorts = []dme.AppPort{}
 
-// serverIsNetplanEnabled checks for the existence of netplan, in which case there are no ifcfg files.  The current
-// baseimage uses netplan, but CRM can still run on older rootLBs.
-func serverIsNetplanEnabled(ctx context.Context, client ssh.Client) bool {
-	cmd := "netplan info"
-	_, err := client.Output(cmd)
-	return err == nil
-}
-
 func getNetplanContents(portName, ifName string, ipAddr string) string {
 	return fmt.Sprintf(`## config for %s
 network:
@@ -145,7 +137,7 @@ func (v *VMPlatform) configureInternalInterfaceAndExternalForwarding(ctx context
 		}
 		// keep going on delete
 	}
-	netplanEnabled := serverIsNetplanEnabled(ctx, client)
+	netplanEnabled := ServerIsNetplanEnabled(ctx, client)
 	filename := "/etc/network/interfaces.d/" + internalPortName + ".cfg"
 	fileMatch := "/etc/network/interfaces.d/*-port.cfg"
 	contents := fmt.Sprintf("auto %s\niface %s inet static\n   address %s/24", internalIfname, internalIfname, internalIP.InternalAddr)

@@ -46,6 +46,12 @@ controllers:
   deploymenttag: "local"
   chefserverpath: "http://127.0.0.1:8889/organizations/mobiledgex"
 
+alertmanagers:
+- name: alertmanager
+  configfile: "{{datadir2}}/alertmanager.yml"
+  port: 9093
+  hostname: "127.0.0.1"
+
 mcs:
 - name: mc1
   addr: "127.0.0.1:9900"

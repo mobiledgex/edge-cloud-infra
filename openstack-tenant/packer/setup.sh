@@ -27,6 +27,9 @@ trap 'archive_log' EXIT
 if [[ -z "$ROOT_PASS" ]]; then
 	echo "Root password not found" >&2
 	exit 2
+elif [[ -z "$GRUB_PW_HASH" ]]; then
+	echo "GRUB password hash not found" >&2
+	exit 2
 elif [[ -z "$TOTP_KEY" ]]; then
 	echo "TOTP key not found" >&2
 	exit 2
@@ -166,6 +169,19 @@ echo "source /etc/network/interfaces.d/*.cfg" | sudo tee -a /etc/network/interfa
 log "Remove unnecessary packages"
 cat /tmp/pkg-cleanup.txt | sudo xargs apt-get purge -y
 sudo rm -f /tmp/pkg-cleanup.txt
+
+log "Set up GRUB password"
+sudo tee /etc/grub.d/50_grub_pw <<EOT
+cat <<PW
+set superusers="root"
+password_pbkdf2 root $GRUB_PW_HASH
+PW
+EOT
+sudo chmod a+x /etc/grub.d/50_grub_pw
+
+# Allow boot without requiring passwords
+sudo sed -i '/^CLASS=/s/"$/ --unrestricted"/' /etc/grub.d/10_linux
+sudo update-grub
 
 log "Install mobiledgex ${TAG#v}"
 # avoid interactive for iptables-persistent

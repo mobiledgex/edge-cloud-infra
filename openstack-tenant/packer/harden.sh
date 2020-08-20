@@ -25,21 +25,37 @@ echo "install hfs /bin/true" | sudo tee /etc/modprobe.d/hfs.conf
 log "1.1.1.5 Ensure mounting of hfsplus filesystems is disabled"
 echo "install hfsplus /bin/true" | sudo tee /etc/modprobe.d/hfsplus.conf
 
-log "1.1.1.6 Ensure mounting of udf filesystems is disabled"
+log "1.1.1.6 Ensure mounting of squashfs filesystems is disabled"
+echo "install squashfs /bin/true" | sudo tee /etc/modprobe.d/squashfs.conf
+
+log "1.1.1.7 Ensure mounting of udf filesystems is disabled"
 echo "install udf /bin/true" | sudo tee /etc/modprobe.d/udf.conf
 
 log "1.1.16 Ensure noexec option set on /dev/shm partition"
 echo "tmpfs /dev/shm tmpfs defaults,nodev,nosuid,noexec 0 0" \
 	| sudo tee -a /etc/fstab
 
-log "1.3.1 Ensure AIDE is installed"
+log "1.1.2 Ensure /tmp is configured"
+echo "tmpfs /tmp tmpfs defaults,rw,nosuid,nodev,noexec,relatime 0 0" \
+	| sudo tee -a /etc/fstab
+
+log "1.1.23 Disable USB Storage"
+echo "install usb-storage /bin/true" | sudo tee /etc/modprobe.d/usb-storage.conf
+
+log "1.3.2 Ensure sudo commands use pty"
+echo "Defaults use_pty" | sudo tee /etc/sudoers.d/10-use-pty
+
+log "1.3.3 Ensure sudo log file exists"
+echo 'Defaults logfile="/var/log/sudo.log"' | sudo tee /etc/sudoers.d/15-logfile
+
+log "1.4.1 Ensure AIDE is installed"
 echo "postfix postfix/mailname string localhost" \
 	| sudo debconf-set-selections
 echo "postfix postfix/main_mailer_type string 'Local only'" \
 	| sudo debconf-set-selections
 sudo apt-get install -y aide
 
-log "1.3.2 Ensure filesystem integrity is regularly checked"
+log "1.4.2 Ensure filesystem integrity is regularly checked"
 sudo rm -f /etc/cron.daily/aide
 sudo tee /etc/cron.weekly/aide <<'EOT'
 #!/bin/sh
@@ -48,18 +64,31 @@ umask 027
 EOT
 sudo chmod a+rx /etc/cron.weekly/aide
 
-log "1.4.1 Ensure permissions on bootloader config are configured"
+log "1.5.1 Ensure permissions on bootloader config are configured"
 sudo chown root:root /boot/grub/grub.cfg
 sudo chmod og-rwx /boot/grub/grub.cfg
 
-log "1.5.1 Ensure core dumps are restricted"
+log "1.6.2 Ensure address space layout randomization (ASLR) is enabled"
+echo "kernel.randomize_va_space = 2" | sudo tee -a /etc/sysctl.conf
+
+log "1.6.4 Ensure core dumps are restricted"
 echo "* hard core 0" | sudo tee -a /etc/security/limits.conf
 echo "fs.suid_dumpable = 0" | sudo tee -a /etc/sysctl.conf
 
-log "1.5.3 Ensure address space layout randomization (ASLR) is enabled"
-echo "kernel.randomize_va_space = 2" | sudo tee -a /etc/sysctl.conf
+log "1.7.1.2 Ensure AppArmor is enabled in the bootloader configuration"
+sudo sed -i 's/^\(GRUB_CMDLINE_LINUX="\)/\1apparmor=1 security=apparmor /' \
+	/etc/default/grub
+sudo update-grub
 
-log "1.7.1.4 Ensure permissions on /etc/motd are configured"
+log "1.8.1.2 Ensure local login warning banner is configured properly"
+echo "Authorized uses only. All activity may be monitored and reported." \
+	| sudo tee /etc/issue
+
+log "1.8.1.3 Ensure remote login warning banner is configured properly"
+echo "Authorized uses only. All activity may be monitored and reported." \
+	| sudo tee /etc/issue.net
+
+log "1.8.1.4 Ensure permissions on /etc/motd are configured"
 sudo touch /etc/motd
 sudo chown root:root /etc/motd
 sudo chmod 644 /etc/motd
@@ -77,16 +106,26 @@ sudo systemctl disable rsync
 log "2.3.4 Ensure telnet client is not installed"
 sudo apt-get purge -y telnet
 
+log "3.1.1 Ensure packet redirect sending is disabled"
+sudo tee /etc/sysctl.d/50-packet-redirect-sending.conf <<'EOT'
+net.ipv4.conf.all.send_redirects = 0
+net.ipv4.conf.default.send_redirects = 0
+EOT
+
 log "3.2.1 Ensure source routed packets are not accepted"
 sudo tee /etc/sysctl.d/50-source-routed-packets.conf <<'EOT'
 net.ipv4.conf.all.accept_source_route = 0
 net.ipv4.conf.default.accept_source_route = 0
+net.ipv6.conf.all.accept_source_route = 0
+net.ipv6.conf.default.accept_source_route = 0
 EOT
 
 log "3.2.2 Ensure ICMP redirects are not accepted"
 sudo tee /etc/sysctl.d/50-icmp-redirects.conf <<'EOT'
 net.ipv4.conf.all.accept_redirects = 0
 net.ipv4.conf.default.accept_redirects = 0
+net.ipv6.conf.all.accept_redirects = 0
+net.ipv6.conf.default.accept_redirects = 0
 EOT
 
 log "3.2.3 Ensure secure ICMP redirects are not accepted"
@@ -111,6 +150,12 @@ sudo tee /etc/sysctl.d/50-bogus-icmp-reponses.conf <<'EOT'
 net.ipv4.icmp_ignore_bogus_error_responses = 1
 EOT
 
+log "3.2.9 Ensure IPv6 router advertisements are not accepted"
+sudo tee /etc/sysctl.d/50-router-advertisements.conf <<'EOT'
+net.ipv6.conf.all.accept_ra = 0
+net.ipv6.conf.default.accept_ra = 0
+EOT
+
 log "3.4.1 Ensure TCP Wrappers is installed"
 sudo apt-get install -y tcpd
 
@@ -120,7 +165,28 @@ sudo iptables -A OUTPUT -o lo -j ACCEPT
 sudo iptables -A INPUT -s 127.0.0.0/8 -j DROP
 sudo iptables-save | sudo tee /etc/iptables/rules.v4
 
-log "4.2.4 Ensure permissions on all logfiles are configured"
+set_journald_param() {
+	param="$1"
+	value="$2"
+	if sudo grep "^#*${param}=" /etc/systemd/journald.conf >/dev/null; then
+		sudo sed -i -e "/^#${param}=/s/^#//" \
+			    -e "s|^${param}=.*$|${param}=${value}|" \
+			    /etc/systemd/journald.conf
+	else
+		echo "$param=$value" | sudo tee -a /etc/systemd/journald.conf
+	fi
+}
+
+log "4.2.2.1 Ensure journald is configured to send logs to rsyslog"
+set_journald_param ForwardToSyslog yes
+
+log "4.2.2.2 Ensure journald is configured to compress large log files"
+set_journald_param Compress yes
+
+log "4.2.2.3 Ensure journald is configured to write logfiles to persistent disk"
+set_journald_param Storage persistent
+
+log "4.2.3 Ensure permissions on all logfiles are configured"
 sudo chmod -R g-wx,o-rwx /var/log/*
 
 log "5.1.2 Ensure permissions on /etc/crontab are configured"
@@ -200,8 +266,11 @@ set_sshd_param PermitEmptyPasswords no
 log "5.2.10 Ensure SSH PermitUserEnvironment is disabled"
 set_sshd_param PermitUserEnvironment no
 
-log "5.2.11 Ensure only approved MAC algorithms are used"
-set_sshd_param MACs hmac-sha2-512-etm@openssh.com,hmac-sha2-256-etm@openssh.com,umac-128-etm@openssh.com,hmac-sha2-512,hmac-sha2-256,umac-128@openssh.com
+log "5.2.14 Ensure only approved MAC algorithms are used"
+set_sshd_param MACs hmac-sha2-512-etm@openssh.com,hmac-sha2-256-etm@openssh.com,hmac-sha2-512,hmac-sha2-256
+
+log "5.2.15 Ensure only strong Key Exchange algorithms are used"
+set_sshd_param KexAlgorithms curve25519-sha256,curve25519-sha256@libssh.org,diffie-hellman-group14-sha256,diffie-hellman-group16-sha512,diffie-hellman-group18-sha512,ecdh-sha2-nistp521,ecdh-sha2-nistp384,ecdh-sha2-nistp256,diffie-hellman-group-exchange-sha256
 
 log "5.2.12 Ensure SSH Idle Timeout Interval is configured"
 set_sshd_param ClientAliveInterval 300
@@ -214,8 +283,13 @@ log "5.2.14 Ensure SSH access is limited"
 set_sshd_param AllowUsers ubuntu
 
 log "5.2.15 Ensure SSH warning banner is configured"
-## TODO: Set warning banner message
 set_sshd_param Banner /etc/issue.net
+
+log "5.2.22 Ensure SSH MaxStartups is configured"
+set_sshd_param MaxStartups 10:30:60
+
+log "5.2.23 Ensure SSH MaxSessions is set to 4 or less"
+set_sshd_param MaxSessions 4
 
 log "5.3.1 Ensure password creation requirements are configured"
 sudo apt-get install -y libpam-pwquality
@@ -302,10 +376,26 @@ log "5.4.4 Ensure default user umask is 027 or more restrictive"
 for rcfile in /etc/profile /etc/bash.bashrc; do
 	echo "umask 027" | sudo tee -a "$rcfile"
 done
+echo "umask 027" | sudo tee /etc/profile.d/default-umask.sh
+
+log "5.4.5 Ensure default user shell timeout is 900 seconds or less"
+for rcfile in /etc/profile /etc/bash.bashrc; do
+	echo '[ -z "$TMOUT" ] && readonly TMOUT=900; export TMOUT' | sudo tee -a "$rcfile"
+done
+echo '[ -z "$TMOUT" ] && readonly TMOUT=900; export TMOUT' | sudo tee /etc/profile.d/default-tmout.sh
 
 log "5.6 Ensure access to the su command is restricted"
-sudo sed -i 's/^# *\(auth[ 	]*required[ 	]*pam_wheel.so$\)/\1/' \
+sudo groupadd sugroup
+sudo sed -i 's/^# *\(auth[ 	]*required[ 	]*pam_wheel.so$\)/\1 use_uid group=sugroup/' \
 	/etc/pam.d/su
+
+log "6.1.6 Ensure permissions on /etc/passwd- are configured"
+sudo chown root:root /etc/passwd-
+sudo chmod u-x,go-rwx /etc/passwd-
+
+log "6.1.7 Ensure permissions on /etc/shadow- are configured"
+sudo chown root:shadow /etc/shadow-
+sudo chmod u-x,go-rwx /etc/shadow-
 
 log "6.2.8 Ensure users' home directories permissions are 750 or more restrictive"
 sudo chmod 750 /home/ubuntu

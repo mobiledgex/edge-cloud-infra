@@ -98,6 +98,7 @@ func (v *VSpherePlatform) GetFlavor(ctx context.Context, flavorName string) (*ed
 }
 
 func (v *VSpherePlatform) GetFlavorList(ctx context.Context) ([]*edgeproto.FlavorInfo, error) {
+	log.SpanLog(ctx, log.DebugLevelInfra, "GetFlavorList")
 	// we just send the controller back the same list of flavors it gave us, because VSphere has no flavor concept.
 	// Make sure each flavor is at least a minimum size to run the platform
 	var flavors []*edgeproto.FlavorInfo
@@ -166,8 +167,7 @@ func (v *VSpherePlatform) GetApiEndpointAddr(ctx context.Context) (string, error
 // import tool will prompt for datastore and portgroup.
 func (v *VSpherePlatform) GetCloudletManifest(ctx context.Context, name string, vmgp *vmlayer.VMGroupOrchestrationParams) (string, error) {
 	log.SpanLog(ctx, log.DebugLevelInfra, "GetCloudletManifest", "name", name, "vmgp", vmgp)
-	ovfLocation := vmlayer.DefaultCloudletVMImagePath + "/vsphere-ovf-" + vmlayer.MEXInfraVersion
-	vmgp.SkipInfraSpecificCheck = true
+	ovfLocation := vmlayer.DefaultCloudletVMImagePath + "vsphere-ovf-" + vmlayer.MEXInfraVersion
 	err := v.populateOrchestrationParams(ctx, vmgp, vmlayer.ActionCreate)
 	if err != nil {
 		return "", fmt.Errorf("unable to populate orchestration params: %v", err)
@@ -177,10 +177,14 @@ func (v *VSpherePlatform) GetCloudletManifest(ctx context.Context, name string, 
 		return "", err
 	}
 	instructions := `
-1) Download OVF template from: ` + ovfLocation + `
-2) Import the OVF into vCenter: VMs and Templates -> Deploy OVF Template -> Select downloaded files
-3) Select cluster and datastore
-4) Update port group when prompted 
+1) Create folder "templates" within the virtual datacenter
+2) Download OVF template from: ` + ovfLocation + `
+2) Import the OVF into vCenter into template folder: VMs and Templates -> Deploy OVF Template -> Select downloaded files
+   - select Thin Provision for virtual disk format
+   - leave VM name unchanged
+   - select "` + v.GetHostCluster() + `" cluster and "` + v.GetDataStore() + `" datastore
+   - some text here about cloning to compute cluster?
+4) Update port group when prompted to ` + v.GetExternalVSwitch() + `
 
 Save the section below as a textfile and import it:
 ---------------------------------------------------------

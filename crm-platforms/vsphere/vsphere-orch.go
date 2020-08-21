@@ -124,7 +124,7 @@ func (v *VSpherePlatform) CreatePortGroup(ctx context.Context, dvs string, pgNam
 func (v *VSpherePlatform) DeletePool(ctx context.Context, poolName string) error {
 	log.SpanLog(ctx, log.DebugLevelInfra, "DeletePool", "poolName", poolName)
 	dcName := v.GetDatacenterName(ctx)
-	computeCluster := v.GetComputeCluster()
+	computeCluster := v.GetHostCluster()
 	pathPrefix := fmt.Sprintf("/%s/host/%s/Resources/", dcName, computeCluster)
 	poolPath := pathPrefix + poolName
 	out, err := v.TimedGovcCommand(ctx, "govc", "pool.destroy", "-dc", dcName, poolPath)
@@ -140,7 +140,7 @@ func (v *VSpherePlatform) CreatePool(ctx context.Context, poolName string) error
 	log.SpanLog(ctx, log.DebugLevelInfra, "CreatePool", "poolName", poolName)
 
 	dcName := v.GetDatacenterName(ctx)
-	computeCluster := v.GetComputeCluster()
+	computeCluster := v.GetHostCluster()
 	pathPrefix := fmt.Sprintf("/%s/host/%s/Resources/", dcName, computeCluster)
 	poolPath := pathPrefix + poolName
 	out, err := v.TimedGovcCommand(ctx, "govc", "pool.create", "-dc", dcName, poolPath)
@@ -156,7 +156,7 @@ func (v *VSpherePlatform) CreatePool(ctx context.Context, poolName string) error
 }
 
 func (v *VSpherePlatform) populateOrchestrationParams(ctx context.Context, vmgp *vmlayer.VMGroupOrchestrationParams, action vmlayer.ActionType) error {
-	log.SpanLog(ctx, log.DebugLevelInfra, "populateOrchestrationParams")
+	log.SpanLog(ctx, log.DebugLevelInfra, "populateOrchestrationParams", "SkipInfraSpecificCheck", vmgp.SkipInfraSpecificCheck)
 
 	subnetToVlan := make(map[string]uint32)
 	masterIP := ""
@@ -165,7 +165,7 @@ func (v *VSpherePlatform) populateOrchestrationParams(ctx context.Context, vmgp 
 	if !vmgp.SkipInfraSpecificCheck {
 		flavors, err = v.GetFlavorList(ctx)
 		if err != nil {
-			return nil
+			return err
 		}
 	}
 
@@ -377,7 +377,7 @@ func (v *VSpherePlatform) CreateVM(ctx context.Context, vm *vmlayer.VMOrchestrat
 
 	dcName := v.GetDatacenterName(ctx)
 	dsName := v.GetDataStore()
-	computeCluster := v.GetComputeCluster()
+	computeCluster := v.GetHostCluster()
 	pathPrefix := fmt.Sprintf("/%s/host/%s/Resources/", dcName, computeCluster)
 	poolPath := pathPrefix + poolName
 
@@ -789,7 +789,7 @@ func (v *VSpherePlatform) CreateTemplateFromImage(ctx context.Context, imageFold
 	templateName := imageFile
 	folder := v.GetTemplateFolder()
 	extNet := v.vmProperties.GetCloudletExternalNetwork()
-	pool := fmt.Sprintf("/%s/host/%s/Resources", v.GetDatacenterName(ctx), v.GetComputeCluster())
+	pool := fmt.Sprintf("/%s/host/%s/Resources", v.GetDatacenterName(ctx), v.GetHostCluster())
 
 	// create the VM which will become our template
 	out, err := v.TimedGovcCommand(ctx, "govc", "vm.create", "-g", "ubuntu64Guest", "-pool", pool, "-ds", ds, "-dc", dcName, "-folder", folder, "-disk", imageFolder+"/"+imageFile+".vmdk", "-net", extNet, templateName)
@@ -843,7 +843,7 @@ func (v *VSpherePlatform) ImportImage(ctx context.Context, folder, imageFile str
 		log.SpanLog(ctx, log.DebugLevelInfra, "DeleteImage error", "err", err)
 	}
 
-	pool := fmt.Sprintf("/%s/host/%s/Resources", v.GetDatacenterName(ctx), v.GetComputeCluster())
+	pool := fmt.Sprintf("/%s/host/%s/Resources", v.GetDatacenterName(ctx), v.GetHostCluster())
 	out, err := v.TimedGovcCommand(ctx, "govc", "import.vmdk", "-force", "-pool", pool, "-ds", ds, "-dc", dcName, imageFile, folder)
 
 	if err != nil {

@@ -11,8 +11,11 @@ import (
 	"net/http/httputil"
 	"net/url"
 	"os"
+	"strings"
 	"sync"
 	"text/template"
+
+	"github.com/gorilla/mux"
 
 	"github.com/mobiledgex/edge-cloud/log"
 
@@ -23,6 +26,8 @@ import (
 
 // Alertmanager config file lock
 var configLock sync.RWMutex
+
+const receiverUrlVar string = "receiverName"
 
 // Struct that gets sent between MC and sidecar serbvice in the APIs
 type SidecarReceiverConfig struct {
@@ -47,20 +52,25 @@ func NewSidecarServer(target, path, apiAddr string) *SidecarServer {
 	}
 }
 
-// Get server address
+// Get server address with http prefix
 func (s *SidecarServer) GetApiAddr() string {
+	if !strings.HasPrefix(s.httpApiAddr, "http") {
+		return "http://" + s.httpApiAddr
+	}
 	return s.httpApiAddr
 }
 
 // TODO - make this a TLS server
 func (s *SidecarServer) Run() error {
-	http.HandleFunc("/", s.proxyHandler)
-	http.HandleFunc(AlertApi, s.proxyHandler)
+	rtrMux := mux.NewRouter()
+	rtrMux.HandleFunc("/", s.proxyHandler)
+	rtrMux.HandleFunc(AlertApi, s.proxyHandler)
 	// http.HandleFunc(ReloadConfigApi, proxyHandler) - this should not be externally exposed
-	http.HandleFunc(SilenceApi, s.proxyHandler)
-	http.HandleFunc(ReceiverApi, s.proxyHandler)
-	http.HandleFunc(mobiledgeXInitAlertmgr, s.initAlertmanager)
-	http.HandleFunc(mobiledgeXReceiverApi, s.alertReceiver)
+	rtrMux.HandleFunc(SilenceApi, s.proxyHandler)
+	rtrMux.HandleFunc(ReceiverApi, s.proxyHandler)
+	rtrMux.HandleFunc(mobiledgeXInitAlertmgr, s.initAlertmanager)
+	rtrMux.HandleFunc(mobiledgeXReceiverApi, s.alertReceiver)
+	rtrMux.HandleFunc(mobiledgeXReceiverApi+"/{"+receiverUrlVar+"}", s.alertReceiver).Methods("DELETE")
 
 	listener, err := net.Listen("tcp4", s.httpApiAddr)
 	if err != nil {
@@ -70,7 +80,7 @@ func (s *SidecarServer) Run() error {
 	s.httpApiAddr = listener.Addr().String()
 	s.server = &http.Server{
 		Addr:    s.httpApiAddr,
-		Handler: nil,
+		Handler: rtrMux,
 	}
 	// detach and run the server
 	go func() {
@@ -106,17 +116,19 @@ func (s *SidecarServer) alertReceiver(w http.ResponseWriter, req *http.Request) 
 	defer span.Finish()
 	ctx := log.ContextWithSpan(context.Background(), span)
 
-	// Show Receivers
-	if req.Method == http.MethodGet {
-		config, err := s.readAlertManagerConfigAndLock(ctx)
-		configLock.Unlock()
-		if err != nil {
-			log.SpanLog(ctx, log.DebugLevelInfo, "Unable to read config request", "err", err)
-			http.Error(w, err.Error(), http.StatusInternalServerError)
-			return
+	// read file and grab a lock
+	config, err := s.readAlertManagerConfigAndLock(ctx)
+	if err != nil {
+		log.SpanLog(ctx, log.DebugLevelInfo, "Unable to read config request", "err", err)
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
 
-		}
-		// return SidecarReceiverConfig[]
+	writeConfig = false
+	switch req.Method {
+	case http.MethodGet:
+		// Show Receivers
+		configLock.Unlock()
 		receivers := SidecarReceiverConfigs{}
 		for ii, rec := range config.Receivers {
 			if rec.Name == "default" {
@@ -139,32 +151,23 @@ func (s *SidecarServer) alertReceiver(w http.ResponseWriter, req *http.Request) 
 		w.WriteHeader(http.StatusOK)
 		err = json.NewEncoder(w).Encode(receivers)
 		if err != nil {
-			log.SpanLog(ctx, log.DebugLevelInfo, "Failed to get marshal Receiver Config data", "err", err, "cfg", receivers)
+			log.SpanLog(ctx, log.DebugLevelInfo, "Failed to get marshal Receiver Config data", "err", err,
+				"cfg", receivers)
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 			return
 		}
 		return
-	}
-
-	receiverConfig := SidecarReceiverConfig{}
-	err := json.NewDecoder(req.Body).Decode(&receiverConfig)
-	if err != nil {
-		log.SpanLog(ctx, log.DebugLevelInfo, "Unable to decode request", "req", req)
-		http.Error(w, err.Error(), http.StatusBadRequest)
-		return
-	}
-
-	// read file and grab a lock
-	config, err := s.readAlertManagerConfigAndLock(ctx)
-	defer configLock.Unlock()
-	if err != nil {
-		log.SpanLog(ctx, log.DebugLevelInfo, "Unable to read config request", "err", err)
-		http.Error(w, err.Error(), http.StatusInternalServerError)
-		return
-	}
-	writeConfig = false
-	if req.Method == http.MethodPost {
+	case http.MethodPost:
 		// Create receiver
+		defer configLock.Unlock()
+		receiverConfig := SidecarReceiverConfig{}
+		err = json.NewDecoder(req.Body).Decode(&receiverConfig)
+		if err != nil {
+			log.SpanLog(ctx, log.DebugLevelInfo, "Unable to decode request", "method", req.Method,
+				"url", req.URL, "payload", req.Body)
+			http.Error(w, err.Error(), http.StatusBadRequest)
+			return
+		}
 		writeConfig = true
 		for _, rec := range config.Receivers {
 			if rec.Name == receiverConfig.Receiver.Name {
@@ -175,17 +178,27 @@ func (s *SidecarServer) alertReceiver(w http.ResponseWriter, req *http.Request) 
 		}
 		config.Receivers = append(config.Receivers, &receiverConfig.Receiver)
 		config.Route.Routes = append(config.Route.Routes, &receiverConfig.Route)
-	} else if req.Method == http.MethodDelete {
+	case http.MethodDelete:
 		// Delete receiver
+		defer configLock.Unlock()
+		// get the receiver name
+		vars := mux.Vars(req)
+		receiverName, ok := vars[receiverUrlVar]
+		if !ok {
+			log.SpanLog(ctx, log.DebugLevelInfo, "Receiver Name not specified", "method", req.Method,
+				"url", req.URL)
+			http.Error(w, "Receiver name not specified", http.StatusBadRequest)
+			return
+		}
 		for ii, rec := range config.Receivers {
-			if rec.Name == receiverConfig.Receiver.Name {
+			if rec.Name == receiverName {
 				log.SpanLog(ctx, log.DebugLevelInfo, "Found Receiver - now delete it")
 				// remove from the receivers
 				config.Receivers = append(config.Receivers[:ii],
 					config.Receivers[ii+1:]...)
 				// remove from routes
 				for jj, route := range config.Route.Routes {
-					if route.Receiver == receiverConfig.Receiver.Name {
+					if route.Receiver == receiverName {
 						config.Route.Routes = append(config.Route.Routes[:jj],
 							config.Route.Routes[jj+1:]...)
 						break
@@ -196,8 +209,9 @@ func (s *SidecarServer) alertReceiver(w http.ResponseWriter, req *http.Request) 
 				break
 			}
 		}
-	} else {
-		log.SpanLog(ctx, log.DebugLevelInfo, "Unsupported method", "req", req)
+	default:
+		log.SpanLog(ctx, log.DebugLevelInfo, "Unsupported method", "method", req.Method,
+			"url", req.URL)
 		http.Error(w, "Unsupported method", http.StatusMethodNotAllowed)
 		return
 	}
@@ -291,14 +305,13 @@ func (s *SidecarServer) initConfigFile(ctx context.Context, info *smtpInfo) erro
 // Load default configuration into Alertmanager
 // Note configLock should be held prior to calling this
 func (s *SidecarServer) loadDefaultConfigFileLocked(ctx context.Context, info *smtpInfo) error {
-
 	defaultConfigTemplate = template.Must(template.New("alertmanagerconfig").Parse(DefaultAlertmanagerConfigT))
 	config := bytes.Buffer{}
 	if err := defaultConfigTemplate.Execute(&config, info); err != nil {
 		log.SpanLog(ctx, log.DebugLevelInfo, "Failed to parse the config template", "err", err)
 		return err
 	}
-	log.SpanLog(ctx, log.DebugLevelInfo, "Loading default config", "confog", config.String())
+	log.SpanLog(ctx, log.DebugLevelInfo, "Loading default config", "config", config.String())
 	return s.writeAlertmanagerConfigLocked(ctx, &config)
 }
 

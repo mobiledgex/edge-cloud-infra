@@ -3,7 +3,6 @@ package main
 import (
 	"flag"
 	"fmt"
-
 	"os"
 	"os/signal"
 
@@ -16,15 +15,15 @@ var alertmanagerAddr = flag.String("alertmgrAddr", "0.0.0.0:9093", "Alertmanager
 var alertmanagerConfigFile = flag.String("configFile", "/tmp/alertmanager.yml", "Alertmanager config file")
 var httpAddr = flag.String("httpAddr", "0.0.0.0:9094", "Http API endpoint")
 
-var SidevarServer *alertmgr.SidecarServer
+var SidecarServer *alertmgr.SidecarServer
 
 func main() {
 	flag.Parse()
 	log.SetDebugLevelStrs(*debugLevels)
 	log.InitTracer("")
 
-	SidevarServer = alertmgr.NewSidecarServer(*alertmanagerAddr, *alertmanagerConfigFile, *httpAddr)
-	err := SidevarServer.Run()
+	SidecarServer = alertmgr.NewSidecarServer(*alertmanagerAddr, *alertmanagerConfigFile, *httpAddr)
+	err := SidecarServer.Run()
 	if err != nil {
 		log.FatalLog("Unable to start alertmgr sidecar", "err", err)
 	}
@@ -35,5 +34,4 @@ func main() {
 	// wait until process in killed/interrupted
 	sig := <-sigChan
 	fmt.Println(sig)
-
 }

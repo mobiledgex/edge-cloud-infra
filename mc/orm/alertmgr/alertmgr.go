@@ -369,19 +369,7 @@ func (s *AlertMgrServer) DeleteReceiver(ctx context.Context, receiver *ormapi.Al
 
 	// We create one entry per receiver, to make it simpler
 	receiverName := getAlertmgrReceiverName(receiver)
-	sidecarRec := SidecarReceiverConfig{
-		Receiver: alertmanager_config.Receiver{
-			Name: receiverName,
-		},
-	}
-	// Send request to sidecar service
-	data, err := json.Marshal(sidecarRec)
-	if err != nil {
-		log.SpanLog(ctx, log.DebugLevelInfo, "Failed to get marshal sidecar Receiver Config info", "err", err, "cfg", sidecarRec)
-		return err
-	}
-
-	res, err := alertMgrApi(ctx, s.AlertMrgAddr, "DELETE", mobiledgeXReceiverApi, "", data)
+	res, err := alertMgrApi(ctx, s.AlertMrgAddr, "DELETE", mobiledgeXReceiverApi+"/"+receiverName, "", nil)
 	if err != nil {
 		log.SpanLog(ctx, log.DebugLevelInfo, "Failed to delete alertmanager receiver", "err", err, "res", res)
 		return err
@@ -497,9 +485,9 @@ func alertMgrApi(ctx context.Context, addr, method, api, options string, payload
 	}
 	body, err := ioutil.ReadAll(resp.Body)
 	if err != nil {
-		log.SpanLog(ctx, log.DebugLevelInfo, "Unable to read response body", "method", req.Method,
-			"url", req.URL, "payload", payload, "response code", resp.Status,
-			"response length", resp.ContentLength)
+		log.SpanLog(ctx, log.DebugLevelInfo, "Unable to read response body", "err", err,
+			"method", req.Method, "url", req.URL, "payload", payload,
+			"response code", resp.Status, "response length", resp.ContentLength)
 		return nil, err
 	}
 	return body, nil

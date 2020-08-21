@@ -185,6 +185,6 @@ const (
 	ReceiverApi            = "/api/v2/receivers"
 	SilenceApi             = "/api/v2/silences"
 	ReloadConfigApi        = "/-/reload"
-	mobiledgeXReceiverApi  = "/api/v2/receiver"
-	mobiledgeXInitAlertmgr = "/api/v2/init"
+	mobiledgeXReceiverApi  = "/api/v3/receivers"
+	mobiledgeXInitAlertmgr = "/api/v3/init"
 )

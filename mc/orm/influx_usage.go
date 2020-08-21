@@ -12,7 +12,7 @@ import (
 	"github.com/mobiledgex/edge-cloud/edgeproto"
 )
 
-func GetClusterUsage(eventRecords *client.Response) (*ormapi.AllUsage, error) {
+func GetClusterUsage(eventRecords *client.Response, checkpointRecords *client.Response) (*ormapi.AllUsage, error) {
 	usageRecords := ormapi.AllUsage{
 		Data: make([]ormapi.UsageRecord, 0),
 	}
@@ -44,6 +44,10 @@ func GetClusterUsage(eventRecords *client.Response) (*ormapi.AllUsage, error) {
 	}
 
 	return nil, nil
+}
+
+func GetEventAndCheckpoint() {
+
 }
 
 // Common method to handle both app and cluster metrics

@@ -101,6 +101,8 @@ func main() {
 		if usageCollectionInterval.Seconds() > float64(0) { // if positive, use it
 			ctx = context.WithValue(ctx, "usageInterval", *usageCollectionInterval)
 		}
+
+		// TODO: this needs to be redone after usageApi comes out
 		// go collections.CollectDailyUsage(ctx)
 	}
 

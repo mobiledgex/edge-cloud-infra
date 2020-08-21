@@ -1,6 +1,6 @@
 PACKAGE = mobiledgex
-VERSION = 3.1.6
-DISTRIBUTION = stratus
+VERSION = 4.0.3
+DISTRIBUTION = cirrus
 COMPONENT = main
 
 PKGDIR = $(PACKAGE)_$(VERSION)

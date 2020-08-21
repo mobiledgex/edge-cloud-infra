@@ -1,11 +1,12 @@
 #!/bin/bash
 ARTIFACTORY_BASEURL='https://artifactory.mobiledgex.net'
 ARTIFACTORY_USER='packer'
-ARTIFACTORY_ARTIFACTS_TAG='2019-11-01'
-CLOUD_IMAGE='ubuntu-16.04-server-cloudimg-amd64-disk1.img'
+ARTIFACTORY_ARTIFACTS_TAG='2020-04-27'
+CLOUD_IMAGE='ubuntu-18.04-server-cloudimg-amd64.img'
 OUTPUT_IMAGE_NAME='mobiledgex'
 
-: ${CLOUD_IMAGE_TAG:=ubuntu-16.04-20191024}
+: ${CLOUD_IMAGE_TAG:=ubuntu-18.04-server-cloudimg-amd64}
+: ${VAULT:=vault-main.mobiledgex.net}
 : ${FLAVOR:=m4.small}
 : ${FORCE:=no}
 : ${TRACE:=no}
@@ -66,6 +67,22 @@ if [[ -f "$ARTIFACTORY_APIKEY_FILE" ]]; then
 else
 	read -s -p "Artifactory password/api-key: " ARTIFACTORY_APIKEY
 	echo
+fi
+
+VAULT_PATH="secret/accounts/baseimage"
+export VAULT_ADDR="https://${VAULT}"
+if ! vault token lookup >/dev/null 2>&1; then
+	echo "Logging in to $VAULT_ADDR"
+	vault login -method=github
+	[[ $? -eq 0 ]] || die "Failed to log in to vault: $VAULT_ADDR"
+	echo
+fi
+
+ROOT_PASS=$( vault kv get -field=value "${VAULT_PATH}/password" )
+GRUB_PW_HASH=$( vault kv get -field=grub_pw_hash "${VAULT_PATH}/password" )
+TOTP_KEY=$( vault kv get -field=value "${VAULT_PATH}/totp-key" )
+if [[ -z "$ROOT_PASS" || -z "$GRUB_PW_HASH" || -z "$TOTP_KEY" ]]; then
+	die "Unable to read vault secrets: ${VAULT} ${VAULT_PATH}"
 fi
 
 jq_VERSION=$( jq --version 2>/dev/null )
@@ -141,6 +158,9 @@ PACKER_LOG=1 "${CMDLINE[@]}" \
 	-var "ARTIFACTORY_USER=$ARTIFACTORY_USER" \
 	-var "ARTIFACTORY_APIKEY=$ARTIFACTORY_APIKEY" \
 	-var "ARTIFACTORY_ARTIFACTS_TAG=$ARTIFACTORY_ARTIFACTS_TAG" \
+	-var "ROOT_PASS=$ROOT_PASS" \
+	-var "GRUB_PW_HASH=$GRUB_PW_HASH" \
+	-var "TOTP_KEY=$TOTP_KEY" \
 	-var "TAG=$TAG" \
 	-var "GITTAG=$GITTAG" \
 	-var "FLAVOR=$FLAVOR" \

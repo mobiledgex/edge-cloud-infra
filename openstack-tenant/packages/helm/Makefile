@@ -2,7 +2,7 @@ PACKAGE = helm
 VERSION = 2.15.2
 SHA256SUM = a9d2db920bd4b3d824729bbe1ff3fa57ad27760487581af6e5d3156d1b3c2511
 
-DISTRIBUTION = stratus
+DISTRIBUTION = cirrus
 COMPONENT = main
 
 PKGURL = https://get.helm.sh/helm-v$(VERSION)-linux-amd64.tar.gz

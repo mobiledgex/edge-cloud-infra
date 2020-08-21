@@ -147,6 +147,33 @@ func ServerIsNetplanEnabled(ctx context.Context, client ssh.Client) bool {
 	return err == nil
 }
 
+func getNetplanContents(portName, ifName string, ipAddr string) string {
+	return fmt.Sprintf(`## config for %s
+network:
+    version: 2
+    ethernets:
+        %s:
+            dhcp4: no
+            dhcp6: no
+            addresses:
+             - %s
+`, portName, ifName, ipAddr)
+}
+
+// GetNetworkFileDetailsForIP returns interfaceFileName, fileMatchPattern, contents based on whether netplan is enabled
+func GetNetworkFileDetailsForIP(ctx context.Context, portName string, ifName string, ipAddr string, netPlanEnabled bool) (string, string, string) {
+	log.SpanLog(ctx, log.DebugLevelInfra, "GetNetworkFileDetailsForIP", "portName", portName, "ifName", ifName, "ipAddr", ipAddr, "netPlanEnabled", netPlanEnabled)
+	fileName := "/etc/network/interfaces.d/" + portName + ".cfg"
+	fileMatch := "/etc/network/interfaces.d/*-port.cfg"
+	contents := fmt.Sprintf("auto %s\niface %s inet static\n   address %s/24", ifName, ifName, ipAddr)
+	if netPlanEnabled {
+		fileName = "/etc/netplan/" + portName + ".yaml"
+		fileMatch = "/etc/netplan/*-port.yaml"
+		contents = getNetplanContents(portName, ifName, ipAddr+"/24")
+	}
+	return fileName, fileMatch, contents
+}
+
 func (v *VMPlatform) AddRouteToServer(ctx context.Context, client ssh.Client, serverName string, cidr string) error {
 	log.SpanLog(ctx, log.DebugLevelInfra, "AddRouteToServer", "serverName", serverName, "cidr", cidr)
 

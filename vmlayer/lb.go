@@ -45,19 +45,6 @@ type InterfaceActionsOp struct {
 
 var RootLBPorts = []dme.AppPort{}
 
-func getNetplanContents(portName, ifName string, ipAddr string) string {
-	return fmt.Sprintf(`## config for %s
-network:
-    version: 2
-    ethernets:
-        %s:
-            dhcp4: no
-            dhcp6: no
-            addresses:
-             - %s
-`, portName, ifName, ipAddr)
-}
-
 // creates entries in the 70-persistent-net.rules files to ensure the interface names are consistent after reboot
 func persistInterfaceName(ctx context.Context, client ssh.Client, ifName, mac string, action *InterfaceActionsOp) error {
 	log.SpanLog(ctx, log.DebugLevelInfra, "persistInterfaceName", "ifName", ifName, "mac", mac, "action", action)
@@ -138,15 +125,7 @@ func (v *VMPlatform) configureInternalInterfaceAndExternalForwarding(ctx context
 		// keep going on delete
 	}
 	netplanEnabled := ServerIsNetplanEnabled(ctx, client)
-	filename := "/etc/network/interfaces.d/" + internalPortName + ".cfg"
-	fileMatch := "/etc/network/interfaces.d/*-port.cfg"
-	contents := fmt.Sprintf("auto %s\niface %s inet static\n   address %s/24", internalIfname, internalIfname, internalIP.InternalAddr)
-	if netplanEnabled {
-		log.SpanLog(ctx, log.DebugLevelInfra, "netplan enabled, generating yaml file", "port", internalPortName)
-		filename = "/etc/netplan/" + internalPortName + ".yaml"
-		fileMatch = "/etc/netplan/*-port.yaml"
-		contents = getNetplanContents(internalPortName, internalIfname, internalIP.InternalAddr+"/24")
-	}
+	filename, fileMatch, contents := GetNetworkFileDetailsForIP(ctx, internalIfname, internalPortName, internalIP.InternalAddr, netplanEnabled)
 	if action.addInterface {
 		// cleanup any interfaces files that may be sitting around with our new interface, perhaps from some old failure
 		cmd := fmt.Sprintf("grep -l ' %s ' %s", fileMatch, internalIfname)

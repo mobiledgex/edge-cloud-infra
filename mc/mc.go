@@ -101,7 +101,7 @@ func main() {
 		if usageCollectionInterval.Seconds() > float64(0) { // if positive, use it
 			ctx = context.WithValue(ctx, "usageInterval", *usageCollectionInterval)
 		}
-		go collections.CollectDailyUsage(ctx)
+		// go collections.CollectDailyUsage(ctx)
 	}
 
 	// wait until process is killed/interrupted

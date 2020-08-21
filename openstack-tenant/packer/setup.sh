@@ -161,6 +161,7 @@ log "Disable snap"
 sudo apt purge -y snapd
 sudo rm -rf /snap /var/snap /var/cache/snapd /var/lib/snapd
 
+# Remove systemd-networkd-wait-online as it often hangs with netplan which we use in 18.04
 log "disable systemd-networkd-wait-online"
 sudo systemctl mask systemd-networkd-wait-online
 

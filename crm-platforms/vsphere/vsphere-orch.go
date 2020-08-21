@@ -55,8 +55,8 @@ func (v *VSpherePlatform) DeleteResourcesForGroup(ctx context.Context, groupName
 		return err
 	}
 	// default the domain to the platform domain, override if we find
-	// a tag with a different domain.  This can happen when the controller, which
-	// runs as platform and deletes compute VMs
+	// a tag with a different domain. This can happen when the controller directly
+	// runs platform code with the domain set to "platform" and deletes the compute VMs
 	domain := string(v.vmProperties.Domain)
 	for _, vmtag := range vmtags {
 		vmname, vmdomain, err := v.ParseVMDomainTag(ctx, vmtag.Name)

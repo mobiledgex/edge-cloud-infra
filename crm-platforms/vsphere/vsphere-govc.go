@@ -556,7 +556,7 @@ func (v *VSpherePlatform) ConnectNetworksForVM(ctx context.Context, vmName strin
 			out, err = v.TimedGovcCommand(ctx, "govc", "device.connect", "-dc", dcName, "-vm", vmName, d.Name)
 			if err != nil {
 				log.SpanLog(ctx, log.DebugLevelInfra, "Error in connecting network interface", "vmName", vmName, "deviceName", d.Name, "out", string(out), "err", err)
-				return fmt.Errorf("Error in connecting network interface for VM: %s - %v", vmName, err)
+				return fmt.Errorf("Error in connecting network interface for VM: %s - %s, %v", vmName, string(out), err)
 			}
 		}
 	}

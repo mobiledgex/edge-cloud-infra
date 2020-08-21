@@ -192,11 +192,12 @@ func (v *VMPlatform) AddRouteToServer(ctx context.Context, client ssh.Client, se
 		netplanEnabled := ServerIsNetplanEnabled(ctx, client)
 		// make the route persist by adding the following line if not already present via grep.
 		routeAddText := fmt.Sprintf("up route add -net %s netmask %s gw %s", ip, maskStr, gatewayIP)
+		maskLen, _ := netw.Mask.Size()
 		if netplanEnabled {
 			routeAddText = fmt.Sprintf(`
             routes:
-            - to: %s/16
-              via: %s`, ip, gatewayIP)
+            - to: %s/%d
+              via: %s`, ip, maskLen, gatewayIP)
 		}
 		interfacesFile := GetCloudletNetworkIfaceFile(netplanEnabled)
 		cmd = fmt.Sprintf("grep -l '%s' %s", gatewayIP, interfacesFile)

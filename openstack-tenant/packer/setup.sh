@@ -161,10 +161,9 @@ log "Disable snap"
 sudo apt purge -y snapd
 sudo rm -rf /snap /var/snap /var/cache/snapd /var/lib/snapd
 
-log "Switch networking back to ifupdown"
-sudo apt-get install -y ifupdown
-sudo apt-get purge -y netplan.io
-echo "source /etc/network/interfaces.d/*.cfg" | sudo tee -a /etc/network/interfaces
+# Remove systemd-networkd-wait-online as it often hangs with netplan which we use in 18.04
+log "disable systemd-networkd-wait-online"
+sudo systemctl mask systemd-networkd-wait-online
 
 log "Remove unnecessary packages"
 cat /tmp/pkg-cleanup.txt | sudo xargs apt-get purge -y

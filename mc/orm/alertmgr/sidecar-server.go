@@ -21,13 +21,10 @@ import (
 	alertmanager_config "github.com/mobiledgex/edge-cloud-infra/mc/orm/alertmgr/prometheus_structs/config"
 )
 
-// We will use this to read and write alertmanager config file
-// Use AlertManagerGlobalConfig.String() to get the new file
-// Use alertmanager_config.LoadFile(filename string) func to create AlertManagerConfig
-// Use alertmanager_config.Load(s string) to test with example yamls
-//var AlertManagerConfig *alertmanager_config.Config
+// Alertmanager config file lock
 var configLock sync.RWMutex
 
+// Struct that gets sent between MC and sidecar serbvice in the APIs
 type SidecarReceiverConfig struct {
 	Receiver alertmanager_config.Receiver `json:"receiver"`
 	Route    alertmanager_config.Route    `json:"route,omitempty"`

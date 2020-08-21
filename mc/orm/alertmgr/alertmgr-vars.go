@@ -4,10 +4,6 @@ import (
 	"time"
 
 	"github.com/mobiledgex/edge-cloud/edgeproto"
-	//"github.com/prometheus/alertmanager/api/v2/models"
-	// TODO - below is to replace the above for right now - once we update go and modules we can use prometheus directly
-	//	alertmanager_config "github.com/prometheus/alertmanager/config"
-	// TODO - below is to replace the above for right now - once we update go and modules we can use prometheus directly
 )
 
 var alertRefreshInterval = 30 * time.Second
@@ -34,7 +30,7 @@ receivers:
 - name: default
 `
 
-// This is moslty taken from https://github.com/prometheus/alertmanager/blob/master/template/default.tmpl with minor modifications
+// This is mostly taken from https://github.com/prometheus/alertmanager/blob/master/template/default.tmpl with minor modifications
 // TODO - need to write this in a more MobiledgeXy type of an email
 var alertmanagerConfigEmailHtmlTemplate = `
 <!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">

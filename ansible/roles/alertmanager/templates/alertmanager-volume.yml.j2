@@ -1,0 +1,11 @@
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: {{ alertmanager_volume_name }}
+spec:
+  accessModes:
+  - ReadWriteOnce
+  storageClassName: {{ azure_volume_storage_class }}
+  resources:
+    requests:
+      storage: {{ alertmanager_volume_size }}

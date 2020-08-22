@@ -197,6 +197,9 @@
         name: console
       tags: console
     - import_role:
+        name: alertmanager
+      tags: alertmanager
+    - import_role:
         name: mc
       tags: mc
 

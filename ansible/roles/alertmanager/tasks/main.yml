@@ -1,0 +1,44 @@
+##### Docker service
+- name: Create alertmanager config directory if doesn't exist
+  file:
+    path: "{{ alertmanager_config_path }}"
+    state: directory
+    mode: '0755'
+
+- name: Compute alertmanager Sidecar command line
+  set_fact:
+    sidecar_args:
+      - alertmgr-sidecar
+      - "--httpAddr"
+      - "0.0.0.0:{{ sidecar_port }}"
+      - "--alertmgrAddr"
+      - "http://127.0.0.0:{{ alertmanager_port }}"
+      - "--configFile"
+      - "{{ alertmanager_config_path }}/{{ alertmanager_config_file }}"
+      - "-d"
+      - "infra"
+
+- name: "Starting alertmanager container"
+  docker_container:
+    name: alertmanager
+    image: "{{ alertmanager_image }}"
+    restart_policy: unless-stopped
+    ports:
+      - "127.0.0.1:{{ alertmanager_port }}:{{ alertmanager_port }}"
+    volumes:
+      - "{{ alertmanager_config_path }}:{{ alertmanager_config_path }}"
+      - "{{ alertmanager_config_path }}/{{ alertmanager_config_file }}:{{ alertmanager_config_path }}/{{ alertmanager_config_file }}"
+
+- name: Deploy Alertmanager Sidecar
+  docker_container:
+    name: "alertmanager-sidecar"
+    image: "{{ edge_cloud_image }}:{{ edge_cloud_version }}"
+    restart_policy: unless-stopped
+    command: "{{ sidecar_args }}"
+    ports:
+      - "127.0.0.1:{{ sidecar_port }}:{{ sidecar_port }}"
+    volumes:
+      - "{{ alertmanager_config_path }}/{{ alertmanager_config_file }}:{{ alertmanager_config_path }}/{{ alertmanager_config_file }}"
+    env:
+      JAEGER_ENDPOINT: "{{ jaeger_endpoint }}"
+      JAEGER_TAGS: "environ={{ deploy_environ }},version={{ edge_cloud_version }}"

@@ -1,0 +1,57 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: alertmanager
+  labels:
+    app: alertmanager
+    task: alerting
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: alertmanager
+  template:
+    metadata:
+      labels:
+        app: alertmanager
+    spec:
+      containers:
+      - name: alertmgr-sidecar
+        image: "{{ edge_cloud_image }}:{{ edge_cloud_version }}"
+        imagePullPolicy: Always
+        command:
+         - "alertmgr-sidecar"
+         - "--httpAddr"
+         - "0.0.0.0:9094"
+         - "--alertmgrAddr"
+         - "http://0.0.0.0:{{ alertmanager_port }}"
+#         - "https://{{ influxdb_dns }}.{{ cloudflare_zone }}:8086"
+         - "--configFile"
+         - {{ alertmanager_config_path }}
+         - "-d"
+         - "infra"
+        env:
+         - name: JAEGER_ENDPOINT
+           value: "{{ jaeger_endpoint }}"
+         - name: JAEGER_TAGS
+           value: "environ={{ deploy_environ }},version={{ edge_cloud_version }}"
+        volumeMounts:
+        - mountPath: /etc/alertmanager
+          name: alertmanager-configuration
+
+      - name: alertmanager
+        image: {{ alertmanager_image }}
+         args:
+          - "--web.listen-address=:{{ alertmanager_port }}"
+          - "--config.file={{ alertmanager_config_path }}"
+        volumeMounts:
+        - mountPath: /etc/alertmanager
+          name: alertmanager-configuration
+
+      volumes:
+      - name: alertmanager-configuration
+        persistentVolumeClaim:
+          claimName: {{ alertmanager_volume_name }}
+
+      imagePullSecrets:
+       - name: mexreg-secret 

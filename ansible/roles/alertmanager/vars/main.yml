@@ -1,0 +1,6 @@
+alertmanager_image: prom/alertmanager:v0.21.0
+alertmanager_port: 9093
+sidecar_port: 9094
+alertmanager_config_path: /etc/alertmanager
+alertmanager_config_file: config.yml
+

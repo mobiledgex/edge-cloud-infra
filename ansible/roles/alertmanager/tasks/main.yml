@@ -27,7 +27,6 @@
       - "127.0.0.1:{{ alertmanager_port }}:{{ alertmanager_port }}"
     volumes:
       - "{{ alertmanager_config_path }}:{{ alertmanager_config_path }}"
-      - "{{ alertmanager_config_path }}/{{ alertmanager_config_file }}:{{ alertmanager_config_path }}/{{ alertmanager_config_file }}"
 
 - name: Deploy Alertmanager Sidecar
   docker_container:
@@ -38,7 +37,7 @@
     ports:
       - "127.0.0.1:{{ sidecar_port }}:{{ sidecar_port }}"
     volumes:
-      - "{{ alertmanager_config_path }}/{{ alertmanager_config_file }}:{{ alertmanager_config_path }}/{{ alertmanager_config_file }}"
+      - "{{ alertmanager_config_path }}:{{ alertmanager_config_path }}
     env:
       JAEGER_ENDPOINT: "{{ jaeger_endpoint }}"
       JAEGER_TAGS: "environ={{ deploy_environ }},version={{ edge_cloud_version }}"

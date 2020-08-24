@@ -4,7 +4,7 @@ cloud-init                      19.3-41-gc4735dd3-0ubuntu1~18.04.1
 crictl                          1.16.1
 curl                            7.58.0-2ubuntu3.8
 docker-ce                       5:19.03.4~3-0~ubuntu-xenial
-docker-compose                  1.24.1
+docker-compose                  1.24.1-mobiledgex1
 libpam-google-authenticator     20170702-1
 helm                            2.15.2
 iptables-persistent             1.0.4+nmu2ubuntu1

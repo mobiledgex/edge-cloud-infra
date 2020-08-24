@@ -6,6 +6,8 @@ import (
 	"strings"
 	"sync"
 
+	"github.com/mobiledgex/edge-cloud/cloud-resource-manager/platform/pc"
+
 	"github.com/mobiledgex/edge-cloud-infra/infracommon"
 	"github.com/mobiledgex/edge-cloud-infra/vmlayer"
 	"github.com/mobiledgex/edge-cloud/cloudcommon"
@@ -177,8 +179,7 @@ func (v *VSpherePlatform) GetCloudletManifest(ctx context.Context, name string, 
 		return "", err
 	}
 
-	instructionText := `
-1) Create folder "templates" within the virtual datacenter
+	instructionText := `1) Create folder "templates" within the virtual datacenter
 2) Download OVF template from: ` + ovfLocation + `
 2) Import the OVF into vCenter into template folder: VMs and Templates -> Deploy OVF Template -> Select downloaded files
    - select Thin Provision for virtual disk format
@@ -201,6 +202,10 @@ func (v *VSpherePlatform) GetCloudletManifest(ctx context.Context, name string, 
 	}
 	manifest.ManifestItems = append(manifest.ManifestItems, instructions)
 	manifest.ManifestItems = append(manifest.ManifestItems, script)
+
+	//temp
+	var client pc.LocalClient
+	pc.WriteFile(&client, "deploy.sh", scriptText, "script", pc.NoSudo)
 
 	return manifest.ToString()
 }

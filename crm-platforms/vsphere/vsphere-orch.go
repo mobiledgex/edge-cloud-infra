@@ -237,9 +237,6 @@ func (v *VSpherePlatform) populateOrchestrationParams(ctx context.Context, vmgp 
 				break
 			}
 		}
-		if vm.ImageName != "" {
-			vmgp.VMs[vmidx].TemplateId = v.IdSanitize(vm.ImageName) + "-tmplt-" + vm.Id
-		}
 		if !flavormatch && !vmgp.SkipInfraSpecificCheck {
 			return fmt.Errorf("No match in flavor cache for flavor name: %s", vm.FlavorName)
 		}

@@ -8,40 +8,143 @@ import (
 	"github.com/mobiledgex/edge-cloud/log"
 )
 
+type DeployScriptParams struct {
+	DataCenterName string
+	DataStoreName  string
+	Cluster        string
+	ResourcePool   string
+	Netmask        string
+	VMName         string
+	Gateway        string
+	IPAddr         string
+	Network        string
+	Tags           *[]vmlayer.TagOrchestrationParams
+	VM             *vmlayer.VMOrchestrationParams
+	EnvVars        *map[string]string
+}
+
+var deployScriptTemplate = `
+#!/bin/bash
+
+cleanup(){
+	echo "running cleanup after failure"
+	{{- range .Tags}}
+	govc tags.rm {{.Name}}
+	{{- end}}
+ 
+	govc pool.destroy -dc {{.DataCenterName}} {{.ResourcePool}}
+	govc vm.destroy -dc {{.DataCenterName}} {{.VM.Name}}
+}
+
+echo "setting environment variables"
+{{- range $k, $v := .EnvVars}}
+export {{$k}}={{$v}}
+{{- end}}
+
+echo "creating tags"
+{{- range .Tags}}
+govc tags.create -c {{.Category}} {{.Name}}
+if [[ $? != 0 ]]; then 
+	echo "ERROR: failed to create tag {{.Name}}"
+	cleanup
+	exit 1
+fi
+{{- end}}
+
+echo "creating resource pool"
+govc pool.create -dc {{.DataCenterName}} {{.ResourcePool}}
+if [[ $? != 0 ]]; then 
+	echo "ERROR: failed to create resource pool {{.ResourcePool}}"
+	cleanup
+	exit $rc
+fi
+
+echo "cloning VM from template"
+govc vm.clone -vm {{.VM.ImageName}} -dc {{.DataCenterName}} -ds {{.DataStoreName}} -on=False -pool {{.ResourcePool}} -c {{.VM.Vcpus}} -m {{.VM.Ram}} -net {{.Network}} {{.VM.Name}}
+if [[ $? != 0 ]]; then 
+	echo "ERROR: failed to clone VM {{.VM.Name}}"
+	cleanup
+	exit $rc
+fi
+
+echo "setting metadata and userdata"
+govc vm.change -vm {{.VM.Name}} -dc {{.DataCenterName}} -e guestinfo.metadata={{.VM.MetaData}} -e guestinfo.metadata.encoding=base64
+if [[ $? != 0 ]]; then 
+	echo "ERROR: failed to set metadata"
+	cleanup
+	exit 1
+fi
+
+govc vm.change -vm {{.VM.Name}} -dc {{.DataCenterName}} -e guestinfo.userdata={{.VM.UserData}} -e guestinfo.userdata.encoding=base64
+if [[ $? != 0 ]]; then 
+	echo "ERROR: failed to set userdata"
+	cleanup
+	exit 1
+fi
+
+echo "updating disk size"
+govc vm.disk.change -vm {{.VM.Name}} -dc {{.DataCenterName}} -size {{.VM.Disk}}G
+if [[ $? != 0 ]]; then 
+	echo "ERROR: failed to update disk size"
+	cleanup
+	exit 1
+fi
+
+echo "customizing network"
+govc vm.customize -vm {{.VM.Name}} -dc {{.DataCenterName}} -dns-server {{.VM.DNSServers}} -ip {{.IPAddr}} -netmask {{.Netmask}} -gateway {{.Gateway}}
+if [[ $? != 0 ]]; then 
+	echo "ERROR: failed to customize network with IP {{.IPAddr}} mask {{.Netmask}} gw {{.Gateway}}"
+	cleanup
+	exit 1
+fi
+
+echo "powering on VM"
+govc vm.power -dc {{.DataCenterName}} -on {{.VM.Name}}
+if [[ $? != 0 ]]; then 
+	echo "ERROR: failed to power on VM {{.VM.Name}}"
+	cleanup
+	exit 1
+fi
+
+echo "done!"
+`
+
 func (v *VSpherePlatform) GetRemoteDeployScript(ctx context.Context, vmgp *vmlayer.VMGroupOrchestrationParams) (string, error) {
 	log.SpanLog(ctx, log.DebugLevelInfra, "GetRemoteDeployScript", "vmgp", vmgp)
 	if len(vmgp.VMs) != 1 {
 		return "", fmt.Errorf("error, should be one VM in the customization params, found: %d", len(vmgp.VMs))
 	}
-	// update instructions
-	// update script
-	templatePath := v.GetTemplateFolder() + "/" + vmgp.VMs[0].ImageName
-	dcName := v.GetDatacenterName(ctx)
-	dsName := v.GetDataStore()
-	cluster := v.GetHostCluster()
-	poolName := getResourcePoolName(vmgp.GroupName, string(vmlayer.VMDomainPlatform))
-	pathPrefix := fmt.Sprintf("/%s/host/%s/Resources/", dcName, cluster)
-	poolPath := pathPrefix + poolName
-	vmName := vmgp.VMs[0].Name
-	vcpu := vmgp.VMs[0].Vcpus
-	ram := vmgp.VMs[0].Ram
-	disk := vmgp.VMs[0].Disk
-	extNet := vmgp.VMs[0].Ports[0].PortGroup
-	metaData := vmgp.VMs[0].MetaData
-	userData := vmgp.VMs[0].UserData
+	if len(vmgp.VMs[0].Ports) != 1 {
+		return "", fmt.Errorf("error, VM should have one port, found: %d", len(vmgp.VMs[0].Ports))
+	}
+	if len(vmgp.VMs[0].FixedIPs) != 1 {
+		return "", fmt.Errorf("error, VM should have one IP address, found: %d", len(vmgp.VMs[0].FixedIPs))
+	}
+	netMask, err := vmlayer.MaskLenToMask(vmgp.VMs[0].FixedIPs[0].Mask)
+	if err != nil {
+		return "", err
+	}
 
-	script := "#!/bin/bash\n\n"
-	// add envvars
-	for k, v := range v.vcenterVars {
-		script += fmt.Sprintf("export %s=%s\n", k, v)
+	poolName := getResourcePoolName(vmgp.GroupName, string(vmlayer.VMDomainPlatform))
+	pathPrefix := fmt.Sprintf("/%s/host/%s/Resources/", v.GetDatacenterName(ctx), v.GetHostCluster())
+	poolPath := pathPrefix + poolName
+	scriptParams := DeployScriptParams{
+		Tags:           &vmgp.Tags,
+		ResourcePool:   poolPath,
+		DataCenterName: v.GetDatacenterName(ctx),
+		DataStoreName:  v.GetDataStore(),
+		Cluster:        v.GetHostCluster(),
+		VM:             &vmgp.VMs[0],
+		EnvVars:        &v.vcenterVars,
+		Network:        vmgp.VMs[0].Ports[0].NetworkId,
+		Netmask:        netMask,
+		IPAddr:         vmgp.VMs[0].FixedIPs[0].Address,
+		Gateway:        vmgp.VMs[0].FixedIPs[0].Gateway,
 	}
-	script += fmt.Sprintf("\ngovc pool.create -dc %s %s \n\n", dcName, poolPath)
-	for _, tag := range vmgp.Tags {
-		script += fmt.Sprintf("govc tags.create -c %s %s\n\n", tag.Category, tag.Name)
+
+	buf, err := vmlayer.ExecTemplate(vmgp.GroupName, deployScriptTemplate, scriptParams)
+	if err != nil {
+		return "", err
 	}
-	script += fmt.Sprintf("govc vm.clone -vm %s -dc %s -ds %s -on=False -pool %s -c %d -m %d -net %s %s\n\n", templatePath, dcName, dsName, poolPath, vcpu, ram, extNet, vmName)
-	script += fmt.Sprintf("govc vm.change -vm %s -dc %s -e guestinfo.metadata=%s -e guestinfo.metadata.encoding=base64\n\n", vmName, dcName, metaData)
-	script += fmt.Sprintf("govc vm.change -vm %s -dc %s -e guestinfo.userdata=%s -e guestinfo.userdata.encoding=base64\n\n", vmName, dcName, userData)
-	script += fmt.Sprintf("govc vm.disk.change -dc %s -vm %s -size %dG\n", dcName, vmName, disk)
-	return script, nil
+	return buf.String(), nil
 }

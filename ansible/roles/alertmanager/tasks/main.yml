@@ -4,14 +4,16 @@
     state: directory
     mode: '0755'
 
-- name: Write default alertmanager config if one doesn't exist
-  - stat:
+- name: Check alertmanager config file stats
+  stat:
     path: "{{ alertmanager_config_path }}/{{ alertmanager_config_file }}"
-    register: st
-  - copy:
+  register: st
+
+- name: Write default alertmanager config if one doesn't exist
+  copy:
     src: "{{ lookup('file', 'default-config.yaml') }}"
     dest: "{{ alertmanager_config_path }}/{{ alertmanager_config_file }}"
-    when: not st.stat.exists
+  when: not st.stat.exists
 
 - name: Install the docker compose manifest
   template:

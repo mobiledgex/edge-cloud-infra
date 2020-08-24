@@ -172,11 +172,12 @@ func (v *VSpherePlatform) GetCloudletManifest(ctx context.Context, name string, 
 	if err != nil {
 		return "", fmt.Errorf("unable to populate orchestration params: %v", err)
 	}
-	custSpec, err := v.GetCustomizationSpec(ctx, vmgp)
+	scriptText, err := v.GetRemoteDeployScript(ctx, vmgp)
 	if err != nil {
 		return "", err
 	}
-	instructions := `
+
+	instructionText := `
 1) Create folder "templates" within the virtual datacenter
 2) Download OVF template from: ` + ovfLocation + `
 2) Import the OVF into vCenter into template folder: VMs and Templates -> Deploy OVF Template -> Select downloaded files
@@ -185,13 +186,23 @@ func (v *VSpherePlatform) GetCloudletManifest(ctx context.Context, name string, 
    - select "` + v.GetHostCluster() + `" cluster and "` + v.GetDataStore() + `" datastore
    - some text here about cloning to compute cluster?
 4) Update port group when prompted to ` + v.GetExternalVSwitch() + `
-
-Save the section below as a textfile and import it:
----------------------------------------------------------
-` +
-		custSpec + `
+5) Download the deployment script and run it.  Ensure govc is installed.
 `
-	return instructions, nil
+	var manifest infracommon.CloudletManifest
+	instructions := infracommon.CloudletManifestItem{
+		Title:       "Instructions",
+		BodyType:    infracommon.ManifestText,
+		BodyContent: instructionText,
+	}
+	script := infracommon.CloudletManifestItem{
+		Title:       "Deployment Script",
+		BodyType:    infracommon.ManifestCode,
+		BodyContent: scriptText,
+	}
+	manifest.ManifestItems = append(manifest.ManifestItems, instructions)
+	manifest.ManifestItems = append(manifest.ManifestItems, script)
+
+	return manifest.ToString()
 }
 
 func (s *VSpherePlatform) VerifyVMs(ctx context.Context, vms []edgeproto.VM) error {

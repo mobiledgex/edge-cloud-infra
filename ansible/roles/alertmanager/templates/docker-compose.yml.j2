@@ -1,0 +1,41 @@
+version: '2.2'
+
+services:
+  alertmanager:
+    container_name: {{ alertmanager_container }}
+    image: {{ alertmanager_image }}
+    restart: always
+    command:
+      - "--web.listen-address=:{{ alertmanager_port }}"
+      - "--config.file={{ alertmanager_config_path }}/{{ alertmanager_config_file}}"
+    volumes:
+      - {{ alertmanager_config_path }}:{{ alertmanager_config_path }}
+    networks:
+      - alertmgrnet
+
+  alertmgr-sidecar:
+    container_name: {{ sidecar_container }}
+    image: {{ edge_cloud_image }}:{{ edge_cloud_version }}
+    restart: always
+    command:
+      - "alertmgr-sidecar"
+      - "--httpAddr"
+      - "0.0.0.0:9094"
+      - "--alertmgrAddr"
+      - "http://alertmanager:{{ alertmanager_port }}"
+      - "--configFile"
+      - {{ alertmanager_config_path }}
+      - "-d"
+      - "infra"
+    environment:
+      - JAEGER_ENDPOINT="{{ jaeger_endpoint }}"
+      - JAEGER_TAGS="environ={{ deploy_environ }},version={{ edge_cloud_version }}"
+    volumes:
+      - {{ alertmanager_config_path }}:{{ alertmanager_config_path }}
+    ports:
+      - 9094:9094
+    networks:
+      - alertmgrnet
+
+networks:
+  alertmgrnet:

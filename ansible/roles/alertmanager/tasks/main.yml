@@ -1,43 +1,27 @@
-##### Docker service
 - name: Create alertmanager config directory if doesn't exist
   file:
     path: "{{ alertmanager_config_path }}"
     state: directory
     mode: '0755'
 
-- name: Compute alertmanager Sidecar command line
-  set_fact:
-    sidecar_args:
-      - alertmgr-sidecar
-      - "--httpAddr"
-      - "0.0.0.0:{{ sidecar_port }}"
-      - "--alertmgrAddr"
-      - "http://127.0.0.0:{{ alertmanager_port }}"
-      - "--configFile"
-      - "{{ alertmanager_config_path }}/{{ alertmanager_config_file }}"
-      - "-d"
-      - "infra"
+- name: Write default alertmanager config if one doesn't exist
+  - stat:
+    path: "{{ alertmanager_config_path }}/{{ alertmanager_config_file }}"
+    register: st
+  - copy:
+    src: "{{ lookup('file', 'default-config.yaml') }}"
+    dest: "{{ alertmanager_config_path }}/{{ alertmanager_config_file }}"
+    when: not st.stat.exists
 
-- name: "Starting alertmanager container"
-  docker_container:
-    name: alertmanager
-    image: "{{ alertmanager_image }}"
-    restart_policy: unless-stopped
-    ports:
-      - "127.0.0.1:{{ alertmanager_port }}:{{ alertmanager_port }}"
-    volumes:
-      - "{{ alertmanager_config_path }}:{{ alertmanager_config_path }}"
+- name: Install the docker compose manifest
+  template:
+    src: "{{ lookup('template', 'docker-compose.yml.j2') }}"
+    dest: "{{ alertmanager_config_path }}/docker-compose.yml"
+  become: yes
 
-- name: Deploy Alertmanager Sidecar
-  docker_container:
-    name: "alertmanager-sidecar"
-    image: "{{ edge_cloud_image }}:{{ edge_cloud_version }}"
-    restart_policy: unless-stopped
-    command: "{{ sidecar_args }}"
-    ports:
-      - "127.0.0.1:{{ sidecar_port }}:{{ sidecar_port }}"
-    volumes:
-      - "{{ alertmanager_config_path }}:{{ alertmanager_config_path }}"
-    env:
-      JAEGER_ENDPOINT: "{{ jaeger_endpoint }}"
-      JAEGER_TAGS: "environ={{ deploy_environ }},version={{ edge_cloud_version }}"
+- name: Start the alertmanager services
+  docker_compose:
+    project_name: alertmanager
+    project_src: "{{ alertmanager_config_path }}"
+  become: yes
+  register: compose

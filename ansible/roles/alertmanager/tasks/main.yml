@@ -11,7 +11,7 @@
 
 - name: Write default alertmanager config if one doesn't exist
   copy:
-    src: "{{ lookup('file', 'default-config.yml') }}"
+    content: "{{ lookup('file', 'default-config.yml') }}"
     dest: "{{ alertmanager_config_path }}/{{ alertmanager_config_file }}"
   when: not st.stat.exists
 

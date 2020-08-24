@@ -3,7 +3,6 @@ package vmlayer
 import (
 	"context"
 	"fmt"
-	"strings"
 	"time"
 
 	"github.com/mobiledgex/edge-cloud-infra/infracommon"
@@ -171,16 +170,14 @@ func WaitServerSSHReachable(ctx context.Context, client ssh.Client, server strin
 			break
 		} else {
 			log.SpanLog(ctx, log.DebugLevelInfra, "error waiting for server", "out", out, "error", err)
-			if strings.Contains(err.Error(), "ssh client timeout") || strings.Contains(err.Error(), "ssh dial fail") {
-				elapsed := time.Since(start)
-				if elapsed > timeout {
-					return fmt.Errorf("timed out connecting to VM %s", server)
-				}
-				log.SpanLog(ctx, log.DebugLevelInfra, "sleeping 10 seconds before retry", "elapsed", elapsed, "timeout", timeout)
-				time.Sleep(10 * time.Second)
-			} else {
-				return fmt.Errorf("WaitServerSSHReachable fail: server :%s is unreachable: %v, %s", server, err, out)
+			// errors received when trying to reach a server which is is coming up vary from OS version to version.
+			// Keep trying until the timeout period for any error
+			elapsed := time.Since(start)
+			if elapsed > timeout {
+				return fmt.Errorf("timed out connecting to VM %s", server)
 			}
+			log.SpanLog(ctx, log.DebugLevelInfra, "sleeping 10 seconds before retry", "elapsed", elapsed, "timeout", timeout)
+			time.Sleep(10 * time.Second)
 		}
 	}
 	log.SpanLog(ctx, log.DebugLevelInfra, "WaitServerSSHReachable OK", "server", server)

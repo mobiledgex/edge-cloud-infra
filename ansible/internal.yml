@@ -772,3 +772,53 @@
   tasks:
     - import_role:
         name: chef
+
+- hosts: monitor
+
+  vars:
+    grafana_image: grafana/grafana:7.1.3
+    volumes:
+      - /etc/grafana
+      - /var/lib/grafana
+      - /var/log/grafana
+
+  tasks:
+
+    - import_role:
+        name: telegraf
+      tags:
+        - monitoring
+        - setup
+
+    - import_role:
+        name: docker
+      tags: setup
+
+    - import_role:
+        name: web
+      vars:
+        nginx_config_template: "internal/monitor/nginx-config.j2"
+        cert_domains: [ "{{ inventory_hostname }}" ]
+      tags: setup
+
+    - name: Create grafana directories
+      file:
+        path: "{{ item }}"
+        state: directory
+        owner: 472
+        group: 472
+        mode: 0700
+      become: yes
+      loop: "{{ volumes }}"
+
+    - name: Deploy grafana
+      docker_container:
+        name: grafana
+        image: "{{ grafana_image }}"
+        restart_policy: unless-stopped
+        env:
+          GF_DEFAULT_INSTANCE_NAME: "{{ inventory_hostname }}"
+          GF_SERVER_DOMAIN: "{{ inventory_hostname }}"
+        ports:
+          - "127.0.0.1:3000:3000"
+        volumes: "{{ volumes | zip(volumes) | map('join', ':') | list }}"

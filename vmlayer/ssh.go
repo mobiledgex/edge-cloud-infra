@@ -15,8 +15,6 @@ import (
 	"github.com/tmc/scp"
 )
 
-const SSHReachableDefaultTimeout = 2 * time.Minute
-
 type SSHOptions struct {
 	Timeout time.Duration
 	User    string
@@ -157,29 +155,4 @@ func SCPFilePath(sshClient ssh.Client, srcPath, dstPath string) error {
 	defer sessionInfo.CloseAll()
 	err = scp.CopyPath(srcPath, dstPath, session)
 	return err
-}
-
-// WaitServerSSHReachable waits up to the specified duration for the server to be reachable via
-// SSH. The server passed here is just for logging it can be an ip or a name
-func WaitServerSSHReachable(ctx context.Context, client ssh.Client, server string, timeout time.Duration) error {
-	log.SpanLog(ctx, log.DebugLevelInfra, "WaitServerSSHReachable", "server", server)
-	start := time.Now()
-	for {
-		out, err := client.Output(fmt.Sprintf("whoami"))
-		if err == nil {
-			break
-		} else {
-			log.SpanLog(ctx, log.DebugLevelInfra, "error waiting for server", "out", out, "error", err)
-			// errors received when trying to reach a server which is is coming up vary from OS version to version.
-			// Keep trying until the timeout period for any error
-			elapsed := time.Since(start)
-			if elapsed > timeout {
-				return fmt.Errorf("timed out connecting to VM %s", server)
-			}
-			log.SpanLog(ctx, log.DebugLevelInfra, "sleeping 10 seconds before retry", "elapsed", elapsed, "timeout", timeout)
-			time.Sleep(10 * time.Second)
-		}
-	}
-	log.SpanLog(ctx, log.DebugLevelInfra, "WaitServerSSHReachable OK", "server", server)
-	return nil
 }

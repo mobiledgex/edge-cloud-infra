@@ -8,7 +8,6 @@ services:
     command:
       - "--web.listen-address=:{{ alertmanager_port }}"
       - "--config.file={{ alertmanager_config_path }}/{{ alertmanager_config_file}}"
-      - "--data.retention=100h"
     volumes:
       - {{ alertmanager_config_path }}:{{ alertmanager_config_path }}
     networks:

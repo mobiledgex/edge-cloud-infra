@@ -11,9 +11,6 @@ influxdb.internal.mobiledgex.net
 [vouch]
 vouch.mobiledgex.net
 
-[elasticsearch]
-es01.es.mobiledgex.net		cert_wildcard_domain=es.mobiledgex.net es_instance=main
-
 [slack]
 spook.mobiledgex.net
 
@@ -25,3 +22,6 @@ backups.mobiledgex.net
 
 [chef]
 chef.mobiledgex.net
+
+[monitor]
+monitor.mobiledgex.net

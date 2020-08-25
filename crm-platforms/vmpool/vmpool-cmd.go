@@ -89,6 +89,7 @@ func (s *VMPoolPlatform) GetFlavorList(ctx context.Context) ([]*edgeproto.Flavor
 		flavInfo.Vcpus = uint64(vcpus)
 		flavInfo.Disk = uint64(diskGb)
 		flavors = append(flavors, &flavInfo)
+		count++
 	}
 
 	return flavors, nil

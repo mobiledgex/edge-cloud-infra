@@ -28,8 +28,8 @@ services:
       - "-d"
       - "infra"
     environment:
-      - JAEGER_ENDPOINT="{{ jaeger_endpoint }}"
-      - JAEGER_TAGS="environ={{ deploy_environ }},version={{ edge_cloud_version }}"
+      - JAEGER_ENDPOINT={{ jaeger_endpoint }}
+      - JAEGER_TAGS=environ={{ deploy_environ }},version={{ edge_cloud_version }}
     volumes:
       - {{ alertmanager_config_path }}:{{ alertmanager_config_path }}
     ports:

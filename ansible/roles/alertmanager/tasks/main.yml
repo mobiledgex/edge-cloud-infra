@@ -15,12 +15,6 @@
     dest: "{{ alertmanager_config_path }}/{{ alertmanager_config_file }}"
   when: not st.stat.exists
 
-- name: Install docker-compose python module - required for docker_* tasks
-  pip:
-    name: docker-compose
-  become: yes
-  tags: setup
-
 - name: Install the docker compose manifest
   template:
     src: docker-compose.yml.j2

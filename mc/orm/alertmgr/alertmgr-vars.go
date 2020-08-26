@@ -187,5 +187,4 @@ const (
 	ReloadConfigApi        = "/-/reload"
 	mobiledgeXReceiversApi = "/api/v3/receivers"
 	mobiledgeXReceiverApi  = "/api/v3/receiver"
-	mobiledgeXInitAlertmgr = "/api/v3/init"
 )

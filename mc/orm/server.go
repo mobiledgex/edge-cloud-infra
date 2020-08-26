@@ -226,7 +226,7 @@ func RunServer(config *ServerConfig) (*Server, error) {
 
 	if config.AlertMgrAddr != "" {
 		AlertManagerServer, err = alertmgr.NewAlertMgrServer(config.AlertMgrAddr,
-			config.vaultConfig, config.LocalVault, config.AlertCache, config.AlertmgrResolveTimout)
+			config.AlertCache, config.AlertmgrResolveTimout)
 		if err != nil {
 			// TODO - this needs to be a fatal failure when we add alertmanager deployment to the ansible scripts
 			log.SpanLog(ctx, log.DebugLevelInfo, "Failed to start alertmanager server", "error", err)

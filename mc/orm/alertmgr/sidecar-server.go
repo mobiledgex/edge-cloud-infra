@@ -69,7 +69,9 @@ func (s *SidecarServer) Run() error {
 	rtrMux.HandleFunc(SilenceApi, s.proxyHandler)
 	rtrMux.HandleFunc(ReceiverApi, s.proxyHandler)
 	rtrMux.HandleFunc(mobiledgeXInitAlertmgr, s.initAlertmanager)
+	rtrMux.HandleFunc(mobiledgeXReceiversApi, s.alertReceiver).Methods("GET")
 	rtrMux.HandleFunc(mobiledgeXReceiverApi, s.alertReceiver)
+	rtrMux.HandleFunc(mobiledgeXReceiverApi+"/{"+receiverUrlVar+"}", s.alertReceiver).Methods("GET")
 	rtrMux.HandleFunc(mobiledgeXReceiverApi+"/{"+receiverUrlVar+"}", s.alertReceiver).Methods("DELETE")
 
 	listener, err := net.Listen("tcp4", s.httpApiAddr)
@@ -129,10 +131,26 @@ func (s *SidecarServer) alertReceiver(w http.ResponseWriter, req *http.Request) 
 	case http.MethodGet:
 		// Show Receivers
 		configLock.Unlock()
+		// get the receiver name
+		vars := mux.Vars(req)
+		receiverName, filterOnName := vars[receiverUrlVar]
+
 		receivers := SidecarReceiverConfigs{}
 		for ii, rec := range config.Receivers {
 			if rec.Name == "default" {
 				continue
+			}
+			// Check the filter
+			if filterOnName {
+				curRecName, err := getAlertReceiverFromName(rec.Name)
+				if err != nil {
+					log.SpanLog(ctx, log.DebugLevelApi, "Unable to parse receiver", "err", err, "receiver", rec)
+					continue
+				}
+				if receiverName != curRecName.Name {
+					// Filter does not match
+					continue
+				}
 			}
 			recConfig := SidecarReceiverConfig{
 				Receiver: *config.Receivers[ii],

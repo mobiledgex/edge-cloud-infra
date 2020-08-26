@@ -444,6 +444,25 @@ func TestAlertMgrServer(t *testing.T) {
 	// check the receiver and all fields
 	require.Equal(t, testAlertReceivers[1], receivers[0])
 
+	// Verify ShowReceivers with a filter
+	filter := ormapi.AlertReceiver{
+		Name: testAlertReceivers[1].Name,
+	}
+	receivers, err = testAlertMgrServer.ShowReceivers(ctx, &filter)
+	require.Nil(t, err)
+	// should be a single receiver
+	require.Len(t, receivers, 1)
+	// check the receiver and all fields
+	require.Equal(t, testAlertReceivers[1], receivers[0])
+	// Non-existent receiver
+	filter = ormapi.AlertReceiver{
+		Name: testAlertReceivers[0].Name,
+	}
+	receivers, err = testAlertMgrServer.ShowReceivers(ctx, &filter)
+	require.Nil(t, err)
+	// should be empty response
+	require.Len(t, receivers, 0)
+
 	// Delete non-existent receiver - nothing should change
 	err = testAlertMgrServer.DeleteReceiver(ctx, &testAlertReceivers[0])
 	require.Nil(t, err)

@@ -166,8 +166,8 @@ alertmanagers:
 alertmanagersidecars:
 - name: alertmgrsidecar
   alertmgraddr: "http://127.0.0.1:9093"
-  # config is copied by the alertmanager startup from datadir to /tmp so use default
-  #configfile: "/tmp/alertmanager.yml"
+  # config is copied by the alertmanager startup from datadir to /tmp
+  configfile: "/tmp/alertmanager.yml"
   httpaddr: "127.0.0.1:9094"
   hostname: "127.0.0.1"
 

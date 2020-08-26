@@ -12,7 +12,7 @@ import (
 
 var debugLevels = flag.String("d", "", fmt.Sprintf("comma separated list of %v", log.DebugLevelStrings))
 var alertmanagerAddr = flag.String("alertmgrAddr", "0.0.0.0:9093", "Alertmanager address")
-var alertmanagerConfigFile = flag.String("configFile", "/tmp/alertmanager.yml", "Alertmanager config file")
+var alertmanagerConfigFile = flag.String("configFile", "/var/tmp/alertmanager.yml", "Alertmanager config file")
 var httpAddr = flag.String("httpAddr", "0.0.0.0:9094", "Http API endpoint")
 
 var SidecarServer *alertmgr.SidecarServer

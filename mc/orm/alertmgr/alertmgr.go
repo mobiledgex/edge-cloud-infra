@@ -392,7 +392,12 @@ func getAlertReceiverFromName(name string) (*ormapi.AlertReceiver, error) {
 
 func (s *AlertMgrServer) ShowReceivers(ctx context.Context, filter *ormapi.AlertReceiver) ([]ormapi.AlertReceiver, error) {
 	alertReceivers := []ormapi.AlertReceiver{}
-	data, err := alertMgrApi(ctx, s.AlertMrgAddr, "GET", mobiledgeXReceiverApi, "", nil)
+	apiUrl := mobiledgeXReceiversApi
+	if filter != nil && filter.Name != "" {
+		// Add Filter with a name
+		apiUrl = mobiledgeXReceiverApi + "/" + filter.Name
+	}
+	data, err := alertMgrApi(ctx, s.AlertMrgAddr, "GET", apiUrl, "", nil)
 	if err != nil {
 		log.SpanLog(ctx, log.DebugLevelInfo, "Unable to GET Alert Receivers", "err", err)
 		return nil, err

@@ -34,6 +34,13 @@
 - set_fact:
     ingress_ip: "{{ ingress_nginx_facts.resources[0].status.loadBalancer.ingress[0].ip }}"
 
+- name: Update main configmap
+  k8s:
+    kubeconfig: "{{ kubeconfig_file.path }}"
+    namespace: ingress-nginx
+    state: present
+    definition: "{{ lookup('template', 'configmap.yml') }}"
+
 - name: Update TCP proxy configmap
   k8s:
     kubeconfig: "{{ kubeconfig_file.path }}"

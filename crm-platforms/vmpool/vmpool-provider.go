@@ -20,7 +20,8 @@ const (
 	ActionAllocate string = "allocate"
 	ActionRelease  string = "release"
 
-	CreateVMTimeout = 20 * time.Minute
+	CreateVMTimeout    = 20 * time.Minute
+	AllVMAccessTimeout = 30 * time.Minute
 )
 
 func (o *VMPoolPlatform) GetServerDetail(ctx context.Context, serverName string) (*vmlayer.ServerDetail, error) {
@@ -647,8 +648,6 @@ func (s *VMPoolPlatform) VerifyVMs(ctx context.Context, vms []edgeproto.VM) erro
 		}(accessClient, accessIP, &vm, &wg)
 	}
 
-	timeout := time.Duration(2*len(vms)) * time.Minute
-
 	go func() {
 		wg.Wait()
 		close(wgDone)
@@ -661,7 +660,7 @@ func (s *VMPoolPlatform) VerifyVMs(ctx context.Context, vms []edgeproto.VM) erro
 	case err := <-wgError:
 		close(wgError)
 		return err
-	case <-time.After(timeout):
+	case <-time.After(AllVMAccessTimeout):
 		return fmt.Errorf("Timed out verifying VMs")
 	}
 

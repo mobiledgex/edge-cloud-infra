@@ -122,8 +122,6 @@ func (s *VMPoolPlatform) GetFlavorList(ctx context.Context) ([]*edgeproto.Flavor
 		}(client, vm, &wg)
 	}
 
-	timeout := time.Duration(2*len(s.caches.VMPool.Vms)) * time.Minute
-
 	go func() {
 		wg.Wait()
 		close(wgDone)
@@ -136,7 +134,7 @@ func (s *VMPoolPlatform) GetFlavorList(ctx context.Context) ([]*edgeproto.Flavor
 	case err := <-wgError:
 		close(wgError)
 		return nil, err
-	case <-time.After(timeout):
+	case <-time.After(AllVMAccessTimeout):
 		return nil, fmt.Errorf("Timed out fetching flavor list from VMs")
 	}
 

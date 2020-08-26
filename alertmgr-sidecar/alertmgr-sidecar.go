@@ -35,6 +35,17 @@ func getConfigInfo() (*alertmgr.AlertmgrInitInfo, error) {
 		// default 5m
 		initInfo.ResolveTimeout = "5m"
 	}
+	if initInfo.Port == "" {
+		// default to 587 and TLS
+		initInfo.Port = "587"
+	}
+	if initInfo.Tls == "" {
+		// default to true
+		initInfo.Tls = "true"
+	}
+	if initInfo.Tls != "true" && initInfo.Tls != "false" {
+		return nil, fmt.Errorf("ALERTMANAGER_SMTP_SERVER_TLS must be either \"true\", or \"false\"")
+	}
 	return &initInfo, nil
 }
 

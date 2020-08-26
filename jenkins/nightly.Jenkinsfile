@@ -3,8 +3,20 @@ pipeline {
         timeout(time: 30, unit: 'MINUTES')
     }
     agent any
+    parameters {
+        string(name: 'DOCKER_BUILD_TAG', defaultValue: '', description: 'Docker build tag; defaults to date stamp')
+    }
     environment {
-        DOCKER_BUILD_TAG = sh(returnStdout: true, script: 'date +"%Y-%m-%d" | tr -d "\n"')
+        DOCKER_BUILD_TAG = """${sh(
+            returnStdout: true,
+            script: '''
+                if [ -n "$DOCKER_BUILD_TAG" ]; then
+                    echo -n "$DOCKER_BUILD_TAG"
+                else
+                    date +"%Y-%m-%d" | tr -d "\n"
+                fi
+            '''
+        )}"""
     }
     stages {
         stage('Set up build tag') {

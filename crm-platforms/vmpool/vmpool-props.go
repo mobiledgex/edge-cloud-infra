@@ -30,8 +30,8 @@ func (o *VMPoolPlatform) GetApiAccessFilename() string {
 }
 
 func (s *VMPoolPlatform) GetExternalGateway(ctx context.Context, extNetName string) (string, error) {
-	if val, ok := s.VMProperties.CommonPf.Properties["MEX_EXTERNAL_NETWORK_GATEWAY"]; ok {
-		return val.Value, nil
+	if val, ok := s.VMProperties.CommonPf.Properties.GetValue("MEX_EXTERNAL_NETWORK_GATEWAY"); ok {
+		return val, nil
 	}
 	return "", nil
 }

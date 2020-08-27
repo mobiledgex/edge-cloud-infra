@@ -18,6 +18,8 @@ import (
 var clusterLock sync.Mutex
 var appLock sync.Mutex
 
+const govcLocation = "https://github.com/vmware/govmomi/tree/master/govc"
+
 func (v *VSpherePlatform) SaveCloudletAccessVars(ctx context.Context, cloudlet *edgeproto.Cloudlet, accessVarsIn map[string]string, pfConfig *edgeproto.PlatformConfig, updateCallback edgeproto.CacheUpdateCallback) error {
 	return fmt.Errorf("SaveCloudletAccessVars not implemented for vsphere")
 }
@@ -167,8 +169,9 @@ func (v *VSpherePlatform) GetApiEndpointAddr(ctx context.Context) (string, error
 // GetCloudletManifest follows the standard practice for vSphere to use OVF for this purpose.  We store the OVF
 // in artifactory along with with the vmdk formatted disk.  No customization is needed per cloudlet as the OVF
 // import tool will prompt for datastore and portgroup.
-func (v *VSpherePlatform) GetCloudletManifest(ctx context.Context, name string, vmgp *vmlayer.VMGroupOrchestrationParams) (string, error) {
+func (v *VSpherePlatform) GetCloudletManifest(ctx context.Context, name string, cloudletImagePath string, vmgp *vmlayer.VMGroupOrchestrationParams) (string, error) {
 	log.SpanLog(ctx, log.DebugLevelInfra, "GetCloudletManifest", "name", name, "vmgp", vmgp)
+	var manifest infracommon.CloudletManifest
 	ovfLocation := vmlayer.DefaultCloudletVMImagePath + "vsphere-ovf-" + vmlayer.MEXInfraVersion
 	err := v.populateOrchestrationParams(ctx, vmgp, vmlayer.ActionCreate)
 	if err != nil {
@@ -179,34 +182,26 @@ func (v *VSpherePlatform) GetCloudletManifest(ctx context.Context, name string, 
 		return "", err
 	}
 
-	instructionText := `1) Create folder "templates" within the virtual datacenter
-2) Download OVF template from: ` + ovfLocation + `
-2) Import the OVF into vCenter into template folder: VMs and Templates -> Deploy OVF Template -> Select downloaded files
-   - select Thin Provision for virtual disk format
-   - leave VM name unchanged
-   - select "` + v.GetHostCluster() + `" cluster and "` + v.GetDataStore() + `" datastore
-   - some text here about cloning to compute cluster?
-4) Update port group when prompted to ` + v.GetExternalVSwitch() + `
-5) Download the deployment script and run it.  Ensure govc is installed.
-`
-	var manifest infracommon.CloudletManifest
-	instructions := infracommon.CloudletManifestItem{
-		Title:       "Instructions",
-		BodyType:    infracommon.ManifestText,
-		BodyContent: instructionText,
-	}
-	script := infracommon.CloudletManifestItem{
-		Title:       "Deployment Script",
-		BodyType:    infracommon.ManifestCode,
-		BodyContent: scriptText,
-	}
-	manifest.ManifestItems = append(manifest.ManifestItems, instructions)
-	manifest.ManifestItems = append(manifest.ManifestItems, script)
+	manifest.AddItem("Step 1", infracommon.ManifestText, "1) Create folder \"templates\" within the virtual datacenter")
+	manifest.AddItem("Step 2", infracommon.ManifestText, "2) Download the OVF template from the link provided")
+	manifest.AddItem("OVF Download URL", infracommon.ManifestURL, ovfLocation)
+	manifest.AddItem("Step 3", infracommon.ManifestText, "3) Import the OVF into vCenter into template folder: VMs and Templates -> templates folder -> Deploy OVF Template -> Local File -> Upload Files")
+	manifest.AddItem("Step 3a", infracommon.ManifestText, "- 3a) Select Thin Provision for virtual disk format")
+	manifest.AddItem("Step 3b", infracommon.ManifestText, "- 3b) Leave VM name unchanged")
+	manifest.AddItem("Step 3c", infracommon.ManifestText, fmt.Sprintf("- 3c) Select \"%s\" cluster and \"%s\" datastore", v.GetHostCluster(), v.GetDataStore()))
+	manifest.AddItem("Step 3d", infracommon.ManifestText, fmt.Sprintf("- 3d) Update port group when prompted to: %s", v.GetExternalVSwitch()))
+	manifest.AddItem("Step 4", infracommon.ManifestText, "4) Ensure govc is installed on a machine with access to the vCenter APIs as per the following link")
+	manifest.AddItem("GOVC Download Location", infracommon.ManifestURL, govcLocation)
+	manifest.AddItem("Step 5", infracommon.ManifestText, "5) Download the deployment script and run it")
+	manifest.AddItem("Deploy Script", infracommon.ManifestCode, scriptText)
 
-	//temp
-	var client pc.LocalClient
-	pc.WriteFile(&client, "deploy.sh", scriptText, "script", pc.NoSudo)
-
+	// for testing, write the script and text to /tmp
+	if v.vmProperties.CommonPf.PlatformConfig.TestMode {
+		var client pc.LocalClient
+		mstr, _ := manifest.ToString()
+		pc.WriteFile(&client, "/tmp/manifest.txt", mstr, "manifest", pc.NoSudo)
+		pc.WriteFile(&client, "/tmp/deploy.sh", scriptText, "script", pc.NoSudo)
+	}
 	return manifest.ToString()
 }
 

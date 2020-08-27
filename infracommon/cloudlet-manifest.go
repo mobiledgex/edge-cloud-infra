@@ -14,12 +14,21 @@ const ManifestText ManifestBodyType = "text"
 const ManifestCommand ManifestBodyType = "command"
 
 type CloudletManifestItem struct {
-	Title       string
+	BodyTitle   string
 	BodyType    ManifestBodyType
 	BodyContent string
 }
 type CloudletManifest struct {
 	ManifestItems []CloudletManifestItem
+}
+
+func (m *CloudletManifest) AddItem(title string, bodyType ManifestBodyType, content string) {
+	item := CloudletManifestItem{
+		BodyTitle:   title,
+		BodyType:    bodyType,
+		BodyContent: content,
+	}
+	m.ManifestItems = append(m.ManifestItems, item)
 }
 
 func (m *CloudletManifest) ToString() (string, error) {

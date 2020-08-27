@@ -62,7 +62,7 @@ var VSphereProps = map[string]*edgeproto.PropertyInfo{
 	},
 	"MEX_INTERNAL_NETWORK_MASK": {
 		Name:        "Internal Network Mask",
-		Description: "Internal Network Mask",
+		Description: "Internal Network Mask in bits, e.g. 24",
 		Value:       "24",
 	},
 	"MEX_EXTERNAL_VSWITCH": {
@@ -84,6 +84,12 @@ var VSphereProps = map[string]*edgeproto.PropertyInfo{
 		Name:        "vSphere Template Folder Name",
 		Description: "vSphere Template Folder Name",
 		Value:       "templates",
+	},
+	// default VM version is 6.7 which is forward compatible to 7.0
+	"MEX_VM_VERSION": {
+		Name:        "vSphere VM Version",
+		Description: "vSphere VM Compatibility Version, e.g. 6.7 or 7.0",
+		Value:       "6.7",
 	},
 }
 
@@ -263,6 +269,12 @@ func (v *VSpherePlatform) GetInternalNetmask() string {
 }
 func (v *VSpherePlatform) GetTemplateFolder() string {
 	if val, ok := v.vmProperties.CommonPf.Properties["MEX_TEMPLATE_FOLDER"]; ok {
+		return val.Value
+	}
+	return ""
+}
+func (v *VSpherePlatform) GetVMVersion() string {
+	if val, ok := v.vmProperties.CommonPf.Properties["MEX_VM_VERSION"]; ok {
 		return val.Value
 	}
 	return ""

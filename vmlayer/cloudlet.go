@@ -765,15 +765,13 @@ func (v *VMPlatform) GetCloudletManifest(ctx context.Context, cloudlet *edgeprot
 	if err != nil {
 		return nil, err
 	}
-	manifest, err := v.VMProvider.GetCloudletManifest(ctx, platformVmName, gp)
+	imgPath := GetCloudletVMImagePath(pfConfig.CloudletVmImagePath, cloudlet.VmImageVersion, v.VMProvider.GetCloudletImageSuffix(ctx))
+	manifest, err := v.VMProvider.GetCloudletManifest(ctx, platformVmName, imgPath, gp)
 	if err != nil {
 		return nil, err
 	}
-	imgPath := GetCloudletVMImagePath(pfConfig.CloudletVmImagePath, cloudlet.VmImageVersion, v.VMProvider.GetCloudletImageSuffix(ctx))
-
 	return &edgeproto.CloudletManifest{
-		Manifest:  manifest,
-		ImagePath: imgPath,
+		Manifest: manifest,
 	}, nil
 }
 

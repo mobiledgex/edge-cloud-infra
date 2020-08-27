@@ -60,7 +60,7 @@ if [[ $? != 0 ]]; then
 fi
 
 echo "cloning VM from template"
-govc vm.clone -vm {{.VM.ImageName}} -dc {{.DataCenterName}} -ds {{.DataStoreName}} -on=False -pool {{.ResourcePool}} -c {{.VM.Vcpus}} -m {{.VM.Ram}} -net {{.Network}} {{.VM.Name}}
+govc vm.clone -vm {{.VM.ImageName}}-vsphere -dc {{.DataCenterName}} -ds {{.DataStoreName}} -on=False -pool {{.ResourcePool}} -c {{.VM.Vcpus}} -m {{.VM.Ram}} -net {{.Network}} {{.VM.Name}}
 if [[ $? != 0 ]]; then 
 	echo "ERROR: failed to clone VM {{.VM.Name}}"
 	cleanup

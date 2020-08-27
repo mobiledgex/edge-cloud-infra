@@ -1,0 +1,29 @@
+---
+- name: Load esproxy creds
+  import_role:
+    name: load-vault-creds
+    tasks_from: esproxy
+
+- name: Load CA certs
+  import_role:
+    name: vault
+    tasks_from: ca-certs
+  tags: setup
+
+- name: Set up reverse proxy
+  import_role:
+    name: web
+  vars:
+    nginx_config_template: nginx-config.j2
+    nginx_config_filename: esproxy
+    cert_domains:
+      - "{{ inventory_hostname }}"
+  tags: setup
+
+- name: Copy CA cert
+  copy:
+    dest: "{{ mex_ca_cert_path }}"
+    content: "{{ ca_certs | join('\n') }}"
+    backup: yes
+  become: yes
+  tags: setup

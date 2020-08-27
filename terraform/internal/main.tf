@@ -38,6 +38,7 @@ module "influxdb" {
   zone                    = "${var.gcp_zone}"
   boot_disk_size          = 100
   tags                    = [ "internal", "influxdb", "http-server", "https-server", "mosh-default" ]
+  labels                  = { "owner" = "venky" }
   ssh_public_key_file     = "${var.ssh_public_key_file}"
 }
 
@@ -60,6 +61,7 @@ module "jaeger" {
   zone                          = "${var.jaeger_gcp_zone}"
   boot_disk_size                = 20
   tags                          = [ "mexplat-${var.environ_tag}", "http-server", "https-server", "jaeger" ]
+  labels                        = { "owner" = "ops" }
   ssh_public_key_file           = "${var.ssh_public_key_file}"
 }
 
@@ -69,26 +71,10 @@ module "jaeger_dns" {
   ip                            = "${module.jaeger.external_ip}"
 }
 
-module "elasticsearch" {
-  source                        = "../modules/vm_gcp"
-
-  instance_name                = "${var.elasticsearch_instance_name}"
-  zone                          = "${var.elasticsearch_gcp_zone}"
-  boot_disk_size                = 200
-  tags                          = [ "mexplat-${var.environ_tag}", "elasticsearch" ]
-  ssh_public_key_file           = "${var.ssh_public_key_file}"
-}
-
-module "elasticsearch_dns" {
+module "esproxy_dns" {
   source                        = "../modules/cloudflare_record"
-  hostname                      = "${var.elasticsearch_domain_name}"
-  ip                            = "${module.elasticsearch.external_ip}"
-}
-
-module "kibana_dns" {
-  source                        = "../modules/cloudflare_record"
-  hostname                      = "${var.kibana_domain_name}"
-  ip                            = "${module.elasticsearch.external_ip}"
+  hostname                      = "${var.esproxy_domain_name}"
+  ip                            = "${module.jaeger.external_ip}"
 }
 
 module "apt" {
@@ -98,6 +84,7 @@ module "apt" {
   zone                          = "${var.gcp_zone}"
   boot_disk_size                = 1024
   tags                          = [ "mexplat-${var.environ_tag}", "infra", "http-server", "https-server" ]
+  labels                        = { "owner" = "ops" }
   ssh_public_key_file           = "${var.ssh_public_key_file}"
 }
 
@@ -114,6 +101,7 @@ module "backups" {
   zone                          = "${var.gcp_zone}"
   boot_disk_size                = 1024
   tags                          = [ "mexplat-${var.environ_tag}", "infra", "docker-registry" ]
+  labels                        = { "owner" = "ops" }
   ssh_public_key_file           = "${var.ssh_public_key_file}"
 }
 
@@ -127,11 +115,12 @@ module "chef" {
   source                        = "../modules/vm_gcp"
 
   instance_name                 = "${var.chef_instance_name}"
-  instance_size                 = "n1-standard-1"
+  instance_size                 = "n1-standard-2"
   zone                          = "${var.chef_zone}"
   boot_image                    = "ubuntu-1604-xenial-v20200407"
-  boot_disk_size                = 20
+  boot_disk_size                = 100
   tags                          = [ "mexplat-${var.environ_tag}", "http-server", "https-server" ]
+  labels                        = { "owner" = "ops" }
   ssh_public_key_file           = "${var.ssh_public_key_file}"
 }
 
@@ -139,4 +128,21 @@ module "chef_dns" {
   source                        = "../modules/cloudflare_record"
   hostname                      = "${var.chef_domain_name}"
   ip                            = "${module.chef.external_ip}"
+}
+
+module "monitor" {
+  source                        = "../modules/vm_gcp"
+
+  instance_name                 = "${var.monitor_instance_name}"
+  instance_size                 = "n1-standard-2"
+  zone                          = "${var.monitor_zone}"
+  boot_disk_size                = 100
+  tags                          = [ "mexplat-${var.environ_tag}", "http-server", "https-server" ]
+  ssh_public_key_file           = "${var.ssh_public_key_file}"
+}
+
+module "monitor_dns" {
+  source                        = "../modules/cloudflare_record"
+  hostname                      = "${var.monitor_domain_name}"
+  ip                            = "${module.monitor.external_ip}"
 }

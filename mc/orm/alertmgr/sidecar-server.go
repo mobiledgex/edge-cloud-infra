@@ -14,6 +14,7 @@ import (
 	"strings"
 	"sync"
 	"text/template"
+	"time"
 
 	"github.com/gorilla/mux"
 
@@ -37,6 +38,16 @@ type SidecarReceiverConfig struct {
 
 type SidecarReceiverConfigs []SidecarReceiverConfig
 
+type AlertmgrInitInfo struct {
+	Email          string
+	User           string
+	Token          string
+	Smtp           string
+	Port           string
+	Tls            string
+	ResolveTimeout string
+}
+
 type SidecarServer struct {
 	alertMgrAddr       string
 	alertMgrConfigPath string
@@ -44,12 +55,16 @@ type SidecarServer struct {
 	server             *http.Server
 }
 
-func NewSidecarServer(target, path, apiAddr string) *SidecarServer {
-	return &SidecarServer{
+func NewSidecarServer(target, path, apiAddr string, initInfo *AlertmgrInitInfo) (*SidecarServer, error) {
+	server := &SidecarServer{
 		alertMgrAddr:       target,
 		alertMgrConfigPath: path,
 		httpApiAddr:        apiAddr,
 	}
+	if err := server.initAlertmanager(initInfo); err != nil {
+		return nil, err
+	}
+	return server, nil
 }
 
 // Get server address with http prefix
@@ -68,8 +83,9 @@ func (s *SidecarServer) Run() error {
 	// http.HandleFunc(ReloadConfigApi, proxyHandler) - this should not be externally exposed
 	rtrMux.HandleFunc(SilenceApi, s.proxyHandler)
 	rtrMux.HandleFunc(ReceiverApi, s.proxyHandler)
-	rtrMux.HandleFunc(mobiledgeXInitAlertmgr, s.initAlertmanager)
+	rtrMux.HandleFunc(mobiledgeXReceiversApi, s.alertReceiver).Methods("GET")
 	rtrMux.HandleFunc(mobiledgeXReceiverApi, s.alertReceiver)
+	rtrMux.HandleFunc(mobiledgeXReceiverApi+"/{"+receiverUrlVar+"}", s.alertReceiver).Methods("GET")
 	rtrMux.HandleFunc(mobiledgeXReceiverApi+"/{"+receiverUrlVar+"}", s.alertReceiver).Methods("DELETE")
 
 	listener, err := net.Listen("tcp4", s.httpApiAddr)
@@ -129,10 +145,26 @@ func (s *SidecarServer) alertReceiver(w http.ResponseWriter, req *http.Request) 
 	case http.MethodGet:
 		// Show Receivers
 		configLock.Unlock()
+		// get the receiver name
+		vars := mux.Vars(req)
+		receiverName, filterOnName := vars[receiverUrlVar]
+
 		receivers := SidecarReceiverConfigs{}
 		for ii, rec := range config.Receivers {
 			if rec.Name == "default" {
 				continue
+			}
+			// Check the filter
+			if filterOnName {
+				curRecName, err := getAlertReceiverFromName(rec.Name)
+				if err != nil {
+					log.SpanLog(ctx, log.DebugLevelApi, "Unable to parse receiver", "err", err, "receiver", rec)
+					continue
+				}
+				if receiverName != curRecName.Name {
+					// Filter does not match
+					continue
+				}
 			}
 			recConfig := SidecarReceiverConfig{
 				Receiver: *config.Receivers[ii],
@@ -231,35 +263,35 @@ func (s *SidecarServer) alertReceiver(w http.ResponseWriter, req *http.Request) 
 	}
 }
 
-func (s *SidecarServer) initAlertmanager(w http.ResponseWriter, req *http.Request) {
+func (s *SidecarServer) initAlertmanager(initInfo *AlertmgrInitInfo) error {
+	var err error
 	span := log.StartSpan(log.DebugLevelApi|log.DebugLevelInfo, "Alertmgr Sidecar Init")
 	defer span.Finish()
 	ctx := log.ContextWithSpan(context.Background(), span)
-
-	// only support POST method
-	if req.Method != http.MethodPost {
-		log.SpanLog(ctx, log.DebugLevelInfo, "Only POST method is supported", "req", req)
-		http.Error(w, "Only POST is supported", http.StatusMethodNotAllowed)
-		return
+	// wait for alertmanager to be up first
+	for ii := 0; ii < 10; ii++ {
+		_, err = alertMgrApi(ctx, s.alertMgrAddr, "GET", "", "", nil)
+		if err == nil {
+			break
+		}
+		time.Sleep(1 * time.Second)
 	}
-	smtpInfo := smtpInfo{}
-	err := json.NewDecoder(req.Body).Decode(&smtpInfo)
 	if err != nil {
-		log.SpanLog(ctx, log.DebugLevelInfo, "Unable to decode request", "req", req)
-		http.Error(w, err.Error(), http.StatusBadRequest)
-		return
+		log.SpanLog(ctx, log.DebugLevelInfo, "Failed to connect to alertmanager", "err", err)
+		return err
 	}
 
-	if err := s.initConfigFile(ctx, &smtpInfo); err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
-		return
+	if err := s.initConfigFile(ctx, initInfo); err != nil {
+		log.SpanLog(ctx, log.DebugLevelInfo, "Unable to init config file", "err", err, "initInfo", initInfo)
+		return err
 	}
+	return nil
 }
 
 // Read config from the alertmgr config file.
 // There are two passes here - one if a file exists and another if a file exists,
 // but doesn't contain required fields
-func (s *SidecarServer) initConfigFile(ctx context.Context, info *smtpInfo) error {
+func (s *SidecarServer) initConfigFile(ctx context.Context, info *AlertmgrInitInfo) error {
 	// grab config lock
 	configLock.Lock()
 	defer configLock.Unlock()
@@ -304,7 +336,7 @@ func (s *SidecarServer) initConfigFile(ctx context.Context, info *smtpInfo) erro
 
 // Load default configuration into Alertmanager
 // Note configLock should be held prior to calling this
-func (s *SidecarServer) loadDefaultConfigFileLocked(ctx context.Context, info *smtpInfo) error {
+func (s *SidecarServer) loadDefaultConfigFileLocked(ctx context.Context, info *AlertmgrInitInfo) error {
 	defaultConfigTemplate = template.Must(template.New("alertmanagerconfig").Parse(DefaultAlertmanagerConfigT))
 	config := bytes.Buffer{}
 	if err := defaultConfigTemplate.Execute(&config, info); err != nil {

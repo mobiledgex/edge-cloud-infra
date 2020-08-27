@@ -92,7 +92,6 @@ func DeleteAlertReceiver(c echo.Context) error {
 
 // Show alert receivers api handler
 func ShowAlertReceiver(c echo.Context) error {
-	log.DebugLog(log.DebugLevelApi, "Running Show Alerts API")
 	alertRecs := []ormapi.AlertReceiver{}
 	claims, err := getClaims(c)
 	if err != nil {

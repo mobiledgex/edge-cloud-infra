@@ -77,7 +77,6 @@ func persistInterfaceName(ctx context.Context, client ssh.Client, ifName, mac st
 func (v *VMPlatform) configureInternalInterfaceAndExternalForwarding(ctx context.Context, client ssh.Client, subnetName, internalPortName string, serverDetails *ServerDetail, action *InterfaceActionsOp) error {
 
 	log.SpanLog(ctx, log.DebugLevelInfra, "configureInternalInterfaceAndExternalForwarding", "serverDetails", serverDetails, "internalPortName", internalPortName, "action", fmt.Sprintf("%+v", action))
-
 	internalIP, err := GetIPFromServerDetails(ctx, "", internalPortName, serverDetails)
 	if err != nil {
 		return err
@@ -92,10 +91,9 @@ func (v *VMPlatform) configureInternalInterfaceAndExternalForwarding(ctx context
 	if externalIP.MacAddress == "" {
 		return fmt.Errorf("No MAC address for external interface: %s", externalIP.Network)
 	}
-
-	err = WaitServerSSHReachable(ctx, client, externalIP.ExternalAddr, SSHReachableDefaultTimeout)
+	err = WaitServerReady(ctx, v.VMProvider, client, externalIP.ExternalAddr, MaxRootLBWait)
 	if err != nil {
-		log.SpanLog(ctx, log.DebugLevelInfra, "server not reachable", "err", err)
+		log.SpanLog(ctx, log.DebugLevelInfra, "server not ready", "err", err)
 		return err
 	}
 
@@ -125,12 +123,11 @@ func (v *VMPlatform) configureInternalInterfaceAndExternalForwarding(ctx context
 		}
 		// keep going on delete
 	}
-	filename := "/etc/network/interfaces.d/" + internalPortName + ".cfg"
-	contents := fmt.Sprintf("auto %s\niface %s inet static\n   address %s/24", internalIfname, internalIfname, internalIP.InternalAddr)
-
+	netplanEnabled := ServerIsNetplanEnabled(ctx, client)
+	filename, fileMatch, contents := GetNetworkFileDetailsForIP(ctx, internalPortName, internalIfname, internalIP.InternalAddr, netplanEnabled)
 	if action.addInterface {
 		// cleanup any interfaces files that may be sitting around with our new interface, perhaps from some old failure
-		cmd := fmt.Sprintf("grep -l ' %s ' /etc/network/interfaces.d/*-port.cfg", internalIfname)
+		cmd := fmt.Sprintf("grep -l ' %s ' %s", fileMatch, internalIfname)
 		out, err = client.Output(cmd)
 		log.SpanLog(ctx, log.DebugLevelInfra, "cleanup old interface files with interface", "internalIfname", internalIfname, "out", out, "err", err)
 		if err == nil {
@@ -144,28 +141,13 @@ func (v *VMPlatform) configureInternalInterfaceAndExternalForwarding(ctx context
 				}
 			}
 		}
-
-		err = pc.WriteFile(client, filename, contents, "ifconfig", pc.SudoOn)
+		err = pc.WriteFile(client, filename, contents, "netconfig", pc.SudoOn)
 		// now create the file
 		if err != nil {
-			return fmt.Errorf("unable to write interface config file: %s -- %v", filename, err)
-		}
-
-		// in some OS the interfaces file may not refer to interfaces.d
-		ifFile := "/etc/network/interfaces"
-		cmd = fmt.Sprintf("grep -l interfaces.d %s", ifFile)
-		out, err = client.Output(cmd)
-		if err != nil {
-			log.SpanLog(ctx, log.DebugLevelInfra, "adding source line to interfaces file")
-			cmd = fmt.Sprintf("echo '%s'|sudo tee -a %s", "source /etc/network/interfaces.d/*-port.cfg", ifFile)
-			out, err = client.Output(cmd)
-			if err != nil {
-				return fmt.Errorf("can't add source reference to interfaces file: %v", err)
-			}
+			return fmt.Errorf("unable to write network config file: %s -- %v", filename, err)
 		}
 
 		// now bring the new internal interface up.
-
 		var ipcmds []string
 		linkCmd := fmt.Sprintf("sudo ip link set dev %s up", internalIfname)
 		ipcmds = append(ipcmds, linkCmd)
@@ -189,9 +171,10 @@ func (v *VMPlatform) configureInternalInterfaceAndExternalForwarding(ctx context
 			if strings.Contains(out, "No such file") {
 				log.SpanLog(ctx, log.DebugLevelInfra, "file already gone", "filename", filename)
 			} else {
-				return fmt.Errorf("Unexpected error removing interface file %s, %s -- %v", filename, out, err)
+				return fmt.Errorf("Unexpected error removing network config file %s, %s -- %v", filename, out, err)
 			}
 		}
+
 		cmd = fmt.Sprintf("sudo ip addr flush %s", internalIfname)
 		log.SpanLog(ctx, log.DebugLevelInfra, "removing ip from interface", "internalIfname", internalIfname, "cmd", internalIfname)
 		out, err = client.Output(cmd)
@@ -476,9 +459,9 @@ func (v *VMPlatform) SetupRootLB(
 			return err
 		}
 	}
-	err = v.WaitForRootLB(ctx, rootLB)
+	err = WaitServerReady(ctx, v.VMProvider, client, rootLB.Name, MaxRootLBWait)
 	if err != nil {
-		log.SpanLog(ctx, log.DebugLevelInfra, "timeout waiting for agent to run", "name", rootLB.Name)
+		log.SpanLog(ctx, log.DebugLevelInfra, "timeout waiting for rootLB", "name", rootLB.Name)
 		return fmt.Errorf("Error waiting for rootLB %v", err)
 	}
 	ip, err := GetIPFromServerDetails(ctx, v.VMProperties.GetCloudletExternalNetwork(), "", sd)
@@ -491,7 +474,6 @@ func (v *VMPlatform) SetupRootLB(
 	if err != nil {
 		return err
 	}
-
 	log.SpanLog(ctx, log.DebugLevelInfra, "Copy resource-tracker to rootLb", "rootLb", rootLBName)
 	err = CopyResourceTracker(client)
 	if err != nil {
@@ -517,48 +499,6 @@ func (v *VMPlatform) SetupRootLB(
 
 	// perform provider specific prep of the rootLB
 	return v.VMProvider.PrepareRootLB(ctx, client, rootLBName, v.GetServerSecurityGroupName(rootLBName), privacyPolicy)
-}
-
-//WaitForRootLB waits for the RootLB instance to be up and copies of SSH credentials for internal networks.
-//  Idempotent, but don't call all the time.
-func (v *VMPlatform) WaitForRootLB(ctx context.Context, rootLB *MEXRootLB) error {
-	log.SpanLog(ctx, log.DebugLevelInfra, "wait for rootlb", "name", rootLB.Name)
-	if rootLB == nil {
-		return fmt.Errorf("cannot wait for lb, rootLB is null")
-	}
-	extNet := v.VMProperties.GetCloudletExternalNetwork()
-	if extNet == "" {
-		return fmt.Errorf("waiting for lb, missing external network in manifest")
-	}
-	client, err := v.GetSSHClientForServer(ctx, rootLB.Name, v.VMProperties.GetCloudletExternalNetwork())
-	if err != nil {
-		return err
-	}
-	start := time.Now()
-	running := false
-	for {
-		log.SpanLog(ctx, log.DebugLevelInfra, "waiting for rootlb...", "rootLB", rootLB)
-		_, err := client.Output("sudo grep -i 'Finished mobiledgex init' /var/log/mobiledgex.log")
-		if err == nil {
-			log.SpanLog(ctx, log.DebugLevelInfra, "rootlb is running", "name", rootLB.Name)
-			running = true
-			break
-		} else {
-			log.SpanLog(ctx, log.DebugLevelInfra, "error checking if rootLB is running", "err", err)
-		}
-		elapsed := time.Since(start)
-		if elapsed >= (MaxRootLBWait) {
-			break
-		}
-		log.SpanLog(ctx, log.DebugLevelInfra, "sleeping 10 seconds before retry", "elapsed", elapsed)
-		time.Sleep(10 * time.Second)
-	}
-	if !running {
-		return fmt.Errorf("timeout waiting for RootLB")
-	}
-	log.SpanLog(ctx, log.DebugLevelInfra, "done waiting for rootlb", "name", rootLB.Name)
-
-	return nil
 }
 
 // This function copies resource-tracker from crm to rootLb - we need this to provide docker metrics

@@ -16,7 +16,6 @@ import (
 	"github.com/mobiledgex/edge-cloud/cloudcommon"
 	"github.com/mobiledgex/edge-cloud/edgeproto"
 	"github.com/mobiledgex/edge-cloud/log"
-	"github.com/mobiledgex/edge-cloud/vault"
 
 	//	open_api_models "github.com/prometheus/alertmanager/api/v2/models"
 	// TODO - below is to replace the above for right now - once we update go and modules we can use prometheus directly
@@ -96,6 +95,11 @@ func (s *AlertmanagerMock) registerMockResponders() {
 
 func (s *AlertmanagerMock) registerBaseUrl() {
 	httpmock.RegisterResponder("GET", s.addr+"/",
+		func(req *http.Request) (*http.Response, error) {
+			return httpmock.NewStringResponse(200, "Success"), nil
+		},
+	)
+	httpmock.RegisterResponder("GET", s.addr,
 		func(req *http.Request) (*http.Response, error) {
 			return httpmock.NewStringResponse(200, "Success"), nil
 		},
@@ -277,7 +281,7 @@ func TestAlertMgrServer(t *testing.T) {
 	// addr := "127.0.0.1:9999"
 	// var testAlertCache edgeproto.AlertCache
 	// config := orm.ServerConfig{
-	// 	ServAddr:        addr,
+	// 	ServAddr:         addr,
 	// 	SqlAddr:         "127.0.0.1:5445",
 	// 	RunLocal:        true,
 	// 	InitLocal:       true,
@@ -305,7 +309,8 @@ func TestAlertMgrServer(t *testing.T) {
 	fakeAlertmanager.verifyReceiversCnt(t, 0)
 
 	// Start up a sidecar server on an available port
-	sidecarServer := NewSidecarServer(testAlertMgrAddr, testAlertMgrConfig, ":0")
+	sidecarServer, err := NewSidecarServer(testAlertMgrAddr, testAlertMgrConfig, ":0", &testInitInfo)
+	require.Nil(t, err)
 	err = sidecarServer.Run()
 	require.Nil(t, err)
 	sidecarServerAddr := sidecarServer.GetApiAddr()
@@ -314,14 +319,12 @@ func TestAlertMgrServer(t *testing.T) {
 	var testAlertCache edgeproto.AlertCache
 	edgeproto.InitAlertCache(&testAlertCache)
 	alertRefreshInterval = 100 * time.Millisecond
-	testAlertMgrServer, err := NewAlertMgrServer(sidecarServerAddr,
-		&vault.Config{}, true, &testAlertCache, 2*time.Minute)
+	testAlertMgrServer, err := NewAlertMgrServer(sidecarServerAddr, &testAlertCache, 2*time.Minute)
 	require.Nil(t, err)
 	require.NotNil(t, testAlertMgrServer)
 	require.Equal(t, 1, fakeAlertmanager.ConfigReloads)
 	// start another test alertMgrServer to test multiple inits
-	testAlertMgrServer2, err := NewAlertMgrServer(sidecarServerAddr,
-		&vault.Config{}, true, &testAlertCache, 2*time.Minute)
+	testAlertMgrServer2, err := NewAlertMgrServer(sidecarServerAddr, &testAlertCache, 2*time.Minute)
 	require.Nil(t, err)
 	require.NotNil(t, testAlertMgrServer2)
 	// config is already set up, don't need to reload
@@ -333,12 +336,12 @@ func TestAlertMgrServer(t *testing.T) {
 	// Make sure that the values for the global config are correct
 	config, err := alertmanager_config.LoadFile(testAlertMgrConfig)
 	require.Nil(t, err)
-	require.Equal(t, testSmtpInfo.Email, config.Global.SMTPFrom)
-	require.Equal(t, testSmtpInfo.User, config.Global.SMTPAuthUsername)
-	require.Equal(t, testSmtpInfo.Smtp, config.Global.SMTPSmarthost.Host)
-	require.Equal(t, testSmtpInfo.Port, config.Global.SMTPSmarthost.Port)
-	require.Equal(t, testSmtpInfo.Token, string(config.Global.SMTPAuthPassword))
-	require.Equal(t, (testSmtpInfo.Tls == "true"), config.Global.SMTPRequireTLS)
+	require.Equal(t, testInitInfo.Email, config.Global.SMTPFrom)
+	require.Equal(t, testInitInfo.User, config.Global.SMTPAuthUsername)
+	require.Equal(t, testInitInfo.Smtp, config.Global.SMTPSmarthost.Host)
+	require.Equal(t, testInitInfo.Port, config.Global.SMTPSmarthost.Port)
+	require.Equal(t, testInitInfo.Token, string(config.Global.SMTPAuthPassword))
+	require.Equal(t, (testInitInfo.Tls == "true"), config.Global.SMTPRequireTLS)
 
 	testAlertCache.SetUpdatedCb(testAlertMgrServer.UpdateAlert)
 
@@ -443,6 +446,25 @@ func TestAlertMgrServer(t *testing.T) {
 	require.Len(t, receivers, 1)
 	// check the receiver and all fields
 	require.Equal(t, testAlertReceivers[1], receivers[0])
+
+	// Verify ShowReceivers with a filter
+	filter := ormapi.AlertReceiver{
+		Name: testAlertReceivers[1].Name,
+	}
+	receivers, err = testAlertMgrServer.ShowReceivers(ctx, &filter)
+	require.Nil(t, err)
+	// should be a single receiver
+	require.Len(t, receivers, 1)
+	// check the receiver and all fields
+	require.Equal(t, testAlertReceivers[1], receivers[0])
+	// Non-existent receiver
+	filter = ormapi.AlertReceiver{
+		Name: testAlertReceivers[0].Name,
+	}
+	receivers, err = testAlertMgrServer.ShowReceivers(ctx, &filter)
+	require.Nil(t, err)
+	// should be empty response
+	require.Len(t, receivers, 0)
 
 	// Delete non-existent receiver - nothing should change
 	err = testAlertMgrServer.DeleteReceiver(ctx, &testAlertReceivers[0])

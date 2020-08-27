@@ -7,7 +7,6 @@ import (
 	"fmt"
 	"io/ioutil"
 	"net/http"
-	"strconv"
 	"strings"
 	"sync"
 	"text/template"
@@ -18,7 +17,6 @@ import (
 	dme "github.com/mobiledgex/edge-cloud/d-match-engine/dme-proto"
 	"github.com/mobiledgex/edge-cloud/edgeproto"
 	"github.com/mobiledgex/edge-cloud/log"
-	"github.com/mobiledgex/edge-cloud/vault"
 
 	//"github.com/prometheus/alertmanager/api/v2/models"
 	// TODO - below is to replace the above for right now - once we update go and modules we can use prometheus directly
@@ -40,20 +38,8 @@ type AlertMgrServer struct {
 	AlertMrgAddr          string
 	AlertResolutionTimout time.Duration
 	AlertCache            *edgeproto.AlertCache
-	vaultConfig           *vault.Config
-	localVault            bool
 	waitGrp               sync.WaitGroup
 	stop                  chan struct{}
-}
-
-type smtpInfo struct {
-	Email          string `json:"email"`
-	User           string `json:"user,omitempty"`
-	Token          string `json:"token,omitempty"`
-	Smtp           string `json:"smtp"`
-	Port           string `json:"port"`
-	Tls            string `json:"tls,omitempty"`
-	ResolveTimeout string `json:"-"`
 }
 
 // TODO - use version to track where this alert came from
@@ -61,13 +47,11 @@ func getAgentName() string {
 	return "MasterControllerV1"
 }
 
-func NewAlertMgrServer(alertMgrAddr string, vaultConfig *vault.Config, localVault bool, alertCache *edgeproto.AlertCache, resolveTimeout time.Duration) (*AlertMgrServer, error) {
+func NewAlertMgrServer(alertMgrAddr string, alertCache *edgeproto.AlertCache, resolveTimeout time.Duration) (*AlertMgrServer, error) {
 	var err error
 	server := AlertMgrServer{
 		AlertMrgAddr:          alertMgrAddr,
 		AlertCache:            alertCache,
-		vaultConfig:           vaultConfig,
-		localVault:            localVault,
 		AlertResolutionTimout: resolveTimeout,
 	}
 	span := log.StartSpan(log.DebugLevelApi|log.DebugLevelInfo, "AlertMgrServer")
@@ -86,43 +70,7 @@ func NewAlertMgrServer(alertMgrAddr string, vaultConfig *vault.Config, localVaul
 		log.SpanLog(ctx, log.DebugLevelInfo, "Failed to connect to alertmanager", "err", err)
 		return nil, err
 	}
-	// Alertmanager is up - initialize with smtp info
-	smtpInfo, err := server.getAlertmanagerSmtpConfig(ctx)
-	if err != nil {
-		log.SpanLog(ctx, log.DebugLevelInfo, "Failed to get Smtp from vault", "err", err, "cfg", server.vaultConfig)
-		return nil, err
-	}
-	// Set the timeout
-	var secs = int(server.AlertResolutionTimout.Seconds()) //round it to the second
-	smtpInfo.ResolveTimeout = strconv.Itoa(secs) + "s"
-
-	data, err := json.Marshal(smtpInfo)
-	if err != nil {
-		log.SpanLog(ctx, log.DebugLevelInfo, "Failed to get marshal smtp info", "err", err, "smtp", smtpInfo)
-		return nil, err
-	}
-
-	res, err := alertMgrApi(ctx, server.AlertMrgAddr, "POST", mobiledgeXInitAlertmgr, "", data)
-	if err != nil {
-		log.SpanLog(ctx, log.DebugLevelInfo, "Failed to init alertmanager config", "err", err, "res", res)
-		return nil, err
-	}
 	return &server, nil
-}
-
-func (s *AlertMgrServer) getAlertmanagerSmtpConfig(ctx context.Context) (*smtpInfo, error) {
-	if s.localVault {
-		log.SpanLog(ctx, log.DebugLevelApi, "Using dummy smtp credentials")
-		return &testSmtpInfo, nil
-	}
-	alertMgrAcct := smtpInfo{}
-	err := vault.GetData(s.vaultConfig,
-		"/secret/data/accounts/alertmanagersmtp", 0, &alertMgrAcct)
-	if err != nil {
-		log.SpanLog(ctx, log.DebugLevelApi, "Failed to get data from vault", "err", err)
-		return nil, err
-	}
-	return &alertMgrAcct, nil
 }
 
 // Update callback for a new alert - should send to alertmanager right away
@@ -392,7 +340,12 @@ func getAlertReceiverFromName(name string) (*ormapi.AlertReceiver, error) {
 
 func (s *AlertMgrServer) ShowReceivers(ctx context.Context, filter *ormapi.AlertReceiver) ([]ormapi.AlertReceiver, error) {
 	alertReceivers := []ormapi.AlertReceiver{}
-	data, err := alertMgrApi(ctx, s.AlertMrgAddr, "GET", mobiledgeXReceiverApi, "", nil)
+	apiUrl := mobiledgeXReceiversApi
+	if filter != nil && filter.Name != "" {
+		// Add Filter with a name
+		apiUrl = mobiledgeXReceiverApi + "/" + filter.Name
+	}
+	data, err := alertMgrApi(ctx, s.AlertMrgAddr, "GET", apiUrl, "", nil)
 	if err != nil {
 		log.SpanLog(ctx, log.DebugLevelInfo, "Unable to GET Alert Receivers", "err", err)
 		return nil, err

@@ -44,4 +44,4 @@
   become: yes
 
 - import_tasks: certs.yml
-  when: cert_domains|bool
+  when: cert_domains is defined and cert_domains|length > 0

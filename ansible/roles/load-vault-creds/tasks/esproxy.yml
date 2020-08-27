@@ -1,0 +1,6 @@
+- name: Look up esproxy creds in vault
+  set_fact:
+    vault_lookup: "{{ lookup('vault', esproxy_account_path) }}"
+
+- set_fact:
+    esproxy_apikey: "{{ vault_lookup.esproxy.data.apikey }}"

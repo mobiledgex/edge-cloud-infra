@@ -1,0 +1,30 @@
+- name: Create alertmanager config directory if doesn't exist
+  file:
+    path: "{{ alertmanager_config_path }}"
+    state: directory
+    mode: '0755'
+
+- name: Write default alertmanager config if one doesn't exist
+  copy:
+    content: "{{ lookup('file', 'default-config.yml') }}"
+    dest: "{{ alertmanager_config_path }}/{{ alertmanager_config_file }}"
+    force: no
+
+- name: Install the docker compose manifest
+  template:
+    src: docker-compose.yml.j2
+    dest: "{{ alertmanager_config_path }}/docker-compose.yml"
+  become: yes
+
+- name: Start the alertmanager services
+  docker_compose:
+    project_name: alertmanager
+    project_src: "{{ alertmanager_config_path }}"
+  become: yes
+  register: compose
+
+- name: Check sidecar service running
+  wait_for:
+    host: "0.0.0.0"
+    port: 9094
+    timeout: 30

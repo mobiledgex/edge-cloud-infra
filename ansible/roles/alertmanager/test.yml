@@ -1,0 +1,86 @@
+- hosts: localhost
+  tasks:
+  # - name: "Gather info"
+  #   k8s_facts:
+  #     kind: Service
+  #     name: mexprometheusappnamev10-prometheus-node-exporter
+  #     namespace: default
+  #   register: alertmanager_facts
+  #   retries: 24
+  #   delay: 5
+  #   until: alertmanager_facts.resources[0].spec.clusterIP is defined
+
+  # - name: "Set alertmanager API IP"
+  #   set_fact:
+  #     alertmanager_ip: "{{ alertmanager_facts.resources[0].spec.clusterIP }}"
+
+  # - name: "Set alertmanager API Port"
+  #   set_fact:
+  #     alertmanager_port: "{{ alertmanager_facts.resources[0].spec.ports[0].port }}"
+
+  # - name: "Set alertmanager API Address"
+  #   set_fact:
+  #     alertmanager_addr: "http://{{ alertmanager_ip }}:{{ alertmanager_port }}"
+
+  # - debug:
+  #     msg: "Service facts '{{ alertmanager_facts }}'"
+  
+  # - debug:
+  #     msg: "Service Addr '{{ alertmanager_addr }}'"
+
+  - name: "Set image"
+    set_fact:
+      edge_cloud_image: "registry.mobiledgex.net:5000/mobiledgex/edge-cloud"
+  - name: "Set image version"
+    set_fact:
+      edge_cloud_version: "levshvarts-2020-08-23-2"
+  - name: "jeager endpoint"
+    set_fact:
+      jaeger_endpoint: "http://null.net"
+  - name: "jeager tags"
+    set_fact:
+      deploy_environ: "levtest"
+
+  - name: Create alertmanager config directory if doesn't exist
+    file:
+      path: "{{ alertmanager_config_path }}"
+      state: directory
+      mode: '0755'
+
+  - name: Check alertmanager config file stats
+    stat:
+      path: "{{ alertmanager_config_path }}/{{ alertmanager_config_file }}"
+    register: st
+
+  - name: Write default alertmanager config if one doesn't exist
+    copy:
+      content: "{{ lookup('file', 'default-config.yml') }}"
+      dest: "{{ alertmanager_config_path }}/{{ alertmanager_config_file }}"
+    when: not st.stat.exists
+
+  - name: Install the docker compose manifest
+    template:
+      src: docker-compose.yml.j2
+      dest: "{{ alertmanager_config_path }}/docker-compose.yml"
+    #become: yes
+
+  - name: Install docker-compose python module - required for docker_* tasks
+    pip:
+      name: ["docker", "docker-compose"]
+    #become: yes
+    tags: setup
+
+  - name: Start the alertmanager services
+    docker_compose:
+      project_name: alertmanager
+      project_src: "{{ alertmanager_config_path }}"
+  #   become: yes
+    register: compose
+###
+
+- name: Check sidecar service running
+  wait_for:
+    host: "0.0.0.0"
+    port: 9094
+
+# TODO -provision volume for alertmanager receivers

@@ -40,4 +40,4 @@ vault-main-b.mobiledgex.net
 jaeger.mobiledgex.net		es_instance=main
 
 [esproxy]
-es.mobiledgex.net
+events.es.mobiledgex.net

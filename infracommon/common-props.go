@@ -65,7 +65,7 @@ func (p *InfraProperties) Init() {
 
 func (p *InfraProperties) GetValue(key string) (string, bool) {
 	p.Mux.Lock()
-	p.Mux.Unlock()
+	defer p.Mux.Unlock()
 	if out, ok := p.Properties[key]; ok {
 		return out.Value, ok
 	}
@@ -74,7 +74,7 @@ func (p *InfraProperties) GetValue(key string) (string, bool) {
 
 func (p *InfraProperties) SetValue(key, value string) {
 	p.Mux.Lock()
-	p.Mux.Unlock()
+	defer p.Mux.Unlock()
 	if _, ok := p.Properties[key]; ok {
 		p.Properties[key].Value = value
 	}
@@ -82,7 +82,7 @@ func (p *InfraProperties) SetValue(key, value string) {
 
 func (p *InfraProperties) SetProperties(props map[string]*edgeproto.PropertyInfo) {
 	p.Mux.Lock()
-	p.Mux.Unlock()
+	defer p.Mux.Unlock()
 	for k, v := range props {
 		val := *v
 		p.Properties[k] = &val
@@ -121,7 +121,7 @@ func (p *InfraProperties) SetPropsFromVars(ctx context.Context, vars map[string]
 
 func (p *InfraProperties) SetPropsFromEnvData(env []EnvData) {
 	p.Mux.Lock()
-	p.Mux.Unlock()
+	defer p.Mux.Unlock()
 	for _, envData := range env {
 		if _, ok := p.Properties[envData.Name]; ok {
 			p.Properties[envData.Name].Value = envData.Value
@@ -140,7 +140,7 @@ func (p *InfraProperties) SetPropsFromEnvData(env []EnvData) {
 
 func (p *InfraProperties) UpdatePropsFromVars(ctx context.Context, vars map[string]string) {
 	p.Mux.Lock()
-	p.Mux.Unlock()
+	defer p.Mux.Unlock()
 	for k, _ := range p.Properties {
 		if val, ok := vars[k]; ok {
 			if p.Properties[k].Secret {

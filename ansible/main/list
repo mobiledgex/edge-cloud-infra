@@ -38,3 +38,6 @@ vault-main-b.mobiledgex.net
 
 [jaeger]
 jaeger.mobiledgex.net		es_instance=main
+
+[esproxy]
+events.es.mobiledgex.net

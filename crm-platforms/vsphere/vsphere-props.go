@@ -185,97 +185,78 @@ func (v *VSpherePlatform) GetVCenterInsecure() string {
 func (v *VSpherePlatform) GetHostCluster() string {
 	if v.vmProperties.Domain == vmlayer.VMDomainPlatform {
 		// check for optional management cluster
-		if val, ok := v.vmProperties.CommonPf.Properties["MEX_MANAGEMENT_CLUSTER"]; ok {
-			if val.Value != "" {
-				return val.Value
-			}
+		val, _ := v.vmProperties.CommonPf.Properties.GetValue("MEX_MANAGEMENT_CLUSTER")
+		if val != "" {
+			return val
 		}
 	}
-	if val, ok := v.vmProperties.CommonPf.Properties["MEX_COMPUTE_CLUSTER"]; ok {
-		return val.Value
-	}
-	return ""
+	val, _ := v.vmProperties.CommonPf.Properties.GetValue("MEX_COMPUTE_CLUSTER")
+	return val
 }
 
 func (v *VSpherePlatform) GetDataStore() string {
 	if v.vmProperties.Domain == vmlayer.VMDomainPlatform {
 		// check for optional management datastore
-		if val, ok := v.vmProperties.CommonPf.Properties["MEX_MANAGEMENT_DATASTORE"]; ok {
-			if val.Value != "" {
-				return val.Value
-			}
+		val, _ := v.vmProperties.CommonPf.Properties.GetValue("MEX_MANAGEMENT_DATASTORE")
+		if val != "" {
+			return val
 		}
 	}
-	if val, ok := v.vmProperties.CommonPf.Properties["MEX_DATASTORE"]; ok {
-		return val.Value
-	}
-	return ""
+	val, _ := v.vmProperties.CommonPf.Properties.GetValue("MEX_DATASTORE")
+	return val
 }
 
 func (v *VSpherePlatform) GetInternalVSwitch() string {
-	if val, ok := v.vmProperties.CommonPf.Properties["MEX_INTERNAL_VSWITCH"]; ok {
-		return val.Value
-	}
-	return ""
+	val, _ := v.vmProperties.CommonPf.Properties.GetValue("MEX_INTERNAL_VSWITCH")
+	return val
 }
 
 func (v *VSpherePlatform) GetExternalVSwitch() string {
 	if v.vmProperties.Domain == vmlayer.VMDomainPlatform {
 		// check for optional management vswitch
-		if val, ok := v.vmProperties.CommonPf.Properties["MEX_MANAGEMENT_EXTERNAL_VSWITCH"]; ok {
-			if val.Value != "" {
-				return val.Value
-			}
+		val, _ := v.vmProperties.CommonPf.Properties.GetValue("MEX_MANAGEMENT_EXTERNAL_VSWITCH")
+		if val != "" {
+			return val
 		}
 	}
-	if val, ok := v.vmProperties.CommonPf.Properties["MEX_EXTERNAL_VSWITCH"]; ok {
-		return val.Value
-	}
-	return ""
+	val, _ := v.vmProperties.CommonPf.Properties.GetValue("MEX_EXTERNAL_VSWITCH")
+	return val
 }
 func (v *VSpherePlatform) GetExternalNetmask() string {
 	if v.vmProperties.Domain == vmlayer.VMDomainPlatform {
 		// check for optional management netmask
-		if val, ok := v.vmProperties.CommonPf.Properties["MEX_MANAGEMENT_EXTERNAL_NETWORK_MASK"]; ok {
-			if val.Value != "" {
-				return val.Value
-			}
+		val, _ := v.vmProperties.CommonPf.Properties.GetValue("MEX_MANAGEMENT_EXTERNAL_NETWORK_MASK")
+		if val != "" {
+			return val
 		}
 	}
-	if val, ok := v.vmProperties.CommonPf.Properties["MEX_EXTERNAL_NETWORK_MASK"]; ok {
-		return val.Value
-	}
-	return ""
+	val, _ := v.vmProperties.CommonPf.Properties.GetValue("MEX_EXTERNAL_NETWORK_MASK")
+	return val
 }
 func (v *VSpherePlatform) GetExternalGateway(ctx context.Context, extNetName string) (string, error) {
 	if v.vmProperties.Domain == vmlayer.VMDomainPlatform {
 		// check for optional management gw
-		if val, ok := v.vmProperties.CommonPf.Properties["MEX_MANAGEMENT_EXTERNAL_NETWORK_GATEWAY"]; ok {
-			if val.Value != "" {
-				return val.Value, nil
-			}
+		val, _ := v.vmProperties.CommonPf.Properties.GetValue("MEX_MANAGEMENT_EXTERNAL_NETWORK_GATEWAY")
+		if val != "" {
+			return val, nil
 		}
 	}
-	if val, ok := v.vmProperties.CommonPf.Properties["MEX_EXTERNAL_NETWORK_GATEWAY"]; ok {
-		return val.Value, nil
+	val, ok := v.vmProperties.CommonPf.Properties.GetValue("MEX_EXTERNAL_NETWORK_GATEWAY")
+	if !ok {
+		return "", fmt.Errorf("Unable to find MEX_EXTERNAL_NETWORK_GATEWAY")
 	}
-	return "", nil
+	return val, nil
 }
+
 func (v *VSpherePlatform) GetInternalNetmask() string {
-	if val, ok := v.vmProperties.CommonPf.Properties["MEX_INTERNAL_NETWORK_MASK"]; ok {
-		return val.Value
-	}
-	return ""
+	val, _ := v.vmProperties.CommonPf.Properties.GetValue("MEX_INTERNAL_NETWORK_MASK")
+	return val
 }
 func (v *VSpherePlatform) GetTemplateFolder() string {
-	if val, ok := v.vmProperties.CommonPf.Properties["MEX_TEMPLATE_FOLDER"]; ok {
-		return val.Value
-	}
-	return ""
+	val, _ := v.vmProperties.CommonPf.Properties.GetValue("MEX_TEMPLATE_FOLDER")
+	return val
 }
 func (v *VSpherePlatform) GetVMVersion() string {
-	if val, ok := v.vmProperties.CommonPf.Properties["MEX_VM_VERSION"]; ok {
-		return val.Value
-	}
-	return ""
+	val, _ := v.vmProperties.CommonPf.Properties.GetValue("MEX_VM_VERSION")
+	return val
 }

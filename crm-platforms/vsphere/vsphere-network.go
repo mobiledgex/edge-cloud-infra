@@ -7,7 +7,6 @@ import (
 	"strings"
 
 	"github.com/mobiledgex/edge-cloud-infra/vmlayer"
-	"github.com/mobiledgex/edge-cloud/edgeproto"
 	"github.com/mobiledgex/edge-cloud/log"
 )
 
@@ -24,15 +23,14 @@ func incrIP(ip net.IP) {
 
 func (v *VSpherePlatform) GetExternalIpRanges() ([]string, error) {
 	log.DebugLog(log.DebugLevelInfra, "GetExternalIpRanges")
-	var extIPs *edgeproto.PropertyInfo
+	var extIPs = ""
 	if v.vmProperties.Domain == vmlayer.VMDomainPlatform {
 		// check for optional management gw
-		extIPs = v.vmProperties.CommonPf.Properties["MEX_MANAGEMENT_EXTERNAL_IP_RANGES"]
+		extIPs, _ = v.vmProperties.CommonPf.Properties.GetValue("MEX_MANAGEMENT_EXTERNAL_IP_RANGES")
 	}
-	if extIPs == nil || extIPs.Value == "" {
-		var ok bool
-		extIPs, ok = v.vmProperties.CommonPf.Properties["MEX_EXTERNAL_IP_RANGES"]
-		if !ok || extIPs.Value == "" {
+	if extIPs == "" {
+		extIPs, _ = v.vmProperties.CommonPf.Properties.GetValue("MEX_EXTERNAL_IP_RANGES")
+		if extIPs == "" {
 			return nil, fmt.Errorf("MEX_EXTERNAL_IP_RANGES not defined")
 		}
 		log.DebugLog(log.DebugLevelInfra, "Using MEX_EXTERNAL_IP_RANGES", "extIPs", extIPs)
@@ -40,10 +38,10 @@ func (v *VSpherePlatform) GetExternalIpRanges() ([]string, error) {
 		log.DebugLog(log.DebugLevelInfra, "Using MEX_MANAGEMENT_EXTERNAL_IP_RANGES", "extIPs", extIPs)
 	}
 	var rc []string
-	if extIPs.Value == "" {
+	if extIPs == "" {
 		return rc, fmt.Errorf("No external IPs assigned")
 	}
-	ipRanges := strings.Split(extIPs.Value, ",")
+	ipRanges := strings.Split(extIPs, ",")
 	for _, ipRange := range ipRanges {
 		ranges := strings.Split(ipRange, "-")
 		if len(ranges) != 2 {

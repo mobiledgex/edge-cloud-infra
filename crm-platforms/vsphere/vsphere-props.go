@@ -30,7 +30,7 @@ var VSphereProps = map[string]*edgeproto.PropertyInfo{
 		Mandatory:   true,
 	},
 	"MEX_MANAGEMENT_DATASTORE": {
-		Name:        "vSphere Datastore Name",
+		Name:        "vSphere Management Datastore Name",
 		Description: "Optional vSphere Management Datastore Name for platform VMs; if not specified, platform VMs run on the same datastore as compute VMs",
 	},
 	"MEX_EXTERNAL_IP_RANGES": {
@@ -39,7 +39,7 @@ var VSphereProps = map[string]*edgeproto.PropertyInfo{
 		Mandatory:   true,
 	},
 	"MEX_MANAGEMENT_EXTERNAL_IP_RANGES": {
-		Name:        "External IP Ranges",
+		Name:        "Management External IP Ranges",
 		Description: "Optional Range of external IP addresses for management cluster; if not specified, platform VMs use same IP range as compute VMs.",
 	},
 	"MEX_EXTERNAL_NETWORK_GATEWAY": {
@@ -48,7 +48,7 @@ var VSphereProps = map[string]*edgeproto.PropertyInfo{
 		Mandatory:   true,
 	},
 	"MEX_MANAGEMENT_EXTERNAL_NETWORK_GATEWAY": {
-		Name:        "External Network Gateway",
+		Name:        "Management External Network Gateway",
 		Description: "Optional External Network Gateway for management cluster; if not specified, platform VMs use same gateway as compute VMs",
 	},
 	"MEX_EXTERNAL_NETWORK_MASK": {
@@ -57,7 +57,7 @@ var VSphereProps = map[string]*edgeproto.PropertyInfo{
 		Mandatory:   true,
 	},
 	"MEX_MANAGEMENT_EXTERNAL_NETWORK_MASK": {
-		Name:        "External Network Mask",
+		Name:        "Management External Network Mask",
 		Description: "Optional External Network Mask for manangement cluster; if not specified, platform VMs use same netmask as compute VMs",
 	},
 	"MEX_INTERNAL_NETWORK_MASK": {
@@ -71,7 +71,7 @@ var VSphereProps = map[string]*edgeproto.PropertyInfo{
 		Value:       "ExternalVSwitch",
 	},
 	"MEX_MANAGEMENT_EXTERNAL_VSWITCH": {
-		Name:        "vSphere External vSwitch Name",
+		Name:        "vSphere Management External vSwitch Name",
 		Description: "Optional vSphere External vSwitch Name for management cluster; if not specified, platform VMs use same external vSwitch as compute VMs",
 		Value:       "ExternalVSwitch",
 	},

@@ -324,7 +324,7 @@ func (v *VSpherePlatform) populateOrchestrationParams(ctx context.Context, vmgp 
 					}
 				}
 			}
-		} //  !vmgp.SkipInfraSpecificCheck
+		}
 
 		// we need to put the fip with the GW in first, so re-sort the fixed ips accordingly
 		var sortedFips []vmlayer.FixedIPOrchestrationParams

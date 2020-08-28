@@ -8,15 +8,14 @@ import (
 
 type ManifestBodyType string
 
-const ManifestURL ManifestBodyType = "URL"
+const ManifestNone ManifestBodyType = "none"
+const ManifestURL ManifestBodyType = "url"
 const ManifestCode ManifestBodyType = "code"
-const ManifestText ManifestBodyType = "text"
-const ManifestCommand ManifestBodyType = "command"
 
 type CloudletManifestItem struct {
-	BodyTitle   string
-	BodyType    ManifestBodyType
-	BodyContent string
+	Title       string
+	ContentType ManifestBodyType
+	Content     string
 }
 type CloudletManifest struct {
 	ManifestItems []CloudletManifestItem
@@ -24,9 +23,9 @@ type CloudletManifest struct {
 
 func (m *CloudletManifest) AddItem(title string, bodyType ManifestBodyType, content string) {
 	item := CloudletManifestItem{
-		BodyTitle:   title,
-		BodyType:    bodyType,
-		BodyContent: content,
+		Title:       title,
+		ContentType: bodyType,
+		Content:     content,
 	}
 	m.ManifestItems = append(m.ManifestItems, item)
 }

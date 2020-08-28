@@ -112,19 +112,17 @@ func (o *OpenstackPlatform) GetCloudletManifest(ctx context.Context, name string
 	templateText := buf.String()
 
 	// download instructions and link
-	manifest.AddItem("Step 1", infracommon.ManifestText, "1) Download the MobiledgeX bootstrap VM image (please use your console credentials) from the link")
-	manifest.AddItem("Bootstrap VM Download URL", infracommon.ManifestURL, cloudletImagePath)
+	manifest.AddItem("Download the MobiledgeX bootstrap VM image (please use your console credentials) from the link", infracommon.ManifestURL, cloudletImagePath)
 
-	// instructions for glance upload and import
-	manifest.AddItem("Step 2", infracommon.ManifestText, "2) Execute the following command to upload the image to your glance store")
-	manifest.AddItem("Image Create Command", infracommon.ManifestCode, fmt.Sprintf("openstack image create %s --disk-format qcow2 --container-format bare --file %s.qcow2", vmgp.VMs[0].ImageName, vmgp.VMs[0].ImageName))
+	// image create
+	title := "Execute the following command to upload the image to your glance store"
+	content := fmt.Sprintf("openstack image create %s --disk-format qcow2 --container-format bare --shared --file %s.qcow2", vmgp.VMs[0].ImageName, vmgp.VMs[0].ImageName)
+	manifest.AddItem(title, infracommon.ManifestCode, content)
 
 	// heat template download
-	manifest.AddItem("Step 3", infracommon.ManifestText, "3) Download the manifest template")
-	manifest.AddItem("Heat Template", infracommon.ManifestCode, templateText)
+	manifest.AddItem("Download the manifest template", infracommon.ManifestCode, templateText)
 
 	// heat create commands
-	manifest.AddItem("Step 4", infracommon.ManifestText, "4) Execute the following command to use manifest to setup the cloudlet")
-	manifest.AddItem("Stack Create Command", infracommon.ManifestCode, fmt.Sprintf("openstack stack create -t %s.yml %s-pf)", vmgp.GroupName, vmgp.GroupName))
+	manifest.AddItem("Execute the following command to use manifest to setup the cloudlet", infracommon.ManifestCode, fmt.Sprintf("openstack stack create -t %s.yml %s-pf)", vmgp.GroupName, vmgp.GroupName))
 	return manifest.ToString()
 }

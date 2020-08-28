@@ -6,10 +6,9 @@ import (
 	"strings"
 	"sync"
 
-	"github.com/mobiledgex/edge-cloud/cloud-resource-manager/platform/pc"
-
 	"github.com/mobiledgex/edge-cloud-infra/infracommon"
 	"github.com/mobiledgex/edge-cloud-infra/vmlayer"
+	"github.com/mobiledgex/edge-cloud/cloud-resource-manager/platform/pc"
 	"github.com/mobiledgex/edge-cloud/cloudcommon"
 	"github.com/mobiledgex/edge-cloud/edgeproto"
 	"github.com/mobiledgex/edge-cloud/log"
@@ -182,18 +181,16 @@ func (v *VSpherePlatform) GetCloudletManifest(ctx context.Context, name string, 
 		return "", err
 	}
 
-	manifest.AddItem("Step 1", infracommon.ManifestText, "1) Create folder \"templates\" within the virtual datacenter")
-	manifest.AddItem("Step 2", infracommon.ManifestText, "2) Download the OVF template from the link provided")
-	manifest.AddItem("OVF Download URL", infracommon.ManifestURL, ovfLocation)
-	manifest.AddItem("Step 3", infracommon.ManifestText, "3) Import the OVF into vCenter into template folder: VMs and Templates -> templates folder -> Deploy OVF Template -> Local File -> Upload Files")
-	manifest.AddItem("Step 3a", infracommon.ManifestText, "- 3a) Select Thin Provision for virtual disk format")
-	manifest.AddItem("Step 3b", infracommon.ManifestText, "- 3b) Leave VM name unchanged")
-	manifest.AddItem("Step 3c", infracommon.ManifestText, fmt.Sprintf("- 3c) Select \"%s\" cluster and \"%s\" datastore", v.GetHostCluster(), v.GetDataStore()))
-	manifest.AddItem("Step 3d", infracommon.ManifestText, fmt.Sprintf("- 3d) Update port group when prompted to: %s", v.GetExternalVSwitch()))
-	manifest.AddItem("Step 4", infracommon.ManifestText, "4) Ensure govc is installed on a machine with access to the vCenter APIs as per the following link")
-	manifest.AddItem("GOVC Download Location", infracommon.ManifestURL, govcLocation)
-	manifest.AddItem("Step 5", infracommon.ManifestText, "5) Download the deployment script and run it")
-	manifest.AddItem("Deploy Script", infracommon.ManifestCode, scriptText)
+	manifest.AddItem("Create folder \"templates\" within the virtual datacenter", infracommon.ManifestNone, "")
+	manifest.AddItem("Download the OVF template", infracommon.ManifestURL, ovfLocation)
+	manifest.AddItem("Import the OVF into vCenter into template folder: VMs and Templates -> templates folder -> Deploy OVF Template -> Local File -> Upload Files", infracommon.ManifestNone, "")
+	manifest.AddItem(" -- Select Thin Provision for virtual disk format", infracommon.ManifestNone, "")
+	manifest.AddItem(" -- Leave VM name unchanged", infracommon.ManifestNone, "")
+	manifest.AddItem(fmt.Sprintf(" -- Select \"%s\" cluster and \"%s\" datastore", v.GetHostCluster(), v.GetDataStore()), infracommon.ManifestNone, "")
+	manifest.AddItem(fmt.Sprintf(" -- Update port group when prompted to: %s", v.GetExternalVSwitch()), infracommon.ManifestNone, "")
+	manifest.AddItem("Ensure govc is installed on a machine with access to the vCenter APIs as per the following link", infracommon.ManifestURL, govcLocation)
+	manifest.AddItem("Download the deployment script to where govc is installed and name it deploy.sh", infracommon.ManifestCode, scriptText)
+	manifest.AddItem("Execute the downloaded script", infracommon.ManifestCode, "bash deploy.sh")
 
 	// for testing, write the script and text to /tmp
 	if v.vmProperties.CommonPf.PlatformConfig.TestMode {

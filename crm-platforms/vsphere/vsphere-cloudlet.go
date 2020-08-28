@@ -181,16 +181,16 @@ func (v *VSpherePlatform) GetCloudletManifest(ctx context.Context, name string, 
 		return "", err
 	}
 
-	manifest.AddItem("Create folder \"templates\" within the virtual datacenter", infracommon.ManifestNone, "")
-	manifest.AddItem("Download the OVF template", infracommon.ManifestURL, ovfLocation)
-	manifest.AddItem("Import the OVF into vCenter into template folder: VMs and Templates -> templates folder -> Deploy OVF Template -> Local File -> Upload Files", infracommon.ManifestNone, "")
-	manifest.AddItem(" -- Select Thin Provision for virtual disk format", infracommon.ManifestNone, "")
-	manifest.AddItem(" -- Leave VM name unchanged", infracommon.ManifestNone, "")
-	manifest.AddItem(fmt.Sprintf(" -- Select \"%s\" cluster and \"%s\" datastore", v.GetHostCluster(), v.GetDataStore()), infracommon.ManifestNone, "")
-	manifest.AddItem(fmt.Sprintf(" -- Update port group when prompted to: %s", v.GetExternalVSwitch()), infracommon.ManifestNone, "")
-	manifest.AddItem("Ensure govc is installed on a machine with access to the vCenter APIs as per the following link", infracommon.ManifestURL, govcLocation)
-	manifest.AddItem("Download the deployment script to where govc is installed and name it deploy.sh", infracommon.ManifestCode, scriptText)
-	manifest.AddItem("Execute the downloaded script", infracommon.ManifestCode, "bash deploy.sh")
+	manifest.AddItem("Create folder \"templates\" within the virtual datacenter", infracommon.ManifestTypeNone, infracommon.ManifestSubTypeNone, "")
+	manifest.AddItem("Download the OVF template", infracommon.ManifestTypeURL, infracommon.ManifestSubTypeNone, ovfLocation)
+	manifest.AddItem("Import the OVF into vCenter into template folder: VMs and Templates -> templates folder -> Deploy OVF Template -> Local File -> Upload Files", infracommon.ManifestTypeNone, infracommon.ManifestSubTypeNone, "")
+	manifest.AddSubItem("Select Thin Provision for virtual disk format", infracommon.ManifestTypeNone, infracommon.ManifestSubTypeNone, "")
+	manifest.AddSubItem("Leave VM name unchanged", infracommon.ManifestTypeNone, infracommon.ManifestSubTypeNone, "")
+	manifest.AddSubItem(fmt.Sprintf("Select \"%s\" cluster and \"%s\" datastore", v.GetHostCluster(), v.GetDataStore()), infracommon.ManifestTypeNone, infracommon.ManifestSubTypeNone, "")
+	manifest.AddSubItem(fmt.Sprintf("Update port group when prompted to: %s", v.GetExternalVSwitch()), infracommon.ManifestTypeNone, infracommon.ManifestSubTypeNone, "")
+	manifest.AddItem("Ensure govc is installed on a machine with access to the vCenter APIs as per the following link", infracommon.ManifestTypeURL, infracommon.ManifestSubTypeNone, govcLocation)
+	manifest.AddItem("Download the deployment script to where govc is installed and name it deploy.sh", infracommon.ManifestTypeCode, infracommon.ManifestSubTypeBash, scriptText)
+	manifest.AddItem("Execute the downloaded script", infracommon.ManifestTypeCommand, infracommon.ManifestSubTypeNone, "bash deploy.sh")
 
 	// for testing, write the script and text to /tmp
 	if v.vmProperties.CommonPf.PlatformConfig.TestMode {

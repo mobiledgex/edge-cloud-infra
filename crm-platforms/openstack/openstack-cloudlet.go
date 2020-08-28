@@ -112,17 +112,17 @@ func (o *OpenstackPlatform) GetCloudletManifest(ctx context.Context, name string
 	templateText := buf.String()
 
 	// download instructions and link
-	manifest.AddItem("Download the MobiledgeX bootstrap VM image (please use your console credentials) from the link", infracommon.ManifestURL, cloudletImagePath)
+	manifest.AddItem("Download the MobiledgeX bootstrap VM image (please use your console credentials) from the link", infracommon.ManifestTypeURL, infracommon.ManifestSubTypeNone, cloudletImagePath)
 
 	// image create
 	title := "Execute the following command to upload the image to your glance store"
 	content := fmt.Sprintf("openstack image create %s --disk-format qcow2 --container-format bare --shared --file %s.qcow2", vmgp.VMs[0].ImageName, vmgp.VMs[0].ImageName)
-	manifest.AddItem(title, infracommon.ManifestCode, content)
+	manifest.AddItem(title, infracommon.ManifestTypeCommand, infracommon.ManifestSubTypeNone, content)
 
 	// heat template download
-	manifest.AddItem("Download the manifest template", infracommon.ManifestCode, templateText)
+	manifest.AddItem("Download the manifest template", infracommon.ManifestTypeCode, infracommon.ManifestSubTypeYaml, templateText)
 
 	// heat create commands
-	manifest.AddItem("Execute the following command to use manifest to setup the cloudlet", infracommon.ManifestCode, fmt.Sprintf("openstack stack create -t %s.yml %s-pf)", vmgp.GroupName, vmgp.GroupName))
+	manifest.AddItem("Execute the following command to use manifest to setup the cloudlet", infracommon.ManifestTypeCommand, infracommon.ManifestSubTypeNone, fmt.Sprintf("openstack stack create -t %s.yml %s-pf)", vmgp.GroupName, vmgp.GroupName))
 	return manifest.ToString()
 }

@@ -48,8 +48,7 @@ EOF
 sudo bash /etc/mobiledgex/setup-chef.sh -s "%s" -n "%s"
 `, chefParams.ClientKey, chefParams.ServerPath, chefParams.NodeName)
 
-	manifest.AddItem("SSH into one of the VMs from the VMPool which has access to controller's notify port", infracommon.ManifestNone, "")
-	manifest.AddItem("Save and execute the following script on the VM", infracommon.ManifestCode, scriptText)
+	manifest.AddItem("SSH into one of the VMs from the VMPool which has access to controller's notify port", infracommon.ManifestTypeNone, infracommon.ManifestSubTypeNone, "")
+	manifest.AddItem("Save and execute the following script on the VM", infracommon.ManifestTypeCode, infracommon.ManifestSubTypeBash, scriptText)
 	return manifest.ToString()
-
 }

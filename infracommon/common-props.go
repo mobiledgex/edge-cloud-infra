@@ -94,6 +94,8 @@ func (p *InfraProperties) SetPropsFromVars(ctx context.Context, vars map[string]
 	// 1. Fetch props from vars passed, if nothing set then
 	// 2. Fetch from env, if nothing set then
 	// 3. Use default value
+	p.Mux.Lock()
+	defer p.Mux.Unlock()
 	for k, v := range p.Properties {
 		if val, ok := vars[k]; ok {
 			if p.Properties[k].Secret {

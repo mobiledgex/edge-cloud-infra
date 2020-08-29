@@ -53,6 +53,9 @@ type Api interface {
 	FindEvents(uri, token string, query *node.EventSearch) ([]node.EventData, int, error)
 	EventTerms(uri, token string, query *node.EventSearch) (*node.EventTerms, int, error)
 
+	ShowAppUsage(uri, token string, query *ormapi.RegionAppInstUsage) (*ormapi.AllUsage, int, error)
+	ShowClusterUsage(uri, token string, query *ormapi.RegionClusterInstUsage) (*ormapi.AllUsage, int, error)
+
 	UpdateConfig(uri, token string, config map[string]interface{}) (int, error)
 	ResetConfig(uri, token string) (int, error)
 	ShowConfig(uri, token string) (*ormapi.Config, int, error)

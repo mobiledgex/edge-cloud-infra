@@ -358,6 +358,10 @@ type UsageRecord struct {
 	StartTime    time.Time     `json:"startTime"`
 	EndTime      time.Time     `json:"endTime"`
 	Duration     time.Duration `json:"duration"`
+	Flavor       string        `json:"flavor"`
+	NumNodes     int           `json:"numNodes,omitempty"`
+	IpAccess     string        `json:"ipaccess,omitempty"`
+	Note         string        `json:"note"`
 }
 
 type RegionAppInstUsage struct {
@@ -365,7 +369,6 @@ type RegionAppInstUsage struct {
 	AppInst   edgeproto.AppInstKey
 	StartTime time.Time `json:",omitempty"`
 	EndTime   time.Time `json:",omitempty"`
-	Current   bool      `json:"omitempty"`
 }
 
 type RegionClusterInstUsage struct {
@@ -373,7 +376,6 @@ type RegionClusterInstUsage struct {
 	ClusterInst edgeproto.ClusterInstKey
 	StartTime   time.Time `json:",omitempty"`
 	EndTime     time.Time `json:",omitempty"`
-	Current     bool      `json:"omitempty"`
 }
 
 // Configurable part of AlertManager Receiver

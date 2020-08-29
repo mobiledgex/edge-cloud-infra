@@ -28,11 +28,13 @@ func GetUsageCommand() *cobra.Command {
 		ReplyData:    &ormapi.AllUsage{},
 		Run:          runRest("/auth/usage/cluster"),
 	}}
-	return cli.GenGroup("events", "view events ", cmds)
+	return cli.GenGroup("usage", "view usage ", cmds)
 }
 
 var AppUsageRequiredArgs = []string{
 	"apporg",
+	"starttime",
+	"endtime",
 }
 
 var AppUsageOptionalArgs = []string{
@@ -41,9 +43,6 @@ var AppUsageOptionalArgs = []string{
 	"cluster",
 	"cloudlet",
 	"cloudletorg",
-	"starttime",
-	"endtime",
-	"current",
 }
 
 var AppUsageAliasArgs = []string{
@@ -57,16 +56,14 @@ var AppUsageAliasArgs = []string{
 
 var ClusterUsageRequiredArgs = []string{
 	"clusterorg",
+	"starttime",
+	"endtime",
 }
 
 var ClusterUsageOptionalArgs = []string{
 	"cluster",
 	"cloudletorg",
 	"cloudlet",
-	"last",
-	"starttime",
-	"endtime",
-	"current",
 }
 
 var ClusterUsageAliasArgs = []string{
@@ -85,7 +82,6 @@ var AppUsageComments = map[string]string{
 	"cloudlet":    "Name of the cloudlet",
 	"starttime":   "Time to start displaying usage from",
 	"endtime":     "Time up to which to display usage",
-	"current":     "Display total usage for the currently running appInst(s)",
 }
 
 var ClusterUsageComments = map[string]string{
@@ -95,5 +91,4 @@ var ClusterUsageComments = map[string]string{
 	"cloudlet":    "Name of the cloudlet",
 	"starttime":   "Time to start displaying usage from",
 	"endtime":     "Time up to which to display usage",
-	"current":     "Display total usage for the currently running clusterInst(s)",
 }

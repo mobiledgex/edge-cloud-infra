@@ -10,6 +10,7 @@ func (s *Client) ShowAppUsage(uri, token string, query *ormapi.RegionAppInstUsag
 	st, err := s.runObjs(uri, token, args, query, &usage)
 	return &usage, st, err
 }
+
 func (s *Client) ShowClusterUsage(uri, token string, query *ormapi.RegionClusterInstUsage) (*ormapi.AllUsage, int, error) {
 	args := []string{"usage", "cluster"}
 	usage := ormapi.AllUsage{}

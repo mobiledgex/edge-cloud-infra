@@ -8,7 +8,6 @@ import (
 	"os/signal"
 	"time"
 
-	"github.com/mobiledgex/edge-cloud-infra/billing/collections"
 	"github.com/mobiledgex/edge-cloud-infra/mc/orm"
 	"github.com/mobiledgex/edge-cloud/cloudcommon/node"
 	"github.com/mobiledgex/edge-cloud/edgeproto"

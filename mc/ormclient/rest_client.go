@@ -303,6 +303,18 @@ func (s *Client) ShowCloudletEvents(uri, token string, query *ormapi.RegionCloud
 	return &metrics, status, err
 }
 
+func (s *Client) ShowAppUsage(uri, token string, query *ormapi.RegionAppInstUsage) (*ormapi.AllUsage, int, error) {
+	usage := ormapi.AllUsage{}
+	status, err := s.PostJson(uri+"auth/usage/app", token, query, &usage)
+	return &usage, status, err
+}
+
+func (s *Client) ShowClusterUsage(uri, token string, query *ormapi.RegionClusterInstUsage) (*ormapi.AllUsage, int, error) {
+	usage := ormapi.AllUsage{}
+	status, err := s.PostJson(uri+"auth/usage/cluster", token, query, &usage)
+	return &usage, status, err
+}
+
 func (s *Client) PostJsonSend(uri, token string, reqData interface{}) (*http.Response, error) {
 	var body io.Reader
 	var datastr string

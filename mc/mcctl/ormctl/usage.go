@@ -43,6 +43,7 @@ var AppUsageOptionalArgs = []string{
 	"cluster",
 	"cloudlet",
 	"cloudletorg",
+	"vmonly",
 }
 
 var AppUsageAliasArgs = []string{
@@ -82,6 +83,7 @@ var AppUsageComments = map[string]string{
 	"cloudlet":    "Name of the cloudlet",
 	"starttime":   "Time to start displaying usage from",
 	"endtime":     "Time up to which to display usage",
+	"vmonly":      "Only show VM based apps",
 }
 
 var ClusterUsageComments = map[string]string{

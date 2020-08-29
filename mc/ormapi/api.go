@@ -353,12 +353,14 @@ type UsageRecord struct {
 	AppName      string        `json:"app,omitempty"`
 	Version      string        `json:"version,omitempty"`
 	ClusterName  string        `json:"cluster"`
+	ClusterOrg   string        `json:"clusterorg,omitempty"`
 	Cloudlet     string        `json:"cloudlet"`
 	CloudletOrg  string        `json:"cloudletOrg"`
 	StartTime    time.Time     `json:"startTime"`
 	EndTime      time.Time     `json:"endTime"`
 	Duration     time.Duration `json:"duration"`
-	Flavor       string        `json:"flavor"`
+	Flavor       string        `json:"flavor,omitempty"`
+	Deployment   string        `json:"deployment,omitempty"`
 	NumNodes     int           `json:"numNodes,omitempty"`
 	IpAccess     string        `json:"ipaccess,omitempty"`
 	Note         string        `json:"note"`
@@ -369,6 +371,7 @@ type RegionAppInstUsage struct {
 	AppInst   edgeproto.AppInstKey
 	StartTime time.Time `json:",omitempty"`
 	EndTime   time.Time `json:",omitempty"`
+	VmOnly    bool      `json:",omitempty"`
 }
 
 type RegionClusterInstUsage struct {

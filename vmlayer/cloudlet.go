@@ -400,16 +400,6 @@ func (v *VMPlatform) DeleteCloudletAccessVars(ctx context.Context, cloudlet *edg
 }
 
 func (v *VMPlatform) SaveCloudletAccessVars(ctx context.Context, cloudlet *edgeproto.Cloudlet, accessVarsIn map[string]string, pfConfig *edgeproto.PlatformConfig, updateCallback edgeproto.CacheUpdateCallback) error {
-	// ensure that we don't have any double-escaped quotes or escape chars
-	for k, v := range accessVarsIn {
-		value := strings.TrimSpace(v)
-		if value == "" || k == "" {
-			continue
-		}
-		value = strings.ReplaceAll(value, "\"", "")
-		value = strings.ReplaceAll(value, "\\", "")
-		accessVarsIn[k] = value
-	}
 	return v.VMProvider.SaveCloudletAccessVars(ctx, cloudlet, accessVarsIn, pfConfig, updateCallback)
 }
 

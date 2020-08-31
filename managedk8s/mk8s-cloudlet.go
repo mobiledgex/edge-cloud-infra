@@ -29,7 +29,7 @@ func (m *ManagedK8sPlatform) SyncControllerCache(ctx context.Context, caches *pl
 	return nil
 }
 
-func (m *ManagedK8sPlatform) GetCloudletManifest(ctx context.Context, cloudlet *edgeproto.Cloudlet, pfConfig *edgeproto.PlatformConfig, flavor *edgeproto.Flavor) (*edgeproto.CloudletManifest, error) {
+func (m *ManagedK8sPlatform) GetCloudletManifest(ctx context.Context, cloudlet *edgeproto.Cloudlet, pfConfig *edgeproto.PlatformConfig, flavor *edgeproto.Flavor, caches *platform.Caches) (*edgeproto.CloudletManifest, error) {
 	log.SpanLog(ctx, log.DebugLevelInfra, "Get cloudlet manifest not supported", "cloudletName", cloudlet.Key.Name)
 	return nil, fmt.Errorf("GetCloudletManifest not supported for managed k8s provider")
 }
@@ -90,6 +90,10 @@ func (m *ManagedK8sPlatform) CreateCloudlet(ctx context.Context, cloudlet *edgep
 	}
 	log.SpanLog(ctx, log.DebugLevelInfra, "CreateCloudlet success")
 	return m.CreatePlatformApp(ctx, "crm-"+cloudletClusterName, kconf, vaultConfig, pfConfig)
+}
+
+func (m *ManagedK8sPlatform) UpdateCloudlet(ctx context.Context, cloudlet *edgeproto.Cloudlet, updateCallback edgeproto.CacheUpdateCallback) error {
+	return nil
 }
 
 func (m *ManagedK8sPlatform) DeleteCloudlet(ctx context.Context, cloudlet *edgeproto.Cloudlet, pfConfig *edgeproto.PlatformConfig, caches *platform.Caches, updateCallback edgeproto.CacheUpdateCallback) error {

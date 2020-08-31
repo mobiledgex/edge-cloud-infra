@@ -3,6 +3,7 @@ package alertmgr
 import (
 	"bytes"
 	"context"
+	"crypto/tls"
 	"encoding/json"
 	"fmt"
 	"io/ioutil"
@@ -15,6 +16,8 @@ import (
 	"sync"
 	"text/template"
 	"time"
+
+	mextls "github.com/mobiledgex/edge-cloud/tls"
 
 	"github.com/gorilla/mux"
 
@@ -53,13 +56,19 @@ type SidecarServer struct {
 	alertMgrConfigPath string
 	httpApiAddr        string
 	server             *http.Server
+	clientCert         string
+	serverCert         string
+	certKey            string
 }
 
-func NewSidecarServer(target, path, apiAddr string, initInfo *AlertmgrInitInfo) (*SidecarServer, error) {
+func NewSidecarServer(target, path, apiAddr string, initInfo *AlertmgrInitInfo, tlsClient string, tlsServer string, tlsKey string) (*SidecarServer, error) {
 	server := &SidecarServer{
 		alertMgrAddr:       target,
 		alertMgrConfigPath: path,
 		httpApiAddr:        apiAddr,
+		clientCert:         tlsClient,
+		serverCert:         tlsServer,
+		certKey:            tlsKey,
 	}
 	if err := server.initAlertmanager(initInfo); err != nil {
 		return nil, err
@@ -101,7 +110,24 @@ func (s *SidecarServer) Run() error {
 	// detach and run the server
 	go func() {
 		var err error
-		err = s.server.Serve(listener)
+		if s.serverCert != "" {
+			// if client cert is specified set up cert pool
+			if s.clientCert != "" {
+				caCertPool, err := mextls.GetClientCertPool(s.serverCert, s.clientCert)
+				if err != nil {
+					log.FatalLog("Failed to read client cert", "err", err, "file", s.clientCert)
+				}
+				tlsConfig := &tls.Config{
+					ClientCAs:  caCertPool,
+					ClientAuth: tls.RequireAndVerifyClientCert,
+				}
+				tlsConfig.BuildNameToCertificate()
+				s.server.TLSConfig = tlsConfig
+			}
+			err = s.server.ServeTLS(listener, s.serverCert, s.certKey)
+		} else {
+			err = s.server.Serve(listener)
+		}
 		if err != nil && err != http.ErrServerClosed {
 			log.FatalLog("Failed to run sidecar server", "err", err)
 		}
@@ -270,7 +296,7 @@ func (s *SidecarServer) initAlertmanager(initInfo *AlertmgrInitInfo) error {
 	ctx := log.ContextWithSpan(context.Background(), span)
 	// wait for alertmanager to be up first
 	for ii := 0; ii < 10; ii++ {
-		_, err = alertMgrApi(ctx, s.alertMgrAddr, "GET", "", "", nil)
+		_, err = alertMgrApi(ctx, s.alertMgrAddr, "GET", "", "", nil, "")
 		if err == nil {
 			break
 		}
@@ -356,7 +382,7 @@ func (s *SidecarServer) writeAlertmanagerConfigLocked(ctx context.Context, confi
 	}
 
 	// trigger reload of the config
-	res, err := alertMgrApi(ctx, s.alertMgrAddr, "POST", ReloadConfigApi, "", nil)
+	res, err := alertMgrApi(ctx, s.alertMgrAddr, "POST", ReloadConfigApi, "", nil, "")
 	if err != nil {
 		log.SpanLog(ctx, log.DebugLevelInfo, "Failed to reload alertmanager config", "err", err, "result", res)
 		return err

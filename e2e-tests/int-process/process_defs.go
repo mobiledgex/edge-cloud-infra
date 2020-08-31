@@ -102,5 +102,8 @@ type AlertmanagerSidecar struct {
 	AlertmgrAddr   string
 	ConfigFile     string
 	HttpAddr       string
+	TlsCert        string
+	TlsCertKey     string
+	TlsClientCert  string
 	cmd            *exec.Cmd
 }

@@ -4,6 +4,27 @@
     state: directory
     mode: '0755'
 
+- name: Get global client cert
+  uri:
+    url: https://vault-dev.mobiledgex.net/v1/pki-global/ca/pem
+    validate_certs: no
+    return_content: yes
+  register: cert
+
+- name: Copy client cert into a file
+  copy:
+    content: "{{ cert.content}}"
+    dest: "{{ alertmanager_config_path }}/mex-ca.crt"
+    force: no
+
+- name: Setup alertmanager access
+  import_role:
+      name: web
+      tasks_from: certs
+  vars:
+    cert_domains: [ "{{ inventory_hostname }}" ]
+  tags: setup
+
 - name: Write default alertmanager config if one doesn't exist
   copy:
     content: "{{ lookup('file', 'default-config.yml') }}"

@@ -24,12 +24,19 @@ services:
       - "--alertmgrAddr"
       - "http://alertmanager:{{ alertmanager_port }}"
       - "--configFile"
-      - {{ alertmanager_config_path }}
+      - "{{ alertmanager_config_path }}/{{ alertmanager_config_file }}"
+      - "--tlsCert"
+      - "{{ sidecar_server_cert_dir }}/fullchain.pem"
+      - "--tlsCertKey"
+      - "{{ sidecar_server_cert_dir }}/privkey.pem"
+      - "--tlsClientCert"
+      - "{{ alertmanager_config_path }}/mex-ca.crt"
     environment:
       - JAEGER_ENDPOINT={{ jaeger_endpoint }}
       - JAEGER_TAGS=environ={{ deploy_environ }},version={{ edge_cloud_version }}
     volumes:
       - {{ alertmanager_config_path }}:{{ alertmanager_config_path }}
+      - {{ letsencrypt_root }}/{{ alertmanager_hostname }}:{{ sidecar_server_cert_dir }}
     ports:
       - 9094:9094
     networks:

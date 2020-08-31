@@ -38,6 +38,7 @@ type AlertMgrServer struct {
 	AlertMrgAddr          string
 	AlertResolutionTimout time.Duration
 	AlertCache            *edgeproto.AlertCache
+	clientCert            string
 	waitGrp               sync.WaitGroup
 	stop                  chan struct{}
 }
@@ -47,7 +48,7 @@ func getAgentName() string {
 	return "MasterControllerV1"
 }
 
-func NewAlertMgrServer(alertMgrAddr string, alertCache *edgeproto.AlertCache, resolveTimeout time.Duration) (*AlertMgrServer, error) {
+func NewAlertMgrServer(alertMgrAddr string, clientCert string, alertCache *edgeproto.AlertCache, resolveTimeout time.Duration) (*AlertMgrServer, error) {
 	var err error
 	server := AlertMgrServer{
 		AlertMrgAddr:          alertMgrAddr,
@@ -60,7 +61,7 @@ func NewAlertMgrServer(alertMgrAddr string, alertCache *edgeproto.AlertCache, re
 
 	// We might need to wait for alertmanager to be up first
 	for ii := 0; ii < 10; ii++ {
-		_, err = alertMgrApi(ctx, server.AlertMrgAddr, "GET", "", "", nil)
+		_, err = alertMgrApi(ctx, server.AlertMrgAddr, "GET", "", "", nil, server.clientCert)
 		if err == nil {
 			break
 		}
@@ -170,7 +171,7 @@ func alertManagerAlertsToEdgeprotoAlerts(openAPIAlerts models.GettableAlerts) []
 
 // Show all alerts in the alertmgr
 func (s *AlertMgrServer) ShowAlerts(ctx context.Context, filter *edgeproto.Alert) ([]edgeproto.Alert, error) {
-	data, err := alertMgrApi(ctx, s.AlertMrgAddr, "GET", AlertApi, "", nil)
+	data, err := alertMgrApi(ctx, s.AlertMrgAddr, "GET", AlertApi, "", nil, s.clientCert)
 	if err != nil {
 		log.SpanLog(ctx, log.DebugLevelInfo, "Unable to GET Alerts", "err", err, "filter", filter)
 		return nil, err
@@ -193,7 +194,7 @@ func (s *AlertMgrServer) AddAlerts(ctx context.Context, alerts ...*edgeproto.Ale
 		log.SpanLog(ctx, log.DebugLevelInfo, "Failed to marshal alerts", "err", err, "alerts", alerts)
 		return err
 	}
-	res, err := alertMgrApi(ctx, s.AlertMrgAddr, "POST", AlertApi, "", data)
+	res, err := alertMgrApi(ctx, s.AlertMrgAddr, "POST", AlertApi, "", data, s.clientCert)
 	log.SpanLog(ctx, log.DebugLevelInfo, "marshal alerts", "alerts", string(data), "err", err, "res", res)
 	return err
 }
@@ -301,7 +302,7 @@ func (s *AlertMgrServer) CreateReceiver(ctx context.Context, receiver *ormapi.Al
 		log.SpanLog(ctx, log.DebugLevelInfo, "Failed to get marshal sidecar Receiver Config info", "err", err, "cfg", sidecarRec)
 		return err
 	}
-	res, err := alertMgrApi(ctx, s.AlertMrgAddr, "POST", mobiledgeXReceiverApi, "", data)
+	res, err := alertMgrApi(ctx, s.AlertMrgAddr, "POST", mobiledgeXReceiverApi, "", data, s.clientCert)
 	if err != nil {
 		log.SpanLog(ctx, log.DebugLevelInfo, "Failed to create alertmanager receiver", "err", err, "res", res)
 		return err
@@ -317,7 +318,7 @@ func (s *AlertMgrServer) DeleteReceiver(ctx context.Context, receiver *ormapi.Al
 
 	// We create one entry per receiver, to make it simpler
 	receiverName := getAlertmgrReceiverName(receiver)
-	res, err := alertMgrApi(ctx, s.AlertMrgAddr, "DELETE", mobiledgeXReceiverApi+"/"+receiverName, "", nil)
+	res, err := alertMgrApi(ctx, s.AlertMrgAddr, "DELETE", mobiledgeXReceiverApi+"/"+receiverName, "", nil, s.clientCert)
 	if err != nil {
 		log.SpanLog(ctx, log.DebugLevelInfo, "Failed to delete alertmanager receiver", "err", err, "res", res)
 		return err
@@ -345,7 +346,7 @@ func (s *AlertMgrServer) ShowReceivers(ctx context.Context, filter *ormapi.Alert
 		// Add Filter with a name
 		apiUrl = mobiledgeXReceiverApi + "/" + filter.Name
 	}
-	data, err := alertMgrApi(ctx, s.AlertMrgAddr, "GET", apiUrl, "", nil)
+	data, err := alertMgrApi(ctx, s.AlertMrgAddr, "GET", apiUrl, "", nil, s.clientCert)
 	if err != nil {
 		log.SpanLog(ctx, log.DebugLevelInfo, "Unable to GET Alert Receivers", "err", err)
 		return nil, err
@@ -407,7 +408,7 @@ func (s *AlertMgrServer) ShowReceivers(ctx context.Context, filter *ormapi.Alert
 }
 
 // Common function to send an api call to alertmanager
-func alertMgrApi(ctx context.Context, addr, method, api, options string, payload []byte) ([]byte, error) {
+func alertMgrApi(ctx context.Context, addr, method, api, options string, payload []byte, clientTlsCert string) ([]byte, error) {
 	url := addr + api
 	if options != "" {
 		url += "?" + options

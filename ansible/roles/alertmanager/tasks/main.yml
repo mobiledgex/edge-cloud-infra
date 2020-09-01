@@ -40,13 +40,11 @@
   template:
     src: docker-compose.yml.j2
     dest: "{{ alertmanager_config_path }}/docker-compose.yml"
-  become: yes
 
 - name: Start the alertmanager services
   docker_compose:
     project_name: alertmanager
     project_src: "{{ alertmanager_config_path }}"
-  become: yes
   register: compose
 
 - name: Check sidecar service running

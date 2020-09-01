@@ -30,6 +30,10 @@ func (o *OpenstackPlatform) SaveCloudletAccessVars(ctx context.Context, cloudlet
 	}
 	accessVars := make(map[string]string)
 	for _, v := range out {
+		v = strings.TrimSpace(v)
+		if v == "" {
+			continue
+		}
 		out1 := strings.Split(v, "=")
 		if len(out1) != 2 {
 			return fmt.Errorf("Invalid separator for key-value pair: %v", out1)

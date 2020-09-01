@@ -1,3 +1,8 @@
+- name: Docker setup
+  import_role:
+    name: docker
+  tags: setup
+
 - name: Create alertmanager config directory if doesn't exist
   file:
     path: "{{ alertmanager_config_path }}"

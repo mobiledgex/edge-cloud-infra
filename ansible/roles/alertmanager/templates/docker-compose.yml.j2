@@ -34,6 +34,11 @@ services:
     environment:
       - JAEGER_ENDPOINT={{ jaeger_endpoint }}
       - JAEGER_TAGS=environ={{ deploy_environ }},version={{ edge_cloud_version }}
+      - ALERTMANAGER_SMTP_EMAIL=alerts@mobiledgex.com
+      - ALERTMANAGER_SMTP_USER=alerts@mobiledgex.com
+      - ALERTMANAGER_SMTP_TOKEN=123
+      - ALERTMANAGER_SMTP_SERVER=maildev-dev.mobiledgex.net
+      - ALERTMANAGER_SMTP_SERVER_PORT=25
     volumes:
       - {{ alertmanager_config_path }}:{{ alertmanager_config_path }}
       - {{ letsencrypt_root }}/{{ alertmanager_hostname }}:{{ sidecar_server_cert_dir }}

@@ -49,3 +49,4 @@ apidocs_domain: api.mobiledgex.net
 ns1_zone: global.dme.mobiledgex.net
 letsencrypt_path: certs
 letsencrypt_backend: letsencrypt-certs
+alertmanager_sidecar_port:9094

@@ -394,6 +394,7 @@ alertmanagersidecars:
   tlscert: "{{tlsoutdir}}/mex-server.crt"
   tlscertkey: "{{tlsoutdir}}/mex-server.key"
   tlsclientcert: "{{tlsoutdir}}/mex-client.crt"
+  localtest: true
   hostname: "127.0.0.1"
   envvars:
     ALERTMANAGER_SMTP_EMAIL: alerts@mobiledgex.com

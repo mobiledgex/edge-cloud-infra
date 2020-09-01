@@ -309,7 +309,7 @@ func TestAlertMgrServer(t *testing.T) {
 	fakeAlertmanager.verifyReceiversCnt(t, 0)
 
 	// Start up a sidecar server on an available port
-	sidecarServer, err := NewSidecarServer(testAlertMgrAddr, testAlertMgrConfig, ":0", &testInitInfo, "", "", "")
+	sidecarServer, err := NewSidecarServer(testAlertMgrAddr, testAlertMgrConfig, ":0", &testInitInfo, "", "", "", false)
 	require.Nil(t, err)
 	err = sidecarServer.Run()
 	require.Nil(t, err)

@@ -59,9 +59,10 @@ type SidecarServer struct {
 	clientCert         string
 	serverCert         string
 	certKey            string
+	insecureTls        bool
 }
 
-func NewSidecarServer(target, path, apiAddr string, initInfo *AlertmgrInitInfo, tlsClient string, tlsServer string, tlsKey string) (*SidecarServer, error) {
+func NewSidecarServer(target, path, apiAddr string, initInfo *AlertmgrInitInfo, tlsClient string, tlsServer string, tlsKey string, insecureTls bool) (*SidecarServer, error) {
 	server := &SidecarServer{
 		alertMgrAddr:       target,
 		alertMgrConfigPath: path,
@@ -69,6 +70,7 @@ func NewSidecarServer(target, path, apiAddr string, initInfo *AlertmgrInitInfo, 
 		clientCert:         tlsClient,
 		serverCert:         tlsServer,
 		certKey:            tlsKey,
+		insecureTls:        insecureTls,
 	}
 	if err := server.initAlertmanager(initInfo); err != nil {
 		return nil, err
@@ -84,7 +86,6 @@ func (s *SidecarServer) GetApiAddr() string {
 	return s.httpApiAddr
 }
 
-// TODO - make this a TLS server
 func (s *SidecarServer) Run() error {
 	rtrMux := mux.NewRouter()
 	rtrMux.HandleFunc("/", s.proxyHandler)
@@ -113,13 +114,15 @@ func (s *SidecarServer) Run() error {
 		if s.serverCert != "" {
 			// if client cert is specified set up cert pool
 			if s.clientCert != "" {
-				caCertPool, err := mextls.GetClientCertPool(s.serverCert, s.clientCert)
+				caCertPool, err := mextls.GetClientCertPool(s.clientCert, "")
 				if err != nil {
 					log.FatalLog("Failed to read client cert", "err", err, "file", s.clientCert)
 				}
 				tlsConfig := &tls.Config{
 					ClientCAs:  caCertPool,
 					ClientAuth: tls.RequireAndVerifyClientCert,
+					// For self-signed certs in e2e-testing
+					InsecureSkipVerify: s.insecureTls,
 				}
 				tlsConfig.BuildNameToCertificate()
 				s.server.TLSConfig = tlsConfig

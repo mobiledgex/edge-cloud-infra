@@ -105,5 +105,6 @@ type AlertmanagerSidecar struct {
 	TlsCert        string
 	TlsCertKey     string
 	TlsClientCert  string
+	LocalTest      bool
 	cmd            *exec.Cmd
 }

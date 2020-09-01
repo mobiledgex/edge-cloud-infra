@@ -17,6 +17,7 @@ var httpAddr = flag.String("httpAddr", "0.0.0.0:9094", "Http API endpoint")
 var tlsCert = flag.String("tlsCert", "", "server tls cert file.")
 var tlsCertKey = flag.String("tlsCertKey", "", "server tls cert key file.")
 var clientCert = flag.String("tlsClientCert", "", "client tls cert file")
+var localTest = flag.Bool("localTest", false, "Local tests - self-signed certs")
 
 var SidecarServer *alertmgr.SidecarServer
 
@@ -63,7 +64,7 @@ func main() {
 	}
 
 	SidecarServer, err := alertmgr.NewSidecarServer(*alertmanagerAddr, *alertmanagerConfigFile,
-		*httpAddr, config, *clientCert, *tlsCert, *tlsCertKey)
+		*httpAddr, config, *clientCert, *tlsCert, *tlsCertKey, *localTest)
 	if err != nil {
 		log.FatalLog("Unable to init alertmgr sidecar", "err", err)
 	}

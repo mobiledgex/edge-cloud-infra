@@ -38,12 +38,14 @@
     src: "{{ letsencrypt_root }}/{{ alertmanager_hostname }}/fullchain.pem"
     dest: "{{ alertmanager_config_path }}/fullchain.pem"
     mode: 0644
+  become: yes
 
 - name: Copy generated alertmanager cert key to alertmanager directory
   copy:
     src: "{{ letsencrypt_root }}/{{ alertmanager_hostname }}/privkey.pem"
     dest: "{{ alertmanager_config_path }}/privkey.pem"
     mode: 0644
+  become: yes
 
 - name: Write default alertmanager config if one doesn't exist
   copy:

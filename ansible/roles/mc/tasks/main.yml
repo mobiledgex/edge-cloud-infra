@@ -45,7 +45,7 @@
       - "-consoleproxyaddr"
       - "0.0.0.0:6080"
       - "alertMgrApiAddr"
-      - "http://127.0.0.1:{{ sidecar_port }}"
+      - "https://{{ alertmanager_hostname }}:{{ sidecar_port }}"
       - "-jaegerAddr"
       - "{{ jaeger_hostname }}:16686"
       - "-tls"

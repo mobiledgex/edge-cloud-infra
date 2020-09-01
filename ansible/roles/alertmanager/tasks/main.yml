@@ -25,6 +25,18 @@
     cert_domains: [ "{{ inventory_hostname }}" ]
   tags: setup
 
+- name: Copy generated alertmanager cert to alertmanager directory
+  copy:
+    src: "{{ letsencrypt_root }}/{{ alertmanager_hostname }}/fullchain.pem"
+    dest: "{{ alertmanager_config_path }}/fullchain.pem"
+  become: yes
+
+- name: Copy generated alertmanager cert key to alertmanager directory
+  copy:
+    src: "{{ letsencrypt_root }}/{{ alertmanager_hostname }}/privkey.pem"
+    dest: "{{ alertmanager_config_path }}/privkey.pem"
+  become: yes
+
 - name: Write default alertmanager config if one doesn't exist
   copy:
     content: "{{ lookup('file', 'default-config.yml') }}"

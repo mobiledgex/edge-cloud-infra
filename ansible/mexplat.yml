@@ -171,6 +171,12 @@
       tags: monitoring
     - role: coturn
 
+- hosts: alertmanager
+  tasks:
+    - import_role:
+        name: alertmanager
+      tags: alertmanager
+
 - hosts: console
   tasks:
     - import_role:

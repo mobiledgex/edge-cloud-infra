@@ -1,0 +1,6 @@
+- name: Look up noreply details in vault
+  set_fact:
+    vault_lookup: "{{ lookup('vault', noreploy_email_path) }}"
+
+- debug:
+    msg: "Found email data {{ vault_lookup }}"

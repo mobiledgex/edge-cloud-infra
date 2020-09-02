@@ -25,19 +25,21 @@
     cert_domains: [ "{{ inventory_hostname }}" ]
   tags: setup
 
-# - name: Copy generated alertmanager cert to alertmanager directory
-#   copy:
-#     src: "{{ letsencrypt_root }}/{{ alertmanager_hostname }}/fullchain.pem"
-#     dest: "{{ alertmanager_config_path }}/fullchain.pem"
-#     mode: 0644
-#   become: yes
+- name: Copy generated alertmanager cert to alertmanager directory
+  copy:
+    src: "{{ letsencrypt_root }}/{{ alertmanager_hostname }}/fullchain.pem"
+    dest: "{{ alertmanager_config_path }}/fullchain.pem"
+    mode: 0644
+    remote_src: yes
+  become: yes
 
-# - name: Copy generated alertmanager cert key to alertmanager directory
-#   copy:
-#     src: "{{ letsencrypt_root }}/{{ alertmanager_hostname }}/privkey.pem"
-#     dest: "{{ alertmanager_config_path }}/privkey.pem"
-#     mode: 0644
-#   become: yes
+- name: Copy generated alertmanager cert key to alertmanager directory
+  copy:
+    src: "{{ letsencrypt_root }}/{{ alertmanager_hostname }}/privkey.pem"
+    dest: "{{ alertmanager_config_path }}/privkey.pem"
+    mode: 0644
+    remote_src: yes
+  become: yes
 
 - name: Write default alertmanager config if one doesn't exist
   copy:
@@ -45,14 +47,10 @@
     dest: "{{ alertmanager_config_path }}/{{ alertmanager_config_file }}"
     force: no
 
-- name: Get smtp details for noreply email from vault
-  vault_api:
-    api: "{{ secret_engine.path }}/accounts/noreplyemail"
-  register: alertmanager_smtp_info
-  changed_when: no
-
-- debug:
-    msg: "Smtp info {{ alertmanager_smtp_info }}"
+- name: Load noreply email details from vault
+  import_role:
+    name: load-vault-creds
+    tasks_from: noreply
 
 - name: Install the docker compose manifest
   template:

@@ -32,13 +32,13 @@ func GetUsageCommand() *cobra.Command {
 }
 
 var AppUsageRequiredArgs = []string{
-	"apporg",
 	"starttime",
 	"endtime",
 }
 
 var AppUsageOptionalArgs = []string{
 	"appname",
+	"apporg",
 	"appvers",
 	"cluster",
 	"cloudlet",
@@ -56,13 +56,13 @@ var AppUsageAliasArgs = []string{
 }
 
 var ClusterUsageRequiredArgs = []string{
-	"clusterorg",
 	"starttime",
 	"endtime",
 }
 
 var ClusterUsageOptionalArgs = []string{
 	"cluster",
+	"clusterorg",
 	"cloudletorg",
 	"cloudlet",
 }

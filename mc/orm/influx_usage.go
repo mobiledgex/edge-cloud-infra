@@ -575,10 +575,30 @@ func GetUsageCommon(c echo.Context) error {
 		if !success {
 			return err
 		}
+
+		// start and end times must be specified
+		if in.StartTime.IsZero() || in.EndTime.IsZero() {
+			return setReply(c, fmt.Errorf("Both start and end times must be specified"), nil)
+		}
+
 		// Developer name has to be specified
-		// if in.AppInst.AppKey.Organization == "" {
-		// 	return setReply(c, fmt.Errorf("App details must be present"), nil)
-		// }
+		if in.AppInst.AppKey.Organization == "" {
+			// the only way this is ok is if its mexadmin
+			roles, err := ShowUserRoleObj(ctx, claims.Username)
+			if err != nil {
+				return setReply(c, fmt.Errorf("Unable to discover user roles: %v", err), nil)
+			}
+			isAdmin := false
+			for _, role := range roles {
+				if isAdminRole(role.Role) {
+					isAdmin = true
+				}
+			}
+			if !isAdmin {
+				return setReply(c, fmt.Errorf("App details must be present"), nil)
+			}
+		}
+
 		rc.region = in.Region
 		org = in.AppInst.AppKey.Organization
 
@@ -601,10 +621,30 @@ func GetUsageCommon(c echo.Context) error {
 		if !success {
 			return err
 		}
-		// Developer org name has to be specified
-		if in.ClusterInst.Organization == "" {
-			return setReply(c, fmt.Errorf("Cluster details must be present"), nil)
+
+		// start and end times must be specified
+		if in.StartTime.IsZero() || in.EndTime.IsZero() {
+			return setReply(c, fmt.Errorf("Both start and end times must be specified"), nil)
 		}
+
+		// Developer name has to be specified
+		if in.ClusterInst.Organization == "" {
+			// the only way this is ok is if its mexadmin
+			roles, err := ShowUserRoleObj(ctx, claims.Username)
+			if err != nil {
+				return setReply(c, fmt.Errorf("Unable to discover user roles: %v", err), nil)
+			}
+			isAdmin := false
+			for _, role := range roles {
+				if isAdminRole(role.Role) {
+					isAdmin = true
+				}
+			}
+			if !isAdmin {
+				return setReply(c, fmt.Errorf("Cluster details must be present"), nil)
+			}
+		}
+
 		rc.region = in.Region
 		org = in.ClusterInst.Organization
 

@@ -2,5 +2,8 @@
   set_fact:
     vault_lookup: "{{ lookup('vault', noreploy_email_path) }}"
 
-- debug:
-    msg: "Found email data {{ vault_lookup }}"
+- set_fact:
+    alertmanager_smtp_email: "{{ vault_lookup.noreplyemail.data.email }}"
+    alertmanager_smtp_user: "{{ vault_lookup.noreplyemail.data.user }}"
+    alertmanager_smtp_token: "{{ vault_lookup.noreplyemail.data.pass }}"
+    alertmanager_smtp_server: "{{ vault_lookup.noreplyemail.data.smtp }}"

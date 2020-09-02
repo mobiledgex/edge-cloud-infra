@@ -6,3 +6,4 @@ alertmanager_config_file: config.yml
 alertmanager_container: alertmanager
 sidecar_container: alertmgr-sidecar
 alertmanager_resolve_timeout: 5m
+alertmanager_smtp_server_port: 587

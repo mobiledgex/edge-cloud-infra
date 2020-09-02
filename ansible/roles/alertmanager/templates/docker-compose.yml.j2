@@ -34,11 +34,11 @@ services:
     environment:
       - JAEGER_ENDPOINT={{ jaeger_endpoint }}
       - JAEGER_TAGS=environ={{ deploy_environ }},version={{ edge_cloud_version }}
-      - ALERTMANAGER_SMTP_EMAIL=alerts@mobiledgex.com
-      - ALERTMANAGER_SMTP_USER=alerts@mobiledgex.com
-      - ALERTMANAGER_SMTP_TOKEN=123
-      - ALERTMANAGER_SMTP_SERVER=maildev-dev.mobiledgex.net
-      - ALERTMANAGER_SMTP_SERVER_PORT=25
+      - ALERTMANAGER_SMTP_EMAIL={{ alertmanager_smtp_email }}
+      - ALERTMANAGER_SMTP_USER={{ alertmanager_smtp_user }}
+      - ALERTMANAGER_SMTP_TOKEN={{ alertmanager_smtp_token }}
+      - ALERTMANAGER_SMTP_SERVER={{ alertmanager_smtp_server }}
+      - ALERTMANAGER_SMTP_SERVER_PORT={{ alertmanager_smtp_server_port }}
       - ALERTMANAGER_RESOLVE_TIMEOUT={{ alertmanager_resolve_timeout  }}
     volumes:
       - {{ alertmanager_config_path }}:{{ alertmanager_config_path }}

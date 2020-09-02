@@ -142,7 +142,7 @@ func (v *VSpherePlatform) GetFlavorList(ctx context.Context) ([]*edgeproto.Flavo
 
 	// add the default platform flavor as well
 	var rlbFlav edgeproto.Flavor
-	err := v.vmProperties.GetCloudletSharedRootLBFlavor(&rlbFlav)
+	err := v.vmProperties.GetCloudletRootLBFlavor(&rlbFlav, vmlayer.LBTypeShared)
 	if err != nil {
 		return nil, err
 	}

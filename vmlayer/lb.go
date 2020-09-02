@@ -292,8 +292,13 @@ func (v *VMPlatform) GetVMSpecForRootLB(ctx context.Context, rootLbName string, 
 
 	log.SpanLog(ctx, log.DebugLevelInfra, "GetVMSpecForRootLB", "rootLbName", rootLbName)
 
+	lbType := LBTypeShared
+	if rootLbName != v.VMProperties.SharedRootLBName {
+		lbType = LBTypeDedicated
+	}
+
 	var rootlbFlavor edgeproto.Flavor
-	err := v.VMProperties.GetCloudletSharedRootLBFlavor(&rootlbFlavor)
+	err := v.VMProperties.GetCloudletRootLBFlavor(&rootlbFlavor, lbType)
 	if err != nil {
 		return nil, fmt.Errorf("unable to get Shared RootLB Flavor: %v", err)
 	}

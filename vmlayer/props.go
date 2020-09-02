@@ -36,6 +36,9 @@ const MINIMUM_DISK_SIZE uint64 = 20
 const MINIMUM_RAM_SIZE uint64 = 2048
 const MINIMUM_VCPUS uint64 = 2
 
+var LBTypeShared = "shared"
+var LBTypeDedicated = "dedicated"
+
 // NoSubnetDNS means that DNS servers are not specified when creating the subnet
 var NoSubnetDNS = "NONE"
 
@@ -169,9 +172,9 @@ func GetCloudletVMImagePath(imgPath, imgVersion string, imgSuffix string) string
 	return vmRegistryPath + GetCloudletVMImageName(imgVersion) + imgSuffix
 }
 
-// GetCloudletSharedRootLBFlavor gets the flavor from defaults
+// GetCloudletRootLBFlavor gets the flavor from defaults
 // or environment variables
-func (vp *VMProperties) GetCloudletSharedRootLBFlavor(flavor *edgeproto.Flavor) error {
+func (vp *VMProperties) GetCloudletRootLBFlavor(flavor *edgeproto.Flavor, lbType string) error {
 	ram, _ := vp.CommonPf.Properties.GetValue("MEX_SHARED_ROOTLB_RAM")
 	var err error
 	if ram != "" {
@@ -199,6 +202,31 @@ func (vp *VMProperties) GetCloudletSharedRootLBFlavor(flavor *edgeproto.Flavor) 
 		}
 	} else {
 		flavor.Disk = 40
+	}
+
+	if lbType == LBTypeDedicated {
+		ram, _ := vp.CommonPf.Properties.GetValue("MEX_DEDICATED_ROOTLB_RAM")
+		var err error
+		if ram != "" {
+			flavor.Ram, err = strconv.ParseUint(ram, 10, 64)
+			if err != nil {
+				return err
+			}
+		}
+		vcpus, _ := vp.CommonPf.Properties.GetValue("MEX_DEDICATED_ROOTLB_VCPUS")
+		if vcpus != "" {
+			flavor.Vcpus, err = strconv.ParseUint(vcpus, 10, 64)
+			if err != nil {
+				return err
+			}
+		}
+		disk, _ := vp.CommonPf.Properties.GetValue("MEX_DEDICATED_ROOTLB_DISK")
+		if disk != "" {
+			flavor.Disk, err = strconv.ParseUint(disk, 10, 64)
+			if err != nil {
+				return err
+			}
+		}
 	}
 	return nil
 }

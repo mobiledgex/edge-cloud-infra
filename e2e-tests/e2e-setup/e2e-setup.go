@@ -370,9 +370,9 @@ func RunAction(ctx context.Context, actionSpec, outputDir string, config *e2eapi
 			}
 		}
 		if startFailed {
-			//			if !setupmex.StopProcesses(actionParam, allprocs) || !StopRemoteProcesses(actionParam) {
-			//				errors = append(errors, "stop failed")
-			//			}
+			if !setupmex.StopProcesses(actionParam, allprocs) || !StopRemoteProcesses(actionParam) {
+				errors = append(errors, "stop failed")
+			}
 			break
 
 		}

@@ -56,7 +56,7 @@ type SidecarServer struct {
 	alertMgrConfigPath string
 	httpApiAddr        string
 	server             *http.Server
-	clientCert         string
+	clientCA           string
 	serverCert         string
 	certKey            string
 	insecureTls        bool
@@ -67,7 +67,7 @@ func NewSidecarServer(target, path, apiAddr string, initInfo *AlertmgrInitInfo, 
 		alertMgrAddr:       target,
 		alertMgrConfigPath: path,
 		httpApiAddr:        apiAddr,
-		clientCert:         tlsClient,
+		clientCA:           tlsClient,
 		serverCert:         tlsServer,
 		certKey:            tlsKey,
 		insecureTls:        insecureTls,
@@ -113,10 +113,10 @@ func (s *SidecarServer) Run() error {
 		var err error
 		if s.serverCert != "" {
 			// if client cert is specified set up cert pool
-			if s.clientCert != "" {
-				caCertPool, err := mextls.GetClientCertPool(s.clientCert, "")
+			if s.clientCA != "" {
+				caCertPool, err := mextls.GetClientCertPool(s.clientCA, "")
 				if err != nil {
-					log.FatalLog("Failed to read client cert", "err", err, "file", s.clientCert)
+					log.FatalLog("Failed to read client cert", "err", err, "file", s.clientCA)
 				}
 				tlsConfig := &tls.Config{
 					ClientCAs:  caCertPool,

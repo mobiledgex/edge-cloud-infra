@@ -432,7 +432,7 @@ func alertMgrApi(ctx context.Context, addr, method, api, options string, payload
 			log.SpanLog(ctx, log.DebugLevelInfo, "Cannot set up tls client", "err", err, "addr", addr, "certFile", tlsCert)
 			return nil, err
 		}
-		log.SpanLog(ctx, log.DebugLevelInfo, "Tls client config", "addr", addr, "certFile", tlsCert, "config", tlsConfig)
+		log.SpanLog(ctx, log.DebugLevelInfo, "Tls client config", "addr", addr, "certFile", tlsCert)
 		client = &http.Client{
 			Transport: &http.Transport{
 				TLSClientConfig: tlsConfig,

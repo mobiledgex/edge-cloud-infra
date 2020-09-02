@@ -6,7 +6,7 @@
 
 - name: Get global client cert
   uri:
-    url: https://vault-dev.mobiledgex.net/v1/pki-global/ca/pem
+    url: https://{{ vault_vm_hostname }}/v1/pki-global/ca/pem
     validate_certs: no
     return_content: yes
   register: cert
@@ -44,6 +44,15 @@
     content: "{{ lookup('file', 'default-config.yml') }}"
     dest: "{{ alertmanager_config_path }}/{{ alertmanager_config_file }}"
     force: no
+
+- name: Get smtp details for noreply email from vault
+  vault_api:
+    api: "{{ secret_engine.path }}/accounts/noreplyemail"
+  register: alertmanager_smtp_info
+  changed_when: no
+
+- debug:
+    msg: "Smtp info {{ alertmanager_smtp_info }}"
 
 - name: Install the docker compose manifest
   template:

@@ -39,6 +39,7 @@ services:
       - ALERTMANAGER_SMTP_TOKEN=123
       - ALERTMANAGER_SMTP_SERVER=maildev-dev.mobiledgex.net
       - ALERTMANAGER_SMTP_SERVER_PORT=25
+      - ALERTMANAGER_RESOLVE_TIMEOUT={{ alertmanager_resolve_timeout  }}
     volumes:
       - {{ alertmanager_config_path }}:{{ alertmanager_config_path }}
     ports:

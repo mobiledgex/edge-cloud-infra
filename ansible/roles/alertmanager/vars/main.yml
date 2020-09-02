@@ -5,3 +5,4 @@ alertmanager_config_path: /var/tmp/alertmanager
 alertmanager_config_file: config.yml
 alertmanager_container: alertmanager
 sidecar_container: alertmgr-sidecar
+alertmanager_resolve_timeout: 5m

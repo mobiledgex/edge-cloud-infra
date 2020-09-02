@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"strings"
+	"text/template"
 	"time"
 
 	client "github.com/influxdata/influxdb/client/v2"
@@ -50,6 +51,20 @@ var clusterUsageEventFields = []string{
 	"\"ipaccess\"",
 }
 
+var usageInfluDBT = `SELECT {{.Selector}} from "{{.Measurement}}"` +
+	` WHERE time >='{{.StartTime}}'` +
+	` AND time <= '{{.EndTime}}'` +
+	`{{if .AppInstName}} AND "app"='{{.AppInstName}}'{{end}}` +
+	`{{if .ClusterName}} AND "cluster"='{{.ClusterName}}'{{end}}` +
+	`{{if .ApiCallerOrg}} AND "{{.OrgField}}"='{{.ApiCallerOrg}}'{{end}}` +
+	`{{if .AppVersion}} AND "ver"='{{.AppVersion}}'{{end}}` +
+	`{{if .CloudletName}} AND "cloudlet"='{{.CloudletName}}'{{end}}` +
+	`{{if .CloudletOrg}} AND "cloudletorg"='{{.CloudletOrg}}'{{end}}` +
+	`{{if .DeploymentType}} AND deployment = '{{.DeploymentType}}'{{end}}` +
+	` order by time desc`
+
+var usageInfluxDBTemplate *template.Template
+
 type usageTracker struct {
 	flavor     string
 	time       time.Time
@@ -60,6 +75,10 @@ type usageTracker struct {
 
 // TODO: sync this up with controllers checkPointInterval somehow
 var checkpointInterval = "3m"
+
+func init() {
+	usageInfluxDBTemplate = template.Must(template.New("influxquery").Parse(usageInfluDBT))
+}
 
 // Get most recent checkpoint with respect to t
 func prevCheckpoint(t time.Time) time.Time {
@@ -320,15 +339,15 @@ func GetAppUsage(event *client.Response, checkpoint *client.Response, start, end
 
 			app := fmt.Sprintf("%v", values[1])
 			ver := fmt.Sprintf("%v", values[2])
-			cluster := fmt.Sprintf("%v", values[2])
-			clusterorg := fmt.Sprintf("%v", values[3])
-			cloudlet := fmt.Sprintf("%v", values[4])
-			cloudletorg := fmt.Sprintf("%v", values[5])
-			apporg := fmt.Sprintf("%v", values[6])
-			flavor := fmt.Sprintf("%v", values[7])
-			deployment := fmt.Sprintf("%v", values[8])
-			event := fmt.Sprintf("%v", values[9])
-			status := fmt.Sprintf("%v", values[10])
+			cluster := fmt.Sprintf("%v", values[3])
+			clusterorg := fmt.Sprintf("%v", values[4])
+			cloudlet := fmt.Sprintf("%v", values[5])
+			cloudletorg := fmt.Sprintf("%v", values[6])
+			apporg := fmt.Sprintf("%v", values[7])
+			flavor := fmt.Sprintf("%v", values[8])
+			deployment := fmt.Sprintf("%v", values[9])
+			event := fmt.Sprintf("%v", values[10])
+			status := fmt.Sprintf("%v", values[11])
 
 			//if the timestamp is before start and its a down, then get rid of it in the cluster tracker
 			//otherwise put it in the cluster tracker
@@ -389,7 +408,7 @@ func GetAppUsage(event *client.Response, checkpoint *client.Response, start, end
 		}
 	}
 
-	// anything still in the clusterTracker is a currently running clusterinst
+	// anything still in the appTracker is a currently running clusterinst
 	for k, v := range appTracker {
 		newRecord := ormapi.UsageRecord{
 			Region:       region,
@@ -434,7 +453,7 @@ func ClusterCheckpointsQuery(obj *ormapi.RegionClusterInstUsage) string {
 	// set endtime to start and back up starttime by a checkpoint interval to hit the most recent
 	// checkpoint that occurred before startTime
 	checkpointTime := prevCheckpoint(obj.StartTime)
-	return fillTimeAndGetCmd(&arg, devInfluxDBTemplate, &checkpointTime, &checkpointTime)
+	return fillTimeAndGetCmd(&arg, usageInfluxDBTemplate, &checkpointTime, &checkpointTime)
 }
 
 func ClusterUsageEventsQuery(obj *ormapi.RegionClusterInstUsage) string {
@@ -448,7 +467,7 @@ func ClusterUsageEventsQuery(obj *ormapi.RegionClusterInstUsage) string {
 		CloudletOrg:  obj.ClusterInst.CloudletKey.Organization,
 	}
 	queryStart := prevCheckpoint(obj.StartTime)
-	return fillTimeAndGetCmd(&arg, devInfluxDBTemplate, &queryStart, &obj.EndTime)
+	return fillTimeAndGetCmd(&arg, usageInfluxDBTemplate, &queryStart, &obj.EndTime)
 }
 
 func AppInstCheckpointsQuery(obj *ormapi.RegionAppInstUsage) string {
@@ -470,7 +489,7 @@ func AppInstCheckpointsQuery(obj *ormapi.RegionAppInstUsage) string {
 	// set endtime to start and back up starttime by a checkpoint interval to hit the most recent
 	// checkpoint that occurred before startTime
 	checkpointTime := prevCheckpoint(obj.StartTime)
-	return fillTimeAndGetCmd(&arg, devInfluxDBTemplate, &checkpointTime, &checkpointTime)
+	return fillTimeAndGetCmd(&arg, usageInfluxDBTemplate, &checkpointTime, &checkpointTime)
 }
 
 func AppInstUsageEventsQuery(obj *ormapi.RegionAppInstUsage) string {
@@ -490,7 +509,7 @@ func AppInstUsageEventsQuery(obj *ormapi.RegionAppInstUsage) string {
 		arg.DeploymentType = cloudcommon.DeploymentTypeKubernetes //TODO: change this to vm
 	}
 	queryStart := prevCheckpoint(obj.StartTime)
-	return fillTimeAndGetCmd(&arg, devInfluxDBTemplate, &queryStart, &obj.EndTime)
+	return fillTimeAndGetCmd(&arg, usageInfluxDBTemplate, &queryStart, &obj.EndTime)
 }
 
 func checkInfluxOutput(resp *client.Response, measurement string) (bool, error) {
@@ -557,9 +576,9 @@ func GetUsageCommon(c echo.Context) error {
 			return err
 		}
 		// Developer name has to be specified
-		if in.AppInst.AppKey.Organization == "" {
-			return setReply(c, fmt.Errorf("App details must be present"), nil)
-		}
+		// if in.AppInst.AppKey.Organization == "" {
+		// 	return setReply(c, fmt.Errorf("App details must be present"), nil)
+		// }
 		rc.region = in.Region
 		org = in.AppInst.AppKey.Organization
 

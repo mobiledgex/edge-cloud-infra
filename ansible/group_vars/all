@@ -17,6 +17,7 @@ mc_ldap_port: 9389
 mc_vnc_port: 6080
 mc_notify_srv_port: 52001
 notifyroot_port: 53001
+alertmanager_port: 9094
 postgres_server: postgres.mobiledgex.net:5432
 influxdb_name: monitoring-influxdb
 etcd_cluster_name: mex-etcd
@@ -48,3 +49,4 @@ apidocs_domain: api.mobiledgex.net
 ns1_zone: global.dme.mobiledgex.net
 letsencrypt_path: certs
 letsencrypt_backend: letsencrypt-certs
+alertmanager_sidecar_port: 9094

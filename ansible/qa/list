@@ -24,6 +24,7 @@ dme_carrier=TDG
 operator_key=TDG
 deploy_target="mexplat-{{ deploy_environ }}"
 console_prod=no
+alertmanager_hostname=alertmanager-{{ deploy_environ }}.mobiledgex.net
 
 [notifyroot]
 notifyroot-qa.mobiledgex.net

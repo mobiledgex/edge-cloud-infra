@@ -51,9 +51,9 @@
 	    "type": "shell",
 	    "script": "harden.sh"
 	},
-        {
-            "type": "shell",
-            "script": "cleanup.sh"
-        }   
+	{
+	"type": "shell",
+	"script": "cleanup.sh"
+	}   
     ]
 }

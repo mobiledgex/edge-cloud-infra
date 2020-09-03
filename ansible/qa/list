@@ -53,3 +53,6 @@ artifactory-qa.mobiledgex.net
 
 [jaeger]
 jaeger-qa.mobiledgex.net	nginx_config_filename=jaeger jaeger_ui_port=8443
+
+[alertmanager]
+alertmanager-qa.mobiledgex.net

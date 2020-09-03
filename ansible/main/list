@@ -42,3 +42,6 @@ jaeger.mobiledgex.net		es_instance=main
 
 [esproxy]
 events.es.mobiledgex.net
+
+[alertmanager]
+alertmanager.mobiledgex.net

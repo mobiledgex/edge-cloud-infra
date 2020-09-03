@@ -44,10 +44,13 @@ EOT
 sudo chmod a+rx /etc/cron.daily/aide
 
 log "1.4.1 Ensure permissions on bootloader config are configured"
-sudo chown root:root /boot/grub2/grub.cfg
-sudo chmod og-rwx /boot/grub2/grub.cfg
-sudo chown root:root /boot/grub2/user.cfg || true
-sudo chmod og-rwx /boot/grub2/user.cfg || true
+for GRUB_CFG in /boot/efi/EFI/centos/grub.cfg \
+	        /boot/efi/EFI/centos/user.cfg \
+		/boot/grub2/grub.cfg \
+		/boot/grub2/user.cfg; do
+	sudo chown root:root "$GRUB_CFG" || true
+	sudo chmod og-rwx "$GRUB_CFG" || true
+done
 
 log "1.6.4 Ensure core dumps are restricted"
 echo "* hard core 0" | sudo tee -a /etc/security/limits.conf
@@ -254,18 +257,17 @@ set_login_defs_param() {
 
 log "5.4.1.1 Ensure password expiration is 365 days or less"
 set_login_defs_param PASS_MAX_DAYS 365
-for PWUSER in root centos; do
+for PWUSER in centos; do
 	sudo chage --maxdays 365 "$PWUSER"
 done
 
 log "5.4.1.2 Ensure minimum days between password changes is 7 or more"
 set_login_defs_param PASS_MIN_DAYS 7
-for PWUSER in root centos; do
+for PWUSER in centos; do
 	sudo chage --mindays 7 "$PWUSER"
 done
 
 log "5.4.1.x Password policies"
-sudo rm /etc/pam.d/password-auth
 sudo tee /etc/pam.d/password-auth <<EOT
 auth        required      pam_env.so
 auth        required      pam_faildelay.so delay=2000000
@@ -296,7 +298,6 @@ session     [success=1 default=ignore] pam_succeed_if.so service in crond quiet 
 session     required      pam_unix.so
 EOT
 
-sudo rm /etc/pam.d/system-auth
 sudo tee /etc/pam.d/system-auth <<EOT
 auth        required      pam_env.so
 auth        required      pam_faildelay.so delay=2000000
@@ -327,7 +328,7 @@ EOT
 
 log "5.4.1.4 Ensure inactive password lock is 30 days or less"
 sudo useradd -D -f 30
-for PWUSER in root centos; do
+for PWUSER in centos; do
 	chage --inactive 30 "$PWUSER"
 done
 

@@ -55,6 +55,7 @@ type Api interface {
 
 	ShowAppUsage(uri, token string, query *ormapi.RegionAppInstUsage) (*ormapi.AllUsage, int, error)
 	ShowClusterUsage(uri, token string, query *ormapi.RegionClusterInstUsage) (*ormapi.AllUsage, int, error)
+	ShowCloudletPoolUsage(uri, token string, query *ormapi.RegionCloudletPoolUsage) (*ormapi.CloudletPoolUsage, int, error)
 
 	UpdateConfig(uri, token string, config map[string]interface{}) (int, error)
 	ResetConfig(uri, token string) (int, error)

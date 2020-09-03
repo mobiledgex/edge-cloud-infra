@@ -381,6 +381,36 @@ type RegionClusterInstUsage struct {
 	EndTime     time.Time `json:",omitempty"`
 }
 
+type RegionCloudletPoolUsage struct {
+	Region       string
+	CloudletPool edgeproto.CloudletPoolKey
+	StartTime    time.Time `json:",omitempty"`
+	EndTime      time.Time `json:",omitempty"`
+}
+
+type RegionCloudletPoolUsageRegister struct {
+	Region          string
+	CloudletPool    edgeproto.CloudletPoolKey
+	UpdateFrequency time.Duration
+	PushEndpoint    string
+	StartTime       time.Time
+}
+
+type CloudletPoolUsage struct {
+	Region       string
+	CloudletPool string
+	Organization string
+	StartTime    time.Time
+	EndTime      time.Time
+	Cloudlets    []CloudletUsage
+}
+
+type CloudletUsage struct {
+	CloudletName string
+	ClusterUsage []UsageRecord `json:",omitempty"`
+	VmAppUsage   []UsageRecord `json:",omitempty"`
+}
+
 // Configurable part of AlertManager Receiver
 type AlertReceiver struct {
 	// Receiver Name

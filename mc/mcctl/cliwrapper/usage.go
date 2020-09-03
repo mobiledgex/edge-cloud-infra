@@ -17,3 +17,10 @@ func (s *Client) ShowClusterUsage(uri, token string, query *ormapi.RegionCluster
 	st, err := s.runObjs(uri, token, args, query, &usage)
 	return &usage, st, err
 }
+
+func (s *Client) ShowCloudletPoolUsage(uri, token string, query *ormapi.RegionCloudletPoolUsage) (*ormapi.CloudletPoolUsage, int, error) {
+	args := []string{"usage", "cloudletpool"}
+	usage := ormapi.CloudletPoolUsage{}
+	st, err := s.runObjs(uri, token, args, query, &usage)
+	return &usage, st, err
+}

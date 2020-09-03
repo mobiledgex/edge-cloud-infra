@@ -27,6 +27,14 @@ func GetUsageCommand() *cobra.Command {
 		ReqData:      &ormapi.RegionClusterInstUsage{},
 		ReplyData:    &ormapi.AllUsage{},
 		Run:          runRest("/auth/usage/cluster"),
+	}, &cli.Command{
+		Use:          "cloudletpool",
+		RequiredArgs: strings.Join(append([]string{"region"}, CloudletPoolUsageRequiredArgs...), " "),
+		AliasArgs:    strings.Join(CloudletPoolUsageAliasArgs, " "),
+		Comments:     addRegionComment(CloudletPoolUsageComments),
+		ReqData:      &ormapi.RegionCloudletPoolUsage{},
+		ReplyData:    &ormapi.CloudletPoolUsage{},
+		Run:          runRest("/auth/usage/cloudletpool"),
 	}}
 	return cli.GenGroup("usage", "view usage ", cmds)
 }
@@ -93,4 +101,23 @@ var ClusterUsageComments = map[string]string{
 	"cloudlet":    "Name of the cloudlet",
 	"starttime":   "Time to start displaying usage from",
 	"endtime":     "Time up to which to display usage",
+}
+
+var CloudletPoolUsageRequiredArgs = []string{
+	"cloudletpool",
+	"cloudletpoolorg",
+	"starttime",
+	"endtime",
+}
+
+var CloudletPoolUsageAliasArgs = []string{
+	"cloudletpool=cloudletpool.name",
+	"cloudletpoolorg=cloudletpool.organization",
+}
+
+var CloudletPoolUsageComments = map[string]string{
+	"cloudletpool":    "Name of the CloudletPool to pull usage from",
+	"cloudletpoolorg": "Organization or Company Name that a Operator is part of",
+	"starttime":       "Time to start displaying usage from",
+	"endtime":         "Time up to which to display usage",
 }

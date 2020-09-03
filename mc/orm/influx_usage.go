@@ -61,6 +61,7 @@ var usageInfluDBT = `SELECT {{.Selector}} from "{{.Measurement}}"` +
 	`{{if .CloudletName}} AND "cloudlet"='{{.CloudletName}}'{{end}}` +
 	`{{if .CloudletOrg}} AND "cloudletorg"='{{.CloudletOrg}}'{{end}}` +
 	`{{if .DeploymentType}} AND deployment = '{{.DeploymentType}}'{{end}}` +
+	`{{if .CloudletList}} AND ({{.CloudletList}}){{end}}` +
 	` order by time desc`
 
 var usageInfluxDBTemplate *template.Template
@@ -668,7 +669,6 @@ func GetUsageCommon(c echo.Context) error {
 		return setReply(c, echo.ErrNotFound, nil)
 	}
 
-	// calculate usage
 	payload := ormapi.StreamPayload{}
 	payload.Data = &usage.Data
 	WriteStream(c, &payload)

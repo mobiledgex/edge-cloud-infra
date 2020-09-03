@@ -49,6 +49,7 @@ type influxQueryArgs struct {
 	EndTime        string
 	DeploymentType string
 	Last           int
+	CloudletList   string
 }
 
 var AppSelectors = []string{
@@ -230,14 +231,14 @@ var devInfluxDBT = `SELECT {{.Selector}} from "{{.Measurement}}"` +
 	`{{if .StartTime}} AND time >= '{{.StartTime}}'{{end}}` +
 	`{{if .EndTime}} AND time <= '{{.EndTime}}'{{end}}` +
 	`{{if .DeploymentType}} AND deployment = '{{.DeploymentType}}'{{end}}` +
-	`order by time desc{{if ne .Last 0}} limit {{.Last}}{{end}}`
+	` order by time desc{{if ne .Last 0}} limit {{.Last}}{{end}}`
 
 var operatorInfluxDBT = `SELECT {{.Selector}} from "{{.Measurement}}"` +
 	` WHERE "cloudletorg"='{{.CloudletOrg}}'` +
 	`{{if .CloudletName}} AND "cloudlet"='{{.CloudletName}}'{{end}}` +
 	`{{if .StartTime}} AND time >= '{{.StartTime}}'{{end}}` +
 	`{{if .EndTime}} AND time <= '{{.EndTime}}'{{end}}` +
-	`order by time desc{{if ne .Last 0}} limit {{.Last}}{{end}}`
+	` order by time desc{{if ne .Last 0}} limit {{.Last}}{{end}}`
 
 func init() {
 	devInfluxDBTemplate = template.Must(template.New("influxquery").Parse(devInfluxDBT))

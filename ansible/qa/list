@@ -24,6 +24,7 @@ dme_carrier=GDDT
 operator_key=GDDT
 deploy_target="mexplat-{{ deploy_environ }}"
 console_prod=no
+alertmanager_hostname=alertmanager-{{ deploy_environ }}.mobiledgex.net
 
 [notifyroot]
 notifyroot-qa.mobiledgex.net
@@ -52,3 +53,6 @@ artifactory-qa.mobiledgex.net
 
 [jaeger]
 jaeger-qa.mobiledgex.net	nginx_config_filename=jaeger jaeger_ui_port=8443
+
+[alertmanager]
+alertmanager-qa.mobiledgex.net

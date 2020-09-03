@@ -25,7 +25,7 @@ azure_volume_storage_class=managed-premium
 influxdb_volume_size=10Gi
 letsencrypt_env=production
 console_prod=yes
-alertmanager_hostname=alertmanager-stage.mobiledgex.net
+alertmanager_hostname=alertmanager-{{ deploy_environ }}.mobiledgex.net
 
 [notifyroot]
 notifyroot-stage.mobiledgex.net

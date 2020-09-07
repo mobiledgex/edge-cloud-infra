@@ -457,6 +457,8 @@ func (o *OpenstackPlatform) populateParams(ctx context.Context, VMGroupOrchestra
 			var err error
 			if action == heatTest {
 				fipid = "test-fip-id"
+			} else if VMGroupOrchestrationParams.SkipInfraSpecificCheck {
+				fipid = "<ADD_FLOATING_IP_ID_HERE>"
 			} else {
 				fipid, err = o.getFreeFloatingIpid(ctx, VMGroupOrchestrationParams.Netspec.FloatingIPExternalNet)
 				if err != nil {

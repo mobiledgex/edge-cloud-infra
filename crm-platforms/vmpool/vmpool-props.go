@@ -2,21 +2,23 @@ package vmpool
 
 import (
 	"context"
+	"fmt"
 
-	"github.com/mobiledgex/edge-cloud-infra/infracommon"
 	"github.com/mobiledgex/edge-cloud-infra/vmlayer"
 	"github.com/mobiledgex/edge-cloud/edgeproto"
 	"github.com/mobiledgex/edge-cloud/vault"
 )
 
-var VMPoolProps = map[string]*infracommon.PropertyInfo{
+var VMPoolProps = map[string]*edgeproto.PropertyInfo{
 	"MEX_ROUTER": {
+		Name:        "External Router Type",
+		Description: vmlayer.GetSupportedRouterTypes(),
 		// For VMPool, we don't mess with internal networking
 		Value: vmlayer.NoConfigExternalRouter,
 	},
 }
 
-func (o *VMPoolPlatform) GetProviderSpecificProps() map[string]*infracommon.PropertyInfo {
+func (o *VMPoolPlatform) GetProviderSpecificProps() map[string]*edgeproto.PropertyInfo {
 	return VMPoolProps
 }
 
@@ -28,9 +30,9 @@ func (o *VMPoolPlatform) GetApiAccessFilename() string {
 	return ""
 }
 
-func (s *VMPoolPlatform) GetExternalGateway(ctx context.Context, extNetName string) (string, error) {
-	if val, ok := s.VMProperties.CommonPf.Properties["MEX_EXTERNAL_NETWORK_GATEWAY"]; ok {
-		return val.Value, nil
+func (o *VMPoolPlatform) GetExternalGateway(ctx context.Context, extNetName string) (string, error) {
+	if val, ok := o.VMProperties.CommonPf.Properties.GetValue("MEX_EXTERNAL_NETWORK_GATEWAY"); ok {
+		return val, nil
 	}
-	return "", nil
+	return "", fmt.Errorf("Unable to find MEX_EXTERNAL_NETWORK_GATEWAY")
 }

@@ -70,6 +70,9 @@ func RunMcAPI(api, mcname, apiFile, curUserFile, outputDir string, mods []string
 		return showMcAlerts(uri, apiFile, curUserFile, outputDir, vars)
 	} else if strings.HasPrefix(api, "debug") {
 		return runMcDebug(api, uri, apiFile, curUserFile, outputDir, mods, vars)
+	} else if api == "showalertreceivers" {
+		*retry = true
+		return showMcAlertReceivers(uri, curUserFile, outputDir, vars)
 	}
 	return runMcDataAPI(api, uri, apiFile, curUserFile, outputDir, mods, vars, retry)
 }
@@ -397,6 +400,8 @@ func showMcData(uri, token, tag string, rc *bool) *ormapi.AllData {
 	checkMcErr("ShowControllers", status, err, rc)
 	orgs, status, err := mcClient.ShowOrg(uri, token)
 	checkMcErr("ShowOrgs", status, err, rc)
+	bOrgs, status, err := mcClient.ShowBillingOrg(uri, token)
+	checkMcErr("ShowBillingOrgs", status, err, rc)
 	roles, status, err := mcClient.ShowUserRole(uri, token)
 	checkMcErr("ShowRoles", status, err, rc)
 	ocs, status, err := mcClient.ShowOrgCloudletPool(uri, token)
@@ -405,6 +410,7 @@ func showMcData(uri, token, tag string, rc *bool) *ormapi.AllData {
 	showData := &ormapi.AllData{
 		Controllers:      ctrls,
 		Orgs:             orgs,
+		BillingOrgs:      bOrgs,
 		Roles:            roles,
 		OrgCloudletPools: ocs,
 	}
@@ -506,6 +512,10 @@ func createMcData(uri, token, tag string, data *ormapi.AllData, dataMap map[stri
 		st, err := mcClient.CreateOrg(uri, token, &org)
 		outMcErr(output, fmt.Sprintf("CreateOrg[%d]", ii), st, err)
 	}
+	for ii, bOrg := range data.BillingOrgs {
+		st, err := mcClient.CreateBillingOrg(uri, token, &bOrg)
+		outMcErr(output, fmt.Sprintf("CreateBillingOrg[%d]", ii), st, err)
+	}
 	for ii, role := range data.Roles {
 		st, err := mcClient.AddUserRole(uri, token, &role)
 		outMcErr(output, fmt.Sprintf("AddUserRole[%d]", ii), st, err)
@@ -519,6 +529,10 @@ func createMcData(uri, token, tag string, data *ormapi.AllData, dataMap map[stri
 		st, err := mcClient.CreateOrgCloudletPool(uri, token, &oc)
 		outMcErr(output, fmt.Sprintf("CreateOrgCloudletPool[%d]", ii), st, err)
 	}
+	for ii, ar := range data.AlertReceivers {
+		st, err := mcClient.CreateAlertReceiver(uri, token, &ar)
+		outMcErr(output, fmt.Sprintf("CreateAlertReceiver[%d]", ii), st, err)
+	}
 }
 
 func deleteMcData(uri, token, tag string, data *ormapi.AllData, dataMap map[string]interface{}, output *AllDataOut, rc *bool) {
@@ -531,6 +545,10 @@ func deleteMcData(uri, token, tag string, data *ormapi.AllData, dataMap map[stri
 		rdout := runRegionDataApi(mcClient, uri, token, tag, &rd, rdm, rc, "delete")
 		output.RegionData = append(output.RegionData, *rdout)
 	}
+	for ii, bOrg := range data.BillingOrgs {
+		st, err := mcClient.DeleteBillingOrg(uri, token, &bOrg)
+		outMcErr(output, fmt.Sprintf("DeleteBillingOrg[%d]", ii), st, err)
+	}
 	for ii, org := range data.Orgs {
 		st, err := mcClient.DeleteOrg(uri, token, &org)
 		outMcErr(output, fmt.Sprintf("DeleteOrg[%d]", ii), st, err)
@@ -542,6 +560,10 @@ func deleteMcData(uri, token, tag string, data *ormapi.AllData, dataMap map[stri
 	for ii, ctrl := range data.Controllers {
 		st, err := mcClient.DeleteController(uri, token, &ctrl)
 		outMcErr(output, fmt.Sprintf("DeleteController[%d]", ii), st, err)
+	}
+	for ii, ar := range data.AlertReceivers {
+		st, err := mcClient.DeleteAlertReceiver(uri, token, &ar)
+		outMcErr(output, fmt.Sprintf("DeleteAlertReceiver[%d]", ii), st, err)
 	}
 }
 
@@ -913,5 +935,23 @@ func showMcAlerts(uri, apiFile, curUserFile, outputDir string, vars map[string]s
 	checkMcErr("ShowAlert", status, err, &rc)
 
 	util.PrintToYamlFile("show-commands.yml", outputDir, alerts, true)
+	return rc
+}
+
+func showMcAlertReceivers(uri, curUserFile, outputDir string, vars map[string]string) bool {
+	var err error
+	var status int
+
+	log.Printf("Running MC showalert receivers APIs\n")
+
+	token, rc := loginCurUser(uri, curUserFile, vars)
+	if !rc {
+		return false
+	}
+	showData := ormapi.AllData{}
+	showData.AlertReceivers, status, err = mcClient.ShowAlertReceiver(uri, token)
+	checkMcErr("ShowAlertReceiver", status, err, &rc)
+
+	util.PrintToYamlFile("show-commands.yml", outputDir, showData, true)
 	return rc
 }

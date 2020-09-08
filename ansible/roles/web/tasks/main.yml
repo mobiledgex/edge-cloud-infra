@@ -27,5 +27,21 @@
   notify:
     - Restart nginx
 
+- name: Allow telegraf access to logs
+  acl:
+    path: /var/log/nginx/access.log
+    entity: telegraf
+    etype: group
+    permissions: r
+    state: present
+  become: yes
+
+- name: Set up logrotate
+  copy:
+    src: logrotate.conf
+    dest: /etc/logrotate.d/nginx
+    mode: 0644
+  become: yes
+
 - import_tasks: certs.yml
-  when: cert_domains
+  when: cert_domains is defined and cert_domains|length > 0

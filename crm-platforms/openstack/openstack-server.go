@@ -13,6 +13,7 @@ import (
 	"github.com/mobiledgex/edge-cloud/cloudcommon"
 	"github.com/mobiledgex/edge-cloud/edgeproto"
 	"github.com/mobiledgex/edge-cloud/log"
+	ssh "github.com/mobiledgex/golang-ssh"
 )
 
 func (o *OpenstackPlatform) GetServerDetail(ctx context.Context, serverName string) (*vmlayer.ServerDetail, error) {
@@ -128,12 +129,6 @@ func (o *OpenstackPlatform) UpdateVMs(ctx context.Context, VMGroupOrchestrationP
 	return o.HeatUpdateVMs(ctx, VMGroupOrchestrationParams, updateCallback)
 }
 
-func (o *OpenstackPlatform) SyncVMs(ctx context.Context, VMGroupOrchestrationParams *vmlayer.VMGroupOrchestrationParams, updateCallback edgeproto.CacheUpdateCallback) error {
-	log.SpanLog(ctx, log.DebugLevelInfra, "SyncVMs")
-	// nothing to do right now for openstack
-	return nil
-
-}
 func (o *OpenstackPlatform) DeleteVMs(ctx context.Context, vmGroupName string) error {
 	return o.deleteHeatStack(ctx, vmGroupName)
 }
@@ -341,5 +336,10 @@ func (s *OpenstackPlatform) GetPlatformResourceInfo(ctx context.Context) (*vmlay
 }
 
 func (s *OpenstackPlatform) VerifyVMs(ctx context.Context, vms []edgeproto.VM) error {
+	return nil
+}
+
+func (s *OpenstackPlatform) CheckServerReady(ctx context.Context, client ssh.Client, serverName string) error {
+	// no special checks to be done
 	return nil
 }

@@ -15,6 +15,10 @@
     - policies/auth-ldap-config.read.v1.hcl.j2
     - policies/auth-ldap-config.write.v1.hcl.j2
     - policies/aws-auth.read.v1.hcl.j2
+    - policies/azure-auth.read.v1.hcl.j2
+    - policies/baseimage-password.read.v1.hcl.j2
+    - policies/baseimage-totp-key.read.v1.hcl.j2
+    - policies/baseimage-totp.read.v1.hcl.j2
     - policies/certs.read.v1.hcl.j2
     - policies/chef.read.v1.hcl.j2
     - policies/cloudlets.read.v1.hcl.j2

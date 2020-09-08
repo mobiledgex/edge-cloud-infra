@@ -1,6 +1,7 @@
 artifactory_publish_account_path: secret/ansible/common/accounts/artifactory_publish
 azure_account_path: secret/ansible/common/accounts/azure
 cloudflare_account_path: secret/ansible/common/accounts/cloudflare
+esproxy_account_path: secret/ansible/common/accounts/esproxy
 gcp_account_path: secret/ansible/common/accounts/gcp
 locapi_account_path: secret/ansible/common/accounts/locapi
 mex_docker_account_path: secret/ansible/common/accounts/mex_docker
@@ -8,3 +9,4 @@ ns1_account_path: secret/ansible/common/accounts/ns1
 sendgrid_account_path: secret/ansible/common/accounts/sendgrid
 slack_org_mgmt_path: secret/ansible/internal/accounts/slack_org_mgmt
 mexenv_path: secret/cloudlet/openstack/mexenv.json
+noreply_email_path: secret/data/accounts/noreplyemail

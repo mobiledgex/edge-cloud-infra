@@ -171,6 +171,15 @@
       tags: monitoring
     - role: coturn
 
+- hosts: alertmanager
+  tasks:
+    - import_role:
+        name: docker
+      tags: setup
+    - import_role:
+        name: alertmanager
+      tags: alertmanager
+
 - hosts: console
   tasks:
     - import_role:
@@ -179,6 +188,9 @@
       delegate_to: localhost
     - import_role:
         name: telegraf
+      vars:
+        telegraf_additional_config:
+          - input/nginx.conf.j2
       tags: [ 'monitoring', 'setup' ]
     - import_role:
         name: web
@@ -242,3 +254,14 @@
 
     - import_role:
         name: jaeger
+
+- hosts: esproxy
+  tasks:
+    - import_role:
+        name: telegraf
+      tags:
+        - monitoring
+        - setup
+
+    - import_role:
+        name: esproxy

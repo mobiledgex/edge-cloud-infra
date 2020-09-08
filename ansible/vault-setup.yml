@@ -56,6 +56,16 @@
         name: vault
         tasks_from: ssh-secret-engine
 
+    - name: Enable the TOTP secret engine
+      vault_api:
+        api: sys/mounts/totp
+        method: POST
+        data:
+          type: totp
+        success_code: 204
+      when: '"totp/" not in secret_engines.meta.response'
+      notify: Vault TOTP setup prompt
+
     - name: Enable KV secret engines
       include_role:
         name: vault
@@ -333,3 +343,19 @@
         tasks_from: cert-plugin
       tags:
         - setup
+
+  handlers:
+    - name: Vault TOTP setup prompt
+      debug:
+        msg: |
+          Set up TOTP:
+            $ vault write totp/keys/baseimage \
+                generate=true \
+                issuer="vault-{{ deploy_environ }}" \
+                account_name=root@mobiledgex.net
+          And then, store the TOTP secret from the URL above in the vault:
+            $ vault kv put secret/accounts/baseimage/totp-key \
+                value="<the-secret>"
+          And if you haven't already, the base image root password:
+            $ vault kv put secret/accounts/baseimage/password \
+                value="<the-root-password>"

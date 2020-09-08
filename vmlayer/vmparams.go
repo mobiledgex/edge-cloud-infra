@@ -36,8 +36,9 @@ const (
 	ActionCreate ActionType = "create"
 	ActionUpdate ActionType = "update"
 	ActionDelete ActionType = "delete"
-	ActionSync   ActionType = "sync"
 )
+
+var CloudflareDns = []string{"1.1.1.1", "1.0.0.1"}
 
 var ClusterTypeKubernetesMasterLabel = "mex-k8s-master"
 var ClusterTypeDockerVMLabel = "mex-docker-vm"
@@ -60,8 +61,8 @@ var RoleMatchAny VMRole = "any" // not a real role, used for matching
 
 type NetType int
 
-var NetTypeExternal NetType = 0
-var NetTypeInternal NetType = 1
+var NetTypeInternal NetType = 0
+var NetTypeExternal NetType = 1
 
 // NextAvailableResource means the orchestration code needs to find an available
 // resource of the given type as the calling code won't know what is free
@@ -85,6 +86,7 @@ type PortResourceReference struct {
 	SubnetId    string
 	Preexisting bool
 	NetworkType NetType
+	PortGroup   string
 }
 
 func GetPortName(vmname, netname string) string {
@@ -287,6 +289,7 @@ type FixedIPOrchestrationParams struct {
 	Address     string
 	Mask        string
 	Subnet      ResourceReference
+	Gateway     string
 }
 
 type PortOrchestrationParams struct {
@@ -389,7 +392,6 @@ type VMOrchestrationParams struct {
 	Name                    string
 	Role                    VMRole
 	ImageName               string
-	TemplateId              string
 	ImageFolder             string
 	HostName                string
 	DNSDomain               string
@@ -408,8 +410,6 @@ type VMOrchestrationParams struct {
 	Volumes                 []VolumeOrchestrationParams
 	Ports                   []PortResourceReference      // depending on the orchestrator, IPs may be assigned to ports or
 	FixedIPs                []FixedIPOrchestrationParams // to VMs directly
-	ExternalGateway         string
-	CustomizeGuest          bool
 	AttachExternalDisk      bool
 	ChefParams              *chefmgmt.VMChefParams
 }
@@ -499,11 +499,15 @@ func (v *VMPlatform) getVMGroupOrchestrationParamsFromGroupSpec(ctx context.Cont
 	internalNetId := v.VMProvider.NameSanitize(internalNetName)
 	externalNetName := v.VMProperties.GetCloudletExternalNetwork()
 
+	var err error
+
 	// DNS is applied either at the subnet or VM level
-	cloudflareDns := []string{"1.1.1.1", "1.0.0.1"}
 	vmDns := ""
 	subnetDns := []string{}
-	cloudletSecGrpID, err := v.VMProvider.GetResourceID(ctx, ResourceTypeSecurityGroup, v.VMProperties.GetCloudletSecurityGroupName())
+	cloudletSecGrpID := v.VMProperties.GetCloudletSecurityGroupName()
+	if !spec.SkipDefaultSecGrp {
+		cloudletSecGrpID, err = v.VMProvider.GetResourceID(ctx, ResourceTypeSecurityGroup, v.VMProperties.GetCloudletSecurityGroupName())
+	}
 	internalSecgrpID := ""
 	internalSecgrpPreexisting := false
 
@@ -512,9 +516,9 @@ func (v *VMPlatform) getVMGroupOrchestrationParamsFromGroupSpec(ctx context.Cont
 	}
 	if v.VMProperties.GetSubnetDNS() == NoSubnetDNS {
 		// Contrail workaround, see EDGECLOUD-2420 for details
-		vmDns = strings.Join(cloudflareDns, " ")
+		vmDns = strings.Join(CloudflareDns, " ")
 	} else {
-		subnetDns = cloudflareDns
+		subnetDns = CloudflareDns
 	}
 
 	vmgp.Netspec, err = ParseNetSpec(ctx, v.VMProperties.GetCloudletNetworkScheme())
@@ -878,8 +882,7 @@ func (v *VMPlatform) OrchestrateVMsFromVMSpec(ctx context.Context, name string, 
 			}
 		}
 		err = v.VMProvider.UpdateVMs(ctx, gp, updateCallback)
-	case ActionSync:
-		err = v.VMProvider.SyncVMs(ctx, gp, updateCallback)
+
 	}
 	if err != nil {
 		log.SpanLog(ctx, log.DebugLevelInfra, "error while orchestrating vms", "name", name, "action", action, "err", err)

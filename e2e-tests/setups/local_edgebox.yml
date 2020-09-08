@@ -64,6 +64,7 @@ controllers:
     clientcert: "{{tlsoutdir}}/mex-client.crt"
   hostname: "127.0.0.1"
   testmode: true
+  checkpointinterval: 3m
 
 dmes:
 - name: dme1
@@ -104,6 +105,9 @@ mcs:
     serverkey: "{{tlsoutdir}}/mex-server.key"
     clientcert: "{{tlsoutdir}}/mex-client.crt"
   hostname: "127.0.0.1"
+  billingpath: "fake"
+  testcollectioninterval: 3m
+  alertmgrapiaddr: "https://127.0.0.1:9094"
 
 sqls:
 - name: sql1
@@ -142,3 +146,37 @@ notifyroots:
   hostname: "127.0.0.1"
   tls:
     servercert: "{{tlsoutdir}}/mex-server.crt"
+
+alertmanagers:
+- name: alertmanager
+  configfile: "{{datadir2}}/alertmanager.yml"
+  port: 9093
+  hostname: "127.0.0.1"
+
+alertmanagersidecars:
+- name: alertmgrsidecar
+  alertmgraddr: "http://127.0.0.1:9093"
+  # config is copied by the alertmanager startup from datadir to /tmp
+  configfile: "/tmp/alertmanager.yml"
+  httpaddr: "127.0.0.1:9094"
+  tls:
+    servercert: "{{tlsoutdir}}/mex-server.crt"
+    serverkey: "{{tlsoutdir}}/mex-server.key"
+    cacert: "{{tlsoutdir}}/mex-ca.crt"
+  localtest: true
+  hostname: "127.0.0.1"
+  envvars:
+    ALERTMANAGER_SMTP_EMAIL: mexadmin@mobiledgex.com
+    ALERTMANAGER_SMTP_USER: mexadmin@mobiledgex.com
+    ALERTMANAGER_SMTP_TOKEN: mexadmin123
+    ALERTMANAGER_SMTP_SERVER: host.docker.internal
+    ALERTMANAGER_SMTP_SERVER_PORT: 1025
+    # maildev does not support STARTTLS protocol, so disable encryption for local testing
+    ALERTMANAGER_SMTP_SERVER_TLS: false
+    ALERTMANAGER_RESOLVE_TIMEOUT: "3m"
+
+maildevs:
+- name: maildev
+  hostname: "127.0.0.1"
+  uiport: 1080
+  mailport: 1025

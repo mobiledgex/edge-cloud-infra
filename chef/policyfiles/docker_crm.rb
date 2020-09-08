@@ -13,5 +13,10 @@ run_list 'recipe[runstatus_handler]', 'recipe[setup_infra]', 'recipe[preflight_c
 cookbook 'runstatus_handler', '= 1.0.0'
 cookbook 'setup_infra', '= 1.0.0'
 cookbook 'preflight_crm_checks', '= 1.0.0'
-cookbook 'setup_services', '= 1.0.9'
+cookbook 'setup_services', '= 1.0.10'
 cookbook 'docker', '= 6.0.3'
+
+# Set edgeCloudVersion (i.e. edge-cloud docker base image version) for all the cloudlets
+override['main']['edgeCloudVersion'] = '2020-08-11'
+# By default, commercialCerts is not on. Hence add override to turn it on for all the cloudlets
+override['main']['crmserver']['args']['commercialCerts'] = ""

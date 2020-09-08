@@ -16,6 +16,7 @@ vault_firewall_setup=no
 letsencrypt_env=production
 console_vm_hostname=console.mobiledgex.net
 console_prod=yes
+alertmanager_hostname=alertmanager.mobiledgex.net
 
 [notifyroot]
 notifyroot.mobiledgex.net
@@ -38,3 +39,9 @@ vault-main-b.mobiledgex.net
 
 [jaeger]
 jaeger.mobiledgex.net		es_instance=main
+
+[esproxy]
+events.es.mobiledgex.net
+
+[alertmanager]
+alertmanager.mobiledgex.net

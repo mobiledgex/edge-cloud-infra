@@ -66,6 +66,8 @@ It has these top-level messages:
 	Cloudlet
 	FlavorMatch
 	CloudletManifest
+	PropertyInfo
+	CloudletProps
 	FlavorInfo
 	OSAZone
 	OSImage
@@ -87,6 +89,7 @@ It has these top-level messages:
 	DeviceReport
 	DeviceKey
 	Device
+	DeviceData
 	CloudletMgmtNode
 	RunCmd
 	RunVMConsole

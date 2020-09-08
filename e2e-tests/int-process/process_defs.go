@@ -7,18 +7,22 @@ import (
 )
 
 type MC struct {
-	process.Common   `yaml:",inline"`
-	Addr             string
-	SqlAddr          string
-	VaultAddr        string
-	RolesFile        string
-	LdapAddr         string
-	NotifySrvAddr    string
-	ConsoleProxyAddr string
-	UseVaultCAs      bool
-	UseVaultCerts    bool
-	TLS              process.TLSCerts
-	cmd              *exec.Cmd
+	process.Common          `yaml:",inline"`
+	Addr                    string
+	SqlAddr                 string
+	VaultAddr               string
+	RolesFile               string
+	LdapAddr                string
+	NotifySrvAddr           string
+	ConsoleProxyAddr        string
+	UseVaultCAs             bool
+	UseVaultCerts           bool
+	AlertResolveTimeout     string
+	BillingPath             string
+	UsageCollectionInterval string
+	AlertMgrApiAddr         string
+	TLS                     process.TLSCerts
+	cmd                     *exec.Cmd
 }
 type Sql struct {
 	process.Common `yaml:",inline"`
@@ -76,5 +80,29 @@ type Exporter struct {
 type ChefServer struct {
 	process.Common `yaml:",inline"`
 	Port           int
+	cmd            *exec.Cmd
+}
+
+type Alertmanager struct {
+	process.Common `yaml:",inline"`
+	ConfigFile     string
+	Port           int
+	cmd            *exec.Cmd
+}
+
+type Maildev struct {
+	process.Common `yaml:",inline"`
+	UiPort         int
+	MailPort       int
+	cmd            *exec.Cmd
+}
+
+type AlertmanagerSidecar struct {
+	process.Common `yaml:",inline"`
+	AlertmgrAddr   string
+	ConfigFile     string
+	HttpAddr       string
+	LocalTest      bool
+	TLS            process.TLSCerts
 	cmd            *exec.Cmd
 }

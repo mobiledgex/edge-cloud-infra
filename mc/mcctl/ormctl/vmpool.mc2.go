@@ -12,7 +12,6 @@ import fmt "fmt"
 import math "math"
 import _ "github.com/gogo/googleapis/google/api"
 import _ "github.com/mobiledgex/edge-cloud/protogen"
-import _ "github.com/mobiledgex/edge-cloud/d-match-engine/dme-proto"
 import _ "github.com/gogo/protobuf/gogoproto"
 import _ "github.com/gogo/protobuf/types"
 
@@ -25,8 +24,8 @@ var _ = math.Inf
 
 var CreateVMPoolCmd = &cli.Command{
 	Use:          "CreateVMPool",
-	RequiredArgs: "region " + strings.Join(VMPoolRequiredArgs, " "),
-	OptionalArgs: strings.Join(VMPoolOptionalArgs, " "),
+	RequiredArgs: "region " + strings.Join(CreateVMPoolRequiredArgs, " "),
+	OptionalArgs: strings.Join(CreateVMPoolOptionalArgs, " "),
 	AliasArgs:    strings.Join(VMPoolAliasArgs, " "),
 	SpecialArgs:  &VMPoolSpecialArgs,
 	Comments:     addRegionComment(VMPoolComments),
@@ -127,16 +126,24 @@ var VMPoolApiCmds = []*cli.Command{
 	RemoveVMPoolMemberCmd,
 }
 
+var CreateVMPoolRequiredArgs = []string{
+	"vmpool-org",
+	"vmpool",
+}
+var CreateVMPoolOptionalArgs = []string{
+	"vms:#.name",
+	"vms:#.netinfo.externalip",
+	"vms:#.netinfo.internalip",
+	"crmoverride",
+}
 var AddVMPoolMemberRequiredArgs = []string{
 	"vmpool-org",
 	"vmpool",
 	"vm.name",
-	"vm.netinfo.externalip",
 	"vm.netinfo.internalip",
 }
 var AddVMPoolMemberOptionalArgs = []string{
-	"vm.updatedat.seconds",
-	"vm.updatedat.nanos",
+	"vm.netinfo.externalip",
 	"crmoverride",
 }
 var RemoveVMPoolMemberRequiredArgs = []string{
@@ -145,10 +152,6 @@ var RemoveVMPoolMemberRequiredArgs = []string{
 	"vm.name",
 }
 var RemoveVMPoolMemberOptionalArgs = []string{
-	"vm.netinfo.externalip",
-	"vm.netinfo.internalip",
-	"vm.updatedat.seconds",
-	"vm.updatedat.nanos",
 	"crmoverride",
 }
 var VMNetInfoRequiredArgs = []string{}
@@ -175,6 +178,11 @@ var VMOptionalArgs = []string{
 	"updatedat.seconds",
 	"updatedat.nanos",
 	"internalname",
+	"flavor.name",
+	"flavor.vcpus",
+	"flavor.ram",
+	"flavor.disk",
+	"flavor.propmap",
 }
 var VMAliasArgs = []string{
 	"name=vm.name",
@@ -185,18 +193,30 @@ var VMAliasArgs = []string{
 	"updatedat.seconds=vm.updatedat.seconds",
 	"updatedat.nanos=vm.updatedat.nanos",
 	"internalname=vm.internalname",
+	"flavor.name=vm.flavor.name",
+	"flavor.vcpus=vm.flavor.vcpus",
+	"flavor.ram=vm.flavor.ram",
+	"flavor.disk=vm.flavor.disk",
+	"flavor.propmap=vm.flavor.propmap",
 }
 var VMComments = map[string]string{
 	"name":               "VM Name",
 	"netinfo.externalip": "External IP",
 	"netinfo.internalip": "Internal IP",
 	"groupname":          "VM Group Name",
-	"state":              "VM State, one of VmFree, VmInProgress, VmInUse, VmAdd, VmRemove, VmUpdate",
+	"state":              "VM State, one of VmForceFree",
 	"updatedat.seconds":  "Represents seconds of UTC time since Unix epoch 1970-01-01T00:00:00Z. Must be from 0001-01-01T00:00:00Z to 9999-12-31T23:59:59Z inclusive.",
 	"updatedat.nanos":    "Non-negative fractions of a second at nanosecond resolution. Negative second values with fractions must still have non-negative nanos values that count forward in time. Must be from 0 to 999,999,999 inclusive.",
 	"internalname":       "VM Internal Name",
+	"flavor.name":        "Name of the flavor on the Cloudlet",
+	"flavor.vcpus":       "Number of VCPU cores on the Cloudlet",
+	"flavor.ram":         "Ram in MB on the Cloudlet",
+	"flavor.disk":        "Amount of disk in GB on the Cloudlet",
+	"flavor.propmap":     "OS Flavor Properties, if any",
 }
-var VMSpecialArgs = map[string]string{}
+var VMSpecialArgs = map[string]string{
+	"vm.flavor.propmap": "StringToString",
+}
 var VMPoolKeyRequiredArgs = []string{}
 var VMPoolKeyOptionalArgs = []string{
 	"organization",
@@ -219,6 +239,7 @@ var VMPoolOptionalArgs = []string{
 	"vms:#.name",
 	"vms:#.netinfo.externalip",
 	"vms:#.netinfo.internalip",
+	"vms:#.state",
 	"crmoverride",
 }
 var VMPoolAliasArgs = []string{
@@ -233,6 +254,11 @@ var VMPoolAliasArgs = []string{
 	"vms:#.updatedat.seconds=vmpool.vms:#.updatedat.seconds",
 	"vms:#.updatedat.nanos=vmpool.vms:#.updatedat.nanos",
 	"vms:#.internalname=vmpool.vms:#.internalname",
+	"vms:#.flavor.name=vmpool.vms:#.flavor.name",
+	"vms:#.flavor.vcpus=vmpool.vms:#.flavor.vcpus",
+	"vms:#.flavor.ram=vmpool.vms:#.flavor.ram",
+	"vms:#.flavor.disk=vmpool.vms:#.flavor.disk",
+	"vms:#.flavor.propmap=vmpool.vms:#.flavor.propmap",
 	"state=vmpool.state",
 	"errors=vmpool.errors",
 	"status.tasknumber=vmpool.status.tasknumber",
@@ -249,17 +275,23 @@ var VMPoolComments = map[string]string{
 	"vms:#.netinfo.externalip": "External IP",
 	"vms:#.netinfo.internalip": "Internal IP",
 	"vms:#.groupname":          "VM Group Name",
-	"vms:#.state":              "VM State, one of VmFree, VmInProgress, VmInUse, VmAdd, VmRemove, VmUpdate",
+	"vms:#.state":              "VM State, one of VmForceFree",
 	"vms:#.updatedat.seconds":  "Represents seconds of UTC time since Unix epoch 1970-01-01T00:00:00Z. Must be from 0001-01-01T00:00:00Z to 9999-12-31T23:59:59Z inclusive.",
 	"vms:#.updatedat.nanos":    "Non-negative fractions of a second at nanosecond resolution. Negative second values with fractions must still have non-negative nanos values that count forward in time. Must be from 0 to 999,999,999 inclusive.",
 	"vms:#.internalname":       "VM Internal Name",
+	"vms:#.flavor.name":        "Name of the flavor on the Cloudlet",
+	"vms:#.flavor.vcpus":       "Number of VCPU cores on the Cloudlet",
+	"vms:#.flavor.ram":         "Ram in MB on the Cloudlet",
+	"vms:#.flavor.disk":        "Amount of disk in GB on the Cloudlet",
+	"vms:#.flavor.propmap":     "OS Flavor Properties, if any",
 	"state":                    "Current state of the VM pool, one of TrackedStateUnknown, NotPresent, CreateRequested, Creating, CreateError, Ready, UpdateRequested, Updating, UpdateError, DeleteRequested, Deleting, DeleteError, DeletePrepare, CrmInitok, CreatingDependencies",
 	"errors":                   "Any errors trying to add/remove VM to/from VM Pool",
 	"crmoverride":              "Override actions to CRM, one of NoOverride, IgnoreCrmErrors, IgnoreCrm, IgnoreTransientState, IgnoreCrmAndTransientState",
 }
 var VMPoolSpecialArgs = map[string]string{
-	"vmpool.errors": "StringArray",
-	"vmpool.fields": "StringArray",
+	"vmpool.errors":               "StringArray",
+	"vmpool.fields":               "StringArray",
+	"vmpool.vms:#.flavor.propmap": "StringToString",
 }
 var VMPoolMemberRequiredArgs = []string{
 	"vmpool-org",
@@ -269,8 +301,6 @@ var VMPoolMemberOptionalArgs = []string{
 	"vm.name",
 	"vm.netinfo.externalip",
 	"vm.netinfo.internalip",
-	"vm.updatedat.seconds",
-	"vm.updatedat.nanos",
 	"crmoverride",
 }
 var VMPoolMemberAliasArgs = []string{
@@ -284,6 +314,11 @@ var VMPoolMemberAliasArgs = []string{
 	"vm.updatedat.seconds=vmpoolmember.vm.updatedat.seconds",
 	"vm.updatedat.nanos=vmpoolmember.vm.updatedat.nanos",
 	"vm.internalname=vmpoolmember.vm.internalname",
+	"vm.flavor.name=vmpoolmember.vm.flavor.name",
+	"vm.flavor.vcpus=vmpoolmember.vm.flavor.vcpus",
+	"vm.flavor.ram=vmpoolmember.vm.flavor.ram",
+	"vm.flavor.disk=vmpoolmember.vm.flavor.disk",
+	"vm.flavor.propmap=vmpoolmember.vm.flavor.propmap",
 	"crmoverride=vmpoolmember.crmoverride",
 }
 var VMPoolMemberComments = map[string]string{
@@ -293,30 +328,58 @@ var VMPoolMemberComments = map[string]string{
 	"vm.netinfo.externalip": "External IP",
 	"vm.netinfo.internalip": "Internal IP",
 	"vm.groupname":          "VM Group Name",
-	"vm.state":              "VM State, one of VmFree, VmInProgress, VmInUse, VmAdd, VmRemove, VmUpdate",
+	"vm.state":              "VM State, one of VmForceFree",
 	"vm.updatedat.seconds":  "Represents seconds of UTC time since Unix epoch 1970-01-01T00:00:00Z. Must be from 0001-01-01T00:00:00Z to 9999-12-31T23:59:59Z inclusive.",
 	"vm.updatedat.nanos":    "Non-negative fractions of a second at nanosecond resolution. Negative second values with fractions must still have non-negative nanos values that count forward in time. Must be from 0 to 999,999,999 inclusive.",
 	"vm.internalname":       "VM Internal Name",
+	"vm.flavor.name":        "Name of the flavor on the Cloudlet",
+	"vm.flavor.vcpus":       "Number of VCPU cores on the Cloudlet",
+	"vm.flavor.ram":         "Ram in MB on the Cloudlet",
+	"vm.flavor.disk":        "Amount of disk in GB on the Cloudlet",
+	"vm.flavor.propmap":     "OS Flavor Properties, if any",
 	"crmoverride":           "Override actions to CRM, one of NoOverride, IgnoreCrmErrors, IgnoreCrm, IgnoreTransientState, IgnoreCrmAndTransientState",
 }
-var VMPoolMemberSpecialArgs = map[string]string{}
+var VMPoolMemberSpecialArgs = map[string]string{
+	"vmpoolmember.vm.flavor.propmap": "StringToString",
+}
 var VMSpecRequiredArgs = []string{}
 var VMSpecOptionalArgs = []string{
 	"internalname",
 	"externalnetwork",
 	"internalnetwork",
+	"flavor.fields",
+	"flavor.key.name",
+	"flavor.ram",
+	"flavor.vcpus",
+	"flavor.disk",
+	"flavor.optresmap",
 }
 var VMSpecAliasArgs = []string{
 	"internalname=vmspec.internalname",
 	"externalnetwork=vmspec.externalnetwork",
 	"internalnetwork=vmspec.internalnetwork",
+	"flavor.fields=vmspec.flavor.fields",
+	"flavor.key.name=vmspec.flavor.key.name",
+	"flavor.ram=vmspec.flavor.ram",
+	"flavor.vcpus=vmspec.flavor.vcpus",
+	"flavor.disk=vmspec.flavor.disk",
+	"flavor.optresmap=vmspec.flavor.optresmap",
 }
 var VMSpecComments = map[string]string{
-	"internalname":    "VM internal name",
-	"externalnetwork": "VM has external network defined or not",
-	"internalnetwork": "VM has internal network defined or not",
+	"internalname":     "VM internal name",
+	"externalnetwork":  "VM has external network defined or not",
+	"internalnetwork":  "VM has internal network defined or not",
+	"flavor.fields":    "Fields are used for the Update API to specify which fields to apply",
+	"flavor.key.name":  "Flavor name",
+	"flavor.ram":       "RAM in megabytes",
+	"flavor.vcpus":     "Number of virtual CPUs",
+	"flavor.disk":      "Amount of disk space in gigabytes",
+	"flavor.optresmap": "Optional Resources request, key = [gpu, nas, nic] gpu kinds: [gpu, vgpu, pci] form: $resource=$kind:[$alias]$count ex: optresmap=gpu=vgpus:nvidia-63:1",
 }
-var VMSpecSpecialArgs = map[string]string{}
+var VMSpecSpecialArgs = map[string]string{
+	"vmspec.flavor.fields":    "StringArray",
+	"vmspec.flavor.optresmap": "StringToString",
+}
 var VMPoolInfoRequiredArgs = []string{
 	"vmpool-org",
 	"vmpool",
@@ -331,6 +394,11 @@ var VMPoolInfoOptionalArgs = []string{
 	"vms:#.updatedat.seconds",
 	"vms:#.updatedat.nanos",
 	"vms:#.internalname",
+	"vms:#.flavor.name",
+	"vms:#.flavor.vcpus",
+	"vms:#.flavor.ram",
+	"vms:#.flavor.disk",
+	"vms:#.flavor.propmap",
 	"state",
 	"errors",
 	"status.tasknumber",
@@ -351,6 +419,11 @@ var VMPoolInfoAliasArgs = []string{
 	"vms:#.updatedat.seconds=vmpoolinfo.vms:#.updatedat.seconds",
 	"vms:#.updatedat.nanos=vmpoolinfo.vms:#.updatedat.nanos",
 	"vms:#.internalname=vmpoolinfo.vms:#.internalname",
+	"vms:#.flavor.name=vmpoolinfo.vms:#.flavor.name",
+	"vms:#.flavor.vcpus=vmpoolinfo.vms:#.flavor.vcpus",
+	"vms:#.flavor.ram=vmpoolinfo.vms:#.flavor.ram",
+	"vms:#.flavor.disk=vmpoolinfo.vms:#.flavor.disk",
+	"vms:#.flavor.propmap=vmpoolinfo.vms:#.flavor.propmap",
 	"state=vmpoolinfo.state",
 	"errors=vmpoolinfo.errors",
 	"status.tasknumber=vmpoolinfo.status.tasknumber",
@@ -367,14 +440,20 @@ var VMPoolInfoComments = map[string]string{
 	"vms:#.netinfo.externalip": "External IP",
 	"vms:#.netinfo.internalip": "Internal IP",
 	"vms:#.groupname":          "VM Group Name",
-	"vms:#.state":              "VM State, one of VmFree, VmInProgress, VmInUse, VmAdd, VmRemove, VmUpdate",
+	"vms:#.state":              "VM State, one of VmForceFree",
 	"vms:#.updatedat.seconds":  "Represents seconds of UTC time since Unix epoch 1970-01-01T00:00:00Z. Must be from 0001-01-01T00:00:00Z to 9999-12-31T23:59:59Z inclusive.",
 	"vms:#.updatedat.nanos":    "Non-negative fractions of a second at nanosecond resolution. Negative second values with fractions must still have non-negative nanos values that count forward in time. Must be from 0 to 999,999,999 inclusive.",
 	"vms:#.internalname":       "VM Internal Name",
+	"vms:#.flavor.name":        "Name of the flavor on the Cloudlet",
+	"vms:#.flavor.vcpus":       "Number of VCPU cores on the Cloudlet",
+	"vms:#.flavor.ram":         "Ram in MB on the Cloudlet",
+	"vms:#.flavor.disk":        "Amount of disk in GB on the Cloudlet",
+	"vms:#.flavor.propmap":     "OS Flavor Properties, if any",
 	"state":                    "Current state of the VM pool on the Cloudlet, one of TrackedStateUnknown, NotPresent, CreateRequested, Creating, CreateError, Ready, UpdateRequested, Updating, UpdateError, DeleteRequested, Deleting, DeleteError, DeletePrepare, CrmInitok, CreatingDependencies",
 	"errors":                   "Any errors trying to add/remove VM to/from VM Pool",
 }
 var VMPoolInfoSpecialArgs = map[string]string{
-	"vmpoolinfo.errors": "StringArray",
-	"vmpoolinfo.fields": "StringArray",
+	"vmpoolinfo.errors":               "StringArray",
+	"vmpoolinfo.fields":               "StringArray",
+	"vmpoolinfo.vms:#.flavor.propmap": "StringToString",
 }

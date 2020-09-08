@@ -10,6 +10,7 @@ import (
 	"github.com/mobiledgex/edge-cloud-infra/chefmgmt"
 	intprocess "github.com/mobiledgex/edge-cloud-infra/e2e-tests/int-process"
 	"github.com/mobiledgex/edge-cloud-infra/infracommon"
+	"github.com/mobiledgex/edge-cloud/cloud-resource-manager/platform"
 	pf "github.com/mobiledgex/edge-cloud/cloud-resource-manager/platform"
 	"github.com/mobiledgex/edge-cloud/cloudcommon"
 	"github.com/mobiledgex/edge-cloud/edgeproto"
@@ -165,9 +166,6 @@ func (v *VMPlatform) CreateCloudlet(ctx context.Context, cloudlet *edgeproto.Clo
 	if err != nil {
 		return err
 	}
-	// save caches needed for flavors
-	v.Caches = caches
-	v.VMProvider.SetCaches(ctx, caches)
 
 	// Source OpenRC file to access openstack API endpoint
 	updateCallback(edgeproto.UpdateTask, "Sourcing access variables")
@@ -191,22 +189,8 @@ func (v *VMPlatform) CreateCloudlet(ctx context.Context, cloudlet *edgeproto.Clo
 	}
 
 	v.VMProperties.Domain = VMDomainPlatform
-	// TODO there's a lot of overlap between platform.PlatformConfig and edgeproto.PlatformConfig
-	pc := pf.PlatformConfig{
-		CloudletKey:         &cloudlet.Key,
-		PhysicalName:        cloudlet.PhysicalName,
-		VaultAddr:           pfConfig.VaultAddr,
-		Region:              pfConfig.Region,
-		TestMode:            pfConfig.TestMode,
-		CloudletVMImagePath: pfConfig.CloudletVmImagePath,
-		VMImageVersion:      cloudlet.VmImageVersion,
-		EnvVars:             pfConfig.EnvVar,
-		AppDNSRoot:          pfConfig.AppDnsRoot,
-		ChefServerPath:      pfConfig.ChefServerPath,
-		DeploymentTag:       pfConfig.DeploymentTag,
-	}
-
-	err = v.InitProps(ctx, &pc, vaultConfig)
+	pc := infracommon.GetPlatformConfig(cloudlet, pfConfig)
+	err = v.InitProps(ctx, pc, vaultConfig)
 	if err != nil {
 		return err
 	}
@@ -221,6 +205,17 @@ func (v *VMPlatform) CreateCloudlet(ctx context.Context, cloudlet *edgeproto.Clo
 	// ones if not specified.
 	if pfConfig.ContainerRegistryPath == "" {
 		pfConfig.ContainerRegistryPath = infracommon.DefaultContainerRegistryPath
+	}
+
+	// save caches needed for flavors
+	v.Caches = caches
+	stage := ProviderInitCreateCloudletDirect
+	if cloudlet.InfraApiAccess == edgeproto.InfraApiAccess_RESTRICTED_ACCESS {
+		stage = ProviderInitCreateCloudletRestricted
+	}
+	err = v.VMProvider.InitProvider(ctx, caches, stage, updateCallback)
+	if err != nil {
+		return err
 	}
 
 	chefAttributes, err := v.GetChefPlatformAttributes(ctx, cloudlet, pfConfig)
@@ -298,6 +293,12 @@ func (v *VMPlatform) CreateCloudlet(ctx context.Context, cloudlet *edgeproto.Clo
 	return nil
 }
 
+func (v *VMPlatform) UpdateCloudlet(ctx context.Context, cloudlet *edgeproto.Cloudlet, updateCallback edgeproto.CacheUpdateCallback) error {
+	// Update envvars
+	v.VMProperties.CommonPf.Properties.UpdatePropsFromVars(ctx, cloudlet.EnvVar)
+	return nil
+}
+
 func (v *VMPlatform) DeleteCloudlet(ctx context.Context, cloudlet *edgeproto.Cloudlet, pfConfig *edgeproto.PlatformConfig, caches *pf.Caches, updateCallback edgeproto.CacheUpdateCallback) error {
 	log.SpanLog(ctx, log.DebugLevelInfra, "Deleting cloudlet", "cloudletName", cloudlet.Key.Name)
 
@@ -307,10 +308,6 @@ func (v *VMPlatform) DeleteCloudlet(ctx context.Context, cloudlet *edgeproto.Clo
 	if err != nil {
 		return err
 	}
-
-	// save caches
-	v.Caches = caches
-	v.VMProvider.SetCaches(ctx, caches)
 
 	// Source OpenRC file to access openstack API endpoint
 	err = v.VMProvider.InitApiAccessProperties(ctx, &cloudlet.Key, pfConfig.Region, cloudlet.PhysicalName, vaultConfig, cloudlet.EnvVar)
@@ -324,24 +321,16 @@ func (v *VMPlatform) DeleteCloudlet(ctx context.Context, cloudlet *edgeproto.Clo
 		pfConfig.ChefServerPath = chefmgmt.DefaultChefServerPath
 	}
 	v.VMProperties.Domain = VMDomainPlatform
-	pc := pf.PlatformConfig{
-		CloudletKey:         &cloudlet.Key,
-		PhysicalName:        cloudlet.PhysicalName,
-		VaultAddr:           pfConfig.VaultAddr,
-		Region:              pfConfig.Region,
-		TestMode:            pfConfig.TestMode,
-		CloudletVMImagePath: pfConfig.CloudletVmImagePath,
-		VMImageVersion:      cloudlet.VmImageVersion,
-		EnvVars:             pfConfig.EnvVar,
-		AppDNSRoot:          pfConfig.AppDnsRoot,
-		ChefServerPath:      pfConfig.ChefServerPath,
-		DeploymentTag:       pfConfig.DeploymentTag,
+	pc := infracommon.GetPlatformConfig(cloudlet, pfConfig)
+	err = v.InitProps(ctx, pc, vaultConfig)
+	if err != nil {
+		// ignore this error, as no creation would've happened on infra, so nothing to delete
+		log.SpanLog(ctx, log.DebugLevelInfra, "failed to init props", "cloudletName", cloudlet.Key.Name, "err", err)
+		return nil
 	}
 
-	err = v.InitProps(ctx, &pc, vaultConfig)
-	if err != nil {
-		return err
-	}
+	v.Caches = caches
+	v.VMProvider.InitProvider(ctx, caches, ProviderInitDeleteCloudlet, updateCallback)
 
 	chefClient := v.VMProperties.GetChefClient()
 	if chefClient == nil {
@@ -350,10 +339,6 @@ func (v *VMPlatform) DeleteCloudlet(ctx context.Context, cloudlet *edgeproto.Clo
 
 	rootLBName := v.GetRootLBName(&cloudlet.Key)
 	if cloudlet.InfraApiAccess == edgeproto.InfraApiAccess_DIRECT_ACCESS {
-		err = v.VMProvider.ImportDataFromInfra(ctx, VMDomainAny)
-		if err != nil {
-			return fmt.Errorf("ImportDataFromInfra error: %v", err)
-		}
 		nodes := v.GetPlatformNodes(cloudlet)
 		for _, nodeName := range nodes {
 			updateCallback(edgeproto.UpdateTask, fmt.Sprintf("Deleting PlatformVM %s", nodeName))
@@ -406,7 +391,7 @@ func (v *VMPlatform) DeleteCloudletAccessVars(ctx context.Context, cloudlet *edg
 	if err != nil {
 		return err
 	}
-	path := GetVaultCloudletAccessPath(&cloudlet.Key, v.Type, pfConfig.Region, cloudlet.PhysicalName, v.VMProvider.GetApiAccessFilename())
+	path := GetVaultCloudletAccessPath(&cloudlet.Key, pfConfig.Region, v.Type, cloudlet.PhysicalName, v.VMProvider.GetApiAccessFilename())
 	err = infracommon.DeleteDataFromVault(vaultConfig, path)
 	if err != nil {
 		return fmt.Errorf("Failed to delete access vars from vault: %v", err)
@@ -574,21 +559,8 @@ func (v *VMPlatform) GetCloudletVMsSpec(ctx context.Context, vaultConfig *vault.
 		pfConfig.TlsCertFile = crtFile
 	}
 
-	// TODO there's a lot of overlap between platform.PlatformConfig and edgeproto.PlatformConfig
-	pc := pf.PlatformConfig{
-		CloudletKey:         &cloudlet.Key,
-		PhysicalName:        cloudlet.PhysicalName,
-		VaultAddr:           pfConfig.VaultAddr,
-		Region:              pfConfig.Region,
-		TestMode:            pfConfig.TestMode,
-		CloudletVMImagePath: pfConfig.CloudletVmImagePath,
-		VMImageVersion:      cloudlet.VmImageVersion,
-		EnvVars:             pfConfig.EnvVar,
-		ChefServerPath:      pfConfig.ChefServerPath,
-		DeploymentTag:       pfConfig.DeploymentTag,
-	}
-
-	err = v.InitProps(ctx, &pc, vaultConfig)
+	pc := infracommon.GetPlatformConfig(cloudlet, pfConfig)
+	err = v.InitProps(ctx, pc, vaultConfig)
 	if err != nil {
 		return nil, err
 	}
@@ -651,13 +623,17 @@ func (v *VMPlatform) GetCloudletVMsSpec(ctx context.Context, vaultConfig *vault.
 
 	}
 	if flavorName == "" {
-		return nil, fmt.Errorf("unable to fetch platform flavor")
+		// give some default flavor name, user can fix this later
+		flavorName = "<ADD_FLAVOR_HERE>"
 	}
 
 	platformVmName := v.GetPlatformVMName(&cloudlet.Key)
-	pfImageName, err := v.GetCloudletImageToUse(ctx, updateCallback)
-	if err != nil {
-		return nil, err
+	pfImageName := v.VMProperties.GetCloudletOSImage()
+	if cloudlet.InfraApiAccess == edgeproto.InfraApiAccess_DIRECT_ACCESS {
+		pfImageName, err = v.GetCloudletImageToUse(ctx, updateCallback)
+		if err != nil {
+			return nil, err
+		}
 	}
 
 	// Setup Chef parameters
@@ -740,8 +716,9 @@ func (v *VMPlatform) GetCloudletVMsSpec(ctx context.Context, vaultConfig *vault.
 	return vms, nil
 }
 
-func (v *VMPlatform) GetCloudletManifest(ctx context.Context, cloudlet *edgeproto.Cloudlet, pfConfig *edgeproto.PlatformConfig, pfFlavor *edgeproto.Flavor) (*edgeproto.CloudletManifest, error) {
+func (v *VMPlatform) GetCloudletManifest(ctx context.Context, cloudlet *edgeproto.Cloudlet, pfConfig *edgeproto.PlatformConfig, pfFlavor *edgeproto.Flavor, caches *platform.Caches) (*edgeproto.CloudletManifest, error) {
 	log.SpanLog(ctx, log.DebugLevelInfra, "Get cloudlet manifest", "cloudletName", cloudlet.Key.Name)
+	v.VMProperties.Domain = VMDomainPlatform
 
 	if cloudlet.ChefClientKey == nil {
 		return nil, fmt.Errorf("unable to find chef client key")
@@ -751,6 +728,8 @@ func (v *VMPlatform) GetCloudletManifest(ctx context.Context, cloudlet *edgeprot
 	if err != nil {
 		return nil, err
 	}
+
+	v.VMProvider.SetCaches(ctx, caches)
 
 	platvms, err := v.GetCloudletVMsSpec(ctx, vaultConfig, cloudlet, pfConfig, pfFlavor, edgeproto.DummyUpdateCallback)
 	if err != nil {
@@ -792,18 +771,34 @@ func (v *VMPlatform) GetCloudletManifest(ctx context.Context, cloudlet *edgeprot
 	if err != nil {
 		return nil, err
 	}
-	manifest, err := v.VMProvider.GetCloudletManifest(ctx, platformVmName, gp)
+	imgPath := GetCloudletVMImagePath(pfConfig.CloudletVmImagePath, cloudlet.VmImageVersion, v.VMProvider.GetCloudletImageSuffix(ctx))
+	manifest, err := v.VMProvider.GetCloudletManifest(ctx, platformVmName, imgPath, gp)
 	if err != nil {
 		return nil, err
 	}
-	imgPath := GetCloudletVMImagePath(pfConfig.CloudletVmImagePath, cloudlet.VmImageVersion, v.VMProvider.GetCloudletImageSuffix(ctx))
-
 	return &edgeproto.CloudletManifest{
-		Manifest:  manifest,
-		ImagePath: imgPath,
+		Manifest: manifest,
 	}, nil
 }
 
 func (v *VMPlatform) VerifyVMs(ctx context.Context, vms []edgeproto.VM) error {
 	return v.VMProvider.VerifyVMs(ctx, vms)
+}
+
+func (v *VMPlatform) GetCloudletProps(ctx context.Context) (*edgeproto.CloudletProps, error) {
+	log.SpanLog(ctx, log.DebugLevelInfra, "GetCloudletProps")
+
+	props := edgeproto.CloudletProps{}
+	props.Properties = VMProviderProps
+
+	for k, v := range infracommon.InfraCommonProps {
+		props.Properties[k] = v
+	}
+
+	providerProps := v.VMProvider.GetProviderSpecificProps()
+	for k, v := range providerProps {
+		props.Properties[k] = v
+	}
+
+	return &props, nil
 }

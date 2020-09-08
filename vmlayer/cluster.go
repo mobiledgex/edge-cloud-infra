@@ -11,7 +11,6 @@ import (
 	"github.com/mobiledgex/edge-cloud-infra/chefmgmt"
 	"github.com/mobiledgex/edge-cloud-infra/infracommon"
 	"github.com/mobiledgex/edge-cloud/cloud-resource-manager/k8smgmt"
-	"github.com/mobiledgex/edge-cloud/cloud-resource-manager/platform"
 	"github.com/mobiledgex/edge-cloud/cloud-resource-manager/proxy"
 	"github.com/mobiledgex/edge-cloud/cloudcommon"
 	"github.com/mobiledgex/edge-cloud/edgeproto"
@@ -48,12 +47,8 @@ type ClusterFlavor struct {
 	Topology       string
 }
 
-func GetClusterName(ctx context.Context, clusterInst *edgeproto.ClusterInst) string {
-	return k8smgmt.GetK8sNodeNameSuffix(&clusterInst.Key)
-}
-
 func GetClusterSubnetName(ctx context.Context, clusterInst *edgeproto.ClusterInst) string {
-	return MexSubnetPrefix + GetClusterName(ctx, clusterInst)
+	return MexSubnetPrefix + k8smgmt.GetCloudletClusterName(clusterInst)
 }
 
 func GetClusterMasterName(ctx context.Context, clusterInst *edgeproto.ClusterInst) string {
@@ -61,15 +56,15 @@ func GetClusterMasterName(ctx context.Context, clusterInst *edgeproto.ClusterIns
 	if clusterInst.Deployment == cloudcommon.DeploymentTypeDocker {
 		namePrefix = ClusterTypeDockerVMLabel
 	}
-	return namePrefix + "-" + GetClusterName(ctx, clusterInst)
+	return namePrefix + "-" + k8smgmt.GetCloudletClusterName(clusterInst)
 }
 
 func GetClusterNodeName(ctx context.Context, clusterInst *edgeproto.ClusterInst, nodeNum uint32) string {
-	return ClusterNodePrefix(nodeNum) + "-" + GetClusterName(ctx, clusterInst)
+	return ClusterNodePrefix(nodeNum) + "-" + k8smgmt.GetCloudletClusterName(clusterInst)
 }
 
 func (v *VMPlatform) GetDockerNodeName(ctx context.Context, clusterInst *edgeproto.ClusterInst) string {
-	return ClusterTypeDockerVMLabel + "-" + GetClusterName(ctx, clusterInst)
+	return ClusterTypeDockerVMLabel + "-" + k8smgmt.GetCloudletClusterName(clusterInst)
 }
 
 func ClusterNodePrefix(num uint32) string {
@@ -178,7 +173,7 @@ func (v *VMPlatform) deleteCluster(ctx context.Context, rootLBName string, clust
 		return fmt.Errorf("Chef client is not initialzied")
 	}
 
-	name := GetClusterName(ctx, clusterInst)
+	name := k8smgmt.GetCloudletClusterName(clusterInst)
 
 	dedicatedRootLB := clusterInst.IpAccess == edgeproto.IpAccess_IP_ACCESS_DEDICATED
 	client, err := v.GetClusterPlatformClient(ctx, clusterInst, cloudcommon.ClientTypeRootLB)
@@ -192,7 +187,7 @@ func (v *VMPlatform) deleteCluster(ctx context.Context, rootLBName string, clust
 	}
 	if !dedicatedRootLB {
 		clusterSnName := GetClusterSubnetName(ctx, clusterInst)
-		ip, err := v.GetIPFromServerName(ctx, clusterSnName, clusterSnName, rootLBName)
+		ip, err := v.GetIPFromServerName(ctx, v.VMProperties.GetCloudletMexNetwork(), clusterSnName, rootLBName)
 		if err != nil {
 			log.SpanLog(ctx, log.DebugLevelInfra, "unable to get ips from server, proceed with VM deletion", "err", err)
 		} else {
@@ -390,23 +385,34 @@ func (v *VMPlatform) DeleteClusterInst(ctx context.Context, clusterInst *edgepro
 	return v.deleteCluster(ctx, lbName, clusterInst)
 }
 
+func (v *VMPlatform) GetClusterAccessIP(ctx context.Context, clusterInst *edgeproto.ClusterInst) (string, error) {
+	mip, err := v.GetIPFromServerName(ctx, v.VMProperties.GetCloudletMexNetwork(), GetClusterSubnetName(ctx, clusterInst), GetClusterMasterName(ctx, clusterInst))
+	if err != nil {
+		return "", err
+	}
+	if mip.ExternalAddr == "" {
+		return "", fmt.Errorf("unable to find master IP")
+	}
+	return mip.ExternalAddr, nil
+}
+
 func (v *VMPlatform) waitClusterReady(ctx context.Context, clusterInst *edgeproto.ClusterInst, rootLBName string, updateCallback edgeproto.CacheUpdateCallback, timeout time.Duration) error {
 	start := time.Now()
 	masterName := ""
 	masterIP := ""
 	var currReadyCount uint32
+	var err error
 	log.SpanLog(ctx, log.DebugLevelInfra, "waitClusterReady", "cluster", clusterInst.Key, "timeout", timeout)
 
 	for {
 		if masterIP == "" {
-			mip, err := v.GetIPFromServerName(ctx, v.VMProperties.GetCloudletMexNetwork(), GetClusterSubnetName(ctx, clusterInst), GetClusterMasterName(ctx, clusterInst))
+			masterIP, err = v.GetClusterAccessIP(ctx, clusterInst)
 			if err == nil {
-				masterIP = mip.ExternalAddr
 				updateCallback(edgeproto.UpdateStep, "Checking Master for Available Nodes")
 			}
 		}
 		if masterIP == "" {
-			log.SpanLog(ctx, log.DebugLevelInfra, "master IP not available yet")
+			log.SpanLog(ctx, log.DebugLevelInfra, "master IP not available yet", "err", err)
 		} else {
 			ready, readyCount, err := v.isClusterReady(ctx, clusterInst, masterName, masterIP, rootLBName, updateCallback)
 			if readyCount != currReadyCount {
@@ -482,7 +488,7 @@ func (v *VMPlatform) isClusterReady(ctx context.Context, clusterInst *edgeproto.
 	}
 	if readyCount < (clusterInst.NumNodes + clusterInst.NumMasters) {
 		log.SpanLog(ctx, log.DebugLevelInfra, "kubernetes cluster not ready", "readyCount", readyCount, "notReadyCount", notReadyCount)
-		return false, 0, nil
+		return false, readyCount, nil
 	}
 	log.SpanLog(ctx, log.DebugLevelInfra, "cluster nodes ready", "numnodes", clusterInst.NumNodes, "nummasters", clusterInst.NumMasters, "readyCount", readyCount, "notReadyCount", notReadyCount)
 
@@ -579,56 +585,12 @@ func (v *VMPlatform) getVMRequestSpecForDockerCluster(ctx context.Context, imgNa
 	return vms, newSubnetName, newSecgrpName, nil
 }
 
-func (v *VMPlatform) syncClusterInst(ctx context.Context, clusterInst *edgeproto.ClusterInst, privacyPolicy *edgeproto.PrivacyPolicy, updateCallback edgeproto.CacheUpdateCallback) error {
-	log.SpanLog(ctx, log.DebugLevelInfra, "syncClusterInst", "clusterInst", clusterInst)
-	imgName, err := v.GetCloudletImageToUse(ctx, updateCallback)
-	if err != nil {
-		log.InfoLog("error with cloudlet base image", "imgName", imgName, "error", err)
-		return err
-	}
-	_, err = v.PerformOrchestrationForCluster(ctx, imgName, clusterInst, privacyPolicy, ActionSync, nil, updateCallback)
-	return err
-}
-
-func (v *VMPlatform) SyncClusterInsts(ctx context.Context, caches *platform.Caches, updateCallback edgeproto.CacheUpdateCallback) error {
-	log.SpanLog(ctx, log.DebugLevelInfra, "SyncClusterInsts")
-	clusterKeys := make(map[edgeproto.ClusterInstKey]struct{})
-	caches.ClusterInstCache.GetAllKeys(ctx, func(k *edgeproto.ClusterInstKey, modRev int64) {
-		clusterKeys[*k] = struct{}{}
-	})
-	for k := range clusterKeys {
-		log.SpanLog(ctx, log.DebugLevelInfra, "SyncClusterInsts found cluster", "key", k)
-		var clus edgeproto.ClusterInst
-		if caches.ClusterInstCache.Get(&k, &clus) {
-			policy := edgeproto.PrivacyPolicy{}
-			if clus.PrivacyPolicy != "" {
-				policy.Key.Organization = clus.Key.Organization
-				policy.Key.Name = clus.PrivacyPolicy
-				if !caches.PrivacyPolicyCache.Get(&policy.Key, &policy) {
-					log.SpanLog(ctx, log.DebugLevelInfra, "Privacy Policy not found for ClusterInst", "policyName", policy.Key.Name)
-					return fmt.Errorf("unable to sync clusterinst, privacy policy not found: %s", clus.PrivacyPolicy)
-				}
-			}
-			err := v.syncClusterInst(ctx, &clus, &policy, updateCallback)
-			if err != nil {
-				log.SpanLog(ctx, log.DebugLevelInfra, "syncClusterInst failed", "err", err)
-				clus.State = edgeproto.TrackedState_CREATE_ERROR
-				caches.ClusterInstCache.Update(ctx, &clus, 0)
-			}
-		} else {
-			return fmt.Errorf("fail to fetch cluster %s", k)
-		}
-	}
-	log.SpanLog(ctx, log.DebugLevelInfra, "SyncClusterInsts done")
-	return nil
-}
-
 func (v *VMPlatform) PerformOrchestrationForCluster(ctx context.Context, imgName string, clusterInst *edgeproto.ClusterInst, privacyPolicy *edgeproto.PrivacyPolicy, action ActionType, updateInfo map[string]string, updateCallback edgeproto.CacheUpdateCallback) (*VMGroupOrchestrationParams, error) {
 	log.SpanLog(ctx, log.DebugLevelInfo, "PerformOrchestrationForCluster", "clusterInst", clusterInst, "action", action)
 
 	var vms []*VMRequestSpec
 	var err error
-	vmgroupName := GetClusterName(ctx, clusterInst)
+	vmgroupName := k8smgmt.GetCloudletClusterName(clusterInst)
 	var newSubnetName string
 	var newSecgrpName string
 

@@ -13,12 +13,13 @@ import (
 	"github.com/go-chef/chef"
 	"github.com/mobiledgex/edge-cloud-infra/chefmgmt"
 	pf "github.com/mobiledgex/edge-cloud/cloud-resource-manager/platform"
+	"github.com/mobiledgex/edge-cloud/edgeproto"
 	"github.com/mobiledgex/edge-cloud/log"
 	"github.com/mobiledgex/edge-cloud/vault"
 )
 
 type CommonPlatform struct {
-	Properties        map[string]*PropertyInfo
+	Properties        InfraProperties
 	PlatformConfig    *pf.PlatformConfig
 	VaultConfig       *vault.Config
 	MappedExternalIPs map[string]string
@@ -30,21 +31,14 @@ type CommonPlatform struct {
 // Package level test mode variable
 var testMode = false
 
-func (c *CommonPlatform) InitInfraCommon(ctx context.Context, platformConfig *pf.PlatformConfig, platformSpecificProps map[string]*PropertyInfo, vaultConfig *vault.Config) error {
+func (c *CommonPlatform) InitInfraCommon(ctx context.Context, platformConfig *pf.PlatformConfig, platformSpecificProps map[string]*edgeproto.PropertyInfo, vaultConfig *vault.Config) error {
 	log.SpanLog(ctx, log.DebugLevelInfra, "InitInfraCommon", "cloudletKey", platformConfig.CloudletKey)
 
 	if vaultConfig.Addr == "" {
 		return fmt.Errorf("vaultAddr is not specified")
 	}
-	// set default properties
-	c.Properties = infraCommonProps
 	c.PlatformConfig = platformConfig
 	c.VaultConfig = vaultConfig
-
-	// append platform specific properties
-	for k, v := range platformSpecificProps {
-		c.Properties[k] = v
-	}
 
 	// fetch properties from vault
 	mexEnvPath := GetVaultCloudletCommonPath("mexenv.json")
@@ -58,24 +52,14 @@ func (c *CommonPlatform) InitInfraCommon(ctx context.Context, platformConfig *pf
 		}
 		return fmt.Errorf("Failed to source access variables from %s, %s: %v", vaultConfig.Addr, mexEnvPath, err)
 	}
-	for _, envData := range envData.Env {
-		if _, ok := c.Properties[envData.Name]; ok {
-			c.Properties[envData.Name].Value = envData.Value
-		} else {
-			// quick fix for EDGECLOUD-2572.  Assume the mexenv.json item is secret if we have
-			// not defined it one way or another in code, of if the props that defines it is not
-			// run (e.g. an Azure property defined in mexenv.json when we are running openstack)
-			c.Properties[envData.Name] = &PropertyInfo{
-				Value:  envData.Value,
-				Secret: true,
-			}
-		}
-	}
+	c.Properties.Init()
+	c.Properties.SetProperties(platformSpecificProps)
+	c.Properties.SetPropsFromEnvData(envData.Env)
 	// fetch properties from user input
-	SetPropsFromVars(ctx, c.Properties, c.PlatformConfig.EnvVars)
+	c.Properties.SetPropsFromVars(ctx, c.PlatformConfig.EnvVars)
 
 	if !testMode {
-		for name, val := range c.Properties {
+		for name, val := range c.Properties.Properties {
 			if val.Mandatory && val.Value == "" {
 				log.SpanLog(ctx, log.DebugLevelInfra, "mandatory property not set", "name", name)
 				return fmt.Errorf("mandatory property not set: %s", name)
@@ -137,15 +121,18 @@ func (c *CommonPlatform) GetCloudletDNSZone() string {
 }
 
 func (c *CommonPlatform) GetCloudletRegistryFileServer() string {
-	return c.Properties["MEX_REGISTRY_FILE_SERVER"].Value
+	value, _ := c.Properties.GetValue("MEX_REGISTRY_FILE_SERVER")
+	return value
 }
 
 func (c *CommonPlatform) GetCloudletCFKey() string {
-	return c.Properties["MEX_CF_KEY"].Value
+	value, _ := c.Properties.GetValue("MEX_CF_KEY")
+	return value
 }
 
 func (c *CommonPlatform) GetCloudletCFUser() string {
-	return c.Properties["MEX_CF_USER"].Value
+	value, _ := c.Properties.GetValue("MEX_CF_USER")
+	return value
 }
 
 func SetTestMode(tMode bool) {
@@ -156,7 +143,7 @@ func SetTestMode(tMode bool) {
 // fromip1=toip1,fromip2=toip2 and populates mappedExternalIPs
 func (c *CommonPlatform) initMappedIPs() error {
 	c.MappedExternalIPs = make(map[string]string)
-	meip := c.Properties["MEX_EXTERNAL_IP_MAP"].Value
+	meip, _ := c.Properties.GetValue("MEX_EXTERNAL_IP_MAP")
 	if meip != "" {
 		ippair := strings.Split(meip, ",")
 		for _, i := range ippair {
@@ -180,4 +167,22 @@ func (c *CommonPlatform) GetMappedExternalIP(ip string) string {
 		return mappedip
 	}
 	return ip
+}
+
+// GetPlatformConfig builds a platform.PlatformConfig from a cloudlet and an edgeproto.PlatformConfig
+func GetPlatformConfig(cloudlet *edgeproto.Cloudlet, pfConfig *edgeproto.PlatformConfig) *pf.PlatformConfig {
+	platCfg := pf.PlatformConfig{
+		CloudletKey:         &cloudlet.Key,
+		PhysicalName:        cloudlet.PhysicalName,
+		VaultAddr:           pfConfig.VaultAddr,
+		Region:              pfConfig.Region,
+		TestMode:            pfConfig.TestMode,
+		CloudletVMImagePath: pfConfig.CloudletVmImagePath,
+		VMImageVersion:      cloudlet.VmImageVersion,
+		EnvVars:             pfConfig.EnvVar,
+		AppDNSRoot:          pfConfig.AppDnsRoot,
+		ChefServerPath:      pfConfig.ChefServerPath,
+		DeploymentTag:       pfConfig.DeploymentTag,
+	}
+	return &platCfg
 }

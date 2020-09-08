@@ -5,7 +5,6 @@ import (
 	"fmt"
 
 	"github.com/gogo/protobuf/types"
-	"github.com/mobiledgex/edge-cloud-infra/infracommon"
 	"github.com/mobiledgex/edge-cloud/cloud-resource-manager/platform"
 	"github.com/mobiledgex/edge-cloud/cloud-resource-manager/proxy"
 	"github.com/mobiledgex/edge-cloud/cloudcommon"
@@ -22,11 +21,10 @@ import (
 type VMProvider interface {
 	NameSanitize(string) string
 	IdSanitize(string) string
-	GetProviderSpecificProps() map[string]*infracommon.PropertyInfo
+	GetProviderSpecificProps() map[string]*edgeproto.PropertyInfo
 	SetVMProperties(vmProperties *VMProperties)
 	SetCaches(ctx context.Context, caches *platform.Caches)
-	InitProvider(ctx context.Context, caches *platform.Caches, updateCallback edgeproto.CacheUpdateCallback) error
-	ImportDataFromInfra(ctx context.Context, domain VMDomain) error
+	InitProvider(ctx context.Context, caches *platform.Caches, stage ProviderInitStage, updateCallback edgeproto.CacheUpdateCallback) error
 	GetFlavorList(ctx context.Context) ([]*edgeproto.FlavorInfo, error)
 	GetNetworkList(ctx context.Context) ([]string, error)
 	AddCloudletImageIfNotPresent(ctx context.Context, imgPathPrefix, imgVersion string, updateCallback edgeproto.CacheUpdateCallback) (string, error)
@@ -49,15 +47,15 @@ type VMProvider interface {
 	SaveCloudletAccessVars(ctx context.Context, cloudlet *edgeproto.Cloudlet, accessVarsIn map[string]string, pfConfig *edgeproto.PlatformConfig, updateCallback edgeproto.CacheUpdateCallback) error
 	SetPowerState(ctx context.Context, serverName, serverAction string) error
 	GatherCloudletInfo(ctx context.Context, info *edgeproto.CloudletInfo) error
-	GetCloudletManifest(ctx context.Context, name string, VMGroupOrchestrationParams *VMGroupOrchestrationParams) (string, error)
+	GetCloudletManifest(ctx context.Context, name string, cloudletImagePath string, VMGroupOrchestrationParams *VMGroupOrchestrationParams) (string, error)
 	GetRouterDetail(ctx context.Context, routerName string) (*RouterDetail, error)
 	CreateVMs(ctx context.Context, vmGroupOrchestrationParams *VMGroupOrchestrationParams, updateCallback edgeproto.CacheUpdateCallback) error
 	UpdateVMs(ctx context.Context, vmGroupOrchestrationParams *VMGroupOrchestrationParams, updateCallback edgeproto.CacheUpdateCallback) error
-	SyncVMs(ctx context.Context, vmGroupOrchestrationParams *VMGroupOrchestrationParams, updateCallback edgeproto.CacheUpdateCallback) error
 	DeleteVMs(ctx context.Context, vmGroupName string) error
 	GetVMStats(ctx context.Context, key *edgeproto.AppInstKey) (*VMMetrics, error)
 	GetPlatformResourceInfo(ctx context.Context) (*PlatformResources, error)
 	VerifyVMs(ctx context.Context, vms []edgeproto.VM) error
+	CheckServerReady(ctx context.Context, client ssh.Client, serverName string) error
 }
 
 // VMPlatform contains the needed by all VM based platforms
@@ -130,6 +128,15 @@ const (
 	VMProviderOpenstack string = "openstack"
 	VMProviderVSphere   string = "vsphere"
 	VMProviderVMPool    string = "vmpool"
+)
+
+type ProviderInitStage string
+
+const (
+	ProviderInitCreateCloudletDirect     ProviderInitStage = "CreateCloudletDirect"
+	ProviderInitCreateCloudletRestricted ProviderInitStage = "CreateCloudletRestricted"
+	ProviderInitPlatformStart            ProviderInitStage = "PlatformStart"
+	ProviderInitDeleteCloudlet           ProviderInitStage = "DeleteCloudlet"
 )
 
 type StringSanitizer func(value string) string
@@ -228,7 +235,7 @@ func (v *VMPlatform) GetResTablesForCloudlet(ctx context.Context, ckey *edgeprot
 }
 
 func (v *VMPlatform) InitProps(ctx context.Context, platformConfig *platform.PlatformConfig, vaultConfig *vault.Config) error {
-	props := make(map[string]*infracommon.PropertyInfo)
+	props := make(map[string]*edgeproto.PropertyInfo)
 	for k, v := range VMProviderProps {
 		props[k] = v
 	}
@@ -273,7 +280,7 @@ func (v *VMPlatform) Init(ctx context.Context, platformConfig *platform.Platform
 	}
 
 	log.SpanLog(ctx, log.DebugLevelInfra, "doing init provider")
-	if err := v.VMProvider.InitProvider(ctx, caches, updateCallback); err != nil {
+	if err := v.VMProvider.InitProvider(ctx, caches, ProviderInitPlatformStart, updateCallback); err != nil {
 		return err
 	}
 	v.FlavorList, err = v.VMProvider.GetFlavorList(ctx)
@@ -306,7 +313,7 @@ func (v *VMPlatform) Init(ctx context.Context, platformConfig *platform.Platform
 	}
 	log.SpanLog(ctx, log.DebugLevelInfra, "ok, SetupRootLB")
 
-	// set up L7 load balancer
+	// deletes exisitng l7 proxies for backwards compatibility, since we got rid of http. can be removed later
 	client, err := v.GetNodePlatformClient(ctx, &edgeproto.CloudletMgmtNode{Name: v.VMProperties.SharedRootLBName})
 	if err != nil {
 		return err
@@ -322,18 +329,5 @@ func (v *VMPlatform) Init(ctx context.Context, platformConfig *platform.Platform
 
 func (v *VMPlatform) SyncControllerCache(ctx context.Context, caches *platform.Caches, cloudletState edgeproto.CloudletState) error {
 	log.SpanLog(ctx, log.DebugLevelInfra, "SyncControllerCache", "cloudletState", cloudletState)
-
-	err := v.SyncClusterInsts(ctx, caches, edgeproto.DummyUpdateCallback)
-	if err != nil {
-		return err
-	}
-	err = v.SyncSharedRootLB(ctx, caches)
-	if err != nil {
-		return err
-	}
-	err = v.SyncAppInsts(ctx, caches, edgeproto.DummyUpdateCallback)
-	if err != nil {
-		return err
-	}
-	return v.VMProvider.ImportDataFromInfra(ctx, VMDomainCompute)
+	return nil
 }

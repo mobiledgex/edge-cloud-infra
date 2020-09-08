@@ -66,6 +66,8 @@ It has these top-level messages:
 	Cloudlet
 	FlavorMatch
 	CloudletManifest
+	PropertyInfo
+	CloudletProps
 	FlavorInfo
 	OSAZone
 	OSImage
@@ -87,6 +89,7 @@ It has these top-level messages:
 	DeviceReport
 	DeviceKey
 	Device
+	DeviceData
 	CloudletMgmtNode
 	RunCmd
 	RunVMConsole
@@ -620,6 +623,17 @@ func addControllerApis(method string, group *echo.Group) {
 	//   403: forbidden
 	//   404: notFound
 	group.Match([]string{method}, "/ctrl/GetCloudletManifest", GetCloudletManifest)
+	// swagger:route POST /auth/ctrl/GetCloudletProps CloudletProps GetCloudletProps
+	// Get Cloudlet Properties.
+	//  Shows all the infra properties used to setup cloudlet
+	// Security:
+	//   Bearer:
+	// responses:
+	//   200: success
+	//   400: badRequest
+	//   403: forbidden
+	//   404: notFound
+	group.Match([]string{method}, "/ctrl/GetCloudletProps", GetCloudletProps)
 	// swagger:route POST /auth/ctrl/AddCloudletResMapping CloudletResMap AddCloudletResMapping
 	// Add Optional Resource tag table.
 	// Security:
@@ -700,6 +714,23 @@ func addControllerApis(method string, group *echo.Group) {
 	//   403: forbidden
 	//   404: notFound
 	group.Match([]string{method}, "/ctrl/DeleteCloudletPool", DeleteCloudletPool)
+	// swagger:route POST /auth/ctrl/UpdateCloudletPool CloudletPool UpdateCloudletPool
+	// Update a CloudletPool.
+	// The following values should be added to `CloudletPool.fields` field array to specify which fields will be updated.
+	// ```
+	// Key: 2
+	// KeyOrganization: 2.1
+	// KeyName: 2.2
+	// Cloudlets: 3
+	// ```
+	// Security:
+	//   Bearer:
+	// responses:
+	//   200: success
+	//   400: badRequest
+	//   403: forbidden
+	//   404: notFound
+	group.Match([]string{method}, "/ctrl/UpdateCloudletPool", UpdateCloudletPool)
 	// swagger:route POST /auth/ctrl/ShowCloudletPool CloudletPool ShowCloudletPool
 	// Show CloudletPools.
 	// Security:
@@ -710,7 +741,7 @@ func addControllerApis(method string, group *echo.Group) {
 	//   403: forbidden
 	//   404: notFound
 	group.Match([]string{method}, "/ctrl/ShowCloudletPool", ShowCloudletPool)
-	// swagger:route POST /auth/ctrl/CreateCloudletPoolMember CloudletPoolMember CreateCloudletPoolMember
+	// swagger:route POST /auth/ctrl/AddCloudletPoolMember CloudletPoolMember AddCloudletPoolMember
 	// Add a Cloudlet to a CloudletPool.
 	// Security:
 	//   Bearer:
@@ -719,8 +750,8 @@ func addControllerApis(method string, group *echo.Group) {
 	//   400: badRequest
 	//   403: forbidden
 	//   404: notFound
-	group.Match([]string{method}, "/ctrl/CreateCloudletPoolMember", CreateCloudletPoolMember)
-	// swagger:route POST /auth/ctrl/DeleteCloudletPoolMember CloudletPoolMember DeleteCloudletPoolMember
+	group.Match([]string{method}, "/ctrl/AddCloudletPoolMember", AddCloudletPoolMember)
+	// swagger:route POST /auth/ctrl/RemoveCloudletPoolMember CloudletPoolMember RemoveCloudletPoolMember
 	// Remove a Cloudlet from a CloudletPool.
 	// Security:
 	//   Bearer:
@@ -729,37 +760,7 @@ func addControllerApis(method string, group *echo.Group) {
 	//   400: badRequest
 	//   403: forbidden
 	//   404: notFound
-	group.Match([]string{method}, "/ctrl/DeleteCloudletPoolMember", DeleteCloudletPoolMember)
-	// swagger:route POST /auth/ctrl/ShowCloudletPoolMember CloudletPoolMember ShowCloudletPoolMember
-	// Show the Cloudlet to CloudletPool relationships.
-	// Security:
-	//   Bearer:
-	// responses:
-	//   200: success
-	//   400: badRequest
-	//   403: forbidden
-	//   404: notFound
-	group.Match([]string{method}, "/ctrl/ShowCloudletPoolMember", ShowCloudletPoolMember)
-	// swagger:route POST /auth/ctrl/ShowPoolsForCloudlet CloudletKey ShowPoolsForCloudlet
-	// Show CloudletPools that have Cloudlet as a member.
-	// Security:
-	//   Bearer:
-	// responses:
-	//   200: success
-	//   400: badRequest
-	//   403: forbidden
-	//   404: notFound
-	group.Match([]string{method}, "/ctrl/ShowPoolsForCloudlet", ShowPoolsForCloudlet)
-	// swagger:route POST /auth/ctrl/ShowCloudletsForPool CloudletPoolKey ShowCloudletsForPool
-	// Show Cloudlets that belong to the Pool.
-	// Security:
-	//   Bearer:
-	// responses:
-	//   200: success
-	//   400: badRequest
-	//   403: forbidden
-	//   404: notFound
-	group.Match([]string{method}, "/ctrl/ShowCloudletsForPool", ShowCloudletsForPool)
+	group.Match([]string{method}, "/ctrl/RemoveCloudletPoolMember", RemoveCloudletPoolMember)
 	// swagger:route POST /auth/ctrl/CreateVMPool VMPool CreateVMPool
 	// Create VMPool.
 	//  Creates VM pool which will have VMs defined.
@@ -801,6 +802,14 @@ func addControllerApis(method string, group *echo.Group) {
 	// VmsUpdatedAtSeconds: 3.5.1
 	// VmsUpdatedAtNanos: 3.5.2
 	// VmsInternalName: 3.6
+	// VmsFlavor: 3.7
+	// VmsFlavorName: 3.7.1
+	// VmsFlavorVcpus: 3.7.2
+	// VmsFlavorRam: 3.7.3
+	// VmsFlavorDisk: 3.7.4
+	// VmsFlavorPropMap: 3.7.5
+	// VmsFlavorPropMapKey: 3.7.5.1
+	// VmsFlavorPropMapValue: 3.7.5.2
 	// State: 4
 	// Errors: 5
 	// Status: 6
@@ -1294,10 +1303,10 @@ func addControllerApis(method string, group *echo.Group) {
 	// MappedPortsProto: 9.1
 	// MappedPortsInternalPort: 9.2
 	// MappedPortsPublicPort: 9.3
-	// MappedPortsPathPrefix: 9.4
 	// MappedPortsFqdnPrefix: 9.5
 	// MappedPortsEndPort: 9.6
 	// MappedPortsTls: 9.7
+	// MappedPortsNginx: 9.8
 	// Flavor: 12
 	// FlavorName: 12.1
 	// State: 14

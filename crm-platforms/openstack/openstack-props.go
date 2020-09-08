@@ -48,8 +48,8 @@ func (o *OpenstackPlatform) GetOpenRCVars(ctx context.Context, key *edgeproto.Cl
 	return nil
 }
 
-func (o *OpenstackPlatform) GetProviderSpecificProps() map[string]*infracommon.PropertyInfo {
-	return map[string]*infracommon.PropertyInfo{}
+func (o *OpenstackPlatform) GetProviderSpecificProps() map[string]*edgeproto.PropertyInfo {
+	return map[string]*edgeproto.PropertyInfo{}
 }
 
 func (o *OpenstackPlatform) InitApiAccessProperties(ctx context.Context, key *edgeproto.CloudletKey, region, physicalName string, vaultConfig *vault.Config, vars map[string]string) error {
@@ -65,8 +65,6 @@ func (o *OpenstackPlatform) GetApiAccessFilename() string {
 }
 
 func (o *OpenstackPlatform) GetCloudletProjectName() string {
-	if val, ok := o.openRCVars["OS_PROJECT_NAME"]; ok {
-		return val
-	}
-	return ""
+	val, _ := o.openRCVars["OS_PROJECT_NAME"]
+	return val
 }

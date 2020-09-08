@@ -16,6 +16,7 @@ import (
 const ActionView = "view"
 const ActionManage = "manage"
 
+const ResourceBilling = "billing"
 const ResourceControllers = "controllers"
 const ResourceUsers = "users"
 const ResourceApps = "apps"
@@ -48,6 +49,7 @@ var OperatorResources = []string{
 	ResourceCloudlets,
 	ResourceCloudletAnalytics,
 	ResourceResTagTable,
+	ResourceCloudletPools,
 }
 
 // built-in roles
@@ -60,6 +62,7 @@ const RoleOperatorViewer = "OperatorViewer"
 const RoleAdminManager = "AdminManager"
 const RoleAdminContributor = "AdminContributor"
 const RoleAdminViewer = "AdminViewer"
+const RoleBillingManager = "BillingManager"
 
 var AdminRoleID int64
 
@@ -79,6 +82,16 @@ func InitRolePerms(ctx context.Context) error {
 	addPolicy(ctx, &err, RoleAdminManager, ResourceCloudletPools, ActionView)
 	addPolicy(ctx, &err, RoleAdminManager, ResourceAlert, ActionManage)
 	addPolicy(ctx, &err, RoleAdminManager, ResourceAlert, ActionView)
+
+	addPolicy(ctx, &err, RoleDeveloperManager, ResourceBilling, ActionManage)
+	addPolicy(ctx, &err, RoleDeveloperManager, ResourceBilling, ActionView)
+	addPolicy(ctx, &err, RoleBillingManager, ResourceBilling, ActionManage)
+	addPolicy(ctx, &err, RoleBillingManager, ResourceBilling, ActionView)
+	addPolicy(ctx, &err, RoleBillingManager, ResourceUsers, ActionManage)
+	addPolicy(ctx, &err, RoleBillingManager, ResourceUsers, ActionView)
+	addPolicy(ctx, &err, RoleAdminManager, ResourceBilling, ActionManage)
+	addPolicy(ctx, &err, RoleAdminManager, ResourceBilling, ActionView)
+	addPolicy(ctx, &err, RoleAdminContributor, ResourceBilling, ActionView)
 
 	addPolicy(ctx, &err, RoleDeveloperManager, ResourceUsers, ActionManage)
 	addPolicy(ctx, &err, RoleDeveloperManager, ResourceUsers, ActionView)
@@ -472,7 +485,7 @@ func ShowUserRoleObj(ctx context.Context, username string) ([]ormapi.Role, error
 	if err != nil {
 		return nil, dbErr(err)
 	}
-	authz, err := newShowAuthz(ctx, username, ResourceUsers, ActionView)
+	authz, err := newShowAuthz(ctx, "", username, ResourceUsers, ActionView)
 	if err != nil {
 		return nil, err
 	}
@@ -482,7 +495,7 @@ func ShowUserRoleObj(ctx context.Context, username string) ([]ormapi.Role, error
 		if role == nil {
 			continue
 		}
-		if !authz.Ok(ctx, role.Org) {
+		if !authz.Ok(role.Org) {
 			continue
 		}
 		roles = append(roles, *role)

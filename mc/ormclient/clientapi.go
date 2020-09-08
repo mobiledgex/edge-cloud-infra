@@ -22,6 +22,13 @@ type Api interface {
 	UpdateOrg(uri, token string, jsonData string) (int, error)
 	ShowOrg(uri, token string) ([]ormapi.Organization, int, error)
 
+	CreateBillingOrg(uri, token string, org *ormapi.BillingOrganization) (int, error)
+	DeleteBillingOrg(uri, token string, org *ormapi.BillingOrganization) (int, error)
+	UpdateBillingOrg(uri, token string, jsonData string) (int, error)
+	ShowBillingOrg(uri, token string) ([]ormapi.BillingOrganization, int, error)
+	AddChildOrg(uri, token string, org *ormapi.BillingOrganization) (int, error)
+	RemoveChildOrg(uri, token string, org *ormapi.BillingOrganization) (int, error)
+
 	AddUserRole(uri, token string, role *ormapi.Role) (int, error)
 	RemoveUserRole(uri, token string, role *ormapi.Role) (int, error)
 	ShowUserRole(uri, token string) ([]ormapi.Role, int, error)
@@ -34,6 +41,7 @@ type Api interface {
 	ShowAppMetrics(uri, token string, query *ormapi.RegionAppInstMetrics) (*ormapi.AllMetrics, int, error)
 	ShowClusterMetrics(uri, token string, query *ormapi.RegionClusterInstMetrics) (*ormapi.AllMetrics, int, error)
 	ShowCloudletMetrics(uri, token string, query *ormapi.RegionCloudletMetrics) (*ormapi.AllMetrics, int, error)
+	ShowClientMetrics(uri, token string, query *ormapi.RegionClientMetrics) (*ormapi.AllMetrics, int, error)
 
 	ShowAppEvents(uri, token string, query *ormapi.RegionAppInstEvents) (*ormapi.AllMetrics, int, error)
 	ShowClusterEvents(uri, token string, query *ormapi.RegionClusterInstEvents) (*ormapi.AllMetrics, int, error)
@@ -52,6 +60,10 @@ type Api interface {
 	ShowAuditSelf(uri, token string, query *ormapi.AuditQuery) ([]ormapi.AuditResponse, int, error)
 	ShowAuditOrg(uri, token string, query *ormapi.AuditQuery) ([]ormapi.AuditResponse, int, error)
 
+	CreateAlertReceiver(uri, token string, receiver *ormapi.AlertReceiver) (int, error)
+	DeleteAlertReceiver(uri, token string, receiver *ormapi.AlertReceiver) (int, error)
+	ShowAlertReceiver(uri, token string) ([]ormapi.AlertReceiver, int, error)
+
 	FlavorApiClient
 	CloudletApiClient
 	CloudletInfoApiClient
@@ -60,8 +72,6 @@ type Api interface {
 	AppApiClient
 	AppInstApiClient
 	CloudletPoolApiClient
-	CloudletPoolMemberApiClient
-	CloudletPoolShowApiClient
 	AutoScalePolicyApiClient
 	ResTagTableApiClient
 	AutoProvPolicyApiClient

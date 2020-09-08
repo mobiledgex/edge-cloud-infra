@@ -1,7 +1,7 @@
 - name: Enable IPv4 forwarding
   sysctl:
     name: net.ipv4.ip_forward
-    value: 1
+    value: "1"
     state: present
   become: yes
 
@@ -50,6 +50,11 @@
 - name: Pip install docker
   pip:
     name: docker
+  become: yes
+
+- name: Pip install docker-compose
+  pip:
+    name: docker-compose
   become: yes
 
 - name: Load registry docker creds

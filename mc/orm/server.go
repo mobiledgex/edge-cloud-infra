@@ -16,12 +16,15 @@ import (
 	"github.com/gorilla/websocket"
 	"github.com/jinzhu/gorm"
 	"github.com/labstack/echo"
+	"github.com/mobiledgex/edge-cloud-infra/billing/zuora"
 	intprocess "github.com/mobiledgex/edge-cloud-infra/e2e-tests/int-process"
+	"github.com/mobiledgex/edge-cloud-infra/mc/orm/alertmgr"
 	"github.com/mobiledgex/edge-cloud-infra/mc/ormapi"
 	"github.com/mobiledgex/edge-cloud-infra/mc/rbac"
 	"github.com/mobiledgex/edge-cloud/cloudcommon"
 	"github.com/mobiledgex/edge-cloud/cloudcommon/node"
 	edgecli "github.com/mobiledgex/edge-cloud/edgectl/cli"
+	edgeproto "github.com/mobiledgex/edge-cloud/edgeproto"
 	"github.com/mobiledgex/edge-cloud/integration/process"
 	"github.com/mobiledgex/edge-cloud/log"
 	"github.com/mobiledgex/edge-cloud/notify"
@@ -48,29 +51,34 @@ type Server struct {
 }
 
 type ServerConfig struct {
-	ServAddr         string
-	SqlAddr          string
-	VaultAddr        string
-	ConsoleProxyAddr string
-	RunLocal         bool
-	InitLocal        bool
-	IgnoreEnv        bool
-	TlsCertFile      string
-	TlsKeyFile       string
-	LocalVault       bool
-	LDAPAddr         string
-	GitlabAddr       string
-	ArtifactoryAddr  string
-	ClientCert       string
-	PingInterval     time.Duration
-	SkipVerifyEmail  bool
-	JaegerAddr       string
-	vaultConfig      *vault.Config
-	SkipOriginCheck  bool
-	Hostname         string
-	NotifyAddrs      string
-	NotifySrvAddr    string
-	NodeMgr          *node.NodeMgr
+	ServAddr              string
+	SqlAddr               string
+	VaultAddr             string
+	ConsoleProxyAddr      string
+	RunLocal              bool
+	InitLocal             bool
+	IgnoreEnv             bool
+	TlsCertFile           string
+	TlsKeyFile            string
+	LocalVault            bool
+	LDAPAddr              string
+	GitlabAddr            string
+	ArtifactoryAddr       string
+	ClientCert            string
+	PingInterval          time.Duration
+	SkipVerifyEmail       bool
+	JaegerAddr            string
+	vaultConfig           *vault.Config
+	SkipOriginCheck       bool
+	Hostname              string
+	NotifyAddrs           string
+	NotifySrvAddr         string
+	NodeMgr               *node.NodeMgr
+	Billing               bool
+	BillingPath           string
+	AlertCache            *edgeproto.AlertCache
+	AlertMgrAddr          string
+	AlertmgrResolveTimout time.Duration
 }
 
 var DefaultDBUser = "mcuser"
@@ -89,6 +97,7 @@ var gitlabClient *gitlab.Client
 var gitlabSync *AppStoreSync
 var artifactorySync *AppStoreSync
 var nodeMgr *node.NodeMgr
+var AlertManagerServer *alertmgr.AlertMgrServer
 
 func RunServer(config *ServerConfig) (*Server, error) {
 	server := Server{config: config}
@@ -161,6 +170,13 @@ func RunServer(config *ServerConfig) (*Server, error) {
 	server.initJWKDone = make(chan struct{}, 1)
 	InitVault(config.vaultConfig, server.initJWKDone)
 
+	if config.Billing {
+		err = zuora.InitZuora(config.vaultConfig, config.BillingPath)
+		if err != nil {
+			return nil, fmt.Errorf("Unable to initialize zuora: %v", err)
+		}
+	}
+
 	if gitlabToken == "" {
 		log.InfoLog("Note: No gitlab_token env var found")
 	}
@@ -184,7 +200,7 @@ func RunServer(config *ServerConfig) (*Server, error) {
 		if config.InitLocal || os.IsNotExist(err) {
 			sql.InitDataDir()
 		}
-		err = sql.StartLocal("", process.WithCleanStartup())
+		err = sql.StartLocal("")
 		if err != nil {
 			return nil, fmt.Errorf("local sql start failed, %s",
 				err.Error())
@@ -208,6 +224,15 @@ func RunServer(config *ServerConfig) (*Server, error) {
 	server.initDataDone = make(chan struct{}, 1)
 	go InitData(ctx, Superuser, superpass, config.PingInterval, &server.stopInitData, server.initDataDone)
 
+	if config.AlertMgrAddr != "" {
+		AlertManagerServer, err = alertmgr.NewAlertMgrServer(config.AlertMgrAddr, config.TlsCertFile,
+			config.AlertCache, config.AlertmgrResolveTimout)
+		if err != nil {
+			// TODO - this needs to be a fatal failure when we add alertmanager deployment to the ansible scripts
+			log.SpanLog(ctx, log.DebugLevelInfo, "Failed to start alertmanager server", "error", err)
+			err = nil
+		}
+	}
 	go server.setupConsoleProxy(ctx)
 
 	e := echo.New()
@@ -328,6 +353,74 @@ func RunServer(config *ServerConfig) (*Server, error) {
 	//   403: forbidden
 	//   404: notFound
 	auth.POST("/org/delete", DeleteOrg)
+
+	// swagger:route POST /auth/billingorg/create BillingOrganization CreateBillingOrg
+	// Create BillingOrganization.
+	// Create a BillingOrganization to set up billing info.
+	// Security:
+	//   Bearer:
+	// responses:
+	//   200: success
+	//   400: badRequest
+	//   403: forbidden
+	//   404: notFound
+	auth.POST("/billingorg/create", CreateBillingOrg)
+	// swagger:route POST /auth/billingorg/update BillingOrganization UpdateBillingOrg
+	// Update BillingOrganization.
+	// API to update an existing BillingOrganization.
+	// Security:
+	//   Bearer:
+	// responses:
+	//   200: success
+	//   400: badRequest
+	//   403: forbidden
+	//   404: notFound
+	auth.POST("/billingorg/update", UpdateBillingOrg)
+	// swagger:route POST /auth/billingorg/addchild BillingOrganization AddChildOrg
+	// Add Child to BillingOrganization.
+	// Adds an Organization to an existing parent BillingOrganization.
+	// Security:
+	//   Bearer:
+	// responses:
+	//   200: success
+	//   400: badRequest
+	//   403: forbidden
+	//   404: notFound
+	auth.POST("/billingorg/addchild", AddChildOrg)
+	// swagger:route POST /auth/billingorg/removechild BillingOrganization RemoveChildOrg
+	// Remove Child from BillingOrganization.
+	// Removes an Organization from an existing parent BillingOrganization.
+	// Security:
+	//   Bearer:
+	// responses:
+	//   200: success
+	//   400: badRequest
+	//   403: forbidden
+	//   404: notFound
+	auth.POST("/billingorg/removechild", RemoveChildOrg)
+	// swagger:route POST /auth/billingorg/show BillingOrganization ShowBillingOrg
+	// Show BillingOrganizations.
+	// Displays existing BillingOrganizations in which you are authorized to access.
+	// Security:
+	//   Bearer:
+	// responses:
+	//   200: listBillingOrgs
+	//   400: badRequest
+	//   403: forbidden
+	//   404: notFound
+	auth.POST("/billingorg/show", ShowBillingOrg)
+	// swagger:route POST /auth/billingorg/delete BillingOrganization DeleteBillingOrg
+	// Delete BillingOrganization.
+	// Deletes an existing BillingOrganization.
+	// Security:
+	//   Bearer:
+	// responses:
+	//   200: success
+	//   400: badRequest
+	//   403: forbidden
+	//   404: notFound
+	auth.POST("/billingorg/delete", DeleteBillingOrg)
+
 	auth.POST("/controller/create", CreateController)
 	auth.POST("/controller/delete", DeleteController)
 	auth.POST("/controller/show", ShowController)
@@ -341,6 +434,7 @@ func RunServer(config *ServerConfig) (*Server, error) {
 	auth.POST("/restricted/user/update", RestrictedUserUpdate)
 	auth.POST("/audit/showself", ShowAuditSelf)
 	auth.POST("/audit/showorg", ShowAuditOrg)
+	auth.POST("/audit/operations", GetAuditOperations)
 	auth.POST("/orgcloudletpool/create", CreateOrgCloudletPool)
 	auth.POST("/orgcloudletpool/delete", DeleteOrgCloudletPool)
 	auth.POST("/orgcloudletpool/show", ShowOrgCloudletPool)
@@ -357,6 +451,11 @@ func RunServer(config *ServerConfig) (*Server, error) {
 	auth.POST("/events/app", GetEventsCommon)
 	auth.POST("/events/cluster", GetEventsCommon)
 	auth.POST("/events/cloudlet", GetEventsCommon)
+
+	// Alertmanager apis
+	auth.POST("/alertreceiver/create", CreateAlertReceiver)
+	auth.POST("/alertreceiver/delete", DeleteAlertReceiver)
+	auth.POST("/alertreceiver/show", ShowAlertReceiver)
 
 	// Use GET method for websockets as thats the method used
 	// in setting up TCP connection by most of the clients
@@ -383,6 +482,12 @@ func RunServer(config *ServerConfig) (*Server, error) {
 			[]node.MatchCA{node.AnyRegionalMatchCA()})
 		if err != nil {
 			return nil, err
+		}
+		edgeproto.InitAlertCache(config.AlertCache)
+		// sets the callback to be the alertMgr thread callback
+		server.notifyServer.RegisterRecvAlertCache(config.AlertCache)
+		if AlertManagerServer != nil {
+			config.AlertCache.SetUpdatedCb(AlertManagerServer.UpdateAlert)
 		}
 		server.notifyServer.Start(nodeMgr.Name(), config.NotifySrvAddr, tlsConfig)
 	}
@@ -434,10 +539,13 @@ func RunServer(config *ServerConfig) (*Server, error) {
 	gitlabSync = GitlabNewSync()
 	artifactorySync = ArtifactoryNewSync()
 
-	// gitlab/artifactory sync requires data to be initialized
+	// gitlab/artifactory sync and alertmanager requires data to be initialized
 	<-server.initDataDone
 	gitlabSync.Start()
 	artifactorySync.Start()
+	if AlertManagerServer != nil {
+		AlertManagerServer.Start()
+	}
 
 	return &server, err
 }
@@ -476,6 +584,9 @@ func (s *Server) Stop() {
 	}
 	if s.notifyClient != nil {
 		s.notifyClient.Stop()
+	}
+	if AlertManagerServer != nil {
+		AlertManagerServer.Stop()
 	}
 }
 

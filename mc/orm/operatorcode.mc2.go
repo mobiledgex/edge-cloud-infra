@@ -49,6 +49,7 @@ func CreateOperatorCode(c echo.Context) error {
 }
 
 func CreateOperatorCodeObj(ctx context.Context, rc *RegionContext, obj *edgeproto.OperatorCode) (*edgeproto.Result, error) {
+	log.SetContextTags(ctx, edgeproto.GetTags(obj))
 	if !rc.skipAuthz {
 		if err := authorized(ctx, rc.username, obj.Organization,
 			ResourceCloudlets, ActionManage, withRequiresOrg(obj.Organization)); err != nil {
@@ -96,6 +97,7 @@ func DeleteOperatorCode(c echo.Context) error {
 }
 
 func DeleteOperatorCodeObj(ctx context.Context, rc *RegionContext, obj *edgeproto.OperatorCode) (*edgeproto.Result, error) {
+	log.SetContextTags(ctx, edgeproto.GetTags(obj))
 	if !rc.skipAuthz {
 		if err := authorized(ctx, rc.username, obj.Organization,
 			ResourceCloudlets, ActionManage); err != nil {
@@ -148,10 +150,10 @@ func ShowOperatorCode(c echo.Context) error {
 }
 
 func ShowOperatorCodeStream(ctx context.Context, rc *RegionContext, obj *edgeproto.OperatorCode, cb func(res *edgeproto.OperatorCode)) error {
-	var authz *ShowAuthz
+	var authz *AuthzShow
 	var err error
 	if !rc.skipAuthz {
-		authz, err = NewShowAuthz(ctx, rc.region, rc.username, ResourceCloudlets, ActionView)
+		authz, err = newShowAuthz(ctx, rc.region, rc.username, ResourceCloudlets, ActionView)
 		if err == echo.ErrForbidden {
 			return nil
 		}

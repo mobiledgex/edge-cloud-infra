@@ -9,11 +9,11 @@ import (
 
 	"github.com/gogo/protobuf/types"
 	"github.com/mobiledgex/edge-cloud-infra/vmlayer"
-	"github.com/mobiledgex/edge-cloud-infra/vmlayer/terraform"
 	"github.com/mobiledgex/edge-cloud/cloud-resource-manager/platform"
 	"github.com/mobiledgex/edge-cloud/cloudcommon"
 	"github.com/mobiledgex/edge-cloud/edgeproto"
 	"github.com/mobiledgex/edge-cloud/log"
+	ssh "github.com/mobiledgex/golang-ssh"
 )
 
 type VSpherePlatform struct {
@@ -29,6 +29,7 @@ func (v *VSpherePlatform) GetType() string {
 
 func (v *VSpherePlatform) SetVMProperties(vmProperties *vmlayer.VMProperties) {
 	v.vmProperties = vmProperties
+	vmProperties.IptablesBasedFirewall = true
 }
 
 func (v *VSpherePlatform) SetCaches(ctx context.Context, caches *platform.Caches) {
@@ -36,13 +37,18 @@ func (v *VSpherePlatform) SetCaches(ctx context.Context, caches *platform.Caches
 	v.caches = caches
 }
 
-func (v *VSpherePlatform) InitProvider(ctx context.Context, caches *platform.Caches, updateCallback edgeproto.CacheUpdateCallback) error {
-	log.SpanLog(ctx, log.DebugLevelInfra, "InitProvider for VSphere")
+func (v *VSpherePlatform) InitProvider(ctx context.Context, caches *platform.Caches, stage vmlayer.ProviderInitStage, updateCallback edgeproto.CacheUpdateCallback) error {
+	log.SpanLog(ctx, log.DebugLevelInfra, "InitProvider for VSphere", "stage", stage)
 	v.SetCaches(ctx, caches)
-	err := v.TerraformSetupVsphere(ctx, updateCallback)
-	if err != nil {
-		log.SpanLog(ctx, log.DebugLevelInfra, "TerraformSetupVsphere failed", "err", err)
-		return fmt.Errorf("TerraformSetupVsphere failed - %v", err)
+	if stage == vmlayer.ProviderInitPlatformStart {
+		v.initDebug(v.vmProperties.CommonPf.PlatformConfig.NodeMgr)
+	}
+	if stage != vmlayer.ProviderInitDeleteCloudlet {
+		err := v.CreateTemplateFolder(ctx)
+		if err != nil {
+			return err
+		}
+		return v.CreateTagCategories(ctx)
 	}
 	return nil
 }
@@ -51,7 +57,6 @@ func (v *VSpherePlatform) GatherCloudletInfo(ctx context.Context, info *edgeprot
 	log.SpanLog(ctx, log.DebugLevelInfra, "GatherCloudletInfo ")
 	var err error
 	info.Flavors, err = v.GetFlavorList(ctx)
-	info.State = edgeproto.CloudletState_CLOUDLET_STATE_NEED_SYNC
 	return err
 }
 
@@ -87,10 +92,6 @@ func (v *VSpherePlatform) IdSanitize(name string) string {
 	str = strings.ReplaceAll(str, ".", "-")
 	str = strings.ReplaceAll(str, "=", "-")
 	return str
-}
-
-func (v *VSpherePlatform) DeleteResources(ctx context.Context, resourceGroupName string) error {
-	return terraform.DeleteTerraformPlan(ctx, v.getTerraformDir(ctx), resourceGroupName)
 }
 
 func (v *VSpherePlatform) GetResourceID(ctx context.Context, resourceType vmlayer.ResourceType, resourceName string) (string, error) {
@@ -156,7 +157,7 @@ func (v *VSpherePlatform) GetPlatformResourceInfo(ctx context.Context) (*vmlayer
 
 	for _, hs := range hosts.HostSystems {
 		platformRes.MemMax = platformRes.MemMax + hs.Hardware.MemorySize
-		platformRes.VCpuMax = platformRes.VCpuMax + hs.Hardware.CpuInfo.NumCpuCores
+		platformRes.VCpuMax = platformRes.VCpuMax + hs.Hardware.CpuInfo.NumCpuThreads
 	}
 	// convert to MB
 	if platformRes.MemMax > 0 {
@@ -210,4 +211,15 @@ func (v *VSpherePlatform) GetPlatformResourceInfo(ctx context.Context) (*vmlayer
 	platformRes.NetRecv = mets.BytesRxAverage * mets.Interval
 	platformRes.NetSent = mets.BytesTxAverage * mets.Interval
 	return &platformRes, nil
+}
+
+func (s *VSpherePlatform) CheckServerReady(ctx context.Context, client ssh.Client, serverName string) error {
+	// for vSphere in the current baseimage, there is a second reboot performed by vCenter after the initial
+	// guest customization.  This generally happens a few seconds after the VM is reachable so just checking that
+	// the VM is up is not sufficient as it may go back down.  Checking that the VM is ready relies on the fact that the
+	// mobiledgex init script will be executed a second time after it has finished its job with the init-done flag set.  When
+	// this happens, the mobiledgex service exits with exitcode = 2
+	out, err := client.Output("systemctl status mobiledgex.service|grep status=2")
+	log.SpanLog(ctx, log.DebugLevelInfra, "CheckServerReady Mobiledgex service status", "serverName", serverName, "out", out, "err", err)
+	return err
 }

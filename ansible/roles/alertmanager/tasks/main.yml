@@ -1,0 +1,70 @@
+- name: Create alertmanager config directory if doesn't exist
+  file:
+    path: "{{ alertmanager_config_path }}"
+    state: directory
+    mode: '0755'
+
+- name: Get global client cert
+  uri:
+    url: https://{{ vault_vm_hostname }}/v1/pki-global/ca/pem
+    validate_certs: no
+    return_content: yes
+  register: cert
+
+- name: Copy client cert into a file
+  copy:
+    content: "{{ cert.content}}"
+    dest: "{{ alertmanager_config_path }}/mex-ca.crt"
+    force: no
+
+- name: Setup alertmanager access
+  import_role:
+      name: web
+      tasks_from: certs
+  vars:
+    cert_domains: [ "{{ inventory_hostname }}" ]
+  tags: setup
+
+- name: Copy generated alertmanager cert to alertmanager directory
+  copy:
+    src: "{{ letsencrypt_root }}/{{ alertmanager_hostname }}/fullchain.pem"
+    dest: "{{ alertmanager_config_path }}/fullchain.pem"
+    mode: 0644
+    remote_src: yes
+  become: yes
+
+- name: Copy generated alertmanager cert key to alertmanager directory
+  copy:
+    src: "{{ letsencrypt_root }}/{{ alertmanager_hostname }}/privkey.pem"
+    dest: "{{ alertmanager_config_path }}/privkey.pem"
+    mode: 0644
+    remote_src: yes
+  become: yes
+
+- name: Write default alertmanager config if one doesn't exist
+  copy:
+    content: "{{ lookup('file', 'default-config.yml') }}"
+    dest: "{{ alertmanager_config_path }}/{{ alertmanager_config_file }}"
+    force: no
+
+- name: Load noreply email details from vault
+  import_role:
+    name: load-vault-creds
+    tasks_from: noreply
+
+- name: Install the docker compose manifest
+  template:
+    src: docker-compose.yml.j2
+    dest: "{{ alertmanager_config_path }}/docker-compose.yml"
+
+- name: Start the alertmanager services
+  docker_compose:
+    project_name: alertmanager
+    project_src: "{{ alertmanager_config_path }}"
+  register: compose
+
+- name: Check sidecar service running
+  wait_for:
+    host: "0.0.0.0"
+    port: 9094
+    timeout: 30

@@ -15,7 +15,7 @@ echo "Master IP $MASTERIP"
 echo "My IP Address: $MYIP"
 
 systemctl is-active --quiet kubelet
-if [[ $? -ne 0 ]]; then
+if [ $? -ne 0 ]; then
   systemctl start kubelet
   systemctl enable kubelet
 fi
@@ -42,7 +42,7 @@ for d in /home/ubuntu /root; do
     mkdir -p $d/.kube
     cp  /etc/kubernetes/admin.conf $d/.kube/config
 done
-chown ubuntu:ubuntu /home/ubuntu/.kube/config
+chown -R ubuntu:ubuntu /home/ubuntu/.kube
 export KUBECONFIG=/etc/kubernetes/admin.conf
 kubectl version
 while [ $? -ne 0 ] ; do
@@ -83,6 +83,7 @@ fi
 kubeadm token create --print-join-command  | tee /tmp/k8s-join-cmd.tmp
 cat /tmp/k8s-join-cmd.tmp
 mv /tmp/k8s-join-cmd.tmp /tmp/k8s-join-cmd
+chown ubuntu:ubuntu /tmp/k8s-join-cmd
 #cd /tmp
 #echo running simple http server at :8000
 #python -m SimpleHTTPServer 

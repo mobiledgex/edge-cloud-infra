@@ -7,8 +7,10 @@ import (
 
 	"github.com/mobiledgex/edge-cloud-infra/shepherd/shepherd_common"
 	platform "github.com/mobiledgex/edge-cloud-infra/shepherd/shepherd_platform"
+	"github.com/mobiledgex/edge-cloud/cloud-resource-manager/k8smgmt"
 	"github.com/mobiledgex/edge-cloud/edgeproto"
 	"github.com/mobiledgex/edge-cloud/log"
+	"github.com/mobiledgex/edge-cloud/util"
 )
 
 // For each cluster the notify worker is created
@@ -56,8 +58,8 @@ func (p *AppInstWorker) sendMetrics() {
 	key := shepherd_common.MetricAppInstKey{
 		ClusterInstKey: p.appInstKey.ClusterInstKey,
 		Pod:            p.appInstKey.AppKey.Name,
-		App:            p.appInstKey.AppKey.Name,
-		Version:        p.appInstKey.AppKey.Version,
+		App:            k8smgmt.NormalizeName(p.appInstKey.AppKey.Name),
+		Version:        util.DNSSanitize(p.appInstKey.AppKey.Version),
 	}
 	log.SpanLog(ctx, log.DebugLevelMetrics, "Collecting metrics for app", "key", key)
 	stat, err := p.pf.GetVmStats(ctx, &p.appInstKey)

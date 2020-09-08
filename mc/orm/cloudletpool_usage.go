@@ -169,41 +169,7 @@ func GetCloudletPoolUsageCommon(c echo.Context) error {
 		}
 		return setReply(c, nil, usage)
 
-	} else if strings.HasSuffix(c.Path(), "usage/registerpool") {
-		in := ormapi.RegionClusterInstUsage{}
-		success, err := ReadConn(c, &in)
-		if !success {
-			return err
-		}
-		// Developer org name has to be specified
-		if in.ClusterInst.Organization == "" {
-			return setReply(c, fmt.Errorf("Cluster details must be present"), nil)
-		}
-		rc.region = in.Region
-		org := in.ClusterInst.Organization
-
-		eventCmd := ClusterUsageEventsQuery(&in)
-		checkpointCmd := ClusterCheckpointsQuery(&in)
-
-		// Check the developer org against who is logged in
-		if err := authorized(ctx, rc.claims.Username, org, ResourceClusterAnalytics, ActionView); err != nil {
-			return err
-		}
-
-		eventResp, checkResp, err := GetEventAndCheckpoint(ctx, rc, eventCmd, checkpointCmd)
-		if err != nil {
-			return err
-		}
-		usage, err := GetClusterUsage(eventResp, checkResp, in.StartTime, in.EndTime, in.Region)
-		if err != nil {
-			return err
-		}
-		payload := ormapi.StreamPayload{}
-		payload.Data = &usage.Data
-		WriteStream(c, &payload)
 	} else {
 		return setReply(c, echo.ErrNotFound, nil)
 	}
-
-	return nil
 }

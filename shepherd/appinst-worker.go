@@ -7,7 +7,6 @@ import (
 
 	"github.com/mobiledgex/edge-cloud-infra/shepherd/shepherd_common"
 	platform "github.com/mobiledgex/edge-cloud-infra/shepherd/shepherd_platform"
-	"github.com/mobiledgex/edge-cloud/cloud-resource-manager/k8smgmt"
 	"github.com/mobiledgex/edge-cloud/edgeproto"
 	"github.com/mobiledgex/edge-cloud/log"
 	"github.com/mobiledgex/edge-cloud/util"
@@ -58,7 +57,7 @@ func (p *AppInstWorker) sendMetrics() {
 	key := shepherd_common.MetricAppInstKey{
 		ClusterInstKey: p.appInstKey.ClusterInstKey,
 		Pod:            p.appInstKey.AppKey.Name,
-		App:            k8smgmt.NormalizeName(p.appInstKey.AppKey.Name),
+		App:            util.DNSSanitize(p.appInstKey.AppKey.Name),
 		Version:        util.DNSSanitize(p.appInstKey.AppKey.Version),
 	}
 	log.SpanLog(ctx, log.DebugLevelMetrics, "Collecting metrics for app", "key", key)

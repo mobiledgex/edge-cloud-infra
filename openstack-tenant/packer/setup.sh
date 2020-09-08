@@ -37,7 +37,7 @@ fi
 
 # Defaults for environment variables
 : ${TAG:=master}
-: ${VAULT:=main}
+: ${VAULT:=vault-main.mobiledgex.net}
 
 if [[ -z "$INTERFACE" ]]; then
 	INTERFACE=$( ls -d /sys/class/net/*/device 2>/dev/null \
@@ -92,7 +92,7 @@ MEX_PLATFORM_FLAVOR=$OUTPUT_PLATFORM
 EOT
 
 SSH_CA_KEY_FILE=/etc/ssh/trusted-user-ca-keys.pem
-VAULT_URL="https://vault-${VAULT}.mobiledgex.net/v1/ssh/public_key"
+VAULT_URL="https://${VAULT}/v1/ssh/public_key"
 log "Set up SSH CA key: $VAULT_URL"
 curl --silent --fail "$VAULT_URL" | sudo tee "$SSH_CA_KEY_FILE"
 grep "ssh-rsa" "$SSH_CA_KEY_FILE" >/dev/null 2>&1

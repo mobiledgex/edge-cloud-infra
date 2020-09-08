@@ -8,7 +8,6 @@ OUTPUT_IMAGE_NAME='mobiledgex'
 : ${CLOUD_IMAGE_TAG:=ubuntu-18.04-server-cloudimg-amd64}
 : ${VAULT:=vault-main.mobiledgex.net}
 : ${FLAVOR:=m4.small}
-: ${VAULT:=main}
 : ${FORCE:=no}
 : ${TRACE:=no}
 : ${DEBUG:=false}

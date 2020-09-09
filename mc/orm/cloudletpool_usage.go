@@ -70,7 +70,7 @@ func cloudletPoolEventsQuery(obj *ormapi.RegionCloudletPoolUsage, cloudletList [
 	} else if queryType == APPINST {
 		arg.Measurement = EVENT_APPINST
 		arg.Selector = strings.Join(append(AppFields, appUsageEventFields...), ",")
-		arg.DeploymentType = cloudcommon.DeploymentTypeKubernetes //TODO: change this to VM
+		arg.DeploymentType = cloudcommon.DeploymentTypeVM
 	} else {
 		return ""
 	}
@@ -90,7 +90,7 @@ func cloudletPoolCheckpointsQuery(obj *ormapi.RegionCloudletPoolUsage, cloudletL
 	} else if queryType == APPINST {
 		arg.Measurement = EVENT_APPINST
 		arg.Selector = strings.Join(AppCheckpointFields, ",")
-		arg.DeploymentType = cloudcommon.DeploymentTypeKubernetes //TODO: change this to VM
+		arg.DeploymentType = cloudcommon.DeploymentTypeVM
 	} else {
 		return ""
 	}

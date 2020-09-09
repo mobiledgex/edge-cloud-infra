@@ -48,6 +48,11 @@ def set_version(sw, vers):
     if sw['info']['version'] == "version not set":
         sw['info']['version'] = vers
 
+def set_environ(sw, environ):
+    if 'description' in sw['info']:
+        sw['info']['description'] = re.sub(r'{{ENVIRON}}', environ,
+                                           sw['info']['description'])
+
 def splice_samples(sw, samples):
     if samples:
         api_eps = set([d for d in os.listdir(samples) if os.path.isdir(os.path.join(samples, d))])
@@ -148,6 +153,7 @@ def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("--samples", "-s", help="Code samples directory")
     parser.add_argument("--logo", "-l", help="Logo URL", default="/swagger/logo.svg")
+    parser.add_argument("--environ", "-e", help="Deployment environment", default="mexdemo")
     parser.add_argument("--version", "-v", help="Version string, if not present in swagger",
                         default="1.0")
     parser.add_argument("--host", help="API host")
@@ -166,6 +172,8 @@ def main():
     set_version(sw, args.version)
     if args.host:
         set_host(sw, args.host)
+    if args.environ:
+        set_environ(sw, args.environ)
 
     print(json.dumps(sw, indent=2))
 

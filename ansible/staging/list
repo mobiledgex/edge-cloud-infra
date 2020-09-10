@@ -26,6 +26,7 @@ influxdb_volume_size=10Gi
 letsencrypt_env=production
 console_prod=yes
 alertmanager_hostname=alertmanager-{{ deploy_environ }}.mobiledgex.net
+influxdb_backup_disabled=true
 
 [notifyroot]
 notifyroot-stage.mobiledgex.net

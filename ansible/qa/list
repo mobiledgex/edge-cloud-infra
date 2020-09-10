@@ -25,6 +25,7 @@ operator_key=GDDT
 deploy_target="mexplat-{{ deploy_environ }}"
 console_prod=no
 alertmanager_hostname=alertmanager-{{ deploy_environ }}.mobiledgex.net
+influxdb_backup_disabled=true
 
 [notifyroot]
 notifyroot-qa.mobiledgex.net

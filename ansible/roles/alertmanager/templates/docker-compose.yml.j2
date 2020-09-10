@@ -26,9 +26,9 @@ services:
       - "--configFile"
       - "{{ alertmanager_config_path }}/{{ alertmanager_config_file }}"
       - "--tlsCert"
-      - "{{ alertmanager_config_path }}/fullchain.pem"
+      - "{{ letsencrypt_root }}/{{ alertmanager_hostname }}/fullchain.pem"
       - "--tlsCertKey"
-      - "{{ alertmanager_config_path }}/privkey.pem"
+      - "{{ letsencrypt_root }}/{{ alertmanager_hostname }}/privkey.pem"
       - "--tlsClientCert"
       - "{{ alertmanager_config_path }}/mex-ca.crt"
     environment:
@@ -42,6 +42,9 @@ services:
       - ALERTMANAGER_RESOLVE_TIMEOUT={{ alertmanager_resolve_timeout  }}
     volumes:
       - {{ alertmanager_config_path }}:{{ alertmanager_config_path }}
+      - {{ letsencrypt_root }}/{{ alertmanager_hostname }}/privkey.pem:{{ letsencrypt_root }}/{{ alertmanager_hostname }}/privkey.pem
+      - {{ letsencrypt_root }}/{{ alertmanager_hostname }}/fullchain.pem:{{ letsencrypt_root }}/{{ alertmanager_hostname }}/fullchain.pem
+      - {{ letsencrypt_base }}/archive/{{ alertmanager_hostname }}:{{ letsencrypt_base }}/archive/{{ alertmanager_hostname }}
     ports:
       - 9094:9094
     networks:

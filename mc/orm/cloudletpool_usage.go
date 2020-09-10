@@ -85,10 +85,10 @@ func cloudletPoolCheckpointsQuery(obj *ormapi.RegionCloudletPoolUsage, cloudletL
 		CloudletList: generateCloudletList(cloudletList),
 	}
 	if queryType == CLUSTER {
-		arg.Measurement = EVENT_CLUSTERINST
-		arg.Selector = strings.Join(append(ClusterFields, clusterUsageEventFields...), ",")
+		arg.Measurement = cloudcommon.ClusterInstCheckpoints
+		arg.Selector = strings.Join(append(ClusterFields, clusterCheckpointFields...), ",")
 	} else if queryType == APPINST {
-		arg.Measurement = EVENT_APPINST
+		arg.Measurement = cloudcommon.AppInstCheckpoints
 		arg.Selector = strings.Join(AppCheckpointFields, ",")
 		arg.DeploymentType = cloudcommon.DeploymentTypeVM
 	} else {
@@ -142,6 +142,7 @@ func GetCloudletPoolUsageCommon(c echo.Context) error {
 		eventCmd := cloudletPoolEventsQuery(&in, cloudletList, CLUSTER)
 		checkpointCmd := cloudletPoolCheckpointsQuery(&in, cloudletList, CLUSTER)
 		eventResp, checkResp, err := GetEventAndCheckpoint(ctx, rc, eventCmd, checkpointCmd)
+		fmt.Printf("cmds: %s\n%s\n", eventCmd, checkpointCmd)
 		if err != nil {
 			return setReply(c, fmt.Errorf("Error retrieving usage records: %v", err), nil)
 		}

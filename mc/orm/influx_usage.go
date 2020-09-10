@@ -74,21 +74,28 @@ type usageTracker struct {
 	deployment string
 }
 
-// TODO: sync this up with controllers checkPointInterval somehow
-var checkpointInterval = "3m"
-
 func init() {
 	usageInfluxDBTemplate = template.Must(template.New("influxquery").Parse(usageInfluDBT))
 }
 
+func checkUsageCheckpointInterval() error {
+	if serverConfig.UsageCheckpointInterval != cloudcommon.MonthlyInterval {
+		_, err := time.ParseDuration(serverConfig.UsageCheckpointInterval)
+		if err != nil {
+			return fmt.Errorf("Invalid usageCheckpointInterval %s, error parsing into duration: %v", serverConfig.UsageCheckpointInterval, err)
+		}
+		return nil
+	}
+	return nil
+}
+
 // Get most recent checkpoint with respect to t
 func prevCheckpoint(t time.Time) time.Time {
-	if checkpointInterval == "MONTH" {
+	if serverConfig.UsageCheckpointInterval == cloudcommon.MonthlyInterval {
 		y, m, _ := t.Date()
 		return time.Date(y, m, 1, 0, 0, 0, 0, time.UTC)
 	}
-	// TODO: whe you move checkpointInterval to command line, error check this
-	dur, _ := time.ParseDuration(checkpointInterval)
+	dur, _ := time.ParseDuration(serverConfig.UsageCheckpointInterval)
 	return t.Truncate(dur)
 }
 
@@ -485,7 +492,7 @@ func AppInstCheckpointsQuery(obj *ormapi.RegionAppInstUsage) string {
 		CloudletOrg:  obj.AppInst.ClusterInstKey.CloudletKey.Organization,
 	}
 	if obj.VmOnly {
-		arg.DeploymentType = cloudcommon.DeploymentTypeKubernetes //TODO: change this to vm
+		arg.DeploymentType = cloudcommon.DeploymentTypeVM
 	}
 	// set endtime to start and back up starttime by a checkpoint interval to hit the most recent
 	// checkpoint that occurred before startTime
@@ -507,7 +514,7 @@ func AppInstUsageEventsQuery(obj *ormapi.RegionAppInstUsage) string {
 		CloudletOrg:  obj.AppInst.ClusterInstKey.CloudletKey.Organization,
 	}
 	if obj.VmOnly {
-		arg.DeploymentType = cloudcommon.DeploymentTypeKubernetes //TODO: change this to vm
+		arg.DeploymentType = cloudcommon.DeploymentTypeVM
 	}
 	queryStart := prevCheckpoint(obj.StartTime)
 	return fillTimeAndGetCmd(&arg, usageInfluxDBTemplate, &queryStart, &obj.EndTime)
@@ -571,7 +578,7 @@ func GetUsageCommon(c echo.Context) error {
 	ctx := GetContext(c)
 
 	if strings.HasSuffix(c.Path(), "usage/app") {
-		in := ormapi.RegionAppInstUsage{} // TODO: change this to RegionAppInstUsage{}
+		in := ormapi.RegionAppInstUsage{}
 		success, err := ReadConn(c, &in)
 		if !success {
 			return err

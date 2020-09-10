@@ -38,6 +38,7 @@ var alertMgrResolveTimeout = flag.Duration("alertResolveTimeout", 3*time.Minute,
 var hostname = flag.String("hostname", "", "Unique hostname")
 var billingPath = flag.String("billingPath", "", "Zuora account path in vault")
 var usageCollectionInterval = flag.Duration("usageCollectionInterval", -1*time.Second, "Collection interval")
+var usageCheckpointInterval = flag.String("usageCheckpointInterval", "MONTH", "Checkpointing interval(must be same as controller's checkpointInterval)")
 
 var sigChan chan os.Signal
 var nodeMgr node.NodeMgr
@@ -57,30 +58,31 @@ func main() {
 	}
 
 	config := orm.ServerConfig{
-		ServAddr:              *addr,
-		SqlAddr:               *sqlAddr,
-		VaultAddr:             nodeMgr.VaultAddr,
-		RunLocal:              *localSql,
-		InitLocal:             *initSql,
-		LocalVault:            *localVault,
-		ApiTlsCertFile:        *apiTlsCertFile,
-		ApiTlsKeyFile:         *apiTlsKeyFile,
-		LDAPAddr:              *ldapAddr,
-		GitlabAddr:            *gitlabAddr,
-		ArtifactoryAddr:       *artifactoryAddr,
-		PingInterval:          *pingInterval,
-		SkipVerifyEmail:       *skipVerifyEmail,
-		JaegerAddr:            *jaegerAddr,
-		SkipOriginCheck:       *skipOriginCheck,
-		Hostname:              *hostname,
-		NotifyAddrs:           *notifyAddrs,
-		NotifySrvAddr:         *notifySrvAddr,
-		NodeMgr:               &nodeMgr,
-		Billing:               billingEnabled,
-		BillingPath:           *billingPath,
-		AlertMgrAddr:          *alertMgrAddr,
-		AlertCache:            &alertCache,
-		AlertmgrResolveTimout: *alertMgrResolveTimeout,
+		ServAddr:                *addr,
+		SqlAddr:                 *sqlAddr,
+		VaultAddr:               nodeMgr.VaultAddr,
+		RunLocal:                *localSql,
+		InitLocal:               *initSql,
+		LocalVault:              *localVault,
+		ApiTlsCertFile:          *apiTlsCertFile,
+		ApiTlsKeyFile:           *apiTlsKeyFile,
+		LDAPAddr:                *ldapAddr,
+		GitlabAddr:              *gitlabAddr,
+		ArtifactoryAddr:         *artifactoryAddr,
+		PingInterval:            *pingInterval,
+		SkipVerifyEmail:         *skipVerifyEmail,
+		JaegerAddr:              *jaegerAddr,
+		SkipOriginCheck:         *skipOriginCheck,
+		Hostname:                *hostname,
+		NotifyAddrs:             *notifyAddrs,
+		NotifySrvAddr:           *notifySrvAddr,
+		NodeMgr:                 &nodeMgr,
+		Billing:                 billingEnabled,
+		BillingPath:             *billingPath,
+		AlertMgrAddr:            *alertMgrAddr,
+		AlertCache:              &alertCache,
+		AlertmgrResolveTimout:   *alertMgrResolveTimeout,
+		UsageCheckpointInterval: *usageCheckpointInterval,
 	}
 	server, err := orm.RunServer(&config)
 	if err != nil {
@@ -101,7 +103,7 @@ func main() {
 			ctx = context.WithValue(ctx, "usageInterval", *usageCollectionInterval)
 		}
 
-		// TODO: this needs to be redone after usageApi comes out
+		// TODO: this needs to be reworked after usageApi comes out
 		// go collections.CollectDailyUsage(ctx)
 	}
 

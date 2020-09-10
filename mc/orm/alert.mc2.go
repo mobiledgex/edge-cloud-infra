@@ -130,6 +130,7 @@ import edgeproto "github.com/mobiledgex/edge-cloud/edgeproto"
 import "github.com/labstack/echo"
 import "context"
 import "io"
+import "github.com/mobiledgex/edge-cloud/log"
 import "github.com/mobiledgex/edge-cloud-infra/mc/ormapi"
 import proto "github.com/gogo/protobuf/proto"
 import fmt "fmt"
@@ -162,6 +163,8 @@ func ShowAlert(c echo.Context) error {
 	}
 	defer CloseConn(c)
 	rc.region = in.Region
+	span := log.SpanFromContext(ctx)
+	span.SetTag("region", in.Region)
 
 	err = ShowAlertStream(ctx, rc, &in.Alert, func(res *edgeproto.Alert) {
 		payload := ormapi.StreamPayload{}

@@ -23,22 +23,18 @@
       tasks_from: certs
   vars:
     cert_domains: [ "{{ inventory_hostname }}" ]
+    post_renewal_hooks:
+      - hook_name: alertmgr_restart
+        hook_content: "{{ lookup('template', 'alertmgr_restart.hook.j2') }}"
   tags: setup
 
-- name: Copy generated alertmanager cert to alertmanager directory
-  copy:
-    src: "{{ letsencrypt_root }}/{{ alertmanager_hostname }}/fullchain.pem"
-    dest: "{{ alertmanager_config_path }}/fullchain.pem"
-    mode: 0644
-    remote_src: yes
-  become: yes
-
-- name: Copy generated alertmanager cert key to alertmanager directory
-  copy:
-    src: "{{ letsencrypt_root }}/{{ alertmanager_hostname }}/privkey.pem"
-    dest: "{{ alertmanager_config_path }}/privkey.pem"
-    mode: 0644
-    remote_src: yes
+- name: Clean out alertmanager cert copies, if any
+  file:
+    path: "{{ alertmanager_config_path }}/{{ item }}"
+    state: absent
+  loop:
+    - fullchain.pem
+    - privkey.pem
   become: yes
 
 - name: Write default alertmanager config if one doesn't exist

@@ -1,0 +1,2 @@
+influxdb_backup_disabled: false
+influxdb_backup_schedule: "@weekly"

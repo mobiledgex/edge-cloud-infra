@@ -1,4 +1,5 @@
 cert_domains: []
+letsencrypt_base: /etc/letsencrypt
 letsencrypt_root: /etc/letsencrypt/live
 cloudflare_credentials_file: /etc/cloudflare.ini
 nginx_config_filename: default

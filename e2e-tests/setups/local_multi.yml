@@ -101,6 +101,7 @@ controllers:
   usevaultcas: true
   edgeturnaddr: "127.0.0.1:8080"
   appdnsroot: mobiledgex.net
+  deploymenttag: dev
   envvars:
     ES_SERVER_URLS: https://localhost:9201
     ES_E2ETEST: true
@@ -122,6 +123,7 @@ controllers:
   usevaultcerts: true
   edgeturnaddr: "127.0.0.1:8080"
   appdnsroot: mobiledgex.net
+  deploymenttag: dev
   envvars:
     ES_SERVER_URLS: https://localhost:9201
     ES_E2ETEST: true
@@ -144,6 +146,7 @@ controllers:
   usevaultcerts: true
   edgeturnaddr: "127.0.0.1:8081"
   appdnsroot: mobiledgex.net
+  deploymenttag: dev
   influxaddr: "http://127.0.0.1:8087"
   envvars:
     ES_SERVER_URLS: https://localhost:9201
@@ -167,6 +170,7 @@ controllers:
   usevaultcerts: true
   edgeturnaddr: "127.0.0.1:8081"
   appdnsroot: mobiledgex.net
+  deploymenttag: dev
   influxaddr: "http://127.0.0.1:8087"
   envvars:
     ES_SERVER_URLS: https://localhost:9201

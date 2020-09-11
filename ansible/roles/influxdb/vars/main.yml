@@ -4,3 +4,4 @@ influxdb_image: registry.mobiledgex.net:5000/mobiledgex/influxdb:v1.0.0
 influxdb_volume_name: influxdb-data-managed-disk
 influxdb_configmap: influxdb-conf
 tls_cert_manifest: "/tmp/influxdb-{{ deploy_environ }}-{{ region }}-cert.yaml"
+influxdb_backup_version: v1.2.2-68-g55d034b7

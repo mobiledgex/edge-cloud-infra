@@ -197,38 +197,42 @@ func GetClusterUsage(event *client.Response, checkpoint *client.Response, start,
 				Organization: clusterorg,
 			}
 			tracker, ok := clusterTracker[newKey]
-			if status == cloudcommon.InstanceUp && !ok {
-				newTracker := usageTracker{
-					flavor:    flavor,
-					time:      timestamp,
-					nodecount: nodecount,
-					ipaccess:  ipaccess,
+			if status == cloudcommon.InstanceUp {
+				if !ok {
+					newTracker := usageTracker{
+						flavor:    flavor,
+						time:      timestamp,
+						nodecount: nodecount,
+						ipaccess:  ipaccess,
+					}
+					clusterTracker[newKey] = newTracker
 				}
-				clusterTracker[newKey] = newTracker
-			} else if status == cloudcommon.InstanceDown && ok {
-				if !timestamp.Before(start) {
-					newRecord := ormapi.UsageRecord{
-						Region:       region,
-						Organization: clusterorg,
-						ClusterName:  cluster,
-						Cloudlet:     cloudlet,
-						CloudletOrg:  cloudletorg,
-						EndTime:      timestamp,
-						Note:         event,
-						Flavor:       flavor,
-						NumNodes:     int(nodecount),
-						IpAccess:     ipaccess,
-					}
-					if tracker.time.Before(start) {
-						newRecord.StartTime = start
-					} else {
-						newRecord.StartTime = tracker.time
-					}
-					newRecord.Duration = newRecord.EndTime.Sub(newRecord.StartTime)
+			} else if status == cloudcommon.InstanceDown {
+				if ok {
+					if !timestamp.Before(start) {
+						newRecord := ormapi.UsageRecord{
+							Region:       region,
+							Organization: clusterorg,
+							ClusterName:  cluster,
+							Cloudlet:     cloudlet,
+							CloudletOrg:  cloudletorg,
+							EndTime:      timestamp,
+							Note:         event,
+							Flavor:       flavor,
+							NumNodes:     int(nodecount),
+							IpAccess:     ipaccess,
+						}
+						if tracker.time.Before(start) {
+							newRecord.StartTime = start
+						} else {
+							newRecord.StartTime = tracker.time
+						}
+						newRecord.Duration = newRecord.EndTime.Sub(newRecord.StartTime)
 
-					usageRecords.Data = append(usageRecords.Data, newRecord)
+						usageRecords.Data = append(usageRecords.Data, newRecord)
+					}
+					delete(clusterTracker, newKey)
 				}
-				delete(clusterTracker, newKey)
 			} else {
 				return nil, fmt.Errorf("Unexpected influx status: %s", status)
 			}
@@ -373,39 +377,43 @@ func GetAppUsage(event *client.Response, checkpoint *client.Response, start, end
 				},
 			}
 			tracker, ok := appTracker[newKey]
-			if status == cloudcommon.InstanceUp && !ok {
-				newTracker := usageTracker{
-					flavor:     flavor,
-					time:       timestamp,
-					deployment: deployment,
+			if status == cloudcommon.InstanceUp {
+				if !ok {
+					newTracker := usageTracker{
+						flavor:     flavor,
+						time:       timestamp,
+						deployment: deployment,
+					}
+					appTracker[newKey] = newTracker
 				}
-				appTracker[newKey] = newTracker
-			} else if status == cloudcommon.InstanceDown && ok {
-				if !timestamp.Before(start) {
-					newRecord := ormapi.UsageRecord{
-						Region:       region,
-						Organization: apporg,
-						AppName:      app,
-						Version:      ver,
-						ClusterName:  cluster,
-						ClusterOrg:   clusterorg,
-						Cloudlet:     cloudlet,
-						CloudletOrg:  cloudletorg,
-						EndTime:      timestamp,
-						Note:         event,
-						Flavor:       flavor,
-						Deployment:   deployment,
-					}
-					if tracker.time.Before(start) {
-						newRecord.StartTime = start
-					} else {
-						newRecord.StartTime = tracker.time
-					}
-					newRecord.Duration = newRecord.EndTime.Sub(newRecord.StartTime)
+			} else if status == cloudcommon.InstanceDown {
+				if ok {
+					if !timestamp.Before(start) {
+						newRecord := ormapi.UsageRecord{
+							Region:       region,
+							Organization: apporg,
+							AppName:      app,
+							Version:      ver,
+							ClusterName:  cluster,
+							ClusterOrg:   clusterorg,
+							Cloudlet:     cloudlet,
+							CloudletOrg:  cloudletorg,
+							EndTime:      timestamp,
+							Note:         event,
+							Flavor:       flavor,
+							Deployment:   deployment,
+						}
+						if tracker.time.Before(start) {
+							newRecord.StartTime = start
+						} else {
+							newRecord.StartTime = tracker.time
+						}
+						newRecord.Duration = newRecord.EndTime.Sub(newRecord.StartTime)
 
-					usageRecords.Data = append(usageRecords.Data, newRecord)
+						usageRecords.Data = append(usageRecords.Data, newRecord)
+					}
+					delete(appTracker, newKey)
 				}
-				delete(appTracker, newKey)
 			} else {
 				return nil, fmt.Errorf("Unexpected influx status: %s", status)
 			}

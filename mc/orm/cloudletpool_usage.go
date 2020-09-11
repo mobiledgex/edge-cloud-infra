@@ -8,6 +8,7 @@ import (
 	"github.com/mobiledgex/edge-cloud-infra/mc/ormapi"
 	"github.com/mobiledgex/edge-cloud/cloudcommon"
 	"github.com/mobiledgex/edge-cloud/edgeproto"
+	"github.com/mobiledgex/edge-cloud/log"
 )
 
 func generateCloudletList(cloudletList []string) string {
@@ -142,7 +143,6 @@ func GetCloudletPoolUsageCommon(c echo.Context) error {
 		eventCmd := cloudletPoolEventsQuery(&in, cloudletList, CLUSTER)
 		checkpointCmd := cloudletPoolCheckpointsQuery(&in, cloudletList, CLUSTER)
 		eventResp, checkResp, err := GetEventAndCheckpoint(ctx, rc, eventCmd, checkpointCmd)
-		fmt.Printf("cmds: %s\n%s\n", eventCmd, checkpointCmd)
 		if err != nil {
 			return setReply(c, fmt.Errorf("Error retrieving usage records: %v", err), nil)
 		}
@@ -162,7 +162,7 @@ func GetCloudletPoolUsageCommon(c echo.Context) error {
 		if err != nil {
 			return setReply(c, fmt.Errorf("Error calculating usage records: %v", err), nil)
 		}
-
+		log.SpanLog(ctx, log.DebugLevelMetrics, "usage args", "cluster", clusterUsage, "app", appUsage, "list", cloudletList)
 		// sort it into cloudletPoolUsage struct
 		usage, err := SortCloudletPoolUsage(&in, clusterUsage, appUsage, cloudletList)
 		if err != nil {

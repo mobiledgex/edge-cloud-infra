@@ -197,17 +197,15 @@ func GetClusterUsage(event *client.Response, checkpoint *client.Response, start,
 				Organization: clusterorg,
 			}
 			tracker, ok := clusterTracker[newKey]
-			if status == cloudcommon.InstanceUp {
-				if !ok {
-					newTracker := usageTracker{
-						flavor:    flavor,
-						time:      timestamp,
-						nodecount: nodecount,
-						ipaccess:  ipaccess,
-					}
-					clusterTracker[newKey] = newTracker
+			if status == cloudcommon.InstanceUp && !ok {
+				newTracker := usageTracker{
+					flavor:    flavor,
+					time:      timestamp,
+					nodecount: nodecount,
+					ipaccess:  ipaccess,
 				}
-			} else if status == cloudcommon.InstanceDown {
+				clusterTracker[newKey] = newTracker
+			} else if status == cloudcommon.InstanceDown && ok {
 				if !timestamp.Before(start) {
 					newRecord := ormapi.UsageRecord{
 						Region:       region,
@@ -375,16 +373,14 @@ func GetAppUsage(event *client.Response, checkpoint *client.Response, start, end
 				},
 			}
 			tracker, ok := appTracker[newKey]
-			if status == cloudcommon.InstanceUp {
-				if !ok {
-					newTracker := usageTracker{
-						flavor:     flavor,
-						time:       timestamp,
-						deployment: deployment,
-					}
-					appTracker[newKey] = newTracker
+			if status == cloudcommon.InstanceUp && !ok {
+				newTracker := usageTracker{
+					flavor:     flavor,
+					time:       timestamp,
+					deployment: deployment,
 				}
-			} else if status == cloudcommon.InstanceDown {
+				appTracker[newKey] = newTracker
+			} else if status == cloudcommon.InstanceDown && ok {
 				if !timestamp.Before(start) {
 					newRecord := ormapi.UsageRecord{
 						Region:       region,

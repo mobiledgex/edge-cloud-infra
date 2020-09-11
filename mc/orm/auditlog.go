@@ -316,7 +316,7 @@ func addAuditParams(query *ormapi.AuditQuery, params map[string]string) error {
 	}
 
 	// resolve time args
-	err := query.TimeRange.Resolve(2 * 24 * time.Hour)
+	err := query.TimeRange.Resolve(node.DefaultTimeDuration)
 	if err != nil {
 		return err
 	}

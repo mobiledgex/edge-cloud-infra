@@ -65,7 +65,7 @@ func EventTerms(c echo.Context) error {
 	if err := c.Bind(&search); err != nil {
 		return bindErr(c, err)
 	}
-	if err := search.TimeRange.Resolve(48 * time.Hour); err != nil {
+	if err := search.TimeRange.Resolve(node.DefaultTimeDuration); err != nil {
 		return c.JSON(http.StatusBadRequest, MsgErr(err))
 	}
 

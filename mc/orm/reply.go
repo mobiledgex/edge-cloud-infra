@@ -54,7 +54,7 @@ func setReply(c echo.Context, err error, data interface{}) error {
 		default:
 			code = http.StatusBadRequest
 		}
-		// set error on context so it can be easily retrived for audit log
+		// set error on context so it can be easily retrieved for audit log
 		c.Set(echoContextError, err)
 	}
 	if ws := GetWs(c); ws != nil {

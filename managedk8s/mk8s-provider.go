@@ -3,22 +3,22 @@ package managedk8s
 import (
 	"context"
 
+	"github.com/mobiledgex/edge-cloud-infra/infracommon"
+	"github.com/mobiledgex/edge-cloud-infra/vmlayer"
 	"github.com/mobiledgex/edge-cloud/cloud-resource-manager/platform"
 	"github.com/mobiledgex/edge-cloud/cloud-resource-manager/platform/pc"
 	"github.com/mobiledgex/edge-cloud/edgeproto"
 	"github.com/mobiledgex/edge-cloud/log"
 	"github.com/mobiledgex/edge-cloud/vault"
 	ssh "github.com/mobiledgex/golang-ssh"
-
-	"github.com/mobiledgex/edge-cloud-infra/infracommon"
 )
 
 // ManagedK8sProvider is an interface that platforms implement to perform the details of interfacing with managed kubernetes services
 type ManagedK8sProvider interface {
 	GatherCloudletInfo(ctx context.Context, info *edgeproto.CloudletInfo) error
 	GetK8sProviderSpecificProps() map[string]*edgeproto.PropertyInfo
-	InitApiAccessProperties(ctx context.Context, region string, vaultConfig *vault.Config, vars map[string]string) error
-	SetCommonPlatform(cpf *infracommon.CommonPlatform)
+	InitApiAccessProperties(ctx context.Context, key *edgeproto.CloudletKey, region, physicalName string, vaultConfig *vault.Config, vars map[string]string) error
+	SetVMProperties(vmProperties *vmlayer.VMProperties)
 	Login(ctx context.Context) error
 	GetCredentials(ctx context.Context, clusterName string) error
 	NameSanitize(name string) string
@@ -52,7 +52,7 @@ func (m *ManagedK8sPlatform) Init(ctx context.Context, platformConfig *platform.
 		return err
 	}
 	props := m.Provider.GetK8sProviderSpecificProps()
-	err = m.Provider.InitApiAccessProperties(ctx, platformConfig.Region, vaultConfig, platformConfig.EnvVars)
+	err = m.Provider.InitApiAccessProperties(ctx, platformConfig.CloudletKey, platformConfig.Region, platformConfig.PhysicalName, vaultConfig, platformConfig.EnvVars)
 	if err != nil {
 		return err
 	}
@@ -60,7 +60,10 @@ func (m *ManagedK8sPlatform) Init(ctx context.Context, platformConfig *platform.
 		log.SpanLog(ctx, log.DebugLevelInfra, "InitInfraCommon failed", "err", err)
 		return err
 	}
-	m.Provider.SetCommonPlatform(&m.CommonPf)
+	vmp := vmlayer.VMProperties{
+		CommonPf: &m.CommonPf,
+	}
+	m.Provider.SetVMProperties(&vmp)
 	return m.Provider.Login(ctx)
 }
 

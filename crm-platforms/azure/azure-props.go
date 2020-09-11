@@ -52,7 +52,7 @@ func (a *AzurePlatform) GetAzurePass() string {
 	return val
 }
 
-func (a *AzurePlatform) InitApiAccessProperties(ctx context.Context, region string, vaultConfig *vault.Config, vars map[string]string) error {
+func (a *AzurePlatform) InitApiAccessProperties(ctx context.Context, key *edgeproto.CloudletKey, region, physicalName string, vaultConfig *vault.Config, vars map[string]string) error {
 	log.SpanLog(ctx, log.DebugLevelInfra, "InitApiAccessProperties")
 	err := infracommon.InternVaultEnv(ctx, vaultConfig, azureVaultPath)
 	if err != nil {

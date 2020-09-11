@@ -30,7 +30,7 @@ func (o *VMPoolPlatform) GetCloudletManifest(ctx context.Context, name string, c
 	if len(vmgp.VMs) != 1 {
 		return "", fmt.Errorf("invalid number of VMs")
 	}
-	chefParams := vmgp.VMs[0].ChefParams
+	chefParams := vmgp.VMs[0].UserDataParams.ChefParams
 	if chefParams == nil {
 		return "", fmt.Errorf("missing chef params for %s", name)
 	}

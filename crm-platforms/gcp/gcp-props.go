@@ -57,7 +57,7 @@ func (g *GCPPlatform) GetGcpProject() string {
 	return val
 }
 
-func (g *GCPPlatform) InitApiAccessProperties(ctx context.Context, region string, vaultConfig *vault.Config, vars map[string]string) error {
+func (g *GCPPlatform) InitApiAccessProperties(ctx context.Context, key *edgeproto.CloudletKey, region, physicalName string, vaultConfig *vault.Config, vars map[string]string) error {
 	log.SpanLog(ctx, log.DebugLevelInfra, "InitApiAccessProperties")
 	err := infracommon.InternVaultEnv(ctx, vaultConfig, gcpVaultPath)
 	if err != nil {

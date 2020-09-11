@@ -9,6 +9,7 @@ import (
 
 	"github.com/codeskyblue/go-sh"
 	"github.com/mobiledgex/edge-cloud-infra/infracommon"
+	"github.com/mobiledgex/edge-cloud-infra/vmlayer"
 	"github.com/mobiledgex/edge-cloud/cloud-resource-manager/platform/pc"
 	"github.com/mobiledgex/edge-cloud/edgeproto"
 	"github.com/mobiledgex/edge-cloud/log"
@@ -147,6 +148,6 @@ func (a *AzurePlatform) NameSanitize(clusterName string) string {
 	return clusterName
 }
 
-func (a *AzurePlatform) SetCommonPlatform(cpf *infracommon.CommonPlatform) {
-	a.commonPf = cpf
+func (a *AzurePlatform) SetVMProperties(vmProperties *vmlayer.VMProperties) {
+	a.commonPf = vmProperties.CommonPf
 }

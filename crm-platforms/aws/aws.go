@@ -4,16 +4,19 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"strings"
+
+	"github.com/mobiledgex/edge-cloud/cloud-resource-manager/platform"
 
 	sh "github.com/codeskyblue/go-sh"
-	"github.com/mobiledgex/edge-cloud-infra/infracommon"
+	"github.com/mobiledgex/edge-cloud-infra/vmlayer"
 	"github.com/mobiledgex/edge-cloud/edgeproto"
 	"github.com/mobiledgex/edge-cloud/log"
 )
 
 type AWSPlatform struct {
-	commonPf *infracommon.CommonPlatform
+	//commonPf     *infracommon.CommonPlatform
+	VMProperties *vmlayer.VMProperties
+	caches       *platform.Caches
 }
 
 type AWSQuotas struct {
@@ -99,9 +102,15 @@ func (a *AWSPlatform) Login(ctx context.Context) error {
 }
 
 func (a *AWSPlatform) NameSanitize(clusterName string) string {
-	return strings.NewReplacer(".", "").Replace(clusterName)
+	//	return strings.NewReplacer(".", "").Replace(clusterName)
+	return clusterName
 }
 
-func (a *AWSPlatform) SetCommonPlatform(cpf *infracommon.CommonPlatform) {
-	a.commonPf = cpf
+// AWSPlatform IdSanitize is the same as NameSanitize
+func (a *AWSPlatform) IdSanitize(name string) string {
+	return a.NameSanitize(name)
+}
+
+func (a *AWSPlatform) SetVMProperties(vmProperties *vmlayer.VMProperties) {
+	a.VMProperties = vmProperties
 }

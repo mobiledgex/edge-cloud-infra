@@ -5,6 +5,7 @@ import (
 	"fmt"
 
 	"github.com/mobiledgex/edge-cloud-infra/infracommon"
+	"github.com/mobiledgex/edge-cloud-infra/vmlayer"
 	"github.com/mobiledgex/edge-cloud/cloud-resource-manager/platform"
 	"github.com/mobiledgex/edge-cloud/cloud-resource-manager/platform/pc"
 	"github.com/mobiledgex/edge-cloud/cloudcommon"
@@ -56,7 +57,7 @@ func (m *ManagedK8sPlatform) CreateCloudlet(ctx context.Context, cloudlet *edgep
 	}
 	platCfg := infracommon.GetPlatformConfig(cloudlet, pfConfig)
 	props := m.Provider.GetK8sProviderSpecificProps()
-	err = m.Provider.InitApiAccessProperties(ctx, platCfg.Region, vaultConfig, platCfg.EnvVars)
+	err = m.Provider.InitApiAccessProperties(ctx, platCfg.CloudletKey, platCfg.Region, platCfg.PhysicalName, vaultConfig, platCfg.EnvVars)
 	if err != nil {
 		return err
 	}
@@ -64,7 +65,12 @@ func (m *ManagedK8sPlatform) CreateCloudlet(ctx context.Context, cloudlet *edgep
 		log.SpanLog(ctx, log.DebugLevelInfra, "InitInfraCommon failed", "err", err)
 		return err
 	}
-	m.Provider.SetCommonPlatform(&m.CommonPf)
+
+	vmp := vmlayer.VMProperties{
+		CommonPf: &m.CommonPf,
+	}
+	m.Provider.SetVMProperties(&vmp)
+
 	cloudletClusterName := m.getCloudletClusterName(cloudlet)
 
 	// find available flavors
@@ -105,7 +111,7 @@ func (m *ManagedK8sPlatform) DeleteCloudlet(ctx context.Context, cloudlet *edgep
 	}
 	platCfg := infracommon.GetPlatformConfig(cloudlet, pfConfig)
 	props := m.Provider.GetK8sProviderSpecificProps()
-	err = m.Provider.InitApiAccessProperties(ctx, platCfg.Region, vaultConfig, platCfg.EnvVars)
+	err = m.Provider.InitApiAccessProperties(ctx, platCfg.CloudletKey, platCfg.Region, platCfg.PhysicalName, vaultConfig, platCfg.EnvVars)
 	if err != nil {
 		return err
 	}
@@ -113,7 +119,10 @@ func (m *ManagedK8sPlatform) DeleteCloudlet(ctx context.Context, cloudlet *edgep
 		log.SpanLog(ctx, log.DebugLevelInfra, "InitInfraCommon failed", "err", err)
 		return err
 	}
-	m.Provider.SetCommonPlatform(&m.CommonPf)
+	vmp := vmlayer.VMProperties{
+		CommonPf: &m.CommonPf,
+	}
+	m.Provider.SetVMProperties(&vmp)
 	cloudletClusterName := m.getCloudletClusterName(cloudlet)
 	return m.deleteClusterInstInternal(ctx, cloudletClusterName)
 }

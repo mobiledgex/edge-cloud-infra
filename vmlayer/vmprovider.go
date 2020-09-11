@@ -5,6 +5,7 @@ import (
 	"fmt"
 
 	"github.com/gogo/protobuf/types"
+	"github.com/mobiledgex/edge-cloud-infra/infracommon"
 	"github.com/mobiledgex/edge-cloud/cloud-resource-manager/platform"
 	"github.com/mobiledgex/edge-cloud/cloud-resource-manager/proxy"
 	"github.com/mobiledgex/edge-cloud/cloudcommon"
@@ -12,7 +13,6 @@ import (
 	"github.com/mobiledgex/edge-cloud/edgeproto"
 	"github.com/mobiledgex/edge-cloud/log"
 	"github.com/mobiledgex/edge-cloud/vault"
-
 	ssh "github.com/mobiledgex/golang-ssh"
 )
 
@@ -128,6 +128,7 @@ const (
 	VMProviderOpenstack string = "openstack"
 	VMProviderVSphere   string = "vsphere"
 	VMProviderVMPool    string = "vmpool"
+	VMProviderAwsVM     string = "awsvm"
 )
 
 type ProviderInitStage string
@@ -263,19 +264,20 @@ func (v *VMPlatform) Init(ctx context.Context, platformConfig *platform.Platform
 
 	updateCallback(edgeproto.UpdateTask, "Initializing VM platform type: "+v.Type)
 	v.Caches = caches
+	cpf := infracommon.CommonPlatform{}
+	v.VMProperties.CommonPf = &cpf
 	v.VMProperties.Domain = VMDomainCompute
 	vaultConfig, err := vault.BestConfig(platformConfig.VaultAddr)
 	if err != nil {
 		return err
 	}
-	log.SpanLog(ctx, log.DebugLevelInfra, "vault auth", "type", vaultConfig.Auth.Type())
-
-	if err := v.InitProps(ctx, platformConfig, vaultConfig); err != nil {
+	updateCallback(edgeproto.UpdateTask, "Fetching API Access access credentials")
+	if err := v.VMProvider.InitApiAccessProperties(ctx, platformConfig.CloudletKey, platformConfig.Region, platformConfig.PhysicalName, vaultConfig, platformConfig.EnvVars); err != nil {
 		return err
 	}
 
-	updateCallback(edgeproto.UpdateTask, "Fetching API Access access credentials")
-	if err := v.VMProvider.InitApiAccessProperties(ctx, platformConfig.CloudletKey, platformConfig.Region, platformConfig.PhysicalName, vaultConfig, platformConfig.EnvVars); err != nil {
+	log.SpanLog(ctx, log.DebugLevelInfra, "vault auth", "type", vaultConfig.Auth.Type())
+	if err := v.InitProps(ctx, platformConfig, vaultConfig); err != nil {
 		return err
 	}
 

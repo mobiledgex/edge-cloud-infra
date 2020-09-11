@@ -189,6 +189,8 @@ func (v *VMPlatform) CreateCloudlet(ctx context.Context, cloudlet *edgeproto.Clo
 	}
 
 	v.VMProperties.Domain = VMDomainPlatform
+	cpf := infracommon.CommonPlatform{}
+	v.VMProperties.CommonPf = &cpf
 	pc := infracommon.GetPlatformConfig(cloudlet, pfConfig)
 	err = v.InitProps(ctx, pc, vaultConfig)
 	if err != nil {
@@ -321,6 +323,8 @@ func (v *VMPlatform) DeleteCloudlet(ctx context.Context, cloudlet *edgeproto.Clo
 		pfConfig.ChefServerPath = chefmgmt.DefaultChefServerPath
 	}
 	v.VMProperties.Domain = VMDomainPlatform
+	cpf := infracommon.CommonPlatform{}
+	v.VMProperties.CommonPf = &cpf
 	pc := infracommon.GetPlatformConfig(cloudlet, pfConfig)
 	err = v.InitProps(ctx, pc, vaultConfig)
 	if err != nil {

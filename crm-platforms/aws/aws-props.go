@@ -38,21 +38,21 @@ func (a *AWSPlatform) GetK8sProviderSpecificProps() map[string]*edgeproto.Proper
 }
 
 func (a *AWSPlatform) GetAwsAccessKeyId() string {
-	val, _ := a.commonPf.Properties.GetValue("AWS_ACCESS_KEY_ID")
+	val, _ := a.VMProperties.CommonPf.Properties.GetValue("AWS_ACCESS_KEY_ID")
 	return val
 }
 
 func (a *AWSPlatform) GetAwsSecretAccessKey() string {
-	val, _ := a.commonPf.Properties.GetValue("AWS_SECRET_ACCESS_KEY")
+	val, _ := a.VMProperties.CommonPf.Properties.GetValue("AWS_SECRET_ACCESS_KEY")
 	return val
 }
 
 func (a *AWSPlatform) GetAwsRegion() string {
-	val, _ := a.commonPf.Properties.GetValue("AWS_REGION")
+	val, _ := a.VMProperties.CommonPf.Properties.GetValue("AWS_REGION")
 	return val
 }
 
-func (a *AWSPlatform) InitApiAccessProperties(ctx context.Context, region string, vaultConfig *vault.Config, vars map[string]string) error {
+func (a *AWSPlatform) InitApiAccessProperties(ctx context.Context, key *edgeproto.CloudletKey, region, physicalName string, vaultConfig *vault.Config, vars map[string]string) error {
 	log.SpanLog(ctx, log.DebugLevelInfra, "InitApiAccessProperties")
 	err := infracommon.InternVaultEnv(ctx, vaultConfig, awsVaultPath)
 	if err != nil {
@@ -61,4 +61,9 @@ func (a *AWSPlatform) InitApiAccessProperties(ctx context.Context, region string
 		return err
 	}
 	return nil
+}
+
+func (a *AWSPlatform) GetProviderSpecificProps() map[string]*edgeproto.PropertyInfo {
+	// for now we use the same as the managed k8s props
+	return a.GetK8sProviderSpecificProps()
 }

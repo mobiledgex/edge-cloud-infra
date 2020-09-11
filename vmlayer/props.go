@@ -16,7 +16,7 @@ import (
 )
 
 type VMProperties struct {
-	CommonPf           infracommon.CommonPlatform
+	CommonPf           *infracommon.CommonPlatform
 	SharedRootLBName   string
 	sharedRootLB       *MEXRootLB
 	Domain             VMDomain

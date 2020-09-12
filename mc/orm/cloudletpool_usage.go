@@ -31,7 +31,6 @@ func SortCloudletPoolUsage(obj *ormapi.RegionCloudletPoolUsage, clusterUsage, ap
 		Cloudlets:    []ormapi.CloudletUsage{},
 	}
 	cloudletMap := make(map[string]*ormapi.CloudletUsage)
-	i := 0
 	for _, cloudletName := range cloudletList {
 		newCloudletUsage := ormapi.CloudletUsage{
 			CloudletName: cloudletName,
@@ -39,9 +38,11 @@ func SortCloudletPoolUsage(obj *ormapi.RegionCloudletPoolUsage, clusterUsage, ap
 			VmAppUsage:   []ormapi.UsageRecord{},
 		}
 		usage.Cloudlets = append(usage.Cloudlets, newCloudletUsage)
-		cloudletMap[cloudletName] = &usage.Cloudlets[i]
-		i = i + 1
 	}
+	for i, cloudletName := range cloudletList {
+		cloudletMap[cloudletName] = &usage.Cloudlets[i]
+	}
+
 	for _, usageRecord := range clusterUsage.Data {
 		record, ok := cloudletMap[usageRecord.Cloudlet]
 		if !ok {
@@ -166,7 +167,7 @@ func GetCloudletPoolUsageCommon(c echo.Context) error {
 		// sort it into cloudletPoolUsage struct
 		usage, err := SortCloudletPoolUsage(&in, clusterUsage, appUsage, cloudletList)
 		if err != nil {
-			return setReply(c, fmt.Errorf("Error sorting records"), nil)
+			return setReply(c, err, nil)
 		}
 		return setReply(c, nil, usage)
 

@@ -303,7 +303,7 @@ func (s *SidecarServer) initAlertmanager(initInfo *AlertmgrInitInfo) error {
 	ctx := log.ContextWithSpan(context.Background(), span)
 	// wait for alertmanager to be up first
 	for ii := 0; ii < 10; ii++ {
-		_, err = alertMgrApi(ctx, s.alertMgrAddr, "GET", "", "", nil, "")
+		_, err = alertMgrApi(ctx, s.alertMgrAddr, "GET", "", "", nil, nil)
 		if err == nil {
 			break
 		}
@@ -389,7 +389,7 @@ func (s *SidecarServer) writeAlertmanagerConfigLocked(ctx context.Context, confi
 	}
 
 	// trigger reload of the config
-	res, err := alertMgrApi(ctx, s.alertMgrAddr, "POST", ReloadConfigApi, "", nil, "")
+	res, err := alertMgrApi(ctx, s.alertMgrAddr, "POST", ReloadConfigApi, "", nil, nil)
 	if err != nil {
 		log.SpanLog(ctx, log.DebugLevelInfo, "Failed to reload alertmanager config", "err", err, "result", res)
 		return err

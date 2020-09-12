@@ -57,6 +57,9 @@ mcs:
     serverkey: "{{tlsoutdir}}/mex-server.key"
     clientcert: "{{tlsoutdir}}/mex-client.crt"
   hostname: "127.0.0.1"
+  envvars:
+    ES_SERVER_URLS: https://localhost:9201
+    ES_E2ETEST: true
 
 sqls:
 - name: sql1
@@ -90,7 +93,7 @@ alertmanagersidecars:
   tls:
     servercert: "{{tlsoutdir}}/mex-server.crt"
     serverkey: "{{tlsoutdir}}/mex-server.key"
-    cacert: "{{tlsoutdir}}/mex-ca.crt"
+    cacert: "/tmp/vault_pki/global.cert.pem"
   localtest: true
   hostname: "127.0.0.1"
   envvars:

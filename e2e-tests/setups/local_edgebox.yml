@@ -109,8 +109,7 @@ mcs:
   testcollectioninterval: 3m
   alertmgrapiaddr: "https://127.0.0.1:9094"
   envvars:
-    ES_SERVER_URLS: https://localhost:9201
-    ES_E2ETEST: true
+    E2ETEST_TLS: true
 
 sqls:
 - name: sql1

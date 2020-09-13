@@ -230,8 +230,8 @@ func RunServer(config *ServerConfig) (*Server, error) {
 	if config.AlertMgrAddr != "" {
 		opts := []node.TlsOp{node.WithPublicCAPool()}
 		//For the e2e tests we should use our certs
-		if e2e := os.Getenv("ES_E2ETEST"); e2e != "" {
-			// skip verifying elastic search cert if e2e-tests
+		if e2e := os.Getenv("E2ETEST_TLS"); e2e != "" {
+			// skip verifying cert if e2e-tests
 			opts = append(opts, node.WithTlsSkipVerify(true))
 		}
 		tlsConfig, err := nodeMgr.InternalPki.GetClientTlsConfig(ctx, nodeMgr.CommonName(), node.CertIssuerGlobal, []node.MatchCA{}, opts...)

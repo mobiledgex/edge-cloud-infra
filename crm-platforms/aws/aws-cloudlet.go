@@ -95,7 +95,13 @@ func (a *AWSPlatform) SetCaches(ctx context.Context, caches *platform.Caches) {
 func (a *AWSPlatform) InitProvider(ctx context.Context, caches *platform.Caches, stage vmlayer.ProviderInitStage, updateCallback edgeproto.CacheUpdateCallback) error {
 	log.SpanLog(ctx, log.DebugLevelInfra, "InitProvider", "stage", stage)
 	a.SetCaches(ctx, caches)
-	vpcName := a.GetVpcName(ctx)
+	vpcName := a.GetVpcName()
+
+	// aws cannot use the name "default" as a new security group name as it is reserved
+	if a.VMProperties.GetCloudletSecurityGroupName() == "default" {
+		a.VMProperties.SetCloudletSecurityGroupName(vpcName + "-cloudlet-sg")
+	}
+
 	ns := a.VMProperties.GetCloudletNetworkScheme()
 	nspec, err := vmlayer.ParseNetSpec(ctx, ns)
 	if err != nil {
@@ -109,7 +115,7 @@ func (a *AWSPlatform) InitProvider(ctx context.Context, caches *platform.Caches,
 	// Use the last subnet as the internally facing side of the external network
 	extCidr := strings.ToUpper(nspec.CIDR)
 	extCidr = strings.Replace(extCidr, "X", "255", 1)
-	err = a.CreateVPC(ctx, vpcName, vpcCidr)
+	vpcId, err := a.CreateVPC(ctx, vpcName, vpcCidr)
 	if err != nil {
 		return err
 	}
@@ -117,9 +123,16 @@ func (a *AWSPlatform) InitProvider(ctx context.Context, caches *platform.Caches,
 	if err != nil {
 		return err
 	}
-	err = a.CreateGatewayDefaultRoute(ctx, vpcName)
+	err = a.CreateGatewayDefaultRoute(ctx, vpcName, vpcId)
 	if err != nil {
 		return err
+	}
+	groupName := a.VMProperties.GetCloudletSecurityGroupName()
+	_, err = a.CreateSecurityGroup(ctx, groupName, vpcId, "default security group for cloudlet "+vpcName)
+	if err != nil {
+		if !strings.Contains(err.Error(), GroupAlreadyExists) {
+			return err
+		}
 	}
 	return a.CreateSubnet(ctx, a.VMProperties.GetCloudletExternalNetwork(), extCidr)
 

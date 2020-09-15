@@ -18,10 +18,21 @@ const VpcDoesNotExistError string = "vpc does not exist"
 const SubnetDoesNotExistError string = "subnet does not exist"
 const GatewayDoesNotExistError string = "gateway does not exist"
 const ResourceAlreadyAssociated string = "Resource.AlreadyAssociated"
+const GroupAlreadyExists string = "InvalidGroup.Duplicate"
 
 type AwsEc2Tag struct {
 	Key   string
 	Value string
+}
+
+type AwsEc2SecGrp struct {
+	GroupName string
+	GroupId   string
+	VpcId     string
+}
+
+type AwsEc2SecGrpList struct {
+	SecurityGroups []AwsEc2SecGrp
 }
 
 type AwsEc2RouteTable struct {
@@ -59,6 +70,10 @@ type AwsEc2Vpc struct {
 	Tags      []AwsEc2Tag
 }
 
+type AwsEc2VpcCreateResult struct {
+	Vpc AwsEc2Vpc
+}
+
 type AwsEc2VpcList struct {
 	Vpcs []AwsEc2Vpc
 }
@@ -66,6 +81,23 @@ type AwsEc2VpcList struct {
 type AwsEc2State struct {
 	Code int
 	Name string
+}
+
+type AwsEc2NetworkInterfaceCreateSpec struct {
+	AssociatePublicIpAddress bool     `json:"AssociatePublicIpAddress"`
+	SubnetId                 string   `json:"SubnetId,omitempty"`
+	PrivateIpAddress         string   `json:"PrivateIpAddress,omitempty"`
+	Groups                   []string `json:"Groups,omitempty"`
+	DeviceIndex              int      `json:"DeviceIndex"`
+}
+
+type AwsEc2Ebs struct {
+	DeleteOnTermination bool
+	Status              string `json:"Status,omitempty"`
+}
+type AwsEc2BlockDeviceMapping struct {
+	DeviceName string
+	Ebs        AwsEc2Ebs
 }
 
 type AwsEc2Instance struct {
@@ -151,7 +183,7 @@ func (a *AWSPlatform) CheckServerReady(ctx context.Context, client ssh.Client, s
 	return nil
 }
 
-func (a *AWSPlatform) CreateVM(ctx context.Context, vm *vmlayer.VMOrchestrationParams, vpcid string) error {
+func (a *AWSPlatform) CreateVM(ctx context.Context, vm *vmlayer.VMOrchestrationParams, groupPorts []vmlayer.PortOrchestrationParams, awsSecGrps map[string]*AwsEc2SecGrp, vpcid string) error {
 	log.SpanLog(ctx, log.DebugLevelInfra, "CreateVM", "vm", vm)
 
 	udFileName := "/var/tmp/" + vm.Name + "-userdata.txt"
@@ -172,6 +204,49 @@ func (a *AWSPlatform) CreateVM(ctx context.Context, vm *vmlayer.VMOrchestrationP
 	}
 
 	tagspec := fmt.Sprintf("ResourceType=instance,Tags=[{Key=Name,Value=%s}]", vm.Name)
+	var networkInterfaces []AwsEc2NetworkInterfaceCreateSpec
+	for i, p := range vm.Ports {
+		var ni AwsEc2NetworkInterfaceCreateSpec
+		ni.DeviceIndex = i
+		if p.NetworkId == a.VMProperties.GetCloudletExternalNetwork() {
+			ni.AssociatePublicIpAddress = true
+			ni.SubnetId = p.SubnetId
+		} else {
+			ni.SubnetId = p.SubnetId
+		}
+		for _, gp := range groupPorts {
+			if gp.Name == p.Name {
+				for _, s := range gp.SecurityGroups {
+					sg, ok := awsSecGrps[s.Name]
+					if !ok {
+						return fmt.Errorf("Cannot find EC2 security group: %s in vpc: %s", s.Name, vpcid)
+					}
+					ni.Groups = append(ni.Groups, sg.GroupId)
+				}
+			}
+		}
+		networkInterfaces = append(networkInterfaces, ni)
+	}
+	niParms, err := json.Marshal(networkInterfaces)
+	if err != nil {
+		log.SpanLog(ctx, log.DebugLevelInfra, "Failed to marshal network interfaces", "networkInterfaces", networkInterfaces, "err", err)
+		return fmt.Errorf("Failed to marshal network interfaces: %v", err)
+	}
+	var blockDevices []AwsEc2BlockDeviceMapping
+	for _, v := range vm.Volumes {
+		blockDevice := AwsEc2BlockDeviceMapping{
+			DeviceName: v.DeviceName,
+			Ebs: AwsEc2Ebs{
+				DeleteOnTermination: true,
+			},
+		}
+		blockDevices = append(blockDevices, blockDevice)
+	}
+	ebsParams, err := json.Marshal(blockDevices)
+	if err != nil {
+		log.SpanLog(ctx, log.DebugLevelInfra, "Failed to marshal ebs block devices", "blockDevices", blockDevices, "err", err)
+		return fmt.Errorf("Failed to marshal ec2 ebs disks: %v", err)
+	}
 
 	createArgs := []string{
 		"ec2",
@@ -183,13 +258,15 @@ func (a *AWSPlatform) CreateVM(ctx context.Context, vm *vmlayer.VMOrchestrationP
 		"--tag-specifications", tagspec,
 		"--subnet-id", subnet.SubnetId,
 		"--user-data", "file://" + udFileName,
-	}
-	if vm.Ports[0].NetworkId == a.VMProperties.GetCloudletExternalNetwork() {
-		createArgs = append(createArgs, "--associate-public-ip-address")
+		"--network-interfaces", string(niParms),
+		"--block-device-mappings", string(ebsParams),
 	}
 	out, err := a.TimedAwsCommand(ctx, "aws", createArgs...)
 	log.SpanLog(ctx, log.DebugLevelInfra, "CreateVM result", "out", string(out), "err", err)
-	return err
+	if err != nil {
+		return fmt.Errorf("run-instances error: %s - %v", string(out), err)
+	}
+	return nil
 }
 
 // meta data needs to have an extra layer "meta" for vsphere
@@ -224,7 +301,18 @@ func (a *AWSPlatform) populateOrchestrationParams(ctx context.Context, vmgp *vml
 			return err
 		}
 		vmgp.VMs[vmidx].UserData = userdata
+
+		if len(vm.Volumes) == 0 {
+			vol := vmlayer.VolumeOrchestrationParams{
+				DeviceName:         "/dev/sda1",
+				Name:               "root disk",
+				Size:               vmgp.VMs[vmidx].Disk,
+				AttachExternalDisk: false,
+			}
+			vmgp.VMs[vmidx].Volumes = append(vmgp.VMs[vmidx].Volumes, vol)
+		}
 	}
+
 	return nil
 }
 
@@ -234,16 +322,29 @@ func (a *AWSPlatform) CreateVMs(ctx context.Context, vmgp *vmlayer.VMGroupOrches
 	if err != nil {
 		return err
 	}
-	vpc, err := a.GetVPC(ctx, a.GetVpcName(ctx))
+	vpc, err := a.GetVPC(ctx, a.GetVpcName())
 	if err != nil {
 		return err
 	}
 	log.SpanLog(ctx, log.DebugLevelInfra, "Params after populate", "vmgp", vmgp)
 
+	secGrpMap, err := a.GetSecurityGroups(ctx, vpc.VpcId)
+	if err != nil {
+		return err
+	}
+	for _, s := range vmgp.SecurityGroups {
+		_, ok := secGrpMap[s.Name]
+		if !ok {
+			newgrp, err := a.CreateSecurityGroup(ctx, s.Name, vpc.VpcId, "security group for VM group "+vmgp.GroupName)
+			if err != nil && !strings.Contains(err.Error(), GroupAlreadyExists) {
+				return err
+			}
+			secGrpMap[s.Name] = newgrp
+		}
+	}
 	for _, vm := range vmgp.VMs {
-		err := a.CreateVM(ctx, &vm, vpc.VpcId)
+		err := a.CreateVM(ctx, &vm, vmgp.Ports, secGrpMap, vpc.VpcId)
 		if err != nil {
-			// TOTO CLEANUP
 			return err
 		}
 	}
@@ -279,20 +380,21 @@ func (a *AWSPlatform) GetType() string {
 	return "awsvm"
 }
 
-func (a *AWSPlatform) GetVpcName(ctx context.Context) string {
-	return a.NameSanitize(a.VMProperties.CommonPf.PlatformConfig.CloudletKey.Organization + "-" + a.VMProperties.CommonPf.PlatformConfig.CloudletKey.Name)
+func (a *AWSPlatform) GetVpcName() string {
+	return a.NameSanitize(a.VMProperties.CommonPf.PlatformConfig.CloudletKey.Name)
 }
 
-func (a *AWSPlatform) CreateVPC(ctx context.Context, name string, cidr string) error {
+// CreateVPC returns the vpcid
+func (a *AWSPlatform) CreateVPC(ctx context.Context, name string, cidr string) (string, error) {
 	log.SpanLog(ctx, log.DebugLevelInfra, "CreateVPC", "name", name, "cidr", cidr)
-	_, err := a.GetVPC(ctx, name)
+	vpc, err := a.GetVPC(ctx, name)
 	if err == nil {
 		// VPC already exists
-		return nil
+		return vpc.VpcId, nil
 	}
 	if !strings.Contains(err.Error(), VpcDoesNotExistError) {
 		// unexpected error
-		return err
+		return "", err
 	}
 	tagspec := fmt.Sprintf("ResourceType=vpc,Tags=[{Key=Name,Value=%s}]", name)
 	out, err := a.TimedAwsCommand(ctx, "aws",
@@ -303,9 +405,20 @@ func (a *AWSPlatform) CreateVPC(ctx context.Context, name string, cidr string) e
 		"--tag-specifications", tagspec)
 	log.SpanLog(ctx, log.DebugLevelInfra, "create-vpc result", "out", string(out), "err", err)
 	if err != nil {
-		return fmt.Errorf("CreateVPC failed: %s - %v", string(out), err)
+		return "", fmt.Errorf("CreateVPC failed: %s - %v", string(out), err)
 	}
-	return nil
+	// the create-vpc command returns a json of the vpc
+	var createdVpc AwsEc2VpcCreateResult
+	err = json.Unmarshal(out, &createdVpc)
+	if err != nil {
+		log.SpanLog(ctx, log.DebugLevelInfra, "aws create-vpc unmarshal fail", "name", name, "out", string(out), "err", err)
+		return "", fmt.Errorf("cannot unmarshal, %v", err)
+	}
+	log.SpanLog(ctx, log.DebugLevelInfra, "created vpc", "vpc", createdVpc)
+	if createdVpc.Vpc.VpcId == "" {
+		return "", fmt.Errorf("no VPCID in VPC %s", name)
+	}
+	return createdVpc.Vpc.VpcId, err
 }
 
 func (a *AWSPlatform) CreateSubnet(ctx context.Context, name string, cidr string) error {
@@ -320,7 +433,7 @@ func (a *AWSPlatform) CreateSubnet(ctx context.Context, name string, cidr string
 	if !strings.Contains(err.Error(), SubnetDoesNotExistError) {
 		return err
 	}
-	vpc, err := a.GetVPC(ctx, a.GetVpcName(ctx))
+	vpc, err := a.GetVPC(ctx, a.GetVpcName())
 	if err != nil {
 		return err
 	}
@@ -369,11 +482,11 @@ func (a *AWSPlatform) GetGateway(ctx context.Context, name string) (*AwsEc2Gatew
 	return &gwList.InternetGateways[0], nil
 }
 
-func (a *AWSPlatform) CreateGateway(ctx context.Context, name string) error {
-	log.SpanLog(ctx, log.DebugLevelInfra, "CreateGateway", "name", name)
-	tagspec := fmt.Sprintf("ResourceType=internet-gateway,Tags=[{Key=Name,Value=%s}]", name)
+func (a *AWSPlatform) CreateGateway(ctx context.Context, vpcName string) error {
+	log.SpanLog(ctx, log.DebugLevelInfra, "CreateGateway", "vpcName", vpcName)
+	tagspec := fmt.Sprintf("ResourceType=internet-gateway,Tags=[{Key=Name,Value=%s}]", vpcName)
 
-	_, err := a.GetGateway(ctx, name)
+	_, err := a.GetGateway(ctx, vpcName)
 	if err == nil {
 		// already exists
 		return err
@@ -394,14 +507,10 @@ func (a *AWSPlatform) CreateGateway(ctx context.Context, name string) error {
 	return nil
 }
 
-func (a *AWSPlatform) CreateGatewayDefaultRoute(ctx context.Context, name string) error {
-	log.SpanLog(ctx, log.DebugLevelInfra, "CreateGatewayDefaultRoute", "name", name)
+func (a *AWSPlatform) CreateGatewayDefaultRoute(ctx context.Context, vpcName, vpcId string) error {
+	log.SpanLog(ctx, log.DebugLevelInfra, "CreateGatewayDefaultRoute", "vpcName", vpcName, "vpcId", vpcId)
 
-	vpc, err := a.GetVPC(ctx, name)
-	if err != nil {
-		return err
-	}
-	gw, err := a.GetGateway(ctx, name)
+	gw, err := a.GetGateway(ctx, vpcName)
 	if err != nil {
 		return err
 	}
@@ -411,7 +520,7 @@ func (a *AWSPlatform) CreateGatewayDefaultRoute(ctx context.Context, name string
 		"attach-internet-gateway",
 		"--region", a.GetAwsRegion(),
 		"--internet-gateway-id", gw.InternetGatewayId,
-		"--vpc-id", vpc.VpcId)
+		"--vpc-id", vpcId)
 
 	log.SpanLog(ctx, log.DebugLevelInfra, "attach-internet-gateway", "out", string(out), "err", err)
 	if err != nil {
@@ -422,7 +531,7 @@ func (a *AWSPlatform) CreateGatewayDefaultRoute(ctx context.Context, name string
 		}
 	}
 
-	rtid, err := a.GetMainRouteTableForVpcId(ctx, vpc.VpcId)
+	rtid, err := a.GetMainRouteTableForVpcId(ctx, vpcId)
 	if err != nil {
 		return err
 	}
@@ -439,6 +548,57 @@ func (a *AWSPlatform) CreateGatewayDefaultRoute(ctx context.Context, name string
 		return fmt.Errorf("Error in create-route: %s - %v", out, err)
 	}
 	return nil
+}
+
+func (a *AWSPlatform) CreateSecurityGroup(ctx context.Context, name, vpcId, description string) (*AwsEc2SecGrp, error) {
+	log.SpanLog(ctx, log.DebugLevelInfra, "CreateSecurityGroup", "name", name, "vpcId", vpcId)
+	out, err := a.TimedAwsCommand(ctx, "aws",
+		"ec2",
+		"create-security-group",
+		"--region", a.GetAwsRegion(),
+		"--group-name", name,
+		"--vpc-id", vpcId,
+		"--description", description)
+	if err != nil {
+		return nil, fmt.Errorf("Error in create-security-group: %s - %v", string(out), err)
+	}
+	var sg AwsEc2SecGrp
+	err = json.Unmarshal(out, &sg)
+	if err != nil {
+		log.SpanLog(ctx, log.DebugLevelInfra, "aws create-security-group unmarshal fail", "vpcId", vpcId, "out", string(out), "err", err)
+		err = fmt.Errorf("cannot unmarshal, %v", err)
+		return nil, err
+	}
+	sg.GroupName = name
+	sg.VpcId = vpcId
+	return &sg, nil
+}
+
+func (a *AWSPlatform) GetSecurityGroups(ctx context.Context, vpcId string) (map[string]*AwsEc2SecGrp, error) {
+	log.SpanLog(ctx, log.DebugLevelInfra, "GetSecurityGroup", "vpcId", vpcId)
+	out, err := a.TimedAwsCommand(ctx, "aws",
+		"ec2",
+		"describe-security-groups",
+		"--region", a.GetAwsRegion())
+	if err != nil {
+		return nil, fmt.Errorf("error in describe-security-groups: %s - %v", string(out), err)
+	}
+	var sgList AwsEc2SecGrpList
+	err = json.Unmarshal(out, &sgList)
+	if err != nil {
+		log.SpanLog(ctx, log.DebugLevelInfra, "aws describe-security-groups unmarshal fail", "vpcId", vpcId, "out", string(out), "err", err)
+		err = fmt.Errorf("cannot unmarshal, %v", err)
+		return nil, err
+	}
+	var sgMap = make(map[string]*AwsEc2SecGrp)
+	for i, sg := range sgList.SecurityGroups {
+		if sg.VpcId == vpcId {
+			sgMap[sg.GroupName] = &sgList.SecurityGroups[i]
+		}
+	}
+	log.SpanLog(ctx, log.DebugLevelInfra, "found security groups", "sgMap", sgMap)
+	return sgMap, nil
+
 }
 
 func (a *AWSPlatform) GetMainRouteTableForVpcId(ctx context.Context, vpcId string) (string, error) {

@@ -64,6 +64,6 @@ func (a *AWSPlatform) InitApiAccessProperties(ctx context.Context, key *edgeprot
 }
 
 func (a *AWSPlatform) GetProviderSpecificProps() map[string]*edgeproto.PropertyInfo {
-	// for now we use the same as the managed k8s props
+	// for now we use the same as the managed k8s props for everything else
 	return a.GetK8sProviderSpecificProps()
 }

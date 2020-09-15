@@ -208,6 +208,10 @@ func (vp *VMProperties) GetCloudletSecurityGroupName() string {
 	return value
 }
 
+func (vp *VMProperties) SetCloudletSecurityGroupName(name string) {
+	vp.CommonPf.Properties.SetValue("MEX_SECURITY_GROUP", name)
+}
+
 func (vp *VMProperties) GetCloudletExternalNetwork() string {
 	value, _ := vp.CommonPf.Properties.GetValue("MEX_EXT_NETWORK")
 	return value

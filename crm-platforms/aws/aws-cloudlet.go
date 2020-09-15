@@ -3,6 +3,7 @@ package aws
 import (
 	"context"
 	"fmt"
+	"strings"
 
 	"github.com/mobiledgex/edge-cloud/cloud-resource-manager/platform"
 	"github.com/mobiledgex/edge-cloud/log"
@@ -94,7 +95,34 @@ func (a *AWSPlatform) SetCaches(ctx context.Context, caches *platform.Caches) {
 func (a *AWSPlatform) InitProvider(ctx context.Context, caches *platform.Caches, stage vmlayer.ProviderInitStage, updateCallback edgeproto.CacheUpdateCallback) error {
 	log.SpanLog(ctx, log.DebugLevelInfra, "InitProvider", "stage", stage)
 	a.SetCaches(ctx, caches)
-	return nil
+	vpcName := a.GetVpcName(ctx)
+	ns := a.VMProperties.GetCloudletNetworkScheme()
+	nspec, err := vmlayer.ParseNetSpec(ctx, ns)
+	if err != nil {
+		return nil
+	}
+	// get the CIDR for the VPC, which contains all subnets
+	vpcCidr, err := a.VMProperties.GetInternalNetworkRoute(ctx)
+	if err != nil {
+		return nil
+	}
+	// Use the last subnet as the internally facing side of the external network
+	extCidr := strings.ToUpper(nspec.CIDR)
+	extCidr = strings.Replace(extCidr, "X", "255", 1)
+	err = a.CreateVPC(ctx, vpcName, vpcCidr)
+	if err != nil {
+		return err
+	}
+	err = a.CreateGateway(ctx, vpcName)
+	if err != nil {
+		return err
+	}
+	err = a.CreateGatewayDefaultRoute(ctx, vpcName)
+	if err != nil {
+		return err
+	}
+	return a.CreateSubnet(ctx, a.VMProperties.GetCloudletExternalNetwork(), extCidr)
+
 }
 func (a *AWSPlatform) PrepareRootLB(ctx context.Context, client ssh.Client, rootLBName string, secGrpName string, privacyPolicy *edgeproto.PrivacyPolicy) error {
 	// nothing to do

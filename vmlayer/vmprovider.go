@@ -332,13 +332,12 @@ func (v *VMPlatform) SyncControllerCache(ctx context.Context, caches *platform.C
 	log.SpanLog(ctx, log.DebugLevelInfra, "SyncControllerCache", "cloudletState", cloudletState)
 	// no sync needed right now
 	log.SpanLog(ctx, log.DebugLevelInfra, "Upgrade CRM Config")
-	// upgrade k8s config
-	rootLBName := v.VMProperties.SharedRootLBName
-	client, err := v.GetNodePlatformClient(ctx, &edgeproto.CloudletMgmtNode{Name: rootLBName})
+	// upgrade k8s config on each rootLB
+	sharedRootLBClient, err := v.GetNodePlatformClient(ctx, &edgeproto.CloudletMgmtNode{Name: v.VMProperties.SharedRootLBName})
 	if err != nil {
 		return err
 	}
-	err = k8smgmt.UpgradeConfig(ctx, caches, client)
+	err = k8smgmt.UpgradeConfig(ctx, caches, sharedRootLBClient, v.GetClusterPlatformClient)
 	if err != nil {
 		return err
 	}

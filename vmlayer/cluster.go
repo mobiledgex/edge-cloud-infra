@@ -209,6 +209,14 @@ func (v *VMPlatform) deleteCluster(ctx context.Context, rootLBName string, clust
 		}
 	}
 
+	// cleanup manifest config dir
+	if clusterInst.Deployment == cloudcommon.DeploymentTypeKubernetes || clusterInst.Deployment == cloudcommon.DeploymentTypeHelm {
+		err = k8smgmt.CleanupClusterConfig(ctx, client, clusterInst)
+		if err != nil {
+			log.SpanLog(ctx, log.DebugLevelInfra, "cleanup cluster config failed", "err", err)
+		}
+	}
+
 	// Delete Chef configs
 	clientName := ""
 	if clusterInst.IpAccess == edgeproto.IpAccess_IP_ACCESS_DEDICATED {

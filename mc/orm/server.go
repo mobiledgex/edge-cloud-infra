@@ -234,7 +234,8 @@ func RunServer(config *ServerConfig) (*Server, error) {
 			// skip verifying cert if e2e-tests
 			opts = append(opts, node.WithTlsSkipVerify(true))
 		}
-		tlsConfig, err := nodeMgr.InternalPki.GetClientTlsConfig(ctx, nodeMgr.CommonName(), node.CertIssuerGlobal, []node.MatchCA{}, opts...)
+		tlsConfig, err := nodeMgr.InternalPki.GetClientTlsConfig(ctx,
+			nodeMgr.CommonName(), node.CertIssuerGlobal, []node.MatchCA{}, opts...)
 		if err != nil {
 			return nil, fmt.Errorf("Unable to get a client tls config, %s", err.Error())
 		}

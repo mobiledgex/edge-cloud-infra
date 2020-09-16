@@ -303,20 +303,20 @@ func (s *Client) ShowCloudletEvents(uri, token string, query *ormapi.RegionCloud
 	return &metrics, status, err
 }
 
-func (s *Client) ShowAppUsage(uri, token string, query *ormapi.RegionAppInstUsage) (*ormapi.AllUsage, int, error) {
-	usage := ormapi.AllUsage{}
+func (s *Client) ShowAppUsage(uri, token string, query *ormapi.RegionAppInstUsage) (*ormapi.AllMetrics, int, error) {
+	usage := ormapi.AllMetrics{}
 	status, err := s.PostJson(uri+"auth/usage/app", token, query, &usage)
 	return &usage, status, err
 }
 
-func (s *Client) ShowClusterUsage(uri, token string, query *ormapi.RegionClusterInstUsage) (*ormapi.AllUsage, int, error) {
-	usage := ormapi.AllUsage{}
+func (s *Client) ShowClusterUsage(uri, token string, query *ormapi.RegionClusterInstUsage) (*ormapi.AllMetrics, int, error) {
+	usage := ormapi.AllMetrics{}
 	status, err := s.PostJson(uri+"auth/usage/cluster", token, query, &usage)
 	return &usage, status, err
 }
 
-func (s *Client) ShowCloudletPoolUsage(uri, token string, query *ormapi.RegionCloudletPoolUsage) (*ormapi.CloudletPoolUsage, int, error) {
-	usage := ormapi.CloudletPoolUsage{}
+func (s *Client) ShowCloudletPoolUsage(uri, token string, query *ormapi.RegionCloudletPoolUsage) (*ormapi.AllMetrics, int, error) {
+	usage := ormapi.AllMetrics{}
 	status, err := s.PostJson(uri+"auth/usage/cloudletpool", token, query, &usage)
 	return &usage, status, err
 }

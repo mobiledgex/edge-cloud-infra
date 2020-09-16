@@ -21,45 +21,6 @@ func generateCloudletList(cloudletList []string) string {
 	return new
 }
 
-func SortCloudletPoolUsage(obj *ormapi.RegionCloudletPoolUsage, clusterUsage, appUsage *ormapi.AllUsage, cloudletList []string) (*ormapi.CloudletPoolUsage, error) {
-	usage := ormapi.CloudletPoolUsage{
-		Region:       obj.Region,
-		CloudletPool: obj.CloudletPool.Name,
-		Organization: obj.CloudletPool.Organization,
-		StartTime:    obj.StartTime,
-		EndTime:      obj.EndTime,
-		Cloudlets:    []ormapi.CloudletUsage{},
-	}
-	cloudletMap := make(map[string]*ormapi.CloudletUsage)
-	for _, cloudletName := range cloudletList {
-		newCloudletUsage := ormapi.CloudletUsage{
-			CloudletName: cloudletName,
-			ClusterUsage: []ormapi.UsageRecord{},
-			VmAppUsage:   []ormapi.UsageRecord{},
-		}
-		usage.Cloudlets = append(usage.Cloudlets, newCloudletUsage)
-	}
-	for i, cloudletName := range cloudletList {
-		cloudletMap[cloudletName] = &usage.Cloudlets[i]
-	}
-
-	for _, usageRecord := range clusterUsage.Data {
-		record, ok := cloudletMap[usageRecord.Cloudlet]
-		if !ok {
-			return nil, fmt.Errorf("error sorting usage records")
-		}
-		record.ClusterUsage = append(record.ClusterUsage, usageRecord)
-	}
-	for _, usageRecord := range appUsage.Data {
-		record, ok := cloudletMap[usageRecord.Cloudlet]
-		if !ok {
-			return nil, fmt.Errorf("error sorting usage records")
-		}
-		record.VmAppUsage = append(record.VmAppUsage, usageRecord)
-	}
-	return &usage, nil
-}
-
 func cloudletPoolEventsQuery(obj *ormapi.RegionCloudletPoolUsage, cloudletList []string, queryType string) string {
 	arg := influxQueryArgs{
 		OrgField:     "cloudletorg",
@@ -131,7 +92,10 @@ func GetCloudletPoolUsageCommon(c echo.Context) error {
 		// this also does an authorization check, so we dont have to
 		cloudletPools, err := ShowCloudletPoolObj(ctx, regionRc, &cloudletpoolQuery)
 		// since we specify name, should only have at most 1 result
-		if err != nil || len(cloudletPools) != 1 {
+		if err != nil {
+			return err
+		}
+		if len(cloudletPools) != 1 {
 			return setReply(c, fmt.Errorf("Unable to retrieve CloudletPool info"), nil)
 		}
 
@@ -164,12 +128,14 @@ func GetCloudletPoolUsageCommon(c echo.Context) error {
 			return setReply(c, fmt.Errorf("Error calculating usage records: %v", err), nil)
 		}
 		log.SpanLog(ctx, log.DebugLevelMetrics, "usage args", "cluster", clusterUsage, "app", appUsage, "list", cloudletList)
-		// sort it into cloudletPoolUsage struct
-		usage, err := SortCloudletPoolUsage(&in, clusterUsage, appUsage, cloudletList)
+
+		usage := ormapi.AllMetrics{
+			Data: []ormapi.MetricData{*clusterUsage, *appUsage},
+		}
 		if err != nil {
 			return setReply(c, err, nil)
 		}
-		return setReply(c, nil, usage)
+		return setReply(c, nil, &usage)
 
 	} else {
 		return setReply(c, echo.ErrNotFound, nil)

@@ -274,11 +274,13 @@ type AllMetrics struct {
 }
 
 type MetricData struct {
-	Series []struct {
-		Columns []string        `json:"columns"`
-		Name    string          `json:"name"`
-		Values  [][]interface{} `json:"values"`
-	} `json:"Series"`
+	Series []MetricSeries `json:"Series"`
+}
+
+type MetricSeries struct {
+	Columns []string        `json:"columns"`
+	Name    string          `json:"name"`
+	Values  [][]interface{} `json:"values"`
 }
 
 type RegionAppInstMetrics struct {
@@ -343,29 +345,6 @@ type RegionCloudletEvents struct {
 	Last      int       `json:",omitempty"`
 }
 
-type AllUsage struct {
-	Data []UsageRecord `json:"data"`
-}
-
-type UsageRecord struct {
-	Region       string        `json:"region"`
-	Organization string        `json:"organization"`
-	AppName      string        `json:"app,omitempty"`
-	Version      string        `json:"version,omitempty"`
-	ClusterName  string        `json:"cluster"`
-	ClusterOrg   string        `json:"clusterorg,omitempty"`
-	Cloudlet     string        `json:"cloudlet"`
-	CloudletOrg  string        `json:"cloudletOrg"`
-	StartTime    time.Time     `json:"startTime"`
-	EndTime      time.Time     `json:"endTime"`
-	Duration     time.Duration `json:"duration"`
-	Flavor       string        `json:"flavor,omitempty"`
-	Deployment   string        `json:"deployment,omitempty"`
-	NumNodes     int           `json:"numNodes,omitempty"`
-	IpAccess     string        `json:"ipaccess,omitempty"`
-	Note         string        `json:"note"`
-}
-
 type RegionAppInstUsage struct {
 	Region    string
 	AppInst   edgeproto.AppInstKey
@@ -394,21 +373,6 @@ type RegionCloudletPoolUsageRegister struct {
 	UpdateFrequency time.Duration
 	PushEndpoint    string
 	StartTime       time.Time
-}
-
-type CloudletPoolUsage struct {
-	Region       string
-	CloudletPool string
-	Organization string
-	StartTime    time.Time
-	EndTime      time.Time
-	Cloudlets    []CloudletUsage
-}
-
-type CloudletUsage struct {
-	CloudletName string
-	ClusterUsage []UsageRecord `json:",omitempty"`
-	VmAppUsage   []UsageRecord `json:",omitempty"`
 }
 
 // Configurable part of AlertManager Receiver

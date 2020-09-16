@@ -16,7 +16,7 @@ func GetUsageCommand() *cobra.Command {
 		AliasArgs:    strings.Join(AppUsageAliasArgs, " "),
 		Comments:     addRegionComment(AppUsageComments),
 		ReqData:      &ormapi.RegionAppInstUsage{},
-		ReplyData:    &ormapi.AllUsage{},
+		ReplyData:    &ormapi.AllMetrics{},
 		Run:          runRest("/auth/usage/app"),
 	}, &cli.Command{
 		Use:          "cluster",
@@ -25,7 +25,7 @@ func GetUsageCommand() *cobra.Command {
 		AliasArgs:    strings.Join(ClusterUsageAliasArgs, " "),
 		Comments:     addRegionComment(ClusterUsageComments),
 		ReqData:      &ormapi.RegionClusterInstUsage{},
-		ReplyData:    &ormapi.AllUsage{},
+		ReplyData:    &ormapi.AllMetrics{},
 		Run:          runRest("/auth/usage/cluster"),
 	}, &cli.Command{
 		Use:          "cloudletpool",
@@ -33,7 +33,7 @@ func GetUsageCommand() *cobra.Command {
 		AliasArgs:    strings.Join(CloudletPoolUsageAliasArgs, " "),
 		Comments:     addRegionComment(CloudletPoolUsageComments),
 		ReqData:      &ormapi.RegionCloudletPoolUsage{},
-		ReplyData:    &ormapi.CloudletPoolUsage{},
+		ReplyData:    &ormapi.AllMetrics{},
 		Run:          runRest("/auth/usage/cloudletpool"),
 	}}
 	return cli.GenGroup("usage", "view usage ", cmds)

@@ -51,6 +51,38 @@ var clusterUsageEventFields = []string{
 	"\"ipaccess\"",
 }
 
+var clusterDataColumns = []string{
+	"region",
+	"cluster",
+	"clusterorg",
+	"cloudlet",
+	"cloudletorg",
+	"flavor",
+	"numnodes",
+	"ipaccess",
+	"startime",
+	"endtime",
+	"duration",
+	"note",
+}
+
+var appInstDataColumns = []string{
+	"region",
+	"app",
+	"apporg",
+	"version",
+	"cluster",
+	"clusterorg",
+	"cloudlet",
+	"cloudletorg",
+	"flavor",
+	"deployment",
+	"startime",
+	"endtime",
+	"duration",
+	"note",
+}
+
 var usageInfluDBT = `SELECT {{.Selector}} from "{{.Measurement}}"` +
 	` WHERE time >='{{.StartTime}}'` +
 	` AND time <= '{{.EndTime}}'` +
@@ -73,6 +105,9 @@ type usageTracker struct {
 	ipaccess   string
 	deployment string
 }
+
+var usageTypeCluster = "cluster-usage"
+var usageTypeAppInst = "appinst-usage"
 
 func init() {
 	usageInfluxDBTemplate = template.Must(template.New("influxquery").Parse(usageInfluDBT))
@@ -99,9 +134,14 @@ func prevCheckpoint(t time.Time) time.Time {
 	return t.Truncate(dur)
 }
 
-func GetClusterUsage(event *client.Response, checkpoint *client.Response, start, end time.Time, region string) (*ormapi.AllUsage, error) {
-	usageRecords := ormapi.AllUsage{
-		Data: make([]ormapi.UsageRecord, 0),
+func GetClusterUsage(event *client.Response, checkpoint *client.Response, start, end time.Time, region string) (*ormapi.MetricData, error) {
+	series := ormapi.MetricSeries{
+		Name:    usageTypeCluster,
+		Values:  make([][]interface{}, 0),
+		Columns: clusterDataColumns,
+	}
+	usageRecords := ormapi.MetricData{
+		Series: []ormapi.MetricSeries{series},
 	}
 	clusterTracker := make(map[edgeproto.ClusterInstKey]usageTracker)
 
@@ -210,26 +250,28 @@ func GetClusterUsage(event *client.Response, checkpoint *client.Response, start,
 			} else if status == cloudcommon.InstanceDown {
 				if ok {
 					if !timestamp.Before(start) {
-						newRecord := ormapi.UsageRecord{
-							Region:       region,
-							Organization: clusterorg,
-							ClusterName:  cluster,
-							Cloudlet:     cloudlet,
-							CloudletOrg:  cloudletorg,
-							EndTime:      timestamp,
-							Note:         event,
-							Flavor:       flavor,
-							NumNodes:     int(nodecount),
-							IpAccess:     ipaccess,
-						}
+						var starttime time.Time
 						if tracker.time.Before(start) {
-							newRecord.StartTime = start
+							starttime = start
 						} else {
-							newRecord.StartTime = tracker.time
+							starttime = tracker.time
 						}
-						newRecord.Duration = newRecord.EndTime.Sub(newRecord.StartTime)
-
-						usageRecords.Data = append(usageRecords.Data, newRecord)
+						duration := timestamp.Sub(starttime)
+						newRecord := []interface{}{
+							region,
+							cluster,
+							clusterorg,
+							cloudlet,
+							cloudletorg,
+							flavor,
+							nodecount,
+							ipaccess,
+							starttime,
+							timestamp, // endtime
+							duration,
+							event, // note
+						}
+						usageRecords.Series[0].Values = append(usageRecords.Series[0].Values, newRecord)
 					}
 					delete(clusterTracker, newKey)
 				}
@@ -241,36 +283,42 @@ func GetClusterUsage(event *client.Response, checkpoint *client.Response, start,
 
 	// anything still in the clusterTracker is a currently running clusterinst
 	for k, v := range clusterTracker {
-		newRecord := ormapi.UsageRecord{
-			Region:       region,
-			Organization: k.Organization,
-			ClusterName:  k.ClusterKey.Name,
-			Cloudlet:     k.CloudletKey.Name,
-			CloudletOrg:  k.CloudletKey.Organization,
-			EndTime:      end,
-			Note:         "Running",
-			Flavor:       v.flavor,
-			NumNodes:     int(v.nodecount),
-			IpAccess:     v.ipaccess,
-		}
+		var starttime time.Time
 		if v.time.Before(start) {
-			newRecord.StartTime = start
+			starttime = start
 		} else {
-			newRecord.StartTime = v.time
+			starttime = v.time
 		}
-		newRecord.Duration = newRecord.EndTime.Sub(newRecord.StartTime)
-		newRecord.Flavor = v.flavor
-		newRecord.IpAccess = v.ipaccess
+		duration := end.Sub(starttime)
 
-		usageRecords.Data = append(usageRecords.Data, newRecord)
+		newRecord := []interface{}{
+			region,
+			k.ClusterKey.Name,
+			k.Organization,
+			k.CloudletKey.Name,
+			k.CloudletKey.Organization,
+			v.flavor,
+			v.nodecount,
+			v.ipaccess,
+			starttime,
+			end,
+			duration,
+			"Running",
+		}
+		usageRecords.Series[0].Values = append(usageRecords.Series[0].Values, newRecord)
 	}
 
 	return &usageRecords, nil
 }
 
-func GetAppUsage(event *client.Response, checkpoint *client.Response, start, end time.Time, region string) (*ormapi.AllUsage, error) {
-	usageRecords := ormapi.AllUsage{
-		Data: make([]ormapi.UsageRecord, 0),
+func GetAppUsage(event *client.Response, checkpoint *client.Response, start, end time.Time, region string) (*ormapi.MetricData, error) {
+	series := ormapi.MetricSeries{
+		Name:    usageTypeAppInst,
+		Values:  make([][]interface{}, 0),
+		Columns: appInstDataColumns,
+	}
+	usageRecords := ormapi.MetricData{
+		Series: []ormapi.MetricSeries{series},
 	}
 	appTracker := make(map[edgeproto.AppInstKey]usageTracker)
 
@@ -389,28 +437,31 @@ func GetAppUsage(event *client.Response, checkpoint *client.Response, start, end
 			} else if status == cloudcommon.InstanceDown {
 				if ok {
 					if !timestamp.Before(start) {
-						newRecord := ormapi.UsageRecord{
-							Region:       region,
-							Organization: apporg,
-							AppName:      app,
-							Version:      ver,
-							ClusterName:  cluster,
-							ClusterOrg:   clusterorg,
-							Cloudlet:     cloudlet,
-							CloudletOrg:  cloudletorg,
-							EndTime:      timestamp,
-							Note:         event,
-							Flavor:       flavor,
-							Deployment:   deployment,
-						}
+						var starttime time.Time
 						if tracker.time.Before(start) {
-							newRecord.StartTime = start
+							starttime = start
 						} else {
-							newRecord.StartTime = tracker.time
+							starttime = tracker.time
 						}
-						newRecord.Duration = newRecord.EndTime.Sub(newRecord.StartTime)
+						duration := timestamp.Sub(starttime)
 
-						usageRecords.Data = append(usageRecords.Data, newRecord)
+						newRecord := []interface{}{
+							region,
+							app,
+							apporg,
+							ver,
+							cluster,
+							clusterorg,
+							cloudlet,
+							cloudletorg,
+							flavor,
+							deployment,
+							starttime,
+							timestamp, // endtime
+							duration,
+							event, // note
+						}
+						usageRecords.Series[0].Values = append(usageRecords.Series[0].Values, newRecord)
 					}
 					delete(appTracker, newKey)
 				}
@@ -422,30 +473,31 @@ func GetAppUsage(event *client.Response, checkpoint *client.Response, start, end
 
 	// anything still in the appTracker is a currently running clusterinst
 	for k, v := range appTracker {
-		newRecord := ormapi.UsageRecord{
-			Region:       region,
-			Organization: k.AppKey.Organization,
-			AppName:      k.AppKey.Name,
-			Version:      k.AppKey.Version,
-			ClusterOrg:   k.ClusterInstKey.Organization,
-			ClusterName:  k.ClusterInstKey.ClusterKey.Name,
-			Cloudlet:     k.ClusterInstKey.CloudletKey.Name,
-			CloudletOrg:  k.ClusterInstKey.CloudletKey.Organization,
-			EndTime:      end,
-			Note:         "Running",
-			Flavor:       v.flavor,
-			Deployment:   v.deployment,
-		}
+		var starttime time.Time
 		if v.time.Before(start) {
-			newRecord.StartTime = start
+			starttime = start
 		} else {
-			newRecord.StartTime = v.time
+			starttime = v.time
 		}
-		newRecord.Duration = newRecord.EndTime.Sub(newRecord.StartTime)
-		newRecord.Flavor = v.flavor
-		newRecord.IpAccess = v.ipaccess
+		duration := end.Sub(starttime)
 
-		usageRecords.Data = append(usageRecords.Data, newRecord)
+		newRecord := []interface{}{
+			region,
+			k.AppKey.Name,
+			k.AppKey.Organization,
+			k.AppKey.Version,
+			k.ClusterInstKey.ClusterKey.Name,
+			k.ClusterInstKey.Organization,
+			k.ClusterInstKey.CloudletKey.Name,
+			k.ClusterInstKey.CloudletKey.Organization,
+			v.flavor,
+			v.deployment,
+			starttime,
+			end,
+			duration,
+			"Running",
+		}
+		usageRecords.Series[0].Values = append(usageRecords.Series[0].Values, newRecord)
 	}
 
 	return &usageRecords, nil
@@ -472,7 +524,7 @@ func ClusterUsageEventsQuery(obj *ormapi.RegionClusterInstUsage) string {
 	arg := influxQueryArgs{
 		Selector:     strings.Join(append(ClusterFields, clusterUsageEventFields...), ","),
 		Measurement:  EVENT_CLUSTERINST,
-		OrgField:     "clusterorg",
+		OrgField:     "org",
 		ApiCallerOrg: obj.ClusterInst.Organization,
 		CloudletName: obj.ClusterInst.CloudletKey.Name,
 		ClusterName:  obj.ClusterInst.ClusterKey.Name,
@@ -572,7 +624,7 @@ func GetEventAndCheckpoint(ctx context.Context, rc *InfluxDBContext, eventCmd, c
 // Common method to handle both app and cluster metrics
 func GetUsageCommon(c echo.Context) error {
 	var checkpointCmd, eventCmd, org string
-	var usage *ormapi.AllUsage
+	var usage *ormapi.MetricData
 	rc := &InfluxDBContext{}
 	claims, err := getClaims(c)
 	if err != nil {
@@ -681,7 +733,7 @@ func GetUsageCommon(c echo.Context) error {
 	}
 
 	payload := ormapi.StreamPayload{}
-	payload.Data = &usage.Data
+	payload.Data = &[]ormapi.MetricData{*usage}
 	WriteStream(c, &payload)
 
 	return nil

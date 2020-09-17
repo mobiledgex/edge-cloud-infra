@@ -56,6 +56,7 @@ controllers:
   apiaddr: "0.0.0.0:55001"
   httpaddr: "0.0.0.0:36001"
   notifyaddr: "127.0.0.1:37001"
+  usevaultcerts: true
   notifyparentaddrs: "127.0.0.1:52001"
   notifyrootaddrs: "127.0.0.1:53001"
   vaultaddr: "http://127.0.0.1:8200"
@@ -71,6 +72,7 @@ dmes:
   apiaddr: "0.0.0.0:50051"
   httpaddr: "0.0.0.0:38001"
   notifyaddrs: "127.0.0.1:37001,127.0.0.1:37002"
+  usevaultcerts: true
   locverurl: "{{locverurl}}"
   toksrvurl: "{{toksrvurl}}"
   carrier: TDG
@@ -85,6 +87,8 @@ dmes:
 clustersvcs:
 - name: cluster-svc1
   notifyaddrs: "127.0.0.1:37001,127.0.0.1:37002"
+  usevaultcerts: true
+  vaultaddr: "http://127.0.0.1:8200"
   ctrladdrs: "127.0.0.1:55001"
   pluginrequired: true
   tls:
@@ -100,6 +104,7 @@ mcs:
   sqladdr: "127.0.0.1:5432"
   vaultaddr: "http://127.0.0.1:8200"
   notifysrvaddr: "127.0.0.1:52001"
+  usevaultcerts: true
   tls:
     servercert: "{{tlsoutdir}}/mex-server.crt"
     serverkey: "{{tlsoutdir}}/mex-server.key"
@@ -137,6 +142,8 @@ jaegers:
 autoprovs:
 - name: autoprov1
   notifyaddrs: "127.0.0.1:37001,127.0.0.1:37002"
+  usevaultcerts: true
+  vaultaddr: "http://127.0.0.1:8200"
   ctrladdrs: "127.0.0.1:55001"
   tls:
     servercert: "{{tlsoutdir}}/mex-server.crt"
@@ -146,6 +153,8 @@ autoprovs:
 notifyroots:
 - name: notifyroot
   hostname: "127.0.0.1"
+  vaultaddr: "http://127.0.0.1:8200"
+  usevaultcerts: true
   tls:
     servercert: "{{tlsoutdir}}/mex-server.crt"
 

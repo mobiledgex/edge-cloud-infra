@@ -6,6 +6,7 @@ import (
 	"net"
 	"strconv"
 	"strings"
+	"sync"
 
 	"github.com/go-chef/chef"
 	"github.com/mobiledgex/edge-cloud-infra/chefmgmt"
@@ -15,6 +16,13 @@ import (
 	"github.com/mobiledgex/edge-cloud/log"
 )
 
+type CloudletSSHKey struct {
+	PublicKey       string
+	SignedPublicKey string
+	PrivateKey      string
+	Mux             sync.Mutex
+}
+
 type VMProperties struct {
 	CommonPf              infracommon.CommonPlatform
 	SharedRootLBName      string
@@ -22,6 +30,7 @@ type VMProperties struct {
 	Domain                VMDomain
 	PlatformSecgrpName    string
 	IptablesBasedFirewall bool
+	sshKey                CloudletSSHKey
 }
 
 // note that qcow2 must be understood by vsphere and vmdk must

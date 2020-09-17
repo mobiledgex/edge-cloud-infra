@@ -8,8 +8,6 @@ import (
 	"github.com/mobiledgex/edge-cloud-infra/infracommon"
 	"github.com/mobiledgex/edge-cloud/cloudcommon"
 	"github.com/mobiledgex/edge-cloud/edgeproto"
-
-	sh "github.com/codeskyblue/go-sh"
 	"github.com/mobiledgex/edge-cloud/log"
 	ssh "github.com/mobiledgex/golang-ssh"
 	"github.com/tmc/scp"
@@ -42,29 +40,31 @@ func (o *SSHOptions) Apply(ops []SSHClientOp) {
 	}
 }
 
-//CopySSHCredential copies over the ssh credential for mex to LB
-func (v *VMPlatform) CopySSHCredential(ctx context.Context, serverName, networkName, userName string) error {
-	//TODO multiple keys to be copied and added to authorized_keys if needed
-	log.SpanLog(ctx, log.DebugLevelInfra, "copying ssh credentials", "server", serverName, "network", networkName, "user", userName)
-	ip, err := v.GetIPFromServerName(ctx, networkName, "", serverName)
-	if err != nil {
-		return err
-	}
-	kf := infracommon.PrivateSSHKey()
-	out, err := sh.Command("scp", "-o", infracommon.SSHOpts[0], "-o", infracommon.SSHOpts[1], "-i", kf, kf, userName+"@"+ip.ExternalAddr+":").Output()
-	if err != nil {
-		return fmt.Errorf("can't copy %s to %s, %s, %v", kf, ip.ExternalAddr, out, err)
-	}
-	return nil
-}
-
 //GetSSHClientFromIPAddr returns ssh client handle for the given IP.
 func (vp *VMProperties) GetSSHClientFromIPAddr(ctx context.Context, ipaddr string, ops ...SSHClientOp) (ssh.Client, error) {
 	opts := SSHOptions{Timeout: infracommon.DefaultConnectTimeout, User: infracommon.SSHUser}
 	opts.Apply(ops)
 	var client ssh.Client
 	var err error
-	auth := ssh.Auth{Keys: []string{infracommon.PrivateSSHKey()}}
+
+	if vp.sshKey.PrivateKey == "" {
+		return nil, fmt.Errorf("missing cloudlet private key")
+	}
+	if vp.sshKey.SignedPublicKey == "" {
+		return nil, fmt.Errorf("missing cloudlet signed public Key")
+	}
+
+	vp.sshKey.Mux.Lock()
+	auth := ssh.Auth{
+		KeyPairs: []ssh.KeyPair{
+			ssh.KeyPair{
+				PublicRawKey:  []byte(vp.sshKey.SignedPublicKey),
+				PrivateRawKey: []byte(vp.sshKey.PrivateKey),
+			},
+		},
+	}
+	vp.sshKey.Mux.Unlock()
+
 	gwhost, gwport := vp.GetCloudletCRMGatewayIPAndPort()
 	if gwhost != "" {
 		// start the client to GW and add the addr as next hop
@@ -129,9 +129,6 @@ func (v *VMPlatform) SetupSSHUser(ctx context.Context, rootLB *MEXRootLB, user s
 		fmt.Sprintf("sudo cp /root/.ssh/config /home/%s/.ssh/", user),
 		fmt.Sprintf("sudo chown %s:%s /home/%s/.ssh/config", user, user, user),
 		fmt.Sprintf("sudo chmod 600 /home/%s/.ssh/config", user),
-		fmt.Sprintf("sudo cp /root/%s /home/%s/", infracommon.SSHPrivateKeyName, user),
-		fmt.Sprintf("sudo chown %s:%s   /home/%s/%s", user, user, user, infracommon.SSHPrivateKeyName),
-		fmt.Sprintf("sudo chmod 600   /home/%s/%s", user, infracommon.SSHPrivateKeyName),
 	} {
 		out, err := client.Output(cmd)
 		if err != nil {

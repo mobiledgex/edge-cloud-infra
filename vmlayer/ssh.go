@@ -9,9 +9,12 @@ import (
 	"github.com/mobiledgex/edge-cloud/cloudcommon"
 	"github.com/mobiledgex/edge-cloud/edgeproto"
 	"github.com/mobiledgex/edge-cloud/log"
+	"github.com/mobiledgex/edge-cloud/vault"
 	ssh "github.com/mobiledgex/golang-ssh"
 	"github.com/tmc/scp"
 )
+
+var CloudletSSHKeyRefreshInterval = 24 * time.Hour
 
 type SSHOptions struct {
 	Timeout time.Duration
@@ -38,6 +41,59 @@ func (o *SSHOptions) Apply(ops []SSHClientOp) {
 	for _, op := range ops {
 		op(o)
 	}
+}
+
+func (v *VMPlatform) SetCloudletSignedSSHKey(ctx context.Context, vaultConfig *vault.Config) error {
+	log.SpanLog(ctx, log.DebugLevelInfra, "Sign cloudlet public key from Vault")
+
+	data := map[string]interface{}{
+		"public_key": v.VMProperties.sshKey.PublicKey,
+	}
+	signedKey, err := infracommon.GetSignedKeyFromVault(vaultConfig, data)
+	if err != nil {
+		return err
+	}
+
+	v.VMProperties.sshKey.Mux.Lock()
+	defer v.VMProperties.sshKey.Mux.Unlock()
+	v.VMProperties.sshKey.SignedPublicKey = signedKey
+
+	return nil
+}
+
+func (v *VMPlatform) RefreshCloudletSSHKeys(vaultConfig *vault.Config) {
+	interval := CloudletSSHKeyRefreshInterval
+	for {
+		select {
+		case <-time.After(interval):
+			span := log.StartSpan(log.DebugLevelInfra, "refresh Cloudlet SSH Key")
+			ctx := log.ContextWithSpan(context.Background(), span)
+			err := v.SetCloudletSignedSSHKey(ctx, vaultConfig)
+			if err != nil {
+				log.SpanLog(ctx, log.DebugLevelInfra, "refresh cloudlet ssh key failure", "err", err)
+				// retry again soon
+				interval = time.Hour
+			} else {
+				interval = CloudletSSHKeyRefreshInterval
+			}
+			span.Finish()
+		}
+	}
+}
+
+func (v *VMPlatform) InitCloudletSSHKeys(ctx context.Context, vaultConfig *vault.Config) error {
+	// Generate Cloudlet SSH Keys
+	cloudletPubKey, cloudletPrivKey, err := ssh.GenKeyPair()
+	if err != nil {
+		return fmt.Errorf("failed to generate cloudlet SSH key pair: %v", err)
+	}
+	v.VMProperties.sshKey.PublicKey = cloudletPubKey
+	v.VMProperties.sshKey.PrivateKey = cloudletPrivKey
+	err = v.SetCloudletSignedSSHKey(ctx, vaultConfig)
+	if err != nil {
+		return err
+	}
+	return nil
 }
 
 //GetSSHClientFromIPAddr returns ssh client handle for the given IP.

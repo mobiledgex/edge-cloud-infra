@@ -3,7 +3,6 @@ package vmlayer
 import (
 	"context"
 	"fmt"
-	"time"
 
 	"github.com/gogo/protobuf/types"
 	"github.com/mobiledgex/edge-cloud/cloud-resource-manager/platform"
@@ -140,8 +139,6 @@ const (
 	ProviderInitDeleteCloudlet           ProviderInitStage = "DeleteCloudlet"
 )
 
-var CloudletSSHKeyRefreshInterval = 24 * time.Hour
-
 type StringSanitizer func(value string) string
 
 type ResTagTables map[string]*edgeproto.ResTagTable
@@ -235,70 +232,6 @@ func (v *VMPlatform) GetResTablesForCloudlet(ctx context.Context, ckey *edgeprot
 		tbls[res] = &tbl
 	}
 	return tbls
-}
-
-func (v *VMPlatform) SetCloudletSignedSSHKey(ctx context.Context, vaultConfig *vault.Config) error {
-	log.SpanLog(ctx, log.DebugLevelInfra, "Sign cloudlet public key from Vault")
-	client, err := vaultConfig.Login()
-	if err != nil {
-		return err
-	}
-	data := map[string]interface{}{
-		"public_key": v.VMProperties.sshKey.PublicKey,
-	}
-	out, err := vault.GetSSHKey(client, data)
-	if err != nil {
-		return err
-	}
-	signedKey, ok := out.Data["signed_key"]
-	if !ok {
-		return fmt.Errorf("failed to get signed key from vault: %v", out)
-	}
-	signedKeyStr, ok := signedKey.(string)
-	if !ok {
-		return fmt.Errorf("invalid signed key from vault: %v", signedKey)
-	}
-
-	v.VMProperties.sshKey.Mux.Lock()
-	defer v.VMProperties.sshKey.Mux.Unlock()
-	v.VMProperties.sshKey.SignedPublicKey = string(signedKeyStr)
-
-	return nil
-}
-
-func (v *VMPlatform) RefreshCloudletSSHKeys(vaultConfig *vault.Config) {
-	interval := CloudletSSHKeyRefreshInterval
-	for {
-		select {
-		case <-time.After(interval):
-			span := log.StartSpan(log.DebugLevelInfra, "refresh Cloudlet SSH Key")
-			ctx := log.ContextWithSpan(context.Background(), span)
-			err := v.SetCloudletSignedSSHKey(ctx, vaultConfig)
-			if err != nil {
-				log.SpanLog(ctx, log.DebugLevelInfra, "refresh cloudlet ssh key failure", "err", err)
-				// retry again soon
-				interval = time.Hour
-			} else {
-				interval = CloudletSSHKeyRefreshInterval
-			}
-			span.Finish()
-		}
-	}
-}
-
-func (v *VMPlatform) InitCloudletSSHKeys(ctx context.Context, vaultConfig *vault.Config) error {
-	// Generate Cloudlet SSH Keys
-	cloudletPubKey, cloudletPrivKey, err := ssh.GenKeyPair()
-	if err != nil {
-		return fmt.Errorf("failed to generate cloudlet SSH key pair: %v", err)
-	}
-	v.VMProperties.sshKey.PublicKey = cloudletPubKey
-	v.VMProperties.sshKey.PrivateKey = cloudletPrivKey
-	err = v.SetCloudletSignedSSHKey(ctx, vaultConfig)
-	if err != nil {
-		return err
-	}
-	return nil
 }
 
 func (v *VMPlatform) InitProps(ctx context.Context, platformConfig *platform.PlatformConfig, vaultConfig *vault.Config) error {

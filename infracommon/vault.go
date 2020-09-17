@@ -104,3 +104,25 @@ func DeleteDataFromVault(config *vault.Config, path string) error {
 	metadataPath := strings.Replace(path, "secret/data", "secret/metadata", -1)
 	return vault.DeleteKV(client, metadataPath)
 }
+
+func GetSignedKeyFromVault(config *vault.Config, data map[string]interface{}) (string, error) {
+	client, err := config.Login()
+	if err != nil {
+		return "", err
+	}
+	ssh := client.SSH()
+	secret, err := ssh.SignKey("user", data)
+	if err != nil {
+		return "", err
+	}
+	signedKey, ok := secret.Data["signed_key"]
+	if !ok {
+		return "", fmt.Errorf("failed to get signed key from vault: %v", secret)
+	}
+	signedKeyStr, ok := signedKey.(string)
+	if !ok {
+		return "", fmt.Errorf("invalid signed key from vault: %v", signedKey)
+	}
+
+	return signedKeyStr, nil
+}

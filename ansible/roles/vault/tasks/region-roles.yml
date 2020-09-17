@@ -31,7 +31,6 @@
       - azure-auth.read.v1
       - gcp-auth.read.v1
       - registry.read.v1
-      - ssh-machine.sign.v1
       - "{{ region_prefix }}.cloudlets.delete.v1"
       - "{{ region_prefix }}.accounts.read.v1"
       - "{{ region_prefix }}.pki-regional.issue.v1"

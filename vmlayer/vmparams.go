@@ -788,14 +788,14 @@ func (v *VMPlatform) getVMGroupOrchestrationParamsFromGroupSpec(ctx context.Cont
 		if !vm.CreatePortsOnly {
 			log.SpanLog(ctx, log.DebugLevelInfra, "Defining new VM orch param", "vm.Name", vm.Name, "ports", newPorts)
 			hostName := util.HostnameSanitize(strings.Split(vm.Name, ".")[0])
-			vip := VMCloudConfigParams{}
+			vccp := VMCloudConfigParams{}
 			if vm.ChefParams != nil {
-				vip.ChefParams = vm.ChefParams
+				vccp.ChefParams = vm.ChefParams
 			}
 			// gpu
 			if vm.OptionalResource == "gpu" {
 				gpuCmds := getGpuExtraCommands()
-				vip.ExtraBootCommands = append(vip.ExtraBootCommands, gpuCmds...)
+				vccp.ExtraBootCommands = append(vccp.ExtraBootCommands, gpuCmds...)
 			}
 			newVM := VMOrchestrationParams{
 				Name:                    v.VMProvider.NameSanitize(vm.Name),
@@ -810,7 +810,7 @@ func (v *VMPlatform) getVMGroupOrchestrationParamsFromGroupSpec(ctx context.Cont
 				DeploymentManifest:      vm.DeploymentManifest,
 				Command:                 vm.Command,
 				ComputeAvailabilityZone: vm.ComputeAvailabilityZone,
-				CloudConfigParams:       vip,
+				CloudConfigParams:       vccp,
 			}
 			if vm.ExternalVolumeSize > 0 {
 				externalVolume := VolumeOrchestrationParams{

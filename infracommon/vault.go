@@ -111,7 +111,7 @@ func GetSignedKeyFromVault(config *vault.Config, data map[string]interface{}) (s
 		return "", err
 	}
 	ssh := client.SSH()
-	secret, err := ssh.SignKey("user", data)
+	secret, err := ssh.SignKey("machine", data)
 	if err != nil {
 		return "", err
 	}

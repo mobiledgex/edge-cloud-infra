@@ -11,6 +11,10 @@ options:
     description: The vault to connect to
     default: The "vault_address" ansible variable
     required: False
+  engine:
+    description: Vault SSH engine name
+    default: ssh
+    required: False
 """
 
 EXAMPLES="""
@@ -44,7 +48,9 @@ class LookupModule(LookupBase):
         except KeyError:
             raise AnsibleError("Could not find vault address variable: {0}".format(vault_addr_key))
 
-        url = "{0}/v1/ssh/public_key".format(vault_addr)
+        engine = kwargs.get('engine', 'ssh')
+
+        url = "{0}/v1/{1}/public_key".format(vault_addr, engine)
         display.vv("SSH CA public key URL: {0}".format(url))
         r = requests.get(url)
         if r.status_code != requests.codes.ok:

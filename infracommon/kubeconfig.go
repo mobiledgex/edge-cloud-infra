@@ -5,6 +5,7 @@ import (
 	"fmt"
 
 	"github.com/mobiledgex/edge-cloud/cloud-resource-manager/k8smgmt"
+	"github.com/mobiledgex/edge-cloud/cloud-resource-manager/platform/pc"
 	"github.com/mobiledgex/edge-cloud/edgeproto"
 	"github.com/mobiledgex/edge-cloud/log"
 	ssh "github.com/mobiledgex/golang-ssh"
@@ -27,10 +28,9 @@ func CopyKubeConfig(ctx context.Context, rootLBClient ssh.Client, clusterInst *e
 	}
 
 	// save it in rootLB
-	cmd = fmt.Sprintf(`echo -e "%s" > %s`, out, kconfname)
-	out, err = rootLBClient.Output(cmd)
+	err = pc.WriteFile(rootLBClient, kconfname, out, "kconf file", pc.NoSudo)
 	if err != nil {
-		return fmt.Errorf("can't copy kubeconfig via cmd %s, %s, %v", cmd, out, err)
+		return fmt.Errorf("can't write kubeconfig to %s, %v", kconfname, err)
 	}
 
 	//TODO generate per proxy password and record in vault

@@ -5,6 +5,7 @@ import (
 	"fmt"
 
 	"github.com/gogo/protobuf/types"
+	"github.com/mobiledgex/edge-cloud-infra/infracommon"
 	"github.com/mobiledgex/edge-cloud/cloud-resource-manager/k8smgmt"
 	"github.com/mobiledgex/edge-cloud/cloud-resource-manager/platform"
 	"github.com/mobiledgex/edge-cloud/cloud-resource-manager/proxy"
@@ -339,6 +340,15 @@ func (v *VMPlatform) Init(ctx context.Context, platformConfig *platform.Platform
 
 	if platformConfig.Upgrade {
 		v.VMProperties.Upgrade = true
+		// Pull private key from Vault
+		log.SpanLog(ctx, log.DebugLevelInfra, "Fetch private key from vault")
+		mexKey, err := infracommon.GetMEXKeyFromVault(vaultConfig)
+		if err != nil {
+			return err
+		}
+		v.VMProperties.sshKey.MEXPrivateKey = mexKey.PrivateKey
+
+		log.SpanLog(ctx, log.DebugLevelInfra, "Upgrade shared rootlb to use vault SSH")
 
 		// Upgrade Shared RootLB to use Vault SSH
 		// Set SSH client to use mex private key
@@ -348,7 +358,7 @@ func (v *VMPlatform) Init(ctx context.Context, platformConfig *platform.Platform
 			return err
 		}
 		upgradeScript := GetVaultCAScript(vaultConfig)
-		ExecuteUpgradeScript(ctx, sharedRootLBClient, upgradeScript)
+		ExecuteUpgradeScript(ctx, v.VMProperties.SharedRootLBName, sharedRootLBClient, upgradeScript)
 		// Verify if shared rootlb is reachable using vault SSH
 		// Set SSH client to use vault signed Keys
 		v.VMProperties.sshKey.UseMEXPrivateKey = false

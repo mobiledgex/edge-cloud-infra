@@ -139,8 +139,9 @@ func (vp *VMProperties) GetSSHClientFromIPAddr(ctx context.Context, ipaddr strin
 	vp.sshKey.Mux.Unlock()
 
 	if vp.sshKey.UseMEXPrivateKey {
-		auth = ssh.Auth{RawKeys: [][]byte{}}
-		auth.RawKeys = append(auth.RawKeys, []byte(vp.sshKey.MEXPrivateKey))
+		auth = ssh.Auth{RawKeys: [][]byte{
+			[]byte(vp.sshKey.MEXPrivateKey),
+		}}
 	}
 
 	gwhost, gwport := vp.GetCloudletCRMGatewayIPAndPort()
@@ -240,7 +241,7 @@ func (v *VMPlatform) GetAllCloudletVMs(ctx context.Context, caches *platform.Cac
 	pfName := v.GetPlatformVMName(v.VMProperties.CommonPf.PlatformConfig.CloudletKey)
 	client, err := v.GetSSHClientForServer(ctx, pfName, v.VMProperties.GetCloudletExternalNetwork())
 	if err != nil {
-		return nil, err
+		log.SpanLog(ctx, log.DebugLevelInfra, "error getting ssh client", "vm", pfName, "err", err)
 	}
 	cloudletVMs = append(cloudletVMs, VMAccess{
 		Name:   pfName,
@@ -252,7 +253,7 @@ func (v *VMPlatform) GetAllCloudletVMs(ctx context.Context, caches *platform.Cac
 	sharedRootLBName := v.VMProperties.SharedRootLBName
 	sharedlbclient, err := v.GetSSHClientForServer(ctx, sharedRootLBName, v.VMProperties.GetCloudletExternalNetwork())
 	if err != nil {
-		return nil, err
+		log.SpanLog(ctx, log.DebugLevelInfra, "error getting ssh client", "vm", sharedRootLBName, "err", err)
 	}
 	cloudletVMs = append(cloudletVMs, VMAccess{
 		Name:   sharedRootLBName,
@@ -273,7 +274,7 @@ func (v *VMPlatform) GetAllCloudletVMs(ctx context.Context, caches *platform.Cac
 				rootLBName := v.VMProperties.GetRootLBNameForCluster(ctx, clusterInst)
 				dedicatedlbclient, err = v.GetSSHClientForServer(ctx, rootLBName, v.VMProperties.GetCloudletExternalNetwork())
 				if err != nil {
-					return nil, err
+					log.SpanLog(ctx, log.DebugLevelInfra, "error getting ssh client", "vm", rootLBName, "err", err)
 				}
 				cloudletVMs = append(cloudletVMs, VMAccess{
 					Name:   rootLBName,
@@ -291,7 +292,7 @@ func (v *VMPlatform) GetAllCloudletVMs(ctx context.Context, caches *platform.Cac
 			masterNode := GetClusterMasterName(ctx, clusterInst)
 			masterIP, err := v.GetIPFromServerName(ctx, v.VMProperties.GetCloudletMexNetwork(), GetClusterSubnetName(ctx, clusterInst), masterNode)
 			if err != nil {
-				return nil, err
+				log.SpanLog(ctx, log.DebugLevelInfra, "error getting ssh client", "vm", masterNode, "err", err)
 			}
 			masterClient, err := lbClient.AddHop(masterIP.ExternalAddr, 22)
 			cloudletVMs = append(cloudletVMs, VMAccess{
@@ -303,7 +304,7 @@ func (v *VMPlatform) GetAllCloudletVMs(ctx context.Context, caches *platform.Cac
 				clusterNode := GetClusterNodeName(ctx, clusterInst, nn)
 				nodeIP, err := v.GetIPFromServerName(ctx, v.VMProperties.GetCloudletMexNetwork(), GetClusterSubnetName(ctx, clusterInst), clusterNode)
 				if err != nil {
-					return nil, err
+					log.SpanLog(ctx, log.DebugLevelInfra, "error getting ssh client", "vm", clusterNode, "err", err)
 				}
 				nodeClient, err := lbClient.AddHop(nodeIP.ExternalAddr, 22)
 				cloudletVMs = append(cloudletVMs, VMAccess{
@@ -372,7 +373,8 @@ echo "Done setting k8s-join service"
 	return vaultCAScript + k8sJoinSvcScript
 }
 
-func ExecuteUpgradeScript(ctx context.Context, client ssh.Client, script string) error {
+func ExecuteUpgradeScript(ctx context.Context, vmName string, client ssh.Client, script string) error {
+	log.SpanLog(ctx, log.DebugLevelInfra, "execute upgrade script", "vmName", vmName)
 	err := pc.WriteFile(client, "upgradeCRMVault.sh", script, "upgrade script", pc.NoSudo)
 	if err != nil {
 		log.SpanLog(ctx, log.DebugLevelInfra, "failed to copy script", "err", err)
@@ -389,13 +391,6 @@ func ExecuteUpgradeScript(ctx context.Context, client ssh.Client, script string)
 
 func (v *VMPlatform) UpgradeFuncHandleSSHKeys(ctx context.Context, vaultConfig *vault.Config, caches *platform.Caches) (map[string]string, error) {
 	log.SpanLog(ctx, log.DebugLevelInfra, "Upgrade Vms to use Vault SSH signed keys")
-	// Pull private key from Vault
-	mexKey, err := infracommon.GetMEXKeyFromVault(vaultConfig)
-	if err != nil {
-		return nil, err
-	}
-	v.VMProperties.sshKey.MEXPrivateKey = mexKey.PrivateKey
-
 	// Set SSH client to use mex private key
 	v.VMProperties.sshKey.UseMEXPrivateKey = true
 	fixVMs, err := v.GetAllCloudletVMs(ctx, caches)
@@ -404,6 +399,10 @@ func (v *VMPlatform) UpgradeFuncHandleSSHKeys(ctx context.Context, vaultConfig *
 	}
 
 	for _, vm := range fixVMs {
+		if vm.Client == nil {
+			log.SpanLog(ctx, log.DebugLevelInfra, "missing ssh client", "vm", vm.Name)
+			continue
+		}
 		script := ""
 		if vm.Role == RoleMaster {
 			// Start k8s-join webserver
@@ -411,7 +410,7 @@ func (v *VMPlatform) UpgradeFuncHandleSSHKeys(ctx context.Context, vaultConfig *
 		} else {
 			script = GetVaultCAScript(vaultConfig)
 		}
-		err = ExecuteUpgradeScript(ctx, vm.Client, script)
+		err = ExecuteUpgradeScript(ctx, vm.Name, vm.Client, script)
 		if err != nil {
 			// continue fixing other VMs
 			continue
@@ -427,6 +426,10 @@ func (v *VMPlatform) UpgradeFuncHandleSSHKeys(ctx context.Context, vaultConfig *
 	}
 	results := make(map[string]string)
 	for _, vm := range fixVMs {
+		if vm.Client == nil {
+			results[vm.Name] = "failed to get ssh client"
+			continue
+		}
 		_, err = vm.Client.Output("hostname")
 		if err != nil {
 			results[vm.Name] = fmt.Sprintf("failed with error: %v", err)

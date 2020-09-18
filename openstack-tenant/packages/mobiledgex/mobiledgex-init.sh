@@ -130,12 +130,16 @@ fi
 
 if [[ "$ROLE" == mex-agent-node ]]; then
 	log "Initializing mex agent node"
-	systemctl disable kubelet
-	systemctl stop kubelet
+	for SVC in kubelet k8s-join; do
+		systemctl disable "$SVC"
+		systemctl stop "$SVC"
+	done
 elif [[ "$SKIPK8S" == yes ]]; then
 	log "Skipping k8s init for role $ROLE"
-	systemctl disable kubelet
-	systemctl stop kubelet
+	for SVC in kubelet k8s-join; do
+		systemctl disable "$SVC"
+		systemctl stop "$SVC"
+	done
 else
 	log "K8s init for role $ROLE"
 	case "$ROLE" in
@@ -145,6 +149,8 @@ else
 			log "K8s master init failed"
 			exit 2
 		fi
+		systemctl enable k8s-join
+		systemctl start k8s-join
 		;;
 	k8s-node)
 		sh -x /etc/mobiledgex/install-k8s-node.sh "$INTERFACE" "$MASTERADDR" "$IPADDR" | log
@@ -152,6 +158,8 @@ else
 			log "K8s node init failed"
 			exit 2
 		fi
+		systemctl disable k8s-join
+		systemctl stop k8s-join
 		;;
 	*)
 		log "Neither k8s master nor k8s node: $ROLE"

@@ -305,6 +305,20 @@ EOT
 log "Enabling the chef-client service"
 sudo systemctl enable chef-client
 
+sudo tee /etc/systemd/system/k8s-join.service <<'EOT'
+[Unit]
+Description=Job that runs k8s join script server
+
+[Service]
+Type=simple
+WorkingDirectory=/var/tmp/k8s-join
+ExecStart=/usr/bin/python3 -m http.server 8000
+Restart=always
+
+[Install]
+WantedBy=multi-user.target
+EOT
+
 if [[ "$OUTPUT_PLATFORM" == vsphere ]]; then
 	sudo tee /lib/systemd/system/open-vm-tools.service <<'EOT'
 [Unit]
@@ -328,6 +342,9 @@ fi
 
 # Clear /etc/machine-id so that it is uniquely generated on every clone
 echo "" | sudo tee /etc/machine-id
+
+# Set up temp directory used by install-k8s-master.sh
+sudo mkdir /var/tmp/k8s-join
 
 log "Cleanup"
 sudo apt-get autoremove -y

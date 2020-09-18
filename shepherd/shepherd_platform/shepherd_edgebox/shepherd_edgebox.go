@@ -45,6 +45,10 @@ func (s *Platform) GetClusterPlatformClient(ctx context.Context, clusterInst *ed
 	return s.SharedClient, nil
 }
 
+func (s *Platform) GetVmAppRootLbClient(ctx context.Context, app *edgeproto.AppInstKey) (ssh.Client, error) {
+	return s.SharedClient, nil
+}
+
 func (s *Platform) GetMetricsCollectInterval() time.Duration {
 	return 0
 }

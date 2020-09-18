@@ -123,7 +123,6 @@ func GetSignedKeyFromVault(config *vault.Config, data map[string]interface{}) (s
 	if !ok {
 		return "", fmt.Errorf("invalid signed key from vault: %v", signedKey)
 	}
-
 	return signedKeyStr, nil
 }
 

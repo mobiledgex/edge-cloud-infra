@@ -7,6 +7,7 @@ import (
 
 	"github.com/mobiledgex/edge-cloud-infra/infracommon"
 	"github.com/mobiledgex/edge-cloud/cloud-resource-manager/platform"
+	"github.com/mobiledgex/edge-cloud/cloud-resource-manager/platform/pc"
 	"github.com/mobiledgex/edge-cloud/cloudcommon"
 	"github.com/mobiledgex/edge-cloud/edgeproto"
 	"github.com/mobiledgex/edge-cloud/log"
@@ -316,6 +317,76 @@ func (v *VMPlatform) GetAllCloudletVMs(ctx context.Context, caches *platform.Cac
 	return cloudletVMs, nil
 }
 
+func GetVaultCAScript(vaultConfig *vault.Config) string {
+	return fmt.Sprintf(`
+#!/bin/bash
+
+die() {
+        echo "ERROR: $*" >&2
+        exit 2
+}
+
+curl %s/v1/ssh/public_key | sudo tee /etc/ssh/trusted-user-ca-keys.pem
+[[ $? -ne 0 ]] && die "failed to get CA cert from vault"
+sudo grep "ssh-rsa" /etc/ssh/trusted-user-ca-keys.pem
+[[ $? -ne 0 ]] && die "invalid CA cert from vault"
+
+echo 'TrustedUserCAKeys /etc/ssh/trusted-user-ca-keys.pem' | sudo tee -a /etc/ssh/sshd_config
+sudo systemctl reload ssh
+[[ $? -ne 0 ]] && die "failed to reload ssh"
+
+rm -f id_rsa_mex
+echo "" > .ssh/authorized_keys
+
+echo "Done setting up vault ssh"
+`, vaultConfig.Addr)
+}
+
+func GetVaultCAScriptForMasterNode(vaultConfig *vault.Config) string {
+	k8sJoinSvcScript := `
+mkdir -p /var/tmp/k8s-join
+cp /tmp/k8s-join-cmd.tmp /var/tmp/k8s-join/k8s-join-cmd
+[[ $? -ne 0 ]] && die "failed to copy k8s-join-cmd.tmp file"
+chown ubuntu:ubuntu /var/tmp/k8s-join/k8s-join-cmd
+
+sudo tee /etc/systemd/system/k8s-join.service <<'EOT'
+[Unit]
+Description=Job that runs k8s join script server
+[Service]
+Type=simple
+WorkingDirectory=/var/tmp/k8s-join
+ExecStart=/usr/bin/python3 -m http.server 8000
+Restart=always
+[Install]
+WantedBy=multi-user.target
+EOT
+
+sudo systemctl enable k8s-join
+[[ $? -ne 0 ]] && die "failed to enable k8s-join service"
+sudo systemctl start k8s-join
+[[ $? -ne 0 ]] && die "failed to start k8s-join service"
+
+echo "Done setting k8s-join service"
+`
+	vaultCAScript := GetVaultCAScript(vaultConfig)
+	return vaultCAScript + k8sJoinSvcScript
+}
+
+func ExecuteUpgradeScript(ctx context.Context, client ssh.Client, script string) error {
+	err := pc.WriteFile(client, "upgradeCRMVault.sh", script, "upgrade script", pc.NoSudo)
+	if err != nil {
+		log.SpanLog(ctx, log.DebugLevelInfra, "failed to copy script", "err", err)
+		return err
+	}
+	// Execute script
+	out, err := client.Output("bash upgradeCRMVault.sh")
+	if err != nil {
+		log.SpanLog(ctx, log.DebugLevelInfra, "failed to fix vm", "out", out, "err", err)
+		return err
+	}
+	return nil
+}
+
 func (v *VMPlatform) UpgradeFuncHandleSSHKeys(ctx context.Context, vaultConfig *vault.Config, caches *platform.Caches) (map[string]string, error) {
 	log.SpanLog(ctx, log.DebugLevelInfra, "Upgrade Vms to use Vault SSH signed keys")
 	// Pull private key from Vault
@@ -332,45 +403,17 @@ func (v *VMPlatform) UpgradeFuncHandleSSHKeys(ctx context.Context, vaultConfig *
 		return nil, err
 	}
 
-	setupVaultCAScript := fmt.Sprintf(`
-curl %s/v1/ssh/public_key | sudo tee /etc/ssh/trusted-user-ca-keys.pem
-echo 'TrustedUserCAKeys /etc/ssh/trusted-user-ca-keys.pem' | sudo tee -a /etc/ssh/sshd_config
-rm -f id_rsa_mex
-echo "" > .ssh/authorized_keys
-sudo systemctl reload ssh
-`, vaultConfig.Addr)
-
-	setupK8sJoinSvcScript := `
-mkdir -p /var/tmp/k8s-join
-cp /tmp/k8s-join-cmd.tmp /var/tmp/k8s-join/k8s-join-cmd
-chown ubuntu:ubuntu /var/tmp/k8s-join/k8s-join-cmd
-
-sudo tee /etc/systemd/system/k8s-join.service <<'EOT'
-[Unit]
-Description=Job that runs k8s join script server
-[Service]
-Type=simple
-WorkingDirectory=/var/tmp/k8s-join
-ExecStart=/usr/bin/python3 -m http.server 8000
-Restart=always
-[Install]
-WantedBy=multi-user.target
-EOT
-
-sudo systemctl enable k8s-join
-sudo systemctl start k8s-join`
-
 	for _, vm := range fixVMs {
-		script := setupVaultCAScript
+		script := ""
 		if vm.Role == RoleMaster {
 			// Start k8s-join webserver
-			script += setupK8sJoinSvcScript
+			script = GetVaultCAScriptForMasterNode(vaultConfig)
+		} else {
+			script = GetVaultCAScript(vaultConfig)
 		}
-		// Execute script
-		out, err := vm.Client.Output(script)
+		err = ExecuteUpgradeScript(ctx, vm.Client, script)
 		if err != nil {
-			// log the error and continue fixing other VMs
-			log.SpanLog(ctx, log.DebugLevelInfra, "failed to fix vm", "out", out, "err", err)
+			// continue fixing other VMs
 			continue
 		}
 	}
@@ -386,7 +429,7 @@ sudo systemctl start k8s-join`
 	for _, vm := range fixVMs {
 		_, err = vm.Client.Output("hostname")
 		if err != nil {
-			results[vm.Name] = fmt.Sprintf("failed with err %v", err)
+			results[vm.Name] = fmt.Sprintf("failed with error: %v", err)
 			continue
 		}
 		results[vm.Name] = "fixed"

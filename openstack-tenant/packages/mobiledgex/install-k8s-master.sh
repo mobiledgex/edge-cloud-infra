@@ -82,8 +82,8 @@ if [ $? -ne 0 ]; then
 fi
 kubeadm token create --print-join-command  | tee /tmp/k8s-join-cmd.tmp
 cat /tmp/k8s-join-cmd.tmp
-mv /tmp/k8s-join-cmd.tmp /tmp/k8s-join-cmd
-chown ubuntu:ubuntu /tmp/k8s-join-cmd
+mv /tmp/k8s-join-cmd.tmp /var/tmp/k8s-join/k8s-join-cmd
+chown ubuntu:ubuntu /var/tmp/k8s-join/k8s-join-cmd
 #cd /tmp
 #echo running simple http server at :8000
 #python -m SimpleHTTPServer 

@@ -2,10 +2,11 @@ package openstack
 
 import (
 	"context"
-	yaml "github.com/mobiledgex/yaml/v2"
 	"io/ioutil"
 	"strings"
 	"testing"
+
+	yaml "github.com/mobiledgex/yaml/v2"
 
 	"github.com/mobiledgex/edge-cloud-infra/chefmgmt"
 	e2esetup "github.com/mobiledgex/edge-cloud-infra/e2e-tests/e2e-setup"
@@ -89,14 +90,31 @@ func validateStack(ctx context.Context, t *testing.T, vmgp *vmlayer.VMGroupOrche
 		require.True(t, strings.HasPrefix(key, "-----BEGIN RSA PRIVATE KEY-----"))
 		require.True(t, strings.HasSuffix(key, "-----END RSA PRIVATE KEY-----"))
 	}
+
+	genVMsUserData := make(map[string]string)
+	for _, v := range vmgp.VMs {
+		userdata, err := vmlayer.GetVMUserData(v.SharedVolume, v.DNSServers, v.DeploymentManifest, v.Command, v.ChefParams, reindent16)
+		require.Nil(t, err)
+		genVMsUserData[v.Name] = userdata
+	}
+
+	vmsUserData, err := GetUserDataFromOSResource(ctx, stackTemplate)
+	require.Nil(t, err)
+	require.Equal(t, 4, len(vmsUserData))
+	for vName, userData := range vmsUserData {
+		require.True(t, strings.HasPrefix(userData, "#cloud-config"))
+		genUserData, ok := genVMsUserData[vName]
+		require.True(t, ok)
+		require.True(t, IsUserDataSame(ctx, genUserData, userData), "userdata mismatch")
+	}
 }
 
 func TestHeatTemplate(t *testing.T) {
-	log.InitTracer("")
-	defer log.FinishTracer()
 	log.SetDebugLevel(log.DebugLevelInfra)
 	infracommon.SetTestMode(true)
 
+	log.InitTracer(nil)
+	defer log.FinishTracer()
 	ctx := log.StartTestSpan(context.Background())
 	vaultServer, vaultConfig := vault.DummyServer()
 	defer vaultServer.Close()

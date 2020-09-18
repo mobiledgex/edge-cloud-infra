@@ -31,6 +31,10 @@
     name: load-vault-creds
     tasks_from: sendgrid
 
+- import_role:
+    name: load-vault-creds
+    tasks_from: mc_ldap
+
 - name: Get mex CA cert
   set_fact:
     vault_lookup: "{{ lookup('vault', ca_path) }}"
@@ -57,7 +61,7 @@
 
 - name: Install gitlab config
   template:
-    src: templates/mexplat/gitlab.rb.j2
+    src: gitlab.rb.j2
     dest: /etc/gitlab/gitlab.rb
     backup: yes
   become: yes

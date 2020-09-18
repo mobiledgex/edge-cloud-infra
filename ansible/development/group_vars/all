@@ -30,9 +30,9 @@ vault_github_users:
     role: admin
   - userid: jlmorris3827
     role: admin
-  - userid: msewera
-    role: cloudlet_admin
   - userid: venkytv
     role: admin
   - userid: anand12gupta
+    role: admin
+  - userid: ashxjain
     role: admin

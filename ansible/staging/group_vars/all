@@ -24,9 +24,9 @@ vault_github_users:
     role: admin
   - userid: mwilliams-mex
     role: cloudlet_admin
-  - userid: msewera
-    role: cloudlet_admin
   - userid: venkytv
+    role: admin
+  - userid: ashxjain
     role: admin
 
 crm_instances:

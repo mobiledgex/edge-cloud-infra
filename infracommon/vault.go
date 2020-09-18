@@ -126,3 +126,22 @@ func GetSignedKeyFromVault(config *vault.Config, data map[string]interface{}) (s
 
 	return signedKeyStr, nil
 }
+
+type MEXKey struct {
+	PrivateKey string
+	PublicKey  string
+}
+
+func GetMEXKeyFromVault(vaultConfig *vault.Config) (*MEXKey, error) {
+	if vaultConfig.Addr == "" {
+		return &MEXKey{}, nil
+	}
+	vaultPath := "/secret/data/keys/id_rsa_mex"
+	log.DebugLog(log.DebugLevelApi, "get mex key", "vault-path", vaultPath)
+	key := &MEXKey{}
+	err := vault.GetData(vaultConfig, vaultPath, 0, key)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get mex key for %s, %v", vaultPath, err)
+	}
+	return key, nil
+}

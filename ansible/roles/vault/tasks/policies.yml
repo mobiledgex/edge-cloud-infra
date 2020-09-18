@@ -29,6 +29,7 @@
     - policies/gcp-auth.read.v1.hcl.j2
     - policies/mcorm-jwtkeys.read.v1.hcl.j2
     - policies/mcorm-jwtkeys.write.v1.hcl.j2
+    - policies/mex-ssh-key.read.v1.hcl.j2
     - policies/mexenv.read.v1.hcl.j2
     - policies/pki-global.issue.v1.hcl.j2
     - policies/pki-global-config.read.v1.hcl.j2

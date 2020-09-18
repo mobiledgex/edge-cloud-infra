@@ -21,6 +21,11 @@ type CloudletSSHKey struct {
 	SignedPublicKey string
 	PrivateKey      string
 	Mux             sync.Mutex
+	RefreshTrigger  chan bool
+
+	// Below is used to upgrade old VMs to new Vault based SSH
+	MEXPrivateKey    string
+	UseMEXPrivateKey bool
 }
 
 type VMProperties struct {

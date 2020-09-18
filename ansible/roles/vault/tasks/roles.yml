@@ -26,6 +26,7 @@
       - pki-root-config.read.v1
       - registry.read.v1
       - root-ca.read.v1
+      - ssh-ansible.sign.v1
       - sys-auth.read.v1
       - sys-mounts.read.v1
       - sys-plugins-catalog.read.v1

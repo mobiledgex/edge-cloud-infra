@@ -10,6 +10,10 @@
     name: load-vault-creds
     tasks_from: mc
 
+- import_role:
+    name: load-vault-creds
+    tasks_from: mc_ldap
+
 - name: Look up gitlab apikey in vault
   set_fact:
     vault_lookup: "{{ lookup('vault', gitlab_path) }}"
@@ -88,3 +92,5 @@
       gitlab_token: "{{ mc_gitlab_token }}"
       JAEGER_ENDPOINT: "{{ jaeger_endpoint }}"
       JAEGER_TAGS: "mc={{ mc_name }},environ={{ deploy_environ }},version={{ edge_cloud_version }}"
+      LDAP_USERNAME: "{{ mc_ldap_username }}"
+      LDAP_PASSWORD: "{{ mc_ldap_password }}"

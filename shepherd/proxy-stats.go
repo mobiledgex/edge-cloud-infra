@@ -109,7 +109,7 @@ func initClient(ctx context.Context, app *edgeproto.App, appInst *edgeproto.AppI
 		if err != nil {
 			// If we cannot get a platform client no point in trying to get metrics
 			log.SpanLog(ctx, log.DebugLevelMetrics, "Failed to acquire platform client", "VmApp", appInst.Key, "error", err)
-			return ""
+			return err
 		}
 	} else {
 		scrapePoint.Client, err = myPlatform.GetClusterPlatformClient(ctx, clusterInst, cloudcommon.ClientTypeRootLB)

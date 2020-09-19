@@ -31,6 +31,8 @@
   set_fact:
     mc_args:
       - mc
+      - "-commonName"
+      - "{{ inventory_hostname }}"
       - "-addr"
       - "0.0.0.0:{{ mc_api_port }}"
       - "-notifyAddrs"

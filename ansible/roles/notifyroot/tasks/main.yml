@@ -10,6 +10,8 @@
     network_mode: host
     command:
       - notifyroot
+      - "--commonName"
+      - "{{ inventory_hostname }}"
       - "--notifyAddr"
       - "0.0.0.0:{{ notifyroot_port }}"
       - "--vaultAddr"

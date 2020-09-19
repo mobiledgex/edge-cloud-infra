@@ -10,6 +10,7 @@ import (
 	"context"
 	b64 "encoding/base64"
 	"fmt"
+	"os/exec"
 	"strconv"
 	"strings"
 
@@ -398,6 +399,7 @@ type TagOrchestrationParams struct {
 type VMCloudConfigParams struct {
 	ExtraBootCommands []string
 	ChefParams        *chefmgmt.VMChefParams
+	CACert            string
 }
 
 // VMOrchestrationParams contains all details  that are needed by the orchestator
@@ -792,6 +794,16 @@ func (v *VMPlatform) getVMGroupOrchestrationParamsFromGroupSpec(ctx context.Cont
 			if vm.ChefParams != nil {
 				vccp.ChefParams = vm.ChefParams
 			}
+			vaultAddr := v.VMProperties.CommonPf.VaultConfig.Addr
+			cmd := exec.Command("curl", "-s", fmt.Sprintf("%s/v1/ssh/public_key", vaultAddr))
+			out, err := cmd.CombinedOutput()
+			if err != nil {
+				return nil, fmt.Errorf("failed to get vault ssh cert: %s, %v", string(out), err)
+			}
+			if !strings.Contains(string(out), "ssh-rsa") {
+				return nil, fmt.Errorf("invalid vault ssh cert: %s", string(out))
+			}
+			vccp.CACert = string(out)
 			// gpu
 			if vm.OptionalResource == "gpu" {
 				gpuCmds := getGpuExtraCommands()

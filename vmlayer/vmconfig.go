@@ -20,6 +20,7 @@ bootcmd:
  - echo 'APT::Periodic::Enable "0";' > /etc/apt/apt.conf.d/10cloudinit-disable
  - apt-get -y purge update-notifier-common ubuntu-release-upgrader-core landscape-common unattended-upgrades
  - echo "Removed APT and Ubuntu extra packages" | systemd-cat
+ - cloud-init-per once ssh-users-ca echo "TrustedUserCAKeys /etc/ssh/trusted_ca_keys.pub" >> /etc/ssh/sshd_config
 {{- range .ExtraBootCommands}}
  - {{.}}
 {{- end}}
@@ -28,7 +29,12 @@ ssh_pwauth: False
 timezone: UTC
 runcmd:
  - echo MOBILEDGEX doing ifconfig
- - ifconfig -a`
+ - ifconfig -a
+{{- if .CACert }}
+write_files:
+  - path: /etc/ssh/trusted_ca_keys.pub
+    content: {{ .CACert }}
+{{- end}}`
 
 // vmCloudConfigShareMount is appended optionally to vmCloudConfig.   It assumes
 // the end of vmCloudConfig is runcmd

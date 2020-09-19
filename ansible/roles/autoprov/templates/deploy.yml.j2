@@ -28,11 +28,9 @@ spec:
          - "controller:37001"
          - "--region"
          - "{{ region }}"
-         - "--tls"
-         - "/root/tls/mex-server.crt"
          - "--vaultAddr"
          - "https://{{ vault_vm_hostname }}:{{ vault_port }}"
-         - "--useVaultCAs"
+         - "--useVaultCerts"
          - "-d"
          - "infra,notify,api"
         env:

@@ -14,9 +14,7 @@
       - "0.0.0.0:{{ notifyroot_port }}"
       - "--vaultAddr"
       - "https://{{ vault_vm_hostname }}:{{ vault_port }}"
-      - "--useVaultCAs"
-      - "-tls"
-      - "/root/tls/mex-server.crt"
+      - "--useVaultCerts"
     env:
       JAEGER_ENDPOINT: "{{ jaeger_endpoint }}"
       JAEGER_TAGS: "environ={{ deploy_environ }},version={{ edge_cloud_version }}"

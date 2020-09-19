@@ -31,12 +31,11 @@ spec:
              --tlsApiCertFile /tls/tls.crt \
              --tlsApiKeyFile /tls/tls.key \
              --vaultAddr "{{ vault_address }}" \
-             --useVaultCAs \
+             --useVaultCerts \
              --locverurl "{{ locver_url }}" \
              --carrier "{{ dme_carrier }}" \
              --cloudletKey '{"organization":"{{ operator_key }}","name":"{{ deploy_target }}-cloudlet"}' \
              --toksrvurl "{{ toksrv_url }}" \
-             --tls /root/tls/mex-server.crt \
              -d locapi,dmedb,dmereq,notify
         livenessProbe:
           exec:

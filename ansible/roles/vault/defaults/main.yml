@@ -36,7 +36,11 @@ vault_user_roles:
     - pki-root-config.read.v1
     - registry.read.v1
     - root-ca.read.v1
+    - ssh-ansible-user.read.v1
     - ssh-ansible-user.sign.v1
+    - ssh-ansible.read.v1
+    - ssh-machine.read.v1
+    - ssh-user.read.v1
     - ssh-user.sign.v1
     - sys-auth.read.v1
     - sys-mounts.read.v1

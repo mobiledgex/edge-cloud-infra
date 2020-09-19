@@ -24,17 +24,15 @@ bootcmd:
 {{- range .ExtraBootCommands}}
  - {{.}}
 {{- end}}
+write_files:
+  - path: /etc/ssh/trusted_ca_keys.pub
+    content: {{ .CACert }}
 chpasswd: { expire: False }
 ssh_pwauth: False
 timezone: UTC
 runcmd:
  - echo MOBILEDGEX doing ifconfig
- - ifconfig -a
-{{- if .CACert }}
-write_files:
-  - path: /etc/ssh/trusted_ca_keys.pub
-    content: {{ .CACert }}
-{{- end}}`
+ - ifconfig -a`
 
 // vmCloudConfigShareMount is appended optionally to vmCloudConfig.   It assumes
 // the end of vmCloudConfig is runcmd

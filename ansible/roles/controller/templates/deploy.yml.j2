@@ -20,6 +20,8 @@ spec:
         imagePullPolicy: Always
         command:
          - "controller"
+         - "--commonName"
+         - "{{ controller_hostname }}"
          - "--region"
          - "{{ region }}"
          - "--apiAddr"

@@ -24,10 +24,11 @@ spec:
          - |
            vault-cert --vault "{{ vault_address }}" _.dme.mobiledgex.net
            exec dme-server \
+             --commonName "{{ dme_dns }}.{{ cloudflare_zone }}" \
              --region "{{ region }}" \
              --apiAddr 0.0.0.0:50051 \
              --httpAddr 0.0.0.0:38001 \
-             --notifyAddrs controller:37001 \
+             --notifyAddrs {{ controller_hostname }}:37001 \
              --tlsApiCertFile /tls/tls.crt \
              --tlsApiKeyFile /tls/tls.key \
              --vaultAddr "{{ vault_address }}" \

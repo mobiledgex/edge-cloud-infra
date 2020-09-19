@@ -20,6 +20,8 @@ spec:
         imagePullPolicy: Always
         command:
          - "edgeturn"
+         - "--commonName"
+         - "{{ edgeturn_fqdn }}"
          - "--region"
          - "{{ region }}"
          - "--listenAddr"

@@ -41,9 +41,13 @@
     - policies/pki-root-config.read.v1.hcl.j2
     - policies/registry.read.v1.hcl.j2
     - policies/root-ca.read.v1.hcl.j2
-    - policies/ssh-ansible.sign.v1.hcl.j2
+    - policies/ssh-ansible-user.read.v1.hcl.j2
     - policies/ssh-ansible-user.sign.v1.hcl.j2
+    - policies/ssh-ansible.read.v1.hcl.j2
+    - policies/ssh-ansible.sign.v1.hcl.j2
+    - policies/ssh-machine.read.v1.hcl.j2
     - policies/ssh-machine.sign.v1.hcl.j2
+    - policies/ssh-user.read.v1.hcl.j2
     - policies/ssh-user.sign.v1.hcl.j2
     - policies/sys-auth.read.v1.hcl.j2
     - policies/sys-auth.write.v1.hcl.j2

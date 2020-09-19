@@ -55,6 +55,7 @@
 
 - name: Set up vault auth, policies, and roles
   import_playbook: vault-setup.yml
+  tags: vault-setup
 
 - hosts: platform
   tasks:

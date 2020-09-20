@@ -21,11 +21,11 @@ spec:
         command:
          - "autoprov"
          - "--ctrlAddrs"
-         - "controller:55001"
+         - "{{ controller_hostname }}:55001"
          - "-influxAddr"
          - "https://{{ influxdb_dns }}.{{ cloudflare_zone }}:8086"
          - "--notifyAddrs"
-         - "controller:37001"
+         - "{{ controller_hostname }}:37001"
          - "--region"
          - "{{ region }}"
          - "--vaultAddr"

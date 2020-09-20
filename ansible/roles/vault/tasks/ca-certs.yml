@@ -3,16 +3,13 @@
     tasks_from: load-token
   delegate_to: localhost
 
-- set_fact:
-    ca_certs: []
-
 - name: Look up vault PKI CA certs
   set_fact:
     vault_ca_lookup: "{{ query('vault_ca_cert', 'pki-regional-cloudlet', 'pki-regional', 'pki-global', 'pki') }}"
 
 - name: Append vault PKI CA certs
   set_fact:
-    ca_certs: "{{ ca_certs + vault_ca_lookup.ca_chain }}"
+    ca_certs: "{{ vault_ca_lookup.ca_chain }}"
 
 - name: Append offline root cert
   set_fact:

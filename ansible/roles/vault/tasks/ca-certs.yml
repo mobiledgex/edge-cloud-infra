@@ -3,14 +3,8 @@
     tasks_from: load-token
   delegate_to: localhost
 
-- name: Load mex CA cert from vault
-  set_fact:
-    vault_lookup: "{{ lookup('vault', ca_path) }}"
-  vars:
-    ca_path: "{{ vault_mex_ca_cert_path }}:ca"
-
 - set_fact:
-    ca_certs: [ "{{ vault_lookup.ca.data.pem }}" ]
+    ca_certs: []
 
 - name: Look up vault PKI CA certs
   set_fact:

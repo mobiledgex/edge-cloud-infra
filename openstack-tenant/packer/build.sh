@@ -164,6 +164,7 @@ PACKER_LOG=1 "${CMDLINE[@]}" \
 	-var "TAG=$TAG" \
 	-var "GITTAG=$GITTAG" \
 	-var "FLAVOR=$FLAVOR" \
+	-var "VAULT=$VAULT" \
 	-var "TRACE=$TRACE" \
 	-var "MEX_BUILD=$( git describe --long --tags )" \
 	-var "OUTPUT_PLATFORM=$OUTPUT_PLATFORM" \

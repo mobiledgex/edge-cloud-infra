@@ -20,6 +20,8 @@ spec:
         imagePullPolicy: Always
         command:
          - "edgeturn"
+         - "--commonName"
+         - "{{ edgeturn_fqdn }}"
          - "--region"
          - "{{ region }}"
          - "--listenAddr"
@@ -28,9 +30,7 @@ spec:
          - "0.0.0.0:8443"
          - "--vaultAddr"
          - "https://{{ vault_vm_hostname }}:{{ vault_port }}"
-         - "--useVaultCAs"
-         - "--tls"
-         - "/root/tls/mex-server.crt"
+         - "--useVaultCerts"
          - "-d"
          - "api,notify"
         env:

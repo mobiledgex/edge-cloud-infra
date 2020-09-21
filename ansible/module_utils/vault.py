@@ -19,8 +19,8 @@ def vault_request(addr, token):
         if not isinstance(success_code, list):
             success_code = [ success_code ]
         if r.status_code not in success_code:
-            raise VaultException("Got: {0} {1} (Expected one of: {2})".format(
-                r.status_code, r.text, success_code))
+            raise VaultException("Got: {3} {4} {5}: {0} {1} (Expected one of: {2})".format(
+                r.status_code, r.text, success_code, method, url, data))
 
         if r.status_code == requests.codes.no_content:
             return ''

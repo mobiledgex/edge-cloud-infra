@@ -560,6 +560,8 @@ func addControllerApis(method string, group *echo.Group) {
 	// ConfigNotifyCtrlAddrs: 21.3
 	// ConfigVaultAddr: 21.4
 	// ConfigTlsCertFile: 21.5
+	// ConfigTlsKeyFile: 21.20
+	// ConfigTlsCaFile: 21.21
 	// ConfigEnvVar: 21.6
 	// ConfigEnvVarKey: 21.6.1
 	// ConfigEnvVarValue: 21.6.2
@@ -1078,6 +1080,7 @@ func addControllerApis(method string, group *echo.Group) {
 	// PrivacyPolicy: 24
 	// MasterNodeFlavor: 25
 	// SkipCrmCleanupOnFailure: 26
+	// OptRes: 27
 	// ```
 	// Security:
 	//   Bearer:

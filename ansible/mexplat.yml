@@ -35,6 +35,7 @@
           return_content: yes
         register: console_tags
         check_mode: false
+        delegate_to: localhost
         when: console_version_not_provided | default(false)
 
       - name: Pick tag for latest release
@@ -55,6 +56,7 @@
 
 - name: Set up vault auth, policies, and roles
   import_playbook: vault-setup.yml
+  tags: vault-setup
 
 - hosts: platform
   tasks:

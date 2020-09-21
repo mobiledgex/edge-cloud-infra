@@ -98,7 +98,7 @@
       stream {
           server {
               # LDAPS terminates here
-              listen 9389 ssl;
+              listen {{ mc_ldap_port }} ssl;
               proxy_pass 127.0.0.1:19389;
               ssl_certificate  {{ letsencrypt_root }}/{{ console_vm_hostname }}/fullchain.pem;
               ssl_certificate_key {{ letsencrypt_root }}/{{ console_vm_hostname }}/privkey.pem;

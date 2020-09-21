@@ -74,7 +74,7 @@
     command: "{{ mc_args }}"
     ports:
       - "127.0.0.1:{{ mc_api_port }}:{{ mc_api_port }}"
-      - "{{ mc_ldap_port }}:{{ mc_ldap_port }}"
+      - "127.0.0.1:19389:{{ mc_ldap_port }}"
       - "127.0.0.1:{{ mc_vnc_port }}:{{ mc_vnc_port }}"
       - "{{ mc_notify_srv_port }}:{{ mc_notify_srv_port }}"
     env:
@@ -90,3 +90,19 @@
       JAEGER_TAGS: "mc={{ mc_name }},environ={{ deploy_environ }},version={{ edge_cloud_version }}"
       LDAP_USERNAME: "{{ mc_ldap_username }}"
       LDAP_PASSWORD: "{{ mc_ldap_password }}"
+
+- name: Set up the nginx reverse proxy
+  blockinfile:
+    path: /etc/nginx/nginx.conf
+    block: |
+      stream {
+          server {
+              # LDAPS terminates here
+              listen 9389 ssl;
+              proxy_pass 127.0.0.1:19389;
+              ssl_certificate  {{ letsencrypt_root }}/{{ console_vm_hostname }}/fullchain.pem;
+              ssl_certificate_key {{ letsencrypt_root }}/{{ console_vm_hostname }}/privkey.pem;
+          }
+      }
+  become: yes
+  notify: Restart nginx for LDAPS

@@ -264,8 +264,6 @@ gitlab_rails['ldap_servers'] = YAML.load <<-'EOS'
     password: '{{ mc_ldap_password }}'
     encryption: 'simple_tls' # "start_tls" or "simple_tls" or "plain"
     verify_certificates: true
-    tls_options:
-      ca_file: "{{ mex_ca_cert_pem }}"
     smartcard_auth: false
     active_directory: true
     allow_username_or_email_login: false

@@ -35,30 +35,6 @@
     name: load-vault-creds
     tasks_from: mc_ldap
 
-- name: Get mex CA cert
-  set_fact:
-    vault_lookup: "{{ lookup('vault', ca_path) }}"
-  vars:
-    ca_path: "{{ vault_mex_ca_cert_path }}:ca"
-
-- set_fact:
-    max_ca_cert: "{{ vault_lookup.ca.data.pem }}"
-
-- name: Create the CA cert directory
-  file:
-    path: "{{ mex_ca_cert_dir }}"
-    state: directory
-    owner: root
-    group: root
-    mode: 0755
-  become: yes
-
-- name: Install the CA cert
-  copy:
-    content: "{{ max_ca_cert }}"
-    dest: "{{ mex_ca_cert_pem }}"
-  become: yes
-
 - name: Install gitlab config
   template:
     src: gitlab.rb.j2

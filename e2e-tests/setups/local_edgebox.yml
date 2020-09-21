@@ -60,9 +60,6 @@ controllers:
   notifyparentaddrs: "127.0.0.1:52001"
   notifyrootaddrs: "127.0.0.1:53001"
   vaultaddr: "http://127.0.0.1:8200"
-  tls:
-    servercert: "{{tlsoutdir}}/mex-server.crt"
-    clientcert: "{{tlsoutdir}}/mex-client.crt"
   hostname: "127.0.0.1"
   testmode: true
   checkpointinterval: 3m
@@ -78,9 +75,6 @@ dmes:
   carrier: TDG
   cloudletkey: '{"organization":"mexdev","name":"mexdev-cloud-1"}'
   vaultaddr: "http://127.0.0.1:8200"
-  tls:
-    servercert: "{{tlsoutdir}}/mex-server.crt"
-    clientcert: "{{tlsoutdir}}/mex-client.crt"
   cookieexpr: "24h"
   hostname: "127.0.0.1"
 
@@ -91,9 +85,6 @@ clustersvcs:
   vaultaddr: "http://127.0.0.1:8200"
   ctrladdrs: "127.0.0.1:55001"
   pluginrequired: true
-  tls:
-    servercert: "{{tlsoutdir}}/mex-server.crt"
-    clientcert: "{{tlsoutdir}}/mex-client.crt"
   promports: "tcp:9090"
   interval: "5s"
   hostname: "127.0.0.1"
@@ -105,14 +96,12 @@ mcs:
   vaultaddr: "http://127.0.0.1:8200"
   notifysrvaddr: "127.0.0.1:52001"
   usevaultcerts: true
-  tls:
-    servercert: "{{tlsoutdir}}/mex-server.crt"
-    serverkey: "{{tlsoutdir}}/mex-server.key"
-    clientcert: "{{tlsoutdir}}/mex-client.crt"
   hostname: "127.0.0.1"
   billingpath: "fake"
   testcollectioninterval: 3m
   alertmgrapiaddr: "https://127.0.0.1:9094"
+  apitlscert: "{{tlsoutdir}}/mex-server.crt"
+  apitlskey: "{{tlsoutdir}}/mex-server.key"
   envvars:
     E2ETEST_TLS: true
 
@@ -122,9 +111,6 @@ sqls:
   httpaddr: "127.0.0.1:5432"
   username: mcuser
   dbname: mcdb
-  tls:
-    servercert: "{{tlsoutdir}}/mex-server.crt"
-    serverkey: "{{tlsoutdir}}/mex-server.key"
   hostname: "127.0.0.1"
 
 traefiks:
@@ -145,9 +131,6 @@ autoprovs:
   usevaultcerts: true
   vaultaddr: "http://127.0.0.1:8200"
   ctrladdrs: "127.0.0.1:55001"
-  tls:
-    servercert: "{{tlsoutdir}}/mex-server.crt"
-    clientcert: "{{tlsoutdir}}/mex-client.crt"
   hostname: "127.0.0.1"
 
 notifyroots:
@@ -155,8 +138,6 @@ notifyroots:
   hostname: "127.0.0.1"
   vaultaddr: "http://127.0.0.1:8200"
   usevaultcerts: true
-  tls:
-    servercert: "{{tlsoutdir}}/mex-server.crt"
 
 alertmanagers:
 - name: alertmanager

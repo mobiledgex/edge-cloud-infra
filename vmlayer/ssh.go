@@ -306,10 +306,11 @@ func (v *VMPlatform) GetAllCloudletVMs(ctx context.Context, caches *platform.Cac
 			dockerNodeIP, err := v.GetIPFromServerName(ctx, v.VMProperties.GetCloudletMexNetwork(), GetClusterSubnetName(ctx, clusterInst), dockerNode)
 			if err != nil {
 				log.SpanLog(ctx, log.DebugLevelInfra, "error getting docker node IP", "vm", dockerNode, "err", err)
-			}
-			dockerNodeClient, err = lbClient.AddHop(dockerNodeIP.ExternalAddr, 22)
-			if err != nil {
-				log.SpanLog(ctx, log.DebugLevelInfra, "Fail to addhop to docker node", "dockerNodeIP", dockerNodeIP, "err", err)
+			} else {
+				dockerNodeClient, err = lbClient.AddHop(dockerNodeIP.ExternalAddr, 22)
+				if err != nil {
+					log.SpanLog(ctx, log.DebugLevelInfra, "Fail to addhop to docker node", "dockerNodeIP", dockerNodeIP, "err", err)
+				}
 			}
 			cloudletVMs = append(cloudletVMs, VMAccess{
 				Name:   dockerNode,

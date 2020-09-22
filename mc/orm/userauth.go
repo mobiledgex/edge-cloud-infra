@@ -29,12 +29,6 @@ var PasshashIter = 10000
 var PasshashKeyBytes = 32
 var PasshashSaltBytes = 8
 
-// Password strength requirements.
-// Crack time is how long it would take to crack using brute force.
-// Min for normal users is 30 days, Admin is 2 years
-var DefaultPasswordMinCrackTimeSec = 30 * 86400
-var DefaultAdminPasswordMinCrackTimeSec = 2 * 356 * 86400
-
 var Jwks vault.JWKS
 
 type TokenAuth struct {

@@ -9,11 +9,13 @@ import (
 	"github.com/mobiledgex/edge-cloud/log"
 )
 
+// Password crack times are estimates of how long it would take to brute
+// force crack the password offline.
 var defaultConfig = ormapi.Config{
 	ID:                           1,
 	NotifyEmailAddress:           "support@mobiledgex.com",
-	PasswordMinCrackTimeSec:      30 * 86400, // 30 days
-	AdminPasswordMinCrackTimeSec: 2 * 365 * 86400,
+	PasswordMinCrackTimeSec:      30 * 86400,      // 30 days
+	AdminPasswordMinCrackTimeSec: 2 * 365 * 86400, // 2 years
 }
 
 func InitConfig(ctx context.Context) error {

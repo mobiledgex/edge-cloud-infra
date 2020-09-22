@@ -1,6 +1,10 @@
 - hosts: vault
   tasks:
 
+    - import_role:
+        name: vault
+        tasks_from: vault-ssh
+
     - name: Ensure that GCP creds are present in the controller
       block:
 

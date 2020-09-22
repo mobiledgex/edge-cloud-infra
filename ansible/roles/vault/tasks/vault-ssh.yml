@@ -1,0 +1,35 @@
+---
+- name: Fetch vault SSH CA cert
+  uri:
+    url: "{{ vault_address }}/v1/ssh-ansible/public_key"
+    return_content: yes
+  register: result
+  delegate_to: localhost
+
+- name: Update trusted key file
+  blockinfile:
+    path: /etc/ssh/trusted-user-ca-keys.pem
+    block: "{{ result.content }}"
+    create: yes
+    backup: yes
+  become: yes
+  notify: Restart sshd
+
+- name: Update sshd config
+  blockinfile:
+    path: /etc/ssh/sshd_config
+    block: "TrustedUserCAKeys /etc/ssh/trusted-user-ca-keys.pem"
+    backup: yes
+  become: yes
+  notify: Restart sshd
+
+- name: Remove authorized key files
+  file:
+    path: "{{ item }}"
+    state: absent
+  loop:
+    - /home/ansible/.ssh/authorized_keys
+    - /home/ubuntu/.ssh/authorized_keys
+    - /root/.ssh/authorized_keys
+  become: yes
+  when: retain_common_key is not defined or not retain_common_key

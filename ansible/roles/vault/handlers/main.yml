@@ -36,3 +36,9 @@
     data:
       plugin: "{{ letsencrypt_backend }}"
     success_code: 204
+
+- name: Restart sshd
+  service:
+    name: ssh
+    state: restarted
+  become: yes

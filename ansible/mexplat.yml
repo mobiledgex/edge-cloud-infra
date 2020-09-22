@@ -116,6 +116,9 @@
 
 - hosts: gitlab
   tasks:
+    - import_role:
+        name: vault
+        tasks_from: vault-ssh
     - name: Update Gitlab GPG key
       apt_key:
         url: https://packages.gitlab.com/gpg.key
@@ -134,6 +137,9 @@
 - hosts: postgres
   tasks:
     - import_role:
+        name: vault
+        tasks_from: vault-ssh
+    - import_role:
         name: load-vault-creds
         tasks_from: mc
     - import_role:
@@ -146,6 +152,9 @@
 
 - hosts: crms
   tasks:
+    - import_role:
+        name: vault
+        tasks_from: vault-ssh
     - import_role:
         name: vault
         tasks_from: load-token
@@ -169,12 +178,18 @@
 
 - hosts: stun
   roles:
+    - import_role:
+        name: vault
+        tasks_from: vault-ssh
     - role: telegraf
       tags: monitoring
     - role: coturn
 
 - hosts: alertmanager
   tasks:
+    - import_role:
+        name: vault
+        tasks_from: vault-ssh
     - import_role:
         name: docker
       tags: setup
@@ -184,6 +199,9 @@
 
 - hosts: console
   tasks:
+    - import_role:
+        name: vault
+        tasks_from: vault-ssh
     - import_role:
         name: vault
         tasks_from: load-token
@@ -215,6 +233,9 @@
   tasks:
     - import_role:
         name: vault
+        tasks_from: vault-ssh
+    - import_role:
+        name: vault
         tasks_from: load-token
       delegate_to: localhost
     - import_role:
@@ -225,6 +246,9 @@
 
 - hosts: registry_replicas
   tasks:
+    - import_role:
+        name: vault
+        tasks_from: vault-ssh
     - import_role:
         name: telegraf
       tags: monitoring
@@ -245,6 +269,10 @@
 - hosts: jaeger
   tasks:
     - import_role:
+        name: vault
+        tasks_from: vault-ssh
+
+    - import_role:
         name: telegraf
       tags:
         - monitoring
@@ -259,6 +287,10 @@
 
 - hosts: esproxy
   tasks:
+    - import_role:
+        name: vault
+        tasks_from: vault-ssh
+
     - import_role:
         name: telegraf
       tags:

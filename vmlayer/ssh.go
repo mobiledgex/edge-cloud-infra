@@ -219,13 +219,12 @@ func (v *VMPlatform) GetAllCloudletVMs(ctx context.Context, caches *platform.Cac
 	client, err := v.GetSSHClientForServer(ctx, pfName, v.VMProperties.GetCloudletExternalNetwork())
 	if err != nil {
 		log.SpanLog(ctx, log.DebugLevelInfra, "error getting ssh client for platform VM", "vm", pfName, "err", err)
-	} else {
-		cloudletVMs = append(cloudletVMs, VMAccess{
-			Name:   pfName,
-			Client: client,
-			Role:   RoleVMPlatform,
-		})
 	}
+	cloudletVMs = append(cloudletVMs, VMAccess{
+		Name:   pfName,
+		Client: client,
+		Role:   RoleVMPlatform,
+	})
 
 	// Shared RootLB
 	sharedRootLBName := v.VMProperties.SharedRootLBName

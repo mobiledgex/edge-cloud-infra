@@ -209,7 +209,7 @@ fi
 # Generate a signed SSH key
 if [[ -z "$VAULT_ADDR" ]]; then
 	# Pick vault address from Ansible
-	VAULT_ADDR=$( ansible-inventory -i development --list --export | jq -r .all.vars.vault_address )
+	VAULT_ADDR=$( ansible-inventory -i "$ENVIRON" --list --export | jq -r .all.vars.vault_address )
 	[[ -z "$VAULT_ADDR" ]] && die "Unable to determine vault instance"
 fi
 

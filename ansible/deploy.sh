@@ -21,6 +21,8 @@ USAGE="usage: $0 [options] <environment> [<target>]
   -t <tags>	tags (comma-separated)
   -v            verbose mode; can be repeated to increase verbosity
   -V <version>	edge-cloud version to deploy (default: \"$EC_VERSION\")
+  -x            skip vault SSH key signing
+  -X <vault>    vault URL
   -y		skip confirmation prompts
 
   -h		display this help message
@@ -59,9 +61,11 @@ SKIP_GITHUB=false
 CONSOLE_VERSION=
 EC_VERSION_SET=false
 QUIET_MODE=false
+SKIP_VAULT_SSH_KEY_SIGNING=false
+VAULT_ADDR=
 VERBOSITY=
 ENVVARS=()
-while getopts ':cC:de:Ghlnp:qs:St:vV:y' OPT; do
+while getopts ':cC:de:Ghlnp:qs:St:vV:xX:y' OPT; do
 	case "$OPT" in
 	c)	CONFIRM=true ;;
 	C)	CONSOLE_VERSION="$OPTARG" ;;
@@ -77,6 +81,8 @@ while getopts ':cC:de:Ghlnp:qs:St:vV:y' OPT; do
 	t)	TAGS="$OPTARG" ;;
 	v)	VERBOSITY="${VERBOSITY}v" ;;
 	V)	EC_VERSION="$OPTARG"; EC_VERSION_SET=true ;;
+	x)	SKIP_VAULT_SSH_KEY_SIGNING=true ;;
+	X)	VAUT_ADDR="$OPTARG" ;;
 	y)	ASSUME_YES=true ;;
 	h)	echo "$USAGE"
 		exit 0
@@ -143,10 +149,12 @@ elif [[ "$SKIP_GITHUB" != true && -z "$CONSOLE_VERSION" ]]; then
 	export GITHUB_USER GITHUB_TOKEN
 fi
 
+VAULT_SSH_ROLE=user
 if [[ -n "$VAULT_TOKEN" ]]; then
 	echo "Authenticating using vault token" >&2
 elif [[ -n "$VAULT_ROLE_ID" && -n "$VAULT_SECRET_ID" ]]; then
 	echo "Authenticating using vault role/secret" >&2
+	VAULT_SSH_ROLE=ansible
 else
 	echo "Vault role/secret not provided; falling back to token auth" >&2
 	while [[ -z "$VAULT_TOKEN" ]]; do
@@ -196,6 +204,29 @@ if $CONFIRM && ! $DRYRUN && ! $ASSUME_YES; then
 	y*|Y*)	echo ;;
 	*)	echo "Aborting..."; exit 0 ;;
 	esac
+fi
+
+# Generate a signed SSH key
+if [[ -z "$VAULT_ADDR" ]]; then
+	# Pick vault address from Ansible
+	VAULT_ADDR=$( ansible-inventory -i "$ENVIRON" --list --export | jq -r .all.vars.vault_address )
+	[[ -z "$VAULT_ADDR" ]] && die "Unable to determine vault instance"
+fi
+
+if ! $SKIP_VAULT_SSH_KEY_SIGNING; then
+	: ${VAULT_SSH_TTL:=120m}
+
+	SIGNED_KEY=$( mktemp )
+	trap 'rm -f "$SIGNED_KEY"' EXIT
+
+	VAULT_TOKEN="$VAULT_TOKEN" VAULT_ADDR="$VAULT_ADDR" \
+		vault write -field signed_key "ssh-ansible/sign/${VAULT_SSH_ROLE}" \
+			public_key=@$HOME/.ssh/id_rsa.pub \
+			valid_principals="ansible" \
+			ttl="$VAULT_SSH_TTL" >"$SIGNED_KEY"
+	[[ $? -ne 0 ]] && die "Failed to sign SSH key"
+
+	export ANSIBLE_SSH_ARGS="-C -o ControlMaster=auto -o ControlPersist=60s -i $SIGNED_KEY"
 fi
 
 VAULT_TOKEN="$VAULT_TOKEN" ansible-playbook "${ARGS[@]}"; RC=$?

@@ -127,7 +127,8 @@ func checkUsageCheckpointInterval() error {
 // Get most recent checkpoint with respect to t
 func prevCheckpoint(t time.Time) time.Time {
 	if serverConfig.UsageCheckpointInterval == cloudcommon.MonthlyInterval {
-		y, m, _ := t.Date()
+		// cast to UTC to make sure we get the right month and year
+		y, m, _ := t.UTC().Date()
 		return time.Date(y, m, 1, 0, 0, 0, 0, time.UTC)
 	}
 	dur, _ := time.ParseDuration(serverConfig.UsageCheckpointInterval)

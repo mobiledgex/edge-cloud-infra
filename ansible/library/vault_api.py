@@ -28,12 +28,12 @@ def vault_api_call(vault, api, method="GET", data={}, raw_response=False,
     if check_first:
         ckwargs = {
             "method": "GET",
-            "success_code": 200,
+            "success_code": [200, 404],
         }
         r = vault(api, **ckwargs)
         meta["response"] = r
 
-        cdata = r["data"]
+        cdata = r.get("data", {"no-data-in-response": True})
         has_changed = False
         for key in data:
             if key in cdata and cdata[key] == data[key]:

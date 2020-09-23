@@ -474,6 +474,7 @@ func PasswordResetRequest(c echo.Context) error {
 			arg.URL = req.CallbackURL + "?token=" + cookie
 		}
 		arg.Name = user.Name
+		arg.Token = cookie
 		tmpl = passwordResetTmpl
 	}
 	buf := bytes.Buffer{}

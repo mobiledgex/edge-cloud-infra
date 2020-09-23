@@ -65,7 +65,7 @@ SKIP_VAULT_SSH_KEY_SIGNING=false
 VAULT_ADDR=
 VERBOSITY=
 ENVVARS=()
-while getopts ':cC:de:Ghlnp:qs:St:vV:X:y' OPT; do
+while getopts ':cC:de:Ghlnp:qs:St:vV:xX:y' OPT; do
 	case "$OPT" in
 	c)	CONFIRM=true ;;
 	C)	CONSOLE_VERSION="$OPTARG" ;;

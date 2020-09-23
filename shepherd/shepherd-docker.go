@@ -242,6 +242,7 @@ func (c *DockerClusterStats) collectDockerAppMetrics(ctx context.Context, p *Doc
 	// We scraped it at the same time, so same timestamp for everything
 	ts, _ := types.TimestampProto(time.Now())
 	for _, containerStats := range stats.Containers {
+		log.SpanLog(ctx, log.DebugLevelMetrics, "Docker stats - container", "container", containerStats)
 		// TODO EDGECLOUD-1316 - set pod to the container
 		// appKey.Pod = containerStats.Container
 		appKey.Pod = containerStats.App

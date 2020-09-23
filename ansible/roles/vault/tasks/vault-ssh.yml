@@ -23,6 +23,9 @@
   become: yes
   notify: Restart sshd
 
+- name: Restart sshd now, if necessary
+  meta: flush_handlers
+
 - name: Remove authorized key files
   file:
     path: "{{ item }}"

@@ -105,7 +105,7 @@ if __name__ == "__main__":
     parser.add_argument("-j", "--jump", help="Host to proxy (jump) through")
     parser.add_argument("-t", "--ttl", help="SSH signed cert TTL", default="5m")
     parser.add_argument("-e", "--engine", help="SSH engine to use",
-                        choices=DEF_ENGINES, default=DEF_ENGINES[0])
+                        choices=DEF_ENGINES)
     parser.add_argument("-r", "--role", help="SSH signing role",
                         default=DEF_ROLE)
     parser.add_argument("-v", "--verbose", action='count',
@@ -119,11 +119,15 @@ if __name__ == "__main__":
     logging.basicConfig(level=log_level,
                         format="[%(levelname)s] %(message)s")
 
-    logging.info(f"Using vault: {args.vault}")
-
     if "@" in args.host:
         (args.user, args.host) = args.host.split("@", 1)
-    logging.debug("SSH user: {args.user}, host: {args.host}")
+
+    if args.user == "ansible" and not args.engine:
+        args.engine = "ssh-ansible"
+    else:
+        args.engine = "ssh"
+
+    logging.info(f"vault={args.vault} engine={args.engine} user={args.user} role={args.role}")
 
     token = get_vault_token(args)
     signed_key = get_signed_key(args, token)

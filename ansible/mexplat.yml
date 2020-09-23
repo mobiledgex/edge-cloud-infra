@@ -177,13 +177,15 @@
         index_var: crm_index
 
 - hosts: stun
-  roles:
+  tasks:
     - import_role:
         name: vault
         tasks_from: vault-ssh
-    - role: telegraf
+    - import_role:
+        name: telegraf
       tags: monitoring
-    - role: coturn
+    - import_role:
+        name: coturn
 
 - hosts: alertmanager
   tasks:

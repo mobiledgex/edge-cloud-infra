@@ -293,10 +293,10 @@ func (a *AWSPlatform) populateOrchestrationParams(ctx context.Context, vmgp *vml
 		masterIp := ""
 
 		metaData := vmlayer.GetVMMetaData(vm.Role, masterIp, awsMetaDataFormatter)
-		vm.UserDataParams.ExtraBootCommands = append(vm.UserDataParams.ExtraBootCommands, "mkdir -p "+metaDir)
-		vm.UserDataParams.ExtraBootCommands = append(vm.UserDataParams.ExtraBootCommands,
+		vm.CloudConfigParams.ExtraBootCommands = append(vm.CloudConfigParams.ExtraBootCommands, "mkdir -p "+metaDir)
+		vm.CloudConfigParams.ExtraBootCommands = append(vm.CloudConfigParams.ExtraBootCommands,
 			fmt.Sprintf("echo %s |base64 -d|python3 -c \"import sys, yaml, json; json.dump(yaml.load(sys.stdin), sys.stdout)\" > "+metaDir+"meta_data.json", metaData))
-		userdata, err := vmlayer.GetVMUserData(vm.Name, vm.SharedVolume, vm.DNSServers, vm.DeploymentManifest, vm.Command, &vm.UserDataParams, awsUserDataFormatter)
+		userdata, err := vmlayer.GetVMUserData(vm.Name, vm.SharedVolume, vm.DNSServers, vm.DeploymentManifest, vm.Command, &vm.CloudConfigParams, awsUserDataFormatter)
 		if err != nil {
 			return err
 		}

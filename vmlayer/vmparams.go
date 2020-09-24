@@ -386,7 +386,7 @@ type TagOrchestrationParams struct {
 	Category string
 }
 
-type UserDataParams struct {
+type VMCloudConfigParams struct {
 	ExtraBootCommands []string
 	ChefParams        *chefmgmt.VMChefParams
 }
@@ -416,7 +416,7 @@ type VMOrchestrationParams struct {
 	Ports                   []PortResourceReference      // depending on the orchestrator, IPs may be assigned to ports or
 	FixedIPs                []FixedIPOrchestrationParams // to VMs directly
 	AttachExternalDisk      bool
-	UserDataParams          UserDataParams
+	CloudConfigParams       VMCloudConfigParams
 }
 
 var (
@@ -774,8 +774,9 @@ func (v *VMPlatform) getVMGroupOrchestrationParamsFromGroupSpec(ctx context.Cont
 		if !vm.CreatePortsOnly {
 			log.SpanLog(ctx, log.DebugLevelInfra, "Defining new VM orch param", "vm.Name", vm.Name, "ports", newPorts)
 			hostName := util.HostnameSanitize(strings.Split(vm.Name, ".")[0])
-			udp := UserDataParams{
-				ChefParams: vm.ChefParams,
+			vccp := VMCloudConfigParams{}
+			if vm.ChefParams != nil {
+				vccp.ChefParams = vm.ChefParams
 			}
 			newVM := VMOrchestrationParams{
 				Name:                    v.VMProvider.NameSanitize(vm.Name),
@@ -790,7 +791,7 @@ func (v *VMPlatform) getVMGroupOrchestrationParamsFromGroupSpec(ctx context.Cont
 				DeploymentManifest:      vm.DeploymentManifest,
 				Command:                 vm.Command,
 				ComputeAvailabilityZone: vm.ComputeAvailabilityZone,
-				UserDataParams:          udp,
+				CloudConfigParams:       vccp,
 			}
 			if vm.ExternalVolumeSize > 0 {
 				externalVolume := VolumeOrchestrationParams{

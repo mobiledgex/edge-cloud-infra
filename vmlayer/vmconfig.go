@@ -59,7 +59,7 @@ mounts:
 // VmConfigDataFormatter formats user or meta data to fit into orchestration templates
 type VmConfigDataFormatter func(instring string) string
 
-func GetVMUserData(name string, sharedVolume bool, dnsServers, manifest, command string, userDataParams *UserDataParams, formatter VmConfigDataFormatter) (string, error) {
+func GetVMUserData(name string, sharedVolume bool, dnsServers, manifest, command string, cloudConfigParams *VMCloudConfigParams, formatter VmConfigDataFormatter) (string, error) {
 	var rc string
 	if manifest != "" {
 		return formatter(manifest), nil
@@ -71,10 +71,10 @@ runcmd:
 - ` + command
 	} else {
 		rc = VmCloudConfig
-		if userDataParams != nil {
-			buf, err := ExecTemplate(name, VmCloudConfig, userDataParams)
+		if cloudConfigParams != nil {
+			buf, err := ExecTemplate(name, VmCloudConfig, cloudConfigParams)
 			if err != nil {
-				return "", fmt.Errorf("failed to generate template user data params %v, err %v", userDataParams, err)
+				return "", fmt.Errorf("failed to generate template from cloud config params %v, err %v", cloudConfigParams, err)
 			}
 			rc = buf.String()
 		}

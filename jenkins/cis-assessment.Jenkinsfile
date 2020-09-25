@@ -41,7 +41,7 @@ pipeline {
                     sh '''#!/bin/bash
 export VAULT_ROLE_ID="${ANSIBLE_ROLE_USR}"
 export VAULT_SECRET_ID="${ANSIBLE_ROLE_PSW}"
-./cis-assessment.sh
+bash ./cis-assessment.sh
 '''
                 }
             }

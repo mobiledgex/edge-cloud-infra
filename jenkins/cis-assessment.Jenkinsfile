@@ -8,7 +8,7 @@ pipeline {
 
     environment {
         ARTIFACTORY_APIKEY = credentials('artiifactory-baseimage-reader')
-        SSH_KEY = credentials('mex_ssh_key')
+        ANSIBLE_ROLE = credentials('mexdemo-vault-ansible-role')
     }
 
     parameters {
@@ -38,7 +38,11 @@ pipeline {
         stage('Run CIS assessment') {
             steps {
                 dir(path: 'jenkins') {
-                    sh '/bin/bash ./cis-assessment.sh'
+                    sh '''#!/bin/bash
+export VAULT_ROLE_ID="${ANSIBLE_ROLE_USR}"
+export VAULT_SECRET_ID="${ANSIBLE_ROLE_PSW}"
+./cis-assessment.sh
+'''
                 }
             }
         }

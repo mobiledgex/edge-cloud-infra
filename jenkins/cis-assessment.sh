@@ -4,6 +4,8 @@ TMPDIR=$( mktemp -d )
 TIMESTAMP="$( date +'%Y%m%d%H%M%S' )"
 SRVNAME="cis-benchmark-${TIMESTAMP}"
 LOCATION="dusseldorf"
+SSH_KEY="$HOME/.ssh/id_rsa"
+VAULT_ADDR="https://vault-main.mobiledgex.net"; export VAULT_ADDR
 
 die() {
     echo "ERROR: $*" >&2
@@ -128,17 +130,36 @@ configure_security_group
 
 IP=$( get_server_ip "$SRVNAME" )
 
+# Sign SSH key
+SIGNED_KEY='signed-key'
+VAULT_TOKEN=$( vault write -field=token auth/approle/login \
+        role_id=$VAULT_ROLE_ID secret_id=$VAULT_SECRET_ID )
+VAULT_TOKEN="$VAULT_TOKEN" vault write -field signed_key "ssh/sign/machine" \
+    public_key="${SSH_KEY}.pub" \
+    ttl=10m >"$SIGNED_KEY"
+
 log "Server details (IP: $IP):"
 COUNTDOWN=30
 while [[ "$COUNTDOWN" -gt 0 ]]; do
+    COUNTDOWN=$(( COUNTDOWN - 1 ))
+
     sleep 3
+
+    # Copy ssh key over
+    cat ${SSH_KEY}.pub \
+        | timeout 10 ssh -i "$SSH_KEY" -i "$SIGNED_KEY" \
+            -o UserKnownHostsFile=/dev/null \
+            -o StrictHostKeyChecking=no \
+            ubuntu@${IP} \
+            'cat >~/.ssh/authorized_keys; chmod 600 ~/.ssh/authorized_keys'
+    [[ $? -ne 0 ]] && continue
+
     timeout 10 ssh -i "$SSH_KEY" \
         -o UserKnownHostsFile=/dev/null \
         -o StrictHostKeyChecking=no \
         -vv \
         ubuntu@${IP} cat /etc/os-release /etc/mex-release 2>/dev/null
-    [[ $? -eq 0 ]] && break
-    COUNTDOWN=$(( COUNTDOWN - 1 ))
+    break
 done
 
 cd "$HOME/Assessor-CLI"

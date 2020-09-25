@@ -96,6 +96,7 @@ func GetCloudletPoolUsageCommon(c echo.Context) error {
 			return err
 		}
 		if len(cloudletPools) != 1 {
+			log.SpanLog(ctx, log.DebugLevelMetrics, "Invalid response retrieving cloudletPool", "cloudletPools", cloudletPools)
 			return setReply(c, fmt.Errorf("Unable to retrieve CloudletPool info"), nil)
 		}
 

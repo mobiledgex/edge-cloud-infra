@@ -23,7 +23,6 @@ import (
 type Client struct {
 	SkipVerify bool
 	Debug      bool
-	McProxy    bool
 }
 
 func (s *Client) DoLogin(uri, user, pass string) (string, error) {
@@ -62,6 +61,13 @@ func (s *Client) ShowUser(uri, token string, org *ormapi.Organization) ([]ormapi
 	users := []ormapi.User{}
 	status, err := s.PostJson(uri+"/auth/user/show", token, org, &users)
 	return users, status, err
+}
+
+func (s *Client) NewPassword(uri, token, password string) (int, error) {
+	newpw := ormapi.NewPassword{
+		Password: password,
+	}
+	return s.PostJson(uri+"/auth/user/newpass", token, newpw, nil)
 }
 
 func (s *Client) CreateController(uri, token string, ctrl *ormapi.Controller) (int, error) {

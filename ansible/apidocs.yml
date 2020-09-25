@@ -3,6 +3,10 @@
   tasks:
 
     - import_role:
+        name: vault
+        tasks_from: vault-ssh
+
+    - import_role:
         name: docker
       tags: setup
 

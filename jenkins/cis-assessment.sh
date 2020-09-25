@@ -130,13 +130,15 @@ configure_security_group
 
 IP=$( get_server_ip "$SRVNAME" )
 
-# Sign SSH key
+log "Signing SSH key"
 SIGNED_KEY='signed-key'
+rm -f "$SIGNED_KEY"
 VAULT_TOKEN=$( vault write -field=token auth/approle/login \
         role_id=$VAULT_ROLE_ID secret_id=$VAULT_SECRET_ID )
 VAULT_TOKEN="$VAULT_TOKEN" vault write -field signed_key "ssh/sign/machine" \
     public_key="${SSH_KEY}.pub" \
     ttl=10m >"$SIGNED_KEY"
+chmod 400 "$SIGNED_KEY"
 
 log "Server details (IP: $IP):"
 COUNTDOWN=30

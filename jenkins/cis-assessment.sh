@@ -4,6 +4,7 @@ TMPDIR=$( mktemp -d )
 TIMESTAMP="$( date +'%Y%m%d%H%M%S' )"
 SRVNAME="cis-benchmark-${TIMESTAMP}"
 LOCATION="paradise"
+TESTPASS="Hhsbf4qbE5eRdA3G8tsf"
 
 die() {
     echo "ERROR: $*" >&2
@@ -104,10 +105,19 @@ if [[ -z "$IMAGE_ID" ]]; then
 fi
 
 log "Creating server $SRVNAME"
+cat >cis-init.yml <<EOT
+#cloud-config
+ssh_pwauth: True
+chpasswd:
+  list: |
+    ubuntu:${TESTPASS}
+  expire: false
+EOT
 openstack server create \
     --image "$IMAGE_ID" \
     --flavor m4.medium \
     --network external-network-shared \
+    --user-data "${PWD}/cis-init.yml" \
     "$SRVNAME"
 
 log "Waiting for server to come up"
@@ -128,26 +138,15 @@ configure_security_group
 
 IP=$( get_server_ip "$SRVNAME" )
 
-log "Server details (IP: $IP):"
-COUNTDOWN=30
-while [[ "$COUNTDOWN" -gt 0 ]]; do
-    sleep 3
-    timeout 10 ssh -i "$SSH_KEY" \
-        -o UserKnownHostsFile=/dev/null \
-        -o StrictHostKeyChecking=no \
-        -vv \
-        ubuntu@${IP} cat /etc/os-release /etc/mex-release 2>/dev/null
-    [[ $? -eq 0 ]] && break
-    COUNTDOWN=$(( COUNTDOWN - 1 ))
-done
+# Give the VM some time to bring SSH up
+sleep 30
 
 cd "$HOME/Assessor-CLI"
 cat >config/sessions.properties <<EOT
 session.1.type=ssh
 session.1.host=${IP}
 session.1.user=ubuntu
-#session.1.cred=
-session.1.identity=${SSH_KEY}
+session.1.cred=${TESTPASS}
 session.1.port=22
 session.1.tmp=/var/tmp
 EOT

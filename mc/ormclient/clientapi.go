@@ -13,6 +13,7 @@ type Api interface {
 	DeleteUser(uri, token string, user *ormapi.User) (int, error)
 	ShowUser(uri, token string, org *ormapi.Organization) ([]ormapi.User, int, error)
 	RestrictedUserUpdate(uri, token string, user map[string]interface{}) (int, error)
+	NewPassword(uri, token, password string) (int, error)
 
 	CreateController(uri, token string, ctrl *ormapi.Controller) (int, error)
 	DeleteController(uri, token string, ctrl *ormapi.Controller) (int, error)
@@ -51,6 +52,10 @@ type Api interface {
 	ShowEvents(uri, token string, query *node.EventSearch) ([]node.EventData, int, error)
 	FindEvents(uri, token string, query *node.EventSearch) ([]node.EventData, int, error)
 	EventTerms(uri, token string, query *node.EventSearch) (*node.EventTerms, int, error)
+
+	ShowAppUsage(uri, token string, query *ormapi.RegionAppInstUsage) (*ormapi.AllMetrics, int, error)
+	ShowClusterUsage(uri, token string, query *ormapi.RegionClusterInstUsage) (*ormapi.AllMetrics, int, error)
+	ShowCloudletPoolUsage(uri, token string, query *ormapi.RegionCloudletPoolUsage) (*ormapi.AllMetrics, int, error)
 
 	UpdateConfig(uri, token string, config map[string]interface{}) (int, error)
 	ResetConfig(uri, token string) (int, error)

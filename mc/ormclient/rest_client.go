@@ -23,7 +23,6 @@ import (
 type Client struct {
 	SkipVerify bool
 	Debug      bool
-	McProxy    bool
 }
 
 func (s *Client) DoLogin(uri, user, pass string) (string, error) {
@@ -62,6 +61,13 @@ func (s *Client) ShowUser(uri, token string, org *ormapi.Organization) ([]ormapi
 	users := []ormapi.User{}
 	status, err := s.PostJson(uri+"/auth/user/show", token, org, &users)
 	return users, status, err
+}
+
+func (s *Client) NewPassword(uri, token, password string) (int, error) {
+	newpw := ormapi.NewPassword{
+		Password: password,
+	}
+	return s.PostJson(uri+"/auth/user/newpass", token, newpw, nil)
 }
 
 func (s *Client) CreateController(uri, token string, ctrl *ormapi.Controller) (int, error) {
@@ -295,6 +301,24 @@ func (s *Client) ShowCloudletEvents(uri, token string, query *ormapi.RegionCloud
 	metrics := ormapi.AllMetrics{}
 	status, err := s.PostJson(uri+"/auth/events/cloudlet", token, query, &metrics)
 	return &metrics, status, err
+}
+
+func (s *Client) ShowAppUsage(uri, token string, query *ormapi.RegionAppInstUsage) (*ormapi.AllMetrics, int, error) {
+	usage := ormapi.AllMetrics{}
+	status, err := s.PostJson(uri+"auth/usage/app", token, query, &usage)
+	return &usage, status, err
+}
+
+func (s *Client) ShowClusterUsage(uri, token string, query *ormapi.RegionClusterInstUsage) (*ormapi.AllMetrics, int, error) {
+	usage := ormapi.AllMetrics{}
+	status, err := s.PostJson(uri+"auth/usage/cluster", token, query, &usage)
+	return &usage, status, err
+}
+
+func (s *Client) ShowCloudletPoolUsage(uri, token string, query *ormapi.RegionCloudletPoolUsage) (*ormapi.AllMetrics, int, error) {
+	usage := ormapi.AllMetrics{}
+	status, err := s.PostJson(uri+"auth/usage/cloudletpool", token, query, &usage)
+	return &usage, status, err
 }
 
 func (s *Client) PostJsonSend(uri, token string, reqData interface{}) (*http.Response, error) {

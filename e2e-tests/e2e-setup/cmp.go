@@ -83,8 +83,6 @@ var IgnoreTaskStatusMessages = cmpopts.AcyclicTransformer("ignoreTaskStatus", fu
 			strings.Contains(resp, "Second Create Task") ||
 			strings.Contains(resp, "Creating") ||
 			strings.Contains(resp, "Deleting") ||
-			strings.Contains(resp, "Creating Cloudlet") ||
-			strings.Contains(resp, "Creating App Inst") ||
 			strings.Contains(resp, "Starting CRMServer") ||
 			strings.Contains(resp, "fake appInst updated") {
 			continue

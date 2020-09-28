@@ -24,7 +24,7 @@ func GetAlertReceiverCommand() *cobra.Command {
 	cmds := []*cli.Command{&cli.Command{
 		Use:          "create",
 		RequiredArgs: strings.Join(AlertReceiverRequiredArgs, " "),
-		OptionalArgs: strings.Join(AlertReceiverOptionaldArgs, " "),
+		OptionalArgs: strings.Join(AlertReceiverOptionalArgs, " "),
 		AliasArgs:    strings.Join(AlertReceiverAliasArgs, " "),
 		Comments:     AlertReceiverArgsComments,
 		ReqData:      &ormapi.AlertReceiver{},
@@ -32,7 +32,7 @@ func GetAlertReceiverCommand() *cobra.Command {
 	}, &cli.Command{
 		Use:          "delete",
 		RequiredArgs: strings.Join(AlertReceiverRequiredArgs, " "),
-		OptionalArgs: strings.Join(AlertReceiverOptionaldArgs, " "),
+		OptionalArgs: strings.Join(AlertReceiverOptionalArgs, " "),
 		ReqData:      &ormapi.AlertReceiver{},
 		AliasArgs:    strings.Join(AlertReceiverAliasArgs, " "),
 		Comments:     AlertReceiverArgsComments,
@@ -51,7 +51,7 @@ var AlertReceiverRequiredArgs = []string{
 	"severity",
 }
 
-var AlertReceiverOptionaldArgs = []string{
+var AlertReceiverOptionalArgs = []string{
 	"appname",
 	"appvers",
 	"app-org",
@@ -68,9 +68,9 @@ var AlertReceiverArgsComments = map[string]string{
 	"appname":          "App Instance name",
 	"appvers":          "App Instance version",
 	"app-cloudlet":     "Cloudlet name where app instance is deployed",
-	"app-cloudlet-org": "Cloudlet organization that owns the cloudlet",
+	"app-cloudlet-org": "Company, or Organization that owns the cloudlet",
 	"cluster":          "App Instance Cluster name",
-	"cluster-org":      "Organization or Company Name that a Cluster is owned by",
-	"cloudlet-org":     "Company or Organization name of the cloudlet",
+	"cluster-org":      "Company, or Organization Name that a Cluster is owned by",
+	"cloudlet-org":     "Company, or Organization name of the cloudlet",
 	"cloudlet":         "Name of the cloudlet",
 }

@@ -8,7 +8,6 @@ import (
 	"os/signal"
 	"time"
 
-	"github.com/mobiledgex/edge-cloud-infra/billing/collections"
 	"github.com/mobiledgex/edge-cloud-infra/mc/orm"
 	"github.com/mobiledgex/edge-cloud/cloudcommon/node"
 	"github.com/mobiledgex/edge-cloud/edgeproto"
@@ -21,8 +20,8 @@ var localSql = flag.Bool("localSql", false, "Run local postgres db")
 var consoleProxyAddr = flag.String("consoleproxyaddr", "127.0.0.1:6080", "Console proxy address")
 var initSql = flag.Bool("initSql", false, "Init db when using localSql")
 var debugLevels = flag.String("d", "", fmt.Sprintf("comma separated list of %v", log.DebugLevelStrings))
-var tlsKeyFile = flag.String("tlskey", "", "server tls key file")
-var clientCert = flag.String("clientCert", "", "internal tls client cert file")
+var apiTlsCertFile = flag.String("apiTlsCert", "", "API server tls cert file")
+var apiTlsKeyFile = flag.String("apiTlsKey", "", "API server tls key file")
 var localVault = flag.Bool("localVault", false, "Run local Vault")
 var ldapAddr = flag.String("ldapAddr", "127.0.0.1:9389", "LDAP listener address")
 var gitlabAddr = flag.String("gitlabAddr", "http://127.0.0.1:80", "Gitlab server address")
@@ -39,6 +38,7 @@ var alertMgrResolveTimeout = flag.Duration("alertResolveTimeout", 3*time.Minute,
 var hostname = flag.String("hostname", "", "Unique hostname")
 var billingPath = flag.String("billingPath", "", "Zuora account path in vault")
 var usageCollectionInterval = flag.Duration("usageCollectionInterval", -1*time.Second, "Collection interval")
+var usageCheckpointInterval = flag.String("usageCheckpointInterval", "MONTH", "Checkpointing interval(must be same as controller's checkpointInterval)")
 
 var sigChan chan os.Signal
 var nodeMgr node.NodeMgr
@@ -48,8 +48,7 @@ func main() {
 	nodeMgr.InitFlags()
 	flag.Parse()
 	log.SetDebugLevelStrs(*debugLevels)
-	log.InitTracer(nodeMgr.TlsCertFile)
-	defer log.FinishTracer()
+	defer nodeMgr.Finish()
 
 	sigChan = make(chan os.Signal, 1)
 
@@ -59,32 +58,31 @@ func main() {
 	}
 
 	config := orm.ServerConfig{
-		ServAddr:              *addr,
-		SqlAddr:               *sqlAddr,
-		VaultAddr:             nodeMgr.VaultAddr,
-		ConsoleProxyAddr:      *consoleProxyAddr,
-		RunLocal:              *localSql,
-		InitLocal:             *initSql,
-		LocalVault:            *localVault,
-		TlsCertFile:           nodeMgr.TlsCertFile,
-		TlsKeyFile:            *tlsKeyFile,
-		LDAPAddr:              *ldapAddr,
-		GitlabAddr:            *gitlabAddr,
-		ArtifactoryAddr:       *artifactoryAddr,
-		ClientCert:            *clientCert,
-		PingInterval:          *pingInterval,
-		SkipVerifyEmail:       *skipVerifyEmail,
-		JaegerAddr:            *jaegerAddr,
-		SkipOriginCheck:       *skipOriginCheck,
-		Hostname:              *hostname,
-		NotifyAddrs:           *notifyAddrs,
-		NotifySrvAddr:         *notifySrvAddr,
-		NodeMgr:               &nodeMgr,
-		Billing:               billingEnabled,
-		BillingPath:           *billingPath,
-		AlertMgrAddr:          *alertMgrAddr,
-		AlertCache:            &alertCache,
-		AlertmgrResolveTimout: *alertMgrResolveTimeout,
+		ServAddr:                *addr,
+		SqlAddr:                 *sqlAddr,
+		VaultAddr:               nodeMgr.VaultAddr,
+		RunLocal:                *localSql,
+		InitLocal:               *initSql,
+		LocalVault:              *localVault,
+		ApiTlsCertFile:          *apiTlsCertFile,
+		ApiTlsKeyFile:           *apiTlsKeyFile,
+		LDAPAddr:                *ldapAddr,
+		GitlabAddr:              *gitlabAddr,
+		ArtifactoryAddr:         *artifactoryAddr,
+		PingInterval:            *pingInterval,
+		SkipVerifyEmail:         *skipVerifyEmail,
+		JaegerAddr:              *jaegerAddr,
+		SkipOriginCheck:         *skipOriginCheck,
+		Hostname:                *hostname,
+		NotifyAddrs:             *notifyAddrs,
+		NotifySrvAddr:           *notifySrvAddr,
+		NodeMgr:                 &nodeMgr,
+		Billing:                 billingEnabled,
+		BillingPath:             *billingPath,
+		AlertMgrAddr:            *alertMgrAddr,
+		AlertCache:              &alertCache,
+		AlertmgrResolveTimout:   *alertMgrResolveTimeout,
+		UsageCheckpointInterval: *usageCheckpointInterval,
 	}
 	server, err := orm.RunServer(&config)
 	if err != nil {
@@ -104,7 +102,9 @@ func main() {
 		if usageCollectionInterval.Seconds() > float64(0) { // if positive, use it
 			ctx = context.WithValue(ctx, "usageInterval", *usageCollectionInterval)
 		}
-		go collections.CollectDailyUsage(ctx)
+
+		// TODO: this needs to be reworked after usageApi comes out
+		// go collections.CollectDailyUsage(ctx)
 	}
 
 	// wait until process is killed/interrupted

@@ -320,6 +320,47 @@ func (o *OpenstackPlatform) HeatDeleteStack(ctx context.Context, stackName strin
 	return o.waitForStack(ctx, stackName, heatDelete, edgeproto.DummyUpdateCallback)
 }
 
+func GetUserDataFromOSResource(ctx context.Context, stackTemplate *OSHeatStackTemplate) (map[string]string, error) {
+	vmsUserData := make(map[string]string)
+	for resourceName, resource := range stackTemplate.Resources {
+		if resource.Type != "OS::Nova::Server" {
+			continue
+		}
+		userData, ok := resource.Properties["user_data"]
+		if !ok {
+			log.SpanLog(ctx, log.DebugLevelInfra, "missing user data", "resource", resource)
+			continue
+		}
+		userDataStr, ok := userData.(string)
+		if !ok {
+			log.SpanLog(ctx, log.DebugLevelInfra, "invalid user data", "resource", resource)
+			continue
+		}
+		vmsUserData[resourceName] = strings.TrimSpace(userDataStr)
+	}
+	return vmsUserData, nil
+}
+
+func IsUserDataSame(ctx context.Context, userdata1, userdata2 string) bool {
+	log.SpanLog(ctx, log.DebugLevelInfra, "match user data")
+
+	userdataarr1 := strings.Split(userdata1, "\n")
+	userdataarr2 := strings.Split(userdata2, "\n")
+	if len(userdataarr1) != len(userdataarr2) {
+		log.SpanLog(ctx, log.DebugLevelInfra, "userdata length mismatch", "userdata1", userdata1, "userdata2", userdata2)
+		return false
+	}
+	for ii := 0; ii < len(userdataarr1); ii++ {
+		m1 := strings.TrimSpace(userdataarr1[ii])
+		m2 := strings.TrimSpace(userdataarr2[ii])
+		if m1 != m2 {
+			log.SpanLog(ctx, log.DebugLevelInfra, "userdata mismatch", "match1", m1, "match2", m2)
+			return false
+		}
+	}
+	return true
+}
+
 func GetChefKeysFromOSResource(ctx context.Context, stackTemplate *OSHeatStackTemplate) (map[string]string, error) {
 	chefClientKeys := make(map[string]string)
 	for _, resource := range stackTemplate.Resources {
@@ -333,7 +374,7 @@ func GetChefKeysFromOSResource(ctx context.Context, stackTemplate *OSHeatStackTe
 		}
 		userDataStr, ok := userData.(string)
 		if !ok {
-			log.SpanLog(ctx, log.DebugLevelInfra, "missing user data", "resource", resource)
+			log.SpanLog(ctx, log.DebugLevelInfra, "invalid user data", "resource", resource)
 			continue
 		}
 		out := strings.Replace(userDataStr, `\n`, "\n", -1)
@@ -442,6 +483,7 @@ func (o *OpenstackPlatform) populateParams(ctx context.Context, VMGroupOrchestra
 
 	// Get chef keys for existing VMs
 	chefClientKeys := make(map[string]string)
+	vmsUserData := make(map[string]string)
 	if action == heatUpdate {
 		stackTemplate, err := o.getHeatStackTemplateDetail(ctx, VMGroupOrchestrationParams.GroupName)
 		if err != nil {
@@ -451,24 +493,36 @@ func (o *OpenstackPlatform) populateParams(ctx context.Context, VMGroupOrchestra
 		if err != nil {
 			log.SpanLog(ctx, log.DebugLevelInfra, "failed to fetch chef keys", "err", err)
 		}
+		vmsUserData, err = GetUserDataFromOSResource(ctx, stackTemplate)
+		if err != nil {
+			log.SpanLog(ctx, log.DebugLevelInfra, "failed to fetch vms userdata", "err", err)
+		}
 	}
 
 	// populate the user data
 	for i, v := range VMGroupOrchestrationParams.VMs {
 		VMGroupOrchestrationParams.VMs[i].MetaData = vmlayer.GetVMMetaData(v.Role, masterIP, reindent16)
 		// Copy client keys from existing template in case of update
-		if v.ChefParams != nil && action == heatUpdate {
-			if v.ChefParams.ClientKey == "" {
-				key, ok := chefClientKeys[v.ChefParams.NodeName]
+		if v.CloudConfigParams.ChefParams != nil && action == heatUpdate {
+			if v.CloudConfigParams.ChefParams.ClientKey == "" {
+				key, ok := chefClientKeys[v.CloudConfigParams.ChefParams.NodeName]
 				if !ok || key == "" {
-					return fmt.Errorf("missing chef client key for %s", v.ChefParams.NodeName)
+					return fmt.Errorf("missing chef client key for %s", v.CloudConfigParams.ChefParams.NodeName)
 				}
-				v.ChefParams.ClientKey = key
+				v.CloudConfigParams.ChefParams.ClientKey = key
 			}
 		}
-		userdata, err := vmlayer.GetVMUserData(v.SharedVolume, v.DNSServers, v.DeploymentManifest, v.Command, v.ChefParams, reindent16)
+		userdata, err := vmlayer.GetVMUserData(v.Name, v.SharedVolume, v.DNSServers, v.DeploymentManifest, v.Command, &v.CloudConfigParams, reindent16)
 		if err != nil {
 			return err
+		}
+
+		if v.Role == vmlayer.RoleMaster && action == heatUpdate {
+			if masterUserData, ok := vmsUserData[v.Name]; ok {
+				if !IsUserDataSame(ctx, masterUserData, userdata) {
+					return fmt.Errorf("Unable to update cluster instance as it will redeploy master node, hence will affect running app instances. Please delete and recreate the cluster instance")
+				}
+			}
 		}
 		VMGroupOrchestrationParams.VMs[i].UserData = userdata
 	}

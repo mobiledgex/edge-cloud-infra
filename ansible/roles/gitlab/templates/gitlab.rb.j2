@@ -260,12 +260,10 @@ gitlab_rails['ldap_servers'] = YAML.load <<-'EOS'
     host: '{{ mc_ldap_hostname | default(console_vm_hostname) }}'
     port: 9389
     uid: 'sAMAccountName'
-    bind_dn: 'cn=gitlab,ou=users'
-    password: 'gitlab'
+    bind_dn: 'cn={{ mc_ldap_username }},ou=users'
+    password: '{{ mc_ldap_password }}'
     encryption: 'simple_tls' # "start_tls" or "simple_tls" or "plain"
     verify_certificates: true
-    tls_options:
-      ca_file: "{{ mex_ca_cert_pem }}"
     smartcard_auth: false
     active_directory: true
     allow_username_or_email_login: false

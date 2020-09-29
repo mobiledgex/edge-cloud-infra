@@ -152,7 +152,7 @@ func (o *VMPoolPlatform) createVMsInternal(ctx context.Context, markedVMs map[st
 	vmChefParams := make(map[string]*chefmgmt.VMChefParams)
 	for _, vm := range orchVMs {
 		vmRoles[vm.Name] = vm.Role
-		vmChefParams[vm.Name] = vm.ChefParams
+		vmChefParams[vm.Name] = vm.CloudConfigParams.ChefParams
 	}
 	log.SpanLog(ctx, log.DebugLevelInfra, "Fetch VM info", "vmRoles", vmRoles, "chefParams", vmChefParams)
 
@@ -658,7 +658,7 @@ func (s *VMPoolPlatform) VerifyVMs(ctx context.Context, vms []edgeproto.VM) erro
 	case <-wgDone:
 		break
 	case err := <-wgError:
-		close(wgError)
+		// note: do not close wgError, let gc clean it
 		return err
 	case <-time.After(AllVMAccessTimeout):
 		return fmt.Errorf("Timed out verifying VMs")

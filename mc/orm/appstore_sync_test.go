@@ -113,7 +113,7 @@ func TestAppStoreApi(t *testing.T) {
 	var status int
 
 	log.SetDebugLevel(log.DebugLevelApi)
-	log.InitTracer("")
+	log.InitTracer(nil)
 	defer log.FinishTracer()
 
 	ctx := log.StartTestSpan(context.Background())
@@ -131,15 +131,16 @@ func TestAppStoreApi(t *testing.T) {
 	uri := "http://" + addr + "/api/v1"
 
 	config := ServerConfig{
-		ServAddr:        addr,
-		SqlAddr:         "127.0.0.1:5445",
-		RunLocal:        true,
-		InitLocal:       true,
-		IgnoreEnv:       true,
-		ArtifactoryAddr: artifactoryAddr,
-		GitlabAddr:      gitlabAddr,
-		SkipVerifyEmail: true,
-		LocalVault:      true,
+		ServAddr:                addr,
+		SqlAddr:                 "127.0.0.1:5445",
+		RunLocal:                true,
+		InitLocal:               true,
+		IgnoreEnv:               true,
+		ArtifactoryAddr:         artifactoryAddr,
+		GitlabAddr:              gitlabAddr,
+		SkipVerifyEmail:         true,
+		LocalVault:              true,
+		UsageCheckpointInterval: "MONTH",
 	}
 
 	server, err := RunServer(&config)
@@ -274,14 +275,14 @@ func mcClientCreate(t *testing.T, v entry, mcClient *ormclient.Client, uri strin
 	token := ""
 	for user, userType := range v.Users {
 		if userType == RoleDeveloperManager || userType == RoleOperatorManager {
-			_, token = testCreateUser(t, mcClient, uri, user)
+			_, token, _ = testCreateUser(t, mcClient, uri, user)
 			testCreateOrg(t, mcClient, uri, token, v.OrgType, v.Org)
 			break
 		}
 	}
 	for user, userType := range v.Users {
 		if userType != RoleDeveloperManager && userType != RoleOperatorManager {
-			worker, _ := testCreateUser(t, mcClient, uri, user)
+			worker, _, _ := testCreateUser(t, mcClient, uri, user)
 			testAddUserRole(t, mcClient, uri, token, v.Org, userType, worker.Name, Success)
 		}
 	}

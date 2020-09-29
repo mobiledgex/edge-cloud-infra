@@ -6,7 +6,7 @@ http --auth elastic POST https://3dd88757c3df44ac8960e53fc6a9a2d5.us-central1.gc
   "name": "esproxy",
   "role_descriptors": {
     "esproxy": {
-      "cluster": [ "monitor" ],
+      "cluster": [ "manage_index_templates", "monitor" ],
       "index": [
         {
           "names": [ "events-*" ],

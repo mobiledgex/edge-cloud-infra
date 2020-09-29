@@ -3,17 +3,19 @@
 
 package ormctl
 
-import edgeproto "github.com/mobiledgex/edge-cloud/edgeproto"
-import "strings"
-import "github.com/mobiledgex/edge-cloud-infra/mc/ormapi"
-import "github.com/mobiledgex/edge-cloud/cli"
-import proto "github.com/gogo/protobuf/proto"
-import fmt "fmt"
-import math "math"
-import _ "github.com/gogo/googleapis/google/api"
-import _ "github.com/mobiledgex/edge-cloud/protogen"
-import _ "github.com/mobiledgex/edge-cloud/d-match-engine/dme-proto"
-import _ "github.com/gogo/protobuf/gogoproto"
+import (
+	fmt "fmt"
+	_ "github.com/gogo/googleapis/google/api"
+	_ "github.com/gogo/protobuf/gogoproto"
+	proto "github.com/gogo/protobuf/proto"
+	"github.com/mobiledgex/edge-cloud-infra/mc/ormapi"
+	"github.com/mobiledgex/edge-cloud/cli"
+	_ "github.com/mobiledgex/edge-cloud/d-match-engine/dme-proto"
+	edgeproto "github.com/mobiledgex/edge-cloud/edgeproto"
+	_ "github.com/mobiledgex/edge-cloud/protogen"
+	math "math"
+	"strings"
+)
 
 // Reference imports to suppress errors if they are not otherwise used.
 var _ = proto.Marshal
@@ -325,6 +327,8 @@ var PlatformConfigOptionalArgs = []string{
 	"notifyctrladdrs",
 	"vaultaddr",
 	"tlscertfile",
+	"tlskeyfile",
+	"tlscafile",
 	"envvar",
 	"platformtag",
 	"testmode",
@@ -345,6 +349,8 @@ var PlatformConfigAliasArgs = []string{
 	"notifyctrladdrs=platformconfig.notifyctrladdrs",
 	"vaultaddr=platformconfig.vaultaddr",
 	"tlscertfile=platformconfig.tlscertfile",
+	"tlskeyfile=platformconfig.tlskeyfile",
+	"tlscafile=platformconfig.tlscafile",
 	"envvar=platformconfig.envvar",
 	"platformtag=platformconfig.platformtag",
 	"testmode=platformconfig.testmode",
@@ -365,6 +371,8 @@ var PlatformConfigComments = map[string]string{
 	"notifyctrladdrs":       "Address of controller notify port (can be multiple of these)",
 	"vaultaddr":             "Vault address",
 	"tlscertfile":           "TLS cert file",
+	"tlskeyfile":            "TLS key file",
+	"tlscafile":             "TLS ca file",
 	"envvar":                "Environment variables",
 	"platformtag":           "Tag of edge-cloud image",
 	"testmode":              "Internal Test flag",
@@ -493,6 +501,8 @@ var CloudletAliasArgs = []string{
 	"config.notifyctrladdrs=cloudlet.config.notifyctrladdrs",
 	"config.vaultaddr=cloudlet.config.vaultaddr",
 	"config.tlscertfile=cloudlet.config.tlscertfile",
+	"config.tlskeyfile=cloudlet.config.tlskeyfile",
+	"config.tlscafile=cloudlet.config.tlscafile",
 	"config.envvar=cloudlet.config.envvar",
 	"config.platformtag=cloudlet.config.platformtag",
 	"config.testmode=cloudlet.config.testmode",
@@ -555,6 +565,8 @@ var CloudletComments = map[string]string{
 	"config.notifyctrladdrs":              "Address of controller notify port (can be multiple of these)",
 	"config.vaultaddr":                    "Vault address",
 	"config.tlscertfile":                  "TLS cert file",
+	"config.tlskeyfile":                   "TLS key file",
+	"config.tlscafile":                    "TLS ca file",
 	"config.envvar":                       "Environment variables",
 	"config.platformtag":                  "Tag of edge-cloud image",
 	"config.testmode":                     "Internal Test flag",

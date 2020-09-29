@@ -11,6 +11,12 @@ vault_ldap_groups:
   - name: EdgeBox
     role: edgebox_user
 
+vault_github_teams:
+  - name: edge-cloud-development-team
+    policies:
+      - ssh-ansible-user.sign.v1
+      - ssh-user.sign.v1
+
 vault_github_users:
   - userid: anand12gupta
     role: edgebox_user
@@ -24,9 +30,9 @@ vault_github_users:
     role: admin
   - userid: mwilliams-mex
     role: cloudlet_admin
-  - userid: msewera
-    role: cloudlet_admin
   - userid: venkytv
+    role: admin
+  - userid: ashxjain
     role: admin
 
 crm_instances:

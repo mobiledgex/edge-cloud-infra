@@ -21,6 +21,7 @@
     backup: yes
   become: yes
   tags: setup
+  notify: Restart nginx
 
 - name: Deploy all-in-one jaeger
   block:

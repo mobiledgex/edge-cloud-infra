@@ -167,11 +167,9 @@ func (v *VSpherePlatform) populateOrchestrationParams(ctx context.Context, vmgp 
 	masterIP := ""
 	var flavors []*edgeproto.FlavorInfo
 	var err error
-	if !vmgp.SkipInfraSpecificCheck {
-		flavors, err = v.GetFlavorList(ctx)
-		if err != nil {
-			return err
-		}
+	flavors, err = v.GetFlavorList(ctx)
+	if err != nil {
+		return err
 	}
 
 	var usedCidrs map[string]string
@@ -221,7 +219,7 @@ func (v *VSpherePlatform) populateOrchestrationParams(ctx context.Context, vmgp 
 	for vmidx, vm := range vmgp.VMs {
 		vmHasExternalIp := false
 		vmgp.VMs[vmidx].MetaData = vmlayer.GetVMMetaData(vm.Role, masterIP, vmsphereMetaDataFormatter)
-		userdata, err := vmlayer.GetVMUserData(vm.SharedVolume, vm.DNSServers, vm.DeploymentManifest, vm.Command, vm.ChefParams, vmsphereUserDataFormatter)
+		userdata, err := vmlayer.GetVMUserData(vm.Name, vm.SharedVolume, vm.DNSServers, vm.DeploymentManifest, vm.Command, &vm.CloudConfigParams, vmsphereUserDataFormatter)
 		if err != nil {
 			return err
 		}
@@ -237,7 +235,7 @@ func (v *VSpherePlatform) populateOrchestrationParams(ctx context.Context, vmgp 
 				break
 			}
 		}
-		if !flavormatch && !vmgp.SkipInfraSpecificCheck {
+		if !flavormatch {
 			return fmt.Errorf("No match in flavor cache for flavor name: %s", vm.FlavorName)
 		}
 		if vm.AttachExternalDisk {

@@ -10,6 +10,10 @@
     name: load-vault-creds
     tasks_from: mc
 
+- import_role:
+    name: load-vault-creds
+    tasks_from: mc_ldap
+
 - name: Look up gitlab apikey in vault
   set_fact:
     vault_lookup: "{{ lookup('vault', gitlab_path) }}"
@@ -27,6 +31,8 @@
   set_fact:
     mc_args:
       - mc
+      - "-commonName"
+      - "{{ inventory_hostname }}"
       - "-addr"
       - "0.0.0.0:{{ mc_api_port }}"
       - "-notifyAddrs"
@@ -37,23 +43,15 @@
       - "{{ postgres_hostname }}:5432"
       - "-vaultAddr"
       - "{{ vault_address }}"
-      - "--useVaultCAs"
+      - "--useVaultCerts"
       - "-gitlabAddr"
       - "https://{{ gitlab_vm_hostname }}"
       - "-ldapAddr"
       - "0.0.0.0:{{ mc_ldap_port }}"
-      - "-consoleproxyaddr"
-      - "0.0.0.0:6080"
       - "-alertMgrApiAddr"
       - "https://{{ alertmanager_hostname }}:{{ alertmanager_sidecar_port }}"
       - "-jaegerAddr"
       - "{{ jaeger_hostname }}:16686"
-      - "-tls"
-      - "/root/tls/mex-server.crt"
-      - "-tlskey"
-      - "/root/tls/mex-server.key"
-      - "-clientCert"
-      - "/root/tls/mex-server.crt"
       - "-d"
       - "api"
 
@@ -74,7 +72,7 @@
     command: "{{ mc_args }}"
     ports:
       - "127.0.0.1:{{ mc_api_port }}:{{ mc_api_port }}"
-      - "{{ mc_ldap_port }}:{{ mc_ldap_port }}"
+      - "127.0.0.1:19389:{{ mc_ldap_port }}"
       - "127.0.0.1:{{ mc_vnc_port }}:{{ mc_vnc_port }}"
       - "{{ mc_notify_srv_port }}:{{ mc_notify_srv_port }}"
     env:
@@ -88,3 +86,21 @@
       gitlab_token: "{{ mc_gitlab_token }}"
       JAEGER_ENDPOINT: "{{ jaeger_endpoint }}"
       JAEGER_TAGS: "mc={{ mc_name }},environ={{ deploy_environ }},version={{ edge_cloud_version }}"
+      LDAP_USERNAME: "{{ mc_ldap_username }}"
+      LDAP_PASSWORD: "{{ mc_ldap_password }}"
+
+- name: Set up the nginx reverse proxy
+  blockinfile:
+    path: /etc/nginx/nginx.conf
+    block: |
+      stream {
+          server {
+              # LDAPS terminates here
+              listen {{ mc_ldap_port }} ssl;
+              proxy_pass 127.0.0.1:19389;
+              ssl_certificate  {{ letsencrypt_root }}/{{ console_vm_hostname }}/fullchain.pem;
+              ssl_certificate_key {{ letsencrypt_root }}/{{ console_vm_hostname }}/privkey.pem;
+          }
+      }
+  become: yes
+  notify: Restart nginx for LDAPS

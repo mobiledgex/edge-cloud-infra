@@ -8,7 +8,6 @@ pipeline {
 
     environment {
         ARTIFACTORY_APIKEY = credentials('artiifactory-baseimage-reader')
-        SSH_KEY = credentials('mex_ssh_key')
     }
 
     parameters {

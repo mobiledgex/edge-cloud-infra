@@ -7,6 +7,12 @@ vault_ha_zones:
   us: us-west2-a
   eu: europe-west3-a
 
+vault_github_teams:
+  - name: edge-cloud-development-team
+    policies:
+      - ssh-ansible-user.sign.v1
+      - ssh-user.sign.v1
+
 vault_github_users:
   - userid: andya072071
     role: admin

@@ -1,0 +1,8 @@
+- set_fact:
+    vault_lookup: "{{ lookup('vault', mc_ldap_vault_path) }}"
+
+- name: Look up MC LDAP creds in vault
+  set_fact:
+    mc_ldap_username: "{{ vault_lookup.mc_ldap.data.username }}"
+    mc_ldap_password: "{{ vault_lookup.mc_ldap.data.password }}"
+  delegate_to: localhost

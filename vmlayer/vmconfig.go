@@ -2,26 +2,32 @@ package vmlayer
 
 import (
 	"fmt"
-
-	"github.com/mobiledgex/edge-cloud-infra/chefmgmt"
 )
 
 var VmCloudConfig = `#cloud-config
+{{- if .ChefParams}}
 chef:
-  server_url: {{.ServerPath}}
-  node_name: {{.NodeName}}
+  server_url: {{.ChefParams.ServerPath}}
+  node_name: {{.ChefParams.NodeName}}
   environment: ""
   validation_name: mobiledgex-validator
   validation_key: /etc/chef/client.pem
   validation_cert: |
-{{ Indent .ClientKey 10 }}
+{{ Indent .ChefParams.ClientKey 10 }}
+{{- end}}
 bootcmd:
  - echo MOBILEDGEX CLOUD CONFIG START
  - echo 'APT::Periodic::Enable "0";' > /etc/apt/apt.conf.d/10cloudinit-disable
  - apt-get -y purge update-notifier-common ubuntu-release-upgrader-core landscape-common unattended-upgrades
  - echo "Removed APT and Ubuntu extra packages" | systemd-cat
-ssh_authorized_keys:
- - ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAABAQCrHlOJOJUqvd4nEOXQbdL8ODKzWaUxKVY94pF7J3diTxgZ1NTvS6omqOjRS3loiU7TOlQQU4cKnRRnmJW8QQQZSOMIGNrMMInGaEYsdm6+tr1k4DDfoOrkGMj3X/I2zXZ3U+pDPearVFbczCByPU0dqs16TWikxDoCCxJRGeeUl7duzD9a65bI8Jl+zpfQV+I7OPa81P5/fw15lTzT4+F9MhhOUVJ4PFfD+d6/BLnlUfZ94nZlvSYnT+GoZ8xTAstM7+6pvvvHtaHoV4YqRf5CelbWAQ162XNa9/pW5v/RKDrt203/JEk3e70tzx9KAfSw2vuO1QepkCZAdM9rQoCd ubuntu@registry
+ - cloud-init-per once ssh-users-ca echo "TrustedUserCAKeys /etc/ssh/trusted-user-ca-keys.pem" >> /etc/ssh/sshd_config
+{{- range .ExtraBootCommands}}
+ - {{.}}
+{{- end}}
+write_files:
+  - path: /etc/ssh/trusted-user-ca-keys.pem
+    content: {{ .CACert }}
+    append: true
 chpasswd: { expire: False }
 ssh_pwauth: False
 timezone: UTC
@@ -58,7 +64,7 @@ mounts:
 // VmConfigDataFormatter formats user or meta data to fit into orchestration templates
 type VmConfigDataFormatter func(instring string) string
 
-func GetVMUserData(sharedVolume bool, dnsServers, manifest, command string, chefParams *chefmgmt.VMChefParams, formatter VmConfigDataFormatter) (string, error) {
+func GetVMUserData(name string, sharedVolume bool, dnsServers, manifest, command string, cloudConfigParams *VMCloudConfigParams, formatter VmConfigDataFormatter) (string, error) {
 	var rc string
 	if manifest != "" {
 		return formatter(manifest), nil
@@ -70,13 +76,12 @@ runcmd:
 - ` + command
 	} else {
 		rc = VmCloudConfig
-		if chefParams != nil {
-			buf, err := ExecTemplate(chefParams.NodeName, VmCloudConfig, chefParams)
-			if err != nil {
-				return "", fmt.Errorf("failed to generate template from chef params %v, err %v", chefParams, err)
-			}
-			rc = buf.String()
+		buf, err := ExecTemplate(name, VmCloudConfig, cloudConfigParams)
+		if err != nil {
+			return "", fmt.Errorf("failed to generate template from cloud config params %v, err %v", cloudConfigParams, err)
 		}
+		rc = buf.String()
+
 		if dnsServers != "" {
 			rc += fmt.Sprintf("\n - echo \"dns-nameservers %s\" >> /etc/network/interfaces.d/50-cloud-init.cfg", dnsServers)
 		}

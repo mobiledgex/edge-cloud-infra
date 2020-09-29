@@ -20,7 +20,10 @@ type MC struct {
 	AlertResolveTimeout     string
 	BillingPath             string
 	UsageCollectionInterval string
+	UsageCheckpointInterval string
 	AlertMgrApiAddr         string
+	ApiTlsCert              string
+	ApiTlsKey               string
 	TLS                     process.TLSCerts
 	cmd                     *exec.Cmd
 }

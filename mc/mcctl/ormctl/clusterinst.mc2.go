@@ -3,16 +3,18 @@
 
 package ormctl
 
-import edgeproto "github.com/mobiledgex/edge-cloud/edgeproto"
-import "strings"
-import "github.com/mobiledgex/edge-cloud-infra/mc/ormapi"
-import "github.com/mobiledgex/edge-cloud/cli"
-import proto "github.com/gogo/protobuf/proto"
-import fmt "fmt"
-import math "math"
-import _ "github.com/gogo/googleapis/google/api"
-import _ "github.com/mobiledgex/edge-cloud/protogen"
-import _ "github.com/gogo/protobuf/gogoproto"
+import (
+	fmt "fmt"
+	_ "github.com/gogo/googleapis/google/api"
+	_ "github.com/gogo/protobuf/gogoproto"
+	proto "github.com/gogo/protobuf/proto"
+	"github.com/mobiledgex/edge-cloud-infra/mc/ormapi"
+	"github.com/mobiledgex/edge-cloud/cli"
+	edgeproto "github.com/mobiledgex/edge-cloud/edgeproto"
+	_ "github.com/mobiledgex/edge-cloud/protogen"
+	math "math"
+	"strings"
+)
 
 // Reference imports to suppress errors if they are not otherwise used.
 var _ = proto.Marshal
@@ -116,6 +118,7 @@ var UpdateClusterInstOptionalArgs = []string{
 	"numnodes",
 	"autoscalepolicy",
 	"skipcrmcleanuponfailure",
+	"optres",
 }
 var ClusterInstKeyRequiredArgs = []string{}
 var ClusterInstKeyOptionalArgs = []string{
@@ -157,6 +160,7 @@ var ClusterInstOptionalArgs = []string{
 	"sharedvolumesize",
 	"privacypolicy",
 	"skipcrmcleanuponfailure",
+	"optres",
 }
 var ClusterInstAliasArgs = []string{
 	"fields=clusterinst.fields",
@@ -190,6 +194,7 @@ var ClusterInstAliasArgs = []string{
 	"privacypolicy=clusterinst.privacypolicy",
 	"masternodeflavor=clusterinst.masternodeflavor",
 	"skipcrmcleanuponfailure=clusterinst.skipcrmcleanuponfailure",
+	"optres=clusterinst.optres",
 }
 var ClusterInstComments = map[string]string{
 	"fields":                  "Fields are used for the Update API to specify which fields to apply",
@@ -219,6 +224,7 @@ var ClusterInstComments = map[string]string{
 	"privacypolicy":           "Optional privacy policy name",
 	"masternodeflavor":        "Generic flavor for k8s master VM when worker nodes > 0",
 	"skipcrmcleanuponfailure": "Prevents cleanup of resources on failure within CRM, used for diagnostic purposes",
+	"optres":                  "Optional Resources required by OS flavor if any",
 }
 var ClusterInstSpecialArgs = map[string]string{
 	"clusterinst.errors": "StringArray",

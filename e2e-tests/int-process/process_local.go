@@ -35,17 +35,16 @@ func (p *MC) StartLocal(logfile string, opts ...process.StartOp) error {
 		args = append(args, "--vaultAddr")
 		args = append(args, p.VaultAddr)
 	}
-	if p.TLS.ServerCert != "" {
-		args = append(args, "--tls")
-		args = append(args, p.TLS.ServerCert)
-	}
-	if p.TLS.ServerKey != "" {
-		args = append(args, "--tlskey")
-		args = append(args, p.TLS.ServerKey)
-	}
+	args = p.TLS.AddInternalPkiArgs(args)
 	if p.TLS.ClientCert != "" {
 		args = append(args, "--clientCert")
 		args = append(args, p.TLS.ClientCert)
+	}
+	if p.ApiTlsCert != "" {
+		args = append(args, "--apiTlsCert", p.ApiTlsCert)
+	}
+	if p.ApiTlsKey != "" {
+		args = append(args, "--apiTlsKey", p.ApiTlsKey)
 	}
 	if p.LdapAddr != "" {
 		args = append(args, "--ldapAddr")
@@ -73,6 +72,10 @@ func (p *MC) StartLocal(logfile string, opts ...process.StartOp) error {
 	if p.UsageCollectionInterval != "" {
 		args = append(args, "--usageCollectionInterval")
 		args = append(args, p.UsageCollectionInterval)
+	}
+	if p.UsageCheckpointInterval != "" {
+		args = append(args, "--usageCheckpointInterval")
+		args = append(args, p.UsageCheckpointInterval)
 	}
 	if p.UseVaultCerts {
 		args = append(args, "--useVaultCerts")
@@ -110,7 +113,7 @@ func (p *MC) StartLocal(logfile string, opts ...process.StartOp) error {
 	if err == nil {
 		// wait until server is online
 		online := false
-		for ii := 0; ii < 40; ii++ {
+		for ii := 0; ii < 90; ii++ {
 			resp, serr := http.Get("http://" + p.Addr)
 			if serr == nil {
 				resp.Body.Close()
@@ -287,10 +290,7 @@ func (p *Shepherd) GetArgs(opts ...process.StartOp) []string {
 		args = append(args, "--cloudletKey")
 		args = append(args, p.CloudletKey)
 	}
-	if p.TLS.ServerCert != "" {
-		args = append(args, "--tls")
-		args = append(args, p.TLS.ServerCert)
-	}
+	args = p.TLS.AddInternalPkiArgs(args)
 	if p.Span != "" {
 		args = append(args, "--span")
 		args = append(args, p.Span)
@@ -379,10 +379,7 @@ func (p *AutoProv) StartLocal(logfile string, opts ...process.StartOp) error {
 		args = append(args, "--influxAddr")
 		args = append(args, p.InfluxAddr)
 	}
-	if p.TLS.ServerCert != "" {
-		args = append(args, "--tls")
-		args = append(args, p.TLS.ServerCert)
-	}
+	args = p.TLS.AddInternalPkiArgs(args)
 	if p.Region != "" {
 		args = append(args, "--region")
 		args = append(args, p.Region)

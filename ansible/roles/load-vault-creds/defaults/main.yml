@@ -1,9 +1,11 @@
+artifactory_apidocs_account_path: secret/ansible/common/accounts/artifactory_apidocs
 artifactory_publish_account_path: secret/ansible/common/accounts/artifactory_publish
 azure_account_path: secret/ansible/common/accounts/azure
 cloudflare_account_path: secret/ansible/common/accounts/cloudflare
 esproxy_account_path: secret/ansible/common/accounts/esproxy
 gcp_account_path: secret/ansible/common/accounts/gcp
 locapi_account_path: secret/ansible/common/accounts/locapi
+mc_ldap_vault_path: "secret/ansible/{{ deploy_environ }}/accounts/mc_ldap"
 mex_docker_account_path: secret/ansible/common/accounts/mex_docker
 ns1_account_path: secret/ansible/common/accounts/ns1
 sendgrid_account_path: secret/ansible/common/accounts/sendgrid

@@ -8,7 +8,8 @@ notifyroot_hostname: notifyroot.mobiledgex.net
 vault_github_teams:
   - name: edge-cloud-development-team
     policies:
-      - default
+      - ssh-ansible-user.sign.v1
+      - ssh-user.sign.v1
 
 vault_github_users:
   - userid: bibingeorge1986
@@ -19,7 +20,7 @@ vault_github_users:
     role: admin
   - userid: mwilliams-mex
     role: cloudlet_admin
-  - userid: msewera
-    role: cloudlet_admin
   - userid: venkytv
+    role: admin
+  - userid: ashxjain
     role: admin

@@ -6,6 +6,7 @@ import (
 	"net"
 	"strconv"
 	"strings"
+	"sync"
 
 	"github.com/go-chef/chef"
 	"github.com/mobiledgex/edge-cloud-infra/chefmgmt"
@@ -15,12 +16,27 @@ import (
 	"github.com/mobiledgex/edge-cloud/log"
 )
 
+type CloudletSSHKey struct {
+	PublicKey       string
+	SignedPublicKey string
+	PrivateKey      string
+	Mux             sync.Mutex
+	RefreshTrigger  chan bool
+
+	// Below is used to upgrade old VMs to new Vault based SSH
+	MEXPrivateKey    string
+	UseMEXPrivateKey bool
+}
+
 type VMProperties struct {
-	CommonPf           *infracommon.CommonPlatform
-	SharedRootLBName   string
-	sharedRootLB       *MEXRootLB
-	Domain             VMDomain
-	PlatformSecgrpName string
+	CommonPf              *infracommon.CommonPlatform
+	SharedRootLBName      string
+	sharedRootLB          *MEXRootLB
+	Domain                VMDomain
+	PlatformSecgrpName    string
+	IptablesBasedFirewall bool
+	sshKey                CloudletSSHKey
+	Upgrade               bool
 }
 
 // note that qcow2 must be understood by vsphere and vmdk must
@@ -28,7 +44,7 @@ type VMProperties struct {
 var ImageFormatQcow2 = "qcow2"
 var ImageFormatVmdk = "vmdk"
 
-var MEXInfraVersion = "4.0.5"
+var MEXInfraVersion = "4.1.0"
 var ImageNamePrefix = "mobiledgex-v"
 var DefaultOSImageName = ImageNamePrefix + MEXInfraVersion
 

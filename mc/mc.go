@@ -21,8 +21,8 @@ var localSql = flag.Bool("localSql", false, "Run local postgres db")
 var consoleProxyAddr = flag.String("consoleproxyaddr", "127.0.0.1:6080", "Console proxy address")
 var initSql = flag.Bool("initSql", false, "Init db when using localSql")
 var debugLevels = flag.String("d", "", fmt.Sprintf("comma separated list of %v", log.DebugLevelStrings))
-var tlsKeyFile = flag.String("tlskey", "", "server tls key file")
-var clientCert = flag.String("clientCert", "", "internal tls client cert file")
+var apiTlsCertFile = flag.String("apiTlsCert", "", "API server tls cert file")
+var apiTlsKeyFile = flag.String("apiTlsKey", "", "API server tls key file")
 var localVault = flag.Bool("localVault", false, "Run local Vault")
 var ldapAddr = flag.String("ldapAddr", "127.0.0.1:9389", "LDAP listener address")
 var gitlabAddr = flag.String("gitlabAddr", "http://127.0.0.1:80", "Gitlab server address")
@@ -48,8 +48,7 @@ func main() {
 	nodeMgr.InitFlags()
 	flag.Parse()
 	log.SetDebugLevelStrs(*debugLevels)
-	log.InitTracer(nodeMgr.TlsCertFile)
-	defer log.FinishTracer()
+	defer nodeMgr.Finish()
 
 	sigChan = make(chan os.Signal, 1)
 
@@ -66,12 +65,11 @@ func main() {
 		RunLocal:              *localSql,
 		InitLocal:             *initSql,
 		LocalVault:            *localVault,
-		TlsCertFile:           nodeMgr.TlsCertFile,
-		TlsKeyFile:            *tlsKeyFile,
+		ApiTlsCertFile:        *apiTlsCertFile,
+		ApiTlsKeyFile:         *apiTlsKeyFile,
 		LDAPAddr:              *ldapAddr,
 		GitlabAddr:            *gitlabAddr,
 		ArtifactoryAddr:       *artifactoryAddr,
-		ClientCert:            *clientCert,
 		PingInterval:          *pingInterval,
 		SkipVerifyEmail:       *skipVerifyEmail,
 		JaegerAddr:            *jaegerAddr,

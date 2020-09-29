@@ -8,7 +8,9 @@ package vmlayer
 
 import (
 	"context"
+	b64 "encoding/base64"
 	"fmt"
+	"os/exec"
 	"strconv"
 	"strings"
 
@@ -118,6 +120,7 @@ type VMRequestSpec struct {
 	CreatePortsOnly         bool
 	ConnectToSubnet         string
 	ChefParams              *chefmgmt.VMChefParams
+	OptionalResource        string
 }
 
 type VMReqOp func(vmp *VMRequestSpec) error
@@ -187,6 +190,12 @@ func WithImageFolder(folder string) VMReqOp {
 func WithChefParams(chefParams *chefmgmt.VMChefParams) VMReqOp {
 	return func(s *VMRequestSpec) error {
 		s.ChefParams = chefParams
+		return nil
+	}
+}
+func WithOptionalResource(optRes string) VMReqOp {
+	return func(s *VMRequestSpec) error {
+		s.OptionalResource = optRes
 		return nil
 	}
 }
@@ -307,6 +316,7 @@ type PortOrchestrationParams struct {
 
 type FloatingIPOrchestrationParams struct {
 	Name         string
+	ParamName    string
 	Port         ResourceReference
 	FloatingIpId string
 }
@@ -389,6 +399,7 @@ type TagOrchestrationParams struct {
 type VMCloudConfigParams struct {
 	ExtraBootCommands []string
 	ChefParams        *chefmgmt.VMChefParams
+	CACert            string
 }
 
 // VMOrchestrationParams contains all details  that are needed by the orchestator
@@ -605,8 +616,19 @@ func (v *VMPlatform) getVMGroupOrchestrationParamsFromGroupSpec(ctx context.Cont
 		vmgp.Subnets = append(vmgp.Subnets, newSubnet)
 	}
 
+	vaultAddr := v.VMProperties.CommonPf.VaultConfig.Addr
+	cmd := exec.Command("curl", "-s", fmt.Sprintf("%s/v1/ssh/public_key", vaultAddr))
+	out, err := cmd.CombinedOutput()
+	if err != nil {
+		return nil, fmt.Errorf("failed to get vault ssh cert: %s, %v", string(out), err)
+	}
+	if !strings.Contains(string(out), "ssh-rsa") {
+		return nil, fmt.Errorf("invalid vault ssh cert: %s", string(out))
+	}
+	vaultSSHCert := string(out)
+
 	var internalPortNextOctet uint32 = 101
-	for _, vm := range spec.VMs {
+	for ii, vm := range spec.VMs {
 		log.SpanLog(ctx, log.DebugLevelInfra, "Defining VM", "vm", vm)
 		var role VMRole
 		var newPorts []PortOrchestrationParams
@@ -750,6 +772,11 @@ func (v *VMPlatform) getVMGroupOrchestrationParamsFromGroupSpec(ctx context.Cont
 					FloatingIpId: NextAvailableResource,
 					Port:         NewResourceReference(externalport.Name, externalport.Id, false),
 				}
+				if len(spec.VMs) == 1 {
+					fip.ParamName = "floatingIpId"
+				} else {
+					fip.ParamName = fmt.Sprintf("floatingIpId%d", ii+1)
+				}
 				vmgp.FloatingIPs = append(vmgp.FloatingIPs, fip)
 
 			} else {
@@ -777,6 +804,12 @@ func (v *VMPlatform) getVMGroupOrchestrationParamsFromGroupSpec(ctx context.Cont
 			vccp := VMCloudConfigParams{}
 			if vm.ChefParams != nil {
 				vccp.ChefParams = vm.ChefParams
+			}
+			vccp.CACert = vaultSSHCert
+			// gpu
+			if vm.OptionalResource == "gpu" {
+				gpuCmds := getGpuExtraCommands()
+				vccp.ExtraBootCommands = append(vccp.ExtraBootCommands, gpuCmds...)
 			}
 			newVM := VMOrchestrationParams{
 				Name:                    v.VMProvider.NameSanitize(vm.Name),
@@ -908,4 +941,27 @@ func (v *VMPlatform) GetSubnetGatewayFromVMGroupParms(ctx context.Context, subne
 		}
 	}
 	return "", fmt.Errorf("Subnet: %s not found in vm group params", subnetName)
+}
+
+func getGpuExtraCommands() []string {
+	dockerDaemonJson :=
+		`{
+	"log-driver": "json-file",
+	"log-opts": {
+		"max-size": "50m",
+		"max-file": "20"
+	},
+	"runtimes": {
+		"nvidia": {
+			"path": "/usr/bin/nvidia-container-runtime",
+			"runtimeArgs": []
+		}
+	}
+}`
+	jsonB64 := b64.StdEncoding.EncodeToString([]byte(dockerDaemonJson))
+	var commands = []string{
+		"echo \"updating docker daemon.json\"",
+		"echo " + jsonB64 + "|base64 -d > /etc/docker/daemon.json",
+	}
+	return commands
 }

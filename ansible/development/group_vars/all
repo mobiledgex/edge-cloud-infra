@@ -20,6 +20,7 @@ vault_github_teams:
       - influxdb.read.v1
       - mexenv.read.v1
       - registry.read.v1
+      - ssh-user.sign.v1
       - sys-auth.read.v1
       - sys-policies.read.v1
 
@@ -30,9 +31,9 @@ vault_github_users:
     role: admin
   - userid: jlmorris3827
     role: admin
-  - userid: msewera
-    role: cloudlet_admin
   - userid: venkytv
     role: admin
   - userid: anand12gupta
+    role: admin
+  - userid: ashxjain
     role: admin

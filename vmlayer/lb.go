@@ -192,7 +192,7 @@ func (v *VMPlatform) configureInternalInterfaceAndExternalForwarding(ctx context
 		}
 		if action.createIptables || action.deleteIptables {
 			if externalIfname != "" {
-				err = setupForwardingIptables(ctx, client, externalIfname, internalIfname, action)
+				err = v.setupForwardingIptables(ctx, client, externalIfname, internalIfname, action)
 				if err != nil {
 					log.SpanLog(ctx, log.DebugLevelInfra, "setupForwardingIptables failed", "err", err)
 				}
@@ -467,12 +467,6 @@ func (v *VMPlatform) SetupRootLB(
 	ip, err := GetIPFromServerDetails(ctx, v.VMProperties.GetCloudletExternalNetwork(), "", sd)
 	if err != nil {
 		return fmt.Errorf("cannot get rootLB IP %sv", err)
-	}
-	log.SpanLog(ctx, log.DebugLevelInfra, "set rootLB IP to", "ip", ip)
-	rootLB.IP = ip
-	_, err = v.SetupSSHUser(ctx, rootLB, infracommon.SSHUser)
-	if err != nil {
-		return err
 	}
 	log.SpanLog(ctx, log.DebugLevelInfra, "Copy resource-tracker to rootLb", "rootLb", rootLBName)
 	err = CopyResourceTracker(client)

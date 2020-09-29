@@ -35,17 +35,16 @@ func (p *MC) StartLocal(logfile string, opts ...process.StartOp) error {
 		args = append(args, "--vaultAddr")
 		args = append(args, p.VaultAddr)
 	}
-	if p.TLS.ServerCert != "" {
-		args = append(args, "--tls")
-		args = append(args, p.TLS.ServerCert)
-	}
-	if p.TLS.ServerKey != "" {
-		args = append(args, "--tlskey")
-		args = append(args, p.TLS.ServerKey)
-	}
+	args = p.TLS.AddInternalPkiArgs(args)
 	if p.TLS.ClientCert != "" {
 		args = append(args, "--clientCert")
 		args = append(args, p.TLS.ClientCert)
+	}
+	if p.ApiTlsCert != "" {
+		args = append(args, "--apiTlsCert", p.ApiTlsCert)
+	}
+	if p.ApiTlsKey != "" {
+		args = append(args, "--apiTlsKey", p.ApiTlsKey)
 	}
 	if p.LdapAddr != "" {
 		args = append(args, "--ldapAddr")
@@ -88,7 +87,7 @@ func (p *MC) StartLocal(logfile string, opts ...process.StartOp) error {
 		args = append(args, "-d")
 		args = append(args, options.Debug)
 	}
-	var envs []string
+	envs := p.GetEnv()
 	if options.RolesFile != "" {
 		dat, err := ioutil.ReadFile(options.RolesFile)
 		if err != nil {
@@ -99,11 +98,10 @@ func (p *MC) StartLocal(logfile string, opts ...process.StartOp) error {
 		if err != nil {
 			return err
 		}
-		envs = []string{
+		envs = append(envs,
 			fmt.Sprintf("VAULT_ROLE_ID=%s", roles.MCRoleID),
 			fmt.Sprintf("VAULT_SECRET_ID=%s", roles.MCSecretID),
-		}
-		log.Printf("MC envs: %v\n", envs)
+		)
 	}
 
 	var err error
@@ -111,14 +109,14 @@ func (p *MC) StartLocal(logfile string, opts ...process.StartOp) error {
 	if err == nil {
 		// wait until server is online
 		online := false
-		for ii := 0; ii < 40; ii++ {
+		for ii := 0; ii < 90; ii++ {
 			resp, serr := http.Get("http://" + p.Addr)
 			if serr == nil {
 				resp.Body.Close()
 				online = true
 				break
 			}
-			time.Sleep(100 * time.Millisecond)
+			time.Sleep(250 * time.Millisecond)
 		}
 		if !online {
 			p.StopLocal()
@@ -172,7 +170,7 @@ func (p *Sql) StartLocal(logfile string, opts ...process.StartOp) error {
 		args = append(args, strings.Join(options, " "))
 	}
 	var err error
-	p.cmd, err = process.StartLocal(p.Name, "pg_ctl", args, nil, logfile)
+	p.cmd, err = process.StartLocal(p.Name, "pg_ctl", args, p.GetEnv(), logfile)
 	if err != nil {
 		return err
 	}
@@ -288,10 +286,7 @@ func (p *Shepherd) GetArgs(opts ...process.StartOp) []string {
 		args = append(args, "--cloudletKey")
 		args = append(args, p.CloudletKey)
 	}
-	if p.TLS.ServerCert != "" {
-		args = append(args, "--tls")
-		args = append(args, p.TLS.ServerCert)
-	}
+	args = p.TLS.AddInternalPkiArgs(args)
 	if p.Span != "" {
 		args = append(args, "--span")
 		args = append(args, p.Span)
@@ -334,11 +329,7 @@ func (p *Shepherd) GetArgs(opts ...process.StartOp) []string {
 func (p *Shepherd) StartLocal(logfile string, opts ...process.StartOp) error {
 	var err error
 	args := p.GetArgs(opts...)
-	envVars := []string{}
-	for k, v := range p.GetEnvVars() {
-		envVars = append(envVars, fmt.Sprintf("%s=%s", k, v))
-	}
-	p.cmd, err = process.StartLocal(p.Name, p.GetExeName(), args, envVars, logfile)
+	p.cmd, err = process.StartLocal(p.Name, p.GetExeName(), args, p.GetEnv(), logfile)
 	return err
 }
 
@@ -384,10 +375,7 @@ func (p *AutoProv) StartLocal(logfile string, opts ...process.StartOp) error {
 		args = append(args, "--influxAddr")
 		args = append(args, p.InfluxAddr)
 	}
-	if p.TLS.ServerCert != "" {
-		args = append(args, "--tls")
-		args = append(args, p.TLS.ServerCert)
-	}
+	args = p.TLS.AddInternalPkiArgs(args)
 	if p.Region != "" {
 		args = append(args, "--region")
 		args = append(args, p.Region)
@@ -405,7 +393,7 @@ func (p *AutoProv) StartLocal(logfile string, opts ...process.StartOp) error {
 		args = append(args, options.Debug)
 	}
 
-	var envs []string
+	envs := p.GetEnv()
 	if options.RolesFile != "" {
 		dat, err := ioutil.ReadFile(options.RolesFile)
 		if err != nil {
@@ -417,11 +405,10 @@ func (p *AutoProv) StartLocal(logfile string, opts ...process.StartOp) error {
 			return err
 		}
 		rr := roles.GetRegionRoles(p.Region)
-		envs = []string{
+		envs = append(envs,
 			fmt.Sprintf("VAULT_ROLE_ID=%s", rr.AutoProvRoleID),
 			fmt.Sprintf("VAULT_SECRET_ID=%s", rr.AutoProvSecretID),
-		}
-		log.Printf("MC envs: %v\n", envs)
+		)
 	}
 
 	var err error
@@ -537,7 +524,7 @@ func SetupVault(p *process.Vault, opts ...process.StartOp) (*VaultRoles, error) 
 			return nil, err
 		}
 		rr := VaultRegionRoles{}
-		p.GetAppRole("", "autoprov", &rr.AutoProvRoleID, &rr.AutoProvSecretID, &err)
+		p.GetAppRole(region, "autoprov", &rr.AutoProvRoleID, &rr.AutoProvSecretID, &err)
 		roles.RegionRoles[region] = &rr
 	}
 	options := process.StartOptions{}
@@ -570,7 +557,7 @@ func (p *PromE2e) StartLocal(logfile string, opts ...process.StartOp) error {
 	}
 
 	var err error
-	p.cmd, err = process.StartLocal(p.Name, p.GetExeName(), args, nil, logfile)
+	p.cmd, err = process.StartLocal(p.Name, p.GetExeName(), args, p.GetEnv(), logfile)
 	return err
 }
 
@@ -603,7 +590,7 @@ func (p *Exporter) StartLocal(logfile string, opts ...process.StartOp) error {
 	}
 
 	var err error
-	p.cmd, err = process.StartLocal(p.Name, p.GetExeName(), args, nil, logfile)
+	p.cmd, err = process.StartLocal(p.Name, p.GetExeName(), args, p.GetEnv(), logfile)
 	return err
 }
 
@@ -627,7 +614,7 @@ func (p *ChefServer) StartLocal(logfile string, opts ...process.StartOp) error {
 	args = append(args, "--multi-org")
 
 	var err error
-	p.cmd, err = process.StartLocal(p.Name, p.GetExeName(), args, nil, logfile)
+	p.cmd, err = process.StartLocal(p.Name, p.GetExeName(), args, p.GetEnv(), logfile)
 	if err != nil {
 		return err
 	}
@@ -675,7 +662,7 @@ func (p *Alertmanager) StartLocal(logfile string, opts ...process.StartOp) error
 
 	var err error
 	log.Printf("Start Alertmanager: %v\n", args)
-	p.cmd, err = process.StartLocal(p.Name, p.GetExeName(), args, nil, logfile)
+	p.cmd, err = process.StartLocal(p.Name, p.GetExeName(), args, p.GetEnv(), logfile)
 	return err
 }
 
@@ -698,7 +685,7 @@ func (p *Maildev) StartLocal(logfile string, opts ...process.StartOp) error {
 		"maildev/maildev:1.1.0",
 	}
 	var err error
-	p.cmd, err = process.StartLocal(p.Name, p.GetExeName(), args, nil, logfile)
+	p.cmd, err = process.StartLocal(p.Name, p.GetExeName(), args, p.GetEnv(), logfile)
 	return err
 }
 
@@ -722,17 +709,17 @@ func (p *AlertmanagerSidecar) StartLocal(logfile string, opts ...process.StartOp
 		args = append(args, "--configFile")
 		args = append(args, p.ConfigFile)
 	}
-	if p.TlsCert != "" {
+	if p.TLS.ServerCert != "" {
 		args = append(args, "--tlsCert")
-		args = append(args, p.TlsCert)
+		args = append(args, p.TLS.ServerCert)
 	}
-	if p.TlsCertKey != "" {
+	if p.TLS.ServerKey != "" {
 		args = append(args, "--tlsCertKey")
-		args = append(args, p.TlsCertKey)
+		args = append(args, p.TLS.ServerKey)
 	}
-	if p.TlsClientCert != "" {
+	if p.TLS.CACert != "" {
 		args = append(args, "--tlsClientCert")
-		args = append(args, p.TlsClientCert)
+		args = append(args, p.TLS.CACert)
 	}
 	if p.LocalTest {
 		args = append(args, "-localTest")
@@ -746,7 +733,7 @@ func (p *AlertmanagerSidecar) StartLocal(logfile string, opts ...process.StartOp
 	}
 
 	var err error
-	p.cmd, err = process.StartLocal(p.Name, p.GetExeName(), args, nil, logfile)
+	p.cmd, err = process.StartLocal(p.Name, p.GetExeName(), args, p.GetEnv(), logfile)
 	return err
 }
 

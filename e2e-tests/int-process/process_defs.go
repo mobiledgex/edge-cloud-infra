@@ -21,6 +21,8 @@ type MC struct {
 	BillingPath             string
 	UsageCollectionInterval string
 	AlertMgrApiAddr         string
+	ApiTlsCert              string
+	ApiTlsKey               string
 	TLS                     process.TLSCerts
 	cmd                     *exec.Cmd
 }
@@ -102,9 +104,7 @@ type AlertmanagerSidecar struct {
 	AlertmgrAddr   string
 	ConfigFile     string
 	HttpAddr       string
-	TlsCert        string
-	TlsCertKey     string
-	TlsClientCert  string
 	LocalTest      bool
+	TLS            process.TLSCerts
 	cmd            *exec.Cmd
 }

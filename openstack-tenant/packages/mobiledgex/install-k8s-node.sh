@@ -41,14 +41,15 @@ fi
 #done
 echo installing k8s node, wait...
 cd /tmp
-sudo scp -i /etc/mobiledgex/id_rsa_mex $MASTERIP:/tmp/k8s-join-cmd .
-if [ $? -ne 0 ]; then
+
+curl -sf ${MASTERIP}:8000/k8s-join-cmd >k8s-join-cmd
+if [ $? -ne 0 -o ! -s k8s-join-cmd ]; then
 	sleep 60
 	echo waiting for join-cmd
-	sudo scp -i /etc/mobiledgex/id_rsa_mex $MASTERIP:/tmp/k8s-join-cmd .
-	while [ $? -ne 0 ]; do
+	curl -sf ${MASTERIP}:8000/k8s-join-cmd >k8s-join-cmd
+	while [ $? -ne 0 -o ! -s k8s-join-cmd ]; do
 		sleep 7
-		sudo scp -i /etc/mobiledgex/id_rsa_mex ubuntu@$MASTERIP:/tmp/k8s-join-cmd .
+		curl -sf ${MASTERIP}:8000/k8s-join-cmd >k8s-join-cmd
 	done
 fi
 echo got join cmd

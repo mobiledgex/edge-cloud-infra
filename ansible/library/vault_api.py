@@ -12,6 +12,7 @@ def vault_api_call(vault, api, method="GET", data={}, raw_response=False,
     has_changed = False if method in ("GET", "LIST") else True
 
     meta = {}
+    options = {}
 
     kwargs = {
         "method": method,
@@ -19,10 +20,30 @@ def vault_api_call(vault, api, method="GET", data={}, raw_response=False,
         "raw_response": raw_response,
     }
     if data:
+        options = data.pop("vault_api_options", {})
         kwargs["json"] = data
 
-    r = vault(api, **kwargs)
-    meta["response"] = r
+    check_first = options.get("check_first")
+
+    if check_first:
+        ckwargs = {
+            "method": "GET",
+            "success_code": [200, 404],
+        }
+        r = vault(api, **ckwargs)
+        meta["response"] = r
+
+        cdata = r.get("data", {"no-data-in-response": True})
+        has_changed = False
+        for key in data:
+            if key in cdata and cdata[key] == data[key]:
+                continue
+            has_changed = True
+            break
+
+    if has_changed or method in ("GET", "LIST"):
+        r = vault(api, **kwargs)
+        meta["response"] = r
 
     return (has_changed, meta)
 

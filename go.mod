@@ -47,11 +47,12 @@ require (
 	github.com/miekg/dns v1.1.15
 	github.com/mitchellh/mapstructure v1.3.2
 	github.com/mobiledgex/edge-cloud v1.0.1
-	github.com/mobiledgex/golang-ssh v0.0.8
+	github.com/mobiledgex/golang-ssh v0.0.10
 	github.com/mobiledgex/yaml/v2 v2.2.5
 	github.com/modern-go/reflect2 v1.0.1 // indirect
 	github.com/moul/http2curl v1.0.0 // indirect
 	github.com/mwitkow/go-conntrack v0.0.0-20190716064945-2f068394615f
+	github.com/nbutton23/zxcvbn-go v0.0.0-20180912185939-ae427f1e4c1d
 	github.com/nmcclain/asn1-ber v0.0.0-20170104154839-2661553a0484
 	github.com/nmcclain/ldap v0.0.0-20160601145537-6e14e8271933
 	github.com/opentracing/opentracing-go v1.1.0
@@ -352,8 +353,10 @@ replace github.com/golang/glog => github.com/golang/glog v0.0.0-20160126235308-2
 
 replace github.com/jcelliott/lumber => github.com/jcelliott/lumber v0.0.0-20160324203708-dd349441af25
 
-replace github.com/mobiledgex/golang-ssh => github.com/mobiledgex/golang-ssh v0.0.8
+replace github.com/mobiledgex/golang-ssh => github.com/mobiledgex/golang-ssh v0.0.10
 
 replace github.com/rogpeppe/fastuuid => github.com/rogpeppe/fastuuid v1.2.0
 
 replace gopkg.in/yaml.v3 => gopkg.in/yaml.v3 v3.0.0-20200313102051-9f266ea9e77c
+
+replace github.com/elastic/go-elasticsearch/v7 => github.com/elastic/go-elasticsearch/v7 v7.5.0

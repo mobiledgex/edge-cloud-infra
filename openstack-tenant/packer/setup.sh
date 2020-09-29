@@ -37,7 +37,8 @@ fi
 
 # Defaults for environment variables
 : ${TAG:=master}
-: ${ROOT_PASS:=$DEFAULT_ROOT_PASS}
+: ${VAULT:=vault-main.mobiledgex.net}
+
 if [[ -z "$INTERFACE" ]]; then
 	INTERFACE=$( ls -d /sys/class/net/*/device 2>/dev/null \
 			| head -n 1 \
@@ -66,17 +67,6 @@ die() {
 	exit 2
 }
 
-download_artifactory_file() {
-	local src="$1"
-	local dst="$2"
-	local mode="$3"
-	local arturl="${ARTIFACTORY_BASEURL}/artifactory/baseimage-build/${ARTIFACTORY_ARTIFACTS_TAG}/${src}"
-	log "Downloading $arturl"
-	sudo curl -s -u "$ARTIFACTORY_CREDS" -o "$dst" "$arturl"
-	sudo test -f "$dst" || die "Failed to download file: $arturl"
-	[[ -z "$mode" ]] || sudo chmod "$mode" "$dst"
-}
-
 # Main
 echo "[$(date)] Starting setup.sh for platform \"$OUTPUT_PLATFORM\" ($( pwd ))"
 
@@ -91,23 +81,6 @@ EOT
 echo "nameserver 1.1.1.1" | sudo tee -a /etc/resolv.conf >/dev/null
 log_file_contents /etc/resolv.conf
 
-log "Downloading files from artifactory for tag $ARTIFACTORY_ARTIFACTS_TAG"
-download_artifactory_file ssh.config /root/.ssh/config 600
-download_artifactory_file keys/id_rsa_mex /etc/mobiledgex/id_rsa_mex 600
-download_artifactory_file keys/id_rsa_mex.pub /tmp/id_rsa_mex.pub
-download_artifactory_file keys/id_rsa_mobiledgex.pub /tmp/id_rsa_mobiledgex.pub
-
-log "Setting up SSH"
-sudo cp /etc/mobiledgex/id_rsa_mex /root/id_rsa_mex
-sudo chmod 600 /root/id_rsa_mex
-for SSH_HOME in /root /home/ubuntu; do
-	sudo mkdir -p ${SSH_HOME}/.ssh
-	sudo cat /tmp/id_rsa_mex.pub /tmp/id_rsa_mobiledgex.pub | sudo tee ${SSH_HOME}/.ssh/authorized_keys
-	sudo chmod 700 ${SSH_HOME}/.ssh
-	sudo chmod 600 ${SSH_HOME}/.ssh/authorized_keys
-	sudo rm -f ${SSH_HOME}/.ssh/known_hosts
-done
-
 log "Setting up $MEX_RELEASE"
 sudo tee "$MEX_RELEASE" <<EOT
 MEX_BUILD="$MEX_BUILD $( TZ=UTC date +'%Y/%m/%d %H:%M %Z' )"
@@ -117,6 +90,13 @@ MEX_BUILD_SRC_IMG=$SRC_IMG
 MEX_BUILD_SRC_IMG_CHECKSUM=$SRC_IMG_CHECKSUM
 MEX_PLATFORM_FLAVOR=$OUTPUT_PLATFORM
 EOT
+
+SSH_CA_KEY_FILE=/etc/ssh/trusted-user-ca-keys.pem
+VAULT_URL="https://${VAULT}/v1/ssh/public_key"
+log "Set up SSH CA key: $VAULT_URL"
+curl --silent --fail "$VAULT_URL" | sudo tee "$SSH_CA_KEY_FILE"
+grep "ssh-rsa" "$SSH_CA_KEY_FILE" >/dev/null 2>&1
+echo "TrustedUserCAKeys $SSH_CA_KEY_FILE" | sudo tee -a /etc/ssh/sshd_config
 
 log "Set up docker log file rotation"
 sudo mkdir -p /etc/docker
@@ -305,6 +285,20 @@ EOT
 log "Enabling the chef-client service"
 sudo systemctl enable chef-client
 
+sudo tee /etc/systemd/system/k8s-join.service <<'EOT'
+[Unit]
+Description=Job that runs k8s join script server
+
+[Service]
+Type=simple
+WorkingDirectory=/var/tmp/k8s-join
+ExecStart=/usr/bin/python3 -m http.server 8000
+Restart=always
+
+[Install]
+WantedBy=multi-user.target
+EOT
+
 if [[ "$OUTPUT_PLATFORM" == vsphere ]]; then
 	sudo tee /lib/systemd/system/open-vm-tools.service <<'EOT'
 [Unit]
@@ -328,6 +322,9 @@ fi
 
 # Clear /etc/machine-id so that it is uniquely generated on every clone
 echo "" | sudo tee /etc/machine-id
+
+# Set up temp directory used by install-k8s-master.sh
+sudo mkdir /var/tmp/k8s-join
 
 log "Cleanup"
 sudo apt-get autoremove -y

@@ -2,10 +2,11 @@ package openstack
 
 import (
 	"context"
-	yaml "github.com/mobiledgex/yaml/v2"
 	"io/ioutil"
 	"strings"
 	"testing"
+
+	yaml "github.com/mobiledgex/yaml/v2"
 
 	"github.com/mobiledgex/edge-cloud-infra/chefmgmt"
 	e2esetup "github.com/mobiledgex/edge-cloud-infra/e2e-tests/e2e-setup"
@@ -19,7 +20,6 @@ import (
 )
 
 var subnetName = "subnet-test"
-var testGroupName = "openstack-test"
 
 var vms = []*vmlayer.VMRequestSpec{
 	{
@@ -60,12 +60,61 @@ var vms = []*vmlayer.VMRequestSpec{
 	},
 }
 
+func validateStack(ctx context.Context, t *testing.T, vmgp *vmlayer.VMGroupOrchestrationParams, op *OpenstackPlatform) {
+	err := op.populateParams(ctx, vmgp, heatTest)
+	require.Nil(t, err)
+
+	err = op.createOrUpdateHeatStackFromTemplate(ctx, vmgp, vmgp.GroupName, VmGroupTemplate, heatTest, edgeproto.DummyUpdateCallback)
+	log.SpanLog(ctx, log.DebugLevelInfra, "created test stack file", "err", err)
+	require.Nil(t, err)
+
+	generatedFile := vmgp.GroupName + "-heat.yaml"
+	expectedResultsFile := vmgp.GroupName + "-heat-expected.yaml"
+	compareResult := e2esetup.CompareYamlFiles(generatedFile, expectedResultsFile, "heat-test")
+	log.SpanLog(ctx, log.DebugLevelInfra, "yaml compare result", "compareResult", compareResult)
+
+	require.Equal(t, compareResult, true)
+
+	stackTemplateData, err := ioutil.ReadFile(generatedFile)
+	require.Nil(t, err)
+
+	stackTemplate := &OSHeatStackTemplate{}
+	err = yaml.Unmarshal(stackTemplateData, stackTemplate)
+	require.Nil(t, err)
+
+	keys, err := GetChefKeysFromOSResource(ctx, stackTemplate)
+	require.Nil(t, err)
+	require.Equal(t, 4, len(keys))
+
+	for _, key := range keys {
+		require.True(t, strings.HasPrefix(key, "-----BEGIN RSA PRIVATE KEY-----"))
+		require.True(t, strings.HasSuffix(key, "-----END RSA PRIVATE KEY-----"))
+	}
+
+	genVMsUserData := make(map[string]string)
+	for _, v := range vmgp.VMs {
+		userdata, err := vmlayer.GetVMUserData(v.Name, v.SharedVolume, v.DNSServers, v.DeploymentManifest, v.Command, &v.CloudConfigParams, reindent16)
+		require.Nil(t, err)
+		genVMsUserData[v.Name] = userdata
+	}
+
+	vmsUserData, err := GetUserDataFromOSResource(ctx, stackTemplate)
+	require.Nil(t, err)
+	require.Equal(t, 4, len(vmsUserData))
+	for vName, userData := range vmsUserData {
+		require.True(t, strings.HasPrefix(userData, "#cloud-config"))
+		genUserData, ok := genVMsUserData[vName]
+		require.True(t, ok)
+		require.True(t, IsUserDataSame(ctx, genUserData, userData), "userdata mismatch")
+	}
+}
+
 func TestHeatTemplate(t *testing.T) {
-	log.InitTracer("")
-	defer log.FinishTracer()
 	log.SetDebugLevel(log.DebugLevelInfra)
 	infracommon.SetTestMode(true)
 
+	log.InitTracer(nil)
+	defer log.FinishTracer()
 	ctx := log.StartTestSpan(context.Background())
 	vaultServer, vaultConfig := vault.DummyServer()
 	defer vaultServer.Close()
@@ -96,44 +145,29 @@ func TestHeatTemplate(t *testing.T) {
 		}
 	}
 
-	vmgp, err := vmp.GetVMGroupOrchestrationParamsFromVMSpec(ctx,
-		testGroupName,
+	vmgp1, err := vmp.GetVMGroupOrchestrationParamsFromVMSpec(ctx,
+		"openstack-test",
 		vms,
 		vmlayer.WithNewSecurityGroup("testvmgroup-sg"),
 		vmlayer.WithAccessPorts("tcp:7777,udp:8888"),
 		vmlayer.WithNewSubnet(subnetName),
 	)
 
-	log.SpanLog(ctx, log.DebugLevelInfra, "got VM group params", "vmgp", vmgp, "err", err)
+	log.SpanLog(ctx, log.DebugLevelInfra, "got VM group params", "vmgp", vmgp1, "err", err)
 	require.Nil(t, err)
+	validateStack(ctx, t, vmgp1, &op)
 
-	err = op.populateParams(ctx, vmgp, heatTest)
+	op.VMProperties.CommonPf.Properties.SetValue("MEX_NETWORK_SCHEME", "cidr=10.101.X.0/24,floatingipnet=public_internal,floatingipsubnet=subnetname,floatingipextnet=public")
+	vmgp2, err := vmp.GetVMGroupOrchestrationParamsFromVMSpec(ctx,
+		"openstack-fip-test",
+		vms,
+		vmlayer.WithNewSecurityGroup("testvmgroup-sg"),
+		vmlayer.WithAccessPorts("tcp:7777,udp:8888"),
+		vmlayer.WithNewSubnet(subnetName),
+		vmlayer.WithSkipInfraSpecificCheck(true),
+	)
+
+	log.SpanLog(ctx, log.DebugLevelInfra, "got VM group params", "vmgp", vmgp2, "err", err)
 	require.Nil(t, err)
-
-	err = op.createOrUpdateHeatStackFromTemplate(ctx, vmgp, testGroupName, VmGroupTemplate, heatTest, edgeproto.DummyUpdateCallback)
-	log.SpanLog(ctx, log.DebugLevelInfra, "created test stack file", "err", err)
-	require.Nil(t, err)
-
-	generatedFile := testGroupName + "-heat.yaml"
-	expectedResultsFile := testGroupName + "-heat-expected.yaml"
-	compareResult := e2esetup.CompareYamlFiles(generatedFile, expectedResultsFile, "heat-test")
-	log.SpanLog(ctx, log.DebugLevelInfra, "yaml compare result", "compareResult", compareResult)
-
-	require.Equal(t, compareResult, true)
-
-	stackTemplateData, err := ioutil.ReadFile(generatedFile)
-	require.Nil(t, err)
-
-	stackTemplate := &OSHeatStackTemplate{}
-	err = yaml.Unmarshal(stackTemplateData, stackTemplate)
-	require.Nil(t, err)
-
-	keys, err := GetChefKeysFromOSResource(ctx, stackTemplate)
-	require.Nil(t, err)
-	require.Equal(t, 4, len(keys))
-
-	for _, key := range keys {
-		require.True(t, strings.HasPrefix(key, "-----BEGIN RSA PRIVATE KEY-----"))
-		require.True(t, strings.HasSuffix(key, "-----END RSA PRIVATE KEY-----"))
-	}
+	validateStack(ctx, t, vmgp2, &op)
 }

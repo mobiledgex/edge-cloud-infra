@@ -167,6 +167,11 @@ func (v *VMPlatform) CreateCloudlet(ctx context.Context, cloudlet *edgeproto.Clo
 		return err
 	}
 
+	err = v.InitCloudletSSHKeys(ctx, vaultConfig)
+	if err != nil {
+		return err
+	}
+
 	// Source OpenRC file to access openstack API endpoint
 	updateCallback(edgeproto.UpdateTask, "Sourcing access variables")
 	log.SpanLog(ctx, log.DebugLevelInfra, "Sourcing access variables", "region", pfConfig.Region, "cloudletKey", cloudlet.Key, "PhysicalName", cloudlet.PhysicalName)
@@ -307,6 +312,11 @@ func (v *VMPlatform) DeleteCloudlet(ctx context.Context, cloudlet *edgeproto.Clo
 	updateCallback(edgeproto.UpdateTask, "Deleting cloudlet")
 
 	vaultConfig, err := vault.BestConfig(pfConfig.VaultAddr, vault.WithEnvMap(pfConfig.EnvVar))
+	if err != nil {
+		return err
+	}
+
+	err = v.InitCloudletSSHKeys(ctx, vaultConfig)
 	if err != nil {
 		return err
 	}
@@ -742,6 +752,13 @@ func (v *VMPlatform) GetCloudletManifest(ctx context.Context, cloudlet *edgeprot
 
 	platformVmName := v.GetPlatformVMName(&cloudlet.Key)
 
+	skipInfraSpecificCheck := false
+	if cloudlet.InfraApiAccess == edgeproto.InfraApiAccess_RESTRICTED_ACCESS {
+		// It'll be end-users responsibility to make sure subnet range
+		// is not confliciting with existing subnets
+		skipInfraSpecificCheck = true
+	}
+
 	var gp *VMGroupOrchestrationParams
 	if cloudlet.Deployment == cloudcommon.DeploymentTypeDocker {
 		gp, err = v.GetVMGroupOrchestrationParamsFromVMSpec(
@@ -751,15 +768,10 @@ func (v *VMPlatform) GetCloudletManifest(ctx context.Context, cloudlet *edgeprot
 			WithNewSecurityGroup(v.GetServerSecurityGroupName(platformVmName)),
 			WithAccessPorts("tcp:22"),
 			WithSkipDefaultSecGrp(true),
+			WithSkipInfraSpecificCheck(skipInfraSpecificCheck),
 		)
 	} else {
 		subnetName := v.GetPlatformSubnetName(&cloudlet.Key)
-		skipInfraSpecificCheck := false
-		if cloudlet.InfraApiAccess == edgeproto.InfraApiAccess_RESTRICTED_ACCESS {
-			// It'll be end-users responsibility to make sure subnet range
-			// is not confliciting with existing subnets
-			skipInfraSpecificCheck = true
-		}
 		gp, err = v.GetVMGroupOrchestrationParamsFromVMSpec(
 			ctx,
 			platformVmName,

@@ -20,9 +20,12 @@ type Platform struct {
 	// Contains the response string for a given type of a request
 	DockerAppMetrics     string
 	DockerClusterMetrics string
+	DockerContainerPid   string
+	CatContainerNetData  string
 	// Cloudlet-level test data
-	CloudletMetrics  string
-	VmAppInstMetrics string
+	CloudletMetrics    string
+	VmAppInstMetrics   string
+	FailPlatformClient bool
 	// TODO - add Prometheus/nginx strings here EDGECLOUD-1252
 }
 
@@ -42,6 +45,13 @@ func (s *Platform) GetClusterIP(ctx context.Context, clusterInst *edgeproto.Clus
 }
 
 func (s *Platform) GetClusterPlatformClient(ctx context.Context, clusterInst *edgeproto.ClusterInst, clientType string) (ssh.Client, error) {
+	if s.FailPlatformClient {
+		return nil, fmt.Errorf("Test no client")
+	}
+	return &UTClient{pf: s}, nil
+}
+
+func (s *Platform) GetVmAppRootLbClient(ctx context.Context, app *edgeproto.AppInstKey) (ssh.Client, error) {
 	return &UTClient{pf: s}, nil
 }
 
@@ -100,6 +110,13 @@ func (s *UTClient) getUTData(command string) (string, error) {
 		return s.pf.DockerAppMetrics, nil
 	} else if strings.Contains(command, shepherd_common.ResTrackerCmd) {
 		return s.pf.DockerClusterMetrics, nil
+	} else if strings.Contains(command, "docker inspect -f") {
+		// trying to get pid for the container
+		return s.pf.DockerContainerPid, nil
+	} else if strings.Contains(command, "cat /proc/") &&
+		strings.Contains(command, "/net/dev") {
+		// network data
+		return s.pf.CatContainerNetData, nil
 	}
 	// nginx-stats and envoy-stats unit test
 	// "docker exec containername curl http://url"

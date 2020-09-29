@@ -130,6 +130,7 @@ import edgeproto "github.com/mobiledgex/edge-cloud/edgeproto"
 import "github.com/labstack/echo"
 import "context"
 import "io"
+import "github.com/mobiledgex/edge-cloud/log"
 import "github.com/mobiledgex/edge-cloud-infra/mc/ormapi"
 import proto "github.com/gogo/protobuf/proto"
 import fmt "fmt"
@@ -162,6 +163,8 @@ func ShowAlert(c echo.Context) error {
 	}
 	defer CloseConn(c)
 	rc.region = in.Region
+	span := log.SpanFromContext(ctx)
+	span.SetTag("region", in.Region)
 
 	err = ShowAlertStream(ctx, rc, &in.Alert, func(res *edgeproto.Alert) {
 		payload := ormapi.StreamPayload{}
@@ -557,6 +560,8 @@ func addControllerApis(method string, group *echo.Group) {
 	// ConfigNotifyCtrlAddrs: 21.3
 	// ConfigVaultAddr: 21.4
 	// ConfigTlsCertFile: 21.5
+	// ConfigTlsKeyFile: 21.20
+	// ConfigTlsCaFile: 21.21
 	// ConfigEnvVar: 21.6
 	// ConfigEnvVarKey: 21.6.1
 	// ConfigEnvVarValue: 21.6.2
@@ -1075,6 +1080,7 @@ func addControllerApis(method string, group *echo.Group) {
 	// PrivacyPolicy: 24
 	// MasterNodeFlavor: 25
 	// SkipCrmCleanupOnFailure: 26
+	// OptRes: 27
 	// ```
 	// Security:
 	//   Bearer:

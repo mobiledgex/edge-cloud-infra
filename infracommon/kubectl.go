@@ -55,9 +55,8 @@ func DeleteDockerRegistrySecret(ctx context.Context, client ssh.Client, kconf st
 	if err != nil {
 		if !strings.Contains(out, "not found") {
 			return fmt.Errorf("can't delete docker registry secret, %s, %v", out, err)
-		} else {
-			log.SpanLog(ctx, log.DebugLevelInfra, "warning, docker registry secret already gone")
 		}
+		log.SpanLog(ctx, log.DebugLevelInfra, "warning, docker registry secret already gone")
 	}
 	return nil
 }

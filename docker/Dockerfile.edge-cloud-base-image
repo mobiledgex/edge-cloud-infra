@@ -34,7 +34,7 @@ RUN apt-get update && apt-get install -y \
 	azure-cli=2.0.75-1~bionic \
 	google-cloud-sdk=267.0.0-0 \
 	kubectl=1.16.2-00 \
-	qemu-utils=1:2.11+dfsg-1ubuntu7.29
+	qemu-utils=1:2.11+dfsg-1ubuntu7.32
 
 COPY requirements.txt .
 RUN pip install -r requirements.txt
@@ -55,5 +55,3 @@ RUN curl --silent --location "https://github.com/weaveworks/eksctl/releases/late
 	&& mv /tmp/eksctl /usr/local/bin
 
 COPY edge-cloud-base-image.root/_ssh /root/.ssh
-COPY edge-cloud-base-image.root/_mobiledgex /root/.mobiledgex
-RUN chmod 400 /root/.mobiledgex/id_rsa_mex /root/.mobiledgex/id_rsa_mobiledgex

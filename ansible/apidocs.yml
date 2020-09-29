@@ -44,6 +44,11 @@
         account_api_token: "{{ cloudflare_account_api_token }}"
       tags: setup
 
+    - name: Load artifactory token
+      import_role:
+        name: load-vault-creds
+        tasks_from: artifactory-apidocs
+
     - include_role:
         name: apidocs
       vars:

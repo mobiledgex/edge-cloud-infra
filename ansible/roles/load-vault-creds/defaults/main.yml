@@ -1,3 +1,4 @@
+artifactory_apidocs_account_path: secret/ansible/common/accounts/artifactory_apidocs
 artifactory_publish_account_path: secret/ansible/common/accounts/artifactory_publish
 azure_account_path: secret/ansible/common/accounts/azure
 cloudflare_account_path: secret/ansible/common/accounts/cloudflare

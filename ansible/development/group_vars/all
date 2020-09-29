@@ -20,6 +20,7 @@ vault_github_teams:
       - influxdb.read.v1
       - mexenv.read.v1
       - registry.read.v1
+      - ssh-ansible-user.sign.v1
       - ssh-user.sign.v1
       - sys-auth.read.v1
       - sys-policies.read.v1

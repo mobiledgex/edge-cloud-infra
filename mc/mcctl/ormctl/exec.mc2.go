@@ -3,15 +3,17 @@
 
 package ormctl
 
-import edgeproto "github.com/mobiledgex/edge-cloud/edgeproto"
-import "strings"
-import "github.com/mobiledgex/edge-cloud-infra/mc/ormapi"
-import "github.com/mobiledgex/edge-cloud/cli"
-import proto "github.com/gogo/protobuf/proto"
-import fmt "fmt"
-import math "math"
-import _ "github.com/mobiledgex/edge-cloud/protogen"
-import _ "github.com/gogo/protobuf/gogoproto"
+import (
+	fmt "fmt"
+	_ "github.com/gogo/protobuf/gogoproto"
+	proto "github.com/gogo/protobuf/proto"
+	"github.com/mobiledgex/edge-cloud-infra/mc/ormapi"
+	"github.com/mobiledgex/edge-cloud/cli"
+	edgeproto "github.com/mobiledgex/edge-cloud/edgeproto"
+	_ "github.com/mobiledgex/edge-cloud/protogen"
+	math "math"
+	"strings"
+)
 
 // Reference imports to suppress errors if they are not otherwise used.
 var _ = proto.Marshal
@@ -87,7 +89,6 @@ var RunCommandRequiredArgs = []string{
 var RunCommandOptionalArgs = []string{
 	"cluster-org",
 	"containerid",
-	"webrtc",
 }
 var RunConsoleRequiredArgs = []string{
 	"app-org",
@@ -99,7 +100,6 @@ var RunConsoleRequiredArgs = []string{
 var RunConsoleOptionalArgs = []string{
 	"cluster",
 	"cluster-org",
-	"webrtc",
 }
 var ShowLogsRequiredArgs = []string{
 	"app-org",
@@ -116,7 +116,6 @@ var ShowLogsOptionalArgs = []string{
 	"tail",
 	"timestamps",
 	"follow",
-	"webrtc",
 }
 var AccessCloudletRequiredArgs = []string{
 	"cloudlet-org",
@@ -126,7 +125,6 @@ var AccessCloudletOptionalArgs = []string{
 	"command",
 	"node-type",
 	"node-name",
-	"webrtc",
 }
 var CloudletMgmtNodeRequiredArgs = []string{}
 var CloudletMgmtNodeOptionalArgs = []string{
@@ -208,7 +206,6 @@ var ExecRequestOptionalArgs = []string{
 	"tail",
 	"timestamps",
 	"follow",
-	"webrtc",
 }
 var ExecRequestAliasArgs = []string{
 	"app-org=execrequest.appinstkey.appkey.organization",
@@ -231,7 +228,6 @@ var ExecRequestAliasArgs = []string{
 	"follow=execrequest.log.follow",
 	"console.url=execrequest.console.url",
 	"timeout=execrequest.timeout",
-	"webrtc=execrequest.webrtc",
 	"accessurl=execrequest.accessurl",
 	"edgeturnaddr=execrequest.edgeturnaddr",
 }
@@ -244,8 +240,8 @@ var ExecRequestComments = map[string]string{
 	"cloudlet":     "Name of the cloudlet",
 	"cluster-org":  "Name of Developer organization that this cluster belongs to",
 	"containerid":  "ContainerId is the name or ID of the target container, if applicable",
-	"offer":        "WebRTC Offer",
-	"answer":       "WebRTC Answer",
+	"offer":        "Offer",
+	"answer":       "Answer",
 	"err":          "Any error message",
 	"command":      "Command or Shell",
 	"node-type":    "Type of Cloudlet Mgmt Node",
@@ -256,7 +252,6 @@ var ExecRequestComments = map[string]string{
 	"follow":       "Stream data",
 	"console.url":  "VM Console URL",
 	"timeout":      "Timeout",
-	"webrtc":       "WebRTC",
 	"accessurl":    "Access URL",
 	"edgeturnaddr": "EdgeTurn Server Address",
 }

@@ -3,6 +3,10 @@
   tasks:
 
     - import_role:
+        name: vault
+        tasks_from: vault-ssh
+
+    - import_role:
         name: docker
       tags: setup
 
@@ -39,6 +43,11 @@
         account_email: "{{ cloudflare_account_email }}"
         account_api_token: "{{ cloudflare_account_api_token }}"
       tags: setup
+
+    - name: Load artifactory token
+      import_role:
+        name: load-vault-creds
+        tasks_from: artifactory-apidocs
 
     - include_role:
         name: apidocs

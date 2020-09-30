@@ -338,7 +338,7 @@ func (v *VSpherePlatform) populateOrchestrationParams(ctx context.Context, vmgp 
 		// we need to put the interface with the external ip first
 		var sortedPorts []vmlayer.PortResourceReference
 		for p, port := range vmgp.VMs[vmidx].Ports {
-			if port.NetworkId != v.GetExternalNetmask() {
+			if port.NetworkId != v.vmProperties.GetCloudletExternalNetwork() {
 				sortedPorts = append([]vmlayer.PortResourceReference{vmgp.VMs[vmidx].Ports[p]}, sortedPorts...)
 			} else {
 				sortedPorts = append(sortedPorts, vmgp.VMs[vmidx].Ports[p])

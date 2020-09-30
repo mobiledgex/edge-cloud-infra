@@ -109,7 +109,7 @@ func (v *VMPlatform) PerformOrchestrationForVMApp(ctx context.Context, app *edge
 	vmgp, err := v.OrchestrateVMsFromVMSpec(ctx, objName, vms, action, updateCallback, WithNewSubnet(orchVals.newSubnetName),
 		WithPrivacyPolicy(privacyPolicy),
 		WithAccessPorts(app.AccessPorts),
-		WithNewSecurityGroup(v.GetServerSecurityGroupName(orchVals.externalServerName)),
+		WithNewSecurityGroup(GetServerSecurityGroupName(orchVals.externalServerName)),
 	)
 	if err != nil {
 		return &orchVals, err
@@ -444,7 +444,7 @@ func (v *VMPlatform) DeleteAppInst(ctx context.Context, clusterInst *edgeproto.C
 		if err != nil {
 			if strings.Contains(err.Error(), ServerDoesNotExistError) {
 				log.SpanLog(ctx, log.DebugLevelInfra, "cluster is gone, allow app deletion")
-				secGrp := v.GetServerSecurityGroupName(rootLBName)
+				secGrp := GetServerSecurityGroupName(rootLBName)
 				v.DeleteProxySecurityGroupRules(ctx, client, dockermgmt.GetContainerName(&app.Key), secGrp, GetAppWhitelistRulesLabel(app), appInst.MappedPorts, app, rootLBName)
 				return nil
 			}
@@ -464,7 +464,7 @@ func (v *VMPlatform) DeleteAppInst(ctx context.Context, clusterInst *edgeproto.C
 		ctx = context.WithValue(ctx, crmutil.DeploymentReplaceVarsKey, &deploymentVars)
 
 		// Clean up security rules and proxy if app is external
-		secGrp := v.GetServerSecurityGroupName(rootLBName)
+		secGrp := GetServerSecurityGroupName(rootLBName)
 		if err := v.DeleteProxySecurityGroupRules(ctx, client, dockermgmt.GetContainerName(&app.Key), secGrp, GetAppWhitelistRulesLabel(app), appInst.MappedPorts, app, rootLBName); err != nil {
 			log.SpanLog(ctx, log.DebugLevelInfra, "cannot delete security rules", "name", names.AppName, "rootlb", rootLBName, "error", err)
 		}
@@ -538,7 +538,7 @@ func (v *VMPlatform) DeleteAppInst(ctx context.Context, clusterInst *edgeproto.C
 		if err != nil {
 			if strings.Contains(err.Error(), ServerDoesNotExistError) {
 				log.SpanLog(ctx, log.DebugLevelInfra, "cluster is gone, allow app deletion")
-				secGrp := v.GetServerSecurityGroupName(rootLBName)
+				secGrp := GetServerSecurityGroupName(rootLBName)
 				v.DeleteProxySecurityGroupRules(ctx, rootLBClient, dockermgmt.GetContainerName(&app.Key), secGrp, GetAppWhitelistRulesLabel(app), appInst.MappedPorts, app, rootLBName)
 				return nil
 			}
@@ -554,7 +554,7 @@ func (v *VMPlatform) DeleteAppInst(ctx context.Context, clusterInst *edgeproto.C
 		}
 		name := dockermgmt.GetContainerName(&app.Key)
 		if !app.InternalPorts {
-			secGrp := v.GetServerSecurityGroupName(rootLBName)
+			secGrp := GetServerSecurityGroupName(rootLBName)
 			//  the proxy does not yet exist for docker, but it eventually will.  Secgrp rules should be deleted in either case
 			if err := v.DeleteProxySecurityGroupRules(ctx, rootLBClient, name, secGrp, GetAppWhitelistRulesLabel(app), appInst.MappedPorts, app, rootLBName); err != nil {
 				log.SpanLog(ctx, log.DebugLevelInfra, "cannot delete security rules", "name", name, "rootlb", rootLBName, "error", err)

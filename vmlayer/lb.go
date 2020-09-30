@@ -404,7 +404,7 @@ func (v *VMPlatform) CreateRootLB(
 	}
 	var vms []*VMRequestSpec
 	vms = append(vms, vmreq)
-	_, err = v.OrchestrateVMsFromVMSpec(ctx, rootLB.Name, vms, action, updateCallback, WithNewSecurityGroup(v.GetServerSecurityGroupName(rootLB.Name)))
+	_, err = v.OrchestrateVMsFromVMSpec(ctx, rootLB.Name, vms, action, updateCallback, WithNewSecurityGroup(GetServerSecurityGroupName(rootLB.Name)))
 	if err != nil {
 		log.SpanLog(ctx, log.DebugLevelInfra, "error while creating RootLB VM", "name", rootLB.Name, "error", err)
 		return err
@@ -439,7 +439,7 @@ func (v *VMPlatform) SetupRootLB(
 	// setup SSH access to cloudlet for CRM.  Since we are getting the external IP here, this will only work
 	// when CRM accessed via public internet.
 	log.SpanLog(ctx, log.DebugLevelInfra, "setup security group for SSH access")
-	groupName := v.GetServerSecurityGroupName(rootLBName)
+	groupName := GetServerSecurityGroupName(rootLBName)
 	client, err := v.GetSSHClientForServer(ctx, rootLB.Name, v.VMProperties.GetCloudletExternalNetwork(), WithUser(infracommon.SSHUser))
 	if err != nil {
 		return err
@@ -481,7 +481,7 @@ func (v *VMPlatform) SetupRootLB(
 	if err != nil {
 		return fmt.Errorf("failed to AddRouteToServer %v", err)
 	}
-	err = v.VMProvider.WhitelistSecurityRules(ctx, client, v.GetServerSecurityGroupName(rootLBName), rootLBName, "rootlb-ports", GetAllowedClientCIDR(), RootLBPorts)
+	err = v.VMProvider.WhitelistSecurityRules(ctx, client, GetServerSecurityGroupName(rootLBName), rootLBName, "rootlb-ports", GetAllowedClientCIDR(), RootLBPorts)
 	if err != nil {
 		return fmt.Errorf("failed to WhitelistSecurityRules %v", err)
 	}
@@ -492,7 +492,7 @@ func (v *VMPlatform) SetupRootLB(
 	log.SpanLog(ctx, log.DebugLevelInfra, "DNS A record activated", "name", rootLB.Name)
 
 	// perform provider specific prep of the rootLB
-	return v.VMProvider.PrepareRootLB(ctx, client, rootLBName, v.GetServerSecurityGroupName(rootLBName), privacyPolicy)
+	return v.VMProvider.PrepareRootLB(ctx, client, rootLBName, GetServerSecurityGroupName(rootLBName), privacyPolicy)
 }
 
 // This function copies resource-tracker from crm to rootLb - we need this to provide docker metrics

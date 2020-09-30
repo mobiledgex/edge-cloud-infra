@@ -663,6 +663,10 @@ func (v *VMPlatform) getVMGroupOrchestrationParamsFromGroupSpec(ctx context.Cont
 			// if the router is used we don't create an internal port for rootlb
 			if vm.ConnectToSubnet != "" && !rtrInUse {
 				// no router means rootlb must be connected to other VMs directly
+				var gwOctet uint32 = 1
+				if v.VMProperties.OverrideGWOctet != 0 {
+					gwOctet = v.VMProperties.OverrideGWOctet
+				}
 				internalPort := PortOrchestrationParams{
 					Name:        internalPortName,
 					Id:          v.VMProvider.NameSanitize(internalPortName),
@@ -673,7 +677,7 @@ func (v *VMPlatform) getVMGroupOrchestrationParamsFromGroupSpec(ctx context.Cont
 					FixedIPs: []FixedIPOrchestrationParams{
 						{
 							Address:     NextAvailableResource,
-							LastIPOctet: 1,
+							LastIPOctet: gwOctet,
 							Subnet:      NewResourceReference(vm.ConnectToSubnet, vm.ConnectToSubnet, connectToPreexistingSubnet),
 						},
 					},

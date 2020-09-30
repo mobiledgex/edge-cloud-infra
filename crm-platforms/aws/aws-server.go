@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"os"
 	"strings"
+	"sync"
 
 	"github.com/mobiledgex/edge-cloud-infra/vmlayer"
 	"github.com/mobiledgex/edge-cloud/edgeproto"
@@ -16,9 +17,13 @@ import (
 
 const VpcDoesNotExistError string = "vpc does not exist"
 const SubnetDoesNotExistError string = "subnet does not exist"
+const SecGrpDoesNotExistError string = "security group does not exist"
 const GatewayDoesNotExistError string = "gateway does not exist"
 const ResourceAlreadyAssociated string = "Resource.AlreadyAssociated"
 const GroupAlreadyExists string = "InvalidGroup.Duplicate"
+const RuleAlreadyExists string = "InvalidPermission.Duplicate"
+
+var orchVmLock sync.Mutex
 
 type AwsEc2Tag struct {
 	Key   string
@@ -57,6 +62,7 @@ type AwsEc2Subnet struct {
 	State     string
 	SubnetId  string
 	VpcId     string
+	Name      string
 	Tags      []AwsEc2Tag
 }
 
@@ -84,11 +90,21 @@ type AwsEc2State struct {
 }
 
 type AwsEc2NetworkInterfaceCreateSpec struct {
-	AssociatePublicIpAddress bool     `json:"AssociatePublicIpAddress"`
+	AssociatePublicIpAddress bool     `json:"AssociatePublicIpAddress,omitempty"`
 	SubnetId                 string   `json:"SubnetId,omitempty"`
 	PrivateIpAddress         string   `json:"PrivateIpAddress,omitempty"`
 	Groups                   []string `json:"Groups,omitempty"`
 	DeviceIndex              int      `json:"DeviceIndex"`
+}
+
+type AwsEc2NetworkInterface struct {
+	VpcId              string
+	SubnetId           string
+	MacAddress         string
+	NetworkInterfaceId string
+}
+type AwsEc2NetworkInterfaceCreateResult struct {
+	NetworkInterface AwsEc2NetworkInterface
 }
 
 type AwsEc2Ebs struct {
@@ -102,6 +118,7 @@ type AwsEc2BlockDeviceMapping struct {
 
 type AwsEc2Instance struct {
 	ImageId          string
+	InstanceId       string
 	PrivateIpAddress string
 	PublicIpAddress  string
 	Tags             []AwsEc2Tag
@@ -157,7 +174,7 @@ func (a *AWSPlatform) GetServerDetail(ctx context.Context, vmname string) (*vmla
 				return nil, fmt.Errorf("unexpected server state: %s server: %s", inst.State.Name, vmname)
 			}
 			sd.Name = vmname
-
+			sd.ID = inst.InstanceId
 			if inst.PublicIpAddress != "" {
 				var sip vmlayer.ServerIP
 				sip.ExternalAddr = inst.PublicIpAddress
@@ -174,7 +191,58 @@ func (a *AWSPlatform) GetServerDetail(ctx context.Context, vmname string) (*vmla
 }
 
 func (a *AWSPlatform) AttachPortToServer(ctx context.Context, serverName, subnetName, portName, ipaddr string, action vmlayer.ActionType) error {
-	log.SpanLog(ctx, log.DebugLevelInfra, "AttachPortToServer not supported")
+	log.SpanLog(ctx, log.DebugLevelInfra, "AttachPortToServer", "serverName", serverName, "subnetName", subnetName, "portName", portName, "ipaddr", ipaddr)
+
+	sn, err := a.GetSubnet(ctx, subnetName)
+	if err != nil {
+		return err
+	}
+	sd, err := a.GetServerDetail(ctx, serverName)
+	if err != nil {
+		return err
+	}
+
+	vpc, err := a.GetVPC(ctx, a.GetVpcName())
+	if err != nil {
+		return err
+	}
+
+	secGrpName := vmlayer.GetServerSecurityGroupName(serverName)
+	sgrp, err := a.GetSecurityGroup(ctx, secGrpName, vpc.VpcId)
+	if err != nil {
+		return err
+	}
+	out, err := a.TimedAwsCommand(ctx, "aws",
+		"ec2",
+		"create-network-interface",
+		"--subnet-id", sn.SubnetId,
+		"--description", "port "+portName,
+		"--private-ip-address", ipaddr,
+		"--groups", sgrp.GroupId,
+		"--region", a.GetAwsRegion())
+	log.SpanLog(ctx, log.DebugLevelInfra, "create-network-interface result", "out", string(out), "err", err)
+	if err != nil {
+		return fmt.Errorf("AttachPortToServer create interface failed: %s - %v", string(out), err)
+	}
+	var createdIf AwsEc2NetworkInterfaceCreateResult
+	err = json.Unmarshal(out, &createdIf)
+	if err != nil {
+		log.SpanLog(ctx, log.DebugLevelInfra, "aws attach-network-interface unmarshal fail", "out", string(out), "err", err)
+		return fmt.Errorf("cannot unmarshal, %v", err)
+	}
+	deviceIndex := len(sd.Addresses)
+	log.SpanLog(ctx, log.DebugLevelInfra, "created interface", "interface", createdIf)
+	out, err = a.TimedAwsCommand(ctx, "aws",
+		"ec2",
+		"attach-network-interface",
+		"--instance-id", sd.ID,
+		"--network-interface-id", createdIf.NetworkInterface.NetworkInterfaceId,
+		"--device-index", fmt.Sprintf("%d", deviceIndex),
+		"--region", a.GetAwsRegion())
+	log.SpanLog(ctx, log.DebugLevelInfra, "attach-network-interface result", "out", string(out), "err", err)
+	if err != nil {
+		return fmt.Errorf("AttachPortToServer attach interface failed: %s - %v", string(out), err)
+	}
 	return nil
 }
 
@@ -183,7 +251,7 @@ func (a *AWSPlatform) CheckServerReady(ctx context.Context, client ssh.Client, s
 	return nil
 }
 
-func (a *AWSPlatform) CreateVM(ctx context.Context, vm *vmlayer.VMOrchestrationParams, groupPorts []vmlayer.PortOrchestrationParams, awsSecGrps map[string]*AwsEc2SecGrp, vpcid string) error {
+func (a *AWSPlatform) CreateVM(ctx context.Context, vm *vmlayer.VMOrchestrationParams, groupPorts []vmlayer.PortOrchestrationParams, awsSecGrps map[string]*AwsEc2SecGrp, awsSubnets map[string]*AwsEc2Subnet, vpcid string) error {
 	log.SpanLog(ctx, log.DebugLevelInfra, "CreateVM", "vm", vm)
 
 	udFileName := "/var/tmp/" + vm.Name + "-userdata.txt"
@@ -198,22 +266,24 @@ func (a *AWSPlatform) CreateVM(ctx context.Context, vm *vmlayer.VMOrchestrationP
 	if len(vm.Ports) == 0 {
 		return fmt.Errorf("No ports specified in VM: %s", vm.Name)
 	}
-	subnet, err := a.GetSubnet(ctx, vm.Ports[0].NetworkId)
-	if err != nil {
-		return err
-	}
-
+	extNet := a.VMProperties.GetCloudletExternalNetwork()
 	tagspec := fmt.Sprintf("ResourceType=instance,Tags=[{Key=Name,Value=%s}]", vm.Name)
 	var networkInterfaces []AwsEc2NetworkInterfaceCreateSpec
 	for i, p := range vm.Ports {
 		var ni AwsEc2NetworkInterfaceCreateSpec
 		ni.DeviceIndex = i
-		if p.NetworkId == a.VMProperties.GetCloudletExternalNetwork() {
+		snName := ""
+		if p.NetworkId == extNet {
+			snName = p.NetworkId
 			ni.AssociatePublicIpAddress = true
-			ni.SubnetId = p.SubnetId
 		} else {
-			ni.SubnetId = p.SubnetId
+			snName = p.SubnetId
 		}
+		snId, ok := awsSubnets[snName]
+		if !ok {
+			return fmt.Errorf("Could not find subnet: %s", snName)
+		}
+		ni.SubnetId = snId.SubnetId
 		for _, gp := range groupPorts {
 			if gp.Name == p.Name {
 				for _, s := range gp.SecurityGroups {
@@ -224,6 +294,7 @@ func (a *AWSPlatform) CreateVM(ctx context.Context, vm *vmlayer.VMOrchestrationP
 					ni.Groups = append(ni.Groups, sg.GroupId)
 				}
 			}
+
 		}
 		networkInterfaces = append(networkInterfaces, ni)
 	}
@@ -256,7 +327,6 @@ func (a *AWSPlatform) CreateVM(ctx context.Context, vm *vmlayer.VMOrchestrationP
 		"--instance-type", vm.FlavorName,
 		"--region", a.GetAwsRegion(),
 		"--tag-specifications", tagspec,
-		"--subnet-id", subnet.SubnetId,
 		"--user-data", "file://" + udFileName,
 		"--network-interfaces", string(niParms),
 		"--block-device-mappings", string(ebsParams),
@@ -288,11 +358,50 @@ func awsUserDataFormatter(instring string) string {
 func (a *AWSPlatform) populateOrchestrationParams(ctx context.Context, vmgp *vmlayer.VMGroupOrchestrationParams, action vmlayer.ActionType) error {
 	log.SpanLog(ctx, log.DebugLevelInfra, "populateOrchestrationParams")
 
+	usedCidrs := make(map[string]string)
+	if !vmgp.SkipInfraSpecificCheck {
+		subs, err := a.GetSubnets(ctx)
+		if err != nil {
+			return nil
+		}
+		for _, s := range subs {
+			usedCidrs[s.CidrBlock] = s.Name
+		}
+	}
+	masterIP := ""
+	currentSubnetName := ""
+	if action != vmlayer.ActionCreate {
+		currentSubnetName = vmlayer.MexSubnetPrefix + vmgp.GroupName
+	}
+
+	// find an available subnet or the current subnet for update and delete
+	for i, s := range vmgp.Subnets {
+		if s.CIDR != vmlayer.NextAvailableResource || vmgp.SkipInfraSpecificCheck {
+			// no need to compute the CIDR
+			continue
+		}
+		found := false
+		for octet := 0; octet <= 255; octet++ {
+			subnet := fmt.Sprintf("%s.%s.%d.%d/%s", vmgp.Netspec.Octets[0], vmgp.Netspec.Octets[1], octet, 0, vmgp.Netspec.NetmaskBits)
+			// either look for an unused one (create) or the current one (update)
+			newSubnet := action == vmlayer.ActionCreate
+			if (newSubnet && usedCidrs[subnet] == "") || (!newSubnet && usedCidrs[subnet] == currentSubnetName) {
+				found = true
+				vmgp.Subnets[i].CIDR = subnet
+				vmgp.Subnets[i].GatewayIP = fmt.Sprintf("%s.%s.%d.%d", vmgp.Netspec.Octets[0], vmgp.Netspec.Octets[1], octet, AwsGwOctet)
+				vmgp.Subnets[i].NodeIPPrefix = fmt.Sprintf("%s.%s.%d", vmgp.Netspec.Octets[0], vmgp.Netspec.Octets[1], octet)
+				masterIP = fmt.Sprintf("%s.%s.%d.%d", vmgp.Netspec.Octets[0], vmgp.Netspec.Octets[1], octet, 10)
+				break
+			}
+		}
+		if !found {
+			return fmt.Errorf("cannot find subnet cidr")
+		}
+	}
+
 	metaDir := "/mnt/mobiledgex-config/openstack/latest/"
 	for vmidx, vm := range vmgp.VMs {
-		masterIp := ""
-
-		metaData := vmlayer.GetVMMetaData(vm.Role, masterIp, awsMetaDataFormatter)
+		metaData := vmlayer.GetVMMetaData(vm.Role, masterIP, awsMetaDataFormatter)
 		vm.CloudConfigParams.ExtraBootCommands = append(vm.CloudConfigParams.ExtraBootCommands, "mkdir -p "+metaDir)
 		vm.CloudConfigParams.ExtraBootCommands = append(vm.CloudConfigParams.ExtraBootCommands,
 			fmt.Sprintf("echo %s |base64 -d|python3 -c \"import sys, yaml, json; json.dump(yaml.load(sys.stdin), sys.stdout)\" > "+metaDir+"meta_data.json", metaData))
@@ -311,39 +420,81 @@ func (a *AWSPlatform) populateOrchestrationParams(ctx context.Context, vmgp *vml
 			}
 			vmgp.VMs[vmidx].Volumes = append(vmgp.VMs[vmidx].Volumes, vol)
 		}
+		// we need to put the interface with the external ip first
+		var sortedPorts []vmlayer.PortResourceReference
+		for p, port := range vmgp.VMs[vmidx].Ports {
+			if port.NetworkId != a.VMProperties.GetCloudletExternalNetwork() {
+				sortedPorts = append([]vmlayer.PortResourceReference{vmgp.VMs[vmidx].Ports[p]}, sortedPorts...)
+			} else {
+				sortedPorts = append(sortedPorts, vmgp.VMs[vmidx].Ports[p])
+			}
+		}
+		vmgp.VMs[vmidx].Ports = sortedPorts
+		log.SpanLog(ctx, log.DebugLevelInfra, "Interfaces after sorting", "vmname", vmgp.VMs[vmidx].Name, "FixedIPs", vmgp.VMs[vmidx].FixedIPs, "Ports", sortedPorts)
 	}
 
 	return nil
 }
 
-func (a *AWSPlatform) CreateVMs(ctx context.Context, vmgp *vmlayer.VMGroupOrchestrationParams, updateCallback edgeproto.CacheUpdateCallback) error {
-	log.SpanLog(ctx, log.DebugLevelInfra, "CreateVMs", "vmgp", vmgp)
+// createVmGroupResources creates subnets, secgrps ahead of vms.  returns secGrpMap, subnetMap, vpcid, err
+func (a *AWSPlatform) createVmGroupResources(ctx context.Context, vmgp *vmlayer.VMGroupOrchestrationParams, updateCallback edgeproto.CacheUpdateCallback) (map[string]*AwsEc2SecGrp, map[string]*AwsEc2Subnet, string, error) {
+	log.SpanLog(ctx, log.DebugLevelInfra, "createVmGroupResources", "vmgp", vmgp)
+
+	// lock to reserve subnets.  AWS is very fast on create so this is probably ok, but
+	// should be revisited
+	orchVmLock.Lock()
+	defer orchVmLock.Unlock()
 	err := a.populateOrchestrationParams(ctx, vmgp, vmlayer.ActionCreate)
 	if err != nil {
-		return err
+		return nil, nil, "", err
 	}
 	vpc, err := a.GetVPC(ctx, a.GetVpcName())
 	if err != nil {
-		return err
+		return nil, nil, "", err
 	}
 	log.SpanLog(ctx, log.DebugLevelInfra, "Params after populate", "vmgp", vmgp)
 
 	secGrpMap, err := a.GetSecurityGroups(ctx, vpc.VpcId)
 	if err != nil {
-		return err
+		return nil, nil, "", err
 	}
-	for _, s := range vmgp.SecurityGroups {
-		_, ok := secGrpMap[s.Name]
+
+	for _, sg := range vmgp.SecurityGroups {
+		_, ok := secGrpMap[sg.Name]
 		if !ok {
-			newgrp, err := a.CreateSecurityGroup(ctx, s.Name, vpc.VpcId, "security group for VM group "+vmgp.GroupName)
-			if err != nil && !strings.Contains(err.Error(), GroupAlreadyExists) {
-				return err
+			newgrp, err := a.CreateSecurityGroup(ctx, sg.Name, vpc.VpcId, "security group for VM group "+vmgp.GroupName)
+			if err != nil {
+				if strings.Contains(err.Error(), GroupAlreadyExists) {
+					log.SpanLog(ctx, log.DebugLevelInfra, "security group already exists", "vmgp", vmgp)
+				}
+			} else {
+				return nil, nil, "", err
 			}
-			secGrpMap[s.Name] = newgrp
+			secGrpMap[sg.Name] = newgrp
 		}
 	}
+	for _, sn := range vmgp.Subnets {
+		err := a.CreateSubnet(ctx, sn.Name, sn.CIDR)
+		if err != nil {
+			return nil, nil, "", err
+		}
+	}
+	snMap, err := a.GetSubnets(ctx)
+	if err != nil {
+		return nil, nil, "", err
+	}
+	return secGrpMap, snMap, vpc.VpcId, nil
+}
+
+func (a *AWSPlatform) CreateVMs(ctx context.Context, vmgp *vmlayer.VMGroupOrchestrationParams, updateCallback edgeproto.CacheUpdateCallback) error {
+	log.SpanLog(ctx, log.DebugLevelInfra, "CreateVMs", "vmgp", vmgp)
+	secGrpMap, snMap, vpcId, err := a.createVmGroupResources(ctx, vmgp, updateCallback)
+	if err != nil {
+		return err
+	}
+
 	for _, vm := range vmgp.VMs {
-		err := a.CreateVM(ctx, &vm, vmgp.Ports, secGrpMap, vpc.VpcId)
+		err := a.CreateVM(ctx, &vm, vmgp.Ports, secGrpMap, snMap, vpcId)
 		if err != nil {
 			return err
 		}
@@ -363,7 +514,7 @@ func (s *AWSPlatform) DetachPortFromServer(ctx context.Context, serverName, subn
 }
 
 func (a *AWSPlatform) GetInternalPortPolicy() vmlayer.InternalPortAttachPolicy {
-	return vmlayer.AttachPortDuringCreate
+	return vmlayer.AttachPortAfterCreate
 }
 
 func (a *AWSPlatform) GetVMStats(ctx context.Context, key *edgeproto.AppInstKey) (*vmlayer.VMMetrics, error) {
@@ -574,8 +725,22 @@ func (a *AWSPlatform) CreateSecurityGroup(ctx context.Context, name, vpcId, desc
 	return &sg, nil
 }
 
+func (a *AWSPlatform) GetSecurityGroup(ctx context.Context, name string, vpcId string) (*AwsEc2SecGrp, error) {
+	log.SpanLog(ctx, log.DebugLevelInfra, "GetSecurityGroup", "name", name, "vpcId", vpcId)
+
+	grpMap, err := a.GetSecurityGroups(ctx, vpcId)
+	if err != nil {
+		return nil, err
+	}
+	grp, ok := grpMap[name]
+	if !ok {
+		return nil, fmt.Errorf(SecGrpDoesNotExistError)
+	}
+	return grp, nil
+}
+
 func (a *AWSPlatform) GetSecurityGroups(ctx context.Context, vpcId string) (map[string]*AwsEc2SecGrp, error) {
-	log.SpanLog(ctx, log.DebugLevelInfra, "GetSecurityGroup", "vpcId", vpcId)
+	log.SpanLog(ctx, log.DebugLevelInfra, "GetSecurityGroups", "vpcId", vpcId)
 	out, err := a.TimedAwsCommand(ctx, "aws",
 		"ec2",
 		"describe-security-groups",
@@ -658,6 +823,39 @@ func (a *AWSPlatform) GetVPC(ctx context.Context, name string) (*AwsEc2Vpc, erro
 	return &vpclist.Vpcs[0], nil
 }
 
+func (a *AWSPlatform) GetSubnets(ctx context.Context) (map[string]*AwsEc2Subnet, error) {
+	log.SpanLog(ctx, log.DebugLevelInfra, "GetSubnets")
+	snMap := make(map[string]*AwsEc2Subnet)
+	out, err := a.TimedAwsCommand(ctx, "aws",
+		"ec2",
+		"describe-subnets",
+		"--region", a.GetAwsRegion())
+	log.SpanLog(ctx, log.DebugLevelInfra, "describe-subnets result", "out", string(out), "err", err)
+	if err != nil {
+		return nil, fmt.Errorf("GetSubnets failed: %s - %v", string(out), err)
+	}
+	var subnetList AwsEc2SubnetList
+	err = json.Unmarshal(out, &subnetList)
+	if err != nil {
+		log.SpanLog(ctx, log.DebugLevelInfra, "aws describe-subnets unmarshal fail", "out", string(out), "err", err)
+		err = fmt.Errorf("cannot unmarshal, %v", err)
+		return nil, err
+	}
+	for i, s := range subnetList.Subnets {
+		subnetName := ""
+		for _, t := range s.Tags {
+			if t.Key == "Name" {
+				subnetName = t.Value
+			}
+		}
+		if subnetName != "" {
+			subnetList.Subnets[i].Name = subnetName
+			snMap[subnetName] = &subnetList.Subnets[i]
+		}
+	}
+	return snMap, nil
+}
+
 func (a *AWSPlatform) GetSubnet(ctx context.Context, name string) (*AwsEc2Subnet, error) {
 	log.SpanLog(ctx, log.DebugLevelInfra, "GetSubnet", "name", name)
 	filter := fmt.Sprintf("Name=tag-value,Values=%s", name)
@@ -685,5 +883,6 @@ func (a *AWSPlatform) GetSubnet(ctx context.Context, name string) (*AwsEc2Subnet
 	if len(subnetList.Subnets) > 2 {
 		return nil, fmt.Errorf("more than one subnet matching name tag: %s - numsubnets: %d", name, len(subnetList.Subnets))
 	}
+	subnetList.Subnets[0].Name = name
 	return &subnetList.Subnets[0], nil
 }

@@ -7,11 +7,13 @@ import (
 
 	"github.com/mobiledgex/edge-cloud/cloud-resource-manager/platform"
 
-	sh "github.com/codeskyblue/go-sh"
 	"github.com/mobiledgex/edge-cloud-infra/vmlayer"
 	"github.com/mobiledgex/edge-cloud/edgeproto"
 	"github.com/mobiledgex/edge-cloud/log"
 )
+
+// AwsGwOctet overrides he use of .1 for the GW address when using the LB as the GW because the first few addresses are reserved
+const AwsGwOctet uint32 = 5
 
 type AWSPlatform struct {
 	//commonPf     *infracommon.CommonPlatform
@@ -43,10 +45,11 @@ func (a *AWSPlatform) GatherCloudletInfo(ctx context.Context, info *edgeproto.Cl
 	filter := "Name=instance-storage-supported,Values=true"
 	query := "InstanceTypes[].[InstanceType,VCpuInfo.DefaultVCpus,MemoryInfo.SizeInMiB,InstanceStorageInfo.TotalSizeInGB]"
 
-	out, err := sh.Command("aws", "ec2", "describe-instance-types",
+	out, err := a.TimedAwsCommand(ctx, "aws", "ec2", "describe-instance-types",
 		"--filter", filter,
 		"--query", query,
-		"--output", "json", sh.Dir("/tmp")).CombinedOutput()
+		"--region", a.GetAwsRegion(),
+		"--output", "json")
 	if err != nil {
 		err = fmt.Errorf("cannot get instance types from AWS, %s, %s", out, err.Error())
 		return err
@@ -112,5 +115,7 @@ func (a *AWSPlatform) IdSanitize(name string) string {
 }
 
 func (a *AWSPlatform) SetVMProperties(vmProperties *vmlayer.VMProperties) {
+	vmProperties.OverrideGWOctet = AwsGwOctet
 	a.VMProperties = vmProperties
+
 }

@@ -33,10 +33,6 @@ var AWSProps = map[string]*edgeproto.PropertyInfo{
 	},
 }
 
-func (a *AWSPlatform) GetK8sProviderSpecificProps() map[string]*edgeproto.PropertyInfo {
-	return AWSProps
-}
-
 func (a *AWSPlatform) GetAwsAccessKeyId() string {
 	val, _ := a.VMProperties.CommonPf.Properties.GetValue("AWS_ACCESS_KEY_ID")
 	return val
@@ -53,17 +49,16 @@ func (a *AWSPlatform) GetAwsRegion() string {
 }
 
 func (a *AWSPlatform) InitApiAccessProperties(ctx context.Context, key *edgeproto.CloudletKey, region, physicalName string, vaultConfig *vault.Config, vars map[string]string) error {
-	log.SpanLog(ctx, log.DebugLevelInfra, "InitApiAccessProperties")
-	err := infracommon.InternVaultEnv(ctx, vaultConfig, awsVaultPath)
-	if err != nil {
-		log.SpanLog(ctx, log.DebugLevelInfra, "Failed to intern vault data for API access", "err", err)
-		err = fmt.Errorf("cannot intern vault data from vault %s", err.Error())
-		return err
-	}
 	return nil
 }
 
-func (a *AWSPlatform) GetProviderSpecificProps() map[string]*edgeproto.PropertyInfo {
-	// for now we use the same as the managed k8s props for everything else
-	return a.GetK8sProviderSpecificProps()
+func (a *AWSPlatform) GetProviderSpecificProps(ctx context.Context, vaultConfig *vault.Config) (map[string]*edgeproto.PropertyInfo, error) {
+	log.SpanLog(ctx, log.DebugLevelInfra, "GetProviderSpecificProps")
+	err := infracommon.InternVaultEnv(ctx, vaultConfig, awsVaultPath)
+	if err != nil {
+		log.SpanLog(ctx, log.DebugLevelInfra, "Failed to intern vault data", "err", err)
+		err = fmt.Errorf("cannot intern vault data from vault %s", err.Error())
+		return nil, err
+	}
+	return AWSProps, nil
 }

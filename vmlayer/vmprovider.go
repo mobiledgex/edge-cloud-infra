@@ -23,7 +23,7 @@ import (
 type VMProvider interface {
 	NameSanitize(string) string
 	IdSanitize(string) string
-	GetProviderSpecificProps(ctx context.Context) map[string]*edgeproto.PropertyInfo
+	GetProviderSpecificProps(ctx context.Context, vaultConfig *vault.Config) (map[string]*edgeproto.PropertyInfo, error)
 	SetVMProperties(vmProperties *VMProperties)
 	SetCaches(ctx context.Context, caches *platform.Caches)
 	InitProvider(ctx context.Context, caches *platform.Caches, stage ProviderInitStage, updateCallback edgeproto.CacheUpdateCallback) error
@@ -242,17 +242,20 @@ func (v *VMPlatform) InitProps(ctx context.Context, platformConfig *platform.Pla
 	for k, v := range VMProviderProps {
 		props[k] = v
 	}
-	providerProps := v.VMProvider.GetProviderSpecificProps(ctx)
+	providerProps, err := v.VMProvider.GetProviderSpecificProps(ctx, vaultConfig)
+	if err != nil {
+		return err
+	}
 	for k, v := range providerProps {
 		props[k] = v
 	}
-	err := v.VMProperties.CommonPf.InitInfraCommon(ctx, platformConfig, props, vaultConfig)
+	err = v.VMProperties.CommonPf.InitInfraCommon(ctx, platformConfig, props, vaultConfig)
 	if err != nil {
 		return err
 	}
 	v.VMProvider.SetVMProperties(&v.VMProperties)
 	v.VMProperties.SharedRootLBName = v.GetRootLBName(v.VMProperties.CommonPf.PlatformConfig.CloudletKey)
-	v.VMProperties.PlatformSecgrpName = v.GetServerSecurityGroupName(v.GetPlatformVMName(v.VMProperties.CommonPf.PlatformConfig.CloudletKey))
+	v.VMProperties.PlatformSecgrpName = GetServerSecurityGroupName(v.GetPlatformVMName(v.VMProperties.CommonPf.PlatformConfig.CloudletKey))
 	return nil
 }
 

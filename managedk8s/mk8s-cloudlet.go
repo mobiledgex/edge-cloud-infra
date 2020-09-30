@@ -56,8 +56,7 @@ func (m *ManagedK8sPlatform) CreateCloudlet(ctx context.Context, cloudlet *edgep
 		return err
 	}
 	platCfg := infracommon.GetPlatformConfig(cloudlet, pfConfig)
-	props := m.Provider.GetK8sProviderSpecificProps()
-	err = m.Provider.InitApiAccessProperties(ctx, platCfg.CloudletKey, platCfg.Region, platCfg.PhysicalName, vaultConfig, platCfg.EnvVars)
+	props, err := m.Provider.GetProviderSpecificProps(ctx, vaultConfig)
 	if err != nil {
 		return err
 	}
@@ -110,8 +109,7 @@ func (m *ManagedK8sPlatform) DeleteCloudlet(ctx context.Context, cloudlet *edgep
 		return err
 	}
 	platCfg := infracommon.GetPlatformConfig(cloudlet, pfConfig)
-	props := m.Provider.GetK8sProviderSpecificProps()
-	err = m.Provider.InitApiAccessProperties(ctx, platCfg.CloudletKey, platCfg.Region, platCfg.PhysicalName, vaultConfig, platCfg.EnvVars)
+	props, err := m.Provider.GetProviderSpecificProps(ctx, vaultConfig)
 	if err != nil {
 		return err
 	}

@@ -556,7 +556,7 @@ func (v *VMPlatform) getVMRequestSpecForDockerCluster(ctx context.Context, imgNa
 			return vms, newSubnetName, newSecgrpName, err
 		}
 		vms = append(vms, rootlb)
-		newSecgrpName = v.GetServerSecurityGroupName(rootlb.Name)
+		newSecgrpName = GetServerSecurityGroupName(rootlb.Name)
 	} else {
 
 		log.SpanLog(ctx, log.DebugLevelInfo, "creating shared rootlb port")
@@ -623,7 +623,7 @@ func (v *VMPlatform) PerformOrchestrationForCluster(ctx context.Context, imgName
 				return nil, err
 			}
 			vms = append(vms, rootlb)
-			newSecgrpName = v.GetServerSecurityGroupName(rootlb.Name)
+			newSecgrpName = GetServerSecurityGroupName(rootlb.Name)
 		} else if v.VMProperties.GetCloudletExternalRouter() == NoExternalRouter {
 			// If no router in use, create ports on the existing shared rootLB
 			rootlb, err = v.GetVMSpecForRootLBPorts(ctx, v.VMProperties.SharedRootLBName, newSubnetName)

@@ -15,7 +15,7 @@ cookbook 'setup_infra', '= 1.0.0'
 cookbook 'preflight_crm_checks', '= 1.0.0'
 cookbook 'setup_services', '= 1.0.12'
 cookbook 'docker', '= 6.0.3'
-cookbook 'run_diagnostics', '= 0.0.5'
+cookbook 'run_diagnostics', '= 0.0.7'
 
 # Set edgeCloudVersion (i.e. edge-cloud docker base image version) for all the cloudlets
 override['main']['edgeCloudVersion'] = '2020-09-23-5'

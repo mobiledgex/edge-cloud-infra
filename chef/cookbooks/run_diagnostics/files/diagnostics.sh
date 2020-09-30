@@ -53,6 +53,18 @@ docker logs crmserver >& $TARGET_PATH/docker_crmserver.log
 docker logs shepherd >& $TARGET_PATH/docker_shepherd.log
 
 sudo cp /var/log/chef/client.log $TARGET_PATH/
+sudo cp /var/log/cloud-init.log $TARGET_PATH/
+sudo cp /var/log/syslog $TARGET_PATH/
+
+system_cmds=(
+	"ifconfig -a"
+	"route -n"
+)
+IFS=""
+for cmd in ${system_cmds[*]}; do
+	print $cmd >> $TARGET_PATH/system.log
+	eval $cmd >> $TARGET_PATH/system.log
+done
 
 print "Compressing logs folder $TARGET_NAME..."
 cd /var/tmp
@@ -63,6 +75,7 @@ print "Uploading to artifactory to ${RTF_PATH}..."
 curl -sSL -XPUT -H "Authorization: Bearer ${RTF_TOKEN}" -T "$TARGET_NAME.tar.gz" "${RTF_PATH}"
 [[ $? -eq 0 ]] || die "Error uploading image to Artifactory"
 
-rm -rf "$TARGET_PATH*"
+rm -rf $TARGET_NAME
+rm $TARGET_NAME.tar.gz
 
 print "Done"

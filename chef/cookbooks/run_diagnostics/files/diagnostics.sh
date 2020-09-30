@@ -63,6 +63,6 @@ print "Uploading to artifactory to ${RTF_PATH}..."
 curl -sSL -XPUT -H "Authorization: Bearer ${RTF_TOKEN}" -T "$TARGET_NAME.tar.gz" "${RTF_PATH}"
 [[ $? -eq 0 ]] || die "Error uploading image to Artifactory"
 
-rm -rf "$TARGET_NAME*"
+rm -rf "$TARGET_PATH*"
 
 print "Done"

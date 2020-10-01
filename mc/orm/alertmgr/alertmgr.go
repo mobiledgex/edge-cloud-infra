@@ -394,7 +394,7 @@ func (s *AlertMgrServer) ShowReceivers(ctx context.Context, filter *ormapi.Alert
 			receiver.Email = rec.Receiver.EmailConfigs[0].To
 		case AlertReceiverTypeSlack:
 			receiver.SlackChannel = rec.Receiver.SlackConfigs[0].Channel
-			receiver.SlackWebhook = rec.Receiver.SlackConfigs[0].APIURL.String()
+			receiver.SlackWebhook = AlertMgrSlackWebhookToken
 		default:
 			log.SpanLog(ctx, log.DebugLevelApi, "Unknown receiver type", "type", receiver.Type)
 		}

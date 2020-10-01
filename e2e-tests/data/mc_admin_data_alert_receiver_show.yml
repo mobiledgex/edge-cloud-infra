@@ -19,7 +19,7 @@ alertreceivers:
   type: slack
   severity: error
   slackchannel: "#alerts"
-  slackwebhook: "http://host.docker.internal:9100/slack/webhook"
+  slackwebhook: "<hidden>"
   appinst:
     appkey:
       organization: AcmeAppCo

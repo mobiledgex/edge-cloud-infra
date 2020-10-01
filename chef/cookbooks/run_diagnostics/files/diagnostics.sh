@@ -39,8 +39,8 @@ mkdir -p $TARGET_PATH
 docker_cmds=(
 	"docker ps"
 	"docker images"
-	"docker inspect crmserver"
-	"docker inspect shepherd"
+	"docker inspect crmserver | grep -v 'VAULT_'"
+	"docker inspect shepherd | grep -v 'VAULT_'"
 )
 
 IFS=""
@@ -55,6 +55,9 @@ docker logs shepherd >& $TARGET_PATH/docker_shepherd.log
 sudo cp /var/log/chef/client.log $TARGET_PATH/
 sudo cp /var/log/cloud-init.log $TARGET_PATH/
 sudo cp /var/log/syslog $TARGET_PATH/
+
+cp /tmp/prom_targets.json $TARGET_PATH/
+cp /tmp/rulefile_*.yml $TARGET_PATH/
 
 system_cmds=(
 	"ifconfig -a"

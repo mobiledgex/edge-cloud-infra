@@ -8,6 +8,7 @@ import (
 	"os"
 	"strings"
 	"sync"
+	"time"
 
 	"github.com/mobiledgex/edge-cloud-infra/vmlayer"
 	"github.com/mobiledgex/edge-cloud/edgeproto"
@@ -97,11 +98,19 @@ type AwsEc2NetworkInterfaceCreateSpec struct {
 	DeviceIndex              int      `json:"DeviceIndex"`
 }
 
+type AwsEc2IpAddrPublicIpAssociation struct {
+	PublicIp string
+}
+type AwsEc2IpAddress struct {
+	PrivateIpAddress string
+	Association      AwsEc2IpAddrPublicIpAssociation
+}
 type AwsEc2NetworkInterface struct {
 	VpcId              string
 	SubnetId           string
 	MacAddress         string
 	NetworkInterfaceId string
+	PrivateIpAddresses []AwsEc2IpAddress
 }
 type AwsEc2NetworkInterfaceCreateResult struct {
 	NetworkInterface AwsEc2NetworkInterface
@@ -117,12 +126,11 @@ type AwsEc2BlockDeviceMapping struct {
 }
 
 type AwsEc2Instance struct {
-	ImageId          string
-	InstanceId       string
-	PrivateIpAddress string
-	PublicIpAddress  string
-	Tags             []AwsEc2Tag
-	State            AwsEc2State
+	ImageId           string
+	InstanceId        string
+	NetworkInterfaces []AwsEc2NetworkInterface
+	Tags              []AwsEc2Tag
+	State             AwsEc2State
 }
 
 type AwsEc2Reservation struct {
@@ -138,6 +146,10 @@ func (a *AWSPlatform) GetServerDetail(ctx context.Context, vmname string) (*vmla
 
 	var sd vmlayer.ServerDetail
 	var ec2insts AwsEc2Instances
+	snMap, err := a.GetSubnets(ctx)
+	if err != nil {
+		return nil, err
+	}
 	out, err := a.TimedAwsCommand(ctx,
 		"aws", "ec2",
 		"describe-instances",
@@ -175,13 +187,36 @@ func (a *AWSPlatform) GetServerDetail(ctx context.Context, vmname string) (*vmla
 			}
 			sd.Name = vmname
 			sd.ID = inst.InstanceId
-			if inst.PublicIpAddress != "" {
+			for _, netif := range inst.NetworkInterfaces {
 				var sip vmlayer.ServerIP
-				sip.ExternalAddr = inst.PublicIpAddress
-				sip.InternalAddr = inst.PrivateIpAddress
-				sip.ExternalAddrIsFloating = true
-				sip.Network = a.VMProperties.GetCloudletExternalNetwork()
+
+				log.SpanLog(ctx, log.DebugLevelInfra, "found network interface", "vmname", vmname, "netif", netif)
+
+				if len(netif.PrivateIpAddresses) != 1 {
+					log.SpanLog(ctx, log.DebugLevelInfra, "unexpected number of private ips", "netif.PrivateIpAddresses", netif.PrivateIpAddresses)
+					continue
+				}
+				sip.InternalAddr = netif.PrivateIpAddresses[0].PrivateIpAddress
+				if netif.PrivateIpAddresses[0].Association.PublicIp != "" {
+					sip.ExternalAddr = netif.PrivateIpAddresses[0].Association.PublicIp
+					sip.ExternalAddrIsFloating = true
+				} else {
+					sip.ExternalAddr = sip.InternalAddr
+				}
+				for sname, sn := range snMap {
+					if sn.SubnetId == netif.SubnetId {
+						sip.Network = sname
+						break
+					}
+				}
+				if sip.Network == "" {
+					log.SpanLog(ctx, log.DebugLevelInfra, "Could not find subnet for network interface", "netif.SubnetId", netif.SubnetId, "snMap", snMap)
+					return nil, fmt.Errorf("Could not find subnet for network interface subnetid: %s", netif.SubnetId)
+				}
+				sip.PortName = vmlayer.GetPortName(vmname, sip.Network)
+				sip.MacAddress = netif.MacAddress
 				sd.Addresses = append(sd.Addresses, sip)
+
 			}
 			log.SpanLog(ctx, log.DebugLevelInfra, "active server", "vmname", vmname, "state", inst.State, "sd", sd)
 			return &sd, nil
@@ -499,6 +534,8 @@ func (a *AWSPlatform) CreateVMs(ctx context.Context, vmgp *vmlayer.VMGroupOrches
 			return err
 		}
 	}
+	log.WarnLog("XXXXXX sleep 1 min")
+	time.Sleep(time.Minute * 1)
 	return nil
 }
 func (o *AWSPlatform) UpdateVMs(ctx context.Context, VMGroupOrchestrationParams *vmlayer.VMGroupOrchestrationParams, updateCallback edgeproto.CacheUpdateCallback) error {

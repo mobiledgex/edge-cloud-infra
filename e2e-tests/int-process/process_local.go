@@ -588,9 +588,9 @@ func (p *PromE2e) GetExeName() string { return "docker" }
 
 func (p *PromE2e) LookupArgs() string { return p.Name }
 
-func (p *Exporter) StartLocal(logfile string, opts ...process.StartOp) error {
+func (p *HttpServer) StartLocal(logfile string, opts ...process.StartOp) error {
 	args := []string{
-		"-port", fmt.Sprintf("%d", p.Port), "-statsPath", p.DataFile,
+		"-port", fmt.Sprintf("%d", p.Port), "-promStatsPath", p.PromDataFile,
 	}
 
 	var err error
@@ -598,13 +598,13 @@ func (p *Exporter) StartLocal(logfile string, opts ...process.StartOp) error {
 	return err
 }
 
-func (p *Exporter) StopLocal() {
+func (p *HttpServer) StopLocal() {
 	process.StopLocal(p.cmd)
 }
 
-func (p *Exporter) GetExeName() string { return "fakepromexporter" }
+func (p *HttpServer) GetExeName() string { return "fakepromexporter" }
 
-func (p *Exporter) LookupArgs() string { return "" }
+func (p *HttpServer) LookupArgs() string { return "" }
 
 func (p *ChefServer) StartLocal(logfile string, opts ...process.StartOp) error {
 	args := []string{}

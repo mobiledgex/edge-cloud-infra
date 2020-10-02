@@ -115,12 +115,26 @@ var ShowAppInstCmd = &cli.Command{
 	StreamOut:    true,
 }
 
+var MeasureAppInstLatencyCmd = &cli.Command{
+	Use:          "MeasureAppInstLatency",
+	RequiredArgs: "region " + strings.Join(AppInstRequiredArgs, " "),
+	OptionalArgs: strings.Join(AppInstOptionalArgs, " "),
+	AliasArgs:    strings.Join(AppInstAliasArgs, " "),
+	SpecialArgs:  &AppInstSpecialArgs,
+	Comments:     addRegionComment(AppInstComments),
+	ReqData:      &ormapi.RegionAppInst{},
+	ReplyData:    &edgeproto.Result{},
+	Run:          runRest("/auth/ctrl/MeasureAppInstLatency"),
+	StreamOut:    true,
+}
+
 var AppInstApiCmds = []*cli.Command{
 	CreateAppInstCmd,
 	DeleteAppInstCmd,
 	RefreshAppInstCmd,
 	UpdateAppInstCmd,
 	ShowAppInstCmd,
+	MeasureAppInstLatencyCmd,
 }
 
 var CreateAppInstRequiredArgs = []string{
@@ -143,6 +157,7 @@ var CreateAppInstOptionalArgs = []string{
 	"privacypolicy",
 	"vmflavor",
 	"optres",
+	"measurelatency",
 }
 var DeleteAppInstRequiredArgs = []string{
 	"app-org",
@@ -166,6 +181,7 @@ var DeleteAppInstOptionalArgs = []string{
 	"privacypolicy",
 	"vmflavor",
 	"optres",
+	"measurelatency",
 }
 var RefreshAppInstRequiredArgs = []string{
 	"app-org",
@@ -180,6 +196,7 @@ var RefreshAppInstOptionalArgs = []string{
 	"crmoverride",
 	"forceupdate",
 	"updatemultiple",
+	"measurelatency",
 }
 var UpdateAppInstRequiredArgs = []string{
 	"app-org",
@@ -195,6 +212,7 @@ var UpdateAppInstOptionalArgs = []string{
 	"configs:#.kind",
 	"configs:#.config",
 	"powerstate",
+	"measurelatency",
 }
 var AppInstKeyRequiredArgs = []string{}
 var AppInstKeyOptionalArgs = []string{
@@ -248,6 +266,7 @@ var AppInstOptionalArgs = []string{
 	"powerstate",
 	"vmflavor",
 	"optres",
+	"measurelatency",
 }
 var AppInstAliasArgs = []string{
 	"fields=appinst.fields",
@@ -301,6 +320,7 @@ var AppInstAliasArgs = []string{
 	"availabilityzone=appinst.availabilityzone",
 	"vmflavor=appinst.vmflavor",
 	"optres=appinst.optres",
+	"measurelatency=appinst.measurelatency",
 }
 var AppInstComments = map[string]string{
 	"fields":                         "Fields are used for the Update API to specify which fields to apply",
@@ -346,6 +366,7 @@ var AppInstComments = map[string]string{
 	"availabilityzone":               "Optional Availability Zone if any",
 	"vmflavor":                       "OS node flavor to use",
 	"optres":                         "Optional Resources required by OS flavor if any",
+	"measurelatency":                 "Check to see if need to measure latency",
 }
 var AppInstSpecialArgs = map[string]string{
 	"appinst.errors":                   "StringArray",

@@ -177,3 +177,8 @@ func (s *DummyController) dump() {
 	}
 	s.appInstRefsCache.Mux.Unlock()
 }
+
+func (s *DummyController) MeasureAppInstLatency(in *edgeproto.AppInst, server edgeproto.AppInstApi_MeasureAppInstLatencyServer) error {
+	return nil
+}
+

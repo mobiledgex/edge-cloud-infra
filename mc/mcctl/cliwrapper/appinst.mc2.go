@@ -81,3 +81,14 @@ func (s *Client) ShowAppInst(uri, token string, in *ormapi.RegionAppInst) ([]edg
 	st, err := s.runObjs(uri, token, args, in, &outlist, ops...)
 	return outlist, st, err
 }
+
+func (s *Client) MeasureAppInstLatency(uri, token string, in *ormapi.RegionAppInst) ([]edgeproto.Result, int, error) {
+	args := []string{"region", "MeasureAppInstLatency"}
+	outlist := []edgeproto.Result{}
+	noconfig := strings.Split("CloudletLoc,Uri,MappedPorts,Liveness,CreatedAt,Status,Revision,Errors,RuntimeInfo,NodeFlavor,ExternalVolumeSize,AvailabilityZone,State", ",")
+	ops := []runOp{
+		withIgnore(noconfig),
+	}
+	st, err := s.runObjs(uri, token, args, in, &outlist, ops...)
+	return outlist, st, err
+}

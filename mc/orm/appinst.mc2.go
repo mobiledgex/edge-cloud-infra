@@ -424,3 +424,81 @@ func ShowAppInstObj(ctx context.Context, rc *RegionContext, obj *edgeproto.AppIn
 	})
 	return arr, err
 }
+
+func MeasureAppInstLatency(c echo.Context) error {
+	ctx := GetContext(c)
+	rc := &RegionContext{}
+	claims, err := getClaims(c)
+	if err != nil {
+		return err
+	}
+	rc.username = claims.Username
+
+	in := ormapi.RegionAppInst{}
+	success, err := ReadConn(c, &in)
+	if !success {
+		return err
+	}
+	defer CloseConn(c)
+	rc.region = in.Region
+	span := log.SpanFromContext(ctx)
+	span.SetTag("region", in.Region)
+	log.SetTags(span, in.AppInst.GetKey().GetTags())
+	span.SetTag("org", in.AppInst.Key.AppKey.Organization)
+
+	err = MeasureAppInstLatencyStream(ctx, rc, &in.AppInst, func(res *edgeproto.Result) {
+		payload := ormapi.StreamPayload{}
+		payload.Data = res
+		WriteStream(c, &payload)
+	})
+	if err != nil {
+		WriteError(c, err)
+	}
+	return nil
+}
+
+func MeasureAppInstLatencyStream(ctx context.Context, rc *RegionContext, obj *edgeproto.AppInst, cb func(res *edgeproto.Result)) error {
+	log.SetContextTags(ctx, edgeproto.GetTags(obj))
+	if !rc.skipAuthz {
+		if err := authorized(ctx, rc.username, obj.Key.AppKey.Organization,
+			ResourceAppInsts, ActionManage); err != nil {
+			return err
+		}
+	}
+	if rc.conn == nil {
+		conn, err := connectController(ctx, rc.region)
+		if err != nil {
+			return err
+		}
+		rc.conn = conn
+		defer func() {
+			rc.conn.Close()
+			rc.conn = nil
+		}()
+	}
+	api := edgeproto.NewAppInstApiClient(rc.conn)
+	stream, err := api.MeasureAppInstLatency(ctx, obj)
+	if err != nil {
+		return err
+	}
+	for {
+		res, err := stream.Recv()
+		if err == io.EOF {
+			err = nil
+			break
+		}
+		if err != nil {
+			return err
+		}
+		cb(res)
+	}
+	return nil
+}
+
+func MeasureAppInstLatencyObj(ctx context.Context, rc *RegionContext, obj *edgeproto.AppInst) ([]edgeproto.Result, error) {
+	arr := []edgeproto.Result{}
+	err := MeasureAppInstLatencyStream(ctx, rc, obj, func(res *edgeproto.Result) {
+		arr = append(arr, *res)
+	})
+	return arr, err
+}

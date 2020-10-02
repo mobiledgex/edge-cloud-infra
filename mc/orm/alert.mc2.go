@@ -1243,6 +1243,7 @@ func addControllerApis(method string, group *echo.Group) {
 	// AvailabilityZone: 33
 	// VmFlavor: 34
 	// OptRes: 35
+	// MeasureLatency: 36
 	// ```
 	// Security:
 	//   Bearer:
@@ -1263,6 +1264,16 @@ func addControllerApis(method string, group *echo.Group) {
 	//   403: forbidden
 	//   404: notFound
 	group.Match([]string{method}, "/ctrl/ShowAppInst", ShowAppInst)
+	// swagger:route POST /auth/ctrl/MeasureAppInstLatency AppInst MeasureAppInstLatency
+	// Start Latency measurements for AppInst.
+	// Security:
+	//   Bearer:
+	// responses:
+	//   200: success
+	//   400: badRequest
+	//   403: forbidden
+	//   404: notFound
+	group.Match([]string{method}, "/ctrl/MeasureAppInstLatency", MeasureAppInstLatency)
 	// swagger:route POST /auth/ctrl/ShowCloudletRefs CloudletRefs ShowCloudletRefs
 	// Show CloudletRefs (debug only).
 	// Security:

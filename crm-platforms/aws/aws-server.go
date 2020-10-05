@@ -8,7 +8,6 @@ import (
 	"os"
 	"strings"
 	"sync"
-	"time"
 
 	"github.com/mobiledgex/edge-cloud-infra/vmlayer"
 	"github.com/mobiledgex/edge-cloud/edgeproto"
@@ -267,6 +266,8 @@ func (a *AWSPlatform) AttachPortToServer(ctx context.Context, serverName, subnet
 	}
 	deviceIndex := len(sd.Addresses)
 	log.SpanLog(ctx, log.DebugLevelInfra, "created interface", "interface", createdIf)
+
+	// Attach the interface
 	out, err = a.TimedAwsCommand(ctx, "aws",
 		"ec2",
 		"attach-network-interface",
@@ -278,6 +279,19 @@ func (a *AWSPlatform) AttachPortToServer(ctx context.Context, serverName, subnet
 	if err != nil {
 		return fmt.Errorf("AttachPortToServer attach interface failed: %s - %v", string(out), err)
 	}
+
+	// Disable SourceDestCheck to allow NAT
+	out, err = a.TimedAwsCommand(ctx, "aws",
+		"ec2",
+		"modify-network-interface-attribute",
+		"--no-source-dest-check",
+		"--network-interface-id", createdIf.NetworkInterface.NetworkInterfaceId,
+		"--region", a.GetAwsRegion())
+	log.SpanLog(ctx, log.DebugLevelInfra, "modify-network-interface-attribute result", "out", string(out), "err", err)
+	if err != nil {
+		return fmt.Errorf("AttachPortToServer modify interface failed: %s - %v", string(out), err)
+	}
+
 	return nil
 }
 
@@ -312,7 +326,13 @@ func (a *AWSPlatform) CreateVM(ctx context.Context, vm *vmlayer.VMOrchestrationP
 			snName = p.NetworkId
 			ni.AssociatePublicIpAddress = true
 		} else {
+			// for internal interface allow masquerading
 			snName = p.SubnetId
+			for _, f := range vm.FixedIPs {
+				if f.Subnet.Name == snName {
+					ni.PrivateIpAddress = f.Address
+				}
+			}
 		}
 		snId, ok := awsSubnets[snName]
 		if !ok {
@@ -455,17 +475,21 @@ func (a *AWSPlatform) populateOrchestrationParams(ctx context.Context, vmgp *vml
 			}
 			vmgp.VMs[vmidx].Volumes = append(vmgp.VMs[vmidx].Volumes, vol)
 		}
-		// we need to put the interface with the external ip first
-		var sortedPorts []vmlayer.PortResourceReference
-		for p, port := range vmgp.VMs[vmidx].Ports {
-			if port.NetworkId != a.VMProperties.GetCloudletExternalNetwork() {
-				sortedPorts = append([]vmlayer.PortResourceReference{vmgp.VMs[vmidx].Ports[p]}, sortedPorts...)
-			} else {
-				sortedPorts = append(sortedPorts, vmgp.VMs[vmidx].Ports[p])
+
+		for f, fip := range vm.FixedIPs {
+			if fip.Address == vmlayer.NextAvailableResource && fip.LastIPOctet != 0 {
+				log.SpanLog(ctx, log.DebugLevelInfra, "updating fixed ip", "fixedip", fip)
+				for _, s := range vmgp.Subnets {
+					if s.Name == fip.Subnet.Name {
+						addr := fmt.Sprintf("%s.%d", s.NodeIPPrefix, fip.LastIPOctet)
+						log.SpanLog(ctx, log.DebugLevelInfra, "populating fixed ip based on subnet", "addr", addr, "subnet", s)
+						vmgp.VMs[vmidx].FixedIPs[f].Address = addr
+						break
+					}
+				}
 			}
 		}
-		vmgp.VMs[vmidx].Ports = sortedPorts
-		log.SpanLog(ctx, log.DebugLevelInfra, "Interfaces after sorting", "vmname", vmgp.VMs[vmidx].Name, "FixedIPs", vmgp.VMs[vmidx].FixedIPs, "Ports", sortedPorts)
+
 	}
 
 	return nil
@@ -534,8 +558,6 @@ func (a *AWSPlatform) CreateVMs(ctx context.Context, vmgp *vmlayer.VMGroupOrches
 			return err
 		}
 	}
-	log.WarnLog("XXXXXX sleep 1 min")
-	time.Sleep(time.Minute * 1)
 	return nil
 }
 func (o *AWSPlatform) UpdateVMs(ctx context.Context, VMGroupOrchestrationParams *vmlayer.VMGroupOrchestrationParams, updateCallback edgeproto.CacheUpdateCallback) error {

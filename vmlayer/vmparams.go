@@ -556,6 +556,12 @@ func (v *VMPlatform) getVMGroupOrchestrationParamsFromGroupSpec(ctx context.Cont
 		log.SpanLog(ctx, log.DebugLevelInfra, "NoConfigExternalRouter in use")
 	} else if rtr == NoExternalRouter {
 		log.SpanLog(ctx, log.DebugLevelInfra, "NoExternalRouter in use ")
+		if v.VMProperties.UseSecgrpForInternalSubnet {
+			if spec.NewSubnetName != "" {
+				internalSecgrpID = cloudletSecGrpID
+				internalSecgrpPreexisting = true
+			}
+		}
 	} else {
 		log.SpanLog(ctx, log.DebugLevelInfra, "External router in use")
 		if spec.NewSubnetName != "" {

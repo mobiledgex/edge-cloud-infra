@@ -13,20 +13,20 @@ import (
 const awsVaultPath string = "/secret/data/cloudlet/aws/credentials"
 
 var AWSProps = map[string]*edgeproto.PropertyInfo{
-	"AWS_ACCESS_KEY_ID": &edgeproto.PropertyInfo{
+	"AWS_ACCESS_KEY_ID": {
 		Name:        "AWS Access Key ID",
 		Description: "AWS Access Key ID",
 		Secret:      true,
 		Mandatory:   true,
 	},
-	"AWS_SECRET_ACCESS_KEY": &edgeproto.PropertyInfo{
+	"AWS_SECRET_ACCESS_KEY": {
 		Name:        "AWS Secret Access Key",
 		Description: "AWS Secret Access Key",
 		Secret:      true,
 		Mandatory:   true,
 	},
 
-	"AWS_REGION": &edgeproto.PropertyInfo{
+	"AWS_REGION": {
 		Name:        "AWS Region",
 		Description: "AWS Region",
 		Mandatory:   true,

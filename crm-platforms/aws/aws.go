@@ -116,6 +116,7 @@ func (a *AWSPlatform) IdSanitize(name string) string {
 
 func (a *AWSPlatform) SetVMProperties(vmProperties *vmlayer.VMProperties) {
 	vmProperties.OverrideGWOctet = AwsGwOctet
+	vmProperties.UseSecgrpForInternalSubnet = true
 	a.VMProperties = vmProperties
 
 }

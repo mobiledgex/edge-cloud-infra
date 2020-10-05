@@ -29,15 +29,16 @@ type CloudletSSHKey struct {
 }
 
 type VMProperties struct {
-	CommonPf              *infracommon.CommonPlatform
-	SharedRootLBName      string
-	sharedRootLB          *MEXRootLB
-	Domain                VMDomain
-	PlatformSecgrpName    string
-	IptablesBasedFirewall bool
-	sshKey                CloudletSSHKey
-	Upgrade               bool
-	OverrideGWOctet       uint32
+	CommonPf                   *infracommon.CommonPlatform
+	SharedRootLBName           string
+	sharedRootLB               *MEXRootLB
+	Domain                     VMDomain
+	PlatformSecgrpName         string
+	IptablesBasedFirewall      bool
+	sshKey                     CloudletSSHKey
+	Upgrade                    bool
+	OverrideGWOctet            uint32
+	UseSecgrpForInternalSubnet bool
 }
 
 // note that qcow2 must be understood by vsphere and vmdk must

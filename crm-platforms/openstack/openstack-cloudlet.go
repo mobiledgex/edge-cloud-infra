@@ -110,10 +110,13 @@ func (o *OpenstackPlatform) GetCloudletManifest(ctx context.Context, name string
 	log.SpanLog(ctx, log.DebugLevelInfra, "GetCloudletManifest", "name", name, "VMGroupOrchestrationParams", vmgp)
 	var manifest infracommon.CloudletManifest
 
-	err := o.populateParams(ctx, vmgp, heatCreate)
+	o.InitResourceReservations(ctx)
+	resources, err := o.populateParams(ctx, vmgp, heatCreate)
 	if err != nil {
 		return "", err
 	}
+	o.ReleaseReservations(ctx, resources)
+
 	if len(vmgp.VMs) == 0 {
 		return "", fmt.Errorf("No VMs in orchestation spec")
 	}

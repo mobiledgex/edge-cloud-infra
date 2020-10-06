@@ -61,8 +61,11 @@ var vms = []*vmlayer.VMRequestSpec{
 }
 
 func validateStack(ctx context.Context, t *testing.T, vmgp *vmlayer.VMGroupOrchestrationParams, op *OpenstackPlatform) {
-	err := op.populateParams(ctx, vmgp, heatTest)
+	resources, err := op.populateParams(ctx, vmgp, heatTest)
 	require.Nil(t, err)
+	if err != nil {
+		op.ReleaseReservations(ctx, resources)
+	}
 
 	err = op.createOrUpdateHeatStackFromTemplate(ctx, vmgp, vmgp.GroupName, VmGroupTemplate, heatTest, edgeproto.DummyUpdateCallback)
 	log.SpanLog(ctx, log.DebugLevelInfra, "created test stack file", "err", err)
@@ -134,6 +137,7 @@ func TestHeatTemplate(t *testing.T) {
 	err := vmp.InitProps(ctx, &pc, vaultConfig)
 	log.SpanLog(ctx, log.DebugLevelInfra, "init props done", "err", err)
 	require.Nil(t, err)
+	op.InitResourceReservations(ctx)
 	op.VMProperties.CommonPf.Properties.SetValue("MEX_EXT_NETWORK", "external-network-shared")
 	op.VMProperties.CommonPf.PlatformConfig.TestMode = true
 	// Add chef params

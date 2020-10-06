@@ -14,9 +14,9 @@ resources:
     subnet-test:
         type: OS::Neutron::Subnet
         properties:
-            cidr: 10.101.0.0/24
+            cidr: 10.101.1.0/24
             network: mex-k8s-net-1
-            gateway_ip: 10.101.0.1
+            gateway_ip: 10.101.1.1
             enable_dhcp: no
             dns_nameservers:
                  - 1.1.1.1
@@ -30,7 +30,7 @@ resources:
             network: mex-k8s-net-1
             fixed_ips:
                 - subnet: { get_resource: subnet-test }
-                  ip_address:  10.101.0.1
+                  ip_address:  10.101.1.1
             port_security_enabled: false
     rootlb-xyz-external-network-shared-port:
         type: OS::Neutron::Port
@@ -47,7 +47,7 @@ resources:
             network: mex-k8s-net-1
             fixed_ips:
                 - subnet: { get_resource: subnet-test }
-                  ip_address:  10.101.0.10
+                  ip_address:  10.101.1.10
             port_security_enabled: false
     master-xyz-external-network-shared-port:
         type: OS::Neutron::Port
@@ -64,7 +64,7 @@ resources:
             network: mex-k8s-net-1
             fixed_ips:
                 - subnet: { get_resource: subnet-test }
-                  ip_address:  10.101.0.101
+                  ip_address:  10.101.1.101
             port_security_enabled: false
     node2-xyz-subnet-test-port:
         type: OS::Neutron::Port
@@ -73,7 +73,7 @@ resources:
             network: mex-k8s-net-1
             fixed_ips:
                 - subnet: { get_resource: subnet-test }
-                  ip_address:  10.101.0.102
+                  ip_address:  10.101.1.102
             port_security_enabled: false
     testvmgroup-sg:
         type: OS::Neutron::SecurityGroup
@@ -143,7 +143,7 @@ resources:
             metadata:
                 skipk8s: yes
                 role: mex-agent-node
-                k8smaster: 10.101.0.10
+                k8smaster: 10.101.1.10
     master-xyz-volume:
         type: OS::Cinder::Volume
         properties:
@@ -197,7 +197,7 @@ resources:
             metadata:
                 skipk8s: no
                 role: k8s-master
-                k8smaster: 10.101.0.10
+                k8smaster: 10.101.1.10
         
     node1-xyz:
         type: OS::Nova::Server
@@ -241,7 +241,7 @@ resources:
             metadata:
                 skipk8s: no
                 role: k8s-node
-                k8smaster: 10.101.0.10
+                k8smaster: 10.101.1.10
         
     node2-xyz:
         type: OS::Nova::Server
@@ -285,7 +285,7 @@ resources:
             metadata:
                 skipk8s: no
                 role: k8s-node
-                k8smaster: 10.101.0.10
+                k8smaster: 10.101.1.10
     rootlb-xyz-external-network-shared-port-fip:
         type: OS::Neutron::FloatingIPAssociation
         properties:

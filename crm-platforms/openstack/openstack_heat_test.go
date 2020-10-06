@@ -63,11 +63,8 @@ var vms = []*vmlayer.VMRequestSpec{
 func validateStack(ctx context.Context, t *testing.T, vmgp *vmlayer.VMGroupOrchestrationParams, op *OpenstackPlatform) {
 	resources, err := op.populateParams(ctx, vmgp, heatTest)
 	require.Nil(t, err)
-	if err != nil {
-		op.ReleaseReservations(ctx, resources)
-	}
-
 	err = op.createOrUpdateHeatStackFromTemplate(ctx, vmgp, vmgp.GroupName, VmGroupTemplate, heatTest, edgeproto.DummyUpdateCallback)
+	op.ReleaseReservations(ctx, resources)
 	log.SpanLog(ctx, log.DebugLevelInfra, "created test stack file", "err", err)
 	require.Nil(t, err)
 

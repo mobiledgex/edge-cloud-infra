@@ -555,7 +555,7 @@ func (o *OpenstackPlatform) populateParams(ctx context.Context, VMGroupOrchestra
 				}
 				resby, alreadyReserved := ReservedFloatingIPs[fipid]
 				if alreadyReserved {
-					log.SpanLog(ctx, log.DebugLevelInfra, "floating ip aleady reserved", "subnet", fipid, "resby", resby)
+					log.SpanLog(ctx, log.DebugLevelInfra, "floating ip aleady reserved", "fipid", fipid, "resby", resby)
 					continue
 				}
 				reserved.FloatingIpIds = append(reserved.FloatingIpIds, fipid)

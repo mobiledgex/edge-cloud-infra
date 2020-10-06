@@ -52,7 +52,7 @@ func (a *AWSPlatform) WhitelistSecurityRules(ctx context.Context, client ssh.Cli
 			"--region", a.GetAwsRegion())
 		log.SpanLog(ctx, log.DebugLevelInfra, "authorize-security-group-ingress", "out", string(out), "err", err)
 		if err != nil {
-			if strings.Contains(string(out), RuleAlreadyExists) {
+			if strings.Contains(string(out), RuleAlreadyExistsError) {
 				log.SpanLog(ctx, log.DebugLevelInfra, "security rule already exists")
 			} else {
 				return fmt.Errorf("authorize-security-group-ingress failed: %s - %v", string(out), err)

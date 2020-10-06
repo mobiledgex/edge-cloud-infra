@@ -5,6 +5,7 @@ import (
 	"fmt"
 
 	"github.com/mobiledgex/edge-cloud-infra/infracommon"
+	"github.com/mobiledgex/edge-cloud-infra/vmlayer"
 	"github.com/mobiledgex/edge-cloud/edgeproto"
 	"github.com/mobiledgex/edge-cloud/log"
 	"github.com/mobiledgex/edge-cloud/vault"
@@ -30,6 +31,12 @@ var AWSProps = map[string]*edgeproto.PropertyInfo{
 		Name:        "AWS Region",
 		Description: "AWS Region",
 		Mandatory:   true,
+	},
+	// override default for router
+	"MEX_ROUTER": {
+		Name:        "External Router Type",
+		Description: "AWS Router must be " + vmlayer.NoConfigExternalRouter,
+		Value:       vmlayer.NoConfigExternalRouter,
 	},
 }
 

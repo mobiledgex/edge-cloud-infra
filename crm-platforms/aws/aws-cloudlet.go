@@ -97,6 +97,11 @@ func (a *AWSPlatform) InitProvider(ctx context.Context, caches *platform.Caches,
 	a.SetCaches(ctx, caches)
 	vpcName := a.GetVpcName()
 
+	acct, err := a.GetIamAccountId(ctx)
+	if err != nil {
+		return err
+	}
+	a.IamAccountId = acct
 	// aws cannot use the name "default" as a new security group name as it is reserved
 	if a.VMProperties.GetCloudletSecurityGroupName() == "default" {
 		a.VMProperties.SetCloudletSecurityGroupName(vpcName + "-cloudlet-sg")
@@ -127,14 +132,32 @@ func (a *AWSPlatform) InitProvider(ctx context.Context, caches *platform.Caches,
 	if err != nil {
 		return err
 	}
+
 	groupName := a.VMProperties.GetCloudletSecurityGroupName()
 	_, err = a.CreateSecurityGroup(ctx, groupName, vpcId, "default security group for cloudlet "+vpcName)
 	if err != nil {
-		if !strings.Contains(err.Error(), GroupAlreadyExists) {
+		if !strings.Contains(err.Error(), GroupAlreadyExistsError) {
 			return err
 		}
 	}
-	return a.CreateSubnet(ctx, a.VMProperties.GetCloudletExternalNetwork(), extCidr)
+	snId, err := a.CreateSubnet(ctx, a.VMProperties.GetCloudletExternalNetwork(), extCidr, MainRouteTable)
+	if err != nil {
+		return err
+	}
+	eipId, err := a.GetElasticIP(ctx, vpcName, vpcId)
+	if err != nil {
+		return err
+	}
+	ngwId, err := a.CreateNatGateway(ctx, snId, eipId, vpcName)
+	if err != nil {
+		return err
+	}
+	_, err = a.CreateInternalRouteTable(ctx, vpcId, ngwId, a.VMProperties.GetCloudletMexNetwork())
+	if err != nil {
+		return err
+	}
+
+	return nil
 
 }
 func (a *AWSPlatform) PrepareRootLB(ctx context.Context, client ssh.Client, rootLBName string, secGrpName string, privacyPolicy *edgeproto.PrivacyPolicy) error {

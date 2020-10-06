@@ -18,6 +18,8 @@ const AwsGwOctet uint32 = 5
 type AWSPlatform struct {
 	//commonPf     *infracommon.CommonPlatform
 	VMProperties *vmlayer.VMProperties
+	BaseImageId  string
+	IamAccountId string
 	caches       *platform.Caches
 }
 

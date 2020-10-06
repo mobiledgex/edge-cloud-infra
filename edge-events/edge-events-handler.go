@@ -3,7 +3,6 @@ package edgeevents
 import (
 	"context"
 	"math"
-	"net"
 
 	dmecommon "github.com/mobiledgex/edge-cloud/d-match-engine/dme-common"
 	dme "github.com/mobiledgex/edge-cloud/d-match-engine/dme-proto"
@@ -12,22 +11,29 @@ import (
 	"github.com/mobiledgex/edge-cloud/util"
 )
 
+// Implements dmecommon.EdgeEventsHandler interface
 type EdgeEventsHandlerPlugin struct {
+	// TODO: MUTEX HANDLING
 	mux util.Mutex
 	// Hashmap containing AppInsts on DME mapped to the clients connected to those AppInsts
-	AppInstsStruct AppInsts
+	AppInstsStruct *AppInsts
 }
 
 type AppInsts struct {
 	AppInstsMap map[edgeproto.AppInstKey]Clients
 }
 
+// Map Client to specific Send function
 type Clients struct {
-	ClientsMap map[net.Addr]*dmecommon.EdgeEventPersistentMgr
+	ClientsMap map[Client]func(event *dme.ServerEdgeEvent)
+}
+
+type Client struct {
+	cookieKey dmecommon.CookieKey
 }
 
 // Add Client connected to specified AppInst to Map
-func (e *EdgeEventsHandlerPlugin) AddClientKey(ctx context.Context, appInstKey edgeproto.AppInstKey, addr net.Addr, mgr *dmecommon.EdgeEventPersistentMgr) {
+func (e *EdgeEventsHandlerPlugin) AddClientKey(ctx context.Context, appInstKey edgeproto.AppInstKey, cookieKey dmecommon.CookieKey, sendFunc func(event *dme.ServerEdgeEvent)) {
 	e.mux.Lock()
 	defer e.mux.Unlock()
 	if e.AppInstsStruct.AppInstsMap == nil {
@@ -39,16 +45,17 @@ func (e *EdgeEventsHandlerPlugin) AddClientKey(ctx context.Context, appInstKey e
 	if !ok {
 		// add first client for appinst
 		newClients := new(Clients)
-		newClients.ClientsMap = make(map[net.Addr]*dmecommon.EdgeEventPersistentMgr)
+		newClients.ClientsMap = make(map[Client]func(event *dme.ServerEdgeEvent))
 		clients = *newClients
 	}
 
-	clients.ClientsMap[addr] = mgr
+	client := Client{cookieKey}
+	clients.ClientsMap[client] = sendFunc
 	e.AppInstsStruct.AppInstsMap[appInstKey] = clients
 }
 
 // Remove Client connected to specified AppInst from Map
-func (e *EdgeEventsHandlerPlugin) RemoveClientKey(ctx context.Context, appInstKey edgeproto.AppInstKey, addr net.Addr) {
+func (e *EdgeEventsHandlerPlugin) RemoveClientKey(ctx context.Context, appInstKey edgeproto.AppInstKey, cookieKey dmecommon.CookieKey) {
 	e.mux.Lock()
 	defer e.mux.Unlock()
 	clients, ok := e.AppInstsStruct.AppInstsMap[appInstKey]
@@ -57,7 +64,8 @@ func (e *EdgeEventsHandlerPlugin) RemoveClientKey(ctx context.Context, appInstKe
 		return
 	}
 
-	delete(clients.ClientsMap, addr)
+	client := Client{cookieKey}
+	delete(clients.ClientsMap, client)
 }
 
 // Remove AppInst from Map of AppInsts
@@ -77,35 +85,35 @@ func (e *EdgeEventsHandlerPlugin) RemoveAppInstKey(ctx context.Context, appInstK
 // When client recieves this event, it will measure latency from itself to appinst and back.
 // Client will then send those latency samples back to be processed in the HandleLatencySamples function
 // Finally, DME will send the processed latency samples in the form of dme.Latency struct (with calculated avg, min, max, stddev) back to client
-func (e *EdgeEventsHandlerPlugin) SendLatencyRequestEdgeEvent(ctx context.Context, appInst *dmecommon.DmeAppInst, appInstKey edgeproto.AppInstKey) {
+func (e *EdgeEventsHandlerPlugin) SendLatencyRequestEdgeEvent(ctx context.Context, appInstKey edgeproto.AppInstKey) {
 	clients, ok := e.AppInstsStruct.AppInstsMap[appInstKey]
 	if !ok {
 		log.SpanLog(ctx, log.DebugLevelInfra, "cannot find appinst. no clients connected to appinst have edge events connection.", "appInstKey", appInstKey)
 		return
 	}
 
-	for addr, mgr := range clients.ClientsMap {
-		go func(addr net.Addr, mgr *dmecommon.EdgeEventPersistentMgr) {
+	for _, sendFunc := range clients.ClientsMap {
+		go func(sendFunc func(event *dme.ServerEdgeEvent)) {
 			latencyRequestEdgeEvent := new(dme.ServerEdgeEvent)
 			latencyRequestEdgeEvent.Event = dme.ServerEdgeEvent_EVENT_LATENCY_REQUEST
-			log.SpanLog(ctx, log.DebugLevelInfra, "Sending latency request to client", "client addr", addr)
-			e.SendEdgeEventToClient(ctx, latencyRequestEdgeEvent, mgr)
-		}(addr, mgr)
+			sendFunc(latencyRequestEdgeEvent)
+		}(sendFunc)
 	}
 }
 
 // Handle processing of latency samples and then send back to client
 // For now: Avg, Min, Max, StdDev
-func (e *EdgeEventsHandlerPlugin) ProcessLatencySamples(ctx context.Context, appInstKey edgeproto.AppInstKey, addr net.Addr, samples []float64) (*dme.Latency, bool) {
+func (e *EdgeEventsHandlerPlugin) ProcessLatencySamples(ctx context.Context, appInstKey edgeproto.AppInstKey, cookieKey dmecommon.CookieKey, samples []float64) (*dme.Latency, bool) {
 	clients, ok := e.AppInstsStruct.AppInstsMap[appInstKey]
 	if !ok {
 		log.SpanLog(ctx, log.DebugLevelInfra, "cannot find appinst, no clients connected to appinst have edge events connection", "appInstKey", appInstKey)
 		return nil, false
 	}
 
-	mgr, ok := clients.ClientsMap[addr]
+	client := Client{cookieKey}
+	sendFunc, ok := clients.ClientsMap[client]
 	if !ok {
-		log.SpanLog(ctx, log.DebugLevelInfra, "cannot find client connected to appinst", "appInstKey", appInstKey, "client addr", addr)
+		log.SpanLog(ctx, log.DebugLevelInfra, "cannot find client connected to appinst", "appInstKey", appInstKey, "client", client)
 		return nil, false
 	}
 
@@ -142,7 +150,7 @@ func (e *EdgeEventsHandlerPlugin) ProcessLatencySamples(ctx context.Context, app
 	latency.StdDev = stddev
 	latencyEdgeEvent.Latency = latency
 
-	e.SendEdgeEventToClient(ctx, latencyEdgeEvent, mgr)
+	sendFunc(latencyEdgeEvent)
 	return latency, true
 }
 
@@ -154,27 +162,29 @@ func (e *EdgeEventsHandlerPlugin) SendAppInstStateEvent(ctx context.Context, app
 		return
 	}
 
-	for client, mgr := range clients.ClientsMap {
+	for _, sendFunc := range clients.ClientsMap {
 		updateServerEdgeEvent := createAppInstStateEvent(ctx, appInst, eventType)
-		log.SpanLog(ctx, log.DebugLevelInfra, "Sending update state to client", "client", client)
-		e.SendEdgeEventToClient(ctx, updateServerEdgeEvent, mgr)
+		sendFunc(updateServerEdgeEvent)
 	}
 }
 
 // Send ServerEdgeEvent to specified client via persistent grpc stream
-func (e *EdgeEventsHandlerPlugin) SendEdgeEventToClient(ctx context.Context, serverEdgeEvent *dme.ServerEdgeEvent, mgr *dmecommon.EdgeEventPersistentMgr) {
-	mgr.Mux.Lock()
-	defer mgr.Mux.Unlock()
-	svr := mgr.Svr
-	log.SpanLog(ctx, log.DebugLevelInfra, "about to send server edge event", "serveredgeevent", serverEdgeEvent, "appInstHealth", serverEdgeEvent.AppinstHealthState, "svr", &mgr.Svr)
-	err := (*svr).Send(serverEdgeEvent)
-	if err != nil {
-		mgr.Err = err
-		close(mgr.Terminated)
-		log.SpanLog(ctx, log.DebugLevelInfra, "error on send to clients", "error", err)
-	} else {
-		log.SpanLog(ctx, log.DebugLevelInfra, "successfully sent update to clients")
+func (e *EdgeEventsHandlerPlugin) SendEdgeEventToClient(ctx context.Context, serverEdgeEvent *dme.ServerEdgeEvent, appInstKey edgeproto.AppInstKey, cookieKey dmecommon.CookieKey) {
+	e.mux.Lock()
+	defer e.mux.Unlock()
+	clients, ok := e.AppInstsStruct.AppInstsMap[appInstKey]
+	if !ok {
+		log.SpanLog(ctx, log.DebugLevelInfra, "cannot find appinst, no clients connected to appinst have edge events connection", "appInstKey", appInstKey)
+		return
 	}
+
+	client := Client{cookieKey}
+	sendFunc, ok := clients.ClientsMap[client]
+	if !ok {
+		log.SpanLog(ctx, log.DebugLevelInfra, "cannot find client connected to appinst", "appInstKey", appInstKey, "client", client)
+		return
+	}
+	sendFunc(serverEdgeEvent)
 }
 
 // Create the ServerEdgeEvent with specified Event
@@ -215,6 +225,7 @@ func setCloudletState(ctx context.Context, appInst *dmecommon.DmeAppInst, server
 	case edgeproto.CloudletState_CLOUDLET_STATE_NEED_SYNC:
 		serverEdgeEvent.CloudletState = dme.ServerEdgeEvent_CLOUDLET_STATE_UNKNOWN
 	default:
+		log.SpanLog(ctx, log.DebugLevelInfra, "Unkown cloudlet state", "CloudletState", appInst.CloudletState)
 		serverEdgeEvent.CloudletState = dme.ServerEdgeEvent_CLOUDLET_STATE_UNKNOWN
 	}
 }
@@ -243,6 +254,7 @@ func setCloudletMaintenanceState(ctx context.Context, appInst *dmecommon.DmeAppI
 	case edgeproto.MaintenanceState_UNDER_MAINTENANCE:
 		serverEdgeEvent.CloudletMaintenanceState = dme.ServerEdgeEvent_MAINTENANCE_STATE_UNDER_MAINTENANCE
 	default:
+		log.SpanLog(ctx, log.DebugLevelInfra, "Unkown cloudlet maintenance state", "CloudletMaintenanceState", appInst.MaintenanceState)
 		serverEdgeEvent.CloudletMaintenanceState = dme.ServerEdgeEvent_MAINTENANCE_STATE_UNKNOWN
 	}
 }
@@ -259,6 +271,7 @@ func setAppInstHealthState(ctx context.Context, appInst *dmecommon.DmeAppInst, s
 	case edgeproto.HealthCheck_HEALTH_CHECK_OK:
 		serverEdgeEvent.AppinstHealthState = dme.ServerEdgeEvent_HEALTH_CHECK_OK
 	default:
+		log.SpanLog(ctx, log.DebugLevelInfra, "Unkown appinst health", "AppInst Health", appInst.AppInstHealth)
 		serverEdgeEvent.AppinstHealthState = dme.ServerEdgeEvent_HEALTH_CHECK_UNKNOWN
 	}
 }

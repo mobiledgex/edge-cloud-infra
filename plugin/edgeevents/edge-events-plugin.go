@@ -11,7 +11,10 @@ import (
 func GetEdgeEventsHandler(ctx context.Context) (dmecommon.EdgeEventsHandler, error) {
 	log.SpanLog(ctx, log.DebugLevelInfra, "GetEdgeEventHandler")
 
-	return &edgeevents.EdgeEventsHandlerPlugin{}, nil
+	edgeEventsHandlerPlugin := new(edgeevents.EdgeEventsHandlerPlugin)
+	log.SpanLog(ctx, log.DebugLevelInfra, "initializing app insts struct")
+	edgeEventsHandlerPlugin.AppInstsStruct = new(edgeevents.AppInsts)
+	return edgeEventsHandlerPlugin, nil
 }
 
 func main() {}

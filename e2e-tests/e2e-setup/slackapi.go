@@ -45,41 +45,57 @@ func GetHttpServer(name string) *intprocess.HttpServer {
 
 // get api
 func RunSlackAPI(api, apiFile, outputDir string) error {
+	servers := make([]E2eServerName, 0)
+	if apiFile != "" {
+		err := util.ReadYamlFile(apiFile, &servers)
+		if err != nil {
+			log.Printf("Unable to read api file: %s [%s]\n", apiFile, err.Error())
+			return err
+		}
+	} else {
+		servers = append(servers, E2eServerName{Name: ""})
+	}
+
 	switch api {
 	case "check":
-		// get default
-		proc := GetHttpServer("")
-		apiUrl := fmt.Sprintf("0.0.0.0:%d%s", proc.Port, ListSlackMessagesApi)
-		cmd := exec.Command("curl", "-s", "-S", apiUrl)
-		out, err := cmd.CombinedOutput()
-		if err != nil {
-			log.Printf("Error running show slack messages API on port %d, err: %v\n", proc.Port, err)
-			return err
+		for ii, sName := range servers {
+			proc := GetHttpServer(sName.Name)
+			apiUrl := fmt.Sprintf("0.0.0.0:%d%s", proc.Port, ListSlackMessagesApi)
+			cmd := exec.Command("curl", "-s", "-S", apiUrl)
+			out, err := cmd.CombinedOutput()
+			if err != nil {
+				log.Printf("Error running show slack messages API on port %d, err: %v\n", proc.Port, err)
+				return err
+			}
+			// unmarshal and marshal back to get just the fields we want
+			msgs := []TestSlackMsg{}
+			err = json.Unmarshal(out, &msgs)
+			if err != nil {
+				log.Printf("slack message unmarshal error: %v\n", err)
+				return err
+			}
+			// marshal back
+			ymlOut, err := yaml.Marshal(&msgs)
+			if err != nil {
+				log.Printf("slack marshal into yaml error: %v\n", err)
+				return err
+			}
+			if ii == 0 {
+				util.PrintToFile("show-commands.yml", outputDir, string(ymlOut), true)
+			} else {
+				util.PrintToFile("show-commands.yml", outputDir, string(ymlOut), false)
+			}
 		}
-		// unmarshal and marshal back to get just the fields we want
-		msgs := []TestSlackMsg{}
-		err = json.Unmarshal(out, &msgs)
-		if err != nil {
-			log.Printf("slack message unmarshal error: %v\n", err)
-			return err
-		}
-		// marshal back
-		ymlOut, err := yaml.Marshal(&msgs)
-		if err != nil {
-			log.Printf("slack marshal into yaml error: %v\n", err)
-			return err
-		}
-		truncate := true
-		util.PrintToFile("show-commands.yml", outputDir, string(ymlOut), truncate)
 	case "deleteall":
-		// get default
-		proc := GetHttpServer("")
-		apiUrl := fmt.Sprintf("0.0.0.0:%d%s", proc.Port, DeleteAllSlackMessagesApi)
-		cmd := exec.Command("curl", "-s", "-S", "-X", "DELETE", apiUrl)
-		_, err := cmd.CombinedOutput()
-		if err != nil {
-			log.Printf("err: %v\n", err)
-			return err
+		for _, sName := range servers {
+			proc := GetHttpServer(sName.Name)
+			apiUrl := fmt.Sprintf("0.0.0.0:%d%s", proc.Port, DeleteAllSlackMessagesApi)
+			cmd := exec.Command("curl", "-s", "-S", "-X", "DELETE", apiUrl)
+			_, err := cmd.CombinedOutput()
+			if err != nil {
+				log.Printf("err: %v\n", err)
+				return err
+			}
 		}
 	default:
 		return fmt.Errorf("Unknown action for mock slack subsystem")

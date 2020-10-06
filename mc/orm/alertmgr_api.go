@@ -64,7 +64,7 @@ func CreateAlertReceiver(c echo.Context) error {
 	case alertmgr.AlertReceiverTypeSlack:
 		// TODO - retrieve org slack channel from vault, for now require slack details
 		if in.SlackWebhook == "" || in.SlackChannel == "" {
-			log.SpanLog(ctx, log.DebugLevelInfo, "Slack details are milling", "receiver", in)
+			log.SpanLog(ctx, log.DebugLevelInfo, "Slack details are missing", "receiver", in)
 			return setReply(c, fmt.Errorf("Slack URL, or channel are missing"),
 				nil)
 		}

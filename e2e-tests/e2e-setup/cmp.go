@@ -268,9 +268,15 @@ func CompareYamlFiles(firstYamlFile string, secondYamlFile string, fileType stri
 			a2 = []TestSlackMsg{}
 		}
 		sort.Slice(a1, func(i, j int) bool {
+			if len(a1[i].Attachments) < 1 {
+				return false
+			}
 			return a1[i].Attachments[0].Title < a1[j].Attachments[0].Title
 		})
 		sort.Slice(a2, func(i, j int) bool {
+			if len(a2[i].Attachments) < 1 {
+				return false
+			}
 			return a2[i].Attachments[0].Title < a2[j].Attachments[0].Title
 		})
 

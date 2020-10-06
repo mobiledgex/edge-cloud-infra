@@ -67,6 +67,7 @@ tests:
 
   - name: verify that slack notification about an alert was sent
     actions: [slack-check]
+    apifile: '{{datadir2}}/slack_server_name.yml'
     retrycount: 10
     retryintervalsec: 0.5
     compareyaml:

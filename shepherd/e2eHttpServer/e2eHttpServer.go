@@ -134,12 +134,15 @@ func promExporter(w http.ResponseWriter, r *http.Request) {
 func slackWebhookHandler(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodPost {
 		http.Error(w, "Unsupported method", http.StatusMethodNotAllowed)
+		return
 	}
 	defer r.Body.Close()
 
 	body, err := ioutil.ReadAll(r.Body)
 	if err != nil {
 		log.Printf("Failed to decode slack request")
+		http.Error(w, "decoding failed", http.StatusInternalServerError)
+		return
 	}
 	log.Printf("Got a request to send a slack message method: %s\n, body:%s", r.Method, string(body))
 	slackMsg := e2esetup.TestSlackMsg{}

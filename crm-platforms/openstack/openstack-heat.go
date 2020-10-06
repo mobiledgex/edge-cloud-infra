@@ -4,7 +4,6 @@ import (
 	"context"
 	"fmt"
 	"strings"
-	"sync"
 	"time"
 
 	"github.com/mobiledgex/edge-cloud-infra/infracommon"
@@ -14,7 +13,6 @@ import (
 	yaml "github.com/mobiledgex/yaml/v2"
 )
 
-var heatStackLock sync.Mutex
 var heatCreate string = "CREATE"
 var heatUpdate string = "UPDATE"
 var heatDelete string = "DELETE"

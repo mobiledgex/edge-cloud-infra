@@ -34,7 +34,7 @@ server {
 
 		proxy_hide_header   X-Powered-By;
 
-		limit_except GET HEAD POST OPTIONS { deny all; }
+		limit_except GET PUT HEAD POST DELETE OPTIONS { deny all; }
 	}
 
 	listen [::]:443 ssl ipv6only=on;

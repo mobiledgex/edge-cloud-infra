@@ -16,6 +16,26 @@ func (a *AWSPlatform) RemoveWhitelistSecurityRules(ctx context.Context, client s
 	return nil
 }
 
+func (a *AWSPlatform) CreateSecurityGroupRule(ctx context.Context, groupId, protocol, portRange, allowedCIDR string) error {
+	out, err := a.TimedAwsCommand(ctx, "aws",
+		"ec2",
+		"authorize-security-group-ingress",
+		"--group-id", groupId,
+		"--cidr", allowedCIDR,
+		"--protocol", protocol,
+		"--port", portRange,
+		"--region", a.GetAwsRegion())
+	log.SpanLog(ctx, log.DebugLevelInfra, "authorize-security-group-ingress", "out", string(out), "err", err)
+	if err != nil {
+		if strings.Contains(string(out), RuleAlreadyExistsError) {
+			log.SpanLog(ctx, log.DebugLevelInfra, "security rule already exists")
+		} else {
+			return fmt.Errorf("authorize-security-group-ingress failed: %s - %v", string(out), err)
+		}
+	}
+	return nil
+}
+
 func (a *AWSPlatform) WhitelistSecurityRules(ctx context.Context, client ssh.Client, grpName, server, label, allowedCidr string, ports []dme.AppPort) error {
 	log.SpanLog(ctx, log.DebugLevelInfra, "WhitelistSecurityRules", "grpName", grpName, "label", label, "allowedCidr", allowedCidr, "ports", ports)
 	vpc, err := a.GetVPC(ctx, a.GetVpcName())
@@ -42,23 +62,10 @@ func (a *AWSPlatform) WhitelistSecurityRules(ctx context.Context, client ssh.Cli
 		if err != nil {
 			return err
 		}
-		out, err := a.TimedAwsCommand(ctx, "aws",
-			"ec2",
-			"authorize-security-group-ingress",
-			"--group-id", sg.GroupId,
-			"--cidr", allowedCidr,
-			"--protocol", proto,
-			"--port", portRange,
-			"--region", a.GetAwsRegion())
-		log.SpanLog(ctx, log.DebugLevelInfra, "authorize-security-group-ingress", "out", string(out), "err", err)
+		err = a.CreateSecurityGroupRule(ctx, sg.GroupId, proto, portRange, allowedCidr)
 		if err != nil {
-			if strings.Contains(string(out), RuleAlreadyExistsError) {
-				log.SpanLog(ctx, log.DebugLevelInfra, "security rule already exists")
-			} else {
-				return fmt.Errorf("authorize-security-group-ingress failed: %s - %v", string(out), err)
-			}
+			return err
 		}
 	}
-
 	return nil
 }

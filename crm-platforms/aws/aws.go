@@ -21,6 +21,7 @@ type AWSPlatform struct {
 	BaseImageId  string
 	IamAccountId string
 	caches       *platform.Caches
+	VpcCidr      string
 }
 
 type AWSQuotas struct {

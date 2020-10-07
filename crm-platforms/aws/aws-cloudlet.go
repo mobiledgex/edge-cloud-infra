@@ -124,6 +124,7 @@ func (a *AWSPlatform) InitProvider(ctx context.Context, caches *platform.Caches,
 	if err != nil {
 		return err
 	}
+	a.VpcCidr = extCidr
 	err = a.CreateGateway(ctx, vpcName)
 	if err != nil {
 		return err
@@ -140,15 +141,16 @@ func (a *AWSPlatform) InitProvider(ctx context.Context, caches *platform.Caches,
 			return err
 		}
 	}
-	snId, err := a.CreateSubnet(ctx, a.VMProperties.GetCloudletExternalNetwork(), extCidr, MainRouteTable)
-	if err != nil {
+	externalSubnetId, err := a.CreateSubnet(ctx, a.VMProperties.GetCloudletExternalNetwork(), extCidr, MainRouteTable)
+	if err != nil && !strings.Contains(err.Error(), SubnetAlreadyExistsError) {
 		return err
 	}
+
 	eipId, err := a.GetElasticIP(ctx, vpcName, vpcId)
 	if err != nil {
 		return err
 	}
-	ngwId, err := a.CreateNatGateway(ctx, snId, eipId, vpcName)
+	ngwId, err := a.CreateNatGateway(ctx, externalSubnetId, eipId, vpcName)
 	if err != nil {
 		return err
 	}

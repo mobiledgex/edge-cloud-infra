@@ -283,16 +283,17 @@ func WithSkipCleanupOnFailure(skip bool) VMGroupReqOp {
 }
 
 type SubnetOrchestrationParams struct {
-	Id           string
-	Name         string
-	NetworkName  string
-	CIDR         string
-	NodeIPPrefix string
-	GatewayIP    string
-	DNSServers   []string
-	DHCPEnabled  string
-	Vlan         uint32
-	SkipGateway  bool
+	Id                string
+	Name              string
+	NetworkName       string
+	CIDR              string
+	NodeIPPrefix      string
+	GatewayIP         string
+	DNSServers        []string
+	DHCPEnabled       string
+	Vlan              uint32
+	SkipGateway       bool
+	SecurityGroupName string
 }
 
 type FixedIPOrchestrationParams struct {
@@ -611,12 +612,13 @@ func (v *VMPlatform) getVMGroupOrchestrationParamsFromGroupSpec(ctx context.Cont
 	}
 	if spec.NewSubnetName != "" {
 		newSubnet := SubnetOrchestrationParams{
-			Name:        spec.NewSubnetName,
-			Id:          v.VMProvider.IdSanitize(spec.NewSubnetName),
-			CIDR:        NextAvailableResource,
-			DHCPEnabled: "no",
-			DNSServers:  subnetDns,
-			NetworkName: v.VMProperties.GetCloudletMexNetwork(),
+			Name:              spec.NewSubnetName,
+			Id:                v.VMProvider.IdSanitize(spec.NewSubnetName),
+			CIDR:              NextAvailableResource,
+			DHCPEnabled:       "no",
+			DNSServers:        subnetDns,
+			NetworkName:       v.VMProperties.GetCloudletMexNetwork(),
+			SecurityGroupName: spec.NewSecgrpName,
 		}
 		if spec.SkipSubnetGateway {
 			newSubnet.SkipGateway = true
@@ -731,7 +733,12 @@ func (v *VMPlatform) getVMGroupOrchestrationParamsFromGroupSpec(ctx context.Cont
 						},
 					},
 				}
+				if v.VMProperties.UseSecgrpForInternalSubnet && spec.NewSecgrpName != "" {
+					// connect internal ports to the new secgrp
+					internalPort.SecurityGroups = append(internalPort.SecurityGroups, NewResourceReference(spec.NewSecgrpName, spec.NewSecgrpName, true))
+				}
 				newPorts = append(newPorts, internalPort)
+
 			} else {
 				return nil, fmt.Errorf("k8s master not specified to be connected to internal network")
 			}
@@ -754,6 +761,10 @@ func (v *VMPlatform) getVMGroupOrchestrationParamsFromGroupSpec(ctx context.Cont
 					},
 				}
 				internalPortNextOctet++
+				if v.VMProperties.UseSecgrpForInternalSubnet && spec.NewSecgrpName != "" {
+					// connect internal ports to the new secgrp
+					internalPort.SecurityGroups = append(internalPort.SecurityGroups, NewResourceReference(spec.NewSecgrpName, spec.NewSecgrpName, true))
+				}
 				newPorts = append(newPorts, internalPort)
 			} else {
 				return nil, fmt.Errorf("k8s node not specified to be connected to internal network")

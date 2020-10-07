@@ -17,6 +17,7 @@ import (
 
 const VpcDoesNotExistError string = "vpc does not exist"
 const SubnetDoesNotExistError string = "subnet does not exist"
+const SubnetAlreadyExistsError string = "subnet aleady exists"
 const SecGrpDoesNotExistError string = "security group does not exist"
 const GatewayDoesNotExistError string = "gateway does not exist"
 const ResourceAlreadyAssociatedError string = "Resource.AlreadyAssociated"
@@ -696,6 +697,21 @@ func (a *AWSPlatform) createVmGroupResources(ctx context.Context, vmgp *vmlayer.
 		if err != nil {
 			return nil, err
 		}
+		if sn.SecurityGroupName != "" {
+			sg, ok := secGrpMap[sn.SecurityGroupName]
+			if !ok {
+				return nil, fmt.Errorf(SecGrpDoesNotExistError + ": " + sn.SecurityGroupName)
+			}
+			// whitelist within the VPC
+			err = a.CreateSecurityGroupRule(ctx, sg.GroupId, "tcp", "0-65535", a.VpcCidr)
+			if err != nil {
+				return nil, err
+			}
+			err = a.CreateSecurityGroupRule(ctx, sg.GroupId, "udp", "0-65535", a.VpcCidr)
+			if err != nil {
+				return nil, err
+			}
+		}
 	}
 	resources.secGrpMap = secGrpMap
 
@@ -814,7 +830,7 @@ func (a *AWSPlatform) CreateSubnet(ctx context.Context, name string, cidr string
 	sn, err := a.GetSubnet(ctx, name)
 	if err == nil {
 		// already exists
-		return sn.SubnetId, nil
+		return sn.SubnetId, fmt.Errorf(SubnetAlreadyExistsError + ": " + name)
 	}
 	if !strings.Contains(err.Error(), SubnetDoesNotExistError) {
 		return "", err

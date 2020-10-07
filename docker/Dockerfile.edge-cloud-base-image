@@ -1,22 +1,44 @@
+################################################################################
+# Stage 1: Build python packages using pip
+################################################################################
+
+FROM ubuntu:18.04 AS python
+
+ENV DEBIAN_FRONTEND=noninteractive
+RUN apt-get update && apt-get install -y \
+	apt-transport-https \
+	ca-certificates \
+	cpio \
+	python \
+	python2.7 \
+	python3.6 \
+	python-pip
+
+COPY requirements.txt .
+RUN pip install -r requirements.txt
+
+RUN find /usr/local/bin /usr/bin/python* /usr/lib/python* /usr/local/lib/python* \
+	| cpio -pdm /python
+
+################################################################################
+# Stage 2: Build rest of the base image and copy python modules from stage 1
+################################################################################
+
 FROM ubuntu:18.04
 ENV DEBIAN_FRONTEND=noninteractive
 RUN apt-get update && apt-get install -y \
 	apt-transport-https \
-        ca-certificates \
-        curl \
+	ca-certificates \
+	curl \
 	dirmngr \
 	openssh-client \
 	openssh-server \
 	openssh-sftp-server \
-	python \
-	python2.7 \
-	python3 \
-        python-pip \
 	software-properties-common \
 	systemd \
 	tzdata \
 	unzip \
-	vim \
+	vim-tiny \
 	wget
 
 # Turn off auto-upgrades
@@ -36,8 +58,7 @@ RUN apt-get update && apt-get install -y \
 	kubectl=1.16.2-00 \
 	qemu-utils=1:2.11+dfsg-1ubuntu7.32
 
-COPY requirements.txt .
-RUN pip install -r requirements.txt
+COPY --from=python /python/ /
 
 ## GOVC
 RUN curl -sL https://github.com/vmware/govmomi/releases/download/v0.23.0/govc_linux_amd64.gz \

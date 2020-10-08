@@ -121,9 +121,8 @@ func (o *OpenstackPlatform) releaseFloatingIPLocked(ctx context.Context, fipID s
 	if !reserved {
 		log.SpanLog(ctx, log.DebugLevelInfra, "Warning: Floating IP not reserved, cannot be released", "fipID", fipID)
 		return fmt.Errorf("Floating IP not reserved, cannot be released: %s", fipID)
-	} else {
-		delete(ReservedFloatingIPs, fipID)
 	}
+	delete(ReservedFloatingIPs, fipID)
 	return nil
 }
 
@@ -133,8 +132,7 @@ func (o *OpenstackPlatform) releaseSubnetLocked(ctx context.Context, cidr string
 	if !reserved {
 		log.SpanLog(ctx, log.DebugLevelInfra, "Warning: Subnet CIDR not reserved, cannot be released", "cidr", cidr)
 		return fmt.Errorf("Subnet not reserved, cannot be released: %s", cidr)
-	} else {
-		delete(ReservedSubnets, cidr)
 	}
+	delete(ReservedSubnets, cidr)
 	return nil
 }

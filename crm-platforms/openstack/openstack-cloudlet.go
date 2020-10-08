@@ -115,7 +115,10 @@ func (o *OpenstackPlatform) GetCloudletManifest(ctx context.Context, name string
 	if err != nil {
 		return "", err
 	}
-	o.ReleaseReservations(ctx, resources)
+	err = o.ReleaseReservations(ctx, resources)
+	if err != nil {
+		log.SpanLog(ctx, log.DebugLevelInfra, "ReleaseReservations error", "err", err)
+	}
 
 	if len(vmgp.VMs) == 0 {
 		return "", fmt.Errorf("No VMs in orchestation spec")

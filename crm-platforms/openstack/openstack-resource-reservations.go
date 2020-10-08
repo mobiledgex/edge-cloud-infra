@@ -3,6 +3,7 @@ package openstack
 import (
 	"context"
 	"fmt"
+	"strings"
 	"sync"
 
 	"github.com/mobiledgex/edge-cloud/log"
@@ -25,16 +26,16 @@ func (o *OpenstackPlatform) InitResourceReservations(ctx context.Context) {
 	ReservedSubnets = make(map[string]string)
 }
 
-// ReserveResources must be called from code that locks resourceLock
-func (o *OpenstackPlatform) ReserveResources(ctx context.Context, resources *ReservedResources, reservedBy string) error {
-	log.SpanLog(ctx, log.DebugLevelInfra, "ReserveResources", "resources", resources, "current fips", ReservedFloatingIPs, "current subnets", ReservedSubnets)
+// ReserveResourcesLocked must be called from code that locks resourceLock
+func (o *OpenstackPlatform) ReserveResourcesLocked(ctx context.Context, resources *ReservedResources, reservedBy string) error {
+	log.SpanLog(ctx, log.DebugLevelInfra, "ReserveResourcesLocked", "resources", resources, "current fips", ReservedFloatingIPs, "current subnets", ReservedSubnets)
 
 	var err error
 	var fipsToCleanupOnErr []string
 	var subnetsToCleanupOnErr []string
 
 	for _, f := range resources.FloatingIpIds {
-		err = o.reserveFloatingIP(ctx, f, reservedBy)
+		err = o.reserveFloatingIPLocked(ctx, f, reservedBy)
 		if err != nil {
 			break
 		}
@@ -43,12 +44,12 @@ func (o *OpenstackPlatform) ReserveResources(ctx context.Context, resources *Res
 	if err != nil {
 		// Cleanup in case we reserved something and then hit an error
 		for _, f := range fipsToCleanupOnErr {
-			o.releaseFloatingIP(ctx, f)
+			o.releaseFloatingIPLocked(ctx, f)
 		}
 		return err
 	}
 	for _, s := range resources.Subnets {
-		err := o.reserveSubnet(ctx, s, reservedBy)
+		err := o.reserveSubnetLocked(ctx, s, reservedBy)
 		if err != nil {
 			break
 		}
@@ -57,7 +58,10 @@ func (o *OpenstackPlatform) ReserveResources(ctx context.Context, resources *Res
 	if err != nil {
 		// Cleanup in case we reserved something and then hit an error
 		for _, s := range subnetsToCleanupOnErr {
-			o.releaseSubnet(ctx, s)
+			o.releaseSubnetLocked(ctx, s)
+		}
+		for _, f := range fipsToCleanupOnErr {
+			o.releaseFloatingIPLocked(ctx, f)
 		}
 		return err
 	}
@@ -65,21 +69,32 @@ func (o *OpenstackPlatform) ReserveResources(ctx context.Context, resources *Res
 }
 
 // ReleaseResources locks around resourceLock
-func (o *OpenstackPlatform) ReleaseReservations(ctx context.Context, resources *ReservedResources) {
+func (o *OpenstackPlatform) ReleaseReservations(ctx context.Context, resources *ReservedResources) error {
 	log.SpanLog(ctx, log.DebugLevelInfra, "ReleaseReservations", "resources", resources, "current fips", ReservedFloatingIPs, "current subnets", ReservedSubnets)
 
+	var errs []string
 	resourceLock.Lock()
 	defer resourceLock.Unlock()
 	for _, f := range resources.FloatingIpIds {
-		o.releaseFloatingIP(ctx, f)
+		err := o.releaseFloatingIPLocked(ctx, f)
+		if err != nil {
+			errs = append(errs, err.Error())
+		}
 	}
 	for _, s := range resources.Subnets {
-		o.releaseSubnet(ctx, s)
+		err := o.releaseSubnetLocked(ctx, s)
+		if err != nil {
+			errs = append(errs, err.Error())
+		}
 	}
+	if len(errs) == 0 {
+		return nil
+	}
+	return fmt.Errorf("Errors: %s", strings.Join(errs, ","))
 }
 
-// reserveFloatingIP must be called from code that locks resourceLock
-func (o *OpenstackPlatform) reserveFloatingIP(ctx context.Context, fipID string, reservedBy string) error {
+// reserveFloatingIPLocked must be called from code that locks resourceLock
+func (o *OpenstackPlatform) reserveFloatingIPLocked(ctx context.Context, fipID string, reservedBy string) error {
 	log.SpanLog(ctx, log.DebugLevelInfra, "ReserveFloatingIP", "fipID", fipID, "reservedBy", reservedBy)
 	currUser, reserved := ReservedFloatingIPs[fipID]
 	if reserved {
@@ -90,32 +105,36 @@ func (o *OpenstackPlatform) reserveFloatingIP(ctx context.Context, fipID string,
 }
 
 // reserveSubnet must be called from code that locks resourceLock
-func (o *OpenstackPlatform) reserveSubnet(ctx context.Context, cidr string, reservedBy string) error {
+func (o *OpenstackPlatform) reserveSubnetLocked(ctx context.Context, cidr string, reservedBy string) error {
 	log.SpanLog(ctx, log.DebugLevelInfra, "reserveSubnet", "cidr", cidr, "reservedBy", reservedBy)
 	currUser, reserved := ReservedSubnets[cidr]
 	if reserved {
-		return fmt.Errorf("Subnet CIDR already in reserved, cidr: %s reservedBy: %s", cidr, currUser)
+		return fmt.Errorf("Subnet CIDR already reserved, cidr: %s reservedBy: %s", cidr, currUser)
 	}
 	ReservedSubnets[cidr] = reservedBy
 	return nil
 }
 
-func (o *OpenstackPlatform) releaseFloatingIP(ctx context.Context, fipID string) {
-	log.SpanLog(ctx, log.DebugLevelInfra, "releaseFloatingIP", "fipId", fipID)
+func (o *OpenstackPlatform) releaseFloatingIPLocked(ctx context.Context, fipID string) error {
+	log.SpanLog(ctx, log.DebugLevelInfra, "releaseFloatingIPLocked", "fipId", fipID)
 	_, reserved := ReservedFloatingIPs[fipID]
 	if !reserved {
 		log.SpanLog(ctx, log.DebugLevelInfra, "Warning: Floating IP not reserved, cannot be released", "fipID", fipID)
+		return fmt.Errorf("Floating IP not reserved, cannot be released: %s", fipID)
 	} else {
 		delete(ReservedFloatingIPs, fipID)
 	}
+	return nil
 }
 
-func (o *OpenstackPlatform) releaseSubnet(ctx context.Context, cidr string) {
-	log.SpanLog(ctx, log.DebugLevelInfra, "releaseSubnet", "cidr", cidr)
+func (o *OpenstackPlatform) releaseSubnetLocked(ctx context.Context, cidr string) error {
+	log.SpanLog(ctx, log.DebugLevelInfra, "releaseSubnetLocked", "cidr", cidr)
 	_, reserved := ReservedSubnets[cidr]
 	if !reserved {
 		log.SpanLog(ctx, log.DebugLevelInfra, "Warning: Subnet CIDR not reserved, cannot be released", "cidr", cidr)
+		return fmt.Errorf("Subnet not reserved, cannot be released: %s", cidr)
 	} else {
 		delete(ReservedSubnets, cidr)
 	}
+	return nil
 }

@@ -563,7 +563,7 @@ func (o *OpenstackPlatform) populateParams(ctx context.Context, VMGroupOrchestra
 			VMGroupOrchestrationParams.FloatingIPs[i].FloatingIpId = fipid
 		}
 	}
-	err := o.ReserveResources(ctx, &reserved, VMGroupOrchestrationParams.GroupName)
+	err := o.ReserveResourcesLocked(ctx, &reserved, VMGroupOrchestrationParams.GroupName)
 	if err != nil {
 		return nil, err
 	}
@@ -577,7 +577,10 @@ func (o *OpenstackPlatform) HeatCreateVMs(ctx context.Context, VMGroupOrchestrat
 		return err
 	}
 	err = o.CreateHeatStackFromTemplate(ctx, VMGroupOrchestrationParams, VMGroupOrchestrationParams.GroupName, VmGroupTemplate, updateCallback)
-	o.ReleaseReservations(ctx, reservations)
+	releaseErr := o.ReleaseReservations(ctx, reservations)
+	if releaseErr != nil {
+		log.SpanLog(ctx, log.DebugLevelInfra, "ReleaseReservations error", "reservations", reservations, "releaseErr", releaseErr)
+	}
 	return err
 
 }
@@ -589,6 +592,9 @@ func (o *OpenstackPlatform) HeatUpdateVMs(ctx context.Context, VMGroupOrchestrat
 		return err
 	}
 	err = o.UpdateHeatStackFromTemplate(ctx, VMGroupOrchestrationParams, VMGroupOrchestrationParams.GroupName, VmGroupTemplate, updateCallback)
-	o.ReleaseReservations(ctx, reservations)
+	releaseErr := o.ReleaseReservations(ctx, reservations)
+	if releaseErr != nil {
+		log.SpanLog(ctx, log.DebugLevelInfra, "ReleaseReservations error", "reservations", reservations, "releaseErr", releaseErr)
+	}
 	return err
 }

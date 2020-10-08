@@ -112,19 +112,16 @@ func (a *AWSPlatform) InitProvider(ctx context.Context, caches *platform.Caches,
 	if err != nil {
 		return nil
 	}
-	// get the CIDR for the VPC, which contains all subnets
-	vpcCidr, err := a.VMProperties.GetInternalNetworkRoute(ctx)
-	if err != nil {
-		return nil
-	}
+	nspecCidr := strings.ToUpper(nspec.CIDR)
 	// Use the last subnet as the internally facing side of the external network
-	extCidr := strings.ToUpper(nspec.CIDR)
-	extCidr = strings.Replace(extCidr, "X", "255", 1)
+	extCidr := strings.Replace(nspecCidr, "X", "255", 1)
+	// vpc cidr is a network which encompasses all subnets
+	vpcCidr, err := a.VMProperties.GetInternalNetworkRoute(ctx)
 	vpcId, err := a.CreateVPC(ctx, vpcName, vpcCidr)
 	if err != nil {
 		return err
 	}
-	a.VpcCidr = extCidr
+	a.VpcCidr = vpcCidr
 	err = a.CreateGateway(ctx, vpcName)
 	if err != nil {
 		return err
@@ -134,14 +131,21 @@ func (a *AWSPlatform) InitProvider(ctx context.Context, caches *platform.Caches,
 		return err
 	}
 
-	groupName := a.VMProperties.GetCloudletSecurityGroupName()
-	_, err = a.CreateSecurityGroup(ctx, groupName, vpcId, "default security group for cloudlet "+vpcName)
+	secGrpName := a.VMProperties.GetCloudletSecurityGroupName()
+	sg, err := a.GetSecurityGroup(ctx, secGrpName, vpcId)
 	if err != nil {
-		if !strings.Contains(err.Error(), GroupAlreadyExistsError) {
-			return err
+		if strings.Contains(err.Error(), SecGrpDoesNotExistError) {
+			sg, err = a.CreateSecurityGroup(ctx, secGrpName, vpcId, "default security group for cloudlet "+vpcName)
+			if err != nil {
+				return err
+			}
 		}
 	}
-	externalSubnetId, err := a.CreateSubnet(ctx, a.VMProperties.GetCloudletExternalNetwork(), extCidr, MainRouteTable)
+	err = a.AllowIntraVpcTraffic(ctx, sg.GroupId)
+	if err != nil {
+		return err
+	}
+	externalSubnetId, err := a.CreateSubnet(ctx, vpcName, a.VMProperties.GetCloudletExternalNetwork(), extCidr, MainRouteTable)
 	if err != nil && !strings.Contains(err.Error(), SubnetAlreadyExistsError) {
 		return err
 	}

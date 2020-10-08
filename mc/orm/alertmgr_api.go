@@ -32,8 +32,8 @@ func CreateAlertReceiver(c echo.Context) error {
 	}
 
 	// user is derived from the token
-	if in.User != "" && in.User != claims.Username {
-		return setReply(c, fmt.Errorf("Receiver username does not match the user that's logged in"), nil)
+	if in.User != "" {
+		return setReply(c, fmt.Errorf("User is not specifiable, current logged in user will be used"), nil)
 	}
 	in.User = claims.Username
 	if in.Cloudlet.Organization == "" && in.AppInst.AppKey.Organization == "" {
@@ -101,8 +101,8 @@ func DeleteAlertReceiver(c echo.Context) error {
 	}
 
 	// user is derived from the token
-	if in.User != "" && in.User != claims.Username {
-		return setReply(c, fmt.Errorf("Receiver username does not match the user that's logged in"), nil)
+	if in.User != "" {
+		return setReply(c, fmt.Errorf("User is not specifiable, current logged in user will be used"), nil)
 	}
 	in.User = claims.Username
 	// Since we actually use claims.Username, don't need to in fact authorize as the receivers are unique

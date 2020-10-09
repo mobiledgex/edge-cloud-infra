@@ -33,6 +33,7 @@ spec:
              --tlsApiKeyFile /tls/tls.key \
              --vaultAddr "{{ vault_address }}" \
              --useVaultCerts \
+             --deploymentTag "{{ deployment_tag_override | default(deploy_environ) }}" \
              --locverurl "{{ locver_url }}" \
              --carrier "{{ dme_carrier }}" \
              --cloudletKey '{"organization":"{{ operator_key }}","name":"{{ deploy_target }}-cloudlet"}' \
@@ -62,6 +63,8 @@ spec:
            value: "{{ jaeger_endpoint }}"
          - name: JAEGER_TAGS
            value: "environ={{ deploy_environ }},region={{ region }},version={{ edge_cloud_version }}"
+         - name: ES_SERVER_URLS
+           value: "{{ esproxy_address }}"
 
       imagePullSecrets:
        - name: mexreg-secret

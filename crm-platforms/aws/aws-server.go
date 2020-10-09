@@ -22,18 +22,23 @@ const SubnetAlreadyExistsError string = "subnet aleady exists"
 const GatewayDoesNotExistError string = "gateway does not exist"
 const ResourceAlreadyAssociatedError string = "Resource.AlreadyAssociated"
 const SecGrpAlreadyExistsError string = "InvalidGroup.Duplicate"
-const SecGrpDoesNotExistError string = "security group does not exist"
+const SecGrpDoesNotExistError string = "InvalidGroup.NotFound"
 const RuleAlreadyExistsError string = "InvalidPermission.Duplicate"
 const RouteTableDoesNotExistError string = "route table does not exist"
 const ElasticIpDoesNotExistError string = "elastic ip does not exist"
 const ImageDoesNotExistError string = "image does not exist"
 const ImageNotAvailableError string = "image is not available"
 
+const VMGroupNameTag string = "VMGroupName"
+const NameTag string = "Name"
+
 var orchVmLock sync.Mutex
 
 type RouteTableSearchType string
 
-const maxTerminateWait = time.Minute * 2
+const maxVMTerminateWait = time.Minute * 2
+const maxVMRunningWait = time.Minute * 3
+
 const maxGwWait = time.Minute * 5
 
 const SearchForMainRouteTable RouteTableSearchType = "main"
@@ -65,6 +70,7 @@ type AwsEc2SecGrp struct {
 	GroupName string
 	GroupId   string
 	VpcId     string
+	Tags      []AwsEc2Tag
 }
 
 type AwsEc2SecGrpList struct {
@@ -170,7 +176,8 @@ type AwsEc2NetworkInterfaceCreateSpec struct {
 }
 
 type AwsEc2IpAddrPublicIpAssociation struct {
-	PublicIp string
+	AllocationId string
+	PublicIp     string
 }
 type AwsEc2IpAddress struct {
 	PrivateIpAddress string
@@ -182,6 +189,11 @@ type AwsEc2NetworkInterface struct {
 	MacAddress         string
 	NetworkInterfaceId string
 	PrivateIpAddresses []AwsEc2IpAddress
+	Association        AwsEc2IpAddrPublicIpAssociation
+}
+
+type AwsEc2NetworkInterfaceList struct {
+	NetworkInterfaces []AwsEc2NetworkInterface
 }
 type AwsEc2NetworkInterfaceCreateResult struct {
 	NetworkInterface AwsEc2NetworkInterface
@@ -229,13 +241,70 @@ type VmGroupResources struct {
 	imageNameToId map[string]string
 }
 
-func (a *AWSPlatform) DeleteAllResourcesForGroup(ctx context.Context, groupName string) error {
-	log.SpanLog(ctx, log.DebugLevelInfra, "DeleteAllResourcesForGroup", "groupName", groupName)
-	ec2Instances, err := a.getEc2Instances(ctx, MatchAnyVmName, groupName)
+func (a *AWSPlatform) WaitForVMsToBeInState(ctx context.Context, vmGroupName, state string, maxTime time.Duration) error {
+	log.SpanLog(ctx, log.DebugLevelInfra, "WaitForVMsToBeInState", "vmGroupName", vmGroupName, "state", state, "maxTime", maxTime)
+
+	start := time.Now()
+	for {
+		numRemaining := 0
+		remainingInstances, err := a.getEc2Instances(ctx, MatchAnyVmName, vmGroupName)
+		if err != nil {
+			return err
+		}
+		for _, res := range remainingInstances.Reservations {
+			for _, inst := range res.Instances {
+				if inst.State.Name != state {
+					numRemaining++
+				}
+			}
+		}
+		if numRemaining == 0 {
+			break
+		}
+		elapsed := time.Since(start)
+		if elapsed > maxTime {
+			return fmt.Errorf("timed out waiting for VMs")
+		}
+		log.SpanLog(ctx, log.DebugLevelInfra, "Sleep and check VMs again", "numRemaining", numRemaining)
+		time.Sleep(5 * time.Second)
+	}
+	return nil
+}
+
+func (a *AWSPlatform) DeleteInstances(ctx context.Context, instancesIds []string) error {
+	log.SpanLog(ctx, log.DebugLevelInfra, "DeleteInstances", "instancesIds", instancesIds)
+
+	cmdArgs := []string{
+		"ec2",
+		"terminate-instances",
+		"--region", a.GetAwsRegion(),
+		"--instance-ids",
+	}
+	cmdArgs = append(cmdArgs, instancesIds...)
+	out, err := a.TimedAwsCommand(ctx, "aws", cmdArgs...)
+	log.SpanLog(ctx, log.DebugLevelInfra, "terminate-instances result", "out", string(out), "err", err)
+	if err != nil {
+		return fmt.Errorf("terminate ec2 instances failed: %s - %v", string(out), err)
+	}
+	return nil
+}
+
+func (a *AWSPlatform) DeleteAllResourcesForGroup(ctx context.Context, vmGroupName string) error {
+	log.SpanLog(ctx, log.DebugLevelInfra, "DeleteAllResourcesForGroup", "vmGroupName", vmGroupName)
+	ec2Instances, err := a.getEc2Instances(ctx, MatchAnyVmName, vmGroupName)
+	if err != nil {
+		return err
+	}
+	vpc, err := a.GetVPC(ctx, a.GetVpcName())
+	if err != nil {
+		return err
+	}
 	var instanceIdList []string
 	if err != nil {
 		return err
 	}
+	log.SpanLog(ctx, log.DebugLevelInfra, "Delete vms for group", "vmGroupName", vmGroupName)
+
 	for _, res := range ec2Instances.Reservations {
 		for _, inst := range res.Instances {
 			if inst.State.Name != "terminated" {
@@ -244,27 +313,23 @@ func (a *AWSPlatform) DeleteAllResourcesForGroup(ctx context.Context, groupName 
 		}
 	}
 	if len(instanceIdList) == 0 {
-		log.SpanLog(ctx, log.DebugLevelInfra, "No instances to delete", "groupName", groupName)
+		log.SpanLog(ctx, log.DebugLevelInfra, "No instances to delete", "vmGroupName", vmGroupName)
 	} else {
-		cmdArgs := []string{
-			"ec2",
-			"terminate-instances",
-			"--region", a.GetAwsRegion(),
-			"--instance-ids",
-		}
-		cmdArgs = append(cmdArgs, instanceIdList...)
-		out, err := a.TimedAwsCommand(ctx, "aws", cmdArgs...)
-		log.SpanLog(ctx, log.DebugLevelInfra, "terminate-instances result", "out", string(out), "err", err)
+		err = a.DeleteInstances(ctx, instanceIdList)
 		if err != nil {
-			return fmt.Errorf("DeleteAllResourcesForGroup delete ec2 instances failed: %s - %v", string(out), err)
+			return err
+		}
+
+		err = a.WaitForVMsToBeInState(ctx, vmGroupName, "terminated", maxVMTerminateWait)
+		if err != nil {
+			return err
 		}
 		// we cannot delete subnets, etc until the VMs are gone.  Wait for this to happen
-		time.Sleep(5 * time.Second)
 		log.SpanLog(ctx, log.DebugLevelInfra, "Waiting for VMs to be terminated", "instanceIdList", instanceIdList)
 		start := time.Now()
 		for {
 			numRemaining := 0
-			remainingInstances, err := a.getEc2Instances(ctx, MatchAnyVmName, groupName)
+			remainingInstances, err := a.getEc2Instances(ctx, MatchAnyVmName, vmGroupName)
 			if err != nil {
 				return err
 			}
@@ -279,11 +344,36 @@ func (a *AWSPlatform) DeleteAllResourcesForGroup(ctx context.Context, groupName 
 				break
 			}
 			elapsed := time.Since(start)
-			if elapsed > maxTerminateWait {
+			if elapsed > maxVMTerminateWait {
 				return fmt.Errorf("timed out waiting for VMs to terminate")
 			}
 			log.SpanLog(ctx, log.DebugLevelInfra, "Sleep and check VMs again", "numRemaining", numRemaining)
 			time.Sleep(5 * time.Second)
+		}
+	}
+	log.SpanLog(ctx, log.DebugLevelInfra, "Delete subnets for group", "vmGroupName", vmGroupName)
+	subNets, err := a.GetSubnets(ctx)
+	for _, s := range subNets {
+		for _, tag := range s.Tags {
+			if tag.Key == VMGroupNameTag && tag.Value == vmGroupName {
+				err = a.DeleteSubnet(ctx, s.SubnetId)
+				if err != nil {
+					return err
+				}
+			}
+		}
+	}
+	log.SpanLog(ctx, log.DebugLevelInfra, "Delete security groups for VM group", "vmGroupName", vmGroupName)
+
+	sgMap, err := a.GetSecurityGroups(ctx, vpc.VpcId)
+	for _, sg := range sgMap {
+		for _, tag := range sg.Tags {
+			if tag.Key == VMGroupNameTag && tag.Value == vmGroupName {
+				err = a.DeleteSecurityGroup(ctx, sg.GroupId, vpc.VpcId)
+				if err != nil {
+					return err
+				}
+			}
 		}
 	}
 	return nil
@@ -306,9 +396,6 @@ func (a *AWSPlatform) GetServerDetail(ctx context.Context, vmname string) (*vmla
 			log.SpanLog(ctx, log.DebugLevelInfra, "found server", "vmname", vmname, "state", inst.State)
 
 			switch inst.State.Name {
-			case "terminated":
-				// ec2 stay visible in terminated state for a while but they do not really exist
-				continue
 			case "running":
 				sd.Status = vmlayer.ServerActive
 			case "stopped":
@@ -454,7 +541,7 @@ func (a *AWSPlatform) CreateVM(ctx context.Context, groupName string, vm *vmlaye
 		return fmt.Errorf("No ports specified in VM: %s", vm.Name)
 	}
 	extNet := a.VMProperties.GetCloudletExternalNetwork()
-	tagspec := fmt.Sprintf("ResourceType=instance,Tags=[{Key=Name,Value=%s},{Key=GroupName,Value=%s}]", vm.Name, groupName)
+	tagspec := fmt.Sprintf("ResourceType=instance,Tags=[{Key=%s,Value=%s},{Key=%s,Value=%s}]", NameTag, vm.Name, VMGroupNameTag, groupName)
 	var networkInterfaces []AwsEc2NetworkInterfaceCreateSpec
 	for i, p := range vm.Ports {
 		var ni AwsEc2NetworkInterfaceCreateSpec
@@ -475,7 +562,6 @@ func (a *AWSPlatform) CreateVM(ctx context.Context, groupName string, vm *vmlaye
 		snId, ok := resources.SubnetMap[snName]
 		if !ok {
 			log.SpanLog(ctx, log.DebugLevelInfra, "subnet not in map", "snId", snId, "subnets", resources.SubnetMap)
-
 			return fmt.Errorf("Could not find subnet: %s", snName)
 		}
 		ni.SubnetId = snId.SubnetId
@@ -557,7 +643,8 @@ func awsUserDataFormatter(instring string) string {
 
 func (a *AWSPlatform) populateOrchestrationParams(ctx context.Context, vmgp *vmlayer.VMGroupOrchestrationParams, action vmlayer.ActionType) error {
 	log.SpanLog(ctx, log.DebugLevelInfra, "populateOrchestrationParams")
-
+	orchVmLock.Lock()
+	defer orchVmLock.Unlock()
 	usedCidrs := make(map[string]string)
 	if !vmgp.SkipInfraSpecificCheck {
 		subs, err := a.GetSubnets(ctx)
@@ -702,7 +789,8 @@ func (a *AWSPlatform) getEc2Instances(ctx context.Context, vmNameFilter, groupNa
 	log.SpanLog(ctx, log.DebugLevelInfra, "getEc2Instances", "vmNameFilter", vmNameFilter, "groupNameFilter", groupNameFilter)
 	var ec2insts AwsEc2Instances
 
-	var filters []string
+	// look for instances in any state except terminated
+	filters := []string{"--filters", "Name=instance-state-name,Values=pending,running,shutting-down,stopping,stopped"}
 
 	if vmNameFilter != MatchAnyVmName {
 		filters = append(filters, "Name=tag-key,Values=Name")
@@ -712,7 +800,7 @@ func (a *AWSPlatform) getEc2Instances(ctx context.Context, vmNameFilter, groupNa
 		}
 	}
 	if groupNameFilter != MatchAnyGroupName {
-		filters = append(filters, "Name=tag-key,Values=GroupName")
+		filters = append(filters, fmt.Sprintf("Name=tag-key,Values=%s", VMGroupNameTag))
 		filters = append(filters, fmt.Sprintf("Name=tag-value,Values=%s", groupNameFilter))
 	}
 	cmdArgs := []string{
@@ -720,10 +808,8 @@ func (a *AWSPlatform) getEc2Instances(ctx context.Context, vmNameFilter, groupNa
 		"describe-instances",
 		"--region", a.GetAwsRegion(),
 	}
-	if len(filters) > 0 {
-		cmdArgs = append(cmdArgs, "--filters")
-		cmdArgs = append(cmdArgs, filters...)
-	}
+	cmdArgs = append(cmdArgs, filters...)
+
 	out, err := a.TimedAwsCommand(ctx, "aws", cmdArgs...)
 	if err != nil {
 		return nil, fmt.Errorf("Error in describe-instances: %v", err)
@@ -751,15 +837,14 @@ func (a *AWSPlatform) AllowIntraVpcTraffic(ctx context.Context, groupId string) 
 }
 
 // createVmGroupResources creates subnets, secgrps ahead of vms.  returns secGrpMap, subnetMap, vpcid, err
-func (a *AWSPlatform) createVmGroupResources(ctx context.Context, vmgp *vmlayer.VMGroupOrchestrationParams, updateCallback edgeproto.CacheUpdateCallback) (*VmGroupResources, error) {
-	log.SpanLog(ctx, log.DebugLevelInfra, "createVmGroupResources", "vmgp", vmgp)
+func (a *AWSPlatform) getVmGroupResources(ctx context.Context, vmgp *vmlayer.VMGroupOrchestrationParams, action vmlayer.ActionType, updateCallback edgeproto.CacheUpdateCallback) (*VmGroupResources, error) {
+	log.SpanLog(ctx, log.DebugLevelInfra, "getVmGroupResources", "action", action)
 
 	var resources VmGroupResources
 	// lock to reserve subnets.  AWS is very fast on create so this is probably ok, but
 	// should be revisited
-	orchVmLock.Lock()
-	defer orchVmLock.Unlock()
-	err := a.populateOrchestrationParams(ctx, vmgp, vmlayer.ActionCreate)
+
+	err := a.populateOrchestrationParams(ctx, vmgp, action)
 	if err != nil {
 		return nil, err
 	}
@@ -783,39 +868,44 @@ func (a *AWSPlatform) createVmGroupResources(ctx context.Context, vmgp *vmlayer.
 	}
 	resources.SecGrpMap = secGrpMap
 
-	for _, sg := range vmgp.SecurityGroups {
-		_, ok := secGrpMap[sg.Name]
-		if !ok {
-			newgrp, err := a.CreateSecurityGroup(ctx, sg.Name, vpc.VpcId, "security group for VM group "+vmgp.GroupName)
-			if err != nil {
-				if strings.Contains(err.Error(), SecGrpAlreadyExistsError) {
-					log.SpanLog(ctx, log.DebugLevelInfra, "security group already exists", "vmgp", vmgp)
-				} else {
-					return nil, err
+	if action == vmlayer.ActionCreate {
+		updateCallback(edgeproto.UpdateTask, "Creating Security Group")
+		for _, sg := range vmgp.SecurityGroups {
+			_, ok := secGrpMap[sg.Name]
+			if !ok {
+				newgrp, err := a.CreateSecurityGroup(ctx, sg.Name, vpc.VpcId, vmgp.GroupName)
+				if err != nil {
+					if strings.Contains(err.Error(), SecGrpAlreadyExistsError) {
+						log.SpanLog(ctx, log.DebugLevelInfra, "security group already exists", "vmgp", vmgp)
+					} else {
+						return nil, err
+					}
 				}
+				secGrpMap[sg.Name] = newgrp
 			}
-			secGrpMap[sg.Name] = newgrp
 		}
 	}
-
-	for _, sn := range vmgp.Subnets {
-		routeTableId := MainRouteTable
-		if sn.NetworkName == mexNet {
-			routeTableId = internalRouteTableId
-		}
-		_, err := a.CreateSubnet(ctx, vmgp.GroupName, sn.Name, sn.CIDR, routeTableId)
-		if err != nil {
-			return nil, err
-		}
-		if sn.SecurityGroupName != "" {
-			sg, ok := secGrpMap[sn.SecurityGroupName]
-			if !ok {
-				return nil, fmt.Errorf(SecGrpDoesNotExistError + ": " + sn.SecurityGroupName)
+	if action == vmlayer.ActionCreate {
+		updateCallback(edgeproto.UpdateTask, "Creating Subnets")
+		for _, sn := range vmgp.Subnets {
+			routeTableId := MainRouteTable
+			if sn.NetworkName == mexNet {
+				routeTableId = internalRouteTableId
 			}
-			// whitelist within the VPC
-			err = a.AllowIntraVpcTraffic(ctx, sg.GroupId)
+			_, err := a.CreateSubnet(ctx, vmgp.GroupName, sn.Name, sn.CIDR, routeTableId)
 			if err != nil {
 				return nil, err
+			}
+			if sn.SecurityGroupName != "" {
+				sg, ok := secGrpMap[sn.SecurityGroupName]
+				if !ok {
+					return nil, fmt.Errorf(SecGrpDoesNotExistError + ": " + sn.SecurityGroupName)
+				}
+				// whitelist within the VPC
+				err = a.AllowIntraVpcTraffic(ctx, sg.GroupId)
+				if err != nil {
+					return nil, err
+				}
 			}
 		}
 	}
@@ -838,13 +928,16 @@ func (a *AWSPlatform) createVmGroupResources(ctx context.Context, vmgp *vmlayer.
 			resources.imageNameToId[vm.ImageName] = imgId
 		}
 	}
-
 	return &resources, nil
 }
 
+// CreateVMs creates the VMs and associated resources provided in the group orch params.  For AWS, VM creation is done in serial
+// because it returns almost instantly.  After creation VMs are polled to see that they are all running.
 func (a *AWSPlatform) CreateVMs(ctx context.Context, vmgp *vmlayer.VMGroupOrchestrationParams, updateCallback edgeproto.CacheUpdateCallback) error {
 	log.SpanLog(ctx, log.DebugLevelInfra, "CreateVMs", "vmgp", vmgp)
-	resources, err := a.createVmGroupResources(ctx, vmgp, updateCallback)
+	updateCallback(edgeproto.UpdateTask, "Creating VMs")
+
+	resources, err := a.getVmGroupResources(ctx, vmgp, vmlayer.ActionCreate, updateCallback)
 	if err != nil {
 		return err
 	}
@@ -854,10 +947,11 @@ func (a *AWSPlatform) CreateVMs(ctx context.Context, vmgp *vmlayer.VMGroupOrches
 			return err
 		}
 	}
+	err = a.WaitForVMsToBeInState(ctx, vmgp.GroupName, "running", maxVMRunningWait)
+	if err != nil {
+		return err
+	}
 	return nil
-}
-func (a *AWSPlatform) UpdateVMs(ctx context.Context, VMGroupOrchestrationParams *vmlayer.VMGroupOrchestrationParams, updateCallback edgeproto.CacheUpdateCallback) error {
-	return fmt.Errorf("UpdateVMs not implemented")
 }
 
 func (a *AWSPlatform) DeleteVMs(ctx context.Context, vmGroupName string) error {
@@ -902,7 +996,7 @@ func (a *AWSPlatform) CreateVPC(ctx context.Context, name string, cidr string) (
 		// unexpected error
 		return "", err
 	}
-	tagspec := fmt.Sprintf("ResourceType=vpc,Tags=[{Key=Name,Value=%s}]", name)
+	tagspec := fmt.Sprintf("ResourceType=vpc,Tags=[{Key=%s,Value=%s}]", NameTag, name)
 	out, err := a.TimedAwsCommand(ctx, "aws",
 		"ec2",
 		"create-vpc",
@@ -928,10 +1022,9 @@ func (a *AWSPlatform) CreateVPC(ctx context.Context, name string, cidr string) (
 }
 
 // CreateSubnet returns subnetId, error
-func (a *AWSPlatform) CreateSubnet(ctx context.Context, groupName, name string, cidr string, routeTableId string) (string, error) {
-	log.SpanLog(ctx, log.DebugLevelInfra, "CreateSubnet", "groupName", groupName, "name", name, "routeTableId", routeTableId)
-	tagspec := fmt.Sprintf("ResourceType=subnet,Tags=[{Key=Name,Value=%s},{Key=GroupName,Value=%s}]", name, groupName)
-
+func (a *AWSPlatform) CreateSubnet(ctx context.Context, vmGroupName, name string, cidr string, routeTableId string) (string, error) {
+	log.SpanLog(ctx, log.DebugLevelInfra, "CreateSubnet", "vmGroupName", vmGroupName, "name", name, "routeTableId", routeTableId)
+	tagspec := fmt.Sprintf("ResourceType=subnet,Tags=[{Key=%s,Value=%s},{Key=%s,Value=%s}]", NameTag, name, VMGroupNameTag, vmGroupName)
 	sn, err := a.GetSubnet(ctx, name)
 	if err == nil {
 		// already exists
@@ -1023,7 +1116,7 @@ func (a *AWSPlatform) CreateInternalRouteTable(ctx context.Context, vpcId, natGw
 		}
 	}
 
-	tagspec := fmt.Sprintf("ResourceType=route-table,Tags=[{Key=Name,Value=%s}]", name)
+	tagspec := fmt.Sprintf("ResourceType=route-table,Tags=[{Key=%s,Value=%s}]", NameTag, name)
 	out, err := a.TimedAwsCommand(ctx, "aws",
 		"ec2",
 		"create-route-table",
@@ -1061,13 +1154,33 @@ func (a *AWSPlatform) CreateInternalRouteTable(ctx context.Context, vpcId, natGw
 	return createdRt.RouteTable.RouteTableId, nil
 }
 
+func (a *AWSPlatform) GetNetworkInterfaces(ctx context.Context) (*AwsEc2NetworkInterfaceList, error) {
+	log.SpanLog(ctx, log.DebugLevelInfra, "GetNetworkInterfaces")
+	// now add the natgw as the default route
+	out, err := a.TimedAwsCommand(ctx, "aws",
+		"ec2",
+		"describe-network-interfaces",
+		"--region", a.GetAwsRegion())
+
+	if err != nil {
+		return nil, fmt.Errorf("Error in describe-network-interfaces : %s - %v", string(out), err)
+	}
+	var ifList AwsEc2NetworkInterfaceList
+	err = json.Unmarshal(out, &ifList)
+	if err != nil {
+		log.SpanLog(ctx, log.DebugLevelInfra, "aws describe-network-interfaces unmarshal fail", "out", string(out), "err", err)
+		err = fmt.Errorf("cannot unmarshal, %v", err)
+		return nil, err
+	}
+	return &ifList, nil
+}
+
 func (a *AWSPlatform) GetNatGateway(ctx context.Context, name string) (*AwsEc2NatGateway, error) {
 	log.SpanLog(ctx, log.DebugLevelInfra, "GetNatGateway", "name", name)
 	out, err := a.TimedAwsCommand(ctx, "aws",
 		"ec2",
 		"describe-nat-gateways",
 		"--region", a.GetAwsRegion())
-	log.SpanLog(ctx, log.DebugLevelInfra, "describe-nat-gateways result", "out", string(out), "err", err)
 	if err != nil {
 		return nil, fmt.Errorf("GetNatGateway failed: %s - %v", string(out), err)
 	}
@@ -1080,7 +1193,8 @@ func (a *AWSPlatform) GetNatGateway(ctx context.Context, name string) (*AwsEc2Na
 	}
 	numgw := 0
 	for _, gw := range ngwList.NatGateways {
-		if gw.State == "active" {
+		log.SpanLog(ctx, log.DebugLevelInfra, "found nat gw", "gw", gw)
+		if gw.State == "available" {
 			numgw++
 		}
 	}
@@ -1097,7 +1211,7 @@ func (a *AWSPlatform) GetNatGateway(ctx context.Context, name string) (*AwsEc2Na
 
 func (a *AWSPlatform) CreateGateway(ctx context.Context, vpcName string) error {
 	log.SpanLog(ctx, log.DebugLevelInfra, "CreateGateway", "vpcName", vpcName)
-	tagspec := fmt.Sprintf("ResourceType=internet-gateway,Tags=[{Key=Name,Value=%s}]", vpcName)
+	tagspec := fmt.Sprintf("ResourceType=internet-gateway,Tags=[{Key=%s,Value=%s}]", NameTag, vpcName)
 
 	_, err := a.GetGateway(ctx, vpcName)
 	if err == nil {
@@ -1123,7 +1237,7 @@ func (a *AWSPlatform) CreateGateway(ctx context.Context, vpcName string) error {
 // CreateNatGateway returns natGatewayId, error
 func (a *AWSPlatform) CreateNatGateway(ctx context.Context, subnetId, elasticIpId, vpcName string) (string, error) {
 	log.SpanLog(ctx, log.DebugLevelInfra, "CreateNatGateway", "subnetId", subnetId, "vpcName", vpcName)
-	tagspec := fmt.Sprintf("ResourceType=natgateway,Tags=[{Key=Name,Value=%s}]", vpcName)
+	tagspec := fmt.Sprintf("ResourceType=natgateway,Tags=[{Key=%s,Value=%s}]", NameTag, vpcName)
 
 	ng, err := a.GetNatGateway(ctx, vpcName)
 	if err == nil {
@@ -1214,7 +1328,41 @@ func (a *AWSPlatform) CreateGatewayDefaultRoute(ctx context.Context, vpcName, vp
 	return nil
 }
 
+func (a *AWSPlatform) AllocateElasticIP(ctx context.Context) (string, error) {
+	log.SpanLog(ctx, log.DebugLevelInfra, "AllocateElasticIP")
+
+	out, err := a.TimedAwsCommand(ctx, "aws",
+		"ec2",
+		"allocate-address",
+		"--domain", "vpc",
+		"--region", a.GetAwsRegion())
+
+	log.SpanLog(ctx, log.DebugLevelInfra, "allocate-address", "out", string(out), "err", err)
+
+	var address AwsEc2Address
+	err = json.Unmarshal(out, &address)
+	if err != nil {
+		log.SpanLog(ctx, log.DebugLevelInfra, "aws allocate-address unmarshal fail", "out", string(out), "err", err)
+		err = fmt.Errorf("cannot unmarshal, %v", err)
+		return "", err
+	}
+	return address.AllocationId, nil
+}
+
 func (a *AWSPlatform) GetElasticIP(ctx context.Context, name, vpcId string) (string, error) {
+	log.SpanLog(ctx, log.DebugLevelInfra, "GetElasticIP", "name", name)
+
+	iflist, err := a.GetNetworkInterfaces(ctx)
+	if err != nil {
+		return "", err
+	}
+	usedIps := make(map[string]string)
+	for _, intf := range iflist.NetworkInterfaces {
+		if intf.Association.AllocationId != "" {
+			usedIps[intf.Association.AllocationId] = intf.Association.PublicIp
+		}
+	}
+
 	out, err := a.TimedAwsCommand(ctx, "aws",
 		"ec2",
 		"describe-addresses",
@@ -1230,20 +1378,46 @@ func (a *AWSPlatform) GetElasticIP(ctx context.Context, name, vpcId string) (str
 		return "", err
 	}
 	if len(addresses.Addresses) == 0 {
-		return "", fmt.Errorf(ElasticIpDoesNotExistError + ":" + name)
+
 	}
-	return addresses.Addresses[0].AllocationId, nil
+	for _, addr := range addresses.Addresses {
+		log.SpanLog(ctx, log.DebugLevelInfra, "Found elastic IP", "addr", addr)
+
+		pip, ok := usedIps[addr.AllocationId]
+		if ok {
+			log.SpanLog(ctx, log.DebugLevelInfra, "Elastic IP already associated", "addr", addr, "pip", pip)
+			continue
+		}
+		return addr.AllocationId, nil
+	}
+	return "", fmt.Errorf(ElasticIpDoesNotExistError + ":" + name)
 }
 
-func (a *AWSPlatform) CreateSecurityGroup(ctx context.Context, name, vpcId, description string) (*AwsEc2SecGrp, error) {
-	log.SpanLog(ctx, log.DebugLevelInfra, "CreateSecurityGroup", "name", name, "vpcId", vpcId)
+func (a *AWSPlatform) DeleteSecurityGroup(ctx context.Context, groupId, vpcId string) error {
+	log.SpanLog(ctx, log.DebugLevelInfra, "DeleteSecurityGroup", "groupId", groupId, "vpcId", vpcId)
+	out, err := a.TimedAwsCommand(ctx, "aws",
+		"ec2",
+		"delete-security-group",
+		"--region", a.GetAwsRegion(),
+		"--group-id", groupId)
+	if err != nil && !strings.Contains(err.Error(), SecGrpDoesNotExistError) {
+		return fmt.Errorf("Error in delete-security-group: %s - %v", string(out), err)
+	}
+	return nil
+}
+
+func (a *AWSPlatform) CreateSecurityGroup(ctx context.Context, name, vpcId, vmGroupName string) (*AwsEc2SecGrp, error) {
+	log.SpanLog(ctx, log.DebugLevelInfra, "CreateSecurityGroup", "name", name, "vmGroupName", vmGroupName, "vpcId", vpcId)
+	tagspec := fmt.Sprintf("ResourceType=security-group,Tags=[{Key=%s,Value=%s},{Key=%s,Value=%s}]", NameTag, name, VMGroupNameTag, vmGroupName)
+
 	out, err := a.TimedAwsCommand(ctx, "aws",
 		"ec2",
 		"create-security-group",
 		"--region", a.GetAwsRegion(),
 		"--group-name", name,
 		"--vpc-id", vpcId,
-		"--description", description)
+		"--description", vmGroupName,
+		"--tag-specifications", tagspec)
 	if err != nil {
 		return nil, fmt.Errorf("Error in create-security-group: %s - %v", string(out), err)
 	}
@@ -1324,7 +1498,7 @@ func (a *AWSPlatform) GetRouteTableId(ctx context.Context, vpcId string, searchT
 	for i, rt := range rtList.RouteTables {
 		if searchType == SearchForRouteTableByName {
 			for _, tag := range rt.Tags {
-				if tag.Key == "Name" && tag.Value == name {
+				if tag.Key == NameTag && tag.Value == name {
 					return rtList.RouteTables[i].RouteTableId, nil
 				}
 			}
@@ -1371,6 +1545,20 @@ func (a *AWSPlatform) GetVPC(ctx context.Context, name string) (*AwsEc2Vpc, erro
 	return &vpclist.Vpcs[0], nil
 }
 
+func (a *AWSPlatform) DeleteSubnet(ctx context.Context, snId string) error {
+	log.SpanLog(ctx, log.DebugLevelInfra, "DeleteSubnet", "snId", snId)
+	out, err := a.TimedAwsCommand(ctx, "aws",
+		"ec2",
+		"delete-subnet",
+		"--subnet-id", snId,
+		"--region", a.GetAwsRegion())
+	log.SpanLog(ctx, log.DebugLevelInfra, "delete-subnet result", "out", string(out), "err", err)
+	if err != nil {
+		return fmt.Errorf("DeleteSubnet failed: %s - %v", string(out), err)
+	}
+	return nil
+}
+
 func (a *AWSPlatform) GetSubnets(ctx context.Context) (map[string]*AwsEc2Subnet, error) {
 	log.SpanLog(ctx, log.DebugLevelInfra, "GetSubnets")
 	snMap := make(map[string]*AwsEc2Subnet)
@@ -1392,7 +1580,7 @@ func (a *AWSPlatform) GetSubnets(ctx context.Context) (map[string]*AwsEc2Subnet,
 	for i, s := range subnetList.Subnets {
 		subnetName := ""
 		for _, t := range s.Tags {
-			if t.Key == "Name" {
+			if t.Key == NameTag {
 				subnetName = t.Value
 			}
 		}
@@ -1433,4 +1621,84 @@ func (a *AWSPlatform) GetSubnet(ctx context.Context, name string) (*AwsEc2Subnet
 	}
 	subnetList.Subnets[0].Name = name
 	return &subnetList.Subnets[0], nil
+}
+
+func (a *AWSPlatform) getVMListsForUpdate(ctx context.Context, vmgp *vmlayer.VMGroupOrchestrationParams, vmLists *vmlayer.VMUpdateList, updateCallback edgeproto.CacheUpdateCallback) error {
+	err := a.populateOrchestrationParams(ctx, vmgp, vmlayer.ActionUpdate)
+	if err != nil {
+		return err
+	}
+	// get current VMs
+	vms, err := a.getEc2Instances(ctx, MatchAnyVmName, vmgp.GroupName)
+	if err != nil {
+		return err
+	}
+	for _, res := range vms.Reservations {
+		for _, vm := range res.Instances {
+			for _, tag := range vm.Tags {
+				if tag.Key == NameTag {
+					vmLists.CurrentVMs[tag.Value] = vm.InstanceId
+				}
+			}
+		}
+	}
+	// Get new VMs
+	for i := range vmgp.VMs {
+		vmLists.NewVMs[vmgp.VMs[i].Name] = &vmgp.VMs[i]
+	}
+	// find VMs in new list missing in current list
+	for vmname, vmorch := range vmLists.NewVMs {
+		_, exists := vmLists.CurrentVMs[vmname]
+		if !exists {
+			vmLists.VmsToCreate[vmname] = vmorch
+		}
+	}
+	// find VMs in current list missing in new list
+	for oldvm, instanceId := range vmLists.CurrentVMs {
+		_, exists := vmLists.NewVMs[oldvm]
+		if !exists {
+			vmLists.VmsToDelete[oldvm] = instanceId
+		}
+	}
+	return nil
+}
+
+// UpdateVMs calculates which VMs need to be added or removed from the given group and then does so.
+func (a *AWSPlatform) UpdateVMs(ctx context.Context, vmgp *vmlayer.VMGroupOrchestrationParams, updateCallback edgeproto.CacheUpdateCallback) error {
+	log.SpanLog(ctx, log.DebugLevelInfra, "UpdateVMs", "vmGroupName", vmgp.GroupName)
+
+	var vmLists vmlayer.VMUpdateList
+	vmLists.CurrentVMs = make(map[string]string)
+	vmLists.NewVMs = make(map[string]*vmlayer.VMOrchestrationParams)
+	vmLists.VmsToCreate = make(map[string]*vmlayer.VMOrchestrationParams)
+	vmLists.VmsToDelete = make(map[string]string)
+	resources, err := a.getVmGroupResources(ctx, vmgp, vmlayer.ActionUpdate, updateCallback)
+	if err != nil {
+		return err
+	}
+	err = a.getVMListsForUpdate(ctx, vmgp, &vmLists, updateCallback)
+	if err != nil {
+		return err
+	}
+	if len(vmLists.VmsToDelete) > 0 {
+		updateCallback(edgeproto.UpdateTask, "Deleting VMs")
+		var instancesIdsToDelete []string
+		for _, instanceId := range vmLists.VmsToDelete {
+			instancesIdsToDelete = append(instancesIdsToDelete, instanceId)
+		}
+		err = a.DeleteInstances(ctx, instancesIdsToDelete)
+		if err != nil {
+			return err
+		}
+	}
+	if len(vmLists.VmsToCreate) > 0 {
+		updateCallback(edgeproto.UpdateTask, "Creating VMs")
+		for _, vmorch := range vmLists.VmsToCreate {
+			err := a.CreateVM(ctx, vmgp.GroupName, vmorch, vmgp.Ports, resources)
+			if err != nil {
+				return err
+			}
+		}
+	}
+	return nil
 }

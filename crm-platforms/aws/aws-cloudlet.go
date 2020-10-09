@@ -122,6 +122,7 @@ func (a *AWSPlatform) InitProvider(ctx context.Context, caches *platform.Caches,
 		return err
 	}
 	a.VpcCidr = vpcCidr
+	updateCallback(edgeproto.UpdateTask, "Creating Internet Gateway")
 	err = a.CreateGateway(ctx, vpcName)
 	if err != nil {
 		return err
@@ -135,6 +136,7 @@ func (a *AWSPlatform) InitProvider(ctx context.Context, caches *platform.Caches,
 	sg, err := a.GetSecurityGroup(ctx, secGrpName, vpcId)
 	if err != nil {
 		if strings.Contains(err.Error(), SecGrpDoesNotExistError) {
+			updateCallback(edgeproto.UpdateTask, "Creating Security Group")
 			sg, err = a.CreateSecurityGroup(ctx, secGrpName, vpcId, "default security group for cloudlet "+vpcName)
 			if err != nil {
 				return err
@@ -145,19 +147,28 @@ func (a *AWSPlatform) InitProvider(ctx context.Context, caches *platform.Caches,
 	if err != nil {
 		return err
 	}
+	updateCallback(edgeproto.UpdateTask, "Creating Subnet")
 	externalSubnetId, err := a.CreateSubnet(ctx, vpcName, a.VMProperties.GetCloudletExternalNetwork(), extCidr, MainRouteTable)
 	if err != nil && !strings.Contains(err.Error(), SubnetAlreadyExistsError) {
 		return err
 	}
-
+	updateCallback(edgeproto.UpdateTask, "Getting Elastic IP")
 	eipId, err := a.GetElasticIP(ctx, vpcName, vpcId)
 	if err != nil {
-		return err
+		if !strings.Contains(err.Error(), ElasticIpDoesNotExistError) {
+			return err
+		}
+		eipId, err = a.AllocateElasticIP(ctx)
+		if err != nil {
+			return err
+		}
 	}
+	updateCallback(edgeproto.UpdateTask, "Creating NAT Gateway")
 	ngwId, err := a.CreateNatGateway(ctx, externalSubnetId, eipId, vpcName)
 	if err != nil {
 		return err
 	}
+	updateCallback(edgeproto.UpdateTask, "Creating Route Table")
 	_, err = a.CreateInternalRouteTable(ctx, vpcId, ngwId, a.VMProperties.GetCloudletMexNetwork())
 	if err != nil {
 		return err
@@ -167,6 +178,6 @@ func (a *AWSPlatform) InitProvider(ctx context.Context, caches *platform.Caches,
 
 }
 func (a *AWSPlatform) PrepareRootLB(ctx context.Context, client ssh.Client, rootLBName string, secGrpName string, privacyPolicy *edgeproto.PrivacyPolicy) error {
-	// nothing to do
+	log.SpanLog(ctx, log.DebugLevelInfra, "PrepareRootLB", "rootLBName", rootLBName)
 	return nil
 }

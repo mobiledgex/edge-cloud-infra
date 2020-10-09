@@ -58,3 +58,6 @@ swagger.mobiledgex.net
 
 [alertmanager]
 alertmanager-stage.mobiledgex.net
+
+[esproxy]
+events-stage.es.mobiledgex.net

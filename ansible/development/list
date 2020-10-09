@@ -50,3 +50,6 @@ jaeger-dev.mobiledgex.net	nginx_config_filename=jaeger jaeger_ui_port=8443
 
 [alertmanager]
 alertmanager-dev.mobiledgex.net
+
+[esproxy]
+events-dev.es.mobiledgex.net

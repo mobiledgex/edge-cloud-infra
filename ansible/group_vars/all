@@ -50,3 +50,4 @@ ns1_zone: global.dme.mobiledgex.net
 letsencrypt_path: certs
 letsencrypt_backend: letsencrypt-certs
 alertmanager_sidecar_port: 9094
+events_elasticsearch_url: https://3dd88757c3df44ac8960e53fc6a9a2d5.us-central1.gcp.cloud.es.io:9243

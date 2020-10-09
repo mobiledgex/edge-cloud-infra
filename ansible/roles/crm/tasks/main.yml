@@ -80,6 +80,7 @@
       MEX_SECURITY_GROUP: "{{ item.mex_security_group | default(mex_security_group) }}"
       JAEGER_ENDPOINT: "{{ jaeger_endpoint }}"
       JAEGER_TAGS: "crm={{ crm_name }},cloudlet={{ item.cloudlet_name }},operator={{ item.operator_key }},environ={{ deploy_environ }},version={{ edge_cloud_version }}"
+      ES_SERVER_URLS: "{{ esproxy_address }}"
 
 - name: Add azure environment variables
   block:

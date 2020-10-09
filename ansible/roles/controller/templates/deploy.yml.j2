@@ -73,6 +73,8 @@ spec:
            value: "{{ jaeger_endpoint }}"
          - name: JAEGER_TAGS
            value: "environ={{ deploy_environ }},region={{ region }},version={{ edge_cloud_version }}"
+         - name: ES_SERVER_URLS
+           value: "{{ esproxy_address }}"
 
       imagePullSecrets:
        - name: mexreg-secret 

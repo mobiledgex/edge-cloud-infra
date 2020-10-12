@@ -2,10 +2,10 @@ package edgeevents
 
 import (
 	"context"
-	"math"
 
 	dmecommon "github.com/mobiledgex/edge-cloud/d-match-engine/dme-common"
 	dme "github.com/mobiledgex/edge-cloud/d-match-engine/dme-proto"
+	dmeutil "github.com/mobiledgex/edge-cloud/d-match-engine/dme-util"
 	"github.com/mobiledgex/edge-cloud/edgeproto"
 	"github.com/mobiledgex/edge-cloud/log"
 	"github.com/mobiledgex/edge-cloud/util"
@@ -119,35 +119,8 @@ func (e *EdgeEventsHandlerPlugin) ProcessLatencySamples(ctx context.Context, app
 
 	latencyEdgeEvent := new(dme.ServerEdgeEvent)
 	latencyEdgeEvent.Event = dme.ServerEdgeEvent_EVENT_LATENCY_PROCESSED
-	// Create latency struct
-	latency := new(dme.Latency)
-	// calculate Min, Max, and Avg
-	numSamples := float64(len(samples))
-	sum := 0.0
-	min := 0.0
-	max := 0.0
-	for _, sample := range samples {
-		sum += sample
-		if min == 0 || sample < min {
-			min = sample
-		}
-		if min == 0 || sample > max {
-			max = sample
-		}
-	}
-	avg := sum / numSamples
-	// calculate StdDev
-	diffSquared := 0.0
-	for _, sample := range samples {
-		diff := sample - avg
-		diffSquared += diff * diff
-	}
-	stddev := math.Sqrt(diffSquared / numSamples)
-	// Set latency fields
-	latency.Avg = avg
-	latency.Min = min
-	latency.Max = max
-	latency.StdDev = stddev
+
+	latency := dmeutil.CalculateLatency(samples)
 	latencyEdgeEvent.Latency = latency
 
 	sendFunc(latencyEdgeEvent)

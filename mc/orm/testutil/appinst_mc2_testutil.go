@@ -111,22 +111,40 @@ func TestPermShowAppInst(mcClient *ormclient.Client, uri, token, region, org str
 	return TestShowAppInst(mcClient, uri, token, region, in, modFuncs...)
 }
 
-func TestMeasureAppInstLatency(mcClient *ormclient.Client, uri, token, region string, in *edgeproto.AppInst, modFuncs ...func(*edgeproto.AppInst)) ([]edgeproto.Result, int, error) {
+func TestRequestAppInstLatency(mcClient *ormclient.Client, uri, token, region string, in *edgeproto.AppInst, modFuncs ...func(*edgeproto.AppInst)) (*edgeproto.Result, int, error) {
 	dat := &ormapi.RegionAppInst{}
 	dat.Region = region
 	dat.AppInst = *in
 	for _, fn := range modFuncs {
 		fn(&dat.AppInst)
 	}
-	return mcClient.MeasureAppInstLatency(uri, token, dat)
+	return mcClient.RequestAppInstLatency(uri, token, dat)
 }
-func TestPermMeasureAppInstLatency(mcClient *ormclient.Client, uri, token, region, org string, targetCloudlet *edgeproto.CloudletKey, modFuncs ...func(*edgeproto.AppInst)) ([]edgeproto.Result, int, error) {
+func TestPermRequestAppInstLatency(mcClient *ormclient.Client, uri, token, region, org string, targetCloudlet *edgeproto.CloudletKey, modFuncs ...func(*edgeproto.AppInst)) (*edgeproto.Result, int, error) {
 	in := &edgeproto.AppInst{}
 	if targetCloudlet != nil {
 		in.Key.ClusterInstKey.CloudletKey = *targetCloudlet
 	}
 	in.Key.AppKey.Organization = org
-	return TestMeasureAppInstLatency(mcClient, uri, token, region, in, modFuncs...)
+	return TestRequestAppInstLatency(mcClient, uri, token, region, in, modFuncs...)
+}
+
+func TestDisplayAppInstLatency(mcClient *ormclient.Client, uri, token, region string, in *edgeproto.AppInst, modFuncs ...func(*edgeproto.AppInst)) (*edgeproto.Result, int, error) {
+	dat := &ormapi.RegionAppInst{}
+	dat.Region = region
+	dat.AppInst = *in
+	for _, fn := range modFuncs {
+		fn(&dat.AppInst)
+	}
+	return mcClient.DisplayAppInstLatency(uri, token, dat)
+}
+func TestPermDisplayAppInstLatency(mcClient *ormclient.Client, uri, token, region, org string, targetCloudlet *edgeproto.CloudletKey, modFuncs ...func(*edgeproto.AppInst)) (*edgeproto.Result, int, error) {
+	in := &edgeproto.AppInst{}
+	if targetCloudlet != nil {
+		in.Key.ClusterInstKey.CloudletKey = *targetCloudlet
+	}
+	in.Key.AppKey.Organization = org
+	return TestDisplayAppInstLatency(mcClient, uri, token, region, in, modFuncs...)
 }
 
 func (s *TestClient) CreateAppInst(ctx context.Context, in *edgeproto.AppInst) ([]edgeproto.Result, error) {
@@ -189,12 +207,24 @@ func (s *TestClient) ShowAppInst(ctx context.Context, in *edgeproto.AppInst) ([]
 	return out, err
 }
 
-func (s *TestClient) MeasureAppInstLatency(ctx context.Context, in *edgeproto.AppInst) ([]edgeproto.Result, error) {
+func (s *TestClient) RequestAppInstLatency(ctx context.Context, in *edgeproto.AppInst) (*edgeproto.Result, error) {
 	inR := &ormapi.RegionAppInst{
 		Region:  s.Region,
 		AppInst: *in,
 	}
-	out, status, err := s.McClient.MeasureAppInstLatency(s.Uri, s.Token, inR)
+	out, status, err := s.McClient.RequestAppInstLatency(s.Uri, s.Token, inR)
+	if err == nil && status != 200 {
+		err = fmt.Errorf("status: %d\n", status)
+	}
+	return out, err
+}
+
+func (s *TestClient) DisplayAppInstLatency(ctx context.Context, in *edgeproto.AppInst) (*edgeproto.Result, error) {
+	inR := &ormapi.RegionAppInst{
+		Region:  s.Region,
+		AppInst: *in,
+	}
+	out, status, err := s.McClient.DisplayAppInstLatency(s.Uri, s.Token, inR)
 	if err == nil && status != 200 {
 		err = fmt.Errorf("status: %d\n", status)
 	}

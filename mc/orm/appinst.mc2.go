@@ -15,6 +15,7 @@ import (
 	edgeproto "github.com/mobiledgex/edge-cloud/edgeproto"
 	"github.com/mobiledgex/edge-cloud/log"
 	_ "github.com/mobiledgex/edge-cloud/protogen"
+	"google.golang.org/grpc/status"
 	"io"
 	math "math"
 )
@@ -425,7 +426,7 @@ func ShowAppInstObj(ctx context.Context, rc *RegionContext, obj *edgeproto.AppIn
 	return arr, err
 }
 
-func MeasureAppInstLatency(c echo.Context) error {
+func RequestAppInstLatency(c echo.Context) error {
 	ctx := GetContext(c)
 	rc := &RegionContext{}
 	claims, err := getClaims(c)
@@ -435,40 +436,35 @@ func MeasureAppInstLatency(c echo.Context) error {
 	rc.username = claims.Username
 
 	in := ormapi.RegionAppInst{}
-	success, err := ReadConn(c, &in)
-	if !success {
-		return err
+	if err := c.Bind(&in); err != nil {
+		return bindErr(c, err)
 	}
-	defer CloseConn(c)
 	rc.region = in.Region
 	span := log.SpanFromContext(ctx)
 	span.SetTag("region", in.Region)
 	log.SetTags(span, in.AppInst.GetKey().GetTags())
 	span.SetTag("org", in.AppInst.Key.AppKey.Organization)
-
-	err = MeasureAppInstLatencyStream(ctx, rc, &in.AppInst, func(res *edgeproto.Result) {
-		payload := ormapi.StreamPayload{}
-		payload.Data = res
-		WriteStream(c, &payload)
-	})
+	resp, err := RequestAppInstLatencyObj(ctx, rc, &in.AppInst)
 	if err != nil {
-		WriteError(c, err)
+		if st, ok := status.FromError(err); ok {
+			err = fmt.Errorf("%s", st.Message())
+		}
 	}
-	return nil
+	return setReply(c, err, resp)
 }
 
-func MeasureAppInstLatencyStream(ctx context.Context, rc *RegionContext, obj *edgeproto.AppInst, cb func(res *edgeproto.Result)) error {
+func RequestAppInstLatencyObj(ctx context.Context, rc *RegionContext, obj *edgeproto.AppInst) (*edgeproto.Result, error) {
 	log.SetContextTags(ctx, edgeproto.GetTags(obj))
 	if !rc.skipAuthz {
 		if err := authorized(ctx, rc.username, obj.Key.AppKey.Organization,
 			ResourceAppInsts, ActionManage); err != nil {
-			return err
+			return nil, err
 		}
 	}
 	if rc.conn == nil {
 		conn, err := connectController(ctx, rc.region)
 		if err != nil {
-			return err
+			return nil, err
 		}
 		rc.conn = conn
 		defer func() {
@@ -477,28 +473,55 @@ func MeasureAppInstLatencyStream(ctx context.Context, rc *RegionContext, obj *ed
 		}()
 	}
 	api := edgeproto.NewAppInstApiClient(rc.conn)
-	stream, err := api.MeasureAppInstLatency(ctx, obj)
+	return api.RequestAppInstLatency(ctx, obj)
+}
+
+func DisplayAppInstLatency(c echo.Context) error {
+	ctx := GetContext(c)
+	rc := &RegionContext{}
+	claims, err := getClaims(c)
 	if err != nil {
 		return err
 	}
-	for {
-		res, err := stream.Recv()
-		if err == io.EOF {
-			err = nil
-			break
-		}
-		if err != nil {
-			return err
-		}
-		cb(res)
+	rc.username = claims.Username
+
+	in := ormapi.RegionAppInst{}
+	if err := c.Bind(&in); err != nil {
+		return bindErr(c, err)
 	}
-	return nil
+	rc.region = in.Region
+	span := log.SpanFromContext(ctx)
+	span.SetTag("region", in.Region)
+	log.SetTags(span, in.AppInst.GetKey().GetTags())
+	span.SetTag("org", in.AppInst.Key.AppKey.Organization)
+	resp, err := DisplayAppInstLatencyObj(ctx, rc, &in.AppInst)
+	if err != nil {
+		if st, ok := status.FromError(err); ok {
+			err = fmt.Errorf("%s", st.Message())
+		}
+	}
+	return setReply(c, err, resp)
 }
 
-func MeasureAppInstLatencyObj(ctx context.Context, rc *RegionContext, obj *edgeproto.AppInst) ([]edgeproto.Result, error) {
-	arr := []edgeproto.Result{}
-	err := MeasureAppInstLatencyStream(ctx, rc, obj, func(res *edgeproto.Result) {
-		arr = append(arr, *res)
-	})
-	return arr, err
+func DisplayAppInstLatencyObj(ctx context.Context, rc *RegionContext, obj *edgeproto.AppInst) (*edgeproto.Result, error) {
+	log.SetContextTags(ctx, edgeproto.GetTags(obj))
+	if !rc.skipAuthz {
+		if err := authorized(ctx, rc.username, obj.Key.AppKey.Organization,
+			ResourceAppInsts, ActionView); err != nil {
+			return nil, err
+		}
+	}
+	if rc.conn == nil {
+		conn, err := connectController(ctx, rc.region)
+		if err != nil {
+			return nil, err
+		}
+		rc.conn = conn
+		defer func() {
+			rc.conn.Close()
+			rc.conn = nil
+		}()
+	}
+	api := edgeproto.NewAppInstApiClient(rc.conn)
+	return api.DisplayAppInstLatency(ctx, obj)
 }

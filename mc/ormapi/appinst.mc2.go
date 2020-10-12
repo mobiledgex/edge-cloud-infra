@@ -63,9 +63,16 @@ type swaggerShowAppInst struct {
 	Body RegionAppInst
 }
 
-// Request summary for MeasureAppInstLatency
-// swagger:parameters MeasureAppInstLatency
-type swaggerMeasureAppInstLatency struct {
+// Request summary for RequestAppInstLatency
+// swagger:parameters RequestAppInstLatency
+type swaggerRequestAppInstLatency struct {
+	// in: body
+	Body RegionAppInst
+}
+
+// Request summary for DisplayAppInstLatency
+// swagger:parameters DisplayAppInstLatency
+type swaggerDisplayAppInstLatency struct {
 	// in: body
 	Body RegionAppInst
 }

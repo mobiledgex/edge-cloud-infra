@@ -3,6 +3,7 @@ jaeger_endpoint: "https://{{ jaeger_hostname }}:14268/api/traces"
 console_vnc_hostname: console-dev-vnc.mobiledgex.net
 notifyroot_hostname: notifyroot-dev.mobiledgex.net
 vault_address: https://vault-dev.mobiledgex.net
+esproxy_address: https://events-dev.es.mobiledgex.net/
 vault_ha_zones:
   us: us-west2-a
   eu: europe-west3-a

@@ -17,8 +17,11 @@
       - "--vaultAddr"
       - "https://{{ vault_vm_hostname }}:{{ vault_port }}"
       - "--useVaultCerts"
+      - "--deploymentTag"
+      - "{{ deployment_tag_override | default(deploy_environ) }}"
     env:
       JAEGER_ENDPOINT: "{{ jaeger_endpoint }}"
       JAEGER_TAGS: "environ={{ deploy_environ }},version={{ edge_cloud_version }}"
       VAULT_ROLE_ID: "{{ notifyroot_role.role_id }}"
       VAULT_SECRET_ID: "{{ notifyroot_role.secret_id }}"
+      ES_SERVER_URLS: "{{ esproxy_address }}"

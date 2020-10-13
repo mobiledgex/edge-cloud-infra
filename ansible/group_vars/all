@@ -38,7 +38,7 @@ vault_root_ca_cert_path: secret/certs/root-ca
 mc_creds_vault_path: "secret/ansible/{{ deploy_environ }}/accounts/mc"
 vouch_hostname: vouch.mobiledgex.net
 influxdb_vm_hostname: influxdb.internal.mobiledgex.net
-artifactory_version: 6.14.1
+artifactory_version: 6.22.0
 mex_ca_cert_dir: /etc/ssl/local
 mex_ca_cert_der: "{{ mex_ca_cert_dir }}/mex-ca.der"
 mex_ca_cert_pem: "{{ mex_ca_cert_dir }}/mex-ca.crt"
@@ -50,3 +50,4 @@ ns1_zone: global.dme.mobiledgex.net
 letsencrypt_path: certs
 letsencrypt_backend: letsencrypt-certs
 alertmanager_sidecar_port: 9094
+events_elasticsearch_url: https://3dd88757c3df44ac8960e53fc6a9a2d5.us-central1.gcp.cloud.es.io:9243

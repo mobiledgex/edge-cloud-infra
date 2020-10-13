@@ -50,7 +50,7 @@ make clean
             }
         }
         stage('GRPC checkout') {
-            when { not { expression { fileExists 'grpc-gateway' } } }
+            when { not { expression { fileExists 'go/src/github.com/grpc-ecosystem/grpc-gateway' } } }
             steps {
                 dir(path: 'go/src/github.com/grpc-ecosystem') {
                     sh label: 'git clone grpc-gateway', script: 'git clone https://github.com/mobiledgex/grpc-gateway.git'

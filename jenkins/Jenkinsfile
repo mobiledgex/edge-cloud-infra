@@ -84,20 +84,19 @@ make
         }
         stage('Test') {
             options {
+                lock('testbed')
                 timeout(time: 40, unit: 'MINUTES')
             }
             steps {
-                lock('testbed') {
-                    retry(2) {
-                        sleep 10
-                        dir(path: 'go/src/github.com/mobiledgex/edge-cloud-infra') {
-                            sh label: 'unit tests', script: '''#!/bin/bash
-export PATH=$PATH:/usr/local/go/bin:$WORKSPACE/go/bin:$HOME/go/bin:/usr/lib/postgresql/10/bin
-export GOPATH=$WORKSPACE/go
-export GO111MODULE=on
-UNIT_TEST_LOG=/tmp/edge-cloud-infra-unit-test.${BUILD_TAG}.log make unit-test
-                            '''
-                        }
+                retry(2) {
+                    sleep 10
+                    dir(path: 'go/src/github.com/mobiledgex/edge-cloud-infra') {
+                        sh label: 'unit tests', script: '''#!/bin/bash
+        export PATH=$PATH:/usr/local/go/bin:$WORKSPACE/go/bin:$HOME/go/bin:/usr/lib/postgresql/10/bin
+        export GOPATH=$WORKSPACE/go
+        export GO111MODULE=on
+        UNIT_TEST_LOG=/tmp/edge-cloud-infra-unit-test.${BUILD_TAG}.log make unit-test
+                        '''
                     }
                 }
             }

@@ -23,7 +23,7 @@ pipeline {
                 }
             }
         }
-        stage('Match edge-cloud branch') {
+        stage('Match branches') {
             steps {
                 dir(path: 'go/src/github.com/mobiledgex/edge-cloud-infra') {
                     sh label: 'make edge-cloud-version-set', script: '''#!/bin/bash
@@ -43,9 +43,17 @@ echo "Infra branch: $INFRA_BRANCH"
 EC_BRANCH=$( git -C ../edge-cloud branch -a | awk -v "BR=remotes/origin/${INFRA_BRANCH}" '$NF == BR' )
 if [[ -n "$EC_BRANCH" ]]; then
     echo "Checking out matching edge-cloud branch: ${INFRA_BRANCH}"
-    git -C ../edge-cloud checkout origin/${INFRA_BRANCH}
+    git -C ../edge-cloud checkout origin/${INFRA_BRANCH} || exit 2
 else
     echo "Building with edge-cloud master branch"
+fi
+
+PROTO_BRANCH=$( git -C ../edge-proto branch -a | awk -v "BR=remotes/origin/${INFRA_BRANCH}" '$NF == BR' )
+if [[ -n "$PROTO_BRANCH" ]]; then
+    echo "Checking out matching edge-proto branch: ${INFRA_BRANCH}"
+    git -C ../edge-proto checkout origin/${INFRA_BRANCH} || exit 2
+else
+    echo "Building with edge-proto master branch"
 fi
                     '''
                 }

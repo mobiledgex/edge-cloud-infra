@@ -9,15 +9,15 @@ pipeline {
             steps {
                 dir(path: 'go/src/github.com/mobiledgex/edge-cloud-infra') {
                     git credentialsId: 'jenkins-checkouts',
-                        url: 'git@github.com:mobiledgex/edge-cloud-infra.git'
+                        url: 'https://github.com/mobiledgex/edge-cloud-infra.git'
                 }
                 dir(path: 'go/src/github.com/mobiledgex/edge-cloud') {
                     git credentialsId: 'jenkins-checkouts',
-                        url: 'git@github.com:mobiledgex/edge-cloud.git'
+                        url: 'https://github.com/mobiledgex/edge-cloud.git'
                 }
                 dir(path: 'go/src/github.com/mobiledgex/edge-proto') {
                     git credentialsId: 'jenkins-checkouts',
-                        url: 'git@github.com:mobiledgex/edge-proto.git'
+                        url: 'https://github.com/mobiledgex/edge-proto.git'
                 }
             }
         }

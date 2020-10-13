@@ -3,7 +3,7 @@ pipeline {
         skipDefaultCheckout true
         timeout(time: 60, unit: 'MINUTES')
     }
-    agent any
+    agent { label 'cicd' }
     stages {
         stage('Checkout') {
             steps {

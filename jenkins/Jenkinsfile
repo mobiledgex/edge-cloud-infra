@@ -31,7 +31,10 @@ export PATH=$PATH:/usr/local/go/bin:$WORKSPACE/go/bin:$HOME/go/bin
 export GOPATH=$WORKSPACE/go
 
 PR=$( git rev-parse --abbrev-ref HEAD | cut -d- -f2 )
-INFRA_BRANCH=$( curl -u "$GITHUB_CREDS_USR:GITHUB_CREDS_PSW" "https://api.github.com/repos/mobiledgex/edge-cloud-infra/pulls/${PR}" \
+PR_URL="https://api.github.com/repos/mobiledgex/edge-cloud-infra/pulls/${PR}"
+echo "PR: $PR_URL"
+curl -s -u "$GITHUB_CREDS_USR:GITHUB_CREDS_PSW" "$PR_URL"
+INFRA_BRANCH=$( curl -sf -u "$GITHUB_CREDS_USR:GITHUB_CREDS_PSW" "$PR_URL" \
                 | jq -r '.head.ref // empty' )
 if [[ -z "$INFRA_BRANCH" ]]; then
     echo "Failed to determine PR branch" >&2

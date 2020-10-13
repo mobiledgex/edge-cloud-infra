@@ -21,13 +21,23 @@ pipeline {
                 }
             }
         }
-        stage('Edge-Cloud Version') {
+        stage('Match edge-cloud branch') {
             steps {
                 dir(path: 'go/src/github.com/mobiledgex/edge-cloud-infra') {
                     sh label: 'make edge-cloud-version-set', script: '''$!/bin/bash
 export PATH=$PATH:/usr/local/go/bin:$WORKSPACE/go/bin:$HOME/go/bin
 export GOPATH=$WORKSPACE/go
-make edge-cloud-version-set
+
+INFRA_BRANCH=$( git rev-parse --abbrev-ref HEAD )
+
+git -C ../edge-cloud fetch --all
+EC_BRANCH=$( git -C ../edge-cloud branch -a | awk -v "BR=remotes/origin/${INFRA_BRANCH}" '$NF == BR' )
+if [[ -n "$EC_BRANCH" ]]; then
+    echo "Checking out matching edge-cloud branch: ${INFRA_BRANCH}"
+    git -C ../edge-cloud checkout --track origin/${INFRA_BRANCH}
+else
+    echo "Building with edge-cloud master branch"
+fi
                     '''
                 }
             }
@@ -93,10 +103,10 @@ make
                     sleep 10
                     dir(path: 'go/src/github.com/mobiledgex/edge-cloud-infra') {
                         sh label: 'unit tests', script: '''#!/bin/bash
-        export PATH=$PATH:/usr/local/go/bin:$WORKSPACE/go/bin:$HOME/go/bin:/usr/lib/postgresql/10/bin
-        export GOPATH=$WORKSPACE/go
-        export GO111MODULE=on
-        UNIT_TEST_LOG=/tmp/edge-cloud-infra-unit-test.${BUILD_TAG}.log make unit-test
+export PATH=$PATH:/usr/local/go/bin:$WORKSPACE/go/bin:$HOME/go/bin:/usr/lib/postgresql/10/bin
+export GOPATH=$WORKSPACE/go
+export GO111MODULE=on
+UNIT_TEST_LOG=/tmp/edge-cloud-infra-unit-test.${BUILD_TAG}.log make unit-test
                         '''
                     }
                 }

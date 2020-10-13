@@ -642,7 +642,7 @@ func awsUserDataFormatter(instring string) string {
 }
 
 func (a *AWSPlatform) populateOrchestrationParams(ctx context.Context, vmgp *vmlayer.VMGroupOrchestrationParams, action vmlayer.ActionType) error {
-	log.SpanLog(ctx, log.DebugLevelInfra, "populateOrchestrationParams")
+	log.SpanLog(ctx, log.DebugLevelInfra, "populateOrchestrationParams", "action", action)
 	orchVmLock.Lock()
 	defer orchVmLock.Unlock()
 	usedCidrs := make(map[string]string)
@@ -685,7 +685,6 @@ func (a *AWSPlatform) populateOrchestrationParams(ctx context.Context, vmgp *vml
 			return fmt.Errorf("cannot find subnet cidr")
 		}
 	}
-
 	metaDir := "/mnt/mobiledgex-config/openstack/latest/"
 	for vmidx, vm := range vmgp.VMs {
 		metaData := vmlayer.GetVMMetaData(vm.Role, masterIP, awsMetaDataFormatter)
@@ -697,7 +696,6 @@ func (a *AWSPlatform) populateOrchestrationParams(ctx context.Context, vmgp *vml
 			return err
 		}
 		vmgp.VMs[vmidx].UserData = userdata
-
 		if len(vm.Volumes) == 0 {
 			vol := vmlayer.VolumeOrchestrationParams{
 				DeviceName:         "/dev/sda1",
@@ -848,19 +846,17 @@ func (a *AWSPlatform) getVmGroupResources(ctx context.Context, vmgp *vmlayer.VMG
 	if err != nil {
 		return nil, err
 	}
+	log.SpanLog(ctx, log.DebugLevelInfra, "Params after populate", "vmgp", vmgp)
 	vpc, err := a.GetVPC(ctx, a.GetVpcName())
 	if err != nil {
 		return nil, err
 	}
 	resources.VpcId = vpc.VpcId
-
 	mexNet := a.VMProperties.GetCloudletMexNetwork()
 	internalRouteTableId, err := a.GetRouteTableId(ctx, vpc.VpcId, SearchForRouteTableByName, mexNet)
 	if err != nil {
 		return nil, err
 	}
-
-	log.SpanLog(ctx, log.DebugLevelInfra, "Params after populate", "vmgp", vmgp)
 
 	secGrpMap, err := a.GetSecurityGroups(ctx, vpc.VpcId)
 	if err != nil {
@@ -1624,10 +1620,6 @@ func (a *AWSPlatform) GetSubnet(ctx context.Context, name string) (*AwsEc2Subnet
 }
 
 func (a *AWSPlatform) getVMListsForUpdate(ctx context.Context, vmgp *vmlayer.VMGroupOrchestrationParams, vmLists *vmlayer.VMUpdateList, updateCallback edgeproto.CacheUpdateCallback) error {
-	err := a.populateOrchestrationParams(ctx, vmgp, vmlayer.ActionUpdate)
-	if err != nil {
-		return err
-	}
 	// get current VMs
 	vms, err := a.getEc2Instances(ctx, MatchAnyVmName, vmgp.GroupName)
 	if err != nil {

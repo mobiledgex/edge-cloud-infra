@@ -253,7 +253,6 @@ func (v *VMPlatform) deleteCluster(ctx context.Context, rootLBName string, clust
 
 	if dedicatedRootLB {
 		proxy.RemoveDedicatedCluster(ctx, clusterInst.Key.ClusterKey.Name)
-		DeleteRootLB(rootLBName)
 	}
 	return nil
 }
@@ -353,13 +352,6 @@ func (v *VMPlatform) setupClusterRootLBAndNodes(ctx context.Context, rootLBName 
 	// mex agent started
 	if clusterInst.IpAccess == edgeproto.IpAccess_IP_ACCESS_DEDICATED {
 		log.SpanLog(ctx, log.DebugLevelInfra, "new dedicated rootLB", "IpAccess", clusterInst.IpAccess)
-		if action == ActionCreate {
-			_, err := v.NewRootLB(ctx, rootLBName)
-			if err != nil {
-				// likely already exists which means something went really wrong
-				return err
-			}
-		}
 		updateCallback(edgeproto.UpdateTask, "Setting Up Root LB")
 		err := v.SetupRootLB(ctx, rootLBName, &clusterInst.Key.CloudletKey, privacyPolicy, updateCallback)
 		if err != nil {

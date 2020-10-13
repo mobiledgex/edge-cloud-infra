@@ -31,7 +31,6 @@ type CloudletSSHKey struct {
 type VMProperties struct {
 	CommonPf                   *infracommon.CommonPlatform
 	SharedRootLBName           string
-	sharedRootLB               *MEXRootLB
 	Domain                     VMDomain
 	PlatformSecgrpName         string
 	IptablesBasedFirewall      bool
@@ -39,6 +38,7 @@ type VMProperties struct {
 	Upgrade                    bool
 	OverrideGWOctet            uint32
 	UseSecgrpForInternalSubnet bool
+	RequiresWhitelistOwnIp     bool
 }
 
 // note that qcow2 must be understood by vsphere and vmdk must

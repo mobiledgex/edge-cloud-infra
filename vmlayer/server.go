@@ -29,21 +29,19 @@ type ServerDetail struct {
 	Status    string
 }
 
+type VMUpdateList struct {
+	CurrentVMs  (map[string]string)
+	NewVMs      (map[string]*VMOrchestrationParams)
+	VmsToCreate (map[string]*VMOrchestrationParams)
+	VmsToDelete (map[string]string)
+}
+
 func (v *VMPlatform) GetIPFromServerName(ctx context.Context, networkName, subnetName, serverName string) (*ServerIP, error) {
 	log.SpanLog(ctx, log.DebugLevelInfra, "GetIPFromServerName", "networkName", networkName, "subnetName", subnetName, "serverName", serverName)
 	// if this is a root lb, look it up and get the IP if we have it cached
 	portName := ""
 	if subnetName != "" {
 		portName = GetPortName(serverName, subnetName)
-	}
-	if networkName == v.VMProperties.GetCloudletExternalNetwork() {
-		rootLB, err := GetRootLB(ctx, serverName)
-		if err == nil && rootLB != nil {
-			if rootLB.IP != nil {
-				log.SpanLog(ctx, log.DebugLevelInfra, "using existing rootLB IP", "IP", rootLB.IP)
-				return rootLB.IP, nil
-			}
-		}
 	}
 	sd, err := v.VMProvider.GetServerDetail(ctx, serverName)
 	if err != nil {

@@ -328,22 +328,12 @@ func (v *VMPlatform) Init(ctx context.Context, platformConfig *platform.Platform
 	}
 	log.SpanLog(ctx, log.DebugLevelInfra, "got flavor list", "flavorList", v.FlavorList)
 
-	// create rootLB
-	crmRootLB, cerr := v.NewRootLB(ctx, v.VMProperties.SharedRootLBName)
-	if cerr != nil {
-		return cerr
-	}
-	if crmRootLB == nil {
-		return fmt.Errorf("rootLB is not initialized")
-	}
-	v.VMProperties.sharedRootLB = crmRootLB
-	log.SpanLog(ctx, log.DebugLevelInfra, "created shared rootLB", "name", v.VMProperties.SharedRootLBName)
-
 	tags := GetChefRootLBTags(platformConfig)
-	err = v.CreateRootLB(ctx, crmRootLB, v.VMProperties.CommonPf.PlatformConfig.CloudletKey, v.VMProperties.CommonPf.PlatformConfig.CloudletVMImagePath, v.VMProperties.CommonPf.PlatformConfig.VMImageVersion, ActionCreate, tags, updateCallback)
+	err = v.CreateRootLB(ctx, v.VMProperties.SharedRootLBName, v.VMProperties.CommonPf.PlatformConfig.CloudletKey, v.VMProperties.CommonPf.PlatformConfig.CloudletVMImagePath, v.VMProperties.CommonPf.PlatformConfig.VMImageVersion, ActionCreate, tags, updateCallback)
 	if err != nil {
 		return fmt.Errorf("Error creating rootLB: %v", err)
 	}
+	log.SpanLog(ctx, log.DebugLevelInfra, "created shared rootLB", "name", v.VMProperties.SharedRootLBName)
 
 	if platformConfig.Upgrade {
 		v.VMProperties.Upgrade = true

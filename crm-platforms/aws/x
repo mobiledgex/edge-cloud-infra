@@ -1,0 +1,57 @@
+aws-server.go-		"describe-images",
+aws-server.go-		"describe-instances",
+aws-server.go-		log.SpanLog(ctx, log.DebugLevelInfra, "aws describe-instances unmarshal fail", "out", string(out), "err", err)
+aws-server.go-		"describe-internet-gateways",
+aws-server.go-		"describe-network-interfaces",
+aws-server.go-		"describe-nat-gateways",
+aws-server.go-		"describe-addresses",
+aws-server.go-		"describe-security-groups",
+aws-server.go-		"describe-route-tables",
+aws-server.go-		"describe-vpcs",
+aws-server.go-		"describe-subnets",
+aws-server.go-		"describe-subnets",
+aws.go:	out, err := a.TimedAwsCommand(ctx, "aws", "ec2", "describe-instance-types",
+aws-server.go-		"run-instances",
+aws-security.go-		"authorize-security-group-ingress",
+aws-server.go-		"terminate-instances",
+aws-server.go-	}
+aws-server.go-	if err != nil {
+aws-server.go-		for _, inst := range res.Instances {
+aws-server.go-	if err != nil {
+aws-server.go-		for _, inst := range res.Instances {
+aws-server.go-		"create-network-interface",
+aws-server.go-		"attach-network-interface",
+aws-server.go-		"modify-network-interface-attribute",
+aws-server.go-	}
+aws-server.go-		"run-instances",
+aws-server.go-	return instring
+aws-server.go-		"describe-images",
+aws-server.go-
+aws-server.go-		}
+aws-server.go-		"describe-instances",
+aws-server.go-	if err != nil {
+aws-server.go-}
+aws-server.go-		"create-vpc",
+aws-server.go-		"create-subnet",
+aws-server.go-			"associate-route-table",
+aws-server.go-		"describe-internet-gateways",
+aws-server.go-		"create-route-table",
+aws-server.go-		"create-route",
+aws-server.go-		"describe-network-interfaces",
+aws-server.go-		"describe-nat-gateways",
+aws-server.go-		"create-internet-gateway",
+aws-server.go-		"create-nat-gateway",
+aws-server.go-		"attach-internet-gateway",
+aws-server.go-		"create-route",
+aws-server.go-		"allocate-address",
+aws-server.go-		"describe-addresses",
+aws-server.go-		"delete-security-group",
+aws-server.go-		"create-security-group",
+aws-server.go-		"describe-security-groups",
+aws-server.go-		"describe-route-tables",
+aws-server.go-		"describe-vpcs",
+aws-server.go-		"delete-subnet",
+aws-server.go-		"describe-subnets",
+aws-server.go-		"describe-subnets",
+aws.go-		"--filter", filter,
+x-aws-server.go-		"run-instances",

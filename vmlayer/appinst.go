@@ -250,11 +250,6 @@ func (v *VMPlatform) CreateAppInst(ctx context.Context, clusterInst *edgeproto.C
 		}
 		if app.AccessType == edgeproto.AccessType_ACCESS_TYPE_LOAD_BALANCER {
 			updateCallback(edgeproto.UpdateTask, "Setting Up Load Balancer")
-			_, err := v.NewRootLB(ctx, orchVals.lbName)
-			if err != nil {
-				// likely already exists which means something went really wrong
-				return err
-			}
 			err = v.SetupRootLB(ctx, orchVals.lbName, &clusterInst.Key.CloudletKey, privacyPolicy, updateCallback)
 			if err != nil {
 				return err
@@ -501,7 +496,6 @@ func (v *VMPlatform) DeleteAppInst(ctx context.Context, clusterInst *edgeproto.C
 				log.SpanLog(ctx, log.DebugLevelInfra, "failed to delete client from Chef Server", "clientName", clientName, "err", err)
 			}
 			proxy.RemoveDedicatedVmApp(ctx, cloudcommon.GetAppFQN(&app.Key))
-			DeleteRootLB(lbName)
 		}
 		imgName, err := cloudcommon.GetFileName(app.ImagePath)
 		if err != nil {

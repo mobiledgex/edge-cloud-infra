@@ -178,13 +178,6 @@ func (v *VMPlatform) GetSSHClientForCluster(ctx context.Context, clusterInst *ed
 func (v *VMPlatform) GetSSHClientForServer(ctx context.Context, serverName, networkName string, ops ...SSHClientOp) (ssh.Client, error) {
 	// if this is a rootLB we may have the IP cached already
 	var externalAddr string
-	rootLB, err := GetRootLB(ctx, serverName)
-	if err == nil && rootLB != nil {
-		if rootLB.IP != nil {
-			log.SpanLog(ctx, log.DebugLevelInfra, "using existing rootLB IP", "IP", rootLB.IP)
-			externalAddr = rootLB.IP.ExternalAddr
-		}
-	}
 	if externalAddr == "" {
 		serverIp, err := v.GetIPFromServerName(ctx, networkName, "", serverName)
 		if err != nil {

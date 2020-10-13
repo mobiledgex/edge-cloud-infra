@@ -115,38 +115,12 @@ var ShowAppInstCmd = &cli.Command{
 	StreamOut:    true,
 }
 
-var RequestAppInstLatencyCmd = &cli.Command{
-	Use:          "RequestAppInstLatency",
-	RequiredArgs: "region " + strings.Join(AppInstRequiredArgs, " "),
-	OptionalArgs: strings.Join(AppInstOptionalArgs, " "),
-	AliasArgs:    strings.Join(AppInstAliasArgs, " "),
-	SpecialArgs:  &AppInstSpecialArgs,
-	Comments:     addRegionComment(AppInstComments),
-	ReqData:      &ormapi.RegionAppInst{},
-	ReplyData:    &edgeproto.Result{},
-	Run:          runRest("/auth/ctrl/RequestAppInstLatency"),
-}
-
-var DisplayAppInstLatencyCmd = &cli.Command{
-	Use:          "DisplayAppInstLatency",
-	RequiredArgs: "region " + strings.Join(AppInstRequiredArgs, " "),
-	OptionalArgs: strings.Join(AppInstOptionalArgs, " "),
-	AliasArgs:    strings.Join(AppInstAliasArgs, " "),
-	SpecialArgs:  &AppInstSpecialArgs,
-	Comments:     addRegionComment(AppInstComments),
-	ReqData:      &ormapi.RegionAppInst{},
-	ReplyData:    &edgeproto.Result{},
-	Run:          runRest("/auth/ctrl/DisplayAppInstLatency"),
-}
-
 var AppInstApiCmds = []*cli.Command{
 	CreateAppInstCmd,
 	DeleteAppInstCmd,
 	RefreshAppInstCmd,
 	UpdateAppInstCmd,
 	ShowAppInstCmd,
-	RequestAppInstLatencyCmd,
-	DisplayAppInstLatencyCmd,
 }
 
 var CreateAppInstRequiredArgs = []string{
@@ -222,6 +196,37 @@ var UpdateAppInstOptionalArgs = []string{
 	"configs:#.config",
 	"powerstate",
 }
+
+var RequestAppInstLatencyCmd = &cli.Command{
+	Use:          "RequestAppInstLatency",
+	RequiredArgs: "region " + strings.Join(AppInstLatencyRequiredArgs, " "),
+	OptionalArgs: strings.Join(AppInstLatencyOptionalArgs, " "),
+	AliasArgs:    strings.Join(AppInstLatencyAliasArgs, " "),
+	SpecialArgs:  &AppInstLatencySpecialArgs,
+	Comments:     addRegionComment(AppInstLatencyComments),
+	ReqData:      &ormapi.RegionAppInstLatency{},
+	ReplyData:    &edgeproto.Result{},
+	Run:          runRest("/auth/ctrl/RequestAppInstLatency"),
+}
+
+var ShowAppInstLatencyCmd = &cli.Command{
+	Use:          "ShowAppInstLatency",
+	RequiredArgs: "region",
+	OptionalArgs: strings.Join(append(AppInstLatencyRequiredArgs, AppInstLatencyOptionalArgs...), " "),
+	AliasArgs:    strings.Join(AppInstLatencyAliasArgs, " "),
+	SpecialArgs:  &AppInstLatencySpecialArgs,
+	Comments:     addRegionComment(AppInstLatencyComments),
+	ReqData:      &ormapi.RegionAppInstLatency{},
+	ReplyData:    &edgeproto.AppInstLatency{},
+	Run:          runRest("/auth/ctrl/ShowAppInstLatency"),
+	StreamOut:    true,
+}
+
+var AppInstLatencyApiCmds = []*cli.Command{
+	RequestAppInstLatencyCmd,
+	ShowAppInstLatencyCmd,
+}
+
 var AppInstKeyRequiredArgs = []string{}
 var AppInstKeyOptionalArgs = []string{
 	"appkey.organization",
@@ -497,3 +502,47 @@ var AppInstLookupComments = map[string]string{
 	"policykey.name":                              "Policy name",
 }
 var AppInstLookupSpecialArgs = map[string]string{}
+var AppInstLatencyRequiredArgs = []string{
+	"app-org",
+	"appname",
+	"appvers",
+	"cluster",
+	"cloudlet-org",
+	"cloudlet",
+	"cluster-org",
+}
+var AppInstLatencyOptionalArgs = []string{
+	"latency.avg",
+	"latency.min",
+	"latency.max",
+	"latency.stddev",
+	"latency.variance",
+	"latency.numsamples",
+}
+var AppInstLatencyAliasArgs = []string{
+	"app-org=appinstlatency.key.appkey.organization",
+	"appname=appinstlatency.key.appkey.name",
+	"appvers=appinstlatency.key.appkey.version",
+	"cluster=appinstlatency.key.clusterinstkey.clusterkey.name",
+	"cloudlet-org=appinstlatency.key.clusterinstkey.cloudletkey.organization",
+	"cloudlet=appinstlatency.key.clusterinstkey.cloudletkey.name",
+	"cluster-org=appinstlatency.key.clusterinstkey.organization",
+	"latency.avg=appinstlatency.latency.avg",
+	"latency.min=appinstlatency.latency.min",
+	"latency.max=appinstlatency.latency.max",
+	"latency.stddev=appinstlatency.latency.stddev",
+	"latency.variance=appinstlatency.latency.variance",
+	"latency.numsamples=appinstlatency.latency.numsamples",
+}
+var AppInstLatencyComments = map[string]string{
+	"app-org":          "App developer organization",
+	"appname":          "App name",
+	"appvers":          "App version",
+	"cluster":          "Cluster name",
+	"cloudlet-org":     "Organization of the cloudlet site",
+	"cloudlet":         "Name of the cloudlet",
+	"cluster-org":      "Name of Developer organization that this cluster belongs to",
+	"latency.stddev":   "Unbiased standard deviation",
+	"latency.variance": "Unbiased variance",
+}
+var AppInstLatencySpecialArgs = map[string]string{}

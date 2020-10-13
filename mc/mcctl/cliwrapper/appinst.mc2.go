@@ -82,10 +82,10 @@ func (s *Client) ShowAppInst(uri, token string, in *ormapi.RegionAppInst) ([]edg
 	return outlist, st, err
 }
 
-func (s *Client) RequestAppInstLatency(uri, token string, in *ormapi.RegionAppInst) (*edgeproto.Result, int, error) {
+func (s *Client) RequestAppInstLatency(uri, token string, in *ormapi.RegionAppInstLatency) (*edgeproto.Result, int, error) {
 	args := []string{"region", "RequestAppInstLatency"}
 	out := edgeproto.Result{}
-	noconfig := strings.Split("CloudletLoc,Uri,MappedPorts,Liveness,CreatedAt,Status,Revision,Errors,RuntimeInfo,NodeFlavor,ExternalVolumeSize,AvailabilityZone,State", ",")
+	noconfig := strings.Split("", ",")
 	st, err := s.runObjs(uri, token, args, in, &out, withIgnore(noconfig))
 	if err != nil {
 		return nil, st, err
@@ -93,13 +93,13 @@ func (s *Client) RequestAppInstLatency(uri, token string, in *ormapi.RegionAppIn
 	return &out, st, err
 }
 
-func (s *Client) DisplayAppInstLatency(uri, token string, in *ormapi.RegionAppInst) (*edgeproto.Result, int, error) {
-	args := []string{"region", "DisplayAppInstLatency"}
-	out := edgeproto.Result{}
-	noconfig := strings.Split("CloudletLoc,Uri,MappedPorts,Liveness,CreatedAt,Status,Revision,Errors,RuntimeInfo,NodeFlavor,ExternalVolumeSize,AvailabilityZone,State", ",")
-	st, err := s.runObjs(uri, token, args, in, &out, withIgnore(noconfig))
-	if err != nil {
-		return nil, st, err
+func (s *Client) ShowAppInstLatency(uri, token string, in *ormapi.RegionAppInstLatency) ([]edgeproto.AppInstLatency, int, error) {
+	args := []string{"region", "ShowAppInstLatency"}
+	outlist := []edgeproto.AppInstLatency{}
+	noconfig := strings.Split("", ",")
+	ops := []runOp{
+		withIgnore(noconfig),
 	}
-	return &out, st, err
+	st, err := s.runObjs(uri, token, args, in, &outlist, ops...)
+	return outlist, st, err
 }

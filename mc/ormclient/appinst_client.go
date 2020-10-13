@@ -67,7 +67,15 @@ func (s *Client) ShowAppInst(uri, token string, in *ormapi.RegionAppInst) ([]edg
 	return outlist, status, err
 }
 
-func (s *Client) RequestAppInstLatency(uri, token string, in *ormapi.RegionAppInst) (*edgeproto.Result, int, error) {
+type AppInstApiClient interface {
+	CreateAppInst(uri, token string, in *ormapi.RegionAppInst) ([]edgeproto.Result, int, error)
+	DeleteAppInst(uri, token string, in *ormapi.RegionAppInst) ([]edgeproto.Result, int, error)
+	RefreshAppInst(uri, token string, in *ormapi.RegionAppInst) ([]edgeproto.Result, int, error)
+	UpdateAppInst(uri, token string, in *ormapi.RegionAppInst) ([]edgeproto.Result, int, error)
+	ShowAppInst(uri, token string, in *ormapi.RegionAppInst) ([]edgeproto.AppInst, int, error)
+}
+
+func (s *Client) RequestAppInstLatency(uri, token string, in *ormapi.RegionAppInstLatency) (*edgeproto.Result, int, error) {
 	out := edgeproto.Result{}
 	status, err := s.PostJson(uri+"/auth/ctrl/RequestAppInstLatency", token, in, &out)
 	if err != nil {
@@ -76,21 +84,16 @@ func (s *Client) RequestAppInstLatency(uri, token string, in *ormapi.RegionAppIn
 	return &out, status, err
 }
 
-func (s *Client) DisplayAppInstLatency(uri, token string, in *ormapi.RegionAppInst) (*edgeproto.Result, int, error) {
-	out := edgeproto.Result{}
-	status, err := s.PostJson(uri+"/auth/ctrl/DisplayAppInstLatency", token, in, &out)
-	if err != nil {
-		return nil, status, err
-	}
-	return &out, status, err
+func (s *Client) ShowAppInstLatency(uri, token string, in *ormapi.RegionAppInstLatency) ([]edgeproto.AppInstLatency, int, error) {
+	out := edgeproto.AppInstLatency{}
+	outlist := []edgeproto.AppInstLatency{}
+	status, err := s.PostJsonStreamOut(uri+"/auth/ctrl/ShowAppInstLatency", token, in, &out, func() {
+		outlist = append(outlist, out)
+	})
+	return outlist, status, err
 }
 
-type AppInstApiClient interface {
-	CreateAppInst(uri, token string, in *ormapi.RegionAppInst) ([]edgeproto.Result, int, error)
-	DeleteAppInst(uri, token string, in *ormapi.RegionAppInst) ([]edgeproto.Result, int, error)
-	RefreshAppInst(uri, token string, in *ormapi.RegionAppInst) ([]edgeproto.Result, int, error)
-	UpdateAppInst(uri, token string, in *ormapi.RegionAppInst) ([]edgeproto.Result, int, error)
-	ShowAppInst(uri, token string, in *ormapi.RegionAppInst) ([]edgeproto.AppInst, int, error)
-	RequestAppInstLatency(uri, token string, in *ormapi.RegionAppInst) (*edgeproto.Result, int, error)
-	DisplayAppInstLatency(uri, token string, in *ormapi.RegionAppInst) (*edgeproto.Result, int, error)
+type AppInstLatencyApiClient interface {
+	RequestAppInstLatency(uri, token string, in *ormapi.RegionAppInstLatency) (*edgeproto.Result, int, error)
+	ShowAppInstLatency(uri, token string, in *ormapi.RegionAppInstLatency) ([]edgeproto.AppInstLatency, int, error)
 }

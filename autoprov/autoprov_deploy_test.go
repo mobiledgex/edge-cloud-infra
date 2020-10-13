@@ -177,11 +177,3 @@ func (s *DummyController) dump() {
 	}
 	s.appInstRefsCache.Mux.Unlock()
 }
-
-func (s *DummyController) RequestAppInstLatency(ctx context.Context, in *edgeproto.AppInst) (*edgeproto.Result, error) {
-	return nil, nil
-}
-
-func (s *DummyController) DisplayAppInstLatency(ctx context.Context, in *edgeproto.AppInst) (*edgeproto.Result, error) {
-	return nil, nil
-}

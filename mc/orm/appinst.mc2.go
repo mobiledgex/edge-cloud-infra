@@ -435,16 +435,16 @@ func RequestAppInstLatency(c echo.Context) error {
 	}
 	rc.username = claims.Username
 
-	in := ormapi.RegionAppInst{}
+	in := ormapi.RegionAppInstLatency{}
 	if err := c.Bind(&in); err != nil {
 		return bindErr(c, err)
 	}
 	rc.region = in.Region
 	span := log.SpanFromContext(ctx)
 	span.SetTag("region", in.Region)
-	log.SetTags(span, in.AppInst.GetKey().GetTags())
-	span.SetTag("org", in.AppInst.Key.AppKey.Organization)
-	resp, err := RequestAppInstLatencyObj(ctx, rc, &in.AppInst)
+	log.SetTags(span, in.AppInstLatency.GetKey().GetTags())
+	span.SetTag("org", in.AppInstLatency.Key.AppKey.Organization)
+	resp, err := RequestAppInstLatencyObj(ctx, rc, &in.AppInstLatency)
 	if err != nil {
 		if st, ok := status.FromError(err); ok {
 			err = fmt.Errorf("%s", st.Message())
@@ -453,7 +453,7 @@ func RequestAppInstLatency(c echo.Context) error {
 	return setReply(c, err, resp)
 }
 
-func RequestAppInstLatencyObj(ctx context.Context, rc *RegionContext, obj *edgeproto.AppInst) (*edgeproto.Result, error) {
+func RequestAppInstLatencyObj(ctx context.Context, rc *RegionContext, obj *edgeproto.AppInstLatency) (*edgeproto.Result, error) {
 	log.SetContextTags(ctx, edgeproto.GetTags(obj))
 	if !rc.skipAuthz {
 		if err := authorized(ctx, rc.username, obj.Key.AppKey.Organization,
@@ -472,11 +472,11 @@ func RequestAppInstLatencyObj(ctx context.Context, rc *RegionContext, obj *edgep
 			rc.conn = nil
 		}()
 	}
-	api := edgeproto.NewAppInstApiClient(rc.conn)
+	api := edgeproto.NewAppInstLatencyApiClient(rc.conn)
 	return api.RequestAppInstLatency(ctx, obj)
 }
 
-func DisplayAppInstLatency(c echo.Context) error {
+func ShowAppInstLatency(c echo.Context) error {
 	ctx := GetContext(c)
 	rc := &RegionContext{}
 	claims, err := getClaims(c)
@@ -485,36 +485,45 @@ func DisplayAppInstLatency(c echo.Context) error {
 	}
 	rc.username = claims.Username
 
-	in := ormapi.RegionAppInst{}
-	if err := c.Bind(&in); err != nil {
-		return bindErr(c, err)
+	in := ormapi.RegionAppInstLatency{}
+	success, err := ReadConn(c, &in)
+	if !success {
+		return err
 	}
+	defer CloseConn(c)
 	rc.region = in.Region
 	span := log.SpanFromContext(ctx)
 	span.SetTag("region", in.Region)
-	log.SetTags(span, in.AppInst.GetKey().GetTags())
-	span.SetTag("org", in.AppInst.Key.AppKey.Organization)
-	resp, err := DisplayAppInstLatencyObj(ctx, rc, &in.AppInst)
+	log.SetTags(span, in.AppInstLatency.GetKey().GetTags())
+	span.SetTag("org", in.AppInstLatency.Key.AppKey.Organization)
+
+	err = ShowAppInstLatencyStream(ctx, rc, &in.AppInstLatency, func(res *edgeproto.AppInstLatency) {
+		payload := ormapi.StreamPayload{}
+		payload.Data = res
+		WriteStream(c, &payload)
+	})
 	if err != nil {
-		if st, ok := status.FromError(err); ok {
-			err = fmt.Errorf("%s", st.Message())
-		}
+		WriteError(c, err)
 	}
-	return setReply(c, err, resp)
+	return nil
 }
 
-func DisplayAppInstLatencyObj(ctx context.Context, rc *RegionContext, obj *edgeproto.AppInst) (*edgeproto.Result, error) {
-	log.SetContextTags(ctx, edgeproto.GetTags(obj))
+func ShowAppInstLatencyStream(ctx context.Context, rc *RegionContext, obj *edgeproto.AppInstLatency, cb func(res *edgeproto.AppInstLatency)) error {
+	var authz *AuthzShow
+	var err error
 	if !rc.skipAuthz {
-		if err := authorized(ctx, rc.username, obj.Key.AppKey.Organization,
-			ResourceAppInsts, ActionView); err != nil {
-			return nil, err
+		authz, err = newShowAuthz(ctx, rc.region, rc.username, ResourceAppInsts, ActionView)
+		if err == echo.ErrForbidden {
+			return nil
+		}
+		if err != nil {
+			return err
 		}
 	}
 	if rc.conn == nil {
 		conn, err := connectController(ctx, rc.region)
 		if err != nil {
-			return nil, err
+			return err
 		}
 		rc.conn = conn
 		defer func() {
@@ -522,6 +531,34 @@ func DisplayAppInstLatencyObj(ctx context.Context, rc *RegionContext, obj *edgep
 			rc.conn = nil
 		}()
 	}
-	api := edgeproto.NewAppInstApiClient(rc.conn)
-	return api.DisplayAppInstLatency(ctx, obj)
+	api := edgeproto.NewAppInstLatencyApiClient(rc.conn)
+	stream, err := api.ShowAppInstLatency(ctx, obj)
+	if err != nil {
+		return err
+	}
+	for {
+		res, err := stream.Recv()
+		if err == io.EOF {
+			err = nil
+			break
+		}
+		if err != nil {
+			return err
+		}
+		if !rc.skipAuthz {
+			if !authz.Ok(res.Key.AppKey.Organization) {
+				continue
+			}
+		}
+		cb(res)
+	}
+	return nil
+}
+
+func ShowAppInstLatencyObj(ctx context.Context, rc *RegionContext, obj *edgeproto.AppInstLatency) ([]edgeproto.AppInstLatency, error) {
+	arr := []edgeproto.AppInstLatency{}
+	err := ShowAppInstLatencyStream(ctx, rc, obj, func(res *edgeproto.AppInstLatency) {
+		arr = append(arr, *res)
+	})
+	return arr, err
 }

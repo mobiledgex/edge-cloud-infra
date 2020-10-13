@@ -111,42 +111,6 @@ func TestPermShowAppInst(mcClient *ormclient.Client, uri, token, region, org str
 	return TestShowAppInst(mcClient, uri, token, region, in, modFuncs...)
 }
 
-func TestRequestAppInstLatency(mcClient *ormclient.Client, uri, token, region string, in *edgeproto.AppInst, modFuncs ...func(*edgeproto.AppInst)) (*edgeproto.Result, int, error) {
-	dat := &ormapi.RegionAppInst{}
-	dat.Region = region
-	dat.AppInst = *in
-	for _, fn := range modFuncs {
-		fn(&dat.AppInst)
-	}
-	return mcClient.RequestAppInstLatency(uri, token, dat)
-}
-func TestPermRequestAppInstLatency(mcClient *ormclient.Client, uri, token, region, org string, targetCloudlet *edgeproto.CloudletKey, modFuncs ...func(*edgeproto.AppInst)) (*edgeproto.Result, int, error) {
-	in := &edgeproto.AppInst{}
-	if targetCloudlet != nil {
-		in.Key.ClusterInstKey.CloudletKey = *targetCloudlet
-	}
-	in.Key.AppKey.Organization = org
-	return TestRequestAppInstLatency(mcClient, uri, token, region, in, modFuncs...)
-}
-
-func TestDisplayAppInstLatency(mcClient *ormclient.Client, uri, token, region string, in *edgeproto.AppInst, modFuncs ...func(*edgeproto.AppInst)) (*edgeproto.Result, int, error) {
-	dat := &ormapi.RegionAppInst{}
-	dat.Region = region
-	dat.AppInst = *in
-	for _, fn := range modFuncs {
-		fn(&dat.AppInst)
-	}
-	return mcClient.DisplayAppInstLatency(uri, token, dat)
-}
-func TestPermDisplayAppInstLatency(mcClient *ormclient.Client, uri, token, region, org string, targetCloudlet *edgeproto.CloudletKey, modFuncs ...func(*edgeproto.AppInst)) (*edgeproto.Result, int, error) {
-	in := &edgeproto.AppInst{}
-	if targetCloudlet != nil {
-		in.Key.ClusterInstKey.CloudletKey = *targetCloudlet
-	}
-	in.Key.AppKey.Organization = org
-	return TestDisplayAppInstLatency(mcClient, uri, token, region, in, modFuncs...)
-}
-
 func (s *TestClient) CreateAppInst(ctx context.Context, in *edgeproto.AppInst) ([]edgeproto.Result, error) {
 	inR := &ormapi.RegionAppInst{
 		Region:  s.Region,
@@ -207,10 +171,48 @@ func (s *TestClient) ShowAppInst(ctx context.Context, in *edgeproto.AppInst) ([]
 	return out, err
 }
 
-func (s *TestClient) RequestAppInstLatency(ctx context.Context, in *edgeproto.AppInst) (*edgeproto.Result, error) {
-	inR := &ormapi.RegionAppInst{
-		Region:  s.Region,
-		AppInst: *in,
+func (s *TestClient) ShowAppInstInfo(ctx context.Context, in *edgeproto.AppInstInfo) ([]edgeproto.AppInstInfo, error) {
+	return nil, nil
+}
+
+func (s *TestClient) ShowAppInstMetrics(ctx context.Context, in *edgeproto.AppInstMetrics) ([]edgeproto.AppInstMetrics, error) {
+	return nil, nil
+}
+
+func TestRequestAppInstLatency(mcClient *ormclient.Client, uri, token, region string, in *edgeproto.AppInstLatency, modFuncs ...func(*edgeproto.AppInstLatency)) (*edgeproto.Result, int, error) {
+	dat := &ormapi.RegionAppInstLatency{}
+	dat.Region = region
+	dat.AppInstLatency = *in
+	for _, fn := range modFuncs {
+		fn(&dat.AppInstLatency)
+	}
+	return mcClient.RequestAppInstLatency(uri, token, dat)
+}
+func TestPermRequestAppInstLatency(mcClient *ormclient.Client, uri, token, region, org string, modFuncs ...func(*edgeproto.AppInstLatency)) (*edgeproto.Result, int, error) {
+	in := &edgeproto.AppInstLatency{}
+	in.Key.AppKey.Organization = org
+	return TestRequestAppInstLatency(mcClient, uri, token, region, in, modFuncs...)
+}
+
+func TestShowAppInstLatency(mcClient *ormclient.Client, uri, token, region string, in *edgeproto.AppInstLatency, modFuncs ...func(*edgeproto.AppInstLatency)) ([]edgeproto.AppInstLatency, int, error) {
+	dat := &ormapi.RegionAppInstLatency{}
+	dat.Region = region
+	dat.AppInstLatency = *in
+	for _, fn := range modFuncs {
+		fn(&dat.AppInstLatency)
+	}
+	return mcClient.ShowAppInstLatency(uri, token, dat)
+}
+func TestPermShowAppInstLatency(mcClient *ormclient.Client, uri, token, region, org string, modFuncs ...func(*edgeproto.AppInstLatency)) ([]edgeproto.AppInstLatency, int, error) {
+	in := &edgeproto.AppInstLatency{}
+	in.Key.AppKey.Organization = org
+	return TestShowAppInstLatency(mcClient, uri, token, region, in, modFuncs...)
+}
+
+func (s *TestClient) RequestAppInstLatency(ctx context.Context, in *edgeproto.AppInstLatency) (*edgeproto.Result, error) {
+	inR := &ormapi.RegionAppInstLatency{
+		Region:         s.Region,
+		AppInstLatency: *in,
 	}
 	out, status, err := s.McClient.RequestAppInstLatency(s.Uri, s.Token, inR)
 	if err == nil && status != 200 {
@@ -219,22 +221,14 @@ func (s *TestClient) RequestAppInstLatency(ctx context.Context, in *edgeproto.Ap
 	return out, err
 }
 
-func (s *TestClient) DisplayAppInstLatency(ctx context.Context, in *edgeproto.AppInst) (*edgeproto.Result, error) {
-	inR := &ormapi.RegionAppInst{
-		Region:  s.Region,
-		AppInst: *in,
+func (s *TestClient) ShowAppInstLatency(ctx context.Context, in *edgeproto.AppInstLatency) ([]edgeproto.AppInstLatency, error) {
+	inR := &ormapi.RegionAppInstLatency{
+		Region:         s.Region,
+		AppInstLatency: *in,
 	}
-	out, status, err := s.McClient.DisplayAppInstLatency(s.Uri, s.Token, inR)
+	out, status, err := s.McClient.ShowAppInstLatency(s.Uri, s.Token, inR)
 	if err == nil && status != 200 {
 		err = fmt.Errorf("status: %d\n", status)
 	}
 	return out, err
-}
-
-func (s *TestClient) ShowAppInstInfo(ctx context.Context, in *edgeproto.AppInstInfo) ([]edgeproto.AppInstInfo, error) {
-	return nil, nil
-}
-
-func (s *TestClient) ShowAppInstMetrics(ctx context.Context, in *edgeproto.AppInstMetrics) ([]edgeproto.AppInstMetrics, error) {
-	return nil, nil
 }

@@ -1263,7 +1263,7 @@ func addControllerApis(method string, group *echo.Group) {
 	//   403: forbidden
 	//   404: notFound
 	group.Match([]string{method}, "/ctrl/ShowAppInst", ShowAppInst)
-	// swagger:route POST /auth/ctrl/RequestAppInstLatency AppInst RequestAppInstLatency
+	// swagger:route POST /auth/ctrl/RequestAppInstLatency AppInstLatency RequestAppInstLatency
 	// Request Latency measurements for clients connected to AppInst.
 	// Security:
 	//   Bearer:
@@ -1273,8 +1273,8 @@ func addControllerApis(method string, group *echo.Group) {
 	//   403: forbidden
 	//   404: notFound
 	group.Match([]string{method}, "/ctrl/RequestAppInstLatency", RequestAppInstLatency)
-	// swagger:route POST /auth/ctrl/DisplayAppInstLatency AppInst DisplayAppInstLatency
-	// Display Latency measurements for clients connected to AppInst.
+	// swagger:route POST /auth/ctrl/ShowAppInstLatency AppInstLatency ShowAppInstLatency
+	// Show Latency measurements for clients connected to AppInst.
 	// Security:
 	//   Bearer:
 	// responses:
@@ -1282,7 +1282,7 @@ func addControllerApis(method string, group *echo.Group) {
 	//   400: badRequest
 	//   403: forbidden
 	//   404: notFound
-	group.Match([]string{method}, "/ctrl/DisplayAppInstLatency", DisplayAppInstLatency)
+	group.Match([]string{method}, "/ctrl/ShowAppInstLatency", ShowAppInstLatency)
 	// swagger:route POST /auth/ctrl/ShowCloudletRefs CloudletRefs ShowCloudletRefs
 	// Show CloudletRefs (debug only).
 	// Security:

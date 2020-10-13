@@ -67,12 +67,19 @@ type swaggerShowAppInst struct {
 // swagger:parameters RequestAppInstLatency
 type swaggerRequestAppInstLatency struct {
 	// in: body
-	Body RegionAppInst
+	Body RegionAppInstLatency
 }
 
-// Request summary for DisplayAppInstLatency
-// swagger:parameters DisplayAppInstLatency
-type swaggerDisplayAppInstLatency struct {
+type RegionAppInstLatency struct {
+	// required: true
+	// Region name
+	Region         string
+	AppInstLatency edgeproto.AppInstLatency
+}
+
+// Request summary for ShowAppInstLatency
+// swagger:parameters ShowAppInstLatency
+type swaggerShowAppInstLatency struct {
 	// in: body
-	Body RegionAppInst
+	Body RegionAppInstLatency
 }

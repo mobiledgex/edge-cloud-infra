@@ -3,16 +3,18 @@
 
 package ormctl
 
-import edgeproto "github.com/mobiledgex/edge-cloud/edgeproto"
-import "strings"
-import "github.com/mobiledgex/edge-cloud-infra/mc/ormapi"
-import "github.com/mobiledgex/edge-cloud/cli"
-import proto "github.com/gogo/protobuf/proto"
-import fmt "fmt"
-import math "math"
-import _ "github.com/gogo/googleapis/google/api"
-import _ "github.com/mobiledgex/edge-cloud/protogen"
-import _ "github.com/gogo/protobuf/gogoproto"
+import (
+	fmt "fmt"
+	_ "github.com/gogo/googleapis/google/api"
+	_ "github.com/gogo/protobuf/gogoproto"
+	proto "github.com/gogo/protobuf/proto"
+	"github.com/mobiledgex/edge-cloud-infra/mc/ormapi"
+	"github.com/mobiledgex/edge-cloud/cli"
+	edgeproto "github.com/mobiledgex/edge-cloud/edgeproto"
+	_ "github.com/mobiledgex/edge-cloud/protogen"
+	math "math"
+	"strings"
+)
 
 // Reference imports to suppress errors if they are not otherwise used.
 var _ = proto.Marshal
@@ -23,7 +25,7 @@ var _ = math.Inf
 
 var CreateAutoScalePolicyCmd = &cli.Command{
 	Use:          "CreateAutoScalePolicy",
-	RequiredArgs: strings.Join(append([]string{"region"}, CreateAutoScalePolicyRequiredArgs...), " "),
+	RequiredArgs: "region " + strings.Join(CreateAutoScalePolicyRequiredArgs, " "),
 	OptionalArgs: strings.Join(CreateAutoScalePolicyOptionalArgs, " "),
 	AliasArgs:    strings.Join(AutoScalePolicyAliasArgs, " "),
 	SpecialArgs:  &AutoScalePolicySpecialArgs,
@@ -35,7 +37,7 @@ var CreateAutoScalePolicyCmd = &cli.Command{
 
 var DeleteAutoScalePolicyCmd = &cli.Command{
 	Use:          "DeleteAutoScalePolicy",
-	RequiredArgs: strings.Join(append([]string{"region"}, AutoScalePolicyRequiredArgs...), " "),
+	RequiredArgs: "region " + strings.Join(AutoScalePolicyRequiredArgs, " "),
 	OptionalArgs: strings.Join(AutoScalePolicyOptionalArgs, " "),
 	AliasArgs:    strings.Join(AutoScalePolicyAliasArgs, " "),
 	SpecialArgs:  &AutoScalePolicySpecialArgs,
@@ -47,7 +49,7 @@ var DeleteAutoScalePolicyCmd = &cli.Command{
 
 var UpdateAutoScalePolicyCmd = &cli.Command{
 	Use:          "UpdateAutoScalePolicy",
-	RequiredArgs: strings.Join(append([]string{"region"}, AutoScalePolicyRequiredArgs...), " "),
+	RequiredArgs: "region " + strings.Join(AutoScalePolicyRequiredArgs, " "),
 	OptionalArgs: strings.Join(AutoScalePolicyOptionalArgs, " "),
 	AliasArgs:    strings.Join(AutoScalePolicyAliasArgs, " "),
 	SpecialArgs:  &AutoScalePolicySpecialArgs,
@@ -69,7 +71,14 @@ func setUpdateAutoScalePolicyFields(in map[string]interface{}) {
 	if !ok {
 		return
 	}
-	objmap["fields"] = cli.GetSpecifiedFields(objmap, &edgeproto.AutoScalePolicy{}, cli.JsonNamespace)
+	fields := cli.GetSpecifiedFields(objmap, &edgeproto.AutoScalePolicy{}, cli.JsonNamespace)
+	// include fields already specified
+	if inFields, found := objmap["fields"]; found {
+		if fieldsArr, ok := inFields.([]string); ok {
+			fields = append(fields, fieldsArr...)
+		}
+	}
+	objmap["fields"] = fields
 }
 
 var ShowAutoScalePolicyCmd = &cli.Command{
@@ -93,7 +102,7 @@ var AutoScalePolicyApiCmds = []*cli.Command{
 }
 
 var CreateAutoScalePolicyRequiredArgs = []string{
-	"developer",
+	"cluster-org",
 	"name",
 	"minnodes",
 	"maxnodes",
@@ -105,20 +114,20 @@ var CreateAutoScalePolicyOptionalArgs = []string{
 }
 var PolicyKeyRequiredArgs = []string{}
 var PolicyKeyOptionalArgs = []string{
-	"developer",
+	"organization",
 	"name",
 }
 var PolicyKeyAliasArgs = []string{
-	"developer=policykey.developer",
+	"organization=policykey.organization",
 	"name=policykey.name",
 }
 var PolicyKeyComments = map[string]string{
-	"developer": "Name of the Developer that this policy belongs to",
-	"name":      "Policy name",
+	"organization": "Name of the organization for the cluster that this policy will apply to",
+	"name":         "Policy name",
 }
 var PolicyKeySpecialArgs = map[string]string{}
 var AutoScalePolicyRequiredArgs = []string{
-	"developer",
+	"cluster-org",
 	"name",
 }
 var AutoScalePolicyOptionalArgs = []string{
@@ -129,7 +138,8 @@ var AutoScalePolicyOptionalArgs = []string{
 	"triggertimesec",
 }
 var AutoScalePolicyAliasArgs = []string{
-	"developer=autoscalepolicy.key.developer",
+	"fields=autoscalepolicy.fields",
+	"cluster-org=autoscalepolicy.key.organization",
 	"name=autoscalepolicy.key.name",
 	"minnodes=autoscalepolicy.minnodes",
 	"maxnodes=autoscalepolicy.maxnodes",
@@ -138,7 +148,8 @@ var AutoScalePolicyAliasArgs = []string{
 	"triggertimesec=autoscalepolicy.triggertimesec",
 }
 var AutoScalePolicyComments = map[string]string{
-	"developer":          "Name of the Developer that this policy belongs to",
+	"fields":             "Fields are used for the Update API to specify which fields to apply",
+	"cluster-org":        "Name of the organization for the cluster that this policy will apply to",
 	"name":               "Policy name",
 	"minnodes":           "Minimum number of cluster nodes",
 	"maxnodes":           "Maximum number of cluster nodes",
@@ -146,4 +157,6 @@ var AutoScalePolicyComments = map[string]string{
 	"scaledowncputhresh": "Scale down cpu threshold (percentage 1 to 100)",
 	"triggertimesec":     "Trigger time defines how long trigger threshold must be satified in seconds before acting upon it.",
 }
-var AutoScalePolicySpecialArgs = map[string]string{}
+var AutoScalePolicySpecialArgs = map[string]string{
+	"autoscalepolicy.fields": "StringArray",
+}

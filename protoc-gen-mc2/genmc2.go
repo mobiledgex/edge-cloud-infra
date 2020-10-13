@@ -136,17 +136,17 @@ func (g *GenMC2) Generate(file *generator.FileDescriptor) {
 	if !g.support.GenFile(*file.FileDescriptorProto.Name) {
 		return
 	}
-	if !genFile(file) {
-		return
-	}
-
-	g.P(gensupport.AutoGenComment)
 	g.genapi = g.hasParam("genapi")
 	g.gentest = g.hasParam("gentest")
 	g.gentestutil = g.hasParam("gentestutil")
 	g.genclient = g.hasParam("genclient")
 	g.genctl = g.hasParam("genctl")
 	g.gencliwrapper = g.hasParam("gencliwrapper")
+	if !g.genFile(file) {
+		return
+	}
+
+	g.P(gensupport.AutoGenComment)
 
 	for _, service := range file.FileDescriptorProto.Service {
 		g.generateService(service)
@@ -184,13 +184,19 @@ func (g *GenMC2) Generate(file *generator.FileDescriptor) {
 	}
 }
 
-func genFile(file *generator.FileDescriptor) bool {
+func (g *GenMC2) genFile(file *generator.FileDescriptor) bool {
 	if len(file.FileDescriptorProto.Service) != 0 {
 		for _, service := range file.FileDescriptorProto.Service {
 			if len(service.Method) == 0 {
 				continue
 			}
 			for _, method := range service.Method {
+				if gensupport.ClientStreaming(method) {
+					continue
+				}
+				if g.gentestutil {
+					return true
+				}
 				if GetMc2Api(method) != "" {
 					return true
 				}
@@ -222,24 +228,13 @@ func (g *GenMC2) generatePosts() {
 
 				// 6 means service
 				// 2 means method in a service
-				summary := g.support.GetComments(file, fmt.Sprintf("6,%d,2,%d", serviceIndex, methodIndex))
+				summary := g.support.GetComments(file.GetName(), fmt.Sprintf("6,%d,2,%d", serviceIndex, methodIndex))
 				summary = strings.TrimSpace(strings.Map(gensupport.RemoveNewLines, summary))
 				g.genSwaggerSpec(method, summary)
 
 				g.P("group.Match([]string{method}, \"/ctrl/", method.Name,
 					"\", ", method.Name, ")")
-				if gensupport.ServerStreaming(method) && !streamRouteAdded {
-					api := GetMc2Api(method)
-					if api == "" {
-						return
-					}
-					apiVals := strings.Split(api, ",")
-					if len(apiVals) != 3 {
-						g.Fail("invalid mc2_api string, expected ResourceType,Action,OrgNameField")
-					}
-					if apiVals[1] == "ActionView" && strings.HasPrefix(*method.Name, "Show") {
-						continue
-					}
+				if GetMc2StreamerCache(method) && !streamRouteAdded {
 					streamRouteAdded = true
 					in := gensupport.GetDesc(g.Generator, method.GetInputType())
 					streamName := "Stream" + *in.DescriptorProto.Name
@@ -253,6 +248,24 @@ func (g *GenMC2) generatePosts() {
 	g.P()
 }
 
+func (g *GenMC2) getFields(names, nums []string, desc *generator.Descriptor) []string {
+	allStr := []string{}
+	message := desc.DescriptorProto
+	for ii, field := range message.Field {
+		if ii == 0 && *field.Name == "fields" {
+			continue
+		}
+		name := generator.CamelCase(*field.Name)
+		num := fmt.Sprintf("%d", *field.Number)
+		allStr = append(allStr, fmt.Sprintf("%s: %s", strings.Join(append(names, name), ""), strings.Join(append(nums, num), ".")))
+		if *field.Type == descriptor.FieldDescriptorProto_TYPE_MESSAGE {
+			subDesc := gensupport.GetDesc(g.Generator, field.GetTypeName())
+			allStr = append(allStr, g.getFields(append(names, name), append(nums, num), subDesc)...)
+		}
+	}
+	return allStr
+}
+
 func (g *GenMC2) genSwaggerSpec(method *descriptor.MethodDescriptorProto, summary string) {
 	in := gensupport.GetDesc(g.Generator, method.GetInputType())
 	inname := *in.DescriptorProto.Name
@@ -263,6 +276,15 @@ func (g *GenMC2) genSwaggerSpec(method *descriptor.MethodDescriptorProto, summar
 		g.P("// ", strings.Join(out[1:len(out)], "."))
 	} else {
 		g.P("// ", out[0], ".")
+	}
+	if strings.HasPrefix(*method.Name, "Update") {
+		allStr := g.getFields([]string{}, []string{}, in)
+		g.P("// The following values should be added to `", inname, ".fields` field array to specify which fields will be updated.")
+		g.P("// ```")
+		for _, field := range allStr {
+			g.P("// ", field)
+		}
+		g.P("// ```")
 	}
 	g.P("// Security:")
 	g.P("//   Bearer:")
@@ -289,7 +311,7 @@ func (g *GenMC2) generateMethod(service string, method *descriptor.MethodDescrip
 	}
 	apiVals := strings.Split(api, ",")
 	if len(apiVals) != 3 {
-		g.Fail("invalid mc2_api string, expected ResourceType,Action,OrgNameField")
+		g.Fail(*method.Name, "invalid mc2_api string, expected ResourceType,Action,OrgNameField")
 	}
 	in := gensupport.GetDesc(g.Generator, method.GetInputType())
 	out := gensupport.GetDesc(g.Generator, method.GetOutputType())
@@ -312,6 +334,12 @@ func (g *GenMC2) generateMethod(service string, method *descriptor.MethodDescrip
 		StreamOutIncremental: gensupport.GetStreamOutIncremental(method),
 		CustomAuthz:          GetMc2CustomAuthz(method),
 		HasMethodArgs:        gensupport.HasMethodArgs(method),
+		GenStream:            GetMc2StreamerCache(method) && !found,
+		StreamerCache:        GetMc2StreamerCache(method),
+		NotifyRoot:           GetMc2ApiNotifyroot(method),
+	}
+	if gensupport.GetMessageKey(in.DescriptorProto) != nil || gensupport.GetObjAndKey(in.DescriptorProto) {
+		args.HasKey = true
 	}
 	if apiVals[2] == "" {
 		args.Org = `""`
@@ -322,15 +350,12 @@ func (g *GenMC2) generateMethod(service string, method *descriptor.MethodDescrip
 		args.SkipEnforce = true
 		args.OrgValid = false
 	}
-	if args.Action == "ActionView" && strings.HasPrefix(args.MethodName, "Show") {
+	if args.Action == "ActionView" && gensupport.IsShow(method) {
 		args.Show = true
 	}
 	if !args.Outstream {
 		args.ReturnErrArg = "nil, "
 		args.Show = false
-	}
-	if args.Outstream && !args.Show && !found {
-		args.GenStream = true
 	}
 	if !args.Show {
 		args.TargetCloudlet = GetMc2TargetCloudlet(in.DescriptorProto)
@@ -338,6 +363,23 @@ func (g *GenMC2) generateMethod(service string, method *descriptor.MethodDescrip
 			args.TargetCloudletParam = ", targetCloudlet *edgeproto.CloudletKey"
 			args.TargetCloudletArg = ", targetCloudlet"
 		}
+	}
+	authops := []string{}
+	requiresOrg := GetMc2ApiRequiresOrg(method)
+	if requiresOrg != "" && requiresOrg != "none" {
+		authops = append(authops, "withRequiresOrg(obj."+requiresOrg+")")
+	}
+	usesOrg := GetUsesOrg(in.DescriptorProto)
+	if usesOrg != "" && usesOrg != "none" && !args.CustomAuthz {
+		prefix := gensupport.GetCamelCasePrefix(*method.Name)
+		if prefix == "Create" {
+			if requiresOrg == "" {
+				g.Fail("method", *method.Name, "input", inname, "has uses_org and is a create operation, so method must have mc2_api_requires_org specified")
+			}
+		}
+	}
+	if len(authops) > 0 {
+		args.AuthOps = ", " + strings.Join(authops, ", ")
 	}
 	var tmpl *template.Template
 	if g.genapi {
@@ -374,13 +416,10 @@ func (g *GenMC2) generateMethod(service string, method *descriptor.MethodDescrip
 		g.importEcho = true
 		g.importContext = true
 		g.importOrmapi = true
-		if args.OrgValid {
-			g.importLog = true
-		}
+		g.importLog = true
 		if args.Outstream {
 			g.importIO = true
 		} else {
-			g.importHttp = true
 			g.importGrpcStatus = true
 		}
 	}
@@ -418,6 +457,10 @@ type tmplArgs struct {
 	TargetCloudletParam  string
 	TargetCloudletArg    string
 	HasMethodArgs        bool
+	StreamerCache        bool
+	NotifyRoot           bool
+	AuthOps              string
+	HasKey               bool
 }
 
 var tmplApi = `
@@ -445,7 +488,9 @@ var tmpl = `
 var stream{{.InName}} = &StreamObj{}
 
 func Stream{{.InName}}(c echo.Context) error {
+{{- if .OrgValid}}
 	ctx := GetContext(c)
+{{- end}}
 	rc := &RegionContext{}
 	claims, err := getClaims(c)
 	if err != nil {
@@ -459,8 +504,12 @@ func Stream{{.InName}}(c echo.Context) error {
 		return err
 	}
 	rc.region = in.Region
-{{- if .OrgValid}}
 	span := log.SpanFromContext(ctx)
+	span.SetTag("region", in.Region)
+{{- if .HasKey}}
+	log.SetTags(span, in.{{.InName}}.GetKey().GetTags())
+{{- end}}
+{{- if .OrgValid}}
 	span.SetTag("org", in.{{.InName}}.{{.OrgField}})
 {{- end}}
 
@@ -515,27 +564,31 @@ func {{.MethodName}}(c echo.Context) error {
 	defer CloseConn(c)
 {{- else}}
 	if err := c.Bind(&in); err != nil {
-		return c.JSON(http.StatusBadRequest, Msg("Invalid POST data"))
+		return bindErr(c, err)
 	}
 {{- end}}
 	rc.region = in.Region
-{{- if .OrgValid}}
 	span := log.SpanFromContext(ctx)
+	span.SetTag("region", in.Region)
+{{- if .HasKey}}
+	log.SetTags(span, in.{{.InName}}.GetKey().GetTags())
+{{- end}}
+{{- if .OrgValid}}
 	span.SetTag("org", in.{{.InName}}.{{.OrgField}})
 {{- end}}
 {{- if .Outstream}}
-{{- if and (not .Show) .Outstream}}
+{{- if .StreamerCache}}
 
 	streamer := NewStreamer()
 	defer streamer.Stop()
 {{- end}}
 
-{{- if and (not .Show) .Outstream}}
+{{- if .StreamerCache}}
 	streamAdded := false
 {{- end}}
 
 	err = {{.MethodName}}Stream(ctx, rc, &in.{{.InName}}, func(res *edgeproto.{{.OutName}}) {
-{{- if and (not .Show) .Outstream}}
+{{- if .StreamerCache}}
 		if !streamAdded{
 			stream{{.InName}}.Add(in.{{.InName}}.Key, streamer)
 			streamAdded = true
@@ -543,18 +596,18 @@ func {{.MethodName}}(c echo.Context) error {
 {{- end}}
 		payload := ormapi.StreamPayload{}
 		payload.Data = res
-{{- if and (not .Show) .Outstream}}
+{{- if .StreamerCache}}
 		streamer.Publish(res.Message)
 {{- end}}
 		WriteStream(c, &payload)
 	})
 	if err != nil {
-{{- if and (not .Show) .Outstream}}
+{{- if .StreamerCache}}
 		streamer.Publish(err)
 {{- end}}
 		WriteError(c, err)
 	}
-{{- if and (not .Show) .Outstream}}
+{{- if .StreamerCache}}
 	if streamAdded {
 		stream{{.InName}}.Remove(in.{{.InName}}.Key, streamer)
 	}
@@ -583,6 +636,10 @@ func {{.MethodName}}Stream(ctx context.Context, rc *RegionContext, obj *edgeprot
 {{- else}}
 func {{.MethodName}}Obj(ctx context.Context, rc *RegionContext, obj *edgeproto.{{.InName}}) (*edgeproto.{{.OutName}}, error) {
 {{- end}}
+{{- if (not .Show)}}
+	{{- /* don't set tags for show because create/etc may call shows, which end up adding unnecessary blank tags */}}
+	log.SetContextTags(ctx, edgeproto.GetTags(obj))
+{{- end}}
 {{- if (not .SkipEnforce)}}
 {{- if and .Show .CustomAuthz}}
 	var authz {{.MethodName}}Authz
@@ -597,10 +654,10 @@ func {{.MethodName}}Obj(ctx context.Context, rc *RegionContext, obj *edgeproto.{
 		}
 	}
 {{- else if and .Show (not .CustomAuthz)}}
-	var authz *ShowAuthz
+	var authz *AuthzShow
 	var err error
 	if !rc.skipAuthz {
-		authz, err = NewShowAuthz(ctx, rc.region, rc.username, {{.Resource}}, {{.Action}})
+		authz, err = newShowAuthz(ctx, rc.region, rc.username, {{.Resource}}, {{.Action}})
 		if err == echo.ErrForbidden {
 			return {{.ReturnErrArg}}nil
 		}
@@ -616,14 +673,20 @@ func {{.MethodName}}Obj(ctx context.Context, rc *RegionContext, obj *edgeproto.{
 		}
 	}
 {{- else}}
-	if !rc.skipAuthz && !authorized(ctx, rc.username, {{.Org}},
-		{{.Resource}}, {{.Action}}) {
-		return {{.ReturnErrArg}}echo.ErrForbidden
+	if !rc.skipAuthz {
+		if err := authorized(ctx, rc.username, {{.Org}},
+			{{.Resource}}, {{.Action}}{{.AuthOps}}); err != nil {
+			return {{.ReturnErrArg}}err
+		}
 	}
 {{- end}}
 {{- end}}
 	if rc.conn == nil {
+{{- if .NotifyRoot}}
+		conn, err := connectNotifyRoot(ctx)
+{{- else}}
 		conn, err := connectController(ctx, rc.region)
+{{- end}}
 		if err != nil {
 			return {{.ReturnErrArg}}err
 		}
@@ -683,20 +746,23 @@ func {{.MethodName}}Obj(ctx context.Context, rc *RegionContext, obj *edgeproto.{
 
 var tmplMethodTestutil = `
 {{- if .Outstream}}
-func Test{{.MethodName}}(mcClient *ormclient.Client, uri, token, region string, in *edgeproto.{{.InName}}) ([]edgeproto.{{.OutName}}, int, error) {
+func Test{{.MethodName}}(mcClient *ormclient.Client, uri, token, region string, in *edgeproto.{{.InName}}, modFuncs ...func(*edgeproto.{{.InName}})) ([]edgeproto.{{.OutName}}, int, error) {
 {{- else}}
-func Test{{.MethodName}}(mcClient *ormclient.Client, uri, token, region string, in *edgeproto.{{.InName}}) (*edgeproto.{{.OutName}}, int, error) {
+func Test{{.MethodName}}(mcClient *ormclient.Client, uri, token, region string, in *edgeproto.{{.InName}}, modFuncs ...func(*edgeproto.{{.InName}})) (*edgeproto.{{.OutName}}, int, error) {
 {{- end}}
 	dat := &ormapi.Region{{.InName}}{}
 	dat.Region = region
 	dat.{{.InName}} = *in
+	for _, fn := range modFuncs {
+		fn(&dat.{{.InName}})
+	}
 	return mcClient.{{.MethodName}}(uri, token, dat)
 }
 
 {{- if .Outstream}}
-func TestPerm{{.MethodName}}(mcClient *ormclient.Client, uri, token, region, org string{{.TargetCloudletParam}}) ([]edgeproto.{{.OutName}}, int, error) {
+func TestPerm{{.MethodName}}(mcClient *ormclient.Client, uri, token, region, org string{{.TargetCloudletParam}}, modFuncs ...func(*edgeproto.{{.InName}})) ([]edgeproto.{{.OutName}}, int, error) {
 {{- else}}
-func TestPerm{{.MethodName}}(mcClient *ormclient.Client, uri, token, region, org string{{.TargetCloudletParam}}) (*edgeproto.{{.OutName}}, int, error) {
+func TestPerm{{.MethodName}}(mcClient *ormclient.Client, uri, token, region, org string{{.TargetCloudletParam}}, modFuncs ...func(*edgeproto.{{.InName}})) (*edgeproto.{{.OutName}}, int, error) {
 {{- end}}
 	in := &edgeproto.{{.InName}}{}
 {{- if .TargetCloudlet}}
@@ -707,7 +773,7 @@ func TestPerm{{.MethodName}}(mcClient *ormclient.Client, uri, token, region, org
 {{- if and (ne .OrgField "") (not .SkipEnforce)}}
 	in.{{.OrgField}} = org
 {{- end}}
-	return Test{{.MethodName}}(mcClient, uri, token, region, in)
+	return Test{{.MethodName}}(mcClient, uri, token, region, in, modFuncs...)
 }
 `
 
@@ -715,14 +781,14 @@ var tmplMethodTest = `
 
 var _ = edgeproto.GetFields
 
-func badPerm{{.MethodName}}(t *testing.T, mcClient *ormclient.Client, uri, token, region, org string{{.TargetCloudletParam}}) {
-	_, status, err := testutil.TestPerm{{.MethodName}}(mcClient, uri, token, region, org{{.TargetCloudletArg}})
+func badPerm{{.MethodName}}(t *testing.T, mcClient *ormclient.Client, uri, token, region, org string{{.TargetCloudletParam}}, modFuncs ...func(*edgeproto.{{.InName}})) {
+	_, status, err := testutil.TestPerm{{.MethodName}}(mcClient, uri, token, region, org{{.TargetCloudletArg}}, modFuncs...)
 	require.NotNil(t, err)
 	require.Equal(t, http.StatusForbidden, status)
 }
 
-func goodPerm{{.MethodName}}(t *testing.T, mcClient *ormclient.Client, uri, token, region, org string{{.TargetCloudletParam}}) {
-	_, status, err := testutil.TestPerm{{.MethodName}}(mcClient, uri, token, region, org{{.TargetCloudletArg}})
+func goodPerm{{.MethodName}}(t *testing.T, mcClient *ormclient.Client, uri, token, region, org string{{.TargetCloudletParam}}, modFuncs ...func(*edgeproto.{{.InName}})) {
+	_, status, err := testutil.TestPerm{{.MethodName}}(mcClient, uri, token, region, org{{.TargetCloudletArg}}, modFuncs...)
 	require.Nil(t, err)
 	require.Equal(t, http.StatusOK, status)
 }
@@ -754,13 +820,15 @@ var tmplMethodCtl = `
 var {{.MethodName}}Cmd = &cli.Command{
 	Use: "{{.MethodName}}",
 {{- if .Show}}
+{{- if not .NotifyRoot}}
 	RequiredArgs: "region",
+{{- end}}
 	OptionalArgs: strings.Join(append({{.InName}}RequiredArgs, {{.InName}}OptionalArgs...), " "),
 {{- else if .HasMethodArgs}}
-	RequiredArgs: strings.Join(append([]string{"region"}, {{.MethodName}}RequiredArgs...), " "),
+	RequiredArgs: {{if not .NotifyRoot}}"region " + {{end}}strings.Join({{.MethodName}}RequiredArgs, " "),
 	OptionalArgs: strings.Join({{.MethodName}}OptionalArgs, " "),
 {{- else}}
-	RequiredArgs: strings.Join(append([]string{"region"}, {{.InName}}RequiredArgs...), " "),
+	RequiredArgs: {{if not .NotifyRoot}}"region " + {{end}}strings.Join({{.InName}}RequiredArgs, " "),
 	OptionalArgs: strings.Join({{.InName}}OptionalArgs, " "),
 {{- end}}
 	AliasArgs: strings.Join({{.InName}}AliasArgs, " "),
@@ -792,7 +860,14 @@ func set{{.MethodName}}Fields(in map[string]interface{}) {
 	if !ok {
 		return
 	}
-	objmap["fields"] = cli.GetSpecifiedFields(objmap, &edgeproto.{{.InName}}{}, cli.JsonNamespace)
+	fields := cli.GetSpecifiedFields(objmap, &edgeproto.{{.InName}}{}, cli.JsonNamespace)
+	// include fields already specified
+	if inFields, found := objmap["fields"]; found {
+		if fieldsArr, ok := inFields.([]string); ok {
+			fields = append(fields, fieldsArr...)
+		}
+	}
+	objmap["fields"] = fields
 }
 {{- end}}
 
@@ -830,7 +905,7 @@ func (s *Client) {{.MethodName}}(uri, token string, in *ormapi.Region{{.InName}}
 
 func (g *GenMC2) generateTestApi(service *descriptor.ServiceDescriptorProto) {
 	// group methods by input type
-	groups := gensupport.GetMethodGroups(g.Generator, service, nil)
+	groups := gensupport.GetMethodGroups(g.Generator, service)
 	for _, group := range groups {
 		g.generateTestGroupApi(service, group)
 	}
@@ -846,8 +921,7 @@ func (g *GenMC2) generateTestGroupApi(service *descriptor.ServiceDescriptorProto
 	}
 
 	args := msgArgs{
-		Message: group.InType,
-		//Message:        *message.Name,
+		Message:        group.InType,
 		HasUpdate:      GetGenerateCudTestUpdate(message),
 		TargetCloudlet: GetMc2TargetCloudlet(message),
 	}
@@ -873,75 +947,51 @@ func (g *GenMC2) generateTestGroupApi(service *descriptor.ServiceDescriptorProto
 
 func (g *GenMC2) generateRunApi(file *descriptor.FileDescriptorProto, service *descriptor.ServiceDescriptorProto) {
 	// group methods by input type
-	groups := gensupport.GetMethodGroups(g.Generator, service, nil)
+	groups := gensupport.GetMethodGroups(g.Generator, service)
 	for _, group := range groups {
 		g.generateRunGroupApi(file, service, group)
 	}
 }
 
 func (g *GenMC2) generateRunGroupApi(file *descriptor.FileDescriptorProto, service *descriptor.ServiceDescriptorProto, group *gensupport.MethodGroup) {
-	if !group.HasMc2Api {
-		return
-	}
-	apiName := *service.Name + group.Suffix
-	inType := group.InType
-	dataIn := "data *[]edgeproto." + inType
-	if group.SingularData {
-		dataIn = "obj *edgeproto." + inType
-	}
-
-	objStr := strings.ToLower(string(inType[0])) + string(inType[1:len(inType)])
-	g.P()
-	g.P("func RunMc", apiName, "(mcClient ormclient.Api, uri, token, region string, ", dataIn, ", dataMap interface{}, rc *bool, mode string) {")
-	if group.SingularData {
-		g.P("if obj == nil { return }")
-	} else {
-		if group.HasUpdate {
-			g.P("for ii, ", objStr, " := range *data {")
-		} else {
-			g.P("for _, ", objStr, " := range *data {")
-		}
-	}
-	g.P("in := &ormapi.Region", inType, "{")
-	g.P("Region: region,")
-	if group.SingularData {
-		g.P(inType, ": *obj,")
-	} else {
-		g.P(inType, ": ", objStr, ",")
-	}
-	g.P("}")
-
-	g.P("switch mode {")
 	for _, info := range group.MethodInfos {
+		inType := group.InType
+		pkg := g.support.GetPackage(group.In)
+		outPkg := g.support.GetPackage(info.Out)
+		outType := outPkg + info.OutType
+		if info.Stream {
+			outType = "[]" + outType
+		} else {
+			outType = "*" + outType
+		}
+		g.importContext = true
+		g.P()
+		g.P("func (s *TestClient) ", info.Name, "(ctx context.Context, in *", pkg, inType, ") (", outType, ", error) {")
 		if !info.Mc2Api {
+			g.P("return nil, nil")
+			g.P("}")
+			g.P()
 			continue
 		}
-		g.P("case \"", info.Action, "\":")
-		if info.Action == "update" {
-			g.importCli = true
-			g.importOS = true
-			if group.SingularData {
-				g.P("objMap, err := cli.GetGenericObj(dataMap)")
-			} else {
-				g.P("objMap, err := cli.GetGenericObjFromList(dataMap, ii)")
-			}
-			g.P("if err != nil {")
-			g.P("fmt.Fprintf(os.Stderr, \"bad dataMap for ", inType, ": %v\", err)")
-			g.P("os.Exit(1)")
+		g.P("inR := &ormapi.Region", inType, "{")
+		g.P("Region: s.Region,")
+		g.P(inType, ": *in,")
+		g.P("}")
+		g.P("out, status, err := s.McClient.", info.Name, "(s.Uri, s.Token, inR)")
+		g.P("if err == nil && status != 200 {")
+		g.P("err = fmt.Errorf(\"status: %d\\n\", status)")
+		g.P("}")
+		if group.SingularData && info.IsShow {
+			// Singular data show will return forbidden
+			// if no permissions, instead of just an empty list.
+			// For testing, ignore this error.
+			g.P("if status == 403 {")
+			g.P("err = nil")
 			g.P("}")
-
-			g.P("in.", inType, ".Fields = cli.GetSpecifiedFields(objMap, &in.", inType, ", cli.YamlNamespace)")
 		}
-		g.P("_, st, err := mcClient.", info.Name, "(uri, token, in)")
-		g.P("checkMcErr(\"", info.Name, "\", st, err, rc)")
-	}
-	g.P("default:")
-	g.P("return")
-	g.P("}")
-	if !group.SingularData {
+		g.P("return out, err")
 		g.P("}")
 	}
-	g.P("}")
 }
 
 type msgArgs struct {
@@ -957,12 +1007,12 @@ type msgArgs struct {
 var tmplMessageTest = `
 // This tests the user cannot modify the object because the obj belongs to
 // an organization that the user does not have permissions for.
-func badPermTest{{.Message}}(t *testing.T, mcClient *ormclient.Client, uri, token, region, org string{{.TargetCloudletParam}}) {
-	badPerm{{.Create}}{{.Message}}(t, mcClient, uri, token, region, org{{.TargetCloudletArg}})
+func badPermTest{{.Message}}(t *testing.T, mcClient *ormclient.Client, uri, token, region, org string{{.TargetCloudletParam}}, modFuncs ...func(*edgeproto.{{.Message}})) {
+	badPerm{{.Create}}{{.Message}}(t, mcClient, uri, token, region, org{{.TargetCloudletArg}}, modFuncs...)
 {{- if .HasUpdate}}
-	badPermUpdate{{.Message}}(t, mcClient, uri, token, region, org{{.TargetCloudletArg}})
+	badPermUpdate{{.Message}}(t, mcClient, uri, token, region, org{{.TargetCloudletArg}}, modFuncs...)
 {{- end}}
-	badPerm{{.Delete}}{{.Message}}(t, mcClient, uri, token, region, org{{.TargetCloudletArg}})
+	badPerm{{.Delete}}{{.Message}}(t, mcClient, uri, token, region, org{{.TargetCloudletArg}}, modFuncs...)
 }
 
 func badPermTestShow{{.Message}}(t *testing.T, mcClient *ormclient.Client, uri, token, region, org string) {
@@ -975,7 +1025,7 @@ func badPermTestShow{{.Message}}(t *testing.T, mcClient *ormclient.Client, uri, 
 
 // This tests the user can modify the object because the obj belongs to
 // an organization that the user has permissions for.
-func goodPermTest{{.Message}}(t *testing.T, mcClient *ormclient.Client, uri, token, region, org string{{.TargetCloudletParam}}, showcount int) {
+func goodPermTest{{.Message}}(t *testing.T, mcClient *ormclient.Client, uri, token, region, org string{{.TargetCloudletParam}}, showcount int, modFuncs ...func(*edgeproto.{{.Message}})) {
 	goodPerm{{.Create}}{{.Message}}(t, mcClient, uri, token, region, org{{.TargetCloudletArg}})
 {{- if .HasUpdate}}
 	goodPermUpdate{{.Message}}(t, mcClient, uri, token, region, org{{.TargetCloudletArg}})
@@ -983,17 +1033,17 @@ func goodPermTest{{.Message}}(t *testing.T, mcClient *ormclient.Client, uri, tok
 	goodPerm{{.Delete}}{{.Message}}(t, mcClient, uri, token, region, org{{.TargetCloudletArg}})
 
 	// make sure region check works
-	_, status, err := testutil.TestPerm{{.Create}}{{.Message}}(mcClient, uri, token, "bad region", org{{.TargetCloudletArg}})
+	_, status, err := testutil.TestPerm{{.Create}}{{.Message}}(mcClient, uri, token, "bad region", org{{.TargetCloudletArg}}, modFuncs...)
 	require.NotNil(t, err)
 	require.Contains(t, err.Error(), "\"bad region\" not found")
 	require.Equal(t, http.StatusBadRequest, status)
 {{- if .HasUpdate}}
-	_, status, err = testutil.TestPermUpdate{{.Message}}(mcClient, uri, token, "bad region", org{{.TargetCloudletArg}})
+	_, status, err = testutil.TestPermUpdate{{.Message}}(mcClient, uri, token, "bad region", org{{.TargetCloudletArg}}, modFuncs...)
 	require.NotNil(t, err)
 	require.Contains(t, err.Error(), "\"bad region\" not found")
 	require.Equal(t, http.StatusBadRequest, status)
 {{- end}}
-	_, status, err = testutil.TestPerm{{.Delete}}{{.Message}}(mcClient, uri, token, "bad region", org{{.TargetCloudletArg}})
+	_, status, err = testutil.TestPerm{{.Delete}}{{.Message}}(mcClient, uri, token, "bad region", org{{.TargetCloudletArg}}, modFuncs...)
 	require.NotNil(t, err)
 	require.Contains(t, err.Error(), "\"bad region\" not found")
 	require.Equal(t, http.StatusBadRequest, status)
@@ -1018,14 +1068,14 @@ func goodPermTestShow{{.Message}}(t *testing.T, mcClient *ormclient.Client, uri,
 // Test permissions for user with token1 who should have permissions for
 // modifying obj1, and user with token2 who should have permissions for obj2.
 // They should not have permissions to modify each other's objects.
-func permTest{{.Message}}(t *testing.T, mcClient *ormclient.Client, uri, token1, token2, region, org1, org2 string{{.TargetCloudletParam}}, showcount int) {
-	badPermTest{{.Message}}(t, mcClient, uri, token1, region, org2{{.TargetCloudletArg}})
+func permTest{{.Message}}(t *testing.T, mcClient *ormclient.Client, uri, token1, token2, region, org1, org2 string{{.TargetCloudletParam}}, showcount int, modFuncs ...func(*edgeproto.{{.Message}})) {
+	badPermTest{{.Message}}(t, mcClient, uri, token1, region, org2{{.TargetCloudletArg}}, modFuncs...)
 	badPermTestShow{{.Message}}(t, mcClient, uri, token1, region, org2)
-	badPermTest{{.Message}}(t, mcClient, uri, token2, region, org1{{.TargetCloudletArg}})
+	badPermTest{{.Message}}(t, mcClient, uri, token2, region, org1{{.TargetCloudletArg}}, modFuncs...)
 	badPermTestShow{{.Message}}(t, mcClient, uri, token2, region, org1)
 
-	goodPermTest{{.Message}}(t, mcClient, uri, token1, region, org1{{.TargetCloudletArg}}, showcount)
-	goodPermTest{{.Message}}(t, mcClient, uri, token2, region, org2{{.TargetCloudletArg}}, showcount)
+	goodPermTest{{.Message}}(t, mcClient, uri, token1, region, org1{{.TargetCloudletArg}}, showcount, modFuncs...)
+	goodPermTest{{.Message}}(t, mcClient, uri, token2, region, org2{{.TargetCloudletArg}}, showcount, modFuncs...)
 }
 `
 
@@ -1093,8 +1143,20 @@ func GetMc2Api(method *descriptor.MethodDescriptorProto) string {
 	return gensupport.GetStringExtension(method.Options, protogen.E_Mc2Api, "")
 }
 
+func GetMc2ApiRequiresOrg(method *descriptor.MethodDescriptorProto) string {
+	return gensupport.GetStringExtension(method.Options, protogen.E_Mc2ApiRequiresOrg, "")
+}
+
 func GetMc2CustomAuthz(method *descriptor.MethodDescriptorProto) bool {
 	return proto.GetBoolExtension(method.Options, protogen.E_Mc2CustomAuthz, false)
+}
+
+func GetMc2StreamerCache(method *descriptor.MethodDescriptorProto) bool {
+	return proto.GetBoolExtension(method.Options, protogen.E_Mc2StreamerCache, false)
+}
+
+func GetMc2ApiNotifyroot(method *descriptor.MethodDescriptorProto) bool {
+	return proto.GetBoolExtension(method.Options, protogen.E_Mc2ApiNotifyroot, false)
 }
 
 func GetMc2TargetCloudlet(message *descriptor.DescriptorProto) string {
@@ -1115,4 +1177,8 @@ func GetGenerateCudTestUpdate(message *descriptor.DescriptorProto) bool {
 
 func GetGenerateAddrmTest(message *descriptor.DescriptorProto) bool {
 	return proto.GetBoolExtension(message.Options, protogen.E_GenerateAddrmTest, false)
+}
+
+func GetUsesOrg(message *descriptor.DescriptorProto) string {
+	return gensupport.GetStringExtension(message.Options, protogen.E_UsesOrg, "")
 }

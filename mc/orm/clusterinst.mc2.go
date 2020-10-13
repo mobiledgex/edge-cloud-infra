@@ -3,18 +3,20 @@
 
 package orm
 
-import edgeproto "github.com/mobiledgex/edge-cloud/edgeproto"
-import "github.com/labstack/echo"
-import "context"
-import "io"
-import "github.com/mobiledgex/edge-cloud/log"
-import "github.com/mobiledgex/edge-cloud-infra/mc/ormapi"
-import proto "github.com/gogo/protobuf/proto"
-import fmt "fmt"
-import math "math"
-import _ "github.com/gogo/googleapis/google/api"
-import _ "github.com/mobiledgex/edge-cloud/protogen"
-import _ "github.com/gogo/protobuf/gogoproto"
+import (
+	"context"
+	fmt "fmt"
+	_ "github.com/gogo/googleapis/google/api"
+	_ "github.com/gogo/protobuf/gogoproto"
+	proto "github.com/gogo/protobuf/proto"
+	"github.com/labstack/echo"
+	"github.com/mobiledgex/edge-cloud-infra/mc/ormapi"
+	edgeproto "github.com/mobiledgex/edge-cloud/edgeproto"
+	"github.com/mobiledgex/edge-cloud/log"
+	_ "github.com/mobiledgex/edge-cloud/protogen"
+	"io"
+	math "math"
+)
 
 // Reference imports to suppress errors if they are not otherwise used.
 var _ = proto.Marshal
@@ -41,7 +43,9 @@ func StreamClusterInst(c echo.Context) error {
 	}
 	rc.region = in.Region
 	span := log.SpanFromContext(ctx)
-	span.SetTag("org", in.ClusterInst.Key.Developer)
+	span.SetTag("region", in.Region)
+	log.SetTags(span, in.ClusterInst.GetKey().GetTags())
+	span.SetTag("org", in.ClusterInst.Key.Organization)
 
 	streamer := streamClusterInst.Get(in.ClusterInst.Key)
 	if streamer != nil {
@@ -92,7 +96,9 @@ func CreateClusterInst(c echo.Context) error {
 	defer CloseConn(c)
 	rc.region = in.Region
 	span := log.SpanFromContext(ctx)
-	span.SetTag("org", in.ClusterInst.Key.Developer)
+	span.SetTag("region", in.Region)
+	log.SetTags(span, in.ClusterInst.GetKey().GetTags())
+	span.SetTag("org", in.ClusterInst.Key.Organization)
 
 	streamer := NewStreamer()
 	defer streamer.Stop()
@@ -119,6 +125,7 @@ func CreateClusterInst(c echo.Context) error {
 }
 
 func CreateClusterInstStream(ctx context.Context, rc *RegionContext, obj *edgeproto.ClusterInst, cb func(res *edgeproto.Result)) error {
+	log.SetContextTags(ctx, edgeproto.GetTags(obj))
 	if !rc.skipAuthz {
 		if err := authzCreateClusterInst(ctx, rc.region, rc.username, obj,
 			ResourceClusterInsts, ActionManage); err != nil {
@@ -180,7 +187,9 @@ func DeleteClusterInst(c echo.Context) error {
 	defer CloseConn(c)
 	rc.region = in.Region
 	span := log.SpanFromContext(ctx)
-	span.SetTag("org", in.ClusterInst.Key.Developer)
+	span.SetTag("region", in.Region)
+	log.SetTags(span, in.ClusterInst.GetKey().GetTags())
+	span.SetTag("org", in.ClusterInst.Key.Organization)
 
 	streamer := NewStreamer()
 	defer streamer.Stop()
@@ -207,9 +216,12 @@ func DeleteClusterInst(c echo.Context) error {
 }
 
 func DeleteClusterInstStream(ctx context.Context, rc *RegionContext, obj *edgeproto.ClusterInst, cb func(res *edgeproto.Result)) error {
-	if !rc.skipAuthz && !authorized(ctx, rc.username, obj.Key.Developer,
-		ResourceClusterInsts, ActionManage) {
-		return echo.ErrForbidden
+	log.SetContextTags(ctx, edgeproto.GetTags(obj))
+	if !rc.skipAuthz {
+		if err := authorized(ctx, rc.username, obj.Key.Organization,
+			ResourceClusterInsts, ActionManage); err != nil {
+			return err
+		}
 	}
 	if rc.conn == nil {
 		conn, err := connectController(ctx, rc.region)
@@ -266,7 +278,9 @@ func UpdateClusterInst(c echo.Context) error {
 	defer CloseConn(c)
 	rc.region = in.Region
 	span := log.SpanFromContext(ctx)
-	span.SetTag("org", in.ClusterInst.Key.Developer)
+	span.SetTag("region", in.Region)
+	log.SetTags(span, in.ClusterInst.GetKey().GetTags())
+	span.SetTag("org", in.ClusterInst.Key.Organization)
 
 	streamer := NewStreamer()
 	defer streamer.Stop()
@@ -293,9 +307,12 @@ func UpdateClusterInst(c echo.Context) error {
 }
 
 func UpdateClusterInstStream(ctx context.Context, rc *RegionContext, obj *edgeproto.ClusterInst, cb func(res *edgeproto.Result)) error {
-	if !rc.skipAuthz && !authorized(ctx, rc.username, obj.Key.Developer,
-		ResourceClusterInsts, ActionManage) {
-		return echo.ErrForbidden
+	log.SetContextTags(ctx, edgeproto.GetTags(obj))
+	if !rc.skipAuthz {
+		if err := authorized(ctx, rc.username, obj.Key.Organization,
+			ResourceClusterInsts, ActionManage); err != nil {
+			return err
+		}
 	}
 	if rc.conn == nil {
 		conn, err := connectController(ctx, rc.region)
@@ -352,7 +369,9 @@ func ShowClusterInst(c echo.Context) error {
 	defer CloseConn(c)
 	rc.region = in.Region
 	span := log.SpanFromContext(ctx)
-	span.SetTag("org", in.ClusterInst.Key.Developer)
+	span.SetTag("region", in.Region)
+	log.SetTags(span, in.ClusterInst.GetKey().GetTags())
+	span.SetTag("org", in.ClusterInst.Key.Organization)
 
 	err = ShowClusterInstStream(ctx, rc, &in.ClusterInst, func(res *edgeproto.ClusterInst) {
 		payload := ormapi.StreamPayload{}
@@ -366,10 +385,10 @@ func ShowClusterInst(c echo.Context) error {
 }
 
 func ShowClusterInstStream(ctx context.Context, rc *RegionContext, obj *edgeproto.ClusterInst, cb func(res *edgeproto.ClusterInst)) error {
-	var authz *ShowAuthz
+	var authz *AuthzShow
 	var err error
 	if !rc.skipAuthz {
-		authz, err = NewShowAuthz(ctx, rc.region, rc.username, ResourceClusterInsts, ActionView)
+		authz, err = newShowAuthz(ctx, rc.region, rc.username, ResourceClusterInsts, ActionView)
 		if err == echo.ErrForbidden {
 			return nil
 		}
@@ -403,7 +422,7 @@ func ShowClusterInstStream(ctx context.Context, rc *RegionContext, obj *edgeprot
 			return err
 		}
 		if !rc.skipAuthz {
-			if !authz.Ok(res.Key.Developer) {
+			if !authz.Ok(res.Key.Organization) {
 				continue
 			}
 		}

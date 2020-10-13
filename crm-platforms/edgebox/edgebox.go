@@ -3,80 +3,95 @@ package edgebox
 import (
 	"context"
 	"fmt"
-	"os"
 
-	"github.com/mobiledgex/edge-cloud-infra/mexos"
+	"github.com/mobiledgex/edge-cloud-infra/infracommon"
+	"github.com/mobiledgex/edge-cloud-infra/vmlayer"
 	"github.com/mobiledgex/edge-cloud/cloud-resource-manager/platform"
 	"github.com/mobiledgex/edge-cloud/cloud-resource-manager/platform/dind"
-	"github.com/mobiledgex/edge-cloud/cloud-resource-manager/platform/pc"
 	"github.com/mobiledgex/edge-cloud/cloudcommon"
 	"github.com/mobiledgex/edge-cloud/edgeproto"
 	"github.com/mobiledgex/edge-cloud/log"
 	"github.com/mobiledgex/edge-cloud/vault"
+	ssh "github.com/mobiledgex/golang-ssh"
 )
 
 // edgebox wraps the generic dind implementation with
 // mex-specific behavior, such as setting up DNS and
 // registry.mobiledgex.net access secrets.
 
-type Platform struct {
+type EdgeboxPlatform struct {
 	generic       dind.Platform
-	config        platform.PlatformConfig
-	vaultConfig   *vault.Config
 	NetworkScheme string
+	commonPf      infracommon.CommonPlatform
 }
 
-func (s *Platform) GetType() string {
+var edgeboxProps = map[string]*edgeproto.PropertyInfo{
+	"MEX_EDGEBOX_NETWORK_SCHEME": &edgeproto.PropertyInfo{
+		Name:        "EdgeBox Network Scheme",
+		Description: vmlayer.GetSupportedSchemesStr(),
+		Value:       cloudcommon.NetworkSchemePrivateIP,
+	},
+}
+
+func (e *EdgeboxPlatform) GetType() string {
 	return "edgebox"
 }
 
-func (s *Platform) Init(ctx context.Context, platformConfig *platform.PlatformConfig, updateCallback edgeproto.CacheUpdateCallback) error {
-	err := s.generic.Init(ctx, platformConfig, updateCallback)
-	s.config = *platformConfig
-	if err != nil {
-		return err
-	}
-
+func (e *EdgeboxPlatform) Init(ctx context.Context, platformConfig *platform.PlatformConfig, caches *platform.Caches, updateCallback edgeproto.CacheUpdateCallback) error {
+	err := e.generic.Init(ctx, platformConfig, caches, updateCallback)
 	// Set the test Mode based on what is in PlatformConfig
-	mexos.SetTestMode(platformConfig.TestMode)
+	infracommon.SetTestMode(platformConfig.TestMode)
 
 	vaultConfig, err := vault.BestConfig(platformConfig.VaultAddr)
 	if err != nil {
 		return err
 	}
-	s.vaultConfig = vaultConfig
 
-	if err := mexos.InitInfraCommon(ctx, vaultConfig); err != nil {
+	if err := e.commonPf.InitInfraCommon(ctx, platformConfig, edgeboxProps, vaultConfig); err != nil {
 		return err
 	}
 
-	s.NetworkScheme = os.Getenv("MEX_NETWORK_SCHEME")
-	if s.NetworkScheme == "" {
-		s.NetworkScheme = cloudcommon.NetworkSchemePrivateIP
+	e.NetworkScheme = e.GetEdgeboxNetworkScheme()
+	if e.NetworkScheme != cloudcommon.NetworkSchemePrivateIP &&
+		e.NetworkScheme != cloudcommon.NetworkSchemePublicIP {
+		return fmt.Errorf("Unsupported network scheme for DIND: %s", e.NetworkScheme)
 	}
-	if s.NetworkScheme != cloudcommon.NetworkSchemePrivateIP &&
-		s.NetworkScheme != cloudcommon.NetworkSchemePublicIP {
-		return fmt.Errorf("Unsupported network scheme for DIND: %s", s.NetworkScheme)
-	}
-	mexos.CloudletInfraCommon.NetworkScheme = s.NetworkScheme
 
-	fqdn := cloudcommon.GetRootLBFQDN(platformConfig.CloudletKey)
-	ipaddr, err := s.GetDINDServiceIP(ctx)
+	fqdn := cloudcommon.GetRootLBFQDN(platformConfig.CloudletKey, platformConfig.AppDNSRoot)
+	ipaddr, err := e.GetDINDServiceIP(ctx)
 	if err != nil {
 		return fmt.Errorf("init cannot get service ip, %s", err.Error())
 	}
-	if err := mexos.ActivateFQDNA(ctx, fqdn, ipaddr); err != nil {
-		log.SpanLog(ctx, log.DebugLevelMexos, "error in ActivateFQDNA", "err", err)
+	if err := e.commonPf.ActivateFQDNA(ctx, fqdn, ipaddr); err != nil {
+		log.SpanLog(ctx, log.DebugLevelInfra, "error in ActivateFQDNA", "err", err)
 		return err
 	}
-	log.SpanLog(ctx, log.DebugLevelMexos, "done init edgebox")
+	log.SpanLog(ctx, log.DebugLevelInfra, "done init edgebox")
 	return nil
+
 }
 
-func (s *Platform) GatherCloudletInfo(ctx context.Context, info *edgeproto.CloudletInfo) error {
-	return s.generic.GatherCloudletInfo(ctx, info)
+func (e *EdgeboxPlatform) GetEdgeboxNetworkScheme() string {
+	val, _ := e.commonPf.Properties.GetValue("MEX_EDGEBOX_NETWORK_SCHEME")
+	return val
 }
 
-func (s *Platform) GetPlatformClient(ctx context.Context, clusterInst *edgeproto.ClusterInst) (pc.PlatformClient, error) {
-	return s.generic.GetPlatformClient(ctx, clusterInst)
+func (e *EdgeboxPlatform) GatherCloudletInfo(ctx context.Context, info *edgeproto.CloudletInfo) error {
+	return e.generic.GatherCloudletInfo(ctx, info)
+}
+
+func (s *EdgeboxPlatform) GetClusterPlatformClient(ctx context.Context, clusterInst *edgeproto.ClusterInst, clientType string) (ssh.Client, error) {
+	return s.generic.GetClusterPlatformClient(ctx, clusterInst, clientType)
+}
+
+func (s *EdgeboxPlatform) GetNodePlatformClient(ctx context.Context, node *edgeproto.CloudletMgmtNode) (ssh.Client, error) {
+	return s.generic.GetNodePlatformClient(ctx, node)
+}
+
+func (s *EdgeboxPlatform) ListCloudletMgmtNodes(ctx context.Context, clusterInsts []edgeproto.ClusterInst) ([]edgeproto.CloudletMgmtNode, error) {
+	return s.generic.ListCloudletMgmtNodes(ctx, clusterInsts)
+}
+
+func (s *EdgeboxPlatform) GetCloudletProps(ctx context.Context) (*edgeproto.CloudletProps, error) {
+	return &edgeproto.CloudletProps{Properties: edgeboxProps}, nil
 }

@@ -3,16 +3,17 @@
 
 package ormctl
 
-import edgeproto "github.com/mobiledgex/edge-cloud/edgeproto"
-import "strings"
-import "github.com/mobiledgex/edge-cloud-infra/mc/ormapi"
-import "github.com/mobiledgex/edge-cloud/cli"
-import proto "github.com/gogo/protobuf/proto"
-import fmt "fmt"
-import math "math"
-import _ "github.com/gogo/googleapis/google/api"
-import _ "github.com/mobiledgex/edge-cloud/protogen"
-import _ "github.com/gogo/protobuf/gogoproto"
+import (
+	fmt "fmt"
+	_ "github.com/gogo/protobuf/gogoproto"
+	proto "github.com/gogo/protobuf/proto"
+	"github.com/mobiledgex/edge-cloud-infra/mc/ormapi"
+	"github.com/mobiledgex/edge-cloud/cli"
+	edgeproto "github.com/mobiledgex/edge-cloud/edgeproto"
+	_ "github.com/mobiledgex/edge-cloud/protogen"
+	math "math"
+	"strings"
+)
 
 // Reference imports to suppress errors if they are not otherwise used.
 var _ = proto.Marshal
@@ -55,83 +56,122 @@ var ClusterRefsApiCmds = []*cli.Command{
 	ShowClusterRefsCmd,
 }
 
+var ShowAppInstRefsCmd = &cli.Command{
+	Use:          "ShowAppInstRefs",
+	RequiredArgs: "region",
+	OptionalArgs: strings.Join(append(AppInstRefsRequiredArgs, AppInstRefsOptionalArgs...), " "),
+	AliasArgs:    strings.Join(AppInstRefsAliasArgs, " "),
+	SpecialArgs:  &AppInstRefsSpecialArgs,
+	Comments:     addRegionComment(AppInstRefsComments),
+	ReqData:      &ormapi.RegionAppInstRefs{},
+	ReplyData:    &edgeproto.AppInstRefs{},
+	Run:          runRest("/auth/ctrl/ShowAppInstRefs"),
+	StreamOut:    true,
+}
+
+var AppInstRefsApiCmds = []*cli.Command{
+	ShowAppInstRefsCmd,
+}
+
 var CloudletRefsRequiredArgs = []string{
-	"key.operatorkey.name",
+	"key.organization",
 	"key.name",
 }
 var CloudletRefsOptionalArgs = []string{
-	"clusters.name",
+	"clusters:#.name",
 	"usedram",
 	"usedvcores",
 	"useddisk",
-	"rootlbports.key",
-	"rootlbports.value",
+	"rootlbports:#.key",
+	"rootlbports:#.value",
 	"useddynamicips",
 	"usedstaticips",
-	"optresusedmap.key",
-	"optresusedmap.value",
+	"optresusedmap:#.key",
+	"optresusedmap:#.value",
 }
 var CloudletRefsAliasArgs = []string{
-	"key.operatorkey.name=cloudletrefs.key.operatorkey.name",
+	"key.organization=cloudletrefs.key.organization",
 	"key.name=cloudletrefs.key.name",
-	"clusters.name=cloudletrefs.clusters.name",
+	"clusters:#.name=cloudletrefs.clusters:#.name",
 	"usedram=cloudletrefs.usedram",
 	"usedvcores=cloudletrefs.usedvcores",
 	"useddisk=cloudletrefs.useddisk",
-	"rootlbports.key=cloudletrefs.rootlbports.key",
-	"rootlbports.value=cloudletrefs.rootlbports.value",
+	"rootlbports:#.key=cloudletrefs.rootlbports:#.key",
+	"rootlbports:#.value=cloudletrefs.rootlbports:#.value",
 	"useddynamicips=cloudletrefs.useddynamicips",
 	"usedstaticips=cloudletrefs.usedstaticips",
-	"optresusedmap.key=cloudletrefs.optresusedmap.key",
-	"optresusedmap.value=cloudletrefs.optresusedmap.value",
+	"optresusedmap:#.key=cloudletrefs.optresusedmap:#.key",
+	"optresusedmap:#.value=cloudletrefs.optresusedmap:#.value",
 }
 var CloudletRefsComments = map[string]string{
-	"key.operatorkey.name": "Company or Organization name of the operator",
-	"key.name":             "Name of the cloudlet",
-	"clusters.name":        "Cluster name",
-	"usedram":              "Used RAM in MB",
-	"usedvcores":           "Used VCPU cores",
-	"useddisk":             "Used disk in GB",
-	"useddynamicips":       "Used dynamic IPs",
-	"usedstaticips":        "Used static IPs",
+	"key.organization": "Organization of the cloudlet site",
+	"key.name":         "Name of the cloudlet",
+	"clusters:#.name":  "Cluster name",
+	"usedram":          "Used RAM in MB",
+	"usedvcores":       "Used VCPU cores",
+	"useddisk":         "Used disk in GB",
+	"useddynamicips":   "Used dynamic IPs",
+	"usedstaticips":    "Used static IPs",
 }
 var CloudletRefsSpecialArgs = map[string]string{}
 var ClusterRefsRequiredArgs = []string{
 	"key.clusterkey.name",
-	"key.cloudletkey.operatorkey.name",
+	"key.cloudletkey.organization",
 	"key.cloudletkey.name",
-	"key.developer",
+	"key.organization",
 }
 var ClusterRefsOptionalArgs = []string{
-	"apps.developerkey.name",
-	"apps.name",
-	"apps.version",
+	"apps:#.organization",
+	"apps:#.name",
+	"apps:#.version",
 	"usedram",
 	"usedvcores",
 	"useddisk",
 }
 var ClusterRefsAliasArgs = []string{
 	"key.clusterkey.name=clusterrefs.key.clusterkey.name",
-	"key.cloudletkey.operatorkey.name=clusterrefs.key.cloudletkey.operatorkey.name",
+	"key.cloudletkey.organization=clusterrefs.key.cloudletkey.organization",
 	"key.cloudletkey.name=clusterrefs.key.cloudletkey.name",
-	"key.developer=clusterrefs.key.developer",
-	"apps.developerkey.name=clusterrefs.apps.developerkey.name",
-	"apps.name=clusterrefs.apps.name",
-	"apps.version=clusterrefs.apps.version",
+	"key.organization=clusterrefs.key.organization",
+	"apps:#.organization=clusterrefs.apps:#.organization",
+	"apps:#.name=clusterrefs.apps:#.name",
+	"apps:#.version=clusterrefs.apps:#.version",
 	"usedram=clusterrefs.usedram",
 	"usedvcores=clusterrefs.usedvcores",
 	"useddisk=clusterrefs.useddisk",
 }
 var ClusterRefsComments = map[string]string{
-	"key.clusterkey.name":              "Cluster name",
-	"key.cloudletkey.operatorkey.name": "Company or Organization name of the operator",
-	"key.cloudletkey.name":             "Name of the cloudlet",
-	"key.developer":                    "Name of Developer that this cluster belongs to",
-	"apps.developerkey.name":           "Organization or Company Name that a Developer is part of",
-	"apps.name":                        "App name",
-	"apps.version":                     "App version",
-	"usedram":                          "Used RAM in MB",
-	"usedvcores":                       "Used VCPU cores",
-	"useddisk":                         "Used disk in GB",
+	"key.clusterkey.name":          "Cluster name",
+	"key.cloudletkey.organization": "Organization of the cloudlet site",
+	"key.cloudletkey.name":         "Name of the cloudlet",
+	"key.organization":             "Name of Developer organization that this cluster belongs to",
+	"apps:#.organization":          "App developer organization",
+	"apps:#.name":                  "App name",
+	"apps:#.version":               "App version",
+	"usedram":                      "Used RAM in MB",
+	"usedvcores":                   "Used VCPU cores",
+	"useddisk":                     "Used disk in GB",
 }
 var ClusterRefsSpecialArgs = map[string]string{}
+var AppInstRefsRequiredArgs = []string{
+	"key.organization",
+	"key.name",
+	"key.version",
+}
+var AppInstRefsOptionalArgs = []string{
+	"insts:#.key",
+	"insts:#.value",
+}
+var AppInstRefsAliasArgs = []string{
+	"key.organization=appinstrefs.key.organization",
+	"key.name=appinstrefs.key.name",
+	"key.version=appinstrefs.key.version",
+	"insts:#.key=appinstrefs.insts:#.key",
+	"insts:#.value=appinstrefs.insts:#.value",
+}
+var AppInstRefsComments = map[string]string{
+	"key.organization": "App developer organization",
+	"key.name":         "App name",
+	"key.version":      "App version",
+}
+var AppInstRefsSpecialArgs = map[string]string{}

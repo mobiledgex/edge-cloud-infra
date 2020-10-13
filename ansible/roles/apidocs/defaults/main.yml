@@ -1,0 +1,8 @@
+apidocs_script_dir: /usr/local/bin
+swagger_base_dir: /var/swagger/{{ deploy_environ }}
+swagger_gen_script: "/usr/local/bin/swagger-gen-{{ deploy_environ }}"
+logo_url: "/swagger/{{ deploy_environ }}/logo.svg"
+favicon: https://mobiledgex.com/favicon.ico
+redoc_version: v2.0.0-rc.23
+upload_logo: true
+upload_code_samples: true

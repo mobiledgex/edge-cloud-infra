@@ -1,0 +1,46 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: autoprov
+  labels:
+    app: autoprov
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: autoprov
+  template:
+    metadata:
+      labels:
+        app: autoprov
+    spec:
+      containers:
+      - name: autoprov
+        image: "{{ edge_cloud_image }}:{{ edge_cloud_version }}"
+        imagePullPolicy: Always
+        command:
+         - "autoprov"
+         - "--ctrlAddrs"
+         - "{{ controller_hostname }}:55001"
+         - "-influxAddr"
+         - "https://{{ influxdb_dns }}.{{ cloudflare_zone }}:8086"
+         - "--notifyAddrs"
+         - "{{ controller_hostname }}:37001"
+         - "--region"
+         - "{{ region }}"
+         - "--vaultAddr"
+         - "https://{{ vault_vm_hostname }}:{{ vault_port }}"
+         - "--useVaultCerts"
+         - "-d"
+         - "infra,notify,api"
+        env:
+         - name: JAEGER_ENDPOINT
+           value: "{{ jaeger_endpoint }}"
+         - name: JAEGER_TAGS
+           value: "environ={{ deploy_environ }},version={{ edge_cloud_version }}"
+         - name: VAULT_ROLE_ID
+           value: "{{ autoprov_role.role_id }}"
+         - name: VAULT_SECRET_ID
+           value: "{{ autoprov_role.secret_id }}"
+      imagePullSecrets:
+       - name: mexreg-secret 

@@ -16,6 +16,7 @@ import (
 const ActionView = "view"
 const ActionManage = "manage"
 
+const ResourceBilling = "billing"
 const ResourceControllers = "controllers"
 const ResourceUsers = "users"
 const ResourceApps = "apps"
@@ -47,6 +48,8 @@ var DeveloperResources = []string{
 var OperatorResources = []string{
 	ResourceCloudlets,
 	ResourceCloudletAnalytics,
+	ResourceResTagTable,
+	ResourceCloudletPools,
 }
 
 // built-in roles
@@ -59,6 +62,7 @@ const RoleOperatorViewer = "OperatorViewer"
 const RoleAdminManager = "AdminManager"
 const RoleAdminContributor = "AdminContributor"
 const RoleAdminViewer = "AdminViewer"
+const RoleBillingManager = "BillingManager"
 
 var AdminRoleID int64
 
@@ -78,6 +82,16 @@ func InitRolePerms(ctx context.Context) error {
 	addPolicy(ctx, &err, RoleAdminManager, ResourceCloudletPools, ActionView)
 	addPolicy(ctx, &err, RoleAdminManager, ResourceAlert, ActionManage)
 	addPolicy(ctx, &err, RoleAdminManager, ResourceAlert, ActionView)
+
+	addPolicy(ctx, &err, RoleDeveloperManager, ResourceBilling, ActionManage)
+	addPolicy(ctx, &err, RoleDeveloperManager, ResourceBilling, ActionView)
+	addPolicy(ctx, &err, RoleBillingManager, ResourceBilling, ActionManage)
+	addPolicy(ctx, &err, RoleBillingManager, ResourceBilling, ActionView)
+	addPolicy(ctx, &err, RoleBillingManager, ResourceUsers, ActionManage)
+	addPolicy(ctx, &err, RoleBillingManager, ResourceUsers, ActionView)
+	addPolicy(ctx, &err, RoleAdminManager, ResourceBilling, ActionManage)
+	addPolicy(ctx, &err, RoleAdminManager, ResourceBilling, ActionView)
+	addPolicy(ctx, &err, RoleAdminContributor, ResourceBilling, ActionView)
 
 	addPolicy(ctx, &err, RoleDeveloperManager, ResourceUsers, ActionManage)
 	addPolicy(ctx, &err, RoleDeveloperManager, ResourceUsers, ActionView)
@@ -174,7 +188,7 @@ func ShowRoleAssignment(c echo.Context) error {
 	ctx := GetContext(c)
 
 	super := false
-	if authorized(ctx, claims.Username, "", ResourceUsers, ActionView) {
+	if authorized(ctx, claims.Username, "", ResourceUsers, ActionView) == nil {
 		// super user, show all roles
 		super = true
 	}
@@ -243,7 +257,7 @@ func AddUserRole(c echo.Context) error {
 	}
 	role := ormapi.Role{}
 	if err := c.Bind(&role); err != nil {
-		return c.JSON(http.StatusBadRequest, Msg("Invalid POST data"))
+		return bindErr(c, err)
 	}
 	err = AddUserRoleObj(GetContext(c), claims, &role)
 	return setReply(c, err, Msg("Role added to user"))
@@ -266,10 +280,12 @@ func AddUserRoleObj(ctx context.Context, claims *UserClaims, role *ormapi.Role) 
 	// Special case Admin roles and the empty org (which implies all orgs).
 	// AdminRoles may only be associated to the empty org, and the
 	// empty org may only be associated with Admin roles.
+	adminRole := false
 	if role.Role == RoleAdminManager || role.Role == RoleAdminContributor || role.Role == RoleAdminViewer {
 		if role.Org != "" {
 			return fmt.Errorf("Admin roles cannot be associated with an org, please specify the empty org \"\"")
 		}
+		adminRole = true
 	} else {
 		if role.Org == "" {
 			return fmt.Errorf("Org name must be specified for the specified role")
@@ -285,6 +301,16 @@ func AddUserRoleObj(ctx context.Context, claims *UserClaims, role *ormapi.Role) 
 	}
 	if res.Error != nil {
 		return dbErr(res.Error)
+	}
+	if adminRole {
+		if targetUser.PassCrackTimeSec == 0 {
+			return fmt.Errorf("Target user password strength not verified, please have user log in to verify password strength")
+		}
+		// more stringent password strength requirements
+		err := checkPasswordStrength(ctx, &targetUser, nil, adminRole)
+		if err != nil {
+			return err
+		}
 	}
 	policies, err := enforcer.GetPolicy()
 	if err != nil {
@@ -347,11 +373,11 @@ func AddUserRoleObj(ctx context.Context, claims *UserClaims, role *ormapi.Role) 
 	}
 
 	// make sure caller has perms to modify users of target org
-	if !authorized(ctx, claims.Username, role.Org, ResourceUsers, ActionManage) {
+	if err := authorized(ctx, claims.Username, role.Org, ResourceUsers, ActionManage); err != nil {
 		if role.Org == "" {
 			return fmt.Errorf("Organization not specified or no permissions")
 		}
-		return echo.ErrForbidden
+		return err
 	}
 	psub := rbac.GetCasbinGroup(role.Org, role.Username)
 	err = enforcer.AddGroupingPolicy(ctx, psub, role.Role)
@@ -378,7 +404,7 @@ func RemoveUserRole(c echo.Context) error {
 
 	role := ormapi.Role{}
 	if err := c.Bind(&role); err != nil {
-		return c.JSON(http.StatusBadRequest, Msg("Invalid POST data"))
+		return bindErr(c, err)
 	}
 	err = RemoveUserRoleObj(ctx, claims, &role)
 	return setReply(c, err, Msg("Role removed from user"))
@@ -412,8 +438,8 @@ func RemoveUserRoleObj(ctx context.Context, claims *UserClaims, role *ormapi.Rol
 	}
 
 	// make sure caller has perms to modify users of target org
-	if !authorized(ctx, claims.Username, role.Org, ResourceUsers, ActionManage) {
-		return echo.ErrForbidden
+	if err := authorized(ctx, claims.Username, role.Org, ResourceUsers, ActionManage); err != nil {
+		return err
 	}
 
 	// if we are removing a manager role, make sure we are not deleting the last manager of an org
@@ -471,7 +497,7 @@ func ShowUserRoleObj(ctx context.Context, username string) ([]ormapi.Role, error
 	if err != nil {
 		return nil, dbErr(err)
 	}
-	authz, err := newShowAuthz(ctx, username, ResourceUsers, ActionView)
+	authz, err := newShowAuthz(ctx, "", username, ResourceUsers, ActionView)
 	if err != nil {
 		return nil, err
 	}
@@ -481,7 +507,7 @@ func ShowUserRoleObj(ctx context.Context, username string) ([]ormapi.Role, error
 		if role == nil {
 			continue
 		}
-		if !authz.Ok(ctx, role.Org) {
+		if !authz.Ok(role.Org) {
 			continue
 		}
 		roles = append(roles, *role)
@@ -496,8 +522,8 @@ func SyncAccessCheck(c echo.Context) error {
 	}
 	ctx := GetContext(c)
 
-	if !authorized(ctx, claims.Username, "", ResourceControllers, ActionManage) {
-		return echo.ErrForbidden
+	if err := authorized(ctx, claims.Username, "", ResourceControllers, ActionManage); err != nil {
+		return err
 	}
 	return nil
 }
@@ -520,6 +546,15 @@ func dumpRbac() {
 			fmt.Printf("group: %+v\n", grp)
 		}
 	}
+}
+
+func isAdminRole(role string) bool {
+	if role == RoleAdminManager ||
+		role == RoleAdminContributor ||
+		role == RoleAdminViewer {
+		return true
+	}
+	return false
 }
 
 func isDeveloperRole(role string) bool {

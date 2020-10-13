@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io/ioutil"
+	math "math"
 	"net/http"
 	"strings"
 	"time"
@@ -15,6 +16,7 @@ import (
 	"github.com/mobiledgex/edge-cloud-infra/mc/ormapi"
 	"github.com/mobiledgex/edge-cloud/log"
 	"github.com/mobiledgex/edge-cloud/util"
+	"github.com/nbutton23/zxcvbn-go"
 )
 
 // Init admin creates the admin user and adds the admin role.
@@ -48,13 +50,13 @@ func InitAdmin(ctx context.Context, superuser, superpass string) error {
 	return nil
 }
 
-var BadAuthDelay = time.Second
+var BadAuthDelay = 3 * time.Second
 
 func Login(c echo.Context) error {
 	ctx := GetContext(c)
 	login := ormapi.UserLogin{}
 	if err := c.Bind(&login); err != nil {
-		return c.JSON(http.StatusBadRequest, Msg("Invalid POST data"))
+		return bindErr(c, err)
 	}
 	if login.Username == "" {
 		return c.JSON(http.StatusBadRequest, Msg("Username not specified"))
@@ -90,8 +92,31 @@ func Login(c echo.Context) error {
 	if user.Locked {
 		return c.JSON(http.StatusBadRequest, Msg("Account is locked, please contact MobiledgeX support"))
 	}
-	if !serverConfig.SkipVerifyEmail && !user.EmailVerified {
+	if !getSkipVerifyEmail(ctx, nil) && !user.EmailVerified {
 		return c.JSON(http.StatusBadRequest, Msg("Email not verified yet"))
+	}
+
+	if user.PassCrackTimeSec == 0 {
+		calcPasswordStrength(ctx, &user, login.Password)
+		isAdmin, err := isUserAdmin(ctx, user.Name)
+		if err != nil {
+			return setReply(c, err, nil)
+		}
+		err = checkPasswordStrength(ctx, &user, nil, isAdmin)
+		if err != nil {
+			if isAdmin {
+				time.Sleep(BadAuthDelay)
+				return c.JSON(http.StatusBadRequest, Msg("Existing password for Admin too weak, please update first"))
+			} else {
+				// log warning for now
+				log.SpanLog(ctx, log.DebugLevelApi, "user password strength check failure", "user", user.Name, "err", err)
+			}
+		}
+		// save password strength
+		err = db.Model(&user).Updates(&user).Error
+		if err != nil {
+			return setReply(c, dbErr(err), nil)
+		}
 	}
 
 	cookie, err := GenerateCookie(&user)
@@ -106,7 +131,7 @@ func CreateUser(c echo.Context) error {
 	ctx := GetContext(c)
 	createuser := ormapi.CreateUser{}
 	if err := c.Bind(&createuser); err != nil {
-		return c.JSON(http.StatusBadRequest, Msg("Invalid POST data"))
+		return bindErr(c, err)
 	}
 	user := createuser.User
 	if user.Name == "" {
@@ -131,7 +156,20 @@ func CreateUser(c echo.Context) error {
 			}
 		}
 	}
-	if !serverConfig.SkipVerifyEmail {
+
+	config, err := getConfig(ctx)
+	if err != nil {
+		return err
+	}
+	calcPasswordStrength(ctx, &user, user.Passhash)
+	// check password strength (new users are never admins)
+	isAdmin := false
+	err = checkPasswordStrength(ctx, &user, config, isAdmin)
+	if err != nil {
+		return c.JSON(http.StatusBadRequest, MsgErr(err))
+	}
+
+	if !getSkipVerifyEmail(ctx, config) {
 		// real email will be filled in later
 		createuser.Verify.Email = "dummy@dummy.com"
 		err := ValidEmailRequest(c, &createuser.Verify)
@@ -143,10 +181,6 @@ func CreateUser(c echo.Context) error {
 	span.SetTag("username", user.Name)
 	span.SetTag("email", user.Email)
 
-	config, err := getConfig(ctx)
-	if err != nil {
-		return err
-	}
 	user.Locked = false
 	if config.LockNewAccounts {
 		user.Locked = true
@@ -194,7 +228,7 @@ func ResendVerify(c echo.Context) error {
 
 	req := ormapi.EmailRequest{}
 	if err := c.Bind(&req); err != nil {
-		return c.JSON(http.StatusBadRequest, Msg("Invalid POST data"))
+		return bindErr(c, err)
 	}
 	if err := ValidEmailRequest(c, &req); err != nil {
 		return c.JSON(http.StatusBadRequest, MsgErr(err))
@@ -206,7 +240,7 @@ func VerifyEmail(c echo.Context) error {
 	ctx := GetContext(c)
 	tok := ormapi.Token{}
 	if err := c.Bind(&tok); err != nil {
-		return c.JSON(http.StatusBadRequest, Msg("Invalid POST data"))
+		return bindErr(c, err)
 	}
 	claims := EmailClaims{}
 	token, err := Jwks.VerifyCookie(tok.Token, &claims)
@@ -243,14 +277,16 @@ func DeleteUser(c echo.Context) error {
 
 	user := ormapi.User{}
 	if err := c.Bind(&user); err != nil {
-		return c.JSON(http.StatusBadRequest, Msg("Invalid POST data"))
+		return bindErr(c, err)
 	}
 	if user.Name == "" {
 		return c.JSON(http.StatusBadRequest, Msg("User Name not specified"))
 	}
 	// Only user themself or super-user can delete user.
-	if user.Name != claims.Username && !authorized(ctx, claims.Username, "", ResourceUsers, ActionManage) {
-		return echo.ErrForbidden
+	if user.Name != claims.Username {
+		if err := authorized(ctx, claims.Username, "", ResourceUsers, ActionManage); err != nil {
+			return err
+		}
 	}
 	if user.Name == Superuser {
 		return c.JSON(http.StatusBadRequest, Msg("Cannot delete superuser"))
@@ -346,16 +382,16 @@ func ShowUser(c echo.Context) error {
 	filter := ormapi.Organization{}
 	if c.Request().ContentLength > 0 {
 		if err := c.Bind(&filter); err != nil {
-			return c.JSON(http.StatusBadRequest, Msg("Invalid POST data"))
+			return bindErr(c, err)
 		}
 	}
 	users := []ormapi.User{}
-	if !authorized(ctx, claims.Username, filter.Name, ResourceUsers, ActionView) {
+	if err := authorized(ctx, claims.Username, filter.Name, ResourceUsers, ActionView); err != nil {
 		if filter.Name == "" && c.Request().ContentLength == 0 {
 			// user probably forgot to specify orgname
 			return c.JSON(http.StatusBadRequest, Msg("No organization name specified"))
 		}
-		return echo.ErrForbidden
+		return err
 	}
 	// if filter ID is 0, show all users (super user only)
 	db := loggedDB(ctx)
@@ -401,7 +437,7 @@ func NewPassword(c echo.Context) error {
 	}
 	in := ormapi.NewPassword{}
 	if err := c.Bind(&in); err != nil {
-		return c.JSON(http.StatusBadRequest, Msg("Invalid POST data"))
+		return bindErr(c, err)
 	}
 	return setPassword(c, claims.Username, in.Password)
 }
@@ -418,6 +454,18 @@ func setPassword(c echo.Context, username, password string) error {
 	if err != nil {
 		return setReply(c, dbErr(err), nil)
 	}
+
+	calcPasswordStrength(ctx, &user, password)
+	// check password strength
+	isAdmin, err := isUserAdmin(ctx, user.Name)
+	if err != nil {
+		return setReply(c, err, nil)
+	}
+	err = checkPasswordStrength(ctx, &user, nil, isAdmin)
+	if err != nil {
+		return c.JSON(http.StatusBadRequest, MsgErr(err))
+	}
+
 	user.Passhash, user.Salt, user.Iter = NewPasshash(password)
 	if err := db.Model(&user).Updates(&user).Error; err != nil {
 		return setReply(c, dbErr(err), nil)
@@ -425,11 +473,35 @@ func setPassword(c echo.Context, username, password string) error {
 	return c.JSON(http.StatusOK, Msg("password updated"))
 }
 
+func calcPasswordStrength(ctx context.Context, user *ormapi.User, password string) {
+	pwscore := zxcvbn.PasswordStrength(password, []string{})
+	user.PassEntropy = pwscore.Entropy
+	user.PassCrackTimeSec = pwscore.CrackTime
+}
+
+func checkPasswordStrength(ctx context.Context, user *ormapi.User, config *ormapi.Config, isAdmin bool) error {
+	if config == nil {
+		var err error
+		config, err = getConfig(ctx)
+		if err != nil {
+			return err
+		}
+	}
+	minCrackTime := config.PasswordMinCrackTimeSec
+	if isAdmin {
+		minCrackTime = config.AdminPasswordMinCrackTimeSec
+	}
+	if user.PassCrackTimeSec < minCrackTime {
+		return fmt.Errorf("Password too weak, requires crack time %s but is %s. Please increase length or complexity", secDisplayTime(minCrackTime), secDisplayTime(user.PassCrackTimeSec))
+	}
+	return nil
+}
+
 func PasswordResetRequest(c echo.Context) error {
 	ctx := GetContext(c)
 	req := ormapi.EmailRequest{}
 	if err := c.Bind(&req); err != nil {
-		return c.JSON(http.StatusBadRequest, Msg("Invalid POST data"))
+		return bindErr(c, err)
 	}
 	if err := ValidEmailRequest(c, &req); err != nil {
 		return c.JSON(http.StatusBadRequest, MsgErr(err))
@@ -472,6 +544,7 @@ func PasswordResetRequest(c echo.Context) error {
 			arg.URL = req.CallbackURL + "?token=" + cookie
 		}
 		arg.Name = user.Name
+		arg.Token = cookie
 		tmpl = passwordResetTmpl
 	}
 	buf := bytes.Buffer{}
@@ -486,7 +559,7 @@ func PasswordResetRequest(c echo.Context) error {
 func PasswordReset(c echo.Context) error {
 	pw := ormapi.PasswordReset{}
 	if err := c.Bind(&pw); err != nil {
-		return c.JSON(http.StatusBadRequest, Msg("Invalid POST data"))
+		return bindErr(c, err)
 	}
 	claims := EmailClaims{}
 	token, err := Jwks.VerifyCookie(pw.Token, &claims)
@@ -510,8 +583,8 @@ func RestrictedUserUpdate(c echo.Context) error {
 		return err
 	}
 	// Only admin user allowed to update user data.
-	if !authorized(ctx, claims.Username, "", ResourceUsers, ActionManage) {
-		return echo.ErrForbidden
+	if err := authorized(ctx, claims.Username, "", ResourceUsers, ActionManage); err != nil {
+		return err
 	}
 	// Pull json directly so we can unmarshal twice.
 	// First time is to do lookup, second time is to apply
@@ -559,4 +632,47 @@ func RestrictedUserUpdate(c echo.Context) error {
 		return dbErr(err)
 	}
 	return nil
+}
+
+// modified version of go-zxcvbn scoring.displayTime that more closely
+// matches the java script version of the lib.
+func secDisplayTime(seconds float64) string {
+	formater := "%.1f %s"
+	minute := float64(60)
+	hour := minute * float64(60)
+	day := hour * float64(24)
+	month := day * float64(31)
+	year := month * float64(12)
+	century := year * float64(100)
+
+	if seconds < 1 {
+		return "less than a second"
+	} else if seconds < minute {
+		return fmt.Sprintf(formater, (1 + math.Ceil(seconds)), "seconds")
+	} else if seconds < hour {
+		return fmt.Sprintf(formater, (1 + math.Ceil(seconds/minute)), "minutes")
+	} else if seconds < day {
+		return fmt.Sprintf(formater, (1 + math.Ceil(seconds/hour)), "hours")
+	} else if seconds < month {
+		return fmt.Sprintf(formater, (1 + math.Ceil(seconds/day)), "days")
+	} else if seconds < year {
+		return fmt.Sprintf(formater, (1 + math.Ceil(seconds/month)), "months")
+	} else if seconds < century {
+		return fmt.Sprintf(formater, (1 + math.Ceil(seconds/century)), "years")
+	} else {
+		return "centuries"
+	}
+}
+
+func isUserAdmin(ctx context.Context, username string) (bool, error) {
+	// it doesn't matter what the resource/action is here, as long
+	// as it's part of one of the admin roles.
+	authOrgs, err := enforcer.GetAuthorizedOrgs(ctx, username, ResourceConfig, ActionView)
+	if err != nil {
+		return false, dbErr(err)
+	}
+	if _, found := authOrgs[""]; found {
+		return true, nil
+	}
+	return false, nil
 }

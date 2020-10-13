@@ -4,12 +4,20 @@
 
 set -x
 
+. /etc/mex-release
+
+if [[ "$MEX_PLATFORM_FLAVOR" == vsphere ]]; then
+	systemctl status open-vm-tools > /var/log/openvmtool.status.log
+	systemctl start open-vm-tools
+fi
+
 INIT_COMPLETE_FLAG=/etc/mobiledgex/init-complete
 if [[ -f "$INIT_COMPLETE_FLAG" ]]; then
 	echo "Already initialized; nothing to do" >&2
 	exit 2
 fi
 
+umask 027
 LOGFILE=/var/log/mobiledgex.log
 log() {
 	if [[ $# -gt 0 ]]; then
@@ -20,19 +28,58 @@ log() {
 	fi
 }
 
+usermod -aG docker ubuntu
+chmod a+rw /var/run/docker.sock
+
+ifconfig -a | log
+ip route | log
+
+if [[ -z "$ROLE" ]]; then
+	log "WARNING: Role is empty"
+else
+	log "ROLE: $ROLE"
+fi
+
+if ! dig google.com | grep 'status: NOERROR' >/dev/null; then
+	log "Setting 1.1.1.1 as nameserver"
+	echo "nameserver 1.1.1.1" >/etc/resolv.conf
+fi
+
 MCONF=/mnt/mobiledgex-config
+METADIR="$MCONF/openstack/latest"
+METADATA="$METADIR/meta_data.json"
+NETDATA="$METADIR/network_data.json"
+VMWARE_CLOUDINIT=/etc/cloud/cloud.cfg.d/99-DataSourceVMwareGuestInfo.cfg
 
 # Main
-
 log "Starting mobiledgex init"
+
+# CIS cleanup
+chmod u-x,go-rwx /etc/passwd-
+chmod u-x,go-rwx /etc/shadow-
+chmod og-rwx /boot/grub/grub.cfg
+find /var/log -type f -exec chmod g-wx,o-rwx "{}" + -o -type d -exec chmod g-w,o-rwx "{}" +
+
+if [[ -f "$VMWARE_CLOUDINIT" ]]; then
+        log "VMware cloud-init case, fetch metadata from vmtoolsd"
+        # check that metadata exists, if it does not then exit.
+        if ! vmtoolsd --cmd "info-get guestinfo.metadata";
+        then
+            log "VMware metadata is empty, quitting"
+            log "Finished mobiledgex init"
+            exit 0
+        fi
+        log "show userdata"
+        vmtoolsd --cmd "info-get guestinfo.userdata" > /var/log/userdata.log
+        log "VMware cloud-init case, fetch metadata from vmtoolsd"
+        mkdir -p $METADIR
+        vmtoolsd --cmd "info-get guestinfo.metadata"|base64 -d|python3 -c 'import sys, yaml, json; json.dump(yaml.load(sys.stdin), sys.stdout)' > $METADATA 
+fi
 
 mkdir -p $MCONF
 mount `blkid -t LABEL="config-2" -odevice` $MCONF
 
 # Load parameters
-METADATA="$MCONF/openstack/latest/meta_data.json"
-NETDATA="$MCONF/openstack/latest/network_data.json"
-
 set_param() {
 	local file="$1"
 	local var="$2"
@@ -74,38 +121,25 @@ fi
 echo 127.0.0.1 `hostname` >> /etc/hosts
 [[ "$UPDATEHOSTNAME" == yes ]] && sed -i "s|^\(127\.0\.1\.1 \).*|\1${HOSTNAME}|" /etc/hosts
 
-usermod -aG docker ubuntu
-chmod a+rw /var/run/docker.sock
-
 if [[ "$SKIPINIT" == yes ]]; then
 	log "Skipping mobiledgex init as instructed"
 	exit 0
-fi
-
-ifconfig -a | log
-ip route | log
-
-if [[ -z "$ROLE" ]]; then
-	log "WARNING: Role is empty"
-else
-	log "ROLE: $ROLE"
-fi
-
-if ! dig google.com | grep 'status: NOERROR' >/dev/null; then
-	log "Setting 1.1.1.1 as nameserver"
-	echo "nameserver 1.1.1.1" >/etc/resolv.conf
 fi
 
 # TODO: Updates; and also if supported, disable run-once flag check at the top
 
 if [[ "$ROLE" == mex-agent-node ]]; then
 	log "Initializing mex agent node"
-	systemctl disable kubelet
-	systemctl stop kubelet
+	for SVC in kubelet k8s-join; do
+		systemctl disable "$SVC"
+		systemctl stop "$SVC"
+	done
 elif [[ "$SKIPK8S" == yes ]]; then
 	log "Skipping k8s init for role $ROLE"
-	systemctl disable kubelet
-	systemctl stop kubelet
+	for SVC in kubelet k8s-join; do
+		systemctl disable "$SVC"
+		systemctl stop "$SVC"
+	done
 else
 	log "K8s init for role $ROLE"
 	case "$ROLE" in
@@ -115,6 +149,8 @@ else
 			log "K8s master init failed"
 			exit 2
 		fi
+		systemctl enable k8s-join
+		systemctl start k8s-join
 		;;
 	k8s-node)
 		sh -x /etc/mobiledgex/install-k8s-node.sh "$INTERFACE" "$MASTERADDR" "$IPADDR" | log
@@ -122,6 +158,8 @@ else
 			log "K8s node init failed"
 			exit 2
 		fi
+		systemctl disable k8s-join
+		systemctl stop k8s-join
 		;;
 	*)
 		log "Neither k8s master nor k8s node: $ROLE"

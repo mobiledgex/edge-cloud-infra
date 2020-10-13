@@ -4,59 +4,21 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"os"
 	"strconv"
+	"strings"
 
-	sh "github.com/codeskyblue/go-sh"
-	"github.com/mobiledgex/edge-cloud-infra/mexos"
-	"github.com/mobiledgex/edge-cloud/cloud-resource-manager/platform"
+	"github.com/codeskyblue/go-sh"
+	"github.com/mobiledgex/edge-cloud-infra/infracommon"
 	"github.com/mobiledgex/edge-cloud/cloud-resource-manager/platform/pc"
 	"github.com/mobiledgex/edge-cloud/edgeproto"
 	"github.com/mobiledgex/edge-cloud/log"
-	"github.com/mobiledgex/edge-cloud/vault"
+	ssh "github.com/mobiledgex/golang-ssh"
 )
 
-type Platform struct {
-	props       edgeproto.AzureProperties // AzureProperties should be moved to edge-cloud-infra
-	config      platform.PlatformConfig
-	vaultConfig *vault.Config
-}
+const AzureMaxResourceGroupNameLen int = 80
 
-func (s *Platform) GetType() string {
-	return "azure"
-}
-
-func (s *Platform) Init(ctx context.Context, platformConfig *platform.PlatformConfig, updateCallback edgeproto.CacheUpdateCallback) error {
-	vaultConfig, err := vault.BestConfig(platformConfig.VaultAddr)
-	if err != nil {
-		return err
-	}
-	s.vaultConfig = vaultConfig
-
-	if err := mexos.InitInfraCommon(ctx, vaultConfig); err != nil {
-		return err
-	}
-	s.config = *platformConfig
-	s.props.Location = os.Getenv("MEX_AZURE_LOCATION")
-	if s.props.Location == "" {
-		return fmt.Errorf("Env variable MEX_AZURE_LOCATION not set")
-	}
-	/** resource group currently derived from cloudletName + cluster name
-			s.props.ResourceGroup = os.Getenv("MEX_AZURE_RESOURCE_GROUP")
-			if s.props.ResourceGroup == "" {
-				return fmt.Errorf("Env variable MEX_AZURE_RESOURCE_GROUP not set")
-	                }
-	*/
-	s.props.UserName = os.Getenv("MEX_AZURE_USER")
-	if s.props.UserName == "" {
-		return fmt.Errorf("Env variable MEX_AZURE_USER not set, check contents of MEXENV_URL")
-	}
-	s.props.Password = os.Getenv("MEX_AZURE_PASS")
-	if s.props.Password == "" {
-		return fmt.Errorf("Env variable MEX_AZURE_PASS not set, check contents of MEXENV_URL")
-	}
-
-	return nil
+type AzurePlatform struct {
+	commonPf *infracommon.CommonPlatform
 }
 
 type AZName struct {
@@ -78,14 +40,14 @@ type AZFlavor struct {
 	VCPUs int
 }
 
-func (s *Platform) GatherCloudletInfo(ctx context.Context, info *edgeproto.CloudletInfo) error {
-	log.SpanLog(ctx, log.DebugLevelMexos, "GetLimits (Azure)")
-	if err := s.AzureLogin(ctx); err != nil {
+func (a *AzurePlatform) GatherCloudletInfo(ctx context.Context, info *edgeproto.CloudletInfo) error {
+	log.SpanLog(ctx, log.DebugLevelInfra, "GatherCloudletInfo")
+	if err := a.Login(ctx); err != nil {
 		return err
 	}
 
 	var limits []AZLimit
-	out, err := sh.Command("az", "vm", "list-usage", "--location", s.props.Location, sh.Dir("/tmp")).CombinedOutput()
+	out, err := sh.Command("az", "vm", "list-usage", "--location", a.GetAzureLocation(), sh.Dir("/tmp")).CombinedOutput()
 	if err != nil {
 		err = fmt.Errorf("cannot get limits from azure, %s, %s", out, err.Error())
 		return err
@@ -110,12 +72,12 @@ func (s *Platform) GatherCloudletInfo(ctx context.Context, info *edgeproto.Cloud
 	}
 
 	/*
-	 * We will not support all Azure flavors, only selected ones:
-	 * https://azure.microsoft.com/en-in/pricing/details/virtual-machines/series/
+	* We will not support all Azure flavors, only selected ones:
+	* https://azure.microsoft.com/en-in/pricing/details/virtual-machines/series/
 	 */
 	var vmsizes []AZFlavor
 	out, err = sh.Command("az", "vm", "list-sizes",
-		"--location", s.props.Location,
+		"--location", a.GetAzureLocation(),
 		"--query", "[].{"+
 			"Name:name,"+
 			"VCPUs:numberOfCores,"+
@@ -145,6 +107,46 @@ func (s *Platform) GatherCloudletInfo(ctx context.Context, info *edgeproto.Cloud
 	return nil
 }
 
-func (s *Platform) GetPlatformClient(ctx context.Context, clusterInst *edgeproto.ClusterInst) (pc.PlatformClient, error) {
+func (a *AzurePlatform) GetClusterPlatformClient(ctx context.Context, clusterInst *edgeproto.ClusterInst, clientType string) (ssh.Client, error) {
 	return &pc.LocalClient{}, nil
+}
+
+func (a *AzurePlatform) GetNodePlatformClient(ctx context.Context, node *edgeproto.CloudletMgmtNode) (ssh.Client, error) {
+	return &pc.LocalClient{}, nil
+}
+
+func (a *AzurePlatform) ListCloudletMgmtNodes(ctx context.Context, clusterInsts []edgeproto.ClusterInst) ([]edgeproto.CloudletMgmtNode, error) {
+	return []edgeproto.CloudletMgmtNode{}, nil
+}
+
+// Login logs into azure
+func (a *AzurePlatform) Login(ctx context.Context) error {
+	log.SpanLog(ctx, log.DebugLevelInfra, "doing azure login")
+	out, err := sh.Command("az", "login", "--username", a.GetAzureUser(), "--password", a.GetAzurePass()).CombinedOutput()
+	if err != nil {
+		return fmt.Errorf("Login Failed: %s %v", out, err)
+	}
+	return nil
+}
+
+func (a *AzurePlatform) GetResourceGroupForCluster(clusterName string) string {
+	return clusterName
+}
+
+func (a *AzurePlatform) NameSanitize(clusterName string) string {
+	// azure will create a "node resource group" which will append the
+	// clustername to the resource group name plus several other characters:
+	// MC_clustername_rgname_region.
+	clusterName = strings.NewReplacer(".", "").Replace(clusterName)
+	regionNameLen := len(a.GetAzureLocation())
+	fixedPartLen := 5 // "MC_" and 2 underscores
+	allowedLenForcluster := (AzureMaxResourceGroupNameLen - fixedPartLen - regionNameLen) / 2
+	if len(clusterName) > allowedLenForcluster {
+		clusterName = clusterName[:allowedLenForcluster]
+	}
+	return clusterName
+}
+
+func (a *AzurePlatform) SetCommonPlatform(cpf *infracommon.CommonPlatform) {
+	a.commonPf = cpf
 }

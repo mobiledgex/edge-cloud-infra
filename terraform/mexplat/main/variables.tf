@@ -77,13 +77,27 @@ variable "vault_b_domain_name" {
   default     = "vault-main-b.mobiledgex.net"
 }
 
-variable "mc_instance_name" {
-  default     = "mc-main"
+variable "console_instance_name" {
+  default     = "console-main"
 }
 
-variable "mc_vm_domain_name" {
+variable "console_domain_name" {
+  description = "Console domain name"
   type        = "string"
-  default     = "mc.mobiledgex.net"
+}
+
+variable "console_vnc_domain_name" {
+  description = "Console VNC domain name"
+  type        = "string"
+}
+
+variable "alertmanager_domain_name" {
+  default     = "alertmanager.mobiledgex.net"
+}
+
+variable "notifyroot_domain_name" {
+  description = "Notifyroot service domain name"
+  type        = "string"
 }
 
 variable "ssh_public_key_file" {

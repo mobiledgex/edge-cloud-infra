@@ -3,18 +3,19 @@
 
 package orm
 
-import edgeproto "github.com/mobiledgex/edge-cloud/edgeproto"
-import "net/http"
-import "testing"
-import "github.com/stretchr/testify/require"
-import "github.com/mobiledgex/edge-cloud-infra/mc/ormclient"
-import "github.com/mobiledgex/edge-cloud-infra/mc/orm/testutil"
-import proto "github.com/gogo/protobuf/proto"
-import fmt "fmt"
-import math "math"
-import _ "github.com/gogo/googleapis/google/api"
-import _ "github.com/mobiledgex/edge-cloud/protogen"
-import _ "github.com/gogo/protobuf/gogoproto"
+import (
+	fmt "fmt"
+	_ "github.com/gogo/protobuf/gogoproto"
+	proto "github.com/gogo/protobuf/proto"
+	"github.com/mobiledgex/edge-cloud-infra/mc/orm/testutil"
+	"github.com/mobiledgex/edge-cloud-infra/mc/ormclient"
+	edgeproto "github.com/mobiledgex/edge-cloud/edgeproto"
+	_ "github.com/mobiledgex/edge-cloud/protogen"
+	"github.com/stretchr/testify/require"
+	math "math"
+	"net/http"
+	"testing"
+)
 
 // Reference imports to suppress errors if they are not otherwise used.
 var _ = proto.Marshal
@@ -25,28 +26,42 @@ var _ = math.Inf
 
 var _ = edgeproto.GetFields
 
-func badPermShowCloudletRefs(t *testing.T, mcClient *ormclient.Client, uri, token, region, org string) {
-	_, status, err := testutil.TestPermShowCloudletRefs(mcClient, uri, token, region, org)
+func badPermShowCloudletRefs(t *testing.T, mcClient *ormclient.Client, uri, token, region, org string, modFuncs ...func(*edgeproto.CloudletRefs)) {
+	_, status, err := testutil.TestPermShowCloudletRefs(mcClient, uri, token, region, org, modFuncs...)
 	require.NotNil(t, err)
 	require.Equal(t, http.StatusForbidden, status)
 }
 
-func goodPermShowCloudletRefs(t *testing.T, mcClient *ormclient.Client, uri, token, region, org string) {
-	_, status, err := testutil.TestPermShowCloudletRefs(mcClient, uri, token, region, org)
+func goodPermShowCloudletRefs(t *testing.T, mcClient *ormclient.Client, uri, token, region, org string, modFuncs ...func(*edgeproto.CloudletRefs)) {
+	_, status, err := testutil.TestPermShowCloudletRefs(mcClient, uri, token, region, org, modFuncs...)
 	require.Nil(t, err)
 	require.Equal(t, http.StatusOK, status)
 }
 
 var _ = edgeproto.GetFields
 
-func badPermShowClusterRefs(t *testing.T, mcClient *ormclient.Client, uri, token, region, org string) {
-	_, status, err := testutil.TestPermShowClusterRefs(mcClient, uri, token, region, org)
+func badPermShowClusterRefs(t *testing.T, mcClient *ormclient.Client, uri, token, region, org string, modFuncs ...func(*edgeproto.ClusterRefs)) {
+	_, status, err := testutil.TestPermShowClusterRefs(mcClient, uri, token, region, org, modFuncs...)
 	require.NotNil(t, err)
 	require.Equal(t, http.StatusForbidden, status)
 }
 
-func goodPermShowClusterRefs(t *testing.T, mcClient *ormclient.Client, uri, token, region, org string) {
-	_, status, err := testutil.TestPermShowClusterRefs(mcClient, uri, token, region, org)
+func goodPermShowClusterRefs(t *testing.T, mcClient *ormclient.Client, uri, token, region, org string, modFuncs ...func(*edgeproto.ClusterRefs)) {
+	_, status, err := testutil.TestPermShowClusterRefs(mcClient, uri, token, region, org, modFuncs...)
+	require.Nil(t, err)
+	require.Equal(t, http.StatusOK, status)
+}
+
+var _ = edgeproto.GetFields
+
+func badPermShowAppInstRefs(t *testing.T, mcClient *ormclient.Client, uri, token, region, org string, modFuncs ...func(*edgeproto.AppInstRefs)) {
+	_, status, err := testutil.TestPermShowAppInstRefs(mcClient, uri, token, region, org, modFuncs...)
+	require.NotNil(t, err)
+	require.Equal(t, http.StatusForbidden, status)
+}
+
+func goodPermShowAppInstRefs(t *testing.T, mcClient *ormclient.Client, uri, token, region, org string, modFuncs ...func(*edgeproto.AppInstRefs)) {
+	_, status, err := testutil.TestPermShowAppInstRefs(mcClient, uri, token, region, org, modFuncs...)
 	require.Nil(t, err)
 	require.Equal(t, http.StatusOK, status)
 }

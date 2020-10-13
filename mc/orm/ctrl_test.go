@@ -9,6 +9,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/mitchellh/mapstructure"
 	ormtestutil "github.com/mobiledgex/edge-cloud-infra/mc/orm/testutil"
 	"github.com/mobiledgex/edge-cloud-infra/mc/ormapi"
 	"github.com/mobiledgex/edge-cloud-infra/mc/ormclient"
@@ -26,7 +27,7 @@ var Fail = false
 
 func TestController(t *testing.T) {
 	log.SetDebugLevel(log.DebugLevelApi)
-	log.InitTracer("")
+	log.InitTracer(nil)
 	defer log.FinishTracer()
 	ctx := log.StartTestSpan(context.Background())
 	addr := "127.0.0.1:9999"
@@ -36,13 +37,14 @@ func TestController(t *testing.T) {
 	defer vaultServer.Close()
 
 	config := ServerConfig{
-		ServAddr:        addr,
-		SqlAddr:         "127.0.0.1:5445",
-		RunLocal:        true,
-		InitLocal:       true,
-		IgnoreEnv:       true,
-		SkipVerifyEmail: true,
-		vaultConfig:     vaultConfig,
+		ServAddr:                addr,
+		SqlAddr:                 "127.0.0.1:5445",
+		RunLocal:                true,
+		InitLocal:               true,
+		IgnoreEnv:               true,
+		SkipVerifyEmail:         true,
+		vaultConfig:             vaultConfig,
+		UsageCheckpointInterval: "MONTH",
 	}
 	server, err := RunServer(&config)
 	require.Nil(t, err, "run server")
@@ -113,7 +115,7 @@ func TestController(t *testing.T) {
 	require.Equal(t, ctrl.Address, ctrls[0].Address)
 
 	// create admin
-	admin, tokenAd := testCreateUser(t, mcClient, uri, "admin1")
+	admin, tokenAd, _ := testCreateUser(t, mcClient, uri, "admin1")
 	testAddUserRole(t, mcClient, uri, token, "", "AdminManager", admin.Name, Success)
 
 	// create a developers
@@ -121,15 +123,15 @@ func TestController(t *testing.T) {
 	org2 := "org2"
 	_, _, tokenDev := testCreateUserOrg(t, mcClient, uri, "dev", "developer", org1)
 	_, _, tokenDev2 := testCreateUserOrg(t, mcClient, uri, "dev2", "developer", org2)
-	dev3, tokenDev3 := testCreateUser(t, mcClient, uri, "dev3")
-	dev4, tokenDev4 := testCreateUser(t, mcClient, uri, "dev4")
+	dev3, tokenDev3, _ := testCreateUser(t, mcClient, uri, "dev3")
+	dev4, tokenDev4, _ := testCreateUser(t, mcClient, uri, "dev4")
 	// create an operator
 	org3 := "org3"
 	org4 := "org4"
 	_, _, tokenOper := testCreateUserOrg(t, mcClient, uri, "oper", "operator", org3)
 	_, _, tokenOper2 := testCreateUserOrg(t, mcClient, uri, "oper2", "operator", org4)
-	oper3, tokenOper3 := testCreateUser(t, mcClient, uri, "oper3")
-	oper4, tokenOper4 := testCreateUser(t, mcClient, uri, "oper4")
+	oper3, tokenOper3, _ := testCreateUser(t, mcClient, uri, "oper3")
+	oper4, tokenOper4, _ := testCreateUser(t, mcClient, uri, "oper4")
 
 	// number of fake objects internally sent back by dummy server
 	ds.ShowDummyCount = 0
@@ -164,7 +166,7 @@ func TestController(t *testing.T) {
 	testAddUserRole(t, mcClient, uri, tokenOper, org3, "OperatorContributor", oper3.Name, Success)
 	testAddUserRole(t, mcClient, uri, tokenOper, org3, "OperatorViewer", oper4.Name, Success)
 	// make sure dev/ops without user perms can't add new users
-	user5, _ := testCreateUser(t, mcClient, uri, "user5")
+	user5, _, _ := testCreateUser(t, mcClient, uri, "user5")
 	testAddUserRole(t, mcClient, uri, tokenDev3, org1, "DeveloperViewer", user5.Name, Fail)
 	testAddUserRole(t, mcClient, uri, tokenDev4, org1, "DeveloperViewer", user5.Name, Fail)
 	testAddUserRole(t, mcClient, uri, tokenOper3, org3, "OperatorViewer", user5.Name, Fail)
@@ -192,13 +194,15 @@ func TestController(t *testing.T) {
 	// cloudlet defaults to "public"
 	org3Cloudlet := edgeproto.Cloudlet{
 		Key: edgeproto.CloudletKey{
-			OperatorKey: edgeproto.OperatorKey{
-				Name: org3,
-			},
-			Name: org3,
+			Organization: org3,
+			Name:         org3,
 		},
 	}
 	ds.CloudletCache.Update(ctx, &org3Cloudlet, 0)
+	org3CloudletInfo := edgeproto.CloudletInfo{
+		Key: org3Cloudlet.Key,
+	}
+	ds.CloudletInfoCache.Update(ctx, &org3CloudletInfo, 0)
 	tc3 := &org3Cloudlet.Key
 
 	// +1 count for Cloudlets because of extra one above
@@ -216,11 +220,11 @@ func TestController(t *testing.T) {
 	goodPermTestClusterInst(t, mcClient, uri, tokenAd, ctrl.Region, org2, tc3, dcnt)
 	goodPermTestCloudletPool(t, mcClient, uri, tokenAd, ctrl.Region, org1, dcnt)
 	goodPermTestCloudletPool(t, mcClient, uri, tokenAd, ctrl.Region, org2, dcnt)
-	goodPermTestCloudletPoolMember(t, mcClient, uri, tokenAd, ctrl.Region, org1, dcnt)
-	goodPermTestCloudletPoolMember(t, mcClient, uri, tokenAd, ctrl.Region, org2, dcnt)
+	goodPermTestAutoProvPolicy(t, mcClient, uri, tokenAd, ctrl.Region, org1, dcnt)
+	goodPermTestAutoProvPolicy(t, mcClient, uri, tokenAd, ctrl.Region, org2, dcnt)
 
 	// test non-existent org check
-	badPermTestNonExistent(t, mcClient, uri, tokenAd, ctrl.Region, tc3)
+	// (no check by admin because it returns a different error code)
 	badPermTestNonExistent(t, mcClient, uri, tokenDev, ctrl.Region, tc3)
 	badPermTestNonExistent(t, mcClient, uri, tokenDev2, ctrl.Region, tc3)
 	badPermTestNonExistent(t, mcClient, uri, tokenDev3, ctrl.Region, tc3)
@@ -232,7 +236,7 @@ func TestController(t *testing.T) {
 
 	// bug 1756 - better error message for nonexisting org in image path
 	badApp := &edgeproto.App{}
-	badApp.Key.DeveloperKey.Name = "nonexistent"
+	badApp.Key.Organization = "nonexistent"
 	badApp.ImagePath = "docker-qa.mobiledgex.net/nonexistent/images/server_ping_threaded:5.0"
 	_, status, err = ormtestutil.TestCreateApp(mcClient, uri, token, ctrl.Region, badApp)
 	require.NotNil(t, err)
@@ -318,6 +322,8 @@ func TestController(t *testing.T) {
 	// test operators can modify their own objs but not each other's
 	badPermTestCloudlet(t, mcClient, uri, tokenOper, ctrl.Region, org4)
 	badPermTestCloudlet(t, mcClient, uri, tokenOper2, ctrl.Region, org3)
+	permTestCloudletPool(t, mcClient, uri, tokenOper, tokenOper2, ctrl.Region, org3, org4, dcnt)
+	permTestVMPool(t, mcClient, uri, tokenOper, tokenOper2, ctrl.Region, org3, org4, dcnt)
 
 	// test developers can modify their own objs but not each other's
 	// tests also that developers can create AppInsts/ClusterInsts on tc3.
@@ -327,6 +333,12 @@ func TestController(t *testing.T) {
 		org1, org2, tc3, dcnt)
 	permTestClusterInst(t, mcClient, uri, tokenDev, tokenDev2, ctrl.Region,
 		org1, org2, tc3, dcnt)
+	permTestAutoProvPolicy(t, mcClient, uri, tokenDev, tokenDev2, ctrl.Region,
+		org1, org2, dcnt)
+	permTestAutoScalePolicy(t, mcClient, uri, tokenDev, tokenDev2, ctrl.Region,
+		org1, org2, dcnt)
+	permTestPrivacyPolicy(t, mcClient, uri, tokenDev, tokenDev2, ctrl.Region,
+		org1, org2, dcnt)
 	// test users with different roles
 	goodPermTestApp(t, mcClient, uri, tokenDev3, ctrl.Region, org1, dcnt)
 	goodPermTestAppInst(t, mcClient, uri, tokenDev3, ctrl.Region, org1, tc3, dcnt)
@@ -342,11 +354,11 @@ func TestController(t *testing.T) {
 	{
 		// developers can't create AppInsts on other developer's ClusterInsts
 		appinst := edgeproto.AppInst{}
-		appinst.Key.AppKey.DeveloperKey.Name = org1
-		appinst.Key.ClusterInstKey.Developer = cloudcommon.DeveloperMobiledgeX
+		appinst.Key.AppKey.Organization = org1
+		appinst.Key.ClusterInstKey.Organization = cloudcommon.OrganizationMobiledgeX
 		_, status, err := ormtestutil.TestCreateAppInst(mcClient, uri, tokenDev, ctrl.Region, &appinst)
 		require.NotNil(t, err)
-		require.Contains(t, err.Error(), "AppInst developer must match ClusterInst developer")
+		require.Contains(t, err.Error(), "AppInst organization must match ClusterInst organization")
 		// but admin can
 		_, status, err = ormtestutil.TestCreateAppInst(mcClient, uri, tokenAd, ctrl.Region, &appinst)
 		require.Nil(t, err)
@@ -364,75 +376,82 @@ func TestController(t *testing.T) {
 	testRemoveUserRole(t, mcClient, uri, tokenOper, org3, "OperatorContributor", oper3.Name, Success)
 	badPermTestCloudlet(t, mcClient, uri, tokenOper3, ctrl.Region, org3)
 
-	// non-admins cannot modify cloudlet pools or org cloudlet pools
-	badPermTestCloudletPool(t, mcClient, uri, tokenDev, ctrl.Region, org1)
-	badPermTestCloudletPool(t, mcClient, uri, tokenDev2, ctrl.Region, org2)
-	badPermTestCloudletPool(t, mcClient, uri, tokenOper, ctrl.Region, org3)
-	badPermTestCloudletPool(t, mcClient, uri, tokenOper2, ctrl.Region, org4)
-	badPermTestCloudletPoolMember(t, mcClient, uri, tokenDev, ctrl.Region, org1)
-	badPermTestCloudletPoolMember(t, mcClient, uri, tokenDev2, ctrl.Region, org2)
-	badPermTestCloudletPoolMember(t, mcClient, uri, tokenOper, ctrl.Region, org3)
-	badPermTestCloudletPoolMember(t, mcClient, uri, tokenOper2, ctrl.Region, org4)
-
-	// create cloudlet pool
+	// operator create cloudlet pool for org3
 	pool := ormapi.RegionCloudletPool{
 		Region: ctrl.Region,
 		CloudletPool: edgeproto.CloudletPool{
 			Key: edgeproto.CloudletPoolKey{
-				Name: "pool1",
+				Name:         "pool1",
+				Organization: org3,
 			},
 		},
 	}
-	_, status, err = mcClient.CreateCloudletPool(uri, token, &pool)
+	_, status, err = mcClient.CreateCloudletPool(uri, tokenOper, &pool)
 	require.Nil(t, err)
 	require.Equal(t, http.StatusOK, status)
 
-	poollist, status, err := mcClient.ShowCloudletPool(uri, token, &pool)
+	poollist, status, err := mcClient.ShowCloudletPool(uri, tokenOper, &pool)
 	require.Nil(t, err)
 	require.Equal(t, http.StatusOK, status)
 	require.Equal(t, 1, len(poollist))
 
-	// org cloudlet pool
-	op1 := ormapi.OrgCloudletPool{
-		Org:          org1,
-		Region:       ctrl.Region,
-		CloudletPool: pool.CloudletPool.Key.Name,
-	}
-	// make sure non-admins cannot use pool APIs (requires org1 and pool1 exist)
-	badPermTestOrgCloudletPool(t, mcClient, uri, tokenDev, &op1)
-	badPermTestOrgCloudletPool(t, mcClient, uri, tokenDev2, &op1)
-	badPermTestOrgCloudletPool(t, mcClient, uri, tokenOper, &op1)
-	badPermTestOrgCloudletPool(t, mcClient, uri, tokenOper2, &op1)
+	// admin can see pool
+	poollist, status, err = mcClient.ShowCloudletPool(uri, token, &pool)
+	require.Nil(t, err)
+	require.Equal(t, http.StatusOK, status)
+	require.Equal(t, 1, len(poollist))
 
-	// admin add pool to org1
-	status, err = mcClient.CreateOrgCloudletPool(uri, token, &op1)
+	// other operator or developer can't see pool
+	poollist, status, err = mcClient.ShowCloudletPool(uri, tokenOper2, &pool)
+	require.Nil(t, err)
+	require.Equal(t, http.StatusOK, status)
+	require.Equal(t, 0, len(poollist))
+	poollist, status, err = mcClient.ShowCloudletPool(uri, tokenDev, &pool)
+	require.Nil(t, err)
+	require.Equal(t, http.StatusOK, status)
+	require.Equal(t, 0, len(poollist))
+
+	// associate cloudletpool with org, allows org1 to see cloudlets in pool
+	op1 := ormapi.OrgCloudletPool{
+		Org:             org1,
+		Region:          ctrl.Region,
+		CloudletPool:    pool.CloudletPool.Key.Name,
+		CloudletPoolOrg: pool.CloudletPool.Key.Organization, // org3
+	}
+	status, err = mcClient.CreateOrgCloudletPool(uri, tokenOper, &op1)
 	require.Nil(t, err)
 	require.Equal(t, http.StatusOK, status)
 
-	// org1 should not be able to see any cloudlets since it's restricted
-	// to pool1, and no cloudlets have been assigned to pool1.
-	// (but can still see their own org's cloudlets)
-	testShowOrgCloudlet(t, mcClient, uri, tokenDev, ctrl.Region, org1, dcnt)
-	// show cloudlet will behave the same as showorgcloudlet since only one pool
-	goodPermTestShowCloudlet(t, mcClient, uri, tokenDev, ctrl.Region, "", dcnt)
-
-	// org1 cannot create against tc3 anymore
-	badPermCreateClusterInst(t, mcClient, uri, tokenDev, ctrl.Region, org1, tc3)
-	badPermCreateAppInst(t, mcClient, uri, tokenDev, ctrl.Region, org1, tc3)
+	// trying to delete cloudletpool should fail because it's in use by orgcloudletpool
+	_, status, err = mcClient.DeleteCloudletPool(uri, tokenOper, &pool)
+	require.NotNil(t, err)
+	require.Equal(t, http.StatusBadRequest, status)
+	require.Contains(t, err.Error(), "because it is in use by OrgCloudletPool")
 
 	// add tc3 to pool1, so it's accessible for org1
 	member := ormapi.RegionCloudletPoolMember{
 		Region:             ctrl.Region,
 		CloudletPoolMember: edgeproto.CloudletPoolMember{},
 	}
-	member.CloudletPoolMember.PoolKey = pool.CloudletPool.Key
-	member.CloudletPoolMember.CloudletKey = *tc3
-	_, status, err = mcClient.CreateCloudletPoolMember(uri, token, &member)
+	member.CloudletPoolMember.Key = pool.CloudletPool.Key
+	member.CloudletPoolMember.CloudletName = tc3.Name
+	_, status, err = mcClient.AddCloudletPoolMember(uri, tokenOper, &member)
 	require.Nil(t, err)
 	require.Equal(t, http.StatusOK, status)
 
-	// tc3 should now be visible
-	testShowOrgCloudlet(t, mcClient, uri, tokenDev, ctrl.Region, org1, dcnt+1)
+	log.SetDebugLevel(log.DebugLevelApi)
+
+	autoProvTc3 := func(in *edgeproto.AutoProvPolicy) {
+		in.Cloudlets = append(in.Cloudlets, &edgeproto.AutoProvCloudlet{
+			Key: *tc3,
+		})
+	}
+	autoProvAddTc3 := func(in *edgeproto.AutoProvPolicyCloudlet) {
+		in.CloudletKey = *tc3
+	}
+
+	// tc3 should now be visible along with all other cloudlets
+	testShowOrgCloudlet(t, mcClient, uri, tokenDev, ctrl.Region, org1, ccount)
 	// tc3 should not be visible by other orgs
 	// (note count here is without tc3, except for org3 to which it belongs)
 	testShowOrgCloudlet(t, mcClient, uri, tokenDev2, ctrl.Region, org2, count)
@@ -442,13 +461,16 @@ func TestController(t *testing.T) {
 	// tc3 should now be usable for org1
 	goodPermTestClusterInst(t, mcClient, uri, tokenDev, ctrl.Region, org1, tc3, dcnt)
 	goodPermTestAppInst(t, mcClient, uri, tokenDev, ctrl.Region, org1, tc3, dcnt)
+	goodPermTestAutoProvPolicy(t, mcClient, uri, tokenDev, ctrl.Region, org1, dcnt, autoProvTc3)
+	goodPermAddAutoProvPolicyCloudlet(t, mcClient, uri, tokenDev, ctrl.Region, org1, autoProvAddTc3)
 	// tc3 should be unusable for other org2
 	badPermCreateClusterInst(t, mcClient, uri, tokenDev2, ctrl.Region, org2, tc3)
 	badPermCreateAppInst(t, mcClient, uri, tokenDev2, ctrl.Region, org2, tc3)
+	badPermTestAutoProvPolicy400(t, mcClient, uri, tokenDev2, ctrl.Region, org2, autoProvTc3)
+	badPermAddAutoProvPolicyCloudlet400(t, mcClient, uri, tokenDev2, ctrl.Region, org2, autoProvAddTc3)
 
-	// show cloudlet for org1 will only show those in pool1, and those
-	// owned by org1.
-	goodPermTestShowCloudlet(t, mcClient, uri, tokenDev, ctrl.Region, "", dcnt+1)
+	// show cloudlet for org1 will only show those in pool1 plus public cloudlets
+	goodPermTestShowCloudlet(t, mcClient, uri, tokenDev, ctrl.Region, "", ccount)
 	// show cloudlet will not show tc3 since it's now part of a pool
 	// (except for operator who owns tc3).
 	goodPermTestShowCloudlet(t, mcClient, uri, tokenDev2, ctrl.Region, "", count)
@@ -461,11 +483,11 @@ func TestController(t *testing.T) {
 	require.Equal(t, http.StatusOK, status)
 
 	// delete org cloudlet pools
-	status, err = mcClient.DeleteOrgCloudletPool(uri, token, &op1)
+	status, err = mcClient.DeleteOrgCloudletPool(uri, tokenOper, &op1)
 	require.Nil(t, err)
 	require.Equal(t, http.StatusOK, status)
 	// delete cloudlet pool
-	_, status, err = mcClient.DeleteCloudletPool(uri, token, &pool)
+	_, status, err = mcClient.DeleteCloudletPool(uri, tokenOper, &pool)
 	require.Nil(t, err)
 	require.Equal(t, http.StatusOK, status)
 
@@ -486,7 +508,7 @@ func TestController(t *testing.T) {
 	sds := StreamDummyServer{}
 	sds.next = make(chan int, 1)
 	edgeproto.RegisterClusterInstApiServer(dc2, &sds)
-	edgeproto.RegisterCloudletPoolMemberApiServer(dc2, &sds)
+	edgeproto.RegisterCloudletPoolApiServer(dc2, &sds)
 	go func() {
 		dc2.Serve(lis2)
 	}()
@@ -504,7 +526,7 @@ func TestController(t *testing.T) {
 		Region: ctrl.Region,
 		ClusterInst: edgeproto.ClusterInst{
 			Key: edgeproto.ClusterInstKey{
-				Developer: "org1",
+				Organization: "org1",
 			},
 		},
 	}
@@ -535,15 +557,20 @@ func TestController(t *testing.T) {
 	require.Equal(t, 1, count)
 
 	count = 0
+	wsOut := ormapi.WSStreamPayload{}
 	// check that we get intermediate results.
 	// the callback func is only called when data is read back.
 	// Test Websocket connection
 	uri = "ws://" + addr + "/ws/api/v1"
 	status, err = mcClient.PostJsonStreamOut(uri+"/auth/ctrl/CreateClusterInst",
-		token, &dat, &out, func() {
+		token, &dat, &wsOut, func() {
 			// got a result, trigger next result
 			count++
-			require.Equal(t, count, int(out.Code))
+			require.Equal(t, 200, int(wsOut.Code))
+			result := edgeproto.Result{}
+			err = mapstructure.Decode(wsOut.Data, &result)
+			require.Nil(t, err, "Received data of type Result")
+			require.Equal(t, count, int(result.Code))
 			sds.next <- 1
 		})
 	require.Nil(t, err, "stream test create cluster inst")
@@ -553,7 +580,7 @@ func TestController(t *testing.T) {
 	count = 0
 	sds.next = make(chan int, 1)
 	status, err = mcClient.PostJsonStreamOut(uri+"/auth/ctrl/CreateClusterInst",
-		token, &dat, &out, func() {
+		token, &dat, &wsOut, func() {
 			count++
 		})
 	require.NotNil(t, err)
@@ -562,11 +589,11 @@ func TestController(t *testing.T) {
 	require.Equal(t, 1, count)
 }
 
-func testCreateUser(t *testing.T, mcClient *ormclient.Client, uri, name string) (*ormapi.User, string) {
+func testCreateUser(t *testing.T, mcClient *ormclient.Client, uri, name string) (*ormapi.User, string, string) {
 	user := ormapi.User{
 		Name:     name,
 		Email:    name + "@gmail.com",
-		Passhash: name + "-password",
+		Passhash: name + "-password-super-long-crazy-hard-difficult",
 	}
 	status, err := mcClient.CreateUser(uri, &user)
 	require.Nil(t, err, "create user ", name)
@@ -574,16 +601,14 @@ func testCreateUser(t *testing.T, mcClient *ormclient.Client, uri, name string) 
 	// login
 	token, err := mcClient.DoLogin(uri, user.Name, user.Passhash)
 	require.Nil(t, err, "login as ", name)
-	return &user, token
+	return &user, token, user.Passhash
 }
 
 func testCreateOrg(t *testing.T, mcClient *ormclient.Client, uri, token, orgType, orgName string) *ormapi.Organization {
 	// create org
 	org := ormapi.Organization{
-		Type:    orgType,
-		Name:    orgName,
-		Address: orgName,
-		Phone:   "123-123-1234",
+		Type: orgType,
+		Name: orgName,
 	}
 	status, err := mcClient.CreateOrg(uri, token, &org)
 	require.Nil(t, err, "create org ", orgName)
@@ -593,6 +618,7 @@ func testCreateOrg(t *testing.T, mcClient *ormclient.Client, uri, token, orgType
 
 var updateOrgData = `{"Name":"%s","PublicImages":%t}`
 var updateOrgType = `{"Name":"%s","Type":"%s"}`
+var updateOrgDeleteInProgress = `{"Name":"%s","DeleteInProgress":%t}`
 
 func testUpdateOrg(t *testing.T, mcClient *ormclient.Client, uri, token, orgName string) {
 	org := getOrg(t, mcClient, uri, token, orgName)
@@ -662,7 +688,7 @@ func getOrg(t *testing.T, mcClient *ormclient.Client, uri, token, name string) *
 }
 
 func testCreateUserOrg(t *testing.T, mcClient *ormclient.Client, uri, name, orgType, orgName string) (*ormapi.User, *ormapi.Organization, string) {
-	user, token := testCreateUser(t, mcClient, uri, name)
+	user, token, _ := testCreateUser(t, mcClient, uri, name)
 	org := testCreateOrg(t, mcClient, uri, token, orgType, orgName)
 	return user, org, token
 }
@@ -699,7 +725,7 @@ func testRemoveUserRole(t *testing.T, mcClient *ormclient.Client, uri, token, or
 
 func setClusterInstDev(dev string, insts []edgeproto.ClusterInst) {
 	for ii, _ := range insts {
-		insts[ii].Key.Developer = dev
+		insts[ii].Key.Organization = dev
 	}
 }
 
@@ -711,6 +737,10 @@ func testShowOrgCloudlet(t *testing.T, mcClient *ormclient.Client, uri, token, r
 	require.Nil(t, err, "show org cloudlet")
 	require.Equal(t, http.StatusOK, status)
 	require.Equal(t, showcount, len(list))
+	infolist, infostatus, err := mcClient.ShowOrgCloudletInfo(uri, token, &oc)
+	require.Nil(t, err, "show org cloudletinfo")
+	require.Equal(t, http.StatusOK, infostatus)
+	require.Equal(t, showcount, len(infolist))
 }
 
 func badPermTestOrgCloudletPool(t *testing.T, mcClient *ormclient.Client, uri, token string, op *ormapi.OrgCloudletPool) {
@@ -733,26 +763,44 @@ func badPermShowOrgCloudlet(t *testing.T, mcClient *ormclient.Client, uri, token
 	_, status, err := mcClient.ShowOrgCloudlet(uri, token, &oc)
 	require.NotNil(t, err)
 	require.Equal(t, http.StatusForbidden, status)
+
+	_, infostatus, err := mcClient.ShowOrgCloudletInfo(uri, token, &oc)
+	require.NotNil(t, err)
+	require.Equal(t, http.StatusForbidden, infostatus)
 }
 
 // Test that we get forbidden for Orgs that don't exist
 func badPermTestNonExistent(t *testing.T, mcClient *ormclient.Client, uri, token, region string, tc *edgeproto.CloudletKey) {
 	neOrg := "non-existent-org"
 	badPermCreateApp(t, mcClient, uri, token, region, neOrg)
-	badPermDeleteApp(t, mcClient, uri, token, region, neOrg)
-	badPermUpdateApp(t, mcClient, uri, token, region, neOrg)
-
 	badPermCreateAppInst(t, mcClient, uri, token, region, neOrg, tc)
-	badPermDeleteAppInst(t, mcClient, uri, token, region, neOrg, tc)
-	badPermUpdateAppInst(t, mcClient, uri, token, region, neOrg, tc)
-
 	badPermCreateCloudlet(t, mcClient, uri, token, region, neOrg)
-	badPermDeleteCloudlet(t, mcClient, uri, token, region, neOrg)
-	badPermUpdateCloudlet(t, mcClient, uri, token, region, neOrg)
-
 	badPermCreateClusterInst(t, mcClient, uri, token, region, neOrg, tc)
-	badPermDeleteClusterInst(t, mcClient, uri, token, region, neOrg, tc)
-	badPermUpdateClusterInst(t, mcClient, uri, token, region, neOrg, tc)
+	badPermCreateOperatorCode(t, mcClient, uri, token, region, neOrg)
+	badPermCreateAutoProvPolicy(t, mcClient, uri, token, region, neOrg)
+	badPermCreateAutoScalePolicy(t, mcClient, uri, token, region, neOrg)
+	badPermCreatePrivacyPolicy(t, mcClient, uri, token, region, neOrg)
+	badPermCreateCloudletPool(t, mcClient, uri, token, region, neOrg)
+	badPermCreateResTagTable(t, mcClient, uri, token, region, neOrg)
+}
+
+func badPermTestAutoProvPolicy400(t *testing.T, mcClient *ormclient.Client, uri, token, region, org string, modFuncs ...func(*edgeproto.AutoProvPolicy)) {
+	// check for "No permissions" instead of Forbidden(403)
+	_, status, err := ormtestutil.TestPermCreateAutoProvPolicy(mcClient, uri, token, region, org, modFuncs...)
+	require.NotNil(t, err)
+	require.Equal(t, http.StatusBadRequest, status)
+	require.Contains(t, err.Error(), "No permissions for Cloudlet")
+	_, status, err = ormtestutil.TestPermUpdateAutoProvPolicy(mcClient, uri, token, region, org, modFuncs...)
+	require.NotNil(t, err)
+	require.Equal(t, http.StatusBadRequest, status)
+	require.Contains(t, err.Error(), "No permissions for Cloudlet")
+}
+
+func badPermAddAutoProvPolicyCloudlet400(t *testing.T, mcClient *ormclient.Client, uri, token, region, org string, modFuncs ...func(*edgeproto.AutoProvPolicyCloudlet)) {
+	// check for "No permissions" instead of Forbidden(403)
+	_, status, err := ormtestutil.TestPermAddAutoProvPolicyCloudlet(mcClient, uri, token, region, org, modFuncs...)
+	require.Equal(t, http.StatusBadRequest, status)
+	require.Contains(t, err.Error(), "No permissions for Cloudlet")
 }
 
 type StreamDummyServer struct {
@@ -788,14 +836,26 @@ func (s *StreamDummyServer) ShowClusterInst(in *edgeproto.ClusterInst, server ed
 	return nil
 }
 
-func (s *StreamDummyServer) CreateCloudletPoolMember(ctx context.Context, in *edgeproto.CloudletPoolMember) (*edgeproto.Result, error) {
+func (s *StreamDummyServer) CreateCloudletPool(ctx context.Context, in *edgeproto.CloudletPool) (*edgeproto.Result, error) {
 	return &edgeproto.Result{}, nil
 }
 
-func (s *StreamDummyServer) DeleteCloudletPoolMember(ctx context.Context, in *edgeproto.CloudletPoolMember) (*edgeproto.Result, error) {
+func (s *StreamDummyServer) DeleteCloudletPool(ctx context.Context, in *edgeproto.CloudletPool) (*edgeproto.Result, error) {
 	return &edgeproto.Result{}, nil
 }
 
-func (s *StreamDummyServer) ShowCloudletPoolMember(in *edgeproto.CloudletPoolMember, cb edgeproto.CloudletPoolMemberApi_ShowCloudletPoolMemberServer) error {
+func (s *StreamDummyServer) UpdateCloudletPool(ctx context.Context, in *edgeproto.CloudletPool) (*edgeproto.Result, error) {
+	return &edgeproto.Result{}, nil
+}
+
+func (s *StreamDummyServer) AddCloudletPoolMember(ctx context.Context, in *edgeproto.CloudletPoolMember) (*edgeproto.Result, error) {
+	return &edgeproto.Result{}, nil
+}
+
+func (s *StreamDummyServer) RemoveCloudletPoolMember(ctx context.Context, in *edgeproto.CloudletPoolMember) (*edgeproto.Result, error) {
+	return &edgeproto.Result{}, nil
+}
+
+func (s *StreamDummyServer) ShowCloudletPool(in *edgeproto.CloudletPool, cb edgeproto.CloudletPoolApi_ShowCloudletPoolServer) error {
 	return nil
 }

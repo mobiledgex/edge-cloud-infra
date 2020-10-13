@@ -3,15 +3,17 @@
 
 package testutil
 
-import edgeproto "github.com/mobiledgex/edge-cloud/edgeproto"
-import "github.com/mobiledgex/edge-cloud-infra/mc/ormclient"
-import "github.com/mobiledgex/edge-cloud-infra/mc/ormapi"
-import proto "github.com/gogo/protobuf/proto"
-import fmt "fmt"
-import math "math"
-import _ "github.com/gogo/googleapis/google/api"
-import _ "github.com/mobiledgex/edge-cloud/protogen"
-import _ "github.com/gogo/protobuf/gogoproto"
+import (
+	"context"
+	fmt "fmt"
+	_ "github.com/gogo/protobuf/gogoproto"
+	proto "github.com/gogo/protobuf/proto"
+	"github.com/mobiledgex/edge-cloud-infra/mc/ormapi"
+	"github.com/mobiledgex/edge-cloud-infra/mc/ormclient"
+	edgeproto "github.com/mobiledgex/edge-cloud/edgeproto"
+	_ "github.com/mobiledgex/edge-cloud/protogen"
+	math "math"
+)
 
 // Reference imports to suppress errors if they are not otherwise used.
 var _ = proto.Marshal
@@ -20,14 +22,113 @@ var _ = math.Inf
 
 // Auto-generated code: DO NOT EDIT
 
-func TestRunCommand(mcClient *ormclient.Client, uri, token, region string, in *edgeproto.ExecRequest) (*edgeproto.ExecRequest, int, error) {
+func TestRunCommand(mcClient *ormclient.Client, uri, token, region string, in *edgeproto.ExecRequest, modFuncs ...func(*edgeproto.ExecRequest)) (*edgeproto.ExecRequest, int, error) {
 	dat := &ormapi.RegionExecRequest{}
 	dat.Region = region
 	dat.ExecRequest = *in
+	for _, fn := range modFuncs {
+		fn(&dat.ExecRequest)
+	}
 	return mcClient.RunCommand(uri, token, dat)
 }
-func TestPermRunCommand(mcClient *ormclient.Client, uri, token, region, org string) (*edgeproto.ExecRequest, int, error) {
+func TestPermRunCommand(mcClient *ormclient.Client, uri, token, region, org string, modFuncs ...func(*edgeproto.ExecRequest)) (*edgeproto.ExecRequest, int, error) {
 	in := &edgeproto.ExecRequest{}
-	in.AppInstKey.AppKey.DeveloperKey.Name = org
-	return TestRunCommand(mcClient, uri, token, region, in)
+	in.AppInstKey.AppKey.Organization = org
+	return TestRunCommand(mcClient, uri, token, region, in, modFuncs...)
+}
+
+func TestRunConsole(mcClient *ormclient.Client, uri, token, region string, in *edgeproto.ExecRequest, modFuncs ...func(*edgeproto.ExecRequest)) (*edgeproto.ExecRequest, int, error) {
+	dat := &ormapi.RegionExecRequest{}
+	dat.Region = region
+	dat.ExecRequest = *in
+	for _, fn := range modFuncs {
+		fn(&dat.ExecRequest)
+	}
+	return mcClient.RunConsole(uri, token, dat)
+}
+func TestPermRunConsole(mcClient *ormclient.Client, uri, token, region, org string, modFuncs ...func(*edgeproto.ExecRequest)) (*edgeproto.ExecRequest, int, error) {
+	in := &edgeproto.ExecRequest{}
+	in.AppInstKey.AppKey.Organization = org
+	return TestRunConsole(mcClient, uri, token, region, in, modFuncs...)
+}
+
+func TestShowLogs(mcClient *ormclient.Client, uri, token, region string, in *edgeproto.ExecRequest, modFuncs ...func(*edgeproto.ExecRequest)) (*edgeproto.ExecRequest, int, error) {
+	dat := &ormapi.RegionExecRequest{}
+	dat.Region = region
+	dat.ExecRequest = *in
+	for _, fn := range modFuncs {
+		fn(&dat.ExecRequest)
+	}
+	return mcClient.ShowLogs(uri, token, dat)
+}
+func TestPermShowLogs(mcClient *ormclient.Client, uri, token, region, org string, modFuncs ...func(*edgeproto.ExecRequest)) (*edgeproto.ExecRequest, int, error) {
+	in := &edgeproto.ExecRequest{}
+	in.AppInstKey.AppKey.Organization = org
+	return TestShowLogs(mcClient, uri, token, region, in, modFuncs...)
+}
+
+func TestAccessCloudlet(mcClient *ormclient.Client, uri, token, region string, in *edgeproto.ExecRequest, modFuncs ...func(*edgeproto.ExecRequest)) (*edgeproto.ExecRequest, int, error) {
+	dat := &ormapi.RegionExecRequest{}
+	dat.Region = region
+	dat.ExecRequest = *in
+	for _, fn := range modFuncs {
+		fn(&dat.ExecRequest)
+	}
+	return mcClient.AccessCloudlet(uri, token, dat)
+}
+func TestPermAccessCloudlet(mcClient *ormclient.Client, uri, token, region, org string, modFuncs ...func(*edgeproto.ExecRequest)) (*edgeproto.ExecRequest, int, error) {
+	in := &edgeproto.ExecRequest{}
+	return TestAccessCloudlet(mcClient, uri, token, region, in, modFuncs...)
+}
+
+func (s *TestClient) RunCommand(ctx context.Context, in *edgeproto.ExecRequest) (*edgeproto.ExecRequest, error) {
+	inR := &ormapi.RegionExecRequest{
+		Region:      s.Region,
+		ExecRequest: *in,
+	}
+	out, status, err := s.McClient.RunCommand(s.Uri, s.Token, inR)
+	if err == nil && status != 200 {
+		err = fmt.Errorf("status: %d\n", status)
+	}
+	return out, err
+}
+
+func (s *TestClient) RunConsole(ctx context.Context, in *edgeproto.ExecRequest) (*edgeproto.ExecRequest, error) {
+	inR := &ormapi.RegionExecRequest{
+		Region:      s.Region,
+		ExecRequest: *in,
+	}
+	out, status, err := s.McClient.RunConsole(s.Uri, s.Token, inR)
+	if err == nil && status != 200 {
+		err = fmt.Errorf("status: %d\n", status)
+	}
+	return out, err
+}
+
+func (s *TestClient) ShowLogs(ctx context.Context, in *edgeproto.ExecRequest) (*edgeproto.ExecRequest, error) {
+	inR := &ormapi.RegionExecRequest{
+		Region:      s.Region,
+		ExecRequest: *in,
+	}
+	out, status, err := s.McClient.ShowLogs(s.Uri, s.Token, inR)
+	if err == nil && status != 200 {
+		err = fmt.Errorf("status: %d\n", status)
+	}
+	return out, err
+}
+
+func (s *TestClient) AccessCloudlet(ctx context.Context, in *edgeproto.ExecRequest) (*edgeproto.ExecRequest, error) {
+	inR := &ormapi.RegionExecRequest{
+		Region:      s.Region,
+		ExecRequest: *in,
+	}
+	out, status, err := s.McClient.AccessCloudlet(s.Uri, s.Token, inR)
+	if err == nil && status != 200 {
+		err = fmt.Errorf("status: %d\n", status)
+	}
+	return out, err
+}
+
+func (s *TestClient) SendLocalRequest(ctx context.Context, in *edgeproto.ExecRequest) (*edgeproto.ExecRequest, error) {
+	return nil, nil
 }

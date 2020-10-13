@@ -19,13 +19,17 @@ options:
     description: The vault to connect to
     default: The "vault_address" ansible variable
     required: False
+  token:
+    description: Vault token to use to look up secret
+    default: The "vault_token" ansible variable
+    required: False
   role_id:
-    description: Vault role ID to generate the login token for
-    default: The "ansible_app_role.role_id" ansible variable
+    description: Vault role ID to generate the login token for; used if token is not provided
+    default: The "VAULT_ROLE_ID" environment variable
     required: False
   secret_id:
-    description: Vault secret ID of the role to generate the login token for
-    default: The "ansible_app_role.secret_id" ansible variable
+    description: Vault secret ID of the role to generate the login token for; used if token is not provided
+    default: The "VAULT_SECRET_ID" environment variable
     required: False
 """
 
@@ -102,29 +106,35 @@ class LookupModule(LookupBase):
             vault_addr = kwargs.get(vault_addr_key, myvars[vault_addr_key])
         except KeyError:
             raise AnsibleError("Could not find vault address variable: {0}".format(vault_addr_key))
+        display.vv("Vault address: {0}".format(vault_addr))
 
         version = kwargs.get('version', None)
 
-        vault_auth = {}
-        app_role_key = 'ansible_app_role'
-        for p in ('role_id', 'secret_id'):
+        token = kwargs.get('token', os.getenv("VAULT_TOKEN"))
+        if not token:
+            vault_auth = {}
+            for p in ('role_id', 'secret_id'):
+                try:
+                    vault_auth[p] = kwargs.get(p, None)
+                    if not vault_auth[p]:
+                        envvar = "VAULT_{0}".format(p.upper())
+                        vault_auth[p] = os.environ[envvar]
+                except KeyError:
+                    raise AnsibleError("Unable to fetch vault \"{0}\" from lookup params or \"{1}\" environment variable".format(
+                        p, envvar))
+
+            url = "{0}/v1/auth/approle/login".format(vault_addr)
+            r = requests.post(url, data=json.dumps(vault_auth))
+            display.vvv("Vault login response: {0}".format(r.text))
+            if r.status_code != requests.codes.ok:
+                raise AnsibleError("Vault lookup return response code: {0}".format(r.status_code))
+
             try:
-                vault_auth[p] = kwargs.get(p, None)
-                if not vault_auth[p]:
-                    vault_auth[p] = myvars[app_role_key][p]
-            except KeyError:
-                raise AnsibleError("Vault \"{0}\" needs to be set in \"{1}\" variable or lookup params".format(
-                        p, app_role_key))
+                token = r.json()['auth']['client_token']
+            except Exception as e:
+                raise AnsibleError("Failed to retrieve client token: {0}".format(e))
 
-        url = "{0}/v1/auth/approle/login".format(vault_addr)
-        r = requests.post(url, data=json.dumps(vault_auth))
-        if r.status_code != requests.codes.ok:
-            raise AnsibleError("Vault lookup return response code: {0}".format(r.status_code))
-
-        try:
-            token = r.json()['auth']['client_token']
-        except Exception as e:
-            raise AnsibleError("Failed to retrieve client token: {0}".format(e))
+        display.vvv("Vault token: {0}".format(token))
 
         resp = {}
         for item in paths:

@@ -1,12 +1,54 @@
 ---
+- name: Load CA certs
+  import_role:
+    name: vault
+    tasks_from: ca-certs
+  tags: setup
+
+- name: Set up reverse proxy
+  import_role:
+    name: web
+  vars:
+    nginx_config_template: "internal/jaeger/nginx-config.j2"
+    cert_domains: [ "*.{{ cloudflare_zone }}" ]
+    cert_name: "{{ inventory_hostname }}"
+  tags: setup
+
+- name: Copy CA cert
+  copy:
+    dest: "{{ mex_ca_cert_path }}"
+    content: "{{ ca_certs | join('\n') }}"
+    backup: yes
+  become: yes
+  tags: setup
+  notify: Restart nginx
+
 - name: Deploy all-in-one jaeger
-  docker_container:
-    name: jaeger
-    image: "{{ jaeger_image }}"
-    restart_policy: unless-stopped
-    ports:
-      - 127.0.0.1:24268:14268
-      - 127.0.0.1:26686:16686
+  block:
+
+    - name: Create local storage directory
+      file:
+        path: "{{ jaeger_local_storage_dir }}"
+        state: directory
+      become: yes
+
+    - name: Start all-in-one jaeger
+      docker_container:
+        name: jaeger
+        image: "{{ jaeger_image }}"
+        restart_policy: unless-stopped
+        env:
+          SPAN_STORAGE_TYPE: badger
+          BADGER_EPHEMERAL: "false"
+          BADGER_DIRECTORY_VALUE: /badger/data
+          BADGER_DIRECTORY_KEY: /badger/key
+          BADGER_TRUNCATE: "true"
+        volumes:
+          - "{{ jaeger_local_storage_dir }}:/badger"
+        ports:
+          - 127.0.0.1:24268:14268
+          - 127.0.0.1:26686:16686
+
   when:
     - es_instance is not defined
 
@@ -38,6 +80,7 @@
           ES_INDEX_PREFIX: "{{ es_index_prefix | default('main') }}"
           ES_USERNAME: "{{ jaeger_es_user }}"
           ES_PASSWORD: "{{ jaeger_es_pass }}"
+          ES_MAX_SPAN_AGE: "720h"
 
     - name: Deploy jaeger query
       docker_container:
@@ -52,6 +95,7 @@
           ES_INDEX_PREFIX: "{{ es_index_prefix | default('main') }}"
           ES_USERNAME: "{{ jaeger_es_user }}"
           ES_PASSWORD: "{{ jaeger_es_pass }}"
+          ES_MAX_SPAN_AGE: "720h"
 
     - name: Install dependencies
       apt:

@@ -4,13 +4,15 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"io/ioutil"
 	"log"
 	"os"
+	"os/exec"
 	"path"
-	"strconv"
-	"time"
+	"strings"
 
 	intprocess "github.com/mobiledgex/edge-cloud-infra/e2e-tests/int-process"
+	"github.com/mobiledgex/edge-cloud/cloudcommon/node"
 	"github.com/mobiledgex/edge-cloud/edgeproto"
 	"github.com/mobiledgex/edge-cloud/integration/process"
 	"github.com/mobiledgex/edge-cloud/setup-env/e2e-tests/e2eapi"
@@ -63,15 +65,19 @@ type K8CopyFile struct {
 
 type DeploymentData struct {
 	util.DeploymentData `yaml:",inline"`
-	Cluster             ClusterInfo            `yaml:"cluster"`
-	K8sDeployment       []*K8sDeploymentStep   `yaml:"k8s-deployment"`
-	Mcs                 []*intprocess.MC       `yaml:"mcs"`
-	Sqls                []*intprocess.Sql      `yaml:"sqls"`
-	Shepherds           []*intprocess.Shepherd `yaml:"shepherds"`
-	AutoProvs           []*intprocess.AutoProv `yaml:"autoprovs"`
-	Cloudflare          CloudflareDNS          `yaml:"cloudflare"`
-	Prometheus          []*intprocess.PromE2e  `yaml:"prometheus"`
-	Exporters           []*intprocess.Exporter `yaml:"exporter"`
+	Cluster             ClusterInfo                       `yaml:"cluster"`
+	K8sDeployment       []*K8sDeploymentStep              `yaml:"k8s-deployment"`
+	Mcs                 []*intprocess.MC                  `yaml:"mcs"`
+	Sqls                []*intprocess.Sql                 `yaml:"sqls"`
+	Shepherds           []*intprocess.Shepherd            `yaml:"shepherds"`
+	AutoProvs           []*intprocess.AutoProv            `yaml:"autoprovs"`
+	Cloudflare          CloudflareDNS                     `yaml:"cloudflare"`
+	Prometheus          []*intprocess.PromE2e             `yaml:"prometheus"`
+	HttpServers         []*intprocess.HttpServer          `yaml:"httpservers"`
+	ChefServers         []*intprocess.ChefServer          `yaml:"chefserver"`
+	Alertmanagers       []*intprocess.Alertmanager        `yaml:"alertmanagers"`
+	Maildevs            []*intprocess.Maildev             `yaml:"maildevs"`
+	AlertmgrSidecars    []*intprocess.AlertmanagerSidecar `yaml:"alertmanagersidecars"`
 }
 
 // a comparison and yaml friendly version of AllMetrics for e2e-tests
@@ -84,6 +90,17 @@ type MetricsCompare struct {
 type MetricTargets struct {
 	AppInstKey     edgeproto.AppInstKey
 	ClusterInstKey edgeproto.ClusterInstKey
+	CloudletKey    edgeproto.CloudletKey
+}
+
+type EventSearch struct {
+	Search  node.EventSearch
+	Results []node.EventData
+}
+
+type EventTerms struct {
+	Search node.EventSearch
+	Terms  *node.EventTerms
 }
 
 // metrics that e2e currently tests for
@@ -104,11 +121,16 @@ var E2eClusterSelectors = []string{
 }
 
 var TagValues = map[string]struct{}{
-	"app":      struct{}{},
-	"cloudlet": struct{}{},
-	"cluster":  struct{}{},
-	"dev":      struct{}{},
-	"operator": struct{}{},
+	"app":         struct{}{},
+	"cloudlet":    struct{}{},
+	"cluster":     struct{}{},
+	"apporg":      struct{}{},
+	"clusterorg":  struct{}{},
+	"cloudletorg": struct{}{},
+	// special event tags
+	"event":  struct{}{},
+	"status": struct{}{},
+	"flavor": struct{}{},
 }
 
 var apiAddrsUpdated = false
@@ -117,6 +139,12 @@ func GetAllProcesses() []process.Process {
 	// get all procs from edge-cloud
 	all := util.GetAllProcesses()
 	for _, p := range Deployment.Sqls {
+		all = append(all, p)
+	}
+	for _, p := range Deployment.Alertmanagers {
+		all = append(all, p)
+	}
+	for _, p := range Deployment.AlertmgrSidecars {
 		all = append(all, p)
 	}
 	for _, p := range Deployment.Mcs {
@@ -131,7 +159,13 @@ func GetAllProcesses() []process.Process {
 	for _, p := range Deployment.Prometheus {
 		all = append(all, p)
 	}
-	for _, p := range Deployment.Exporters {
+	for _, p := range Deployment.HttpServers {
+		all = append(all, p)
+	}
+	for _, p := range Deployment.ChefServers {
+		all = append(all, p)
+	}
+	for _, p := range Deployment.Maildevs {
 		all = append(all, p)
 	}
 	return all
@@ -169,6 +203,49 @@ func setupVault(rolesfile string) bool {
 	return true
 }
 
+type ChefClient struct {
+	NodeName   string   `yaml:"nodename"`
+	JsonAttrs  string   `yaml:"jsonattrs"`
+	ConfigFile string   `yaml:"configfile"`
+	Runlist    []string `yaml:"runlist"`
+}
+
+// RunChefClient executes a single chef client run
+func RunChefClient(apiFile string, vars map[string]string) error {
+	chefClient := ChefClient{}
+	err := util.ReadYamlFile(apiFile, &chefClient, util.WithVars(vars), util.ValidateReplacedVars())
+	if err != nil {
+		if !util.IsYamlOk(err, "runchefclient") {
+			log.Printf("error in unmarshal for file, %s\n", apiFile)
+		}
+		return err
+	}
+	var cmdargs = []string{
+		"--node-name", chefClient.NodeName,
+	}
+	if chefClient.JsonAttrs != "" {
+		err = ioutil.WriteFile("/tmp/chefattrs.json", []byte(chefClient.JsonAttrs), 0644)
+		if err != nil {
+			log.Printf("write to file failed, %s, %v\n", chefClient.JsonAttrs, err)
+			return err
+		}
+		cmdargs = append(cmdargs, "-j", "/tmp/chefattrs.json")
+	}
+	if chefClient.Runlist != nil {
+		runlistStr := strings.Join(chefClient.Runlist, ",")
+		cmdargs = append(cmdargs, "--runlist", runlistStr)
+	}
+	cmdargs = append(cmdargs, "-c", chefClient.ConfigFile)
+	cmd := exec.Command("chef-client", cmdargs[0:]...)
+	output, err := cmd.CombinedOutput()
+	log.Printf("chef-client run with args: %v output:\n%v\n", cmdargs, string(output))
+	if err != nil {
+		log.Printf("Failed to run chef client, %v\n", err)
+		return err
+	}
+	return nil
+}
+
 func StartProcesses(processName string, args []string, outputDir string) bool {
 	if !setupmex.StartProcesses(processName, args, outputDir) {
 		return false
@@ -194,23 +271,34 @@ func StartProcesses(processName string, args []string, outputDir string) bool {
 			return false
 		}
 	}
+	for _, p := range Deployment.Alertmanagers {
+		opts := append(opts, process.WithCleanStartup())
+		if !setupmex.StartLocal(processName, outputDir, p, opts...) {
+			return false
+		}
+	}
+	for _, p := range Deployment.AlertmgrSidecars {
+		if !setupmex.StartLocal(processName, outputDir, p, opts...) {
+			return false
+		}
+	}
 	for _, p := range Deployment.Mcs {
 		opts = append(opts, process.WithRolesFile(rolesfile))
-		opts = append(opts, process.WithDebug("api,metrics"))
+		opts = append(opts, process.WithDebug("api,metrics,events"))
 		if !setupmex.StartLocal(processName, outputDir, p, opts...) {
 			return false
 		}
 	}
 	for _, p := range Deployment.Shepherds {
 		opts = append(opts, process.WithRolesFile(rolesfile))
-		opts = append(opts, process.WithDebug("metrics"))
+		opts = append(opts, process.WithDebug("metrics,events"))
 		if !setupmex.StartLocal(processName, outputDir, p, opts...) {
 			return false
 		}
 	}
 	for _, p := range Deployment.AutoProvs {
 		opts = append(opts, process.WithRolesFile(rolesfile))
-		opts = append(opts, process.WithDebug("api,notify,metrics"))
+		opts = append(opts, process.WithDebug("api,notify,metrics,events"))
 		if !setupmex.StartLocal(processName, outputDir, p, opts...) {
 			return false
 		}
@@ -221,8 +309,18 @@ func StartProcesses(processName string, args []string, outputDir string) bool {
 			return false
 		}
 	}
-	for _, p := range Deployment.Exporters {
+	for _, p := range Deployment.HttpServers {
 		opts := append(opts, process.WithCleanStartup())
+		if !setupmex.StartLocal(processName, outputDir, p, opts...) {
+			return false
+		}
+	}
+	for _, p := range Deployment.ChefServers {
+		if !setupmex.StartLocal(processName, outputDir, p, opts...) {
+			return false
+		}
+	}
+	for _, p := range Deployment.Maildevs {
 		if !setupmex.StartLocal(processName, outputDir, p, opts...) {
 			return false
 		}
@@ -230,7 +328,7 @@ func StartProcesses(processName string, args []string, outputDir string) bool {
 	return true
 }
 
-func RunAction(ctx context.Context, actionSpec, outputDir string, config *e2eapi.TestConfig, spec *TestSpec, specStr string, mods []string, vars map[string]string) []string {
+func RunAction(ctx context.Context, actionSpec, outputDir string, config *e2eapi.TestConfig, spec *TestSpec, specStr string, mods []string, vars map[string]string, retry *bool) []string {
 	var actionArgs []string
 	act, actionParam := setupmex.GetActionParam(actionSpec)
 	action, actionSubtype := setupmex.GetActionSubtype(act)
@@ -309,7 +407,7 @@ func RunAction(ctx context.Context, actionSpec, outputDir string, config *e2eapi
 			errors = append(errors, "stop remote failed")
 		}
 	case "mcapi":
-		if !RunMcAPI(actionSubtype, actionParam, spec.ApiFile, spec.CurUserFile, outputDir, mods, vars) {
+		if !RunMcAPI(actionSubtype, actionParam, spec.ApiFile, spec.CurUserFile, outputDir, mods, vars, retry) {
 			log.Printf("Unable to run api for %s\n", action)
 			errors = append(errors, "MC api failed")
 		}
@@ -333,6 +431,14 @@ func RunAction(ctx context.Context, actionSpec, outputDir string, config *e2eapi
 		if err != nil {
 			errors = append(errors, err.Error())
 		}
+		err = intprocess.StopCloudletPrometheus(ctx)
+		if err != nil {
+			errors = append(errors, err.Error())
+		}
+		err = intprocess.StopFakeEnvoyExporters(ctx)
+		if err != nil {
+			errors = append(errors, err.Error())
+		}
 		err = setupmex.Cleanup(ctx)
 		if err != nil {
 			errors = append(errors, err.Error())
@@ -341,12 +447,22 @@ func RunAction(ctx context.Context, actionSpec, outputDir string, config *e2eapi
 		if !FetchRemoteLogs(outputDir) {
 			errors = append(errors, "fetch failed")
 		}
-	case "sleep":
-		t, err := strconv.ParseUint(actionParam, 10, 32)
-		if err == nil {
-			time.Sleep(time.Second * time.Duration(t))
-		} else {
-			errors = append(errors, "Error in parsing sleeptime")
+	case "runchefclient":
+		err := RunChefClient(spec.ApiFile, vars)
+		if err != nil {
+			errors = append(errors, err.Error())
+		}
+	case "email":
+		*retry = true
+		err := RunEmailAPI(actionSubtype, spec.ApiFile, outputDir)
+		if err != nil {
+			errors = append(errors, err.Error())
+		}
+	case "slack":
+		*retry = true
+		err := RunSlackAPI(actionSubtype, spec.ApiFile, outputDir)
+		if err != nil {
+			errors = append(errors, err.Error())
 		}
 	default:
 		ecSpec := setupmex.TestSpec{}
@@ -355,7 +471,8 @@ func RunAction(ctx context.Context, actionSpec, outputDir string, config *e2eapi
 			fmt.Fprintf(os.Stderr, "ERROR: unmarshaling setupmex TestSpec: %v", err)
 			errors = append(errors, "Error in unmarshaling TestSpec")
 		} else {
-			errs := setupmex.RunAction(ctx, actionSpec, outputDir, &ecSpec, mods, vars)
+			retry := false
+			errs := setupmex.RunAction(ctx, actionSpec, outputDir, &ecSpec, mods, vars, &retry)
 			errors = append(errors, errs...)
 		}
 	}

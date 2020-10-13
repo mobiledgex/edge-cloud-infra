@@ -1,6 +1,10 @@
 - hosts: vault
   tasks:
 
+    - import_role:
+        name: vault
+        tasks_from: vault-ssh
+
     - name: Ensure that GCP creds are present in the controller
       block:
 
@@ -84,3 +88,39 @@
         storage_bucket_name: "mex-vault-{{ deploy_environ }}"
         project: "{{ gcp_project }}"
         storage_service_account_key: "/etc/gcloud/{{ storage_bucket_name }}.json"
+
+    - name: Set up filebeat, if vault_audit_elasticsearch is enabled
+      block:
+
+      - block:
+        - name: Get filebeat elasticsearch credentials
+          set_fact:
+            vault_lookup: "{{ lookup('vault', creds_path) }}"
+          vars:
+            creds_path: "{{ vault_filebeat_creds_path }}:elastic"
+        rescue:
+          - pause:
+              prompt: "Please add the filebeat credentials to path: {{ vault_filebeat_creds_path }}"
+          - name: Get filebeat elasticsearch credentials
+            set_fact:
+              vault_lookup: "{{ lookup('vault', creds_path) }}"
+            vars:
+              creds_path: "{{ vault_filebeat_creds_path }}:elastic"
+
+      - set_fact:
+          vault_elastic_cloud_id: "{{ vault_lookup.elastic.data.cloud_id }}"
+          vault_elastic_cloud_user: "{{ vault_lookup.elastic.data.cloud_user }}"
+          vault_elastic_cloud_pass: "{{ vault_lookup.elastic.data.cloud_pass }}"
+
+      - name: Set up filebeat
+        import_role:
+          name: filebeat
+        vars:
+          elastic_cloud_id: "{{ vault_elastic_cloud_id }}"
+          elastic_cloud_auth: "{{ vault_elastic_cloud_user }}:{{ vault_elastic_cloud_pass }}"
+          fields_template: templates/vault/filebeat/fields.yml
+          config_template: templates/vault/filebeat/filebeat.yml.j2
+
+      when:
+        - vault_audit_elasticsearch is defined
+        - vault_audit_elasticsearch|bool

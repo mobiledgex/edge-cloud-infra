@@ -1,2 +1,2 @@
 artifactory_fqdn: https://artifactory.mobiledgex.net/artifactory/
-cloudlet_vm_path: "https://artifactory.mobiledgex.net/artifactory/baseimages/mobiledgex-v3.0.3.qcow2#md5:306022d7e52f6b042235f4c994bde970"
+cloudlet_vm_path: "https://artifactory.mobiledgex.net/artifactory/baseimages"

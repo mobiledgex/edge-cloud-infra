@@ -22,6 +22,10 @@ provider "cloudflare" {
   token   = "${var.cloudflare_account_api_token}"
 }
 
+provider "template" {
+  version = "~> 2.2"
+}
+
 terraform {
   backend "azurerm" {
     storage_account_name  = "mexterraformstate"
@@ -30,15 +34,50 @@ terraform {
   }
 }
 
-# Common VM for gitlab, crm, mc, vault, postgres
+# Common VM for gitlab, crm, vault, postgres
 module "gitlab" {
   source              = "../../modules/vm_gcp"
 
   instance_name       = "${var.gitlab_instance_name}"
+  environ_tag         = "${var.environ_tag}"
   zone                = "${var.gcp_zone}"
   boot_disk_size      = 100
-  tags                = [ "mexplat-${var.environ_tag}", "gitlab-registry", "http-server", "https-server", "pg-5432", "crm", "mc", "stun-turn", "vault-ac" ]
-  ssh_public_key_file = "${var.ssh_public_key_file}"
+  tags                = [
+    "mexplat-${var.environ_tag}",
+    "gitlab-registry",
+    "http-server",
+    "https-server",
+    "pg-5432",
+    "crm",
+    "stun-turn",
+    "vault-ac",
+    "${module.fw_vault_gcp.target_tag}"
+  ]
+  labels              = {
+    "environ"         = "${var.environ_tag}",
+    "gitlab"          = "true",
+    "vault"           = "true",
+    "owner"           = "ops",
+  }
+}
+
+module "vault_b" {
+  source              = "../../modules/vm_gcp"
+
+  instance_name       = "${var.vault_b_instance_name}"
+  environ_tag         = "${var.environ_tag}"
+  instance_size       = "custom-1-7680-ext"
+  zone                = "${var.vault_b_gcp_zone}"
+  boot_disk_size      = 20
+  tags                = [
+    "vault-ac",
+    "${module.fw_vault_gcp.target_tag}"
+  ]
+  labels              = {
+    "environ"         = "${var.environ_tag}",
+    "vault"           = "true",
+    "owner"           = "ops",
+  }
 }
 
 module "gitlab_dns" {
@@ -59,12 +98,6 @@ module "crm_vm_dns" {
   ip                            = "${module.gitlab.external_ip}"
 }
 
-module "mc_dns" {
-  source                        = "../../modules/cloudflare_record"
-  hostname                      = "${var.mc_vm_domain_name}"
-  ip                            = "${module.gitlab.external_ip}"
-}
-
 module "postgres_dns" {
   source                        = "../../modules/cloudflare_record"
   hostname                      = "${var.postgres_domain_name}"
@@ -76,14 +109,77 @@ module "console" {
   source              = "../../modules/vm_gcp"
 
   instance_name       = "${var.console_instance_name}"
+  environ_tag         = "${var.environ_tag}"
+  instance_size       = "n1-standard-4"
   zone                = "${var.gcp_zone}"
   boot_disk_size      = 100
-  tags                = [ "http-server", "https-server", "console-debug", "mc" ]
-  ssh_public_key_file = "${var.ssh_public_key_file}"
+  tags                = [
+    "http-server",
+    "https-server",
+    "console-debug",
+    "mc",
+    "jaeger",
+    "alt-https",
+    "notifyroot",
+    "alertmanager",
+  ]
+  labels              = {
+    "environ"         = "${var.environ_tag}",
+    "console"         = "true",
+    "owner"           = "ops",
+  }
 }
 
 module "console_dns" {
   source                        = "../../modules/cloudflare_record"
   hostname                      = "${var.console_domain_name}"
   ip                            = "${module.console.external_ip}"
+}
+
+module "console_vnc_dns" {
+  source                        = "../../modules/cloudflare_record"
+  hostname                      = "${var.console_vnc_domain_name}"
+  ip                            = "${module.console.external_ip}"
+}
+
+module "notifyroot_dns" {
+  source                        = "../../modules/cloudflare_record"
+  hostname                      = "${var.notifyroot_domain_name}"
+  ip                            = "${module.console.external_ip}"
+}
+
+module "jaeger_dns" {
+  source                        = "../../modules/cloudflare_record"
+  hostname                      = "${var.jaeger_domain_name}"
+  ip                            = "${module.console.external_ip}"
+}
+
+module "esproxy_dns" {
+  source                        = "../../modules/cloudflare_record"
+  hostname                      = "${var.esproxy_domain_name}"
+  ip                            = "${module.console.external_ip}"
+}
+
+module "alertmanager_dns" {
+  source                        = "../../modules/cloudflare_record"
+  hostname                      = "${var.alertmanager_domain_name}"
+  ip                            = "${module.console.external_ip}"
+}
+
+module "vault_a_dns" {
+  source                        = "../../modules/cloudflare_record"
+  hostname                      = "${var.vault_a_domain_name}"
+  ip                            = "${module.gitlab.external_ip}"
+}
+
+module "vault_b_dns" {
+  source                        = "../../modules/cloudflare_record"
+  hostname                      = "${var.vault_b_domain_name}"
+  ip                            = "${module.vault_b.external_ip}"
+}
+
+module "fw_vault_gcp" {
+  source                        = "../../modules/fw_vault_gcp"
+  firewall_name                 = "${var.environ_tag}-vault-fw-hc-and-proxy"
+  target_tag                    = "${var.environ_tag}-vault-hc-and-proxy"
 }

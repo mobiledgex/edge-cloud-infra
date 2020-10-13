@@ -1,12 +1,19 @@
 package intprocess
 
 import (
+	"crypto/rand"
+	"crypto/rsa"
+	"crypto/x509"
+	"encoding/json"
+	"encoding/pem"
 	"fmt"
 	"io/ioutil"
 	"log"
+	"net/http"
 	"os"
 	"os/exec"
 	"strings"
+	"time"
 
 	"github.com/mobiledgex/edge-cloud/integration/process"
 	yaml "gopkg.in/yaml.v2"
@@ -28,26 +35,63 @@ func (p *MC) StartLocal(logfile string, opts ...process.StartOp) error {
 		args = append(args, "--vaultAddr")
 		args = append(args, p.VaultAddr)
 	}
-	if p.TLS.ServerCert != "" {
-		args = append(args, "--tls")
-		args = append(args, p.TLS.ServerCert)
-	}
-	if p.TLS.ServerKey != "" {
-		args = append(args, "--tlskey")
-		args = append(args, p.TLS.ServerKey)
-	}
+	args = p.TLS.AddInternalPkiArgs(args)
 	if p.TLS.ClientCert != "" {
 		args = append(args, "--clientCert")
 		args = append(args, p.TLS.ClientCert)
 	}
-	args = append(args, "-skipVerifyEmail")
+	if p.ApiTlsCert != "" {
+		args = append(args, "--apiTlsCert", p.ApiTlsCert)
+	}
+	if p.ApiTlsKey != "" {
+		args = append(args, "--apiTlsKey", p.ApiTlsKey)
+	}
+	if p.LdapAddr != "" {
+		args = append(args, "--ldapAddr")
+		args = append(args, p.LdapAddr)
+	}
+	if p.NotifySrvAddr != "" {
+		args = append(args, "--notifySrvAddr")
+		args = append(args, p.NotifySrvAddr)
+	}
+	if p.ConsoleProxyAddr != "" {
+		args = append(args, "--consoleproxyaddr")
+		args = append(args, p.ConsoleProxyAddr)
+	}
+	if p.AlertResolveTimeout != "" {
+		args = append(args, "--alertResolveTimeout")
+		args = append(args, p.AlertResolveTimeout)
+	}
+	if p.UseVaultCAs {
+		args = append(args, "--useVaultCAs")
+	}
+	if p.BillingPath != "" {
+		args = append(args, "--billingPath")
+		args = append(args, p.BillingPath)
+	}
+	if p.UsageCollectionInterval != "" {
+		args = append(args, "--usageCollectionInterval")
+		args = append(args, p.UsageCollectionInterval)
+	}
+	if p.UsageCheckpointInterval != "" {
+		args = append(args, "--usageCheckpointInterval")
+		args = append(args, p.UsageCheckpointInterval)
+	}
+	if p.UseVaultCerts {
+		args = append(args, "--useVaultCerts")
+	}
+	if p.AlertMgrApiAddr != "" {
+		args = append(args, "--alertMgrApiAddr")
+		args = append(args, p.AlertMgrApiAddr)
+	}
+	args = append(args, "--hostname", p.Name)
 	options := process.StartOptions{}
 	options.ApplyStartOptions(opts...)
 	if options.Debug != "" {
 		args = append(args, "-d")
 		args = append(args, options.Debug)
 	}
-	var envs []string
+	envs := p.GetEnv()
 	if options.RolesFile != "" {
 		dat, err := ioutil.ReadFile(options.RolesFile)
 		if err != nil {
@@ -58,15 +102,31 @@ func (p *MC) StartLocal(logfile string, opts ...process.StartOp) error {
 		if err != nil {
 			return err
 		}
-		envs = []string{
+		envs = append(envs,
 			fmt.Sprintf("VAULT_ROLE_ID=%s", roles.MCRoleID),
 			fmt.Sprintf("VAULT_SECRET_ID=%s", roles.MCSecretID),
-		}
-		log.Printf("MC envs: %v\n", envs)
+		)
 	}
 
 	var err error
 	p.cmd, err = process.StartLocal(p.Name, p.GetExeName(), args, envs, logfile)
+	if err == nil {
+		// wait until server is online
+		online := false
+		for ii := 0; ii < 90; ii++ {
+			resp, serr := http.Get("http://" + p.Addr)
+			if serr == nil {
+				resp.Body.Close()
+				online = true
+				break
+			}
+			time.Sleep(250 * time.Millisecond)
+		}
+		if !online {
+			p.StopLocal()
+			return fmt.Errorf("failed to detect MC online")
+		}
+	}
 	return err
 }
 
@@ -114,7 +174,7 @@ func (p *Sql) StartLocal(logfile string, opts ...process.StartOp) error {
 		args = append(args, strings.Join(options, " "))
 	}
 	var err error
-	p.cmd, err = process.StartLocal(p.Name, "pg_ctl", args, nil, logfile)
+	p.cmd, err = process.StartLocal(p.Name, "pg_ctl", args, p.GetEnv(), logfile)
 	if err != nil {
 		return err
 	}
@@ -230,10 +290,7 @@ func (p *Shepherd) GetArgs(opts ...process.StartOp) []string {
 		args = append(args, "--cloudletKey")
 		args = append(args, p.CloudletKey)
 	}
-	if p.TLS.ServerCert != "" {
-		args = append(args, "--tls")
-		args = append(args, p.TLS.ServerCert)
-	}
+	args = p.TLS.AddInternalPkiArgs(args)
 	if p.Span != "" {
 		args = append(args, "--span")
 		args = append(args, p.Span)
@@ -242,6 +299,29 @@ func (p *Shepherd) GetArgs(opts ...process.StartOp) []string {
 		args = append(args, "--region")
 		args = append(args, p.Region)
 	}
+	if p.UseVaultCAs {
+		args = append(args, "--useVaultCAs")
+	}
+	if p.UseVaultCerts {
+		args = append(args, "--useVaultCerts")
+	}
+	if p.MetricsAddr != "" {
+		args = append(args, "--metricsAddr")
+		args = append(args, p.MetricsAddr)
+	}
+	if p.AppDNSRoot != "" {
+		args = append(args, "--appDNSRoot")
+		args = append(args, p.AppDNSRoot)
+	}
+	if p.DeploymentTag != "" {
+		args = append(args, "--deploymentTag")
+		args = append(args, p.DeploymentTag)
+	}
+	if p.ChefServerPath != "" {
+		args = append(args, "--chefServerPath")
+		args = append(args, p.ChefServerPath)
+	}
+
 	options := process.StartOptions{}
 	options.ApplyStartOptions(opts...)
 	if options.Debug != "" {
@@ -253,7 +333,7 @@ func (p *Shepherd) GetArgs(opts ...process.StartOp) []string {
 func (p *Shepherd) StartLocal(logfile string, opts ...process.StartOp) error {
 	var err error
 	args := p.GetArgs(opts...)
-	p.cmd, err = process.StartLocal(p.Name, p.GetExeName(), args, nil, logfile)
+	p.cmd, err = process.StartLocal(p.Name, p.GetExeName(), args, p.GetEnv(), logfile)
 	return err
 }
 
@@ -299,9 +379,16 @@ func (p *AutoProv) StartLocal(logfile string, opts ...process.StartOp) error {
 		args = append(args, "--influxAddr")
 		args = append(args, p.InfluxAddr)
 	}
-	if p.TLS.ServerCert != "" {
-		args = append(args, "--tls")
-		args = append(args, p.TLS.ServerCert)
+	args = p.TLS.AddInternalPkiArgs(args)
+	if p.Region != "" {
+		args = append(args, "--region")
+		args = append(args, p.Region)
+	}
+	if p.UseVaultCAs {
+		args = append(args, "--useVaultCAs")
+	}
+	if p.UseVaultCerts {
+		args = append(args, "--useVaultCerts")
 	}
 	options := process.StartOptions{}
 	options.ApplyStartOptions(opts...)
@@ -310,7 +397,7 @@ func (p *AutoProv) StartLocal(logfile string, opts ...process.StartOp) error {
 		args = append(args, options.Debug)
 	}
 
-	var envs []string
+	envs := p.GetEnv()
 	if options.RolesFile != "" {
 		dat, err := ioutil.ReadFile(options.RolesFile)
 		if err != nil {
@@ -321,11 +408,11 @@ func (p *AutoProv) StartLocal(logfile string, opts ...process.StartOp) error {
 		if err != nil {
 			return err
 		}
-		envs = []string{
-			fmt.Sprintf("VAULT_ROLE_ID=%s", roles.AutoProvRoleID),
-			fmt.Sprintf("VAULT_SECRET_ID=%s", roles.AutoProvSecretID),
-		}
-		log.Printf("MC envs: %v\n", envs)
+		rr := roles.GetRegionRoles(p.Region)
+		envs = append(envs,
+			fmt.Sprintf("VAULT_ROLE_ID=%s", rr.AutoProvRoleID),
+			fmt.Sprintf("VAULT_SECRET_ID=%s", rr.AutoProvSecretID),
+		)
 	}
 
 	var err error
@@ -342,14 +429,54 @@ func (p *AutoProv) GetExeName() string { return "autoprov" }
 func (p *AutoProv) LookupArgs() string { return "" }
 
 type VaultRoles struct {
-	MCRoleID         string `json:"mcroleid"`
-	MCSecretID       string `json:"mcsecretid"`
-	ShepherdRoleID   string `json:"shepherdroleid"`
-	ShepherdSecretID string `json:"shepherdsecretid"`
+	MCRoleID        string `json:"mcroleid"`
+	MCSecretID      string `json:"mcsecretid"`
+	RotatorRoleID   string `json:"rotatorroleid"`
+	RotatorSecretID string `json:"rotatorsecretid"`
+	RegionRoles     map[string]*VaultRegionRoles
+}
+
+type VaultRegionRoles struct {
 	AutoProvRoleID   string `json:"autoprovroleid"`
 	AutoProvSecretID string `json:"autoprovsecretid"`
-	RotatorRoleID    string `json:"rotatorroleid"`
-	RotatorSecretID  string `json:"rotatorsecretid"`
+}
+
+func (s *VaultRoles) GetRegionRoles(region string) *VaultRegionRoles {
+	if region == "" {
+		region = "local"
+	}
+	return s.RegionRoles[region]
+}
+
+func GetDummyPrivateKey(fileName string) error {
+	outFile, err := os.Create(fileName)
+	if err != nil {
+		return err
+	}
+
+	chefApiKey := struct {
+		ApiKey string `json:"apikey"`
+	}{}
+
+	key, err := rsa.GenerateKey(rand.Reader, 2048)
+	if err != nil {
+		return err
+	}
+
+	out := pem.EncodeToMemory(
+		&pem.Block{
+			Type:  "PRIVATE KEY",
+			Bytes: x509.MarshalPKCS1PrivateKey(key),
+		},
+	)
+	chefApiKey.ApiKey = string(out)
+	jsonKey, err := json.Marshal(chefApiKey)
+	if err != nil {
+		return err
+	}
+	outFile.Write(jsonKey)
+
+	return nil
 }
 
 // Vault is already started by edge-cloud setup file.
@@ -365,16 +492,44 @@ func SetupVault(p *process.Vault, opts ...process.StartOp) (*VaultRoles, error) 
 		fmt.Println(out)
 		return nil, err
 	}
-
 	// get roleIDs and secretIDs
 	roles := VaultRoles{}
+	roles.RegionRoles = make(map[string]*VaultRegionRoles)
 	p.GetAppRole("", "mcorm", &roles.MCRoleID, &roles.MCSecretID, &err)
-	p.GetAppRole("", "autoprov", &roles.AutoProvRoleID, &roles.AutoProvSecretID, &err)
 	p.GetAppRole("", "rotator", &roles.RotatorRoleID, &roles.RotatorSecretID, &err)
 	p.PutSecret("", "mcorm", mcormSecret+"-old", &err)
 	p.PutSecret("", "mcorm", mcormSecret, &err)
+	// Set up local mexenv.json in the vault to allow local edgebox to run
+	localMexenv := gopath + "/src/github.com/mobiledgex/edge-cloud-infra/mgmt/cloudlets/mexenv.json"
+	p.Run("vault", fmt.Sprintf("write %s @%s", "/secret/data/cloudlet/openstack/mexenv.json", localMexenv), &err)
 	if err != nil {
 		return &roles, err
+	}
+
+	// Setup up dummy key to be used with local chef server to provision cloudlets
+	chefApiKeyPath := "/tmp/dummyChefApiKey.json"
+	err = GetDummyPrivateKey(chefApiKeyPath)
+	if err != nil {
+		return &roles, err
+	}
+	p.Run("vault", fmt.Sprintf("kv put %s @%s", "/secret/accounts/chef", chefApiKeyPath), &err)
+	if err != nil {
+		return &roles, err
+	}
+
+	if p.Regions == "" {
+		p.Regions = "local"
+	}
+	for _, region := range strings.Split(p.Regions, ",") {
+		setup := gopath + "/src/github.com/mobiledgex/edge-cloud-infra/vault/setup-region.sh " + region
+		out := p.Run("/bin/sh", setup, &err)
+		if err != nil {
+			fmt.Println(out)
+			return nil, err
+		}
+		rr := VaultRegionRoles{}
+		p.GetAppRole(region, "autoprov", &rr.AutoProvRoleID, &rr.AutoProvSecretID, &err)
+		roles.RegionRoles[region] = &rr
 	}
 	options := process.StartOptions{}
 	options.ApplyStartOptions(opts...)
@@ -392,9 +547,9 @@ func SetupVault(p *process.Vault, opts ...process.StartOp) (*VaultRoles, error) 
 }
 
 func (p *PromE2e) StartLocal(logfile string, opts ...process.StartOp) error {
-	// if the image doesnt exist, build it
+	// if the image doesn't exist, build it
 	if !imageFound(p.Name) {
-		directory := os.Getenv("GOPATH") + "/src/github.com/mobiledgex/edge-cloud-infra/shepherd/fakePromExporter"
+		directory := os.Getenv("GOPATH") + "/src/github.com/mobiledgex/edge-cloud-infra/shepherd/e2eHttpServer"
 		builder := exec.Command("docker", "build", "-t", p.Name, directory)
 		err := builder.Run()
 		if err != nil {
@@ -406,7 +561,7 @@ func (p *PromE2e) StartLocal(logfile string, opts ...process.StartOp) error {
 	}
 
 	var err error
-	p.cmd, err = process.StartLocal(p.Name, p.GetExeName(), args, nil, logfile)
+	p.cmd, err = process.StartLocal(p.Name, p.GetExeName(), args, p.GetEnv(), logfile)
 	return err
 }
 
@@ -433,20 +588,164 @@ func (p *PromE2e) GetExeName() string { return "docker" }
 
 func (p *PromE2e) LookupArgs() string { return p.Name }
 
-func (p *Exporter) StartLocal(logfile string, opts ...process.StartOp) error {
+func (p *HttpServer) StartLocal(logfile string, opts ...process.StartOp) error {
 	args := []string{
-		"-port", fmt.Sprintf("%d", p.Port), "-statsPath", p.DataFile,
+		"-port", fmt.Sprintf("%d", p.Port), "-promStatsPath", p.PromDataFile,
 	}
 
 	var err error
-	p.cmd, err = process.StartLocal(p.Name, p.GetExeName(), args, nil, logfile)
+	p.cmd, err = process.StartLocal(p.Name, p.GetExeName(), args, p.GetEnv(), logfile)
 	return err
 }
 
-func (p *Exporter) StopLocal() {
+func (p *HttpServer) StopLocal() {
 	process.StopLocal(p.cmd)
 }
 
-func (p *Exporter) GetExeName() string { return "fakepromexporter" }
+func (p *HttpServer) GetExeName() string { return "e2eHttpServer" }
 
-func (p *Exporter) LookupArgs() string { return "" }
+func (p *HttpServer) LookupArgs() string { return "" }
+
+func (p *ChefServer) StartLocal(logfile string, opts ...process.StartOp) error {
+	args := []string{}
+	if p.Port > 0 {
+		args = append(args, "--port")
+		args = append(args, fmt.Sprintf("%d", p.Port))
+	} else {
+		args = append(args, "--port")
+		args = append(args, "8889")
+	}
+	args = append(args, "--multi-org")
+
+	var err error
+	p.cmd, err = process.StartLocal(p.Name, p.GetExeName(), args, p.GetEnv(), logfile)
+	if err != nil {
+		return err
+	}
+
+	cmd := exec.Command("./e2e-tests/chef/setup.sh")
+	out, err := cmd.CombinedOutput()
+	if err != nil {
+		return fmt.Errorf("Failed to execute ./e2e-tests/chef/setup.sh: %v, %s", err, out)
+	}
+
+	return err
+}
+
+func (p *ChefServer) StopLocal() {
+	process.StopLocal(p.cmd)
+}
+
+func (p *ChefServer) GetExeName() string { return "chef-zero" }
+
+func (p *ChefServer) LookupArgs() string { return fmt.Sprintf("--port %d --multi-org", p.Port) }
+
+func (p *Alertmanager) StartLocal(logfile string, opts ...process.StartOp) error {
+	configFile := "/tmp/alertmanager.yml"
+	if p.ConfigFile != "" {
+		// Copy file from data dir to /tmp since it's going to be written to
+		in, err := ioutil.ReadFile(p.ConfigFile)
+		if err != nil {
+			log.Printf("Failed to open alertmanager configuration file - %s\n", err.Error())
+			return err
+		}
+		err = ioutil.WriteFile(configFile, in, 0644)
+		if err != nil {
+			log.Printf("Failed to copy alertmanager configuration file - %s\n", err.Error())
+			return err
+		}
+	}
+	args := []string{
+		"run", "--rm", "-p", fmt.Sprintf("%d:%d", p.Port, p.Port),
+		"-v", configFile + ":/etc/prometheus/alertmanager.yml",
+		"--name", p.Name,
+		"prom/alertmanager:v0.21.0",
+		"--web.listen-address", fmt.Sprintf(":%d", p.Port),
+		"--log.level", "debug",
+		"--config.file", "/etc/prometheus/alertmanager.yml",
+	}
+
+	var err error
+	log.Printf("Start Alertmanager: %v\n", args)
+	p.cmd, err = process.StartLocal(p.Name, p.GetExeName(), args, p.GetEnv(), logfile)
+	return err
+}
+
+func (p *Alertmanager) StopLocal() {
+	process.StopLocal(p.cmd)
+	cmd := exec.Command("docker", "kill", p.Name)
+	cmd.Run()
+}
+
+func (p *Alertmanager) GetExeName() string { return "docker" }
+
+func (p *Alertmanager) LookupArgs() string { return p.Name }
+
+func (p *Maildev) StartLocal(logfile string, opts ...process.StartOp) error {
+	args := []string{
+		"run", "--rm",
+		"-p", fmt.Sprintf("%d:%d", p.UiPort, 80),
+		"-p", fmt.Sprintf("%d:%d", p.MailPort, 25),
+		"--name", p.Name,
+		"maildev/maildev:1.1.0",
+	}
+	var err error
+	p.cmd, err = process.StartLocal(p.Name, p.GetExeName(), args, p.GetEnv(), logfile)
+	return err
+}
+
+func (p *Maildev) StopLocal() {
+	process.StopLocal(p.cmd)
+	cmd := exec.Command("docker", "kill", p.Name)
+	cmd.Run()
+}
+
+func (p *Maildev) GetExeName() string { return "docker" }
+
+func (p *Maildev) LookupArgs() string { return p.Name }
+
+func (p *AlertmanagerSidecar) StartLocal(logfile string, opts ...process.StartOp) error {
+	args := []string{"--httpAddr", p.HttpAddr}
+	if p.AlertmgrAddr != "" {
+		args = append(args, "--alertmgrAddr")
+		args = append(args, p.AlertmgrAddr)
+	}
+	if p.ConfigFile != "" {
+		args = append(args, "--configFile")
+		args = append(args, p.ConfigFile)
+	}
+	if p.TLS.ServerCert != "" {
+		args = append(args, "--tlsCert")
+		args = append(args, p.TLS.ServerCert)
+	}
+	if p.TLS.ServerKey != "" {
+		args = append(args, "--tlsCertKey")
+		args = append(args, p.TLS.ServerKey)
+	}
+	if p.TLS.CACert != "" {
+		args = append(args, "--tlsClientCert")
+		args = append(args, p.TLS.CACert)
+	}
+	if p.LocalTest {
+		args = append(args, "-localTest")
+	}
+
+	options := process.StartOptions{}
+	options.ApplyStartOptions(opts...)
+	if options.Debug != "" {
+		args = append(args, "-d")
+		args = append(args, options.Debug)
+	}
+
+	var err error
+	p.cmd, err = process.StartLocal(p.Name, p.GetExeName(), args, p.GetEnv(), logfile)
+	return err
+}
+
+func (p *AlertmanagerSidecar) StopLocal() {
+	process.StopLocal(p.cmd)
+}
+
+func (p *AlertmanagerSidecar) GetExeName() string { return "alertmgr-sidecar" }
+
+func (p *AlertmanagerSidecar) LookupArgs() string { return "" }

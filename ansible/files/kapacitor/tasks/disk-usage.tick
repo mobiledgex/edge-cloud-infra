@@ -1,51 +1,68 @@
 dbrp "telegraf"."autogen"
 
+var name = 'Disk Usage Alert'
+
 var db = 'telegraf'
+
 var rp = 'autogen'
 
-var measurement = 'disk'
-var groupBy = ['host']
-var whereFilter = lambda: ("path" == '/')
-var name = 'Disk Usage Alert'
-var idVar = name + '-{{.Group}}'
-var message = '{{.ID}} is {{.Level}}: usage {{ index .Fields "value" }}%'
+var info = 80
+
+var warn = 85
+
+var crit = 90
+
+var infoSig = 4
+
+var warnSig = 5
+
+var critSig = 6
+
+var period = 1h
+
+var every = 1h
+
+var idVar = name + ':{{.Group}}'
+
 var idTag = 'alertID'
-var levelTag = 'level'
-var messageField = 'message'
-var durationField = 'duration'
 
 var outputDB = 'chronograf'
+
 var outputRP = 'autogen'
+
 var outputMeasurement = 'alerts'
+
 var triggerType = 'threshold'
 
-var crit = 70
+// Dataframe
+var data = batch
+    |query(''' SELECT mean("used_percent") AS "used" FROM "telegraf"."autogen"."disk" ''')
+        .period(period)
+        .every(every)
+        .groupBy('host')
+    |mean('used')
+        .as('stat')
 
-var data = stream
-    |from()
-        .database(db)
-        .retentionPolicy(rp)
-        .measurement(measurement)
-        .groupBy(groupBy)
-        .where(whereFilter)
-    |eval(lambda: floor("used_percent" * 100.0) / 100.0)
-        .as('value')
-
+// Thresholds
 var trigger = data
+    |eval(lambda: sigma("stat"))
+        .as('sigma')
+        .keep()
+    |eval(lambda: floor("stat" * 100.0) / 100.0)
+        .as('stat_round')
+        .keep()
     |alert()
-        .crit(lambda: "value" > crit)
-        .stateChangesOnly(30m)
-        .message(message)
         .id(idVar)
-        .idTag(idTag)
-        .levelTag(levelTag)
-        .messageField(messageField)
-        .durationField(durationField)
+        .message(' {{ .ID }} is {{.Level}}: {{ index .Fields "stat_round" }}% disk usage')
+        .info(lambda: "stat" > info)
+        .warn(lambda: "stat" > warn)
+        .crit(lambda: "stat" > crit)
+        .pagerDuty2()
         .slack()
 
 trigger
-    |eval(lambda: float("value"))
-        .as('value')
+    |eval(lambda: float("stat"))
+        .as('used')
         .keep()
     |influxDBOut()
         .create()
@@ -54,6 +71,3 @@ trigger
         .measurement(outputMeasurement)
         .tag('alertName', name)
         .tag('triggerType', triggerType)
-
-trigger
-    |httpOut('output')

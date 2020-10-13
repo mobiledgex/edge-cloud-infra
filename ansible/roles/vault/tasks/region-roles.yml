@@ -1,0 +1,74 @@
+- set_fact:
+    region_code: "{{ region.region }}"
+    region_prefix: "{{ region.region | lower }}"
+
+- debug:
+    msg: "Installing roles for {{ region_code }}"
+
+- name: "Install {{ region_prefix }}.autoprov.v1 role"
+  vault_role:
+    name: "{{ region_prefix }}.autoprov.v1"
+    policies:
+      - approle.login.v1
+      - "{{ region_prefix }}.influxdb.read.v1"
+      - "{{ region_prefix }}.pki-regional.issue.v1"
+    token_type: batch
+
+- name: "Install {{ region_prefix }}.cluster-svc.v1 role"
+  vault_role:
+    name: "{{ region_prefix }}.cluster-svc.v1"
+    policies:
+      - approle.login.v1
+      - "{{ region_prefix }}.pki-regional.issue.v1"
+    token_type: batch
+
+- name: "Install {{ region_prefix }}.controller.v1 role"
+  vault_role:
+    name: "{{ region_prefix }}.controller.v1"
+    policies:
+      - approle.login.v1
+      - aws-auth.read.v1
+      - azure-auth.read.v1
+      - gcp-auth.read.v1
+      - registry.read.v1
+      - "{{ region_prefix }}.cloudlets.delete.v1"
+      - "{{ region_prefix }}.accounts.read.v1"
+      - "{{ region_prefix }}.pki-regional.issue.v1"
+    token_type: batch
+
+- name: "Install {{ region_prefix }}.crm.v1 role"
+  vault_role:
+    name: "{{ region_prefix }}.crm.v1"
+    policies:
+      - approle.login.v1
+      - aws-auth.read.v1
+      - azure-auth.read.v1
+      - chef.read.v1
+      - certs.read.v1
+      - gcp-auth.read.v1
+      - mex-ssh-key.read.v1
+      - mexenv.read.v1
+      - registry.read.v1
+      - ssh-machine.sign.v1
+      - "{{ region_prefix }}.cloudlets.write.v1"
+      - "{{ region_prefix }}.influxdb.read.v1"
+      - "{{ region_prefix }}.pki-regional-cloudlet.issue.v1"
+    token_type: batch
+
+- name: "Install {{ region_prefix }}.dme.v1 role"
+  vault_role:
+    name: "{{ region_prefix }}.dme.v1"
+    policies:
+      - approle.login.v1
+      - certs.read.v1
+      - "{{ region_prefix }}.dme-jwtkeys.read.v1"
+      - "{{ region_prefix }}.pki-regional-cloudlet.issue.v1"
+    token_type: batch
+
+- name: "Install {{ region_prefix }}.edgeturn.v1 role"
+  vault_role:
+    name: "{{ region_prefix }}.edgeturn.v1"
+    policies:
+      - approle.login.v1
+      - "{{ region_prefix }}.pki-regional.issue.v1"
+    token_type: batch

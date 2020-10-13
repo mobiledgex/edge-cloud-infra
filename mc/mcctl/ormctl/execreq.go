@@ -1,7 +1,6 @@
 package ormctl
 
 import (
-	"encoding/json"
 	fmt "fmt"
 	"strings"
 
@@ -9,93 +8,58 @@ import (
 	"github.com/mobiledgex/edge-cloud/cli"
 	edgecli "github.com/mobiledgex/edge-cloud/edgectl/cli"
 	edgeproto "github.com/mobiledgex/edge-cloud/edgeproto"
-	webrtc "github.com/pion/webrtc/v2"
 	"github.com/spf13/cobra"
 )
 
 // We don't use the auto-generated Command because the client
-// must implement the webrtc protocol.
-
-const runCommandRequiredArgs = "region appname appvers developer cluster cloudlet operator"
-const runCommandOptionalArgs = "command containerid"
-
-var runCommandAliasArgs = []string{
-	"appname=execrequest.appinstkey.appkey.name",
-	"appvers=execrequest.appinstkey.appkey.version",
-	"developer=execrequest.appinstkey.appkey.developerkey.name",
-	"cluster=execrequest.appinstkey.clusterinstkey.clusterkey.name",
-	"clusterdeveloper=execrequest.appinstkey.clusterinstkey.developer",
-	"cloudlet=execrequest.appinstkey.clusterinstkey.cloudletkey.name",
-	"operator=execrequest.appinstkey.clusterinstkey.cloudletkey.operatorkey.name",
-	"command=execrequest.command",
-	"containerid=execrequest.containerid",
-}
+// must use websocket connection
 
 func GetRunCommandCmd() *cobra.Command {
-	RunCommandCmd.Run = runExecRequest
-	RunCommandCmd.RequiredArgs = runCommandRequiredArgs
-	RunCommandCmd.OptionalArgs = runCommandOptionalArgs
+	RunCommandCmd.Run = runExecRequest("/auth/ctrl/RunCommand")
 	return RunCommandCmd.GenCmd()
 }
 
-func runExecRequest(c *cli.Command, args []string) error {
-	input := cli.Input{
-		RequiredArgs: strings.Split(runCommandRequiredArgs, " "),
-		AliasArgs:    runCommandAliasArgs,
-	}
-	req := ormapi.RegionExecRequest{}
+func GetRunConsoleCmd() *cobra.Command {
+	RunConsoleCmd.Run = runExecRequest("/auth/ctrl/RunConsole")
+	return RunConsoleCmd.GenCmd()
+}
 
-	var developer string
-	var clusterdeveloper string
-	for _, arg := range args {
-		parts := strings.Split(arg, "=")
-		if len(parts) != 2 {
-			continue
-		}
-		if parts[0] == "developer" {
-			developer = parts[1]
-		}
-		if parts[0] == "clusterdeveloper" {
-			clusterdeveloper = parts[1]
-		}
-	}
-	if clusterdeveloper == "" && developer != "" {
-		args = append(args, fmt.Sprintf("clusterdeveloper=%s", developer))
-	}
+func GetShowLogsCmd() *cobra.Command {
+	ShowLogsCmd.Run = runExecRequest("/auth/ctrl/ShowLogs")
+	return ShowLogsCmd.GenCmd()
+}
 
-	_, err := input.ParseArgs(args, &req)
-	if err != nil {
-		return err
-	}
+func GetAccessCloudletCmd() *cobra.Command {
+	AccessCloudletCmd.Run = runExecRequest("/auth/ctrl/AccessCloudlet")
+	return AccessCloudletCmd.GenCmd()
+}
 
-	exchangeFunc := func(offer webrtc.SessionDescription) (*edgeproto.ExecRequest, *webrtc.SessionDescription, error) {
-		offerBytes, err := json.Marshal(&offer)
+func runExecRequest(path string) func(c *cli.Command, args []string) error {
+	return func(c *cli.Command, args []string) error {
+		input := cli.Input{
+			RequiredArgs: strings.Split(c.RequiredArgs, " "),
+			AliasArgs:    strings.Split(c.AliasArgs, " "),
+		}
+		req := ormapi.RegionExecRequest{}
+		_, err := input.ParseArgs(args, &req)
 		if err != nil {
-			return nil, nil, err
+			return err
 		}
-		req.ExecRequest.Offer = string(offerBytes)
+		client.Debug = cli.Debug
 
-		reply := edgeproto.ExecRequest{}
-		st, err := client.PostJson(getUri()+"/auth/ctrl/RunCommand", Token, &req, &reply)
-		err = check(c, st, err, nil)
-		if err != nil {
-			return nil, nil, err
-		}
+		exchangeFunc := func() (*edgeproto.ExecRequest, error) {
+			reply := edgeproto.ExecRequest{}
+			st, err := client.PostJson(getUri()+path, Token, &req, &reply)
+			err = check(c, st, err, nil)
+			if err != nil {
+				return nil, err
+			}
 
-		if reply.Err != "" {
-			return nil, nil, fmt.Errorf("%s", reply.Err)
+			if reply.Err != "" {
+				return nil, fmt.Errorf("%s", reply.Err)
+			}
+			return &reply, nil
 		}
-		if reply.Answer == "" {
-			return nil, nil, fmt.Errorf("empty answer")
-		}
-
-		answer := webrtc.SessionDescription{}
-		err = json.Unmarshal([]byte(reply.Answer), &answer)
-		if err != nil {
-			return nil, nil, fmt.Errorf("unable to unmarshal answer %s, %v",
-				reply.Answer, err)
-		}
-		return &reply, &answer, nil
+		return edgecli.RunEdgeTurn(&req.ExecRequest, exchangeFunc)
 	}
-	return edgecli.RunWebrtc(&req.ExecRequest, exchangeFunc)
 }

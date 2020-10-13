@@ -1,0 +1,20 @@
+- name: "Check Github team config: {{ team.name }}"
+  vault_api:
+    api: "auth/github/map/teams/{{ team.name }}"
+  register: result
+  changed_when: no
+  ignore_errors: yes
+
+- name: "Configure Github team: {{ team.name }}"
+  vault_api:
+    api: "auth/github/map/teams/{{ team.name }}"
+    method: POST
+    data:
+      value: "{{ policy_list }}"
+    success_code: 204
+  vars:
+    policy_list: "{{ team.policies | sort | join(',') }}"
+  when: ("meta" not in result) or
+        ("data" not in result.meta.response) or
+        (not result.meta.response.data) or
+        (result.meta.response.data.value != policy_list)

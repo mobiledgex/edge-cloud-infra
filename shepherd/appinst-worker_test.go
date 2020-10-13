@@ -23,21 +23,21 @@ var testVmAppData = shepherd_common.AppMetrics{
 
 func TestVmStats(t *testing.T) {
 	var err error
-	log.InitTracer("")
+	log.InitTracer(nil)
 	defer log.FinishTracer()
 	ctx := log.StartTestSpan(context.Background())
 
-	testOperatorKey := edgeproto.OperatorKey{Name: "testoper"}
+	testOperatorOrg := "testoper"
 	testCloudletKey := edgeproto.CloudletKey{
-		OperatorKey: testOperatorKey,
-		Name:        "testcloudlet",
+		Organization: testOperatorOrg,
+		Name:         "testcloudlet",
 	}
 	testClusterInstKey := edgeproto.ClusterInstKey{
 		ClusterKey: edgeproto.ClusterKey{
 			Name: "",
 		},
-		CloudletKey: testCloudletKey,
-		Developer:   "",
+		CloudletKey:  testCloudletKey,
+		Organization: "",
 	}
 	testAppInstVm := edgeproto.AppInst{
 		Key: edgeproto.AppInstKey{

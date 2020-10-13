@@ -9,18 +9,24 @@ import (
 
 	"github.com/gogo/protobuf/types"
 	"github.com/mobiledgex/edge-cloud-infra/shepherd/shepherd_common"
+	"github.com/mobiledgex/edge-cloud/cloud-resource-manager/platform"
 	"github.com/mobiledgex/edge-cloud/cloud-resource-manager/platform/pc"
 	"github.com/mobiledgex/edge-cloud/edgeproto"
 	"github.com/mobiledgex/edge-cloud/log"
+	ssh "github.com/mobiledgex/golang-ssh"
 )
 
 type Platform struct {
 	// Contains the response string for a given type of a request
 	DockerAppMetrics     string
 	DockerClusterMetrics string
+	DockerContainerPid   string
+	CatContainerNetData  string
+	DockerPsSizeData     string
 	// Cloudlet-level test data
-	CloudletMetrics  string
-	VmAppInstMetrics string
+	CloudletMetrics    string
+	VmAppInstMetrics   string
+	FailPlatformClient bool
 	// TODO - add Prometheus/nginx strings here EDGECLOUD-1252
 }
 
@@ -28,15 +34,25 @@ func (s *Platform) GetType() string {
 	return "unit test"
 }
 
-func (s *Platform) Init(ctx context.Context, key *edgeproto.CloudletKey, region, physicalName, vaultAddr string) error {
+func (s *Platform) Init(ctx context.Context, pc *platform.PlatformConfig) error {
 	return nil
+}
+
+func (s *Platform) SetVMPool(ctx context.Context, vmPool *edgeproto.VMPool) {
 }
 
 func (s *Platform) GetClusterIP(ctx context.Context, clusterInst *edgeproto.ClusterInst) (string, error) {
 	return "localhost", nil
 }
 
-func (s *Platform) GetPlatformClient(ctx context.Context, clusterInst *edgeproto.ClusterInst) (pc.PlatformClient, error) {
+func (s *Platform) GetClusterPlatformClient(ctx context.Context, clusterInst *edgeproto.ClusterInst, clientType string) (ssh.Client, error) {
+	if s.FailPlatformClient {
+		return nil, fmt.Errorf("Test no client")
+	}
+	return &UTClient{pf: s}, nil
+}
+
+func (s *Platform) GetVmAppRootLbClient(ctx context.Context, app *edgeproto.AppInstKey) (ssh.Client, error) {
 	return &UTClient{pf: s}, nil
 }
 
@@ -80,6 +96,14 @@ func (s *UTClient) Output(command string) (string, error) {
 	return out, nil
 }
 
+func (s *UTClient) OutputWithTimeout(command string, timeout time.Duration) (string, error) {
+	out, err := s.getUTData(command)
+	if err != nil {
+		return s.LocalClient.OutputWithTimeout(command, timeout)
+	}
+	return out, nil
+}
+
 func (s *UTClient) getUTData(command string) (string, error) {
 	// docker stats unit test
 	if strings.Contains(command, "docker stats ") {
@@ -87,10 +111,27 @@ func (s *UTClient) getUTData(command string) (string, error) {
 		return s.pf.DockerAppMetrics, nil
 	} else if strings.Contains(command, shepherd_common.ResTrackerCmd) {
 		return s.pf.DockerClusterMetrics, nil
+	} else if strings.Contains(command, "docker inspect -f") {
+		// trying to get pid for the container
+		return s.pf.DockerContainerPid, nil
+	} else if strings.Contains(command, "cat /proc/") &&
+		strings.Contains(command, "/net/dev") {
+		// network data
+		return s.pf.CatContainerNetData, nil
+	} else if strings.Contains(command, "docker ps -s") {
+		// docker container size data
+		return s.pf.DockerPsSizeData, nil
 	}
 	// nginx-stats and envoy-stats unit test
 	// "docker exec containername curl http://url"
 	if strings.Contains(command, "docker exec") && strings.Contains(command, "curl") {
+		split := strings.SplitN(command, " ", 4)
+		if len(split) == 4 {
+			return s.LocalClient.Output(split[3])
+		}
+	}
+	// "docker exec containername echo text"
+	if strings.Contains(command, "docker exec") && strings.Contains(command, "echo") {
 		split := strings.SplitN(command, " ", 4)
 		if len(split) == 4 {
 			return s.LocalClient.Output(split[3])

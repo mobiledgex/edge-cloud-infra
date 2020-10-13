@@ -10,7 +10,7 @@ import sys
 import traceback
 
 LOG_WEBHOOK = os.environ.get('LOG_WEBHOOK', None)
-MC = os.environ.get('MC', 'https://mc.mobiledgex.net:9900')
+MC = os.environ.get('MC', 'https://console.mobiledgex.net')
 SLACK = 'https://slack.com/api/'
 
 TEST_MODE_FORMAT = "slacktest2+{}@venky.duh-uh.com".format
@@ -187,6 +187,7 @@ def slack_users(token):
         if not email:
             logging.warning(f"Skipping user with no email: {user['name']}")
             continue
+        email = email.lower()
         userid = user['id']
         username = user['name']
         users['by_email'][email] = {
@@ -216,7 +217,7 @@ def slack_channel_members(token, channel, usermap={}):
     for member in r:
         member = mapped_user(member)
         if member:
-            members.append(member)
+            members.append(member.lower())
 
     return members
 
@@ -266,6 +267,7 @@ def slack_channel_invite_new_user(token, channels, email, args):
     r = slack_api_post('users.admin.invite', token, data={
         'email': email,
         'channels': channels,
+        'restricted': true,
     })
     logging.debug(r.text)
 
@@ -311,7 +313,7 @@ def main():
     # Get a list of MC orgs and the users in each
     for user in users:
         username = user['Name']
-        useremail = user['Email']
+        useremail = user['Email'].lower()
         if username not in userorgs:
             if username in SPECIAL_ORG_USERS:
                 logging.info(f"user in special orgs: {username}")

@@ -7,9 +7,10 @@ import (
 
 	"github.com/gogo/protobuf/types"
 	"github.com/mobiledgex/edge-cloud-infra/shepherd/shepherd_common"
+	"github.com/mobiledgex/edge-cloud/cloud-resource-manager/platform"
 	"github.com/mobiledgex/edge-cloud/cloud-resource-manager/platform/dind"
-	"github.com/mobiledgex/edge-cloud/cloud-resource-manager/platform/pc"
 	"github.com/mobiledgex/edge-cloud/edgeproto"
+	ssh "github.com/mobiledgex/golang-ssh"
 	"github.com/shirou/gopsutil/cpu"
 	"github.com/shirou/gopsutil/disk"
 	"github.com/shirou/gopsutil/mem"
@@ -18,16 +19,19 @@ import (
 
 type Platform struct {
 	pf           dind.Platform
-	SharedClient pc.PlatformClient
+	SharedClient ssh.Client
 }
 
 func (s *Platform) GetType() string {
 	return "edgebox"
 }
 
-func (s *Platform) Init(ctx context.Context, key *edgeproto.CloudletKey, region, physicalName, vaultAddr string) error {
-	s.SharedClient, _ = s.pf.GetPlatformClient(ctx, nil)
+func (s *Platform) Init(ctx context.Context, pc *platform.PlatformConfig) error {
+	s.SharedClient, _ = s.pf.GetNodePlatformClient(ctx, nil)
 	return nil
+}
+
+func (s *Platform) SetVMPool(ctx context.Context, vmPool *edgeproto.VMPool) {
 }
 
 func (s *Platform) GetClusterIP(ctx context.Context, clusterInst *edgeproto.ClusterInst) (string, error) {
@@ -37,8 +41,12 @@ func (s *Platform) GetClusterIP(ctx context.Context, clusterInst *edgeproto.Clus
 	return "localhost", nil
 }
 
-func (s *Platform) GetPlatformClient(ctx context.Context, clusterInst *edgeproto.ClusterInst) (pc.PlatformClient, error) {
+func (s *Platform) GetClusterPlatformClient(ctx context.Context, clusterInst *edgeproto.ClusterInst, clientType string) (ssh.Client, error) {
 	return s.SharedClient, nil
+}
+
+func (s *Platform) GetVmAppRootLbClient(ctx context.Context, app *edgeproto.AppInstKey) (ssh.Client, error) {
+	return nil, fmt.Errorf("No dedicated lbs for edgebox")
 }
 
 func (s *Platform) GetMetricsCollectInterval() time.Duration {
@@ -47,8 +55,7 @@ func (s *Platform) GetMetricsCollectInterval() time.Duration {
 
 func (s *Platform) GetPlatformStats(ctx context.Context) (shepherd_common.CloudletMetrics, error) {
 	cloudletMetric := shepherd_common.CloudletMetrics{}
-	cloudletMetric.ComputeTS, _ = types.TimestampProto(time.Now())
-	cloudletMetric.NetworkTS = cloudletMetric.ComputeTS
+	cloudletMetric.CollectTime, _ = types.TimestampProto(time.Now())
 
 	cpu, err := cpu.CountsWithContext(ctx, true)
 	if err != nil {

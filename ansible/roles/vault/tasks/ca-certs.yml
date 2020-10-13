@@ -1,0 +1,19 @@
+- import_role:
+    name: vault
+    tasks_from: load-token
+  delegate_to: localhost
+
+- name: Look up vault PKI CA certs
+  set_fact:
+    vault_ca_lookup: "{{ query('vault_ca_cert', 'pki-regional-cloudlet', 'pki-regional', 'pki-global', 'pki') }}"
+
+- name: Append vault PKI CA certs
+  set_fact:
+    ca_certs: "{{ vault_ca_lookup.ca_chain }}"
+
+- name: Append offline root cert
+  set_fact:
+    ca_certs: "{{ ca_certs + [ offline_root_cert.root_ca.data.cert ] }}"
+  vars:
+    offline_root_cert: "{{ lookup('vault', vault_root_ca_cert_path) }}"
+  when: not vault_ca_lookup.has_root_ca

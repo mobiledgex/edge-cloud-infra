@@ -3,17 +3,18 @@
 
 package testutil
 
-import edgeproto "github.com/mobiledgex/edge-cloud/edgeproto"
-import "os"
-import "github.com/mobiledgex/edge-cloud-infra/mc/ormclient"
-import "github.com/mobiledgex/edge-cloud-infra/mc/ormapi"
-import "github.com/mobiledgex/edge-cloud/cli"
-import proto "github.com/gogo/protobuf/proto"
-import fmt "fmt"
-import math "math"
-import _ "github.com/gogo/googleapis/google/api"
-import _ "github.com/mobiledgex/edge-cloud/protogen"
-import _ "github.com/gogo/protobuf/gogoproto"
+import (
+	"context"
+	fmt "fmt"
+	_ "github.com/gogo/googleapis/google/api"
+	_ "github.com/gogo/protobuf/gogoproto"
+	proto "github.com/gogo/protobuf/proto"
+	"github.com/mobiledgex/edge-cloud-infra/mc/ormapi"
+	"github.com/mobiledgex/edge-cloud-infra/mc/ormclient"
+	edgeproto "github.com/mobiledgex/edge-cloud/edgeproto"
+	_ "github.com/mobiledgex/edge-cloud/protogen"
+	math "math"
+)
 
 // Reference imports to suppress errors if they are not otherwise used.
 var _ = proto.Marshal
@@ -22,78 +23,164 @@ var _ = math.Inf
 
 // Auto-generated code: DO NOT EDIT
 
-func TestCreateApp(mcClient *ormclient.Client, uri, token, region string, in *edgeproto.App) (*edgeproto.Result, int, error) {
+func TestCreateApp(mcClient *ormclient.Client, uri, token, region string, in *edgeproto.App, modFuncs ...func(*edgeproto.App)) (*edgeproto.Result, int, error) {
 	dat := &ormapi.RegionApp{}
 	dat.Region = region
 	dat.App = *in
+	for _, fn := range modFuncs {
+		fn(&dat.App)
+	}
 	return mcClient.CreateApp(uri, token, dat)
 }
-func TestPermCreateApp(mcClient *ormclient.Client, uri, token, region, org string) (*edgeproto.Result, int, error) {
+func TestPermCreateApp(mcClient *ormclient.Client, uri, token, region, org string, modFuncs ...func(*edgeproto.App)) (*edgeproto.Result, int, error) {
 	in := &edgeproto.App{}
-	in.Key.DeveloperKey.Name = org
-	return TestCreateApp(mcClient, uri, token, region, in)
+	in.Key.Organization = org
+	return TestCreateApp(mcClient, uri, token, region, in, modFuncs...)
 }
 
-func TestDeleteApp(mcClient *ormclient.Client, uri, token, region string, in *edgeproto.App) (*edgeproto.Result, int, error) {
+func TestDeleteApp(mcClient *ormclient.Client, uri, token, region string, in *edgeproto.App, modFuncs ...func(*edgeproto.App)) (*edgeproto.Result, int, error) {
 	dat := &ormapi.RegionApp{}
 	dat.Region = region
 	dat.App = *in
+	for _, fn := range modFuncs {
+		fn(&dat.App)
+	}
 	return mcClient.DeleteApp(uri, token, dat)
 }
-func TestPermDeleteApp(mcClient *ormclient.Client, uri, token, region, org string) (*edgeproto.Result, int, error) {
+func TestPermDeleteApp(mcClient *ormclient.Client, uri, token, region, org string, modFuncs ...func(*edgeproto.App)) (*edgeproto.Result, int, error) {
 	in := &edgeproto.App{}
-	in.Key.DeveloperKey.Name = org
-	return TestDeleteApp(mcClient, uri, token, region, in)
+	in.Key.Organization = org
+	return TestDeleteApp(mcClient, uri, token, region, in, modFuncs...)
 }
 
-func TestUpdateApp(mcClient *ormclient.Client, uri, token, region string, in *edgeproto.App) (*edgeproto.Result, int, error) {
+func TestUpdateApp(mcClient *ormclient.Client, uri, token, region string, in *edgeproto.App, modFuncs ...func(*edgeproto.App)) (*edgeproto.Result, int, error) {
 	dat := &ormapi.RegionApp{}
 	dat.Region = region
 	dat.App = *in
+	for _, fn := range modFuncs {
+		fn(&dat.App)
+	}
 	return mcClient.UpdateApp(uri, token, dat)
 }
-func TestPermUpdateApp(mcClient *ormclient.Client, uri, token, region, org string) (*edgeproto.Result, int, error) {
+func TestPermUpdateApp(mcClient *ormclient.Client, uri, token, region, org string, modFuncs ...func(*edgeproto.App)) (*edgeproto.Result, int, error) {
 	in := &edgeproto.App{}
-	in.Key.DeveloperKey.Name = org
-	return TestUpdateApp(mcClient, uri, token, region, in)
+	in.Key.Organization = org
+	return TestUpdateApp(mcClient, uri, token, region, in, modFuncs...)
 }
 
-func TestShowApp(mcClient *ormclient.Client, uri, token, region string, in *edgeproto.App) ([]edgeproto.App, int, error) {
+func TestShowApp(mcClient *ormclient.Client, uri, token, region string, in *edgeproto.App, modFuncs ...func(*edgeproto.App)) ([]edgeproto.App, int, error) {
 	dat := &ormapi.RegionApp{}
 	dat.Region = region
 	dat.App = *in
+	for _, fn := range modFuncs {
+		fn(&dat.App)
+	}
 	return mcClient.ShowApp(uri, token, dat)
 }
-func TestPermShowApp(mcClient *ormclient.Client, uri, token, region, org string) ([]edgeproto.App, int, error) {
+func TestPermShowApp(mcClient *ormclient.Client, uri, token, region, org string, modFuncs ...func(*edgeproto.App)) ([]edgeproto.App, int, error) {
 	in := &edgeproto.App{}
-	in.Key.DeveloperKey.Name = org
-	return TestShowApp(mcClient, uri, token, region, in)
+	in.Key.Organization = org
+	return TestShowApp(mcClient, uri, token, region, in, modFuncs...)
 }
 
-func RunMcAppApi(mcClient ormclient.Api, uri, token, region string, data *[]edgeproto.App, dataMap interface{}, rc *bool, mode string) {
-	for ii, app := range *data {
-		in := &ormapi.RegionApp{
-			Region: region,
-			App:    app,
-		}
-		switch mode {
-		case "create":
-			_, st, err := mcClient.CreateApp(uri, token, in)
-			checkMcErr("CreateApp", st, err, rc)
-		case "delete":
-			_, st, err := mcClient.DeleteApp(uri, token, in)
-			checkMcErr("DeleteApp", st, err, rc)
-		case "update":
-			objMap, err := cli.GetGenericObjFromList(dataMap, ii)
-			if err != nil {
-				fmt.Fprintf(os.Stderr, "bad dataMap for App: %v", err)
-				os.Exit(1)
-			}
-			in.App.Fields = cli.GetSpecifiedFields(objMap, &in.App, cli.YamlNamespace)
-			_, st, err := mcClient.UpdateApp(uri, token, in)
-			checkMcErr("UpdateApp", st, err, rc)
-		default:
-			return
-		}
+func TestAddAppAutoProvPolicy(mcClient *ormclient.Client, uri, token, region string, in *edgeproto.AppAutoProvPolicy, modFuncs ...func(*edgeproto.AppAutoProvPolicy)) (*edgeproto.Result, int, error) {
+	dat := &ormapi.RegionAppAutoProvPolicy{}
+	dat.Region = region
+	dat.AppAutoProvPolicy = *in
+	for _, fn := range modFuncs {
+		fn(&dat.AppAutoProvPolicy)
 	}
+	return mcClient.AddAppAutoProvPolicy(uri, token, dat)
+}
+func TestPermAddAppAutoProvPolicy(mcClient *ormclient.Client, uri, token, region, org string, modFuncs ...func(*edgeproto.AppAutoProvPolicy)) (*edgeproto.Result, int, error) {
+	in := &edgeproto.AppAutoProvPolicy{}
+	in.AppKey.Organization = org
+	return TestAddAppAutoProvPolicy(mcClient, uri, token, region, in, modFuncs...)
+}
+
+func TestRemoveAppAutoProvPolicy(mcClient *ormclient.Client, uri, token, region string, in *edgeproto.AppAutoProvPolicy, modFuncs ...func(*edgeproto.AppAutoProvPolicy)) (*edgeproto.Result, int, error) {
+	dat := &ormapi.RegionAppAutoProvPolicy{}
+	dat.Region = region
+	dat.AppAutoProvPolicy = *in
+	for _, fn := range modFuncs {
+		fn(&dat.AppAutoProvPolicy)
+	}
+	return mcClient.RemoveAppAutoProvPolicy(uri, token, dat)
+}
+func TestPermRemoveAppAutoProvPolicy(mcClient *ormclient.Client, uri, token, region, org string, modFuncs ...func(*edgeproto.AppAutoProvPolicy)) (*edgeproto.Result, int, error) {
+	in := &edgeproto.AppAutoProvPolicy{}
+	in.AppKey.Organization = org
+	return TestRemoveAppAutoProvPolicy(mcClient, uri, token, region, in, modFuncs...)
+}
+
+func (s *TestClient) CreateApp(ctx context.Context, in *edgeproto.App) (*edgeproto.Result, error) {
+	inR := &ormapi.RegionApp{
+		Region: s.Region,
+		App:    *in,
+	}
+	out, status, err := s.McClient.CreateApp(s.Uri, s.Token, inR)
+	if err == nil && status != 200 {
+		err = fmt.Errorf("status: %d\n", status)
+	}
+	return out, err
+}
+
+func (s *TestClient) DeleteApp(ctx context.Context, in *edgeproto.App) (*edgeproto.Result, error) {
+	inR := &ormapi.RegionApp{
+		Region: s.Region,
+		App:    *in,
+	}
+	out, status, err := s.McClient.DeleteApp(s.Uri, s.Token, inR)
+	if err == nil && status != 200 {
+		err = fmt.Errorf("status: %d\n", status)
+	}
+	return out, err
+}
+
+func (s *TestClient) UpdateApp(ctx context.Context, in *edgeproto.App) (*edgeproto.Result, error) {
+	inR := &ormapi.RegionApp{
+		Region: s.Region,
+		App:    *in,
+	}
+	out, status, err := s.McClient.UpdateApp(s.Uri, s.Token, inR)
+	if err == nil && status != 200 {
+		err = fmt.Errorf("status: %d\n", status)
+	}
+	return out, err
+}
+
+func (s *TestClient) ShowApp(ctx context.Context, in *edgeproto.App) ([]edgeproto.App, error) {
+	inR := &ormapi.RegionApp{
+		Region: s.Region,
+		App:    *in,
+	}
+	out, status, err := s.McClient.ShowApp(s.Uri, s.Token, inR)
+	if err == nil && status != 200 {
+		err = fmt.Errorf("status: %d\n", status)
+	}
+	return out, err
+}
+
+func (s *TestClient) AddAppAutoProvPolicy(ctx context.Context, in *edgeproto.AppAutoProvPolicy) (*edgeproto.Result, error) {
+	inR := &ormapi.RegionAppAutoProvPolicy{
+		Region:            s.Region,
+		AppAutoProvPolicy: *in,
+	}
+	out, status, err := s.McClient.AddAppAutoProvPolicy(s.Uri, s.Token, inR)
+	if err == nil && status != 200 {
+		err = fmt.Errorf("status: %d\n", status)
+	}
+	return out, err
+}
+
+func (s *TestClient) RemoveAppAutoProvPolicy(ctx context.Context, in *edgeproto.AppAutoProvPolicy) (*edgeproto.Result, error) {
+	inR := &ormapi.RegionAppAutoProvPolicy{
+		Region:            s.Region,
+		AppAutoProvPolicy: *in,
+	}
+	out, status, err := s.McClient.RemoveAppAutoProvPolicy(s.Uri, s.Token, inR)
+	if err == nil && status != 200 {
+		err = fmt.Errorf("status: %d\n", status)
+	}
+	return out, err
 }

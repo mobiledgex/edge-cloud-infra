@@ -4,6 +4,7 @@ import (
 	"time"
 
 	"github.com/mobiledgex/edge-cloud/edgeproto"
+	"github.com/mobiledgex/edge-cloud/util"
 )
 
 // Data saved to persistent sql db, also used for API calls
@@ -36,6 +37,10 @@ type User struct {
 	UpdatedAt time.Time `json:",omitempty"`
 	// read only: true
 	Locked bool
+	// read only: true
+	PassEntropy float64
+	// read only: true
+	PassCrackTimeSec float64
 }
 
 type Organization struct {
@@ -45,15 +50,55 @@ type Organization struct {
 	// Organization type: "developer" or "operator"
 	Type string `gorm:"not null"`
 	// Organization address
-	Address string
+	Address string `json:",omitempty"`
 	// Organization phone number
-	Phone string
+	Phone string `json:",omitempty"`
 	// read only: true
 	CreatedAt time.Time `json:",omitempty"`
 	// read only: true
 	UpdatedAt time.Time `json:",omitempty"`
 	// read only: true
 	PublicImages bool `json:",omitempty"`
+	// read only: true
+	DeleteInProgress bool `json:",omitempty"`
+	// read only: true
+	Parent string `json:",omitempty"`
+}
+
+type BillingOrganization struct {
+	// BillingOrganization name. Can only contain letters, digits, underscore, period, hyphen. It cannot have leading or trailing spaces or period. It cannot start with hyphen
+	// required: true
+	Name string `gorm:"primary_key;type:citext"`
+	// Organization type: "parent" or "self"
+	Type string `gorm:"not null"`
+	// Billing Info First Name
+	FirstName string `json:",omitempty"`
+	// Billing info last name
+	LastName string `json:",omitempty"`
+	// Organization email
+	Email string `json:",omitempty"`
+	// Organization address
+	Address string `json:",omitempty"`
+	// Organization city
+	City string `json:",omitempty"`
+	// Organization Country
+	Country string `json:",omitempty"`
+	// Organization State
+	State string `json:",omitempty"`
+	// Organization Postal code
+	PostalCode string `json:",omitempty"`
+	// Organization phone number
+	Phone string `json:",omitempty"`
+	// Currency
+	Currency string `json:",omitempty"` // currently only allow "USD"
+	// Children belonging to this BillingOrganization
+	Children string `json:",omitempty"`
+	// read only: true
+	CreatedAt time.Time `json:",omitempty"`
+	// read only: true
+	UpdatedAt time.Time `json:",omitempty"`
+	// read only: true
+	DeleteInProgress bool `json:",omitempty"`
 }
 
 type Controller struct {
@@ -65,15 +110,25 @@ type Controller struct {
 }
 
 type Config struct {
-	ID                 int `gorm:"primary_key;auto_increment:false"`
-	LockNewAccounts    bool
+	// read only: true
+	ID int `gorm:"primary_key;auto_increment:false"`
+	// Lock new accounts (must be unlocked by admin)
+	LockNewAccounts bool
+	// Email to notify when locked account is created
 	NotifyEmailAddress string
+	// Skip email verification for new accounts (testing only)
+	SkipVerifyEmail bool
+	// User accounts min password crack time seconds (a measure of strength)
+	PasswordMinCrackTimeSec float64
+	// Admin accounts min password crack time seconds (a measure of strength)
+	AdminPasswordMinCrackTimeSec float64
 }
 
 type OrgCloudletPool struct {
-	Org          string `gorm:"type:citext REFERENCES organizations(name)"`
-	Region       string `gorm:"type:text REFERENCES controllers(region)"`
-	CloudletPool string `gorm:"not null"`
+	Org             string `gorm:"type:citext REFERENCES organizations(name)"`
+	Region          string `gorm:"type:text REFERENCES controllers(region)"`
+	CloudletPool    string `gorm:"not null"`
+	CloudletPoolOrg string `gorm:"type:citext REFERENCES organizations(name)"`
 }
 
 // Structs used for API calls
@@ -114,14 +169,18 @@ type CreateUser struct {
 }
 
 type AuditQuery struct {
-	Username string `json:"username"`
-	Org      string `form:"org" json:"org"`
-	Limit    int    `json:"limit"`
+	Username       string `json:"username"`
+	Org            string `form:"org" json:"org"`
+	Limit          int    `json:"limit"`
+	util.TimeRange `json:",inline"`
+	Operation      string            `json:"operation"`
+	Tags           map[string]string `json:"tags"`
 }
 
 type AuditResponse struct {
 	OperationName string               `json:"operationname"`
 	Username      string               `json:"username"`
+	Org           string               `json:"org"`
 	ClientIP      string               `json:"clientip"`
 	Status        int                  `json:"status"`
 	StartTime     TimeMicroseconds     `json:"starttime"`
@@ -130,6 +189,7 @@ type AuditResponse struct {
 	Response      string               `json:"response"`
 	Error         string               `json:"error"`
 	TraceID       string               `json:"traceid"`
+	Tags          map[string]string    `json:"tags"`
 }
 
 // Email request is used for password reset and to resend welcome
@@ -194,16 +254,18 @@ type WSStreamPayload struct {
 // all data is for full create/delete
 
 type AllData struct {
-	Controllers      []Controller      `json:"controllers,omitempty"`
-	Orgs             []Organization    `json:"orgs,omitempty"`
-	Roles            []Role            `json:"roles,omitempty"`
-	OrgCloudletPools []OrgCloudletPool `json:"orgcloudletpools,omitempty"`
-	RegionData       []RegionData      `json:"regiondata,omitempty"`
+	Controllers      []Controller          `json:"controllers,omitempty"`
+	BillingOrgs      []BillingOrganization `json:"billingorgs,omitempty"`
+	AlertReceivers   []AlertReceiver       `json:"alertreceivers,omitempty"`
+	Orgs             []Organization        `json:"orgs,omitempty"`
+	Roles            []Role                `json:"roles,omitempty"`
+	OrgCloudletPools []OrgCloudletPool     `json:"orgcloudletpools,omitempty"`
+	RegionData       []RegionData          `json:"regiondata,omitempty"`
 }
 
 type RegionData struct {
-	Region  string                    `json:"region,omitempty"`
-	AppData edgeproto.ApplicationData `json:"appdata,omitempty"`
+	Region  string            `json:"region,omitempty"`
+	AppData edgeproto.AllData `json:"appdata,omitempty"`
 }
 
 // Metrics data
@@ -212,11 +274,13 @@ type AllMetrics struct {
 }
 
 type MetricData struct {
-	Series []struct {
-		Columns []string        `json:"columns"`
-		Name    string          `json:"name"`
-		Values  [][]interface{} `json:"values"`
-	} `json:"Series"`
+	Series []MetricSeries `json:"Series"`
+}
+
+type MetricSeries struct {
+	Columns []string        `json:"columns"`
+	Name    string          `json:"name"`
+	Values  [][]interface{} `json:"values"`
 }
 
 type RegionAppInstMetrics struct {
@@ -279,4 +343,56 @@ type RegionCloudletEvents struct {
 	StartTime time.Time `json:",omitempty"`
 	EndTime   time.Time `json:",omitempty"`
 	Last      int       `json:",omitempty"`
+}
+
+type RegionAppInstUsage struct {
+	Region    string
+	AppInst   edgeproto.AppInstKey
+	StartTime time.Time `json:",omitempty"`
+	EndTime   time.Time `json:",omitempty"`
+	VmOnly    bool      `json:",omitempty"`
+}
+
+type RegionClusterInstUsage struct {
+	Region      string
+	ClusterInst edgeproto.ClusterInstKey
+	StartTime   time.Time `json:",omitempty"`
+	EndTime     time.Time `json:",omitempty"`
+}
+
+type RegionCloudletPoolUsage struct {
+	Region       string
+	CloudletPool edgeproto.CloudletPoolKey
+	StartTime    time.Time `json:",omitempty"`
+	EndTime      time.Time `json:",omitempty"`
+}
+
+type RegionCloudletPoolUsageRegister struct {
+	Region          string
+	CloudletPool    edgeproto.CloudletPoolKey
+	UpdateFrequency time.Duration
+	PushEndpoint    string
+	StartTime       time.Time
+}
+
+// Configurable part of AlertManager Receiver
+type AlertReceiver struct {
+	// Receiver Name
+	Name string
+	// Receiver type. Eg. email, slack, pagerduty
+	Type string
+	// Alert severity filter
+	Severity string
+	// User that created this receiver
+	User string `json:",omitempty"`
+	// Custom receiving email
+	Email string `json:",omitempty"`
+	// Custom slack channel
+	SlackChannel string `json:",omitempty"`
+	// Custom slack webhook
+	SlackWebhook string `json:",omitempty"`
+	// Cloudlet spec for alerts
+	Cloudlet edgeproto.CloudletKey `json:",omitempty"`
+	// AppInst spec for alerts
+	AppInst edgeproto.AppInstKey `json:",omitempty"`
 }

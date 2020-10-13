@@ -3,14 +3,16 @@
 
 package ormapi
 
-import edgeproto "github.com/mobiledgex/edge-cloud/edgeproto"
-import proto "github.com/gogo/protobuf/proto"
-import fmt "fmt"
-import math "math"
-import _ "github.com/gogo/googleapis/google/api"
-import _ "github.com/mobiledgex/edge-cloud/protogen"
-import _ "github.com/mobiledgex/edge-cloud/d-match-engine/dme-proto"
-import _ "github.com/gogo/protobuf/gogoproto"
+import (
+	fmt "fmt"
+	_ "github.com/gogo/googleapis/google/api"
+	_ "github.com/gogo/protobuf/gogoproto"
+	proto "github.com/gogo/protobuf/proto"
+	_ "github.com/mobiledgex/edge-cloud/d-match-engine/dme-proto"
+	edgeproto "github.com/mobiledgex/edge-cloud/edgeproto"
+	_ "github.com/mobiledgex/edge-cloud/protogen"
+	math "math"
+)
 
 // Reference imports to suppress errors if they are not otherwise used.
 var _ = proto.Marshal
@@ -52,6 +54,27 @@ type swaggerUpdateCloudlet struct {
 type swaggerShowCloudlet struct {
 	// in: body
 	Body RegionCloudlet
+}
+
+// Request summary for GetCloudletManifest
+// swagger:parameters GetCloudletManifest
+type swaggerGetCloudletManifest struct {
+	// in: body
+	Body RegionCloudlet
+}
+
+// Request summary for GetCloudletProps
+// swagger:parameters GetCloudletProps
+type swaggerGetCloudletProps struct {
+	// in: body
+	Body RegionCloudletProps
+}
+
+type RegionCloudletProps struct {
+	// required: true
+	// Region name
+	Region        string
+	CloudletProps edgeproto.CloudletProps
 }
 
 // Request summary for AddCloudletResMapping
@@ -101,4 +124,18 @@ type RegionCloudletInfo struct {
 	// Region name
 	Region       string
 	CloudletInfo edgeproto.CloudletInfo
+}
+
+// Request summary for InjectCloudletInfo
+// swagger:parameters InjectCloudletInfo
+type swaggerInjectCloudletInfo struct {
+	// in: body
+	Body RegionCloudletInfo
+}
+
+// Request summary for EvictCloudletInfo
+// swagger:parameters EvictCloudletInfo
+type swaggerEvictCloudletInfo struct {
+	// in: body
+	Body RegionCloudletInfo
 }

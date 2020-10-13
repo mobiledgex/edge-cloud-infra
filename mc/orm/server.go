@@ -1,23 +1,29 @@
 package orm
 
 import (
-	"context"
 	"encoding/json"
 	"fmt"
 	"io"
 	"net/http"
 	"os"
+	"strings"
 	"time"
 
 	"github.com/gorilla/websocket"
 	"github.com/jinzhu/gorm"
 	"github.com/labstack/echo"
+	"github.com/mobiledgex/edge-cloud-infra/billing/zuora"
 	intprocess "github.com/mobiledgex/edge-cloud-infra/e2e-tests/int-process"
+	"github.com/mobiledgex/edge-cloud-infra/mc/orm/alertmgr"
 	"github.com/mobiledgex/edge-cloud-infra/mc/ormapi"
 	"github.com/mobiledgex/edge-cloud-infra/mc/rbac"
 	"github.com/mobiledgex/edge-cloud/cloudcommon"
+	"github.com/mobiledgex/edge-cloud/cloudcommon/node"
+	edgeproto "github.com/mobiledgex/edge-cloud/edgeproto"
 	"github.com/mobiledgex/edge-cloud/integration/process"
 	"github.com/mobiledgex/edge-cloud/log"
+	"github.com/mobiledgex/edge-cloud/notify"
+	edgetls "github.com/mobiledgex/edge-cloud/tls"
 	"github.com/mobiledgex/edge-cloud/vault"
 	"github.com/mobiledgex/edge-cloud/version"
 	"github.com/nmcclain/ldap"
@@ -35,34 +41,47 @@ type Server struct {
 	stopInitData bool
 	initDataDone chan struct{}
 	initJWKDone  chan struct{}
+	notifyServer *notify.ServerMgr
+	notifyClient *notify.Client
 }
 
 type ServerConfig struct {
-	ServAddr        string
-	SqlAddr         string
-	VaultAddr       string
-	RunLocal        bool
-	InitLocal       bool
-	IgnoreEnv       bool
-	TlsCertFile     string
-	TlsKeyFile      string
-	LocalVault      bool
-	LDAPAddr        string
-	GitlabAddr      string
-	ArtifactoryAddr string
-	ClientCert      string
-	PingInterval    time.Duration
-	SkipVerifyEmail bool
-	JaegerAddr      string
-	vaultConfig     *vault.Config
-	SkipOriginCheck bool
+	ServAddr                string
+	SqlAddr                 string
+	VaultAddr               string
+	RunLocal                bool
+	InitLocal               bool
+	IgnoreEnv               bool
+	ApiTlsCertFile          string
+	ApiTlsKeyFile           string
+	LocalVault              bool
+	LDAPAddr                string
+	LDAPUsername            string
+	LDAPPassword            string
+	GitlabAddr              string
+	ArtifactoryAddr         string
+	PingInterval            time.Duration
+	SkipVerifyEmail         bool
+	JaegerAddr              string
+	vaultConfig             *vault.Config
+	SkipOriginCheck         bool
+	Hostname                string
+	NotifyAddrs             string
+	NotifySrvAddr           string
+	NodeMgr                 *node.NodeMgr
+	Billing                 bool
+	BillingPath             string
+	AlertCache              *edgeproto.AlertCache
+	AlertMgrAddr            string
+	AlertmgrResolveTimout   time.Duration
+	UsageCheckpointInterval string
 }
 
 var DefaultDBUser = "mcuser"
 var DefaultDBName = "mcdb"
 var DefaultDBPass = ""
 var DefaultSuperuser = "mexadmin"
-var DefaultSuperpass = "mexadmin123"
+var DefaultSuperpass = "mexadminfastedgecloudinfra"
 var Superuser string
 
 var database *gorm.DB
@@ -73,15 +92,17 @@ var serverConfig *ServerConfig
 var gitlabClient *gitlab.Client
 var gitlabSync *AppStoreSync
 var artifactorySync *AppStoreSync
+var nodeMgr *node.NodeMgr
+var AlertManagerServer *alertmgr.AlertMgrServer
 
 func RunServer(config *ServerConfig) (*Server, error) {
 	server := Server{config: config}
 	// keep global pointer to config stored in server for easy access
 	serverConfig = server.config
-
-	span := log.StartSpan(log.DebugLevelInfo, "main")
-	defer span.Finish()
-	ctx := log.ContextWithSpan(context.Background(), span)
+	if config.NodeMgr == nil {
+		config.NodeMgr = &node.NodeMgr{}
+	}
+	nodeMgr = config.NodeMgr
 
 	dbuser := os.Getenv("db_username")
 	dbpass := os.Getenv("db_password")
@@ -104,6 +125,18 @@ func RunServer(config *ServerConfig) (*Server, error) {
 	if superpass == "" || config.IgnoreEnv {
 		superpass = DefaultSuperpass
 	}
+	if serverConfig.LDAPUsername == "" && !config.IgnoreEnv {
+		serverConfig.LDAPUsername = os.Getenv("LDAP_USERNAME")
+	}
+	if serverConfig.LDAPPassword == "" && !config.IgnoreEnv {
+		serverConfig.LDAPPassword = os.Getenv("LDAP_PASSWORD")
+	}
+
+	ctx, span, err := nodeMgr.Init("mc", node.CertIssuerGlobal, node.WithName(config.Hostname))
+	if err != nil {
+		return nil, err
+	}
+	defer span.Finish()
 
 	if config.LocalVault {
 		vaultProc := process.Vault{
@@ -139,11 +172,22 @@ func RunServer(config *ServerConfig) (*Server, error) {
 	server.initJWKDone = make(chan struct{}, 1)
 	InitVault(config.vaultConfig, server.initJWKDone)
 
+	if config.Billing {
+		err = zuora.InitZuora(config.vaultConfig, config.BillingPath)
+		if err != nil {
+			return nil, fmt.Errorf("Unable to initialize zuora: %v", err)
+		}
+	}
+
+	if err = checkUsageCheckpointInterval(); err != nil {
+		return nil, err
+	}
+
 	if gitlabToken == "" {
 		log.InfoLog("Note: No gitlab_token env var found")
 	}
 	gitlabClient = gitlab.NewClient(nil, gitlabToken)
-	if err := gitlabClient.SetBaseURL(config.GitlabAddr); err != nil {
+	if err = gitlabClient.SetBaseURL(config.GitlabAddr); err != nil {
 		return nil, fmt.Errorf("Gitlab client set base URL to %s, %s",
 			config.GitlabAddr, err.Error())
 	}
@@ -186,6 +230,20 @@ func RunServer(config *ServerConfig) (*Server, error) {
 	server.initDataDone = make(chan struct{}, 1)
 	go InitData(ctx, Superuser, superpass, config.PingInterval, &server.stopInitData, server.initDataDone)
 
+	if config.AlertMgrAddr != "" {
+		tlsConfig, err := nodeMgr.GetPublicClientTlsConfig(ctx)
+		if err != nil {
+			return nil, fmt.Errorf("Unable to get a client tls config, %s", err.Error())
+		}
+		AlertManagerServer, err = alertmgr.NewAlertMgrServer(config.AlertMgrAddr, tlsConfig,
+			config.AlertCache, config.AlertmgrResolveTimout)
+		if err != nil {
+			// TODO - this needs to be a fatal failure when we add alertmanager deployment to the ansible scripts
+			log.SpanLog(ctx, log.DebugLevelInfo, "Failed to start alertmanager server", "error", err)
+			err = nil
+		}
+	}
+
 	e := echo.New()
 	e.HideBanner = true
 	server.echo = e
@@ -201,14 +259,14 @@ func RunServer(config *ServerConfig) (*Server, error) {
 
 	// swagger:route POST /login Security Login
 	// Login.
-	// Login to MC
+	// Login to MC.
 	// responses:
 	//   200: authToken
 	//   400: loginBadRequest
 	e.POST(root+"/login", Login)
 	// swagger:route POST /usercreate User CreateUser
 	// Create User.
-	// Create a new user who can access/manage resources
+	// Creates a new user and allows them to access and manage resources.
 	// responses:
 	//   200: success
 	//   400: badRequest
@@ -217,8 +275,8 @@ func RunServer(config *ServerConfig) (*Server, error) {
 	e.POST(root+"/usercreate", CreateUser)
 	e.POST(root+"/passwordresetrequest", PasswordResetRequest)
 	// swagger:route POST /passwordreset Security PasswdReset
-	// Reset login password.
-	// If login password is lost or to be changed, this API will reset the login password
+	// Reset Login Password.
+	// This resets your login password.
 	// responses:
 	//   200: success
 	//   400: badRequest
@@ -232,7 +290,7 @@ func RunServer(config *ServerConfig) (*Server, error) {
 
 	// swagger:route POST /auth/user/show User ShowUser
 	// Show Users.
-	// Show existing users which user is authorized to access
+	// Displays existing users to which you are authorized to access.
 	// Security:
 	//   Bearer:
 	// responses:
@@ -244,7 +302,7 @@ func RunServer(config *ServerConfig) (*Server, error) {
 	auth.POST("/user/current", CurrentUser)
 	// swagger:route POST /auth/user/delete User DeleteUser
 	// Delete User.
-	// Delete existing user
+	// Deletes existing user.
 	// Security:
 	//   Bearer:
 	// responses:
@@ -262,7 +320,7 @@ func RunServer(config *ServerConfig) (*Server, error) {
 	auth.POST("/role/showuser", ShowUserRole)
 	// swagger:route POST /auth/org/create Organization CreateOrg
 	// Create Organization.
-	// Create Organization to access operator/cloudlet APIs
+	// Create an Organization to access operator/cloudlet APIs.
 	// Security:
 	//   Bearer:
 	// responses:
@@ -273,7 +331,7 @@ func RunServer(config *ServerConfig) (*Server, error) {
 	auth.POST("/org/create", CreateOrg)
 	// swagger:route POST /auth/org/update Organization UpdateOrg
 	// Update Organization.
-	// API to update an existing Organization
+	// API to update an existing Organization.
 	// Security:
 	//   Bearer:
 	// responses:
@@ -284,7 +342,7 @@ func RunServer(config *ServerConfig) (*Server, error) {
 	auth.POST("/org/update", UpdateOrg)
 	// swagger:route POST /auth/org/show Organization ShowOrg
 	// Show Organizations.
-	// Show existing Organizations which user is authorized to access
+	// Displays existing Organizations in which you are authorized to access.
 	// Security:
 	//   Bearer:
 	// responses:
@@ -295,7 +353,7 @@ func RunServer(config *ServerConfig) (*Server, error) {
 	auth.POST("/org/show", ShowOrg)
 	// swagger:route POST /auth/org/delete Organization DeleteOrg
 	// Delete Organization.
-	// Delete existing Organization
+	// Deletes an existing Organization.
 	// Security:
 	//   Bearer:
 	// responses:
@@ -304,25 +362,93 @@ func RunServer(config *ServerConfig) (*Server, error) {
 	//   403: forbidden
 	//   404: notFound
 	auth.POST("/org/delete", DeleteOrg)
+
+	// swagger:route POST /auth/billingorg/create BillingOrganization CreateBillingOrg
+	// Create BillingOrganization.
+	// Create a BillingOrganization to set up billing info.
+	// Security:
+	//   Bearer:
+	// responses:
+	//   200: success
+	//   400: badRequest
+	//   403: forbidden
+	//   404: notFound
+	auth.POST("/billingorg/create", CreateBillingOrg)
+	// swagger:route POST /auth/billingorg/update BillingOrganization UpdateBillingOrg
+	// Update BillingOrganization.
+	// API to update an existing BillingOrganization.
+	// Security:
+	//   Bearer:
+	// responses:
+	//   200: success
+	//   400: badRequest
+	//   403: forbidden
+	//   404: notFound
+	auth.POST("/billingorg/update", UpdateBillingOrg)
+	// swagger:route POST /auth/billingorg/addchild BillingOrganization AddChildOrg
+	// Add Child to BillingOrganization.
+	// Adds an Organization to an existing parent BillingOrganization.
+	// Security:
+	//   Bearer:
+	// responses:
+	//   200: success
+	//   400: badRequest
+	//   403: forbidden
+	//   404: notFound
+	auth.POST("/billingorg/addchild", AddChildOrg)
+	// swagger:route POST /auth/billingorg/removechild BillingOrganization RemoveChildOrg
+	// Remove Child from BillingOrganization.
+	// Removes an Organization from an existing parent BillingOrganization.
+	// Security:
+	//   Bearer:
+	// responses:
+	//   200: success
+	//   400: badRequest
+	//   403: forbidden
+	//   404: notFound
+	auth.POST("/billingorg/removechild", RemoveChildOrg)
+	// swagger:route POST /auth/billingorg/show BillingOrganization ShowBillingOrg
+	// Show BillingOrganizations.
+	// Displays existing BillingOrganizations in which you are authorized to access.
+	// Security:
+	//   Bearer:
+	// responses:
+	//   200: listBillingOrgs
+	//   400: badRequest
+	//   403: forbidden
+	//   404: notFound
+	auth.POST("/billingorg/show", ShowBillingOrg)
+	// swagger:route POST /auth/billingorg/delete BillingOrganization DeleteBillingOrg
+	// Delete BillingOrganization.
+	// Deletes an existing BillingOrganization.
+	// Security:
+	//   Bearer:
+	// responses:
+	//   200: success
+	//   400: badRequest
+	//   403: forbidden
+	//   404: notFound
+	auth.POST("/billingorg/delete", DeleteBillingOrg)
+
 	auth.POST("/controller/create", CreateController)
 	auth.POST("/controller/delete", DeleteController)
 	auth.POST("/controller/show", ShowController)
-	auth.POST("/data/create", CreateData)
-	auth.POST("/data/delete", DeleteData)
-	auth.POST("/data/show", ShowData)
 	auth.POST("/gitlab/resync", GitlabResync)
 	auth.POST("/artifactory/resync", ArtifactoryResync)
 	auth.POST("/artifactory/summary", ArtifactorySummary)
 	auth.POST("/config/update", UpdateConfig)
+	auth.POST("/config/reset", ResetConfig)
 	auth.POST("/config/show", ShowConfig)
 	auth.POST("/config/version", ShowVersion)
 	auth.POST("/restricted/user/update", RestrictedUserUpdate)
 	auth.POST("/audit/showself", ShowAuditSelf)
 	auth.POST("/audit/showorg", ShowAuditOrg)
+	auth.POST("/audit/operations", GetAuditOperations)
 	auth.POST("/orgcloudletpool/create", CreateOrgCloudletPool)
 	auth.POST("/orgcloudletpool/delete", DeleteOrgCloudletPool)
 	auth.POST("/orgcloudletpool/show", ShowOrgCloudletPool)
 	auth.POST("/orgcloudlet/show", ShowOrgCloudlet)
+	auth.POST("/orgcloudletinfo/show", ShowOrgCloudletInfo)
 
 	// Support multiple connection types: HTTP(s), Websockets
 	addControllerApis("POST", auth)
@@ -335,6 +461,20 @@ func RunServer(config *ServerConfig) (*Server, error) {
 	auth.POST("/events/cluster", GetEventsCommon)
 	auth.POST("/events/cloudlet", GetEventsCommon)
 
+	// new events/audit apis
+	auth.POST("/events/show", ShowEvents)
+	auth.POST("/events/find", FindEvents)
+	auth.POST("/events/terms", EventTerms)
+
+	auth.POST("/usage/app", GetUsageCommon)
+	auth.POST("/usage/cluster", GetUsageCommon)
+	auth.POST("/usage/cloudletpool", GetCloudletPoolUsageCommon)
+
+	// Alertmanager apis
+	auth.POST("/alertreceiver/create", CreateAlertReceiver)
+	auth.POST("/alertreceiver/delete", DeleteAlertReceiver)
+	auth.POST("/alertreceiver/show", ShowAlertReceiver)
+
 	// Use GET method for websockets as thats the method used
 	// in setting up TCP connection by most of the clients
 	// Also, authorization is handled as part of websocketUpgrade
@@ -346,10 +486,44 @@ func RunServer(config *ServerConfig) (*Server, error) {
 	ws.GET("/metrics/cloudlet", GetMetricsCommon)
 	ws.GET("/metrics/client", GetMetricsCommon)
 
+	if config.NotifySrvAddr != "" {
+		server.notifyServer = &notify.ServerMgr{}
+		nodeMgr.RegisterServer(server.notifyServer)
+
+		tlsConfig, err := nodeMgr.InternalPki.GetServerTlsConfig(ctx,
+			nodeMgr.CommonName(),
+			node.CertIssuerGlobal,
+			[]node.MatchCA{node.AnyRegionalMatchCA()})
+		if err != nil {
+			return nil, err
+		}
+		edgeproto.InitAlertCache(config.AlertCache)
+		// sets the callback to be the alertMgr thread callback
+		server.notifyServer.RegisterRecvAlertCache(config.AlertCache)
+		if AlertManagerServer != nil {
+			config.AlertCache.SetUpdatedCb(AlertManagerServer.UpdateAlert)
+		}
+		server.notifyServer.Start(nodeMgr.Name(), config.NotifySrvAddr, tlsConfig)
+	}
+	if config.NotifyAddrs != "" {
+		tlsConfig, err := nodeMgr.InternalPki.GetClientTlsConfig(ctx,
+			nodeMgr.CommonName(),
+			node.CertIssuerGlobal,
+			[]node.MatchCA{node.GlobalMatchCA()})
+		if err != nil {
+			return nil, err
+		}
+		addrs := strings.Split(config.NotifyAddrs, ",")
+		server.notifyClient = notify.NewClient(nodeMgr.Name(), addrs, edgetls.GetGrpcDialOption(tlsConfig))
+		nodeMgr.RegisterClient(server.notifyClient)
+
+		server.notifyClient.Start()
+	}
+
 	go func() {
 		var err error
-		if config.TlsCertFile != "" {
-			err = e.StartTLS(config.ServAddr, config.TlsCertFile, config.TlsKeyFile)
+		if config.ApiTlsCertFile != "" {
+			err = e.StartTLS(config.ServAddr, config.ApiTlsCertFile, config.ApiTlsKeyFile)
 		} else {
 			err = e.Start(config.ServAddr)
 		}
@@ -365,8 +539,8 @@ func RunServer(config *ServerConfig) (*Server, error) {
 	ldapServer.SearchFunc("", handler)
 	go func() {
 		var err error
-		if config.TlsCertFile != "" {
-			err = ldapServer.ListenAndServeTLS(config.LDAPAddr, config.TlsCertFile, config.TlsKeyFile)
+		if config.ApiTlsCertFile != "" {
+			err = ldapServer.ListenAndServeTLS(config.LDAPAddr, config.ApiTlsCertFile, config.ApiTlsKeyFile)
 		} else {
 			err = ldapServer.ListenAndServe(config.LDAPAddr)
 		}
@@ -379,10 +553,13 @@ func RunServer(config *ServerConfig) (*Server, error) {
 	gitlabSync = GitlabNewSync()
 	artifactorySync = ArtifactoryNewSync()
 
-	// gitlab/artifactory sync requires data to be initialized
+	// gitlab/artifactory sync and alertmanager requires data to be initialized
 	<-server.initDataDone
 	gitlabSync.Start()
 	artifactorySync.Start()
+	if AlertManagerServer != nil {
+		AlertManagerServer.Start()
+	}
 
 	return &server, err
 }
@@ -416,6 +593,16 @@ func (s *Server) Stop() {
 	if s.vault != nil {
 		s.vault.StopLocal()
 	}
+	if s.notifyServer != nil {
+		s.notifyServer.Stop()
+	}
+	if s.notifyClient != nil {
+		s.notifyClient.Stop()
+	}
+	if AlertManagerServer != nil {
+		AlertManagerServer.Stop()
+	}
+	nodeMgr.Finish()
 }
 
 func ShowVersion(c echo.Context) error {
@@ -425,8 +612,8 @@ func ShowVersion(c echo.Context) error {
 	}
 	ctx := GetContext(c)
 
-	if !authorized(ctx, claims.Username, "", ResourceConfig, ActionView) {
-		return echo.ErrForbidden
+	if err := authorized(ctx, claims.Username, "", ResourceConfig, ActionView); err != nil {
+		return err
 	}
 	ver := ormapi.Version{
 		BuildMaster: version.BuildMaster,
@@ -473,7 +660,6 @@ func (s *Server) websocketUpgrade(next echo.HandlerFunc) echo.HandlerFunc {
 		// as we plan to call this directly from React (browser)
 		isAuth, err := AuthWSCookie(c, ws)
 		if !isAuth {
-			ws.Close()
 			return err
 		}
 
@@ -495,6 +681,12 @@ func ReadConn(c echo.Context, in interface{}) (bool, error) {
 
 	if ws := GetWs(c); ws != nil {
 		err = ws.ReadJSON(in)
+		if err == nil {
+			out, err := json.Marshal(in)
+			if err == nil {
+				LogWsRequest(c, out)
+			}
+		}
 	} else {
 		err = c.Bind(in)
 	}
@@ -549,6 +741,10 @@ func WriteStream(c echo.Context, payload *ormapi.StreamPayload) error {
 			Code: http.StatusOK,
 			Data: (*payload).Data,
 		}
+		out, err := json.Marshal(wsPayload)
+		if err == nil {
+			LogWsResponse(c, string(out))
+		}
 		return ws.WriteJSON(wsPayload)
 	} else {
 		headerFlag := c.Get("WroteHeader")
@@ -590,6 +786,10 @@ func WriteError(c echo.Context, err error) error {
 		wsPayload := ormapi.WSStreamPayload{
 			Code: http.StatusBadRequest,
 			Data: MsgErr(err),
+		}
+		out, err := json.Marshal(wsPayload)
+		if err == nil {
+			LogWsResponse(c, string(out))
 		}
 		return ws.WriteJSON(wsPayload)
 	} else {

@@ -3,19 +3,21 @@
 
 package orm
 
-import edgeproto "github.com/mobiledgex/edge-cloud/edgeproto"
-import "github.com/labstack/echo"
-import "net/http"
-import "context"
-import "io"
-import "github.com/mobiledgex/edge-cloud-infra/mc/ormapi"
-import "google.golang.org/grpc/status"
-import proto "github.com/gogo/protobuf/proto"
-import fmt "fmt"
-import math "math"
-import _ "github.com/gogo/googleapis/google/api"
-import _ "github.com/mobiledgex/edge-cloud/protogen"
-import _ "github.com/gogo/protobuf/gogoproto"
+import (
+	"context"
+	fmt "fmt"
+	_ "github.com/gogo/googleapis/google/api"
+	_ "github.com/gogo/protobuf/gogoproto"
+	proto "github.com/gogo/protobuf/proto"
+	"github.com/labstack/echo"
+	"github.com/mobiledgex/edge-cloud-infra/mc/ormapi"
+	edgeproto "github.com/mobiledgex/edge-cloud/edgeproto"
+	"github.com/mobiledgex/edge-cloud/log"
+	_ "github.com/mobiledgex/edge-cloud/protogen"
+	"google.golang.org/grpc/status"
+	"io"
+	math "math"
+)
 
 // Reference imports to suppress errors if they are not otherwise used.
 var _ = proto.Marshal
@@ -35,9 +37,12 @@ func CreateFlavor(c echo.Context) error {
 
 	in := ormapi.RegionFlavor{}
 	if err := c.Bind(&in); err != nil {
-		return c.JSON(http.StatusBadRequest, Msg("Invalid POST data"))
+		return bindErr(c, err)
 	}
 	rc.region = in.Region
+	span := log.SpanFromContext(ctx)
+	span.SetTag("region", in.Region)
+	log.SetTags(span, in.Flavor.GetKey().GetTags())
 	resp, err := CreateFlavorObj(ctx, rc, &in.Flavor)
 	if err != nil {
 		if st, ok := status.FromError(err); ok {
@@ -48,9 +53,12 @@ func CreateFlavor(c echo.Context) error {
 }
 
 func CreateFlavorObj(ctx context.Context, rc *RegionContext, obj *edgeproto.Flavor) (*edgeproto.Result, error) {
-	if !rc.skipAuthz && !authorized(ctx, rc.username, "",
-		ResourceFlavors, ActionManage) {
-		return nil, echo.ErrForbidden
+	log.SetContextTags(ctx, edgeproto.GetTags(obj))
+	if !rc.skipAuthz {
+		if err := authorized(ctx, rc.username, "",
+			ResourceFlavors, ActionManage); err != nil {
+			return nil, err
+		}
 	}
 	if rc.conn == nil {
 		conn, err := connectController(ctx, rc.region)
@@ -78,9 +86,12 @@ func DeleteFlavor(c echo.Context) error {
 
 	in := ormapi.RegionFlavor{}
 	if err := c.Bind(&in); err != nil {
-		return c.JSON(http.StatusBadRequest, Msg("Invalid POST data"))
+		return bindErr(c, err)
 	}
 	rc.region = in.Region
+	span := log.SpanFromContext(ctx)
+	span.SetTag("region", in.Region)
+	log.SetTags(span, in.Flavor.GetKey().GetTags())
 	resp, err := DeleteFlavorObj(ctx, rc, &in.Flavor)
 	if err != nil {
 		if st, ok := status.FromError(err); ok {
@@ -91,9 +102,12 @@ func DeleteFlavor(c echo.Context) error {
 }
 
 func DeleteFlavorObj(ctx context.Context, rc *RegionContext, obj *edgeproto.Flavor) (*edgeproto.Result, error) {
-	if !rc.skipAuthz && !authorized(ctx, rc.username, "",
-		ResourceFlavors, ActionManage) {
-		return nil, echo.ErrForbidden
+	log.SetContextTags(ctx, edgeproto.GetTags(obj))
+	if !rc.skipAuthz {
+		if err := authorized(ctx, rc.username, "",
+			ResourceFlavors, ActionManage); err != nil {
+			return nil, err
+		}
 	}
 	if rc.conn == nil {
 		conn, err := connectController(ctx, rc.region)
@@ -121,9 +135,12 @@ func UpdateFlavor(c echo.Context) error {
 
 	in := ormapi.RegionFlavor{}
 	if err := c.Bind(&in); err != nil {
-		return c.JSON(http.StatusBadRequest, Msg("Invalid POST data"))
+		return bindErr(c, err)
 	}
 	rc.region = in.Region
+	span := log.SpanFromContext(ctx)
+	span.SetTag("region", in.Region)
+	log.SetTags(span, in.Flavor.GetKey().GetTags())
 	resp, err := UpdateFlavorObj(ctx, rc, &in.Flavor)
 	if err != nil {
 		if st, ok := status.FromError(err); ok {
@@ -134,9 +151,12 @@ func UpdateFlavor(c echo.Context) error {
 }
 
 func UpdateFlavorObj(ctx context.Context, rc *RegionContext, obj *edgeproto.Flavor) (*edgeproto.Result, error) {
-	if !rc.skipAuthz && !authorized(ctx, rc.username, "",
-		ResourceFlavors, ActionManage) {
-		return nil, echo.ErrForbidden
+	log.SetContextTags(ctx, edgeproto.GetTags(obj))
+	if !rc.skipAuthz {
+		if err := authorized(ctx, rc.username, "",
+			ResourceFlavors, ActionManage); err != nil {
+			return nil, err
+		}
 	}
 	if rc.conn == nil {
 		conn, err := connectController(ctx, rc.region)
@@ -169,6 +189,9 @@ func ShowFlavor(c echo.Context) error {
 	}
 	defer CloseConn(c)
 	rc.region = in.Region
+	span := log.SpanFromContext(ctx)
+	span.SetTag("region", in.Region)
+	log.SetTags(span, in.Flavor.GetKey().GetTags())
 
 	err = ShowFlavorStream(ctx, rc, &in.Flavor, func(res *edgeproto.Flavor) {
 		payload := ormapi.StreamPayload{}
@@ -231,9 +254,12 @@ func AddFlavorRes(c echo.Context) error {
 
 	in := ormapi.RegionFlavor{}
 	if err := c.Bind(&in); err != nil {
-		return c.JSON(http.StatusBadRequest, Msg("Invalid POST data"))
+		return bindErr(c, err)
 	}
 	rc.region = in.Region
+	span := log.SpanFromContext(ctx)
+	span.SetTag("region", in.Region)
+	log.SetTags(span, in.Flavor.GetKey().GetTags())
 	resp, err := AddFlavorResObj(ctx, rc, &in.Flavor)
 	if err != nil {
 		if st, ok := status.FromError(err); ok {
@@ -244,9 +270,12 @@ func AddFlavorRes(c echo.Context) error {
 }
 
 func AddFlavorResObj(ctx context.Context, rc *RegionContext, obj *edgeproto.Flavor) (*edgeproto.Result, error) {
-	if !rc.skipAuthz && !authorized(ctx, rc.username, "",
-		ResourceFlavors, ActionManage) {
-		return nil, echo.ErrForbidden
+	log.SetContextTags(ctx, edgeproto.GetTags(obj))
+	if !rc.skipAuthz {
+		if err := authorized(ctx, rc.username, "",
+			ResourceFlavors, ActionManage); err != nil {
+			return nil, err
+		}
 	}
 	if rc.conn == nil {
 		conn, err := connectController(ctx, rc.region)
@@ -274,9 +303,12 @@ func RemoveFlavorRes(c echo.Context) error {
 
 	in := ormapi.RegionFlavor{}
 	if err := c.Bind(&in); err != nil {
-		return c.JSON(http.StatusBadRequest, Msg("Invalid POST data"))
+		return bindErr(c, err)
 	}
 	rc.region = in.Region
+	span := log.SpanFromContext(ctx)
+	span.SetTag("region", in.Region)
+	log.SetTags(span, in.Flavor.GetKey().GetTags())
 	resp, err := RemoveFlavorResObj(ctx, rc, &in.Flavor)
 	if err != nil {
 		if st, ok := status.FromError(err); ok {
@@ -287,9 +319,12 @@ func RemoveFlavorRes(c echo.Context) error {
 }
 
 func RemoveFlavorResObj(ctx context.Context, rc *RegionContext, obj *edgeproto.Flavor) (*edgeproto.Result, error) {
-	if !rc.skipAuthz && !authorized(ctx, rc.username, "",
-		ResourceFlavors, ActionManage) {
-		return nil, echo.ErrForbidden
+	log.SetContextTags(ctx, edgeproto.GetTags(obj))
+	if !rc.skipAuthz {
+		if err := authorized(ctx, rc.username, "",
+			ResourceFlavors, ActionManage); err != nil {
+			return nil, err
+		}
 	}
 	if rc.conn == nil {
 		conn, err := connectController(ctx, rc.region)

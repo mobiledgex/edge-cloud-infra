@@ -37,16 +37,21 @@ def splice_sample(operation, sample_dir):
             "source": code,
         })
 
-def add_logo(sw):
+def add_logo(sw, logo):
     sw['info']['x-logo'] = {
         "version": "1.0",
-        "url": "/swagger/logo.svg",
+        "url": logo,
         "backgroundColor": "#fafafa",
     }
 
 def set_version(sw, vers):
     if sw['info']['version'] == "version not set":
         sw['info']['version'] = vers
+
+def set_environ(sw, environ):
+    if 'description' in sw['info']:
+        sw['info']['description'] = re.sub(r'{{ENVIRON}}', environ,
+                                           sw['info']['description'])
 
 def splice_samples(sw, samples):
     if samples:
@@ -88,6 +93,20 @@ def switch_tags(sw):
                 if tag in TAG_SWITCH:
                     sw['x-tagGroups'][group_idx]['tags'][i] = TAG_SWITCH[tag]
 
+def remove_hidden_params_from_object(obj):
+    for prop in list(obj.get('properties', {})):
+        for param in ('title', 'description'):
+            value = obj['properties'][prop].get(param)
+            if value and "_(hidden)_" in value:
+                del obj['properties'][prop]
+                break
+
+def remove_hidden_params(sw):
+    for defn in sw['definitions']:
+        if sw['definitions'][defn]['type'] != "object":
+            continue
+        remove_hidden_params_from_object(sw['definitions'][defn])
+
 def set_required_params_for_object(obj):
     if 'required' in obj:
         # Object already has a required property list
@@ -127,11 +146,17 @@ def fix_go_swagger_summaries(sw):
             if summary and summary.endswith('.'):
                 sw['paths'][path][op]['summary'] = summary.rstrip('.')
 
+def set_host(sw, host):
+    sw["host"] = host
+
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("--samples", "-s", help="Code samples directory")
+    parser.add_argument("--logo", "-l", help="Logo URL", default="/swagger/logo.svg")
+    parser.add_argument("--environ", "-e", help="Deployment environment", default="mexdemo")
     parser.add_argument("--version", "-v", help="Version string, if not present in swagger",
                         default="1.0")
+    parser.add_argument("--host", help="API host")
     args = parser.parse_args()
 
     sw = json.load(sys.stdin)
@@ -141,9 +166,14 @@ def main():
         splice_samples(sw, args.samples)
     switch_tags(sw)
     order_apis(sw)
+    remove_hidden_params(sw)
     set_required_params(sw)
-    add_logo(sw)
+    add_logo(sw, args.logo)
     set_version(sw, args.version)
+    if args.host:
+        set_host(sw, args.host)
+    if args.environ:
+        set_environ(sw, args.environ)
 
     print(json.dumps(sw, indent=2))
 

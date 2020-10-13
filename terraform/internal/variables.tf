@@ -52,6 +52,7 @@ variable "influxdb_instance_name" {
 variable "influxdb_vm_hostname" {
   description = "InfluxDB VM domain name"
   type        = "string"
+  default     = "influxdb.internal.mobiledgex.net"
 }
 
 variable "vouch_domain_name" {
@@ -70,20 +71,8 @@ variable "jaeger_domain_name" {
   default     = "jaeger.mobiledgex.net"
 }
 
-variable "elasticsearch_instance_name" {
-  default     = "elasticsearch"
-}
-
-variable "elasticsearch_gcp_zone" {
-  default     = "us-central1-a"
-}
-
-variable "elasticsearch_domain_name" {
-  default     = "es01.es.mobiledgex.net"
-}
-
-variable "kibana_domain_name" {
-  default     = "kibana.es.mobiledgex.net"
+variable "esproxy_domain_name" {
+  default     = "events.es.mobiledgex.net"
 }
 
 variable "infra_domain_name" {
@@ -108,6 +97,30 @@ variable "backups_domain_name" {
 
 variable "backups_instance_name" {
   default     = "backups"
+}
+
+variable "chef_domain_name" {
+  default     = "chef.mobiledgex.net"
+}
+
+variable "chef_instance_name" {
+  default     = "chef-master"
+}
+
+variable "chef_zone" {
+  default     = "us-central1-a"
+}
+
+variable "monitor_domain_name" {
+  default     = "monitor.mobiledgex.net"
+}
+
+variable "monitor_instance_name" {
+  default     = "monitor"
+}
+
+variable "monitor_zone" {
+  default     = "us-central1-a"
 }
 
 variable "ssh_public_key_file" {

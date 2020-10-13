@@ -3,14 +3,15 @@
 
 package ormclient
 
-import edgeproto "github.com/mobiledgex/edge-cloud/edgeproto"
-import "github.com/mobiledgex/edge-cloud-infra/mc/ormapi"
-import proto "github.com/gogo/protobuf/proto"
-import fmt "fmt"
-import math "math"
-import _ "github.com/gogo/googleapis/google/api"
-import _ "github.com/mobiledgex/edge-cloud/protogen"
-import _ "github.com/gogo/protobuf/gogoproto"
+import (
+	fmt "fmt"
+	_ "github.com/gogo/protobuf/gogoproto"
+	proto "github.com/gogo/protobuf/proto"
+	"github.com/mobiledgex/edge-cloud-infra/mc/ormapi"
+	edgeproto "github.com/mobiledgex/edge-cloud/edgeproto"
+	_ "github.com/mobiledgex/edge-cloud/protogen"
+	math "math"
+)
 
 // Reference imports to suppress errors if they are not otherwise used.
 var _ = proto.Marshal
@@ -43,4 +44,17 @@ func (s *Client) ShowClusterRefs(uri, token string, in *ormapi.RegionClusterRefs
 
 type ClusterRefsApiClient interface {
 	ShowClusterRefs(uri, token string, in *ormapi.RegionClusterRefs) ([]edgeproto.ClusterRefs, int, error)
+}
+
+func (s *Client) ShowAppInstRefs(uri, token string, in *ormapi.RegionAppInstRefs) ([]edgeproto.AppInstRefs, int, error) {
+	out := edgeproto.AppInstRefs{}
+	outlist := []edgeproto.AppInstRefs{}
+	status, err := s.PostJsonStreamOut(uri+"/auth/ctrl/ShowAppInstRefs", token, in, &out, func() {
+		outlist = append(outlist, out)
+	})
+	return outlist, status, err
+}
+
+type AppInstRefsApiClient interface {
+	ShowAppInstRefs(uri, token string, in *ormapi.RegionAppInstRefs) ([]edgeproto.AppInstRefs, int, error)
 }

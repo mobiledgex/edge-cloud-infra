@@ -7,9 +7,9 @@ import (
 
 	"github.com/mobiledgex/edge-cloud-infra/shepherd/shepherd_common"
 	platform "github.com/mobiledgex/edge-cloud-infra/shepherd/shepherd_platform"
-	"github.com/mobiledgex/edge-cloud/cloudcommon"
 	"github.com/mobiledgex/edge-cloud/edgeproto"
 	"github.com/mobiledgex/edge-cloud/log"
+	"github.com/mobiledgex/edge-cloud/util"
 )
 
 // For each cluster the notify worker is created
@@ -51,14 +51,14 @@ func (p *AppInstWorker) Stop(ctx context.Context) {
 
 func (p *AppInstWorker) sendMetrics() {
 	span := log.StartSpan(log.DebugLevelSampled, "send-metric")
-	span.SetTag("operator", p.appInstKey.ClusterInstKey.CloudletKey.OperatorKey.Name)
-	span.SetTag("cloudlet", p.appInstKey.ClusterInstKey.CloudletKey.Name)
-	span.SetTag("cluster", cloudcommon.DefaultVMCluster)
+	log.SetTags(span, p.appInstKey.GetTags())
 	ctx := log.ContextWithSpan(context.Background(), span)
 	defer span.Finish()
 	key := shepherd_common.MetricAppInstKey{
 		ClusterInstKey: p.appInstKey.ClusterInstKey,
 		Pod:            p.appInstKey.AppKey.Name,
+		App:            util.DNSSanitize(p.appInstKey.AppKey.Name),
+		Version:        util.DNSSanitize(p.appInstKey.AppKey.Version),
 	}
 	log.SpanLog(ctx, log.DebugLevelMetrics, "Collecting metrics for app", "key", key)
 	stat, err := p.pf.GetVmStats(ctx, &p.appInstKey)

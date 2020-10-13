@@ -9,9 +9,11 @@ import (
 	"github.com/google/go-cmp/cmp"
 	"github.com/google/go-cmp/cmp/cmpopts"
 	"github.com/mobiledgex/edge-cloud-infra/mc/ormapi"
+	"github.com/mobiledgex/edge-cloud/cloudcommon/node"
 	dmeproto "github.com/mobiledgex/edge-cloud/d-match-engine/dme-proto"
 	"github.com/mobiledgex/edge-cloud/edgeproto"
 	"github.com/mobiledgex/edge-cloud/setup-env/util"
+	ecutil "github.com/mobiledgex/edge-cloud/util"
 )
 
 // go-cmp Options
@@ -57,7 +59,10 @@ var IgnoreAdminUser = cmpopts.AcyclicTransformer("removeAdminUser", func(users [
 var IgnoreTaskStatusMessages = cmpopts.AcyclicTransformer("ignoreTaskStatus", func(ar ormapi.AuditResponse) ormapi.AuditResponse {
 	if !strings.Contains(ar.OperationName, "/data/create") &&
 		!strings.Contains(ar.OperationName, "/ctrl/CreateClusterInst") &&
+		!strings.Contains(ar.OperationName, "/ctrl/DeleteClusterInst") &&
 		!strings.Contains(ar.OperationName, "/ctrl/CreateAppInst") &&
+		!strings.Contains(ar.OperationName, "/ctrl/DeleteAppInst") &&
+		!strings.Contains(ar.OperationName, "/ctrl/DeleteCloudlet") &&
 		!strings.Contains(ar.OperationName, "/ctrl/CreateCloudlet") {
 		return ar
 	}
@@ -78,8 +83,8 @@ var IgnoreTaskStatusMessages = cmpopts.AcyclicTransformer("ignoreTaskStatus", fu
 		// (the fake platform)
 		if strings.Contains(resp, "First Create Task") ||
 			strings.Contains(resp, "Second Create Task") ||
-			strings.Contains(resp, "Creating Cloudlet") ||
-			strings.Contains(resp, "Creating App Inst") ||
+			strings.Contains(resp, "Creating") ||
+			strings.Contains(resp, "Deleting") ||
 			strings.Contains(resp, "Starting CRMServer") ||
 			strings.Contains(resp, "fake appInst updated") {
 			continue
@@ -110,27 +115,6 @@ func CompareYamlFiles(firstYamlFile string, secondYamlFile string, fileType stri
 
 		err1 = util.ReadYamlFile(firstYamlFile, &a1)
 		err2 = util.ReadYamlFile(secondYamlFile, &a2)
-
-		// remove cloudletinfos that are offline so they are ignored
-		for i, region := range a1.RegionData {
-			onlineCloudlets := make([]edgeproto.CloudletInfo, 0)
-			for _, cloudletinfo := range region.AppData.CloudletInfos {
-				if cloudletinfo.State != edgeproto.CloudletState_CLOUDLET_STATE_OFFLINE {
-					onlineCloudlets = append(onlineCloudlets, cloudletinfo)
-				}
-			}
-			a1.RegionData[i].AppData.CloudletInfos = onlineCloudlets
-		}
-		for i, region := range a2.RegionData {
-			onlineCloudlets := make([]edgeproto.CloudletInfo, 0)
-			for _, cloudletinfo := range region.AppData.CloudletInfos {
-				if cloudletinfo.State != edgeproto.CloudletState_CLOUDLET_STATE_OFFLINE {
-					onlineCloudlets = append(onlineCloudlets, cloudletinfo)
-				}
-			}
-			a2.RegionData[i].AppData.CloudletInfos = onlineCloudlets
-		}
-
 		copts = []cmp.Option{
 			cmpopts.IgnoreTypes(time.Time{}, dmeproto.Timestamp{}),
 			IgnoreAdminRole,
@@ -155,6 +139,31 @@ func CompareYamlFiles(firstYamlFile string, secondYamlFile string, fileType stri
 		}
 		y1 = a1
 		y2 = a2
+	} else if fileType == "mcalerts" {
+		// sort alerts
+		var a1 []edgeproto.Alert
+		var a2 []edgeproto.Alert
+
+		err1 = util.ReadYamlFile(firstYamlFile, &a1)
+		// If this is an empty file, treat it as an empty list
+		if a1 == nil {
+			a1 = []edgeproto.Alert{}
+		}
+		err2 = util.ReadYamlFile(secondYamlFile, &a2)
+		// If this is an empty file, treat it as an empty list
+		if a2 == nil {
+			a2 = []edgeproto.Alert{}
+		}
+
+		copts = []cmp.Option{
+			cmpopts.IgnoreTypes(time.Time{}, dmeproto.Timestamp{}),
+			cmpopts.SortSlices(func(a edgeproto.Alert, b edgeproto.Alert) bool {
+				return a.GetKey().GetKeyString() < b.GetKey().GetKeyString()
+			}),
+		}
+		copts = append(copts, edgeproto.IgnoreAlertFields("nocmp"))
+		y1 = a1
+		y2 = a2
 	} else if fileType == "mcaudit" {
 		var a1 []ormapi.AuditResponse
 		var a2 []ormapi.AuditResponse
@@ -165,6 +174,42 @@ func CompareYamlFiles(firstYamlFile string, secondYamlFile string, fileType stri
 		copts = []cmp.Option{
 			cmpopts.IgnoreFields(ormapi.AuditResponse{}, "StartTime", "Duration", "TraceID"),
 			IgnoreTaskStatusMessages,
+		}
+		y1 = a1
+		y2 = a2
+	} else if fileType == "mcevents" {
+		var a1 []EventSearch
+		var a2 []EventSearch
+
+		err1 = util.ReadYamlFile(firstYamlFile, &a1)
+		err2 = util.ReadYamlFile(secondYamlFile, &a2)
+
+		copts = []cmp.Option{
+			cmpopts.IgnoreFields(node.EventData{}, "Timestamp", "Error"),
+			cmpopts.IgnoreFields(ecutil.TimeRange{}, "StartTime", "EndTime", "StartAge", "EndAge"),
+		}
+		cmpFilterEventData(a1)
+		cmpFilterEventData(a2)
+
+		y1 = a1
+		y2 = a2
+	} else if fileType == "mceventterms" {
+		var a1 []EventTerms
+		var a2 []EventTerms
+
+		err1 = util.ReadYamlFile(firstYamlFile, &a1)
+		err2 = util.ReadYamlFile(secondYamlFile, &a2)
+
+		cmpFilterEventTerms(a1)
+		cmpFilterEventTerms(a2)
+
+		copts = []cmp.Option{
+			cmpopts.IgnoreFields(ecutil.TimeRange{}, "StartTime", "EndTime", "StartAge", "EndAge"),
+			cmpopts.IgnoreSliceElements(func(str string) bool {
+				// no websocket equivalent so leads to
+				// different results for EventTerms for cli vs api
+				return str == "/api/v1/auth/ctrl/AccessCloudlet"
+			}),
 		}
 		y1 = a1
 		y2 = a2
@@ -185,6 +230,66 @@ func CompareYamlFiles(firstYamlFile string, secondYamlFile string, fileType stri
 		y1 = a1
 		y2 = a2
 
+	} else if fileType == "emaildata" {
+		// sort email headers
+		var a1 []MailDevEmail
+		var a2 []MailDevEmail
+
+		err1 = util.ReadYamlFile(firstYamlFile, &a1)
+		// If this is an empty file, treat it as an empty list
+		if a1 == nil {
+			a1 = []MailDevEmail{}
+		}
+		err2 = util.ReadYamlFile(secondYamlFile, &a2)
+		// If this is an empty file, treat it as an empty list
+		if a2 == nil {
+			a2 = []MailDevEmail{}
+		}
+		sort.Slice(a1, func(i, j int) bool {
+			return a1[i].Headers.Subject < a1[j].Headers.Subject
+		})
+		sort.Slice(a2, func(i, j int) bool {
+			return a2[i].Headers.Subject < a2[j].Headers.Subject
+		})
+
+		y1 = a1
+		y2 = a2
+	} else if fileType == "slackdata" {
+		// sort email headers
+		var a1 []TestSlackMsg
+		var a2 []TestSlackMsg
+
+		err1 = util.ReadYamlFile(firstYamlFile, &a1)
+		// If this is an empty file, treat it as an empty list
+		if a1 == nil {
+			a1 = []TestSlackMsg{}
+		}
+		err2 = util.ReadYamlFile(secondYamlFile, &a2)
+		// If this is an empty file, treat it as an empty list
+		if a2 == nil {
+			a2 = []TestSlackMsg{}
+		}
+		sort.Slice(a1, func(i, j int) bool {
+			if len(a1[i].Attachments) < 1 {
+				return false
+			}
+			if len(a1[j].Attachments) < 1 {
+				return true
+			}
+			return a1[i].Attachments[0].Title < a1[j].Attachments[0].Title
+		})
+		sort.Slice(a2, func(i, j int) bool {
+			if len(a2[i].Attachments) < 1 {
+				return false
+			}
+			if len(a2[j].Attachments) < 1 {
+				return true
+			}
+			return a2[i].Attachments[0].Title < a2[j].Attachments[0].Title
+		})
+
+		y1 = a1
+		y2 = a2
 	} else {
 		return util.CompareYamlFiles(firstYamlFile,
 			secondYamlFile, fileType)
@@ -209,4 +314,46 @@ func CompareYamlFiles(firstYamlFile string, secondYamlFile string, fileType stri
 	}
 	log.Println("Comparison success")
 	return true
+}
+
+func cmpFilterEventData(data []EventSearch) {
+	for ii := 0; ii < len(data); ii++ {
+		for jj := 0; jj < len(data[ii].Results); jj++ {
+			event := &data[ii].Results[jj]
+			// Delete incomparable data from tags/data.
+			// Unfortunately request cannot be compared
+			// because the json generated from cli comes
+			// from a map, and from api comes from a struct,
+			// and end up being formatted differently.
+			delete(event.Mtags, "duration")
+			delete(event.Mtags, "traceid")
+			delete(event.Mtags, "spanid")
+			delete(event.Mtags, "hostname")
+			delete(event.Mtags, "lineno")
+			delete(event.Mtags, "request")
+			delete(event.Mtags, "response")
+		}
+	}
+}
+
+func cmpFilterEventTerms(data []EventTerms) {
+	for ii := 0; ii < len(data); ii++ {
+		changed := false
+		for jj := 0; jj < len(data[ii].Terms.Names); jj++ {
+			// cli runs /ws version of RunCommand which makes
+			// it impossible to get the same results from both
+			// api and cli EventTerms, so map ws one to normal one.
+			if data[ii].Terms.Names[jj] == "/ws/api/v1/auth/ctrl/RunCommand" {
+				data[ii].Terms.Names[jj] = "/api/v1/auth/ctrl/RunCommand"
+				changed = true
+			}
+			if data[ii].Terms.Names[jj] == "/ws/api/v1/auth/ctrl/ShowLogs" {
+				data[ii].Terms.Names[jj] = "/api/v1/auth/ctrl/ShowLogs"
+				changed = true
+			}
+		}
+		if changed {
+			sort.Strings(data[ii].Terms.Names)
+		}
+	}
 }

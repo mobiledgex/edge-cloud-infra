@@ -1,0 +1,36 @@
+alertreceivers:
+- name: emailAlertReceiver
+  type: email
+  severity: error
+  email: ops@mobiledgex.net
+  user: mexadmin
+  appinst:
+    appkey:
+      organization: AcmeAppCo
+      name: someapplication1
+      version: "1.0"
+    clusterinstkey:
+      clusterkey:
+        name: SmallCluster
+      cloudletkey:
+        organization: tmus
+        name: tmus-cloud-1
+      organization: AcmeAppCo
+- name: emailSlackReceiver
+  type: slack
+  severity: error
+  user: mexadmin
+  slackchannel: "#alerts"
+  slackwebhook: "<hidden>"
+  appinst:
+    appkey:
+      organization: AcmeAppCo
+      name: someapplication1
+      version: "1.0"
+    clusterinstkey:
+      clusterkey:
+        name: SmallCluster
+      cloudletkey:
+        organization: tmus
+        name: tmus-cloud-1
+      organization: AcmeAppCo

@@ -3,16 +3,18 @@
 
 package ormctl
 
-import edgeproto "github.com/mobiledgex/edge-cloud/edgeproto"
-import "strings"
-import "github.com/mobiledgex/edge-cloud-infra/mc/ormapi"
-import "github.com/mobiledgex/edge-cloud/cli"
-import proto "github.com/gogo/protobuf/proto"
-import fmt "fmt"
-import math "math"
-import _ "github.com/gogo/googleapis/google/api"
-import _ "github.com/mobiledgex/edge-cloud/protogen"
-import _ "github.com/gogo/protobuf/gogoproto"
+import (
+	fmt "fmt"
+	_ "github.com/gogo/googleapis/google/api"
+	_ "github.com/gogo/protobuf/gogoproto"
+	proto "github.com/gogo/protobuf/proto"
+	"github.com/mobiledgex/edge-cloud-infra/mc/ormapi"
+	"github.com/mobiledgex/edge-cloud/cli"
+	edgeproto "github.com/mobiledgex/edge-cloud/edgeproto"
+	_ "github.com/mobiledgex/edge-cloud/protogen"
+	math "math"
+	"strings"
+)
 
 // Reference imports to suppress errors if they are not otherwise used.
 var _ = proto.Marshal
@@ -23,7 +25,7 @@ var _ = math.Inf
 
 var CreateResTagTableCmd = &cli.Command{
 	Use:          "CreateResTagTable",
-	RequiredArgs: strings.Join(append([]string{"region"}, ResTagTableRequiredArgs...), " "),
+	RequiredArgs: "region " + strings.Join(ResTagTableRequiredArgs, " "),
 	OptionalArgs: strings.Join(ResTagTableOptionalArgs, " "),
 	AliasArgs:    strings.Join(ResTagTableAliasArgs, " "),
 	SpecialArgs:  &ResTagTableSpecialArgs,
@@ -35,7 +37,7 @@ var CreateResTagTableCmd = &cli.Command{
 
 var DeleteResTagTableCmd = &cli.Command{
 	Use:          "DeleteResTagTable",
-	RequiredArgs: strings.Join(append([]string{"region"}, ResTagTableRequiredArgs...), " "),
+	RequiredArgs: "region " + strings.Join(ResTagTableRequiredArgs, " "),
 	OptionalArgs: strings.Join(ResTagTableOptionalArgs, " "),
 	AliasArgs:    strings.Join(ResTagTableAliasArgs, " "),
 	SpecialArgs:  &ResTagTableSpecialArgs,
@@ -47,7 +49,7 @@ var DeleteResTagTableCmd = &cli.Command{
 
 var UpdateResTagTableCmd = &cli.Command{
 	Use:          "UpdateResTagTable",
-	RequiredArgs: strings.Join(append([]string{"region"}, ResTagTableRequiredArgs...), " "),
+	RequiredArgs: "region " + strings.Join(ResTagTableRequiredArgs, " "),
 	OptionalArgs: strings.Join(ResTagTableOptionalArgs, " "),
 	AliasArgs:    strings.Join(ResTagTableAliasArgs, " "),
 	SpecialArgs:  &ResTagTableSpecialArgs,
@@ -69,7 +71,14 @@ func setUpdateResTagTableFields(in map[string]interface{}) {
 	if !ok {
 		return
 	}
-	objmap["fields"] = cli.GetSpecifiedFields(objmap, &edgeproto.ResTagTable{}, cli.JsonNamespace)
+	fields := cli.GetSpecifiedFields(objmap, &edgeproto.ResTagTable{}, cli.JsonNamespace)
+	// include fields already specified
+	if inFields, found := objmap["fields"]; found {
+		if fieldsArr, ok := inFields.([]string); ok {
+			fields = append(fields, fieldsArr...)
+		}
+	}
+	objmap["fields"] = fields
 }
 
 var ShowResTagTableCmd = &cli.Command{
@@ -87,7 +96,7 @@ var ShowResTagTableCmd = &cli.Command{
 
 var AddResTagCmd = &cli.Command{
 	Use:          "AddResTag",
-	RequiredArgs: strings.Join(append([]string{"region"}, ResTagTableRequiredArgs...), " "),
+	RequiredArgs: "region " + strings.Join(ResTagTableRequiredArgs, " "),
 	OptionalArgs: strings.Join(ResTagTableOptionalArgs, " "),
 	AliasArgs:    strings.Join(ResTagTableAliasArgs, " "),
 	SpecialArgs:  &ResTagTableSpecialArgs,
@@ -99,7 +108,7 @@ var AddResTagCmd = &cli.Command{
 
 var RemoveResTagCmd = &cli.Command{
 	Use:          "RemoveResTag",
-	RequiredArgs: strings.Join(append([]string{"region"}, ResTagTableRequiredArgs...), " "),
+	RequiredArgs: "region " + strings.Join(ResTagTableRequiredArgs, " "),
 	OptionalArgs: strings.Join(ResTagTableOptionalArgs, " "),
 	AliasArgs:    strings.Join(ResTagTableAliasArgs, " "),
 	SpecialArgs:  &ResTagTableSpecialArgs,
@@ -111,7 +120,7 @@ var RemoveResTagCmd = &cli.Command{
 
 var GetResTagTableCmd = &cli.Command{
 	Use:          "GetResTagTable",
-	RequiredArgs: strings.Join(append([]string{"region"}, ResTagTableKeyRequiredArgs...), " "),
+	RequiredArgs: "region " + strings.Join(ResTagTableKeyRequiredArgs, " "),
 	OptionalArgs: strings.Join(ResTagTableKeyOptionalArgs, " "),
 	AliasArgs:    strings.Join(ResTagTableKeyAliasArgs, " "),
 	SpecialArgs:  &ResTagTableKeySpecialArgs,
@@ -134,37 +143,39 @@ var ResTagTableApiCmds = []*cli.Command{
 var ResTagTableKeyRequiredArgs = []string{}
 var ResTagTableKeyOptionalArgs = []string{
 	"name",
-	"operator",
+	"organization",
 }
 var ResTagTableKeyAliasArgs = []string{
 	"name=restagtablekey.name",
-	"operator=restagtablekey.operatorkey.name",
+	"organization=restagtablekey.organization",
 }
 var ResTagTableKeyComments = map[string]string{
-	"name":     "Resource Table Name",
-	"operator": "Company or Organization name of the operator",
+	"name":         "Resource Table Name",
+	"organization": "Operator organization of the cloudlet site.",
 }
 var ResTagTableKeySpecialArgs = map[string]string{}
 var ResTagTableRequiredArgs = []string{
 	"res",
-	"operator",
+	"organization",
 	"tags",
 }
 var ResTagTableOptionalArgs = []string{
 	"azone",
 }
 var ResTagTableAliasArgs = []string{
+	"fields=restagtable.fields",
 	"res=restagtable.key.name",
-	"operator=restagtable.key.operatorkey.name",
+	"organization=restagtable.key.organization",
 	"tags=restagtable.tags",
 	"azone=restagtable.azone",
 }
 var ResTagTableComments = map[string]string{
-	"res":      "Resource Table Name",
-	"operator": "Company or Organization name of the operator",
-	"tags":     "one or more string tags",
-	"azone":    "availability zone(s) of resource if required",
+	"res":          "Resource Table Name",
+	"organization": "Operator organization of the cloudlet site.",
+	"tags":         "one or more string tags",
+	"azone":        "availability zone(s) of resource if required",
 }
 var ResTagTableSpecialArgs = map[string]string{
-	"tags": "StringToString",
+	"restagtable.fields": "StringArray",
+	"restagtable.tags":   "StringToString",
 }

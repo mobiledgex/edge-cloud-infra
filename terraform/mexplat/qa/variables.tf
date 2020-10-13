@@ -100,17 +100,30 @@ variable "console_domain_name" {
   type        = "string"
 }
 
+variable "console_vnc_domain_name" {
+  description = "Console VNC domain name"
+  type        = "string"
+}
+
+variable "notifyroot_domain_name" {
+  description = "Notifyroot service domain name"
+  type        = "string"
+}
+
 variable "jaeger_domain_name" {
   default     = "jaeger-qa.mobiledgex.net"
 }
 
-variable "crm_vm_domain_name" {
-  description = "CRM VM domain name"
-  type        = "string"
+variable "esproxy_domain_name" {
+  default     = "events-qa.es.mobiledgex.net"
 }
 
-variable "mc_vm_domain_name" {
-  description = "MC VM domain name"
+variable "alertmanager_domain_name" {
+  default     = "alertmanager-qa.mobiledgex.net"
+}
+
+variable "crm_vm_domain_name" {
+  description = "CRM VM domain name"
   type        = "string"
 }
 

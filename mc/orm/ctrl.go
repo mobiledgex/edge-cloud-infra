@@ -3,28 +3,49 @@ package orm
 import (
 	"context"
 	"fmt"
-	"net/http"
+	"strings"
 
 	"github.com/labstack/echo"
 	"github.com/mobiledgex/edge-cloud-infra/mc/ormapi"
+	"github.com/mobiledgex/edge-cloud/cloudcommon/node"
 	"github.com/mobiledgex/edge-cloud/log"
 	"github.com/mobiledgex/edge-cloud/tls"
 	"google.golang.org/grpc"
 )
+
+type RegionContext struct {
+	region    string
+	username  string
+	conn      *grpc.ClientConn
+	skipAuthz bool
+}
 
 func connectController(ctx context.Context, region string) (*grpc.ClientConn, error) {
 	addr, err := getControllerAddrForRegion(ctx, region)
 	if err != nil {
 		return nil, err
 	}
-	return connectControllerAddr(addr)
+	return connectGrpcAddr(ctx, addr, []node.MatchCA{node.AnyRegionalMatchCA()})
 }
 
-func connectControllerAddr(addr string) (*grpc.ClientConn, error) {
-	dialOption, err := tls.GetTLSClientDialOption(addr, serverConfig.ClientCert, false)
+func connectNotifyRoot(ctx context.Context) (*grpc.ClientConn, error) {
+
+	if serverConfig.NotifyAddrs == "" {
+		return nil, fmt.Errorf("No parent notify address specified, cannot connect to notify root")
+	}
+	addrs := strings.Split(serverConfig.NotifyAddrs, ",")
+	return connectGrpcAddr(ctx, addrs[0], []node.MatchCA{node.GlobalMatchCA()})
+}
+
+func connectGrpcAddr(ctx context.Context, addr string, serverIssuers []node.MatchCA) (*grpc.ClientConn, error) {
+	tlsConfig, err := nodeMgr.InternalPki.GetClientTlsConfig(ctx,
+		nodeMgr.CommonName(),
+		node.CertIssuerGlobal,
+		serverIssuers)
 	if err != nil {
 		return nil, err
 	}
+	dialOption := tls.GetGrpcDialOption(tlsConfig)
 	return grpc.Dial(addr, dialOption,
 		grpc.WithUnaryInterceptor(log.UnaryClientTraceGrpc),
 		grpc.WithStreamInterceptor(log.StreamClientTraceGrpc),
@@ -66,7 +87,7 @@ func CreateController(c echo.Context) error {
 
 	ctrl := ormapi.Controller{}
 	if err := c.Bind(&ctrl); err != nil {
-		return c.JSON(http.StatusBadRequest, Msg("Invalid Post data"))
+		return bindErr(c, err)
 	}
 	err = CreateControllerObj(ctx, claims, &ctrl)
 	return setReply(c, err, Msg("Controller registered"))
@@ -79,8 +100,8 @@ func CreateControllerObj(ctx context.Context, claims *UserClaims, ctrl *ormapi.C
 	if ctrl.Address == "" {
 		return fmt.Errorf("Controller Address not specified")
 	}
-	if !authorized(ctx, claims.Username, "", ResourceControllers, ActionManage) {
-		return echo.ErrForbidden
+	if err := authorized(ctx, claims.Username, "", ResourceControllers, ActionManage); err != nil {
+		return err
 	}
 	db := loggedDB(ctx)
 	err := db.Create(ctrl).Error
@@ -99,15 +120,15 @@ func DeleteController(c echo.Context) error {
 
 	ctrl := ormapi.Controller{}
 	if err := c.Bind(&ctrl); err != nil {
-		return c.JSON(http.StatusBadRequest, Msg("Invalid Post data"))
+		return bindErr(c, err)
 	}
 	err = DeleteControllerObj(ctx, claims, &ctrl)
 	return setReply(c, err, Msg("Controller deregistered"))
 }
 
 func DeleteControllerObj(ctx context.Context, claims *UserClaims, ctrl *ormapi.Controller) error {
-	if !authorized(ctx, claims.Username, "", ResourceControllers, ActionManage) {
-		return echo.ErrForbidden
+	if err := authorized(ctx, claims.Username, "", ResourceControllers, ActionManage); err != nil {
+		return err
 	}
 	db := loggedDB(ctx)
 	err := db.Delete(ctrl).Error

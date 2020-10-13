@@ -1,10 +1,11 @@
 - name: appinst-network
   tags:
     app: someapplication1
+    apporg: AcmeAppCo
     cloudlet: tmus-cloud-1
+    cloudletorg: tmus
     cluster: SmallCluster
-    dev: AcmeAppCo
-    operator: tmus
+    clusterorg: AcmeAppCo
   values:
     recvBytes: 0
     sendBytes: 0
@@ -13,8 +14,9 @@
     app: someapplication1
     cloudlet: tmus-cloud-1
     cluster: SmallCluster
-    dev: AcmeAppCo
-    operator: tmus
+    apporg: AcmeAppCo
+    clusterorg: AcmeAppCo
+    cloudletorg: tmus
   values:
     mem: 3.756834298e+09
 - name: appinst-disk
@@ -22,8 +24,9 @@
     app: someapplication1
     cloudlet: tmus-cloud-1
     cluster: SmallCluster
-    dev: AcmeAppCo
-    operator: tmus
+    apporg: AcmeAppCo
+    clusterorg: AcmeAppCo
+    cloudletorg: tmus
   values:
     disk: 73728
 - name: appinst-cpu
@@ -31,16 +34,17 @@
     app: someapplication1
     cloudlet: tmus-cloud-1
     cluster: SmallCluster
-    dev: AcmeAppCo
-    operator: tmus
+    apporg: AcmeAppCo
+    clusterorg: AcmeAppCo
+    cloudletorg: tmus
   values:
     cpu: 0
 - name: cluster-udp
   tags:
     cloudlet: tmus-cloud-1
     cluster: SmallCluster
-    dev: AcmeAppCo
-    operator: tmus
+    clusterorg: AcmeAppCo
+    cloudletorg: tmus
   values:
     udpRecv: 400
     udpRecvErr: 500
@@ -49,8 +53,8 @@
   tags:
     cloudlet: tmus-cloud-1
     cluster: SmallCluster
-    dev: AcmeAppCo
-    operator: tmus
+    clusterorg: AcmeAppCo
+    cloudletorg: tmus
   values:
     tcpConns: 100
     tcpRetrans: 200
@@ -58,8 +62,8 @@
   tags:
     cloudlet: tmus-cloud-1
     cluster: SmallCluster
-    dev: AcmeAppCo
-    operator: tmus
+    clusterorg: AcmeAppCo
+    cloudletorg: tmus
   values:
     recvBytes: 0
     sendBytes: 0
@@ -67,23 +71,23 @@
   tags:
     cloudlet: tmus-cloud-1
     cluster: SmallCluster
-    dev: AcmeAppCo
-    operator: tmus
+    clusterorg: AcmeAppCo
+    cloudletorg: tmus
   values:
     mem: 75
 - name: cluster-disk
   tags:
     cloudlet: tmus-cloud-1
     cluster: SmallCluster
-    dev: AcmeAppCo
-    operator: tmus
+    clusterorg: AcmeAppCo
+    cloudletorg: tmus
   values:
     disk: 42.1
 - name: cluster-cpu
   tags:
     cloudlet: tmus-cloud-1
     cluster: SmallCluster
-    dev: AcmeAppCo
-    operator: tmus
+    clusterorg: AcmeAppCo
+    cloudletorg: tmus
   values:
     cpu: 0

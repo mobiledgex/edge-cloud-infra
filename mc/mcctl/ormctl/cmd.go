@@ -26,6 +26,9 @@ func runRest(path string, ops ...runRestOp) func(c *cli.Command, args []string) 
 		if c.ReplyData == nil {
 			c.ReplyData = &ormapi.Result{}
 		}
+		if cli.SilenceUsage {
+			c.CobraCmd.SilenceUsage = true
+		}
 
 		in, err := c.ParseInput(args)
 		if err != nil {
@@ -61,7 +64,9 @@ func runRest(path string, ops ...runRestOp) func(c *cli.Command, args []string) 
 			}
 			st, err := client.PostJsonStreamOut(getUri()+path,
 				Token, in, c.ReplyData, replyReady)
-			return check(c, st, err, outs)
+			// print output
+			check(c, st, nil, outs)
+			return check(c, st, err, nil)
 		} else {
 			st, err := client.PostJson(getUri()+path, Token,
 				in, c.ReplyData)
@@ -74,7 +79,7 @@ func check(c *cli.Command, status int, err error, reply interface{}) error {
 	// all failure cases result in error getting set (by PostJson)
 	if err != nil {
 		if status != 0 {
-			return fmt.Errorf("%s, %v", http.StatusText(status), err)
+			return fmt.Errorf("%s (%d), %v", http.StatusText(status), status, err)
 		}
 		return err
 	}
@@ -85,6 +90,16 @@ func check(c *cli.Command, status int, err error, reply interface{}) error {
 			fmt.Println(res.Message)
 		}
 		return nil
+	}
+	if res, ok := reply.(*ormapi.WSStreamPayload); ok && !cli.Parsable {
+		if res.Data == nil {
+			return nil
+		}
+		if out, ok := res.Data.(string); ok {
+			fmt.Print(out)
+			return nil
+		}
+		reply = res.Data
 	}
 	// formatted output
 	if reply != nil {
@@ -128,6 +143,15 @@ func getUri() string {
 		Addr = "http://" + Addr
 	}
 	return Addr + "/api/v1"
+}
+
+func getWSUri() string {
+	newAddr := Addr
+	if !strings.HasPrefix(Addr, "http") {
+		newAddr = "http://" + Addr
+	}
+	newAddr = strings.Replace(Addr, "http", "ws", -1)
+	return newAddr + "/ws/api/v1"
 }
 
 func addRegionComment(comments map[string]string) map[string]string {

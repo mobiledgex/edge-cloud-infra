@@ -5,19 +5,31 @@
 - set_fact:
     controller_hostname: "{{ k8s_cluster_name }}.ctrl.{{ cloudflare_zone }}"
 
+- name: Fetch controller vault role
+  set_fact:
+    controller_role: "{{ lookup('approle', controller_role_name) }}"
+  vars:
+    controller_role_name: "{{ region | lower }}.controller.v1"
+
+- name: Fetch CRM vault role
+  set_fact:
+    crm_role: "{{ lookup('approle', crm_role_name, revoke_old='no') }}"
+  vars:
+    crm_role_name: "{{ region | lower }}.crm.v1"
+
 - name: Deploy the Mex Controller
   k8s:
     kubeconfig: "{{ kubeconfig_file.path }}"
     namespace: default
     state: present
-    definition: "{{ lookup('template', 'mexplat/mex-controller-deploy.yml.j2') }}"
+    definition: "{{ lookup('template', 'deploy.yml.j2') }}"
 
 - name: Deploy the Mex Controller LB
   k8s:
     kubeconfig: "{{ kubeconfig_file.path }}"
     namespace: default
     state: present
-    definition: "{{ lookup('template', 'mexplat/mex-controller-lb.yml') }}"
+    definition: "{{ lookup('template', 'lb.yml.j2') }}"
 
 - name: Get Controller Public IP
   command: "kubectl --kubeconfig {{ kubeconfig_file.path }} get svc -o jsonpath='{.status.loadBalancer.ingress[0].ip}' controller"

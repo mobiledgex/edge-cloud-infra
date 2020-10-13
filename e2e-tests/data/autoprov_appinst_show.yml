@@ -4,23 +4,21 @@ regiondata:
     appinstances:
     - key:
         appkey:
-          developerkey:
-            name: AcmeAppCo
+          organization: AcmeAppCo
           name: autoprovapp
           version: "1.0"
         clusterinstkey:
           clusterkey:
-            name: Reservable1
+            name: Reservable2
           cloudletkey:
-            operatorkey:
-              name: tmus
-            name: tmus-cloud-1
-          developer: MobiledgeX
+            organization: tmus
+            name: tmus-cloud-2
+          organization: MobiledgeX
       cloudletloc:
-        latitude: 31
-        longitude: -91
-      uri: tmus-cloud-1.tmus.mobiledgex.net
-      liveness: LivenessStatic
+        latitude: 35
+        longitude: -95
+      uri: tmus-cloud-2.tmus.mobiledgex.net
+      liveness: LivenessAutoprov
       mappedports:
       - proto: LProtoTcp
         internalport: 81
@@ -29,6 +27,40 @@ regiondata:
       flavor:
         name: x1.small
       state: Ready
+      powerstate: PowerOn
       createdat:
         seconds: 1576628584
         nanos: 73154000
+      vmflavor: x1.small
+      runtimeinfo:
+        containerids:
+        - appOnClusterNode0
+    - key:
+        appkey:
+          organization: AcmeAppCo
+          name: autoprovappd
+          version: "1.0"
+        clusterinstkey:
+          clusterkey:
+            name: ReservableD
+          cloudletkey:
+            organization: tmus
+            name: tmus-cloud-1
+          organization: MobiledgeX
+      cloudletloc:
+        latitude: 31
+        longitude: -91
+      uri: tmus-cloud-1.tmus.mobiledgex.net
+      liveness: LivenessAutoprov
+      mappedports:
+      - proto: LProtoTcp
+        internalport: 81
+        publicport: 81
+      flavor:
+        name: x1.small
+      state: Ready
+      createdat:
+        seconds: 1587747310
+        nanos: 358952000
+      powerstate: PowerOn
+      vmflavor: x1.small

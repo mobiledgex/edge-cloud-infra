@@ -4,15 +4,19 @@
     chronograf_google_creds_path: "secret/ansible/{{ deploy_environ }}/accounts/chronograf_google"
     influxdb_conf_file: /etc/influxdb/influxdb.conf
     ansible_managed_header: "MANAGED BY ANSIBLE"
-    chronograf_version: 1.7.12
-    chronograf_checksum: "sha256:ea261d5de9ad7738980f091cb78c5762ee57cdac8bf56ec1fdf36953351ff2cc"
+    chronograf_version: 1.8.5
+    chronograf_checksum: "sha256:fb52a9bc691949ce9131574586bb69d3422d5c64085a77923da26f78bc57387f"
     chronograf_canned_path: /usr/share/chronograf/canned
-    kapacitor_version: 1.5.3
-    kapacitor_checksum: "md5:2fb06503a66e3cc5fb1f9b86875da39d"
+    kapacitor_version: 1.5.4-1
+    kapacitor_checksum: "md5:fcb4b7ee7a9be484f0d0a73a61795a29"
     kapacitor_conf_file: /etc/kapacitor/kapacitor.conf
     kapacitor_load_dir: /etc/kapacitor/load
 
   tasks:
+
+    - import_role:
+        name: vault
+        tasks_from: vault-ssh
 
     - name: Add InfluxDB GPG key
       apt_key:
@@ -290,6 +294,9 @@
     vouch_data_dir: "/var/vouch"
   tasks:
     - import_role:
+        name: vault
+        tasks_from: vault-ssh
+    - import_role:
         name: telegraf
       tags:
         - monitoring
@@ -356,6 +363,9 @@
     kibana_conf: /etc/kibana.yml
 
   tasks:
+    - import_role:
+        name: vault
+        tasks_from: vault-ssh
     - import_role:
         name: telegraf
       tags:
@@ -496,59 +506,21 @@
         status_code: 200
       delegate_to: localhost
 
-- hosts: jaeger
-  vars:
-    vault_mex_ca_cert_path: "secret/certs/mex-ca"
-
-  tasks:
-
-    - import_role:
-        name: telegraf
-      tags:
-        - monitoring
-        - setup
-
-    - import_role:
-        name: docker
-      tags: setup
-
-    - name: Look up CA cert in vault
-      set_fact:
-        vault_lookup: "{{ lookup('vault', vault_mex_ca_cert_path) }}"
-      tags: setup
-    - set_fact:
-        mex_ca_cert: "{{ vault_lookup.mex_ca.data.cert }}"
-      tags: setup
-
-    - name: Copy CA cert
-      copy:
-        dest: "{{ mex_ca_cert_path }}"
-        content: "{{ mex_ca_cert }}"
-      become: yes
-      tags: setup
-
-    - import_role:
-        name: web
-      vars:
-        nginx_config_template: "internal/jaeger/nginx-config.j2"
-        cert_domains: [ "*.{{ cloudflare_zone }}" ]
-        cert_name: "{{ inventory_hostname }}"
-      tags: setup
-
-    - import_role:
-        name: jaeger
-
 - hosts: slack
   vars:
-    slack_org_mgmt_image: "registry.mobiledgex.net:5000/mobiledgex/slack-org-mgmt:1.2.0"
+    slack_org_mgmt_image: "registry.mobiledgex.net:5000/mobiledgex/slack-org-mgmt:1.2.3"
     slack_org_mgmt_log: slack-org-mgmt.log
     skipped_channel_file: "{{ ansible_env.HOME }}/skipped-channels.txt"
     support_users:
-      - michal.skiba@mobiledgex.com
-      - thomas.vits@mobiledgex.com
+      - thomas.vits.external@mobiledgex.com
+      - vasanth.mohan@mobiledgex.com
       - wonho.park@mobiledgex.com
 
   tasks:
+
+    - import_role:
+        name: vault
+        tasks_from: vault-ssh
 
     - import_role:
         name: telegraf
@@ -592,6 +564,11 @@
     htpasswd_file: /etc/nginx/htpasswd
 
   tasks:
+
+    - import_role:
+        name: vault
+        tasks_from: vault-ssh
+
     - import_role:
         name: telegraf
       tags:
@@ -678,6 +655,10 @@
     backup_log: /var/log/backup.log
 
   tasks:
+
+    - import_role:
+        name: vault
+        tasks_from: vault-ssh
 
     - import_role:
         name: docker
@@ -808,3 +789,85 @@
         src: backups/logrotate.conf.j2
         dest: /etc/logrotate.d/backups
       become: yes
+
+- hosts: chef
+
+  tasks:
+    - import_role:
+        name: vault
+        tasks_from: vault-ssh
+    - import_role:
+        name: chef
+
+- hosts: monitor
+
+  vars:
+    grafana_image: grafana/grafana:7.1.5
+    volumes:
+      - /etc/grafana
+      - /var/lib/grafana
+      - /var/log/grafana
+    grafana_google_creds_path: "secret/ansible/{{ deploy_environ }}/accounts/grafana_google"
+
+  tasks:
+
+    - import_role:
+        name: vault
+        tasks_from: vault-ssh
+
+    - import_role:
+        name: telegraf
+      tags:
+        - monitoring
+        - setup
+
+    - import_role:
+        name: docker
+      tags: setup
+
+    - import_role:
+        name: web
+      vars:
+        nginx_config_template: "internal/monitor/nginx-config.j2"
+        cert_domains: [ "{{ inventory_hostname }}" ]
+      tags: setup
+
+    - name: Create grafana directories
+      file:
+        path: "{{ item }}"
+        state: directory
+        owner: 472
+        group: 472
+        mode: 0700
+      become: yes
+      loop: "{{ volumes }}"
+
+    - name: Look up credentials in vault
+      set_fact:
+        vault_lookup: "{{ lookup('vault', grafana_google_creds_path) }}"
+
+    - set_fact:
+        grafana_google_client_id: "{{ vault_lookup.grafana_google.data.client_id }}"
+        grafana_google_client_secret: "{{ vault_lookup.grafana_google.data.client_secret }}"
+
+    - name: Deploy grafana
+      docker_container:
+        name: grafana
+        image: "{{ grafana_image }}"
+        restart_policy: unless-stopped
+        env:
+          GF_DEFAULT_INSTANCE_NAME: "{{ inventory_hostname }}"
+          GF_SERVER_DOMAIN: "{{ inventory_hostname }}"
+          GF_SERVER_ROOT_URL: "https://{{ inventory_hostname }}/"
+          GF_AUTH_GOOGLE_ENABLED: "true"
+          GF_AUTH_GOOGLE_CLIENT_ID: "{{ grafana_google_client_id }}"
+          GF_AUTH_GOOGLE_CLIENT_SECRET: "{{ grafana_google_client_secret }}"
+          GF_AUTH_GOOGLE_SCOPES: https://www.googleapis.com/auth/userinfo.profile https://www.googleapis.com/auth/userinfo.email
+          GF_AUTH_GOOGLE_AUTH_URL: https://accounts.google.com/o/oauth2/auth
+          GF_AUTH_GOOGLE_TOKEN_URL: https://accounts.google.com/o/oauth2/token
+          GF_AUTH_GOOGLE_ALLOWED_DOMAINS: mobiledgex.com
+          GF_AUTH_GOOGLE_ALLOW_SIGN_UP: "true"
+
+        ports:
+          - "127.0.0.1:3000:3000"
+        volumes: "{{ volumes | zip(volumes) | map('join', ':') | list }}"

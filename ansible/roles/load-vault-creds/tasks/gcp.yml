@@ -1,0 +1,7 @@
+- name: Look up gcp creds in vault
+  set_fact:
+    vault_lookup: "{{ lookup('vault', gcp_account_path) }}"
+
+- set_fact:
+    gcp_project: "{{ vault_lookup.gcp.data.project }}"
+    gcp_auth_kind: "{{ vault_lookup.gcp.data.auth_kind }}"

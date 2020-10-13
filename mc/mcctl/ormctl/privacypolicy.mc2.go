@@ -3,16 +3,18 @@
 
 package ormctl
 
-import edgeproto "github.com/mobiledgex/edge-cloud/edgeproto"
-import "strings"
-import "github.com/mobiledgex/edge-cloud-infra/mc/ormapi"
-import "github.com/mobiledgex/edge-cloud/cli"
-import proto "github.com/gogo/protobuf/proto"
-import fmt "fmt"
-import math "math"
-import _ "github.com/gogo/googleapis/google/api"
-import _ "github.com/mobiledgex/edge-cloud/protogen"
-import _ "github.com/gogo/protobuf/gogoproto"
+import (
+	fmt "fmt"
+	_ "github.com/gogo/googleapis/google/api"
+	_ "github.com/gogo/protobuf/gogoproto"
+	proto "github.com/gogo/protobuf/proto"
+	"github.com/mobiledgex/edge-cloud-infra/mc/ormapi"
+	"github.com/mobiledgex/edge-cloud/cli"
+	edgeproto "github.com/mobiledgex/edge-cloud/edgeproto"
+	_ "github.com/mobiledgex/edge-cloud/protogen"
+	math "math"
+	"strings"
+)
 
 // Reference imports to suppress errors if they are not otherwise used.
 var _ = proto.Marshal
@@ -23,7 +25,7 @@ var _ = math.Inf
 
 var CreatePrivacyPolicyCmd = &cli.Command{
 	Use:          "CreatePrivacyPolicy",
-	RequiredArgs: strings.Join(append([]string{"region"}, PrivacyPolicyRequiredArgs...), " "),
+	RequiredArgs: "region " + strings.Join(PrivacyPolicyRequiredArgs, " "),
 	OptionalArgs: strings.Join(PrivacyPolicyOptionalArgs, " "),
 	AliasArgs:    strings.Join(PrivacyPolicyAliasArgs, " "),
 	SpecialArgs:  &PrivacyPolicySpecialArgs,
@@ -35,7 +37,7 @@ var CreatePrivacyPolicyCmd = &cli.Command{
 
 var DeletePrivacyPolicyCmd = &cli.Command{
 	Use:          "DeletePrivacyPolicy",
-	RequiredArgs: strings.Join(append([]string{"region"}, PrivacyPolicyRequiredArgs...), " "),
+	RequiredArgs: "region " + strings.Join(PrivacyPolicyRequiredArgs, " "),
 	OptionalArgs: strings.Join(PrivacyPolicyOptionalArgs, " "),
 	AliasArgs:    strings.Join(PrivacyPolicyAliasArgs, " "),
 	SpecialArgs:  &PrivacyPolicySpecialArgs,
@@ -47,7 +49,7 @@ var DeletePrivacyPolicyCmd = &cli.Command{
 
 var UpdatePrivacyPolicyCmd = &cli.Command{
 	Use:          "UpdatePrivacyPolicy",
-	RequiredArgs: strings.Join(append([]string{"region"}, PrivacyPolicyRequiredArgs...), " "),
+	RequiredArgs: "region " + strings.Join(PrivacyPolicyRequiredArgs, " "),
 	OptionalArgs: strings.Join(PrivacyPolicyOptionalArgs, " "),
 	AliasArgs:    strings.Join(PrivacyPolicyAliasArgs, " "),
 	SpecialArgs:  &PrivacyPolicySpecialArgs,
@@ -69,7 +71,14 @@ func setUpdatePrivacyPolicyFields(in map[string]interface{}) {
 	if !ok {
 		return
 	}
-	objmap["fields"] = cli.GetSpecifiedFields(objmap, &edgeproto.PrivacyPolicy{}, cli.JsonNamespace)
+	fields := cli.GetSpecifiedFields(objmap, &edgeproto.PrivacyPolicy{}, cli.JsonNamespace)
+	// include fields already specified
+	if inFields, found := objmap["fields"]; found {
+		if fieldsArr, ok := inFields.([]string); ok {
+			fields = append(fields, fieldsArr...)
+		}
+	}
+	objmap["fields"] = fields
 }
 
 var ShowPrivacyPolicyCmd = &cli.Command{
@@ -113,29 +122,33 @@ var OutboundSecurityRuleComments = map[string]string{
 }
 var OutboundSecurityRuleSpecialArgs = map[string]string{}
 var PrivacyPolicyRequiredArgs = []string{
-	"developer",
+	"cluster-org",
 	"name",
 }
 var PrivacyPolicyOptionalArgs = []string{
-	"outboundsecurityrules.protocol",
-	"outboundsecurityrules.portrangemin",
-	"outboundsecurityrules.portrangemax",
-	"outboundsecurityrules.remotecidr",
+	"outboundsecurityrules:#.protocol",
+	"outboundsecurityrules:#.portrangemin",
+	"outboundsecurityrules:#.portrangemax",
+	"outboundsecurityrules:#.remotecidr",
 }
 var PrivacyPolicyAliasArgs = []string{
-	"developer=privacypolicy.key.developer",
+	"fields=privacypolicy.fields",
+	"cluster-org=privacypolicy.key.organization",
 	"name=privacypolicy.key.name",
-	"outboundsecurityrules.protocol=privacypolicy.outboundsecurityrules.protocol",
-	"outboundsecurityrules.portrangemin=privacypolicy.outboundsecurityrules.portrangemin",
-	"outboundsecurityrules.portrangemax=privacypolicy.outboundsecurityrules.portrangemax",
-	"outboundsecurityrules.remotecidr=privacypolicy.outboundsecurityrules.remotecidr",
+	"outboundsecurityrules:#.protocol=privacypolicy.outboundsecurityrules:#.protocol",
+	"outboundsecurityrules:#.portrangemin=privacypolicy.outboundsecurityrules:#.portrangemin",
+	"outboundsecurityrules:#.portrangemax=privacypolicy.outboundsecurityrules:#.portrangemax",
+	"outboundsecurityrules:#.remotecidr=privacypolicy.outboundsecurityrules:#.remotecidr",
 }
 var PrivacyPolicyComments = map[string]string{
-	"developer":                          "Name of the Developer that this policy belongs to",
-	"name":                               "Policy name",
-	"outboundsecurityrules.protocol":     "tcp, udp, icmp",
-	"outboundsecurityrules.portrangemin": "TCP or UDP port range start",
-	"outboundsecurityrules.portrangemax": "TCP or UDP port range end",
-	"outboundsecurityrules.remotecidr":   "remote CIDR X.X.X.X/X",
+	"fields":                               "Fields are used for the Update API to specify which fields to apply",
+	"cluster-org":                          "Name of the organization for the cluster that this policy will apply to",
+	"name":                                 "Policy name",
+	"outboundsecurityrules:#.protocol":     "tcp, udp, icmp",
+	"outboundsecurityrules:#.portrangemin": "TCP or UDP port range start",
+	"outboundsecurityrules:#.portrangemax": "TCP or UDP port range end",
+	"outboundsecurityrules:#.remotecidr":   "remote CIDR X.X.X.X/X",
 }
-var PrivacyPolicySpecialArgs = map[string]string{}
+var PrivacyPolicySpecialArgs = map[string]string{
+	"privacypolicy.fields": "StringArray",
+}

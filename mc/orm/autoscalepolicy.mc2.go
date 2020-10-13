@@ -3,20 +3,21 @@
 
 package orm
 
-import edgeproto "github.com/mobiledgex/edge-cloud/edgeproto"
-import "github.com/labstack/echo"
-import "net/http"
-import "context"
-import "io"
-import "github.com/mobiledgex/edge-cloud/log"
-import "github.com/mobiledgex/edge-cloud-infra/mc/ormapi"
-import "google.golang.org/grpc/status"
-import proto "github.com/gogo/protobuf/proto"
-import fmt "fmt"
-import math "math"
-import _ "github.com/gogo/googleapis/google/api"
-import _ "github.com/mobiledgex/edge-cloud/protogen"
-import _ "github.com/gogo/protobuf/gogoproto"
+import (
+	"context"
+	fmt "fmt"
+	_ "github.com/gogo/googleapis/google/api"
+	_ "github.com/gogo/protobuf/gogoproto"
+	proto "github.com/gogo/protobuf/proto"
+	"github.com/labstack/echo"
+	"github.com/mobiledgex/edge-cloud-infra/mc/ormapi"
+	edgeproto "github.com/mobiledgex/edge-cloud/edgeproto"
+	"github.com/mobiledgex/edge-cloud/log"
+	_ "github.com/mobiledgex/edge-cloud/protogen"
+	"google.golang.org/grpc/status"
+	"io"
+	math "math"
+)
 
 // Reference imports to suppress errors if they are not otherwise used.
 var _ = proto.Marshal
@@ -36,11 +37,13 @@ func CreateAutoScalePolicy(c echo.Context) error {
 
 	in := ormapi.RegionAutoScalePolicy{}
 	if err := c.Bind(&in); err != nil {
-		return c.JSON(http.StatusBadRequest, Msg("Invalid POST data"))
+		return bindErr(c, err)
 	}
 	rc.region = in.Region
 	span := log.SpanFromContext(ctx)
-	span.SetTag("org", in.AutoScalePolicy.Key.Developer)
+	span.SetTag("region", in.Region)
+	log.SetTags(span, in.AutoScalePolicy.GetKey().GetTags())
+	span.SetTag("org", in.AutoScalePolicy.Key.Organization)
 	resp, err := CreateAutoScalePolicyObj(ctx, rc, &in.AutoScalePolicy)
 	if err != nil {
 		if st, ok := status.FromError(err); ok {
@@ -51,9 +54,12 @@ func CreateAutoScalePolicy(c echo.Context) error {
 }
 
 func CreateAutoScalePolicyObj(ctx context.Context, rc *RegionContext, obj *edgeproto.AutoScalePolicy) (*edgeproto.Result, error) {
-	if !rc.skipAuthz && !authorized(ctx, rc.username, obj.Key.Developer,
-		ResourceDeveloperPolicy, ActionManage) {
-		return nil, echo.ErrForbidden
+	log.SetContextTags(ctx, edgeproto.GetTags(obj))
+	if !rc.skipAuthz {
+		if err := authorized(ctx, rc.username, obj.Key.Organization,
+			ResourceDeveloperPolicy, ActionManage, withRequiresOrg(obj.Key.Organization)); err != nil {
+			return nil, err
+		}
 	}
 	if rc.conn == nil {
 		conn, err := connectController(ctx, rc.region)
@@ -81,11 +87,13 @@ func DeleteAutoScalePolicy(c echo.Context) error {
 
 	in := ormapi.RegionAutoScalePolicy{}
 	if err := c.Bind(&in); err != nil {
-		return c.JSON(http.StatusBadRequest, Msg("Invalid POST data"))
+		return bindErr(c, err)
 	}
 	rc.region = in.Region
 	span := log.SpanFromContext(ctx)
-	span.SetTag("org", in.AutoScalePolicy.Key.Developer)
+	span.SetTag("region", in.Region)
+	log.SetTags(span, in.AutoScalePolicy.GetKey().GetTags())
+	span.SetTag("org", in.AutoScalePolicy.Key.Organization)
 	resp, err := DeleteAutoScalePolicyObj(ctx, rc, &in.AutoScalePolicy)
 	if err != nil {
 		if st, ok := status.FromError(err); ok {
@@ -96,9 +104,12 @@ func DeleteAutoScalePolicy(c echo.Context) error {
 }
 
 func DeleteAutoScalePolicyObj(ctx context.Context, rc *RegionContext, obj *edgeproto.AutoScalePolicy) (*edgeproto.Result, error) {
-	if !rc.skipAuthz && !authorized(ctx, rc.username, obj.Key.Developer,
-		ResourceDeveloperPolicy, ActionManage) {
-		return nil, echo.ErrForbidden
+	log.SetContextTags(ctx, edgeproto.GetTags(obj))
+	if !rc.skipAuthz {
+		if err := authorized(ctx, rc.username, obj.Key.Organization,
+			ResourceDeveloperPolicy, ActionManage); err != nil {
+			return nil, err
+		}
 	}
 	if rc.conn == nil {
 		conn, err := connectController(ctx, rc.region)
@@ -126,11 +137,13 @@ func UpdateAutoScalePolicy(c echo.Context) error {
 
 	in := ormapi.RegionAutoScalePolicy{}
 	if err := c.Bind(&in); err != nil {
-		return c.JSON(http.StatusBadRequest, Msg("Invalid POST data"))
+		return bindErr(c, err)
 	}
 	rc.region = in.Region
 	span := log.SpanFromContext(ctx)
-	span.SetTag("org", in.AutoScalePolicy.Key.Developer)
+	span.SetTag("region", in.Region)
+	log.SetTags(span, in.AutoScalePolicy.GetKey().GetTags())
+	span.SetTag("org", in.AutoScalePolicy.Key.Organization)
 	resp, err := UpdateAutoScalePolicyObj(ctx, rc, &in.AutoScalePolicy)
 	if err != nil {
 		if st, ok := status.FromError(err); ok {
@@ -141,9 +154,12 @@ func UpdateAutoScalePolicy(c echo.Context) error {
 }
 
 func UpdateAutoScalePolicyObj(ctx context.Context, rc *RegionContext, obj *edgeproto.AutoScalePolicy) (*edgeproto.Result, error) {
-	if !rc.skipAuthz && !authorized(ctx, rc.username, obj.Key.Developer,
-		ResourceDeveloperPolicy, ActionManage) {
-		return nil, echo.ErrForbidden
+	log.SetContextTags(ctx, edgeproto.GetTags(obj))
+	if !rc.skipAuthz {
+		if err := authorized(ctx, rc.username, obj.Key.Organization,
+			ResourceDeveloperPolicy, ActionManage); err != nil {
+			return nil, err
+		}
 	}
 	if rc.conn == nil {
 		conn, err := connectController(ctx, rc.region)
@@ -177,7 +193,9 @@ func ShowAutoScalePolicy(c echo.Context) error {
 	defer CloseConn(c)
 	rc.region = in.Region
 	span := log.SpanFromContext(ctx)
-	span.SetTag("org", in.AutoScalePolicy.Key.Developer)
+	span.SetTag("region", in.Region)
+	log.SetTags(span, in.AutoScalePolicy.GetKey().GetTags())
+	span.SetTag("org", in.AutoScalePolicy.Key.Organization)
 
 	err = ShowAutoScalePolicyStream(ctx, rc, &in.AutoScalePolicy, func(res *edgeproto.AutoScalePolicy) {
 		payload := ormapi.StreamPayload{}
@@ -191,10 +209,10 @@ func ShowAutoScalePolicy(c echo.Context) error {
 }
 
 func ShowAutoScalePolicyStream(ctx context.Context, rc *RegionContext, obj *edgeproto.AutoScalePolicy, cb func(res *edgeproto.AutoScalePolicy)) error {
-	var authz *ShowAuthz
+	var authz *AuthzShow
 	var err error
 	if !rc.skipAuthz {
-		authz, err = NewShowAuthz(ctx, rc.region, rc.username, ResourceDeveloperPolicy, ActionView)
+		authz, err = newShowAuthz(ctx, rc.region, rc.username, ResourceDeveloperPolicy, ActionView)
 		if err == echo.ErrForbidden {
 			return nil
 		}
@@ -228,7 +246,7 @@ func ShowAutoScalePolicyStream(ctx context.Context, rc *RegionContext, obj *edge
 			return err
 		}
 		if !rc.skipAuthz {
-			if !authz.Ok(res.Key.Developer) {
+			if !authz.Ok(res.Key.Organization) {
 				continue
 			}
 		}

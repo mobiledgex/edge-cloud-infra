@@ -1,0 +1,11 @@
+path "auth/ldap/config" {
+  capabilities = [ "create", "update", "read" ]
+}
+
+path "auth/ldap/groups/*" {
+  capabilities = [ "create", "update", "read" ]
+}
+
+path "sys/mounts/auth/ldap/tune" {
+  capabilities = [ "create", "update", "read" ]
+}

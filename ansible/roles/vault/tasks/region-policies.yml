@@ -1,0 +1,20 @@
+- set_fact:
+    region_code: "{{ region.region }}"
+    region_prefix: "{{ region.region | lower }}"
+
+- name: "Install {{ region_code }} policies"
+  vault_policy:
+    name: "{{ item | basename | regex_replace('\\.hcl(\\.j2)?$', '') | regex_replace('_region', region_prefix) }}"
+    content: "{{ lookup('template', item) }}"
+  loop:
+    - policies/_region.accounts.read.v1.hcl.j2
+    - policies/_region.accounts.write.v1.hcl.j2
+    - policies/_region.cloudlets.read.v1.hcl.j2
+    - policies/_region.cloudlets.write.v1.hcl.j2
+    - policies/_region.cloudlets.delete.v1.hcl.j2
+    - policies/_region.dme-jwtkeys.read.v1.hcl.j2
+    - policies/_region.dme-jwtkeys.write.v1.hcl.j2
+    - policies/_region.influxdb.read.v1.hcl.j2
+    - policies/_region.influxdb.write.v1.hcl.j2
+    - policies/_region.pki-regional-cloudlet.issue.v1.hcl.j2
+    - policies/_region.pki-regional.issue.v1.hcl.j2

@@ -14,12 +14,18 @@ vault_ha_domain=vault-main.mobiledgex.net
 vault_port=443
 vault_firewall_setup=no
 letsencrypt_env=production
+console_vm_hostname=console.mobiledgex.net
+console_prod=yes
+alertmanager_hostname=alertmanager.mobiledgex.net
+
+[notifyroot]
+notifyroot.mobiledgex.net
 
 [artifactory]
 artifactory.mobiledgex.net	ubuntu_release=xenial docker_skip_install=true artifactory_preconfigured=true install_webhook=true
 
 [console]
-console.mobiledgex.net		skip_console_setup=true
+console.mobiledgex.net
 
 [mc]
 mc.mobiledgex.net	
@@ -30,3 +36,12 @@ stun.mobiledgex.net
 [vault]
 vault-main-a.mobiledgex.net
 vault-main-b.mobiledgex.net
+
+[jaeger]
+jaeger.mobiledgex.net		es_instance=main
+
+[esproxy]
+events.es.mobiledgex.net
+
+[alertmanager]
+alertmanager.mobiledgex.net

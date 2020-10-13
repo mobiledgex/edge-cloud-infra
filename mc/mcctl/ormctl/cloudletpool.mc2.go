@@ -3,16 +3,18 @@
 
 package ormctl
 
-import edgeproto "github.com/mobiledgex/edge-cloud/edgeproto"
-import "strings"
-import "github.com/mobiledgex/edge-cloud-infra/mc/ormapi"
-import "github.com/mobiledgex/edge-cloud/cli"
-import proto "github.com/gogo/protobuf/proto"
-import fmt "fmt"
-import math "math"
-import _ "github.com/gogo/googleapis/google/api"
-import _ "github.com/mobiledgex/edge-cloud/protogen"
-import _ "github.com/gogo/protobuf/gogoproto"
+import (
+	fmt "fmt"
+	_ "github.com/gogo/googleapis/google/api"
+	_ "github.com/gogo/protobuf/gogoproto"
+	proto "github.com/gogo/protobuf/proto"
+	"github.com/mobiledgex/edge-cloud-infra/mc/ormapi"
+	"github.com/mobiledgex/edge-cloud/cli"
+	edgeproto "github.com/mobiledgex/edge-cloud/edgeproto"
+	_ "github.com/mobiledgex/edge-cloud/protogen"
+	math "math"
+	"strings"
+)
 
 // Reference imports to suppress errors if they are not otherwise used.
 var _ = proto.Marshal
@@ -23,7 +25,7 @@ var _ = math.Inf
 
 var CreateCloudletPoolCmd = &cli.Command{
 	Use:          "CreateCloudletPool",
-	RequiredArgs: strings.Join(append([]string{"region"}, CloudletPoolRequiredArgs...), " "),
+	RequiredArgs: "region " + strings.Join(CloudletPoolRequiredArgs, " "),
 	OptionalArgs: strings.Join(CloudletPoolOptionalArgs, " "),
 	AliasArgs:    strings.Join(CloudletPoolAliasArgs, " "),
 	SpecialArgs:  &CloudletPoolSpecialArgs,
@@ -35,7 +37,7 @@ var CreateCloudletPoolCmd = &cli.Command{
 
 var DeleteCloudletPoolCmd = &cli.Command{
 	Use:          "DeleteCloudletPool",
-	RequiredArgs: strings.Join(append([]string{"region"}, CloudletPoolRequiredArgs...), " "),
+	RequiredArgs: "region " + strings.Join(CloudletPoolRequiredArgs, " "),
 	OptionalArgs: strings.Join(CloudletPoolOptionalArgs, " "),
 	AliasArgs:    strings.Join(CloudletPoolAliasArgs, " "),
 	SpecialArgs:  &CloudletPoolSpecialArgs,
@@ -43,6 +45,40 @@ var DeleteCloudletPoolCmd = &cli.Command{
 	ReqData:      &ormapi.RegionCloudletPool{},
 	ReplyData:    &edgeproto.Result{},
 	Run:          runRest("/auth/ctrl/DeleteCloudletPool"),
+}
+
+var UpdateCloudletPoolCmd = &cli.Command{
+	Use:          "UpdateCloudletPool",
+	RequiredArgs: "region " + strings.Join(CloudletPoolRequiredArgs, " "),
+	OptionalArgs: strings.Join(CloudletPoolOptionalArgs, " "),
+	AliasArgs:    strings.Join(CloudletPoolAliasArgs, " "),
+	SpecialArgs:  &CloudletPoolSpecialArgs,
+	Comments:     addRegionComment(CloudletPoolComments),
+	ReqData:      &ormapi.RegionCloudletPool{},
+	ReplyData:    &edgeproto.Result{},
+	Run: runRest("/auth/ctrl/UpdateCloudletPool",
+		withSetFieldsFunc(setUpdateCloudletPoolFields),
+	),
+}
+
+func setUpdateCloudletPoolFields(in map[string]interface{}) {
+	// get map for edgeproto object in region struct
+	obj := in[strings.ToLower("CloudletPool")]
+	if obj == nil {
+		return
+	}
+	objmap, ok := obj.(map[string]interface{})
+	if !ok {
+		return
+	}
+	fields := cli.GetSpecifiedFields(objmap, &edgeproto.CloudletPool{}, cli.JsonNamespace)
+	// include fields already specified
+	if inFields, found := objmap["fields"]; found {
+		if fieldsArr, ok := inFields.([]string); ok {
+			fields = append(fields, fieldsArr...)
+		}
+	}
+	objmap["fields"] = fields
 }
 
 var ShowCloudletPoolCmd = &cli.Command{
@@ -58,122 +94,91 @@ var ShowCloudletPoolCmd = &cli.Command{
 	StreamOut:    true,
 }
 
+var AddCloudletPoolMemberCmd = &cli.Command{
+	Use:          "AddCloudletPoolMember",
+	RequiredArgs: "region " + strings.Join(CloudletPoolMemberRequiredArgs, " "),
+	OptionalArgs: strings.Join(CloudletPoolMemberOptionalArgs, " "),
+	AliasArgs:    strings.Join(CloudletPoolMemberAliasArgs, " "),
+	SpecialArgs:  &CloudletPoolMemberSpecialArgs,
+	Comments:     addRegionComment(CloudletPoolMemberComments),
+	ReqData:      &ormapi.RegionCloudletPoolMember{},
+	ReplyData:    &edgeproto.Result{},
+	Run:          runRest("/auth/ctrl/AddCloudletPoolMember"),
+}
+
+var RemoveCloudletPoolMemberCmd = &cli.Command{
+	Use:          "RemoveCloudletPoolMember",
+	RequiredArgs: "region " + strings.Join(CloudletPoolMemberRequiredArgs, " "),
+	OptionalArgs: strings.Join(CloudletPoolMemberOptionalArgs, " "),
+	AliasArgs:    strings.Join(CloudletPoolMemberAliasArgs, " "),
+	SpecialArgs:  &CloudletPoolMemberSpecialArgs,
+	Comments:     addRegionComment(CloudletPoolMemberComments),
+	ReqData:      &ormapi.RegionCloudletPoolMember{},
+	ReplyData:    &edgeproto.Result{},
+	Run:          runRest("/auth/ctrl/RemoveCloudletPoolMember"),
+}
+
 var CloudletPoolApiCmds = []*cli.Command{
 	CreateCloudletPoolCmd,
 	DeleteCloudletPoolCmd,
+	UpdateCloudletPoolCmd,
 	ShowCloudletPoolCmd,
-}
-
-var CreateCloudletPoolMemberCmd = &cli.Command{
-	Use:          "CreateCloudletPoolMember",
-	RequiredArgs: strings.Join(append([]string{"region"}, CloudletPoolMemberRequiredArgs...), " "),
-	OptionalArgs: strings.Join(CloudletPoolMemberOptionalArgs, " "),
-	AliasArgs:    strings.Join(CloudletPoolMemberAliasArgs, " "),
-	SpecialArgs:  &CloudletPoolMemberSpecialArgs,
-	Comments:     addRegionComment(CloudletPoolMemberComments),
-	ReqData:      &ormapi.RegionCloudletPoolMember{},
-	ReplyData:    &edgeproto.Result{},
-	Run:          runRest("/auth/ctrl/CreateCloudletPoolMember"),
-}
-
-var DeleteCloudletPoolMemberCmd = &cli.Command{
-	Use:          "DeleteCloudletPoolMember",
-	RequiredArgs: strings.Join(append([]string{"region"}, CloudletPoolMemberRequiredArgs...), " "),
-	OptionalArgs: strings.Join(CloudletPoolMemberOptionalArgs, " "),
-	AliasArgs:    strings.Join(CloudletPoolMemberAliasArgs, " "),
-	SpecialArgs:  &CloudletPoolMemberSpecialArgs,
-	Comments:     addRegionComment(CloudletPoolMemberComments),
-	ReqData:      &ormapi.RegionCloudletPoolMember{},
-	ReplyData:    &edgeproto.Result{},
-	Run:          runRest("/auth/ctrl/DeleteCloudletPoolMember"),
-}
-
-var ShowCloudletPoolMemberCmd = &cli.Command{
-	Use:          "ShowCloudletPoolMember",
-	RequiredArgs: "region",
-	OptionalArgs: strings.Join(append(CloudletPoolMemberRequiredArgs, CloudletPoolMemberOptionalArgs...), " "),
-	AliasArgs:    strings.Join(CloudletPoolMemberAliasArgs, " "),
-	SpecialArgs:  &CloudletPoolMemberSpecialArgs,
-	Comments:     addRegionComment(CloudletPoolMemberComments),
-	ReqData:      &ormapi.RegionCloudletPoolMember{},
-	ReplyData:    &edgeproto.CloudletPoolMember{},
-	Run:          runRest("/auth/ctrl/ShowCloudletPoolMember"),
-	StreamOut:    true,
-}
-
-var CloudletPoolMemberApiCmds = []*cli.Command{
-	CreateCloudletPoolMemberCmd,
-	DeleteCloudletPoolMemberCmd,
-	ShowCloudletPoolMemberCmd,
-}
-
-var ShowPoolsForCloudletCmd = &cli.Command{
-	Use:          "ShowPoolsForCloudlet",
-	RequiredArgs: "region",
-	OptionalArgs: strings.Join(append(CloudletKeyRequiredArgs, CloudletKeyOptionalArgs...), " "),
-	AliasArgs:    strings.Join(CloudletKeyAliasArgs, " "),
-	SpecialArgs:  &CloudletKeySpecialArgs,
-	Comments:     addRegionComment(CloudletKeyComments),
-	ReqData:      &ormapi.RegionCloudletKey{},
-	ReplyData:    &edgeproto.CloudletPool{},
-	Run:          runRest("/auth/ctrl/ShowPoolsForCloudlet"),
-	StreamOut:    true,
-}
-
-var ShowCloudletsForPoolCmd = &cli.Command{
-	Use:          "ShowCloudletsForPool",
-	RequiredArgs: "region",
-	OptionalArgs: strings.Join(append(CloudletPoolKeyRequiredArgs, CloudletPoolKeyOptionalArgs...), " "),
-	AliasArgs:    strings.Join(CloudletPoolKeyAliasArgs, " "),
-	SpecialArgs:  &CloudletPoolKeySpecialArgs,
-	Comments:     addRegionComment(CloudletPoolKeyComments),
-	ReqData:      &ormapi.RegionCloudletPoolKey{},
-	ReplyData:    &edgeproto.Cloudlet{},
-	Run:          runRest("/auth/ctrl/ShowCloudletsForPool"),
-	StreamOut:    true,
-}
-
-var CloudletPoolShowApiCmds = []*cli.Command{
-	ShowPoolsForCloudletCmd,
-	ShowCloudletsForPoolCmd,
+	AddCloudletPoolMemberCmd,
+	RemoveCloudletPoolMemberCmd,
 }
 
 var CloudletPoolKeyRequiredArgs = []string{}
 var CloudletPoolKeyOptionalArgs = []string{
+	"organization",
 	"name",
 }
 var CloudletPoolKeyAliasArgs = []string{
+	"organization=cloudletpoolkey.organization",
 	"name=cloudletpoolkey.name",
 }
 var CloudletPoolKeyComments = map[string]string{
-	"name": "CloudletPool Name",
+	"organization": "Name of the organization this pool belongs to",
+	"name":         "CloudletPool Name",
 }
 var CloudletPoolKeySpecialArgs = map[string]string{}
 var CloudletPoolRequiredArgs = []string{
+	"org",
 	"name",
 }
-var CloudletPoolOptionalArgs = []string{}
+var CloudletPoolOptionalArgs = []string{
+	"cloudlets",
+}
 var CloudletPoolAliasArgs = []string{
+	"fields=cloudletpool.fields",
+	"org=cloudletpool.key.organization",
 	"name=cloudletpool.key.name",
+	"cloudlets=cloudletpool.cloudlets",
 }
 var CloudletPoolComments = map[string]string{
-	"name": "CloudletPool Name",
+	"fields":    "Fields are used for the Update API to specify which fields to apply",
+	"org":       "Name of the organization this pool belongs to",
+	"name":      "CloudletPool Name",
+	"cloudlets": "Cloudlets part of the pool",
 }
-var CloudletPoolSpecialArgs = map[string]string{}
+var CloudletPoolSpecialArgs = map[string]string{
+	"cloudletpool.cloudlets": "StringArray",
+	"cloudletpool.fields":    "StringArray",
+}
 var CloudletPoolMemberRequiredArgs = []string{
+	"org",
 	"pool",
-	"operator",
+}
+var CloudletPoolMemberOptionalArgs = []string{
 	"cloudlet",
 }
-var CloudletPoolMemberOptionalArgs = []string{}
 var CloudletPoolMemberAliasArgs = []string{
-	"pool=cloudletpoolmember.poolkey.name",
-	"operator=cloudletpoolmember.cloudletkey.operatorkey.name",
-	"cloudlet=cloudletpoolmember.cloudletkey.name",
+	"org=cloudletpoolmember.key.organization",
+	"pool=cloudletpoolmember.key.name",
+	"cloudlet=cloudletpoolmember.cloudletname",
 }
 var CloudletPoolMemberComments = map[string]string{
+	"org":      "Name of the organization this pool belongs to",
 	"pool":     "CloudletPool Name",
-	"operator": "Company or Organization name of the operator",
-	"cloudlet": "Name of the cloudlet",
+	"cloudlet": "Cloudlet key",
 }
 var CloudletPoolMemberSpecialArgs = map[string]string{}

@@ -8,7 +8,6 @@ import (
 	"github.com/labstack/echo"
 	"github.com/mobiledgex/edge-cloud-infra/mc/ormapi"
 	"github.com/mobiledgex/edge-cloud/edgeproto"
-	"github.com/mobiledgex/edge-cloud/log"
 )
 
 // AuthzCloudlet provides an efficient way to check if the user
@@ -16,7 +15,6 @@ import (
 // based on an Organization's cloudlet pool associations.
 type AuthzCloudlet struct {
 	orgs             map[string]struct{}
-	noPoolOrgs       map[string]struct{}
 	cloudletPoolSide map[edgeproto.CloudletKey]int
 	allowAll         bool
 	admin            bool
@@ -25,7 +23,12 @@ type AuthzCloudlet struct {
 const myPool int = 1
 const notMyPool int = 2
 
-func (s *AuthzCloudlet) populate(ctx context.Context, region, username, orgfilter, resource, action string) error {
+func (s *AuthzCloudlet) populate(ctx context.Context, region, username, orgfilter, resource, action string, authops ...authOp) error {
+	opts := authOptions{}
+	for _, op := range authops {
+		op(&opts)
+	}
+
 	// Get all orgs user has specified resource+action permissions for
 	orgs, err := enforcer.GetAuthorizedOrgs(ctx, username, resource, action)
 	if err != nil {
@@ -41,15 +44,6 @@ func (s *AuthzCloudlet) populate(ctx context.Context, region, username, orgfilte
 			s.allowAll = true
 			return nil
 		} else {
-			// make sure org actually exists
-			found, err := orgExists(ctx, orgfilter)
-			if err != nil {
-				return err
-			}
-			if !found {
-				log.SpanLog(ctx, log.DebugLevelApi, "admin authorized, but org does not exist", "org", orgfilter)
-				return nil
-			}
 			// ensure access (admin may not have explicit perms
 			// for specified org).
 			orgs[orgfilter] = struct{}{}
@@ -68,12 +62,14 @@ func (s *AuthzCloudlet) populate(ctx context.Context, region, username, orgfilte
 		// no access to any orgs for given resource/action
 		return echo.ErrForbidden
 	}
-	s.orgs = orgs
 
-	s.noPoolOrgs = make(map[string]struct{})
-	for k, _ := range s.orgs {
-		s.noPoolOrgs[k] = struct{}{}
+	if opts.requiresOrg != "" {
+		if err := checkRequiresOrg(ctx, opts.requiresOrg, s.admin); err != nil {
+			return err
+		}
 	}
+
+	s.orgs = orgs
 
 	// get pools associated with orgs
 	db := loggedDB(ctx)
@@ -87,15 +83,17 @@ func (s *AuthzCloudlet) populate(ctx context.Context, region, username, orgfilte
 	if err != nil {
 		return err
 	}
-	mypools := make(map[string]struct{})
+	mypools := make(map[edgeproto.CloudletPoolKey]struct{})
 	for _, op := range ops {
 		if _, found := orgs[op.Org]; !found {
 			// no perms for org
 			continue
 		}
-		mypools[op.CloudletPool] = struct{}{}
-		// org has pools associated with it, remove it from orgs map
-		delete(s.noPoolOrgs, op.Org)
+		poolKey := edgeproto.CloudletPoolKey{
+			Name:         op.CloudletPool,
+			Organization: op.CloudletPoolOrg,
+		}
+		mypools[poolKey] = struct{}{}
 	}
 
 	// get pools membership
@@ -106,17 +104,23 @@ func (s *AuthzCloudlet) populate(ctx context.Context, region, username, orgfilte
 	}
 	// build map of cloudlets associated with all cloudlet pools
 	s.cloudletPoolSide = make(map[edgeproto.CloudletKey]int)
-	err = ShowCloudletPoolMemberStream(ctx, &rc, &edgeproto.CloudletPoolMember{}, func(member *edgeproto.CloudletPoolMember) {
-		// cloudlet may belong to multiple pools, if any pool
-		// is ours, allow access.
-		side, found := s.cloudletPoolSide[member.CloudletKey]
-		if !found {
-			side = notMyPool
+	err = ShowCloudletPoolStream(ctx, &rc, &edgeproto.CloudletPool{}, func(pool *edgeproto.CloudletPool) {
+		for _, name := range pool.Cloudlets {
+			cloudletKey := edgeproto.CloudletKey{
+				Name:         name,
+				Organization: pool.Key.Organization,
+			}
+			// cloudlet may belong to multiple pools, if any pool
+			// is ours, allow access.
+			side, found := s.cloudletPoolSide[cloudletKey]
+			if !found {
+				side = notMyPool
+			}
+			if _, found := mypools[pool.Key]; found {
+				side = myPool
+			}
+			s.cloudletPoolSide[cloudletKey] = side
 		}
-		if _, found := mypools[member.PoolKey.Name]; found {
-			side = myPool
-		}
-		s.cloudletPoolSide[member.CloudletKey] = side
 	})
 	return err
 }
@@ -129,7 +133,7 @@ func (s *AuthzCloudlet) Ok(obj *edgeproto.Cloudlet) bool {
 	if s.allowAll {
 		return true
 	}
-	if _, found := s.orgs[obj.Key.OperatorKey.Name]; found {
+	if _, found := s.orgs[obj.Key.Organization]; found {
 		// operator has access to cloudlets created by their org,
 		// regardless of whether that cloudlet belongs to
 		// developer pools or not.
@@ -145,18 +149,17 @@ func (s *AuthzCloudlet) Ok(obj *edgeproto.Cloudlet) bool {
 		// of our pools
 		return poolSide == myPool
 	} else {
-		// "Public" cloudlet, accessible by orgs not associated
-		// with any pools.
-		if len(s.noPoolOrgs) > 0 {
-			return true
-		}
-		return false
+		// "Public" cloudlet, accessible by all
+		return true
 	}
 }
 
 func authzCreateClusterInst(ctx context.Context, region, username string, obj *edgeproto.ClusterInst, resource, action string) error {
+	if !isBillable(ctx, obj.Key.Organization) {
+		return echo.ErrForbidden
+	}
 	authzCloudlet := AuthzCloudlet{}
-	err := authzCloudlet.populate(ctx, region, username, obj.Key.Developer, resource, action)
+	err := authzCloudlet.populate(ctx, region, username, obj.Key.Organization, resource, action, withRequiresOrg(obj.Key.Organization))
 	if err != nil {
 		return err
 	}
@@ -171,7 +174,7 @@ func authzCreateClusterInst(ctx context.Context, region, username string, obj *e
 
 func authzCreateAppInst(ctx context.Context, region, username string, obj *edgeproto.AppInst, resource, action string) error {
 	authzCloudlet := AuthzCloudlet{}
-	err := authzCloudlet.populate(ctx, region, username, obj.Key.AppKey.DeveloperKey.Name, resource, action)
+	err := authzCloudlet.populate(ctx, region, username, obj.Key.AppKey.Organization, resource, action, withRequiresOrg(obj.Key.AppKey.Organization))
 	if err != nil {
 		return err
 	}
@@ -185,8 +188,45 @@ func authzCreateAppInst(ctx context.Context, region, username string, obj *edgep
 	// This prevents Developers from using reservable ClusterInsts directly.
 	// Only auto-provisioning service (which goes direct to controller API)
 	// can instantiate AppInsts with mismatched orgs.
-	if !authzCloudlet.admin && obj.Key.ClusterInstKey.Developer != "" && obj.Key.ClusterInstKey.Developer != obj.Key.AppKey.DeveloperKey.Name {
-		return echo.NewHTTPError(http.StatusBadRequest, fmt.Errorf("AppInst developer must match ClusterInst developer"))
+	if !authzCloudlet.admin && obj.Key.ClusterInstKey.Organization != "" && obj.Key.ClusterInstKey.Organization != obj.Key.AppKey.Organization {
+		return echo.NewHTTPError(http.StatusBadRequest, fmt.Errorf("AppInst organization must match ClusterInst organization"))
+	}
+	return nil
+}
+
+func authzCreateAutoProvPolicy(ctx context.Context, region, username string, obj *edgeproto.AutoProvPolicy, resource, action string) error {
+	authzCloudlet := AuthzCloudlet{}
+	err := authzCloudlet.populate(ctx, region, username, obj.Key.Organization, resource, action, withRequiresOrg(obj.Key.Organization))
+	if err != nil {
+		return err
+	}
+	for _, apCloudlet := range obj.Cloudlets {
+		cloudlet := edgeproto.Cloudlet{
+			Key: apCloudlet.Key,
+		}
+		if !authzCloudlet.Ok(&cloudlet) {
+			return echo.NewHTTPError(http.StatusBadRequest, fmt.Errorf("No permissions for Cloudlet %s", cloudlet.Key.GetKeyString()))
+		}
+	}
+	return nil
+}
+
+func authzUpdateAutoProvPolicy(ctx context.Context, region, username string, obj *edgeproto.AutoProvPolicy, resource, action string) error {
+	// handled the same as create
+	return authzCreateAutoProvPolicy(ctx, region, username, obj, resource, action)
+}
+
+func authzAddAutoProvPolicyCloudlet(ctx context.Context, region, username string, obj *edgeproto.AutoProvPolicyCloudlet, resource, action string) error {
+	authzCloudlet := AuthzCloudlet{}
+	err := authzCloudlet.populate(ctx, region, username, obj.Key.Organization, resource, action, withRequiresOrg(obj.Key.Organization))
+	if err != nil {
+		return err
+	}
+	cloudlet := edgeproto.Cloudlet{
+		Key: obj.CloudletKey,
+	}
+	if !authzCloudlet.Ok(&cloudlet) {
+		return echo.NewHTTPError(http.StatusBadRequest, fmt.Errorf("No permissions for Cloudlet %s", cloudlet.Key.GetKeyString()))
 	}
 	return nil
 }

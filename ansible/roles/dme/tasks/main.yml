@@ -21,29 +21,25 @@
     kubeconfig: "{{ kubeconfig_file.path }}"
   register: dme_deployment
 
-- name: Delete the old DME deployment
-  k8s:
-    name: dme
-    kind: Deployment
-    namespace: default
-    kubeconfig: "{{ kubeconfig_file.path }}"
-    state: absent
-    wait: yes
-  when: "'volumes' in dme_deployment.resources.0.spec.template.spec"
+- name: Fetch DME vault role
+  set_fact:
+    dme_role: "{{ lookup('approle', dme_role_name) }}"
+  vars:
+    dme_role_name: "{{ region | lower }}.dme.v1"
 
 - name: Deploy the Mex DME
   k8s:
     kubeconfig: "{{ kubeconfig_file.path }}"
     namespace: default
     state: present
-    definition: "{{ lookup('template', 'mexplat/mex-dme-deploy.yml.j2') }}"
+    definition: "{{ lookup('template', 'deploy.yml.j2') }}"
 
 - name: Deploy the Mex DME LB
   k8s:
     kubeconfig: "{{ kubeconfig_file.path }}"
     namespace: default
     state: present
-    definition: "{{ lookup('template', 'mexplat/mex-dme-lb.yml') }}"
+    definition: "{{ lookup('template', 'lb.yml.j2') }}"
 
 - name: Get DME Public IP
   command: "kubectl --kubeconfig {{ kubeconfig_file.path }} get svc -o jsonpath='{.status.loadBalancer.ingress[0].ip}' dme"
@@ -72,3 +68,7 @@
     solo: true
     account_email: "{{ cloudflare_account_email }}"
     account_api_token: "{{ cloudflare_account_api_token }}"
+
+- name: Record DME details
+  set_fact:
+    dme_details: '{{ dme_details + [ {"region": region, "ip": dme_ip, "latitude": latitude, "longitude": longitude} ] }}'

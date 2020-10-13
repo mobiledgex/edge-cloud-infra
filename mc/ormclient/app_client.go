@@ -3,14 +3,16 @@
 
 package ormclient
 
-import edgeproto "github.com/mobiledgex/edge-cloud/edgeproto"
-import "github.com/mobiledgex/edge-cloud-infra/mc/ormapi"
-import proto "github.com/gogo/protobuf/proto"
-import fmt "fmt"
-import math "math"
-import _ "github.com/gogo/googleapis/google/api"
-import _ "github.com/mobiledgex/edge-cloud/protogen"
-import _ "github.com/gogo/protobuf/gogoproto"
+import (
+	fmt "fmt"
+	_ "github.com/gogo/googleapis/google/api"
+	_ "github.com/gogo/protobuf/gogoproto"
+	proto "github.com/gogo/protobuf/proto"
+	"github.com/mobiledgex/edge-cloud-infra/mc/ormapi"
+	edgeproto "github.com/mobiledgex/edge-cloud/edgeproto"
+	_ "github.com/mobiledgex/edge-cloud/protogen"
+	math "math"
+)
 
 // Reference imports to suppress errors if they are not otherwise used.
 var _ = proto.Marshal
@@ -55,9 +57,29 @@ func (s *Client) ShowApp(uri, token string, in *ormapi.RegionApp) ([]edgeproto.A
 	return outlist, status, err
 }
 
+func (s *Client) AddAppAutoProvPolicy(uri, token string, in *ormapi.RegionAppAutoProvPolicy) (*edgeproto.Result, int, error) {
+	out := edgeproto.Result{}
+	status, err := s.PostJson(uri+"/auth/ctrl/AddAppAutoProvPolicy", token, in, &out)
+	if err != nil {
+		return nil, status, err
+	}
+	return &out, status, err
+}
+
+func (s *Client) RemoveAppAutoProvPolicy(uri, token string, in *ormapi.RegionAppAutoProvPolicy) (*edgeproto.Result, int, error) {
+	out := edgeproto.Result{}
+	status, err := s.PostJson(uri+"/auth/ctrl/RemoveAppAutoProvPolicy", token, in, &out)
+	if err != nil {
+		return nil, status, err
+	}
+	return &out, status, err
+}
+
 type AppApiClient interface {
 	CreateApp(uri, token string, in *ormapi.RegionApp) (*edgeproto.Result, int, error)
 	DeleteApp(uri, token string, in *ormapi.RegionApp) (*edgeproto.Result, int, error)
 	UpdateApp(uri, token string, in *ormapi.RegionApp) (*edgeproto.Result, int, error)
 	ShowApp(uri, token string, in *ormapi.RegionApp) ([]edgeproto.App, int, error)
+	AddAppAutoProvPolicy(uri, token string, in *ormapi.RegionAppAutoProvPolicy) (*edgeproto.Result, int, error)
+	RemoveAppAutoProvPolicy(uri, token string, in *ormapi.RegionAppAutoProvPolicy) (*edgeproto.Result, int, error)
 }

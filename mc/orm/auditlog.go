@@ -6,34 +6,46 @@ import (
 	"fmt"
 	"net/http"
 	"sort"
+	"strconv"
 	"strings"
+	"time"
 
 	jaeger_json "github.com/jaegertracing/jaeger/model/json"
 	"github.com/labstack/echo"
 	"github.com/labstack/echo/middleware"
 	"github.com/mobiledgex/edge-cloud-infra/mc/ormapi"
 	"github.com/mobiledgex/edge-cloud/cloudcommon"
+	"github.com/mobiledgex/edge-cloud/cloudcommon/node"
+	edgeproto "github.com/mobiledgex/edge-cloud/edgeproto"
 	"github.com/mobiledgex/edge-cloud/log"
-	"github.com/mobiledgex/edge-cloud/tls"
 )
 
 var AuditId uint64
 
 func logger(next echo.HandlerFunc) echo.HandlerFunc {
 	return func(c echo.Context) (nexterr error) {
+		eventStart := time.Now()
+		logaudit := true
 		req := c.Request()
 		res := c.Response()
 
 		lvl := log.DebugLevelApi
 
-		if strings.Contains(req.RequestURI, "show") ||
-			strings.Contains(req.RequestURI, "Show") ||
+		path := strings.Split(req.RequestURI, "/")
+		method := path[len(path)-1]
+		debugEvents := log.GetDebugLevel()&log.DebugLevelEvents != 0
+		if strings.Contains(req.RequestURI, "/auth/events/") && debugEvents {
+			// log events
+		} else if strings.Contains(req.RequestURI, "show") ||
+			edgeproto.IsShow(method) ||
 			strings.Contains(req.RequestURI, "/auth/user/current") ||
-			strings.Contains(req.RequestURI, "/metrics/") ||
+			strings.Contains(req.RequestURI, "/auth/metrics/") ||
 			strings.Contains(req.RequestURI, "/ctrl/Stream") ||
-			strings.Contains(req.RequestURI, "/auth/audit/") {
+			strings.Contains(req.RequestURI, "/auth/audit/") ||
+			strings.Contains(req.RequestURI, "/auth/events/") {
 			// don't log (fills up Audit logs)
 			lvl = log.SuppressLvl
+			logaudit = false
 		}
 
 		// All Tags on this span will be exposed to the end-user in
@@ -48,15 +60,24 @@ func logger(next echo.HandlerFunc) echo.HandlerFunc {
 
 		reqBody := []byte{}
 		resBody := []byte{}
-		// use body dump to capture req/res.
-		bd := middleware.BodyDump(func(c echo.Context, reqB, resB []byte) {
-			reqBody = reqB
-			resBody = resB
-		})
+		if strings.HasPrefix(req.RequestURI, "/ws/") {
+			// can't use bodydump on websocket-upgraded connection,
+			// as it tries to write the response back in the body
+			// to preserve it, which triggers a write to a hijacked
+			// connection error because websocket hijacks the http
+			// connection.
+			// req/reply is captured later below
+		} else {
+			// use body dump to capture req/res.
+			bd := middleware.BodyDump(func(c echo.Context, reqB, resB []byte) {
+				reqBody = reqB
+				resBody = resB
+			})
+			next = bd(next)
+		}
 		span.SetTag("method", req.Method)
 
-		handler := bd(next)
-		nexterr = handler(ec)
+		nexterr = next(ec)
 
 		span.SetTag("status", res.Status)
 
@@ -66,6 +87,18 @@ func logger(next echo.HandlerFunc) echo.HandlerFunc {
 			// except for final "finish" log,
 			// but full logs will show up in jaeger.
 			log.Unsuppress(span)
+			logaudit = true
+		}
+
+		response := ""
+		if ws := GetWs(ec); ws != nil {
+			wsRequest, wsResponse := GetWsLogData(ec)
+			if len(wsRequest) > 0 {
+				reqBody = wsRequest
+			}
+			if len(wsResponse) > 0 {
+				response = strings.Join(wsResponse, "\n")
+			}
 		}
 
 		// remove passwords from requests so they aren't logged
@@ -122,11 +155,13 @@ func logger(next echo.HandlerFunc) echo.HandlerFunc {
 			}
 		}
 		span.SetTag("request", string(reqBody))
+		eventErr := nexterr
 		if nexterr != nil {
 			span.SetTag("error", nexterr)
 			he, ok := nexterr.(*echo.HTTPError)
 			if ok && he.Internal != nil {
 				log.SpanLog(ctx, log.DebugLevelInfo, "internal-err", "err", he.Internal)
+				eventErr = he.Internal
 			}
 		}
 		if len(resBody) > 0 {
@@ -141,13 +176,50 @@ func logger(next echo.HandlerFunc) echo.HandlerFunc {
 					}
 					if ss[1] != "" {
 						result := strings.Replace(string(resBody), ss[1], "", len(ss[1]))
-						span.SetTag("response", result)
+						response = result
 					}
 				}
-
 			} else {
-				span.SetTag("response", string(resBody))
+				response = string(resBody)
 			}
+		}
+		span.SetTag("response", response)
+		if logaudit {
+			// Create audit event from Span data.
+			eventTags := make(map[string]string)
+			eventTags["status"] = fmt.Sprintf("%d", res.Status)
+			eventOrg := ""
+			if eventErr == nil && res.Status != http.StatusOK {
+				// setReply and echo put the error into
+				// the response body and set the status when
+				// using c.JSON(), whose err return value
+				// is only for writing to the response.
+				contextErr := c.Get(echoContextError)
+				if contextErr != nil {
+					if cerr, ok := contextErr.(error); ok {
+						eventErr = cerr
+					}
+				}
+				if eventErr == nil {
+					eventErr = fmt.Errorf("%s", response)
+				}
+			}
+			for k, v := range log.GetTags(span) {
+				if k == "level" || k == "error" || k == "sampler.type" {
+					continue
+				}
+				// handle only string values
+				// (they should mostly all be string values)
+				str, ok := v.(string)
+				if !ok {
+					continue
+				}
+				if k == "org" {
+					eventOrg = str
+				}
+				eventTags[k] = str
+			}
+			nodeMgr.TimedEvent(ctx, req.RequestURI, eventOrg, node.AuditType, eventTags, eventErr, eventStart, time.Now())
 		}
 		return nexterr
 	}
@@ -158,20 +230,26 @@ func ShowAuditSelf(c echo.Context) error {
 	if err != nil {
 		return err
 	}
+	ctx := GetContext(c)
 
 	query := ormapi.AuditQuery{}
 	if err := c.Bind(&query); err != nil {
-		return c.JSON(http.StatusBadRequest, Msg("Invalid POST data"))
+		return bindErr(c, err)
+	}
+
+	params := make(map[string]string)
+	if err := addAuditParams(&query, params); err != nil {
+		return c.JSON(http.StatusBadRequest, MsgErr(err))
 	}
 
 	tags := make(map[string]string)
 	tags["level"] = "audit"
 	tags["email"] = claims.Email
-	if query.Org != "" {
-		tags["org"] = query.Org
+	if err := addAuditTags(&query, tags); err != nil {
+		return c.JSON(http.StatusBadRequest, MsgErr(err))
 	}
 
-	resps, err := sendJaegerQuery(serverConfig.JaegerAddr, tags, query.Limit, nil)
+	resps, err := sendJaegerAuditQuery(ctx, serverConfig.JaegerAddr, params, tags, nil)
 	if err != nil {
 		return c.JSON(http.StatusBadRequest, MsgErr(err))
 	}
@@ -187,44 +265,95 @@ func ShowAuditOrg(c echo.Context) error {
 
 	query := ormapi.AuditQuery{}
 	if err := c.Bind(&query); err != nil {
-		return c.JSON(http.StatusBadRequest, Msg("Invalid POST data"))
+		return bindErr(c, err)
 	}
 
-	if !authorized(ctx, claims.Username, query.Org, ResourceUsers, ActionView, withShowAudit()) {
-		if query.Org == "" {
-			return fmt.Errorf("Organization not specified or no permissions")
+	filter := &AuditOrgsFilter{}
+	// get all orgs user can view
+	filter.allowedOrgs, err = enforcer.GetAuthorizedOrgs(ctx, claims.Username, ResourceUsers, ActionView)
+	if err != nil {
+		return err
+	}
+	if _, found := filter.allowedOrgs[""]; found {
+		// admin
+		filter.admin = true
+		delete(filter.allowedOrgs, "")
+	}
+	if query.Org != "" && !filter.admin {
+		// make sure user has access to org
+		if _, found := filter.allowedOrgs[query.Org]; !found {
+			return echo.ErrForbidden
 		}
+	}
+	if !filter.admin && len(filter.allowedOrgs) == 0 {
+		// no access to any org, don't bother querying Jaeger
 		return echo.ErrForbidden
 	}
-	admin, orgnames, err := getUserOrgnames(claims.Username)
-	if err != nil {
-		// leave orgnames blank so it will be filtered, continue anyway
-		log.SpanLog(ctx, log.DebugLevelApi, "get user orgnames failed", "err", err)
-	}
-	filter := &AllDataFilter{
-		admin:    admin,
-		orgnames: orgnames,
+
+	params := make(map[string]string)
+	if err := addAuditParams(&query, params); err != nil {
+		return c.JSON(http.StatusBadRequest, MsgErr(err))
 	}
 
 	tags := make(map[string]string)
 	tags["level"] = "audit"
-	if query.Org != "" {
-		tags["org"] = query.Org
-	}
-	if query.Username != "" {
-		tags["username"] = query.Username
+	if err := addAuditTags(&query, tags); err != nil {
+		return c.JSON(http.StatusBadRequest, MsgErr(err))
 	}
 
-	resps, err := sendJaegerQuery(serverConfig.JaegerAddr, tags, query.Limit, filter)
+	resps, err := sendJaegerAuditQuery(ctx, serverConfig.JaegerAddr, params, tags, filter)
 	if err != nil {
 		return c.JSON(http.StatusBadRequest, MsgErr(err))
 	}
 	return c.JSON(http.StatusOK, resps)
 }
 
-type AllDataFilter struct {
-	admin    bool
-	orgnames map[string]struct{}
+func addAuditParams(query *ormapi.AuditQuery, params map[string]string) error {
+	// set limit
+	if query.Limit == 0 {
+		// reasonable default
+		query.Limit = 100
+	}
+	params["limit"] = strconv.Itoa(query.Limit)
+
+	// set service
+	params["service"] = log.SpanServiceName
+
+	// set operation
+	if query.Operation != "" {
+		params["operation"] = query.Operation
+	}
+
+	// resolve time args
+	err := query.TimeRange.Resolve(node.DefaultTimeDuration)
+	if err != nil {
+		return err
+	}
+	var startusec, endusec ormapi.TimeMicroseconds
+	startusec.FromTime(query.StartTime)
+	endusec.FromTime(query.EndTime)
+	params["start"] = strconv.FormatUint(uint64(startusec), 10)
+	params["end"] = strconv.FormatUint(uint64(endusec), 10)
+	params["lookback"] = "custom"
+	return nil
+}
+
+func addAuditTags(query *ormapi.AuditQuery, tags map[string]string) error {
+	if query.Org != "" {
+		tags["org"] = query.Org
+	}
+	if query.Username != "" {
+		tags["username"] = query.Username
+	}
+	for k, v := range query.Tags {
+		tags[k] = v
+	}
+	return nil
+}
+
+type AuditOrgsFilter struct {
+	admin       bool
+	allowedOrgs map[string]struct{}
 }
 
 // see https://github.com/jaegertracing/jaeger/blob/master/cmd/query/app/http_handler.go
@@ -239,20 +368,10 @@ type jaegerQueryError struct {
 	TraceID jaeger_json.TraceID
 }
 
-func sendJaegerQuery(addr string, tags map[string]string, limit int, filter *AllDataFilter) ([]*ormapi.AuditResponse, error) {
-	req, err := jaegerQueryRequest(addr, tags, limit)
+func sendJaegerAuditQuery(ctx context.Context, addr string, params, tags map[string]string, filter *AuditOrgsFilter) ([]*ormapi.AuditResponse, error) {
+	resp, err := sendJaegerQuery(ctx, addr, "/api/traces", params, tags)
 	if err != nil {
 		return nil, err
-	}
-	tlsConfig, err := tls.GetTLSClientConfig(addr, serverConfig.TlsCertFile, "", false)
-	if err != nil {
-		return nil, err
-	}
-	tr := &http.Transport{TLSClientConfig: tlsConfig}
-	client := &http.Client{Transport: tr}
-	resp, err := client.Do(req)
-	if err != nil {
-		return nil, fmt.Errorf("Could not reach log server, %v", err)
 	}
 
 	defer resp.Body.Close()
@@ -265,39 +384,45 @@ func sendJaegerQuery(addr string, tags map[string]string, limit int, filter *All
 	if err != nil {
 		return nil, fmt.Errorf("Cannot parse log server response, %v", err)
 	}
-
 	return getAuditResponses(&respData, filter), nil
 }
 
-func jaegerQueryRequest(addr string, tags map[string]string, limit int) (*http.Request, error) {
-	if !strings.HasPrefix(addr, "http://") {
-		if serverConfig.TlsCertFile == "" {
+func sendJaegerQuery(ctx context.Context, addr, path string, params, tags map[string]string) (*http.Response, error) {
+	tlsConfig, err := nodeMgr.GetPublicClientTlsConfig(ctx)
+	if err != nil {
+		return nil, err
+	}
+	if !strings.HasPrefix(addr, "http") {
+		if tlsConfig == nil {
 			addr = "http://" + addr
 		} else {
 			addr = "https://" + addr
 		}
 	}
-	addr = addr + "/api/traces"
-	req, err := http.NewRequest("GET", addr, nil)
+	req, err := http.NewRequest("GET", addr+path, nil)
 	if err != nil {
 		return nil, err
 	}
 	q := req.URL.Query()
-	q.Add("service", log.SpanServiceName)
+	for k, v := range params {
+		q.Add(k, v)
+	}
 	for k, v := range tags {
 		q.Add("tag", fmt.Sprintf("%s:%s", k, v))
 	}
-	if limit == 0 {
-		// reasonable default
-		limit = 100
-	}
-	q.Add("limit", fmt.Sprintf("%d", limit))
 
 	req.URL.RawQuery = q.Encode()
-	return req, nil
+
+	tr := &http.Transport{TLSClientConfig: tlsConfig}
+	client := &http.Client{Transport: tr}
+	resp, err := client.Do(req)
+	if err != nil {
+		return nil, fmt.Errorf("Could not reach log server, %v", err)
+	}
+	return resp, nil
 }
 
-func getAuditResponses(resp *jaegerQueryResponse, filter *AllDataFilter) []*ormapi.AuditResponse {
+func getAuditResponses(resp *jaegerQueryResponse, filter *AuditOrgsFilter) []*ormapi.AuditResponse {
 	resps := make([]*ormapi.AuditResponse, 0)
 	for _, trace := range resp.Data {
 		resp := &ormapi.AuditResponse{}
@@ -311,29 +436,34 @@ func getAuditResponses(resp *jaegerQueryResponse, filter *AllDataFilter) []*orma
 				break
 			}
 		}
-		if isAudit {
-			if filter != nil && !filter.admin && strings.Contains(resp.OperationName, "/auth/data/") {
-				// The "data" apis allow multiple organizations
-				// to be modified via one API call.
-				// If so, multiple org tags will exist on the
-				// span, and any one of those could match.
-				// Make sure the caller actually has permission
-				// to see all the affected orgs. If not,
-				// for security, blank out the request data.
-				allowed := true
-				for _, orgname := range orgs {
-					if _, ok := filter.orgnames[orgname]; !ok {
-						allowed = false
-						break
-					}
-				}
-				if !allowed {
-					resp.Request = "insufficient permissions"
+		if !isAudit {
+			continue
+		}
+		if filter != nil && !filter.admin {
+			// The "data" apis allow multiple organizations
+			// to be modified via one API call.
+			// If so, multiple org tags will exist on the
+			// span, and any one of those could match.
+			// Make sure the caller actually has permission
+			// to see all the affected orgs. If not,
+			// for security, blank out the request data.
+			matchedOrgs := 0
+			for _, orgname := range orgs {
+				if _, ok := filter.allowedOrgs[orgname]; ok {
+					matchedOrgs++
 				}
 			}
-			resp.TraceID = string(trace.TraceID)
-			resps = append(resps, resp)
+			if matchedOrgs == 0 {
+				// no perms at all
+				continue
+			}
+			if matchedOrgs < len(orgs) {
+				// only partial perms, clear request for security
+				resp.Request = "insufficient permissions"
+			}
 		}
+		resp.TraceID = string(trace.TraceID)
+		resps = append(resps, resp)
 	}
 	sort.Slice(resps, func(i, j int) bool {
 		return resps[i].StartTime > resps[j].StartTime
@@ -370,10 +500,64 @@ func fillAuditResponse(resp *ormapi.AuditResponse, span *jaeger_json.Span) (bool
 			resp.Error = val
 		case "org":
 			orgs = append(orgs, val)
+		default:
+			if _, found := edgeproto.AllKeyTagsMap[kv.Key]; found {
+				if resp.Tags == nil {
+					resp.Tags = make(map[string]string)
+				}
+				resp.Tags[kv.Key] = val
+			}
 		}
 	}
 	resp.OperationName = span.OperationName
+	resp.Org = strings.Join(orgs, ", ")
 	resp.StartTime = ormapi.TimeMicroseconds(span.StartTime)
 	resp.Duration = ormapi.DurationMicroseconds(span.Duration)
 	return isAudit, orgs
+}
+
+type jaegerOperationsResponse struct {
+	Data   []string
+	Total  int
+	Limit  int
+	Offset int
+	Errors []*jaegerQueryError
+}
+
+func GetAuditOperations(c echo.Context) error {
+	_, err := getClaims(c)
+	if err != nil {
+		return err
+	}
+	ctx := GetContext(c)
+
+	path := "/api/services/" + log.SpanServiceName + "/operations"
+	emptyMap := make(map[string]string)
+	resp, err := sendJaegerQuery(ctx, serverConfig.JaegerAddr, path, emptyMap, emptyMap)
+	if err != nil {
+		return err
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode != http.StatusOK {
+		str := fmt.Sprintf("Bad status from log server, %s", http.StatusText(resp.StatusCode))
+		return c.JSON(http.StatusInternalServerError, Msg(str))
+	}
+
+	respData := jaegerOperationsResponse{}
+	err = json.NewDecoder(resp.Body).Decode(&respData)
+	if err != nil {
+		str := fmt.Sprintf("Cannot parse log server response, %v", err)
+		return c.JSON(http.StatusInternalServerError, Msg(str))
+	}
+	// ignore any operations that are not user api calls, like
+	// "main" or "appstore sync".
+	operations := []string{}
+	for _, op := range respData.Data {
+		if !strings.HasPrefix(op, "/api/v1") {
+			continue
+		}
+		operations = append(operations, op)
+	}
+	sort.Strings(operations)
+	return c.JSON(http.StatusOK, operations)
 }

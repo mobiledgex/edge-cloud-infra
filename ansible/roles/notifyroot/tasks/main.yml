@@ -1,0 +1,27 @@
+- name: Fetch notifyroot vault role
+  set_fact:
+    notifyroot_role: "{{ lookup('approle', 'notifyroot.v1') }}"
+
+- name: Deploy the notifyroot service
+  docker_container:
+    name: notifyroot
+    image: "{{ edge_cloud_image }}:{{ edge_cloud_version }}"
+    restart_policy: unless-stopped
+    network_mode: host
+    command:
+      - notifyroot
+      - "--commonName"
+      - "{{ inventory_hostname }}"
+      - "--notifyAddr"
+      - "0.0.0.0:{{ notifyroot_port }}"
+      - "--vaultAddr"
+      - "https://{{ vault_vm_hostname }}:{{ vault_port }}"
+      - "--useVaultCerts"
+      - "--deploymentTag"
+      - "{{ deployment_tag_override | default(deploy_environ) }}"
+    env:
+      JAEGER_ENDPOINT: "{{ jaeger_endpoint }}"
+      JAEGER_TAGS: "environ={{ deploy_environ }},version={{ edge_cloud_version }}"
+      VAULT_ROLE_ID: "{{ notifyroot_role.role_id }}"
+      VAULT_SECRET_ID: "{{ notifyroot_role.secret_id }}"
+      ES_SERVER_URLS: "{{ esproxy_address }}"

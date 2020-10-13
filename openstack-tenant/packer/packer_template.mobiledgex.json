@@ -3,8 +3,13 @@
 	"ARTIFACTORY_USER": "packer",
 	"TAG": "master",
 	"FLAVOR": "m4.small",
+	"VAULT": "main",
+	"OUTPUT_PLATFORM": "openstack",
 	"APT_USER": "apt",
 	"APT_PASS": "mobiledgex",
+	"ROOT_PASS": "",
+	"GRUB_PW_HASH": "",
+	"TOTP_KEY": "",
 	"ARTIFACTORY_ARTIFACTS_TAG": ""
     },
     "builders": [{
@@ -18,19 +23,39 @@
 	"security_groups": [ "default" ],
 	"metadata": { "git_tag": "{{ user `GITTAG` }}" }
     }],
-    "provisioners": [{
+    "provisioners": [
+	{
+	    "type": "file",
+	    "source": "pkg-cleanup.txt",
+	    "destination": "/tmp/pkg-cleanup.txt"
+	},
+	{
+	    "type": "shell",
+	    "script": "setup.sh",
+	    "environment_vars": [
+		"ARTIFACTORY_CREDS={{ user `ARTIFACTORY_USER` }}:{{ user `ARTIFACTORY_APIKEY` }}",
+		"TAG={{ user `TAG` }}",
+		"MEX_BUILD={{ user `MEX_BUILD` }}",
+		"FLAVOR={{ user `FLAVOR` }}",
+		"VAULT={{ user `VAULT` }}",
+		"OUTPUT_PLATFORM={{ user `OUTPUT_PLATFORM` }}",
+		"APT_USER={{ user `APT_USER` }}",
+		"APT_PASS={{ user `APT_PASS` }}",
+		"ROOT_PASS={{ user `ROOT_PASS` }}",
+		"GRUB_PW_HASH={{ user `GRUB_PW_HASH` }}",
+		"TOTP_KEY={{ user `TOTP_KEY` }}",
+		"ARTIFACTORY_ARTIFACTS_TAG={{ user `ARTIFACTORY_ARTIFACTS_TAG` }}",
+		"SRC_IMG={{ user `SRC_IMG` }}",
+		"SRC_IMG_CHECKSUM={{ user `SRC_IMG_CHECKSUM` }}"
+	    ]
+	},
+	{
+	    "type": "shell",
+	    "script": "harden.sh"
+	},
+	{
 	"type": "shell",
-	"script": "setup.sh",
-	"environment_vars": [
-	    "ARTIFACTORY_CREDS={{ user `ARTIFACTORY_USER` }}:{{ user `ARTIFACTORY_APIKEY` }}",
-	    "TAG={{ user `TAG` }}",
-	    "MEX_BUILD={{ user `MEX_BUILD` }}",
-	    "FLAVOR={{ user `FLAVOR` }}",
-	    "APT_USER={{ user `APT_USER` }}",
-	    "APT_PASS={{ user `APT_PASS` }}",
-	    "ARTIFACTORY_ARTIFACTS_TAG={{ user `ARTIFACTORY_ARTIFACTS_TAG` }}",
-	    "SRC_IMG={{ user `SRC_IMG` }}",
-	    "SRC_IMG_CHECKSUM={{ user `SRC_IMG_CHECKSUM` }}"
-	]
-    }]
+	"script": "cleanup.sh"
+	}   
+    ]
 }

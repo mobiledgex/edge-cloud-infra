@@ -3,16 +3,18 @@
 
 package ormctl
 
-import edgeproto "github.com/mobiledgex/edge-cloud/edgeproto"
-import "strings"
-import "github.com/mobiledgex/edge-cloud-infra/mc/ormapi"
-import "github.com/mobiledgex/edge-cloud/cli"
-import proto "github.com/gogo/protobuf/proto"
-import fmt "fmt"
-import math "math"
-import _ "github.com/gogo/googleapis/google/api"
-import _ "github.com/gogo/protobuf/gogoproto"
-import _ "github.com/mobiledgex/edge-cloud/protogen"
+import (
+	fmt "fmt"
+	_ "github.com/gogo/googleapis/google/api"
+	_ "github.com/gogo/protobuf/gogoproto"
+	proto "github.com/gogo/protobuf/proto"
+	"github.com/mobiledgex/edge-cloud-infra/mc/ormapi"
+	"github.com/mobiledgex/edge-cloud/cli"
+	edgeproto "github.com/mobiledgex/edge-cloud/edgeproto"
+	_ "github.com/mobiledgex/edge-cloud/protogen"
+	math "math"
+	"strings"
+)
 
 // Reference imports to suppress errors if they are not otherwise used.
 var _ = proto.Marshal
@@ -23,7 +25,6 @@ var _ = math.Inf
 
 var ShowNodeCmd = &cli.Command{
 	Use:          "ShowNode",
-	RequiredArgs: "region",
 	OptionalArgs: strings.Join(append(NodeRequiredArgs, NodeOptionalArgs...), " "),
 	AliasArgs:    strings.Join(NodeAliasArgs, " "),
 	SpecialArgs:  &NodeSpecialArgs,
@@ -41,28 +42,32 @@ var NodeApiCmds = []*cli.Command{
 var NodeKeyRequiredArgs = []string{}
 var NodeKeyOptionalArgs = []string{
 	"name",
-	"nodetype",
-	"cloudletkey.operatorkey.name",
+	"type",
+	"cloudletkey.organization",
 	"cloudletkey.name",
+	"region",
 }
 var NodeKeyAliasArgs = []string{
 	"name=nodekey.name",
-	"nodetype=nodekey.nodetype",
-	"cloudletkey.operatorkey.name=nodekey.cloudletkey.operatorkey.name",
+	"type=nodekey.type",
+	"cloudletkey.organization=nodekey.cloudletkey.organization",
 	"cloudletkey.name=nodekey.cloudletkey.name",
+	"region=nodekey.region",
 }
 var NodeKeyComments = map[string]string{
-	"name":                         "Name or hostname of node",
-	"nodetype":                     "Node type, one of NodeUnknown, NodeDme, NodeCrm, NodeController",
-	"cloudletkey.operatorkey.name": "Company or Organization name of the operator",
-	"cloudletkey.name":             "Name of the cloudlet",
+	"name":                     "Name or hostname of node",
+	"type":                     "Node type",
+	"cloudletkey.organization": "Organization of the cloudlet site",
+	"cloudletkey.name":         "Name of the cloudlet",
+	"region":                   "Region the node is in",
 }
 var NodeKeySpecialArgs = map[string]string{}
 var NodeRequiredArgs = []string{
-	"key.name",
-	"key.nodetype",
-	"key.cloudletkey.operatorkey.name",
-	"key.cloudletkey.name",
+	"name",
+	"type",
+	"cloudlet-org",
+	"cloudlet",
+	"region",
 }
 var NodeOptionalArgs = []string{
 	"notifyid",
@@ -70,30 +75,88 @@ var NodeOptionalArgs = []string{
 	"buildhead",
 	"buildauthor",
 	"hostname",
-	"imageversion",
+	"containerversion",
+	"internalpki",
 }
 var NodeAliasArgs = []string{
-	"key.name=node.key.name",
-	"key.nodetype=node.key.nodetype",
-	"key.cloudletkey.operatorkey.name=node.key.cloudletkey.operatorkey.name",
-	"key.cloudletkey.name=node.key.cloudletkey.name",
+	"fields=node.fields",
+	"name=node.key.name",
+	"type=node.key.type",
+	"cloudlet-org=node.key.cloudletkey.organization",
+	"cloudlet=node.key.cloudletkey.name",
+	"region=node.key.region",
 	"notifyid=node.notifyid",
 	"buildmaster=node.buildmaster",
 	"buildhead=node.buildhead",
 	"buildauthor=node.buildauthor",
 	"hostname=node.hostname",
-	"imageversion=node.imageversion",
+	"containerversion=node.containerversion",
+	"internalpki=node.internalpki",
 }
 var NodeComments = map[string]string{
-	"key.name":                         "Name or hostname of node",
-	"key.nodetype":                     "Node type, one of NodeUnknown, NodeDme, NodeCrm, NodeController",
-	"key.cloudletkey.operatorkey.name": "Company or Organization name of the operator",
-	"key.cloudletkey.name":             "Name of the cloudlet",
-	"notifyid":                         "Id of client assigned by server (internal use only)",
-	"buildmaster":                      "Build Master Version",
-	"buildhead":                        "Build Head Version",
-	"buildauthor":                      "Build Author",
-	"hostname":                         "Hostname",
-	"imageversion":                     "Docker edge-cloud base image version",
+	"fields":           "Fields are used for the Update API to specify which fields to apply",
+	"name":             "Name or hostname of node",
+	"type":             "Node type",
+	"cloudlet-org":     "Organization of the cloudlet site",
+	"cloudlet":         "Name of the cloudlet",
+	"region":           "Region the node is in",
+	"notifyid":         "Id of client assigned by server (internal use only)",
+	"buildmaster":      "Build Master Version",
+	"buildhead":        "Build Head Version",
+	"buildauthor":      "Build Author",
+	"hostname":         "Hostname",
+	"containerversion": "Docker edge-cloud container version which node instance use",
+	"internalpki":      "Internal PKI Config",
 }
-var NodeSpecialArgs = map[string]string{}
+var NodeSpecialArgs = map[string]string{
+	"node.fields": "StringArray",
+}
+var NodeDataRequiredArgs = []string{}
+var NodeDataOptionalArgs = []string{
+	"nodes:#.fields",
+	"nodes:#.key.name",
+	"nodes:#.key.type",
+	"nodes:#.key.cloudletkey.organization",
+	"nodes:#.key.cloudletkey.name",
+	"nodes:#.key.region",
+	"nodes:#.notifyid",
+	"nodes:#.buildmaster",
+	"nodes:#.buildhead",
+	"nodes:#.buildauthor",
+	"nodes:#.hostname",
+	"nodes:#.containerversion",
+	"nodes:#.internalpki",
+}
+var NodeDataAliasArgs = []string{
+	"nodes:#.fields=nodedata.nodes:#.fields",
+	"nodes:#.key.name=nodedata.nodes:#.key.name",
+	"nodes:#.key.type=nodedata.nodes:#.key.type",
+	"nodes:#.key.cloudletkey.organization=nodedata.nodes:#.key.cloudletkey.organization",
+	"nodes:#.key.cloudletkey.name=nodedata.nodes:#.key.cloudletkey.name",
+	"nodes:#.key.region=nodedata.nodes:#.key.region",
+	"nodes:#.notifyid=nodedata.nodes:#.notifyid",
+	"nodes:#.buildmaster=nodedata.nodes:#.buildmaster",
+	"nodes:#.buildhead=nodedata.nodes:#.buildhead",
+	"nodes:#.buildauthor=nodedata.nodes:#.buildauthor",
+	"nodes:#.hostname=nodedata.nodes:#.hostname",
+	"nodes:#.containerversion=nodedata.nodes:#.containerversion",
+	"nodes:#.internalpki=nodedata.nodes:#.internalpki",
+}
+var NodeDataComments = map[string]string{
+	"nodes:#.fields":                       "Fields are used for the Update API to specify which fields to apply",
+	"nodes:#.key.name":                     "Name or hostname of node",
+	"nodes:#.key.type":                     "Node type",
+	"nodes:#.key.cloudletkey.organization": "Organization of the cloudlet site",
+	"nodes:#.key.cloudletkey.name":         "Name of the cloudlet",
+	"nodes:#.key.region":                   "Region the node is in",
+	"nodes:#.notifyid":                     "Id of client assigned by server (internal use only)",
+	"nodes:#.buildmaster":                  "Build Master Version",
+	"nodes:#.buildhead":                    "Build Head Version",
+	"nodes:#.buildauthor":                  "Build Author",
+	"nodes:#.hostname":                     "Hostname",
+	"nodes:#.containerversion":             "Docker edge-cloud container version which node instance use",
+	"nodes:#.internalpki":                  "Internal PKI Config",
+}
+var NodeDataSpecialArgs = map[string]string{
+	"nodedata.nodes:#.fields": "StringArray",
+}

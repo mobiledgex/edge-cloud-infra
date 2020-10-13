@@ -2,6 +2,9 @@ controllers:
 - region: local
   address: 127.0.0.1:55001
   influxdb: http://127.0.0.1:8086
+- region: locala
+  address: 127.0.0.1:55011
+  influxdb: http://127.0.0.1:8087
 orgs:
 - name: tmus
   type: operator
@@ -18,6 +21,11 @@ orgs:
   address: mountain view
   phone: 123-123-1234
   adminusername: user1
+- name: enterprise
+  type: operator
+  address: enterprise headquarters
+  phone: 123-123-1234
+  adminusername: user1
 roles:
 - org: tmus
   username: user1
@@ -28,13 +36,25 @@ roles:
 - org: gcp
   username: user1
   role: OperatorManager
+- org: enterprise
+  username: user1
+  role: OperatorManager
+orgcloudletpools:
+- org: user3org
+  region: local
+  cloudletpool: enterprise-pool
+  cloudletpoolorg: enterprise
+- org: user3org
+  region: locala
+  cloudletpool: enterprise-pool
+  cloudletpoolorg: enterprise
+
 regiondata:
 - region: local
   appdata:
     cloudlets:
     - key:
-        operatorkey:
-          name: tmus
+        organization: tmus
         name: tmus-cloud-1
       location:
         latitude: 31
@@ -45,10 +65,11 @@ regiondata:
       flavor:
         name: DefaultPlatformFlavor
       physicalname: tmus-cloud-1
-      version: 2019-10-24
+      envvar:
+        foo: bar
+      containerversion: 2019-10-24
     - key:
-        operatorkey:
-          name: tmus
+        organization: tmus
         name: tmus-cloud-2
       location:
         latitude: 35
@@ -58,10 +79,9 @@ regiondata:
       flavor:
         name: DefaultPlatformFlavor
       physicalname: tmus-cloud-2
-      version: 2019-10-24
+      containerversion: 2019-10-24
     - key:
-        operatorkey:
-          name: azure
+        organization: azure
         name: azure-cloud-4
       location:
         latitude: 32
@@ -71,10 +91,9 @@ regiondata:
       flavor:
         name: DefaultPlatformFlavor
       physicalname: azure-cloud-4
-      version: 2019-10-24
+      containerversion: 2019-10-24
     - key:
-        operatorkey:
-          name: gcp
+        organization: gcp
         name: gcp-cloud-5
       location:
         latitude: 36
@@ -84,7 +103,22 @@ regiondata:
       flavor:
         name: DefaultPlatformFlavor
       physicalname: gcp-cloud-5
-      version: 2019-10-24
+      containerversion: 2019-10-24
+    - key:
+        organization: enterprise
+        name: enterprise-1
+      location:
+        latitude: 31
+        longitude: -91
+      ipsupport: IpSupportDynamic
+      numdynamicips: 254
+      platformtype: PlatformTypeFake
+      notifysrvaddr: 127.0.0.1:51006
+      flavor:
+        name: x1.small
+      physicalname: enterprise-1
+      containerversion: 2019-10-24
+      state: Ready
     flavors:
     - key:
         name: x1.small
@@ -103,8 +137,7 @@ regiondata:
       disk: 1
     cloudletinfos:
     - key:
-        operatorkey:
-          name: tmus
+        organization: tmus
         name: tmus-cloud-1
       state: CloudletStateReady
       notifyid: 1
@@ -113,17 +146,17 @@ regiondata:
       osmaxvcores: 50
       osmaxvolgb: 5000
       flavors:
-      - name: flavor1
+      - name: x1.small
         vcpus: 10
         ram: 101024
         disk: 500
       status:
         tasknumber: 3
         taskname: Gathering Cloudlet Info
-      version: "2019-10-24"
+      containerversion: "2019-10-24"
+      controllercachereceived: true
     - key:
-        operatorkey:
-          name: tmus
+        organization: tmus
         name: tmus-cloud-2
       state: CloudletStateReady
       notifyid: 2
@@ -132,17 +165,17 @@ regiondata:
       osmaxvcores: 50
       osmaxvolgb: 5000
       flavors:
-      - name: flavor1
+      - name: x1.small
         vcpus: 10
         ram: 101024
         disk: 500
       status:
         tasknumber: 3
         taskname: Gathering Cloudlet Info
-      version: "2019-10-24"
+      containerversion: "2019-10-24"
+      controllercachereceived: true
     - key:
-        operatorkey:
-          name: azure
+        organization: azure
         name: azure-cloud-4
       state: CloudletStateReady
       notifyid: 3
@@ -151,17 +184,17 @@ regiondata:
       osmaxvcores: 50
       osmaxvolgb: 5000
       flavors:
-      - name: flavor1
+      - name: x1.small
         vcpus: 10
         ram: 101024
         disk: 500
       status:
         tasknumber: 3
         taskname: Gathering Cloudlet Info
-      version: "2019-10-24"
+      containerversion: "2019-10-24"
+      controllercachereceived: true
     - key:
-        operatorkey:
-          name: gcp
+        organization: gcp
         name: gcp-cloud-5
       state: CloudletStateReady
       notifyid: 4
@@ -170,11 +203,170 @@ regiondata:
       osmaxvcores: 50
       osmaxvolgb: 5000
       flavors:
-      - name: flavor1
+      - name: x1.small
         vcpus: 10
         ram: 101024
         disk: 500
       status:
         tasknumber: 3
         taskname: Gathering Cloudlet Info
-      version: "2019-10-24"
+      containerversion: "2019-10-24"
+      controllercachereceived: true
+    - key:
+        organization: enterprise
+        name: enterprise-1
+      state: CloudletStateReady
+      notifyid: 6
+      controller: Jon-Mex@127.0.0.1:55001
+      osmaxram: 500
+      osmaxvcores: 50
+      osmaxvolgb: 5000
+      flavors:
+      - name: x1.small
+        vcpus: 10
+        ram: 101024
+        disk: 500
+      status:
+        tasknumber: 3
+        taskname: Gathering Cloudlet Info
+      containerversion: "2019-10-24"
+      controllercachereceived: true
+    operatorcodes:
+    - code: 31026
+      organization: tmus
+    cloudletpools:
+    - key:
+        organization: enterprise
+        name: enterprise-pool
+      cloudlets:
+      - enterprise-1
+- region: locala
+  appdata:
+    flavors:
+    - key:
+        name: x1.tiny
+      ram: 1024
+      vcpus: 1
+      disk: 1
+    - key:
+        name: x1.small
+      ram: 2048
+      vcpus: 2
+      disk: 2
+    - key:
+        name: x1.medium
+      ram: 4096
+      vcpus: 4
+      disk: 4
+    operatorcodes:
+    - code: "31026"
+      organization: tmus
+    cloudlets:
+    - key:
+        organization: tmus
+        name: tmus-cloud-3
+      location:
+        latitude: 32
+        longitude: -92
+      ipsupport: IpSupportDynamic
+      numdynamicips: 254
+      state: Ready
+      platformtype: PlatformTypeFake
+      notifysrvaddr: 127.0.0.1:51017
+      flavor:
+        name: DefaultPlatformFlavor
+      physicalname: tmus-cloud-3
+      containerversion: "2019-10-24"
+    - key:
+        organization: tmus
+        name: tmus-cloud-4
+      location:
+        latitude: 36
+        longitude: -96
+      ipsupport: IpSupportDynamic
+      numdynamicips: 254
+      state: Ready
+      notifysrvaddr: 127.0.0.1:51018
+      flavor:
+        name: DefaultPlatformFlavor
+      physicalname: tmus-cloud-4
+      containerversion: "2019-10-24"
+    - key:
+        organization: enterprise
+        name: enterprise-2
+      location:
+        latitude: 31
+        longitude: -91
+      ipsupport: IpSupportDynamic
+      numdynamicips: 254
+      platformtype: PlatformTypeFake
+      notifysrvaddr: 127.0.0.1:51016
+      flavor:
+        name: x1.small
+      physicalname: enterprise-2
+      containerversion: 2019-10-24
+      state: Ready
+    cloudletinfos:
+    - key:
+        organization: tmus
+        name: tmus-cloud-3
+      state: CloudletStateReady
+      notifyid: 2
+      controller: Jon-Mex@127.0.0.1:55011
+      osmaxram: 500
+      osmaxvcores: 50
+      osmaxvolgb: 5000
+      flavors:
+      - name: x1.small
+        vcpus: 10
+        ram: 101024
+        disk: 500
+      status:
+        tasknumber: 3
+        taskname: Gathering Cloudlet Info
+      containerversion: "2019-10-24"
+      controllercachereceived: true
+    - key:
+        organization: tmus
+        name: tmus-cloud-4
+      state: CloudletStateReady
+      notifyid: 3
+      controller: Jon-Mex@127.0.0.1:55011
+      osmaxram: 500
+      osmaxvcores: 50
+      osmaxvolgb: 5000
+      flavors:
+      - name: x1.small
+        vcpus: 10
+        ram: 101024
+        disk: 500
+      status:
+        tasknumber: 3
+        taskname: Gathering Cloudlet Info
+      containerversion: "2019-10-24"
+      controllercachereceived: true
+    - key:
+        organization: enterprise
+        name: enterprise-2
+      state: CloudletStateReady
+      notifyid: 3
+      controller: Jon-Mex@127.0.0.1:55011
+      osmaxram: 500
+      osmaxvcores: 50
+      osmaxvolgb: 5000
+      flavors:
+      - name: x1.small
+        vcpus: 10
+        ram: 101024
+        disk: 500
+      status:
+        tasknumber: 3
+        taskname: Gathering Cloudlet Info
+      containerversion: "2019-10-24"
+      controllercachereceived: true
+    cloudletpools:
+    - key:
+        organization: enterprise
+        name: enterprise-pool
+      cloudlets:
+      - enterprise-2

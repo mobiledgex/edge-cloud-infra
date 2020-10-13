@@ -3,16 +3,18 @@
 
 package ormctl
 
-import edgeproto "github.com/mobiledgex/edge-cloud/edgeproto"
-import "strings"
-import "github.com/mobiledgex/edge-cloud-infra/mc/ormapi"
-import "github.com/mobiledgex/edge-cloud/cli"
-import proto "github.com/gogo/protobuf/proto"
-import fmt "fmt"
-import math "math"
-import _ "github.com/gogo/googleapis/google/api"
-import _ "github.com/mobiledgex/edge-cloud/protogen"
-import _ "github.com/gogo/protobuf/gogoproto"
+import (
+	fmt "fmt"
+	_ "github.com/gogo/googleapis/google/api"
+	_ "github.com/gogo/protobuf/gogoproto"
+	proto "github.com/gogo/protobuf/proto"
+	"github.com/mobiledgex/edge-cloud-infra/mc/ormapi"
+	"github.com/mobiledgex/edge-cloud/cli"
+	edgeproto "github.com/mobiledgex/edge-cloud/edgeproto"
+	_ "github.com/mobiledgex/edge-cloud/protogen"
+	math "math"
+	"strings"
+)
 
 // Reference imports to suppress errors if they are not otherwise used.
 var _ = proto.Marshal
@@ -23,7 +25,7 @@ var _ = math.Inf
 
 var CreateAppCmd = &cli.Command{
 	Use:          "CreateApp",
-	RequiredArgs: strings.Join(append([]string{"region"}, AppRequiredArgs...), " "),
+	RequiredArgs: "region " + strings.Join(AppRequiredArgs, " "),
 	OptionalArgs: strings.Join(AppOptionalArgs, " "),
 	AliasArgs:    strings.Join(AppAliasArgs, " "),
 	SpecialArgs:  &AppSpecialArgs,
@@ -35,7 +37,7 @@ var CreateAppCmd = &cli.Command{
 
 var DeleteAppCmd = &cli.Command{
 	Use:          "DeleteApp",
-	RequiredArgs: strings.Join(append([]string{"region"}, AppRequiredArgs...), " "),
+	RequiredArgs: "region " + strings.Join(AppRequiredArgs, " "),
 	OptionalArgs: strings.Join(AppOptionalArgs, " "),
 	AliasArgs:    strings.Join(AppAliasArgs, " "),
 	SpecialArgs:  &AppSpecialArgs,
@@ -47,8 +49,8 @@ var DeleteAppCmd = &cli.Command{
 
 var UpdateAppCmd = &cli.Command{
 	Use:          "UpdateApp",
-	RequiredArgs: strings.Join(append([]string{"region"}, AppRequiredArgs...), " "),
-	OptionalArgs: strings.Join(AppOptionalArgs, " "),
+	RequiredArgs: "region " + strings.Join(UpdateAppRequiredArgs, " "),
+	OptionalArgs: strings.Join(UpdateAppOptionalArgs, " "),
 	AliasArgs:    strings.Join(AppAliasArgs, " "),
 	SpecialArgs:  &AppSpecialArgs,
 	Comments:     addRegionComment(AppComments),
@@ -69,7 +71,14 @@ func setUpdateAppFields(in map[string]interface{}) {
 	if !ok {
 		return
 	}
-	objmap["fields"] = cli.GetSpecifiedFields(objmap, &edgeproto.App{}, cli.JsonNamespace)
+	fields := cli.GetSpecifiedFields(objmap, &edgeproto.App{}, cli.JsonNamespace)
+	// include fields already specified
+	if inFields, found := objmap["fields"]; found {
+		if fieldsArr, ok := inFields.([]string); ok {
+			fields = append(fields, fieldsArr...)
+		}
+	}
+	objmap["fields"] = fields
 }
 
 var ShowAppCmd = &cli.Command{
@@ -85,28 +94,85 @@ var ShowAppCmd = &cli.Command{
 	StreamOut:    true,
 }
 
+var AddAppAutoProvPolicyCmd = &cli.Command{
+	Use:          "AddAppAutoProvPolicy",
+	RequiredArgs: "region " + strings.Join(AppAutoProvPolicyRequiredArgs, " "),
+	OptionalArgs: strings.Join(AppAutoProvPolicyOptionalArgs, " "),
+	AliasArgs:    strings.Join(AppAutoProvPolicyAliasArgs, " "),
+	SpecialArgs:  &AppAutoProvPolicySpecialArgs,
+	Comments:     addRegionComment(AppAutoProvPolicyComments),
+	ReqData:      &ormapi.RegionAppAutoProvPolicy{},
+	ReplyData:    &edgeproto.Result{},
+	Run:          runRest("/auth/ctrl/AddAppAutoProvPolicy"),
+}
+
+var RemoveAppAutoProvPolicyCmd = &cli.Command{
+	Use:          "RemoveAppAutoProvPolicy",
+	RequiredArgs: "region " + strings.Join(AppAutoProvPolicyRequiredArgs, " "),
+	OptionalArgs: strings.Join(AppAutoProvPolicyOptionalArgs, " "),
+	AliasArgs:    strings.Join(AppAutoProvPolicyAliasArgs, " "),
+	SpecialArgs:  &AppAutoProvPolicySpecialArgs,
+	Comments:     addRegionComment(AppAutoProvPolicyComments),
+	ReqData:      &ormapi.RegionAppAutoProvPolicy{},
+	ReplyData:    &edgeproto.Result{},
+	Run:          runRest("/auth/ctrl/RemoveAppAutoProvPolicy"),
+}
+
 var AppApiCmds = []*cli.Command{
 	CreateAppCmd,
 	DeleteAppCmd,
 	UpdateAppCmd,
 	ShowAppCmd,
+	AddAppAutoProvPolicyCmd,
+	RemoveAppAutoProvPolicyCmd,
 }
 
+var UpdateAppRequiredArgs = []string{
+	"app-org",
+	"appname",
+	"appvers",
+}
+var UpdateAppOptionalArgs = []string{
+	"imagepath",
+	"imagetype",
+	"accessports",
+	"defaultflavor",
+	"authpublickey",
+	"command",
+	"annotations",
+	"deploymentmanifest",
+	"androidpackagename",
+	"delopt",
+	"configs:#.kind",
+	"configs:#.config",
+	"scalewithcluster",
+	"internalports",
+	"revision",
+	"officialfqdn",
+	"md5sum",
+	"defaultsharedvolumesize",
+	"autoprovpolicy",
+	"accesstype",
+	"defaultprivacypolicy",
+	"autoprovpolicies",
+	"templatedelimiter",
+	"skiphcports",
+}
 var AppKeyRequiredArgs = []string{}
 var AppKeyOptionalArgs = []string{
-	"developerkey.name",
+	"organization",
 	"name",
 	"version",
 }
 var AppKeyAliasArgs = []string{
-	"developerkey.name=appkey.developerkey.name",
+	"organization=appkey.organization",
 	"name=appkey.name",
 	"version=appkey.version",
 }
 var AppKeyComments = map[string]string{
-	"developerkey.name": "Organization or Company Name that a Developer is part of",
-	"name":              "App name",
-	"version":           "App version",
+	"organization": "App developer organization",
+	"name":         "App name",
+	"version":      "App version",
 }
 var AppKeySpecialArgs = map[string]string{}
 var ConfigFileRequiredArgs = []string{}
@@ -119,12 +185,12 @@ var ConfigFileAliasArgs = []string{
 	"config=configfile.config",
 }
 var ConfigFileComments = map[string]string{
-	"kind":   "kind (type) of config, i.e. k8s-manifest, helm-values, deploygen-config",
+	"kind":   "kind (type) of config, i.e. envVarsYaml, helmCustomizationYaml",
 	"config": "config file contents or URI reference",
 }
 var ConfigFileSpecialArgs = map[string]string{}
 var AppRequiredArgs = []string{
-	"developer",
+	"app-org",
 	"appname",
 	"appvers",
 }
@@ -141,18 +207,24 @@ var AppOptionalArgs = []string{
 	"deploymentgenerator",
 	"androidpackagename",
 	"delopt",
-	"configs.kind",
-	"configs.config",
+	"configs:#.kind",
+	"configs:#.config",
 	"scalewithcluster",
 	"internalports",
+	"revision",
 	"officialfqdn",
 	"md5sum",
 	"defaultsharedvolumesize",
 	"autoprovpolicy",
 	"accesstype",
+	"defaultprivacypolicy",
+	"autoprovpolicies",
+	"templatedelimiter",
+	"skiphcports",
 }
 var AppAliasArgs = []string{
-	"developer=app.key.developerkey.name",
+	"fields=app.fields",
+	"app-org=app.key.organization",
 	"appname=app.key.name",
 	"appvers=app.key.version",
 	"imagepath=app.imagepath",
@@ -167,8 +239,8 @@ var AppAliasArgs = []string{
 	"deploymentgenerator=app.deploymentgenerator",
 	"androidpackagename=app.androidpackagename",
 	"delopt=app.delopt",
-	"configs.kind=app.configs.kind",
-	"configs.config=app.configs.config",
+	"configs:#.kind=app.configs:#.kind",
+	"configs:#.config=app.configs:#.config",
 	"scalewithcluster=app.scalewithcluster",
 	"internalports=app.internalports",
 	"revision=app.revision",
@@ -177,9 +249,15 @@ var AppAliasArgs = []string{
 	"defaultsharedvolumesize=app.defaultsharedvolumesize",
 	"autoprovpolicy=app.autoprovpolicy",
 	"accesstype=app.accesstype",
+	"defaultprivacypolicy=app.defaultprivacypolicy",
+	"deleteprepare=app.deleteprepare",
+	"autoprovpolicies=app.autoprovpolicies",
+	"templatedelimiter=app.templatedelimiter",
+	"skiphcports=app.skiphcports",
 }
 var AppComments = map[string]string{
-	"developer":               "Organization or Company Name that a Developer is part of",
+	"fields":                  "Fields are used for the Update API to specify which fields to apply",
+	"app-org":                 "App developer organization",
 	"appname":                 "App name",
 	"appvers":                 "App version",
 	"imagepath":               "URI of where image resides",
@@ -194,15 +272,43 @@ var AppComments = map[string]string{
 	"deploymentgenerator":     "Deployment generator target to generate a basic deployment manifest",
 	"androidpackagename":      "Android package name used to match the App name from the Android package",
 	"delopt":                  "Override actions to Controller, one of NoAutoDelete, AutoDelete",
-	"configs.kind":            "kind (type) of config, i.e. k8s-manifest, helm-values, deploygen-config",
-	"configs.config":          "config file contents or URI reference",
+	"configs:#.kind":          "kind (type) of config, i.e. envVarsYaml, helmCustomizationYaml",
+	"configs:#.config":        "config file contents or URI reference",
 	"scalewithcluster":        "Option to run App on all nodes of the cluster",
 	"internalports":           "Should this app have access to outside world?",
-	"revision":                "Revision increments each time the App is updated",
+	"revision":                "Revision can be specified or defaults to current timestamp when app is updated",
 	"officialfqdn":            "Official FQDN is the FQDN that the app uses to connect by default",
 	"md5sum":                  "MD5Sum of the VM-based app image",
 	"defaultsharedvolumesize": "shared volume size when creating auto cluster",
-	"autoprovpolicy":          "Auto provisioning policy name",
+	"autoprovpolicy":          "(_deprecated_) Auto provisioning policy name",
 	"accesstype":              "Access type, one of AccessTypeDefaultForDeployment, AccessTypeDirect, AccessTypeLoadBalancer",
+	"defaultprivacypolicy":    "Privacy policy when creating auto cluster",
+	"deleteprepare":           "Preparing to be deleted",
+	"autoprovpolicies":        "Auto provisioning policy names",
+	"templatedelimiter":       "Delimiter to be used for template parsing, defaults to [[ ]]",
+	"skiphcports":             "Comma separated list of protocol:port pairs that we should not run health check on Should be configured in case app does not always listen on these ports all can be specified if no health check to be run for this app Numerical values must be decimal format. i.e. tcp:80,udp:10002,http:443",
 }
-var AppSpecialArgs = map[string]string{}
+var AppSpecialArgs = map[string]string{
+	"app.autoprovpolicies": "StringArray",
+	"app.fields":           "StringArray",
+}
+var AppAutoProvPolicyRequiredArgs = []string{}
+var AppAutoProvPolicyOptionalArgs = []string{
+	"appkey.organization",
+	"appkey.name",
+	"appkey.version",
+	"autoprovpolicy",
+}
+var AppAutoProvPolicyAliasArgs = []string{
+	"appkey.organization=appautoprovpolicy.appkey.organization",
+	"appkey.name=appautoprovpolicy.appkey.name",
+	"appkey.version=appautoprovpolicy.appkey.version",
+	"autoprovpolicy=appautoprovpolicy.autoprovpolicy",
+}
+var AppAutoProvPolicyComments = map[string]string{
+	"appkey.organization": "App developer organization",
+	"appkey.name":         "App name",
+	"appkey.version":      "App version",
+	"autoprovpolicy":      "Auto provisioning policy name",
+}
+var AppAutoProvPolicySpecialArgs = map[string]string{}

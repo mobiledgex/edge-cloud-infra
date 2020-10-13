@@ -3,13 +3,14 @@
 
 package ormapi
 
-import edgeproto "github.com/mobiledgex/edge-cloud/edgeproto"
-import proto "github.com/gogo/protobuf/proto"
-import fmt "fmt"
-import math "math"
-import _ "github.com/gogo/googleapis/google/api"
-import _ "github.com/mobiledgex/edge-cloud/protogen"
-import _ "github.com/gogo/protobuf/gogoproto"
+import (
+	fmt "fmt"
+	_ "github.com/gogo/protobuf/gogoproto"
+	proto "github.com/gogo/protobuf/proto"
+	edgeproto "github.com/mobiledgex/edge-cloud/edgeproto"
+	_ "github.com/mobiledgex/edge-cloud/protogen"
+	math "math"
+)
 
 // Reference imports to suppress errors if they are not otherwise used.
 var _ = proto.Marshal
@@ -30,4 +31,25 @@ type RegionExecRequest struct {
 	// Region name
 	Region      string
 	ExecRequest edgeproto.ExecRequest
+}
+
+// Request summary for RunConsole
+// swagger:parameters RunConsole
+type swaggerRunConsole struct {
+	// in: body
+	Body RegionExecRequest
+}
+
+// Request summary for ShowLogs
+// swagger:parameters ShowLogs
+type swaggerShowLogs struct {
+	// in: body
+	Body RegionExecRequest
+}
+
+// Request summary for AccessCloudlet
+// swagger:parameters AccessCloudlet
+type swaggerAccessCloudlet struct {
+	// in: body
+	Body RegionExecRequest
 }

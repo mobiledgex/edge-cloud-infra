@@ -3,15 +3,16 @@
 
 package cliwrapper
 
-import edgeproto "github.com/mobiledgex/edge-cloud/edgeproto"
-import "strings"
-import "github.com/mobiledgex/edge-cloud-infra/mc/ormapi"
-import proto "github.com/gogo/protobuf/proto"
-import fmt "fmt"
-import math "math"
-import _ "github.com/gogo/googleapis/google/api"
-import _ "github.com/mobiledgex/edge-cloud/protogen"
-import _ "github.com/gogo/protobuf/gogoproto"
+import (
+	fmt "fmt"
+	_ "github.com/gogo/protobuf/gogoproto"
+	proto "github.com/gogo/protobuf/proto"
+	"github.com/mobiledgex/edge-cloud-infra/mc/ormapi"
+	edgeproto "github.com/mobiledgex/edge-cloud/edgeproto"
+	_ "github.com/mobiledgex/edge-cloud/protogen"
+	math "math"
+	"strings"
+)
 
 // Reference imports to suppress errors if they are not otherwise used.
 var _ = proto.Marshal
@@ -34,6 +35,17 @@ func (s *Client) ShowCloudletRefs(uri, token string, in *ormapi.RegionCloudletRe
 func (s *Client) ShowClusterRefs(uri, token string, in *ormapi.RegionClusterRefs) ([]edgeproto.ClusterRefs, int, error) {
 	args := []string{"region", "ShowClusterRefs"}
 	outlist := []edgeproto.ClusterRefs{}
+	noconfig := strings.Split("", ",")
+	ops := []runOp{
+		withIgnore(noconfig),
+	}
+	st, err := s.runObjs(uri, token, args, in, &outlist, ops...)
+	return outlist, st, err
+}
+
+func (s *Client) ShowAppInstRefs(uri, token string, in *ormapi.RegionAppInstRefs) ([]edgeproto.AppInstRefs, int, error) {
+	args := []string{"region", "ShowAppInstRefs"}
+	outlist := []edgeproto.AppInstRefs{}
 	noconfig := strings.Split("", ",")
 	ops := []runOp{
 		withIgnore(noconfig),

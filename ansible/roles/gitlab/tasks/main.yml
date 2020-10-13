@@ -10,12 +10,6 @@
   when: not gitlab_config_st.stat.exists
 
 - name: Add gitlab apt repository
-  apt_key:
-    url: https://packages.gitlab.com/gitlab/gitlab-ee/gpgkey
-    state: present
-  become: yes
-
-- name: Add gitlab apt repository
   get_url:
     url: "https://packages.gitlab.com/install/repositories/gitlab/gitlab-ee/config_file.list?os=Ubuntu&dist={{ ubuntu_release }}&source=script"
     dest: /etc/apt/sources.list.d/gitlab_gitlab-ee.list
@@ -37,33 +31,13 @@
     name: load-vault-creds
     tasks_from: sendgrid
 
-- name: Get mex CA cert
-  set_fact:
-    vault_lookup: "{{ lookup('vault', ca_path) }}"
-  vars:
-    ca_path: "{{ vault_mex_ca_cert_path }}:ca"
-
-- set_fact:
-    max_ca_cert: "{{ vault_lookup.ca.data.pem }}"
-
-- name: Create the CA cert directory
-  file:
-    path: "{{ mex_ca_cert_dir }}"
-    state: directory
-    owner: root
-    group: root
-    mode: 0755
-  become: yes
-
-- name: Install the CA cert
-  copy:
-    content: "{{ max_ca_cert }}"
-    dest: "{{ mex_ca_cert_pem }}"
-  become: yes
+- import_role:
+    name: load-vault-creds
+    tasks_from: mc_ldap
 
 - name: Install gitlab config
   template:
-    src: templates/mexplat/gitlab.rb.j2
+    src: gitlab.rb.j2
     dest: /etc/gitlab/gitlab.rb
     backup: yes
   become: yes

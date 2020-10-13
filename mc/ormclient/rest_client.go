@@ -1,6 +1,7 @@
 package ormclient
 
 import (
+	"bufio"
 	"bytes"
 	"crypto/tls"
 	"encoding/json"
@@ -10,9 +11,12 @@ import (
 	"net/http"
 	"reflect"
 	"strings"
+	"time"
 
 	"github.com/gorilla/websocket"
+	"github.com/mitchellh/mapstructure"
 	"github.com/mobiledgex/edge-cloud-infra/mc/ormapi"
+	"github.com/mobiledgex/edge-cloud/cloudcommon/node"
 	edgeproto "github.com/mobiledgex/edge-cloud/edgeproto"
 )
 
@@ -59,6 +63,13 @@ func (s *Client) ShowUser(uri, token string, org *ormapi.Organization) ([]ormapi
 	return users, status, err
 }
 
+func (s *Client) NewPassword(uri, token, password string) (int, error) {
+	newpw := ormapi.NewPassword{
+		Password: password,
+	}
+	return s.PostJson(uri+"/auth/user/newpass", token, newpw, nil)
+}
+
 func (s *Client) CreateController(uri, token string, ctrl *ormapi.Controller) (int, error) {
 	return s.PostJson(uri+"/auth/controller/create", token, ctrl, nil)
 }
@@ -91,6 +102,32 @@ func (s *Client) ShowOrg(uri, token string) ([]ormapi.Organization, int, error) 
 	return orgs, status, err
 }
 
+func (s *Client) CreateBillingOrg(uri, token string, bOrg *ormapi.BillingOrganization) (int, error) {
+	return s.PostJson(uri+"/auth/billingorg/create", token, bOrg, nil)
+}
+
+func (s *Client) DeleteBillingOrg(uri, token string, bOrg *ormapi.BillingOrganization) (int, error) {
+	return s.PostJson(uri+"/auth/billingorg/delete", token, bOrg, nil)
+}
+
+func (s *Client) UpdateBillingOrg(uri, token string, jsonData string) (int, error) {
+	return s.PostJson(uri+"/auth/billingorg/update", token, jsonData, nil)
+}
+
+func (s *Client) ShowBillingOrg(uri, token string) ([]ormapi.BillingOrganization, int, error) {
+	bOrgs := []ormapi.BillingOrganization{}
+	status, err := s.PostJson(uri+"/auth/billingorg/show", token, nil, &bOrgs)
+	return bOrgs, status, err
+}
+
+func (s *Client) AddChildOrg(uri, token string, bOrg *ormapi.BillingOrganization) (int, error) {
+	return s.PostJson(uri+"/auth/billingorg/addchild", token, bOrg, nil)
+}
+
+func (s *Client) RemoveChildOrg(uri, token string, bOrg *ormapi.BillingOrganization) (int, error) {
+	return s.PostJson(uri+"/auth/billingorg/removechild", token, bOrg, nil)
+}
+
 func (s *Client) CreateOrgCloudletPool(uri, token string, op *ormapi.OrgCloudletPool) (int, error) {
 	return s.PostJson(uri+"/auth/orgcloudletpool/create", token, op, nil)
 }
@@ -108,6 +145,12 @@ func (s *Client) ShowOrgCloudletPool(uri, token string) ([]ormapi.OrgCloudletPoo
 func (s *Client) ShowOrgCloudlet(uri, token string, in *ormapi.OrgCloudlet) ([]edgeproto.Cloudlet, int, error) {
 	out := []edgeproto.Cloudlet{}
 	status, err := s.PostJson(uri+"/auth/orgcloudlet/show", token, in, &out)
+	return out, status, err
+}
+
+func (s *Client) ShowOrgCloudletInfo(uri, token string, in *ormapi.OrgCloudlet) ([]edgeproto.CloudletInfo, int, error) {
+	out := []edgeproto.CloudletInfo{}
+	status, err := s.PostJson(uri+"/auth/orgcloudletinfo/show", token, in, &out)
 	return out, status, err
 }
 
@@ -175,6 +218,10 @@ func (s *Client) UpdateConfig(uri, token string, config map[string]interface{}) 
 	return s.PostJson(uri+"/auth/config/update", token, config, nil)
 }
 
+func (s *Client) ResetConfig(uri, token string) (int, error) {
+	return s.PostJson(uri+"/auth/config/reset", token, nil, nil)
+}
+
 func (s *Client) ShowConfig(uri, token string) (*ormapi.Config, int, error) {
 	config := ormapi.Config{}
 	status, err := s.PostJson(uri+"/auth/config/show", token, nil, &config)
@@ -197,6 +244,24 @@ func (s *Client) ShowAuditOrg(uri, token string, query *ormapi.AuditQuery) ([]or
 	return resp, status, err
 }
 
+func (s *Client) ShowEvents(uri, token string, query *node.EventSearch) ([]node.EventData, int, error) {
+	resp := []node.EventData{}
+	status, err := s.PostJson(uri+"/auth/events/show", token, query, &resp)
+	return resp, status, err
+}
+
+func (s *Client) FindEvents(uri, token string, query *node.EventSearch) ([]node.EventData, int, error) {
+	resp := []node.EventData{}
+	status, err := s.PostJson(uri+"/auth/events/find", token, query, &resp)
+	return resp, status, err
+}
+
+func (s *Client) EventTerms(uri, token string, query *node.EventSearch) (*node.EventTerms, int, error) {
+	resp := node.EventTerms{}
+	status, err := s.PostJson(uri+"/auth/events/terms", token, query, &resp)
+	return &resp, status, err
+}
+
 func (s *Client) ShowAppMetrics(uri, token string, query *ormapi.RegionAppInstMetrics) (*ormapi.AllMetrics, int, error) {
 	metrics := ormapi.AllMetrics{}
 	status, err := s.PostJson(uri+"/auth/metrics/app", token, query, &metrics)
@@ -215,22 +280,63 @@ func (s *Client) ShowCloudletMetrics(uri, token string, query *ormapi.RegionClou
 	return &metrics, status, err
 }
 
+func (s *Client) ShowClientMetrics(uri, token string, query *ormapi.RegionClientMetrics) (*ormapi.AllMetrics, int, error) {
+	metrics := ormapi.AllMetrics{}
+	status, err := s.PostJson(uri+"/auth/metrics/client", token, query, &metrics)
+	return &metrics, status, err
+}
+
+func (s *Client) ShowAppEvents(uri, token string, query *ormapi.RegionAppInstEvents) (*ormapi.AllMetrics, int, error) {
+	metrics := ormapi.AllMetrics{}
+	status, err := s.PostJson(uri+"/auth/events/app", token, query, &metrics)
+	return &metrics, status, err
+}
+func (s *Client) ShowClusterEvents(uri, token string, query *ormapi.RegionClusterInstEvents) (*ormapi.AllMetrics, int, error) {
+	metrics := ormapi.AllMetrics{}
+	status, err := s.PostJson(uri+"/auth/events/cluster", token, query, &metrics)
+	return &metrics, status, err
+}
+
+func (s *Client) ShowCloudletEvents(uri, token string, query *ormapi.RegionCloudletEvents) (*ormapi.AllMetrics, int, error) {
+	metrics := ormapi.AllMetrics{}
+	status, err := s.PostJson(uri+"/auth/events/cloudlet", token, query, &metrics)
+	return &metrics, status, err
+}
+
+func (s *Client) ShowAppUsage(uri, token string, query *ormapi.RegionAppInstUsage) (*ormapi.AllMetrics, int, error) {
+	usage := ormapi.AllMetrics{}
+	status, err := s.PostJson(uri+"auth/usage/app", token, query, &usage)
+	return &usage, status, err
+}
+
+func (s *Client) ShowClusterUsage(uri, token string, query *ormapi.RegionClusterInstUsage) (*ormapi.AllMetrics, int, error) {
+	usage := ormapi.AllMetrics{}
+	status, err := s.PostJson(uri+"auth/usage/cluster", token, query, &usage)
+	return &usage, status, err
+}
+
+func (s *Client) ShowCloudletPoolUsage(uri, token string, query *ormapi.RegionCloudletPoolUsage) (*ormapi.AllMetrics, int, error) {
+	usage := ormapi.AllMetrics{}
+	status, err := s.PostJson(uri+"auth/usage/cloudletpool", token, query, &usage)
+	return &usage, status, err
+}
+
 func (s *Client) PostJsonSend(uri, token string, reqData interface{}) (*http.Response, error) {
 	var body io.Reader
+	var datastr string
 	if reqData != nil {
 		str, ok := reqData.(string)
 		if ok {
 			// assume string is json data
 			body = bytes.NewBuffer([]byte(str))
+			datastr = str
 		} else {
 			out, err := json.Marshal(reqData)
 			if err != nil {
 				return nil, fmt.Errorf("post %s marshal req failed, %s", uri, err.Error())
 			}
-			if s.Debug {
-				fmt.Printf("posting %s\n", string(out))
-			}
 			body = bytes.NewBuffer(out)
+			datastr = string(out)
 		}
 	} else {
 		body = nil
@@ -249,7 +355,24 @@ func (s *Client) PostJsonSend(uri, token string, reqData interface{}) (*http.Res
 	if s.SkipVerify {
 		tlsConfig.InsecureSkipVerify = true
 	}
-	tr := &http.Transport{TLSClientConfig: tlsConfig}
+	tr := &http.Transport{
+		TLSClientConfig: tlsConfig,
+		Proxy:           http.ProxyFromEnvironment,
+	}
+	if s.Debug {
+		curlcmd := fmt.Sprintf(`curl -X POST "%s" -H "Content-Type: application/json"`, uri)
+		if token != "" {
+			curlcmd += ` -H "Authorization: Bearer ${TOKEN}"`
+		}
+		if s.SkipVerify {
+			curlcmd += " -k"
+		}
+		if datastr != "" {
+			curlcmd += ` --data-raw '` + datastr + `'`
+		}
+		fmt.Printf("%s\n", curlcmd)
+	}
+
 	client := &http.Client{Transport: tr}
 	return client.Do(req)
 }
@@ -279,7 +402,7 @@ func (s *Client) PostJson(uri, token string, reqData interface{}, replyData inte
 
 func (s *Client) PostJsonStreamOut(uri, token string, reqData, replyData interface{}, replyReady func()) (int, error) {
 	if strings.Contains(uri, "ws/api/v1") {
-		return s.handleWebsocketStreamOut(uri, token, reqData, replyData, replyReady)
+		return s.HandleWebsocketStreamOut(uri, token, nil, reqData, replyData, replyReady)
 	} else {
 		return s.handleHttpStreamOut(uri, token, reqData, replyData, replyReady)
 	}
@@ -353,7 +476,18 @@ func (s *Client) WebsocketConn(uri, token string, reqData interface{}) (*websock
 		body = nil
 	}
 
-	ws, _, err := websocket.DefaultDialer.Dial(uri, nil)
+	var ws *websocket.Conn
+	var err error
+	if strings.HasPrefix(uri, "wss") {
+		d := websocket.Dialer{
+			Proxy:            http.ProxyFromEnvironment,
+			HandshakeTimeout: 45 * time.Second,
+			TLSClientConfig:  &tls.Config{InsecureSkipVerify: true},
+		}
+		ws, _, err = d.Dial(uri, nil)
+	} else {
+		ws, _, err = websocket.DefaultDialer.Dial(uri, nil)
+	}
 	if err != nil {
 		return nil, fmt.Errorf("websocket connect to %s failed, %s", uri, err.Error())
 	}
@@ -371,20 +505,34 @@ func (s *Client) WebsocketConn(uri, token string, reqData interface{}) (*websock
 	return ws, nil
 }
 
-func (s *Client) handleWebsocketStreamOut(uri, token string, reqData, replyData interface{}, replyReady func()) (int, error) {
+func (s *Client) HandleWebsocketStreamOut(uri, token string, reader *bufio.Reader, reqData, replyData interface{}, replyReady func()) (int, error) {
+	wsPayload, ok := replyData.(*ormapi.WSStreamPayload)
+	if !ok {
+		return 0, fmt.Errorf("response can only be of type WSStreamPayload")
+	}
 	ws, err := s.WebsocketConn(uri, token, reqData)
 	if err != nil {
 		return 0, fmt.Errorf("post %s client do failed, %s", uri, err.Error())
 	}
-	payload := ormapi.WSStreamPayload{}
-	if replyData != nil {
-		payload.Data = replyData
+	if reader != nil {
+		go func() {
+			for {
+				text, err := reader.ReadString('\n')
+				if err == io.EOF {
+					break
+				}
+				if err := ws.WriteMessage(websocket.TextMessage, []byte(text)); err != nil {
+					break
+				}
+			}
+		}()
 	}
+	payload := wsPayload
 	for {
-		if replyData != nil {
+		if payload != nil {
 			// clear passed in buffer for next iteration.
-			// replyData must be pointer to object.
-			p := reflect.ValueOf(replyData).Elem()
+			// payload must be pointer to object.
+			p := reflect.ValueOf(payload).Elem()
 			p.Set(reflect.Zero(p.Type()))
 		}
 
@@ -399,9 +547,10 @@ func (s *Client) handleWebsocketStreamOut(uri, token string, reqData, replyData 
 			if payload.Data == nil {
 				return payload.Code, nil
 			}
-			wsRes, ok := payload.Data.(*edgeproto.Result)
-			if ok {
-				return payload.Code, errors.New(wsRes.Message)
+			errRes := edgeproto.Result{}
+			err = mapstructure.Decode(payload.Data, &errRes)
+			if err == nil {
+				return payload.Code, errors.New(errRes.Message)
 			}
 			return payload.Code, nil
 		}
@@ -418,4 +567,18 @@ func (s *Client) ArtifactoryResync(uri, token string) (int, error) {
 
 func (s *Client) GitlabResync(uri, token string) (int, error) {
 	return s.PostJson(uri+"/auth/gitlab/resync", token, nil, nil)
+}
+
+func (s *Client) CreateAlertReceiver(uri, token string, receiver *ormapi.AlertReceiver) (int, error) {
+	return s.PostJson(uri+"/auth/alertreceiver/create", token, receiver, nil)
+}
+
+func (s *Client) DeleteAlertReceiver(uri, token string, receiver *ormapi.AlertReceiver) (int, error) {
+	return s.PostJson(uri+"/auth/alertreceiver/delete", token, receiver, nil)
+}
+
+func (s *Client) ShowAlertReceiver(uri, token string) ([]ormapi.AlertReceiver, int, error) {
+	receivers := []ormapi.AlertReceiver{}
+	status, err := s.PostJson(uri+"/auth/alertreceiver/show", token, nil, &receivers)
+	return receivers, status, err
 }

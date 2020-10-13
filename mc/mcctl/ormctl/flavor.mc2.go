@@ -3,16 +3,18 @@
 
 package ormctl
 
-import edgeproto "github.com/mobiledgex/edge-cloud/edgeproto"
-import "strings"
-import "github.com/mobiledgex/edge-cloud-infra/mc/ormapi"
-import "github.com/mobiledgex/edge-cloud/cli"
-import proto "github.com/gogo/protobuf/proto"
-import fmt "fmt"
-import math "math"
-import _ "github.com/gogo/googleapis/google/api"
-import _ "github.com/mobiledgex/edge-cloud/protogen"
-import _ "github.com/gogo/protobuf/gogoproto"
+import (
+	fmt "fmt"
+	_ "github.com/gogo/googleapis/google/api"
+	_ "github.com/gogo/protobuf/gogoproto"
+	proto "github.com/gogo/protobuf/proto"
+	"github.com/mobiledgex/edge-cloud-infra/mc/ormapi"
+	"github.com/mobiledgex/edge-cloud/cli"
+	edgeproto "github.com/mobiledgex/edge-cloud/edgeproto"
+	_ "github.com/mobiledgex/edge-cloud/protogen"
+	math "math"
+	"strings"
+)
 
 // Reference imports to suppress errors if they are not otherwise used.
 var _ = proto.Marshal
@@ -23,7 +25,7 @@ var _ = math.Inf
 
 var CreateFlavorCmd = &cli.Command{
 	Use:          "CreateFlavor",
-	RequiredArgs: strings.Join(append([]string{"region"}, CreateFlavorRequiredArgs...), " "),
+	RequiredArgs: "region " + strings.Join(CreateFlavorRequiredArgs, " "),
 	OptionalArgs: strings.Join(CreateFlavorOptionalArgs, " "),
 	AliasArgs:    strings.Join(FlavorAliasArgs, " "),
 	SpecialArgs:  &FlavorSpecialArgs,
@@ -35,7 +37,7 @@ var CreateFlavorCmd = &cli.Command{
 
 var DeleteFlavorCmd = &cli.Command{
 	Use:          "DeleteFlavor",
-	RequiredArgs: strings.Join(append([]string{"region"}, FlavorRequiredArgs...), " "),
+	RequiredArgs: "region " + strings.Join(FlavorRequiredArgs, " "),
 	OptionalArgs: strings.Join(FlavorOptionalArgs, " "),
 	AliasArgs:    strings.Join(FlavorAliasArgs, " "),
 	SpecialArgs:  &FlavorSpecialArgs,
@@ -47,7 +49,7 @@ var DeleteFlavorCmd = &cli.Command{
 
 var UpdateFlavorCmd = &cli.Command{
 	Use:          "UpdateFlavor",
-	RequiredArgs: strings.Join(append([]string{"region"}, FlavorRequiredArgs...), " "),
+	RequiredArgs: "region " + strings.Join(FlavorRequiredArgs, " "),
 	OptionalArgs: strings.Join(FlavorOptionalArgs, " "),
 	AliasArgs:    strings.Join(FlavorAliasArgs, " "),
 	SpecialArgs:  &FlavorSpecialArgs,
@@ -69,7 +71,14 @@ func setUpdateFlavorFields(in map[string]interface{}) {
 	if !ok {
 		return
 	}
-	objmap["fields"] = cli.GetSpecifiedFields(objmap, &edgeproto.Flavor{}, cli.JsonNamespace)
+	fields := cli.GetSpecifiedFields(objmap, &edgeproto.Flavor{}, cli.JsonNamespace)
+	// include fields already specified
+	if inFields, found := objmap["fields"]; found {
+		if fieldsArr, ok := inFields.([]string); ok {
+			fields = append(fields, fieldsArr...)
+		}
+	}
+	objmap["fields"] = fields
 }
 
 var ShowFlavorCmd = &cli.Command{
@@ -87,7 +96,7 @@ var ShowFlavorCmd = &cli.Command{
 
 var AddFlavorResCmd = &cli.Command{
 	Use:          "AddFlavorRes",
-	RequiredArgs: strings.Join(append([]string{"region"}, FlavorRequiredArgs...), " "),
+	RequiredArgs: "region " + strings.Join(FlavorRequiredArgs, " "),
 	OptionalArgs: strings.Join(FlavorOptionalArgs, " "),
 	AliasArgs:    strings.Join(FlavorAliasArgs, " "),
 	SpecialArgs:  &FlavorSpecialArgs,
@@ -99,7 +108,7 @@ var AddFlavorResCmd = &cli.Command{
 
 var RemoveFlavorResCmd = &cli.Command{
 	Use:          "RemoveFlavorRes",
-	RequiredArgs: strings.Join(append([]string{"region"}, FlavorRequiredArgs...), " "),
+	RequiredArgs: "region " + strings.Join(FlavorRequiredArgs, " "),
 	OptionalArgs: strings.Join(FlavorOptionalArgs, " "),
 	AliasArgs:    strings.Join(FlavorAliasArgs, " "),
 	SpecialArgs:  &FlavorSpecialArgs,
@@ -148,6 +157,7 @@ var FlavorOptionalArgs = []string{
 	"optresmap",
 }
 var FlavorAliasArgs = []string{
+	"fields=flavor.fields",
 	"name=flavor.key.name",
 	"ram=flavor.ram",
 	"vcpus=flavor.vcpus",
@@ -155,6 +165,7 @@ var FlavorAliasArgs = []string{
 	"optresmap=flavor.optresmap",
 }
 var FlavorComments = map[string]string{
+	"fields":    "Fields are used for the Update API to specify which fields to apply",
 	"name":      "Flavor name",
 	"ram":       "RAM in megabytes",
 	"vcpus":     "Number of virtual CPUs",
@@ -162,5 +173,6 @@ var FlavorComments = map[string]string{
 	"optresmap": "Optional Resources request, key = [gpu, nas, nic] gpu kinds: [gpu, vgpu, pci] form: $resource=$kind:[$alias]$count ex: optresmap=gpu=vgpus:nvidia-63:1",
 }
 var FlavorSpecialArgs = map[string]string{
-	"optresmap": "StringToString",
+	"flavor.fields":    "StringArray",
+	"flavor.optresmap": "StringToString",
 }

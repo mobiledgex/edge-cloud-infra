@@ -3,17 +3,18 @@
 
 package testutil
 
-import edgeproto "github.com/mobiledgex/edge-cloud/edgeproto"
-import "os"
-import "github.com/mobiledgex/edge-cloud-infra/mc/ormclient"
-import "github.com/mobiledgex/edge-cloud-infra/mc/ormapi"
-import "github.com/mobiledgex/edge-cloud/cli"
-import proto "github.com/gogo/protobuf/proto"
-import fmt "fmt"
-import math "math"
-import _ "github.com/gogo/googleapis/google/api"
-import _ "github.com/mobiledgex/edge-cloud/protogen"
-import _ "github.com/gogo/protobuf/gogoproto"
+import (
+	"context"
+	fmt "fmt"
+	_ "github.com/gogo/googleapis/google/api"
+	_ "github.com/gogo/protobuf/gogoproto"
+	proto "github.com/gogo/protobuf/proto"
+	"github.com/mobiledgex/edge-cloud-infra/mc/ormapi"
+	"github.com/mobiledgex/edge-cloud-infra/mc/ormclient"
+	edgeproto "github.com/mobiledgex/edge-cloud/edgeproto"
+	_ "github.com/mobiledgex/edge-cloud/protogen"
+	math "math"
+)
 
 // Reference imports to suppress errors if they are not otherwise used.
 var _ = proto.Marshal
@@ -22,78 +23,110 @@ var _ = math.Inf
 
 // Auto-generated code: DO NOT EDIT
 
-func TestCreatePrivacyPolicy(mcClient *ormclient.Client, uri, token, region string, in *edgeproto.PrivacyPolicy) (*edgeproto.Result, int, error) {
+func TestCreatePrivacyPolicy(mcClient *ormclient.Client, uri, token, region string, in *edgeproto.PrivacyPolicy, modFuncs ...func(*edgeproto.PrivacyPolicy)) (*edgeproto.Result, int, error) {
 	dat := &ormapi.RegionPrivacyPolicy{}
 	dat.Region = region
 	dat.PrivacyPolicy = *in
+	for _, fn := range modFuncs {
+		fn(&dat.PrivacyPolicy)
+	}
 	return mcClient.CreatePrivacyPolicy(uri, token, dat)
 }
-func TestPermCreatePrivacyPolicy(mcClient *ormclient.Client, uri, token, region, org string) (*edgeproto.Result, int, error) {
+func TestPermCreatePrivacyPolicy(mcClient *ormclient.Client, uri, token, region, org string, modFuncs ...func(*edgeproto.PrivacyPolicy)) (*edgeproto.Result, int, error) {
 	in := &edgeproto.PrivacyPolicy{}
-	in.Key.Developer = org
-	return TestCreatePrivacyPolicy(mcClient, uri, token, region, in)
+	in.Key.Organization = org
+	return TestCreatePrivacyPolicy(mcClient, uri, token, region, in, modFuncs...)
 }
 
-func TestDeletePrivacyPolicy(mcClient *ormclient.Client, uri, token, region string, in *edgeproto.PrivacyPolicy) (*edgeproto.Result, int, error) {
+func TestDeletePrivacyPolicy(mcClient *ormclient.Client, uri, token, region string, in *edgeproto.PrivacyPolicy, modFuncs ...func(*edgeproto.PrivacyPolicy)) (*edgeproto.Result, int, error) {
 	dat := &ormapi.RegionPrivacyPolicy{}
 	dat.Region = region
 	dat.PrivacyPolicy = *in
+	for _, fn := range modFuncs {
+		fn(&dat.PrivacyPolicy)
+	}
 	return mcClient.DeletePrivacyPolicy(uri, token, dat)
 }
-func TestPermDeletePrivacyPolicy(mcClient *ormclient.Client, uri, token, region, org string) (*edgeproto.Result, int, error) {
+func TestPermDeletePrivacyPolicy(mcClient *ormclient.Client, uri, token, region, org string, modFuncs ...func(*edgeproto.PrivacyPolicy)) (*edgeproto.Result, int, error) {
 	in := &edgeproto.PrivacyPolicy{}
-	in.Key.Developer = org
-	return TestDeletePrivacyPolicy(mcClient, uri, token, region, in)
+	in.Key.Organization = org
+	return TestDeletePrivacyPolicy(mcClient, uri, token, region, in, modFuncs...)
 }
 
-func TestUpdatePrivacyPolicy(mcClient *ormclient.Client, uri, token, region string, in *edgeproto.PrivacyPolicy) (*edgeproto.Result, int, error) {
+func TestUpdatePrivacyPolicy(mcClient *ormclient.Client, uri, token, region string, in *edgeproto.PrivacyPolicy, modFuncs ...func(*edgeproto.PrivacyPolicy)) (*edgeproto.Result, int, error) {
 	dat := &ormapi.RegionPrivacyPolicy{}
 	dat.Region = region
 	dat.PrivacyPolicy = *in
+	for _, fn := range modFuncs {
+		fn(&dat.PrivacyPolicy)
+	}
 	return mcClient.UpdatePrivacyPolicy(uri, token, dat)
 }
-func TestPermUpdatePrivacyPolicy(mcClient *ormclient.Client, uri, token, region, org string) (*edgeproto.Result, int, error) {
+func TestPermUpdatePrivacyPolicy(mcClient *ormclient.Client, uri, token, region, org string, modFuncs ...func(*edgeproto.PrivacyPolicy)) (*edgeproto.Result, int, error) {
 	in := &edgeproto.PrivacyPolicy{}
-	in.Key.Developer = org
-	return TestUpdatePrivacyPolicy(mcClient, uri, token, region, in)
+	in.Key.Organization = org
+	return TestUpdatePrivacyPolicy(mcClient, uri, token, region, in, modFuncs...)
 }
 
-func TestShowPrivacyPolicy(mcClient *ormclient.Client, uri, token, region string, in *edgeproto.PrivacyPolicy) ([]edgeproto.PrivacyPolicy, int, error) {
+func TestShowPrivacyPolicy(mcClient *ormclient.Client, uri, token, region string, in *edgeproto.PrivacyPolicy, modFuncs ...func(*edgeproto.PrivacyPolicy)) ([]edgeproto.PrivacyPolicy, int, error) {
 	dat := &ormapi.RegionPrivacyPolicy{}
 	dat.Region = region
 	dat.PrivacyPolicy = *in
+	for _, fn := range modFuncs {
+		fn(&dat.PrivacyPolicy)
+	}
 	return mcClient.ShowPrivacyPolicy(uri, token, dat)
 }
-func TestPermShowPrivacyPolicy(mcClient *ormclient.Client, uri, token, region, org string) ([]edgeproto.PrivacyPolicy, int, error) {
+func TestPermShowPrivacyPolicy(mcClient *ormclient.Client, uri, token, region, org string, modFuncs ...func(*edgeproto.PrivacyPolicy)) ([]edgeproto.PrivacyPolicy, int, error) {
 	in := &edgeproto.PrivacyPolicy{}
-	in.Key.Developer = org
-	return TestShowPrivacyPolicy(mcClient, uri, token, region, in)
+	in.Key.Organization = org
+	return TestShowPrivacyPolicy(mcClient, uri, token, region, in, modFuncs...)
 }
 
-func RunMcPrivacyPolicyApi(mcClient ormclient.Api, uri, token, region string, data *[]edgeproto.PrivacyPolicy, dataMap interface{}, rc *bool, mode string) {
-	for ii, privacyPolicy := range *data {
-		in := &ormapi.RegionPrivacyPolicy{
-			Region:        region,
-			PrivacyPolicy: privacyPolicy,
-		}
-		switch mode {
-		case "create":
-			_, st, err := mcClient.CreatePrivacyPolicy(uri, token, in)
-			checkMcErr("CreatePrivacyPolicy", st, err, rc)
-		case "delete":
-			_, st, err := mcClient.DeletePrivacyPolicy(uri, token, in)
-			checkMcErr("DeletePrivacyPolicy", st, err, rc)
-		case "update":
-			objMap, err := cli.GetGenericObjFromList(dataMap, ii)
-			if err != nil {
-				fmt.Fprintf(os.Stderr, "bad dataMap for PrivacyPolicy: %v", err)
-				os.Exit(1)
-			}
-			in.PrivacyPolicy.Fields = cli.GetSpecifiedFields(objMap, &in.PrivacyPolicy, cli.YamlNamespace)
-			_, st, err := mcClient.UpdatePrivacyPolicy(uri, token, in)
-			checkMcErr("UpdatePrivacyPolicy", st, err, rc)
-		default:
-			return
-		}
+func (s *TestClient) CreatePrivacyPolicy(ctx context.Context, in *edgeproto.PrivacyPolicy) (*edgeproto.Result, error) {
+	inR := &ormapi.RegionPrivacyPolicy{
+		Region:        s.Region,
+		PrivacyPolicy: *in,
 	}
+	out, status, err := s.McClient.CreatePrivacyPolicy(s.Uri, s.Token, inR)
+	if err == nil && status != 200 {
+		err = fmt.Errorf("status: %d\n", status)
+	}
+	return out, err
+}
+
+func (s *TestClient) DeletePrivacyPolicy(ctx context.Context, in *edgeproto.PrivacyPolicy) (*edgeproto.Result, error) {
+	inR := &ormapi.RegionPrivacyPolicy{
+		Region:        s.Region,
+		PrivacyPolicy: *in,
+	}
+	out, status, err := s.McClient.DeletePrivacyPolicy(s.Uri, s.Token, inR)
+	if err == nil && status != 200 {
+		err = fmt.Errorf("status: %d\n", status)
+	}
+	return out, err
+}
+
+func (s *TestClient) UpdatePrivacyPolicy(ctx context.Context, in *edgeproto.PrivacyPolicy) (*edgeproto.Result, error) {
+	inR := &ormapi.RegionPrivacyPolicy{
+		Region:        s.Region,
+		PrivacyPolicy: *in,
+	}
+	out, status, err := s.McClient.UpdatePrivacyPolicy(s.Uri, s.Token, inR)
+	if err == nil && status != 200 {
+		err = fmt.Errorf("status: %d\n", status)
+	}
+	return out, err
+}
+
+func (s *TestClient) ShowPrivacyPolicy(ctx context.Context, in *edgeproto.PrivacyPolicy) ([]edgeproto.PrivacyPolicy, error) {
+	inR := &ormapi.RegionPrivacyPolicy{
+		Region:        s.Region,
+		PrivacyPolicy: *in,
+	}
+	out, status, err := s.McClient.ShowPrivacyPolicy(s.Uri, s.Token, inR)
+	if err == nil && status != 200 {
+		err = fmt.Errorf("status: %d\n", status)
+	}
+	return out, err
 }

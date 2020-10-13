@@ -101,14 +101,14 @@ test-debug:
 
 # start/restart local processes to run individual python or other tests against
 test-start:
-	e2e-tests -testfile ../edge-cloud/setup-env/e2e-tests/testfiles/deploy_start_create.yml -setupfile ./e2e-tests/setups/local_multi.yml -varsfile ./e2e-tests/vars.yml -stop -notimestamp
+	e2e-tests -testfile ./e2e-tests/testfiles/deploy_start_create.yml -setupfile ./e2e-tests/setups/local_multi.yml -varsfile ./e2e-tests/vars.yml -stop -notimestamp
 
 # restart process, clean data
 test-reset:
 	e2e-tests -testfile ../edge-cloud/setup-env/e2e-tests/testfiles/deploy_reset_create.yml -setupfile ./e2e-tests/setups/local_multi.yml -varsfile ./e2e-tests/vars.yml -stop -notimestamp
 
 test-stop:
-	e2e-tests -testfile ../edge-cloud/setup-env/e2e-tests/testfiles/delete_stop_create.yml -setupfile ./e2e-tests/setups/local_multi.yml -varsfile ./e2e-tests/vars.yml -notimestamp
+	e2e-tests -testfile ./e2e-tests/testfiles/stop_cleanup.yml -setupfile ./e2e-tests/setups/local_multi.yml -varsfile ./e2e-tests/vars.yml -notimestamp
 
 # QA testing - manual
 test-robot-start:
@@ -123,3 +123,39 @@ edgebox-start:
 
 edgebox-stop:
 	e2e-tests -testfile ./e2e-tests/testfiles/delete_edgebox_stop_cleanup.yml -setupfile ./e2e-tests/setups/local_edgebox.yml -varsfile ./e2e-tests/vars.yml -notimestamp
+
+chef-start:
+	e2e-tests -testfile ./e2e-tests/testfiles/deploy_start_create_chef.yml -setupfile ./e2e-tests/setups/local_chef.yml -varsfile ./e2e-tests/vars.yml -notimestamp -stop
+
+chef-stop:
+	e2e-tests -testfile ./e2e-tests/testfiles/delete_chef_stop_cleanup.yml -setupfile ./e2e-tests/setups/local_chef.yml -varsfile ./e2e-tests/vars.yml -notimestamp
+
+edgebox-docker-start:
+	e2e-tests -testfile ./e2e-tests/testfiles/deploy_start_create_edgebox_docker.yml -setupfile ./e2e-tests/setups/local_edgebox.yml -varsfile ./e2e-tests/vars.yml -notimestamp -stop
+
+edgebox-docker-stop:
+	e2e-tests -testfile ./e2e-tests/testfiles/delete_edgebox_docker_stop_cleanup.yml -setupfile ./e2e-tests/setups/local_edgebox.yml -varsfile ./e2e-tests/vars.yml -notimestamp
+
+build-edgebox:
+	mkdir edgebox_bin
+	mkdir edgebox_bin/ansible
+	rsync -a ansible/playbooks edgebox_bin/ansible
+	rsync -a e2e-tests edgebox_bin
+	rsync -a ../edge-cloud/setup-env/e2e-tests/data edgebox_bin/e2e-tests/edgebox
+	rsync -a ../edge-cloud/tls/out/mex-* edgebox_bin/e2e-tests/edgebox/tlsout
+	rsync -a $(GOPATH)/plugins edgebox_bin
+	rsync -a $(GOPATH)/bin/crmserver \
+		 $(GOPATH)/bin/e2e-tests \
+		 $(GOPATH)/bin/edgectl \
+		 $(GOPATH)/bin/mcctl \
+		 $(GOPATH)/bin/test-mex \
+		 $(GOPATH)/bin/test-mex-infra \
+		 edgebox_bin/bin
+	mv edgebox_bin/e2e-tests/edgebox/edgebox edgebox_bin
+	mv edgebox_bin/e2e-tests/edgebox/requirements.txt edgebox_bin
+	tar cf edgebox-bin-$(TAG).tar edgebox_bin
+	bzip2 edgebox-bin-$(TAG).tar
+	$(RM) -r edgebox_bin
+
+clean-edgebox:
+	rm -rf edgebox_bin

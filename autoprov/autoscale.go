@@ -5,8 +5,10 @@ import (
 	"fmt"
 	"io"
 	"strconv"
+	"time"
 
 	"github.com/mobiledgex/edge-cloud/cloudcommon"
+	"github.com/mobiledgex/edge-cloud/cloudcommon/node"
 	"github.com/mobiledgex/edge-cloud/edgeproto"
 	"github.com/mobiledgex/edge-cloud/log"
 	"google.golang.org/grpc"
@@ -17,10 +19,10 @@ func autoScale(ctx context.Context, name string, alert *edgeproto.Alert) error {
 		return nil
 	}
 	inst := edgeproto.ClusterInst{}
-	inst.Key.Developer = alert.Labels[cloudcommon.AlertLabelDev]
-	inst.Key.ClusterKey.Name = alert.Labels[cloudcommon.AlertLabelCluster]
-	inst.Key.CloudletKey.Name = alert.Labels[cloudcommon.AlertLabelCloudlet]
-	inst.Key.CloudletKey.OperatorKey.Name = alert.Labels[cloudcommon.AlertLabelOperator]
+	inst.Key.Organization = alert.Labels[edgeproto.ClusterInstKeyTagOrganization]
+	inst.Key.ClusterKey.Name = alert.Labels[edgeproto.ClusterKeyTagName]
+	inst.Key.CloudletKey.Name = alert.Labels[edgeproto.CloudletKeyTagName]
+	inst.Key.CloudletKey.Organization = alert.Labels[edgeproto.CloudletKeyTagOrganization]
 
 	nodecountStr := alert.Annotations[cloudcommon.AlertKeyNodeCount]
 	nodecount, err := strconv.Atoi(nodecountStr)
@@ -49,12 +51,15 @@ func autoScale(ctx context.Context, name string, alert *edgeproto.Alert) error {
 	}
 	inst.Fields = []string{edgeproto.ClusterInstFieldNumNodes}
 
-	conn, err := grpc.Dial(*ctrlAddr, dialOpts, grpc.WithBlock(), grpc.WithWaitForHandshake())
+	conn, err := grpc.Dial(*ctrlAddr, dialOpts, grpc.WithBlock(),
+		grpc.WithUnaryInterceptor(log.UnaryClientTraceGrpc),
+		grpc.WithStreamInterceptor(log.StreamClientTraceGrpc))
 	if err != nil {
 		return fmt.Errorf("Connect to controller %s failed, %v", *ctrlAddr, err)
 	}
 	defer conn.Close()
 
+	eventStart := time.Now()
 	log.SpanLog(ctx, log.DebugLevelApi, "auto scaling clusterinst", "alert", alert, "ClusterInst", inst)
 	client := edgeproto.NewClusterInstApiClient(conn)
 	stream, err := client.UpdateClusterInst(ctx, &inst)
@@ -70,6 +75,10 @@ func autoScale(ctx context.Context, name string, alert *edgeproto.Alert) error {
 		if err != nil {
 			break
 		}
+	}
+	if err == nil {
+		// only log event if scaling succeeded
+		nodeMgr.TimedEvent(ctx, name+" ClusterInst", inst.Key.Organization, node.EventType, inst.Key.GetTags(), err, eventStart, time.Now(), "previous nodecount", nodecountStr, "new nodecount", strconv.Itoa(int(inst.NumNodes)))
 	}
 	return err
 }

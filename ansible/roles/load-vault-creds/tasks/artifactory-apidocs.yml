@@ -1,0 +1,6 @@
+- name: Look up artifactory apidocs token in vault
+  set_fact:
+    vault_lookup: "{{ lookup('vault', artifactory_apidocs_account_path) }}"
+
+- set_fact:
+    artifactory_apidocs_token: "{{ vault_lookup.artifactory_apidocs.data.token }}"

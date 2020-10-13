@@ -3,22 +3,23 @@
 
 package orm
 
-import edgeproto "github.com/mobiledgex/edge-cloud/edgeproto"
-import "github.com/labstack/echo"
-import "net/http"
-import "context"
-import "io"
-import "github.com/mobiledgex/edge-cloud/log"
-import "github.com/mobiledgex/edge-cloud-infra/mc/ormapi"
-import "google.golang.org/grpc/status"
-import proto "github.com/gogo/protobuf/proto"
-import fmt "fmt"
-import math "math"
-import _ "github.com/gogo/googleapis/google/api"
-import _ "github.com/mobiledgex/edge-cloud/protogen"
-import _ "github.com/gogo/protobuf/gogoproto"
-import _ "github.com/mobiledgex/edge-cloud/d-match-engine/dme-proto"
-import _ "github.com/gogo/protobuf/types"
+import (
+	"context"
+	fmt "fmt"
+	_ "github.com/gogo/googleapis/google/api"
+	_ "github.com/gogo/protobuf/gogoproto"
+	proto "github.com/gogo/protobuf/proto"
+	_ "github.com/gogo/protobuf/types"
+	"github.com/labstack/echo"
+	"github.com/mobiledgex/edge-cloud-infra/mc/ormapi"
+	_ "github.com/mobiledgex/edge-cloud/d-match-engine/dme-proto"
+	edgeproto "github.com/mobiledgex/edge-cloud/edgeproto"
+	"github.com/mobiledgex/edge-cloud/log"
+	_ "github.com/mobiledgex/edge-cloud/protogen"
+	"google.golang.org/grpc/status"
+	"io"
+	math "math"
+)
 
 // Reference imports to suppress errors if they are not otherwise used.
 var _ = proto.Marshal
@@ -38,11 +39,13 @@ func CreateAutoProvPolicy(c echo.Context) error {
 
 	in := ormapi.RegionAutoProvPolicy{}
 	if err := c.Bind(&in); err != nil {
-		return c.JSON(http.StatusBadRequest, Msg("Invalid POST data"))
+		return bindErr(c, err)
 	}
 	rc.region = in.Region
 	span := log.SpanFromContext(ctx)
-	span.SetTag("org", in.AutoProvPolicy.Key.Developer)
+	span.SetTag("region", in.Region)
+	log.SetTags(span, in.AutoProvPolicy.GetKey().GetTags())
+	span.SetTag("org", in.AutoProvPolicy.Key.Organization)
 	resp, err := CreateAutoProvPolicyObj(ctx, rc, &in.AutoProvPolicy)
 	if err != nil {
 		if st, ok := status.FromError(err); ok {
@@ -53,9 +56,12 @@ func CreateAutoProvPolicy(c echo.Context) error {
 }
 
 func CreateAutoProvPolicyObj(ctx context.Context, rc *RegionContext, obj *edgeproto.AutoProvPolicy) (*edgeproto.Result, error) {
-	if !rc.skipAuthz && !authorized(ctx, rc.username, obj.Key.Developer,
-		ResourceDeveloperPolicy, ActionManage) {
-		return nil, echo.ErrForbidden
+	log.SetContextTags(ctx, edgeproto.GetTags(obj))
+	if !rc.skipAuthz {
+		if err := authzCreateAutoProvPolicy(ctx, rc.region, rc.username, obj,
+			ResourceDeveloperPolicy, ActionManage); err != nil {
+			return nil, err
+		}
 	}
 	if rc.conn == nil {
 		conn, err := connectController(ctx, rc.region)
@@ -83,11 +89,13 @@ func DeleteAutoProvPolicy(c echo.Context) error {
 
 	in := ormapi.RegionAutoProvPolicy{}
 	if err := c.Bind(&in); err != nil {
-		return c.JSON(http.StatusBadRequest, Msg("Invalid POST data"))
+		return bindErr(c, err)
 	}
 	rc.region = in.Region
 	span := log.SpanFromContext(ctx)
-	span.SetTag("org", in.AutoProvPolicy.Key.Developer)
+	span.SetTag("region", in.Region)
+	log.SetTags(span, in.AutoProvPolicy.GetKey().GetTags())
+	span.SetTag("org", in.AutoProvPolicy.Key.Organization)
 	resp, err := DeleteAutoProvPolicyObj(ctx, rc, &in.AutoProvPolicy)
 	if err != nil {
 		if st, ok := status.FromError(err); ok {
@@ -98,9 +106,12 @@ func DeleteAutoProvPolicy(c echo.Context) error {
 }
 
 func DeleteAutoProvPolicyObj(ctx context.Context, rc *RegionContext, obj *edgeproto.AutoProvPolicy) (*edgeproto.Result, error) {
-	if !rc.skipAuthz && !authorized(ctx, rc.username, obj.Key.Developer,
-		ResourceDeveloperPolicy, ActionManage) {
-		return nil, echo.ErrForbidden
+	log.SetContextTags(ctx, edgeproto.GetTags(obj))
+	if !rc.skipAuthz {
+		if err := authorized(ctx, rc.username, obj.Key.Organization,
+			ResourceDeveloperPolicy, ActionManage); err != nil {
+			return nil, err
+		}
 	}
 	if rc.conn == nil {
 		conn, err := connectController(ctx, rc.region)
@@ -128,11 +139,13 @@ func UpdateAutoProvPolicy(c echo.Context) error {
 
 	in := ormapi.RegionAutoProvPolicy{}
 	if err := c.Bind(&in); err != nil {
-		return c.JSON(http.StatusBadRequest, Msg("Invalid POST data"))
+		return bindErr(c, err)
 	}
 	rc.region = in.Region
 	span := log.SpanFromContext(ctx)
-	span.SetTag("org", in.AutoProvPolicy.Key.Developer)
+	span.SetTag("region", in.Region)
+	log.SetTags(span, in.AutoProvPolicy.GetKey().GetTags())
+	span.SetTag("org", in.AutoProvPolicy.Key.Organization)
 	resp, err := UpdateAutoProvPolicyObj(ctx, rc, &in.AutoProvPolicy)
 	if err != nil {
 		if st, ok := status.FromError(err); ok {
@@ -143,9 +156,12 @@ func UpdateAutoProvPolicy(c echo.Context) error {
 }
 
 func UpdateAutoProvPolicyObj(ctx context.Context, rc *RegionContext, obj *edgeproto.AutoProvPolicy) (*edgeproto.Result, error) {
-	if !rc.skipAuthz && !authorized(ctx, rc.username, obj.Key.Developer,
-		ResourceDeveloperPolicy, ActionManage) {
-		return nil, echo.ErrForbidden
+	log.SetContextTags(ctx, edgeproto.GetTags(obj))
+	if !rc.skipAuthz {
+		if err := authzUpdateAutoProvPolicy(ctx, rc.region, rc.username, obj,
+			ResourceDeveloperPolicy, ActionManage); err != nil {
+			return nil, err
+		}
 	}
 	if rc.conn == nil {
 		conn, err := connectController(ctx, rc.region)
@@ -179,7 +195,9 @@ func ShowAutoProvPolicy(c echo.Context) error {
 	defer CloseConn(c)
 	rc.region = in.Region
 	span := log.SpanFromContext(ctx)
-	span.SetTag("org", in.AutoProvPolicy.Key.Developer)
+	span.SetTag("region", in.Region)
+	log.SetTags(span, in.AutoProvPolicy.GetKey().GetTags())
+	span.SetTag("org", in.AutoProvPolicy.Key.Organization)
 
 	err = ShowAutoProvPolicyStream(ctx, rc, &in.AutoProvPolicy, func(res *edgeproto.AutoProvPolicy) {
 		payload := ormapi.StreamPayload{}
@@ -193,10 +211,10 @@ func ShowAutoProvPolicy(c echo.Context) error {
 }
 
 func ShowAutoProvPolicyStream(ctx context.Context, rc *RegionContext, obj *edgeproto.AutoProvPolicy, cb func(res *edgeproto.AutoProvPolicy)) error {
-	var authz *ShowAuthz
+	var authz *AuthzShow
 	var err error
 	if !rc.skipAuthz {
-		authz, err = NewShowAuthz(ctx, rc.region, rc.username, ResourceDeveloperPolicy, ActionView)
+		authz, err = newShowAuthz(ctx, rc.region, rc.username, ResourceDeveloperPolicy, ActionView)
 		if err == echo.ErrForbidden {
 			return nil
 		}
@@ -230,7 +248,7 @@ func ShowAutoProvPolicyStream(ctx context.Context, rc *RegionContext, obj *edgep
 			return err
 		}
 		if !rc.skipAuthz {
-			if !authz.Ok(res.Key.Developer) {
+			if !authz.Ok(res.Key.Organization) {
 				continue
 			}
 		}
@@ -258,11 +276,13 @@ func AddAutoProvPolicyCloudlet(c echo.Context) error {
 
 	in := ormapi.RegionAutoProvPolicyCloudlet{}
 	if err := c.Bind(&in); err != nil {
-		return c.JSON(http.StatusBadRequest, Msg("Invalid POST data"))
+		return bindErr(c, err)
 	}
 	rc.region = in.Region
 	span := log.SpanFromContext(ctx)
-	span.SetTag("org", in.AutoProvPolicyCloudlet.Key.Developer)
+	span.SetTag("region", in.Region)
+	log.SetTags(span, in.AutoProvPolicyCloudlet.GetKey().GetTags())
+	span.SetTag("org", in.AutoProvPolicyCloudlet.Key.Organization)
 	resp, err := AddAutoProvPolicyCloudletObj(ctx, rc, &in.AutoProvPolicyCloudlet)
 	if err != nil {
 		if st, ok := status.FromError(err); ok {
@@ -273,9 +293,12 @@ func AddAutoProvPolicyCloudlet(c echo.Context) error {
 }
 
 func AddAutoProvPolicyCloudletObj(ctx context.Context, rc *RegionContext, obj *edgeproto.AutoProvPolicyCloudlet) (*edgeproto.Result, error) {
-	if !rc.skipAuthz && !authorized(ctx, rc.username, obj.Key.Developer,
-		ResourceDeveloperPolicy, ActionManage) {
-		return nil, echo.ErrForbidden
+	log.SetContextTags(ctx, edgeproto.GetTags(obj))
+	if !rc.skipAuthz {
+		if err := authzAddAutoProvPolicyCloudlet(ctx, rc.region, rc.username, obj,
+			ResourceDeveloperPolicy, ActionManage); err != nil {
+			return nil, err
+		}
 	}
 	if rc.conn == nil {
 		conn, err := connectController(ctx, rc.region)
@@ -303,11 +326,13 @@ func RemoveAutoProvPolicyCloudlet(c echo.Context) error {
 
 	in := ormapi.RegionAutoProvPolicyCloudlet{}
 	if err := c.Bind(&in); err != nil {
-		return c.JSON(http.StatusBadRequest, Msg("Invalid POST data"))
+		return bindErr(c, err)
 	}
 	rc.region = in.Region
 	span := log.SpanFromContext(ctx)
-	span.SetTag("org", in.AutoProvPolicyCloudlet.Key.Developer)
+	span.SetTag("region", in.Region)
+	log.SetTags(span, in.AutoProvPolicyCloudlet.GetKey().GetTags())
+	span.SetTag("org", in.AutoProvPolicyCloudlet.Key.Organization)
 	resp, err := RemoveAutoProvPolicyCloudletObj(ctx, rc, &in.AutoProvPolicyCloudlet)
 	if err != nil {
 		if st, ok := status.FromError(err); ok {
@@ -318,9 +343,12 @@ func RemoveAutoProvPolicyCloudlet(c echo.Context) error {
 }
 
 func RemoveAutoProvPolicyCloudletObj(ctx context.Context, rc *RegionContext, obj *edgeproto.AutoProvPolicyCloudlet) (*edgeproto.Result, error) {
-	if !rc.skipAuthz && !authorized(ctx, rc.username, obj.Key.Developer,
-		ResourceDeveloperPolicy, ActionManage) {
-		return nil, echo.ErrForbidden
+	log.SetContextTags(ctx, edgeproto.GetTags(obj))
+	if !rc.skipAuthz {
+		if err := authorized(ctx, rc.username, obj.Key.Organization,
+			ResourceDeveloperPolicy, ActionManage); err != nil {
+			return nil, err
+		}
 	}
 	if rc.conn == nil {
 		conn, err := connectController(ctx, rc.region)

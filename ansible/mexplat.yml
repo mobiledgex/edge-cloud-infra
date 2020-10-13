@@ -13,45 +13,57 @@
     - console
   gather_facts: no
   tasks:
-    - set_fact:
-        github_user: "{{ lookup('env', 'GITHUB_USER') }}"
-      when: github_user is not defined or not github_user
+    - block:
+      - set_fact:
+          github_user: "{{ lookup('env', 'GITHUB_USER') }}"
+        when: github_user is not defined or not github_user
 
-    - set_fact:
-        github_token: "{{ lookup('env', 'GITHUB_TOKEN') }}"
-      when: github_token is not defined or not github_token
+      - set_fact:
+          github_token: "{{ lookup('env', 'GITHUB_TOKEN') }}"
+        when: github_token is not defined or not github_token
 
-    - set_fact:
-        console_version_not_provided: true
-      when: console_version is not defined
+      - set_fact:
+          console_version_not_provided: true
+        when: console_version is not defined
 
-    - name: Get list of edge-cloud-ui tags from Github
-      uri:
-        url: https://api.github.com/repos/mobiledgex/edge-cloud-ui/tags
-        user: "{{ github_user }}"
-        password: "{{ github_token }}"
-        force_basic_auth: yes
-        return_content: yes
-      register: console_tags
-      check_mode: false
-      when: console_version_not_provided | default(false)
+      - name: Get latest edge-cloud-ui release from Github
+        uri:
+          url: https://api.github.com/repos/mobiledgex/edge-cloud-ui/releases/latest
+          user: "{{ github_user }}"
+          password: "{{ github_token }}"
+          force_basic_auth: yes
+          return_content: yes
+        register: console_tags
+        check_mode: false
+        delegate_to: localhost
+        when: console_version_not_provided | default(false)
 
-    - name: Pick newest tag by semver
-      set_fact:
-        console_version: "{{ console_tags.json | json_query('[*].name') | semver_sort(re_filter='^v[0-9]') | last }}"
-      when: console_version_not_provided | default(false)
+      - name: Pick tag for latest release
+        set_fact:
+          console_version: "{{ console_tags.json.tag_name }}"
+        when: console_version_not_provided | default(false)
 
-    - assert:
-        that:
-          - console_version is defined
+      - assert:
+          that:
+            - console_version is defined
 
-    - pause:
-        prompt: "Installing the latest console release: {{ console_version }}"
-        seconds: 30
-      when: console_version_not_provided | default(false)
+      - pause:
+          prompt: "Installing the latest console release: {{ console_version }}"
+          seconds: 30
+        when: console_version_not_provided | default(false)
+
+      tags: console
+
+- name: Set up vault auth, policies, and roles
+  import_playbook: vault-setup.yml
+  tags: vault-setup
 
 - hosts: platform
   tasks:
+    - import_role:
+        name: vault
+        tasks_from: load-token
+      delegate_to: localhost
 
     - name: Load registry docker creds
       import_role:
@@ -65,7 +77,6 @@
         status_code: 200
         body_format: json
       register: response
-      failed_when: edge_cloud_version not in response.json.tags
       check_mode: no
 
     - name: Notify upgrade start on slack
@@ -82,24 +93,52 @@
         name: azure-aks
         tasks_from: platform-regions-load
 
+    - set_fact:
+        dme_details: []
+
     - include_role:
         name: mexplat_k8s
       vars:
         k8s_cluster_name: "{{ item.name }}"
         region: "{{ item.region }}"
+        latitude: "{{ item.latitude }}"
+        longitude: "{{ item.longitude }}"
         resource_group: "{{ item.resource_group }}"
         dme_aliases: "{{ item.global_dme_aliases }}"
       with_items: "{{ platform_regions }}"
 
+    - debug: var=dme_details
+      tags: [ 'never', 'debug' ]
+
+    - import_role:
+        name: ns1
+        tasks_from: global-dme
+
 - hosts: gitlab
-  roles:
-    - role: telegraf
+  tasks:
+    - import_role:
+        name: vault
+        tasks_from: vault-ssh
+    - name: Update Gitlab GPG key
+      apt_key:
+        url: https://packages.gitlab.com/gpg.key
+        state: present
+      become: yes
+    - import_role:
+        name: telegraf
       tags: monitoring
-    - role: docker
-    - role: gitlab
+    - import_role:
+        name: docker
+      tags: setup
+    - import_role:
+        name: gitlab
+      tags: setup
 
 - hosts: postgres
   tasks:
+    - import_role:
+        name: vault
+        tasks_from: vault-ssh
     - import_role:
         name: load-vault-creds
         tasks_from: mc
@@ -113,6 +152,13 @@
 
 - hosts: crms
   tasks:
+    - import_role:
+        name: vault
+        tasks_from: vault-ssh
+    - import_role:
+        name: vault
+        tasks_from: load-token
+      delegate_to: localhost
     - import_role:
         name: telegraf
       tags: monitoring
@@ -131,21 +177,48 @@
         index_var: crm_index
 
 - hosts: stun
-  roles:
-    - role: telegraf
+  tasks:
+    - import_role:
+        name: vault
+        tasks_from: vault-ssh
+    - import_role:
+        name: telegraf
       tags: monitoring
-    - role: coturn
+    - import_role:
+        name: coturn
+
+- hosts: alertmanager
+  tasks:
+    - import_role:
+        name: vault
+        tasks_from: vault-ssh
+    - import_role:
+        name: docker
+      tags: setup
+    - import_role:
+        name: alertmanager
+      tags: alertmanager
 
 - hosts: console
   tasks:
     - import_role:
+        name: vault
+        tasks_from: vault-ssh
+    - import_role:
+        name: vault
+        tasks_from: load-token
+      delegate_to: localhost
+    - import_role:
         name: telegraf
+      vars:
+        telegraf_additional_config:
+          - input/nginx.conf.j2
       tags: [ 'monitoring', 'setup' ]
     - import_role:
         name: web
       vars:
         nginx_config_template: "templates/mexplat/console-nginx-config.j2"
-        cert_domains: [ "{{ inventory_hostname }}" ]
+        cert_domains: [ "{{ inventory_hostname }}", "{{ console_vnc_hostname }}" ]
       when: skip_console_setup is not defined or not skip_console_setup
       tags: setup
     - import_role:
@@ -153,11 +226,31 @@
       tags: setup
     - import_role:
         name: console
+      tags: console
     - import_role:
         name: mc
+      tags: mc
+
+- hosts: notifyroot
+  tasks:
+    - import_role:
+        name: vault
+        tasks_from: vault-ssh
+    - import_role:
+        name: vault
+        tasks_from: load-token
+      delegate_to: localhost
+    - import_role:
+        name: telegraf
+      tags: [ 'monitoring', 'setup' ]
+    - import_role:
+        name: notifyroot
 
 - hosts: registry_replicas
   tasks:
+    - import_role:
+        name: vault
+        tasks_from: vault-ssh
     - import_role:
         name: telegraf
       tags: monitoring
@@ -174,3 +267,37 @@
       when:
         - not ansible_check_mode
       tags: notify
+
+- hosts: jaeger
+  tasks:
+    - import_role:
+        name: vault
+        tasks_from: vault-ssh
+
+    - import_role:
+        name: telegraf
+      tags:
+        - monitoring
+        - setup
+
+    - import_role:
+        name: docker
+      tags: setup
+
+    - import_role:
+        name: jaeger
+
+- hosts: esproxy
+  tasks:
+    - import_role:
+        name: vault
+        tasks_from: vault-ssh
+
+    - import_role:
+        name: telegraf
+      tags:
+        - monitoring
+        - setup
+
+    - import_role:
+        name: esproxy

@@ -1,10 +1,25 @@
-- name: "Set up nginx ingress controller v{{ nginx_ingress_version }}"
-  command: "kubectl --kubeconfig {{ kubeconfig_file.path }} apply -f https://raw.githubusercontent.com/kubernetes/ingress-nginx/nginx-{{ nginx_ingress_version }}/deploy/mandatory.yaml"
+- name: Make sure all nodes are labelled as Linux
+  command: "kubectl --kubeconfig {{ kubeconfig_file.path }} label node --all kubernetes.io/os=linux"
+  register: result
   changed_when: no
+  failed_when:
+    - result.rc != 0
+    - '"already has a value (linux)" not in result.stderr'
 
-- name: Set up nginx loadbalancer service
-  command: "kubectl --kubeconfig {{ kubeconfig_file.path }} apply -f https://raw.githubusercontent.com/kubernetes/ingress-nginx/nginx-{{ nginx_ingress_version }}/deploy/provider/cloud-generic.yaml"
-  changed_when: no
+- set_fact:
+    mandatory_manifest: "https://raw.githubusercontent.com/kubernetes/ingress-nginx/nginx-{{ nginx_ingress_version }}/deploy/static/mandatory.yaml"
+    cloud_manifest: "https://raw.githubusercontent.com/kubernetes/ingress-nginx/nginx-{{ nginx_ingress_version }}/deploy/static/provider/cloud-generic.yaml"
+
+- name: "Set up nginx ingress controller v{{ nginx_ingress_version }}"
+  k8s:
+    kubeconfig: "{{ kubeconfig_file.path }}"
+    namespace: default
+    definition: "{{ lookup('url', manifest, split_lines=False) }}"
+  loop:
+    - "{{ mandatory_manifest }}"
+    - "{{ cloud_manifest }}"
+  loop_control:
+    loop_var: manifest
 
 - k8s_facts:
     kubeconfig: "{{ kubeconfig_file.path }}"
@@ -18,3 +33,24 @@
 
 - set_fact:
     ingress_ip: "{{ ingress_nginx_facts.resources[0].status.loadBalancer.ingress[0].ip }}"
+
+- name: Update main configmap
+  k8s:
+    kubeconfig: "{{ kubeconfig_file.path }}"
+    namespace: ingress-nginx
+    state: present
+    definition: "{{ lookup('template', 'configmap.yml') }}"
+
+- name: Update TCP proxy configmap
+  k8s:
+    kubeconfig: "{{ kubeconfig_file.path }}"
+    namespace: ingress-nginx
+    state: present
+    definition: "{{ lookup('template', 'tcp-configmap.yml') }}"
+
+- name: Update TCP proxy service
+  k8s:
+    kubeconfig: "{{ kubeconfig_file.path }}"
+    namespace: ingress-nginx
+    state: present
+    definition: "{{ lookup('template', 'tcp-service.yml') }}"

@@ -23,6 +23,9 @@
     mode: 0400
   become: yes
 
+- set_fact:
+    cert_filename: "{{ cert_name | default(cert_domains[0]) }}"
+
 - debug:
     msg: "Generating cert for domains(s): {{ cert_domains | join(', ') }}"
 
@@ -31,10 +34,10 @@
     certbot certonly
       --dns-cloudflare --dns-cloudflare-credentials {{ cloudflare_credentials_file }}
       --agree-tos --email {{ mex_ops_email }} --non-interactive
-      -d {{ cert_domains | join(" -d ") }} --cert-name "{{ cert_name | default(cert_domains[0]) }}"
+      -d {{ cert_domains | join(" -d ") }} --cert-name "{{ cert_filename }}"
   become: yes
   args:
-    creates: "{{ letsencrypt_root }}/{{ cert_domains[0] }}/fullchain.pem"
+    creates: "{{ letsencrypt_root }}/{{ cert_filename }}/fullchain.pem"
   notify:
     - Restart nginx
 

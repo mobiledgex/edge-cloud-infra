@@ -3,17 +3,18 @@
 
 package testutil
 
-import edgeproto "github.com/mobiledgex/edge-cloud/edgeproto"
-import "os"
-import "github.com/mobiledgex/edge-cloud-infra/mc/ormclient"
-import "github.com/mobiledgex/edge-cloud-infra/mc/ormapi"
-import "github.com/mobiledgex/edge-cloud/cli"
-import proto "github.com/gogo/protobuf/proto"
-import fmt "fmt"
-import math "math"
-import _ "github.com/gogo/googleapis/google/api"
-import _ "github.com/mobiledgex/edge-cloud/protogen"
-import _ "github.com/gogo/protobuf/gogoproto"
+import (
+	"context"
+	fmt "fmt"
+	_ "github.com/gogo/googleapis/google/api"
+	_ "github.com/gogo/protobuf/gogoproto"
+	proto "github.com/gogo/protobuf/proto"
+	"github.com/mobiledgex/edge-cloud-infra/mc/ormapi"
+	"github.com/mobiledgex/edge-cloud-infra/mc/ormclient"
+	edgeproto "github.com/mobiledgex/edge-cloud/edgeproto"
+	_ "github.com/mobiledgex/edge-cloud/protogen"
+	math "math"
+)
 
 // Reference imports to suppress errors if they are not otherwise used.
 var _ = proto.Marshal
@@ -22,61 +23,83 @@ var _ = math.Inf
 
 // Auto-generated code: DO NOT EDIT
 
-func TestUpdateSettings(mcClient *ormclient.Client, uri, token, region string, in *edgeproto.Settings) (*edgeproto.Result, int, error) {
+func TestUpdateSettings(mcClient *ormclient.Client, uri, token, region string, in *edgeproto.Settings, modFuncs ...func(*edgeproto.Settings)) (*edgeproto.Result, int, error) {
 	dat := &ormapi.RegionSettings{}
 	dat.Region = region
 	dat.Settings = *in
+	for _, fn := range modFuncs {
+		fn(&dat.Settings)
+	}
 	return mcClient.UpdateSettings(uri, token, dat)
 }
-func TestPermUpdateSettings(mcClient *ormclient.Client, uri, token, region, org string) (*edgeproto.Result, int, error) {
+func TestPermUpdateSettings(mcClient *ormclient.Client, uri, token, region, org string, modFuncs ...func(*edgeproto.Settings)) (*edgeproto.Result, int, error) {
 	in := &edgeproto.Settings{}
-	return TestUpdateSettings(mcClient, uri, token, region, in)
+	return TestUpdateSettings(mcClient, uri, token, region, in, modFuncs...)
 }
 
-func TestResetSettings(mcClient *ormclient.Client, uri, token, region string, in *edgeproto.Settings) (*edgeproto.Result, int, error) {
+func TestResetSettings(mcClient *ormclient.Client, uri, token, region string, in *edgeproto.Settings, modFuncs ...func(*edgeproto.Settings)) (*edgeproto.Result, int, error) {
 	dat := &ormapi.RegionSettings{}
 	dat.Region = region
 	dat.Settings = *in
+	for _, fn := range modFuncs {
+		fn(&dat.Settings)
+	}
 	return mcClient.ResetSettings(uri, token, dat)
 }
-func TestPermResetSettings(mcClient *ormclient.Client, uri, token, region, org string) (*edgeproto.Result, int, error) {
+func TestPermResetSettings(mcClient *ormclient.Client, uri, token, region, org string, modFuncs ...func(*edgeproto.Settings)) (*edgeproto.Result, int, error) {
 	in := &edgeproto.Settings{}
-	return TestResetSettings(mcClient, uri, token, region, in)
+	return TestResetSettings(mcClient, uri, token, region, in, modFuncs...)
 }
 
-func TestShowSettings(mcClient *ormclient.Client, uri, token, region string, in *edgeproto.Settings) (*edgeproto.Settings, int, error) {
+func TestShowSettings(mcClient *ormclient.Client, uri, token, region string, in *edgeproto.Settings, modFuncs ...func(*edgeproto.Settings)) (*edgeproto.Settings, int, error) {
 	dat := &ormapi.RegionSettings{}
 	dat.Region = region
 	dat.Settings = *in
+	for _, fn := range modFuncs {
+		fn(&dat.Settings)
+	}
 	return mcClient.ShowSettings(uri, token, dat)
 }
-func TestPermShowSettings(mcClient *ormclient.Client, uri, token, region, org string) (*edgeproto.Settings, int, error) {
+func TestPermShowSettings(mcClient *ormclient.Client, uri, token, region, org string, modFuncs ...func(*edgeproto.Settings)) (*edgeproto.Settings, int, error) {
 	in := &edgeproto.Settings{}
-	return TestShowSettings(mcClient, uri, token, region, in)
+	return TestShowSettings(mcClient, uri, token, region, in, modFuncs...)
 }
 
-func RunMcSettingsApi(mcClient ormclient.Api, uri, token, region string, obj *edgeproto.Settings, dataMap interface{}, rc *bool, mode string) {
-	if obj == nil {
-		return
+func (s *TestClient) UpdateSettings(ctx context.Context, in *edgeproto.Settings) (*edgeproto.Result, error) {
+	inR := &ormapi.RegionSettings{
+		Region:   s.Region,
+		Settings: *in,
 	}
-	in := &ormapi.RegionSettings{
-		Region:   region,
-		Settings: *obj,
+	out, status, err := s.McClient.UpdateSettings(s.Uri, s.Token, inR)
+	if err == nil && status != 200 {
+		err = fmt.Errorf("status: %d\n", status)
 	}
-	switch mode {
-	case "update":
-		objMap, err := cli.GetGenericObj(dataMap)
-		if err != nil {
-			fmt.Fprintf(os.Stderr, "bad dataMap for Settings: %v", err)
-			os.Exit(1)
-		}
-		in.Settings.Fields = cli.GetSpecifiedFields(objMap, &in.Settings, cli.YamlNamespace)
-		_, st, err := mcClient.UpdateSettings(uri, token, in)
-		checkMcErr("UpdateSettings", st, err, rc)
-	case "reset":
-		_, st, err := mcClient.ResetSettings(uri, token, in)
-		checkMcErr("ResetSettings", st, err, rc)
-	default:
-		return
+	return out, err
+}
+
+func (s *TestClient) ResetSettings(ctx context.Context, in *edgeproto.Settings) (*edgeproto.Result, error) {
+	inR := &ormapi.RegionSettings{
+		Region:   s.Region,
+		Settings: *in,
 	}
+	out, status, err := s.McClient.ResetSettings(s.Uri, s.Token, inR)
+	if err == nil && status != 200 {
+		err = fmt.Errorf("status: %d\n", status)
+	}
+	return out, err
+}
+
+func (s *TestClient) ShowSettings(ctx context.Context, in *edgeproto.Settings) (*edgeproto.Settings, error) {
+	inR := &ormapi.RegionSettings{
+		Region:   s.Region,
+		Settings: *in,
+	}
+	out, status, err := s.McClient.ShowSettings(s.Uri, s.Token, inR)
+	if err == nil && status != 200 {
+		err = fmt.Errorf("status: %d\n", status)
+	}
+	if status == 403 {
+		err = nil
+	}
+	return out, err
 }

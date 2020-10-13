@@ -11,19 +11,17 @@ influxdb.internal.mobiledgex.net
 [vouch]
 vouch.mobiledgex.net
 
-[elasticsearch]
-es01.es.mobiledgex.net		cert_wildcard_domain=es.mobiledgex.net es_instance=main
-
-[jaeger]
-jaeger.mobiledgex.net		es_instance=main
-jaeger-dev.mobiledgex.net	nginx_config_filename=jaeger jaeger_ui_port=8443
-jaeger-qa.mobiledgex.net	nginx_config_filename=jaeger jaeger_ui_port=8443
-
 [slack]
-infra.internal.mobiledgex.net
+spook.mobiledgex.net
 
 [apt]
 apt.mobiledgex.net
 
 [backups]
 backups.mobiledgex.net
+
+[chef]
+chef.mobiledgex.net
+
+[monitor]
+monitor.mobiledgex.net

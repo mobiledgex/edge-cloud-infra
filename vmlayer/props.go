@@ -1,0 +1,328 @@
+package vmlayer
+
+import (
+	"context"
+	"fmt"
+	"net"
+	"strconv"
+	"strings"
+	"sync"
+
+	"github.com/go-chef/chef"
+	"github.com/mobiledgex/edge-cloud-infra/chefmgmt"
+	"github.com/mobiledgex/edge-cloud-infra/infracommon"
+	"github.com/mobiledgex/edge-cloud/cloudcommon"
+	"github.com/mobiledgex/edge-cloud/edgeproto"
+	"github.com/mobiledgex/edge-cloud/log"
+)
+
+type CloudletSSHKey struct {
+	PublicKey       string
+	SignedPublicKey string
+	PrivateKey      string
+	Mux             sync.Mutex
+	RefreshTrigger  chan bool
+
+	// Below is used to upgrade old VMs to new Vault based SSH
+	MEXPrivateKey    string
+	UseMEXPrivateKey bool
+}
+
+type VMProperties struct {
+	CommonPf              infracommon.CommonPlatform
+	SharedRootLBName      string
+	sharedRootLB          *MEXRootLB
+	Domain                VMDomain
+	PlatformSecgrpName    string
+	IptablesBasedFirewall bool
+	sshKey                CloudletSSHKey
+	Upgrade               bool
+}
+
+// note that qcow2 must be understood by vsphere and vmdk must
+// be known by openstack so they can be converted back and forth
+var ImageFormatQcow2 = "qcow2"
+var ImageFormatVmdk = "vmdk"
+
+var MEXInfraVersion = "4.1.0"
+var ImageNamePrefix = "mobiledgex-v"
+var DefaultOSImageName = ImageNamePrefix + MEXInfraVersion
+
+const MINIMUM_DISK_SIZE uint64 = 20
+const MINIMUM_RAM_SIZE uint64 = 2048
+const MINIMUM_VCPUS uint64 = 2
+
+// NoSubnetDNS means that DNS servers are not specified when creating the subnet
+var NoSubnetDNS = "NONE"
+
+// NoConfigExternalRouter is used for the case in which we don't manage the external
+// router and don't add ports to it ourself, as happens with Contrail.  The router does exist in
+// this case and we use it to route from the LB to the pods
+var NoConfigExternalRouter = "NOCONFIG"
+
+// NoExternalRouter means there is no router at all and we connect the LB to the k8s pods on the same subnet
+// this may eventually be the default and possibly only option
+var NoExternalRouter = "NONE"
+
+var DefaultCloudletVMImagePath = "https://artifactory.mobiledgex.net/artifactory/baseimages/"
+
+// properties common to all VM providers
+var VMProviderProps = map[string]*edgeproto.PropertyInfo{
+	"MEX_EXT_NETWORK": {
+		Name:        "Infra External Network Name",
+		Description: "Name of the external network to be used to reach developer apps",
+		Value:       "external-network-shared",
+	},
+	"MEX_NETWORK": {
+		Name:        "Infra Internal Network Name",
+		Description: "Name of the internal network which will be created to be used for cluster communication",
+		Value:       "mex-k8s-net-1",
+	},
+	// note OS_IMAGE refers to Operating System
+	"MEX_OS_IMAGE": {
+		Name:        "Cloudlet Image Name",
+		Description: "Name of the VM base image to be used for bring up Cloudlet VMs",
+		Value:       DefaultOSImageName,
+	},
+	"MEX_SECURITY_GROUP": {
+		Name:        "Security Group Name",
+		Description: "Name of the security group to which cloudlet VMs will be part of",
+		Value:       "default",
+	},
+	"MEX_SHARED_ROOTLB_RAM": {
+		Name:        "Security Group Name",
+		Description: "Size of RAM (MB) required to bring up shared RootLB",
+		Value:       "4096",
+	},
+	"MEX_SHARED_ROOTLB_VCPUS": {
+		Name:        "RootLB vCPUs",
+		Description: "Number of vCPUs required to bring up shared RootLB",
+		Value:       "2",
+	},
+	"MEX_SHARED_ROOTLB_DISK": {
+		Name:        "RootLB Disk",
+		Description: "Size of disk (GB) required to bring up shared RootLB",
+		Value:       "40",
+	},
+	"MEX_NETWORK_SCHEME": {
+		Name:        "Internal Network Scheme",
+		Description: GetSupportedSchemesStr(),
+		Value:       "cidr=10.101.X.0/24",
+	},
+	"MEX_COMPUTE_AVAILABILITY_ZONE": {
+		Name:        "Compute Availability Zone",
+		Description: "Compute Availability Zone",
+	},
+	"MEX_NETWORK_AVAILABILITY_ZONE": {
+		Name:        "Network Availability Zone",
+		Description: "Network Availability Zone",
+	},
+	"MEX_VOLUME_AVAILABILITY_ZONE": {
+		Name:        "Volume Availability Zone",
+		Description: "Volume Availability Zone",
+	},
+	"MEX_IMAGE_DISK_FORMAT": {
+		Name:        "VM Image Disk Format",
+		Description: "Name of the disk format required to upload VM image to infra datastore",
+		Value:       ImageFormatQcow2,
+	},
+	"MEX_ROUTER": {
+		Name:        "External Router Type",
+		Description: GetSupportedRouterTypes(),
+		Value:       NoExternalRouter,
+	},
+	"MEX_CRM_GATEWAY_ADDR": {
+		Name:        "CRM Gateway Address",
+		Description: "Required if infra API endpoint is completely isolated from external network",
+	},
+	"MEX_SUBNET_DNS": {
+		Name:        "Subnet DNS",
+		Description: "Subnet DNS",
+	},
+	"MEX_CLOUDLET_FIREWALL_WHITELIST_EGRESS": {
+		Name:        "Cloudlet Firewall Whitelist Egress",
+		Description: "Firewall rule to whitelist egress traffic",
+		Value:       "protocol=tcp,portrange=443,remotecidr=0.0.0.0/0;protocol=udp,portrange=53,remotecidr=0.0.0.0/0;protocol=icmp,remotecidr=0.0.0.0/0",
+	},
+	"MEX_CLOUDLET_FIREWALL_WHITELIST_INGRESS": {
+		Name:        "Cloudlet Firewall Whitelist Ingress",
+		Description: "Firewall rule to whitelist ingress traffic",
+	},
+}
+
+func GetSupportedRouterTypes() string {
+	return fmt.Sprintf("Supported types: %s, %s", NoExternalRouter, NoConfigExternalRouter)
+}
+
+func GetVaultCloudletCommonPath(filePath string) string {
+	// TODO this path really should not be openstack
+	return fmt.Sprintf("/secret/data/cloudlet/openstack/%s", filePath)
+}
+
+func GetCloudletVMImageName(imgVersion string) string {
+	if imgVersion == "" {
+		imgVersion = MEXInfraVersion
+	}
+	return ImageNamePrefix + imgVersion
+}
+
+func GetCertFilePath(key *edgeproto.CloudletKey) string {
+	return fmt.Sprintf("/tmp/%s.%s.cert", key.Name, key.Organization)
+}
+
+func GetVaultCloudletAccessPath(key *edgeproto.CloudletKey, region, cloudletType, physicalName, filename string) string {
+	return fmt.Sprintf("/secret/data/%s/cloudlet/%s/%s/%s/%s", region, cloudletType, key.Organization, physicalName, filename)
+}
+
+func GetCloudletVMImagePath(imgPath, imgVersion string, imgSuffix string) string {
+	vmRegistryPath := DefaultCloudletVMImagePath
+	if imgPath != "" {
+		vmRegistryPath = imgPath
+	}
+	if !strings.HasSuffix(vmRegistryPath, "/") {
+		vmRegistryPath = vmRegistryPath + "/"
+	}
+	return vmRegistryPath + GetCloudletVMImageName(imgVersion) + imgSuffix
+}
+
+// GetCloudletSharedRootLBFlavor gets the flavor from defaults
+// or environment variables
+func (vp *VMProperties) GetCloudletSharedRootLBFlavor(flavor *edgeproto.Flavor) error {
+	ram, _ := vp.CommonPf.Properties.GetValue("MEX_SHARED_ROOTLB_RAM")
+	var err error
+	if ram != "" {
+		flavor.Ram, err = strconv.ParseUint(ram, 10, 64)
+		if err != nil {
+			return err
+		}
+	} else {
+		flavor.Ram = 4096
+	}
+	vcpus, _ := vp.CommonPf.Properties.GetValue("MEX_SHARED_ROOTLB_VCPUS")
+	if vcpus != "" {
+		flavor.Vcpus, err = strconv.ParseUint(vcpus, 10, 64)
+		if err != nil {
+			return err
+		}
+	} else {
+		flavor.Vcpus = 2
+	}
+	disk, _ := vp.CommonPf.Properties.GetValue("MEX_SHARED_ROOTLB_DISK")
+	if disk != "" {
+		flavor.Disk, err = strconv.ParseUint(disk, 10, 64)
+		if err != nil {
+			return err
+		}
+	} else {
+		flavor.Disk = 40
+	}
+	return nil
+}
+
+func (vp *VMProperties) GetCloudletSecurityGroupName() string {
+	value, _ := vp.CommonPf.Properties.GetValue("MEX_SECURITY_GROUP")
+	return value
+}
+
+func (vp *VMProperties) GetCloudletExternalNetwork() string {
+	value, _ := vp.CommonPf.Properties.GetValue("MEX_EXT_NETWORK")
+	return value
+}
+
+func (vp *VMProperties) SetCloudletExternalNetwork(name string) {
+	vp.CommonPf.Properties.SetValue("MEX_EXT_NETWORK", name)
+}
+
+// GetCloudletNetwork returns default MEX network, internal and prepped
+func (vp *VMProperties) GetCloudletMexNetwork() string {
+	value, _ := vp.CommonPf.Properties.GetValue("MEX_NETWORK")
+	return value
+}
+
+func (vp *VMProperties) GetCloudletNetworkScheme() string {
+	value, _ := vp.CommonPf.Properties.GetValue("MEX_NETWORK_SCHEME")
+	return value
+}
+
+func (vp *VMProperties) GetCloudletVolumeAvailabilityZone() string {
+	value, _ := vp.CommonPf.Properties.GetValue("MEX_VOLUME_AVAILABILITY_ZONE")
+	return value
+}
+
+func (vp *VMProperties) GetCloudletComputeAvailabilityZone() string {
+	value, _ := vp.CommonPf.Properties.GetValue("MEX_COMPUTE_AVAILABILITY_ZONE")
+	return value
+}
+
+func (vp *VMProperties) GetCloudletNetworkAvailabilityZone() string {
+	value, _ := vp.CommonPf.Properties.GetValue("MEX_NETWORK_AVAILABILITY_ZONE")
+	return value
+}
+
+func (vp *VMProperties) GetCloudletImageDiskFormat() string {
+	value, _ := vp.CommonPf.Properties.GetValue("MEX_IMAGE_DISK_FORMAT")
+	return value
+}
+
+func (vp *VMProperties) GetCloudletOSImage() string {
+	value, _ := vp.CommonPf.Properties.GetValue("MEX_OS_IMAGE")
+	return value
+}
+
+func (vp *VMProperties) GetCloudletFlavorMatchPattern() string {
+	value, _ := vp.CommonPf.Properties.GetValue("FLAVOR_MATCH_PATTERN")
+	return value
+}
+
+func (vp *VMProperties) GetCloudletExternalRouter() string {
+	value, _ := vp.CommonPf.Properties.GetValue("MEX_ROUTER")
+	return value
+}
+
+func (vp *VMProperties) GetSubnetDNS() string {
+	value, _ := vp.CommonPf.Properties.GetValue("MEX_SUBNET_DNS")
+	return value
+}
+
+func (vp *VMProperties) GetRootLBNameForCluster(ctx context.Context, clusterInst *edgeproto.ClusterInst) string {
+	lbName := vp.SharedRootLBName
+	if clusterInst.IpAccess == edgeproto.IpAccess_IP_ACCESS_DEDICATED {
+		lbName = cloudcommon.GetDedicatedLBFQDN(vp.CommonPf.PlatformConfig.CloudletKey, &clusterInst.Key.ClusterKey, vp.CommonPf.PlatformConfig.AppDNSRoot)
+	}
+	return lbName
+}
+
+func (vp *VMProperties) GetCloudletCRMGatewayIPAndPort() (string, int) {
+	gw, _ := vp.CommonPf.Properties.GetValue("MEX_CRM_GATEWAY_ADDR")
+	if gw == "" {
+		return "", 0
+	}
+	host, portstr, err := net.SplitHostPort(gw)
+	if err != nil {
+		log.FatalLog("Error in MEX_CRM_GATEWAY_ADDR format")
+	}
+	port, err := strconv.Atoi(portstr)
+	if err != nil {
+		log.FatalLog("Error in MEX_CRM_GATEWAY_ADDR port format")
+	}
+	return host, port
+}
+
+func (vp *VMProperties) GetChefClient() *chef.Client {
+	return vp.CommonPf.ChefClient
+}
+
+func (vp *VMProperties) GetChefServerPath() string {
+	if vp.CommonPf.ChefServerPath == "" {
+		return chefmgmt.DefaultChefServerPath
+	}
+	return vp.CommonPf.ChefServerPath
+}
+
+func (vp *VMProperties) GetRegion() string {
+	return vp.CommonPf.PlatformConfig.Region
+}
+
+func (vp *VMProperties) GetDeploymentTag() string {
+	return vp.CommonPf.DeploymentTag
+}

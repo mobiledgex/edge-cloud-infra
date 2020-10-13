@@ -9,6 +9,7 @@ import (
 	"github.com/mobiledgex/edge-cloud/log"
 )
 
+var LocalTestZone = "localtest.net"
 var cfUser, cfAPIKey string
 
 //API handle
@@ -52,7 +53,7 @@ func GetAPI() (*cloudflare.API, error) {
 //GetDNSRecords returns a list of DNS records for the given domain name. Error returned otherewise.
 // if name is provided, that is used as a filter
 func GetDNSRecords(ctx context.Context, zone string, name string) ([]cloudflare.DNSRecord, error) {
-	log.SpanLog(ctx, log.DebugLevelMexos, "GetDNSRecords", "name", name)
+	log.SpanLog(ctx, log.DebugLevelInfra, "GetDNSRecords", "name", name)
 
 	if zone == "" {
 		return nil, fmt.Errorf("missing domain zone")
@@ -82,9 +83,18 @@ func GetDNSRecords(ctx context.Context, zone string, name string) ([]cloudflare.
 
 //CreateOrUpdateDNSRecord changes the existing record if found, or adds a new one
 func CreateOrUpdateDNSRecord(ctx context.Context, zone, name, rtype, content string, ttl int, proxy bool) error {
+	log.SpanLog(ctx, log.DebugLevelInfra, "CreateOrUpdateDNSRecord", "zone", zone, "name", name, "content", content)
 
-	log.SpanLog(ctx, log.DebugLevelMexos, "CreateOrUpdateDNSRecord", "name", name, "content", content)
+	if !strings.Contains(name, zone) {
+		// mismatch between what the controller thinks is the appdnsroot is and what the value
+		// the CRM is running with.
+		return fmt.Errorf("Mismatch between requested DNS record zone: %s and CRM zone: %s", name, zone)
+	}
 
+	if zone == LocalTestZone {
+		log.SpanLog(ctx, log.DebugLevelInfra, "Skip record creation for test zone", "zone", zone)
+		return nil
+	}
 	api, err := GetAPI()
 	if err != nil {
 		return err
@@ -107,9 +117,9 @@ func CreateOrUpdateDNSRecord(ctx context.Context, zone, name, rtype, content str
 	for _, r := range records {
 		found = true
 		if r.Content == content {
-			log.SpanLog(ctx, log.DebugLevelMexos, "CreateOrUpdateDNSRecord existing record matches", "name", name, "content", content)
+			log.SpanLog(ctx, log.DebugLevelInfra, "CreateOrUpdateDNSRecord existing record matches", "name", name, "content", content)
 		} else {
-			log.SpanLog(ctx, log.DebugLevelMexos, "CreateOrUpdateDNSRecord updating", "name", name, "content", content)
+			log.SpanLog(ctx, log.DebugLevelInfra, "CreateOrUpdateDNSRecord updating", "name", name, "content", content)
 
 			updateRecord := cloudflare.DNSRecord{
 				Name:    strings.ToLower(name),
@@ -134,16 +144,16 @@ func CreateOrUpdateDNSRecord(ctx context.Context, zone, name, rtype, content str
 		}
 		_, err := api.CreateDNSRecord(zoneID, addRecord)
 		if err != nil {
+			log.SpanLog(ctx, log.DebugLevelInfra, "CreateOrUpdateDNSRecord failed", "zone", zone, "name", name, "err", err)
 			return fmt.Errorf("cannot create DNS record for zone %s, %v", zone, err)
 		}
 	}
 	return nil
-
 }
 
 //CreateDNSRecord creates a new DNS record for the zone
 func CreateDNSRecord(ctx context.Context, zone, name, rtype, content string, ttl int, proxy bool) error {
-	log.SpanLog(ctx, log.DebugLevelMexos, "CreateDNSRecord", "name", name, "content", content)
+	log.SpanLog(ctx, log.DebugLevelInfra, "CreateDNSRecord", "name", name, "content", content)
 
 	if zone == "" {
 		return fmt.Errorf("missing zone")
@@ -194,6 +204,9 @@ func CreateDNSRecord(ctx context.Context, zone, name, rtype, content string, ttl
 
 //DeleteDNSRecord deletes DNS record specified by recordID in zone.
 func DeleteDNSRecord(zone, recordID string) error {
+	if zone == LocalTestZone {
+		return nil
+	}
 	if zone == "" {
 		return fmt.Errorf("missing zone")
 	}

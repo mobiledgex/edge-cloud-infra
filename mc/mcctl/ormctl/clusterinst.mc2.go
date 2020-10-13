@@ -3,16 +3,18 @@
 
 package ormctl
 
-import edgeproto "github.com/mobiledgex/edge-cloud/edgeproto"
-import "strings"
-import "github.com/mobiledgex/edge-cloud-infra/mc/ormapi"
-import "github.com/mobiledgex/edge-cloud/cli"
-import proto "github.com/gogo/protobuf/proto"
-import fmt "fmt"
-import math "math"
-import _ "github.com/gogo/googleapis/google/api"
-import _ "github.com/mobiledgex/edge-cloud/protogen"
-import _ "github.com/gogo/protobuf/gogoproto"
+import (
+	fmt "fmt"
+	_ "github.com/gogo/googleapis/google/api"
+	_ "github.com/gogo/protobuf/gogoproto"
+	proto "github.com/gogo/protobuf/proto"
+	"github.com/mobiledgex/edge-cloud-infra/mc/ormapi"
+	"github.com/mobiledgex/edge-cloud/cli"
+	edgeproto "github.com/mobiledgex/edge-cloud/edgeproto"
+	_ "github.com/mobiledgex/edge-cloud/protogen"
+	math "math"
+	"strings"
+)
 
 // Reference imports to suppress errors if they are not otherwise used.
 var _ = proto.Marshal
@@ -23,7 +25,7 @@ var _ = math.Inf
 
 var CreateClusterInstCmd = &cli.Command{
 	Use:                  "CreateClusterInst",
-	RequiredArgs:         strings.Join(append([]string{"region"}, ClusterInstRequiredArgs...), " "),
+	RequiredArgs:         "region " + strings.Join(ClusterInstRequiredArgs, " "),
 	OptionalArgs:         strings.Join(ClusterInstOptionalArgs, " "),
 	AliasArgs:            strings.Join(ClusterInstAliasArgs, " "),
 	SpecialArgs:          &ClusterInstSpecialArgs,
@@ -37,7 +39,7 @@ var CreateClusterInstCmd = &cli.Command{
 
 var DeleteClusterInstCmd = &cli.Command{
 	Use:                  "DeleteClusterInst",
-	RequiredArgs:         strings.Join(append([]string{"region"}, ClusterInstRequiredArgs...), " "),
+	RequiredArgs:         "region " + strings.Join(ClusterInstRequiredArgs, " "),
 	OptionalArgs:         strings.Join(ClusterInstOptionalArgs, " "),
 	AliasArgs:            strings.Join(ClusterInstAliasArgs, " "),
 	SpecialArgs:          &ClusterInstSpecialArgs,
@@ -51,8 +53,8 @@ var DeleteClusterInstCmd = &cli.Command{
 
 var UpdateClusterInstCmd = &cli.Command{
 	Use:          "UpdateClusterInst",
-	RequiredArgs: strings.Join(append([]string{"region"}, ClusterInstRequiredArgs...), " "),
-	OptionalArgs: strings.Join(ClusterInstOptionalArgs, " "),
+	RequiredArgs: "region " + strings.Join(UpdateClusterInstRequiredArgs, " "),
+	OptionalArgs: strings.Join(UpdateClusterInstOptionalArgs, " "),
 	AliasArgs:    strings.Join(ClusterInstAliasArgs, " "),
 	SpecialArgs:  &ClusterInstSpecialArgs,
 	Comments:     addRegionComment(ClusterInstComments),
@@ -75,7 +77,14 @@ func setUpdateClusterInstFields(in map[string]interface{}) {
 	if !ok {
 		return
 	}
-	objmap["fields"] = cli.GetSpecifiedFields(objmap, &edgeproto.ClusterInst{}, cli.JsonNamespace)
+	fields := cli.GetSpecifiedFields(objmap, &edgeproto.ClusterInst{}, cli.JsonNamespace)
+	// include fields already specified
+	if inFields, found := objmap["fields"]; found {
+		if fieldsArr, ok := inFields.([]string); ok {
+			fields = append(fields, fieldsArr...)
+		}
+	}
+	objmap["fields"] = fields
 }
 
 var ShowClusterInstCmd = &cli.Command{
@@ -98,36 +107,47 @@ var ClusterInstApiCmds = []*cli.Command{
 	ShowClusterInstCmd,
 }
 
+var UpdateClusterInstRequiredArgs = []string{
+	"cluster",
+	"cloudlet-org",
+	"cloudlet",
+	"cluster-org",
+}
+var UpdateClusterInstOptionalArgs = []string{
+	"crmoverride",
+	"numnodes",
+	"autoscalepolicy",
+	"skipcrmcleanuponfailure",
+	"optres",
+}
 var ClusterInstKeyRequiredArgs = []string{}
 var ClusterInstKeyOptionalArgs = []string{
 	"clusterkey.name",
-	"cloudletkey.operatorkey.name",
+	"cloudletkey.organization",
 	"cloudletkey.name",
-	"developer",
+	"organization",
 }
 var ClusterInstKeyAliasArgs = []string{
 	"clusterkey.name=clusterinstkey.clusterkey.name",
-	"cloudletkey.operatorkey.name=clusterinstkey.cloudletkey.operatorkey.name",
+	"cloudletkey.organization=clusterinstkey.cloudletkey.organization",
 	"cloudletkey.name=clusterinstkey.cloudletkey.name",
-	"developer=clusterinstkey.developer",
+	"organization=clusterinstkey.organization",
 }
 var ClusterInstKeyComments = map[string]string{
-	"clusterkey.name":              "Cluster name",
-	"cloudletkey.operatorkey.name": "Company or Organization name of the operator",
-	"cloudletkey.name":             "Name of the cloudlet",
-	"developer":                    "Name of Developer that this cluster belongs to",
+	"clusterkey.name":          "Cluster name",
+	"cloudletkey.organization": "Organization of the cloudlet site",
+	"cloudletkey.name":         "Name of the cloudlet",
+	"organization":             "Name of Developer organization that this cluster belongs to",
 }
 var ClusterInstKeySpecialArgs = map[string]string{}
 var ClusterInstRequiredArgs = []string{
 	"cluster",
-	"operator",
+	"cloudlet-org",
 	"cloudlet",
-	"developer",
+	"cluster-org",
 }
 var ClusterInstOptionalArgs = []string{
 	"flavor",
-	"state",
-	"errors",
 	"crmoverride",
 	"ipaccess",
 	"deployment",
@@ -139,12 +159,15 @@ var ClusterInstOptionalArgs = []string{
 	"reservable",
 	"sharedvolumesize",
 	"privacypolicy",
+	"skipcrmcleanuponfailure",
+	"optres",
 }
 var ClusterInstAliasArgs = []string{
+	"fields=clusterinst.fields",
 	"cluster=clusterinst.key.clusterkey.name",
-	"operator=clusterinst.key.cloudletkey.operatorkey.name",
+	"cloudlet-org=clusterinst.key.cloudletkey.organization",
 	"cloudlet=clusterinst.key.cloudletkey.name",
-	"developer=clusterinst.key.developer",
+	"cluster-org=clusterinst.key.organization",
 	"flavor=clusterinst.flavor.name",
 	"liveness=clusterinst.liveness",
 	"auto=clusterinst.auto",
@@ -169,41 +192,49 @@ var ClusterInstAliasArgs = []string{
 	"reservedby=clusterinst.reservedby",
 	"sharedvolumesize=clusterinst.sharedvolumesize",
 	"privacypolicy=clusterinst.privacypolicy",
+	"masternodeflavor=clusterinst.masternodeflavor",
+	"skipcrmcleanuponfailure=clusterinst.skipcrmcleanuponfailure",
+	"optres=clusterinst.optres",
 }
 var ClusterInstComments = map[string]string{
-	"cluster":            "Cluster name",
-	"operator":           "Company or Organization name of the operator",
-	"cloudlet":           "Name of the cloudlet",
-	"developer":          "Name of Developer that this cluster belongs to",
-	"flavor":             "Flavor name",
-	"liveness":           "Liveness of instance (see Liveness), one of LivenessUnknown, LivenessStatic, LivenessDynamic",
-	"auto":               "Auto is set to true when automatically created by back-end (internal use only)",
-	"state":              "State of the cluster instance, one of TrackedStateUnknown, NotPresent, CreateRequested, Creating, CreateError, Ready, UpdateRequested, Updating, UpdateError, DeleteRequested, Deleting, DeleteError, DeletePrepare, CrmInitok, CreatingDependencies",
-	"errors":             "Any errors trying to create, update, or delete the ClusterInst on the Cloudlet.",
-	"crmoverride":        "Override actions to CRM, one of NoOverride, IgnoreCrmErrors, IgnoreCrm, IgnoreTransientState, IgnoreCrmAndTransientState",
-	"ipaccess":           "IP access type (RootLB Type), one of IpAccessUnknown, IpAccessDedicated, IpAccessShared",
-	"allocatedip":        "Allocated IP for dedicated access",
-	"nodeflavor":         "Cloudlet specific node flavor",
-	"deployment":         "Deployment type (kubernetes or docker)",
-	"nummasters":         "Number of k8s masters (In case of docker deployment, this field is not required)",
-	"numnodes":           "Number of k8s nodes (In case of docker deployment, this field is not required)",
-	"externalvolumesize": "Size of external volume to be attached to nodes.  This is for the root partition",
-	"autoscalepolicy":    "Auto scale policy name",
-	"availabilityzone":   "Optional Resource AZ if any",
-	"imagename":          "Optional resource specific image to launch",
-	"reservable":         "If ClusterInst is reservable",
-	"reservedby":         "For reservable MobiledgeX ClusterInsts, the current developer tenant",
-	"sharedvolumesize":   "Size of an optional shared volume to be mounted on the master",
-	"privacypolicy":      "Optional privacy policy name",
+	"fields":                  "Fields are used for the Update API to specify which fields to apply",
+	"cluster":                 "Cluster name",
+	"cloudlet-org":            "Organization of the cloudlet site",
+	"cloudlet":                "Name of the cloudlet",
+	"cluster-org":             "Name of Developer organization that this cluster belongs to",
+	"flavor":                  "Flavor name",
+	"liveness":                "Liveness of instance (see Liveness), one of LivenessUnknown, LivenessStatic, LivenessDynamic, LivenessAutoprov",
+	"auto":                    "Auto is set to true when automatically created by back-end (internal use only)",
+	"state":                   "State of the cluster instance, one of TrackedStateUnknown, NotPresent, CreateRequested, Creating, CreateError, Ready, UpdateRequested, Updating, UpdateError, DeleteRequested, Deleting, DeleteError, DeletePrepare, CrmInitok, CreatingDependencies",
+	"errors":                  "Any errors trying to create, update, or delete the ClusterInst on the Cloudlet.",
+	"crmoverride":             "Override actions to CRM, one of NoOverride, IgnoreCrmErrors, IgnoreCrm, IgnoreTransientState, IgnoreCrmAndTransientState",
+	"ipaccess":                "IP access type (RootLB Type), one of IpAccessUnknown, IpAccessDedicated, IpAccessShared",
+	"allocatedip":             "Allocated IP for dedicated access",
+	"nodeflavor":              "Cloudlet specific node flavor",
+	"deployment":              "Deployment type (kubernetes or docker)",
+	"nummasters":              "Number of k8s masters (In case of docker deployment, this field is not required)",
+	"numnodes":                "Number of k8s nodes (In case of docker deployment, this field is not required)",
+	"externalvolumesize":      "Size of external volume to be attached to nodes.  This is for the root partition",
+	"autoscalepolicy":         "Auto scale policy name",
+	"availabilityzone":        "Optional Resource AZ if any",
+	"imagename":               "Optional resource specific image to launch",
+	"reservable":              "If ClusterInst is reservable",
+	"reservedby":              "For reservable MobiledgeX ClusterInsts, the current developer tenant",
+	"sharedvolumesize":        "Size of an optional shared volume to be mounted on the master",
+	"privacypolicy":           "Optional privacy policy name",
+	"masternodeflavor":        "Generic flavor for k8s master VM when worker nodes > 0",
+	"skipcrmcleanuponfailure": "Prevents cleanup of resources on failure within CRM, used for diagnostic purposes",
+	"optres":                  "Optional Resources required by OS flavor if any",
 }
 var ClusterInstSpecialArgs = map[string]string{
-	"errors": "StringArray",
+	"clusterinst.errors": "StringArray",
+	"clusterinst.fields": "StringArray",
 }
 var ClusterInstInfoRequiredArgs = []string{
 	"key.clusterkey.name",
-	"key.cloudletkey.operatorkey.name",
+	"key.cloudletkey.organization",
 	"key.cloudletkey.name",
-	"key.developer",
+	"key.organization",
 }
 var ClusterInstInfoOptionalArgs = []string{
 	"notifyid",
@@ -215,10 +246,11 @@ var ClusterInstInfoOptionalArgs = []string{
 	"status.stepname",
 }
 var ClusterInstInfoAliasArgs = []string{
+	"fields=clusterinstinfo.fields",
 	"key.clusterkey.name=clusterinstinfo.key.clusterkey.name",
-	"key.cloudletkey.operatorkey.name=clusterinstinfo.key.cloudletkey.operatorkey.name",
+	"key.cloudletkey.organization=clusterinstinfo.key.cloudletkey.organization",
 	"key.cloudletkey.name=clusterinstinfo.key.cloudletkey.name",
-	"key.developer=clusterinstinfo.key.developer",
+	"key.organization=clusterinstinfo.key.organization",
 	"notifyid=clusterinstinfo.notifyid",
 	"state=clusterinstinfo.state",
 	"errors=clusterinstinfo.errors",
@@ -228,14 +260,16 @@ var ClusterInstInfoAliasArgs = []string{
 	"status.stepname=clusterinstinfo.status.stepname",
 }
 var ClusterInstInfoComments = map[string]string{
-	"key.clusterkey.name":              "Cluster name",
-	"key.cloudletkey.operatorkey.name": "Company or Organization name of the operator",
-	"key.cloudletkey.name":             "Name of the cloudlet",
-	"key.developer":                    "Name of Developer that this cluster belongs to",
-	"notifyid":                         "Id of client assigned by server (internal use only)",
-	"state":                            "State of the cluster instance, one of TrackedStateUnknown, NotPresent, CreateRequested, Creating, CreateError, Ready, UpdateRequested, Updating, UpdateError, DeleteRequested, Deleting, DeleteError, DeletePrepare, CrmInitok, CreatingDependencies",
-	"errors":                           "Any errors trying to create, update, or delete the ClusterInst on the Cloudlet.",
+	"fields":                       "Fields are used for the Update API to specify which fields to apply",
+	"key.clusterkey.name":          "Cluster name",
+	"key.cloudletkey.organization": "Organization of the cloudlet site",
+	"key.cloudletkey.name":         "Name of the cloudlet",
+	"key.organization":             "Name of Developer organization that this cluster belongs to",
+	"notifyid":                     "Id of client assigned by server (internal use only)",
+	"state":                        "State of the cluster instance, one of TrackedStateUnknown, NotPresent, CreateRequested, Creating, CreateError, Ready, UpdateRequested, Updating, UpdateError, DeleteRequested, Deleting, DeleteError, DeletePrepare, CrmInitok, CreatingDependencies",
+	"errors":                       "Any errors trying to create, update, or delete the ClusterInst on the Cloudlet.",
 }
 var ClusterInstInfoSpecialArgs = map[string]string{
-	"errors": "StringArray",
+	"clusterinstinfo.errors": "StringArray",
+	"clusterinstinfo.fields": "StringArray",
 }

@@ -8,7 +8,7 @@ openstack_instance=bonn
 dme_carrier=TDG
 locver_url="http://mexdemo.locsim.mobiledgex.net:8888/verifyLocation"
 toksrv_url="http://mexdemo.tok.mobiledgex.net:9999/its?followURL=https://dme.mobiledgex.net/verifyLoc"
-vault_vm_hostname=vault-main.mobiledgex.net
+vault_vm_hostname=vault-dev.mobiledgex.net
 vault_port=443
 postgres_hostname=postgres-dev.mobiledgex.net
 gitlab_vm_hostname=gitlab-dev.mobiledgex.net
@@ -19,9 +19,15 @@ gitlab_email_enabled=false
 gitlab_slack_notifications=false
 gitlab_docker_hostname="docker-{{ deploy_environ }}.mobiledgex.net"
 azure_volume_storage_class=default
-influxdb_volume_size=1Gi
+influxdb_volume_size=2Gi
 vault_firewall_setup=no
 vault_ha_domain="vault-{{ deploy_environ }}.mobiledgex.net"
+console_prod=no
+alertmanager_hostname=alertmanager-{{ deploy_environ }}.mobiledgex.net
+influxdb_backup_disabled=true
+
+[notifyroot]
+notifyroot-dev.mobiledgex.net
 
 [platform]
 localhost	ansible_connection=local
@@ -38,3 +44,12 @@ vault-dev-b.mobiledgex.net
 
 [console]
 console-dev.mobiledgex.net
+
+[jaeger]
+jaeger-dev.mobiledgex.net	nginx_config_filename=jaeger jaeger_ui_port=8443
+
+[alertmanager]
+alertmanager-dev.mobiledgex.net
+
+[esproxy]
+events-dev.es.mobiledgex.net

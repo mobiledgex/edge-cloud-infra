@@ -1,0 +1,9 @@
+- name: Look up azure creds in vault
+  set_fact:
+    vault_lookup: "{{ lookup('vault', azure_account_path) }}"
+
+- set_fact:
+    azure_tenant_id: "{{ vault_lookup.azure.data.tenant_id }}"
+    azure_terraform_service_principal_id: "{{ vault_lookup.azure.data.terraform_service_principal_id }}"
+    azure_terraform_service_principal_secret: "{{ vault_lookup.azure.data.terraform_service_principal_secret }}"
+    azure_subscription_id: "{{ vault_lookup.azure.data.subscription_id }}"

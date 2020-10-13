@@ -3,13 +3,15 @@
 
 package ormapi
 
-import edgeproto "github.com/mobiledgex/edge-cloud/edgeproto"
-import proto "github.com/gogo/protobuf/proto"
-import fmt "fmt"
-import math "math"
-import _ "github.com/gogo/googleapis/google/api"
-import _ "github.com/mobiledgex/edge-cloud/protogen"
-import _ "github.com/gogo/protobuf/gogoproto"
+import (
+	fmt "fmt"
+	_ "github.com/gogo/googleapis/google/api"
+	_ "github.com/gogo/protobuf/gogoproto"
+	proto "github.com/gogo/protobuf/proto"
+	edgeproto "github.com/mobiledgex/edge-cloud/edgeproto"
+	_ "github.com/mobiledgex/edge-cloud/protogen"
+	math "math"
+)
 
 // Reference imports to suppress errors if they are not otherwise used.
 var _ = proto.Marshal
@@ -39,6 +41,13 @@ type swaggerDeleteCloudletPool struct {
 	Body RegionCloudletPool
 }
 
+// Request summary for UpdateCloudletPool
+// swagger:parameters UpdateCloudletPool
+type swaggerUpdateCloudletPool struct {
+	// in: body
+	Body RegionCloudletPool
+}
+
 // Request summary for ShowCloudletPool
 // swagger:parameters ShowCloudletPool
 type swaggerShowCloudletPool struct {
@@ -46,9 +55,9 @@ type swaggerShowCloudletPool struct {
 	Body RegionCloudletPool
 }
 
-// Request summary for CreateCloudletPoolMember
-// swagger:parameters CreateCloudletPoolMember
-type swaggerCreateCloudletPoolMember struct {
+// Request summary for AddCloudletPoolMember
+// swagger:parameters AddCloudletPoolMember
+type swaggerAddCloudletPoolMember struct {
 	// in: body
 	Body RegionCloudletPoolMember
 }
@@ -60,44 +69,9 @@ type RegionCloudletPoolMember struct {
 	CloudletPoolMember edgeproto.CloudletPoolMember
 }
 
-// Request summary for DeleteCloudletPoolMember
-// swagger:parameters DeleteCloudletPoolMember
-type swaggerDeleteCloudletPoolMember struct {
+// Request summary for RemoveCloudletPoolMember
+// swagger:parameters RemoveCloudletPoolMember
+type swaggerRemoveCloudletPoolMember struct {
 	// in: body
 	Body RegionCloudletPoolMember
-}
-
-// Request summary for ShowCloudletPoolMember
-// swagger:parameters ShowCloudletPoolMember
-type swaggerShowCloudletPoolMember struct {
-	// in: body
-	Body RegionCloudletPoolMember
-}
-
-// Request summary for ShowPoolsForCloudlet
-// swagger:parameters ShowPoolsForCloudlet
-type swaggerShowPoolsForCloudlet struct {
-	// in: body
-	Body RegionCloudletKey
-}
-
-type RegionCloudletKey struct {
-	// required: true
-	// Region name
-	Region      string
-	CloudletKey edgeproto.CloudletKey
-}
-
-// Request summary for ShowCloudletsForPool
-// swagger:parameters ShowCloudletsForPool
-type swaggerShowCloudletsForPool struct {
-	// in: body
-	Body RegionCloudletPoolKey
-}
-
-type RegionCloudletPoolKey struct {
-	// required: true
-	// Region name
-	Region          string
-	CloudletPoolKey edgeproto.CloudletPoolKey
 }

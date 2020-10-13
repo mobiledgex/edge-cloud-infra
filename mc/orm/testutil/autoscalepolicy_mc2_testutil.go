@@ -3,17 +3,18 @@
 
 package testutil
 
-import edgeproto "github.com/mobiledgex/edge-cloud/edgeproto"
-import "os"
-import "github.com/mobiledgex/edge-cloud-infra/mc/ormclient"
-import "github.com/mobiledgex/edge-cloud-infra/mc/ormapi"
-import "github.com/mobiledgex/edge-cloud/cli"
-import proto "github.com/gogo/protobuf/proto"
-import fmt "fmt"
-import math "math"
-import _ "github.com/gogo/googleapis/google/api"
-import _ "github.com/mobiledgex/edge-cloud/protogen"
-import _ "github.com/gogo/protobuf/gogoproto"
+import (
+	"context"
+	fmt "fmt"
+	_ "github.com/gogo/googleapis/google/api"
+	_ "github.com/gogo/protobuf/gogoproto"
+	proto "github.com/gogo/protobuf/proto"
+	"github.com/mobiledgex/edge-cloud-infra/mc/ormapi"
+	"github.com/mobiledgex/edge-cloud-infra/mc/ormclient"
+	edgeproto "github.com/mobiledgex/edge-cloud/edgeproto"
+	_ "github.com/mobiledgex/edge-cloud/protogen"
+	math "math"
+)
 
 // Reference imports to suppress errors if they are not otherwise used.
 var _ = proto.Marshal
@@ -22,78 +23,110 @@ var _ = math.Inf
 
 // Auto-generated code: DO NOT EDIT
 
-func TestCreateAutoScalePolicy(mcClient *ormclient.Client, uri, token, region string, in *edgeproto.AutoScalePolicy) (*edgeproto.Result, int, error) {
+func TestCreateAutoScalePolicy(mcClient *ormclient.Client, uri, token, region string, in *edgeproto.AutoScalePolicy, modFuncs ...func(*edgeproto.AutoScalePolicy)) (*edgeproto.Result, int, error) {
 	dat := &ormapi.RegionAutoScalePolicy{}
 	dat.Region = region
 	dat.AutoScalePolicy = *in
+	for _, fn := range modFuncs {
+		fn(&dat.AutoScalePolicy)
+	}
 	return mcClient.CreateAutoScalePolicy(uri, token, dat)
 }
-func TestPermCreateAutoScalePolicy(mcClient *ormclient.Client, uri, token, region, org string) (*edgeproto.Result, int, error) {
+func TestPermCreateAutoScalePolicy(mcClient *ormclient.Client, uri, token, region, org string, modFuncs ...func(*edgeproto.AutoScalePolicy)) (*edgeproto.Result, int, error) {
 	in := &edgeproto.AutoScalePolicy{}
-	in.Key.Developer = org
-	return TestCreateAutoScalePolicy(mcClient, uri, token, region, in)
+	in.Key.Organization = org
+	return TestCreateAutoScalePolicy(mcClient, uri, token, region, in, modFuncs...)
 }
 
-func TestDeleteAutoScalePolicy(mcClient *ormclient.Client, uri, token, region string, in *edgeproto.AutoScalePolicy) (*edgeproto.Result, int, error) {
+func TestDeleteAutoScalePolicy(mcClient *ormclient.Client, uri, token, region string, in *edgeproto.AutoScalePolicy, modFuncs ...func(*edgeproto.AutoScalePolicy)) (*edgeproto.Result, int, error) {
 	dat := &ormapi.RegionAutoScalePolicy{}
 	dat.Region = region
 	dat.AutoScalePolicy = *in
+	for _, fn := range modFuncs {
+		fn(&dat.AutoScalePolicy)
+	}
 	return mcClient.DeleteAutoScalePolicy(uri, token, dat)
 }
-func TestPermDeleteAutoScalePolicy(mcClient *ormclient.Client, uri, token, region, org string) (*edgeproto.Result, int, error) {
+func TestPermDeleteAutoScalePolicy(mcClient *ormclient.Client, uri, token, region, org string, modFuncs ...func(*edgeproto.AutoScalePolicy)) (*edgeproto.Result, int, error) {
 	in := &edgeproto.AutoScalePolicy{}
-	in.Key.Developer = org
-	return TestDeleteAutoScalePolicy(mcClient, uri, token, region, in)
+	in.Key.Organization = org
+	return TestDeleteAutoScalePolicy(mcClient, uri, token, region, in, modFuncs...)
 }
 
-func TestUpdateAutoScalePolicy(mcClient *ormclient.Client, uri, token, region string, in *edgeproto.AutoScalePolicy) (*edgeproto.Result, int, error) {
+func TestUpdateAutoScalePolicy(mcClient *ormclient.Client, uri, token, region string, in *edgeproto.AutoScalePolicy, modFuncs ...func(*edgeproto.AutoScalePolicy)) (*edgeproto.Result, int, error) {
 	dat := &ormapi.RegionAutoScalePolicy{}
 	dat.Region = region
 	dat.AutoScalePolicy = *in
+	for _, fn := range modFuncs {
+		fn(&dat.AutoScalePolicy)
+	}
 	return mcClient.UpdateAutoScalePolicy(uri, token, dat)
 }
-func TestPermUpdateAutoScalePolicy(mcClient *ormclient.Client, uri, token, region, org string) (*edgeproto.Result, int, error) {
+func TestPermUpdateAutoScalePolicy(mcClient *ormclient.Client, uri, token, region, org string, modFuncs ...func(*edgeproto.AutoScalePolicy)) (*edgeproto.Result, int, error) {
 	in := &edgeproto.AutoScalePolicy{}
-	in.Key.Developer = org
-	return TestUpdateAutoScalePolicy(mcClient, uri, token, region, in)
+	in.Key.Organization = org
+	return TestUpdateAutoScalePolicy(mcClient, uri, token, region, in, modFuncs...)
 }
 
-func TestShowAutoScalePolicy(mcClient *ormclient.Client, uri, token, region string, in *edgeproto.AutoScalePolicy) ([]edgeproto.AutoScalePolicy, int, error) {
+func TestShowAutoScalePolicy(mcClient *ormclient.Client, uri, token, region string, in *edgeproto.AutoScalePolicy, modFuncs ...func(*edgeproto.AutoScalePolicy)) ([]edgeproto.AutoScalePolicy, int, error) {
 	dat := &ormapi.RegionAutoScalePolicy{}
 	dat.Region = region
 	dat.AutoScalePolicy = *in
+	for _, fn := range modFuncs {
+		fn(&dat.AutoScalePolicy)
+	}
 	return mcClient.ShowAutoScalePolicy(uri, token, dat)
 }
-func TestPermShowAutoScalePolicy(mcClient *ormclient.Client, uri, token, region, org string) ([]edgeproto.AutoScalePolicy, int, error) {
+func TestPermShowAutoScalePolicy(mcClient *ormclient.Client, uri, token, region, org string, modFuncs ...func(*edgeproto.AutoScalePolicy)) ([]edgeproto.AutoScalePolicy, int, error) {
 	in := &edgeproto.AutoScalePolicy{}
-	in.Key.Developer = org
-	return TestShowAutoScalePolicy(mcClient, uri, token, region, in)
+	in.Key.Organization = org
+	return TestShowAutoScalePolicy(mcClient, uri, token, region, in, modFuncs...)
 }
 
-func RunMcAutoScalePolicyApi(mcClient ormclient.Api, uri, token, region string, data *[]edgeproto.AutoScalePolicy, dataMap interface{}, rc *bool, mode string) {
-	for ii, autoScalePolicy := range *data {
-		in := &ormapi.RegionAutoScalePolicy{
-			Region:          region,
-			AutoScalePolicy: autoScalePolicy,
-		}
-		switch mode {
-		case "create":
-			_, st, err := mcClient.CreateAutoScalePolicy(uri, token, in)
-			checkMcErr("CreateAutoScalePolicy", st, err, rc)
-		case "delete":
-			_, st, err := mcClient.DeleteAutoScalePolicy(uri, token, in)
-			checkMcErr("DeleteAutoScalePolicy", st, err, rc)
-		case "update":
-			objMap, err := cli.GetGenericObjFromList(dataMap, ii)
-			if err != nil {
-				fmt.Fprintf(os.Stderr, "bad dataMap for AutoScalePolicy: %v", err)
-				os.Exit(1)
-			}
-			in.AutoScalePolicy.Fields = cli.GetSpecifiedFields(objMap, &in.AutoScalePolicy, cli.YamlNamespace)
-			_, st, err := mcClient.UpdateAutoScalePolicy(uri, token, in)
-			checkMcErr("UpdateAutoScalePolicy", st, err, rc)
-		default:
-			return
-		}
+func (s *TestClient) CreateAutoScalePolicy(ctx context.Context, in *edgeproto.AutoScalePolicy) (*edgeproto.Result, error) {
+	inR := &ormapi.RegionAutoScalePolicy{
+		Region:          s.Region,
+		AutoScalePolicy: *in,
 	}
+	out, status, err := s.McClient.CreateAutoScalePolicy(s.Uri, s.Token, inR)
+	if err == nil && status != 200 {
+		err = fmt.Errorf("status: %d\n", status)
+	}
+	return out, err
+}
+
+func (s *TestClient) DeleteAutoScalePolicy(ctx context.Context, in *edgeproto.AutoScalePolicy) (*edgeproto.Result, error) {
+	inR := &ormapi.RegionAutoScalePolicy{
+		Region:          s.Region,
+		AutoScalePolicy: *in,
+	}
+	out, status, err := s.McClient.DeleteAutoScalePolicy(s.Uri, s.Token, inR)
+	if err == nil && status != 200 {
+		err = fmt.Errorf("status: %d\n", status)
+	}
+	return out, err
+}
+
+func (s *TestClient) UpdateAutoScalePolicy(ctx context.Context, in *edgeproto.AutoScalePolicy) (*edgeproto.Result, error) {
+	inR := &ormapi.RegionAutoScalePolicy{
+		Region:          s.Region,
+		AutoScalePolicy: *in,
+	}
+	out, status, err := s.McClient.UpdateAutoScalePolicy(s.Uri, s.Token, inR)
+	if err == nil && status != 200 {
+		err = fmt.Errorf("status: %d\n", status)
+	}
+	return out, err
+}
+
+func (s *TestClient) ShowAutoScalePolicy(ctx context.Context, in *edgeproto.AutoScalePolicy) ([]edgeproto.AutoScalePolicy, error) {
+	inR := &ormapi.RegionAutoScalePolicy{
+		Region:          s.Region,
+		AutoScalePolicy: *in,
+	}
+	out, status, err := s.McClient.ShowAutoScalePolicy(s.Uri, s.Token, inR)
+	if err == nil && status != 200 {
+		err = fmt.Errorf("status: %d\n", status)
+	}
+	return out, err
 }

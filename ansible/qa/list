@@ -11,7 +11,7 @@ crm_vm_hostname=crm-{{ deploy_environ }}.mobiledgex.net
 console_vm_hostname=console-{{ deploy_environ }}.mobiledgex.net
 postgres_hostname=postgres-{{ deploy_environ }}.mobiledgex.net
 azure_volume_storage_class=default
-influxdb_volume_size=5Gi
+influxdb_volume_size=10Gi
 vault_vm_hostname=vault-{{ deploy_environ }}.mobiledgex.net
 vault_ha_domain="vault-{{ deploy_environ }}.mobiledgex.net"
 vault_port=443
@@ -23,6 +23,12 @@ toksrv_url="http://mexdemo.tok.mobiledgex.net:9999/its?followURL=https://dme.mob
 dme_carrier=TDG
 operator_key=TDG
 deploy_target="mexplat-{{ deploy_environ }}"
+console_prod=no
+alertmanager_hostname=alertmanager-{{ deploy_environ }}.mobiledgex.net
+influxdb_backup_disabled=true
+
+[notifyroot]
+notifyroot-qa.mobiledgex.net
 
 [platform]
 localhost	ansible_connection=local
@@ -45,3 +51,12 @@ vault-qa-b.mobiledgex.net
 
 [artifactory]
 artifactory-qa.mobiledgex.net
+
+[jaeger]
+jaeger-qa.mobiledgex.net	nginx_config_filename=jaeger jaeger_ui_port=8443
+
+[alertmanager]
+alertmanager-qa.mobiledgex.net
+
+[esproxy]
+events-qa.es.mobiledgex.net

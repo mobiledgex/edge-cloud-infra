@@ -11,14 +11,17 @@ import (
 
 	"github.com/gogo/protobuf/types"
 	"github.com/mobiledgex/edge-cloud-infra/shepherd/shepherd_common"
-	"github.com/mobiledgex/edge-cloud/cloud-resource-manager/k8smgmt"
-	"github.com/mobiledgex/edge-cloud/cloud-resource-manager/platform/pc"
 	"github.com/mobiledgex/edge-cloud/edgeproto"
 	"github.com/mobiledgex/edge-cloud/log"
+	"github.com/mobiledgex/edge-cloud/util"
+	ssh "github.com/mobiledgex/golang-ssh"
 )
 
-var dockerStatsFormat = `"{\"container\":\"{{.Name}}\",\"memory\":{\"raw\":\"{{.MemUsage}}\",\"percent\":\"{{.MemPerc}}\"},\"cpu\":\"{{.CPUPerc}}\",\"io\":{\"network\":\"{{.NetIO}}\",\"block\":\"{{.BlockIO}}\"}}"`
+var dockerStatsFormat = `"{\"container\":\"{{.Name}}\",\"id\":\"{{.ID}}\",\"memory\":{\"raw\":\"{{.MemUsage}}\",\"percent\":\"{{.MemPerc}}\"},\"cpu\":\"{{.CPUPerc}}\",\"io\":{\"network\":\"{{.NetIO}}\",\"block\":\"{{.BlockIO}}\"}}"`
 var dockerStatsCmd = "docker stats --no-stream --format " + dockerStatsFormat
+
+var dockerPsFormat = `"{\"container\":\"{{.Names}}\",\"id\":\"{{.ID}}\",\"disk\":\"{{.Size}}\"}"`
+var dockerPsSizeCmd = "docker ps -s --format " + dockerPsFormat
 
 type ContainerMem struct {
 	Raw     string
@@ -29,7 +32,9 @@ type ContainerIO struct {
 	Block   string
 }
 type ContainerStats struct {
-	App       string
+	App       string `json:"app,omitempty"`
+	Id        string `json:"id,omitempty"`
+	Version   string `json:"version,omitempty"`
 	Container string
 	Memory    ContainerMem
 	Cpu       string
@@ -40,10 +45,17 @@ type DockerStats struct {
 	Containers []ContainerStats
 }
 
+type ContainerSize struct {
+	Container string `json:"container,omitempty"`
+	Id        string `json:"id,omitempty"`
+	Disk      string `json:"disk,omitempty"`
+}
+
 // Docker Cluster
 type DockerClusterStats struct {
-	key    edgeproto.ClusterInstKey
-	client pc.PlatformClient
+	key           edgeproto.ClusterInstKey
+	client        ssh.Client
+	clusterClient ssh.Client
 	shepherd_common.ClusterMetrics
 }
 
@@ -58,7 +70,7 @@ func (c *DockerClusterStats) GetClusterStats(ctx context.Context) *shepherd_comm
 // Currently we are collecting stats for all apps in the cluster in one shot
 // Implementing  EDGECLOUD-1183 would allow us to query by label and we can have each app be an individual metric
 func (c *DockerClusterStats) GetAppStats(ctx context.Context) map[shepherd_common.MetricAppInstKey]*shepherd_common.AppMetrics {
-	metrics := collectDockerAppMetrics(ctx, c)
+	metrics := c.collectDockerAppMetrics(ctx, c)
 	if metrics == nil {
 		log.SpanLog(ctx, log.DebugLevelMetrics, "Could not collect app metrics", "Docker Container", c)
 	}
@@ -69,15 +81,23 @@ func (c *DockerClusterStats) GetAppStats(ctx context.Context) map[shepherd_commo
 // Container stats give a list of all AppInst containers
 // Walk the appInst cache for a given clusterInst and match to the container_ids
 func (c *DockerClusterStats) GetContainerStats(ctx context.Context) (*DockerStats, error) {
-	containers := make(map[string]ContainerStats)
-	resp, err := c.client.Output(dockerStatsCmd)
+	containers := make(map[string]*ContainerStats)
+	respLB, err := c.client.Output(dockerStatsCmd)
 	if err != nil {
-		errstr := fmt.Sprintf("Failed to run <%s>", dockerStatsCmd)
+		errstr := fmt.Sprintf("Failed to run <%s> on LB VM", dockerStatsCmd)
+		log.SpanLog(ctx, log.DebugLevelMetrics, errstr, "err", err.Error())
+		return nil, err
+	}
+	respVM, err := c.clusterClient.Output(dockerStatsCmd) // check the VM for LoadBalancer docker apps
+	if err != nil {
+		errstr := fmt.Sprintf("Failed to run <%s> on ClusterVM", dockerStatsCmd)
 		log.SpanLog(ctx, log.DebugLevelMetrics, errstr, "err", err.Error())
 		return nil, err
 	}
 	dockerResp := &DockerStats{}
-	stats := strings.Split(resp, "\n")
+	stats := strings.Split(respLB, "\n")
+	statsVM := strings.Split(respVM, "\n")
+	stats = append(stats, statsVM...)
 	for _, stat := range stats {
 		if stat == "" {
 			// last string is an empty string
@@ -89,7 +109,7 @@ func (c *DockerClusterStats) GetContainerStats(ctx context.Context) (*DockerStat
 			continue
 		}
 		// save results in a hash based on the container name
-		containers[containerStat.Container] = containerStat
+		containers[containerStat.Container] = &containerStat
 	}
 
 	// Walk AppInstCache with a filter and add appName
@@ -99,13 +119,17 @@ func (c *DockerClusterStats) GetContainerStats(ctx context.Context) (*DockerStat
 		},
 	}
 	err = AppInstCache.Show(&filter, func(obj *edgeproto.AppInst) error {
-		var cData ContainerStats
+		var cData *ContainerStats
 		var found bool
+
 		for _, cID := range obj.RuntimeInfo.ContainerIds {
 			cData, found = containers[cID]
+
 			if found {
-				cData.App = obj.Key.AppKey.Name
-				dockerResp.Containers = append(dockerResp.Containers, cData)
+				cData.App = util.DNSSanitize(obj.Key.AppKey.Name)
+				cData.Version = util.DNSSanitize(obj.Key.AppKey.Version)
+				dockerResp.Containers = append(dockerResp.Containers, *cData)
+
 			}
 		}
 		return nil
@@ -113,7 +137,9 @@ func (c *DockerClusterStats) GetContainerStats(ctx context.Context) (*DockerStat
 	// Keep track of those containers not associated with any App, just in case
 	for _, container := range containers {
 		if container.App == "" {
-			dockerResp.Containers = append(dockerResp.Containers, container)
+			// container and app are the same here
+			container.App = util.DNSSanitize(container.Container)
+			dockerResp.Containers = append(dockerResp.Containers, *container)
 		}
 	}
 	return dockerResp, nil
@@ -125,6 +151,30 @@ func parsePercentStr(pStr string) (float64, error) {
 		return 0, fmt.Errorf("Invalid percentage string")
 	}
 	return strconv.ParseFloat(pStr[:i], 64)
+}
+
+// This looks like this:
+// $ cat /proc/$CONTAINER_PID/net/dev | grep ens
+//Inter-|   Receive                                                |  Transmit
+//  ens3: 448842077 3084030    0    0    0     0          0         0 514882026 2675536    0    0    0     0       0          0
+func parseNetData(dataStr string) ([]uint64, error) {
+	var items []uint64
+	details := strings.Fields(dataStr)
+	// second element is recv and 9th element is tx
+	if len(details) < 10 {
+		return nil, fmt.Errorf("Improperly formatted output - %s", dataStr)
+	}
+	if t, err := strconv.ParseUint(details[1], 10, 64); err == nil {
+		items = append(items, t)
+	} else {
+		return nil, fmt.Errorf("Could not parse recv bytes - %s", details[1])
+	}
+	if t, err := strconv.ParseUint(details[9], 10, 64); err == nil {
+		items = append(items, t)
+	} else {
+		return nil, fmt.Errorf("Could not parse send bytes - %s", details[9])
+	}
+	return items, nil
 }
 
 // parse data in the format "1.629MiB / 1.952GiB / 12KB / 12B" into [1.629* 1000000, 1.952 * 1000000000, 12*1000 , 12]
@@ -164,7 +214,7 @@ func parseComputeUnitsDelim(ctx context.Context, dataStr string) ([]uint64, erro
 		case 'g':
 			fallthrough
 		case 'G':
-			scale = 1024 * 1024
+			scale = 1024 * 1024 * 1024
 		default:
 			log.SpanLog(ctx, log.DebugLevelMetrics, "Unknown Unit string", "units", v[i])
 			continue
@@ -180,12 +230,75 @@ func parseComputeUnitsDelim(ctx context.Context, dataStr string) ([]uint64, erro
 	return items, nil
 }
 
+// Example format: "0B (virtual 332.1GB)"
+func parseContainerDiskUsage(ctx context.Context, diskStr string) (uint64, error) {
+	var writeDisk, virtDisk string
+	// getting just a virtual disk size for the grand total
+	n, err := fmt.Sscanf(diskStr, "%s (virtual %s", &writeDisk, &virtDisk)
+	if err != nil || n < 2 {
+		log.SpanLog(ctx, log.DebugLevelMetrics, "Failed to parse disk usage",
+			"diskStr", diskStr, "err", err.Error())
+		return 0, fmt.Errorf("Failed to parse disk usage - %v", err)
+	}
+	// remove trailing )
+	virtDisk = strings.TrimSuffix(virtDisk, ")")
+	diskBytes, err := parseComputeUnitsDelim(ctx, virtDisk)
+	if err != nil || len(diskBytes) != 1 {
+		log.SpanLog(ctx, log.DebugLevelMetrics, "Failed to parse disk bytes", "virtDisk", virtDisk,
+			"diskStr", diskStr, "err", err.Error())
+		return 0, fmt.Errorf("Failed to parse disk Units - %v", err)
+	}
+	return diskBytes[0], nil
+}
+
+// get disk stats from containers and convert them into a readable format
+func (c *DockerClusterStats) GetContainerDiskUsage(ctx context.Context) (map[string]uint64, error) {
+	containers := make(map[string]uint64)
+	respLB, err := c.client.Output(dockerPsSizeCmd)
+	if err != nil {
+		errstr := fmt.Sprintf("Failed to run <%s> on LB VM", dockerPsSizeCmd)
+		log.SpanLog(ctx, log.DebugLevelMetrics, errstr, "err", err.Error())
+		return nil, err
+	}
+	respVM, err := c.clusterClient.Output(dockerPsSizeCmd) // check the VM for LoadBalancer docker apps
+	if err != nil {
+		errstr := fmt.Sprintf("Failed to run <%s> on ClusterVM", dockerPsSizeCmd)
+		log.SpanLog(ctx, log.DebugLevelMetrics, errstr, "err", err.Error())
+		return nil, err
+	}
+
+	stats := strings.Split(respLB, "\n")
+	statsVM := strings.Split(respVM, "\n")
+	stats = append(stats, statsVM...)
+	for _, stat := range stats {
+		if stat == "" {
+			// last string is an empty string
+			continue
+		}
+		containerDisk := ContainerSize{}
+		if err = json.Unmarshal([]byte(stat), &containerDisk); err != nil {
+			log.SpanLog(ctx, log.DebugLevelMetrics, "Failed to marshal disk usage", "stats", stat, "err", err.Error())
+			continue
+		}
+		// Convert the Disk string into uint64 and
+		// save results in a hash keyed on the container id
+		if diskSize, err := parseContainerDiskUsage(ctx, containerDisk.Disk); err == nil {
+			containers[containerDisk.Id] = diskSize
+		} else {
+			log.SpanLog(ctx, log.DebugLevelMetrics, "Failed to parse disk bytes",
+				"diskStr", containerDisk.Disk, "err", err)
+		}
+	}
+	return containers, nil
+}
+
 // This is a helper function to get docker container statistics.
-// Currntly it runs "docker stats" on rootLB and gets coarse stats from the resource utilization
-// If a more detailed reource usage is needed /containers/(id)/stats API endpoint should be used
+// Currently it runs "docker stats" on rootLB and gets coarse stats from the resource utilization
+// If a more detailed resource usage is needed /containers/(id)/stats API endpoint should be used
 // To get to the API endpoint on a rootLB netcat can be used:
 //   $ echo -e "GET /containers/mobiledgexsdkdemo/stats?stream=0 HTTP/1.0\r\n" | nc -q -1 -U /var/run/docker.sock | grep "^{" | jq
-func collectDockerAppMetrics(ctx context.Context, p *DockerClusterStats) map[shepherd_common.MetricAppInstKey]*shepherd_common.AppMetrics {
+func (c *DockerClusterStats) collectDockerAppMetrics(ctx context.Context, p *DockerClusterStats) map[shepherd_common.MetricAppInstKey]*shepherd_common.AppMetrics {
+	var diskUsageMap map[string]uint64 // map of container id to virtual disk used
 	appStatsMap := make(map[shepherd_common.MetricAppInstKey]*shepherd_common.AppMetrics)
 
 	stats, err := p.GetContainerStats(ctx)
@@ -193,7 +306,14 @@ func collectDockerAppMetrics(ctx context.Context, p *DockerClusterStats) map[she
 		log.SpanLog(ctx, log.DebugLevelMetrics, "Failed to collect App stats for docker cluster", "err", err)
 		return nil
 	}
+	diskUsageMap, err = p.GetContainerDiskUsage(ctx)
+	if err != nil {
+		log.SpanLog(ctx, log.DebugLevelMetrics, "Failed to collect Disk usage stats for docker containers", "err", err)
+		// we can still collect other metrics, so just init this to an empty map
+		diskUsageMap = make(map[string]uint64)
+	}
 
+	log.SpanLog(ctx, log.DebugLevelMetrics, "Docker stats", "stats", stats)
 	appKey := shepherd_common.MetricAppInstKey{
 		ClusterInstKey: p.key,
 	}
@@ -201,12 +321,12 @@ func collectDockerAppMetrics(ctx context.Context, p *DockerClusterStats) map[she
 	// We scraped it at the same time, so same timestamp for everything
 	ts, _ := types.TimestampProto(time.Now())
 	for _, containerStats := range stats.Containers {
-		// EDGECLOUD-1183  - once done we should not normalize the name
-		appKey.Pod = k8smgmt.NormalizeName(containerStats.App)
-		// TODO EDGECLOUD-1316 - for now keep pod same as containerID
-		if containerStats.App == "" {
-			appKey.Pod = k8smgmt.NormalizeName(containerStats.Container)
-		}
+		log.SpanLog(ctx, log.DebugLevelMetrics, "Docker stats - container", "container", containerStats)
+		// TODO EDGECLOUD-1316 - set pod to the container
+		// appKey.Pod = containerStats.Container
+		appKey.Pod = containerStats.App
+		appKey.App = containerStats.App
+		appKey.Version = containerStats.Version
 		stat, found := appStatsMap[appKey]
 		if !found {
 			stat = &shepherd_common.AppMetrics{}
@@ -230,18 +350,36 @@ func collectDockerAppMetrics(ctx context.Context, p *DockerClusterStats) map[she
 			// TODO EDGECLOUD-1316 - add stats for all containers together
 			stat.Mem += memData[0]
 		}
-		// Disk usage is unsupported
-		stat.Disk = 0
-		netIO, err := parseComputeUnitsDelim(ctx, containerStats.IO.Network)
+		// Add disk usage from the usage map
+		if disk, found := diskUsageMap[containerStats.Id]; found {
+			stat.Disk += disk
+		}
+
+		// NET data in docker stats only counts docker0 interface,
+		// so for host networking it's always going to be zero - use proc data instead
+		pid, err := c.clusterClient.Output("docker inspect -f '{{ .State.Pid }}' " + containerStats.Id)
 		if err != nil {
-			log.SpanLog(ctx, log.DebugLevelMetrics, "Failed to parse Network usage", "App", appKey, "stats", containerStats, "err", err)
+			errstr := fmt.Sprintf("Failed to get pid for cid <%s> on LB VM", containerStats.Id)
+			log.SpanLog(ctx, log.DebugLevelMetrics, errstr, "err", err.Error(), "output", pid)
 		} else {
-			if len(netIO) > 1 {
-				// TODO EDGECLOUD-1316 - add stats for all containers together
-				stat.NetSent += netIO[1]
-				stat.NetRecv += netIO[0]
+			netdata, err := c.clusterClient.Output("cat /proc/" + pid + "/net/dev | grep ens")
+			if err != nil {
+				log.SpanLog(ctx, log.DebugLevelMetrics, "Failed to get net stats", "err", err.Error(),
+					"pid", pid, "cid", containerStats.Id, "output", netdata)
 			} else {
-				log.SpanLog(ctx, log.DebugLevelMetrics, "Failed to parse network data", "netio", netIO)
+				netIO, err := parseNetData(netdata)
+				if err != nil {
+					log.SpanLog(ctx, log.DebugLevelMetrics, "Failed to parse Network usage", "App", appKey,
+						"stats", containerStats, "err", err, "netdata", netdata)
+				} else {
+					if len(netIO) > 1 {
+						// TODO EDGECLOUD-1316 - add stats for all containers together
+						stat.NetRecv += netIO[0]
+						stat.NetSent += netIO[1]
+					} else {
+						log.SpanLog(ctx, log.DebugLevelMetrics, "Failed to parse network data", "netio", netIO)
+					}
+				}
 			}
 		}
 	}

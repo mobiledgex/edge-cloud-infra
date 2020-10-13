@@ -3,13 +3,15 @@
 
 package ormapi
 
-import edgeproto "github.com/mobiledgex/edge-cloud/edgeproto"
-import proto "github.com/gogo/protobuf/proto"
-import fmt "fmt"
-import math "math"
-import _ "github.com/gogo/googleapis/google/api"
-import _ "github.com/mobiledgex/edge-cloud/protogen"
-import _ "github.com/gogo/protobuf/gogoproto"
+import (
+	fmt "fmt"
+	_ "github.com/gogo/googleapis/google/api"
+	_ "github.com/gogo/protobuf/gogoproto"
+	proto "github.com/gogo/protobuf/proto"
+	edgeproto "github.com/mobiledgex/edge-cloud/edgeproto"
+	_ "github.com/mobiledgex/edge-cloud/protogen"
+	math "math"
+)
 
 // Reference imports to suppress errors if they are not otherwise used.
 var _ = proto.Marshal
@@ -51,4 +53,25 @@ type swaggerUpdateApp struct {
 type swaggerShowApp struct {
 	// in: body
 	Body RegionApp
+}
+
+// Request summary for AddAppAutoProvPolicy
+// swagger:parameters AddAppAutoProvPolicy
+type swaggerAddAppAutoProvPolicy struct {
+	// in: body
+	Body RegionAppAutoProvPolicy
+}
+
+type RegionAppAutoProvPolicy struct {
+	// required: true
+	// Region name
+	Region            string
+	AppAutoProvPolicy edgeproto.AppAutoProvPolicy
+}
+
+// Request summary for RemoveAppAutoProvPolicy
+// swagger:parameters RemoveAppAutoProvPolicy
+type swaggerRemoveAppAutoProvPolicy struct {
+	// in: body
+	Body RegionAppAutoProvPolicy
 }

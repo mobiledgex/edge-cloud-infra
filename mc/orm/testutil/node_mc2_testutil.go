@@ -3,15 +3,18 @@
 
 package testutil
 
-import edgeproto "github.com/mobiledgex/edge-cloud/edgeproto"
-import "github.com/mobiledgex/edge-cloud-infra/mc/ormclient"
-import "github.com/mobiledgex/edge-cloud-infra/mc/ormapi"
-import proto "github.com/gogo/protobuf/proto"
-import fmt "fmt"
-import math "math"
-import _ "github.com/gogo/googleapis/google/api"
-import _ "github.com/gogo/protobuf/gogoproto"
-import _ "github.com/mobiledgex/edge-cloud/protogen"
+import (
+	"context"
+	fmt "fmt"
+	_ "github.com/gogo/googleapis/google/api"
+	_ "github.com/gogo/protobuf/gogoproto"
+	proto "github.com/gogo/protobuf/proto"
+	"github.com/mobiledgex/edge-cloud-infra/mc/ormapi"
+	"github.com/mobiledgex/edge-cloud-infra/mc/ormclient"
+	edgeproto "github.com/mobiledgex/edge-cloud/edgeproto"
+	_ "github.com/mobiledgex/edge-cloud/protogen"
+	math "math"
+)
 
 // Reference imports to suppress errors if they are not otherwise used.
 var _ = proto.Marshal
@@ -20,13 +23,28 @@ var _ = math.Inf
 
 // Auto-generated code: DO NOT EDIT
 
-func TestShowNode(mcClient *ormclient.Client, uri, token, region string, in *edgeproto.Node) ([]edgeproto.Node, int, error) {
+func TestShowNode(mcClient *ormclient.Client, uri, token, region string, in *edgeproto.Node, modFuncs ...func(*edgeproto.Node)) ([]edgeproto.Node, int, error) {
 	dat := &ormapi.RegionNode{}
 	dat.Region = region
 	dat.Node = *in
+	for _, fn := range modFuncs {
+		fn(&dat.Node)
+	}
 	return mcClient.ShowNode(uri, token, dat)
 }
-func TestPermShowNode(mcClient *ormclient.Client, uri, token, region, org string) ([]edgeproto.Node, int, error) {
+func TestPermShowNode(mcClient *ormclient.Client, uri, token, region, org string, modFuncs ...func(*edgeproto.Node)) ([]edgeproto.Node, int, error) {
 	in := &edgeproto.Node{}
-	return TestShowNode(mcClient, uri, token, region, in)
+	return TestShowNode(mcClient, uri, token, region, in, modFuncs...)
+}
+
+func (s *TestClient) ShowNode(ctx context.Context, in *edgeproto.Node) ([]edgeproto.Node, error) {
+	inR := &ormapi.RegionNode{
+		Region: s.Region,
+		Node:   *in,
+	}
+	out, status, err := s.McClient.ShowNode(s.Uri, s.Token, inR)
+	if err == nil && status != 200 {
+		err = fmt.Errorf("status: %d\n", status)
+	}
+	return out, err
 }

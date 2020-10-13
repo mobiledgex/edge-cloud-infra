@@ -4,20 +4,16 @@ pipeline {
     }
     agent any
     environment {
-        ANSIBLE_VAULT_PASSWORD_FILE = credentials('ansible-mex-vault-pass-file')
+        ANSIBLE_ROLE = credentials('staging-vault-ansible-role')
+        GITHUB_CREDS = credentials('ansible-github-credentials')
         TAG = "${params.TAG}"
-        DEPLOY_ENVIRONMENT = "${params.DEPLOY_ENVIRONMENT}"
     }
     parameters {
-        string name: 'TAG', description: 'Console version (tag) to deploy'
-        string name: 'DEPLOY_ENVIRONMENT', defaultValue: 'staging', description: 'Environment to deploy to'
+        string name: 'TAG', defaultValue: 'latest', description: 'Console version (tag) to deploy'
     }
     stages {
         stage('Set up build tag') {
             steps {
-                script {
-                    assert params.TAG != null : "TAG not provided for deployment"
-                }
                 script {
                     currentBuild.displayName = "${params.TAG}"
                 }
@@ -27,9 +23,16 @@ pipeline {
             steps {
                 dir(path: 'ansible') {
                     ansiColor('xterm') {
-                        sh label: 'Run ansible playbook', script: '''$!/bin/bash
+                        sh label: 'Run ansible playbook', script: '''#!/bin/bash
 export ANSIBLE_FORCE_COLOR=true
-ansible-playbook -i "${DEPLOY_ENVIRONMENT}" -e "console_version=${TAG}" -e @ansible-mex-vault.yml -l console mexplat.yml
+export GITHUB_USER="${GITHUB_CREDS_USR}"
+export GITHUB_TOKEN="${GITHUB_CREDS_PSW}"
+export VAULT_ROLE_ID="${ANSIBLE_ROLE_USR}"
+export VAULT_SECRET_ID="${ANSIBLE_ROLE_PSW}"
+
+CMD=( ./deploy.sh -y -s setup,mc )
+[[ "$TAG" != "latest" ]] && CMD+=( -C ${TAG} )
+"${CMD[@]}" staging console
                         '''
                     }
                 }

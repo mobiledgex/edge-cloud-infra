@@ -1,5 +1,6 @@
 ---
-jaeger_version: 1.14
+jaeger_version: 1.17.1
 jaeger_image: "jaegertracing/all-in-one:{{ jaeger_version }}"
 jaeger_index_cleaner_image: "jaegertracing/jaeger-es-index-cleaner:{{ jaeger_version }}"
 jaeger_index_cleanup_days: 30
+jaeger_local_storage_dir: /var/jaeger

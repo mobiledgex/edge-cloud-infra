@@ -5,6 +5,20 @@ orgs:
   phone: 123-123-1234
   adminusername: user2
 
+billingorgs:
+- name: DevOrg
+  type: self
+  firstname: john
+  lastname: acme
+  email: john@acme.com
+  address: 123 Maple Street
+  city: Gainesville
+  country: US
+  state: FL
+  postalcode: 32604
+  phone: 123-123-1234
+  currency: USD
+
 regiondata:
 - region: local
   appdata:
@@ -13,10 +27,9 @@ regiondata:
         clusterkey:
           name: AppCluster
         cloudletkey:
-          operatorkey:
-            name: mexdev
+          organization: mexdev
           name: localtest
-        developer: DevOrg
+        organization: DevOrg
       flavor:
         name: x1.medium
       liveness: LivenessStatic
@@ -25,8 +38,7 @@ regiondata:
       autoscalepolicy: scale1
     apps:
     - key:
-        developerkey:
-          name: DevOrg
+        organization: DevOrg
         name: DevOrg SDK Demo
         version: "1.0"
       imagepath: docker.mobiledgex.net/mobiledgex/mobiledgex_public/mobiledgexsdkdemo
@@ -40,13 +52,13 @@ regiondata:
       androidpackagename: com.mobiledgex.sdkdemo
       permitsplatformapps: true
     - key:
-        developerkey:
-          name: DevOrg
+        organization: DevOrg
         name: Face Detection Demo
         version: "1.0"
       imagepath: docker.mobiledgex.net/mobiledgex/mobiledgex_public/facedetection
       imagetype: ImageTypeDocker
       accessports: tcp:8008
+      skiphcports: tcp:8008
       defaultflavor:
         name: x1.small
       cluster:
@@ -70,33 +82,29 @@ regiondata:
     appinstances:
     - key:
         appkey:
-          developerkey:
-            name: DevOrg
+          organization: DevOrg
           name: DevOrg SDK Demo
           version: "1.0"
         clusterinstkey:
           clusterkey:
             name: AppCluster
           cloudletkey:
-            operatorkey:
-              name: mexdev
+            organization: mexdev
             name: localtest
     - key:
         appkey:
-          developerkey:
-            name: DevOrg
+          organization: DevOrg
           name: Face Detection Demo
           version: "1.0"
         clusterinstkey:
           clusterkey:
             name: AppCluster
           cloudletkey:
-            operatorkey:
-              name: mexdev
+            organization: mexdev
             name: localtest
     autoscalepolicies:
     - key:
-        developer: DevOrg
+        organization: DevOrg
         name: scale1
       minnodes: 1
       maxnodes: 3

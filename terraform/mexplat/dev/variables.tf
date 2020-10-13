@@ -78,11 +78,6 @@ variable "crm_vm_domain_name" {
   type        = "string"
 }
 
-variable "mc_vm_domain_name" {
-  description = "MC VM domain name"
-  type        = "string"
-}
-
 variable "postgres_domain_name" {
   description = "Postgres domain name"
   type        = "string"
@@ -103,8 +98,26 @@ variable "console_domain_name" {
   type        = "string"
 }
 
+variable "console_vnc_domain_name" {
+  description = "Console VNC domain name"
+  type        = "string"
+}
+
+variable "notifyroot_domain_name" {
+  description = "Notifyroot service domain name"
+  type        = "string"
+}
+
 variable "jaeger_domain_name" {
   default     = "jaeger-dev.mobiledgex.net"
+}
+
+variable "esproxy_domain_name" {
+  default     = "events-dev.es.mobiledgex.net"
+}
+
+variable "alertmanager_domain_name" {
+  default     = "alertmanager-dev.mobiledgex.net"
 }
 
 variable "vault_a_domain_name" {

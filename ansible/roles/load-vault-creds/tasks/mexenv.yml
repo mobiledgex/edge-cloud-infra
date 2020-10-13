@@ -1,0 +1,8 @@
+- name: Look up mexenv parameters in vault
+  set_fact:
+    vault_lookup: "{{ lookup('vault', mexenv_lookup) }}"
+  vars:
+    mexenv_lookup: "{{ mexenv_path }}:mexenv"
+
+- set_fact:
+    mexenv: "{{ vault_lookup.mexenv.data.env | items2dict(key_name='name', value_name='value') }}"

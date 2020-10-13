@@ -10,12 +10,12 @@ import (
 func GetOrgCloudletPoolCommand() *cobra.Command {
 	cmds := []*cli.Command{&cli.Command{
 		Use:          "create",
-		RequiredArgs: "org region cloudletpool",
+		RequiredArgs: "org region cloudletpool cloudletpoolorg",
 		ReqData:      &ormapi.OrgCloudletPool{},
 		Run:          runRest("/auth/orgcloudletpool/create"),
 	}, &cli.Command{
 		Use:          "delete",
-		RequiredArgs: "org region cloudletpool",
+		RequiredArgs: "org region cloudletpool cloudletpoolorg",
 		ReqData:      &ormapi.OrgCloudletPool{},
 		Run:          runRest("/auth/orgcloudletpool/delete"),
 	}, &cli.Command{
@@ -35,4 +35,15 @@ func GetOrgCloudletCommand() *cobra.Command {
 		Run:          runRest("/auth/orgcloudlet/show"),
 	}}
 	return cli.GenGroup("orgcloudlet", "manage Org Cloudlets", cmds)
+}
+
+func GetOrgCloudletInfoCommand() *cobra.Command {
+	cmds := []*cli.Command{&cli.Command{
+		Use:          "show",
+		RequiredArgs: "region org",
+		ReqData:      &ormapi.OrgCloudlet{},
+		ReplyData:    &[]edgeproto.CloudletInfo{},
+		Run:          runRest("/auth/orgcloudletinfo/show"),
+	}}
+	return cli.GenGroup("orgcloudletinfo", "manage Org CloudletInfos", cmds)
 }

@@ -3,17 +3,20 @@
 
 package orm
 
-import edgeproto "github.com/mobiledgex/edge-cloud/edgeproto"
-import "github.com/labstack/echo"
-import "context"
-import "io"
-import "github.com/mobiledgex/edge-cloud-infra/mc/ormapi"
-import proto "github.com/gogo/protobuf/proto"
-import fmt "fmt"
-import math "math"
-import _ "github.com/gogo/googleapis/google/api"
-import _ "github.com/gogo/protobuf/gogoproto"
-import _ "github.com/mobiledgex/edge-cloud/protogen"
+import (
+	"context"
+	fmt "fmt"
+	_ "github.com/gogo/googleapis/google/api"
+	_ "github.com/gogo/protobuf/gogoproto"
+	proto "github.com/gogo/protobuf/proto"
+	"github.com/labstack/echo"
+	"github.com/mobiledgex/edge-cloud-infra/mc/ormapi"
+	edgeproto "github.com/mobiledgex/edge-cloud/edgeproto"
+	"github.com/mobiledgex/edge-cloud/log"
+	_ "github.com/mobiledgex/edge-cloud/protogen"
+	"io"
+	math "math"
+)
 
 // Reference imports to suppress errors if they are not otherwise used.
 var _ = proto.Marshal
@@ -38,6 +41,9 @@ func ShowNode(c echo.Context) error {
 	}
 	defer CloseConn(c)
 	rc.region = in.Region
+	span := log.SpanFromContext(ctx)
+	span.SetTag("region", in.Region)
+	log.SetTags(span, in.Node.GetKey().GetTags())
 
 	err = ShowNodeStream(ctx, rc, &in.Node, func(res *edgeproto.Node) {
 		payload := ormapi.StreamPayload{}
@@ -51,10 +57,10 @@ func ShowNode(c echo.Context) error {
 }
 
 func ShowNodeStream(ctx context.Context, rc *RegionContext, obj *edgeproto.Node, cb func(res *edgeproto.Node)) error {
-	var authz *ShowAuthz
+	var authz *AuthzShow
 	var err error
 	if !rc.skipAuthz {
-		authz, err = NewShowAuthz(ctx, rc.region, rc.username, ResourceConfig, ActionView)
+		authz, err = newShowAuthz(ctx, rc.region, rc.username, ResourceConfig, ActionView)
 		if err == echo.ErrForbidden {
 			return nil
 		}
@@ -63,7 +69,7 @@ func ShowNodeStream(ctx context.Context, rc *RegionContext, obj *edgeproto.Node,
 		}
 	}
 	if rc.conn == nil {
-		conn, err := connectController(ctx, rc.region)
+		conn, err := connectNotifyRoot(ctx)
 		if err != nil {
 			return err
 		}

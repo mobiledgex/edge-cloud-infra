@@ -3,15 +3,16 @@
 
 package cliwrapper
 
-import edgeproto "github.com/mobiledgex/edge-cloud/edgeproto"
-import "strings"
-import "github.com/mobiledgex/edge-cloud-infra/mc/ormapi"
-import proto "github.com/gogo/protobuf/proto"
-import fmt "fmt"
-import math "math"
-import _ "github.com/gogo/googleapis/google/api"
-import _ "github.com/mobiledgex/edge-cloud/protogen"
-import _ "github.com/gogo/protobuf/gogoproto"
+import (
+	fmt "fmt"
+	_ "github.com/gogo/protobuf/gogoproto"
+	proto "github.com/gogo/protobuf/proto"
+	"github.com/mobiledgex/edge-cloud-infra/mc/ormapi"
+	edgeproto "github.com/mobiledgex/edge-cloud/edgeproto"
+	_ "github.com/mobiledgex/edge-cloud/protogen"
+	math "math"
+	"strings"
+)
 
 // Reference imports to suppress errors if they are not otherwise used.
 var _ = proto.Marshal
@@ -23,7 +24,40 @@ var _ = math.Inf
 func (s *Client) RunCommand(uri, token string, in *ormapi.RegionExecRequest) (*edgeproto.ExecRequest, int, error) {
 	args := []string{"region", "RunCommand"}
 	out := edgeproto.ExecRequest{}
-	noconfig := strings.Split("Offer,Answer,Err,ConsoleUrl,Console", ",")
+	noconfig := strings.Split("Offer,Answer,Err,Console.Url,Timeout,AccessUrl,EdgeTurnAddr,Offer,Answer,Err,Timeout,Log,Console,AccessUrl,EdgeTurnAddr,Cmd.CloudletMgmtNode", ",")
+	st, err := s.runObjs(uri, token, args, in, &out, withIgnore(noconfig))
+	if err != nil {
+		return nil, st, err
+	}
+	return &out, st, err
+}
+
+func (s *Client) RunConsole(uri, token string, in *ormapi.RegionExecRequest) (*edgeproto.ExecRequest, int, error) {
+	args := []string{"region", "RunConsole"}
+	out := edgeproto.ExecRequest{}
+	noconfig := strings.Split("Offer,Answer,Err,Console.Url,Timeout,AccessUrl,EdgeTurnAddr,Offer,Answer,Err,Timeout,Log,Cmd,Console,ContainerId,AccessUrl,EdgeTurnAddr", ",")
+	st, err := s.runObjs(uri, token, args, in, &out, withIgnore(noconfig))
+	if err != nil {
+		return nil, st, err
+	}
+	return &out, st, err
+}
+
+func (s *Client) ShowLogs(uri, token string, in *ormapi.RegionExecRequest) (*edgeproto.ExecRequest, int, error) {
+	args := []string{"region", "ShowLogs"}
+	out := edgeproto.ExecRequest{}
+	noconfig := strings.Split("Offer,Answer,Err,Console.Url,Timeout,AccessUrl,EdgeTurnAddr,Offer,Answer,Err,Timeout,Cmd,Console,AccessUrl,EdgeTurnAddr", ",")
+	st, err := s.runObjs(uri, token, args, in, &out, withIgnore(noconfig))
+	if err != nil {
+		return nil, st, err
+	}
+	return &out, st, err
+}
+
+func (s *Client) AccessCloudlet(uri, token string, in *ormapi.RegionExecRequest) (*edgeproto.ExecRequest, int, error) {
+	args := []string{"region", "AccessCloudlet"}
+	out := edgeproto.ExecRequest{}
+	noconfig := strings.Split("Offer,Answer,Err,Console.Url,Timeout,AccessUrl,EdgeTurnAddr,Offer,Answer,Err,Timeout,Log,Console,ContainerId,AccessUrl,EdgeTurnAddr,AppInstKey.AppKey.Name,AppInstKey.AppKey.Version,AppInstKey.AppKey.Organization,AppInstKey.ClusterInstKey.ClusterKey.Name,AppInstKey.ClusterInstKey.Organization", ",")
 	st, err := s.runObjs(uri, token, args, in, &out, withIgnore(noconfig))
 	if err != nil {
 		return nil, st, err

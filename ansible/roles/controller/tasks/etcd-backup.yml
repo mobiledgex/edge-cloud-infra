@@ -12,6 +12,11 @@
 - name: Back up etcd data
   block:
 
+  - name: Load artifactory publish key from vault
+    import_role:
+      name: load-vault-creds
+      tasks_from: artifactory-publish
+
   - name: Clean out any old backups
     command: "kubectl --kubeconfig {{ kubeconfig_file.path }} exec {{ mex_etcd_pod }} -- rm -f {{ etcd_backup_file }}"
     changed_when: false

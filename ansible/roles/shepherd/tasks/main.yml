@@ -40,23 +40,32 @@
 - debug:
     msg: "Deploying {{ shepherd_name }} (cloudlet name: {{ item.cloudlet_name }})"
 
+- name: Fetch shepherd vault role
+  set_fact:
+    crm_role: "{{ lookup('approle', crm_role_name, id=shepherd_name) }}"
+  vars:
+    crm_role_name: "{{ item.controller_region | lower }}.crm.v1"
+
 - name: Compute shepherd command line
   set_fact:
     shepherd_args:
       - shepherd
       # notifyAddr is localhost because use use host networking for docker containers
       - "--notifyAddrs"
-      - "localhost:{{ notify_port }}"
-      - "--tls"
-      - "/root/tls/mex-server.crt"
+      - "localhost:{{ item.notify_srv_port | default(notify_port) }}"
       - "--platform"
       - "{{ item.platform | default('PLATFORM_TYPE_OPENSTACK') }}"
       - "--vaultAddr"
       - "https://{{ vault_vm_hostname }}:{{ vault_port }}"
+      - "--useVaultCerts"
       - "--cloudletKey"
-      - "{\\\"operator_key\\\":{\\\"name\\\":\\\"{{ item.operator_key | mandatory }}\\\"},\\\"name\\\":\\\"{{ item.cloudlet_name }}\\\"}"
+      - "{\\\"organization\\\":\\\"{{ item.operator_key | mandatory }}\\\",\\\"name\\\":\\\"{{ item.cloudlet_name }}\\\"}"
+      - "--region"
+      - "{{ item.controller_region }}"
+      - "--deploymentTag"
+      - "{{ deployment_tag_override | default(deploy_environ) }}"
       - "-d"
-      - "api,notify,mexos,metrics"
+      - "api,notify,infra,metrics"
 
 - name: Add openstack parameters
   set_fact:
@@ -71,8 +80,9 @@
     restart_policy: unless-stopped
     command: "{{ shepherd_args }}"
     env:
-      VAULT_ROLE_ID: "{{ crm_vault_app_role.role_id }}"
-      VAULT_SECRET_ID: "{{ crm_vault_app_role.secret_id }}"
+      VAULT_ROLE_ID: "{{ crm_role.role_id }}"
+      VAULT_SECRET_ID: "{{ crm_role.secret_id }}"
       JAEGER_ENDPOINT: "{{ jaeger_endpoint }}"
       JAEGER_TAGS: "shepherd={{ shepherd_name }},cloudlet={{ item.cloudlet_name }},operator={{ item.operator_key }},environ={{ deploy_environ }},version={{ edge_cloud_version }}"
+      ES_SERVER_URLS: "{{ esproxy_address }}"
 

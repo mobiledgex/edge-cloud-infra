@@ -16,11 +16,32 @@ tests:
     yaml2: '{{datadir2}}/mcappdata_empty.yml'
     filetype: mcdata
 
+- name: verify default config to start
+  actions: [mcapi-configshow]
+  curuserfile: '{{datadir2}}/mc_admin.yml'
+  compareyaml:
+    yaml1: '{{outputdir}}/show-commands.yml'
+    yaml2: '{{datadir2}}/mcconfig_default.yml'
+    filetype: mcconfig
+
+- name: admin setup config so users can be created
+  actions: [mcapi-configupdate,mcapi-configshow]
+  apifile: '{{datadir2}}/mcconfig.yml'
+  curuserfile: '{{datadir2}}/mc_admin.yml'
+  compareyaml:
+    yaml1: '{{outputdir}}/show-commands.yml'
+    yaml2: '{{datadir2}}/mcconfig.yml'
+    filetype: mcconfig
+
 - name: create users
   actions: [mcapi-createusers]
   apifile: '{{datadir2}}/mc_user1.yml,{{datadir2}}/mc_user2.yml,{{datadir2}}/mc_user3.yml'
 
-- name: admin creates controllers, flavors, sets up enterprise; verify it is there
+- name: setup user tokens to avoid extra login audit logs
+  actions: [mcapi-auditsetup]
+  apifile: '{{datadir2}}/mc_admin.yml,{{datadir2}}/mc_user2.yml'
+
+- name: admin creates controllers, flavors; verify it is there
   actions: [mcapi-create, mcapi-show]
   apifile: '{{datadir2}}/mc_admin_data.yml'
   curuserfile: '{{datadir2}}/mc_admin.yml'
@@ -36,15 +57,6 @@ tests:
   compareyaml:
     yaml1: '{{outputdir}}/show-commands.yml'
     yaml2: '{{datadir2}}/mc_user1_data_show.yml'
-    filetype: mcdata
-
-- name: user1 upgrades cloudlet; verify it is upgraded
-  actions: [mcapi-update, mcapi-show]
-  apifile: '{{datadir2}}/mc_user1_cloudlet_update.yml'
-  curuserfile: '{{datadir2}}/mc_user1.yml'
-  compareyaml:
-    yaml1: '{{outputdir}}/show-commands.yml'
-    yaml2: '{{datadir2}}/mc_user1_data_upgrade_show.yml'
     filetype: mcdata
 
 - name: admin creates reservable clusterinst on user1 cloudlet
@@ -75,11 +87,88 @@ tests:
   apifile: '{{datadir2}}/mc_runcommand.yml'
   curuserfile: '{{datadir2}}/mc_user2.yml'
 
+- name: test ShowLogs
+  actions: [mcapi-showlogs]
+  apifile: '{{datadir2}}/mc_showlogs.yml'
+  curuserfile: '{{datadir2}}/mc_user2.yml'
+
+- name: test AccessCloudlet
+  actions: [mcapi-accesscloudlet]
+  apifile: '{{datadir2}}/mc_accesscloudlet.yml'
+  curuserfile: '{{datadir2}}/mc_admin.yml'
+
+- name: test ShowNodes
+  actions: [mcapi-nodeshow]
+  curuserfile: '{{datadir2}}/mc_admin.yml'
+  compareyaml:
+    yaml1: '{{outputdir}}/show-commands.yml'
+    yaml2: '{{datadir2}}/mc_shownode.yml'
+    filetype: nodedata
+
+- name: test orgs in use
+  actions: [mcapi-delete-expecterr]
+  apifile: '{{datadir2}}/mc_orgsinuse.yml'
+  curuserfile: '{{datadir2}}/mc_admin.yml'
+  compareyaml:
+    yaml1: '{{outputdir}}/api-output.yml'
+    yaml2: '{{datadir2}}/mc_orgsinuse_error.yml'
+    filetype: orgdata
+
 - includefile: autoprov.yml
+  loops: 2
+
+- name: user2 check event terms
+  actions: [mcapi-eventsterms]
+  curuserfile: '{{datadir2}}/mc_user2.yml'
+  apifile: '{{datadir2}}/mc_eventsterms.yml'
+  compareyaml:
+    yaml1: '{{outputdir}}/show-commands.yml'
+    yaml2: '{{datadir2}}/mc_user2_eventsterms_exp.yml'
+    filetype: mceventterms
+
+- name: admin check event terms
+  actions: [mcapi-eventsterms]
+  curuserfile: '{{datadir2}}/mc_admin.yml'
+  apifile: '{{datadir2}}/mc_eventsterms.yml'
+  compareyaml:
+    yaml1: '{{outputdir}}/show-commands.yml'
+    yaml2: '{{datadir2}}/mc_admin_eventsterms_exp.yml'
+    filetype: mceventterms
+
+- name: user2 check events
+  actions: [mcapi-eventsshow]
+  curuserfile: '{{datadir2}}/mc_user2.yml'
+  apifile: '{{datadir2}}/mc_user2_eventsshow.yml'
+  compareyaml:
+    yaml1: '{{outputdir}}/show-commands.yml'
+    yaml2: '{{datadir2}}/mc_user2_eventsshow_exp.yml'
+    filetype: mcevents
+
+- includefile: mc_debugtest.yml
+
+- name: Check AppInst, ClusterInst, and Cloudlet events
+  actions: [mcapi-showevents]
+  apifile: '{{datadir2}}/mc_events_targets.yml'
+  curuserfile: '{{datadir2}}/mc_admin.yml'
+  compareyaml:
+    yaml1: '{{outputdir}}/show-commands.yml'
+    yaml2: '{{datadir2}}/mc_events_show.yml'
+    filetype: mcmetrics
+
+- includefile: alerttest.yml
 
   #going to need a second one for operator, or just use mexadmin instead of user2
-- name: check developer shepherd metrics in influx
+- name: check developer shepherd metrics in influx (separate calls)
   actions: [mcapi-showmetrics]
+  apifile: '{{datadir2}}/mc_metrics_targets.yml'
+  curuserfile: '{{datadir2}}/mc_user2.yml'
+  compareyaml:
+    yaml1: '{{outputdir}}/show-commands.yml'
+    yaml2: '{{datadir2}}/mc_metrics_show.yml'
+    filetype: mcmetrics
+
+- name: check developer shepherd metrics in influx (single call)
+  actions: [mcapi-showmetricsall]
   apifile: '{{datadir2}}/mc_metrics_targets.yml'
   curuserfile: '{{datadir2}}/mc_user2.yml'
   compareyaml:
@@ -137,3 +226,12 @@ tests:
     yaml1: '{{outputdir}}/show-commands.yml'
     yaml2: '{{datadir2}}/mcappdata_empty.yml'
     filetype: mcusers
+
+- name: admin reset config
+  actions: [mcapi-configreset,mcapi-configshow]
+  curuserfile: '{{datadir2}}/mc_admin.yml'
+  compareyaml:
+    yaml1: '{{outputdir}}/show-commands.yml'
+    yaml2: '{{datadir2}}/mcconfig_default.yml'
+    filetype: mcconfig
+

@@ -14,6 +14,10 @@ gitlab_config_path: /etc/gitlab/gitlab.rb
 etcd_opetator_crd: etcdclusters.etcd.database.coreos.com
 mc_api_port: 9900
 mc_ldap_port: 9389
+mc_vnc_port: 6080
+mc_notify_srv_port: 52001
+notifyroot_port: 53001
+alertmanager_port: 9094
 postgres_server: postgres.mobiledgex.net:5432
 influxdb_name: monitoring-influxdb
 etcd_cluster_name: mex-etcd
@@ -25,17 +29,25 @@ artifactory_etcd_backup_repo: build-artifacts/etcd-backup
 slack_token: "T97USPYUX/BJ8AEDGF4/k2d1GNETqaMqRxGyXNbr8nFq"
 slack_channel: "#devops"
 vault_telegraf_creds_path: "secret/ansible/common/accounts/telegraf"
+vault_filebeat_creds_path: "secret/ansible/common/accounts/filebeat/vault"
 vault_artifactory_token_path: "secret/ansible/common/accounts/artifactory"
 vault_ns1_apikey_path: "secret/ansible/common/accounts/ns1"
 vault_influxdb_creds_path: "secret/ansible/internal/accounts/influxdb"
 vault_mex_ca_cert_path: secret/ansible/common/certs/mex-ca
+vault_root_ca_cert_path: secret/certs/root-ca
 mc_creds_vault_path: "secret/ansible/{{ deploy_environ }}/accounts/mc"
 vouch_hostname: vouch.mobiledgex.net
 influxdb_vm_hostname: influxdb.internal.mobiledgex.net
-artifactory_version: 6.14.1
+artifactory_version: 6.22.0
 mex_ca_cert_dir: /etc/ssl/local
 mex_ca_cert_der: "{{ mex_ca_cert_dir }}/mex-ca.der"
 mex_ca_cert_pem: "{{ mex_ca_cert_dir }}/mex-ca.crt"
 vault_ha_instance_port: 8200
 vault_cluster_port: 8201
 gcp_project: still-entity-201400
+apidocs_domain: api.mobiledgex.net
+ns1_zone: global.dme.mobiledgex.net
+letsencrypt_path: certs
+letsencrypt_backend: letsencrypt-certs
+alertmanager_sidecar_port: 9094
+events_elasticsearch_url: https://3dd88757c3df44ac8960e53fc6a9a2d5.us-central1.gcp.cloud.es.io:9243

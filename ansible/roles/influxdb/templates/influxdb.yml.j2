@@ -29,6 +29,28 @@ spec:
         - name: INFLUXDB_ADMIN_PASSWORD
           value: {{ influxdb_password }}
 
+        livenessProbe:
+          exec:
+            command:
+              - "/bin/bash"
+              - "-ec"
+              - |
+                EXP_DATE=$( openssl s_client -connect {{ influxdb_dns }}.{{ cloudflare_zone }}:8086 -servername {{ influxdb_dns }}.{{ cloudflare_zone }} </dev/null 2>/dev/null \
+                  | openssl x509 -noout -dates \
+                  | grep '^notAfter' \
+                  | cut -d= -f2- )
+                EXP_EPOCH=$( date --date="$EXP_DATE" +'%s' )
+                NOW_EPOCH=$( date +'%s' )
+                EXP_DAYS=$(( ( EXP_EPOCH - NOW_EPOCH ) / 60 / 60 / 24 ))
+                if [ "$EXP_DAYS" -lt 28 ]; then
+                  echo "Cert expiry in $EXP_DAYS days" >&2
+                  exit 2
+                fi
+                exit 0
+          periodSeconds: 28800
+          timeoutSeconds: 180
+          initialDelaySeconds: 900
+
       volumes:
       - name: influxdb-storage
         persistentVolumeClaim:

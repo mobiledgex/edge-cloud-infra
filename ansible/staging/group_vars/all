@@ -1,6 +1,40 @@
-jaeger_hostname: jaeger.mobiledgex.net
+jaeger_hostname: jaeger-stage.mobiledgex.net
 jaeger_endpoint: "https://{{ jaeger_hostname }}:14268/api/traces"
-vault_address: https://vault-main.mobiledgex.net
+console_vnc_hostname: console-stage-vnc.mobiledgex.net
+notifyroot_hostname: notifyroot-stage.mobiledgex.net
+vault_address: https://vault-stage.mobiledgex.net
+esproxy_address: https://events-stage.es.mobiledgex.net/
+vault_ha_zones:
+  us: us-west2-a
+  eu: europe-west3-a
+
+vault_ldap_groups:
+  - name: EdgeBox
+    role: edgebox_user
+
+vault_github_teams:
+  - name: edge-cloud-development-team
+    policies:
+      - ssh-ansible-user.sign.v1
+      - ssh-user.sign.v1
+
+vault_github_users:
+  - userid: anand12gupta
+    role: edgebox_user
+  - userid: bibingeorge1986
+    role: cloudlet_admin
+  - userid: franklin-huang-mobiledgex
+    role: edgebox_user
+  - userid: gainsley
+    role: admin
+  - userid: jlmorris3827
+    role: admin
+  - userid: mwilliams-mex
+    role: cloudlet_admin
+  - userid: venkytv
+    role: admin
+  - userid: ashxjain
+    role: admin
 
 crm_instances:
 
@@ -8,30 +42,26 @@ crm_instances:
     crm_name: "crm-{{ deploy_target }}-bonn"
     openstack_instance: bonn
     operator_key: TDG
-    controller_region: US
+    controller_region: EU
+    notify_srv_port: 51091
 
   - cloudlet_name: "{{ deploy_target }}-hamburg-cloudlet"
     crm_name: "crm-{{ deploy_target }}-hamburg"
     openstack_instance: hamburg
     operator_key: TDG
-    controller_region: US
+    controller_region: EU
+    notify_srv_port: 51092
 
   - cloudlet_name: "{{ deploy_target }}-frankfurt-cloudlet"
     crm_name: "crm-{{ deploy_target }}-frankfurt"
     openstack_instance: frankfurt
     operator_key: TDG
-    controller_region: US
+    controller_region: EU
+    notify_srv_port: 51093
 
   - cloudlet_name: "{{ deploy_target }}-berlin-cloudlet"
     crm_name: "crm-{{ deploy_target }}-berlin"
     openstack_instance: berlin
     operator_key: TDG
-    controller_region: US
-
-  # Azure Cloudlets
-
-  - cloudlet_name: skt
-    operator_key: SKT
-    platform: PLATFORM_TYPE_AZURE
-    azure_instance: koreasouth
-    controller_region: US
+    controller_region: EU
+    notify_srv_port: 51094

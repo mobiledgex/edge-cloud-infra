@@ -29,7 +29,7 @@ make edge-cloud-version-set
                 }
             }
         }
-        stage('Build') {
+        stage('Clean') {
             steps {
                 dir(path: 'go/src/github.com/mobiledgex/edge-cloud') {
                     sh label: 'make clean', script: '''#!/bin/bash
@@ -44,19 +44,12 @@ make clean
                 dir(path: 'go/src/github.com/mobiledgex/edge-cloud-infra') {
                     sh label: 'git clean edge-cloud-infra', script: 'git clean -f -d -x'
                 }
-                sh 'rm -f go.mod go.sum'
-                dir(path: 'go/src/github.com') {
-                    sh label: 'set up dependencies', script: '''#!/bin/bash
-export PATH=$PATH:$WORKSPACE/go/bin:$HOME/go/bin
-export GOPATH=$WORKSPACE/go
-
-set -ex
-if ! test -d grpc-ecosystem; then
-    mkdir -p grpc-ecosystem
-    cd grpc-ecosystem
-    git clone https://github.com/mobiledgex/grpc-gateway.git
-fi
-                    '''
+            }
+        }
+        stage('Pre-requisites') {
+            steps {
+                dir(path: 'go/src/github.com/grpc-ecosystem') {
+                    sh label: 'git clone grpc-gateway', script: 'git clone https://github.com/mobiledgex/grpc-gateway.git'
                 }
                 dir(path: 'go/src/github.com/mobiledgex/edge-cloud') {
                     sh label: 'go mod download', script: '''#!/bin/bash
@@ -73,6 +66,10 @@ export GOPATH=$WORKSPACE/go
 make tools
                     '''
                 }
+            }
+        }
+        stage('Build') {
+            steps {
                 dir(path: 'go/src/github.com/mobiledgex/edge-cloud-infra') {
                     sh label: 'make', script: '''#!/bin/bash
 export PATH=$PATH:$WORKSPACE/go/bin:$HOME/go/bin
@@ -92,21 +89,10 @@ make
                         sleep 10
                         dir(path: 'go/src/github.com/mobiledgex/edge-cloud-infra') {
                             sh label: 'unit tests', script: '''#!/bin/bash
-export PATH=$PATH:$WORKSPACE/go/bin:$HOME/go/bin:/usr/lib/postgresql/11/bin
+export PATH=$PATH:$WORKSPACE/go/bin:$HOME/go/bin:/usr/lib/postgresql/10/bin
 export GOPATH=$WORKSPACE/go
 export GO111MODULE=on
 UNIT_TEST_LOG=/tmp/edge-cloud-infra-unit-test.${BUILD_TAG}.log make unit-test
-                            '''
-                        }
-                    }
-                    sleep 60
-                    retry(2) {
-                        sleep 10
-                        dir(path: 'go/src/github.com/mobiledgex/edge-cloud-infra') {
-                            sh label: 'make test', script: '''#!/bin/bash
-export PATH=$PATH:$WORKSPACE/go/bin:$HOME/go/bin:/usr/lib/postgresql/11/bin
-export GOPATH=$WORKSPACE/go
-make test
                             '''
                         }
                     }

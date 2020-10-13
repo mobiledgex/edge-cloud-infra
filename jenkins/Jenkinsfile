@@ -8,13 +8,16 @@ pipeline {
         stage('Checkout') {
             steps {
                 dir(path: 'go/src/github.com/mobiledgex/edge-cloud-infra') {
-                    checkout scm
+                    git credentialsId: '5b257185-bf90-4cf1-9e62-0465a6dec06c',
+                        url: 'git@github.com:mobiledgex/edge-cloud-infra.git'
                 }
                 dir(path: 'go/src/github.com/mobiledgex/edge-cloud') {
-                    git url: 'git@github.com:mobiledgex/edge-cloud.git'
+                    git credentialsId: '5b257185-bf90-4cf1-9e62-0465a6dec06c',
+                        url: 'git@github.com:mobiledgex/edge-cloud.git'
                 }
                 dir(path: 'go/src/github.com/mobiledgex/edge-proto') {
-                    git url: 'git@github.com:mobiledgex/edge-proto.git'
+                    git credentialsId: '5b257185-bf90-4cf1-9e62-0465a6dec06c',
+                        url: 'git@github.com:mobiledgex/edge-proto.git'
                 }
             }
         }

@@ -4,6 +4,7 @@ import (
 	"time"
 
 	"github.com/mobiledgex/edge-cloud/edgeproto"
+	"github.com/mobiledgex/edge-cloud/testutil"
 	"github.com/mobiledgex/edge-cloud/util"
 )
 
@@ -390,4 +391,13 @@ type AlertReceiver struct {
 	Cloudlet edgeproto.CloudletKey `json:",omitempty"`
 	// AppInst spec for alerts
 	AppInst edgeproto.AppInstKey `json:",omitempty"`
+}
+
+type AllStreamOutData struct {
+	RegionData []RegionStreamOutData `json:"regionstreamoutdata,omitempty"`
+}
+
+type RegionStreamOutData struct {
+	Region        string                    `json:"region,omitempty"`
+	StreamOutData testutil.AllDataStreamOut `json:"streamoutdata,omitempty"`
 }

@@ -260,6 +260,9 @@ func runMcDataAPI(api, uri, apiFile, curUserFile, outputDir string, mods []strin
 		dataOut := showMcDataFiltered(uri, token, tag, data, &rc)
 		util.PrintToYamlFile("show-commands.yml", outputDir, dataOut, true)
 		*retry = true
+	case "stream":
+		dataOut := streamMcData(uri, token, tag, data, &rc)
+		util.PrintToYamlFile("show-commands.yml", outputDir, dataOut, true)
 	}
 	if tag != "expecterr" && errs != nil {
 		// no errors expected
@@ -1021,4 +1024,30 @@ func showMcAlertReceivers(uri, curUserFile, outputDir string, vars map[string]st
 
 	util.PrintToYamlFile("show-commands.yml", outputDir, showData, true)
 	return rc
+}
+
+func streamMcData(uri, token, tag string, data *ormapi.AllData, rc *bool) *ormapi.AllStreamOutData {
+	dataOut := &ormapi.AllStreamOutData{}
+
+	// currently only controller APIs support filtering
+	for ii, _ := range data.RegionData {
+		region := data.RegionData[ii].Region
+		filter := &data.RegionData[ii].AppData
+
+		rd := ormapi.RegionStreamOutData{}
+		rd.Region = region
+
+		client := testutil.TestClient{
+			Region:          region,
+			Uri:             uri,
+			Token:           token,
+			McClient:        mcClient,
+			IgnoreForbidden: true,
+		}
+		run := edgetestutil.NewRun(&client, context.Background(), "streammcdata", rc)
+		edgetestutil.RunAllDataStreamApis(run, filter, &rd.StreamOutData)
+		run.CheckErrs(fmt.Sprintf("streammcdata region %s", region), tag)
+		dataOut.RegionData = append(dataOut.RegionData, rd)
+	}
+	return dataOut
 }

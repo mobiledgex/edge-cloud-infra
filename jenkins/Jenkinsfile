@@ -49,11 +49,16 @@ make clean
                 }
             }
         }
-        stage('Pre-requisites') {
+        stage('GRPC checkout') {
+            when { not { expression { fileExists 'grpc-gateway' } } }
             steps {
                 dir(path: 'go/src/github.com/grpc-ecosystem') {
                     sh label: 'git clone grpc-gateway', script: 'git clone https://github.com/mobiledgex/grpc-gateway.git'
                 }
+            }
+        }
+        stage('Build') {
+            steps {
                 dir(path: 'go/src/github.com/mobiledgex/edge-cloud') {
                     sh label: 'go mod download', script: '''#!/bin/bash
 export PATH=$PATH:/usr/local/go/bin:$WORKSPACE/go/bin:$HOME/go/bin
@@ -69,10 +74,6 @@ export GOPATH=$WORKSPACE/go
 make tools
                     '''
                 }
-            }
-        }
-        stage('Build') {
-            steps {
                 dir(path: 'go/src/github.com/mobiledgex/edge-cloud-infra') {
                     sh label: 'make', script: '''#!/bin/bash
 export PATH=$PATH:/usr/local/go/bin:$WORKSPACE/go/bin:$HOME/go/bin

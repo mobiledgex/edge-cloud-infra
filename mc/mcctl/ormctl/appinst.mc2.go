@@ -518,6 +518,9 @@ var AppInstLatencyOptionalArgs = []string{
 	"latency.stddev",
 	"latency.variance",
 	"latency.numsamples",
+	"latency.timestamp.seconds",
+	"latency.timestamp.nanos",
+	"message",
 }
 var AppInstLatencyAliasArgs = []string{
 	"app-org=appinstlatency.key.appkey.organization",
@@ -533,6 +536,9 @@ var AppInstLatencyAliasArgs = []string{
 	"latency.stddev=appinstlatency.latency.stddev",
 	"latency.variance=appinstlatency.latency.variance",
 	"latency.numsamples=appinstlatency.latency.numsamples",
+	"latency.timestamp.seconds=appinstlatency.latency.timestamp.seconds",
+	"latency.timestamp.nanos=appinstlatency.latency.timestamp.nanos",
+	"message=appinstlatency.message",
 }
 var AppInstLatencyComments = map[string]string{
 	"app-org":          "App developer organization",

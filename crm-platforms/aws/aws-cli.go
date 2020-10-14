@@ -28,17 +28,14 @@ const NameTag string = "Name"
 
 type RouteTableSearchType string
 
-const maxVMTerminateWait = time.Minute * 2
-const maxVMRunningWait = time.Minute * 3
-
-const maxGwWait = time.Minute * 5
-
 const SearchForMainRouteTable RouteTableSearchType = "main"
 const SearchForRouteTableByName RouteTableSearchType = "name"
 
-// when MainRouteTable is used, the route table is not specified and defaults to the main RT
-const MainRouteTable string = "mainRouteTable"
+const maxVMTerminateWait = time.Minute * 2
+const maxVMRunningWait = time.Minute * 3
+const maxGwWait = time.Minute * 5
 
+const MainRouteTable string = "mainRouteTable"
 const MatchAnyVmName string = "anyvm"
 const MatchAnyGroupName string = "anygroup"
 
@@ -73,12 +70,14 @@ type AwsEc2RouteTableAssociation struct {
 	Main                    bool
 	RouteTableAssociationId string
 }
+
 type AwsEc2RouteTable struct {
 	RouteTableId string
 	VpcId        string
 	Associations []AwsEc2RouteTableAssociation
 	Tags         []AwsEc2Tag
 }
+
 type AwsEc2RouteTableList struct {
 	RouteTables []AwsEc2RouteTable
 }
@@ -119,6 +118,7 @@ type AwsEc2Address struct {
 	NetworkBorderGroup string
 	PublicIpv4Pool     string
 }
+
 type AwsEc2AddressList struct {
 	Addresses []AwsEc2Address
 }
@@ -154,11 +154,6 @@ type AwsEc2VpcList struct {
 	Vpcs []AwsEc2Vpc
 }
 
-type AwsEc2State struct {
-	Code int
-	Name string
-}
-
 type AwsEc2NetworkInterfaceCreateSpec struct {
 	AssociatePublicIpAddress bool     `json:"AssociatePublicIpAddress,omitempty"`
 	SubnetId                 string   `json:"SubnetId,omitempty"`
@@ -171,10 +166,12 @@ type AwsEc2IpAddrPublicIpAssociation struct {
 	AllocationId string
 	PublicIp     string
 }
+
 type AwsEc2IpAddress struct {
 	PrivateIpAddress string
 	Association      AwsEc2IpAddrPublicIpAssociation
 }
+
 type AwsEc2NetworkInterface struct {
 	VpcId              string
 	SubnetId           string
@@ -187,6 +184,7 @@ type AwsEc2NetworkInterface struct {
 type AwsEc2NetworkInterfaceList struct {
 	NetworkInterfaces []AwsEc2NetworkInterface
 }
+
 type AwsEc2NetworkInterfaceCreateResult struct {
 	NetworkInterface AwsEc2NetworkInterface
 }
@@ -195,6 +193,7 @@ type AwsEc2Ebs struct {
 	DeleteOnTermination bool
 	Status              string `json:"Status,omitempty"`
 }
+
 type AwsEc2BlockDeviceMapping struct {
 	DeviceName string
 	Ebs        AwsEc2Ebs
@@ -206,8 +205,14 @@ type AwsEc2Image struct {
 	State   string
 	Name    string
 }
+
 type AwsEc2ImageList struct {
 	Images []AwsEc2Image
+}
+
+type AwsEc2State struct {
+	Code int
+	Name string
 }
 
 type AwsEc2Instance struct {

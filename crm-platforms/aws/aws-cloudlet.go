@@ -123,11 +123,11 @@ func (a *AWSPlatform) InitProvider(ctx context.Context, caches *platform.Caches,
 	}
 	a.VpcCidr = vpcCidr
 	updateCallback(edgeproto.UpdateTask, "Creating Internet Gateway")
-	err = a.CreateGateway(ctx, vpcName)
+	err = a.CreateInternetGateway(ctx, vpcName)
 	if err != nil {
 		return err
 	}
-	err = a.CreateGatewayDefaultRoute(ctx, vpcName, vpcId)
+	err = a.CreateInternetGatewayDefaultRoute(ctx, vpcName, vpcId)
 	if err != nil {
 		return err
 	}

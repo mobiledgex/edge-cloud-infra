@@ -3,7 +3,6 @@ package aws
 import (
 	"context"
 	"encoding/base64"
-	"encoding/json"
 	"fmt"
 	"strings"
 	"sync"
@@ -23,49 +22,42 @@ type VmGroupResources struct {
 	imageNameToId map[string]string
 }
 
-// GetIamAccountId gets the account Id for the logged in user
-func (a *AWSPlatform) GetIamAccountId(ctx context.Context) (string, error) {
-	log.SpanLog(ctx, log.DebugLevelInfra, "GetIamAccountId")
-
-	out, err := a.TimedAwsCommand(ctx, "aws",
-		"iam",
-		"get-user")
-
-	log.SpanLog(ctx, log.DebugLevelInfra, "get-user result", "out", string(out), "err", err)
-	if err != nil {
-		return "", fmt.Errorf("GetIamAccountId failed: %s - %v", string(out), err)
+// meta data needs to have an extra layer "meta" for vsphere
+func awsMetaDataFormatter(instring string) string {
+	indented := ""
+	for _, v := range strings.Split(instring, "\n") {
+		indented += strings.Repeat(" ", 4) + v + "\n"
 	}
-	var iamResult AwsIamUserResult
-	err = json.Unmarshal(out, &iamResult)
-	if err != nil {
-		log.SpanLog(ctx, log.DebugLevelInfra, "aws get-user unmarshal fail", "out", string(out), "err", err)
-		err = fmt.Errorf("cannot unmarshal, %v", err)
-		return "", err
-	}
-	arns := strings.Split(iamResult.User.Arn, ":")
-	if len(arns) <= ArnAccountIdIdx {
-		log.SpanLog(ctx, log.DebugLevelInfra, "Wrong number of fields in ARN", "iamResult.User.Arn", iamResult.User.Arn)
-		return "", fmt.Errorf("Cannot parse IAM ARN: %s", iamResult.User.Arn)
-	}
-	return arns[ArnAccountIdIdx], nil
+	withMeta := fmt.Sprintf("meta:\n%s", indented)
+	return base64.StdEncoding.EncodeToString([]byte(withMeta))
 }
 
-// createVmGroupResources creates subnets, secgrps ahead of vms.  returns secGrpMap, subnetMap, vpcid, err
+// meta data needs to have an extra layer "meta" for vsphere
+func awsUserDataFormatter(instring string) string {
+	// aws ec2 needs to leave as raw text
+	return instring
+}
+
+// createVmGroupResources creates subnets, secgrps ahead of VMs.  returns a VmGroupResource struct to be used in VM create
 func (a *AWSPlatform) getVmGroupResources(ctx context.Context, vmgp *vmlayer.VMGroupOrchestrationParams, action vmlayer.ActionType, updateCallback edgeproto.CacheUpdateCallback) (*VmGroupResources, error) {
 	log.SpanLog(ctx, log.DebugLevelInfra, "getVmGroupResources", "action", action)
 
 	var resources VmGroupResources
-	// lock to reserve subnets.  AWS is very fast on create so this is probably ok, but
-	// should be revisited
-
-	err := a.populateOrchestrationParams(ctx, vmgp, action)
-	if err != nil {
-		return nil, err
-	}
-	log.SpanLog(ctx, log.DebugLevelInfra, "Params after populate", "vmgp", vmgp)
 	vpc, err := a.GetVPC(ctx, a.GetVpcName())
 	if err != nil {
 		return nil, err
+	}
+	// populate image map
+	resources.imageNameToId = make(map[string]string)
+	for _, vm := range vmgp.VMs {
+		_, ok := resources.imageNameToId[vm.ImageName]
+		if !ok {
+			imgId, err := a.GetImageId(ctx, vm.ImageName, a.IamAccountId)
+			if err != nil {
+				return nil, err
+			}
+			resources.imageNameToId[vm.ImageName] = imgId
+		}
 	}
 	resources.VpcId = vpc.VpcId
 	mexNet := a.VMProperties.GetCloudletMexNetwork()
@@ -74,6 +66,15 @@ func (a *AWSPlatform) getVmGroupResources(ctx context.Context, vmgp *vmlayer.VMG
 		return nil, err
 	}
 
+	// lock around the rest of this function which gets and creates subnets, secgrps
+	orchVmLock.Lock()
+	defer orchVmLock.Unlock()
+
+	err = a.populateOrchestrationParams(ctx, vmgp, action)
+	if err != nil {
+		return nil, err
+	}
+	log.SpanLog(ctx, log.DebugLevelInfra, "Orchestration Params after populate", "vmgp", vmgp)
 	secGrpMap, err := a.GetSecurityGroups(ctx, vpc.VpcId)
 	if err != nil {
 		return nil, err
@@ -121,83 +122,16 @@ func (a *AWSPlatform) getVmGroupResources(ctx context.Context, vmgp *vmlayer.VMG
 			}
 		}
 	}
-
 	snMap, err := a.GetSubnets(ctx)
 	if err != nil {
 		return nil, err
 	}
 	resources.SubnetMap = snMap
-
-	// populate image map
-	resources.imageNameToId = make(map[string]string)
-	for _, vm := range vmgp.VMs {
-		_, ok := resources.imageNameToId[vm.ImageName]
-		if !ok {
-			imgId, err := a.GetImageId(ctx, vm.ImageName, a.IamAccountId)
-			if err != nil {
-				return nil, err
-			}
-			resources.imageNameToId[vm.ImageName] = imgId
-		}
-	}
 	return &resources, nil
-}
-
-// CreateVMs creates the VMs and associated resources provided in the group orch params.  For AWS, VM creation is done in serial
-// because it returns almost instantly.  After creation VMs are polled to see that they are all running.
-func (a *AWSPlatform) CreateVMs(ctx context.Context, vmgp *vmlayer.VMGroupOrchestrationParams, updateCallback edgeproto.CacheUpdateCallback) error {
-	log.SpanLog(ctx, log.DebugLevelInfra, "CreateVMs", "vmgp", vmgp)
-	updateCallback(edgeproto.UpdateTask, "Creating VMs")
-
-	resources, err := a.getVmGroupResources(ctx, vmgp, vmlayer.ActionCreate, updateCallback)
-	if err != nil {
-		return err
-	}
-	for _, vm := range vmgp.VMs {
-		err := a.CreateVM(ctx, vmgp.GroupName, &vm, vmgp.Ports, resources)
-		if err != nil {
-			log.SpanLog(ctx, log.DebugLevelInfra, "CreateVM failed", "err", err)
-			if !vmgp.SkipCleanupOnFailure {
-				a.DeleteVMs(ctx, vmgp.GroupName)
-			}
-			return err
-		}
-	}
-	err = a.WaitForVMsToBeInState(ctx, vmgp.GroupName, "running", maxVMRunningWait)
-	if err != nil {
-		log.SpanLog(ctx, log.DebugLevelInfra, "Waiting for VMs to run failed", "err", err, "GroupName", vmgp.GroupName)
-		if !vmgp.SkipCleanupOnFailure {
-			a.DeleteVMs(ctx, vmgp.GroupName)
-		}
-		return err
-	}
-	return nil
-}
-
-func (a *AWSPlatform) DeleteVMs(ctx context.Context, vmGroupName string) error {
-	return a.DeleteAllResourcesForGroup(ctx, vmGroupName)
-}
-
-// meta data needs to have an extra layer "meta" for vsphere
-func awsMetaDataFormatter(instring string) string {
-	indented := ""
-	for _, v := range strings.Split(instring, "\n") {
-		indented += strings.Repeat(" ", 4) + v + "\n"
-	}
-	withMeta := fmt.Sprintf("meta:\n%s", indented)
-	return base64.StdEncoding.EncodeToString([]byte(withMeta))
-}
-
-// meta data needs to have an extra layer "meta" for vsphere
-func awsUserDataFormatter(instring string) string {
-	// aws ec2 needs to leave as raw text
-	return instring
 }
 
 func (a *AWSPlatform) populateOrchestrationParams(ctx context.Context, vmgp *vmlayer.VMGroupOrchestrationParams, action vmlayer.ActionType) error {
 	log.SpanLog(ctx, log.DebugLevelInfra, "populateOrchestrationParams", "action", action)
-	orchVmLock.Lock()
-	defer orchVmLock.Unlock()
 	usedCidrs := make(map[string]string)
 	if !vmgp.SkipInfraSpecificCheck {
 		subs, err := a.GetSubnets(ctx)
@@ -240,6 +174,7 @@ func (a *AWSPlatform) populateOrchestrationParams(ctx context.Context, vmgp *vml
 	}
 	metaDir := "/mnt/mobiledgex-config/openstack/latest/"
 	for vmidx, vm := range vmgp.VMs {
+		// metadata for AWS EC2 is embedded in the user data and then extracted within cloud-init
 		metaData := vmlayer.GetVMMetaData(vm.Role, masterIP, awsMetaDataFormatter)
 		vm.CloudConfigParams.ExtraBootCommands = append(vm.CloudConfigParams.ExtraBootCommands, "mkdir -p "+metaDir)
 		vm.CloudConfigParams.ExtraBootCommands = append(vm.CloudConfigParams.ExtraBootCommands,
@@ -272,7 +207,6 @@ func (a *AWSPlatform) populateOrchestrationParams(ctx context.Context, vmgp *vml
 				}
 			}
 		}
-
 	}
 	return nil
 }
@@ -311,6 +245,43 @@ func (a *AWSPlatform) getVMListsForUpdate(ctx context.Context, vmgp *vmlayer.VMG
 		}
 	}
 	return nil
+}
+
+// CreateVMs creates the VMs and associated resources provided in the group orch params.  For AWS, VM creation is done in serial
+// because it returns almost instantly.  After creation VMs are polled to see that they are all running.
+func (a *AWSPlatform) CreateVMs(ctx context.Context, vmgp *vmlayer.VMGroupOrchestrationParams, updateCallback edgeproto.CacheUpdateCallback) error {
+	log.SpanLog(ctx, log.DebugLevelInfra, "CreateVMs", "vmgp", vmgp)
+	updateCallback(edgeproto.UpdateTask, "Creating VMs")
+
+	resources, err := a.getVmGroupResources(ctx, vmgp, vmlayer.ActionCreate, updateCallback)
+	if err != nil {
+		return err
+	}
+	// AWS VM creation into pending state is very fast so no need to do this in multiple threads.
+	for _, vm := range vmgp.VMs {
+		err := a.CreateVM(ctx, vmgp.GroupName, &vm, vmgp.Ports, resources)
+		if err != nil {
+			log.SpanLog(ctx, log.DebugLevelInfra, "CreateVM failed", "err", err)
+			if !vmgp.SkipCleanupOnFailure {
+				a.DeleteVMs(ctx, vmgp.GroupName)
+			}
+			return err
+		}
+	}
+	// VMs take some time to actually start after create, poll for this
+	err = a.WaitForVMsToBeInState(ctx, vmgp.GroupName, "running", maxVMRunningWait)
+	if err != nil {
+		log.SpanLog(ctx, log.DebugLevelInfra, "Waiting for VMs to run failed", "err", err, "GroupName", vmgp.GroupName)
+		if !vmgp.SkipCleanupOnFailure {
+			a.DeleteVMs(ctx, vmgp.GroupName)
+		}
+		return err
+	}
+	return nil
+}
+
+func (a *AWSPlatform) DeleteVMs(ctx context.Context, vmGroupName string) error {
+	return a.DeleteAllResourcesForGroup(ctx, vmGroupName)
 }
 
 // UpdateVMs calculates which VMs need to be added or removed from the given group and then does so.

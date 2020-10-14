@@ -59,6 +59,7 @@ func (a *AWSPlatform) RevokeSecurityGroupRule(ctx context.Context, groupId, prot
 	return nil
 }
 
+// addOrDeleteSecurityRule is a utility function to share code within adding and removing a rule
 func (a *AWSPlatform) addOrDeleteSecurityRule(ctx context.Context, grpName, allowedCidr string, ports []dme.AppPort, action SecurityGroupAction) error {
 	log.SpanLog(ctx, log.DebugLevelInfra, "addOrDeleteSecurityRule", "grpName", grpName, "allowedCidr", allowedCidr, "ports", ports, "action", action)
 	vpc, err := a.GetVPC(ctx, a.GetVpcName())
@@ -97,46 +98,7 @@ func (a *AWSPlatform) addOrDeleteSecurityRule(ctx context.Context, grpName, allo
 	return nil
 }
 
-func (a *AWSPlatform) DeleteSecurityGroup(ctx context.Context, groupId, vpcId string) error {
-	log.SpanLog(ctx, log.DebugLevelInfra, "DeleteSecurityGroup", "groupId", groupId, "vpcId", vpcId)
-	out, err := a.TimedAwsCommand(ctx, "aws",
-		"ec2",
-		"delete-security-group",
-		"--region", a.GetAwsRegion(),
-		"--group-id", groupId)
-	if err != nil && !strings.Contains(err.Error(), SecGrpDoesNotExistError) {
-		return fmt.Errorf("Error in delete-security-group: %s - %v", string(out), err)
-	}
-	return nil
-}
-
-func (a *AWSPlatform) CreateSecurityGroup(ctx context.Context, name, vpcId, vmGroupName string) (*AwsEc2SecGrp, error) {
-	log.SpanLog(ctx, log.DebugLevelInfra, "CreateSecurityGroup", "name", name, "vmGroupName", vmGroupName, "vpcId", vpcId)
-	tagspec := fmt.Sprintf("ResourceType=security-group,Tags=[{Key=%s,Value=%s},{Key=%s,Value=%s}]", NameTag, name, VMGroupNameTag, vmGroupName)
-
-	out, err := a.TimedAwsCommand(ctx, "aws",
-		"ec2",
-		"create-security-group",
-		"--region", a.GetAwsRegion(),
-		"--group-name", name,
-		"--vpc-id", vpcId,
-		"--description", vmGroupName,
-		"--tag-specifications", tagspec)
-	if err != nil {
-		return nil, fmt.Errorf("Error in create-security-group: %s - %v", string(out), err)
-	}
-	var sg AwsEc2SecGrp
-	err = json.Unmarshal(out, &sg)
-	if err != nil {
-		log.SpanLog(ctx, log.DebugLevelInfra, "aws create-security-group unmarshal fail", "vpcId", vpcId, "out", string(out), "err", err)
-		err = fmt.Errorf("cannot unmarshal, %v", err)
-		return nil, err
-	}
-	sg.GroupName = name
-	sg.VpcId = vpcId
-	return &sg, nil
-}
-
+// GetSecurityGroup returns a single group with the name
 func (a *AWSPlatform) GetSecurityGroup(ctx context.Context, name string, vpcId string) (*AwsEc2SecGrp, error) {
 	log.SpanLog(ctx, log.DebugLevelInfra, "GetSecurityGroup", "name", name, "vpcId", vpcId)
 
@@ -151,16 +113,7 @@ func (a *AWSPlatform) GetSecurityGroup(ctx context.Context, name string, vpcId s
 	return grp, nil
 }
 
-func (a *AWSPlatform) WhitelistSecurityRules(ctx context.Context, client ssh.Client, secGrpName, server, label, allowedCIDR string, ports []dme.AppPort) error {
-	log.SpanLog(ctx, log.DebugLevelInfra, "WhitelistSecurityRules", "secGrpName", secGrpName, "label", label, "allowedCIDR", allowedCIDR, "ports", ports)
-	return a.addOrDeleteSecurityRule(ctx, secGrpName, allowedCIDR, ports, SecurityGroupRuleCreate)
-}
-
-func (a *AWSPlatform) RemoveWhitelistSecurityRules(ctx context.Context, client ssh.Client, secGrpName, label, allowedCIDR string, ports []dme.AppPort) error {
-	log.SpanLog(ctx, log.DebugLevelInfra, "RemoveWhitelistSecurityRules", "secGrpName", secGrpName, "allowedCIDR", allowedCIDR, "ports", ports)
-	return a.addOrDeleteSecurityRule(ctx, secGrpName, allowedCIDR, ports, SecurityGroupRuleRevoke)
-}
-
+// GetSecurityGroups returns a map of name to group for all groups in the VPC
 func (a *AWSPlatform) GetSecurityGroups(ctx context.Context, vpcId string) (map[string]*AwsEc2SecGrp, error) {
 	log.SpanLog(ctx, log.DebugLevelInfra, "GetSecurityGroups", "vpcId", vpcId)
 	out, err := a.TimedAwsCommand(ctx, "aws",
@@ -185,4 +138,96 @@ func (a *AWSPlatform) GetSecurityGroups(ctx context.Context, vpcId string) (map[
 	}
 	log.SpanLog(ctx, log.DebugLevelInfra, "found security groups", "sgMap", sgMap)
 	return sgMap, nil
+}
+
+func (a *AWSPlatform) CreateSecurityGroup(ctx context.Context, secGrpname, vpcId, vmGroupName string) (*AwsEc2SecGrp, error) {
+	log.SpanLog(ctx, log.DebugLevelInfra, "CreateSecurityGroup", "secGrpname", secGrpname, "vmGroupName", vmGroupName, "vpcId", vpcId)
+	tagspec := fmt.Sprintf("ResourceType=security-group,Tags=[{Key=%s,Value=%s},{Key=%s,Value=%s}]", NameTag, secGrpname, VMGroupNameTag, vmGroupName)
+
+	out, err := a.TimedAwsCommand(ctx, "aws",
+		"ec2",
+		"create-security-group",
+		"--region", a.GetAwsRegion(),
+		"--group-name", secGrpname,
+		"--vpc-id", vpcId,
+		"--description", vmGroupName,
+		"--tag-specifications", tagspec)
+
+	if err != nil {
+		return nil, fmt.Errorf("Error in create-security-group: %s - %v", string(out), err)
+	}
+	var sg AwsEc2SecGrp
+	err = json.Unmarshal(out, &sg)
+	if err != nil {
+		log.SpanLog(ctx, log.DebugLevelInfra, "aws create-security-group unmarshal fail", "vpcId", vpcId, "out", string(out), "err", err)
+		err = fmt.Errorf("cannot unmarshal, %v", err)
+		return nil, err
+	}
+	sg.GroupName = secGrpname
+	sg.VpcId = vpcId
+	return &sg, nil
+}
+
+func (a *AWSPlatform) DeleteSecurityGroup(ctx context.Context, groupId, vpcId string) error {
+	log.SpanLog(ctx, log.DebugLevelInfra, "DeleteSecurityGroup", "groupId", groupId, "vpcId", vpcId)
+	out, err := a.TimedAwsCommand(ctx, "aws",
+		"ec2",
+		"delete-security-group",
+		"--region", a.GetAwsRegion(),
+		"--group-id", groupId)
+	if err != nil && !strings.Contains(err.Error(), SecGrpDoesNotExistError) {
+		return fmt.Errorf("Error in delete-security-group: %s - %v", string(out), err)
+	}
+	return nil
+}
+
+func (a *AWSPlatform) WhitelistSecurityRules(ctx context.Context, client ssh.Client, secGrpName, server, label, allowedCIDR string, ports []dme.AppPort) error {
+	log.SpanLog(ctx, log.DebugLevelInfra, "WhitelistSecurityRules", "secGrpName", secGrpName, "label", label, "allowedCIDR", allowedCIDR, "ports", ports)
+	return a.addOrDeleteSecurityRule(ctx, secGrpName, allowedCIDR, ports, SecurityGroupRuleCreate)
+}
+
+func (a *AWSPlatform) RemoveWhitelistSecurityRules(ctx context.Context, client ssh.Client, secGrpName, label, allowedCIDR string, ports []dme.AppPort) error {
+	log.SpanLog(ctx, log.DebugLevelInfra, "RemoveWhitelistSecurityRules", "secGrpName", secGrpName, "allowedCIDR", allowedCIDR, "ports", ports)
+	return a.addOrDeleteSecurityRule(ctx, secGrpName, allowedCIDR, ports, SecurityGroupRuleRevoke)
+}
+
+// AllowIntraVpcTraffic creates a rule to allow traffic within the VPC
+func (a *AWSPlatform) AllowIntraVpcTraffic(ctx context.Context, groupId string) error {
+	log.SpanLog(ctx, log.DebugLevelInfra, "AllowIntraVpcTraffic", "groupId", groupId)
+	err := a.CreateSecurityGroupRule(ctx, groupId, "tcp", "0-65535", a.VpcCidr)
+	if err != nil {
+		return err
+	}
+	err = a.CreateSecurityGroupRule(ctx, groupId, "udp", "0-65535", a.VpcCidr)
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
+// GetIamAccountId gets the account Id for the logged in user
+func (a *AWSPlatform) GetIamAccountId(ctx context.Context) (string, error) {
+	log.SpanLog(ctx, log.DebugLevelInfra, "GetIamAccountId")
+
+	out, err := a.TimedAwsCommand(ctx, "aws",
+		"iam",
+		"get-user")
+
+	log.SpanLog(ctx, log.DebugLevelInfra, "get-user result", "out", string(out), "err", err)
+	if err != nil {
+		return "", fmt.Errorf("GetIamAccountId failed: %s - %v", string(out), err)
+	}
+	var iamResult AwsIamUserResult
+	err = json.Unmarshal(out, &iamResult)
+	if err != nil {
+		log.SpanLog(ctx, log.DebugLevelInfra, "aws get-user unmarshal fail", "out", string(out), "err", err)
+		err = fmt.Errorf("cannot unmarshal, %v", err)
+		return "", err
+	}
+	arns := strings.Split(iamResult.User.Arn, ":")
+	if len(arns) <= ArnAccountIdIdx {
+		log.SpanLog(ctx, log.DebugLevelInfra, "Wrong number of fields in ARN", "iamResult.User.Arn", iamResult.User.Arn)
+		return "", fmt.Errorf("Cannot parse IAM ARN: %s", iamResult.User.Arn)
+	}
+	return arns[ArnAccountIdIdx], nil
 }

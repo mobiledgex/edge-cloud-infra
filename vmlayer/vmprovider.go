@@ -131,7 +131,7 @@ const (
 	VMProviderOpenstack string = "openstack"
 	VMProviderVSphere   string = "vsphere"
 	VMProviderVMPool    string = "vmpool"
-	VMProviderAwsEks    string = "awseks"
+	VMProviderAwsEc2    string = "awsec2"
 )
 
 type ProviderInitStage string

@@ -559,12 +559,6 @@ func (v *VMPlatform) getVMGroupOrchestrationParamsFromGroupSpec(ctx context.Cont
 		log.SpanLog(ctx, log.DebugLevelInfra, "NoConfigExternalRouter in use")
 	} else if rtr == NoExternalRouter {
 		log.SpanLog(ctx, log.DebugLevelInfra, "NoExternalRouter in use ")
-		if v.VMProperties.UseSecgrpForInternalSubnet {
-			if spec.NewSubnetName != "" {
-				internalSecgrpID = cloudletSecGrpID
-				internalSecgrpPreexisting = true
-			}
-		}
 	} else {
 		log.SpanLog(ctx, log.DebugLevelInfra, "External router in use")
 		if spec.NewSubnetName != "" {
@@ -911,7 +905,6 @@ func (v *VMPlatform) OrchestrateVMsFromVMSpec(ctx context.Context, name string, 
 		return gp, err
 	}
 	log.SpanLog(ctx, log.DebugLevelInfra, "created vm group spec", "gp", gp)
-	// delete any cached IPs on any action for these VMs
 	switch action {
 	case ActionCreate:
 		for _, vm := range vms {

@@ -496,8 +496,8 @@ func (v *VMPlatform) DeleteAppInst(ctx context.Context, clusterInst *edgeproto.C
 			if err != nil {
 				log.SpanLog(ctx, log.DebugLevelInfra, "failed to delete client from Chef Server", "clientName", clientName, "err", err)
 			}
-			DeleteServerIpFromCache(ctx, lbName)
 			proxy.RemoveDedicatedVmApp(ctx, cloudcommon.GetAppFQN(&app.Key))
+			DeleteServerIpFromCache(ctx, lbName)
 		}
 		imgName, err := cloudcommon.GetFileName(app.ImagePath)
 		if err != nil {

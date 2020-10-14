@@ -41,7 +41,7 @@ func GetPlatform(plat string) (platform.Platform, error) {
 	case "PLATFORM_TYPE_AWS_EC2":
 		awsVMProvider := aws.AWSPlatform{}
 		outPlatform = &vmlayer.VMPlatform{
-			Type:       vmlayer.VMProviderAwsEks,
+			Type:       vmlayer.VMProviderAwsEc2,
 			VMProvider: &awsVMProvider,
 		}
 	case "PLATFORM_TYPE_AZURE":

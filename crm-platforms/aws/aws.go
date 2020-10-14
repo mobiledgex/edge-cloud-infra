@@ -12,7 +12,6 @@ import (
 )
 
 type AWSPlatform struct {
-	//commonPf     *infracommon.CommonPlatform
 	VMProperties *vmlayer.VMProperties
 	BaseImageId  string
 	IamAccountId string
@@ -104,7 +103,6 @@ func (a *AWSPlatform) Login(ctx context.Context) error {
 }
 
 func (a *AWSPlatform) NameSanitize(clusterName string) string {
-	//	return strings.NewReplacer(".", "").Replace(clusterName)
 	return clusterName
 }
 

@@ -22,7 +22,7 @@ func (a *AWSPlatform) GetVPC(ctx context.Context, name string) (*AwsEc2Vpc, erro
 		"describe-vpcs",
 		"--filters", "Name=tag-key,Values=Name", filter,
 		"--region", a.GetAwsRegion())
-	log.SpanLog(ctx, log.DebugLevelInfra, "describe-vpcs result", "out", string(out), "err", err)
+
 	if err != nil {
 		return nil, fmt.Errorf("GetVPC failed: %s - %v", string(out), err)
 	}

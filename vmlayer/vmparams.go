@@ -730,9 +730,12 @@ func (v *VMPlatform) getVMGroupOrchestrationParamsFromGroupSpec(ctx context.Cont
 						},
 					},
 				}
-				if v.VMProperties.UseSecgrpForInternalSubnet && spec.NewSecgrpName != "" {
-					// connect internal ports to the new secgrp
-					internalPort.SecurityGroups = append(internalPort.SecurityGroups, NewResourceReference(spec.NewSecgrpName, spec.NewSecgrpName, true))
+				if v.VMProperties.UseSecgrpForInternalSubnet {
+					internalPort.SecurityGroups = append(internalPort.SecurityGroups, NewResourceReference(cloudletSecGrpID, cloudletSecGrpID, true))
+					if spec.NewSecgrpName != "" {
+						// connect internal ports to the new secgrp
+						internalPort.SecurityGroups = append(internalPort.SecurityGroups, NewResourceReference(spec.NewSecgrpName, spec.NewSecgrpName, false))
+					}
 				}
 				newPorts = append(newPorts, internalPort)
 
@@ -758,9 +761,12 @@ func (v *VMPlatform) getVMGroupOrchestrationParamsFromGroupSpec(ctx context.Cont
 					},
 				}
 				internalPortNextOctet++
-				if v.VMProperties.UseSecgrpForInternalSubnet && spec.NewSecgrpName != "" {
-					// connect internal ports to the new secgrp
-					internalPort.SecurityGroups = append(internalPort.SecurityGroups, NewResourceReference(spec.NewSecgrpName, spec.NewSecgrpName, true))
+				if v.VMProperties.UseSecgrpForInternalSubnet {
+					internalPort.SecurityGroups = append(internalPort.SecurityGroups, NewResourceReference(cloudletSecGrpID, cloudletSecGrpID, true))
+					if spec.NewSecgrpName != "" {
+						// connect internal ports to the new secgrp
+						internalPort.SecurityGroups = append(internalPort.SecurityGroups, NewResourceReference(spec.NewSecgrpName, spec.NewSecgrpName, false))
+					}
 				}
 				newPorts = append(newPorts, internalPort)
 			} else {

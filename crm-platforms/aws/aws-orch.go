@@ -109,17 +109,6 @@ func (a *AWSPlatform) getVmGroupResources(ctx context.Context, vmgp *vmlayer.VMG
 			if err != nil {
 				return nil, err
 			}
-			if sn.SecurityGroupName != "" {
-				sg, ok := secGrpMap[sn.SecurityGroupName]
-				if !ok {
-					return nil, fmt.Errorf(SecGrpDoesNotExistError + ": " + sn.SecurityGroupName)
-				}
-				// whitelist within the VPC
-				err = a.AllowIntraVpcTraffic(ctx, sg.GroupId)
-				if err != nil {
-					return nil, err
-				}
-			}
 		}
 	}
 	snMap, err := a.GetSubnets(ctx)
@@ -251,12 +240,11 @@ func (a *AWSPlatform) getVMListsForUpdate(ctx context.Context, vmgp *vmlayer.VMG
 // because it returns almost instantly.  After creation VMs are polled to see that they are all running.
 func (a *AWSPlatform) CreateVMs(ctx context.Context, vmgp *vmlayer.VMGroupOrchestrationParams, updateCallback edgeproto.CacheUpdateCallback) error {
 	log.SpanLog(ctx, log.DebugLevelInfra, "CreateVMs", "vmgp", vmgp)
-	updateCallback(edgeproto.UpdateTask, "Creating VMs")
-
 	resources, err := a.getVmGroupResources(ctx, vmgp, vmlayer.ActionCreate, updateCallback)
 	if err != nil {
 		return err
 	}
+	updateCallback(edgeproto.UpdateTask, "Creating VMs")
 	// AWS VM creation into pending state is very fast so no need to do this in multiple threads.
 	for _, vm := range vmgp.VMs {
 		err := a.CreateVM(ctx, vmgp.GroupName, &vm, vmgp.Ports, resources)

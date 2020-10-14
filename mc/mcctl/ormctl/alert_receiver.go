@@ -5,10 +5,13 @@ import (
 
 	"github.com/mobiledgex/edge-cloud-infra/mc/ormapi"
 	"github.com/mobiledgex/edge-cloud/cli"
+	"github.com/mobiledgex/edge-cloud/cloudcommon"
 	"github.com/spf13/cobra"
 )
 
 var AlertReceiverAliasArgs = []string{
+	"slack-channel=slackchannel",
+	"slack-api-url=slackwebhook",
 	"app-org=appinst.appkey.organization",
 	"appname=appinst.appkey.name",
 	"appvers=appinst.appkey.version",
@@ -52,6 +55,9 @@ var AlertReceiverRequiredArgs = []string{
 }
 
 var AlertReceiverOptionalArgs = []string{
+	"email",
+	"slack-channel",
+	"slack-api-url",
 	"appname",
 	"appvers",
 	"app-org",
@@ -64,6 +70,12 @@ var AlertReceiverOptionalArgs = []string{
 }
 
 var AlertReceiverArgsComments = map[string]string{
+	"name":             "Unique name of this receiver",
+	"type":             "Receiver type - email, or slack",
+	"severity":         "Alert severity level - one of " + cloudcommon.GetValidAlertSeverityString(),
+	"email":            "Email address receiving the alert (by default email associated with the account)",
+	"slack-channel":    "Slack channel to be receiving the alert",
+	"slack-api-url":    "Slack webhook url",
 	"app-org":          "Organization or Company name of the App Instance",
 	"appname":          "App Instance name",
 	"appvers":          "App Instance version",

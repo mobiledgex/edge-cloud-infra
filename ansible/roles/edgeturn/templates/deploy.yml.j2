@@ -31,6 +31,8 @@ spec:
          - "--vaultAddr"
          - "https://{{ vault_vm_hostname }}:{{ vault_port }}"
          - "--useVaultCerts"
+         - "--deploymentTag"
+         - "{{ deployment_tag_override | default(deploy_environ) }}"
          - "-d"
          - "api,notify"
         env:
@@ -42,6 +44,8 @@ spec:
            value: "{{ jaeger_endpoint }}"
          - name: JAEGER_TAGS
            value: "environ={{ deploy_environ }},region={{ region }},version={{ edge_cloud_version }}"
+         - name: ES_SERVER_URLS
+           value: "{{ esproxy_address }}"
 
       imagePullSecrets:
        - name: mexreg-secret

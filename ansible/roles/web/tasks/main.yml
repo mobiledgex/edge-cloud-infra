@@ -27,6 +27,15 @@
   notify:
     - Restart nginx
 
+- name: Disable server tokens
+  lineinfile:
+    path: /etc/nginx/nginx.conf
+    regexp: "^\\s*#\\s*server_tokens off;"
+    line: "	server_tokens off;"
+  become: yes
+  notify:
+    - Restart nginx
+
 - name: Allow telegraf access to logs
   acl:
     path: /var/log/nginx/access.log

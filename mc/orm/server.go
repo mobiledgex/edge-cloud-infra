@@ -242,6 +242,8 @@ func RunServer(config *ServerConfig) (*Server, error) {
 			log.SpanLog(ctx, log.DebugLevelInfo, "Failed to start alertmanager server", "error", err)
 			err = nil
 		}
+	} else if config.InitLocal && config.RunLocal {
+		AlertManagerServer = alertmgr.NewAlertMgrServerTest()
 	}
 
 	e := echo.New()

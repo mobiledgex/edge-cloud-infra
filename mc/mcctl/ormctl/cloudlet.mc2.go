@@ -161,6 +161,30 @@ var FindFlavorMatchCmd = &cli.Command{
 	Run:          runRest("/auth/ctrl/FindFlavorMatch"),
 }
 
+var RevokeAccessKeyCmd = &cli.Command{
+	Use:          "RevokeAccessKey",
+	RequiredArgs: "region " + strings.Join(CloudletKeyRequiredArgs, " "),
+	OptionalArgs: strings.Join(CloudletKeyOptionalArgs, " "),
+	AliasArgs:    strings.Join(CloudletKeyAliasArgs, " "),
+	SpecialArgs:  &CloudletKeySpecialArgs,
+	Comments:     addRegionComment(CloudletKeyComments),
+	ReqData:      &ormapi.RegionCloudletKey{},
+	ReplyData:    &edgeproto.Result{},
+	Run:          runRest("/auth/ctrl/RevokeAccessKey"),
+}
+
+var GenerateAccessKeyCmd = &cli.Command{
+	Use:          "GenerateAccessKey",
+	RequiredArgs: "region " + strings.Join(CloudletKeyRequiredArgs, " "),
+	OptionalArgs: strings.Join(CloudletKeyOptionalArgs, " "),
+	AliasArgs:    strings.Join(CloudletKeyAliasArgs, " "),
+	SpecialArgs:  &CloudletKeySpecialArgs,
+	Comments:     addRegionComment(CloudletKeyComments),
+	ReqData:      &ormapi.RegionCloudletKey{},
+	ReplyData:    &edgeproto.Result{},
+	Run:          runRest("/auth/ctrl/GenerateAccessKey"),
+}
+
 var CloudletApiCmds = []*cli.Command{
 	CreateCloudletCmd,
 	DeleteCloudletCmd,
@@ -171,6 +195,8 @@ var CloudletApiCmds = []*cli.Command{
 	AddCloudletResMappingCmd,
 	RemoveCloudletResMappingCmd,
 	FindFlavorMatchCmd,
+	RevokeAccessKeyCmd,
+	GenerateAccessKeyCmd,
 }
 
 var CreateCloudletRequiredArgs = []string{
@@ -209,6 +235,8 @@ var CreateCloudletOptionalArgs = []string{
 	"maintenancestate",
 	"overridepolicycontainerversion",
 	"vmpool",
+	"crmaccesspublickey",
+	"crmaccesskeyupgraderequired",
 }
 var UpdateCloudletRequiredArgs = []string{
 	"cloudlet-org",
@@ -231,6 +259,8 @@ var UpdateCloudletOptionalArgs = []string{
 	"envvar",
 	"accessvars",
 	"maintenancestate",
+	"crmaccesspublickey",
+	"crmaccesskeyupgraderequired",
 }
 var GetCloudletPropsRequiredArgs = []string{
 	"platformtype",
@@ -459,6 +489,8 @@ var CloudletOptionalArgs = []string{
 	"maintenancestate",
 	"overridepolicycontainerversion",
 	"vmpool",
+	"crmaccesspublickey",
+	"crmaccesskeyupgraderequired",
 }
 var CloudletAliasArgs = []string{
 	"fields=cloudlet.fields",
@@ -529,6 +561,8 @@ var CloudletAliasArgs = []string{
 	"maintenancestate=cloudlet.maintenancestate",
 	"overridepolicycontainerversion=cloudlet.overridepolicycontainerversion",
 	"vmpool=cloudlet.vmpool",
+	"crmaccesspublickey=cloudlet.crmaccesspublickey",
+	"crmaccesskeyupgraderequired=cloudlet.crmaccesskeyupgraderequired",
 }
 var CloudletComments = map[string]string{
 	"fields":                              "Fields are used for the Update API to specify which fields to apply",
@@ -592,6 +626,8 @@ var CloudletComments = map[string]string{
 	"maintenancestate":                    "State for maintenance, one of NormalOperation, MaintenanceStart, MaintenanceStartNoFailover",
 	"overridepolicycontainerversion":      "Override container version from policy file",
 	"vmpool":                              "VM Pool",
+	"crmaccesspublickey":                  "CRM access public key",
+	"crmaccesskeyupgraderequired":         "CRM access key upgrade required",
 }
 var CloudletSpecialArgs = map[string]string{
 	"cloudlet.accessvars":    "StringToString",

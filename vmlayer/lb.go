@@ -382,6 +382,9 @@ func (v *VMPlatform) SetupRootLB(
 	updateCallback edgeproto.CacheUpdateCallback,
 ) error {
 	log.SpanLog(ctx, log.DebugLevelInfra, "SetupRootLB", "rootLBName", rootLBName)
+	// ensure no entries exist in the ip cache for this rootlb
+	DeleteServerIpFromCache(ctx, rootLBName)
+
 	//fqdn is that of the machine/kvm-instance running the agent
 	if !valid.IsDNSName(rootLBName) {
 		return fmt.Errorf("fqdn %s is not valid", rootLBName)
@@ -395,7 +398,7 @@ func (v *VMPlatform) SetupRootLB(
 	// when CRM accessed via public internet.
 	log.SpanLog(ctx, log.DebugLevelInfra, "setup rootLBName group for SSH access")
 	groupName := GetServerSecurityGroupName(rootLBName)
-	client, err := v.GetSSHClientForServer(ctx, rootLBName, v.VMProperties.GetCloudletExternalNetwork(), WithUser(infracommon.SSHUser))
+	client, err := v.GetSSHClientForServer(ctx, rootLBName, v.VMProperties.GetCloudletExternalNetwork(), pc.WithUser(infracommon.SSHUser), pc.WithCachedIp(true))
 	if err != nil {
 		return err
 	}

@@ -671,10 +671,6 @@ func (v *VMPlatform) getVMGroupOrchestrationParamsFromGroupSpec(ctx context.Cont
 			// if the router is used we don't create an internal port for rootlb
 			if vm.ConnectToSubnet != "" && !rtrInUse {
 				// no router means rootlb must be connected to other VMs directly
-				var gwOctet uint32 = 1
-				if v.VMProperties.OverrideGWOctet != 0 {
-					gwOctet = v.VMProperties.OverrideGWOctet
-				}
 				internalPort := PortOrchestrationParams{
 					Name:        internalPortName,
 					Id:          v.VMProvider.NameSanitize(internalPortName),
@@ -685,7 +681,7 @@ func (v *VMPlatform) getVMGroupOrchestrationParamsFromGroupSpec(ctx context.Cont
 					FixedIPs: []FixedIPOrchestrationParams{
 						{
 							Address:     NextAvailableResource,
-							LastIPOctet: gwOctet,
+							LastIPOctet: 1,
 							Subnet:      NewResourceReference(vm.ConnectToSubnet, vm.ConnectToSubnet, connectToPreexistingSubnet),
 						},
 					},
@@ -906,6 +902,7 @@ func (v *VMPlatform) OrchestrateVMsFromVMSpec(ctx context.Context, name string, 
 		return gp, err
 	}
 	log.SpanLog(ctx, log.DebugLevelInfra, "created vm group spec", "gp", gp)
+	// delete any cached IPs on any action for these VMs
 	switch action {
 	case ActionCreate:
 		for _, vm := range vms {

@@ -248,6 +248,7 @@ func (v *VMPlatform) deleteCluster(ctx context.Context, rootLBName string, clust
 			if err != nil {
 				log.SpanLog(ctx, log.DebugLevelInfra, "failed to delete client from Chef Server", "clientName", clientName, "err", err)
 			}
+			DeleteServerIpFromCache(ctx, rootLBName)
 		}
 	}
 

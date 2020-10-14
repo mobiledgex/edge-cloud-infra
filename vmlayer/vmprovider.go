@@ -8,6 +8,7 @@ import (
 	"github.com/mobiledgex/edge-cloud-infra/infracommon"
 	"github.com/mobiledgex/edge-cloud/cloud-resource-manager/k8smgmt"
 	"github.com/mobiledgex/edge-cloud/cloud-resource-manager/platform"
+	"github.com/mobiledgex/edge-cloud/cloud-resource-manager/platform/pc"
 	"github.com/mobiledgex/edge-cloud/cloud-resource-manager/proxy"
 	"github.com/mobiledgex/edge-cloud/cloudcommon"
 	"github.com/mobiledgex/edge-cloud/cloudcommon/node"
@@ -130,7 +131,7 @@ const (
 	VMProviderOpenstack string = "openstack"
 	VMProviderVSphere   string = "vsphere"
 	VMProviderVMPool    string = "vmpool"
-	VMProviderAwsVM     string = "awsvm"
+	VMProviderAwsEks    string = "awseks"
 )
 
 type ProviderInitStage string
@@ -159,7 +160,7 @@ func (v *VMPlatform) GetClusterPlatformClient(ctx context.Context, clusterInst *
 	if clusterInst.IpAccess == edgeproto.IpAccess_IP_ACCESS_DEDICATED {
 		rootLBName = cloudcommon.GetDedicatedLBFQDN(v.VMProperties.CommonPf.PlatformConfig.CloudletKey, &clusterInst.Key.ClusterKey, v.VMProperties.CommonPf.PlatformConfig.AppDNSRoot)
 	}
-	client, err := v.GetNodePlatformClient(ctx, &edgeproto.CloudletMgmtNode{Name: rootLBName})
+	client, err := v.GetNodePlatformClient(ctx, &edgeproto.CloudletMgmtNode{Name: rootLBName}, pc.WithCachedIp(true))
 	if err != nil {
 		return nil, err
 	}
@@ -176,7 +177,7 @@ func (v *VMPlatform) GetClusterPlatformClient(ctx context.Context, clusterInst *
 	return client, nil
 }
 
-func (v *VMPlatform) GetNodePlatformClient(ctx context.Context, node *edgeproto.CloudletMgmtNode) (ssh.Client, error) {
+func (v *VMPlatform) GetNodePlatformClient(ctx context.Context, node *edgeproto.CloudletMgmtNode, ops ...pc.SSHClientOp) (ssh.Client, error) {
 	log.SpanLog(ctx, log.DebugLevelInfra, "GetNodePlatformClient", "node", node)
 
 	if node == nil || node.Name == "" {
@@ -185,7 +186,7 @@ func (v *VMPlatform) GetNodePlatformClient(ctx context.Context, node *edgeproto.
 	if v.VMProperties.GetCloudletExternalNetwork() == "" {
 		return nil, fmt.Errorf("GetNodePlatformClient, missing external network in platform config")
 	}
-	return v.GetSSHClientForServer(ctx, node.Name, v.VMProperties.GetCloudletExternalNetwork())
+	return v.GetSSHClientForServer(ctx, node.Name, v.VMProperties.GetCloudletExternalNetwork(), ops...)
 }
 
 func (v *VMPlatform) ListCloudletMgmtNodes(ctx context.Context, clusterInsts []edgeproto.ClusterInst) ([]edgeproto.CloudletMgmtNode, error) {
@@ -379,7 +380,7 @@ func (v *VMPlatform) Init(ctx context.Context, platformConfig *platform.Platform
 	log.SpanLog(ctx, log.DebugLevelInfra, "ok, SetupRootLB")
 
 	// deletes exisitng l7 proxies for backwards compatibility, since we got rid of http. can be removed later
-	client, err := v.GetNodePlatformClient(ctx, &edgeproto.CloudletMgmtNode{Name: v.VMProperties.SharedRootLBName})
+	client, err := v.GetNodePlatformClient(ctx, &edgeproto.CloudletMgmtNode{Name: v.VMProperties.SharedRootLBName}, pc.WithCachedIp(true))
 	if err != nil {
 		return err
 	}
@@ -405,7 +406,7 @@ func (v *VMPlatform) SyncControllerCache(ctx context.Context, caches *platform.C
 
 	log.SpanLog(ctx, log.DebugLevelInfra, "Upgrade CRM Config")
 	// upgrade k8s config on each rootLB
-	sharedRootLBClient, err := v.GetNodePlatformClient(ctx, &edgeproto.CloudletMgmtNode{Name: v.VMProperties.SharedRootLBName})
+	sharedRootLBClient, err := v.GetNodePlatformClient(ctx, &edgeproto.CloudletMgmtNode{Name: v.VMProperties.SharedRootLBName}, pc.WithCachedIp(true))
 	if err != nil {
 		return err
 	}

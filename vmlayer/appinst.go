@@ -12,6 +12,7 @@ import (
 	"github.com/mobiledgex/edge-cloud/cloud-resource-manager/crmutil"
 	"github.com/mobiledgex/edge-cloud/cloud-resource-manager/dockermgmt"
 	"github.com/mobiledgex/edge-cloud/cloud-resource-manager/k8smgmt"
+	"github.com/mobiledgex/edge-cloud/cloud-resource-manager/platform/pc"
 	"github.com/mobiledgex/edge-cloud/cloud-resource-manager/proxy"
 	"github.com/mobiledgex/edge-cloud/cloudcommon"
 	"github.com/mobiledgex/edge-cloud/edgeproto"
@@ -210,7 +211,7 @@ func (v *VMPlatform) CreateAppInst(ctx context.Context, clusterInst *edgeproto.C
 
 		// set up DNS
 		var rootLBIPaddr *ServerIP
-		rootLBIPaddr, err = v.GetIPFromServerName(ctx, v.VMProperties.GetCloudletExternalNetwork(), "", rootLBName)
+		rootLBIPaddr, err = v.GetIPFromServerName(ctx, v.VMProperties.GetCloudletExternalNetwork(), "", rootLBName, pc.WithCachedIp(true))
 		if err == nil {
 			getDnsAction := func(svc v1.Service) (*infracommon.DnsSvcAction, error) {
 				action := infracommon.DnsSvcAction{}
@@ -345,7 +346,7 @@ func (v *VMPlatform) CreateAppInst(ctx context.Context, clusterInst *edgeproto.C
 			backendIP = sip.ExternalAddr
 		}
 
-		rootLBIPaddr, err := v.GetIPFromServerName(ctx, v.VMProperties.GetCloudletExternalNetwork(), "", rootLBName)
+		rootLBIPaddr, err := v.GetIPFromServerName(ctx, v.VMProperties.GetCloudletExternalNetwork(), "", rootLBName, pc.WithCachedIp(true))
 		if err != nil {
 			return err
 		}
@@ -495,6 +496,7 @@ func (v *VMPlatform) DeleteAppInst(ctx context.Context, clusterInst *edgeproto.C
 			if err != nil {
 				log.SpanLog(ctx, log.DebugLevelInfra, "failed to delete client from Chef Server", "clientName", clientName, "err", err)
 			}
+			DeleteServerIpFromCache(ctx, lbName)
 			proxy.RemoveDedicatedVmApp(ctx, cloudcommon.GetAppFQN(&app.Key))
 		}
 		imgName, err := cloudcommon.GetFileName(app.ImagePath)

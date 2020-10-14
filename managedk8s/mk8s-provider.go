@@ -73,7 +73,7 @@ func (m *ManagedK8sPlatform) GetClusterPlatformClient(ctx context.Context, clust
 	return &pc.LocalClient{}, nil
 }
 
-func (m *ManagedK8sPlatform) GetNodePlatformClient(ctx context.Context, node *edgeproto.CloudletMgmtNode) (ssh.Client, error) {
+func (m *ManagedK8sPlatform) GetNodePlatformClient(ctx context.Context, node *edgeproto.CloudletMgmtNode, ops ...pc.SSHClientOp) (ssh.Client, error) {
 	return &pc.LocalClient{}, nil
 }
 

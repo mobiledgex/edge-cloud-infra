@@ -36,7 +36,6 @@ type VMProperties struct {
 	IptablesBasedFirewall      bool
 	sshKey                     CloudletSSHKey
 	Upgrade                    bool
-	OverrideGWOctet            uint32
 	UseSecgrpForInternalSubnet bool
 	RequiresWhitelistOwnIp     bool
 }

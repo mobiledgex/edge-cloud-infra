@@ -5,15 +5,11 @@ import (
 	"encoding/json"
 	"fmt"
 
-	"github.com/mobiledgex/edge-cloud/cloud-resource-manager/platform"
-
 	"github.com/mobiledgex/edge-cloud-infra/vmlayer"
+	"github.com/mobiledgex/edge-cloud/cloud-resource-manager/platform"
 	"github.com/mobiledgex/edge-cloud/edgeproto"
 	"github.com/mobiledgex/edge-cloud/log"
 )
-
-// AwsGwOctet overrides he use of .1 for the GW address when using the LB as the GW because the first few addresses are reserved
-const AwsGwOctet uint32 = 5
 
 type AWSPlatform struct {
 	//commonPf     *infracommon.CommonPlatform
@@ -118,9 +114,15 @@ func (a *AWSPlatform) IdSanitize(name string) string {
 }
 
 func (a *AWSPlatform) SetVMProperties(vmProperties *vmlayer.VMProperties) {
-	vmProperties.OverrideGWOctet = AwsGwOctet
 	vmProperties.UseSecgrpForInternalSubnet = true
 	vmProperties.RequiresWhitelistOwnIp = true
 	a.VMProperties = vmProperties
+}
 
+func (a *AWSPlatform) GetInternalPortPolicy() vmlayer.InternalPortAttachPolicy {
+	return vmlayer.AttachPortAfterCreate
+}
+
+func (a *AWSPlatform) GetType() string {
+	return "awsec2"
 }

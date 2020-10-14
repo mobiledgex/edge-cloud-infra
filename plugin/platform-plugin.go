@@ -38,10 +38,10 @@ func GetPlatform(plat string) (platform.Platform, error) {
 			Type:       vmlayer.VMProviderVMPool,
 			VMProvider: &vmpoolProvider,
 		}
-	case "PLATFORM_TYPE_AWS_VM":
+	case "PLATFORM_TYPE_AWS_EC2":
 		awsVMProvider := aws.AWSPlatform{}
 		outPlatform = &vmlayer.VMPlatform{
-			Type:       vmlayer.VMProviderAwsVM,
+			Type:       vmlayer.VMProviderAwsEks,
 			VMProvider: &awsVMProvider,
 		}
 	case "PLATFORM_TYPE_AZURE":
@@ -56,7 +56,7 @@ func GetPlatform(plat string) (platform.Platform, error) {
 			Type:     managedk8s.ManagedK8sProviderGCP,
 			Provider: gcpProvider,
 		}
-	case "PLATFORM_TYPE_AWS":
+	case "PLATFORM_TYPE_AWS_EKS":
 		awsProvider := &aws.AWSPlatform{}
 		outPlatform = &managedk8s.ManagedK8sPlatform{
 			Type:     managedk8s.ManagedK8sProviderAWS,

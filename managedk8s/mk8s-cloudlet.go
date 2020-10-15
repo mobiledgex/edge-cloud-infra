@@ -115,5 +115,5 @@ func (m *ManagedK8sPlatform) DeleteCloudlet(ctx context.Context, cloudlet *edgep
 	}
 	m.Provider.SetCommonPlatform(&m.CommonPf)
 	cloudletClusterName := m.getCloudletClusterName(cloudlet)
-	return m.deleteClusterInstInternal(ctx, cloudletClusterName)
+	return m.deleteClusterInstInternal(ctx, cloudletClusterName, updateCallback)
 }

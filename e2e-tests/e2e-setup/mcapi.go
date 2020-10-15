@@ -1026,15 +1026,24 @@ func showMcAlertReceivers(uri, curUserFile, outputDir string, vars map[string]st
 	return rc
 }
 
-func streamMcData(uri, token, tag string, data *ormapi.AllData, rc *bool) *ormapi.AllStreamOutData {
-	dataOut := &ormapi.AllStreamOutData{}
+type AllStreamOutData struct {
+	RegionData []RegionStreamOutData `json:"regionstreamoutdata,omitempty"`
+}
+
+type RegionStreamOutData struct {
+	Region        string                        `json:"region,omitempty"`
+	StreamOutData edgetestutil.AllDataStreamOut `json:"streamoutdata,omitempty"`
+}
+
+func streamMcData(uri, token, tag string, data *ormapi.AllData, rc *bool) *AllStreamOutData {
+	dataOut := &AllStreamOutData{}
 
 	// currently only controller APIs support filtering
 	for ii, _ := range data.RegionData {
 		region := data.RegionData[ii].Region
 		filter := &data.RegionData[ii].AppData
 
-		rd := ormapi.RegionStreamOutData{}
+		rd := RegionStreamOutData{}
 		rd.Region = region
 
 		client := testutil.TestClient{

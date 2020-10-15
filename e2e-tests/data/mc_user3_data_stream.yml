@@ -18,8 +18,12 @@ regiondata:
       - id: 1
         msg: Deleting
       - id: 2
-        msg: NotPresent
+        msg: First Delete Task
       - id: 3
+        msg: Second Delete Task
+      - id: 4
+        msg: NotPresent
+      - id: 5
         msg: Deleted AppInst successfully
     - key:
         clusterinstkey:
@@ -35,12 +39,20 @@ regiondata:
       - id: 2
         msg: Deleting
       - id: 3
-        msg: NotPresent
+        msg: First Delete Task
       - id: 4
-        msg: Deleted AppInst successfully
+        msg: Second Delete Task
       - id: 5
-        msg: Deleting
-      - id: 6
         msg: NotPresent
+      - id: 6
+        msg: Deleted AppInst successfully
       - id: 7
+        msg: Deleting
+      - id: 8
+        msg: First Delete Task
+      - id: 9
+        msg: Second Delete Task
+      - id: 10
+        msg: NotPresent
+      - id: 11
         msg: Deleted ClusterInst successfully

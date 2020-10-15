@@ -80,7 +80,7 @@ tests:
   compareyaml:
     yaml1: '{{outputdir}}/show-commands.yml'
     yaml2: '{{datadir2}}/mc_user2_data_stream.yml'
-    filetype: mcdata
+    filetype: mcstream
 
 - name: enterprise user3 creates apps; verify it is there
   actions: [mcapi-create, mcapi-show]
@@ -211,7 +211,7 @@ tests:
   compareyaml:
     yaml1: '{{outputdir}}/show-commands.yml'
     yaml2: '{{datadir2}}/mc_user3_data_stream.yml'
-    filetype: mcdata
+    filetype: mcstream
 
 - name: admin deletes reservable ClusterInst
   actions: [mcapi-delete]

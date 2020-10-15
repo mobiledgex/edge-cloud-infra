@@ -4,7 +4,6 @@ import (
 	"context"
 
 	"github.com/mobiledgex/edge-cloud-infra/infracommon"
-	"github.com/mobiledgex/edge-cloud-infra/vmlayer"
 	"github.com/mobiledgex/edge-cloud/cloud-resource-manager/platform"
 	"github.com/mobiledgex/edge-cloud/cloud-resource-manager/platform/pc"
 	"github.com/mobiledgex/edge-cloud/edgeproto"
@@ -15,10 +14,10 @@ import (
 
 // ManagedK8sProvider is an interface that platforms implement to perform the details of interfacing with managed kubernetes services
 type ManagedK8sProvider interface {
-	GatherCloudletInfo(ctx context.Context, info *edgeproto.CloudletInfo) error
+	GatherCloudletInfo(ctx context.Context, vaultConfig *vault.Config, info *edgeproto.CloudletInfo) error
 	GetProviderSpecificProps(ctx context.Context, vaultConfig *vault.Config) (map[string]*edgeproto.PropertyInfo, error)
-	SetVMProperties(vmProperties *vmlayer.VMProperties)
-	Login(ctx context.Context) error
+	SetProperties(props *infracommon.InfraProperties)
+	Login(ctx context.Context, vaultConfig *vault.Config) error
 	GetCredentials(ctx context.Context, clusterName string) error
 	NameSanitize(name string) string
 	CreateClusterPrerequisites(ctx context.Context, clusterName string) error
@@ -58,15 +57,12 @@ func (m *ManagedK8sPlatform) Init(ctx context.Context, platformConfig *platform.
 		log.SpanLog(ctx, log.DebugLevelInfra, "InitInfraCommon failed", "err", err)
 		return err
 	}
-	vmp := vmlayer.VMProperties{
-		CommonPf: &m.CommonPf,
-	}
-	m.Provider.SetVMProperties(&vmp)
-	return m.Provider.Login(ctx)
+	m.Provider.SetProperties(&m.CommonPf.Properties)
+	return m.Provider.Login(ctx, m.CommonPf.VaultConfig)
 }
 
 func (m *ManagedK8sPlatform) GatherCloudletInfo(ctx context.Context, info *edgeproto.CloudletInfo) error {
-	return m.Provider.GatherCloudletInfo(ctx, info)
+	return m.Provider.GatherCloudletInfo(ctx, m.CommonPf.VaultConfig, info)
 }
 
 func (m *ManagedK8sPlatform) GetClusterPlatformClient(ctx context.Context, clusterInst *edgeproto.ClusterInst, clientType string) (ssh.Client, error) {

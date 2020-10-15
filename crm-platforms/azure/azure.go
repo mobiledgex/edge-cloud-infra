@@ -9,17 +9,17 @@ import (
 
 	"github.com/codeskyblue/go-sh"
 	"github.com/mobiledgex/edge-cloud-infra/infracommon"
-	"github.com/mobiledgex/edge-cloud-infra/vmlayer"
 	"github.com/mobiledgex/edge-cloud/cloud-resource-manager/platform/pc"
 	"github.com/mobiledgex/edge-cloud/edgeproto"
 	"github.com/mobiledgex/edge-cloud/log"
+	"github.com/mobiledgex/edge-cloud/vault"
 	ssh "github.com/mobiledgex/golang-ssh"
 )
 
 const AzureMaxResourceGroupNameLen int = 80
 
 type AzurePlatform struct {
-	commonPf *infracommon.CommonPlatform
+	properties *infracommon.InfraProperties
 }
 
 type AZName struct {
@@ -41,9 +41,9 @@ type AZFlavor struct {
 	VCPUs int
 }
 
-func (a *AzurePlatform) GatherCloudletInfo(ctx context.Context, info *edgeproto.CloudletInfo) error {
+func (a *AzurePlatform) GatherCloudletInfo(ctx context.Context, vaultConfig *vault.Config, info *edgeproto.CloudletInfo) error {
 	log.SpanLog(ctx, log.DebugLevelInfra, "GatherCloudletInfo")
-	if err := a.Login(ctx); err != nil {
+	if err := a.Login(ctx, vaultConfig); err != nil {
 		return err
 	}
 
@@ -121,7 +121,7 @@ func (a *AzurePlatform) ListCloudletMgmtNodes(ctx context.Context, clusterInsts 
 }
 
 // Login logs into azure
-func (a *AzurePlatform) Login(ctx context.Context) error {
+func (a *AzurePlatform) Login(ctx context.Context, vaultConfig *vault.Config) error {
 	log.SpanLog(ctx, log.DebugLevelInfra, "doing azure login")
 	out, err := sh.Command("az", "login", "--username", a.GetAzureUser(), "--password", a.GetAzurePass()).CombinedOutput()
 	if err != nil {
@@ -148,6 +148,6 @@ func (a *AzurePlatform) NameSanitize(clusterName string) string {
 	return clusterName
 }
 
-func (a *AzurePlatform) SetVMProperties(vmProperties *vmlayer.VMProperties) {
-	a.commonPf = vmProperties.CommonPf
+func (a *AzurePlatform) SetProperties(props *infracommon.InfraProperties) {
+	a.properties = props
 }

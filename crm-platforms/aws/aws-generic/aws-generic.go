@@ -1,23 +1,18 @@
-package aws
+package awsgeneric
 
 import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"strings"
+	"time"
 
-	"github.com/mobiledgex/edge-cloud-infra/vmlayer"
-	"github.com/mobiledgex/edge-cloud/cloud-resource-manager/platform"
-	"github.com/mobiledgex/edge-cloud/edgeproto"
+	"github.com/codeskyblue/go-sh"
+	"github.com/mobiledgex/edge-cloud-infra/infracommon"
 	"github.com/mobiledgex/edge-cloud/log"
-)
 
-type AWSPlatform struct {
-	VMProperties *vmlayer.VMProperties
-	BaseImageId  string
-	IamAccountId string
-	caches       *platform.Caches
-	VpcCidr      string
-}
+	"github.com/mobiledgex/edge-cloud/edgeproto"
+)
 
 type AWSQuotas struct {
 	Limit  float64
@@ -37,8 +32,39 @@ type AWSFlavor struct {
 	DiskGb   uint
 }
 
+type AwsGenericPlatform struct {
+	Properties *infracommon.InfraProperties
+}
+
+func (a *AwsGenericPlatform) TimedAwsCommand(ctx context.Context, name string, p ...string) ([]byte, error) {
+	parmstr := strings.Join(p, " ")
+	start := time.Now()
+
+	log.SpanLog(ctx, log.DebugLevelInfra, "AWS Command Start", "name", name, "parms", parmstr)
+	newSh := sh.NewSession()
+	//envvar stuff here
+
+	out, err := newSh.Command(name, p).CombinedOutput()
+	if err != nil {
+		log.SpanLog(ctx, log.DebugLevelInfra, "AWS command returned error", "parms", parmstr, "out", string(out), "err", err, "elapsed time", time.Since(start))
+		return out, err
+	}
+	log.SpanLog(ctx, log.DebugLevelInfra, "AWS Command Done", "parmstr", parmstr, "elapsed time", time.Since(start))
+	return out, nil
+}
+
+func (a *AwsGenericPlatform) GetFlavorList(ctx context.Context) ([]*edgeproto.FlavorInfo, error) {
+	log.SpanLog(ctx, log.DebugLevelInfra, "GetFlavorList")
+	var info edgeproto.CloudletInfo
+	err := a.GatherCloudletInfo(ctx, &info)
+	if err != nil {
+		return nil, err
+	}
+	return info.Flavors, nil
+}
+
 // GatherCloudletInfo gets flavor info from AWS
-func (a *AWSPlatform) GatherCloudletInfo(ctx context.Context, info *edgeproto.CloudletInfo) error {
+func (a *AwsGenericPlatform) GatherCloudletInfo(ctx context.Context, info *edgeproto.CloudletInfo) error {
 	log.SpanLog(ctx, log.DebugLevelInfra, "GatherCloudletInfo (AWS)")
 	filter := "Name=instance-storage-supported,Values=true"
 	query := "InstanceTypes[].[InstanceType,VCpuInfo.DefaultVCpus,MemoryInfo.SizeInMiB,InstanceStorageInfo.TotalSizeInGB]"
@@ -96,31 +122,4 @@ func (a *AWSPlatform) GatherCloudletInfo(ctx context.Context, info *edgeproto.Cl
 		)
 	}
 	return nil
-}
-
-func (a *AWSPlatform) Login(ctx context.Context) error {
-	return nil
-}
-
-func (a *AWSPlatform) NameSanitize(clusterName string) string {
-	return clusterName
-}
-
-// AWSPlatform IdSanitize is the same as NameSanitize
-func (a *AWSPlatform) IdSanitize(name string) string {
-	return a.NameSanitize(name)
-}
-
-func (a *AWSPlatform) SetVMProperties(vmProperties *vmlayer.VMProperties) {
-	vmProperties.UseSecgrpForInternalSubnet = true
-	vmProperties.RequiresWhitelistOwnIp = true
-	a.VMProperties = vmProperties
-}
-
-func (a *AWSPlatform) GetInternalPortPolicy() vmlayer.InternalPortAttachPolicy {
-	return vmlayer.AttachPortAfterCreate
-}
-
-func (a *AWSPlatform) GetType() string {
-	return "awsec2"
 }

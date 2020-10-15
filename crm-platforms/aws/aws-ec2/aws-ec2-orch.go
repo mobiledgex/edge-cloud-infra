@@ -1,4 +1,4 @@
-package aws
+package awsec2
 
 import (
 	"context"
@@ -39,7 +39,7 @@ func awsUserDataFormatter(instring string) string {
 }
 
 // createVmGroupResources creates subnets, secgrps ahead of VMs.  returns a VmGroupResource struct to be used in VM create
-func (a *AWSPlatform) getVmGroupResources(ctx context.Context, vmgp *vmlayer.VMGroupOrchestrationParams, action vmlayer.ActionType, updateCallback edgeproto.CacheUpdateCallback) (*VmGroupResources, error) {
+func (a *AwsEc2Platform) getVmGroupResources(ctx context.Context, vmgp *vmlayer.VMGroupOrchestrationParams, action vmlayer.ActionType, updateCallback edgeproto.CacheUpdateCallback) (*VmGroupResources, error) {
 	log.SpanLog(ctx, log.DebugLevelInfra, "getVmGroupResources", "action", action)
 
 	var resources VmGroupResources
@@ -119,7 +119,7 @@ func (a *AWSPlatform) getVmGroupResources(ctx context.Context, vmgp *vmlayer.VMG
 	return &resources, nil
 }
 
-func (a *AWSPlatform) populateOrchestrationParams(ctx context.Context, vmgp *vmlayer.VMGroupOrchestrationParams, action vmlayer.ActionType) error {
+func (a *AwsEc2Platform) populateOrchestrationParams(ctx context.Context, vmgp *vmlayer.VMGroupOrchestrationParams, action vmlayer.ActionType) error {
 	log.SpanLog(ctx, log.DebugLevelInfra, "populateOrchestrationParams", "action", action)
 	usedCidrs := make(map[string]string)
 	if !vmgp.SkipInfraSpecificCheck {
@@ -200,7 +200,7 @@ func (a *AWSPlatform) populateOrchestrationParams(ctx context.Context, vmgp *vml
 	return nil
 }
 
-func (a *AWSPlatform) getVMListsForUpdate(ctx context.Context, vmgp *vmlayer.VMGroupOrchestrationParams, vmLists *vmlayer.VMUpdateList, updateCallback edgeproto.CacheUpdateCallback) error {
+func (a *AwsEc2Platform) getVMListsForUpdate(ctx context.Context, vmgp *vmlayer.VMGroupOrchestrationParams, vmLists *vmlayer.VMUpdateList, updateCallback edgeproto.CacheUpdateCallback) error {
 	// get current VMs
 	vms, err := a.getEc2Instances(ctx, MatchAnyVmName, vmgp.GroupName)
 	if err != nil {
@@ -238,7 +238,7 @@ func (a *AWSPlatform) getVMListsForUpdate(ctx context.Context, vmgp *vmlayer.VMG
 
 // CreateVMs creates the VMs and associated resources provided in the group orch params.  For AWS, VM creation is done in serial
 // because it returns almost instantly.  After creation VMs are polled to see that they are all running.
-func (a *AWSPlatform) CreateVMs(ctx context.Context, vmgp *vmlayer.VMGroupOrchestrationParams, updateCallback edgeproto.CacheUpdateCallback) error {
+func (a *AwsEc2Platform) CreateVMs(ctx context.Context, vmgp *vmlayer.VMGroupOrchestrationParams, updateCallback edgeproto.CacheUpdateCallback) error {
 	log.SpanLog(ctx, log.DebugLevelInfra, "CreateVMs", "vmgp", vmgp)
 	resources, err := a.getVmGroupResources(ctx, vmgp, vmlayer.ActionCreate, updateCallback)
 	if err != nil {
@@ -268,12 +268,12 @@ func (a *AWSPlatform) CreateVMs(ctx context.Context, vmgp *vmlayer.VMGroupOrches
 	return nil
 }
 
-func (a *AWSPlatform) DeleteVMs(ctx context.Context, vmGroupName string) error {
+func (a *AwsEc2Platform) DeleteVMs(ctx context.Context, vmGroupName string) error {
 	return a.DeleteAllResourcesForGroup(ctx, vmGroupName)
 }
 
 // UpdateVMs calculates which VMs need to be added or removed from the given group and then does so.
-func (a *AWSPlatform) UpdateVMs(ctx context.Context, vmgp *vmlayer.VMGroupOrchestrationParams, updateCallback edgeproto.CacheUpdateCallback) error {
+func (a *AwsEc2Platform) UpdateVMs(ctx context.Context, vmgp *vmlayer.VMGroupOrchestrationParams, updateCallback edgeproto.CacheUpdateCallback) error {
 	log.SpanLog(ctx, log.DebugLevelInfra, "UpdateVMs", "vmGroupName", vmgp.GroupName)
 
 	var vmLists vmlayer.VMUpdateList
@@ -312,7 +312,7 @@ func (a *AWSPlatform) UpdateVMs(ctx context.Context, vmgp *vmlayer.VMGroupOrches
 	return nil
 }
 
-func (a *AWSPlatform) DeleteAllResourcesForGroup(ctx context.Context, vmGroupName string) error {
+func (a *AwsEc2Platform) DeleteAllResourcesForGroup(ctx context.Context, vmGroupName string) error {
 	log.SpanLog(ctx, log.DebugLevelInfra, "DeleteAllResourcesForGroup", "vmGroupName", vmGroupName)
 	ec2Instances, err := a.getEc2Instances(ctx, MatchAnyVmName, vmGroupName)
 	if err != nil {

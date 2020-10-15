@@ -39,17 +39,17 @@ var gcpProps = map[string]*edgeproto.PropertyInfo{
 }
 
 func (g *GCPPlatform) GetGcpAuthKeyUrl() string {
-	val, _ := g.commonPf.Properties.GetValue("MEX_GCP_AUTH_KEY_PATH")
+	val, _ := g.properties.GetValue("MEX_GCP_AUTH_KEY_PATH")
 	return val
 }
 
 func (g *GCPPlatform) GetGcpZone() string {
-	val, _ := g.commonPf.Properties.GetValue("MEX_GCP_ZONE")
+	val, _ := g.properties.GetValue("MEX_GCP_ZONE")
 	return val
 }
 
 func (g *GCPPlatform) GetGcpProject() string {
-	val, _ := g.commonPf.Properties.GetValue("MEX_GCP_PROJECT")
+	val, _ := g.properties.GetValue("MEX_GCP_PROJECT")
 	return val
 }
 

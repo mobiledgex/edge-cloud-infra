@@ -5,7 +5,6 @@ import (
 	"fmt"
 
 	"github.com/mobiledgex/edge-cloud-infra/infracommon"
-	"github.com/mobiledgex/edge-cloud-infra/vmlayer"
 	"github.com/mobiledgex/edge-cloud/cloud-resource-manager/platform"
 	"github.com/mobiledgex/edge-cloud/cloud-resource-manager/platform/pc"
 	"github.com/mobiledgex/edge-cloud/cloudcommon"
@@ -65,16 +64,12 @@ func (m *ManagedK8sPlatform) CreateCloudlet(ctx context.Context, cloudlet *edgep
 		return err
 	}
 
-	vmp := vmlayer.VMProperties{
-		CommonPf: &m.CommonPf,
-	}
-	m.Provider.SetVMProperties(&vmp)
-
+	m.Provider.SetProperties(&m.CommonPf.Properties)
 	cloudletClusterName := m.getCloudletClusterName(cloudlet)
 
 	// find available flavors
 	var info edgeproto.CloudletInfo
-	err = m.Provider.GatherCloudletInfo(ctx, &info)
+	err = m.Provider.GatherCloudletInfo(ctx, m.CommonPf.VaultConfig, &info)
 	if err != nil {
 		return err
 	}
@@ -117,10 +112,7 @@ func (m *ManagedK8sPlatform) DeleteCloudlet(ctx context.Context, cloudlet *edgep
 		log.SpanLog(ctx, log.DebugLevelInfra, "InitInfraCommon failed", "err", err)
 		return err
 	}
-	vmp := vmlayer.VMProperties{
-		CommonPf: &m.CommonPf,
-	}
-	m.Provider.SetVMProperties(&vmp)
+	m.Provider.SetProperties(&m.CommonPf.Properties)
 	cloudletClusterName := m.getCloudletClusterName(cloudlet)
 	return m.deleteClusterInstInternal(ctx, cloudletClusterName)
 }

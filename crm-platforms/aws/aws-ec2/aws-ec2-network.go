@@ -1,4 +1,4 @@
-package aws
+package awsec2
 
 import (
 	"context"
@@ -10,18 +10,18 @@ import (
 	"github.com/mobiledgex/edge-cloud/log"
 )
 
-func (a *AWSPlatform) GetVpcName() string {
+func (a *AwsEc2Platform) GetVpcName() string {
 	return a.NameSanitize(a.VMProperties.CommonPf.PlatformConfig.CloudletKey.Name)
 }
 
-func (a *AWSPlatform) GetVPC(ctx context.Context, name string) (*AwsEc2Vpc, error) {
+func (a *AwsEc2Platform) GetVPC(ctx context.Context, name string) (*AwsEc2Vpc, error) {
 	log.SpanLog(ctx, log.DebugLevelInfra, "GetVPCs", "name", name)
 	filter := fmt.Sprintf("Name=tag-value,Values=%s", name)
-	out, err := a.TimedAwsCommand(ctx, "aws",
+	out, err := a.awsGenPf.TimedAwsCommand(ctx, "aws",
 		"ec2",
 		"describe-vpcs",
 		"--filters", "Name=tag-key,Values=Name", filter,
-		"--region", a.GetAwsRegion())
+		"--region", a.awsGenPf.GetAwsRegion())
 
 	if err != nil {
 		return nil, fmt.Errorf("GetVPC failed: %s - %v", string(out), err)
@@ -45,7 +45,7 @@ func (a *AWSPlatform) GetVPC(ctx context.Context, name string) (*AwsEc2Vpc, erro
 }
 
 // CreateVPC returns the vpcid after create
-func (a *AWSPlatform) CreateVPC(ctx context.Context, name string, cidr string) (string, error) {
+func (a *AwsEc2Platform) CreateVPC(ctx context.Context, name string, cidr string) (string, error) {
 	log.SpanLog(ctx, log.DebugLevelInfra, "CreateVPC", "name", name, "cidr", cidr)
 	vpc, err := a.GetVPC(ctx, name)
 	if err == nil {
@@ -57,11 +57,11 @@ func (a *AWSPlatform) CreateVPC(ctx context.Context, name string, cidr string) (
 		return "", err
 	}
 	tagspec := fmt.Sprintf("ResourceType=vpc,Tags=[{Key=%s,Value=%s}]", NameTag, name)
-	out, err := a.TimedAwsCommand(ctx, "aws",
+	out, err := a.awsGenPf.TimedAwsCommand(ctx, "aws",
 		"ec2",
 		"create-vpc",
 		"--cidr-block", cidr,
-		"--region", a.GetAwsRegion(),
+		"--region", a.awsGenPf.GetAwsRegion(),
 		"--tag-specifications", tagspec)
 	if err != nil {
 		return "", fmt.Errorf("CreateVPC failed: %s - %v", string(out), err)
@@ -80,14 +80,14 @@ func (a *AWSPlatform) CreateVPC(ctx context.Context, name string, cidr string) (
 	return createdVpc.Vpc.VpcId, err
 }
 
-func (a *AWSPlatform) GetInternetGateway(ctx context.Context, name string) (*AwsEc2Gateway, error) {
+func (a *AwsEc2Platform) GetInternetGateway(ctx context.Context, name string) (*AwsEc2Gateway, error) {
 	log.SpanLog(ctx, log.DebugLevelInfra, "GetInternetGateway", "name", name)
 	filter := fmt.Sprintf("Name=tag-value,Values=%s", name)
-	out, err := a.TimedAwsCommand(ctx, "aws",
+	out, err := a.awsGenPf.TimedAwsCommand(ctx, "aws",
 		"ec2",
 		"describe-internet-gateways",
 		"--filters", "Name=tag-key,Values=Name", filter,
-		"--region", a.GetAwsRegion())
+		"--region", a.awsGenPf.GetAwsRegion())
 	log.SpanLog(ctx, log.DebugLevelInfra, "describe-internet-gateways result", "out", string(out), "err", err)
 	if err != nil {
 		return nil, fmt.Errorf("GetInternetGateway failed: %s - %v", string(out), err)
@@ -110,7 +110,7 @@ func (a *AWSPlatform) GetInternetGateway(ctx context.Context, name string) (*Aws
 	return &gwList.InternetGateways[0], nil
 }
 
-func (a *AWSPlatform) CreateInternetGateway(ctx context.Context, vpcName string) error {
+func (a *AwsEc2Platform) CreateInternetGateway(ctx context.Context, vpcName string) error {
 	log.SpanLog(ctx, log.DebugLevelInfra, "CreateInternetGateway", "vpcName", vpcName)
 	tagspec := fmt.Sprintf("ResourceType=internet-gateway,Tags=[{Key=%s,Value=%s}]", NameTag, vpcName)
 	_, err := a.GetInternetGateway(ctx, vpcName)
@@ -121,10 +121,10 @@ func (a *AWSPlatform) CreateInternetGateway(ctx context.Context, vpcName string)
 	if !strings.Contains(err.Error(), GatewayDoesNotExistError) {
 		return err
 	}
-	out, err := a.TimedAwsCommand(ctx, "aws",
+	out, err := a.awsGenPf.TimedAwsCommand(ctx, "aws",
 		"ec2",
 		"create-internet-gateway",
-		"--region", a.GetAwsRegion(),
+		"--region", a.awsGenPf.GetAwsRegion(),
 		"--tag-specifications", tagspec)
 
 	if err != nil {
@@ -133,7 +133,7 @@ func (a *AWSPlatform) CreateInternetGateway(ctx context.Context, vpcName string)
 	return nil
 }
 
-func (a *AWSPlatform) CreateInternetGatewayDefaultRoute(ctx context.Context, vpcName, vpcId string) error {
+func (a *AwsEc2Platform) CreateInternetGatewayDefaultRoute(ctx context.Context, vpcName, vpcId string) error {
 	log.SpanLog(ctx, log.DebugLevelInfra, "CreateInternetGatewayDefaultRoute", "vpcName", vpcName, "vpcId", vpcId)
 
 	gw, err := a.GetInternetGateway(ctx, vpcName)
@@ -141,10 +141,10 @@ func (a *AWSPlatform) CreateInternetGatewayDefaultRoute(ctx context.Context, vpc
 		return err
 	}
 	// attach the GW to the VPC
-	out, err := a.TimedAwsCommand(ctx, "aws",
+	out, err := a.awsGenPf.TimedAwsCommand(ctx, "aws",
 		"ec2",
 		"attach-internet-gateway",
-		"--region", a.GetAwsRegion(),
+		"--region", a.awsGenPf.GetAwsRegion(),
 		"--internet-gateway-id", gw.InternetGatewayId,
 		"--vpc-id", vpcId)
 
@@ -161,10 +161,10 @@ func (a *AWSPlatform) CreateInternetGatewayDefaultRoute(ctx context.Context, vpc
 	if err != nil {
 		return err
 	}
-	out, err = a.TimedAwsCommand(ctx, "aws",
+	out, err = a.awsGenPf.TimedAwsCommand(ctx, "aws",
 		"ec2",
 		"create-route",
-		"--region", a.GetAwsRegion(),
+		"--region", a.awsGenPf.GetAwsRegion(),
 		"--gateway-id", gw.InternetGatewayId,
 		"--destination-cidr-block", "0.0.0.0/0",
 		"--route-table-id", rtid)
@@ -176,14 +176,14 @@ func (a *AWSPlatform) CreateInternetGatewayDefaultRoute(ctx context.Context, vpc
 	return nil
 }
 
-func (a *AWSPlatform) GetRouteTableId(ctx context.Context, vpcId string, searchType RouteTableSearchType, name string) (string, error) {
+func (a *AwsEc2Platform) GetRouteTableId(ctx context.Context, vpcId string, searchType RouteTableSearchType, name string) (string, error) {
 	log.SpanLog(ctx, log.DebugLevelInfra, "GetRouteTableId", "vpcId", vpcId, "searchType", searchType, "name", name)
 	filter := fmt.Sprintf("Name=vpc-id,Values=%s", vpcId)
-	out, err := a.TimedAwsCommand(ctx, "aws",
+	out, err := a.awsGenPf.TimedAwsCommand(ctx, "aws",
 		"ec2",
 		"describe-route-tables",
 		"--filters", filter,
-		"--region", a.GetAwsRegion())
+		"--region", a.awsGenPf.GetAwsRegion())
 	log.SpanLog(ctx, log.DebugLevelInfra, "describe-route-tables result", "out", string(out), "err", err)
 
 	if err != nil {
@@ -218,7 +218,7 @@ func (a *AWSPlatform) GetRouteTableId(ctx context.Context, vpcId string, searchT
 }
 
 // CreateInternalRouteTable returns routeTableId, error
-func (a *AWSPlatform) CreateInternalRouteTable(ctx context.Context, vpcId, natGwId, name string) (string, error) {
+func (a *AwsEc2Platform) CreateInternalRouteTable(ctx context.Context, vpcId, natGwId, name string) (string, error) {
 	log.SpanLog(ctx, log.DebugLevelInfra, "CreateInternalRouteTable", "name", name)
 	rt, err := a.GetRouteTableId(ctx, vpcId, SearchForRouteTableByName, name)
 	if err == nil {
@@ -232,11 +232,11 @@ func (a *AWSPlatform) CreateInternalRouteTable(ctx context.Context, vpcId, natGw
 	}
 
 	tagspec := fmt.Sprintf("ResourceType=route-table,Tags=[{Key=%s,Value=%s}]", NameTag, name)
-	out, err := a.TimedAwsCommand(ctx, "aws",
+	out, err := a.awsGenPf.TimedAwsCommand(ctx, "aws",
 		"ec2",
 		"create-route-table",
 		"--vpc-id", vpcId,
-		"--region", a.GetAwsRegion(),
+		"--region", a.awsGenPf.GetAwsRegion(),
 		"--tag-specifications", tagspec)
 
 	if err != nil {
@@ -253,13 +253,13 @@ func (a *AWSPlatform) CreateInternalRouteTable(ctx context.Context, vpcId, natGw
 	log.SpanLog(ctx, log.DebugLevelInfra, "created route table", "rt", createdRt)
 
 	// now add the natgw as the default route
-	out, err = a.TimedAwsCommand(ctx, "aws",
+	out, err = a.awsGenPf.TimedAwsCommand(ctx, "aws",
 		"ec2",
 		"create-route",
 		"--route-table-id", createdRt.RouteTable.RouteTableId,
 		"--nat-gateway-id", natGwId,
 		"--destination-cidr-block", "0.0.0.0/0",
-		"--region", a.GetAwsRegion())
+		"--region", a.awsGenPf.GetAwsRegion())
 
 	if err != nil {
 		return "", fmt.Errorf("Error in creating route : %s - %v", string(out), err)
@@ -267,7 +267,7 @@ func (a *AWSPlatform) CreateInternalRouteTable(ctx context.Context, vpcId, natGw
 	return createdRt.RouteTable.RouteTableId, nil
 }
 
-func (a *AWSPlatform) GetElasticIP(ctx context.Context, name, vpcId string) (string, error) {
+func (a *AwsEc2Platform) GetElasticIP(ctx context.Context, name, vpcId string) (string, error) {
 	log.SpanLog(ctx, log.DebugLevelInfra, "GetElasticIP", "name", name)
 
 	iflist, err := a.GetNetworkInterfaces(ctx)
@@ -281,10 +281,10 @@ func (a *AWSPlatform) GetElasticIP(ctx context.Context, name, vpcId string) (str
 		}
 	}
 
-	out, err := a.TimedAwsCommand(ctx, "aws",
+	out, err := a.awsGenPf.TimedAwsCommand(ctx, "aws",
 		"ec2",
 		"describe-addresses",
-		"--region", a.GetAwsRegion())
+		"--region", a.awsGenPf.GetAwsRegion())
 
 	log.SpanLog(ctx, log.DebugLevelInfra, "describe-addresses", "out", string(out), "err", err)
 
@@ -311,14 +311,14 @@ func (a *AWSPlatform) GetElasticIP(ctx context.Context, name, vpcId string) (str
 	return "", fmt.Errorf(ElasticIpDoesNotExistError + ":" + name)
 }
 
-func (a *AWSPlatform) AllocateElasticIP(ctx context.Context) (string, error) {
+func (a *AwsEc2Platform) AllocateElasticIP(ctx context.Context) (string, error) {
 	log.SpanLog(ctx, log.DebugLevelInfra, "AllocateElasticIP")
 
-	out, err := a.TimedAwsCommand(ctx, "aws",
+	out, err := a.awsGenPf.TimedAwsCommand(ctx, "aws",
 		"ec2",
 		"allocate-address",
 		"--domain", "vpc",
-		"--region", a.GetAwsRegion())
+		"--region", a.awsGenPf.GetAwsRegion())
 
 	log.SpanLog(ctx, log.DebugLevelInfra, "allocate-address", "out", string(out), "err", err)
 
@@ -332,13 +332,13 @@ func (a *AWSPlatform) AllocateElasticIP(ctx context.Context) (string, error) {
 	return address.AllocationId, nil
 }
 
-func (a *AWSPlatform) GetSubnets(ctx context.Context) (map[string]*AwsEc2Subnet, error) {
+func (a *AwsEc2Platform) GetSubnets(ctx context.Context) (map[string]*AwsEc2Subnet, error) {
 	log.SpanLog(ctx, log.DebugLevelInfra, "GetSubnets")
 	snMap := make(map[string]*AwsEc2Subnet)
-	out, err := a.TimedAwsCommand(ctx, "aws",
+	out, err := a.awsGenPf.TimedAwsCommand(ctx, "aws",
 		"ec2",
 		"describe-subnets",
-		"--region", a.GetAwsRegion())
+		"--region", a.awsGenPf.GetAwsRegion())
 	log.SpanLog(ctx, log.DebugLevelInfra, "describe-subnets result", "out", string(out), "err", err)
 	if err != nil {
 		return nil, fmt.Errorf("GetSubnets failed: %s - %v", string(out), err)
@@ -365,14 +365,14 @@ func (a *AWSPlatform) GetSubnets(ctx context.Context) (map[string]*AwsEc2Subnet,
 	return snMap, nil
 }
 
-func (a *AWSPlatform) GetSubnet(ctx context.Context, name string) (*AwsEc2Subnet, error) {
+func (a *AwsEc2Platform) GetSubnet(ctx context.Context, name string) (*AwsEc2Subnet, error) {
 	log.SpanLog(ctx, log.DebugLevelInfra, "GetSubnet", "name", name)
 	filter := fmt.Sprintf("Name=tag-value,Values=%s", name)
-	out, err := a.TimedAwsCommand(ctx, "aws",
+	out, err := a.awsGenPf.TimedAwsCommand(ctx, "aws",
 		"ec2",
 		"describe-subnets",
 		"--filters", "Name=tag-key,Values=Name", filter,
-		"--region", a.GetAwsRegion())
+		"--region", a.awsGenPf.GetAwsRegion())
 	log.SpanLog(ctx, log.DebugLevelInfra, "describe-subnets result", "out", string(out), "err", err)
 	if err != nil {
 		return nil, fmt.Errorf("GetSubnet failed: %s - %v", string(out), err)
@@ -397,7 +397,7 @@ func (a *AWSPlatform) GetSubnet(ctx context.Context, name string) (*AwsEc2Subnet
 }
 
 // CreateSubnet returns subnetId, error
-func (a *AWSPlatform) CreateSubnet(ctx context.Context, vmGroupName, name string, cidr string, routeTableId string) (string, error) {
+func (a *AwsEc2Platform) CreateSubnet(ctx context.Context, vmGroupName, name string, cidr string, routeTableId string) (string, error) {
 	log.SpanLog(ctx, log.DebugLevelInfra, "CreateSubnet", "vmGroupName", vmGroupName, "name", name, "routeTableId", routeTableId)
 	tagspec := fmt.Sprintf("ResourceType=subnet,Tags=[{Key=%s,Value=%s},{Key=%s,Value=%s}]", NameTag, name, VMGroupNameTag, vmGroupName)
 	sn, err := a.GetSubnet(ctx, name)
@@ -412,11 +412,11 @@ func (a *AWSPlatform) CreateSubnet(ctx context.Context, vmGroupName, name string
 	if err != nil {
 		return "", err
 	}
-	out, err := a.TimedAwsCommand(ctx, "aws",
+	out, err := a.awsGenPf.TimedAwsCommand(ctx, "aws",
 		"ec2",
 		"create-subnet",
 		"--vpc-id", vpc.VpcId,
-		"--region", a.GetAwsRegion(),
+		"--region", a.awsGenPf.GetAwsRegion(),
 		"--cidr-block", cidr,
 		"--tag-specifications", tagspec)
 	log.SpanLog(ctx, log.DebugLevelInfra, "create-subnet result", "out", string(out), "err", err)
@@ -431,7 +431,7 @@ func (a *AWSPlatform) CreateSubnet(ctx context.Context, vmGroupName, name string
 	}
 	if routeTableId != MainRouteTable {
 		// associate the non default route table
-		out, err := a.TimedAwsCommand(ctx, "aws",
+		out, err := a.awsGenPf.TimedAwsCommand(ctx, "aws",
 			"ec2",
 			"associate-route-table",
 			"--route-table-id", routeTableId,
@@ -445,13 +445,13 @@ func (a *AWSPlatform) CreateSubnet(ctx context.Context, vmGroupName, name string
 	return createdSn.Subnet.SubnetId, nil
 }
 
-func (a *AWSPlatform) DeleteSubnet(ctx context.Context, snId string) error {
+func (a *AwsEc2Platform) DeleteSubnet(ctx context.Context, snId string) error {
 	log.SpanLog(ctx, log.DebugLevelInfra, "DeleteSubnet", "snId", snId)
-	out, err := a.TimedAwsCommand(ctx, "aws",
+	out, err := a.awsGenPf.TimedAwsCommand(ctx, "aws",
 		"ec2",
 		"delete-subnet",
 		"--subnet-id", snId,
-		"--region", a.GetAwsRegion())
+		"--region", a.awsGenPf.GetAwsRegion())
 	log.SpanLog(ctx, log.DebugLevelInfra, "delete-subnet result", "out", string(out), "err", err)
 	if err != nil {
 		return fmt.Errorf("DeleteSubnet failed: %s - %v", string(out), err)
@@ -459,12 +459,12 @@ func (a *AWSPlatform) DeleteSubnet(ctx context.Context, snId string) error {
 	return nil
 }
 
-func (a *AWSPlatform) GetNatGateway(ctx context.Context, name string) (*AwsEc2NatGateway, error) {
+func (a *AwsEc2Platform) GetNatGateway(ctx context.Context, name string) (*AwsEc2NatGateway, error) {
 	log.SpanLog(ctx, log.DebugLevelInfra, "GetNatGateway", "name", name)
-	out, err := a.TimedAwsCommand(ctx, "aws",
+	out, err := a.awsGenPf.TimedAwsCommand(ctx, "aws",
 		"ec2",
 		"describe-nat-gateways",
-		"--region", a.GetAwsRegion())
+		"--region", a.awsGenPf.GetAwsRegion())
 	if err != nil {
 		return nil, fmt.Errorf("GetNatGateway failed: %s - %v", string(out), err)
 	}
@@ -494,7 +494,7 @@ func (a *AWSPlatform) GetNatGateway(ctx context.Context, name string) (*AwsEc2Na
 }
 
 // CreateNatGateway returns natGatewayId, error
-func (a *AWSPlatform) CreateNatGateway(ctx context.Context, subnetId, elasticIpId, vpcName string) (string, error) {
+func (a *AwsEc2Platform) CreateNatGateway(ctx context.Context, subnetId, elasticIpId, vpcName string) (string, error) {
 	log.SpanLog(ctx, log.DebugLevelInfra, "CreateNatGateway", "subnetId", subnetId, "vpcName", vpcName)
 	tagspec := fmt.Sprintf("ResourceType=natgateway,Tags=[{Key=%s,Value=%s}]", NameTag, vpcName)
 
@@ -506,12 +506,12 @@ func (a *AWSPlatform) CreateNatGateway(ctx context.Context, subnetId, elasticIpI
 	if !strings.Contains(err.Error(), GatewayDoesNotExistError) {
 		return "", err
 	}
-	out, err := a.TimedAwsCommand(ctx, "aws",
+	out, err := a.awsGenPf.TimedAwsCommand(ctx, "aws",
 		"ec2",
 		"create-nat-gateway",
 		"--subnet-id", subnetId,
 		"--allocation-id", elasticIpId,
-		"--region", a.GetAwsRegion(),
+		"--region", a.awsGenPf.GetAwsRegion(),
 		"--tag-specifications", tagspec)
 
 	if err != nil {

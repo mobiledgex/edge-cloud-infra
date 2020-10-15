@@ -1,4 +1,4 @@
-package aws
+package awsec2
 
 import (
 	"context"
@@ -13,7 +13,7 @@ import (
 	ssh "github.com/mobiledgex/golang-ssh"
 )
 
-func (a *AWSPlatform) WaitForVMsToBeInState(ctx context.Context, vmGroupName, state string, maxTime time.Duration) error {
+func (a *AwsEc2Platform) WaitForVMsToBeInState(ctx context.Context, vmGroupName, state string, maxTime time.Duration) error {
 	log.SpanLog(ctx, log.DebugLevelInfra, "WaitForVMsToBeInState", "vmGroupName", vmGroupName, "state", state, "maxTime", maxTime)
 
 	start := time.Now()
@@ -43,17 +43,17 @@ func (a *AWSPlatform) WaitForVMsToBeInState(ctx context.Context, vmGroupName, st
 	return nil
 }
 
-func (a *AWSPlatform) DeleteInstances(ctx context.Context, instancesIds []string) error {
+func (a *AwsEc2Platform) DeleteInstances(ctx context.Context, instancesIds []string) error {
 	log.SpanLog(ctx, log.DebugLevelInfra, "DeleteInstances", "instancesIds", instancesIds)
 
 	cmdArgs := []string{
 		"ec2",
 		"terminate-instances",
-		"--region", a.GetAwsRegion(),
+		"--region", a.awsGenPf.GetAwsRegion(),
 		"--instance-ids",
 	}
 	cmdArgs = append(cmdArgs, instancesIds...)
-	out, err := a.TimedAwsCommand(ctx, "aws", cmdArgs...)
+	out, err := a.awsGenPf.TimedAwsCommand(ctx, "aws", cmdArgs...)
 	log.SpanLog(ctx, log.DebugLevelInfra, "terminate-instances result", "out", string(out), "err", err)
 	if err != nil {
 		return fmt.Errorf("terminate ec2 instances failed: %s - %v", string(out), err)
@@ -61,7 +61,7 @@ func (a *AWSPlatform) DeleteInstances(ctx context.Context, instancesIds []string
 	return nil
 }
 
-func (a *AWSPlatform) GetServerDetail(ctx context.Context, vmname string) (*vmlayer.ServerDetail, error) {
+func (a *AwsEc2Platform) GetServerDetail(ctx context.Context, vmname string) (*vmlayer.ServerDetail, error) {
 	log.SpanLog(ctx, log.DebugLevelInfra, "GetServerDetail", "vmname", vmname)
 
 	var sd vmlayer.ServerDetail
@@ -131,7 +131,7 @@ func (a *AWSPlatform) GetServerDetail(ctx context.Context, vmname string) (*vmla
 	return &sd, fmt.Errorf(vmlayer.ServerDoesNotExistError)
 }
 
-func (a *AWSPlatform) AttachPortToServer(ctx context.Context, serverName, subnetName, portName, ipaddr string, action vmlayer.ActionType) error {
+func (a *AwsEc2Platform) AttachPortToServer(ctx context.Context, serverName, subnetName, portName, ipaddr string, action vmlayer.ActionType) error {
 	log.SpanLog(ctx, log.DebugLevelInfra, "AttachPortToServer", "serverName", serverName, "subnetName", subnetName, "portName", portName, "ipaddr", ipaddr)
 
 	sn, err := a.GetSubnet(ctx, subnetName)
@@ -153,14 +153,14 @@ func (a *AWSPlatform) AttachPortToServer(ctx context.Context, serverName, subnet
 	if err != nil {
 		return err
 	}
-	out, err := a.TimedAwsCommand(ctx, "aws",
+	out, err := a.awsGenPf.TimedAwsCommand(ctx, "aws",
 		"ec2",
 		"create-network-interface",
 		"--subnet-id", sn.SubnetId,
 		"--description", "port "+portName,
 		"--private-ip-address", ipaddr,
 		"--groups", sgrp.GroupId,
-		"--region", a.GetAwsRegion())
+		"--region", a.awsGenPf.GetAwsRegion())
 	log.SpanLog(ctx, log.DebugLevelInfra, "create-network-interface result", "out", string(out), "err", err)
 	if err != nil {
 		return fmt.Errorf("AttachPortToServer create interface failed: %s - %v", string(out), err)
@@ -175,25 +175,25 @@ func (a *AWSPlatform) AttachPortToServer(ctx context.Context, serverName, subnet
 	log.SpanLog(ctx, log.DebugLevelInfra, "created interface", "interface", createdIf)
 
 	// Attach the interface
-	out, err = a.TimedAwsCommand(ctx, "aws",
+	out, err = a.awsGenPf.TimedAwsCommand(ctx, "aws",
 		"ec2",
 		"attach-network-interface",
 		"--instance-id", sd.ID,
 		"--network-interface-id", createdIf.NetworkInterface.NetworkInterfaceId,
 		"--device-index", fmt.Sprintf("%d", deviceIndex),
-		"--region", a.GetAwsRegion())
+		"--region", a.awsGenPf.GetAwsRegion())
 	log.SpanLog(ctx, log.DebugLevelInfra, "attach-network-interface result", "out", string(out), "err", err)
 	if err != nil {
 		return fmt.Errorf("AttachPortToServer attach interface failed: %s - %v", string(out), err)
 	}
 
 	// Disable SourceDestCheck to allow NAT
-	out, err = a.TimedAwsCommand(ctx, "aws",
+	out, err = a.awsGenPf.TimedAwsCommand(ctx, "aws",
 		"ec2",
 		"modify-network-interface-attribute",
 		"--no-source-dest-check",
 		"--network-interface-id", createdIf.NetworkInterface.NetworkInterfaceId,
-		"--region", a.GetAwsRegion())
+		"--region", a.awsGenPf.GetAwsRegion())
 	log.SpanLog(ctx, log.DebugLevelInfra, "modify-network-interface-attribute result", "out", string(out), "err", err)
 	if err != nil {
 		return fmt.Errorf("AttachPortToServer modify interface failed: %s - %v", string(out), err)
@@ -202,12 +202,12 @@ func (a *AWSPlatform) AttachPortToServer(ctx context.Context, serverName, subnet
 	return nil
 }
 
-func (a *AWSPlatform) CheckServerReady(ctx context.Context, client ssh.Client, serverName string) error {
+func (a *AwsEc2Platform) CheckServerReady(ctx context.Context, client ssh.Client, serverName string) error {
 	// no special checks to be done
 	return nil
 }
 
-func (a *AWSPlatform) CreateVM(ctx context.Context, groupName string, vm *vmlayer.VMOrchestrationParams, groupPorts []vmlayer.PortOrchestrationParams, resources *VmGroupResources) error {
+func (a *AwsEc2Platform) CreateVM(ctx context.Context, groupName string, vm *vmlayer.VMOrchestrationParams, groupPorts []vmlayer.PortOrchestrationParams, resources *VmGroupResources) error {
 	log.SpanLog(ctx, log.DebugLevelInfra, "CreateVM", "vm", vm, "resources", resources)
 
 	udFileName := "/var/tmp/" + vm.Name + "-userdata.txt"
@@ -293,13 +293,13 @@ func (a *AWSPlatform) CreateVM(ctx context.Context, groupName string, vm *vmlaye
 		"--image-id", imgId,
 		"--count", fmt.Sprintf("%d", 1),
 		"--instance-type", vm.FlavorName,
-		"--region", a.GetAwsRegion(),
+		"--region", a.awsGenPf.GetAwsRegion(),
 		"--tag-specifications", tagspec,
 		"--user-data", "file://" + udFileName,
 		"--network-interfaces", string(niParms),
 		"--block-device-mappings", string(ebsParams),
 	}
-	out, err := a.TimedAwsCommand(ctx, "aws", createArgs...)
+	out, err := a.awsGenPf.TimedAwsCommand(ctx, "aws", createArgs...)
 	log.SpanLog(ctx, log.DebugLevelInfra, "CreateVM result", "out", string(out), "err", err)
 	if err != nil {
 		return fmt.Errorf("run-instances error: %s - %v", string(out), err)
@@ -307,13 +307,13 @@ func (a *AWSPlatform) CreateVM(ctx context.Context, groupName string, vm *vmlaye
 	return nil
 }
 
-func (a *AWSPlatform) GetImageId(ctx context.Context, imageName, accountId string) (string, error) {
+func (a *AwsEc2Platform) GetImageId(ctx context.Context, imageName, accountId string) (string, error) {
 	log.SpanLog(ctx, log.DebugLevelInfra, "GetImageId", "imageName", imageName, "accountId", accountId)
 
-	out, err := a.TimedAwsCommand(ctx, "aws",
+	out, err := a.awsGenPf.TimedAwsCommand(ctx, "aws",
 		"ec2",
 		"describe-images",
-		"--region", a.GetAwsRegion(),
+		"--region", a.awsGenPf.GetAwsRegion(),
 		"--owners", accountId)
 
 	log.SpanLog(ctx, log.DebugLevelInfra, "describe-images result", "out", string(out), "err", err)
@@ -339,7 +339,7 @@ func (a *AWSPlatform) GetImageId(ctx context.Context, imageName, accountId strin
 	return "", fmt.Errorf(ImageDoesNotExistError)
 }
 
-func (a *AWSPlatform) getEc2Instances(ctx context.Context, vmNameFilter, groupNameFilter string) (*AwsEc2Instances, error) {
+func (a *AwsEc2Platform) getEc2Instances(ctx context.Context, vmNameFilter, groupNameFilter string) (*AwsEc2Instances, error) {
 	log.SpanLog(ctx, log.DebugLevelInfra, "getEc2Instances", "vmNameFilter", vmNameFilter, "groupNameFilter", groupNameFilter)
 	var ec2insts AwsEc2Instances
 
@@ -360,11 +360,11 @@ func (a *AWSPlatform) getEc2Instances(ctx context.Context, vmNameFilter, groupNa
 	cmdArgs := []string{
 		"ec2",
 		"describe-instances",
-		"--region", a.GetAwsRegion(),
+		"--region", a.awsGenPf.GetAwsRegion(),
 	}
 	cmdArgs = append(cmdArgs, filters...)
 
-	out, err := a.TimedAwsCommand(ctx, "aws", cmdArgs...)
+	out, err := a.awsGenPf.TimedAwsCommand(ctx, "aws", cmdArgs...)
 	if err != nil {
 		return nil, fmt.Errorf("Error in describe-instances: %v", err)
 	}
@@ -377,27 +377,27 @@ func (a *AWSPlatform) getEc2Instances(ctx context.Context, vmNameFilter, groupNa
 	return &ec2insts, nil
 }
 
-func (a *AWSPlatform) DetachPortFromServer(ctx context.Context, serverName, subnetName string, portName string) error {
+func (a *AwsEc2Platform) DetachPortFromServer(ctx context.Context, serverName, subnetName string, portName string) error {
 	return fmt.Errorf("DetachPortFromServer not implemented")
 }
 
-func (a *AWSPlatform) GetVMStats(ctx context.Context, key *edgeproto.AppInstKey) (*vmlayer.VMMetrics, error) {
+func (a *AwsEc2Platform) GetVMStats(ctx context.Context, key *edgeproto.AppInstKey) (*vmlayer.VMMetrics, error) {
 	log.SpanLog(ctx, log.DebugLevelMetrics, "GetVMStats not supported")
 	return &vmlayer.VMMetrics{}, nil
 }
 
-func (a *AWSPlatform) SetPowerState(ctx context.Context, serverName, serverAction string) error {
+func (a *AwsEc2Platform) SetPowerState(ctx context.Context, serverName, serverAction string) error {
 	log.SpanLog(ctx, log.DebugLevelInfra, "SetPowerState not supported")
 	return nil
 }
 
-func (a *AWSPlatform) GetNetworkInterfaces(ctx context.Context) (*AwsEc2NetworkInterfaceList, error) {
+func (a *AwsEc2Platform) GetNetworkInterfaces(ctx context.Context) (*AwsEc2NetworkInterfaceList, error) {
 	log.SpanLog(ctx, log.DebugLevelInfra, "GetNetworkInterfaces")
 	// now add the natgw as the default route
-	out, err := a.TimedAwsCommand(ctx, "aws",
+	out, err := a.awsGenPf.TimedAwsCommand(ctx, "aws",
 		"ec2",
 		"describe-network-interfaces",
-		"--region", a.GetAwsRegion())
+		"--region", a.awsGenPf.GetAwsRegion())
 
 	if err != nil {
 		return nil, fmt.Errorf("Error in describe-network-interfaces : %s - %v", string(out), err)
@@ -412,10 +412,10 @@ func (a *AWSPlatform) GetNetworkInterfaces(ctx context.Context) (*AwsEc2NetworkI
 	return &ifList, nil
 }
 
-func (a *AWSPlatform) GetConsoleUrl(ctx context.Context, serverName string) (string, error) {
+func (a *AwsEc2Platform) GetConsoleUrl(ctx context.Context, serverName string) (string, error) {
 	return "", fmt.Errorf("GetConsoleUrl not implemented")
 }
 
-func (a *AWSPlatform) AddAppImageIfNotPresent(ctx context.Context, app *edgeproto.App, flavor string, updateCallback edgeproto.CacheUpdateCallback) error {
+func (a *AwsEc2Platform) AddAppImageIfNotPresent(ctx context.Context, app *edgeproto.App, flavor string, updateCallback edgeproto.CacheUpdateCallback) error {
 	return fmt.Errorf("AddAppImageIfNotPresent not implemented")
 }

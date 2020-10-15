@@ -34,17 +34,17 @@ var azureProps = map[string]*edgeproto.PropertyInfo{
 }
 
 func (a *AzurePlatform) GetAzureLocation() string {
-	val, _ := a.commonPf.Properties.GetValue("MEX_AZURE_LOCATION")
+	val, _ := a.properties.GetValue("MEX_AZURE_LOCATION")
 	return val
 }
 
 func (a *AzurePlatform) GetAzureUser() string {
-	val, _ := a.commonPf.Properties.GetValue("MEX_AZURE_USER")
+	val, _ := a.properties.GetValue("MEX_AZURE_USER")
 	return val
 }
 
 func (a *AzurePlatform) GetAzurePass() string {
-	val, _ := a.commonPf.Properties.GetValue("MEX_AZURE_PASS")
+	val, _ := a.properties.GetValue("MEX_AZURE_PASS")
 	return val
 }
 

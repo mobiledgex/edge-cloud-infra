@@ -747,7 +747,7 @@ func (v *VMPlatform) GetCloudletManifest(ctx context.Context, cloudlet *edgeprot
 		return nil, err
 	}
 
-	v.VMProvider.SetCaches(ctx, caches)
+	v.VMProvider.InitData(ctx, caches)
 
 	platvms, err := v.GetCloudletVMsSpec(ctx, vaultConfig, cloudlet, pfConfig, pfFlavor, edgeproto.DummyUpdateCallback)
 	if err != nil {

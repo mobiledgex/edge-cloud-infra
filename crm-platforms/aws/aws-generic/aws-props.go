@@ -1,4 +1,4 @@
-package aws
+package awsgeneric
 
 import (
 	"context"
@@ -11,7 +11,7 @@ import (
 	"github.com/mobiledgex/edge-cloud/vault"
 )
 
-const awsVaultPath string = "/secret/data/cloudlet/aws/credentials"
+const AwsVaultPath string = "/secret/data/cloudlet/aws/credentials"
 
 var AWSProps = map[string]*edgeproto.PropertyInfo{
 	"AWS_ACCESS_KEY_ID": {
@@ -40,28 +40,24 @@ var AWSProps = map[string]*edgeproto.PropertyInfo{
 	},
 }
 
-func (a *AWSPlatform) GetAwsAccessKeyId() string {
-	val, _ := a.VMProperties.CommonPf.Properties.GetValue("AWS_ACCESS_KEY_ID")
+func (a *AwsGenericPlatform) GetAwsAccessKeyId() string {
+	val, _ := a.Properties.GetValue("AWS_ACCESS_KEY_ID")
 	return val
 }
 
-func (a *AWSPlatform) GetAwsSecretAccessKey() string {
-	val, _ := a.VMProperties.CommonPf.Properties.GetValue("AWS_SECRET_ACCESS_KEY")
+func (a *AwsGenericPlatform) GetAwsSecretAccessKey() string {
+	val, _ := a.Properties.GetValue("AWS_SECRET_ACCESS_KEY")
 	return val
 }
 
-func (a *AWSPlatform) GetAwsRegion() string {
-	val, _ := a.VMProperties.CommonPf.Properties.GetValue("AWS_REGION")
+func (a *AwsGenericPlatform) GetAwsRegion() string {
+	val, _ := a.Properties.GetValue("AWS_REGION")
 	return val
 }
 
-func (a *AWSPlatform) InitApiAccessProperties(ctx context.Context, key *edgeproto.CloudletKey, region, physicalName string, vaultConfig *vault.Config, vars map[string]string) error {
-	return nil
-}
-
-func (a *AWSPlatform) GetProviderSpecificProps(ctx context.Context, vaultConfig *vault.Config) (map[string]*edgeproto.PropertyInfo, error) {
+func (a *AwsGenericPlatform) GetProviderSpecificProps(ctx context.Context, vaultConfig *vault.Config) (map[string]*edgeproto.PropertyInfo, error) {
 	log.SpanLog(ctx, log.DebugLevelInfra, "GetProviderSpecificProps")
-	err := infracommon.InternVaultEnv(ctx, vaultConfig, awsVaultPath)
+	err := infracommon.InternVaultEnv(ctx, vaultConfig, AwsVaultPath)
 	if err != nil {
 		log.SpanLog(ctx, log.DebugLevelInfra, "Failed to intern vault data", "err", err)
 		err = fmt.Errorf("cannot intern vault data from vault %s", err.Error())

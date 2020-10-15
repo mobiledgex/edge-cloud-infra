@@ -10,15 +10,15 @@ import (
 
 	sh "github.com/codeskyblue/go-sh"
 	"github.com/mobiledgex/edge-cloud-infra/infracommon"
-	"github.com/mobiledgex/edge-cloud-infra/vmlayer"
 	"github.com/mobiledgex/edge-cloud/edgeproto"
 	"github.com/mobiledgex/edge-cloud/log"
+	"github.com/mobiledgex/edge-cloud/vault"
 )
 
 const GcpMaxClusterNameLen int = 40
 
 type GCPPlatform struct {
-	commonPf *infracommon.CommonPlatform
+	properties *infracommon.InfraProperties
 }
 
 type GCPQuotas struct {
@@ -37,9 +37,9 @@ type GCPFlavor struct {
 	Name                         string
 }
 
-func (g *GCPPlatform) GatherCloudletInfo(ctx context.Context, info *edgeproto.CloudletInfo) error {
+func (g *GCPPlatform) GatherCloudletInfo(ctx context.Context, vaultConfig *vault.Config, info *edgeproto.CloudletInfo) error {
 	log.SpanLog(ctx, log.DebugLevelInfra, "GatherCloudletInfo")
-	err := g.Login(ctx)
+	err := g.Login(ctx, vaultConfig)
 	if err != nil {
 		return err
 	}
@@ -116,10 +116,10 @@ func (g *GCPPlatform) GatherCloudletInfo(ctx context.Context, info *edgeproto.Cl
 }
 
 // GCPLogin logs into google cloud
-func (g *GCPPlatform) Login(ctx context.Context) error {
+func (g *GCPPlatform) Login(ctx context.Context, vaultConfig *vault.Config) error {
 	log.SpanLog(ctx, log.DebugLevelInfra, "doing GcpLogin", "vault url", g.GetGcpAuthKeyUrl())
 	filename := "/tmp/auth_key.json"
-	err := infracommon.GetVaultDataToFile(g.commonPf.VaultConfig, g.GetGcpAuthKeyUrl(), filename)
+	err := infracommon.GetVaultDataToFile(vaultConfig, g.GetGcpAuthKeyUrl(), filename)
 	if err != nil {
 		return fmt.Errorf("unable to write auth file %s: %s", filename, err.Error())
 	}
@@ -149,6 +149,6 @@ func (g *GCPPlatform) NameSanitize(clusterName string) string {
 	return clusterName
 }
 
-func (a *GCPPlatform) SetVMProperties(vmProperties *vmlayer.VMProperties) {
-	a.commonPf = vmProperties.CommonPf
+func (g *GCPPlatform) SetProperties(props *infracommon.InfraProperties) {
+	g.properties = props
 }

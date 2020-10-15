@@ -1,4 +1,4 @@
-package aws
+package awsec2
 
 import (
 	"context"
@@ -13,88 +13,78 @@ import (
 	"github.com/mobiledgex/edge-cloud/edgeproto"
 )
 
-func (a *AWSPlatform) SaveCloudletAccessVars(ctx context.Context, cloudlet *edgeproto.Cloudlet, accessVarsIn map[string]string, pfConfig *edgeproto.PlatformConfig, updateCallback edgeproto.CacheUpdateCallback) error {
-	return fmt.Errorf("SaveCloudletAccessVars not implemented for aws")
+func (a *AwsEc2Platform) GatherCloudletInfo(ctx context.Context, info *edgeproto.CloudletInfo) error {
+	return a.awsGenPf.GatherCloudletInfo(ctx, info)
 }
 
-func (a *AWSPlatform) GetCloudletImageSuffix(ctx context.Context) string {
+func (a *AwsEc2Platform) SaveCloudletAccessVars(ctx context.Context, cloudlet *edgeproto.Cloudlet, accessVarsIn map[string]string, pfConfig *edgeproto.PlatformConfig, updateCallback edgeproto.CacheUpdateCallback) error {
+	return fmt.Errorf("SaveCloudletAccessVars not implemented")
+}
+
+func (a *AwsEc2Platform) GetCloudletImageSuffix(ctx context.Context) string {
 	return ""
 }
 
 //CreateImageFromUrl downloads image from URL and then imports to the datastore
-func (a *AWSPlatform) CreateImageFromUrl(ctx context.Context, imageName, imageUrl, md5Sum string) error {
+func (a *AwsEc2Platform) CreateImageFromUrl(ctx context.Context, imageName, imageUrl, md5Sum string) error {
 	return fmt.Errorf("CreateImageFromUrl not implemented")
 }
 
-func (a *AWSPlatform) DeleteImage(ctx context.Context, folder, imageName string) error {
+func (a *AwsEc2Platform) DeleteImage(ctx context.Context, folder, imageName string) error {
 	return fmt.Errorf("DeleteImage not implemented")
 }
 
-func (o *AWSPlatform) GetApiAccessFilename() string {
+func (o *AwsEc2Platform) GetApiAccessFilename() string {
 	return "aws.json"
 }
 
-func (a *AWSPlatform) AddCloudletImageIfNotPresent(ctx context.Context, imgPathPrefix, imgVersion string, updateCallback edgeproto.CacheUpdateCallback) (string, error) {
+func (a *AwsEc2Platform) AddCloudletImageIfNotPresent(ctx context.Context, imgPathPrefix, imgVersion string, updateCallback edgeproto.CacheUpdateCallback) (string, error) {
 	// we don't currently have the ability to download and setup the template, but we will verify it is there
 	return "", fmt.Errorf("AddCloudletImageIfNotPresent not implemented")
 }
 
-func (a *AWSPlatform) GetApiEndpointAddr(ctx context.Context) (string, error) {
+func (a *AwsEc2Platform) GetApiEndpointAddr(ctx context.Context) (string, error) {
 	return "", fmt.Errorf("GetApiEndpointAddr not implemented")
 }
 
 // GetCloudletManifest follows the standard practice for vSphere to use OVF for this purpose.  We store the OVF
 // in artifactory along with with the vmdk formatted disk.  No customization is needed per cloudlet as the OVF
 // import tool will prompt for datastore and portgroup.
-func (a *AWSPlatform) GetCloudletManifest(ctx context.Context, name string, cloudletImagePath string, vmgp *vmlayer.VMGroupOrchestrationParams) (string, error) {
+func (a *AwsEc2Platform) GetCloudletManifest(ctx context.Context, name string, cloudletImagePath string, vmgp *vmlayer.VMGroupOrchestrationParams) (string, error) {
 	return "", fmt.Errorf("GetCloudletManifest not implemented")
 }
 
-func (a *AWSPlatform) VerifyVMs(ctx context.Context, vms []edgeproto.VM) error {
+func (a *AwsEc2Platform) VerifyVMs(ctx context.Context, vms []edgeproto.VM) error {
 	return nil
 }
 
-func (a *AWSPlatform) GetExternalGateway(ctx context.Context, extNetName string) (string, error) {
+func (a *AwsEc2Platform) GetExternalGateway(ctx context.Context, extNetName string) (string, error) {
 	return "", fmt.Errorf("GetExternalGateway not implemented")
 }
 
-func (a *AWSPlatform) GetFlavorList(ctx context.Context) ([]*edgeproto.FlavorInfo, error) {
-	log.SpanLog(ctx, log.DebugLevelInfra, "GetFlavorList")
-	var info edgeproto.CloudletInfo
-	err := a.GatherCloudletInfo(ctx, &info)
-	if err != nil {
-		return nil, err
-	}
-	return info.Flavors, nil
-}
-
-func (s *AWSPlatform) GetNetworkList(ctx context.Context) ([]string, error) {
+func (s *AwsEc2Platform) GetNetworkList(ctx context.Context) ([]string, error) {
 	return []string{}, nil
 }
 
-func (a *AWSPlatform) GetPlatformResourceInfo(ctx context.Context) (*vmlayer.PlatformResources, error) {
+func (a *AwsEc2Platform) GetPlatformResourceInfo(ctx context.Context) (*vmlayer.PlatformResources, error) {
 	log.SpanLog(ctx, log.DebugLevelMetrics, "GetPlatformResourceInfo not supported")
 	return &vmlayer.PlatformResources{}, nil
 }
 
-func (a *AWSPlatform) GetResourceID(ctx context.Context, resourceType vmlayer.ResourceType, resourceName string) (string, error) {
+func (a *AwsEc2Platform) GetResourceID(ctx context.Context, resourceType vmlayer.ResourceType, resourceName string) (string, error) {
 	switch resourceType {
 	case vmlayer.ResourceTypeSecurityGroup:
 		return resourceName, nil
 	}
 	return "", fmt.Errorf("GetResourceID not implemented for resource type: %s ", resourceType)
 }
-func (a *AWSPlatform) GetRouterDetail(ctx context.Context, routerName string) (*vmlayer.RouterDetail, error) {
+func (a *AwsEc2Platform) GetRouterDetail(ctx context.Context, routerName string) (*vmlayer.RouterDetail, error) {
 	return nil, fmt.Errorf("GetRouterDetail not supported")
 }
 
-func (a *AWSPlatform) SetCaches(ctx context.Context, caches *platform.Caches) {
-	a.caches = caches
-}
-
-func (a *AWSPlatform) InitProvider(ctx context.Context, caches *platform.Caches, stage vmlayer.ProviderInitStage, updateCallback edgeproto.CacheUpdateCallback) error {
+func (a *AwsEc2Platform) InitProvider(ctx context.Context, caches *platform.Caches, stage vmlayer.ProviderInitStage, updateCallback edgeproto.CacheUpdateCallback) error {
 	log.SpanLog(ctx, log.DebugLevelInfra, "InitProvider", "stage", stage)
-	a.SetCaches(ctx, caches)
+	a.InitData(ctx, caches)
 	vpcName := a.GetVpcName()
 
 	acct, err := a.GetIamAccountId(ctx)
@@ -177,7 +167,11 @@ func (a *AWSPlatform) InitProvider(ctx context.Context, caches *platform.Caches,
 	return nil
 
 }
-func (a *AWSPlatform) PrepareRootLB(ctx context.Context, client ssh.Client, rootLBName string, secGrpName string, privacyPolicy *edgeproto.PrivacyPolicy) error {
+func (a *AwsEc2Platform) PrepareRootLB(ctx context.Context, client ssh.Client, rootLBName string, secGrpName string, privacyPolicy *edgeproto.PrivacyPolicy) error {
 	log.SpanLog(ctx, log.DebugLevelInfra, "PrepareRootLB", "rootLBName", rootLBName)
 	return nil
+}
+
+func (a *AwsEc2Platform) GetFlavorList(ctx context.Context) ([]*edgeproto.FlavorInfo, error) {
+	return a.awsGenPf.GetFlavorList(ctx)
 }

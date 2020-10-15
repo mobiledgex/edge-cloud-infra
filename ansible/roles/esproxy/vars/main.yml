@@ -1,2 +1,3 @@
 ---
 mex_ca_cert_path: /etc/nginx/mex-ca.crt
+index_cleanup_script: /usr/local/bin/index-cleanup.py

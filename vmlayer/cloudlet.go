@@ -162,6 +162,7 @@ func (v *VMPlatform) CreateCloudlet(ctx context.Context, cloudlet *edgeproto.Clo
 
 	log.SpanLog(ctx, log.DebugLevelInfra, "Creating cloudlet", "cloudletName", cloudlet.Key.Name)
 
+	v.VMProperties.CommonPf = &infracommon.CommonPlatform{}
 	vaultConfig, err := vault.BestConfig(pfConfig.VaultAddr, vault.WithEnvMap(pfConfig.EnvVar))
 	if err != nil {
 		return err
@@ -196,8 +197,6 @@ func (v *VMPlatform) CreateCloudlet(ctx context.Context, cloudlet *edgeproto.Clo
 	}
 
 	v.VMProperties.Domain = VMDomainPlatform
-	cpf := infracommon.CommonPlatform{}
-	v.VMProperties.CommonPf = &cpf
 	pc := infracommon.GetPlatformConfig(cloudlet, pfConfig)
 	err = v.InitProps(ctx, pc, vaultConfig)
 	if err != nil {
@@ -737,6 +736,7 @@ func (v *VMPlatform) GetCloudletVMsSpec(ctx context.Context, vaultConfig *vault.
 func (v *VMPlatform) GetCloudletManifest(ctx context.Context, cloudlet *edgeproto.Cloudlet, pfConfig *edgeproto.PlatformConfig, pfFlavor *edgeproto.Flavor, caches *platform.Caches) (*edgeproto.CloudletManifest, error) {
 	log.SpanLog(ctx, log.DebugLevelInfra, "Get cloudlet manifest", "cloudletName", cloudlet.Key.Name)
 	v.VMProperties.Domain = VMDomainPlatform
+	v.VMProperties.CommonPf = &infracommon.CommonPlatform{}
 
 	if cloudlet.ChefClientKey == nil {
 		return nil, fmt.Errorf("unable to find chef client key")

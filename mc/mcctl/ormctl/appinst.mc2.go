@@ -199,7 +199,7 @@ var UpdateAppInstOptionalArgs = []string{
 
 var RequestAppInstLatencyCmd = &cli.Command{
 	Use:          "RequestAppInstLatency",
-	RequiredArgs: "region " + strings.Join(AppInstLatencyRequiredArgs, " "),
+	RequiredArgs: strings.Join(AppInstLatencyRequiredArgs, " "),
 	OptionalArgs: strings.Join(AppInstLatencyOptionalArgs, " "),
 	AliasArgs:    strings.Join(AppInstLatencyAliasArgs, " "),
 	SpecialArgs:  &AppInstLatencySpecialArgs,
@@ -211,7 +211,6 @@ var RequestAppInstLatencyCmd = &cli.Command{
 
 var ShowAppInstLatencyCmd = &cli.Command{
 	Use:          "ShowAppInstLatency",
-	RequiredArgs: "region",
 	OptionalArgs: strings.Join(append(AppInstLatencyRequiredArgs, AppInstLatencyOptionalArgs...), " "),
 	AliasArgs:    strings.Join(AppInstLatencyAliasArgs, " "),
 	SpecialArgs:  &AppInstLatencySpecialArgs,
@@ -548,7 +547,7 @@ var AppInstLatencyComments = map[string]string{
 	"cloudlet-org":     "Organization of the cloudlet site",
 	"cloudlet":         "Name of the cloudlet",
 	"cluster-org":      "Name of Developer organization that this cluster belongs to",
-	"latency.stddev":   "Unbiased standard deviation",
+	"latency.stddev":   "Square root of unbiased variance",
 	"latency.variance": "Unbiased variance",
 }
 var AppInstLatencySpecialArgs = map[string]string{}

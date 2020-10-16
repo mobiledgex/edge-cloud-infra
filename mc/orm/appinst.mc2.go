@@ -462,7 +462,7 @@ func RequestAppInstLatencyObj(ctx context.Context, rc *RegionContext, obj *edgep
 		}
 	}
 	if rc.conn == nil {
-		conn, err := connectController(ctx, rc.region)
+		conn, err := connectNotifyRoot(ctx)
 		if err != nil {
 			return nil, err
 		}
@@ -521,7 +521,7 @@ func ShowAppInstLatencyStream(ctx context.Context, rc *RegionContext, obj *edgep
 		}
 	}
 	if rc.conn == nil {
-		conn, err := connectController(ctx, rc.region)
+		conn, err := connectNotifyRoot(ctx)
 		if err != nil {
 			return err
 		}

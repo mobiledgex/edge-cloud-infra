@@ -103,3 +103,7 @@ func (s *TestClient) StreamClusterInst(ctx context.Context, in *edgeproto.Cluste
 	}
 	return out, err
 }
+
+func (s *TestClient) ShowStreamObjInfo(ctx context.Context, in *edgeproto.StreamObjInfo) ([]edgeproto.StreamObjInfo, error) {
+	return nil, nil
+}

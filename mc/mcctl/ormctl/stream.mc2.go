@@ -128,3 +128,42 @@ var StreamObjComments = map[string]string{
 	"errormsg":                                    "Stream error message, if any",
 }
 var StreamObjSpecialArgs = map[string]string{}
+var StreamObjInfoRequiredArgs = []string{
+	"key.appkey.organization",
+	"key.appkey.name",
+	"key.appkey.version",
+	"key.clusterinstkey.clusterkey.name",
+	"key.clusterinstkey.cloudletkey.organization",
+	"key.clusterinstkey.cloudletkey.name",
+	"key.clusterinstkey.organization",
+}
+var StreamObjInfoOptionalArgs = []string{
+	"msgs:#.id",
+	"msgs:#.msg",
+	"lastid",
+}
+var StreamObjInfoAliasArgs = []string{
+	"key.appkey.organization=streamobjinfo.key.appkey.organization",
+	"key.appkey.name=streamobjinfo.key.appkey.name",
+	"key.appkey.version=streamobjinfo.key.appkey.version",
+	"key.clusterinstkey.clusterkey.name=streamobjinfo.key.clusterinstkey.clusterkey.name",
+	"key.clusterinstkey.cloudletkey.organization=streamobjinfo.key.clusterinstkey.cloudletkey.organization",
+	"key.clusterinstkey.cloudletkey.name=streamobjinfo.key.clusterinstkey.cloudletkey.name",
+	"key.clusterinstkey.organization=streamobjinfo.key.clusterinstkey.organization",
+	"msgs:#.id=streamobjinfo.msgs:#.id",
+	"msgs:#.msg=streamobjinfo.msgs:#.msg",
+	"lastid=streamobjinfo.lastid",
+}
+var StreamObjInfoComments = map[string]string{
+	"key.appkey.organization":                     "App developer organization",
+	"key.appkey.name":                             "App name",
+	"key.appkey.version":                          "App version",
+	"key.clusterinstkey.clusterkey.name":          "Cluster name",
+	"key.clusterinstkey.cloudletkey.organization": "Organization of the cloudlet site",
+	"key.clusterinstkey.cloudletkey.name":         "Name of the cloudlet",
+	"key.clusterinstkey.organization":             "Name of Developer organization that this cluster belongs to",
+	"msgs:#.id":                                   "Unique message ID",
+	"msgs:#.msg":                                  "Stream message",
+	"lastid":                                      "Last ID to track duplicate messages",
+}
+var StreamObjInfoSpecialArgs = map[string]string{}

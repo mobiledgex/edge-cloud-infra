@@ -51,28 +51,6 @@ func getAgentName() string {
 	return "MasterControllerV1"
 }
 
-// This create an instance of a alertmgr for MC unit-tests
-const UnitTestAlertMgrURL = "http://mcunittest"
-
-func NewAlertMgrServerTest() *AlertMgrServer {
-	return &AlertMgrServer{AlertMrgAddr: UnitTestAlertMgrURL, alertMgrApiCb: unitTestAlertMgrApi}
-}
-
-// This is a unit-test alertMgrApi - just responds OK to everything
-func unitTestAlertMgrApi(ctx context.Context, addr, method, api, options string, payload []byte, tlsConfig *tls.Config) ([]byte, error) {
-	// common apis that don't need any data
-	if strings.Contains(api, mobiledgeXReceiverApi) ||
-		strings.Contains(api, mobiledgeXReceiversApi) {
-		if method == http.MethodGet {
-			// send back an empty load
-			res, _ := json.Marshal(&SidecarReceiverConfigs{})
-			return res, nil
-
-		}
-	}
-	return nil, nil
-}
-
 func NewAlertMgrServer(alertMgrAddr string, tlsConfig *tls.Config,
 	alertCache *edgeproto.AlertCache, resolveTimeout time.Duration) (*AlertMgrServer, error) {
 	var err error

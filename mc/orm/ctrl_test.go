@@ -9,6 +9,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/jarcoal/httpmock"
 	"github.com/mitchellh/mapstructure"
 	ormtestutil "github.com/mobiledgex/edge-cloud-infra/mc/orm/testutil"
 	"github.com/mobiledgex/edge-cloud-infra/mc/ormapi"
@@ -36,6 +37,14 @@ func TestController(t *testing.T) {
 	vaultServer, vaultConfig := vault.DummyServer()
 	defer vaultServer.Close()
 
+	testAlertMgrAddr := "http://dummyalertmgr.mobiledgex.net:9094"
+	// mock http to redirect requests
+	httpmock.Activate()
+	defer httpmock.DeactivateAndReset()
+	// any requests that don't have a registered URL will be fetched normally
+	httpmock.RegisterNoResponder(httpmock.InitialTransport.RoundTrip)
+	InitAlertmgrMock(testAlertMgrAddr)
+
 	config := ServerConfig{
 		ServAddr:                addr,
 		SqlAddr:                 "127.0.0.1:5445",
@@ -44,6 +53,7 @@ func TestController(t *testing.T) {
 		IgnoreEnv:               true,
 		SkipVerifyEmail:         true,
 		vaultConfig:             vaultConfig,
+		AlertMgrAddr:            testAlertMgrAddr,
 		UsageCheckpointInterval: "MONTH",
 	}
 	server, err := RunServer(&config)

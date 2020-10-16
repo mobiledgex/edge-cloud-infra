@@ -1,15 +1,59 @@
 package orm
 
 import (
+	fmt "fmt"
 	"net/http"
 	"testing"
 
+	"github.com/jarcoal/httpmock"
+	"github.com/mobiledgex/edge-cloud-infra/mc/orm/alertmgr"
 	"github.com/mobiledgex/edge-cloud-infra/mc/ormapi"
 	"github.com/mobiledgex/edge-cloud-infra/mc/ormclient"
 	"github.com/mobiledgex/edge-cloud/edgeproto"
 	"github.com/stretchr/testify/require"
 )
 
+func getReceiversPath(addr string) string {
+	return fmt.Sprintf(`=~^%s/%s(.*)\z`, addr, "api/v3/receiver")
+}
+
+func InitAlertmgrMock(addr string) {
+	httpmock.RegisterResponder("GET", addr+"/",
+		func(req *http.Request) (*http.Response, error) {
+			return httpmock.NewStringResponse(200, "Success"), nil
+		},
+	)
+	httpmock.RegisterResponder("GET", addr,
+		func(req *http.Request) (*http.Response, error) {
+			return httpmock.NewStringResponse(200, "Success"), nil
+		},
+	)
+	httpmock.RegisterResponder("POST", addr+alertmgr.AlertApi,
+		func(req *http.Request) (*http.Response, error) {
+			return httpmock.NewStringResponse(200, "Success"), nil
+		},
+	)
+	httpmock.RegisterResponder("GET", addr+alertmgr.AlertApi,
+		func(req *http.Request) (*http.Response, error) {
+			return httpmock.NewJsonResponse(200, make([]interface{}, 0))
+		},
+	)
+	httpmock.RegisterResponder("GET", getReceiversPath(addr),
+		func(req *http.Request) (*http.Response, error) {
+			return httpmock.NewJsonResponse(200, alertmgr.SidecarReceiverConfigs{})
+		},
+	)
+	httpmock.RegisterResponder("POST", getReceiversPath(addr),
+		func(req *http.Request) (*http.Response, error) {
+			return httpmock.NewStringResponse(200, "Success"), nil
+		},
+	)
+	httpmock.RegisterResponder("DELETE", getReceiversPath(addr),
+		func(req *http.Request) (*http.Response, error) {
+			return httpmock.NewStringResponse(200, "Success"), nil
+		},
+	)
+}
 func testShowAlertReceiver(mcClient *ormclient.Client, uri, token, region, org, name string) ([]ormapi.AlertReceiver, int, error) {
 
 	in := &edgeproto.AppInstKey{}

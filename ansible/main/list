@@ -17,6 +17,7 @@ letsencrypt_env=production
 console_vm_hostname=console.mobiledgex.net
 console_prod=yes
 alertmanager_hostname=alertmanager.mobiledgex.net
+events_elasticsearch_cleanup_age=183
 
 [notifyroot]
 notifyroot.mobiledgex.net

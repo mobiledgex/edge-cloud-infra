@@ -1,0 +1,6 @@
+- name: Look up esproxy cleanup creds in vault
+  set_fact:
+    vault_lookup: "{{ lookup('vault', esproxy_cleanup_account_path) }}"
+
+- set_fact:
+    esproxy_cleanup_apikey: "{{ vault_lookup.esproxy_cleanup.data.apikey }}"

@@ -11,5 +11,5 @@ run_list 'recipe[runstatus_handler]', 'recipe[run_cmd]', 'recipe[run_diagnostics
 
 # Specify a custom source for a single cookbook:
 cookbook 'runstatus_handler', '= 1.0.0'
-cookbook 'run_cmd', '= 0.0.1'
+cookbook 'run_cmd', '= 1.0.0'
 cookbook 'run_diagnostics', '= 1.0.0'

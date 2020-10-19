@@ -41,7 +41,6 @@ type AlertMgrServer struct {
 	AlertResolutionTimout time.Duration
 	AlertCache            *edgeproto.AlertCache
 	TlsConfig             *tls.Config
-	alertMgrApiCb         func(ctx context.Context, addr, method, api, options string, payload []byte, tlsConfig *tls.Config) ([]byte, error)
 	waitGrp               sync.WaitGroup
 	stop                  chan struct{}
 }
@@ -59,7 +58,6 @@ func NewAlertMgrServer(alertMgrAddr string, tlsConfig *tls.Config,
 		AlertCache:            alertCache,
 		AlertResolutionTimout: resolveTimeout,
 		TlsConfig:             tlsConfig,
-		alertMgrApiCb:         alertMgrApi,
 	}
 	span := log.StartSpan(log.DebugLevelApi|log.DebugLevelInfo, "AlertMgrServer")
 	defer span.Finish()
@@ -67,7 +65,7 @@ func NewAlertMgrServer(alertMgrAddr string, tlsConfig *tls.Config,
 
 	// We might need to wait for alertmanager to be up first
 	for ii := 0; ii < 10; ii++ {
-		_, err = server.alertMgrApiCb(ctx, server.AlertMrgAddr, "GET", "", "", nil, server.TlsConfig)
+		_, err = alertMgrApi(ctx, server.AlertMrgAddr, "GET", "", "", nil, server.TlsConfig)
 		if err == nil {
 			break
 		}
@@ -177,7 +175,7 @@ func alertManagerAlertsToEdgeprotoAlerts(openAPIAlerts models.GettableAlerts) []
 
 // Show all alerts in the alertmgr
 func (s *AlertMgrServer) ShowAlerts(ctx context.Context, filter *edgeproto.Alert) ([]edgeproto.Alert, error) {
-	data, err := s.alertMgrApiCb(ctx, s.AlertMrgAddr, "GET", AlertApi, "", nil, s.TlsConfig)
+	data, err := alertMgrApi(ctx, s.AlertMrgAddr, "GET", AlertApi, "", nil, s.TlsConfig)
 	if err != nil {
 		log.SpanLog(ctx, log.DebugLevelInfo, "Unable to GET Alerts", "err", err, "filter", filter)
 		return nil, err
@@ -200,7 +198,7 @@ func (s *AlertMgrServer) AddAlerts(ctx context.Context, alerts ...*edgeproto.Ale
 		log.SpanLog(ctx, log.DebugLevelInfo, "Failed to marshal alerts", "err", err, "alerts", alerts)
 		return err
 	}
-	res, err := s.alertMgrApiCb(ctx, s.AlertMrgAddr, "POST", AlertApi, "", data, s.TlsConfig)
+	res, err := alertMgrApi(ctx, s.AlertMrgAddr, "POST", AlertApi, "", data, s.TlsConfig)
 	log.SpanLog(ctx, log.DebugLevelInfo, "marshal alerts", "alerts", string(data), "err", err, "res", res)
 	return err
 }
@@ -324,7 +322,7 @@ func (s *AlertMgrServer) CreateReceiver(ctx context.Context, receiver *ormapi.Al
 		log.SpanLog(ctx, log.DebugLevelInfo, "Failed to get marshal sidecar Receiver Config info", "err", err, "cfg", sidecarRec)
 		return err
 	}
-	res, err := s.alertMgrApiCb(ctx, s.AlertMrgAddr, "POST", mobiledgeXReceiverApi, "", data, s.TlsConfig)
+	res, err := alertMgrApi(ctx, s.AlertMrgAddr, "POST", mobiledgeXReceiverApi, "", data, s.TlsConfig)
 	if err != nil {
 		log.SpanLog(ctx, log.DebugLevelInfo, "Failed to create alertmanager receiver", "err", err, "res", res)
 		return err
@@ -340,7 +338,7 @@ func (s *AlertMgrServer) DeleteReceiver(ctx context.Context, receiver *ormapi.Al
 
 	// We create one entry per receiver, to make it simpler
 	receiverName := getAlertmgrReceiverName(receiver)
-	res, err := s.alertMgrApiCb(ctx, s.AlertMrgAddr, "DELETE", mobiledgeXReceiverApi+"/"+receiverName, "", nil, s.TlsConfig)
+	res, err := alertMgrApi(ctx, s.AlertMrgAddr, "DELETE", mobiledgeXReceiverApi+"/"+receiverName, "", nil, s.TlsConfig)
 	if err != nil {
 		log.SpanLog(ctx, log.DebugLevelInfo, "Failed to delete alertmanager receiver", "err", err, "res", res)
 		return err
@@ -368,7 +366,7 @@ func (s *AlertMgrServer) ShowReceivers(ctx context.Context, filter *ormapi.Alert
 		// Add Filter with a name
 		apiUrl = mobiledgeXReceiverApi + "/" + filter.Name
 	}
-	data, err := s.alertMgrApiCb(ctx, s.AlertMrgAddr, "GET", apiUrl, "", nil, s.TlsConfig)
+	data, err := alertMgrApi(ctx, s.AlertMrgAddr, "GET", apiUrl, "", nil, s.TlsConfig)
 	if err != nil {
 		log.SpanLog(ctx, log.DebugLevelInfo, "Unable to GET Alert Receivers", "err", err)
 		return nil, err

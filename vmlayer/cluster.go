@@ -165,7 +165,7 @@ func (v *VMPlatform) updateClusterInternal(ctx context.Context, client ssh.Clien
 }
 
 //DeleteCluster deletes kubernetes cluster
-func (v *VMPlatform) deleteCluster(ctx context.Context, rootLBName string, clusterInst *edgeproto.ClusterInst) error {
+func (v *VMPlatform) deleteCluster(ctx context.Context, rootLBName string, clusterInst *edgeproto.ClusterInst, updateCallback edgeproto.CacheUpdateCallback) error {
 	log.SpanLog(ctx, log.DebugLevelInfra, "deleting kubernetes cluster", "clusterInst", clusterInst)
 
 	chefClient := v.VMProperties.GetChefClient()
@@ -253,7 +253,7 @@ func (v *VMPlatform) deleteCluster(ctx context.Context, rootLBName string, clust
 
 	if dedicatedRootLB {
 		proxy.RemoveDedicatedCluster(ctx, clusterInst.Key.ClusterKey.Name)
-		DeleteRootLB(rootLBName)
+		DeleteServerIpFromCache(ctx, rootLBName)
 	}
 	return nil
 }
@@ -290,7 +290,7 @@ func (v *VMPlatform) createClusterInternal(ctx context.Context, rootLBName strin
 		}
 		log.SpanLog(ctx, log.DebugLevelInfra, "error in CreateCluster", "err", reterr)
 		if !clusterInst.SkipCrmCleanupOnFailure {
-			delerr := v.deleteCluster(ctx, rootLBName, clusterInst)
+			delerr := v.deleteCluster(ctx, rootLBName, clusterInst, updateCallback)
 			if delerr != nil {
 				log.SpanLog(ctx, log.DebugLevelInfra, "fail to cleanup cluster")
 			}
@@ -349,13 +349,6 @@ func (v *VMPlatform) setupClusterRootLBAndNodes(ctx context.Context, rootLBName 
 	// mex agent started
 	if clusterInst.IpAccess == edgeproto.IpAccess_IP_ACCESS_DEDICATED {
 		log.SpanLog(ctx, log.DebugLevelInfra, "new dedicated rootLB", "IpAccess", clusterInst.IpAccess)
-		if action == ActionCreate {
-			_, err := v.NewRootLB(ctx, rootLBName)
-			if err != nil {
-				// likely already exists which means something went really wrong
-				return err
-			}
-		}
 		updateCallback(edgeproto.UpdateTask, "Setting Up Root LB")
 		err := v.SetupRootLB(ctx, rootLBName, &clusterInst.Key.CloudletKey, privacyPolicy, updateCallback)
 		if err != nil {
@@ -384,9 +377,9 @@ func (v *VMPlatform) setupClusterRootLBAndNodes(ctx context.Context, rootLBName 
 	return nil
 }
 
-func (v *VMPlatform) DeleteClusterInst(ctx context.Context, clusterInst *edgeproto.ClusterInst) error {
+func (v *VMPlatform) DeleteClusterInst(ctx context.Context, clusterInst *edgeproto.ClusterInst, updateCallback edgeproto.CacheUpdateCallback) error {
 	lbName := v.VMProperties.GetRootLBNameForCluster(ctx, clusterInst)
-	return v.deleteCluster(ctx, lbName, clusterInst)
+	return v.deleteCluster(ctx, lbName, clusterInst, updateCallback)
 }
 
 func (v *VMPlatform) GetClusterAccessIP(ctx context.Context, clusterInst *edgeproto.ClusterInst) (string, error) {
@@ -552,7 +545,7 @@ func (v *VMPlatform) getVMRequestSpecForDockerCluster(ctx context.Context, imgNa
 			return vms, newSubnetName, newSecgrpName, err
 		}
 		vms = append(vms, rootlb)
-		newSecgrpName = v.GetServerSecurityGroupName(rootlb.Name)
+		newSecgrpName = GetServerSecurityGroupName(rootlb.Name)
 	} else {
 
 		log.SpanLog(ctx, log.DebugLevelInfo, "creating shared rootlb port")
@@ -620,7 +613,7 @@ func (v *VMPlatform) PerformOrchestrationForCluster(ctx context.Context, imgName
 				return nil, err
 			}
 			vms = append(vms, rootlb)
-			newSecgrpName = v.GetServerSecurityGroupName(rootlb.Name)
+			newSecgrpName = GetServerSecurityGroupName(rootlb.Name)
 		} else if v.VMProperties.GetCloudletExternalRouter() == NoExternalRouter {
 			// If no router in use, create ports on the existing shared rootLB
 			rootlb, err = v.GetVMSpecForRootLBPorts(ctx, v.VMProperties.SharedRootLBName, newSubnetName)

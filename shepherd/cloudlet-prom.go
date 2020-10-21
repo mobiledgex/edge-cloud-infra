@@ -20,6 +20,7 @@ import (
 	"github.com/mobiledgex/edge-cloud/cloud-resource-manager/k8smgmt"
 	"github.com/mobiledgex/edge-cloud/cloud-resource-manager/prommgmt"
 	"github.com/mobiledgex/edge-cloud/cloudcommon"
+	dme "github.com/mobiledgex/edge-cloud/d-match-engine/dme-proto"
 	"github.com/mobiledgex/edge-cloud/edgeproto"
 	"github.com/mobiledgex/edge-cloud/log"
 	"gopkg.in/yaml.v2"
@@ -54,11 +55,11 @@ var promHealthCheckAlerts = `groups:
     expr: up == 0
     for: 15s
     labels:
-      ` + cloudcommon.AlertHealthCheckStatus + ": " + strconv.Itoa(int(edgeproto.HealthCheck_HEALTH_CHECK_FAIL_ROOTLB_OFFLINE)) + `
+      ` + cloudcommon.AlertHealthCheckStatus + ": " + strconv.Itoa(int(dme.HealthCheck_HEALTH_CHECK_FAIL_ROOTLB_OFFLINE)) + `
   - alert: ` + cloudcommon.AlertAppInstDown + `
     expr: envoy_cluster_health_check_healthy == 0
     labels:
-      ` + cloudcommon.AlertHealthCheckStatus + ": " + strconv.Itoa(int(edgeproto.HealthCheck_HEALTH_CHECK_FAIL_SERVER_FAIL))
+      ` + cloudcommon.AlertHealthCheckStatus + ": " + strconv.Itoa(int(dme.HealthCheck_HEALTH_CHECK_FAIL_SERVER_FAIL))
 
 type targetData struct {
 	MetricsProxyAddr string

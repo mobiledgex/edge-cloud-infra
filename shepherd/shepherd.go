@@ -23,6 +23,7 @@ import (
 	pf "github.com/mobiledgex/edge-cloud/cloud-resource-manager/platform"
 	"github.com/mobiledgex/edge-cloud/cloudcommon"
 	"github.com/mobiledgex/edge-cloud/cloudcommon/node"
+	dme "github.com/mobiledgex/edge-cloud/d-match-engine/dme-proto"
 	"github.com/mobiledgex/edge-cloud/edgeproto"
 	"github.com/mobiledgex/edge-cloud/log"
 	"github.com/mobiledgex/edge-cloud/notify"
@@ -406,7 +407,7 @@ func start() {
 	}
 
 	// Send state INIT to get cloudlet obj from crm
-	cloudletInfo.State = edgeproto.CloudletState_CLOUDLET_STATE_INIT
+	cloudletInfo.State = dme.CloudletState_CLOUDLET_STATE_INIT
 	CloudletInfoCache.Update(ctx, &cloudletInfo, 0)
 
 	var cloudlet edgeproto.Cloudlet
@@ -464,7 +465,7 @@ func start() {
 	InitPlatformMetrics(stopCh)
 
 	// Send state READY to get AppInst/ClusterInst objs from crm
-	cloudletInfo.State = edgeproto.CloudletState_CLOUDLET_STATE_READY
+	cloudletInfo.State = dme.CloudletState_CLOUDLET_STATE_READY
 	CloudletInfoCache.Update(ctx, &cloudletInfo, 0)
 
 	log.SpanLog(ctx, log.DebugLevelMetrics, "Ready")

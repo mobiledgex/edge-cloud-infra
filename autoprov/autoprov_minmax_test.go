@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/mobiledgex/edge-cloud/cloudcommon"
+	dme "github.com/mobiledgex/edge-cloud/d-match-engine/dme-proto"
 	"github.com/mobiledgex/edge-cloud/edgeproto"
 	"github.com/mobiledgex/edge-cloud/log"
 	"github.com/mobiledgex/edge-cloud/testutil"
@@ -267,7 +268,7 @@ func TestAppChecker(t *testing.T) {
 	// simulate AppInst health check failure,
 	// this should create another inst
 	insts := pt1.getAppInsts(&app.Key)
-	insts[0].HealthCheck = edgeproto.HealthCheck_HEALTH_CHECK_FAIL_SERVER_FAIL
+	insts[0].HealthCheck = dme.HealthCheck_HEALTH_CHECK_FAIL_SERVER_FAIL
 	dc.updateAppInst(ctx, &insts[0])
 	minmax.CheckApp(ctx, app.Key)
 	err = dc.waitForAppInsts(ctx, int(pt1.policy.MinActiveInstances)+1)
@@ -277,7 +278,7 @@ func TestAppChecker(t *testing.T) {
 	// this one should not trigger another create because
 	// it would violate the max
 	require.Equal(t, pt1.policy.MaxInstances, pt1.policy.MinActiveInstances+1)
-	insts[1].HealthCheck = edgeproto.HealthCheck_HEALTH_CHECK_FAIL_SERVER_FAIL
+	insts[1].HealthCheck = dme.HealthCheck_HEALTH_CHECK_FAIL_SERVER_FAIL
 	dc.updateAppInst(ctx, &insts[1])
 	minmax.CheckApp(ctx, app.Key)
 	err = dc.waitForAppInsts(ctx, int(pt1.policy.MinActiveInstances)+1)
@@ -315,7 +316,7 @@ func TestAppChecker(t *testing.T) {
 	// simulate cloudlet offline, same as AppInst, will trigger
 	// creating another AppInst.
 	cloudletInfo0 := pt1.cloudletInfos[0]
-	cloudletInfo0.State = edgeproto.CloudletState_CLOUDLET_STATE_OFFLINE
+	cloudletInfo0.State = dme.CloudletState_CLOUDLET_STATE_OFFLINE
 	cacheData.cloudletInfoCache.Update(ctx, &cloudletInfo0, 0)
 	minmax.CheckApp(ctx, app.Key)
 	err = dc.waitForAppInsts(ctx, int(pt1.policy.MinActiveInstances)+1)
@@ -326,15 +327,15 @@ func TestAppChecker(t *testing.T) {
 	// exceed max.
 	require.Equal(t, pt1.policy.MaxInstances, pt1.policy.MinActiveInstances+1)
 	cloudletInfo1 := pt1.cloudletInfos[1]
-	cloudletInfo1.State = edgeproto.CloudletState_CLOUDLET_STATE_OFFLINE
+	cloudletInfo1.State = dme.CloudletState_CLOUDLET_STATE_OFFLINE
 	cacheData.cloudletInfoCache.Update(ctx, &cloudletInfo1, 0)
 	minmax.CheckApp(ctx, app.Key)
 	err = dc.waitForAppInsts(ctx, int(pt1.policy.MinActiveInstances)+1)
 	require.Nil(t, err)
 
 	// reset cloudlets back online
-	cloudletInfo0.State = edgeproto.CloudletState_CLOUDLET_STATE_READY
-	cloudletInfo1.State = edgeproto.CloudletState_CLOUDLET_STATE_READY
+	cloudletInfo0.State = dme.CloudletState_CLOUDLET_STATE_READY
+	cloudletInfo1.State = dme.CloudletState_CLOUDLET_STATE_READY
 	cacheData.cloudletInfoCache.Update(ctx, &cloudletInfo0, 0)
 	cacheData.cloudletInfoCache.Update(ctx, &cloudletInfo1, 0)
 
@@ -366,7 +367,7 @@ func TestAppChecker(t *testing.T) {
 	// set cloudlet0 to maintenance mode, will trigger
 	// creating another AppInst.
 	cloudlet0 := pt1.cloudlets[0]
-	cloudlet0.MaintenanceState = edgeproto.MaintenanceState_FAILOVER_REQUESTED
+	cloudlet0.MaintenanceState = dme.MaintenanceState_FAILOVER_REQUESTED
 	cacheData.cloudletCache.Update(ctx, &cloudlet0, 0)
 
 	minmax.CheckApp(ctx, app.Key)
@@ -375,7 +376,7 @@ func TestAppChecker(t *testing.T) {
 	select {
 	case failover := <-failovers:
 		require.Equal(t, cloudlet0.Key, failover.Key)
-		require.Equal(t, edgeproto.MaintenanceState_FAILOVER_DONE, failover.MaintenanceState)
+		require.Equal(t, dme.MaintenanceState_FAILOVER_DONE, failover.MaintenanceState)
 		require.Equal(t, 0, len(failover.Errors))
 		require.Equal(t, 1, len(failover.Completed))
 		require.Contains(t, failover.Completed[0], "Created AppInst")
@@ -387,13 +388,13 @@ func TestAppChecker(t *testing.T) {
 	// to fail create, should capture failure.
 	dc.failCreate = true
 	cloudlet1 := pt1.cloudlets[1]
-	cloudlet1.MaintenanceState = edgeproto.MaintenanceState_FAILOVER_REQUESTED
+	cloudlet1.MaintenanceState = dme.MaintenanceState_FAILOVER_REQUESTED
 	cacheData.cloudletCache.Update(ctx, &cloudlet1, 0)
 	minmax.CheckApp(ctx, app.Key)
 	select {
 	case failover := <-failovers:
 		require.Equal(t, cloudlet1.Key, failover.Key)
-		require.Equal(t, edgeproto.MaintenanceState_FAILOVER_ERROR, failover.MaintenanceState)
+		require.Equal(t, dme.MaintenanceState_FAILOVER_ERROR, failover.MaintenanceState)
 		require.Equal(t, 1, len(failover.Errors))
 		require.Contains(t, failover.Errors[0], "Some error")
 	case <-time.After(2 * time.Second):
@@ -404,14 +405,14 @@ func TestAppChecker(t *testing.T) {
 	// set cloudlet2 to maintenance mode, will trigger
 	// failures because we can't meed min of 2 (3 of 4 cloudlets down)
 	cloudlet2 := pt1.cloudlets[2]
-	cloudlet2.MaintenanceState = edgeproto.MaintenanceState_FAILOVER_REQUESTED
+	cloudlet2.MaintenanceState = dme.MaintenanceState_FAILOVER_REQUESTED
 	cacheData.cloudletCache.Update(ctx, &cloudlet2, 0)
 
 	minmax.CheckApp(ctx, app.Key)
 	select {
 	case failover := <-failovers:
 		require.Equal(t, cloudlet2.Key, failover.Key)
-		require.Equal(t, edgeproto.MaintenanceState_FAILOVER_ERROR, failover.MaintenanceState)
+		require.Equal(t, dme.MaintenanceState_FAILOVER_ERROR, failover.MaintenanceState)
 		require.Equal(t, 1, len(failover.Errors))
 		require.Contains(t, failover.Errors[0], "Not enough potential cloudlets to deploy to")
 	case <-time.After(2 * time.Second):
@@ -419,9 +420,9 @@ func TestAppChecker(t *testing.T) {
 	}
 
 	// move cloudlets out of maintenance
-	cloudlet0.MaintenanceState = edgeproto.MaintenanceState_NORMAL_OPERATION
-	cloudlet1.MaintenanceState = edgeproto.MaintenanceState_NORMAL_OPERATION
-	cloudlet2.MaintenanceState = edgeproto.MaintenanceState_NORMAL_OPERATION
+	cloudlet0.MaintenanceState = dme.MaintenanceState_NORMAL_OPERATION
+	cloudlet1.MaintenanceState = dme.MaintenanceState_NORMAL_OPERATION
+	cloudlet2.MaintenanceState = dme.MaintenanceState_NORMAL_OPERATION
 	cacheData.cloudletCache.Update(ctx, &cloudlet0, 0)
 	cacheData.cloudletCache.Update(ctx, &cloudlet1, 0)
 	cacheData.cloudletCache.Update(ctx, &cloudlet2, 0)
@@ -480,7 +481,7 @@ func TestAppChecker(t *testing.T) {
 	dc.failDelete = true
 	for _, cinfo := range pt1.cloudletInfos {
 		// cinfo is a copy
-		cinfo.State = edgeproto.CloudletState_CLOUDLET_STATE_OFFLINE
+		cinfo.State = dme.CloudletState_CLOUDLET_STATE_OFFLINE
 		cacheData.cloudletInfoCache.Update(ctx, &cinfo, 0)
 	}
 	minmax.CheckApp(ctx, app.Key)
@@ -500,7 +501,7 @@ func TestAppChecker(t *testing.T) {
 	dc.failDelete = false
 	for _, cinfo := range pt1.cloudletInfos {
 		// cinfo is a copy
-		cinfo.State = edgeproto.CloudletState_CLOUDLET_STATE_READY
+		cinfo.State = dme.CloudletState_CLOUDLET_STATE_READY
 		cacheData.cloudletInfoCache.Update(ctx, &cinfo, 0)
 	}
 	minmax.CheckApp(ctx, app.Key)
@@ -543,12 +544,12 @@ func TestAppChecker(t *testing.T) {
 	for len(failovers) > 0 {
 		<-failovers // drain the failovers chan
 	}
-	cloudlet0.MaintenanceState = edgeproto.MaintenanceState_FAILOVER_REQUESTED
+	cloudlet0.MaintenanceState = dme.MaintenanceState_FAILOVER_REQUESTED
 	cacheData.cloudletCache.Update(ctx, &cloudlet0, 0)
 	select {
 	case failover := <-failovers:
 		require.Equal(t, cloudlet0.Key, failover.Key)
-		require.Equal(t, edgeproto.MaintenanceState_FAILOVER_DONE, failover.MaintenanceState)
+		require.Equal(t, dme.MaintenanceState_FAILOVER_DONE, failover.MaintenanceState)
 		require.Equal(t, 0, len(failover.Errors))
 		require.Equal(t, 0, len(failover.Completed))
 	case <-time.After(2 * time.Second):
@@ -559,7 +560,7 @@ func TestAppChecker(t *testing.T) {
 	select {
 	case failover := <-failovers:
 		require.Equal(t, cloudlet0.Key, failover.Key)
-		require.Equal(t, edgeproto.MaintenanceState_FAILOVER_DONE, failover.MaintenanceState)
+		require.Equal(t, dme.MaintenanceState_FAILOVER_DONE, failover.MaintenanceState)
 		require.Equal(t, 0, len(failover.Errors))
 		require.Equal(t, 0, len(failover.Completed))
 	case <-time.After(2 * time.Second):
@@ -585,7 +586,7 @@ func makePolicyTest(name string, count uint32, caches *CacheData) *policyTest {
 	for ii, _ := range s.cloudlets {
 		s.cloudlets[ii].Key.Name = fmt.Sprintf("%s_%d", name, ii)
 		s.cloudletInfos[ii].Key = s.cloudlets[ii].Key
-		s.cloudletInfos[ii].State = edgeproto.CloudletState_CLOUDLET_STATE_READY
+		s.cloudletInfos[ii].State = dme.CloudletState_CLOUDLET_STATE_READY
 		s.clusterInsts[ii].Key.CloudletKey = s.cloudlets[ii].Key
 		s.clusterInsts[ii].Reservable = true
 		s.clusterInsts[ii].Key.Organization = cloudcommon.OrganizationMobiledgeX

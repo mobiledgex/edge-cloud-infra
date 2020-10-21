@@ -173,11 +173,11 @@ func createAppInstStateEvent(ctx context.Context, appInst *dmecommon.DmeAppInst,
 
 	switch eventType {
 	case dme.ServerEdgeEvent_EVENT_CLOUDLET_STATE:
-		setCloudletState(ctx, appInst, updateServerEdgeEvent)
+		updateServerEdgeEvent.CloudletState = appInst.CloudletState
 	case dme.ServerEdgeEvent_EVENT_CLOUDLET_MAINTENANCE:
-		setCloudletMaintenanceState(ctx, appInst, updateServerEdgeEvent)
+		updateServerEdgeEvent.MaintenanceState = appInst.MaintenanceState
 	case dme.ServerEdgeEvent_EVENT_APPINST_HEALTH:
-		setAppInstHealthState(ctx, appInst, updateServerEdgeEvent)
+		updateServerEdgeEvent.HealthCheck = appInst.HealthCheck
 	default:
 	}
 
@@ -185,7 +185,7 @@ func createAppInstStateEvent(ctx context.Context, appInst *dmecommon.DmeAppInst,
 }
 
 // Translate edgeproto CloudletState to dme CloudletState
-func setCloudletState(ctx context.Context, appInst *dmecommon.DmeAppInst, serverEdgeEvent *dme.ServerEdgeEvent) {
+/*func setCloudletState(ctx context.Context, appInst *dmecommon.DmeAppInst, serverEdgeEvent *dme.ServerEdgeEvent) {
 	switch appInst.CloudletState {
 	case edgeproto.CloudletState_CLOUDLET_STATE_ERRORS:
 		serverEdgeEvent.CloudletState = dme.ServerEdgeEvent_CLOUDLET_STATE_ERRORS
@@ -249,4 +249,4 @@ func setAppInstHealthState(ctx context.Context, appInst *dmecommon.DmeAppInst, s
 		log.SpanLog(ctx, log.DebugLevelInfra, "Unknown appinst health", "AppInst Health", appInst.AppInstHealth)
 		serverEdgeEvent.AppinstHealthState = dme.ServerEdgeEvent_HEALTH_CHECK_UNKNOWN
 	}
-}
+}*/

@@ -6,6 +6,7 @@ import (
 	"github.com/mobiledgex/edge-cloud-infra/crm-platforms/fakeinfra"
 	intprocess "github.com/mobiledgex/edge-cloud-infra/e2e-tests/int-process"
 	pf "github.com/mobiledgex/edge-cloud/cloud-resource-manager/platform"
+	dme "github.com/mobiledgex/edge-cloud/d-match-engine/dme-proto"
 	"github.com/mobiledgex/edge-cloud/edgeproto"
 	"github.com/mobiledgex/edge-cloud/log"
 )
@@ -50,7 +51,7 @@ func (e *EdgeboxPlatform) DeleteCloudletAccessVars(ctx context.Context, cloudlet
 	return nil
 }
 
-func (e *EdgeboxPlatform) SyncControllerCache(ctx context.Context, caches *pf.Caches, cloudletState edgeproto.CloudletState) error {
+func (e *EdgeboxPlatform) SyncControllerCache(ctx context.Context, caches *pf.Caches, cloudletState dme.CloudletState) error {
 	log.SpanLog(ctx, log.DebugLevelInfra, "SyncControllerCache", "cloudletState", cloudletState)
 	return nil
 }

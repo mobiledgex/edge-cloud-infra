@@ -55,6 +55,7 @@ require (
 	github.com/spf13/cobra v0.0.4
 	github.com/stretchr/testify v1.6.1
 	github.com/tmc/scp v0.0.0-20170824174625-f7b48647feef
+	github.com/vmware/go-vcloud-director/v2 v2.9.0
 	github.com/xanzy/go-gitlab v0.16.0
 	golang.org/x/crypto v0.0.0-20191206172530-e9b2fee46413
 	golang.org/x/net v0.0.0-20200602114024-627f9648deb9

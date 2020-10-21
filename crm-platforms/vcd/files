@@ -1,0 +1,25 @@
+total 512
+-rw-r--r--  1 mattwilliams  staff      0 Oct 20 11:50 files
+drwxr-xr-x  3 mattwilliams  staff     96 Oct 20 10:38 parseovf/
+-rw-r--r--  1 mattwilliams  staff   1900 Oct 20 11:12 vcd-appinst.go
+-rw-r--r--  1 mattwilliams  staff    894 Oct 20 11:24 vcd-cats.go
+-rw-r--r--  1 mattwilliams  staff   2465 Oct 20 11:27 vcd-cloudlet.go
+-rw-r--r--  1 mattwilliams  staff   5563 Oct 20 09:33 vcd-common-utils.go
+-rw-r--r--  1 mattwilliams  staff  15377 Oct 20 10:06 vcd-network.go
+-rw-r--r--  1 mattwilliams  staff   4952 Sep 17 14:38 vcd-prop.go
+-rw-r--r--  1 mattwilliams  staff   5668 Oct 13 17:00 vcd-security.go
+-rw-r--r--  1 mattwilliams  staff  17650 Oct 20 11:07 vcd-vapp.go
+-rw-r--r--  1 mattwilliams  staff   3813 Oct 20 10:44 vcd-vapptemplate.go
+-rw-r--r--  1 mattwilliams  staff  22954 Oct 20 11:42 vcd-vm.go
+-rw-r--r--  1 mattwilliams  staff  21101 Oct 19 15:09 vcd.go
+-rw-r--r--  1 mattwilliams  staff   3047 Sep 11 11:03 vcd_cats_test.go
+-rw-r--r--  1 mattwilliams  staff   5333 Sep 22 09:32 vcd_custom_test.go
+-rw-r--r--  1 mattwilliams  staff   4630 Oct 20 11:47 vcd_firewall_test.go
+-rw-r--r--  1 mattwilliams  staff   1476 Oct 20 10:33 vcd_metadata_test.go
+-rw-r--r--  1 mattwilliams  staff   4709 Oct 20 09:52 vcd_network_test.go
+-rw-r--r--  1 mattwilliams  staff   5184 Oct 20 11:10 vcd_sec_test.go
+-rw-r--r--  1 mattwilliams  staff  11081 Oct 20 11:20 vcd_test.go
+-rw-r--r--  1 mattwilliams  staff  14802 Oct 20 10:46 vcd_vapp_template_test.go
+-rw-r--r--  1 mattwilliams  staff  49151 Oct 19 11:56 vcd_vapp_test.go
+-rw-r--r--  1 mattwilliams  staff  14245 Oct 20 09:52 vcd_vm_test.go
+drwxr-xr-x  3 mattwilliams  staff     96 Oct 20 10:38 vcdutils/

@@ -627,7 +627,7 @@ var CloudletComments = map[string]string{
 	"infraconfig.externalnetworkname":     "Infra specific external network name",
 	"infraconfig.flavorname":              "Infra specific flavor name",
 	"chefclientkey":                       "Chef client key",
-	"maintenancestate":                    "State for maintenance, one of NormalOperation, MaintenanceStart, FailoverRequested, FailoverDone, FailoverError, MaintenanceStartNoFailover, CrmRequested, CrmUnderMaintenance, CrmError, UnderMaintenance",
+	"maintenancestate":                    "State for maintenance, one of NormalOperation, MaintenanceStart, FailoverRequested, FailoverDone, FailoverError, MaintenanceStartNoFailover, CrmRequested, CrmUnderMaintenance, CrmError, NormalOperationInit, UnderMaintenance",
 	"overridepolicycontainerversion":      "Override container version from policy file",
 	"vmpool":                              "VM Pool",
 	"crmaccesspublickey":                  "CRM access public key",
@@ -867,7 +867,7 @@ var CloudletInfoComments = map[string]string{
 	"osimages:#.properties":   "image properties/metadata",
 	"osimages:#.diskformat":   "format qcow2, img, etc",
 	"controllercachereceived": "Indicates all controller data has been sent to CRM",
-	"maintenancestate":        "State for maintenance, one of NormalOperation, MaintenanceStart, FailoverRequested, FailoverDone, FailoverError, MaintenanceStartNoFailover, CrmRequested, CrmUnderMaintenance, CrmError, UnderMaintenance",
+	"maintenancestate":        "State for maintenance, one of NormalOperation, MaintenanceStart, FailoverRequested, FailoverDone, FailoverError, MaintenanceStartNoFailover, CrmRequested, CrmUnderMaintenance, CrmError, NormalOperationInit, UnderMaintenance",
 }
 var CloudletInfoSpecialArgs = map[string]string{
 	"cloudletinfo.errors":            "StringArray",

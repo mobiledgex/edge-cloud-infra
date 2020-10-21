@@ -520,6 +520,7 @@ var AppInstLatencyOptionalArgs = []string{
 	"latency.timestamp.seconds",
 	"latency.timestamp.nanos",
 	"message",
+	"numclients",
 }
 var AppInstLatencyAliasArgs = []string{
 	"app-org=appinstlatency.key.appkey.organization",
@@ -538,6 +539,7 @@ var AppInstLatencyAliasArgs = []string{
 	"latency.timestamp.seconds=appinstlatency.latency.timestamp.seconds",
 	"latency.timestamp.nanos=appinstlatency.latency.timestamp.nanos",
 	"message=appinstlatency.message",
+	"numclients=appinstlatency.numclients",
 }
 var AppInstLatencyComments = map[string]string{
 	"app-org":          "App developer organization",
@@ -549,5 +551,6 @@ var AppInstLatencyComments = map[string]string{
 	"cluster-org":      "Name of Developer organization that this cluster belongs to",
 	"latency.stddev":   "Square root of unbiased variance",
 	"latency.variance": "Unbiased variance",
+	"numclients":       "Number of unique clients contributing to latency statistics",
 }
 var AppInstLatencySpecialArgs = map[string]string{}

@@ -100,13 +100,13 @@ func (e *EdgeEventsHandlerPlugin) ProcessLatencySamples(ctx context.Context, app
 	}
 
 	latencyEdgeEvent := new(dme.ServerEdgeEvent)
-	latencyEdgeEvent.Event = dme.ServerEdgeEvent_EVENT_LATENCY_PROCESSED
+	latencyEdgeEvent.EventType = dme.ServerEdgeEvent_EVENT_LATENCY_PROCESSED
 
 	latency := dmeutil.CalculateLatency(samples)
-	latencyEdgeEvent.Latency = latency
+	latencyEdgeEvent.Latency = &latency
 
 	sendFunc(latencyEdgeEvent)
-	return latency, true
+	return &latency, true
 }
 
 // Send a ServerEdgeEvent with Latency Request Event to all clients connected to specified AppInst (and also have an initiated persistent connection)
@@ -125,7 +125,7 @@ func (e *EdgeEventsHandlerPlugin) SendLatencyRequestEdgeEvent(ctx context.Contex
 	for _, sendFunc := range clients.ClientsMap {
 		go func(sendFunc func(event *dme.ServerEdgeEvent)) {
 			latencyRequestEdgeEvent := new(dme.ServerEdgeEvent)
-			latencyRequestEdgeEvent.Event = dme.ServerEdgeEvent_EVENT_LATENCY_REQUEST
+			latencyRequestEdgeEvent.EventType = dme.ServerEdgeEvent_EVENT_LATENCY_REQUEST
 			sendFunc(latencyRequestEdgeEvent)
 		}(sendFunc)
 	}
@@ -169,7 +169,7 @@ func (e *EdgeEventsHandlerPlugin) SendEdgeEventToClient(ctx context.Context, ser
 // Create the ServerEdgeEvent with specified Event
 func createAppInstStateEvent(ctx context.Context, appInst *dmecommon.DmeAppInst, eventType dme.ServerEdgeEvent_ServerEventType) *dme.ServerEdgeEvent {
 	updateServerEdgeEvent := new(dme.ServerEdgeEvent)
-	updateServerEdgeEvent.Event = eventType
+	updateServerEdgeEvent.EventType = eventType
 
 	switch eventType {
 	case dme.ServerEdgeEvent_EVENT_CLOUDLET_STATE:
@@ -183,70 +183,3 @@ func createAppInstStateEvent(ctx context.Context, appInst *dmecommon.DmeAppInst,
 
 	return updateServerEdgeEvent
 }
-
-// Translate edgeproto CloudletState to dme CloudletState
-/*func setCloudletState(ctx context.Context, appInst *dmecommon.DmeAppInst, serverEdgeEvent *dme.ServerEdgeEvent) {
-	switch appInst.CloudletState {
-	case edgeproto.CloudletState_CLOUDLET_STATE_ERRORS:
-		serverEdgeEvent.CloudletState = dme.ServerEdgeEvent_CLOUDLET_STATE_ERRORS
-	case edgeproto.CloudletState_CLOUDLET_STATE_READY:
-		serverEdgeEvent.CloudletState = dme.ServerEdgeEvent_CLOUDLET_STATE_READY
-	case edgeproto.CloudletState_CLOUDLET_STATE_INIT:
-		serverEdgeEvent.CloudletState = dme.ServerEdgeEvent_CLOUDLET_STATE_INIT
-	case edgeproto.CloudletState_CLOUDLET_STATE_UPGRADE:
-		serverEdgeEvent.CloudletState = dme.ServerEdgeEvent_CLOUDLET_UPGRADE
-	case edgeproto.CloudletState_CLOUDLET_STATE_NOT_PRESENT:
-		fallthrough
-	case edgeproto.CloudletState_CLOUDLET_STATE_OFFLINE:
-		serverEdgeEvent.CloudletState = dme.ServerEdgeEvent_CLOUDLET_OFFLINE
-	case edgeproto.CloudletState_CLOUDLET_STATE_NEED_SYNC:
-		fallthrough
-	default:
-		log.SpanLog(ctx, log.DebugLevelInfra, "Unknown cloudlet state", "CloudletState", appInst.CloudletState)
-		serverEdgeEvent.CloudletState = dme.ServerEdgeEvent_CLOUDLET_STATE_UNKNOWN
-	}
-}
-
-// Translate edgeproto MaintenanceState to dme CloudletMaintenanceState
-func setCloudletMaintenanceState(ctx context.Context, appInst *dmecommon.DmeAppInst, serverEdgeEvent *dme.ServerEdgeEvent) {
-	switch appInst.MaintenanceState {
-	case edgeproto.MaintenanceState_NORMAL_OPERATION:
-		serverEdgeEvent.CloudletMaintenanceState = dme.ServerEdgeEvent_MAINTENANCE_STATE_NORMAL
-	case edgeproto.MaintenanceState_MAINTENANCE_START:
-		serverEdgeEvent.CloudletMaintenanceState = dme.ServerEdgeEvent_MAINTENANCE_STATE_UNDER_MAINTENANCE
-	case edgeproto.MaintenanceState_FAILOVER_REQUESTED:
-		serverEdgeEvent.CloudletMaintenanceState = dme.ServerEdgeEvent_MAINTENANCE_STATE_FAILING_OVER
-	case edgeproto.MaintenanceState_FAILOVER_DONE:
-		serverEdgeEvent.CloudletMaintenanceState = dme.ServerEdgeEvent_MAINTENANCE_STATE_FAILOVER_DONE
-	case edgeproto.MaintenanceState_FAILOVER_ERROR:
-		serverEdgeEvent.CloudletMaintenanceState = dme.ServerEdgeEvent_MAINTENANCE_STATE_FAILOVER_ERROR
-	case edgeproto.MaintenanceState_MAINTENANCE_START_NO_FAILOVER:
-		fallthrough
-	case edgeproto.MaintenanceState_CRM_REQUESTED:
-		fallthrough
-	case edgeproto.MaintenanceState_CRM_UNDER_MAINTENANCE:
-		fallthrough
-	case edgeproto.MaintenanceState_UNDER_MAINTENANCE:
-		serverEdgeEvent.CloudletMaintenanceState = dme.ServerEdgeEvent_MAINTENANCE_STATE_UNDER_MAINTENANCE
-	case edgeproto.MaintenanceState_CRM_ERROR:
-		serverEdgeEvent.CloudletMaintenanceState = dme.ServerEdgeEvent_MAINTENANCE_STATE_MAINTENANCE_FAILED
-	default:
-		log.SpanLog(ctx, log.DebugLevelInfra, "Unknown cloudlet maintenance state", "CloudletMaintenanceState", appInst.MaintenanceState)
-		serverEdgeEvent.CloudletMaintenanceState = dme.ServerEdgeEvent_MAINTENANCE_STATE_UNKNOWN
-	}
-}
-
-// Translate edgeproto HealthCheck to dme AppinstHealthState
-func setAppInstHealthState(ctx context.Context, appInst *dmecommon.DmeAppInst, serverEdgeEvent *dme.ServerEdgeEvent) {
-	switch appInst.AppInstHealth {
-	case edgeproto.HealthCheck_HEALTH_CHECK_FAIL_ROOTLB_OFFLINE:
-		serverEdgeEvent.AppinstHealthState = dme.ServerEdgeEvent_HEALTH_CHECK_FAIL
-	case edgeproto.HealthCheck_HEALTH_CHECK_FAIL_SERVER_FAIL:
-		serverEdgeEvent.AppinstHealthState = dme.ServerEdgeEvent_APPINST_DOWN
-	case edgeproto.HealthCheck_HEALTH_CHECK_OK:
-		serverEdgeEvent.AppinstHealthState = dme.ServerEdgeEvent_HEALTH_CHECK_OK
-	default:
-		log.SpanLog(ctx, log.DebugLevelInfra, "Unknown appinst health", "AppInst Health", appInst.AppInstHealth)
-		serverEdgeEvent.AppinstHealthState = dme.ServerEdgeEvent_HEALTH_CHECK_UNKNOWN
-	}
-}*/

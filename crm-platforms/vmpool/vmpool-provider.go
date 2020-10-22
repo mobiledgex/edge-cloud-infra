@@ -671,3 +671,8 @@ func (s *VMPoolPlatform) CheckServerReady(ctx context.Context, client ssh.Client
 	// no special checks to be done
 	return nil
 }
+
+func (v *VMPoolPlatform) GetServerGroupResources(ctx context.Context, name string) (*edgeproto.InfraResources, error) {
+	log.SpanLog(ctx, log.DebugLevelInfra, "GetServerGroupResources not yet implemented")
+	return &edgeproto.InfraResources{}, nil
+}

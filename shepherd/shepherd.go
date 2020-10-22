@@ -19,7 +19,6 @@ import (
 	"github.com/mobiledgex/edge-cloud-infra/shepherd/shepherd_platform/shepherd_fake"
 	"github.com/mobiledgex/edge-cloud-infra/shepherd/shepherd_platform/shepherd_vmprovider"
 	"github.com/mobiledgex/edge-cloud-infra/vmlayer"
-	"github.com/mobiledgex/edge-cloud/cloud-resource-manager/k8smgmt"
 	pf "github.com/mobiledgex/edge-cloud/cloud-resource-manager/platform"
 	"github.com/mobiledgex/edge-cloud/cloudcommon"
 	"github.com/mobiledgex/edge-cloud/cloudcommon/node"
@@ -115,7 +114,7 @@ func appInstCb(ctx context.Context, old *edgeproto.AppInst, new *edgeproto.AppIn
 		return
 	} else if new.Key.AppKey.Name == MEXPrometheusAppName {
 		// check for prometheus
-		mapKey = k8smgmt.GetK8sNodeNameSuffix(&new.Key.ClusterInstKey)
+		mapKey = cloudcommon.GetClusterNodeNameSuffix(&new.Key.ClusterInstKey)
 	} else {
 		return
 	}
@@ -170,7 +169,7 @@ func appInstDeletedCb(ctx context.Context, old *edgeproto.AppInst) {
 }
 
 func clusterInstCb(ctx context.Context, old *edgeproto.ClusterInst, new *edgeproto.ClusterInst) {
-	var mapKey = k8smgmt.GetK8sNodeNameSuffix(&new.Key)
+	var mapKey = cloudcommon.GetClusterNodeNameSuffix(&new.Key)
 	workerMapMutex.Lock()
 	defer workerMapMutex.Unlock()
 	stats, exists := workerMap[mapKey]

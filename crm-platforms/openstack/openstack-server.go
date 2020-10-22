@@ -343,3 +343,8 @@ func (s *OpenstackPlatform) CheckServerReady(ctx context.Context, client ssh.Cli
 	// no special checks to be done
 	return nil
 }
+
+func (o *OpenstackPlatform) GetServerGroupResources(ctx context.Context, name string) (*edgeproto.InfraResources, error) {
+	log.SpanLog(ctx, log.DebugLevelInfra, "GetServerGroupResources not yet implemented")
+	return &edgeproto.InfraResources{}, nil
+}

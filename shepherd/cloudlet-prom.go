@@ -17,7 +17,6 @@ import (
 	"github.com/mobiledgex/edge-cloud-infra/autoprov/autorules"
 	intprocess "github.com/mobiledgex/edge-cloud-infra/e2e-tests/int-process"
 	"github.com/mobiledgex/edge-cloud-infra/shepherd/shepherd_common"
-	"github.com/mobiledgex/edge-cloud/cloud-resource-manager/k8smgmt"
 	"github.com/mobiledgex/edge-cloud/cloud-resource-manager/prommgmt"
 	"github.com/mobiledgex/edge-cloud/cloudcommon"
 	"github.com/mobiledgex/edge-cloud/edgeproto"
@@ -205,7 +204,7 @@ func metricsProxy(w http.ResponseWriter, r *http.Request) {
 }
 
 func getAppInstRulesFileName(key edgeproto.AppInstKey) string {
-	name := k8smgmt.NormalizeName(key.AppKey.Name)
+	name := cloudcommon.NormalizeName(key.AppKey.Name)
 	return getPrometheusFileName(name)
 }
 

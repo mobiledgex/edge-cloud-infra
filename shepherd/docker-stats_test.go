@@ -10,7 +10,6 @@ import (
 
 	"github.com/mobiledgex/edge-cloud-infra/shepherd/shepherd_common"
 	"github.com/mobiledgex/edge-cloud-infra/shepherd/shepherd_platform/shepherd_unittest"
-	"github.com/mobiledgex/edge-cloud/cloud-resource-manager/k8smgmt"
 	"github.com/mobiledgex/edge-cloud/cloudcommon"
 	"github.com/mobiledgex/edge-cloud/edgeproto"
 	"github.com/mobiledgex/edge-cloud/log"
@@ -153,8 +152,8 @@ func TestDockerStats(t *testing.T) {
 	appsMetrics := testDockerStats.clusterStat.GetAppStats(ctx)
 	assert.NotNil(t, clusterMetrics, "Fill stats from json")
 	assert.NotNil(t, appsMetrics, "Fill stats from json")
-	testAppKey.Pod = k8smgmt.NormalizeName("DockerApp1")
-	testAppKey.App = k8smgmt.NormalizeName("DockerApp1")
+	testAppKey.Pod = cloudcommon.NormalizeName("DockerApp1")
+	testAppKey.App = cloudcommon.NormalizeName("DockerApp1")
 	stat, found := appsMetrics[testAppKey]
 	// Check PodStats
 	assert.True(t, found, "Container DockerApp1 is not found")
@@ -167,9 +166,9 @@ func TestDockerStats(t *testing.T) {
 		assert.Equal(t, uint64(448842077), stat.NetRecv)
 		assert.NotNil(t, stat.CpuTS, "CPU timestamp")
 	}
-	testAppKey.Pod = k8smgmt.NormalizeName("DockerApp2")
-	testAppKey.App = k8smgmt.NormalizeName("DockerApp2")
-	testAppKey.Version = k8smgmt.NormalizeName("10")
+	testAppKey.Pod = cloudcommon.NormalizeName("DockerApp2")
+	testAppKey.App = cloudcommon.NormalizeName("DockerApp2")
+	testAppKey.Version = cloudcommon.NormalizeName("10")
 	stat, found = appsMetrics[testAppKey]
 	// Check PodStats - should be a sum of DockerApp2Container1 and DockerApp2Container2
 	assert.True(t, found, "Container DockerApp2 is not found")

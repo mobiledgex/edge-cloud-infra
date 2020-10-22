@@ -616,6 +616,29 @@ func (v *VSpherePlatform) DeleteVMAndTags(ctx context.Context, vmName string) er
 	return nil
 }
 
+//func (v *VSpherePlatform) getCurrentVms(ctx, vmGroupName string) (edgeproto.)
+
+func (v *VSpherePlatform) GetServerGroupResources(ctx context.Context, name string) (*edgeproto.InfraResources, error) {
+
+	var resources edgeproto.InfraResources
+	vmTags, err := v.GetTagsMatchingField(ctx, TagFieldGroup, name, v.GetVMDomainTagCategory(ctx))
+	if err != nil {
+		return nil, err
+	}
+	for _, vt := range vmTags {
+		vmname, _, err := v.ParseVMDomainTag(ctx, vt.Name)
+		if err != nil {
+			return nil, err
+		}
+		vminfo := edgeproto.VmInfo{
+			Name: vmname,
+		}
+		resources.Vms = append(resources.Vms, vminfo)
+
+	}
+	return &resources, nil
+}
+
 func (v *VSpherePlatform) getVMListsForUpdate(ctx context.Context, vmgp *vmlayer.VMGroupOrchestrationParams, vmLists *vmlayer.VMUpdateList, updateCallback edgeproto.CacheUpdateCallback) error {
 	orchVmLock.Lock()
 	defer orchVmLock.Unlock()

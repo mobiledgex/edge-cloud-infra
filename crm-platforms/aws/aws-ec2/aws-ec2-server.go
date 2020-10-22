@@ -419,3 +419,8 @@ func (a *AwsEc2Platform) GetConsoleUrl(ctx context.Context, serverName string) (
 func (a *AwsEc2Platform) AddAppImageIfNotPresent(ctx context.Context, app *edgeproto.App, flavor string, updateCallback edgeproto.CacheUpdateCallback) error {
 	return fmt.Errorf("AddAppImageIfNotPresent not implemented")
 }
+
+func (a *AwsEc2Platform) GetServerGroupResources(ctx context.Context, name string) (*edgeproto.InfraResources, error) {
+	log.SpanLog(ctx, log.DebugLevelInfra, "GetServerGroupResources not yet implemented")
+	return &edgeproto.InfraResources{}, nil
+}

@@ -39,7 +39,7 @@ type vmAppOrchValues struct {
 }
 
 func GetAppWhitelistRulesLabel(app *edgeproto.App) string {
-	return "appaccess-" + cloudcommon.NormalizeName(app.Key.Name)
+	return "appaccess-" + k8smgmt.NormalizeName(app.Key.Name)
 }
 
 func (v *VMPlatform) PerformOrchestrationForVMApp(ctx context.Context, app *edgeproto.App, appInst *edgeproto.AppInst, privacyPolicy *edgeproto.PrivacyPolicy, action ActionType, updateCallback edgeproto.CacheUpdateCallback) (*vmAppOrchValues, error) {
@@ -62,9 +62,9 @@ func (v *VMPlatform) PerformOrchestrationForVMApp(ctx context.Context, app *edge
 
 	deploymentVars := crmutil.DeploymentReplaceVars{
 		Deployment: crmutil.CrmReplaceVars{
-			CloudletName: cloudcommon.NormalizeName(appInst.Key.ClusterInstKey.CloudletKey.Name),
-			CloudletOrg:  cloudcommon.NormalizeName(appInst.Key.ClusterInstKey.CloudletKey.Organization),
-			AppOrg:       cloudcommon.NormalizeName(app.Key.Organization),
+			CloudletName: k8smgmt.NormalizeName(appInst.Key.ClusterInstKey.CloudletKey.Name),
+			CloudletOrg:  k8smgmt.NormalizeName(appInst.Key.ClusterInstKey.CloudletKey.Organization),
+			AppOrg:       k8smgmt.NormalizeName(app.Key.Organization),
 			DnsZone:      v.VMProperties.CommonPf.GetCloudletDNSZone(),
 		},
 	}
@@ -174,10 +174,10 @@ func (v *VMPlatform) CreateAppInst(ctx context.Context, clusterInst *edgeproto.C
 		deploymentVars := crmutil.DeploymentReplaceVars{
 			Deployment: crmutil.CrmReplaceVars{
 				ClusterIp:    masterIP.ExternalAddr,
-				CloudletName: cloudcommon.NormalizeName(clusterInst.Key.CloudletKey.Name),
-				ClusterName:  cloudcommon.NormalizeName(clusterInst.Key.ClusterKey.Name),
-				CloudletOrg:  cloudcommon.NormalizeName(clusterInst.Key.CloudletKey.Organization),
-				AppOrg:       cloudcommon.NormalizeName(app.Key.Organization),
+				CloudletName: k8smgmt.NormalizeName(clusterInst.Key.CloudletKey.Name),
+				ClusterName:  k8smgmt.NormalizeName(clusterInst.Key.ClusterKey.Name),
+				CloudletOrg:  k8smgmt.NormalizeName(clusterInst.Key.CloudletKey.Organization),
+				AppOrg:       k8smgmt.NormalizeName(app.Key.Organization),
 				DnsZone:      v.VMProperties.CommonPf.GetCloudletDNSZone(),
 			},
 		}
@@ -450,10 +450,10 @@ func (v *VMPlatform) DeleteAppInst(ctx context.Context, clusterInst *edgeproto.C
 		deploymentVars := crmutil.DeploymentReplaceVars{
 			Deployment: crmutil.CrmReplaceVars{
 				ClusterIp:    masterIP.ExternalAddr,
-				CloudletName: cloudcommon.NormalizeName(clusterInst.Key.CloudletKey.Name),
-				ClusterName:  cloudcommon.NormalizeName(clusterInst.Key.ClusterKey.Name),
-				CloudletOrg:  cloudcommon.NormalizeName(clusterInst.Key.CloudletKey.Organization),
-				AppOrg:       cloudcommon.NormalizeName(app.Key.Organization),
+				CloudletName: k8smgmt.NormalizeName(clusterInst.Key.CloudletKey.Name),
+				ClusterName:  k8smgmt.NormalizeName(clusterInst.Key.ClusterKey.Name),
+				CloudletOrg:  k8smgmt.NormalizeName(clusterInst.Key.CloudletKey.Organization),
+				AppOrg:       k8smgmt.NormalizeName(app.Key.Organization),
 				DnsZone:      v.VMProperties.CommonPf.GetCloudletDNSZone(),
 			},
 		}
@@ -574,9 +574,9 @@ func (v *VMPlatform) UpdateAppInst(ctx context.Context, clusterInst *edgeproto.C
 	deploymentVars := crmutil.DeploymentReplaceVars{
 		Deployment: crmutil.CrmReplaceVars{
 			ClusterIp:    masterIP.ExternalAddr,
-			ClusterName:  cloudcommon.NormalizeName(clusterInst.Key.ClusterKey.Name),
-			CloudletName: cloudcommon.NormalizeName(clusterInst.Key.CloudletKey.Organization),
-			AppOrg:       cloudcommon.NormalizeName(app.Key.Organization),
+			ClusterName:  k8smgmt.NormalizeName(clusterInst.Key.ClusterKey.Name),
+			CloudletName: k8smgmt.NormalizeName(clusterInst.Key.CloudletKey.Organization),
+			AppOrg:       k8smgmt.NormalizeName(app.Key.Organization),
 			DnsZone:      v.VMProperties.CommonPf.GetCloudletDNSZone(),
 		},
 	}

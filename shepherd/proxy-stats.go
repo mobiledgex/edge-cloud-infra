@@ -11,6 +11,7 @@ import (
 	"github.com/gogo/protobuf/types"
 	"github.com/mobiledgex/edge-cloud-infra/shepherd/shepherd_common"
 	"github.com/mobiledgex/edge-cloud/cloud-resource-manager/dockermgmt"
+	"github.com/mobiledgex/edge-cloud/cloud-resource-manager/k8smgmt"
 	"github.com/mobiledgex/edge-cloud/cloud-resource-manager/proxy"
 	"github.com/mobiledgex/edge-cloud/cloudcommon"
 	dme "github.com/mobiledgex/edge-cloud/d-match-engine/dme-proto"
@@ -159,7 +160,7 @@ func CollectProxyStats(ctx context.Context, appInst *edgeproto.AppInst) string {
 
 		scrapePoint := ProxyScrapePoint{
 			Key:        appInst.Key,
-			App:        cloudcommon.NormalizeName(appInst.Key.AppKey.Name),
+			App:        k8smgmt.NormalizeName(appInst.Key.AppKey.Name),
 			Cluster:    appInst.Key.ClusterInstKey.ClusterKey.Name,
 			ClusterOrg: appInst.Key.ClusterInstKey.Organization,
 			TcpPorts:   make([]int32, 0),

@@ -616,8 +616,7 @@ func (v *VSpherePlatform) DeleteVMAndTags(ctx context.Context, vmName string) er
 	return nil
 }
 
-//func (v *VSpherePlatform) getCurrentVms(ctx, vmGroupName string) (edgeproto.)
-
+// GetServerGroupResources is only partially implemented
 func (v *VSpherePlatform) GetServerGroupResources(ctx context.Context, name string) (*edgeproto.InfraResources, error) {
 
 	var resources edgeproto.InfraResources
@@ -634,7 +633,6 @@ func (v *VSpherePlatform) GetServerGroupResources(ctx context.Context, name stri
 			Name: vmname,
 		}
 		resources.Vms = append(resources.Vms, vminfo)
-
 	}
 	return &resources, nil
 }

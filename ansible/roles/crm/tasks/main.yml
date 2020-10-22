@@ -119,7 +119,7 @@
   wait_for:
     host: "{{ (ansible_ssh_host|default(ansible_host))|default(inventory_hostname) }}"
     port: "{{ notify_srv_port }}"
-    timeout: 180
+    timeout: 60
   vars:
     ansible_connection: local
 

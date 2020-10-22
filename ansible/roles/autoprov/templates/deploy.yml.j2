@@ -31,6 +31,8 @@ spec:
          - "--vaultAddr"
          - "https://{{ vault_vm_hostname }}:{{ vault_port }}"
          - "--useVaultCerts"
+         - "--deploymentTag"
+         - "{{ deployment_tag_override | default(deploy_environ) }}"
          - "-d"
          - "infra,notify,api"
         env:

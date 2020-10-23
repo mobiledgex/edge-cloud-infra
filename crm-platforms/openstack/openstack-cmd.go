@@ -38,7 +38,7 @@ func (s *OpenstackPlatform) TimedOpenStackCommand(ctx context.Context, name stri
 
 }
 
-//ListServers returns a map of servers keyed by name
+// ListServers returns a map of servers keyed by name
 func (s *OpenstackPlatform) ListServers(ctx context.Context) (map[string]OSServer, error) {
 	out, err := s.TimedOpenStackCommand(ctx, "openstack", "server", "list", "-f", "json")
 	if err != nil {

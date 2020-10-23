@@ -343,19 +343,6 @@ func (s *OpenstackPlatform) CheckServerReady(ctx context.Context, client ssh.Cli
 	return nil
 }
 
-func getVmTypeForRole(role string) string {
-	switch role {
-	case string(vmlayer.RoleAgent):
-		return "rootlb"
-	case string(vmlayer.RoleMaster):
-		return "cluster-master"
-	case string(vmlayer.RoleNode):
-		return "cluster-node"
-	}
-	// leave the rest as is
-	return role
-}
-
 func (o *OpenstackPlatform) GetServerGroupResources(ctx context.Context, name string) (*edgeproto.InfraResources, error) {
 	log.SpanLog(ctx, log.DebugLevelInfra, "GetServerGroupResources")
 	var resources edgeproto.InfraResources
@@ -430,7 +417,7 @@ func (o *OpenstackPlatform) GetServerGroupResources(ctx context.Context, name st
 				}
 			}
 		}
-		vmInfo.Type = getVmTypeForRole(role)
+		vmInfo.Type = string(vmlayer.GetVmTypeForRole(role))
 		resources.Vms = append(resources.Vms, vmInfo)
 	}
 	return &resources, nil

@@ -51,8 +51,8 @@ func getAgentName() string {
 	return "MasterControllerV1"
 }
 
-// Calculate refresh interval to be at least 3x of resolveTimeout
-func getAlertRefreshInterval(resolveTimeout time.Duration) time.Duration {
+// Refresh interval should to be at least 3x of resolveTimeout
+func getAlertRefreshRate(resolveTimeout time.Duration) time.Duration {
 	if alertRefreshInterval < resolveTimeout/3 {
 		return alertRefreshInterval
 	}
@@ -72,7 +72,7 @@ func NewAlertMgrServer(alertMgrAddr string, tlsConfig *tls.Config,
 	defer span.Finish()
 	ctx := log.ContextWithSpan(context.Background(), span)
 
-	server.AlertRefreshInterval = getAlertRefreshInterval(resolveTimeout)
+	server.AlertRefreshInterval = getAlertRefreshRate(resolveTimeout)
 	// We might need to wait for alertmanager to be up first
 	for ii := 0; ii < 10; ii++ {
 		_, err = alertMgrApi(ctx, server.AlertMrgAddr, "GET", "", "", nil, server.TlsConfig)

@@ -29,7 +29,7 @@ CTRLFILE="${DEBDIR}/control"
 DEBFILE="${PKGDIR}.deb"
 
 if [[ -f "$DEPS_FILE" ]]; then
-	DEPS=$( awk '{ printf("%s (=%s), \n", $1, $2) }' "$DEPS_FILE" \
+	DEPS=$( awk '{ printf("%s (%s), \n", $1, $2) }' "$DEPS_FILE" \
 		| tr -d "\n" \
 		| sed 's/, $//' )
 fi

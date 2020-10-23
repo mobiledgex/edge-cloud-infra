@@ -38,7 +38,7 @@ func (o *OpenstackPlatform) GetServerDetail(ctx context.Context, serverName stri
 	return &sd, nil
 }
 
-// UpdateServerIPs gets the ServerIPs forthe given network from the addresses and ports
+// UpdateServerIPs gets the ServerIPs for the given network from the addresses and ports
 func (o *OpenstackPlatform) UpdateServerIPs(ctx context.Context, addresses string, ports []OSPort, serverDetail *vmlayer.ServerDetail) error {
 	log.SpanLog(ctx, log.DebugLevelInfra, "UpdateServerIPs", "addresses", addresses, "serverDetail", serverDetail, "ports", ports)
 

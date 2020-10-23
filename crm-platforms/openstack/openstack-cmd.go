@@ -59,7 +59,7 @@ func (s *OpenstackPlatform) ListServers(ctx context.Context) (map[string]OSServe
 	return serverMap, nil
 }
 
-// ListPorts returns list of servers, KVM instances, running on the system
+// ListPorts returns a list of ports
 func (s *OpenstackPlatform) ListPorts(ctx context.Context) ([]OSPort, error) {
 	out, err := s.TimedOpenStackCommand(ctx, "openstack", "port", "list", "-f", "json")
 

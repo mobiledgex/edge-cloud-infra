@@ -145,7 +145,9 @@ sleep 30
 COUNT=10
 PKGLIST="$TMPDIR/pkglist.txt"
 while (( COUNT > 0 )); do
-	sshpass -p "$TESTPASS" ssh ubuntu@${IP} apt list --installed >"$PKGLIST"
+	sshpass -p "$TESTPASS" ssh -o "UserKnownHostsFile=/dev/null" \
+		-o "StrictHostKeyChecking=no" ubuntu@${IP} \
+		apt list --installed >"$PKGLIST"
 	[[ $? -eq 0 ]] && break
 
 	rm -f "$PKGLIST"

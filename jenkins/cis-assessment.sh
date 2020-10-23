@@ -158,7 +158,7 @@ done
 
 PKGLIST_URL="$( dirname $BASE_IMAGE_URL )/pkglists/$( basename $BASE_IMAGE_URL .qcow2 ).txt"
 
-load "Publish package list to Artifactory: $PKGLIST_URL"
+log "Publish package list to Artifactory: $PKGLIST_URL"
 publish_report "$PKGLIST" "$PKGLIST_URL"
 
 cd "$HOME/Assessor-CLI"

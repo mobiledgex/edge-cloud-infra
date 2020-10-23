@@ -51,7 +51,7 @@ func getAgentName() string {
 	return "MasterControllerV1"
 }
 
-// Refresh interval should to be at least 3x of resolveTimeout
+// resolveTimeout should be at least 3x of alert refresh rate
 func getAlertRefreshRate(resolveTimeout time.Duration) time.Duration {
 	if alertRefreshInterval < resolveTimeout/3 {
 		return alertRefreshInterval

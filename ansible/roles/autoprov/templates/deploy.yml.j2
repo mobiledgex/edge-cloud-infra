@@ -44,5 +44,7 @@ spec:
            value: "{{ autoprov_role.role_id }}"
          - name: VAULT_SECRET_ID
            value: "{{ autoprov_role.secret_id }}"
+         - name: ES_SERVER_URLS
+           value: "{{ esproxy_address }}"
       imagePullSecrets:
        - name: mexreg-secret 

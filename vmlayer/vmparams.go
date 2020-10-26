@@ -123,6 +123,7 @@ type VMRequestSpec struct {
 	ConnectToSubnet         string
 	ChefParams              *chefmgmt.VMChefParams
 	OptionalResource        string
+	AccessKey               string
 }
 
 type VMReqOp func(vmp *VMRequestSpec) error
@@ -198,6 +199,12 @@ func WithChefParams(chefParams *chefmgmt.VMChefParams) VMReqOp {
 func WithOptionalResource(optRes string) VMReqOp {
 	return func(s *VMRequestSpec) error {
 		s.OptionalResource = optRes
+		return nil
+	}
+}
+func WithAccessKey(accessKey string) VMReqOp {
+	return func(s *VMRequestSpec) error {
+		s.AccessKey = accessKey
 		return nil
 	}
 }
@@ -403,6 +410,7 @@ type VMCloudConfigParams struct {
 	ExtraBootCommands []string
 	ChefParams        *chefmgmt.VMChefParams
 	CACert            string
+	AccessKey         string
 }
 
 // VMOrchestrationParams contains all details  that are needed by the orchestator
@@ -837,6 +845,7 @@ func (v *VMPlatform) getVMGroupOrchestrationParamsFromGroupSpec(ctx context.Cont
 				vccp.ChefParams = vm.ChefParams
 			}
 			vccp.CACert = vaultSSHCert
+			vccp.AccessKey = vm.AccessKey
 			// gpu
 			if vm.OptionalResource == "gpu" {
 				gpuCmds := getGpuExtraCommands()

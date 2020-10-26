@@ -39,3 +39,5 @@ vault_github_users:
     role: admin
   - userid: ashxjain
     role: admin
+  - userid: mwilliams-mex
+    role: admin

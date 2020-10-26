@@ -18,12 +18,13 @@ import (
 // Available to, and used by all the other unit tests
 var tv VcdPlatform
 
-// cmd line arg vars for all tests that use 'em
+// cmd line arg vars available to all tests
 var vmName = flag.String("vm", "default-vm-name", "Name of vm")
 var vappName = flag.String("vapp", "default-vapp-name", "name of vapp")
 var tmplName = flag.String("tmpl", "default-template-name", "Name of template")
 var netName = flag.String("net", "default-network", "Name of network")
 var ipAddr = flag.String("ip", "172.70.52.210", "Defafult IP addr of VM")
+var ovaName = flag.String("ova", "basic.ova", "name of ova file to upload")
 var livetest = flag.String("live", "false", "live or canned data")
 
 // Unit test env init. We have two cases, the default is live=false making
@@ -238,6 +239,69 @@ func TestMexVM(t *testing.T) {
 		//tv.testDestroyVM(t, ctx)
 	}
 
+}
+
+// Test add remove, or remove + add as the case may be
+// We find if we simply use VmSettings and UpdateVmSpecSection or
+// vm.UpdateInternalDisks we win error can't modify disk on vm with snapshots
+// Now, we don't have any snapshots, so the only other thought (besides a bug)
+// is that vm sharing across vapps is tantamount to snapshots which is probably
+// how they implement the sharing anyway...
+// So what if we delete anything that's there and recreate a new disk of the desired size.
+//
+// use  -vapp
+func TestVMDisk(t *testing.T) {
+	live, ctx, err := InitVcdTestEnv()
+	require.Nil(t, err, "InitTestEnv")
+
+	if live {
+		fmt.Printf("\nTestVMDisk Live: \n")
+		vapp, err := tv.FindVApp(ctx, *vappName)
+		if err != nil {
+			fmt.Printf("Unable to find %s\n", *vappName)
+			return
+		}
+		vmname := vapp.VApp.Children.VM[0].Name
+
+		vm, err := vapp.GetVMByName(vmname, true)
+		if err != nil {
+			fmt.Printf("GetVMByName failed: %s\n", err.Error())
+			return
+		}
+
+		fmt.Printf("Use vm %s from %s\n", vmname, vapp.VApp.Name)
+		// Two disk types, internal and independent. independent disks can be attach to at most 1 vm at any time.
+		// here, we're dealing with the single internal disk to resize even if another vapp is using this
+		// vm also.
+
+		// To add a disk use DiskSettings, save to fill in new settings bits
+		diskSettings := vm.VM.VmSpecSection.DiskSection.DiskSettings[0]
+		// first get the current disk id, since it's a delete by ID
+		diskId := vm.VM.VmSpecSection.DiskSection.DiskSettings[0].DiskId
+		// remove this current disk
+
+		err = vm.DeleteInternalDisk(diskId)
+		if err != nil {
+			fmt.Printf("DeleteInternalDisk failed: %s\n", err.Error())
+			return
+		}
+
+		newDiskSettings := &types.DiskSettings{
+			SizeMb:          40 * 1024, // results in 41G in console xxx
+			AdapterType:     diskSettings.AdapterType,
+			ThinProvisioned: diskSettings.ThinProvisioned,
+			StorageProfile:  diskSettings.StorageProfile,
+		}
+		newDiskId, err := vm.AddInternalDisk(newDiskSettings)
+		if err != nil {
+			fmt.Printf("AddInternalDisk tailed: %s\n", err.Error())
+			return
+		}
+		fmt.Printf("old diskId %s new diskId = %s\n", diskId, newDiskId)
+
+	} else {
+		return
+	}
 }
 
 // Test feeding our VM create work routine vmlayers Orch Params with a simple example.

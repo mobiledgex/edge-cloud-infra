@@ -218,6 +218,9 @@ func (v *VcdPlatform) GetResourceID(ctx context.Context, resourceType vmlayer.Re
 			return "", fmt.Errorf("resource %s not found", resourceName)
 		}
 		return vm.VM.ID, nil
+	} else if resourceType == vmlayer.ResourceTypeSecurityGroup {
+		// Get the security Group ID for default XXX
+		return "1234", nil
 	}
 	return "", fmt.Errorf("GetResourceID not implemented for resource type: %s name %s", resourceType, resourceName)
 }

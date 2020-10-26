@@ -179,10 +179,13 @@ func (v *VcdPlatform) CreateVM(ctx context.Context, vapp *govcd.VApp, vmparams *
 }
 
 func (v *VcdPlatform) CreateVMs(ctx context.Context, vmgp *vmlayer.VMGroupOrchestrationParams, updateCallback edgeproto.CacheUpdateCallback) error {
+
+	// TODO, only one cloudlet per vdc
+	// If the given server is already running.
+
 	//dumpVMGroupParams(vmgp, 1)
 	log.SpanLog(ctx, log.DebugLevelInfra, "PI CreateVMs 6") // , "OrchParams", vmgp)
-	fmt.Printf("\nCreateVMs-I-groupname: %s  Request create %d VMs\n", vmgp.GroupName, len(vmgp.VMs))
-
+	// Find our ova template
 	tmplName := os.Getenv("VCDTEMPLATE")
 	if tmplName == "" {
 		return fmt.Errorf("VCD Base template env var not set")
@@ -190,17 +193,32 @@ func (v *VcdPlatform) CreateVMs(ctx context.Context, vmgp *vmlayer.VMGroupOrches
 	// pull our (only?) template?
 	tmpl, err := v.FindTemplate(ctx, tmplName)
 	if err != nil {
-		fmt.Printf("TestTmpl-E-%s not found locally\n", tmplName)
-		return fmt.Errorf("VCD template %s not found for vdc %s\n", tmplName, v.Objs.Vdc.Vdc.Name)
+		found := false
+		// Back to vdc, has it been created manually?
+		tmpls, err := v.GetAllVdcTemplates(ctx, v.Objs.PrimaryCat)
+		if err == nil {
+			for _, tmpl := range tmpls {
+				if tmpl.VAppTemplate.Name == tmplName {
+					v.Objs.VAppTmpls[tmplName] = tmpl
+					found = true
+					break
+				}
+			}
+		}
+		if !found {
+			// Try fetching it from the respository or local update
+			log.SpanLog(ctx, log.DebugLevelInfra, "Template %s not found in vdc, attempt upload, this can take 20 mins or more\n", tmplName)
+			err = v.UploadOvaFile(ctx, tmplName)
+			if err != nil {
+				log.SpanLog(ctx, log.DebugLevelInfra, "Template %s not found, not uploaded Fail", "error", err.Error())
+				return err
+			}
+		}
 	}
 	description := vmgp.GroupName + "-VApp"
 	storRef := types.Reference{}
-	// Empty Ref wins the default (vSAN Default is all we have, but should support others xxx Prop?)
+	// Empty Ref wins the default (vSAN Default is all we have, but could support others xxx Prop?)
 
-	// So if our template has vm children, this will set primaryNextworkConnectionIndex to the first VM's
-	// But it still demands networks != nil, and will append it, so weird, we only want one and that one is
-	// in the template. So just use that one to make the call happy
-	//
 	networks := []*types.OrgVDCNetwork{}
 	networks = append(networks, v.Objs.PrimaryNet.OrgVDCNetwork)
 	// We'll need to adjust networks subsequent to componse when we have a vapp
@@ -249,9 +267,10 @@ func (v *VcdPlatform) CreateVMs(ctx context.Context, vmgp *vmlayer.VMGroupOrches
 			fmt.Printf("\n\tCreateVMs-I-marking VM named %s with key as: %s\n\n",
 				child.Name, key)
 
-			err = v.updateVM(ctx, *vm, vmparams)
+			err = v.updateVM(ctx, vm, vmparams)
 			if err != nil {
 				fmt.Printf("CreateVMs-E-error updating VM %s : %s \n", child.Name, err.Error())
+				return err
 			}
 		}
 		if numRequiredVMs != 0 {
@@ -292,54 +311,86 @@ func (v *VcdPlatform) CreateVMs(ctx context.Context, vmgp *vmlayer.VMGroupOrches
 	return nil
 }
 
+// updates of a vm that is 'shared' across multiple vapps
+// balks at being modified "can't modify disk of a vm with snapshots"
+// So here, we remove, and replace it. XXX only first disk, doesn't
+// support multiple internal disks. XXX
+func (v *VcdPlatform) updateVmDisk(vm *govcd.VM, size int64) error {
+
+	diskSettings := vm.VM.VmSpecSection.DiskSection.DiskSettings[0]
+	diskId := vm.VM.VmSpecSection.DiskSection.DiskSettings[0].DiskId
+	// remove this current disk
+	err := vm.DeleteInternalDisk(diskId)
+	if err != nil {
+		fmt.Printf("DeleteInternalDisk failed: %s\n", err.Error())
+		return err
+	}
+
+	newDiskSettings := &types.DiskSettings{
+		SizeMb:          size * 1024, // results in 1G > size ?
+		AdapterType:     diskSettings.AdapterType,
+		ThinProvisioned: diskSettings.ThinProvisioned,
+		StorageProfile:  diskSettings.StorageProfile,
+	}
+	_, err = vm.AddInternalDisk(newDiskSettings)
+	if err != nil {
+		fmt.Printf("AddInternalDisk tailed: %s\n", err.Error())
+		return err
+	}
+	return nil
+}
+
 func (v *VcdPlatform) guestCustomization(ctx context.Context, vm govcd.VM, vmparams vmlayer.VMOrchestrationParams) error {
 
-	// is this enough?
-	fmt.Printf("guestCustomization-I-Setting ComputerName of %s to %s\n", vm.VM.Name, vmparams.HostName)
 	vm.VM.GuestCustomizationSection.ComputerName = vmparams.HostName
 	return nil
 }
 
+// TBD
 func (v *VcdPlatform) populateVMMetadata(ctx context.Context, vm govcd.VM, vmparams vmlayer.VMOrchestrationParams) error {
-	// where's network name? In the GroupOrchParas? So there's Ports here in []PortResourceReferences
-	// while GroupOrch has Port []PortOrchestrationParams hmm..
-	fmt.Printf("populateVMMetadata-I-Name VM(vmparas): %s  vm.VM.Name: %s\n", vmparams.Name, vm.VM.Name)
-	fmt.Printf("papulateMVMetadata-I-Ports are\n")
+
 	for _, port := range vmparams.Ports {
 		fmt.Printf("\t Name: %s preexsting: %t PortGroup %s\n", port.Name, port.Preexisting, port.PortGroup)
 	}
-	fmt.Printf("papulateMVMetadata-I-FixedIPs are\n")
 	for _, FixedIP := range vmparams.FixedIPs {
 		fmt.Printf("\tFixedIP: LastIPOctet: %d Address: %s Gateway: %s\n",
 			FixedIP.LastIPOctet, FixedIP.Address, FixedIP.Gateway)
 	}
-	fmt.Printf("MetaData: %s\n", vmparams.MetaData)
-	fmt.Printf("UserData: %s\n", vmparams.UserData)
-	fmt.Printf("FlavorName %s\n", vmparams.FlavorName)
-	fmt.Printf("AuthPublicKey %s\n", vmparams.AuthPublicKey)
-
 	return nil
 }
 
 // set vm params and call vm.UpdateVmSpecSection
-func (v *VcdPlatform) updateVM(ctx context.Context, vm govcd.VM, vmparams vmlayer.VMOrchestrationParams) error {
+func (v *VcdPlatform) updateVM(ctx context.Context, vm *govcd.VM, vmparams vmlayer.VMOrchestrationParams) error {
 
 	parentVapp, err := vm.GetParentVApp()
 	fmt.Printf("updateVM-I-updating vm %s parent vapp: %s flavor: %s\n", vm.VM.Name, parentVapp.VApp.Name,
 		vmparams.FlavorName)
-	err = v.populateVMMetadata(ctx, vm, vmparams)
+	err = v.populateVMMetadata(ctx, *vm, vmparams)
 	if err != nil {
 		fmt.Printf("updateVM-E-populateVMMetadata returns: : %s\n", err.Error())
 		return err
 	}
 
-	//
-	// First, just try and change the friking name.
-	// Reports have it, that you fetch the vm, change it's name, and what refresh it?
-	//curCpus := 2
-	// Name, HostName, Role, ImageName, FlavorName, Vcpus, Ram Disk
-	//vmspec := types.VmSpecSection{}
-	// investigate the
+	flavorName := vmparams.FlavorName
+	flavor, err := v.GetFlavor(ctx, flavorName)
+	fmt.Printf("Flavor %s has %d vcpus %d Ram %d disk\n", flavorName, flavor.Vcpus, flavor.Ram, flavor.Disk)
+
+	vmSpecSec := vm.VM.VmSpecSection
+	vmSpecSec.NumCpus = vu.TakeIntPointer(int(flavor.Vcpus))
+	vmSpecSec.MemoryResourceMb.Configured = int64(flavor.Ram)
+	desc := fmt.Sprintf("Update flavor: %s", flavorName)
+	_, err = vm.UpdateVmSpecSection(vmSpecSec, desc)
+	if err != nil {
+		fmt.Printf("Error updating vm %s for flavor %s\n", vm.VM.Name, flavorName)
+		return err
+	}
+	// Changing the existing Disk size is not supported if other VApps are using the
+	// same snapshot under the covers (sharing via snapshot is the guess here
+	// so use our local updateVmDisk() which removes and adds a new internal disk
+	err = v.updateVmDisk(vm, int64(flavor.Disk))
+	if err != nil {
+		return err
+	}
 
 	virtHWSec, err := vm.GetVirtualHardwareSection()
 	if err != nil {
@@ -349,17 +400,6 @@ func (v *VcdPlatform) updateVM(ctx context.Context, vm govcd.VM, vmparams vmlaye
 
 	for _, item := range virtHWSec.Item {
 		vu.DumpVirtualHardwareItem(item, 1)
-	}
-	// Trade for flavor defintion XXX
-	// Also handle disk size
-	vmSpecSec := vm.VM.VmSpecSection
-	vmSpecSec.NumCpus = vu.TakeIntPointer(2)
-	vmSpecSec.MemoryResourceMb.Configured = 4096
-	_, err = vm.UpdateVmSpecSection(vmSpecSec, "customize for flavor")
-	if err != nil {
-
-		fmt.Printf("Failed update VmSpecSection: %s\n", err.Error())
-
 	}
 	// meta data for Role etc
 	psl, err := v.populateProductSection(ctx, &vmparams)
@@ -371,7 +411,7 @@ func (v *VcdPlatform) updateVM(ctx context.Context, vm govcd.VM, vmparams vmlaye
 		return fmt.Errorf("updateVM-E-error Setting product section %s", err.Error())
 	}
 	// Set other localization values (Hostname etc)
-	err = v.guestCustomization(ctx, vm, vmparams)
+	err = v.guestCustomization(ctx, *vm, vmparams)
 	if err != nil {
 		return fmt.Errorf("updateVM-E-error from guestCustomize: %s", err.Error())
 	}

@@ -16,10 +16,14 @@ import (
 // Then have a look at that AddCloudImageIfNotPresent for potential refactor. xxx uses GetServerDetail is that standard?
 
 // PI
+// Is this only for appInst images? Or our cloudlet template too?
 func (v *VcdPlatform) AddCloudletImageIfNotPresent(ctx context.Context, imgPathPrefix, imgVersion string, updateCallback edgeproto.CacheUpdateCallback) (string, error) {
 	log.SpanLog(ctx, log.DebugLevelInfra, "PI AddCloudletImageIfNotPresent  TBI ", "imgPathPrefix", imgPathPrefix, "ImgVersion", imgVersion)
 	// how about just returning our ubuntu18.04 image here? For now
 	fmt.Printf("AddCloudletImageIfNotPresent-i-TBI\n")
+
+	//	filePath, err := vmlayer.DownloadVMImage(ctx, v.vmProperties.CommonPf.VaultConfig, imageName, imageUrl, md5Sum)
+
 	return "", nil
 }
 

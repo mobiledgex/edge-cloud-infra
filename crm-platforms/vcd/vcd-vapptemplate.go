@@ -32,6 +32,7 @@ func (v *VcdPlatform) FindTemplate(ctx context.Context, tmplName string) (*govcd
 			return tmpl, nil
 		}
 	}
+
 	return nil, fmt.Errorf("template %s not found", tmplName)
 
 }

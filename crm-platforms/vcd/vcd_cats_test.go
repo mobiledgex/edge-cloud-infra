@@ -23,6 +23,22 @@ func TestCats(t *testing.T) {
 	}
 }
 
+// uses -ova
+// If you run this live, use --timeout 0 to disable the default panic after 10 mins
+// since this test runs ~ upload complete in 17m20.262586965s
+//
+func TestUploadOva(t *testing.T) {
+	live, ctx, err := InitVcdTestEnv()
+	require.Nil(t, err, "InitVcdTestEnv")
+	if live {
+		fmt.Printf("Live OVA  upload test\n")
+		err = testOvaUpload(t, ctx)
+		require.Nil(t, err, "testOVAUpload")
+	} else {
+		return
+	}
+}
+
 // Or we can access tmpls via our vcd items looking for
 // "application/vnd.vmware.vcloud.vAppTemplate+xml"
 // In general, many resource Items can be discovered this way
@@ -45,24 +61,22 @@ func testGetAllVdcTemplates(t *testing.T, ctx context.Context) []string {
 }
 
 // upload a local .vmdk to our catalog, actually, they prefer an entire .ova file
-func testOvfUpload(t *testing.T, ctx context.Context) error {
+// uses -ova for what (local) file to upload
+func testOvaUpload(t *testing.T, ctx context.Context) error {
 
-	catalog := &govcd.Catalog{}
 	path := os.Getenv("HOME")
 	fmt.Printf("Path: %s\n", path)
 
-	url := path + "/vmware-lab/mex-ova/mobiledgex-v3.1.6-v14-vapp.ova"
-	fmt.Printf("testMediaUpload-I-attempt uploading: %s\n", url)
-	cats := tv.Objs.Cats
-	for name, cat := range cats {
-		catalog = cat.OrgCat
-		fmt.Printf("selecting cat %s\n", name)
-		break
-	}
+	url := path + "/vmware-lab/" + *ovaName
+
+	tname := *ovaName + "-tmpl"
+	fmt.Printf("testMediaUpload-I-attempt uploading: %s naming it %s \n", url, tname)
+
+	cat := tv.Objs.PrimaryCat
 	elapse_start := time.Now()
 	// units for upload check size? MB? dunno... yet.
 
-	task, err := catalog.UploadOvf(url, "mobiledgex-3.1.6.ova", "test-import-ova-vsphere", 10)
+	task, err := cat.UploadOvf(url, tname, "test-import-ova-vcd", 1024)
 
 	if err != nil {
 		fmt.Printf("\nError from UploadOvf: %s\n", err.Error())

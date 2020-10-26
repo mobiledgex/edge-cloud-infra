@@ -1176,6 +1176,11 @@ func TakeStringPointer(x string) *string {
 func TakeFloatAddress(x float64) *float64 {
 	return &x
 }
+
 func TakeIntPointer(x int) *int {
+	return &x
+}
+
+func TakeUint64Pointer(x uint64) *uint64 {
 	return &x
 }

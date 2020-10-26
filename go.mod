@@ -11,6 +11,7 @@ require (
 	github.com/codeskyblue/go-sh v0.0.0-20170112005953-b097669b1569
 	github.com/coreos/go-systemd v0.0.0-20190321100706-95778dfbb74e // indirect
 	github.com/dgrijalva/jwt-go v3.2.0+incompatible
+	github.com/eclipse/paho.mqtt.golang v1.2.0
 	github.com/go-chef/chef v0.20.1
 	github.com/go-ole/go-ole v1.2.4 // indirect
 	github.com/go-openapi/errors v0.19.7
@@ -59,6 +60,7 @@ require (
 	github.com/xanzy/go-gitlab v0.16.0
 	golang.org/x/crypto v0.0.0-20191206172530-e9b2fee46413
 	golang.org/x/net v0.0.0-20200602114024-627f9648deb9
+	golang.org/x/tools v0.0.0-20200226224502-204d844ad48d // indirect
 	google.golang.org/grpc v1.27.1
 	gopkg.in/ldap.v3 v3.0.3
 	gopkg.in/yaml.v2 v2.3.0

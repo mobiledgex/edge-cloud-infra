@@ -105,6 +105,10 @@ func (s *ManagedK8sPlatform) UpdateClusterInst(ctx context.Context, clusterInst 
 	return fmt.Errorf("Update cluster inst not implemented")
 }
 
-func (e *ManagedK8sPlatform) GetInfraResources(ctx context.Context, clusterKey *edgeproto.ClusterInstKey, cloudletKey *edgeproto.CloudletKey) (*edgeproto.InfraResources, error) {
-	return nil, fmt.Errorf("GetInfraResources not implemented for managed k8s")
+func (e *ManagedK8sPlatform) GetCloudletInfraResources(ctx context.Context) (*edgeproto.InfraResources, error) {
+	return nil, fmt.Errorf("GetCloudletInfraResources not implemented for managed k8s")
+}
+
+func (e *ManagedK8sPlatform) GetClusterInfraResources(ctx context.Context, clusterKey *edgeproto.ClusterInstKey) (*edgeproto.InfraResources, error) {
+	return nil, fmt.Errorf("GetClusterInfraResources not implemented for managed k8s")
 }

@@ -422,22 +422,22 @@ func (v *VMPlatform) SyncControllerCache(ctx context.Context, caches *platform.C
 	return nil
 }
 
-func (v *VMPlatform) GetInfraResources(ctx context.Context, clusterKey *edgeproto.ClusterInstKey, cloudletKey *edgeproto.CloudletKey) (*edgeproto.InfraResources, error) {
-	log.SpanLog(ctx, log.DebugLevelInfra, "GetInfraResources")
-	if clusterKey != nil {
-		clusterName := v.VMProvider.NameSanitize(k8smgmt.GetCloudletClusterName(clusterKey))
-		return v.VMProvider.GetServerGroupResources(ctx, clusterName)
-	} else if cloudletKey != nil {
-		var resources edgeproto.InfraResources
-		platResources, err := v.VMProvider.GetServerGroupResources(ctx, v.GetPlatformVMName(cloudletKey))
-		if err == nil {
-			resources.Vms = append(resources.Vms, platResources.Vms...)
-		}
-		rootlbResources, err := v.VMProvider.GetServerGroupResources(ctx, v.VMProperties.SharedRootLBName)
-		if err == nil {
-			resources.Vms = append(resources.Vms, rootlbResources.Vms...)
-		}
-		return &resources, nil
+func (v *VMPlatform) GetCloudletInfraResources(ctx context.Context) (*edgeproto.InfraResources, error) {
+	log.SpanLog(ctx, log.DebugLevelInfra, "GetCloudletInfraResources")
+	var resources edgeproto.InfraResources
+	platResources, err := v.VMProvider.GetServerGroupResources(ctx, v.GetPlatformVMName(&v.VMProperties.CommonPf.PlatformConfig.NodeMgr.MyNode.Key.CloudletKey))
+	if err == nil {
+		resources.Vms = append(resources.Vms, platResources.Vms...)
 	}
-	return nil, fmt.Errorf("neither cluster nor cloudlet key provided")
+	rootlbResources, err := v.VMProvider.GetServerGroupResources(ctx, v.VMProperties.SharedRootLBName)
+	if err == nil {
+		resources.Vms = append(resources.Vms, rootlbResources.Vms...)
+	}
+	return &resources, nil
+}
+
+func (v *VMPlatform) GetClusterInfraResources(ctx context.Context, clusterKey *edgeproto.ClusterInstKey) (*edgeproto.InfraResources, error) {
+	log.SpanLog(ctx, log.DebugLevelInfra, "GetClusterInfraResources")
+	clusterName := v.VMProvider.NameSanitize(k8smgmt.GetCloudletClusterName(clusterKey))
+	return v.VMProvider.GetServerGroupResources(ctx, clusterName)
 }

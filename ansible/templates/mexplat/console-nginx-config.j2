@@ -7,16 +7,10 @@ server {
 
 	server_name {{ inventory_hostname }};
 
-	add_header 'Access-Control-Allow-Origin' '*';
-	add_header 'Access-Control-Allow-Credentials' 'true';
-	add_header 'Access-Control-Allow-Headers' 'Authorization,Accept,Origin,Keep-Alive,User-Agent,X-Requested-With,If-Modified-Since,Cache-Control,Content-Type,Content-Range,Range';
-	add_header 'Access-Control-Allow-Methods' 'GET,POST,OPTIONS';
-
 	add_header 'Cache-Control' 'no-cache, no-store, must-revalidate' always;
 	add_header 'X-Frame-Options' 'sameorigin' always;
 	add_header 'X-Content-Type-Options' 'nosniff' always;
 	add_header 'Strict-Transport-Security' 'max-age=31536000; includeSubDomains; preload' always;
-	add_header 'Content-Security-Policy' "object-src 'none'" always;
 	add_header 'Expect-CT' 'max-age=86400, enforce' always;
 	add_header 'X-XSS-Protection' '1; mode=block' always;
 	add_header 'Referrer-Policy' 'strict-origin' always;
@@ -61,29 +55,6 @@ server {
 	}
 
 	location ~ /(api|ws)/ {
-
-                if ($request_method ~ ^(HEAD|OPTIONS)$) {
-                        add_header 'Access-Control-Allow-Origin' '*';
-                        add_header 'Access-Control-Allow-Credentials' 'true';
-                        add_header 'Access-Control-Allow-Headers' 'Authorization,Accept,Origin,Keep-Alive,User-Agent,X-Requested-With,If-Modified-Since,Cache-Control,Content-Type,Content-Range,Range';
-                        add_header 'Access-Control-Allow-Methods' 'GET,POST,OPTIONS';
-                        add_header 'Access-Control-Max-Age' 1728000;
-                        add_header 'Content-Type' 'text/plain charset=UTF-8';
-                        add_header 'Content-Length' 0;
-                        return 204;
-                }
-		if ($request_method = 'POST') {
-			add_header 'Access-Control-Allow-Origin' '*';
-			add_header 'Access-Control-Allow-Methods' 'GET, POST, OPTIONS';
-			add_header 'Access-Control-Allow-Headers' 'DNT,User-Agent,X-Requested-With,If-Modified-Since,Cache-Control,Content-Type,Range,Authorization,Accept,Origin,Keep-Alive,User-Agent,X-Requested-With,If-Modified-Since,Cache-Control,Content-Type,Content-Range';
-			add_header 'Access-Control-Expose-Headers' 'Content-Length,Content-Range';
-		}
-		if ($request_method = 'GET') {
-			add_header 'Access-Control-Allow-Origin' '*';
-			add_header 'Access-Control-Allow-Methods' 'GET, POST, OPTIONS';
-			add_header 'Access-Control-Allow-Headers' 'DNT,User-Agent,X-Requested-With,If-Modified-Since,Cache-Control,Content-Type,Range,Authorization,Accept,Origin,Keep-Alive,User-Agent,X-Requested-With,If-Modified-Since,Cache-Control,Content-Type,Content-Range';
-			add_header 'Access-Control-Expose-Headers' 'Content-Length,Content-Range';
-		}
 
 		proxy_pass http://127.0.0.1:{{ mc_api_port }};
 		proxy_http_version 1.1;

@@ -8,6 +8,7 @@ import (
 	"github.com/codeskyblue/go-sh"
 	awsgen "github.com/mobiledgex/edge-cloud-infra/crm-platforms/aws/aws-generic"
 	"github.com/mobiledgex/edge-cloud-infra/infracommon"
+	pf "github.com/mobiledgex/edge-cloud/cloud-resource-manager/platform"
 	"github.com/mobiledgex/edge-cloud/edgeproto"
 	"github.com/mobiledgex/edge-cloud/log"
 	"github.com/mobiledgex/edge-cloud/vault"
@@ -75,8 +76,8 @@ func (a *AwsEksPlatform) GetFlavorList(ctx context.Context) ([]*edgeproto.Flavor
 	return a.awsGenPf.GetFlavorList(ctx)
 }
 
-func (a *AwsEksPlatform) GetProviderSpecificProps(ctx context.Context, vaultConfig *vault.Config) (map[string]*edgeproto.PropertyInfo, error) {
-	return a.awsGenPf.GetProviderSpecificProps(ctx, vaultConfig)
+func (a *AwsEksPlatform) GetProviderSpecificProps(ctx context.Context, pfconfig *pf.PlatformConfig, vaultConfig *vault.Config) (map[string]*edgeproto.PropertyInfo, error) {
+	return a.awsGenPf.GetProviderSpecificProps(ctx, pfconfig, vaultConfig)
 }
 
 func (a *AwsEksPlatform) Login(ctx context.Context, vaultConfig *vault.Config) error {

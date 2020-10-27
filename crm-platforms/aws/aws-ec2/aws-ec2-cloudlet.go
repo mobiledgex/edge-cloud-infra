@@ -106,6 +106,10 @@ func (a *AwsEc2Platform) InitProvider(ctx context.Context, caches *platform.Cach
 	// Use the last subnet as the internally facing side of the external network
 	extCidr := strings.Replace(nspecCidr, "X", "255", 1)
 	// vpc cidr is a network which encompasses all subnets
+	if a.awsGenPf.IsAwsOutpost() {
+		log.SpanLog(ctx, log.DebugLevelInfra, "skipping network setup for outpost")
+		return nil
+	}
 	vpcCidr, err := a.VMProperties.GetInternalNetworkRoute(ctx)
 	vpcId, err := a.CreateVPC(ctx, vpcName, vpcCidr)
 	if err != nil {

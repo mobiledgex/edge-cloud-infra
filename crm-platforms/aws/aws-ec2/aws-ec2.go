@@ -42,8 +42,8 @@ func (a *AwsEc2Platform) GetType() string {
 	return "awsec2"
 }
 
-func (a *AwsEc2Platform) GetProviderSpecificProps(ctx context.Context, vaultConfig *vault.Config) (map[string]*edgeproto.PropertyInfo, error) {
-	return a.awsGenPf.GetProviderSpecificProps(ctx, vaultConfig)
+func (a *AwsEc2Platform) GetProviderSpecificProps(ctx context.Context, pfconfig *platform.PlatformConfig, vaultConfig *vault.Config) (map[string]*edgeproto.PropertyInfo, error) {
+	return a.awsGenPf.GetProviderSpecificProps(ctx, pfconfig, vaultConfig)
 }
 
 func (o *AwsEc2Platform) InitApiAccessProperties(ctx context.Context, key *edgeproto.CloudletKey, region, physicalName string, vaultConfig *vault.Config, vars map[string]string) error {

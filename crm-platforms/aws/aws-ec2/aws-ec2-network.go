@@ -11,6 +11,10 @@ import (
 )
 
 func (a *AwsEc2Platform) GetVpcName() string {
+	outpostVpc := a.awsGenPf.GetOutpostVPC()
+	if outpostVpc != "" {
+		return outpostVpc
+	}
 	return a.NameSanitize(a.VMProperties.CommonPf.PlatformConfig.CloudletKey.Name)
 }
 

@@ -13,7 +13,8 @@ import (
 	"github.com/jinzhu/gorm"
 	"github.com/labstack/echo"
 	"github.com/lib/pq"
-	"github.com/mobiledgex/edge-cloud-infra/billing/zuora"
+	"github.com/mobiledgex/edge-cloud-infra/billing"
+	"github.com/mobiledgex/edge-cloud-infra/billing/chargify"
 	intprocess "github.com/mobiledgex/edge-cloud-infra/e2e-tests/int-process"
 	"github.com/mobiledgex/edge-cloud-infra/mc/orm/alertmgr"
 	"github.com/mobiledgex/edge-cloud-infra/mc/ormapi"
@@ -73,6 +74,7 @@ type ServerConfig struct {
 	NodeMgr                 *node.NodeMgr
 	Billing                 bool
 	BillingPath             string
+	BillingService          *billing.BillingService
 	AlertCache              *edgeproto.AlertCache
 	AlertMgrAddr            string
 	AlertmgrResolveTimout   time.Duration
@@ -182,10 +184,9 @@ func RunServer(config *ServerConfig) (retserver *Server, reterr error) {
 	InitVault(config.vaultConfig, server.initJWKDone)
 
 	if config.Billing {
-		err = zuora.InitZuora(config.vaultConfig, config.BillingPath)
-		if err != nil {
-			return nil, fmt.Errorf("Unable to initialize zuora: %v", err)
-		}
+		// TODO: determine which billing service to use from vault
+		serverConfig.BillingService = chargify.BillingService{}
+		serverConfig.BillingService.Init()
 	}
 
 	if err = checkUsageCheckpointInterval(); err != nil {

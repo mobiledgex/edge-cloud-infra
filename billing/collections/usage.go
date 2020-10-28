@@ -166,7 +166,7 @@ func RecordClusterUsages(ctx context.Context, resp *client.Response) {
 		}
 		var accountInfo *zuora.AccountInfo
 		accountInfo, err := orm.GetAccountObj(ctx, org)
-		if err != nil {
+		if er != nil {
 			log.SpanLog(ctx, log.DebugLevelInfo, "Unable to get account info", "org", org, "err", err)
 		} else {
 			err = zuora.RecordUsage(accountInfo, key, zuora.UsageTypeCluster, flavor, start, end, uptime)

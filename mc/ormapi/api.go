@@ -89,6 +89,8 @@ type BillingOrganization struct {
 	Email string `json:",omitempty"`
 	// Organization address
 	Address string `json:",omitempty"`
+	// Organization address2
+	Address2 string `json:",omitempty"`
 	// Organization city
 	City string `json:",omitempty"`
 	// Organization Country

@@ -2,6 +2,7 @@ package edgeevents
 
 import (
 	"context"
+	"fmt"
 
 	dmecommon "github.com/mobiledgex/edge-cloud/d-match-engine/dme-common"
 	dme "github.com/mobiledgex/edge-cloud/d-match-engine/dme-proto"
@@ -83,20 +84,20 @@ func (e *EdgeEventsHandlerPlugin) RemoveAppInstKey(ctx context.Context, appInstK
 
 // Handle processing of latency samples and then send back to client
 // For now: Avg, Min, Max, StdDev
-func (e *EdgeEventsHandlerPlugin) ProcessLatencySamples(ctx context.Context, appInstKey edgeproto.AppInstKey, cookieKey dmecommon.CookieKey, samples []float64) (*dme.Latency, bool) {
+func (e *EdgeEventsHandlerPlugin) ProcessLatencySamples(ctx context.Context, appInstKey edgeproto.AppInstKey, cookieKey dmecommon.CookieKey, samples []*dme.Sample) (*dme.Latency, error) {
 	e.mux.Lock()
 	defer e.mux.Unlock()
 	clients, ok := e.AppInstsStruct.AppInstsMap[appInstKey]
 	if !ok {
 		log.SpanLog(ctx, log.DebugLevelInfra, "cannot find appinst, no clients connected to appinst have edge events connection", "appInstKey", appInstKey)
-		return nil, false
+		return nil, fmt.Errorf("Cannot find specified appinst %v. No clients connected to appinst have edge events connection", appInstKey)
 	}
 
 	client := Client{cookieKey}
 	sendFunc, ok := clients.ClientsMap[client]
 	if !ok {
 		log.SpanLog(ctx, log.DebugLevelInfra, "cannot find client connected to appinst", "appInstKey", appInstKey, "client", client)
-		return nil, false
+		return nil, fmt.Errorf("Cannot find client connected to appinst %v", appInstKey)
 	}
 
 	latencyEdgeEvent := new(dme.ServerEdgeEvent)
@@ -106,7 +107,7 @@ func (e *EdgeEventsHandlerPlugin) ProcessLatencySamples(ctx context.Context, app
 	latencyEdgeEvent.Latency = &latency
 
 	sendFunc(latencyEdgeEvent)
-	return &latency, true
+	return &latency, nil
 }
 
 // Send a ServerEdgeEvent with Latency Request Event to all clients connected to specified AppInst (and also have an initiated persistent connection)

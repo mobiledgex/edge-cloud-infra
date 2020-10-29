@@ -11,6 +11,7 @@ services:
       - "--log.level=debug"
     volumes:
       - {{ alertmanager_config_path }}:{{ alertmanager_config_path }}
+      - {{ alertmanager_config_path }}/{{ alertmanager_template_file }}:/etc/alertmanager/templates/alertmanager.tmpl
     networks:
       - alertmgrnet
 

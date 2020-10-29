@@ -142,17 +142,18 @@ func ShowAlertReceiver(c echo.Context) error {
 	ctx := GetContext(c)
 	log.SpanLog(ctx, log.DebugLevelApi, "Show Alertmanager Receivers", "context", c, "claims", claims)
 
-	in := ormapi.AlertReceiver{}
-	success, err := ReadConn(c, &in)
-	if !success {
-		return err
+	filter := ormapi.AlertReceiver{}
+	if c.Request().ContentLength > 0 {
+		if err := c.Bind(&filter); err != nil {
+			return bindErr(c, err)
+		}
 	}
 
-	if in.SlackWebhook != "" {
+	if filter.SlackWebhook != "" {
 		return setReply(c, fmt.Errorf("Slack URL is not specifiable as a filter"), nil)
 	}
 
-	receivers, err := AlertManagerServer.ShowReceivers(ctx, &in)
+	receivers, err := AlertManagerServer.ShowReceivers(ctx, &filter)
 	if err != nil {
 		return err
 	}

@@ -11,12 +11,12 @@ import (
 )
 
 type AwsEc2Platform struct {
-	awsGenPf     *awsgen.AwsGenericPlatform
-	VMProperties *vmlayer.VMProperties
-	BaseImageId  string
-	IamAccountId string
-	caches       *platform.Caches
-	VpcCidr      string
+	awsGenPf        *awsgen.AwsGenericPlatform
+	VMProperties    *vmlayer.VMProperties
+	BaseImageId     string
+	AmiIamAccountId string
+	caches          *platform.Caches
+	VpcCidr         string
 }
 
 func (a *AwsEc2Platform) NameSanitize(name string) string {

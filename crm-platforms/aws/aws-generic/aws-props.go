@@ -43,6 +43,14 @@ var AWSProps = map[string]*edgeproto.PropertyInfo{
 		Name:        "AWS Outpost VPC",
 		Description: "Pre-existing VPC for an outpost deployment",
 	},
+	"AWS_AMI_IAM_OWNER": {
+		Name:        "AWS Outpost AMI Owner",
+		Description: "IAM Account that owns the base image",
+	},
+	"AWS_OUTPOST_FLAVORS": {
+		Name:        "AWS Outpost Flavors",
+		Description: "AWS Outpost Flavors in format flavor1,vcpu,ram,disk;flavor2.. e.g. c5.large,2,4096,20;c5.xlarge,4,8192,40",
+	},
 }
 
 func (a *AwsGenericPlatform) GetAwsAccessKeyId() string {
@@ -65,8 +73,18 @@ func (a *AwsGenericPlatform) IsAwsOutpost() bool {
 	return val != ""
 }
 
-func (a *AwsGenericPlatform) GetOutpostVPC() string {
+func (a *AwsGenericPlatform) GetAwsAmiIamOwner() string {
+	val, _ := a.Properties.GetValue("AWS_AMI_IAM_OWNER")
+	return val
+}
+
+func (a *AwsGenericPlatform) GetAwsOutpostVPC() string {
 	val, _ := a.Properties.GetValue("AWS_OUTPOST_VPC")
+	return val
+}
+
+func (a *AwsGenericPlatform) GetAwsOutpostFlavors() string {
+	val, _ := a.Properties.GetValue("AWS_OUTPOST_FLAVORS")
 	return val
 }
 

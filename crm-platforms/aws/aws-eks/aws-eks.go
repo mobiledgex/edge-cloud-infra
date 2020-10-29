@@ -19,7 +19,7 @@ type AwsEksPlatform struct {
 }
 
 func (a *AwsEksPlatform) GatherCloudletInfo(ctx context.Context, vaultConfig *vault.Config, info *edgeproto.CloudletInfo) error {
-	return a.awsGenPf.GatherCloudletInfo(ctx, info)
+	return a.awsGenPf.GatherCloudletInfo(ctx, "", info)
 }
 
 // CreateClusterPrerequisites does nothing for now, but for outpost may need to create a vpc
@@ -73,7 +73,7 @@ func (a *AwsEksPlatform) SetProperties(props *infracommon.InfraProperties) {
 }
 
 func (a *AwsEksPlatform) GetFlavorList(ctx context.Context) ([]*edgeproto.FlavorInfo, error) {
-	return a.awsGenPf.GetFlavorList(ctx)
+	return a.awsGenPf.GetFlavorList(ctx, "")
 }
 
 func (a *AwsEksPlatform) GetProviderSpecificProps(ctx context.Context, pfconfig *pf.PlatformConfig, vaultConfig *vault.Config) (map[string]*edgeproto.PropertyInfo, error) {

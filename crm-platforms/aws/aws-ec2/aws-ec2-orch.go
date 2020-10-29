@@ -52,7 +52,7 @@ func (a *AwsEc2Platform) getVmGroupResources(ctx context.Context, vmgp *vmlayer.
 	for _, vm := range vmgp.VMs {
 		_, ok := resources.imageNameToId[vm.ImageName]
 		if !ok {
-			imgId, err := a.GetImageId(ctx, vm.ImageName, a.IamAccountId)
+			imgId, err := a.GetImageId(ctx, vm.ImageName, a.AmiIamAccountId)
 			if err != nil {
 				return nil, err
 			}
@@ -61,9 +61,12 @@ func (a *AwsEc2Platform) getVmGroupResources(ctx context.Context, vmgp *vmlayer.
 	}
 	resources.VpcId = vpc.VpcId
 	mexNet := a.VMProperties.GetCloudletMexNetwork()
-	internalRouteTableId, err := a.GetRouteTableId(ctx, vpc.VpcId, SearchForRouteTableByName, mexNet)
-	if err != nil {
-		return nil, err
+	internalRouteTableId := ""
+	if !a.awsGenPf.IsAwsOutpost() {
+		internalRouteTableId, err = a.GetRouteTableId(ctx, vpc.VpcId, SearchForRouteTableByName, mexNet)
+		if err != nil {
+			return nil, err
+		}
 	}
 
 	// lock around the rest of this function which gets and creates subnets, secgrps
@@ -104,6 +107,9 @@ func (a *AwsEc2Platform) getVmGroupResources(ctx context.Context, vmgp *vmlayer.
 			routeTableId := MainRouteTable
 			if sn.NetworkName == mexNet {
 				routeTableId = internalRouteTableId
+			}
+			if routeTableId == "" {
+				return nil, fmt.Errorf("No route table id -- OUTPOST TODO")
 			}
 			_, err := a.CreateSubnet(ctx, vmgp.GroupName, sn.Name, sn.CIDR, routeTableId)
 			if err != nil {

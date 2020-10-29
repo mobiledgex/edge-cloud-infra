@@ -11,7 +11,7 @@ import (
 )
 
 func (a *AwsEc2Platform) GetVpcName() string {
-	outpostVpc := a.awsGenPf.GetOutpostVPC()
+	outpostVpc := a.awsGenPf.GetAwsOutpostVPC()
 	if outpostVpc != "" {
 		return outpostVpc
 	}
@@ -114,16 +114,17 @@ func (a *AwsEc2Platform) GetInternetGateway(ctx context.Context, name string) (*
 	return &gwList.InternetGateways[0], nil
 }
 
-func (a *AwsEc2Platform) CreateInternetGateway(ctx context.Context, vpcName string) error {
+func (a *AwsEc2Platform) CreateInternetGateway(ctx context.Context, vpcName string) (*AwsEc2Gateway, error) {
 	log.SpanLog(ctx, log.DebugLevelInfra, "CreateInternetGateway", "vpcName", vpcName)
 	tagspec := fmt.Sprintf("ResourceType=internet-gateway,Tags=[{Key=%s,Value=%s}]", NameTag, vpcName)
-	_, err := a.GetInternetGateway(ctx, vpcName)
+	gw, err := a.GetInternetGateway(ctx, vpcName)
 	if err == nil {
 		// already exists
-		return err
+		log.SpanLog(ctx, log.DebugLevelInfra, "Internet GW already exists", "vpcName", vpcName)
+		return gw, nil
 	}
 	if !strings.Contains(err.Error(), GatewayDoesNotExistError) {
-		return err
+		return nil, err
 	}
 	out, err := a.awsGenPf.TimedAwsCommand(ctx, "aws",
 		"ec2",
@@ -132,9 +133,17 @@ func (a *AwsEc2Platform) CreateInternetGateway(ctx context.Context, vpcName stri
 		"--tag-specifications", tagspec)
 
 	if err != nil {
-		return fmt.Errorf("Error in creating gateway: %s - %v", string(out), err)
+		return nil, fmt.Errorf("Error in creating gateway: %s - %v", string(out), err)
 	}
-	return nil
+
+	var createdGW AwsEc2GatewayCreateResult
+	err = json.Unmarshal(out, &createdGW)
+	if err != nil {
+		log.SpanLog(ctx, log.DebugLevelInfra, "aws create-internet-gateway unmarshal fail", "out", string(out), "err", err)
+		return nil, fmt.Errorf("cannot unmarshal, %v", err)
+	}
+	log.SpanLog(ctx, log.DebugLevelInfra, "created Internet GW", "gw", createdGW)
+	return &createdGW.InternetGateway, nil
 }
 
 func (a *AwsEc2Platform) CreateInternetGatewayDefaultRoute(ctx context.Context, vpcName, vpcId string) error {
@@ -398,6 +407,28 @@ func (a *AwsEc2Platform) GetSubnet(ctx context.Context, name string) (*AwsEc2Sub
 	}
 	subnetList.Subnets[0].Name = name
 	return &subnetList.Subnets[0], nil
+}
+
+func (a *AwsEc2Platform) AssignFreeSubnet(ctx context.Context, subnetId, vmGroupName, newName string) error {
+	log.SpanLog(ctx, log.DebugLevelInfra, "AssignFreeSubnet", "subnetId", subnetId, "newName", newName)
+
+	tags := []string{
+		fmt.Sprintf("Key=%s,Value=%s", NameTag, newName),
+		fmt.Sprintf("Key=%s,Value=%s", VMGroupNameTag, vmGroupName),
+	}
+	for _, t := range tags {
+		out, err := a.awsGenPf.TimedAwsCommand(ctx, "aws",
+			"ec2",
+			"create-tags",
+			"--resources", subnetId,
+			"--region", a.awsGenPf.GetAwsRegion(),
+			"--tags", t)
+		log.SpanLog(ctx, log.DebugLevelInfra, "create-tags result", "out", string(out), "err", err)
+		if err != nil {
+			return fmt.Errorf("Error in setting subnet tag %s: %s - %v", t, out, err)
+		}
+	}
+	return nil
 }
 
 // CreateSubnet returns subnetId, error

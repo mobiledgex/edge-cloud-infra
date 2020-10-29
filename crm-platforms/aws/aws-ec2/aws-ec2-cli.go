@@ -81,13 +81,24 @@ type AwsEc2RouteTableCreateResult struct {
 	RouteTable AwsEc2RouteTable
 }
 
+type AwsEc2GatewayAttachent struct {
+	State string
+	Tags  []AwsEc2Tag
+	VpcId string
+}
+
 type AwsEc2Gateway struct {
 	InternetGatewayId string
 	Tags              []AwsEc2Tag
+	Attachments       []AwsEc2GatewayAttachent
 }
 
 type AwsEc2GatewayList struct {
 	InternetGateways []AwsEc2Gateway
+}
+
+type AwsEc2GatewayCreateResult struct {
+	InternetGateway AwsEc2Gateway
 }
 
 type AwsEc2NatGateway struct {

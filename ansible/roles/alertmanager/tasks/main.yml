@@ -44,8 +44,8 @@
     force: no
 
 - name: Copy alertmanager templates file
-  template:
-    src: alertmanager.tmpl.j2
+  copy:
+    content: "{{ lookup('file', 'alertmanager.tmpl') }}\n{{ lookup('template', 'console_url.tmpl.j2') }}"
     dest: "{{ alertmanager_config_path }}/{{ alertmanager_template_file }}"
 
 - name: Load noreply email details from vault

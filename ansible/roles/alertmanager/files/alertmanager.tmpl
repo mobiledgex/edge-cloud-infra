@@ -1,3 +1,6 @@
+# This is mostly taken from https://github.com/prometheus/alertmanager/blob/master/template/default.tmpl with minor modifications
+# TODO - need to write this in a more MobiledgeXy type of an email
+
 {{ define "email.html" }}
 <!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
 <!--
@@ -148,7 +151,5 @@ MobiledX Monitoring System: {{ .Alerts | len }} alert{{ if gt (len .Alerts) 1 }}
   {{ range .Labels.SortedPairs }} • *{{ .Name }}:* {{ .Value }}
   {{ end }}
 {{ end }}{{ end }}
-
-{{ define "console.link" }}https://{{ console_vm_hostname }}{{ end }}
 
 {{ define "slack.fallback" }}[{{ .Status | toUpper }}{{ if eq .Status "firing" }}:{{ .Alerts.Firing | len }}{{ end }}] {{.CommonLabels.alertname}} Application: {{.CommonLabels.app}} Version: {{.CommonLabels.appver}} | {{ template "console.link" .}}{{ end }}

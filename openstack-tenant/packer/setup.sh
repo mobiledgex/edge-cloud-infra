@@ -110,32 +110,32 @@ sudo tee /etc/docker/daemon.json <<EOT
 }
 EOT
 
-log "Setting up APT sources"
-sudo rm -rf /etc/apt/sources.list.d
-sudo tee /etc/apt/sources.list <<EOT
-deb https://artifactory.mobiledgex.net/artifactory/packages cirrus main
-deb https://apt.mobiledgex.net stratus-deps main
-deb https://artifactory.mobiledgex.net/artifactory/ubuntu bionic main restricted universe multiverse
-deb https://artifactory.mobiledgex.net/artifactory/ubuntu bionic-updates main restricted universe multiverse
-deb https://artifactory.mobiledgex.net/artifactory/ubuntu-security bionic-security main restricted universe multiverse
-deb https://apt.mobiledgex.net/nvidia-1804 main main
-EOT
 sudo tee /etc/apt/auth.conf.d/mobiledgex.net.conf <<EOT
 machine artifactory.mobiledgex.net login ${APT_USER} password ${APT_PASS}
 machine apt.mobiledgex.net login ${APT_USER} password ${APT_PASS}
-EOT
-
-log "Disable cloud config overwrite of APT sources"
-sudo tee -a /etc/cloud/cloud.cfg <<EOT
-# Preserve /etc/apt/sources.list
-apt_preserve_sources_list: true
 EOT
 
 log "Set up the APT keys"
 curl -s https://${APT_USER}:${APT_PASS}@artifactory.mobiledgex.net/artifactory/api/gpg/key/public | sudo apt-key add -
 curl -s https://${APT_USER}:${APT_PASS}@apt.mobiledgex.net/gpg.key | sudo apt-key add -
 curl -s -L https://nvidia.github.io/nvidia-docker/gpgkey | sudo apt-key add -
+
+ps -ef | grep cloud
+
+log "Set up APT sources"
+sudo rm -rf /etc/apt/sources.list.d
+sudo tee /etc/apt/sources.list <<EOT
+deb https://apt.mobiledgex.net/cirrus/2020-10-22 bionic main
+deb https://artifactory.mobiledgex.net/artifactory/packages cirrus main
+EOT
 sudo apt-get update
+sudo apt-get upgrade -y
+
+log "Disable cloud config overwrite of APT sources"
+sudo tee -a /etc/cloud/cloud.cfg <<EOT
+# Preserve /etc/apt/sources.list
+apt_preserve_sources_list: true
+EOT
 
 log "Disable snap"
 sudo apt purge -y snapd
@@ -168,6 +168,8 @@ echo iptables-persistent iptables-persistent/autosave_v6 boolean true | sudo deb
 echo iptables-persistent iptables-persistent/autosave_v4 boolean true | sudo debconf-set-selections
 sudo apt-get install -y mobiledgex=${TAG#v}
 [[ $? -ne 0 ]] && die "Failed to install extra packages"
+
+sudo apt-mark hold mobiledgex linux-image-generic linux-image-virtual
 
 if [[ "$OUTPUT_PLATFORM" == vsphere ]]; then
 	log "Adding VMWare cloud-init Guestinfo"
@@ -325,10 +327,6 @@ echo "" | sudo tee /etc/machine-id
 
 # Set up temp directory used by install-k8s-master.sh
 sudo mkdir /var/tmp/k8s-join
-
-log "Cleanup"
-sudo apt-get autoremove -y
-sudo rm -f /var/cache/apt/archives/*.deb
 
 log "Package list"
 dpkg -l

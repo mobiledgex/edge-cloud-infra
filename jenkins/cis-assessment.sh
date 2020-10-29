@@ -141,6 +141,26 @@ IP=$( get_server_ip "$SRVNAME" )
 # Give the VM some time to bring SSH up
 sleep 30
 
+# Download list of installed packages
+COUNT=10
+PKGLIST="$TMPDIR/pkglist.txt"
+while (( COUNT > 0 )); do
+	sshpass -p "$TESTPASS" ssh -o "UserKnownHostsFile=/dev/null" \
+		-o "StrictHostKeyChecking=no" ubuntu@${IP} \
+		apt list --installed >"$PKGLIST"
+	[[ $? -eq 0 ]] && break
+
+	rm -f "$PKGLIST"
+	COUNT=$(( COUNT - 1 ))
+	sleep 5
+done
+[[ -f "$PKGLIST" ]] || die "Failed to get package list"
+
+PKGLIST_URL="$( dirname $BASE_IMAGE_URL )/pkglists/$( basename $BASE_IMAGE_URL .qcow2 ).txt"
+
+log "Publish package list to Artifactory: $PKGLIST_URL"
+publish_report "$PKGLIST" "$PKGLIST_URL"
+
 cd "$HOME/Assessor-CLI"
 cat >config/sessions.properties <<EOT
 session.1.type=ssh

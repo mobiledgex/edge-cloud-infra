@@ -281,7 +281,6 @@ func (vp *VMProperties) GetCloudletFlavorMatchPattern() string {
 
 func (vp *VMProperties) GetSkipInstallResourceTracker() bool {
 	value, _ := vp.CommonPf.Properties.GetValue("SKIP_INSTALL_RESOURCE_TRACKER")
-	log.WarnLog("WTF", "value", value)
 	return strings.ToLower(value) == "true"
 }
 

@@ -247,7 +247,7 @@ func (s *OpenstackPlatform) ListFlavors(ctx context.Context) ([]OSFlavorDetail, 
 }
 
 func (s *OpenstackPlatform) ListAZones(ctx context.Context) ([]OSAZone, error) {
-	out, err := s.TimedOpenStackCommand(ctx, "openstack", "availability", "zone", "list", "--compute", "-f", "json")
+	out, err := s.TimedOpenStackCommand(ctx, "openstack", "availability", "zone", "list", "-f", "json")
 	if err != nil {
 		err = fmt.Errorf("cannot get availability zone list, %s, %v", out, err)
 		return nil, err
@@ -869,15 +869,9 @@ func (s *OpenstackPlatform) OSGetLimits(ctx context.Context, info *edgeproto.Clo
 		}
 	}
 
-	finfo, azlist, _, err := s.GetFlavorInfo(ctx)
+	finfo, _, _, err := s.GetFlavorInfo(ctx)
 	if err != nil {
 		return err
-	}
-	for _, az := range azlist {
-		var edgeaz edgeproto.OSAZone
-		edgeaz.Name = az.Name
-		edgeaz.Status = az.Status
-		info.AvailabilityZones = append(info.AvailabilityZones, &edgeaz)
 	}
 	info.Flavors = finfo
 	return nil

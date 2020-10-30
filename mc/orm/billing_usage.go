@@ -2,7 +2,6 @@ package orm
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
 	"time"
 
@@ -16,7 +15,7 @@ import (
 var retryMax = 3
 var retryPercentage = 0.05 // this number is a percentage, so that the retryInterval is based off of the collectionInterval
 
-var InfluxMinimumTimestamp, _ = time.Parse(time.RFC3339, "1677-09-21T00:13:44Z")
+var InfluxMinimumTimestamp, _ = time.Parse(time.RFC3339, "2000-00-00T00:00:00Z")
 
 func CollectBillingUsage(ctx context.Context, collectInterval time.Duration) {
 	retryInterval := 5 * time.Minute
@@ -55,6 +54,7 @@ func CollectBillingUsage(ctx context.Context, collectInterval time.Duration) {
 			}
 			// get usage from every region
 			for region, _ := range regions {
+				fmt.Printf("region: %s\n", region)
 				recordRegionUsage(ctx, region, prevCollectTime, nextCollectTime)
 			}
 			prevCollectTime = nextCollectTime
@@ -130,14 +130,14 @@ func recordAppUsages(ctx context.Context, usage *ormapi.MetricData) {
 				},
 			},
 		}
-		startTime, err := time.Parse(time.RFC3339, fmt.Sprintf("%v", value[10]))
-		if err != nil {
-			log.SpanLog(ctx, log.DebugLevelInfo, "Unable to parse time", "err", err)
+		startTime, ok := value[10].(time.Time)
+		if !ok {
+			log.SpanLog(ctx, log.DebugLevelInfo, "Unable to parse time", "starttime", value[10])
 			continue
 		}
-		endTime, err := time.Parse(time.RFC3339, fmt.Sprintf("%v", value[11]))
-		if err != nil {
-			log.SpanLog(ctx, log.DebugLevelInfo, "Unable to parse time", "err", err)
+		endTime, ok := value[11].(time.Time)
+		if !ok {
+			log.SpanLog(ctx, log.DebugLevelInfo, "Unable to parse time", "endtime", value[11])
 			continue
 		}
 		newRecord := billing.UsageRecord{
@@ -182,19 +182,19 @@ func recordClusterUsages(ctx context.Context, usage *ormapi.MetricData) {
 				Organization: fmt.Sprintf("%v", value[4]),
 			},
 		}
-		startTime, err := time.Parse(time.RFC3339, fmt.Sprintf("%v", value[8]))
-		if err != nil {
-			log.SpanLog(ctx, log.DebugLevelInfo, "Unable to parse time", "err", err)
+		startTime, ok := value[8].(time.Time)
+		if !ok {
+			log.SpanLog(ctx, log.DebugLevelInfo, "Unable to parse time", "starttime", value[8])
 			continue
 		}
-		endTime, err := time.Parse(time.RFC3339, fmt.Sprintf("%v", value[9]))
-		if err != nil {
-			log.SpanLog(ctx, log.DebugLevelInfo, "Unable to parse time", "err", err)
+		endTime, ok := value[9].(time.Time)
+		if !ok {
+			log.SpanLog(ctx, log.DebugLevelInfo, "Unable to parse time", "endtime", value[9])
 			continue
 		}
-		nodeCount, err := value[6].(json.Number).Int64()
-		if err != nil {
-			log.SpanLog(ctx, log.DebugLevelInfo, "Unable to parse nodecount", "err", err)
+		nodeCount, ok := value[6].(int64)
+		if !ok {
+			log.SpanLog(ctx, log.DebugLevelInfo, "Unable to parse nodecount", "nodecount", value[6])
 			continue
 		}
 		newRecord := billing.UsageRecord{

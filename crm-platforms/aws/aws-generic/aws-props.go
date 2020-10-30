@@ -49,7 +49,7 @@ var AWSProps = map[string]*edgeproto.PropertyInfo{
 	},
 	"AWS_OUTPOST_FLAVORS": {
 		Name:        "AWS Outpost Flavors",
-		Description: "AWS Outpost Flavors in format flavor1,vcpu,ram,disk;flavor2.. e.g. c5.large,2,4096,20;c5.xlarge,4,8192,40",
+		Description: "AWS Outpost Flavors in format flavor1,vcpu,ram,disk;flavor2.. e.g. c5.large,2,4096,40;c5.xlarge,4,8192,40",
 	},
 }
 

@@ -197,6 +197,7 @@ type AwsEc2NetworkInterfaceCreateResult struct {
 
 type AwsEc2Ebs struct {
 	DeleteOnTermination bool
+	VolumeSize          uint64 `json:"VolumeSize,omitempty"`
 	Status              string `json:"Status,omitempty"`
 }
 

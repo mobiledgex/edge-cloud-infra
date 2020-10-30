@@ -301,6 +301,7 @@ func WithSkipCleanupOnFailure(skip bool) VMGroupReqOp {
 type SubnetOrchestrationParams struct {
 	Id                string
 	Name              string
+	ReservedName      string
 	NetworkName       string
 	CIDR              string
 	NodeIPPrefix      string

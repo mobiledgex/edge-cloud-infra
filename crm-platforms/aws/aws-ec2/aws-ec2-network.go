@@ -10,6 +10,9 @@ import (
 	"github.com/mobiledgex/edge-cloud/log"
 )
 
+const FreeInternalSubnetType string = "free-internal"
+const FreeExternalSubnetType string = "free-external"
+
 func (a *AwsEc2Platform) GetVpcName() string {
 	outpostVpc := a.awsGenPf.GetAwsOutpostVPC()
 	if outpostVpc != "" {
@@ -409,28 +412,6 @@ func (a *AwsEc2Platform) GetSubnet(ctx context.Context, name string) (*AwsEc2Sub
 	return &subnetList.Subnets[0], nil
 }
 
-func (a *AwsEc2Platform) AssignFreeSubnet(ctx context.Context, subnetId, vmGroupName, newName string) error {
-	log.SpanLog(ctx, log.DebugLevelInfra, "AssignFreeSubnet", "subnetId", subnetId, "newName", newName)
-
-	tags := []string{
-		fmt.Sprintf("Key=%s,Value=%s", NameTag, newName),
-		fmt.Sprintf("Key=%s,Value=%s", VMGroupNameTag, vmGroupName),
-	}
-	for _, t := range tags {
-		out, err := a.awsGenPf.TimedAwsCommand(ctx, "aws",
-			"ec2",
-			"create-tags",
-			"--resources", subnetId,
-			"--region", a.awsGenPf.GetAwsRegion(),
-			"--tags", t)
-		log.SpanLog(ctx, log.DebugLevelInfra, "create-tags result", "out", string(out), "err", err)
-		if err != nil {
-			return fmt.Errorf("Error in setting subnet tag %s: %s - %v", t, out, err)
-		}
-	}
-	return nil
-}
-
 // CreateSubnet returns subnetId, error
 func (a *AwsEc2Platform) CreateSubnet(ctx context.Context, vmGroupName, name string, cidr string, routeTableId string) (string, error) {
 	log.SpanLog(ctx, log.DebugLevelInfra, "CreateSubnet", "vmGroupName", vmGroupName, "name", name, "routeTableId", routeTableId)
@@ -576,4 +557,74 @@ func (a *AwsEc2Platform) CreateNatGateway(ctx context.Context, subnetId, elastic
 		time.Sleep(5 * time.Second)
 	}
 	return createdNg.NatGateway.NatGatewayId, nil
+}
+
+// AssignFreePrecreatedSubnet sets a new name and group tag to denote that the subnet is being used
+func (a *AwsEc2Platform) AssignFreePrecreatedSubnet(ctx context.Context, subnetId, vmGroupName, newName string) error {
+	log.SpanLog(ctx, log.DebugLevelInfra, "AssignFreePrecreatedSubnet", "subnetId", subnetId, "newName", newName)
+
+	tags := []string{
+		fmt.Sprintf("Key=%s,Value=%s", NameTag, newName),
+		fmt.Sprintf("Key=%s,Value=%s", VMGroupNameTag, vmGroupName),
+	}
+	for _, t := range tags {
+		out, err := a.awsGenPf.TimedAwsCommand(ctx, "aws",
+			"ec2",
+			"create-tags",
+			"--resources", subnetId,
+			"--region", a.awsGenPf.GetAwsRegion(),
+			"--tags", t)
+		log.SpanLog(ctx, log.DebugLevelInfra, "create-tags result", "out", string(out), "err", err)
+		if err != nil {
+			return fmt.Errorf("Error in setting subnet tag %s: %s - %v", t, out, err)
+		}
+	}
+	return nil
+}
+
+// ReleasePrecreatedSubnet removes the group tag and sets the name tag back to free-<type>
+func (a *AwsEc2Platform) ReleasePrecreatedSubnet(ctx context.Context, subnetId, vmGroupName, subnetType string) error {
+	log.SpanLog(ctx, log.DebugLevelInfra, "ReleasePrecreatedSubnet", "subnetId", subnetId, "subnetType", subnetType)
+
+	nameTag := fmt.Sprintf("Key=%s,Value=%s", NameTag, subnetType+"-"+subnetId)
+	groupTag := fmt.Sprintf("Key=%s,Value=%s", VMGroupNameTag, vmGroupName)
+
+	out, err := a.awsGenPf.TimedAwsCommand(ctx, "aws",
+		"ec2",
+		"create-tags",
+		"--resources", subnetId,
+		"--region", a.awsGenPf.GetAwsRegion(),
+		"--tags", nameTag)
+	if err != nil {
+		return fmt.Errorf("Error in setting subnet name tag %s: %s - %v", nameTag, out, err)
+	}
+	out, err = a.awsGenPf.TimedAwsCommand(ctx, "aws",
+		"ec2",
+		"delete-tags",
+		"--resources", subnetId,
+		"--region", a.awsGenPf.GetAwsRegion(),
+		"--tags", groupTag)
+	if err != nil {
+		return fmt.Errorf("Error in deleting subnet group tag %s: %s - %v", groupTag, out, err)
+	}
+
+	return nil
+}
+
+// GetFreePrecreatedSubnet finds a free pre-created subnet of the given type and then assigns it
+func (a *AwsEc2Platform) GetFreePrecreatedSubnet(ctx context.Context, subnetName, subnetType, vmGroupName string, subnets map[string]*AwsEc2Subnet) error {
+	log.SpanLog(ctx, log.DebugLevelInfra, "GetFreePrecreatedSubnet", "subnetName", subnetName)
+
+	for sname := range subnets {
+		// first look for the existing one
+		if sname == subnetName {
+			return nil
+		}
+	}
+	for sname, subnet := range subnets {
+		if strings.HasPrefix(sname, subnetType) {
+			return a.AssignFreePrecreatedSubnet(ctx, subnet.SubnetId, vmGroupName, subnetName)
+		}
+	}
+	return fmt.Errorf("No free subnet found for type %s", subnetType)
 }

@@ -141,28 +141,13 @@ func (a *AwsEc2Platform) InitProvider(ctx context.Context, caches *platform.Cach
 	extSubnetName := a.VMProperties.GetCloudletExternalNetwork()
 	if a.awsGenPf.IsAwsOutpost() {
 		updateCallback(edgeproto.UpdateTask, "Assigning Subnet")
-
 		subnets, err := a.GetSubnets(ctx)
 		if err != nil {
 			return err
 		}
-		found := false
-		for sname, subnet := range subnets {
-			if sname == extSubnetName {
-				found = true
-				break
-			}
-			if strings.HasPrefix(sname, "free-external") {
-				err = a.AssignFreeSubnet(ctx, subnet.SubnetId, vpcName, extSubnetName)
-				if err != nil {
-					return err
-				}
-				found = true
-				break
-			}
-		}
-		if !found {
-			return fmt.Errorf("unable to find free external subnet for outpost")
+		err = a.GetFreePrecreatedSubnet(ctx, extSubnetName, FreeExternalSubnetType, vpcName, subnets)
+		if err != nil {
+			return err
 		}
 	} else {
 		updateCallback(edgeproto.UpdateTask, "Creating Subnet")
@@ -203,11 +188,7 @@ func (a *AwsEc2Platform) PrepareRootLB(ctx context.Context, client ssh.Client, r
 
 func (a *AwsEc2Platform) GatherCloudletInfo(ctx context.Context, info *edgeproto.CloudletInfo) error {
 	if a.awsGenPf.IsAwsOutpost() {
-		err := a.GetOutpostFlavors(ctx, info)
-		if err != nil {
-			return err
-		}
-		return a.GetOutpostFlavors(ctx, info)
+		return a.GetOutpostFlavorsForCloudletInfo(ctx, info)
 	} else {
 		return a.awsGenPf.GatherCloudletInfo(ctx, a.VMProperties.GetCloudletFlavorMatchPattern(), info)
 	}
@@ -217,7 +198,7 @@ func (a *AwsEc2Platform) GetFlavorList(ctx context.Context) ([]*edgeproto.Flavor
 	log.SpanLog(ctx, log.DebugLevelInfra, "GetFlavorList ")
 	var info edgeproto.CloudletInfo
 	if a.awsGenPf.IsAwsOutpost() {
-		err := a.GetOutpostFlavors(ctx, &info)
+		err := a.GetOutpostFlavorsForCloudletInfo(ctx, &info)
 		if err != nil {
 			return nil, err
 		}
@@ -226,8 +207,8 @@ func (a *AwsEc2Platform) GetFlavorList(ctx context.Context) ([]*edgeproto.Flavor
 	return a.awsGenPf.GetFlavorList(ctx, a.VMProperties.GetCloudletFlavorMatchPattern())
 }
 
-func (a *AwsEc2Platform) GetOutpostFlavors(ctx context.Context, info *edgeproto.CloudletInfo) error {
-	log.SpanLog(ctx, log.DebugLevelInfra, "GetOutpostFlavors")
+func (a *AwsEc2Platform) GetOutpostFlavorsForCloudletInfo(ctx context.Context, info *edgeproto.CloudletInfo) error {
+	log.SpanLog(ctx, log.DebugLevelInfra, "GetOutpostFlavorsForCloudletInfo")
 	flavs := a.awsGenPf.GetAwsOutpostFlavors()
 	if flavs == "" {
 		return fmt.Errorf("AWS_OUTPOST_FLAVORS not set")

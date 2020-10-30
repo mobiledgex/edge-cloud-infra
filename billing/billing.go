@@ -9,14 +9,15 @@ import (
 const CUSTOMER_TYPE_PARENT = "parent"
 const CUSTOMER_TYPE_CHILD = "child"
 const CUSTOMER_TYPE_SELF = "self"
+const PAYMENT_TYPE_CC = "credit_card"
 
 type AccountInfo struct {
-	OrgName           string `gorm:"primary_key;type:citext"`
-	AccountId         string
-	SubscriptionId    string
-	ParentId          string
-	Type              string
-	LastManualRefresh time.Time
+	OrgName               string `gorm:"primary_key;type:citext"`
+	AccountId             string
+	SubscriptionId        string
+	ParentId              string
+	Type                  string
+	DefaultPaymentProfile int
 }
 
 type CustomerDetails struct {
@@ -36,6 +37,12 @@ type CustomerDetails struct {
 	ParentId  string
 }
 
+type PaymentMethod struct {
+	PaymentType    string
+	PaymentProfile int
+	CreditCard     CreditCard
+}
+
 type CreditCard struct {
 	FirstName       string
 	LastName        string
@@ -43,6 +50,7 @@ type CreditCard struct {
 	CardType        string
 	ExpirationMonth int
 	ExpirationYear  int
+	Cvv             int
 	BillingAddress  string
 	BillingAddress2 string
 	City            string
@@ -66,7 +74,7 @@ type BillingService interface {
 	// The Billing service's type ie. "chargify" or "zuora"
 	GetType() string
 	// Create Customer
-	CreateCustomer(customer *CustomerDetails, account *AccountInfo) error
+	CreateCustomer(customer *CustomerDetails, account *AccountInfo, payment *PaymentMethod) error
 	// Delete Customer
 	DeleteCustomer(account *AccountInfo) error
 	// Update Customer
@@ -74,7 +82,7 @@ type BillingService interface {
 	// Add a child to a parent
 	AddChild(parentAccount, childAccount *AccountInfo, childDetails *CustomerDetails) error
 	// Remove a child from a parent
-	RemoveChild(child *AccountInfo) error
+	RemoveChild(parent, child *AccountInfo) error
 	// Records usage
 	RecordUsage(account *AccountInfo, usageRecords []UsageRecord) error
 }

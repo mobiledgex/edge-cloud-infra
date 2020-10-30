@@ -11,7 +11,7 @@ import (
 	"github.com/mobiledgex/edge-cloud/edgeproto"
 )
 
-func RecordUsage(account *billing.AccountInfo, usageRecords []billing.UsageRecord) error {
+func (bs *BillingService) RecordUsage(account *billing.AccountInfo, usageRecords []billing.UsageRecord) error {
 	for _, record := range usageRecords {
 		var memo string
 		var cloudlet *edgeproto.CloudletKey
@@ -39,7 +39,7 @@ func RecordUsage(account *billing.AccountInfo, usageRecords []billing.UsageRecor
 		if resp.StatusCode != http.StatusOK {
 			errorResp := ErrorResp{}
 			err = json.NewDecoder(resp.Body).Decode(&errorResp)
-			if err != nil {
+			if err != nil || resp.StatusCode != http.StatusOK {
 				return fmt.Errorf("Error parsing response: %v\n", err)
 			}
 			combineErrors(&errorResp)

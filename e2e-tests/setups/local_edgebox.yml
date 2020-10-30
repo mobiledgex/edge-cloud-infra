@@ -111,6 +111,8 @@ mcs:
   alertmgrapiaddr: "https://127.0.0.1:9094"
   apitlscert: "{{tlsoutdir}}/mex-server.crt"
   apitlskey: "{{tlsoutdir}}/mex-server.key"
+  usagecollectioninterval: 3m
+  billingpath: foo
   envvars:
     E2ETEST_TLS: true
 

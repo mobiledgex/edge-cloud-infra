@@ -165,8 +165,9 @@ func RecordClusterUsages(ctx context.Context, resp *client.Response) {
 			CloudletKey:  edgeproto.CloudletKey{Name: cloudlet, Organization: cloudletorg},
 		}
 		var accountInfo *zuora.AccountInfo
-		accountInfo, err := orm.GetAccountObj(ctx, org)
-		if er != nil {
+		var err error
+		//accountInfo, err := orm.GetAccountObj(ctx, org)
+		if err != nil {
 			log.SpanLog(ctx, log.DebugLevelInfo, "Unable to get account info", "org", org, "err", err)
 		} else {
 			err = zuora.RecordUsage(accountInfo, key, zuora.UsageTypeCluster, flavor, start, end, uptime)
@@ -205,7 +206,8 @@ func RecordAppUsages(ctx context.Context, resp *client.Response) {
 			},
 		}
 		var accountInfo *zuora.AccountInfo
-		accountInfo, err := orm.GetAccountObj(ctx, org)
+		var err error
+		//accountInfo, err := orm.GetAccountObj(ctx, org)
 		if err != nil {
 			log.SpanLog(ctx, log.DebugLevelInfo, "Unable to get account info", "org", org, "err", err)
 		} else {

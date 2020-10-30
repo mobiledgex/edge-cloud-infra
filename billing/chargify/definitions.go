@@ -1,8 +1,13 @@
 package chargify
 
 var apiKey = "iZeTKWjZhKvXMZUgOwP4GiJvYWXmxgykUDnA5F2R4" //TODO: put this into vault
+var apiPassword = "x"                                    // password to go with apiKey in basic auth for http. This is always x, the apiKey is what changes
 var siteName = "https://mobiledgex-dev.chargify.com"
 var publicEdgeProductHandle = "publicedge"
+
+var paymentTypeCC = "credit_card"
+var paymentTypeBank = "bank_account"
+var paymentTypePP = "paypal_account"
 
 type ErrorResp struct {
 	Error  string   `json:"error,omitempty"`
@@ -90,6 +95,7 @@ type Subscription struct {
 	ProductPriceInCents         int                `json:"product_price_in_cents,omitempty"`
 	ProductVersionNumber        int                `json:"product_version_number,omitempty"`
 	PaymentType                 string             `json:"payment_type,omitempty"`
+	PaymentProfileId            string             `json:"payment_profile_id,omitempty"`
 	ReferralCode                string             `json:"referral_code,omitempty"`
 	CouponUseCount              int                `json:"coupon_use_count,omitempty"`
 	CouponUsesAllowed           int                `json:"coupon_uses_allowed,omitempty"`
@@ -171,4 +177,27 @@ type UsageWrapper struct {
 type Usage struct {
 	Quantity int    `json:"quantity,omitempty"`
 	Memo     string `json:"memo,omitempty"`
+}
+
+type PaymentProfileWrapper struct {
+	PaymentProfile *PaymentProfile `json:"payment_profile,omitempty"`
+}
+
+type PaymentProfile struct {
+	PaymentType     string `json:"payment_type,omitempty"`
+	CustomerId      int    `json:"customer_id,omitempty"`
+	FirstName       string `json:"first_name,omitempty"`
+	LastName        string `json:"last_name,omitempty"`
+	FullNumber      string `json:"full_number,omitempty"`
+	ExpirationMonth int    `json:"expiration_month,omitempty"`
+	ExpirationYear  int    `json:"expiration_year,omitempty"`
+	Cvv             int    `json:"cvv,omitempty"`
+	BillingAddress  string `json:"billing_address,omitempty"`
+	BillingAddress2 string `json:"billing_address2,omitempty"`
+	BillingCity     string `json:"billing_city,omitempty"`
+	BillingState    string `json:"billing_state,omitempty"`
+	BillingZip      string `json:"billing_zip,omitempty"`
+	BillingCountry  string `json:"billing_country,omitempty"`
+	CardType        string `json:"card_type,omitempty"`
+	Id              int    `json:"id,omitempty"`
 }

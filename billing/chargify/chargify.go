@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"strings"
 )
 
 type BillingService struct{}
@@ -27,13 +28,18 @@ func newChargifyReq(method, endpoint string, payload interface{}) (*http.Respons
 			return nil, fmt.Errorf("Could not marshal %+v, err: %v", payload, err)
 		}
 		body = bytes.NewReader(marshalled)
+	} else {
+		body = strings.NewReader("{}")
 	}
+	fmt.Printf("payload: %s\n%s\n", url, body)
 	req, err := http.NewRequest(method, url, body)
 	if err != nil {
 		return nil, fmt.Errorf("Error creating request: %v\n", err)
 	}
-	req.Header.Add("Authorization", "Basic "+apiKey)
-	req.Header.Set("Content-Type", "application/json")
+	req.SetBasicAuth(apiKey, apiPassword)
+	if payload != nil {
+		req.Header.Set("Content-Type", "application/json")
+	}
 
 	client := &http.Client{}
 	return client.Do(req)

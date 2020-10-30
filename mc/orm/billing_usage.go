@@ -2,10 +2,15 @@ package orm
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"time"
 
+	"github.com/mobiledgex/edge-cloud-infra/billing"
+	"github.com/mobiledgex/edge-cloud-infra/mc/ormapi"
+	"github.com/mobiledgex/edge-cloud/edgeproto"
 	"github.com/mobiledgex/edge-cloud/log"
+	opentracing "github.com/opentracing/opentracing-go"
 )
 
 var retryMax = 3
@@ -16,9 +21,9 @@ var InfluxMinimumTimestamp, _ = time.Parse(time.RFC3339, "1677-09-21T00:13:44Z")
 func CollectBillingUsage(ctx context.Context, collectInterval time.Duration) {
 	retryInterval := 5 * time.Minute
 	prevCollectTime := InfluxMinimumTimestamp
-	nextCollectTime := nextCollectTime(time.Now(), collectInterval)
+	nextCollectTime := getNextCollectTime(time.Now(), collectInterval)
 	if collectInterval.Seconds() > float64(0) {
-		retryInterval = time.Duration(retryPercentage * float64(usageInterval))
+		retryInterval = time.Duration(retryPercentage * float64(collectInterval))
 	}
 	for {
 		select {
@@ -37,9 +42,8 @@ func CollectBillingUsage(ctx context.Context, collectInterval time.Duration) {
 					retryCount = retryCount + 1
 				}
 				if err != nil {
-					unsuccessfulCollects = unsuccessfulCollects + 1
 					log.SpanLog(ctx, log.DebugLevelInfo, "Unable to get regions to query influx, waiting until next collection period", "err", err)
-					nextCollectTime = nextCollectTime(nextCollectTime, collectInterval)
+					nextCollectTime = getNextCollectTime(nextCollectTime, collectInterval)
 					span.Finish()
 					continue
 				}
@@ -54,7 +58,7 @@ func CollectBillingUsage(ctx context.Context, collectInterval time.Duration) {
 				recordRegionUsage(ctx, region, prevCollectTime, nextCollectTime)
 			}
 			prevCollectTime = nextCollectTime
-			nextCollectTime = nextCollectTime(nextCollectTime, collectInterval)
+			nextCollectTime = getNextCollectTime(nextCollectTime, collectInterval)
 			span.Finish()
 		}
 	}
@@ -70,14 +74,14 @@ func recordRegionUsage(ctx context.Context, region string, start, end time.Time)
 	}
 	eventCmd := AppInstUsageEventsQuery(&appIn)
 	checkpointCmd := AppInstCheckpointsQuery(&appIn)
-	eventResp, checkResp, err := GetEventAndCheckpoint(ctx, rc, eventCmd, checkpointCmd)
+	eventResp, checkResp, err := GetEventAndCheckpoint(ctx, &rc, eventCmd, checkpointCmd)
 	if err != nil {
-		log.SpanLog(ctx, "Error gathering app usage for billing", "region", region, "err", err)
+		log.SpanLog(ctx, log.DebugLevelInfo, "Error gathering app usage for billing", "region", region, "err", err)
 		return
 	}
-	appUsage, err = GetAppUsage(eventResp, checkResp, appIn.StartTime, appIn.EndTime, appIn.Region)
+	appUsage, err := GetAppUsage(eventResp, checkResp, appIn.StartTime, appIn.EndTime, appIn.Region)
 	if err != nil {
-		log.SpanLog(ctx, "Error parsing app usage for billing", "region", region, "err", err)
+		log.SpanLog(ctx, log.DebugLevelInfo, "Error parsing app usage for billing", "region", region, "err", err)
 		return
 	}
 	recordAppUsages(ctx, appUsage)
@@ -89,14 +93,14 @@ func recordRegionUsage(ctx context.Context, region string, start, end time.Time)
 	}
 	eventCmd = ClusterUsageEventsQuery(&clusterIn)
 	checkpointCmd = ClusterCheckpointsQuery(&clusterIn)
-	eventResp, checkResp, err := GetEventAndCheckpoint(ctx, rc, eventCmd, checkpointCmd)
+	eventResp, checkResp, err = GetEventAndCheckpoint(ctx, &rc, eventCmd, checkpointCmd)
 	if err != nil {
-		log.SpanLog(ctx, "Error gathering cluster usage for billing", "region", region, "err", err)
+		log.SpanLog(ctx, log.DebugLevelInfo, "Error gathering cluster usage for billing", "region", region, "err", err)
 		return
 	}
-	clusterUsage, err = GetClusterUsage(eventResp, checkResp, clusterIn.StartTime, clusterIn.EndTime, clusterIn.Region)
+	clusterUsage, err := GetClusterUsage(eventResp, checkResp, clusterIn.StartTime, clusterIn.EndTime, clusterIn.Region)
 	if err != nil {
-		log.SpanLog(ctx, "Error parsing cluster usage for billing", "region", region, "err", err)
+		log.SpanLog(ctx, log.DebugLevelInfo, "Error parsing cluster usage for billing", "region", region, "err", err)
 		return
 	}
 	recordClusterUsages(ctx, clusterUsage)
@@ -104,31 +108,40 @@ func recordRegionUsage(ctx context.Context, region string, start, end time.Time)
 
 func recordAppUsages(ctx context.Context, usage *ormapi.MetricData) {
 	orgTracker := make(map[string][]billing.UsageRecord)
-	if len(usage.Series[0]) == 0 {
+	if len(usage.Series) == 0 {
 		// techincally if GetAppUsage doesnt fail, this should be impossible, but check anyway so we dont crash if it did happen
 		log.SpanLog(ctx, log.DebugLevelInfo, "Invalid app usage")
+		return
 	}
 	for _, value := range usage.Series[0].Values {
 		// ordering is from appInstDataColumns
 		newAppInst := edgeproto.AppInstKey{
 			AppKey: edgeproto.AppKey{
-				Name:         value[1],
-				Organization: value[2],
-				Version:      value[3],
+				Name:         fmt.Sprintf("%v", value[1]),
+				Organization: fmt.Sprintf("%v", value[2]),
+				Version:      fmt.Sprintf("%v", value[3]),
 			},
 			ClusterInstKey: edgeproto.ClusterInstKey{
-				Organization: value[5],
-				ClusterKey:   edgeproto.ClusterKey{Name: value[4]},
+				Organization: fmt.Sprintf("%v", value[5]),
+				ClusterKey:   edgeproto.ClusterKey{Name: fmt.Sprintf("%v", value[4])},
 				CloudletKey: edgeproto.CloudletKey{
-					Name:         value[6],
-					Organization: value[7],
+					Name:         fmt.Sprintf("%v", value[6]),
+					Organization: fmt.Sprintf("%v", value[7]),
 				},
 			},
 		}
-		startTime := time.Parse(time.RFC3339, value[10])
-		endTime := time.Parse(time.RFC3339, value[11])
+		startTime, err := time.Parse(time.RFC3339, fmt.Sprintf("%v", value[10]))
+		if err != nil {
+			log.SpanLog(ctx, log.DebugLevelInfo, "Unable to parse time", "err", err)
+			continue
+		}
+		endTime, err := time.Parse(time.RFC3339, fmt.Sprintf("%v", value[11]))
+		if err != nil {
+			log.SpanLog(ctx, log.DebugLevelInfo, "Unable to parse time", "err", err)
+			continue
+		}
 		newRecord := billing.UsageRecord{
-			FlavorName: value[8],
+			FlavorName: fmt.Sprintf("%v", value[8]),
 			NodeCount:  1,
 			AppInst:    &newAppInst,
 			StartTime:  startTime,
@@ -139,9 +152,10 @@ func recordAppUsages(ctx context.Context, usage *ormapi.MetricData) {
 	}
 	for org, record := range orgTracker {
 		var accountInfo *billing.AccountInfo
-		accountInfo, err := orm.GetAccountObj(ctx, org)
-		if er != nil {
+		accountInfo, err := GetAccountObj(ctx, org)
+		if err != nil {
 			log.SpanLog(ctx, log.DebugLevelInfo, "Unable to get account info", "org", org, "err", err)
+			continue
 		} else {
 			err = serverConfig.BillingService.RecordUsage(accountInfo, record)
 			if err != nil {
@@ -153,26 +167,39 @@ func recordAppUsages(ctx context.Context, usage *ormapi.MetricData) {
 
 func recordClusterUsages(ctx context.Context, usage *ormapi.MetricData) {
 	orgTracker := make(map[string][]billing.UsageRecord)
-	if len(usage.Series[0]) == 0 {
+	if len(usage.Series) == 0 {
 		// techincally if GetClusterUsage doesnt fail, this should be impossible, but check anyway so we dont crash if it did happen
 		log.SpanLog(ctx, log.DebugLevelInfo, "Invalid cluster usage")
+		return
 	}
 	for _, value := range usage.Series[0].Values {
 		// ordering is from clusterInstDataColumns
 		newClusterInst := edgeproto.ClusterInstKey{
-			Organization: value[2],
-			ClusterKey:   edgeproto.ClusterKey{Name: value[1]},
+			Organization: fmt.Sprintf("%v", value[2]),
+			ClusterKey:   edgeproto.ClusterKey{Name: fmt.Sprintf("%v", value[1])},
 			CloudletKey: edgeproto.CloudletKey{
-				Name:         value[3],
-				Organization: value[4],
+				Name:         fmt.Sprintf("%v", value[3]),
+				Organization: fmt.Sprintf("%v", value[4]),
 			},
 		}
-		startTime := time.Parse(time.RFC3339, value[8])
-		endTime := time.Parse(time.RFC3339, value[9])
-		nodeCount, _ := strconv.Atoi(value[6])
+		startTime, err := time.Parse(time.RFC3339, fmt.Sprintf("%v", value[8]))
+		if err != nil {
+			log.SpanLog(ctx, log.DebugLevelInfo, "Unable to parse time", "err", err)
+			continue
+		}
+		endTime, err := time.Parse(time.RFC3339, fmt.Sprintf("%v", value[9]))
+		if err != nil {
+			log.SpanLog(ctx, log.DebugLevelInfo, "Unable to parse time", "err", err)
+			continue
+		}
+		nodeCount, err := value[6].(json.Number).Int64()
+		if err != nil {
+			log.SpanLog(ctx, log.DebugLevelInfo, "Unable to parse nodecount", "err", err)
+			continue
+		}
 		newRecord := billing.UsageRecord{
-			FlavorName:  value[5],
-			NodeCount:   nodeCount,
+			FlavorName:  fmt.Sprintf("%v", value[5]),
+			NodeCount:   int(nodeCount),
 			ClusterInst: &newClusterInst,
 			StartTime:   startTime,
 			EndTime:     endTime,
@@ -182,9 +209,10 @@ func recordClusterUsages(ctx context.Context, usage *ormapi.MetricData) {
 	}
 	for org, record := range orgTracker {
 		var accountInfo *billing.AccountInfo
-		accountInfo, err := orm.GetAccountObj(ctx, org)
-		if er != nil {
+		accountInfo, err := GetAccountObj(ctx, org)
+		if err != nil {
 			log.SpanLog(ctx, log.DebugLevelInfo, "Unable to get account info", "org", org, "err", err)
+			continue
 		} else {
 			err = serverConfig.BillingService.RecordUsage(accountInfo, record)
 			if err != nil {
@@ -194,7 +222,7 @@ func recordClusterUsages(ctx context.Context, usage *ormapi.MetricData) {
 	}
 }
 
-func nextCollectTime(now time.Time, collectInterval time.Duration) time.Time {
+func getNextCollectTime(now time.Time, collectInterval time.Duration) time.Time {
 	if collectInterval.Seconds() > float64(0) { // if positive, use it
 		return now.Truncate(collectInterval).Add(collectInterval) // truncate it so the times are nice
 	}

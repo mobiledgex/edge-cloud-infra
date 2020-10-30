@@ -17,8 +17,8 @@ import (
 	"github.com/mobiledgex/edge-cloud/log"
 )
 
-deleteTypeChild = "child"
-deleteTypeSelf = "self"
+var deleteTypeChild = "child"
+var deleteTypeSelf = "self"
 
 func CreateBillingOrg(c echo.Context) error {
 	claims, err := getClaims(c)
@@ -26,7 +26,7 @@ func CreateBillingOrg(c echo.Context) error {
 		return err
 	}
 	ctx := GetContext(c)
-	org := ormapi.BillingOrganization{}
+	org := ormapi.CreateBillingOrganization{}
 	if err := c.Bind(&org); err != nil {
 		return bindErr(c, err)
 	}
@@ -38,7 +38,21 @@ func CreateBillingOrg(c echo.Context) error {
 }
 
 // Parent billing orgs will have a billing Group, self billing orgs will just use the existing developer group from the org
-func CreateBillingOrgObj(ctx context.Context, claims *UserClaims, org *ormapi.BillingOrganization) error {
+func CreateBillingOrgObj(ctx context.Context, claims *UserClaims, createOrg *ormapi.CreateBillingOrganization) error {
+	org := ormapi.BillingOrganization{
+		Name:       createOrg.Name,
+		Type:       createOrg.Type,
+		FirstName:  createOrg.FirstName,
+		LastName:   createOrg.LastName,
+		Email:      createOrg.Email,
+		Address:    createOrg.Address,
+		Address2:   createOrg.Address2,
+		City:       createOrg.City,
+		Country:    createOrg.Country,
+		State:      createOrg.State,
+		PostalCode: createOrg.PostalCode,
+		Phone:      createOrg.Phone,
+	}
 	if org.Name == "" {
 		return fmt.Errorf("Name not specified")
 	}
@@ -98,7 +112,7 @@ func CreateBillingOrgObj(ctx context.Context, claims *UserClaims, org *ormapi.Bi
 		}
 	}
 
-	err = createBillingAccount(ctx, org)
+	err = createBillingAccount(ctx, createOrg)
 	if err != nil {
 		// reset
 		db.Delete(&org)
@@ -113,7 +127,7 @@ func CreateBillingOrgObj(ctx context.Context, claims *UserClaims, org *ormapi.Bi
 	return nil
 }
 
-func createBillingAccount(ctx context.Context, info *ormapi.BillingOrganization) error {
+func createBillingAccount(ctx context.Context, info *ormapi.CreateBillingOrganization) error {
 	if !serverConfig.Billing {
 		return nil
 	}
@@ -123,7 +137,7 @@ func createBillingAccount(ctx context.Context, info *ormapi.BillingOrganization)
 		LastName:  info.LastName,
 		OrgName:   info.Name,
 		Email:     info.Email,
-		Address:   info.Address,
+		Address1:  info.Address,
 		Address2:  info.Address2,
 		City:      info.City,
 		Country:   info.Country,
@@ -133,7 +147,7 @@ func createBillingAccount(ctx context.Context, info *ormapi.BillingOrganization)
 		Type:      info.Type,
 	}
 	var err error
-	err = serverConfig.BillingService.CreateCustomer(&billTo, &accountInfo)
+	err = serverConfig.BillingService.CreateCustomer(&billTo, &accountInfo, &info.Payment)
 
 	if err != nil {
 		return err
@@ -235,7 +249,7 @@ func AddChildOrgObj(ctx context.Context, claims *UserClaims, parentOrg *ormapi.B
 	if err != nil || parent == nil {
 		return fmt.Errorf("Unable to find BillingOrganization: %s", parentOrg.Name)
 	}
-	if parent.Type != BillingOrgTypeParent {
+	if parent.Type != billing.CUSTOMER_TYPE_PARENT {
 		return fmt.Errorf("Cannot add children to a non-parent Billing Org")
 	}
 
@@ -444,7 +458,7 @@ func DeleteBillingOrgObj(ctx context.Context, claims *UserClaims, org *ormapi.Bi
 	}
 
 	// delete all casbin groups associated with org if the org was a parent org
-	if orgDetails.Type == BillingOrgTypeParent {
+	if orgDetails.Type == billing.CUSTOMER_TYPE_PARENT {
 		groups, err := enforcer.GetGroupingPolicy()
 		if err != nil {
 			return dbErr(err)
@@ -589,24 +603,22 @@ func deleteBillingAccount(ctx context.Context, orgName, deleteType string) error
 		if err != nil {
 			return err
 		}
-		return nil
 	} else if deleteType == deleteTypeChild {
 		err = serverConfig.BillingService.DeleteCustomer(info)
 		if err != nil {
 			return err
 		}
-		return nil
 	} else {
 		return fmt.Errorf("unknown delete type")
 	}
 	return nil
 }
 
-func GetAccountObj(ctx context.Context, orgName string) (*zuora.AccountInfo, error) {
+func GetAccountObj(ctx context.Context, orgName string) (*billing.AccountInfo, error) {
 	if orgName == "" {
 		return nil, fmt.Errorf("no orgName specified")
 	}
-	acc := zuora.AccountInfo{
+	acc := billing.AccountInfo{
 		OrgName: orgName,
 	}
 	db := loggedDB(ctx)
@@ -664,7 +676,7 @@ func billingOrgDeletable(ctx context.Context, orgName string) error {
 	// When a self org is being deleted, check to see if the child is either:
 	// 1. nonexistent(already deleted and DeleteOrg is calling DeleteBillingOrg)
 	// 2. the child org is not in use(cant be racking up charges if we cant charge them anymore)
-	if org.Type == BillingOrgTypeSelf {
+	if org.Type == billing.CUSTOMER_TYPE_SELF {
 		child, err := orgExists(ctx, org.Children)
 		if err != nil {
 			// maybe should still allow deletion to go through in case parent-child relationships got corrupted?
@@ -675,7 +687,7 @@ func billingOrgDeletable(ctx context.Context, orgName string) error {
 		}
 		return orgInUse(ctx, child.Name)
 	}
-	if org.Type == BillingOrgTypeParent && org.Children != "" {
+	if org.Type == billing.CUSTOMER_TYPE_PARENT && org.Children != "" {
 		return fmt.Errorf("BillingOrg in use by Organizations: %s", org.Children)
 	}
 	return nil
@@ -714,10 +726,11 @@ func linkChildAccount(ctx context.Context, parent *ormapi.BillingOrganization, c
 	// so for now just use parent first and last name
 	childAccountInfo := billing.AccountInfo{OrgName: child}
 	billTo := billing.CustomerDetails{
+		OrgName:   child,
 		FirstName: parent.FirstName,
 		LastName:  parent.LastName,
 		Email:     parent.Email,
-		Address:   parent.Address,
+		Address1:  parent.Address,
 		Address2:  parent.Address2,
 		City:      parent.City,
 		Country:   parent.Country,
@@ -732,11 +745,15 @@ func linkChildAccount(ctx context.Context, parent *ormapi.BillingOrganization, c
 
 	//put the account info in the db
 	db := loggedDB(ctx)
-	err = db.Create(&accountInfo).Error
+	err = db.Create(&childAccountInfo).Error
 	if err != nil {
 		if strings.Contains(err.Error(), "duplicate key value violates unique constraint \"accountinfo_pkey") {
 			return fmt.Errorf("AccountInfo with name %s (case-insensitive) already exists", child)
 		}
+		return dbErr(err)
+	}
+	err = db.Save(parentAcc).Error
+	if err != nil {
 		return dbErr(err)
 	}
 	return nil
@@ -755,7 +772,7 @@ func updateBillingInfo(ctx context.Context, info *ormapi.BillingOrganization) er
 		FirstName: info.FirstName,
 		LastName:  info.LastName,
 		Email:     info.Email,
-		Address:   info.Address,
+		Address1:  info.Address,
 		Address2:  info.Address2,
 		City:      info.City,
 		Country:   info.Country,

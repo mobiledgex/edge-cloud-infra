@@ -14,7 +14,7 @@ import (
 
 var customerEndpoint = "/customers"
 
-func (bs *BillingService) CreateCustomer(customer *billing.CustomerDetails, account *billing.AccountInfo) error {
+func (bs *BillingService) CreateCustomer(customer *billing.CustomerDetails, account *billing.AccountInfo, payment *billing.PaymentMethod) error {
 	newCustomer := Customer{
 		FirstName:    customer.FirstName,
 		LastName:     customer.LastName,
@@ -29,22 +29,28 @@ func (bs *BillingService) CreateCustomer(customer *billing.CustomerDetails, acco
 		Country:      customer.Country,
 		Phone:        customer.Phone,
 	}
+	newPaymentSpecified := false
+	if payment != nil && payment.PaymentType != "" {
+		newPaymentSpecified = true
+	}
+
 	if customer.Type == billing.CUSTOMER_TYPE_CHILD {
 		parentId, err := strconv.Atoi(customer.ParentId)
+		fmt.Printf("creating child under: %d", parentId)
 		if err != nil {
 			return fmt.Errorf("Unable to parse parentId: %v", err)
 		}
 		newCustomer.ParentId = parentId
+	} else if customer.Type == billing.CUSTOMER_TYPE_PARENT && !newPaymentSpecified {
+		return fmt.Errorf("Parent type customers must have a payment profile specified")
 	}
 
 	resp, err := newChargifyReq("POST", "/customers.json", CustomerWrapper{Customer: &newCustomer})
 	if err != nil {
 		return fmt.Errorf("Error sending request: %v\n", err)
 	}
-	custResp := CustomerWrapper{}
 	defer resp.Body.Close()
-	err = json.NewDecoder(resp.Body).Decode(&custResp)
-	if err != nil {
+	if resp.StatusCode != http.StatusCreated {
 		errorResp := ErrorResp{}
 		err = json.NewDecoder(resp.Body).Decode(&errorResp)
 		if err != nil {
@@ -53,12 +59,47 @@ func (bs *BillingService) CreateCustomer(customer *billing.CustomerDetails, acco
 		combineErrors(&errorResp)
 		return fmt.Errorf("Errors: %s", strings.Join(errorResp.Errors, ","))
 	}
+	custResp := CustomerWrapper{}
+	err = json.NewDecoder(resp.Body).Decode(&custResp)
+	if err != nil {
+		return fmt.Errorf("Error parsing response: %v\n", err)
+	}
+
+	paymentProfileId := 0
+	if newPaymentSpecified {
+		paymentProfileId, err = addPayment(custResp.Customer.Id, payment)
+		if err != nil {
+			endpoint := "/customers" + strconv.Itoa(custResp.Customer.Id) + ".json"
+			resp, deleteErr := newChargifyReq("DELETE", endpoint, nil)
+			if deleteErr != nil {
+				return fmt.Errorf("Error creating payment profile: %v, error deleting customer account: %v", err, deleteErr)
+			}
+			if resp.StatusCode == http.StatusNoContent {
+				return fmt.Errorf("Error creating payment profile: %v", err)
+			}
+			errorResp := ErrorResp{}
+			decodeErr := json.NewDecoder(resp.Body).Decode(&errorResp)
+			if err != nil {
+				return fmt.Errorf("Error parsing response: %v\n", decodeErr)
+			}
+			combineErrors(&errorResp)
+			return fmt.Errorf("Error creating payment profile: %v, error deleting customer account: %s", err, strings.Join(errorResp.Errors, ","))
+		}
+	} else if payment.PaymentProfile != 0 {
+		paymentProfileId = payment.PaymentProfile
+	}
 
 	// if its a self or child org, create subscription for it to the public_edge product
 	if customer.Type != billing.CUSTOMER_TYPE_PARENT {
 		newSub := Subscription{
 			CustomerId:    strconv.Itoa(custResp.Customer.Id),
 			ProductHandle: publicEdgeProductHandle,
+		}
+
+		if paymentProfileId == 0 {
+			newSub.PaymentCollectionMethod = "invoice"
+		} else {
+			newSub.PaymentProfileId = strconv.Itoa(paymentProfileId)
 		}
 
 		// set the billing cycle to the first of the month
@@ -70,10 +111,8 @@ func (bs *BillingService) CreateCustomer(customer *billing.CustomerDetails, acco
 		if err != nil {
 			return fmt.Errorf("Error sending request: %v\n", err)
 		}
-		subResp := SubscriptionWrapper{}
 		defer resp.Body.Close()
-		err = json.NewDecoder(resp.Body).Decode(&subResp)
-		if err != nil {
+		if resp.StatusCode != http.StatusCreated {
 			errorResp := ErrorResp{}
 			err = json.NewDecoder(resp.Body).Decode(&errorResp)
 			if err != nil {
@@ -81,6 +120,11 @@ func (bs *BillingService) CreateCustomer(customer *billing.CustomerDetails, acco
 			}
 			combineErrors(&errorResp)
 			return fmt.Errorf("Errors: %s", strings.Join(errorResp.Errors, ","))
+		}
+		subResp := SubscriptionWrapper{}
+		err = json.NewDecoder(resp.Body).Decode(&subResp)
+		if err != nil {
+			return fmt.Errorf("Error parsing response: %v\n", err)
 		}
 		account.SubscriptionId = strconv.Itoa(subResp.Subscription.Id)
 	}
@@ -97,12 +141,13 @@ func (bs *BillingService) CreateCustomer(customer *billing.CustomerDetails, acco
 func (bs *BillingService) DeleteCustomer(customer *billing.AccountInfo) error {
 	switch customer.Type {
 	case billing.CUSTOMER_TYPE_SELF:
-		url := siteName + "/subscriptions/" + customer.SubscriptionId + "/delayed_cancel.json"
-		resp, err := newChargifyReq("POST", url, nil)
+		endpoint := "/subscriptions/" + customer.SubscriptionId + "/delayed_cancel.json"
+		fmt.Printf("endpoint: %s\n", endpoint)
+		resp, err := newChargifyReq("POST", endpoint, nil)
 		if err != nil {
 			return err
 		}
-		if resp.StatusCode != http.StatusOK {
+		if resp.StatusCode == http.StatusOK {
 			return nil
 		}
 		defer resp.Body.Close()
@@ -115,12 +160,12 @@ func (bs *BillingService) DeleteCustomer(customer *billing.AccountInfo) error {
 		return fmt.Errorf("Errors: %s", strings.Join(errorResp.Errors, ","))
 
 	case billing.CUSTOMER_TYPE_PARENT:
-		url := siteName + "/subscription_groups/" + customer.SubscriptionId + "/cancel.json"
-		resp, err := newChargifyReq("POST", url, SubscriptionGroupCancel{ChargeUnbilledUsage: true})
+		endpoint := "/subscription_groups/" + customer.SubscriptionId + "/cancel.json"
+		resp, err := newChargifyReq("POST", endpoint, SubscriptionGroupCancel{ChargeUnbilledUsage: true})
 		if err != nil {
 			return err
 		}
-		if resp.StatusCode != http.StatusOK {
+		if resp.StatusCode == http.StatusOK {
 			return nil
 		}
 		defer resp.Body.Close()
@@ -134,12 +179,12 @@ func (bs *BillingService) DeleteCustomer(customer *billing.AccountInfo) error {
 
 	case billing.CUSTOMER_TYPE_CHILD:
 		// for some reason individual subscriptions in groups can only be put on hold, so just do that
-		url := siteName + "/subscriptions/" + customer.SubscriptionId + "/hold.json"
-		resp, err := newChargifyReq("POST", url, nil)
+		endpoint := "/subscriptions/" + customer.SubscriptionId + "/hold.json"
+		resp, err := newChargifyReq("POST", endpoint, nil)
 		if err != nil {
 			return err
 		}
-		if resp.StatusCode != http.StatusOK {
+		if resp.StatusCode == http.StatusOK {
 			return nil
 		}
 		defer resp.Body.Close()
@@ -173,10 +218,8 @@ func (bs *BillingService) UpdateCustomer(account *billing.AccountInfo, customerD
 	if err != nil {
 		return fmt.Errorf("Error sending request: %v\n", err)
 	}
-	custResp := CustomerWrapper{}
-	defer resp.Body.Close()
-	err = json.NewDecoder(resp.Body).Decode(&custResp)
-	if err != nil {
+	if resp.StatusCode != http.StatusOK {
+		defer resp.Body.Close()
 		errorResp := ErrorResp{}
 		err = json.NewDecoder(resp.Body).Decode(&errorResp)
 		if err != nil {
@@ -193,30 +236,27 @@ func (bs *BillingService) AddChild(parentAccount, childAccount *billing.AccountI
 	// dont modify the existing struct
 	childCopy := *childDetails
 	childCopy.ParentId = parentAccount.AccountId
-	err := bs.CreateCustomer(&childCopy, childAccount)
-	if err == nil {
-		childAccount.Type = billing.CUSTOMER_TYPE_CHILD
-	}
+	childCopy.Type = billing.CUSTOMER_TYPE_CHILD
+	err := bs.CreateCustomer(&childCopy, childAccount, &billing.PaymentMethod{PaymentProfile: parentAccount.DefaultPaymentProfile})
 	if err != nil {
 		return err
 	}
+	childAccount.Type = billing.CUSTOMER_TYPE_CHILD
 	// if this is the first child, get the subscription group uid
 	if parentAccount.SubscriptionId == "" {
-		baseURL, err := url.Parse(siteName + "/subscription_groups/lookup.json")
+		endpoint, err := url.Parse("/subscription_groups/lookup.json")
 		if err != nil {
 			return err
 		}
 		params := url.Values{}
-		params.Add("subscription_id", "36734274")
-		baseURL.RawQuery = params.Encode()
-		resp, err := newChargifyReq("GET", baseURL.String(), nil)
+		params.Add("subscription_id", childAccount.SubscriptionId)
+		endpoint.RawQuery = params.Encode()
+		resp, err := newChargifyReq("GET", endpoint.String(), nil)
 		if err != nil {
 			return err
 		}
-		group := SubscriptionGroup{}
 		defer resp.Body.Close()
-		err = json.NewDecoder(resp.Body).Decode(&group)
-		if err != nil {
+		if resp.StatusCode != http.StatusOK {
 			errorResp := ErrorResp{}
 			err = json.NewDecoder(resp.Body).Decode(&errorResp)
 			if err != nil {
@@ -224,6 +264,11 @@ func (bs *BillingService) AddChild(parentAccount, childAccount *billing.AccountI
 			}
 			combineErrors(&errorResp)
 			return fmt.Errorf("Errors: %s", strings.Join(errorResp.Errors, ","))
+		}
+		group := SubscriptionGroup{}
+		err = json.NewDecoder(resp.Body).Decode(&group)
+		if err != nil {
+			return fmt.Errorf("Error parsing response: %v\n", err)
 		}
 		// ensure this is the right subscription group
 		if strconv.Itoa(group.CustomerId) != parentAccount.AccountId {
@@ -234,6 +279,6 @@ func (bs *BillingService) AddChild(parentAccount, childAccount *billing.AccountI
 	return nil
 }
 
-func (bs *BillingService) RemoveChild(parent *billing.AccountInfo, child *billing.AccountInfo) error {
+func (bs *BillingService) RemoveChild(parent, child *billing.AccountInfo) error {
 	return bs.DeleteCustomer(child)
 }

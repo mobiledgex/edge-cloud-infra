@@ -74,7 +74,7 @@ type ServerConfig struct {
 	NodeMgr                 *node.NodeMgr
 	Billing                 bool
 	BillingPath             string
-	BillingService          *billing.BillingService
+	BillingService          billing.BillingService
 	AlertCache              *edgeproto.AlertCache
 	AlertMgrAddr            string
 	AlertmgrResolveTimout   time.Duration
@@ -185,7 +185,7 @@ func RunServer(config *ServerConfig) (retserver *Server, reterr error) {
 
 	if config.Billing {
 		// TODO: determine which billing service to use from vault
-		serverConfig.BillingService = chargify.BillingService{}
+		serverConfig.BillingService = &chargify.BillingService{}
 		serverConfig.BillingService.Init()
 	}
 

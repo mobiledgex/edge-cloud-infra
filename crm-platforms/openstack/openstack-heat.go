@@ -42,7 +42,7 @@ resources:
             gateway_ip: {{.GatewayIP}}
             enable_dhcp: {{.DHCPEnabled}}
             dns_nameservers:
-               {{- range .rvers}}
+               {{- range .DNSServers}}
                  - {{.}}
                {{- end}}
             name: 

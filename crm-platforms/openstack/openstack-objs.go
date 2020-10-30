@@ -23,8 +23,8 @@ type OSFlavorDetail struct {
 }
 
 type OSAZone struct {
-	Name   string `json:"Zone Name"`
-	Status string `json:"Zone Status"`
+	Name   string `json:"zone_name"`
+	Status string `json:"zone_status"`
 }
 
 type OSFloatingIP struct {

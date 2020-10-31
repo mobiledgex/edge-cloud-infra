@@ -446,6 +446,18 @@ func TestAlertMgrServer(t *testing.T) {
 	require.Nil(t, err)
 	// should be empty response
 	require.Len(t, receivers, 0)
+	// Non-existent receiver by appname
+	filter = ormapi.AlertReceiver{
+		AppInst: edgeproto.AppInstKey{
+			AppKey: edgeproto.AppKey{
+				Name: "invalidAppName",
+			},
+		},
+	}
+	receivers, err = testAlertMgrServer.ShowReceivers(ctx, &filter)
+	require.Nil(t, err)
+	// should be empty response
+	require.Len(t, receivers, 0)
 	// filter by type and appInst name
 	filter = ormapi.AlertReceiver{
 		Type: AlertReceiverTypeEmail,

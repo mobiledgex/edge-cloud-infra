@@ -45,7 +45,7 @@ type VMProperties struct {
 var ImageFormatQcow2 = "qcow2"
 var ImageFormatVmdk = "vmdk"
 
-var MEXInfraVersion = "4.1.0"
+var MEXInfraVersion = "4.1.1"
 var ImageNamePrefix = "mobiledgex-v"
 var DefaultOSImageName = ImageNamePrefix + MEXInfraVersion
 
@@ -277,6 +277,11 @@ func (vp *VMProperties) GetCloudletOSImage() string {
 func (vp *VMProperties) GetCloudletFlavorMatchPattern() string {
 	value, _ := vp.CommonPf.Properties.GetValue("FLAVOR_MATCH_PATTERN")
 	return value
+}
+
+func (vp *VMProperties) GetSkipInstallResourceTracker() bool {
+	value, _ := vp.CommonPf.Properties.GetValue("SKIP_INSTALL_RESOURCE_TRACKER")
+	return strings.ToLower(value) == "true"
 }
 
 func (vp *VMProperties) GetCloudletExternalRouter() string {

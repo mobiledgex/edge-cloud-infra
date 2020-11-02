@@ -114,6 +114,8 @@
     restart_policy: unless-stopped
     command: "{{ crm_args }}"
     env: "{{ crm_env }}"
+    volumes:
+      - "{{ crm_name }}-accesskey:/root/accesskey"
 
 - name: Verify that the notify srv port is accessible
   wait_for:

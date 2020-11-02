@@ -8,6 +8,7 @@ import (
 	"github.com/mobiledgex/edge-cloud-infra/mc/ormapi"
 	"github.com/mobiledgex/edge-cloud/cloudcommon"
 	"github.com/mobiledgex/edge-cloud/log"
+	"github.com/mobiledgex/edge-cloud/util"
 )
 
 type AlertManagerContext struct {
@@ -31,6 +32,11 @@ func CreateAlertReceiver(c echo.Context) error {
 	if in.Name == "" {
 		return setReply(c, fmt.Errorf("Receiver name has to be specified"), nil)
 	}
+	// Name validation
+	if !util.ValidName(in.Name) {
+		return setReply(c, fmt.Errorf("Receiver name is invalid"), nil)
+	}
+
 	if !cloudcommon.IsAlertSeverityValid(in.Severity) {
 		return setReply(c, fmt.Errorf("Alert severity has to be one of %s", cloudcommon.GetValidAlertSeverityString()), nil)
 	}
@@ -41,7 +47,7 @@ func CreateAlertReceiver(c echo.Context) error {
 	in.User = claims.Username
 	if in.Cloudlet.Organization == "" && in.AppInst.AppKey.Organization == "" {
 		return setReply(c,
-			fmt.Errorf("Either cloudlet, or app instance details have to be specified"), nil)
+			fmt.Errorf("Either cloudlet or app instance details have to be specified"), nil)
 	}
 	// Check that user is allowed to access either of the orgs
 	if in.Cloudlet.Organization != "" {
@@ -62,6 +68,11 @@ func CreateAlertReceiver(c echo.Context) error {
 		// if an email is not specified send to an email on file
 		if in.Email == "" {
 			in.Email = claims.Email
+		} else {
+			// validate email
+			if !util.ValidEmail(in.Email) {
+				return setReply(c, fmt.Errorf("Receiver email is invalid"), nil)
+			}
 		}
 		err = AlertManagerServer.CreateReceiver(ctx, &in)
 		if err != nil {
@@ -73,7 +84,7 @@ func CreateAlertReceiver(c echo.Context) error {
 		// TODO - retrieve org slack channel from vault, for now require slack details
 		if in.SlackWebhook == "" || in.SlackChannel == "" {
 			log.SpanLog(ctx, log.DebugLevelInfo, "Slack details are missing", "receiver", in)
-			return setReply(c, fmt.Errorf("Slack URL, or channel are missing"),
+			return setReply(c, fmt.Errorf("Both slack URL and slack channel must be specified"),
 				nil)
 		}
 		err = AlertManagerServer.CreateReceiver(ctx, &in)
@@ -142,7 +153,18 @@ func ShowAlertReceiver(c echo.Context) error {
 	ctx := GetContext(c)
 	log.SpanLog(ctx, log.DebugLevelApi, "Show Alertmanager Receivers", "context", c, "claims", claims)
 
-	receivers, err := AlertManagerServer.ShowReceivers(ctx, nil)
+	filter := ormapi.AlertReceiver{}
+	if c.Request().ContentLength > 0 {
+		if err := c.Bind(&filter); err != nil {
+			return bindErr(c, err)
+		}
+	}
+
+	if filter.SlackWebhook != "" {
+		return setReply(c, fmt.Errorf("Slack URL is not specifiable as a filter"), nil)
+	}
+
+	receivers, err := AlertManagerServer.ShowReceivers(ctx, &filter)
 	if err != nil {
 		return err
 	}

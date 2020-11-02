@@ -686,6 +686,7 @@ func (v *VMPlatform) GetCloudletVMsSpec(ctx context.Context, vaultConfig *vault.
 			pfImageName,
 			true, //connect external
 			WithChefParams(chefParams),
+			WithAccessKey(pfConfig.CrmAccessPrivateKey),
 		)
 		if err != nil {
 			return nil, err
@@ -708,6 +709,7 @@ func (v *VMPlatform) GetCloudletVMsSpec(ctx context.Context, vaultConfig *vault.
 					true, //connect external
 					WithSubnetConnection(subnetName),
 					WithChefParams(chefParams),
+					WithAccessKey(pfConfig.CrmAccessPrivateKey),
 				)
 			} else {
 				nodeAttributes := make(map[string]interface{})
@@ -721,6 +723,7 @@ func (v *VMPlatform) GetCloudletVMsSpec(ctx context.Context, vaultConfig *vault.
 					true, //connect external
 					WithSubnetConnection(subnetName),
 					WithChefParams(chefParams),
+					WithAccessKey(pfConfig.CrmAccessPrivateKey),
 				)
 			}
 			if err != nil {
@@ -815,7 +818,7 @@ func (v *VMPlatform) GetCloudletProps(ctx context.Context) (*edgeproto.CloudletP
 		props.Properties[k] = v
 	}
 
-	providerProps, err := v.VMProvider.GetProviderSpecificProps(ctx, v.VMProperties.CommonPf.VaultConfig)
+	providerProps, err := v.VMProvider.GetProviderSpecificProps(ctx, v.VMProperties.CommonPf.PlatformConfig, v.VMProperties.CommonPf.VaultConfig)
 	if err != nil {
 		return nil, err
 	}

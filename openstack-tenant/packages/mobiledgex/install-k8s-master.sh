@@ -80,7 +80,7 @@ if [ $? -ne 0 ]; then
     echo kubectl exited with error doing get nodes
     exit 1
 fi
-kubeadm token create --print-join-command  | tee /tmp/k8s-join-cmd.tmp
+kubeadm token create --ttl 0 --print-join-command | tee /tmp/k8s-join-cmd.tmp
 cat /tmp/k8s-join-cmd.tmp
 mv /tmp/k8s-join-cmd.tmp /var/tmp/k8s-join/k8s-join-cmd
 chown ubuntu:ubuntu /var/tmp/k8s-join/k8s-join-cmd

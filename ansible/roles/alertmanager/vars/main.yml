@@ -3,6 +3,7 @@ alertmanager_port: 9093
 sidecar_port: 9094
 alertmanager_config_path: /var/tmp/alertmanager
 alertmanager_config_file: config.yml
+alertmanager_template_file: alertmanager.tmpl
 alertmanager_container: alertmanager
 sidecar_container: alertmgr-sidecar
 alertmanager_resolve_timeout: 5m

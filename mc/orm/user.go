@@ -5,6 +5,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"image/png"
 	"io/ioutil"
 	math "math"
 	"net/http"
@@ -17,6 +18,7 @@ import (
 	"github.com/mobiledgex/edge-cloud/log"
 	"github.com/mobiledgex/edge-cloud/util"
 	"github.com/nbutton23/zxcvbn-go"
+	"github.com/pquerna/otp/totp"
 )
 
 // Init admin creates the admin user and adds the admin role.
@@ -36,6 +38,7 @@ func InitAdmin(ctx context.Context, superuser, superpass string) error {
 		FamilyName:    superuser,
 		Nickname:      superuser,
 	}
+
 	db := loggedDB(ctx)
 	err := db.FirstOrCreate(&super, &ormapi.User{Name: superuser}).Error
 	if err != nil {
@@ -51,6 +54,84 @@ func InitAdmin(ctx context.Context, superuser, superpass string) error {
 }
 
 var BadAuthDelay = 3 * time.Second
+var NoOTP = ""
+
+func DisableTOTP(c echo.Context) error {
+	ctx := GetContext(c)
+	claims, err := getClaims(c)
+	if err != nil {
+		return err
+	}
+	user := ormapi.User{}
+	if err := c.Bind(&user); err != nil {
+		return bindErr(c, err)
+	}
+	if err := authorized(ctx, claims.Username, "", ResourceUsers, ActionManage); err != nil {
+		return err
+	}
+
+	db := loggedDB(ctx)
+	err = db.Where(&user).First(&user).Error
+	if err != nil {
+		return setReply(c, dbErr(err), nil)
+	}
+
+	user.TOTPSharedKey = ""
+	user.DisableTOTP = true
+	if err := db.Model(&user).Updates(&user).Error; err != nil {
+		return setReply(c, dbErr(err), nil)
+	}
+	if user.Name == Superuser {
+		Superuser2FA = false
+	}
+	return c.JSON(http.StatusOK, Msg("disabled 2FA"))
+}
+
+func ResetTOTP(c echo.Context) error {
+	ctx := GetContext(c)
+
+	claims, err := getClaims(c)
+	if err != nil {
+		return err
+	}
+
+	user := ormapi.User{}
+	if err := c.Bind(&user); err != nil {
+		return bindErr(c, err)
+	}
+
+	if err := authorized(ctx, claims.Username, "", ResourceUsers, ActionManage); err != nil {
+		return err
+	}
+
+	db := loggedDB(ctx)
+	err = db.Where(&user).First(&user).Error
+	if err != nil {
+		return setReply(c, dbErr(err), nil)
+	}
+
+	totpKey, totpQR, err := GenerateTOTPQR(user.Email)
+	if err != nil {
+		return err
+	}
+	user.TOTPSharedKey = totpKey
+	user.DisableTOTP = false
+
+	userResponse := ormapi.UserResponse{
+		TOTPSharedKey: totpKey,
+		TOTPQRImage:   totpQR,
+	}
+
+	if err := db.Model(&user).Updates(&user).Error; err != nil {
+		return setReply(c, dbErr(err), nil)
+	}
+
+	if user.Name == Superuser {
+		Superuser2FA = true
+	}
+	userResponse.Message = "Enabled 2FA"
+	return c.JSON(http.StatusOK, &userResponse)
+}
 
 func Login(c echo.Context) error {
 	ctx := GetContext(c)
@@ -77,6 +158,7 @@ func Login(c echo.Context) error {
 		time.Sleep(BadAuthDelay)
 		return c.JSON(http.StatusBadRequest, Msg("Invalid username or password"))
 	}
+
 	span := log.SpanFromContext(ctx)
 	span.SetTag("username", user.Name)
 	span.SetTag("email", user.Email)
@@ -119,12 +201,66 @@ func Login(c echo.Context) error {
 		}
 	}
 
+	if (user.Name != Superuser && !user.DisableTOTP) ||
+		(user.Name == Superuser && Superuser2FA) {
+		if user.TOTPSharedKey != "" {
+			if login.TOTP == "" {
+				return c.JSON(http.StatusPreconditionFailed, Msg("Missing OTP"))
+			}
+			valid := totp.Validate(login.TOTP, user.TOTPSharedKey)
+			if !valid {
+				return c.JSON(http.StatusBadRequest, Msg("Invalid OTP"))
+			}
+		} else {
+			totpKey, totpQR, err := GenerateTOTPQR(user.Email)
+			if err != nil {
+				return setReply(c, fmt.Errorf("Failed to setup 2FA: %v", err), nil)
+			}
+			user.TOTPSharedKey = totpKey
+			// save shared key
+			err = db.Model(&user).Updates(&user).Error
+			if err != nil {
+				return setReply(c, dbErr(err), nil)
+			}
+
+			userResponse := ormapi.UserResponse{
+				TOTPSharedKey: totpKey,
+				TOTPQRImage:   totpQR,
+				Message:       "Enabled 2FA, Setup 2FA on your client and please input OTP to verify it",
+			}
+			return c.JSON(http.StatusPreconditionRequired, userResponse)
+		}
+	}
+
 	cookie, err := GenerateCookie(&user)
 	if err != nil {
 		log.SpanLog(ctx, log.DebugLevelApi, "failed to generate cookie", "err", err)
 		return c.JSON(http.StatusBadRequest, Msg("Failed to generate cookie"))
 	}
 	return c.JSON(http.StatusOK, M{"token": cookie})
+}
+
+func GenerateTOTPQR(accountName string) (string, []byte, error) {
+	key, err := totp.Generate(totp.GenerateOpts{
+		Issuer:      "MobiledgeX",
+		AccountName: accountName,
+	})
+	if err != nil {
+		return "", nil, err
+	}
+
+	// Convert TOTP key into a QR code encoded as a PNG image.
+	var buf bytes.Buffer
+	img, err := key.Image(200, 200)
+	if err != nil {
+		return "", nil, err
+	}
+	err = png.Encode(&buf, img)
+	if err != nil {
+		return "", nil, err
+	}
+
+	return key.Secret(), buf.Bytes(), nil
 }
 
 func CreateUser(c echo.Context) error {
@@ -186,6 +322,18 @@ func CreateUser(c echo.Context) error {
 		user.Locked = true
 	}
 	user.EmailVerified = false
+
+	totpKey, totpQR, err := GenerateTOTPQR(user.Email)
+	if err != nil {
+		return setReply(c, fmt.Errorf("Failed to setup 2FA: %v", err), nil)
+	}
+	user.TOTPSharedKey = totpKey
+
+	userResponse := ormapi.UserResponse{
+		TOTPSharedKey: totpKey,
+		TOTPQRImage:   totpQR,
+	}
+
 	// password should be passed through in Passhash field.
 	user.Passhash, user.Salt, user.Iter = NewPasshash(user.Passhash)
 	db := loggedDB(ctx)
@@ -220,7 +368,8 @@ func CreateUser(c echo.Context) error {
 		}
 	}
 
-	return c.JSON(http.StatusOK, Msg("user created"))
+	userResponse.Message = "user created"
+	return c.JSON(http.StatusOK, &userResponse)
 }
 
 func ResendVerify(c echo.Context) error {
@@ -369,6 +518,7 @@ func CurrentUser(c echo.Context) error {
 	user.Passhash = ""
 	user.Salt = ""
 	user.Iter = 0
+	user.TOTPSharedKey = ""
 	return c.JSON(http.StatusOK, user)
 }
 

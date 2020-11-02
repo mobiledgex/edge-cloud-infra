@@ -7,7 +7,7 @@ import (
 	"github.com/mobiledgex/edge-cloud-infra/mc/ormapi"
 )
 
-func (s *Client) DoLogin(uri, user, pass string) (string, error) {
+func (s *Client) DoLogin(uri, user, pass, otp string) (string, error) {
 	args := []string{"login", "username=" + user, "password=" + pass}
 	out, err := s.run(uri, "", args)
 	if err != nil {
@@ -16,12 +16,14 @@ func (s *Client) DoLogin(uri, user, pass string) (string, error) {
 	return strings.TrimSpace(string(out)), err
 }
 
-func (s *Client) CreateUser(uri string, user *ormapi.User) (int, error) {
+func (s *Client) CreateUser(uri string, user *ormapi.User) (*ormapi.UserResponse, int, error) {
 	args := []string{"user", "create"}
 	createuser := &ormapi.CreateUser{
 		User: *user,
 	}
-	return s.runObjs(uri, "", args, createuser, nil)
+	resp := ormapi.UserResponse{}
+	st, err := s.runObjs(uri, "", args, createuser, &resp)
+	return &resp, st, err
 }
 
 func (s *Client) DeleteUser(uri, token string, user *ormapi.User) (int, error) {
@@ -47,4 +49,14 @@ func (s *Client) NewPassword(uri, token, password string) (int, error) {
 	}
 	args := []string{"user", "newpass"}
 	return s.runObjs(uri, token, args, newpw, nil)
+}
+
+func (s *Client) DisableTOTP(uri, token string, user *ormapi.User) (int, error) {
+	args := []string{"user", "disableotp"}
+	return s.runObjs(uri, token, args, user, nil)
+}
+
+func (s *Client) ResetTOTP(uri, token string, user *ormapi.User) (int, error) {
+	args := []string{"user", "resetotp"}
+	return s.runObjs(uri, token, args, user, nil)
 }

@@ -83,6 +83,7 @@ var DefaultDBPass = ""
 var DefaultSuperuser = "mexadmin"
 var DefaultSuperpass = "mexadminfastedgecloudinfra"
 var Superuser string
+var Superuser2FA bool
 
 var database *gorm.DB
 
@@ -287,6 +288,8 @@ func RunServer(config *ServerConfig) (*Server, error) {
 	auth := e.Group(root + "/auth")
 	auth.Use(AuthCookie)
 	// authenticated routes - gorm router
+	auth.POST("/user/disable/otp", DisableTOTP)
+	auth.POST("/user/reset/otp", ResetTOTP)
 
 	// swagger:route POST /auth/user/show User ShowUser
 	// Show Users.

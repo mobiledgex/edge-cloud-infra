@@ -96,6 +96,9 @@ func (bs *BillingService) CreateCustomer(customer *billing.CustomerDetails, acco
 			ProductHandle: publicEdgeProductHandle,
 		}
 
+		// TODO: remove this and the function when we no longer offer free trials
+		addFreeTrial(&newSub)
+
 		if paymentProfileId == 0 {
 			newSub.PaymentCollectionMethod = "invoice"
 		} else {
@@ -134,6 +137,11 @@ func (bs *BillingService) CreateCustomer(customer *billing.CustomerDetails, acco
 	account.AccountId = strconv.Itoa(custResp.Customer.Id)
 	account.Type = customer.Type
 	return nil
+}
+
+// This function is temporary, adds a promotion to the sub that is 100% off
+func addFreeTrial(sub *Subscription) {
+	sub.CouponCode = "FREETRIALS"
 }
 
 // this doesnt actually delete the customer, what it does is cancels the subscription associated with the customer

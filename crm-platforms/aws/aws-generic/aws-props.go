@@ -3,6 +3,7 @@ package awsgeneric
 import (
 	"context"
 	"fmt"
+	"os"
 	"strings"
 
 	"github.com/mobiledgex/edge-cloud-infra/infracommon"
@@ -104,6 +105,12 @@ func (a *AwsGenericPlatform) GetProviderSpecificProps(ctx context.Context, pfcon
 		vaultPath = fmt.Sprintf("/secret/data/%s/cloudlet/%s/%s/%s/%s", pfconfig.Region, "aws", pfconfig.CloudletKey.Organization, pfconfig.PhysicalName, "credentials")
 	}
 	log.SpanLog(ctx, log.DebugLevelInfra, "GetProviderSpecificProps", "vaultPath", vaultPath)
+
+	// clear existing credentials
+	// clear credentials
+	os.Unsetenv("AWS_ACCESS_KEY_ID")
+	os.Unsetenv("AWS_SECRET_ACCESS_KEY")
+	os.Unsetenv("AWS_SESSION_TOKEN")
 
 	err := infracommon.InternVaultEnv(ctx, vaultConfig, vaultPath)
 	if err != nil {

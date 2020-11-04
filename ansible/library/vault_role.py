@@ -4,7 +4,6 @@ from ansible.module_utils.basic import *
 from ansible.module_utils.vault import vault_request
 
 PARAM_DEFAULTS = {
-    "period": 0,
     "policies": [],
     "token_max_ttl": 2592000, # 720h
     "token_ttl": 60,
@@ -78,7 +77,6 @@ def vault_role_absent(vault, data=None, check_mode=False):
 def main():
     fields = {
         "name": {"required": True, "type": "str"},
-        "period": {"type": "int", "default": PARAM_DEFAULTS["period"]},
         "policies": {"type": "list", "default": PARAM_DEFAULTS["policies"]},
         "token_max_ttl": {"type": "int", "default": PARAM_DEFAULTS["token_max_ttl"]},
         "token_ttl": {"type": "int", "default": PARAM_DEFAULTS["token_ttl"]},

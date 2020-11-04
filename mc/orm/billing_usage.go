@@ -54,7 +54,6 @@ func CollectBillingUsage(ctx context.Context, collectInterval time.Duration) {
 			}
 			// get usage from every region
 			for region, _ := range regions {
-				fmt.Printf("region: %s\n", region)
 				recordRegionUsage(ctx, region, prevCollectTime, nextCollectTime)
 			}
 			prevCollectTime = nextCollectTime

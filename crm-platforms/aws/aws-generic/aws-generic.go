@@ -39,8 +39,10 @@ type AWSFlavor struct {
 }
 
 type AwsGenericPlatform struct {
-	Properties        *infracommon.InfraProperties
-	VaultAccessVars   map[string]string
+	Properties *infracommon.InfraProperties
+	// AccountAccessVars are fixed for the account credentials used to access the APIs
+	AccountAccessVars map[string]string
+	// SessionAccessVars must be renewed periodically via MFA
 	SessionAccessVars map[string]string
 }
 
@@ -48,17 +50,14 @@ func (a *AwsGenericPlatform) TimedAwsCommand(ctx context.Context, credType AwsCr
 	parmstr := strings.Join(p, " ")
 	start := time.Now()
 
-	log.SpanLog(ctx, log.DebugLevelInfra, "AWS Command Start", "credType", credType, "name", name, "parms", parmstr, "vars", fmt.Sprintf("%+v", a.VaultAccessVars))
+	log.SpanLog(ctx, log.DebugLevelInfra, "AWS Command Start", "credType", credType, "name", name, "parms", parmstr)
 	newSh := sh.NewSession()
-	for key, val := range a.VaultAccessVars {
-		log.SpanLog(ctx, log.DebugLevelInfra, "AWS Command SETVAR vault ", "key", key, "val", val)
-
+	for key, val := range a.AccountAccessVars {
 		newSh.SetEnv(key, val)
 	}
 	// if this is a session access, add/override session vars
 	for key, val := range a.SessionAccessVars {
 		newSh.SetEnv(key, val)
-		log.SpanLog(ctx, log.DebugLevelInfra, "AWS Command SETVAR session", "key", key, "val", val)
 	}
 
 	out, err := newSh.Command(name, p).CombinedOutput()

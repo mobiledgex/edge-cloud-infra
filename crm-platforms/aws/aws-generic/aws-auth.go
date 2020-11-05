@@ -30,6 +30,8 @@ type AwsSessionData struct {
 
 // GetAwsSessionToken gets a totp code from the vault and then gets an AWS session token
 func (a *AwsGenericPlatform) GetAwsSessionToken(ctx context.Context, vaultConfig *vault.Config) error {
+	log.SpanLog(ctx, log.DebugLevelInfra, "GetAwsSessionToken")
+
 	user, err := a.GetUserAccountIdFromArn(ctx, a.GetAwsUserArn())
 	if err != nil {
 		return err
@@ -111,8 +113,8 @@ func (a *AwsGenericPlatform) RefreshAwsSessionToken(pfconfig *pf.PlatformConfig,
 	}
 }
 
-func (a *AwsGenericPlatform) GetAwsVaultAccessVars(ctx context.Context, key *edgeproto.CloudletKey, region, physicalName string, vaultConfig *vault.Config) error {
-	log.SpanLog(ctx, log.DebugLevelInfra, "GetAwsVaultAccessVars", "key", key)
+func (a *AwsGenericPlatform) GetAwsAccountAccessVars(ctx context.Context, key *edgeproto.CloudletKey, region, physicalName string, vaultConfig *vault.Config) error {
+	log.SpanLog(ctx, log.DebugLevelInfra, "GetAwsAccountAccessVars", "key", key)
 
 	vaultPath := AwsDefaultVaultPath
 	if key.Organization != "aws" {
@@ -129,11 +131,11 @@ func (a *AwsGenericPlatform) GetAwsVaultAccessVars(ctx context.Context, key *edg
 		}
 		return fmt.Errorf("Failed to source access variables from %s, %s: %v", vaultConfig.Addr, vaultPath, err)
 	}
-	a.VaultAccessVars = make(map[string]string)
+	a.AccountAccessVars = make(map[string]string)
 	for _, envData := range envData.Env {
-		a.VaultAccessVars[envData.Name] = envData.Value
+		a.AccountAccessVars[envData.Name] = envData.Value
 	}
 
-	a.VaultAccessVars["AWS_REGION"] = a.GetAwsRegion()
+	a.AccountAccessVars["AWS_REGION"] = a.GetAwsRegion()
 	return nil
 }

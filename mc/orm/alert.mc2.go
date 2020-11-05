@@ -420,6 +420,10 @@ func addControllerApis(method string, group *echo.Group) {
 	// StatusMaxTasks: 11.2
 	// StatusTaskName: 11.3
 	// StatusStepName: 11.4
+	// StatusMsgCount: 11.5
+	// StatusMsgs: 11.6
+	// StatusMsgsMsgId: 11.6.1
+	// StatusMsgsMsg: 11.6.2
 	// State: 12
 	// CrmOverride: 13
 	// DeploymentLocal: 14
@@ -724,6 +728,10 @@ func addControllerApis(method string, group *echo.Group) {
 	// StatusMaxTasks: 6.2
 	// StatusTaskName: 6.3
 	// StatusStepName: 6.4
+	// StatusMsgCount: 6.5
+	// StatusMsgs: 6.6
+	// StatusMsgsMsgId: 6.6.1
+	// StatusMsgsMsg: 6.6.2
 	// CrmOverride: 7
 	// ```
 	// Security:
@@ -971,6 +979,10 @@ func addControllerApis(method string, group *echo.Group) {
 	// StatusMaxTasks: 16.2
 	// StatusTaskName: 16.3
 	// StatusStepName: 16.4
+	// StatusMsgCount: 16.5
+	// StatusMsgs: 16.6
+	// StatusMsgsMsgId: 16.6.1
+	// StatusMsgsMsg: 16.6.2
 	// ExternalVolumeSize: 17
 	// AutoScalePolicy: 18
 	// AvailabilityZone: 19
@@ -1244,6 +1256,10 @@ func addControllerApis(method string, group *echo.Group) {
 	// StatusMaxTasks: 23.2
 	// StatusTaskName: 23.3
 	// StatusStepName: 23.4
+	// StatusMsgCount: 23.5
+	// StatusMsgs: 23.6
+	// StatusMsgsMsgId: 23.6.1
+	// StatusMsgsMsg: 23.6.2
 	// Revision: 24
 	// ForceUpdate: 25
 	// UpdateMultiple: 26

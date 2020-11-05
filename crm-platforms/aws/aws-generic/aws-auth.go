@@ -4,11 +4,12 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"os"
 	"strings"
 	"time"
 
+	"github.com/mobiledgex/edge-cloud-infra/infracommon"
 	pf "github.com/mobiledgex/edge-cloud/cloud-resource-manager/platform"
+	"github.com/mobiledgex/edge-cloud/edgeproto"
 	"github.com/mobiledgex/edge-cloud/log"
 	"github.com/mobiledgex/edge-cloud/vault"
 )
@@ -30,6 +31,9 @@ type AwsSessionData struct {
 // GetAwsSessionToken gets a totp code from the vault and then gets an AWS session token
 func (a *AwsGenericPlatform) GetAwsSessionToken(ctx context.Context, vaultConfig *vault.Config) error {
 	user, err := a.GetUserAccountIdFromArn(ctx, a.GetAwsUserArn())
+	if err != nil {
+		return err
+	}
 	code, err := a.GetAwsTotpToken(ctx, vaultConfig, user)
 	if err != nil {
 		return err
@@ -61,7 +65,7 @@ func (a *AwsGenericPlatform) GetAwsSessionTokenWithCode(ctx context.Context, cod
 	log.SpanLog(ctx, log.DebugLevelInfra, "GetAwsSessionTokenWithCode", "code", code)
 	arn := a.GetAwsUserArn()
 	mfaSerial := strings.Replace(arn, ":user/", ":mfa/", 1)
-	out, err := a.TimedAwsCommand(ctx, "aws",
+	out, err := a.TimedAwsCommand(ctx, AwsCredentialsVault, "aws",
 		"sts",
 		"get-session-token",
 		"--serial-number", mfaSerial,
@@ -78,19 +82,11 @@ func (a *AwsGenericPlatform) GetAwsSessionTokenWithCode(ctx context.Context, cod
 		err = fmt.Errorf("cannot unmarshal, %v", err)
 		return err
 	}
-	// now set envvars
-	err = os.Setenv("AWS_ACCESS_KEY_ID", sessionData.Credentials.AccessKeyId)
-	if err != nil {
-		return err
-	}
-	err = os.Setenv("AWS_SECRET_ACCESS_KEY", sessionData.Credentials.SecretAccessKey)
-	if err != nil {
-		return err
-	}
-	err = os.Setenv("AWS_SESSION_TOKEN", sessionData.Credentials.SessionToken)
-	if err != nil {
-		return err
-	}
+	// save the session vars
+	a.SessionAccessVars = make(map[string]string)
+	a.SessionAccessVars["AWS_ACCESS_KEY_ID"] = sessionData.Credentials.AccessKeyId
+	a.SessionAccessVars["AWS_SECRET_ACCESS_KEY"] = sessionData.Credentials.SecretAccessKey
+	a.SessionAccessVars["AWS_SESSION_TOKEN"] = sessionData.Credentials.SessionToken
 	return nil
 }
 
@@ -103,33 +99,41 @@ func (a *AwsGenericPlatform) RefreshAwsSessionToken(pfconfig *pf.PlatformConfig,
 		}
 		span := log.StartSpan(log.DebugLevelInfra, "refresh aws session token")
 		ctx := log.ContextWithSpan(context.Background(), span)
-
-		// save the old values in case we fail to get a new token
-		oldAccessKey := os.Getenv("AWS_ACCESS_KEY_ID")
-		oldSecretAccessKey := os.Getenv("AWS_SECRET_ACCESS_KEY")
-		oldSessionToken := os.Getenv("AWS_SESSION_TOKEN")
-		os.Unsetenv("AWS_ACCESS_KEY_ID")
-		os.Unsetenv("AWS_SECRET_ACCESS_KEY")
-		os.Unsetenv("AWS_SESSION_TOKEN")
-
-		// Call GetProviderSpecificProps which will reset the login credentials as we cannot use the
-		// session credentials to get a session token
-		_, err := a.GetProviderSpecificProps(ctx, pfconfig, vaultConfig)
-		if err == nil {
-
-			err = a.GetAwsSessionToken(ctx, vaultConfig)
-		}
+		err := a.GetAwsSessionToken(ctx, vaultConfig)
 		if err != nil {
 			log.SpanLog(ctx, log.DebugLevelInfra, "refresh aws session error", "err", err)
 			// retry again soon
 			interval = time.Hour
-			// reset the old values
-			os.Setenv("AWS_ACCESS_KEY_ID", oldAccessKey)
-			os.Setenv("AWS_SECRET_ACCESS_KEY", oldSecretAccessKey)
-			os.Setenv("AWS_SESSION_TOKEN", oldSessionToken)
 		} else {
 			interval = AwsSessionTokenRefreshInterval
 		}
 		span.Finish()
 	}
+}
+
+func (a *AwsGenericPlatform) GetAwsVaultAccessVars(ctx context.Context, key *edgeproto.CloudletKey, region, physicalName string, vaultConfig *vault.Config) error {
+	log.SpanLog(ctx, log.DebugLevelInfra, "GetAwsVaultAccessVars", "key", key)
+
+	vaultPath := AwsDefaultVaultPath
+	if key.Organization != "aws" {
+		// this is not a public cloud aws cloudlet, use the operator specific path
+		vaultPath = fmt.Sprintf("/secret/data/%s/cloudlet/%s/%s/%s/%s", region, "aws", key.Organization, physicalName, "credentials")
+	}
+	envData := &infracommon.VaultEnvData{}
+	err := vault.GetData(vaultConfig, vaultPath, 0, envData)
+	if err != nil {
+		if strings.Contains(err.Error(), "no secrets") {
+			return fmt.Errorf("Failed to source access variables as '%s/%s' "+
+				"does not exist in secure secrets storage (Vault)",
+				key.Organization, physicalName)
+		}
+		return fmt.Errorf("Failed to source access variables from %s, %s: %v", vaultConfig.Addr, vaultPath, err)
+	}
+	a.VaultAccessVars = make(map[string]string)
+	for _, envData := range envData.Env {
+		a.VaultAccessVars[envData.Name] = envData.Value
+	}
+
+	a.VaultAccessVars["AWS_REGION"] = a.GetAwsRegion()
+	return nil
 }

@@ -2,11 +2,13 @@ package awsec2
 
 import (
 	"context"
+	"fmt"
 
 	awsgen "github.com/mobiledgex/edge-cloud-infra/crm-platforms/aws/aws-generic"
 	"github.com/mobiledgex/edge-cloud-infra/vmlayer"
 	"github.com/mobiledgex/edge-cloud/cloud-resource-manager/platform"
 	"github.com/mobiledgex/edge-cloud/edgeproto"
+	"github.com/mobiledgex/edge-cloud/log"
 	"github.com/mobiledgex/edge-cloud/vault"
 )
 
@@ -46,11 +48,12 @@ func (a *AwsEc2Platform) GetProviderSpecificProps(ctx context.Context, pfconfig 
 	return a.awsGenPf.GetProviderSpecificProps(ctx, pfconfig, vaultConfig)
 }
 
-func (o *AwsEc2Platform) InitApiAccessProperties(ctx context.Context, key *edgeproto.CloudletKey, region, physicalName string, vaultConfig *vault.Config, vars map[string]string) error {
-	return nil
+func (a *AwsEc2Platform) InitApiAccessProperties(ctx context.Context, key *edgeproto.CloudletKey, region, physicalName string, vaultConfig *vault.Config, vars map[string]string) error {
+	return a.awsGenPf.GetAwsVaultAccessVars(ctx, key, region, physicalName, vaultConfig)
 }
 
 func (a *AwsEc2Platform) InitData(ctx context.Context, caches *platform.Caches) {
+	log.SpanLog(ctx, log.DebugLevelInfra, "InitData", "AwsEc2Platform", fmt.Sprintf("%+v", a))
 	a.caches = caches
 	a.awsGenPf = &awsgen.AwsGenericPlatform{Properties: &a.VMProperties.CommonPf.Properties}
 }

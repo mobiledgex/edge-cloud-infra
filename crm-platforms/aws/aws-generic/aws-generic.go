@@ -15,6 +15,11 @@ import (
 	"github.com/mobiledgex/edge-cloud/edgeproto"
 )
 
+type AwsCredentialsType string
+
+const AwsCredentialsVault = "vault"
+const AwsCredentialsSession = "session"
+
 type AWSQuotas struct {
 	Limit  float64
 	Metric string
@@ -34,16 +39,27 @@ type AWSFlavor struct {
 }
 
 type AwsGenericPlatform struct {
-	Properties *infracommon.InfraProperties
+	Properties        *infracommon.InfraProperties
+	VaultAccessVars   map[string]string
+	SessionAccessVars map[string]string
 }
 
-func (a *AwsGenericPlatform) TimedAwsCommand(ctx context.Context, name string, p ...string) ([]byte, error) {
+func (a *AwsGenericPlatform) TimedAwsCommand(ctx context.Context, credType AwsCredentialsType, name string, p ...string) ([]byte, error) {
 	parmstr := strings.Join(p, " ")
 	start := time.Now()
 
-	log.SpanLog(ctx, log.DebugLevelInfra, "AWS Command Start", "name", name, "parms", parmstr)
+	log.SpanLog(ctx, log.DebugLevelInfra, "AWS Command Start", "credType", credType, "name", name, "parms", parmstr, "vars", fmt.Sprintf("%+v", a.VaultAccessVars))
 	newSh := sh.NewSession()
-	//envvar stuff here
+	for key, val := range a.VaultAccessVars {
+		log.SpanLog(ctx, log.DebugLevelInfra, "AWS Command SETVAR vault ", "key", key, "val", val)
+
+		newSh.SetEnv(key, val)
+	}
+	// if this is a session access, add/override session vars
+	for key, val := range a.SessionAccessVars {
+		newSh.SetEnv(key, val)
+		log.SpanLog(ctx, log.DebugLevelInfra, "AWS Command SETVAR session", "key", key, "val", val)
+	}
 
 	out, err := newSh.Command(name, p).CombinedOutput()
 	if err != nil {
@@ -75,7 +91,7 @@ func (a *AwsGenericPlatform) GatherCloudletInfo(ctx context.Context, flavorMatch
 		return fmt.Errorf("Cannot compile flavor match pattern")
 	}
 
-	out, err := a.TimedAwsCommand(ctx, "aws", "ec2", "describe-instance-types",
+	out, err := a.TimedAwsCommand(ctx, AwsCredentialsSession, "aws", "ec2", "describe-instance-types",
 		"--filter", filter,
 		"--query", query,
 		"--region", a.GetAwsRegion(),

@@ -175,6 +175,15 @@ func (v *VMPlatform) CreateCloudlet(ctx context.Context, cloudlet *edgeproto.Clo
 		}
 	}
 
+	v.VMProperties.Domain = VMDomainPlatform
+	pc := infracommon.GetPlatformConfig(cloudlet, pfConfig)
+	err = v.InitProps(ctx, pc, vaultConfig)
+	if err != nil {
+		return err
+	}
+
+	v.VMProvider.InitData(ctx, caches)
+
 	// Source OpenRC file to access openstack API endpoint
 	updateCallback(edgeproto.UpdateTask, "Sourcing access variables")
 	log.SpanLog(ctx, log.DebugLevelInfra, "Sourcing access variables", "region", pfConfig.Region, "cloudletKey", cloudlet.Key, "PhysicalName", cloudlet.PhysicalName)
@@ -194,13 +203,6 @@ func (v *VMPlatform) CreateCloudlet(ctx context.Context, cloudlet *edgeproto.Clo
 
 	if pfConfig.ChefServerPath == "" {
 		pfConfig.ChefServerPath = chefmgmt.DefaultChefServerPath
-	}
-
-	v.VMProperties.Domain = VMDomainPlatform
-	pc := infracommon.GetPlatformConfig(cloudlet, pfConfig)
-	err = v.InitProps(ctx, pc, vaultConfig)
-	if err != nil {
-		return err
 	}
 
 	if cloudlet.InfraConfig.ExternalNetworkName != "" {
@@ -324,6 +326,19 @@ func (v *VMPlatform) DeleteCloudlet(ctx context.Context, cloudlet *edgeproto.Clo
 		}
 	}
 
+	v.VMProperties.Domain = VMDomainPlatform
+	cpf := infracommon.CommonPlatform{}
+	v.VMProperties.CommonPf = &cpf
+	pc := infracommon.GetPlatformConfig(cloudlet, pfConfig)
+	err = v.InitProps(ctx, pc, vaultConfig)
+	if err != nil {
+		// ignore this error, as no creation would've happened on infra, so nothing to delete
+		log.SpanLog(ctx, log.DebugLevelInfra, "failed to init props", "cloudletName", cloudlet.Key.Name, "err", err)
+		return nil
+	}
+
+	v.VMProvider.InitData(ctx, caches)
+
 	// Source OpenRC file to access openstack API endpoint
 	err = v.VMProvider.InitApiAccessProperties(ctx, &cloudlet.Key, pfConfig.Region, cloudlet.PhysicalName, vaultConfig, cloudlet.EnvVar)
 	if err != nil {
@@ -334,16 +349,6 @@ func (v *VMPlatform) DeleteCloudlet(ctx context.Context, cloudlet *edgeproto.Clo
 
 	if pfConfig.ChefServerPath == "" {
 		pfConfig.ChefServerPath = chefmgmt.DefaultChefServerPath
-	}
-	v.VMProperties.Domain = VMDomainPlatform
-	cpf := infracommon.CommonPlatform{}
-	v.VMProperties.CommonPf = &cpf
-	pc := infracommon.GetPlatformConfig(cloudlet, pfConfig)
-	err = v.InitProps(ctx, pc, vaultConfig)
-	if err != nil {
-		// ignore this error, as no creation would've happened on infra, so nothing to delete
-		log.SpanLog(ctx, log.DebugLevelInfra, "failed to init props", "cloudletName", cloudlet.Key.Name, "err", err)
-		return nil
 	}
 
 	v.Caches = caches

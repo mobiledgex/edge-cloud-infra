@@ -3,15 +3,16 @@ package awsec2
 import (
 	"context"
 	"fmt"
+	"net"
 	"strconv"
 	"strings"
 
+	"github.com/mobiledgex/edge-cloud-infra/infracommon"
+	"github.com/mobiledgex/edge-cloud-infra/vmlayer"
 	"github.com/mobiledgex/edge-cloud/cloud-resource-manager/platform"
+	"github.com/mobiledgex/edge-cloud/edgeproto"
 	"github.com/mobiledgex/edge-cloud/log"
 	ssh "github.com/mobiledgex/golang-ssh"
-
-	"github.com/mobiledgex/edge-cloud-infra/vmlayer"
-	"github.com/mobiledgex/edge-cloud/edgeproto"
 )
 
 func (a *AwsEc2Platform) SaveCloudletAccessVars(ctx context.Context, cloudlet *edgeproto.Cloudlet, accessVarsIn map[string]string, pfConfig *edgeproto.PlatformConfig, updateCallback edgeproto.CacheUpdateCallback) error {
@@ -56,9 +57,19 @@ func (a *AwsEc2Platform) VerifyVMs(ctx context.Context, vms []edgeproto.VM) erro
 }
 
 func (a *AwsEc2Platform) GetExternalGateway(ctx context.Context, extNetName string) (string, error) {
-	// GetExternalGateway is for Chef to add routes within TDG's openstack environment.  It is
-	// not applicable to AWS.  Return an empty string but no error
-	return "", nil
+	log.SpanLog(ctx, log.DebugLevelMetrics, "GetExternalGateway", "extNetName", extNetName)
+
+	subnet, err := a.GetSubnet(ctx, extNetName)
+	if err != nil {
+		return "", nil
+	}
+	ip, _, err := net.ParseCIDR(subnet.CidrBlock)
+	if err != nil {
+		return "", fmt.Errorf("cannot parse start cidr: %s - %v", subnet.CidrBlock, err)
+	}
+	// GW is the first IP on the subnet
+	infracommon.IncrIP(ip)
+	return ip.String(), nil
 }
 
 func (a *AwsEc2Platform) GetNetworkList(ctx context.Context) ([]string, error) {
@@ -91,8 +102,6 @@ func (a *AwsEc2Platform) GetRouterDetail(ctx context.Context, routerName string)
 
 func (a *AwsEc2Platform) InitProvider(ctx context.Context, caches *platform.Caches, stage vmlayer.ProviderInitStage, updateCallback edgeproto.CacheUpdateCallback) error {
 	log.SpanLog(ctx, log.DebugLevelInfra, "InitProvider", "stage", stage)
-	a.InitData(ctx, caches)
-
 	err := a.awsGenPf.GetAwsSessionToken(ctx, a.VMProperties.CommonPf.VaultConfig)
 	if err != nil {
 		return err
@@ -124,6 +133,10 @@ func (a *AwsEc2Platform) InitProvider(ctx context.Context, caches *platform.Cach
 		return err
 	}
 	a.VpcCidr = vpcCidr
+
+	if stage == vmlayer.ProviderInitDeleteCloudlet {
+		return nil
+	}
 	updateCallback(edgeproto.UpdateTask, "Creating Internet Gateway")
 	igw, err := a.CreateInternetGateway(ctx, vpcName)
 	if err != nil {
@@ -193,11 +206,12 @@ func (a *AwsEc2Platform) InitProvider(ctx context.Context, caches *platform.Cach
 		}
 	}
 
-	go a.awsGenPf.RefreshAwsSessionToken(a.VMProperties.CommonPf.PlatformConfig, a.VMProperties.CommonPf.VaultConfig)
-
+	if stage == vmlayer.ProviderInitPlatformStart {
+		go a.awsGenPf.RefreshAwsSessionToken(a.VMProperties.CommonPf.PlatformConfig, a.VMProperties.CommonPf.VaultConfig)
+	}
 	return nil
-
 }
+
 func (a *AwsEc2Platform) PrepareRootLB(ctx context.Context, client ssh.Client, rootLBName string, secGrpName string, privacyPolicy *edgeproto.PrivacyPolicy) error {
 	log.SpanLog(ctx, log.DebugLevelInfra, "PrepareRootLB", "rootLBName", rootLBName)
 	return nil

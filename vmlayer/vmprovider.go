@@ -315,6 +315,8 @@ func (v *VMPlatform) Init(ctx context.Context, platformConfig *platform.Platform
 		return err
 	}
 
+	v.VMProvider.InitData(ctx, caches)
+
 	updateCallback(edgeproto.UpdateTask, "Fetching API Access access credentials")
 	if err := v.VMProvider.InitApiAccessProperties(ctx, platformConfig.CloudletKey, platformConfig.Region, platformConfig.PhysicalName, vaultConfig, platformConfig.EnvVars); err != nil {
 		return err

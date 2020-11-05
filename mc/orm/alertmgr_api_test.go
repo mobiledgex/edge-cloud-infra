@@ -118,6 +118,15 @@ func goodPermTestAlertReceivers(t *testing.T, mcClient *ormclient.Client, uri, d
 	status, err := testCreateAlertReceiver(mcClient, uri, devToken, region, devOrg, "testAlert", "email", "error", "", "", nil, nil)
 	require.Nil(t, err)
 	require.Equal(t, http.StatusOK, status)
+	// test with cluster org only
+	appInst := edgeproto.AppInstKey{
+		ClusterInstKey: edgeproto.ClusterInstKey{
+			Organization: devOrg,
+		},
+	}
+	status, err = testCreateAlertReceiver(mcClient, uri, devToken, region, devOrg, "testAlert", "email", "error", "", "", &appInst, nil)
+	require.Nil(t, err)
+	require.Equal(t, http.StatusOK, status)
 	status, err = testDeleteAlertReceiver(mcClient, uri, devToken, region, devOrg, "testAlert", "email", "error")
 	require.Nil(t, err)
 	require.Equal(t, http.StatusOK, status)
@@ -155,7 +164,7 @@ func goodPermTestAlertReceivers(t *testing.T, mcClient *ormclient.Client, uri, d
 	require.NotNil(t, err)
 	require.Contains(t, err.Error(), "Receiver email is invalid")
 	// test combination of both appInst and cloudlet
-	appInst := edgeproto.AppInstKey{
+	appInst = edgeproto.AppInstKey{
 		AppKey: edgeproto.AppKey{
 			Organization: devOrg,
 		},

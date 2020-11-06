@@ -67,7 +67,7 @@ func (a *AwsGenericPlatform) GetAwsSessionTokenWithCode(ctx context.Context, cod
 	log.SpanLog(ctx, log.DebugLevelInfra, "GetAwsSessionTokenWithCode", "code", code)
 	arn := a.GetAwsUserArn()
 	mfaSerial := strings.Replace(arn, ":user/", ":mfa/", 1)
-	out, err := a.TimedAwsCommand(ctx, AwsCredentialsVault, "aws",
+	out, err := a.TimedAwsCommand(ctx, AwsCredentialsAccount, "aws",
 		"sts",
 		"get-session-token",
 		"--serial-number", mfaSerial,
@@ -89,6 +89,7 @@ func (a *AwsGenericPlatform) GetAwsSessionTokenWithCode(ctx context.Context, cod
 	a.SessionAccessVars["AWS_ACCESS_KEY_ID"] = sessionData.Credentials.AccessKeyId
 	a.SessionAccessVars["AWS_SECRET_ACCESS_KEY"] = sessionData.Credentials.SecretAccessKey
 	a.SessionAccessVars["AWS_SESSION_TOKEN"] = sessionData.Credentials.SessionToken
+	a.AccountAccessVars["AWS_REGION"] = a.GetAwsRegion()
 	return nil
 }
 
@@ -135,7 +136,6 @@ func (a *AwsGenericPlatform) GetAwsAccountAccessVars(ctx context.Context, key *e
 	for _, envData := range envData.Env {
 		a.AccountAccessVars[envData.Name] = envData.Value
 	}
-
 	a.AccountAccessVars["AWS_REGION"] = a.GetAwsRegion()
 	return nil
 }

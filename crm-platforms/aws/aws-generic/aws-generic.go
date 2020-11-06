@@ -17,7 +17,7 @@ import (
 
 type AwsCredentialsType string
 
-const AwsCredentialsVault = "vault"
+const AwsCredentialsAccount = "account"
 const AwsCredentialsSession = "session"
 
 type AWSQuotas struct {
@@ -52,12 +52,14 @@ func (a *AwsGenericPlatform) TimedAwsCommand(ctx context.Context, credType AwsCr
 
 	log.SpanLog(ctx, log.DebugLevelInfra, "AWS Command Start", "credType", credType, "name", name, "parms", parmstr)
 	newSh := sh.NewSession()
-	for key, val := range a.AccountAccessVars {
-		newSh.SetEnv(key, val)
-	}
-	// if this is a session access, add/override session vars
-	for key, val := range a.SessionAccessVars {
-		newSh.SetEnv(key, val)
+	if credType == AwsCredentialsAccount {
+		for key, val := range a.AccountAccessVars {
+			newSh.SetEnv(key, val)
+		}
+	} else {
+		for key, val := range a.SessionAccessVars {
+			newSh.SetEnv(key, val)
+		}
 	}
 
 	out, err := newSh.Command(name, p).CombinedOutput()

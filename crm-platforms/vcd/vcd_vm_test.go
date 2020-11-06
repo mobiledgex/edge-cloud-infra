@@ -25,6 +25,7 @@ var tmplName = flag.String("tmpl", "default-template-name", "Name of template")
 var netName = flag.String("net", "default-network", "Name of network")
 var ipAddr = flag.String("ip", "172.70.52.210", "Defafult IP addr of VM")
 var ovaName = flag.String("ova", "basic.ova", "name of ova file to upload")
+var vdcName = flag.String("vdc", "mex-01", "name of vdc")
 var livetest = flag.String("live", "false", "live or canned data")
 
 // Unit test env init. We have two cases, the default is live=false making
@@ -35,7 +36,7 @@ func InitVcdTestEnv() (bool, context.Context, error) {
 	log.InitTracer(nil)
 	defer log.FinishTracer()
 	ctx := log.StartTestSpan(context.Background())
-
+	tv.Objs.Vdcs = make(VdcMap)
 	//tv.initDebug(o.VMProperties.CommonPf.PlatformConfig.NodeMgr) // XXX needed now?
 	// make our object maps
 	tv.Objs.Nets = make(map[string]*govcd.OrgVDCNetwork)
@@ -48,7 +49,7 @@ func InitVcdTestEnv() (bool, context.Context, error) {
 	//v.Objs.TemplateVMs = make(map[string]*types.QueryResultVMRecordType)
 	tv.Objs.TemplateVMs = make(TmplVMsMap)
 	tv.Objs.Media = make(MediaMap)
-
+	tv.Objs.Cloudlets = make(VdcCloudlets)
 	if *livetest == "true" {
 		live = true
 		fmt.Printf("\tPopulateOrgLoginCredsFromEnv\n")
@@ -177,10 +178,11 @@ func TestVM(t *testing.T) {
 	live, ctx, err := InitVcdTestEnv()
 	require.Nil(t, err, "InitTestEnv")
 	if live {
-		// No you need an AdminOrg object if you want to get at OrgSettings. <sigh> of course
+		// You need an AdminOrg object if you want to get at OrgSettings.
 
 		org := tv.Objs.Org.Org
-		vdc := tv.Objs.Vdc
+		vdc, err := tv.FindVdc(ctx, *vdcName)
+		require.Nil(t, err, "FindVdc")
 		fmt.Printf("TestVM-VMQuota: %d NicQuota %d\n", vdc.Vdc.VMQuota, vdc.Vdc.NicQuota)
 
 		cli := tv.Client

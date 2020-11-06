@@ -147,6 +147,45 @@ func DumpPortResourceRefs(portRefs *[]vmlayer.PortResourceReference, indent int)
 	}
 }
 
+func DumpOrchParamsVM(vm *vmlayer.VMOrchestrationParams, indent int) {
+	fill := strings.Repeat("  ", indent)
+
+	if vm == nil {
+		fmt.Printf("%s\n", fill+"No VM params")
+		return
+	}
+	fmt.Printf("%s %s\n", fill+"Id", vm.Id)
+	fmt.Printf("%s %s\n", fill+"Name", vm.Name)
+	fmt.Printf("%s %s\n", fill+"VMRole", vm.Role)
+	fmt.Printf("%s %s\n", fill+"ImageName", vm.ImageName)
+	//		fmt.Printf("%s %s\n", fill+"TemplateId", vm.TemplateId)   apparently removed as not needed or generic.
+	fmt.Printf("%s %s\n", fill+"ImageFolder", vm.ImageFolder)
+	fmt.Printf("%s %s\n", fill+"HostName", vm.HostName)
+	fmt.Printf("%s %s\n", fill+"DNSDomain", vm.DNSDomain)
+	fmt.Printf("%s %s\n", fill+"FlavorName", vm.FlavorName)
+	fmt.Printf("%s %d\n", fill+"Vcpus", vm.Vcpus)
+	fmt.Printf("%s %d\n", fill+"Rame", vm.Ram)
+	fmt.Printf("%s %d\n", fill+"Disk", vm.Disk)
+	fmt.Printf("%s %s\n", fill+"Compute AZ", vm.ComputeAvailabilityZone)
+	fmt.Printf("%s %s\n", fill+"UserData", vm.UserData)
+	fmt.Printf("%s %s\n", fill+"MetaData", vm.MetaData)
+	fmt.Printf("%s %t\n", fill+"SharedVolume", vm.SharedVolume)
+	fmt.Printf("%s %s\n", fill+"DNSServers", vm.DNSServers)
+	fmt.Printf("%s %s\n", fill+"AuthPublicKey", vm.AuthPublicKey)
+	fmt.Printf("%s %s\n", fill+"DeploymentManifest", vm.DeploymentManifest)
+
+	fmt.Printf("%s %s\n", fill+"Command", vm.Command)
+	fmt.Printf("%s\n", fill+"Volumes:")
+	DumpVolumes(&vm.Volumes, indent+1)
+
+	fmt.Printf("%s\n", fill+"Ports:")
+	DumpPortResourceRefs(&vm.Ports, indent+1)
+
+	fmt.Printf("%s\n", fill+"FixedIPs")
+	DumpFixedIPOrchParams(&vm.FixedIPs, indent+1)
+	fmt.Printf("%s %s\n", fill+"Auth Public Key ", vm.AuthPublicKey)
+}
+
 // Add details needed by the orchestrator
 func DumpOrchParamsVMs(vms *[]vmlayer.VMOrchestrationParams, indent int) {
 	fill := strings.Repeat("  ", indent)
@@ -156,38 +195,42 @@ func DumpOrchParamsVMs(vms *[]vmlayer.VMOrchestrationParams, indent int) {
 	}
 
 	for _, vm := range *vms {
-		fmt.Printf("%s %s\n", fill+"Id", vm.Id)
-		fmt.Printf("%s %s\n", fill+"Name", vm.Name)
-		fmt.Printf("%s %s\n", fill+"VMRole", vm.Role)
-		fmt.Printf("%s %s\n", fill+"ImageName", vm.ImageName)
-		//		fmt.Printf("%s %s\n", fill+"TemplateId", vm.TemplateId)   apparently removed as not needed or generic.
-		fmt.Printf("%s %s\n", fill+"ImageFolder", vm.ImageFolder)
-		fmt.Printf("%s %s\n", fill+"HostName", vm.HostName)
-		fmt.Printf("%s %s\n", fill+"DNSDomain", vm.DNSDomain)
-		fmt.Printf("%s %s\n", fill+"FlavorName", vm.FlavorName)
-		fmt.Printf("%s %d\n", fill+"Vcpus", vm.Vcpus)
-		fmt.Printf("%s %d\n", fill+"Rame", vm.Ram)
-		fmt.Printf("%s %d\n", fill+"Disk", vm.Disk)
-		fmt.Printf("%s %s\n", fill+"Compute AZ", vm.ComputeAvailabilityZone)
-		fmt.Printf("%s %s\n", fill+"UserData", vm.UserData)
-		fmt.Printf("%s %s\n", fill+"MetaData", vm.MetaData)
-		fmt.Printf("%s %t\n", fill+"SharedVolume", vm.SharedVolume)
-		fmt.Printf("%s %s\n", fill+"DNSServers", vm.DNSServers)
-		fmt.Printf("%s %s\n", fill+"AuthPublicKey", vm.AuthPublicKey)
-		fmt.Printf("%s %s\n", fill+"DeploymentManifest", vm.DeploymentManifest)
+		DumpOrchParamsVM(&vm, indent+1)
+		/*
+				fmt.Printf("%s %s\n", fill+"Id", vm.Id)
+				fmt.Printf("%s %s\n", fill+"Name", vm.Name)
+				fmt.Printf("%s %s\n", fill+"VMRole", vm.Role)
+				fmt.Printf("%s %s\n", fill+"ImageName", vm.ImageName)
+				//		fmt.Printf("%s %s\n", fill+"TemplateId", vm.TemplateId)   apparently removed as not needed or generic.
+				fmt.Printf("%s %s\n", fill+"ImageFolder", vm.ImageFolder)
+				fmt.Printf("%s %s\n", fill+"HostName", vm.HostName)
+				fmt.Printf("%s %s\n", fill+"DNSDomain", vm.DNSDomain)
+				fmt.Printf("%s %s\n", fill+"FlavorName", vm.FlavorName)
+				fmt.Printf("%s %d\n", fill+"Vcpus", vm.Vcpus)
+				fmt.Printf("%s %d\n", fill+"Rame", vm.Ram)
+				fmt.Printf("%s %d\n", fill+"Disk", vm.Disk)
+				fmt.Printf("%s %s\n", fill+"Compute AZ", vm.ComputeAvailabilityZone)
+				fmt.Printf("%s %s\n", fill+"UserData", vm.UserData)
+				fmt.Printf("%s %s\n", fill+"MetaData", vm.MetaData)
+				fmt.Printf("%s %t\n", fill+"SharedVolume", vm.SharedVolume)
+				fmt.Printf("%s %s\n", fill+"DNSServers", vm.DNSServers)
+				fmt.Printf("%s %s\n", fill+"AuthPublicKey", vm.AuthPublicKey)
+				fmt.Printf("%s %s\n", fill+"DeploymentManifest", vm.DeploymentManifest)
 
-		fmt.Printf("%s %s\n", fill+"Command", vm.Command)
-		fmt.Printf("%s\n", fill+"Volumes:")
-		DumpVolumes(&vm.Volumes, indent+1)
+				fmt.Printf("%s %s\n", fill+"Command", vm.Command)
+				fmt.Printf("%s\n", fill+"Volumes:")
+				DumpVolumes(&vm.Volumes, indent+1)
 
-		fmt.Printf("%s\n", fill+"Ports:")
-		DumpPortResourceRefs(&vm.Ports, indent+1)
+				fmt.Printf("%s\n", fill+"Ports:")
+				DumpPortResourceRefs(&vm.Ports, indent+1)
 
-		fmt.Printf("%s\n", fill+"FixedIPs")
-		DumpFixedIPOrchParams(&vm.FixedIPs, indent+1)
-		fmt.Printf("%s %s\n", fill+"Auth Public Key ", vm.AuthPublicKey)
+				fmt.Printf("%s\n", fill+"FixedIPs")
+				DumpFixedIPOrchParams(&vm.FixedIPs, indent+1)
+				fmt.Printf("%s %s\n", fill+"Auth Public Key ", vm.AuthPublicKey)
+			}
+		*/
+
 	}
-
 }
 func DumpFloatIPs(fips *[]vmlayer.FloatingIPOrchestrationParams, indent int) {
 	fill := strings.Repeat("  ", indent)

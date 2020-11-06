@@ -43,11 +43,17 @@ type EdgeFirewallRule struct {
 }
 */
 
+// wants to use -vdc to select what vdc to use
 func TestFirewall(t *testing.T) {
-	live, _, err := InitVcdTestEnv()
+	live, ctx, err := InitVcdTestEnv()
 	require.Nil(t, err, "InitVcdTestEnv")
 	if live {
-		fmt.Printf("TestFireWall:")
+		fmt.Printf("TestFireWall: vdc: %s\n", *vdcName)
+		vdc, err := tv.FindVdc(ctx, *vdcName)
+		if err != nil {
+			fmt.Printf("unable to find vdc name %s\n", *vdcName)
+			return
+		}
 		/*
 			edgeGateWayRecord, err := tv.Objs.Vdc.GetEdgeGatewayRecordsType(true)
 			if err != nil {
@@ -63,7 +69,7 @@ func TestFirewall(t *testing.T) {
 			}
 		*/
 		edgeName := ""
-		edgeRecs, err := tv.Objs.Vdc.GetEdgeGatewayRecordsType(true)
+		edgeRecs, err := vdc.GetEdgeGatewayRecordsType(true)
 		if err != nil {
 			fmt.Printf("GetGatewayRecordsType failed: %s\n", err.Error())
 		} else {
@@ -77,7 +83,7 @@ func TestFirewall(t *testing.T) {
 				fmt.Printf("error on edge refresh: %s\n", err.Error())
 				return
 			}
-			edge, err := tv.Objs.Vdc.GetEdgeGatewayByName(edgeName, false)
+			edge, err := vdc.GetEdgeGatewayByName(edgeName, false)
 
 			if err != nil {
 

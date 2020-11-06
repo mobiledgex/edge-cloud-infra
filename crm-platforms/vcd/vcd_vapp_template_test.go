@@ -13,12 +13,17 @@ import (
 )
 
 // Test what instanciate does, should be the simple creation of a vapp from the template
-// So we  use -vapp and -tmpl args
+// So we  use -vdc, -vapp and -tmpl args
 func TestInstanciateTmpl(t *testing.T) {
 
 	live, ctx, err := InitVcdTestEnv()
 	require.Nil(t, err, "InitVcdTestEnv")
 	if live {
+		vdc, err := tv.FindVdc(ctx, *vdcName)
+		if err != nil {
+			fmt.Printf("%s not found\n", *vdcName)
+			return
+		}
 		fmt.Printf("TestInstancitate tmplName %s vappName %s\n", *tmplName, *vappName)
 		tmpl, err := tv.FindTemplate(ctx, *tmplName)
 		require.Nil(t, err, "FindVappTemplate")
@@ -47,12 +52,12 @@ func TestInstanciateTmpl(t *testing.T) {
 			AllEULAsAccepted: true, // takeBoolPointer(true),
 		}
 
-		err = tv.Objs.Vdc.InstantiateVAppTemplate(tmplParams)
+		err = vdc.InstantiateVAppTemplate(tmplParams)
 		if err != nil {
 			fmt.Printf("InstantiateVApptemplate-E-error: %s\n", err.Error())
 			return
 		}
-		vapp, err := tv.Objs.Vdc.GetVAppByName(*vappName, true)
+		vapp, err := vdc.GetVAppByName(*vappName, true)
 		if err != nil {
 			fmt.Printf("GetVappByName-E-%s\n", err.Error())
 			return
@@ -160,24 +165,6 @@ func TestTmpl(t *testing.T) {
 	}
 }
 
-func testVAppTemplate(t *testing.T, ctx context.Context) {
-
-	// verify we have templates in tv.Objs.VAppTmpls
-	for tname, t := range tv.Objs.VAppTmpls {
-		fmt.Printf("next tmpl: %s\n", tname)
-		fmt.Printf("\t%+v\n", t)
-	}
-	vappName := "test-vapp1"
-	// test compose a vapp from template
-	err := testComposeVapp(t, ctx, vappName)
-	require.Nil(t, err, "testComposeVapp testvapp1")
-	//testCreateVAppTmpl(t, ctx)
-
-	err = testDestroyVapp(t, ctx, vappName)
-	require.Nil(t, err, "TestDestroyVapp")
-
-}
-
 func populateInstantiationParams() *types.InstantiationParams {
 
 	custSec := &types.CustomizationSection{
@@ -217,23 +204,6 @@ func populateVAppTmplInstatiationParams(t *testing.T, ctx context.Context) *type
 	tmplParams := &types.InstantiateVAppTemplateParams{}
 	return tmplParams
 
-}
-
-// from govcd.vapptemplate.go
-func testCreateVAppTmpl(t *testing.T, ctx context.Context) {
-
-	//TestTmp := &govcd.VAppTemplate{}
-	TestTmpl := govcd.NewVAppTemplate(&tv.Client.Client)
-
-	fmt.Printf("\nTestTmp: %+v\n", TestTmpl)
-
-	//tmplParams := populateVAppTmplInstatiationParams(t, ctx)
-	//err := tv.Objs.Vdc.InstantiateVAppTemplate(tmplParams)
-	// this returns 405 method not allowed.
-	// require.Nil(t, err, "InstatiateVAppTemplate")
-	fmt.Printf("testCreateVAppTmpl-I-vdc resource entities now:\n")
-	vu.DumpVdcResourceEntities(tv.Objs.Vdc.Vdc, 1)
-	// should be able to ask for vappTemplateByName now eh?
 }
 
 // Delete the name VAppTemplate from the catalog
@@ -281,6 +251,7 @@ func testInsertMediaToVAppTmpl(t *testing.T, ctx context.Context) {
 
 // recompose uploaded mobiledgex-v3.1.6-v14-vapp.ovf to use our networks
 //
+/*
 func testComposeVapp(t *testing.T, ctx context.Context, vappName string) error {
 
 	targetTmpl := &govcd.VAppTemplate{}
@@ -335,6 +306,7 @@ func testComposeVapp(t *testing.T, ctx context.Context, vappName string) error {
 	// or did we need to remove the old network first?
 	return err
 }
+*/
 
 // AddNewVM Adds VM from VApp template with custom NetworkConnectionSection
 // So the VApp we've just composed, add a second VM with just an internal network

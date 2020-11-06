@@ -91,6 +91,9 @@ func (v *VMPlatform) SetupPlatformVM(ctx context.Context, vaultConfig *vault.Con
 	log.SpanLog(ctx, log.DebugLevelInfra, "SetupPlatformVM", "cloudlet", cloudlet)
 
 	platformVmName := v.GetPlatformVMName(&cloudlet.Key)
+
+	fmt.Printf("\n\nSetupPlatformVM name: %s\n", platformVmName)
+
 	_, err := v.GetCloudletImageToUse(ctx, updateCallback)
 	if err != nil {
 		return err
@@ -212,6 +215,7 @@ func (v *VMPlatform) CreateCloudlet(ctx context.Context, cloudlet *edgeproto.Clo
 	// But for local testing convenience, we default to the hard-coded
 	// ones if not specified.
 	if pfConfig.ContainerRegistryPath == "" {
+		fmt.Printf("\nCreateCloudlet-I-ContainerRegistryPath nil using default %s\n", infracommon.DefaultContainerRegistryPath)
 		pfConfig.ContainerRegistryPath = infracommon.DefaultContainerRegistryPath
 	}
 
@@ -221,6 +225,7 @@ func (v *VMPlatform) CreateCloudlet(ctx context.Context, cloudlet *edgeproto.Clo
 	if cloudlet.InfraApiAccess == edgeproto.InfraApiAccess_RESTRICTED_ACCESS {
 		stage = ProviderInitCreateCloudletRestricted
 	}
+	fmt.Printf("\nCreateCloudlet-I-InitProvider\n")
 	err = v.VMProvider.InitProvider(ctx, caches, stage, updateCallback)
 	if err != nil {
 		return err
@@ -242,6 +247,8 @@ func (v *VMPlatform) CreateCloudlet(ctx context.Context, cloudlet *edgeproto.Clo
 	}
 	cloudlet.ChefClientKey = make(map[string]string)
 	platformVMName := v.GetPlatformVMName(&cloudlet.Key)
+
+	fmt.Printf("\nCreateCloudlet-I-platformVMName %s\n", platformVMName)
 	if cloudlet.InfraApiAccess == edgeproto.InfraApiAccess_RESTRICTED_ACCESS {
 		nodes := v.GetPlatformNodes(cloudlet)
 		for _, nodeName := range nodes {

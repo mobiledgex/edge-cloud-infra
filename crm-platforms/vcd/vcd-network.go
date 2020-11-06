@@ -354,16 +354,17 @@ func (v *VcdPlatform) SetVappExternalNetwork(ctx context.Context, vapp govcd.VAp
 	return externalNetName, nil
 
 }
+
+// All clusters live in one cloudlet/vapp. That cloudlet has our single external networks
+// For each new ClusterInst we place on this cloudlet, we need to add a new 10 dot subnet
+// using the 3rd octent and host part to the cloudlet as .1 the lb as .10 and the rest as
+// .101, 102, ...
+//
 func (v VcdPlatform) CreateVappInternalNetwork(ctx context.Context, vapp govcd.VApp) (string, error) {
 
 	var iprange []*types.IPRange
 
-	fmt.Printf("\nsetVappNetworks for 2nics\n")
 	IPScope := v.Objs.PrimaryNet.OrgVDCNetwork.Configuration.IPScopes.IPScope[0]
-
-	// this guy (LB)  needs both external and internal or GetIPFromServerDetail will fail as it
-	// demands two networks
-
 	interIPRange := types.IPRange{
 		// Gateway can't be in this range.
 		StartAddress: "10.101.1.2",

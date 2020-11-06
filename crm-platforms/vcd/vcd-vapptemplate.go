@@ -3,7 +3,7 @@ package vcd
 import (
 	"context"
 	"fmt"
-	vu "github.com/mobiledgex/edge-cloud-infra/crm-platforms/vcd/vcdutils"
+	//vu "github.com/mobiledgex/edge-cloud-infra/crm-platforms/vcd/vcdutils"
 	"github.com/vmware/go-vcloud-director/v2/govcd"
 )
 
@@ -42,26 +42,27 @@ func (v *VcdPlatform) GetAllVdcTemplates(ctx context.Context, cat *govcd.Catalog
 
 	var tmpls []*govcd.VAppTemplate
 
-	queryRes, err := v.Objs.Vdc.QueryVappTemplateList()
-	if err != nil {
-		fmt.Printf("QueryVappTemplateList error : %s\n", err.Error())
-		return tmpls, err
-	}
-	for n, res := range queryRes {
-		fmt.Printf("\t#%d Lookup res.Name: %sby HREF: %s\n", n, res.Name, res.HREF)
-
-		tmpl, err := cat.GetVappTemplateByHref(res.HREF)
-		// tmpl, err := cat.GetVappTemplateByBName(res.Name)
+	for _, vdc := range v.Objs.Vdcs {
+		queryRes, err := vdc.QueryVappTemplateList()
 		if err != nil {
-			// This can happen if we have objects using the same names?
-			fmt.Printf("\tError from GetVappTemplateByHref for %s as %s Skipping\n", res.Name, res.HREF)
+			fmt.Printf("QueryVappTemplateList error : %s\n", err.Error())
 			continue
-		} else {
-			tmpls = append(tmpls, tmpl)
-			fmt.Printf("\tAdded template %s to templs\n", res.Name)
+		}
+		for n, res := range queryRes {
+			fmt.Printf("\t#%d Lookup res.Name: %sby HREF: %s\n", n, res.Name, res.HREF)
+
+			tmpl, err := cat.GetVappTemplateByHref(res.HREF)
+			// tmpl, err := cat.GetVappTemplateByBName(res.Name)
+			if err != nil {
+				// This can happen if we have objects using the same names?
+				fmt.Printf("\tError from GetVappTemplateByHref for %s as %s Skipping\n", res.Name, res.HREF)
+				continue
+			} else {
+				tmpls = append(tmpls, tmpl)
+				fmt.Printf("\tAdded template %s to templs\n", res.Name)
+			}
 		}
 	}
-
 	return tmpls, nil
 
 }
@@ -69,6 +70,8 @@ func (v *VcdPlatform) GetAllVdcTemplates(ctx context.Context, cat *govcd.Catalog
 // Return the list of VMs contained in this template
 // This impl fails. But they have a new call, use that here
 // 		if tmpl.Type == "application/vnd.vmware.vcloud.vm+xml" {
+
+/*
 func (v *VcdPlatform) GetVmsFromTemplate(ctx context.Context, catName string, tmpl *govcd.VAppTemplate) ([]*govcd.VM, error) {
 
 	var vms []*govcd.VM
@@ -97,3 +100,4 @@ func (v *VcdPlatform) GetVmsFromTemplate(ctx context.Context, catName string, tm
 	}
 	return vms, nil
 }
+*/

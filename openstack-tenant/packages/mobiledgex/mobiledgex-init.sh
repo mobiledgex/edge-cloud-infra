@@ -60,20 +60,27 @@ chmod u-x,go-rwx /etc/shadow-
 chmod og-rwx /boot/grub/grub.cfg
 find /var/log -type f -exec chmod g-wx,o-rwx "{}" + -o -type d -exec chmod g-w,o-rwx "{}" +
 
-if [[ -f "$VMWARE_CLOUDINIT" ]]; then
-        log "VMware cloud-init case, fetch metadata from vmtoolsd"
-        # check that metadata exists, if it does not then exit.
-        if ! vmtoolsd --cmd "info-get guestinfo.metadata";
-        then
-            log "VMware metadata is empty, quitting"
-            log "Finished mobiledgex init"
-            exit 0
-        fi
-        log "show userdata"
-        vmtoolsd --cmd "info-get guestinfo.userdata" > /var/log/userdata.log
-        log "VMware cloud-init case, fetch metadata from vmtoolsd"
-        mkdir -p $METADIR
-        vmtoolsd --cmd "info-get guestinfo.metadata"|base64 -d|python3 -c 'import sys, yaml, json; json.dump(yaml.load(sys.stdin), sys.stdout)' > $METADATA 
+# check for vsphere meta data
+if  vmtoolsd --cmd "info-get guestinfo.metadata" >& /dev/null; then
+    log "VMware vsphere cloud-init case, fetch metadata from vmtoolsd"
+    vmtoolsd --cmd "info-get guestinfo.userdata" > /var/log/userdata.log
+    mkdir -p $METADIR
+    vmtoolsd --cmd "info-get guestinfo.metadata"|base64 -d|python3 -c 'import sys, yaml, json; json.dump(yaml.load(sys.stdin), sys.stdout)' > $METADATA
+
+# no? check for vcd ovf environment properties    
+elif  vmtoolsd --cmd "info-get guestinfo.ovfEnv" >& /dev/null; then 	 
+         log "VMware vCD case  fetch metadata from userdata.ovfenv"
+         mkdir -p $METADIR
+	 # like vsphere, leave a copy in usrdata.log
+         vmtoolsd --cmd "info-get guestinfo.ovfEnv" > /var/log/userdata.log
+	 export OVFILENAME=/var/log/userdata.log
+	 /usr/local/bin/parseovfenv > $METADATA
+	 
+else
+    echo "VMware vsphere and vcd metadata are empty  quitting"
+    echo "Finished mobiledgex init"
+    exit 0
+fi
 fi
 
 mkdir -p $MCONF

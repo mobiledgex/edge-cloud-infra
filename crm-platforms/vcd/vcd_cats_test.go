@@ -45,18 +45,19 @@ func TestUploadOva(t *testing.T) {
 //
 func testGetAllVdcTemplates(t *testing.T, ctx context.Context) []string {
 	var tmpls []string
+	for _, vdc := range tv.Objs.Vdcs {
+		fmt.Printf("\nvdc items\n")
+		for _, res := range vdc.Vdc.ResourceEntities {
+			for N, item := range res.ResourceEntity {
+				if item.Type == "application/vnd.vmware.vcloud.vAppTemplate+xml" {
+					fmt.Printf("%3d %-40s %s\n", N, item.Name, item.Type)
+					tmpls = append(tmpls, item.Name)
 
-	fmt.Printf("\nvdc items\n")
-	for _, res := range tv.Objs.Vdc.Vdc.ResourceEntities {
-		for N, item := range res.ResourceEntity {
-			if item.Type == "application/vnd.vmware.vcloud.vAppTemplate+xml" {
-				fmt.Printf("%3d %-40s %s\n", N, item.Name, item.Type)
-				tmpls = append(tmpls, item.Name)
-
+				}
 			}
 		}
+		fmt.Println("")
 	}
-	fmt.Println("")
 	return tmpls
 }
 

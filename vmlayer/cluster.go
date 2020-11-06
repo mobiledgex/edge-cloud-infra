@@ -262,6 +262,8 @@ func (v *VMPlatform) CreateClusterInst(ctx context.Context, clusterInst *edgepro
 	lbName := v.VMProperties.GetRootLBNameForCluster(ctx, clusterInst)
 	log.SpanLog(ctx, log.DebugLevelInfra, "CreateClusterInst", "clusterInst", clusterInst, "lbName", lbName)
 
+	fmt.Printf("\nCreateClusterInst %s lb: %s on cloudlet name: %s \n", clusterInst.Key.ClusterKey.Name, lbName, clusterInst.Key.CloudletKey.Name)
+
 	//find the flavor and check the disk size
 	for _, flavor := range v.FlavorList {
 		if flavor.Name == clusterInst.NodeFlavor && flavor.Disk < MINIMUM_DISK_SIZE && clusterInst.ExternalVolumeSize < MINIMUM_DISK_SIZE {
@@ -312,6 +314,9 @@ func (v *VMPlatform) createClusterInternal(ctx context.Context, rootLBName strin
 }
 
 func (v *VMPlatform) setupClusterRootLBAndNodes(ctx context.Context, rootLBName string, clusterInst *edgeproto.ClusterInst, updateCallback edgeproto.CacheUpdateCallback, start time.Time, timeout time.Duration, vmgp *VMGroupOrchestrationParams, privacyPolicy *edgeproto.PrivacyPolicy, action ActionType) (reterr error) {
+
+	fmt.Printf("\nsetupClusterRootLBAndNodes rootLB name %s\n", rootLBName)
+
 	client, err := v.GetClusterPlatformClient(ctx, clusterInst, cloudcommon.ClientTypeRootLB)
 	if err != nil {
 		return fmt.Errorf("can't get rootLB client, %v", err)

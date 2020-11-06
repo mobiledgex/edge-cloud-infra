@@ -65,7 +65,7 @@ func TestRMVApp(t *testing.T) {
 // Test our CreateVApp using vmlayer args
 
 func TestMexVApp(t *testing.T) {
-	live, ctx, err := InitVcdTestEnv()
+	live, _, err := InitVcdTestEnv()
 	require.Nil(t, err, "InitVcdTestEnv")
 
 	if live {
@@ -149,12 +149,13 @@ func TestMexVApp(t *testing.T) {
 		vmgp.VMs = append(vmgp.VMs, vmparams)
 
 		//var updateCallback edgeproto.CacheUpdateCallback
-
-		vapp, err := tv.CreateRawVApp(ctx, vmgp.GroupName)
-		if err != nil {
-			fmt.Printf("Error creating VApp: %s\n", err.Error())
-		}
-		vu.DumpVApp(vapp, 1)
+		/*
+			vapp, err := tv.CreateRawVApp(ctx, vmgp.GroupName)
+			if err != nil {
+				fmt.Printf("Error creating VApp: %s\n", err.Error())
+			}
+			vu.DumpVApp(vapp, 1)
+		*/
 	} else {
 		return
 	}
@@ -205,127 +206,17 @@ func GetVirtHwItem(t *testing.T, ctx context.Context) types.VirtualHardwareItem 
 	return item
 }
 
-// Typically, the Vapp is created, network either added after or
-// from a template if using composeVApp, then adding new VMs or AddEmptyVM
-// So many ways of doing the same thing.  (or so it seems)
-// requires -vapp and -vm
-func Test2Nics(t *testing.T) {
-
+// need -vdc
+func TestShowVApp(t *testing.T) {
 	live, ctx, err := InitVcdTestEnv()
 	require.Nil(t, err, "InitVcdTestEnv")
 	if live {
-		fmt.Printf("Test2emptyNics-Start create vapp named %s\n", *vappName)
-
-		vdc := tv.Objs.Vdc
-
-		tmpl, err := tv.FindTemplate(ctx, *tmplName)
-		require.Nil(t, err, "FindTemplate")
-
-		storRef := types.Reference{}
-		// Empty Ref wins the default (vSAN Default is all we have, but should support others xxx Prop?)
-
-		// So if our template has vm children, this will set primaryNextworkConnectionIndex to the first VM's
-		// But it still demands networks != nil, and will append it, so weird, we only want one and that one is
-		// in the template. So just use that one to make the call happy
-		//
-		networks := []*types.OrgVDCNetwork{}
-		networks = append(networks, tv.Objs.PrimaryNet.OrgVDCNetwork)
-		//  We'll need to adjust networks subsequent to compose when we have a vapp
-
-		task, err := tv.Objs.Vdc.ComposeVApp(networks, *tmpl, storRef, *vappName, "test 2 nics", true)
-
-		if err != nil {
-			fmt.Printf("error creating vApp: %s", err.Error())
-			return
-		}
-		err = task.WaitTaskCompletion()
-		vapp, err := vdc.GetVAppByName(*vappName, true)
-		if err != nil {
-			fmt.Printf("unable to find vApp by name %s: %s", *vappName, err.Error())
-			return
-		}
-		err = vapp.BlockWhileStatus("UNRESOLVED", 30) // upto seconds
-		if err != nil {
-			fmt.Printf("error waiting for created test vApp to have working state: %s", err.Error())
-			return
-
-		}
-
-		task, err = vapp.RemoveAllNetworks()
-		if err != nil {
-			fmt.Printf("Error removing all networks: %s\n", err.Error())
-		}
-		err = task.WaitTaskCompletion()
-
-		_ /* networkConfigSection */, err = tv.AddVappNetwork(ctx, vapp)
-
-		if err != nil {
-			fmt.Printf("CreateRoutedExternalNetwork (external) failed: %s\n", err.Error())
-			return
-		}
-
-		// internal network, this just uses CreateVappNetwork
-		internalNetName, err := setVappInternalNetwork(t, ctx, *vapp)
-		if err != nil {
-			fmt.Printf("setVappNetwork  (internal) failed: %s\n", err.Error())
-			return
-		}
-
-		fmt.Printf("Added network %s\n", internalNetName)
-		// what's in the current vapp.NetworkConnectionSection?
-		desiredNetConfig, err := vapp.GetNetworkConnectionSection()
-		//desiredNetConfig := &types.NetworkConnectionSection{}
-		desiredNetConfig.PrimaryNetworkConnectionIndex = 0
-
-		desiredNetConfig.NetworkConnection = append(desiredNetConfig.NetworkConnection,
-			&types.NetworkConnection{
-				IsConnected:             true,
-				IPAddressAllocationMode: types.IPAllocationModePool,            // MANUAL
-				Network:                 tv.Objs.PrimaryNet.OrgVDCNetwork.Name, // types.NoneNetwork,
-				//IPAddress:               *ipAddr,
-				NetworkConnectionIndex: 0,
-			},
-
-			&types.NetworkConnection{
-				IsConnected:             true,
-				IPAddressAllocationMode: types.IPAllocationModeManual,
-				Network:                 internalNetName,
-				NetworkConnectionIndex:  1,
-				IPAddress:               "10.101.1.1", // we're the gateway
-			})
-
-		vmtmplName := vapp.VApp.Children.VM[0].Name
-		fmt.Printf("Using existing VM in template Named: %s\n", vmtmplName)
-		vm, err := vapp.GetVMByName(vmtmplName, false)
-		if err != nil {
-			fmt.Printf("error fetching y VM: %s", err.Error())
-			return
-		}
-
-		err = vm.UpdateNetworkConnectionSection(desiredNetConfig)
-		if err != nil {
-			fmt.Printf(" 327 Error UpdateNetworkConnnectionSection: %s\n", err.Error())
-			return
-		}
-		// Do we have an externalIPAddress?  (not if only bridged, should need Nat for that
-		ncs, err := vm.GetNetworkConnectionSection()
-		for _, nc := range ncs.NetworkConnection {
-			fmt.Printf("\tNetwork: %s idx: %d IPAddress: %s ExternalIPAddress ==>%s<==\n",
-				nc.Network, nc.NetworkConnectionIndex, nc.IPAddress, nc.ExternalIPAddress)
-		}
-
-		// Do we need to chanage anything here? or are we good to deploy/power on?
-	} else {
-		return
-	}
-}
-
-func TestShowVApp(t *testing.T) {
-	live, _, err := InitVcdTestEnv()
-	require.Nil(t, err, "InitVcdTestEnv")
-	if live {
 		fmt.Printf("TestShowVApp-Start show vapp named %s\n", *vappName)
-		vdc := tv.Objs.Vdc
+		vdc, err := tv.FindVdc(ctx, *vdcName)
+		if err != nil {
+			fmt.Printf("vdc %s not found\n", *vdcName)
+			return
+		}
 		_, err = vdc.GetVAppByName(*vappName, false)
 		require.Nil(t, err, "GetVAppByName")
 
@@ -351,16 +242,17 @@ func TestShowVApp(t *testing.T) {
 // This follows the example in vm_test.go, which uses 2 vdcOrgNetworks, so we'll first prove that out,
 // and assuming it works fine, try and modify for our internal network.
 // We'll create a vappName'd vapp
+// uses -vapp -vcd
 func TestRawVApp(t *testing.T) {
 
 	live, ctx, err := InitVcdTestEnv()
 	require.Nil(t, err, "InitVcdTestEnv")
 
 	if live {
-		//	vappName := "mex-vcd.mobiledgex.net-vapp"
-		fmt.Printf("TestVApp-Start create vapp named %s\n", *vappName)
+		vdc, err := tv.FindVdc(ctx, *vdcName)
+		require.Nil(t, err, "FindVdc")
+		fmt.Printf("TestVApp-Start create vapp named %s in vdc %s \n", *vappName, *vdcName)
 
-		vdc := tv.Objs.Vdc
 		// 1) create raw vapp, and 2) add networks:
 		err = vdc.ComposeRawVApp(*vappName)
 		require.Nil(t, err, "vdc.CreateRawVapp")
@@ -594,36 +486,9 @@ func testCreateVApp(t *testing.T, ctx context.Context, vappName string) (*govcd.
 	// Compose VApp with template etc... (as opposed to ComposeRawVApp
 	// To do this using our work routines, we'd need a GroupOrchestration params obj.
 	//
-
-	// Ok, so this is screwed up, you're using composeRaw, followed by compose with template.
-
+	vdc, err := tv.FindVdc(ctx, *vdcName)
+	require.Nil(t, err, "FindVdc")
 	fmt.Printf("testCreateVApp-I-ComposeRawVApp for %s\n", vappName)
-	/*
-		err := tv.Objs.Vdc.ComposeRawVApp(vappName)
-		if err != nil {
-			fmt.Printf("ComposeRawVapp-E-%s\n", err.Error())
-			if strings.Contains(err.Error(), "already exists") {
-				fmt.Printf("%s already exists, deleting first\n", vappName)
-				err := testDestroyVApp(t, ctx, vappName)
-				if err != nil {
-					fmt.Printf("Failed to delete pre-existing vapp for test: %s\n", vappName)
-					return nil, nil
-				}
-			}
-			fmt.Printf("testCreateVApp-I-ComposeRawVApp for %s\n", vappName)
-			err := tv.Objs.Vdc.ComposeRawVApp(vappName)
-			if err != nil {
-				fmt.Printf("Error composeing raw Vapp: %s\n", err.Error())
-				return nil, nil
-			}
-		}
-
-		vapp, err := tv.Objs.Vdc.GetVAppByName(vappName, true)
-		if err != nil {
-			fmt.Printf("error getting vapp: %s", err)
-			panic("GetVAppByName")
-		}
-	*/
 
 	networks := []*types.OrgVDCNetwork{}
 	networks = append(networks, tv.Objs.PrimaryNet.OrgVDCNetwork)
@@ -666,7 +531,7 @@ func testCreateVApp(t *testing.T, ctx context.Context, vappName string) (*govcd.
 		}
 	}
 	NewName := vappName + "-vapp"
-	task, err := tv.Objs.Vdc.ComposeVApp(networks, tmpl, storageProfileRef, NewName, "mex platform role", true)
+	task, err := vdc.ComposeVApp(networks, tmpl, storageProfileRef, NewName, "mex platform role", true)
 	if err != nil {
 		fmt.Printf("error composing vapp: %s", err)
 		panic("ComposeVApp")
@@ -679,7 +544,7 @@ func testCreateVApp(t *testing.T, ctx context.Context, vappName string) (*govcd.
 	fmt.Printf("\nDone waiting for Compose of %s task status: %s\n", NewName, task.Task.Status)
 
 	// Get VApp
-	vapp, err := tv.Objs.Vdc.GetVAppByName(vappName, true)
+	vapp, err := vdc.GetVAppByName(vappName, true)
 	if err != nil {
 		fmt.Printf("error getting vapp: %s", err)
 		panic("GetVAppByName")
@@ -732,7 +597,8 @@ func testDestroyVApp(t *testing.T, ctx context.Context, name string) error {
 
 	fmt.Printf("\ntestDestroyVApp-I-request Delete of %s\n", name)
 
-	vdc := tv.Objs.Vdc
+	vdc, err := tv.FindVdc(ctx, *vdcName)
+	require.Nil(t, err, "FindVdc")
 
 	vapp, err := vdc.GetVAppByName(name, true)
 	if err != nil {
@@ -824,12 +690,15 @@ func TestRaw2Nic(t *testing.T) {
 	live, ctx, err := InitVcdTestEnv()
 	require.Nil(t, err, "InitVcdTestEnv")
 	if live {
+
+		vdc, err := tv.FindVdc(ctx, *vdcName)
+		require.Nil(t, err, "FindVdc")
 		fmt.Printf("TestRaw2Nic using tmplName: %s vappName: %s \n", *tmplName, *vappName)
 
-		err = tv.Objs.Vdc.ComposeRawVApp(*vappName)
+		err = vdc.ComposeRawVApp(*vappName)
 		require.Nil(t, err, "ComposeRawVApp")
 
-		vapp, err := tv.Objs.Vdc.GetVAppByName(*vappName, true)
+		vapp, err := vdc.GetVAppByName(*vappName, true)
 		require.Nil(t, err, "GetVAppByName")
 
 		err = vapp.BlockWhileStatus("UNRESOLVED", 10)
@@ -960,6 +829,9 @@ func createTestVapp(t *testing.T, ctx context.Context, vappName, tmplName string
 	// Populate OrgVDCNetwork
 	var networks []*types.OrgVDCNetwork
 
+	vdc, err := tv.FindVdc(ctx, *vdcName)
+	require.Nil(t, err, "FindVdc")
+
 	tmpl, err := tv.FindTemplate(ctx, tmplName)
 	require.Nil(t, err, "FindTemplate")
 
@@ -973,13 +845,13 @@ func createTestVapp(t *testing.T, ctx context.Context, vappName, tmplName string
 		}
 	*/
 	// Compose VApp
-	task, err := tv.Objs.Vdc.ComposeVApp(networks, *tmpl, storRef, vappName, "description", true)
+	task, err := vdc.ComposeVApp(networks, *tmpl, storRef, vappName, "description", true)
 	if err != nil {
 		return nil, fmt.Errorf("error composing vapp: %s", err)
 	}
 	// Get VApp
 	err = task.WaitTaskCompletion()
-	vapp, err := tv.Objs.Vdc.GetVAppByName(vappName, true)
+	vapp, err := vdc.GetVAppByName(vappName, true)
 	if err != nil {
 		return nil, fmt.Errorf("error getting vapp: %s", err)
 	}

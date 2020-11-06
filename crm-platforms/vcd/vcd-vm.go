@@ -3,7 +3,9 @@ package vcd
 import (
 	"context"
 	"fmt"
+	"os"
 	"strconv"
+	"strings"
 
 	vu "github.com/mobiledgex/edge-cloud-infra/crm-platforms/vcd/vcdutils"
 	"github.com/mobiledgex/edge-cloud-infra/vmlayer"
@@ -12,7 +14,6 @@ import (
 	"github.com/mobiledgex/edge-cloud/log"
 	"github.com/vmware/go-vcloud-director/v2/govcd"
 	"github.com/vmware/go-vcloud-director/v2/types/v56"
-	"os"
 )
 
 // VM related operations
@@ -178,19 +179,27 @@ func (v *VcdPlatform) CreateVM(ctx context.Context, vapp *govcd.VApp, vmparams *
 	return vm, nil
 }
 
+// Create VMs according to their roles, (no VMType available here) and their names
+// Cloudlets are named like cloudlet
+// ClusterInst are named like cloudlet.cluster
+// Nodes are named like vm.cloudlet.cluster right?
+//
 func (v *VcdPlatform) CreateVMs(ctx context.Context, vmgp *vmlayer.VMGroupOrchestrationParams, updateCallback edgeproto.CacheUpdateCallback) error {
 
 	// TODO, only one cloudlet per vdc
-	// If the given server is already running.
+	// If the given cloudlet server is already running all subsquent vms are added to
+	// the cloudlet's vapp instance.
 
-	//dumpVMGroupParams(vmgp, 1)
-	log.SpanLog(ctx, log.DebugLevelInfra, "PI CreateVMs 6") // , "OrchParams", vmgp)
-	// Find our ova template
+	vu.DumpVMGroupParams(vmgp, 1)
+	log.SpanLog(ctx, log.DebugLevelInfra, "CreateVMs") // , "OrchParams", vmgp)
+
+	// Find our ova template, all platform vms use the same template
 	tmplName := os.Getenv("VCDTEMPLATE")
 	if tmplName == "" {
+		// trade env for property XXX
 		return fmt.Errorf("VCD Base template env var not set")
 	}
-	// pull our (only?) template?
+	// First get our template
 	tmpl, err := v.FindTemplate(ctx, tmplName)
 	if err != nil {
 		found := false
@@ -215,7 +224,67 @@ func (v *VcdPlatform) CreateVMs(ctx context.Context, vmgp *vmlayer.VMGroupOrches
 			}
 		}
 	}
-	description := vmgp.GroupName + "-VApp"
+	firstVmParams := vmgp.VMs[0]
+	firstVMName := firstVmParams.Name
+	firstVMRole := firstVmParams.Role
+	fmt.Printf("\nCreateVMs-I-create something with GroupName %s\n\t  Numvms: %d\n\t FirstNamed %s\n\tRole: %s \n", vmgp.GroupName, len(vmgp.VMs), firstVMName, firstVMRole)
+
+	// Next, do we have any existing Cloudlets?
+	// Before we go create a new vapp, check if we already have an existing vdc clouldet vapp
+	// that we should be just adding new vm(s) to...
+	numCloudlets := len(v.Objs.Cloudlets)
+	// If we were to create a cloudlet, it would be this name
+	// we don't need the -vapp stuff, but do need name munging.
+	// The Cloudlet Name we want to find is simply
+	description := vmgp.GroupName // + -vapp
+	if numCloudlets != 0 {
+		fmt.Printf("\tHave an Existing Cloudlet, looking for one named: %s\n", description)
+		// look for an existing Vapp/Cloudlet with this name
+		vapp, err := v.FindVappForCloudlet(description)
+		if err != nil {
+			fmt.Printf("\nCreateVMs-E-FindVappForCloudlet err: %s\n", err.Error())
+			// we attempted to re-create an existing cloudlet
+			if strings.Contains(err.Error(), "already exists") {
+				return err
+			}
+			panic("CreateVMs")
+		} else {
+			fmt.Printf("\nCreateVMs-I-have the vapp to add new vms to as %s\n", vapp.VApp.Name)
+		}
+		// Add the new vm(s) to our existing Cloudlet
+		fmt.Printf("Found existing Vapp/cloudlet as: %s will add  %d new vms to this cloudlet\n", vapp.VApp.Name, len(vmgp.VMs))
+		err = v.AddVMsToVApp(ctx, vapp, tmpl, vmgp)
+		return err
+	}
+	vdc := &govcd.Vdc{}
+	fmt.Printf("\n\nCreating new Cloudlet on first available vdc %s\n", description)
+
+	// Some name munging needs to occure here. something - vs . in the names.
+	//
+	vdc, err = v.GetNextAvailableVdc(ctx)
+	if err != nil {
+		fmt.Printf("CreateVMs-W-no available vdc to create new clouldet all %d vdcs in use\n", numCloudlets)
+		return fmt.Errorf("No vcd for new cloudlet")
+	}
+
+	fmt.Printf("\nCreate new Cloudlet %s on vdc: %s \n", description, vdc.Vdc.Name)
+
+	// We had some cloudlets, couldn't find a cloudlet to put them in. Consider this a new cloudlet create
+	// unless it's not a single vm of the right type, in which case, we'd say no cloudlet exists for this
+	// clusterInst create
+
+	numRequestedVMs := len(vmgp.VMs)
+	//numRequiredVMs := 0
+	//curChild := 0
+	RoleFirstVm := vmgp.VMs[0].Role
+	// just check we're not trying to create a cluster
+	if !(numRequestedVMs == 1 && RoleFirstVm == vmlayer.RoleAgent) {
+		fmt.Printf("\nCreateVMs-E-Requested VMs %d Role of first: %s\n\n", numRequestedVMs, RoleFirstVm)
+		fmt.Printf("\tCreateVMs-E-cloudlet %s not found for non cloudlet create\n\n", description)
+		return fmt.Errorf("Cloudlet Not Found")
+	}
+
+	//
 	storRef := types.Reference{}
 	// Empty Ref wins the default (vSAN Default is all we have, but could support others xxx Prop?)
 
@@ -223,25 +292,24 @@ func (v *VcdPlatform) CreateVMs(ctx context.Context, vmgp *vmlayer.VMGroupOrches
 	networks = append(networks, v.Objs.PrimaryNet.OrgVDCNetwork)
 	// We'll need to adjust networks subsequent to componse when we have a vapp
 
-	vapp, err := v.CreateVAppFromTmpl(ctx, networks, *tmpl, storRef, vmgp, description, updateCallback)
-	// our CreateVApp work routine creates a new vapp, and the two needed networks
-	//vapp, err := v.CreateRawVApp(ctx, vmgp, updateCallback)
-	// alt, we could  use CreateVAppFromTemplate().
+	// Create new Vapp/cloudlet, but on what vdc?
+	vapp, err := v.CreateVAppFromTmpl(ctx, vdc, networks, *tmpl, storRef, vmgp, description, updateCallback)
 	if err != nil {
 		fmt.Printf("\n\nCreateVApp return error: %s\n", err.Error())
 		return fmt.Errorf("CreateVApp return error: %s", err.Error())
 	}
-	status, err := vapp.GetStatus()
-	fmt.Printf("CreateVMs-I-vapp composed status %s we'll need %d vms for this vapp\n", status, len(vmgp.VMs))
 
-	numRequestedVMs := len(vmgp.VMs)
-	numRequiredVMs := 0
-	curChild := 0
+	fmt.Printf("CreateVMs.CreateCloudlet vapp.Name %s created\n", vapp.VApp.Name)
+
+	status, err := vapp.GetStatus()
+	fmt.Printf("CreateVMs-I-vapp cloudlet composed status %s we'll need %d vms for this vapp\n", status, len(vmgp.VMs))
+
+	// We expect a single VM, will a cloudlet (our our template) ever >1 vm? Probably no, but the loop doesn't hurt either
 	if vapp.VApp.Children != nil {
 		//existingVappVMs := len(vapp.VApp.Children.VM)
-		if numRequestedVMs != len(vapp.VApp.Children.VM) {
-			numRequiredVMs = (numRequestedVMs - len(vapp.VApp.Children.VM))
-		}
+		//		if numRequestedVMs != len(vapp.VApp.Children.VM) {
+		//			numRequiredVMs = (numRequestedVMs - len(vapp.VApp.Children.VM))
+		//		}
 
 		fmt.Printf("Have Vapp %s with %d vms: \n", vapp.VApp.Name, len(vapp.VApp.Children.VM))
 		vm := &govcd.VM{}
@@ -249,6 +317,14 @@ func (v *VcdPlatform) CreateVMs(ctx context.Context, vmgp *vmlayer.VMGroupOrches
 		for curChild, child := range vapp.VApp.Children.VM {
 			fmt.Printf("\t%s\n", child.Name)
 			vmparams := vmgp.VMs[curChild]
+
+			fmt.Printf("\nSetting up to create a VM for role : %s\n", vmparams.Role)
+			fmt.Printf("\tUserData %s MetaData %s command %s\n", vmparams.UserData, vmparams.MetaData,
+				vmparams.Command)
+			for _, bootcmd := range vmparams.CloudConfigParams.ExtraBootCommands {
+				fmt.Printf("\tnext boot cmd: %s\n", bootcmd)
+			}
+
 			// We need the govcd.VM to customize
 			// mark this vm with vapp name and position for uniqueness.
 			key := fmt.Sprintf("%s-%d", vapp.VApp.Name, curChild)
@@ -272,21 +348,26 @@ func (v *VcdPlatform) CreateVMs(ctx context.Context, vmgp *vmlayer.VMGroupOrches
 				fmt.Printf("CreateVMs-E-error updating VM %s : %s \n", child.Name, err.Error())
 				return err
 			}
-		}
-		if numRequiredVMs != 0 {
-			fmt.Printf("CreateVMs-I-need %d new vms for vapp %s starting at vmOrchParams[%d] TBI\n", numRequiredVMs, vapp.VApp.Name, curChild)
-			// addNewVms(ctx, vapp, vmgp, curChild) what else?
-			//
+
+			fmt.Printf("\n\n vm %s still has the following propertiess\n", vm.VM.Name)
+			vmProperties, err := vm.GetProductSectionList()
+			if err != nil {
+				fmt.Printf("\n\nCould not retrieve properties from vm: %s\n", vm.VM.Name)
+				return err
+			}
+			for _, prop := range vmProperties.ProductSection.Property {
+				fmt.Printf("Next prop: k %s v %s\n", prop.Key, prop.Value.Value)
+
+			}
+
 		}
 
 	} else {
 		fmt.Printf("\n Hmm... our vapp %s has nil Children\n", vapp.VApp.Name)
-		// We have a vm'less vappTemplate, need to create all new vms
+		return fmt.Errorf("tmpl %s has no vms!", tmplName)
 	}
 
-	targetName := vmgp.VMs[0].Name
-
-	fmt.Printf("CreateVMs-I-vm (template) name %s vs  vmorch[0].name: %s\n", vapp.VApp.Children.VM[0].Name, targetName)
+	fmt.Printf("CreateVMs-I-Cloudlet name %s Created power on...\n", vapp.VApp.Name)
 
 	// Once we've customized this vm, add it our vm map
 	//err = task.WaitTaskCompletion()
@@ -384,32 +465,55 @@ func (v *VcdPlatform) updateVM(ctx context.Context, vm *govcd.VM, vmparams vmlay
 		fmt.Printf("Error updating vm %s for flavor %s\n", vm.VM.Name, flavorName)
 		return err
 	}
+
+	fmt.Printf("\n\n  SKIP Update Disk your head !!  \n\n")
 	// Changing the existing Disk size is not supported if other VApps are using the
 	// same snapshot under the covers (sharing via snapshot is the guess here
 	// so use our local updateVmDisk() which removes and adds a new internal disk
-	err = v.updateVmDisk(vm, int64(flavor.Disk))
-	if err != nil {
-		return err
-	}
+	/*
+		err = v.updateVmDisk(vm, int64(flavor.Disk))
+		if err != nil {
+			return err
+		}
 
-	virtHWSec, err := vm.GetVirtualHardwareSection()
-	if err != nil {
-		fmt.Printf("updateVM-E-error obtaining virt hw sec for %s : %s\n", vm.VM.Name, err.Error())
-		return err
-	}
+		virtHWSec, err := vm.GetVirtualHardwareSection()
+		if err != nil {
+			fmt.Printf("updateVM-E-error obtaining virt hw sec for %s : %s\n", vm.VM.Name, err.Error())
+			return err
+		}
+	*/
+	/*
+		for _, item := range virtHWSec.Item {
+			vu.DumpVirtualHardwareItem(item, 1)
+		}
+	*/
 
-	for _, item := range virtHWSec.Item {
-		vu.DumpVirtualHardwareItem(item, 1)
-	}
 	// meta data for Role etc
-	psl, err := v.populateProductSection(ctx, &vmparams)
+	psl, err := v.populateProductSection(ctx, vm, &vmparams)
 	if err != nil {
 		return fmt.Errorf("updateVM-E-error from populateProductSection: %s", err.Error())
 	}
+
 	_, err = vm.SetProductSectionList(psl)
 	if err != nil {
+		fmt.Printf("\n\nError setting ProductSectionList: %s\n", err.Error())
 		return fmt.Errorf("updateVM-E-error Setting product section %s", err.Error())
 	}
+	_, err = vm.SetProductSectionList(psl)
+	if err != nil {
+		fmt.Printf("error Setting guest properties: %s", err)
+		return err
+	}
+
+	foo, err := vm.GetProductSectionList()
+	fmt.Printf("\n\nSetting the following properties in vm: %s\n", vm.VM.Name)
+	for _, prop := range foo.ProductSection.Property {
+		fmt.Printf("Next prop: k %s v %s\n", prop.Key, prop.Value.Value)
+
+	}
+
+	fmt.Printf("\t Props set no issues... WTF?\n\n")
+
 	// Set other localization values (Hostname etc)
 	err = v.guestCustomization(ctx, *vm, vmparams)
 	if err != nil {

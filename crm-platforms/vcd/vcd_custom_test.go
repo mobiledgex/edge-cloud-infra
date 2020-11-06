@@ -3,7 +3,7 @@ package vcd
 import (
 	"fmt"
 	"github.com/stretchr/testify/require"
-	"github.com/vmware/go-vcloud-director/v2/govcd"
+	//"github.com/vmware/go-vcloud-director/v2/govcd"
 	"github.com/vmware/go-vcloud-director/v2/types/v56"
 	"testing"
 )
@@ -31,6 +31,7 @@ type Value struct {
 }
 */
 
+// uses -vm
 func TestProdSec(t *testing.T) {
 
 	live, ctx, err := InitVcdTestEnv()
@@ -53,35 +54,16 @@ func TestProdSec(t *testing.T) {
 		// and then go to the vm's productSection to update the runtime info which  you want to pass int"
 		// Uh huh... sure buddy, we'll see
 		//
-		vmRecs, err := tv.GetAvailableVMs(ctx) // or should we just create a vm named test?
+		vapp, err := tv.FindVApp(ctx, *vappName)
 		if err != nil {
-			fmt.Printf("TestProcSec-E-GetAvalableVMs return error: %s\n", err.Error())
+			fmt.Printf("%s not found\n", *vappName)
 			return
 		}
 
-		fmt.Printf("Our current set of VM names:\n")
-		for _, vm := range vmRecs {
-			fmt.Printf("\t%s : %s \n", vm.Name, vm.HREF)
-		}
-
-		//cat := &govcd.Catalog{}
-		targetVAppName := "clusterVapp1"
-
-		targetVApp := &govcd.VApp{}
-
-		targetVApp = tv.Objs.VApps[targetVAppName].VApp
-		// The other object in VappsMap is a vmMap of all vms in this VApp, is it populated?
-		vmMap := tv.Objs.VApps[targetVAppName].VMs
-		fmt.Printf("len of vmMap for %s is %d\n", targetVAppName, len(vmMap))
-
-		fmt.Printf("Test using vapp %s  = %+v\n", targetVAppName, targetVApp)
-		targetVMName := "mex-plat"
-
-		targetVM := &govcd.VM{}
-
-		targetVM, err = targetVApp.GetVMByName(targetVMName, false)
+		vm, err := vapp.GetVMByName(*vmName, false)
 		if err != nil {
-			fmt.Printf("Error getting vm by name: %s using  vapp: %s\n", targetVMName, targetVApp.VApp.Name)
+			fmt.Printf("%s not found in %s\n", *vmName, *vappName)
+			return
 		}
 
 		vmProperties := &types.ProductSectionList{
@@ -106,17 +88,27 @@ func TestProdSec(t *testing.T) {
 		prop = createProp("MASTERADDR", "10.1.101.10", true) // XXX testing
 		vmProperties.ProductSection.Property = append(vmProperties.ProductSection.Property, prop)
 
-		_, err = targetVM.SetProductSectionList(vmProperties)
+		_, err = vm.SetProductSectionList(vmProperties)
 		if err != nil {
 			fmt.Printf("error Setting guest properties: %s", err)
 			return
 		}
-		section, err := targetVM.SetProductSectionList(vmProperties)
+		section, err := vm.SetProductSectionList(vmProperties)
 		if err != nil {
 			fmt.Printf("SetProductSectionList failed: %s\n", err.Error())
 			return
 		}
 		fmt.Printf("section returned : %+v\n", section)
+
+		sec, err := vm.GetProductSectionList()
+		if err != nil {
+			fmt.Printf("Error getprops: %s\n", err.Error())
+			return
+		}
+		for _, prop := range sec.ProductSection.Property {
+			fmt.Printf("Next prop: k %s v %s\n", prop.Key, prop.Value.Value)
+
+		}
 
 	} else {
 		return

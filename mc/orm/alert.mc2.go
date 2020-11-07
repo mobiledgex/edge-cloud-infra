@@ -422,8 +422,6 @@ func addControllerApis(method string, group *echo.Group) {
 	// StatusStepName: 11.4
 	// StatusMsgCount: 11.5
 	// StatusMsgs: 11.6
-	// StatusMsgsMsgId: 11.6.1
-	// StatusMsgsMsg: 11.6.2
 	// State: 12
 	// CrmOverride: 13
 	// DeploymentLocal: 14
@@ -730,8 +728,6 @@ func addControllerApis(method string, group *echo.Group) {
 	// StatusStepName: 6.4
 	// StatusMsgCount: 6.5
 	// StatusMsgs: 6.6
-	// StatusMsgsMsgId: 6.6.1
-	// StatusMsgsMsg: 6.6.2
 	// CrmOverride: 7
 	// ```
 	// Security:
@@ -981,8 +977,6 @@ func addControllerApis(method string, group *echo.Group) {
 	// StatusStepName: 16.4
 	// StatusMsgCount: 16.5
 	// StatusMsgs: 16.6
-	// StatusMsgsMsgId: 16.6.1
-	// StatusMsgsMsg: 16.6.2
 	// ExternalVolumeSize: 17
 	// AutoScalePolicy: 18
 	// AvailabilityZone: 19
@@ -1258,8 +1252,6 @@ func addControllerApis(method string, group *echo.Group) {
 	// StatusStepName: 23.4
 	// StatusMsgCount: 23.5
 	// StatusMsgs: 23.6
-	// StatusMsgsMsgId: 23.6.1
-	// StatusMsgsMsg: 23.6.2
 	// Revision: 24
 	// ForceUpdate: 25
 	// UpdateMultiple: 26
@@ -1324,36 +1316,6 @@ func addControllerApis(method string, group *echo.Group) {
 	//   403: forbidden
 	//   404: notFound
 	group.Match([]string{method}, "/ctrl/ShowAppInstRefs", ShowAppInstRefs)
-	// swagger:route POST /auth/ctrl/StreamAppInst AppInstKey StreamAppInst
-	// Stream Application Instance current progress.
-	// Security:
-	//   Bearer:
-	// responses:
-	//   200: success
-	//   400: badRequest
-	//   403: forbidden
-	//   404: notFound
-	group.Match([]string{method}, "/ctrl/StreamAppInst", StreamAppInst)
-	// swagger:route POST /auth/ctrl/StreamClusterInst ClusterInstKey StreamClusterInst
-	// Stream Cluster Instance current progress.
-	// Security:
-	//   Bearer:
-	// responses:
-	//   200: success
-	//   400: badRequest
-	//   403: forbidden
-	//   404: notFound
-	group.Match([]string{method}, "/ctrl/StreamClusterInst", StreamClusterInst)
-	// swagger:route POST /auth/ctrl/StreamCloudlet CloudletKey StreamCloudlet
-	// Stream Cloudlet current progress.
-	// Security:
-	//   Bearer:
-	// responses:
-	//   200: success
-	//   400: badRequest
-	//   403: forbidden
-	//   404: notFound
-	group.Match([]string{method}, "/ctrl/StreamCloudlet", StreamCloudlet)
 	// swagger:route POST /auth/ctrl/ShowAppInstClient AppInstClientKey ShowAppInstClient
 	// Show application instance clients.
 	//
@@ -1496,4 +1458,34 @@ func addControllerApis(method string, group *echo.Group) {
 	//   403: forbidden
 	//   404: notFound
 	group.Match([]string{method}, "/ctrl/AccessCloudlet", AccessCloudlet)
+	// swagger:route POST /auth/ctrl/StreamAppInst AppInstKey StreamAppInst
+	// Stream Application Instance current progress.
+	// Security:
+	//   Bearer:
+	// responses:
+	//   200: success
+	//   400: badRequest
+	//   403: forbidden
+	//   404: notFound
+	group.Match([]string{method}, "/ctrl/StreamAppInst", StreamAppInst)
+	// swagger:route POST /auth/ctrl/StreamClusterInst ClusterInstKey StreamClusterInst
+	// Stream Cluster Instance current progress.
+	// Security:
+	//   Bearer:
+	// responses:
+	//   200: success
+	//   400: badRequest
+	//   403: forbidden
+	//   404: notFound
+	group.Match([]string{method}, "/ctrl/StreamClusterInst", StreamClusterInst)
+	// swagger:route POST /auth/ctrl/StreamCloudlet CloudletKey StreamCloudlet
+	// Stream Cloudlet current progress.
+	// Security:
+	//   Bearer:
+	// responses:
+	//   200: success
+	//   400: badRequest
+	//   403: forbidden
+	//   404: notFound
+	group.Match([]string{method}, "/ctrl/StreamCloudlet", StreamCloudlet)
 }

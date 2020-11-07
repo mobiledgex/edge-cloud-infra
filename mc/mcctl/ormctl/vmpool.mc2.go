@@ -268,8 +268,7 @@ var VMPoolAliasArgs = []string{
 	"status.taskname=vmpool.status.taskname",
 	"status.stepname=vmpool.status.stepname",
 	"status.msgcount=vmpool.status.msgcount",
-	"status.msgs:#.msgid=vmpool.status.msgs:#.msgid",
-	"status.msgs:#.msg=vmpool.status.msgs:#.msg",
+	"status.msgs=vmpool.status.msgs",
 	"crmoverride=vmpool.crmoverride",
 }
 var VMPoolComments = map[string]string{
@@ -296,6 +295,7 @@ var VMPoolComments = map[string]string{
 var VMPoolSpecialArgs = map[string]string{
 	"vmpool.errors":               "StringArray",
 	"vmpool.fields":               "StringArray",
+	"vmpool.status.msgs":          "StringArray",
 	"vmpool.vms:#.flavor.propmap": "StringToString",
 }
 var VMPoolMemberRequiredArgs = []string{
@@ -411,8 +411,7 @@ var VMPoolInfoOptionalArgs = []string{
 	"status.taskname",
 	"status.stepname",
 	"status.msgcount",
-	"status.msgs:#.msgid",
-	"status.msgs:#.msg",
+	"status.msgs",
 }
 var VMPoolInfoAliasArgs = []string{
 	"fields=vmpoolinfo.fields",
@@ -439,8 +438,7 @@ var VMPoolInfoAliasArgs = []string{
 	"status.taskname=vmpoolinfo.status.taskname",
 	"status.stepname=vmpoolinfo.status.stepname",
 	"status.msgcount=vmpoolinfo.status.msgcount",
-	"status.msgs:#.msgid=vmpoolinfo.status.msgs:#.msgid",
-	"status.msgs:#.msg=vmpoolinfo.status.msgs:#.msg",
+	"status.msgs=vmpoolinfo.status.msgs",
 }
 var VMPoolInfoComments = map[string]string{
 	"fields":                   "Fields are used for the Update API to specify which fields to apply",
@@ -466,5 +464,6 @@ var VMPoolInfoComments = map[string]string{
 var VMPoolInfoSpecialArgs = map[string]string{
 	"vmpoolinfo.errors":               "StringArray",
 	"vmpoolinfo.fields":               "StringArray",
+	"vmpoolinfo.status.msgs":          "StringArray",
 	"vmpoolinfo.vms:#.flavor.propmap": "StringToString",
 }

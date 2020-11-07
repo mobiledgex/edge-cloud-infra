@@ -289,8 +289,7 @@ var AppInstAliasArgs = []string{
 	"status.taskname=appinst.status.taskname",
 	"status.stepname=appinst.status.stepname",
 	"status.msgcount=appinst.status.msgcount",
-	"status.msgs:#.msgid=appinst.status.msgs:#.msgid",
-	"status.msgs:#.msg=appinst.status.msgs:#.msg",
+	"status.msgs=appinst.status.msgs",
 	"revision=appinst.revision",
 	"forceupdate=appinst.forceupdate",
 	"updatemultiple=appinst.updatemultiple",
@@ -354,6 +353,7 @@ var AppInstSpecialArgs = map[string]string{
 	"appinst.errors":                   "StringArray",
 	"appinst.fields":                   "StringArray",
 	"appinst.runtimeinfo.containerids": "StringArray",
+	"appinst.status.msgs":              "StringArray",
 }
 var AppInstRuntimeRequiredArgs = []string{}
 var AppInstRuntimeOptionalArgs = []string{
@@ -387,8 +387,7 @@ var AppInstInfoOptionalArgs = []string{
 	"status.taskname",
 	"status.stepname",
 	"status.msgcount",
-	"status.msgs:#.msgid",
-	"status.msgs:#.msg",
+	"status.msgs",
 	"powerstate",
 }
 var AppInstInfoAliasArgs = []string{
@@ -409,8 +408,7 @@ var AppInstInfoAliasArgs = []string{
 	"status.taskname=appinstinfo.status.taskname",
 	"status.stepname=appinstinfo.status.stepname",
 	"status.msgcount=appinstinfo.status.msgcount",
-	"status.msgs:#.msgid=appinstinfo.status.msgs:#.msgid",
-	"status.msgs:#.msg=appinstinfo.status.msgs:#.msg",
+	"status.msgs=appinstinfo.status.msgs",
 	"powerstate=appinstinfo.powerstate",
 }
 var AppInstInfoComments = map[string]string{
@@ -432,6 +430,7 @@ var AppInstInfoSpecialArgs = map[string]string{
 	"appinstinfo.errors":                   "StringArray",
 	"appinstinfo.fields":                   "StringArray",
 	"appinstinfo.runtimeinfo.containerids": "StringArray",
+	"appinstinfo.status.msgs":              "StringArray",
 }
 var AppInstMetricsRequiredArgs = []string{}
 var AppInstMetricsOptionalArgs = []string{

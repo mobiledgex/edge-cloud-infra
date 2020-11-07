@@ -184,8 +184,7 @@ var ClusterInstAliasArgs = []string{
 	"status.taskname=clusterinst.status.taskname",
 	"status.stepname=clusterinst.status.stepname",
 	"status.msgcount=clusterinst.status.msgcount",
-	"status.msgs:#.msgid=clusterinst.status.msgs:#.msgid",
-	"status.msgs:#.msg=clusterinst.status.msgs:#.msg",
+	"status.msgs=clusterinst.status.msgs",
 	"externalvolumesize=clusterinst.externalvolumesize",
 	"autoscalepolicy=clusterinst.autoscalepolicy",
 	"availabilityzone=clusterinst.availabilityzone",
@@ -249,8 +248,9 @@ var ClusterInstComments = map[string]string{
 	"resources.vms:#.containers:#.restarts":  "Restart count, applicable to kubernetes only",
 }
 var ClusterInstSpecialArgs = map[string]string{
-	"clusterinst.errors": "StringArray",
-	"clusterinst.fields": "StringArray",
+	"clusterinst.errors":      "StringArray",
+	"clusterinst.fields":      "StringArray",
+	"clusterinst.status.msgs": "StringArray",
 }
 var ClusterInstInfoRequiredArgs = []string{
 	"key.clusterkey.name",
@@ -267,8 +267,7 @@ var ClusterInstInfoOptionalArgs = []string{
 	"status.taskname",
 	"status.stepname",
 	"status.msgcount",
-	"status.msgs:#.msgid",
-	"status.msgs:#.msg",
+	"status.msgs",
 	"resources.vms:#.name",
 	"resources.vms:#.type",
 	"resources.vms:#.status",
@@ -295,8 +294,7 @@ var ClusterInstInfoAliasArgs = []string{
 	"status.taskname=clusterinstinfo.status.taskname",
 	"status.stepname=clusterinstinfo.status.stepname",
 	"status.msgcount=clusterinstinfo.status.msgcount",
-	"status.msgs:#.msgid=clusterinstinfo.status.msgs:#.msgid",
-	"status.msgs:#.msg=clusterinstinfo.status.msgs:#.msg",
+	"status.msgs=clusterinstinfo.status.msgs",
 	"resources.vms:#.name=clusterinstinfo.resources.vms:#.name",
 	"resources.vms:#.type=clusterinstinfo.resources.vms:#.type",
 	"resources.vms:#.status=clusterinstinfo.resources.vms:#.status",
@@ -329,6 +327,7 @@ var ClusterInstInfoComments = map[string]string{
 	"resources.vms:#.containers:#.restarts":  "Restart count, applicable to kubernetes only",
 }
 var ClusterInstInfoSpecialArgs = map[string]string{
-	"clusterinstinfo.errors": "StringArray",
-	"clusterinstinfo.fields": "StringArray",
+	"clusterinstinfo.errors":      "StringArray",
+	"clusterinstinfo.fields":      "StringArray",
+	"clusterinstinfo.status.msgs": "StringArray",
 }

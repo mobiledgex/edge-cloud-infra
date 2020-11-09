@@ -29,20 +29,6 @@
       - approle.login.v1
       - aws-auth.read.v1
       - azure-auth.read.v1
-      - gcp-auth.read.v1
-      - registry.read.v1
-      - "{{ region_prefix }}.cloudlets.delete.v1"
-      - "{{ region_prefix }}.accounts.read.v1"
-      - "{{ region_prefix }}.pki-regional.issue.v1"
-    token_type: batch
-
-- name: "Install {{ region_prefix }}.crm.v1 role"
-  vault_role:
-    name: "{{ region_prefix }}.crm.v1"
-    policies:
-      - approle.login.v1
-      - aws-auth.read.v1
-      - azure-auth.read.v1
       - chef.read.v1
       - certs.read.v1
       - gcp-auth.read.v1
@@ -51,8 +37,18 @@
       - registry.read.v1
       - ssh-machine.sign.v1
       - "{{ region_prefix }}.cloudlets.write.v1"
+      - "{{ region_prefix }}.cloudlets.delete.v1"
+      - "{{ region_prefix }}.accounts.read.v1"
       - "{{ region_prefix }}.influxdb.read.v1"
+      - "{{ region_prefix }}.pki-regional.issue.v1"
       - "{{ region_prefix }}.pki-regional-cloudlet.issue.v1"
+    token_type: batch
+
+- name: "Install {{ region_prefix }}.crm.v1 role"
+  vault_role:
+    name: "{{ region_prefix }}.crm.v1"
+    policies:
+      - approle.login.v1
     token_type: batch
 
 - name: "Install {{ region_prefix }}.dme.v1 role"

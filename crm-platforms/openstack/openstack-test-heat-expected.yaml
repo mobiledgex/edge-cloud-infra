@@ -121,10 +121,17 @@ resources:
                  - echo 'APT::Periodic::Enable "0";' > /etc/apt/apt.conf.d/10cloudinit-disable
                  - apt-get -y purge update-notifier-common ubuntu-release-upgrader-core landscape-common unattended-upgrades
                  - echo "Removed APT and Ubuntu extra packages" | systemd-cat
+                write_files:
+                  - path:  /etc/systemd/resolved.conf
+                    content: |
+                       [Resolve]
+                       DNS=1.1.1.1
+                       FallbackDNS=1.0.0.1
                 chpasswd: { expire: False }
                 ssh_pwauth: False
                 timezone: UTC
                 runcmd:
+                 - systemctl restart systemd-resolved
                  - echo MOBILEDGEX doing ifconfig
                  - ifconfig -a
             metadata:
@@ -170,10 +177,17 @@ resources:
                  - echo 'APT::Periodic::Enable "0";' > /etc/apt/apt.conf.d/10cloudinit-disable
                  - apt-get -y purge update-notifier-common ubuntu-release-upgrader-core landscape-common unattended-upgrades
                  - echo "Removed APT and Ubuntu extra packages" | systemd-cat
+                write_files:
+                  - path:  /etc/systemd/resolved.conf
+                    content: |
+                       [Resolve]
+                       DNS=1.1.1.1
+                       FallbackDNS=1.0.0.1
                 chpasswd: { expire: False }
                 ssh_pwauth: False
                 timezone: UTC
                 runcmd:
+                 - systemctl restart systemd-resolved
                  - echo MOBILEDGEX doing ifconfig
                  - ifconfig -a
             metadata:
@@ -209,10 +223,17 @@ resources:
                  - echo 'APT::Periodic::Enable "0";' > /etc/apt/apt.conf.d/10cloudinit-disable
                  - apt-get -y purge update-notifier-common ubuntu-release-upgrader-core landscape-common unattended-upgrades
                  - echo "Removed APT and Ubuntu extra packages" | systemd-cat
+                write_files:
+                  - path:  /etc/systemd/resolved.conf
+                    content: |
+                       [Resolve]
+                       DNS=1.1.1.1
+                       FallbackDNS=1.0.0.1
                 chpasswd: { expire: False }
                 ssh_pwauth: False
                 timezone: UTC
                 runcmd:
+                 - systemctl restart systemd-resolved
                  - echo MOBILEDGEX doing ifconfig
                  - ifconfig -a
             metadata:
@@ -248,10 +269,17 @@ resources:
                  - echo 'APT::Periodic::Enable "0";' > /etc/apt/apt.conf.d/10cloudinit-disable
                  - apt-get -y purge update-notifier-common ubuntu-release-upgrader-core landscape-common unattended-upgrades
                  - echo "Removed APT and Ubuntu extra packages" | systemd-cat
+                write_files:
+                  - path:  /etc/systemd/resolved.conf
+                    content: |
+                       [Resolve]
+                       DNS=1.1.1.1
+                       FallbackDNS=1.0.0.1
                 chpasswd: { expire: False }
                 ssh_pwauth: False
                 timezone: UTC
                 runcmd:
+                 - systemctl restart systemd-resolved
                  - echo MOBILEDGEX doing ifconfig
                  - ifconfig -a
             metadata:

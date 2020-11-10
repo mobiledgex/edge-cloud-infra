@@ -40,11 +40,6 @@ else
 	log "ROLE: $ROLE"
 fi
 
-if ! dig google.com | grep 'status: NOERROR' >/dev/null; then
-	log "Setting 1.1.1.1 as nameserver"
-	echo "nameserver 1.1.1.1" >/etc/resolv.conf
-fi
-
 MCONF=/mnt/mobiledgex-config
 METADIR="$MCONF/openstack/latest"
 METADATA="$METADIR/meta_data.json"

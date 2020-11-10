@@ -138,7 +138,7 @@ var VMProviderProps = map[string]*edgeproto.PropertyInfo{
 	},
 	"MEX_SUBNET_DNS": {
 		Name:        "DNS Override for Subnet",
-		Description: "Set to NONE to use no DNS entry for the subnet.  Otherwise subnet DNS is set to MEX_DNS",
+		Description: "Set to NONE to use no DNS entry for new subnets.  Otherwise subnet DNS is set to MEX_DNS",
 	},
 	"MEX_DNS": {
 		Name:        "DNS Server(s)",

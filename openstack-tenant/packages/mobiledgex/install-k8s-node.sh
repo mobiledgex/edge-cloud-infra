@@ -42,14 +42,14 @@ fi
 echo installing k8s node, wait...
 cd /tmp
 
-curl -sf ${MASTERIP}:8000/k8s-join-cmd >k8s-join-cmd
+curl -sf ${MASTERIP}:20800/k8s-join-cmd >k8s-join-cmd
 if [ $? -ne 0 -o ! -s k8s-join-cmd ]; then
 	sleep 60
 	echo waiting for join-cmd
-	curl -sf ${MASTERIP}:8000/k8s-join-cmd >k8s-join-cmd
+	curl -sf ${MASTERIP}:20800/k8s-join-cmd >k8s-join-cmd
 	while [ $? -ne 0 -o ! -s k8s-join-cmd ]; do
 		sleep 7
-		curl -sf ${MASTERIP}:8000/k8s-join-cmd >k8s-join-cmd
+		curl -sf ${MASTERIP}:20800/k8s-join-cmd >k8s-join-cmd
 	done
 fi
 echo got join cmd

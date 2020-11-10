@@ -294,7 +294,7 @@ Description=Job that runs k8s join script server
 [Service]
 Type=simple
 WorkingDirectory=/var/tmp/k8s-join
-ExecStart=/usr/bin/python3 -m http.server 60800
+ExecStart=/usr/bin/python3 -m http.server 20800
 Restart=always
 
 [Install]

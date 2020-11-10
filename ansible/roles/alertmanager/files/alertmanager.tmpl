@@ -47,9 +47,7 @@ SOFTWARE.
         <table width="100%" cellpadding="0" cellspacing="0" style="font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif; box-sizing: border-box; font-size: 14px; border-radius: 3px; background-color: #fff; margin: 0; border: 1px solid #e9e9e9;" bgcolor="#fff">
           <tr style="font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif; box-sizing: border-box; font-size: 14px; margin: 0;">
             <td style="font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif; box- sizing: border-box; font-size: 16px; vertical-align: top; color: #fff; font-weight: 500; text-align: center; border-radius: 3px 3px 0 0; background-color: #292C33; margin: 0; padding: 20px;" align="center" bgcolor="#292C33" valign="top">
-              {{ .Alerts | len }} alert{{ if gt (len .Alerts) 1 }}s{{ end }} for {{ range .GroupLabels.SortedPairs }}
-                {{ .Name }}={{ .Value }}
-              {{ end }}
+                <img src="https://console.mobiledgex.net/assets/brand/MobiledgeX_Logo_tm_white.svg" alt="MobiledgeX" width="200"> 
             </td>
           </tr>
           <tr style="font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif; box-sizing: border-box; font-size: 14px; margin: 0;">
@@ -126,7 +124,9 @@ SOFTWARE.
 </html>
 {{ end }}
 
-{{ define "email.subject" }}[{{ .Status | toUpper }}{{ if eq .Status "firing" }}:{{ .Alerts.Firing | len }}{{ end }}] {{.CommonLabels.alertname}} Application: {{.CommonLabels.app}} Version: {{.CommonLabels.appver}}{{ end }}
+{{ define "common.title" -}}
+[{{ .Status | toUpper }}{{ if eq .Status "firing" }}:{{ .Alerts.Firing | len }}{{ end }}] Alert for {{ reReplaceAll "([^-]*)-.*" "${1}" .Receiver}}: {{.CommonLabels.alertname }} Application: {{.CommonLabels.app}} Version: {{.CommonLabels.appver}}
+{{ end }}
 
 {{ define "email.text" }}
 MobiledX Monitoring System: {{ .Alerts | len }} alert{{ if gt (len .Alerts) 1 }}s{{ end }} for {{ range .GroupLabels.SortedPairs }}
@@ -140,9 +140,12 @@ MobiledX Monitoring System: {{ .Alerts | len }} alert{{ if gt (len .Alerts) 1 }}
 {{ end }}
 {{ end }}
 
-{{ define "slack.title" }}[{{ .Status | toUpper }}{{ if eq .Status "firing" }}:{{ .Alerts.Firing | len }}{{ end }}] {{.CommonLabels.alertname}} Application: {{.CommonLabels.app}} Version: {{.CommonLabels.appver}}{{ end }}
+{{ define "slack.fallback" -}}
+[{{ .Status | toUpper }}{{ if eq .Status "firing" }}:{{ .Alerts.Firing | len }}{{ end }}] Alert for {{ reReplaceAll "([^-]*)-.*" "${1}" .Receiver}}: {{.CommonLabels.alertname }} Application: {{.CommonLabels.app}} Version: {{.CommonLabels.appver}} | {{template "console.link" .}}
+{{ end }}
 
-{{ define "slack.text" }}{{ range .Alerts -}}
+{{ define "slack.text" -}}
+{{ range .Alerts -}}
 *Alert:* {{ .Annotations.title }}{{ if .Labels.severity }} - {{ .Labels.severity }}{{ end }}
 
 *Description:* {{ .Annotations.description }}
@@ -150,6 +153,5 @@ MobiledX Monitoring System: {{ .Alerts | len }} alert{{ if gt (len .Alerts) 1 }}
 *Details:*
   {{ range .Labels.SortedPairs }} • *{{ .Name }}:* {{ .Value }}
   {{ end }}
-{{ end }}{{ end }}
-
-{{ define "slack.fallback" }}[{{ .Status | toUpper }}{{ if eq .Status "firing" }}:{{ .Alerts.Firing | len }}{{ end }}] {{.CommonLabels.alertname}} Application: {{.CommonLabels.app}} Version: {{.CommonLabels.appver}} | {{ template "console.link" .}}{{ end }}
+{{ end }}
+{{ end }}

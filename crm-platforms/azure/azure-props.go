@@ -43,7 +43,7 @@ func (a *AzurePlatform) GetProviderSpecificProps(ctx context.Context) (map[strin
 }
 
 func (a *AzurePlatform) GetAccessData(ctx context.Context, cloudlet *edgeproto.Cloudlet, region string, vaultConfig *vault.Config, dataType string, arg []byte) (map[string]string, error) {
-	log.SpanLog(ctx, log.DebugLevelInfra, "ManagedK8sPlatform GetAccessData", "dataType", dataType)
+	log.SpanLog(ctx, log.DebugLevelInfra, "AzurePlatform GetAccessData", "dataType", dataType)
 	switch dataType {
 	case accessapi.GetCloudletAccessVars:
 		vars, err := infracommon.GetEnvVarsFromVault(ctx, vaultConfig, azureVaultPath)

@@ -42,7 +42,11 @@ func (a *AwsGenericPlatform) GetAwsSessionToken(ctx context.Context, accessApi p
 	if err != nil {
 		return err
 	}
-	return a.GetAwsSessionTokenWithCode(ctx, tokens[TotpTokenName])
+	code, found := tokens[TotpTokenName]
+	if !found {
+		return fmt.Errorf("token key \"%s\" not found in aws session tokens", TotpTokenName)
+	}
+	return a.GetAwsSessionTokenWithCode(ctx, code)
 }
 
 // GetAwsTotpToken gets a totp token from the vault.

@@ -18,8 +18,16 @@ import (
 	"github.com/mobiledgex/edge-cloud/log"
 	"github.com/mobiledgex/edge-cloud/util"
 	"github.com/nbutton23/zxcvbn-go"
+	"github.com/pquerna/otp"
 	"github.com/pquerna/otp/totp"
 )
+
+var BadAuthDelay = 3 * time.Second
+var NoTOTPSharedKey = "NoTOTPKey"
+var NoOTP = ""
+var OTPLen otp.Digits = 6
+var OTPExpirationTime = uint(2 * 60) // seconds
+var OTPExpirationTimeStr = "2 minutes"
 
 // Init admin creates the admin user and adds the admin role.
 func InitAdmin(ctx context.Context, superuser, superpass string) error {
@@ -53,9 +61,6 @@ func InitAdmin(ctx context.Context, superuser, superpass string) error {
 	return nil
 }
 
-var BadAuthDelay = 3 * time.Second
-var NoOTP = ""
-
 func DisableTOTP(c echo.Context) error {
 	ctx := GetContext(c)
 	claims, err := getClaims(c)
@@ -76,7 +81,7 @@ func DisableTOTP(c echo.Context) error {
 		return setReply(c, dbErr(err), nil)
 	}
 
-	user.TOTPSharedKey = ""
+	user.TOTPSharedKey = NoTOTPSharedKey
 	user.DisableTOTP = true
 	if err := db.Model(&user).Updates(&user).Error; err != nil {
 		return setReply(c, dbErr(err), nil)
@@ -129,7 +134,9 @@ func ResetTOTP(c echo.Context) error {
 	if user.Name == Superuser {
 		Superuser2FA = true
 	}
-	userResponse.Message = "Enabled 2FA"
+	userResponse.Message = fmt.Sprintf("Enabled 2FA\nFor enhanced security, it is mandatory "+
+		"to setup two factor authentication for your account. Please use this text code %s with "+
+		"the two factor authentication app on your phone to set it up", user.TOTPSharedKey)
 	return c.JSON(http.StatusOK, &userResponse)
 }
 
@@ -241,10 +248,22 @@ func Login(c echo.Context) error {
 
 	if (user.Name != Superuser && !user.DisableTOTP) ||
 		(user.Name == Superuser && Superuser2FA) {
-		if user.TOTPSharedKey != "" {
+		if user.TOTPSharedKey != NoTOTPSharedKey {
 			if login.TOTP == "" {
-				if user.TOTPType == ormapi.TOTPEmail || login.EmailTOTP {
-					// TODO: Send OTP over email
+				if user.TOTPType == ormapi.TOTPEmail || login.TOTPType == ormapi.TOTPEmail {
+					// Send OTP over email
+					opts := totp.ValidateOpts{
+						Period: OTPExpirationTime,
+						Digits: OTPLen,
+					}
+					otp, err := totp.GenerateCodeCustom(user.TOTPSharedKey, time.Now(), opts)
+					if err != nil {
+						panic(err)
+					}
+					err = sendOTPEmail(ctx, user.Name, user.Email, otp, OTPExpirationTimeStr)
+					if err != nil {
+						return err
+					}
 				}
 				return c.JSON(http.StatusPreconditionFailed, Msg("Missing OTP"))
 			}
@@ -269,6 +288,9 @@ func Login(c echo.Context) error {
 				TOTPQRImage:   totpQR,
 				Message:       "Enabled 2FA, Setup 2FA on your client and please input OTP to verify it",
 			}
+			userResponse.Message = fmt.Sprintf("Missing 2FA\nFor enhanced security, it is mandatory "+
+				"to setup two factor authentication for your account. Please use this text code %s with "+
+				"the two factor authentication app on your phone to set it up and then login with generated OTP", user.TOTPSharedKey)
 			return c.JSON(http.StatusPreconditionRequired, userResponse)
 		}
 	}
@@ -285,6 +307,8 @@ func GenerateTOTPQR(accountName string) (string, []byte, error) {
 	key, err := totp.Generate(totp.GenerateOpts{
 		Issuer:      "MobiledgeX",
 		AccountName: accountName,
+		Period:      OTPExpirationTime,
+		Digits:      OTPLen,
 	})
 	if err != nil {
 		return "", nil, err
@@ -409,7 +433,18 @@ func CreateUser(c echo.Context) error {
 		}
 	}
 
-	userResponse.Message = "user created"
+	if user.TOTPSharedKey != "" {
+		if user.TOTPType == ormapi.TOTPEmail {
+			userResponse.Message = "User created\nFor enhanced security, we have enabled two factor " +
+				"authentication over email for your account"
+		} else {
+			userResponse.Message = fmt.Sprintf("User created\nFor enhanced security, it is mandatory "+
+				"to setup two factor authentication for your account. Please use this text code %s with "+
+				"the two factor authentication app on your phone to set it up", user.TOTPSharedKey)
+		}
+	} else {
+		userResponse.Message = "user created"
+	}
 	return c.JSON(http.StatusOK, &userResponse)
 }
 

@@ -9,11 +9,9 @@ import (
 
 // Data saved to persistent sql db, also used for API calls
 
-type TOTPAuthType string
-
 var (
-	TOTPAuthenticator TOTPAuthType = "authenticator"
-	TOTPEmail         TOTPAuthType = "email"
+	TOTPAuthenticator string = "authenticator"
+	TOTPEmail         string = "email"
 )
 
 type User struct {
@@ -49,7 +47,7 @@ type User struct {
 	// read only: true
 	PassCrackTimeSec float64
 	// read only: true
-	TOTPType TOTPAuthType
+	TOTPType string
 	// read only: true
 	DisableTOTP bool
 	// read only: true
@@ -182,7 +180,7 @@ type UserLogin struct {
 	TOTP string `form:"totp" json:"totp"`
 	// Fallback to email to get TOTP
 	// read only: true
-	EmailTOTP bool `form:"emailtotp" json:"emailtotp"`
+	TOTPType string `form:"totptype" json:"totptype"`
 }
 
 type NewPassword struct {

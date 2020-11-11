@@ -13,8 +13,8 @@ func GetUserCommand() *cobra.Command {
 	cmds := []*cli.Command{&cli.Command{
 		Use:            "create",
 		RequiredArgs:   "name email",
-		OptionalArgs:   "nickname familyname givenname callbackurl",
-		AliasArgs:      "name=user.name email=user.email nickname=user.nickname familyname=user.familyname givenname=user.givenname password=user.passhash callbackurl=verify.callbackurl",
+		OptionalArgs:   "nickname familyname givenname callbackurl otptype",
+		AliasArgs:      "name=user.name email=user.email nickname=user.nickname familyname=user.familyname givenname=user.givenname password=user.passhash callbackurl=verify.callbackurl otptype=user.totptype",
 		PasswordArg:    "user.passhash",
 		VerifyPassword: true,
 		ReqData:        &ormapi.CreateUser{},
@@ -76,6 +76,8 @@ func GetUserCommand() *cobra.Command {
 	}, &cli.Command{
 		Use:          "resetotp",
 		RequiredArgs: "name",
+		OptionalArgs: "emailotp",
+		AliasArgs:    "emailotp=user.emailtotp",
 		ReqData:      &ormapi.User{},
 		Run:          runRest("/auth/user/reset/otp"),
 	}}
@@ -86,8 +88,7 @@ func GetLoginCmd() *cobra.Command {
 	cmd := cli.Command{
 		Use:          "login",
 		RequiredArgs: "name",
-		OptionalArgs: "otp",
-		AliasArgs:    "otp=user.totp",
+		OptionalArgs: "otp otptype",
 		Run:          runLogin,
 	}
 	return cmd.GenCmd()
@@ -97,14 +98,14 @@ func runLogin(c *cli.Command, args []string) error {
 	input := cli.Input{
 		RequiredArgs: []string{"name"},
 		PasswordArg:  "password",
-		AliasArgs:    []string{"name=username", "otp=totp"},
+		AliasArgs:    []string{"name=username", "otp=totp", "otptype=totptype"},
 	}
 	login := ormapi.UserLogin{}
 	_, err := input.ParseArgs(args, &login)
 	if err != nil {
 		return err
 	}
-	token, err := client.DoLogin(getUri(), login.Username, login.Password, login.TOTP)
+	token, err := client.DoLogin(getUri(), login.Username, login.Password, login.TOTP, login.TOTPType)
 	if err != nil {
 		return err
 	}

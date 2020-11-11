@@ -25,11 +25,12 @@ type Client struct {
 	Debug      bool
 }
 
-func (s *Client) DoLogin(uri, user, pass, otp string) (string, error) {
+func (s *Client) DoLogin(uri, user, pass, otp, otptype string) (string, error) {
 	login := ormapi.UserLogin{
 		Username: user,
 		Password: pass,
 		TOTP:     otp,
+		TOTPType: otptype,
 	}
 	result := make(map[string]interface{})
 	status, err := s.PostJson(uri+"/login", "", &login, &result)

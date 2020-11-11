@@ -23,7 +23,7 @@ var (
 	modsStr        *string
 	outputDir      string
 	stopOnFail     *bool
-	sharedDataPath = "/tmp/e2e-tests-shared-data.json"
+	sharedDataPath = "/tmp/e2e_test_out/shared_data.json"
 )
 
 //re-init the flags because otherwise we inherit a bunch of flags from the testing

@@ -9,6 +9,13 @@ import (
 
 // Data saved to persistent sql db, also used for API calls
 
+type TOTPAuthType string
+
+var (
+	TOTPAuthenticator TOTPAuthType = "authenticator"
+	TOTPEmail         TOTPAuthType = "email"
+)
+
 type User struct {
 	// User name. Can only contain letters, digits, underscore, period, hyphen. It cannot have leading or trailing spaces or period. It cannot start with hyphen
 	// required: true
@@ -41,6 +48,8 @@ type User struct {
 	PassEntropy float64
 	// read only: true
 	PassCrackTimeSec float64
+	// read only: true
+	TOTPType TOTPAuthType
 	// read only: true
 	DisableTOTP bool
 	// read only: true
@@ -171,6 +180,9 @@ type UserLogin struct {
 	Password string `form:"password" json:"password"`
 	// read only: true
 	TOTP string `form:"totp" json:"totp"`
+	// Fallback to email to get TOTP
+	// read only: true
+	EmailTOTP bool `form:"emailtotp" json:"emailtotp"`
 }
 
 type NewPassword struct {

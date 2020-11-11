@@ -133,6 +133,44 @@ func ResetTOTP(c echo.Context) error {
 	return c.JSON(http.StatusOK, &userResponse)
 }
 
+func UpdateTOTP(c echo.Context) error {
+	ctx := GetContext(c)
+	claims, err := getClaims(c)
+	if err != nil {
+		return err
+	}
+	inUser := ormapi.User{}
+	if err := c.Bind(&inUser); err != nil {
+		return bindErr(c, err)
+	}
+	if err := authorized(ctx, claims.Username, "", ResourceUsers, ActionManage); err != nil {
+		return err
+	}
+	if inUser.TOTPType == "" {
+		return fmt.Errorf("Only TOTP type can be updated")
+	}
+
+	user := ormapi.User{}
+	db := loggedDB(ctx)
+	err = db.Where(&inUser).First(&user).Error
+	if err != nil {
+		return setReply(c, dbErr(err), nil)
+	}
+
+	if user.TOTPType != ormapi.TOTPEmail && user.TOTPType != ormapi.TOTPAuthenticator {
+		return fmt.Errorf("Unsupported TOTP type: %s", user.TOTPType)
+	}
+	if user.TOTPType == inUser.TOTPType {
+		// nothing to update
+		return c.JSON(http.StatusOK, Msg("2FA authentication already updated"))
+	}
+	user.TOTPType = inUser.TOTPType
+	if err := db.Model(&user).Updates(&user).Error; err != nil {
+		return setReply(c, dbErr(err), nil)
+	}
+	return c.JSON(http.StatusOK, Msg(fmt.Sprintf("Updated 2FA to use %s", user.TOTPType)))
+}
+
 func Login(c echo.Context) error {
 	ctx := GetContext(c)
 	login := ormapi.UserLogin{}
@@ -205,6 +243,9 @@ func Login(c echo.Context) error {
 		(user.Name == Superuser && Superuser2FA) {
 		if user.TOTPSharedKey != "" {
 			if login.TOTP == "" {
+				if user.TOTPType == ormapi.TOTPEmail || login.EmailTOTP {
+					// TODO: Send OTP over email
+				}
 				return c.JSON(http.StatusPreconditionFailed, Msg("Missing OTP"))
 			}
 			valid := totp.Validate(login.TOTP, user.TOTPSharedKey)

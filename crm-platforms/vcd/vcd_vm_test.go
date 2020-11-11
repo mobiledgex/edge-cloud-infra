@@ -25,7 +25,7 @@ var tmplName = flag.String("tmpl", "default-template-name", "Name of template")
 var netName = flag.String("net", "default-network", "Name of network")
 var ipAddr = flag.String("ip", "172.70.52.210", "Defafult IP addr of VM")
 var ovaName = flag.String("ova", "basic.ova", "name of ova file to upload")
-var vdcName = flag.String("vdc", "mex-01", "name of vdc")
+var vdcName = flag.String("vdc", "mex01", "name of vdc")
 var livetest = flag.String("live", "false", "live or canned data")
 
 // Unit test env init. We have two cases, the default is live=false making

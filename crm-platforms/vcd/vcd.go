@@ -76,15 +76,34 @@ type VAppTmplMap map[string]*govcd.VAppTemplate
 type TmplVMsMap map[string]*types.QueryResultVMRecordType
 type MediaMap map[string]*govcd.Media
 
+// A VM element of a clusterInst in some Cloudlet
+type VmNet struct {
+	vmName string
+	vmRole string
+	vmMeta []string
+	vm     *govcd.VM
+}
+
+// IPaddr + vm attributes per cluster
+type VMIPsMap map[string]VmNet
+
+// A map key'ed by CIDR whose value is another map of all VMs in the
+// Cluster represented by this CIDR, this key'ed by IP addr
+// This set of vms under this CIDR represent a cluster
+
+type CidrMap map[string]VMIPsMap
+
 // One cloudlet per vdc instance
 type MexCloudlet struct {
 	ParentVdc    *govcd.Vdc
 	CloudVapp    *govcd.VApp
 	CloudletName string
+	Clusters     CidrMap // Clusters are keyed by their internal net CIDR
+	// federation partner TBI (single remote org/vdc:  a pair wise assocication)
 
-	// federation partner TBI
 }
 
+// cloudletName
 type VdcCloudlets map[string]*MexCloudlet
 
 type VcdObjects struct {
@@ -128,6 +147,8 @@ func (v *VcdPlatform) InitProvider(ctx context.Context, caches *platform.Caches,
 	v.Objs.VAppTmpls = make(map[string]*govcd.VAppTemplate)
 	v.Objs.TemplateVMs = make(map[string]*types.QueryResultVMRecordType)
 	v.Objs.Media = make(MediaMap)
+	v.Objs.Cloudlets = make(VdcCloudlets)
+
 	if v.Client == nil {
 		client, err := v.GetClient(ctx, v.Creds)
 		if err != nil {
@@ -135,7 +156,6 @@ func (v *VcdPlatform) InitProvider(ctx context.Context, caches *platform.Caches,
 		}
 		v.Client = client
 	}
-	v.Objs.Cloudlets = make(VdcCloudlets)
 
 	log.SpanLog(ctx, log.DebugLevelInfra, "Discover resources for", "Org", v.Creds.Org)
 	err := v.ImportDataFromInfra(ctx)
@@ -784,8 +804,8 @@ func (v *VcdPlatform) GetNextAvailableVdc(ctx context.Context) (*govcd.Vdc, erro
 }
 
 func (v *VcdPlatform) FindVdc(ctx context.Context, vdcName string) (*govcd.Vdc, error) {
-	for name, vdc := range v.Objs.Vdcs {
 
+	for name, vdc := range v.Objs.Vdcs {
 		if name == vdcName {
 			return vdc, nil
 		}
@@ -805,4 +825,45 @@ func (v *VcdPlatform) GetVdcNames(ctx context.Context) ([]string, error) {
 		vdcs = append(vdcs, vdcRef.Name)
 	}
 	return vdcs, nil
+}
+
+// Given our scheme for networks 10.101.X.0/24 return the next available Isolated network CIDR
+func (v *VcdPlatform) GetNextInternalNet(ctx context.Context, cloudlet *MexCloudlet) (string, error) {
+	var MAX_CIDRS = 10 // implies a limit MAX_CIDRS  clusters per Cloudlet. XXX
+	// run our current cloudlet.IsoNetMap and either return the first hole in X space,
+	// or add a new X at the end if no holes.
+	numCloudlets := len(v.Objs.Cloudlets)
+	if numCloudlets == 0 {
+		// In case we are creating platform VM,
+		return "10.101.1.0/24", nil
+	}
+	if cloudlet == nil {
+		return "", fmt.Errorf("Invaild argument")
+	}
+	fmt.Printf("GetNext-I-have %d cloudlets\n", numCloudlets)
+	// we wish to avoid the zero value (why?)
+	next := 0
+	for n := 1; n < MAX_CIDRS; n++ {
+		taddr := fmt.Sprintf("%s.%s.%d.%s", "10", "101", n, "0/24")
+		//fmt.Printf("Testing %s for existance\n", taddr)
+
+		for addr, mexCloud := range cloudlet.Clusters {
+			fmt.Printf("\tCloudlet addr : %s\n", addr)
+			// if our map has this cidr continue
+			//x, err := v.ThirdOctet(ctx, addr)
+			if len(cloudlet.Clusters[taddr]) == 0 { //  == nil {
+				// use this one
+
+				fmt.Printf("\n\t addr %s is unused return it\n\n", addr)
+				return addr, nil
+			} else {
+				fmt.Printf("cloudlet with addr %s non nil as: %+v\n", addr, mexCloud)
+			}
+		}
+	}
+	// Reached the end, add a new one
+	next++
+	addr := fmt.Sprintf("%s.%s.%d.%s", "10", "101", next, "0/24")
+	cloudlet.Clusters[addr] = VMIPsMap{}
+	return addr, nil
 }

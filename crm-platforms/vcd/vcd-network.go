@@ -142,6 +142,23 @@ func (v *VcdPlatform) DecrIP(a string) string {
 	return ip.String()
 }
 
+func (v *VcdPlatform) ThirdOctet(ctx context.Context, a string) (int, error) {
+	addr := a
+	// strip any cidr mask if present
+	parts := strings.Split(a, "/")
+	if len(parts) > 1 {
+		addr = string(parts[0])
+	}
+
+	ip := net.ParseIP(addr)
+	if ip == nil {
+		fmt.Printf("err from ParseIP")
+		return 0, fmt.Errorf("Invalid IP")
+	}
+	ip = ip.To4()
+	return int(ip[2]), nil
+}
+
 // VappNetworks
 
 // Add a OrgVdcNetwork to a VApp

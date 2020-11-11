@@ -31,7 +31,7 @@ type Value struct {
 }
 */
 
-// uses -vm
+// uses -vapp -vm
 func TestProdSec(t *testing.T) {
 
 	live, ctx, err := InitVcdTestEnv()
@@ -85,7 +85,7 @@ func TestProdSec(t *testing.T) {
 		prop = createProp("ROLE", "platform", true)
 		vmProperties.ProductSection.Property = append(vmProperties.ProductSection.Property, prop)
 		// how about setting env vars in the host?
-		prop = createProp("MASTERADDR", "10.1.101.10", true) // XXX testing
+		prop = createProp("MASTERADDR", "10.101.2.10", true) // XXX testing
 		vmProperties.ProductSection.Property = append(vmProperties.ProductSection.Property, prop)
 
 		_, err = vm.SetProductSectionList(vmProperties)

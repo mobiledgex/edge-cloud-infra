@@ -28,10 +28,25 @@ write_files:
   - path: /etc/ssh/trusted-user-ca-keys.pem
     content: {{ .CACert }}
     append: true
+  - path:  /etc/systemd/resolved.conf
+    content: |
+       [Resolve]
+       DNS={{.PrimaryDNS}}
+       {{- if .FallbackDNS}}
+       FallbackDNS={{.FallbackDNS}}
+       {{- end}}
+{{- if .AccessKey }}
+  - path: /root/accesskey/accesskey.pem
+    content: |
+{{ Indent .AccessKey 10 }}
+    owner: root:root
+    permissions: '0600'
+{{- end}}
 chpasswd: { expire: False }
 ssh_pwauth: False
 timezone: UTC
 runcmd:
+ - systemctl restart systemd-resolved
  - echo MOBILEDGEX doing ifconfig
  - ifconfig -a`
 
@@ -64,7 +79,7 @@ mounts:
 // VmConfigDataFormatter formats user or meta data to fit into orchestration templates
 type VmConfigDataFormatter func(instring string) string
 
-func GetVMUserData(name string, sharedVolume bool, dnsServers, manifest, command string, cloudConfigParams *VMCloudConfigParams, formatter VmConfigDataFormatter) (string, error) {
+func GetVMUserData(name string, sharedVolume bool, manifest, command string, cloudConfigParams *VMCloudConfigParams, formatter VmConfigDataFormatter) (string, error) {
 	var rc string
 	if manifest != "" {
 		return formatter(manifest), nil
@@ -81,10 +96,6 @@ runcmd:
 			return "", fmt.Errorf("failed to generate template from cloud config params %v, err %v", cloudConfigParams, err)
 		}
 		rc = buf.String()
-
-		if dnsServers != "" {
-			rc += fmt.Sprintf("\n - echo \"dns-nameservers %s\" >> /etc/network/interfaces.d/50-cloud-init.cfg", dnsServers)
-		}
 		if sharedVolume {
 			return formatter(rc + VmCloudConfigShareMount), nil
 		}

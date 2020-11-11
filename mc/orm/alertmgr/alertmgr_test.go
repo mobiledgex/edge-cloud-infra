@@ -245,6 +245,14 @@ func (s *AlertmanagerMock) findRouteByReceiver(receiver *ormapi.AlertReceiver) *
 func (s *AlertmanagerMock) verifyAlertPresent(t *testing.T, alert *edgeproto.Alert) {
 	labelSet := model.LabelSet{}
 	for k, v := range alert.Labels {
+		// Convert to string of integer
+		if k == cloudcommon.AlertHealthCheckStatus {
+			if tmp, err := strconv.ParseInt(v, 10, 32); err == nil {
+				if statusVal, ok := edgeproto.HealthCheck_CamelName[int32(tmp)]; ok {
+					v = statusVal
+				}
+			}
+		}
 		labelSet[model.LabelName(k)] = model.LabelValue(v)
 	}
 	key := labelSet.String()
@@ -384,7 +392,7 @@ func TestAlertMgrServer(t *testing.T) {
 		require.Equal(t, "testcloudlet", val)
 		val, found = alert.Labels[cloudcommon.AlertHealthCheckStatus]
 		require.True(t, found)
-		require.Equal(t, strconv.Itoa(int(edgeproto.HealthCheck_HEALTH_CHECK_FAIL_ROOTLB_OFFLINE)), val)
+		require.Equal(t, edgeproto.HealthCheck_CamelName[int32(edgeproto.HealthCheck_HEALTH_CHECK_FAIL_ROOTLB_OFFLINE)], val)
 		region, ok := alert.Labels["region"]
 		require.True(t, ok)
 		if ok {
@@ -446,6 +454,33 @@ func TestAlertMgrServer(t *testing.T) {
 	require.Nil(t, err)
 	// should be empty response
 	require.Len(t, receivers, 0)
+	// Non-existent receiver by appname
+	filter = ormapi.AlertReceiver{
+		AppInst: edgeproto.AppInstKey{
+			AppKey: edgeproto.AppKey{
+				Name: "invalidAppName",
+			},
+		},
+	}
+	receivers, err = testAlertMgrServer.ShowReceivers(ctx, &filter)
+	require.Nil(t, err)
+	// should be empty response
+	require.Len(t, receivers, 0)
+	// filter by type and appInst name
+	filter = ormapi.AlertReceiver{
+		Type: AlertReceiverTypeEmail,
+		AppInst: edgeproto.AppInstKey{
+			AppKey: edgeproto.AppKey{
+				Name: "testApp",
+			},
+		},
+	}
+	receivers, err = testAlertMgrServer.ShowReceivers(ctx, &filter)
+	require.Nil(t, err)
+	// should be a single receiver
+	require.Len(t, receivers, 1)
+	// check the receiver and all fields
+	require.Equal(t, testAlertReceivers[1], receivers[0])
 
 	// Delete non-existent receiver
 	err = testAlertMgrServer.DeleteReceiver(ctx, &testAlertReceivers[0])

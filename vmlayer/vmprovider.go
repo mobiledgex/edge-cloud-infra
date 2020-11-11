@@ -24,7 +24,7 @@ import (
 type VMProvider interface {
 	NameSanitize(string) string
 	IdSanitize(string) string
-	GetProviderSpecificProps(ctx context.Context, vaultConfig *vault.Config) (map[string]*edgeproto.PropertyInfo, error)
+	GetProviderSpecificProps(ctx context.Context, platformConfig *platform.PlatformConfig, vaultConfig *vault.Config) (map[string]*edgeproto.PropertyInfo, error)
 	SetVMProperties(vmProperties *VMProperties)
 	InitData(ctx context.Context, caches *platform.Caches)
 	InitProvider(ctx context.Context, caches *platform.Caches, stage ProviderInitStage, updateCallback edgeproto.CacheUpdateCallback) error
@@ -44,7 +44,7 @@ type VMProvider interface {
 	RemoveWhitelistSecurityRules(ctx context.Context, client ssh.Client, secGrpName, label string, allowedCIDR string, ports []dme.AppPort) error
 	GetResourceID(ctx context.Context, resourceType ResourceType, resourceName string) (string, error)
 	GetApiAccessFilename() string
-	InitApiAccessProperties(ctx context.Context, key *edgeproto.CloudletKey, region, physicalName string, vaultConfig *vault.Config, vars map[string]string) error
+	InitApiAccessProperties(ctx context.Context, key *edgeproto.CloudletKey, region, physicalName string, vaultConfig *vault.Config, vars map[string]string, stage ProviderInitStage) error
 	GetApiEndpointAddr(ctx context.Context) (string, error)
 	GetExternalGateway(ctx context.Context, extNetName string) (string, error)
 	SaveCloudletAccessVars(ctx context.Context, cloudlet *edgeproto.Cloudlet, accessVarsIn map[string]string, pfConfig *edgeproto.PlatformConfig, updateCallback edgeproto.CacheUpdateCallback) error
@@ -142,6 +142,7 @@ const (
 	ProviderInitCreateCloudletRestricted ProviderInitStage = "CreateCloudletRestricted"
 	ProviderInitPlatformStart            ProviderInitStage = "PlatformStart"
 	ProviderInitDeleteCloudlet           ProviderInitStage = "DeleteCloudlet"
+	ProviderInitGetVmSpec                ProviderInitStage = "GetVmSpec"
 )
 
 type StringSanitizer func(value string) string
@@ -244,7 +245,7 @@ func (v *VMPlatform) InitProps(ctx context.Context, platformConfig *platform.Pla
 	for k, v := range VMProviderProps {
 		props[k] = v
 	}
-	providerProps, err := v.VMProvider.GetProviderSpecificProps(ctx, vaultConfig)
+	providerProps, err := v.VMProvider.GetProviderSpecificProps(ctx, platformConfig, vaultConfig)
 	if err != nil {
 		return err
 	}
@@ -315,8 +316,10 @@ func (v *VMPlatform) Init(ctx context.Context, platformConfig *platform.Platform
 		return err
 	}
 
+	v.VMProvider.InitData(ctx, caches)
+
 	updateCallback(edgeproto.UpdateTask, "Fetching API Access access credentials")
-	if err := v.VMProvider.InitApiAccessProperties(ctx, platformConfig.CloudletKey, platformConfig.Region, platformConfig.PhysicalName, vaultConfig, platformConfig.EnvVars); err != nil {
+	if err := v.VMProvider.InitApiAccessProperties(ctx, platformConfig.CloudletKey, platformConfig.Region, platformConfig.PhysicalName, vaultConfig, platformConfig.EnvVars, ProviderInitPlatformStart); err != nil {
 		return err
 	}
 
@@ -428,10 +431,14 @@ func (v *VMPlatform) GetCloudletInfraResources(ctx context.Context) (*edgeproto.
 	platResources, err := v.VMProvider.GetServerGroupResources(ctx, v.GetPlatformVMName(&v.VMProperties.CommonPf.PlatformConfig.NodeMgr.MyNode.Key.CloudletKey))
 	if err == nil {
 		resources.Vms = append(resources.Vms, platResources.Vms...)
+	} else {
+		log.SpanLog(ctx, log.DebugLevelInfra, "Failed to get platform VM resources", "err", err)
 	}
 	rootlbResources, err := v.VMProvider.GetServerGroupResources(ctx, v.VMProperties.SharedRootLBName)
 	if err == nil {
 		resources.Vms = append(resources.Vms, rootlbResources.Vms...)
+	} else {
+		log.SpanLog(ctx, log.DebugLevelInfra, "Failed to get root lb resources", "err", err)
 	}
 	return &resources, nil
 }

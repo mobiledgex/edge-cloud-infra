@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"regexp"
 	"strings"
 	"time"
 
@@ -13,6 +14,11 @@ import (
 
 	"github.com/mobiledgex/edge-cloud/edgeproto"
 )
+
+type AwsCredentialsType string
+
+const AwsCredentialsAccount = "account"
+const AwsCredentialsSession = "session"
 
 type AWSQuotas struct {
 	Limit  float64
@@ -34,15 +40,27 @@ type AWSFlavor struct {
 
 type AwsGenericPlatform struct {
 	Properties *infracommon.InfraProperties
+	// AccountAccessVars are fixed for the account credentials used to access the APIs
+	AccountAccessVars map[string]string
+	// SessionAccessVars must be renewed periodically via MFA
+	SessionAccessVars map[string]string
 }
 
-func (a *AwsGenericPlatform) TimedAwsCommand(ctx context.Context, name string, p ...string) ([]byte, error) {
+func (a *AwsGenericPlatform) TimedAwsCommand(ctx context.Context, credType AwsCredentialsType, name string, p ...string) ([]byte, error) {
 	parmstr := strings.Join(p, " ")
 	start := time.Now()
 
-	log.SpanLog(ctx, log.DebugLevelInfra, "AWS Command Start", "name", name, "parms", parmstr)
+	log.SpanLog(ctx, log.DebugLevelInfra, "AWS Command Start", "credType", credType, "name", name, "parms", parmstr)
 	newSh := sh.NewSession()
-	//envvar stuff here
+	if credType == AwsCredentialsAccount {
+		for key, val := range a.AccountAccessVars {
+			newSh.SetEnv(key, val)
+		}
+	} else {
+		for key, val := range a.SessionAccessVars {
+			newSh.SetEnv(key, val)
+		}
+	}
 
 	out, err := newSh.Command(name, p).CombinedOutput()
 	if err != nil {
@@ -53,10 +71,10 @@ func (a *AwsGenericPlatform) TimedAwsCommand(ctx context.Context, name string, p
 	return out, nil
 }
 
-func (a *AwsGenericPlatform) GetFlavorList(ctx context.Context) ([]*edgeproto.FlavorInfo, error) {
+func (a *AwsGenericPlatform) GetFlavorList(ctx context.Context, flavorMatchPattern string) ([]*edgeproto.FlavorInfo, error) {
 	log.SpanLog(ctx, log.DebugLevelInfra, "GetFlavorList")
 	var info edgeproto.CloudletInfo
-	err := a.GatherCloudletInfo(ctx, &info)
+	err := a.GatherCloudletInfo(ctx, flavorMatchPattern, &info)
 	if err != nil {
 		return nil, err
 	}
@@ -64,12 +82,17 @@ func (a *AwsGenericPlatform) GetFlavorList(ctx context.Context) ([]*edgeproto.Fl
 }
 
 // GatherCloudletInfo gets flavor info from AWS
-func (a *AwsGenericPlatform) GatherCloudletInfo(ctx context.Context, info *edgeproto.CloudletInfo) error {
+func (a *AwsGenericPlatform) GatherCloudletInfo(ctx context.Context, flavorMatchPattern string, info *edgeproto.CloudletInfo) error {
 	log.SpanLog(ctx, log.DebugLevelInfra, "GatherCloudletInfo (AWS)")
 	filter := "Name=instance-storage-supported,Values=true"
 	query := "InstanceTypes[].[InstanceType,VCpuInfo.DefaultVCpus,MemoryInfo.SizeInMiB,InstanceStorageInfo.TotalSizeInGB]"
 
-	out, err := a.TimedAwsCommand(ctx, "aws", "ec2", "describe-instance-types",
+	r, err := regexp.Compile(flavorMatchPattern)
+	if err != nil {
+		return fmt.Errorf("Cannot compile flavor match pattern")
+	}
+
+	out, err := a.TimedAwsCommand(ctx, AwsCredentialsSession, "aws", "ec2", "describe-instance-types",
 		"--filter", filter,
 		"--query", query,
 		"--region", a.GetAwsRegion(),
@@ -111,15 +134,17 @@ func (a *AwsGenericPlatform) GatherCloudletInfo(ctx context.Context, info *edgep
 			return err
 		}
 
-		info.Flavors = append(
-			info.Flavors,
-			&edgeproto.FlavorInfo{
-				Name:  name,
-				Vcpus: uint64(vcpus),
-				Ram:   uint64(ram),
-				Disk:  uint64(disk),
-			},
-		)
+		if r.MatchString(name) {
+			info.Flavors = append(
+				info.Flavors,
+				&edgeproto.FlavorInfo{
+					Name:  name,
+					Vcpus: uint64(vcpus),
+					Ram:   uint64(ram),
+					Disk:  uint64(disk),
+				},
+			)
+		}
 	}
 	return nil
 }

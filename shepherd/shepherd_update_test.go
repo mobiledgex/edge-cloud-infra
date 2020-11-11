@@ -42,7 +42,11 @@ func TestShepherdUpdate(t *testing.T) {
 	basicUpgradeHandler := node.BasicUpgradeHandler{
 		KeyServer: keyServer,
 	}
-	accessKeyGrpcServer.Start("127.0.0.1:0", keyServer, func(server *grpc.Server) {
+	getPublicCertApi := &node.TestPublicCertApi{}
+	publicCertManager := node.NewPublicCertManager("localhost", getPublicCertApi)
+	tlsConfig, err := publicCertManager.GetServerTlsConfig(ctx)
+	require.Nil(t, err)
+	accessKeyGrpcServer.Start("127.0.0.1:0", keyServer, tlsConfig, func(server *grpc.Server) {
 		edgeproto.RegisterCloudletAccessKeyApiServer(server, &basicUpgradeHandler)
 	})
 	defer accessKeyGrpcServer.Stop()

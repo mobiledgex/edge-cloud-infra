@@ -34,6 +34,8 @@ spec:
          - "{{ console_vm_hostname }}:{{ mc_notify_srv_port }}"
          - "--notifyRootAddrs"
          - "{{ notifyroot_hostname }}:{{ notifyroot_port }}"
+         - "--accessApiAddr"
+         - "0.0.0.0:41001"
          - "--etcdUrls"  
          - "{{ etcd_cluster_client }}:2379"
          - "--edgeTurnAddr"

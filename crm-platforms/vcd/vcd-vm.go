@@ -227,7 +227,8 @@ func (v *VcdPlatform) CreateVMs(ctx context.Context, vmgp *vmlayer.VMGroupOrches
 	firstVmParams := vmgp.VMs[0]
 	firstVMName := firstVmParams.Name
 	firstVMRole := firstVmParams.Role
-	fmt.Printf("\nCreateVMs-I-create something with GroupName %s\n\t  Numvms: %d\n\t FirstNamed %s\n\tRole: %s \n", vmgp.GroupName, len(vmgp.VMs), firstVMName, firstVMRole)
+	firstVMCommand := firstVmParams.Command
+	fmt.Printf("\nCreateVMs-I-create something with GroupName %s\n\t  Numvms: %d\n\t FirstNamed %s\n\tRole: %s\n\tCommand: %s \n", vmgp.GroupName, len(vmgp.VMs), firstVMName, firstVMRole, firstVMCommand)
 
 	// Next, do we have any existing Cloudlets?
 	// Before we go create a new vapp, check if we already have an existing vdc clouldet vapp
@@ -240,7 +241,8 @@ func (v *VcdPlatform) CreateVMs(ctx context.Context, vmgp *vmlayer.VMGroupOrches
 	if numCloudlets != 0 {
 		fmt.Printf("\tHave an Existing Cloudlet, looking for one named: %s\n", description)
 		// look for an existing Vapp/Cloudlet with this name
-		vapp, err := v.FindVappForCloudlet(description)
+		// just return cloudlet, it has the vapp in it.
+		cloudlet, vapp, err := v.FindCloudletForCluster(description)
 		if err != nil {
 			fmt.Printf("\nCreateVMs-E-FindVappForCloudlet err: %s\n", err.Error())
 			// we attempted to re-create an existing cloudlet
@@ -254,6 +256,8 @@ func (v *VcdPlatform) CreateVMs(ctx context.Context, vmgp *vmlayer.VMGroupOrches
 		// Add the new vm(s) to our existing Cloudlet
 		fmt.Printf("Found existing Vapp/cloudlet as: %s will add  %d new vms to this cloudlet\n", vapp.VApp.Name, len(vmgp.VMs))
 		// v.CreateCluster() here, need to
+
+		_, err = v.CreateCluster(ctx, cloudlet, tmpl, vmgp, updateCallback)
 		err = v.AddVMsToVApp(ctx, vapp, tmpl, vmgp)
 		return err
 	}
@@ -262,12 +266,15 @@ func (v *VcdPlatform) CreateVMs(ctx context.Context, vmgp *vmlayer.VMGroupOrches
 	fmt.Printf("\n\nCreating new Cloudlet on first available vdc %s\n", description)
 
 	// Some name munging needs to occure here. something - vs . in the names.
-	//
+	// XXX must consider the network to use from this selected vdc
 	vdc, err = v.GetNextAvailableVdc(ctx)
 	if err != nil {
 		fmt.Printf("CreateVMs-W-no available vdc to create new clouldet all %d vdcs in use\n", numCloudlets)
 		return fmt.Errorf("No vcd for new cloudlet")
 	}
+
+	// XXX use PrimaryVdc unitl network is worked out
+	vdc = v.Objs.PrimaryVdc
 
 	fmt.Printf("\nCreate new Cloudlet %s on vdc: %s \n", description, vdc.Vdc.Name)
 

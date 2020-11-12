@@ -7,11 +7,12 @@ import (
 	"github.com/mobiledgex/edge-cloud-infra/vmlayer"
 	"github.com/mobiledgex/edge-cloud/edgeproto"
 	"github.com/mobiledgex/edge-cloud/log"
+	"github.com/vmware/go-vcloud-director/v2/govcd"
 )
 
 // Cluster related operations
 
-func (v *VcdPlatform) CreateCluster(ctx context.Context, cloud *MexCloudlet, vmgp *vmlayer.VMGroupOrchestrationParams, updateCallback edgeproto.CacheUpdateCallback) (*CidrMap, error) {
+func (v *VcdPlatform) CreateCluster(ctx context.Context, cloud *MexCloudlet, tmpl *govcd.VAppTemplate, vmgp *vmlayer.VMGroupOrchestrationParams, updateCallback edgeproto.CacheUpdateCallback) (*CidrMap, error) {
 	log.SpanLog(ctx, log.DebugLevelInfra, "CreateCluster")
 
 	nextCidr, err := v.GetNextInternalNet(ctx, cloud)
@@ -19,7 +20,9 @@ func (v *VcdPlatform) CreateCluster(ctx context.Context, cloud *MexCloudlet, vmg
 		fmt.Printf("GetNextInternalNet failed: %s\n", err.Error())
 		return nil, err
 	}
+
 	fmt.Printf("CreateCluster-I-new cluster's CIDR: %s\n", nextCidr)
+
 	return nil, nil
 
 }

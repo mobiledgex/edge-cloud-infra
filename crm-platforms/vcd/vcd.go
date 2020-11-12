@@ -5,6 +5,7 @@ import (
 	"fmt"
 	gogotypes "github.com/gogo/protobuf/types"
 	"github.com/mobiledgex/edge-cloud-infra/vmlayer"
+	"os"
 	"strings"
 	"time"
 	"unicode"
@@ -116,6 +117,7 @@ type VcdObjects struct {
 	// while we'll discover all external networks
 	// avaliable to our vdc, we'll only utilize the first we find as
 	// v.Objs.PrimaryNet
+	PrimaryVdc  *govcd.Vdc
 	PrimaryNet  *govcd.OrgVDCNetwork
 	PrimaryCat  *govcd.Catalog
 	VMs         VMMap
@@ -335,6 +337,7 @@ func (v *VcdPlatform) GetPlatformResources(ctx context.Context) error {
 	// We need all Org vdcs and their resources and add each
 	// If we have only tenant privs, we'll not be able to retrieve the adminOrg to find the constituent vdcs...XXX
 	// So we'd need to get Vdc name from config and use the single VDC we do have access to.
+	primVdc := os.Getenv("PRIMARY_VDC")
 	if len(v.Objs.Vdcs) == 0 {
 		// look for mime type "application/vnd.vmware.vcloud.vdc+xml"
 		adminOrg, err := govcd.GetAdminOrgByName(v.Client, v.Creds.Org)
@@ -350,38 +353,40 @@ func (v *VcdPlatform) GetPlatformResources(ctx context.Context) error {
 			} else {
 				log.SpanLog(ctx, log.DebugLevelInfra, "add Org.", "Vdc", vdcRef.Name)
 				v.Objs.Vdcs[vdcRef.Name] = &vdc
+				if vdcRef.Name == primVdc {
+					fmt.Printf("\n\tDiscover-I-setting PrimaryVdc to %s\n", vdcRef.Name)
+					v.Objs.PrimaryVdc = &vdc
+				}
 			}
 		}
 	}
 
+	// we may have a perference of what vdc to use as our Primary Vdc
+	// Check if we have a clue mex-qe test vdc is one that may be set.
+
+	primNet := os.Getenv("MEX_EXT_NETWORK")
 	for _, vdc := range v.Objs.Vdcs {
 		fmt.Printf("Discover: Collecting resources of vdc: %s\n", vdc.Vdc.Name)
 		// dumpVdcResourceEntities(vdc, 1)
 		// fill our maps with bits from our virtual data center object
 		nets := vdc.Vdc.AvailableNetworks
-
 		for _, net := range nets {
 			for n, ref := range net.Network {
-
 				orgvdcnet, err := vdc.GetOrgVdcNetworkByName(ref.Name, false)
 				if err != nil {
 					// optional mark as failed and move on? XXX
 					return fmt.Errorf("GetOrgVdcNetworkByName %s failed err:%s", ref.Name, err.Error())
 				}
-
 				v.Objs.Nets[ref.Name] = orgvdcnet
-				if ref.Name == "mex-net01" {
-					//if n == 0 { // Now our mex-net03 has dhcp enabled.. so try that guy...
+				if ref.Name == primNet {
 					fmt.Printf("\nDiscover-I-PrimaryNet = %s n=%d \n", orgvdcnet.OrgVDCNetwork.Name, n)
 					log.SpanLog(ctx, log.DebugLevelInfra, "Primary", "network", orgvdcnet.OrgVDCNetwork.Name)
 					v.Objs.PrimaryNet = orgvdcnet
 				} else {
 					fmt.Printf("\nDiscover VDCOrgNetwork %s\n", orgvdcnet.OrgVDCNetwork.Name)
 				}
-				//dumpOrgVDCNetwork(orgvdcnet.OrgVDCNetwork, 1)
 			}
 		}
-
 		// cats map
 		//
 		catalog := &govcd.Catalog{}
@@ -658,8 +663,10 @@ func (v *VcdPlatform) GetServerDetail(ctx context.Context, vappName string) (*vm
 	return &detail, nil
 }
 
+// Return the cloudlet this name references
 // We're looking for the existing vapp(cloudlet) that this GroupName specifies it's to be created on.
-func (v *VcdPlatform) FindVappForCloudlet(GroupName string) (*govcd.VApp, error) {
+// Don't return vapp, it's in the cloudlet object
+func (v *VcdPlatform) FindCloudletForCluster(GroupName string) (*MexCloudlet, *govcd.VApp, error) {
 
 	targetVapp := &govcd.VApp{}
 	fmt.Printf("FindVappForCloudlet-I-looking for vappName who cloudlet name is contained within : %s\n", GroupName)
@@ -669,7 +676,7 @@ func (v *VcdPlatform) FindVappForCloudlet(GroupName string) (*govcd.VApp, error)
 		if GroupName == name {
 			// Test creating cloudlet twice in a row returns this error XXX
 			fmt.Printf("Ok, we have the cloudlet in question, and we're being asked to create it again return exists \n")
-			return nil, fmt.Errorf("Cloudlet %s already exists\n", name)
+			return nil, nil, fmt.Errorf("Cloudlet %s already exists\n", name)
 		}
 
 		// We've stored the CloudletName in our vdcCloudlet object, The vapp name stripped of it's operator and mex.net bits.
@@ -683,14 +690,14 @@ func (v *VcdPlatform) FindVappForCloudlet(GroupName string) (*govcd.VApp, error)
 				GroupName)
 
 			targetVapp = vdcCloudlet.CloudVapp
-			return targetVapp /*vdcCloudlet.ParentVdc,*/, nil
+			return vdcCloudlet, targetVapp /*vdcCloudlet.ParentVdc,*/, nil
 
 		} else {
 			fmt.Printf("\tSkipped vapp: %s \n", vdcCloudlet.CloudVapp.VApp.Name)
 			continue
 		}
 	}
-	return nil, fmt.Errorf("Not found")
+	return nil, nil, fmt.Errorf("Not found")
 }
 
 // Given a vappName, does it exist in any vdcs?

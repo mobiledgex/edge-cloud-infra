@@ -92,6 +92,7 @@ func (v *VcdPlatform) CreateVAppFromTmpl(ctx context.Context, vdc *govcd.Vdc, ne
 	if err != nil {
 		fmt.Printf("\nComposeVapp /cloudlet named: %s\n", newVappName)
 		// Not found try and create it
+		fmt.Printf("\nCreateVAppFromTmpl-I-using tmpl %s\n", vappTmpl.VAppTemplate.Name)
 		task, err := vdc.ComposeVApp(networks, vappTmpl, storProf, newVappName, description+vcdProviderVersion, true)
 		if err != nil {
 			if strings.Contains(err.Error(), "already exists") {
@@ -101,18 +102,27 @@ func (v *VcdPlatform) CreateVAppFromTmpl(ctx context.Context, vdc *govcd.Vdc, ne
 
 			} else {
 				// operation failed for resource reasons
-				fmt.Printf("CreateVAppFromTemplate-E-Compose failed for %s error: %s\n", vmgp.GroupName, err.Error())
-				log.SpanLog(ctx, log.DebugLevelInfra, "CreateRawVApp failed", "VAppName", vmgp.GroupName, "error", err)
+				fmt.Printf("CreateVAppFromTempl-E-Compose failed for %s error: %s\n", vmgp.GroupName, err.Error())
+				log.SpanLog(ctx, log.DebugLevelInfra, "CreateVApp failed", "VAppName", vmgp.GroupName, "error", err)
 				return nil, err
 			}
 		} else {
 			fmt.Printf("\nCreateVAppFromTemplate-I-compose ok, waiting for task completion\n")
-			task.WaitTaskCompletion()
-			vdc, vapp, err = v.FindVdcVapp(ctx, newVappName) // .Objs.Vdc.GetVAppByName(newVappName, true)
+			err = task.WaitTaskCompletion()
 			if err != nil {
-				fmt.Printf("Error composeing  Vapp tmpl: %s\n", err.Error())
-				return nil, nil
+
+				fmt.Printf("\nCreateVAppFromTmpl-E-waiting for task complete %s\n", err.Error())
+				return nil, err
 			}
+
+			vapp, err = v.Objs.PrimaryVdc.GetVAppByName(newVappName, true)
+			if err != nil {
+				fmt.Printf("Error : %s\n", err.Error())
+				return nil, err
+			}
+
+			fmt.Printf("\nCreateVAppFromTmpl-I-vapp named: %s\n", vapp.VApp.Name)
+
 			err = vapp.BlockWhileStatus("UNRESOLVED", 30) // upto seconds
 			if err != nil {
 				fmt.Printf("error waiting for created test vApp to have working state: %s", err.Error())
@@ -124,6 +134,14 @@ func (v *VcdPlatform) CreateVAppFromTmpl(ctx context.Context, vdc *govcd.Vdc, ne
 				fmt.Printf("Error removing all networks: %s\n", err.Error())
 			}
 			err = task.WaitTaskCompletion()
+
+			/*
+				vdc,  = v.FindVdcVapp(ctx, newVappName) // .Objs.Vdc.GetVAppByName(newVappName, true)
+				if err != nil {
+					fmt.Printf("Error : %s\n", err.Error())
+					return nil, nil
+				}
+			*/
 
 			desiredNetConfig := &types.NetworkConnectionSection{}
 			desiredNetConfig.PrimaryNetworkConnectionIndex = 0
@@ -167,6 +185,7 @@ func (v *VcdPlatform) CreateVAppFromTmpl(ctx context.Context, vdc *govcd.Vdc, ne
 
 		}
 
+		fmt.Printf("\nCreateVapp-I-about to split vapp %+v\n", vapp)
 		// and in either case, add to our local cache, this will overwrite an entry with the same name XXX
 		// Add new mex v.Vapp to our map
 
@@ -192,6 +211,7 @@ func (v *VcdPlatform) CreateVAppFromTmpl(ctx context.Context, vdc *govcd.Vdc, ne
 		v.Objs.Cloudlets[vapp.VApp.Name] = &cloudlet
 
 	} else {
+		// We already know about this vapp
 		vdc, err := v.FindVdcParent(ctx, vapp)
 		if err != nil {
 			fmt.Printf("CreateVMs-W-unable to find parent VDC for existing vapp %s\n", vapp.VApp.Name)

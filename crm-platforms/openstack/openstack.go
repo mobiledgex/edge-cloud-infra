@@ -23,7 +23,6 @@ func (o *OpenstackPlatform) GetType() string {
 
 func (o *OpenstackPlatform) SetVMProperties(vmProperties *vmlayer.VMProperties) {
 	o.VMProperties = vmProperties
-
 }
 
 func (o *OpenstackPlatform) InitProvider(ctx context.Context, caches *platform.Caches, stage vmlayer.ProviderInitStage, updateCallback edgeproto.CacheUpdateCallback) error {

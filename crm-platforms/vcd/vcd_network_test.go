@@ -63,6 +63,7 @@ func TestNetAddrs(t *testing.T) {
 
 		cluster1 := make(CidrMap)
 		cluster2 := make(CidrMap)
+		//cluster3 := make(CidrMap)
 
 		vmIpMap1 := make(VMIPsMap)
 		vmIpMap2 := make(VMIPsMap)
@@ -140,7 +141,7 @@ func TestNetAddrs(t *testing.T) {
 		}
 		cloud = tv.Objs.Cloudlets["testCloudlet3"]
 		fmt.Printf("Text Case 3 seccond vdc/cloudlet\n")
-		nextCidr, err := tv.GetNextInternalNet(ctx, cloud)
+		nextCidr, err = tv.GetNextInternalNet(ctx, cloud)
 		if err != nil {
 			fmt.Printf("GetNextInternalNet failed: %s\n", err.Error())
 			return

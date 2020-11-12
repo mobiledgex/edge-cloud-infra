@@ -253,9 +253,11 @@ func (v *VcdPlatform) CreateVMs(ctx context.Context, vmgp *vmlayer.VMGroupOrches
 		}
 		// Add the new vm(s) to our existing Cloudlet
 		fmt.Printf("Found existing Vapp/cloudlet as: %s will add  %d new vms to this cloudlet\n", vapp.VApp.Name, len(vmgp.VMs))
+		// v.CreateCluster() here, need to
 		err = v.AddVMsToVApp(ctx, vapp, tmpl, vmgp)
 		return err
 	}
+	// This is equiv of CreateCloudlet so, maybe just make one and call it here XXX
 	vdc := &govcd.Vdc{}
 	fmt.Printf("\n\nCreating new Cloudlet on first available vdc %s\n", description)
 

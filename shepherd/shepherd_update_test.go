@@ -55,7 +55,7 @@ func TestShepherdUpdate(t *testing.T) {
 	require.Nil(t, err)
 	nodeMgr.AccessKeyClient.AccessApiAddr = accessKeyGrpcServer.ApiAddr()
 	nodeMgr.AccessKeyClient.AccessKeyFile = "/tmp/acceskey_shepherd_unittest"
-	nodeMgr.AccessKeyClient.TestNoTls = true
+	nodeMgr.AccessKeyClient.TestSkipTlsVerify = true
 	err = ioutil.WriteFile(nodeMgr.AccessKeyClient.AccessKeyFile, []byte(accessKey.PrivatePEM), 0600)
 	require.Nil(t, err)
 

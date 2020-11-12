@@ -287,10 +287,6 @@ func RunServer(config *ServerConfig) (*Server, error) {
 	// authenticated routes - jwt middleware
 	auth := e.Group(root + "/auth")
 	auth.Use(AuthCookie)
-	// authenticated routes - gorm router
-	auth.POST("/user/disable/otp", DisableTOTP)
-	auth.POST("/user/reset/otp", ResetTOTP)
-	auth.POST("/user/update/otp", UpdateTOTP)
 
 	// swagger:route POST /auth/user/show User ShowUser
 	// Show Users.

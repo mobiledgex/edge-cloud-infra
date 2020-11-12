@@ -88,7 +88,7 @@ func GetLoginCmd() *cobra.Command {
 	cmd := cli.Command{
 		Use:          "login",
 		RequiredArgs: "name",
-		OptionalArgs: "otp otptype",
+		OptionalArgs: "otp",
 		Run:          runLogin,
 	}
 	return cmd.GenCmd()
@@ -98,14 +98,14 @@ func runLogin(c *cli.Command, args []string) error {
 	input := cli.Input{
 		RequiredArgs: []string{"name"},
 		PasswordArg:  "password",
-		AliasArgs:    []string{"name=username", "otp=totp", "otptype=totptype"},
+		AliasArgs:    []string{"name=username", "otp=totp"},
 	}
 	login := ormapi.UserLogin{}
 	_, err := input.ParseArgs(args, &login)
 	if err != nil {
 		return err
 	}
-	token, err := client.DoLogin(getUri(), login.Username, login.Password, login.TOTP, login.TOTPType)
+	token, err := client.DoLogin(getUri(), login.Username, login.Password, login.TOTP)
 	if err != nil {
 		return err
 	}

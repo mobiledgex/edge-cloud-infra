@@ -23,7 +23,6 @@ import (
 )
 
 var BadAuthDelay = 3 * time.Second
-var NoTOTPSharedKey = "NoTOTPKey"
 var NoOTP = ""
 var OTPLen otp.Digits = 6
 var OTPExpirationTime = uint(2 * 60) // seconds
@@ -59,123 +58,6 @@ func InitAdmin(ctx context.Context, superuser, superpass string) error {
 		return err
 	}
 	return nil
-}
-
-func DisableTOTP(c echo.Context) error {
-	ctx := GetContext(c)
-	claims, err := getClaims(c)
-	if err != nil {
-		return err
-	}
-	user := ormapi.User{}
-	if err := c.Bind(&user); err != nil {
-		return bindErr(c, err)
-	}
-	if err := authorized(ctx, claims.Username, "", ResourceUsers, ActionManage); err != nil {
-		return err
-	}
-
-	db := loggedDB(ctx)
-	err = db.Where(&user).First(&user).Error
-	if err != nil {
-		return setReply(c, dbErr(err), nil)
-	}
-
-	user.TOTPSharedKey = NoTOTPSharedKey
-	user.DisableTOTP = true
-	if err := db.Model(&user).Updates(&user).Error; err != nil {
-		return setReply(c, dbErr(err), nil)
-	}
-	if user.Name == Superuser {
-		Superuser2FA = false
-	}
-	return c.JSON(http.StatusOK, Msg("disabled 2FA"))
-}
-
-func ResetTOTP(c echo.Context) error {
-	ctx := GetContext(c)
-
-	claims, err := getClaims(c)
-	if err != nil {
-		return err
-	}
-
-	user := ormapi.User{}
-	if err := c.Bind(&user); err != nil {
-		return bindErr(c, err)
-	}
-
-	if err := authorized(ctx, claims.Username, "", ResourceUsers, ActionManage); err != nil {
-		return err
-	}
-
-	db := loggedDB(ctx)
-	err = db.Where(&user).First(&user).Error
-	if err != nil {
-		return setReply(c, dbErr(err), nil)
-	}
-
-	totpKey, totpQR, err := GenerateTOTPQR(user.Email)
-	if err != nil {
-		return err
-	}
-	user.TOTPSharedKey = totpKey
-	user.DisableTOTP = false
-
-	userResponse := ormapi.UserResponse{
-		TOTPSharedKey: totpKey,
-		TOTPQRImage:   totpQR,
-	}
-
-	if err := db.Model(&user).Updates(&user).Error; err != nil {
-		return setReply(c, dbErr(err), nil)
-	}
-
-	if user.Name == Superuser {
-		Superuser2FA = true
-	}
-	userResponse.Message = fmt.Sprintf("Enabled 2FA\nFor enhanced security, it is mandatory "+
-		"to setup two factor authentication for your account. Please use this text code %s with "+
-		"the two factor authentication app on your phone to set it up", user.TOTPSharedKey)
-	return c.JSON(http.StatusOK, &userResponse)
-}
-
-func UpdateTOTP(c echo.Context) error {
-	ctx := GetContext(c)
-	claims, err := getClaims(c)
-	if err != nil {
-		return err
-	}
-	inUser := ormapi.User{}
-	if err := c.Bind(&inUser); err != nil {
-		return bindErr(c, err)
-	}
-	if err := authorized(ctx, claims.Username, "", ResourceUsers, ActionManage); err != nil {
-		return err
-	}
-	if inUser.TOTPType == "" {
-		return fmt.Errorf("Only TOTP type can be updated")
-	}
-
-	user := ormapi.User{}
-	db := loggedDB(ctx)
-	err = db.Where(&inUser).First(&user).Error
-	if err != nil {
-		return setReply(c, dbErr(err), nil)
-	}
-
-	if user.TOTPType != ormapi.TOTPEmail && user.TOTPType != ormapi.TOTPAuthenticator {
-		return fmt.Errorf("Unsupported TOTP type: %s", user.TOTPType)
-	}
-	if user.TOTPType == inUser.TOTPType {
-		// nothing to update
-		return c.JSON(http.StatusOK, Msg("2FA authentication already updated"))
-	}
-	user.TOTPType = inUser.TOTPType
-	if err := db.Model(&user).Updates(&user).Error; err != nil {
-		return setReply(c, dbErr(err), nil)
-	}
-	return c.JSON(http.StatusOK, Msg(fmt.Sprintf("Updated 2FA to use %s", user.TOTPType)))
 }
 
 func Login(c echo.Context) error {
@@ -246,52 +128,27 @@ func Login(c echo.Context) error {
 		}
 	}
 
-	if (user.Name != Superuser && !user.DisableTOTP) ||
-		(user.Name == Superuser && Superuser2FA) {
-		if user.TOTPSharedKey != NoTOTPSharedKey {
-			if login.TOTP == "" {
-				if user.TOTPType == ormapi.TOTPEmail || login.TOTPType == ormapi.TOTPEmail {
-					// Send OTP over email
-					opts := totp.ValidateOpts{
-						Period: OTPExpirationTime,
-						Digits: OTPLen,
-					}
-					otp, err := totp.GenerateCodeCustom(user.TOTPSharedKey, time.Now(), opts)
-					if err != nil {
-						panic(err)
-					}
-					err = sendOTPEmail(ctx, user.Name, user.Email, otp, OTPExpirationTimeStr)
-					if err != nil {
-						return err
-					}
-				}
-				return c.JSON(http.StatusPreconditionFailed, Msg("Missing OTP"))
+	if user.EnableTOTP && user.TOTPSharedKey != "" {
+		if login.TOTP == "" {
+			// Send OTP over email
+			opts := totp.ValidateOpts{
+				Period: OTPExpirationTime,
+				Digits: OTPLen,
 			}
-			valid := totp.Validate(login.TOTP, user.TOTPSharedKey)
-			if !valid {
-				return c.JSON(http.StatusBadRequest, Msg("Invalid OTP"))
-			}
-		} else {
-			totpKey, totpQR, err := GenerateTOTPQR(user.Email)
+			otp, err := totp.GenerateCodeCustom(user.TOTPSharedKey, time.Now(), opts)
 			if err != nil {
-				return setReply(c, fmt.Errorf("Failed to setup 2FA: %v", err), nil)
+				panic(err)
 			}
-			user.TOTPSharedKey = totpKey
-			// save shared key
-			err = db.Model(&user).Updates(&user).Error
+			err = sendOTPEmail(ctx, user.Name, user.Email, otp, OTPExpirationTimeStr)
 			if err != nil {
-				return setReply(c, dbErr(err), nil)
+				return err
 			}
-
-			userResponse := ormapi.UserResponse{
-				TOTPSharedKey: totpKey,
-				TOTPQRImage:   totpQR,
-				Message:       "Enabled 2FA, Setup 2FA on your client and please input OTP to verify it",
-			}
-			userResponse.Message = fmt.Sprintf("Missing 2FA\nFor enhanced security, it is mandatory "+
-				"to setup two factor authentication for your account. Please use this text code %s with "+
-				"the two factor authentication app on your phone to set it up and then login with generated OTP", user.TOTPSharedKey)
-			return c.JSON(http.StatusPreconditionRequired, userResponse)
+			return c.JSON(http.StatusPreconditionFailed, Msg("Missing OTP\nPlease use two factor authenticator app on "+
+				"your phone to get OTP. We have also sent OTP to your registered email address"))
+		}
+		valid := totp.Validate(login.TOTP, user.TOTPSharedKey)
+		if !valid {
+			return c.JSON(http.StatusBadRequest, Msg("Invalid OTP"))
 		}
 	}
 
@@ -388,15 +245,16 @@ func CreateUser(c echo.Context) error {
 	}
 	user.EmailVerified = false
 
-	totpKey, totpQR, err := GenerateTOTPQR(user.Email)
-	if err != nil {
-		return setReply(c, fmt.Errorf("Failed to setup 2FA: %v", err), nil)
-	}
-	user.TOTPSharedKey = totpKey
+	userResponse := ormapi.UserResponse{}
+	if user.EnableTOTP {
+		totpKey, totpQR, err := GenerateTOTPQR(user.Email)
+		if err != nil {
+			return setReply(c, fmt.Errorf("Failed to setup 2FA: %v", err), nil)
+		}
+		user.TOTPSharedKey = totpKey
 
-	userResponse := ormapi.UserResponse{
-		TOTPSharedKey: totpKey,
-		TOTPQRImage:   totpQR,
+		userResponse.TOTPSharedKey = totpKey
+		userResponse.TOTPQRImage = totpQR
 	}
 
 	// password should be passed through in Passhash field.
@@ -434,14 +292,9 @@ func CreateUser(c echo.Context) error {
 	}
 
 	if user.TOTPSharedKey != "" {
-		if user.TOTPType == ormapi.TOTPEmail {
-			userResponse.Message = "User created\nFor enhanced security, we have enabled two factor " +
-				"authentication over email for your account"
-		} else {
-			userResponse.Message = fmt.Sprintf("User created\nFor enhanced security, it is mandatory "+
-				"to setup two factor authentication for your account. Please use this text code %s with "+
-				"the two factor authentication app on your phone to set it up", user.TOTPSharedKey)
-		}
+		userResponse.Message = fmt.Sprintf("User created with two factor authentication enabled. "+
+			"Please use this text code %s with the two factor authentication app on your "+
+			"phone to set it up", user.TOTPSharedKey)
 	} else {
 		userResponse.Message = "user created"
 	}

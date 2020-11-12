@@ -42,8 +42,6 @@ const (
 
 const TestCACert = "ssh-rsa DUMMYTESTCACERT"
 
-var CloudflareDns = []string{"1.1.1.1", "1.0.0.1"}
-
 var ClusterTypeKubernetesMasterLabel = "mex-k8s-master"
 var ClusterTypeDockerVMLabel = "mex-docker-vm"
 
@@ -435,6 +433,8 @@ type VMCloudConfigParams struct {
 	ChefParams        *chefmgmt.VMChefParams
 	CACert            string
 	AccessKey         string
+	PrimaryDNS        string
+	FallbackDNS       string
 }
 
 // VMOrchestrationParams contains all details  that are needed by the orchestator
@@ -454,7 +454,6 @@ type VMOrchestrationParams struct {
 	UserData                string
 	MetaData                string
 	SharedVolume            bool
-	DNSServers              string
 	AuthPublicKey           string
 	DeploymentManifest      string
 	Command                 string
@@ -551,9 +550,11 @@ func (v *VMPlatform) getVMGroupOrchestrationParamsFromGroupSpec(ctx context.Cont
 	externalNetName := v.VMProperties.GetCloudletExternalNetwork()
 
 	var err error
+	vmDns := strings.Split(v.VMProperties.GetCloudletDNS(), ",")
+	if len(vmDns) > 2 {
+		return nil, fmt.Errorf("Too many DNS servers specified in MEX_DNS")
+	}
 
-	// DNS is applied either at the subnet or VM level
-	vmDns := ""
 	subnetDns := []string{}
 	cloudletSecGrpID := v.VMProperties.GetCloudletSecurityGroupName()
 	if !spec.SkipDefaultSecGrp {
@@ -567,16 +568,9 @@ func (v *VMPlatform) getVMGroupOrchestrationParamsFromGroupSpec(ctx context.Cont
 	if err != nil {
 		return nil, err
 	}
-	if v.VMProperties.GetSubnetDNS() == NoSubnetDNS {
+	if v.VMProperties.GetSubnetDNS() != NoSubnetDNS {
 		// Contrail workaround, see EDGECLOUD-2420 for details
-		vmDns = strings.Join(CloudflareDns, " ")
-	} else {
-		if v.VMProperties.GetSubnetDNS() != "" {
-			// A value other than NONE or empty means to use the specified servers
-			subnetDns = strings.Split(v.VMProperties.GetSubnetDNS(), ",")
-		} else {
-			subnetDns = CloudflareDns
-		}
+		subnetDns = vmDns
 	}
 
 	vmgp.Netspec, err = ParseNetSpec(ctx, v.VMProperties.GetCloudletNetworkScheme())
@@ -882,6 +876,12 @@ func (v *VMPlatform) getVMGroupOrchestrationParamsFromGroupSpec(ctx context.Cont
 			}
 			vccp.CACert = vaultSSHCert
 			vccp.AccessKey = vm.AccessKey
+			if len(vmDns) > 0 {
+				vccp.PrimaryDNS = vmDns[0]
+				if len(vmDns) > 1 {
+					vccp.FallbackDNS = vmDns[1]
+				}
+			}
 			// gpu
 			if vm.OptionalResource == "gpu" {
 				gpuCmds := getGpuExtraCommands()
@@ -891,7 +891,6 @@ func (v *VMPlatform) getVMGroupOrchestrationParamsFromGroupSpec(ctx context.Cont
 				Name:                    v.VMProvider.NameSanitize(vm.Name),
 				Id:                      v.VMProvider.IdSanitize(vm.Name),
 				Role:                    role,
-				DNSServers:              vmDns,
 				ImageName:               vm.ImageName,
 				ImageFolder:             vm.ImageFolder,
 				FlavorName:              vm.FlavorName,

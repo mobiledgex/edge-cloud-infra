@@ -108,6 +108,7 @@ func logger(next echo.HandlerFunc) echo.HandlerFunc {
 			if err == nil {
 				login.Password = ""
 				login.TOTP = ""
+				login.ApiKey = ""
 				reqBody, err = json.Marshal(login)
 			}
 			if err != nil {

@@ -106,6 +106,16 @@ func GenerateCookie(user *ormapi.User) (string, error) {
 	return cookie, err
 }
 
+func GenerateApiKey(user *ormapi.User) (string, error) {
+	claims := UserClaims{
+		Username: user.Name,
+		Email:    user.Email,
+		IssuedAt: time.Now().Unix(),
+	}
+	cookie, err := Jwks.GenerateApiKey(&claims)
+	return cookie, err
+}
+
 func getClaims(c echo.Context) (*UserClaims, error) {
 	user := c.Get("user")
 	ctx := GetContext(c)

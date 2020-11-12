@@ -24,6 +24,7 @@ import (
 
 var BadAuthDelay = 3 * time.Second
 var NoOTP = ""
+var NoApiKey = ""
 var OTPLen otp.Digits = 6
 var OTPExpirationTime = uint(2 * 60) // seconds
 var OTPExpirationTimeStr = "2 minutes"
@@ -69,6 +70,19 @@ func Login(c echo.Context) error {
 	if login.Username == "" {
 		return c.JSON(http.StatusBadRequest, Msg("Username not specified"))
 	}
+
+	// Fetch API key from Auth Headers, if any
+	auth := c.Request().Header.Get(echo.HeaderAuthorization)
+	scheme := "Bearer"
+	apiKey := ""
+	if len(auth) > len(scheme) && strings.HasPrefix(auth, scheme) {
+		apiKey = auth[len(scheme)+1:]
+	}
+
+	if login.Password != "" && apiKey != "" {
+		return c.JSON(http.StatusBadRequest, Msg("Please specify either password or apikey"))
+	}
+
 	user := ormapi.User{}
 	lookup := ormapi.User{Name: login.Username}
 	db := loggedDB(ctx)
@@ -90,13 +104,33 @@ func Login(c echo.Context) error {
 	span.SetTag("username", user.Name)
 	span.SetTag("email", user.Email)
 
-	matches, err := PasswordMatches(login.Password, user.Passhash, user.Salt, user.Iter)
-	if err != nil {
-		log.SpanLog(ctx, log.DebugLevelApi, "password matches err", "err", err)
-	}
-	if !matches || err != nil {
-		time.Sleep(BadAuthDelay)
-		return c.JSON(http.StatusBadRequest, Msg("Invalid username or password"))
+	if apiKey == "" {
+		matches, err := PasswordMatches(login.Password, user.Passhash, user.Salt, user.Iter)
+		if err != nil {
+			log.SpanLog(ctx, log.DebugLevelApi, "password matches err", "err", err)
+		}
+		if !matches || err != nil {
+			time.Sleep(BadAuthDelay)
+			return c.JSON(http.StatusBadRequest, Msg("Invalid username or password"))
+		}
+	} else {
+		// Validate apiKey
+		apiKeys := make(map[string]string)
+		if len(user.ApiKeys) > 0 {
+			if err := json.Unmarshal(user.ApiKeys, &apiKeys); err != nil {
+				log.SpanLog(ctx, log.DebugLevelApi, "failed to unmarshal api keys", "err", err)
+				return c.JSON(http.StatusBadRequest, Msg("Failed to get api keys"))
+			}
+		}
+		found := false
+		for _, v := range apiKeys {
+			if v == apiKey {
+				found = true
+			}
+		}
+		if !found {
+			return c.JSON(http.StatusBadRequest, Msg("Invalid API key"))
+		}
 	}
 	if user.Locked {
 		return c.JSON(http.StatusBadRequest, Msg("Account is locked, please contact MobiledgeX support"))
@@ -105,7 +139,7 @@ func Login(c echo.Context) error {
 		return c.JSON(http.StatusBadRequest, Msg("Email not verified yet"))
 	}
 
-	if user.PassCrackTimeSec == 0 {
+	if apiKey == "" && user.PassCrackTimeSec == 0 {
 		calcPasswordStrength(ctx, &user, login.Password)
 		isAdmin, err := isUserAdmin(ctx, user.Name)
 		if err != nil {
@@ -128,7 +162,7 @@ func Login(c echo.Context) error {
 		}
 	}
 
-	if user.EnableTOTP && user.TOTPSharedKey != "" {
+	if apiKey == "" && user.EnableTOTP && user.TOTPSharedKey != "" {
 		if login.TOTP == "" {
 			// Send OTP over email
 			opts := totp.ValidateOpts{
@@ -351,6 +385,138 @@ func CreateUser(c echo.Context) error {
 	return c.JSON(http.StatusOK, &userResponse)
 }
 
+func CreateUserApiKey(c echo.Context) error {
+	claims, err := getClaims(c)
+	if err != nil {
+		return err
+	}
+	ctx := GetContext(c)
+
+	req := ormapi.UserApiKey{}
+	if err := c.Bind(&req); err != nil {
+		return bindErr(c, err)
+	}
+
+	user := ormapi.User{Name: claims.Username}
+	db := loggedDB(ctx)
+	err = db.Where(&user).First(&user).Error
+	if err != nil {
+		return setReply(c, dbErr(err), nil)
+	}
+
+	apiKeys := make(map[string]string)
+	if len(user.ApiKeys) > 0 {
+		if err := json.Unmarshal(user.ApiKeys, &apiKeys); err != nil {
+			log.SpanLog(ctx, log.DebugLevelApi, "failed to unmarshal api keys", "err", err)
+			return c.JSON(http.StatusBadRequest, Msg("Failed to get api keys"))
+		}
+	}
+
+	if _, ok := apiKeys[req.Name]; ok {
+		return c.JSON(http.StatusBadRequest, Msg("API Key with same name already exists"))
+	}
+
+	apiKey, err := GenerateApiKey(&user)
+	if err != nil {
+		log.SpanLog(ctx, log.DebugLevelApi, "failed to generate api key", "err", err)
+		return c.JSON(http.StatusBadRequest, Msg("Failed to generate api key"))
+	}
+	apiKeys[req.Name] = apiKey
+	out, err := json.Marshal(apiKeys)
+	if err != nil {
+		log.SpanLog(ctx, log.DebugLevelApi, "failed to marshal api keys", "err", err)
+		return c.JSON(http.StatusBadRequest, Msg("Failed to create api keys"))
+	}
+	user.ApiKeys = out
+	if err := db.Model(&user).Updates(&user).Error; err != nil {
+		return setReply(c, dbErr(err), nil)
+	}
+	return c.JSON(http.StatusOK, Msg(apiKey))
+}
+
+func DeleteUserApiKey(c echo.Context) error {
+	claims, err := getClaims(c)
+	if err != nil {
+		return err
+	}
+	ctx := GetContext(c)
+
+	req := ormapi.UserApiKey{}
+	if err := c.Bind(&req); err != nil {
+		return bindErr(c, err)
+	}
+
+	user := ormapi.User{Name: claims.Username}
+	db := loggedDB(ctx)
+	err = db.Where(&user).First(&user).Error
+	if err != nil {
+		return setReply(c, dbErr(err), nil)
+	}
+
+	apiKeys := make(map[string]string)
+	if len(user.ApiKeys) > 0 {
+		if err := json.Unmarshal([]byte(user.ApiKeys), &apiKeys); err != nil {
+			log.SpanLog(ctx, log.DebugLevelApi, "failed to unmarshal api keys", "err", err)
+			return c.JSON(http.StatusBadRequest, Msg("Failed to get existing api keys"))
+		}
+	}
+	if _, ok := apiKeys[req.Name]; !ok {
+		return c.JSON(http.StatusBadRequest, Msg(fmt.Sprintf("API Key with name %s doesn't exists", req.Name)))
+	}
+	delete(apiKeys, req.Name)
+	out, err := json.Marshal(apiKeys)
+	if err != nil {
+		log.SpanLog(ctx, log.DebugLevelApi, "failed to marshal api keys", "err", err)
+		return c.JSON(http.StatusBadRequest, Msg("Failed to delete api keys"))
+	}
+	user.ApiKeys = out
+
+	if err := db.Model(&user).Updates(&user).Error; err != nil {
+		return setReply(c, dbErr(err), nil)
+	}
+	return c.JSON(http.StatusOK, Msg("deleted API Key successfully"))
+}
+
+func ShowUserApiKey(c echo.Context) error {
+	claims, err := getClaims(c)
+	if err != nil {
+		return err
+	}
+	ctx := GetContext(c)
+
+	req := ormapi.UserApiKey{}
+	if err := c.Bind(&req); err != nil {
+		return bindErr(c, err)
+	}
+
+	user := ormapi.User{Name: claims.Username}
+	db := loggedDB(ctx)
+	err = db.Where(&user).First(&user).Error
+	if err != nil {
+		return setReply(c, dbErr(err), nil)
+	}
+	apiKeys := make(map[string]string)
+	if len(user.ApiKeys) > 0 {
+		if err := json.Unmarshal([]byte(user.ApiKeys), &apiKeys); err != nil {
+			log.SpanLog(ctx, log.DebugLevelApi, "failed to unmarshal api keys", "err", err)
+			return c.JSON(http.StatusBadRequest, Msg("Failed to get api keys"))
+		}
+	}
+	userApiKeys := []ormapi.UserApiKey{}
+	for apiKeyName, apiKey := range apiKeys {
+		userApiKey := ormapi.UserApiKey{
+			Name: apiKeyName,
+		}
+		claims := UserClaims{}
+		token, err := Jwks.VerifyCookie(apiKey, &claims)
+		if err == nil && token.Valid {
+			userApiKey.IssuedAt = claims.IssuedAt
+		}
+		userApiKeys = append(userApiKeys, userApiKey)
+	}
+	return c.JSON(http.StatusOK, &userApiKeys)
+}
+
 func ResendVerify(c echo.Context) error {
 	ctx := GetContext(c)
 
@@ -498,6 +664,7 @@ func CurrentUser(c echo.Context) error {
 	user.Salt = ""
 	user.Iter = 0
 	user.TOTPSharedKey = ""
+	user.ApiKeys = []byte{}
 	return c.JSON(http.StatusOK, user)
 }
 

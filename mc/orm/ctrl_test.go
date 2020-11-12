@@ -102,7 +102,7 @@ func TestController(t *testing.T) {
 	mcClient := &ormclient.Client{}
 
 	// login as super user
-	token, err := mcClient.DoLogin(uri, DefaultSuperuser, DefaultSuperpass, NoOTP)
+	token, err := mcClient.DoLogin(uri, DefaultSuperuser, DefaultSuperpass, NoOTP, NoApiKey)
 	require.Nil(t, err, "login as superuser")
 
 	// test controller api
@@ -621,7 +621,7 @@ func testCreateUser(t *testing.T, mcClient *ormclient.Client, uri, name string) 
 	// login
 	otp, err := totp.GenerateCode(resp.TOTPSharedKey, time.Now())
 	require.Nil(t, err, "generate otp", name)
-	token, err := mcClient.DoLogin(uri, user.Name, user.Passhash, otp)
+	token, err := mcClient.DoLogin(uri, user.Name, user.Passhash, otp, NoApiKey)
 	require.Nil(t, err, "login as ", name)
 	return &user, token, user.Passhash
 }

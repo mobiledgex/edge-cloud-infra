@@ -160,6 +160,56 @@ func Login(c echo.Context) error {
 	return c.JSON(http.StatusOK, M{"token": cookie})
 }
 
+func RefreshAuthCookie(c echo.Context) error {
+	ctx := GetContext(c)
+	auth := c.Request().Header.Get(echo.HeaderAuthorization)
+	scheme := "Bearer"
+	l := len(scheme)
+	if len(auth) <= len(scheme) || !strings.HasPrefix(auth, scheme) {
+		//if no token provided, return a 400 err
+		return &echo.HTTPError{
+			Code:     http.StatusBadRequest,
+			Message:  "no bearer token found",
+			Internal: fmt.Errorf("no token found for Authorization Bearer"),
+		}
+	}
+	cookie := auth[l+1:]
+
+	claims := UserClaims{}
+	token, err := Jwks.VerifyCookie(cookie, &claims)
+	if err == nil && token.Valid {
+		if claims.IssuedAt == 0 {
+			log.SpanLog(ctx, log.DebugLevelApi, "failed to generate cookie as issued time is missing")
+			return c.JSON(http.StatusBadRequest, Msg("Failed to refresh auth cookie"))
+		}
+		// refresh auth cookie only if it was issues within 30 days
+		if claims.IssuedAt > time.Now().AddDate(0, 0, 30).Unix() {
+			return c.JSON(http.StatusUnauthorized, Msg("expired jwt"))
+		}
+		claims.StandardClaims.IssuedAt = time.Now().Unix()
+		claims.StandardClaims.ExpiresAt = time.Now().AddDate(0, 0, 1).Unix()
+		cookie, err := Jwks.GenerateCookie(&claims)
+		if err != nil {
+			log.SpanLog(ctx, log.DebugLevelApi, "failed to generate cookie", "err", err)
+			return c.JSON(http.StatusBadRequest, Msg("Failed to generate cookie"))
+		}
+		return c.JSON(http.StatusOK, M{"token": cookie})
+	}
+	// display error regarding token valid time/expired
+	if err != nil && strings.Contains(err.Error(), "expired") {
+		return &echo.HTTPError{
+			Code:     http.StatusBadRequest,
+			Message:  err.Error(),
+			Internal: err,
+		}
+	}
+	return &echo.HTTPError{
+		Code:     http.StatusUnauthorized,
+		Message:  "invalid or expired jwt",
+		Internal: err,
+	}
+}
+
 func GenerateTOTPQR(accountName string) (string, []byte, error) {
 	key, err := totp.Generate(totp.GenerateOpts{
 		Issuer:      "MobiledgeX",

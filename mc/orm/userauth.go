@@ -80,6 +80,7 @@ type UserClaims struct {
 	Username string `json:"username"`
 	Email    string `json:"email"`
 	Kid      int    `json:"kid"`
+	IssuedAt int64  `json:"iat,omitempty"`
 }
 
 func (u *UserClaims) GetKid() (int, error) {
@@ -99,6 +100,7 @@ func GenerateCookie(user *ormapi.User) (string, error) {
 		},
 		Username: user.Name,
 		Email:    user.Email,
+		IssuedAt: time.Now().Unix(),
 	}
 	cookie, err := Jwks.GenerateCookie(&claims)
 	return cookie, err

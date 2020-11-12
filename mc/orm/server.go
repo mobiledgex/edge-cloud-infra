@@ -287,6 +287,8 @@ func RunServer(config *ServerConfig) (*Server, error) {
 	// authenticated routes - jwt middleware
 	auth := e.Group(root + "/auth")
 	auth.Use(AuthCookie)
+	// refresh auth cookie
+	auth.POST("/refresh", RefreshAuthCookie)
 
 	// swagger:route POST /auth/user/show User ShowUser
 	// Show Users.

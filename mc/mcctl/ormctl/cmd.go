@@ -130,7 +130,7 @@ func PreRunE(cmd *cobra.Command, args []string) error {
 	if Token == "" {
 		tok, err := ioutil.ReadFile(getTokenFile())
 		if err == nil {
-			Token = string(tok)
+			Token = strings.TrimSpace(string(tok))
 		}
 	}
 	if SkipVerify {

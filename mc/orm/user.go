@@ -698,8 +698,6 @@ func UpdateUser(c echo.Context) error {
 	if err := c.Bind(&cuser); err != nil {
 		return bindErr(c, err)
 	}
-	fmt.Printf("old: %v\n", old)
-	fmt.Printf("new: %v\n", user)
 	// check for fields that are not allowed to change
 	if old.Name != user.Name {
 		return c.JSON(http.StatusBadRequest, Msg("Cannot change username"))

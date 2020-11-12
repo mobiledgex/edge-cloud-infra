@@ -322,7 +322,7 @@ func (v *VMPlatform) GetVMSpecForRootLB(ctx context.Context, rootLbName string, 
 		WithExternalVolume(vmspec.ExternalVolumeSize),
 		WithSubnetConnection(subnetConnect),
 		WithChefParams(chefParams),
-		WithAdditionalNetworks(v.VMProperties.GetCloudletAdditionalNetworks()))
+		WithAdditionalNetworks(v.VMProperties.GetCloudletAdditionalRootLbNetworks()))
 }
 
 // GetVMSpecForRootLBPorts get a vmspec for the purpose of creating new ports to the specified subnet

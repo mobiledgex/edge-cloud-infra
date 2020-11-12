@@ -154,9 +154,13 @@ var VMProviderProps = map[string]*edgeproto.PropertyInfo{
 		Name:        "Cloudlet Firewall Whitelist Ingress",
 		Description: "Firewall rule to whitelist ingress traffic",
 	},
-	"MEX_ADDITIONAL_NETWORKS": {
-		Name:        "Additional networks",
-		Description: "Optional command separated list of networks to add to rootLB and CRM nodes",
+	"MEX_ADDITIONAL_PLATFORM_NETWORKS": {
+		Name:        "Additional Platform Networks",
+		Description: "Optional comma separated list of networks to add to platform VM",
+	},
+	"MEX_ADDITIONAL_ROOTLB_NETWORKS": {
+		Name:        "Additional RootLB Networks",
+		Description: "Optional comma separated list of networks to add to rootLB VMs",
 	},
 }
 
@@ -253,8 +257,16 @@ func (vp *VMProperties) GetCloudletMexNetwork() string {
 	return value
 }
 
-func (vp *VMProperties) GetCloudletAdditionalNetworks() []string {
-	value, _ := vp.CommonPf.Properties.GetValue("MEX_ADDITIONAL_NETWORKS")
+func (vp *VMProperties) GetCloudletAdditionalPlatformNetworks() []string {
+	value, _ := vp.CommonPf.Properties.GetValue("MEX_ADDITIONAL_PLATFORM_NETWORKS")
+	if value == "" {
+		return []string{}
+	}
+	return strings.Split(value, ",")
+}
+
+func (vp *VMProperties) GetCloudletAdditionalRootLbNetworks() []string {
+	value, _ := vp.CommonPf.Properties.GetValue("MEX_ADDITIONAL_ROOTLB_NETWORKS")
 	if value == "" {
 		return []string{}
 	}

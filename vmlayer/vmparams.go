@@ -820,7 +820,13 @@ func (v *VMPlatform) getVMGroupOrchestrationParamsFromGroupSpec(ctx context.Cont
 			if vm.ConnectToExternalNet {
 				extNets = append(extNets, externalNetName)
 			}
-			extNets = append(extNets, vm.AdditionalNetworks...)
+			if len(vm.AdditionalNetworks) > 0 {
+				err = v.VMProvider.ValidateAdditionalNetworks(ctx, vm.AdditionalNetworks)
+				if err != nil {
+					return nil, err
+				}
+				extNets = append(extNets, vm.AdditionalNetworks...)
+			}
 			for _, net := range extNets {
 				portName := GetPortName(vm.Name, net)
 				if spec.NewSecgrpName == "" {

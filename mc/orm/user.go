@@ -171,11 +171,12 @@ func Login(c echo.Context) error {
 			}
 			otp, err := totp.GenerateCodeCustom(user.TOTPSharedKey, time.Now(), opts)
 			if err != nil {
-				panic(err)
+				return setReply(c, err, nil)
 			}
 			err = sendOTPEmail(ctx, user.Name, user.Email, otp, OTPExpirationTimeStr)
 			if err != nil {
-				return err
+				// log and ignore
+				log.SpanLog(ctx, log.DebugLevelApi, "failed to send otp email", "err", err)
 			}
 			return c.JSON(http.StatusPreconditionFailed, Msg("Missing OTP\nPlease use two factor authenticator app on "+
 				"your phone to get OTP. We have also sent OTP to your registered email address"))
@@ -376,9 +377,9 @@ func CreateUser(c echo.Context) error {
 	}
 
 	if user.TOTPSharedKey != "" {
-		userResponse.Message = fmt.Sprintf("User created with two factor authentication enabled. "+
-			"Please use this text code %s with the two factor authentication app on your "+
-			"phone to set it up", user.TOTPSharedKey)
+		userResponse.Message = "User created with two factor authentication enabled. " +
+			"Please use the following text code with the two factor authentication app on your " +
+			"phone to set it up"
 	} else {
 		userResponse.Message = "user created"
 	}
@@ -720,6 +721,8 @@ func ShowUser(c echo.Context) error {
 	for ii, _ := range users {
 		// don't show auth/private info
 		users[ii].Passhash = ""
+		users[ii].TOTPSharedKey = ""
+		users[ii].ApiKeys = []byte{}
 		users[ii].Salt = ""
 		users[ii].Iter = 0
 	}
@@ -1081,9 +1084,9 @@ func UpdateUser(c echo.Context) error {
 	}
 
 	if otpChanged && user.TOTPSharedKey != "" {
-		userResponse.Message = fmt.Sprintf("User updated\nEnabled two factor authentication. "+
-			"Please use this text code %s with the two factor authentication app on your "+
-			"phone to set it up", user.TOTPSharedKey)
+		userResponse.Message = "User updated\nEnabled two factor authentication. " +
+			"Please use the following text code with the two factor authentication app on your " +
+			"phone to set it up"
 	} else {
 		userResponse.Message = "user updated"
 	}

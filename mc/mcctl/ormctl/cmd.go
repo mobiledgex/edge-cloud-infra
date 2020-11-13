@@ -104,6 +104,7 @@ func check(c *cli.Command, status int, err error, reply interface{}) error {
 	if res, ok := reply.(*ormapi.UserResponse); ok && !cli.Parsable {
 		if res.Message != "" {
 			fmt.Println(res.Message)
+			fmt.Println(res.TOTPSharedKey)
 		}
 		return nil
 	}

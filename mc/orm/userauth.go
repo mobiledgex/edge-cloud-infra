@@ -100,6 +100,8 @@ func GenerateCookie(user *ormapi.User) (string, error) {
 		},
 		Username: user.Name,
 		Email:    user.Email,
+		// This is used to keep track of when the first auth token was issued,
+		// using this info we allow refreshing of auth token if the token is valid
 		IssuedAt: time.Now().Unix(),
 	}
 	cookie, err := Jwks.GenerateCookie(&claims)

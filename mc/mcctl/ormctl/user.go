@@ -13,11 +13,12 @@ func GetUserCommand() *cobra.Command {
 	cmds := []*cli.Command{&cli.Command{
 		Use:            "create",
 		RequiredArgs:   "name email",
-		OptionalArgs:   "nickname familyname givenname callbackurl",
-		AliasArgs:      "name=user.name email=user.email nickname=user.nickname familyname=user.familyname givenname=user.givenname password=user.passhash callbackurl=verify.callbackurl",
+		OptionalArgs:   "nickname familyname givenname callbackurl enabletotp",
+		AliasArgs:      "name=user.name email=user.email nickname=user.nickname familyname=user.familyname givenname=user.givenname password=user.passhash callbackurl=verify.callbackurl enabletotp=user.enabletotp",
 		PasswordArg:    "user.passhash",
 		VerifyPassword: true,
 		ReqData:        &ormapi.CreateUser{},
+		ReplyData:      &ormapi.UserResponse{},
 		Run:            runRest("/usercreate"),
 	}, &cli.Command{
 		Use:          "delete",

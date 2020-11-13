@@ -13,8 +13,8 @@ func GetUserCommand() *cobra.Command {
 	cmds := []*cli.Command{&cli.Command{
 		Use:            "create",
 		RequiredArgs:   "name email",
-		OptionalArgs:   "nickname familyname givenname callbackurl otptype",
-		AliasArgs:      "name=user.name email=user.email nickname=user.nickname familyname=user.familyname givenname=user.givenname password=user.passhash callbackurl=verify.callbackurl otptype=user.totptype",
+		OptionalArgs:   "nickname familyname givenname callbackurl",
+		AliasArgs:      "name=user.name email=user.email nickname=user.nickname familyname=user.familyname givenname=user.givenname password=user.passhash callbackurl=verify.callbackurl",
 		PasswordArg:    "user.passhash",
 		VerifyPassword: true,
 		ReqData:        &ormapi.CreateUser{},
@@ -26,8 +26,8 @@ func GetUserCommand() *cobra.Command {
 		Run:          runRest("/auth/user/delete"),
 	}, &cli.Command{
 		Use:          "update",
-		OptionalArgs: "email nickname familyname givenname callbackurl",
-		AliasArgs:    "email=user.email nickname=user.nickname familyname=user.familyname givenname=user.givenname callbackurl=verify.callbackurl",
+		OptionalArgs: "email nickname familyname givenname callbackurl enabletotp",
+		AliasArgs:    "email=user.email nickname=user.nickname familyname=user.familyname givenname=user.givenname callbackurl=verify.callbackurl enabletotp=user.enabletotp",
 		ReqData:      &ormapi.CreateUser{},
 		Run:          runRest("/auth/user/update"),
 	}, &cli.Command{
@@ -75,18 +75,6 @@ func GetUserCommand() *cobra.Command {
 		ReqData:      &ormapi.User{},
 		Run:          runRest("/auth/restricted/user/update"),
 	}, &cli.Command{
-		Use:          "disableotp",
-		RequiredArgs: "name",
-		ReqData:      &ormapi.User{},
-		Run:          runRest("/auth/user/disable/otp"),
-	}, &cli.Command{
-		Use:          "resetotp",
-		RequiredArgs: "name",
-		OptionalArgs: "emailotp",
-		AliasArgs:    "emailotp=user.emailtotp",
-		ReqData:      &ormapi.User{},
-		Run:          runRest("/auth/user/reset/otp"),
-	}, &cli.Command{
 		Use:          "createapikey",
 		RequiredArgs: "name",
 		ReqData:      &ormapi.UserApiKey{},
@@ -110,7 +98,7 @@ func GetLoginCmd() *cobra.Command {
 	cmd := cli.Command{
 		Use:          "login",
 		RequiredArgs: "name",
-		OptionalArgs: "otp apikey",
+		OptionalArgs: "totp apikey",
 		Run:          runLogin,
 	}
 	return cmd.GenCmd()
@@ -121,7 +109,7 @@ func runLogin(c *cli.Command, args []string) error {
 		RequiredArgs: []string{"name"},
 		PasswordArg:  "password",
 		ApiKeyArg:    "apikey",
-		AliasArgs:    []string{"name=username", "otp=totp", "apikey=apikey"},
+		AliasArgs:    []string{"name=username", "totp=totp", "apikey=apikey"},
 	}
 	login := ormapi.UserLogin{}
 	_, err := input.ParseArgs(args, &login)

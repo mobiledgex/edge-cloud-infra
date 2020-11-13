@@ -15,8 +15,6 @@ type Api interface {
 	ShowUser(uri, token string, org *ormapi.Organization) ([]ormapi.User, int, error)
 	RestrictedUserUpdate(uri, token string, user map[string]interface{}) (int, error)
 	NewPassword(uri, token, password string) (int, error)
-	DisableTOTP(uri, token string, user *ormapi.User) (int, error)
-	ResetTOTP(uri, token string, user *ormapi.User) (int, error)
 
 	CreateController(uri, token string, ctrl *ormapi.Controller) (int, error)
 	DeleteController(uri, token string, ctrl *ormapi.Controller) (int, error)

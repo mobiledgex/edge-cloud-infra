@@ -77,14 +77,6 @@ func (s *Client) NewPassword(uri, token, password string) (int, error) {
 	return s.PostJson(uri+"/auth/user/newpass", token, newpw, nil)
 }
 
-func (s *Client) DisableTOTP(uri, token string, user *ormapi.User) (int, error) {
-	return s.PostJson(uri+"/auth/user/disable/otp", token, user, nil)
-}
-
-func (s *Client) ResetTOTP(uri, token string, user *ormapi.User) (int, error) {
-	return s.PostJson(uri+"/auth/user/reset/otp", token, user, nil)
-}
-
 func (s *Client) CreateController(uri, token string, ctrl *ormapi.Controller) (int, error) {
 	return s.PostJson(uri+"/auth/controller/create", token, ctrl, nil)
 }

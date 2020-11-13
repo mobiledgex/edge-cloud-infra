@@ -1043,12 +1043,30 @@ func UpdateUser(c echo.Context) error {
 		user.EmailVerified = false
 	}
 
+	userResponse := ormapi.UserResponse{}
+	otpChanged := false
+	if old.EnableTOTP != user.EnableTOTP {
+		if user.EnableTOTP {
+			totpKey, totpQR, err := GenerateTOTPQR(user.Email)
+			if err != nil {
+				return setReply(c, fmt.Errorf("Failed to setup 2FA: %v", err), nil)
+			}
+			user.TOTPSharedKey = totpKey
+
+			userResponse.TOTPSharedKey = totpKey
+			userResponse.TOTPQRImage = totpQR
+		} else {
+			user.TOTPSharedKey = NoOTP
+		}
+		otpChanged = true
+	}
+
 	err = db.Save(user).Error
 	if err != nil {
 		if strings.Contains(err.Error(), "duplicate key value violates unique constraint \"email_pkey") {
-			return fmt.Errorf("Email %s already in use", user.Email)
+			return setReply(c, fmt.Errorf("Email %s already in use", user.Email), nil)
 		}
-		return dbErr(err)
+		return setReply(c, dbErr(err), nil)
 	}
 
 	if sendVerify {
@@ -1058,8 +1076,16 @@ func UpdateUser(c echo.Context) error {
 			if undoErr != nil {
 				log.SpanLog(ctx, log.DebugLevelApi, "undo update user failed", "user", claims.Username, "err", undoErr)
 			}
-			return err
+			return setReply(c, fmt.Errorf("Failed to send verification email to %s, %v", user.Email, err), nil)
 		}
 	}
-	return nil
+
+	if otpChanged && user.TOTPSharedKey != "" {
+		userResponse.Message = fmt.Sprintf("User updated\nEnabled two factor authentication. "+
+			"Please use this text code %s with the two factor authentication app on your "+
+			"phone to set it up", user.TOTPSharedKey)
+	} else {
+		userResponse.Message = "user updated"
+	}
+	return c.JSON(http.StatusOK, &userResponse)
 }

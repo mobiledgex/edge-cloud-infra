@@ -10,7 +10,7 @@ import (
 func (s *Client) DoLogin(uri, user, pass, otp, apikey string) (string, error) {
 	args := []string{"login", "username=" + user, "password=" + pass}
 	if otp != "" {
-		args = append(args, "otp="+otp)
+		args = append(args, "totp="+otp)
 	}
 	if apikey != "" {
 		args = append(args, "apikey="+otp)
@@ -60,14 +60,4 @@ func (s *Client) NewPassword(uri, token, password string) (int, error) {
 	}
 	args := []string{"user", "newpass"}
 	return s.runObjs(uri, token, args, newpw, nil)
-}
-
-func (s *Client) DisableTOTP(uri, token string, user *ormapi.User) (int, error) {
-	args := []string{"user", "disableotp"}
-	return s.runObjs(uri, token, args, user, nil)
-}
-
-func (s *Client) ResetTOTP(uri, token string, user *ormapi.User) (int, error) {
-	args := []string{"user", "resetotp"}
-	return s.runObjs(uri, token, args, user, nil)
 }

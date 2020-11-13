@@ -49,6 +49,8 @@
   set_fact:
     crm_args:
       - crmserver
+      - "--accessApiAddr"
+      - "{{ controller_name }}.ctrl.{{ cloudflare_zone }}:41001"
       - "--notifySrvAddr"
       - "0.0.0.0:{{ item.notify_srv_port | default(notify_srv_port) }}"
       - "--cloudletKey"

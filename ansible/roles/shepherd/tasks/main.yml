@@ -1,5 +1,16 @@
 - debug: var=item
 
+- azure_rm_aks_facts:
+    tags:
+      - "Environment:mexplat-{{ deploy_environ }}"
+      - "Region:{{ item.controller_region }}"
+  check_mode: no
+  delegate_to: localhost
+  register: aks_facts
+
+- set_fact:
+    controller_name: "{{ aks_facts['aks'][0]['name'] }}"
+
 - assert:
     that:
       - item.cloudlet_name is defined
@@ -50,6 +61,8 @@
   set_fact:
     shepherd_args:
       - shepherd
+      - "--accessApiAddr"
+      - "{{ controller_name }}.ctrl.{{ cloudflare_zone }}:41001"
       # notifyAddr is localhost because use use host networking for docker containers
       - "--notifyAddrs"
       - "localhost:{{ item.notify_srv_port | default(notify_port) }}"
@@ -85,4 +98,6 @@
       JAEGER_ENDPOINT: "{{ jaeger_endpoint }}"
       JAEGER_TAGS: "shepherd={{ shepherd_name }},cloudlet={{ item.cloudlet_name }},operator={{ item.operator_key }},environ={{ deploy_environ }},version={{ edge_cloud_version }}"
       ES_SERVER_URLS: "{{ esproxy_address }}"
+    volumes:
+      - "{{ shepherd_name }}-accesskey:/root/accesskey"
 

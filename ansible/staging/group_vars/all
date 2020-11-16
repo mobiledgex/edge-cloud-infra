@@ -38,30 +38,9 @@ vault_github_users:
 
 crm_instances:
 
-  - cloudlet_name: "{{ deploy_target }}-bonn-cloudlet"
-    crm_name: "crm-{{ deploy_target }}-bonn"
-    openstack_instance: bonn
-    operator_key: TDG
-    controller_region: EU
-    notify_srv_port: 51091
-
   - cloudlet_name: "{{ deploy_target }}-hamburg-cloudlet"
     crm_name: "crm-{{ deploy_target }}-hamburg"
     openstack_instance: hamburg
     operator_key: TDG
     controller_region: EU
     notify_srv_port: 51092
-
-  - cloudlet_name: "{{ deploy_target }}-frankfurt-cloudlet"
-    crm_name: "crm-{{ deploy_target }}-frankfurt"
-    openstack_instance: frankfurt
-    operator_key: TDG
-    controller_region: EU
-    notify_srv_port: 51093
-
-  - cloudlet_name: "{{ deploy_target }}-berlin-cloudlet"
-    crm_name: "crm-{{ deploy_target }}-berlin"
-    openstack_instance: berlin
-    operator_key: TDG
-    controller_region: EU
-    notify_srv_port: 51094

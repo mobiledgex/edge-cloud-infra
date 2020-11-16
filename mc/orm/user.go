@@ -166,8 +166,8 @@ func RefreshAuthCookie(c echo.Context) error {
 		log.SpanLog(ctx, log.DebugLevelApi, "failed to generate cookie as issued time is missing")
 		return c.JSON(http.StatusBadRequest, Msg("Failed to refresh auth cookie"))
 	}
-	// refresh auth cookie only if it was issues within 30 days
-	if time.Unix(claims.FirstIssuedAt, 0).AddDate(0, 0, 30).Unix() > time.Now().Unix() {
+	// refresh auth cookie only if it was issued within 30 days
+	if time.Unix(claims.FirstIssuedAt, 0).AddDate(0, 0, 30).Unix() < time.Now().Unix() {
 		return c.JSON(http.StatusUnauthorized, Msg("expired jwt"))
 	}
 	claims.StandardClaims.IssuedAt = time.Now().Unix()

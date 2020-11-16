@@ -150,9 +150,11 @@ func (o *VMPoolPlatform) createVMsInternal(ctx context.Context, markedVMs map[st
 
 	vmRoles := make(map[string]vmlayer.VMRole)
 	vmChefParams := make(map[string]*chefmgmt.VMChefParams)
+	vmAccessKeys := make(map[string]string)
 	for _, vm := range orchVMs {
 		vmRoles[vm.Name] = vm.Role
 		vmChefParams[vm.Name] = vm.CloudConfigParams.ChefParams
+		vmAccessKeys[vm.Name] = vm.CloudConfigParams.AccessKey
 	}
 	log.SpanLog(ctx, log.DebugLevelInfra, "Fetch VM info", "vmRoles", vmRoles, "chefParams", vmChefParams)
 
@@ -188,6 +190,16 @@ func (o *VMPoolPlatform) createVMsInternal(ctx context.Context, markedVMs map[st
 		err = setupHostname(ctx, client, vm.InternalName)
 		if err != nil {
 			log.SpanLog(ctx, log.DebugLevelInfra, "failed to setup hostname", "vm", vm.Name, "hostname", vm.InternalName, "err", err)
+		}
+
+		// Setup AccessKey if it is present
+		accessKey, ok := vmAccessKeys[vm.InternalName]
+		if ok && accessKey != "" {
+			log.SpanLog(ctx, log.DebugLevelInfra, "Setting up access key file", "vm", vm.Name)
+			cmd := fmt.Sprintf(`sudo echo -e "%s" > /root/accesskey/accesskey.pem`, accessKey)
+			if out, err := client.Output(cmd); err != nil {
+				return fmt.Errorf("failed to write access key: %s, %v", out, err)
+			}
 		}
 
 		// Setup Chef

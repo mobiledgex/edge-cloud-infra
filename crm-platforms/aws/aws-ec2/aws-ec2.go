@@ -75,10 +75,3 @@ func (a *AwsEc2Platform) InitData(ctx context.Context, caches *platform.Caches) 
 	a.caches = caches
 	a.awsGenPf = &awsgen.AwsGenericPlatform{Properties: &a.VMProperties.CommonPf.Properties}
 }
-
-/*
-func (a *AwsEc2Platform) xxGetAccessData(ctx context.Context, cloudlet *edgeproto.Cloudlet, region string, vaultConfig *vault.Config, dataType string, arg []byte) (map[string]string, error) {
-	log.SpanLog(ctx, log.DebugLevelApi, "AwsEc2 GetAccessData", "dataType", dataType)
-	return a.awsGenPf.xxGetAccessData(ctx, cloudlet, region, vaultConfig, dataType, arg)
-}
-*/

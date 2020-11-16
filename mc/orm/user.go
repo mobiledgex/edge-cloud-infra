@@ -24,7 +24,7 @@ import (
 
 var BadAuthDelay = 3 * time.Second
 var NoOTP = ""
-var OTPLen otp.Digits = 6
+var OTPLen otp.Digits = otp.DigitsSix
 var OTPExpirationTime = uint(2 * 60) // seconds
 var OTPExpirationTimeStr = "2 minutes"
 
@@ -128,13 +128,15 @@ func Login(c echo.Context) error {
 	}
 
 	if user.TOTPSharedKey != "" {
+		opts := totp.ValidateOpts{
+			Period:    OTPExpirationTime,
+			Digits:    OTPLen,
+			Skew:      1,
+			Algorithm: otp.AlgorithmSHA1,
+		}
 		if login.TOTP == "" {
 			// Send OTP over email
-			opts := totp.ValidateOpts{
-				Period: OTPExpirationTime,
-				Digits: OTPLen,
-			}
-			otp, err := totp.GenerateCodeCustom(user.TOTPSharedKey, time.Now(), opts)
+			otp, err := totp.GenerateCodeCustom(user.TOTPSharedKey, time.Now().UTC(), opts)
 			if err != nil {
 				return setReply(c, err, nil)
 			}
@@ -146,7 +148,7 @@ func Login(c echo.Context) error {
 			return c.JSON(http.StatusPreconditionFailed, Msg("Missing OTP\nPlease use two factor authenticator app on "+
 				"your phone to get OTP. We have also sent OTP to your registered email address"))
 		}
-		valid := totp.Validate(login.TOTP, user.TOTPSharedKey)
+		valid, _ := totp.ValidateCustom(login.TOTP, user.TOTPSharedKey, time.Now().UTC(), opts)
 		if !valid {
 			return c.JSON(http.StatusBadRequest, Msg("Invalid OTP"))
 		}

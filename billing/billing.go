@@ -76,7 +76,7 @@ type BillingService interface {
 	Init(vaultConfig *vault.Config, path string) error
 	// The Billing service's type ie. "chargify" or "zuora"
 	GetType() string
-	// Create Customer
+	// Create Customer, and fills out the accountInfo for that customer
 	CreateCustomer(customer *CustomerDetails, account *AccountInfo, payment *PaymentMethod) error
 	// Delete Customer
 	DeleteCustomer(account *AccountInfo) error

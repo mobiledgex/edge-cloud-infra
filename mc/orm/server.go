@@ -191,7 +191,7 @@ func RunServer(config *ServerConfig) (retserver *Server, reterr error) {
 		}
 		err = serverConfig.BillingService.Init(config.vaultConfig, config.BillingPath)
 		if err != nil {
-			return nil, err
+			return nil, fmt.Errorf("Unable to initialize billing services: %v", err)
 		}
 	}
 

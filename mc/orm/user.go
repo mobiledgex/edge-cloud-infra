@@ -139,7 +139,7 @@ func Login(c echo.Context) error {
 				// log and ignore
 				log.SpanLog(ctx, log.DebugLevelApi, "failed to send otp email", "err", err)
 			}
-			return c.JSON(http.StatusPreconditionFailed, Msg("Missing OTP\nPlease use two factor authenticator app on "+
+			return c.JSON(ormapi.StatusOTPRequired, Msg("Missing OTP\nPlease use two factor authenticator app on "+
 				"your phone to get OTP. We have also sent OTP to your registered email address"))
 		}
 		valid := totp.Validate(login.TOTP, user.TOTPSharedKey)

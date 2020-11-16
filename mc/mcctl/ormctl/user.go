@@ -94,7 +94,7 @@ func runLogin(c *cli.Command, args []string) error {
 	input := cli.Input{
 		RequiredArgs: []string{"name"},
 		PasswordArg:  "password",
-		AliasArgs:    []string{"name=username", "totp=totp"},
+		AliasArgs:    []string{"name=username"},
 	}
 	login := ormapi.UserLogin{}
 	_, err := input.ParseArgs(args, &login)

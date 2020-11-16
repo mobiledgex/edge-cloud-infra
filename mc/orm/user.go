@@ -167,7 +167,7 @@ func RefreshAuthCookie(c echo.Context) error {
 		return c.JSON(http.StatusBadRequest, Msg("Failed to refresh auth cookie"))
 	}
 	// refresh auth cookie only if it was issues within 30 days
-	if claims.FirstIssuedAt > time.Now().AddDate(0, 0, 30).Unix() {
+	if time.Unix(claims.FirstIssuedAt, 0).AddDate(0, 0, 30).Unix() > time.Now().Unix() {
 		return c.JSON(http.StatusUnauthorized, Msg("expired jwt"))
 	}
 	claims.StandardClaims.IssuedAt = time.Now().Unix()

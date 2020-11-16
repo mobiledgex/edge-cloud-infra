@@ -67,6 +67,12 @@
       - approle.login.v1
       - pki-global.issue.v1
 
+- name: pki-tidy.v1 role
+  vault_role:
+    name: pki-tidy.v1
+    policies:
+      - pki-tidy.v1
+
 - include_role:
     name: vault
     tasks_from: region-roles

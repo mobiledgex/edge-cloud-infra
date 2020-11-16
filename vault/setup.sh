@@ -53,10 +53,14 @@ path "pki-global/issue/*" {
   capabilities = [ "read", "update" ]
 }
 
-path "secret/data/accounts/zuora/sandbox" {
+path "secret/data/accounts/chargify/*" {
   capabilities = [ "read" ]
 }
 EOF
+
+vault kv put secret/accounts/chargify/dev \
+    apikey=iZeTKWjZhKvXMZUgOwP4GiJvYWXmxgykUDnA5F2R4 \
+    url="https://mobiledgex-dev.chargify.com"
 
 vault policy write mcorm /tmp/mcorm-pol.hcl
 rm /tmp/mcorm-pol.hcl

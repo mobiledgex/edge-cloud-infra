@@ -4,12 +4,15 @@ import (
 	"time"
 
 	"github.com/mobiledgex/edge-cloud/edgeproto"
+	"github.com/mobiledgex/edge-cloud/vault"
 )
 
 const CUSTOMER_TYPE_PARENT = "parent"
 const CUSTOMER_TYPE_CHILD = "child"
 const CUSTOMER_TYPE_SELF = "self"
 const PAYMENT_TYPE_CC = "credit_card"
+
+const BillingTypeFake = "fake"
 
 type AccountInfo struct {
 	OrgName               string `gorm:"primary_key;type:citext"`
@@ -70,7 +73,7 @@ type UsageRecord struct {
 
 type BillingService interface {
 	// Init is called once during startup
-	Init() error
+	Init(vaultConfig *vault.Config, path string) error
 	// The Billing service's type ie. "chargify" or "zuora"
 	GetType() string
 	// Create Customer

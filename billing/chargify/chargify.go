@@ -7,11 +7,27 @@ import (
 	"io"
 	"net/http"
 	"strings"
+
+	"github.com/mobiledgex/edge-cloud/vault"
 )
 
 type BillingService struct{}
 
-func (bs *BillingService) Init() error {
+type accountCreds struct {
+	ApiKey string `json:"apikey"`
+	Url    string `json:"url"`
+}
+
+func (bs *BillingService) Init(vaultConfig *vault.Config, path string) error {
+	creds := accountCreds{}
+	err := vault.GetData(vaultConfig, vaultPath+path, 0, &creds)
+	if err != nil {
+		return err
+	}
+
+	apiKey = creds.ApiKey
+	siteName = creds.Url
+	fmt.Printf("apiKey: %s, siteName: %s\n", apiKey, siteName)
 	return nil
 }
 
@@ -31,7 +47,6 @@ func newChargifyReq(method, endpoint string, payload interface{}) (*http.Respons
 	} else {
 		body = strings.NewReader("{}")
 	}
-	fmt.Printf("payload: %s\n%s\n", url, body)
 	req, err := http.NewRequest(method, url, body)
 	if err != nil {
 		return nil, fmt.Errorf("Error creating request: %v\n", err)

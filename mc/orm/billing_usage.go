@@ -15,12 +15,10 @@ import (
 var retryMax = 3
 var retryPercentage = 0.05 // this number is a percentage, so that the retryInterval is based off of the collectionInterval
 
-var InfluxMinimumTimestamp, _ = time.Parse(time.RFC3339, "2000-00-00T00:00:00Z")
-
 func CollectBillingUsage(ctx context.Context, collectInterval time.Duration) {
 	retryInterval := 5 * time.Minute
-	prevCollectTime := InfluxMinimumTimestamp
 	nextCollectTime := getNextCollectTime(time.Now(), collectInterval)
+	prevCollectTime := nextCollectTime.Add(collectInterval * (-1))
 	if collectInterval.Seconds() > float64(0) {
 		retryInterval = time.Duration(retryPercentage * float64(collectInterval))
 	}
@@ -64,6 +62,17 @@ func CollectBillingUsage(ctx context.Context, collectInterval time.Duration) {
 }
 
 func recordRegionUsage(ctx context.Context, region string, start, end time.Time) {
+	poolList, err := ShowCloudletPoolObj(ctx, &RegionContext{skipAuthz: true, region: region}, &edgeproto.CloudletPool{})
+	if err != nil {
+		log.SpanLog(ctx, log.DebugLevelInfo, "Unable to get cloudletpool list")
+		return
+	}
+	poolMap := make(map[string]string)
+	for _, pool := range poolList {
+		for _, cloudName := range pool.Cloudlets {
+			poolMap[cloudName] = pool.Key.Organization
+		}
+	}
 	rc := InfluxDBContext{region: region}
 	appIn := ormapi.RegionAppInstUsage{
 		Region:    region,
@@ -83,7 +92,7 @@ func recordRegionUsage(ctx context.Context, region string, start, end time.Time)
 		log.SpanLog(ctx, log.DebugLevelInfo, "Error parsing app usage for billing", "region", region, "err", err)
 		return
 	}
-	recordAppUsages(ctx, appUsage)
+	recordAppUsages(ctx, appUsage, poolMap)
 
 	clusterIn := ormapi.RegionClusterInstUsage{
 		Region:    region,
@@ -102,10 +111,10 @@ func recordRegionUsage(ctx context.Context, region string, start, end time.Time)
 		log.SpanLog(ctx, log.DebugLevelInfo, "Error parsing cluster usage for billing", "region", region, "err", err)
 		return
 	}
-	recordClusterUsages(ctx, clusterUsage)
+	recordClusterUsages(ctx, clusterUsage, poolMap)
 }
 
-func recordAppUsages(ctx context.Context, usage *ormapi.MetricData) {
+func recordAppUsages(ctx context.Context, usage *ormapi.MetricData, cloudletPoolMap map[string]string) {
 	orgTracker := make(map[string][]billing.UsageRecord)
 	if len(usage.Series) == 0 {
 		// techincally if GetAppUsage doesnt fail, this should be impossible, but check anyway so we dont crash if it did happen
@@ -128,6 +137,10 @@ func recordAppUsages(ctx context.Context, usage *ormapi.MetricData) {
 					Organization: fmt.Sprintf("%v", value[7]),
 				},
 			},
+		}
+		checkOrg := cloudletPoolMap[newAppInst.ClusterInstKey.CloudletKey.Name]
+		if checkOrg == newAppInst.ClusterInstKey.CloudletKey.Organization {
+			continue // ignore non public cloudlets
 		}
 		startTime, ok := value[10].(time.Time)
 		if !ok {
@@ -164,7 +177,7 @@ func recordAppUsages(ctx context.Context, usage *ormapi.MetricData) {
 	}
 }
 
-func recordClusterUsages(ctx context.Context, usage *ormapi.MetricData) {
+func recordClusterUsages(ctx context.Context, usage *ormapi.MetricData, cloudletPoolMap map[string]string) {
 	orgTracker := make(map[string][]billing.UsageRecord)
 	if len(usage.Series) == 0 {
 		// techincally if GetClusterUsage doesnt fail, this should be impossible, but check anyway so we dont crash if it did happen
@@ -180,6 +193,10 @@ func recordClusterUsages(ctx context.Context, usage *ormapi.MetricData) {
 				Name:         fmt.Sprintf("%v", value[3]),
 				Organization: fmt.Sprintf("%v", value[4]),
 			},
+		}
+		checkOrg := cloudletPoolMap[newClusterInst.CloudletKey.Name]
+		if checkOrg == newClusterInst.CloudletKey.Organization {
+			continue // ignore non public cloudlets
 		}
 		startTime, ok := value[8].(time.Time)
 		if !ok {

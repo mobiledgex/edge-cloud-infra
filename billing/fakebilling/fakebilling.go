@@ -6,6 +6,7 @@ import (
 	"sync"
 
 	"github.com/mobiledgex/edge-cloud-infra/billing"
+	"github.com/mobiledgex/edge-cloud/vault"
 )
 
 type BillingService struct{}
@@ -15,7 +16,7 @@ var accountCounter = 1
 var subMux sync.Mutex
 var accMux sync.Mutex
 
-func (bs *BillingService) Init() error {
+func (bs *BillingService) Init(vaultConfig *vault.Config, path string) error {
 	return nil
 }
 

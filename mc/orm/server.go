@@ -15,6 +15,7 @@ import (
 	"github.com/lib/pq"
 	"github.com/mobiledgex/edge-cloud-infra/billing"
 	"github.com/mobiledgex/edge-cloud-infra/billing/chargify"
+	"github.com/mobiledgex/edge-cloud-infra/billing/fakebilling"
 	intprocess "github.com/mobiledgex/edge-cloud-infra/e2e-tests/int-process"
 	"github.com/mobiledgex/edge-cloud-infra/mc/orm/alertmgr"
 	"github.com/mobiledgex/edge-cloud-infra/mc/ormapi"
@@ -183,10 +184,18 @@ func RunServer(config *ServerConfig) (retserver *Server, reterr error) {
 	server.initJWKDone = make(chan struct{}, 1)
 	InitVault(config.vaultConfig, server.initJWKDone)
 
+	fmt.Printf("asdf\n")
 	if config.Billing {
-		// TODO: determine which billing service to use from vault
 		serverConfig.BillingService = &chargify.BillingService{}
-		serverConfig.BillingService.Init()
+		fmt.Printf("asdf\n")
+		if config.BillingPath == billing.BillingTypeFake {
+			fmt.Printf("asdf\n")
+			serverConfig.BillingService = &fakebilling.BillingService{}
+		}
+		err = serverConfig.BillingService.Init(config.vaultConfig, config.BillingPath)
+		if err != nil {
+			return nil, err
+		}
 	}
 
 	if err = checkUsageCheckpointInterval(); err != nil {

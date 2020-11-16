@@ -30,6 +30,7 @@ func GetUserCommand() *cobra.Command {
 		OptionalArgs: "email nickname familyname givenname callbackurl enabletotp",
 		AliasArgs:    "email=user.email nickname=user.nickname familyname=user.familyname givenname=user.givenname callbackurl=verify.callbackurl enabletotp=user.enabletotp",
 		ReqData:      &ormapi.CreateUser{},
+		ReplyData:    &ormapi.UserResponse{},
 		Run:          runRest("/auth/user/update"),
 	}, &cli.Command{
 		Use:          "show",

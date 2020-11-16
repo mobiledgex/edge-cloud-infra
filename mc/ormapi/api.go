@@ -45,19 +45,12 @@ type User struct {
 	EnableTOTP bool
 	// read only: true
 	TOTPSharedKey string
-	// read only: true
-	ApiKeys []byte
 }
 
 type UserResponse struct {
 	Message       string
 	TOTPSharedKey string
 	TOTPQRImage   []byte
-}
-
-type UserApiKey struct {
-	Name     string
-	IssuedAt int64
 }
 
 type Organization struct {
@@ -176,8 +169,6 @@ type UserLogin struct {
 	Password string `form:"password" json:"password"`
 	// read only: true
 	TOTP string `form:"totp" json:"totp"`
-	// read only: true
-	ApiKey string `form:"apikey" json:"apikey"`
 }
 
 type NewPassword struct {

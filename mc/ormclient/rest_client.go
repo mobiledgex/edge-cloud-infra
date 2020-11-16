@@ -25,14 +25,14 @@ type Client struct {
 	Debug      bool
 }
 
-func (s *Client) DoLogin(uri, user, pass, otp, apikey string) (string, error) {
+func (s *Client) DoLogin(uri, user, pass, otp string) (string, error) {
 	login := ormapi.UserLogin{
 		Username: user,
 		Password: pass,
 		TOTP:     otp,
 	}
 	result := make(map[string]interface{})
-	status, err := s.PostJson(uri+"/login", apikey, &login, &result)
+	status, err := s.PostJson(uri+"/login", "", &login, &result)
 	if err != nil {
 		return "", fmt.Errorf("login error, %s", err.Error())
 	}
@@ -60,8 +60,10 @@ func (s *Client) DeleteUser(uri, token string, user *ormapi.User) (int, error) {
 	return s.PostJson(uri+"/auth/user/delete", token, user, nil)
 }
 
-func (s *Client) UpdateUser(uri, token string, createUserJSON string) (int, error) {
-	return s.PostJson(uri+"/auth/user/update", token, createUserJSON, nil)
+func (s *Client) UpdateUser(uri, token string, createUserJSON string) (*ormapi.UserResponse, int, error) {
+	resp := ormapi.UserResponse{}
+	st, err := s.PostJson(uri+"/auth/user/update", token, createUserJSON, &resp)
+	return &resp, st, err
 }
 
 func (s *Client) ShowUser(uri, token string, org *ormapi.Organization) ([]ormapi.User, int, error) {

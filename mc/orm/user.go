@@ -24,7 +24,6 @@ import (
 
 var BadAuthDelay = 3 * time.Second
 var NoOTP = ""
-var NoApiKey = ""
 var OTPLen otp.Digits = 6
 var OTPExpirationTime = uint(2 * 60) // seconds
 var OTPExpirationTimeStr = "2 minutes"
@@ -70,19 +69,6 @@ func Login(c echo.Context) error {
 	if login.Username == "" {
 		return c.JSON(http.StatusBadRequest, Msg("Username not specified"))
 	}
-
-	// Fetch API key from Auth Headers, if any
-	auth := c.Request().Header.Get(echo.HeaderAuthorization)
-	scheme := "Bearer"
-	apiKey := ""
-	if len(auth) > len(scheme) && strings.HasPrefix(auth, scheme) {
-		apiKey = auth[len(scheme)+1:]
-	}
-
-	if login.Password != "" && apiKey != "" {
-		return c.JSON(http.StatusBadRequest, Msg("Please specify either password or apikey"))
-	}
-
 	user := ormapi.User{}
 	lookup := ormapi.User{Name: login.Username}
 	db := loggedDB(ctx)
@@ -99,38 +85,17 @@ func Login(c echo.Context) error {
 		time.Sleep(BadAuthDelay)
 		return c.JSON(http.StatusBadRequest, Msg("Invalid username or password"))
 	}
-
 	span := log.SpanFromContext(ctx)
 	span.SetTag("username", user.Name)
 	span.SetTag("email", user.Email)
 
-	if apiKey == "" {
-		matches, err := PasswordMatches(login.Password, user.Passhash, user.Salt, user.Iter)
-		if err != nil {
-			log.SpanLog(ctx, log.DebugLevelApi, "password matches err", "err", err)
-		}
-		if !matches || err != nil {
-			time.Sleep(BadAuthDelay)
-			return c.JSON(http.StatusBadRequest, Msg("Invalid username or password"))
-		}
-	} else {
-		// Validate apiKey
-		apiKeys := make(map[string]string)
-		if len(user.ApiKeys) > 0 {
-			if err := json.Unmarshal(user.ApiKeys, &apiKeys); err != nil {
-				log.SpanLog(ctx, log.DebugLevelApi, "failed to unmarshal api keys", "err", err)
-				return c.JSON(http.StatusBadRequest, Msg("Failed to get api keys"))
-			}
-		}
-		found := false
-		for _, v := range apiKeys {
-			if v == apiKey {
-				found = true
-			}
-		}
-		if !found {
-			return c.JSON(http.StatusBadRequest, Msg("Invalid API key"))
-		}
+	matches, err := PasswordMatches(login.Password, user.Passhash, user.Salt, user.Iter)
+	if err != nil {
+		log.SpanLog(ctx, log.DebugLevelApi, "password matches err", "err", err)
+	}
+	if !matches || err != nil {
+		time.Sleep(BadAuthDelay)
+		return c.JSON(http.StatusBadRequest, Msg("Invalid username or password"))
 	}
 	if user.Locked {
 		return c.JSON(http.StatusBadRequest, Msg("Account is locked, please contact MobiledgeX support"))
@@ -139,7 +104,7 @@ func Login(c echo.Context) error {
 		return c.JSON(http.StatusBadRequest, Msg("Email not verified yet"))
 	}
 
-	if apiKey == "" && user.PassCrackTimeSec == 0 {
+	if user.PassCrackTimeSec == 0 {
 		calcPasswordStrength(ctx, &user, login.Password)
 		isAdmin, err := isUserAdmin(ctx, user.Name)
 		if err != nil {
@@ -162,7 +127,7 @@ func Login(c echo.Context) error {
 		}
 	}
 
-	if apiKey == "" && user.EnableTOTP && user.TOTPSharedKey != "" {
+	if user.TOTPSharedKey != "" {
 		if login.TOTP == "" {
 			// Send OTP over email
 			opts := totp.ValidateOpts{
@@ -196,53 +161,27 @@ func Login(c echo.Context) error {
 }
 
 func RefreshAuthCookie(c echo.Context) error {
+	claims, err := getClaims(c)
+	if err != nil {
+		return err
+	}
 	ctx := GetContext(c)
-	auth := c.Request().Header.Get(echo.HeaderAuthorization)
-	scheme := "Bearer"
-	l := len(scheme)
-	if len(auth) <= len(scheme) || !strings.HasPrefix(auth, scheme) {
-		//if no token provided, return a 400 err
-		return &echo.HTTPError{
-			Code:     http.StatusBadRequest,
-			Message:  "no bearer token found",
-			Internal: fmt.Errorf("no token found for Authorization Bearer"),
-		}
+	if claims.FirstIssuedAt == 0 {
+		log.SpanLog(ctx, log.DebugLevelApi, "failed to generate cookie as issued time is missing")
+		return c.JSON(http.StatusBadRequest, Msg("Failed to refresh auth cookie"))
 	}
-	cookie := auth[l+1:]
-
-	claims := UserClaims{}
-	token, err := Jwks.VerifyCookie(cookie, &claims)
-	if err == nil && token.Valid {
-		if claims.IssuedAt == 0 {
-			log.SpanLog(ctx, log.DebugLevelApi, "failed to generate cookie as issued time is missing")
-			return c.JSON(http.StatusBadRequest, Msg("Failed to refresh auth cookie"))
-		}
-		// refresh auth cookie only if it was issues within 30 days
-		if claims.IssuedAt > time.Now().AddDate(0, 0, 30).Unix() {
-			return c.JSON(http.StatusUnauthorized, Msg("expired jwt"))
-		}
-		claims.StandardClaims.IssuedAt = time.Now().Unix()
-		claims.StandardClaims.ExpiresAt = time.Now().AddDate(0, 0, 1).Unix()
-		cookie, err := Jwks.GenerateCookie(&claims)
-		if err != nil {
-			log.SpanLog(ctx, log.DebugLevelApi, "failed to generate cookie", "err", err)
-			return c.JSON(http.StatusBadRequest, Msg("Failed to generate cookie"))
-		}
-		return c.JSON(http.StatusOK, M{"token": cookie})
+	// refresh auth cookie only if it was issues within 30 days
+	if claims.FirstIssuedAt > time.Now().AddDate(0, 0, 30).Unix() {
+		return c.JSON(http.StatusUnauthorized, Msg("expired jwt"))
 	}
-	// display error regarding token valid time/expired
-	if err != nil && strings.Contains(err.Error(), "expired") {
-		return &echo.HTTPError{
-			Code:     http.StatusBadRequest,
-			Message:  err.Error(),
-			Internal: err,
-		}
+	claims.StandardClaims.IssuedAt = time.Now().Unix()
+	claims.StandardClaims.ExpiresAt = time.Now().AddDate(0, 0, 1).Unix()
+	cookie, err := Jwks.GenerateCookie(claims)
+	if err != nil {
+		log.SpanLog(ctx, log.DebugLevelApi, "failed to generate cookie", "err", err)
+		return c.JSON(http.StatusBadRequest, Msg("Failed to generate cookie"))
 	}
-	return &echo.HTTPError{
-		Code:     http.StatusUnauthorized,
-		Message:  "invalid or expired jwt",
-		Internal: err,
-	}
+	return c.JSON(http.StatusOK, M{"token": cookie})
 }
 
 func GenerateTOTPQR(accountName string) (string, []byte, error) {
@@ -384,138 +323,6 @@ func CreateUser(c echo.Context) error {
 		userResponse.Message = "user created"
 	}
 	return c.JSON(http.StatusOK, &userResponse)
-}
-
-func CreateUserApiKey(c echo.Context) error {
-	claims, err := getClaims(c)
-	if err != nil {
-		return err
-	}
-	ctx := GetContext(c)
-
-	req := ormapi.UserApiKey{}
-	if err := c.Bind(&req); err != nil {
-		return bindErr(c, err)
-	}
-
-	user := ormapi.User{Name: claims.Username}
-	db := loggedDB(ctx)
-	err = db.Where(&user).First(&user).Error
-	if err != nil {
-		return setReply(c, dbErr(err), nil)
-	}
-
-	apiKeys := make(map[string]string)
-	if len(user.ApiKeys) > 0 {
-		if err := json.Unmarshal(user.ApiKeys, &apiKeys); err != nil {
-			log.SpanLog(ctx, log.DebugLevelApi, "failed to unmarshal api keys", "err", err)
-			return c.JSON(http.StatusBadRequest, Msg("Failed to get api keys"))
-		}
-	}
-
-	if _, ok := apiKeys[req.Name]; ok {
-		return c.JSON(http.StatusBadRequest, Msg("API Key with same name already exists"))
-	}
-
-	apiKey, err := GenerateApiKey(&user)
-	if err != nil {
-		log.SpanLog(ctx, log.DebugLevelApi, "failed to generate api key", "err", err)
-		return c.JSON(http.StatusBadRequest, Msg("Failed to generate api key"))
-	}
-	apiKeys[req.Name] = apiKey
-	out, err := json.Marshal(apiKeys)
-	if err != nil {
-		log.SpanLog(ctx, log.DebugLevelApi, "failed to marshal api keys", "err", err)
-		return c.JSON(http.StatusBadRequest, Msg("Failed to create api keys"))
-	}
-	user.ApiKeys = out
-	if err := db.Model(&user).Updates(&user).Error; err != nil {
-		return setReply(c, dbErr(err), nil)
-	}
-	return c.JSON(http.StatusOK, Msg(apiKey))
-}
-
-func DeleteUserApiKey(c echo.Context) error {
-	claims, err := getClaims(c)
-	if err != nil {
-		return err
-	}
-	ctx := GetContext(c)
-
-	req := ormapi.UserApiKey{}
-	if err := c.Bind(&req); err != nil {
-		return bindErr(c, err)
-	}
-
-	user := ormapi.User{Name: claims.Username}
-	db := loggedDB(ctx)
-	err = db.Where(&user).First(&user).Error
-	if err != nil {
-		return setReply(c, dbErr(err), nil)
-	}
-
-	apiKeys := make(map[string]string)
-	if len(user.ApiKeys) > 0 {
-		if err := json.Unmarshal([]byte(user.ApiKeys), &apiKeys); err != nil {
-			log.SpanLog(ctx, log.DebugLevelApi, "failed to unmarshal api keys", "err", err)
-			return c.JSON(http.StatusBadRequest, Msg("Failed to get existing api keys"))
-		}
-	}
-	if _, ok := apiKeys[req.Name]; !ok {
-		return c.JSON(http.StatusBadRequest, Msg(fmt.Sprintf("API Key with name %s doesn't exists", req.Name)))
-	}
-	delete(apiKeys, req.Name)
-	out, err := json.Marshal(apiKeys)
-	if err != nil {
-		log.SpanLog(ctx, log.DebugLevelApi, "failed to marshal api keys", "err", err)
-		return c.JSON(http.StatusBadRequest, Msg("Failed to delete api keys"))
-	}
-	user.ApiKeys = out
-
-	if err := db.Model(&user).Updates(&user).Error; err != nil {
-		return setReply(c, dbErr(err), nil)
-	}
-	return c.JSON(http.StatusOK, Msg("deleted API Key successfully"))
-}
-
-func ShowUserApiKey(c echo.Context) error {
-	claims, err := getClaims(c)
-	if err != nil {
-		return err
-	}
-	ctx := GetContext(c)
-
-	req := ormapi.UserApiKey{}
-	if err := c.Bind(&req); err != nil {
-		return bindErr(c, err)
-	}
-
-	user := ormapi.User{Name: claims.Username}
-	db := loggedDB(ctx)
-	err = db.Where(&user).First(&user).Error
-	if err != nil {
-		return setReply(c, dbErr(err), nil)
-	}
-	apiKeys := make(map[string]string)
-	if len(user.ApiKeys) > 0 {
-		if err := json.Unmarshal([]byte(user.ApiKeys), &apiKeys); err != nil {
-			log.SpanLog(ctx, log.DebugLevelApi, "failed to unmarshal api keys", "err", err)
-			return c.JSON(http.StatusBadRequest, Msg("Failed to get api keys"))
-		}
-	}
-	userApiKeys := []ormapi.UserApiKey{}
-	for apiKeyName, apiKey := range apiKeys {
-		userApiKey := ormapi.UserApiKey{
-			Name: apiKeyName,
-		}
-		claims := UserClaims{}
-		token, err := Jwks.VerifyCookie(apiKey, &claims)
-		if err == nil && token.Valid {
-			userApiKey.IssuedAt = claims.IssuedAt
-		}
-		userApiKeys = append(userApiKeys, userApiKey)
-	}
-	return c.JSON(http.StatusOK, &userApiKeys)
 }
 
 func ResendVerify(c echo.Context) error {
@@ -665,7 +472,6 @@ func CurrentUser(c echo.Context) error {
 	user.Salt = ""
 	user.Iter = 0
 	user.TOTPSharedKey = ""
-	user.ApiKeys = []byte{}
 	return c.JSON(http.StatusOK, user)
 }
 
@@ -722,7 +528,6 @@ func ShowUser(c echo.Context) error {
 		// don't show auth/private info
 		users[ii].Passhash = ""
 		users[ii].TOTPSharedKey = ""
-		users[ii].ApiKeys = []byte{}
 		users[ii].Salt = ""
 		users[ii].Iter = 0
 	}

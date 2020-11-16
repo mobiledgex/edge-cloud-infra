@@ -7,13 +7,10 @@ import (
 	"github.com/mobiledgex/edge-cloud-infra/mc/ormapi"
 )
 
-func (s *Client) DoLogin(uri, user, pass, otp, apikey string) (string, error) {
+func (s *Client) DoLogin(uri, user, pass, otp string) (string, error) {
 	args := []string{"login", "username=" + user, "password=" + pass}
 	if otp != "" {
 		args = append(args, "totp="+otp)
-	}
-	if apikey != "" {
-		args = append(args, "apikey="+otp)
 	}
 	out, err := s.run(uri, "", args)
 	if err != nil {
@@ -37,9 +34,11 @@ func (s *Client) DeleteUser(uri, token string, user *ormapi.User) (int, error) {
 	return s.runObjs(uri, token, args, user, nil)
 }
 
-func (s *Client) UpdateUser(uri, token string, createUserJSON string) (int, error) {
+func (s *Client) UpdateUser(uri, token string, createUserJSON string) (*ormapi.UserResponse, int, error) {
 	args := []string{"user", "update"}
-	return s.runObjs(uri, token, args, createUserJSON, nil)
+	resp := ormapi.UserResponse{}
+	st, err := s.runObjs(uri, token, args, createUserJSON, &resp)
+	return &resp, st, err
 }
 
 func (s *Client) ShowUser(uri, token string, org *ormapi.Organization) ([]ormapi.User, int, error) {

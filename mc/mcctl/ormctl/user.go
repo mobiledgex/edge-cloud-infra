@@ -75,22 +75,6 @@ func GetUserCommand() *cobra.Command {
 		OptionalArgs: "name email emailverified familyname givenname nickname locked",
 		ReqData:      &ormapi.User{},
 		Run:          runRest("/auth/restricted/user/update"),
-	}, &cli.Command{
-		Use:          "createapikey",
-		RequiredArgs: "name",
-		ReqData:      &ormapi.UserApiKey{},
-		Run:          runRest("/auth/user/create/apikey"),
-	}, &cli.Command{
-		Use:          "deleteapikey",
-		RequiredArgs: "name",
-		ReqData:      &ormapi.UserApiKey{},
-		Run:          runRest("/auth/user/delete/apikey"),
-	}, &cli.Command{
-		Use:          "showapikey",
-		ReqData:      &ormapi.UserApiKey{},
-		OptionalArgs: "name",
-		ReplyData:    &[]ormapi.UserApiKey{},
-		Run:          runRest("/auth/user/show/apikey"),
 	}}
 	return cli.GenGroup("user", "manage users", cmds)
 }
@@ -99,7 +83,7 @@ func GetLoginCmd() *cobra.Command {
 	cmd := cli.Command{
 		Use:          "login",
 		RequiredArgs: "name",
-		OptionalArgs: "totp apikey",
+		OptionalArgs: "totp",
 		Run:          runLogin,
 	}
 	return cmd.GenCmd()
@@ -109,15 +93,14 @@ func runLogin(c *cli.Command, args []string) error {
 	input := cli.Input{
 		RequiredArgs: []string{"name"},
 		PasswordArg:  "password",
-		ApiKeyArg:    "apikey",
-		AliasArgs:    []string{"name=username", "totp=totp", "apikey=apikey"},
+		AliasArgs:    []string{"name=username", "totp=totp"},
 	}
 	login := ormapi.UserLogin{}
 	_, err := input.ParseArgs(args, &login)
 	if err != nil {
 		return err
 	}
-	token, err := client.DoLogin(getUri(), login.Username, login.Password, login.TOTP, login.ApiKey)
+	token, err := client.DoLogin(getUri(), login.Username, login.Password, login.TOTP)
 	if err != nil {
 		return err
 	}

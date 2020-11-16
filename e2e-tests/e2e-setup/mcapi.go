@@ -12,7 +12,6 @@ import (
 
 	intprocess "github.com/mobiledgex/edge-cloud-infra/e2e-tests/int-process"
 	"github.com/mobiledgex/edge-cloud-infra/mc/mcctl/cliwrapper"
-	"github.com/mobiledgex/edge-cloud-infra/mc/orm"
 	"github.com/mobiledgex/edge-cloud-infra/mc/orm/testutil"
 	"github.com/mobiledgex/edge-cloud-infra/mc/ormapi"
 	"github.com/mobiledgex/edge-cloud-infra/mc/ormclient"
@@ -369,7 +368,7 @@ func loginCurUser(uri, curUserFile string, vars, sharedData map[string]string) (
 			log.Printf("failed to generate otp: %v, %s\n", sharedData, users[0].Name)
 		}
 	}
-	token, err := mcClient.DoLogin(uri, users[0].Name, users[0].Passhash, otp, orm.NoApiKey)
+	token, err := mcClient.DoLogin(uri, users[0].Name, users[0].Passhash, otp)
 	rc := true
 	checkMcErr("DoLogin", http.StatusOK, err, &rc)
 	return token, rc
@@ -754,7 +753,7 @@ func runMcAudit(api, uri, apiFile, curUserFile, outputDir string, mods []string,
 					log.Printf("failed to generate otp: %v, %s\n", sharedData, user.Name)
 				}
 			}
-			token, err := mcClient.DoLogin(uri, user.Name, user.Passhash, otp, orm.NoApiKey)
+			token, err := mcClient.DoLogin(uri, user.Name, user.Passhash, otp)
 			checkMcErr("DoLogin", http.StatusOK, err, &rc)
 			if err == nil && rc {
 				fname := getTokenFile(user.Name, outputDir)

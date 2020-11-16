@@ -9,7 +9,6 @@ import (
 	"github.com/mobiledgex/edge-cloud/cloud-resource-manager/platform"
 	"github.com/mobiledgex/edge-cloud/edgeproto"
 	"github.com/mobiledgex/edge-cloud/log"
-	"github.com/mobiledgex/edge-cloud/vault"
 )
 
 type AwsEc2Platform struct {
@@ -77,7 +76,9 @@ func (a *AwsEc2Platform) InitData(ctx context.Context, caches *platform.Caches) 
 	a.awsGenPf = &awsgen.AwsGenericPlatform{Properties: &a.VMProperties.CommonPf.Properties}
 }
 
-func (a *AwsEc2Platform) GetAccessData(ctx context.Context, cloudlet *edgeproto.Cloudlet, region string, vaultConfig *vault.Config, dataType string, arg []byte) (map[string]string, error) {
+/*
+func (a *AwsEc2Platform) xxGetAccessData(ctx context.Context, cloudlet *edgeproto.Cloudlet, region string, vaultConfig *vault.Config, dataType string, arg []byte) (map[string]string, error) {
 	log.SpanLog(ctx, log.DebugLevelApi, "AwsEc2 GetAccessData", "dataType", dataType)
-	return a.awsGenPf.GetAccessData(ctx, cloudlet, region, vaultConfig, dataType, arg)
+	return a.awsGenPf.xxGetAccessData(ctx, cloudlet, region, vaultConfig, dataType, arg)
 }
+*/

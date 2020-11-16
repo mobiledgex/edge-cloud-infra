@@ -27,7 +27,6 @@ func (bs *BillingService) Init(vaultConfig *vault.Config, path string) error {
 
 	apiKey = creds.ApiKey
 	siteName = creds.Url
-	fmt.Printf("apiKey: %s, siteName: %s\n", apiKey, siteName)
 	return nil
 }
 

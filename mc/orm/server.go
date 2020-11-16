@@ -184,12 +184,9 @@ func RunServer(config *ServerConfig) (retserver *Server, reterr error) {
 	server.initJWKDone = make(chan struct{}, 1)
 	InitVault(config.vaultConfig, server.initJWKDone)
 
-	fmt.Printf("asdf\n")
 	if config.Billing {
 		serverConfig.BillingService = &chargify.BillingService{}
-		fmt.Printf("asdf\n")
 		if config.BillingPath == billing.BillingTypeFake {
-			fmt.Printf("asdf\n")
 			serverConfig.BillingService = &fakebilling.BillingService{}
 		}
 		err = serverConfig.BillingService.Init(config.vaultConfig, config.BillingPath)

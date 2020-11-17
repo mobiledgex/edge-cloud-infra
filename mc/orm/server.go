@@ -324,6 +324,7 @@ func RunServer(config *ServerConfig) (*Server, error) {
 	//   404: notFound
 	auth.POST("/user/update", UpdateUser)
 	auth.POST("/user/newpass", NewPassword)
+	auth.POST("/user/create/apikey", CreateUserApiKey)
 	auth.POST("/role/assignment/show", ShowRoleAssignment)
 	auth.POST("/role/perms/show", ShowRolePerms)
 	auth.POST("/role/show", ShowRole)

@@ -66,6 +66,20 @@ const RoleAdminContributor = "AdminContributor"
 const RoleAdminViewer = "AdminViewer"
 const RoleBillingManager = "BillingManager"
 
+// roles in the order of access priority
+var DeveloperRoles = []string{
+	RoleDeveloperManager,
+	RoleDeveloperContributor,
+	RoleDeveloperViewer,
+}
+
+// roles in the order of access priority
+var OperatorRoles = []string{
+	RoleOperatorManager,
+	RoleOperatorContributor,
+	RoleOperatorViewer,
+}
+
 var AdminRoleID int64
 
 func InitRolePerms(ctx context.Context) error {

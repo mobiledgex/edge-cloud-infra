@@ -13,6 +13,7 @@ import (
 	"time"
 
 	jwt "github.com/dgrijalva/jwt-go"
+	"github.com/google/uuid"
 	"github.com/labstack/echo"
 	"github.com/mobiledgex/edge-cloud-infra/mc/ormapi"
 	"github.com/mobiledgex/edge-cloud/log"
@@ -888,4 +889,88 @@ func UpdateUser(c echo.Context) error {
 		userResponse.Message = "user updated"
 	}
 	return c.JSON(http.StatusOK, &userResponse)
+}
+
+func CreateUserApiKey(c echo.Context) error {
+	ctx := GetContext(c)
+	db := loggedDB(ctx)
+	claims, err := getClaims(c)
+	if err != nil {
+		return err
+	}
+	apiKeyObj := ormapi.UserApiKey{}
+	if err := c.Bind(&apiKeyObj); err != nil {
+		return bindErr(c, err)
+	}
+	groupings, err := enforcer.GetGroupingPolicy()
+	if err != nil {
+		return setReply(c, dbErr(err), nil)
+	}
+	authz, err := newShowAuthz(ctx, "", claims.Username, ResourceUsers, ActionView)
+	if err != nil {
+		return setReply(c, dbErr(err), nil)
+	}
+
+	var userRole *ormapi.Role
+	for ii, _ := range groupings {
+		role := parseRole(groupings[ii])
+		if role == nil {
+			continue
+		}
+		if !authz.Ok(role.Org) {
+			continue
+		}
+		if role.Org == apiKeyObj.Org {
+			userRole = role
+			break
+		}
+	}
+	if userRole == nil {
+		return c.JSON(http.StatusBadRequest, Msg("User has no permissions to access org "+apiKeyObj.Org))
+	}
+	if apiKeyObj.Role == "" {
+		apiKeyObj.Role = userRole.Role
+	} else {
+		org := ormapi.Organization{}
+		org.Name = userRole.Org
+		err := db.Where(&org).First(&org).Error
+		if err != nil {
+			return setReply(c, dbErr(err), nil)
+		}
+		orgRoles := OperatorRoles
+		switch org.Type {
+		case OrgTypeDeveloper:
+			orgRoles = DeveloperRoles
+			fallthrough
+		case OrgTypeOperator:
+			// ensure api key role is a valid org role
+			roles := make(map[string]int)
+			for ii, val := range orgRoles {
+				roles[val] = ii
+			}
+			apiKeyRoleIndex, ok := roles[apiKeyObj.Role]
+			if !ok {
+				return c.JSON(http.StatusBadRequest, Msg("Invalid role, please specify valid appropriate role"))
+			}
+			// Get current role index
+			roleIndex, ok := roles[userRole.Role]
+			if !ok {
+				return c.JSON(http.StatusBadRequest, Msg("Invalid user role"))
+			}
+			validRoles := ""
+			for ii := roleIndex; ii < len(roles); ii++ {
+				validRoles += orgRoles[ii]
+			}
+			if apiKeyRoleIndex < roleIndex {
+				return c.JSON(http.StatusBadRequest, Msg("User has no permissions to set this role, valid roles user can set are "+validRoles))
+			}
+			fallthrough
+		default:
+			// admin
+			// TODO: Generate username TOKEN
+			// TODO: Generate apikey TOKEN
+			// TODO: Create rbac rule for usernameTOKEN/org + apiKeyRole
+		}
+	}
+	return nil
 }

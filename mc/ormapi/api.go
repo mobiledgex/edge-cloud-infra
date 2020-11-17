@@ -45,6 +45,12 @@ type User struct {
 	TOTPSharedKey string
 }
 
+type UserApiKey struct {
+	Org         string
+	Role        string
+	Description string
+}
+
 type UserResponse struct {
 	Message       string
 	TOTPSharedKey string

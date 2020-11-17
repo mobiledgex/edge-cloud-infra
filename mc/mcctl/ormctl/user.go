@@ -76,6 +76,11 @@ func GetUserCommand() *cobra.Command {
 		OptionalArgs: "name email emailverified familyname givenname nickname locked",
 		ReqData:      &ormapi.User{},
 		Run:          runRest("/auth/restricted/user/update"),
+	}, &cli.Command{
+		Use:          "createapikey",
+		RequiredArgs: "name",
+		//ReqData:      &ormapi.UserApiKey{},
+		Run: runRest("/auth/user/create/apikey"),
 	}}
 	return cli.GenGroup("user", "manage users", cmds)
 }

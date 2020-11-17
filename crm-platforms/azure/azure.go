@@ -123,6 +123,11 @@ func (a *AzurePlatform) ListCloudletMgmtNodes(ctx context.Context, clusterInsts 
 // Login logs into azure
 func (a *AzurePlatform) Login(ctx context.Context) error {
 	log.SpanLog(ctx, log.DebugLevelInfra, "doing azure login")
+	user := a.GetAzureUser()
+	pass := a.GetAzurePass()
+	if user == "" || pass == "" {
+		return fmt.Errorf("Missing azure credentials")
+	}
 	out, err := infracommon.Sh(a.accessVars).Command("az", "login", "--username", a.GetAzureUser(), "--password", a.GetAzurePass()).CombinedOutput()
 	if err != nil {
 		return fmt.Errorf("Login Failed: %s %v", out, err)

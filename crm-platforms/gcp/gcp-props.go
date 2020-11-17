@@ -4,6 +4,8 @@ import (
 	"context"
 	"fmt"
 
+	"strings"
+
 	"github.com/mobiledgex/edge-cloud-infra/infracommon"
 	"github.com/mobiledgex/edge-cloud/cloud-resource-manager/accessapi"
 	"github.com/mobiledgex/edge-cloud/cloud-resource-manager/platform"
@@ -24,16 +26,17 @@ var gcpProps = map[string]*edgeproto.PropertyInfo{
 	},
 	"MEX_GCP_ZONE": {
 		Name:        "GCP Zone Name",
-		Description: "Name of the GCP zone",
+		Description: "Name of the GCP zone, e.g. us-central1-a",
 		Mandatory:   true,
 	},
-	"MEX_GCP_SERVICE_ACCOUNT": {
-		Name:        "GCP Service Account Name",
-		Description: "Name of the GCP service account",
-		Mandatory:   true,
-		Secret:      true,
-		Internal:    true,
-	},
+}
+
+func (g *GCPPlatform) GetGcpRegion() string {
+	// region is the zone without part after the last hyphen
+	zone := g.GetGcpZone()
+	zs := strings.Split(zone, "-")
+	zs = zs[:len(zs)-1]
+	return strings.Join(zs, "-")
 }
 
 func (g *GCPPlatform) GetGcpZone() string {

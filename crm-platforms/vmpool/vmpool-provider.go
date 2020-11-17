@@ -9,6 +9,7 @@ import (
 
 	"github.com/mobiledgex/edge-cloud-infra/chefmgmt"
 	"github.com/mobiledgex/edge-cloud-infra/vmlayer"
+	"github.com/mobiledgex/edge-cloud/cloud-resource-manager/platform/pc"
 	"github.com/mobiledgex/edge-cloud/edgeproto"
 	"github.com/mobiledgex/edge-cloud/log"
 	"github.com/mobiledgex/edge-cloud/util"
@@ -196,9 +197,14 @@ func (o *VMPoolPlatform) createVMsInternal(ctx context.Context, markedVMs map[st
 		accessKey, ok := vmAccessKeys[vm.InternalName]
 		if ok && accessKey != "" {
 			log.SpanLog(ctx, log.DebugLevelInfra, "Setting up access key file", "vm", vm.Name)
-			cmd := fmt.Sprintf(`sudo echo -e "%s" > /root/accesskey/accesskey.pem`, accessKey)
-			if out, err := client.Output(cmd); err != nil {
-				return fmt.Errorf("failed to write access key: %s, %v", out, err)
+			err = pc.WriteFile(client, "/root/accesskey/accesskey.pem", accessKey, "crmaccesskey", pc.SudoOn)
+			if err != nil {
+				return fmt.Errorf("failed to write access key: %v", err)
+			}
+			// change perms to 600
+			cmd = fmt.Sprintf("sudo chmod 600 /root/accesskey/accesskey.pem")
+			if _, err = client.Output(cmd); err != nil {
+				return fmt.Errorf("failed to change perms of accesskey file: %v", err)
 			}
 		}
 
@@ -207,9 +213,9 @@ func (o *VMPoolPlatform) createVMsInternal(ctx context.Context, markedVMs map[st
 		if ok && chefParams != nil {
 			// Setup chef client key
 			log.SpanLog(ctx, log.DebugLevelInfra, "Setting up chef-client", "vm", vm.Name)
-			cmd := fmt.Sprintf(`sudo echo -e "%s" > /home/ubuntu/client.pem`, chefParams.ClientKey)
-			if out, err := client.Output(cmd); err != nil {
-				return fmt.Errorf("failed to copy chef client key: %s, %v", out, err)
+			err = pc.WriteFile(client, "/home/ubuntu/client.pem", chefParams.ClientKey, "chefclientkey", pc.SudoOn)
+			if err != nil {
+				return fmt.Errorf("failed to copy chef client key: %v", err)
 			}
 
 			// Start chef service

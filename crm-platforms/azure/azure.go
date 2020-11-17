@@ -128,7 +128,7 @@ func (a *AzurePlatform) Login(ctx context.Context) error {
 	if user == "" || pass == "" {
 		return fmt.Errorf("Missing azure credentials")
 	}
-	out, err := infracommon.Sh(a.accessVars).Command("az", "login", "--username", a.GetAzureUser(), "--password", a.GetAzurePass()).CombinedOutput()
+	out, err := infracommon.Sh(a.accessVars).Command("az", "login", "--username", user, "--password", pass).CombinedOutput()
 	if err != nil {
 		return fmt.Errorf("Login Failed: %s %v", out, err)
 	}

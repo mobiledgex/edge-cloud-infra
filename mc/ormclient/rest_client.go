@@ -8,6 +8,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"io/ioutil"
 	"net/http"
 	"reflect"
 	"strings"
@@ -394,10 +395,15 @@ func (s *Client) PostJson(uri, token string, reqData interface{}, replyData inte
 		}
 	}
 	if resp.StatusCode != http.StatusOK {
-		res := ormapi.Result{}
-		err = json.NewDecoder(resp.Body).Decode(&res)
+		body, err := ioutil.ReadAll(resp.Body)
 		if err != nil {
-			return resp.StatusCode, fmt.Errorf("post %s decode result failed, %v", uri, err)
+			return resp.StatusCode, err
+		}
+		res := ormapi.Result{}
+		err = json.Unmarshal(body, &res)
+		if err != nil {
+			// string error
+			return resp.StatusCode, fmt.Errorf("%s", body)
 		}
 		return resp.StatusCode, errors.New(res.Message)
 	}
@@ -420,10 +426,15 @@ func (s *Client) handleHttpStreamOut(uri, token string, reqData, replyData inter
 	defer resp.Body.Close()
 
 	if resp.StatusCode != http.StatusOK {
-		res := ormapi.Result{}
-		err = json.NewDecoder(resp.Body).Decode(&res)
+		body, err := ioutil.ReadAll(resp.Body)
 		if err != nil {
-			return resp.StatusCode, fmt.Errorf("post %s decode result failed, %v", uri, err)
+			return resp.StatusCode, err
+		}
+		res := ormapi.Result{}
+		err = json.Unmarshal(body, &res)
+		if err != nil {
+			// string error
+			return resp.StatusCode, fmt.Errorf("%s", body)
 		}
 		return resp.StatusCode, errors.New(res.Message)
 	}

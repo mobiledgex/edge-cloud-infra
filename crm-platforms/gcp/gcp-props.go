@@ -31,12 +31,14 @@ var gcpProps = map[string]*edgeproto.PropertyInfo{
 	},
 }
 
-func (g *GCPPlatform) GetGcpRegion() string {
+func (g *GCPPlatform) GetGcpRegionFromZone(zone string) (string, error) {
 	// region is the zone without part after the last hyphen
-	zone := g.GetGcpZone()
 	zs := strings.Split(zone, "-")
+	if len(zs) < 3 {
+		return "", fmt.Errorf("Improperly formatted GCP zone")
+	}
 	zs = zs[:len(zs)-1]
-	return strings.Join(zs, "-")
+	return strings.Join(zs, "-"), nil
 }
 
 func (g *GCPPlatform) GetGcpZone() string {

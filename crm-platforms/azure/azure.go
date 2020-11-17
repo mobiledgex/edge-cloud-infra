@@ -153,6 +153,7 @@ func (a *AzurePlatform) NameSanitize(clusterName string) string {
 	return clusterName
 }
 
-func (a *AzurePlatform) SetProperties(props *infracommon.InfraProperties) {
+func (a *AzurePlatform) SetProperties(props *infracommon.InfraProperties) error {
 	a.properties = props
+	return nil
 }

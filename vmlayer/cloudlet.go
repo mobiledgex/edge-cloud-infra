@@ -398,10 +398,12 @@ func (v *VMPlatform) DeleteCloudletAccessVars(ctx context.Context, cloudlet *edg
 
 	updateCallback(edgeproto.UpdateTask, "Deleting access vars from secure secrets storage")
 
-	path := GetVaultCloudletAccessPath(&cloudlet.Key, pfConfig.Region, v.Type, cloudlet.PhysicalName, v.VMProvider.GetApiAccessFilename())
-	err := infracommon.DeleteDataFromVault(vaultConfig, path)
-	if err != nil {
-		return fmt.Errorf("Failed to delete access vars from vault: %v", err)
+	path := v.VMProvider.GetVaultCloudletAccessPath(&cloudlet.Key, pfConfig.Region, cloudlet.PhysicalName)
+	if path != "" {
+		err := infracommon.DeleteDataFromVault(vaultConfig, path)
+		if err != nil {
+			return fmt.Errorf("Failed to delete access vars from vault: %v", err)
+		}
 	}
 	return nil
 }
@@ -600,6 +602,14 @@ func (v *VMPlatform) getCloudletVMsSpec(ctx context.Context, accessApi platform.
 				return nil, fmt.Errorf("cannot find infra external network %s", cloudlet.InfraConfig.ExternalNetworkName)
 			}
 		}
+		additionalNets := v.VMProperties.GetCloudletAdditionalPlatformNetworks()
+		if len(additionalNets) > 0 {
+			err = v.VMProvider.ValidateAdditionalNetworks(ctx, additionalNets)
+			if err != nil {
+				return nil, err
+			}
+		}
+
 		flavorList, err := v.VMProvider.GetFlavorList(ctx)
 		if err != nil {
 			return nil, err
@@ -677,6 +687,7 @@ func (v *VMPlatform) getCloudletVMsSpec(ctx context.Context, accessApi platform.
 			true, //connect external
 			WithChefParams(chefParams),
 			WithAccessKey(pfConfig.CrmAccessPrivateKey),
+			WithAdditionalNetworks(v.VMProperties.GetCloudletAdditionalPlatformNetworks()),
 		)
 		if err != nil {
 			return nil, err

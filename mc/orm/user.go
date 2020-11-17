@@ -17,9 +17,9 @@ import (
 	"github.com/mobiledgex/edge-cloud-infra/mc/ormapi"
 	"github.com/mobiledgex/edge-cloud/log"
 	"github.com/mobiledgex/edge-cloud/util"
-	"github.com/nbutton23/zxcvbn-go"
 	"github.com/pquerna/otp"
 	"github.com/pquerna/otp/totp"
+	"github.com/trustelem/zxcvbn"
 )
 
 var BadAuthDelay = 3 * time.Second
@@ -575,8 +575,7 @@ func setPassword(c echo.Context, username, password string) error {
 
 func calcPasswordStrength(ctx context.Context, user *ormapi.User, password string) {
 	pwscore := zxcvbn.PasswordStrength(password, []string{})
-	user.PassEntropy = pwscore.Entropy
-	user.PassCrackTimeSec = pwscore.CrackTime
+	user.PassCrackTimeSec = pwscore.Guesses / float64(BruteForceGuessesPerSecond)
 }
 
 func checkPasswordStrength(ctx context.Context, user *ormapi.User, config *ormapi.Config, isAdmin bool) error {
@@ -822,9 +821,6 @@ func UpdateUser(c echo.Context) error {
 	}
 	if old.Locked != user.Locked {
 		return c.JSON(http.StatusBadRequest, Msg("Cannot change locked"))
-	}
-	if old.PassEntropy != user.PassEntropy {
-		return c.JSON(http.StatusBadRequest, Msg("Cannot change passentropy"))
 	}
 	if old.PassCrackTimeSec != user.PassCrackTimeSec {
 		return c.JSON(http.StatusBadRequest, Msg("Cannot change passcracktimesec"))

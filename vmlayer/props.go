@@ -154,6 +154,14 @@ var VMProviderProps = map[string]*edgeproto.PropertyInfo{
 		Name:        "Cloudlet Firewall Whitelist Ingress",
 		Description: "Firewall rule to whitelist ingress traffic",
 	},
+	"MEX_ADDITIONAL_PLATFORM_NETWORKS": {
+		Name:        "Additional Platform Networks",
+		Description: "Optional comma separated list of networks to add to platform VM",
+	},
+	"MEX_ADDITIONAL_ROOTLB_NETWORKS": {
+		Name:        "Additional RootLB Networks",
+		Description: "Optional comma separated list of networks to add to rootLB VMs",
+	},
 }
 
 func GetSupportedRouterTypes() string {
@@ -174,10 +182,6 @@ func GetCloudletVMImageName(imgVersion string) string {
 
 func GetCertFilePath(key *edgeproto.CloudletKey) string {
 	return fmt.Sprintf("/tmp/%s.%s.cert", key.Name, key.Organization)
-}
-
-func GetVaultCloudletAccessPath(key *edgeproto.CloudletKey, region, cloudletType, physicalName, filename string) string {
-	return fmt.Sprintf("/secret/data/%s/cloudlet/%s/%s/%s/%s", region, cloudletType, key.Organization, physicalName, filename)
 }
 
 func GetCloudletVMImagePath(imgPath, imgVersion string, imgSuffix string) string {
@@ -247,6 +251,22 @@ func (vp *VMProperties) SetCloudletExternalNetwork(name string) {
 func (vp *VMProperties) GetCloudletMexNetwork() string {
 	value, _ := vp.CommonPf.Properties.GetValue("MEX_NETWORK")
 	return value
+}
+
+func (vp *VMProperties) GetCloudletAdditionalPlatformNetworks() []string {
+	value, _ := vp.CommonPf.Properties.GetValue("MEX_ADDITIONAL_PLATFORM_NETWORKS")
+	if value == "" {
+		return []string{}
+	}
+	return strings.Split(value, ",")
+}
+
+func (vp *VMProperties) GetCloudletAdditionalRootLbNetworks() []string {
+	value, _ := vp.CommonPf.Properties.GetValue("MEX_ADDITIONAL_ROOTLB_NETWORKS")
+	if value == "" {
+		return []string{}
+	}
+	return strings.Split(value, ",")
 }
 
 func (vp *VMProperties) GetCloudletNetworkScheme() string {

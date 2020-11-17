@@ -37,7 +37,7 @@
       Deploying {{ crm_name }}
        - cloudlet name: {{ item.cloudlet_name }}
        - controller name: {{ controller_name }}
-       - notify srv port: {{ notify_srv_port }}
+       - notify srv port: {{ item.notify_srv_port | default(notify_srv_port) }}
 
 - name: Fetch CRM vault role
   set_fact:
@@ -122,7 +122,7 @@
 - name: Verify that the notify srv port is accessible
   wait_for:
     host: "{{ (ansible_ssh_host|default(ansible_host))|default(inventory_hostname) }}"
-    port: "{{ notify_srv_port }}"
+    port: "{{ item.notify_srv_port | default(notify_srv_port) }}"
     timeout: 180
   vars:
     ansible_connection: local

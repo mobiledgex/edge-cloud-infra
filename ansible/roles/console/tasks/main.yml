@@ -1,4 +1,9 @@
 ---
+- name: Load reCAPTCHA key
+  import_role:
+    name: load-vault-creds
+    tasks_from: recaptcha
+
 - name: Deploy the console
   docker_container:
     name: "console-{{ deploy_environ }}"
@@ -10,3 +15,4 @@
       REACT_APP_API_ENDPOINT: "https://{{ inventory_hostname }}"
       REACT_APP_API_VM_ENDPOINT: "https://{{ console_vnc_hostname }}"
       REACT_APP_API_USE_SERVER_SUFFIX: "true"
+      REACT_APP_CAPTCHA_V2_KEY: "{{ recaptcha_site_key }}"

@@ -9,13 +9,6 @@ import (
 
 // Data saved to persistent sql db, also used for API calls
 
-const (
-	// 2xx success codes
-	// 227-299 is unassigned HTTP success codes, hence used here for custom status codes
-	// See: https://www.iana.org/assignments/http-status-codes/http-status-codes.xhtml
-	StatusOTPRequired = 227 // code used to notify client that OTP is required for login
-)
-
 type User struct {
 	// User name. Can only contain letters, digits, underscore, period, hyphen. It cannot have leading or trailing spaces or period. It cannot start with hyphen
 	// required: true

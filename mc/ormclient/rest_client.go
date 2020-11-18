@@ -8,6 +8,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"io/ioutil"
 	"net/http"
 	"reflect"
 	"strings"
@@ -25,10 +26,11 @@ type Client struct {
 	Debug      bool
 }
 
-func (s *Client) DoLogin(uri, user, pass string) (string, error) {
+func (s *Client) DoLogin(uri, user, pass, otp string) (string, error) {
 	login := ormapi.UserLogin{
 		Username: user,
 		Password: pass,
+		TOTP:     otp,
 	}
 	result := make(map[string]interface{})
 	status, err := s.PostJson(uri+"/login", "", &login, &result)
@@ -49,16 +51,20 @@ func (s *Client) DoLogin(uri, user, pass string) (string, error) {
 	return token, nil
 }
 
-func (s *Client) CreateUser(uri string, user *ormapi.User) (int, error) {
-	return s.PostJson(uri+"/usercreate", "", user, nil)
+func (s *Client) CreateUser(uri string, user *ormapi.User) (*ormapi.UserResponse, int, error) {
+	resp := ormapi.UserResponse{}
+	st, err := s.PostJson(uri+"/usercreate", "", user, &resp)
+	return &resp, st, err
 }
 
 func (s *Client) DeleteUser(uri, token string, user *ormapi.User) (int, error) {
 	return s.PostJson(uri+"/auth/user/delete", token, user, nil)
 }
 
-func (s *Client) UpdateUser(uri, token string, createUserJSON string) (int, error) {
-	return s.PostJson(uri+"/auth/user/update", token, createUserJSON, nil)
+func (s *Client) UpdateUser(uri, token string, createUserJSON string) (*ormapi.UserResponse, int, error) {
+	resp := ormapi.UserResponse{}
+	st, err := s.PostJson(uri+"/auth/user/update", token, createUserJSON, &resp)
+	return &resp, st, err
 }
 
 func (s *Client) ShowUser(uri, token string, org *ormapi.Organization) ([]ormapi.User, int, error) {
@@ -394,10 +400,15 @@ func (s *Client) PostJson(uri, token string, reqData interface{}, replyData inte
 		}
 	}
 	if resp.StatusCode != http.StatusOK {
-		res := ormapi.Result{}
-		err = json.NewDecoder(resp.Body).Decode(&res)
+		body, err := ioutil.ReadAll(resp.Body)
 		if err != nil {
-			return resp.StatusCode, fmt.Errorf("post %s decode result failed, %v", uri, err)
+			return resp.StatusCode, err
+		}
+		res := ormapi.Result{}
+		err = json.Unmarshal(body, &res)
+		if err != nil {
+			// string error
+			return resp.StatusCode, fmt.Errorf("%s", body)
 		}
 		return resp.StatusCode, errors.New(res.Message)
 	}
@@ -420,10 +431,15 @@ func (s *Client) handleHttpStreamOut(uri, token string, reqData, replyData inter
 	defer resp.Body.Close()
 
 	if resp.StatusCode != http.StatusOK {
-		res := ormapi.Result{}
-		err = json.NewDecoder(resp.Body).Decode(&res)
+		body, err := ioutil.ReadAll(resp.Body)
 		if err != nil {
-			return resp.StatusCode, fmt.Errorf("post %s decode result failed, %v", uri, err)
+			return resp.StatusCode, err
+		}
+		res := ormapi.Result{}
+		err = json.Unmarshal(body, &res)
+		if err != nil {
+			// string error
+			return resp.StatusCode, fmt.Errorf("%s", body)
 		}
 		return resp.StatusCode, errors.New(res.Message)
 	}

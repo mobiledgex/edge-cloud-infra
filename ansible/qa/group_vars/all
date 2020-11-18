@@ -36,6 +36,6 @@ crm_instances:
     operator_key: gcp
     crm_name: gcp_central
     platform: PLATFORM_TYPE_GCP
-    gcp_zone: us-central1
+    gcp_zone: us-central1-a
     controller_region: US
     notify_srv_port: 51092

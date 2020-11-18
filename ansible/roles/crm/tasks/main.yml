@@ -102,7 +102,6 @@
         crm_env_gcp:
           MEX_GCP_PROJECT: "{{ gcp_project }}"
           MEX_GCP_ZONE: "{{ item.gcp_zone }}"
-          MEX_GCP_SERVICE_ACCOUNT: "{{ mexenv.MEX_GCP_SERVICE_ACCOUNT }}"
           MEXENV_URL: "https://{{ vault_vm_hostname}}:{{ vault_port }}/v1/secret/data/cloudlet/openstack/mexenv.json"
     - set_fact:
         crm_env: "{{ crm_env | combine(crm_env_gcp) }}"

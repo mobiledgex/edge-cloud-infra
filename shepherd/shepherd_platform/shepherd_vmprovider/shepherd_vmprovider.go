@@ -94,11 +94,10 @@ func (s *ShepherdPlatform) GetClusterIP(ctx context.Context, clusterInst *edgepr
 }
 
 func (s *ShepherdPlatform) GetClusterPlatformClient(ctx context.Context, clusterInst *edgeproto.ClusterInst, clientType string) (ssh.Client, error) {
-	client, err := s.VMPlatform.GetClusterPlatformClientInternal(ctx, clusterInst, clientType, pc.WithCachedIp(true))
+	client, err := s.VMPlatform.GetClusterPlatformClientInternal(ctx, clusterInst, clientType, pc.WithCachedIp(false))
 	if err != nil {
 		return nil, err
 	}
-
 	err = client.StartPersistentConn(shepherd_common.ShepherdSshConnectTimeout)
 	if err != nil {
 		return nil, err

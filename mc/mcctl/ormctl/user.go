@@ -80,10 +80,11 @@ func GetUserCommand() *cobra.Command {
 		Use:          "createapikey",
 		RequiredArgs: "org role description",
 		ReqData:      &ormapi.UserApiKey{},
+		ReplyData:    &ormapi.UserApiKey{},
 		Run:          runRest("/auth/user/create/apikey"),
 	}, &cli.Command{
 		Use:          "deleteapikey",
-		RequiredArgs: "tokenid",
+		RequiredArgs: "apikeyid",
 		ReqData:      &ormapi.UserApiKey{},
 		Run:          runRest("/auth/user/delete/apikey"),
 	}, &cli.Command{
@@ -99,7 +100,7 @@ func GetLoginCmd() *cobra.Command {
 	cmd := cli.Command{
 		Use:          "login",
 		RequiredArgs: "name",
-		OptionalArgs: "totp tokenid apikey",
+		OptionalArgs: "totp apikeyid apikey",
 		Run:          runLogin,
 	}
 	return cmd.GenCmd()
@@ -117,7 +118,7 @@ func runLogin(c *cli.Command, args []string) error {
 	if err != nil {
 		return err
 	}
-	token, err := client.DoLogin(getUri(), login.Username, login.Password, login.TOTP, login.TokenId, login.ApiKey)
+	token, err := client.DoLogin(getUri(), login.Username, login.Password, login.TOTP, login.ApiKeyId, login.ApiKey)
 	if err != nil {
 		return err
 	}

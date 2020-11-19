@@ -72,12 +72,15 @@ var DeveloperRoles = []string{
 	RoleDeveloperContributor,
 	RoleDeveloperViewer,
 }
-
-// roles in the order of access priority
 var OperatorRoles = []string{
 	RoleOperatorManager,
 	RoleOperatorContributor,
 	RoleOperatorViewer,
+}
+var AdminRoles = []string{
+	RoleAdminManager,
+	RoleAdminContributor,
+	RoleAdminViewer,
 }
 
 var AdminRoleID int64

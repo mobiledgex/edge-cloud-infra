@@ -51,7 +51,7 @@ type UserApiKey struct {
 	Org         string
 	Role        string
 	Description string
-	TokenId     string
+	ApiKeyId    string
 	ApiKey      string
 }
 
@@ -187,7 +187,7 @@ type UserLogin struct {
 	// read only: true
 	TOTP string `form:"totp" json:"totp"`
 	// read only: true
-	TokenId string `form:"tokenid" json:"tokenkey"`
+	ApiKeyId string `form:"apikeyid" json:"apikeyid"`
 	// read only: true
 	ApiKey string `form:"apikey" json:"apikey"`
 }

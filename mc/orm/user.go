@@ -26,7 +26,7 @@ import (
 
 var BadAuthDelay = 3 * time.Second
 var NoOTP = ""
-var NoTokenId = ""
+var NoApiKeyId = ""
 var NoApiKey = ""
 var OTPLen otp.Digits = otp.DigitsSix
 var OTPExpirationTime = uint(2 * 60) // seconds
@@ -74,11 +74,11 @@ func Login(c echo.Context) error {
 		return c.JSON(http.StatusBadRequest, Msg("Username not specified"))
 	}
 
-	if login.Password != "" && login.ApiKey != "" && login.TokenId != "" {
-		return c.JSON(http.StatusBadRequest, Msg("Please specify either password or apikey/tokenid"))
+	if login.Password != "" && login.ApiKey != "" {
+		return c.JSON(http.StatusBadRequest, Msg("Please specify either password or apikeyid/apikey"))
 	}
-	if login.ApiKey != "" && login.TokenId != "" {
-		return c.JSON(http.StatusBadRequest, Msg("Missing apikey or tokenid"))
+	if login.ApiKey != "" && login.ApiKeyId == "" {
+		return c.JSON(http.StatusBadRequest, Msg("Missing apikeyid"))
 	}
 	user := ormapi.User{}
 	lookup := ormapi.User{Name: login.Username}
@@ -115,7 +115,7 @@ func Login(c echo.Context) error {
 		if err != nil {
 			return err
 		}
-		apiKey, ok := apiKeys[login.TokenId]
+		apiKey, ok := apiKeys[login.ApiKeyId]
 		if !ok {
 			time.Sleep(BadAuthDelay)
 			return c.JSON(http.StatusBadRequest, Msg("Invalid token id"))
@@ -501,6 +501,7 @@ func CurrentUser(c echo.Context) error {
 	user.Salt = ""
 	user.Iter = 0
 	user.TOTPSharedKey = ""
+	user.ApiKeys = nil
 	return c.JSON(http.StatusOK, user)
 }
 
@@ -559,6 +560,7 @@ func ShowUser(c echo.Context) error {
 		users[ii].TOTPSharedKey = ""
 		users[ii].Salt = ""
 		users[ii].Iter = 0
+		users[ii].ApiKeys = nil
 	}
 	return c.JSON(http.StatusOK, users)
 }
@@ -981,6 +983,9 @@ func CreateUserApiKey(c echo.Context) error {
 		if !authz.Ok(role.Org) {
 			continue
 		}
+		if role.Username != claims.Username {
+			continue
+		}
 		if role.Org == apiKeyObj.Org {
 			userRole = role
 			break
@@ -998,66 +1003,64 @@ func CreateUserApiKey(c echo.Context) error {
 		if err != nil {
 			return setReply(c, dbErr(err), nil)
 		}
-		orgRoles := OperatorRoles
+		orgRoles := []string{}
 		switch org.Type {
 		case OrgTypeDeveloper:
 			orgRoles = DeveloperRoles
-			fallthrough
 		case OrgTypeOperator:
-			// ensure api key role is a valid org role
-			roles := make(map[string]int)
-			for ii, val := range orgRoles {
-				roles[val] = ii
-			}
-			apiKeyRoleIndex, ok := roles[apiKeyObj.Role]
-			if !ok {
-				return c.JSON(http.StatusBadRequest, Msg("Invalid role, please specify valid appropriate role"))
-			}
-			// Get current role index
-			roleIndex, ok := roles[userRole.Role]
-			if !ok {
-				return c.JSON(http.StatusBadRequest, Msg("Invalid user role"))
-			}
-			validRoles := ""
-			for ii := roleIndex; ii < len(roles); ii++ {
-				validRoles += orgRoles[ii]
-			}
-			if apiKeyRoleIndex < roleIndex {
-				return c.JSON(http.StatusBadRequest, Msg("User has no permissions to set this role, valid roles user can set are "+validRoles))
-			}
-			fallthrough
+			orgRoles = OperatorRoles
 		case OrgTypeAdmin:
-			apiKeyTokenId := uuid.New().String()
-			apiKey := uuid.New().String()
-			psub := rbac.GetCasbinGroup(userRole.Org, apiKeyTokenId)
-			err = enforcer.AddGroupingPolicy(ctx, psub, apiKeyObj.Role)
-			if err != nil {
-				return setReply(c, dbErr(err), nil)
-			}
-			apiKeyHash, apiKeySalt, apiKeyIter := NewPasshash(apiKey)
-			apiKeys[apiKeyTokenId] = ormapi.ApiKey{
-				ApiKeyOrg:  userRole.Org,
-				ApiKeyRole: apiKeyObj.Role,
-				ApiKeyHash: apiKeyHash,
-				ApiKeySalt: apiKeySalt,
-				ApiKeyIter: apiKeyIter,
-				ApiKeyDesc: apiKeyObj.Description,
-			}
-			out, err := MarshalApiKeys(apiKeys)
-			if err != nil {
-				return err
-			}
-			user.ApiKeys = out
-			if err := db.Model(&user).Updates(&user).Error; err != nil {
-				return setReply(c, dbErr(err), nil)
-			}
-			apiKeyOut := ormapi.UserApiKey{}
-			apiKeyOut.TokenId = apiKeyTokenId
-			apiKeyOut.ApiKey = apiKey
-			return c.JSON(http.StatusOK, &apiKeyOut)
+			orgRoles = AdminRoles
 		default:
 			return c.JSON(http.StatusBadRequest, Msg("Invalid org type"))
 		}
+		// ensure api key role is a valid org role
+		roles := make(map[string]int)
+		for ii, val := range orgRoles {
+			roles[val] = ii
+		}
+		apiKeyRoleIndex, ok := roles[apiKeyObj.Role]
+		if !ok {
+			return c.JSON(http.StatusBadRequest, Msg("Invalid role, please specify appropriate role"))
+		}
+		// Get current role index
+		roleIndex, ok := roles[userRole.Role]
+		if !ok {
+			return c.JSON(http.StatusBadRequest, Msg("Invalid user role"))
+		}
+		validRoles := strings.Join(orgRoles[roleIndex:], ",")
+		if apiKeyRoleIndex < roleIndex {
+			return c.JSON(http.StatusBadRequest, Msg("User has no permissions to set this role, valid roles user can set are "+validRoles))
+		}
+
+		apiKeyApiKeyId := uuid.New().String()
+		apiKey := uuid.New().String()
+		psub := rbac.GetCasbinGroup(userRole.Org, apiKeyApiKeyId)
+		err = enforcer.AddGroupingPolicy(ctx, psub, apiKeyObj.Role)
+		if err != nil {
+			return setReply(c, dbErr(err), nil)
+		}
+		apiKeyHash, apiKeySalt, apiKeyIter := NewPasshash(apiKey)
+		apiKeys[apiKeyApiKeyId] = ormapi.ApiKey{
+			ApiKeyOrg:  userRole.Org,
+			ApiKeyRole: apiKeyObj.Role,
+			ApiKeyHash: apiKeyHash,
+			ApiKeySalt: apiKeySalt,
+			ApiKeyIter: apiKeyIter,
+			ApiKeyDesc: apiKeyObj.Description,
+		}
+		out, err := MarshalApiKeys(apiKeys)
+		if err != nil {
+			return err
+		}
+		user.ApiKeys = out
+		if err := db.Model(&user).Updates(&user).Error; err != nil {
+			return setReply(c, dbErr(err), nil)
+		}
+		apiKeyOut := ormapi.UserApiKey{}
+		apiKeyOut.ApiKeyId = apiKeyApiKeyId
+		apiKeyOut.ApiKey = apiKey
+		return c.JSON(http.StatusOK, &apiKeyOut)
 	}
 	return nil
 }
@@ -1083,12 +1086,12 @@ func DeleteUserApiKey(c echo.Context) error {
 	if err != nil {
 		return err
 	}
-	userApiKey, ok := apiKeys[apiKeyObj.TokenId]
+	userApiKey, ok := apiKeys[apiKeyObj.ApiKeyId]
 	if !ok {
-		return c.JSON(http.StatusBadRequest, Msg(fmt.Sprintf("API Key with token ID %s doesn't exists", apiKeyObj.TokenId)))
+		return c.JSON(http.StatusBadRequest, Msg(fmt.Sprintf("API Key with ID %s doesn't exist", apiKeyObj.ApiKeyId)))
 	}
 
-	psub := rbac.GetCasbinGroup(userApiKey.ApiKeyOrg, apiKeyObj.TokenId)
+	psub := rbac.GetCasbinGroup(userApiKey.ApiKeyOrg, apiKeyObj.ApiKeyId)
 	found, err := enforcer.HasGroupingPolicy(psub, userApiKey.ApiKeyRole)
 	if err != nil {
 		return dbErr(err)
@@ -1101,7 +1104,7 @@ func DeleteUserApiKey(c echo.Context) error {
 		return dbErr(err)
 	}
 
-	delete(apiKeys, apiKeyObj.TokenId)
+	delete(apiKeys, apiKeyObj.ApiKeyId)
 	out, err := MarshalApiKeys(apiKeys)
 	if err != nil {
 		return err
@@ -1132,9 +1135,9 @@ func ShowUserApiKey(c echo.Context) error {
 	if err != nil {
 		return err
 	}
-	for tokenId, keyObj := range apiKeys {
+	for apiKeyId, keyObj := range apiKeys {
 		userApiKeys = append(userApiKeys, ormapi.UserApiKey{
-			TokenId:     tokenId,
+			ApiKeyId:    apiKeyId,
 			Description: keyObj.ApiKeyDesc,
 			Org:         keyObj.ApiKeyOrg,
 			Role:        keyObj.ApiKeyRole,

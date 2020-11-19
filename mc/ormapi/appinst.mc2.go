@@ -76,10 +76,3 @@ type RegionAppInstLatency struct {
 	Region         string
 	AppInstLatency edgeproto.AppInstLatency
 }
-
-// Request summary for ShowAppInstLatency
-// swagger:parameters ShowAppInstLatency
-type swaggerShowAppInstLatency struct {
-	// in: body
-	Body RegionAppInstLatency
-}

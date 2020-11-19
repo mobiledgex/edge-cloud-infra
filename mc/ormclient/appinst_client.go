@@ -84,16 +84,6 @@ func (s *Client) RequestAppInstLatency(uri, token string, in *ormapi.RegionAppIn
 	return &out, status, err
 }
 
-func (s *Client) ShowAppInstLatency(uri, token string, in *ormapi.RegionAppInstLatency) ([]edgeproto.AppInstLatency, int, error) {
-	out := edgeproto.AppInstLatency{}
-	outlist := []edgeproto.AppInstLatency{}
-	status, err := s.PostJsonStreamOut(uri+"/auth/ctrl/ShowAppInstLatency", token, in, &out, func() {
-		outlist = append(outlist, out)
-	})
-	return outlist, status, err
-}
-
 type AppInstLatencyApiClient interface {
 	RequestAppInstLatency(uri, token string, in *ormapi.RegionAppInstLatency) (*edgeproto.Result, int, error)
-	ShowAppInstLatency(uri, token string, in *ormapi.RegionAppInstLatency) ([]edgeproto.AppInstLatency, int, error)
 }

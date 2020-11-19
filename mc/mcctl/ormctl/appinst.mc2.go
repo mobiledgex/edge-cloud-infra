@@ -209,21 +209,8 @@ var RequestAppInstLatencyCmd = &cli.Command{
 	Run:          runRest("/auth/ctrl/RequestAppInstLatency"),
 }
 
-var ShowAppInstLatencyCmd = &cli.Command{
-	Use:          "ShowAppInstLatency",
-	OptionalArgs: strings.Join(append(AppInstLatencyRequiredArgs, AppInstLatencyOptionalArgs...), " "),
-	AliasArgs:    strings.Join(AppInstLatencyAliasArgs, " "),
-	SpecialArgs:  &AppInstLatencySpecialArgs,
-	Comments:     addRegionComment(AppInstLatencyComments),
-	ReqData:      &ormapi.RegionAppInstLatency{},
-	ReplyData:    &edgeproto.AppInstLatency{},
-	Run:          runRest("/auth/ctrl/ShowAppInstLatency"),
-	StreamOut:    true,
-}
-
 var AppInstLatencyApiCmds = []*cli.Command{
 	RequestAppInstLatencyCmd,
-	ShowAppInstLatencyCmd,
 }
 
 var AppInstKeyRequiredArgs = []string{}

@@ -30,11 +30,11 @@ type Clients struct {
 
 // Client uniquely identified by session cookie
 type Client struct {
-	cookieKey dmecommon.CookieKey
+	sessionCookie string
 }
 
 // Add Client connected to specified AppInst to Map
-func (e *EdgeEventsHandlerPlugin) AddClientKey(ctx context.Context, appInstKey edgeproto.AppInstKey, cookieKey dmecommon.CookieKey, sendFunc func(event *dme.ServerEdgeEvent)) {
+func (e *EdgeEventsHandlerPlugin) AddClientKey(ctx context.Context, appInstKey edgeproto.AppInstKey, sessionCookie string, sendFunc func(event *dme.ServerEdgeEvent)) {
 	e.mux.Lock()
 	defer e.mux.Unlock()
 	if e.AppInstsStruct.AppInstsMap == nil {
@@ -50,13 +50,13 @@ func (e *EdgeEventsHandlerPlugin) AddClientKey(ctx context.Context, appInstKey e
 		clients = *newClients
 	}
 
-	client := Client{cookieKey}
+	client := Client{sessionCookie}
 	clients.ClientsMap[client] = sendFunc
 	e.AppInstsStruct.AppInstsMap[appInstKey] = clients
 }
 
 // Remove Client connected to specified AppInst from Map
-func (e *EdgeEventsHandlerPlugin) RemoveClientKey(ctx context.Context, appInstKey edgeproto.AppInstKey, cookieKey dmecommon.CookieKey) {
+func (e *EdgeEventsHandlerPlugin) RemoveClientKey(ctx context.Context, appInstKey edgeproto.AppInstKey, sessionCookie string) {
 	e.mux.Lock()
 	defer e.mux.Unlock()
 	clients, ok := e.AppInstsStruct.AppInstsMap[appInstKey]
@@ -65,7 +65,7 @@ func (e *EdgeEventsHandlerPlugin) RemoveClientKey(ctx context.Context, appInstKe
 		return
 	}
 
-	client := Client{cookieKey}
+	client := Client{sessionCookie}
 	delete(clients.ClientsMap, client)
 }
 
@@ -84,7 +84,7 @@ func (e *EdgeEventsHandlerPlugin) RemoveAppInstKey(ctx context.Context, appInstK
 
 // Handle processing of latency samples and then send back to client
 // For now: Avg, Min, Max, StdDev
-func (e *EdgeEventsHandlerPlugin) ProcessLatencySamples(ctx context.Context, appInstKey edgeproto.AppInstKey, cookieKey dmecommon.CookieKey, samples []*dme.Sample) (*dme.Latency, error) {
+func (e *EdgeEventsHandlerPlugin) ProcessLatencySamples(ctx context.Context, appInstKey edgeproto.AppInstKey, sessionCookie string, samples []*dme.Sample) (*dme.Latency, error) {
 	e.mux.Lock()
 	defer e.mux.Unlock()
 	clients, ok := e.AppInstsStruct.AppInstsMap[appInstKey]
@@ -93,7 +93,7 @@ func (e *EdgeEventsHandlerPlugin) ProcessLatencySamples(ctx context.Context, app
 		return nil, fmt.Errorf("Cannot find specified appinst %v. No clients connected to appinst have edge events connection", appInstKey)
 	}
 
-	client := Client{cookieKey}
+	client := Client{sessionCookie}
 	sendFunc, ok := clients.ClientsMap[client]
 	if !ok {
 		log.SpanLog(ctx, log.DebugLevelInfra, "cannot find client connected to appinst", "appInstKey", appInstKey, "client", client)
@@ -149,7 +149,7 @@ func (e *EdgeEventsHandlerPlugin) SendAppInstStateEvent(ctx context.Context, app
 }
 
 // Send ServerEdgeEvent to specified client via persistent grpc stream
-func (e *EdgeEventsHandlerPlugin) SendEdgeEventToClient(ctx context.Context, serverEdgeEvent *dme.ServerEdgeEvent, appInstKey edgeproto.AppInstKey, cookieKey dmecommon.CookieKey) {
+func (e *EdgeEventsHandlerPlugin) SendEdgeEventToClient(ctx context.Context, serverEdgeEvent *dme.ServerEdgeEvent, appInstKey edgeproto.AppInstKey, sessionCookie string) {
 	e.mux.Lock()
 	defer e.mux.Unlock()
 	clients, ok := e.AppInstsStruct.AppInstsMap[appInstKey]
@@ -158,7 +158,7 @@ func (e *EdgeEventsHandlerPlugin) SendEdgeEventToClient(ctx context.Context, ser
 		return
 	}
 
-	client := Client{cookieKey}
+	client := Client{sessionCookie}
 	sendFunc, ok := clients.ClientsMap[client]
 	if !ok {
 		log.SpanLog(ctx, log.DebugLevelInfra, "cannot find client connected to appinst", "appInstKey", appInstKey, "client", client)

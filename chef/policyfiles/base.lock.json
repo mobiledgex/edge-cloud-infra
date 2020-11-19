@@ -1,0 +1,61 @@
+{
+  "revision_id": "df409bdf8d8f980fd66838b29033f073efffecae052bacb17da05ce62f341491",
+  "name": "base",
+  "run_list": [
+    "recipe[runstatus_handler::default]",
+    "recipe[copy_resource_tracker::default]"
+  ],
+  "included_policy_locks": [
+
+  ],
+  "cookbook_locks": {
+    "copy_resource_tracker": {
+      "version": "1.0.0",
+      "identifier": "35bae96c11ba6eb764a7ea7016403de681f7cbdb",
+      "dotted_decimal_identifier": "15123685468912238.51620593093580352.68060232272859",
+      "cache_key": "copy_resource_tracker-1.0.0",
+      "origin": "https://chef.mobiledgex.net/organizations/mobiledgex",
+      "source_options": {
+        "chef_server": "https://chef.mobiledgex.net/organizations/mobiledgex",
+        "version": "1.0.0"
+      }
+    },
+    "runstatus_handler": {
+      "version": "1.0.0",
+      "identifier": "779bf5d49799fcf3e2e455abc0232abd5a792470",
+      "dotted_decimal_identifier": "33667002364566012.68647889658429475.46992755074160",
+      "cache_key": "runstatus_handler-1.0.0",
+      "origin": "https://chef.mobiledgex.net/organizations/mobiledgex",
+      "source_options": {
+        "chef_server": "https://chef.mobiledgex.net/organizations/mobiledgex",
+        "version": "1.0.0"
+      }
+    }
+  },
+  "default_attributes": {
+
+  },
+  "override_attributes": {
+
+  },
+  "solution_dependencies": {
+    "Policyfile": [
+      [
+        "copy_resource_tracker",
+        "= 1.0.0"
+      ],
+      [
+        "runstatus_handler",
+        "= 1.0.0"
+      ]
+    ],
+    "dependencies": {
+      "copy_resource_tracker (1.0.0)": [
+
+      ],
+      "runstatus_handler (1.0.0)": [
+
+      ]
+    }
+  }
+}

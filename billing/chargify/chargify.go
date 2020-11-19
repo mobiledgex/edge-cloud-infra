@@ -2,10 +2,13 @@ package chargify
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"fmt"
 	"io"
+	"io/ioutil"
 	"net/http"
+	"os"
 	"strings"
 
 	"github.com/mobiledgex/edge-cloud/vault"
@@ -18,15 +21,33 @@ type accountCreds struct {
 	Url    string `json:"url"`
 }
 
-func (bs *BillingService) Init(vaultConfig *vault.Config, path string) error {
+func (bs *BillingService) Init(ctx context.Context, vaultConfig *vault.Config, path string) error {
 	creds := accountCreds{}
 	err := vault.GetData(vaultConfig, vaultPath+path, 0, &creds)
 	if err != nil {
 		return err
 	}
-
 	apiKey = creds.ApiKey
 	siteName = creds.Url
+
+	if apiKey == "" {
+		apiKey = os.Getenv("CHARGIFY_API_KEY")
+	}
+	if apiKey == "" {
+		return fmt.Errorf("unable to get apiKey")
+	}
+	if siteName == "" {
+		apiKey = os.Getenv("CHARGIFY_SITE_NAME")
+	}
+	if siteName == "" {
+		return fmt.Errorf("unable to get siteName")
+	}
+
+	// since we can potentially be sending stuff like credit card info, make sure the url is secure
+	if !strings.Contains(siteName, "https") {
+		return fmt.Errorf("insecure chargify site")
+	}
+
 	return nil
 }
 
@@ -57,6 +78,21 @@ func newChargifyReq(method, endpoint string, payload interface{}) (*http.Respons
 
 	client := &http.Client{}
 	return client.Do(req)
+}
+
+func getReqErr(reqBody io.ReadCloser) error {
+	body, err := ioutil.ReadAll(reqBody)
+	if err != nil {
+		return err
+	}
+	errorResp := ErrorResp{}
+	err = json.Unmarshal(body, &errorResp)
+	if err != nil {
+		// string error
+		return fmt.Errorf("%s", body)
+	}
+	combineErrors(&errorResp)
+	return fmt.Errorf("Errors: %s", strings.Join(errorResp.Errors, ","))
 }
 
 func combineErrors(e *ErrorResp) {

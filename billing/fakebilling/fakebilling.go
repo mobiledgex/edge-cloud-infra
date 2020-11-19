@@ -1,6 +1,7 @@
 package fakebilling
 
 import (
+	"context"
 	"fmt"
 	"strconv"
 	"sync"
@@ -16,7 +17,7 @@ var accountCounter = 1
 var subMux sync.Mutex
 var accMux sync.Mutex
 
-func (bs *BillingService) Init(vaultConfig *vault.Config, path string) error {
+func (bs *BillingService) Init(ctx context.Context, vaultConfig *vault.Config, path string) error {
 	return nil
 }
 
@@ -24,7 +25,7 @@ func (bs *BillingService) GetType() string {
 	return "fakebilling"
 }
 
-func (bs *BillingService) CreateCustomer(customer *billing.CustomerDetails, account *billing.AccountInfo, payment *billing.PaymentMethod) error {
+func (bs *BillingService) CreateCustomer(ctx context.Context, customer *billing.CustomerDetails, account *billing.AccountInfo, payment *billing.PaymentMethod) error {
 	accMux.Lock()
 	account.AccountId = strconv.Itoa(accountCounter)
 	accountCounter = accountCounter + 1
@@ -48,24 +49,24 @@ func (bs *BillingService) CreateCustomer(customer *billing.CustomerDetails, acco
 	return nil
 }
 
-func (bs *BillingService) DeleteCustomer(account *billing.AccountInfo) error {
+func (bs *BillingService) DeleteCustomer(ctx context.Context, account *billing.AccountInfo) error {
 	return nil
 }
 
-func (bs *BillingService) UpdateCustomer(account *billing.AccountInfo, customerDetails *billing.CustomerDetails) error {
+func (bs *BillingService) UpdateCustomer(ctx context.Context, account *billing.AccountInfo, customerDetails *billing.CustomerDetails) error {
 	return nil
 }
 
-func (bs *BillingService) AddChild(parentAccount, childAccount *billing.AccountInfo, childDetails *billing.CustomerDetails) error {
-	bs.CreateCustomer(childDetails, childAccount, nil)
+func (bs *BillingService) AddChild(ctx context.Context, parentAccount, childAccount *billing.AccountInfo, childDetails *billing.CustomerDetails) error {
+	bs.CreateCustomer(ctx, childDetails, childAccount, nil)
 	childAccount.ParentId = parentAccount.AccountId
 	return nil
 }
 
-func (bs *BillingService) RemoveChild(parent, child *billing.AccountInfo) error {
+func (bs *BillingService) RemoveChild(ctx context.Context, parent, child *billing.AccountInfo) error {
 	return nil
 }
 
-func (bs *BillingService) RecordUsage(account *billing.AccountInfo, usageRecords []billing.UsageRecord) error {
+func (bs *BillingService) RecordUsage(ctx context.Context, account *billing.AccountInfo, usageRecords []billing.UsageRecord) error {
 	return nil
 }

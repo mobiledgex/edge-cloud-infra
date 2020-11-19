@@ -147,7 +147,7 @@ func createBillingAccount(ctx context.Context, info *ormapi.CreateBillingOrganiz
 		Type:      info.Type,
 	}
 	var err error
-	err = serverConfig.BillingService.CreateCustomer(&billTo, &accountInfo, &info.Payment)
+	err = serverConfig.BillingService.CreateCustomer(ctx, &billTo, &accountInfo, &info.Payment)
 
 	if err != nil {
 		return err
@@ -599,12 +599,12 @@ func deleteBillingAccount(ctx context.Context, orgName, deleteType string) error
 		return dbErr(err)
 	}
 	if deleteType == deleteTypeSelf {
-		err = serverConfig.BillingService.DeleteCustomer(info)
+		err = serverConfig.BillingService.DeleteCustomer(ctx, info)
 		if err != nil {
 			return err
 		}
 	} else if deleteType == deleteTypeChild {
-		err = serverConfig.BillingService.DeleteCustomer(info)
+		err = serverConfig.BillingService.DeleteCustomer(ctx, info)
 		if err != nil {
 			return err
 		}
@@ -738,7 +738,7 @@ func linkChildAccount(ctx context.Context, parent *ormapi.BillingOrganization, c
 		Zip:       parent.PostalCode,
 		Phone:     parent.Phone,
 	}
-	err = serverConfig.BillingService.AddChild(parentAcc, &childAccountInfo, &billTo)
+	err = serverConfig.BillingService.AddChild(ctx, parentAcc, &childAccountInfo, &billTo)
 	if err != nil {
 		return err
 	}
@@ -781,5 +781,5 @@ func updateBillingInfo(ctx context.Context, info *ormapi.BillingOrganization) er
 		Phone:     info.Phone,
 	}
 	// update it
-	return serverConfig.BillingService.UpdateCustomer(acc, &billTo)
+	return serverConfig.BillingService.UpdateCustomer(ctx, acc, &billTo)
 }

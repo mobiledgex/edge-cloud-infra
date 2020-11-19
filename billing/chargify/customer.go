@@ -1,20 +1,21 @@
 package chargify
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"net/http"
 	"net/url"
 	"strconv"
-	"strings"
 	"time"
 
 	"github.com/mobiledgex/edge-cloud-infra/billing"
+	"github.com/mobiledgex/edge-cloud/log"
 )
 
 var customerEndpoint = "/customers"
 
-func (bs *BillingService) CreateCustomer(customer *billing.CustomerDetails, account *billing.AccountInfo, payment *billing.PaymentMethod) error {
+func (bs *BillingService) CreateCustomer(ctx context.Context, customer *billing.CustomerDetails, account *billing.AccountInfo, payment *billing.PaymentMethod) error {
 	newCustomer := Customer{
 		FirstName:    customer.FirstName,
 		LastName:     customer.LastName,
@@ -51,13 +52,7 @@ func (bs *BillingService) CreateCustomer(customer *billing.CustomerDetails, acco
 	}
 	defer resp.Body.Close()
 	if resp.StatusCode != http.StatusCreated {
-		errorResp := ErrorResp{}
-		err = json.NewDecoder(resp.Body).Decode(&errorResp)
-		if err != nil {
-			return fmt.Errorf("Error parsing response: %v\n", err)
-		}
-		combineErrors(&errorResp)
-		return fmt.Errorf("Errors: %s", strings.Join(errorResp.Errors, ","))
+		return getReqErr(resp.Body)
 	}
 	custResp := CustomerWrapper{}
 	err = json.NewDecoder(resp.Body).Decode(&custResp)
@@ -70,20 +65,17 @@ func (bs *BillingService) CreateCustomer(customer *billing.CustomerDetails, acco
 		paymentProfileId, err = addPayment(custResp.Customer.Id, payment)
 		if err != nil {
 			endpoint := "/customers" + strconv.Itoa(custResp.Customer.Id) + ".json"
-			resp, deleteErr := newChargifyReq("DELETE", endpoint, nil)
-			if deleteErr != nil {
-				return fmt.Errorf("Error creating payment profile: %v, error deleting customer account: %v", err, deleteErr)
+			resp, undoErr := newChargifyReq("DELETE", endpoint, nil)
+			if undoErr != nil {
+				log.SpanLog(ctx, log.DebugLevelInfo, "Error undoing account creation", "err", err, "undoErr", undoErr)
+				return fmt.Errorf("Error creating payment profile: %v", err)
 			}
 			if resp.StatusCode == http.StatusNoContent {
 				return fmt.Errorf("Error creating payment profile: %v", err)
 			}
-			errorResp := ErrorResp{}
-			decodeErr := json.NewDecoder(resp.Body).Decode(&errorResp)
-			if err != nil {
-				return fmt.Errorf("Error parsing response: %v\n", decodeErr)
-			}
-			combineErrors(&errorResp)
-			return fmt.Errorf("Error creating payment profile: %v, error deleting customer account: %s", err, strings.Join(errorResp.Errors, ","))
+			undoErr = getReqErr(resp.Body)
+			log.SpanLog(ctx, log.DebugLevelInfo, "Error undoing account creation", "err", err, "undoErr", undoErr)
+			return fmt.Errorf("Error creating payment profile: %v", err)
 		}
 	} else if payment.PaymentProfile != 0 {
 		paymentProfileId = payment.PaymentProfile
@@ -116,13 +108,7 @@ func (bs *BillingService) CreateCustomer(customer *billing.CustomerDetails, acco
 		}
 		defer resp.Body.Close()
 		if resp.StatusCode != http.StatusCreated {
-			errorResp := ErrorResp{}
-			err = json.NewDecoder(resp.Body).Decode(&errorResp)
-			if err != nil {
-				return fmt.Errorf("Error parsing response: %v\n", err)
-			}
-			combineErrors(&errorResp)
-			return fmt.Errorf("Errors: %s", strings.Join(errorResp.Errors, ","))
+			return getReqErr(resp.Body)
 		}
 		subResp := SubscriptionWrapper{}
 		err = json.NewDecoder(resp.Body).Decode(&subResp)
@@ -146,7 +132,7 @@ func addFreeTrial(sub *Subscription) {
 
 // this doesnt actually delete the customer, what it does is cancels the subscription associated with the customer
 // if we delete the customer, we also have to delete the subscription first which would result in losing the transaction history of that sub
-func (bs *BillingService) DeleteCustomer(customer *billing.AccountInfo) error {
+func (bs *BillingService) DeleteCustomer(ctx context.Context, customer *billing.AccountInfo) error {
 	switch customer.Type {
 	case billing.CUSTOMER_TYPE_SELF:
 		endpoint := "/subscriptions/" + customer.SubscriptionId + "/delayed_cancel.json"
@@ -159,13 +145,7 @@ func (bs *BillingService) DeleteCustomer(customer *billing.AccountInfo) error {
 			return nil
 		}
 		defer resp.Body.Close()
-		errorResp := ErrorResp{}
-		err = json.NewDecoder(resp.Body).Decode(&errorResp)
-		if err != nil {
-			return fmt.Errorf("Error parsing response: %v\n", err)
-		}
-		combineErrors(&errorResp)
-		return fmt.Errorf("Errors: %s", strings.Join(errorResp.Errors, ","))
+		return getReqErr(resp.Body)
 
 	case billing.CUSTOMER_TYPE_PARENT:
 		endpoint := "/subscription_groups/" + customer.SubscriptionId + "/cancel.json"
@@ -177,13 +157,7 @@ func (bs *BillingService) DeleteCustomer(customer *billing.AccountInfo) error {
 			return nil
 		}
 		defer resp.Body.Close()
-		errorResp := ErrorResp{}
-		err = json.NewDecoder(resp.Body).Decode(&errorResp)
-		if err != nil {
-			return fmt.Errorf("Error parsing response: %v\n", err)
-		}
-		combineErrors(&errorResp)
-		return fmt.Errorf("Errors: %s", strings.Join(errorResp.Errors, ","))
+		return getReqErr(resp.Body)
 
 	case billing.CUSTOMER_TYPE_CHILD:
 		// for some reason individual subscriptions in groups can only be put on hold, so just do that
@@ -196,18 +170,12 @@ func (bs *BillingService) DeleteCustomer(customer *billing.AccountInfo) error {
 			return nil
 		}
 		defer resp.Body.Close()
-		errorResp := ErrorResp{}
-		err = json.NewDecoder(resp.Body).Decode(&errorResp)
-		if err != nil {
-			return fmt.Errorf("Error parsing response: %v\n", err)
-		}
-		combineErrors(&errorResp)
-		return fmt.Errorf("Errors: %s", strings.Join(errorResp.Errors, ","))
+		return getReqErr(resp.Body)
 	}
 	return nil
 }
 
-func (bs *BillingService) UpdateCustomer(account *billing.AccountInfo, customerDetails *billing.CustomerDetails) error {
+func (bs *BillingService) UpdateCustomer(ctx context.Context, account *billing.AccountInfo, customerDetails *billing.CustomerDetails) error {
 	update := Customer{ // any fields that actually contain a value will be the ones that are updated
 		FirstName: customerDetails.FirstName,
 		LastName:  customerDetails.LastName,
@@ -228,24 +196,18 @@ func (bs *BillingService) UpdateCustomer(account *billing.AccountInfo, customerD
 	}
 	if resp.StatusCode != http.StatusOK {
 		defer resp.Body.Close()
-		errorResp := ErrorResp{}
-		err = json.NewDecoder(resp.Body).Decode(&errorResp)
-		if err != nil {
-			return fmt.Errorf("Error parsing response: %v\n", err)
-		}
-		combineErrors(&errorResp)
-		return fmt.Errorf("Errors: %s", strings.Join(errorResp.Errors, ","))
+		return getReqErr(resp.Body)
 	}
 
 	return nil
 }
 
-func (bs *BillingService) AddChild(parentAccount, childAccount *billing.AccountInfo, childDetails *billing.CustomerDetails) error {
+func (bs *BillingService) AddChild(ctx context.Context, parentAccount, childAccount *billing.AccountInfo, childDetails *billing.CustomerDetails) error {
 	// dont modify the existing struct
 	childCopy := *childDetails
 	childCopy.ParentId = parentAccount.AccountId
 	childCopy.Type = billing.CUSTOMER_TYPE_CHILD
-	err := bs.CreateCustomer(&childCopy, childAccount, &billing.PaymentMethod{PaymentProfile: parentAccount.DefaultPaymentProfile})
+	err := bs.CreateCustomer(ctx, &childCopy, childAccount, &billing.PaymentMethod{PaymentProfile: parentAccount.DefaultPaymentProfile})
 	if err != nil {
 		return err
 	}
@@ -265,13 +227,7 @@ func (bs *BillingService) AddChild(parentAccount, childAccount *billing.AccountI
 		}
 		defer resp.Body.Close()
 		if resp.StatusCode != http.StatusOK {
-			errorResp := ErrorResp{}
-			err = json.NewDecoder(resp.Body).Decode(&errorResp)
-			if err != nil {
-				return fmt.Errorf("Error parsing response: %v\n", err)
-			}
-			combineErrors(&errorResp)
-			return fmt.Errorf("Errors: %s", strings.Join(errorResp.Errors, ","))
+			return getReqErr(resp.Body)
 		}
 		group := SubscriptionGroup{}
 		err = json.NewDecoder(resp.Body).Decode(&group)
@@ -287,6 +243,6 @@ func (bs *BillingService) AddChild(parentAccount, childAccount *billing.AccountI
 	return nil
 }
 
-func (bs *BillingService) RemoveChild(parent, child *billing.AccountInfo) error {
-	return bs.DeleteCustomer(child)
+func (bs *BillingService) RemoveChild(ctx context.Context, parent, child *billing.AccountInfo) error {
+	return bs.DeleteCustomer(ctx, child)
 }

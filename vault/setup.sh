@@ -58,10 +58,6 @@ path "secret/data/accounts/chargify/*" {
 }
 EOF
 
-vault kv put secret/accounts/chargify/dev \
-    apikey=iZeTKWjZhKvXMZUgOwP4GiJvYWXmxgykUDnA5F2R4 \
-    url="https://mobiledgex-dev.chargify.com"
-
 vault policy write mcorm /tmp/mcorm-pol.hcl
 rm /tmp/mcorm-pol.hcl
 vault write auth/approle/role/mcorm period="720h" policies="mcorm"

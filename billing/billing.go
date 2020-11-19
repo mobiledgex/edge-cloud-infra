@@ -1,6 +1,7 @@
 package billing
 
 import (
+	"context"
 	"time"
 
 	"github.com/mobiledgex/edge-cloud/edgeproto"
@@ -73,19 +74,19 @@ type UsageRecord struct {
 
 type BillingService interface {
 	// Init is called once during startup
-	Init(vaultConfig *vault.Config, path string) error
+	Init(ctx context.Context, vaultConfig *vault.Config, path string) error
 	// The Billing service's type ie. "chargify" or "zuora"
 	GetType() string
 	// Create Customer, and fills out the accountInfo for that customer
-	CreateCustomer(customer *CustomerDetails, account *AccountInfo, payment *PaymentMethod) error
+	CreateCustomer(ctx context.Context, customer *CustomerDetails, account *AccountInfo, payment *PaymentMethod) error
 	// Delete Customer
-	DeleteCustomer(account *AccountInfo) error
+	DeleteCustomer(ctx context.Context, account *AccountInfo) error
 	// Update Customer
-	UpdateCustomer(account *AccountInfo, customerDetails *CustomerDetails) error
+	UpdateCustomer(ctx context.Context, account *AccountInfo, customerDetails *CustomerDetails) error
 	// Add a child to a parent
-	AddChild(parentAccount, childAccount *AccountInfo, childDetails *CustomerDetails) error
+	AddChild(ctx context.Context, parentAccount, childAccount *AccountInfo, childDetails *CustomerDetails) error
 	// Remove a child from a parent
-	RemoveChild(parent, child *AccountInfo) error
+	RemoveChild(ctx context.Context, parent, child *AccountInfo) error
 	// Records usage
-	RecordUsage(account *AccountInfo, usageRecords []UsageRecord) error
+	RecordUsage(ctx context.Context, account *AccountInfo, usageRecords []UsageRecord) error
 }

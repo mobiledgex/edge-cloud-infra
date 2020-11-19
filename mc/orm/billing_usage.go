@@ -169,7 +169,7 @@ func recordAppUsages(ctx context.Context, usage *ormapi.MetricData, cloudletPool
 			log.SpanLog(ctx, log.DebugLevelInfo, "Unable to get account info", "org", org, "err", err)
 			continue
 		} else {
-			err = serverConfig.BillingService.RecordUsage(accountInfo, record)
+			err = serverConfig.BillingService.RecordUsage(ctx, accountInfo, record)
 			if err != nil {
 				log.SpanLog(ctx, log.DebugLevelInfo, "Unable to record app usage", "err", err)
 			}
@@ -230,7 +230,7 @@ func recordClusterUsages(ctx context.Context, usage *ormapi.MetricData, cloudlet
 			log.SpanLog(ctx, log.DebugLevelInfo, "Unable to get account info", "org", org, "err", err)
 			continue
 		} else {
-			err = serverConfig.BillingService.RecordUsage(accountInfo, record)
+			err = serverConfig.BillingService.RecordUsage(ctx, accountInfo, record)
 			if err != nil {
 				log.SpanLog(ctx, log.DebugLevelInfo, "Unable to record cluster usage", "err", err)
 			}

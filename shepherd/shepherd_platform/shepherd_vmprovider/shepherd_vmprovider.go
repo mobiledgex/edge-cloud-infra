@@ -94,25 +94,7 @@ func (s *ShepherdPlatform) GetClusterIP(ctx context.Context, clusterInst *edgepr
 }
 
 func (s *ShepherdPlatform) GetClusterPlatformClient(ctx context.Context, clusterInst *edgeproto.ClusterInst, clientType string) (ssh.Client, error) {
-	// It's more or less the same as VMPlatform.GetClusterPlatformClient, but without using server cache
-	rootLBName := s.VMPlatform.VMProperties.SharedRootLBName
-	if clusterInst.IpAccess == edgeproto.IpAccess_IP_ACCESS_DEDICATED {
-		rootLBName = cloudcommon.GetDedicatedLBFQDN(s.VMPlatform.VMProperties.CommonPf.PlatformConfig.CloudletKey, &clusterInst.Key.ClusterKey, s.VMPlatform.VMProperties.CommonPf.PlatformConfig.AppDNSRoot)
-	}
-	client, err := s.VMPlatform.GetNodePlatformClient(ctx, &edgeproto.CloudletMgmtNode{Name: rootLBName}, pc.WithCachedIp(false))
-	if err != nil {
-		return nil, err
-	}
-	if clientType == cloudcommon.ClientTypeClusterVM {
-		vmIP, err := s.VMPlatform.GetIPFromServerName(ctx, s.VMPlatform.VMProperties.GetCloudletMexNetwork(), vmlayer.GetClusterSubnetName(ctx, clusterInst), vmlayer.GetClusterMasterName(ctx, clusterInst), pc.WithCachedIp(false))
-		if err != nil {
-			return nil, err
-		}
-		client, err = client.AddHop(vmIP.ExternalAddr, 22)
-		if err != nil {
-			return nil, err
-		}
-	}
+	client, err := s.VMPlatform.GetClusterPlatformClientInternal(ctx, clusterInst, clientType, pc.WithCachedIp(true))
 	err = client.StartPersistentConn(shepherd_common.ShepherdSshConnectTimeout)
 	if err != nil {
 		return nil, err

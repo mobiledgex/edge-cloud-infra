@@ -11,4 +11,4 @@ run_list 'recipe[runstatus_handler]', 'recipe[copy_resource_tracker]'
 
 # Specify a custom source for a single cookbook:
 cookbook 'runstatus_handler', '= 1.0.0'
-cookbook 'copy_resource_tracker', '= 1.0.0'
+cookbook 'copy_resource_tracker', '= 1.0.1'

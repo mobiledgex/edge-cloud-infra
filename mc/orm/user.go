@@ -1033,15 +1033,15 @@ func CreateUserApiKey(c echo.Context) error {
 			return c.JSON(http.StatusBadRequest, Msg("User has no permissions to set this role, valid roles user can set are "+validRoles))
 		}
 
-		apiKeyApiKeyId := uuid.New().String()
+		apiKeyId := uuid.New().String()
 		apiKey := uuid.New().String()
-		psub := rbac.GetCasbinGroup(userRole.Org, apiKeyApiKeyId)
+		psub := rbac.GetCasbinGroup(userRole.Org, apiKeyId)
 		err = enforcer.AddGroupingPolicy(ctx, psub, apiKeyObj.Role)
 		if err != nil {
 			return setReply(c, dbErr(err), nil)
 		}
 		apiKeyHash, apiKeySalt, apiKeyIter := NewPasshash(apiKey)
-		apiKeys[apiKeyApiKeyId] = ormapi.ApiKey{
+		apiKeys[apiKeyId] = ormapi.ApiKey{
 			ApiKeyOrg:  userRole.Org,
 			ApiKeyRole: apiKeyObj.Role,
 			ApiKeyHash: apiKeyHash,
@@ -1058,7 +1058,7 @@ func CreateUserApiKey(c echo.Context) error {
 			return setReply(c, dbErr(err), nil)
 		}
 		apiKeyOut := ormapi.UserApiKey{}
-		apiKeyOut.ApiKeyId = apiKeyApiKeyId
+		apiKeyOut.ApiKeyId = apiKeyId
 		apiKeyOut.ApiKey = apiKey
 		return c.JSON(http.StatusOK, &apiKeyOut)
 	}

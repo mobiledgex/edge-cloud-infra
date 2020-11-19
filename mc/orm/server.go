@@ -325,6 +325,8 @@ func RunServer(config *ServerConfig) (*Server, error) {
 	auth.POST("/user/update", UpdateUser)
 	auth.POST("/user/newpass", NewPassword)
 	auth.POST("/user/create/apikey", CreateUserApiKey)
+	auth.POST("/user/delete/apikey", DeleteUserApiKey)
+	auth.POST("/user/show/apikey", ShowUserApiKey)
 	auth.POST("/role/assignment/show", ShowRoleAssignment)
 	auth.POST("/role/perms/show", ShowRolePerms)
 	auth.POST("/role/show", ShowRole)

@@ -16,6 +16,7 @@ import (
 	"github.com/google/uuid"
 	"github.com/labstack/echo"
 	"github.com/mobiledgex/edge-cloud-infra/mc/ormapi"
+	"github.com/mobiledgex/edge-cloud-infra/mc/rbac"
 	"github.com/mobiledgex/edge-cloud/log"
 	"github.com/mobiledgex/edge-cloud/util"
 	"github.com/pquerna/otp"
@@ -25,6 +26,8 @@ import (
 
 var BadAuthDelay = 3 * time.Second
 var NoOTP = ""
+var NoTokenId = ""
+var NoApiKey = ""
 var OTPLen otp.Digits = otp.DigitsSix
 var OTPExpirationTime = uint(2 * 60) // seconds
 var OTPExpirationTimeStr = "2 minutes"
@@ -70,6 +73,13 @@ func Login(c echo.Context) error {
 	if login.Username == "" {
 		return c.JSON(http.StatusBadRequest, Msg("Username not specified"))
 	}
+
+	if login.Password != "" && login.ApiKey != "" && login.TokenId != "" {
+		return c.JSON(http.StatusBadRequest, Msg("Please specify either password or apikey/tokenid"))
+	}
+	if login.ApiKey != "" && login.TokenId != "" {
+		return c.JSON(http.StatusBadRequest, Msg("Missing apikey or tokenid"))
+	}
 	user := ormapi.User{}
 	lookup := ormapi.User{Name: login.Username}
 	db := loggedDB(ctx)
@@ -90,13 +100,35 @@ func Login(c echo.Context) error {
 	span.SetTag("username", user.Name)
 	span.SetTag("email", user.Email)
 
-	matches, err := PasswordMatches(login.Password, user.Passhash, user.Salt, user.Iter)
-	if err != nil {
-		log.SpanLog(ctx, log.DebugLevelApi, "password matches err", "err", err)
-	}
-	if !matches || err != nil {
-		time.Sleep(BadAuthDelay)
-		return c.JSON(http.StatusBadRequest, Msg("Invalid username or password"))
+	if login.ApiKey == "" {
+		matches, err := PasswordMatches(login.Password, user.Passhash, user.Salt, user.Iter)
+		if err != nil {
+			log.SpanLog(ctx, log.DebugLevelApi, "password matches err", "err", err)
+		}
+		if !matches || err != nil {
+			time.Sleep(BadAuthDelay)
+			return c.JSON(http.StatusBadRequest, Msg("Invalid username or password"))
+		}
+	} else {
+		// Validate apiKey
+		apiKeys, err := UnmarshalApiKeys(user.ApiKeys)
+		if err != nil {
+			return err
+		}
+		apiKey, ok := apiKeys[login.TokenId]
+		if !ok {
+			time.Sleep(BadAuthDelay)
+			return c.JSON(http.StatusBadRequest, Msg("Invalid token id"))
+		}
+		matches, err := PasswordMatches(login.ApiKey, apiKey.ApiKeyHash, apiKey.ApiKeySalt, apiKey.ApiKeyIter)
+		if err != nil {
+			log.SpanLog(ctx, log.DebugLevelApi, "api key matches err", "err", err)
+		}
+		if !matches || err != nil {
+			time.Sleep(BadAuthDelay)
+			return c.JSON(http.StatusBadRequest, Msg("Invalid username or apikey"))
+		}
+
 	}
 	if user.Locked {
 		return c.JSON(http.StatusBadRequest, Msg("Account is locked, please contact MobiledgeX support"))
@@ -105,7 +137,7 @@ func Login(c echo.Context) error {
 		return c.JSON(http.StatusBadRequest, Msg("Email not verified yet"))
 	}
 
-	if user.PassCrackTimeSec == 0 {
+	if login.Password != "" && user.PassCrackTimeSec == 0 {
 		calcPasswordStrength(ctx, &user, login.Password)
 		isAdmin, err := isUserAdmin(ctx, user.Name)
 		if err != nil {
@@ -128,7 +160,7 @@ func Login(c echo.Context) error {
 		}
 	}
 
-	if user.TOTPSharedKey != "" {
+	if login.Password != "" && user.TOTPSharedKey != "" {
 		if login.TOTP == "" {
 			// Send OTP over email
 			otp, err := totp.GenerateCode(user.TOTPSharedKey, time.Now().UTC())
@@ -891,6 +923,25 @@ func UpdateUser(c echo.Context) error {
 	return c.JSON(http.StatusOK, &userResponse)
 }
 
+func MarshalApiKeys(apiKeys map[string]ormapi.ApiKey) ([]byte, error) {
+	out, err := json.Marshal(apiKeys)
+	if err != nil {
+		return nil, fmt.Errorf("Failed to marshal api keys: %v", err)
+	}
+	return out, err
+}
+
+func UnmarshalApiKeys(data []byte) (map[string]ormapi.ApiKey, error) {
+	apiKeys := make(map[string]ormapi.ApiKey)
+	if len(data) == 0 {
+		return apiKeys, nil
+	}
+	if err := json.Unmarshal(data, &apiKeys); err != nil {
+		return nil, fmt.Errorf("Failed to decode api keys: %v", err)
+	}
+	return apiKeys, nil
+}
+
 func CreateUserApiKey(c echo.Context) error {
 	ctx := GetContext(c)
 	db := loggedDB(ctx)
@@ -901,6 +952,16 @@ func CreateUserApiKey(c echo.Context) error {
 	apiKeyObj := ormapi.UserApiKey{}
 	if err := c.Bind(&apiKeyObj); err != nil {
 		return bindErr(c, err)
+	}
+	user := ormapi.User{Name: claims.Username}
+	err = db.Where(&user).First(&user).Error
+	if err != nil {
+		return setReply(c, dbErr(err), nil)
+	}
+	// fetch existing apikeys
+	apiKeys, err := UnmarshalApiKeys(user.ApiKeys)
+	if err != nil {
+		return err
 	}
 	groupings, err := enforcer.GetGroupingPolicy()
 	if err != nil {
@@ -965,12 +1026,119 @@ func CreateUserApiKey(c echo.Context) error {
 				return c.JSON(http.StatusBadRequest, Msg("User has no permissions to set this role, valid roles user can set are "+validRoles))
 			}
 			fallthrough
+		case OrgTypeAdmin:
+			apiKeyTokenId := uuid.New().String()
+			apiKey := uuid.New().String()
+			psub := rbac.GetCasbinGroup(userRole.Org, apiKeyTokenId)
+			err = enforcer.AddGroupingPolicy(ctx, psub, apiKeyObj.Role)
+			if err != nil {
+				return setReply(c, dbErr(err), nil)
+			}
+			apiKeyHash, apiKeySalt, apiKeyIter := NewPasshash(apiKey)
+			apiKeys[apiKeyTokenId] = ormapi.ApiKey{
+				ApiKeyOrg:  userRole.Org,
+				ApiKeyRole: apiKeyObj.Role,
+				ApiKeyHash: apiKeyHash,
+				ApiKeySalt: apiKeySalt,
+				ApiKeyIter: apiKeyIter,
+				ApiKeyDesc: apiKeyObj.Description,
+			}
+			out, err := MarshalApiKeys(apiKeys)
+			if err != nil {
+				return err
+			}
+			user.ApiKeys = out
+			if err := db.Model(&user).Updates(&user).Error; err != nil {
+				return setReply(c, dbErr(err), nil)
+			}
+			apiKeyOut := ormapi.UserApiKey{}
+			apiKeyOut.TokenId = apiKeyTokenId
+			apiKeyOut.ApiKey = apiKey
+			return c.JSON(http.StatusOK, &apiKeyOut)
 		default:
-			// admin
-			// TODO: Generate username TOKEN
-			// TODO: Generate apikey TOKEN
-			// TODO: Create rbac rule for usernameTOKEN/org + apiKeyRole
+			return c.JSON(http.StatusBadRequest, Msg("Invalid org type"))
 		}
 	}
 	return nil
+}
+
+func DeleteUserApiKey(c echo.Context) error {
+	ctx := GetContext(c)
+	db := loggedDB(ctx)
+	claims, err := getClaims(c)
+	if err != nil {
+		return err
+	}
+	apiKeyObj := ormapi.UserApiKey{}
+	if err := c.Bind(&apiKeyObj); err != nil {
+		return bindErr(c, err)
+	}
+	user := ormapi.User{Name: claims.Username}
+	err = db.Where(&user).First(&user).Error
+	if err != nil {
+		return setReply(c, dbErr(err), nil)
+	}
+	// fetch existing apikeys
+	apiKeys, err := UnmarshalApiKeys(user.ApiKeys)
+	if err != nil {
+		return err
+	}
+	userApiKey, ok := apiKeys[apiKeyObj.TokenId]
+	if !ok {
+		return c.JSON(http.StatusBadRequest, Msg(fmt.Sprintf("API Key with token ID %s doesn't exists", apiKeyObj.TokenId)))
+	}
+
+	psub := rbac.GetCasbinGroup(userApiKey.ApiKeyOrg, apiKeyObj.TokenId)
+	found, err := enforcer.HasGroupingPolicy(psub, userApiKey.ApiKeyRole)
+	if err != nil {
+		return dbErr(err)
+	}
+	if !found {
+		return c.JSON(http.StatusBadRequest, Msg("Missing grouping policy"))
+	}
+	err = enforcer.RemoveGroupingPolicy(ctx, psub, userApiKey.ApiKeyRole)
+	if err != nil {
+		return dbErr(err)
+	}
+
+	delete(apiKeys, apiKeyObj.TokenId)
+	out, err := MarshalApiKeys(apiKeys)
+	if err != nil {
+		return err
+	}
+	user.ApiKeys = out
+	if err := db.Model(&user).Updates(&user).Error; err != nil {
+		return setReply(c, dbErr(err), nil)
+	}
+
+	return c.JSON(http.StatusOK, Msg("deleted API Key successfully"))
+}
+
+func ShowUserApiKey(c echo.Context) error {
+	ctx := GetContext(c)
+	db := loggedDB(ctx)
+	claims, err := getClaims(c)
+	if err != nil {
+		return err
+	}
+	user := ormapi.User{Name: claims.Username}
+	err = db.Where(&user).First(&user).Error
+	if err != nil {
+		return setReply(c, dbErr(err), nil)
+	}
+	// fetch apikeys
+	userApiKeys := []ormapi.UserApiKey{}
+	apiKeys, err := UnmarshalApiKeys(user.ApiKeys)
+	if err != nil {
+		return err
+	}
+	for tokenId, keyObj := range apiKeys {
+		userApiKeys = append(userApiKeys, ormapi.UserApiKey{
+			TokenId:     tokenId,
+			Description: keyObj.ApiKeyDesc,
+			Org:         keyObj.ApiKeyOrg,
+			Role:        keyObj.ApiKeyRole,
+		})
+	}
+	return c.JSON(http.StatusOK, &userApiKeys)
 }

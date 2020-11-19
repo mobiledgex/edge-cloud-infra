@@ -43,12 +43,25 @@ type User struct {
 	EnableTOTP bool
 	// read only: true
 	TOTPSharedKey string
+	// read only: true
+	ApiKeys []byte
 }
 
 type UserApiKey struct {
 	Org         string
 	Role        string
 	Description string
+	TokenId     string
+	ApiKey      string
+}
+
+type ApiKey struct {
+	ApiKeyOrg  string
+	ApiKeyRole string
+	ApiKeyHash string
+	ApiKeySalt string
+	ApiKeyIter int
+	ApiKeyDesc string
 }
 
 type UserResponse struct {
@@ -173,6 +186,10 @@ type UserLogin struct {
 	Password string `form:"password" json:"password"`
 	// read only: true
 	TOTP string `form:"totp" json:"totp"`
+	// read only: true
+	TokenId string `form:"tokenid" json:"tokenkey"`
+	// read only: true
+	ApiKey string `form:"apikey" json:"apikey"`
 }
 
 type NewPassword struct {

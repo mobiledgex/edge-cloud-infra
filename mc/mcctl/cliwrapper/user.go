@@ -7,10 +7,16 @@ import (
 	"github.com/mobiledgex/edge-cloud-infra/mc/ormapi"
 )
 
-func (s *Client) DoLogin(uri, user, pass, otp string) (string, error) {
+func (s *Client) DoLogin(uri, user, pass, otp, tokenid, apikey string) (string, error) {
 	args := []string{"login", "username=" + user, "password=" + pass}
 	if otp != "" {
 		args = append(args, "totp="+otp)
+	}
+	if tokenid != "" {
+		args = append(args, "tokenid="+tokenid)
+	}
+	if apikey != "" {
+		args = append(args, "apikey="+apikey)
 	}
 	out, err := s.run(uri, "", args)
 	if err != nil {

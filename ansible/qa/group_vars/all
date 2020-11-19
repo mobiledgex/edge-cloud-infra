@@ -12,6 +12,7 @@ vault_github_teams:
   - name: edge-cloud-development-team
     policies:
       - ssh-ansible-user.sign.v1
+      - ssh-machine.sign.v1
       - ssh-user.sign.v1
 
 vault_github_users:

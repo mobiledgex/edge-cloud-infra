@@ -16,20 +16,7 @@ import (
 var customerEndpoint = "/customers"
 
 func (bs *BillingService) CreateCustomer(ctx context.Context, customer *billing.CustomerDetails, account *billing.AccountInfo, payment *billing.PaymentMethod) error {
-	newCustomer := Customer{
-		FirstName:    customer.FirstName,
-		LastName:     customer.LastName,
-		Organization: customer.OrgName,
-		Email:        customer.Email,
-		CcEmails:     customer.CcEmails,
-		Address:      customer.Address1,
-		Address2:     customer.Address2,
-		City:         customer.City,
-		State:        customer.State,
-		Zip:          customer.Zip,
-		Country:      customer.Country,
-		Phone:        customer.Phone,
-	}
+	newCustomer := billingToChargifyCustomer(customer)
 	newPaymentSpecified := false
 	if payment != nil && payment.PaymentType != "" {
 		newPaymentSpecified = true
@@ -37,9 +24,8 @@ func (bs *BillingService) CreateCustomer(ctx context.Context, customer *billing.
 
 	if customer.Type == billing.CUSTOMER_TYPE_CHILD {
 		parentId, err := strconv.Atoi(customer.ParentId)
-		fmt.Printf("creating child under: %d", parentId)
 		if err != nil {
-			return fmt.Errorf("Unable to parse parentId: %v", err)
+			return fmt.Errorf("Unable to parse parentId: %s, err: %v", customer.ParentId, err)
 		}
 		newCustomer.ParentId = parentId
 	} else if customer.Type == billing.CUSTOMER_TYPE_PARENT && !newPaymentSpecified {
@@ -136,7 +122,6 @@ func (bs *BillingService) DeleteCustomer(ctx context.Context, customer *billing.
 	switch customer.Type {
 	case billing.CUSTOMER_TYPE_SELF:
 		endpoint := "/subscriptions/" + customer.SubscriptionId + "/delayed_cancel.json"
-		fmt.Printf("endpoint: %s\n", endpoint)
 		resp, err := newChargifyReq("POST", endpoint, nil)
 		if err != nil {
 			return err
@@ -176,19 +161,7 @@ func (bs *BillingService) DeleteCustomer(ctx context.Context, customer *billing.
 }
 
 func (bs *BillingService) UpdateCustomer(ctx context.Context, account *billing.AccountInfo, customerDetails *billing.CustomerDetails) error {
-	update := Customer{ // any fields that actually contain a value will be the ones that are updated
-		FirstName: customerDetails.FirstName,
-		LastName:  customerDetails.LastName,
-		Email:     customerDetails.Email,
-		CcEmails:  customerDetails.CcEmails,
-		Address:   customerDetails.Address1,
-		Address2:  customerDetails.Address2,
-		City:      customerDetails.City,
-		State:     customerDetails.State,
-		Zip:       customerDetails.Zip,
-		Country:   customerDetails.Country,
-		Phone:     customerDetails.Phone,
-	}
+	update := billingToChargifyCustomer(customerDetails) // any fields that actually contain a value will be the ones that are updated
 	endpoint := "/customers/" + account.AccountId + ".json"
 	resp, err := newChargifyReq("POST", endpoint, CustomerWrapper{Customer: &update})
 	if err != nil {
@@ -245,4 +218,23 @@ func (bs *BillingService) AddChild(ctx context.Context, parentAccount, childAcco
 
 func (bs *BillingService) RemoveChild(ctx context.Context, parent, child *billing.AccountInfo) error {
 	return bs.DeleteCustomer(ctx, child)
+}
+
+// converts a customerDetails to a chargify specific struct of customer info
+func billingToChargifyCustomer(customer *billing.CustomerDetails) Customer {
+	chargifyCustomer := Customer{
+		FirstName:    customer.FirstName,
+		LastName:     customer.LastName,
+		Organization: customer.OrgName,
+		Email:        customer.Email,
+		CcEmails:     customer.CcEmails,
+		Address:      customer.Address1,
+		Address2:     customer.Address2,
+		City:         customer.City,
+		State:        customer.State,
+		Zip:          customer.Zip,
+		Country:      customer.Country,
+		Phone:        customer.Phone,
+	}
+	return chargifyCustomer
 }

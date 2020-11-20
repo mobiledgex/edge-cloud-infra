@@ -10,6 +10,7 @@ import (
 	proto "github.com/gogo/protobuf/proto"
 	"github.com/mobiledgex/edge-cloud-infra/mc/ormapi"
 	"github.com/mobiledgex/edge-cloud/cli"
+	_ "github.com/mobiledgex/edge-cloud/d-match-engine/dme-proto"
 	edgeproto "github.com/mobiledgex/edge-cloud/edgeproto"
 	_ "github.com/mobiledgex/edge-cloud/protogen"
 	math "math"
@@ -223,6 +224,10 @@ var AppAliasArgs = []string{
 	"autoprovpolicies=app.autoprovpolicies",
 	"templatedelimiter=app.templatedelimiter",
 	"skiphcports=app.skiphcports",
+	"createdat.seconds=app.createdat.seconds",
+	"createdat.nanos=app.createdat.nanos",
+	"updatedat.seconds=app.updatedat.seconds",
+	"updatedat.nanos=app.updatedat.nanos",
 }
 var AppComments = map[string]string{
 	"fields":                  "Fields are used for the Update API to specify which fields to apply",

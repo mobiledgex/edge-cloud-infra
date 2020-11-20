@@ -135,7 +135,7 @@ resources:
                 ssh_pwauth: False
                 timezone: UTC
                 runcmd:
-                 - systemctl restart systemd-resolved 
+                 - systemctl restart systemd-resolved
                  - echo MOBILEDGEX doing ifconfig
                  - ifconfig -a
             metadata:
@@ -195,7 +195,7 @@ resources:
                 ssh_pwauth: False
                 timezone: UTC
                 runcmd:
-                 - systemctl restart systemd-resolved 
+                 - systemctl restart systemd-resolved
                  - echo MOBILEDGEX doing ifconfig
                  - ifconfig -a
             metadata:
@@ -245,7 +245,7 @@ resources:
                 ssh_pwauth: False
                 timezone: UTC
                 runcmd:
-                 - systemctl restart systemd-resolved 
+                 - systemctl restart systemd-resolved
                  - echo MOBILEDGEX doing ifconfig
                  - ifconfig -a
             metadata:
@@ -295,7 +295,7 @@ resources:
                 ssh_pwauth: False
                 timezone: UTC
                 runcmd:
-                 - systemctl restart systemd-resolved 
+                 - systemctl restart systemd-resolved
                  - echo MOBILEDGEX doing ifconfig
                  - ifconfig -a
             metadata:

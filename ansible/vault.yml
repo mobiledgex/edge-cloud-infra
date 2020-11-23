@@ -75,12 +75,6 @@
       become: yes
       tags: setup
 
-    - name: Set up vault firewall rules
-      import_role:
-        name: gcp_firewall
-        tasks_from: vault
-      tags: setup
-
     - name: Set up vault
       import_role:
         name: vault

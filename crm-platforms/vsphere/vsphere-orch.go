@@ -211,24 +211,6 @@ func (v *VSpherePlatform) populateOrchestrationParams(ctx context.Context, vmgp 
 	// populate vm fields
 	for vmidx, vm := range vmgp.VMs {
 		vmHasExternalIp := false
-		// EDGECLOUD 3990: VM-based apps with LB need DHCP in their subnets
-		// For VM-based apps with LB on vSphere, cloud-init is mandatory as there is
-		// no DHCP server configured on the setup. End user must specify static IP in cloud-init config
-		if vm.Role == vmlayer.RoleVMApplication && vm.DeploymentManifest == "" {
-			isDHCPEnabled := false
-			for _, sn := range vmgp.Subnets {
-				if sn.DHCPEnabled == "yes" {
-					isDHCPEnabled = true
-					break
-				}
-			}
-			if isDHCPEnabled {
-				return fmt.Errorf("missing cloud-init config from app's deployment manifest, " +
-					"please specify static IP configuration as part of cloud-init config as the " +
-					"setup doesn't support DHCP server")
-			}
-
-		}
 		vmgp.VMs[vmidx].MetaData = vmlayer.GetVMMetaData(vm.Role, masterIP, vmsphereMetaDataFormatter)
 		userdata, err := vmlayer.GetVMUserData(vm.Name, vm.SharedVolume, vm.DeploymentManifest, vm.Command, &vm.CloudConfigParams, vmsphereUserDataFormatter)
 		if err != nil {

@@ -37,7 +37,7 @@ download_doxygen_doc() {
 
 download_doc external
 download_doc internal
-download_doc client --samples "{{ swagger_base_dir }}/code-samples"
+download_doc client --host "{{ dme_api_host }}" --samples "{{ swagger_base_dir }}/code-samples"
 download_doc mc --host "{{ console_vm_hostname }}"
 
 download_doxygen_doc edge-cloud-sdk-csharp

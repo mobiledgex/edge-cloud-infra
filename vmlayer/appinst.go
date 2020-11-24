@@ -42,7 +42,7 @@ func GetAppWhitelistRulesLabel(app *edgeproto.App) string {
 	return "appaccess-" + k8smgmt.NormalizeName(app.Key.Name)
 }
 
-func (v *VMPlatform) PerformOrchestrationForVMApp(ctx context.Context, app *edgeproto.App, appInst *edgeproto.AppInst, privacyPolicy *edgeproto.PrivacyPolicy, action ActionType, updateCallback edgeproto.CacheUpdateCallback) (*vmAppOrchValues, error) {
+func (v *VMPlatform) PerformOrchestrationForVMApp(ctx context.Context, app *edgeproto.App, appInst *edgeproto.AppInst, action ActionType, updateCallback edgeproto.CacheUpdateCallback) (*vmAppOrchValues, error) {
 	var orchVals vmAppOrchValues
 
 	imageName, err := cloudcommon.GetFileName(app.ImagePath)
@@ -108,7 +108,6 @@ func (v *VMPlatform) PerformOrchestrationForVMApp(ctx context.Context, app *edge
 	vms = append(vms, appVm)
 	updateCallback(edgeproto.UpdateTask, "Deploying App")
 	vmgp, err := v.OrchestrateVMsFromVMSpec(ctx, objName, vms, action, updateCallback, WithNewSubnet(orchVals.newSubnetName),
-		WithPrivacyPolicy(privacyPolicy),
 		WithAccessPorts(app.AccessPorts),
 		WithNewSecurityGroup(GetServerSecurityGroupName(orchVals.externalServerName)),
 	)
@@ -140,7 +139,7 @@ func seedDockerSecrets(ctx context.Context, client ssh.Client, clusterInst *edge
 	return nil
 }
 
-func (v *VMPlatform) CreateAppInst(ctx context.Context, clusterInst *edgeproto.ClusterInst, app *edgeproto.App, appInst *edgeproto.AppInst, appFlavor *edgeproto.Flavor, privacyPolicy *edgeproto.PrivacyPolicy, updateCallback edgeproto.CacheUpdateCallback) error {
+func (v *VMPlatform) CreateAppInst(ctx context.Context, clusterInst *edgeproto.ClusterInst, app *edgeproto.App, appInst *edgeproto.AppInst, appFlavor *edgeproto.Flavor, updateCallback edgeproto.CacheUpdateCallback) error {
 
 	var err error
 	switch deployment := app.Deployment; deployment {
@@ -241,7 +240,7 @@ func (v *VMPlatform) CreateAppInst(ctx context.Context, clusterInst *edgeproto.C
 		}
 	case cloudcommon.DeploymentTypeVM:
 		objName := cloudcommon.GetAppFQN(&app.Key)
-		orchVals, err := v.PerformOrchestrationForVMApp(ctx, app, appInst, privacyPolicy, ActionCreate, updateCallback)
+		orchVals, err := v.PerformOrchestrationForVMApp(ctx, app, appInst, ActionCreate, updateCallback)
 		if err != nil {
 			return err
 		}
@@ -251,7 +250,8 @@ func (v *VMPlatform) CreateAppInst(ctx context.Context, clusterInst *edgeproto.C
 		}
 		if app.AccessType == edgeproto.AccessType_ACCESS_TYPE_LOAD_BALANCER {
 			updateCallback(edgeproto.UpdateTask, "Setting Up Load Balancer")
-			err = v.SetupRootLB(ctx, orchVals.lbName, &clusterInst.Key.CloudletKey, privacyPolicy, updateCallback)
+			pp := edgeproto.PrivacyPolicy{}
+			err = v.SetupRootLB(ctx, orchVals.lbName, &clusterInst.Key.CloudletKey, &pp, updateCallback)
 			if err != nil {
 				return err
 			}

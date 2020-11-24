@@ -248,12 +248,6 @@ type VMGroupRequestSpec struct {
 
 type VMGroupReqOp func(vmp *VMGroupRequestSpec) error
 
-func WithPrivacyPolicy(pp *edgeproto.PrivacyPolicy) VMGroupReqOp {
-	return func(s *VMGroupRequestSpec) error {
-		s.PrivacyPolicy = pp
-		return nil
-	}
-}
 func WithAccessPorts(ap string) VMGroupReqOp {
 	return func(s *VMGroupRequestSpec) error {
 		s.AccessPorts = ap
@@ -361,12 +355,12 @@ type SecurityGroupOrchestrationParams struct {
 	Name             string
 	AccessPorts      []util.PortSpec
 	EgressRestricted bool
-	EgressRules      []edgeproto.OutboundSecurityRule
+	EgressRules      []edgeproto.SecurityRule
 }
 
 type SecgrpParamsOp func(vmp *SecurityGroupOrchestrationParams) error
 
-func secGrpWithEgressRules(rules []edgeproto.OutboundSecurityRule) SecgrpParamsOp {
+func secGrpWithEgressRules(rules []edgeproto.SecurityRule) SecgrpParamsOp {
 	return func(sp *SecurityGroupOrchestrationParams) error {
 		sp.EgressRules = rules
 		if len(rules) > 0 {
@@ -623,7 +617,7 @@ func (v *VMPlatform) getVMGroupOrchestrationParamsFromGroupSpec(ctx context.Cont
 		}
 	}
 
-	var egressRules []edgeproto.OutboundSecurityRule
+	var egressRules []edgeproto.SecurityRule
 	if spec.PrivacyPolicy != nil {
 		egressRules = spec.PrivacyPolicy.OutboundSecurityRules
 	}

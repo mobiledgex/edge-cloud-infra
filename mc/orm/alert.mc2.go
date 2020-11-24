@@ -486,6 +486,7 @@ func addControllerApis(method string, group *echo.Group) {
 	// UpdatedAt: 36
 	// UpdatedAtSeconds: 36.1
 	// UpdatedAtNanos: 36.2
+	// PrivacyPolicy: 37
 	// ```
 	// Security:
 	//   Bearer:
@@ -889,7 +890,6 @@ func addControllerApis(method string, group *echo.Group) {
 	// DefaultSharedVolumeSize: 27
 	// AutoProvPolicy: 28
 	// AccessType: 29
-	// DefaultPrivacyPolicy: 30
 	// DeletePrepare: 31
 	// AutoProvPolicies: 32
 	// TemplateDelimiter: 33
@@ -1001,7 +1001,6 @@ func addControllerApis(method string, group *echo.Group) {
 	// Reservable: 21
 	// ReservedBy: 22
 	// SharedVolumeSize: 23
-	// PrivacyPolicy: 24
 	// MasterNodeFlavor: 25
 	// SkipCrmCleanupOnFailure: 26
 	// OptRes: 27
@@ -1166,6 +1165,11 @@ func addControllerApis(method string, group *echo.Group) {
 	// OutboundSecurityRulesPortRangeMin: 3.2
 	// OutboundSecurityRulesPortRangeMax: 3.3
 	// OutboundSecurityRulesRemoteCidr: 3.4
+	// InboundSecurityRules: 4
+	// InboundSecurityRulesProtocol: 4.1
+	// InboundSecurityRulesPortRangeMin: 4.2
+	// InboundSecurityRulesPortRangeMax: 4.3
+	// InboundSecurityRulesRemoteCidr: 4.4
 	// ```
 	// Security:
 	//   Bearer:

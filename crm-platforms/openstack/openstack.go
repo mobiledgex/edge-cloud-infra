@@ -15,6 +15,7 @@ import (
 type OpenstackPlatform struct {
 	openRCVars   map[string]string
 	VMProperties *vmlayer.VMProperties
+	caches       *platform.Caches
 }
 
 func (o *OpenstackPlatform) SetVMProperties(vmProperties *vmlayer.VMProperties) {
@@ -31,7 +32,7 @@ func (o *OpenstackPlatform) InitProvider(ctx context.Context, caches *platform.C
 }
 
 func (o *OpenstackPlatform) InitData(ctx context.Context, caches *platform.Caches) {
-	// openstack doesn't need caches
+	o.caches = caches
 }
 
 func (o *OpenstackPlatform) GatherCloudletInfo(ctx context.Context, info *edgeproto.CloudletInfo) error {

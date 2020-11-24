@@ -8,6 +8,7 @@ import (
 	"sync"
 
 	"github.com/mobiledgex/edge-cloud-infra/vmlayer"
+	pfutils "github.com/mobiledgex/edge-cloud/cloud-resource-manager/platform/utils"
 	dme "github.com/mobiledgex/edge-cloud/d-match-engine/dme-proto"
 	"github.com/mobiledgex/edge-cloud/edgeproto"
 	"github.com/mobiledgex/edge-cloud/log"
@@ -241,6 +242,14 @@ func (o *OpenstackPlatform) PrepareCloudletSecurityGroup(ctx context.Context) er
 	grpName := o.VMProperties.GetCloudletSecurityGroupName()
 	log.SpanLog(ctx, log.DebugLevelInfra, "PrepareCloudletSecurityGroup", "grpName", grpName)
 
+	privPolName := o.VMProperties.CommonPf.PlatformConfig.PrivacyPolicy
+	if privPolName != "" {
+		_, err := pfutils.GetCloudletPrivacyPolicy(ctx, o.VMProperties.CommonPf.PlatformConfig, o.caches)
+		if err != nil {
+			return err
+		}
+
+	}
 	_, err := o.GetSecurityGroupIDForName(ctx, grpName)
 	if err != nil {
 		if !strings.Contains(err.Error(), SecgrpDoesNotExist) {

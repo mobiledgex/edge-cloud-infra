@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"github.com/mobiledgex/edge-cloud-infra/billing"
+	"github.com/mobiledgex/edge-cloud-infra/infracommon"
 	"github.com/mobiledgex/edge-cloud/log"
 )
 
@@ -38,7 +39,7 @@ func (bs *BillingService) CreateCustomer(ctx context.Context, customer *billing.
 	}
 	defer resp.Body.Close()
 	if resp.StatusCode != http.StatusCreated {
-		return getReqErr(resp.Body)
+		return infracommon.GetReqErr(resp.Body)
 	}
 	custResp := CustomerWrapper{}
 	err = json.NewDecoder(resp.Body).Decode(&custResp)
@@ -59,7 +60,7 @@ func (bs *BillingService) CreateCustomer(ctx context.Context, customer *billing.
 			if resp.StatusCode == http.StatusNoContent {
 				return fmt.Errorf("Error creating payment profile: %v", err)
 			}
-			undoErr = getReqErr(resp.Body)
+			undoErr = infracommon.GetReqErr(resp.Body)
 			log.SpanLog(ctx, log.DebugLevelInfo, "Error undoing account creation", "err", err, "undoErr", undoErr)
 			return fmt.Errorf("Error creating payment profile: %v", err)
 		}
@@ -94,7 +95,7 @@ func (bs *BillingService) CreateCustomer(ctx context.Context, customer *billing.
 		}
 		defer resp.Body.Close()
 		if resp.StatusCode != http.StatusCreated {
-			return getReqErr(resp.Body)
+			return infracommon.GetReqErr(resp.Body)
 		}
 		subResp := SubscriptionWrapper{}
 		err = json.NewDecoder(resp.Body).Decode(&subResp)
@@ -130,7 +131,7 @@ func (bs *BillingService) DeleteCustomer(ctx context.Context, customer *billing.
 			return nil
 		}
 		defer resp.Body.Close()
-		return getReqErr(resp.Body)
+		return infracommon.GetReqErr(resp.Body)
 
 	case billing.CUSTOMER_TYPE_PARENT:
 		endpoint := "/subscription_groups/" + customer.SubscriptionId + "/cancel.json"
@@ -142,7 +143,7 @@ func (bs *BillingService) DeleteCustomer(ctx context.Context, customer *billing.
 			return nil
 		}
 		defer resp.Body.Close()
-		return getReqErr(resp.Body)
+		return infracommon.GetReqErr(resp.Body)
 
 	case billing.CUSTOMER_TYPE_CHILD:
 		// for some reason individual subscriptions in groups can only be put on hold, so just do that
@@ -155,7 +156,7 @@ func (bs *BillingService) DeleteCustomer(ctx context.Context, customer *billing.
 			return nil
 		}
 		defer resp.Body.Close()
-		return getReqErr(resp.Body)
+		return infracommon.GetReqErr(resp.Body)
 	}
 	return nil
 }
@@ -169,7 +170,7 @@ func (bs *BillingService) UpdateCustomer(ctx context.Context, account *billing.A
 	}
 	if resp.StatusCode != http.StatusOK {
 		defer resp.Body.Close()
-		return getReqErr(resp.Body)
+		return infracommon.GetReqErr(resp.Body)
 	}
 
 	return nil
@@ -200,7 +201,7 @@ func (bs *BillingService) AddChild(ctx context.Context, parentAccount, childAcco
 		}
 		defer resp.Body.Close()
 		if resp.StatusCode != http.StatusOK {
-			return getReqErr(resp.Body)
+			return infracommon.GetReqErr(resp.Body)
 		}
 		group := SubscriptionGroup{}
 		err = json.NewDecoder(resp.Body).Decode(&group)

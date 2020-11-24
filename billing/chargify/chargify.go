@@ -6,7 +6,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"net/http"
 	"os"
 	"strings"
@@ -78,23 +77,4 @@ func newChargifyReq(method, endpoint string, payload interface{}) (*http.Respons
 
 	client := &http.Client{}
 	return client.Do(req)
-}
-
-func getReqErr(reqBody io.ReadCloser) error {
-	body, err := ioutil.ReadAll(reqBody)
-	if err != nil {
-		return err
-	}
-	errorResp := ErrorResp{}
-	err = json.Unmarshal(body, &errorResp)
-	if err != nil {
-		// string error
-		return fmt.Errorf("%s", body)
-	}
-	combineErrors(&errorResp)
-	return fmt.Errorf("Errors: %s", strings.Join(errorResp.Errors, ","))
-}
-
-func combineErrors(e *ErrorResp) {
-	e.Errors = append(e.Errors, e.Error)
 }

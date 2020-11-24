@@ -2,13 +2,12 @@ package chargify
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
 	"net/http"
-	"strings"
 	"time"
 
 	"github.com/mobiledgex/edge-cloud-infra/billing"
+	"github.com/mobiledgex/edge-cloud-infra/infracommon"
 	"github.com/mobiledgex/edge-cloud/edgeproto"
 )
 
@@ -38,13 +37,8 @@ func (bs *BillingService) RecordUsage(ctx context.Context, account *billing.Acco
 			return fmt.Errorf("Error sending request: %v\n", err)
 		}
 		if resp.StatusCode != http.StatusOK {
-			errorResp := ErrorResp{}
-			err = json.NewDecoder(resp.Body).Decode(&errorResp)
-			if err != nil || resp.StatusCode != http.StatusOK {
-				return fmt.Errorf("Error parsing response: %v\n", err)
-			}
-			combineErrors(&errorResp)
-			return fmt.Errorf("Errors: %s", strings.Join(errorResp.Errors, ","))
+			defer resp.Body.Close()
+			return infracommon.GetReqErr(resp.Body)
 		}
 	}
 	return nil

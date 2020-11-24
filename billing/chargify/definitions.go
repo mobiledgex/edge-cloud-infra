@@ -10,11 +10,6 @@ var paymentTypeCC = "credit_card"
 var paymentTypeBank = "bank_account"
 var paymentTypePP = "paypal_account"
 
-type ErrorResp struct {
-	Error  string   `json:"error,omitempty"`
-	Errors []string `json:"errors,omitempty"`
-}
-
 type CustomerWrapper struct {
 	Customer *Customer `json:"customer"`
 }

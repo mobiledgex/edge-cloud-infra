@@ -4,9 +4,9 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
-	"strings"
 
 	"github.com/mobiledgex/edge-cloud-infra/billing"
+	"github.com/mobiledgex/edge-cloud-infra/infracommon"
 )
 
 func addPayment(id int, payment *billing.PaymentMethod) (int, error) {
@@ -45,13 +45,7 @@ func addPayment(id int, payment *billing.PaymentMethod) (int, error) {
 			return payResp.PaymentProfile.Id, nil
 		}
 		defer resp.Body.Close()
-		errorResp := ErrorResp{}
-		err = json.NewDecoder(resp.Body).Decode(&errorResp)
-		if err != nil {
-			return 0, fmt.Errorf("Error parsing response: %v\n", err)
-		}
-		combineErrors(&errorResp)
-		return 0, fmt.Errorf("Errors: %s", strings.Join(errorResp.Errors, ","))
+		return 0, infracommon.GetReqErr(resp.Body)
 	default:
 		return 0, fmt.Errorf("unknown payment type: %s", payment.PaymentType)
 	}

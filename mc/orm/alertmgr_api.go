@@ -184,7 +184,7 @@ func ShowAlertReceiver(c echo.Context) error {
 
 	// Admin users can specify a user, or see all the receivers
 	adminUser, _ := isUserAdmin(ctx, claims.Username)
-	if filter.User == "" && !adminUser {
+	if !adminUser {
 		filter.User = claims.Username
 	}
 	receivers, err := AlertManagerServer.ShowReceivers(ctx, &filter)

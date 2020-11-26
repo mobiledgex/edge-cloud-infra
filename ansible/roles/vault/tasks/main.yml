@@ -59,75 +59,6 @@
   tags: setup
   when: vault_ha_instance_port < 1024
 
-- name: Create storage bucket
-  command: "gsutil mb gs://{{ storage_bucket_name }}"
-  changed_when: false
-  register: result
-  failed_when:
-    - result.rc != 0
-    - "'already exists' not in result.stderr"
-  delegate_to: localhost
-  tags: setup
-
-- set_fact:
-    storage_bucket_service_account_name: "{{ storage_bucket_name }}-user"
-    storage_bucket_service_account_email: "{{ storage_bucket_name }}-user@{{ project }}.iam.gserviceaccount.com"
-
-- name: Create service account
-  command: "gcloud iam service-accounts create {{ storage_bucket_service_account_name }} --display-name {{ storage_bucket_service_account_name }}"
-  changed_when: false
-  register: result
-  failed_when:
-    - result.rc != 0
-    - "'already exists within project' not in result.stderr"
-  delegate_to: localhost
-  tags: setup
-
-- name: Grant access to storage bucket
-  command: "gsutil iam ch serviceAccount:{{ storage_bucket_service_account_email }}:roles/storage.objectAdmin gs://{{ storage_bucket_name }}"
-  changed_when: false
-  delegate_to: localhost
-  tags: setup
-
-- block:
-
-    - stat:
-        path: "{{ storage_service_account_key }}"
-      become: yes
-      register: key
-
-    - name: Verify that service account key is present
-      assert:
-        that: key.stat.exists
-
-  rescue:
-
-    - name: Make sure key directory is present
-      file:
-        path: "{{ storage_service_account_key | dirname }}"
-        owner: "{{ vault_user }}"
-        group: "{{ vault_group }}"
-        state: directory
-        mode: 0700
-      become: yes
-
-    - tempfile:
-        suffix: .json
-      register: key_tempfile
-      notify: Delete key tempfile
-
-    - name: Get service account key
-      command: "gcloud iam service-accounts keys create {{ key_tempfile.path }} --iam-account {{ storage_bucket_service_account_email }}"
-      delegate_to: localhost
-
-    - name: Install service account key
-      copy:
-        src: "{{ key_tempfile.path }}"
-        dest: "{{ storage_service_account_key }}"
-      become: yes
-      notify: Reload vault
-  tags: setup
-
 - name: Install vault config file
   template:
     src: vault.hcl.j2
@@ -136,95 +67,13 @@
   become: yes
   notify: Reload vault
 
-- name: Create vault audit log
-  file:
-    path: "{{ vault_audit_log }}"
-    state: touch
-    owner: "{{ vault_user }}"
-    group: "{{ vault_group }}"
-    mode: 0600
-  changed_when: False
-  become: yes
+- import_role:
+    name: vault
+    tasks_from: setup-audit
 
-- name: Set up vault audit log rotation
-  template:
-    src: vault.logrotate.j2
-    dest: "{{ vault_logrotate_path }}"
-  become: yes
-
-- name: Set up vault plugin directory
-  file:
-    path: "{{ vault_plugin_directory }}"
-    state: directory
-    owner: root
-    group: root
-    mode: 0755
-  become: yes
-  tags: setup
-
-- name: Look up Artifactory token in vault
-  set_fact:
-    vault_lookup: "{{ lookup('vault', vault_artifactory_token_path) }}"
-
-- set_fact:
-    artifactory_token: "{{ vault_lookup.artifactory.data.token }}"
-
-- name: Download letsencrypt plugin
-  get_url:
-    url: "{{ vault_letsencrypt_plugin }}"
-    dest: "{{ vault_plugin_directory }}/letsencrypt-plugin"
-    checksum: "sha256:{{ vault_letsencrypt_plugin_sha256sum }}"
-    headers:
-      Authorization: "Bearer {{ artifactory_token }}"
-  register: vault_letsencrypt_plugin_download
-  become: yes
-  notify:
-    - Vault letencrypt plugin register prompt
-
-- name: Set letsencrypt plugin permissions
-  file:
-    path: "{{ vault_letsencrypt_plugin_download.dest }}"
-    owner: root
-    group: root
-    mode: 0555
-  become: yes
-
-- name: Grant IPC lock capability to letsencrypt plugin
-  capabilities:
-    path: "{{ vault_letsencrypt_plugin_download.dest }}"
-    capability: cap_ipc_lock+ep
-  become: yes
-
-- set_fact:
-    le_env: "{{ letsencrypt_env | default('staging') }}"
-  tags: certgen
-
-- name: Lookup up NS1 apikey in vault
-  set_fact:
-    vault_lookup: "{{ lookup('vault', vault_ns1_apikey_path) }}"
-  tags: certgen
-
-- set_fact:
-    ns1_apikey: "{{ vault_lookup.ns1.data.apikey }}"
-  tags: certgen
-
-- name: "Deploy certgen service ({{ le_env }})"
-  docker_container:
-    name: certgen
-    image: "{{ certgen_image }}:{{ certgen_image_version }}"
-    restart_policy: unless-stopped
-    ports:
-      - "127.0.0.1:{{ certgen_port }}:4567"
-    volumes:
-      - "{{ certgen_volume }}:/etc/letsencrypt"
-    env:
-      RAILS_ENV: production
-      RACK_ENV: production
-      LETSENCRYPT_ENV: "{{ le_env }}"
-      CF_USER: "{{ cloudflare_account_email }}"
-      CF_APIKEY: "{{ cloudflare_account_api_token }}"
-      NS1_APIKEY: "{{ ns1_apikey }}"
-  tags: certgen
+- import_role:
+    name: vault
+    tasks_from: setup-cert-plugin
 
 - name: Set default cert ACLs
   acl:

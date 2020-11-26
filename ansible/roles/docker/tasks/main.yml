@@ -61,6 +61,8 @@
   import_role:
     name: load-vault-creds
     tasks_from: mex_docker
+  when:
+    - mex_docker_username is not defined or mex_docker_password is not defined
 
 - name: Log in to Docker Registry
   docker_login:

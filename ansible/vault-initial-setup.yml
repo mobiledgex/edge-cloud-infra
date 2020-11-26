@@ -19,19 +19,11 @@
     - name: Install vault status monitor plugin
       copy:
         src: vault/vault-status-monitor.py
-        dest: "{{ vault_status_monitor_plugin }}"
+        dest: /usr/local/bin/vault-status-monitor.py
         owner: root
         group: root
         mode: 0555
       become: yes
-
-    - import_role:
-        name: telegraf
-      vars:
-        telegraf_additional_config:
-          - input/vault-statsd.conf.j2
-          - input/vault-status.conf.j2
-      tags: [ 'monitoring', 'setup' ]
 
     - import_role:
         name: web
@@ -45,17 +37,20 @@
               systemctl reload vault
       tags: setup
 
-    - name: Install google-auth
-      pip:
-        name: google-auth
-      become: yes
+    - include_role:
+        name: cert_access
+      vars:
+        cert_hostname: "{{ inventory_hostname }}"
+      loop:
+        - vault
+      loop_control:
+        loop_var: cert_user
       tags: setup
 
-    - name: Set up vault
-      import_role:
+    - import_role:
         name: vault
-      vars:
-        storage_bucket_name: "mex-vault-{{ deploy_environ }}"
-        project: "{{ gcp_project }}"
-        storage_service_account_key: "/etc/gcloud/{{ storage_bucket_name }}.json"
+        tasks_from: setup-audit
 
+    - import_role:
+        name: vault
+        tasks_from: setup-cert-plugin

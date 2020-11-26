@@ -1,0 +1,9 @@
+[all:vars]
+deploy_environ=vcd
+ubuntu_release=bionic
+
+[vault]
+vcd-setup.mobiledgex.net
+
+[platform]
+localhost	ansible_connection=local

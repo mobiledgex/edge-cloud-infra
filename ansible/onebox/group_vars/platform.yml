@@ -1,0 +1,7 @@
+regions:
+  - name: mexplat-vcd
+    location: uswest
+    region: US
+    latitude: 52.3667
+    longitude: 4.9
+    kubernetes_version: 1.14.8

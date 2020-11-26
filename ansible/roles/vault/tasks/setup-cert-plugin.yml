@@ -1,0 +1,79 @@
+- name: Set up vault plugin directory
+  file:
+    path: "{{ vault_plugin_directory }}"
+    state: directory
+    owner: root
+    group: root
+    mode: 0755
+  become: yes
+  tags: setup
+
+- block:
+  - name: Look up Artifactory token in vault
+    set_fact:
+      vault_lookup: "{{ lookup('vault', vault_artifactory_token_path) }}"
+
+  - set_fact:
+      artifactory_token: "{{ vault_lookup.artifactory.data.token }}"
+  when:
+    - artifactory_token is not defined
+
+- name: Download letsencrypt plugin
+  get_url:
+    url: "{{ vault_letsencrypt_plugin }}"
+    dest: "{{ vault_plugin_directory }}/letsencrypt-plugin"
+    checksum: "sha256:{{ vault_letsencrypt_plugin_sha256sum }}"
+    headers:
+      Authorization: "Bearer {{ artifactory_token }}"
+  register: vault_letsencrypt_plugin_download
+  become: yes
+  notify:
+    - Vault letencrypt plugin register prompt
+
+- name: Set letsencrypt plugin permissions
+  file:
+    path: "{{ vault_letsencrypt_plugin_download.dest }}"
+    owner: root
+    group: root
+    mode: 0555
+  become: yes
+
+- name: Grant IPC lock capability to letsencrypt plugin
+  capabilities:
+    path: "{{ vault_letsencrypt_plugin_download.dest }}"
+    capability: cap_ipc_lock+ep
+  become: yes
+
+- set_fact:
+    le_env: "{{ letsencrypt_env | default('staging') }}"
+  tags: certgen
+
+- block:
+  - name: Lookup up NS1 apikey in vault
+    set_fact:
+      vault_lookup: "{{ lookup('vault', vault_ns1_apikey_path) }}"
+    tags: certgen
+
+  - set_fact:
+      ns1_apikey: "{{ vault_lookup.ns1.data.apikey }}"
+    tags: certgen
+  when:
+    - ns1_apikey is not defined
+
+- name: "Deploy certgen service ({{ le_env }})"
+  docker_container:
+    name: certgen
+    image: "{{ certgen_image }}:{{ certgen_image_version }}"
+    restart_policy: unless-stopped
+    ports:
+      - "127.0.0.1:{{ certgen_port }}:4567"
+    volumes:
+      - "{{ certgen_volume }}:/etc/letsencrypt"
+    env:
+      RAILS_ENV: production
+      RACK_ENV: production
+      LETSENCRYPT_ENV: "{{ le_env }}"
+      CF_USER: "{{ cloudflare_account_email }}"
+      CF_APIKEY: "{{ cloudflare_account_api_token }}"
+      NS1_APIKEY: "{{ ns1_apikey }}"
+  tags: certgen

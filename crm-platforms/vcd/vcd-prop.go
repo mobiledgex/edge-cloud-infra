@@ -36,6 +36,11 @@ var VcdProps = map[string]*edgeproto.PropertyInfo{
 	"MEX_INTERNAL_NETWORK_MASK": {
 		Value: "24",
 	},
+	/*
+		"MEX_EXT_NETWORK": {
+			Mandatory: false,
+		},
+	*/
 	//	"MEX_EXTERNAL_VSWITCH": {
 	//		Value: "ExternalVSwitch",
 	//	},
@@ -88,32 +93,23 @@ func (v *VcdPlatform) GetVcdVars(ctx context.Context, key *edgeproto.CloudletKey
 	return nil
 }
 
-// start of fetching access  bits from vault
+// start fetching access  bits from vault
 func (v *VcdPlatform) InitApiAccessProperties(ctx context.Context, key *edgeproto.CloudletKey, region, physicalName string, vaultConfig *vault.Config, vars map[string]string) error {
 	fmt.Printf("InitApiAccessProperties-TBI\n")
 	return nil
 }
 
 func (v *VcdPlatform) SetProviderSpecificProps(ctx context.Context) error {
-	// What's our vcd Org name?
 	VcdProps["MEX_ORG"].Value = v.Objs.Org.Org.Name
 	VcdProps["MEX_EXTERNAL_NETWORK_MASK"].Value = v.Objs.PrimaryNet.OrgVDCNetwork.Configuration.IPScopes.IPScope[0].Netmask
 	VcdProps["MEX_CATALOG"].Value = v.Objs.PrimaryCat.Catalog.Name
 	VcdProps["MEX_EXTERNAL_NETWORK_EDGEGATEWAY"].Value = v.Objs.PrimaryNet.OrgVDCNetwork.Configuration.IPScopes.IPScope[0].Gateway
 	VcdProps["MEX_EXTERNAL_IP_RANGES"].Value = v.Objs.PrimaryNet.OrgVDCNetwork.Configuration.IPScopes.IPScope[0].IPRanges.IPRange[0].StartAddress + " - " + v.Objs.PrimaryNet.OrgVDCNetwork.Configuration.IPScopes.IPScope[0].IPRanges.IPRange[0].EndAddress
 
-	fmt.Printf("\nProviderSPecificProps:\n")
-	for name, value := range VcdProps {
-		fmt.Printf("\t%s : %s\n", name, value.Value)
-	}
 	return nil
 }
 
-// What are our specific properties?
 func (v *VcdPlatform) GetProviderSpecificProps(ctx context.Context, vconf *vault.Config) (map[string]*edgeproto.PropertyInfo, error) {
-
-	fmt.Printf("GetProviderProps returning %+v\n", VcdProps)
-
 	return VcdProps, nil
 }
 

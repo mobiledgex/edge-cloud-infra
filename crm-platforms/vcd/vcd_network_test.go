@@ -10,47 +10,130 @@ import (
 	"testing"
 )
 
+// -vdc
+func TestNextExtAddr(t *testing.T) {
+	live, ctx, err := InitVcdTestEnv()
+	require.Nil(t, err, "InitVcdTestEnv")
+
+	if live {
+		vdc, err := tv.GetVdc(ctx, *vdcName)
+		if err != nil {
+			fmt.Printf("Error getting vdc %s : %s\n", *vdcName, err.Error())
+			return
+		}
+		nextAddr, err := tv.GetNextExtAddrForVdcNet(ctx, vdc)
+		if err != nil {
+			fmt.Printf("Error getting next addr  : %s\n", err.Error())
+			return
+		}
+
+		fmt.Printf("Next ext-net Address: %s\n", nextAddr)
+	}
+}
+
+func TestNextIntAddr(t *testing.T) {
+	live, ctx, err := InitVcdTestEnv()
+	require.Nil(t, err, "InitVcdTestEnv")
+
+	if live {
+		cloud := &MexCloudlet{}
+		if tv.Objs.Cloudlet == nil {
+			fmt.Printf("Make Test Cloudlet\n")
+			//cmap := make(CidrMap)
+			tv.Objs.Cloudlet = cloud
+			cloud.Clusters = make(CidrMap)
+			cloud.Clusters["10.101.1.1"] = VMIPsMap{}
+		}
+		nextAddr, err := tv.GetNextInternalNet(ctx)
+		if err != nil {
+			fmt.Printf("Error getting next addr  : %s\n", err.Error())
+			return
+		}
+
+		fmt.Printf("Next ext-net Address: %s\n", nextAddr)
+		cloud.Clusters[nextAddr] = VMIPsMap{}
+		nextAddr, err = tv.GetNextInternalNet(ctx)
+		if err != nil {
+			fmt.Printf("Error getting next addr  : %s\n", err.Error())
+			return
+		}
+		fmt.Printf("Next ext-net Address: %s\n", nextAddr)
+		delete(cloud.Clusters, "10.101.2.1")
+		nextAddr, err = tv.GetNextInternalNet(ctx)
+		if err != nil {
+			fmt.Printf("Error getting next addr  : %s\n", err.Error())
+			return
+		}
+		require.Equal(t, nextAddr, "10.101.2.1")
+
+	}
+}
+
+// -vapp -net Return the current external net
+func TestGetVappAddr(t *testing.T) {
+	live, ctx, err := InitVcdTestEnv()
+	require.Nil(t, err, "InitVcdTestEnv")
+
+	if live {
+		vapp, err := tv.FindVApp(ctx, *vappName)
+		if err != nil {
+			fmt.Printf("Test error finding vapp %s\n", *vappName)
+			return
+		}
+
+		addr, err := tv.GetExtAddrOfVapp(ctx, vapp, *netName)
+		if err != nil {
+			fmt.Printf("Test error from GetExtAddrOfVapp  %s = %s \n", *vappName, err.Error())
+			return
+		}
+
+		fmt.Printf("Next ext-net Address: %s\n", addr)
+	}
+}
+
+func TestGetVMAddr(t *testing.T) {
+	live, ctx, err := InitVcdTestEnv()
+	require.Nil(t, err, "InitVcdTestEnv")
+
+	if live {
+		vm, err := tv.FindVM(ctx, *vmName)
+		if err != nil {
+			fmt.Printf("error finding vm %s\n", *vappName)
+			return
+		}
+
+		addr, err := tv.GetExtAddrOfVM(ctx, vm, *netName)
+		if err != nil {
+			fmt.Printf("Test error from GetExtAddrOfVM  %s = %s \n", *vmName, err.Error())
+			return
+		}
+
+		fmt.Printf("Next ext-net Address: %s\n", addr)
+	}
+}
+
 func TestNetAddrs(t *testing.T) {
 	live, ctx, err := InitVcdTestEnv()
 	require.Nil(t, err, "InitVcdTestEnv")
 
-	fmt.Printf("InitVcdTestEvn complete\n")
-
 	testaddr := "10.101.5.10"
-	N, err := tv.ThirdOctet(ctx, testaddr)
+	N, err := tv.Octet(ctx, testaddr, 2) // third octet)
 	require.Nil(t, err, "ThrirdOctet err")
 	require.Equal(t, 5, N, "ThirdOctet")
 
 	testaddr = "10.101.6.10/24"
-	N, err = tv.ThirdOctet(ctx, testaddr)
+	N, err = tv.Octet(ctx, testaddr, 2)
 	require.Nil(t, err, "ThrirdOctet err")
 	require.Equal(t, 6, N, "ThirdOctet")
 
 	if live {
-		// how many vdcs do we have?
-		// we should now have two
-
-		fmt.Printf("TestNetAddrs-I-we have %d vdcs\n", len(tv.Objs.Vdcs))
-		for name, _ := range tv.Objs.Vdcs {
-			fmt.Printf("\t %s\n", name)
-		}
-
-		fmt.Printf("looking for vdc %s\n", *vdcName)
-		// First, test case 1 no current entries
-		vdc, err := tv.FindVdc(ctx, *vdcName)
-		if err != nil {
-			fmt.Printf("Vdc %s not found\n", *vdcName)
-			return
-		}
-
-		fmt.Printf("Have vdc: %s\n", vdc.Vdc.Name)
-		numClouds := len(tv.Objs.Cloudlets)
+		vdc := tv.Objs.Vdc
 
 		// Expect our test begins with zero Cloudlets
-		if numClouds == 0 {
+		if tv.Objs.Cloudlet == nil {
 
-			fmt.Printf("non-nominal zero cloudlet test in vdc %s\n", *vdcName)
-			nextCidr, err := tv.GetNextInternalNet(ctx, nil)
+			fmt.Printf("non-nominal zero cloudlet test in vdc")
+			nextCidr, err := tv.GetNextInternalNet(ctx)
 			if err != nil {
 				fmt.Printf("GetNextInternalNet return err: %s\n", err.Error())
 				return
@@ -89,40 +172,26 @@ func TestNetAddrs(t *testing.T) {
 		vapp := &govcd.VApp{}
 		// Create a test cloudlet obj
 
-		tv.Objs.Cloudlets["testCloudlet1"] = &MexCloudlet{
+		tv.Objs.Cloudlet = &MexCloudlet{
 			ParentVdc: vdc,
 			CloudVapp: vapp,
 			Clusters:  cluster1, // cluster right?
 		}
 
-		for _, cloud := range tv.Objs.Cloudlets {
-			fmt.Printf("looking for vdc %s\n", *vdcName)
-			if cloud.ParentVdc.Vdc.Name == *vdcName {
-				fmt.Printf("vdc %s mapped to cloudlet %s\n", vdc.Vdc.Name, cloud.CloudletName)
-				nextCidr, err := tv.GetNextInternalNet(ctx, cloud)
-				if err != nil {
-					fmt.Printf("GetNextInternalNet err: %s\n", err.Error())
-					return
-				}
-				// first created should be 10.101.1.0/24
-				fmt.Printf("next Cidr: %s\n", nextCidr)
-			}
-
-		}
 		cli := tv.Client.Client
 		vdc2 := govcd.NewVdc(&cli)
 
 		vdc2.Vdc.Name = "testvdc2"
 
-		tv.Objs.Cloudlets["testCloudlet2"] = &MexCloudlet{
+		tv.Objs.Cloudlet = &MexCloudlet{
 			ParentVdc:    vdc,
 			CloudVapp:    vapp,
 			CloudletName: "testCloudlet2",
 			Clusters:     cluster2,
 		}
-		cloud := tv.Objs.Cloudlets["testCloudlet2"]
+
 		fmt.Printf("Text Case 3 seccond vdc/cloudlet\n")
-		nextCidr, err := tv.GetNextInternalNet(ctx, cloud)
+		nextCidr, err := tv.GetNextInternalNet(ctx)
 		if err != nil {
 			fmt.Printf("GetNextInternalNet failed: %s\n", err.Error())
 			return
@@ -133,15 +202,15 @@ func TestNetAddrs(t *testing.T) {
 
 		vdc3.Vdc.Name = "testvdc2"
 
-		tv.Objs.Cloudlets["testCloudlet3"] = &MexCloudlet{
+		tv.Objs.Cloudlet = &MexCloudlet{
 			ParentVdc:    vdc,
 			CloudVapp:    vapp,
 			CloudletName: "testCloudlet2",
 			Clusters:     cluster2,
 		}
-		cloud = tv.Objs.Cloudlets["testCloudlet3"]
+
 		fmt.Printf("Text Case 3 seccond vdc/cloudlet\n")
-		nextCidr, err = tv.GetNextInternalNet(ctx, cloud)
+		nextCidr, err = tv.GetNextInternalNet(ctx)
 		if err != nil {
 			fmt.Printf("GetNextInternalNet failed: %s\n", err.Error())
 			return
@@ -154,6 +223,42 @@ func TestNetAddrs(t *testing.T) {
 
 }
 
+// -vdc -net  is some OrgVdcNetwork in vdc
+func TestGetAllocatedIPs(t *testing.T) {
+	live, _, err := InitVcdTestEnv()
+	require.Nil(t, err, "InitVcdTestEnv")
+	if live {
+		vdc, err := tv.Objs.Org.GetVdcByName(*vdcName)
+		if err != nil {
+			fmt.Printf("vdc %s not found in org %s\n", *vdcName, tv.Objs.Org.Org.Name)
+			return
+		}
+		vdcnet, err := vdc.GetOrgVdcNetworkByName(*netName, false)
+		if err != nil {
+			fmt.Printf("net %s not found in vdc %s\n", *netName, *vdcName)
+			return
+		}
+		// look in IPScope for AllocatedIPAddresses *IPAddresses
+		// vdcnet.Configuration.IPScopes.
+		addrs := &types.IPAddresses{}
+
+		IPScopes := vdcnet.OrgVDCNetwork.Configuration.IPScopes
+		for _, ipscope := range IPScopes.IPScope {
+
+			addrs = ipscope.AllocatedIPAddresses
+			fmt.Printf("net %s addrs: ===>>%s<<===\n", *netName, addrs)
+
+			/*
+				fmt.Printf("Net  %s has these allocated IP addresses\n", *netName)
+				for _, address := range ipscope.AllocatedIPAddresses.IPAddress {
+					fmt.Printf("\t%d %+v\n", n, address)
+				}
+			*/
+
+		}
+
+	}
+}
 func TestGetNetList(t *testing.T) {
 	live, ctx, err := InitVcdTestEnv()
 	require.Nil(t, err, "InitVcdTestEnv")

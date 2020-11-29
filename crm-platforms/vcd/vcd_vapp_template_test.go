@@ -19,7 +19,7 @@ func TestInstanciateTmpl(t *testing.T) {
 	live, ctx, err := InitVcdTestEnv()
 	require.Nil(t, err, "InitVcdTestEnv")
 	if live {
-		vdc, err := tv.FindVdc(ctx, *vdcName)
+		vdc := tv.Objs.Vdc
 		if err != nil {
 			fmt.Printf("%s not found\n", *vdcName)
 			return

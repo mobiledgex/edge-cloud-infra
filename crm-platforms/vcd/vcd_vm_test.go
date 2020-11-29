@@ -36,7 +36,6 @@ func InitVcdTestEnv() (bool, context.Context, error) {
 	log.InitTracer(nil)
 	defer log.FinishTracer()
 	ctx := log.StartTestSpan(context.Background())
-	tv.Objs.Vdcs = make(VdcMap)
 	//tv.initDebug(o.VMProperties.CommonPf.PlatformConfig.NodeMgr) // XXX needed now?
 	// make our object maps
 	tv.Objs.Nets = make(map[string]*govcd.OrgVDCNetwork)
@@ -49,7 +48,7 @@ func InitVcdTestEnv() (bool, context.Context, error) {
 	//v.Objs.TemplateVMs = make(map[string]*types.QueryResultVMRecordType)
 	tv.Objs.TemplateVMs = make(TmplVMsMap)
 	tv.Objs.Media = make(MediaMap)
-	tv.Objs.Cloudlets = make(VdcCloudlets)
+
 	if *livetest == "true" {
 		live = true
 		fmt.Printf("\tPopulateOrgLoginCredsFromEnv\n")
@@ -66,7 +65,7 @@ func InitVcdTestEnv() (bool, context.Context, error) {
 			return live, ctx, fmt.Errorf("ImportDataFromInfra failed: %s", err.Error())
 		}
 
-		fmt.Printf("TestEnvInit Complete\n")
+		fmt.Printf("TestEnvInit live org: %s Complete\n", tv.Objs.Org.Org.Name)
 
 	} else {
 		// anything other than a manual run providing "true" for flag "live" results
@@ -77,6 +76,7 @@ func InitVcdTestEnv() (bool, context.Context, error) {
 		if err != nil {
 			fmt.Printf("Error initiaizing test data: %s\n", err.Error())
 		}
+		fmt.Printf("TestEnvInit dead Complete\n")
 	}
 
 	return live, ctx, nil
@@ -92,13 +92,21 @@ func GetDummyClient(ctx context.Context) (*govcd.VCDClient, error) {
 	return client, nil
 
 }
+
+// -vapp -vm
 func TestShowVM(t *testing.T) {
 	live, ctx, err := InitVcdTestEnv()
 	require.Nil(t, err, "InitTestEnv")
 
 	if live {
+		vapp, err := tv.FindVApp(ctx, *vappName)
+		if err != nil {
+			fmt.Printf("vapp %s not found\n", *vappName)
+			return
+		}
 
-		vm, err := tv.FindVM(ctx, *vmName)
+		vm, err := vapp.GetVMByName(*vmName, false)
+		//vm, err := tv.FindVM(ctx, *vmName)
 		require.Nil(t, err, "FindVM")
 		vu.DumpVM(vm.VM, 1)
 		return
@@ -106,6 +114,8 @@ func TestShowVM(t *testing.T) {
 		return
 	}
 }
+
+// needs -vm
 func TestVMMetrics(t *testing.T) {
 	live, ctx, err := InitVcdTestEnv()
 	require.Nil(t, err, "InitTestEnv")
@@ -114,26 +124,24 @@ func TestVMMetrics(t *testing.T) {
 
 		govcd.ShowOrg(*tv.Objs.Org.Org)
 
-		serverName := "mex-plat"
-
 		// So supposedly, there are potentially 4 Links on a VM that point to historic / current usage
 		// mentric of all catagories. But only historic are available from a Powered Off vm, which makes sense
 		// to get current metrics (and historic) the VM must be on.
 		//  We try both... Current Metrics can be negitive if the value found is invalid.
 		fmt.Printf("GetMetrics of VM powered OFF\n")
-		err = testVMMetrics(t, ctx, serverName, false)
+		err = testVMMetrics(t, ctx, *vmName, false)
 		if err != nil {
 
 			fmt.Printf("Error from testVMMetrics: %s\n", err.Error())
 		}
 
-		err = testVMMetrics(t, ctx, serverName, true)
+		err = testVMMetrics(t, ctx, *vmName, true)
 		if err != nil {
 
 			fmt.Printf("Error from testVMMetrics: %s\n", err.Error())
 		}
 
-		tv.SetPowerState(ctx, serverName, vmlayer.ActionStop)
+		tv.SetPowerState(ctx, *vmName, vmlayer.ActionStop)
 	} else {
 		return
 	}
@@ -179,10 +187,9 @@ func TestVM(t *testing.T) {
 	require.Nil(t, err, "InitTestEnv")
 	if live {
 		// You need an AdminOrg object if you want to get at OrgSettings.
-
 		org := tv.Objs.Org.Org
-		vdc, err := tv.FindVdc(ctx, *vdcName)
-		require.Nil(t, err, "FindVdc")
+		vdc := tv.Objs.Vdc
+
 		fmt.Printf("TestVM-VMQuota: %d NicQuota %d\n", vdc.Vdc.VMQuota, vdc.Vdc.NicQuota)
 
 		cli := tv.Client
@@ -241,6 +248,38 @@ func TestMexVM(t *testing.T) {
 		//tv.testDestroyVM(t, ctx)
 	}
 
+}
+
+// -vapp and -vm
+func TestRMVM(t *testing.T) {
+	live, ctx, err := InitVcdTestEnv()
+	require.Nil(t, err, "InitTestEnv")
+	if live {
+		vm, err := tv.FindVM(ctx, *vmName)
+		if err != nil {
+			fmt.Printf("VM %s not found\n", *vmName)
+			return
+		}
+		status, err := vm.GetStatus()
+		fmt.Printf("Vapp %s currently in state: %s\n", *vappName, status)
+		if err != nil {
+			fmt.Printf("Error fetching status for vapp %s\n", *vappName)
+			return
+		}
+
+		if status == "POWERED_ON" {
+			task, err := vm.PowerOff()
+			if err != nil {
+				fmt.Printf("testDestroyVapp-W-power off failed : %s\n", err.Error())
+				return
+			}
+			err = task.WaitTaskCompletion()
+			if err != nil {
+				fmt.Printf("Error powering of the Vapp %s \n", *vappName)
+				return
+			}
+		}
+	}
 }
 
 // Test add remove, or remove + add as the case may be
@@ -444,20 +483,20 @@ func testInsertMediaToVM(t *testing.T, ctx context.Context, vm *govcd.VM) (*govc
 	return vm, nil
 }
 
-func testVMMetrics(t *testing.T, ctx context.Context, vmName string, poweron bool) error {
+func testVMMetrics(t *testing.T, ctx context.Context, vmname string, poweron bool) error {
 
 	// Apparently, once a VM is powered on, it's Links should contain 4 links where the value of the type attribute has
 	// the form: application/vnd.vmware.vcloud.metrics.*UsageSpec.xml
 	// if so, we should fetch the HREF and see what it has for us
 	// This will probably never work until govcd grows support for nsx-t.
 	// Ok, the ExecuteRequest on the "down"
-	vm, err := tv.FindVM(ctx, vmName)
+	vm, err := tv.FindVM(ctx, vmname)
 	if err != nil {
-		return fmt.Errorf("Error finding vm  %s  err: %s\n", vmName, err.Error())
+		return fmt.Errorf("Error finding vm  %s  err: %s\n", *vmName, err.Error())
 	}
 	curStatus, err := vm.GetStatus()
 	if curStatus == "POWERED_OFF" && poweron {
-		fmt.Printf("testVMMetrics-I-%s currently powered off and poweron requested:  powering on\n", vmName)
+		fmt.Printf("testVMMetrics-I-%s currently powered off and poweron requested:  powering on\n", *vmName)
 		task, err := vm.PowerOn()
 		if err == nil {
 			err = task.WaitTaskCompletion()
@@ -472,7 +511,7 @@ func testVMMetrics(t *testing.T, ctx context.Context, vmName string, poweron boo
 			return err
 		}
 	} else {
-		fmt.Printf("Requesting Links of a powered off %s should just have historic links\n", vmName)
+		fmt.Printf("Requesting Links of a powered off %s should just have historic links\n", *vmName)
 	}
 	curStatus, err = vm.GetStatus()
 	// Try out the ForType method of LinkList not working yet..

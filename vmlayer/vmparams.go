@@ -925,7 +925,6 @@ func (v *VMPlatform) OrchestrateVMsFromVMSpec(ctx context.Context, name string, 
 				return gp, err
 			}
 			vm.ChefParams.ClientKey = clientKey
-			fmt.Printf("\n\nOrchestrateVMsFromVMSpec for name %s action Create VMs vm.Type %s \n", name, vm.Type)
 		}
 
 		err = v.VMProvider.CreateVMs(ctx, gp, updateCallback)

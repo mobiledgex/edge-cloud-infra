@@ -23,7 +23,7 @@ func (v *VcdPlatform) PopulateOrgLoginCredsFromEnv(ctx context.Context, physical
 		Password: os.Getenv("VCD_PASSWD"),
 		Org:      os.Getenv("VCD_ORG"),
 		Href:     fmt.Sprintf("https://%s/api", os.Getenv("VCD_IP")),
-		VDCName:  os.Getenv("VCD_NAME"),
+		VDC:      os.Getenv("VCD_NAME"),
 		Insecure: true,
 	}
 	if creds.User == "" {
@@ -38,7 +38,7 @@ func (v *VcdPlatform) PopulateOrgLoginCredsFromEnv(ctx context.Context, physical
 	if creds.Href == "" {
 		return fmt.Errorf("Href not defined")
 	}
-	if creds.VDCName == "" {
+	if creds.VDC == "" {
 		return fmt.Errorf("missing VDC name")
 	}
 	v.Creds = &creds
@@ -55,7 +55,7 @@ func (v *VcdPlatform) GetVcdOrgName() string {
 	return v.Creds.Org
 }
 func (v *VcdPlatform) GetVcdVdcName() string {
-	return v.Creds.VDCName
+	return v.Creds.VDC
 }
 func (v *VcdPlatform) GetVcdAddress() string {
 	return v.Creds.Href
@@ -110,9 +110,6 @@ func (v *VcdPlatform) GetClient(ctx context.Context, creds *VcdConfigParams) (cl
 	if err != nil {
 		return nil, fmt.Errorf("Unable to parse request to org %s at %s err: %s", creds.Org, creds.Href, err)
 	}
-
-	//fmt.Printf("GetClient-I-url endpoint = %s\n", u.String()) // can we change this before we create the client?
-
 	vcdClient := govcd.NewVCDClient(*u, creds.Insecure)
 
 	if vcdClient.Client.VCDToken != "" {

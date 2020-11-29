@@ -37,32 +37,27 @@ func (v *VcdPlatform) FindTemplate(ctx context.Context, tmplName string) (*govcd
 
 }
 
-// Return all templates found in our catalog(s)
+// Return all templates found in our catalog
 func (v *VcdPlatform) GetAllVdcTemplates(ctx context.Context, cat *govcd.Catalog) ([]*govcd.VAppTemplate, error) {
 
 	var tmpls []*govcd.VAppTemplate
 
-	for _, vdc := range v.Objs.Vdcs {
-		queryRes, err := vdc.QueryVappTemplateList()
-		if err != nil {
-			fmt.Printf("QueryVappTemplateList error : %s\n", err.Error())
-			continue
-		}
-		for n, res := range queryRes {
-			fmt.Printf("\t#%d Lookup res.Name: %sby HREF: %s\n", n, res.Name, res.HREF)
+	queryRes, err := v.Objs.Vdc.QueryVappTemplateList()
+	if err != nil {
+		return nil, err
+	}
+	for n, res := range queryRes {
+		fmt.Printf("\t#%d Lookup res.Name: %sby HREF: %s\n", n, res.Name, res.HREF)
 
-			tmpl, err := cat.GetVappTemplateByHref(res.HREF)
-			// tmpl, err := cat.GetVappTemplateByBName(res.Name)
-			if err != nil {
-				// This can happen if we have objects using the same names?
-				fmt.Printf("\tError from GetVappTemplateByHref for %s as %s Skipping\n", res.Name, res.HREF)
-				continue
-			} else {
-				tmpls = append(tmpls, tmpl)
-				fmt.Printf("\tAdded template %s to templs\n", res.Name)
-			}
+		tmpl, err := cat.GetVappTemplateByHref(res.HREF)
+		if err != nil {
+			// This can happen if we have a vm with no vapp, one gets created for it
+			continue
+		} else {
+			tmpls = append(tmpls, tmpl)
 		}
 	}
+
 	return tmpls, nil
 
 }

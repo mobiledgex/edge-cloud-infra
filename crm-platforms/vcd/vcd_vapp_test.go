@@ -43,6 +43,7 @@ func TestDumpVappNetworks(t *testing.T) {
 	}
 }
 
+// -vapp + -vdc
 func TestRMVApp(t *testing.T) {
 
 	live, ctx, err := InitVcdTestEnv()
@@ -50,13 +51,11 @@ func TestRMVApp(t *testing.T) {
 
 	if live {
 		fmt.Printf("testRMVappVApp")
-		vappName := "mex-vmware-vcd-tdg.mobiledgex.net-vapp"
-		//vappName := "mex-cldlet3.tdg.mobiledgex.net"
-		err = testDestroyVApp(t, ctx, vappName)
+		err = testDestroyVApp(t, ctx, *vappName)
 		if err != nil {
-			fmt.Printf("Error deleteing %s : %s\n", vappName, err.Error())
+			fmt.Printf("Error deleteing %s : %s\n", *vappName, err.Error())
 		}
-		fmt.Printf("%s deleted\n", vappName)
+		fmt.Printf("%s deleted\n", *vappName)
 	} else {
 		return
 	}
@@ -208,11 +207,11 @@ func GetVirtHwItem(t *testing.T, ctx context.Context) types.VirtualHardwareItem 
 
 // need -vdc
 func TestShowVApp(t *testing.T) {
-	live, ctx, err := InitVcdTestEnv()
+	live, _, err := InitVcdTestEnv()
 	require.Nil(t, err, "InitVcdTestEnv")
 	if live {
 		fmt.Printf("TestShowVApp-Start show vapp named %s\n", *vappName)
-		vdc, err := tv.FindVdc(ctx, *vdcName)
+		vdc := tv.Objs.Vdc
 		if err != nil {
 			fmt.Printf("vdc %s not found\n", *vdcName)
 			return
@@ -242,16 +241,15 @@ func TestShowVApp(t *testing.T) {
 // This follows the example in vm_test.go, which uses 2 vdcOrgNetworks, so we'll first prove that out,
 // and assuming it works fine, try and modify for our internal network.
 // We'll create a vappName'd vapp
-// uses -vapp -vcd
+// uses -vapp
 func TestRawVApp(t *testing.T) {
 
 	live, ctx, err := InitVcdTestEnv()
 	require.Nil(t, err, "InitVcdTestEnv")
 
 	if live {
-		vdc, err := tv.FindVdc(ctx, *vdcName)
-		require.Nil(t, err, "FindVdc")
-		fmt.Printf("TestVApp-Start create vapp named %s in vdc %s \n", *vappName, *vdcName)
+		vdc := tv.Objs.Vdc
+		fmt.Printf("TestVApp-Start create vapp named %s\n", *vappName)
 
 		// 1) create raw vapp, and 2) add networks:
 		err = vdc.ComposeRawVApp(*vappName)
@@ -486,8 +484,7 @@ func testCreateVApp(t *testing.T, ctx context.Context, vappName string) (*govcd.
 	// Compose VApp with template etc... (as opposed to ComposeRawVApp
 	// To do this using our work routines, we'd need a GroupOrchestration params obj.
 	//
-	vdc, err := tv.FindVdc(ctx, *vdcName)
-	require.Nil(t, err, "FindVdc")
+	vdc := tv.Objs.Vdc
 	fmt.Printf("testCreateVApp-I-ComposeRawVApp for %s\n", vappName)
 
 	networks := []*types.OrgVDCNetwork{}
@@ -593,17 +590,93 @@ func testCreateVApp(t *testing.T, ctx context.Context, vappName string) (*govcd.
 	return vapp, err
 }
 
+// expected -vdcName
 func testDestroyVApp(t *testing.T, ctx context.Context, name string) error {
 
 	fmt.Printf("\ntestDestroyVApp-I-request Delete of %s\n", name)
 
-	vdc, err := tv.FindVdc(ctx, *vdcName)
-	require.Nil(t, err, "FindVdc")
+	vdc := tv.Objs.Vdc
 
 	vapp, err := vdc.GetVAppByName(name, true)
 	if err != nil {
 		fmt.Printf("testDestroyVApp-E-error Getting Vapp %s by name: %s\n", name, err.Error())
 		return err
+	}
+	status, err := vapp.GetStatus()
+	fmt.Printf("Vapp %s currently in state: %s\n", *vappName, status)
+	if err != nil {
+		fmt.Printf("Error fetching status for vapp %s\n", *vappName)
+		return err
+	}
+	if vapp.VApp.Children == nil {
+		task, err := vapp.Delete()
+		if err != nil {
+			fmt.Printf("vapp.Delete failed: %s\n task: %+v\n", err.Error(), task)
+		}
+		err = task.WaitTaskCompletion()
+		fmt.Printf("Barren VApp %s Deleted\n", *vappName)
+		return err
+	}
+	vms := vapp.VApp.Children.VM
+	fmt.Printf("vapp %s has %d vm children\n", *vappName, len(vms))
+	for _, vm := range vms {
+		fmt.Printf("\t%s\n", vm.Name)
+	}
+	if status == "POWERED_ON" {
+
+		// if the vapp is on, assume the vms are too
+		// if you power off the vapp, all the vms should be powered off as well
+
+		task, err := vapp.PowerOff() // I think this leaves the vms running <sigh>
+		if err != nil {
+			fmt.Printf("Error from vm.PowerOff: %s\n", err.Error())
+			// fatal? Could have already been powered off
+		}
+		err = task.WaitTaskCompletion()
+		if err != nil {
+			fmt.Printf("Error waiting powering of the vm %s \n", *vmName)
+			return err
+		}
+		fmt.Printf("VM %s powered off\n", *vmName)
+
+		fmt.Printf("vapp %s currently powered on, wait for power off...\n", *vappName)
+		task, err = vapp.PowerOff()
+		if err != nil {
+			fmt.Printf("testDestroyVapp-W-vm power off failed : %s\n", err.Error())
+			return err
+		}
+		err = task.WaitTaskCompletion()
+		if err != nil {
+			fmt.Printf("Error powering of the Vapp %s \n", *vappName)
+			return err
+		}
+		fmt.Printf("Vapp %s powered off\n", *vappName)
+	}
+	// And while the console's delete vapp deletes it's vms, this does not, so the remove VM will fail since
+	// it's still powered on (though the console show's it as powered off, but still able to power it off..
+	// go figure.
+
+	// Also, to get the ip addresses released back to the pool, take out the VM before the VApp...
+	// Apparently, they both are consuming one, even though they are the same (one for each end?)
+
+	// Now, consider a Vapp with >1 vm
+	for _, vm := range vms {
+		fmt.Printf("\t%s...\n", vm.Name)
+
+		v, err := vapp.GetVMByName(vm.Name, false)
+		if err != nil {
+			fmt.Printf("VM %s not found \n", vm.Name)
+			return err
+		}
+
+		err = vapp.RemoveVM(*v)
+		if err != nil {
+			fmt.Printf("Error from RemoveVM for vm %s in vapp: %s as : %s\n",
+				vm.Name, *vappName, err.Error())
+			return err
+		}
+		fmt.Printf("\t\tremoved from Vapp\n")
+
 	}
 
 	task, err := vapp.Delete()
@@ -611,7 +684,7 @@ func testDestroyVApp(t *testing.T, ctx context.Context, name string) error {
 		fmt.Printf("vapp.Delete failed: %s\n task: %+v\n", err.Error(), task)
 	}
 	err = task.WaitTaskCompletion()
-
+	fmt.Printf("VApp %s Deleted\n", *vappName)
 	return err
 }
 
@@ -691,9 +764,7 @@ func TestRaw2Nic(t *testing.T) {
 	require.Nil(t, err, "InitVcdTestEnv")
 	if live {
 
-		vdc, err := tv.FindVdc(ctx, *vdcName)
-		require.Nil(t, err, "FindVdc")
-		fmt.Printf("TestRaw2Nic using tmplName: %s vappName: %s \n", *tmplName, *vappName)
+		vdc := tv.Objs.Vdc
 
 		err = vdc.ComposeRawVApp(*vappName)
 		require.Nil(t, err, "ComposeRawVApp")
@@ -728,7 +799,7 @@ func TestRaw2Nic(t *testing.T) {
 		// AddOrgNetwork
 		// Create DhcpSettings
 		staticIPStart := IPScope.IPRanges.IPRange[0].StartAddress
-		fmt.Printf("\nCreateRawVApp-I-dhcp range used: start %s to end  %s\n", tv.IncrIP(IPScope.Gateway), tv.DecrIP(staticIPStart))
+		fmt.Printf("\nCreateRawVApp-I-dhcp range used: start %s to end  %s\n", tv.IncrIP(IPScope.Gateway, 1), tv.DecrIP(staticIPStart, 1))
 		/*
 			dhcpIPRange := types.IPRange{
 				StartAddress: tv.IncrIP(IPScope.Gateway),
@@ -829,8 +900,7 @@ func createTestVapp(t *testing.T, ctx context.Context, vappName, tmplName string
 	// Populate OrgVDCNetwork
 	var networks []*types.OrgVDCNetwork
 
-	vdc, err := tv.FindVdc(ctx, *vdcName)
-	require.Nil(t, err, "FindVdc")
+	vdc := tv.Objs.Vdc
 
 	tmpl, err := tv.FindTemplate(ctx, tmplName)
 	require.Nil(t, err, "FindTemplate")
@@ -1086,7 +1156,7 @@ func setVappInternalNetwork(t *testing.T, ctx context.Context, vapp govcd.VApp) 
 	}
 	status, err := vapp.GetStatus()
 	if err != nil {
-		fmt.Printf("SetNetworksForNewVApp-E-error obtaining status of vapp: %s\n", err.Error())
+		fmt.Printf("setVappInternalNetwork-E-error obtaining status of vapp: %s\n", err.Error())
 		return "", err
 	}
 	if status == "UNRESOLVED" {
@@ -1098,7 +1168,7 @@ func setVappInternalNetwork(t *testing.T, ctx context.Context, vapp govcd.VApp) 
 		status, _ = vapp.GetStatus()
 		fmt.Printf("Continue from blockwhile status now %s\n", status)
 	}
-	fmt.Printf("SetNetworksForNewVApp-I-create internal network, vapp status: %s \n", status)
+	fmt.Printf("setVappInternalNetwork-I-create internal network, vapp status: %s \n", status)
 	InternalNetConfigSec, err := vapp.CreateVappNetwork(&internalSettings, nil)
 	if err != nil {
 		fmt.Printf("setVappNetworks-E-create internal net: %s\n", err.Error())
@@ -1210,4 +1280,25 @@ func setVappExternalNetwork(t *testing.T, ctx context.Context, vapp govcd.VApp) 
 	*/
 	return externalNetName, nil
 
+}
+
+// -vapp -net
+func TestExtAddrVApp(t *testing.T) {
+
+	live, ctx, err := InitVcdTestEnv()
+	require.Nil(t, err, "InitVcdTestEnv")
+
+	if live {
+		vapp, err := tv.FindVApp(ctx, *vappName)
+		require.Nil(t, err, "FindVapp")
+		fmt.Printf("TestVApp-Start create vapp named %s in vdc %s \n", *vappName, *vdcName)
+
+		addr, err := tv.GetExtAddrOfVapp(ctx, vapp, *netName)
+
+		if err != nil {
+			fmt.Printf("error from GetExtAddrOfVapp : %s\n", err.Error())
+			return
+		}
+		fmt.Printf("Vapp %s has external address as %s\n", *vappName, addr)
+	}
 }

@@ -18,8 +18,6 @@ import (
 // This functions could be shared across non-openstack platforms, and were basicly hijacked from vsphere
 // While in VcdPlatform currently, if approved, move into vm-common-mumble package
 func (v *VcdPlatform) GetFlavor(ctx context.Context, flavorName string) (*edgeproto.FlavorInfo, error) {
-	fmt.Printf("GetFlavor-I-requesting flavor %s\n", flavorName)
-
 	flavs, err := v.GetFlavorList(ctx)
 	if err != nil {
 		return nil, err
@@ -98,6 +96,8 @@ func (v *VcdPlatform) GetFlavorList(ctx context.Context) ([]*edgeproto.FlavorInf
 //
 //CreateImageFromUrl downloads image from URL and then imports to the datastore
 //func (v *VSpherePlatform) CreateImageFromUrl(ctx context.Context, imageName, imageUrl, md5Sum string) error {
+
+var qcowConvertTimeout = 5 * time.Minute
 
 func (v *VcdPlatform) CreateImageFromUrl(ctx context.Context, imageName, imageUrl, md5Sum string) (string, error) {
 

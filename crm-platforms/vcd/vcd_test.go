@@ -37,27 +37,6 @@ func TestDiscover(t *testing.T) {
 	}
 }
 
-func TestGetAllVdcs(t *testing.T) {
-
-	live, ctx, err := InitVcdTestEnv()
-	require.Nil(t, err, "InitTestEnv")
-	if live {
-		fmt.Printf("TestGetAllVdcs\n")
-
-		vdcs, err := tv.GetVdcNames(ctx)
-		if err != nil {
-			fmt.Printf("Error from GetVdcNames: %s\n", err.Error())
-			return
-		}
-		fmt.Printf("Add vdc in org : %s\n", tv.Objs.Org.Org.Name)
-		for _, vdc := range vdcs {
-			fmt.Printf("Next vcd: %s\n", vdc)
-		}
-	} else {
-		return
-	}
-}
-
 // expects -vapp
 func TestVCD(t *testing.T) {
 
@@ -74,7 +53,7 @@ func TestVCD(t *testing.T) {
 		org, err := testGetOrg(t, client, m_vapp.Config.Org)
 		//	fmt.Printf("TestVCD-I-have org name: %s fullname: %s OpKey: %s Enabled: %t\n", org.Org.Name, org.Org.FullName, org.Org.OperationKey, org.Org.IsEnabled)
 
-		vdc, err := testGetVdc(t, client, org, m_vapp.Config.VDCName)
+		vdc, err := testGetVdc(t, client, org, m_vapp.Config.VDC)
 		cats, err := testGetCatalogs(t, client.Client, org)
 
 		for i, catName := range cats {
@@ -83,7 +62,7 @@ func TestVCD(t *testing.T) {
 			if err != nil {
 				fmt.Printf("\nUnable to fetch %s from org %s\n", catName, org.Org.Name)
 			}
-			fmt.Printf("Org %s vdc: %s  catalog %d = %s has %d items\n", m_vapp.Config.Org, m_vapp.Config.VDCName, i, catName, len(cat.Catalog.CatalogItems))
+			fmt.Printf("Org %s vdc: %s  catalog %d = %s has %d items\n", m_vapp.Config.Org, m_vapp.Config.VDC, i, catName, len(cat.Catalog.CatalogItems))
 
 			for j, item := range cat.Catalog.CatalogItems {
 				fmt.Printf("\n\titem %d: %+v\n", j, *item)
@@ -182,7 +161,7 @@ func populateMexVappConfig(t *testing.T, ctx context.Context, cloudlet string) M
 		Password: os.Getenv("VCD_PASSWD"),
 		Org:      os.Getenv("VCD_ORG"),
 		Href:     fmt.Sprintf("https://%s/api", os.Getenv("VCD_IP")),
-		VDCName:  os.Getenv("VCD_NAME"),
+		VDC:      os.Getenv("VCD_NAME"),
 		Insecure: true,
 	}
 	require.NotEqual(t, m_vapp.Config.User, "", "Missing $VDC_USER env var")

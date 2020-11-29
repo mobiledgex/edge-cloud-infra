@@ -43,13 +43,13 @@ type EdgeFirewallRule struct {
 }
 */
 
-// wants to use -vdc to select what vdc to use
+//
 func TestFirewall(t *testing.T) {
-	live, ctx, err := InitVcdTestEnv()
+	live, _, err := InitVcdTestEnv()
 	require.Nil(t, err, "InitVcdTestEnv")
 	if live {
 		fmt.Printf("TestFireWall: vdc: %s\n", *vdcName)
-		vdc, err := tv.FindVdc(ctx, *vdcName)
+		vdc := tv.Objs.Vdc
 		if err != nil {
 			fmt.Printf("unable to find vdc name %s\n", *vdcName)
 			return

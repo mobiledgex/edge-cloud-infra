@@ -22,13 +22,15 @@
   tags:
     - setup
 
-- name: Look up telegraf credentials in vault
-  set_fact:
-    vault_lookup: "{{ lookup('vault', vault_telegraf_creds_path) }}"
+- block:
+  - name: Look up telegraf credentials in vault
+    set_fact:
+      vault_lookup: "{{ lookup('vault', vault_telegraf_creds_path) }}"
 
-- set_fact:
-    telegraf_user: "{{ vault_lookup.telegraf.data.user }}"
-    telegraf_password: "{{ vault_lookup.telegraf.data.pass }}"
+  - set_fact:
+      telegraf_user: "{{ vault_lookup.telegraf.data.user }}"
+      telegraf_password: "{{ vault_lookup.telegraf.data.pass }}"
+  when: telegraf_user is not defined or telegraf_password is not defined
 
 - name: Install telegraf config
   template:

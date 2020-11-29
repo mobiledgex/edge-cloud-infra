@@ -3,21 +3,20 @@ package awsec2
 import (
 	"context"
 	"fmt"
+	"net"
+	"strconv"
 	"strings"
 
-	"github.com/mobiledgex/edge-cloud/cloud-resource-manager/platform"
-	"github.com/mobiledgex/edge-cloud/log"
-	ssh "github.com/mobiledgex/golang-ssh"
-
+	"github.com/mobiledgex/edge-cloud-infra/infracommon"
 	"github.com/mobiledgex/edge-cloud-infra/vmlayer"
+	"github.com/mobiledgex/edge-cloud/cloud-resource-manager/platform"
 	"github.com/mobiledgex/edge-cloud/edgeproto"
+	"github.com/mobiledgex/edge-cloud/log"
+	"github.com/mobiledgex/edge-cloud/vault"
+	ssh "github.com/mobiledgex/golang-ssh"
 )
 
-func (a *AwsEc2Platform) GatherCloudletInfo(ctx context.Context, info *edgeproto.CloudletInfo) error {
-	return a.awsGenPf.GatherCloudletInfo(ctx, info)
-}
-
-func (a *AwsEc2Platform) SaveCloudletAccessVars(ctx context.Context, cloudlet *edgeproto.Cloudlet, accessVarsIn map[string]string, pfConfig *edgeproto.PlatformConfig, updateCallback edgeproto.CacheUpdateCallback) error {
+func (a *AwsEc2Platform) SaveCloudletAccessVars(ctx context.Context, cloudlet *edgeproto.Cloudlet, accessVarsIn map[string]string, pfConfig *edgeproto.PlatformConfig, vaultConfig *vault.Config, updateCallback edgeproto.CacheUpdateCallback) error {
 	return fmt.Errorf("SaveCloudletAccessVars not implemented")
 }
 
@@ -34,17 +33,13 @@ func (a *AwsEc2Platform) DeleteImage(ctx context.Context, folder, imageName stri
 	return fmt.Errorf("DeleteImage not implemented")
 }
 
-func (o *AwsEc2Platform) GetApiAccessFilename() string {
-	return "aws.json"
-}
-
 func (a *AwsEc2Platform) AddCloudletImageIfNotPresent(ctx context.Context, imgPathPrefix, imgVersion string, updateCallback edgeproto.CacheUpdateCallback) (string, error) {
 	// we don't currently have the ability to download and setup the template, but we will verify it is there
 	return "", fmt.Errorf("AddCloudletImageIfNotPresent not implemented")
 }
 
 func (a *AwsEc2Platform) GetApiEndpointAddr(ctx context.Context) (string, error) {
-	return "", fmt.Errorf("GetApiEndpointAddr not implemented")
+	return fmt.Sprintf("https://ec2.%s.amazonaws.com:443", a.awsGenPf.GetAwsRegion()), nil
 }
 
 // GetCloudletManifest follows the standard practice for vSphere to use OVF for this purpose.  We store the OVF
@@ -59,11 +54,31 @@ func (a *AwsEc2Platform) VerifyVMs(ctx context.Context, vms []edgeproto.VM) erro
 }
 
 func (a *AwsEc2Platform) GetExternalGateway(ctx context.Context, extNetName string) (string, error) {
-	return "", fmt.Errorf("GetExternalGateway not implemented")
+	log.SpanLog(ctx, log.DebugLevelMetrics, "GetExternalGateway", "extNetName", extNetName)
+
+	subnet, err := a.GetSubnet(ctx, extNetName)
+	if err != nil {
+		return "", nil
+	}
+	ip, _, err := net.ParseCIDR(subnet.CidrBlock)
+	if err != nil {
+		return "", fmt.Errorf("cannot parse start cidr: %s - %v", subnet.CidrBlock, err)
+	}
+	// GW is the first IP on the subnet
+	infracommon.IncrIP(ip)
+	return ip.String(), nil
 }
 
-func (s *AwsEc2Platform) GetNetworkList(ctx context.Context) ([]string, error) {
-	return []string{}, nil
+func (a *AwsEc2Platform) GetNetworkList(ctx context.Context) ([]string, error) {
+	subMap, err := a.GetSubnets(ctx)
+	subnetList := []string{}
+	if err != nil {
+		return nil, err
+	}
+	for sn, _ := range subMap {
+		subnetList = append(subnetList, sn)
+	}
+	return subnetList, nil
 }
 
 func (a *AwsEc2Platform) GetPlatformResourceInfo(ctx context.Context) (*vmlayer.PlatformResources, error) {
@@ -84,14 +99,13 @@ func (a *AwsEc2Platform) GetRouterDetail(ctx context.Context, routerName string)
 
 func (a *AwsEc2Platform) InitProvider(ctx context.Context, caches *platform.Caches, stage vmlayer.ProviderInitStage, updateCallback edgeproto.CacheUpdateCallback) error {
 	log.SpanLog(ctx, log.DebugLevelInfra, "InitProvider", "stage", stage)
-	a.InitData(ctx, caches)
 	vpcName := a.GetVpcName()
 
-	acct, err := a.GetIamAccountId(ctx)
+	acct, err := a.GetIamAccountForImage(ctx)
 	if err != nil {
 		return err
 	}
-	a.IamAccountId = acct
+	a.AmiIamAccountId = acct
 	// aws cannot use the name "default" as a new security group name as it is reserved
 	if a.VMProperties.GetCloudletSecurityGroupName() == "default" {
 		a.VMProperties.SetCloudletSecurityGroupName(vpcName + "-cloudlet-sg")
@@ -112,14 +126,22 @@ func (a *AwsEc2Platform) InitProvider(ctx context.Context, caches *platform.Cach
 		return err
 	}
 	a.VpcCidr = vpcCidr
+
+	if stage == vmlayer.ProviderInitDeleteCloudlet {
+		return nil
+	}
 	updateCallback(edgeproto.UpdateTask, "Creating Internet Gateway")
-	err = a.CreateInternetGateway(ctx, vpcName)
+	igw, err := a.CreateInternetGateway(ctx, vpcName)
 	if err != nil {
 		return err
 	}
-	err = a.CreateInternetGatewayDefaultRoute(ctx, vpcName, vpcId)
-	if err != nil {
-		return err
+	if len(igw.Attachments) == 0 {
+		err = a.CreateInternetGatewayDefaultRoute(ctx, vpcName, vpcId)
+		if err != nil {
+			return err
+		}
+	} else {
+		log.SpanLog(ctx, log.DebugLevelInfra, "Internet GW already exists")
 	}
 
 	secGrpName := a.VMProperties.GetCloudletSecurityGroupName()
@@ -137,41 +159,119 @@ func (a *AwsEc2Platform) InitProvider(ctx context.Context, caches *platform.Cach
 	if err != nil {
 		return err
 	}
-	updateCallback(edgeproto.UpdateTask, "Creating Subnet")
-	externalSubnetId, err := a.CreateSubnet(ctx, vpcName, a.VMProperties.GetCloudletExternalNetwork(), extCidr, MainRouteTable)
-	if err != nil && !strings.Contains(err.Error(), SubnetAlreadyExistsError) {
-		return err
-	}
-	updateCallback(edgeproto.UpdateTask, "Getting Elastic IP")
-	eipId, err := a.GetElasticIP(ctx, vpcName, vpcId)
-	if err != nil {
-		if !strings.Contains(err.Error(), ElasticIpDoesNotExistError) {
+	extSubnetName := a.VMProperties.GetCloudletExternalNetwork()
+	if a.awsGenPf.IsAwsOutpost() {
+		updateCallback(edgeproto.UpdateTask, "Assigning Subnet")
+		subnets, err := a.GetSubnets(ctx)
+		if err != nil {
 			return err
 		}
-		eipId, err = a.AllocateElasticIP(ctx)
+		err = a.GetFreePrecreatedSubnet(ctx, extSubnetName, FreeExternalSubnetType, vpcName, subnets)
+		if err != nil {
+			return err
+		}
+	} else {
+		updateCallback(edgeproto.UpdateTask, "Creating Subnet")
+		externalSubnetId, err := a.CreateSubnet(ctx, vpcName, extSubnetName, extCidr, MainRouteTable)
+		if err != nil && !strings.Contains(err.Error(), SubnetAlreadyExistsError) {
+			return err
+		}
+		updateCallback(edgeproto.UpdateTask, "Getting Elastic IP")
+		eipId, err := a.GetElasticIP(ctx, vpcName, vpcId)
+		if err != nil {
+			if !strings.Contains(err.Error(), ElasticIpDoesNotExistError) {
+				return err
+			}
+			eipId, err = a.AllocateElasticIP(ctx)
+			if err != nil {
+				return err
+			}
+		}
+		updateCallback(edgeproto.UpdateTask, "Creating NAT Gateway")
+		ngwId, err := a.CreateNatGateway(ctx, externalSubnetId, eipId, vpcName)
+		if err != nil {
+			return err
+		}
+		updateCallback(edgeproto.UpdateTask, "Creating Route Table")
+		_, err = a.CreateInternalRouteTable(ctx, vpcId, ngwId, a.VMProperties.GetCloudletMexNetwork())
 		if err != nil {
 			return err
 		}
 	}
-	updateCallback(edgeproto.UpdateTask, "Creating NAT Gateway")
-	ngwId, err := a.CreateNatGateway(ctx, externalSubnetId, eipId, vpcName)
-	if err != nil {
-		return err
-	}
-	updateCallback(edgeproto.UpdateTask, "Creating Route Table")
-	_, err = a.CreateInternalRouteTable(ctx, vpcId, ngwId, a.VMProperties.GetCloudletMexNetwork())
-	if err != nil {
-		return err
-	}
-
 	return nil
-
 }
+
 func (a *AwsEc2Platform) PrepareRootLB(ctx context.Context, client ssh.Client, rootLBName string, secGrpName string, privacyPolicy *edgeproto.PrivacyPolicy) error {
 	log.SpanLog(ctx, log.DebugLevelInfra, "PrepareRootLB", "rootLBName", rootLBName)
 	return nil
 }
 
+func (a *AwsEc2Platform) GatherCloudletInfo(ctx context.Context, info *edgeproto.CloudletInfo) error {
+	if a.awsGenPf.IsAwsOutpost() {
+		return a.GetOutpostFlavorsForCloudletInfo(ctx, info)
+	} else {
+		return a.awsGenPf.GatherCloudletInfo(ctx, a.VMProperties.GetCloudletFlavorMatchPattern(), info)
+	}
+}
+
 func (a *AwsEc2Platform) GetFlavorList(ctx context.Context) ([]*edgeproto.FlavorInfo, error) {
-	return a.awsGenPf.GetFlavorList(ctx)
+	log.SpanLog(ctx, log.DebugLevelInfra, "GetFlavorList ")
+	var info edgeproto.CloudletInfo
+	if a.awsGenPf.IsAwsOutpost() {
+		err := a.GetOutpostFlavorsForCloudletInfo(ctx, &info)
+		if err != nil {
+			return nil, err
+		}
+		return info.Flavors, nil
+	}
+	return a.awsGenPf.GetFlavorList(ctx, a.VMProperties.GetCloudletFlavorMatchPattern())
+}
+
+func (a *AwsEc2Platform) GetOutpostFlavorsForCloudletInfo(ctx context.Context, info *edgeproto.CloudletInfo) error {
+	log.SpanLog(ctx, log.DebugLevelInfra, "GetOutpostFlavorsForCloudletInfo")
+	flavs := a.awsGenPf.GetAwsOutpostFlavors()
+	if flavs == "" {
+		return fmt.Errorf("AWS_OUTPOST_FLAVORS not set")
+	}
+	fs := strings.Split(flavs, ";")
+	for _, f := range fs {
+		fss := strings.Split(f, ",")
+		if len(fss) != 4 {
+			return fmt.Errorf("badly formatted outpost flavor: %s", f)
+		}
+		fname := fss[0]
+		vcpustr := fss[1]
+		ramstr := fss[2]
+		diskstr := fss[3]
+		vcpu, err := strconv.ParseInt(vcpustr, 10, 64)
+		if err != nil {
+			return fmt.Errorf("badly formatted outpost flavor vcpus: %s", vcpustr)
+		}
+		ram, err := strconv.ParseInt(ramstr, 10, 64)
+		if err != nil {
+			return fmt.Errorf("badly formatted outpost flavor ram: %s", ramstr)
+		}
+		disk, err := strconv.ParseInt(diskstr, 10, 64)
+		if err != nil {
+			return fmt.Errorf("badly formatted outpost flavor disk: %s", diskstr)
+		}
+		info.Flavors = append(
+			info.Flavors,
+			&edgeproto.FlavorInfo{
+				Name:  fname,
+				Vcpus: uint64(vcpu),
+				Ram:   uint64(ram),
+				Disk:  uint64(disk),
+			},
+		)
+	}
+	return nil
+}
+
+func (a *AwsEc2Platform) GetVaultCloudletAccessPath(key *edgeproto.CloudletKey, region, physicalName string) string {
+	return a.awsGenPf.GetVaultCloudletAccessPath(key, region, physicalName)
+}
+
+func (a *AwsEc2Platform) GetSessionTokens(ctx context.Context, vaultConfig *vault.Config, account string) (map[string]string, error) {
+	return a.awsGenPf.GetSessionTokens(ctx, vaultConfig, account)
 }

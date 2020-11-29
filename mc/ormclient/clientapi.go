@@ -7,10 +7,11 @@ import (
 )
 
 type Api interface {
-	DoLogin(uri, user, pass string) (string, error)
+	DoLogin(uri, user, pass, otp string) (string, error)
 
-	CreateUser(uri string, user *ormapi.User) (int, error)
+	CreateUser(uri string, user *ormapi.User) (*ormapi.UserResponse, int, error)
 	DeleteUser(uri, token string, user *ormapi.User) (int, error)
+	UpdateUser(uri, token string, createUserJSON string) (*ormapi.UserResponse, int, error)
 	ShowUser(uri, token string, org *ormapi.Organization) ([]ormapi.User, int, error)
 	RestrictedUserUpdate(uri, token string, user map[string]interface{}) (int, error)
 	NewPassword(uri, token, password string) (int, error)
@@ -60,6 +61,7 @@ type Api interface {
 	UpdateConfig(uri, token string, config map[string]interface{}) (int, error)
 	ResetConfig(uri, token string) (int, error)
 	ShowConfig(uri, token string) (*ormapi.Config, int, error)
+	PublicConfig(uri string) (*ormapi.Config, int, error)
 
 	CreateOrgCloudletPool(uri, token string, op *ormapi.OrgCloudletPool) (int, error)
 	DeleteOrgCloudletPool(uri, token string, op *ormapi.OrgCloudletPool) (int, error)

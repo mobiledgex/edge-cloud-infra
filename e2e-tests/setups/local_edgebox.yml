@@ -63,6 +63,10 @@ controllers:
   hostname: "127.0.0.1"
   testmode: true
   checkpointinterval: 3m
+  requirenotifyaccesskey: true
+  envvars:
+    E2ETEST_TLS: true
+
 
 dmes:
 - name: dme1
@@ -143,6 +147,7 @@ notifyroots:
 alertmanagers:
 - name: alertmanager
   configfile: "{{datadir2}}/alertmanager.yml"
+  templatefile: "{{datadir2}}/alertmanager.tmpl"
   port: 9093
   hostname: "127.0.0.1"
 

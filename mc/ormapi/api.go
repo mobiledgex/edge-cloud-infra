@@ -38,9 +38,17 @@ type User struct {
 	// read only: true
 	Locked bool
 	// read only: true
-	PassEntropy float64
-	// read only: true
 	PassCrackTimeSec float64
+	// read only: true
+	EnableTOTP bool
+	// read only: true
+	TOTPSharedKey string
+}
+
+type UserResponse struct {
+	Message       string
+	TOTPSharedKey string
+	TOTPQRImage   []byte
 }
 
 type Organization struct {
@@ -157,6 +165,8 @@ type UserLogin struct {
 	// User's password
 	// required: true
 	Password string `form:"password" json:"password"`
+	// read only: true
+	TOTP string `form:"totp" json:"totp"`
 }
 
 type NewPassword struct {
@@ -383,6 +393,8 @@ type AlertReceiver struct {
 	Type string
 	// Alert severity filter
 	Severity string
+	// Region for the alert receiver
+	Region string `json:",omitempty"`
 	// User that created this receiver
 	User string `json:",omitempty"`
 	// Custom receiving email

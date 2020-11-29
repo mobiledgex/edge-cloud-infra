@@ -12,6 +12,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/mobiledgex/edge-cloud/cloudcommon"
 	"github.com/mobiledgex/edge-cloud/edgeproto"
 	"github.com/mobiledgex/edge-cloud/integration/process"
 	"github.com/mobiledgex/edge-cloud/log"
@@ -32,11 +33,18 @@ var prometheusConfig = `global:
 rule_files:
 - "/tmp/` + PrometheusRulesPrefix + `*"
 scrape_configs:
-- job_name: envoy_targets
+- job_name: MobiledgeX Monitoring
   scrape_interval: {{.ScrapeInterval}}
   file_sd_configs:
   - files:
     - '/tmp/prom_targets.json'
+  metric_relabel_configs:
+    - source_labels: [envoy_cluster_name]
+      target_label: port
+      regex: 'backend(.*)'
+      replacement: '${1}'
+    - regex: 'instance|envoy_cluster_name'
+      action: labeldrop
 `
 
 type prometheusConfigArgs struct {
@@ -72,6 +80,7 @@ func getShepherdProc(cloudlet *edgeproto.Cloudlet, pfConfig *edgeproto.PlatformC
 	appDNSRoot := ""
 	deploymentTag := ""
 	chefServerPath := ""
+	accessApiAddr := ""
 	if pfConfig != nil {
 		// Same vault role-id/secret-id as CRM
 		for k, v := range pfConfig.EnvVar {
@@ -81,7 +90,6 @@ func getShepherdProc(cloudlet *edgeproto.Cloudlet, pfConfig *edgeproto.PlatformC
 		tlsCertFile = pfConfig.TlsCertFile
 		tlsKeyFile = pfConfig.TlsKeyFile
 		tlsCAFile = pfConfig.TlsCaFile
-		vaultAddr = pfConfig.VaultAddr
 		span = pfConfig.Span
 		region = pfConfig.Region
 		useVaultCAs = pfConfig.UseVaultCas
@@ -89,6 +97,7 @@ func getShepherdProc(cloudlet *edgeproto.Cloudlet, pfConfig *edgeproto.PlatformC
 		appDNSRoot = pfConfig.AppDnsRoot
 		deploymentTag = pfConfig.DeploymentTag
 		chefServerPath = pfConfig.ChefServerPath
+		accessApiAddr = pfConfig.AccessApiAddr
 	}
 
 	for envKey, envVal := range cloudlet.EnvVar {
@@ -119,16 +128,8 @@ func getShepherdProc(cloudlet *edgeproto.Cloudlet, pfConfig *edgeproto.PlatformC
 		AppDNSRoot:     appDNSRoot,
 		DeploymentTag:  deploymentTag,
 		ChefServerPath: chefServerPath,
+		AccessApiAddr:  accessApiAddr,
 	}, opts, nil
-}
-
-func GetShepherdCmd(cloudlet *edgeproto.Cloudlet, pfConfig *edgeproto.PlatformConfig) (string, *map[string]string, error) {
-	ShepherdProc, opts, err := getShepherdProc(cloudlet, pfConfig)
-	if err != nil {
-		return "", nil, err
-	}
-
-	return ShepherdProc.String(opts...), &ShepherdProc.Common.EnvVars, nil
 }
 
 func GetShepherdCmdArgs(cloudlet *edgeproto.Cloudlet, pfConfig *edgeproto.PlatformConfig) ([]string, *map[string]string, error) {
@@ -136,6 +137,7 @@ func GetShepherdCmdArgs(cloudlet *edgeproto.Cloudlet, pfConfig *edgeproto.Platfo
 	if err != nil {
 		return nil, nil, err
 	}
+	ShepherdProc.AccessKeyFile = cloudcommon.GetCrmAccessKeyFile()
 
 	return ShepherdProc.GetArgs(opts...), &ShepherdProc.Common.EnvVars, nil
 }
@@ -145,6 +147,7 @@ func StartShepherdService(ctx context.Context, cloudlet *edgeproto.Cloudlet, pfC
 	if err != nil {
 		return nil, err
 	}
+	shepherdProc.AccessKeyFile = cloudcommon.GetLocalAccessKeyFile(cloudlet.Key.Name)
 
 	err = shepherdProc.StartLocal("/tmp/"+cloudlet.Key.Name+".shepherd.log", opts...)
 	if err != nil {

@@ -278,6 +278,7 @@ func StartProcesses(processName string, args []string, outputDir string) bool {
 		}
 	}
 	for _, p := range Deployment.AlertmgrSidecars {
+		opts = append(opts, process.WithDebug("api,notify,metrics,events"))
 		if !setupmex.StartLocal(processName, outputDir, p, opts...) {
 			return false
 		}
@@ -328,7 +329,7 @@ func StartProcesses(processName string, args []string, outputDir string) bool {
 	return true
 }
 
-func RunAction(ctx context.Context, actionSpec, outputDir string, config *e2eapi.TestConfig, spec *TestSpec, specStr string, mods []string, vars map[string]string, retry *bool) []string {
+func RunAction(ctx context.Context, actionSpec, outputDir string, config *e2eapi.TestConfig, spec *TestSpec, specStr string, mods []string, vars map[string]string, sharedData map[string]string, retry *bool) []string {
 	var actionArgs []string
 	act, actionParam := setupmex.GetActionParam(actionSpec)
 	action, actionSubtype := setupmex.GetActionSubtype(act)
@@ -381,11 +382,7 @@ func RunAction(ctx context.Context, actionSpec, outputDir string, config *e2eapi
 			}
 		}
 		if startFailed {
-			if !setupmex.StopProcesses(actionParam, allprocs) || !StopRemoteProcesses(actionParam) {
-				errors = append(errors, "stop failed")
-			}
 			break
-
 		}
 		if !UpdateAPIAddrs() {
 			errors = append(errors, "update API addrs failed")
@@ -407,7 +404,7 @@ func RunAction(ctx context.Context, actionSpec, outputDir string, config *e2eapi
 			errors = append(errors, "stop remote failed")
 		}
 	case "mcapi":
-		if !RunMcAPI(actionSubtype, actionParam, spec.ApiFile, spec.CurUserFile, outputDir, mods, vars, retry) {
+		if !RunMcAPI(actionSubtype, actionParam, spec.ApiFile, spec.CurUserFile, outputDir, mods, vars, sharedData, retry) {
 			log.Printf("Unable to run api for %s\n", action)
 			errors = append(errors, "MC api failed")
 		}
@@ -471,8 +468,7 @@ func RunAction(ctx context.Context, actionSpec, outputDir string, config *e2eapi
 			fmt.Fprintf(os.Stderr, "ERROR: unmarshaling setupmex TestSpec: %v", err)
 			errors = append(errors, "Error in unmarshaling TestSpec")
 		} else {
-			retry := false
-			errs := setupmex.RunAction(ctx, actionSpec, outputDir, &ecSpec, mods, vars, &retry)
+			errs := setupmex.RunAction(ctx, actionSpec, outputDir, &ecSpec, mods, vars, retry)
 			errors = append(errors, errs...)
 		}
 	}

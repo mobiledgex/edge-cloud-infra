@@ -420,6 +420,8 @@ func addControllerApis(method string, group *echo.Group) {
 	// StatusMaxTasks: 11.2
 	// StatusTaskName: 11.3
 	// StatusStepName: 11.4
+	// StatusMsgCount: 11.5
+	// StatusMsgs: 11.6
 	// State: 12
 	// CrmOverride: 13
 	// DeploymentLocal: 14
@@ -436,7 +438,6 @@ func addControllerApis(method string, group *echo.Group) {
 	// ConfigContainerRegistryPath: 21.1
 	// ConfigCloudletVmImagePath: 21.2
 	// ConfigNotifyCtrlAddrs: 21.3
-	// ConfigVaultAddr: 21.4
 	// ConfigTlsCertFile: 21.5
 	// ConfigTlsKeyFile: 21.20
 	// ConfigTlsCaFile: 21.21
@@ -455,6 +456,8 @@ func addControllerApis(method string, group *echo.Group) {
 	// ConfigChefServerPath: 21.17
 	// ConfigChefClientInterval: 21.18
 	// ConfigDeploymentTag: 21.19
+	// ConfigCrmAccessPrivateKey: 21.22
+	// ConfigAccessApiAddr: 21.23
 	// ResTagMap: 22
 	// ResTagMapKey: 22.1
 	// ResTagMapValue: 22.2
@@ -477,6 +480,12 @@ func addControllerApis(method string, group *echo.Group) {
 	// VmPool: 32
 	// CrmAccessPublicKey: 33
 	// CrmAccessKeyUpgradeRequired: 34
+	// CreatedAt: 35
+	// CreatedAtSeconds: 35.1
+	// CreatedAtNanos: 35.2
+	// UpdatedAt: 36
+	// UpdatedAtSeconds: 36.1
+	// UpdatedAtNanos: 36.2
 	// ```
 	// Security:
 	//   Bearer:
@@ -497,7 +506,7 @@ func addControllerApis(method string, group *echo.Group) {
 	//   403: forbidden
 	//   404: notFound
 	group.Match([]string{method}, "/ctrl/ShowCloudlet", ShowCloudlet)
-	// swagger:route POST /auth/ctrl/GetCloudletManifest Cloudlet GetCloudletManifest
+	// swagger:route POST /auth/ctrl/GetCloudletManifest CloudletKey GetCloudletManifest
 	// Get Cloudlet Manifest.
 	//  Shows deployment manifest required to setup cloudlet
 	// Security:
@@ -627,6 +636,12 @@ func addControllerApis(method string, group *echo.Group) {
 	// KeyOrganization: 2.1
 	// KeyName: 2.2
 	// Cloudlets: 3
+	// CreatedAt: 4
+	// CreatedAtSeconds: 4.1
+	// CreatedAtNanos: 4.2
+	// UpdatedAt: 5
+	// UpdatedAtSeconds: 5.1
+	// UpdatedAtNanos: 5.2
 	// ```
 	// Security:
 	//   Bearer:
@@ -722,6 +737,8 @@ func addControllerApis(method string, group *echo.Group) {
 	// StatusMaxTasks: 6.2
 	// StatusTaskName: 6.3
 	// StatusStepName: 6.4
+	// StatusMsgCount: 6.5
+	// StatusMsgs: 6.6
 	// CrmOverride: 7
 	// ```
 	// Security:
@@ -877,6 +894,12 @@ func addControllerApis(method string, group *echo.Group) {
 	// AutoProvPolicies: 32
 	// TemplateDelimiter: 33
 	// SkipHcPorts: 34
+	// CreatedAt: 35
+	// CreatedAtSeconds: 35.1
+	// CreatedAtNanos: 35.2
+	// UpdatedAt: 36
+	// UpdatedAtSeconds: 36.1
+	// UpdatedAtNanos: 36.2
 	// ```
 	// Security:
 	//   Bearer:
@@ -969,6 +992,8 @@ func addControllerApis(method string, group *echo.Group) {
 	// StatusMaxTasks: 16.2
 	// StatusTaskName: 16.3
 	// StatusStepName: 16.4
+	// StatusMsgCount: 16.5
+	// StatusMsgs: 16.6
 	// ExternalVolumeSize: 17
 	// AutoScalePolicy: 18
 	// AvailabilityZone: 19
@@ -980,6 +1005,27 @@ func addControllerApis(method string, group *echo.Group) {
 	// MasterNodeFlavor: 25
 	// SkipCrmCleanupOnFailure: 26
 	// OptRes: 27
+	// Resources: 28
+	// ResourcesVms: 28.1
+	// ResourcesVmsName: 28.1.1
+	// ResourcesVmsType: 28.1.2
+	// ResourcesVmsStatus: 28.1.3
+	// ResourcesVmsInfraFlavor: 28.1.4
+	// ResourcesVmsIpaddresses: 28.1.5
+	// ResourcesVmsIpaddressesExternalIp: 28.1.5.1
+	// ResourcesVmsIpaddressesInternalIp: 28.1.5.2
+	// ResourcesVmsContainers: 28.1.6
+	// ResourcesVmsContainersName: 28.1.6.1
+	// ResourcesVmsContainersType: 28.1.6.2
+	// ResourcesVmsContainersStatus: 28.1.6.3
+	// ResourcesVmsContainersClusterip: 28.1.6.4
+	// ResourcesVmsContainersRestarts: 28.1.6.5
+	// CreatedAt: 29
+	// CreatedAtSeconds: 29.1
+	// CreatedAtNanos: 29.2
+	// UpdatedAt: 30
+	// UpdatedAtSeconds: 30.1
+	// UpdatedAtNanos: 30.2
 	// ```
 	// Security:
 	//   Bearer:
@@ -1227,6 +1273,8 @@ func addControllerApis(method string, group *echo.Group) {
 	// StatusMaxTasks: 23.2
 	// StatusTaskName: 23.3
 	// StatusStepName: 23.4
+	// StatusMsgCount: 23.5
+	// StatusMsgs: 23.6
 	// Revision: 24
 	// ForceUpdate: 25
 	// UpdateMultiple: 26
@@ -1241,6 +1289,9 @@ func addControllerApis(method string, group *echo.Group) {
 	// AvailabilityZone: 33
 	// VmFlavor: 34
 	// OptRes: 35
+	// UpdatedAt: 36
+	// UpdatedAtSeconds: 36.1
+	// UpdatedAtNanos: 36.2
 	// ```
 	// Security:
 	//   Bearer:
@@ -1291,36 +1342,6 @@ func addControllerApis(method string, group *echo.Group) {
 	//   403: forbidden
 	//   404: notFound
 	group.Match([]string{method}, "/ctrl/ShowAppInstRefs", ShowAppInstRefs)
-	// swagger:route POST /auth/ctrl/StreamAppInst AppInstKey StreamAppInst
-	// Stream Application Instance current progress.
-	// Security:
-	//   Bearer:
-	// responses:
-	//   200: success
-	//   400: badRequest
-	//   403: forbidden
-	//   404: notFound
-	group.Match([]string{method}, "/ctrl/StreamAppInst", StreamAppInst)
-	// swagger:route POST /auth/ctrl/StreamClusterInst ClusterInstKey StreamClusterInst
-	// Stream Cluster Instance current progress.
-	// Security:
-	//   Bearer:
-	// responses:
-	//   200: success
-	//   400: badRequest
-	//   403: forbidden
-	//   404: notFound
-	group.Match([]string{method}, "/ctrl/StreamClusterInst", StreamClusterInst)
-	// swagger:route POST /auth/ctrl/StreamCloudlet CloudletKey StreamCloudlet
-	// Stream Cloudlet current progress.
-	// Security:
-	//   Bearer:
-	// responses:
-	//   200: success
-	//   400: badRequest
-	//   403: forbidden
-	//   404: notFound
-	group.Match([]string{method}, "/ctrl/StreamCloudlet", StreamCloudlet)
 	// swagger:route POST /auth/ctrl/ShowAppInstClient AppInstClientKey ShowAppInstClient
 	// Show application instance clients.
 	//
@@ -1463,4 +1484,34 @@ func addControllerApis(method string, group *echo.Group) {
 	//   403: forbidden
 	//   404: notFound
 	group.Match([]string{method}, "/ctrl/AccessCloudlet", AccessCloudlet)
+	// swagger:route POST /auth/ctrl/StreamAppInst AppInstKey StreamAppInst
+	// Stream Application Instance current progress.
+	// Security:
+	//   Bearer:
+	// responses:
+	//   200: success
+	//   400: badRequest
+	//   403: forbidden
+	//   404: notFound
+	group.Match([]string{method}, "/ctrl/StreamAppInst", StreamAppInst)
+	// swagger:route POST /auth/ctrl/StreamClusterInst ClusterInstKey StreamClusterInst
+	// Stream Cluster Instance current progress.
+	// Security:
+	//   Bearer:
+	// responses:
+	//   200: success
+	//   400: badRequest
+	//   403: forbidden
+	//   404: notFound
+	group.Match([]string{method}, "/ctrl/StreamClusterInst", StreamClusterInst)
+	// swagger:route POST /auth/ctrl/StreamCloudlet CloudletKey StreamCloudlet
+	// Stream Cloudlet current progress.
+	// Security:
+	//   Bearer:
+	// responses:
+	//   200: success
+	//   400: badRequest
+	//   403: forbidden
+	//   404: notFound
+	group.Match([]string{method}, "/ctrl/StreamCloudlet", StreamCloudlet)
 }

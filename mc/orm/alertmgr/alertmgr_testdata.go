@@ -44,6 +44,16 @@ var testAlerts = []edgeproto.Alert{
 			cloudcommon.AlertHealthCheckStatus: strconv.Itoa(int(edgeproto.HealthCheck_HEALTH_CHECK_FAIL_ROOTLB_OFFLINE)),
 		},
 	},
+	edgeproto.Alert{ // AlertAutoUndeploy alert
+		Labels: map[string]string{
+			"alertname":                     cloudcommon.AlertAutoUndeploy,
+			"region":                        testRegions[1],
+			edgeproto.AppKeyTagName:         "testapp",
+			edgeproto.AppKeyTagOrganization: "testorg",
+			edgeproto.AppKeyTagVersion:      "1.0",
+			edgeproto.CloudletKeyTagName:    "testcloudlet",
+		},
+	},
 }
 
 var testAlertReceivers = []ormapi.AlertReceiver{
@@ -115,6 +125,25 @@ var testAlertReceivers = []ormapi.AlertReceiver{
 				Organization: "testAppOrg",
 				Version:      "v1.0",
 			},
+			ClusterInstKey: edgeproto.ClusterInstKey{
+				ClusterKey: edgeproto.ClusterKey{
+					Name: "testCluster",
+				},
+				CloudletKey: edgeproto.CloudletKey{
+					Name:         "testCloudlet",
+					Organization: "testCloudletOrg",
+				},
+				Organization: "testClusterOrg",
+			},
+		},
+	},
+	ormapi.AlertReceiver{
+		Name:     "testclusteremailreceiver",
+		Type:     AlertReceiverTypeEmail,
+		Severity: cloudcommon.AlertSeverityError,
+		User:     testUsers[0],
+		Email:    "testuser1@testorg.net",
+		AppInst: edgeproto.AppInstKey{
 			ClusterInstKey: edgeproto.ClusterInstKey{
 				ClusterKey: edgeproto.ClusterKey{
 					Name: "testCluster",

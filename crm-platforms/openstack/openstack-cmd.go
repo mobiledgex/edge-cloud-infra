@@ -8,7 +8,6 @@ import (
 	"strings"
 	"time"
 
-	sh "github.com/codeskyblue/go-sh"
 	"github.com/mobiledgex/edge-cloud-infra/infracommon"
 	"github.com/mobiledgex/edge-cloud-infra/vmlayer"
 	"github.com/mobiledgex/edge-cloud/cloudcommon"
@@ -23,10 +22,7 @@ func (s *OpenstackPlatform) TimedOpenStackCommand(ctx context.Context, name stri
 	start := time.Now()
 
 	log.SpanLog(ctx, log.DebugLevelInfra, "OpenStack Command Start", "name", name, "parms", parmstr)
-	newSh := sh.NewSession()
-	for key, val := range s.openRCVars {
-		newSh.SetEnv(key, val)
-	}
+	newSh := infracommon.Sh(s.openRCVars)
 
 	out, err := newSh.Command(name, a).CombinedOutput()
 	if err != nil {
@@ -38,24 +34,28 @@ func (s *OpenstackPlatform) TimedOpenStackCommand(ctx context.Context, name stri
 
 }
 
-//ListServers returns list of servers, KVM instances, running on the system
-func (s *OpenstackPlatform) ListServers(ctx context.Context) ([]OSServer, error) {
+// ListServers returns a map of servers keyed by name
+func (s *OpenstackPlatform) ListServers(ctx context.Context) (map[string]OSServer, error) {
 	out, err := s.TimedOpenStackCommand(ctx, "openstack", "server", "list", "-f", "json")
-
 	if err != nil {
 		err = fmt.Errorf("cannot get server list, %s, %v", out, err)
 		return nil, err
 	}
 	var servers []OSServer
+	var serverMap = make(map[string]OSServer)
+
 	err = json.Unmarshal(out, &servers)
 	if err != nil {
 		err = fmt.Errorf("cannot unmarshal, %v", err)
 		return nil, err
 	}
-	return servers, nil
+	for _, s := range servers {
+		serverMap[s.Name] = s
+	}
+	return serverMap, nil
 }
 
-//ListServers returns list of servers, KVM instances, running on the system
+// ListPorts returns a list of ports
 func (s *OpenstackPlatform) ListPorts(ctx context.Context) ([]OSPort, error) {
 	out, err := s.TimedOpenStackCommand(ctx, "openstack", "port", "list", "-f", "json")
 
@@ -264,6 +264,9 @@ func (s *OpenstackPlatform) ListFloatingIPs(ctx context.Context, network string)
 		out, err = s.TimedOpenStackCommand(ctx, "openstack", "floating", "ip", "list", "-f", "json")
 	} else {
 		out, err = s.TimedOpenStackCommand(ctx, "openstack", "floating", "ip", "list", "--network", network, "-f", "json")
+	}
+	if err != nil {
+		return nil, fmt.Errorf("Failed to list floating IPs: %s, %s - %v", network, out, err)
 	}
 	var fips []OSFloatingIP
 	err = json.Unmarshal(out, &fips)
@@ -674,7 +677,7 @@ func (s *OpenstackPlatform) CreateImage(ctx context.Context, imageName, fileName
 
 //CreateImageFromUrl downloads image from URL and then puts into glance
 func (s *OpenstackPlatform) CreateImageFromUrl(ctx context.Context, imageName, imageUrl, md5Sum string) error {
-	filePath, err := vmlayer.DownloadVMImage(ctx, s.VMProperties.CommonPf.VaultConfig, imageName, imageUrl, md5Sum)
+	filePath, err := vmlayer.DownloadVMImage(ctx, s.VMProperties.CommonPf.PlatformConfig.AccessApi, imageName, imageUrl, md5Sum)
 	if err != nil {
 		return err
 	}
@@ -1021,7 +1024,7 @@ func (s *OpenstackPlatform) AddCloudletImageIfNotPresent(ctx context.Context, im
 			return "", err
 		}
 		// Validate if pfImageName is same as we expected
-		_, md5Sum, err := infracommon.GetUrlInfo(ctx, s.VMProperties.CommonPf.VaultConfig, imgPath)
+		_, md5Sum, err := infracommon.GetUrlInfo(ctx, s.VMProperties.CommonPf.PlatformConfig.AccessApi, imgPath)
 		if err != nil {
 			return "", err
 		}

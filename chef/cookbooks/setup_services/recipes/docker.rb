@@ -22,11 +22,18 @@ docker_image "#{node['edgeCloudImage']}" do
   notifies :prune, 'docker_image_prune[prune-old-images]', :delayed
 end
 
-docker_image "#{node['prometheusImage']}" do
+docker_image "docker.mobiledgex.net/mobiledgex/mobiledgex_public/#{node['prometheusImage']}" do
   Chef::Log.info("Pull prometheus image #{node['prometheusImage']}:#{node['prometheusVersion']}")
   action :pull
   tag "#{node['prometheusVersion']}"
   notifies :prune, 'docker_image_prune[prune-old-images]', :delayed
+end
+
+directory '/root/accesskey' do
+  owner 'root'
+  group 'root'
+  mode '0700'
+  action :create
 end
 
 cmd = crmserver_cmd
@@ -38,7 +45,7 @@ docker_container "crmserver" do
   network_mode 'host'
   restart_policy 'unless-stopped'
   env node['crmserver']['env']
-  volumes ['/var/tmp:/var/tmp']
+  volumes ['/var/tmp:/var/tmp', '/root/accesskey:/root/accesskey']
   command cmd
 end
 
@@ -51,7 +58,7 @@ docker_container "shepherd" do
   network_mode 'host'
   restart_policy 'unless-stopped'
   env node['shepherd']['env']
-  volumes ['/tmp:/tmp']
+  volumes ['/tmp:/tmp', '/root/accesskey:/root/accesskey']
   command cmd
 end
 
@@ -60,12 +67,13 @@ cookbook_file '/tmp/prometheus.yml' do
   mode '0644'
   action :create
   force_unlink true
+  notifies :restart, 'docker_container[cloudletPrometheus]', :delayed
 end
 
 cmd = cloudlet_prometheus_cmd
 docker_container "cloudletPrometheus" do
   Chef::Log.info("Start cloudlet prometheus container, cmd: #{cmd}")
-  repo "#{node['prometheusImage']}"
+  repo "docker.mobiledgex.net/mobiledgex/mobiledgex_public/#{node['prometheusImage']}"
   tag "#{node['prometheusVersion']}"
   action :run
   network_mode 'host'

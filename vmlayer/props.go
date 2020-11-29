@@ -29,7 +29,7 @@ type CloudletSSHKey struct {
 }
 
 type VMProperties struct {
-	CommonPf                   *infracommon.CommonPlatform
+	CommonPf                   infracommon.CommonPlatform
 	SharedRootLBName           string
 	Domain                     VMDomain
 	PlatformSecgrpName         string
@@ -45,7 +45,7 @@ type VMProperties struct {
 var ImageFormatQcow2 = "qcow2"
 var ImageFormatVmdk = "vmdk"
 
-var MEXInfraVersion = "4.1.0"
+var MEXInfraVersion = "4.1.2"
 var ImageNamePrefix = "mobiledgex-v"
 var DefaultOSImageName = ImageNamePrefix + MEXInfraVersion
 
@@ -137,8 +137,13 @@ var VMProviderProps = map[string]*edgeproto.PropertyInfo{
 		Description: "Required if infra API endpoint is completely isolated from external network",
 	},
 	"MEX_SUBNET_DNS": {
-		Name:        "Subnet DNS",
-		Description: "Subnet DNS",
+		Name:        "DNS Override for Subnet",
+		Description: "Set to NONE to use no DNS entry for new subnets.  Otherwise subnet DNS is set to MEX_DNS",
+	},
+	"MEX_DNS": {
+		Name:        "DNS Server(s)",
+		Description: "Override DNS server IP(s), e.g. \"8.8.8.8\" or \"1.1.1.1,8.8.8.8\"",
+		Value:       "1.1.1.1,1.0.0.1",
 	},
 	"MEX_CLOUDLET_FIREWALL_WHITELIST_EGRESS": {
 		Name:        "Cloudlet Firewall Whitelist Egress",
@@ -148,6 +153,18 @@ var VMProviderProps = map[string]*edgeproto.PropertyInfo{
 	"MEX_CLOUDLET_FIREWALL_WHITELIST_INGRESS": {
 		Name:        "Cloudlet Firewall Whitelist Ingress",
 		Description: "Firewall rule to whitelist ingress traffic",
+	},
+	"MEX_ADDITIONAL_PLATFORM_NETWORKS": {
+		Name:        "Additional Platform Networks",
+		Description: "Optional comma separated list of networks to add to platform VM",
+	},
+	"MEX_ADDITIONAL_ROOTLB_NETWORKS": {
+		Name:        "Additional RootLB Networks",
+		Description: "Optional comma separated list of networks to add to rootLB VMs",
+	},
+	"MEX_NTP_SERVERS": {
+		Name:        "NTP Servers",
+		Description: "Optional comma separated list of NTP servers to override default of ntp.ubuntu.com",
 	},
 }
 
@@ -169,10 +186,6 @@ func GetCloudletVMImageName(imgVersion string) string {
 
 func GetCertFilePath(key *edgeproto.CloudletKey) string {
 	return fmt.Sprintf("/tmp/%s.%s.cert", key.Name, key.Organization)
-}
-
-func GetVaultCloudletAccessPath(key *edgeproto.CloudletKey, region, cloudletType, physicalName, filename string) string {
-	return fmt.Sprintf("/secret/data/%s/cloudlet/%s/%s/%s/%s", region, cloudletType, key.Organization, physicalName, filename)
 }
 
 func GetCloudletVMImagePath(imgPath, imgVersion string, imgSuffix string) string {
@@ -244,6 +257,29 @@ func (vp *VMProperties) GetCloudletMexNetwork() string {
 	return value
 }
 
+func (vp *VMProperties) GetCloudletAdditionalPlatformNetworks() []string {
+	value, _ := vp.CommonPf.Properties.GetValue("MEX_ADDITIONAL_PLATFORM_NETWORKS")
+	if value == "" {
+		return []string{}
+	}
+	return strings.Split(value, ",")
+}
+
+func (vp *VMProperties) GetCloudletAdditionalRootLbNetworks() []string {
+	value, _ := vp.CommonPf.Properties.GetValue("MEX_ADDITIONAL_ROOTLB_NETWORKS")
+	if value == "" {
+		return []string{}
+	}
+	return strings.Split(value, ",")
+}
+func (vp *VMProperties) GetNtpServers() []string {
+	value, _ := vp.CommonPf.Properties.GetValue("MEX_NTP_SERVERS")
+	if value == "" {
+		return []string{}
+	}
+	return strings.Split(value, ",")
+}
+
 func (vp *VMProperties) GetCloudletNetworkScheme() string {
 	value, _ := vp.CommonPf.Properties.GetValue("MEX_NETWORK_SCHEME")
 	return value
@@ -279,8 +315,18 @@ func (vp *VMProperties) GetCloudletFlavorMatchPattern() string {
 	return value
 }
 
+func (vp *VMProperties) GetSkipInstallResourceTracker() bool {
+	value, _ := vp.CommonPf.Properties.GetValue("SKIP_INSTALL_RESOURCE_TRACKER")
+	return strings.ToLower(value) == "true"
+}
+
 func (vp *VMProperties) GetCloudletExternalRouter() string {
 	value, _ := vp.CommonPf.Properties.GetValue("MEX_ROUTER")
+	return value
+}
+
+func (vp *VMProperties) GetCloudletDNS() string {
+	value, _ := vp.CommonPf.Properties.GetValue("MEX_DNS")
 	return value
 }
 

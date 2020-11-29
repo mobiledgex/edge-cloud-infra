@@ -6,20 +6,12 @@ import (
 	"net"
 	"strings"
 
+	"github.com/mobiledgex/edge-cloud-infra/infracommon"
 	"github.com/mobiledgex/edge-cloud-infra/vmlayer"
 	"github.com/mobiledgex/edge-cloud/log"
 )
 
 const PortDoesNotExist = "Port does not exist"
-
-func incrIP(ip net.IP) {
-	for j := len(ip) - 1; j >= 0; j-- {
-		ip[j]++
-		if ip[j] > 0 {
-			break
-		}
-	}
-}
 
 func (v *VSpherePlatform) GetExternalIpRanges() ([]string, error) {
 	log.DebugLog(log.DebugLevelInfra, "GetExternalIpRanges")
@@ -61,7 +53,7 @@ func (v *VSpherePlatform) GetExternalIpRanges() ([]string, error) {
 		if ipnetStart.String() != ipnetEnd.String() {
 			return rc, fmt.Errorf("start and end network address must match: %s neq %s", ipnetStart, ipnetEnd)
 		}
-		for ip := ipStart.Mask(ipnetStart.Mask); ipnetStart.Contains(ip); incrIP(ip) {
+		for ip := ipStart.Mask(ipnetStart.Mask); ipnetStart.Contains(ip); infracommon.IncrIP(ip) {
 			if string(ipStart.To16()) <= string(ip.To16()) && string(ipEnd.To16()) >= string(ip.To16()) {
 				rc = append(rc, ip.String())
 			}
@@ -136,9 +128,13 @@ func (v *VSpherePlatform) GetPortGroup(ctx context.Context, serverName, network 
 	if err != nil {
 		return "", fmt.Errorf("Error in GetPortName: %v", err)
 	}
-	_, _, _, vlan, err := v.ParseSubnetTag(ctx, subnetTag.Name)
+	subnetTagContents, err := v.ParseSubnetTag(ctx, subnetTag.Name)
 	if err != nil {
 		return "", err
 	}
-	return fmt.Sprintf("VLAN-%d", vlan), nil
+	return fmt.Sprintf("VLAN-%d", subnetTagContents.Vlan), nil
+}
+
+func (o *VSpherePlatform) ValidateAdditionalNetworks(ctx context.Context, additionalNets []string) error {
+	return fmt.Errorf("Additional networks not supported in vSphere cloudlets")
 }

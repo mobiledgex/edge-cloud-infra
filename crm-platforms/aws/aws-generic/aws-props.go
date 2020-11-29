@@ -3,30 +3,20 @@ package awsgeneric
 import (
 	"context"
 	"fmt"
+	"strings"
 
 	"github.com/mobiledgex/edge-cloud-infra/infracommon"
 	"github.com/mobiledgex/edge-cloud-infra/vmlayer"
+	"github.com/mobiledgex/edge-cloud/cloud-resource-manager/accessapi"
 	"github.com/mobiledgex/edge-cloud/edgeproto"
 	"github.com/mobiledgex/edge-cloud/log"
 	"github.com/mobiledgex/edge-cloud/vault"
 )
 
-const AwsVaultPath string = "/secret/data/cloudlet/aws/credentials"
+const AwsDefaultVaultPath string = "/secret/data/cloudlet/aws/credentials"
+const ArnAccountIdIdx = 4
 
 var AWSProps = map[string]*edgeproto.PropertyInfo{
-	"AWS_ACCESS_KEY_ID": {
-		Name:        "AWS Access Key ID",
-		Description: "AWS Access Key ID",
-		Secret:      true,
-		Mandatory:   true,
-	},
-	"AWS_SECRET_ACCESS_KEY": {
-		Name:        "AWS Secret Access Key",
-		Description: "AWS Secret Access Key",
-		Secret:      true,
-		Mandatory:   true,
-	},
-
 	"AWS_REGION": {
 		Name:        "AWS Region",
 		Description: "AWS Region",
@@ -37,6 +27,22 @@ var AWSProps = map[string]*edgeproto.PropertyInfo{
 		Name:        "External Router Type",
 		Description: "AWS Router must be " + vmlayer.NoConfigExternalRouter,
 		Value:       vmlayer.NoConfigExternalRouter,
+	},
+	"AWS_OUTPOST_VPC": {
+		Name:        "AWS Outpost VPC",
+		Description: "Pre-existing VPC for an outpost deployment",
+	},
+	"AWS_AMI_IAM_OWNER": {
+		Name:        "AWS Outpost AMI Owner",
+		Description: "IAM Account that owns the base image",
+	},
+	"AWS_OUTPOST_FLAVORS": {
+		Name:        "AWS Outpost Flavors",
+		Description: "AWS Outpost Flavors in format flavor1,vcpu,ram,disk;flavor2.. e.g. c5.large,2,4096,40;c5.xlarge,4,8192,40",
+	},
+	"AWS_USER_ARN": {
+		Name:        "AWS User ARN (Amazon Resource Name)",
+		Description: "AWS User ARN (Amazon Resource Name)",
 	},
 }
 
@@ -55,13 +61,67 @@ func (a *AwsGenericPlatform) GetAwsRegion() string {
 	return val
 }
 
-func (a *AwsGenericPlatform) GetProviderSpecificProps(ctx context.Context, vaultConfig *vault.Config) (map[string]*edgeproto.PropertyInfo, error) {
-	log.SpanLog(ctx, log.DebugLevelInfra, "GetProviderSpecificProps")
-	err := infracommon.InternVaultEnv(ctx, vaultConfig, AwsVaultPath)
+func (a *AwsGenericPlatform) IsAwsOutpost() bool {
+	val, _ := a.Properties.GetValue("AWS_OUTPOST_VPC")
+	return val != ""
+}
+
+func (a *AwsGenericPlatform) GetAwsAmiIamOwner() string {
+	val, _ := a.Properties.GetValue("AWS_AMI_IAM_OWNER")
+	return val
+}
+
+func (a *AwsGenericPlatform) GetAwsOutpostVPC() string {
+	val, _ := a.Properties.GetValue("AWS_OUTPOST_VPC")
+	return val
+}
+
+func (a *AwsGenericPlatform) GetAwsOutpostFlavors() string {
+	val, _ := a.Properties.GetValue("AWS_OUTPOST_FLAVORS")
+	return val
+}
+func (a *AwsGenericPlatform) GetAwsUserArn() string {
+	val, _ := a.Properties.GetValue("AWS_USER_ARN")
+	return val
+}
+
+func (a *AwsGenericPlatform) GetProviderSpecificProps(ctx context.Context) (map[string]*edgeproto.PropertyInfo, error) {
+	return AWSProps, nil
+}
+
+func (a *AwsGenericPlatform) GetSessionTokens(ctx context.Context, vaultConfig *vault.Config, account string) (map[string]string, error) {
+	log.SpanLog(ctx, log.DebugLevelApi, "AwsGenericPlatform GetSessionTokens", "account", account)
+	token, err := a.GetAwsTotpToken(ctx, vaultConfig, account)
 	if err != nil {
-		log.SpanLog(ctx, log.DebugLevelInfra, "Failed to intern vault data", "err", err)
-		err = fmt.Errorf("cannot intern vault data from vault %s", err.Error())
 		return nil, err
 	}
-	return AWSProps, nil
+	tokens := map[string]string{
+		TotpTokenName: token,
+	}
+	return tokens, nil
+}
+
+func (a *AwsGenericPlatform) GetAccessData(ctx context.Context, cloudlet *edgeproto.Cloudlet, region string, vaultConfig *vault.Config, dataType string, arg []byte) (map[string]string, error) {
+	log.SpanLog(ctx, log.DebugLevelApi, "AwsGenericPlatform GetAccessData", "dataType", dataType)
+	switch dataType {
+	case accessapi.GetCloudletAccessVars:
+		path := a.GetVaultCloudletAccessPath(&cloudlet.Key, region, cloudlet.PhysicalName)
+		vars, err := infracommon.GetEnvVarsFromVault(ctx, vaultConfig, path)
+		if err != nil {
+			return nil, err
+		}
+		return vars, nil
+	case accessapi.GetSessionTokens:
+		return a.GetSessionTokens(ctx, vaultConfig, string(arg))
+	}
+	return nil, fmt.Errorf("AwsGeneric unhandled GetAccessData type %s", dataType)
+}
+
+func (a *AwsGenericPlatform) GetUserAccountIdFromArn(ctx context.Context, arn string) (string, error) {
+	arns := strings.Split(arn, ":")
+	if len(arns) <= ArnAccountIdIdx {
+		log.SpanLog(ctx, log.DebugLevelInfra, "Wrong number of fields in ARN", "iamResult.User.Arn", arn)
+		return "", fmt.Errorf("Cannot parse IAM ARN: %s", arn)
+	}
+	return arns[ArnAccountIdIdx], nil
 }

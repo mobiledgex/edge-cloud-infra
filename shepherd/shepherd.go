@@ -10,6 +10,7 @@ import (
 	"sync"
 	"time"
 
+	awsec2 "github.com/mobiledgex/edge-cloud-infra/crm-platforms/aws/aws-ec2"
 	"github.com/mobiledgex/edge-cloud-infra/crm-platforms/openstack"
 	"github.com/mobiledgex/edge-cloud-infra/crm-platforms/vmpool"
 	"github.com/mobiledgex/edge-cloud-infra/crm-platforms/vsphere"
@@ -19,6 +20,7 @@ import (
 	"github.com/mobiledgex/edge-cloud-infra/shepherd/shepherd_platform/shepherd_fake"
 	"github.com/mobiledgex/edge-cloud-infra/shepherd/shepherd_platform/shepherd_vmprovider"
 	"github.com/mobiledgex/edge-cloud-infra/vmlayer"
+	"github.com/mobiledgex/edge-cloud/cloud-resource-manager/accessapi"
 	"github.com/mobiledgex/edge-cloud/cloud-resource-manager/k8smgmt"
 	pf "github.com/mobiledgex/edge-cloud/cloud-resource-manager/platform"
 	"github.com/mobiledgex/edge-cloud/cloudcommon"
@@ -28,6 +30,7 @@ import (
 	"github.com/mobiledgex/edge-cloud/notify"
 	"github.com/mobiledgex/edge-cloud/tls"
 	"github.com/mobiledgex/edge-cloud/util/tasks"
+	"google.golang.org/grpc"
 )
 
 var debugLevels = flag.String("d", "", fmt.Sprintf("comma separated list of %v", log.DebugLevelStrings))
@@ -72,6 +75,7 @@ var nodeMgr node.NodeMgr
 
 var sigChan chan os.Signal
 var notifyClient *notify.Client
+var ctrlConn *grpc.ClientConn
 var cloudletWait = make(chan bool, 1)
 var stopCh = make(chan bool, 1)
 
@@ -288,6 +292,15 @@ func getPlatform() (platform.Platform, error) {
 		plat = &shepherd_vmprovider.ShepherdPlatform{
 			VMPlatform: &vmPlatform,
 		}
+	case "PLATFORM_TYPE_AWS_EC2":
+		awsEc2Provider := awsec2.AwsEc2Platform{}
+		vmPlatform := vmlayer.VMPlatform{
+			Type:       vmlayer.VMProviderAwsEc2,
+			VMProvider: &awsEc2Provider,
+		}
+		plat = &shepherd_vmprovider.ShepherdPlatform{
+			VMPlatform: &vmPlatform,
+		}
 	case "PLATFORM_TYPE_VM_POOL":
 		vmpoolProvider := vmpool.VMPoolPlatform{}
 		vmPlatform := vmlayer.VMPlatform{
@@ -307,6 +320,7 @@ func getPlatform() (platform.Platform, error) {
 
 func main() {
 	nodeMgr.InitFlags()
+	nodeMgr.AccessKeyClient.InitFlags()
 	flag.Parse()
 	start()
 	defer stop()
@@ -331,6 +345,21 @@ func start() {
 		log.FatalLog(err.Error())
 	}
 	defer span.Finish()
+
+	if !nodeMgr.AccessKeyClient.IsEnabled() {
+		log.FatalLog("access key client is not enabled")
+	}
+	log.SpanLog(ctx, log.DebugLevelInfo, "Setup persistent access connection to Controller")
+	_ctrlConn, err := nodeMgr.AccessKeyClient.ConnectController(ctx)
+	if err != nil {
+		log.SpanLog(ctx, log.DebugLevelInfo, "Failed to connect to controller", "err", err)
+		span.Finish()
+		log.FatalLog(err.Error())
+	}
+	ctrlConn = _ctrlConn
+
+	accessClient := edgeproto.NewCloudletAccessApiClient(ctrlConn)
+	accessApi := accessapi.NewControllerClient(accessClient)
 
 	clientTlsConfig, err := nodeMgr.InternalPki.GetClientTlsConfig(ctx,
 		nodeMgr.CommonName(),
@@ -369,7 +398,11 @@ func start() {
 	edgeproto.InitCloudletCache(&CloudletCache)
 
 	addrs := strings.Split(*notifyAddrs, ",")
-	notifyClient = notify.NewClient(nodeMgr.Name(), addrs, tls.GetGrpcDialOption(clientTlsConfig))
+	notifyClient = notify.NewClient(nodeMgr.Name(), addrs,
+		tls.GetGrpcDialOption(clientTlsConfig),
+		notify.ClientUnaryInterceptors(nodeMgr.AccessKeyClient.UnaryAddAccessKey),
+		notify.ClientStreamInterceptors(nodeMgr.AccessKeyClient.StreamAddAccessKey),
+	)
 	notifyClient.SetFilterByCloudletKey()
 	notifyClient.RegisterRecvSettingsCache(&SettingsCache)
 	notifyClient.RegisterRecvVMPoolCache(&VMPoolCache)
@@ -435,13 +468,13 @@ func start() {
 
 	pc := pf.PlatformConfig{
 		CloudletKey:    &cloudletKey,
-		VaultAddr:      nodeMgr.VaultAddr,
 		Region:         *region,
 		EnvVars:        cloudlet.EnvVar,
 		DeploymentTag:  nodeMgr.DeploymentTag,
 		PhysicalName:   *physicalName,
 		AppDNSRoot:     *appDNSRoot,
 		ChefServerPath: *chefServerPath,
+		AccessApi:      accessApi,
 	}
 
 	err = myPlatform.Init(ctx, &pc)
@@ -485,6 +518,9 @@ func stop() {
 	}
 	// stop cloudlet workers
 	close(stopCh)
+	if ctrlConn != nil {
+		ctrlConn.Close()
+	}
 	nodeMgr.Finish()
 }
 

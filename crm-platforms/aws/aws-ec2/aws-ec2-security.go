@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"strings"
 
+	awsgen "github.com/mobiledgex/edge-cloud-infra/crm-platforms/aws/aws-generic"
 	dme "github.com/mobiledgex/edge-cloud/d-match-engine/dme-proto"
 	"github.com/mobiledgex/edge-cloud/edgeproto"
 	"github.com/mobiledgex/edge-cloud/log"
@@ -20,7 +21,7 @@ const SecurityGroupRuleRevoke SecurityGroupAction = "revoke"
 func (a *AwsEc2Platform) CreateSecurityGroupRule(ctx context.Context, groupId, protocol, portRange, allowedCIDR string) error {
 	log.SpanLog(ctx, log.DebugLevelInfra, "CreateSecurityGroupRule", "groupId", groupId, "portRange", portRange, "allowedCIDR", allowedCIDR)
 
-	out, err := a.awsGenPf.TimedAwsCommand(ctx, "aws",
+	out, err := a.awsGenPf.TimedAwsCommand(ctx, awsgen.AwsCredentialsSession, "aws",
 		"ec2",
 		"authorize-security-group-ingress",
 		"--group-id", groupId,
@@ -41,7 +42,7 @@ func (a *AwsEc2Platform) CreateSecurityGroupRule(ctx context.Context, groupId, p
 func (a *AwsEc2Platform) RevokeSecurityGroupRule(ctx context.Context, groupId, protocol, portRange, allowedCIDR string) error {
 	log.SpanLog(ctx, log.DebugLevelInfra, "RevokeSecurityGroupRule", "groupId", groupId, "portRange", portRange, "allowedCIDR", allowedCIDR)
 
-	out, err := a.awsGenPf.TimedAwsCommand(ctx, "aws",
+	out, err := a.awsGenPf.TimedAwsCommand(ctx, awsgen.AwsCredentialsSession, "aws",
 		"ec2",
 		"revoke-security-group-ingress",
 		"--group-id", groupId,
@@ -116,7 +117,7 @@ func (a *AwsEc2Platform) GetSecurityGroup(ctx context.Context, name string, vpcI
 // GetSecurityGroups returns a map of name to group for all groups in the VPC
 func (a *AwsEc2Platform) GetSecurityGroups(ctx context.Context, vpcId string) (map[string]*AwsEc2SecGrp, error) {
 	log.SpanLog(ctx, log.DebugLevelInfra, "GetSecurityGroups", "vpcId", vpcId)
-	out, err := a.awsGenPf.TimedAwsCommand(ctx, "aws",
+	out, err := a.awsGenPf.TimedAwsCommand(ctx, awsgen.AwsCredentialsSession, "aws",
 		"ec2",
 		"describe-security-groups",
 		"--region", a.awsGenPf.GetAwsRegion())
@@ -144,7 +145,7 @@ func (a *AwsEc2Platform) CreateSecurityGroup(ctx context.Context, secGrpname, vp
 	log.SpanLog(ctx, log.DebugLevelInfra, "CreateSecurityGroup", "secGrpname", secGrpname, "vmGroupName", vmGroupName, "vpcId", vpcId)
 	tagspec := fmt.Sprintf("ResourceType=security-group,Tags=[{Key=%s,Value=%s},{Key=%s,Value=%s}]", NameTag, secGrpname, VMGroupNameTag, vmGroupName)
 
-	out, err := a.awsGenPf.TimedAwsCommand(ctx, "aws",
+	out, err := a.awsGenPf.TimedAwsCommand(ctx, awsgen.AwsCredentialsSession, "aws",
 		"ec2",
 		"create-security-group",
 		"--region", a.awsGenPf.GetAwsRegion(),
@@ -170,7 +171,7 @@ func (a *AwsEc2Platform) CreateSecurityGroup(ctx context.Context, secGrpname, vp
 
 func (a *AwsEc2Platform) DeleteSecurityGroup(ctx context.Context, groupId, vpcId string) error {
 	log.SpanLog(ctx, log.DebugLevelInfra, "DeleteSecurityGroup", "groupId", groupId, "vpcId", vpcId)
-	out, err := a.awsGenPf.TimedAwsCommand(ctx, "aws",
+	out, err := a.awsGenPf.TimedAwsCommand(ctx, awsgen.AwsCredentialsSession, "aws",
 		"ec2",
 		"delete-security-group",
 		"--region", a.awsGenPf.GetAwsRegion(),
@@ -205,17 +206,27 @@ func (a *AwsEc2Platform) AllowIntraVpcTraffic(ctx context.Context, groupId strin
 	return nil
 }
 
-// GetIamAccountId gets the account Id for the logged in user
-func (a *AwsEc2Platform) GetIamAccountId(ctx context.Context) (string, error) {
-	log.SpanLog(ctx, log.DebugLevelInfra, "GetIamAccountId")
+// GetIamAccountForImage gets the account Id, which is either the logged in account
+// or the account specified as the GetAmiIamOwner
+func (a *AwsEc2Platform) GetIamAccountForImage(ctx context.Context) (string, error) {
+	log.SpanLog(ctx, log.DebugLevelInfra, "GetIamAccountForImage")
 
-	out, err := a.awsGenPf.TimedAwsCommand(ctx, "aws",
+	acct := a.awsGenPf.GetAwsAmiIamOwner()
+	if acct != "" {
+		log.SpanLog(ctx, log.DebugLevelInfra, "using account specified AWS_AMI_IAM_OWNER", "acct", acct)
+		return acct, nil
+	} else {
+		if a.awsGenPf.IsAwsOutpost() {
+			return "", fmt.Errorf("AWS_AMI_IAM_OWNER must be set for outpost")
+		}
+	}
+	out, err := a.awsGenPf.TimedAwsCommand(ctx, awsgen.AwsCredentialsSession, "aws",
 		"iam",
 		"get-user")
 
 	log.SpanLog(ctx, log.DebugLevelInfra, "get-user result", "out", string(out), "err", err)
 	if err != nil {
-		return "", fmt.Errorf("GetIamAccountId failed: %s - %v", string(out), err)
+		return "", fmt.Errorf("GetIamAccountForImage failed: %s - %v", string(out), err)
 	}
 	var iamResult AwsIamUserResult
 	err = json.Unmarshal(out, &iamResult)
@@ -224,10 +235,5 @@ func (a *AwsEc2Platform) GetIamAccountId(ctx context.Context) (string, error) {
 		err = fmt.Errorf("cannot unmarshal, %v", err)
 		return "", err
 	}
-	arns := strings.Split(iamResult.User.Arn, ":")
-	if len(arns) <= ArnAccountIdIdx {
-		log.SpanLog(ctx, log.DebugLevelInfra, "Wrong number of fields in ARN", "iamResult.User.Arn", iamResult.User.Arn)
-		return "", fmt.Errorf("Cannot parse IAM ARN: %s", iamResult.User.Arn)
-	}
-	return arns[ArnAccountIdIdx], nil
+	return a.awsGenPf.GetUserAccountIdFromArn(ctx, iamResult.User.Arn)
 }

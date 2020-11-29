@@ -39,6 +39,7 @@
     - policies/pki-regional-config.read.v1.hcl.j2
     - policies/pki-regional-roles.read.v1.hcl.j2
     - policies/pki-root-config.read.v1.hcl.j2
+    - policies/pki-tidy.v1.hcl.j2
     - policies/registry.read.v1.hcl.j2
     - policies/root-ca.read.v1.hcl.j2
     - policies/ssh-ansible-user.read.v1.hcl.j2

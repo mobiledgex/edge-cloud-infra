@@ -41,9 +41,12 @@ func GetAlertReceiverCommand() *cobra.Command {
 		Comments:     AlertReceiverArgsComments,
 		Run:          runRest("/auth/alertreceiver/delete"),
 	}, &cli.Command{
-		Use:       "show",
-		ReplyData: &[]ormapi.AlertReceiver{},
-		Run:       runRest("/auth/alertreceiver/show"),
+		Use:          "show",
+		AliasArgs:    strings.Join(AlertReceiverAliasArgs, " "),
+		Comments:     AlertReceiverArgsComments,
+		OptionalArgs: strings.Join(AlertReceiverOptionalArgs, " ") + " " + strings.Join(AlertReceiverRequiredArgs, " "),
+		ReplyData:    &[]ormapi.AlertReceiver{},
+		Run:          runRest("/auth/alertreceiver/show"),
 	}}
 	return cli.GenGroup("alertreceiver", "manage alert receivers", cmds)
 }
@@ -55,6 +58,7 @@ var AlertReceiverRequiredArgs = []string{
 }
 
 var AlertReceiverOptionalArgs = []string{
+	"region",
 	"email",
 	"slack-channel",
 	"slack-api-url",
@@ -70,6 +74,7 @@ var AlertReceiverOptionalArgs = []string{
 }
 
 var AlertReceiverArgsComments = map[string]string{
+	"region":           "Region where alert originated",
 	"name":             "Unique name of this receiver",
 	"type":             "Receiver type - email, or slack",
 	"severity":         "Alert severity level - one of " + cloudcommon.GetValidAlertSeverityString(),

@@ -321,7 +321,8 @@ func (v *VMPlatform) GetVMSpecForRootLB(ctx context.Context, rootLbName string, 
 		true,
 		WithExternalVolume(vmspec.ExternalVolumeSize),
 		WithSubnetConnection(subnetConnect),
-		WithChefParams(chefParams))
+		WithChefParams(chefParams),
+		WithAdditionalNetworks(v.VMProperties.GetCloudletAdditionalRootLbNetworks()))
 }
 
 // GetVMSpecForRootLBPorts get a vmspec for the purpose of creating new ports to the specified subnet
@@ -435,10 +436,15 @@ func (v *VMPlatform) SetupRootLB(
 	if err != nil {
 		return fmt.Errorf("cannot get rootLB IP %sv", err)
 	}
-	log.SpanLog(ctx, log.DebugLevelInfra, "Copy resource-tracker to rootLb", "rootLb", rootLBName)
-	err = CopyResourceTracker(client)
-	if err != nil {
-		return fmt.Errorf("cannot copy resource-tracker to rootLb %v", err)
+	// just for test as this is taking too long
+	if v.VMProperties.GetSkipInstallResourceTracker() {
+		log.SpanLog(ctx, log.DebugLevelInfra, "skipping install of resource tracker")
+	} else {
+		log.SpanLog(ctx, log.DebugLevelInfra, "Copy resource-tracker to rootLb", "rootLb", rootLBName)
+		err = CopyResourceTracker(client)
+		if err != nil {
+			return fmt.Errorf("cannot copy resource-tracker to rootLb %v", err)
+		}
 	}
 	route, err := v.VMProperties.GetInternalNetworkRoute(ctx)
 	if err != nil {

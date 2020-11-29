@@ -22,6 +22,7 @@ vault_github_teams:
       - mexenv.read.v1
       - registry.read.v1
       - ssh-ansible-user.sign.v1
+      - ssh-machine.sign.v1
       - ssh-user.sign.v1
       - sys-auth.read.v1
       - sys-policies.read.v1
@@ -38,4 +39,6 @@ vault_github_users:
   - userid: anand12gupta
     role: admin
   - userid: ashxjain
+    role: admin
+  - userid: mwilliams-mex
     role: admin

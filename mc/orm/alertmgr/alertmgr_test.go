@@ -245,6 +245,14 @@ func (s *AlertmanagerMock) findRouteByReceiver(receiver *ormapi.AlertReceiver) *
 func (s *AlertmanagerMock) verifyAlertPresent(t *testing.T, alert *edgeproto.Alert) {
 	labelSet := model.LabelSet{}
 	for k, v := range alert.Labels {
+		// Convert to string of integer
+		if k == cloudcommon.AlertHealthCheckStatus {
+			if tmp, err := strconv.ParseInt(v, 10, 32); err == nil {
+				if statusVal, ok := edgeproto.HealthCheck_CamelName[int32(tmp)]; ok {
+					v = statusVal
+				}
+			}
+		}
 		labelSet[model.LabelName(k)] = model.LabelValue(v)
 	}
 	key := labelSet.String()
@@ -361,6 +369,9 @@ func TestAlertMgrServer(t *testing.T) {
 	testAlertCache.Update(ctx, &testAlerts[1], 0)
 	fakeAlertmanager.verifyAlertCnt(t, 2)
 	fakeAlertmanager.verifyAlertPresent(t, &testAlerts[1])
+	// Raise an internal alert - should not get propagated to alertmanager
+	testAlertCache.Update(ctx, &testAlerts[2], 0)
+	fakeAlertmanager.verifyAlertCnt(t, 2)
 	// Test alertmgr show alert api
 	alerts, err := testAlertMgrServer.ShowAlerts(ctx, nil)
 	require.Nil(t, err)
@@ -384,7 +395,7 @@ func TestAlertMgrServer(t *testing.T) {
 		require.Equal(t, "testcloudlet", val)
 		val, found = alert.Labels[cloudcommon.AlertHealthCheckStatus]
 		require.True(t, found)
-		require.Equal(t, strconv.Itoa(int(edgeproto.HealthCheck_HEALTH_CHECK_FAIL_ROOTLB_OFFLINE)), val)
+		require.Equal(t, edgeproto.HealthCheck_CamelName[int32(edgeproto.HealthCheck_HEALTH_CHECK_FAIL_ROOTLB_OFFLINE)], val)
 		region, ok := alert.Labels["region"]
 		require.True(t, ok)
 		if ok {
@@ -446,6 +457,33 @@ func TestAlertMgrServer(t *testing.T) {
 	require.Nil(t, err)
 	// should be empty response
 	require.Len(t, receivers, 0)
+	// Non-existent receiver by appname
+	filter = ormapi.AlertReceiver{
+		AppInst: edgeproto.AppInstKey{
+			AppKey: edgeproto.AppKey{
+				Name: "invalidAppName",
+			},
+		},
+	}
+	receivers, err = testAlertMgrServer.ShowReceivers(ctx, &filter)
+	require.Nil(t, err)
+	// should be empty response
+	require.Len(t, receivers, 0)
+	// filter by type and appInst name
+	filter = ormapi.AlertReceiver{
+		Type: AlertReceiverTypeEmail,
+		AppInst: edgeproto.AppInstKey{
+			AppKey: edgeproto.AppKey{
+				Name: "testApp",
+			},
+		},
+	}
+	receivers, err = testAlertMgrServer.ShowReceivers(ctx, &filter)
+	require.Nil(t, err)
+	// should be a single receiver
+	require.Len(t, receivers, 1)
+	// check the receiver and all fields
+	require.Equal(t, testAlertReceivers[1], receivers[0])
 
 	// Delete non-existent receiver
 	err = testAlertMgrServer.DeleteReceiver(ctx, &testAlertReceivers[0])
@@ -529,6 +567,39 @@ func TestAlertMgrServer(t *testing.T) {
 	receivers, err = testAlertMgrServer.ShowReceivers(ctx, nil)
 	require.Nil(t, err)
 	require.Len(t, receivers, 0)
+
+	// Test cluster alert receivers
+	err = testAlertMgrServer.CreateReceiver(ctx, &testAlertReceivers[4])
+	require.Nil(t, err)
+	fakeAlertmanager.verifyReceiversCnt(t, 2)
+	// Validate receivers
+	receiver = fakeAlertmanager.findReceiver(&testAlertReceivers[4])
+	require.NotNil(t, receiver)
+	require.Len(t, receiver.EmailConfigs, 1)
+	require.Equal(t, testAlertReceivers[4].Email, receiver.EmailConfigs[0].To)
+	// check route and labels
+	route = fakeAlertmanager.findRouteByReceiver(&testAlertReceivers[4])
+	require.NotNil(t, route)
+	routeLblVal, found = route.Match[edgeproto.ClusterInstKeyTagOrganization]
+	require.True(t, found)
+	require.Equal(t, routeLblVal, testAlertReceivers[4].AppInst.ClusterInstKey.Organization)
+	routeLblVal, found = route.Match[edgeproto.ClusterKeyTagName]
+	require.True(t, found)
+	require.Equal(t, routeLblVal, testAlertReceivers[4].AppInst.ClusterInstKey.ClusterKey.Name)
+	routeLblVal, found = route.Match[edgeproto.CloudletKeyTagName]
+	require.True(t, found)
+	require.Equal(t, routeLblVal, testAlertReceivers[4].AppInst.ClusterInstKey.CloudletKey.Name)
+	routeLblVal, found = route.Match[edgeproto.CloudletKeyTagOrganization]
+	require.True(t, found)
+	require.Equal(t, routeLblVal, testAlertReceivers[4].AppInst.ClusterInstKey.CloudletKey.Organization)
+
+	// Verify ShowReceivers
+	receivers, err = testAlertMgrServer.ShowReceivers(ctx, nil)
+	require.Nil(t, err)
+	// should be a single receiver
+	require.Len(t, receivers, 1)
+	// check the receiver and all fields
+	require.Equal(t, testAlertReceivers[4], receivers[0])
 
 	// TODO - test silencers
 	testAlertMgrServer.Stop()

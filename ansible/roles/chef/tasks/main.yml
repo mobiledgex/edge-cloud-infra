@@ -8,7 +8,7 @@
       - hook_name: chef-cert-reload
         hook_content: |-
           #!/bin/bash
-          chef-server-ctl reconfigure
+          chef-server-ctl restart nginx
   tags: setup
 
 - name: Download chef package

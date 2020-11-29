@@ -9,6 +9,7 @@ import (
 	"io/ioutil"
 	"net/http"
 	"net/url"
+	"strconv"
 	"strings"
 	"sync"
 	"text/template"
@@ -16,6 +17,7 @@ import (
 
 	"github.com/go-openapi/strfmt"
 	"github.com/mobiledgex/edge-cloud-infra/mc/ormapi"
+	"github.com/mobiledgex/edge-cloud/cloudcommon"
 	dme "github.com/mobiledgex/edge-cloud/d-match-engine/dme-proto"
 	"github.com/mobiledgex/edge-cloud/edgeproto"
 	"github.com/mobiledgex/edge-cloud/log"
@@ -39,6 +41,7 @@ var defaultConfigTemplate *template.Template
 type AlertMgrServer struct {
 	AlertMrgAddr          string
 	AlertResolutionTimout time.Duration
+	AlertRefreshInterval  time.Duration
 	AlertCache            *edgeproto.AlertCache
 	TlsConfig             *tls.Config
 	waitGrp               sync.WaitGroup
@@ -48,6 +51,14 @@ type AlertMgrServer struct {
 // TODO - use version to track where this alert came from
 func getAgentName() string {
 	return "MasterControllerV1"
+}
+
+// resolveTimeout should be at least 3x of alert refresh rate
+func getAlertRefreshRate(resolveTimeout time.Duration) time.Duration {
+	if alertRefreshInterval < resolveTimeout/3 {
+		return alertRefreshInterval
+	}
+	return resolveTimeout / 3
 }
 
 func NewAlertMgrServer(alertMgrAddr string, tlsConfig *tls.Config,
@@ -63,6 +74,7 @@ func NewAlertMgrServer(alertMgrAddr string, tlsConfig *tls.Config,
 	defer span.Finish()
 	ctx := log.ContextWithSpan(context.Background(), span)
 
+	server.AlertRefreshInterval = getAlertRefreshRate(resolveTimeout)
 	// We might need to wait for alertmanager to be up first
 	for ii := 0; ii < 10; ii++ {
 		_, err = alertMgrApi(ctx, server.AlertMrgAddr, "GET", "", "", nil, server.TlsConfig)
@@ -94,7 +106,7 @@ func (s *AlertMgrServer) runServer() {
 	for !done {
 		// check if there are any new apps we need to start/stop scraping for
 		select {
-		case <-time.After(alertRefreshInterval):
+		case <-time.After(s.AlertRefreshInterval):
 			span := log.StartSpan(log.DebugLevelInfo, "alert-mgr")
 			ctx := log.ContextWithSpan(context.Background(), span)
 			log.SpanLog(ctx, log.DebugLevelInfo, "Sending Alerts to AlertMgr", "AlertMrgAddr",
@@ -125,15 +137,36 @@ func (s *AlertMgrServer) Stop() {
 	s.waitGrp.Wait()
 }
 
+func isInternalAlert(alert *edgeproto.Alert) bool {
+	name, ok := alert.Labels["alertname"]
+	if !ok {
+		return true
+	}
+	if name == cloudcommon.AlertAppInstDown {
+		return false
+	}
+	return true
+}
+
 func (s *AlertMgrServer) alertsToOpenAPIAlerts(alerts []*edgeproto.Alert) models.PostableAlerts {
 	openAPIAlerts := models.PostableAlerts{}
 	for _, a := range alerts {
+		if isInternalAlert(a) {
+			continue
+		}
 		start := strfmt.DateTime(time.Unix(a.ActiveAt.Seconds, int64(a.ActiveAt.Nanos)))
 		// Set endsAt to now + s.AlertResolutionTimout
-		end := strfmt.DateTime(time.Unix(a.ActiveAt.Seconds+int64(s.AlertResolutionTimout.Seconds()), int64(a.ActiveAt.Nanos)))
-		// Add region label to differentiate these at the global level
+		end := strfmt.DateTime(time.Now().Add(s.AlertResolutionTimout))
 		labels := make(map[string]string)
 		for k, v := range a.Labels {
+			// Convert appInst status to a human-understandable format
+			if k == cloudcommon.AlertHealthCheckStatus {
+				if tmp, err := strconv.ParseInt(v, 10, 32); err == nil {
+					if _, ok := edgeproto.HealthCheck_CamelName[int32(tmp)]; ok {
+						v = edgeproto.HealthCheck_CamelName[int32(tmp)]
+					}
+				}
+			}
 			labels[k] = v
 		}
 		openAPIAlerts = append(openAPIAlerts, &models.PostableAlert{
@@ -209,14 +242,17 @@ func getAlertmgrReceiverName(receiver *ormapi.AlertReceiver) string {
 
 func getRouteMatchLabelsFromAlertReceiver(in *ormapi.AlertReceiver) map[string]string {
 	labels := map[string]string{}
+	// Add region label if one is specified
+	if in.Region != "" {
+		labels["region"] = in.Region
+	}
 	if in.Cloudlet.Organization != "" {
 		// add labels for the cloudlet
 		labels[edgeproto.CloudletKeyTagOrganization] = in.Cloudlet.Organization
 		if in.Cloudlet.Name != "" {
 			labels[edgeproto.CloudletKeyTagName] = in.Cloudlet.Name
 		}
-	}
-	if in.AppInst.AppKey.Organization != "" {
+	} else if in.AppInst.AppKey.Organization != "" {
 		// add labels for app instance
 		labels[edgeproto.AppKeyTagOrganization] = in.AppInst.AppKey.Organization
 		if in.AppInst.AppKey.Name != "" {
@@ -236,6 +272,18 @@ func getRouteMatchLabelsFromAlertReceiver(in *ormapi.AlertReceiver) map[string]s
 		}
 		if in.AppInst.ClusterInstKey.Organization != "" {
 			labels[edgeproto.ClusterInstKeyTagOrganization] = in.AppInst.ClusterInstKey.Organization
+		}
+	} else if in.AppInst.ClusterInstKey.Organization != "" {
+		// add labels for cluster instance
+		labels[edgeproto.ClusterInstKeyTagOrganization] = in.AppInst.ClusterInstKey.Organization
+		if in.AppInst.ClusterInstKey.CloudletKey.Name != "" {
+			labels[edgeproto.CloudletKeyTagName] = in.AppInst.ClusterInstKey.CloudletKey.Name
+		}
+		if in.AppInst.ClusterInstKey.CloudletKey.Organization != "" {
+			labels[edgeproto.CloudletKeyTagOrganization] = in.AppInst.ClusterInstKey.CloudletKey.Organization
+		}
+		if in.AppInst.ClusterInstKey.ClusterKey.Name != "" {
+			labels[edgeproto.ClusterKeyTagName] = in.AppInst.ClusterInstKey.ClusterKey.Name
 		}
 	}
 	return labels
@@ -359,6 +407,38 @@ func getAlertReceiverFromName(name string) (*ormapi.AlertReceiver, error) {
 	return &receiver, nil
 }
 
+func alertReceiverMatchesFilter(receiver *ormapi.AlertReceiver, filter *ormapi.AlertReceiver) bool {
+	if filter != nil {
+		if filter.Name != "" && filter.Name != receiver.Name ||
+			filter.Email != "" && filter.Email != receiver.Email ||
+			filter.Severity != "" && filter.Severity != receiver.Severity ||
+			filter.Type != "" && filter.Type != receiver.Type ||
+			filter.User != "" && filter.User != receiver.User ||
+			filter.Region != "" && filter.Region != receiver.Region ||
+			filter.SlackChannel != "" && filter.SlackChannel != receiver.SlackChannel ||
+			!receiver.Cloudlet.Matches(&filter.Cloudlet, edgeproto.MatchFilter()) ||
+			!receiver.AppInst.Matches(&filter.AppInst, edgeproto.MatchFilter()) {
+			return false
+		}
+	}
+	return true
+}
+
+func fillClusterDetails(receiver *ormapi.AlertReceiver, route alertmanager_config.Route) {
+	if cluster, ok := route.Match[edgeproto.ClusterKeyTagName]; ok {
+		receiver.AppInst.ClusterInstKey.ClusterKey.Name = cluster
+	}
+	if clusterorg, ok := route.Match[edgeproto.ClusterInstKeyTagOrganization]; ok {
+		receiver.AppInst.ClusterInstKey.Organization = clusterorg
+	}
+	if cloudlet, ok := route.Match[edgeproto.CloudletKeyTagName]; ok {
+		receiver.AppInst.ClusterInstKey.CloudletKey.Name = cloudlet
+	}
+	if cloudletorg, ok := route.Match[edgeproto.CloudletKeyTagOrganization]; ok {
+		receiver.AppInst.ClusterInstKey.CloudletKey.Organization = cloudletorg
+	}
+}
+
 func (s *AlertMgrServer) ShowReceivers(ctx context.Context, filter *ormapi.AlertReceiver) ([]ormapi.AlertReceiver, error) {
 	alertReceivers := []ormapi.AlertReceiver{}
 	apiUrl := mobiledgeXReceiversApi
@@ -409,18 +489,10 @@ func (s *AlertMgrServer) ShowReceivers(ctx context.Context, filter *ormapi.Alert
 			if ver, ok := route.Match[edgeproto.AppKeyTagVersion]; ok {
 				receiver.AppInst.AppKey.Version = ver
 			}
-			if cluster, ok := route.Match[edgeproto.ClusterKeyTagName]; ok {
-				receiver.AppInst.ClusterInstKey.ClusterKey.Name = cluster
-			}
-			if clusterorg, ok := route.Match[edgeproto.ClusterInstKeyTagOrganization]; ok {
-				receiver.AppInst.ClusterInstKey.Organization = clusterorg
-			}
-			if cloudlet, ok := route.Match[edgeproto.CloudletKeyTagName]; ok {
-				receiver.AppInst.ClusterInstKey.CloudletKey.Name = cloudlet
-			}
-			if cloudletorg, ok := route.Match[edgeproto.CloudletKeyTagOrganization]; ok {
-				receiver.AppInst.ClusterInstKey.CloudletKey.Organization = cloudletorg
-			}
+			fillClusterDetails(receiver, route)
+		} else if _, ok := route.Match[edgeproto.ClusterInstKeyTagOrganization]; ok {
+			// cluster inst
+			fillClusterDetails(receiver, route)
 		} else if cloudletorg, ok := route.Match[edgeproto.CloudletKeyTagOrganization]; ok {
 			// cloudlet
 			receiver.Cloudlet.Organization = cloudletorg
@@ -431,7 +503,14 @@ func (s *AlertMgrServer) ShowReceivers(ctx context.Context, filter *ormapi.Alert
 			log.SpanLog(ctx, log.DebugLevelApi, "Unexpected receiver map data for route", "route", route)
 			continue
 		}
-		alertReceivers = append(alertReceivers, *receiver)
+		// get the region if it was configured
+		if region, ok := route.Match["region"]; ok {
+			receiver.Region = region
+		}
+		// Check against a filter
+		if alertReceiverMatchesFilter(receiver, filter) {
+			alertReceivers = append(alertReceivers, *receiver)
+		}
 	}
 	return alertReceivers, nil
 }

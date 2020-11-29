@@ -53,6 +53,8 @@ type Shepherd struct {
 	AppDNSRoot     string
 	DeploymentTag  string
 	ChefServerPath string
+	AccessKeyFile  string
+	AccessApiAddr  string
 }
 type AutoProv struct {
 	process.Common `yaml:",inline"`
@@ -89,6 +91,7 @@ type ChefServer struct {
 type Alertmanager struct {
 	process.Common `yaml:",inline"`
 	ConfigFile     string
+	TemplateFile   string
 	Port           int
 	cmd            *exec.Cmd
 }

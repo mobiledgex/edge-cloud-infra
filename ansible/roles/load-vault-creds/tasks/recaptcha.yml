@@ -1,0 +1,6 @@
+- name: Look up recaptcha key in vault
+  set_fact:
+    vault_lookup: "{{ lookup('vault', recaptcha_key_path) }}"
+
+- set_fact:
+    recaptcha_site_key: "{{ vault_lookup.recaptcha.data.site_key }}"

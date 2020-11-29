@@ -12,6 +12,7 @@ import (
 	e2esetup "github.com/mobiledgex/edge-cloud-infra/e2e-tests/e2e-setup"
 	"github.com/mobiledgex/edge-cloud-infra/infracommon"
 	"github.com/mobiledgex/edge-cloud-infra/vmlayer"
+	"github.com/mobiledgex/edge-cloud/cloud-resource-manager/accessapi"
 	pf "github.com/mobiledgex/edge-cloud/cloud-resource-manager/platform"
 	"github.com/mobiledgex/edge-cloud/edgeproto"
 	"github.com/mobiledgex/edge-cloud/log"
@@ -111,7 +112,7 @@ func validateStack(ctx context.Context, t *testing.T, vmgp *vmlayer.VMGroupOrche
 
 	genVMsUserData := make(map[string]string)
 	for _, v := range vmgp.VMs {
-		userdata, err := vmlayer.GetVMUserData(v.Name, v.SharedVolume, v.DNSServers, v.DeploymentManifest, v.Command, &v.CloudConfigParams, reindent16)
+		userdata, err := vmlayer.GetVMUserData(v.Name, v.SharedVolume, v.DeploymentManifest, v.Command, &v.CloudConfigParams, reindent16)
 		require.Nil(t, err)
 		genVMsUserData[v.Name] = userdata
 	}
@@ -192,18 +193,23 @@ func TestHeatTemplate(t *testing.T) {
 		Organization: "MobiledgeX",
 		Name:         "unit-test",
 	}
+	cloudlet := edgeproto.Cloudlet{
+		Key:          ckey,
+		PhysicalName: ckey.Name,
+	}
+	accessApi := accessapi.NewVaultClient(&cloudlet, vaultConfig, "local")
+
 	pc := pf.PlatformConfig{}
 	pc.CloudletKey = &ckey
+	pc.AccessApi = accessApi
 
 	op := OpenstackPlatform{}
 	var vmp = vmlayer.VMPlatform{
-		Type:       "openstack",
-		VMProvider: &op,
-		VMProperties: vmlayer.VMProperties{
-			CommonPf: &infracommon.CommonPlatform{},
-		},
+		Type:         "openstack",
+		VMProvider:   &op,
+		VMProperties: vmlayer.VMProperties{},
 	}
-	err := vmp.InitProps(ctx, &pc, vaultConfig)
+	err := vmp.InitProps(ctx, &pc)
 	log.SpanLog(ctx, log.DebugLevelInfra, "init props done", "err", err)
 	require.Nil(t, err)
 	op.InitResourceReservations(ctx)

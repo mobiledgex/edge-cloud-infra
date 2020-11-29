@@ -8,6 +8,7 @@ import (
 	"github.com/mobiledgex/edge-cloud-infra/vmlayer"
 	"github.com/mobiledgex/edge-cloud/edgeproto"
 	"github.com/mobiledgex/edge-cloud/log"
+	"github.com/mobiledgex/edge-cloud/vault"
 	"github.com/vmware/go-vcloud-director/v2/govcd"
 	"github.com/vmware/go-vcloud-director/v2/types/v56"
 )
@@ -218,9 +219,8 @@ func (v *VcdPlatform) AddCloudletImageIfNotPresent(ctx context.Context, imgPathP
 }
 
 // PI   Security calls this to save what it gets from vault?
-func (v *VcdPlatform) SaveCloudletAccessVars(ctx context.Context, cloudlet *edgeproto.Cloudlet, accessVarsIn map[string]string, pfConfig *edgeproto.PlatformConfig, updateCallback edgeproto.CacheUpdateCallback) error {
-	// ENOTIMP
-	return nil
+func (v *VcdPlatform) SaveCloudletAccessVars(ctx context.Context, cloudlet *edgeproto.Cloudlet, accessVarsIn map[string]string, pfConfig *edgeproto.PlatformConfig, vaultConfig *vault.Config, updateCallback edgeproto.CacheUpdateCallback) error {
+	return fmt.Errorf("SaveCloudletAccessVars not implemented for vcd")
 }
 
 // This appears to only deal with non-eixstant flavors in vmware world
@@ -377,4 +377,8 @@ func (v *VcdPlatform) FindCloudletForCluster(GroupName string) (*MexCloudlet, *g
 		return vdcCloudlet, v.Objs.Cloudlet.CloudVapp, nil
 	}
 	return nil, nil, fmt.Errorf("Unknown Cloudlet specified")
+}
+
+func (o *VcdPlatform) GetSessionTokens(ctx context.Context, vaultConfig *vault.Config, account string) (map[string]string, error) {
+	return nil, fmt.Errorf("GetSessionTokens not supported in VSpherePlatform")
 }

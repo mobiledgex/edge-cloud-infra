@@ -170,7 +170,6 @@ func DumpOrchParamsVM(vm *vmlayer.VMOrchestrationParams, indent int) {
 	fmt.Printf("%s %s\n", fill+"UserData", vm.UserData)
 	fmt.Printf("%s %s\n", fill+"MetaData", vm.MetaData)
 	fmt.Printf("%s %t\n", fill+"SharedVolume", vm.SharedVolume)
-	fmt.Printf("%s %s\n", fill+"DNSServers", vm.DNSServers)
 	fmt.Printf("%s %s\n", fill+"AuthPublicKey", vm.AuthPublicKey)
 	fmt.Printf("%s %s\n", fill+"DeploymentManifest", vm.DeploymentManifest)
 

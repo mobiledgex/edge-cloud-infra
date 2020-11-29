@@ -212,7 +212,7 @@ func (v *VcdPlatform) CreateInternalNetworkForNewVm(ctx context.Context, vapp *g
 	a := strings.Split(cidr, "/")
 	addr := string(a[0])
 	gateway := addr //
-	dnsservers := vmparams.DNSServers
+	// was always empty DNE: dnsservers := vmparams.DNSServers
 	dns2 := ""
 	//vmOneRole := vmparams.Role
 
@@ -228,7 +228,6 @@ func (v *VcdPlatform) CreateInternalNetworkForNewVm(ctx context.Context, vapp *g
 	fmt.Printf("\tGateway   : %s\n", gateway)
 	fmt.Printf("\tStartAddr : %s\n", startAddr)
 	fmt.Printf("\tEndAddr   : %s\n", endAddr)
-	fmt.Printf("\tDnsservers: %s\n", dnsservers)
 
 	addrRange := types.IPRange{
 
@@ -642,4 +641,8 @@ func (v *VcdPlatform) GetFirstOrgNetworkOfVdc(ctx context.Context, vdc *govcd.Vd
 		}
 	}
 	return nil, fmt.Errorf("Not Found")
+}
+
+func (o *VcdPlatform) ValidateAdditionalNetworks(ctx context.Context, additionalNets []string) error {
+	return fmt.Errorf("Additional networks not supported in vCD  cloudlets")
 }

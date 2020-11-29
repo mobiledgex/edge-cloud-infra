@@ -39,8 +39,8 @@ func (v *VcdPlatform) GetMediaRecords(ctx context.Context) ([]*types.MediaRecord
 func (v *VcdPlatform) UploadOvaFile(ctx context.Context, tmplName string) error {
 
 	// The platform has some URL goodies to use
-	vconf := v.vmProperties.CommonPf.VaultConfig
-	fmt.Printf("UploadOvaFile vconf : %+v\n", vconf)
+	// no longer exists	vconf := v.vmProperties.CommonPf.VaultConfig
+
 	ovaLocation := vmlayer.DefaultCloudletVMImagePath + "vcd-" + vmlayer.MEXInfraVersion + ".ova"
 	fmt.Printf("UploadOvaFile: ovaLocation: %s\n", ovaLocation)
 

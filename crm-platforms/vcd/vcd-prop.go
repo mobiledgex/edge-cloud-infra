@@ -6,6 +6,7 @@ import (
 
 	"github.com/mobiledgex/edge-cloud-infra/infracommon"
 	"github.com/mobiledgex/edge-cloud-infra/vmlayer"
+	"github.com/mobiledgex/edge-cloud/cloud-resource-manager/platform"
 	"github.com/mobiledgex/edge-cloud/edgeproto"
 	"github.com/mobiledgex/edge-cloud/log"
 	"github.com/mobiledgex/edge-cloud/vault"
@@ -60,7 +61,8 @@ func (v *VcdPlatform) GetVcdVars(ctx context.Context, key *edgeproto.CloudletKey
 	if vaultConfig == nil || vaultConfig.Addr == "" {
 		return fmt.Errorf("vaultAddr is not specified")
 	}
-	vcpath := vmlayer.GetVaultCloudletAccessPath(key, region, v.GetType(), physicalName, v.GetApiAccessFilename())
+	// DNE	vcpath := vmlayer.GetVaultCloudletAccessPath(key, region, v.GetType(), physicalName, v.GetApiAccessFilename())
+	vcpath := ""
 	log.SpanLog(ctx, log.DebugLevelInfra, "interning vault", "addr", vaultConfig.Addr, "path", vcpath)
 	envData := &infracommon.VaultEnvData{}
 	err := vault.GetData(vaultConfig, vcpath, 0, envData)
@@ -94,7 +96,8 @@ func (v *VcdPlatform) GetVcdVars(ctx context.Context, key *edgeproto.CloudletKey
 }
 
 // start fetching access  bits from vault
-func (v *VcdPlatform) InitApiAccessProperties(ctx context.Context, key *edgeproto.CloudletKey, region, physicalName string, vaultConfig *vault.Config, vars map[string]string) error {
+func (v *VcdPlatform) InitApiAccessProperties(ctx context.Context, accessApi platform.AccessApi, vars map[string]string, stage vmlayer.ProviderInitStage) error {
+
 	fmt.Printf("InitApiAccessProperties-TBI\n")
 	return nil
 }
@@ -109,7 +112,7 @@ func (v *VcdPlatform) SetProviderSpecificProps(ctx context.Context) error {
 	return nil
 }
 
-func (v *VcdPlatform) GetProviderSpecificProps(ctx context.Context, vconf *vault.Config) (map[string]*edgeproto.PropertyInfo, error) {
+func (v *VcdPlatform) GetProviderSpecificProps(ctx context.Context) (map[string]*edgeproto.PropertyInfo, error) {
 	return VcdProps, nil
 }
 
@@ -129,4 +132,8 @@ func (v *VcdPlatform) GetExternalNetmask() string {
 func (v *VcdPlatform) GetInternalNetmask() string {
 	val, _ := v.vmProperties.CommonPf.Properties.GetValue("MEX_INTERNAL_NETWORK_MASK")
 	return val
+}
+
+func (v *VcdPlatform) GetVaultCloudletAccessPath(key *edgeproto.CloudletKey, region, physicalName string) string {
+	return fmt.Sprintf("/secret/data/%s/cloudlet/vcd/%s/%s/vcenter.json", region, key.Organization, physicalName)
 }

@@ -134,7 +134,6 @@ func TestMexVApp(t *testing.T) {
 			UserData:                "GuestCustomizeHere",
 			MetaData:                "UserMetaData",
 			SharedVolume:            false,
-			DNSServers:              "10.40.1.14", //vmwarelab xxx
 			AuthPublicKey:           "",
 			DeploymentManifest:      "",
 			Command:                 "",

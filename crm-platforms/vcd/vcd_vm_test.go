@@ -412,7 +412,6 @@ func testCreateVM(t *testing.T, ctx context.Context) (*govcd.VM, error) {
 		UserData:                "GuestCustomizeHere",
 		MetaData:                "UserMetaData",
 		SharedVolume:            false,
-		DNSServers:              "10.40.1.14", //vmwarelab xxx
 		AuthPublicKey:           "",
 		DeploymentManifest:      "",
 		Command:                 "",

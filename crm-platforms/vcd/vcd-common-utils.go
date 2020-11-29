@@ -101,10 +101,8 @@ var qcowConvertTimeout = 5 * time.Minute
 
 func (v *VcdPlatform) CreateImageFromUrl(ctx context.Context, imageName, imageUrl, md5Sum string) (string, error) {
 
-	filePath, err := vmlayer.DownloadVMImage(ctx, v.vmProperties.CommonPf.VaultConfig, imageName, imageUrl, md5Sum)
-	if err != nil {
-		return "", err
-	}
+	// dne	filePath, err := vmlayer.DownloadVMImage(ctx, v.vmProperties.CommonPf.VaultConfig, imageName, imageUrl, md5Sum)
+	filePath := ""
 	defer func() {
 		// Stale file might be present if download fails/succeeds, deleting it
 		if delerr := infracommon.DeleteFile(filePath); delerr != nil {

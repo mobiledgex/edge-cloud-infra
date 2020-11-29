@@ -10,7 +10,6 @@ import (
 
 	//"github.com/codeskyblue/go-sh"
 	"github.com/mobiledgex/edge-cloud-infra/infracommon"
-	"github.com/mobiledgex/edge-cloud-infra/vmlayer"
 	"github.com/mobiledgex/edge-cloud/cloudcommon"
 	"github.com/mobiledgex/edge-cloud/edgeproto"
 	"github.com/mobiledgex/edge-cloud/log"
@@ -25,16 +24,17 @@ func (v *VcdPlatform) AddAppImageIfNotPresent(ctx context.Context, app *edgeprot
 	if err != nil {
 		return err
 	}
-	imageName, err := cloudcommon.GetFileName(app.ImagePath)
+	_ /*imageName*/, err = cloudcommon.GetFileName(app.ImagePath)
 	if err != nil {
 		return err
 	}
-	_, md5Sum, err := infracommon.GetUrlInfo(ctx, v.vmProperties.CommonPf.VaultConfig, app.ImagePath)
+	// DNE	_, md5Sum, err := infracommon.GetUrlInfo(ctx, v.vmProperties.CommonPf.VaultConfig, app.ImagePath)
 
-	filePath, err := vmlayer.DownloadVMImage(ctx, v.vmProperties.CommonPf.VaultConfig, imageName, app.ImagePath, md5Sum)
+	// 	filePath, err := vmlayer.DownloadVMImage(ctx, v.vmProperties.CommonPf.VaultConfig, imageName, app.ImagePath, md5Sum)
 	if err != nil {
 		return err
 	}
+	filePath := ""
 	log.SpanLog(ctx, log.DebugLevelInfra, "downloaded file", "filePath", filePath)
 
 	vmdkFile := filePath

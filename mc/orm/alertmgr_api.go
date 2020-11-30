@@ -150,22 +150,24 @@ func DeleteAlertReceiver(c echo.Context) error {
 
 	org := getOrgAndOrgTypeForReceiver(&in)
 	// if a user is specified we need to make sure this user has permissions to manage the users in the org
-	if in.User != "" {
+	if in.User != "" && in.User != claims.Username {
 		if org == "" {
-			return setReply(c, fmt.Errorf("Org details must be present to manage a specific user"), nil)
+			return setReply(c, fmt.Errorf("Org details must be present to manage a specific receivers"), nil)
 		}
 		// check if this user is authorized to manage users in the org
 		if err := authorized(ctx, claims.Username, org,
 			ResourceUsers, ActionManage); err != nil {
-			return setReply(c, fmt.Errorf("Not authorized to manage users in the org - %s", err.Error()), nil)
+			return setReply(c, err, nil)
 		}
 	} else {
 		in.User = claims.Username
 	}
 
 	// Check that user is allowed to access either of the orgs
-	if err := authorized(ctx, claims.Username, org, ResourceAlert, ActionView); err != nil {
-		return setReply(c, err, nil)
+	if org != "" {
+		if err := authorized(ctx, claims.Username, org, ResourceAlert, ActionView); err != nil {
+			return setReply(c, err, nil)
+		}
 	}
 
 	// If the user is not specified look for the alertname for the user that's logged in
@@ -202,7 +204,19 @@ func ShowAlertReceiver(c echo.Context) error {
 	// Admin users can specify a user, or see all the receivers
 	adminUser, _ := isUserAdmin(ctx, claims.Username)
 	if !adminUser {
-		filter.User = claims.Username
+		// If a user is a user-management role for the org in the filter allow user to be specified
+		if filter.User != "" && filter.User != claims.Username {
+			filterOrg := getOrgAndOrgTypeForReceiver(&filter)
+			if filterOrg == "" {
+				return setReply(c, fmt.Errorf("Org details must be present to see receivers"), nil)
+			}
+			// check if this user is authorized to manage users in the org
+			if err := authorized(ctx, claims.Username, filterOrg, ResourceUsers, ActionManage); err != nil {
+				return setReply(c, err, nil)
+			}
+		} else {
+			filter.User = claims.Username
+		}
 	}
 	receivers, err := AlertManagerServer.ShowReceivers(ctx, &filter)
 	if err != nil {
@@ -210,8 +224,7 @@ func ShowAlertReceiver(c echo.Context) error {
 	}
 	for ii := range receivers {
 		org := getOrgAndOrgTypeForReceiver(&receivers[ii])
-		if err := authorized(ctx, claims.Username, org,
-			ResourceAlert, ActionView); err == nil {
+		if err := authorized(ctx, claims.Username, org, ResourceAlert, ActionView); err == nil {
 			alertRecs = append(alertRecs, receivers[ii])
 		}
 	}

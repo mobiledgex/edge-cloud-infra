@@ -118,7 +118,7 @@ func CreateAlertReceiver(c echo.Context) error {
 	return setReply(c, nil, Msg("Alert receiver created successfully"))
 }
 
-func getOrgAndOrgTypeForReceiver(in *ormapi.AlertReceiver) string {
+func getOrgForReceiver(in *ormapi.AlertReceiver) string {
 	if in == nil {
 		return ""
 	}
@@ -148,11 +148,11 @@ func DeleteAlertReceiver(c echo.Context) error {
 		return err
 	}
 
-	org := getOrgAndOrgTypeForReceiver(&in)
+	org := getOrgForReceiver(&in)
 	// if a user is specified we need to make sure this user has permissions to manage the users in the org
 	if in.User != "" && in.User != claims.Username {
 		if org == "" {
-			return setReply(c, fmt.Errorf("Org details must be present to manage a specific receivers"), nil)
+			return setReply(c, fmt.Errorf("Org details must be present to manage a specific receiver"), nil)
 		}
 		// check if this user is authorized to manage users in the org
 		if err := authorized(ctx, claims.Username, org,
@@ -206,7 +206,7 @@ func ShowAlertReceiver(c echo.Context) error {
 	if !adminUser {
 		// If a user is a user-management role for the org in the filter allow user to be specified
 		if filter.User != "" && filter.User != claims.Username {
-			filterOrg := getOrgAndOrgTypeForReceiver(&filter)
+			filterOrg := getOrgForReceiver(&filter)
 			if filterOrg == "" {
 				return setReply(c, fmt.Errorf("Org details must be present to see receivers"), nil)
 			}
@@ -223,7 +223,7 @@ func ShowAlertReceiver(c echo.Context) error {
 		return err
 	}
 	for ii := range receivers {
-		org := getOrgAndOrgTypeForReceiver(&receivers[ii])
+		org := getOrgForReceiver(&receivers[ii])
 		if err := authorized(ctx, claims.Username, org, ResourceAlert, ActionView); err == nil {
 			alertRecs = append(alertRecs, receivers[ii])
 		}

@@ -24,7 +24,7 @@ var operatorInfluxDBTemplate *template.Template
 // 100 values at a time
 var queryChunkSize = 100
 
-var MaxEntriesFromInfluxDb = 2000
+var MaxEntriesFromInfluxDb = 10000
 
 type InfluxDBContext struct {
 	region string

@@ -8,6 +8,7 @@ pipeline {
         ARM_ACCESS_KEY = credentials('azure-storage-access-key')
         staging_ANSIBLE_ROLE = credentials('staging-vault-ansible-role')
         mexdemo_ANSIBLE_ROLE = credentials('mexdemo-vault-ansible-role')
+        PAGERDUTY_INTEGRATION_KEY = credentials('pagerduty-service-integration-key')
     }
     stages {
         stage('Backup') {

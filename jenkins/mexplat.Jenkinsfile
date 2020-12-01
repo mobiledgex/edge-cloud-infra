@@ -15,6 +15,7 @@ pipeline {
         AZURE_SUBSCRIPTION_ID = credentials('azure-subscription-id')
         AZURE_TENANT = credentials('azure-tenant-id')
         ANSIBLE_ROLE = credentials('staging-vault-ansible-role')
+        PAGERDUTY_INTEGRATION_KEY = credentials('pagerduty-service-integration-key')
     }
     stages {
         stage('Set up build tag') {

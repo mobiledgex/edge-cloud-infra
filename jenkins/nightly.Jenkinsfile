@@ -7,6 +7,7 @@ pipeline {
         string(name: 'DOCKER_BUILD_TAG', defaultValue: '', description: 'Docker build tag; defaults to date stamp')
     }
     environment {
+        PAGERDUTY_INTEGRATION_KEY = credentials('pagerduty-service-integration-key')
         DOCKER_BUILD_TAG = """${sh(
             returnStdout: true,
             script: '''

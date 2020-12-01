@@ -106,10 +106,6 @@ func (a *AwsEc2Platform) InitProvider(ctx context.Context, caches *platform.Cach
 		return err
 	}
 	a.AmiIamAccountId = acct
-	// aws cannot use the name "default" as a new security group name as it is reserved
-	if a.VMProperties.GetCloudletSecurityGroupName() == "default" {
-		a.VMProperties.SetCloudletSecurityGroupName(vpcName + "-cloudlet-sg")
-	}
 
 	ns := a.VMProperties.GetCloudletNetworkScheme()
 	nspec, err := vmlayer.ParseNetSpec(ctx, ns)
@@ -144,7 +140,7 @@ func (a *AwsEc2Platform) InitProvider(ctx context.Context, caches *platform.Cach
 		log.SpanLog(ctx, log.DebugLevelInfra, "Internet GW already exists")
 	}
 
-	secGrpName := a.VMProperties.GetCloudletSecurityGroupName()
+	secGrpName := a.VMProperties.CloudletSecgrpName
 	sg, err := a.GetSecurityGroup(ctx, secGrpName, vpcId)
 	if err != nil {
 		if strings.Contains(err.Error(), SecGrpDoesNotExistError) {

@@ -22,6 +22,7 @@ var cloudetSecurityGroupIDLock sync.Mutex
 
 const SecgrpDoesNotExist string = "Security group does not exist"
 const SecgrpRuleAlreadyExists string = "Security group rule already exists"
+const StackAlreadyExists string = "already exists"
 
 func getCachedSecgrpID(ctx context.Context, name string) string {
 	cloudetSecurityGroupIDLock.Lock()
@@ -238,30 +239,83 @@ func (s *OpenstackPlatform) GetSecurityGroupIDForProject(ctx context.Context, gr
 
 // PrepareCloudletSecurityGroup creates the cloudlet group if it does not exist and ensures
 // that the remote-group rules are present to allow platform components to communicate
-func (o *OpenstackPlatform) PrepareCloudletSecurityGroup(ctx context.Context) error {
-	grpName := o.VMProperties.GetCloudletSecurityGroupName()
+func (o *OpenstackPlatform) PrepareCloudletSecurityGroup(ctx context.Context, updateCallback edgeproto.CacheUpdateCallback) error {
+	grpName := o.VMProperties.CloudletSecgrpName
 	log.SpanLog(ctx, log.DebugLevelInfra, "PrepareCloudletSecurityGroup", "grpName", grpName)
 
-	privPolName := o.VMProperties.CommonPf.PlatformConfig.PrivacyPolicy
-	if privPolName != "" {
-		_, err := pfutils.GetCloudletPrivacyPolicy(ctx, o.VMProperties.CommonPf.PlatformConfig, o.caches)
-		if err != nil {
-			return err
-		}
-
-	}
+	grpExists := false
+	stackExists := false
 	_, err := o.GetSecurityGroupIDForName(ctx, grpName)
 	if err != nil {
-		if !strings.Contains(err.Error(), SecgrpDoesNotExist) {
+		if strings.Contains(err.Error(), SecgrpDoesNotExist) {
+			// this is ok
+			log.SpanLog(ctx, log.DebugLevelInfra, "Security group does not exist", "grpName", grpName)
+		} else {
 			return err
 		}
-		// create the group
-		log.SpanLog(ctx, log.DebugLevelInfra, "Cloudlet group does not exist, creating", "grpName", grpName)
-		err := o.CreateSecurityGroup(ctx, grpName)
+	} else {
+		grpExists = true
+	}
+	_, err = o.getHeatStackDetail(ctx, grpName)
+	if err != nil {
+		if strings.Contains(err.Error(), StackNotFound) {
+			// this is ok
+			log.SpanLog(ctx, log.DebugLevelInfra, "heat stack does not exist", "grpName", grpName)
+		} else {
+			return err
+		}
+	} else {
+		stackExists = true
+	}
+
+	privPolName := o.VMProperties.CommonPf.PlatformConfig.PrivacyPolicy
+	var privPol *edgeproto.PrivacyPolicy
+	egressRestricted := false
+	if privPolName != "" {
+		privPol, err = pfutils.GetCloudletPrivacyPolicy(ctx, o.VMProperties.CommonPf.PlatformConfig, o.caches)
 		if err != nil {
 			return err
 		}
+		egressRestricted = true
+	} else {
+		// use an empty policy
+		privPol = &edgeproto.PrivacyPolicy{}
 	}
+	vmgp, err := vmlayer.GetVMGroupOrchestrationParamsFromPrivacyPolicy(ctx, grpName, privPol, egressRestricted)
+	if err != nil {
+		return err
+	}
+
+	if grpExists {
+		if stackExists {
+			// update the existing stack
+			log.SpanLog(ctx, log.DebugLevelInfra, "Updating heat stack for existing cloudlet security group", "name", grpName)
+			err = o.UpdateHeatStackFromTemplate(ctx, vmgp, grpName, VmGroupTemplate, updateCallback)
+			if err != nil {
+				return err
+			}
+		} else {
+			// this can happen if a previously existing cloudlet with a security group already defined exists.  In this case
+			// leave it alone as it may have any number of custom settings
+			log.SpanLog(ctx, log.DebugLevelInfra, "Leaving existing cloudlet group with no stack unmodified", "name", grpName)
+		}
+	} else {
+		if stackExists {
+			// the stack exists but the group does not.  It could have been deleted separately, so attempt to modify the stack and re-create the group
+			log.SpanLog(ctx, log.DebugLevelInfra, "Updating heat stack for missing cloudlet security group", "name", grpName)
+			err = o.UpdateHeatStackFromTemplate(ctx, vmgp, grpName, VmGroupTemplate, updateCallback)
+			if err != nil {
+				return err
+			}
+		} else {
+			log.SpanLog(ctx, log.DebugLevelInfra, "Creating heat stack for new cloudlet security group", "name", grpName)
+			err = o.CreateHeatStackFromTemplate(ctx, vmgp, grpName, VmGroupTemplate, updateCallback)
+			if err != nil {
+				return err
+			}
+		}
+	}
+
 	cloudletGrpId, err := o.GetSecurityGroupIDForName(ctx, grpName)
 	if err != nil {
 		return err

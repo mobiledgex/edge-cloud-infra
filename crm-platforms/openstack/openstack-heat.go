@@ -100,6 +100,10 @@ resources:
                 name: {{.Name}}
                 rules:
                 {{- if .EgressRestricted}}
+                  {{- if not .EgressRules}}
+                    - direction: egress
+                      remote_ip_prefix: 0.0.0.0/32
+                  {{- end}}
                 {{- range .EgressRules}}
                     - direction: egress
                       protocol: {{.Protocol}}
@@ -113,10 +117,12 @@ resources:
                 {{- end}}
                 {{- else}}
                     - direction: egress
-                {{- end}}
-                {{- range .AccessPorts}}
-                    - direction: ingress
                       remote_ip_prefix: 0.0.0.0/0
+                {{- end}}
+                {{- $RemoteCidr := .AccessPorts.RemoteCidr}}
+                {{- range .AccessPorts.Ports}}
+                    - direction: ingress
+                      remote_ip_prefix: {{$RemoteCidr}}
                       protocol: {{.Proto}}
                       port_range_min: {{.Port}}
                       port_range_max: {{.EndPort}}
@@ -271,7 +277,11 @@ func (o *OpenstackPlatform) waitForStack(ctx context.Context, stackname string, 
 func (o *OpenstackPlatform) createOrUpdateHeatStackFromTemplate(ctx context.Context, templateData interface{}, stackName string, templateString string, action string, updateCallback edgeproto.CacheUpdateCallback) error {
 	log.SpanLog(ctx, log.DebugLevelInfra, "createHeatStackFromTemplate", "stackName", stackName, "action", action)
 
-	updateCallback(edgeproto.UpdateTask, "Creating Heat Stack for "+stackName)
+	if action == heatCreate {
+		updateCallback(edgeproto.UpdateTask, "Creating Heat Stack for "+stackName)
+	} else {
+		updateCallback(edgeproto.UpdateTask, "Updating Heat Stack for "+stackName)
+	}
 	buf, err := vmlayer.ExecTemplate(stackName, templateString, templateData)
 	if err != nil {
 		return err

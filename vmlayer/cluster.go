@@ -316,6 +316,7 @@ func (v *VMPlatform) setupClusterRootLBAndNodes(ctx context.Context, rootLBName 
 	if err != nil {
 		return fmt.Errorf("can't get rootLB client, %v", err)
 	}
+
 	if v.VMProperties.GetCloudletExternalRouter() == NoExternalRouter {
 		if clusterInst.Deployment == cloudcommon.DeploymentTypeKubernetes ||
 			(clusterInst.Deployment == cloudcommon.DeploymentTypeDocker) {
@@ -345,8 +346,7 @@ func (v *VMPlatform) setupClusterRootLBAndNodes(ctx context.Context, rootLBName 
 		log.SpanLog(ctx, log.DebugLevelInfra, "External router in use, no internal interface for rootlb")
 	}
 
-	// the root LB was created as part of cluster creation, but it needs to be prepped and
-	// mex agent started
+	// the root LB was created as part of cluster creation, but it needs to be prepped
 	if clusterInst.IpAccess == edgeproto.IpAccess_IP_ACCESS_DEDICATED {
 		log.SpanLog(ctx, log.DebugLevelInfra, "new dedicated rootLB", "IpAccess", clusterInst.IpAccess)
 		updateCallback(edgeproto.UpdateTask, "Setting Up Root LB")

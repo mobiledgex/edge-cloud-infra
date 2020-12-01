@@ -262,6 +262,7 @@ func (v *VMPlatform) InitProps(ctx context.Context, platformConfig *platform.Pla
 	v.VMProvider.SetVMProperties(&v.VMProperties)
 	v.VMProperties.SharedRootLBName = v.GetRootLBName(v.VMProperties.CommonPf.PlatformConfig.CloudletKey)
 	v.VMProperties.PlatformSecgrpName = GetServerSecurityGroupName(v.GetPlatformVMName(v.VMProperties.CommonPf.PlatformConfig.CloudletKey))
+	v.VMProperties.CloudletSecgrpName = v.getCloudletSecurityGroupName()
 	return nil
 }
 

@@ -26,7 +26,7 @@ func (o *OpenstackPlatform) InitProvider(ctx context.Context, caches *platform.C
 	o.InitResourceReservations(ctx)
 	if stage == vmlayer.ProviderInitPlatformStart {
 		o.initDebug(o.VMProperties.CommonPf.PlatformConfig.NodeMgr)
-		return o.PrepNetwork(ctx)
+		return o.PrepNetwork(ctx, updateCallback)
 	}
 	return nil
 }

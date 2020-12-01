@@ -108,7 +108,7 @@ func (v *VMPlatform) PerformOrchestrationForVMApp(ctx context.Context, app *edge
 	vms = append(vms, appVm)
 	updateCallback(edgeproto.UpdateTask, "Deploying App")
 	vmgp, err := v.OrchestrateVMsFromVMSpec(ctx, objName, vms, action, updateCallback, WithNewSubnet(orchVals.newSubnetName),
-		WithAccessPorts(app.AccessPorts),
+		WithAccessPorts(app.AccessPorts, RemoteCidrAll),
 		WithNewSecurityGroup(GetServerSecurityGroupName(orchVals.externalServerName)),
 	)
 	if err != nil {

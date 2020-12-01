@@ -44,7 +44,17 @@ const (
 	VMDomainAny      VMDomain = "any" // used for matching only
 )
 
+func (v *VMPlatform) GetSanitizedCloudletName(key *edgeproto.CloudletKey) string {
+	// Form platform VM name based on cloudletKey
+	return v.VMProvider.NameSanitize(key.Name + "-" + key.Organization)
+}
+
 func (v *VMPlatform) GetPlatformVMName(key *edgeproto.CloudletKey) string {
+	// Form platform VM name based on cloudletKey
+	return v.GetSanitizedCloudletName(key) + "-pf"
+}
+
+func (v *VMPlatform) GetPName(key *edgeproto.CloudletKey) string {
 	// Form platform VM name based on cloudletKey
 	return v.VMProvider.NameSanitize(key.Name + "-" + key.Organization + "-pf")
 }
@@ -111,7 +121,7 @@ func (v *VMPlatform) SetupPlatformVM(ctx context.Context, accessApi platform.Acc
 			ActionCreate,
 			updateCallback,
 			WithNewSecurityGroup(GetServerSecurityGroupName(platformVmName)),
-			WithAccessPorts("tcp:22"),
+			WithAccessPorts("tcp:22", RemoteCidrAll),
 			WithSkipDefaultSecGrp(true),
 			WithInitOrchestrator(true),
 		)
@@ -130,7 +140,7 @@ func (v *VMPlatform) SetupPlatformVM(ctx context.Context, accessApi platform.Acc
 			ActionCreate,
 			updateCallback,
 			WithNewSecurityGroup(GetServerSecurityGroupName(platformVmName)),
-			WithAccessPorts("tcp:22"),
+			WithAccessPorts("tcp:22", RemoteCidrAll),
 			WithSkipDefaultSecGrp(true),
 			WithNewSubnet(subnetName),
 			WithSkipSubnetGateway(true),
@@ -768,7 +778,7 @@ func (v *VMPlatform) GetCloudletManifest(ctx context.Context, cloudlet *edgeprot
 			platformVmName,
 			platvms,
 			WithNewSecurityGroup(GetServerSecurityGroupName(platformVmName)),
-			WithAccessPorts("tcp:22"),
+			WithAccessPorts("tcp:22", RemoteCidrAll),
 			WithSkipDefaultSecGrp(true),
 			WithSkipInfraSpecificCheck(skipInfraSpecificCheck),
 		)
@@ -779,7 +789,7 @@ func (v *VMPlatform) GetCloudletManifest(ctx context.Context, cloudlet *edgeprot
 			platformVmName,
 			platvms,
 			WithNewSecurityGroup(GetServerSecurityGroupName(platformVmName)),
-			WithAccessPorts("tcp:22"),
+			WithAccessPorts("tcp:22", RemoteCidrAll),
 			WithNewSubnet(subnetName),
 			WithSkipDefaultSecGrp(true),
 			WithSkipSubnetGateway(true),

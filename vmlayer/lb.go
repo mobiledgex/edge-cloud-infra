@@ -313,6 +313,7 @@ func (v *VMPlatform) GetVMSpecForRootLB(ctx context.Context, rootLbName string, 
 	chefAttributes["tags"] = tags
 	clientName := v.GetChefClientName(rootLbName)
 	chefParams := v.GetVMChefParams(clientName, "", chefmgmt.ChefPolicyBase, chefAttributes)
+
 	return v.GetVMRequestSpec(ctx,
 		VMTypeRootLB,
 		rootLbName,
@@ -349,7 +350,6 @@ func (v *VMPlatform) CreateRootLB(
 	tags []string,
 	updateCallback edgeproto.CacheUpdateCallback,
 ) error {
-
 	log.SpanLog(ctx, log.DebugLevelInfra, "create rootlb", "name", rootLBName, "action", action)
 	if action == ActionCreate {
 		_, err := v.VMProvider.GetServerDetail(ctx, rootLBName)
@@ -364,7 +364,17 @@ func (v *VMPlatform) CreateRootLB(
 	}
 	var vms []*VMRequestSpec
 	vms = append(vms, vmreq)
-	_, err = v.OrchestrateVMsFromVMSpec(ctx, rootLBName, vms, action, updateCallback, WithNewSecurityGroup(GetServerSecurityGroupName(rootLBName)))
+	sshPort := ""
+	remoteCidr := ""
+	myIp, err := infracommon.GetExternalPublicAddr(ctx)
+	if err != nil {
+		// this is not necessarily fatal, but we will not be able to open the ssh port
+		log.InfoLog("cannot fetch public ip", "err", err)
+	} else {
+		sshPort = "tcp:22"
+		remoteCidr = myIp + "/32"
+	}
+	_, err = v.OrchestrateVMsFromVMSpec(ctx, rootLBName, vms, action, updateCallback, WithNewSecurityGroup(GetServerSecurityGroupName(rootLBName)), WithAccessPorts(sshPort, remoteCidr))
 	if err != nil {
 		log.SpanLog(ctx, log.DebugLevelInfra, "error while creating RootLB VM", "name", rootLBName, "error", err)
 		return err

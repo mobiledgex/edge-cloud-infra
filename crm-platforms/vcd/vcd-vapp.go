@@ -2,10 +2,11 @@ package vcd
 
 import (
 	"context"
+	"encoding/base64"
 	"fmt"
-
 	vu "github.com/mobiledgex/edge-cloud-infra/crm-platforms/vcd/vcdutils"
 	"github.com/mobiledgex/edge-cloud-infra/vmlayer"
+	"strings"
 
 	"github.com/mobiledgex/edge-cloud/log"
 	"github.com/vmware/go-vcloud-director/v2/govcd"
@@ -98,25 +99,44 @@ func makeProp(key, value string) *types.Property {
 //set_network_param NETMASK '.networks[0].netmask'
 //set_network_param NETTYPE '.networks[0].type'
 
+func vcdUserDataFormatter(instring string) string {
+	// despite the use of paravirtualized drivers, vSphere gets get name sda, sdb
+	fmt.Printf("\n\nvcdUserDataFormater received instring as: %s\n\n", instring)
+	instring = strings.ReplaceAll(instring, "/dev/vd", "/dev/sd")
+	return base64.StdEncoding.EncodeToString([]byte(instring))
+}
+
 func (v *VcdPlatform) populateProductSection(ctx context.Context, vm *govcd.VM, vmparams *vmlayer.VMOrchestrationParams) (*types.ProductSectionList, error) {
 
+	//cldCfg := vmlayer.VMCloudConfigParams{}
+	command := ""
+	manifest := ""
+	//	cloudParams := &vmlayer.VMCloudCnnfigParams{}
+	// format vmparams.CloudConfigParams into yaml format, which we'll then base64 encode for the ovf datasource
+	udata, err := vmlayer.GetVMUserData(vm.VM.Name, false, manifest, command, &vmparams.CloudConfigParams, vcdUserDataFormatter)
+	if err != nil {
+		fmt.Printf("GetVMUserData returns %s\n", err.Error())
+		return nil, err
+	}
+	fmt.Printf("\npopProdSec-I-udata: %s \n", udata)
+	// create userdata string?
 	guestCustomSec, err := vm.GetGuestCustomizationSection()
 	if err != nil {
 		return nil, err
 	}
 	if !*guestCustomSec.Enabled {
 		guestCustomSec.Enabled = vu.TakeBoolPointer(true)
+		// guestCustomSec.AdminPassword = "2b|!2b-titq" // xxx
+		// FixMe:  'AdminPassword' should either be reset or remain unchanged when auto"}
+		//
+		// vault kv get -field=value secret/accounts/baseimage/password
 		gcs, err := vm.SetGuestCustomizationSection(guestCustomSec)
 		if err != nil {
-			//fmt.Printf("popProdSec-E-SetGuestCustomizationSectionFailed: %s\n", err.Error())
+			fmt.Printf("popProdSec-E-SetGuestCustomizationSectionFailed: %s\n", err.Error())
 			return nil, err
 
 		}
 		fmt.Printf("\nCustomSect enabled : %+v\n", gcs)
-
-		// This seems to bounce off
-		guestCustomSec.AdminPassword = "2b|!2b-titq" // xxx
-		// vault kv get -field=value secret/accounts/baseimage/password
 	}
 
 	psl, err := vm.GetProductSectionList()
@@ -134,12 +154,18 @@ func (v *VcdPlatform) populateProductSection(ctx context.Context, vm *govcd.VM, 
 	}
 
 	var props []*types.Property
+	testkey := "ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAABAQDmuktgrnps8IoYYAmCqMJY77E7nzcrFx177Zm4R8M1Bqo293vlvxl7JY+HBQ8RqfrmqbpHrcRV4W52dBwD1RljXFP7dVzpG0eS/vqOA+3rVbrAleSLwqXa20IwvR8kw/VJFbKo8xyIbA9u24eztQZzNk0Tcfk8CJ44DiommKmaORWBi0gaz7MbqIgeoFjNpdlsqcPV+inUhMZmFXzxJs0U9XTo/wA5FJkmaDz3WkV64qkK823ozgehOqqtcLYkL0toSPv6pzDd5axx4QRCe26BCfFC90ggriXMTo+I76cOw5rs/P/e6N9/BAZOCXTV0MWbGU7AjjSOCZO5X20k+HGL mattwilliams@MWILLIAMS-MAC.local"
 
-	prop := makeProp("user-data", "encoded")
-	if prop == nil {
-		return nil, fmt.Errorf("make prop error")
+	// manditory
+	props = append(props, makeProp("instance-id", vm.VM.ID))
+	// test user ubuntu getting my local ssh pub key
+	props = append(props, makeProp("public-keys", testkey))
+	// try one userdata with everything in it
+
+	if udata != "" {
+		props = append(props, makeProp("user-data", udata))
 	}
-	props = append(props, prop)
+
 	log.SpanLog(ctx, log.DebugLevelInfra, "populateProdcutSection", "name", vmparams.Name, "role", vmparams.Role)
 	role := vmparams.Role
 	props = append(props, makeProp("ROLE", string(role)))

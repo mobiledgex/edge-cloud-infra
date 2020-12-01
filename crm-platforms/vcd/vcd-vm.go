@@ -650,6 +650,6 @@ func (v *VcdPlatform) SetVMProperties(vmProperties *vmlayer.VMProperties) {
 
 // new, ah, get resources from a group of vms.. like  cluster?
 func (v *VcdPlatform) GetServerGroupResources(ctx context.Context, name string) (*edgeproto.InfraResources, error) {
-
-	return nil, nil
+	resources := &edgeproto.InfraResources{}
+	return resources, nil
 }

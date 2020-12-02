@@ -239,38 +239,13 @@ func (s *OpenstackPlatform) GetSecurityGroupIDForProject(ctx context.Context, gr
 
 // PrepareCloudletSecurityGroup creates the cloudlet group if it does not exist and ensures
 // that the remote-group rules are present to allow platform components to communicate
-func (o *OpenstackPlatform) PrepareCloudletSecurityGroup(ctx context.Context, updateCallback edgeproto.CacheUpdateCallback) error {
+func (o *OpenstackPlatform) ConfigureCloudletSecurityRules(ctx context.Context, egressRestricted bool, privacyPolicy *edgeproto.PrivacyPolicy, updateCallback edgeproto.CacheUpdateCallback) error {
 	grpName := o.VMProperties.CloudletSecgrpName
-	log.SpanLog(ctx, log.DebugLevelInfra, "PrepareCloudletSecurityGroup", "grpName", grpName)
-
-	grpExists := false
-	stackExists := false
-	_, err := o.GetSecurityGroupIDForName(ctx, grpName)
-	if err != nil {
-		if strings.Contains(err.Error(), SecgrpDoesNotExist) {
-			// this is ok
-			log.SpanLog(ctx, log.DebugLevelInfra, "Security group does not exist", "grpName", grpName)
-		} else {
-			return err
-		}
-	} else {
-		grpExists = true
-	}
-	_, err = o.getHeatStackDetail(ctx, grpName)
-	if err != nil {
-		if strings.Contains(err.Error(), StackNotFound) {
-			// this is ok
-			log.SpanLog(ctx, log.DebugLevelInfra, "heat stack does not exist", "grpName", grpName)
-		} else {
-			return err
-		}
-	} else {
-		stackExists = true
-	}
+	log.SpanLog(ctx, log.DebugLevelInfra, "PrepareCloudletSecurityGroup", "CloudletSecgrpName", grpName)
 
 	privPolName := o.VMProperties.CommonPf.PlatformConfig.PrivacyPolicy
 	var privPol *edgeproto.PrivacyPolicy
-	egressRestricted := false
+	var err error
 	if privPolName != "" {
 		privPol, err = pfutils.GetCloudletPrivacyPolicy(ctx, o.VMProperties.CommonPf.PlatformConfig, o.caches)
 		if err != nil {
@@ -281,41 +256,11 @@ func (o *OpenstackPlatform) PrepareCloudletSecurityGroup(ctx context.Context, up
 		// use an empty policy
 		privPol = &edgeproto.PrivacyPolicy{}
 	}
-	vmgp, err := vmlayer.GetVMGroupOrchestrationParamsFromPrivacyPolicy(ctx, grpName, privPol, egressRestricted)
+	err = o.CreateOrUpdateCloudletSecgrpStack(ctx, egressRestricted, privPol, updateCallback)
 	if err != nil {
 		return err
 	}
-
-	if grpExists {
-		if stackExists {
-			// update the existing stack
-			log.SpanLog(ctx, log.DebugLevelInfra, "Updating heat stack for existing cloudlet security group", "name", grpName)
-			err = o.UpdateHeatStackFromTemplate(ctx, vmgp, grpName, VmGroupTemplate, updateCallback)
-			if err != nil {
-				return err
-			}
-		} else {
-			// this can happen if a previously existing cloudlet with a security group already defined exists.  In this case
-			// leave it alone as it may have any number of custom settings
-			log.SpanLog(ctx, log.DebugLevelInfra, "Leaving existing cloudlet group with no stack unmodified", "name", grpName)
-		}
-	} else {
-		if stackExists {
-			// the stack exists but the group does not.  It could have been deleted separately, so attempt to modify the stack and re-create the group
-			log.SpanLog(ctx, log.DebugLevelInfra, "Updating heat stack for missing cloudlet security group", "name", grpName)
-			err = o.UpdateHeatStackFromTemplate(ctx, vmgp, grpName, VmGroupTemplate, updateCallback)
-			if err != nil {
-				return err
-			}
-		} else {
-			log.SpanLog(ctx, log.DebugLevelInfra, "Creating heat stack for new cloudlet security group", "name", grpName)
-			err = o.CreateHeatStackFromTemplate(ctx, vmgp, grpName, VmGroupTemplate, updateCallback)
-			if err != nil {
-				return err
-			}
-		}
-	}
-
+	//	if action == vmlayer.CloudletSecgrpCreate {
 	cloudletGrpId, err := o.GetSecurityGroupIDForName(ctx, grpName)
 	if err != nil {
 		return err
@@ -340,6 +285,71 @@ func (o *OpenstackPlatform) PrepareCloudletSecurityGroup(ctx context.Context, up
 	for _, remote := range remoteGroups {
 		for _, dir := range directions {
 			err = o.AddSecurityRulesForRemoteGroup(ctx, cloudletGrpId, remote, "any", dir)
+			if err != nil {
+				return err
+			}
+		}
+	}
+	//	}
+	return nil
+}
+
+func (o *OpenstackPlatform) CreateOrUpdateCloudletSecgrpStack(ctx context.Context, egressRestricted bool, privacyPolicy *edgeproto.PrivacyPolicy, updateCallback edgeproto.CacheUpdateCallback) error {
+	grpName := o.VMProperties.CloudletSecgrpName
+
+	log.SpanLog(ctx, log.DebugLevelInfra, "CreateOrUpdateCloudletSecgrpStack", "grpName", grpName, "privacyPolicy", privacyPolicy)
+	grpExists := false
+	stackExists := false
+	_, err := o.GetSecurityGroupIDForName(ctx, o.VMProperties.CloudletSecgrpName)
+	if err != nil {
+		if strings.Contains(err.Error(), SecgrpDoesNotExist) {
+			// this is ok
+			log.SpanLog(ctx, log.DebugLevelInfra, "Security group does not exist", "secGrpName", grpName)
+		} else {
+			return err
+		}
+	} else {
+		grpExists = true
+	}
+	vmgp, err := vmlayer.GetVMGroupOrchestrationParamsFromPrivacyPolicy(ctx, o.VMProperties.CloudletSecgrpName, privacyPolicy, egressRestricted)
+	if err != nil {
+		return err
+	}
+	_, err = o.getHeatStackDetail(ctx, o.VMProperties.CloudletSecgrpName)
+	if err != nil {
+		if strings.Contains(err.Error(), StackNotFound) {
+			// this is ok
+			log.SpanLog(ctx, log.DebugLevelInfra, "heat stack does not exist", "secGrpName", grpName)
+		} else {
+			return err
+		}
+	} else {
+		stackExists = true
+	}
+	if grpExists {
+		if stackExists {
+			// update the existing stack
+			log.SpanLog(ctx, log.DebugLevelInfra, "Updating heat stack for existing cloudlet security group", "name", grpName)
+			err = o.UpdateHeatStackFromTemplate(ctx, vmgp, o.VMProperties.CloudletSecgrpName, VmGroupTemplate, updateCallback)
+			if err != nil {
+				return err
+			}
+		} else {
+			// this can happen if a previously existing cloudlet with a security group already defined exists.  In this case
+			// leave it alone as it may have any number of custom settings
+			log.SpanLog(ctx, log.DebugLevelInfra, "Leaving existing cloudlet group with no stack unmodified", "name", grpName)
+		}
+	} else {
+		if stackExists {
+			// the stack exists but the group does not.  It could have been deleted separately, so attempt to modify the stack and re-create the group
+			log.SpanLog(ctx, log.DebugLevelInfra, "Updating heat stack for missing cloudlet security group", "name", grpName)
+			err = o.UpdateHeatStackFromTemplate(ctx, vmgp, o.VMProperties.CloudletSecgrpName, VmGroupTemplate, updateCallback)
+			if err != nil {
+				return err
+			}
+		} else {
+			log.SpanLog(ctx, log.DebugLevelInfra, "Creating heat stack for new cloudlet security group", "name", grpName)
+			err = o.CreateHeatStackFromTemplate(ctx, vmgp, o.VMProperties.CloudletSecgrpName, VmGroupTemplate, updateCallback)
 			if err != nil {
 				return err
 			}

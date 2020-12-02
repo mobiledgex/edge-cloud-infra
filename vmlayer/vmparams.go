@@ -70,6 +70,7 @@ var NetTypeExternal NetType = 1
 var NextAvailableResource = "NextAvailable"
 
 const RemoteCidrAll = "0.0.0.0/0"
+const RemoteCidrNone = "0.0.0.0/32"
 
 // ResourceReference identifies a resource that is referenced by another resource. The
 // Preexisting flag indicates whether the resource is already present or is being created
@@ -367,18 +368,27 @@ type AccessPortSpec struct {
 }
 
 type SecurityGroupOrchestrationParams struct {
-	Name             string
-	AccessPorts      AccessPortSpec
-	EgressRestricted bool
-	EgressRules      []edgeproto.SecurityRule
+	Name        string
+	AccessPorts AccessPortSpec
+	EgressRules []edgeproto.SecurityRule
 }
 
 type SecgrpParamsOp func(vmp *SecurityGroupOrchestrationParams) error
 
 func secGrpWithEgressRules(rules []edgeproto.SecurityRule, egressRestricted bool) SecgrpParamsOp {
 	return func(sp *SecurityGroupOrchestrationParams) error {
+		if len(rules) == 0 {
+			// ensure at least one rule is present so that the orchestrator
+			// does not auto-create an empty allow-all rule
+			if egressRestricted {
+				allowNoneRule := edgeproto.SecurityRule{RemoteCidr: RemoteCidrNone}
+				rules = append(rules, allowNoneRule)
+			} else {
+				allowAllRule := edgeproto.SecurityRule{RemoteCidr: RemoteCidrAll}
+				rules = append(rules, allowAllRule)
+			}
+		}
 		sp.EgressRules = rules
-		sp.EgressRestricted = egressRestricted
 		return nil
 	}
 }

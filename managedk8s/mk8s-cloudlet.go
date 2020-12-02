@@ -98,6 +98,11 @@ func (m *ManagedK8sPlatform) UpdateCloudlet(ctx context.Context, cloudlet *edgep
 	return nil
 }
 
+func (m *ManagedK8sPlatform) UpdatePrivacyPolicy(ctx context.Context, privacyPolicy *edgeproto.PrivacyPolicy) error {
+	log.DebugLog(log.DebugLevelInfra, "update ManagedK8sPlatform PrivacyPolicy", "policy", privacyPolicy)
+	return fmt.Errorf("UpdatePrivacyPolicy not supported on managed k8s platform: %s", m.Type)
+}
+
 func (m *ManagedK8sPlatform) DeleteCloudlet(ctx context.Context, cloudlet *edgeproto.Cloudlet, pfConfig *edgeproto.PlatformConfig, caches *platform.Caches, accessApi platform.AccessApi, updateCallback edgeproto.CacheUpdateCallback) error {
 	log.SpanLog(ctx, log.DebugLevelInfra, "DeleteCloudlet", "cloudlet", cloudlet)
 	platCfg := infracommon.GetPlatformConfig(cloudlet, pfConfig, accessApi)

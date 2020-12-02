@@ -97,36 +97,29 @@ resources:
     {{.Name}}:
         type: OS::Neutron::SecurityGroup
         properties:
-                name: {{.Name}}
-                rules:
-                {{- if .EgressRestricted}}
-                  {{- if not .EgressRules}}
-                    - direction: egress
-                      remote_ip_prefix: 0.0.0.0/32
-                  {{- end}}
-                {{- range .EgressRules}}
-                    - direction: egress
-                      protocol: {{.Protocol}}
-                    {{- if .RemoteCidr}}
-                      remote_ip_prefix: {{.RemoteCidr}}
-                    {{- end}}
-                    {{- if .PortRangeMin}}
-                      port_range_min: {{.PortRangeMin}}
-                      port_range_max: {{.PortRangeMax}}
-                    {{- end}}
+            name: {{.Name}}
+            rules:
+            {{- range .EgressRules}}
+                - direction: egress
+                {{- if .Protocol}}
+                  protocol: {{.Protocol}}
                 {{- end}}
-                {{- else}}
-                    - direction: egress
-                      remote_ip_prefix: 0.0.0.0/0
+                {{- if .RemoteCidr}}
+                  remote_ip_prefix: {{.RemoteCidr}}
                 {{- end}}
-                {{- $RemoteCidr := .AccessPorts.RemoteCidr}}
-                {{- range .AccessPorts.Ports}}
-                    - direction: ingress
-                      remote_ip_prefix: {{$RemoteCidr}}
-                      protocol: {{.Proto}}
-                      port_range_min: {{.Port}}
-                      port_range_max: {{.EndPort}}
+                {{- if .PortRangeMin}}
+                  port_range_min: {{.PortRangeMin}}
+                  port_range_max: {{.PortRangeMax}}
                 {{- end}}
+            {{- end}}
+            {{- $RemoteCidr := .AccessPorts.RemoteCidr}}
+            {{- range .AccessPorts.Ports}}
+                - direction: ingress
+                  remote_ip_prefix: {{$RemoteCidr}}
+                  protocol: {{.Proto}}
+                  port_range_min: {{.Port}}
+                  port_range_max: {{.EndPort}}
+            {{- end}}
     {{- end}}
     
     {{- range .VMs}}

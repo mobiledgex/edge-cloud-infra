@@ -63,6 +63,7 @@ type VMProvider interface {
 	GetServerGroupResources(ctx context.Context, name string) (*edgeproto.InfraResources, error)
 	ValidateAdditionalNetworks(ctx context.Context, additionalNets []string) error
 	GetSessionTokens(ctx context.Context, vaultConfig *vault.Config, account string) (map[string]string, error)
+	ConfigureCloudletSecurityRules(ctx context.Context, egressRestricted bool, privacyPolicy *edgeproto.PrivacyPolicy, updateCallback edgeproto.CacheUpdateCallback) error
 }
 
 // VMPlatform contains the needed by all VM based platforms
@@ -400,7 +401,6 @@ func (v *VMPlatform) Init(ctx context.Context, platformConfig *platform.Platform
 
 func (v *VMPlatform) SyncControllerCache(ctx context.Context, caches *platform.Caches, cloudletState edgeproto.CloudletState) error {
 	log.SpanLog(ctx, log.DebugLevelInfra, "SyncControllerCache", "cloudletState", cloudletState)
-	// no sync needed right now
 
 	if v.VMProperties.Upgrade {
 		_, err := v.UpgradeFuncHandleSSHKeys(ctx, v.VMProperties.CommonPf.PlatformConfig.AccessApi, caches)

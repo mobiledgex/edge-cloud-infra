@@ -315,6 +315,11 @@ func (v *VMPlatform) UpdateCloudlet(ctx context.Context, cloudlet *edgeproto.Clo
 	return nil
 }
 
+func (v *VMPlatform) UpdatePrivacyPolicy(ctx context.Context, privacyPolicy *edgeproto.PrivacyPolicy) error {
+	log.DebugLog(log.DebugLevelInfra, "update VMPlatform PrivacyPolicy", "policy", privacyPolicy)
+	return v.VMProvider.ConfigureCloudletSecurityRules(ctx, true, privacyPolicy, edgeproto.DummyUpdateCallback)
+}
+
 func (v *VMPlatform) DeleteCloudlet(ctx context.Context, cloudlet *edgeproto.Cloudlet, pfConfig *edgeproto.PlatformConfig, caches *pf.Caches, accessApi platform.AccessApi, updateCallback edgeproto.CacheUpdateCallback) error {
 	log.SpanLog(ctx, log.DebugLevelInfra, "Deleting cloudlet", "cloudletName", cloudlet.Key.Name)
 

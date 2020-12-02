@@ -1165,11 +1165,6 @@ func addControllerApis(method string, group *echo.Group) {
 	// OutboundSecurityRulesPortRangeMin: 3.2
 	// OutboundSecurityRulesPortRangeMax: 3.3
 	// OutboundSecurityRulesRemoteCidr: 3.4
-	// InboundSecurityRules: 4
-	// InboundSecurityRulesProtocol: 4.1
-	// InboundSecurityRulesPortRangeMin: 4.2
-	// InboundSecurityRulesPortRangeMax: 4.3
-	// InboundSecurityRulesRemoteCidr: 4.4
 	// ```
 	// Security:
 	//   Bearer:

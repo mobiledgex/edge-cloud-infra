@@ -130,10 +130,6 @@ var PrivacyPolicyOptionalArgs = []string{
 	"outboundsecurityrules:#.portrangemin",
 	"outboundsecurityrules:#.portrangemax",
 	"outboundsecurityrules:#.remotecidr",
-	"inboundsecurityrules:#.protocol",
-	"inboundsecurityrules:#.portrangemin",
-	"inboundsecurityrules:#.portrangemax",
-	"inboundsecurityrules:#.remotecidr",
 }
 var PrivacyPolicyAliasArgs = []string{
 	"fields=privacypolicy.fields",
@@ -143,10 +139,6 @@ var PrivacyPolicyAliasArgs = []string{
 	"outboundsecurityrules:#.portrangemin=privacypolicy.outboundsecurityrules:#.portrangemin",
 	"outboundsecurityrules:#.portrangemax=privacypolicy.outboundsecurityrules:#.portrangemax",
 	"outboundsecurityrules:#.remotecidr=privacypolicy.outboundsecurityrules:#.remotecidr",
-	"inboundsecurityrules:#.protocol=privacypolicy.inboundsecurityrules:#.protocol",
-	"inboundsecurityrules:#.portrangemin=privacypolicy.inboundsecurityrules:#.portrangemin",
-	"inboundsecurityrules:#.portrangemax=privacypolicy.inboundsecurityrules:#.portrangemax",
-	"inboundsecurityrules:#.remotecidr=privacypolicy.inboundsecurityrules:#.remotecidr",
 }
 var PrivacyPolicyComments = map[string]string{
 	"fields":                               "Fields are used for the Update API to specify which fields to apply",
@@ -156,10 +148,6 @@ var PrivacyPolicyComments = map[string]string{
 	"outboundsecurityrules:#.portrangemin": "TCP or UDP port range start",
 	"outboundsecurityrules:#.portrangemax": "TCP or UDP port range end",
 	"outboundsecurityrules:#.remotecidr":   "remote CIDR X.X.X.X/X",
-	"inboundsecurityrules:#.protocol":      "tcp, udp, icmp",
-	"inboundsecurityrules:#.portrangemin":  "TCP or UDP port range start",
-	"inboundsecurityrules:#.portrangemax":  "TCP or UDP port range end",
-	"inboundsecurityrules:#.remotecidr":    "remote CIDR X.X.X.X/X",
 }
 var PrivacyPolicySpecialArgs = map[string]string{
 	"privacypolicy.fields": "StringArray",

@@ -299,6 +299,57 @@ func (v *VMPlatform) CreateCloudlet(ctx context.Context, cloudlet *edgeproto.Clo
 	return nil
 }
 
+func (v *VMPlatform) GetCloudletRunStatus(ctx context.Context, cloudlet *edgeproto.Cloudlet, pfConfig *edgeproto.PlatformConfig, accessApi platform.AccessApi, updateCallback edgeproto.CacheUpdateCallback) error {
+	var err error
+	chefAuth, err := accessApi.GetChefAuthKey(ctx)
+	if err != nil {
+		return err
+	}
+
+	chefServerPath := pfConfig.ChefServerPath
+	if chefServerPath == "" {
+		chefServerPath = chefmgmt.DefaultChefServerPath
+	}
+
+	chefClient, err := chefmgmt.GetChefClient(ctx, chefAuth.ApiKey, chefServerPath)
+	if err != nil {
+		return err
+	}
+	// Fetch chef run list status
+	pfName := v.GetPlatformVMName(&cloudlet.Key)
+	if cloudlet.Deployment == cloudcommon.DeploymentTypeKubernetes {
+		pfName = pfName + "-master"
+	}
+	startTime := time.Now()
+	clientName := v.GetChefClientName(pfName)
+	updateCallback(edgeproto.UpdateTask, "Waiting for run lists to be executed on Platform VM")
+	timeout := time.After(20 * time.Minute)
+	tick := time.Tick(5 * time.Second)
+	for {
+		var statusInfo []chefmgmt.ChefStatusInfo
+		select {
+		case <-timeout:
+			return fmt.Errorf("timed out waiting for platform VM to connect to Chef Server")
+		case <-tick:
+			statusInfo, err = chefmgmt.ChefClientRunStatus(ctx, chefClient, clientName, startTime)
+			if err != nil {
+				return err
+			}
+		}
+		if len(statusInfo) > 0 {
+			updateCallback(edgeproto.UpdateTask, "Performed following actions:")
+			for _, info := range statusInfo {
+				if info.Failed {
+					return fmt.Errorf(info.Message)
+				}
+				updateCallback(edgeproto.UpdateStep, info.Message)
+			}
+			break
+		}
+	}
+	return nil
+}
+
 func (v *VMPlatform) UpdateCloudlet(ctx context.Context, cloudlet *edgeproto.Cloudlet, updateCallback edgeproto.CacheUpdateCallback) error {
 	// Update envvars
 	v.VMProperties.CommonPf.Properties.UpdatePropsFromVars(ctx, cloudlet.EnvVar)

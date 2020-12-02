@@ -194,7 +194,7 @@ tests:
       yaml2: '{{datadir2}}/emaildata_cloudlet_alert_firing.yml'
       filetype: emaildata
   
-  - name: stop crm on tmus-cloud-1 cloudlet
+  - name: start crm on tmus-cloud-1 cloudlet
     apifile: "{{datadir2}}/cloudlet_tmus-cloud-1.yml"
     actions: [start-crm=tmus-cloud-1,sleep=1]
 

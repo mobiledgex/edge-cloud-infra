@@ -7,6 +7,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/go-chef/chef"
 	"github.com/mobiledgex/edge-cloud-infra/chefmgmt"
 	intprocess "github.com/mobiledgex/edge-cloud-infra/e2e-tests/int-process"
 	"github.com/mobiledgex/edge-cloud-infra/infracommon"
@@ -239,7 +240,6 @@ func (v *VMPlatform) CreateCloudlet(ctx context.Context, cloudlet *edgeproto.Clo
 		chefPolicy = chefmgmt.ChefPolicyK8s
 	}
 	cloudlet.ChefClientKey = make(map[string]string)
-	platformVMName := v.GetPlatformVMName(&cloudlet.Key)
 	if cloudlet.InfraApiAccess == edgeproto.InfraApiAccess_RESTRICTED_ACCESS {
 		nodes := v.GetPlatformNodes(cloudlet)
 		for _, nodeName := range nodes {
@@ -257,15 +257,18 @@ func (v *VMPlatform) CreateCloudlet(ctx context.Context, cloudlet *edgeproto.Clo
 		return nil
 	}
 
-	startTime := time.Now()
-
 	err = v.SetupPlatformVM(ctx, accessApi, cloudlet, pfConfig, pfFlavor, updateCallback)
 	if err != nil {
 		return err
 	}
 
+	return v.getChefRunStatus(ctx, chefClient, cloudlet, pfConfig, accessApi, updateCallback)
+}
+
+func (v *VMPlatform) getChefRunStatus(ctx context.Context, chefClient *chef.Client, cloudlet *edgeproto.Cloudlet, pfConfig *edgeproto.PlatformConfig, accessApi platform.AccessApi, updateCallback edgeproto.CacheUpdateCallback) error {
 	// Fetch chef run list status
-	pfName := platformVMName
+	var err error
+	pfName := v.GetPlatformVMName(&cloudlet.Key)
 	if cloudlet.Deployment == cloudcommon.DeploymentTypeKubernetes {
 		pfName = pfName + "-master"
 	}
@@ -279,7 +282,7 @@ func (v *VMPlatform) CreateCloudlet(ctx context.Context, cloudlet *edgeproto.Clo
 		case <-timeout:
 			return fmt.Errorf("timed out waiting for platform VM to connect to Chef Server")
 		case <-tick:
-			statusInfo, err = chefmgmt.ChefClientRunStatus(ctx, chefClient, clientName, startTime)
+			statusInfo, err = chefmgmt.ChefClientRunStatus(ctx, chefClient, clientName)
 			if err != nil {
 				return err
 			}
@@ -315,39 +318,7 @@ func (v *VMPlatform) GetCloudletRunStatus(ctx context.Context, cloudlet *edgepro
 	if err != nil {
 		return err
 	}
-	// Fetch chef run list status
-	pfName := v.GetPlatformVMName(&cloudlet.Key)
-	if cloudlet.Deployment == cloudcommon.DeploymentTypeKubernetes {
-		pfName = pfName + "-master"
-	}
-	startTime := time.Now()
-	clientName := v.GetChefClientName(pfName)
-	updateCallback(edgeproto.UpdateTask, "Waiting for run lists to be executed on Platform VM")
-	timeout := time.After(20 * time.Minute)
-	tick := time.Tick(5 * time.Second)
-	for {
-		var statusInfo []chefmgmt.ChefStatusInfo
-		select {
-		case <-timeout:
-			return fmt.Errorf("timed out waiting for platform VM to connect to Chef Server")
-		case <-tick:
-			statusInfo, err = chefmgmt.ChefClientRunStatus(ctx, chefClient, clientName, startTime)
-			if err != nil {
-				return err
-			}
-		}
-		if len(statusInfo) > 0 {
-			updateCallback(edgeproto.UpdateTask, "Performed following actions:")
-			for _, info := range statusInfo {
-				if info.Failed {
-					return fmt.Errorf(info.Message)
-				}
-				updateCallback(edgeproto.UpdateStep, info.Message)
-			}
-			break
-		}
-	}
-	return nil
+	return v.getChefRunStatus(ctx, chefClient, cloudlet, pfConfig, accessApi, updateCallback)
 }
 
 func (v *VMPlatform) UpdateCloudlet(ctx context.Context, cloudlet *edgeproto.Cloudlet, updateCallback edgeproto.CacheUpdateCallback) error {

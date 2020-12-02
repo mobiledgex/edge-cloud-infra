@@ -131,7 +131,7 @@ func Login(c echo.Context) error {
 		opts := totp.ValidateOpts{
 			Period:    OTPExpirationTime,
 			Skew:      1,
-			Digits:    otp.DigitsSix,
+			Digits:    OTPLen,
 			Algorithm: otp.AlgorithmSHA1,
 		}
 		if login.TOTP == "" {

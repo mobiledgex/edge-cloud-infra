@@ -6,6 +6,7 @@ pipeline {
     environment {
         ANSIBLE_ROLE = credentials('staging-vault-ansible-role')
         GITHUB_CREDS = credentials('ansible-github-credentials')
+        PAGERDUTY_INTEGRATION_KEY = credentials('pagerduty-service-integration-key')
         TAG = "${params.TAG}"
     }
     parameters {

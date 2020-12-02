@@ -7,6 +7,7 @@ pipeline {
         stage_VAULT_ROLE = credentials('staging-vault-pki-tidy-role')
         qa_VAULT_ROLE = credentials('qa-vault-pki-tidy-role')
         dev_VAULT_ROLE = credentials('dev-vault-pki-tidy-role')
+        PAGERDUTY_INTEGRATION_KEY = credentials('pagerduty-service-integration-key')
     }
     stages {
         stage('Backup') {

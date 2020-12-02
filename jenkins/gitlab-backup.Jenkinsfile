@@ -5,6 +5,7 @@ pipeline {
     agent any
     environment {
         GITLAB_TOKEN = credentials('gitlab-backup-token')
+        PAGERDUTY_INTEGRATION_KEY = credentials('pagerduty-service-integration-key')
     }
     stages {
         stage('Run the backup job') {

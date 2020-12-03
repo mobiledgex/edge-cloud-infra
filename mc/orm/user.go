@@ -148,7 +148,6 @@ func Login(c echo.Context) error {
 			return c.JSON(http.StatusNetworkAuthenticationRequired, Msg("Missing OTP\nPlease use two factor authenticator app on "+
 				"your phone to get OTP. We have also sent OTP to your registered email address"))
 		}
-		//valid := totp.Validate(login.TOTP, user.TOTPSharedKey)
 		valid, err := totp.ValidateCustom(login.TOTP, user.TOTPSharedKey, time.Now().UTC(), opts)
 		if !valid {
 			log.SpanLog(ctx, log.DebugLevelApi, "invalid or expired otp", "user", user.Name, "err", err)

@@ -109,6 +109,7 @@ var SettingsOptionalArgs = []string{
 	"influxdbmetricsretention",
 	"cloudletmaintenancetimeout",
 	"updatevmpooltimeout",
+	"updateprivacypolicytimeout",
 }
 var SettingsAliasArgs = []string{
 	"fields=settings.fields",
@@ -132,6 +133,7 @@ var SettingsAliasArgs = []string{
 	"influxdbmetricsretention=settings.influxdbmetricsretention",
 	"cloudletmaintenancetimeout=settings.cloudletmaintenancetimeout",
 	"updatevmpooltimeout=settings.updatevmpooltimeout",
+	"updateprivacypolicytimeout=settings.updateprivacypolicytimeout",
 }
 var SettingsComments = map[string]string{
 	"fields":                            "Fields are used for the Update API to specify which fields to apply",
@@ -155,6 +157,7 @@ var SettingsComments = map[string]string{
 	"influxdbmetricsretention":          "Default influxDB metrics retention policy (duration)",
 	"cloudletmaintenancetimeout":        "Default Cloudlet Maintenance timeout (used twice for AutoProv and Cloudlet)",
 	"updatevmpooltimeout":               "Update VM pool timeout (duration)",
+	"updateprivacypolicytimeout":        "Update Privacy Policy timeout (duration)",
 }
 var SettingsSpecialArgs = map[string]string{
 	"settings.fields": "StringArray",

@@ -571,6 +571,7 @@ var CloudletAliasArgs = []string{
 	"updatedat.seconds=cloudlet.updatedat.seconds",
 	"updatedat.nanos=cloudlet.updatedat.nanos",
 	"privacypolicy=cloudlet.privacypolicy",
+	"privacypolicystate=cloudlet.privacypolicystate",
 }
 var CloudletComments = map[string]string{
 	"fields":                              "Fields are used for the Update API to specify which fields to apply",
@@ -638,6 +639,7 @@ var CloudletComments = map[string]string{
 	"crmaccesspublickey":                  "CRM access public key",
 	"crmaccesskeyupgraderequired":         "CRM access key upgrade required",
 	"privacypolicy":                       "Optional Privacy Policy",
+	"privacypolicystate":                  "State of privacy policy, one of TrackedStateUnknown, NotPresent, CreateRequested, Creating, CreateError, Ready, UpdateRequested, Updating, UpdateError, DeleteRequested, Deleting, DeleteError, DeletePrepare, CrmInitok, CreatingDependencies, DeleteDone",
 }
 var CloudletSpecialArgs = map[string]string{
 	"cloudlet.accessvars":    "StringToString",
@@ -823,6 +825,7 @@ var CloudletInfoOptionalArgs = []string{
 	"osimages:#.diskformat",
 	"controllercachereceived",
 	"maintenancestate",
+	"privacypolicystate",
 }
 var CloudletInfoAliasArgs = []string{
 	"fields=cloudletinfo.fields",
@@ -866,6 +869,7 @@ var CloudletInfoAliasArgs = []string{
 	"resources.vms:#.containers:#.status=cloudletinfo.resources.vms:#.containers:#.status",
 	"resources.vms:#.containers:#.clusterip=cloudletinfo.resources.vms:#.containers:#.clusterip",
 	"resources.vms:#.containers:#.restarts=cloudletinfo.resources.vms:#.containers:#.restarts",
+	"privacypolicystate=cloudletinfo.privacypolicystate",
 }
 var CloudletInfoComments = map[string]string{
 	"fields":                                 "Fields are used for the Update API to specify which fields to apply",
@@ -899,6 +903,7 @@ var CloudletInfoComments = map[string]string{
 	"resources.vms:#.containers:#.status":    "Runtime status of the container",
 	"resources.vms:#.containers:#.clusterip": "IP within the CNI and is applicable to kubernetes only",
 	"resources.vms:#.containers:#.restarts":  "Restart count, applicable to kubernetes only",
+	"privacypolicystate":                     "Privacy Policy State, one of TrackedStateUnknown, NotPresent, CreateRequested, Creating, CreateError, Ready, UpdateRequested, Updating, UpdateError, DeleteRequested, Deleting, DeleteError, DeletePrepare, CrmInitok, CreatingDependencies, DeleteDone",
 }
 var CloudletInfoSpecialArgs = map[string]string{
 	"cloudletinfo.errors":            "StringArray",

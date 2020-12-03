@@ -8,7 +8,7 @@ import (
 	"strings"
 
 	"github.com/mobiledgex/edge-cloud-infra/vmlayer"
-	pfutils "github.com/mobiledgex/edge-cloud/cloud-resource-manager/platform/utils"
+	"github.com/mobiledgex/edge-cloud/cloud-resource-manager/crmutil"
 	"github.com/mobiledgex/edge-cloud/edgeproto"
 	"github.com/mobiledgex/edge-cloud/log"
 )
@@ -232,7 +232,7 @@ func (o *OpenstackPlatform) PrepNetwork(ctx context.Context, updateCallback edge
 	var privPol *edgeproto.PrivacyPolicy
 	egressRestricted := false
 	if privPolName != "" {
-		privPol, err = pfutils.GetCloudletPrivacyPolicy(ctx, o.VMProperties.CommonPf.PlatformConfig, o.caches)
+		privPol, err = crmutil.GetCloudletPrivacyPolicy(ctx, privPolName, o.VMProperties.CommonPf.PlatformConfig.CloudletKey.Organization, o.caches.PrivacyPolicyCache)
 		if err != nil {
 			return err
 		}

@@ -8,7 +8,6 @@ import (
 	"sync"
 
 	"github.com/mobiledgex/edge-cloud-infra/vmlayer"
-	pfutils "github.com/mobiledgex/edge-cloud/cloud-resource-manager/platform/utils"
 	dme "github.com/mobiledgex/edge-cloud/d-match-engine/dme-proto"
 	"github.com/mobiledgex/edge-cloud/edgeproto"
 	"github.com/mobiledgex/edge-cloud/log"
@@ -241,22 +240,9 @@ func (s *OpenstackPlatform) GetSecurityGroupIDForProject(ctx context.Context, gr
 // that the remote-group rules are present to allow platform components to communicate
 func (o *OpenstackPlatform) ConfigureCloudletSecurityRules(ctx context.Context, egressRestricted bool, privacyPolicy *edgeproto.PrivacyPolicy, updateCallback edgeproto.CacheUpdateCallback) error {
 	grpName := o.VMProperties.CloudletSecgrpName
-	log.SpanLog(ctx, log.DebugLevelInfra, "PrepareCloudletSecurityGroup", "CloudletSecgrpName", grpName)
+	log.SpanLog(ctx, log.DebugLevelInfra, "ConfigureCloudletSecurityRules", "CloudletSecgrpName", grpName, "egressRestricted", egressRestricted)
 
-	privPolName := o.VMProperties.CommonPf.PlatformConfig.PrivacyPolicy
-	var privPol *edgeproto.PrivacyPolicy
-	var err error
-	if privPolName != "" {
-		privPol, err = pfutils.GetCloudletPrivacyPolicy(ctx, o.VMProperties.CommonPf.PlatformConfig, o.caches)
-		if err != nil {
-			return err
-		}
-		egressRestricted = true
-	} else {
-		// use an empty policy
-		privPol = &edgeproto.PrivacyPolicy{}
-	}
-	err = o.CreateOrUpdateCloudletSecgrpStack(ctx, egressRestricted, privPol, updateCallback)
+	err := o.CreateOrUpdateCloudletSecgrpStack(ctx, egressRestricted, privacyPolicy, updateCallback)
 	if err != nil {
 		return err
 	}

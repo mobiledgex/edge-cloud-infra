@@ -105,6 +105,7 @@
         longitude: "{{ item.longitude }}"
         resource_group: "{{ item.resource_group }}"
         dme_aliases: "{{ item.global_dme_aliases }}"
+        dme_replicas: "{{ item.dme_replicas }}"
       with_items: "{{ platform_regions }}"
 
     - debug: var=dme_details

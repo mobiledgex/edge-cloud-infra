@@ -10,13 +10,15 @@
           'dns_prefix': dns_pref,
           'resource_group': rg,
           'kubernetes_version': kver,
-          'global_dme_aliases': gdme
+          'global_dme_aliases': gdme,
+          'dme_replicas': dme_repl,
       } ] }}
   vars:
     rg: "{{ pr.azure_resource_group_name | default(pr.name + '-rg') }}"
     kver: "{{ pr.kubernetes_version | default(kubernetes_version) }}"
     dns_pref: "{{ pr.dns_prefix | default(pr.name) }}"
     gdme: "{{ pr.global_dme_aliases | default([]) | map('regex_replace', '$', global_dme_suffix) | list }}"
+    dme_repl: "{{ pr.dme_replicas | default(1) }}"
   loop: "{{ regions }}"
   loop_control:
     loop_var: pr
@@ -31,6 +33,7 @@
       - pr.dns_prefix != ""
       - pr.resource_group != ""
       - pr.kubernetes_version != ""
+      - pr.dme_replicas != ""
   loop: "{{ platform_regions }}"
   loop_control:
     loop_var: pr

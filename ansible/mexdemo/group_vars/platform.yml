@@ -12,6 +12,7 @@ regions:
     latitude: 37.5665
     longitude: 126.9780
     kubernetes_version: 1.12.8
+    dme_replicas: 0
 
   - name: mexdemo-eu-cluster
     azure_resource_group_name: mexdemo-eu-resource-group

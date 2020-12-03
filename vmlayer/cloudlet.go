@@ -302,8 +302,14 @@ func (v *VMPlatform) getChefRunStatus(ctx context.Context, chefClient *chef.Clie
 	return nil
 }
 
-func (v *VMPlatform) GetCloudletRunStatus(ctx context.Context, cloudlet *edgeproto.Cloudlet, pfConfig *edgeproto.PlatformConfig, accessApi platform.AccessApi, updateCallback edgeproto.CacheUpdateCallback) error {
+func (v *VMPlatform) GetRestrictedCloudletStatus(ctx context.Context, cloudlet *edgeproto.Cloudlet, pfConfig *edgeproto.PlatformConfig, accessApi platform.AccessApi, updateCallback edgeproto.CacheUpdateCallback) error {
 	var err error
+	v.VMProperties.Domain = VMDomainPlatform
+	pc := infracommon.GetPlatformConfig(cloudlet, pfConfig, accessApi)
+	err = v.InitProps(ctx, pc)
+	if err != nil {
+		return err
+	}
 	chefAuth, err := accessApi.GetChefAuthKey(ctx)
 	if err != nil {
 		return err

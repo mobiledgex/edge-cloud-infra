@@ -66,6 +66,6 @@ func (e *EdgeboxPlatform) VerifyVMs(ctx context.Context, vms []edgeproto.VM) err
 	return e.generic.VerifyVMs(ctx, vms)
 }
 
-func (e *EdgeboxPlatform) GetCloudletRunStatus(ctx context.Context, cloudlet *edgeproto.Cloudlet, pfConfig *edgeproto.PlatformConfig, accessApi platform.AccessApi, updateCallback edgeproto.CacheUpdateCallback) error {
-	return e.generic.GetCloudletRunStatus(ctx, cloudlet, pfConfig, accessApi, updateCallback)
+func (e *EdgeboxPlatform) GetRestrictedCloudletStatus(ctx context.Context, cloudlet *edgeproto.Cloudlet, pfConfig *edgeproto.PlatformConfig, accessApi platform.AccessApi, updateCallback edgeproto.CacheUpdateCallback) error {
+	return e.generic.GetRestrictedCloudletStatus(ctx, cloudlet, pfConfig, accessApi, updateCallback)
 }

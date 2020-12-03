@@ -26,6 +26,7 @@ var netName = flag.String("net", "default-network", "Name of network")
 var ipAddr = flag.String("ip", "172.70.52.210", "Defafult IP addr of VM")
 var ovaName = flag.String("ova", "basic.ova", "name of ova file to upload")
 var vdcName = flag.String("vdc", "mex01", "name of vdc")
+var grpName = flag.String("grp", "grp-default", "some grp name")
 var livetest = flag.String("live", "false", "live or canned data")
 
 // Unit test env init. We have two cases, the default is live=false making
@@ -557,4 +558,29 @@ func testVMMetrics(t *testing.T, ctx context.Context, vmname string, poweron boo
 
 	// So this implies that historic metrics (stored for 2 weeks they say somewhere) _are_ available. We'll see
 	return err
+}
+
+// -grp -live
+func TestServerGroupResources(t *testing.T) {
+	live, ctx, err := InitVcdTestEnv()
+	require.Nil(t, err, "InitTestEnv")
+
+	if live {
+		resources, err := tv.GetServerGroupResources(ctx, *grpName)
+		if err != nil {
+			fmt.Printf("Error %s returned\n", err.Error())
+			return
+		}
+
+		fmt.Printf("Resources for %s \n", *grpName)
+		for _, vinfo := range resources.Vms {
+			fmt.Printf("\tName : %s\n\tType: %s\n\t Status: %s\n\tFlavor: %s\n",
+				vinfo.Name, vinfo.Type, vinfo.Status, vinfo.InfraFlavor)
+
+			for _, ipSet := range vinfo.Ipaddresses {
+				fmt.Printf("\tExternalIp: %s\n\tInternalIp:%s\n",
+					ipSet.ExternalIp, ipSet.InternalIp)
+			}
+		}
+	}
 }

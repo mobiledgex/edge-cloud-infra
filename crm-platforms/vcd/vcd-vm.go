@@ -244,6 +244,18 @@ func (v *VcdPlatform) CreateVMs(ctx context.Context, vmgp *vmlayer.VMGroupOrches
 			return err
 		}
 		fmt.Printf("CreateVMs-I-Cluster %s Created successfully\n", clusterName)
+
+		cluster, err := v.FindCluster(ctx, clusterName)
+		if err != nil {
+			fmt.Printf("\n\nCreateCluster-W-created by not fund in lookup %s\n", clusterName)
+		} else {
+			fmt.Printf("Cluster %s has %d cvms : \n", clusterName, len(cluster.VMs))
+			for _, cvm := range cluster.VMs {
+				fmt.Printf("\tName: %s\n\tRole : %s\n\t Type: %s\n\tFlavor: %s\n\tParentCluster: %s\n\tExtAddr: %s InternalAddr:%s vm:%s\n",
+					cvm.vmName, cvm.vmRole, cvm.vmType, cvm.vmFlavor, cvm.vmParentCluster, cvm.vmIPs.ExternalIp, cvm.vmIPs.InternalIp, cvm.vm.VM.Name)
+			}
+		}
+
 		return nil
 	}
 	// CreateCloudlet
@@ -648,8 +660,51 @@ func (v *VcdPlatform) SetVMProperties(vmProperties *vmlayer.VMProperties) {
 	vmProperties.IptablesBasedFirewall = false // true
 }
 
-// new, ah, get resources from a group of vms.. like  cluster?
+// This can get called with name representing
+// a single VM name like a sharedRootLB, or PlatformVM
+// a cluster name.
+// Can't return values from just a govcd.VM obj. We must have a cloudlet + cloudlet on there
+//
 func (v *VcdPlatform) GetServerGroupResources(ctx context.Context, name string) (*edgeproto.InfraResources, error) {
 	resources := &edgeproto.InfraResources{}
+	// xxx need ContainerInfo as well
+	fmt.Printf("\nGetServerGroupResources for name: %s\n", name)
+	if v.Objs.Cloudlet != nil {
+
+		for _, cluster := range v.Objs.Cloudlet.Clusters {
+			if name == cluster.Name {
+				for _, vm := range cluster.VMs {
+					vminfo := edgeproto.VmInfo{
+						Name:        vm.vmName,
+						InfraFlavor: vm.vmFlavor,
+						Type:        string(vmlayer.GetVmTypeForRole(vm.vmRole)),
+					}
+					vminfo.Ipaddresses = append(vminfo.Ipaddresses, vm.vmIPs)
+					resources.Vms = append(resources.Vms, vminfo)
+				}
+				return resources, nil
+			}
+		}
+	}
+
+	/*
+		else {
+			// Cloudlet is nil, so no clusters, simple vm?
+			// Not a group/cluster name, single vm
+			vm, err := v.FindVM(ctx, name)
+			if err != nil {
+				fmt.Printf("\nGetServerGroupResources-W-name %s not cluster nor vm\n", name)
+				//
+				return nil, fmt.Errorf("Not Found")
+			}
+			// Ok, what to do here, will anyone call this before we have a Cloudlet/Clusters
+			vminfo := edgeproto.VmInfo{
+				Name:        vm.vmName,
+				InfraFlavor: vm.vmFlavor,
+				Type:        vm.vmType, // string(vmlayer.GetVmTypeForRole(vm.vmRole)),
+			}
+			vminfo.Ipaddresses = append(vminfo.Ipaddresses, vm.vmIPs)
+		}
+	*/
 	return resources, nil
 }

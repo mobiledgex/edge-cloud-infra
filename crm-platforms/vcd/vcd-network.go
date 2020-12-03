@@ -538,14 +538,14 @@ func (v *VcdPlatform) GetNextExtAddrForVdcNet(ctx context.Context, vdc *govcd.Vd
 
 	vdcnet := v.Objs.PrimaryNet
 	iprange := vdcnet.OrgVDCNetwork.Configuration.IPScopes.IPScope[0].IPRanges.IPRange[0]
-	vappRefs := vdc.GetVappList()
+	//	vappRefs := vdc.GetVappList()
 
 	// s, _ := v.Octet(ctx, iprange.StartAddress, 3)
 	e, _ := v.Octet(ctx, iprange.EndAddress, 3)
 	//ipcnt := e - s
 	curAddr := iprange.StartAddress
 	// No vapps yet? use first in pool
-	if len(vappRefs) == 0 || v.Objs.Cloudlet == nil {
+	if /*len(vappRefs) == 0 ||*/ v.Objs.Cloudlet == nil {
 		fmt.Printf("NEXT EXT IP vappRefs zero v.Objs.Cloudlet: %+v  , first returned: %s\n", v.Objs.Cloudlet, curAddr)
 		return curAddr, nil
 	}
@@ -588,7 +588,7 @@ func (v *VcdPlatform) GetNextInternalNet(ctx context.Context) (string, error) {
 			if cloudlet.Clusters == nil {
 				cloudlet.Clusters = make(CidrMap)
 			}
-			cloudlet.Clusters[curAddr] = VMIPsMap{}
+			cloudlet.Clusters[curAddr] = Cluster{}
 			return curAddr, nil
 		}
 	}

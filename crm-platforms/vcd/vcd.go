@@ -78,21 +78,29 @@ type TmplVMsMap map[string]*types.QueryResultVMRecordType
 type MediaMap map[string]*govcd.Media
 
 // A VM element of a clusterInst in some Cloudlet
-type VmNet struct {
-	vmName string
-	vmRole string
-	vmMeta []string
-	vm     *govcd.VM
+type ClusterVm struct {
+	vmName          string
+	vmRole          string
+	vmType          string
+	vmFlavor        string
+	vmMeta          []string
+	vmIPs           edgeproto.IpAddr // ExternalIp , InternalIp
+	vmParentCluster string
+	vm              *govcd.VM
 }
 
 // IPaddr + vm attributes per cluster
-type VMIPsMap map[string]VmNet
+type VMIPsMap map[string]ClusterVm
 
 // A map key'ed by CIDR whose value is another map of all VMs in the
 // Cluster represented by this CIDR, this key'ed by IP addr
 // This set of vms under this CIDR represent a cluster
+type Cluster struct {
+	Name string
+	VMs  VMIPsMap
+}
 
-type CidrMap map[string]VMIPsMap
+type CidrMap map[string]Cluster
 type CloudVMsMap map[string]*govcd.VM
 
 // One cloudlet per vdc instance
@@ -101,8 +109,9 @@ type MexCloudlet struct {
 	CloudVapp    *govcd.VApp
 	CloudletName string
 	ExtNet       *govcd.OrgVDCNetwork // The external network shared by all agent nodes of cluster in cloudlet
-	Clusters     CidrMap              // Clusters are keyed by their internal net CIDR
-	ExtVMMap     CloudVMsMap          // keyed by exteral net ip
+	ExtIp        string
+	Clusters     CidrMap     // Clusters are keyed by their internal net CIDR
+	ExtVMMap     CloudVMsMap // keyed by exteral net ip
 	// federation partner TBI (single remote org/vdc:  a pair wise assocication)
 
 }

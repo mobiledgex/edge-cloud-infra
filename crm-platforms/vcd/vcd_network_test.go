@@ -42,7 +42,7 @@ func TestNextIntAddr(t *testing.T) {
 			//cmap := make(CidrMap)
 			tv.Objs.Cloudlet = cloud
 			cloud.Clusters = make(CidrMap)
-			cloud.Clusters["10.101.1.1"] = VMIPsMap{}
+			cloud.Clusters["10.101.1.1"] = Cluster{}
 		}
 		nextAddr, err := tv.GetNextInternalNet(ctx)
 		if err != nil {
@@ -51,7 +51,7 @@ func TestNextIntAddr(t *testing.T) {
 		}
 
 		fmt.Printf("Next ext-net Address: %s\n", nextAddr)
-		cloud.Clusters[nextAddr] = VMIPsMap{}
+		cloud.Clusters[nextAddr] = Cluster{}
 		nextAddr, err = tv.GetNextInternalNet(ctx)
 		if err != nil {
 			fmt.Printf("Error getting next addr  : %s\n", err.Error())
@@ -142,83 +142,128 @@ func TestNetAddrs(t *testing.T) {
 			fmt.Printf("GetNextInternalNet expect 10.101.1.0/24 cidr: %s\n", nextCidr)
 
 		}
-		// We still have no cloudlets, create one.
-
-		cluster1 := make(CidrMap)
-		cluster2 := make(CidrMap)
-		//cluster3 := make(CidrMap)
-
-		vmIpMap1 := make(VMIPsMap)
-		vmIpMap2 := make(VMIPsMap)
-
-		vmMap1 := VmNet{
-			vmName: "testVM1",
-			vmRole: "roleAgent",
-			//vmMeta: "",
-		}
-		vmMap2 := VmNet{
-			vmName: "testVM2",
-			vmRole: "roleNode",
-			//vmMeta: "",
+		// We ask for the first external address in our PrimaryNet range
+		CloudletAddr, err := tv.GetNextExtAddrForVdcNet(ctx, vdc)
+		if err != nil {
+			fmt.Printf("GetNextExternalAddrForVdcNet failed: %s\n", err.Error())
+			return
 		}
 
-		vmIpMap1["10.101.1.1"] = vmMap1
-		vmIpMap2["10.101.2.1"] = vmMap2
-
-		cluster1["10.101.1.0/24"] = vmIpMap1
-		cluster2["10.101.2.0/24"] = vmIpMap2
-
-		fmt.Printf("Nominal single Cloudlet test\n")
 		vapp := &govcd.VApp{}
-		// Create a test cloudlet obj
 
-		tv.Objs.Cloudlet = &MexCloudlet{
-			ParentVdc: vdc,
-			CloudVapp: vapp,
-			Clusters:  cluster1, // cluster right?
-		}
-
-		cli := tv.Client.Client
-		vdc2 := govcd.NewVdc(&cli)
-
-		vdc2.Vdc.Name = "testvdc2"
-
+		fmt.Printf("Cloudlet Cider: %s\n", CloudletAddr)
 		tv.Objs.Cloudlet = &MexCloudlet{
 			ParentVdc:    vdc,
 			CloudVapp:    vapp,
-			CloudletName: "testCloudlet2",
-			Clusters:     cluster2,
+			CloudletName: "testCloudlet1",
+			ExtIp:        CloudletAddr,
+		}
+		tv.Objs.Cloudlet.Clusters = make(CidrMap)
+		// ExtVMMap represents all vms in the cloudlet assigned an external IP address
+		tv.Objs.Cloudlet.ExtVMMap = make(CloudVMsMap)
+		// Cloudlet's externa,l addr is our vapp
+		// We still have no  clusters, get the next external Cidr for it
+
+		cluster1Addr, err := tv.GetNextExtAddrForVdcNet(ctx, vdc)
+		if err != nil {
+			fmt.Printf("GetNextExternalAddrForVdcNet failed: %s\n", err.Error())
+			return
+
+		}
+		cluster1 := Cluster{
+			Name: "cluster1",
+			VMs:  make(VMIPsMap),
 		}
 
-		fmt.Printf("Text Case 3 seccond vdc/cloudlet\n")
-		nextCidr, err := tv.GetNextInternalNet(ctx)
+		tv.Objs.Cloudlet.ExtVMMap[cluster1Addr] = &govcd.VM{}
+		tv.Objs.Cloudlet.Clusters[cluster1Addr] = cluster1
+		fmt.Printf("Cluster1 received addr: %s\n", cluster1Addr)
+
+		cluster2Addr, err := tv.GetNextExtAddrForVdcNet(ctx, vdc)
 		if err != nil {
-			fmt.Printf("GetNextInternalNet failed: %s\n", err.Error())
+			fmt.Printf("GetNextExternalAddrForVdcNet failed: %s\n", err.Error())
 			return
 		}
-		fmt.Printf("next cider : %s\n", nextCidr)
-
-		vdc3 := govcd.NewVdc(&cli)
-
-		vdc3.Vdc.Name = "testvdc2"
-
-		tv.Objs.Cloudlet = &MexCloudlet{
-			ParentVdc:    vdc,
-			CloudVapp:    vapp,
-			CloudletName: "testCloudlet2",
-			Clusters:     cluster2,
+		cluster2 := Cluster{
+			Name: "cluster2",
+			VMs:  make(VMIPsMap),
 		}
+		tv.Objs.Cloudlet.ExtVMMap[cluster2Addr] = &govcd.VM{}
+		tv.Objs.Cloudlet.Clusters[cluster2Addr] = cluster2
+		fmt.Printf("Cluster2 received addr: %s\n", cluster2Addr)
 
-		fmt.Printf("Text Case 3 seccond vdc/cloudlet\n")
-		nextCidr, err = tv.GetNextInternalNet(ctx)
+		cluster3Addr, err := tv.GetNextExtAddrForVdcNet(ctx, vdc)
 		if err != nil {
-			fmt.Printf("GetNextInternalNet failed: %s\n", err.Error())
+			fmt.Printf("GetNextExternalAddrForVdcNet failed: %s\n", err.Error())
 			return
 		}
-		fmt.Printf("next cider : %s\n", nextCidr)
+		cluster3 := Cluster{
+			Name: "cluster3",
+			VMs:  make(VMIPsMap),
+		}
+		tv.Objs.Cloudlet.ExtVMMap[cluster3Addr] = &govcd.VM{}
+		tv.Objs.Cloudlet.Clusters[cluster3Addr] = cluster3
+		fmt.Printf("Cluster3 received addr: %s\n", cluster3Addr)
 
-		// next, create a hole in our cidrs and ensure we fill it with the next new entry
-		// TBI
+		// Now delete 2, and create 4, should get what 2 had
+		delete(tv.Objs.Cloudlet.ExtVMMap, cluster2Addr)
+		delete(tv.Objs.Cloudlet.Clusters, cluster2Addr)
+
+		cluster4Addr, err := tv.GetNextExtAddrForVdcNet(ctx, vdc)
+		if err != nil {
+			fmt.Printf("GetNextExternalAddrForVdcNet failed: %s\n", err.Error())
+			return
+		}
+		if cluster4Addr != cluster2Addr {
+			fmt.Printf("FAIL Cluster4addr %s vs Cluster2Addr: %s\n", cluster4Addr, cluster2Addr)
+			return
+		}
+		// Next internal net tests for the vms
+
+		//vmIpMap1 := make(VMIPsMap)
+		//vmIpMap2 := make(VMIPsMap)
+		/*
+			cvm1 := ClusterVm{
+				vmName: "testVM1",
+				vmRole: "roleAgent",
+				//vmMeta: "",
+			}
+			cvm2 := ClusterVm{
+				vmName: "testVM2",
+				vmRole: "roleNode",
+				//vmMeta: "",
+			}
+			fmt.Printf("Nominal single Cloudlet test\n")
+			// Create a test cloudlet obj
+
+			cli := tv.Client.Client
+			vdc2 := govcd.NewVdc(&cli)
+
+			vdc2.Vdc.Name = "testvdc2"
+
+			fmt.Printf("Text Case 3 seccond vdc/cloudlet\n")
+			nextCidr, err := tv.GetNextInternalNet(ctx)
+			if err != nil {
+				fmt.Printf("GetNextInternalNet failed: %s\n", err.Error())
+				return
+			}
+			fmt.Printf("next cider : %s\n", nextCidr)
+
+			vdc3 := govcd.NewVdc(&cli)
+
+			vdc3.Vdc.Name = "testvdc2"
+
+			fmt.Printf("Text Case 3 seccond vdc/cloudlet\n")
+			nextCidr, err = tv.GetNextInternalNet(ctx)
+			if err != nil {
+				fmt.Printf("GetNextInternalNet failed: %s\n", err.Error())
+				return
+			}
+			fmt.Printf("next cider : %s\n", nextCidr)
+
+			// next, create a hole in our cidrs and ensure we fill it with the next new entry
+			// TBI
+		*/
 	}
 
 }

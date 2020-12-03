@@ -13,6 +13,14 @@ import (
 )
 
 // Cluster related operations
+func (v *VcdPlatform) FindCluster(ctx context.Context, clusterName string) (*Cluster, error) {
+	for _, cluster := range v.Objs.Cloudlet.Clusters {
+		if cluster.Name == clusterName {
+			return &cluster, nil
+		}
+	}
+	return nil, fmt.Errorf("Cluster not found")
+}
 
 // Should return an object of MexCluster type, not a cidr string
 func (v *VcdPlatform) CreateCluster(ctx context.Context, cloud *MexCloudlet, tmpl *govcd.VAppTemplate, vmgp *vmlayer.VMGroupOrchestrationParams, updateCallback edgeproto.CacheUpdateCallback) (string, error) {
@@ -21,7 +29,14 @@ func (v *VcdPlatform) CreateCluster(ctx context.Context, cloud *MexCloudlet, tmp
 		fmt.Printf("\nCreateCluster-E-can't create Cluster without a template = %+v\n", tmpl)
 		return "", fmt.Errorf("template nil")
 	}
+
 	clusterName := vmgp.VMs[0].Name
+	cluster, err := v.FindCluster(ctx, clusterName)
+	if err == nil {
+		// we have a cluster by this name already
+		log.SpanLog(ctx, log.DebugLevelInfra, "CreateCluster cluster exists", "cluster", clusterName)
+		return clusterName, fmt.Errorf("Cluster already exists")
+	}
 
 	log.SpanLog(ctx, log.DebugLevelInfra, "CreateCluster", "create", clusterName, "cloudlet", cloud.CloudletName)
 
@@ -30,6 +45,9 @@ func (v *VcdPlatform) CreateCluster(ctx context.Context, cloud *MexCloudlet, tmp
 		fmt.Printf("GetNextInternalNet failed: %s\n", err.Error())
 		return "", err
 	}
+	cluster = &Cluster{}
+	v.Objs.Cloudlet.Clusters[nextCidr] = *cluster
+	cluster.Name = clusterName
 
 	fmt.Printf("\n\tCreateCluster2-I-new cluster's CIDR: %s on cloudlet: %s\n", nextCidr, cloud.CloudletName)
 	vapp := cloud.CloudVapp
@@ -54,6 +72,7 @@ func (v *VcdPlatform) CreateCluster(ctx context.Context, cloud *MexCloudlet, tmp
 	// Ok, set the network in the AddNewVM or wait and add it later?
 	//numvms := len(vmgp.VMs)
 	netConIdx := 0
+	cvm := ClusterVm{}
 	for n, vmparams := range vmgp.VMs {
 		//		powered_on := false
 		ncs := &types.NetworkConnectionSection{}
@@ -79,13 +98,13 @@ func (v *VcdPlatform) CreateCluster(ctx context.Context, cloud *MexCloudlet, tmp
 			fmt.Printf("\n\tCreateCluster2-E-GetNetworkConnectionSection: %s\n", err.Error())
 			return "", err
 		}
-
+		vmType := string(vmlayer.GetVmTypeForRole(string(vmparams.Role)))
 		if vmparams.Role == vmlayer.RoleAgent {
 			lbvm = vm
 			// We'll eventually add an external net to vm, make internal net iface idx 1
 			//netConIdx = 1
 			vmIp = baseAddr //v.IncrIP(baseAddr, 1) // gateway for new cidr, also needs a new ext net addr XXX
-			fmt.Printf("\n\tCreateCluster2-I-adding vm role %s with IP  %s\n", vmparams.Role, vmIp)
+			fmt.Printf("\n\tCreateCluster2-I-adding vm role %s type %s with IP  %s\n", vmparams.Role, vmType, vmIp)
 
 		} else {
 			// Single Internal Net, and 101 should be 100 + workerNode index XXX
@@ -96,7 +115,14 @@ func (v *VcdPlatform) CreateCluster(ctx context.Context, cloud *MexCloudlet, tmp
 		}
 		fmt.Printf("\n\tCreateCluster2-I-adding vm #%d Name: %s  role %s with IP  %s netname: %s idx: %d\n", n,
 			vm.VM.Name, vmparams.Role, vmIp, internalNetName, netConIdx)
-
+		cvm = ClusterVm{
+			vmName:          vm.VM.Name,
+			vmRole:          string(vmparams.Role),
+			vmType:          vmType,
+			vmFlavor:        vmparams.FlavorName,
+			vmParentCluster: clusterName,
+		}
+		cvm.vmIPs.InternalIp = vmIp
 		// vu.DumpNetworkConnectionSection(ncs, 1)
 
 		ncs.NetworkConnection = append(ncs.NetworkConnection,
@@ -127,6 +153,7 @@ func (v *VcdPlatform) CreateCluster(ctx context.Context, cloud *MexCloudlet, tmp
 		return clusterName, fmt.Errorf("Agent node failed to obtain external net IP")
 	}
 	v.Objs.Cloudlet.ExtVMMap[extAddr] = lbvm
+	cvm.vmIPs.ExternalIp = extAddr
 	// make the external the primray index 0
 	fmt.Printf("\nCreateCluster-I-set ext net addr as %s\n\n", extAddr)
 
@@ -190,4 +217,23 @@ func (v *VcdPlatform) StopCluster(ctx context.Context, vmMap *CidrMap) error {
 
 	return nil
 
+}
+
+func (v *VcdPlatform) FindClusterVM(ctx context.Context, name string) (string, *ClusterVm, error) {
+	if v.Objs.Cloudlet == nil {
+		return "", nil, fmt.Errorf("No Cloudlet exists yet")
+	}
+	if v.Objs.Cloudlet.Clusters == nil {
+		return "", nil, fmt.Errorf("No clusters exist in Cloudlet")
+	}
+
+	for _, clust := range v.Objs.Cloudlet.Clusters {
+		for _, vm := range clust.VMs {
+			if vm.vmName == name {
+				fmt.Printf("Found %s in cluster %s\n", vm.vmName, clust.Name)
+				return clust.Name, &vm, nil
+			}
+		}
+	}
+	return "", nil, fmt.Errorf("VM not found")
 }

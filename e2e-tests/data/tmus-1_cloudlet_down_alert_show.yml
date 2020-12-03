@@ -1,0 +1,10 @@
+- labels:
+    alertname: CloudletDown
+    cloudlet: tmus-cloud-1
+    cloudletorg: tmus
+    region: local
+    scope: Cloudlet
+  state: firing
+  activeat:
+    seconds: 1606856995
+    nanos: 918670000

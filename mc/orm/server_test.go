@@ -171,7 +171,7 @@ func TestServer(t *testing.T) {
 		Email:      "mistery@gmail.com",
 		Passhash:   "mistery-password-long-super-tough-crazy-difficult",
 		EnableTOTP: true,
-		Settings:   "{timezone:PST,theme:Dark}",
+		Metadata:   "{timezone:PST,theme:Dark}",
 	}
 	resp, status, err = mcClient.CreateUser(uri, &user2)
 	require.Nil(t, err, "create user")
@@ -197,12 +197,12 @@ func TestServer(t *testing.T) {
 	updateNewEmail := "misteryyy@gmail.com"
 	updateNewPicture := "my pic"
 	updateNewNickname := "mistery"
-	updateNewSettings := "{timezone:PST,theme:Light}"
+	updateNewMetadata := "{timezone:PST,theme:Light}"
 	mapData = map[string]interface{}{
 		"Email":    updateNewEmail,
 		"Picture":  updateNewPicture,
 		"Nickname": updateNewNickname,
-		"Settings": updateNewSettings,
+		"Metadata": updateNewMetadata,
 	}
 	jsonData, err = json.Marshal(mapData)
 	require.Nil(t, err)
@@ -215,7 +215,7 @@ func TestServer(t *testing.T) {
 	require.Equal(t, updateNewEmail, checkUser.Email)
 	require.Equal(t, updateNewPicture, checkUser.Picture)
 	require.Equal(t, updateNewNickname, checkUser.Nickname)
-	require.Equal(t, updateNewSettings, checkUser.Settings)
+	require.Equal(t, updateNewMetadata, checkUser.Metadata)
 
 	// update user: disallowed fields
 	mapData = map[string]interface{}{

@@ -5,7 +5,7 @@
       [FIRING:1] Alert for emailSlackReceiver: AppInstDown Application: someapplication1 Version: 1.0
     titlelink: |
       https://console.mobiledgex.net
-    text: "\n*Alert:* AppInstDown\n\n*Description:* Root Load Balancer is not responding.\n\n*Details:*\n
+    text: "\n*Alert:* AppInstDown\n\n*Description:* Application server port is not responding\n\n*Details:*\n
       \  • *alertname:* AppInstDown\n   • *app:* someapplication1\n   • *apporg:*
       AcmeAppCo\n   • *appver:* 1.0\n   • *cloudlet:* tmus-cloud-1\n   • *cloudletorg:*
       tmus\n   • *cluster:* SmallCluster\n   • *clusterorg:* AcmeAppCo\n   • *job:*

@@ -12,7 +12,7 @@
     scope: Application
     status: "2"
   annotations:
-    description: Root Load Balancer is not responding.
+    description: Application server port is not responding
     title: AppInstDown
   state: firing
   activeat:

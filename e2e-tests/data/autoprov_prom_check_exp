@@ -35,7 +35,7 @@ ran: curl -s http://127.0.0.1:9092/api/v1/rules | jq . | grep -v valuation
               "status": "1"
             },
             "annotations": {
-              "description": "Application server port is not respondind",
+              "description": "Application server port is not responding",
               "title": "AppInstDown"
             },
             "alerts": [],

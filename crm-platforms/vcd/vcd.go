@@ -456,6 +456,7 @@ func (v *VcdPlatform) GetPlatformResources(ctx context.Context) error {
 					}
 					for _, data := range mdata.MetadataEntry {
 						if data.Key == "CloudletName" {
+							fmt.Printf("\nDiscovered existing vapp %s marked as Cloudlet %s by metadata\n", res.Name, data.TypedValue.Value)
 
 							extAddr, err := v.GetExtAddrOfVapp(ctx, vapp, v.Objs.PrimaryNet.OrgVDCNetwork.Name)
 							if err != nil {
@@ -628,11 +629,13 @@ func (v *VcdPlatform) GetServerDetail(ctx context.Context, vappName string) (*vm
 	vapp, err := v.FindVApp(ctx, vappName)
 
 	if err != nil {
+		fmt.Printf("\n\nGetServerDetail-I-ServerName %s is not a vapp, is it a vm?\n", serverName)
 		vm, err := v.FindVM(ctx, serverName)
 		if err != nil {
+			fmt.Printf("\n\nGetServerDetail-W-and %s is not a vm either!\n\n", serverName)
 			return nil, fmt.Errorf("Server Not found")
 		}
-
+		fmt.Printf("\n\nGetServerDetail-I-Proceeding with VM %s\n", serverName)
 		vmStatus, err := vm.GetStatus()
 		if err != nil {
 			return nil, err
@@ -651,8 +654,6 @@ func (v *VcdPlatform) GetServerDetail(ctx context.Context, vappName string) (*vm
 			fmt.Printf("GetServerDetail-E-Timeout vm %s state: %s\n", vm.VM.Name, vmStatus)
 			return nil, fmt.Errorf("error waiting for VM to come ready")
 		}
-		// we may need to wait a tiny bit more for DHCP to catch  up
-		// fill in ServerDetail from our vm
 		detail.Name = vm.VM.Name
 		detail.ID = vm.VM.ID
 		detail.Status = "ACTIVE"

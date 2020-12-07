@@ -143,6 +143,8 @@ func seedDockerSecrets(ctx context.Context, client ssh.Client, clusterInst *edge
 func (v *VMPlatform) CreateAppInst(ctx context.Context, clusterInst *edgeproto.ClusterInst, app *edgeproto.App, appInst *edgeproto.AppInst, appFlavor *edgeproto.Flavor, privacyPolicy *edgeproto.PrivacyPolicy, updateCallback edgeproto.CacheUpdateCallback) error {
 
 	var err error
+	fmt.Printf("\n\nCreateAppInst-I-deployment: %+v\n\n", app.Deployment)
+
 	switch deployment := app.Deployment; deployment {
 	case cloudcommon.DeploymentTypeKubernetes:
 		fallthrough
@@ -327,6 +329,7 @@ func (v *VMPlatform) CreateAppInst(ctx context.Context, clusterInst *edgeproto.C
 		return nil
 
 	case cloudcommon.DeploymentTypeDocker:
+		fmt.Printf("\n\nCreateAppInst-I-deploying a Docker appInst\n\n")
 		rootLBName := v.VMProperties.GetRootLBNameForCluster(ctx, clusterInst)
 		rootLBClient, err := v.GetClusterPlatformClient(ctx, clusterInst, cloudcommon.ClientTypeRootLB)
 		if err != nil {
@@ -374,7 +377,7 @@ func (v *VMPlatform) CreateAppInst(ctx context.Context, clusterInst *edgeproto.C
 		if err != nil {
 			return err
 		}
-
+		fmt.Printf("\nt Seeded Docker Secrets\n\n")
 		updateCallback(edgeproto.UpdateTask, "Deploying Docker App")
 
 		err = dockermgmt.CreateAppInst(ctx, v.VMProperties.CommonPf.PlatformConfig.AccessApi, appClient, app, appInst)

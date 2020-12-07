@@ -108,7 +108,7 @@ func (v *VcdPlatform) CreateCluster(ctx context.Context, cloud *MexCloudlet, tmp
 		} else {
 			// Single Internal Net, and 101 should be 100 + workerNode index XXX
 			//netConIdx = 0
-			vmIp = v.IncrIP(baseAddr, 100+n)
+			vmIp = v.IncrIP(baseAddr, 100+(n-1))
 			fmt.Printf("\n\tCreateCluster2-I-creating docker node addr %s \n", vmIp)
 			ncs.PrimaryNetworkConnectionIndex = 0
 		}

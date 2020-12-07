@@ -531,9 +531,10 @@ func (v *VcdPlatform) GetExtAddrOfVapp(ctx context.Context, vapp *govcd.VApp, ne
 	nc := ncs.NetworkConnection
 	fmt.Printf("GetExtAddrOfVapp-I-vapp %s has %d connection entries\n", vapp.VApp.Name, len(nc))
 	for _, n := range nc {
-		if n.Network == netName {
-			return n.IPAddress, nil
-		}
+		fmt.Printf("\n\nGetExtAddrOfVapp-I-concider n.Network %s vs netName: %s\n", n.Network, netName)
+		//		if n.Network == netName {
+		return n.IPAddress, nil
+		//		}
 	}
 	return "", fmt.Errorf("Not Found")
 }

@@ -55,10 +55,18 @@ var promHealthCheckAlerts = `groups:
     for: 15s
     labels:
       ` + cloudcommon.AlertHealthCheckStatus + ": " + strconv.Itoa(int(edgeproto.HealthCheck_HEALTH_CHECK_FAIL_ROOTLB_OFFLINE)) + `
+      ` + cloudcommon.AlertScopeTypeTag + ": " + cloudcommon.AlertScopeApp + `
+    annotations:
+      ` + cloudcommon.AlertAnnotationTitle + ": " + cloudcommon.AlertAppInstDown + `
+      ` + cloudcommon.AlertAnnotationDescription + ": Root Load Balancer is not responding" + `
   - alert: ` + cloudcommon.AlertAppInstDown + `
     expr: envoy_cluster_health_check_healthy == 0
     labels:
-      ` + cloudcommon.AlertHealthCheckStatus + ": " + strconv.Itoa(int(edgeproto.HealthCheck_HEALTH_CHECK_FAIL_SERVER_FAIL))
+      ` + cloudcommon.AlertHealthCheckStatus + ": " + strconv.Itoa(int(edgeproto.HealthCheck_HEALTH_CHECK_FAIL_SERVER_FAIL)) + `
+      ` + cloudcommon.AlertScopeTypeTag + ": " + cloudcommon.AlertScopeApp + `
+    annotations:
+      ` + cloudcommon.AlertAnnotationTitle + ": " + cloudcommon.AlertAppInstDown + `
+      ` + cloudcommon.AlertAnnotationDescription + ": Application server port is not responding"
 
 type targetData struct {
 	MetricsProxyAddr string

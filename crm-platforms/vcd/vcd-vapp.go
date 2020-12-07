@@ -154,13 +154,10 @@ func (v *VcdPlatform) populateProductSection(ctx context.Context, vm *govcd.VM, 
 	}
 
 	var props []*types.Property
-	testkey := "ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAABAQDmuktgrnps8IoYYAmCqMJY77E7nzcrFx177Zm4R8M1Bqo293vlvxl7JY+HBQ8RqfrmqbpHrcRV4W52dBwD1RljXFP7dVzpG0eS/vqOA+3rVbrAleSLwqXa20IwvR8kw/VJFbKo8xyIbA9u24eztQZzNk0Tcfk8CJ44DiommKmaORWBi0gaz7MbqIgeoFjNpdlsqcPV+inUhMZmFXzxJs0U9XTo/wA5FJkmaDz3WkV64qkK823ozgehOqqtcLYkL0toSPv6pzDd5axx4QRCe26BCfFC90ggriXMTo+I76cOw5rs/P/e6N9/BAZOCXTV0MWbGU7AjjSOCZO5X20k+HGL mattwilliams@MWILLIAMS-MAC.local"
 
 	// manditory
 	props = append(props, makeProp("instance-id", vm.VM.ID))
 	// test user ubuntu getting my local ssh pub key
-	props = append(props, makeProp("public-keys", testkey))
-	// try one userdata with everything in it
 
 	if udata != "" {
 		props = append(props, makeProp("user-data", udata))

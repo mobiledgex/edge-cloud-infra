@@ -188,19 +188,22 @@ func (v *VcdPlatform) CreateVMs(ctx context.Context, vmgp *vmlayer.VMGroupOrches
 
 	// Find our ova template, all platform vms use the same template
 	tmplName := os.Getenv("VCDTEMPLATE")
+
 	if tmplName == "" {
 		// trade env for property XXX
 		return fmt.Errorf("VCD Base template env var not set")
 	}
+	fmt.Printf("\n\nCreateVMs-I-searching for template %s\n", tmplName)
 	// First get our template
 	tmpl, err := v.FindTemplate(ctx, tmplName)
 	if err != nil {
 		found := false
-		fmt.Printf("\n\tnot found locally\n")
+		fmt.Printf("\n\ttemplate %s not found locally\n", tmplName)
 		// Back to vdc, has it been created manually?
 		tmpls, err := v.GetAllVdcTemplates(ctx, v.Objs.PrimaryCat)
 		if err == nil {
 			for _, tmpl = range tmpls {
+				fmt.Printf("\n\nCreateVms tmpl %s  not found locally consider %s\n\n", tmplName, tmpl.VAppTemplate.Name)
 				if tmpl.VAppTemplate.Name == tmplName {
 					v.Objs.VAppTmpls[tmplName] = tmpl
 					found = true
@@ -707,4 +710,55 @@ func (v *VcdPlatform) GetServerGroupResources(ctx context.Context, name string) 
 		}
 	*/
 	return resources, nil
+}
+
+// Store attrs of vm for crmrestarts
+func (v *VcdPlatform) AddMetadataToVM(ctx context.Context, vm *govcd.VM, vmparams vmlayer.VMOrchestrationParams, vmType, parentCluster string) error {
+
+	fmt.Printf("\n\nAddMetadataToVM-I-type: %s\n\t role: %s\n\t flavor: %s\n\ts parent: %s\n",
+		vmType, string(vmparams.Role), vmparams.FlavorName, parentCluster)
+	// why no async for vms?
+
+	// this will likely fail, we'll need to wait for each one <sigh>
+	task, err := vm.AddMetadata("vmType", vmType)
+	if err != nil {
+		return err
+	}
+	err = task.WaitTaskCompletion()
+	if err != nil {
+		fmt.Printf("Error waiting for task complete addmetadata %s\n", err.Error())
+		return err
+	}
+
+	task, err = vm.AddMetadata("FlavorName", vmparams.FlavorName)
+	if err != nil {
+		return err
+	}
+	err = task.WaitTaskCompletion()
+	if err != nil {
+		fmt.Printf("Error waiting for task complete addmetadata %s\n", err.Error())
+		return err
+	}
+
+	task, err = vm.AddMetadata("vmRole", string(vmparams.Role))
+	if err != nil {
+		return err
+	}
+	err = task.WaitTaskCompletion()
+	if err != nil {
+		fmt.Printf("Error waiting for task complete addmetadata %s\n", err.Error())
+		return err
+	}
+
+	task, err = vm.AddMetadata("ParentCluster", parentCluster)
+	if err != nil {
+		return err
+	}
+	err = task.WaitTaskCompletion()
+	if err != nil {
+		fmt.Printf("Error waiting for task complete addmetadata %s\n", err.Error())
+		return err
+	}
+
+	return nil
 }

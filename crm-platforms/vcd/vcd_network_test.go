@@ -42,7 +42,7 @@ func TestNextIntAddr(t *testing.T) {
 			//cmap := make(CidrMap)
 			tv.Objs.Cloudlet = cloud
 			cloud.Clusters = make(CidrMap)
-			cloud.Clusters["10.101.1.1"] = Cluster{}
+			cloud.Clusters["10.101.1.1"] = &Cluster{}
 		}
 		nextAddr, err := tv.GetNextInternalNet(ctx)
 		if err != nil {
@@ -51,7 +51,7 @@ func TestNextIntAddr(t *testing.T) {
 		}
 
 		fmt.Printf("Next ext-net Address: %s\n", nextAddr)
-		cloud.Clusters[nextAddr] = Cluster{}
+		cloud.Clusters[nextAddr] = &Cluster{}
 		nextAddr, err = tv.GetNextInternalNet(ctx)
 		if err != nil {
 			fmt.Printf("Error getting next addr  : %s\n", err.Error())
@@ -176,7 +176,7 @@ func TestNetAddrs(t *testing.T) {
 		}
 
 		tv.Objs.Cloudlet.ExtVMMap[cluster1Addr] = &govcd.VM{}
-		tv.Objs.Cloudlet.Clusters[cluster1Addr] = cluster1
+		tv.Objs.Cloudlet.Clusters[cluster1Addr] = &cluster1
 		fmt.Printf("Cluster1 received addr: %s\n", cluster1Addr)
 
 		cluster2Addr, err := tv.GetNextExtAddrForVdcNet(ctx, vdc)
@@ -189,7 +189,7 @@ func TestNetAddrs(t *testing.T) {
 			VMs:  make(VMIPsMap),
 		}
 		tv.Objs.Cloudlet.ExtVMMap[cluster2Addr] = &govcd.VM{}
-		tv.Objs.Cloudlet.Clusters[cluster2Addr] = cluster2
+		tv.Objs.Cloudlet.Clusters[cluster2Addr] = &cluster2
 		fmt.Printf("Cluster2 received addr: %s\n", cluster2Addr)
 
 		cluster3Addr, err := tv.GetNextExtAddrForVdcNet(ctx, vdc)
@@ -202,7 +202,7 @@ func TestNetAddrs(t *testing.T) {
 			VMs:  make(VMIPsMap),
 		}
 		tv.Objs.Cloudlet.ExtVMMap[cluster3Addr] = &govcd.VM{}
-		tv.Objs.Cloudlet.Clusters[cluster3Addr] = cluster3
+		tv.Objs.Cloudlet.Clusters[cluster3Addr] = &cluster3
 		fmt.Printf("Cluster3 received addr: %s\n", cluster3Addr)
 
 		// Now delete 2, and create 4, should get what 2 had
@@ -219,6 +219,9 @@ func TestNetAddrs(t *testing.T) {
 			return
 		}
 		// Next internal net tests for the vms
+
+		intAddr1, err := tv.GetNextInternalNet(ctx)
+		fmt.Printf("firrst internal addr: %s\n", intAddr1)
 
 		//vmIpMap1 := make(VMIPsMap)
 		//vmIpMap2 := make(VMIPsMap)

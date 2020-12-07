@@ -176,6 +176,7 @@ func (v *VcdPlatform) CreateCloudlet(ctx context.Context, vdc *govcd.Vdc, vappTm
 					fmt.Printf("CreateVMs-E-error updating VM %s : %s \n", child.Name, err.Error())
 					return nil, err
 				}
+
 				v.Objs.Cloudlet.ExtVMMap[extAddr] = vm
 				fmt.Printf("\n\n\tCreateCloudlet-I-added entry ExtVMMap key %s vm: %s maplen: %d \n\n", extAddr,
 					vm.VM.Name, len(v.Objs.Cloudlet.ExtVMMap))
@@ -185,8 +186,17 @@ func (v *VcdPlatform) CreateCloudlet(ctx context.Context, vdc *govcd.Vdc, vappTm
 			//err = task.WaitTaskCompletion()
 			// This will power on all vms in the vapp, we can order them
 			// So master first and then workers.
+			fmt.Printf("\n\nCreateCloudlet-I-add metadata cloud name %s to vapp %s\n", cloudletName, vapp.VApp.Name)
+			task, err := vapp.AddMetadata("CloudletName", cloudletName)
+			if err != nil {
+				return nil, err
+			}
+			err = task.WaitTaskCompletion()
+			if err != nil {
+				return nil, err
+			}
 
-			task, err := vapp.PowerOn()
+			task, err = vapp.PowerOn()
 			if err != nil {
 				return nil, err
 			}

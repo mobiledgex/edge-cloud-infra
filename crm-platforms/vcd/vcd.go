@@ -100,7 +100,7 @@ type Cluster struct {
 	VMs  VMIPsMap
 }
 
-type CidrMap map[string]Cluster
+type CidrMap map[string]*Cluster
 type CloudVMsMap map[string]*govcd.VM
 
 // One cloudlet per vdc instance
@@ -448,6 +448,32 @@ func (v *VcdPlatform) GetPlatformResources(ctx context.Context) error {
 						VApp: vapp,
 					}
 					v.Objs.VApps[res.Name] = &a
+
+					mdata, err := vapp.GetMetadata()
+					if err != nil {
+						fmt.Printf("\n\nError getting vapp metada for vapp: %s\n", vapp.VApp.Name)
+						return err
+					}
+					for _, data := range mdata.MetadataEntry {
+						if data.Key == "CloudletName" {
+
+							extAddr, err := v.GetExtAddrOfVapp(ctx, vapp, v.Objs.PrimaryNet.OrgVDCNetwork.Name)
+							if err != nil {
+								fmt.Printf("\n\nError getting ext address of pre-existing cloudlet/vapp  %s : %s\n\n", vapp.VApp.Name, err.Error())
+								return err
+							}
+							fmt.Printf("\n\nDisovered existing Cloudlet: %s on vdc %s restarted crmserver\n\n", data.TypedValue.Value, vdc.Vdc.Name)
+							v.Objs.Cloudlet = &MexCloudlet{
+								ParentVdc: vdc,
+								CloudVapp: vapp,
+								ExtNet:    v.Objs.PrimaryNet,
+								ExtIp:     extAddr,
+								Clusters:  make(CidrMap),
+								ExtVMMap:  make(CloudVMsMap),
+							}
+						}
+					}
+
 					fmt.Printf("Discover: Added VApp %s to vapps map\n", res.Name)
 					// now collect any VMs in this Vapp
 					if vapp.VApp.Children != nil {

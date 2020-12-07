@@ -73,3 +73,32 @@ func (v *VcdPlatform) UploadOvaFile(ctx context.Context, tmplName string) error 
 	//}
 
 }
+
+func (v *VcdPlatform) DeleteTemplate(ctx context.Context, tmplName string) error {
+
+	cat := v.Objs.PrimaryCat
+
+	cItem, err := cat.FindCatalogItem(tmplName)
+	if err != nil {
+		fmt.Printf("Error finding %s from PrimaryCat\n", tmplName)
+		//	return err
+	} else {
+		err = cItem.Delete()
+		if err != nil {
+			fmt.Printf("Error on delete: %s\n", err.Error())
+		}
+		return err
+	}
+
+	cItem2, err := cat.GetCatalogItemByName(tmplName, false)
+	if err != nil {
+		fmt.Printf("Error getting %s from PrimaryCat\n", tmplName)
+		return err
+	}
+	err = cItem2.Delete()
+	if err != nil {
+		fmt.Printf("Error on delete: %s\n", err.Error())
+	}
+
+	return err
+}

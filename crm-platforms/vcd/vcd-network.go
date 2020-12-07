@@ -246,26 +246,31 @@ func (v *VcdPlatform) CreateInternalNetworkForNewVm(ctx context.Context, vapp *g
 		//		GuestVLANAllowed: true,    default is?
 		StaticIPRanges: iprange,
 	}
-	status, err := vapp.GetStatus()
-	if err != nil {
-
-		fmt.Printf("SetNetworksForNewVApp-E-error obtaining status of vapp: %s\n", err.Error())
-		return "", err
-	}
-	if status == "UNRESOLVED" {
-		fmt.Printf("SetNetworkForNewVApp-I-wait 10  while  unresolved \n")
-		err = vapp.BlockWhileStatus("UNRESOLVED", 10)
+	/*
+		status, err := vapp.GetStatus()
 		if err != nil {
-			fmt.Printf("BlockWhile return err: %s\n", err.Error())
+
+			fmt.Printf("SetNetworksForNewVApp-E-error obtaining status of vapp: %s\n", err.Error())
+			return "", err
 		}
-		status, _ = vapp.GetStatus()
-		fmt.Printf("Continue from blockwhile status now %s\n", status)
-	}
+		if status == "UNRESOLVED" {
+			fmt.Printf("SetNetworkForNewVApp-I-wait 10  while  unresolved \n")
+			err = vapp.BlockWhileStatus("UNRESOLVED", 10)
+			if err != nil {
+				fmt.Printf("BlockWhile return err: %s\n", err.Error())
+			}
+			status, _ = vapp.GetStatus()
+			fmt.Printf("Continue from blockwhile status now %s\n", status)
+		}
+	*/
 
 	InternalNetConfigSec, err := vapp.CreateVappNetwork(&internalSettings, nil)
 	if err != nil {
 		fmt.Printf("CreateInternalNetworkForNewVM-E-CreateVAppNetwork error %s\n", err.Error())
-		return "", err
+		if !strings.Contains(err.Error(), "already exists") {
+			return "", err
+		}
+		log.SpanLog(ctx, log.DebugLevelInfra, "CreateInternalNetwork", "network already exists", netname)
 	}
 	fmt.Printf("\n\nreturn netname: %s InternalNetConfigSection: %+v\n\n", netname, InternalNetConfigSec)
 	vapp.Refresh()
@@ -538,17 +543,18 @@ func (v *VcdPlatform) GetNextExtAddrForVdcNet(ctx context.Context, vdc *govcd.Vd
 
 	vdcnet := v.Objs.PrimaryNet
 	iprange := vdcnet.OrgVDCNetwork.Configuration.IPScopes.IPScope[0].IPRanges.IPRange[0]
-	//	vappRefs := vdc.GetVappList()
+	//vappRefs := vdc.GetVappList()
 
 	// s, _ := v.Octet(ctx, iprange.StartAddress, 3)
 	e, _ := v.Octet(ctx, iprange.EndAddress, 3)
 	//ipcnt := e - s
 	curAddr := iprange.StartAddress
 	// No vapps yet? use first in pool
-	if /*len(vappRefs) == 0 ||*/ v.Objs.Cloudlet == nil {
-		fmt.Printf("NEXT EXT IP vappRefs zero v.Objs.Cloudlet: %+v  , first returned: %s\n", v.Objs.Cloudlet, curAddr)
+	if /* len(vappRefs) == 0 { || */ v.Objs.Cloudlet == nil {
+		fmt.Printf("NEXT EXT IP v.Objs.Cloudlet: %+v  , first returned: %s\n", v.Objs.Cloudlet, curAddr)
 		return curAddr, nil
 	}
+	// We have a cloudlet at least, looking for a cluster external IP
 	cloudMap := v.Objs.Cloudlet.ExtVMMap
 	//vmmapLen := len(cloudMap)
 	// replace with _,  ok := cloudMap[curAddr]; !ok XXX
@@ -588,7 +594,7 @@ func (v *VcdPlatform) GetNextInternalNet(ctx context.Context) (string, error) {
 			if cloudlet.Clusters == nil {
 				cloudlet.Clusters = make(CidrMap)
 			}
-			cloudlet.Clusters[curAddr] = Cluster{}
+			cloudlet.Clusters[curAddr] = &Cluster{}
 			return curAddr, nil
 		}
 	}

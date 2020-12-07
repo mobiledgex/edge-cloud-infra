@@ -16,7 +16,7 @@ import (
 func (v *VcdPlatform) FindCluster(ctx context.Context, clusterName string) (*Cluster, error) {
 	for _, cluster := range v.Objs.Cloudlet.Clusters {
 		if cluster.Name == clusterName {
-			return &cluster, nil
+			return cluster, nil
 		}
 	}
 	return nil, fmt.Errorf("Cluster not found")
@@ -46,7 +46,7 @@ func (v *VcdPlatform) CreateCluster(ctx context.Context, cloud *MexCloudlet, tmp
 		return "", err
 	}
 	cluster = &Cluster{}
-	v.Objs.Cloudlet.Clusters[nextCidr] = *cluster
+	v.Objs.Cloudlet.Clusters[nextCidr] = cluster
 	cluster.Name = clusterName
 
 	fmt.Printf("\n\tCreateCluster2-I-new cluster's CIDR: %s on cloudlet: %s\n", nextCidr, cloud.CloudletName)
@@ -69,15 +69,14 @@ func (v *VcdPlatform) CreateCluster(ctx context.Context, cloud *MexCloudlet, tmp
 	baseAddr := string(a[0])
 	vmIp := ""
 	lbvm := &govcd.VM{}
-	// Ok, set the network in the AddNewVM or wait and add it later?
-	//numvms := len(vmgp.VMs)
 	netConIdx := 0
 	cvm := ClusterVm{}
+
 	for n, vmparams := range vmgp.VMs {
-		//		powered_on := false
+
 		ncs := &types.NetworkConnectionSection{}
 		tmpl.VAppTemplate.Name = vmparams.Name
-		fmt.Printf("\n\tCreateCluster2-I-adding new vm %s #%d \n", vmparams.Name, n)
+		fmt.Printf("\n\tCreateCluster-I-adding new vm %s #%d \n", vmparams.Name, n)
 
 		task, err := vapp.AddNewVM(vmparams.Name, *tmpl, ncs, true)
 		if err != nil {
@@ -104,7 +103,7 @@ func (v *VcdPlatform) CreateCluster(ctx context.Context, cloud *MexCloudlet, tmp
 			// We'll eventually add an external net to vm, make internal net iface idx 1
 			//netConIdx = 1
 			vmIp = baseAddr //v.IncrIP(baseAddr, 1) // gateway for new cidr, also needs a new ext net addr XXX
-			fmt.Printf("\n\tCreateCluster2-I-adding vm role %s type %s with IP  %s\n", vmparams.Role, vmType, vmIp)
+			fmt.Printf("\n\tCreateCluster-I-adding vm role %s type %s with IP  %s\n", vmparams.Role, vmType, vmIp)
 
 		} else {
 			// Single Internal Net, and 101 should be 100 + workerNode index XXX
@@ -113,14 +112,21 @@ func (v *VcdPlatform) CreateCluster(ctx context.Context, cloud *MexCloudlet, tmp
 			fmt.Printf("\n\tCreateCluster2-I-creating docker node addr %s \n", vmIp)
 			ncs.PrimaryNetworkConnectionIndex = 0
 		}
-		fmt.Printf("\n\tCreateCluster2-I-adding vm #%d Name: %s  role %s with IP  %s netname: %s idx: %d\n", n,
-			vm.VM.Name, vmparams.Role, vmIp, internalNetName, netConIdx)
+
+		fmt.Printf("\n\nCreateCluster-I-adding vm #%d\n\tName: %s\n\t role %s\n\tType: %s\n\tInternalIP %s\n\t netname: %s\n\t idx: %d\n\n", n,
+			vm.VM.Name, vmparams.Role, vmType, vmIp, internalNetName, netConIdx)
+
 		cvm = ClusterVm{
 			vmName:          vm.VM.Name,
 			vmRole:          string(vmparams.Role),
 			vmType:          vmType,
 			vmFlavor:        vmparams.FlavorName,
 			vmParentCluster: clusterName,
+		}
+		err = v.AddMetadataToVM(ctx, vm, vmparams, vmType, clusterName)
+		if err != nil {
+			fmt.Printf("\n\tCreateCluster-E-Error Adding metadata to vm: %s : %s\n\n", vm.VM.Name, err.Error())
+			return clusterName, err
 		}
 		cvm.vmIPs.InternalIp = vmIp
 		// vu.DumpNetworkConnectionSection(ncs, 1)

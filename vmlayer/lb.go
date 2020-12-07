@@ -277,7 +277,7 @@ func (v *VMPlatform) DetachAndDisableRootLBInterface(ctx context.Context, client
 }
 
 var rootLBLock sync.Mutex
-var MaxRootLBWait = 5 * time.Minute
+var MaxRootLBWait = 10 /*5*/ * time.Minute
 
 // GetVMSpecForRootLB gets the VM spec for the rootLB when it is not specified within a cluster. This is
 // used for Shared RootLb and for VM app based RootLb

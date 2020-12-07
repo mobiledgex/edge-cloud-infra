@@ -566,6 +566,7 @@ func TestServerGroupResources(t *testing.T) {
 	require.Nil(t, err, "InitTestEnv")
 
 	if live {
+		fmt.Printf("looking for a group/vm named: %s\n", *grpName)
 		resources, err := tv.GetServerGroupResources(ctx, *grpName)
 		if err != nil {
 			fmt.Printf("Error %s returned\n", err.Error())
@@ -580,6 +581,31 @@ func TestServerGroupResources(t *testing.T) {
 			for _, ipSet := range vinfo.Ipaddresses {
 				fmt.Printf("\tExternalIp: %s\n\tInternalIp:%s\n",
 					ipSet.ExternalIp, ipSet.InternalIp)
+			}
+		}
+	}
+}
+
+func TestClusterVMs(t *testing.T) {
+	live, _, err := InitVcdTestEnv()
+	require.Nil(t, err, "InitTestEnv")
+
+	if live {
+		fmt.Printf("Find all ClusterVMs\n")
+
+		if tv.Objs.Cloudlet == nil {
+			fmt.Printf("No cloudlet yet, no clusters available\n")
+			return
+		}
+		if tv.Objs.Cloudlet.Clusters == nil {
+			fmt.Printf("No clusters available\n")
+			return
+		}
+
+		for caddr, cluster := range tv.Objs.Cloudlet.Clusters {
+			fmt.Printf("Consider cluster %s extAddr: %s\n", cluster.Name, caddr)
+			for vaddr, cvm := range cluster.VMs {
+				fmt.Printf("next vm: %s addr %s\n", cvm.vmName, vaddr)
 			}
 		}
 	}

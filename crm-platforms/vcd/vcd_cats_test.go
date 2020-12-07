@@ -16,9 +16,23 @@ func TestCats(t *testing.T) {
 	if live {
 		fmt.Printf("TestCats-I-tv init done\n")
 		pcat := tv.Objs.PrimaryCat
-		fmt.Printf("PrimaryCat perhaps not set? : %+v\n", pcat)
 		govcd.ShowCatalog(*pcat.Catalog)
 	} else { //
+		return
+	}
+}
+
+// -tmpl from PrimaryCat
+func TestRMTmpl(t *testing.T) {
+	live, ctx, err := InitVcdTestEnv()
+	require.Nil(t, err, "InitVcdTestEnv")
+
+	if live {
+		fmt.Printf("Test Remove template %s from cat", *tmplName)
+		err := tv.DeleteTemplate(ctx, *tmplName)
+		if err != nil {
+			fmt.Printf("TestRMTmpl delete %s returned %s\n", *tmplName, err.Error())
+		}
 		return
 	}
 }
@@ -71,13 +85,11 @@ func testOvaUpload(t *testing.T, ctx context.Context) error {
 
 	url := path + "/vmware-lab/" + *ovaName
 
-	tname := *ovaName + "-tmpl"
+	tname := *ovaName
 	fmt.Printf("testMediaUpload-I-attempt uploading: %s naming it %s \n", url, tname)
 
 	cat := tv.Objs.PrimaryCat
 	elapse_start := time.Now()
-	// units for upload check size? MB? dunno... yet.
-
 	task, err := cat.UploadOvf(url, tname, "test-import-ova-vcd", 1024)
 
 	if err != nil {

@@ -1,0 +1,131 @@
+regiondata:
+- region: local
+  streamoutdata:
+    streamobjs:
+    - key:
+        appkey:
+          organization: AcmeAppCo
+          name: someapplication1
+          version: "1.0"
+        clusterinstkey:
+          clusterkey:
+            name: SmallCluster
+          cloudletkey:
+            organization: dmuus
+            name: dmuus-cloud-1
+          organization: AcmeAppCo
+      msgs:
+      - message: Creating
+      - message: Creating App Inst
+      - message: Ready
+      - message: Created AppInst successfully
+    - key:
+        appkey:
+          organization: AcmeAppCo
+          name: someapplication1
+          version: "1.0"
+        clusterinstkey:
+          clusterkey:
+            name: SmallCluster
+          cloudletkey:
+            organization: dmuus
+            name: dmuus-cloud-2
+          organization: AcmeAppCo
+      msgs:
+      - message: Creating
+      - message: Creating App Inst
+      - message: Ready
+      - message: Created AppInst successfully
+    - key:
+        clusterinstkey:
+          clusterkey:
+            name: SmallCluster
+          cloudletkey:
+            organization: dmuus
+            name: dmuus-cloud-1
+          organization: AcmeAppCo
+      msgs:
+      - message: Creating
+      - message: First Create Task
+      - message: Second Create Task
+      - message: Ready
+      - message: Created ClusterInst successfully
+    - key:
+        clusterinstkey:
+          clusterkey:
+            name: SmallCluster
+          cloudletkey:
+            organization: dmuus
+            name: dmuus-cloud-2
+          organization: AcmeAppCo
+      msgs:
+      - message: Creating
+      - message: First Create Task
+      - message: Second Create Task
+      - message: Ready
+      - message: Created ClusterInst successfully
+- region: locala
+  streamoutdata:
+    streamobjs:
+    - key:
+        appkey:
+          organization: AcmeAppCo
+          name: someapplication1
+          version: "1.0"
+        clusterinstkey:
+          clusterkey:
+            name: SmallCluster
+          cloudletkey:
+            organization: dmuus
+            name: dmuus-cloud-3
+          organization: AcmeAppCo
+      msgs:
+      - message: Creating
+      - message: Creating App Inst
+      - message: Ready
+      - message: Created AppInst successfully
+    - key:
+        appkey:
+          organization: AcmeAppCo
+          name: someapplication1
+          version: "1.0"
+        clusterinstkey:
+          clusterkey:
+            name: SmallCluster
+          cloudletkey:
+            organization: dmuus
+            name: dmuus-cloud-4
+          organization: AcmeAppCo
+      msgs:
+      - message: Creating
+      - message: Creating App Inst
+      - message: Ready
+      - message: Created AppInst successfully
+    - key:
+        clusterinstkey:
+          clusterkey:
+            name: SmallCluster
+          cloudletkey:
+            organization: dmuus
+            name: dmuus-cloud-3
+          organization: AcmeAppCo
+      msgs:
+      - message: Creating
+      - message: First Create Task
+      - message: Second Create Task
+      - message: Ready
+      - message: Created ClusterInst successfully
+    - key:
+        clusterinstkey:
+          clusterkey:
+            name: SmallCluster
+          cloudletkey:
+            organization: dmuus
+            name: dmuus-cloud-4
+          organization: AcmeAppCo
+      msgs:
+      - message: Creating
+      - message: First Create Task
+      - message: Second Create Task
+      - message: Ready
+      - message: Created ClusterInst successfully

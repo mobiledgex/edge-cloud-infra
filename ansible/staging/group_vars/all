@@ -3,6 +3,7 @@ jaeger_endpoint: "https://{{ jaeger_hostname }}:14268/api/traces"
 console_vnc_hostname: console-stage-vnc.mobiledgex.net
 notifyroot_hostname: notifyroot-stage.mobiledgex.net
 vault_address: https://vault-stage.mobiledgex.net
+esproxy_address: https://events-stage.es.mobiledgex.net/
 vault_ha_zones:
   us: us-west2-a
   eu: europe-west3-a
@@ -14,6 +15,8 @@ vault_ldap_groups:
 vault_github_teams:
   - name: edge-cloud-development-team
     policies:
+      - ssh-ansible-user.sign.v1
+      - ssh-machine.sign.v1
       - ssh-user.sign.v1
 
 vault_github_users:
@@ -36,30 +39,9 @@ vault_github_users:
 
 crm_instances:
 
-  - cloudlet_name: "{{ deploy_target }}-buckhorn-cloudlet"
-    crm_name: "crm-{{ deploy_target }}-buckhorn"
-    openstack_instance: buckhorn
-    operator_key: GDDT
-    controller_region: EU
-    notify_srv_port: 51091
-
   - cloudlet_name: "{{ deploy_target }}-hawkins-cloudlet"
     crm_name: "crm-{{ deploy_target }}-hawkins"
     openstack_instance: hawkins
     operator_key: GDDT
     controller_region: EU
     notify_srv_port: 51092
-
-  - cloudlet_name: "{{ deploy_target }}-fairview-cloudlet"
-    crm_name: "crm-{{ deploy_target }}-fairview"
-    openstack_instance: fairview
-    operator_key: GDDT
-    controller_region: EU
-    notify_srv_port: 51093
-
-  - cloudlet_name: "{{ deploy_target }}-beacon-cloudlet"
-    crm_name: "crm-{{ deploy_target }}-beacon"
-    openstack_instance: beacon
-    operator_key: GDDT
-    controller_region: EU
-    notify_srv_port: 51094

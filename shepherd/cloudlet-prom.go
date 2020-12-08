@@ -55,10 +55,18 @@ var promHealthCheckAlerts = `groups:
     for: 15s
     labels:
       ` + cloudcommon.AlertHealthCheckStatus + ": " + strconv.Itoa(int(edgeproto.HealthCheck_HEALTH_CHECK_FAIL_ROOTLB_OFFLINE)) + `
+      ` + cloudcommon.AlertScopeTypeTag + ": " + cloudcommon.AlertScopeApp + `
+    annotations:
+      ` + cloudcommon.AlertAnnotationTitle + ": " + cloudcommon.AlertAppInstDown + `
+      ` + cloudcommon.AlertAnnotationDescription + ": Root Load Balancer is not responding" + `
   - alert: ` + cloudcommon.AlertAppInstDown + `
     expr: envoy_cluster_health_check_healthy == 0
     labels:
-      ` + cloudcommon.AlertHealthCheckStatus + ": " + strconv.Itoa(int(edgeproto.HealthCheck_HEALTH_CHECK_FAIL_SERVER_FAIL))
+      ` + cloudcommon.AlertHealthCheckStatus + ": " + strconv.Itoa(int(edgeproto.HealthCheck_HEALTH_CHECK_FAIL_SERVER_FAIL)) + `
+      ` + cloudcommon.AlertScopeTypeTag + ": " + cloudcommon.AlertScopeApp + `
+    annotations:
+      ` + cloudcommon.AlertAnnotationTitle + ": " + cloudcommon.AlertAppInstDown + `
+      ` + cloudcommon.AlertAnnotationDescription + ": Application server port is not responding"
 
 type targetData struct {
 	MetricsProxyAddr string
@@ -139,6 +147,7 @@ func deleteCloudletPrometheusAlertFile(ctx context.Context, file string) error {
 // Write prometheus rules file and reload rules
 func writeCloudletPrometheusAlerts(ctx context.Context, file string, alertsBuf []byte) error {
 	// write alerting rules
+	log.SpanLog(ctx, log.DebugLevelInfo, "writing alerts file", "file", file)
 	err := ioutil.WriteFile(file, alertsBuf, 0644)
 	if err != nil {
 		return err
@@ -149,6 +158,7 @@ func writeCloudletPrometheusAlerts(ctx context.Context, file string, alertsBuf [
 }
 
 func reloadCloudletProm(ctx context.Context) {
+	log.SpanLog(ctx, log.DebugLevelInfo, "reloading prometheus config")
 	resp, err := http.Post("http://0.0.0.0:9092/-/reload", "", bytes.NewBuffer([]byte{}))
 	if err != nil {
 		log.SpanLog(ctx, log.DebugLevelInfo, "Failed to reload prometheus", "err", err)

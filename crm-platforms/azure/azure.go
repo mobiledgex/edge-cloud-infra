@@ -18,7 +18,8 @@ import (
 const AzureMaxResourceGroupNameLen int = 80
 
 type AzurePlatform struct {
-	commonPf *infracommon.CommonPlatform
+	properties *infracommon.InfraProperties
+	accessVars map[string]string
 }
 
 type AZName struct {
@@ -47,7 +48,7 @@ func (a *AzurePlatform) GatherCloudletInfo(ctx context.Context, info *edgeproto.
 	}
 
 	var limits []AZLimit
-	out, err := sh.Command("az", "vm", "list-usage", "--location", a.GetAzureLocation(), sh.Dir("/tmp")).CombinedOutput()
+	out, err := infracommon.Sh(a.accessVars).Command("az", "vm", "list-usage", "--location", a.GetAzureLocation(), sh.Dir("/tmp")).CombinedOutput()
 	if err != nil {
 		err = fmt.Errorf("cannot get limits from azure, %s, %s", out, err.Error())
 		return err
@@ -76,7 +77,7 @@ func (a *AzurePlatform) GatherCloudletInfo(ctx context.Context, info *edgeproto.
 	* https://azure.microsoft.com/en-in/pricing/details/virtual-machines/series/
 	 */
 	var vmsizes []AZFlavor
-	out, err = sh.Command("az", "vm", "list-sizes",
+	out, err = infracommon.Sh(a.accessVars).Command("az", "vm", "list-sizes",
 		"--location", a.GetAzureLocation(),
 		"--query", "[].{"+
 			"Name:name,"+
@@ -122,7 +123,12 @@ func (a *AzurePlatform) ListCloudletMgmtNodes(ctx context.Context, clusterInsts 
 // Login logs into azure
 func (a *AzurePlatform) Login(ctx context.Context) error {
 	log.SpanLog(ctx, log.DebugLevelInfra, "doing azure login")
-	out, err := sh.Command("az", "login", "--username", a.GetAzureUser(), "--password", a.GetAzurePass()).CombinedOutput()
+	user := a.GetAzureUser()
+	pass := a.GetAzurePass()
+	if user == "" || pass == "" {
+		return fmt.Errorf("Missing azure credentials")
+	}
+	out, err := infracommon.Sh(a.accessVars).Command("az", "login", "--username", user, "--password", pass).CombinedOutput()
 	if err != nil {
 		return fmt.Errorf("Login Failed: %s %v", out, err)
 	}
@@ -147,6 +153,7 @@ func (a *AzurePlatform) NameSanitize(clusterName string) string {
 	return clusterName
 }
 
-func (a *AzurePlatform) SetCommonPlatform(cpf *infracommon.CommonPlatform) {
-	a.commonPf = cpf
+func (a *AzurePlatform) SetProperties(props *infracommon.InfraProperties) error {
+	a.properties = props
+	return nil
 }

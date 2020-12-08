@@ -22,6 +22,10 @@ provider "cloudflare" {
   token   = "${var.cloudflare_account_api_token}"
 }
 
+provider "template" {
+  version = "~> 2.2"
+}
+
 terraform {
   backend "azurerm" {
     storage_account_name  = "mexterraformstate"
@@ -35,6 +39,7 @@ module "gitlab" {
   source              = "../../modules/vm_gcp"
 
   instance_name       = "${var.gitlab_instance_name}"
+  environ_tag         = "${var.environ_tag}"
   zone                = "${var.gcp_zone}"
   boot_disk_size      = 100
   tags                = [
@@ -42,7 +47,7 @@ module "gitlab" {
     "gitlab-registry",
     "http-server",
     "https-server",
-    "pg-5432",
+    "postgres-${var.environ_tag}",
     "crm",
     "mc",
     "stun-turn",
@@ -56,7 +61,6 @@ module "gitlab" {
     "vault"           = "true",
     "owner"           = "ops",
   }
-  ssh_public_key_file = "${var.ssh_public_key_file}"
 }
 
 module "gitlab_dns" {
@@ -88,6 +92,7 @@ module "console" {
   source              = "../../modules/vm_gcp"
 
   instance_name       = "${var.console_instance_name}"
+  environ_tag         = "${var.environ_tag}"
   instance_size       = "custom-1-7680-ext"
   zone                = "${var.gcp_zone}"
   boot_disk_size      = 100
@@ -95,7 +100,9 @@ module "console" {
     "http-server",
     "https-server",
     "console-debug",
-    "mc",
+    "mc-artifactory",
+    "mc-ldap-${var.environ_tag}",
+    "mc-notify-${var.environ_tag}",
     "jaeger",
     "alt-https",
     "vault-ac",
@@ -108,13 +115,13 @@ module "console" {
     "console"         = "true",
     "owner"           = "ops",
   }
-  ssh_public_key_file = "${var.ssh_public_key_file}"
 }
 
 module "vault_b" {
   source              = "../../modules/vm_gcp"
 
   instance_name       = "${var.vault_b_instance_name}"
+  environ_tag         = "${var.environ_tag}"
   instance_size       = "custom-1-7680-ext"
   zone                = "${var.vault_b_gcp_zone}"
   boot_disk_size      = 20
@@ -127,7 +134,6 @@ module "vault_b" {
     "vault"           = "true",
     "owner"           = "ops",
   }
-  ssh_public_key_file = "${var.ssh_public_key_file}"
 }
 
 module "console_dns" {
@@ -154,6 +160,12 @@ module "jaeger_dns" {
   ip                            = "${module.console.external_ip}"
 }
 
+module "esproxy_dns" {
+  source                        = "../../modules/cloudflare_record"
+  hostname                      = "${var.esproxy_domain_name}"
+  ip                            = "${module.console.external_ip}"
+}
+
 module "alertmanager_dns" {
   source                        = "../../modules/cloudflare_record"
   hostname                      = "${var.alertmanager_domain_name}"
@@ -176,4 +188,49 @@ module "fw_vault_gcp" {
   source                        = "../../modules/fw_vault_gcp"
   firewall_name                 = "${var.environ_tag}-vault-fw-hc-and-proxy"
   target_tag                    = "${var.environ_tag}-vault-hc-and-proxy"
+}
+
+resource "google_compute_firewall" mc_ldap {
+  name                          = "mc-ldap-${var.environ_tag}"
+  network                       = "default"
+
+  allow {
+    protocol                    = "tcp"
+    ports                       = [ "9389" ]
+  }
+
+  target_tags                   = [ "mc-ldap-${var.environ_tag}" ]
+  source_ranges                 = [
+    "${module.gitlab.external_ip}/32"
+  ]
+}
+
+resource "google_compute_firewall" mc_notify {
+  name                          = "mc-notify-${var.environ_tag}"
+  network                       = "default"
+
+  allow {
+    protocol                    = "tcp"
+    ports                       = [ "52001" ]
+  }
+
+  target_tags                   = [ "mc-notify-${var.environ_tag}" ]
+  source_ranges                 = [
+    "0.0.0.0/0"
+  ]
+}
+
+resource "google_compute_firewall" postgres {
+  name                          = "postgres-${var.environ_tag}"
+  network                       = "default"
+
+  allow {
+    protocol                    = "tcp"
+    ports                       = [ "5432" ]
+  }
+
+  target_tags                   = [ "postgres-${var.environ_tag}" ]
+  source_ranges                 = [
+    "${module.console.external_ip}/32"
+  ]
 }

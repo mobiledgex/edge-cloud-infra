@@ -43,6 +43,14 @@
     dest: "{{ alertmanager_config_path }}/{{ alertmanager_config_file }}"
     force: no
 
+- name: Copy alertmanager templates file
+  copy:
+    content: "{{ lookup('file', 'alertmanager.tmpl') }}\n{{ begin_def }}https://{{ console_vm_hostname }}{{ end_def }}"
+    dest: "{{ alertmanager_config_path }}/{{ alertmanager_template_file }}"
+  vars:
+    begin_def: !unsafe '{{ define "console.link" }}'
+    end_def: !unsafe '{{ end }}'
+
 - name: Load noreply email details from vault
   import_role:
     name: load-vault-creds

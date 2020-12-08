@@ -5,8 +5,8 @@ import (
 	"fmt"
 
 	"github.com/mobiledgex/edge-cloud-infra/vmlayer"
+	"github.com/mobiledgex/edge-cloud/cloud-resource-manager/platform"
 	"github.com/mobiledgex/edge-cloud/edgeproto"
-	"github.com/mobiledgex/edge-cloud/vault"
 )
 
 var VMPoolProps = map[string]*edgeproto.PropertyInfo{
@@ -18,15 +18,15 @@ var VMPoolProps = map[string]*edgeproto.PropertyInfo{
 	},
 }
 
-func (o *VMPoolPlatform) GetProviderSpecificProps() map[string]*edgeproto.PropertyInfo {
-	return VMPoolProps
+func (o *VMPoolPlatform) GetProviderSpecificProps(ctx context.Context) (map[string]*edgeproto.PropertyInfo, error) {
+	return VMPoolProps, nil
 }
 
-func (o *VMPoolPlatform) InitApiAccessProperties(ctx context.Context, key *edgeproto.CloudletKey, region, physicalName string, vaultConfig *vault.Config, vars map[string]string) error {
+func (o *VMPoolPlatform) InitApiAccessProperties(ctx context.Context, accessApi platform.AccessApi, vars map[string]string, stage vmlayer.ProviderInitStage) error {
 	return nil
 }
 
-func (o *VMPoolPlatform) GetApiAccessFilename() string {
+func (o *VMPoolPlatform) GetVaultCloudletAccessPath(key *edgeproto.CloudletKey, region, physicalName string) string {
 	return ""
 }
 

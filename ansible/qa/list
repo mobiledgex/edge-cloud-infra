@@ -15,7 +15,6 @@ influxdb_volume_size=10Gi
 vault_vm_hostname=vault-{{ deploy_environ }}.mobiledgex.net
 vault_ha_domain="vault-{{ deploy_environ }}.mobiledgex.net"
 vault_port=443
-vault_firewall_setup=no
 monitor_version=latest
 letsencrypt_env=production
 locver_url="http://mexdemo.locsim.mobiledgex.net:8889/verifyLocation"
@@ -26,6 +25,8 @@ deploy_target="mexplat-{{ deploy_environ }}"
 console_prod=no
 alertmanager_hostname=alertmanager-{{ deploy_environ }}.mobiledgex.net
 influxdb_backup_disabled=true
+etcd_quota_backend="150 MB"
+etcd_auto_compaction_retention=2
 
 [notifyroot]
 notifyroot-qa.mobiledgex.net
@@ -57,3 +58,6 @@ jaeger-qa.mobiledgex.net	nginx_config_filename=jaeger jaeger_ui_port=8443
 
 [alertmanager]
 alertmanager-qa.mobiledgex.net
+
+[esproxy]
+events-qa.es.mobiledgex.net

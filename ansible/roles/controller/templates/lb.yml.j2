@@ -20,6 +20,10 @@ spec:
      name: notify
      protocol: TCP
      targetPort: 37001
+   - port: 41001
+     name: accesskey
+     protocol: TCP
+     targetPort: 41001
   selector:
     app: controller
   sessionAffinity: None

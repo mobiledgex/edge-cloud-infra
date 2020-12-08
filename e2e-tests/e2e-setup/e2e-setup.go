@@ -15,6 +15,7 @@ import (
 	"github.com/mobiledgex/edge-cloud/cloudcommon/node"
 	"github.com/mobiledgex/edge-cloud/edgeproto"
 	"github.com/mobiledgex/edge-cloud/integration/process"
+	"github.com/mobiledgex/edge-cloud/setup-env/apis"
 	"github.com/mobiledgex/edge-cloud/setup-env/e2e-tests/e2eapi"
 	setupmex "github.com/mobiledgex/edge-cloud/setup-env/setup-mex"
 	"github.com/mobiledgex/edge-cloud/setup-env/util"
@@ -73,7 +74,7 @@ type DeploymentData struct {
 	AutoProvs           []*intprocess.AutoProv            `yaml:"autoprovs"`
 	Cloudflare          CloudflareDNS                     `yaml:"cloudflare"`
 	Prometheus          []*intprocess.PromE2e             `yaml:"prometheus"`
-	Exporters           []*intprocess.Exporter            `yaml:"exporter"`
+	HttpServers         []*intprocess.HttpServer          `yaml:"httpservers"`
 	ChefServers         []*intprocess.ChefServer          `yaml:"chefserver"`
 	Alertmanagers       []*intprocess.Alertmanager        `yaml:"alertmanagers"`
 	Maildevs            []*intprocess.Maildev             `yaml:"maildevs"`
@@ -159,7 +160,7 @@ func GetAllProcesses() []process.Process {
 	for _, p := range Deployment.Prometheus {
 		all = append(all, p)
 	}
-	for _, p := range Deployment.Exporters {
+	for _, p := range Deployment.HttpServers {
 		all = append(all, p)
 	}
 	for _, p := range Deployment.ChefServers {
@@ -278,6 +279,7 @@ func StartProcesses(processName string, args []string, outputDir string) bool {
 		}
 	}
 	for _, p := range Deployment.AlertmgrSidecars {
+		opts = append(opts, process.WithDebug("api,notify,metrics,events"))
 		if !setupmex.StartLocal(processName, outputDir, p, opts...) {
 			return false
 		}
@@ -309,7 +311,7 @@ func StartProcesses(processName string, args []string, outputDir string) bool {
 			return false
 		}
 	}
-	for _, p := range Deployment.Exporters {
+	for _, p := range Deployment.HttpServers {
 		opts := append(opts, process.WithCleanStartup())
 		if !setupmex.StartLocal(processName, outputDir, p, opts...) {
 			return false
@@ -328,7 +330,7 @@ func StartProcesses(processName string, args []string, outputDir string) bool {
 	return true
 }
 
-func RunAction(ctx context.Context, actionSpec, outputDir string, config *e2eapi.TestConfig, spec *TestSpec, specStr string, mods []string, vars map[string]string, retry *bool) []string {
+func RunAction(ctx context.Context, actionSpec, outputDir string, config *e2eapi.TestConfig, spec *TestSpec, specStr string, mods []string, vars map[string]string, sharedData map[string]string, retry *bool) []string {
 	var actionArgs []string
 	act, actionParam := setupmex.GetActionParam(actionSpec)
 	action, actionSubtype := setupmex.GetActionSubtype(act)
@@ -370,7 +372,14 @@ func RunAction(ctx context.Context, actionSpec, outputDir string, config *e2eapi
 			actionParam = actionArgs[0]
 			actionArgs = actionArgs[1:]
 		}
-
+		if actionSubtype == "crm" {
+			// read the apifile and start crm with the details
+			err := apis.StartCrmsLocal(ctx, actionParam, spec.ApiFile, outputDir)
+			if err != nil {
+				errors = append(errors, err.Error())
+			}
+			break
+		}
 		if !StartProcesses(actionParam, actionArgs, outputDir) {
 			startFailed = true
 			errors = append(errors, "start failed")
@@ -381,11 +390,7 @@ func RunAction(ctx context.Context, actionSpec, outputDir string, config *e2eapi
 			}
 		}
 		if startFailed {
-			if !setupmex.StopProcesses(actionParam, allprocs) || !StopRemoteProcesses(actionParam) {
-				errors = append(errors, "stop failed")
-			}
 			break
-
 		}
 		if !UpdateAPIAddrs() {
 			errors = append(errors, "update API addrs failed")
@@ -399,15 +404,21 @@ func RunAction(ctx context.Context, actionSpec, outputDir string, config *e2eapi
 			errors = append(errors, "wait for process failed")
 		}
 	case "stop":
-		allprocs := GetAllProcesses()
-		if !setupmex.StopProcesses(actionParam, allprocs) {
-			errors = append(errors, "stop local failed")
-		}
-		if !StopRemoteProcesses(actionParam) {
-			errors = append(errors, "stop remote failed")
+		if actionSubtype == "crm" {
+			if err := apis.StopCrmsLocal(ctx, actionParam, spec.ApiFile); err != nil {
+				errors = append(errors, err.Error())
+			}
+		} else {
+			allprocs := GetAllProcesses()
+			if !setupmex.StopProcesses(actionParam, allprocs) {
+				errors = append(errors, "stop local failed")
+			}
+			if !StopRemoteProcesses(actionParam) {
+				errors = append(errors, "stop remote failed")
+			}
 		}
 	case "mcapi":
-		if !RunMcAPI(actionSubtype, actionParam, spec.ApiFile, spec.CurUserFile, outputDir, mods, vars, retry) {
+		if !RunMcAPI(actionSubtype, actionParam, spec.ApiFile, spec.CurUserFile, outputDir, mods, vars, sharedData, retry) {
 			log.Printf("Unable to run api for %s\n", action)
 			errors = append(errors, "MC api failed")
 		}
@@ -453,7 +464,14 @@ func RunAction(ctx context.Context, actionSpec, outputDir string, config *e2eapi
 			errors = append(errors, err.Error())
 		}
 	case "email":
+		*retry = true
 		err := RunEmailAPI(actionSubtype, spec.ApiFile, outputDir)
+		if err != nil {
+			errors = append(errors, err.Error())
+		}
+	case "slack":
+		*retry = true
+		err := RunSlackAPI(actionSubtype, spec.ApiFile, outputDir)
 		if err != nil {
 			errors = append(errors, err.Error())
 		}
@@ -464,8 +482,7 @@ func RunAction(ctx context.Context, actionSpec, outputDir string, config *e2eapi
 			fmt.Fprintf(os.Stderr, "ERROR: unmarshaling setupmex TestSpec: %v", err)
 			errors = append(errors, "Error in unmarshaling TestSpec")
 		} else {
-			retry := false
-			errs := setupmex.RunAction(ctx, actionSpec, outputDir, &ecSpec, mods, vars, &retry)
+			errs := setupmex.RunAction(ctx, actionSpec, outputDir, &ecSpec, mods, vars, retry)
 			errors = append(errors, errs...)
 		}
 	}

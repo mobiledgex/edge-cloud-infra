@@ -9,6 +9,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/jarcoal/httpmock"
 	"github.com/mitchellh/mapstructure"
 	ormtestutil "github.com/mobiledgex/edge-cloud-infra/mc/orm/testutil"
 	"github.com/mobiledgex/edge-cloud-infra/mc/ormapi"
@@ -18,6 +19,7 @@ import (
 	"github.com/mobiledgex/edge-cloud/log"
 	"github.com/mobiledgex/edge-cloud/testutil"
 	"github.com/mobiledgex/edge-cloud/vault"
+	"github.com/pquerna/otp/totp"
 	"github.com/stretchr/testify/require"
 	"google.golang.org/grpc"
 )
@@ -36,14 +38,25 @@ func TestController(t *testing.T) {
 	vaultServer, vaultConfig := vault.DummyServer()
 	defer vaultServer.Close()
 
+	// mock http to redirect requests
+	httpmock.Activate()
+	defer httpmock.DeactivateAndReset()
+	// any requests that don't have a registered URL will be fetched normally
+	httpmock.RegisterNoResponder(httpmock.InitialTransport.RoundTrip)
+	testAlertMgrAddr, err := InitAlertmgrMock()
+	require.Nil(t, err)
+
 	config := ServerConfig{
-		ServAddr:        addr,
-		SqlAddr:         "127.0.0.1:5445",
-		RunLocal:        true,
-		InitLocal:       true,
-		IgnoreEnv:       true,
-		SkipVerifyEmail: true,
-		vaultConfig:     vaultConfig,
+		ServAddr:                addr,
+		SqlAddr:                 "127.0.0.1:5445",
+		RunLocal:                true,
+		InitLocal:               true,
+		IgnoreEnv:               true,
+		SkipVerifyEmail:         true,
+		vaultConfig:             vaultConfig,
+		AlertMgrAddr:            testAlertMgrAddr,
+		AlertmgrResolveTimout:   3 * time.Minute,
+		UsageCheckpointInterval: "MONTH",
 	}
 	server, err := RunServer(&config)
 	require.Nil(t, err, "run server")
@@ -89,7 +102,7 @@ func TestController(t *testing.T) {
 	mcClient := &ormclient.Client{}
 
 	// login as super user
-	token, err := mcClient.DoLogin(uri, DefaultSuperuser, DefaultSuperpass)
+	token, err := mcClient.DoLogin(uri, DefaultSuperuser, DefaultSuperpass, NoOTP)
 	require.Nil(t, err, "login as superuser")
 
 	// test controller api
@@ -114,23 +127,23 @@ func TestController(t *testing.T) {
 	require.Equal(t, ctrl.Address, ctrls[0].Address)
 
 	// create admin
-	admin, tokenAd := testCreateUser(t, mcClient, uri, "admin1")
+	admin, tokenAd, _ := testCreateUser(t, mcClient, uri, "admin1")
 	testAddUserRole(t, mcClient, uri, token, "", "AdminManager", admin.Name, Success)
 
 	// create a developers
 	org1 := "org1"
 	org2 := "org2"
-	_, _, tokenDev := testCreateUserOrg(t, mcClient, uri, "dev", "developer", org1)
+	dev, _, tokenDev := testCreateUserOrg(t, mcClient, uri, "dev", "developer", org1)
 	_, _, tokenDev2 := testCreateUserOrg(t, mcClient, uri, "dev2", "developer", org2)
-	dev3, tokenDev3 := testCreateUser(t, mcClient, uri, "dev3")
-	dev4, tokenDev4 := testCreateUser(t, mcClient, uri, "dev4")
+	dev3, tokenDev3, _ := testCreateUser(t, mcClient, uri, "dev3")
+	dev4, tokenDev4, _ := testCreateUser(t, mcClient, uri, "dev4")
 	// create an operator
 	org3 := "org3"
 	org4 := "org4"
 	_, _, tokenOper := testCreateUserOrg(t, mcClient, uri, "oper", "operator", org3)
 	_, _, tokenOper2 := testCreateUserOrg(t, mcClient, uri, "oper2", "operator", org4)
-	oper3, tokenOper3 := testCreateUser(t, mcClient, uri, "oper3")
-	oper4, tokenOper4 := testCreateUser(t, mcClient, uri, "oper4")
+	oper3, tokenOper3, _ := testCreateUser(t, mcClient, uri, "oper3")
+	oper4, tokenOper4, _ := testCreateUser(t, mcClient, uri, "oper4")
 
 	// number of fake objects internally sent back by dummy server
 	ds.ShowDummyCount = 0
@@ -159,13 +172,14 @@ func TestController(t *testing.T) {
 	badPermTestCloudlet(t, mcClient, uri, tokenOper3, ctrl.Region, org1)
 	badPermTestMetrics(t, mcClient, uri, tokenDev3, ctrl.Region, org1)
 	badPermTestEvents(t, mcClient, uri, tokenDev3, ctrl.Region, org1)
+	badPermTestAlertReceivers(t, mcClient, uri, tokenDev3, ctrl.Region, org1)
 	// add new users to orgs
 	testAddUserRole(t, mcClient, uri, tokenDev, org1, "DeveloperContributor", dev3.Name, Success)
 	testAddUserRole(t, mcClient, uri, tokenDev, org1, "DeveloperViewer", dev4.Name, Success)
 	testAddUserRole(t, mcClient, uri, tokenOper, org3, "OperatorContributor", oper3.Name, Success)
 	testAddUserRole(t, mcClient, uri, tokenOper, org3, "OperatorViewer", oper4.Name, Success)
 	// make sure dev/ops without user perms can't add new users
-	user5, _ := testCreateUser(t, mcClient, uri, "user5")
+	user5, _, _ := testCreateUser(t, mcClient, uri, "user5")
 	testAddUserRole(t, mcClient, uri, tokenDev3, org1, "DeveloperViewer", user5.Name, Fail)
 	testAddUserRole(t, mcClient, uri, tokenDev4, org1, "DeveloperViewer", user5.Name, Fail)
 	testAddUserRole(t, mcClient, uri, tokenOper3, org3, "OperatorViewer", user5.Name, Fail)
@@ -350,8 +364,13 @@ func TestController(t *testing.T) {
 	goodPermTestClusterInst(t, mcClient, uri, tokenDev, ctrl.Region, org1, tc3, dcnt)
 	badPermTestClusterInst(t, mcClient, uri, tokenDev2, ctrl.Region, org1, tc3)
 
+	// test alert receivers permissions and validations
+	goodPermTestAlertReceivers(t, mcClient, uri, tokenDev3, tokenOper3, ctrl.Region, org1, org3)
+	// test ability of different users to delete/show other users's receivers
+	userPermTestAlertReceivers(t, mcClient, uri, dev.Name, tokenDev, dev3.Name, tokenDev3, ctrl.Region, org1, org3)
+
 	{
-		// developers can't create AppInsts on other developer's ClusterInsts
+		// developers can't create AppInsts on other developemar's ClusterInsts
 		appinst := edgeproto.AppInst{}
 		appinst.Key.AppKey.Organization = org1
 		appinst.Key.ClusterInstKey.Organization = cloudcommon.OrganizationMobiledgeX
@@ -588,19 +607,24 @@ func TestController(t *testing.T) {
 	require.Equal(t, 1, count)
 }
 
-func testCreateUser(t *testing.T, mcClient *ormclient.Client, uri, name string) (*ormapi.User, string) {
+func testCreateUser(t *testing.T, mcClient *ormclient.Client, uri, name string) (*ormapi.User, string, string) {
 	user := ormapi.User{
-		Name:     name,
-		Email:    name + "@gmail.com",
-		Passhash: name + "-password",
+		Name:       name,
+		Email:      name + "@gmail.com",
+		Passhash:   name + "-password-super-long-crazy-hard-difficult",
+		EnableTOTP: true,
 	}
-	status, err := mcClient.CreateUser(uri, &user)
+	resp, status, err := mcClient.CreateUser(uri, &user)
 	require.Nil(t, err, "create user ", name)
 	require.Equal(t, http.StatusOK, status)
+	require.NotEmpty(t, resp.TOTPSharedKey, "user totp shared key", name)
+	require.NotNil(t, resp.TOTPQRImage, "user totp qa", name)
 	// login
-	token, err := mcClient.DoLogin(uri, user.Name, user.Passhash)
+	otp, err := totp.GenerateCode(resp.TOTPSharedKey, time.Now())
+	require.Nil(t, err, "generate otp", name)
+	token, err := mcClient.DoLogin(uri, user.Name, user.Passhash, otp)
 	require.Nil(t, err, "login as ", name)
-	return &user, token
+	return &user, token, user.Passhash
 }
 
 func testCreateOrg(t *testing.T, mcClient *ormclient.Client, uri, token, orgType, orgName string) *ormapi.Organization {
@@ -687,7 +711,7 @@ func getOrg(t *testing.T, mcClient *ormclient.Client, uri, token, name string) *
 }
 
 func testCreateUserOrg(t *testing.T, mcClient *ormclient.Client, uri, name, orgType, orgName string) (*ormapi.User, *ormapi.Organization, string) {
-	user, token := testCreateUser(t, mcClient, uri, name)
+	user, token, _ := testCreateUser(t, mcClient, uri, name)
 	org := testCreateOrg(t, mcClient, uri, token, orgType, orgName)
 	return user, org, token
 }

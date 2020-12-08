@@ -10,7 +10,6 @@ import (
 	"context"
 	b64 "encoding/base64"
 	"fmt"
-	"os/exec"
 	"strconv"
 	"strings"
 
@@ -40,7 +39,7 @@ const (
 	ActionDelete ActionType = "delete"
 )
 
-var CloudflareDns = []string{"1.1.1.1", "1.0.0.1"}
+const TestCACert = "ssh-rsa DUMMYTESTCACERT"
 
 var ClusterTypeKubernetesMasterLabel = "mex-k8s-master"
 var ClusterTypeDockerVMLabel = "mex-docker-vm"
@@ -91,6 +90,22 @@ type PortResourceReference struct {
 	PortGroup   string
 }
 
+func GetVmTypeForRole(role string) VMType {
+	switch role {
+	case string(RoleAgent):
+		return VMTypeRootLB
+	case string(RoleMaster):
+		return VMTypeClusterMaster
+	case string(RoleNode):
+		return VMTypeClusterNode
+	case string(RoleVMApplication):
+		return VMTypeAppVM
+	case string(RoleVMPlatform):
+		return VMTypePlatform
+	}
+	return "unknown"
+}
+
 func GetPortName(vmname, netname string) string {
 	return fmt.Sprintf("%s-%s-port", vmname, netname)
 }
@@ -121,6 +136,8 @@ type VMRequestSpec struct {
 	ConnectToSubnet         string
 	ChefParams              *chefmgmt.VMChefParams
 	OptionalResource        string
+	AccessKey               string
+	AdditionalNetworks      []string
 }
 
 type VMReqOp func(vmp *VMRequestSpec) error
@@ -196,6 +213,18 @@ func WithChefParams(chefParams *chefmgmt.VMChefParams) VMReqOp {
 func WithOptionalResource(optRes string) VMReqOp {
 	return func(s *VMRequestSpec) error {
 		s.OptionalResource = optRes
+		return nil
+	}
+}
+func WithAccessKey(accessKey string) VMReqOp {
+	return func(s *VMRequestSpec) error {
+		s.AccessKey = accessKey
+		return nil
+	}
+}
+func WithAdditionalNetworks(networks []string) VMReqOp {
+	return func(s *VMRequestSpec) error {
+		s.AdditionalNetworks = networks
 		return nil
 	}
 }
@@ -281,16 +310,18 @@ func WithSkipCleanupOnFailure(skip bool) VMGroupReqOp {
 }
 
 type SubnetOrchestrationParams struct {
-	Id           string
-	Name         string
-	NetworkName  string
-	CIDR         string
-	NodeIPPrefix string
-	GatewayIP    string
-	DNSServers   []string
-	DHCPEnabled  string
-	Vlan         uint32
-	SkipGateway  bool
+	Id                string
+	Name              string
+	ReservedName      string
+	NetworkName       string
+	CIDR              string
+	NodeIPPrefix      string
+	GatewayIP         string
+	DNSServers        []string
+	DHCPEnabled       string
+	Vlan              uint32
+	SkipGateway       bool
+	SecurityGroupName string
 }
 
 type FixedIPOrchestrationParams struct {
@@ -400,6 +431,10 @@ type VMCloudConfigParams struct {
 	ExtraBootCommands []string
 	ChefParams        *chefmgmt.VMChefParams
 	CACert            string
+	AccessKey         string
+	PrimaryDNS        string
+	FallbackDNS       string
+	NtpServers        string
 }
 
 // VMOrchestrationParams contains all details  that are needed by the orchestator
@@ -419,7 +454,6 @@ type VMOrchestrationParams struct {
 	UserData                string
 	MetaData                string
 	SharedVolume            bool
-	DNSServers              string
 	AuthPublicKey           string
 	DeploymentManifest      string
 	Command                 string
@@ -514,11 +548,14 @@ func (v *VMPlatform) getVMGroupOrchestrationParamsFromGroupSpec(ctx context.Cont
 	internalNetName := v.VMProperties.GetCloudletMexNetwork()
 	internalNetId := v.VMProvider.NameSanitize(internalNetName)
 	externalNetName := v.VMProperties.GetCloudletExternalNetwork()
+	ntpServers := strings.Join(v.VMProperties.GetNtpServers(), " ")
 
 	var err error
+	vmDns := strings.Split(v.VMProperties.GetCloudletDNS(), ",")
+	if len(vmDns) > 2 {
+		return nil, fmt.Errorf("Too many DNS servers specified in MEX_DNS")
+	}
 
-	// DNS is applied either at the subnet or VM level
-	vmDns := ""
 	subnetDns := []string{}
 	cloudletSecGrpID := v.VMProperties.GetCloudletSecurityGroupName()
 	if !spec.SkipDefaultSecGrp {
@@ -526,15 +563,15 @@ func (v *VMPlatform) getVMGroupOrchestrationParamsFromGroupSpec(ctx context.Cont
 	}
 	internalSecgrpID := ""
 	internalSecgrpPreexisting := false
+	cloudletComputeAZ := v.VMProperties.GetCloudletComputeAvailabilityZone()
+	cloudletVolumeAZ := v.VMProperties.GetCloudletVolumeAvailabilityZone()
 
 	if err != nil {
 		return nil, err
 	}
-	if v.VMProperties.GetSubnetDNS() == NoSubnetDNS {
+	if v.VMProperties.GetSubnetDNS() != NoSubnetDNS {
 		// Contrail workaround, see EDGECLOUD-2420 for details
-		vmDns = strings.Join(CloudflareDns, " ")
-	} else {
-		subnetDns = CloudflareDns
+		subnetDns = vmDns
 	}
 
 	vmgp.Netspec, err = ParseNetSpec(ctx, v.VMProperties.GetCloudletNetworkScheme())
@@ -603,12 +640,13 @@ func (v *VMPlatform) getVMGroupOrchestrationParamsFromGroupSpec(ctx context.Cont
 	}
 	if spec.NewSubnetName != "" {
 		newSubnet := SubnetOrchestrationParams{
-			Name:        spec.NewSubnetName,
-			Id:          v.VMProvider.IdSanitize(spec.NewSubnetName),
-			CIDR:        NextAvailableResource,
-			DHCPEnabled: "no",
-			DNSServers:  subnetDns,
-			NetworkName: v.VMProperties.GetCloudletMexNetwork(),
+			Name:              spec.NewSubnetName,
+			Id:                v.VMProvider.IdSanitize(spec.NewSubnetName),
+			CIDR:              NextAvailableResource,
+			DHCPEnabled:       "yes",
+			DNSServers:        subnetDns,
+			NetworkName:       v.VMProperties.GetCloudletMexNetwork(),
+			SecurityGroupName: spec.NewSecgrpName,
 		}
 		if spec.SkipSubnetGateway {
 			newSubnet.SkipGateway = true
@@ -616,24 +654,29 @@ func (v *VMPlatform) getVMGroupOrchestrationParamsFromGroupSpec(ctx context.Cont
 		vmgp.Subnets = append(vmgp.Subnets, newSubnet)
 	}
 
-	vaultAddr := v.VMProperties.CommonPf.VaultConfig.Addr
-	cmd := exec.Command("curl", "-s", fmt.Sprintf("%s/v1/ssh/public_key", vaultAddr))
-	out, err := cmd.CombinedOutput()
-	if err != nil {
-		return nil, fmt.Errorf("failed to get vault ssh cert: %s, %v", string(out), err)
+	var vaultSSHCert string
+	if v.VMProperties.CommonPf.PlatformConfig.TestMode {
+		vaultSSHCert = TestCACert
+	} else {
+		accessApi := v.VMProperties.CommonPf.PlatformConfig.AccessApi
+		publicSSHKey, err := accessApi.GetSSHPublicKey(ctx)
+		if err != nil {
+			return nil, err
+		}
+		vaultSSHCert = publicSSHKey
 	}
-	if !strings.Contains(string(out), "ssh-rsa") {
-		return nil, fmt.Errorf("invalid vault ssh cert: %s", string(out))
-	}
-	vaultSSHCert := string(out)
 
 	var internalPortNextOctet uint32 = 101
 	for ii, vm := range spec.VMs {
-		log.SpanLog(ctx, log.DebugLevelInfra, "Defining VM", "vm", vm)
+		computeAZ := vm.ComputeAvailabilityZone
+		if computeAZ == "" {
+			computeAZ = cloudletComputeAZ
+		}
+		volumeAZ := cloudletVolumeAZ
+		log.SpanLog(ctx, log.DebugLevelInfra, "Defining VM", "vm", vm, "computeAZ", computeAZ, "volumeAZ", volumeAZ)
 		var role VMRole
 		var newPorts []PortOrchestrationParams
 		internalPortName := GetPortName(vm.Name, vm.ConnectToSubnet)
-		externalPortName := GetPortName(vm.Name, externalNetName)
 
 		connectToPreexistingSubnet := false
 		if vm.ConnectToSubnet != "" && spec.NewSubnetName != vm.ConnectToSubnet {
@@ -714,7 +757,15 @@ func (v *VMPlatform) getVMGroupOrchestrationParamsFromGroupSpec(ctx context.Cont
 						},
 					},
 				}
+				if v.VMProperties.UseSecgrpForInternalSubnet {
+					internalPort.SecurityGroups = append(internalPort.SecurityGroups, NewResourceReference(cloudletSecGrpID, cloudletSecGrpID, true))
+					if spec.NewSecgrpName != "" {
+						// connect internal ports to the new secgrp
+						internalPort.SecurityGroups = append(internalPort.SecurityGroups, NewResourceReference(spec.NewSecgrpName, spec.NewSecgrpName, false))
+					}
+				}
 				newPorts = append(newPorts, internalPort)
+
 			} else {
 				return nil, fmt.Errorf("k8s master not specified to be connected to internal network")
 			}
@@ -737,6 +788,13 @@ func (v *VMPlatform) getVMGroupOrchestrationParamsFromGroupSpec(ctx context.Cont
 					},
 				}
 				internalPortNextOctet++
+				if v.VMProperties.UseSecgrpForInternalSubnet {
+					internalPort.SecurityGroups = append(internalPort.SecurityGroups, NewResourceReference(cloudletSecGrpID, cloudletSecGrpID, true))
+					if spec.NewSecgrpName != "" {
+						// connect internal ports to the new secgrp
+						internalPort.SecurityGroups = append(internalPort.SecurityGroups, NewResourceReference(spec.NewSecgrpName, spec.NewSecgrpName, false))
+					}
+				}
 				newPorts = append(newPorts, internalPort)
 			} else {
 				return nil, fmt.Errorf("k8s node not specified to be connected to internal network")
@@ -754,49 +812,63 @@ func (v *VMPlatform) getVMGroupOrchestrationParamsFromGroupSpec(ctx context.Cont
 		}
 
 		if vm.ConnectToExternalNet {
-			if spec.NewSecgrpName == "" {
-				return nil, fmt.Errorf("external network specified with no security group: %s", vm.Name)
+
+			extNets := []string{}
+			if vm.ConnectToExternalNet {
+				extNets = append(extNets, externalNetName)
 			}
-			var externalport PortOrchestrationParams
-			if vmgp.Netspec.FloatingIPNet != "" {
-				externalport = PortOrchestrationParams{
-					Name:        externalPortName,
-					Id:          v.VMProvider.NameSanitize(externalPortName),
-					NetworkName: vmgp.Netspec.FloatingIPNet,
-					NetworkId:   v.VMProvider.NameSanitize(vmgp.Netspec.FloatingIPNet),
-					VnicType:    vmgp.Netspec.VnicType,
-					NetworkType: NetTypeExternal,
+			if len(vm.AdditionalNetworks) > 0 {
+				err = v.VMProvider.ValidateAdditionalNetworks(ctx, vm.AdditionalNetworks)
+				if err != nil {
+					return nil, err
 				}
-				fip := FloatingIPOrchestrationParams{
-					Name:         externalPortName + "-fip",
-					FloatingIpId: NextAvailableResource,
-					Port:         NewResourceReference(externalport.Name, externalport.Id, false),
+				extNets = append(extNets, vm.AdditionalNetworks...)
+			}
+			for _, net := range extNets {
+				portName := GetPortName(vm.Name, net)
+				if spec.NewSecgrpName == "" {
+					return nil, fmt.Errorf("external network specified with no security group: %s", vm.Name)
 				}
-				if len(spec.VMs) == 1 {
-					fip.ParamName = "floatingIpId"
+				var externalport PortOrchestrationParams
+				if vmgp.Netspec.FloatingIPNet != "" {
+					externalport = PortOrchestrationParams{
+						Name:        portName,
+						Id:          v.VMProvider.NameSanitize(portName),
+						NetworkName: vmgp.Netspec.FloatingIPNet,
+						NetworkId:   v.VMProvider.NameSanitize(vmgp.Netspec.FloatingIPNet),
+						VnicType:    vmgp.Netspec.VnicType,
+						NetworkType: NetTypeExternal,
+					}
+					fip := FloatingIPOrchestrationParams{
+						Name:         portName + "-fip",
+						FloatingIpId: NextAvailableResource,
+						Port:         NewResourceReference(externalport.Name, externalport.Id, false),
+					}
+					if len(spec.VMs) == 1 {
+						fip.ParamName = "floatingIpId"
+					} else {
+						fip.ParamName = fmt.Sprintf("floatingIpId%d", ii+1)
+					}
+					vmgp.FloatingIPs = append(vmgp.FloatingIPs, fip)
+
 				} else {
-					fip.ParamName = fmt.Sprintf("floatingIpId%d", ii+1)
+					externalport = PortOrchestrationParams{
+						Name:        portName,
+						Id:          v.VMProvider.IdSanitize(portName),
+						NetworkName: net,
+						NetworkId:   v.VMProvider.IdSanitize(net),
+						VnicType:    vmgp.Netspec.VnicType,
+						NetworkType: NetTypeExternal,
+					}
 				}
-				vmgp.FloatingIPs = append(vmgp.FloatingIPs, fip)
-
-			} else {
-				externalport = PortOrchestrationParams{
-					Name:        externalPortName,
-					Id:          v.VMProvider.IdSanitize(externalPortName),
-					NetworkName: externalNetName,
-					NetworkId:   v.VMProvider.IdSanitize(externalNetName),
-					VnicType:    vmgp.Netspec.VnicType,
-					NetworkType: NetTypeExternal,
+				externalport.SecurityGroups = []ResourceReference{
+					NewResourceReference(spec.NewSecgrpName, spec.NewSecgrpName, false),
 				}
+				if !spec.SkipDefaultSecGrp {
+					externalport.SecurityGroups = append(externalport.SecurityGroups, NewResourceReference(cloudletSecGrpID, cloudletSecGrpID, true))
+				}
+				newPorts = append(newPorts, externalport)
 			}
-			externalport.SecurityGroups = []ResourceReference{
-				NewResourceReference(spec.NewSecgrpName, spec.NewSecgrpName, false),
-			}
-			if !spec.SkipDefaultSecGrp {
-				externalport.SecurityGroups = append(externalport.SecurityGroups, NewResourceReference(cloudletSecGrpID, cloudletSecGrpID, true))
-			}
-			newPorts = append(newPorts, externalport)
-
 		}
 		if !vm.CreatePortsOnly {
 			log.SpanLog(ctx, log.DebugLevelInfra, "Defining new VM orch param", "vm.Name", vm.Name, "ports", newPorts)
@@ -806,6 +878,14 @@ func (v *VMPlatform) getVMGroupOrchestrationParamsFromGroupSpec(ctx context.Cont
 				vccp.ChefParams = vm.ChefParams
 			}
 			vccp.CACert = vaultSSHCert
+			vccp.AccessKey = vm.AccessKey
+			if len(vmDns) > 0 {
+				vccp.PrimaryDNS = vmDns[0]
+				if len(vmDns) > 1 {
+					vccp.FallbackDNS = vmDns[1]
+				}
+			}
+			vccp.NtpServers = ntpServers
 			// gpu
 			if vm.OptionalResource == "gpu" {
 				gpuCmds := getGpuExtraCommands()
@@ -815,7 +895,6 @@ func (v *VMPlatform) getVMGroupOrchestrationParamsFromGroupSpec(ctx context.Cont
 				Name:                    v.VMProvider.NameSanitize(vm.Name),
 				Id:                      v.VMProvider.IdSanitize(vm.Name),
 				Role:                    role,
-				DNSServers:              vmDns,
 				ImageName:               vm.ImageName,
 				ImageFolder:             vm.ImageFolder,
 				FlavorName:              vm.FlavorName,
@@ -823,25 +902,27 @@ func (v *VMPlatform) getVMGroupOrchestrationParamsFromGroupSpec(ctx context.Cont
 				DNSDomain:               v.VMProperties.CommonPf.GetCloudletDNSZone(),
 				DeploymentManifest:      vm.DeploymentManifest,
 				Command:                 vm.Command,
-				ComputeAvailabilityZone: vm.ComputeAvailabilityZone,
+				ComputeAvailabilityZone: computeAZ,
 				CloudConfigParams:       vccp,
 			}
 			if vm.ExternalVolumeSize > 0 {
 				externalVolume := VolumeOrchestrationParams{
-					Name:       vm.Name + "-volume",
-					Size:       vm.ExternalVolumeSize,
-					ImageName:  vm.ImageName,
-					DeviceName: "vda",
+					Name:             vm.Name + "-volume",
+					Size:             vm.ExternalVolumeSize,
+					ImageName:        vm.ImageName,
+					DeviceName:       "vda",
+					AvailabilityZone: volumeAZ,
 				}
 				newVM.ImageName = ""
 				newVM.Volumes = append(newVM.Volumes, externalVolume)
 			}
 			if vm.SharedVolumeSize > 0 {
 				sharedVolume := VolumeOrchestrationParams{
-					Name:       vm.Name + "-shared-volume",
-					Size:       vm.SharedVolumeSize,
-					DeviceName: "vdb",
-					UnitNumber: 1,
+					Name:             vm.Name + "-shared-volume",
+					Size:             vm.SharedVolumeSize,
+					DeviceName:       "vdb",
+					UnitNumber:       1,
+					AvailabilityZone: volumeAZ,
 				}
 				newVM.Volumes = append(newVM.Volumes, sharedVolume)
 				newVM.SharedVolume = true

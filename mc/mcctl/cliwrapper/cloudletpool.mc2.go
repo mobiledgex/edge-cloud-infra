@@ -3,15 +3,18 @@
 
 package cliwrapper
 
-import edgeproto "github.com/mobiledgex/edge-cloud/edgeproto"
-import "strings"
-import "github.com/mobiledgex/edge-cloud-infra/mc/ormapi"
-import proto "github.com/gogo/protobuf/proto"
-import fmt "fmt"
-import math "math"
-import _ "github.com/gogo/googleapis/google/api"
-import _ "github.com/mobiledgex/edge-cloud/protogen"
-import _ "github.com/gogo/protobuf/gogoproto"
+import (
+	fmt "fmt"
+	_ "github.com/gogo/googleapis/google/api"
+	_ "github.com/gogo/protobuf/gogoproto"
+	proto "github.com/gogo/protobuf/proto"
+	"github.com/mobiledgex/edge-cloud-infra/mc/ormapi"
+	_ "github.com/mobiledgex/edge-cloud/d-match-engine/dme-proto"
+	edgeproto "github.com/mobiledgex/edge-cloud/edgeproto"
+	_ "github.com/mobiledgex/edge-cloud/protogen"
+	math "math"
+	"strings"
+)
 
 // Reference imports to suppress errors if they are not otherwise used.
 var _ = proto.Marshal
@@ -23,7 +26,7 @@ var _ = math.Inf
 func (s *Client) CreateCloudletPool(uri, token string, in *ormapi.RegionCloudletPool) (*edgeproto.Result, int, error) {
 	args := []string{"region", "CreateCloudletPool"}
 	out := edgeproto.Result{}
-	noconfig := strings.Split("Members", ",")
+	noconfig := strings.Split("Members,CreatedAt,UpdatedAt", ",")
 	st, err := s.runObjs(uri, token, args, in, &out, withIgnore(noconfig))
 	if err != nil {
 		return nil, st, err
@@ -34,7 +37,7 @@ func (s *Client) CreateCloudletPool(uri, token string, in *ormapi.RegionCloudlet
 func (s *Client) DeleteCloudletPool(uri, token string, in *ormapi.RegionCloudletPool) (*edgeproto.Result, int, error) {
 	args := []string{"region", "DeleteCloudletPool"}
 	out := edgeproto.Result{}
-	noconfig := strings.Split("Members", ",")
+	noconfig := strings.Split("Members,CreatedAt,UpdatedAt", ",")
 	st, err := s.runObjs(uri, token, args, in, &out, withIgnore(noconfig))
 	if err != nil {
 		return nil, st, err
@@ -45,7 +48,7 @@ func (s *Client) DeleteCloudletPool(uri, token string, in *ormapi.RegionCloudlet
 func (s *Client) UpdateCloudletPool(uri, token string, in *ormapi.RegionCloudletPool) (*edgeproto.Result, int, error) {
 	args := []string{"region", "UpdateCloudletPool"}
 	out := edgeproto.Result{}
-	noconfig := strings.Split("Members", ",")
+	noconfig := strings.Split("Members,CreatedAt,UpdatedAt", ",")
 	st, err := s.runObjs(uri, token, args, in, &out, withIgnore(noconfig))
 	if err != nil {
 		return nil, st, err
@@ -56,7 +59,7 @@ func (s *Client) UpdateCloudletPool(uri, token string, in *ormapi.RegionCloudlet
 func (s *Client) ShowCloudletPool(uri, token string, in *ormapi.RegionCloudletPool) ([]edgeproto.CloudletPool, int, error) {
 	args := []string{"region", "ShowCloudletPool"}
 	outlist := []edgeproto.CloudletPool{}
-	noconfig := strings.Split("Members", ",")
+	noconfig := strings.Split("Members,CreatedAt,UpdatedAt", ",")
 	ops := []runOp{
 		withIgnore(noconfig),
 	}

@@ -61,8 +61,8 @@ spec:
             fi
 
             exec etcd --name ${HOSTNAME} \
-              --auto-compaction-retention 24 \
-              --quota-backend-bytes {{ '100 MB'|human_to_bytes }} \
+              --auto-compaction-retention {{ etcd_auto_compaction_retention }} \
+              --quota-backend-bytes {{ etcd_quota_backend | human_to_bytes }} \
               --listen-peer-urls http://${IP}:2380 \
               --listen-client-urls http://${IP}:2379,http://127.0.0.1:2379 \
               --advertise-client-urls http://${HOSTNAME}.${SET_NAME}:2379 \

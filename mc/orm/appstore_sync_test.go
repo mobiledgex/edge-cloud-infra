@@ -131,15 +131,16 @@ func TestAppStoreApi(t *testing.T) {
 	uri := "http://" + addr + "/api/v1"
 
 	config := ServerConfig{
-		ServAddr:        addr,
-		SqlAddr:         "127.0.0.1:5445",
-		RunLocal:        true,
-		InitLocal:       true,
-		IgnoreEnv:       true,
-		ArtifactoryAddr: artifactoryAddr,
-		GitlabAddr:      gitlabAddr,
-		SkipVerifyEmail: true,
-		LocalVault:      true,
+		ServAddr:                addr,
+		SqlAddr:                 "127.0.0.1:5445",
+		RunLocal:                true,
+		InitLocal:               true,
+		IgnoreEnv:               true,
+		ArtifactoryAddr:         artifactoryAddr,
+		GitlabAddr:              gitlabAddr,
+		SkipVerifyEmail:         true,
+		LocalVault:              true,
+		UsageCheckpointInterval: "MONTH",
 	}
 
 	server, err := RunServer(&config)
@@ -159,7 +160,7 @@ func TestAppStoreApi(t *testing.T) {
 	mcClient := &ormclient.Client{}
 
 	// login as super user
-	tokenAdmin, err := mcClient.DoLogin(uri, DefaultSuperuser, DefaultSuperpass)
+	tokenAdmin, err := mcClient.DoLogin(uri, DefaultSuperuser, DefaultSuperpass, NoOTP)
 	require.Nil(t, err, "login as superuser")
 
 	// Before Artifactory/Gitlab are hooked into mock, create "missing" data
@@ -274,14 +275,14 @@ func mcClientCreate(t *testing.T, v entry, mcClient *ormclient.Client, uri strin
 	token := ""
 	for user, userType := range v.Users {
 		if userType == RoleDeveloperManager || userType == RoleOperatorManager {
-			_, token = testCreateUser(t, mcClient, uri, user)
+			_, token, _ = testCreateUser(t, mcClient, uri, user)
 			testCreateOrg(t, mcClient, uri, token, v.OrgType, v.Org)
 			break
 		}
 	}
 	for user, userType := range v.Users {
 		if userType != RoleDeveloperManager && userType != RoleOperatorManager {
-			worker, _ := testCreateUser(t, mcClient, uri, user)
+			worker, _, _ := testCreateUser(t, mcClient, uri, user)
 			testAddUserRole(t, mcClient, uri, token, v.Org, userType, worker.Name, Success)
 		}
 	}

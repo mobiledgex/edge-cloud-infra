@@ -12,6 +12,7 @@ import (
 	"github.com/mobiledgex/edge-cloud/cloudcommon"
 	"github.com/mobiledgex/edge-cloud/edgeproto"
 	"github.com/mobiledgex/edge-cloud/log"
+	"github.com/mobiledgex/edge-cloud/vault"
 )
 
 var clusterLock sync.Mutex
@@ -19,7 +20,7 @@ var appLock sync.Mutex
 
 const govcLocation = "https://github.com/vmware/govmomi/tree/master/govc"
 
-func (v *VSpherePlatform) SaveCloudletAccessVars(ctx context.Context, cloudlet *edgeproto.Cloudlet, accessVarsIn map[string]string, pfConfig *edgeproto.PlatformConfig, updateCallback edgeproto.CacheUpdateCallback) error {
+func (v *VSpherePlatform) SaveCloudletAccessVars(ctx context.Context, cloudlet *edgeproto.Cloudlet, accessVarsIn map[string]string, pfConfig *edgeproto.PlatformConfig, vaultConfig *vault.Config, updateCallback edgeproto.CacheUpdateCallback) error {
 	return fmt.Errorf("SaveCloudletAccessVars not implemented for vsphere")
 }
 
@@ -30,7 +31,7 @@ func (v *VSpherePlatform) GetCloudletImageSuffix(ctx context.Context) string {
 //CreateImageFromUrl downloads image from URL and then imports to the datastore
 func (v *VSpherePlatform) CreateImageFromUrl(ctx context.Context, imageName, imageUrl, md5Sum string) error {
 
-	filePath, err := vmlayer.DownloadVMImage(ctx, v.vmProperties.CommonPf.VaultConfig, imageName, imageUrl, md5Sum)
+	filePath, err := vmlayer.DownloadVMImage(ctx, v.vmProperties.CommonPf.PlatformConfig.AccessApi, imageName, imageUrl, md5Sum)
 	if err != nil {
 		return err
 	}
@@ -69,7 +70,7 @@ func (v *VSpherePlatform) AddCloudletImageIfNotPresent(ctx context.Context, imgP
 		log.SpanLog(ctx, log.DebugLevelInfra, "template not present", "pfImageName", pfImageName, "err", err)
 
 		// Validate if pfImageName is same as we expected
-		_, md5Sum, err := infracommon.GetUrlInfo(ctx, v.vmProperties.CommonPf.VaultConfig, imgPath)
+		_, md5Sum, err := infracommon.GetUrlInfo(ctx, v.vmProperties.CommonPf.PlatformConfig.AccessApi, imgPath)
 		if err != nil {
 			return "", err
 		}
@@ -165,6 +166,10 @@ func (v *VSpherePlatform) GetApiEndpointAddr(ctx context.Context) (string, error
 	return vcaddr, nil
 }
 
+func (o *VSpherePlatform) GetSessionTokens(ctx context.Context, vaultConfig *vault.Config, account string) (map[string]string, error) {
+	return nil, fmt.Errorf("GetSessionTokens not supported in VSpherePlatform")
+}
+
 // GetCloudletManifest follows the standard practice for vSphere to use OVF for this purpose.  We store the OVF
 // in artifactory along with with the vmdk formatted disk.  No customization is needed per cloudlet as the OVF
 // import tool will prompt for datastore and portgroup.
@@ -190,7 +195,7 @@ func (v *VSpherePlatform) GetCloudletManifest(ctx context.Context, name string, 
 	manifest.AddSubItem(fmt.Sprintf("Update port group when prompted to: %s", v.GetExternalVSwitch()), infracommon.ManifestTypeNone, infracommon.ManifestSubTypeNone, "")
 	manifest.AddItem("Ensure govc is installed on a machine with access to the vCenter APIs as per the following link", infracommon.ManifestTypeURL, infracommon.ManifestSubTypeNone, govcLocation)
 	manifest.AddItem("Download the deployment script to where govc is installed and name it deploy.sh", infracommon.ManifestTypeCode, infracommon.ManifestSubTypeBash, scriptText)
-	manifest.AddItem("Execute the downloaded script", infracommon.ManifestTypeCommand, infracommon.ManifestSubTypeNone, "bash deploy.sh")
+	manifest.AddItem("Execute the downloaded script providing the Platform VM IP address as a parameter", infracommon.ManifestTypeCommand, infracommon.ManifestSubTypeNone, "bash deploy.sh <PLATFORM_IP>")
 
 	// for testing, write the script and text to /tmp
 	if v.vmProperties.CommonPf.PlatformConfig.TestMode {

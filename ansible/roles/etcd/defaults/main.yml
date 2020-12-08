@@ -1,3 +1,5 @@
 etcd_volume_storage_class: managed-premium
 etcd_backup_size: 500Mi
 etcd_version: v3.2.3
+etcd_quota_backend: 100 MB
+etcd_auto_compaction_retention: 24 # hours

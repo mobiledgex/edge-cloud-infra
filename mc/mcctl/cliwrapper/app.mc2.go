@@ -3,15 +3,18 @@
 
 package cliwrapper
 
-import edgeproto "github.com/mobiledgex/edge-cloud/edgeproto"
-import "strings"
-import "github.com/mobiledgex/edge-cloud-infra/mc/ormapi"
-import proto "github.com/gogo/protobuf/proto"
-import fmt "fmt"
-import math "math"
-import _ "github.com/gogo/googleapis/google/api"
-import _ "github.com/mobiledgex/edge-cloud/protogen"
-import _ "github.com/gogo/protobuf/gogoproto"
+import (
+	fmt "fmt"
+	_ "github.com/gogo/googleapis/google/api"
+	_ "github.com/gogo/protobuf/gogoproto"
+	proto "github.com/gogo/protobuf/proto"
+	"github.com/mobiledgex/edge-cloud-infra/mc/ormapi"
+	_ "github.com/mobiledgex/edge-cloud/d-match-engine/dme-proto"
+	edgeproto "github.com/mobiledgex/edge-cloud/edgeproto"
+	_ "github.com/mobiledgex/edge-cloud/protogen"
+	math "math"
+	"strings"
+)
 
 // Reference imports to suppress errors if they are not otherwise used.
 var _ = proto.Marshal
@@ -23,7 +26,7 @@ var _ = math.Inf
 func (s *Client) CreateApp(uri, token string, in *ormapi.RegionApp) (*edgeproto.Result, int, error) {
 	args := []string{"region", "CreateApp"}
 	out := edgeproto.Result{}
-	noconfig := strings.Split("DeletePrepare", ",")
+	noconfig := strings.Split("DeletePrepare,CreatedAt,UpdatedAt,AutoProvPolicy", ",")
 	st, err := s.runObjs(uri, token, args, in, &out, withIgnore(noconfig))
 	if err != nil {
 		return nil, st, err
@@ -34,7 +37,7 @@ func (s *Client) CreateApp(uri, token string, in *ormapi.RegionApp) (*edgeproto.
 func (s *Client) DeleteApp(uri, token string, in *ormapi.RegionApp) (*edgeproto.Result, int, error) {
 	args := []string{"region", "DeleteApp"}
 	out := edgeproto.Result{}
-	noconfig := strings.Split("DeletePrepare", ",")
+	noconfig := strings.Split("DeletePrepare,CreatedAt,UpdatedAt,AutoProvPolicy", ",")
 	st, err := s.runObjs(uri, token, args, in, &out, withIgnore(noconfig))
 	if err != nil {
 		return nil, st, err
@@ -45,7 +48,7 @@ func (s *Client) DeleteApp(uri, token string, in *ormapi.RegionApp) (*edgeproto.
 func (s *Client) UpdateApp(uri, token string, in *ormapi.RegionApp) (*edgeproto.Result, int, error) {
 	args := []string{"region", "UpdateApp"}
 	out := edgeproto.Result{}
-	noconfig := strings.Split("DeletePrepare,Deployment,DeploymentGenerator", ",")
+	noconfig := strings.Split("DeletePrepare,CreatedAt,UpdatedAt,AutoProvPolicy", ",")
 	st, err := s.runObjs(uri, token, args, in, &out, withIgnore(noconfig))
 	if err != nil {
 		return nil, st, err
@@ -56,7 +59,7 @@ func (s *Client) UpdateApp(uri, token string, in *ormapi.RegionApp) (*edgeproto.
 func (s *Client) ShowApp(uri, token string, in *ormapi.RegionApp) ([]edgeproto.App, int, error) {
 	args := []string{"region", "ShowApp"}
 	outlist := []edgeproto.App{}
-	noconfig := strings.Split("DeletePrepare", ",")
+	noconfig := strings.Split("DeletePrepare,CreatedAt,UpdatedAt,AutoProvPolicy", ",")
 	ops := []runOp{
 		withIgnore(noconfig),
 	}

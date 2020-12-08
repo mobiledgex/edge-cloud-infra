@@ -3,16 +3,19 @@
 
 package ormctl
 
-import edgeproto "github.com/mobiledgex/edge-cloud/edgeproto"
-import "strings"
-import "github.com/mobiledgex/edge-cloud-infra/mc/ormapi"
-import "github.com/mobiledgex/edge-cloud/cli"
-import proto "github.com/gogo/protobuf/proto"
-import fmt "fmt"
-import math "math"
-import _ "github.com/gogo/googleapis/google/api"
-import _ "github.com/mobiledgex/edge-cloud/protogen"
-import _ "github.com/gogo/protobuf/gogoproto"
+import (
+	fmt "fmt"
+	_ "github.com/gogo/googleapis/google/api"
+	_ "github.com/gogo/protobuf/gogoproto"
+	proto "github.com/gogo/protobuf/proto"
+	"github.com/mobiledgex/edge-cloud-infra/mc/ormapi"
+	"github.com/mobiledgex/edge-cloud/cli"
+	_ "github.com/mobiledgex/edge-cloud/d-match-engine/dme-proto"
+	edgeproto "github.com/mobiledgex/edge-cloud/edgeproto"
+	_ "github.com/mobiledgex/edge-cloud/protogen"
+	math "math"
+	"strings"
+)
 
 // Reference imports to suppress errors if they are not otherwise used.
 var _ = proto.Marshal
@@ -47,8 +50,8 @@ var DeleteAppCmd = &cli.Command{
 
 var UpdateAppCmd = &cli.Command{
 	Use:          "UpdateApp",
-	RequiredArgs: "region " + strings.Join(UpdateAppRequiredArgs, " "),
-	OptionalArgs: strings.Join(UpdateAppOptionalArgs, " "),
+	RequiredArgs: "region " + strings.Join(AppRequiredArgs, " "),
+	OptionalArgs: strings.Join(AppOptionalArgs, " "),
 	AliasArgs:    strings.Join(AppAliasArgs, " "),
 	SpecialArgs:  &AppSpecialArgs,
 	Comments:     addRegionComment(AppComments),
@@ -125,37 +128,6 @@ var AppApiCmds = []*cli.Command{
 	RemoveAppAutoProvPolicyCmd,
 }
 
-var UpdateAppRequiredArgs = []string{
-	"app-org",
-	"appname",
-	"appvers",
-}
-var UpdateAppOptionalArgs = []string{
-	"imagepath",
-	"imagetype",
-	"accessports",
-	"defaultflavor",
-	"authpublickey",
-	"command",
-	"annotations",
-	"deploymentmanifest",
-	"androidpackagename",
-	"delopt",
-	"configs:#.kind",
-	"configs:#.config",
-	"scalewithcluster",
-	"internalports",
-	"revision",
-	"officialfqdn",
-	"md5sum",
-	"defaultsharedvolumesize",
-	"autoprovpolicy",
-	"accesstype",
-	"defaultprivacypolicy",
-	"autoprovpolicies",
-	"templatedelimiter",
-	"skiphcports",
-}
 var AppKeyRequiredArgs = []string{}
 var AppKeyOptionalArgs = []string{
 	"organization",
@@ -213,7 +185,6 @@ var AppOptionalArgs = []string{
 	"officialfqdn",
 	"md5sum",
 	"defaultsharedvolumesize",
-	"autoprovpolicy",
 	"accesstype",
 	"defaultprivacypolicy",
 	"autoprovpolicies",
@@ -252,6 +223,10 @@ var AppAliasArgs = []string{
 	"autoprovpolicies=app.autoprovpolicies",
 	"templatedelimiter=app.templatedelimiter",
 	"skiphcports=app.skiphcports",
+	"createdat.seconds=app.createdat.seconds",
+	"createdat.nanos=app.createdat.nanos",
+	"updatedat.seconds=app.updatedat.seconds",
+	"updatedat.nanos=app.updatedat.nanos",
 }
 var AppComments = map[string]string{
 	"fields":                  "Fields are used for the Update API to specify which fields to apply",
@@ -282,7 +257,7 @@ var AppComments = map[string]string{
 	"accesstype":              "Access type, one of AccessTypeDefaultForDeployment, AccessTypeDirect, AccessTypeLoadBalancer",
 	"defaultprivacypolicy":    "Privacy policy when creating auto cluster",
 	"deleteprepare":           "Preparing to be deleted",
-	"autoprovpolicies":        "Auto provisioning policy names",
+	"autoprovpolicies":        "Auto provisioning policy names, may be specified multiple times",
 	"templatedelimiter":       "Delimiter to be used for template parsing, defaults to [[ ]]",
 	"skiphcports":             "Comma separated list of protocol:port pairs that we should not run health check on Should be configured in case app does not always listen on these ports all can be specified if no health check to be run for this app Numerical values must be decimal format. i.e. tcp:80,udp:10002,http:443",
 }

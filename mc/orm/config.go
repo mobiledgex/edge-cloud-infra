@@ -9,9 +9,14 @@ import (
 	"github.com/mobiledgex/edge-cloud/log"
 )
 
+// Password crack times are estimates of how long it would take to brute
+// force crack the password offline.
 var defaultConfig = ormapi.Config{
-	ID:                 1,
-	NotifyEmailAddress: "support@mobiledgex.com",
+	ID:                           1,
+	NotifyEmailAddress:           "support@mobiledgex.com",
+	PasswordMinCrackTimeSec:      30 * 86400,      // 30 days
+	AdminPasswordMinCrackTimeSec: 2 * 365 * 86400, // 2 years
+	MaxMetricsDataPoints:         10000,
 }
 
 func InitConfig(ctx context.Context) error {
@@ -23,6 +28,28 @@ func InitConfig(ctx context.Context) error {
 	err := db.FirstOrCreate(&config, &ormapi.Config{ID: config.ID}).Error
 	if err != nil {
 		return err
+	}
+
+	err = db.First(&config).Error
+	if err != nil {
+		return err
+	}
+	// set password min times if not set
+	if config.PasswordMinCrackTimeSec == 0 && config.AdminPasswordMinCrackTimeSec == 0 {
+		config.PasswordMinCrackTimeSec = defaultConfig.PasswordMinCrackTimeSec
+		config.AdminPasswordMinCrackTimeSec = defaultConfig.AdminPasswordMinCrackTimeSec
+		err = db.Save(&config).Error
+		if err != nil {
+			return err
+		}
+	}
+	// set influxDB data points max number if not set
+	if config.MaxMetricsDataPoints == 0 {
+		config.MaxMetricsDataPoints = defaultConfig.MaxMetricsDataPoints
+		err = db.Save(&config).Error
+		if err != nil {
+			return err
+		}
 	}
 	log.SpanLog(ctx, log.DebugLevelApi, "using config", "config", config)
 	return nil
@@ -41,12 +68,23 @@ func UpdateConfig(c echo.Context) error {
 	if err != nil {
 		return err
 	}
+	oldConfig := *config
 	// calling bind after doing lookup will overwrite only the
 	// fields specified in the request body, keeping existing fields intact.
 	if err := c.Bind(&config); err != nil {
 		return bindErr(c, err)
 	}
 	config.ID = defaultConfig.ID
+
+	if config.AdminPasswordMinCrackTimeSec < config.PasswordMinCrackTimeSec {
+		return c.JSON(http.StatusBadRequest, Msg("admin password min crack time must be greater than password min crack time"))
+	}
+	if config.AdminPasswordMinCrackTimeSec != oldConfig.AdminPasswordMinCrackTimeSec || config.PasswordMinCrackTimeSec != oldConfig.PasswordMinCrackTimeSec {
+		err = resetUserPasswordCrackTimes(ctx)
+		if err != nil {
+			return err
+		}
+	}
 
 	db := loggedDB(ctx)
 	err = db.Save(&config).Error
@@ -68,6 +106,10 @@ func ResetConfig(c echo.Context) error {
 	config := defaultConfig
 	db := loggedDB(ctx)
 	err = db.Save(&config).Error
+	if err != nil {
+		return err
+	}
+	err = resetUserPasswordCrackTimes(ctx)
 	if err != nil {
 		return err
 	}
@@ -99,4 +141,27 @@ func getConfig(ctx context.Context) (*ormapi.Config, error) {
 	err := db.First(&config).Error
 	// note: should always exist
 	return &config, err
+}
+
+// this should be called if the password crack time configuration changed
+func resetUserPasswordCrackTimes(ctx context.Context) error {
+	log.SpanLog(ctx, log.DebugLevelInfo, "reset user password crack times")
+	// this resets PassCrackTimeSec values to 0 for all users
+	db := loggedDB(ctx)
+	res := db.Model(&ormapi.User{}).Where("pass_crack_time_sec > ?", 0).Update("pass_crack_time_sec", 0)
+	return res.Error
+}
+
+// PubliConfig gets configuration that the UI needs to make the behavior of the
+// UI consistent with the behavior of the back-end. This is an un-authenticated
+// API so only that which is needed should be revealed.
+func PublicConfig(c echo.Context) error {
+	ctx := GetContext(c)
+	config, err := getConfig(ctx)
+	if err != nil {
+		return err
+	}
+	publicConfig := &ormapi.Config{}
+	publicConfig.PasswordMinCrackTimeSec = config.PasswordMinCrackTimeSec
+	return c.JSON(http.StatusOK, publicConfig)
 }

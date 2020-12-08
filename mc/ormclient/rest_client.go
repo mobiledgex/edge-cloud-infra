@@ -8,6 +8,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"io/ioutil"
 	"net/http"
 	"reflect"
 	"strings"
@@ -23,13 +24,13 @@ import (
 type Client struct {
 	SkipVerify bool
 	Debug      bool
-	McProxy    bool
 }
 
-func (s *Client) DoLogin(uri, user, pass string) (string, error) {
+func (s *Client) DoLogin(uri, user, pass, otp string) (string, error) {
 	login := ormapi.UserLogin{
 		Username: user,
 		Password: pass,
+		TOTP:     otp,
 	}
 	result := make(map[string]interface{})
 	status, err := s.PostJson(uri+"/login", "", &login, &result)
@@ -50,18 +51,33 @@ func (s *Client) DoLogin(uri, user, pass string) (string, error) {
 	return token, nil
 }
 
-func (s *Client) CreateUser(uri string, user *ormapi.User) (int, error) {
-	return s.PostJson(uri+"/usercreate", "", user, nil)
+func (s *Client) CreateUser(uri string, user *ormapi.User) (*ormapi.UserResponse, int, error) {
+	resp := ormapi.UserResponse{}
+	st, err := s.PostJson(uri+"/usercreate", "", user, &resp)
+	return &resp, st, err
 }
 
 func (s *Client) DeleteUser(uri, token string, user *ormapi.User) (int, error) {
 	return s.PostJson(uri+"/auth/user/delete", token, user, nil)
 }
 
+func (s *Client) UpdateUser(uri, token string, createUserJSON string) (*ormapi.UserResponse, int, error) {
+	resp := ormapi.UserResponse{}
+	st, err := s.PostJson(uri+"/auth/user/update", token, createUserJSON, &resp)
+	return &resp, st, err
+}
+
 func (s *Client) ShowUser(uri, token string, org *ormapi.Organization) ([]ormapi.User, int, error) {
 	users := []ormapi.User{}
 	status, err := s.PostJson(uri+"/auth/user/show", token, org, &users)
 	return users, status, err
+}
+
+func (s *Client) NewPassword(uri, token, password string) (int, error) {
+	newpw := ormapi.NewPassword{
+		Password: password,
+	}
+	return s.PostJson(uri+"/auth/user/newpass", token, newpw, nil)
 }
 
 func (s *Client) CreateController(uri, token string, ctrl *ormapi.Controller) (int, error) {
@@ -222,6 +238,12 @@ func (s *Client) ShowConfig(uri, token string) (*ormapi.Config, int, error) {
 	return &config, status, err
 }
 
+func (s *Client) PublicConfig(uri string) (*ormapi.Config, int, error) {
+	config := ormapi.Config{}
+	status, err := s.PostJson(uri+"/publicconfig", "", nil, &config)
+	return &config, status, err
+}
+
 func (s *Client) RestrictedUserUpdate(uri, token string, user map[string]interface{}) (int, error) {
 	return s.PostJson(uri+"/auth/restricted/user/update", token, user, nil)
 }
@@ -297,6 +319,24 @@ func (s *Client) ShowCloudletEvents(uri, token string, query *ormapi.RegionCloud
 	return &metrics, status, err
 }
 
+func (s *Client) ShowAppUsage(uri, token string, query *ormapi.RegionAppInstUsage) (*ormapi.AllMetrics, int, error) {
+	usage := ormapi.AllMetrics{}
+	status, err := s.PostJson(uri+"auth/usage/app", token, query, &usage)
+	return &usage, status, err
+}
+
+func (s *Client) ShowClusterUsage(uri, token string, query *ormapi.RegionClusterInstUsage) (*ormapi.AllMetrics, int, error) {
+	usage := ormapi.AllMetrics{}
+	status, err := s.PostJson(uri+"auth/usage/cluster", token, query, &usage)
+	return &usage, status, err
+}
+
+func (s *Client) ShowCloudletPoolUsage(uri, token string, query *ormapi.RegionCloudletPoolUsage) (*ormapi.AllMetrics, int, error) {
+	usage := ormapi.AllMetrics{}
+	status, err := s.PostJson(uri+"auth/usage/cloudletpool", token, query, &usage)
+	return &usage, status, err
+}
+
 func (s *Client) PostJsonSend(uri, token string, reqData interface{}) (*http.Response, error) {
 	var body io.Reader
 	var datastr string
@@ -366,10 +406,15 @@ func (s *Client) PostJson(uri, token string, reqData interface{}, replyData inte
 		}
 	}
 	if resp.StatusCode != http.StatusOK {
-		res := ormapi.Result{}
-		err = json.NewDecoder(resp.Body).Decode(&res)
+		body, err := ioutil.ReadAll(resp.Body)
 		if err != nil {
-			return resp.StatusCode, fmt.Errorf("post %s decode result failed, %v", uri, err)
+			return resp.StatusCode, err
+		}
+		res := ormapi.Result{}
+		err = json.Unmarshal(body, &res)
+		if err != nil {
+			// string error
+			return resp.StatusCode, fmt.Errorf("%s", body)
 		}
 		return resp.StatusCode, errors.New(res.Message)
 	}
@@ -392,10 +437,15 @@ func (s *Client) handleHttpStreamOut(uri, token string, reqData, replyData inter
 	defer resp.Body.Close()
 
 	if resp.StatusCode != http.StatusOK {
-		res := ormapi.Result{}
-		err = json.NewDecoder(resp.Body).Decode(&res)
+		body, err := ioutil.ReadAll(resp.Body)
 		if err != nil {
-			return resp.StatusCode, fmt.Errorf("post %s decode result failed, %v", uri, err)
+			return resp.StatusCode, err
+		}
+		res := ormapi.Result{}
+		err = json.Unmarshal(body, &res)
+		if err != nil {
+			// string error
+			return resp.StatusCode, fmt.Errorf("%s", body)
 		}
 		return resp.StatusCode, errors.New(res.Message)
 	}
@@ -553,8 +603,8 @@ func (s *Client) DeleteAlertReceiver(uri, token string, receiver *ormapi.AlertRe
 	return s.PostJson(uri+"/auth/alertreceiver/delete", token, receiver, nil)
 }
 
-func (s *Client) ShowAlertReceiver(uri, token string) ([]ormapi.AlertReceiver, int, error) {
+func (s *Client) ShowAlertReceiver(uri, token string, in *ormapi.AlertReceiver) ([]ormapi.AlertReceiver, int, error) {
 	receivers := []ormapi.AlertReceiver{}
-	status, err := s.PostJson(uri+"/auth/alertreceiver/show", token, nil, &receivers)
+	status, err := s.PostJson(uri+"/auth/alertreceiver/show", token, in, &receivers)
 	return receivers, status, err
 }

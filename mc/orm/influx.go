@@ -24,7 +24,7 @@ var operatorInfluxDBTemplate *template.Template
 // 100 values at a time
 var queryChunkSize = 100
 
-var MaxEntriesFromInfluxDb = 2000
+var maxEntriesFromInfluxDb = 10000
 
 type InfluxDBContext struct {
 	region string
@@ -33,21 +33,23 @@ type InfluxDBContext struct {
 }
 
 type influxQueryArgs struct {
-	Selector     string
-	Measurement  string
-	AppInstName  string
-	AppVersion   string
-	ClusterName  string
-	CloudletName string
-	OrgField     string
-	ApiCallerOrg string
-	CloudletOrg  string
-	ClusterOrg   string
-	Method       string
-	CellId       string
-	StartTime    string
-	EndTime      string
-	Last         int
+	Selector       string
+	Measurement    string
+	AppInstName    string
+	AppVersion     string
+	ClusterName    string
+	CloudletName   string
+	OrgField       string
+	ApiCallerOrg   string
+	CloudletOrg    string
+	ClusterOrg     string
+	Method         string
+	CellId         string
+	StartTime      string
+	EndTime        string
+	DeploymentType string
+	Last           int
+	CloudletList   string
 }
 
 var AppSelectors = []string{
@@ -228,14 +230,15 @@ var devInfluxDBT = `SELECT {{.Selector}} from "{{.Measurement}}"` +
 	`{{if .CellId}} AND "cellID"='{{.CellId}}'{{end}}` +
 	`{{if .StartTime}} AND time >= '{{.StartTime}}'{{end}}` +
 	`{{if .EndTime}} AND time <= '{{.EndTime}}'{{end}}` +
-	`order by time desc{{if ne .Last 0}} limit {{.Last}}{{end}}`
+	`{{if .DeploymentType}} AND deployment = '{{.DeploymentType}}'{{end}}` +
+	` order by time desc{{if ne .Last 0}} limit {{.Last}}{{end}}`
 
 var operatorInfluxDBT = `SELECT {{.Selector}} from "{{.Measurement}}"` +
 	` WHERE "cloudletorg"='{{.CloudletOrg}}'` +
 	`{{if .CloudletName}} AND "cloudlet"='{{.CloudletName}}'{{end}}` +
 	`{{if .StartTime}} AND time >= '{{.StartTime}}'{{end}}` +
 	`{{if .EndTime}} AND time <= '{{.EndTime}}'{{end}}` +
-	`order by time desc{{if ne .Last 0}} limit {{.Last}}{{end}}`
+	` order by time desc{{if ne .Last 0}} limit {{.Last}}{{end}}`
 
 func init() {
 	devInfluxDBTemplate = template.Must(template.New("influxquery").Parse(devInfluxDBT))
@@ -288,7 +291,7 @@ func fillTimeAndGetCmd(q *influxQueryArgs, tmpl *template.Template, start *time.
 	}
 	// We set max number of responses we will get from InfluxDB
 	if q.Last == 0 {
-		q.Last = MaxEntriesFromInfluxDb
+		q.Last = maxEntriesFromInfluxDb
 	}
 	// now that we know all the details of the query - build it
 	buf := bytes.Buffer{}
@@ -525,7 +528,11 @@ func GetMetricsCommon(c echo.Context) error {
 	}
 	rc.claims = claims
 	ctx := GetContext(c)
-
+	// Get the current config
+	config, err := getConfig(ctx)
+	if err == nil {
+		maxEntriesFromInfluxDb = config.MaxMetricsDataPoints
+	}
 	if strings.HasSuffix(c.Path(), "metrics/app") {
 		in := ormapi.RegionAppInstMetrics{}
 		success, err := ReadConn(c, &in)

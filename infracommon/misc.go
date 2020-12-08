@@ -5,14 +5,16 @@ import (
 	"context"
 	"fmt"
 	"io/ioutil"
+	"net"
 	"os"
+	"strings"
 	"time"
 
+	"github.com/mobiledgex/edge-cloud/cloud-resource-manager/platform"
 	"github.com/mobiledgex/edge-cloud/cloudcommon"
 	"github.com/mobiledgex/edge-cloud/edgeproto"
 	"github.com/mobiledgex/edge-cloud/log"
 	"github.com/mobiledgex/edge-cloud/util"
-	"github.com/mobiledgex/edge-cloud/vault"
 	ssh "github.com/mobiledgex/golang-ssh"
 )
 
@@ -38,9 +40,16 @@ func CopyFile(src string, dst string) error {
 	return nil
 }
 
-func SeedDockerSecret(ctx context.Context, client ssh.Client, clusterInst *edgeproto.ClusterInst, imagePath string, vaultConfig *vault.Config) error {
+func SeedDockerSecret(ctx context.Context, client ssh.Client, clusterInst *edgeproto.ClusterInst, imagePath string, accessApi platform.AccessApi) error {
 	log.SpanLog(ctx, log.DebugLevelInfra, "seed docker secret", "imagepath", imagePath)
 
+	if !strings.Contains(imagePath, "/") {
+		// docker-compose or zip type apps may have public images with no path which cannot be
+		// parsed as a url.  Allow these to proceed without a secret.  They won't have dockerhub as
+		// the host because the path is embedded within the compose or zipfile
+		log.SpanLog(ctx, log.DebugLevelInfra, "no secret seeded for app without hostname")
+		return nil
+	}
 	urlObj, err := util.ImagePathParse(imagePath)
 	if err != nil {
 		return fmt.Errorf("Cannot parse image path: %s - %v", imagePath, err)
@@ -49,7 +58,7 @@ func SeedDockerSecret(ctx context.Context, client ssh.Client, clusterInst *edgep
 		log.SpanLog(ctx, log.DebugLevelInfra, "no secret needed for public image")
 		return nil
 	}
-	auth, err := cloudcommon.GetRegistryAuth(ctx, imagePath, vaultConfig)
+	auth, err := accessApi.GetRegistryAuth(ctx, imagePath)
 	if err != nil {
 		log.SpanLog(ctx, log.DebugLevelInfra, "warning, cannot get docker registry secret from vault - assume public registry", "err", err)
 		return nil
@@ -94,4 +103,13 @@ func WriteTemplateFile(filename string, buf *bytes.Buffer) error {
 	outFile.Sync()
 	outFile.Close()
 	return nil
+}
+
+func IncrIP(ip net.IP) {
+	for j := len(ip) - 1; j >= 0; j-- {
+		ip[j]++
+		if ip[j] > 0 {
+			break
+		}
+	}
 }

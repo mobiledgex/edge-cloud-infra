@@ -3,18 +3,21 @@
 
 package orm
 
-import edgeproto "github.com/mobiledgex/edge-cloud/edgeproto"
-import "github.com/labstack/echo"
-import "context"
-import "io"
-import "github.com/mobiledgex/edge-cloud/log"
-import "github.com/mobiledgex/edge-cloud-infra/mc/ormapi"
-import proto "github.com/gogo/protobuf/proto"
-import fmt "fmt"
-import math "math"
-import _ "github.com/gogo/googleapis/google/api"
-import _ "github.com/mobiledgex/edge-cloud/protogen"
-import _ "github.com/gogo/protobuf/gogoproto"
+import (
+	"context"
+	fmt "fmt"
+	_ "github.com/gogo/googleapis/google/api"
+	_ "github.com/gogo/protobuf/gogoproto"
+	proto "github.com/gogo/protobuf/proto"
+	"github.com/labstack/echo"
+	"github.com/mobiledgex/edge-cloud-infra/mc/ormapi"
+	_ "github.com/mobiledgex/edge-cloud/d-match-engine/dme-proto"
+	edgeproto "github.com/mobiledgex/edge-cloud/edgeproto"
+	"github.com/mobiledgex/edge-cloud/log"
+	_ "github.com/mobiledgex/edge-cloud/protogen"
+	"io"
+	math "math"
+)
 
 // Reference imports to suppress errors if they are not otherwise used.
 var _ = proto.Marshal
@@ -22,60 +25,6 @@ var _ = fmt.Errorf
 var _ = math.Inf
 
 // Auto-generated code: DO NOT EDIT
-
-var streamClusterInst = &StreamObj{}
-
-func StreamClusterInst(c echo.Context) error {
-	ctx := GetContext(c)
-	rc := &RegionContext{}
-	claims, err := getClaims(c)
-	if err != nil {
-		return err
-	}
-	rc.username = claims.Username
-
-	in := ormapi.RegionClusterInst{}
-	success, err := ReadConn(c, &in)
-	if !success {
-		return err
-	}
-	rc.region = in.Region
-	span := log.SpanFromContext(ctx)
-	span.SetTag("region", in.Region)
-	log.SetTags(span, in.ClusterInst.GetKey().GetTags())
-	span.SetTag("org", in.ClusterInst.Key.Organization)
-
-	streamer := streamClusterInst.Get(in.ClusterInst.Key)
-	if streamer != nil {
-		payload := ormapi.StreamPayload{}
-		streamCh := streamer.Subscribe()
-		serverClosed := make(chan bool)
-		go func() {
-			for streamMsg := range streamCh {
-				switch out := streamMsg.(type) {
-				case string:
-					payload.Data = &edgeproto.Result{Message: out}
-					WriteStream(c, &payload)
-				case error:
-					WriteError(c, out)
-				default:
-					WriteError(c, fmt.Errorf("Unsupported message type received: %v", streamMsg))
-				}
-			}
-			CloseConn(c)
-			serverClosed <- true
-		}()
-		// Wait for client/server to close
-		// * Server closure is set via above serverClosed flag
-		// * Client closure is sent from client via a message
-		WaitForConnClose(c, serverClosed)
-		streamer.Unsubscribe(streamCh)
-	} else {
-		WriteError(c, fmt.Errorf("Key doesn't exist"))
-		CloseConn(c)
-	}
-	return nil
-}
 
 func CreateClusterInst(c echo.Context) error {
 	ctx := GetContext(c)
@@ -98,26 +47,13 @@ func CreateClusterInst(c echo.Context) error {
 	log.SetTags(span, in.ClusterInst.GetKey().GetTags())
 	span.SetTag("org", in.ClusterInst.Key.Organization)
 
-	streamer := NewStreamer()
-	defer streamer.Stop()
-	streamAdded := false
-
 	err = CreateClusterInstStream(ctx, rc, &in.ClusterInst, func(res *edgeproto.Result) {
-		if !streamAdded {
-			streamClusterInst.Add(in.ClusterInst.Key, streamer)
-			streamAdded = true
-		}
 		payload := ormapi.StreamPayload{}
 		payload.Data = res
-		streamer.Publish(res.Message)
 		WriteStream(c, &payload)
 	})
 	if err != nil {
-		streamer.Publish(err)
 		WriteError(c, err)
-	}
-	if streamAdded {
-		streamClusterInst.Remove(in.ClusterInst.Key, streamer)
 	}
 	return nil
 }
@@ -189,26 +125,13 @@ func DeleteClusterInst(c echo.Context) error {
 	log.SetTags(span, in.ClusterInst.GetKey().GetTags())
 	span.SetTag("org", in.ClusterInst.Key.Organization)
 
-	streamer := NewStreamer()
-	defer streamer.Stop()
-	streamAdded := false
-
 	err = DeleteClusterInstStream(ctx, rc, &in.ClusterInst, func(res *edgeproto.Result) {
-		if !streamAdded {
-			streamClusterInst.Add(in.ClusterInst.Key, streamer)
-			streamAdded = true
-		}
 		payload := ormapi.StreamPayload{}
 		payload.Data = res
-		streamer.Publish(res.Message)
 		WriteStream(c, &payload)
 	})
 	if err != nil {
-		streamer.Publish(err)
 		WriteError(c, err)
-	}
-	if streamAdded {
-		streamClusterInst.Remove(in.ClusterInst.Key, streamer)
 	}
 	return nil
 }
@@ -280,26 +203,13 @@ func UpdateClusterInst(c echo.Context) error {
 	log.SetTags(span, in.ClusterInst.GetKey().GetTags())
 	span.SetTag("org", in.ClusterInst.Key.Organization)
 
-	streamer := NewStreamer()
-	defer streamer.Stop()
-	streamAdded := false
-
 	err = UpdateClusterInstStream(ctx, rc, &in.ClusterInst, func(res *edgeproto.Result) {
-		if !streamAdded {
-			streamClusterInst.Add(in.ClusterInst.Key, streamer)
-			streamAdded = true
-		}
 		payload := ormapi.StreamPayload{}
 		payload.Data = res
-		streamer.Publish(res.Message)
 		WriteStream(c, &payload)
 	})
 	if err != nil {
-		streamer.Publish(err)
 		WriteError(c, err)
-	}
-	if streamAdded {
-		streamClusterInst.Remove(in.ClusterInst.Key, streamer)
 	}
 	return nil
 }

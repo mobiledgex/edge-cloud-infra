@@ -34,8 +34,8 @@ func (s *Platform) Init(ctx context.Context, platformConfig *platform.PlatformCo
 	return s.Platform.Init(ctx, platformConfig, caches, updateCallback)
 }
 
-func (s *Platform) CreateCloudlet(ctx context.Context, cloudlet *edgeproto.Cloudlet, pfConfig *edgeproto.PlatformConfig, flavor *edgeproto.Flavor, caches *pf.Caches, updateCallback edgeproto.CacheUpdateCallback) error {
-	err := s.Platform.CreateCloudlet(ctx, cloudlet, pfConfig, flavor, nil, updateCallback)
+func (s *Platform) CreateCloudlet(ctx context.Context, cloudlet *edgeproto.Cloudlet, pfConfig *edgeproto.PlatformConfig, flavor *edgeproto.Flavor, caches *pf.Caches, accessApi platform.AccessApi, updateCallback edgeproto.CacheUpdateCallback) error {
+	err := s.Platform.CreateCloudlet(ctx, cloudlet, pfConfig, flavor, caches, accessApi, updateCallback)
 	if err != nil {
 		return err
 	}
@@ -45,8 +45,8 @@ func (s *Platform) CreateCloudlet(ctx context.Context, cloudlet *edgeproto.Cloud
 	return CloudletPrometheusStartup(ctx, cloudlet, pfConfig, caches, updateCallback)
 }
 
-func (s *Platform) DeleteCloudlet(ctx context.Context, cloudlet *edgeproto.Cloudlet, pfConfig *edgeproto.PlatformConfig, caches *pf.Caches, updateCallback edgeproto.CacheUpdateCallback) error {
-	err := s.Platform.DeleteCloudlet(ctx, cloudlet, pfConfig, caches, updateCallback)
+func (s *Platform) DeleteCloudlet(ctx context.Context, cloudlet *edgeproto.Cloudlet, pfConfig *edgeproto.PlatformConfig, caches *pf.Caches, accessApi platform.AccessApi, updateCallback edgeproto.CacheUpdateCallback) error {
+	err := s.Platform.DeleteCloudlet(ctx, cloudlet, pfConfig, caches, accessApi, updateCallback)
 	if err != nil {
 		return err
 	}
@@ -119,7 +119,7 @@ func (s *Platform) CreateAppInst(ctx context.Context, clusterInst *edgeproto.Clu
 	return nil
 }
 
-func (s *Platform) DeleteAppInst(ctx context.Context, clusterInst *edgeproto.ClusterInst, app *edgeproto.App, appInst *edgeproto.AppInst) error {
+func (s *Platform) DeleteAppInst(ctx context.Context, clusterInst *edgeproto.ClusterInst, app *edgeproto.App, appInst *edgeproto.AppInst, updateCallback edgeproto.CacheUpdateCallback) error {
 	s.mux.Lock()
 	cmd, ok := s.envoys[appInst.Key]
 	delete(s.envoys, appInst.Key)
@@ -129,6 +129,8 @@ func (s *Platform) DeleteAppInst(ctx context.Context, clusterInst *edgeproto.Clu
 		cmd.Process.Kill()
 		cmd.Process.Wait()
 	}
+	updateCallback(edgeproto.UpdateTask, "First Delete Task")
+	updateCallback(edgeproto.UpdateTask, "Second Delete Task")
 	log.SpanLog(ctx, log.DebugLevelInfra, "fake AppInst deleted")
 	return nil
 }

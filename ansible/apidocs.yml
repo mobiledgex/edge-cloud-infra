@@ -3,6 +3,10 @@
   tasks:
 
     - import_role:
+        name: vault
+        tasks_from: vault-ssh
+
+    - import_role:
         name: docker
       tags: setup
 
@@ -40,6 +44,11 @@
         account_api_token: "{{ cloudflare_account_api_token }}"
       tags: setup
 
+    - name: Load artifactory token
+      import_role:
+        name: load-vault-creds
+        tasks_from: artifactory-apidocs
+
     - include_role:
         name: apidocs
       vars:
@@ -52,6 +61,7 @@
           - apidocs/apidocs-massage.py
         swagger_gen_script_template: apidocs/swagger-gen.j2
         swagger_gen_run_once: yes
+        dme_api_host: eu-mexdemo.dme.mobiledgex.net:38001
       when: ( deploy_environ == 'mexdemo' ) or ( deploy_environ == 'prod' )
 
     - include_role:
@@ -66,6 +76,7 @@
           - apidocs/apidocs-massage.py
         swagger_gen_script_template: apidocs/swagger-gen.j2
         swagger_gen_run_once: no
+        dme_api_host: eu-stage.dme.mobiledgex.net:38001
       when: deploy_environ == 'stage'
 
 - hosts: akraino

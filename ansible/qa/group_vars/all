@@ -3,6 +3,7 @@ jaeger_endpoint: "https://{{ jaeger_hostname }}:14268/api/traces"
 console_vnc_hostname: console-qa-vnc.mobiledgex.net
 notifyroot_hostname: notifyroot-qa.mobiledgex.net
 vault_address: https://vault-qa.mobiledgex.net
+esproxy_address: https://events-qa.es.mobiledgex.net/
 vault_ha_zones:
   us: us-west2-a
   eu: europe-west3-a
@@ -10,6 +11,8 @@ vault_ha_zones:
 vault_github_teams:
   - name: edge-cloud-development-team
     policies:
+      - ssh-ansible-user.sign.v1
+      - ssh-machine.sign.v1
       - ssh-user.sign.v1
 
 vault_github_users:
@@ -34,6 +37,6 @@ crm_instances:
     operator_key: gcp
     crm_name: gcp_central
     platform: PLATFORM_TYPE_GCP
-    gcp_zone: us-central1
+    gcp_zone: us-central1-a
     controller_region: US
     notify_srv_port: 51092

@@ -1,14 +1,10 @@
 package orm
 
 import (
-	"context"
-	"crypto/tls"
 	"encoding/json"
 	"fmt"
 	"io"
-	"net"
 	"net/http"
-	"net/http/httputil"
 	"os"
 	"strings"
 	"time"
@@ -23,7 +19,6 @@ import (
 	"github.com/mobiledgex/edge-cloud-infra/mc/rbac"
 	"github.com/mobiledgex/edge-cloud/cloudcommon"
 	"github.com/mobiledgex/edge-cloud/cloudcommon/node"
-	edgecli "github.com/mobiledgex/edge-cloud/edgectl/cli"
 	edgeproto "github.com/mobiledgex/edge-cloud/edgeproto"
 	"github.com/mobiledgex/edge-cloud/integration/process"
 	"github.com/mobiledgex/edge-cloud/log"
@@ -51,42 +46,42 @@ type Server struct {
 }
 
 type ServerConfig struct {
-	ServAddr              string
-	SqlAddr               string
-	VaultAddr             string
-	ConsoleProxyAddr      string
-	RunLocal              bool
-	InitLocal             bool
-	IgnoreEnv             bool
-	ApiTlsCertFile        string
-	ApiTlsKeyFile         string
-	LocalVault            bool
-	LDAPAddr              string
-	LDAPUsername          string
-	LDAPPassword          string
-	GitlabAddr            string
-	ArtifactoryAddr       string
-	PingInterval          time.Duration
-	SkipVerifyEmail       bool
-	JaegerAddr            string
-	vaultConfig           *vault.Config
-	SkipOriginCheck       bool
-	Hostname              string
-	NotifyAddrs           string
-	NotifySrvAddr         string
-	NodeMgr               *node.NodeMgr
-	Billing               bool
-	BillingPath           string
-	AlertCache            *edgeproto.AlertCache
-	AlertMgrAddr          string
-	AlertmgrResolveTimout time.Duration
+	ServAddr                string
+	SqlAddr                 string
+	VaultAddr               string
+	RunLocal                bool
+	InitLocal               bool
+	IgnoreEnv               bool
+	ApiTlsCertFile          string
+	ApiTlsKeyFile           string
+	LocalVault              bool
+	LDAPAddr                string
+	LDAPUsername            string
+	LDAPPassword            string
+	GitlabAddr              string
+	ArtifactoryAddr         string
+	PingInterval            time.Duration
+	SkipVerifyEmail         bool
+	JaegerAddr              string
+	vaultConfig             *vault.Config
+	SkipOriginCheck         bool
+	Hostname                string
+	NotifyAddrs             string
+	NotifySrvAddr           string
+	NodeMgr                 *node.NodeMgr
+	Billing                 bool
+	BillingPath             string
+	AlertCache              *edgeproto.AlertCache
+	AlertMgrAddr            string
+	AlertmgrResolveTimout   time.Duration
+	UsageCheckpointInterval string
 }
 
 var DefaultDBUser = "mcuser"
 var DefaultDBName = "mcdb"
 var DefaultDBPass = ""
 var DefaultSuperuser = "mexadmin"
-var DefaultSuperpass = "mexadmin123"
+var DefaultSuperpass = "mexadminfastedgecloudinfra"
 var Superuser string
 
 var database *gorm.DB
@@ -184,6 +179,10 @@ func RunServer(config *ServerConfig) (*Server, error) {
 		}
 	}
 
+	if err = checkUsageCheckpointInterval(); err != nil {
+		return nil, err
+	}
+
 	if gitlabToken == "" {
 		log.InfoLog("Note: No gitlab_token env var found")
 	}
@@ -244,7 +243,6 @@ func RunServer(config *ServerConfig) (*Server, error) {
 			err = nil
 		}
 	}
-	go server.setupConsoleProxy(ctx)
 
 	e := echo.New()
 	e.HideBanner = true
@@ -276,6 +274,14 @@ func RunServer(config *ServerConfig) (*Server, error) {
 	//   404: notFound
 	e.POST(root+"/usercreate", CreateUser)
 	e.POST(root+"/passwordresetrequest", PasswordResetRequest)
+	// swagger:route POST /publicconfig Config PublicConfig
+	// Show Public Configuration.
+	// Show Public Configuration for UI
+	// responses:
+	//   200: success
+	//   400: badRequest
+	//   404: notFound
+	e.POST(root+"/publicconfig", PublicConfig)
 	// swagger:route POST /passwordreset Security PasswdReset
 	// Reset Login Password.
 	// This resets your login password.
@@ -288,7 +294,8 @@ func RunServer(config *ServerConfig) (*Server, error) {
 	// authenticated routes - jwt middleware
 	auth := e.Group(root + "/auth")
 	auth.Use(AuthCookie)
-	// authenticated routes - gorm router
+	// refresh auth cookie
+	auth.POST("/refresh", RefreshAuthCookie)
 
 	// swagger:route POST /auth/user/show User ShowUser
 	// Show Users.
@@ -313,6 +320,17 @@ func RunServer(config *ServerConfig) (*Server, error) {
 	//   403: forbidden
 	//   404: notFound
 	auth.POST("/user/delete", DeleteUser)
+	// swagger:route POST /auth/user/update User UpdateUser
+	// Update User.
+	// Updates current user.
+	// Security:
+	//   Bearer:
+	// responses:
+	//   200: success
+	//   400: badRequest
+	//   403: forbidden
+	//   404: notFound
+	auth.POST("/user/update", UpdateUser)
 	auth.POST("/user/newpass", NewPassword)
 	auth.POST("/role/assignment/show", ShowRoleAssignment)
 	auth.POST("/role/perms/show", ShowRolePerms)
@@ -454,22 +472,163 @@ func RunServer(config *ServerConfig) (*Server, error) {
 
 	// Support multiple connection types: HTTP(s), Websockets
 	addControllerApis("POST", auth)
+
 	// Metrics api route use auth to serve a query to influxDB
+
+	// swagger:route POST /auth/metrics/app DeveloperMetrics AppMetrics
+	// App related metrics.
+	// Display app related metrics.
+	// Security:
+	//   Bearer:
+	// responses:
+	//   200: success
+	//   400: badRequest
+	//   403: forbidden
+	//   404: notFound
 	auth.POST("/metrics/app", GetMetricsCommon)
+
+	// swagger:route POST /auth/metrics/cluster DeveloperMetrics ClusterMetrics
+	// Cluster related metrics.
+	// Display cluster related metrics.
+	// Security:
+	//   Bearer:
+	// responses:
+	//   200: success
+	//   400: badRequest
+	//   403: forbidden
+	//   404: notFound
 	auth.POST("/metrics/cluster", GetMetricsCommon)
+
+	// swagger:route POST /auth/metrics/cloudlet OperatorMetrics CloudletMetrics
+	// Cloudlet related metrics.
+	// Display cloudlet related metrics.
+	// Security:
+	//   Bearer:
+	// responses:
+	//   200: success
+	//   400: badRequest
+	//   403: forbidden
+	//   404: notFound
 	auth.POST("/metrics/cloudlet", GetMetricsCommon)
+
+	// swagger:route POST /auth/metrics/client DeveloperMetrics ClientMetrics
+	// Client related metrics.
+	// Display client related metrics.
+	// Security:
+	//   Bearer:
+	// responses:
+	//   200: success
+	//   400: badRequest
+	//   403: forbidden
+	//   404: notFound
 	auth.POST("/metrics/client", GetMetricsCommon)
+
 	auth.POST("/events/app", GetEventsCommon)
 	auth.POST("/events/cluster", GetEventsCommon)
 	auth.POST("/events/cloudlet", GetEventsCommon)
+
 	// new events/audit apis
+	// swagger:route POST /auth/events/show Events SearchEvents
+	// Search events
+	// Display events based on search filter.
+	// Security:
+	//   Bearer:
+	// responses:
+	//   200: success
+	//   400: badRequest
+	//   403: forbidden
+	//   404: notFound
 	auth.POST("/events/show", ShowEvents)
+	// swagger:route POST /auth/events/find Events FindEvents
+	// Find events
+	// Display events based on find filter.
+	// Security:
+	//   Bearer:
+	// responses:
+	//   200: success
+	//   400: badRequest
+	//   403: forbidden
+	//   404: notFound
 	auth.POST("/events/find", FindEvents)
+	// swagger:route POST /auth/events/terms Events TermsEvents
+	// Terms Events
+	// Display events terms.
+	// Security:
+	//   Bearer:
+	// responses:
+	//   200: success
+	//   400: badRequest
+	//   403: forbidden
+	//   404: notFound
 	auth.POST("/events/terms", EventTerms)
 
+	// swagger:route POST /auth/usage/app DeveloperUsage AppUsage
+	// App Usage
+	// Display app usage.
+	// Security:
+	//   Bearer:
+	// responses:
+	//   200: success
+	//   400: badRequest
+	//   403: forbidden
+	//   404: notFound
+	auth.POST("/usage/app", GetUsageCommon)
+	// swagger:route POST /auth/usage/cluster DeveloperUsage ClusterUsage
+	// Cluster Usage
+	// Display cluster usage.
+	// Security:
+	//   Bearer:
+	// responses:
+	//   200: success
+	//   400: badRequest
+	//   403: forbidden
+	//   404: notFound
+	auth.POST("/usage/cluster", GetUsageCommon)
+	// swagger:route POST /auth/usage/cloudletpool OperatorUsage CloudletPoolUsage
+	// CloudletPool Usage
+	// Display cloudletpool usage.
+	// Security:
+	//   Bearer:
+	// responses:
+	//   200: success
+	//   400: badRequest
+	//   403: forbidden
+	//   404: notFound
+	auth.POST("/usage/cloudletpool", GetCloudletPoolUsageCommon)
+
 	// Alertmanager apis
+	// swagger:route POST /auth/alertreceiver/create AlertReceiver CreateAlertReceiver
+	// Create Alert Receiver
+	// Create alert receiver.
+	// Security:
+	//   Bearer:
+	// responses:
+	//   200: success
+	//   400: badRequest
+	//   403: forbidden
+	//   404: notFound
 	auth.POST("/alertreceiver/create", CreateAlertReceiver)
+	// swagger:route POST /auth/alertreceiver/delete AlertReceiver DeleteAlertReceiver
+	// Delete Alert Receiver
+	// Delete alert receiver.
+	// Security:
+	//   Bearer:
+	// responses:
+	//   200: success
+	//   400: badRequest
+	//   403: forbidden
+	//   404: notFound
 	auth.POST("/alertreceiver/delete", DeleteAlertReceiver)
+	// swagger:route POST /auth/alertreceiver/show AlertReceiver ShowAlertReceiver
+	// Show Alert Receiver
+	// Show alert receiver.
+	// Security:
+	//   Bearer:
+	// responses:
+	//   200: success
+	//   400: badRequest
+	//   403: forbidden
+	//   404: notFound
 	auth.POST("/alertreceiver/show", ShowAlertReceiver)
 
 	// Use GET method for websockets as thats the method used
@@ -482,10 +641,6 @@ func RunServer(config *ServerConfig) (*Server, error) {
 	ws.GET("/metrics/cluster", GetMetricsCommon)
 	ws.GET("/metrics/cloudlet", GetMetricsCommon)
 	ws.GET("/metrics/client", GetMetricsCommon)
-	// WebRTC based APIs
-	ws.GET("/ctrl/RunCommand", RunWebrtcStream)
-	ws.GET("/ctrl/ShowLogs", RunWebrtcStream)
-	ws.GET("/ctrl/RunConsole", RunWebrtcStream)
 
 	if config.NotifySrvAddr != "" {
 		server.notifyServer = &notify.ServerMgr{}
@@ -661,7 +816,6 @@ func (s *Server) websocketUpgrade(next echo.HandlerFunc) echo.HandlerFunc {
 		// as we plan to call this directly from React (browser)
 		isAuth, err := AuthWSCookie(c, ws)
 		if !isAuth {
-			ws.Close()
 			return err
 		}
 
@@ -803,88 +957,4 @@ func WriteError(c echo.Context, err error) error {
 	}
 
 	return nil
-}
-
-func (s *Server) setupConsoleProxy(ctx context.Context) {
-	var err error
-
-	if s.config.ConsoleProxyAddr == "" {
-		return
-	}
-
-	log.SpanLog(ctx, log.DebugLevelInfo, "setup console proxy", "addr", s.config.ConsoleProxyAddr)
-
-	director := func(req *http.Request) {
-		token := ""
-		queryArgs := req.URL.Query()
-		tokenVals, ok := queryArgs["token"]
-		if !ok || len(tokenVals) != 1 {
-			// try token from cookies
-			for _, cookie := range req.Cookies() {
-				if cookie.Name == "mextoken" {
-					token = cookie.Value
-					break
-				}
-			}
-		} else {
-			token = tokenVals[0]
-		}
-		if s.config.ApiTlsCertFile != "" {
-			req.URL.Scheme = "https"
-		} else {
-			req.URL.Scheme = "http"
-		}
-		req.URL.Host = s.config.ConsoleProxyAddr
-		port := edgecli.ConsoleProxy.Get(token)
-		if port != "" {
-			addrObj := strings.Split(s.config.ConsoleProxyAddr, ":")
-			if len(addrObj) == 2 {
-				req.URL.Host = strings.Replace(req.URL.Host, addrObj[1], port, -1)
-			}
-		} else {
-			req.Close = true
-		}
-		if _, ok := req.Header["User-Agent"]; !ok {
-			// explicitly disable User-Agent so it's not set to default value
-			req.Header.Set("User-Agent", "")
-		}
-	}
-	proxy := &httputil.ReverseProxy{Director: director}
-
-	proxy.Transport = &http.Transport{
-		Proxy: http.ProxyFromEnvironment,
-		Dial: (&net.Dialer{
-			Timeout:   30 * time.Second,
-			KeepAlive: 30 * time.Second,
-		}).Dial,
-		TLSHandshakeTimeout: 10 * time.Second,
-		TLSClientConfig:     &tls.Config{InsecureSkipVerify: true},
-	}
-
-	http.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
-		queryArgs := r.URL.Query()
-		tokenVals, ok := queryArgs["token"]
-		if ok && len(tokenVals) == 1 {
-			token := tokenVals[0]
-			expire := time.Now().Add(10 * time.Minute)
-			cookie := http.Cookie{
-				Name:    "mextoken",
-				Value:   tokenVals[0],
-				Expires: expire,
-			}
-			http.SetCookie(w, &cookie)
-			log.SpanLog(ctx, log.DebugLevelInfo, "setup console proxy cookies", "url", r.URL, "token", token)
-		}
-		proxy.ServeHTTP(w, r)
-	})
-
-	if s.config.ApiTlsCertFile != "" {
-		err = http.ListenAndServeTLS(s.config.ConsoleProxyAddr, s.config.ApiTlsCertFile, s.config.ApiTlsKeyFile, nil)
-	} else {
-		err = http.ListenAndServe(s.config.ConsoleProxyAddr, nil)
-	}
-	if err != nil && err != http.ErrServerClosed {
-		s.Stop()
-		log.FatalLog("Failed to start console proxy server", "err", err)
-	}
 }

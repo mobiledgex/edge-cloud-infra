@@ -6,13 +6,13 @@ import (
 	"time"
 
 	"github.com/mobiledgex/edge-cloud/cloud-resource-manager/platform"
+	"github.com/mobiledgex/edge-cloud/cloud-resource-manager/platform/pc"
 
 	"github.com/mobiledgex/edge-cloud-infra/shepherd/shepherd_common"
 	"github.com/mobiledgex/edge-cloud-infra/vmlayer"
 	"github.com/mobiledgex/edge-cloud/cloudcommon"
 	"github.com/mobiledgex/edge-cloud/edgeproto"
 	"github.com/mobiledgex/edge-cloud/log"
-	"github.com/mobiledgex/edge-cloud/vault"
 	ssh "github.com/mobiledgex/golang-ssh"
 )
 
@@ -26,7 +26,7 @@ type ShepherdPlatform struct {
 	SharedClient    ssh.Client
 	VMPlatform      *vmlayer.VMPlatform
 	collectInterval time.Duration
-	vaultConfig     *vault.Config
+	platformConfig  *platform.PlatformConfig
 	appDNSRoot      string
 }
 
@@ -35,24 +35,21 @@ func (s *ShepherdPlatform) GetType() string {
 }
 
 func (s *ShepherdPlatform) Init(ctx context.Context, pc *platform.PlatformConfig) error {
-	vaultConfig, err := vault.BestConfig(pc.VaultAddr)
-	if err != nil {
-		return err
-	}
-	s.vaultConfig = vaultConfig
+	s.platformConfig = pc
 	s.appDNSRoot = pc.AppDNSRoot
 
-	err = s.VMPlatform.InitCloudletSSHKeys(ctx, vaultConfig)
+	err := s.VMPlatform.InitCloudletSSHKeys(ctx, pc.AccessApi)
 	if err != nil {
 		return err
 	}
 
-	go s.VMPlatform.RefreshCloudletSSHKeys(vaultConfig)
+	go s.VMPlatform.RefreshCloudletSSHKeys(pc.AccessApi)
 
-	if err = s.VMPlatform.InitProps(ctx, pc, vaultConfig); err != nil {
+	if err = s.VMPlatform.InitProps(ctx, pc); err != nil {
 		return err
 	}
-	if err = s.VMPlatform.VMProvider.InitApiAccessProperties(ctx, pc.CloudletKey, pc.Region, pc.PhysicalName, vaultConfig, pc.EnvVars); err != nil {
+	s.VMPlatform.VMProvider.InitData(ctx, caches)
+	if err = s.VMPlatform.VMProvider.InitApiAccessProperties(ctx, pc.AccessApi, pc.EnvVars, vmlayer.ProviderInitPlatformStart); err != nil {
 		return err
 	}
 
@@ -69,8 +66,7 @@ func (s *ShepherdPlatform) Init(ctx context.Context, pc *platform.PlatformConfig
 	}
 
 	s.collectInterval = VmScrapeInterval
-	log.SpanLog(ctx, log.DebugLevelInfra, "init openstack", "rootLB", s.rootLbName,
-		"physicalName", pc.PhysicalName, "vaultAddr", pc.VaultAddr)
+	log.SpanLog(ctx, log.DebugLevelInfra, "init shepherd done", "rootLB", s.rootLbName, "physicalName", pc.PhysicalName)
 	return nil
 }
 
@@ -85,7 +81,7 @@ func (s *ShepherdPlatform) SetVMPool(ctx context.Context, vmPool *edgeproto.VMPo
 		caches.VMPoolMux.Lock()
 		defer caches.VMPoolMux.Unlock()
 		caches.VMPool = vmPool
-		s.VMPlatform.VMProvider.SetCaches(ctx, caches)
+		s.VMPlatform.VMProvider.InitData(ctx, caches)
 	}
 }
 
@@ -98,20 +94,27 @@ func (s *ShepherdPlatform) GetClusterIP(ctx context.Context, clusterInst *edgepr
 }
 
 func (s *ShepherdPlatform) GetClusterPlatformClient(ctx context.Context, clusterInst *edgeproto.ClusterInst, clientType string) (ssh.Client, error) {
-	pc, err := s.VMPlatform.GetClusterPlatformClient(ctx, clusterInst, clientType)
+	client, err := s.VMPlatform.GetClusterPlatformClientInternal(ctx, clusterInst, clientType, pc.WithCachedIp(false))
 	if err != nil {
 		return nil, err
 	}
-	err = pc.StartPersistentConn(shepherd_common.ShepherdSshConnectTimeout)
+	err = client.StartPersistentConn(shepherd_common.ShepherdSshConnectTimeout)
 	if err != nil {
 		return nil, err
 	}
-	return pc, nil
+	return client, nil
 }
 
 func (s *ShepherdPlatform) GetVmAppRootLbClient(ctx context.Context, app *edgeproto.AppInstKey) (ssh.Client, error) {
 	rootLBName := cloudcommon.GetVMAppFQDN(app, s.VMPlatform.VMProperties.CommonPf.PlatformConfig.CloudletKey, s.VMPlatform.VMProperties.CommonPf.PlatformConfig.AppDNSRoot)
-	client, err := s.VMPlatform.GetNodePlatformClient(ctx, &edgeproto.CloudletMgmtNode{Name: rootLBName})
+	client, err := s.VMPlatform.GetNodePlatformClient(ctx, &edgeproto.CloudletMgmtNode{Name: rootLBName}, pc.WithCachedIp(false))
+	if err != nil {
+		return nil, err
+	}
+	err = client.StartPersistentConn(shepherd_common.ShepherdSshConnectTimeout)
+	if err != nil {
+		return nil, err
+	}
 	return client, err
 }
 

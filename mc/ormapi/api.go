@@ -37,6 +37,20 @@ type User struct {
 	UpdatedAt time.Time `json:",omitempty"`
 	// read only: true
 	Locked bool
+	// read only: true
+	PassCrackTimeSec float64
+	// read only: true
+	EnableTOTP bool
+	// read only: true
+	TOTPSharedKey string
+	// Metadata
+	Metadata string
+}
+
+type UserResponse struct {
+	Message       string
+	TOTPSharedKey string
+	TOTPQRImage   []byte
 }
 
 type Organization struct {
@@ -114,6 +128,12 @@ type Config struct {
 	NotifyEmailAddress string
 	// Skip email verification for new accounts (testing only)
 	SkipVerifyEmail bool
+	// User accounts min password crack time seconds (a measure of strength)
+	PasswordMinCrackTimeSec float64
+	// Admin accounts min password crack time seconds (a measure of strength)
+	AdminPasswordMinCrackTimeSec float64
+	// InfluxDB max number of data points returned
+	MaxMetricsDataPoints int
 }
 
 type OrgCloudletPool struct {
@@ -149,6 +169,8 @@ type UserLogin struct {
 	// User's password
 	// required: true
 	Password string `form:"password" json:"password"`
+	// read only: true
+	TOTP string `form:"totp" json:"totp"`
 }
 
 type NewPassword struct {
@@ -266,11 +288,13 @@ type AllMetrics struct {
 }
 
 type MetricData struct {
-	Series []struct {
-		Columns []string        `json:"columns"`
-		Name    string          `json:"name"`
-		Values  [][]interface{} `json:"values"`
-	} `json:"Series"`
+	Series []MetricSeries `json:"Series"`
+}
+
+type MetricSeries struct {
+	Columns []string        `json:"columns"`
+	Name    string          `json:"name"`
+	Values  [][]interface{} `json:"values"`
 }
 
 type RegionAppInstMetrics struct {
@@ -335,17 +359,54 @@ type RegionCloudletEvents struct {
 	Last      int       `json:",omitempty"`
 }
 
+type RegionAppInstUsage struct {
+	Region    string
+	AppInst   edgeproto.AppInstKey
+	StartTime time.Time `json:",omitempty"`
+	EndTime   time.Time `json:",omitempty"`
+	VmOnly    bool      `json:",omitempty"`
+}
+
+type RegionClusterInstUsage struct {
+	Region      string
+	ClusterInst edgeproto.ClusterInstKey
+	StartTime   time.Time `json:",omitempty"`
+	EndTime     time.Time `json:",omitempty"`
+}
+
+type RegionCloudletPoolUsage struct {
+	Region       string
+	CloudletPool edgeproto.CloudletPoolKey
+	StartTime    time.Time `json:",omitempty"`
+	EndTime      time.Time `json:",omitempty"`
+}
+
+type RegionCloudletPoolUsageRegister struct {
+	Region          string
+	CloudletPool    edgeproto.CloudletPoolKey
+	UpdateFrequency time.Duration
+	PushEndpoint    string
+	StartTime       time.Time
+}
+
 // Configurable part of AlertManager Receiver
 type AlertReceiver struct {
 	// Receiver Name
 	Name string
 	// Receiver type. Eg. email, slack, pagerduty
 	Type string
-	// Alert severify filter
+	// Alert severity filter
 	Severity string
-	// User string, hidden from API
-	User string `json:"-"`
-	// TODO - add slack notification details(optional)
+	// Region for the alert receiver
+	Region string `json:",omitempty"`
+	// User that created this receiver
+	User string `json:",omitempty"`
+	// Custom receiving email
+	Email string `json:",omitempty"`
+	// Custom slack channel
+	SlackChannel string `json:",omitempty"`
+	// Custom slack webhook
+	SlackWebhook string `json:",omitempty"`
 	// Cloudlet spec for alerts
 	Cloudlet edgeproto.CloudletKey `json:",omitempty"`
 	// AppInst spec for alerts

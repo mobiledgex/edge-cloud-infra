@@ -3,15 +3,16 @@
 
 package cliwrapper
 
-import edgeproto "github.com/mobiledgex/edge-cloud/edgeproto"
-import "net/http"
-import "strings"
-import "github.com/mobiledgex/edge-cloud-infra/mc/ormapi"
-import proto "github.com/gogo/protobuf/proto"
-import fmt "fmt"
-import math "math"
-import _ "github.com/mobiledgex/edge-cloud/protogen"
-import _ "github.com/gogo/protobuf/gogoproto"
+import (
+	fmt "fmt"
+	_ "github.com/gogo/protobuf/gogoproto"
+	proto "github.com/gogo/protobuf/proto"
+	"github.com/mobiledgex/edge-cloud-infra/mc/ormapi"
+	edgeproto "github.com/mobiledgex/edge-cloud/edgeproto"
+	_ "github.com/mobiledgex/edge-cloud/protogen"
+	math "math"
+	"strings"
+)
 
 // Reference imports to suppress errors if they are not otherwise used.
 var _ = proto.Marshal
@@ -30,9 +31,6 @@ func (s *Client) RunCommand(uri, token string, in *ormapi.RegionExecRequest) (*e
 	}
 	return &out, st, err
 }
-func (s *Client) RunCommandStream(uri, token string, in *ormapi.RegionExecRequest) ([]ormapi.WSStreamPayload, int, error) {
-	return nil, http.StatusBadRequest, fmt.Errorf("not supported")
-}
 
 func (s *Client) RunConsole(uri, token string, in *ormapi.RegionExecRequest) (*edgeproto.ExecRequest, int, error) {
 	args := []string{"region", "RunConsole"}
@@ -43,9 +41,6 @@ func (s *Client) RunConsole(uri, token string, in *ormapi.RegionExecRequest) (*e
 		return nil, st, err
 	}
 	return &out, st, err
-}
-func (s *Client) RunConsoleStream(uri, token string, in *ormapi.RegionExecRequest) ([]ormapi.WSStreamPayload, int, error) {
-	return nil, http.StatusBadRequest, fmt.Errorf("not supported")
 }
 
 func (s *Client) ShowLogs(uri, token string, in *ormapi.RegionExecRequest) (*edgeproto.ExecRequest, int, error) {
@@ -58,9 +53,6 @@ func (s *Client) ShowLogs(uri, token string, in *ormapi.RegionExecRequest) (*edg
 	}
 	return &out, st, err
 }
-func (s *Client) ShowLogsStream(uri, token string, in *ormapi.RegionExecRequest) ([]ormapi.WSStreamPayload, int, error) {
-	return nil, http.StatusBadRequest, fmt.Errorf("not supported")
-}
 
 func (s *Client) AccessCloudlet(uri, token string, in *ormapi.RegionExecRequest) (*edgeproto.ExecRequest, int, error) {
 	args := []string{"region", "AccessCloudlet"}
@@ -71,7 +63,4 @@ func (s *Client) AccessCloudlet(uri, token string, in *ormapi.RegionExecRequest)
 		return nil, st, err
 	}
 	return &out, st, err
-}
-func (s *Client) AccessCloudletStream(uri, token string, in *ormapi.RegionExecRequest) ([]ormapi.WSStreamPayload, int, error) {
-	return nil, http.StatusBadRequest, fmt.Errorf("not supported")
 }

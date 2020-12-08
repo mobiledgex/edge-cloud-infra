@@ -219,14 +219,22 @@ if ! $SKIP_VAULT_SSH_KEY_SIGNING; then
 	SIGNED_KEY=$( mktemp )
 	trap 'rm -f "$SIGNED_KEY"' EXIT
 
-	VAULT_TOKEN="$VAULT_TOKEN" VAULT_ADDR="$VAULT_ADDR" \
+	if [[ -z "$VAULT_TOKEN" ]]; then
+		SIGNING_TOKEN=$( VAULT_ADDR="$VAULT_ADDR" \
+			vault write -field=token auth/approle/login \
+			role_id=$VAULT_ROLE_ID secret_id=$VAULT_SECRET_ID )
+	else
+		SIGNING_TOKEN="$VAULT_TOKEN"
+	fi
+
+	VAULT_TOKEN="$SIGNING_TOKEN" VAULT_ADDR="$VAULT_ADDR" \
 		vault write -field signed_key "ssh-ansible/sign/${VAULT_SSH_ROLE}" \
 			public_key=@$HOME/.ssh/id_rsa.pub \
 			valid_principals="ansible" \
 			ttl="$VAULT_SSH_TTL" >"$SIGNED_KEY"
 	[[ $? -ne 0 ]] && die "Failed to sign SSH key"
 
-	export ANSIBLE_SSH_ARGS="-C -o ControlMaster=auto -o ControlPersist=60s -i $SIGNED_KEY"
+	export ANSIBLE_SSH_ARGS="-C -o ControlMaster=auto -o ControlPersist=60s -i $SIGNED_KEY -i $HOME/.ssh/id_rsa"
 fi
 
 VAULT_TOKEN="$VAULT_TOKEN" ansible-playbook "${ARGS[@]}"; RC=$?

@@ -1,22 +1,44 @@
+################################################################################
+# Stage 1: Build python packages using pip
+################################################################################
+
+FROM ubuntu:18.04 AS python
+
+ENV DEBIAN_FRONTEND=noninteractive
+RUN apt-get update && apt-get install -y \
+	apt-transport-https \
+	ca-certificates \
+	cpio \
+	python \
+	python2.7 \
+	python3.6 \
+	python-pip
+
+COPY requirements.txt .
+RUN pip install -r requirements.txt
+
+RUN find /usr/local/bin /usr/bin/python* /usr/lib/python* /usr/local/lib/python* \
+	| cpio -pdm /python
+
+################################################################################
+# Stage 2: Build rest of the base image and copy python modules from stage 1
+################################################################################
+
 FROM ubuntu:18.04
 ENV DEBIAN_FRONTEND=noninteractive
 RUN apt-get update && apt-get install -y \
 	apt-transport-https \
-        ca-certificates \
-        curl \
+	ca-certificates \
+	curl \
 	dirmngr \
 	openssh-client \
 	openssh-server \
 	openssh-sftp-server \
-	python \
-	python2.7 \
-	python3 \
-        python-pip \
 	software-properties-common \
 	systemd \
 	tzdata \
 	unzip \
-	vim \
+	vim-tiny \
 	wget
 
 # Turn off auto-upgrades
@@ -34,10 +56,9 @@ RUN apt-get update && apt-get install -y \
 	azure-cli=2.0.75-1~bionic \
 	google-cloud-sdk=267.0.0-0 \
 	kubectl=1.16.2-00 \
-	qemu-utils=1:2.11+dfsg-1ubuntu7.29
+	qemu-utils=1:2.11+dfsg-1ubuntu7.32
 
-COPY requirements.txt .
-RUN pip install -r requirements.txt
+COPY --from=python /python/ /
 
 ## GOVC
 RUN curl -sL https://github.com/vmware/govmomi/releases/download/v0.23.0/govc_linux_amd64.gz \
@@ -55,5 +76,3 @@ RUN curl --silent --location "https://github.com/weaveworks/eksctl/releases/late
 	&& mv /tmp/eksctl /usr/local/bin
 
 COPY edge-cloud-base-image.root/_ssh /root/.ssh
-COPY edge-cloud-base-image.root/_mobiledgex /root/.mobiledgex
-RUN chmod 400 /root/.mobiledgex/id_rsa_mex /root/.mobiledgex/id_rsa_mobiledgex

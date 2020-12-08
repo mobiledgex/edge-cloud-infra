@@ -3,17 +3,19 @@
 
 package cliwrapper
 
-import edgeproto "github.com/mobiledgex/edge-cloud/edgeproto"
-import "strings"
-import "github.com/mobiledgex/edge-cloud-infra/mc/ormapi"
-import proto "github.com/gogo/protobuf/proto"
-import fmt "fmt"
-import math "math"
-import _ "github.com/gogo/googleapis/google/api"
-import _ "github.com/mobiledgex/edge-cloud/protogen"
-import _ "github.com/gogo/protobuf/gogoproto"
-import _ "github.com/mobiledgex/edge-cloud/d-match-engine/dme-proto"
-import _ "github.com/gogo/protobuf/types"
+import (
+	fmt "fmt"
+	_ "github.com/gogo/googleapis/google/api"
+	_ "github.com/gogo/protobuf/gogoproto"
+	proto "github.com/gogo/protobuf/proto"
+	_ "github.com/gogo/protobuf/types"
+	"github.com/mobiledgex/edge-cloud-infra/mc/ormapi"
+	_ "github.com/mobiledgex/edge-cloud/d-match-engine/dme-proto"
+	edgeproto "github.com/mobiledgex/edge-cloud/edgeproto"
+	_ "github.com/mobiledgex/edge-cloud/protogen"
+	math "math"
+	"strings"
+)
 
 // Reference imports to suppress errors if they are not otherwise used.
 var _ = proto.Marshal
@@ -25,7 +27,7 @@ var _ = math.Inf
 func (s *Client) CreateAutoProvPolicy(uri, token string, in *ormapi.RegionAutoProvPolicy) (*edgeproto.Result, int, error) {
 	args := []string{"region", "CreateAutoProvPolicy"}
 	out := edgeproto.Result{}
-	noconfig := strings.Split("", ",")
+	noconfig := strings.Split("Cloudlets:#.Loc", ",")
 	st, err := s.runObjs(uri, token, args, in, &out, withIgnore(noconfig))
 	if err != nil {
 		return nil, st, err
@@ -36,7 +38,7 @@ func (s *Client) CreateAutoProvPolicy(uri, token string, in *ormapi.RegionAutoPr
 func (s *Client) DeleteAutoProvPolicy(uri, token string, in *ormapi.RegionAutoProvPolicy) (*edgeproto.Result, int, error) {
 	args := []string{"region", "DeleteAutoProvPolicy"}
 	out := edgeproto.Result{}
-	noconfig := strings.Split("", ",")
+	noconfig := strings.Split("Cloudlets:#.Loc", ",")
 	st, err := s.runObjs(uri, token, args, in, &out, withIgnore(noconfig))
 	if err != nil {
 		return nil, st, err
@@ -47,7 +49,7 @@ func (s *Client) DeleteAutoProvPolicy(uri, token string, in *ormapi.RegionAutoPr
 func (s *Client) UpdateAutoProvPolicy(uri, token string, in *ormapi.RegionAutoProvPolicy) (*edgeproto.Result, int, error) {
 	args := []string{"region", "UpdateAutoProvPolicy"}
 	out := edgeproto.Result{}
-	noconfig := strings.Split("", ",")
+	noconfig := strings.Split("Cloudlets:#.Loc", ",")
 	st, err := s.runObjs(uri, token, args, in, &out, withIgnore(noconfig))
 	if err != nil {
 		return nil, st, err
@@ -58,7 +60,7 @@ func (s *Client) UpdateAutoProvPolicy(uri, token string, in *ormapi.RegionAutoPr
 func (s *Client) ShowAutoProvPolicy(uri, token string, in *ormapi.RegionAutoProvPolicy) ([]edgeproto.AutoProvPolicy, int, error) {
 	args := []string{"region", "ShowAutoProvPolicy"}
 	outlist := []edgeproto.AutoProvPolicy{}
-	noconfig := strings.Split("", ",")
+	noconfig := strings.Split("Cloudlets:#.Loc", ",")
 	ops := []runOp{
 		withIgnore(noconfig),
 	}

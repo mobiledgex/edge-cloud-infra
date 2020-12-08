@@ -1,10 +1,10 @@
 mc_artifactory_address: https://artifactory.mobiledgex.net/artifactory
 jaeger_hostname: jaeger.mobiledgex.net
 jaeger_endpoint: "https://{{ jaeger_hostname }}:14268/api/traces"
-events_elasticsearch_url: https://3dd88757c3df44ac8960e53fc6a9a2d5.us-central1.gcp.cloud.es.io:9243
 console_vnc_hostname: console-vnc.mobiledgex.net
 notifyroot_hostname: notifyroot.mobiledgex.net
 vault_address: https://vault-main.mobiledgex.net
+esproxy_address: https://events.es.mobiledgex.net/
 vault_audit_elasticsearch: yes
 vault_ha_zones:
   us: us-central1-a

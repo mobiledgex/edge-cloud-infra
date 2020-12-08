@@ -20,11 +20,12 @@ gitlab_slack_notifications=false
 gitlab_docker_hostname="docker-{{ deploy_environ }}.mobiledgex.net"
 azure_volume_storage_class=default
 influxdb_volume_size=2Gi
-vault_firewall_setup=no
 vault_ha_domain="vault-{{ deploy_environ }}.mobiledgex.net"
 console_prod=no
 alertmanager_hostname=alertmanager-{{ deploy_environ }}.mobiledgex.net
 influxdb_backup_disabled=true
+etcd_quota_backend="150 MB"
+etcd_auto_compaction_retention=2
 
 [notifyroot]
 notifyroot-dev.mobiledgex.net
@@ -50,3 +51,6 @@ jaeger-dev.mobiledgex.net	nginx_config_filename=jaeger jaeger_ui_port=8443
 
 [alertmanager]
 alertmanager-dev.mobiledgex.net
+
+[esproxy]
+events-dev.es.mobiledgex.net

@@ -3,15 +3,17 @@
 
 package ormclient
 
-import edgeproto "github.com/mobiledgex/edge-cloud/edgeproto"
-import "github.com/mobiledgex/edge-cloud-infra/mc/ormapi"
-import proto "github.com/gogo/protobuf/proto"
-import fmt "fmt"
-import math "math"
-import _ "github.com/gogo/googleapis/google/api"
-import _ "github.com/mobiledgex/edge-cloud/protogen"
-import _ "github.com/mobiledgex/edge-cloud/d-match-engine/dme-proto"
-import _ "github.com/gogo/protobuf/gogoproto"
+import (
+	fmt "fmt"
+	_ "github.com/gogo/googleapis/google/api"
+	_ "github.com/gogo/protobuf/gogoproto"
+	proto "github.com/gogo/protobuf/proto"
+	"github.com/mobiledgex/edge-cloud-infra/mc/ormapi"
+	_ "github.com/mobiledgex/edge-cloud/d-match-engine/dme-proto"
+	edgeproto "github.com/mobiledgex/edge-cloud/edgeproto"
+	_ "github.com/mobiledgex/edge-cloud/protogen"
+	math "math"
+)
 
 // Reference imports to suppress errors if they are not otherwise used.
 var _ = proto.Marshal
@@ -56,7 +58,7 @@ func (s *Client) ShowCloudlet(uri, token string, in *ormapi.RegionCloudlet) ([]e
 	return outlist, status, err
 }
 
-func (s *Client) GetCloudletManifest(uri, token string, in *ormapi.RegionCloudlet) (*edgeproto.CloudletManifest, int, error) {
+func (s *Client) GetCloudletManifest(uri, token string, in *ormapi.RegionCloudletKey) (*edgeproto.CloudletManifest, int, error) {
 	out := edgeproto.CloudletManifest{}
 	status, err := s.PostJson(uri+"/auth/ctrl/GetCloudletManifest", token, in, &out)
 	if err != nil {
@@ -101,16 +103,36 @@ func (s *Client) FindFlavorMatch(uri, token string, in *ormapi.RegionFlavorMatch
 	return &out, status, err
 }
 
+func (s *Client) RevokeAccessKey(uri, token string, in *ormapi.RegionCloudletKey) (*edgeproto.Result, int, error) {
+	out := edgeproto.Result{}
+	status, err := s.PostJson(uri+"/auth/ctrl/RevokeAccessKey", token, in, &out)
+	if err != nil {
+		return nil, status, err
+	}
+	return &out, status, err
+}
+
+func (s *Client) GenerateAccessKey(uri, token string, in *ormapi.RegionCloudletKey) (*edgeproto.Result, int, error) {
+	out := edgeproto.Result{}
+	status, err := s.PostJson(uri+"/auth/ctrl/GenerateAccessKey", token, in, &out)
+	if err != nil {
+		return nil, status, err
+	}
+	return &out, status, err
+}
+
 type CloudletApiClient interface {
 	CreateCloudlet(uri, token string, in *ormapi.RegionCloudlet) ([]edgeproto.Result, int, error)
 	DeleteCloudlet(uri, token string, in *ormapi.RegionCloudlet) ([]edgeproto.Result, int, error)
 	UpdateCloudlet(uri, token string, in *ormapi.RegionCloudlet) ([]edgeproto.Result, int, error)
 	ShowCloudlet(uri, token string, in *ormapi.RegionCloudlet) ([]edgeproto.Cloudlet, int, error)
-	GetCloudletManifest(uri, token string, in *ormapi.RegionCloudlet) (*edgeproto.CloudletManifest, int, error)
+	GetCloudletManifest(uri, token string, in *ormapi.RegionCloudletKey) (*edgeproto.CloudletManifest, int, error)
 	GetCloudletProps(uri, token string, in *ormapi.RegionCloudletProps) (*edgeproto.CloudletProps, int, error)
 	AddCloudletResMapping(uri, token string, in *ormapi.RegionCloudletResMap) (*edgeproto.Result, int, error)
 	RemoveCloudletResMapping(uri, token string, in *ormapi.RegionCloudletResMap) (*edgeproto.Result, int, error)
 	FindFlavorMatch(uri, token string, in *ormapi.RegionFlavorMatch) (*edgeproto.FlavorMatch, int, error)
+	RevokeAccessKey(uri, token string, in *ormapi.RegionCloudletKey) (*edgeproto.Result, int, error)
+	GenerateAccessKey(uri, token string, in *ormapi.RegionCloudletKey) (*edgeproto.Result, int, error)
 }
 
 func (s *Client) ShowCloudletInfo(uri, token string, in *ormapi.RegionCloudletInfo) ([]edgeproto.CloudletInfo, int, error) {

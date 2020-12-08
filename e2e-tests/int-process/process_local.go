@@ -73,6 +73,10 @@ func (p *MC) StartLocal(logfile string, opts ...process.StartOp) error {
 		args = append(args, "--usageCollectionInterval")
 		args = append(args, p.UsageCollectionInterval)
 	}
+	if p.UsageCheckpointInterval != "" {
+		args = append(args, "--usageCheckpointInterval")
+		args = append(args, p.UsageCheckpointInterval)
+	}
 	if p.UseVaultCerts {
 		args = append(args, "--useVaultCerts")
 	}
@@ -317,6 +321,12 @@ func (p *Shepherd) GetArgs(opts ...process.StartOp) []string {
 		args = append(args, "--chefServerPath")
 		args = append(args, p.ChefServerPath)
 	}
+	if p.AccessKeyFile != "" {
+		args = append(args, "--accessKeyFile", p.AccessKeyFile)
+	}
+	if p.AccessApiAddr != "" {
+		args = append(args, "--accessApiAddr", p.AccessApiAddr)
+	}
 
 	options := process.StartOptions{}
 	options.ApplyStartOptions(opts...)
@@ -543,9 +553,9 @@ func SetupVault(p *process.Vault, opts ...process.StartOp) (*VaultRoles, error) 
 }
 
 func (p *PromE2e) StartLocal(logfile string, opts ...process.StartOp) error {
-	// if the image doesnt exist, build it
+	// if the image doesn't exist, build it
 	if !imageFound(p.Name) {
-		directory := os.Getenv("GOPATH") + "/src/github.com/mobiledgex/edge-cloud-infra/shepherd/fakePromExporter"
+		directory := os.Getenv("GOPATH") + "/src/github.com/mobiledgex/edge-cloud-infra/shepherd/e2eHttpServer"
 		builder := exec.Command("docker", "build", "-t", p.Name, directory)
 		err := builder.Run()
 		if err != nil {
@@ -584,9 +594,9 @@ func (p *PromE2e) GetExeName() string { return "docker" }
 
 func (p *PromE2e) LookupArgs() string { return p.Name }
 
-func (p *Exporter) StartLocal(logfile string, opts ...process.StartOp) error {
+func (p *HttpServer) StartLocal(logfile string, opts ...process.StartOp) error {
 	args := []string{
-		"-port", fmt.Sprintf("%d", p.Port), "-statsPath", p.DataFile,
+		"-port", fmt.Sprintf("%d", p.Port), "-promStatsPath", p.PromDataFile,
 	}
 
 	var err error
@@ -594,13 +604,13 @@ func (p *Exporter) StartLocal(logfile string, opts ...process.StartOp) error {
 	return err
 }
 
-func (p *Exporter) StopLocal() {
+func (p *HttpServer) StopLocal() {
 	process.StopLocal(p.cmd)
 }
 
-func (p *Exporter) GetExeName() string { return "fakepromexporter" }
+func (p *HttpServer) GetExeName() string { return "e2eHttpServer" }
 
-func (p *Exporter) LookupArgs() string { return "" }
+func (p *HttpServer) LookupArgs() string { return "" }
 
 func (p *ChefServer) StartLocal(logfile string, opts ...process.StartOp) error {
 	args := []string{}
@@ -638,6 +648,7 @@ func (p *ChefServer) LookupArgs() string { return fmt.Sprintf("--port %d --multi
 
 func (p *Alertmanager) StartLocal(logfile string, opts ...process.StartOp) error {
 	configFile := "/tmp/alertmanager.yml"
+	templateFile := "/tmp/alertmanager.tmpl"
 	if p.ConfigFile != "" {
 		// Copy file from data dir to /tmp since it's going to be written to
 		in, err := ioutil.ReadFile(p.ConfigFile)
@@ -651,12 +662,17 @@ func (p *Alertmanager) StartLocal(logfile string, opts ...process.StartOp) error
 			return err
 		}
 	}
+	if p.TemplateFile != "" {
+		templateFile = p.TemplateFile
+	}
 	args := []string{
 		"run", "--rm", "-p", fmt.Sprintf("%d:%d", p.Port, p.Port),
 		"-v", configFile + ":/etc/prometheus/alertmanager.yml",
+		"-v", templateFile + ":/etc/alertmanager/templates/alertmanager.tmpl",
 		"--name", p.Name,
 		"prom/alertmanager:v0.21.0",
 		"--web.listen-address", fmt.Sprintf(":%d", p.Port),
+		"--log.level", "debug",
 		"--config.file", "/etc/prometheus/alertmanager.yml",
 	}
 

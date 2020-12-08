@@ -13,6 +13,8 @@ import (
 	"net/http/httputil"
 	"net/url"
 	"os"
+	"os/exec"
+	"runtime"
 	"strings"
 	"sync"
 	"text/template"
@@ -24,6 +26,7 @@ import (
 
 	//	alertmanager_config "github.com/prometheus/alertmanager/config"
 	// TODO - below is to replace the above for right now - once we update go and modules we can use prometheus directly
+
 	alertmanager_config "github.com/mobiledgex/edge-cloud-infra/mc/orm/alertmgr/prometheus_structs/config"
 )
 
@@ -121,19 +124,6 @@ func (s *SidecarServer) Run() error {
 				ok := caCertPool.AppendCertsFromPEM(cabs)
 				if !ok {
 					log.FatalLog("Failed to append CA file", "cert", string(cabs))
-				}
-				// TODO - Internal PKI refactor.
-				// For now add /root/tls/mex-ca.crt because we don't fully use internal pki yet
-				cabs, err = ioutil.ReadFile("/root/tls/mex-ca.crt")
-				if err != nil {
-					// Non-fatal, as once we fully transition to internal PKI
-					// we just need to remove this code
-					log.DebugLog(log.DebugLevelInfo, "Could not read CA file", "err", err)
-				} else {
-					ok := caCertPool.AppendCertsFromPEM(cabs)
-					if !ok {
-						log.FatalLog("Failed to append CA file", "cert", string(cabs))
-					}
 				}
 				tlsConfig := &tls.Config{
 					ClientCAs:  caCertPool,
@@ -250,7 +240,7 @@ func (s *SidecarServer) alertReceiver(w http.ResponseWriter, req *http.Request) 
 		for _, rec := range config.Receivers {
 			if rec.Name == receiverConfig.Receiver.Name {
 				log.SpanLog(ctx, log.DebugLevelInfo, "Receiver Exists - delete it first")
-				http.Error(w, "Receiver Exists - delete it first", http.StatusBadRequest)
+				http.Error(w, "Receiver Exists - delete it first", http.StatusConflict)
 				return
 			}
 		}
@@ -287,6 +277,19 @@ func (s *SidecarServer) alertReceiver(w http.ResponseWriter, req *http.Request) 
 				break
 			}
 		}
+		// We did not find the receiver - should return an error
+		if !writeConfig {
+			log.SpanLog(ctx, log.DebugLevelInfo, "Could not find a receiver", "receiver", receiverName)
+			recSent, err := getAlertReceiverFromName(receiverName)
+			if err != nil {
+				http.Error(w, err.Error(), http.StatusNotFound)
+				return
+			}
+			errStr := fmt.Sprintf("No receiver \"%s\" of type %s and severity %s for user \"%s\"",
+				recSent.Name, recSent.Type, recSent.Severity, recSent.User)
+			http.Error(w, errStr, http.StatusNotFound)
+			return
+		}
 	default:
 		log.SpanLog(ctx, log.DebugLevelInfo, "Unsupported method", "method", req.Method,
 			"url", req.URL)
@@ -307,6 +310,13 @@ func (s *SidecarServer) alertReceiver(w http.ResponseWriter, req *http.Request) 
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
+	// trigger reload of the config
+	res, err := alertMgrApi(ctx, s.alertMgrAddr, "POST", ReloadConfigApi, "", nil, nil)
+	if err != nil {
+		log.SpanLog(ctx, log.DebugLevelInfo, "Failed to reload alertmanager config", "err", err, "result", res)
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
 }
 
 func (s *SidecarServer) initAlertmanager(initInfo *AlertmgrInitInfo) error {
@@ -314,6 +324,13 @@ func (s *SidecarServer) initAlertmanager(initInfo *AlertmgrInitInfo) error {
 	span := log.StartSpan(log.DebugLevelApi|log.DebugLevelInfo, "Alertmgr Sidecar Init")
 	defer span.Finish()
 	ctx := log.ContextWithSpan(context.Background(), span)
+
+	//  Make sure config file is in the good condition prior to connecting
+	if err = s.initConfigFile(ctx, initInfo); err != nil {
+		log.SpanLog(ctx, log.DebugLevelInfo, "Unable to init config file", "err", err, "initInfo", initInfo)
+		return err
+	}
+
 	// wait for alertmanager to be up first
 	for ii := 0; ii < 10; ii++ {
 		_, err = alertMgrApi(ctx, s.alertMgrAddr, "GET", "", "", nil, nil)
@@ -326,9 +343,10 @@ func (s *SidecarServer) initAlertmanager(initInfo *AlertmgrInitInfo) error {
 		log.SpanLog(ctx, log.DebugLevelInfo, "Failed to connect to alertmanager", "err", err)
 		return err
 	}
-
-	if err := s.initConfigFile(ctx, initInfo); err != nil {
-		log.SpanLog(ctx, log.DebugLevelInfo, "Unable to init config file", "err", err, "initInfo", initInfo)
+	// Connected to alertmanager - trigger a reload to make sure latest config changes were picked up
+	res, err := alertMgrApi(ctx, s.alertMgrAddr, "POST", ReloadConfigApi, "", nil, nil)
+	if err != nil {
+		log.SpanLog(ctx, log.DebugLevelInfo, "Failed to reload alertmanager config", "err", err, "result", res)
 		return err
 	}
 	return nil
@@ -400,12 +418,15 @@ func (s *SidecarServer) writeAlertmanagerConfigLocked(ctx context.Context, confi
 		log.SpanLog(ctx, log.DebugLevelInfo, "Failed to write default alertmanager config", "err", err, "file", s.alertMgrConfigPath)
 		return err
 	}
-
-	// trigger reload of the config
-	res, err := alertMgrApi(ctx, s.alertMgrAddr, "POST", ReloadConfigApi, "", nil, nil)
-	if err != nil {
-		log.SpanLog(ctx, log.DebugLevelInfo, "Failed to reload alertmanager config", "err", err, "result", res)
-		return err
+	if runtime.GOOS == "darwin" {
+		// probably because of the way docker uses VMs on mac,
+		// the file watch doesn't detect changes done to the targets
+		// file in the host.
+		cmd := exec.Command("docker", "exec", "alertmanager", "touch", "/etc/prometheus/alertmanager.yml")
+		out, err := cmd.CombinedOutput()
+		if err != nil {
+			log.SpanLog(ctx, log.DebugLevelInfo, "Failed to touch alertmgr file in container to trigger refresh in alertmanager", "out", string(out), "err", err)
+		}
 	}
 	return nil
 }

@@ -15,11 +15,6 @@ import (
 type OpenstackPlatform struct {
 	openRCVars   map[string]string
 	VMProperties *vmlayer.VMProperties
-	TestMode     bool
-}
-
-func (o *OpenstackPlatform) GetType() string {
-	return "openstack"
 }
 
 func (o *OpenstackPlatform) SetVMProperties(vmProperties *vmlayer.VMProperties) {
@@ -27,6 +22,7 @@ func (o *OpenstackPlatform) SetVMProperties(vmProperties *vmlayer.VMProperties) 
 }
 
 func (o *OpenstackPlatform) InitProvider(ctx context.Context, caches *platform.Caches, stage vmlayer.ProviderInitStage, updateCallback edgeproto.CacheUpdateCallback) error {
+	o.InitResourceReservations(ctx)
 	if stage == vmlayer.ProviderInitPlatformStart {
 		o.initDebug(o.VMProperties.CommonPf.PlatformConfig.NodeMgr)
 		return o.PrepNetwork(ctx)
@@ -34,7 +30,7 @@ func (o *OpenstackPlatform) InitProvider(ctx context.Context, caches *platform.C
 	return nil
 }
 
-func (o *OpenstackPlatform) SetCaches(ctx context.Context, caches *platform.Caches) {
+func (o *OpenstackPlatform) InitData(ctx context.Context, caches *platform.Caches) {
 	// openstack doesn't need caches
 }
 
@@ -76,7 +72,7 @@ func (o *OpenstackPlatform) GetResourceID(ctx context.Context, resourceType vmla
 	switch resourceType {
 	case vmlayer.ResourceTypeSecurityGroup:
 		// for testing mode, don't try to run APIs just fake a value
-		if o.TestMode {
+		if o.VMProperties.CommonPf.PlatformConfig.TestMode {
 			return resourceName + "-testingID", nil
 		}
 		return o.GetSecurityGroupIDForName(ctx, resourceName)

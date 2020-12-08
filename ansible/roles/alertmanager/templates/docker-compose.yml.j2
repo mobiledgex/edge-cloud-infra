@@ -8,8 +8,10 @@ services:
     command:
       - "--web.listen-address=:{{ alertmanager_port }}"
       - "--config.file={{ alertmanager_config_path }}/{{ alertmanager_config_file}}"
+      - "--log.level=debug"
     volumes:
       - {{ alertmanager_config_path }}:{{ alertmanager_config_path }}
+      - {{ alertmanager_config_path }}/{{ alertmanager_template_file }}:/etc/alertmanager/templates/alertmanager.tmpl
     networks:
       - alertmgrnet
 

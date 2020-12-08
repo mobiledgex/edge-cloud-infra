@@ -5,7 +5,9 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"image/png"
 	"io/ioutil"
+	math "math"
 	"net/http"
 	"strings"
 	"time"
@@ -15,7 +17,17 @@ import (
 	"github.com/mobiledgex/edge-cloud-infra/mc/ormapi"
 	"github.com/mobiledgex/edge-cloud/log"
 	"github.com/mobiledgex/edge-cloud/util"
+	"github.com/pquerna/otp"
+	"github.com/pquerna/otp/totp"
+	"github.com/trustelem/zxcvbn"
 )
+
+var BadAuthDelay = 3 * time.Second
+var NoOTP = ""
+var OTPLen otp.Digits = otp.DigitsSix
+var OTPExpirationTime = uint(2 * 60)   // seconds
+var OTPAuthenticatorExpTime = uint(30) // seconds
+var OTPExpirationTimeStr = "2 minutes"
 
 // Init admin creates the admin user and adds the admin role.
 func InitAdmin(ctx context.Context, superuser, superpass string) error {
@@ -34,6 +46,7 @@ func InitAdmin(ctx context.Context, superuser, superpass string) error {
 		FamilyName:    superuser,
 		Nickname:      superuser,
 	}
+
 	db := loggedDB(ctx)
 	err := db.FirstOrCreate(&super, &ormapi.User{Name: superuser}).Error
 	if err != nil {
@@ -47,8 +60,6 @@ func InitAdmin(ctx context.Context, superuser, superpass string) error {
 	}
 	return nil
 }
-
-var BadAuthDelay = 3 * time.Second
 
 func Login(c echo.Context) error {
 	ctx := GetContext(c)
@@ -94,12 +105,120 @@ func Login(c echo.Context) error {
 		return c.JSON(http.StatusBadRequest, Msg("Email not verified yet"))
 	}
 
+	if user.PassCrackTimeSec == 0 {
+		calcPasswordStrength(ctx, &user, login.Password)
+		isAdmin, err := isUserAdmin(ctx, user.Name)
+		if err != nil {
+			return setReply(c, err, nil)
+		}
+		err = checkPasswordStrength(ctx, &user, nil, isAdmin)
+		if err != nil {
+			if isAdmin {
+				time.Sleep(BadAuthDelay)
+				return c.JSON(http.StatusBadRequest, Msg("Existing password for Admin too weak, please update first"))
+			} else {
+				// log warning for now
+				log.SpanLog(ctx, log.DebugLevelApi, "user password strength check failure", "user", user.Name, "err", err)
+			}
+		}
+		// save password strength
+		err = db.Model(&user).Updates(&user).Error
+		if err != nil {
+			return setReply(c, dbErr(err), nil)
+		}
+	}
+
+	if user.TOTPSharedKey != "" {
+		opts := totp.ValidateOpts{
+			Period:    OTPExpirationTime,
+			Skew:      1,
+			Digits:    OTPLen,
+			Algorithm: otp.AlgorithmSHA1,
+		}
+		if login.TOTP == "" {
+			// Send OTP over email
+			otp, err := totp.GenerateCodeCustom(user.TOTPSharedKey, time.Now().UTC(), opts)
+			if err != nil {
+				return setReply(c, err, nil)
+			}
+			err = sendOTPEmail(ctx, user.Name, user.Email, otp, OTPExpirationTimeStr)
+			if err != nil {
+				// log and ignore
+				log.SpanLog(ctx, log.DebugLevelApi, "failed to send otp email", "err", err)
+			}
+			return c.JSON(http.StatusNetworkAuthenticationRequired, Msg("Missing OTP\nPlease use two factor authenticator app on "+
+				"your phone to get OTP. We have also sent OTP to your registered email address"))
+		}
+		// Default OTP expiration time for Authenticator client is set to 30secs
+		// Hence first validate for 30secs, if that fails then validate for
+		// 2mins (which is our default setting for email based OTP)
+		opts.Period = OTPAuthenticatorExpTime
+		valid, err := totp.ValidateCustom(login.TOTP, user.TOTPSharedKey, time.Now().UTC(), opts)
+		if !valid {
+			opts.Period = OTPExpirationTime
+			valid, err = totp.ValidateCustom(login.TOTP, user.TOTPSharedKey, time.Now().UTC(), opts)
+			if !valid {
+				log.SpanLog(ctx, log.DebugLevelApi, "invalid or expired otp", "user", user.Name, "err", err)
+				return c.JSON(http.StatusBadRequest, Msg("Invalid or expired OTP. Please login again to receive another OTP"))
+			}
+		}
+	}
+
 	cookie, err := GenerateCookie(&user)
 	if err != nil {
 		log.SpanLog(ctx, log.DebugLevelApi, "failed to generate cookie", "err", err)
 		return c.JSON(http.StatusBadRequest, Msg("Failed to generate cookie"))
 	}
 	return c.JSON(http.StatusOK, M{"token": cookie})
+}
+
+func RefreshAuthCookie(c echo.Context) error {
+	claims, err := getClaims(c)
+	if err != nil {
+		return err
+	}
+	ctx := GetContext(c)
+	if claims.FirstIssuedAt == 0 {
+		log.SpanLog(ctx, log.DebugLevelApi, "failed to generate cookie as issued time is missing")
+		return c.JSON(http.StatusBadRequest, Msg("Failed to refresh auth cookie"))
+	}
+	// refresh auth cookie only if it was issued within 30 days
+	if time.Unix(claims.FirstIssuedAt, 0).AddDate(0, 0, 30).Unix() < time.Now().Unix() {
+		return c.JSON(http.StatusUnauthorized, Msg("expired jwt"))
+	}
+	claims.StandardClaims.IssuedAt = time.Now().Unix()
+	claims.StandardClaims.ExpiresAt = time.Now().AddDate(0, 0, 1).Unix()
+	cookie, err := Jwks.GenerateCookie(claims)
+	if err != nil {
+		log.SpanLog(ctx, log.DebugLevelApi, "failed to generate cookie", "err", err)
+		return c.JSON(http.StatusBadRequest, Msg("Failed to generate cookie"))
+	}
+	return c.JSON(http.StatusOK, M{"token": cookie})
+}
+
+func GenerateTOTPQR(accountName string) (string, []byte, error) {
+	key, err := totp.Generate(totp.GenerateOpts{
+		Issuer:      "MobiledgeX",
+		AccountName: accountName,
+		Period:      OTPExpirationTime,
+		Digits:      OTPLen,
+	})
+	if err != nil {
+		return "", nil, err
+	}
+
+	// Convert TOTP key into a QR code encoded as a PNG image.
+	var buf bytes.Buffer
+	img, err := key.Image(200, 200)
+	if err != nil {
+		return "", nil, err
+	}
+	err = png.Encode(&buf, img)
+	if err != nil {
+		return "", nil, err
+	}
+
+	return key.Secret(), buf.Bytes(), nil
 }
 
 func CreateUser(c echo.Context) error {
@@ -131,10 +250,19 @@ func CreateUser(c echo.Context) error {
 			}
 		}
 	}
+
 	config, err := getConfig(ctx)
 	if err != nil {
 		return err
 	}
+	calcPasswordStrength(ctx, &user, user.Passhash)
+	// check password strength (new users are never admins)
+	isAdmin := false
+	err = checkPasswordStrength(ctx, &user, config, isAdmin)
+	if err != nil {
+		return c.JSON(http.StatusBadRequest, MsgErr(err))
+	}
+
 	if !getSkipVerifyEmail(ctx, config) {
 		// real email will be filled in later
 		createuser.Verify.Email = "dummy@dummy.com"
@@ -152,6 +280,19 @@ func CreateUser(c echo.Context) error {
 		user.Locked = true
 	}
 	user.EmailVerified = false
+
+	userResponse := ormapi.UserResponse{}
+	if user.EnableTOTP {
+		totpKey, totpQR, err := GenerateTOTPQR(user.Email)
+		if err != nil {
+			return setReply(c, fmt.Errorf("Failed to setup 2FA: %v", err), nil)
+		}
+		user.TOTPSharedKey = totpKey
+
+		userResponse.TOTPSharedKey = totpKey
+		userResponse.TOTPQRImage = totpQR
+	}
+
 	// password should be passed through in Passhash field.
 	user.Passhash, user.Salt, user.Iter = NewPasshash(user.Passhash)
 	db := loggedDB(ctx)
@@ -186,7 +327,14 @@ func CreateUser(c echo.Context) error {
 		}
 	}
 
-	return c.JSON(http.StatusOK, Msg("user created"))
+	if user.TOTPSharedKey != "" {
+		userResponse.Message = "User created with two factor authentication enabled. " +
+			"Please use the following text code with the two factor authentication app on your " +
+			"phone to set it up"
+	} else {
+		userResponse.Message = "user created"
+	}
+	return c.JSON(http.StatusOK, &userResponse)
 }
 
 func ResendVerify(c echo.Context) error {
@@ -335,6 +483,7 @@ func CurrentUser(c echo.Context) error {
 	user.Passhash = ""
 	user.Salt = ""
 	user.Iter = 0
+	user.TOTPSharedKey = ""
 	return c.JSON(http.StatusOK, user)
 }
 
@@ -390,6 +539,7 @@ func ShowUser(c echo.Context) error {
 	for ii, _ := range users {
 		// don't show auth/private info
 		users[ii].Passhash = ""
+		users[ii].TOTPSharedKey = ""
 		users[ii].Salt = ""
 		users[ii].Iter = 0
 	}
@@ -420,11 +570,46 @@ func setPassword(c echo.Context, username, password string) error {
 	if err != nil {
 		return setReply(c, dbErr(err), nil)
 	}
+
+	calcPasswordStrength(ctx, &user, password)
+	// check password strength
+	isAdmin, err := isUserAdmin(ctx, user.Name)
+	if err != nil {
+		return setReply(c, err, nil)
+	}
+	err = checkPasswordStrength(ctx, &user, nil, isAdmin)
+	if err != nil {
+		return c.JSON(http.StatusBadRequest, MsgErr(err))
+	}
+
 	user.Passhash, user.Salt, user.Iter = NewPasshash(password)
 	if err := db.Model(&user).Updates(&user).Error; err != nil {
 		return setReply(c, dbErr(err), nil)
 	}
 	return c.JSON(http.StatusOK, Msg("password updated"))
+}
+
+func calcPasswordStrength(ctx context.Context, user *ormapi.User, password string) {
+	pwscore := zxcvbn.PasswordStrength(password, []string{})
+	user.PassCrackTimeSec = pwscore.Guesses / float64(BruteForceGuessesPerSecond)
+}
+
+func checkPasswordStrength(ctx context.Context, user *ormapi.User, config *ormapi.Config, isAdmin bool) error {
+	if config == nil {
+		var err error
+		config, err = getConfig(ctx)
+		if err != nil {
+			return err
+		}
+	}
+	minCrackTime := config.PasswordMinCrackTimeSec
+	if isAdmin {
+		minCrackTime = config.AdminPasswordMinCrackTimeSec
+	}
+	if user.PassCrackTimeSec < minCrackTime {
+		return fmt.Errorf("Password too weak, requires crack time %s but is %s. Please increase length or complexity", secDisplayTime(minCrackTime), secDisplayTime(user.PassCrackTimeSec))
+	}
+	return nil
 }
 
 func PasswordResetRequest(c echo.Context) error {
@@ -474,6 +659,7 @@ func PasswordResetRequest(c echo.Context) error {
 			arg.URL = req.CallbackURL + "?token=" + cookie
 		}
 		arg.Name = user.Name
+		arg.Token = cookie
 		tmpl = passwordResetTmpl
 	}
 	buf := bytes.Buffer{}
@@ -561,4 +747,161 @@ func RestrictedUserUpdate(c echo.Context) error {
 		return dbErr(err)
 	}
 	return nil
+}
+
+// modified version of go-zxcvbn scoring.displayTime that more closely
+// matches the java script version of the lib.
+func secDisplayTime(seconds float64) string {
+	formater := "%.1f %s"
+	minute := float64(60)
+	hour := minute * float64(60)
+	day := hour * float64(24)
+	month := day * float64(31)
+	year := month * float64(12)
+	century := year * float64(100)
+
+	if seconds < 1 {
+		return "less than a second"
+	} else if seconds < minute {
+		return fmt.Sprintf(formater, (1 + math.Ceil(seconds)), "seconds")
+	} else if seconds < hour {
+		return fmt.Sprintf(formater, (1 + math.Ceil(seconds/minute)), "minutes")
+	} else if seconds < day {
+		return fmt.Sprintf(formater, (1 + math.Ceil(seconds/hour)), "hours")
+	} else if seconds < month {
+		return fmt.Sprintf(formater, (1 + math.Ceil(seconds/day)), "days")
+	} else if seconds < year {
+		return fmt.Sprintf(formater, (1 + math.Ceil(seconds/month)), "months")
+	} else if seconds < century {
+		return fmt.Sprintf(formater, (1 + math.Ceil(seconds/century)), "years")
+	} else {
+		return "centuries"
+	}
+}
+
+func isUserAdmin(ctx context.Context, username string) (bool, error) {
+	// it doesn't matter what the resource/action is here, as long
+	// as it's part of one of the admin roles.
+	authOrgs, err := enforcer.GetAuthorizedOrgs(ctx, username, ResourceConfig, ActionView)
+	if err != nil {
+		return false, dbErr(err)
+	}
+	if _, found := authOrgs[""]; found {
+		return true, nil
+	}
+	return false, nil
+}
+
+func UpdateUser(c echo.Context) error {
+	ctx := GetContext(c)
+	claims, err := getClaims(c)
+	if err != nil {
+		return err
+	}
+
+	cuser := ormapi.CreateUser{}
+	cuser.User.Name = claims.Username
+	user := &cuser.User
+	db := loggedDB(ctx)
+	res := db.Where(user).First(user)
+	if res.RecordNotFound() {
+		return c.JSON(http.StatusBadRequest, Msg("User not found"))
+	}
+	old := *user
+
+	// read args onto existing data, will overwrite only specified fields
+	if err := c.Bind(&cuser); err != nil {
+		return bindErr(c, err)
+	}
+	// check for fields that are not allowed to change
+	if old.Name != user.Name {
+		return c.JSON(http.StatusBadRequest, Msg("Cannot change username"))
+	}
+	if old.EmailVerified != user.EmailVerified {
+		return c.JSON(http.StatusBadRequest, Msg("Cannot change emailverified"))
+	}
+	if old.Passhash != user.Passhash {
+		return c.JSON(http.StatusBadRequest, Msg("Cannot change passhash"))
+	}
+	if old.Salt != user.Salt {
+		return c.JSON(http.StatusBadRequest, Msg("Cannot change salt"))
+	}
+	if old.Iter != user.Iter {
+		return c.JSON(http.StatusBadRequest, Msg("Cannot change iter"))
+	}
+	if !old.CreatedAt.Equal(user.CreatedAt) {
+		return c.JSON(http.StatusBadRequest, Msg("Cannot change createdat"))
+	}
+	if !old.UpdatedAt.Equal(user.UpdatedAt) {
+		return c.JSON(http.StatusBadRequest, Msg("Cannot change updatedat"))
+	}
+	if old.Locked != user.Locked {
+		return c.JSON(http.StatusBadRequest, Msg("Cannot change locked"))
+	}
+	if old.PassCrackTimeSec != user.PassCrackTimeSec {
+		return c.JSON(http.StatusBadRequest, Msg("Cannot change passcracktimesec"))
+	}
+
+	// if email changed, need to verify
+	sendVerify := false
+	if old.Email != user.Email {
+		config, err := getConfig(ctx)
+		if err != nil {
+			return err
+		}
+		if !getSkipVerifyEmail(ctx, config) {
+			err := ValidEmailRequest(c, &cuser.Verify)
+			if err != nil {
+				return c.JSON(http.StatusBadRequest, MsgErr(err))
+			}
+			sendVerify = true
+		}
+		user.EmailVerified = false
+	}
+
+	userResponse := ormapi.UserResponse{}
+	otpChanged := false
+	if old.EnableTOTP != user.EnableTOTP {
+		if user.EnableTOTP {
+			totpKey, totpQR, err := GenerateTOTPQR(user.Email)
+			if err != nil {
+				return setReply(c, fmt.Errorf("Failed to setup 2FA: %v", err), nil)
+			}
+			user.TOTPSharedKey = totpKey
+
+			userResponse.TOTPSharedKey = totpKey
+			userResponse.TOTPQRImage = totpQR
+		} else {
+			user.TOTPSharedKey = NoOTP
+		}
+		otpChanged = true
+	}
+
+	err = db.Save(user).Error
+	if err != nil {
+		if strings.Contains(err.Error(), "duplicate key value violates unique constraint \"email_pkey") {
+			return setReply(c, fmt.Errorf("Email %s already in use", user.Email), nil)
+		}
+		return setReply(c, dbErr(err), nil)
+	}
+
+	if sendVerify {
+		err = sendVerifyEmail(ctx, user.Name, &cuser.Verify)
+		if err != nil {
+			undoErr := db.Save(&old).Error
+			if undoErr != nil {
+				log.SpanLog(ctx, log.DebugLevelApi, "undo update user failed", "user", claims.Username, "err", undoErr)
+			}
+			return setReply(c, fmt.Errorf("Failed to send verification email to %s, %v", user.Email, err), nil)
+		}
+	}
+
+	if otpChanged && user.TOTPSharedKey != "" {
+		userResponse.Message = "User updated\nEnabled two factor authentication. " +
+			"Please use the following text code with the two factor authentication app on your " +
+			"phone to set it up"
+	} else {
+		userResponse.Message = "user updated"
+	}
+	return c.JSON(http.StatusOK, &userResponse)
 }

@@ -13,17 +13,25 @@ func GetUserCommand() *cobra.Command {
 	cmds := []*cli.Command{&cli.Command{
 		Use:            "create",
 		RequiredArgs:   "name email",
-		OptionalArgs:   "nickname familyname givenname callbackurl",
-		AliasArgs:      "name=user.name email=user.email nickname=user.nickname familyname=user.familyname givenname=user.givenname password=user.passhash callbackurl=verify.callbackurl",
+		OptionalArgs:   "nickname familyname givenname callbackurl enabletotp metadata",
+		AliasArgs:      "name=user.name email=user.email nickname=user.nickname familyname=user.familyname givenname=user.givenname password=user.passhash callbackurl=verify.callbackurl enabletotp=user.enabletotp metadata=user.metadata",
 		PasswordArg:    "user.passhash",
 		VerifyPassword: true,
 		ReqData:        &ormapi.CreateUser{},
+		ReplyData:      &ormapi.UserResponse{},
 		Run:            runRest("/usercreate"),
 	}, &cli.Command{
 		Use:          "delete",
 		RequiredArgs: "name",
 		ReqData:      &ormapi.User{},
 		Run:          runRest("/auth/user/delete"),
+	}, &cli.Command{
+		Use:          "update",
+		OptionalArgs: "email nickname familyname givenname callbackurl enabletotp metadata",
+		AliasArgs:    "email=user.email nickname=user.nickname familyname=user.familyname givenname=user.givenname callbackurl=verify.callbackurl enabletotp=user.enabletotp metadata=user.metadata",
+		ReqData:      &ormapi.CreateUser{},
+		ReplyData:    &ormapi.UserResponse{},
+		Run:          runRest("/auth/user/update"),
 	}, &cli.Command{
 		Use:          "show",
 		ReqData:      &ormapi.Organization{},
@@ -76,6 +84,7 @@ func GetLoginCmd() *cobra.Command {
 	cmd := cli.Command{
 		Use:          "login",
 		RequiredArgs: "name",
+		OptionalArgs: "totp",
 		Run:          runLogin,
 	}
 	return cmd.GenCmd()
@@ -92,7 +101,7 @@ func runLogin(c *cli.Command, args []string) error {
 	if err != nil {
 		return err
 	}
-	token, err := client.DoLogin(getUri(), login.Username, login.Password)
+	token, err := client.DoLogin(getUri(), login.Username, login.Password, login.TOTP)
 	if err != nil {
 		return err
 	}

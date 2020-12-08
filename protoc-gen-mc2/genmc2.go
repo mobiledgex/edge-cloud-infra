@@ -220,7 +220,6 @@ func (g *GenMC2) generatePosts() {
 			if len(service.Method) == 0 {
 				continue
 			}
-			streamRouteAdded := false
 			for methodIndex, method := range service.Method {
 				if GetMc2Api(method) == "" {
 					continue
@@ -228,19 +227,12 @@ func (g *GenMC2) generatePosts() {
 
 				// 6 means service
 				// 2 means method in a service
-				summary := g.support.GetComments(file, fmt.Sprintf("6,%d,2,%d", serviceIndex, methodIndex))
+				summary := g.support.GetComments(file.GetName(), fmt.Sprintf("6,%d,2,%d", serviceIndex, methodIndex))
 				summary = strings.TrimSpace(strings.Map(gensupport.RemoveNewLines, summary))
 				g.genSwaggerSpec(method, summary)
 
 				g.P("group.Match([]string{method}, \"/ctrl/", method.Name,
 					"\", ", method.Name, ")")
-				if GetMc2StreamerCache(method) && !streamRouteAdded {
-					streamRouteAdded = true
-					in := gensupport.GetDesc(g.Generator, method.GetInputType())
-					streamName := "Stream" + *in.DescriptorProto.Name
-					g.P("group.Match([]string{method}, \"/ctrl/", streamName,
-						"\", ", streamName, ")")
-				}
 			}
 		}
 	}
@@ -334,8 +326,6 @@ func (g *GenMC2) generateMethod(service string, method *descriptor.MethodDescrip
 		StreamOutIncremental: gensupport.GetStreamOutIncremental(method),
 		CustomAuthz:          GetMc2CustomAuthz(method),
 		HasMethodArgs:        gensupport.HasMethodArgs(method),
-		GenStream:            GetMc2StreamerCache(method) && !found,
-		StreamerCache:        GetMc2StreamerCache(method),
 		NotifyRoot:           GetMc2ApiNotifyroot(method),
 	}
 	if gensupport.GetMessageKey(in.DescriptorProto) != nil || gensupport.GetObjAndKey(in.DescriptorProto) {
@@ -387,11 +377,6 @@ func (g *GenMC2) generateMethod(service string, method *descriptor.MethodDescrip
 	} else if g.genclient {
 		tmpl = g.tmplMethodClient
 		g.importOrmapi = true
-		if inname == "ExecRequest" {
-			args.ExecReq = true
-			g.importStrings = true
-			g.importHttp = true
-		}
 	} else if g.gentest {
 		tmpl = g.tmplMethodTest
 		g.importOrmclient = true
@@ -416,10 +401,6 @@ func (g *GenMC2) generateMethod(service string, method *descriptor.MethodDescrip
 		args.NoConfig = gensupport.GetNoConfig(in.DescriptorProto, method)
 		g.importOrmapi = true
 		g.importStrings = true
-		if inname == "ExecRequest" {
-			args.ExecReq = true
-			g.importHttp = true
-		}
 	} else {
 		tmpl = g.tmpl
 		g.importEcho = true
@@ -447,7 +428,6 @@ type tmplArgs struct {
 	InName               string
 	OutName              string
 	GenStruct            bool
-	GenStream            bool
 	Resource             string
 	Action               string
 	OrgField             string
@@ -466,9 +446,7 @@ type tmplArgs struct {
 	TargetCloudletParam  string
 	TargetCloudletArg    string
 	HasMethodArgs        bool
-	StreamerCache        bool
 	NotifyRoot           bool
-	ExecReq              bool
 	AuthOps              string
 	HasKey               bool
 }
@@ -494,68 +472,6 @@ type Region{{.InName}} struct {
 `
 
 var tmpl = `
-{{- if .GenStream}}
-var stream{{.InName}} = &StreamObj{}
-
-func Stream{{.InName}}(c echo.Context) error {
-{{- if .OrgValid}}
-	ctx := GetContext(c)
-{{- end}}
-	rc := &RegionContext{}
-	claims, err := getClaims(c)
-	if err != nil {
-		return err
-	}
-	rc.username = claims.Username
-
-	in := ormapi.Region{{.InName}}{}
-	success, err := ReadConn(c, &in)
-	if !success {
-		return err
-	}
-	rc.region = in.Region
-	span := log.SpanFromContext(ctx)
-	span.SetTag("region", in.Region)
-{{- if .HasKey}}
-	log.SetTags(span, in.{{.InName}}.GetKey().GetTags())
-{{- end}}
-{{- if .OrgValid}}
-	span.SetTag("org", in.{{.InName}}.{{.OrgField}})
-{{- end}}
-
-	streamer := stream{{.InName}}.Get(in.{{.InName}}.Key)
-	if streamer != nil {
-		payload := ormapi.StreamPayload{}
-		streamCh := streamer.Subscribe()
-		serverClosed := make(chan bool)
-		go func() {
-			for streamMsg := range streamCh {
-				switch out := streamMsg.(type) {
-				case string:
-					payload.Data = &edgeproto.Result{Message: out}
-					WriteStream(c, &payload)
-				case error:
-					WriteError(c, out)
-				default:
-					WriteError(c, fmt.Errorf("Unsupported message type received: %v", streamMsg))
-				}
-			}
-			CloseConn(c)
-			serverClosed <- true
-		}()
-		// Wait for client/server to close
-		// * Server closure is set via above serverClosed flag
-		// * Client closure is sent from client via a message
-		WaitForConnClose(c, serverClosed)
-		streamer.Unsubscribe(streamCh)
-        } else {
-		WriteError(c, fmt.Errorf("Key doesn't exist"))
-		CloseConn(c)
-	}
-        return nil
-}
-{{- end}}
-
 func {{.MethodName}}(c echo.Context) error {
 	ctx := GetContext(c)
 	rc := &RegionContext{}
@@ -587,42 +503,15 @@ func {{.MethodName}}(c echo.Context) error {
 	span.SetTag("org", in.{{.InName}}.{{.OrgField}})
 {{- end}}
 {{- if .Outstream}}
-{{- if .StreamerCache}}
-
-	streamer := NewStreamer()
-	defer streamer.Stop()
-{{- end}}
-
-{{- if .StreamerCache}}
-	streamAdded := false
-{{- end}}
 
 	err = {{.MethodName}}Stream(ctx, rc, &in.{{.InName}}, func(res *edgeproto.{{.OutName}}) {
-{{- if .StreamerCache}}
-		if !streamAdded{
-			stream{{.InName}}.Add(in.{{.InName}}.Key, streamer)
-			streamAdded = true
-		}
-{{- end}}
 		payload := ormapi.StreamPayload{}
 		payload.Data = res
-{{- if .StreamerCache}}
-		streamer.Publish(res.Message)
-{{- end}}
 		WriteStream(c, &payload)
 	})
 	if err != nil {
-{{- if .StreamerCache}}
-		streamer.Publish(err)
-{{- end}}
 		WriteError(c, err)
 	}
-{{- if .StreamerCache}}
-	if streamAdded {
-		stream{{.InName}}.Remove(in.{{.InName}}.Key, streamer)
-	}
-
-{{- end}}
 	return nil
 {{- else}}
 	resp, err := {{.MethodName}}Obj(ctx, rc, &in.{{.InName}})
@@ -824,19 +713,6 @@ func (s *Client) {{.MethodName}}(uri, token string, in *ormapi.Region{{.InName}}
 	return &out, status, err
 }
 {{- end}}
-{{- if .ExecReq}}
-func (s *Client) {{.MethodName}}Stream(uri, token string, in *ormapi.Region{{.InName}}) ([]ormapi.WSStreamPayload, int, error) {
-	out := ormapi.WSStreamPayload{}
-	outlist := []ormapi.WSStreamPayload{}
-	if !strings.HasPrefix(uri, "ws://") && !strings.HasPrefix(uri, "wss://") {
-		return nil, http.StatusBadRequest, fmt.Errorf("only websocket supported")
-	}
-	status, err := s.PostJsonStreamOut(uri+"/auth/ctrl/{{.MethodName}}", token, in, &out, func() {
-		outlist = append(outlist, out)
-	})
-	return outlist, status, err
-}
-{{- end}}
 `
 
 var tmplMethodCtl = `
@@ -921,11 +797,6 @@ func (s *Client) {{.MethodName}}(uri, token string, in *ormapi.Region{{.InName}}
 		return nil, st, err
 	}
 	return &out, st, err
-}
-{{- end}}
-{{- if .ExecReq}}
-func (s *Client) {{.MethodName}}Stream(uri, token string, in *ormapi.Region{{.InName}}) ([]ormapi.WSStreamPayload, int, error) {
-	return nil, http.StatusBadRequest, fmt.Errorf("not supported")
 }
 {{- end}}
 
@@ -1127,9 +998,6 @@ func (g *GenMC2) generateClientInterface(service *descriptor.ServiceDescriptorPr
 		} else {
 			g.P(method.Name, "(uri, token string, in *ormapi.Region", inname, ") (*edgeproto.", outname, ", int, error)")
 		}
-		if inname == "ExecRequest" {
-			g.P(method.Name, "Stream(uri, token string, in *ormapi.RegionExecRequest) ([]ormapi.WSStreamPayload, int, error)")
-		}
 	}
 	g.P("}")
 	g.P()
@@ -1180,10 +1048,6 @@ func GetMc2ApiRequiresOrg(method *descriptor.MethodDescriptorProto) string {
 
 func GetMc2CustomAuthz(method *descriptor.MethodDescriptorProto) bool {
 	return proto.GetBoolExtension(method.Options, protogen.E_Mc2CustomAuthz, false)
-}
-
-func GetMc2StreamerCache(method *descriptor.MethodDescriptorProto) bool {
-	return proto.GetBoolExtension(method.Options, protogen.E_Mc2StreamerCache, false)
 }
 
 func GetMc2ApiNotifyroot(method *descriptor.MethodDescriptorProto) bool {

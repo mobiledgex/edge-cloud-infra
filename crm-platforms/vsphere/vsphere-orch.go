@@ -17,13 +17,6 @@ var orchVmLock sync.Mutex
 
 const VLAN_START uint32 = 1000
 
-type VMUpdateList struct {
-	currentVMs  (map[string]string)
-	newVMs      (map[string]*vmlayer.VMOrchestrationParams)
-	vmsToCreate (map[string]*vmlayer.VMOrchestrationParams)
-	vmsToDelete (map[string]string)
-}
-
 func getResourcePoolName(groupName, domain string) string {
 	return groupName + "-pool" + "-" + domain
 }
@@ -59,12 +52,12 @@ func (v *VSpherePlatform) DeleteResourcesForGroup(ctx context.Context, groupName
 	// runs platform code with the domain set to "platform" and deletes the compute VMs
 	domain := string(v.vmProperties.Domain)
 	for _, vmtag := range vmtags {
-		vmname, vmdomain, err := v.ParseVMDomainTag(ctx, vmtag.Name)
+		vmDomainTagContents, err := v.ParseVMDomainTag(ctx, vmtag.Name)
 		if err != nil {
 			return err
 		}
-		domain = vmdomain
-		err = v.DeleteVM(ctx, vmname)
+		domain = vmDomainTagContents.Domain
+		err = v.DeleteVM(ctx, vmDomainTagContents.Vmname)
 		if err != nil {
 			return err
 		}
@@ -167,11 +160,9 @@ func (v *VSpherePlatform) populateOrchestrationParams(ctx context.Context, vmgp 
 	masterIP := ""
 	var flavors []*edgeproto.FlavorInfo
 	var err error
-	if !vmgp.SkipInfraSpecificCheck {
-		flavors, err = v.GetFlavorList(ctx)
-		if err != nil {
-			return err
-		}
+	flavors, err = v.GetFlavorList(ctx)
+	if err != nil {
+		return err
 	}
 
 	var usedCidrs map[string]string
@@ -221,12 +212,11 @@ func (v *VSpherePlatform) populateOrchestrationParams(ctx context.Context, vmgp 
 	for vmidx, vm := range vmgp.VMs {
 		vmHasExternalIp := false
 		vmgp.VMs[vmidx].MetaData = vmlayer.GetVMMetaData(vm.Role, masterIP, vmsphereMetaDataFormatter)
-		userdata, err := vmlayer.GetVMUserData(vm.Name, vm.SharedVolume, vm.DNSServers, vm.DeploymentManifest, vm.Command, &vm.CloudConfigParams, vmsphereUserDataFormatter)
+		userdata, err := vmlayer.GetVMUserData(vm.Name, vm.SharedVolume, vm.DeploymentManifest, vm.Command, &vm.CloudConfigParams, vmsphereUserDataFormatter)
 		if err != nil {
 			return err
 		}
 		vmgp.VMs[vmidx].UserData = userdata
-		vmgp.VMs[vmidx].DNSServers = strings.Join(vmlayer.CloudflareDns, ",")
 		flavormatch := false
 		for _, f := range flavors {
 			if f.Name == vm.FlavorName {
@@ -237,7 +227,7 @@ func (v *VSpherePlatform) populateOrchestrationParams(ctx context.Context, vmgp 
 				break
 			}
 		}
-		if !flavormatch && !vmgp.SkipInfraSpecificCheck {
+		if !flavormatch {
 			return fmt.Errorf("No match in flavor cache for flavor name: %s", vm.FlavorName)
 		}
 		if vm.AttachExternalDisk {
@@ -340,7 +330,7 @@ func (v *VSpherePlatform) populateOrchestrationParams(ctx context.Context, vmgp 
 		// we need to put the interface with the external ip first
 		var sortedPorts []vmlayer.PortResourceReference
 		for p, port := range vmgp.VMs[vmidx].Ports {
-			if port.NetworkId != v.GetExternalNetmask() {
+			if port.NetworkId == v.vmProperties.GetCloudletExternalNetwork() {
 				sortedPorts = append([]vmlayer.PortResourceReference{vmgp.VMs[vmidx].Ports[p]}, sortedPorts...)
 			} else {
 				sortedPorts = append(sortedPorts, vmgp.VMs[vmidx].Ports[p])
@@ -349,7 +339,7 @@ func (v *VSpherePlatform) populateOrchestrationParams(ctx context.Context, vmgp 
 		vmgp.VMs[vmidx].Ports = sortedPorts
 		log.SpanLog(ctx, log.DebugLevelInfra, "Interfaces after sorting", "vmname", vmgp.VMs[vmidx].Name, "FixedIPs", vmgp.VMs[vmidx].FixedIPs, "Ports", sortedPorts)
 
-		tagname := v.GetVmDomainTag(ctx, vmgp.GroupName, vm.Name)
+		tagname := v.GetVmDomainTag(ctx, vmgp.GroupName, vm.Name, string(vm.Role), vm.FlavorName)
 		tagid := v.IdSanitize(tagname)
 		vmgp.Tags = append(vmgp.Tags, vmlayer.TagOrchestrationParams{Category: v.GetVMDomainTagCategory(ctx), Id: tagid, Name: tagname})
 
@@ -461,9 +451,13 @@ func (v *VSpherePlatform) CreateVM(ctx context.Context, vm *vmlayer.VMOrchestrat
 		if err != nil {
 			return err
 		}
+		dnsServers := []string{vm.CloudConfigParams.PrimaryDNS}
+		if vm.CloudConfigParams.FallbackDNS != "" {
+			dnsServers = append(dnsServers, vm.CloudConfigParams.FallbackDNS)
+		}
 		custArgs = append(custArgs, []string{"-ip", ip.Address}...)
 		custArgs = append(custArgs, []string{"-netmask", netmask}...)
-		custArgs = append(custArgs, []string{"-dns-server", vm.DNSServers}...)
+		custArgs = append(custArgs, []string{"-dns-server", strings.Join(dnsServers, ",")}...)
 		if ip.Gateway != "" {
 			custArgs = append(custArgs, []string{"-gateway", ip.Gateway}...)
 		}
@@ -625,7 +619,41 @@ func (v *VSpherePlatform) DeleteVMAndTags(ctx context.Context, vmName string) er
 	return nil
 }
 
-func (v *VSpherePlatform) getVMListsForUpdate(ctx context.Context, vmgp *vmlayer.VMGroupOrchestrationParams, vmLists *VMUpdateList, updateCallback edgeproto.CacheUpdateCallback) error {
+func (v *VSpherePlatform) GetServerGroupResources(ctx context.Context, name string) (*edgeproto.InfraResources, error) {
+	log.SpanLog(ctx, log.DebugLevelInfra, "GetServerGroupResources", "name", name)
+	var resources edgeproto.InfraResources
+	vmTags, err := v.GetTagsMatchingField(ctx, TagFieldGroup, name, v.GetVMDomainTagCategory(ctx))
+	if err != nil {
+		return nil, err
+	}
+	vmips, err := v.GetAllVmIpsFromTags(ctx)
+	if err != nil {
+		return nil, err
+	}
+	for _, vt := range vmTags {
+		vmDomainTagContents, err := v.ParseVMDomainTag(ctx, vt.Name)
+		if err != nil {
+			return nil, err
+		}
+		vminfo := edgeproto.VmInfo{
+			Name:        vmDomainTagContents.Vmname,
+			InfraFlavor: vmDomainTagContents.Flavor,
+			Type:        string(vmlayer.GetVmTypeForRole(vmDomainTagContents.Role)),
+		}
+		ips, ok := vmips[vmDomainTagContents.Vmname]
+		if ok {
+			for _, ip := range ips {
+				var vmip edgeproto.IpAddr
+				vmip.ExternalIp = ip
+				vminfo.Ipaddresses = append(vminfo.Ipaddresses, vmip)
+			}
+		}
+		resources.Vms = append(resources.Vms, vminfo)
+	}
+	return &resources, nil
+}
+
+func (v *VSpherePlatform) getVMListsForUpdate(ctx context.Context, vmgp *vmlayer.VMGroupOrchestrationParams, vmLists *vmlayer.VMUpdateList, updateCallback edgeproto.CacheUpdateCallback) error {
 	orchVmLock.Lock()
 	defer orchVmLock.Unlock()
 	err := v.populateOrchestrationParams(ctx, vmgp, vmlayer.ActionUpdate)
@@ -638,37 +666,37 @@ func (v *VSpherePlatform) getVMListsForUpdate(ctx context.Context, vmgp *vmlayer
 		return err
 	}
 	for _, vt := range vmTags {
-		vmname, _, err := v.ParseVMDomainTag(ctx, vt.Name)
+		vmDomainTagContents, err := v.ParseVMDomainTag(ctx, vt.Name)
 		if err != nil {
 			return err
 		}
-		vmLists.currentVMs[vmname] = vmname
+		vmLists.CurrentVMs[vmDomainTagContents.Vmname] = vmDomainTagContents.Vmname
 	}
 	// Get new VMs
 	for i := range vmgp.VMs {
-		vmLists.newVMs[vmgp.VMs[i].Name] = &vmgp.VMs[i]
+		vmLists.NewVMs[vmgp.VMs[i].Name] = &vmgp.VMs[i]
 	}
 	// find VMs in new list missing in current list
-	for vmname, vmorch := range vmLists.newVMs {
-		_, exists := vmLists.currentVMs[vmname]
+	for vmname, vmorch := range vmLists.NewVMs {
+		_, exists := vmLists.CurrentVMs[vmname]
 		if !exists {
-			vmLists.vmsToCreate[vmname] = vmorch
+			vmLists.VmsToCreate[vmname] = vmorch
 		}
 	}
 	// find VMs in current list missing in new list
-	for oldvm, _ := range vmLists.currentVMs {
-		_, exists := vmLists.newVMs[oldvm]
+	for oldvm, _ := range vmLists.CurrentVMs {
+		_, exists := vmLists.NewVMs[oldvm]
 		if !exists {
-			vmLists.vmsToDelete[oldvm] = oldvm
+			vmLists.VmsToDelete[oldvm] = oldvm
 		}
 	}
-	log.SpanLog(ctx, log.DebugLevelInfra, "getVMListsForUpdate", "num VMs to create", len(vmLists.vmsToCreate), "num VMs to delete", len(vmLists.vmsToDelete), "VMS", vmLists.vmsToCreate)
+	log.SpanLog(ctx, log.DebugLevelInfra, "getVMListsForUpdate", "num VMs to create", len(vmLists.VmsToCreate), "num VMs to delete", len(vmLists.VmsToDelete), "VMS", vmLists.VmsToCreate)
 	for _, tag := range vmgp.Tags {
 		// apply any tags that relate to a new vm
 		vmname, err := v.GetValueForTagField(tag.Name, TagFieldVmName)
 		if err == nil {
 			log.SpanLog(ctx, log.DebugLevelInfra, "getVMListsForUpdate found tag", "tag", tag.Name, "vmname", vmname)
-			_, isnew := vmLists.vmsToCreate[vmname]
+			_, isnew := vmLists.VmsToCreate[vmname]
 			if isnew {
 				err := v.CreateTag(ctx, &tag)
 				if err != nil {
@@ -687,20 +715,20 @@ func (v *VSpherePlatform) getVMListsForUpdate(ctx context.Context, vmgp *vmlayer
 func (v *VSpherePlatform) UpdateVMs(ctx context.Context, vmgp *vmlayer.VMGroupOrchestrationParams, updateCallback edgeproto.CacheUpdateCallback) error {
 	log.SpanLog(ctx, log.DebugLevelInfra, "UpdateVMs", "vmGroupName", vmgp.GroupName)
 
-	var vmLists VMUpdateList
-	vmLists.currentVMs = make(map[string]string)
-	vmLists.newVMs = make(map[string]*vmlayer.VMOrchestrationParams)
-	vmLists.vmsToCreate = make(map[string]*vmlayer.VMOrchestrationParams)
-	vmLists.vmsToDelete = make(map[string]string)
+	var vmLists vmlayer.VMUpdateList
+	vmLists.CurrentVMs = make(map[string]string)
+	vmLists.NewVMs = make(map[string]*vmlayer.VMOrchestrationParams)
+	vmLists.VmsToCreate = make(map[string]*vmlayer.VMOrchestrationParams)
+	vmLists.VmsToDelete = make(map[string]string)
 	err := v.getVMListsForUpdate(ctx, vmgp, &vmLists, updateCallback)
 	if err != nil {
 		return err
 	}
 
-	if len(vmLists.vmsToDelete) > 0 {
+	if len(vmLists.VmsToDelete) > 0 {
 		updateCallback(edgeproto.UpdateTask, "Deleting VMs")
 	}
-	for _, vmname := range vmLists.vmsToDelete {
+	for _, vmname := range vmLists.VmsToDelete {
 		err := v.DeleteVMAndTags(ctx, vmname)
 		if err != nil {
 			return err
@@ -708,13 +736,13 @@ func (v *VSpherePlatform) UpdateVMs(ctx context.Context, vmgp *vmlayer.VMGroupOr
 	}
 
 	poolName := getResourcePoolName(vmgp.GroupName, string(v.vmProperties.Domain))
-	if len(vmLists.vmsToCreate) > 0 {
+	if len(vmLists.VmsToCreate) > 0 {
 		updateCallback(edgeproto.UpdateTask, "Creating VMs")
 	}
-	vmCreateResults := make(chan string, len(vmLists.vmsToCreate))
-	for vmn := range vmLists.vmsToCreate {
+	vmCreateResults := make(chan string, len(vmLists.VmsToCreate))
+	for vmn := range vmLists.VmsToCreate {
 		go func(vmname string) {
-			err := v.CreateVM(ctx, vmLists.vmsToCreate[vmname], poolName)
+			err := v.CreateVM(ctx, vmLists.VmsToCreate[vmname], poolName)
 			if err == nil {
 				vmCreateResults <- ""
 			} else {
@@ -723,7 +751,7 @@ func (v *VSpherePlatform) UpdateVMs(ctx context.Context, vmgp *vmlayer.VMGroupOr
 		}(vmn)
 	}
 	errFound := false
-	for range vmLists.vmsToCreate {
+	for range vmLists.VmsToCreate {
 		result := <-vmCreateResults
 		if result != "" {
 			errFound = true
@@ -778,11 +806,11 @@ func (v *VSpherePlatform) DetachPortFromServer(ctx context.Context, serverName, 
 	}
 	// delete the tag matching this subnet
 	for _, t := range tags {
-		_, tagnet, _, _, err := v.ParseVMIpTag(ctx, t.Name)
+		vmipTagContents, err := v.ParseVMIpTag(ctx, t.Name)
 		if err != nil {
 			return err
 		}
-		if tagnet == subnetName {
+		if vmipTagContents.Network == subnetName {
 			return v.DeleteTag(ctx, t.Name)
 		}
 	}

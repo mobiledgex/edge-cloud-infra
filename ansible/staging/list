@@ -14,7 +14,6 @@ postgres_hostname=postgres-stage.mobiledgex.net
 vault_vm_hostname="vault-{{ deploy_environ }}.mobiledgex.net"
 vault_ha_domain="vault-{{ deploy_environ }}.mobiledgex.net"
 vault_port=443
-vault_firewall_setup=no
 gitlab_vm_hostname=gitlab-stage.mobiledgex.net
 crm_vm_hostname=crm-stage.mobiledgex.net
 mc_vm_hostname=mc-stage.mobiledgex.net
@@ -58,3 +57,6 @@ swagger.mobiledgex.net
 
 [alertmanager]
 alertmanager-stage.mobiledgex.net
+
+[esproxy]
+events-stage.es.mobiledgex.net

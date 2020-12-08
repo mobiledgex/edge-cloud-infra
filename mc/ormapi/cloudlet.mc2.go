@@ -3,14 +3,16 @@
 
 package ormapi
 
-import edgeproto "github.com/mobiledgex/edge-cloud/edgeproto"
-import proto "github.com/gogo/protobuf/proto"
-import fmt "fmt"
-import math "math"
-import _ "github.com/gogo/googleapis/google/api"
-import _ "github.com/mobiledgex/edge-cloud/protogen"
-import _ "github.com/mobiledgex/edge-cloud/d-match-engine/dme-proto"
-import _ "github.com/gogo/protobuf/gogoproto"
+import (
+	fmt "fmt"
+	_ "github.com/gogo/googleapis/google/api"
+	_ "github.com/gogo/protobuf/gogoproto"
+	proto "github.com/gogo/protobuf/proto"
+	_ "github.com/mobiledgex/edge-cloud/d-match-engine/dme-proto"
+	edgeproto "github.com/mobiledgex/edge-cloud/edgeproto"
+	_ "github.com/mobiledgex/edge-cloud/protogen"
+	math "math"
+)
 
 // Reference imports to suppress errors if they are not otherwise used.
 var _ = proto.Marshal
@@ -58,7 +60,14 @@ type swaggerShowCloudlet struct {
 // swagger:parameters GetCloudletManifest
 type swaggerGetCloudletManifest struct {
 	// in: body
-	Body RegionCloudlet
+	Body RegionCloudletKey
+}
+
+type RegionCloudletKey struct {
+	// required: true
+	// Region name
+	Region      string
+	CloudletKey edgeproto.CloudletKey
 }
 
 // Request summary for GetCloudletProps
@@ -108,6 +117,20 @@ type RegionFlavorMatch struct {
 	// Region name
 	Region      string
 	FlavorMatch edgeproto.FlavorMatch
+}
+
+// Request summary for RevokeAccessKey
+// swagger:parameters RevokeAccessKey
+type swaggerRevokeAccessKey struct {
+	// in: body
+	Body RegionCloudletKey
+}
+
+// Request summary for GenerateAccessKey
+// swagger:parameters GenerateAccessKey
+type swaggerGenerateAccessKey struct {
+	// in: body
+	Body RegionCloudletKey
 }
 
 // Request summary for ShowCloudletInfo

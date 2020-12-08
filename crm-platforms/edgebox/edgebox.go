@@ -8,6 +8,7 @@ import (
 	"github.com/mobiledgex/edge-cloud-infra/vmlayer"
 	"github.com/mobiledgex/edge-cloud/cloud-resource-manager/platform"
 	"github.com/mobiledgex/edge-cloud/cloud-resource-manager/platform/dind"
+	"github.com/mobiledgex/edge-cloud/cloud-resource-manager/platform/pc"
 	"github.com/mobiledgex/edge-cloud/cloudcommon"
 	"github.com/mobiledgex/edge-cloud/edgeproto"
 	"github.com/mobiledgex/edge-cloud/log"
@@ -42,12 +43,7 @@ func (e *EdgeboxPlatform) Init(ctx context.Context, platformConfig *platform.Pla
 	// Set the test Mode based on what is in PlatformConfig
 	infracommon.SetTestMode(platformConfig.TestMode)
 
-	vaultConfig, err := vault.BestConfig(platformConfig.VaultAddr)
-	if err != nil {
-		return err
-	}
-
-	if err := e.commonPf.InitInfraCommon(ctx, platformConfig, edgeboxProps, vaultConfig); err != nil {
+	if err := e.commonPf.InitInfraCommon(ctx, platformConfig, edgeboxProps); err != nil {
 		return err
 	}
 
@@ -84,7 +80,7 @@ func (s *EdgeboxPlatform) GetClusterPlatformClient(ctx context.Context, clusterI
 	return s.generic.GetClusterPlatformClient(ctx, clusterInst, clientType)
 }
 
-func (s *EdgeboxPlatform) GetNodePlatformClient(ctx context.Context, node *edgeproto.CloudletMgmtNode) (ssh.Client, error) {
+func (s *EdgeboxPlatform) GetNodePlatformClient(ctx context.Context, node *edgeproto.CloudletMgmtNode, ops ...pc.SSHClientOp) (ssh.Client, error) {
 	return s.generic.GetNodePlatformClient(ctx, node)
 }
 
@@ -94,4 +90,8 @@ func (s *EdgeboxPlatform) ListCloudletMgmtNodes(ctx context.Context, clusterInst
 
 func (s *EdgeboxPlatform) GetCloudletProps(ctx context.Context) (*edgeproto.CloudletProps, error) {
 	return &edgeproto.CloudletProps{Properties: edgeboxProps}, nil
+}
+
+func (s *EdgeboxPlatform) GetAccessData(ctx context.Context, cloudlet *edgeproto.Cloudlet, region string, vaultConfig *vault.Config, dataType string, arg []byte) (map[string]string, error) {
+	return nil, nil
 }

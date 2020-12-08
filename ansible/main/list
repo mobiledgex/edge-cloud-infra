@@ -12,11 +12,11 @@ gitlab_gcp_storage_bucket=gitlab-registry
 vault_vm_hostname=vault-main.mobiledgex.net
 vault_ha_domain=vault-main.mobiledgex.net
 vault_port=443
-vault_firewall_setup=no
 letsencrypt_env=production
 console_vm_hostname=console.mobiledgex.net
 console_prod=yes
 alertmanager_hostname=alertmanager.mobiledgex.net
+events_elasticsearch_cleanup_age=183
 
 [notifyroot]
 notifyroot.mobiledgex.net

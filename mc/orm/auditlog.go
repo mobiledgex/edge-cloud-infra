@@ -60,15 +60,24 @@ func logger(next echo.HandlerFunc) echo.HandlerFunc {
 
 		reqBody := []byte{}
 		resBody := []byte{}
-		// use body dump to capture req/res.
-		bd := middleware.BodyDump(func(c echo.Context, reqB, resB []byte) {
-			reqBody = reqB
-			resBody = resB
-		})
+		if strings.HasPrefix(req.RequestURI, "/ws/") {
+			// can't use bodydump on websocket-upgraded connection,
+			// as it tries to write the response back in the body
+			// to preserve it, which triggers a write to a hijacked
+			// connection error because websocket hijacks the http
+			// connection.
+			// req/reply is captured later below
+		} else {
+			// use body dump to capture req/res.
+			bd := middleware.BodyDump(func(c echo.Context, reqB, resB []byte) {
+				reqBody = reqB
+				resBody = resB
+			})
+			next = bd(next)
+		}
 		span.SetTag("method", req.Method)
 
-		handler := bd(next)
-		nexterr = handler(ec)
+		nexterr = next(ec)
 
 		span.SetTag("status", res.Status)
 
@@ -98,6 +107,7 @@ func logger(next echo.HandlerFunc) echo.HandlerFunc {
 			err := json.Unmarshal(reqBody, &login)
 			if err == nil {
 				login.Password = ""
+				login.TOTP = ""
 				reqBody, err = json.Marshal(login)
 			}
 			if err != nil {
@@ -170,6 +180,22 @@ func logger(next echo.HandlerFunc) echo.HandlerFunc {
 						response = result
 					}
 				}
+			} else if strings.Contains(string(resBody), "TOTP") {
+				resp := ormapi.UserResponse{}
+				err := json.Unmarshal(resBody, &resp)
+				if err == nil {
+					resp.TOTPSharedKey = ""
+					resp.TOTPQRImage = nil
+					updatedResp, err := json.Marshal(&resp)
+					if err == nil {
+						response = string(updatedResp)
+					} else {
+						response = string(resBody)
+					}
+				} else {
+					response = string(resBody)
+				}
+
 			} else {
 				response = string(resBody)
 			}

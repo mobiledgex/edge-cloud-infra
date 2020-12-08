@@ -19,7 +19,7 @@ const MaxKubeCredentialsWait = 10 * time.Second
 
 func (m *ManagedK8sPlatform) CreateClusterInst(ctx context.Context, clusterInst *edgeproto.ClusterInst, privacyPolicy *edgeproto.PrivacyPolicy, updateCallback edgeproto.CacheUpdateCallback, timeout time.Duration) error {
 	log.SpanLog(ctx, log.DebugLevelInfra, "CreateClusterInst", "clusterInst", clusterInst)
-	clusterName := m.Provider.NameSanitize(k8smgmt.GetCloudletClusterName(clusterInst))
+	clusterName := m.Provider.NameSanitize(k8smgmt.GetCloudletClusterName(&clusterInst.Key))
 	updateCallback(edgeproto.UpdateTask, "Creating Kubernetes Cluster: "+clusterName)
 	client, err := m.GetClusterPlatformClient(ctx, clusterInst, cloudcommon.ClientTypeRootLB)
 	if err != nil {
@@ -30,7 +30,7 @@ func (m *ManagedK8sPlatform) CreateClusterInst(ctx context.Context, clusterInst 
 	if err != nil {
 		if !clusterInst.SkipCrmCleanupOnFailure {
 			log.SpanLog(ctx, log.DebugLevelInfra, "Cleaning up clusterInst after failure", "clusterInst", clusterInst)
-			delerr := m.deleteClusterInstInternal(ctx, clusterName)
+			delerr := m.deleteClusterInstInternal(ctx, clusterName, updateCallback)
 			if delerr != nil {
 				log.SpanLog(ctx, log.DebugLevelInfra, "fail to cleanup cluster")
 			}
@@ -82,10 +82,10 @@ func (m *ManagedK8sPlatform) createClusterInstInternal(ctx context.Context, clie
 	return nil
 }
 
-func (m *ManagedK8sPlatform) DeleteClusterInst(ctx context.Context, clusterInst *edgeproto.ClusterInst) error {
+func (m *ManagedK8sPlatform) DeleteClusterInst(ctx context.Context, clusterInst *edgeproto.ClusterInst, updateCallback edgeproto.CacheUpdateCallback) error {
 	log.SpanLog(ctx, log.DebugLevelInfra, "DeleteClusterInst", "clusterInst", clusterInst)
-	clusterName := m.Provider.NameSanitize(k8smgmt.GetCloudletClusterName(clusterInst))
-	err := m.deleteClusterInstInternal(ctx, clusterName)
+	clusterName := m.Provider.NameSanitize(k8smgmt.GetCloudletClusterName(&clusterInst.Key))
+	err := m.deleteClusterInstInternal(ctx, clusterName, updateCallback)
 	if err != nil {
 		return err
 	}
@@ -96,11 +96,19 @@ func (m *ManagedK8sPlatform) DeleteClusterInst(ctx context.Context, clusterInst 
 	return k8smgmt.CleanupClusterConfig(ctx, client, clusterInst)
 }
 
-func (m *ManagedK8sPlatform) deleteClusterInstInternal(ctx context.Context, clusterName string) error {
+func (m *ManagedK8sPlatform) deleteClusterInstInternal(ctx context.Context, clusterName string, updateCallback edgeproto.CacheUpdateCallback) error {
 	log.SpanLog(ctx, log.DebugLevelInfra, "deleteClusterInstInternal", "clusterName", clusterName)
 	return m.Provider.RunClusterDeleteCommand(ctx, clusterName)
 }
 
 func (s *ManagedK8sPlatform) UpdateClusterInst(ctx context.Context, clusterInst *edgeproto.ClusterInst, privacyPolicy *edgeproto.PrivacyPolicy, updateCallback edgeproto.CacheUpdateCallback) error {
 	return fmt.Errorf("Update cluster inst not implemented")
+}
+
+func (e *ManagedK8sPlatform) GetCloudletInfraResources(ctx context.Context) (*edgeproto.InfraResources, error) {
+	return nil, fmt.Errorf("GetCloudletInfraResources not implemented for managed k8s")
+}
+
+func (e *ManagedK8sPlatform) GetClusterInfraResources(ctx context.Context, clusterKey *edgeproto.ClusterInstKey) (*edgeproto.InfraResources, error) {
+	return nil, fmt.Errorf("GetClusterInfraResources not implemented for managed k8s")
 }

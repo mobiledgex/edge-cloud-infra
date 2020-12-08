@@ -20,6 +20,7 @@ type MC struct {
 	AlertResolveTimeout     string
 	BillingPath             string
 	UsageCollectionInterval string
+	UsageCheckpointInterval string
 	AlertMgrApiAddr         string
 	ApiTlsCert              string
 	ApiTlsKey               string
@@ -52,6 +53,8 @@ type Shepherd struct {
 	AppDNSRoot     string
 	DeploymentTag  string
 	ChefServerPath string
+	AccessKeyFile  string
+	AccessApiAddr  string
 }
 type AutoProv struct {
 	process.Common `yaml:",inline"`
@@ -72,9 +75,9 @@ type PromE2e struct {
 	cmd            *exec.Cmd
 }
 
-type Exporter struct {
+type HttpServer struct {
 	process.Common `yaml:",inline"`
-	DataFile       string
+	PromDataFile   string
 	Port           int
 	cmd            *exec.Cmd
 }
@@ -88,6 +91,7 @@ type ChefServer struct {
 type Alertmanager struct {
 	process.Common `yaml:",inline"`
 	ConfigFile     string
+	TemplateFile   string
 	Port           int
 	cmd            *exec.Cmd
 }

@@ -11,7 +11,6 @@ import (
 	"github.com/mobiledgex/edge-cloud/cloudcommon"
 	"github.com/mobiledgex/edge-cloud/edgeproto"
 	"github.com/mobiledgex/edge-cloud/log"
-	"github.com/mobiledgex/edge-cloud/vault"
 	ssh "github.com/mobiledgex/golang-ssh"
 	"github.com/tmc/scp"
 )
@@ -24,40 +23,10 @@ type VMAccess struct {
 	Role   VMRole
 }
 
-type SSHOptions struct {
-	Timeout time.Duration
-	User    string
-}
-
-type SSHClientOp func(sshp *SSHOptions) error
-
-func WithUser(user string) SSHClientOp {
-	return func(op *SSHOptions) error {
-		op.User = user
-		return nil
-	}
-}
-
-func WithTimeout(timeout time.Duration) SSHClientOp {
-	return func(op *SSHOptions) error {
-		op.Timeout = timeout
-		return nil
-	}
-}
-
-func (o *SSHOptions) Apply(ops []SSHClientOp) {
-	for _, op := range ops {
-		op(o)
-	}
-}
-
-func (v *VMPlatform) SetCloudletSignedSSHKey(ctx context.Context, vaultConfig *vault.Config) error {
+func (v *VMPlatform) SetCloudletSignedSSHKey(ctx context.Context, accessApi platform.AccessApi) error {
 	log.SpanLog(ctx, log.DebugLevelInfra, "Sign cloudlet public key from Vault")
 
-	data := map[string]interface{}{
-		"public_key": v.VMProperties.sshKey.PublicKey,
-	}
-	signedKey, err := infracommon.GetSignedKeyFromVault(vaultConfig, data)
+	signedKey, err := accessApi.SignSSHKey(ctx, v.VMProperties.sshKey.PublicKey)
 	if err != nil {
 		return err
 	}
@@ -76,28 +45,28 @@ func (v *VMPlatform) triggerRefreshCloudletSSHKeys() {
 	}
 }
 
-func (v *VMPlatform) RefreshCloudletSSHKeys(vaultConfig *vault.Config) {
+func (v *VMPlatform) RefreshCloudletSSHKeys(accessApi platform.AccessApi) {
 	interval := CloudletSSHKeyRefreshInterval
 	for {
 		select {
 		case <-time.After(interval):
 		case <-v.VMProperties.sshKey.RefreshTrigger:
-			span := log.StartSpan(log.DebugLevelInfra, "refresh Cloudlet SSH Key")
-			ctx := log.ContextWithSpan(context.Background(), span)
-			err := v.SetCloudletSignedSSHKey(ctx, vaultConfig)
-			if err != nil {
-				log.SpanLog(ctx, log.DebugLevelInfra, "refresh cloudlet ssh key failure", "err", err)
-				// retry again soon
-				interval = time.Hour
-			} else {
-				interval = CloudletSSHKeyRefreshInterval
-			}
-			span.Finish()
 		}
+		span := log.StartSpan(log.DebugLevelInfra, "refresh Cloudlet SSH Key")
+		ctx := log.ContextWithSpan(context.Background(), span)
+		err := v.SetCloudletSignedSSHKey(ctx, accessApi)
+		if err != nil {
+			log.SpanLog(ctx, log.DebugLevelInfra, "refresh cloudlet ssh key failure", "err", err)
+			// retry again soon
+			interval = time.Hour
+		} else {
+			interval = CloudletSSHKeyRefreshInterval
+		}
+		span.Finish()
 	}
 }
 
-func (v *VMPlatform) InitCloudletSSHKeys(ctx context.Context, vaultConfig *vault.Config) error {
+func (v *VMPlatform) InitCloudletSSHKeys(ctx context.Context, accessApi platform.AccessApi) error {
 	// Generate Cloudlet SSH Keys
 	cloudletPubKey, cloudletPrivKey, err := ssh.GenKeyPair()
 	if err != nil {
@@ -105,7 +74,7 @@ func (v *VMPlatform) InitCloudletSSHKeys(ctx context.Context, vaultConfig *vault
 	}
 	v.VMProperties.sshKey.PublicKey = cloudletPubKey
 	v.VMProperties.sshKey.PrivateKey = cloudletPrivKey
-	err = v.SetCloudletSignedSSHKey(ctx, vaultConfig)
+	err = v.SetCloudletSignedSSHKey(ctx, accessApi)
 	if err != nil {
 		return err
 	}
@@ -114,8 +83,8 @@ func (v *VMPlatform) InitCloudletSSHKeys(ctx context.Context, vaultConfig *vault
 }
 
 //GetSSHClientFromIPAddr returns ssh client handle for the given IP.
-func (vp *VMProperties) GetSSHClientFromIPAddr(ctx context.Context, ipaddr string, ops ...SSHClientOp) (ssh.Client, error) {
-	opts := SSHOptions{Timeout: infracommon.DefaultConnectTimeout, User: infracommon.SSHUser}
+func (vp *VMProperties) GetSSHClientFromIPAddr(ctx context.Context, ipaddr string, ops ...pc.SSHClientOp) (ssh.Client, error) {
+	opts := pc.SSHOptions{Timeout: infracommon.DefaultConnectTimeout, User: infracommon.SSHUser}
 	opts.Apply(ops)
 	var client ssh.Client
 	var err error
@@ -171,27 +140,17 @@ func (v *VMPlatform) GetSSHClientForCluster(ctx context.Context, clusterInst *ed
 	if clusterInst.IpAccess == edgeproto.IpAccess_IP_ACCESS_DEDICATED {
 		rootLBName = cloudcommon.GetDedicatedLBFQDN(v.VMProperties.CommonPf.PlatformConfig.CloudletKey, &clusterInst.Key.ClusterKey, v.VMProperties.CommonPf.PlatformConfig.AppDNSRoot)
 	}
-	return v.GetSSHClientForServer(ctx, rootLBName, v.VMProperties.GetCloudletExternalNetwork())
+	return v.GetSSHClientForServer(ctx, rootLBName, v.VMProperties.GetCloudletExternalNetwork(), pc.WithCachedIp(true))
 }
 
 //GetSSHClient returns ssh client handle for the server
-func (v *VMPlatform) GetSSHClientForServer(ctx context.Context, serverName, networkName string, ops ...SSHClientOp) (ssh.Client, error) {
-	// if this is a rootLB we may have the IP cached already
-	var externalAddr string
-	rootLB, err := GetRootLB(ctx, serverName)
-	if err == nil && rootLB != nil {
-		if rootLB.IP != nil {
-			log.SpanLog(ctx, log.DebugLevelInfra, "using existing rootLB IP", "IP", rootLB.IP)
-			externalAddr = rootLB.IP.ExternalAddr
-		}
+func (v *VMPlatform) GetSSHClientForServer(ctx context.Context, serverName, networkName string, ops ...pc.SSHClientOp) (ssh.Client, error) {
+	serverIp, err := v.GetIPFromServerName(ctx, networkName, "", serverName, ops...)
+	if err != nil {
+		return nil, err
 	}
-	if externalAddr == "" {
-		serverIp, err := v.GetIPFromServerName(ctx, networkName, "", serverName)
-		if err != nil {
-			return nil, err
-		}
-		externalAddr = serverIp.ExternalAddr
-	}
+	externalAddr := serverIp.ExternalAddr
+
 	return v.VMProperties.GetSSHClientFromIPAddr(ctx, externalAddr, ops...)
 }
 
@@ -228,7 +187,7 @@ func (v *VMPlatform) GetAllCloudletVMs(ctx context.Context, caches *platform.Cac
 
 	// Shared RootLB
 	sharedRootLBName := v.VMProperties.SharedRootLBName
-	sharedlbclient, err := v.GetSSHClientForServer(ctx, sharedRootLBName, v.VMProperties.GetCloudletExternalNetwork())
+	sharedlbclient, err := v.GetSSHClientForServer(ctx, sharedRootLBName, v.VMProperties.GetCloudletExternalNetwork(), pc.WithCachedIp(true))
 	if err != nil {
 		log.SpanLog(ctx, log.DebugLevelInfra, "error getting ssh client for shared rootlb", "vm", sharedRootLBName, "err", err)
 	}
@@ -251,7 +210,7 @@ func (v *VMPlatform) GetAllCloudletVMs(ctx context.Context, caches *platform.Cac
 		var dedRootLBName string
 		if clusterInst.IpAccess == edgeproto.IpAccess_IP_ACCESS_DEDICATED {
 			dedRootLBName = v.VMProperties.GetRootLBNameForCluster(ctx, clusterInst)
-			dedicatedlbclient, err = v.GetSSHClientForServer(ctx, dedRootLBName, v.VMProperties.GetCloudletExternalNetwork())
+			dedicatedlbclient, err = v.GetSSHClientForServer(ctx, dedRootLBName, v.VMProperties.GetCloudletExternalNetwork(), pc.WithCachedIp(true))
 			if err != nil {
 				log.SpanLog(ctx, log.DebugLevelInfra, "error getting ssh client", "vm", dedRootLBName, "err", err)
 			}
@@ -352,7 +311,7 @@ func (v *VMPlatform) GetAllCloudletVMs(ctx context.Context, caches *platform.Cac
 		}
 		appLbName := cloudcommon.GetVMAppFQDN(&appinst.Key, &appinst.Key.ClusterInstKey.CloudletKey, v.VMProperties.CommonPf.PlatformConfig.AppDNSRoot)
 		log.SpanLog(ctx, log.DebugLevelInfra, "GetAllCloudletVMs handle VM appinst with LB", "key", k, "appLbName", appLbName)
-		appLbClient, err := v.GetSSHClientForServer(ctx, appLbName, v.VMProperties.GetCloudletExternalNetwork())
+		appLbClient, err := v.GetSSHClientForServer(ctx, appLbName, v.VMProperties.GetCloudletExternalNetwork(), pc.WithCachedIp(true))
 		if err != nil {
 			log.SpanLog(ctx, log.DebugLevelInfra, "Failed to get client for VM App LB", "appLbName", appLbName, "err", err)
 		}
@@ -374,7 +333,7 @@ func (v *VMPlatform) GetAllCloudletVMs(ctx context.Context, caches *platform.Cac
 	return cloudletVMs, nil
 }
 
-func GetVaultCAScript(vaultConfig *vault.Config) string {
+func GetVaultCAScript(publicSSHKey string) string {
 	return fmt.Sprintf(`
 #!/bin/bash
 
@@ -383,8 +342,10 @@ die() {
         exit 2
 }
 
-curl %s/v1/ssh/public_key | sudo tee /etc/ssh/trusted-user-ca-keys.pem
-[[ $? -ne 0 ]] && die "failed to get CA cert from vault"
+sudo cat > /etc/ssh/trusted-user-ca-keys.pem << EOL
+%s
+EOL
+
 sudo grep "ssh-rsa" /etc/ssh/trusted-user-ca-keys.pem
 [[ $? -ne 0 ]] && die "invalid CA cert from vault"
 
@@ -396,10 +357,10 @@ rm -f id_rsa_mex
 echo "" > .ssh/authorized_keys
 
 echo "Done setting up vault ssh"
-`, vaultConfig.Addr)
+`, publicSSHKey)
 }
 
-func GetVaultCAScriptForMasterNode(vaultConfig *vault.Config) string {
+func GetVaultCAScriptForMasterNode(publicSSHKey string) string {
 	k8sJoinSvcScript := `
 mkdir -p /var/tmp/k8s-join
 cp /tmp/k8s-join-cmd.tmp /var/tmp/k8s-join/k8s-join-cmd
@@ -412,7 +373,7 @@ Description=Job that runs k8s join script server
 [Service]
 Type=simple
 WorkingDirectory=/var/tmp/k8s-join
-ExecStart=/usr/bin/python3 -m http.server 8000
+ExecStart=/usr/bin/python3 -m http.server 20800
 Restart=always
 [Install]
 WantedBy=multi-user.target
@@ -425,7 +386,7 @@ sudo systemctl start k8s-join
 
 echo "Done setting k8s-join service"
 `
-	vaultCAScript := GetVaultCAScript(vaultConfig)
+	vaultCAScript := GetVaultCAScript(publicSSHKey)
 	return vaultCAScript + k8sJoinSvcScript
 }
 
@@ -445,8 +406,12 @@ func ExecuteUpgradeScript(ctx context.Context, vmName string, client ssh.Client,
 	return nil
 }
 
-func (v *VMPlatform) UpgradeFuncHandleSSHKeys(ctx context.Context, vaultConfig *vault.Config, caches *platform.Caches) (map[string]string, error) {
+func (v *VMPlatform) UpgradeFuncHandleSSHKeys(ctx context.Context, accessApi platform.AccessApi, caches *platform.Caches) (map[string]string, error) {
 	log.SpanLog(ctx, log.DebugLevelInfra, "UpgradeFuncHandleSSHKeys")
+	publicSSHKey, err := accessApi.GetSSHPublicKey(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get vault ssh cert: %v", err)
+	}
 	// Set SSH client to use mex private key
 	v.VMProperties.sshKey.UseMEXPrivateKey = true
 	fixVMs, err := v.GetAllCloudletVMs(ctx, caches)
@@ -463,9 +428,9 @@ func (v *VMPlatform) UpgradeFuncHandleSSHKeys(ctx context.Context, vaultConfig *
 		script := ""
 		if vm.Role == RoleMaster {
 			// Start k8s-join webserver
-			script = GetVaultCAScriptForMasterNode(vaultConfig)
+			script = GetVaultCAScriptForMasterNode(publicSSHKey)
 		} else {
-			script = GetVaultCAScript(vaultConfig)
+			script = GetVaultCAScript(publicSSHKey)
 		}
 		err = ExecuteUpgradeScript(ctx, vm.Name, vm.Client, script)
 		if err != nil {

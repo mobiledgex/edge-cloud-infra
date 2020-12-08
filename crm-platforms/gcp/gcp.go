@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"io/ioutil"
 	"os"
 	"strconv"
 	"strings"
@@ -17,7 +18,10 @@ import (
 const GcpMaxClusterNameLen int = 40
 
 type GCPPlatform struct {
-	commonPf *infracommon.CommonPlatform
+	properties  *infracommon.InfraProperties
+	accessVars  map[string]string
+	authKeyJSON string
+	gcpRegion   string
 }
 
 type GCPQuotas struct {
@@ -44,12 +48,12 @@ func (g *GCPPlatform) GatherCloudletInfo(ctx context.Context, info *edgeproto.Cl
 	}
 	var quotas []GCPQuotasList
 
-	filter := fmt.Sprintf("name=(%s) AND quotas.metric=(CPUS, DISKS_TOTAL_GB)", g.GetGcpZone())
+	filter := fmt.Sprintf("name=(%s) AND quotas.metric=(CPUS, DISKS_TOTAL_GB)", g.gcpRegion)
 	flatten := "quotas[]"
 	format := "json(quotas.metric,quotas.limit)"
 
 	log.SpanLog(ctx, log.DebugLevelInfra, "list regions", "filter", filter)
-	out, err := sh.Command("gcloud", "compute", "regions", "list",
+	out, err := infracommon.Sh(g.accessVars).Command("gcloud", "compute", "regions", "list",
 		"--project", g.GetGcpProject(), "--filter", filter, "--flatten", flatten,
 		"--format", format, sh.Dir("/tmp")).CombinedOutput()
 	if err != nil {
@@ -81,7 +85,7 @@ func (g *GCPPlatform) GatherCloudletInfo(ctx context.Context, info *edgeproto.Cl
 	filter = fmt.Sprintf("zone:(%s) AND name:(standard)", g.GetGcpZone())
 	format = "json(name,guestCpus,memoryMb,maximumPersistentDisksSizeGb)"
 	log.SpanLog(ctx, log.DebugLevelInfra, "list compute machine-types", "filter", filter, "format", format)
-	out, err = sh.Command("gcloud", "compute", "machine-types", "list",
+	out, err = infracommon.Sh(g.accessVars).Command("gcloud", "compute", "machine-types", "list",
 		"--project", g.GetGcpProject(), "--filter", filter,
 		"--format", format, sh.Dir("/tmp")).CombinedOutput()
 	if err != nil {
@@ -116,14 +120,14 @@ func (g *GCPPlatform) GatherCloudletInfo(ctx context.Context, info *edgeproto.Cl
 
 // GCPLogin logs into google cloud
 func (g *GCPPlatform) Login(ctx context.Context) error {
-	log.SpanLog(ctx, log.DebugLevelInfra, "doing GcpLogin", "vault url", g.GetGcpAuthKeyUrl())
+	log.SpanLog(ctx, log.DebugLevelInfra, "doing GcpLogin")
 	filename := "/tmp/auth_key.json"
-	err := infracommon.GetVaultDataToFile(g.commonPf.VaultConfig, g.GetGcpAuthKeyUrl(), filename)
+	err := ioutil.WriteFile(filename, []byte(g.authKeyJSON), 0644)
 	if err != nil {
 		return fmt.Errorf("unable to write auth file %s: %s", filename, err.Error())
 	}
 	defer os.Remove(filename)
-	out, err := sh.Command("gcloud", "auth", "activate-service-account", "--key-file", filename).CombinedOutput()
+	out, err := infracommon.Sh(g.accessVars).Command("gcloud", "auth", "activate-service-account", "--key-file", filename).CombinedOutput()
 	log.SpanLog(ctx, log.DebugLevelInfra, "gcp login", "out", string(out), "err", err)
 	if err != nil {
 		return err
@@ -148,6 +152,9 @@ func (g *GCPPlatform) NameSanitize(clusterName string) string {
 	return clusterName
 }
 
-func (g *GCPPlatform) SetCommonPlatform(cpf *infracommon.CommonPlatform) {
-	g.commonPf = cpf
+func (g *GCPPlatform) SetProperties(props *infracommon.InfraProperties) error {
+	g.properties = props
+	var err error
+	g.gcpRegion, err = g.GetGcpRegionFromZone(g.GetGcpZone())
+	return err
 }

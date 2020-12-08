@@ -37,7 +37,7 @@
       Deploying {{ crm_name }}
        - cloudlet name: {{ item.cloudlet_name }}
        - controller name: {{ controller_name }}
-       - notify srv port: {{ notify_srv_port }}
+       - notify srv port: {{ item.notify_srv_port | default(notify_srv_port) }}
 
 - name: Fetch CRM vault role
   set_fact:
@@ -49,6 +49,8 @@
   set_fact:
     crm_args:
       - crmserver
+      - "--accessApiAddr"
+      - "{{ controller_name }}.ctrl.{{ cloudflare_zone }}:41001"
       - "--notifySrvAddr"
       - "0.0.0.0:{{ item.notify_srv_port | default(notify_srv_port) }}"
       - "--cloudletKey"
@@ -80,6 +82,7 @@
       MEX_SECURITY_GROUP: "{{ item.mex_security_group | default(mex_security_group) }}"
       JAEGER_ENDPOINT: "{{ jaeger_endpoint }}"
       JAEGER_TAGS: "crm={{ crm_name }},cloudlet={{ item.cloudlet_name }},operator={{ item.operator_key }},environ={{ deploy_environ }},version={{ edge_cloud_version }}"
+      ES_SERVER_URLS: "{{ esproxy_address }}"
 
 - name: Add azure environment variables
   block:
@@ -99,7 +102,6 @@
         crm_env_gcp:
           MEX_GCP_PROJECT: "{{ gcp_project }}"
           MEX_GCP_ZONE: "{{ item.gcp_zone }}"
-          MEX_GCP_SERVICE_ACCOUNT: "{{ mexenv.MEX_GCP_SERVICE_ACCOUNT }}"
           MEXENV_URL: "https://{{ vault_vm_hostname}}:{{ vault_port }}/v1/secret/data/cloudlet/openstack/mexenv.json"
     - set_fact:
         crm_env: "{{ crm_env | combine(crm_env_gcp) }}"
@@ -113,12 +115,14 @@
     restart_policy: unless-stopped
     command: "{{ crm_args }}"
     env: "{{ crm_env }}"
+    volumes:
+      - "{{ crm_name }}-accesskey:/root/accesskey"
 
 - name: Verify that the notify srv port is accessible
   wait_for:
     host: "{{ (ansible_ssh_host|default(ansible_host))|default(inventory_hostname) }}"
-    port: "{{ notify_srv_port }}"
-    timeout: 60
+    port: "{{ item.notify_srv_port | default(notify_srv_port) }}"
+    timeout: 180
   vars:
     ansible_connection: local
 

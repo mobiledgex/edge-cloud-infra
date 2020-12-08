@@ -8,7 +8,7 @@ import (
 	"github.com/mobiledgex/edge-cloud/edgeproto"
 )
 
-var testInitInfo = AlertmgrInitInfo{
+var TestInitInfo = AlertmgrInitInfo{
 	Email:          "alerts@localhost",
 	User:           "testuser",
 	Token:          "12345",
@@ -44,20 +44,31 @@ var testAlerts = []edgeproto.Alert{
 			cloudcommon.AlertHealthCheckStatus: strconv.Itoa(int(edgeproto.HealthCheck_HEALTH_CHECK_FAIL_ROOTLB_OFFLINE)),
 		},
 	},
+	edgeproto.Alert{ // AlertAutoUndeploy alert
+		Labels: map[string]string{
+			"alertname":                     cloudcommon.AlertAutoUndeploy,
+			"region":                        testRegions[1],
+			edgeproto.AppKeyTagName:         "testapp",
+			edgeproto.AppKeyTagOrganization: "testorg",
+			edgeproto.AppKeyTagVersion:      "1.0",
+			edgeproto.CloudletKeyTagName:    "testcloudlet",
+		},
+	},
 }
 
 var testAlertReceivers = []ormapi.AlertReceiver{
 	ormapi.AlertReceiver{
 		Name:     "invalidReceiver",
 		Type:     "invalidType",
-		Severity: AlertSeverityError,
+		Severity: cloudcommon.AlertSeverityError,
 		User:     testUsers[0],
 	},
 	ormapi.AlertReceiver{
 		Name:     "testorgemailreceiver",
 		Type:     AlertReceiverTypeEmail,
-		Severity: AlertSeverityError,
+		Severity: cloudcommon.AlertSeverityError,
 		User:     testUsers[0],
+		Email:    "testuser1@testorg.net",
 		AppInst: edgeproto.AppInstKey{
 			AppKey: edgeproto.AppKey{
 				Name:         "testApp",
@@ -76,9 +87,73 @@ var testAlertReceivers = []ormapi.AlertReceiver{
 			},
 		},
 	},
-}
-
-var testAlertReceiverEmailCfg = ormapi.User{
-	Name:  testUsers[0],
-	Email: "testuser1@testorg.net",
+	ormapi.AlertReceiver{
+		Name:         "testorgslackreceiverInvalidSlackData",
+		Type:         AlertReceiverTypeSlack,
+		Severity:     cloudcommon.AlertSeverityError,
+		User:         testUsers[0],
+		SlackChannel: "#alerts",
+		SlackWebhook: "invalidURL",
+		AppInst: edgeproto.AppInstKey{
+			AppKey: edgeproto.AppKey{
+				Name:         "testApp",
+				Organization: "testAppOrg",
+				Version:      "v1.0",
+			},
+			ClusterInstKey: edgeproto.ClusterInstKey{
+				ClusterKey: edgeproto.ClusterKey{
+					Name: "testCluster",
+				},
+				CloudletKey: edgeproto.CloudletKey{
+					Name:         "testCloudlet",
+					Organization: "testCloudletOrg",
+				},
+				Organization: "testClusterOrg",
+			},
+		},
+	},
+	ormapi.AlertReceiver{
+		Name:         "testorgslackreceiver",
+		Type:         AlertReceiverTypeSlack,
+		Severity:     cloudcommon.AlertSeverityError,
+		User:         testUsers[1],
+		SlackChannel: "#alerts",
+		SlackWebhook: "https://hooks.slack.com/foo",
+		AppInst: edgeproto.AppInstKey{
+			AppKey: edgeproto.AppKey{
+				Name:         "testApp",
+				Organization: "testAppOrg",
+				Version:      "v1.0",
+			},
+			ClusterInstKey: edgeproto.ClusterInstKey{
+				ClusterKey: edgeproto.ClusterKey{
+					Name: "testCluster",
+				},
+				CloudletKey: edgeproto.CloudletKey{
+					Name:         "testCloudlet",
+					Organization: "testCloudletOrg",
+				},
+				Organization: "testClusterOrg",
+			},
+		},
+	},
+	ormapi.AlertReceiver{
+		Name:     "testclusteremailreceiver",
+		Type:     AlertReceiverTypeEmail,
+		Severity: cloudcommon.AlertSeverityError,
+		User:     testUsers[0],
+		Email:    "testuser1@testorg.net",
+		AppInst: edgeproto.AppInstKey{
+			ClusterInstKey: edgeproto.ClusterInstKey{
+				ClusterKey: edgeproto.ClusterKey{
+					Name: "testCluster",
+				},
+				CloudletKey: edgeproto.CloudletKey{
+					Name:         "testCloudlet",
+					Organization: "testCloudletOrg",
+				},
+				Organization: "testClusterOrg",
+			},
+		},
+	},
 }

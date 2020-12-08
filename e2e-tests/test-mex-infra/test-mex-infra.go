@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"flag"
 	"fmt"
+	"io/ioutil"
 	"os"
 	"strings"
 
@@ -16,11 +17,13 @@ import (
 )
 
 var (
-	commandName = "test-mex-infra"
-	configStr   *string
-	specStr     *string
-	modsStr     *string
-	outputDir   string
+	commandName    = "test-mex-infra"
+	configStr      *string
+	specStr        *string
+	modsStr        *string
+	outputDir      string
+	stopOnFail     *bool
+	sharedDataPath = "/tmp/e2e_test_out/shared_data.json"
 )
 
 //re-init the flags because otherwise we inherit a bunch of flags from the testing
@@ -30,6 +33,7 @@ func init() {
 	configStr = flag.String("testConfig", "", "json formatted TestConfig")
 	specStr = flag.String("testSpec", "", "json formatted TestSpec")
 	modsStr = flag.String("mods", "", "json formatted mods")
+	stopOnFail = flag.Bool("stop", false, "stop on failures")
 }
 
 func main() {
@@ -73,21 +77,44 @@ func main() {
 		util.DeploymentReplacementVars = config.Vars
 	}
 
-	retry := setupmex.NewRetry(spec.RetryCount, spec.RetryIntervalSec)
+	retry := setupmex.NewRetry(spec.RetryCount, spec.RetryIntervalSec, len(spec.Actions))
 	ranTest := false
+
+	// Load from file
+	sharedData := make(map[string]string)
+	plan, err := ioutil.ReadFile(sharedDataPath)
+	if err != nil {
+		// ignore
+		fmt.Printf("error reading shared data file, err: %v\n", err)
+	} else {
+		err = json.Unmarshal(plan, &sharedData)
+		if err != nil {
+			// ignore
+			fmt.Printf("failed to marshal shared data, err: %v\n", err)
+		}
+	}
+
 	for {
 		tryErrs := []string{}
 		for ii, a := range spec.Actions {
+			if !retry.ShouldRunAction(ii) {
+				continue
+			}
+			util.PrintStepBanner("name: " + spec.Name)
 			util.PrintStepBanner("running action: " + a + retry.Tries())
 			actionretry := false
-			tryErrs = e2esetup.RunAction(ctx, a, outputDir, &config, &spec, *specStr, mods, config.Vars, &actionretry)
+			errs := e2esetup.RunAction(ctx, a, outputDir, &config, &spec, *specStr, mods, config.Vars, sharedData, &actionretry)
+			tryErrs = append(tryErrs, errs...)
 			ranTest = true
-			if ii == 0 && actionretry {
-				// only allow the action to retry for the first
-				// action. This avoids rerunning creates when
-				// followed by shows.
-				retry.ActionEnable()
+			if *stopOnFail && len(errs) > 0 && !actionretry {
+				errors = append(errors, tryErrs...)
+				break
 			}
+			retry.SetActionRetry(ii, actionretry)
+		}
+		if len(errors) > 0 {
+			// stopOnFail case
+			break
 		}
 		if spec.CompareYaml.Yaml1 != "" && spec.CompareYaml.Yaml2 != "" {
 			pass := e2esetup.CompareYamlFiles(spec.CompareYaml.Yaml1,
@@ -109,6 +136,20 @@ func main() {
 	}
 	if !ranTest {
 		errors = append(errors, "no test content")
+	}
+
+	if len(sharedData) > 0 {
+		dataStr, err := json.Marshal(sharedData)
+		if err != nil {
+			// ignore
+			fmt.Printf("error in json marshal of shared data, err: %v\n", err)
+		} else {
+			err = ioutil.WriteFile(sharedDataPath, []byte(dataStr), 0644)
+			if err != nil {
+				// ignore
+				fmt.Printf("error writing shared data file, err: %v\n", err)
+			}
+		}
 	}
 
 	fmt.Printf("\nNum Errors found: %d, Results in: %s\n", len(errors), outputDir)

@@ -3,18 +3,20 @@
 
 package ormctl
 
-import edgeproto "github.com/mobiledgex/edge-cloud/edgeproto"
-import "strings"
-import "github.com/mobiledgex/edge-cloud-infra/mc/ormapi"
-import "github.com/mobiledgex/edge-cloud/cli"
-import proto "github.com/gogo/protobuf/proto"
-import fmt "fmt"
-import math "math"
-import _ "github.com/gogo/googleapis/google/api"
-import _ "github.com/mobiledgex/edge-cloud/protogen"
-import _ "github.com/gogo/protobuf/gogoproto"
-import _ "github.com/mobiledgex/edge-cloud/d-match-engine/dme-proto"
-import _ "github.com/gogo/protobuf/types"
+import (
+	fmt "fmt"
+	_ "github.com/gogo/googleapis/google/api"
+	_ "github.com/gogo/protobuf/gogoproto"
+	proto "github.com/gogo/protobuf/proto"
+	_ "github.com/gogo/protobuf/types"
+	"github.com/mobiledgex/edge-cloud-infra/mc/ormapi"
+	"github.com/mobiledgex/edge-cloud/cli"
+	_ "github.com/mobiledgex/edge-cloud/d-match-engine/dme-proto"
+	edgeproto "github.com/mobiledgex/edge-cloud/edgeproto"
+	_ "github.com/mobiledgex/edge-cloud/protogen"
+	math "math"
+	"strings"
+)
 
 // Reference imports to suppress errors if they are not otherwise used.
 var _ = proto.Marshal
@@ -136,15 +138,6 @@ var CreateAutoProvPolicyOptionalArgs = []string{
 	"deployintervalcount",
 	"cloudlets:#.key.organization",
 	"cloudlets:#.key.name",
-	"cloudlets:#.loc.latitude",
-	"cloudlets:#.loc.longitude",
-	"cloudlets:#.loc.horizontalaccuracy",
-	"cloudlets:#.loc.verticalaccuracy",
-	"cloudlets:#.loc.altitude",
-	"cloudlets:#.loc.course",
-	"cloudlets:#.loc.speed",
-	"cloudlets:#.loc.timestamp.seconds",
-	"cloudlets:#.loc.timestamp.nanos",
 	"minactiveinstances",
 	"maxinstances",
 	"undeployclientcount",
@@ -159,15 +152,6 @@ var AutoProvPolicyOptionalArgs = []string{
 	"deployintervalcount",
 	"cloudlets:#.key.organization",
 	"cloudlets:#.key.name",
-	"cloudlets:#.loc.latitude",
-	"cloudlets:#.loc.longitude",
-	"cloudlets:#.loc.horizontalaccuracy",
-	"cloudlets:#.loc.verticalaccuracy",
-	"cloudlets:#.loc.altitude",
-	"cloudlets:#.loc.course",
-	"cloudlets:#.loc.speed",
-	"cloudlets:#.loc.timestamp.seconds",
-	"cloudlets:#.loc.timestamp.nanos",
 	"minactiveinstances",
 	"maxinstances",
 	"undeployclientcount",

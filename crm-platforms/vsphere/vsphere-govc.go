@@ -10,7 +10,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/codeskyblue/go-sh"
+	"github.com/mobiledgex/edge-cloud-infra/infracommon"
 	"github.com/mobiledgex/edge-cloud-infra/vmlayer"
 	"github.com/mobiledgex/edge-cloud/log"
 )
@@ -216,10 +216,7 @@ func (v *VSpherePlatform) TimedGovcCommand(ctx context.Context, name string, a .
 	start := time.Now()
 
 	log.SpanLog(ctx, log.DebugLevelInfra, "Govc Command Start", "name", name, "parms", parmstr)
-	newSh := sh.NewSession()
-	for key, val := range v.vcenterVars {
-		newSh.SetEnv(key, val)
-	}
+	newSh := infracommon.Sh(v.vcenterVars)
 
 	out, err := newSh.Command(name, a).CombinedOutput()
 	if err != nil {
@@ -333,11 +330,11 @@ func (v *VSpherePlatform) GetUsedSubnetCIDRs(ctx context.Context) (map[string]st
 		return nil, err
 	}
 	for _, t := range tags {
-		sn, cidr, _, _, err := v.ParseSubnetTag(ctx, t.Name)
+		subnetTagContents, err := v.ParseSubnetTag(ctx, t.Name)
 		if err != nil {
 			return nil, err
 		}
-		cidrUsed[cidr] = sn
+		cidrUsed[subnetTagContents.Cidr] = subnetTagContents.SubnetName
 	}
 
 	return cidrUsed, nil
@@ -370,14 +367,13 @@ func (v *VSpherePlatform) GetUsedExternalIPs(ctx context.Context) (map[string]st
 	log.SpanLog(ctx, log.DebugLevelInfra, "GetUsedExternalIPs tags found", "tags", tags)
 
 	for _, t := range tags {
-		// tags are format vm__network__ip
-		vm, net, ip, _, err := v.ParseVMIpTag(ctx, t.Name)
+		vmIpTagContents, err := v.ParseVMIpTag(ctx, t.Name)
 		if err != nil {
 			return nil, err
 		}
-		if net == extNetId {
-			log.SpanLog(ctx, log.DebugLevelInfra, "Found external ip", "vm", vm, "ip", ip)
-			ipsUsed[ip] = vm
+		if vmIpTagContents.Network == extNetId {
+			log.SpanLog(ctx, log.DebugLevelInfra, "Found external ip", "vm", vmIpTagContents.Vmname, "ip", vmIpTagContents.Ipaddr)
+			ipsUsed[vmIpTagContents.Ipaddr] = vmIpTagContents.Vmname
 		}
 	}
 	return ipsUsed, nil

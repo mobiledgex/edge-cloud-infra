@@ -3,18 +3,19 @@
 
 package ormctl
 
-import edgeproto "github.com/mobiledgex/edge-cloud/edgeproto"
-import "strings"
-import "github.com/mobiledgex/edge-cloud-infra/mc/ormapi"
-import "github.com/mobiledgex/edge-cloud/cli"
-import proto "github.com/gogo/protobuf/proto"
-import fmt "fmt"
-import math "math"
-import _ "github.com/gogo/googleapis/google/api"
-import _ "github.com/mobiledgex/edge-cloud/protogen"
-import _ "github.com/mobiledgex/edge-cloud/d-match-engine/dme-proto"
-import _ "github.com/mobiledgex/edge-cloud/d-match-engine/dme-proto"
-import _ "github.com/gogo/protobuf/gogoproto"
+import (
+	fmt "fmt"
+	_ "github.com/gogo/googleapis/google/api"
+	_ "github.com/gogo/protobuf/gogoproto"
+	proto "github.com/gogo/protobuf/proto"
+	"github.com/mobiledgex/edge-cloud-infra/mc/ormapi"
+	"github.com/mobiledgex/edge-cloud/cli"
+	_ "github.com/mobiledgex/edge-cloud/d-match-engine/dme-proto"
+	edgeproto "github.com/mobiledgex/edge-cloud/edgeproto"
+	_ "github.com/mobiledgex/edge-cloud/protogen"
+	math "math"
+	"strings"
+)
 
 // Reference imports to suppress errors if they are not otherwise used.
 var _ = proto.Marshal
@@ -287,6 +288,8 @@ var AppInstAliasArgs = []string{
 	"status.maxtasks=appinst.status.maxtasks",
 	"status.taskname=appinst.status.taskname",
 	"status.stepname=appinst.status.stepname",
+	"status.msgcount=appinst.status.msgcount",
+	"status.msgs=appinst.status.msgs",
 	"revision=appinst.revision",
 	"forceupdate=appinst.forceupdate",
 	"updatemultiple=appinst.updatemultiple",
@@ -300,6 +303,8 @@ var AppInstAliasArgs = []string{
 	"availabilityzone=appinst.availabilityzone",
 	"vmflavor=appinst.vmflavor",
 	"optres=appinst.optres",
+	"updatedat.seconds=appinst.updatedat.seconds",
+	"updatedat.nanos=appinst.updatedat.nanos",
 }
 var AppInstComments = map[string]string{
 	"fields":                         "Fields are used for the Update API to specify which fields to apply",
@@ -327,7 +332,7 @@ var AppInstComments = map[string]string{
 	"mappedports:#.tls":              "TLS termination for this port",
 	"mappedports:#.nginx":            "use nginx proxy for this port if you really need a transparent proxy (udp only)",
 	"flavor":                         "Flavor name",
-	"state":                          "Current state of the AppInst on the Cloudlet, one of TrackedStateUnknown, NotPresent, CreateRequested, Creating, CreateError, Ready, UpdateRequested, Updating, UpdateError, DeleteRequested, Deleting, DeleteError, DeletePrepare, CrmInitok, CreatingDependencies",
+	"state":                          "Current state of the AppInst on the Cloudlet, one of TrackedStateUnknown, NotPresent, CreateRequested, Creating, CreateError, Ready, UpdateRequested, Updating, UpdateError, DeleteRequested, Deleting, DeleteError, DeletePrepare, CrmInitok, CreatingDependencies, DeleteDone",
 	"errors":                         "Any errors trying to create, update, or delete the AppInst on the Cloudlet",
 	"crmoverride":                    "Override actions to CRM, one of NoOverride, IgnoreCrmErrors, IgnoreCrm, IgnoreTransientState, IgnoreCrmAndTransientState",
 	"runtimeinfo.containerids":       "List of container names",
@@ -350,6 +355,7 @@ var AppInstSpecialArgs = map[string]string{
 	"appinst.errors":                   "StringArray",
 	"appinst.fields":                   "StringArray",
 	"appinst.runtimeinfo.containerids": "StringArray",
+	"appinst.status.msgs":              "StringArray",
 }
 var AppInstRuntimeRequiredArgs = []string{}
 var AppInstRuntimeOptionalArgs = []string{
@@ -382,6 +388,8 @@ var AppInstInfoOptionalArgs = []string{
 	"status.maxtasks",
 	"status.taskname",
 	"status.stepname",
+	"status.msgcount",
+	"status.msgs",
 	"powerstate",
 }
 var AppInstInfoAliasArgs = []string{
@@ -401,6 +409,8 @@ var AppInstInfoAliasArgs = []string{
 	"status.maxtasks=appinstinfo.status.maxtasks",
 	"status.taskname=appinstinfo.status.taskname",
 	"status.stepname=appinstinfo.status.stepname",
+	"status.msgcount=appinstinfo.status.msgcount",
+	"status.msgs=appinstinfo.status.msgs",
 	"powerstate=appinstinfo.powerstate",
 }
 var AppInstInfoComments = map[string]string{
@@ -413,7 +423,7 @@ var AppInstInfoComments = map[string]string{
 	"key.clusterinstkey.cloudletkey.name":         "Name of the cloudlet",
 	"key.clusterinstkey.organization":             "Name of Developer organization that this cluster belongs to",
 	"notifyid":                                    "Id of client assigned by server (internal use only)",
-	"state":                                       "Current state of the AppInst on the Cloudlet, one of TrackedStateUnknown, NotPresent, CreateRequested, Creating, CreateError, Ready, UpdateRequested, Updating, UpdateError, DeleteRequested, Deleting, DeleteError, DeletePrepare, CrmInitok, CreatingDependencies",
+	"state":                                       "Current state of the AppInst on the Cloudlet, one of TrackedStateUnknown, NotPresent, CreateRequested, Creating, CreateError, Ready, UpdateRequested, Updating, UpdateError, DeleteRequested, Deleting, DeleteError, DeletePrepare, CrmInitok, CreatingDependencies, DeleteDone",
 	"errors":                                      "Any errors trying to create, update, or delete the AppInst on the Cloudlet",
 	"runtimeinfo.containerids":                    "List of container names",
 	"powerstate":                                  "Power State of the AppInst, one of PowerOn, PowerOff, Reboot",
@@ -422,6 +432,7 @@ var AppInstInfoSpecialArgs = map[string]string{
 	"appinstinfo.errors":                   "StringArray",
 	"appinstinfo.fields":                   "StringArray",
 	"appinstinfo.runtimeinfo.containerids": "StringArray",
+	"appinstinfo.status.msgs":              "StringArray",
 }
 var AppInstMetricsRequiredArgs = []string{}
 var AppInstMetricsOptionalArgs = []string{
@@ -470,3 +481,39 @@ var AppInstLookupComments = map[string]string{
 	"policykey.name":                              "Policy name",
 }
 var AppInstLookupSpecialArgs = map[string]string{}
+var AppInstLookup2RequiredArgs = []string{
+	"key.appkey.organization",
+	"key.appkey.name",
+	"key.appkey.version",
+	"key.clusterinstkey.clusterkey.name",
+	"key.clusterinstkey.cloudletkey.organization",
+	"key.clusterinstkey.cloudletkey.name",
+	"key.clusterinstkey.organization",
+}
+var AppInstLookup2OptionalArgs = []string{
+	"cloudletkey.organization",
+	"cloudletkey.name",
+}
+var AppInstLookup2AliasArgs = []string{
+	"key.appkey.organization=appinstlookup2.key.appkey.organization",
+	"key.appkey.name=appinstlookup2.key.appkey.name",
+	"key.appkey.version=appinstlookup2.key.appkey.version",
+	"key.clusterinstkey.clusterkey.name=appinstlookup2.key.clusterinstkey.clusterkey.name",
+	"key.clusterinstkey.cloudletkey.organization=appinstlookup2.key.clusterinstkey.cloudletkey.organization",
+	"key.clusterinstkey.cloudletkey.name=appinstlookup2.key.clusterinstkey.cloudletkey.name",
+	"key.clusterinstkey.organization=appinstlookup2.key.clusterinstkey.organization",
+	"cloudletkey.organization=appinstlookup2.cloudletkey.organization",
+	"cloudletkey.name=appinstlookup2.cloudletkey.name",
+}
+var AppInstLookup2Comments = map[string]string{
+	"key.appkey.organization":                     "App developer organization",
+	"key.appkey.name":                             "App name",
+	"key.appkey.version":                          "App version",
+	"key.clusterinstkey.clusterkey.name":          "Cluster name",
+	"key.clusterinstkey.cloudletkey.organization": "Organization of the cloudlet site",
+	"key.clusterinstkey.cloudletkey.name":         "Name of the cloudlet",
+	"key.clusterinstkey.organization":             "Name of Developer organization that this cluster belongs to",
+	"cloudletkey.organization":                    "Organization of the cloudlet site",
+	"cloudletkey.name":                            "Name of the cloudlet",
+}
+var AppInstLookup2SpecialArgs = map[string]string{}

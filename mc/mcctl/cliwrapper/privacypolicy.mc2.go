@@ -22,37 +22,40 @@ var _ = math.Inf
 
 // Auto-generated code: DO NOT EDIT
 
-func (s *Client) CreatePrivacyPolicy(uri, token string, in *ormapi.RegionPrivacyPolicy) (*edgeproto.Result, int, error) {
+func (s *Client) CreatePrivacyPolicy(uri, token string, in *ormapi.RegionPrivacyPolicy) ([]edgeproto.Result, int, error) {
 	args := []string{"region", "CreatePrivacyPolicy"}
-	out := edgeproto.Result{}
+	outlist := []edgeproto.Result{}
 	noconfig := strings.Split("", ",")
-	st, err := s.runObjs(uri, token, args, in, &out, withIgnore(noconfig))
-	if err != nil {
-		return nil, st, err
+	ops := []runOp{
+		withIgnore(noconfig),
+		withStreamOutIncremental(),
 	}
-	return &out, st, err
+	st, err := s.runObjs(uri, token, args, in, &outlist, ops...)
+	return outlist, st, err
 }
 
-func (s *Client) DeletePrivacyPolicy(uri, token string, in *ormapi.RegionPrivacyPolicy) (*edgeproto.Result, int, error) {
+func (s *Client) DeletePrivacyPolicy(uri, token string, in *ormapi.RegionPrivacyPolicy) ([]edgeproto.Result, int, error) {
 	args := []string{"region", "DeletePrivacyPolicy"}
-	out := edgeproto.Result{}
+	outlist := []edgeproto.Result{}
 	noconfig := strings.Split("", ",")
-	st, err := s.runObjs(uri, token, args, in, &out, withIgnore(noconfig))
-	if err != nil {
-		return nil, st, err
+	ops := []runOp{
+		withIgnore(noconfig),
+		withStreamOutIncremental(),
 	}
-	return &out, st, err
+	st, err := s.runObjs(uri, token, args, in, &outlist, ops...)
+	return outlist, st, err
 }
 
-func (s *Client) UpdatePrivacyPolicy(uri, token string, in *ormapi.RegionPrivacyPolicy) (*edgeproto.Result, int, error) {
+func (s *Client) UpdatePrivacyPolicy(uri, token string, in *ormapi.RegionPrivacyPolicy) ([]edgeproto.Result, int, error) {
 	args := []string{"region", "UpdatePrivacyPolicy"}
-	out := edgeproto.Result{}
+	outlist := []edgeproto.Result{}
 	noconfig := strings.Split("", ",")
-	st, err := s.runObjs(uri, token, args, in, &out, withIgnore(noconfig))
-	if err != nil {
-		return nil, st, err
+	ops := []runOp{
+		withIgnore(noconfig),
+		withStreamOutIncremental(),
 	}
-	return &out, st, err
+	st, err := s.runObjs(uri, token, args, in, &outlist, ops...)
+	return outlist, st, err
 }
 
 func (s *Client) ShowPrivacyPolicy(uri, token string, in *ormapi.RegionPrivacyPolicy) ([]edgeproto.PrivacyPolicy, int, error) {

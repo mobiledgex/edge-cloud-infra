@@ -902,6 +902,7 @@ func addControllerApis(method string, group *echo.Group) {
 	// UpdatedAt: 36
 	// UpdatedAtSeconds: 36.1
 	// UpdatedAtNanos: 36.2
+	// PrivacyEnabled: 37
 	// ```
 	// Security:
 	//   Bearer:
@@ -1284,7 +1285,6 @@ func addControllerApis(method string, group *echo.Group) {
 	// ConfigsConfig: 27.2
 	// SharedVolumeSize: 28
 	// HealthCheck: 29
-	// PrivacyPolicy: 30
 	// PowerState: 31
 	// ExternalVolumeSize: 32
 	// AvailabilityZone: 33

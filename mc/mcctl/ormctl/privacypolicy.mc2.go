@@ -24,27 +24,31 @@ var _ = math.Inf
 // Auto-generated code: DO NOT EDIT
 
 var CreatePrivacyPolicyCmd = &cli.Command{
-	Use:          "CreatePrivacyPolicy",
-	RequiredArgs: "region " + strings.Join(PrivacyPolicyRequiredArgs, " "),
-	OptionalArgs: strings.Join(PrivacyPolicyOptionalArgs, " "),
-	AliasArgs:    strings.Join(PrivacyPolicyAliasArgs, " "),
-	SpecialArgs:  &PrivacyPolicySpecialArgs,
-	Comments:     addRegionComment(PrivacyPolicyComments),
-	ReqData:      &ormapi.RegionPrivacyPolicy{},
-	ReplyData:    &edgeproto.Result{},
-	Run:          runRest("/auth/ctrl/CreatePrivacyPolicy"),
+	Use:                  "CreatePrivacyPolicy",
+	RequiredArgs:         "region " + strings.Join(PrivacyPolicyRequiredArgs, " "),
+	OptionalArgs:         strings.Join(PrivacyPolicyOptionalArgs, " "),
+	AliasArgs:            strings.Join(PrivacyPolicyAliasArgs, " "),
+	SpecialArgs:          &PrivacyPolicySpecialArgs,
+	Comments:             addRegionComment(PrivacyPolicyComments),
+	ReqData:              &ormapi.RegionPrivacyPolicy{},
+	ReplyData:            &edgeproto.Result{},
+	Run:                  runRest("/auth/ctrl/CreatePrivacyPolicy"),
+	StreamOut:            true,
+	StreamOutIncremental: true,
 }
 
 var DeletePrivacyPolicyCmd = &cli.Command{
-	Use:          "DeletePrivacyPolicy",
-	RequiredArgs: "region " + strings.Join(PrivacyPolicyRequiredArgs, " "),
-	OptionalArgs: strings.Join(PrivacyPolicyOptionalArgs, " "),
-	AliasArgs:    strings.Join(PrivacyPolicyAliasArgs, " "),
-	SpecialArgs:  &PrivacyPolicySpecialArgs,
-	Comments:     addRegionComment(PrivacyPolicyComments),
-	ReqData:      &ormapi.RegionPrivacyPolicy{},
-	ReplyData:    &edgeproto.Result{},
-	Run:          runRest("/auth/ctrl/DeletePrivacyPolicy"),
+	Use:                  "DeletePrivacyPolicy",
+	RequiredArgs:         "region " + strings.Join(PrivacyPolicyRequiredArgs, " "),
+	OptionalArgs:         strings.Join(PrivacyPolicyOptionalArgs, " "),
+	AliasArgs:            strings.Join(PrivacyPolicyAliasArgs, " "),
+	SpecialArgs:          &PrivacyPolicySpecialArgs,
+	Comments:             addRegionComment(PrivacyPolicyComments),
+	ReqData:              &ormapi.RegionPrivacyPolicy{},
+	ReplyData:            &edgeproto.Result{},
+	Run:                  runRest("/auth/ctrl/DeletePrivacyPolicy"),
+	StreamOut:            true,
+	StreamOutIncremental: true,
 }
 
 var UpdatePrivacyPolicyCmd = &cli.Command{
@@ -59,6 +63,8 @@ var UpdatePrivacyPolicyCmd = &cli.Command{
 	Run: runRest("/auth/ctrl/UpdatePrivacyPolicy",
 		withSetFieldsFunc(setUpdatePrivacyPolicyFields),
 	),
+	StreamOut:            true,
+	StreamOutIncremental: true,
 }
 
 func setUpdatePrivacyPolicyFields(in map[string]interface{}) {

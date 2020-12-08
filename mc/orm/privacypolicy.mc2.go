@@ -14,7 +14,6 @@ import (
 	edgeproto "github.com/mobiledgex/edge-cloud/edgeproto"
 	"github.com/mobiledgex/edge-cloud/log"
 	_ "github.com/mobiledgex/edge-cloud/protogen"
-	"google.golang.org/grpc/status"
 	"io"
 	math "math"
 )
@@ -36,35 +35,40 @@ func CreatePrivacyPolicy(c echo.Context) error {
 	rc.username = claims.Username
 
 	in := ormapi.RegionPrivacyPolicy{}
-	if err := c.Bind(&in); err != nil {
-		return bindErr(c, err)
+	success, err := ReadConn(c, &in)
+	if !success {
+		return err
 	}
+	defer CloseConn(c)
 	rc.region = in.Region
 	span := log.SpanFromContext(ctx)
 	span.SetTag("region", in.Region)
 	log.SetTags(span, in.PrivacyPolicy.GetKey().GetTags())
 	span.SetTag("org", in.PrivacyPolicy.Key.Organization)
-	resp, err := CreatePrivacyPolicyObj(ctx, rc, &in.PrivacyPolicy)
+
+	err = CreatePrivacyPolicyStream(ctx, rc, &in.PrivacyPolicy, func(res *edgeproto.Result) {
+		payload := ormapi.StreamPayload{}
+		payload.Data = res
+		WriteStream(c, &payload)
+	})
 	if err != nil {
-		if st, ok := status.FromError(err); ok {
-			err = fmt.Errorf("%s", st.Message())
-		}
+		WriteError(c, err)
 	}
-	return setReply(c, err, resp)
+	return nil
 }
 
-func CreatePrivacyPolicyObj(ctx context.Context, rc *RegionContext, obj *edgeproto.PrivacyPolicy) (*edgeproto.Result, error) {
+func CreatePrivacyPolicyStream(ctx context.Context, rc *RegionContext, obj *edgeproto.PrivacyPolicy, cb func(res *edgeproto.Result)) error {
 	log.SetContextTags(ctx, edgeproto.GetTags(obj))
 	if !rc.skipAuthz {
 		if err := authorized(ctx, rc.username, obj.Key.Organization,
 			ResourceDeveloperPolicy, ActionManage, withRequiresOrg(obj.Key.Organization)); err != nil {
-			return nil, err
+			return err
 		}
 	}
 	if rc.conn == nil {
 		conn, err := connectController(ctx, rc.region)
 		if err != nil {
-			return nil, err
+			return err
 		}
 		rc.conn = conn
 		defer func() {
@@ -73,7 +77,30 @@ func CreatePrivacyPolicyObj(ctx context.Context, rc *RegionContext, obj *edgepro
 		}()
 	}
 	api := edgeproto.NewPrivacyPolicyApiClient(rc.conn)
-	return api.CreatePrivacyPolicy(ctx, obj)
+	stream, err := api.CreatePrivacyPolicy(ctx, obj)
+	if err != nil {
+		return err
+	}
+	for {
+		res, err := stream.Recv()
+		if err == io.EOF {
+			err = nil
+			break
+		}
+		if err != nil {
+			return err
+		}
+		cb(res)
+	}
+	return nil
+}
+
+func CreatePrivacyPolicyObj(ctx context.Context, rc *RegionContext, obj *edgeproto.PrivacyPolicy) ([]edgeproto.Result, error) {
+	arr := []edgeproto.Result{}
+	err := CreatePrivacyPolicyStream(ctx, rc, obj, func(res *edgeproto.Result) {
+		arr = append(arr, *res)
+	})
+	return arr, err
 }
 
 func DeletePrivacyPolicy(c echo.Context) error {
@@ -86,35 +113,40 @@ func DeletePrivacyPolicy(c echo.Context) error {
 	rc.username = claims.Username
 
 	in := ormapi.RegionPrivacyPolicy{}
-	if err := c.Bind(&in); err != nil {
-		return bindErr(c, err)
+	success, err := ReadConn(c, &in)
+	if !success {
+		return err
 	}
+	defer CloseConn(c)
 	rc.region = in.Region
 	span := log.SpanFromContext(ctx)
 	span.SetTag("region", in.Region)
 	log.SetTags(span, in.PrivacyPolicy.GetKey().GetTags())
 	span.SetTag("org", in.PrivacyPolicy.Key.Organization)
-	resp, err := DeletePrivacyPolicyObj(ctx, rc, &in.PrivacyPolicy)
+
+	err = DeletePrivacyPolicyStream(ctx, rc, &in.PrivacyPolicy, func(res *edgeproto.Result) {
+		payload := ormapi.StreamPayload{}
+		payload.Data = res
+		WriteStream(c, &payload)
+	})
 	if err != nil {
-		if st, ok := status.FromError(err); ok {
-			err = fmt.Errorf("%s", st.Message())
-		}
+		WriteError(c, err)
 	}
-	return setReply(c, err, resp)
+	return nil
 }
 
-func DeletePrivacyPolicyObj(ctx context.Context, rc *RegionContext, obj *edgeproto.PrivacyPolicy) (*edgeproto.Result, error) {
+func DeletePrivacyPolicyStream(ctx context.Context, rc *RegionContext, obj *edgeproto.PrivacyPolicy, cb func(res *edgeproto.Result)) error {
 	log.SetContextTags(ctx, edgeproto.GetTags(obj))
 	if !rc.skipAuthz {
 		if err := authorized(ctx, rc.username, obj.Key.Organization,
 			ResourceDeveloperPolicy, ActionManage); err != nil {
-			return nil, err
+			return err
 		}
 	}
 	if rc.conn == nil {
 		conn, err := connectController(ctx, rc.region)
 		if err != nil {
-			return nil, err
+			return err
 		}
 		rc.conn = conn
 		defer func() {
@@ -123,7 +155,30 @@ func DeletePrivacyPolicyObj(ctx context.Context, rc *RegionContext, obj *edgepro
 		}()
 	}
 	api := edgeproto.NewPrivacyPolicyApiClient(rc.conn)
-	return api.DeletePrivacyPolicy(ctx, obj)
+	stream, err := api.DeletePrivacyPolicy(ctx, obj)
+	if err != nil {
+		return err
+	}
+	for {
+		res, err := stream.Recv()
+		if err == io.EOF {
+			err = nil
+			break
+		}
+		if err != nil {
+			return err
+		}
+		cb(res)
+	}
+	return nil
+}
+
+func DeletePrivacyPolicyObj(ctx context.Context, rc *RegionContext, obj *edgeproto.PrivacyPolicy) ([]edgeproto.Result, error) {
+	arr := []edgeproto.Result{}
+	err := DeletePrivacyPolicyStream(ctx, rc, obj, func(res *edgeproto.Result) {
+		arr = append(arr, *res)
+	})
+	return arr, err
 }
 
 func UpdatePrivacyPolicy(c echo.Context) error {
@@ -136,35 +191,40 @@ func UpdatePrivacyPolicy(c echo.Context) error {
 	rc.username = claims.Username
 
 	in := ormapi.RegionPrivacyPolicy{}
-	if err := c.Bind(&in); err != nil {
-		return bindErr(c, err)
+	success, err := ReadConn(c, &in)
+	if !success {
+		return err
 	}
+	defer CloseConn(c)
 	rc.region = in.Region
 	span := log.SpanFromContext(ctx)
 	span.SetTag("region", in.Region)
 	log.SetTags(span, in.PrivacyPolicy.GetKey().GetTags())
 	span.SetTag("org", in.PrivacyPolicy.Key.Organization)
-	resp, err := UpdatePrivacyPolicyObj(ctx, rc, &in.PrivacyPolicy)
+
+	err = UpdatePrivacyPolicyStream(ctx, rc, &in.PrivacyPolicy, func(res *edgeproto.Result) {
+		payload := ormapi.StreamPayload{}
+		payload.Data = res
+		WriteStream(c, &payload)
+	})
 	if err != nil {
-		if st, ok := status.FromError(err); ok {
-			err = fmt.Errorf("%s", st.Message())
-		}
+		WriteError(c, err)
 	}
-	return setReply(c, err, resp)
+	return nil
 }
 
-func UpdatePrivacyPolicyObj(ctx context.Context, rc *RegionContext, obj *edgeproto.PrivacyPolicy) (*edgeproto.Result, error) {
+func UpdatePrivacyPolicyStream(ctx context.Context, rc *RegionContext, obj *edgeproto.PrivacyPolicy, cb func(res *edgeproto.Result)) error {
 	log.SetContextTags(ctx, edgeproto.GetTags(obj))
 	if !rc.skipAuthz {
 		if err := authorized(ctx, rc.username, obj.Key.Organization,
 			ResourceDeveloperPolicy, ActionManage); err != nil {
-			return nil, err
+			return err
 		}
 	}
 	if rc.conn == nil {
 		conn, err := connectController(ctx, rc.region)
 		if err != nil {
-			return nil, err
+			return err
 		}
 		rc.conn = conn
 		defer func() {
@@ -173,7 +233,30 @@ func UpdatePrivacyPolicyObj(ctx context.Context, rc *RegionContext, obj *edgepro
 		}()
 	}
 	api := edgeproto.NewPrivacyPolicyApiClient(rc.conn)
-	return api.UpdatePrivacyPolicy(ctx, obj)
+	stream, err := api.UpdatePrivacyPolicy(ctx, obj)
+	if err != nil {
+		return err
+	}
+	for {
+		res, err := stream.Recv()
+		if err == io.EOF {
+			err = nil
+			break
+		}
+		if err != nil {
+			return err
+		}
+		cb(res)
+	}
+	return nil
+}
+
+func UpdatePrivacyPolicyObj(ctx context.Context, rc *RegionContext, obj *edgeproto.PrivacyPolicy) ([]edgeproto.Result, error) {
+	arr := []edgeproto.Result{}
+	err := UpdatePrivacyPolicyStream(ctx, rc, obj, func(res *edgeproto.Result) {
+		arr = append(arr, *res)
+	})
+	return arr, err
 }
 
 func ShowPrivacyPolicy(c echo.Context) error {

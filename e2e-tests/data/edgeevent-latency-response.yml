@@ -1,5 +1,5 @@
 eventtype: EventLatencyProcessed
-latency:
+statistics:
   avg: 3.3768000000000002
   min: 1.12
   max: 5.33

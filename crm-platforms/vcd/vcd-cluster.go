@@ -151,7 +151,7 @@ func (v *VcdPlatform) CreateCluster(ctx context.Context, cloud *MexCloudlet, tmp
 	// Ok, here, we have both cluster vm on the internal net. Now go back and
 	// add the external to our LB
 	extAddr := ""
-	fmt.Printf("\n\tCreateCluster2-I-update vm %s\n", lbvm.VM.Name)
+	fmt.Printf("\n\tCreateCluster1-I-update vm %s\n", lbvm.VM.Name)
 	// Hopefully, adding this second will make it's default route first
 	extAddr, err = v.GetNextExtAddrForVdcNet(ctx, cloud.ParentVdc)
 	if err != nil {
@@ -170,8 +170,17 @@ func (v *VcdPlatform) CreateCluster(ctx context.Context, cloud *MexCloudlet, tmp
 		return clusterName, err
 	}
 
-	//netConIdx = 1 // for our subsequent internal net
 	fmt.Printf("CreateCluster-I-Add external net IP %s to vm %s OK\n", extAddr, lbvm.VM.Name)
+	// Would be nice to have dedicated or shared here?
+	task, err := lbvm.AddMetadata("ClusterVM", "true")
+	if err != nil {
+		fmt.Printf("\nError adding metadata ClusterVM true to lbvm: %s err: %s\n", lbvm.VM.Name, err.Error())
+		return clusterName, err
+	}
+	err = task.WaitTaskCompletion()
+	if err != nil {
+		return clusterName, err
+	}
 	// try power_on with only our ext net and add the internal net after that, do we still
 	// get blocked by the internal nets default route coming first?
 	for _, vmparams := range vmgp.VMs {

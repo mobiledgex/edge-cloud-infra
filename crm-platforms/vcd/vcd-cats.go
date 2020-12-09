@@ -74,25 +74,31 @@ func (v *VcdPlatform) UploadOvaFile(ctx context.Context, tmplName string) error 
 
 }
 
-func (v *VcdPlatform) DeleteTemplate(ctx context.Context, tmplName string) error {
+func (v *VcdPlatform) DeleteTemplate(ctx context.Context, name string) error {
 
 	cat := v.Objs.PrimaryCat
-
-	cItem, err := cat.FindCatalogItem(tmplName)
-	if err != nil {
-		fmt.Printf("Error finding %s from PrimaryCat\n", tmplName)
-		//	return err
-	} else {
-		err = cItem.Delete()
+	// hmm, choices
+	/*
+		cItem, err := cat.FindCatalogItem(name)
 		if err != nil {
-			fmt.Printf("Error on delete: %s\n", err.Error())
-		}
-		return err
-	}
+			fmt.Printf("Error finding %s from PrimaryCat :%s \n", name, err.Error())
+			//	return err
+		} else {
+			if cItem == govcd.CatalogItem{}  {
+				fmt.Printf("%s not found in PrimaryCat\n", name)
+				return err
+			}
+			err = cItem.Delete()
 
-	cItem2, err := cat.GetCatalogItemByName(tmplName, false)
+			if err != nil {
+				fmt.Printf("Error on delete: %s\n", err.Error())
+			}
+			return err
+		}
+	*/
+	cItem2, err := cat.GetCatalogItemByName(name, false)
 	if err != nil {
-		fmt.Printf("Error getting %s from PrimaryCat\n", tmplName)
+		fmt.Printf("Error getting %s from PrimaryCat\n", name)
 		return err
 	}
 	err = cItem2.Delete()

@@ -371,6 +371,7 @@ func (v *VcdPlatform) GetPlatformResources(ctx context.Context) error {
 	}
 
 	primNet := os.Getenv("MEX_EXT_NETWORK")
+	fmt.Printf("Discover Primary net evn as %s\n", primNet)
 
 	fmt.Printf("Discover: Collecting resources of vdc: %s\n", vdc.Vdc.Name)
 	// dumpVdcResourceEntities(vdc, 1)
@@ -389,7 +390,7 @@ func (v *VcdPlatform) GetPlatformResources(ctx context.Context) error {
 				log.SpanLog(ctx, log.DebugLevelInfra, "Primary", "network", orgvdcnet.OrgVDCNetwork.Name)
 				v.Objs.PrimaryNet = orgvdcnet
 			} else {
-				fmt.Printf("\nDiscover VDCOrgNetwork %s\n", orgvdcnet.OrgVDCNetwork.Name)
+				fmt.Printf("\nDiscover VDCOrgNetwork %s primNet: %s\n", orgvdcnet.OrgVDCNetwork.Name, primNet)
 			}
 		}
 	}
@@ -536,8 +537,8 @@ func (v *VcdPlatform) GetPlatformResources(ctx context.Context) error {
 	templateVmQueryRecs, err := v.Client.Client.QueryVmList(types.VmQueryFilterOnlyTemplates)
 	for _, qr := range templateVmQueryRecs {
 		v.Objs.TemplateVMs[qr.Name] = qr
-		//fmt.Printf("\nDiscover: found Template VM named %s type %s HREF: %s\n",
-		//	qr.Name, qr.Type, qr.HREF)
+		fmt.Printf("\nDiscover: found Template VM named %s type %s HREF: %s\n",
+			qr.Name, qr.Type, qr.HREF)
 	}
 	return nil
 }

@@ -90,7 +90,7 @@ func testOvaUpload(t *testing.T, ctx context.Context) error {
 
 	cat := tv.Objs.PrimaryCat
 	elapse_start := time.Now()
-	task, err := cat.UploadOvf(url, tname, "test-import-ova-vcd", 1024)
+	task, err := cat.UploadOvf(url, tname, "test-import-ova-vcd", (1024 * 4))
 
 	if err != nil {
 		fmt.Printf("\nError from UploadOvf: %s\n", err.Error())

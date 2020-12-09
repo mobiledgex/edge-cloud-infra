@@ -28,7 +28,7 @@ func TestRebuildCloudlet(t *testing.T) {
 			return
 		}
 		cloudlet := &MexCloudlet{}
-		var clusters []*Cluster
+		var clusters CidrMap
 		for name, vapp := range vapps {
 			fmt.Printf("consider vapp %s\n", name)
 			// If we have a vapp, we need to create a cloudlet from it
@@ -60,6 +60,7 @@ func testBuildCloudlet(ctx context.Context, vapp *govcd.VApp) (*MexCloudlet, str
 		fmt.Printf("\n\nError getting vapp metadata for vapp: %s\n", vapp.VApp.Name)
 		return nil, "", err
 	}
+
 	for _, data := range mdata.MetadataEntry {
 		if data.Key == "CloudletName" {
 			fmt.Printf("Vapp %s has metadata for CloudletName: %s\n", vapp.VApp.Name, data.TypedValue.Value)
@@ -77,7 +78,7 @@ func testBuildCloudlet(ctx context.Context, vapp *govcd.VApp) (*MexCloudlet, str
 	return cloudlet, cname, nil
 }
 
-func testBuildClusters(ctx context.Context, cldName string, cloudlet MexCloudlet) ([]*Cluster, error) {
+func testBuildClusters(ctx context.Context, cldName string, cloudlet MexCloudlet) (CidrMap, error) {
 
 	// cldName needs to be from metadata or split o ut
 
@@ -87,16 +88,17 @@ func testBuildClusters(ctx context.Context, cldName string, cloudlet MexCloudlet
 	// mex-docker-vm-cld3-clust1-mobiledgex -- a worker node (internal nic only)
 
 	clusterMap := make(CidrMap)
-	fmt.Printf("test rebuilding clusters for cloudlet %s\n", cldName)
+	fmt.Printf("\ttest rebuilding clusters for cloudlet %s\n", cldName)
 	var waitingVMs []*govcd.VM
-
-	// need a getClusterNameFromVMName() which should just be the first element of vmName
 	for vmName, vm := range tv.Objs.VMs {
 		// first, check if this vm is the cloudlet's vm
-
 		targetCluster := ""
 		parts := strings.Split(vmName, ".")
 
+		fmt.Printf("\nGetMetadata for vm: %s\n", vmName)
+
+		// bail on naming, we have a positive metadata indicator now cached in the vm.
+		// Need a metdata ClusterVM?
 		if len(parts) == 1 { // some internal nic only worker node
 			bits := strings.Split(vmName, "-")
 			if len(bits) > 1 {
@@ -111,6 +113,19 @@ func testBuildClusters(ctx context.Context, cldName string, cloudlet MexCloudlet
 				if clusterMap[targetCluster] == nil {
 					// haven't found the clusterNode yet save
 					waitingVMs = append(waitingVMs, vm)
+				}
+			}
+
+			metadata, err := vm.GetMetadata()
+			if err != nil {
+				fmt.Printf("\tError fetching metadata for vm %s\n", vmName)
+			}
+			fmt.Printf("\tLen of medata bits for vm: %d\n", len(metadata.MetadataEntry))
+			for _, mdata := range metadata.MetadataEntry {
+				fmt.Printf("mdata key %s value: %s\n", mdata.Key, mdata.TypedValue.Value)
+				switch mdata.Key {
+				case "vmParentCluster":
+					targetCluster = mdata.TypedValue.Value
 				}
 			}
 
@@ -149,9 +164,7 @@ func testBuildClusters(ctx context.Context, cldName string, cloudlet MexCloudlet
 		}
 
 		fmt.Printf("next vm name: %s belongs in cluster %s \n", vmName, targetCluster)
-		// Create ClusterVM but we've lost the vmparams hmm...
+		// Create ClusterVM but we've lost the vmparams hmm...=
 	}
-	// Run our list of tv.Objs.VMs, all must have
-
-	return nil, nil
+	return clusterMap, nil
 }

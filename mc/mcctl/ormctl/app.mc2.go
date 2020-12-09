@@ -50,8 +50,8 @@ var DeleteAppCmd = &cli.Command{
 
 var UpdateAppCmd = &cli.Command{
 	Use:          "UpdateApp",
-	RequiredArgs: "region " + strings.Join(UpdateAppRequiredArgs, " "),
-	OptionalArgs: strings.Join(UpdateAppOptionalArgs, " "),
+	RequiredArgs: "region " + strings.Join(AppRequiredArgs, " "),
+	OptionalArgs: strings.Join(AppOptionalArgs, " "),
 	AliasArgs:    strings.Join(AppAliasArgs, " "),
 	SpecialArgs:  &AppSpecialArgs,
 	Comments:     addRegionComment(AppComments),
@@ -128,37 +128,6 @@ var AppApiCmds = []*cli.Command{
 	RemoveAppAutoProvPolicyCmd,
 }
 
-var UpdateAppRequiredArgs = []string{
-	"app-org",
-	"appname",
-	"appvers",
-}
-var UpdateAppOptionalArgs = []string{
-	"imagepath",
-	"imagetype",
-	"accessports",
-	"defaultflavor",
-	"authpublickey",
-	"command",
-	"annotations",
-	"deploymentmanifest",
-	"androidpackagename",
-	"delopt",
-	"configs:#.kind",
-	"configs:#.config",
-	"scalewithcluster",
-	"internalports",
-	"revision",
-	"officialfqdn",
-	"md5sum",
-	"defaultsharedvolumesize",
-	"autoprovpolicy",
-	"accesstype",
-	"autoprovpolicies",
-	"templatedelimiter",
-	"skiphcports",
-	"privacyenabled",
-}
 var AppKeyRequiredArgs = []string{}
 var AppKeyOptionalArgs = []string{
 	"organization",
@@ -216,7 +185,6 @@ var AppOptionalArgs = []string{
 	"officialfqdn",
 	"md5sum",
 	"defaultsharedvolumesize",
-	"autoprovpolicy",
 	"accesstype",
 	"autoprovpolicies",
 	"templatedelimiter",
@@ -288,7 +256,7 @@ var AppComments = map[string]string{
 	"autoprovpolicy":          "(_deprecated_) Auto provisioning policy name",
 	"accesstype":              "Access type, one of AccessTypeDefaultForDeployment, AccessTypeDirect, AccessTypeLoadBalancer",
 	"deleteprepare":           "Preparing to be deleted",
-	"autoprovpolicies":        "Auto provisioning policy names",
+	"autoprovpolicies":        "Auto provisioning policy names, may be specified multiple times",
 	"templatedelimiter":       "Delimiter to be used for template parsing, defaults to [[ ]]",
 	"skiphcports":             "Comma separated list of protocol:port pairs that we should not run health check on Should be configured in case app does not always listen on these ports all can be specified if no health check to be run for this app Numerical values must be decimal format. i.e. tcp:80,udp:10002,http:443",
 	"privacyenabled":          "Indicates that an instance of this app can be started on a private cloudlet",

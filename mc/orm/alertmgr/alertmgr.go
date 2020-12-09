@@ -137,14 +137,38 @@ func (s *AlertMgrServer) Stop() {
 	s.waitGrp.Wait()
 }
 
+func isInternalAlert(alert *edgeproto.Alert) bool {
+	name, ok := alert.Labels["alertname"]
+	if !ok {
+		return true
+	}
+	if name == cloudcommon.AlertAppInstDown || name == cloudcommon.AlertCloudletDown {
+		return false
+	}
+	return true
+}
+
+func isLabelInternal(label string) bool {
+	if label == "instance" {
+		return true
+	}
+	return false
+}
 func (s *AlertMgrServer) alertsToOpenAPIAlerts(alerts []*edgeproto.Alert) models.PostableAlerts {
 	openAPIAlerts := models.PostableAlerts{}
 	for _, a := range alerts {
+		if isInternalAlert(a) {
+			continue
+		}
 		start := strfmt.DateTime(time.Unix(a.ActiveAt.Seconds, int64(a.ActiveAt.Nanos)))
 		// Set endsAt to now + s.AlertResolutionTimout
 		end := strfmt.DateTime(time.Now().Add(s.AlertResolutionTimout))
 		labels := make(map[string]string)
 		for k, v := range a.Labels {
+			// drop labels we don't want to expose to the end-users
+			if isLabelInternal(k) {
+				continue
+			}
 			// Convert appInst status to a human-understandable format
 			if k == cloudcommon.AlertHealthCheckStatus {
 				if tmp, err := strconv.ParseInt(v, 10, 32); err == nil {
@@ -228,14 +252,20 @@ func getAlertmgrReceiverName(receiver *ormapi.AlertReceiver) string {
 
 func getRouteMatchLabelsFromAlertReceiver(in *ormapi.AlertReceiver) map[string]string {
 	labels := map[string]string{}
+	// Add region label if one is specified
+	if in.Region != "" {
+		labels["region"] = in.Region
+	}
 	if in.Cloudlet.Organization != "" {
 		// add labels for the cloudlet
+		labels[cloudcommon.AlertScopeTypeTag] = cloudcommon.AlertScopeCloudlet
 		labels[edgeproto.CloudletKeyTagOrganization] = in.Cloudlet.Organization
 		if in.Cloudlet.Name != "" {
 			labels[edgeproto.CloudletKeyTagName] = in.Cloudlet.Name
 		}
 	} else if in.AppInst.AppKey.Organization != "" {
 		// add labels for app instance
+		labels[cloudcommon.AlertScopeTypeTag] = cloudcommon.AlertScopeApp
 		labels[edgeproto.AppKeyTagOrganization] = in.AppInst.AppKey.Organization
 		if in.AppInst.AppKey.Name != "" {
 			labels[edgeproto.AppKeyTagName] = in.AppInst.AppKey.Name
@@ -257,6 +287,7 @@ func getRouteMatchLabelsFromAlertReceiver(in *ormapi.AlertReceiver) map[string]s
 		}
 	} else if in.AppInst.ClusterInstKey.Organization != "" {
 		// add labels for cluster instance
+		labels[cloudcommon.AlertScopeTypeTag] = cloudcommon.AlertScopeApp
 		labels[edgeproto.ClusterInstKeyTagOrganization] = in.AppInst.ClusterInstKey.Organization
 		if in.AppInst.ClusterInstKey.CloudletKey.Name != "" {
 			labels[edgeproto.CloudletKeyTagName] = in.AppInst.ClusterInstKey.CloudletKey.Name
@@ -396,6 +427,7 @@ func alertReceiverMatchesFilter(receiver *ormapi.AlertReceiver, filter *ormapi.A
 			filter.Severity != "" && filter.Severity != receiver.Severity ||
 			filter.Type != "" && filter.Type != receiver.Type ||
 			filter.User != "" && filter.User != receiver.User ||
+			filter.Region != "" && filter.Region != receiver.Region ||
 			filter.SlackChannel != "" && filter.SlackChannel != receiver.SlackChannel ||
 			!receiver.Cloudlet.Matches(&filter.Cloudlet, edgeproto.MatchFilter()) ||
 			!receiver.AppInst.Matches(&filter.AppInst, edgeproto.MatchFilter()) {
@@ -483,6 +515,10 @@ func (s *AlertMgrServer) ShowReceivers(ctx context.Context, filter *ormapi.Alert
 		} else {
 			log.SpanLog(ctx, log.DebugLevelApi, "Unexpected receiver map data for route", "route", route)
 			continue
+		}
+		// get the region if it was configured
+		if region, ok := route.Match["region"]; ok {
+			receiver.Region = region
 		}
 		// Check against a filter
 		if alertReceiverMatchesFilter(receiver, filter) {

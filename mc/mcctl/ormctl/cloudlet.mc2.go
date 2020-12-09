@@ -40,8 +40,8 @@ var CreateCloudletCmd = &cli.Command{
 
 var DeleteCloudletCmd = &cli.Command{
 	Use:                  "DeleteCloudlet",
-	RequiredArgs:         "region " + strings.Join(CloudletRequiredArgs, " "),
-	OptionalArgs:         strings.Join(CloudletOptionalArgs, " "),
+	RequiredArgs:         "region " + strings.Join(DeleteCloudletRequiredArgs, " "),
+	OptionalArgs:         strings.Join(DeleteCloudletOptionalArgs, " "),
 	AliasArgs:            strings.Join(CloudletAliasArgs, " "),
 	SpecialArgs:          &CloudletSpecialArgs,
 	Comments:             addRegionComment(CloudletComments),
@@ -103,12 +103,12 @@ var ShowCloudletCmd = &cli.Command{
 
 var GetCloudletManifestCmd = &cli.Command{
 	Use:          "GetCloudletManifest",
-	RequiredArgs: "region " + strings.Join(CloudletRequiredArgs, " "),
-	OptionalArgs: strings.Join(CloudletOptionalArgs, " "),
-	AliasArgs:    strings.Join(CloudletAliasArgs, " "),
-	SpecialArgs:  &CloudletSpecialArgs,
-	Comments:     addRegionComment(CloudletComments),
-	ReqData:      &ormapi.RegionCloudlet{},
+	RequiredArgs: "region " + strings.Join(CloudletKeyRequiredArgs, " "),
+	OptionalArgs: strings.Join(CloudletKeyOptionalArgs, " "),
+	AliasArgs:    strings.Join(CloudletKeyAliasArgs, " "),
+	SpecialArgs:  &CloudletKeySpecialArgs,
+	Comments:     addRegionComment(CloudletKeyComments),
+	ReqData:      &ormapi.RegionCloudletKey{},
 	ReplyData:    &edgeproto.CloudletManifest{},
 	Run:          runRest("/auth/ctrl/GetCloudletManifest"),
 }
@@ -223,9 +223,41 @@ var CreateCloudletOptionalArgs = []string{
 	"physicalname",
 	"envvar",
 	"containerversion",
-	"restagmap:#.key",
-	"restagmap:#.value.name",
-	"restagmap:#.value.organization",
+	"accessvars",
+	"vmimageversion",
+	"deployment",
+	"infraapiaccess",
+	"infraconfig.externalnetworkname",
+	"infraconfig.flavorname",
+	"maintenancestate",
+	"overridepolicycontainerversion",
+	"vmpool",
+	"privacypolicy",
+}
+var DeleteCloudletRequiredArgs = []string{
+	"cloudlet-org",
+	"cloudlet",
+}
+var DeleteCloudletOptionalArgs = []string{
+	"location.latitude",
+	"location.longitude",
+	"location.altitude",
+	"ipsupport",
+	"staticips",
+	"numdynamicips",
+	"timelimits.createclusterinsttimeout",
+	"timelimits.updateclusterinsttimeout",
+	"timelimits.deleteclusterinsttimeout",
+	"timelimits.createappinsttimeout",
+	"timelimits.updateappinsttimeout",
+	"timelimits.deleteappinsttimeout",
+	"crmoverride",
+	"deploymentlocal",
+	"platformtype",
+	"flavor.name",
+	"physicalname",
+	"envvar",
+	"containerversion",
 	"accessvars",
 	"vmimageversion",
 	"deployment",
@@ -258,6 +290,41 @@ var UpdateCloudletOptionalArgs = []string{
 	"envvar",
 	"accessvars",
 	"maintenancestate",
+	"privacypolicy",
+}
+var ShowCloudletRequiredArgs = []string{
+	"cloudlet-org",
+	"cloudlet",
+}
+var ShowCloudletOptionalArgs = []string{
+	"location.latitude",
+	"location.longitude",
+	"location.altitude",
+	"ipsupport",
+	"staticips",
+	"numdynamicips",
+	"timelimits.createclusterinsttimeout",
+	"timelimits.updateclusterinsttimeout",
+	"timelimits.deleteclusterinsttimeout",
+	"timelimits.createappinsttimeout",
+	"timelimits.updateappinsttimeout",
+	"timelimits.deleteappinsttimeout",
+	"crmoverride",
+	"deploymentlocal",
+	"platformtype",
+	"flavor.name",
+	"physicalname",
+	"envvar",
+	"containerversion",
+	"accessvars",
+	"vmimageversion",
+	"deployment",
+	"infraapiaccess",
+	"infraconfig.externalnetworkname",
+	"infraconfig.flavorname",
+	"maintenancestate",
+	"overridepolicycontainerversion",
+	"vmpool",
 	"privacypolicy",
 }
 var GetCloudletPropsRequiredArgs = []string{
@@ -310,16 +377,16 @@ var CloudletInfoApiCmds = []*cli.Command{
 
 var CloudletKeyRequiredArgs = []string{}
 var CloudletKeyOptionalArgs = []string{
-	"organization",
-	"name",
+	"cloudlet-org",
+	"cloudlet",
 }
 var CloudletKeyAliasArgs = []string{
-	"organization=cloudletkey.organization",
-	"name=cloudletkey.name",
+	"cloudlet-org=cloudletkey.organization",
+	"cloudlet=cloudletkey.name",
 }
 var CloudletKeyComments = map[string]string{
-	"organization": "Organization of the cloudlet site",
-	"name":         "Name of the cloudlet",
+	"cloudlet-org": "Organization of the cloudlet site",
+	"cloudlet":     "Name of the cloudlet",
 }
 var CloudletKeySpecialArgs = map[string]string{}
 var OperationTimeLimitsRequiredArgs = []string{}

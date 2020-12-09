@@ -7,6 +7,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/go-chef/chef"
 	"github.com/mobiledgex/edge-cloud-infra/chefmgmt"
 	intprocess "github.com/mobiledgex/edge-cloud-infra/e2e-tests/int-process"
 	"github.com/mobiledgex/edge-cloud-infra/infracommon"
@@ -249,7 +250,6 @@ func (v *VMPlatform) CreateCloudlet(ctx context.Context, cloudlet *edgeproto.Clo
 		chefPolicy = chefmgmt.ChefPolicyK8s
 	}
 	cloudlet.ChefClientKey = make(map[string]string)
-	platformVMName := v.GetPlatformVMName(&cloudlet.Key)
 	if cloudlet.InfraApiAccess == edgeproto.InfraApiAccess_RESTRICTED_ACCESS {
 		nodes := v.GetPlatformNodes(cloudlet)
 		for _, nodeName := range nodes {
@@ -267,15 +267,18 @@ func (v *VMPlatform) CreateCloudlet(ctx context.Context, cloudlet *edgeproto.Clo
 		return nil
 	}
 
-	startTime := time.Now()
-
 	err = v.SetupPlatformVM(ctx, accessApi, cloudlet, pfConfig, pfFlavor, updateCallback)
 	if err != nil {
 		return err
 	}
 
+	return v.getChefRunStatus(ctx, chefClient, cloudlet, pfConfig, accessApi, updateCallback)
+}
+
+func (v *VMPlatform) getChefRunStatus(ctx context.Context, chefClient *chef.Client, cloudlet *edgeproto.Cloudlet, pfConfig *edgeproto.PlatformConfig, accessApi platform.AccessApi, updateCallback edgeproto.CacheUpdateCallback) error {
 	// Fetch chef run list status
-	pfName := platformVMName
+	var err error
+	pfName := v.GetPlatformVMName(&cloudlet.Key)
 	if cloudlet.Deployment == cloudcommon.DeploymentTypeKubernetes {
 		pfName = pfName + "-master"
 	}
@@ -289,7 +292,7 @@ func (v *VMPlatform) CreateCloudlet(ctx context.Context, cloudlet *edgeproto.Clo
 		case <-timeout:
 			return fmt.Errorf("timed out waiting for platform VM to connect to Chef Server")
 		case <-tick:
-			statusInfo, err = chefmgmt.ChefClientRunStatus(ctx, chefClient, clientName, startTime)
+			statusInfo, err = chefmgmt.ChefClientRunStatus(ctx, chefClient, clientName)
 			if err != nil {
 				return err
 			}
@@ -307,6 +310,31 @@ func (v *VMPlatform) CreateCloudlet(ctx context.Context, cloudlet *edgeproto.Clo
 	}
 
 	return nil
+}
+
+func (v *VMPlatform) GetRestrictedCloudletStatus(ctx context.Context, cloudlet *edgeproto.Cloudlet, pfConfig *edgeproto.PlatformConfig, accessApi platform.AccessApi, updateCallback edgeproto.CacheUpdateCallback) error {
+	var err error
+	v.VMProperties.Domain = VMDomainPlatform
+	pc := infracommon.GetPlatformConfig(cloudlet, pfConfig, accessApi)
+	err = v.InitProps(ctx, pc)
+	if err != nil {
+		return err
+	}
+	chefAuth, err := accessApi.GetChefAuthKey(ctx)
+	if err != nil {
+		return err
+	}
+
+	chefServerPath := pfConfig.ChefServerPath
+	if chefServerPath == "" {
+		chefServerPath = chefmgmt.DefaultChefServerPath
+	}
+
+	chefClient, err := chefmgmt.GetChefClient(ctx, chefAuth.ApiKey, chefServerPath)
+	if err != nil {
+		return err
+	}
+	return v.getChefRunStatus(ctx, chefClient, cloudlet, pfConfig, accessApi, updateCallback)
 }
 
 func (v *VMPlatform) UpdateCloudlet(ctx context.Context, cloudlet *edgeproto.Cloudlet, updateCallback edgeproto.CacheUpdateCallback) error {
@@ -571,10 +599,8 @@ func GetDockerCrtFile(crtFilePath string) (string, error) {
 
 func (v *VMPlatform) getCloudletVMsSpec(ctx context.Context, accessApi platform.AccessApi, cloudlet *edgeproto.Cloudlet, pfConfig *edgeproto.PlatformConfig, pfFlavor *edgeproto.Flavor, updateCallback edgeproto.CacheUpdateCallback) ([]*VMRequestSpec, error) {
 	log.SpanLog(ctx, log.DebugLevelInfra, "GetCloudletVMsSpec", "region", pfConfig.Region, "cloudletKey", cloudlet.Key, "pfFlavor", pfFlavor)
-	err := v.VMProvider.InitApiAccessProperties(ctx, accessApi, cloudlet.EnvVar, ProviderInitGetVmSpec)
-	if err != nil {
-		return nil, err
-	}
+
+	var err error
 	// edge-cloud image already contains the certs
 	if pfConfig.TlsCertFile != "" {
 		crtFile, err := GetDockerCrtFile(pfConfig.TlsCertFile)
@@ -582,12 +608,6 @@ func (v *VMPlatform) getCloudletVMsSpec(ctx context.Context, accessApi platform.
 			return nil, err
 		}
 		pfConfig.TlsCertFile = crtFile
-	}
-
-	pc := infracommon.GetPlatformConfig(cloudlet, pfConfig, accessApi)
-	err = v.InitProps(ctx, pc)
-	if err != nil {
-		return nil, err
 	}
 
 	if pfConfig.ContainerRegistryPath == "" {
@@ -755,14 +775,24 @@ func (v *VMPlatform) getCloudletVMsSpec(ctx context.Context, accessApi platform.
 
 func (v *VMPlatform) GetCloudletManifest(ctx context.Context, cloudlet *edgeproto.Cloudlet, pfConfig *edgeproto.PlatformConfig, accessApi platform.AccessApi, pfFlavor *edgeproto.Flavor, caches *platform.Caches) (*edgeproto.CloudletManifest, error) {
 	log.SpanLog(ctx, log.DebugLevelInfra, "Get cloudlet manifest", "cloudletName", cloudlet.Key.Name)
-	v.VMProperties.Domain = VMDomainPlatform
 
 	if cloudlet.ChefClientKey == nil {
 		return nil, fmt.Errorf("unable to find chef client key")
 	}
 
+	v.VMProperties.Domain = VMDomainPlatform
+	pc := infracommon.GetPlatformConfig(cloudlet, pfConfig, accessApi)
+	err := v.InitProps(ctx, pc)
+	if err != nil {
+		return nil, err
+	}
+
 	v.VMProvider.InitData(ctx, caches)
 
+	err = v.VMProvider.InitApiAccessProperties(ctx, accessApi, cloudlet.EnvVar, ProviderInitGetVmSpec)
+	if err != nil {
+		return nil, err
+	}
 	platvms, err := v.getCloudletVMsSpec(ctx, accessApi, cloudlet, pfConfig, pfFlavor, edgeproto.DummyUpdateCallback)
 	if err != nil {
 		return nil, err

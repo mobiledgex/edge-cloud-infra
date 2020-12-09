@@ -15,6 +15,7 @@ pipeline {
         AZURE_SUBSCRIPTION_ID = credentials('azure-subscription-id')
         AZURE_TENANT = credentials('azure-tenant-id')
         ANSIBLE_ROLE = credentials('staging-vault-ansible-role')
+        PAGERDUTY_INTEGRATION_KEY = credentials('pagerduty-service-integration-key')
     }
     stages {
         stage('Set up build tag') {
@@ -42,6 +43,24 @@ export ANSIBLE_FORCE_COLOR=true
                     }
                 }
             }
+        }
+    }
+    post {
+        success {
+            slackSend color: 'good', message: "Build Successful - ${env.JOB_NAME} #${env.BUILD_NUMBER} (<${env.RUN_DISPLAY_URL}|Open>)"
+            pagerduty(resolve: true,
+                      serviceKey: "${PAGERDUTY_INTEGRATION_KEY}",
+                      incidentKey: "jenkins-${env.JOB_NAME}",
+                      incDescription: "Build Successful - ${env.JOB_NAME} #${env.BUILD_NUMBER}",
+                      incDetails: "${env.RUN_DISPLAY_URL}")
+        }
+        failure {
+            slackSend color: 'warning', message: "Build Failed - ${env.JOB_NAME} #${env.BUILD_NUMBER} (<${env.RUN_DISPLAY_URL}|Open>)"
+            pagerduty(resolve: false,
+                      serviceKey: "${PAGERDUTY_INTEGRATION_KEY}",
+                      incidentKey: "jenkins-${env.JOB_NAME}",
+                      incDescription: "Build Failure - ${env.JOB_NAME} #${env.BUILD_NUMBER}",
+                      incDetails: "${env.RUN_DISPLAY_URL}")
         }
     }
 }

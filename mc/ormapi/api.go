@@ -43,6 +43,8 @@ type User struct {
 	EnableTOTP bool
 	// read only: true
 	TOTPSharedKey string
+	// Metadata
+	Metadata string
 }
 
 type UserResponse struct {
@@ -130,6 +132,8 @@ type Config struct {
 	PasswordMinCrackTimeSec float64
 	// Admin accounts min password crack time seconds (a measure of strength)
 	AdminPasswordMinCrackTimeSec float64
+	// InfluxDB max number of data points returned
+	MaxMetricsDataPoints int
 }
 
 type OrgCloudletPool struct {
@@ -393,6 +397,8 @@ type AlertReceiver struct {
 	Type string
 	// Alert severity filter
 	Severity string
+	// Region for the alert receiver
+	Region string `json:",omitempty"`
 	// User that created this receiver
 	User string `json:",omitempty"`
 	// Custom receiving email

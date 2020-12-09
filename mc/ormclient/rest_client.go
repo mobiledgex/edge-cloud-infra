@@ -238,6 +238,12 @@ func (s *Client) ShowConfig(uri, token string) (*ormapi.Config, int, error) {
 	return &config, status, err
 }
 
+func (s *Client) PublicConfig(uri string) (*ormapi.Config, int, error) {
+	config := ormapi.Config{}
+	status, err := s.PostJson(uri+"/publicconfig", "", nil, &config)
+	return &config, status, err
+}
+
 func (s *Client) RestrictedUserUpdate(uri, token string, user map[string]interface{}) (int, error) {
 	return s.PostJson(uri+"/auth/restricted/user/update", token, user, nil)
 }
@@ -597,8 +603,8 @@ func (s *Client) DeleteAlertReceiver(uri, token string, receiver *ormapi.AlertRe
 	return s.PostJson(uri+"/auth/alertreceiver/delete", token, receiver, nil)
 }
 
-func (s *Client) ShowAlertReceiver(uri, token string) ([]ormapi.AlertReceiver, int, error) {
+func (s *Client) ShowAlertReceiver(uri, token string, in *ormapi.AlertReceiver) ([]ormapi.AlertReceiver, int, error) {
 	receivers := []ormapi.AlertReceiver{}
-	status, err := s.PostJson(uri+"/auth/alertreceiver/show", token, nil, &receivers)
+	status, err := s.PostJson(uri+"/auth/alertreceiver/show", token, in, &receivers)
 	return receivers, status, err
 }

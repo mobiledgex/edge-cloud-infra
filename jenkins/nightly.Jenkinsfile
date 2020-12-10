@@ -7,6 +7,7 @@ pipeline {
         string(name: 'DOCKER_BUILD_TAG', defaultValue: '', description: 'Docker build tag; defaults to date stamp')
     }
     environment {
+        PAGERDUTY_INTEGRATION_KEY = credentials('pagerduty-service-integration-key')
         DOCKER_BUILD_TAG = """${sh(
             returnStdout: true,
             script: '''
@@ -107,9 +108,19 @@ TAG="${DOCKER_BUILD_TAG}" make build-docker
     post {
         success {
             slackSend color: 'good', message: "Build Successful - ${env.JOB_NAME} #${env.BUILD_NUMBER} (<${env.RUN_DISPLAY_URL}|Open>)"
+            pagerduty(resolve: true,
+                      serviceKey: "${PAGERDUTY_INTEGRATION_KEY}",
+                      incidentKey: "jenkins-${env.JOB_NAME}",
+                      incDescription: "Build Successful - ${env.JOB_NAME} #${env.BUILD_NUMBER}",
+                      incDetails: "${env.RUN_DISPLAY_URL}")
         }
         failure {
             slackSend color: 'warning', message: "Build Failed - ${env.JOB_NAME} #${env.BUILD_NUMBER} (<${env.RUN_DISPLAY_URL}|Open>)"
+            pagerduty(resolve: false,
+                      serviceKey: "${PAGERDUTY_INTEGRATION_KEY}",
+                      incidentKey: "jenkins-${env.JOB_NAME}",
+                      incDescription: "Build Failure - ${env.JOB_NAME} #${env.BUILD_NUMBER}",
+                      incDetails: "${env.RUN_DISPLAY_URL}")
         }
     }
 }

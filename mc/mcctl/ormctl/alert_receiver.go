@@ -45,6 +45,7 @@ func GetAlertReceiverCommand() *cobra.Command {
 		AliasArgs:    strings.Join(AlertReceiverAliasArgs, " "),
 		Comments:     AlertReceiverArgsComments,
 		OptionalArgs: strings.Join(AlertReceiverOptionalArgs, " ") + " " + strings.Join(AlertReceiverRequiredArgs, " "),
+		ReqData:      &ormapi.AlertReceiver{},
 		ReplyData:    &[]ormapi.AlertReceiver{},
 		Run:          runRest("/auth/alertreceiver/show"),
 	}}
@@ -58,6 +59,8 @@ var AlertReceiverRequiredArgs = []string{
 }
 
 var AlertReceiverOptionalArgs = []string{
+	"region",
+	"user",
 	"email",
 	"slack-channel",
 	"slack-api-url",
@@ -73,8 +76,10 @@ var AlertReceiverOptionalArgs = []string{
 }
 
 var AlertReceiverArgsComments = map[string]string{
+	"region":           "Region where alert originated",
+	"user":             "User name, if not the same as the logged in user",
 	"name":             "Unique name of this receiver",
-	"type":             "Receiver type - email, or slack",
+	"type":             "Receiver type - email or slack",
 	"severity":         "Alert severity level - one of " + cloudcommon.GetValidAlertSeverityString(),
 	"email":            "Email address receiving the alert (by default email associated with the account)",
 	"slack-channel":    "Slack channel to be receiving the alert",
@@ -83,9 +88,9 @@ var AlertReceiverArgsComments = map[string]string{
 	"appname":          "App Instance name",
 	"appvers":          "App Instance version",
 	"app-cloudlet":     "Cloudlet name where app instance is deployed",
-	"app-cloudlet-org": "Company, or Organization that owns the cloudlet",
+	"app-cloudlet-org": "Company or Organization that owns the cloudlet",
 	"cluster":          "App Instance Cluster name",
-	"cluster-org":      "Company, or Organization Name that a Cluster is owned by",
-	"cloudlet-org":     "Company, or Organization name of the cloudlet",
+	"cluster-org":      "Company or Organization Name that a Cluster is owned by",
+	"cloudlet-org":     "Company or Organization name of the cloudlet",
 	"cloudlet":         "Name of the cloudlet",
 }

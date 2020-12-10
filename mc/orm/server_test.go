@@ -171,6 +171,7 @@ func TestServer(t *testing.T) {
 		Email:      "mistery@gmail.com",
 		Passhash:   "mistery-password-long-super-tough-crazy-difficult",
 		EnableTOTP: true,
+		Metadata:   "{timezone:PST,theme:Dark}",
 	}
 	resp, status, err = mcClient.CreateUser(uri, &user2)
 	require.Nil(t, err, "create user")
@@ -196,10 +197,12 @@ func TestServer(t *testing.T) {
 	updateNewEmail := "misteryyy@gmail.com"
 	updateNewPicture := "my pic"
 	updateNewNickname := "mistery"
+	updateNewMetadata := "{timezone:PST,theme:Light}"
 	mapData = map[string]interface{}{
 		"Email":    updateNewEmail,
 		"Picture":  updateNewPicture,
 		"Nickname": updateNewNickname,
+		"Metadata": updateNewMetadata,
 	}
 	jsonData, err = json.Marshal(mapData)
 	require.Nil(t, err)
@@ -212,6 +215,7 @@ func TestServer(t *testing.T) {
 	require.Equal(t, updateNewEmail, checkUser.Email)
 	require.Equal(t, updateNewPicture, checkUser.Picture)
 	require.Equal(t, updateNewNickname, checkUser.Nickname)
+	require.Equal(t, updateNewMetadata, checkUser.Metadata)
 
 	// update user: disallowed fields
 	mapData = map[string]interface{}{
@@ -625,6 +629,16 @@ func testLockedUsers(t *testing.T, uri string, mcClient *ormclient.Client) {
 	require.Nil(t, err)
 	require.Equal(t, http.StatusOK, status)
 	require.Equal(t, notifyEmail, config.NotifyEmailAddress)
+	// show public config, make sure certain fields are hidden
+	publicConfig, status, err := mcClient.PublicConfig(uri)
+	require.Nil(t, err)
+	require.Equal(t, http.StatusOK, status)
+	require.Equal(t, config.PasswordMinCrackTimeSec, publicConfig.PasswordMinCrackTimeSec)
+	require.Equal(t, 0, publicConfig.ID)
+	require.Equal(t, false, publicConfig.LockNewAccounts)
+	require.Equal(t, "", publicConfig.NotifyEmailAddress)
+	require.Equal(t, false, publicConfig.SkipVerifyEmail)
+	require.Equal(t, float64(0), publicConfig.AdminPasswordMinCrackTimeSec)
 
 	// make sure users can't see config
 	_, status, err = mcClient.ShowConfig(uri, tok1)

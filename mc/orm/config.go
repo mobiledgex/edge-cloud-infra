@@ -16,6 +16,7 @@ var defaultConfig = ormapi.Config{
 	NotifyEmailAddress:           "support@mobiledgex.com",
 	PasswordMinCrackTimeSec:      30 * 86400,      // 30 days
 	AdminPasswordMinCrackTimeSec: 2 * 365 * 86400, // 2 years
+	MaxMetricsDataPoints:         10000,
 }
 
 func InitConfig(ctx context.Context) error {
@@ -37,6 +38,14 @@ func InitConfig(ctx context.Context) error {
 	if config.PasswordMinCrackTimeSec == 0 && config.AdminPasswordMinCrackTimeSec == 0 {
 		config.PasswordMinCrackTimeSec = defaultConfig.PasswordMinCrackTimeSec
 		config.AdminPasswordMinCrackTimeSec = defaultConfig.AdminPasswordMinCrackTimeSec
+		err = db.Save(&config).Error
+		if err != nil {
+			return err
+		}
+	}
+	// set influxDB data points max number if not set
+	if config.MaxMetricsDataPoints == 0 {
+		config.MaxMetricsDataPoints = defaultConfig.MaxMetricsDataPoints
 		err = db.Save(&config).Error
 		if err != nil {
 			return err
@@ -141,4 +150,18 @@ func resetUserPasswordCrackTimes(ctx context.Context) error {
 	db := loggedDB(ctx)
 	res := db.Model(&ormapi.User{}).Where("pass_crack_time_sec > ?", 0).Update("pass_crack_time_sec", 0)
 	return res.Error
+}
+
+// PubliConfig gets configuration that the UI needs to make the behavior of the
+// UI consistent with the behavior of the back-end. This is an un-authenticated
+// API so only that which is needed should be revealed.
+func PublicConfig(c echo.Context) error {
+	ctx := GetContext(c)
+	config, err := getConfig(ctx)
+	if err != nil {
+		return err
+	}
+	publicConfig := &ormapi.Config{}
+	publicConfig.PasswordMinCrackTimeSec = config.PasswordMinCrackTimeSec
+	return c.JSON(http.StatusOK, publicConfig)
 }

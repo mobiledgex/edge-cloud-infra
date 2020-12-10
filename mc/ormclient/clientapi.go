@@ -61,6 +61,7 @@ type Api interface {
 	UpdateConfig(uri, token string, config map[string]interface{}) (int, error)
 	ResetConfig(uri, token string) (int, error)
 	ShowConfig(uri, token string) (*ormapi.Config, int, error)
+	PublicConfig(uri string) (*ormapi.Config, int, error)
 
 	CreateOrgCloudletPool(uri, token string, op *ormapi.OrgCloudletPool) (int, error)
 	DeleteOrgCloudletPool(uri, token string, op *ormapi.OrgCloudletPool) (int, error)
@@ -73,7 +74,7 @@ type Api interface {
 
 	CreateAlertReceiver(uri, token string, receiver *ormapi.AlertReceiver) (int, error)
 	DeleteAlertReceiver(uri, token string, receiver *ormapi.AlertReceiver) (int, error)
-	ShowAlertReceiver(uri, token string) ([]ormapi.AlertReceiver, int, error)
+	ShowAlertReceiver(uri, token string, in *ormapi.AlertReceiver) ([]ormapi.AlertReceiver, int, error)
 
 	FlavorApiClient
 	CloudletApiClient

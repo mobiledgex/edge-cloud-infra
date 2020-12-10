@@ -8,7 +8,7 @@ import (
 	"github.com/mobiledgex/edge-cloud/edgeproto"
 )
 
-var testInitInfo = AlertmgrInitInfo{
+var TestInitInfo = AlertmgrInitInfo{
 	Email:          "alerts@localhost",
 	User:           "testuser",
 	Token:          "12345",
@@ -42,6 +42,16 @@ var testAlerts = []edgeproto.Alert{
 			edgeproto.AppKeyTagVersion:         "1.0",
 			edgeproto.CloudletKeyTagName:       "testcloudlet",
 			cloudcommon.AlertHealthCheckStatus: strconv.Itoa(int(edgeproto.HealthCheck_HEALTH_CHECK_FAIL_ROOTLB_OFFLINE)),
+		},
+	},
+	edgeproto.Alert{ // AlertAutoUndeploy alert
+		Labels: map[string]string{
+			"alertname":                     cloudcommon.AlertAutoUndeploy,
+			"region":                        testRegions[1],
+			edgeproto.AppKeyTagName:         "testapp",
+			edgeproto.AppKeyTagOrganization: "testorg",
+			edgeproto.AppKeyTagVersion:      "1.0",
+			edgeproto.CloudletKeyTagName:    "testcloudlet",
 		},
 	},
 }

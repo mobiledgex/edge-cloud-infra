@@ -85,3 +85,7 @@ plugin/common/foo
 
 # unit-test file
 mc/orm/alertmgr/testAlertMgrConfig.yml
+
+# terraform vars
+*.auto.tfvars
+*.auto.tfvars.json

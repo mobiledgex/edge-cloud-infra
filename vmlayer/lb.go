@@ -364,17 +364,7 @@ func (v *VMPlatform) CreateRootLB(
 	}
 	var vms []*VMRequestSpec
 	vms = append(vms, vmreq)
-	sshPort := ""
-	remoteCidr := ""
-	myIp, err := infracommon.GetExternalPublicAddr(ctx)
-	if err != nil {
-		// this is not necessarily fatal, but we will not be able to open the ssh port
-		log.InfoLog("cannot fetch public ip", "err", err)
-	} else {
-		sshPort = "tcp:22"
-		remoteCidr = myIp + "/32"
-	}
-	_, err = v.OrchestrateVMsFromVMSpec(ctx, rootLBName, vms, action, updateCallback, WithNewSecurityGroup(GetServerSecurityGroupName(rootLBName)), WithAccessPorts(sshPort, remoteCidr))
+	_, err = v.OrchestrateVMsFromVMSpec(ctx, rootLBName, vms, action, updateCallback, WithNewSecurityGroup(GetServerSecurityGroupName(rootLBName)))
 	if err != nil {
 		log.SpanLog(ctx, log.DebugLevelInfra, "error while creating RootLB VM", "name", rootLBName, "error", err)
 		return err
@@ -413,6 +403,8 @@ func (v *VMPlatform) SetupRootLB(
 	if err != nil {
 		return err
 	}
+	// TODO: this should eventually be removed when all providers use
+	// cloudlet level rules (PrivacyPolicy) that does the whitelist at the cloudlet level
 	myIp, err := infracommon.GetExternalPublicAddr(ctx)
 	if err != nil {
 		// this is not necessarily fatal

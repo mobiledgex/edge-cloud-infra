@@ -297,7 +297,7 @@ func (o *OpenstackPlatform) CreateOrUpdateCloudletSecgrpStack(ctx context.Contex
 	} else {
 		grpExists = true
 	}
-	vmgp, err := vmlayer.GetVMGroupOrchestrationParamsFromPrivacyPolicy(ctx, o.VMProperties.CloudletSecgrpName, privacyPolicy, egressRestricted)
+	vmgp, err := vmlayer.GetVMGroupOrchestrationParamsFromPrivacyPolicy(ctx, o.VMProperties.CloudletSecgrpName, privacyPolicy, egressRestricted, vmlayer.SecGrpWithAccessPorts("tcp:22", vmlayer.RemoteCidrAll))
 	if err != nil {
 		return err
 	}

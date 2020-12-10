@@ -375,7 +375,7 @@ type SecurityGroupOrchestrationParams struct {
 
 type SecgrpParamsOp func(vmp *SecurityGroupOrchestrationParams) error
 
-func secGrpWithEgressRules(rules []edgeproto.SecurityRule, egressRestricted bool) SecgrpParamsOp {
+func SecGrpWithEgressRules(rules []edgeproto.SecurityRule, egressRestricted bool) SecgrpParamsOp {
 	return func(sp *SecurityGroupOrchestrationParams) error {
 		if len(rules) == 0 {
 			// ensure at least one rule is present so that the orchestrator
@@ -393,7 +393,7 @@ func secGrpWithEgressRules(rules []edgeproto.SecurityRule, egressRestricted bool
 	}
 }
 
-func secGrpWithAccessPorts(ports string, remoteCidr string) SecgrpParamsOp {
+func SecGrpWithAccessPorts(ports string, remoteCidr string) SecgrpParamsOp {
 	return func(sgp *SecurityGroupOrchestrationParams) error {
 		if ports == "" {
 			return nil
@@ -552,9 +552,12 @@ func (v *VMPlatform) getVMGroupRequestSpec(ctx context.Context, name string, vms
 }
 
 // GetVMGroupOrchestrationParamsFromPrivacyPolicy returns an set of orchestration params for just a privacy policy egress rules
-func GetVMGroupOrchestrationParamsFromPrivacyPolicy(ctx context.Context, name string, privPolicy *edgeproto.PrivacyPolicy, egressRestricted bool) (*VMGroupOrchestrationParams, error) {
+func GetVMGroupOrchestrationParamsFromPrivacyPolicy(ctx context.Context, name string, privPolicy *edgeproto.PrivacyPolicy, egressRestricted bool, opts ...SecgrpParamsOp) (*VMGroupOrchestrationParams, error) {
+	log.SpanLog(ctx, log.DebugLevelInfra, "GetVMGroupOrchestrationParamsFromPrivacyPolicy", "name", name)
 	var vmgp VMGroupOrchestrationParams
-	externalSecGrp, err := GetSecGrpParams(name, secGrpWithEgressRules(privPolicy.OutboundSecurityRules, egressRestricted))
+	opts = append(opts, SecGrpWithEgressRules(privPolicy.OutboundSecurityRules, egressRestricted))
+	externalSecGrp, err := GetSecGrpParams(name, opts...)
+
 	if err != nil {
 		return nil, err
 	}
@@ -571,7 +574,7 @@ func (v *VMPlatform) GetVMGroupOrchestrationParamsFromVMSpec(ctx context.Context
 }
 
 func (v *VMPlatform) getVMGroupOrchestrationParamsFromGroupSpec(ctx context.Context, spec *VMGroupRequestSpec) (*VMGroupOrchestrationParams, error) {
-	log.SpanLog(ctx, log.DebugLevelInfra, "GetVMGroupOrchestrationParams", "spec", spec)
+	log.SpanLog(ctx, log.DebugLevelInfra, "getVMGroupOrchestrationParamsFromGroupSpec", "spec", spec)
 
 	vmgp := VMGroupOrchestrationParams{GroupName: spec.GroupName, InitOrchestrator: spec.InitOrchestrator, SkipCleanupOnFailure: spec.SkipCleanupOnFailure}
 	internalNetName := v.VMProperties.GetCloudletMexNetwork()
@@ -658,7 +661,7 @@ func (v *VMPlatform) getVMGroupOrchestrationParamsFromGroupSpec(ctx context.Cont
 	}
 	if spec.NewSecgrpName != "" {
 		// egress is always restricted on per-cluster groups.  If egress is allowed, it is done on the cloudlet level group
-		externalSecGrp, err := GetSecGrpParams(spec.NewSecgrpName, secGrpWithAccessPorts(spec.AccessPorts, spec.AccessCidr), secGrpWithEgressRules(egressRules, true))
+		externalSecGrp, err := GetSecGrpParams(spec.NewSecgrpName, SecGrpWithAccessPorts(spec.AccessPorts, spec.AccessCidr), SecGrpWithEgressRules(egressRules, true))
 		if err != nil {
 			return nil, err
 		}

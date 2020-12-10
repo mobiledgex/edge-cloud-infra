@@ -65,43 +65,96 @@ func InitAdmin(ctx context.Context, superuser, superpass string) error {
 	return nil
 }
 
+func ApiKeyLogin(c echo.Context, login *ormapi.UserLogin) error {
+	ctx := GetContext(c)
+	db := loggedDB(ctx)
+	if login.ApiKeyId == "" {
+		return c.JSON(http.StatusBadRequest, Msg("apikeyid not specified"))
+	}
+	apiKeyObj := ormapi.UserApiKey{ApiKeyId: login.ApiKeyId}
+	err := db.Where(&apiKeyObj).First(&apiKeyObj).Error
+	if err != nil {
+		log.SpanLog(ctx, log.DebugLevelApi, "ApiKey lookup failed", "apiKey", apiKeyObj, "err", err)
+		time.Sleep(BadAuthDelay)
+		return c.JSON(http.StatusBadRequest, Msg("Invalid ApiKey"))
+	}
+	span := log.SpanFromContext(ctx)
+	span.SetTag("apikey", apiKeyObj.ApiKeyId)
+	span.SetTag("user", apiKeyObj.UserName)
+
+	matches, err := PasswordMatches(login.ApiKeyId, apiKeyObj.ApiKeyHash, apiKeyObj.Salt, apiKeyObj.Iter)
+	if err != nil {
+		log.SpanLog(ctx, log.DebugLevelApi, "apiKeyId matches err", "err", err)
+	}
+	if !matches || err != nil {
+		time.Sleep(BadAuthDelay)
+		return c.JSON(http.StatusBadRequest, Msg("Invalid ApiKey or ApiKeyId"))
+	}
+	return nil
+}
+
 func Login(c echo.Context) error {
 	ctx := GetContext(c)
 	login := ormapi.UserLogin{}
 	if err := c.Bind(&login); err != nil {
 		return bindErr(c, err)
 	}
-	if login.Username == "" {
-		return c.JSON(http.StatusBadRequest, Msg("Username not specified"))
-	}
-
-	if login.Password != "" && login.ApiKey != "" {
-		return c.JSON(http.StatusBadRequest, Msg("Please specify either password or apikeyid/apikey"))
-	}
-	if login.ApiKey != "" && login.ApiKeyId == "" {
-		return c.JSON(http.StatusBadRequest, Msg("Missing apikeyid"))
-	}
-	user := ormapi.User{}
-	lookup := ormapi.User{Name: login.Username}
 	db := loggedDB(ctx)
-	res := db.Where(&lookup).First(&user)
-	if res.RecordNotFound() {
-		// try look-up by email
-		lookup.Name = ""
-		lookup.Email = login.Username
-		res = db.Where(&lookup).First(&user)
-	}
-	err := res.Error
-	if err != nil {
-		log.SpanLog(ctx, log.DebugLevelApi, "user lookup failed", "lookup", lookup, "err", err)
-		time.Sleep(BadAuthDelay)
-		return c.JSON(http.StatusBadRequest, Msg("Invalid username or password"))
-	}
-	span := log.SpanFromContext(ctx)
-	span.SetTag("username", user.Name)
-	span.SetTag("email", user.Email)
+	user := ormapi.User{}
+	if login.ApiKey != "" {
+		if login.ApiKeyId == "" {
+			return c.JSON(http.StatusBadRequest, Msg("apikeyid not specified"))
+		}
+		apiKeyObj := ormapi.UserApiKey{ApiKeyId: login.ApiKeyId}
+		err := db.Where(&apiKeyObj).First(&apiKeyObj).Error
+		if err != nil {
+			log.SpanLog(ctx, log.DebugLevelApi, "ApiKey lookup failed", "apiKey", apiKeyObj, "err", err)
+			time.Sleep(BadAuthDelay)
+			return c.JSON(http.StatusBadRequest, Msg("Invalid ApiKey"))
+		}
+		user.Name = apiKeyObj.UserName
+		err = db.Where(&user).First(&user).Error
+		if err != nil {
+			return setReply(c, dbErr(err), nil)
+		}
+		span := log.SpanFromContext(ctx)
+		span.SetTag("username", user.Name)
+		span.SetTag("email", user.Email)
 
-	if login.ApiKey == "" {
+		matches, err := PasswordMatches(login.ApiKeyId, apiKeyObj.ApiKeyHash, apiKeyObj.Salt, apiKeyObj.Iter)
+		if err != nil {
+			log.SpanLog(ctx, log.DebugLevelApi, "apiKeyId matches err", "err", err)
+		}
+		if !matches || err != nil {
+			time.Sleep(BadAuthDelay)
+			return c.JSON(http.StatusBadRequest, Msg("Invalid ApiKey or ApiKeyId"))
+		}
+	} else {
+		if login.Username == "" {
+			return c.JSON(http.StatusBadRequest, Msg("Username not specified"))
+		}
+
+		if login.Password != "" {
+			return c.JSON(http.StatusBadRequest, Msg("Please specify password"))
+		}
+		lookup := ormapi.User{Name: login.Username}
+		res := db.Where(&lookup).First(&user)
+		if res.RecordNotFound() {
+			// try look-up by email
+			lookup.Name = ""
+			lookup.Email = login.Username
+			res = db.Where(&lookup).First(&user)
+		}
+		err := res.Error
+		if err != nil {
+			log.SpanLog(ctx, log.DebugLevelApi, "user lookup failed", "lookup", lookup, "err", err)
+			time.Sleep(BadAuthDelay)
+			return c.JSON(http.StatusBadRequest, Msg("Invalid username or password"))
+		}
+		span := log.SpanFromContext(ctx)
+		span.SetTag("username", user.Name)
+		span.SetTag("email", user.Email)
+
 		matches, err := PasswordMatches(login.Password, user.Passhash, user.Salt, user.Iter)
 		if err != nil {
 			log.SpanLog(ctx, log.DebugLevelApi, "password matches err", "err", err)
@@ -110,89 +163,70 @@ func Login(c echo.Context) error {
 			time.Sleep(BadAuthDelay)
 			return c.JSON(http.StatusBadRequest, Msg("Invalid username or password"))
 		}
-	} else {
-		// Validate apiKey
-		apiKeys, err := UnmarshalApiKeys(user.ApiKeys)
-		if err != nil {
-			return err
+
+		if user.Locked {
+			return c.JSON(http.StatusBadRequest, Msg("Account is locked, please contact MobiledgeX support"))
 		}
-		apiKey, ok := apiKeys[login.ApiKeyId]
-		if !ok {
-			time.Sleep(BadAuthDelay)
-			return c.JSON(http.StatusBadRequest, Msg("Invalid token id"))
-		}
-		matches, err := PasswordMatches(login.ApiKey, apiKey.ApiKeyHash, apiKey.ApiKeySalt, apiKey.ApiKeyIter)
-		if err != nil {
-			log.SpanLog(ctx, log.DebugLevelApi, "api key matches err", "err", err)
-		}
-		if !matches || err != nil {
-			time.Sleep(BadAuthDelay)
-			return c.JSON(http.StatusBadRequest, Msg("Invalid username or apikey"))
+		if !getSkipVerifyEmail(ctx, nil) && !user.EmailVerified {
+			return c.JSON(http.StatusBadRequest, Msg("Email not verified yet"))
 		}
 
-	}
-	if user.Locked {
-		return c.JSON(http.StatusBadRequest, Msg("Account is locked, please contact MobiledgeX support"))
-	}
-	if !getSkipVerifyEmail(ctx, nil) && !user.EmailVerified {
-		return c.JSON(http.StatusBadRequest, Msg("Email not verified yet"))
-	}
-
-	if login.Password != "" && user.PassCrackTimeSec == 0 {
-		calcPasswordStrength(ctx, &user, login.Password)
-		isAdmin, err := isUserAdmin(ctx, user.Name)
-		if err != nil {
-			return setReply(c, err, nil)
-		}
-		err = checkPasswordStrength(ctx, &user, nil, isAdmin)
-		if err != nil {
-			if isAdmin {
-				time.Sleep(BadAuthDelay)
-				return c.JSON(http.StatusBadRequest, Msg("Existing password for Admin too weak, please update first"))
-			} else {
-				// log warning for now
-				log.SpanLog(ctx, log.DebugLevelApi, "user password strength check failure", "user", user.Name, "err", err)
-			}
-		}
-		// save password strength
-		err = db.Model(&user).Updates(&user).Error
-		if err != nil {
-			return setReply(c, dbErr(err), nil)
-		}
-	}
-
-	if user.TOTPSharedKey != "" {
-		opts := totp.ValidateOpts{
-			Period:    OTPExpirationTime,
-			Skew:      1,
-			Digits:    OTPLen,
-			Algorithm: otp.AlgorithmSHA1,
-		}
-		if login.TOTP == "" {
-			// Send OTP over email
-			otp, err := totp.GenerateCodeCustom(user.TOTPSharedKey, time.Now().UTC(), opts)
+		if login.Password != "" && user.PassCrackTimeSec == 0 {
+			calcPasswordStrength(ctx, &user, login.Password)
+			isAdmin, err := isUserAdmin(ctx, user.Name)
 			if err != nil {
 				return setReply(c, err, nil)
 			}
-			err = sendOTPEmail(ctx, user.Name, user.Email, otp, OTPExpirationTimeStr)
+			err = checkPasswordStrength(ctx, &user, nil, isAdmin)
 			if err != nil {
-				// log and ignore
-				log.SpanLog(ctx, log.DebugLevelApi, "failed to send otp email", "err", err)
+				if isAdmin {
+					time.Sleep(BadAuthDelay)
+					return c.JSON(http.StatusBadRequest, Msg("Existing password for Admin too weak, please update first"))
+				} else {
+					// log warning for now
+					log.SpanLog(ctx, log.DebugLevelApi, "user password strength check failure", "user", user.Name, "err", err)
+				}
 			}
-			return c.JSON(http.StatusNetworkAuthenticationRequired, Msg("Missing OTP\nPlease use two factor authenticator app on "+
-				"your phone to get OTP. We have also sent OTP to your registered email address"))
+			// save password strength
+			err = db.Model(&user).Updates(&user).Error
+			if err != nil {
+				return setReply(c, dbErr(err), nil)
+			}
 		}
-		// Default OTP expiration time for Authenticator client is set to 30secs
-		// Hence first validate for 30secs, if that fails then validate for
-		// 2mins (which is our default setting for email based OTP)
-		opts.Period = OTPAuthenticatorExpTime
-		valid, err := totp.ValidateCustom(login.TOTP, user.TOTPSharedKey, time.Now().UTC(), opts)
-		if !valid {
-			opts.Period = OTPExpirationTime
-			valid, err = totp.ValidateCustom(login.TOTP, user.TOTPSharedKey, time.Now().UTC(), opts)
+
+		if user.TOTPSharedKey != "" {
+			opts := totp.ValidateOpts{
+				Period:    OTPExpirationTime,
+				Skew:      1,
+				Digits:    OTPLen,
+				Algorithm: otp.AlgorithmSHA1,
+			}
+			if login.TOTP == "" {
+				// Send OTP over email
+				otp, err := totp.GenerateCodeCustom(user.TOTPSharedKey, time.Now().UTC(), opts)
+				if err != nil {
+					return setReply(c, err, nil)
+				}
+				err = sendOTPEmail(ctx, user.Name, user.Email, otp, OTPExpirationTimeStr)
+				if err != nil {
+					// log and ignore
+					log.SpanLog(ctx, log.DebugLevelApi, "failed to send otp email", "err", err)
+				}
+				return c.JSON(http.StatusNetworkAuthenticationRequired, Msg("Missing OTP\nPlease use two factor authenticator app on "+
+					"your phone to get OTP. We have also sent OTP to your registered email address"))
+			}
+			// Default OTP expiration time for Authenticator client is set to 30secs
+			// Hence first validate for 30secs, if that fails then validate for
+			// 2mins (which is our default setting for email based OTP)
+			opts.Period = OTPAuthenticatorExpTime
+			valid, err := totp.ValidateCustom(login.TOTP, user.TOTPSharedKey, time.Now().UTC(), opts)
 			if !valid {
-				log.SpanLog(ctx, log.DebugLevelApi, "invalid or expired otp", "user", user.Name, "err", err)
-				return c.JSON(http.StatusBadRequest, Msg("Invalid or expired OTP. Please login again to receive another OTP"))
+				opts.Period = OTPExpirationTime
+				valid, err = totp.ValidateCustom(login.TOTP, user.TOTPSharedKey, time.Now().UTC(), opts)
+				if !valid {
+					log.SpanLog(ctx, log.DebugLevelApi, "invalid or expired otp", "user", user.Name, "err", err)
+					return c.JSON(http.StatusBadRequest, Msg("Invalid or expired OTP. Please login again to receive another OTP"))
+				}
 			}
 		}
 	}
@@ -517,7 +551,6 @@ func CurrentUser(c echo.Context) error {
 	user.Salt = ""
 	user.Iter = 0
 	user.TOTPSharedKey = ""
-	user.ApiKeys = nil
 	return c.JSON(http.StatusOK, user)
 }
 
@@ -576,7 +609,6 @@ func ShowUser(c echo.Context) error {
 		users[ii].TOTPSharedKey = ""
 		users[ii].Salt = ""
 		users[ii].Iter = 0
-		users[ii].ApiKeys = nil
 	}
 	return c.JSON(http.StatusOK, users)
 }
@@ -941,25 +973,6 @@ func UpdateUser(c echo.Context) error {
 	return c.JSON(http.StatusOK, &userResponse)
 }
 
-func MarshalApiKeys(apiKeys map[string]ormapi.ApiKey) ([]byte, error) {
-	out, err := json.Marshal(apiKeys)
-	if err != nil {
-		return nil, fmt.Errorf("Failed to marshal api keys: %v", err)
-	}
-	return out, err
-}
-
-func UnmarshalApiKeys(data []byte) (map[string]ormapi.ApiKey, error) {
-	apiKeys := make(map[string]ormapi.ApiKey)
-	if len(data) == 0 {
-		return apiKeys, nil
-	}
-	if err := json.Unmarshal(data, &apiKeys); err != nil {
-		return nil, fmt.Errorf("Failed to decode api keys: %v", err)
-	}
-	return apiKeys, nil
-}
-
 func CreateUserApiKey(c echo.Context) error {
 	ctx := GetContext(c)
 	db := loggedDB(ctx)
@@ -971,32 +984,22 @@ func CreateUserApiKey(c echo.Context) error {
 	if err := c.Bind(&apiKeyObj); err != nil {
 		return bindErr(c, err)
 	}
+	// fetch user details to verify if it has enough permissions to create api key
+	apiKeyObj.UserName = claims.Username
 	user := ormapi.User{Name: claims.Username}
 	err = db.Where(&user).First(&user).Error
 	if err != nil {
 		return setReply(c, dbErr(err), nil)
 	}
-	// fetch existing apikeys
-	apiKeys, err := UnmarshalApiKeys(user.ApiKeys)
-	if err != nil {
-		return err
-	}
 	groupings, err := enforcer.GetGroupingPolicy()
 	if err != nil {
 		return setReply(c, dbErr(err), nil)
 	}
-	authz, err := newShowAuthz(ctx, "", claims.Username, ResourceUsers, ActionView)
-	if err != nil {
-		return setReply(c, dbErr(err), nil)
-	}
-
+	// fetch current user's role for the org
 	var userRole *ormapi.Role
 	for ii, _ := range groupings {
 		role := parseRole(groupings[ii])
 		if role == nil {
-			continue
-		}
-		if !authz.Ok(role.Org) {
 			continue
 		}
 		if role.Username != claims.Username {
@@ -1010,75 +1013,70 @@ func CreateUserApiKey(c echo.Context) error {
 	if userRole == nil {
 		return c.JSON(http.StatusBadRequest, Msg("User has no permissions to access org "+apiKeyObj.Org))
 	}
-	if apiKeyObj.Role == "" {
-		apiKeyObj.Role = userRole.Role
-	} else {
-		org := ormapi.Organization{}
-		org.Name = userRole.Org
-		err := db.Where(&org).First(&org).Error
-		if err != nil {
-			return setReply(c, dbErr(err), nil)
-		}
-		orgRoles := []string{}
-		switch org.Type {
-		case OrgTypeDeveloper:
-			orgRoles = DeveloperRoles
-		case OrgTypeOperator:
-			orgRoles = OperatorRoles
-		case OrgTypeAdmin:
-			orgRoles = AdminRoles
-		default:
-			return c.JSON(http.StatusBadRequest, Msg("Invalid org type"))
-		}
-		// ensure api key role is a valid org role
-		roles := make(map[string]int)
-		for ii, val := range orgRoles {
-			roles[val] = ii
-		}
-		apiKeyRoleIndex, ok := roles[apiKeyObj.Role]
-		if !ok {
-			return c.JSON(http.StatusBadRequest, Msg("Invalid role, please specify appropriate role"))
-		}
-		// Get current role index
-		roleIndex, ok := roles[userRole.Role]
-		if !ok {
-			return c.JSON(http.StatusBadRequest, Msg("Invalid user role"))
-		}
-		validRoles := strings.Join(orgRoles[roleIndex:], ",")
-		if apiKeyRoleIndex < roleIndex {
-			return c.JSON(http.StatusBadRequest, Msg("User has no permissions to set this role, valid roles user can set are "+validRoles))
-		}
-
-		apiKeyId := uuid.New().String()
-		apiKey := uuid.New().String()
-		psub := rbac.GetCasbinGroup(userRole.Org, apiKeyId)
-		err = enforcer.AddGroupingPolicy(ctx, psub, apiKeyObj.Role)
-		if err != nil {
-			return setReply(c, dbErr(err), nil)
-		}
-		apiKeyHash, apiKeySalt, apiKeyIter := NewPasshash(apiKey)
-		apiKeys[apiKeyId] = ormapi.ApiKey{
-			ApiKeyOrg:  userRole.Org,
-			ApiKeyRole: apiKeyObj.Role,
-			ApiKeyHash: apiKeyHash,
-			ApiKeySalt: apiKeySalt,
-			ApiKeyIter: apiKeyIter,
-			ApiKeyDesc: apiKeyObj.Description,
-		}
-		out, err := MarshalApiKeys(apiKeys)
-		if err != nil {
-			return err
-		}
-		user.ApiKeys = out
-		if err := db.Model(&user).Updates(&user).Error; err != nil {
-			return setReply(c, dbErr(err), nil)
-		}
-		apiKeyOut := ormapi.UserApiKey{}
-		apiKeyOut.ApiKeyId = apiKeyId
-		apiKeyOut.ApiKey = apiKey
-		return c.JSON(http.StatusOK, &apiKeyOut)
+	if apiKeyObj.Action == "" {
+		apiKeyObj.Action = ActionView
 	}
-	return nil
+	if apiKeyObj.Action != ActionView && apiKeyObj.Action != ActionManage {
+		return c.JSON(http.StatusBadRequest, Msg(fmt.Sprintf("Invalid action %s, valid actions are %s, %s", apiKeyObj.Action, ActionView, ActionManage)))
+	}
+	if strings.HasSuffix(userRole.Role, "Viewer") && apiKeyObj.Action == ActionManage {
+		return c.JSON(http.StatusBadRequest, Msg(fmt.Sprintf("Invalid action %s, only valid action is %s", apiKeyObj.Action, ActionView)))
+	}
+
+	// verify if user specified role for the API key is a valid permissible role
+	org := ormapi.Organization{}
+	org.Name = userRole.Org
+	err = db.Where(&org).First(&org).Error
+	if err != nil {
+		return setReply(c, dbErr(err), nil)
+	}
+
+	orgRes := []string{}
+	switch org.Type {
+	case OrgTypeDeveloper:
+		orgRes = DeveloperResources
+	case OrgTypeOperator:
+		orgRes = OperatorResources
+	case OrgTypeAdmin:
+		orgRes = append(OperatorResources, DeveloperResources...)
+	default:
+		return c.JSON(http.StatusBadRequest, Msg("Invalid org type"))
+	}
+	// validate resources specified by the user
+	validResources := make(map[string]struct{})
+	for _, res := range orgRes {
+		validResources[res] = struct{}{}
+	}
+	for _, res := range apiKeyObj.Resources {
+		if _, ok := validResources[res]; !ok {
+			return c.JSON(http.StatusBadRequest, Msg(fmt.Sprintf("Invalid resource specified: %s, valid resources are %v", res, validResources)))
+		}
+	}
+
+	apiKeyId := uuid.New().String()
+	apiKey := uuid.New().String()
+	psub := rbac.GetCasbinGroup(userRole.Org, apiKeyId)
+	for _, res := range apiKeyObj.Resources {
+		err = nil
+		if apiKeyObj.Action != ActionView {
+			addPolicy(ctx, &err, psub, res, ActionView)
+		}
+		addPolicy(ctx, &err, psub, res, apiKeyObj.Action)
+		if err != nil {
+			return setReply(c, dbErr(err), nil)
+		}
+	}
+	apiKeyHash, apiKeySalt, apiKeyIter := NewPasshash(apiKey)
+	apiKeyObj.ApiKeyHash = apiKeyHash
+	apiKeyObj.Salt = apiKeySalt
+	apiKeyObj.Iter = apiKeyIter
+	if err := db.Create(&apiKeyObj).Error; err != nil {
+		return setReply(c, dbErr(err), nil)
+	}
+	apiKeyOut := ormapi.UserApiKey{}
+	apiKeyOut.ApiKeyId = apiKeyId
+	apiKeyOut.ApiKey = apiKey
+	return c.JSON(http.StatusOK, &apiKeyOut)
 }
 
 func DeleteUserApiKey(c echo.Context) error {
@@ -1092,72 +1090,50 @@ func DeleteUserApiKey(c echo.Context) error {
 	if err := c.Bind(&apiKeyObj); err != nil {
 		return bindErr(c, err)
 	}
-	user := ormapi.User{Name: claims.Username}
-	err = db.Where(&user).First(&user).Error
+	err = db.Where(&apiKeyObj).First(&apiKeyObj).Error
 	if err != nil {
 		return setReply(c, dbErr(err), nil)
 	}
-	// fetch existing apikeys
-	apiKeys, err := UnmarshalApiKeys(user.ApiKeys)
-	if err != nil {
-		return err
-	}
-	userApiKey, ok := apiKeys[apiKeyObj.ApiKeyId]
-	if !ok {
-		return c.JSON(http.StatusBadRequest, Msg(fmt.Sprintf("API Key with ID %s doesn't exist", apiKeyObj.ApiKeyId)))
+	if apiKeyObj.UserName != claims.Username {
+		return c.JSON(http.StatusBadRequest, Msg("Not authorized to delete API key"))
 	}
 
-	psub := rbac.GetCasbinGroup(userApiKey.ApiKeyOrg, apiKeyObj.ApiKeyId)
-	found, err := enforcer.HasGroupingPolicy(psub, userApiKey.ApiKeyRole)
+	psub := rbac.GetCasbinGroup(apiKeyObj.Org, apiKeyObj.ApiKeyId)
+	validActions := []string{ActionView, ActionManage}
+	for _, res := range apiKeyObj.Resources {
+		for _, act := range validActions {
+			found, _ := enforcer.HasPolicy(psub, res, act)
+			if !found {
+				continue
+			}
+			err = enforcer.RemovePolicy(ctx, psub, res, act)
+			if err != nil {
+				return dbErr(err)
+			}
+		}
+	}
+	// delete user api key
+	err = db.Delete(&apiKeyObj).Error
 	if err != nil {
-		return dbErr(err)
-	}
-	if !found {
-		return c.JSON(http.StatusBadRequest, Msg("Missing grouping policy"))
-	}
-	err = enforcer.RemoveGroupingPolicy(ctx, psub, userApiKey.ApiKeyRole)
-	if err != nil {
-		return dbErr(err)
-	}
-
-	delete(apiKeys, apiKeyObj.ApiKeyId)
-	out, err := MarshalApiKeys(apiKeys)
-	if err != nil {
-		return err
-	}
-	user.ApiKeys = out
-	if err := db.Model(&user).Updates(&user).Error; err != nil {
 		return setReply(c, dbErr(err), nil)
 	}
-
 	return c.JSON(http.StatusOK, Msg("deleted API Key successfully"))
 }
 
 func ShowUserApiKey(c echo.Context) error {
 	ctx := GetContext(c)
 	db := loggedDB(ctx)
-	claims, err := getClaims(c)
-	if err != nil {
-		return err
+	apiKeyObj := ormapi.UserApiKey{}
+	if err := c.Bind(&apiKeyObj); err != nil {
+		return bindErr(c, err)
 	}
-	user := ormapi.User{Name: claims.Username}
-	err = db.Where(&user).First(&user).Error
+	err := db.Where(&apiKeyObj).First(&apiKeyObj).Error
 	if err != nil {
 		return setReply(c, dbErr(err), nil)
 	}
-	// fetch apikeys
-	userApiKeys := []ormapi.UserApiKey{}
-	apiKeys, err := UnmarshalApiKeys(user.ApiKeys)
-	if err != nil {
-		return err
-	}
-	for apiKeyId, keyObj := range apiKeys {
-		userApiKeys = append(userApiKeys, ormapi.UserApiKey{
-			ApiKeyId:    apiKeyId,
-			Description: keyObj.ApiKeyDesc,
-			Org:         keyObj.ApiKeyOrg,
-			Role:        keyObj.ApiKeyRole,
-		})
-	}
-	return c.JSON(http.StatusOK, &userApiKeys)
+	apiKeyObj.ApiKeyHash = ""
+	apiKeyObj.Salt = ""
+	apiKeyObj.Iter = 0
+	//TODO apiKeyObj.UserName = ""
+	return c.JSON(http.StatusOK, &apiKeyObj)
 }

@@ -99,8 +99,7 @@ func GetUserCommand() *cobra.Command {
 func GetLoginCmd() *cobra.Command {
 	cmd := cli.Command{
 		Use:          "login",
-		RequiredArgs: "name",
-		OptionalArgs: "totp apikeyid apikey",
+		OptionalArgs: "name totp apikeyid apikey",
 		Run:          runLogin,
 	}
 	return cmd.GenCmd()
@@ -108,10 +107,9 @@ func GetLoginCmd() *cobra.Command {
 
 func runLogin(c *cli.Command, args []string) error {
 	input := cli.Input{
-		RequiredArgs: []string{"name"},
-		PasswordArg:  "password",
-		ApiKeyArg:    "apikey",
-		AliasArgs:    []string{"name=username"},
+		PasswordArg: "password",
+		ApiKeyArg:   "apikey",
+		AliasArgs:   []string{"name=username"},
 	}
 	login := ormapi.UserLogin{}
 	_, err := input.ParseArgs(args, &login)

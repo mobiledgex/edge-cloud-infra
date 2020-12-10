@@ -45,25 +45,35 @@ type User struct {
 	TOTPSharedKey string
 	// Metadata
 	Metadata string
-	// read only: true
-	ApiKeys []byte
 }
 
 type UserApiKey struct {
-	Org         string
-	Role        string
+	// API key ID used as an identifier for API keys
+	// read only: true
+	ApiKeyId string `gorm:"primary_key;type:citext"`
+	// read only: true
+	ApiKey string
+	// read only: true
+	ApiKeyHash string `gorm:"not null"`
+	// read only: true
+	Salt string `gorm:"not null"`
+	// read only: true
+	Iter int `gorm:"not null"`
+	// read only: true
+	CreatedAt time.Time `json:",omitempty"`
+	// read only: true
+	UpdatedAt time.Time `json:",omitempty"`
+	// Description of the purpose of this API key
+	// required: true
 	Description string
-	ApiKeyId    string
-	ApiKey      string
-}
-
-type ApiKey struct {
-	ApiKeyOrg  string
-	ApiKeyRole string
-	ApiKeyHash string
-	ApiKeySalt string
-	ApiKeyIter int
-	ApiKeyDesc string
+	// Org to which API key has permissions to access its objects
+	Org string
+	// Action of the API key
+	Action string
+	// List of resources API key has access to
+	Resources []string
+	// read only: true
+	UserName string
 }
 
 type UserResponse struct {

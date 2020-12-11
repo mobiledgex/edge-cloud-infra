@@ -168,3 +168,26 @@ func testBuildClusters(ctx context.Context, cldName string, cloudlet MexCloudlet
 	}
 	return clusterMap, nil
 }
+
+// expects -live true -cld cloudletName
+func TestRMCloudlet(t *testing.T) {
+
+	live, ctx, err := InitVcdTestEnv()
+	require.Nil(t, err, "InitVcdTestEnv")
+
+	if live {
+		cld := tv.Objs.Cloudlet
+		if cld == nil {
+			fmt.Printf("Vdc %s has no cloudlets deployed\n", tv.Objs.Vdc.Vdc.Name)
+			return
+		}
+		if cld.CloudletName != *cldName {
+			fmt.Printf("No %s found only cloudlet %s\n", *cldName, cld.CloudletName)
+			return
+		}
+		err := tv.DeleteCloudlet(ctx, *cld)
+		if err != nil {
+			fmt.Printf("Error from DeleteCloudlet : %s\n", err.Error())
+		}
+	}
+}

@@ -13,10 +13,12 @@ import (
 	"github.com/vmware/go-vcloud-director/v2/govcd"
 )
 
-// physicalname (vault key) not needed when  using insure env vars.
-func (v *VcdPlatform) PopulateOrgLoginCredsFromEnv(ctx context.Context, physicalname string) error {
+// vcd security related operations
 
-	log.SpanLog(ctx, log.DebugLevelInfra, "PopulateOrgLoginCredsFromEnv", "physicalname", physicalname)
+// physicalname (vault key) not needed when  using insure env vars.
+func (v *VcdPlatform) PopulateOrgLoginCredsFromEnv(ctx context.Context) error {
+
+	log.SpanLog(ctx, log.DebugLevelInfra, "PopulateOrgLoginCredsFromEnv")
 
 	creds := VcdConfigParams{
 		User:     os.Getenv("VCD_USER"),
@@ -58,10 +60,40 @@ func (v *VcdPlatform) GetVcdVdcName() string {
 	return v.Creds.VDC
 }
 func (v *VcdPlatform) GetVcdAddress() string {
+
 	return v.Creds.Href
 }
 
-// vcd security related operations
+func (v *VcdPlatform) PopulateOrgLoginCredsFromVault(ctx context.Context) error {
+
+	log.SpanLog(ctx, log.DebugLevelInfra, "PopulateOrgLoginCredsFromVault")
+	creds := VcdConfigParams{
+		User:     v.vcdVars["VCD_USER"],
+		Password: v.vcdVars["VCD_PASSWD"],
+		Org:      v.vcdVars["VCD_ORG"],
+		Href:     fmt.Sprintf("https://%s/api", v.vcdVars["VCD_IP"]),
+		VDC:      v.vcdVars["VCD_NAME"],
+		Insecure: true,
+	}
+
+	if creds.User == "" {
+		return fmt.Errorf("User not defined")
+	}
+	if creds.Password == "" {
+		return fmt.Errorf("Passwd not defined")
+	}
+	if creds.Org == "" {
+		return fmt.Errorf("Org not defined")
+	}
+	if creds.Href == "" {
+		return fmt.Errorf("Href not defined")
+	}
+	if creds.VDC == "" {
+		return fmt.Errorf("missing VDC name")
+	}
+	v.Creds = &creds
+	return nil
+}
 
 // PI
 func (v *VcdPlatform) PrepareRootLB(ctx context.Context, client ssh.Client, rootLBName string, secGrpName string, privacyPolicy *edgeproto.PrivacyPolicy) error {
@@ -104,8 +136,22 @@ func setVer(cli *govcd.VCDClient) error {
 
 // Login and return connected client
 // client.Client = types.Client
-func (v *VcdPlatform) GetClient(ctx context.Context, creds *VcdConfigParams) (client *govcd.VCDClient, err error) {
-	log.SpanLog(ctx, log.DebugLevelInfra, "GetClient", "Credentails", creds)
+func (v *VcdPlatform) GetClient(ctx context.Context, creds *VcdConfigParams, test bool) (client *govcd.VCDClient, err error) {
+
+	if test {
+		fmt.Printf("GetClient-I-Test get creds from env\n")
+		err := v.PopulateOrgLoginCredsFromEnv(ctx)
+		if err != nil {
+			fmt.Printf("GetClient err getting creds from env: %s\n", err.Error())
+		}
+	} else {
+		log.SpanLog(ctx, log.DebugLevelInfra, "GetClient", "Credentails", creds)
+	}
+
+	if v.Client != nil {
+		fmt.Printf("\n\nGetClient-W-already have non-nil vcd client for org %s\n\n", v.Creds.Org)
+		return v.Client, nil
+	}
 	u, err := url.ParseRequestURI(creds.Href)
 	if err != nil {
 		return nil, fmt.Errorf("Unable to parse request to org %s at %s err: %s", creds.Org, creds.Href, err)

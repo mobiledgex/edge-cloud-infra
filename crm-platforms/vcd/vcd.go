@@ -148,7 +148,7 @@ func (v *VcdPlatform) InitProvider(ctx context.Context, caches *platform.Caches,
 	log.SpanLog(ctx, log.DebugLevelInfra, "InitProvider for Vcd 1", "stage", stage)
 	v.InitData(ctx, caches)
 	// XXX read env creds for now, vault soon
-	v.PopulateOrgLoginCredsFromEnv(ctx, "mex-cldlet1") // need to move to first physicalname reference (vault key lookup not env)
+
 	//v.initDebug(o.VMProperties.CommonPf.PlatformConfig.NodeMgr) // XXX needed now?
 
 	// make our object maps
@@ -161,7 +161,7 @@ func (v *VcdPlatform) InitProvider(ctx context.Context, caches *platform.Caches,
 	v.Objs.Media = make(MediaMap)
 
 	if v.Client == nil {
-		client, err := v.GetClient(ctx, v.Creds)
+		client, err := v.GetClient(ctx, v.Creds, false)
 		if err != nil {
 			return fmt.Errorf("InitProvider Unable to create Vcd Client: %s\n", err.Error())
 		}
@@ -180,6 +180,8 @@ func (v *VcdPlatform) InitProvider(ctx context.Context, caches *platform.Caches,
 		fmt.Printf("Error from SetProviderSpecificProps: %s\n", err.Error())
 		return err
 	}
+	fmt.Printf("\n\nInitProvider-I-populating OrgLoginCredsFromVault\n\n")
+
 	return nil
 }
 
@@ -193,7 +195,7 @@ func (v *VcdPlatform) ImportDataFromInfra(ctx context.Context) error {
 	log.SpanLog(ctx, log.DebugLevelInfra, "ImportDataFromInfra N")
 	if v.Client == nil {
 		fmt.Printf("\n\nImportDataFromInfra-I-v.Client nil, login first time\n\n")
-		client, err := v.GetClient(ctx, v.Creds)
+		client, err := v.GetClient(ctx, v.Creds, false)
 		if err != nil {
 			return fmt.Errorf("Unable to create Vcd Client %s\n", err.Error())
 		}
@@ -543,19 +545,9 @@ func (v *VcdPlatform) GetPlatformResources(ctx context.Context) error {
 	return nil
 }
 
-// GetClient in vcd-security for whatever reason
-
-// orignally sourced from vault using physical name from CreateCloudlet as key
-// temp, use env vars
-func (v *VcdPlatform) GetApiEndpointAddr(ctx context.Context) (string, error) {
+func (v *VcdPlatform) GetConsoleUrl(ctx context.Context, serverName string) (string, error) {
 
 	return v.Creds.Href, nil
-
-}
-
-func (v *VcdPlatform) GetConsoleUrl(ctx context.Context, serverName string) (string, error) {
-	fmt.Printf("GetConsoleUrl  TBI\n")
-	return "", nil
 }
 
 func (v *VcdPlatform) ImportImage(ctx context.Context, folder, imageFile string) error {

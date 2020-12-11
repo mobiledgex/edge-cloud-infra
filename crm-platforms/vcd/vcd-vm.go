@@ -122,7 +122,7 @@ func (v *VcdPlatform) CreateVM(ctx context.Context, vapp *govcd.VApp, vmparams *
 
 	var err error
 	if v.Client == nil {
-		v.Client, err = v.GetClient(ctx, v.Creds)
+		v.Client, err = v.GetClient(ctx, v.Creds, false)
 		if err != nil {
 			return nil, err
 		}
@@ -393,12 +393,64 @@ func (v *VcdPlatform) SyncVMs(ctx context.Context, vmgp *vmlayer.VMGroupOrchestr
 	return nil
 }
 
-// Delete All VMs in VApp with VApp.VApp.Name == vmGroupName, then remove the VApp itself.
+func (v *VcdPlatform) DeleteVM(ctx context.Context, vm *govcd.VM) error {
+	log.SpanLog(ctx, log.DebugLevelInfra, "DeleteVM", "vmName", vm.VM.Name)
+	vapp := v.Objs.Cloudlet.CloudVapp
+
+	if vm == nil {
+		return fmt.Errorf("nil vm encountered")
+	}
+
+	log.SpanLog(ctx, log.DebugLevelInfra, "DeleteVM", "vmName", vm.VM.Name)
+	// do we care? mdata, err := vm.GetMetadata()
+	status, err := vm.GetStatus()
+	if err != nil {
+		fmt.Printf("\n\nDeleteVm-E-getting status for vm : %s err: %s\n", vm.VM.Name, err.Error())
+		return err
+	}
+	if status == "POWERED_ON" {
+		task, err := vm.PowerOff()
+		if err != nil {
+			fmt.Printf("\n\nDeleteVm-E-powering off vm : %s err: %s\n", vm.VM.Name, err.Error())
+			return err
+		}
+		err = task.WaitTaskCompletion()
+		if err != nil {
+			fmt.Printf("\n\nDeleteVm-E-waiting powering off vm : %s, err: %s\n", vm.VM.Name, err.Error())
+		}
+	}
+
+	err = vapp.RemoveVM(*vm)
+	if err != nil {
+		return err
+	}
+
+	log.SpanLog(ctx, log.DebugLevelInfra, "VM Deleted", "vmName", vm.VM.Name)
+	return nil
+
+}
+
+// Delete All VMs in the resolution of vmGroupName
 func (v *VcdPlatform) DeleteVMs(ctx context.Context, vmGroupName string) error {
 
-	// if we can swing making vmGroupNamem == VApp Name, we're good here
 	log.SpanLog(ctx, log.DebugLevelInfra, "DeleteVMs", "vmGroupName", vmGroupName)
-	return nil
+	// resolve vmGroupName, to a single vm or a clusterName
+
+	fmt.Printf("\n\nDeleteVMs-I-requests delete of grpName %s\n\n", vmGroupName)
+	vm, err := v.FindVM(ctx, vmGroupName)
+	if err == nil {
+		fmt.Printf("\tFound vm %s matching vmGroupname Deleting...\n", vm.VM.Name)
+		return v.DeleteVM(ctx, vm)
+	} else {
+
+		cluster, err := v.FindCluster(ctx, vmGroupName)
+		if err != nil {
+			fmt.Printf("\n\nDeleteVMs-W-Nothing found to delete with name %s\n", vmGroupName)
+			return fmt.Errorf("Not found")
+		}
+		err = v.DeleteCluster(ctx, cluster.Name)
+		return err
+	}
 }
 
 // This might be a good place to note:

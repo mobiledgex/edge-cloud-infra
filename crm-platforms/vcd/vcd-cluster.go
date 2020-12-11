@@ -204,8 +204,27 @@ func (v *VcdPlatform) CreateCluster(ctx context.Context, cloud *MexCloudlet, tmp
 	return clusterName, nil
 }
 
-func (v *VcdPlatform) DeleteCluster(ctx context.Context, cloud MexCloudlet, vmMap *CidrMap) error {
+func (v *VcdPlatform) DeleteCluster(ctx context.Context, clusterName string /* cloud MexCloudlet, vmMap *CidrMap*/) error {
 	log.SpanLog(ctx, log.DebugLevelInfra, "DeleteCluster")
+	cld := v.Objs.Cloudlet
+	if cld == nil {
+		log.SpanLog(ctx, log.DebugLevelInfra, "No cloudlet")
+		return nil // fmt.Errorf("No cloudlet exists on vdc %s\n", v.Objs.Vdc.Vdc.Name)
+	}
+	clusters := v.Objs.Cloudlet.Clusters
+	for _, cluster := range clusters {
+		if cluster.Name == clusterName {
+			for _, cvm := range cluster.VMs {
+				err := v.DeleteVM(ctx, cvm.vm)
+				if err != nil {
+					fmt.Printf("Error Deleting VM %s from Cluster %s : %s\n",
+						cvm.vmName, clusterName, err.Error())
+					// keep going? track failed vms?
+				}
+			}
+		}
+	}
+
 	return nil
 
 }

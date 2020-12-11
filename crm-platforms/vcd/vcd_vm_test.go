@@ -27,6 +27,8 @@ var ipAddr = flag.String("ip", "172.70.52.210", "Defafult IP addr of VM")
 var ovaName = flag.String("ova", "basic.ova", "name of ova file to upload")
 var vdcName = flag.String("vdc", "mex01", "name of vdc")
 var grpName = flag.String("grp", "grp-default", "some grp name")
+var clstName = flag.String("clst", "clst-default", "some cluster  name")
+var cldName = flag.String("cld", "cld-default", "some cld name")
 var livetest = flag.String("live", "false", "live or canned data")
 
 // Unit test env init. We have two cases, the default is live=false making
@@ -53,10 +55,11 @@ func InitVcdTestEnv() (bool, context.Context, error) {
 	if *livetest == "true" {
 		live = true
 		fmt.Printf("\tPopulateOrgLoginCredsFromEnv\n")
-		tv.PopulateOrgLoginCredsFromEnv(ctx, "mex-cldlet1") // need to move to first physicalname reference (vault key lookup not env)
+		// Tests don't need vault etc
+		tv.PopulateOrgLoginCredsFromEnv(ctx)
 
 		//fmt.Printf("\tMaps made, GetClient\n")
-		client, err := tv.GetClient(ctx, tv.Creds)
+		client, err := tv.GetClient(ctx, tv.Creds, true)
 		if err != nil {
 			return live, ctx, fmt.Errorf("Unable to create Vcd Client %s\n", err.Error())
 		}

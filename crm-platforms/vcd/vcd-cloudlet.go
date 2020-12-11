@@ -230,6 +230,7 @@ func (v *VcdPlatform) AddCloudletImageIfNotPresent(ctx context.Context, imgPathP
 
 // PI   Security calls this to save what it gets from vault?
 func (v *VcdPlatform) SaveCloudletAccessVars(ctx context.Context, cloudlet *edgeproto.Cloudlet, accessVarsIn map[string]string, pfConfig *edgeproto.PlatformConfig, vaultConfig *vault.Config, updateCallback edgeproto.CacheUpdateCallback) error {
+
 	return fmt.Errorf("SaveCloudletAccessVars not implemented for vcd")
 }
 
@@ -266,7 +267,7 @@ func (v *VcdPlatform) GetCloudletManifest(ctx context.Context, name, cloudletIma
 }
 
 // remove the cloudlet(Vapp) + all VMs in the cloudlet.
-func (v *VcdPlatform) DeleteCloudle(ctx context.Context, cloudlet MexCloudlet) error {
+func (v *VcdPlatform) DeleteCloudlet(ctx context.Context, cloudlet MexCloudlet) error {
 
 	vapp := cloudlet.CloudVapp
 
@@ -281,6 +282,7 @@ func (v *VcdPlatform) DeleteCloudle(ctx context.Context, cloudlet MexCloudlet) e
 		fmt.Printf("Error fetching status for vapp %s\n", vapp.VApp.Name)
 		return err
 	}
+
 	vm := &govcd.VM{}
 	if vapp.VApp.Children == nil {
 		task, err := vapp.Delete()
@@ -293,9 +295,6 @@ func (v *VcdPlatform) DeleteCloudle(ctx context.Context, cloudlet MexCloudlet) e
 	}
 	vms := vapp.VApp.Children.VM
 	fmt.Printf("vapp %s has %d vm children\n", vapp.VApp.Name, len(vms))
-	for _, vm := range vms {
-		fmt.Printf("\t%s\n", vm.Name)
-	}
 	if status == "POWERED_ON" {
 
 		// if the vapp is on, assume the vm is too
@@ -363,6 +362,7 @@ func (v *VcdPlatform) DeleteCloudle(ctx context.Context, cloudlet MexCloudlet) e
 
 // Just validate requested cluster create references against our cloudlet
 // re: was cloudlet lookup
+// Not much use when only one cloudlet per vcd
 func (v *VcdPlatform) FindCloudletForCluster(GroupName string) (*MexCloudlet, *govcd.VApp, error) {
 	vdcCloudlet := v.Objs.Cloudlet // only one
 	// cld1-cluster1-mobiledgex-vapp
@@ -390,5 +390,19 @@ func (v *VcdPlatform) FindCloudletForCluster(GroupName string) (*MexCloudlet, *g
 }
 
 func (o *VcdPlatform) GetSessionTokens(ctx context.Context, vaultConfig *vault.Config, account string) (map[string]string, error) {
-	return nil, fmt.Errorf("GetSessionTokens not supported in VSpherePlatform")
+	return nil, fmt.Errorf("GetSessionTokens not supported in VcdPlatform")
+}
+
+// orignally sourced from vault using physical name from CreateCloudlet as key
+// temp, use env vars
+func (v *VcdPlatform) GetApiEndpointAddr(ctx context.Context) (string, error) {
+	vcaddr := v.vcdVars["VCD_ADDR"]
+	log.SpanLog(ctx, log.DebugLevelInfra, "GetApiEndpointAddr", "vcaddr", vcaddr)
+	if vcaddr == "" {
+		return "", fmt.Errorf("unable to find VCD_ADDR")
+	}
+	return vcaddr, nil
+
+	// old envars return v.Creds.Href, nil
+
 }

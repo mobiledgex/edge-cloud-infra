@@ -52,6 +52,7 @@ func TestRMVApp(t *testing.T) {
 	if live {
 		fmt.Printf("testRMVappVApp")
 		err = testDestroyVApp(t, ctx, *vappName)
+
 		if err != nil {
 			fmt.Printf("Error deleteing %s : %s\n", *vappName, err.Error())
 		}
@@ -621,11 +622,35 @@ func testDestroyVApp(t *testing.T, ctx context.Context, name string) error {
 	for _, vm := range vms {
 		fmt.Printf("\t%s\n", vm.Name)
 	}
-	if status == "POWERED_ON" {
-
+	if status != "POWERED_OFF" {
 		// if the vapp is on, assume the vms are too
 		// if you power off the vapp, all the vms should be powered off as well
+		fmt.Printf("Found Vapp %s powered on, powering off\n", vapp.VApp.Name)
 
+		for _, vm := range vms {
+
+			v, err := vapp.GetVMByName(vm.Name, false)
+			if err != nil {
+				fmt.Printf("VM %s not found \n", vm.Name)
+				return err
+			}
+			fmt.Printf("\tPowerOff %s\n", vm.Name)
+			task, err := v.PowerOff()
+			if err != nil {
+				fmt.Printf("Error from RemoveVM for vm %s in vapp: %s as : %s\n",
+					vm.Name, *vappName, err.Error())
+				return err
+			}
+			err = task.WaitTaskCompletion()
+			if err != nil {
+				fmt.Printf("Error waiting powering of the vm %s \n", *vmName)
+				return err
+			}
+
+			fmt.Printf("\t\tremoved from Vapp\n")
+
+		}
+		fmt.Printf("VMs powered off, powering off the VApp %s\n", vapp.VApp.Name)
 		task, err := vapp.PowerOff() // I think this leaves the vms running <sigh>
 		if err != nil {
 			fmt.Printf("Error from vm.PowerOff: %s\n", err.Error())
@@ -636,19 +661,7 @@ func testDestroyVApp(t *testing.T, ctx context.Context, name string) error {
 			fmt.Printf("Error waiting powering of the vm %s \n", *vmName)
 			return err
 		}
-		fmt.Printf("VM %s powered off\n", *vmName)
 
-		fmt.Printf("vapp %s currently powered on, wait for power off...\n", *vappName)
-		task, err = vapp.PowerOff()
-		if err != nil {
-			fmt.Printf("testDestroyVapp-W-vm power off failed : %s\n", err.Error())
-			return err
-		}
-		err = task.WaitTaskCompletion()
-		if err != nil {
-			fmt.Printf("Error powering of the Vapp %s \n", *vappName)
-			return err
-		}
 		fmt.Printf("Vapp %s powered off\n", *vappName)
 	}
 	// And while the console's delete vapp deletes it's vms, this does not, so the remove VM will fail since
@@ -658,16 +671,13 @@ func testDestroyVApp(t *testing.T, ctx context.Context, name string) error {
 	// Also, to get the ip addresses released back to the pool, take out the VM before the VApp...
 	// Apparently, they both are consuming one, even though they are the same (one for each end?)
 
-	// Now, consider a Vapp with >1 vm
 	for _, vm := range vms {
 		fmt.Printf("\t%s...\n", vm.Name)
-
 		v, err := vapp.GetVMByName(vm.Name, false)
 		if err != nil {
 			fmt.Printf("VM %s not found \n", vm.Name)
 			return err
 		}
-
 		err = vapp.RemoveVM(*v)
 		if err != nil {
 			fmt.Printf("Error from RemoveVM for vm %s in vapp: %s as : %s\n",
@@ -677,7 +687,6 @@ func testDestroyVApp(t *testing.T, ctx context.Context, name string) error {
 		fmt.Printf("\t\tremoved from Vapp\n")
 
 	}
-
 	task, err := vapp.Delete()
 	if err != nil {
 		fmt.Printf("vapp.Delete failed: %s\n task: %+v\n", err.Error(), task)

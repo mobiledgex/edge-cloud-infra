@@ -4,13 +4,13 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/mobiledgex/edge-cloud-infra/infracommon"
+	//"github.com/mobiledgex/edge-cloud-infra/infracommon"
 	"github.com/mobiledgex/edge-cloud-infra/vmlayer"
 	"github.com/mobiledgex/edge-cloud/cloud-resource-manager/platform"
 	"github.com/mobiledgex/edge-cloud/edgeproto"
-	"github.com/mobiledgex/edge-cloud/log"
-	"github.com/mobiledgex/edge-cloud/vault"
-	"strings"
+	//"github.com/mobiledgex/edge-cloud/log"
+	//"github.com/mobiledgex/edge-cloud/vault"
+	//"strings"
 )
 
 // model VcdProps after vsphere to start
@@ -47,50 +47,46 @@ var VcdProps = map[string]*edgeproto.PropertyInfo{
 	//	},
 }
 
-func (v *VcdPlatform) GetApiAccessFilename() string {
-	fmt.Printf("GetApiAccessFilename-I config_file.yaml \n")
+func (v *VcdPlatform) GetVaultCloudletAccessPath(key *edgeproto.CloudletKey, region, physicalName string) string {
 
-	return "config_file.yaml"
+	// vshere:
+	// return fmt.Sprintf("/secret/data/%s/cloudlet/vsphere/%s/%s/vcenter.json", region, key.Organization, physicalName)
+	return fmt.Sprintf("/secret/data/%s/cloudlet/vcd/%s/%s/vcd.json", region, key.Organization, physicalName)
 
 }
 
-func (v *VcdPlatform) GetVcdVars(ctx context.Context, key *edgeproto.CloudletKey, region, physicalName string, vaultConfig *vault.Config) error {
+func (v *VcdPlatform) GetVcdVars(ctx context.Context, accessApi platform.AccessApi) error {
 
-	//fmt.Printf("GetVcdVars-I-cloudlet %s physicalname: %s using vault config %+v\n", key.Name, physicalName, vaultConfig)
+	fmt.Printf("\n\nGetVcdVars GetCloudletAccessVars...\n\n")
 
-	if vaultConfig == nil || vaultConfig.Addr == "" {
-		return fmt.Errorf("vaultAddr is not specified")
-	}
-	// DNE	vcpath := vmlayer.GetVaultCloudletAccessPath(key, region, v.GetType(), physicalName, v.GetApiAccessFilename())
-	vcpath := ""
-	log.SpanLog(ctx, log.DebugLevelInfra, "interning vault", "addr", vaultConfig.Addr, "path", vcpath)
-	envData := &infracommon.VaultEnvData{}
-	err := vault.GetData(vaultConfig, vcpath, 0, envData)
+	vars, err := accessApi.GetCloudletAccessVars(ctx)
 	if err != nil {
-		fmt.Printf("GetVcdVars failed to access vault for key =  %s use env vars instead \n", physicalName)
-
-		if strings.Contains(err.Error(), "no secrets") {
-			return fmt.Errorf("Failed to source access variables as '%s/%s' "+
-				"does not exist in secure secrets storage (Vault)",
-				key.Organization, physicalName)
-		}
-		return fmt.Errorf("Failed to source access variables from %s, %s: %v", vaultConfig.Addr, vcpath, err)
-	}
-	v.vcdVars = make(map[string]string, 1)
-	for _, envData := range envData.Env {
-		v.vcdVars[envData.Name] = envData.Value
-	}
-
-	host := v.GetVcdAddress()
-	if err != nil {
+		fmt.Printf("\nGetCloudletAcessVars error: %s\n", err.Error())
 		return err
 	}
-	v.vcdVars["VCD_URL"] = host // api endpoint
-	v.vcdVars["VCD_USERNAME"] = v.GetVcdUser()
-	pass := v.GetVcdPassword()
-	v.vcdVars["ORG"] = v.GetVcdOrgName()
-	v.vcdVars["VCD_PASSWORD"] = pass
-	//	v.vcdVars["VCD_INSECURE"] = v.GetVcdInsecure()  true by default XXX
+	v.vcdVars = vars
+
+	if len(vars) == 0 {
+		panic("no vars!")
+	}
+
+	fmt.Printf("\nGetVcdVars env passed down:\n")
+	for k, v := range vars {
+		fmt.Printf("\tGetVcdVars:next access var  %s = %s\n", k, v)
+	}
+
+	fmt.Printf("\n\nGetVcdVars:\n\tVCD_URL: %s\n\tVCD_USERNAME: %s\n\t: Passwd: %s\n\t Org: %s\n\t",
+		v.vcdVars["VCD_URL"],
+		v.vcdVars["VCD_USERNAME"],
+		v.vcdVars["ORG"],
+		v.vcdVars["VCD_PASSWORD"])
+
+	err = v.PopulateOrgLoginCredsFromVault(ctx)
+	if err != nil {
+		fmt.Printf("\nError from pop creds from vault: %s\n", err.Error())
+		return err
+	}
+	v.vcdVars["VCD_URL"] = v.Creds.Href
 
 	return nil
 }
@@ -98,7 +94,11 @@ func (v *VcdPlatform) GetVcdVars(ctx context.Context, key *edgeproto.CloudletKey
 // start fetching access  bits from vault
 func (v *VcdPlatform) InitApiAccessProperties(ctx context.Context, accessApi platform.AccessApi, vars map[string]string, stage vmlayer.ProviderInitStage) error {
 
-	fmt.Printf("InitApiAccessProperties-TBI\n")
+	fmt.Printf("\nInitApiAccessProperties stage: %s\n", stage)
+	err := v.GetVcdVars(ctx, accessApi)
+	if err != nil {
+		return err
+	}
 	return nil
 }
 
@@ -134,6 +134,20 @@ func (v *VcdPlatform) GetInternalNetmask() string {
 	return val
 }
 
-func (v *VcdPlatform) GetVaultCloudletAccessPath(key *edgeproto.CloudletKey, region, physicalName string) string {
-	return fmt.Sprintf("/secret/data/%s/cloudlet/vcd/%s/%s/vcenter.json", region, key.Organization, physicalName)
+/*
+func (a *VcdPlatform) GetAccessData(ctx context.Context, cloudlet *edgeproto.Cloudlet, region string, vaultConfig *vault.Config, dataType string, arg []byte) (map[string]string, error) {
+
+	fmt.Printf("\n\nVcdPlatform::GetAccessData vaultConfig: %+v\n\n", vaultConfig)
+
+	log.SpanLog(ctx, log.DebugLevelInfra, "VcdPlatform GetAccessData", "dataType", dataType)
+	switch dataType {
+	case accessapi.GetCloudletAccessVars:
+		vars, err := infracommon.GetEnvVarsFromVault(ctx, vaultConfig, v.G)
+		if err != nil {
+			return nil, err
+		}
+		return vars, nil
+	}
+	return nil, fmt.Errorf("Azure unhandled GetAccessData type %s", dataType)
 }
+*/

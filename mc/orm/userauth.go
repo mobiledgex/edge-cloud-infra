@@ -92,7 +92,7 @@ func (u *UserClaims) SetKid(kid int) {
 	u.Kid = kid
 }
 
-func GenerateCookie(user *ormapi.User) (string, error) {
+func GenerateCookie(user *ormapi.User, apiKey string) (string, error) {
 	claims := UserClaims{
 		StandardClaims: jwt.StandardClaims{
 			IssuedAt: time.Now().Unix(),
@@ -104,6 +104,9 @@ func GenerateCookie(user *ormapi.User) (string, error) {
 		// This is used to keep track of when the first auth token was issued,
 		// using this info we allow refreshing of auth token if the token is valid
 		FirstIssuedAt: time.Now().Unix(),
+	}
+	if apiKey != "" {
+		claims.Username = apiKey
 	}
 	cookie, err := Jwks.GenerateCookie(&claims)
 	return cookie, err

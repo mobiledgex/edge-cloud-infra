@@ -78,19 +78,20 @@ func GetUserCommand() *cobra.Command {
 		Run:          runRest("/auth/restricted/user/update"),
 	}, &cli.Command{
 		Use:          "createapikey",
-		RequiredArgs: "org role description",
-		ReqData:      &ormapi.UserApiKey{},
+		RequiredArgs: "org description",
+		OptionalArgs: "roles:#.action roles:#.resource",
+		ReqData:      &ormapi.UserApiKeyObj{},
 		ReplyData:    &ormapi.UserApiKey{},
 		Run:          runRest("/auth/user/create/apikey"),
 	}, &cli.Command{
 		Use:          "deleteapikey",
 		RequiredArgs: "apikeyid",
-		ReqData:      &ormapi.UserApiKey{},
+		ReqData:      &ormapi.ApiKeyObj{},
 		Run:          runRest("/auth/user/delete/apikey"),
 	}, &cli.Command{
 		Use:       "showapikey",
-		ReqData:   &ormapi.UserApiKey{},
-		ReplyData: &[]ormapi.UserApiKey{},
+		ReqData:   &ormapi.ApiKeyObj{},
+		ReplyData: &[]ormapi.UserApiKeyObj{},
 		Run:       runRest("/auth/user/show/apikey"),
 	}}
 	return cli.GenGroup("user", "manage users", cmds)

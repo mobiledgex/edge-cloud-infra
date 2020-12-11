@@ -65,34 +65,6 @@ func InitAdmin(ctx context.Context, superuser, superpass string) error {
 	return nil
 }
 
-func ApiKeyLogin(c echo.Context, login *ormapi.UserLogin) error {
-	ctx := GetContext(c)
-	db := loggedDB(ctx)
-	if login.ApiKeyId == "" {
-		return c.JSON(http.StatusBadRequest, Msg("apikeyid not specified"))
-	}
-	apiKeyObj := ormapi.UserApiKey{ApiKeyId: login.ApiKeyId}
-	err := db.Where(&apiKeyObj).First(&apiKeyObj).Error
-	if err != nil {
-		log.SpanLog(ctx, log.DebugLevelApi, "ApiKey lookup failed", "apiKey", apiKeyObj, "err", err)
-		time.Sleep(BadAuthDelay)
-		return c.JSON(http.StatusBadRequest, Msg("Invalid ApiKey"))
-	}
-	span := log.SpanFromContext(ctx)
-	span.SetTag("apikey", apiKeyObj.ApiKeyId)
-	span.SetTag("user", apiKeyObj.UserName)
-
-	matches, err := PasswordMatches(login.ApiKeyId, apiKeyObj.ApiKeyHash, apiKeyObj.Salt, apiKeyObj.Iter)
-	if err != nil {
-		log.SpanLog(ctx, log.DebugLevelApi, "apiKeyId matches err", "err", err)
-	}
-	if !matches || err != nil {
-		time.Sleep(BadAuthDelay)
-		return c.JSON(http.StatusBadRequest, Msg("Invalid ApiKey or ApiKeyId"))
-	}
-	return nil
-}
-
 func Login(c echo.Context) error {
 	ctx := GetContext(c)
 	login := ormapi.UserLogin{}
@@ -134,7 +106,7 @@ func Login(c echo.Context) error {
 			return c.JSON(http.StatusBadRequest, Msg("Username not specified"))
 		}
 
-		if login.Password != "" {
+		if login.Password == "" {
 			return c.JSON(http.StatusBadRequest, Msg("Please specify password"))
 		}
 		lookup := ormapi.User{Name: login.Username}
@@ -231,7 +203,7 @@ func Login(c echo.Context) error {
 		}
 	}
 
-	cookie, err := GenerateCookie(&user)
+	cookie, err := GenerateCookie(&user, login.ApiKey)
 	if err != nil {
 		log.SpanLog(ctx, log.DebugLevelApi, "failed to generate cookie", "err", err)
 		return c.JSON(http.StatusBadRequest, Msg("Failed to generate cookie"))
@@ -980,12 +952,15 @@ func CreateUserApiKey(c echo.Context) error {
 	if err != nil {
 		return err
 	}
-	apiKeyObj := ormapi.UserApiKey{}
-	if err := c.Bind(&apiKeyObj); err != nil {
+	apiKeyReq := ormapi.UserApiKeyObj{}
+	if err := c.Bind(&apiKeyReq); err != nil {
 		return bindErr(c, err)
 	}
 	// fetch user details to verify if it has enough permissions to create api key
+	apiKeyObj := ormapi.UserApiKey{}
 	apiKeyObj.UserName = claims.Username
+	apiKeyObj.Org = apiKeyReq.Org
+	apiKeyObj.Description = apiKeyReq.Description
 	user := ormapi.User{Name: claims.Username}
 	err = db.Where(&user).First(&user).Error
 	if err != nil {
@@ -994,6 +969,11 @@ func CreateUserApiKey(c echo.Context) error {
 	groupings, err := enforcer.GetGroupingPolicy()
 	if err != nil {
 		return setReply(c, dbErr(err), nil)
+	}
+	super := false
+	if authorized(ctx, claims.Username, "", ResourceUsers, ActionView) == nil {
+		// super user
+		super = true
 	}
 	// fetch current user's role for the org
 	var userRole *ormapi.Role
@@ -1010,22 +990,15 @@ func CreateUserApiKey(c echo.Context) error {
 			break
 		}
 	}
-	if userRole == nil {
+	if !super && userRole == nil {
 		return c.JSON(http.StatusBadRequest, Msg("User has no permissions to access org "+apiKeyObj.Org))
 	}
-	if apiKeyObj.Action == "" {
-		apiKeyObj.Action = ActionView
+	if len(apiKeyReq.Roles) == 0 {
+		return c.JSON(http.StatusBadRequest, Msg("Missing roles"))
 	}
-	if apiKeyObj.Action != ActionView && apiKeyObj.Action != ActionManage {
-		return c.JSON(http.StatusBadRequest, Msg(fmt.Sprintf("Invalid action %s, valid actions are %s, %s", apiKeyObj.Action, ActionView, ActionManage)))
-	}
-	if strings.HasSuffix(userRole.Role, "Viewer") && apiKeyObj.Action == ActionManage {
-		return c.JSON(http.StatusBadRequest, Msg(fmt.Sprintf("Invalid action %s, only valid action is %s", apiKeyObj.Action, ActionView)))
-	}
-
 	// verify if user specified role for the API key is a valid permissible role
 	org := ormapi.Organization{}
-	org.Name = userRole.Org
+	org.Name = apiKeyObj.Org
 	err = db.Where(&org).First(&org).Error
 	if err != nil {
 		return setReply(c, dbErr(err), nil)
@@ -1047,33 +1020,57 @@ func CreateUserApiKey(c echo.Context) error {
 	for _, res := range orgRes {
 		validResources[res] = struct{}{}
 	}
-	for _, res := range apiKeyObj.Resources {
-		if _, ok := validResources[res]; !ok {
-			return c.JSON(http.StatusBadRequest, Msg(fmt.Sprintf("Invalid resource specified: %s, valid resources are %v", res, validResources)))
-		}
-	}
-
+	err = nil
 	apiKeyId := uuid.New().String()
 	apiKey := uuid.New().String()
-	psub := rbac.GetCasbinGroup(userRole.Org, apiKeyId)
-	for _, res := range apiKeyObj.Resources {
-		err = nil
-		if apiKeyObj.Action != ActionView {
-			addPolicy(ctx, &err, psub, res, ActionView)
+	apiKeyRole := apiKeyId + "-role"
+	for _, role := range apiKeyReq.Roles {
+		if role.Action != ActionView && role.Action != ActionManage {
+			return c.JSON(http.StatusBadRequest, Msg(fmt.Sprintf("Invalid action %s, valid actions are %s, %s", role.Action, ActionView, ActionManage)))
 		}
-		addPolicy(ctx, &err, psub, res, apiKeyObj.Action)
-		if err != nil {
-			return setReply(c, dbErr(err), nil)
+		if !super && strings.HasSuffix(userRole.Role, "Viewer") && role.Action == ActionManage {
+			return c.JSON(http.StatusBadRequest, Msg(fmt.Sprintf("Invalid action %s, only valid action is %s", role.Action, ActionView)))
 		}
+		if _, ok := validResources[role.Resource]; !ok {
+			return c.JSON(http.StatusBadRequest, Msg(fmt.Sprintf("Invalid resource specified: %s, valid resources are %v", role.Resource, validResources)))
+		}
+		// make sure caller has perms to access resource of target org
+		if err := authorized(ctx, claims.Username, apiKeyObj.Org, role.Resource, role.Action); err != nil {
+			if apiKeyObj.Org == "" {
+				return fmt.Errorf("Organization not specified or no permissions")
+			}
+			return err
+		}
+		addPolicy(ctx, &err, apiKeyRole, role.Resource, role.Action)
 	}
+	if err != nil {
+		return setReply(c, dbErr(err), nil)
+	}
+
+	psub := rbac.GetCasbinGroup(apiKeyObj.Org, apiKeyId)
+	cleanupPoliciesOnErr := func() {
+		for _, role := range apiKeyReq.Roles {
+			enforcer.RemovePolicy(ctx, apiKeyRole, role.Resource, role.Action)
+		}
+		// remove grouping policy if present, ignore err
+		enforcer.RemoveGroupingPolicy(ctx, psub, apiKeyRole)
+	}
+
+	err = enforcer.AddGroupingPolicy(ctx, psub, apiKeyRole)
+	if err != nil {
+		cleanupPoliciesOnErr()
+		return dbErr(err)
+	}
+
 	apiKeyHash, apiKeySalt, apiKeyIter := NewPasshash(apiKey)
 	apiKeyObj.ApiKeyHash = apiKeyHash
 	apiKeyObj.Salt = apiKeySalt
 	apiKeyObj.Iter = apiKeyIter
 	if err := db.Create(&apiKeyObj).Error; err != nil {
+		cleanupPoliciesOnErr()
 		return setReply(c, dbErr(err), nil)
 	}
-	apiKeyOut := ormapi.UserApiKey{}
+	apiKeyOut := ormapi.ApiKeyObj{}
 	apiKeyOut.ApiKeyId = apiKeyId
 	apiKeyOut.ApiKey = apiKey
 	return c.JSON(http.StatusOK, &apiKeyOut)
@@ -1086,31 +1083,38 @@ func DeleteUserApiKey(c echo.Context) error {
 	if err != nil {
 		return err
 	}
-	apiKeyObj := ormapi.UserApiKey{}
-	if err := c.Bind(&apiKeyObj); err != nil {
+	lookup := ormapi.ApiKeyObj{}
+	if err := c.Bind(&lookup); err != nil {
 		return bindErr(c, err)
 	}
-	err = db.Where(&apiKeyObj).First(&apiKeyObj).Error
+	apiKeyObj := ormapi.UserApiKey{}
+	err = db.Where(&lookup).First(&apiKeyObj).Error
 	if err != nil {
 		return setReply(c, dbErr(err), nil)
 	}
 	if apiKeyObj.UserName != claims.Username {
 		return c.JSON(http.StatusBadRequest, Msg("Not authorized to delete API key"))
 	}
-
-	psub := rbac.GetCasbinGroup(apiKeyObj.Org, apiKeyObj.ApiKeyId)
-	validActions := []string{ActionView, ActionManage}
-	for _, res := range apiKeyObj.Resources {
-		for _, act := range validActions {
-			found, _ := enforcer.HasPolicy(psub, res, act)
-			if !found {
-				continue
-			}
-			err = enforcer.RemovePolicy(ctx, psub, res, act)
+	apiKeyRole := apiKeyObj.ApiKeyId + "-role"
+	policies, err := enforcer.GetPolicy()
+	if err != nil {
+		return dbErr(err)
+	}
+	for _, policy := range policies {
+		if len(policy) < 1 {
+			continue
+		}
+		if policy[0] == apiKeyRole {
+			err = enforcer.RemovePolicy(ctx, policy...)
 			if err != nil {
 				return dbErr(err)
 			}
 		}
+	}
+	psub := rbac.GetCasbinGroup(apiKeyObj.Org, apiKeyObj.ApiKeyId)
+	err = enforcer.RemoveGroupingPolicy(ctx, psub, apiKeyRole)
+	if err != nil {
+		return dbErr(err)
 	}
 	// delete user api key
 	err = db.Delete(&apiKeyObj).Error
@@ -1123,17 +1127,34 @@ func DeleteUserApiKey(c echo.Context) error {
 func ShowUserApiKey(c echo.Context) error {
 	ctx := GetContext(c)
 	db := loggedDB(ctx)
-	apiKeyObj := ormapi.UserApiKey{}
-	if err := c.Bind(&apiKeyObj); err != nil {
+	lookup := ormapi.ApiKeyObj{}
+	if err := c.Bind(&lookup); err != nil {
 		return bindErr(c, err)
 	}
-	err := db.Where(&apiKeyObj).First(&apiKeyObj).Error
+	apiKeyObj := ormapi.UserApiKey{}
+	err := db.Where(&lookup).First(&apiKeyObj).Error
 	if err != nil {
 		return setReply(c, dbErr(err), nil)
 	}
-	apiKeyObj.ApiKeyHash = ""
-	apiKeyObj.Salt = ""
-	apiKeyObj.Iter = 0
-	//TODO apiKeyObj.UserName = ""
-	return c.JSON(http.StatusOK, &apiKeyObj)
+	out := ormapi.UserApiKeyObj{}
+	out.Description = apiKeyObj.Description
+	out.Org = apiKeyObj.Org
+	out.Roles = []ormapi.RolePerm{}
+	apiKeyRole := apiKeyObj.ApiKeyId + "-role"
+	policies, err := enforcer.GetPolicy()
+	if err != nil {
+		return dbErr(err)
+	}
+	for _, policy := range policies {
+		if len(policy) < 1 {
+			continue
+		}
+		if policy[0] == apiKeyRole {
+			out.Roles = append(out.Roles, ormapi.RolePerm{
+				Resource: policy[2],
+				Action:   policy[3],
+			})
+		}
+	}
+	return c.JSON(http.StatusOK, &out)
 }

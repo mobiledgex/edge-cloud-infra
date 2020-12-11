@@ -47,12 +47,35 @@ type User struct {
 	Metadata string
 }
 
+type UserApiKeyObj struct {
+	// Description of the purpose of this API key
+	// required: true
+	Description string
+	// Org to which API key has permissions to access its objects
+	Org string
+	// List of API key roles
+	Roles []RolePerm `json:"roles"`
+}
+
+type ApiKeyObj struct {
+	// API key ID used as an identifier for API keys
+	ApiKeyId string
+	// API key
+	ApiKey string
+}
+
 type UserApiKey struct {
 	// API key ID used as an identifier for API keys
 	// read only: true
 	ApiKeyId string `gorm:"primary_key;type:citext"`
+	// Description of the purpose of this API key
+	// required: true
+	Description string
+	// Org to which API key has permissions to access its objects
+	// required: true
+	Org string
 	// read only: true
-	ApiKey string
+	UserName string
 	// read only: true
 	ApiKeyHash string `gorm:"not null"`
 	// read only: true
@@ -63,17 +86,6 @@ type UserApiKey struct {
 	CreatedAt time.Time `json:",omitempty"`
 	// read only: true
 	UpdatedAt time.Time `json:",omitempty"`
-	// Description of the purpose of this API key
-	// required: true
-	Description string
-	// Org to which API key has permissions to access its objects
-	Org string
-	// Action of the API key
-	Action string
-	// List of resources API key has access to
-	Resources []string
-	// read only: true
-	UserName string
 }
 
 type UserResponse struct {

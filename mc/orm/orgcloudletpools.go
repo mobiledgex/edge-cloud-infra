@@ -250,6 +250,22 @@ func ShowOrgCloudlet(c echo.Context) error {
 		return err
 	}
 
+	// get user role
+	roles, err := ShowUserRoleObj(ctx, claims.Username)
+	if err != nil {
+		return setReply(c, fmt.Errorf("Unable to fetch user roles: %v", err), nil)
+	}
+	filterCloudlet := true
+	for _, role := range roles {
+		if role.Org != "" && role.Org != oc.Org {
+			continue
+		}
+		if isAdminRole(role.Role) || isOperatorRole(role.Role) {
+			filterCloudlet = false
+			break
+		}
+	}
+
 	rc := RegionContext{
 		region:    oc.Region,
 		username:  claims.Username,
@@ -258,7 +274,16 @@ func ShowOrgCloudlet(c echo.Context) error {
 	show := make([]*edgeproto.Cloudlet, 0)
 	err = ShowCloudletStream(ctx, &rc, &edgeproto.Cloudlet{}, func(cloudlet *edgeproto.Cloudlet) {
 		if authzCloudlet.Ok(cloudlet) {
-			show = append(show, cloudlet)
+			showCloudlet := cloudlet
+			if filterCloudlet {
+				// filter cloudlet details not required for developer role
+				showCloudlet = &edgeproto.Cloudlet{}
+				showCloudlet.Key = cloudlet.Key
+				showCloudlet.Location = cloudlet.Location
+				showCloudlet.State = cloudlet.State
+				showCloudlet.MaintenanceState = cloudlet.MaintenanceState
+			}
+			show = append(show, showCloudlet)
 		}
 	})
 	return setReply(c, err, show)
@@ -300,6 +325,22 @@ func ShowOrgCloudletInfo(c echo.Context) error {
 		return err
 	}
 
+	// get user role
+	roles, err := ShowUserRoleObj(ctx, claims.Username)
+	if err != nil {
+		return setReply(c, fmt.Errorf("Unable to fetch user roles: %v", err), nil)
+	}
+	filterCloudlet := true
+	for _, role := range roles {
+		if role.Org != "" && role.Org != oc.Org {
+			continue
+		}
+		if isAdminRole(role.Role) || isOperatorRole(role.Role) {
+			filterCloudlet = false
+			break
+		}
+	}
+
 	rc := RegionContext{
 		region:    oc.Region,
 		username:  claims.Username,
@@ -311,7 +352,19 @@ func ShowOrgCloudletInfo(c echo.Context) error {
 			Key: CloudletInfo.Key,
 		}
 		if authzCloudlet.Ok(&cloudlet) {
-			show = append(show, CloudletInfo)
+			showCloudletInfo := CloudletInfo
+			if filterCloudlet {
+				// filter cloudletinfo details not required for developer role
+				showCloudletInfo = &edgeproto.CloudletInfo{}
+				showCloudletInfo.Key = CloudletInfo.Key
+				showCloudletInfo.State = CloudletInfo.State
+				showCloudletInfo.MaintenanceState = CloudletInfo.MaintenanceState
+				showCloudletInfo.OsMaxRam = CloudletInfo.OsMaxRam
+				showCloudletInfo.OsMaxVcores = CloudletInfo.OsMaxVcores
+				showCloudletInfo.OsMaxVolGb = CloudletInfo.OsMaxVolGb
+				showCloudletInfo.Flavors = CloudletInfo.Flavors
+			}
+			show = append(show, showCloudletInfo)
 		}
 	})
 	return setReply(c, err, show)

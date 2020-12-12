@@ -69,7 +69,7 @@ func (v *VcdPlatform) PopulateOrgLoginCredsFromVault(ctx context.Context) error 
 	log.SpanLog(ctx, log.DebugLevelInfra, "PopulateOrgLoginCredsFromVault")
 	creds := VcdConfigParams{
 		User:     v.vcdVars["VCD_USER"],
-		Password: v.vcdVars["VCD_PASSWD"],
+		Password: v.vcdVars["VCD_PASSWORD"],
 		Org:      v.vcdVars["VCD_ORG"],
 		Href:     fmt.Sprintf("https://%s/api", v.vcdVars["VCD_IP"]),
 		VDC:      v.vcdVars["VCD_NAME"],

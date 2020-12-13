@@ -5,7 +5,6 @@ import (
 	"fmt"
 	gogotypes "github.com/gogo/protobuf/types"
 	"github.com/mobiledgex/edge-cloud-infra/vmlayer"
-	"os"
 	"strings"
 	"time"
 	"unicode"
@@ -360,7 +359,8 @@ func (v *VcdPlatform) GetPlatformResources(ctx context.Context) error {
 		}
 	}
 	vdc := v.Objs.Vdc
-	primVdc := os.Getenv("PRIMARY_VDC")
+	//primVdc := os.Getenv("PRIMARY_VDC")
+	primVdc := v.vcdVars["PRIMARY_VDC"]
 	if primVdc != "" {
 		fmt.Printf("Discover-I-override target vdc from %s to %s\n",
 			v.Objs.Vdc.Vdc.Name, primVdc)
@@ -372,7 +372,8 @@ func (v *VcdPlatform) GetPlatformResources(ctx context.Context) error {
 		}
 	}
 
-	primNet := os.Getenv("MEX_EXT_NETWORK")
+	// primNet := os.Getenv("MEX_EXT_NETWORK")
+	primNet := v.vcdVars["MEX_EXT_NETWORK"]
 	fmt.Printf("Discover Primary net evn as %s\n", primNet)
 
 	fmt.Printf("Discover: Collecting resources of vdc: %s\n", vdc.Vdc.Name)

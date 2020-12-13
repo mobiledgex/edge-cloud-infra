@@ -64,6 +64,7 @@ func (v *VcdPlatform) GetVcdAddress() string {
 	return v.Creds.Href
 }
 
+// Create new option for our live unit tests to use this rather than env XXX
 func (v *VcdPlatform) PopulateOrgLoginCredsFromVault(ctx context.Context) error {
 
 	log.SpanLog(ctx, log.DebugLevelInfra, "PopulateOrgLoginCredsFromVault")

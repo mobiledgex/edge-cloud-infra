@@ -75,7 +75,7 @@ func (v *VcdPlatform) GetVcdVars(ctx context.Context, accessApi platform.AccessA
 		fmt.Printf("\tGetVcdVars:next access var  %s = %s\n", k, v)
 	}
 
-	fmt.Printf("\n\nGetVcdVars:\n\tVCD_IP: %s\n\tVCD_USE: %s\n\t: Passwd: %s\n\t Org: %s\n\tVDC_NAME: %s\n",
+	fmt.Printf("\n\nGetVcdVars:\n\tVCD_IP: %s\n\tVCD_USER: %s\n\t: Passwd: %s\n\t Org: %s\n\tVDC_NAME: %s\n",
 		v.vcdVars["VCD_IP"],
 		v.vcdVars["VCD_USER"],
 		v.vcdVars["VCD_PASSWORD"],
@@ -87,7 +87,9 @@ func (v *VcdPlatform) GetVcdVars(ctx context.Context, accessApi platform.AccessA
 		fmt.Printf("\nError from pop creds from vault: %s\n", err.Error())
 		return err
 	}
+
 	v.vcdVars["VCD_URL"] = v.Creds.Href
+	fmt.Printf("\n\nGetVcdVars login Creds for Org %s set Href: %s\n\n", v.Objs.Org.Org.Name, v.Creds.Href)
 
 	return nil
 }

@@ -395,13 +395,7 @@ func (o *VcdPlatform) GetSessionTokens(ctx context.Context, vaultConfig *vault.C
 
 // IP address or Href?
 func (v *VcdPlatform) GetApiEndpointAddr(ctx context.Context) (string, error) {
-	vcaddr := v.vcdVars["VCD_IP"]
-	log.SpanLog(ctx, log.DebugLevelInfra, "GetApiEndpointAddr", "vcaddr", vcaddr)
-	if vcaddr == "" {
-		return "", fmt.Errorf("unable to find VCD_IP")
-	}
-	return vcaddr, nil
-
-	// old envars return v.Creds.Href, nil
-
+	fmt.Printf("\nGetApiEndpoingAddr-I-%s\n\n", v.Creds.Href)
+	log.SpanLog(ctx, log.DebugLevelInfra, "GetApiEndpointAddr", "Href", v.Creds.Href)
+	return v.Creds.Href, nil
 }

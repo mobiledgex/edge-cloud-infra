@@ -51,7 +51,7 @@ func InitVcdTestEnv() (bool, context.Context, error) {
 	//v.Objs.TemplateVMs = make(map[string]*types.QueryResultVMRecordType)
 	tv.Objs.TemplateVMs = make(TmplVMsMap)
 	tv.Objs.Media = make(MediaMap)
-
+	tv.TestMode = true
 	if *livetest == "true" {
 		live = true
 		fmt.Printf("\tPopulateOrgLoginCredsFromEnv\n")

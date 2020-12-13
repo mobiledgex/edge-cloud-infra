@@ -25,7 +25,7 @@ func (v *VcdPlatform) PopulateOrgLoginCredsFromEnv(ctx context.Context) error {
 		Password: os.Getenv("VCD_PASSWD"),
 		Org:      os.Getenv("VCD_ORG"),
 		Href:     fmt.Sprintf("https://%s/api", os.Getenv("VCD_IP")),
-		VDC:      os.Getenv("VCD_NAME"),
+		VDC:      os.Getenv("VDC_NAME"),
 		Insecure: true,
 	}
 	if creds.User == "" {
@@ -92,6 +92,10 @@ func (v *VcdPlatform) PopulateOrgLoginCredsFromVault(ctx context.Context) error 
 		return fmt.Errorf("missing VDC name")
 	}
 	v.Creds = &creds
+
+	fmt.Printf("\nClient login Creds:\n\tOrg: %s\n\tVDC: %s\n\tVCD_USER: %s\n\tVCD_PASSWORD: %s\n\tHref: %s\n\n",
+		creds.Org, creds.VDC, creds.User, creds.Password, creds.Href)
+
 	return nil
 }
 

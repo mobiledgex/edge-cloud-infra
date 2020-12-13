@@ -14,6 +14,9 @@ import (
 
 // Cluster related operations
 func (v *VcdPlatform) FindCluster(ctx context.Context, clusterName string) (*Cluster, error) {
+	if v.Objs.Cloudlet == nil {
+		return nil, fmt.Errorf("Cluster not found")
+	}
 	for _, cluster := range v.Objs.Cloudlet.Clusters {
 		if cluster.Name == clusterName {
 			return cluster, nil

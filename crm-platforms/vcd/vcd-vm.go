@@ -446,7 +446,8 @@ func (v *VcdPlatform) DeleteVMs(ctx context.Context, vmGroupName string) error {
 		cluster, err := v.FindCluster(ctx, vmGroupName)
 		if err != nil {
 			fmt.Printf("\n\nDeleteVMs-W-Nothing found to delete with name %s\n", vmGroupName)
-			return fmt.Errorf("Not found")
+			return nil // its gone
+			//return fmt.Errorf("Not found")
 		}
 		err = v.DeleteCluster(ctx, cluster.Name)
 		return err

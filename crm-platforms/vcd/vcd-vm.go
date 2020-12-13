@@ -187,11 +187,14 @@ func (v *VcdPlatform) CreateVMs(ctx context.Context, vmgp *vmlayer.VMGroupOrches
 	log.SpanLog(ctx, log.DebugLevelInfra, "CreateVMs")
 
 	// Find our ova template, all platform vms use the same template
-	tmplName := os.Getenv("VCDTEMPLATE")
+	tmplName := v.vcdVars["VCDTEMPLATE"]
 
 	if tmplName == "" {
 		// trade env for property XXX
-		return fmt.Errorf("VCD Base template env var not set")
+		tmplName = os.Getenv("VCDTEMPLATE")
+		if tmplName == "" {
+			return fmt.Errorf("VCD Base template name not found")
+		}
 	}
 	fmt.Printf("\n\nCreateVMs-I-searching for template %s\n", tmplName)
 	// First get our template

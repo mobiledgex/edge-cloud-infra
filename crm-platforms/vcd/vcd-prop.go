@@ -106,12 +106,16 @@ func (v *VcdPlatform) InitApiAccessProperties(ctx context.Context, accessApi pla
 }
 
 func (v *VcdPlatform) SetProviderSpecificProps(ctx context.Context) error {
-	VcdProps["MEX_ORG"].Value = v.Objs.Org.Org.Name
-	VcdProps["MEX_EXTERNAL_NETWORK_MASK"].Value = v.Objs.PrimaryNet.OrgVDCNetwork.Configuration.IPScopes.IPScope[0].Netmask
-	VcdProps["MEX_CATALOG"].Value = v.Objs.PrimaryCat.Catalog.Name
-	VcdProps["MEX_EXTERNAL_NETWORK_EDGEGATEWAY"].Value = v.Objs.PrimaryNet.OrgVDCNetwork.Configuration.IPScopes.IPScope[0].Gateway
-	VcdProps["MEX_EXTERNAL_IP_RANGES"].Value = v.Objs.PrimaryNet.OrgVDCNetwork.Configuration.IPScopes.IPScope[0].IPRanges.IPRange[0].StartAddress + " - " + v.Objs.PrimaryNet.OrgVDCNetwork.Configuration.IPScopes.IPScope[0].IPRanges.IPRange[0].EndAddress
 
+	// Put template selection bits here
+	// can't know this til post discovery, and most we already know XXX
+	/*
+		VcdProps["MEX_ORG"].Value = v.Objs.Org.Org.Name
+		VcdProps["MEX_EXTERNAL_NETWORK_MASK"].Value = v.Objs.PrimaryNet.OrgVDCNetwork.Configuration.IPScopes.IPScope[0].Netmask
+		VcdProps["MEX_CATALOG"].Value = v.Objs.PrimaryCat.Catalog.Name
+		VcdProps["MEX_EXTERNAL_NETWORK_EDGEGATEWAY"].Value = v.Objs.PrimaryNet.OrgVDCNetwork.Configuration.IPScopes.IPScope[0].Gateway
+		VcdProps["MEX_EXTERNAL_IP_RANGES"].Value = v.Objs.PrimaryNet.OrgVDCNetwork.Configuration.IPScopes.IPScope[0].IPRanges.IPRange[0].StartAddress + " - " + v.Objs.PrimaryNet.OrgVDCNetwork.Configuration.IPScopes.IPScope[0].IPRanges.IPRange[0].EndAddress
+	*/
 	return nil
 }
 

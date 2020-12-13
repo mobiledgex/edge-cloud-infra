@@ -89,7 +89,7 @@ func (v *VcdPlatform) GetVcdVars(ctx context.Context, accessApi platform.AccessA
 	}
 
 	v.vcdVars["VCD_URL"] = v.Creds.Href
-	fmt.Printf("\n\nGetVcdVars login Creds for Org %s set Href: %s\n\n", v.Objs.Org.Org.Name, v.Creds.Href)
+	fmt.Printf("\n\nGetVcdVars login Creds.Href: %s\n\n", v.Creds.Href)
 
 	return nil
 }

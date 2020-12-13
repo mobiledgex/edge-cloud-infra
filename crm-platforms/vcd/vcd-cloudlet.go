@@ -393,13 +393,12 @@ func (o *VcdPlatform) GetSessionTokens(ctx context.Context, vaultConfig *vault.C
 	return nil, fmt.Errorf("GetSessionTokens not supported in VcdPlatform")
 }
 
-// orignally sourced from vault using physical name from CreateCloudlet as key
-// temp, use env vars
+// IP address or Href?
 func (v *VcdPlatform) GetApiEndpointAddr(ctx context.Context) (string, error) {
-	vcaddr := v.vcdVars["VCD_ADDR"]
+	vcaddr := v.vcdVars["VCD_IP"]
 	log.SpanLog(ctx, log.DebugLevelInfra, "GetApiEndpointAddr", "vcaddr", vcaddr)
 	if vcaddr == "" {
-		return "", fmt.Errorf("unable to find VCD_ADDR")
+		return "", fmt.Errorf("unable to find VCD_IP")
 	}
 	return vcaddr, nil
 

@@ -230,6 +230,11 @@ func (v *VcdPlatform) CreateVMs(ctx context.Context, vmgp *vmlayer.VMGroupOrches
 	description := vmgp.GroupName + "-vapp"
 	cloudletName := ""
 	if v.Objs.Cloudlet != nil {
+		_, err := v.FindVM(ctx, vmgp.GroupName)
+		if err == nil {
+			fmt.Printf("\n\nCreateVMs-I-%s already exitts return nil\n\n", vmgp.GroupName)
+			return nil
+		}
 		// look for an existing Vapp/Cloudlet with this name
 		// just return cloudlet, it has the vapp in it.
 		cloudlet := v.Objs.Cloudlet // parts bin =>  vapp, err := v.FindCloudletForCluster(description)
@@ -244,6 +249,7 @@ func (v *VcdPlatform) CreateVMs(ctx context.Context, vmgp *vmlayer.VMGroupOrches
 			return fmt.Errorf("Clouldlet not found %s", cloudletName)
 		}
 		log.SpanLog(ctx, log.DebugLevelInfra, "Creating Cluster on", "cluster", tcloud.CloudletName, "cloudlet", tcloud.CloudVapp.VApp.Name)
+
 		clusterName, err := v.CreateCluster(ctx, cloudlet, tmpl, vmgp, updateCallback)
 		if err != nil {
 			fmt.Printf("\nCreateVMs-E-CreateCluster-E-%s\n", err.Error())

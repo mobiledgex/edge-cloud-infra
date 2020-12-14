@@ -552,7 +552,7 @@ func (v *VcdPlatform) GetNextExtAddrForVdcNet(ctx context.Context, vdc *govcd.Vd
 	curAddr := iprange.StartAddress
 	// No vapps yet? use first in pool
 	if /* len(vappRefs) == 0 { || */ v.Objs.Cloudlet == nil {
-		fmt.Printf("NEXT EXT IP v.Objs.Cloudlet: %+v  , first returned: %s\n", v.Objs.Cloudlet, curAddr)
+		fmt.Printf("\n\nCloudlet nil NEXT EXT IP v.Objs.Cloudlet: %+v  , first returned: %s\n\n", v.Objs.Cloudlet, curAddr)
 		return curAddr, nil
 	}
 	// We have a cloudlet at least, looking for a cluster external IP

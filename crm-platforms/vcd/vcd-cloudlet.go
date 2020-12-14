@@ -186,7 +186,7 @@ func (v *VcdPlatform) CreateCloudlet(ctx context.Context, vdc *govcd.Vdc, vappTm
 			//err = task.WaitTaskCompletion()
 			// This will power on all vms in the vapp, we can order them
 			// So master first and then workers.
-			fmt.Printf("\n\nCreateCloudlet-I-add metadata cloud name %s to vapp %s\n", cloudletName, vapp.VApp.Name)
+			fmt.Printf("\n\nCreateCloudlet-I-add metadata cloud name %s to vapp %s has %d child VMs\n", cloudletName, vapp.VApp.Name, len(vapp.VApp.Children.VM))
 			task, err := vapp.AddMetadata("CloudletName", cloudletName)
 			if err != nil {
 				return nil, err

@@ -184,7 +184,7 @@ func (v *VcdPlatform) CreateVMs(ctx context.Context, vmgp *vmlayer.VMGroupOrches
 	// If the given cloudlet vapp  is already running all subsquent vms are added to
 	// the cloudlet's vapp instance.
 	//	vu.DumpVMGroupParams(vmgp, 1)
-	log.SpanLog(ctx, log.DebugLevelInfra, "CreateVMs")
+	log.SpanLog(ctx, log.DebugLevelInfra, "CreateVMs", "grpName", vmgp.GroupName)
 
 	// Find our ova template, all platform vms use the same template
 	tmplName := v.vcdVars["VDCTEMPLATE"]
@@ -196,7 +196,7 @@ func (v *VcdPlatform) CreateVMs(ctx context.Context, vmgp *vmlayer.VMGroupOrches
 			return fmt.Errorf("VDC Base template name not found")
 		}
 	}
-	fmt.Printf("\n\nCreateVMs-I-searching for template %s\n", tmplName)
+	fmt.Printf("\n\nCreateVMs-I-searching for template %s for %s \n", tmplName, vmgp.GroupName)
 	// First get our template
 	tmpl, err := v.FindTemplate(ctx, tmplName)
 	if err != nil {
@@ -227,6 +227,9 @@ func (v *VcdPlatform) CreateVMs(ctx context.Context, vmgp *vmlayer.VMGroupOrches
 	if tmpl == nil {
 		return fmt.Errorf("Unable to find ova template")
 	}
+
+	numVMs := len(vmgp.VMs)
+	fmt.Printf("\n\nCreateVMs-I-GroupName wants %d VMs\n", numVMs)
 	description := vmgp.GroupName + "-vapp"
 	cloudletName := ""
 	if v.Objs.Cloudlet != nil {

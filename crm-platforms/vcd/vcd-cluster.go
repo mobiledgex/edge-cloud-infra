@@ -33,12 +33,13 @@ func (v *VcdPlatform) CreateCluster(ctx context.Context, cloud *MexCloudlet, tmp
 		return "", fmt.Errorf("template nil")
 	}
 
+	fmt.Printf("\n\nCreateCluster-I-vmgp.GroupName = %s, VMs[0].Name = %s\n\n", vmgp.GroupName, vmgp.VMs[0].Name)
 	clusterName := vmgp.VMs[0].Name
 	cluster, err := v.FindCluster(ctx, clusterName)
 	if err == nil {
 		// we have a cluster by this name already
 		log.SpanLog(ctx, log.DebugLevelInfra, "CreateCluster cluster exists", "cluster", clusterName)
-		return clusterName, fmt.Errorf("Cluster already exists")
+		return clusterName, nil
 	}
 
 	log.SpanLog(ctx, log.DebugLevelInfra, "CreateCluster", "create", clusterName, "cloudlet", cloud.CloudletName)

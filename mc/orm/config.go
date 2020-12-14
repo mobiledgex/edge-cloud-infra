@@ -17,6 +17,7 @@ var defaultConfig = ormapi.Config{
 	PasswordMinCrackTimeSec:      30 * 86400,      // 30 days
 	AdminPasswordMinCrackTimeSec: 2 * 365 * 86400, // 2 years
 	MaxMetricsDataPoints:         10000,
+	UserApiKeyCreateLimit:        10,
 }
 
 func InitConfig(ctx context.Context) error {

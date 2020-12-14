@@ -30,6 +30,8 @@ var PasshashKeyBytes = 32
 var PasshashSaltBytes = 8
 var BruteForceGuessesPerSecond = 1000000
 
+var JWTShortDuration = 4 * time.Hour
+
 var Jwks vault.JWKS
 
 type TokenAuth struct {
@@ -92,7 +94,7 @@ func (u *UserClaims) SetKid(kid int) {
 	u.Kid = kid
 }
 
-func GenerateCookie(user *ormapi.User, apiKey string) (string, error) {
+func GenerateCookie(user *ormapi.User, apiKeyId string) (string, error) {
 	claims := UserClaims{
 		StandardClaims: jwt.StandardClaims{
 			IssuedAt: time.Now().Unix(),
@@ -105,8 +107,12 @@ func GenerateCookie(user *ormapi.User, apiKey string) (string, error) {
 		// using this info we allow refreshing of auth token if the token is valid
 		FirstIssuedAt: time.Now().Unix(),
 	}
-	if apiKey != "" {
-		claims.Username = apiKey
+	if apiKeyId != "" {
+		// Set ApiKeyId as username to ensure that we always enforce RBAC on ApikeyId,
+		// rather than on user name
+		claims.Username = apiKeyId
+		// shorter expiration time if apiKeyId is specified
+		claims.ExpiresAt = time.Now().Add(JWTShortDuration).Unix()
 	}
 	cookie, err := Jwks.GenerateCookie(&claims)
 	return cookie, err

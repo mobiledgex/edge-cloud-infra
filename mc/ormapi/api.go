@@ -48,6 +48,10 @@ type User struct {
 }
 
 type UserApiKeyObj struct {
+	// API key ID used as an identifier for API keys
+	ApiKeyId string
+	// API key
+	ApiKey string
 	// Description of the purpose of this API key
 	// required: true
 	Description string
@@ -175,6 +179,8 @@ type Config struct {
 	AdminPasswordMinCrackTimeSec float64
 	// InfluxDB max number of data points returned
 	MaxMetricsDataPoints int
+	// Max number of API keys a user can create
+	UserApiKeyCreateLimit int
 }
 
 type OrgCloudletPool struct {

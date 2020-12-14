@@ -610,3 +610,19 @@ func (s *Client) ShowAlertReceiver(uri, token string, in *ormapi.AlertReceiver) 
 	status, err := s.PostJson(uri+"/auth/alertreceiver/show", token, in, &receivers)
 	return receivers, status, err
 }
+
+func (s *Client) CreateUserApiKey(uri, token string, userApiKey *ormapi.UserApiKeyObj) (*ormapi.UserApiKeyObj, int, error) {
+	resp := ormapi.UserApiKeyObj{}
+	st, err := s.PostJson(uri+"/auth/user/create/apikey", token, userApiKey, &resp)
+	return &resp, st, err
+}
+
+func (s *Client) DeleteUserApiKey(uri, token string, userApiKey *ormapi.UserApiKeyObj) (int, error) {
+	return s.PostJson(uri+"/auth/user/delete/apikey", token, userApiKey, nil)
+}
+
+func (s *Client) ShowUserApiKey(uri, token string, userApiKey *ormapi.UserApiKeyObj) ([]ormapi.UserApiKeyObj, int, error) {
+	userApiKeys := []ormapi.UserApiKeyObj{}
+	status, err := s.PostJson(uri+"/auth/user/show/apikey", token, userApiKey, &userApiKeys)
+	return userApiKeys, status, err
+}

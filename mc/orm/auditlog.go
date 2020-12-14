@@ -196,6 +196,20 @@ func logger(next echo.HandlerFunc) echo.HandlerFunc {
 				} else {
 					response = string(resBody)
 				}
+			} else if strings.Contains(string(resBody), "ApiKey") {
+				resp := ormapi.UserApiKeyObj{}
+				err := json.Unmarshal(resBody, &resp)
+				if err == nil {
+					resp.ApiKey = ""
+					updatedResp, err := json.Marshal(&resp)
+					if err == nil {
+						response = string(updatedResp)
+					} else {
+						response = string(resBody)
+					}
+				} else {
+					response = string(resBody)
+				}
 
 			} else {
 				response = string(resBody)

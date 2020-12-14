@@ -613,14 +613,16 @@ func (v *VcdPlatform) AddExtNetToVm(ctx context.Context, vm *govcd.VM, netName s
 	}
 
 	// add a new connection section
+
+	// Revisit ModePool and 12/13/20
 	ncs.PrimaryNetworkConnectionIndex = 1
 	ncs.NetworkConnection = append(ncs.NetworkConnection,
 		&types.NetworkConnection{
 			IsConnected:             true,
-			IPAddressAllocationMode: types.IPAllocationModeManual,
+			IPAddressAllocationMode: types.IPAllocationModePool, // Manual,
 			Network:                 netName,
 			NetworkConnectionIndex:  1, // if a vm has two nets, make ext net primray index
-			IPAddress:               ip,
+			// pool test IPAddress:               ip,
 		})
 
 	err = vm.UpdateNetworkConnectionSection(ncs)

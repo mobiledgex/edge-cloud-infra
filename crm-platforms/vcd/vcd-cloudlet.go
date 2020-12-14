@@ -113,13 +113,14 @@ func (v *VcdPlatform) CreateCloudlet(ctx context.Context, vdc *govcd.Vdc, vappTm
 					return nil, err
 				}
 
+				// Revisit ModePool and 12/13/20
 				desiredNetConfig.NetworkConnection = append(desiredNetConfig.NetworkConnection,
 					&types.NetworkConnection{
 						IsConnected:             true,
-						IPAddressAllocationMode: types.IPAllocationModeManual,
+						IPAddressAllocationMode: types.IPAllocationModePool,           // Manual
 						Network:                 v.Objs.PrimaryNet.OrgVDCNetwork.Name, // types.NoneNetwork,
 						NetworkConnectionIndex:  0,
-						IPAddress:               extAddr,
+						// pool test IPAddress:               extAddr,
 					})
 			}
 

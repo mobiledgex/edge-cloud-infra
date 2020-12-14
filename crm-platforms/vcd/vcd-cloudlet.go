@@ -405,12 +405,19 @@ func (v *VcdPlatform) GetApiEndpointAddr(ctx context.Context) (string, error) {
 	//	log.SpanLog(ctx, log.DebugLevelInfra, "GetApiEndpointAddr", "Href", api)
 
 	// Ok, utils/validate.go::ImagePathParse is going to return
-	url, err := url.Parse(v.Creds.Href)
+	// oh my god,
+	// we'll let the parse append https:// to our return string
+	api := v.vcdVars["VCD_IP"] + ":443/api"
+	// The all important :444 make it part of the
+
+	// OS_AUTH_URL https://10.254.108.198:5000/v3
+
+	url, err := url.Parse(api)
 	if err != nil {
 		fmt.Printf("\n\nGetApiEndpointAddr-I-url.Parse of %s failed: %s\n", v.Creds.Href, err.Error())
 	}
 	fmt.Printf("\tresult URL %+v\n", url)
 	fmt.Printf("\tand url.Host part = %s\n", url.Host)
 
-	return v.Creds.Href, nil
+	return api, nil
 }

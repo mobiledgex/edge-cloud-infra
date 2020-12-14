@@ -141,9 +141,9 @@ func setVer(cli *govcd.VCDClient) error {
 
 // Login and return connected client
 // client.Client = types.Client
-func (v *VcdPlatform) GetClient(ctx context.Context, creds *VcdConfigParams, test bool) (client *govcd.VCDClient, err error) {
+func (v *VcdPlatform) GetClient(ctx context.Context, creds *VcdConfigParams) (client *govcd.VCDClient, err error) {
 
-	if test {
+	if v.TestMode {
 		fmt.Printf("GetClient-I-Test get creds from env\n")
 		err := v.PopulateOrgLoginCredsFromEnv(ctx)
 		if err != nil {
@@ -157,6 +157,7 @@ func (v *VcdPlatform) GetClient(ctx context.Context, creds *VcdConfigParams, tes
 		fmt.Printf("\n\nGetClient-W-already have non-nil vcd client for org %s\n\n", v.Creds.Org)
 		return v.Client, nil
 	}
+
 	u, err := url.ParseRequestURI(creds.Href)
 	if err != nil {
 		return nil, fmt.Errorf("Unable to parse request to org %s at %s err: %s", creds.Org, creds.Href, err)

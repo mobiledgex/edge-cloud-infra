@@ -542,6 +542,7 @@ func (v *VMPlatform) GetChefPlatformAttributes(ctx context.Context, cloudlet *ed
 		return nil, err
 	}
 
+	fmt.Printf("\nGetChefPlatformAttributes-I- cloudlet physical: %s\n", cloudlet.PhysicalName)
 	apiAddr, err := v.VMProvider.GetApiEndpointAddr(ctx)
 	if err != nil {
 		return nil, err
@@ -549,15 +550,18 @@ func (v *VMPlatform) GetChefPlatformAttributes(ctx context.Context, cloudlet *ed
 	if apiAddr != "" {
 		urlObj, err := util.ImagePathParse(apiAddr)
 		if err != nil {
+			fmt.Printf("\tGetChecPlatformAttributes ImagePathParse fails: %s\n", err.Error())
 			return nil, err
 		}
 		hostname := strings.Split(urlObj.Host, ":")
 		if len(hostname) != 2 {
+			fmt.Printf("\tGetChefPlaformAttributes-E- len hostname %d\n", len(hostname))
 			return nil, fmt.Errorf("invalid api endpoint addr: %s", apiAddr)
 		}
 		// API Endpoint address might have hostname in it, hence resolve the addr
 		endpointIp, err := infracommon.LookupDNS(hostname[0])
 		if err != nil {
+			fmt.Printf("\tGetChefPlaformAttributes-E- DNS lookup fails\n\n")
 			return nil, err
 		}
 		chefAttributes["infraApiAddr"] = endpointIp

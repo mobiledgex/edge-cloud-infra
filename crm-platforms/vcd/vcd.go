@@ -161,7 +161,7 @@ func (v *VcdPlatform) InitProvider(ctx context.Context, caches *platform.Caches,
 	v.Objs.Media = make(MediaMap)
 
 	if v.Client == nil {
-		client, err := v.GetClient(ctx, v.Creds, false)
+		client, err := v.GetClient(ctx, v.Creds)
 		if err != nil {
 			return fmt.Errorf("InitProvider Unable to create Vcd Client: %s\n", err.Error())
 		}
@@ -195,7 +195,7 @@ func (v *VcdPlatform) ImportDataFromInfra(ctx context.Context) error {
 	log.SpanLog(ctx, log.DebugLevelInfra, "ImportDataFromInfra N")
 	if v.Client == nil {
 		fmt.Printf("\n\nImportDataFromInfra-I-v.Client nil, login first time\n\n")
-		client, err := v.GetClient(ctx, v.Creds, false)
+		client, err := v.GetClient(ctx, v.Creds)
 		if err != nil {
 			return fmt.Errorf("Unable to create Vcd Client %s\n", err.Error())
 		}

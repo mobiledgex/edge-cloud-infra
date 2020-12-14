@@ -59,7 +59,7 @@ func InitVcdTestEnv() (bool, context.Context, error) {
 		tv.PopulateOrgLoginCredsFromEnv(ctx)
 
 		//fmt.Printf("\tMaps made, GetClient\n")
-		client, err := tv.GetClient(ctx, tv.Creds, true)
+		client, err := tv.GetClient(ctx, tv.Creds)
 		if err != nil {
 			return live, ctx, fmt.Errorf("Unable to create Vcd Client %s\n", err.Error())
 		}

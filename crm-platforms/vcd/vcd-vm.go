@@ -122,7 +122,7 @@ func (v *VcdPlatform) CreateVM(ctx context.Context, vapp *govcd.VApp, vmparams *
 
 	var err error
 	if v.Client == nil {
-		v.Client, err = v.GetClient(ctx, v.Creds, false)
+		v.Client, err = v.GetClient(ctx, v.Creds)
 		if err != nil {
 			return nil, err
 		}

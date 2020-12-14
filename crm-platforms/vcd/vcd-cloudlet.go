@@ -3,7 +3,7 @@ package vcd
 import (
 	"context"
 	"fmt"
-	"strings"
+	"net/url"
 
 	"github.com/mobiledgex/edge-cloud-infra/vmlayer"
 	"github.com/mobiledgex/edge-cloud/edgeproto"
@@ -11,6 +11,7 @@ import (
 	"github.com/mobiledgex/edge-cloud/vault"
 	"github.com/vmware/go-vcloud-director/v2/govcd"
 	"github.com/vmware/go-vcloud-director/v2/types/v56"
+	"strings"
 )
 
 // Cloudlet related operations
@@ -397,10 +398,19 @@ func (o *VcdPlatform) GetSessionTokens(ctx context.Context, vaultConfig *vault.C
 // I think chef needs this
 // IP address or Href?
 func (v *VcdPlatform) GetApiEndpointAddr(ctx context.Context) (string, error) {
-	// Ok, #@%K^ what this _really_ should be is $ip/api since it's going to helpfully add "https://" to this
-	api := v.vcdVars["VCD_IP"] + "/api"
-	fmt.Printf("\nGetApiEndpoingAddr-I-%s\n\n", api)
-	log.SpanLog(ctx, log.DebugLevelInfra, "GetApiEndpointAddr", "Href", api)
 
-	return api, nil
+	// Ok, #@%K^ what this _really_ should be is $ip/api since it's going to helpfully add "https://" to this
+	//	api := v.vcdVars["VCD_IP"] + "/api"
+	//	fmt.Printf("\nGetApiEndpoingAddr-I-%s\n\n", aapi)
+	//	log.SpanLog(ctx, log.DebugLevelInfra, "GetApiEndpointAddr", "Href", api)
+
+	// Ok, utils/validate.go::ImagePathParse is going to return
+	url, err := url.Parse(v.Creds.Href)
+	if err != nil {
+		fmt.Printf("\n\nGetApiEndpointAddr-I-url.Parse of %s failed: %s\n", v.Creds.Href, err.Error())
+	}
+	fmt.Printf("\tresult URL %+v\n", url)
+	fmt.Printf("\tand url.Host part = %s\n", url.Host)
+
+	return v.Creds.Href, nil
 }

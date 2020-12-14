@@ -3,7 +3,6 @@ package vcd
 import (
 	"context"
 	"fmt"
-	"net/url"
 
 	"github.com/mobiledgex/edge-cloud-infra/vmlayer"
 	"github.com/mobiledgex/edge-cloud/edgeproto"
@@ -395,29 +394,15 @@ func (o *VcdPlatform) GetSessionTokens(ctx context.Context, vaultConfig *vault.C
 	return nil, fmt.Errorf("GetSessionTokens not supported in VcdPlatform")
 }
 
-// I think chef needs this
-// IP address or Href?
+// IP address or Href? It's the Href with a manditory port
 func (v *VcdPlatform) GetApiEndpointAddr(ctx context.Context) (string, error) {
-
-	// Ok, #@%K^ what this _really_ should be is $ip/api since it's going to helpfully add "https://" to this
-	//	api := v.vcdVars["VCD_IP"] + "/api"
-	//	fmt.Printf("\nGetApiEndpoingAddr-I-%s\n\n", aapi)
-	//	log.SpanLog(ctx, log.DebugLevelInfra, "GetApiEndpointAddr", "Href", api)
-
-	// Ok, utils/validate.go::ImagePathParse is going to return
-	// oh my god,
-	// we'll let the parse append https:// to our return string
-	api := v.vcdVars["VCD_IP"] + ":443/api"
-	// The all important :444 make it part of the
-
+	// example :
 	// OS_AUTH_URL https://10.254.108.198:5000/v3
+	// Our port is default 443, but parsing requires it exist.
+	ip := v.vcdVars["VCD_IP"]
+	apiUrl := fmt.Sprintf("%s%s%s", "https://", ip, ":443/api")
+	log.SpanLog(ctx, log.DebugLevelInfra, "GetApiEndpointAddr", "Href", apiUrl)
+	fmt.Printf("\nGetApiEndpoingAddr-I-%s\n\n", apiUrl)
 
-	url, err := url.Parse(api)
-	if err != nil {
-		fmt.Printf("\n\nGetApiEndpointAddr-I-url.Parse of %s failed: %s\n", v.Creds.Href, err.Error())
-	}
-	fmt.Printf("\tresult URL %+v\n", url)
-	fmt.Printf("\tand url.Host part = %s\n", url.Host)
-
-	return api, nil
+	return apiUrl, nil
 }

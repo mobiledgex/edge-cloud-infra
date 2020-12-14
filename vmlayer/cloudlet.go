@@ -553,6 +553,7 @@ func (v *VMPlatform) GetChefPlatformAttributes(ctx context.Context, cloudlet *ed
 			fmt.Printf("\tGetChecPlatformAttributes ImagePathParse fails: %s\n", err.Error())
 			return nil, err
 		}
+		fmt.Printf("\tGetChecPlatformAttributes urlObj returned from parse as %s\n", urlObj)
 		hostname := strings.Split(urlObj.Host, ":")
 		if len(hostname) != 2 {
 			fmt.Printf("\tGetChefPlaformAttributes-E- len hostname %d\n", len(hostname))

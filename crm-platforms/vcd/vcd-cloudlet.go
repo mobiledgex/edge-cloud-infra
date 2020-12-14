@@ -397,7 +397,10 @@ func (o *VcdPlatform) GetSessionTokens(ctx context.Context, vaultConfig *vault.C
 // I think chef needs this
 // IP address or Href?
 func (v *VcdPlatform) GetApiEndpointAddr(ctx context.Context) (string, error) {
-	fmt.Printf("\nGetApiEndpoingAddr-I-%s\n\n", v.Creds.Href)
-	log.SpanLog(ctx, log.DebugLevelInfra, "GetApiEndpointAddr", "Href", v.Creds.Href)
-	return v.Creds.Href, nil
+	// Ok, #@%K^ what this _really_ should be is $ip/api since it's going to helpfully add "https://" to this
+	api := v.vcdVars["VCD_IP"] + "/api"
+	fmt.Printf("\nGetApiEndpoingAddr-I-%s\n\n", api)
+	log.SpanLog(ctx, log.DebugLevelInfra, "GetApiEndpointAddr", "Href", api)
+
+	return api, nil
 }

@@ -8,7 +8,6 @@ import (
 	"strings"
 
 	"github.com/mobiledgex/edge-cloud-infra/vmlayer"
-	"github.com/mobiledgex/edge-cloud/cloud-resource-manager/crmutil"
 	"github.com/mobiledgex/edge-cloud/edgeproto"
 	"github.com/mobiledgex/edge-cloud/log"
 )
@@ -227,21 +226,7 @@ func (o *OpenstackPlatform) PrepNetwork(ctx context.Context, updateCallback edge
 			}
 		}
 	}
-	// update security groups based on a configured privacy policy or none
-	privPolName := o.VMProperties.CommonPf.PlatformConfig.PrivacyPolicy
-	var privPol *edgeproto.PrivacyPolicy
-	egressRestricted := false
-	if privPolName != "" {
-		privPol, err = crmutil.GetCloudletPrivacyPolicy(ctx, privPolName, o.VMProperties.CommonPf.PlatformConfig.CloudletKey.Organization, o.caches.PrivacyPolicyCache)
-		if err != nil {
-			return err
-		}
-		egressRestricted = true
-	} else {
-		// use an empty policy
-		privPol = &edgeproto.PrivacyPolicy{}
-	}
-	return o.ConfigureCloudletSecurityRules(ctx, egressRestricted, privPol, edgeproto.DummyUpdateCallback)
+	return nil
 }
 
 // GetCloudletSubnets returns subnets inside MEX Network

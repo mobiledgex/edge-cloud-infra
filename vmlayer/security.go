@@ -6,6 +6,7 @@ import (
 
 	"github.com/mobiledgex/edge-cloud-infra/infracommon"
 	"github.com/mobiledgex/edge-cloud/cloud-resource-manager/access"
+	"github.com/mobiledgex/edge-cloud/cloud-resource-manager/crmutil"
 	"github.com/mobiledgex/edge-cloud/cloud-resource-manager/dockermgmt"
 	"github.com/mobiledgex/edge-cloud/cloud-resource-manager/k8smgmt"
 	"github.com/mobiledgex/edge-cloud/cloud-resource-manager/proxy"
@@ -83,4 +84,23 @@ func (v *VMPlatform) AddProxySecurityRulesAndPatchDNS(ctx context.Context, clien
 		return fmt.Errorf("AddProxySecurityRulesAndPatchDNS error -- proxyerr: %v secerr: %v dnserr: %v", proxyerr, secerr, dnserr)
 	}
 	return nil
+}
+
+func (v *VMPlatform) ConfigureCloudletSecurityRules(ctx context.Context) error {
+	// update security groups based on a configured privacy policy or none
+	privPolName := v.VMProperties.CommonPf.PlatformConfig.PrivacyPolicy
+	var privPol *edgeproto.PrivacyPolicy
+	egressRestricted := false
+	var err error
+	if privPolName != "" {
+		privPol, err = crmutil.GetCloudletPrivacyPolicy(ctx, privPolName, v.VMProperties.CommonPf.PlatformConfig.CloudletKey.Organization, v.Caches.PrivacyPolicyCache)
+		if err != nil {
+			return err
+		}
+		egressRestricted = true
+	} else {
+		// use an empty policy
+		privPol = &edgeproto.PrivacyPolicy{}
+	}
+	return v.VMProvider.ConfigureCloudletSecurityRules(ctx, egressRestricted, privPol, edgeproto.DummyUpdateCallback)
 }

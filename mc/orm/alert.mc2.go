@@ -902,7 +902,11 @@ func addControllerApis(method string, group *echo.Group) {
 	// UpdatedAt: 36
 	// UpdatedAtSeconds: 36.1
 	// UpdatedAtNanos: 36.2
-	// PrivacyEnabled: 37
+	// PrivacyCompliant: 37
+	// RequiredOutboundConnections: 38
+	// RequiredOutboundConnectionsProtocol: 38.1
+	// RequiredOutboundConnectionsPort: 38.2
+	// RequiredOutboundConnectionsRemoteIp: 38.4
 	// ```
 	// Security:
 	//   Bearer:

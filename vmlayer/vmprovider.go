@@ -325,7 +325,9 @@ func (v *VMPlatform) Init(ctx context.Context, platformConfig *platform.Platform
 	if err := v.VMProvider.InitProvider(ctx, caches, ProviderInitPlatformStart, updateCallback); err != nil {
 		return err
 	}
-
+	if err := v.ConfigureCloudletSecurityRules(ctx); err != nil {
+		return err
+	}
 	// Set debug command to start crm upgrade
 	v.initDebug(v.VMProperties.CommonPf.PlatformConfig.NodeMgr)
 

@@ -55,11 +55,6 @@ func (v *VMPlatform) GetPlatformVMName(key *edgeproto.CloudletKey) string {
 	return v.GetSanitizedCloudletName(key) + "-pf"
 }
 
-func (v *VMPlatform) GetPName(key *edgeproto.CloudletKey) string {
-	// Form platform VM name based on cloudletKey
-	return v.VMProvider.NameSanitize(key.Name + "-" + key.Organization + "-pf")
-}
-
 func (v *VMPlatform) GetPlatformSubnetName(key *edgeproto.CloudletKey) string {
 	return "mex-k8s-subnet-" + v.GetPlatformVMName(key)
 }

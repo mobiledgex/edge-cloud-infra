@@ -451,11 +451,28 @@ func (v *VcdPlatform) DeleteVMs(ctx context.Context, vmGroupName string) error {
 	// if vmGroupName is the Vapp, we're removing the entire cloudlet
 	vapp, err := v.FindVApp(ctx, vmGroupName)
 	if err == nil {
-		fmt.Printf("\n\nDeleteVMs-I-Found vapp %s delete Cloudlet\n\n", vapp.VApp.Name)
-		err := v.DeleteCloudlet(ctx, *v.Objs.Cloudlet)
-		if err != nil {
-			fmt.Printf("\n\nDeleteCloudlet returned error: %s\n\n", err.Error())
-			return err
+		if v.Objs.Cloudlet == nil {
+			// internal error, we somehow restarted and missed recognizing our cloudlet or
+			// asked to delete a cloudlet that DNE.
+			// grab the meta data from this vapp, is it our cloudlet?
+			mdata, err := vapp.GetMetadata()
+			if err != nil {
+				fmt.Printf("\n\nError retrieving metadata from vapp %s err: %s\n", vmGroupName, err.Error())
+			}
+			for _, data := range mdata.MetadataEntry {
+				if data.Key == "CloudletName" {
+					fmt.Printf("\n\nDeleteVMs-E-internal error clouldlet vapp found Cloudlet nil\n\n")
+					return fmt.Errorf("Internal Error valid cloudlet vapp %s , cloudlet nil", vmGroupName)
+				}
+			}
+			return nil
+		} else {
+			fmt.Printf("\n\nDeleteVMs-I-Found vapp %s delete Cloudlet\n\n", vapp.VApp.Name)
+			err := v.DeleteCloudlet(ctx, *v.Objs.Cloudlet)
+			if err != nil {
+				fmt.Printf("\n\nDeleteCloudlet returned error: %s\n\n", err.Error())
+				return err
+			}
 		}
 	}
 
@@ -468,8 +485,11 @@ func (v *VcdPlatform) DeleteVMs(ctx context.Context, vmGroupName string) error {
 
 		cluster, err := v.FindCluster(ctx, vmGroupName)
 		if err != nil {
+			log.SpanLog(ctx, log.DebugLevelInfra, "DeleteVMs not found", "vmGroupName", vmGroupName)
 			fmt.Printf("\n\nDeleteVMs-W-Nothing found to delete with name %s\n\n", vmGroupName)
-			return nil // its gone
+			// invalid name / already deleted...
+			return nil
+
 			//return fmt.Errorf("Not found")
 		}
 		fmt.Printf("\n\nDeleteVMs-I-vmGroupName %s is cluster deleting...\n\n", vmGroupName)

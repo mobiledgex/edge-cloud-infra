@@ -265,6 +265,8 @@ func (v *VcdPlatform) GetCloudletManifest(ctx context.Context, name, cloudletIma
 // remove the cloudlet(Vapp) + all VMs in the cloudlet.
 func (v *VcdPlatform) DeleteCloudlet(ctx context.Context, cloudlet MexCloudlet) error {
 
+	log.SpanLog(ctx, log.DebugLevelInfra, "DeleteCloudlet", "cloudlet", cloudlet.CloudletName)
+
 	vapp := cloudlet.CloudVapp
 
 	// power off the vapp, then all the vms, then remove all vms from the vapp, and finally delete the vapp.
@@ -278,73 +280,77 @@ func (v *VcdPlatform) DeleteCloudlet(ctx context.Context, cloudlet MexCloudlet) 
 		fmt.Printf("Error fetching status for vapp %s\n", vapp.VApp.Name)
 		return err
 	}
-
-	vm := &govcd.VM{}
+	// unlikely
 	if vapp.VApp.Children == nil {
-		task, err := vapp.Delete()
+
+		task, err := vapp.PowerOff()
 		if err != nil {
-			fmt.Printf("vapp.Delete failed: %s\n task: %+v\n", err.Error(), task)
+			fmt.Printf("DeleteCloudlet baren vapp vapp.PowerOff failed: %s\n\n", err.Error())
 		}
 		err = task.WaitTaskCompletion()
-		fmt.Printf("Barren VApp %s Deleted\n", vapp.VApp.Name)
-		return err
+
+		task, err = vapp.Delete()
+		if err != nil {
+			fmt.Printf("vapp.Delete failed: %s\n\n", err.Error())
+		}
+		err = task.WaitTaskCompletion()
+		log.SpanLog(ctx, log.DebugLevelInfra, "Barren VApp %s Deleted\n", "cloudlet", cloudlet.CloudletName)
+		return nil
 	}
+	// Nominal
 	vms := vapp.VApp.Children.VM
-	fmt.Printf("vapp %s has %d vm children\n", vapp.VApp.Name, len(vms))
+	log.SpanLog(ctx, log.DebugLevelInfra, "DeleteCloudlet removing", "children vms", len(vms))
 	if status == "POWERED_ON" {
+		for _, vm := range vms {
 
-		// if the vapp is on, assume the vm is too
-		// Nope, if you power off this vm, and then
+			v, err := vapp.GetVMByName(vm.Name, false)
+			if err != nil {
+				fmt.Printf("VM %s not found \n", vm.Name)
+				continue
+			}
+			log.SpanLog(ctx, log.DebugLevelInfra, "DeleteCloudlet power off", "vm", vm.Name)
+			fmt.Printf("\tPowerOff %s\n", vm.Name)
+			task, err := v.PowerOff()
+			if err != nil {
+				fmt.Printf("Error from RemoveVM for vm %s in vapp: %s as : %s\n",
+					vm.Name, vapp.VApp.Name, err.Error())
+				return err
+			}
+			err = task.WaitTaskCompletion()
+			if err != nil {
+				fmt.Printf("Error waiting powering of the vm %s \n", vm.Name)
+				return err
+			}
 
-		task, err := vm.PowerOff()
+			fmt.Printf("\t\tremoved from Vapp\n")
+		}
+		fmt.Printf("VMs powered off, powering off the VApp %s\n", vapp.VApp.Name)
+		task, err := vapp.PowerOff()
 		if err != nil {
 			fmt.Printf("Error from vm.PowerOff: %s\n", err.Error())
-			// fatal? Could have already been powered off
 		}
 		err = task.WaitTaskCompletion()
 		if err != nil {
-			fmt.Printf("Error waiting powering of the vm %s \n", vm.VM.Name)
+			fmt.Printf("Error waiting powering of the vapp %s \n", vapp.VApp.Name)
 			return err
 		}
-		fmt.Printf("VM %s powered off\n", vm.VM.Name)
 
-		fmt.Printf("vapp %s currently powered on, wait for power off...\n", vapp.VApp.Name)
-		task, err = vapp.PowerOff()
-		if err != nil {
-			fmt.Printf("testDestroyVapp-W-vm power off failed : %s\n", err.Error())
-			return err
-		}
-		err = task.WaitTaskCompletion()
-		if err != nil {
-			fmt.Printf("Error powering of the Vapp %s \n", vapp.VApp.Name)
-			return err
-		}
-		fmt.Printf("Vapp %s powered off\n", vapp.VApp.Name)
+		fmt.Printf("Cloudlet %s powered off\n", cloudlet.CloudletName)
 	}
-	// And while the console's delete vapp deletes it's vms, this does not, so the remove VM will fail since
-	// it's still powered on (though the console show's it as powered off, but still able to power it off..
-	// go figure.
-
-	// Also, to get the ip addresses released back to the pool, take out the VM before the VApp...
-	// Apparently, they both are consuming one, even though they are the same (one for each end?)
-
-	// Now, consider a Vapp with >1 vm
 	for _, vm := range vms {
-		fmt.Printf("\t%s\n", vm.Name)
-
 		v, err := vapp.GetVMByName(vm.Name, false)
 		if err != nil {
 			fmt.Printf("VM %s not found \n", vm.Name)
 			return err
 		}
-
 		err = vapp.RemoveVM(*v)
 		if err != nil {
 			fmt.Printf("Error from RemoveVM for vm %s in vapp: %s as : %s\n",
 				vm.Name, vapp.VApp.Name, err.Error())
-			return err
+			continue
+			//return err
 		}
-		fmt.Printf("VM %s removed from Vapp\n", vm.Name)
+		log.SpanLog(ctx, log.DebugLevelInfra, "vm removed from vapp", "vm", vm.Name)
 	}
 
 	task, err := vapp.Delete()
@@ -352,7 +358,11 @@ func (v *VcdPlatform) DeleteCloudlet(ctx context.Context, cloudlet MexCloudlet) 
 		fmt.Printf("vapp.Delete failed: %s\n task: %+v\n", err.Error(), task)
 	}
 	err = task.WaitTaskCompletion()
+
+	v.Objs.Cloudlet = nil
+	// clean up maps
 	fmt.Printf("VApp %s Deleted\n", vapp.VApp.Name)
+	log.SpanLog(ctx, log.DebugLevelInfra, "Cloudlet deleted")
 	return err
 }
 

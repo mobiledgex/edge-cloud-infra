@@ -216,12 +216,13 @@ func (v *VcdPlatform) CreateVMs(ctx context.Context, vmgp *vmlayer.VMGroupOrches
 		}
 		if !found {
 			// Try fetching it from the respository or local update
-			log.SpanLog(ctx, log.DebugLevelInfra, "Template %s not found in vdc, attempt upload")
-			err = v.UploadOvaFile(ctx, tmplName)
-			if err != nil {
-				log.SpanLog(ctx, log.DebugLevelInfra, "Template %s not found, not uploaded Fail", "error", err.Error())
-				return err
-			}
+			// XXX upload not ready expect it to be in the catalog.
+			//log.SpanLog(ctx, log.DebugLevelInfra, "Template %s not found in vdc, attempt upload")
+			//err = v.UploadOvaFile(ctx, tmplName)
+			//if err != nil {
+			log.SpanLog(ctx, log.DebugLevelInfra, "Template %s not found, not uploaded Fail", "error", err.Error())
+			return fmt.Errorf("Template %s not found\n", tmplName)
+			//}
 		}
 	}
 	if tmpl == nil {

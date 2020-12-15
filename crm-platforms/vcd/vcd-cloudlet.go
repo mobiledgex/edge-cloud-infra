@@ -324,19 +324,23 @@ func (v *VcdPlatform) DeleteCloudlet(ctx context.Context, cloudlet MexCloudlet) 
 
 			fmt.Printf("\t\tremoved from Vapp\n")
 		}
-		fmt.Printf("VMs powered off, powering off the VApp %s\n", vapp.VApp.Name)
-		task, err := vapp.PowerOff()
-		if err != nil {
-			fmt.Printf("Error from vm.PowerOff: %s\n", err.Error())
-		}
-		err = task.WaitTaskCompletion()
-		if err != nil {
-			fmt.Printf("Error waiting powering of the vapp %s \n", vapp.VApp.Name)
-			return err
-		}
+		/* 10.0 at this stage, the vapp can't be powered off as it has no vms running... */
+		/*
+			fmt.Printf("VMs powered off, powering off the VApp %s\n", vapp.VApp.Name)
+			task, err := vapp.PowerOff()
+			if err != nil {
+				fmt.Printf("Error from vm.PowerOff: %s\n", err.Error())
+			}
+			err = task.WaitTaskCompletion()
+			if err != nil {
+				fmt.Printf("Error waiting powering of the vapp %s \n", vapp.VApp.Name)
+				return err
+			}
 
-		fmt.Printf("Cloudlet %s powered off\n", cloudlet.CloudletName)
+			fmt.Printf("Cloudlet %s powered off\n", cloudlet.CloudletName)
+		*/
 	}
+
 	for _, vm := range vms {
 		v, err := vapp.GetVMByName(vm.Name, false)
 		if err != nil {

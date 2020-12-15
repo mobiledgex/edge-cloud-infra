@@ -404,8 +404,13 @@ func (v *VcdPlatform) GetApiEndpointAddr(ctx context.Context) (string, error) {
 	// example :
 	// OS_AUTH_URL https://10.254.108.198:5000/v3
 	// Our port is default 443, but parsing requires it exist.
+	// VCD_IP now:
+	// "http://vcd-10.mobiledgex.net:443"
+	// So the api is now
+	//
 	ip := v.vcdVars["VCD_IP"]
-	apiUrl := fmt.Sprintf("%s%s%s", "https://", ip, ":443/api")
+	apiUrl := ip + "/api"
+	//apiUrl := fmt.Sprintf("%s%s%s", "https://", ip, ":443/api")
 	log.SpanLog(ctx, log.DebugLevelInfra, "GetApiEndpointAddr", "Href", apiUrl)
 	fmt.Printf("\nGetApiEndpoingAddr-I-%s\n\n", apiUrl)
 

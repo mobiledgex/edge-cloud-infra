@@ -449,7 +449,8 @@ func (v *VcdPlatform) DeleteVMs(ctx context.Context, vmGroupName string) error {
 	// resolve vmGroupName, to a single vm or a clusterName
 
 	// if vmGroupName is the Vapp, we're removing the entire cloudlet
-	vapp, err := v.FindVApp(ctx, vmGroupName)
+	vappName := vmGroupName + "-vapp"
+	vapp, err := v.FindVApp(ctx, vappName)
 	if err == nil {
 		if v.Objs.Cloudlet == nil {
 			// internal error, we somehow restarted and missed recognizing our cloudlet or

@@ -72,7 +72,7 @@ func (v *VcdPlatform) PopulateOrgLoginCredsFromVault(ctx context.Context) error 
 		User:     v.vcdVars["VCD_USER"],
 		Password: v.vcdVars["VCD_PASSWORD"],
 		Org:      v.vcdVars["VCD_ORG"],
-		Href:     fmt.Sprintf("https://%s/api", v.vcdVars["VCD_IP"]),
+		Href:     v.vcdVars["VCD_IP"] + "/api",
 		VDC:      v.vcdVars["VDC_NAME"],
 		Insecure: true,
 	}

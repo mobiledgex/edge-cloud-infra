@@ -448,37 +448,36 @@ func (v *VcdPlatform) DeleteVMs(ctx context.Context, vmGroupName string) error {
 	log.SpanLog(ctx, log.DebugLevelInfra, "DeleteVMs", "vmGroupName", vmGroupName)
 	// resolve vmGroupName, to a single vm or a clusterName
 
+	// if vmGroupName is the Vapp, we're removing the entire cloudlet
+	vapp, err := v.FindVApp(ctx, vmGroupName)
+	if err == nil {
+		fmt.Printf("\n\nDeleteVMs-I-Found vapp %s delete Cloudlet\n\n", vapp.VApp.Name)
+		err := v.DeleteCloudlet(ctx, *v.Objs.Cloudlet)
+		if err != nil {
+			fmt.Printf("\n\nDeleteCloudlet returned error: %s\n\n", err.Error())
+			return err
+		}
+	}
+
 	fmt.Printf("\n\nDeleteVMs-I-requests delete of grpName %s\n\n", vmGroupName)
 	vm, err := v.FindVM(ctx, vmGroupName)
 	if err == nil {
-		fmt.Printf("\tFound vm %s matching vmGroupname Deleting...\n", vm.VM.Name)
+		fmt.Printf("\tFound vm %s matching vmGroupname Deleting...\n\n", vm.VM.Name)
 		return v.DeleteVM(ctx, vm)
 	} else {
 
 		cluster, err := v.FindCluster(ctx, vmGroupName)
 		if err != nil {
-			fmt.Printf("\n\nDeleteVMs-W-Nothing found to delete with name %s\n", vmGroupName)
+			fmt.Printf("\n\nDeleteVMs-W-Nothing found to delete with name %s\n\n", vmGroupName)
 			return nil // its gone
 			//return fmt.Errorf("Not found")
 		}
+		fmt.Printf("\n\nDeleteVMs-I-vmGroupName %s is cluster deleting...\n\n", vmGroupName)
 		err = v.DeleteCluster(ctx, cluster.Name)
 		return err
 	}
 }
 
-// This might be a good place to note:
-// 3 types of allocation models: [pay as you go | Alloc Pool Model | Reservation Pool Model]
-// which affect how "CPU used" is computed:
-//  1: Pay as you go
-//      CPU used = vcpu_count *ovdc_vcpu_in_mhz  ( vcpu sppeed given for organizational vdc)
-//  2: Zero, this model is not elastic. So you need to query the underlying vCenter (provider)
-//  3: This is mapped to runtime.cpu.reservationUsed in vSphere. Great.
-//  4: New: Flex Allocation Model. The adminVdc.IsElastic is only supported in API 32.0 and above.
-//
-//  (We currently use 31.0, so revist switching this again, and see if we get access to it (It's <nil> along with IncludeMemoryOverhead.
-// Our current test world is AllocationPool, which by now (10.01) should be elastic, what does that mean for cpu
-// stats?
-//
 func (v *VcdPlatform) GetVMStats(ctx context.Context, key *edgeproto.AppInstKey) (*vmlayer.VMMetrics, error) {
 	vm := &govcd.VM{}
 	metrics := vmlayer.VMMetrics{}
@@ -488,7 +487,7 @@ func (v *VcdPlatform) GetVMStats(ctx context.Context, key *edgeproto.AppInstKey)
 	if vmName == "" {
 		return nil, fmt.Errorf("GetAppFQN failed to return vmName for AppInst %s\n", key.AppKey.Name)
 	}
-	// We need the Vapp in which context this name is being looked up in XXX
+	// We need the Vapp in which context this name is being looked up  XXX
 	// Are we only interested in deployed VMs?
 	// The metrics links are not functional right now anyway
 	// Just look for the first Vapp that has this VM name ?

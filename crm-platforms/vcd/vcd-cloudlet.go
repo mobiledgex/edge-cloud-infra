@@ -253,14 +253,9 @@ func (v *VcdPlatform) GatherCloudletInfo(ctx context.Context, info *edgeproto.Cl
 // PI  why is this needed
 
 func (v *VcdPlatform) GetCloudletImageSuffix(ctx context.Context) string {
-	fmt.Printf("GetCloudletImageSuffix TBI\n")
-	// needed? Follow convention
 	return "-vcd.qcow2"
 }
 
-//
-// XXX Its the result of the heat stack apply in openstack, not supported by vmpool, and TBI as the OVF file for the cloudlet in vsphere...
-// Not sure we'll have a single OVF file for our entire cloudlet? (with muliple clusterInsts?)
 func (v *VcdPlatform) GetCloudletManifest(ctx context.Context, name, cloudletImagePath string, VMGroupOrchestrationParams *vmlayer.VMGroupOrchestrationParams) (string, error) {
 	log.SpanLog(ctx, log.DebugLevelInfra, "GetCloudletManifest name: %s imagePath? %s ", name, cloudletImagePath)
 	return "", nil

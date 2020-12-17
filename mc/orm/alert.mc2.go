@@ -150,7 +150,7 @@ func addControllerApis(method string, group *echo.Group) {
 	// InfluxDbMetricsRetention: 18
 	// CloudletMaintenanceTimeout: 19
 	// UpdateVmPoolTimeout: 21
-	// UpdatePrivacyPolicyTimeout: 22
+	// UpdateTrustPolicyTimeout: 22
 	// ```
 	// Security:
 	//   Bearer:
@@ -487,8 +487,8 @@ func addControllerApis(method string, group *echo.Group) {
 	// UpdatedAt: 36
 	// UpdatedAtSeconds: 36.1
 	// UpdatedAtNanos: 36.2
-	// PrivacyPolicy: 37
-	// PrivacyPolicyState: 38
+	// TrustPolicy: 37
+	// TrustPolicyState: 38
 	// ```
 	// Security:
 	//   Bearer:
@@ -902,7 +902,7 @@ func addControllerApis(method string, group *echo.Group) {
 	// UpdatedAt: 36
 	// UpdatedAtSeconds: 36.1
 	// UpdatedAtNanos: 36.2
-	// PrivacyCompliant: 37
+	// Trusted: 37
 	// RequiredOutboundConnections: 38
 	// RequiredOutboundConnectionsProtocol: 38.1
 	// RequiredOutboundConnectionsPort: 38.2
@@ -1140,8 +1140,8 @@ func addControllerApis(method string, group *echo.Group) {
 	//   403: forbidden
 	//   404: notFound
 	group.Match([]string{method}, "/ctrl/RemoveAutoProvPolicyCloudlet", RemoveAutoProvPolicyCloudlet)
-	// swagger:route POST /auth/ctrl/CreatePrivacyPolicy PrivacyPolicy CreatePrivacyPolicy
-	// Create a Privacy Policy.
+	// swagger:route POST /auth/ctrl/CreateTrustPolicy TrustPolicy CreateTrustPolicy
+	// Create a Trust Policy.
 	// Security:
 	//   Bearer:
 	// responses:
@@ -1149,9 +1149,9 @@ func addControllerApis(method string, group *echo.Group) {
 	//   400: badRequest
 	//   403: forbidden
 	//   404: notFound
-	group.Match([]string{method}, "/ctrl/CreatePrivacyPolicy", CreatePrivacyPolicy)
-	// swagger:route POST /auth/ctrl/DeletePrivacyPolicy PrivacyPolicy DeletePrivacyPolicy
-	// Delete a Privacy policy.
+	group.Match([]string{method}, "/ctrl/CreateTrustPolicy", CreateTrustPolicy)
+	// swagger:route POST /auth/ctrl/DeleteTrustPolicy TrustPolicy DeleteTrustPolicy
+	// Delete a Trust policy.
 	// Security:
 	//   Bearer:
 	// responses:
@@ -1159,10 +1159,10 @@ func addControllerApis(method string, group *echo.Group) {
 	//   400: badRequest
 	//   403: forbidden
 	//   404: notFound
-	group.Match([]string{method}, "/ctrl/DeletePrivacyPolicy", DeletePrivacyPolicy)
-	// swagger:route POST /auth/ctrl/UpdatePrivacyPolicy PrivacyPolicy UpdatePrivacyPolicy
-	// Update a Privacy policy.
-	// The following values should be added to `PrivacyPolicy.fields` field array to specify which fields will be updated.
+	group.Match([]string{method}, "/ctrl/DeleteTrustPolicy", DeleteTrustPolicy)
+	// swagger:route POST /auth/ctrl/UpdateTrustPolicy TrustPolicy UpdateTrustPolicy
+	// Update a Trust policy.
+	// The following values should be added to `TrustPolicy.fields` field array to specify which fields will be updated.
 	// ```
 	// Key: 2
 	// KeyOrganization: 2.1
@@ -1180,9 +1180,9 @@ func addControllerApis(method string, group *echo.Group) {
 	//   400: badRequest
 	//   403: forbidden
 	//   404: notFound
-	group.Match([]string{method}, "/ctrl/UpdatePrivacyPolicy", UpdatePrivacyPolicy)
-	// swagger:route POST /auth/ctrl/ShowPrivacyPolicy PrivacyPolicy ShowPrivacyPolicy
-	// Show Privacy Policies.
+	group.Match([]string{method}, "/ctrl/UpdateTrustPolicy", UpdateTrustPolicy)
+	// swagger:route POST /auth/ctrl/ShowTrustPolicy TrustPolicy ShowTrustPolicy
+	// Show Trust Policies.
 	//  Any fields specified will be used to filter results.
 	// Security:
 	//   Bearer:
@@ -1191,7 +1191,7 @@ func addControllerApis(method string, group *echo.Group) {
 	//   400: badRequest
 	//   403: forbidden
 	//   404: notFound
-	group.Match([]string{method}, "/ctrl/ShowPrivacyPolicy", ShowPrivacyPolicy)
+	group.Match([]string{method}, "/ctrl/ShowTrustPolicy", ShowTrustPolicy)
 	// swagger:route POST /auth/ctrl/CreateAppInst AppInst CreateAppInst
 	// Create Application Instance.
 	//  Creates an instance of an App on a Cloudlet where it is defined by an App plus a ClusterInst key. Many of the fields here are inherited from the App definition.

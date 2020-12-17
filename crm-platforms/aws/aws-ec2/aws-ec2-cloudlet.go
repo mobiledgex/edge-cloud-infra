@@ -197,7 +197,7 @@ func (a *AwsEc2Platform) InitProvider(ctx context.Context, caches *platform.Cach
 	return nil
 }
 
-func (a *AwsEc2Platform) PrepareRootLB(ctx context.Context, client ssh.Client, rootLBName string, secGrpName string, privacyPolicy *edgeproto.PrivacyPolicy) error {
+func (a *AwsEc2Platform) PrepareRootLB(ctx context.Context, client ssh.Client, rootLBName string, secGrpName string, TrustPolicy *edgeproto.TrustPolicy) error {
 	log.SpanLog(ctx, log.DebugLevelInfra, "PrepareRootLB", "rootLBName", rootLBName)
 	return nil
 }

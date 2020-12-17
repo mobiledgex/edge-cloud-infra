@@ -240,7 +240,7 @@ type VMGroupRequestSpec struct {
 	NewSecgrpName          string
 	AccessPorts            string
 	AccessCidr             string
-	PrivacyPolicy          *edgeproto.PrivacyPolicy
+	TrustPolicy            *edgeproto.TrustPolicy
 	SkipDefaultSecGrp      bool
 	SkipSubnetGateway      bool
 	SkipInfraSpecificCheck bool
@@ -252,9 +252,9 @@ type VMGroupRequestSpec struct {
 
 type VMGroupReqOp func(vmp *VMGroupRequestSpec) error
 
-func WithPrivacyPolicy(pp *edgeproto.PrivacyPolicy) VMGroupReqOp {
+func WithTrustPolicy(pp *edgeproto.TrustPolicy) VMGroupReqOp {
 	return func(s *VMGroupRequestSpec) error {
-		s.PrivacyPolicy = pp
+		s.TrustPolicy = pp
 		return nil
 	}
 }
@@ -551,9 +551,9 @@ func (v *VMPlatform) getVMGroupRequestSpec(ctx context.Context, name string, vms
 	return &vmgrs, nil
 }
 
-// GetVMGroupOrchestrationParamsFromPrivacyPolicy returns an set of orchestration params for just a privacy policy egress rules
-func GetVMGroupOrchestrationParamsFromPrivacyPolicy(ctx context.Context, name string, privPolicy *edgeproto.PrivacyPolicy, egressRestricted bool, opts ...SecgrpParamsOp) (*VMGroupOrchestrationParams, error) {
-	log.SpanLog(ctx, log.DebugLevelInfra, "GetVMGroupOrchestrationParamsFromPrivacyPolicy", "name", name)
+// GetVMGroupOrchestrationParamsFromTrustPolicy returns an set of orchestration params for just a privacy policy egress rules
+func GetVMGroupOrchestrationParamsFromTrustPolicy(ctx context.Context, name string, privPolicy *edgeproto.TrustPolicy, egressRestricted bool, opts ...SecgrpParamsOp) (*VMGroupOrchestrationParams, error) {
+	log.SpanLog(ctx, log.DebugLevelInfra, "GetVMGroupOrchestrationParamsFromTrustPolicy", "name", name)
 	var vmgp VMGroupOrchestrationParams
 	opts = append(opts, SecGrpWithEgressRules(privPolicy.OutboundSecurityRules, egressRestricted))
 	externalSecGrp, err := GetSecGrpParams(name, opts...)
@@ -656,8 +656,8 @@ func (v *VMPlatform) getVMGroupOrchestrationParamsFromGroupSpec(ctx context.Cont
 	}
 
 	var egressRules []edgeproto.SecurityRule
-	if spec.PrivacyPolicy != nil {
-		egressRules = spec.PrivacyPolicy.OutboundSecurityRules
+	if spec.TrustPolicy != nil {
+		egressRules = spec.TrustPolicy.OutboundSecurityRules
 	}
 	if spec.NewSecgrpName != "" {
 		// egress is always restricted on per-cluster groups.  If egress is allowed, it is done on the cloudlet level group

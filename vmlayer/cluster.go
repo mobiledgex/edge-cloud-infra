@@ -350,8 +350,8 @@ func (v *VMPlatform) setupClusterRootLBAndNodes(ctx context.Context, rootLBName 
 	if clusterInst.IpAccess == edgeproto.IpAccess_IP_ACCESS_DEDICATED {
 		log.SpanLog(ctx, log.DebugLevelInfra, "new dedicated rootLB", "IpAccess", clusterInst.IpAccess)
 		updateCallback(edgeproto.UpdateTask, "Setting Up Root LB")
-		privacyPolicy := edgeproto.PrivacyPolicy{}
-		err := v.SetupRootLB(ctx, rootLBName, &clusterInst.Key.CloudletKey, &privacyPolicy, updateCallback)
+		TrustPolicy := edgeproto.TrustPolicy{}
+		err := v.SetupRootLB(ctx, rootLBName, &clusterInst.Key.CloudletKey, &TrustPolicy, updateCallback)
 		if err != nil {
 			return err
 		}

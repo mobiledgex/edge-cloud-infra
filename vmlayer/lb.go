@@ -379,7 +379,7 @@ func (v *VMPlatform) CreateRootLB(
 func (v *VMPlatform) SetupRootLB(
 	ctx context.Context, rootLBName string,
 	cloudletKey *edgeproto.CloudletKey,
-	privacyPolicy *edgeproto.PrivacyPolicy,
+	TrustPolicy *edgeproto.TrustPolicy,
 	updateCallback edgeproto.CacheUpdateCallback,
 ) error {
 	log.SpanLog(ctx, log.DebugLevelInfra, "SetupRootLB", "rootLBName", rootLBName)
@@ -404,7 +404,7 @@ func (v *VMPlatform) SetupRootLB(
 		return err
 	}
 	// TODO: this should eventually be removed when all providers use
-	// cloudlet level rules (PrivacyPolicy) that does the whitelist at the cloudlet level
+	// cloudlet level rules (TrustPolicy) that does the whitelist at the cloudlet level
 	myIp, err := infracommon.GetExternalPublicAddr(ctx)
 	if err != nil {
 		// this is not necessarily fatal
@@ -467,7 +467,7 @@ func (v *VMPlatform) SetupRootLB(
 	log.SpanLog(ctx, log.DebugLevelInfra, "DNS A record activated", "name", rootLBName)
 
 	// perform provider specific prep of the rootLB
-	return v.VMProvider.PrepareRootLB(ctx, client, rootLBName, GetServerSecurityGroupName(rootLBName), privacyPolicy)
+	return v.VMProvider.PrepareRootLB(ctx, client, rootLBName, GetServerSecurityGroupName(rootLBName), TrustPolicy)
 }
 
 // This function copies resource-tracker from crm to rootLb - we need this to provide docker metrics

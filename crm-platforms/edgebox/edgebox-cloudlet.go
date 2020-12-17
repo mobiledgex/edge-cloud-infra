@@ -30,8 +30,8 @@ func (e *EdgeboxPlatform) UpdateCloudlet(ctx context.Context, cloudlet *edgeprot
 	return nil
 }
 
-func (e *EdgeboxPlatform) UpdatePrivacyPolicy(ctx context.Context, privacyPolicy *edgeproto.PrivacyPolicy) error {
-	log.DebugLog(log.DebugLevelInfra, "update edgebox PrivacyPolicy", "policy", privacyPolicy)
+func (e *EdgeboxPlatform) UpdateTrustPolicy(ctx context.Context, TrustPolicy *edgeproto.TrustPolicy) error {
+	log.DebugLog(log.DebugLevelInfra, "update edgebox TrustPolicy", "policy", TrustPolicy)
 	return nil
 }
 

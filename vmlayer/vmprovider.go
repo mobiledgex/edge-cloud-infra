@@ -40,7 +40,7 @@ type VMProvider interface {
 	GetInternalPortPolicy() InternalPortAttachPolicy
 	AttachPortToServer(ctx context.Context, serverName, subnetName, portName, ipaddr string, action ActionType) error
 	DetachPortFromServer(ctx context.Context, serverName, subnetName, portName string) error
-	PrepareRootLB(ctx context.Context, client ssh.Client, rootLBName string, secGrpName string, privacyPolicy *edgeproto.PrivacyPolicy) error
+	PrepareRootLB(ctx context.Context, client ssh.Client, rootLBName string, secGrpName string, TrustPolicy *edgeproto.TrustPolicy) error
 	WhitelistSecurityRules(ctx context.Context, client ssh.Client, secGrpName string, serverName, label, allowedCIDR string, ports []dme.AppPort) error
 	RemoveWhitelistSecurityRules(ctx context.Context, client ssh.Client, secGrpName, label string, allowedCIDR string, ports []dme.AppPort) error
 	GetResourceID(ctx context.Context, resourceType ResourceType, resourceName string) (string, error)
@@ -63,7 +63,7 @@ type VMProvider interface {
 	GetServerGroupResources(ctx context.Context, name string) (*edgeproto.InfraResources, error)
 	ValidateAdditionalNetworks(ctx context.Context, additionalNets []string) error
 	GetSessionTokens(ctx context.Context, vaultConfig *vault.Config, account string) (map[string]string, error)
-	ConfigureCloudletSecurityRules(ctx context.Context, egressRestricted bool, privacyPolicy *edgeproto.PrivacyPolicy, updateCallback edgeproto.CacheUpdateCallback) error
+	ConfigureCloudletSecurityRules(ctx context.Context, egressRestricted bool, TrustPolicy *edgeproto.TrustPolicy, updateCallback edgeproto.CacheUpdateCallback) error
 }
 
 // VMPlatform contains the needed by all VM based platforms

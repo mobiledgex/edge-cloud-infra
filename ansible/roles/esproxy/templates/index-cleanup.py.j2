@@ -35,6 +35,6 @@ delete = [ x for x in indexes if x < oldest_index ]
 
 for index in delete:
     logging.info(f"Deleting index: {index}")
-    r = requests.delete(f"{ES}/{index}", headers=headers)
+    r = requests.delete(f"{ES}/{index}?master_timeout=60s", headers=headers)
     if r.status_code != requests.codes.ok:
         raise Exception(f"Failed to delete index: {index}: {r.status_code} {r.text}")

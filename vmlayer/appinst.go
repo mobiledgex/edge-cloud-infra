@@ -51,7 +51,12 @@ func (v *VMPlatform) PerformOrchestrationForVMApp(ctx context.Context, app *edge
 	}
 
 	if action == ActionCreate {
-		err = v.VMProvider.AddAppImageIfNotPresent(ctx, app, appInst.Flavor.Name, updateCallback)
+		imgName, err := cloudcommon.GetFileName(app.ImagePath)
+		if err != nil {
+			return &orchVals, err
+		}
+		localImageName := v.VMProvider.NameSanitize(app.Key.Organization) + "-" + imgName
+		err = v.VMProvider.AddAppImageIfNotPresent(ctx, localImageName, app, appInst.Flavor.Name, updateCallback)
 		if err != nil {
 			return &orchVals, err
 		}
@@ -503,7 +508,8 @@ func (v *VMPlatform) DeleteAppInst(ctx context.Context, clusterInst *edgeproto.C
 		if err != nil {
 			return err
 		}
-		err = v.VMProvider.DeleteImage(ctx, cloudcommon.GetAppFQN(&app.Key), imgName)
+		localImageName := v.VMProvider.NameSanitize(app.Key.Organization) + "-" + imgName
+		err = v.VMProvider.DeleteImage(ctx, cloudcommon.GetAppFQN(&app.Key), localImageName)
 		if err != nil {
 			log.SpanLog(ctx, log.DebugLevelInfra, "cannot delete image", "imgName", imgName)
 		}

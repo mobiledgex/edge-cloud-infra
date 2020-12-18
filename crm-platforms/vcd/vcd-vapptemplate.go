@@ -47,7 +47,7 @@ func (v *VcdPlatform) GetAllVdcTemplates(ctx context.Context /*, cat *govcd.Cata
 		fmt.Printf("\nQueryVappTemplList err: %s\n", err.Error())
 		return nil, err
 	}
-
+	fmt.Printf("\n\n-----GetAddVdcTemplates----have %d queryResults \n\n", len(queryRes))
 	for n, res := range queryRes {
 		for catName, catContainer := range v.Objs.Cats {
 			cat := catContainer.OrgCat

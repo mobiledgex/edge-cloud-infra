@@ -547,6 +547,15 @@ func (v *VcdPlatform) GetPlatformResources(ctx context.Context) error {
 		fmt.Printf("\n\nDiscover=I=looking for %s\n", targetTemplateName)
 		if qr.Name == targetTemplateName {
 			fmt.Printf("\n\nDiscover found our VDCTEMPLATE %s fetch it directly\n\n", v.GetVDCTemplateName())
+
+			tmpl, err := v.Objs.PrimaryCat.GetVappTemplateByHref(qr.HREF)
+			if err != nil {
+				fmt.Printf("Failed to fetch VDCTEMPLATE from PrimaryCat err: %s\n", err.Error())
+			} else {
+				fmt.Printf("Discover set our VDCTemplate into v.Objs.Template: %+v\n", tmpl)
+				v.Objs.Template = tmpl
+			}
+
 			tmpls, err := v.GetAllVdcTemplates(ctx)
 			if err != nil {
 				fmt.Printf("Error from GetAllVdcTemplates: %s\n", err.Error())

@@ -17,4 +17,5 @@ regiondata:
       ipsupport: IpSupportDynamic
       numdynamicips: 254
       platformtype: PlatformTypeEdgebox
+      kafkacluster: "localhost:9092"
 

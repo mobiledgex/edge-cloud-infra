@@ -203,11 +203,12 @@ func (v *VcdPlatform) CreateVMs(ctx context.Context, vmgp *vmlayer.VMGroupOrches
 		found := false
 		fmt.Printf("\n\ttemplate %s not found locally\n", tmplName)
 		// Back to vdc, has it been created manually?
-		tmpls, err := v.GetAllVdcTemplates(ctx, v.Objs.PrimaryCat)
+		tmpls, err := v.GetAllVdcTemplates(ctx /*v.Objs.PrimaryCat*/)
 		if err == nil {
 			for _, tmpl = range tmpls {
 				fmt.Printf("\n\nCreateVms tmpl %s  not found locally consider %s\n\n", tmplName, tmpl.VAppTemplate.Name)
 				if tmpl.VAppTemplate.Name == tmplName {
+					fmt.Printf("\nFound template %s\n", tmpl.VAppTemplate.Name)
 					v.Objs.VAppTmpls[tmplName] = tmpl
 					found = true
 					break

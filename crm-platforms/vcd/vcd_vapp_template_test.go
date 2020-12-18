@@ -154,12 +154,23 @@ func TestTmpl(t *testing.T) {
 			fmt.Printf("test = have vm %s name: %s \n", vm.VM.Name, name)
 		}
 
-		tmpl, err := tv.FindTemplate(ctx, *tmplName)
+		_, err := tv.FindTemplate(ctx, *tmplName)
 		if err != nil {
 			fmt.Printf("TestTmpl-E-%s not found locally\n", *tmplName)
 		}
+
+		tmpls, err := tv.GetAllVdcTemplates(ctx)
+		for _, tmp := range tmpls {
+			fmt.Printf("GetAllVdcTemplates next template: %s\n", tmp.VAppTemplate.Name)
+
+			if tmp.VAppTemplate.Name == *tmplName {
+				fmt.Printf("We've Found and returned our template! %s\n", *tmplName)
+				dumpVAppTemplate(&tv, ctx, tmp, 1)
+			}
+		}
+
 		// for dumping internal vms in the template we'll need our local test cache objs.
-		dumpVAppTemplate(&tv, ctx, tmpl, 1)
+		//dumpVAppTemplate(&tv, ctx, tmpl, 1)
 	} else {
 		return
 	}

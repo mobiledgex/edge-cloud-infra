@@ -613,3 +613,42 @@ func TestClusterVMs(t *testing.T) {
 		}
 	}
 }
+
+// -live -ip
+func TestCheckServerReady(t *testing.T) {
+	live, ctx, err := InitVcdTestEnv()
+	require.Nil(t, err, "InitTestEnv")
+
+	if live {
+		vName := ""
+		fmt.Printf("TestCheckServerReady for server with IP %s \n", *ipAddr)
+		// Skip the ssh client, test we correctly find the vm from its ip and return detail
+		if tv.Objs.Cloudlet != nil {
+			if len(tv.Objs.Cloudlet.ExtVMMap) == 0 {
+				fmt.Printf("No entries in ExtVMMap")
+				return
+			}
+			for addr, vm := range tv.Objs.Cloudlet.ExtVMMap {
+				fmt.Printf("\nNext vm : %s addr %s\n\n", vm.VM.Name, addr)
+				if *ipAddr == addr {
+
+					vName = vm.VM.Name
+					fmt.Printf("vmName = %s found\n", vName)
+					break
+				}
+			}
+			detail, err := tv.GetServerDetail(ctx, vName)
+			if err != nil {
+				fmt.Printf("CheckServerReady-E-from GetServerDetail: %s\n", err.Error())
+				return
+			}
+			if detail.Status == vmlayer.ServerActive {
+				fmt.Printf("Server Ready\n")
+
+			} else {
+				fmt.Printf("detail status other than ready %+v\n", detail)
+			}
+
+		}
+	}
+}

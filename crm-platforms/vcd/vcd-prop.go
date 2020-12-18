@@ -3,8 +3,8 @@ package vcd
 import (
 	"context"
 	"fmt"
+	"os"
 
-	//"github.com/mobiledgex/edge-cloud-infra/infracommon"
 	"github.com/mobiledgex/edge-cloud-infra/vmlayer"
 	"github.com/mobiledgex/edge-cloud/cloud-resource-manager/platform"
 	"github.com/mobiledgex/edge-cloud/edgeproto"
@@ -37,14 +37,6 @@ var VcdProps = map[string]*edgeproto.PropertyInfo{
 	"MEX_INTERNAL_NETWORK_MASK": {
 		Value: "24",
 	},
-	/*
-		"MEX_EXT_NETWORK": {
-			Mandatory: false,
-		},
-	*/
-	//	"MEX_EXTERNAL_VSWITCH": {
-	//		Value: "ExternalVSwitch",
-	//	},
 }
 
 func (v *VcdPlatform) GetVaultCloudletAccessPath(key *edgeproto.CloudletKey, region, physicalName string) string {
@@ -75,7 +67,7 @@ func (v *VcdPlatform) GetVcdVars(ctx context.Context, accessApi platform.AccessA
 		fmt.Printf("\tGetVcdVars:next access var  %s = %s\n", k, v)
 	}
 
-	fmt.Printf("\n\nGetVcdVars:\n\tVCD_IP: %s\n\tVCD_USER: %s\n\t: Passwd: %s\n\t Org: %s\n\tVDC_NAME: %s\n",
+	fmt.Printf("\n\nGetVcdVars:\n\tVCD_IP: %s\n\tVCD_USER: %s\n\tPasswd: %s\n\t Org: %s\n\tVDC_NAME: %s\n",
 		v.vcdVars["VCD_IP"],
 		v.vcdVars["VCD_USER"],
 		v.vcdVars["VCD_PASSWORD"],
@@ -92,6 +84,38 @@ func (v *VcdPlatform) GetVcdVars(ctx context.Context, accessApi platform.AccessA
 	fmt.Printf("\n\nGetVcdVars login Creds.Href: %s\n\n", v.Creds.Href)
 
 	return nil
+}
+
+func (v *VcdPlatform) GetVCDIP() string {
+
+	return v.vcdVars["VCD_IP"]
+}
+func (v *VcdPlatform) GetVCDUser() string {
+
+	return v.vcdVars["VCD_USER"]
+}
+func (v *VcdPlatform) GetVCDPassword() string {
+
+	return v.vcdVars["VCD_PASSWORD"]
+}
+func (v *VcdPlatform) GetVCD_ORG() string {
+
+	return v.vcdVars["VCD_ORG"]
+}
+func (v *VcdPlatform) GetVDCName() string {
+
+	return v.vcdVars["VDC_NAME"]
+}
+func (v *VcdPlatform) GetVCDURL() string {
+
+	return v.vcdVars["VCD_URL"]
+}
+
+func (v *VcdPlatform) GetVDCTemplateName() string {
+	if v.TestMode {
+		return os.Getenv("VDCTEMPLATE")
+	}
+	return v.vcdVars["VDCTEMPLATE"]
 }
 
 // start fetching access  bits from vault

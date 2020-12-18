@@ -38,23 +38,32 @@ func (v *VcdPlatform) FindTemplate(ctx context.Context, tmplName string) (*govcd
 }
 
 // Return all templates found in our catalog
-func (v *VcdPlatform) GetAllVdcTemplates(ctx context.Context, cat *govcd.Catalog) ([]*govcd.VAppTemplate, error) {
+func (v *VcdPlatform) GetAllVdcTemplates(ctx context.Context /*, cat *govcd.Catalog*/) ([]*govcd.VAppTemplate, error) {
 
 	var tmpls []*govcd.VAppTemplate
 
 	queryRes, err := v.Objs.Vdc.QueryVappTemplateList()
 	if err != nil {
+		fmt.Printf("QueryVappTemplList err: %s\n", err.Error())
 		return nil, err
 	}
 	for n, res := range queryRes {
-		fmt.Printf("\t#%d Lookup res.Name: %sby HREF: %s\n", n, res.Name, res.HREF)
+		for catName, catContainer := range v.Objs.Cats {
+			cat := catContainer.OrgCat
+			fmt.Printf("\n\n\t#%d Lookup in cat %s  res.Name: %sby HREF: %s\n\n", n, catName, res.Name, res.HREF)
 
-		tmpl, err := cat.GetVappTemplateByHref(res.HREF)
-		if err != nil {
-			// This can happen if we have a vm with no vapp, one gets created for it
-			continue
-		} else {
-			tmpls = append(tmpls, tmpl)
+			tmpl, err := cat.GetVappTemplateByHref(res.HREF)
+			if err != nil {
+				fmt.Printf("\tError fetching %s in cat %s err %s\n\n", res.HREF, catName, err.Error())
+				// This can happen if we have a vm with no vapp, one gets created for it
+				continue
+			} else {
+				v.Objs.VAppTmpls[tmpl.VAppTemplate.Name] = tmpl
+				if tmpl.VAppTemplate.Name == v.GetVDCTemplateName() {
+					fmt.Printf("\nFound our VDCTEMPLATE in cat %s\n", catName)
+				}
+				tmpls = append(tmpls, tmpl)
+			}
 		}
 	}
 

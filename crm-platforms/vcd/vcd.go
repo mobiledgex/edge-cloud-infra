@@ -34,7 +34,6 @@ import (
 var vcdProviderVersion = "-0.1-alpha"
 
 type VcdPlatform struct {
-	// Properties common to all VM providers
 	vmProperties *vmlayer.VMProperties
 	vcdVars      map[string]string
 	TestMode     bool
@@ -94,7 +93,7 @@ type VMIPsMap map[string]ClusterVm
 
 // A map key'ed by CIDR whose value is another map of all VMs in the
 // Cluster represented by this CIDR, this key'ed by IP addr
-// This set of vms under this CIDR represent a cluster
+// This set of vms under this CIDR represent a single cluster
 type Cluster struct {
 	Name string
 	VMs  VMIPsMap
@@ -116,8 +115,6 @@ type MexCloudlet struct {
 
 }
 
-// cloudletName
-
 type VcdObjects struct {
 	Org       *govcd.Org
 	Vdc       *govcd.Vdc // VdcMap
@@ -127,8 +124,7 @@ type VcdObjects struct {
 	VAppTmpls VAppTmplMap
 	// while we'll discover all external networks
 	// avaliable to our vdc, we'll only utilize the first we find as
-	// v.Objs.PrimaryNet
-	// PrimaryVdc  *govcd.Vdc
+	// v.Objs.PrimaryNet. May be overriden using vcd.Vars
 	PrimaryNet  *govcd.OrgVDCNetwork
 	PrimaryCat  *govcd.Catalog
 	VMs         VMMap
@@ -147,11 +143,6 @@ func (v *VcdPlatform) InitProvider(ctx context.Context, caches *platform.Caches,
 
 	log.SpanLog(ctx, log.DebugLevelInfra, "InitProvider for Vcd 1", "stage", stage)
 	v.InitData(ctx, caches)
-	// XXX read env creds for now, vault soon
-
-	//v.initDebug(o.VMProperties.CommonPf.PlatformConfig.NodeMgr) // XXX needed now?
-
-	// make our object maps
 	v.Objs.Nets = make(map[string]*govcd.OrgVDCNetwork)
 	v.Objs.Cats = make(map[string]CatContainer)
 	v.Objs.VApps = make(map[string]*VApp)
@@ -180,21 +171,19 @@ func (v *VcdPlatform) InitProvider(ctx context.Context, caches *platform.Caches,
 		fmt.Printf("Error from SetProviderSpecificProps: %s\n", err.Error())
 		return err
 	}
-	fmt.Printf("\n\nInitProvider-I-populating OrgLoginCredsFromVault\n\n")
-
 	return nil
 }
 
 func (v *VcdPlatform) InitData(ctx context.Context, caches *platform.Caches) {
-	log.SpanLog(ctx, log.DebugLevelInfra, "InitProvider::SetCaches 2")
+	log.SpanLog(ctx, log.DebugLevelInfra, "InitData caches set")
 	v.caches = caches
 }
 
 func (v *VcdPlatform) ImportDataFromInfra(ctx context.Context) error {
 
-	log.SpanLog(ctx, log.DebugLevelInfra, "ImportDataFromInfra N")
+	log.SpanLog(ctx, log.DebugLevelInfra, "ImportDataFromInfra")
 	if v.Client == nil {
-		fmt.Printf("\n\nImportDataFromInfra-I-v.Client nil, login first time\n\n")
+		log.SpanLog(ctx, log.DebugLevelInfra, "Obtain vcd client")
 		client, err := v.GetClient(ctx, v.Creds)
 		if err != nil {
 			return fmt.Errorf("Unable to create Vcd Client %s\n", err.Error())
@@ -209,7 +198,7 @@ func (v *VcdPlatform) ImportDataFromInfra(ctx context.Context) error {
 
 	err = v.GetPlatformResources(ctx)
 	if err != nil {
-		return fmt.Errorf("Error retrieving Platform  Resources: %s", err.Error())
+		return fmt.Errorf("Error retrieving Platform Resources: %s", err.Error())
 	}
 	return nil
 }
@@ -223,39 +212,27 @@ func (v *VcdPlatform) GetPlatformResourceInfo(ctx context.Context) (*vmlayer.Pla
 
 	org, err := v.GetOrg(ctx, v.Client, v.Creds.Org)
 	if err != nil {
-		fmt.Printf("\n\nGetPlatformResourceInfo-E-GetOrg %s returns %s\n", v.Creds.Org, err.Error())
 		return nil, err
 	}
 	v.Objs.Org = org
-	vdc, err := v.GetVdc(ctx, v.Creds.VDC) // could override with $PRIMARY_VDC
+	vdc, err := v.GetVdc(ctx, v.Creds.VDC)
 	if err != nil {
-		fmt.Printf("\n\nGetPlatformResourceInfo-E-GetOrg returns %s\n", err.Error())
 		return nil, err
 	}
 	v.Objs.Vdc = vdc
 
 	c_capacity := vdc.Vdc.ComputeCapacity
-	fmt.Printf("\n\nGetPlatformResourceInfo Vdc.ComputeCapacity : len %d  %+v\n\n", len(c_capacity), c_capacity)
 	for _, cap := range c_capacity {
 
-		// so we get vdc from our Org with refresh true.
 		resources.VCpuMax = uint64(cap.CPU.Limit)
 		resources.VCpuUsed = uint64(cap.CPU.Used)
 		resources.MemMax = uint64(cap.Memory.Limit)
 		resources.MemUsed = uint64(cap.Memory.Used)
 	}
-	/*
-	   type ResourceEntities struct {
-	   	ResourceEntity []*ResourceReference `xml:"ResourceEntity,omitempty"`
-	   }
-	      need to dig out how much disk we can allocate
-	*/
-
 	// sets PrimaryNet also
 	err = v.GetPlatformResources(ctx)
 	if err != nil {
-		fmt.Printf("\nGetPltformREsourceInfo-I-failed error: %s\n", err.Error())
-		return nil, nil
+		return nil, err
 	}
 	return resources, nil
 }
@@ -280,13 +257,21 @@ func (v *VcdPlatform) GetResourceID(ctx context.Context, resourceType vmlayer.Re
 func (v VcdPlatform) CheckServerReady(ctx context.Context, client ssh.Client, serverName string) error {
 
 	// ServerName here is really the external ip address.
-	// So get all vms in our vapp looking for this serverAddr
-	// TBI
+	// Worker nodes are never checked?
+	// Run our Cluster Cider map looking for this IP
+	vmName := ""
+	if v.Objs.Cloudlet != nil {
 
-	fmt.Printf("CheckServerReady-I-server %s\n", serverName)
-	//	detail, err := v.GetServerDetail(ctx, serverName)
-	/* optional revist */
-	/*
+		for addr, vm := range v.Objs.Cloudlet.ExtVMMap {
+			fmt.Printf("\nNext vm : %s addr %s\n\n", vm.VM.Name, addr)
+			if serverName == addr {
+
+				vmName = vm.VM.Name
+				fmt.Printf("vmName = %s found\n", vmName)
+				break
+			}
+		}
+		detail, err := v.GetServerDetail(ctx, vmName)
 		if err != nil {
 			fmt.Printf("CheckServerReady-E-from GetServerDetail: %s\n", err.Error())
 			return err
@@ -296,10 +281,10 @@ func (v VcdPlatform) CheckServerReady(ctx context.Context, client ssh.Client, se
 			log.SpanLog(ctx, log.DebugLevelInfra, "CheckServerReady Mobiledgex service status", "serverName", serverName, "out", out, "err", err)
 			return nil
 		} else {
-			fmt.Printf("\nCheckServerReady-E-detail.Status := %s (not ServerActive) \n\n", detail.Status)
+			fmt.Printf("\n\n\tCheckServerReady-E-detail.Status := %s (not ServerActive) \n\n", detail.Status)
 			return fmt.Errorf("Server %s status: %s", serverName, detail.Status)
 		}
-	*/
+	}
 	return nil
 }
 
@@ -484,6 +469,10 @@ func (v *VcdPlatform) GetPlatformResources(ctx context.Context) error {
 								Clusters:  make(CidrMap),
 								ExtVMMap:  make(CloudVMsMap),
 							}
+							// getbyname the first vm here
+							vm, err := vapp.GetVMByName(vapp.VApp.Children.VM[0].Name, false)
+							v.Objs.Cloudlet.ExtVMMap[extAddr] = vm
+
 						}
 					}
 
@@ -548,8 +537,19 @@ func (v *VcdPlatform) GetPlatformResources(ctx context.Context) error {
 	templateVmQueryRecs, err := v.Client.Client.QueryVmList(types.VmQueryFilterOnlyTemplates)
 	for _, qr := range templateVmQueryRecs {
 		v.Objs.TemplateVMs[qr.Name] = qr
-		fmt.Printf("\nDiscover: found Template VM named %s type %s HREF: %s\n",
+		fmt.Printf("\n---------------------------Discover: found Template VM named %s type %s HREF: %s\n",
 			qr.Name, qr.Type, qr.HREF)
+
+		targetTemplate := v.GetVDCTemplateName()
+		fmt.Printf("\n\nDiscover=I=looking for %s\n", targetTemplate)
+		if qr.Name == targetTemplate {
+			fmt.Printf("\n\nDiscover found our VDCTEMPLATE %s fetch it directly\n\n", v.GetVDCTemplateName())
+
+			//tmpl, err :=
+
+			//			v.Objs.PrimaryTemplate
+			//v.Objs.VAppTmpls[
+		}
 	}
 	return nil
 }

@@ -913,9 +913,11 @@ func testUserApiKeys(t *testing.T, ctx context.Context, ds *testutil.DummyServer
 	testAddUserRole(t, mcClient, uri, token, devOrg.Name, "DeveloperViewer", user1.Name, Success)
 
 	// invalid action error
-	userApiKeyObj := ormapi.UserApiKeyObj{
-		Description: "App view only key",
-		Org:         devOrg.Name,
+	userApiKeyObj := ormapi.CreateUserApiKey{
+		UserApiKey: ormapi.UserApiKey{
+			Description: "App view only key",
+			Org:         devOrg.Name,
+		},
 		Roles: []ormapi.RolePerm{
 			ormapi.RolePerm{
 				Action:   "views",
@@ -928,7 +930,7 @@ func testUserApiKeys(t *testing.T, ctx context.Context, ds *testutil.DummyServer
 	require.Contains(t, err.Error(), "Invalid action", "invalid action err match")
 	require.Equal(t, http.StatusBadRequest, status, "bad request")
 
-	// invalid resource error
+	// invalid permission error
 	userApiKeyObj.Roles = []ormapi.RolePerm{
 		ormapi.RolePerm{
 			Action:   "view",
@@ -936,20 +938,20 @@ func testUserApiKeys(t *testing.T, ctx context.Context, ds *testutil.DummyServer
 		},
 	}
 	_, status, err = mcClient.CreateUserApiKey(uri, token1, &userApiKeyObj)
-	require.NotNil(t, err, "invalid resource")
-	require.Contains(t, err.Error(), "Invalid resource", "invalid resource err match")
+	require.NotNil(t, err, "invalid permission")
+	require.Contains(t, err.Error(), "Invalid permission specified", "err match")
 	require.Equal(t, http.StatusBadRequest, status, "bad request")
 
 	// user of developer org should fail to create operator role based api key
 	userApiKeyObj.Roles = []ormapi.RolePerm{
 		ormapi.RolePerm{
-			Action:   "view",
+			Action:   "manage",
 			Resource: "cloudlets",
 		},
 	}
 	_, status, err = mcClient.CreateUserApiKey(uri, token1, &userApiKeyObj)
 	require.NotNil(t, err, "not allowed to use operator resource")
-	require.Contains(t, err.Error(), "Invalid resource", "invalid resource err match")
+	require.Contains(t, err.Error(), "Invalid permission specified", "err match")
 	require.Equal(t, http.StatusBadRequest, status, "bad request")
 
 	// user of developerviewer role should fail to create manage action based api key
@@ -961,7 +963,7 @@ func testUserApiKeys(t *testing.T, ctx context.Context, ds *testutil.DummyServer
 	}
 	_, status, err = mcClient.CreateUserApiKey(uri, token1, &userApiKeyObj)
 	require.NotNil(t, err, "not allowed to use manage action")
-	require.Contains(t, err.Error(), "Invalid action manage", "invalid action err match")
+	require.Contains(t, err.Error(), "Invalid permission specified", "err match")
 	require.Equal(t, http.StatusBadRequest, status, "bad request")
 
 	// user of operator org should fail to create developer role based api key
@@ -975,20 +977,20 @@ func testUserApiKeys(t *testing.T, ctx context.Context, ds *testutil.DummyServer
 		},
 	}
 	_, status, err = mcClient.CreateUserApiKey(uri, token1, &userApiKeyObj)
-	require.NotNil(t, err, "invalid resource")
-	require.Contains(t, err.Error(), "Invalid resource", "invalid resource err match")
+	require.NotNil(t, err, "invalid permission")
+	require.Contains(t, err.Error(), "Invalid permission specified", "err match")
 	require.Equal(t, http.StatusBadRequest, status, "bad request")
 
 	// user of operator org should fail to create admin role based api key
 	userApiKeyObj.Roles = []ormapi.RolePerm{
 		ormapi.RolePerm{
-			Action:   "view",
+			Action:   "manage",
 			Resource: "users",
 		},
 	}
 	_, status, err = mcClient.CreateUserApiKey(uri, token1, &userApiKeyObj)
-	require.NotNil(t, err, "invalid resource")
-	require.Contains(t, err.Error(), "Invalid resource", "invalid resource err match")
+	require.NotNil(t, err, "invalid permission")
+	require.Contains(t, err.Error(), "Invalid permission specified", "err match")
 	require.Equal(t, http.StatusBadRequest, status, "bad request")
 
 	// user of operatorviewer role should fail to create manage action based api key
@@ -1000,7 +1002,7 @@ func testUserApiKeys(t *testing.T, ctx context.Context, ds *testutil.DummyServer
 	}
 	_, status, err = mcClient.CreateUserApiKey(uri, token1, &userApiKeyObj)
 	require.NotNil(t, err, "not allowed to use manage action")
-	require.Contains(t, err.Error(), "Invalid action manage", "invalid action err match")
+	require.Contains(t, err.Error(), "Invalid permission specified", "err match")
 	require.Equal(t, http.StatusBadRequest, status, "bad request")
 
 	// user should be able to create api key if action, resource input are correct
@@ -1019,7 +1021,7 @@ func testUserApiKeys(t *testing.T, ctx context.Context, ds *testutil.DummyServer
 	resp, status, err := mcClient.CreateUserApiKey(uri, token1, &userApiKeyObj)
 	require.Nil(t, err, "create apikey")
 	require.Equal(t, http.StatusOK, status, "create apikey success")
-	require.NotEmpty(t, resp.ApiKeyId, "api key id exists")
+	require.NotEmpty(t, resp.Id, "api key id exists")
 	require.NotEmpty(t, resp.ApiKey, "api key exists")
 
 	// verify role exists
@@ -1033,8 +1035,8 @@ func testUserApiKeys(t *testing.T, ctx context.Context, ds *testutil.DummyServer
 			break
 		}
 	}
-	require.Equal(t, apiKeyRole.Role, resp.ApiKeyId+"-role")
-	require.Equal(t, apiKeyRole.Username, resp.ApiKeyId)
+	require.Equal(t, apiKeyRole.Role, getApiKeyRoleName(resp.Id))
+	require.Equal(t, apiKeyRole.Username, resp.Id)
 	require.Equal(t, apiKeyRole.Org, operOrg.Name)
 	policies, status, err := showRolePerms(mcClient, uri, token)
 	require.Nil(t, err, "show role perms err")
@@ -1050,15 +1052,15 @@ func testUserApiKeys(t *testing.T, ctx context.Context, ds *testutil.DummyServer
 			}
 		}
 	}
-	require.Equal(t, apiKeyRoleViewPerm.Role, resp.ApiKeyId+"-role")
+	require.Equal(t, apiKeyRoleViewPerm.Role, getApiKeyRoleName(resp.Id))
 	require.Equal(t, apiKeyRoleViewPerm.Action, ActionView)
 	require.Equal(t, apiKeyRoleViewPerm.Resource, ResourceCloudlets)
-	require.Equal(t, apiKeyRoleManagePerm.Role, resp.ApiKeyId+"-role")
+	require.Equal(t, apiKeyRoleManagePerm.Role, getApiKeyRoleName(resp.Id))
 	require.Equal(t, apiKeyRoleManagePerm.Action, ActionManage)
 	require.Equal(t, apiKeyRoleManagePerm.Resource, ResourceCloudlets)
 
 	// login using api key
-	apiKeyLoginToken, err := mcClient.DoLogin(uri, NoUserName, NoPassword, NoOTP, resp.ApiKeyId, resp.ApiKey)
+	apiKeyLoginToken, err := mcClient.DoLogin(uri, NoUserName, NoPassword, NoOTP, resp.Id, resp.ApiKey)
 	require.Nil(t, err, "login using api key")
 
 	// user's login token should have shorter expiration time
@@ -1084,7 +1086,7 @@ func testUserApiKeys(t *testing.T, ctx context.Context, ds *testutil.DummyServer
 	require.Equal(t, http.StatusBadRequest, status, "create apikey failure")
 	require.Contains(t, err.Error(), "not authorized to create", "err matches")
 
-	delKeyObj := ormapi.UserApiKeyObj{ApiKeyId: resp.ApiKeyId}
+	delKeyObj := ormapi.CreateUserApiKey{UserApiKey: ormapi.UserApiKey{Id: resp.Id}}
 	status, err = mcClient.DeleteUserApiKey(uri, apiKeyLoginToken, &delKeyObj)
 	require.NotNil(t, err, "delete apikey should fail")
 	require.Equal(t, http.StatusBadRequest, status, "delete apikey failure")
@@ -1118,7 +1120,7 @@ func testUserApiKeys(t *testing.T, ctx context.Context, ds *testutil.DummyServer
 	require.Contains(t, err.Error(), "Forbidden", "err matches")
 
 	// deletion of apikey should result in deletion of respective roles
-	delKeyObj = ormapi.UserApiKeyObj{ApiKeyId: resp.ApiKeyId}
+	delKeyObj = ormapi.CreateUserApiKey{UserApiKey: ormapi.UserApiKey{Id: resp.Id}}
 	status, err = mcClient.DeleteUserApiKey(uri, token1, &delKeyObj)
 	require.Nil(t, err, "delete user api key")
 

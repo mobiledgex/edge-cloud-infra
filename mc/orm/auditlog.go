@@ -197,7 +197,7 @@ func logger(next echo.HandlerFunc) echo.HandlerFunc {
 					response = string(resBody)
 				}
 			} else if strings.Contains(string(resBody), "ApiKey") {
-				resp := ormapi.UserApiKeyObj{}
+				resp := ormapi.CreateUserApiKey{}
 				err := json.Unmarshal(resBody, &resp)
 				if err == nil {
 					resp.ApiKey = ""

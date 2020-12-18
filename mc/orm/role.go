@@ -36,6 +36,8 @@ const ResourceAlert = "alert"
 const ResourceDeveloperPolicy = "developerpolicy"
 const ResourceResTagTable = "restagtbl"
 
+const ApiKeyRoleSuffix = "-role"
+
 var DeveloperResources = []string{
 	ResourceApps,
 	ResourceAppInsts,
@@ -65,23 +67,6 @@ const RoleAdminManager = "AdminManager"
 const RoleAdminContributor = "AdminContributor"
 const RoleAdminViewer = "AdminViewer"
 const RoleBillingManager = "BillingManager"
-
-// roles in the order of access priority
-var DeveloperRoles = []string{
-	RoleDeveloperManager,
-	RoleDeveloperContributor,
-	RoleDeveloperViewer,
-}
-var OperatorRoles = []string{
-	RoleOperatorManager,
-	RoleOperatorContributor,
-	RoleOperatorViewer,
-}
-var AdminRoles = []string{
-	RoleAdminManager,
-	RoleAdminContributor,
-	RoleAdminViewer,
-}
 
 var AdminRoleID int64
 
@@ -598,8 +583,12 @@ func isOperatorRole(role string) bool {
 	return false
 }
 
+func getApiKeyRoleName(apiKeyId string) string {
+	return apiKeyId + ApiKeyRoleSuffix
+}
+
 func isApiKeyRole(role string) bool {
-	if strings.HasSuffix(role, "-role") {
+	if strings.HasSuffix(role, ApiKeyRoleSuffix) {
 		return true
 	}
 	return false

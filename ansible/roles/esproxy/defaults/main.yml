@@ -1,1 +1,1 @@
-events_elasticsearch_cleanup_age: 30
+events_elasticsearch_cleanup_age: 5

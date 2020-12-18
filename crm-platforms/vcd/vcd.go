@@ -133,6 +133,7 @@ type VcdObjects struct {
 	EdgeGateway govcd.EdgeGateway
 	Media       MediaMap
 	Cloudlet    *MexCloudlet
+	Template    *govcd.VAppTemplate // tmp xxx debug
 }
 
 func (v *VcdPlatform) GetType() string {
@@ -395,9 +396,8 @@ func (v *VcdPlatform) GetPlatformResources(ctx context.Context) error {
 	catalog := &govcd.Catalog{}
 	catalogRecords, err := v.Objs.Org.QueryCatalogList()
 	if err != nil {
-		//fmt.Printf("QueryCatalogList-E-returns : %s ignoring\n", err.Error())
-		//spanlog
-		// ignor  e
+		fmt.Printf("QueryCatalogList-E-returns : %s ignoring\n", err.Error())
+		return err
 	} else {
 		// Query all Org cats returns a types.CatalogRecord, we want both  representations of a catalog
 		for n, cat := range catalogRecords {
@@ -405,11 +405,14 @@ func (v *VcdPlatform) GetPlatformResources(ctx context.Context) error {
 			if err != nil {
 				fmt.Printf("GetPlatformResource-E-catRecord Name finds no govcd Catalog by name %s\n", cat.Name)
 				return fmt.Errorf("No org cat for CatRec %s", cat.Name)
+
 			}
+			fmt.Printf("\n\nDiscover Adding Catalog %s to CatContainer\n", orgcat.Catalog.Name)
 			v.Objs.Cats[cat.Name] = CatContainer{
 				CatRec: cat,
 				OrgCat: orgcat,
 			}
+
 			if n == 0 {
 				fmt.Printf("GetPlatformResources-I-PrimaryCat set as %s\n", orgcat.Catalog.Name)
 				v.Objs.PrimaryCat = orgcat
@@ -540,16 +543,30 @@ func (v *VcdPlatform) GetPlatformResources(ctx context.Context) error {
 		fmt.Printf("\n---------------------------Discover: found Template VM named %s type %s HREF: %s\n",
 			qr.Name, qr.Type, qr.HREF)
 
-		targetTemplate := v.GetVDCTemplateName()
-		fmt.Printf("\n\nDiscover=I=looking for %s\n", targetTemplate)
-		if qr.Name == targetTemplate {
+		targetTemplateName := v.GetVDCTemplateName()
+		fmt.Printf("\n\nDiscover=I=looking for %s\n", targetTemplateName)
+		if qr.Name == targetTemplateName {
 			fmt.Printf("\n\nDiscover found our VDCTEMPLATE %s fetch it directly\n\n", v.GetVDCTemplateName())
+			tmpls, err := v.GetAllVdcTemplates(ctx)
+			if err != nil {
+				fmt.Printf("Error from GetAllVdcTemplates: %s\n", err.Error())
+			} else {
+				for _, tmpl := range tmpls {
+					if tmpl.VAppTemplate.Name == targetTemplateName {
+						fmt.Printf("\n\n-------setting our base template into v.Objs.Template----------\n\n")
+						v.Objs.Template = tmpl
 
+					}
+					v.Objs.VAppTmpls[tmpl.VAppTemplate.Name] = tmpl
+					fmt.Printf("Discover: Added template %s to Objs.VAppTmpls\n", tmpl.VAppTemplate.Name)
+				}
+			}
 			//tmpl, err :=
 
 			//			v.Objs.PrimaryTemplate
 			//v.Objs.VAppTmpls[
 		}
+
 	}
 	return nil
 }

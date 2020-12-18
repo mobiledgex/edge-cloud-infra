@@ -41,12 +41,13 @@ func (v *VcdPlatform) FindTemplate(ctx context.Context, tmplName string) (*govcd
 func (v *VcdPlatform) GetAllVdcTemplates(ctx context.Context /*, cat *govcd.Catalog*/) ([]*govcd.VAppTemplate, error) {
 
 	var tmpls []*govcd.VAppTemplate
-
+	fmt.Printf("\n\n-----GetAddVdcTemplates----\n\n")
 	queryRes, err := v.Objs.Vdc.QueryVappTemplateList()
 	if err != nil {
-		fmt.Printf("QueryVappTemplList err: %s\n", err.Error())
+		fmt.Printf("\nQueryVappTemplList err: %s\n", err.Error())
 		return nil, err
 	}
+
 	for n, res := range queryRes {
 		for catName, catContainer := range v.Objs.Cats {
 			cat := catContainer.OrgCat

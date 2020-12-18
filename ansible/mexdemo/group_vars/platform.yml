@@ -6,13 +6,6 @@ regions:
     latitude: 35.68
     longitude: 139.77
 
-  - name: mexdemo-kr
-    location: koreacentral
-    region: KR
-    latitude: 37.5665
-    longitude: 126.9780
-    kubernetes_version: 1.12.8
-
   - name: mexdemo-eu-cluster
     azure_resource_group_name: mexdemo-eu-resource-group
     location: westeurope

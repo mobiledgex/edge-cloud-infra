@@ -33,7 +33,7 @@ func (v *VcdPlatform) CreateCloudlet(ctx context.Context, vdc *govcd.Vdc, vappTm
 	var err error
 	var vmRole vmlayer.VMRole
 
-	log.SpanLog(ctx, log.DebugLevelInfra, "CreateCloudlet", "name", vmgp.GroupName)
+	log.SpanLog(ctx, log.DebugLevelInfra, "CreateCloudlet", "name", vmgp.GroupName, "tmpl", vappTmpl)
 	// dumpVMGroupParams(vmgp, 1)
 
 	vmparams := vmlayer.VMOrchestrationParams{}

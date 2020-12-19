@@ -111,10 +111,21 @@ func (v *VcdPlatform) GetVCDURL() string {
 	return v.vcdVars["VCD_URL"]
 }
 
+// Sort out the spelling VCD vs VDC template name in all the secrets. It's offically a vdc template.
 func (v *VcdPlatform) GetVDCTemplateName() string {
 	if v.TestMode {
+		tmplName := os.Getenv("VCDTEMPLATE")
+		if tmplName != "" {
+			return tmplName
+		}
+
 		return os.Getenv("VDCTEMPLATE")
 	}
+	tmplName := v.vcdVars["VCDTEMPLATE"]
+	if tmplName != "" {
+		return tmplName
+	}
+
 	return v.vcdVars["VDCTEMPLATE"]
 }
 

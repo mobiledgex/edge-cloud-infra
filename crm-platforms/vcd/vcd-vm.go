@@ -229,7 +229,7 @@ func (v *VcdPlatform) CreateVMs(ctx context.Context, vmgp *vmlayer.VMGroupOrches
 	if tmpl == nil {
 		if v.Objs.Template != nil {
 			tmpl = v.Objs.Template
-			fmt.Printf("\n\nCreateVMs-I-using v.Objs.Template last resort as %+v\n", *tmpl)
+			fmt.Printf("\n\nCreateVMs-I-using v.Objs.Template last resort as %+v\n", *tmpl.VAppTemplate)
 		} else {
 			return fmt.Errorf("Unable to find ova template")
 		}

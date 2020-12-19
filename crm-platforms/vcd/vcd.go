@@ -552,7 +552,7 @@ func (v *VcdPlatform) GetPlatformResources(ctx context.Context) error {
 			if err != nil {
 				fmt.Printf("Failed to fetch VDCTEMPLATE from PrimaryCat err: %s\n", err.Error())
 			} else {
-				fmt.Printf("Discover set our VDCTemplate into v.Objs.Template: %+v\n", *tmpl)
+				fmt.Printf("Discover set our VDCTemplate into v.Objs.Template: %+v\n", *tmpl.VAppTemplate)
 				v.Objs.Template = tmpl
 			}
 

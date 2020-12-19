@@ -24,7 +24,7 @@ func (v *VcdPlatform) PopulateOrgLoginCredsFromEnv(ctx context.Context) error {
 		User:     os.Getenv("VCD_USER"),
 		Password: os.Getenv("VCD_PASSWD"),
 		Org:      os.Getenv("VCD_ORG"),
-		Href:     fmt.Sprintf("https://%s/api", os.Getenv("VCD_IP")),
+		Href:     os.Getenv("VCD_IP") + "/api",
 		VDC:      os.Getenv("VDC_NAME"),
 		Insecure: true,
 	}

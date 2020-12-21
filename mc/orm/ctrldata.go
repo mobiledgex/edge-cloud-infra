@@ -39,7 +39,7 @@ func (s *AllRegionCaches) refreshRegions(ctx context.Context) error {
 
 	ctrls, err := ShowControllerObj(ctx, nil)
 	if err != nil {
-		return fmt.Errorf("failed to get read controllers from database to refresh region notify clients, %v", err)
+		return fmt.Errorf("failed to get controllers from database to refresh region notify clients, %v", err)
 	}
 	desiredRegions := make(map[string]struct{})
 

@@ -693,6 +693,7 @@ func RunServer(config *ServerConfig) (retserver *Server, reterr error) {
 			err = e.Start(config.ServAddr)
 		}
 		if err != nil && err != http.ErrServerClosed {
+			server.Stop()
 			log.FatalLog("Failed to serve", "err", err)
 		}
 	}()

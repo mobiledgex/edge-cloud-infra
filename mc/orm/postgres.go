@@ -21,6 +21,7 @@ import (
 var retryInterval = 10 * time.Second
 var psqlInfo string
 var sqlListenerWorkers tasks.KeyWorkers
+var sqlPingInterval = 90 * time.Second
 
 func InitSql(ctx context.Context, addr, username, password, dbname string) (*gorm.DB, error) {
 	hostport := strings.Split(addr, ":")
@@ -174,11 +175,12 @@ func initSqlListener(ctx context.Context) (*pq.Listener, error) {
 				err := json.Unmarshal([]byte(noticeData.Extra), notice)
 				if err != nil {
 					log.SpanLog(ctx, log.DebugLevelApi, "failed to unmarshal notice", "err", err, "data", string(noticeData.Extra))
+					span.Finish()
 					continue
 				}
 				sqlListenerWorkers.NeedsWork(ctx, notice.Table)
 				span.Finish()
-			case <-time.After(90 * time.Second):
+			case <-time.After(sqlPingInterval):
 				go func() {
 					listener.Ping()
 				}()

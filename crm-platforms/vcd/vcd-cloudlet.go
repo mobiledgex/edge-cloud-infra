@@ -28,11 +28,12 @@ import (
 
 // Used to create the vdc/cloudlet VApp only. Just one external network PrimaryNet at this point.
 //
-func (v *VcdPlatform) CreateCloudlet(ctx context.Context, vdc *govcd.Vdc, vappTmpl govcd.VAppTemplate, storProf types.Reference, vmgp *vmlayer.VMGroupOrchestrationParams, description string, updateCallback edgeproto.CacheUpdateCallback) (*govcd.VApp, error) {
+func (v *VcdPlatform) CreateCloudlet(ctx context.Context, vappTmpl govcd.VAppTemplate, vmgp *vmlayer.VMGroupOrchestrationParams, description string, updateCallback edgeproto.CacheUpdateCallback) (*govcd.VApp, error) {
 	var vapp *govcd.VApp
 	var err error
 	var vmRole vmlayer.VMRole
-
+	vdc := v.Objs.Vdc
+	storRef := types.Reference{}
 	log.SpanLog(ctx, log.DebugLevelInfra, "CreateCloudlet", "name", vmgp.GroupName, "tmpl", vappTmpl)
 	// dumpVMGroupParams(vmgp, 1)
 
@@ -41,79 +42,76 @@ func (v *VcdPlatform) CreateCloudlet(ctx context.Context, vdc *govcd.Vdc, vappTm
 	// seems to perhaps not allow the added vm for cluster to take new internal networks try putting it back 11/17
 
 	if len(vappTmpl.VAppTemplate.Children.VM) != 0 {
-		// we want to change the name of the templates vm to that of
-		// our vmparams.Name XXX this isn't how it 'officially' works, TODO move to update
+		// xxx non-standard
 		vmtmpl := vappTmpl.VAppTemplate.Children.VM[0]
 		vmparams = vmgp.VMs[0]
-		vmtmpl.Name = vmparams.Name // this will become the vm name in the new Vapp it's the provider specified name (server/vm)
-		//		fmt.Printf("CreateVAppFromTmpl-I-changed vm[0] name in template child:%s to %s\n",
-		//			vappTmpl.VAppTemplate.Children.VM[0].Name, vmtmpl.Name)
+		vmtmpl.Name = vmparams.Name
 		vmRole = vmparams.Role
 	}
 	networks := []*types.OrgVDCNetwork{}
 	networks = append(networks, v.Objs.PrimaryNet.OrgVDCNetwork)
 	extAddr, err := v.GetNextExtAddrForVdcNet(ctx, vdc)
 	if err != nil {
-		fmt.Printf("CreateCloudlet-E-failed to obtain ext net ip %s\n", err.Error())
+		if v.Verbose {
+			log.SpanLog(ctx, log.DebugLevelInfra, "CreateCloudlet failed to obtained ext addr", "error", err)
+		}
 		return nil, err
 	}
-	fmt.Printf("\nCreateCloudlet-I-extAddr retrieved: %s\n", extAddr)
+	log.SpanLog(ctx, log.DebugLevelInfra, "retrieved addr", "address", extAddr)
 	vapp, err = v.FindVApp(ctx, newVappName)
 	if err != nil {
 		// Not found try and create it
-		task, err := vdc.ComposeVApp(networks, vappTmpl, storProf, newVappName, description+vcdProviderVersion, true)
+		task, err := vdc.ComposeVApp(networks, vappTmpl, storRef, newVappName, description+vcdProviderVersion, true)
 		if err != nil {
 
 			if strings.Contains(err.Error(), "already exists") {
 				// So we should have found this already, so this means it was created
 				// behind our backs somehow, so we should add it to our pile of existing VApps...
-				fmt.Printf("CreateVMs %s was not found locally, but Compose returns already exists. Add to local map\n", vmgp.GroupName)
+				log.SpanLog(ctx, log.DebugLevelInfra, "already exists", "GroupName", vmgp.GroupName)
 
 			} else {
 				// operation failed for resource reasons
-				fmt.Printf("CreateVAppFromTempl-E-Compose failed for %s error: %s\n", vmgp.GroupName, err.Error())
 				log.SpanLog(ctx, log.DebugLevelInfra, "CreateVApp failed", "VAppName", vmgp.GroupName, "error", err)
 				return nil, err
 			}
 		} else {
 			err = task.WaitTaskCompletion()
 			if err != nil {
-				fmt.Printf("\nCreateVAppFromTmpl-E-waiting for task complete %s\n", err.Error())
+				log.SpanLog(ctx, log.DebugLevelInfra, "ComposeVApp wait for completeion failed", "VAppName", vmgp.GroupName, "error", err)
 				return nil, err
 			}
-
 			vapp, err = v.Objs.Vdc.GetVAppByName(newVappName, true)
 			if err != nil {
+				log.SpanLog(ctx, log.DebugLevelInfra, "can't retrieve compoled vapp", "VAppName", vmgp.GroupName, "error", err)
 				return nil, err
 			}
 			err = vapp.BlockWhileStatus("UNRESOLVED", 120) // upto seconds
 			if err != nil {
+				log.SpanLog(ctx, log.DebugLevelInfra, "wait for RESOLVED error", "VAppName", vmgp.GroupName, "error", err)
 				return nil, err
-
 			}
 			task, err = vapp.RemoveAllNetworks()
 			if err != nil {
-				fmt.Printf("Error removing all networks: %s\n", err.Error())
-				// Shouldn't be fatal though eh?
+				log.SpanLog(ctx, log.DebugLevelInfra, "remove networks failed", "VAppName", vmgp.GroupName, "error", err)
+				return nil, err
 			}
 			err = task.WaitTaskCompletion()
-
+			if err != nil {
+				log.SpanLog(ctx, log.DebugLevelInfra, "task completion failed", "VAppName", vmgp.GroupName, "error", err)
+			}
 			desiredNetConfig := &types.NetworkConnectionSection{}
 			desiredNetConfig.PrimaryNetworkConnectionIndex = 0
-			// if the vm is to host the LB, we need
 
 			if vmRole == vmlayer.RoleAgent { // Other cases XXX
 				//haveExternalNet = true
-				fmt.Printf("CreateVApp-I-add external network\n")
-
+				log.SpanLog(ctx, log.DebugLevelInfra, "Add external network", "VAppName", vmgp.GroupName)
 				_ /* networkConfigSection */, err = v.AddVappNetwork(ctx, vapp)
 
 				if err != nil {
-					fmt.Printf("CreateRoutedExternalNetwork (external) failed: %s\n", err.Error())
+					log.SpanLog(ctx, log.DebugLevelInfra, "Add external network failed ", "VAppName", vmgp.GroupName, "err", err)
 					return nil, err
 				}
-
-				// Revisit ModePool and 12/13/20
+				// Revisit ModePool and 12/13/20  Still seems to leak IPs
 				desiredNetConfig.NetworkConnection = append(desiredNetConfig.NetworkConnection,
 					&types.NetworkConnection{
 						IsConnected:             true,
@@ -125,7 +123,6 @@ func (v *VcdPlatform) CreateCloudlet(ctx context.Context, vdc *govcd.Vdc, vappTm
 			}
 
 			vmtmplName := vapp.VApp.Children.VM[0].Name
-			fmt.Printf("Using existing VM in template Named: %s\n", vmtmplName)
 			vm, err := vapp.GetVMByName(vmtmplName, false)
 			if err != nil {
 				return nil, err
@@ -133,14 +130,11 @@ func (v *VcdPlatform) CreateCloudlet(ctx context.Context, vdc *govcd.Vdc, vappTm
 			// One or two networks, update our connection(s)
 			err = vm.UpdateNetworkConnectionSection(desiredNetConfig)
 			if err != nil {
-				fmt.Printf("CreateVAppFromTemplate-E-UpdateNetworkConnnectionSection: %s\n", err.Error())
+				log.SpanLog(ctx, log.DebugLevelInfra, "update network failed", "VAppName", vmgp.GroupName, "err", err)
 				return nil, err
 			}
 
 			cloudletNameParts := strings.Split(vapp.VApp.Name, ".")
-			for i := 0; i < len(cloudletNameParts); i++ {
-				fmt.Printf("\t%s\n", cloudletNameParts[i])
-			}
 			cloudletName := cloudletNameParts[0]
 
 			Vapp := VApp{
@@ -160,7 +154,6 @@ func (v *VcdPlatform) CreateCloudlet(ctx context.Context, vdc *govcd.Vdc, vappTm
 			v.Objs.Cloudlet = &cloudlet
 			// Finish
 			for curChild, child := range vapp.VApp.Children.VM {
-				fmt.Printf("\t%s\n", child.Name)
 				vmparams := vmgp.VMs[curChild]
 				// We need the govcd.VM to customize
 				// mark this vm with vapp name and position for uniqueness.
@@ -174,14 +167,11 @@ func (v *VcdPlatform) CreateCloudlet(ctx context.Context, vdc *govcd.Vdc, vappTm
 				var subnet string
 				err = v.updateVM(ctx, vm, vmparams, subnet)
 				if err != nil {
+					log.SpanLog(ctx, log.DebugLevelInfra, "update vm failed ", "VAppName", vmgp.GroupName, "err", err)
 					fmt.Printf("CreateVMs-E-error updating VM %s : %s \n", child.Name, err.Error())
 					return nil, err
 				}
-
 				v.Objs.Cloudlet.ExtVMMap[extAddr] = vm
-				fmt.Printf("\n\n\tCreateCloudlet-I-added entry ExtVMMap key %s vm: %s maplen: %d \n\n", extAddr,
-					vm.VM.Name, len(v.Objs.Cloudlet.ExtVMMap))
-
 			}
 			// Once we've customized this vm, add it our vm map
 			//err = task.WaitTaskCompletion()
@@ -190,6 +180,7 @@ func (v *VcdPlatform) CreateCloudlet(ctx context.Context, vdc *govcd.Vdc, vappTm
 			fmt.Printf("\n\nCreateCloudlet-I-add metadata cloud name %s to vapp %s has %d child VMs\n", cloudletName, vapp.VApp.Name, len(vapp.VApp.Children.VM))
 			task, err := vapp.AddMetadata("CloudletName", cloudletName)
 			if err != nil {
+				log.SpanLog(ctx, log.DebugLevelInfra, "add metadata failed ", "VAppName", vmgp.GroupName, "err", err)
 				return nil, err
 			}
 			err = task.WaitTaskCompletion()
@@ -199,6 +190,8 @@ func (v *VcdPlatform) CreateCloudlet(ctx context.Context, vdc *govcd.Vdc, vappTm
 
 			task, err = vapp.PowerOn()
 			if err != nil {
+				log.SpanLog(ctx, log.DebugLevelInfra, "power on  failed ", "VAppName", vmgp.GroupName, "err", err)
+
 				return nil, err
 			}
 			fmt.Printf("CreateVMs-I-waiting task complete for power on...\n")
@@ -206,7 +199,6 @@ func (v *VcdPlatform) CreateCloudlet(ctx context.Context, vdc *govcd.Vdc, vappTm
 			if err != nil {
 				return nil, err
 			}
-
 			vapp.Refresh()
 			return vapp, nil
 		}

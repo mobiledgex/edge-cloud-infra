@@ -3,7 +3,6 @@ package vcd
 import (
 	"context"
 	"fmt"
-	"os"
 	"strconv"
 	"strings"
 
@@ -174,41 +173,25 @@ func (v *VcdPlatform) CreateVM(ctx context.Context, vapp *govcd.VApp, vmparams *
 	return vm, nil
 }
 
-// Create VMs according to their roles, (no VMType available here) and their names
-// Cloudlets are named like cloudlet
-// ClusterInst are named like cloudlet.cluster
-// Nodes are named like vm.cloudlet.cluster right?
-//
+// Create VMs according to their role/type and names
 func (v *VcdPlatform) CreateVMs(ctx context.Context, vmgp *vmlayer.VMGroupOrchestrationParams, updateCallback edgeproto.CacheUpdateCallback) error {
 
-	// If the given cloudlet vapp  is already running all subsquent vms are added to
-	// the cloudlet's vapp instance.
-	//	vu.DumpVMGroupParams(vmgp, 1)
+	// vu.DumpVMGroupParams(vmgp, 1)
 	log.SpanLog(ctx, log.DebugLevelInfra, "CreateVMs", "grpName", vmgp.GroupName)
-
 	// Find our ova template, all platform vms use the same template
-	tmplName := v.vcdVars["VDCTEMPLATE"]
-
+	tmplName := v.GetVDCTemplateName() // vcdVars["VDCTEMPLATE"]
 	if tmplName == "" {
-		// trade env for property XXX
-		tmplName = os.Getenv("VDCTEMPLATE")
-		if tmplName == "" {
-			return fmt.Errorf("VDC Base template name not found")
-		}
+		return fmt.Errorf("VDCTEMPLATE not set")
 	}
-	fmt.Printf("\n\nCreateVMs-I-searching for template %s for %s \n", tmplName, vmgp.GroupName)
-	// First get our template
 	tmpl, err := v.FindTemplate(ctx, tmplName)
 	if err != nil {
 		found := false
-		fmt.Printf("\n\ttemplate %s not found locally\n", tmplName)
+		log.SpanLog(ctx, log.DebugLevelInfra, "Template not found locally")
 		// Back to vdc, has it been created manually?
-		tmpls, err := v.GetAllVdcTemplates(ctx /*v.Objs.PrimaryCat*/)
+		tmpls, err := v.GetAllVdcTemplates(ctx)
 		if err == nil {
 			for _, tmpl = range tmpls {
-				fmt.Printf("\n\nCreateVms tmpl %s  not found locally consider %s\n\n", tmplName, tmpl.VAppTemplate.Name)
 				if tmpl.VAppTemplate.Name == tmplName {
-					fmt.Printf("\nFound template %s\n", tmpl.VAppTemplate.Name)
 					v.Objs.VAppTmpls[tmplName] = tmpl
 					found = true
 					break
@@ -216,10 +199,9 @@ func (v *VcdPlatform) CreateVMs(ctx context.Context, vmgp *vmlayer.VMGroupOrches
 			}
 		}
 		if !found {
-
+			return fmt.Errorf("Template not found")
 			// Try fetching it from the respository or local update
-			// XXX upload not ready expect it to be in the catalog.
-			//log.SpanLog(ctx, log.DebugLevelInfra, "Template %s not found in vdc, attempt upload")
+			// XXX upload TBI, expect it to be in the catalog.
 			//err = v.UploadOvaFile(ctx, tmplName)
 			//if err != nil {
 			//return fmt.Errorf("Template %s not found\n", tmplName)
@@ -228,8 +210,10 @@ func (v *VcdPlatform) CreateVMs(ctx context.Context, vmgp *vmlayer.VMGroupOrches
 	}
 	if tmpl == nil {
 		if v.Objs.Template != nil {
+			// last ditch. When not found locally, nor on demand,  this template has issues.
+			// I think we've found one of the auto-generated templates created for a 'standalone vm'
 			tmpl = v.Objs.Template
-			fmt.Printf("\n\nCreateVMs-I-using v.Objs.Template last resort as %+v\n", *tmpl.VAppTemplate)
+			log.SpanLog(ctx, log.DebugLevelInfra, "using v.Objs.Template last resort", "template", *tmpl.VAppTemplate)
 		} else {
 			return fmt.Errorf("Unable to find ova template")
 		}
@@ -241,7 +225,7 @@ func (v *VcdPlatform) CreateVMs(ctx context.Context, vmgp *vmlayer.VMGroupOrches
 	if v.Objs.Cloudlet != nil {
 		_, err := v.FindVM(ctx, vmgp.GroupName)
 		if err == nil {
-			fmt.Printf("\n\nCreateVMs-I-%s already exitts return nil\n\n", vmgp.GroupName)
+			log.SpanLog(ctx, log.DebugLevelInfra, "GroupName exists", "name", vmgp.GroupName)
 			return nil
 		}
 		// look for an existing Vapp/Cloudlet with this name
@@ -261,35 +245,24 @@ func (v *VcdPlatform) CreateVMs(ctx context.Context, vmgp *vmlayer.VMGroupOrches
 
 		clusterName, err := v.CreateCluster(ctx, cloudlet, tmpl, vmgp, updateCallback)
 		if err != nil {
-			fmt.Printf("\nCreateVMs-E-CreateCluster-E-%s\n", err.Error())
 			return err
 		}
-		fmt.Printf("CreateVMs-I-Cluster %s Created successfully\n", clusterName)
-
 		cluster, err := v.FindCluster(ctx, clusterName)
 		if err != nil {
-			fmt.Printf("\n\nCreateCluster-W-created by not fund in lookup %s\n", clusterName)
+			log.SpanLog(ctx, log.DebugLevelInfra, "Internal Error")
+			return err
 		} else {
-			fmt.Printf("Cluster %s has %d cvms : \n", clusterName, len(cluster.VMs))
-			for _, cvm := range cluster.VMs {
-				fmt.Printf("\tName: %s\n\tRole : %s\n\t Type: %s\n\tFlavor: %s\n\tParentCluster: %s\n\tExtAddr: %s InternalAddr:%s vm:%s\n",
-					cvm.vmName, cvm.vmRole, cvm.vmType, cvm.vmFlavor, cvm.vmParentCluster, cvm.vmIPs.ExternalIp, cvm.vmIPs.InternalIp, cvm.vm.VM.Name)
+			if v.Verbose {
+				log.SpanLog(ctx, log.DebugLevelInfra, "Cluster created", "ClusterName", clusterName, "cluster", cluster)
 			}
 		}
-
 		return nil
 	}
 	// CreateCloudlet
-	vdc := v.Objs.Vdc
-	storRef := types.Reference{}
-	// Empty Ref wins the default (vSAN Default is all we have, but could support others xxx Prop?)
-
-	// CreateCloudlet
-	vapp, err := v.CreateCloudlet(ctx, vdc, *tmpl, storRef, vmgp, description, updateCallback)
+	vapp, err := v.CreateCloudlet(ctx, *tmpl, vmgp, description, updateCallback)
 	if err != nil {
 		return fmt.Errorf("CreateVApp return error: %s", err.Error())
 	}
-
 	status, err := vapp.GetStatus()
 	// This is our single vapp / vdc = cloudlet
 	log.SpanLog(ctx, log.DebugLevelInfra, "CreateVMs", "Vapp", vapp.VApp.Name, "Status", status)
@@ -661,19 +634,7 @@ func (v *VcdPlatform) GetAvailableVMs(ctx context.Context) ([]*types.QueryResult
 	return vmRecs, nil
 }
 
-// return the IP
-/*
-type ServerIP struct {
-	MacAddress             string
-	InternalAddr           string // this is the address used inside the server
-	ExternalAddr           string // this is external with respect to the server, not necessarily internet reachable.  Can be a floating IP
-	Network                string
-	PortName               string
-	ExternalAddrIsFloating bool
-}
-*/
-
-func (v *VcdPlatform) GetVMAddressesOrig(ctx context.Context, vm *govcd.VM) ([]vmlayer.ServerIP, string, error) {
+func (v *VcdPlatform) GetVMAddresses(ctx context.Context, vm *govcd.VM) ([]vmlayer.ServerIP, string, error) {
 	var serverIPs []vmlayer.ServerIP
 	if vm == nil {
 		return serverIPs, "", fmt.Errorf("Nil vm received")
@@ -709,6 +670,7 @@ func (v *VcdPlatform) GetVMAddressesOrig(ctx context.Context, vm *govcd.VM) ([]v
 	return serverIPs, ip, nil
 }
 
+/*
 func (v *VcdPlatform) GetVMAddresses2(ctx context.Context, vm *govcd.VM) ([]vmlayer.ServerIP, string, error) {
 	var serverIPs []vmlayer.ServerIP
 	if vm == nil {
@@ -747,6 +709,8 @@ func (v *VcdPlatform) GetVMAddresses2(ctx context.Context, vm *govcd.VM) ([]vmla
 	// but just retrun one serverIP object
 	return serverIPs, ip, nil
 }
+
+*/
 
 // Revisit XXX
 func (v *VcdPlatform) SetVMProperties(vmProperties *vmlayer.VMProperties) {

@@ -86,29 +86,47 @@ func (v *VcdPlatform) GetVcdVars(ctx context.Context, accessApi platform.AccessA
 	return nil
 }
 
-func (v *VcdPlatform) GetVCDIP() string {
+func (v *VcdPlatform) SetVcdVerbose() bool {
+	if v.TestMode {
+		verbose := os.Getenv("VCDVerbose")
+		if verbose == "true" {
+			return true
+		}
+	}
+	return false
+}
 
+func (v *VcdPlatform) GetVCDIP() string {
 	return v.vcdVars["VCD_IP"]
 }
 func (v *VcdPlatform) GetVCDUser() string {
-
 	return v.vcdVars["VCD_USER"]
 }
 func (v *VcdPlatform) GetVCDPassword() string {
-
 	return v.vcdVars["VCD_PASSWORD"]
 }
-func (v *VcdPlatform) GetVCD_ORG() string {
-
+func (v *VcdPlatform) GetVCDORG() string {
 	return v.vcdVars["VCD_ORG"]
 }
 func (v *VcdPlatform) GetVDCName() string {
-
+	if v.TestMode {
+		return os.Getenv("VDC_NAME")
+	}
 	return v.vcdVars["VDC_NAME"]
 }
 func (v *VcdPlatform) GetVCDURL() string {
-
 	return v.vcdVars["VCD_URL"]
+}
+
+func (v *VcdPlatform) GetPrimaryVdc() string {
+	if v.TestMode {
+		return os.Getenv("PRIMARY_VDC")
+	}
+	return v.vcdVars["PRIMARY_VDC"]
+}
+
+func (v *VcdPlatform) GetMexExtNetwork() string {
+	return v.vcdVars["MEX_EXT_NETWORK"]
 }
 
 // Sort out the spelling VCD vs VDC template name in all the secrets. It's offically a vdc template.

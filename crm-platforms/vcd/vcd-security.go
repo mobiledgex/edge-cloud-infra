@@ -22,7 +22,7 @@ func (v *VcdPlatform) PopulateOrgLoginCredsFromEnv(ctx context.Context) error {
 
 	creds := VcdConfigParams{
 		User:     os.Getenv("VCD_USER"),
-		Password: os.Getenv("VCD_PASSWD"),
+		Password: os.Getenv("VCD_PASSWORD"),
 		Org:      os.Getenv("VCD_ORG"),
 		Href:     os.Getenv("VCD_IP") + "/api",
 		VDC:      os.Getenv("VDC_NAME"),
@@ -69,11 +69,11 @@ func (v *VcdPlatform) PopulateOrgLoginCredsFromVault(ctx context.Context) error 
 
 	log.SpanLog(ctx, log.DebugLevelInfra, "PopulateOrgLoginCredsFromVault")
 	creds := VcdConfigParams{
-		User:     v.vcdVars["VCD_USER"],
-		Password: v.vcdVars["VCD_PASSWORD"],
-		Org:      v.vcdVars["VCD_ORG"],
-		Href:     v.vcdVars["VCD_IP"] + "/api",
-		VDC:      v.vcdVars["VDC_NAME"],
+		User:     v.GetVCDUser(),
+		Password: v.GetVCDPassword(),
+		Org:      v.GetVCDORG(),
+		Href:     v.GetVCDIP(),
+		VDC:      v.GetVDCName(),
 		Insecure: true,
 	}
 

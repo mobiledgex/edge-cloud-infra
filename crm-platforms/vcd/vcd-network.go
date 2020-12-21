@@ -189,6 +189,10 @@ func (v *VcdPlatform) getInternalNetworkNameForCluster(ctx context.Context, serv
 	//  mex-k8s-subnet-cld1-clust1-mobiledgex
 	// port name is just this + "-port"
 	parts := strings.Split(serverName, ".")
+	if len(parts) == 1 {
+		// something with just - delimiters doesn't want an internal addr anyway
+		return ""
+	}
 	netname := "mex-k8s-subnet-" + parts[1] + "-" + parts[0] + "-" + parts[3]
 	return netname
 }

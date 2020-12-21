@@ -31,7 +31,7 @@ func (v *VcdPlatform) GetFlavor(ctx context.Context, flavorName string) (*edgepr
 }
 
 func (v *VcdPlatform) GetFlavorList(ctx context.Context) ([]*edgeproto.FlavorInfo, error) {
-	log.SpanLog(ctx, log.DebugLevelInfra, "PI GetFlavorList 3")
+	log.SpanLog(ctx, log.DebugLevelInfra, "GetFlavorList")
 	// we just send the controller back the same list of flavors it gave us, because VSphere has no flavor concept.
 	// Make sure each flavor is at least a minimum size to run the platform
 
@@ -45,8 +45,11 @@ func (v *VcdPlatform) GetFlavorList(ctx context.Context) ([]*edgeproto.FlavorInf
 
 		flavorkeys[*k] = struct{}{}
 	})
+
 	for k := range flavorkeys {
-		log.SpanLog(ctx, log.DebugLevelInfra, "GetFlavorList found flavor", "key", k)
+		if v.Verbose {
+			log.SpanLog(ctx, log.DebugLevelInfra, "GetFlavorList found flavor", "key", k)
+		}
 		var flav edgeproto.Flavor
 		if v.caches.FlavorCache.Get(&k, &flav) {
 			var flavInfo edgeproto.FlavorInfo
@@ -85,7 +88,6 @@ func (v *VcdPlatform) GetFlavorList(ctx context.Context) ([]*edgeproto.FlavorInf
 		Disk:  rlbFlav.Disk,
 	}
 	flavors = append(flavors, &rootlbFlavorInfo)
-	fmt.Printf("GetFlavorList-I-returning flavors: %+v\n", flavors)
 	return flavors, nil
 }
 

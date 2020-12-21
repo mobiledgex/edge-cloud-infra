@@ -185,6 +185,20 @@ func TestAddVMNetwork(t *testing.T) {
 // NetworkConnectionSection
 //
 
+// xxx These Result RecordTypes xxx
+// TestVM only caller currently xxx
+func getAvailableVMs(ctx context.Context) ([]*types.QueryResultVMRecordType, error) {
+	// returns  VMs of all VApps available in our vdc
+
+	var filter types.VmQueryFilter = types.VmQueryFilterAll
+
+	vmRecs, err := tv.Client.Client.QueryVmList(filter)
+	if err != nil {
+		return nil, fmt.Errorf("Unable to Query available VMs err: %s", err.Error())
+	}
+	return vmRecs, nil
+}
+
 func TestVM(t *testing.T) {
 
 	live, ctx, err := InitVcdTestEnv()
@@ -209,7 +223,7 @@ func TestVM(t *testing.T) {
 		fmt.Printf("cli current Api version: %s\n", cli.Client.APIVersion)
 
 		// look for any available VMs?
-		vmRecords, err := tv.GetAvailableVMs(ctx)
+		vmRecords, err := getAvailableVMs(ctx)
 		if err != nil {
 			fmt.Printf("\n\nError GetAvailableVMs: %s\n", err.Error())
 		}

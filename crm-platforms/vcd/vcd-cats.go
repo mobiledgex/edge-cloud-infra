@@ -2,109 +2,40 @@ package vcd
 
 import (
 	"context"
-	"fmt"
-	//"os"
 	"time"
 
-	"github.com/mobiledgex/edge-cloud-infra/vmlayer"
 	"github.com/mobiledgex/edge-cloud/log"
-	"github.com/vmware/go-vcloud-director/v2/types/v56"
 )
 
 // catalog releated functionality
 
-// Return catalog names found in our our org. Then we can get by Name.
-func (v *VcdPlatform) GetCatalogNames(ctx context.Context) ([]string, error) {
-	log.SpanLog(ctx, log.DebugLevelInfra, "GetCatalogNames from", "Org", v.Objs.Org.Org.Name)
-	var catNames []string
-
-	return catNames, nil
-}
-
-// Gather media records from our catalog(s)
-func (v *VcdPlatform) GetMediaRecords(ctx context.Context) ([]*types.MediaRecordType, error) {
-	c := CatContainer{}
-	cname := ""
-	for cname, c = range v.Objs.Cats {
-		m, err := c.OrgCat.QueryMediaList()
-		if err == nil {
-			return nil, fmt.Errorf("Error from QueryMediaList cat: %s error %s", cname, err.Error())
-		}
-		c.MediaRecs = append(c.MediaRecs, m...)
-	}
-	return c.MediaRecs, nil
-}
-
 // generic upload in cats_test
 func (v *VcdPlatform) UploadOvaFile(ctx context.Context, tmplName string) error {
 
-	// The platform has some URL goodies to use
-	// no longer exists	vconf := v.vmProperties.CommonPf.VaultConfig
+	baseurl := "" // ovaLocation
+	tname := tmplName
+	url := baseurl + "/tmplName" + "ova"
 
-	ovaLocation := vmlayer.DefaultCloudletVMImagePath + "vcd-" + vmlayer.MEXInfraVersion + ".ova"
-	fmt.Printf("UploadOvaFile: ovaLocation: %s\n", ovaLocation)
-
-	// need stdard URL I think platforms has a generic URL
-	//path := os.Getenv("HOME")
-	//fmt.Printf("Path: %s\n", path)
-
-	url := ovaLocation // path + "/vmware-lab/" + *ovaName
-	//
-	tname := tmplName + "-tmpl"
-	fmt.Printf("testMediaUpload-I-attempt uploading: %s naming it %s \n", url, tname)
-
+	log.SpanLog(ctx, log.DebugLevelInfra, "upload ova from", "URI", url, "tmpl", tname)
 	cat := v.Objs.PrimaryCat
 	elapse_start := time.Now()
-	// units for upload check size? MB? dunno... yet.
-
-	task, err := cat.UploadOvf(url, tname, "test-import-ova-vcd", 1024)
-
+	// MB
+	task, err := cat.UploadOvf(url, tname, "mex ova base template", 8*1024)
 	if err != nil {
-		fmt.Printf("\nError from UploadOvf: %s\n", err.Error())
+		return err
 	}
-	fmt.Printf("Task: %+v\n", task)
 	err = task.WaitTaskCompletion()
-	fmt.Printf("upload complete in %s\n", time.Since(elapse_start).String())
+	elapsed := time.Since(elapse_start).String()
+	log.SpanLog(ctx, log.DebugLevelInfra, "tmpl uploaded ", "template", tmplName, "elapsed time", elapsed)
+
 	return err
-
-	//afilePath, err := vmlayer.DownloadVMImage(ctx, v.vmProperties.CommonPf.VaultConfig, imageName, imageUrl, md5Sum)
-	//if err != nil {
-	//	return err
-	//}
-
 }
 
 func (v *VcdPlatform) DeleteTemplate(ctx context.Context, name string) error {
-
 	cat := v.Objs.PrimaryCat
-	// hmm, choices
-	/*
-		cItem, err := cat.FindCatalogItem(name)
-		if err != nil {
-			fmt.Printf("Error finding %s from PrimaryCat :%s \n", name, err.Error())
-			//	return err
-		} else {
-			if cItem == govcd.CatalogItem{}  {
-				fmt.Printf("%s not found in PrimaryCat\n", name)
-				return err
-			}
-			err = cItem.Delete()
-
-			if err != nil {
-				fmt.Printf("Error on delete: %s\n", err.Error())
-			}
-			return err
-		}
-	*/
-	cItem2, err := cat.GetCatalogItemByName(name, false)
+	cItem, err := cat.GetCatalogItemByName(name, false)
 	if err != nil {
-		fmt.Printf("Error getting %s from PrimaryCat\n", name)
 		return err
 	}
-	err = cItem2.Delete()
-	if err != nil {
-		fmt.Printf("Error on delete: %s\n", err.Error())
-	}
-
-	return err
+	return cItem.Delete()
 }

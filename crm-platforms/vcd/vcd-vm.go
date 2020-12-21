@@ -52,24 +52,20 @@ func (v *VcdPlatform) IsDhcpEnabled(ctx context.Context, net *govcd.OrgVDCNetwor
 	vdcnet := net.OrgVDCNetwork
 
 	netconfig := vdcnet.Configuration
-	fmt.Printf("\n\nnetconfnig: %+v\n\n", netconfig)
 	if netconfig != nil {
 		features := netconfig.Features
-		fmt.Printf("\n\nnetconfnig: %+v\n\n", features)
 		dhcpservice := features.DhcpService
 		return dhcpservice.IsEnabled
 
-	} else {
-		fmt.Printf("\nNet %s has no config!\n", vdcnet.Name)
 	}
 	return false
 }
 
 // Per VMRequestSpec/VM
 func (v *VcdPlatform) PopulateVMNetConnectSection(ctx context.Context, vmparams *vmlayer.VMOrchestrationParams) (*types.NetworkConnectionSection, error) {
-	//netConnections := []*types.NetworkConnection{}
+
 	netConnectSec := &types.NetworkConnectionSection{}
-	log.SpanLog(ctx, log.DebugLevelInfra, "PopulateVMNetConnectSection-I-VM", "name", vmparams.Name, "role", vmparams.Role)
+	log.SpanLog(ctx, log.DebugLevelInfra, "PopulateVMNetConnectSection ", "name", vmparams.Name, "role", vmparams.Role)
 	if vmparams.Role == vmlayer.RoleVMPlatform || vmparams.Role == vmlayer.RoleAgent {
 
 		netConnectSec := &types.NetworkConnectionSection{}
@@ -85,15 +81,11 @@ func (v *VcdPlatform) PopulateVMNetConnectSection(ctx context.Context, vmparams 
 		)
 
 	}
-
-	// and in all cases, add a perhaps second nic for internal network.
-
-	fmt.Printf("\nPopulateVMNetCOnnectSection-I-connection: %+v\n", netConnectSec)
 	return netConnectSec, nil
 }
 
 // Given an org, vm, catalog name, and meida name, insert the media into the vm
-
+/*
 func (v *VcdPlatform) InsertMediaToVM(ctx context.Context, catalogName, mediaName string, vm *govcd.VM) error {
 
 	if vm == nil {
@@ -108,6 +100,7 @@ func (v *VcdPlatform) InsertMediaToVM(ctx context.Context, catalogName, mediaNam
 	}
 	return nil
 }
+*/
 
 // vm_types.go has the recompose bits for whatever reason...
 func (v *VcdPlatform) PopulateRecomposeParamsFromOrchParams(ctx context.Context, vmparams *vmlayer.VMOrchestrationParams) (*types.RecomposeVAppParamsForEmptyVm, error) {
@@ -144,14 +137,14 @@ func (v *VcdPlatform) CreateVM(ctx context.Context, vapp *govcd.VApp, vmparams *
 	nc, err := v.PopulateVMNetConnectSection(ctx, vmparams)
 	// add nc to the vm
 	if err != nil {
-		fmt.Printf("\nCreateVM-E-populateVMNetConnectSetion error: %s\n", err.Error())
+		return nil, err
 	}
 
 	// This is failing as vm.HREF is not set yet.
 
 	err = vm.UpdateNetworkConnectionSection(nc)
 	if err != nil {
-		fmt.Printf("\nUpdateNetowrkConectionSection fails: %s\n", err.Error())
+		return nil, err
 	}
 
 	// xlate various vmgp to this VM
@@ -159,13 +152,13 @@ func (v *VcdPlatform) CreateVM(ctx context.Context, vapp *govcd.VApp, vmparams *
 	// what do people do with task? Wait on it? Since I've see async calls, these are sync?
 	t, err := vm.ChangeCPUCount(int(vmparams.Vcpus))
 	if err != nil {
-		fmt.Printf("\nCreateVM unable to change CPUCount for vm %s\n", vm.VM.Name)
+		return nil, err
 	}
 	err = t.WaitTaskCompletion()
 	// vm.ChangeNetworkConfig(networks []map[string]interface{}) (Task, error) {
 	t, err = vm.ChangeMemorySize(int(vmparams.Ram))
 	if err != nil {
-		fmt.Printf("\nCreateVM unable to change CPUCount for vm %s\n", vm.VM.Name)
+		return nil, err
 	}
 	err = t.WaitTaskCompletion()
 	// XXX add a local storage volume of size MBs..
@@ -218,8 +211,7 @@ func (v *VcdPlatform) CreateVMs(ctx context.Context, vmgp *vmlayer.VMGroupOrches
 			return fmt.Errorf("Unable to find ova template")
 		}
 	}
-	numVMs := len(vmgp.VMs)
-	fmt.Printf("\n\nCreateVMs-I-GroupName wants %d VMs\n", numVMs)
+
 	description := vmgp.GroupName + "-vapp"
 	cloudletName := ""
 	if v.Objs.Cloudlet != nil {
@@ -280,7 +272,6 @@ func (v *VcdPlatform) updateVmDisk(vm *govcd.VM, size int64) error {
 	// remove this current disk
 	err := vm.DeleteInternalDisk(diskId)
 	if err != nil {
-		fmt.Printf("DeleteInternalDisk failed: %s\n", err.Error())
 		return err
 	}
 
@@ -292,7 +283,6 @@ func (v *VcdPlatform) updateVmDisk(vm *govcd.VM, size int64) error {
 	}
 	_, err = vm.AddInternalDisk(newDiskSettings)
 	if err != nil {
-		fmt.Printf("AddInternalDisk tailed: %s\n", err.Error())
 		return err
 	}
 	return nil
@@ -305,7 +295,6 @@ func (v *VcdPlatform) guestCustomization(ctx context.Context, vm govcd.VM, vmpar
 	if subnet != "" {
 		subnet = "10.101.1.1"
 		script := fmt.Sprintf("%s%s%s", "#!/bin/bash  &#13; ip route del default via", subnet, "&#13")
-		fmt.Printf("guestCustomization script: %s\n", script)
 		vm.VM.GuestCustomizationSection.CustomizationScript = script
 	}
 	vm.VM.GuestCustomizationSection.Enabled = vu.TakeBoolPointer(true)
@@ -313,27 +302,8 @@ func (v *VcdPlatform) guestCustomization(ctx context.Context, vm govcd.VM, vmpar
 	return nil
 }
 
-// TBD
-func (v *VcdPlatform) populateVMMetadata(ctx context.Context, vm govcd.VM, vmparams vmlayer.VMOrchestrationParams) error {
-
-	for _, port := range vmparams.Ports {
-		fmt.Printf("\t Name: %s preexsting: %t PortGroup %s\n", port.Name, port.Preexisting, port.PortGroup)
-	}
-	for _, FixedIP := range vmparams.FixedIPs {
-		fmt.Printf("\tFixedIP: LastIPOctet: %d Address: %s Gateway: %s\n",
-			FixedIP.LastIPOctet, FixedIP.Address, FixedIP.Gateway)
-	}
-	return nil
-}
-
 // set vm params and call vm.UpdateVmSpecSection
 func (v *VcdPlatform) updateVM(ctx context.Context, vm *govcd.VM, vmparams vmlayer.VMOrchestrationParams, subnet string) error {
-
-	//parentVapp, err := vm.GetParentVApp()
-	err := v.populateVMMetadata(ctx, *vm, vmparams)
-	if err != nil {
-		return err
-	}
 
 	flavorName := vmparams.FlavorName
 	flavor, err := v.GetFlavor(ctx, flavorName)
@@ -345,8 +315,6 @@ func (v *VcdPlatform) updateVM(ctx context.Context, vm *govcd.VM, vmparams vmlay
 	if err != nil {
 		return err
 	}
-
-	fmt.Printf("Disk Update TBI\n")
 
 	// meta data for Role etc
 	psl, err := v.populateProductSection(ctx, vm, &vmparams)
@@ -375,12 +343,13 @@ func (v *VcdPlatform) updateVM(ctx context.Context, vm *govcd.VM, vmparams vmlay
 // Add/remove VM from our VApp (group)
 //
 func (v *VcdPlatform) UpdateVMs(ctx context.Context, vmgp *vmlayer.VMGroupOrchestrationParams, updateCallback edgeproto.CacheUpdateCallback) error {
-	log.SpanLog(ctx, log.DebugLevelInfra, "UpdateVMs", "OrchParams", vmgp)
+	log.SpanLog(ctx, log.DebugLevelInfra, "UpdateVMs TBI", "OrchParams", vmgp)
 	// convert each vmOrchParams into a *types.VmSpecSection and call updateVM for each vm
 	return nil
 }
+
 func (v *VcdPlatform) SyncVMs(ctx context.Context, vmgp *vmlayer.VMGroupOrchestrationParams, updateCallback edgeproto.CacheUpdateCallback) error {
-	log.SpanLog(ctx, log.DebugLevelInfra, "UpdateVMs", "OrchParams", vmgp)
+	log.SpanLog(ctx, log.DebugLevelInfra, "SyncVMs TBI", "OrchParams", vmgp)
 	return nil
 }
 
@@ -396,18 +365,15 @@ func (v *VcdPlatform) DeleteVM(ctx context.Context, vm *govcd.VM) error {
 	// do we care? mdata, err := vm.GetMetadata()
 	status, err := vm.GetStatus()
 	if err != nil {
-		fmt.Printf("\n\nDeleteVm-E-getting status for vm : %s err: %s\n", vm.VM.Name, err.Error())
 		return err
 	}
 	if status == "POWERED_ON" {
 		task, err := vm.PowerOff()
 		if err != nil {
-			fmt.Printf("\n\nDeleteVm-E-powering off vm : %s err: %s\n", vm.VM.Name, err.Error())
 			return err
 		}
 		err = task.WaitTaskCompletion()
 		if err != nil {
-			fmt.Printf("\n\nDeleteVm-E-waiting powering off vm : %s, err: %s\n", vm.VM.Name, err.Error())
 		}
 	}
 
@@ -437,42 +403,34 @@ func (v *VcdPlatform) DeleteVMs(ctx context.Context, vmGroupName string) error {
 			// grab the meta data from this vapp, is it our cloudlet?
 			mdata, err := vapp.GetMetadata()
 			if err != nil {
-				fmt.Printf("\n\nError retrieving metadata from vapp %s err: %s\n", vmGroupName, err.Error())
+				log.SpanLog(ctx, log.DebugLevelInfra, "Error retrieving metadata from", "grpName", vmGroupName, err)
+				return err
+
 			}
 			for _, data := range mdata.MetadataEntry {
 				if data.Key == "CloudletName" {
-					fmt.Printf("\n\nDeleteVMs-E-internal error clouldlet vapp found Cloudlet nil\n\n")
 					return fmt.Errorf("Internal Error valid cloudlet vapp %s , cloudlet nil", vmGroupName)
 				}
 			}
 			return nil
 		} else {
-			fmt.Printf("\n\nDeleteVMs-I-Found vapp %s delete Cloudlet\n\n", vapp.VApp.Name)
 			err := v.DeleteCloudlet(ctx, *v.Objs.Cloudlet)
 			if err != nil {
-				fmt.Printf("\n\nDeleteCloudlet returned error: %s\n\n", err.Error())
 				return err
 			}
 		}
 	}
 
-	fmt.Printf("\n\nDeleteVMs-I-requests delete of grpName %s\n\n", vmGroupName)
 	vm, err := v.FindVM(ctx, vmGroupName)
 	if err == nil {
-		fmt.Printf("\tFound vm %s matching vmGroupname Deleting...\n\n", vm.VM.Name)
 		return v.DeleteVM(ctx, vm)
 	} else {
 
 		cluster, err := v.FindCluster(ctx, vmGroupName)
 		if err != nil {
 			log.SpanLog(ctx, log.DebugLevelInfra, "DeleteVMs not found", "vmGroupName", vmGroupName)
-			fmt.Printf("\n\nDeleteVMs-W-Nothing found to delete with name %s\n\n", vmGroupName)
-			// invalid name / already deleted...
 			return nil
-
-			//return fmt.Errorf("Not found")
 		}
-		fmt.Printf("\n\nDeleteVMs-I-vmGroupName %s is cluster deleting...\n\n", vmGroupName)
 		err = v.DeleteCluster(ctx, cluster.Name)
 		return err
 	}
@@ -494,18 +452,15 @@ func (v *VcdPlatform) GetVMStats(ctx context.Context, key *edgeproto.AppInstKey)
 
 	vm, err = v.FindVM(ctx, vmName)
 	if err != nil {
-		//fmt.Printf("\n\tGetVMStats failed to find vm: %s\n", vmName)
 		log.SpanLog(ctx, log.DebugLevelInfra, "GetVMStats failed to find vm", "name", vmName)
 		return nil, err
 	}
 	status, err := vm.GetStatus()
 	if err == nil && status == "POWERED_ON" {
-		fmt.Printf("Getting usage metrics for vm: %s\n", vm.VM.Name)
-
 		// Check vdc_vm_test.go for the metric links
 		// They don't seem to work with nsx-t boxes
 		//
-		/*  get these for the VM running AppInst
+		/*  get these for the VM running AppInst TBI
 		type VMMetrics struct {
 			// Cpu is a percentage
 			Cpu   float64
@@ -534,12 +489,8 @@ func (v *VcdPlatform) GetVMStats(ctx context.Context, key *edgeproto.AppInstKey)
 func (v *VcdPlatform) SetPowerState(ctx context.Context, serverName, serverAction string) error {
 	vm := &govcd.VM{}
 	var err error
-	// remember, all our vms are on a per VApp basis, so we'll always be
-	//  eding that unique id for common vm names. >sigh>
-
 	vm, err = v.FindVM(ctx, serverName)
 	if err != nil {
-		fmt.Printf("FindVM failed to find %s\n", serverName)
 		return err
 	}
 	curStatus, err := vm.GetStatus()
@@ -551,11 +502,11 @@ func (v *VcdPlatform) SetPowerState(ctx context.Context, serverName, serverActio
 
 		task, err := vm.PowerOn()
 		if err != nil {
-			fmt.Printf("Error Powering on %s err: %s\n", vm.VM.Name, err.Error())
+			return err
 		} else {
 			err := task.WaitTaskCompletion()
 			if err != nil {
-				fmt.Printf("Error waiting for Powering on %s err: %s\n", vm.VM.Name, err.Error())
+				return err
 			}
 		}
 	}
@@ -565,11 +516,11 @@ func (v *VcdPlatform) SetPowerState(ctx context.Context, serverName, serverActio
 		}
 		task, err := vm.PowerOff()
 		if err != nil {
-			fmt.Printf("Error Powering off %s err: %s\n", vm.VM.Name, err.Error())
+			return err
 		} else {
 			err := task.WaitTaskCompletion()
 			if err != nil {
-				return fmt.Errorf("Error waiting for Powering on %s err: %s\n", vm.VM.Name, err.Error())
+				return err
 			}
 		}
 	}
@@ -579,7 +530,7 @@ func (v *VcdPlatform) SetPowerState(ctx context.Context, serverName, serverActio
 		}
 		task, err := vm.PowerOff()
 		if err != nil {
-			fmt.Printf("Error Powering off %s err: %s\n", vm.VM.Name, err.Error())
+			return fmt.Errorf("Error Powering off %s err: %s\n", vm.VM.Name, err.Error())
 		} else {
 			err := task.WaitTaskCompletion()
 			if err != nil {
@@ -588,7 +539,7 @@ func (v *VcdPlatform) SetPowerState(ctx context.Context, serverName, serverActio
 		}
 		task, err = vm.PowerOn()
 		if err != nil {
-			fmt.Printf("Error Powering on %s err: %s\n", vm.VM.Name, err.Error())
+			return err
 		} else {
 			err := task.WaitTaskCompletion()
 			if err != nil {
@@ -600,38 +551,10 @@ func (v *VcdPlatform) SetPowerState(ctx context.Context, serverName, serverActio
 	return nil
 }
 
-// PI
 func (v *VcdPlatform) VerifyVMs(ctx context.Context, vms []edgeproto.VM) error {
-	// no one calls this?
-	log.SpanLog(ctx, log.DebugLevelInfra, "VerifyVMs  ")
+	// existance? Powered ON?
+	log.SpanLog(ctx, log.DebugLevelInfra, "VerifyVMs TBI")
 	return nil
-}
-
-// return the *VAppChildren of the given vapp if any
-func (v *VcdPlatform) GetVappVms(ctx context.Context, vapp *govcd.VApp) ([]*types.VM, error) {
-	fmt.Printf("GetVappVms-I-TBI\n")
-	return nil, nil
-
-}
-
-// add customizatin option to vm
-func (v *VcdPlatform) CustomizeVm(ctx context.Context, vm *govcd.VM, cs *types.CustomizationSection) (*types.VM, error) {
-	return nil, nil
-
-}
-
-// xxx These Result RecordTypes xxx
-func (v *VcdPlatform) GetAvailableVMs(ctx context.Context) ([]*types.QueryResultVMRecordType, error) {
-	// returns  VMs of all VApps available in our vdc
-
-	var filter types.VmQueryFilter = types.VmQueryFilterAll
-
-	vmRecs, err := v.Client.Client.QueryVmList(filter)
-	if err != nil {
-		fmt.Printf("\n\nGetAvailableVMs failed query %s\n", err.Error())
-		return nil, fmt.Errorf("Unable to Query available VMs err: %s", err.Error())
-	}
-	return vmRecs, nil
 }
 
 func (v *VcdPlatform) GetVMAddresses(ctx context.Context, vm *govcd.VM) ([]vmlayer.ServerIP, string, error) {
@@ -650,19 +573,17 @@ func (v *VcdPlatform) GetVMAddresses(ctx context.Context, vm *govcd.VM) ([]vmlay
 	}
 	connections := vm.VM.NetworkConnectionSection.NetworkConnection
 	for _, connection := range connections {
-		//fmt.Printf("GetVMAddresses-I- %s next IP%s[idx:%d] \n", vm.VM.Name, connection.IPAddress, connection.NetworkConnectionIndex)
 
 		servIP := vmlayer.ServerIP{
 			MacAddress:   connection.MACAddress,
 			Network:      connection.Network,
-			ExternalAddr: connection.IPAddress, //ExternalIPAddress, // if a Nat, external IP here.
+			ExternalAddr: connection.IPAddress,
 			InternalAddr: connection.IPAddress,
 			PortName:     strconv.Itoa(connection.NetworkConnectionIndex),
 		}
 		if connection.Network != v.Objs.PrimaryNet.OrgVDCNetwork.Name {
 			// internal isolated net
 			servIP.PortName = vmName + "-" + connection.Network + "-port"
-			fmt.Printf("GetVMAddressesOrig-I-setting portname %s \n\n", servIP.PortName)
 		}
 		serverIPs = append(serverIPs, servIP)
 	}
@@ -670,52 +591,9 @@ func (v *VcdPlatform) GetVMAddresses(ctx context.Context, vm *govcd.VM) ([]vmlay
 	return serverIPs, ip, nil
 }
 
-/*
-func (v *VcdPlatform) GetVMAddresses2(ctx context.Context, vm *govcd.VM) ([]vmlayer.ServerIP, string, error) {
-	var serverIPs []vmlayer.ServerIP
-	if vm == nil {
-		return serverIPs, "", fmt.Errorf("Nil vm received")
-	}
-
-	status, err := vm.GetStatus()
-	if err != nil {
-		return serverIPs, "", fmt.Errorf("Error getting status for %s err: %s\n", vm.VM.Name, err.Error())
-	}
-	if status != "POWERED_ON" {
-		return serverIPs, "", fmt.Errorf("vm %s not powered on state: %s", vm.VM.Name, status)
-	}
-	ip := ""
-	// Find out if this is a isolated newtowrk XXX
-	connections := vm.VM.NetworkConnectionSection.NetworkConnection
-	for _, connection := range connections {
-
-		servIP := vmlayer.ServerIP{
-			MacAddress: connection.MACAddress,
-			Network:    connection.Network,
-			PortName:   strconv.Itoa(connection.NetworkConnectionIndex),
-		}
-		if connection.Network == v.Objs.PrimaryNet.OrgVDCNetwork.Name {
-			servIP.ExternalAddr = connection.IPAddress
-			ip = servIP.ExternalAddr
-			fmt.Printf("\tGetVMAddresses-I-set external addr: %s on net: %s\n", servIP.ExternalAddr, servIP.Network)
-			break // just return a single external
-		} else {
-			// Internal
-			fmt.Printf("\tGetVMAddresses-I-set external addr: %s on net: %s\n", servIP.InternalAddr, servIP.Network)
-			servIP.InternalAddr = connection.IPAddress
-		}
-		serverIPs = append(serverIPs, servIP)
-	}
-	// but just retrun one serverIP object
-	return serverIPs, ip, nil
-}
-
-*/
-
-// Revisit XXX
 func (v *VcdPlatform) SetVMProperties(vmProperties *vmlayer.VMProperties) {
 	v.vmProperties = vmProperties
-	vmProperties.IptablesBasedFirewall = false // true
+	vmProperties.IptablesBasedFirewall = true // xxx false
 }
 
 // This can get called with name representing
@@ -726,7 +604,7 @@ func (v *VcdPlatform) SetVMProperties(vmProperties *vmlayer.VMProperties) {
 func (v *VcdPlatform) GetServerGroupResources(ctx context.Context, name string) (*edgeproto.InfraResources, error) {
 	resources := &edgeproto.InfraResources{}
 	// xxx need ContainerInfo as well
-	fmt.Printf("\nGetServerGroupResources for name: %s\n", name)
+	log.SpanLog(ctx, log.DebugLevelInfra, "grp resources for", "grpName", name)
 	if v.Objs.Cloudlet != nil {
 
 		for _, cluster := range v.Objs.Cloudlet.Clusters {
@@ -744,44 +622,19 @@ func (v *VcdPlatform) GetServerGroupResources(ctx context.Context, name string) 
 			}
 		}
 	}
-
-	/*
-		else {
-			// Cloudlet is nil, so no clusters, simple vm?
-			// Not a group/cluster name, single vm
-			vm, err := v.FindVM(ctx, name)
-			if err != nil {
-				fmt.Printf("\nGetServerGroupResources-W-name %s not cluster nor vm\n", name)
-				//
-				return nil, fmt.Errorf("Not Found")
-			}
-			// Ok, what to do here, will anyone call this before we have a Cloudlet/Clusters
-			vminfo := edgeproto.VmInfo{
-				Name:        vm.vmName,
-				InfraFlavor: vm.vmFlavor,
-				Type:        vm.vmType, // string(vmlayer.GetVmTypeForRole(vm.vmRole)),
-			}
-			vminfo.Ipaddresses = append(vminfo.Ipaddresses, vm.vmIPs)
-		}
-	*/
 	return resources, nil
 }
 
 // Store attrs of vm for crmrestarts
 func (v *VcdPlatform) AddMetadataToVM(ctx context.Context, vm *govcd.VM, vmparams vmlayer.VMOrchestrationParams, vmType, parentCluster string) error {
 
-	fmt.Printf("\n\nAddMetadataToVM-I-type: %s\n\t role: %s\n\t flavor: %s\n\ts parent: %s\n",
-		vmType, string(vmparams.Role), vmparams.FlavorName, parentCluster)
 	// why no async for vms?
-
-	// this will likely fail, we'll need to wait for each one <sigh>
 	task, err := vm.AddMetadata("vmType", vmType)
 	if err != nil {
 		return err
 	}
 	err = task.WaitTaskCompletion()
 	if err != nil {
-		fmt.Printf("Error waiting for task complete addmetadata %s\n", err.Error())
 		return err
 	}
 
@@ -791,7 +644,6 @@ func (v *VcdPlatform) AddMetadataToVM(ctx context.Context, vm *govcd.VM, vmparam
 	}
 	err = task.WaitTaskCompletion()
 	if err != nil {
-		fmt.Printf("Error waiting for task complete addmetadata %s\n", err.Error())
 		return err
 	}
 
@@ -801,7 +653,6 @@ func (v *VcdPlatform) AddMetadataToVM(ctx context.Context, vm *govcd.VM, vmparam
 	}
 	err = task.WaitTaskCompletion()
 	if err != nil {
-		fmt.Printf("Error waiting for task complete addmetadata %s\n", err.Error())
 		return err
 	}
 
@@ -811,7 +662,6 @@ func (v *VcdPlatform) AddMetadataToVM(ctx context.Context, vm *govcd.VM, vmparam
 	}
 	err = task.WaitTaskCompletion()
 	if err != nil {
-		fmt.Printf("Error waiting for task complete addmetadata %s\n", err.Error())
 		return err
 	}
 

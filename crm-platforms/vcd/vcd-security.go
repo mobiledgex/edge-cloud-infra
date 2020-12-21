@@ -94,29 +94,24 @@ func (v *VcdPlatform) PopulateOrgLoginCredsFromVault(ctx context.Context) error 
 	}
 	v.Creds = &creds
 
-	fmt.Printf("\nClient login Creds:\n\tOrg: %s\n\tVDC: %s\n\tVCD_USER: %s\n\tVCD_PASSWORD: %s\n\tHref: %s\n\n",
-		creds.Org, creds.VDC, creds.User, creds.Password, creds.Href)
+	log.SpanLog(ctx, log.DebugLevelInfra, "client login creds", "user", creds.User, "Org", creds.Org, "Vdc", creds.VDC, "URI", "creds.Href")
 
 	return nil
 }
 
-// PI
 func (v *VcdPlatform) PrepareRootLB(ctx context.Context, client ssh.Client, rootLBName string, secGrpName string, privacyPolicy *edgeproto.PrivacyPolicy) error {
 	log.SpanLog(ctx, log.DebugLevelInfra, "PrepareRootLB TBI", "rootLBName", rootLBName)
 	// configure iptables based security
-	// allow our external vsphere network
 	//sshCidrsAllowed := []string{}
 	//externalNet, err := v.GetExternalIpNetworkCidr(ctx)
 	//if err != nil {
 	//		return err
 	//	}
 	//	sshCidrsAllowed = append(sshCidrsAllowed, externalNet)
-	// xxx not clear if we cannot use native security firewalls in the vApp
 	// return v.vmProperties.SetupIptablesRulesForRootLB(ctx, client, sshCidrsAllowed, privacyPolicy)
 	return nil
 }
 
-// IP     tranlate this into our FirewalRule and apply it to the network of this 'serverName'
 func (v *VcdPlatform) WhitelistSecurityRules(ctx context.Context, client ssh.Client, secGrpName, serverName, label string, allowedCIDR string, ports []dme.AppPort) error {
 
 	log.SpanLog(ctx, log.DebugLevelInfra, "WhitelistSecurityRules N TBI", "secGrpName", secGrpName, "allowedCIDR", allowedCIDR, "ports", ports)
@@ -124,14 +119,12 @@ func (v *VcdPlatform) WhitelistSecurityRules(ctx context.Context, client ssh.Cli
 	return nil
 }
 
-// Refactor, won't be using ssh.Client here, need our VDCClient
 func (v *VcdPlatform) RemoveWhitelistSecurityRules(ctx context.Context, client ssh.Client, secGrpName, label string, allowedCIDR string, ports []dme.AppPort) error {
 	log.SpanLog(ctx, log.DebugLevelInfra, "RemoveWhitelistSecurityRules", "secGrpName", secGrpName, "allowedCIDR", allowedCIDR, "ports", ports)
 
 	return nil
 }
 
-// XXX
 func setVer(cli *govcd.VCDClient) error {
 	if cli != nil {
 		cli.Client.APIVersion = "33.0" // vmwarelab is 10.1
@@ -139,22 +132,19 @@ func setVer(cli *govcd.VCDClient) error {
 	return nil
 }
 
-// Login and return connected client
-// client.Client = types.Client
 func (v *VcdPlatform) GetClient(ctx context.Context, creds *VcdConfigParams) (client *govcd.VCDClient, err error) {
 
 	if v.TestMode {
-		fmt.Printf("GetClient-I-Test get creds from env\n")
 		err := v.PopulateOrgLoginCredsFromEnv(ctx)
 		if err != nil {
-			fmt.Printf("GetClient err getting creds from env: %s\n", err.Error())
+			return nil, err
 		}
-	} else {
-		log.SpanLog(ctx, log.DebugLevelInfra, "GetClient", "Credentails", creds)
 	}
 
+	log.SpanLog(ctx, log.DebugLevelInfra, "GetClient", "Credentails", creds)
+
 	if v.Client != nil {
-		fmt.Printf("\n\nGetClient-W-already have non-nil vcd client for org %s\n\n", v.Creds.Org)
+		log.SpanLog(ctx, log.DebugLevelInfra, "GetClient client exists  ", "client", v.Client)
 		return v.Client, nil
 	}
 
@@ -173,7 +163,7 @@ func (v *VcdPlatform) GetClient(ctx context.Context, creds *VcdConfigParams) (cl
 		}
 		//creds.Token = resp.Header[govcd.AuthorizationHeader]
 	}
-
+	// xxx revisit
 	// prefer the highest Api version found on the other end.
 	// vCD 10.0 == Api 33
 	// vCD 10.1 == Api 34
@@ -185,7 +175,6 @@ func (v *VcdPlatform) GetClient(ctx context.Context, creds *VcdConfigParams) (cl
 	// Ok, checkout api_vcd.go, we'd need to adjust the loginURL
 	// to match the version change. NewVCDClient could be used with options
 	// but 10.1 supports 31.0, so until we care, we don't.
-
 	/*
 		if vcdClient.Client.APIVCDMaxVersionIs(">= 33.0") {
 			fmt.Printf("APIVCDMaxVersionIs of >= 33.0 is true")

@@ -103,8 +103,8 @@ func (v *VcdPlatform) CreateCloudlet(ctx context.Context, vappTmpl govcd.VAppTem
 			desiredNetConfig.PrimaryNetworkConnectionIndex = 0
 
 			if vmRole == vmlayer.RoleAgent { // Other cases XXX
-				//haveExternalNet = true
-				log.SpanLog(ctx, log.DebugLevelInfra, "Add external network", "VAppName", vmgp.GroupName)
+				vmType := string(vmlayer.GetVmTypeForRole(string(vmparams.Role)))
+				log.SpanLog(ctx, log.DebugLevelInfra, "Add external network", "VAppName", vmgp.GroupName, "role", vmRole, "type", vmType)
 				_ /* networkConfigSection */, err = v.AddVappNetwork(ctx, vapp)
 
 				if err != nil {
@@ -168,7 +168,6 @@ func (v *VcdPlatform) CreateCloudlet(ctx context.Context, vappTmpl govcd.VAppTem
 				err = v.updateVM(ctx, vm, vmparams, subnet)
 				if err != nil {
 					log.SpanLog(ctx, log.DebugLevelInfra, "update vm failed ", "VAppName", vmgp.GroupName, "err", err)
-					fmt.Printf("CreateVMs-E-error updating VM %s : %s \n", child.Name, err.Error())
 					return nil, err
 				}
 				v.Objs.Cloudlet.ExtVMMap[extAddr] = vm
@@ -177,7 +176,6 @@ func (v *VcdPlatform) CreateCloudlet(ctx context.Context, vappTmpl govcd.VAppTem
 			//err = task.WaitTaskCompletion()
 			// This will power on all vms in the vapp, we can order them
 			// So master first and then workers.
-			fmt.Printf("\n\nCreateCloudlet-I-add metadata cloud name %s to vapp %s has %d child VMs\n", cloudletName, vapp.VApp.Name, len(vapp.VApp.Children.VM))
 			task, err := vapp.AddMetadata("CloudletName", cloudletName)
 			if err != nil {
 				log.SpanLog(ctx, log.DebugLevelInfra, "add metadata failed ", "VAppName", vmgp.GroupName, "err", err)
@@ -191,12 +189,11 @@ func (v *VcdPlatform) CreateCloudlet(ctx context.Context, vappTmpl govcd.VAppTem
 			task, err = vapp.PowerOn()
 			if err != nil {
 				log.SpanLog(ctx, log.DebugLevelInfra, "power on  failed ", "VAppName", vmgp.GroupName, "err", err)
-
 				return nil, err
 			}
-			fmt.Printf("CreateVMs-I-waiting task complete for power on...\n")
 			err = task.WaitTaskCompletion()
 			if err != nil {
+				log.SpanLog(ctx, log.DebugLevelInfra, "wait power on  failed", "VAppName", vmgp.GroupName, "error", err)
 				return nil, err
 			}
 			vapp.Refresh()
@@ -213,21 +210,15 @@ func (v *VcdPlatform) CreateCloudlet(ctx context.Context, vappTmpl govcd.VAppTem
 // Is this only for appInst images? Or our cloudlet template too?
 func (v *VcdPlatform) AddCloudletImageIfNotPresent(ctx context.Context, imgPathPrefix, imgVersion string, updateCallback edgeproto.CacheUpdateCallback) (string, error) {
 	log.SpanLog(ctx, log.DebugLevelInfra, "PI AddCloudletImageIfNotPresent  TBI ", "imgPathPrefix", imgPathPrefix, "ImgVersion", imgVersion)
-	// how about just returning our ubuntu18.04 image here? For now
-	fmt.Printf("AddCloudletImageIfNotPresent-i-TBI\n")
-
 	//	filePath, err := vmlayer.DownloadVMImage(ctx, v.vmProperties.CommonPf.VaultConfig, imageName, imageUrl, md5Sum)
-
 	return "", nil
 }
 
-// PI   Security calls this to save what it gets from vault?
 func (v *VcdPlatform) SaveCloudletAccessVars(ctx context.Context, cloudlet *edgeproto.Cloudlet, accessVarsIn map[string]string, pfConfig *edgeproto.PlatformConfig, vaultConfig *vault.Config, updateCallback edgeproto.CacheUpdateCallback) error {
-
 	return fmt.Errorf("SaveCloudletAccessVars not implemented for vcd")
 }
 
-// This appears to only deal with non-eixstant flavors in vmware world
+// This appears to only deal with non-existant flavors in vmware world
 func (v *VcdPlatform) GatherCloudletInfo(ctx context.Context, info *edgeproto.CloudletInfo) error {
 
 	log.SpanLog(ctx, log.DebugLevelInfra, "GatherCloudletInfo ")
@@ -236,22 +227,19 @@ func (v *VcdPlatform) GatherCloudletInfo(ctx context.Context, info *edgeproto.Cl
 	var err error
 	info.Flavors, err = v.GetFlavorList(ctx)
 	if err != nil {
-		fmt.Printf("\n\nGatherCloudlentInfo-E-GetFlavorList err: %s\n", err.Error())
 		return err
 	}
 	return nil
 }
 
-// PI  why is this needed
-
 func (v *VcdPlatform) GetCloudletImageSuffix(ctx context.Context) string {
 	return "-vcd.qcow2"
 }
 
+// XXX needed?
 func (v *VcdPlatform) GetCloudletManifest(ctx context.Context, name, cloudletImagePath string, VMGroupOrchestrationParams *vmlayer.VMGroupOrchestrationParams) (string, error) {
-	log.SpanLog(ctx, log.DebugLevelInfra, "GetCloudletManifest name: %s imagePath? %s ", name, cloudletImagePath)
+	log.SpanLog(ctx, log.DebugLevelInfra, "GetCloudletManifest", "name", name, "imagePath", cloudletImagePath)
 	return "", nil
-
 }
 
 // remove the cloudlet(Vapp) + all VMs in the cloudlet.
@@ -262,102 +250,80 @@ func (v *VcdPlatform) DeleteCloudlet(ctx context.Context, cloudlet MexCloudlet) 
 	vapp := cloudlet.CloudVapp
 
 	// power off the vapp, then all the vms, then remove all vms from the vapp, and finally delete the vapp.
-	fmt.Printf("\ntestDestroyVApp-I-request Delete of %s\n", vapp.VApp.Name)
-
-	//vdc := v.Objs.Vdc
-
 	status, err := vapp.GetStatus()
-	fmt.Printf("Vapp %s currently in state: %s\n", vapp.VApp.Name, status)
 	if err != nil {
-		fmt.Printf("Error fetching status for vapp %s\n", vapp.VApp.Name)
 		return err
 	}
 	// unlikely
 	if vapp.VApp.Children == nil {
-
 		task, err := vapp.PowerOff()
 		if err != nil {
-			fmt.Printf("DeleteCloudlet baren vapp vapp.PowerOff failed: %s\n\n", err.Error())
+			log.SpanLog(ctx, log.DebugLevelInfra, "baren vapp power off failed", "cloudlet", cloudlet, "err", err)
 		}
 		err = task.WaitTaskCompletion()
+		if err != nil {
+			log.SpanLog(ctx, log.DebugLevelInfra, "baren vapp wait task failed", "cloudlet", cloudlet, "err", err)
+		}
 
 		task, err = vapp.Delete()
 		if err != nil {
-			fmt.Printf("vapp.Delete failed: %s\n\n", err.Error())
+			log.SpanLog(ctx, log.DebugLevelInfra, "baren vapp delete failed", "cloudlet", cloudlet, "err", err)
 		}
 		err = task.WaitTaskCompletion()
-		log.SpanLog(ctx, log.DebugLevelInfra, "Barren VApp %s Deleted\n", "cloudlet", cloudlet.CloudletName)
+		if err != nil {
+			log.SpanLog(ctx, log.DebugLevelInfra, "baren vapp delete wait task failed", "cloudlet", cloudlet, "err", err)
+		}
+		log.SpanLog(ctx, log.DebugLevelInfra, "Barren VApp %s Deleted", "cloudletName", cloudlet.CloudletName)
 		return nil
 	}
 	// Nominal
 	vms := vapp.VApp.Children.VM
-	log.SpanLog(ctx, log.DebugLevelInfra, "DeleteCloudlet removing", "children vms", len(vms))
+	if v.Verbose {
+		log.SpanLog(ctx, log.DebugLevelInfra, "DeleteCloudlet removing", "children vms", vms)
+	}
 	if status == "POWERED_ON" {
 		for _, vm := range vms {
 
 			v, err := vapp.GetVMByName(vm.Name, false)
 			if err != nil {
-				fmt.Printf("VM %s not found \n", vm.Name)
 				continue
 			}
 			log.SpanLog(ctx, log.DebugLevelInfra, "DeleteCloudlet power off", "vm", vm.Name)
-			fmt.Printf("\tPowerOff %s\n", vm.Name)
 			task, err := v.PowerOff()
 			if err != nil {
-				fmt.Printf("Error from RemoveVM for vm %s in vapp: %s as : %s\n",
-					vm.Name, vapp.VApp.Name, err.Error())
+				log.SpanLog(ctx, log.DebugLevelInfra, "vm power off failed", "vm", vm.Name, "err", err)
 				return err
 			}
 			err = task.WaitTaskCompletion()
 			if err != nil {
-				fmt.Printf("Error waiting powering of the vm %s \n", vm.Name)
+				log.SpanLog(ctx, log.DebugLevelInfra, "wait vm power off failed", "vm", vm.Name, "err", err)
 				return err
 			}
 
-			fmt.Printf("\t\tremoved from Vapp\n")
 		}
-		/* 10.0 at this stage, the vapp can't be powered off as it has no vms running... */
-		/*
-			fmt.Printf("VMs powered off, powering off the VApp %s\n", vapp.VApp.Name)
-			task, err := vapp.PowerOff()
-			if err != nil {
-				fmt.Printf("Error from vm.PowerOff: %s\n", err.Error())
-			}
-			err = task.WaitTaskCompletion()
-			if err != nil {
-				fmt.Printf("Error waiting powering of the vapp %s \n", vapp.VApp.Name)
-				return err
-			}
-
-			fmt.Printf("Cloudlet %s powered off\n", cloudlet.CloudletName)
-		*/
 	}
 
 	for _, vm := range vms {
 		v, err := vapp.GetVMByName(vm.Name, false)
 		if err != nil {
-			fmt.Printf("VM %s not found \n", vm.Name)
 			return err
 		}
 		err = vapp.RemoveVM(*v)
 		if err != nil {
-			fmt.Printf("Error from RemoveVM for vm %s in vapp: %s as : %s\n",
-				vm.Name, vapp.VApp.Name, err.Error())
+			log.SpanLog(ctx, log.DebugLevelInfra, "remove vm failed", "vm", vm.Name, "err", err)
 			continue
-			//return err
 		}
 		log.SpanLog(ctx, log.DebugLevelInfra, "vm removed from vapp", "vm", vm.Name)
 	}
 
 	task, err := vapp.Delete()
 	if err != nil {
-		fmt.Printf("vapp.Delete failed: %s\n task: %+v\n", err.Error(), task)
+		log.SpanLog(ctx, log.DebugLevelInfra, "delete vapp  failed", "vm", vapp.VApp.Name, "err", err)
 	}
 	err = task.WaitTaskCompletion()
 
 	v.Objs.Cloudlet = nil
-	// clean up maps
-	fmt.Printf("VApp %s Deleted\n", vapp.VApp.Name)
+	// clean up maps xxx
 	log.SpanLog(ctx, log.DebugLevelInfra, "Cloudlet deleted")
 	return err
 }
@@ -366,26 +332,12 @@ func (v *VcdPlatform) DeleteCloudlet(ctx context.Context, cloudlet MexCloudlet) 
 // re: was cloudlet lookup
 // Not much use when only one cloudlet per vcd
 func (v *VcdPlatform) FindCloudletForCluster(GroupName string) (*MexCloudlet, *govcd.VApp, error) {
-	vdcCloudlet := v.Objs.Cloudlet // only one
-	// cld1-cluster1-mobiledgex-vapp
-	// vs
-	//  cluster1.cld1.tdg.mobiledgex.net
-	/*
-		parts := strings.Split(GroupName, ".")
-		if len(parts) > 1 {
-			cldName := parts[1]
-			clustName := parts[0]
-		}
-	*/
+	vdcCloudlet := v.Objs.Cloudlet
+
 	fmt.Printf("FindCloudletForCluster-I-GroupName %s cloudlet %s\n", GroupName, vdcCloudlet.CloudletName)
+
 	// validate cld name is our vdc/vapp name
 	if strings.Contains(GroupName, vdcCloudlet.CloudletName) {
-		fmt.Printf("\nFindCloudletForCluster CreateVMs Selecting existing\n\tClouldlet %s\n\t vapp  %s\n\tvdc: %s\n for adding vms in %s\n",
-			vdcCloudlet.CloudletName,
-			vdcCloudlet.CloudVapp.VApp.Name,
-			vdcCloudlet.ParentVdc.Vdc.Name,
-			GroupName)
-
 		return vdcCloudlet, v.Objs.Cloudlet.CloudVapp, nil
 	}
 	return nil, nil, fmt.Errorf("Unknown Cloudlet specified")
@@ -397,18 +349,9 @@ func (o *VcdPlatform) GetSessionTokens(ctx context.Context, vaultConfig *vault.C
 
 // IP address or Href? It's the Href with a manditory port
 func (v *VcdPlatform) GetApiEndpointAddr(ctx context.Context) (string, error) {
-	// example :
-	// OS_AUTH_URL https://10.254.108.198:5000/v3
-	// Our port is default 443, but parsing requires it exist.
-	// VCD_IP now:
-	// "http://vcd-10.mobiledgex.net:443"
-	// So the api is now
-	//
-	ip := v.vcdVars["VCD_IP"]
-	apiUrl := ip + "/api"
-	//apiUrl := fmt.Sprintf("%s%s%s", "https://", ip, ":443/api")
-	log.SpanLog(ctx, log.DebugLevelInfra, "GetApiEndpointAddr", "Href", apiUrl)
-	fmt.Printf("\nGetApiEndpoingAddr-I-%s\n\n", apiUrl)
 
+	ip := v.GetVCDIP() // {vcdVars["VCD_IP"]
+	apiUrl := ip + "/api"
+	log.SpanLog(ctx, log.DebugLevelInfra, "GetApiEndpointAddr", "Href", apiUrl)
 	return apiUrl, nil
 }

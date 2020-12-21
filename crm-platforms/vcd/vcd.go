@@ -144,7 +144,7 @@ func (v *VcdPlatform) GetType() string {
 func (v *VcdPlatform) InitProvider(ctx context.Context, caches *platform.Caches, stage vmlayer.ProviderInitStage, updateCallback edgeproto.CacheUpdateCallback) error {
 
 	log.SpanLog(ctx, log.DebugLevelInfra, "InitProvider for Vcd 1", "stage", stage)
-	v.Verbose = v.SetVcdVerbose()
+	v.Verbose = v.GetVcdVerbose()
 	v.InitData(ctx, caches)
 	v.Objs.Nets = make(map[string]*govcd.OrgVDCNetwork)
 	v.Objs.Cats = make(map[string]CatContainer)
@@ -202,7 +202,7 @@ func (v *VcdPlatform) ImportDataFromInfra(ctx context.Context) error {
 func (v *VcdPlatform) GetPlatformResourceInfo(ctx context.Context) (*vmlayer.PlatformResources, error) {
 
 	var resources *vmlayer.PlatformResources
-	log.SpanLog(ctx, log.DebugLevelInfra, "GetPlatformResourceInfo N ")
+	log.SpanLog(ctx, log.DebugLevelInfra, "GetPlatformResourceInfo ")
 
 	resources.CollectTime, _ = gogotypes.TimestampProto(time.Now())
 

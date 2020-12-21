@@ -61,7 +61,7 @@ func (o *OpenstackPlatform) AddAppImageIfNotPresent(ctx context.Context, imageIn
 		}
 	}
 	if createImage {
-		updateCallback(edgeproto.UpdateTask, "Creating VM Image from URL")
+		updateCallback(edgeproto.UpdateTask, fmt.Sprintf("Creating VM Image from URL: %s", imageInfo.LocalImageName))
 		err = o.CreateImageFromUrl(ctx, imageInfo.LocalImageName, app.ImagePath, imageInfo.Md5sum)
 		if err != nil {
 			return err

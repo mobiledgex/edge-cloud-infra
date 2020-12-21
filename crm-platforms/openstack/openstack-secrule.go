@@ -246,7 +246,6 @@ func (o *OpenstackPlatform) ConfigureCloudletSecurityRules(ctx context.Context, 
 	if err != nil {
 		return err
 	}
-	//	if action == vmlayer.CloudletSecgrpCreate {
 	cloudletGrpId, err := o.GetSecurityGroupIDForName(ctx, grpName)
 	if err != nil {
 		return err
@@ -276,7 +275,6 @@ func (o *OpenstackPlatform) ConfigureCloudletSecurityRules(ctx context.Context, 
 			}
 		}
 	}
-	//	}
 	return nil
 }
 

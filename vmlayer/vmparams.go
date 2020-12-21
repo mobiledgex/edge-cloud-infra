@@ -557,7 +557,6 @@ func GetVMGroupOrchestrationParamsFromTrustPolicy(ctx context.Context, name stri
 	var vmgp VMGroupOrchestrationParams
 	opts = append(opts, SecGrpWithEgressRules(privPolicy.OutboundSecurityRules, egressRestricted))
 	externalSecGrp, err := GetSecGrpParams(name, opts...)
-
 	if err != nil {
 		return nil, err
 	}

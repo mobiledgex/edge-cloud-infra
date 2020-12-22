@@ -90,6 +90,7 @@ type CreateBillingOrganization struct {
 	State      string `json:",omitempty"`
 	PostalCode string `json:",omitempty"`
 	Phone      string `json:",omitempty"`
+	Children   string `json:",omitempty"`
 	Payment    billing.PaymentMethod
 }
 

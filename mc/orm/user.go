@@ -957,6 +957,10 @@ func CreateUserApiKey(c echo.Context) error {
 	if err != nil {
 		return err
 	}
+	// Disallow apikey creation if auth type is ApiKey auth
+	if claims.AuthType == ApiKeyAuth {
+		return setReply(c, fmt.Errorf("User is not authorized to create API key"), nil)
+	}
 	apiKeyReq := ormapi.CreateUserApiKey{}
 	if err := c.Bind(&apiKeyReq); err != nil {
 		return bindErr(c, err)
@@ -975,49 +979,15 @@ func CreateUserApiKey(c echo.Context) error {
 	if len(curApiKeys) >= config.UserApiKeyCreateLimit {
 		return setReply(c, fmt.Errorf("User cannot create more than %d API keys, please delete existing keys to create new one", config.UserApiKeyCreateLimit), nil)
 	}
+	if len(apiKeyReq.Permissions) == 0 {
+		return c.JSON(http.StatusBadRequest, Msg("Missing permissions"))
+	}
+
 	apiKeyObj := ormapi.UserApiKey{}
 	apiKeyObj.Username = claims.Username
 	apiKeyObj.Org = apiKeyReq.Org
 	apiKeyObj.Description = apiKeyReq.Description
 
-	// Fetch user details to verify if it has enough permissions to create api key.
-	// If user object does not exist, then it must be ApiKey based login.
-	// Disallow apikey creation in this case
-	user := ormapi.User{Name: claims.Username}
-	err = db.Where(&user).First(&user).Error
-	if err != nil {
-		return setReply(c, fmt.Errorf("User is not authorized to create API key"), nil)
-	}
-	groupings, err := enforcer.GetGroupingPolicy()
-	if err != nil {
-		return setReply(c, dbErr(err), nil)
-	}
-	super := false
-	if authorized(ctx, claims.Username, "", ResourceUsers, ActionView) == nil {
-		// super user
-		super = true
-	}
-	// fetch current user's role for the org
-	var userRole *ormapi.Role
-	for ii, _ := range groupings {
-		role := parseRole(groupings[ii])
-		if role == nil {
-			continue
-		}
-		if role.Username != claims.Username {
-			continue
-		}
-		if role.Org == apiKeyObj.Org {
-			userRole = role
-			break
-		}
-	}
-	if !super && userRole == nil {
-		return c.JSON(http.StatusBadRequest, Msg("User has no permissions to access org "+apiKeyObj.Org))
-	}
-	if len(apiKeyReq.Roles) == 0 {
-		return c.JSON(http.StatusBadRequest, Msg("Missing roles"))
-	}
 	// verify that specified org exists
 	org := ormapi.Organization{}
 	org.Name = apiKeyObj.Org
@@ -1026,39 +996,37 @@ func CreateUserApiKey(c echo.Context) error {
 		return setReply(c, dbErr(err), nil)
 	}
 
+	lookupOrg := apiKeyObj.Org
+	if claims.Username == Superuser {
+		lookupOrg = ""
+	}
+	// make sure caller has perms to access resource of target org
+	validRolePerms, err := enforcer.GetPermissions(ctx, claims.Username, lookupOrg)
+	if err != nil {
+		return err
+	}
+
 	apiKeyId := uuid.New().String()
 	apiKey := uuid.New().String()
 	apiKeyRole := getApiKeyRoleName(apiKeyId)
 	psub := rbac.GetCasbinGroup(apiKeyObj.Org, apiKeyId)
 	cleanupPoliciesOnErr := func() {
 		log.SpanLog(ctx, log.DebugLevelApi, "cleaning up all the policies", "user", claims.Username, "apiKeyId", apiKeyId)
-		for _, role := range apiKeyReq.Roles {
-			enforcer.RemovePolicy(ctx, apiKeyRole, role.Resource, role.Action)
-		}
-		// remove grouping policy if present, ignore err
+		// remove policy if present, ignore err
+		enforcer.RemovePolicy(ctx, apiKeyRole)
 		enforcer.RemoveGroupingPolicy(ctx, psub, apiKeyRole)
 	}
 
 	// verify if user specified role/resource/action for the API key is valid
 	var policyErr error
-	for _, role := range apiKeyReq.Roles {
-		if role.Action != ActionView && role.Action != ActionManage {
+	for _, perm := range apiKeyReq.Permissions {
+		if perm.Action != ActionView && perm.Action != ActionManage {
 			cleanupPoliciesOnErr()
-			return c.JSON(http.StatusBadRequest, Msg(fmt.Sprintf("Invalid action %s, valid actions are %s, %s", role.Action, ActionView, ActionManage)))
-		}
-		// make sure caller has perms to access resource of target org
-		org := apiKeyObj.Org
-		if claims.Username == Superuser {
-			org = ""
-		}
-		validRolePerms, err := enforcer.GetPermissions(ctx, claims.Username, org)
-		if err != nil {
-			cleanupPoliciesOnErr()
-			return err
+			return c.JSON(http.StatusBadRequest, Msg(fmt.Sprintf("Invalid action %s, valid actions are %s, %s", perm.Action, ActionView, ActionManage)))
 		}
 		lookupRolePerm := ormapi.RolePerm{
-			Resource: role.Resource,
-			Action:   role.Action,
+			Resource: perm.Resource,
+			Action:   perm.Action,
 		}
 		validPerms := []string{}
 		for rPerm, _ := range validRolePerms {
@@ -1066,9 +1034,9 @@ func CreateUserApiKey(c echo.Context) error {
 		}
 		if _, ok := validRolePerms[lookupRolePerm]; !ok {
 			cleanupPoliciesOnErr()
-			return c.JSON(http.StatusBadRequest, Msg(fmt.Sprintf("Invalid permission specified: [%s:%s], valid permissions (resource:action) are %v", role.Resource, role.Action, validPerms)))
+			return c.JSON(http.StatusBadRequest, Msg(fmt.Sprintf("Invalid permission specified: [%s:%s], valid permissions (resource:action) are %v", perm.Resource, perm.Action, validPerms)))
 		}
-		addPolicy(ctx, &policyErr, apiKeyRole, role.Resource, role.Action)
+		addPolicy(ctx, &policyErr, apiKeyRole, perm.Resource, perm.Action)
 	}
 	if policyErr != nil {
 		cleanupPoliciesOnErr()
@@ -1112,12 +1080,12 @@ func DeleteUserApiKey(c echo.Context) error {
 	if err != nil {
 		return setReply(c, dbErr(err), nil)
 	}
-	if apiKeyObj.Username != claims.Username {
+	// Disallow apikey deletion if auth type is ApiKey auth
+	if claims.AuthType == ApiKeyAuth {
 		return c.JSON(http.StatusBadRequest, Msg("User is not authorized to delete API key"))
 	}
 	apiKeyRole := getApiKeyRoleName(apiKeyObj.Id)
-	policy := []string{apiKeyRole}
-	err = enforcer.RemovePolicy(ctx, policy...)
+	err = enforcer.RemovePolicy(ctx, apiKeyRole)
 	if err != nil {
 		return dbErr(err)
 	}
@@ -1142,11 +1110,8 @@ func ShowUserApiKey(c echo.Context) error {
 		return err
 	}
 
-	// Note: if user logs in using ApiKey, then username will be apikeyId
-	// Hence use that to disallow apikey users to view api keys
-	user := ormapi.User{Name: claims.Username}
-	err = db.Where(&user).First(&user).Error
-	if err != nil {
+	// Disallow apikey users to view api keys
+	if claims.AuthType == ApiKeyAuth {
 		return setReply(c, fmt.Errorf("User is not authorized to fetch API keys"), nil)
 	}
 
@@ -1178,13 +1143,13 @@ func ShowUserApiKey(c echo.Context) error {
 		out.Id = apiKeyObj.Id
 		out.Description = apiKeyObj.Description
 		out.Org = apiKeyObj.Org
-		out.Roles = []ormapi.RolePerm{}
+		out.Permissions = []ormapi.RolePerm{}
 		rolePerms, err := enforcer.GetPermissions(ctx, claims.Username, apiKeyObj.Org)
 		if err != nil {
 			return err
 		}
 		for rolePerm, _ := range rolePerms {
-			out.Roles = append(out.Roles, rolePerm)
+			out.Permissions = append(out.Permissions, rolePerm)
 		}
 		outApiKeys = append(outApiKeys, out)
 	}

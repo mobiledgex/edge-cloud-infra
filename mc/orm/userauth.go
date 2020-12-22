@@ -34,6 +34,11 @@ var JWTShortDuration = 4 * time.Hour
 
 var Jwks vault.JWKS
 
+const (
+	ApiKeyAuth   string = "apikeyauth"
+	PasswordAuth string = "passwordauth"
+)
+
 type TokenAuth struct {
 	Token string
 }
@@ -80,10 +85,12 @@ func PasswordMatches(password, passhash, salt string, iter int) (bool, error) {
 
 type UserClaims struct {
 	jwt.StandardClaims
-	Username      string `json:"username"`
-	Email         string `json:"email"`
-	Kid           int    `json:"kid"`
-	FirstIssuedAt int64  `json:"firstiat,omitempty"`
+	Username       string `json:"username"`
+	Email          string `json:"email"`
+	Kid            int    `json:"kid"`
+	FirstIssuedAt  int64  `json:"firstiat,omitempty"`
+	AuthType       string `json:"authtype"`
+	ApiKeyUsername string `json:"apikeyusername"`
 }
 
 func (u *UserClaims) GetKid() (int, error) {
@@ -113,6 +120,10 @@ func GenerateCookie(user *ormapi.User, apiKeyId string) (string, error) {
 		claims.Username = apiKeyId
 		// shorter expiration time if apiKeyId is specified
 		claims.ExpiresAt = time.Now().Add(JWTShortDuration).Unix()
+		claims.AuthType = ApiKeyAuth
+		claims.ApiKeyUsername = user.Name
+	} else {
+		claims.AuthType = PasswordAuth
 	}
 	cookie, err := Jwks.GenerateCookie(&claims)
 	return cookie, err
@@ -140,8 +151,14 @@ func getClaims(c echo.Context) (*UserClaims, error) {
 		return nil, echo.ErrUnauthorized
 	}
 	span := log.SpanFromContext(ctx)
-	span.SetTag("username", claims.Username)
-	span.SetTag("email", claims.Email)
+	if claims.AuthType == ApiKeyAuth {
+		span.SetTag("username", claims.ApiKeyUsername)
+		span.SetTag("apikeyid", claims.Username)
+		span.SetTag("email", claims.Email)
+	} else {
+		span.SetTag("username", claims.Username)
+		span.SetTag("email", claims.Email)
+	}
 	return claims, nil
 }
 

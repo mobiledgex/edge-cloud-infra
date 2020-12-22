@@ -918,7 +918,7 @@ func testUserApiKeys(t *testing.T, ctx context.Context, ds *testutil.DummyServer
 			Description: "App view only key",
 			Org:         devOrg.Name,
 		},
-		Roles: []ormapi.RolePerm{
+		Permissions: []ormapi.RolePerm{
 			ormapi.RolePerm{
 				Action:   "views",
 				Resource: "apps",
@@ -931,7 +931,7 @@ func testUserApiKeys(t *testing.T, ctx context.Context, ds *testutil.DummyServer
 	require.Equal(t, http.StatusBadRequest, status, "bad request")
 
 	// invalid permission error
-	userApiKeyObj.Roles = []ormapi.RolePerm{
+	userApiKeyObj.Permissions = []ormapi.RolePerm{
 		ormapi.RolePerm{
 			Action:   "view",
 			Resource: "app",
@@ -943,7 +943,7 @@ func testUserApiKeys(t *testing.T, ctx context.Context, ds *testutil.DummyServer
 	require.Equal(t, http.StatusBadRequest, status, "bad request")
 
 	// user of developer org should fail to create operator role based api key
-	userApiKeyObj.Roles = []ormapi.RolePerm{
+	userApiKeyObj.Permissions = []ormapi.RolePerm{
 		ormapi.RolePerm{
 			Action:   "manage",
 			Resource: "cloudlets",
@@ -955,7 +955,7 @@ func testUserApiKeys(t *testing.T, ctx context.Context, ds *testutil.DummyServer
 	require.Equal(t, http.StatusBadRequest, status, "bad request")
 
 	// user of developerviewer role should fail to create manage action based api key
-	userApiKeyObj.Roles = []ormapi.RolePerm{
+	userApiKeyObj.Permissions = []ormapi.RolePerm{
 		ormapi.RolePerm{
 			Action:   "manage",
 			Resource: "apps",
@@ -970,7 +970,7 @@ func testUserApiKeys(t *testing.T, ctx context.Context, ds *testutil.DummyServer
 	testRemoveUserRole(t, mcClient, uri, token, devOrg.Name, "DeveloperViewer", user1.Name, Success)
 	testAddUserRole(t, mcClient, uri, token, operOrg.Name, "OperatorViewer", user1.Name, Success)
 	userApiKeyObj.Org = operOrg.Name
-	userApiKeyObj.Roles = []ormapi.RolePerm{
+	userApiKeyObj.Permissions = []ormapi.RolePerm{
 		ormapi.RolePerm{
 			Action:   "view",
 			Resource: "apps",
@@ -982,7 +982,7 @@ func testUserApiKeys(t *testing.T, ctx context.Context, ds *testutil.DummyServer
 	require.Equal(t, http.StatusBadRequest, status, "bad request")
 
 	// user of operator org should fail to create admin role based api key
-	userApiKeyObj.Roles = []ormapi.RolePerm{
+	userApiKeyObj.Permissions = []ormapi.RolePerm{
 		ormapi.RolePerm{
 			Action:   "manage",
 			Resource: "users",
@@ -994,7 +994,7 @@ func testUserApiKeys(t *testing.T, ctx context.Context, ds *testutil.DummyServer
 	require.Equal(t, http.StatusBadRequest, status, "bad request")
 
 	// user of operatorviewer role should fail to create manage action based api key
-	userApiKeyObj.Roles = []ormapi.RolePerm{
+	userApiKeyObj.Permissions = []ormapi.RolePerm{
 		ormapi.RolePerm{
 			Action:   "manage",
 			Resource: "cloudlets",
@@ -1008,7 +1008,7 @@ func testUserApiKeys(t *testing.T, ctx context.Context, ds *testutil.DummyServer
 	// user should be able to create api key if action, resource input are correct
 	testRemoveUserRole(t, mcClient, uri, token, operOrg.Name, "OperatorViewer", user1.Name, Success)
 	testAddUserRole(t, mcClient, uri, token, operOrg.Name, "OperatorManager", user1.Name, Success)
-	userApiKeyObj.Roles = []ormapi.RolePerm{
+	userApiKeyObj.Permissions = []ormapi.RolePerm{
 		ormapi.RolePerm{
 			Action:   "view",
 			Resource: "cloudlets",
@@ -1071,7 +1071,7 @@ func testUserApiKeys(t *testing.T, ctx context.Context, ds *testutil.DummyServer
 	require.Equal(t, delta, int64(JWTShortDuration.Seconds()), "match short expiration time")
 
 	// user should not be able to create/delete/show apikey
-	userApiKeyObj.Roles = []ormapi.RolePerm{
+	userApiKeyObj.Permissions = []ormapi.RolePerm{
 		ormapi.RolePerm{
 			Action:   "view",
 			Resource: "cloudlets",
@@ -1150,7 +1150,7 @@ func testUserApiKeys(t *testing.T, ctx context.Context, ds *testutil.DummyServer
 	require.False(t, found, "policy doesn't exist")
 
 	// create max api keys allowed for user
-	userApiKeyObj.Roles = []ormapi.RolePerm{
+	userApiKeyObj.Permissions = []ormapi.RolePerm{
 		ormapi.RolePerm{
 			Action:   "view",
 			Resource: "cloudlets",

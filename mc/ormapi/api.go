@@ -52,7 +52,7 @@ type CreateUserApiKey struct {
 	// API key
 	ApiKey string
 	// List of API key roles
-	Roles []RolePerm `json:"roles"`
+	Permissions []RolePerm `json:"permissions"`
 }
 
 type UserApiKey struct {

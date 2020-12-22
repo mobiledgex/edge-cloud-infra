@@ -79,7 +79,7 @@ func GetUserCommand() *cobra.Command {
 	}, &cli.Command{
 		Use:          "createapikey",
 		RequiredArgs: "org description",
-		OptionalArgs: "roles:#.action roles:#.resource",
+		OptionalArgs: "permissions:#.action permissions:#.resource",
 		AliasArgs:    "org=userapikey.org description=userapikey.description",
 		ReqData:      &ormapi.CreateUserApiKey{},
 		ReplyData:    &ormapi.CreateUserApiKey{},

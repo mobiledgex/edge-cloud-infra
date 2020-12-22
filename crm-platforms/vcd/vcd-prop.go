@@ -76,7 +76,8 @@ func (v *VcdPlatform) GetVcdVerbose() bool {
 		}
 	}
 	// if not test get envVar or that node debug
-	return false
+	// XXX
+	return true
 }
 
 func (v *VcdPlatform) GetVCDIP() string {

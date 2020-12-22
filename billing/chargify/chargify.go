@@ -23,12 +23,13 @@ type accountCreds struct {
 func (bs *BillingService) Init(ctx context.Context, vaultConfig *vault.Config, path string) error {
 	creds := accountCreds{}
 	err := vault.GetData(vaultConfig, vaultPath+path, 0, &creds)
-	if err != nil {
+	if err != nil && !strings.Contains(err.Error(), "no secrets") {
 		return err
 	}
 	apiKey = creds.ApiKey
 	siteName = creds.Url
 
+	// if the creds weren't in vault check env vars
 	if apiKey == "" {
 		apiKey = os.Getenv("CHARGIFY_API_KEY")
 	}
@@ -36,7 +37,7 @@ func (bs *BillingService) Init(ctx context.Context, vaultConfig *vault.Config, p
 		return fmt.Errorf("unable to get apiKey")
 	}
 	if siteName == "" {
-		apiKey = os.Getenv("CHARGIFY_SITE_NAME")
+		siteName = os.Getenv("CHARGIFY_SITE_NAME")
 	}
 	if siteName == "" {
 		return fmt.Errorf("unable to get siteName")

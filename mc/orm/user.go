@@ -1149,7 +1149,9 @@ func ShowUserApiKey(c echo.Context) error {
 		out.Description = apiKeyObj.Description
 		out.Org = apiKeyObj.Org
 		out.CreatedAt = apiKeyObj.CreatedAt
-		out.Username = apiKeyObj.Username
+		if super {
+			out.Username = apiKeyObj.Username
+		}
 		out.Permissions = []ormapi.RolePerm{}
 		rolePerms, err := enforcer.GetPermissions(ctx, apiKeyObj.Id, apiKeyObj.Org)
 		if err != nil {

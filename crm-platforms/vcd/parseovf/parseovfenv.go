@@ -2,10 +2,11 @@ package main
 
 import (
 	"bufio"
+	"encoding/json"
 	"flag"
 	"fmt"
 	"os"
-	"strconv"
+	//	"strconv"
 	"strings"
 )
 
@@ -16,11 +17,18 @@ import (
 //
 func getValue(line string) string {
 	value := strings.SplitAfter(line, "value=")
-	val := value[1]
-	v := strings.Split(val, "/")
-	s := v[0]
-	s = s[1 : len(s)-1]
-	return s
+	if len(value) > 0 {
+		val := value[1]
+		v := strings.Split(val, "/")
+		s := v[0]
+		if len(s) > 1 {
+			s = s[1 : len(s)-1]
+			return s
+		} else {
+			return ""
+		}
+	}
+	return ""
 }
 
 func main() {
@@ -54,39 +62,25 @@ func main() {
 	scanner := bufio.NewScanner(ovf)
 	if err != nil {
 		fmt.Printf("could not create scanner! :%s\n", err.Error())
-		return
+		os.Exit(1)
 	}
-
-	// we want to end up with a json fragment looking something like:
-	//{"meta": {"skipk8s": true, "role": "mex-agent-node", "k8smaster": "10.103.0.10"}}
-	outline := []string{}
-	outline = append(outline, "{") // why are we losing this first brace in the join?
-	meta := "meta"
-	v := strconv.Quote(meta)
-	outline = append(outline, v)
-	outline = append(outline, ": {")
-
+	vars := make(map[string]interface{}) // Jon alt.
 	for scanner.Scan() {
 		nextline := scanner.Text()
 		for key, _ := range envars {
 			if strings.Contains(nextline, key) {
 				value := getValue(nextline)
-				// quote values other than bools
-				if value != "true" && value != "false" {
-					value = strconv.Quote(value)
-				}
-				key := strings.ToLower(key)
-				key = strconv.Quote(key)
-				val := fmt.Sprintf("%s : %s, ", key, value)
-				outline = append(outline, val)
+				vars[strings.ToLower(key)] = value // Jon's alt. add to vars map
 			}
 		}
 	}
-
-	s := strings.Join(outline[:], "")
-	idx := strings.LastIndex(s, ",")
-	s = s[1:idx]
-	s = s + "}}"
-	s = fmt.Sprintf("%s %s\n", "{", s)
-	fmt.Printf("%s", s)
+	metadata := map[string]interface{}{ // Jons impl
+		"meta": vars, // jon
+	}
+	out, err := json.Marshal(metadata)
+	if err != nil {
+		fmt.Printf("Error marsheling meta data %s\n", err.Error())
+		os.Exit(-1)
+	}
+	fmt.Printf("%s", string(out))
 }

@@ -1059,6 +1059,12 @@ func testUserApiKeys(t *testing.T, ctx context.Context, ds *testutil.DummyServer
 	require.Equal(t, apiKeyRoleManagePerm.Action, ActionManage)
 	require.Equal(t, apiKeyRoleManagePerm.Resource, ResourceCloudlets)
 
+	// show api key should show the created keys
+	apiKeys, status, err := mcClient.ShowUserApiKey(uri, token, nil)
+	require.Nil(t, err, "show apikey")
+	require.Equal(t, http.StatusOK, status, "show apikey")
+	require.Equal(t, len(apiKeys), 1, "match api key count")
+
 	// login using api key
 	apiKeyLoginToken, err := mcClient.DoLogin(uri, NoUserName, NoPassword, NoOTP, resp.Id, resp.ApiKey)
 	require.Nil(t, err, "login using api key")
@@ -1083,19 +1089,19 @@ func testUserApiKeys(t *testing.T, ctx context.Context, ds *testutil.DummyServer
 	}
 	_, status, err = mcClient.CreateUserApiKey(uri, apiKeyLoginToken, &userApiKeyObj)
 	require.NotNil(t, err, "create apikey should fail")
-	require.Equal(t, http.StatusBadRequest, status, "create apikey failure")
+	require.Equal(t, http.StatusForbidden, status, "create apikey failure")
 	require.Contains(t, err.Error(), "not authorized to create", "err matches")
 
 	delKeyObj := ormapi.CreateUserApiKey{UserApiKey: ormapi.UserApiKey{Id: resp.Id}}
 	status, err = mcClient.DeleteUserApiKey(uri, apiKeyLoginToken, &delKeyObj)
 	require.NotNil(t, err, "delete apikey should fail")
-	require.Equal(t, http.StatusBadRequest, status, "delete apikey failure")
+	require.Equal(t, http.StatusForbidden, status, "delete apikey failure")
 	require.Contains(t, err.Error(), "not authorized to delete", "err matches")
 
 	_, status, err = mcClient.ShowUserApiKey(uri, apiKeyLoginToken, nil)
 	require.NotNil(t, err, "show apikey should fail")
-	require.Equal(t, http.StatusBadRequest, status, "show apikey failure")
-	require.Contains(t, err.Error(), "not authorized to fetch", "err matches")
+	require.Equal(t, http.StatusForbidden, status, "show apikey failure")
+	require.Contains(t, err.Error(), "not authorized to view", "err matches")
 
 	// user should be able to view/manage the resources it is allowed to
 	dcnt := 2
@@ -1168,7 +1174,7 @@ func testUserApiKeys(t *testing.T, ctx context.Context, ds *testutil.DummyServer
 	require.Contains(t, err.Error(), "cannot create more than", "err matches")
 
 	// show api key should show the created keys
-	apiKeys, status, err := mcClient.ShowUserApiKey(uri, token1, nil)
+	apiKeys, status, err = mcClient.ShowUserApiKey(uri, token1, nil)
 	require.Nil(t, err, "show apikey")
 	require.Equal(t, http.StatusOK, status, "show apikey")
 	require.Equal(t, len(apiKeys), defaultConfig.UserApiKeyCreateLimit, "match api key count")

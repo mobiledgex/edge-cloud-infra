@@ -51,7 +51,7 @@ type CreateUserApiKey struct {
 	UserApiKey `json:",inline"`
 	// API key
 	ApiKey string
-	// List of API key roles
+	// List of API key permissions
 	Permissions []RolePerm `json:"permissions"`
 }
 

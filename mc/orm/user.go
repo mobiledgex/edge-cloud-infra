@@ -959,7 +959,7 @@ func CreateUserApiKey(c echo.Context) error {
 	}
 	// Disallow apikey creation if auth type is ApiKey auth
 	if claims.AuthType == ApiKeyAuth {
-		return setReply(c, fmt.Errorf("User is not authorized to create API key"), nil)
+		return c.JSON(http.StatusForbidden, Msg("User is not authorized to create API key"))
 	}
 	apiKeyReq := ormapi.CreateUserApiKey{}
 	if err := c.Bind(&apiKeyReq); err != nil {
@@ -1071,6 +1071,10 @@ func DeleteUserApiKey(c echo.Context) error {
 	if err != nil {
 		return err
 	}
+	// Disallow apikey deletion if auth type is ApiKey auth
+	if claims.AuthType == ApiKeyAuth {
+		return c.JSON(http.StatusForbidden, Msg("User is not authorized to delete API key"))
+	}
 	lookup := ormapi.CreateUserApiKey{}
 	if err := c.Bind(&lookup); err != nil {
 		return bindErr(c, err)
@@ -1079,10 +1083,6 @@ func DeleteUserApiKey(c echo.Context) error {
 	err = db.Where(&apiKeyObj).First(&apiKeyObj).Error
 	if err != nil {
 		return setReply(c, dbErr(err), nil)
-	}
-	// Disallow apikey deletion if auth type is ApiKey auth
-	if claims.AuthType == ApiKeyAuth {
-		return c.JSON(http.StatusBadRequest, Msg("User is not authorized to delete API key"))
 	}
 	apiKeyRole := getApiKeyRoleName(apiKeyObj.Id)
 	err = enforcer.RemovePolicy(ctx, apiKeyRole)
@@ -1109,19 +1109,16 @@ func ShowUserApiKey(c echo.Context) error {
 	if err != nil {
 		return err
 	}
-
 	// Disallow apikey users to view api keys
 	if claims.AuthType == ApiKeyAuth {
-		return setReply(c, fmt.Errorf("User is not authorized to fetch API keys"), nil)
+		return c.JSON(http.StatusForbidden, Msg("User is not authorized to view API keys"))
 	}
-
 	filter := ormapi.CreateUserApiKey{}
 	if c.Request().ContentLength > 0 {
 		if err := c.Bind(&filter); err != nil {
 			return bindErr(c, err)
 		}
 	}
-
 	apiKeys := []ormapi.UserApiKey{}
 	// if filter ID is 0, show all keys
 	if filter.Id == "" {
@@ -1137,14 +1134,24 @@ func ShowUserApiKey(c echo.Context) error {
 		}
 		apiKeys = append(apiKeys, apiKeyObj)
 	}
+	super := false
+	if authorized(ctx, claims.Username, "", ResourceUsers, ActionView) == nil {
+		// super user, show all apikeys
+		super = true
+	}
 	outApiKeys := []ormapi.CreateUserApiKey{}
 	for _, apiKeyObj := range apiKeys {
+		if !super && apiKeyObj.Username != claims.Username {
+			continue
+		}
 		out := ormapi.CreateUserApiKey{}
 		out.Id = apiKeyObj.Id
 		out.Description = apiKeyObj.Description
 		out.Org = apiKeyObj.Org
+		out.CreatedAt = apiKeyObj.CreatedAt
+		out.Username = apiKeyObj.Username
 		out.Permissions = []ormapi.RolePerm{}
-		rolePerms, err := enforcer.GetPermissions(ctx, claims.Username, apiKeyObj.Org)
+		rolePerms, err := enforcer.GetPermissions(ctx, apiKeyObj.Id, apiKeyObj.Org)
 		if err != nil {
 			return err
 		}

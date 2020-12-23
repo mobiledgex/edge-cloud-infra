@@ -4,6 +4,7 @@ pipeline {
     }
     agent any
     environment {
+        main_VAULT_ROLE = credentials('main-vault-pki-tidy-role')
         stage_VAULT_ROLE = credentials('staging-vault-pki-tidy-role')
         qa_VAULT_ROLE = credentials('qa-vault-pki-tidy-role')
         dev_VAULT_ROLE = credentials('dev-vault-pki-tidy-role')
@@ -17,7 +18,7 @@ pipeline {
                         sh label: 'Run ansible playbook', script: '''$!/bin/bash
 set -e
 export ANSIBLE_FORCE_COLOR=true
-for DEPLOY_ENVIRON in stage; do
+for DEPLOY_ENVIRON in main stage qa dev; do
     eval "VAULT_ROLE_ID=\\\$${DEPLOY_ENVIRON}_VAULT_ROLE_USR"
     eval "VAULT_SECRET_ID=\\\$${DEPLOY_ENVIRON}_VAULT_ROLE_PSW"
     export VAULT_ADDR="https://vault-${DEPLOY_ENVIRON}.mobiledgex.net"

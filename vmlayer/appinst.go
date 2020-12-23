@@ -54,6 +54,9 @@ func (v *VMPlatform) PerformOrchestrationForVMApp(ctx context.Context, app *edge
 	imageInfo.LocalImageName = imageName + "-" + md5Sum
 	imageInfo.Md5sum = md5Sum
 	imageInfo.SourceImageTime = sourceImageTime
+	if err != nil {
+		return &orchVals, err
+	}
 
 	err = v.VMProvider.AddAppImageIfNotPresent(ctx, &imageInfo, app, appInst.Flavor.Name, updateCallback)
 	if err != nil {

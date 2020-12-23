@@ -72,7 +72,7 @@ func (v *VcdPlatform) PopulateOrgLoginCredsFromVault(ctx context.Context) error 
 		User:     v.GetVCDUser(),
 		Password: v.GetVCDPassword(),
 		Org:      v.GetVCDORG(),
-		Href:     v.GetVCDIP(),
+		Href:     v.GetVCDIP() + "/api",
 		VDC:      v.GetVDCName(),
 		Insecure: true,
 	}

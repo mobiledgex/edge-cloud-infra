@@ -424,7 +424,7 @@ func (v *VcdPlatform) GetPlatformResources(ctx context.Context) error {
 					// now collect any VMs in this Vapp
 					if vapp.VApp.Children != nil {
 						if v.Verbose {
-							log.SpanLog(ctx, log.DebugLevelInfra, "Discover: VApp", vapp.VApp.Name, "child vms", len(vapp.VApp.Children.VM))
+							log.SpanLog(ctx, log.DebugLevelInfra, "Discover:", "VApp", vapp.VApp.Name, "child vms", len(vapp.VApp.Children.VM))
 						}
 						for _, child := range vapp.VApp.Children.VM {
 							vm, err := vapp.GetVMByName(child.Name, true)
@@ -442,7 +442,7 @@ func (v *VcdPlatform) GetPlatformResources(ctx context.Context) error {
 			} else if res.Type == "application/vnd.vmware.vcloud.vms+xml" {
 				// VMs
 				if v.Verbose {
-					log.SpanLog(ctx, log.DebugLevelInfra, "Discover Vdc VM resource", "VmName", res.Name, "Href", res.HREF)
+					log.SpanLog(ctx, log.DebugLevelInfra, "Discover: Vdc VM resource", "VmName", res.Name, "Href", res.HREF)
 				}
 				vm, err := v.Client.Client.GetVMByHref(res.HREF)
 				if err != nil {
@@ -454,7 +454,7 @@ func (v *VcdPlatform) GetPlatformResources(ctx context.Context) error {
 				// Templates
 			} else if res.Type == "application/vnd.vmware.vcloud.vAppTemplate+xml" {
 				if v.Verbose {
-					log.SpanLog(ctx, log.DebugLevelInfra, "Discover Vdc  resource template", "Name", res.Name, "Href", res.HREF)
+					log.SpanLog(ctx, log.DebugLevelInfra, "Discover: Vdc  resource template", "Name", res.Name, "Href", res.HREF)
 				}
 
 				tmpl, err := v.Objs.PrimaryCat.GetVappTemplateByHref(res.HREF)

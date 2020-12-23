@@ -77,6 +77,9 @@ func (v *VcdPlatform) PopulateOrgLoginCredsFromVault(ctx context.Context) error 
 		Insecure: true,
 	}
 
+	fmt.Printf("\n\nPopLoginCreds: \n\tUser: %s\n\tPassword: %s\n\tORG: %s\n\tHref: %s\n\t VDCName: %s\n",
+		creds.User, creds.Password, creds.Org, creds.Href, creds.VDC)
+
 	if creds.User == "" {
 		return fmt.Errorf("User not defined")
 	}

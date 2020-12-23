@@ -59,6 +59,9 @@ func (v *VcdPlatform) GetVcdVars(ctx context.Context, accessApi platform.AccessA
 	if v.Verbose {
 		log.SpanLog(ctx, log.DebugLevelInfra, "vcd ", "Vars", v.vcdVars)
 	}
+	for k, v := range v.vcdVars {
+		fmt.Printf("k: %s v: %s\n", k, v)
+	}
 	err = v.PopulateOrgLoginCredsFromVault(ctx)
 	if err != nil {
 		return err

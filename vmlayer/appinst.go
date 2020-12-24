@@ -42,19 +42,25 @@ func GetAppWhitelistRulesLabel(app *edgeproto.App) string {
 	return "appaccess-" + k8smgmt.NormalizeName(app.Key.Name)
 }
 
-func (v *VMPlatform) PerformOrchestrationForVMApp(ctx context.Context, app *edgeproto.App, appInst *edgeproto.AppInst, privacyPolicy *edgeproto.PrivacyPolicy, action ActionType, updateCallback edgeproto.CacheUpdateCallback) (*vmAppOrchValues, error) {
+func (v *VMPlatform) PerformOrchestrationForVMApp(ctx context.Context, app *edgeproto.App, appInst *edgeproto.AppInst, updateCallback edgeproto.CacheUpdateCallback) (*vmAppOrchValues, error) {
 	var orchVals vmAppOrchValues
 
 	imageName, err := cloudcommon.GetFileName(app.ImagePath)
 	if err != nil {
 		return &orchVals, err
 	}
+	var imageInfo infracommon.ImageInfo
+	sourceImageTime, md5Sum, err := infracommon.GetUrlInfo(ctx, v.VMProperties.CommonPf.PlatformConfig.AccessApi, app.ImagePath)
+	imageInfo.LocalImageName = imageName + "-" + md5Sum
+	imageInfo.Md5sum = md5Sum
+	imageInfo.SourceImageTime = sourceImageTime
+	if err != nil {
+		return &orchVals, err
+	}
 
-	if action == ActionCreate {
-		err = v.VMProvider.AddAppImageIfNotPresent(ctx, app, appInst.Flavor.Name, updateCallback)
-		if err != nil {
-			return &orchVals, err
-		}
+	err = v.VMProvider.AddAppImageIfNotPresent(ctx, &imageInfo, app, appInst.Flavor.Name, updateCallback)
+	if err != nil {
+		return &orchVals, err
 	}
 
 	objName := cloudcommon.GetAppFQN(&app.Key)
@@ -93,7 +99,7 @@ func (v *VMPlatform) PerformOrchestrationForVMApp(ctx context.Context, app *edge
 		VMTypeAppVM,
 		objName,
 		appInst.VmFlavor,
-		imageName,
+		imageInfo.LocalImageName,
 		appConnectsExternal,
 		WithComputeAvailabilityZone(appInst.AvailabilityZone),
 		WithExternalVolume(appInst.ExternalVolumeSize),
@@ -107,9 +113,8 @@ func (v *VMPlatform) PerformOrchestrationForVMApp(ctx context.Context, app *edge
 	}
 	vms = append(vms, appVm)
 	updateCallback(edgeproto.UpdateTask, "Deploying App")
-	vmgp, err := v.OrchestrateVMsFromVMSpec(ctx, objName, vms, action, updateCallback, WithNewSubnet(orchVals.newSubnetName),
-		WithPrivacyPolicy(privacyPolicy),
-		WithAccessPorts(app.AccessPorts),
+	vmgp, err := v.OrchestrateVMsFromVMSpec(ctx, objName, vms, ActionCreate, updateCallback, WithNewSubnet(orchVals.newSubnetName),
+		WithAccessPorts(app.AccessPorts, RemoteCidrAll),
 		WithNewSecurityGroup(GetServerSecurityGroupName(orchVals.externalServerName)),
 	)
 	if err != nil {
@@ -140,7 +145,7 @@ func seedDockerSecrets(ctx context.Context, client ssh.Client, clusterInst *edge
 	return nil
 }
 
-func (v *VMPlatform) CreateAppInst(ctx context.Context, clusterInst *edgeproto.ClusterInst, app *edgeproto.App, appInst *edgeproto.AppInst, appFlavor *edgeproto.Flavor, privacyPolicy *edgeproto.PrivacyPolicy, updateCallback edgeproto.CacheUpdateCallback) error {
+func (v *VMPlatform) CreateAppInst(ctx context.Context, clusterInst *edgeproto.ClusterInst, app *edgeproto.App, appInst *edgeproto.AppInst, appFlavor *edgeproto.Flavor, updateCallback edgeproto.CacheUpdateCallback) error {
 
 	var err error
 	switch deployment := app.Deployment; deployment {
@@ -241,7 +246,7 @@ func (v *VMPlatform) CreateAppInst(ctx context.Context, clusterInst *edgeproto.C
 		}
 	case cloudcommon.DeploymentTypeVM:
 		objName := cloudcommon.GetAppFQN(&app.Key)
-		orchVals, err := v.PerformOrchestrationForVMApp(ctx, app, appInst, privacyPolicy, ActionCreate, updateCallback)
+		orchVals, err := v.PerformOrchestrationForVMApp(ctx, app, appInst, updateCallback)
 		if err != nil {
 			return err
 		}
@@ -251,7 +256,8 @@ func (v *VMPlatform) CreateAppInst(ctx context.Context, clusterInst *edgeproto.C
 		}
 		if app.AccessType == edgeproto.AccessType_ACCESS_TYPE_LOAD_BALANCER {
 			updateCallback(edgeproto.UpdateTask, "Setting Up Load Balancer")
-			err = v.SetupRootLB(ctx, orchVals.lbName, &clusterInst.Key.CloudletKey, privacyPolicy, updateCallback)
+			pp := edgeproto.TrustPolicy{}
+			err = v.SetupRootLB(ctx, orchVals.lbName, &clusterInst.Key.CloudletKey, &pp, updateCallback)
 			if err != nil {
 				return err
 			}
@@ -503,7 +509,10 @@ func (v *VMPlatform) DeleteAppInst(ctx context.Context, clusterInst *edgeproto.C
 		if err != nil {
 			return err
 		}
-		err = v.VMProvider.DeleteImage(ctx, cloudcommon.GetAppFQN(&app.Key), imgName)
+		_, md5Sum, err := infracommon.GetUrlInfo(ctx, v.VMProperties.CommonPf.PlatformConfig.AccessApi, app.ImagePath)
+		localImageName := imgName + "-" + md5Sum
+
+		err = v.VMProvider.DeleteImage(ctx, cloudcommon.GetAppFQN(&app.Key), localImageName)
 		if err != nil {
 			log.SpanLog(ctx, log.DebugLevelInfra, "cannot delete image", "imgName", imgName)
 		}

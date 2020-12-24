@@ -12,7 +12,10 @@ import (
 	"github.com/gorilla/websocket"
 	"github.com/jinzhu/gorm"
 	"github.com/labstack/echo"
-	"github.com/mobiledgex/edge-cloud-infra/billing/zuora"
+	"github.com/lib/pq"
+	"github.com/mobiledgex/edge-cloud-infra/billing"
+	"github.com/mobiledgex/edge-cloud-infra/billing/chargify"
+	"github.com/mobiledgex/edge-cloud-infra/billing/fakebilling"
 	intprocess "github.com/mobiledgex/edge-cloud-infra/e2e-tests/int-process"
 	"github.com/mobiledgex/edge-cloud-infra/mc/orm/alertmgr"
 	"github.com/mobiledgex/edge-cloud-infra/mc/ormapi"
@@ -43,6 +46,7 @@ type Server struct {
 	initJWKDone  chan struct{}
 	notifyServer *notify.ServerMgr
 	notifyClient *notify.Client
+	sqlListener  *pq.Listener
 }
 
 type ServerConfig struct {
@@ -71,6 +75,7 @@ type ServerConfig struct {
 	NodeMgr                 *node.NodeMgr
 	Billing                 bool
 	BillingPath             string
+	BillingService          billing.BillingService
 	AlertCache              *edgeproto.AlertCache
 	AlertMgrAddr            string
 	AlertmgrResolveTimout   time.Duration
@@ -94,8 +99,9 @@ var gitlabSync *AppStoreSync
 var artifactorySync *AppStoreSync
 var nodeMgr *node.NodeMgr
 var AlertManagerServer *alertmgr.AlertMgrServer
+var allRegionCaches AllRegionCaches
 
-func RunServer(config *ServerConfig) (*Server, error) {
+func RunServer(config *ServerConfig) (retserver *Server, reterr error) {
 	server := Server{config: config}
 	// keep global pointer to config stored in server for easy access
 	serverConfig = server.config
@@ -131,12 +137,18 @@ func RunServer(config *ServerConfig) (*Server, error) {
 	if serverConfig.LDAPPassword == "" && !config.IgnoreEnv {
 		serverConfig.LDAPPassword = os.Getenv("LDAP_PASSWORD")
 	}
+	allRegionCaches.init()
 
-	ctx, span, err := nodeMgr.Init("mc", node.CertIssuerGlobal, node.WithName(config.Hostname))
+	ctx, span, err := nodeMgr.Init(node.NodeTypeMC, node.CertIssuerGlobal, node.WithName(config.Hostname), node.WithCloudletPoolLookup(&allRegionCaches))
 	if err != nil {
 		return nil, err
 	}
 	defer span.Finish()
+	defer func() {
+		if reterr != nil {
+			server.Stop()
+		}
+	}()
 
 	if config.LocalVault {
 		vaultProc := process.Vault{
@@ -173,9 +185,13 @@ func RunServer(config *ServerConfig) (*Server, error) {
 	InitVault(config.vaultConfig, server.initJWKDone)
 
 	if config.Billing {
-		err = zuora.InitZuora(config.vaultConfig, config.BillingPath)
+		serverConfig.BillingService = &chargify.BillingService{}
+		if config.BillingPath == billing.BillingTypeFake {
+			serverConfig.BillingService = &fakebilling.BillingService{}
+		}
+		err = serverConfig.BillingService.Init(ctx, config.vaultConfig, config.BillingPath)
 		if err != nil {
-			return nil, fmt.Errorf("Unable to initialize zuora: %v", err)
+			return nil, fmt.Errorf("Unable to initialize billing services: %v", err)
 		}
 	}
 
@@ -704,7 +720,6 @@ func RunServer(config *ServerConfig) (*Server, error) {
 			err = ldapServer.ListenAndServe(config.LDAPAddr)
 		}
 		if err != nil {
-			server.Stop()
 			log.FatalLog("LDAP Server Failed", "err", err)
 		}
 	}()
@@ -718,6 +733,20 @@ func RunServer(config *ServerConfig) (*Server, error) {
 	artifactorySync.Start()
 	if AlertManagerServer != nil {
 		AlertManagerServer.Start()
+	}
+	sqlListener, err := initSqlListener(ctx)
+	if err != nil {
+		return nil, err
+	}
+	server.sqlListener = sqlListener
+	go func() {
+		err := server.sqlListener.Listen(sqlEventsChannel)
+		if err != nil {
+			log.FatalLog("Failed to listen for sql events", "err", err)
+		}
+	}()
+	if err := allRegionCaches.refreshRegions(ctx); err != nil {
+		return nil, err
 	}
 
 	return &server, err
@@ -744,8 +773,15 @@ func (s *Server) WaitUntilReady() error {
 
 func (s *Server) Stop() {
 	s.stopInitData = true
-	s.echo.Close()
-	s.database.Close()
+	if s.echo != nil {
+		s.echo.Close()
+	}
+	if s.database != nil {
+		s.database.Close()
+	}
+	if s.sqlListener != nil {
+		s.sqlListener.Close()
+	}
 	if s.sql != nil {
 		s.sql.StopLocal()
 	}

@@ -1090,18 +1090,18 @@ func testUserApiKeys(t *testing.T, ctx context.Context, ds *testutil.DummyServer
 	_, status, err = mcClient.CreateUserApiKey(uri, apiKeyLoginToken, &userApiKeyObj)
 	require.NotNil(t, err, "create apikey should fail")
 	require.Equal(t, http.StatusForbidden, status, "create apikey failure")
-	require.Contains(t, err.Error(), "not authorized to create", "err matches")
+	require.Contains(t, err.Error(), "not allowed to create", "err matches")
 
 	delKeyObj := ormapi.CreateUserApiKey{UserApiKey: ormapi.UserApiKey{Id: resp.Id}}
 	status, err = mcClient.DeleteUserApiKey(uri, apiKeyLoginToken, &delKeyObj)
 	require.NotNil(t, err, "delete apikey should fail")
 	require.Equal(t, http.StatusForbidden, status, "delete apikey failure")
-	require.Contains(t, err.Error(), "not authorized to delete", "err matches")
+	require.Contains(t, err.Error(), "not allowed to delete", "err matches")
 
 	_, status, err = mcClient.ShowUserApiKey(uri, apiKeyLoginToken, nil)
 	require.NotNil(t, err, "show apikey should fail")
 	require.Equal(t, http.StatusForbidden, status, "show apikey failure")
-	require.Contains(t, err.Error(), "not authorized to view", "err matches")
+	require.Contains(t, err.Error(), "not allowed to show", "err matches")
 
 	// user should be able to view/manage the resources it is allowed to
 	dcnt := 2

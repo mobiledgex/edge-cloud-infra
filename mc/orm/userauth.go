@@ -154,11 +154,10 @@ func getClaims(c echo.Context) (*UserClaims, error) {
 	if claims.AuthType == ApiKeyAuth {
 		span.SetTag("username", claims.ApiKeyUsername)
 		span.SetTag("apikeyid", claims.Username)
-		span.SetTag("email", claims.Email)
 	} else {
 		span.SetTag("username", claims.Username)
-		span.SetTag("email", claims.Email)
 	}
+	span.SetTag("email", claims.Email)
 	return claims, nil
 }
 

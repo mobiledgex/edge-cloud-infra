@@ -959,7 +959,7 @@ func CreateUserApiKey(c echo.Context) error {
 	}
 	// Disallow apikey creation if auth type is ApiKey auth
 	if claims.AuthType == ApiKeyAuth {
-		return c.JSON(http.StatusForbidden, Msg("User is not authorized to create API key"))
+		return c.JSON(http.StatusForbidden, Msg("ApiKey auth not allowed to create API keys, please log in with user account"))
 	}
 	apiKeyReq := ormapi.CreateUserApiKey{}
 	if err := c.Bind(&apiKeyReq); err != nil {
@@ -980,7 +980,7 @@ func CreateUserApiKey(c echo.Context) error {
 		return setReply(c, fmt.Errorf("User cannot create more than %d API keys, please delete existing keys to create new one", config.UserApiKeyCreateLimit), nil)
 	}
 	if len(apiKeyReq.Permissions) == 0 {
-		return c.JSON(http.StatusBadRequest, Msg("Missing permissions"))
+		return c.JSON(http.StatusBadRequest, Msg("No permissions for specified org"))
 	}
 
 	apiKeyObj := ormapi.UserApiKey{}
@@ -1073,7 +1073,7 @@ func DeleteUserApiKey(c echo.Context) error {
 	}
 	// Disallow apikey deletion if auth type is ApiKey auth
 	if claims.AuthType == ApiKeyAuth {
-		return c.JSON(http.StatusForbidden, Msg("User is not authorized to delete API key"))
+		return c.JSON(http.StatusForbidden, Msg("ApiKey auth not allowed to delete API keys, please log in with user account"))
 	}
 	lookup := ormapi.CreateUserApiKey{}
 	if err := c.Bind(&lookup); err != nil {
@@ -1111,7 +1111,7 @@ func ShowUserApiKey(c echo.Context) error {
 	}
 	// Disallow apikey users to view api keys
 	if claims.AuthType == ApiKeyAuth {
-		return c.JSON(http.StatusForbidden, Msg("User is not authorized to view API keys"))
+		return c.JSON(http.StatusForbidden, Msg("ApiKey auth not allowed to show API keys, please log in with user account"))
 	}
 	filter := ormapi.CreateUserApiKey{}
 	if c.Request().ContentLength > 0 {

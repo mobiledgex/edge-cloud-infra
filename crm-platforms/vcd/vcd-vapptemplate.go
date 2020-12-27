@@ -10,7 +10,9 @@ import (
 
 func (v *VcdPlatform) FindTemplate(ctx context.Context, tmplName string) (*govcd.VAppTemplate, error) {
 
+	fmt.Printf("\n\nFindTemplate-I-have %d templates\n\n", len(v.Objs.VAppTmpls))
 	for _, tmpl := range v.Objs.VAppTmpls {
+		fmt.Printf("\tchecking %s vs requested %s\n", tmpl.VAppTemplate.Name, tmplName)
 		if tmpl.VAppTemplate.Name == tmplName {
 			return tmpl, nil
 		}

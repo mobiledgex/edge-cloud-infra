@@ -74,12 +74,10 @@ func (v *VcdPlatform) PopulateVMNetConnectSection(ctx context.Context, vmparams 
 		netConnectSec.NetworkConnection = append(netConnectSec.NetworkConnection,
 			&types.NetworkConnection{
 				IsConnected:             true,
-				IPAddressAllocationMode: types.IPAllocationModeDHCP,
+				IPAddressAllocationMode: types.IPAllocationModeManual,
 				Network:                 v.Objs.PrimaryNet.OrgVDCNetwork.Name,
-				// NetworkCOnnectionIndex: 2, // how would we find this?
 			},
 		)
-
 	}
 	return netConnectSec, nil
 }

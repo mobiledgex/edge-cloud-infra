@@ -29,6 +29,9 @@ var vdcName = flag.String("vdc", "mex01", "name of vdc")
 var grpName = flag.String("grp", "grp-default", "some grp name")
 var clstName = flag.String("clst", "clst-default", "some cluster  name")
 var cldName = flag.String("cld", "cld-default", "some cld name")
+var phyName = flag.String("phy", "packet", "some physicalLocation")
+var orgName = flag.String("org", "mexorg", "some physicalLocation")
+var regionName = flag.String("reg", "US", "some regiony")
 var livetest = flag.String("live", "false", "live or canned data")
 
 // Unit test env init. We have two cases, the default is live=false making

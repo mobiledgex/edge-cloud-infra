@@ -103,7 +103,7 @@ func (v *VcdPlatform) CreateCluster(ctx context.Context, cloud *MexCloudlet, tmp
 			lbvm = vm
 			vmIp = baseAddr
 		} else {
-			vmIp = v.IncrIP(baseAddr, 100+(n-1))
+			vmIp = v.IncrIP(ctx, baseAddr, 100+(n-1))
 			ncs.PrimaryNetworkConnectionIndex = 0
 		}
 
@@ -146,7 +146,6 @@ func (v *VcdPlatform) CreateCluster(ctx context.Context, cloud *MexCloudlet, tmp
 	// Ok, here, we have both cluster vm on the internal net. Now go back and
 	// add the external to our LB
 	extAddr := ""
-	// Hopefully, adding this second will make it's default route first
 	extAddr, err = v.GetNextExtAddrForVdcNet(ctx, cloud.ParentVdc)
 	if err != nil {
 		return clusterName, fmt.Errorf("Agent node failed to obtain external net IP")
@@ -251,4 +250,23 @@ func (v *VcdPlatform) FindClusterVM(ctx context.Context, name string) (string, *
 		}
 	}
 	return "", nil, fmt.Errorf("VM not found")
+}
+
+func (v *VcdPlatform) RebuildClusters(ctx context.Context) error {
+
+	log.SpanLog(ctx, log.DebugLevelInfra, "RebuildClusters")
+	// run the list of vms we have, create a cluster Object for each
+	// vm that has the ClusterMasterVM mark?
+	// will go to a vapp per cluster so the vapp's first VM is the clusterMaster.
+
+	for vmName, vm := range v.Objs.VMs {
+
+		_ /*metadata,*/, err := vm.GetMetadata()
+		if err != nil {
+			log.SpanLog(ctx, log.DebugLevelInfra, "GetMetadata for", "vm", vmName, "failed", err)
+			return err
+		}
+
+	}
+	return nil
 }

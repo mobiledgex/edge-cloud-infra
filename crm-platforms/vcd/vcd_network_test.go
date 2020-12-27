@@ -69,6 +69,21 @@ func TestNextIntAddr(t *testing.T) {
 	}
 }
 
+func TestGetOrgNetworks(t *testing.T) {
+	live, ctx, err := InitVcdTestEnv()
+	require.Nil(t, err, "InitVcdTestEnv")
+
+	if live {
+		networks, err := tv.GetOrgNetworks(ctx, tv.Objs.Org)
+		if err != nil {
+			fmt.Printf("GetORgNetworks failed: %s\n", err.Error())
+		}
+		for _, net := range networks {
+			fmt.Printf("net: %s\n", net)
+		}
+	}
+}
+
 // -vapp -net Return the current external net
 func TestGetVappAddr(t *testing.T) {
 	live, ctx, err := InitVcdTestEnv()

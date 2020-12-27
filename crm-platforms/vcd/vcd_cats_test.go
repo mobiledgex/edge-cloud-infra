@@ -85,12 +85,13 @@ func testOvaUpload(t *testing.T, ctx context.Context) error {
 
 	url := path + "/vmware-lab/" + *ovaName
 
-	tname := *ovaName
+	//tname := *ovaName
+	tname := "mobiledgex-v4.1.3-vcd"
 	fmt.Printf("testMediaUpload-I-attempt uploading: %s naming it %s \n", url, tname)
 
 	cat := tv.Objs.PrimaryCat
 	elapse_start := time.Now()
-	task, err := cat.UploadOvf(url, tname, "test-import-ova-vcd", (1024 * 4))
+	task, err := cat.UploadOvf(url, tname, "test-import-ova-vcd", (1024 * 100))
 
 	if err != nil {
 		fmt.Printf("\nError from UploadOvf: %s\n", err.Error())

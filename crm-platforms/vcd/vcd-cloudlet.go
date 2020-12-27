@@ -40,14 +40,15 @@ func (v *VcdPlatform) CreateCloudlet(ctx context.Context, vappTmpl govcd.VAppTem
 	vmparams := vmlayer.VMOrchestrationParams{}
 	newVappName := vmgp.GroupName + "-vapp" // 11/04 does removing this screw it up? should only be done for cloudlet
 	// seems to perhaps not allow the added vm for cluster to take new internal networks try putting it back 11/17
+	/*
+		if len(vappTmpl.VAppTemplate.Children.VM) != 0 {
+			// xxx non-standard
+			vmtmpl := vappTmpl.VAppTemplate.Children.VM[0]
+			vmparams = vmgp.VMs[0]
+			vmtmpl.Name = vmparams.Name
+			vmRole = vmparams.Role
+		}*/
 
-	if len(vappTmpl.VAppTemplate.Children.VM) != 0 {
-		// xxx non-standard
-		vmtmpl := vappTmpl.VAppTemplate.Children.VM[0]
-		vmparams = vmgp.VMs[0]
-		vmtmpl.Name = vmparams.Name
-		vmRole = vmparams.Role
-	}
 	networks := []*types.OrgVDCNetwork{}
 	networks = append(networks, v.Objs.PrimaryNet.OrgVDCNetwork)
 	extAddr, err := v.GetNextExtAddrForVdcNet(ctx, vdc)
@@ -111,14 +112,13 @@ func (v *VcdPlatform) CreateCloudlet(ctx context.Context, vappTmpl govcd.VAppTem
 					log.SpanLog(ctx, log.DebugLevelInfra, "Add external network failed ", "VAppName", vmgp.GroupName, "err", err)
 					return nil, err
 				}
-				// Revisit ModePool and 12/13/20  Still seems to leak IPs
 				desiredNetConfig.NetworkConnection = append(desiredNetConfig.NetworkConnection,
 					&types.NetworkConnection{
 						IsConnected:             true,
-						IPAddressAllocationMode: types.IPAllocationModePool,           // Manual
-						Network:                 v.Objs.PrimaryNet.OrgVDCNetwork.Name, // types.NoneNetwork,
+						IPAddressAllocationMode: types.IPAllocationModeManual,
+						Network:                 v.Objs.PrimaryNet.OrgVDCNetwork.Name,
 						NetworkConnectionIndex:  0,
-						// pool test IPAddress:               extAddr,
+						IPAddress:               extAddr,
 					})
 			}
 
@@ -333,8 +333,6 @@ func (v *VcdPlatform) DeleteCloudlet(ctx context.Context, cloudlet MexCloudlet) 
 // Not much use when only one cloudlet per vcd
 func (v *VcdPlatform) FindCloudletForCluster(GroupName string) (*MexCloudlet, *govcd.VApp, error) {
 	vdcCloudlet := v.Objs.Cloudlet
-
-	fmt.Printf("FindCloudletForCluster-I-GroupName %s cloudlet %s\n", GroupName, vdcCloudlet.CloudletName)
 
 	// validate cld name is our vdc/vapp name
 	if strings.Contains(GroupName, vdcCloudlet.CloudletName) {

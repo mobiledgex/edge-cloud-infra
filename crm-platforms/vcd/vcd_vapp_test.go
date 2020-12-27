@@ -807,7 +807,7 @@ func TestRaw2Nic(t *testing.T) {
 		// AddOrgNetwork
 		// Create DhcpSettings
 		staticIPStart := IPScope.IPRanges.IPRange[0].StartAddress
-		fmt.Printf("\nCreateRawVApp-I-dhcp range used: start %s to end  %s\n", tv.IncrIP(IPScope.Gateway, 1), tv.DecrIP(staticIPStart, 1))
+		fmt.Printf("\nCreateRawVApp-I-dhcp range used: start %s to end  %s\n", tv.IncrIP(ctx, IPScope.Gateway, 1), tv.DecrIP(ctx, staticIPStart, 1))
 		/*
 			dhcpIPRange := types.IPRange{
 				StartAddress: tv.IncrIP(IPScope.Gateway),

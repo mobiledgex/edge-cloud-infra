@@ -27,14 +27,22 @@ func (v *VcdPlatform) GetOrgNetworks(ctx context.Context, org *govcd.Org) ([]str
 		config := orgvdcnet.OrgVDCNetwork.Configuration
 		scopes := config.IPScopes.IPScope
 		for _, scope := range scopes {
-			netmask := net.IPMask(net.ParseIP(scope.Netmask).To4())
+			a := net.ParseIP(scope.Netmask)
+			if a == nil {
+				fmt.Printf("GetOrgNetworks-E- %s fail ParseIP\n", scope.Netmask)
+				continue
+			}
+			a4 := a.To4()
+			if a4 == nil {
+				continue
+			}
+			netmask := net.IPMask(a4)
 			sz, _ := netmask.Size()
 			address := fmt.Sprintf("%s/%d", scope.Gateway, sz)
 			networks = append(networks, address)
 		}
 	}
 	return networks, nil
-
 }
 
 func (v *VcdPlatform) GetNetworkList(ctx context.Context) ([]string, error) {
@@ -103,46 +111,52 @@ func (v *VcdPlatform) DetachPortFromServer(ctx context.Context, serverName, subn
 	return nil
 }
 
-// Since AllocatedIPAddresses seems to always return as nil, this will never fly
-func (v *VcdPlatform) GetAvailableAddrInRange(ctx context.Context, iprange types.IPRange, scope *types.IPScope) string {
-	// Find first available IPaddress in IPRange
-	start := iprange.StartAddress
-	end := iprange.EndAddress
-
-	// we could caclulate the number of IPs in the pool
-	for {
-		if (!strings.Contains(scope.AllocatedIPAddresses.IPAddress, start)) && start != end {
-			return start
-		} else {
-			ip := net.ParseIP(start)
-			ip = ip.To4()
-			ip[3]++
-			start = ip.String()
-			if start == end {
-				break
-			}
-		}
-	}
-	return ""
-}
-
-func (v *VcdPlatform) IncrIP(a string, delta int) string {
+func (v *VcdPlatform) IncrIP(ctx context.Context, a string, delta int) string {
 	ip := net.ParseIP(a)
 	if ip == nil {
 		return ""
 	}
 	ip = ip.To4()
+	if ip == nil {
+		return ""
+	}
 	ip[3] += byte(delta)
+
+	// we know a is a good IP
+	ao, _ := v.Octet(ctx, a, 3)
+	ipo, err := v.Octet(ctx, ip.String(), 3)
+	if err != nil {
+		fmt.Printf("IncrIP-E-Octet reports %s is invalid\n", ip)
+	}
+	if ipo != ao+delta {
+		fmt.Printf("IncrIP-E- a %s delta %d ao: %d ipo %d (ao+ipo)%d\n",
+			a, delta, ao, ipo, (ao - ipo))
+		return ""
+		// fmt.Errorf("range wrap err")
+	}
 	return ip.String()
 }
 
-func (v *VcdPlatform) DecrIP(a string, delta int) string {
+func (v *VcdPlatform) DecrIP(ctx context.Context, a string, delta int) string {
 	ip := net.ParseIP(a)
 	if ip == nil {
 		return ""
 	}
 	ip = ip.To4()
+	if ip == nil {
+		return ""
+	}
 	ip[3] -= byte(delta)
+
+	ao, _ := v.Octet(ctx, a, 3)
+	ipo, _ := v.Octet(ctx, ip.String(), 3)
+	if ao-delta != ipo {
+		fmt.Printf("DecrIP-E- a %s delta %d ao: %d ipo %d (ao-ipo)%d\n",
+			a, delta, ao, ipo, (ao - ipo))
+		return ""
+		//		return fmt.Errorf("range wrap error")
+	}
+
 	return ip.String()
 }
 
@@ -159,6 +173,9 @@ func (v *VcdPlatform) Octet(ctx context.Context, a string, n int) (int, error) {
 		return 0, fmt.Errorf("Invalid IP")
 	}
 	ip = ip.To4()
+	if ip == nil {
+		return 0, fmt.Errorf("Ip Not a v4 address")
+	}
 	return int(ip[n]), nil
 }
 
@@ -222,8 +239,8 @@ func (v *VcdPlatform) CreateInternalNetworkForNewVm(ctx context.Context, vapp *g
 	// DNE: dnsservers := vmparams.DNSServers
 	dns2 := ""
 
-	startAddr := v.IncrIP(gateway, 1)
-	endAddr := v.IncrIP(gateway, InternalNetMax)
+	startAddr := v.IncrIP(ctx, gateway, 1)
+	endAddr := v.IncrIP(ctx, gateway, InternalNetMax)
 
 	if v.Verbose {
 		log.SpanLog(ctx, log.DebugLevelInfra, "vappNetSetting", "netname", netname, "host", vmparams.HostName, "role", vmparams.Role, "gateway", gateway, "StartIP", startAddr, "EndIP", endAddr)
@@ -371,18 +388,21 @@ func (v *VcdPlatform) GetNextExtAddrForVdcNet(ctx context.Context, vdc *govcd.Vd
 	// replace with _,  ok := cloudMap[curAddr]; !ok XXX
 	for _, _ = range cloudMap {
 		if cloudMap[curAddr] == nil {
+			fmt.Printf("\n\nGetNextExtAddrForVdcNet-I-unused addr %s returned\n\n", curAddr)
 			return curAddr, nil
 		}
-		curAddr = v.IncrIP(curAddr, 1)
+		curAddr = v.IncrIP(ctx, curAddr, 1)
 		n, err := v.Octet(ctx, curAddr, 3)
 		if err != nil {
 			return "", err
 		}
 		if n > e {
 			// iprange exhaused
+			fmt.Printf("\n\nGetNextExtAddrForVdcNet-E-range Exahusted network %s\n", vdcnet.OrgVDCNetwork.Name)
 			return "", fmt.Errorf("available external IP range exhausted")
 		}
 	}
+	fmt.Printf("\n\nGetNextExtAddrForVdcNet-I-nominal return %s\n\n", curAddr)
 	return curAddr, nil
 }
 
@@ -422,14 +442,13 @@ func (v *VcdPlatform) AddExtNetToVm(ctx context.Context, vm *govcd.VM, netName s
 
 	// add a new connection section
 	// Revisit ModePool and 12/13/20
-	ncs.PrimaryNetworkConnectionIndex = 1
 	ncs.NetworkConnection = append(ncs.NetworkConnection,
 		&types.NetworkConnection{
 			IsConnected:             true,
-			IPAddressAllocationMode: types.IPAllocationModePool, // Manual,
+			IPAddressAllocationMode: types.IPAllocationModeManual,
 			Network:                 netName,
-			NetworkConnectionIndex:  1, // if a vm has two nets, make ext net primray index
-			// pool test IPAddress:               ip,
+			NetworkConnectionIndex:  1,
+			IPAddress:               ip,
 		})
 
 	err = vm.UpdateNetworkConnectionSection(ncs)

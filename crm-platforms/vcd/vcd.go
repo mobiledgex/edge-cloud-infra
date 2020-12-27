@@ -296,6 +296,8 @@ func (v *VcdPlatform) GetVdc(ctx context.Context, vdcName string) (*govcd.Vdc, e
 func (v *VcdPlatform) GetPlatformResources(ctx context.Context) error {
 
 	var err error
+	var existingCloudlet = false
+
 	if v.Objs.Org == nil {
 		v.Objs.Org, err = v.GetOrg(ctx, v.Client, v.Creds.Org)
 		if err != nil {
@@ -325,7 +327,7 @@ func (v *VcdPlatform) GetPlatformResources(ctx context.Context) error {
 	if v.TestMode {
 		primNet = os.Getenv("MEX_EXT_NETWORK")
 	} else {
-		primNet = v.GetMexExtNetwork() // ["MEX_EXT_NETWORK"]
+		primNet = v.GetMexExtNetwork()
 	}
 	log.SpanLog(ctx, log.DebugLevelInfra, "Discover: Collecting resources", "vdc", vdc.Vdc.Name)
 	// dumpVdcResourceEntities(vdc, 1)
@@ -418,6 +420,8 @@ func (v *VcdPlatform) GetPlatformResources(ctx context.Context) error {
 							// getbyname the first vm here
 							vm, err := vapp.GetVMByName(vapp.VApp.Children.VM[0].Name, false)
 							v.Objs.Cloudlet.ExtVMMap[extAddr] = vm
+							fmt.Printf("\n\nDiscover: Cloudlet ExtVMMap set Addr  %s vmName: %s\n", extAddr, res.Name)
+							existingCloudlet = true
 						}
 					}
 					log.SpanLog(ctx, log.DebugLevelInfra, "Discover: VApp", "Name", res.Name)
@@ -485,15 +489,21 @@ func (v *VcdPlatform) GetPlatformResources(ctx context.Context) error {
 
 		targetTemplateName := v.GetVDCTemplateName()
 		if qr.Name == targetTemplateName {
+
 			log.SpanLog(ctx, log.DebugLevelInfra, "Discover found VDCTEMPLATE", "Name", qr.Name)
 			tmpl, err := v.Objs.PrimaryCat.GetVappTemplateByHref(qr.HREF)
 			if err != nil {
+				fmt.Printf("\n\nDISCOVER: Error GetVappTemplateByHref: tmpl: %s err: %s \n", qr.Name, err.Error())
 				if v.Verbose {
 					log.SpanLog(ctx, log.DebugLevelInfra, "Discover err getting template by href", "error", err)
 				}
+
 			} else {
 				// debug issue template not found by at least one test vdc
+
+				v.Objs.VAppTmpls[tmpl.VAppTemplate.Name] = tmpl
 				v.Objs.Template = tmpl
+				fmt.Printf("Discover-I-added tmpl %s to local cache\n", qr.Name)
 			}
 
 			tmpls, err := v.GetAllVdcTemplates(ctx)
@@ -505,7 +515,7 @@ func (v *VcdPlatform) GetPlatformResources(ctx context.Context) error {
 				for _, tmpl := range tmpls {
 					if tmpl.VAppTemplate.Name == targetTemplateName {
 						v.Objs.Template = tmpl
-
+						v.Objs.VAppTmpls[tmpl.VAppTemplate.Name] = tmpl
 					}
 					v.Objs.VAppTmpls[tmpl.VAppTemplate.Name] = tmpl
 					if v.Verbose {
@@ -515,6 +525,15 @@ func (v *VcdPlatform) GetPlatformResources(ctx context.Context) error {
 			}
 		}
 	}
+	if existingCloudlet {
+		log.SpanLog(ctx, log.DebugLevelInfra, "Discover: RebuildClusters for", "Cloudlet", v.Objs.Cloudlet.CloudletName)
+		err := v.RebuildClusters(ctx)
+		if err != nil {
+			log.SpanLog(ctx, log.DebugLevelInfra, "RebuildClusters", "err", err)
+			return err
+		}
+	}
+
 	return nil
 }
 

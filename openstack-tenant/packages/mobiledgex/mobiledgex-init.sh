@@ -76,7 +76,6 @@ else
     echo "Finished mobiledgex init"
     exit 0
 fi
-fi
 
 mkdir -p $MCONF
 mount `blkid -t LABEL="config-2" -odevice` $MCONF

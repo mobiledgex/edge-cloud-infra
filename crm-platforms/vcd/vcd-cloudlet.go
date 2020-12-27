@@ -38,16 +38,14 @@ func (v *VcdPlatform) CreateCloudlet(ctx context.Context, vappTmpl govcd.VAppTem
 	// dumpVMGroupParams(vmgp, 1)
 
 	vmparams := vmlayer.VMOrchestrationParams{}
-	newVappName := vmgp.GroupName + "-vapp" // 11/04 does removing this screw it up? should only be done for cloudlet
-	// seems to perhaps not allow the added vm for cluster to take new internal networks try putting it back 11/17
-	/*
-		if len(vappTmpl.VAppTemplate.Children.VM) != 0 {
-			// xxx non-standard
-			vmtmpl := vappTmpl.VAppTemplate.Children.VM[0]
-			vmparams = vmgp.VMs[0]
-			vmtmpl.Name = vmparams.Name
-			vmRole = vmparams.Role
-		}*/
+	newVappName := vmgp.GroupName + "-vapp"
+	if len(vappTmpl.VAppTemplate.Children.VM) != 0 {
+		// xxx non-standard
+		vmtmpl := vappTmpl.VAppTemplate.Children.VM[0]
+		vmparams = vmgp.VMs[0]
+		vmtmpl.Name = vmparams.Name
+		vmRole = vmparams.Role
+	}
 
 	networks := []*types.OrgVDCNetwork{}
 	networks = append(networks, v.Objs.PrimaryNet.OrgVDCNetwork)
@@ -62,6 +60,7 @@ func (v *VcdPlatform) CreateCloudlet(ctx context.Context, vappTmpl govcd.VAppTem
 	vapp, err = v.FindVApp(ctx, newVappName)
 	if err != nil {
 		// Not found try and create it
+		log.SpanLog(ctx, log.DebugLevelInfra, "create cloudlet", "name", newVappName)
 		task, err := vdc.ComposeVApp(networks, vappTmpl, storRef, newVappName, description+vcdProviderVersion, true)
 		if err != nil {
 
@@ -76,6 +75,7 @@ func (v *VcdPlatform) CreateCloudlet(ctx context.Context, vappTmpl govcd.VAppTem
 				return nil, err
 			}
 		} else {
+			log.SpanLog(ctx, log.DebugLevelInfra, "create cloudlet vapp composed", "address", extAddr)
 			err = task.WaitTaskCompletion()
 			if err != nil {
 				log.SpanLog(ctx, log.DebugLevelInfra, "ComposeVApp wait for completeion failed", "VAppName", vmgp.GroupName, "error", err)

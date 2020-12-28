@@ -66,7 +66,7 @@ func (v *VcdPlatform) CreateCloudlet(ctx context.Context, vappTmpl govcd.VAppTem
 		log.SpanLog(ctx, log.DebugLevelInfra, "create cloudlet", "name", newVappName)
 		task, err := vdc.ComposeVApp(networks, vappTmpl, storRef, newVappName, description+vcdProviderVersion, true)
 		if err != nil {
-
+			vappTmpl.VAppTemplate.Name = vmtmplVMName
 			if strings.Contains(err.Error(), "already exists") {
 				// So we should have found this already, so this means it was created
 				// behind our backs somehow, so we should add it to our pile of existing VApps...
@@ -78,6 +78,7 @@ func (v *VcdPlatform) CreateCloudlet(ctx context.Context, vappTmpl govcd.VAppTem
 				return nil, err
 			}
 		} else {
+
 			vappTmpl.VAppTemplate.Name = vmtmplVMName
 			log.SpanLog(ctx, log.DebugLevelInfra, "create cloudlet vapp composed", "address", extAddr)
 			err = task.WaitTaskCompletion()

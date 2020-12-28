@@ -349,9 +349,12 @@ func (v *VcdPlatform) GetExtAddrOfVM(ctx context.Context, vm *govcd.VM, netName 
 		return "", err
 	}
 	nc := ncs.NetworkConnection
+	fmt.Printf("GetExtAddrOfVm-I-vm %s has %d connections\n", vm.VM.Name, len(nc))
 	for _, n := range nc {
 		if n.Network == netName {
 			return n.IPAddress, nil
+		} else {
+			fmt.Printf("GetExtAddrOfVM-w-netname %s skipped\n", n.Network)
 		}
 	}
 	return "", fmt.Errorf("Not Found")
@@ -447,7 +450,7 @@ func (v *VcdPlatform) AddExtNetToVm(ctx context.Context, vm *govcd.VM, netName s
 			IsConnected:             true,
 			IPAddressAllocationMode: types.IPAllocationModeManual,
 			Network:                 netName,
-			NetworkConnectionIndex:  1,
+			NetworkConnectionIndex:  0, // 1
 			IPAddress:               ip,
 		})
 

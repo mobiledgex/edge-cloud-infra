@@ -446,6 +446,15 @@ func (v *VcdPlatform) GetPlatformResources(ctx context.Context) error {
 									log.SpanLog(ctx, log.DebugLevelInfra, "Discover: Adding VM", "Name", vm.VM.Name)
 								}
 								v.Objs.VMs[vm.VM.Name] = vm
+
+								// if this vm has an external address add to ExtVMMap
+								eAddr, err := v.GetExtAddrOfVM(ctx, vm, v.Objs.PrimaryNet.OrgVDCNetwork.Name)
+								if err == nil {
+									fmt.Printf("\nDiscover: %s has extAddr %s\n", child.Name, eAddr)
+									v.Objs.Cloudlet.ExtVMMap[eAddr] = vm
+								}
+								// where does findVM look in?
+
 							}
 						}
 					}
@@ -609,7 +618,9 @@ func (v *VcdPlatform) GetServerDetail(ctx context.Context, vappName string) (*vm
 	vapp, err := v.FindVApp(ctx, vappName)
 
 	if err != nil {
-		// Not a vapp, vm?
+		// Not a vapp, vm
+		fmt.Printf("\nGetServerDetail-I-find serverName: %s\n", serverName)
+		log.SpanLog(ctx, log.DebugLevelInfra, "GetServerDetail find vm", "vmname", serverName)
 		vm, err := v.FindVM(ctx, serverName)
 		if err != nil {
 			log.SpanLog(ctx, log.DebugLevelInfra, "serverName not found ", "serverName", serverName)
@@ -633,6 +644,7 @@ func (v *VcdPlatform) GetServerDetail(ctx context.Context, vappName string) (*vm
 
 		addresses, _, err := v.GetVMAddresses(ctx, vm)
 		if err != nil {
+			log.SpanLog(ctx, log.DebugLevelInfra, "GetServerDetail err getting VMAddresses for", "vmname", serverName, "err", err)
 			return nil, err
 		}
 		detail.Addresses = addresses
@@ -640,7 +652,9 @@ func (v *VcdPlatform) GetServerDetail(ctx context.Context, vappName string) (*vm
 		return &detail, nil
 
 	} else { // do the cloudlet
+		log.SpanLog(ctx, log.DebugLevelInfra, "GetServerDetail found vapp", "vappName", vappName)
 		if vapp.VApp.Children == nil {
+			log.SpanLog(ctx, log.DebugLevelInfra, "GetServerDetail vapp has no children")
 			return nil, fmt.Errorf("VApp %s has no vms\n", vappName)
 			// this is so wrong, the VApp state would be "RESOLVED" here.
 		}

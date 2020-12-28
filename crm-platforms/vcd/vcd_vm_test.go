@@ -638,6 +638,8 @@ func TestCheckServerReady(t *testing.T) {
 
 	if live {
 		vName := ""
+		targetVM := &govcd.VM{}
+
 		fmt.Printf("TestCheckServerReady for server with IP %s \n", *ipAddr)
 		// Skip the ssh client, test we correctly find the vm from its ip and return detail
 		if tv.Objs.Cloudlet != nil {
@@ -654,6 +656,25 @@ func TestCheckServerReady(t *testing.T) {
 					break
 				}
 			}
+
+			if vName == "" {
+				fmt.Printf("We could not found a vm with address %s\n", *ipAddr)
+			}
+			for name, vm := range tv.Objs.VMs {
+				extAddr, err := tv.GetExtAddrOfVM(ctx, vm, *netName)
+				if err != nil {
+					fmt.Printf("Error GetExtAddrOfVM:  err: %s \n", err.Error())
+					return
+				}
+				if extAddr == *ipAddr {
+					fmt.Printf("Found vm %s has extAddr %s\n", name, *ipAddr)
+					targetVM = vm
+					break
+				}
+			}
+
+			vName = targetVM.VM.Name
+
 			detail, err := tv.GetServerDetail(ctx, vName)
 			if err != nil {
 				fmt.Printf("CheckServerReady-E-from GetServerDetail: %s\n", err.Error())
@@ -667,5 +688,28 @@ func TestCheckServerReady(t *testing.T) {
 			}
 
 		}
+	}
+}
+
+// -live -vm -net
+
+func TestGetExtAddrOfVM(t *testing.T) {
+	live, ctx, err := InitVcdTestEnv()
+	require.Nil(t, err, "InitTestEnv")
+
+	if live {
+		fmt.Printf("TestGetExtAddrOfVM vmName %s netName %s\n", *vmName, *netName)
+		vm, err := tv.FindVM(ctx, *vmName)
+		if err != nil {
+			fmt.Printf("Error finding vm named: %s err: %s \n", *vmName, err.Error())
+			return
+		}
+
+		extAddr, err := tv.GetExtAddrOfVM(ctx, vm, *netName)
+		if err != nil {
+			fmt.Printf("Error GetExtAddrOfVM:  err: %s \n", err.Error())
+			return
+		}
+		fmt.Printf("extAddr: %s\n", extAddr)
 	}
 }

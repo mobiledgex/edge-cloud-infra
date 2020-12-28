@@ -24,13 +24,15 @@ func (v *VcdPlatform) FindVM(ctx context.Context, serverName string) (*govcd.VM,
 		vapp = VApp.VApp
 		vm, err := vapp.GetVMByName(serverName, true)
 		if err != nil {
-			return nil, fmt.Errorf("vm %s not found in vapp %s", serverName, vapp.VApp.Name)
+			continue
+		} else {
+			return vm, nil
 		}
-		return vm, nil
 	}
 	// check our raw VMs map
 	for name, vm := range v.Objs.VMs {
 		if name == serverName {
+			fmt.Printf("FindVM-I-found %s in VMs Map\n", serverName)
 			return vm, nil
 		}
 	}
@@ -557,19 +559,14 @@ func (v *VcdPlatform) VerifyVMs(ctx context.Context, vms []edgeproto.VM) error {
 }
 
 func (v *VcdPlatform) GetVMAddresses(ctx context.Context, vm *govcd.VM) ([]vmlayer.ServerIP, string, error) {
+	fmt.Printf("\n\nGETVMADDRESSES-I-for vm %s\n\n", vm.VM.Name)
+	log.SpanLog(ctx, log.DebugLevelInfra, "GetVMAddresses", "vmname", vm.VM.Name)
 	var serverIPs []vmlayer.ServerIP
 	if vm == nil {
 		return serverIPs, "", fmt.Errorf("Nil vm received")
 	}
 	vmName := vm.VM.Name
 	//parentVapp, err := vm.GetParentVApp()
-	status, err := vm.GetStatus()
-	if err != nil {
-		return serverIPs, "", fmt.Errorf("Error getting status for %s err: %s\n", vm.VM.Name, err.Error())
-	}
-	if status != "POWERED_ON" {
-		return serverIPs, "", fmt.Errorf("vm %s not powered on state: %s", vm.VM.Name, status)
-	}
 	connections := vm.VM.NetworkConnectionSection.NetworkConnection
 	for _, connection := range connections {
 

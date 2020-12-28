@@ -36,13 +36,16 @@ func (v *VcdPlatform) CreateCloudlet(ctx context.Context, vappTmpl govcd.VAppTem
 	storRef := types.Reference{}
 	log.SpanLog(ctx, log.DebugLevelInfra, "CreateCloudlet", "name", vmgp.GroupName, "tmpl", vappTmpl)
 	// dumpVMGroupParams(vmgp, 1)
-
+	vmtmplVMName := ""
+	vmtmpl := &types.VAppTemplate{}
 	vmparams := vmlayer.VMOrchestrationParams{}
 	newVappName := vmgp.GroupName + "-vapp"
 	if len(vappTmpl.VAppTemplate.Children.VM) != 0 {
 		// xxx non-standard
-		vmtmpl := vappTmpl.VAppTemplate.Children.VM[0]
+		vmtmpl = vappTmpl.VAppTemplate.Children.VM[0]
 		vmparams = vmgp.VMs[0]
+		fmt.Printf("\n\nCreateCloudlet Template %s vm name %s\n\n", vappTmpl.VAppTemplate.Name, vmtmpl.Name)
+		vmtmplVMName = vmtmpl.Name
 		vmtmpl.Name = vmparams.Name
 		vmRole = vmparams.Role
 	}
@@ -75,12 +78,15 @@ func (v *VcdPlatform) CreateCloudlet(ctx context.Context, vappTmpl govcd.VAppTem
 				return nil, err
 			}
 		} else {
+			vappTmpl.VAppTemplate.Name = vmtmplVMName
 			log.SpanLog(ctx, log.DebugLevelInfra, "create cloudlet vapp composed", "address", extAddr)
 			err = task.WaitTaskCompletion()
 			if err != nil {
 				log.SpanLog(ctx, log.DebugLevelInfra, "ComposeVApp wait for completeion failed", "VAppName", vmgp.GroupName, "error", err)
 				return nil, err
 			}
+			// change the new vapps vm name
+
 			vapp, err = v.Objs.Vdc.GetVAppByName(newVappName, true)
 			if err != nil {
 				log.SpanLog(ctx, log.DebugLevelInfra, "can't retrieve compoled vapp", "VAppName", vmgp.GroupName, "error", err)
@@ -100,6 +106,7 @@ func (v *VcdPlatform) CreateCloudlet(ctx context.Context, vappTmpl govcd.VAppTem
 			if err != nil {
 				log.SpanLog(ctx, log.DebugLevelInfra, "task completion failed", "VAppName", vmgp.GroupName, "error", err)
 			}
+
 			desiredNetConfig := &types.NetworkConnectionSection{}
 			desiredNetConfig.PrimaryNetworkConnectionIndex = 0
 

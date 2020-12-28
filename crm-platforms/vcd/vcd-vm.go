@@ -177,7 +177,7 @@ func (v *VcdPlatform) CreateVMs(ctx context.Context, vmgp *vmlayer.VMGroupOrches
 	tmpl, err := v.FindTemplate(ctx, tmplName)
 	if err != nil {
 		found := false
-		log.SpanLog(ctx, log.DebugLevelInfra, "Template not found locally")
+		log.SpanLog(ctx, log.DebugLevelInfra, "Template not found locally", "template", tmplName)
 		// Back to vdc, has it been created manually?
 		tmpls, err := v.GetAllVdcTemplates(ctx)
 		if err == nil {
@@ -190,7 +190,7 @@ func (v *VcdPlatform) CreateVMs(ctx context.Context, vmgp *vmlayer.VMGroupOrches
 			}
 		}
 		if !found {
-			return fmt.Errorf("Template not found")
+			return fmt.Errorf("Template %s not found", tmplName)
 			// Try fetching it from the respository or local update
 			// XXX upload TBI, expect it to be in the catalog.
 			//err = v.UploadOvaFile(ctx, tmplName)
@@ -308,6 +308,7 @@ func (v *VcdPlatform) updateVM(ctx context.Context, vm *govcd.VM, vmparams vmlay
 	vmSpecSec := vm.VM.VmSpecSection
 	vmSpecSec.NumCpus = vu.TakeIntPointer(int(flavor.Vcpus))
 	vmSpecSec.MemoryResourceMb.Configured = int64(flavor.Ram)
+
 	desc := fmt.Sprintf("Update flavor: %s", flavorName)
 	_, err = vm.UpdateVmSpecSection(vmSpecSec, desc)
 	if err != nil {

@@ -92,8 +92,9 @@ func (v *VcdPlatform) GetInternalPortPolicy() vmlayer.InternalPortAttachPolicy {
 func (v *VcdPlatform) AttachPortToServer(ctx context.Context, serverName, subnetName, portName, ipaddr string, action vmlayer.ActionType) error {
 
 	// shared
-	log.SpanLog(ctx, log.DebugLevelInfra, "attatch port", "ServerName", serverName, "subnet", subnetName, "ip", ipaddr, "action", action)
+	log.SpanLog(ctx, log.DebugLevelInfra, "attatch port", "ServerName", serverName, "subnet", subnetName, "ip", ipaddr, "portName", portName, "action", action)
 
+	// We could add this portName to our serverVM as metadata rather and derive it each time xxx
 	if action == vmlayer.ActionCreate {
 
 	} else if action == vmlayer.ActionDelete {
@@ -231,7 +232,7 @@ func (v *VcdPlatform) CreateInternalNetworkForNewVm(ctx context.Context, vapp *g
 	//numVms := len(vmgp.VMs)
 	netname := v.getInternalNetworkNameForCluster(ctx, vmparams.Name)
 
-	log.SpanLog(ctx, log.DebugLevelInfra, "internal net", "name", vmparams.Name)
+	log.SpanLog(ctx, log.DebugLevelInfra, "create internal vm net", "name", vmparams.Name, "becomes", netname)
 	description := fmt.Sprintf("internal-%s", cidr)
 	a := strings.Split(cidr, "/")
 	addr := string(a[0])
@@ -450,7 +451,7 @@ func (v *VcdPlatform) AddExtNetToVm(ctx context.Context, vm *govcd.VM, netName s
 			IsConnected:             true,
 			IPAddressAllocationMode: types.IPAllocationModeManual,
 			Network:                 netName,
-			NetworkConnectionIndex:  0, // 1
+			NetworkConnectionIndex:  1,
 			IPAddress:               ip,
 		})
 

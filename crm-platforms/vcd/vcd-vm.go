@@ -559,7 +559,7 @@ func (v *VcdPlatform) VerifyVMs(ctx context.Context, vms []edgeproto.VM) error {
 }
 
 func (v *VcdPlatform) GetVMAddresses(ctx context.Context, vm *govcd.VM) ([]vmlayer.ServerIP, string, error) {
-	fmt.Printf("\n\nGETVMADDRESSES-I-for vm %s\n\n", vm.VM.Name)
+
 	log.SpanLog(ctx, log.DebugLevelInfra, "GetVMAddresses", "vmname", vm.VM.Name)
 	var serverIPs []vmlayer.ServerIP
 	if vm == nil {
@@ -580,6 +580,7 @@ func (v *VcdPlatform) GetVMAddresses(ctx context.Context, vm *govcd.VM) ([]vmlay
 		if connection.Network != v.Objs.PrimaryNet.OrgVDCNetwork.Name {
 			// internal isolated net
 			servIP.PortName = vmName + "-" + connection.Network + "-port"
+			log.SpanLog(ctx, log.DebugLevelInfra, "GetVMAddresses", "servIP.PortName", servIP.PortName)
 		}
 		serverIPs = append(serverIPs, servIP)
 	}

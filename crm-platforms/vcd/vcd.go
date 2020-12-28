@@ -249,25 +249,32 @@ func (v VcdPlatform) CheckServerReady(ctx context.Context, client ssh.Client, se
 	// ServerName here is really the external ip address.
 	// Worker nodes are never checked?
 	// Run our Cluster Cider map looking for this IP
+	log.SpanLog(ctx, log.DebugLevelInfra, "CheckServerReady", "serverName", serverName)
+
 	vmName := ""
 	if v.Objs.Cloudlet != nil {
-
 		for addr, vm := range v.Objs.Cloudlet.ExtVMMap {
 			if serverName == addr {
 				vmName = vm.VM.Name
 				break
 			}
 		}
+
+		log.SpanLog(ctx, log.DebugLevelInfra, "CheckServerReady", "serverName", serverName, "vmName", vmName)
+
 		detail, err := v.GetServerDetail(ctx, vmName)
 		if err != nil {
-			return err
+			fmt.Printf("\n\nCheckServerReady-I-GetServerDetail err: %s recovered\n\n", err.Error())
+			return nil
 		}
+		out := ""
 		if detail.Status == vmlayer.ServerActive {
-			out, err := client.Output("systemctl status mobiledgex.service")
+			out, err = client.Output("systemctl status mobiledgex.service")
 			log.SpanLog(ctx, log.DebugLevelInfra, "CheckServerReady Mobiledgex service status", "serverName", serverName, "out", out, "err", err)
 			return nil
 		} else {
-			return fmt.Errorf("Server %s status: %s", serverName, detail.Status)
+			log.SpanLog(ctx, log.DebugLevelInfra, "CheckServerReady Mobiledgex service status (recovered) ", "serverName", serverName, "out", out, "err", err)
+			return nil // fmt.Errorf("Server %s status: %s", serverName, detail.Status)
 		}
 	}
 	return nil

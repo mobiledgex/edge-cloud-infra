@@ -515,7 +515,7 @@ func GetChefRootLBTags(platformConfig *platform.PlatformConfig) []string {
 
 func (v *VMPlatform) GetRootLBClients(ctx context.Context) (map[string]ssh.Client, error) {
 	if v.Caches == nil {
-		return nil, fmt.Errorf("caches in nil")
+		return nil, fmt.Errorf("caches is nil")
 	}
 	rootLBClients := make(map[string]ssh.Client)
 	clusterInstKeys := []edgeproto.ClusterInstKey{}

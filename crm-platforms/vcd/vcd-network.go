@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"net"
+
 	"strings"
 
 	vu "github.com/mobiledgex/edge-cloud-infra/crm-platforms/vcd/vcdutils"
@@ -92,7 +93,7 @@ func (v *VcdPlatform) GetInternalPortPolicy() vmlayer.InternalPortAttachPolicy {
 func (v *VcdPlatform) AttachPortToServer(ctx context.Context, serverName, subnetName, portName, ipaddr string, action vmlayer.ActionType) error {
 
 	// shared
-	log.SpanLog(ctx, log.DebugLevelInfra, "attatch port", "ServerName", serverName, "subnet", subnetName, "ip", ipaddr, "portName", portName, "action", action)
+	log.SpanLog(ctx, log.DebugLevelInfra, "AttachPortToserver", "ServerName", serverName, "subnet", subnetName, "ip", ipaddr, "portName", portName, "action", action)
 
 	// We could add this portName to our serverVM as metadata rather and derive it each time xxx
 	if action == vmlayer.ActionCreate {
@@ -204,16 +205,31 @@ func (v *VcdPlatform) IncrCidr(a string, delta int) string {
 
 // When a second clusterInst/VM is added to a cloudlet, the clouddlet's VApp needs to grow a new internal
 // network for it
-func (v *VcdPlatform) getInternalNetworkNameForCluster(ctx context.Context, serverName string) string {
+// A subnet name format is the base bit "mex-k8s-subnet-" + cldName + clsterName + orgName
+//
+
+func (v *VcdPlatform) GetInternalNetworkNameForCluster(ctx context.Context, serverName string) string {
 	// clust1.cld1.tdg.mobiledgex.net vm name, and vmlayer expects an internal net named:
 	//  mex-k8s-subnet-cld1-clust1-mobiledgex
-	// port name is just this + "-port"
 	parts := strings.Split(serverName, ".")
 	if len(parts) == 1 {
-		// something with just - delimiters doesn't want an internal addr anyway
 		return ""
 	}
-	netname := "mex-k8s-subnet-" + parts[1] + "-" + parts[0] + "-" + parts[3]
+	/*
+		clusterName := ""
+		// really should get the vm, find the vm in a cluster, and use that clusterName.
+		clusterName = string(parts[0])
+		log.SpanLog(ctx, log.DebugLevelInfra, "create internal vm subnetName", "cluster", clusterName)
+
+		// port name is just this + "-port"
+		baseName := "mex-k8s-subnet-"
+		subnetName := fmt.Sprintf("%s-%s-%s-%s", baseName, v.Objs.Cloudlet.CloudletName, clusterName,
+		log.SpanLog(ctx, log.DebugLevelInfra, "create internal vm subnetName", "name", subnetName)
+	*/
+	// subnetname convention? base + cloudletName + clusterName + cloudletOrg
+	//             base            cloudlet         cluster            cloudorg
+	netname := "mex-k8s-subnet-" + parts[1] + "-" + parts[0] + "-" + parts[2]
+	log.SpanLog(ctx, log.DebugLevelInfra, "GetInternalSubnetname", "server", serverName, "subnetName", netname)
 	return netname
 }
 
@@ -230,9 +246,9 @@ func (v *VcdPlatform) CreateInternalNetworkForNewVm(ctx context.Context, vapp *g
 	var iprange []*types.IPRange
 	vmparams := vmgp.VMs[0]
 	//numVms := len(vmgp.VMs)
-	netname := v.getInternalNetworkNameForCluster(ctx, vmparams.Name)
-
+	netname := v.GetInternalNetworkNameForCluster(ctx, vmparams.Name)
 	log.SpanLog(ctx, log.DebugLevelInfra, "create internal vm net", "name", vmparams.Name, "becomes", netname)
+
 	description := fmt.Sprintf("internal-%s", cidr)
 	a := strings.Split(cidr, "/")
 	addr := string(a[0])

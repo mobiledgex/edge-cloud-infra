@@ -3,7 +3,10 @@ package vcd
 import (
 	"context"
 	"fmt"
+	"strconv"
+	"strings"
 
+	"github.com/mobiledgex/edge-cloud-infra/vmlayer"
 	"github.com/stretchr/testify/require"
 	"github.com/vmware/go-vcloud-director/v2/govcd"
 	"github.com/vmware/go-vcloud-director/v2/types/v56"
@@ -375,6 +378,71 @@ func TestRMNet(t *testing.T) {
 		return
 	}
 
+}
+
+// -live -vm
+func TestGetPortNameForIntNetVM(t *testing.T) {
+	live, ctx, err := InitVcdTestEnv()
+	require.Nil(t, err, "InitVcdTestEnv")
+
+	if live {
+		vm := &govcd.VM{}
+		fmt.Printf("TestGetPortNameForIntNetVM\n")
+		vm, err = tv.FindVM(ctx, *vmName)
+		if err != nil {
+			fmt.Printf("%s not found\n", *vmName)
+			return
+		}
+		portName := tv.GetInternalNetworkNameForCluster(ctx, *vmName)
+		portName = portName + "-port"
+		fmt.Printf("Portname as %s\n", portName)
+		clusterName := ""
+		serverName := *vmName
+		parts := strings.Split(serverName, ".")
+		if len(parts) == 1 {
+			// something with just - delimiters doesn't want an internal addr anyway
+			return
+		}
+		for i := 0; i < len(parts); i++ {
+			fmt.Printf("part[%d] = %s \n", i, parts[i])
+		}
+		if len(parts) > 1 {
+			clusterName = string(parts[0])
+		} else {
+			fmt.Printf("Error popping clusterName off %s failed\n", serverName)
+			return
+		}
+		cldletName := tv.Objs.Cloudlet.CloudletName
+		orgName := tv.Objs.Org.Org.Name
+		subnetName := fmt.Sprintf("%s-%s-%s-%s", "mex-k8s-subnet", cldletName, clusterName, orgName)
+		fmt.Printf("Subnet Name = %s\n", subnetName)
+
+		// Subnets are base bit         + cldletName     + clusterName + OrgName
+		subnetName = "mex-k8s-subnet-" + parts[1] + "-" + parts[0] + "-" + parts[3]
+		fmt.Printf("netname : %s\n", subnetName)
+
+		fmt.Printf("\n\nGetVMAddresses portname: \n")
+		connections := vm.VM.NetworkConnectionSection.NetworkConnection
+		for _, connection := range connections {
+
+			servIP := vmlayer.ServerIP{
+				MacAddress:   connection.MACAddress,
+				Network:      connection.Network,
+				ExternalAddr: connection.IPAddress,
+				InternalAddr: connection.IPAddress,
+				PortName:     strconv.Itoa(connection.NetworkConnectionIndex),
+			}
+			if connection.Network != tv.Objs.PrimaryNet.OrgVDCNetwork.Name {
+				// internal isolated net
+				servIP.PortName = *vmName + "-" + connection.Network + "-port"
+
+				fmt.Printf("vmName %s-%s-port\n", *vmName, connection.Network)
+
+				fmt.Printf("GetVMAddresses - servIP.PortName %s\n", servIP.PortName)
+			}
+		}
+
+	}
 }
 
 func TestNets(t *testing.T) {

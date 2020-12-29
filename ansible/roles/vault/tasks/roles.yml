@@ -38,7 +38,7 @@
       - sys-policies.read.v1
       - noreplyemail.read.v1
     token_type: batch
-    token_ttl: 1800   # seconds = 30 minutes
+    token_ttl: 5400   # seconds = 90 minutes
 
 - name: mcorm.v1 role
   vault_role:

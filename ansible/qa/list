@@ -27,6 +27,8 @@ alertmanager_hostname=alertmanager-{{ deploy_environ }}.mobiledgex.net
 influxdb_backup_disabled=true
 etcd_quota_backend="150 MB"
 etcd_auto_compaction_retention=2
+artifactory_fqdn=https://artifactory-qa.mobiledgex.net/artifactory/
+cloudlet_vm_path=https://artifactory-qa.mobiledgex.net/artifactory/baseimages
 
 [notifyroot]
 notifyroot-qa.mobiledgex.net

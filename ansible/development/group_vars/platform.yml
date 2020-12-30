@@ -4,4 +4,4 @@ regions:
     region: EU
     latitude: 47.233
     longitude: -119.852
-    kubernetes_version: 1.13.11
+    kubernetes_version: 1.16.15

@@ -1,10 +1,18 @@
+{% if kubernetes_version is version('1.15', '<') %}
 apiVersion: apps/v1beta1
+{% else %}
+apiVersion: apps/v1
+{% endif %}
 kind: StatefulSet
 metadata:
   name: "{{ etcd_cluster_name }}"
   labels:
     component: "{{ etcd_cluster_name }}"
 spec:
+  selector:
+    matchLabels:
+      component: "{{ etcd_cluster_name }}"
+      etcd_cluster: "{{ etcd_cluster_name }}"
   serviceName: "{{ etcd_cluster_name }}"
   # Changing replicas value will require a manual etcdctl member remove/add
   # command (remove before decreasing and add after increasing)

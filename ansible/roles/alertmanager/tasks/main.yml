@@ -6,7 +6,7 @@
 
 - name: Get global client cert
   uri:
-    url: https://{{ vault_vm_hostname }}/v1/pki-global/ca/pem
+    url: "{{ vault_address }}/v1/pki-global/ca/pem"
     validate_certs: no
     return_content: yes
   register: cert
@@ -15,7 +15,6 @@
   copy:
     content: "{{ cert.content}}"
     dest: "{{ alertmanager_config_path }}/mex-ca.crt"
-    force: no
 
 - name: Setup alertmanager access
   import_role:

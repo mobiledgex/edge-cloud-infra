@@ -546,9 +546,10 @@ func (v *VMPlatform) GetRootLBClients(ctx context.Context) (map[string]ssh.Clien
 		var app edgeproto.App
 		if v.Caches.AppCache.Get(&k, &app) {
 			if app.Deployment == cloudcommon.DeploymentTypeVM && app.AccessType == edgeproto.AccessType_ACCESS_TYPE_LOAD_BALANCER {
-				apps[k] = struct{}{}
+				continue
 			}
 		}
+		delete(apps, k)
 	}
 
 	appInstKeys := []edgeproto.AppInstKey{}

@@ -139,7 +139,7 @@ func DeleteTrustPolicyStream(ctx context.Context, rc *RegionContext, obj *edgepr
 	log.SetContextTags(ctx, edgeproto.GetTags(obj))
 	if !rc.skipAuthz {
 		if err := authorized(ctx, rc.username, obj.Key.Organization,
-			ResourceDeveloperPolicy, ActionManage); err != nil {
+			ResourceCloudlets, ActionManage); err != nil {
 			return err
 		}
 	}
@@ -217,7 +217,7 @@ func UpdateTrustPolicyStream(ctx context.Context, rc *RegionContext, obj *edgepr
 	log.SetContextTags(ctx, edgeproto.GetTags(obj))
 	if !rc.skipAuthz {
 		if err := authorized(ctx, rc.username, obj.Key.Organization,
-			ResourceDeveloperPolicy, ActionManage); err != nil {
+			ResourceCloudlets, ActionManage); err != nil {
 			return err
 		}
 	}
@@ -295,7 +295,7 @@ func ShowTrustPolicyStream(ctx context.Context, rc *RegionContext, obj *edgeprot
 	var authz *AuthzShow
 	var err error
 	if !rc.skipAuthz {
-		authz, err = newShowAuthz(ctx, rc.region, rc.username, ResourceDeveloperPolicy, ActionView)
+		authz, err = newShowAuthz(ctx, rc.region, rc.username, ResourceCloudlets, ActionView)
 		if err == echo.ErrForbidden {
 			return nil
 		}

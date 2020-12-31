@@ -105,19 +105,19 @@ var ClusterUsageComments = map[string]string{
 
 var CloudletPoolUsageRequiredArgs = []string{
 	"cloudletpool",
-	"cloudletpool-org",
+	"cloudletpoolorg",
 	"starttime",
 	"endtime",
 }
 
 var CloudletPoolUsageAliasArgs = []string{
 	"cloudletpool=cloudletpool.name",
-	"cloudletpool-org=cloudletpool.organization",
+	"cloudletpoolorg=cloudletpool.organization",
 }
 
 var CloudletPoolUsageComments = map[string]string{
-	"cloudletpool":     "Name of the CloudletPool to pull usage from",
-	"cloudletpool-org": "Organization or Company Name that a Operator is part of",
-	"starttime":        "Time to start displaying usage from",
-	"endtime":          "Time up to which to display usage",
+	"cloudletpool":    "Name of the CloudletPool to pull usage from",
+	"cloudletpoolorg": "Organization or Company Name that a Operator is part of",
+	"starttime":       "Time to start displaying usage from",
+	"endtime":         "Time up to which to display usage",
 }

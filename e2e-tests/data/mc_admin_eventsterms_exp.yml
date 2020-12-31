@@ -32,6 +32,7 @@
     - Cloudlet maintenance start
     - Cloudlet maintenance done
     - Cloudlet online
+    - TLS certs error
     - cluster-svc create App
     - cluster-svc create AppInst
     - crm start
@@ -83,6 +84,7 @@
     - remote-ip
     - request
     - response
+    - rootlb
     - spanid
     - state
     - status

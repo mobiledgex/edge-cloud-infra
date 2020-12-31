@@ -46,20 +46,20 @@ var AppUsageRequiredArgs = []string{
 
 var AppUsageOptionalArgs = []string{
 	"appname",
-	"apporg",
+	"app-org",
 	"appvers",
 	"cluster",
 	"cloudlet",
-	"cloudletorg",
+	"cloudlet-org",
 	"vmonly",
 }
 
 var AppUsageAliasArgs = []string{
-	"apporg=appinst.appkey.organization",
+	"app-org=appinst.appkey.organization",
 	"appname=appinst.appkey.name",
 	"appvers=appinst.appkey.version",
 	"cluster=appinst.clusterinstkey.clusterkey.name",
-	"cloudletorg=appinst.clusterinstkey.cloudletkey.organization",
+	"cloudlet-org=appinst.clusterinstkey.cloudletkey.organization",
 	"cloudlet=appinst.clusterinstkey.cloudletkey.name",
 }
 
@@ -70,54 +70,54 @@ var ClusterUsageRequiredArgs = []string{
 
 var ClusterUsageOptionalArgs = []string{
 	"cluster",
-	"clusterorg",
-	"cloudletorg",
+	"cluster-org",
+	"cloudlet-org",
 	"cloudlet",
 }
 
 var ClusterUsageAliasArgs = []string{
-	"clusterorg=clusterinst.organization",
+	"cluster-org=clusterinst.organization",
 	"cluster=clusterinst.clusterkey.name",
-	"cloudletorg=clusterinst.cloudletkey.organization",
+	"cloudlet-org=clusterinst.cloudletkey.organization",
 	"cloudlet=clusterinst.cloudletkey.name",
 }
 
 var AppUsageComments = map[string]string{
-	"apporg":      "Organization or Company Name that a Developer is part of",
-	"appname":     "App name",
-	"appvers":     "App version",
-	"cluster":     "Cluster name",
-	"cloudletorg": "Organization name owning of the cloudlet",
-	"cloudlet":    "Name of the cloudlet",
-	"starttime":   "Time to start displaying usage from",
-	"endtime":     "Time up to which to display usage",
-	"vmonly":      "Only show VM based apps",
+	"app-org":      "Organization or Company Name that a Developer is part of",
+	"appname":      "App name",
+	"appvers":      "App version",
+	"cluster":      "Cluster name",
+	"cloudlet-org": "Organization name owning of the cloudlet",
+	"cloudlet":     "Name of the cloudlet",
+	"starttime":    "Time to start displaying usage from",
+	"endtime":      "Time up to which to display usage",
+	"vmonly":       "Only show VM based apps",
 }
 
 var ClusterUsageComments = map[string]string{
-	"clusterorg":  "Organization or Company Name that a Developer is part of",
-	"cluster":     "Cluster name",
-	"cloudletorg": "Organization name owning of the cloudlet",
-	"cloudlet":    "Name of the cloudlet",
-	"starttime":   "Time to start displaying usage from",
-	"endtime":     "Time up to which to display usage",
+	"cluster-org":  "Organization or Company Name that a Developer is part of",
+	"cluster":      "Cluster name",
+	"cloudlet-org": "Organization name owning of the cloudlet",
+	"cloudlet":     "Name of the cloudlet",
+	"starttime":    "Time to start displaying usage from",
+	"endtime":      "Time up to which to display usage",
 }
 
 var CloudletPoolUsageRequiredArgs = []string{
 	"cloudletpool",
-	"cloudletpoolorg",
+	"cloudletpool-org",
 	"starttime",
 	"endtime",
 }
 
 var CloudletPoolUsageAliasArgs = []string{
 	"cloudletpool=cloudletpool.name",
-	"cloudletpoolorg=cloudletpool.organization",
+	"cloudletpool-org=cloudletpool.organization",
 }
 
 var CloudletPoolUsageComments = map[string]string{
-	"cloudletpool":    "Name of the CloudletPool to pull usage from",
-	"cloudletpoolorg": "Organization or Company Name that a Operator is part of",
-	"starttime":       "Time to start displaying usage from",
-	"endtime":         "Time up to which to display usage",
+	"cloudletpool":     "Name of the CloudletPool to pull usage from",
+	"cloudletpool-org": "Organization or Company Name that a Operator is part of",
+	"starttime":        "Time to start displaying usage from",
+	"endtime":          "Time up to which to display usage",
 }

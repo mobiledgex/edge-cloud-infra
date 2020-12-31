@@ -12,6 +12,7 @@ USAGE="usage: $0 [options] <environment> [<target>]
   -d		enable debug mode
   -e <var=val>	pass environment variables to playbook run
   -G		skip github login
+  -i		interactive mode; pause before each region upgrade
   -l		list available targets
   -n		dry-run mode
   -p <playbook>	playbook (default: \"$DEFAULT_PLAYBOOK\")
@@ -58,6 +59,7 @@ TAGS=
 SKIP_TAGS=
 STEP=false
 SKIP_GITHUB=false
+INTERACTIVE=false
 CONSOLE_VERSION=
 EC_VERSION_SET=false
 QUIET_MODE=false
@@ -65,13 +67,14 @@ SKIP_VAULT_SSH_KEY_SIGNING=false
 VAULT_ADDR=
 VERBOSITY=
 ENVVARS=()
-while getopts ':cC:de:Ghlnp:qs:St:vV:xX:y' OPT; do
+while getopts ':cC:de:Ghilnp:qs:St:vV:xX:y' OPT; do
 	case "$OPT" in
 	c)	CONFIRM=true ;;
 	C)	CONSOLE_VERSION="$OPTARG" ;;
 	d)	DEBUG=true ;;
 	e)	ENVVARS+=( -e "$OPTARG" ) ;;
 	G)	SKIP_GITHUB=true ;;
+	i)	INTERACTIVE=true ;;
 	n)	DRYRUN=true ;;
 	l)	LIST=true ;;
 	p)	PLAYBOOK_FORCED="$OPTARG" ;;
@@ -170,6 +173,9 @@ fi
 [[ -n "$SKIP_TAGS" ]] && ARGS+=( --skip-tags "$SKIP_TAGS" )
 if $DEBUG; then
 	[[ -n "$TAGS" ]] && ARGS+=( -t debug ) || ARGS+=( -t all,debug )
+fi
+if $INTERACTIVE; then
+	[[ -n "$TAGS" ]] && ARGS+=( -t interactive ) || ARGS+=( -t all,interactive )
 fi
 
 # Quiet mode

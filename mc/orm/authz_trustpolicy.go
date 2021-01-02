@@ -21,16 +21,14 @@ func (s *AuthzTrustPolicy) Ok(obj *edgeproto.TrustPolicy) bool {
 		return true
 	}
 	if _, found := s.authzCloudlet.orgs[obj.Key.Organization]; found {
-		// operator has access to polcies created by their org
+		// operator has access to policies created by their org
 		return true
 	}
 	// see if this user is allowed on any cloudlet associated with this policy
 	for _, cloudlet := range s.cloudlets {
 		if obj.Key.Organization == cloudlet.Key.Organization &&
 			obj.Key.Name == cloudlet.TrustPolicy {
-			if s.authzCloudlet.Ok(cloudlet) {
-				return true
-			}
+			return true
 		}
 	}
 	return false
@@ -40,7 +38,7 @@ func (s *AuthzTrustPolicy) populate(ctx context.Context, region, username string
 	rc := RegionContext{
 		region:    region,
 		username:  username,
-		skipAuthz: true,
+		skipAuthz: false,
 	}
 	err := ShowCloudletStream(ctx, &rc, &edgeproto.Cloudlet{}, func(cloudlet *edgeproto.Cloudlet) {
 		s.cloudlets = append(s.cloudlets, cloudlet)

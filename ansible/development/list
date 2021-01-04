@@ -42,6 +42,7 @@ postgres-dev.mobiledgex.net
 [vault]
 vault-dev-a.mobiledgex.net
 vault-dev-b.mobiledgex.net
+vault-dev-c.mobiledgex.net
 
 [console]
 console-dev.mobiledgex.net

@@ -125,6 +125,111 @@ func testOvaUpload(t *testing.T, ctx context.Context) error {
 // Ok, we have a case where qa2-vdc has no vapptemplate as vdc.resources.
 // It has a catalog item though that we obtain using
 
+// try getting a list of catalog items, and then the one that is our template, fetch the template.
+
+func TestCatItemTmpl(t *testing.T) {
+
+	live, _, err := InitVcdTestEnv()
+	require.Nil(t, err, "InitVcdTestEnv")
+	templateName := ""
+	if live {
+		vdc := tv.Objs.Vdc
+		cat := tv.Objs.PrimaryCat
+
+		// all items in the cat. You can ask vdc.QueryCatalogItemsList for vdc  items I guess Or adminVdc.Query
+		fmt.Printf("\n Using cat.QueryCatalogItemList\n")
+		catItems, err := cat.QueryCatalogItemList()
+		if err != nil {
+			fmt.Printf("Error on query cat items list: %s\n", err.Error())
+			return
+		}
+		for _, qr := range catItems {
+
+			fmt.Printf("next QueryResult:\n\tEntName: %s\n\tEntType:%s\n\tiPublished: %t\n\tName: %s\n\tisVdcEnabled: %t\n\tisExpired: %t\n\tHREF: %s\n",
+				qr.EntityName,
+				qr.EntityType,
+				qr.IsPublished,
+				qr.Name, // catalog Item Name
+				qr.IsVdcEnabled,
+				qr.IsExpired,
+				qr.HREF,
+			)
+			if qr.Name == *tmplName {
+				templateName = qr.Name
+			}
+
+		}
+
+		fmt.Printf("\n Using cat.QueryResultVappTemplateList\n")
+		// QueryResultVappTemplateType
+		qrvttList, err := cat.QueryVappTemplateList()
+		if err != nil {
+			fmt.Printf("Error from QueryVappTemplateList: %s\n", err.Error())
+			return
+		}
+		for _, qr := range qrvttList {
+
+			fmt.Printf("next QueryResult:\n\tHREF: %s\n\tType:%s\n\tisPublished: %t\n\tName: %s\n\tisEnabled: %t\n\tisExpired: %t\n\tisDeployed: %t\n\tVdcName:%s\n",
+				qr.HREF,
+				qr.Type,
+				qr.IsPublished,
+				qr.Name,
+				qr.IsEnabled,
+				qr.IsExpired,
+				qr.IsDeployed,
+				qr.VdcName,
+			)
+
+		}
+		fmt.Printf("\n Using vdc.QueryResultVappTemplateList vdc: %s\n", vdc.Vdc.Name)
+		qrvttList, err = vdc.QueryVappTemplateList()
+		if err != nil {
+			fmt.Printf("Error from QueryVappTemplateList: %s\n", err.Error())
+			return
+		}
+		for _, qr := range qrvttList {
+
+			fmt.Printf("next QueryResult:\n\tHREF: %s\n\tType:%s\n\tisPublished: %t\n\tName: %s\n\tisEnabled: %t\n\tisExpired: %t\n\tisDeployed: %t\n\tVdcName:%s\n",
+				qr.HREF,
+				qr.Type,
+				qr.IsPublished,
+				qr.Name,
+				qr.IsEnabled,
+				qr.IsExpired,
+				qr.IsDeployed,
+				qr.VdcName,
+			)
+
+		}
+		// Ok, so interesting. The second query qr.VdcName seems to show what vdc
+		// this template is available from.
+		// The 3rd query using the vdc context, for example shows nothing for q2-lab
+		// while the 2nd query show vdcName as qq-lab.
+		//
+
+		// Next, try and a single CatalogItem object pointing to this template, and
+		// retrive it wih:
+		emptyItem := govcd.CatalogItem{}
+		catItem, err := cat.FindCatalogItem(templateName)
+		// Now, how to get this item type. catalog.go?
+		if err != nil {
+			fmt.Printf("FindCatalogItem for %s failed: %s\n", templateName, err.Error())
+			return
+		}
+		if catItem == emptyItem { // empty!
+
+			fmt.Printf("cat.FindCatalogItem didn't fail, but returned nil catItem!\n")
+			return
+		}
+		tmpl, err := catItem.GetVAppTemplate()
+		if err != nil {
+			fmt.Printf("GetVAppTemplate from catItem failed: %s vdc: %s\n", err.Error(), vdc.Vdc.Name)
+			return
+		}
+		fmt.Printf("Have template, is this usable? template: %+v\n", tmpl)
+	}
+}
+
 // -live -tmpl
 func TestImportVMTmpl(t *testing.T) {
 
@@ -137,6 +242,7 @@ func TestImportVMTmpl(t *testing.T) {
 		// we want to take a item (vcloud.vm+xml) and instanciate it to be a vdc.resource full vcloud.vapptemplate+xml type
 		vdc := tv.Objs.Vdc
 		templateVmQueryRecs, err := tv.Client.Client.QueryVmList(types.VmQueryFilterOnlyTemplates)
+
 		qr := &types.QueryResultVMRecordType{}
 		for _, qr = range templateVmQueryRecs {
 

@@ -4,9 +4,11 @@ import (
 	"context"
 	"flag"
 	"fmt"
+
 	vu "github.com/mobiledgex/edge-cloud-infra/crm-platforms/vcd/vcdutils"
 	"github.com/mobiledgex/edge-cloud-infra/vmlayer"
 	"github.com/mobiledgex/edge-cloud/log"
+	ssh "github.com/mobiledgex/golang-ssh"
 	"github.com/stretchr/testify/require"
 	"github.com/vmware/go-vcloud-director/v2/govcd"
 	"github.com/vmware/go-vcloud-director/v2/types/v56"
@@ -113,7 +115,6 @@ func TestShowVM(t *testing.T) {
 		}
 
 		vm, err := vapp.GetVMByName(*vmName, false)
-		//vm, err := tv.FindVM(ctx, *vmName)
 		require.Nil(t, err, "FindVM")
 		vu.DumpVM(vm.VM, 1)
 		return
@@ -271,12 +272,13 @@ func TestMexVM(t *testing.T) {
 
 }
 
-// -vapp and -vm
+// -live  -vm
+// Finds the vapp containing vm, and removes the vm from the vapp
 func TestRMVM(t *testing.T) {
 	live, ctx, err := InitVcdTestEnv()
 	require.Nil(t, err, "InitTestEnv")
 	if live {
-		vm, err := tv.FindVM(ctx, *vmName)
+		vm, err := tv.FindVMByName(ctx, *vmName)
 		if err != nil {
 			fmt.Printf("VM %s not found\n", *vmName)
 			return
@@ -300,6 +302,9 @@ func TestRMVM(t *testing.T) {
 				return
 			}
 		}
+		// Need the vapp to remove the vm from
+		vapp, err := vm.GetParentVApp()
+		err = vapp.RemoveVM(*vm)
 	}
 }
 
@@ -469,7 +474,7 @@ func testAttachPortToServer(t *testing.T, ctx context.Context, serverName, subne
 	}
 	fmt.Printf("details of %s : %+v\n", serverName, detail)
 	// but this is not enough, we need the govcd.VM object for serverName, but we know it eixsts.
-	vm, err := tv.FindVM(ctx, serverName)
+	vm, err := tv.FindVMByName(ctx, serverName)
 	if err != nil {
 		fmt.Printf("FindVM failed err: %s\n", err.Error())
 		return err
@@ -510,7 +515,7 @@ func testVMMetrics(t *testing.T, ctx context.Context, vmname string, poweron boo
 	// if so, we should fetch the HREF and see what it has for us
 	// This will probably never work until govcd grows support for nsx-t.
 	// Ok, the ExecuteRequest on the "down"
-	vm, err := tv.FindVM(ctx, vmname)
+	vm, err := tv.FindVMByName(ctx, vmname)
 	if err != nil {
 		return fmt.Errorf("Error finding vm  %s  err: %s\n", *vmName, err.Error())
 	}
@@ -631,67 +636,17 @@ func TestClusterVMs(t *testing.T) {
 	}
 }
 
-// -live -ip
 func TestCheckServerReady(t *testing.T) {
 	live, ctx, err := InitVcdTestEnv()
 	require.Nil(t, err, "InitTestEnv")
 
 	if live {
-		vName := ""
-		targetVM := &govcd.VM{}
+		var client ssh.Client
+		// it can't do the server bit, but it should find the vm
+		_ = tv.CheckServerReady(ctx, client, *vmName)
 
-		fmt.Printf("TestCheckServerReady for server with IP %s \n", *ipAddr)
-		// Skip the ssh client, test we correctly find the vm from its ip and return detail
-		if tv.Objs.Cloudlet != nil {
-			if len(tv.Objs.Cloudlet.ExtVMMap) == 0 {
-				fmt.Printf("No entries in ExtVMMap")
-				return
-			}
-			for addr, vm := range tv.Objs.Cloudlet.ExtVMMap {
-				fmt.Printf("\nNext vm : %s addr %s\n\n", vm.VM.Name, addr)
-				if *ipAddr == addr {
-
-					vName = vm.VM.Name
-					fmt.Printf("vmName = %s found\n", vName)
-					break
-				}
-			}
-
-			if vName == "" {
-				fmt.Printf("We could not found a vm with address %s\n", *ipAddr)
-			}
-			for name, vm := range tv.Objs.VMs {
-				extAddr, err := tv.GetExtAddrOfVM(ctx, vm, *netName)
-				if err != nil {
-					fmt.Printf("Error GetExtAddrOfVM:  err: %s \n", err.Error())
-					return
-				}
-				if extAddr == *ipAddr {
-					fmt.Printf("Found vm %s has extAddr %s\n", name, *ipAddr)
-					targetVM = vm
-					break
-				}
-			}
-
-			vName = targetVM.VM.Name
-
-			detail, err := tv.GetServerDetail(ctx, vName)
-			if err != nil {
-				fmt.Printf("CheckServerReady-E-from GetServerDetail: %s\n", err.Error())
-				return
-			}
-			if detail.Status == vmlayer.ServerActive {
-				fmt.Printf("Server Ready\n")
-
-			} else {
-				fmt.Printf("detail status other than ready %+v\n", detail)
-			}
-
-		}
 	}
 }
-
-// -live -vm -net
 
 func TestGetExtAddrOfVM(t *testing.T) {
 	live, ctx, err := InitVcdTestEnv()
@@ -699,7 +654,7 @@ func TestGetExtAddrOfVM(t *testing.T) {
 
 	if live {
 		fmt.Printf("TestGetExtAddrOfVM vmName %s netName %s\n", *vmName, *netName)
-		vm, err := tv.FindVM(ctx, *vmName)
+		vm, err := tv.FindVMByName(ctx, *vmName)
 		if err != nil {
 			fmt.Printf("Error finding vm named: %s err: %s \n", *vmName, err.Error())
 			return

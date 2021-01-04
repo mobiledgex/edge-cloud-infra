@@ -51,8 +51,8 @@ func TestRMVApp(t *testing.T) {
 
 	if live {
 		fmt.Printf("testRMVappVApp")
-		err = testDestroyVApp(t, ctx, *vappName)
-
+		//err = testDestroyVApp(t, ctx, *vappName)
+		err = testDeleteVApp(t, ctx, *vappName)
 		if err != nil {
 			fmt.Printf("Error deleteing %s : %s\n", *vappName, err.Error())
 		}
@@ -590,110 +590,51 @@ func testCreateVApp(t *testing.T, ctx context.Context, vappName string) (*govcd.
 	return vapp, err
 }
 
-// expected -vdcName
-func testDestroyVApp(t *testing.T, ctx context.Context, name string) error {
-
-	fmt.Printf("\ntestDestroyVApp-I-request Delete of %s\n", name)
-
+// Powering off vs Undeplpy
+// Undeploy is what you want if your aim is to delete the vapp
+// So for instance DeleteVMs where vmgp.GroupName represents a cluster you
+// want deleted. Not going to power it back on sometime later.
+// Doesn't matter if the vapp is current powered on or off, this will delete it.
+//
+func testDeleteVApp(t *testing.T, ctx context.Context, name string) error {
 	vdc := tv.Objs.Vdc
-
 	vapp, err := vdc.GetVAppByName(name, true)
 	if err != nil {
 		fmt.Printf("testDestroyVApp-E-error Getting Vapp %s by name: %s\n", name, err.Error())
 		return err
 	}
 	status, err := vapp.GetStatus()
-	fmt.Printf("Vapp %s currently in state: %s\n", *vappName, status)
+	fmt.Printf("Vapp %s currently in state: %s\n", name, status)
 	if err != nil {
-		fmt.Printf("Error fetching status for vapp %s\n", *vappName)
+		fmt.Printf("Error fetching status for vapp %s\n", name)
 		return err
 	}
-	if vapp.VApp.Children == nil {
-		task, err := vapp.Delete()
+	// If the vapp is already powered off, it may be deleteled directy
+	// else, first undeploy
+	if status == "POWERED_ON" {
+		task, err := vapp.Undeploy()
+
 		if err != nil {
-			fmt.Printf("vapp.Delete failed: %s\n task: %+v\n", err.Error(), task)
-		}
-		err = task.WaitTaskCompletion()
-		fmt.Printf("Barren VApp %s Deleted\n", *vappName)
-		return err
-	}
-	vms := vapp.VApp.Children.VM
-	fmt.Printf("vapp %s has %d vm children\n", *vappName, len(vms))
-	for _, vm := range vms {
-		fmt.Printf("\t%s\n", vm.Name)
-	}
-	if status != "POWERED_OFF" {
-		// if the vapp is on, assume the vms are too
-		// if you power off the vapp, all the vms should be powered off as well
-		fmt.Printf("Found Vapp %s powered on, powering off\n", vapp.VApp.Name)
-
-		for _, vm := range vms {
-
-			v, err := vapp.GetVMByName(vm.Name, false)
-			if err != nil {
-				fmt.Printf("VM %s not found \n", vm.Name)
-				return err
-			}
-			fmt.Printf("\tPowerOff %s\n", vm.Name)
-			task, err := v.PowerOff()
-			if err != nil {
-				fmt.Printf("Error from RemoveVM for vm %s in vapp: %s as : %s\n",
-					vm.Name, *vappName, err.Error())
-				return err
-			}
-			err = task.WaitTaskCompletion()
-			if err != nil {
-				fmt.Printf("Error waiting powering of the vm %s \n", *vmName)
-				return err
-			}
-
-			fmt.Printf("\t\tremoved from Vapp\n")
-
-		}
-		fmt.Printf("VMs powered off, powering off the VApp %s\n", vapp.VApp.Name)
-		task, err := vapp.PowerOff() // I think this leaves the vms running <sigh>
-		if err != nil {
-			fmt.Printf("Error from vm.PowerOff: %s\n", err.Error())
-			// fatal? Could have already been powered off
+			fmt.Printf("Error from vapp.Undploy the vapp  as : %s\n", err.Error())
+			return err
 		}
 		err = task.WaitTaskCompletion()
 		if err != nil {
-			fmt.Printf("Error waiting powering of the vm %s \n", *vmName)
+			fmt.Printf("Error waiting undeploy of the vapp first %s \n", name)
 			return err
 		}
-
-		fmt.Printf("Vapp %s powered off\n", *vappName)
+		fmt.Printf("vapp  undeployed...\n")
 	}
-	// And while the console's delete vapp deletes it's vms, this does not, so the remove VM will fail since
-	// it's still powered on (though the console show's it as powered off, but still able to power it off..
-	// go figure.
-
-	// Also, to get the ip addresses released back to the pool, take out the VM before the VApp...
-	// Apparently, they both are consuming one, even though they are the same (one for each end?)
-
-	for _, vm := range vms {
-		fmt.Printf("\t%s...\n", vm.Name)
-		v, err := vapp.GetVMByName(vm.Name, false)
-		if err != nil {
-			fmt.Printf("VM %s not found \n", vm.Name)
-			return err
-		}
-		err = vapp.RemoveVM(*v)
-		if err != nil {
-			fmt.Printf("Error from RemoveVM for vm %s in vapp: %s as : %s\n",
-				vm.Name, *vappName, err.Error())
-			return err
-		}
-		fmt.Printf("\t\tremoved from Vapp\n")
-
-	}
+	fmt.Printf("Call vapp.Delete()\n")
 	task, err := vapp.Delete()
 	if err != nil {
-		fmt.Printf("vapp.Delete failed: %s\n task: %+v\n", err.Error(), task)
+		fmt.Printf("vapp.Delete failed: %s\n current status: %s\n", err.Error(), status)
+		return err
 	}
 	err = task.WaitTaskCompletion()
-	fmt.Printf("VApp %s Deleted\n", *vappName)
-	return err
+
+	fmt.Printf("VApp %s Deleted.\n", name)
+	return nil
 }
 
 func testUpdateVApp(t *testing.T, ctx context.Context) {

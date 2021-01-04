@@ -5,6 +5,7 @@ import (
 	"fmt"
 	//vu "github.com/mobiledgex/edge-cloud-infra/crm-platforms/vcd/vcdutils"
 	"github.com/mobiledgex/edge-cloud-infra/vmlayer"
+
 	"github.com/mobiledgex/edge-cloud/edgeproto"
 	"github.com/mobiledgex/edge-cloud/log"
 	"github.com/vmware/go-vcloud-director/v2/govcd"
@@ -44,7 +45,9 @@ func (v *VcdPlatform) CreateCluster(ctx context.Context, cloud *MexCloudlet, tmp
 
 	log.SpanLog(ctx, log.DebugLevelInfra, "CreateCluster", "create", clusterName, "cloudlet", cloud.CloudletName)
 
-	nextCidr, err := v.GetNextInternalNet(ctx)
+	// removing this whole file, we have no idea about cluster
+	nextCidr := ""
+	//	nextCidr, err := v.GetNextInternalNet(ctx)
 	if err != nil {
 		log.SpanLog(ctx, log.DebugLevelInfra, "create next internal net failed: ", "GroupName", vmgp.GroupName, "err", err)
 		return "clusterName", err
@@ -60,7 +63,7 @@ func (v *VcdPlatform) CreateCluster(ctx context.Context, cloud *MexCloudlet, tmp
 	// Since I don't think we can add it only to the vm.
 	// case 1
 
-	internalNetName, err := v.CreateInternalNetworkForNewVm(ctx, vapp, vmgp, nextCidr)
+	internalNetName, err := v.CreateInternalNetworkForNewVm(ctx, vapp, vmgp, "portNameHere", nextCidr)
 	if err != nil {
 		log.SpanLog(ctx, log.DebugLevelInfra, "create cluster internal net failed", "err", err)
 		return clusterName, err
@@ -146,7 +149,7 @@ func (v *VcdPlatform) CreateCluster(ctx context.Context, cloud *MexCloudlet, tmp
 	// Ok, here, we have both cluster vm on the internal net. Now go back and
 	// add the external to our LB
 	extAddr := ""
-	extAddr, err = v.GetNextExtAddrForVdcNet(ctx, cloud.ParentVdc)
+	extAddr, err = v.GetNextExtAddrForVdcNet(ctx)
 	if err != nil {
 		return clusterName, fmt.Errorf("Agent node failed to obtain external net IP")
 	}

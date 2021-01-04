@@ -8,8 +8,13 @@ import (
 
 // vapptemplate related operations
 
+// New refactored version that only looks at vdc.Resources
+
 func (v *VcdPlatform) FindTemplate(ctx context.Context, tmplName string) (*govcd.VAppTemplate, error) {
 
+	// reimpl
+	// v.Objs.VAppTmpls is going away, and it only reflects vdc.Resource type
+	//
 	fmt.Printf("\n\nFindTemplate-I-have %d templates\n\n", len(v.Objs.VAppTmpls))
 	for _, tmpl := range v.Objs.VAppTmpls {
 		fmt.Printf("\tchecking %s vs requested %s\n", tmpl.VAppTemplate.Name, tmplName)

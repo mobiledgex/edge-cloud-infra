@@ -19,12 +19,7 @@ func TestNextExtAddr(t *testing.T) {
 	require.Nil(t, err, "InitVcdTestEnv")
 
 	if live {
-		vdc, err := tv.GetVdc(ctx, *vdcName)
-		if err != nil {
-			fmt.Printf("Error getting vdc %s : %s\n", *vdcName, err.Error())
-			return
-		}
-		nextAddr, err := tv.GetNextExtAddrForVdcNet(ctx, vdc)
+		nextAddr, err := tv.GetNextExtAddrForVdcNet(ctx)
 		if err != nil {
 			fmt.Printf("Error getting next addr  : %s\n", err.Error())
 			return
@@ -114,7 +109,7 @@ func TestGetVMAddr(t *testing.T) {
 	require.Nil(t, err, "InitVcdTestEnv")
 
 	if live {
-		vm, err := tv.FindVM(ctx, *vmName)
+		vm, err := tv.FindVMByName(ctx, *vmName)
 		if err != nil {
 			fmt.Printf("error finding vm %s\n", *vappName)
 			return
@@ -161,7 +156,7 @@ func TestNetAddrs(t *testing.T) {
 
 		}
 		// We ask for the first external address in our PrimaryNet range
-		CloudletAddr, err := tv.GetNextExtAddrForVdcNet(ctx, vdc)
+		CloudletAddr, err := tv.GetNextExtAddrForVdcNet(ctx)
 		if err != nil {
 			fmt.Printf("GetNextExternalAddrForVdcNet failed: %s\n", err.Error())
 			return
@@ -182,7 +177,7 @@ func TestNetAddrs(t *testing.T) {
 		// Cloudlet's externa,l addr is our vapp
 		// We still have no  clusters, get the next external Cidr for it
 
-		cluster1Addr, err := tv.GetNextExtAddrForVdcNet(ctx, vdc)
+		cluster1Addr, err := tv.GetNextExtAddrForVdcNet(ctx)
 		if err != nil {
 			fmt.Printf("GetNextExternalAddrForVdcNet failed: %s\n", err.Error())
 			return
@@ -197,7 +192,7 @@ func TestNetAddrs(t *testing.T) {
 		tv.Objs.Cloudlet.Clusters[cluster1Addr] = &cluster1
 		fmt.Printf("Cluster1 received addr: %s\n", cluster1Addr)
 
-		cluster2Addr, err := tv.GetNextExtAddrForVdcNet(ctx, vdc)
+		cluster2Addr, err := tv.GetNextExtAddrForVdcNet(ctx)
 		if err != nil {
 			fmt.Printf("GetNextExternalAddrForVdcNet failed: %s\n", err.Error())
 			return
@@ -210,7 +205,7 @@ func TestNetAddrs(t *testing.T) {
 		tv.Objs.Cloudlet.Clusters[cluster2Addr] = &cluster2
 		fmt.Printf("Cluster2 received addr: %s\n", cluster2Addr)
 
-		cluster3Addr, err := tv.GetNextExtAddrForVdcNet(ctx, vdc)
+		cluster3Addr, err := tv.GetNextExtAddrForVdcNet(ctx)
 		if err != nil {
 			fmt.Printf("GetNextExternalAddrForVdcNet failed: %s\n", err.Error())
 			return
@@ -227,7 +222,7 @@ func TestNetAddrs(t *testing.T) {
 		delete(tv.Objs.Cloudlet.ExtVMMap, cluster2Addr)
 		delete(tv.Objs.Cloudlet.Clusters, cluster2Addr)
 
-		cluster4Addr, err := tv.GetNextExtAddrForVdcNet(ctx, vdc)
+		cluster4Addr, err := tv.GetNextExtAddrForVdcNet(ctx)
 		if err != nil {
 			fmt.Printf("GetNextExternalAddrForVdcNet failed: %s\n", err.Error())
 			return
@@ -388,7 +383,7 @@ func TestGetPortNameForIntNetVM(t *testing.T) {
 	if live {
 		vm := &govcd.VM{}
 		fmt.Printf("TestGetPortNameForIntNetVM\n")
-		vm, err = tv.FindVM(ctx, *vmName)
+		vm, err = tv.FindVMByName(ctx, *vmName)
 		if err != nil {
 			fmt.Printf("%s not found\n", *vmName)
 			return

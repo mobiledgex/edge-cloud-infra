@@ -82,7 +82,7 @@ func TestVCD(t *testing.T) {
 		m_vapp.Vdc = &vdc
 
 		//	fmt.Printf("vdc %s has VMQuota of %d  nicQuota : %d\n", vdc.Vdc.Name, vdc.Vdc.VMQuota, vdc.Vdc.NicQuota)
-		// compute capscity of the vdc
+		// compute capacity of the vdc
 		c_capacity := vdc.Vdc.ComputeCapacity
 		fmt.Printf("Resources:\n")
 		for num, caps := range c_capacity {

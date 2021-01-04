@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 
+	vu "github.com/mobiledgex/edge-cloud-infra/crm-platforms/vcd/vcdutils"
 	"github.com/mobiledgex/edge-cloud-infra/vmlayer"
 	"github.com/mobiledgex/edge-cloud/edgeproto"
 	"github.com/mobiledgex/edge-cloud/log"
@@ -28,18 +29,21 @@ import (
 
 // Used to create the vdc/cloudlet VApp only. Just one external network PrimaryNet at this point.
 //
-func (v *VcdPlatform) CreateCloudlet(ctx context.Context, vappTmpl govcd.VAppTemplate, vmgp *vmlayer.VMGroupOrchestrationParams, description string, updateCallback edgeproto.CacheUpdateCallback) (*govcd.VApp, error) {
+func (v *VcdPlatform) CreateCloudlet(ctx context.Context, vappTmpl *govcd.VAppTemplate, vmgp *vmlayer.VMGroupOrchestrationParams, description string, updateCallback edgeproto.CacheUpdateCallback) (*govcd.VApp, error) {
 	var vapp *govcd.VApp
 	var err error
 	var vmRole vmlayer.VMRole
 	vdc := v.Objs.Vdc
 	storRef := types.Reference{}
 	log.SpanLog(ctx, log.DebugLevelInfra, "CreateCloudlet", "name", vmgp.GroupName, "tmpl", vappTmpl)
-	// dumpVMGroupParams(vmgp, 1)
+
+	vu.DumpVMGroupParams(vmgp, 1)
+
 	vmtmplVMName := ""
 	vmtmpl := &types.VAppTemplate{}
 	vmparams := vmlayer.VMOrchestrationParams{}
 	newVappName := vmgp.GroupName + "-vapp"
+
 	if len(vappTmpl.VAppTemplate.Children.VM) != 0 {
 		// xxx non-standard
 		vmtmpl = vappTmpl.VAppTemplate.Children.VM[0]
@@ -49,10 +53,13 @@ func (v *VcdPlatform) CreateCloudlet(ctx context.Context, vappTmpl govcd.VAppTem
 		vmtmpl.Name = vmparams.Name
 		vmRole = vmparams.Role
 	}
-
+	// Here, we know the cloudlet vm needs an external network.
+	// In general, all primary VApp vms will have one. But if some one adds just one vm
+	// to an existing Cluster it might not want an internal net.
+	//
 	networks := []*types.OrgVDCNetwork{}
 	networks = append(networks, v.Objs.PrimaryNet.OrgVDCNetwork)
-	extAddr, err := v.GetNextExtAddrForVdcNet(ctx, vdc)
+	extAddr, err := v.GetNextExtAddrForVdcNet(ctx)
 	if err != nil {
 		if v.Verbose {
 			log.SpanLog(ctx, log.DebugLevelInfra, "CreateCloudlet failed to obtained ext addr", "error", err)
@@ -64,7 +71,7 @@ func (v *VcdPlatform) CreateCloudlet(ctx context.Context, vappTmpl govcd.VAppTem
 	if err != nil {
 		// Not found try and create it
 		log.SpanLog(ctx, log.DebugLevelInfra, "create cloudlet", "name", newVappName)
-		task, err := vdc.ComposeVApp(networks, vappTmpl, storRef, newVappName, description+vcdProviderVersion, true)
+		task, err := vdc.ComposeVApp(networks, *vappTmpl, storRef, newVappName, description+vcdProviderVersion, true)
 		if err != nil {
 			vappTmpl.VAppTemplate.Name = vmtmplVMName
 			if strings.Contains(err.Error(), "already exists") {
@@ -90,7 +97,7 @@ func (v *VcdPlatform) CreateCloudlet(ctx context.Context, vappTmpl govcd.VAppTem
 
 			vapp, err = v.Objs.Vdc.GetVAppByName(newVappName, true)
 			if err != nil {
-				log.SpanLog(ctx, log.DebugLevelInfra, "can't retrieve compoled vapp", "VAppName", vmgp.GroupName, "error", err)
+				log.SpanLog(ctx, log.DebugLevelInfra, "can't retrieve composed vapp", "VAppName", vmgp.GroupName, "error", err)
 				return nil, err
 			}
 			err = vapp.BlockWhileStatus("UNRESOLVED", 120) // upto seconds
@@ -107,6 +114,8 @@ func (v *VcdPlatform) CreateCloudlet(ctx context.Context, vappTmpl govcd.VAppTem
 			if err != nil {
 				log.SpanLog(ctx, log.DebugLevelInfra, "task completion failed", "VAppName", vmgp.GroupName, "error", err)
 			}
+
+			// into  CreateVApp
 
 			desiredNetConfig := &types.NetworkConnectionSection{}
 			desiredNetConfig.PrimaryNetworkConnectionIndex = 0
@@ -262,6 +271,19 @@ func (v *VcdPlatform) DeleteCloudlet(ctx context.Context, cloudlet MexCloudlet) 
 	if err != nil {
 		return err
 	}
+
+	if status == "POWERED_ON" {
+		log.SpanLog(ctx, log.DebugLevelInfra, "DeleteCloudlet Powerng Off", "cloudlet", cloudlet.CloudletName)
+		task, err := vapp.PowerOff()
+		if err != nil {
+			log.SpanLog(ctx, log.DebugLevelInfra, "baren vapp power off failed", "cloudlet", cloudlet, "err", err)
+		}
+		err = task.WaitTaskCompletion()
+		if err != nil {
+			log.SpanLog(ctx, log.DebugLevelInfra, "baren vapp wait task failed", "cloudlet", cloudlet, "err", err)
+		}
+	}
+
 	// unlikely
 	if vapp.VApp.Children == nil {
 		task, err := vapp.PowerOff()

@@ -70,6 +70,9 @@ type VApp struct {
 	VMs  VMMap
 }
 
+type VAppMap map[string]*govcd.VApp
+
+// Deprecated VAppsMap et. al. XXX
 type VAppsMap map[string]*VApp
 
 type VMMap map[string]*govcd.VM // alt VMRecord?
@@ -142,6 +145,8 @@ func (v *VcdPlatform) GetType() string {
 }
 
 func (v *VcdPlatform) InitProvider(ctx context.Context, caches *platform.Caches, stage vmlayer.ProviderInitStage, updateCallback edgeproto.CacheUpdateCallback) error {
+
+	v.Verbose = true
 
 	log.SpanLog(ctx, log.DebugLevelInfra, "InitProvider for Vcd 1", "stage", stage)
 	v.Verbose = v.GetVcdVerbose()
@@ -232,7 +237,7 @@ func (v *VcdPlatform) GetResourceID(ctx context.Context, resourceType vmlayer.Re
 	// VM, Subnet and SecGrp are the current potential values of Type
 	// The only one we have so far is VMs, (subnets soon, and secGrps eventually)
 	if resourceType == vmlayer.ResourceTypeVM {
-		vm, err := v.FindVM(ctx, resourceName)
+		vm, err := v.FindVMByName(ctx, resourceName)
 		if err != nil {
 			return "", fmt.Errorf("resource %s not found", resourceName)
 		}
@@ -244,7 +249,33 @@ func (v *VcdPlatform) GetResourceID(ctx context.Context, resourceType vmlayer.Re
 	return "", fmt.Errorf("GetResourceID not implemented for resource type: %s name %s", resourceType, resourceName)
 }
 
+// check server ready without cloudlets
+//
+// CheckServerReady
 func (v VcdPlatform) CheckServerReady(ctx context.Context, client ssh.Client, serverName string) error {
+
+	fmt.Printf("CheckServerReady-I-looking for servername: %s\n", serverName)
+
+	log.SpanLog(ctx, log.DebugLevelInfra, "CheckServerReady", "serverName", serverName)
+	detail, err := v.GetServerDetail(ctx, serverName)
+	if err != nil {
+		fmt.Printf("\n\nCheckServerReady-I-GetServerDetail err: %s recovered\n\n", err.Error())
+		return nil
+	}
+	fmt.Printf("CheckServerRead-I-GetServerDetail ok for %s\n", serverName)
+
+	out := ""
+	if detail.Status == vmlayer.ServerActive {
+		//out, err = client.Output("systemctl status mobiledgex.service")
+		log.SpanLog(ctx, log.DebugLevelInfra, "CheckServerReady Mobiledgex service status", "serverName", serverName, "out", out, "err", err)
+		return nil
+	} else {
+		log.SpanLog(ctx, log.DebugLevelInfra, "CheckServerReady Mobiledgex service status (recovered) ", "serverName", serverName, "out", out, "err", err)
+		return nil // fmt.Errorf("Server %s status: %s", serverName, detail.Status)
+	}
+}
+
+func (v VcdPlatform) CheckServerReadyOld(ctx context.Context, client ssh.Client, serverName string) error {
 
 	// ServerName here is really the external ip address.
 	// Worker nodes are never checked?
@@ -401,6 +432,7 @@ func (v *VcdPlatform) GetPlatformResources(ctx context.Context) error {
 					a := VApp{
 						VApp: vapp,
 					}
+					log.SpanLog(ctx, log.DebugLevelInfra, "Discover: existing vapp", "Name", res.Name)
 					v.Objs.VApps[res.Name] = &a
 					mdata, err := vapp.GetMetadata()
 					if err != nil {
@@ -451,7 +483,9 @@ func (v *VcdPlatform) GetPlatformResources(ctx context.Context) error {
 								eAddr, err := v.GetExtAddrOfVM(ctx, vm, v.Objs.PrimaryNet.OrgVDCNetwork.Name)
 								if err == nil {
 									fmt.Printf("\nDiscover: %s has extAddr %s\n", child.Name, eAddr)
-									v.Objs.Cloudlet.ExtVMMap[eAddr] = vm
+									if v.Objs.Cloudlet != nil {
+										v.Objs.Cloudlet.ExtVMMap[eAddr] = vm
+									}
 								}
 								// where does findVM look in?
 
@@ -497,50 +531,6 @@ func (v *VcdPlatform) GetPlatformResources(ctx context.Context) error {
 		}
 	}
 
-	// These are not retreivable by GetVMByHref, These mime types will be templates.
-	templateVmQueryRecs, err := v.Client.Client.QueryVmList(types.VmQueryFilterOnlyTemplates)
-	for _, qr := range templateVmQueryRecs {
-		v.Objs.TemplateVMs[qr.Name] = qr
-		log.SpanLog(ctx, log.DebugLevelInfra, "Discover: template", "Name", qr.Name, "type", qr.Type, "Href", qr.HREF)
-
-		targetTemplateName := v.GetVDCTemplateName()
-		if qr.Name == targetTemplateName {
-
-			log.SpanLog(ctx, log.DebugLevelInfra, "Discover found VDCTEMPLATE", "Name", qr.Name)
-			tmpl, err := v.Objs.PrimaryCat.GetVappTemplateByHref(qr.HREF)
-			if err != nil {
-				fmt.Printf("\n\nDISCOVER: Error GetVappTemplateByHref: tmpl: %s err: %s \n", qr.Name, err.Error())
-				if v.Verbose {
-					log.SpanLog(ctx, log.DebugLevelInfra, "Discover err getting template by href", "error", err)
-				}
-
-			} else {
-				// debug issue template not found by at least one test vdc
-
-				v.Objs.VAppTmpls[tmpl.VAppTemplate.Name] = tmpl
-				v.Objs.Template = tmpl
-				fmt.Printf("Discover-I-added tmpl %s to local cache\n", qr.Name)
-			}
-
-			tmpls, err := v.GetAllVdcTemplates(ctx)
-			if err != nil {
-				if v.Verbose {
-					log.SpanLog(ctx, log.DebugLevelInfra, "Discover err GetAllVdcTemplates", "error", err)
-				}
-			} else {
-				for _, tmpl := range tmpls {
-					if tmpl.VAppTemplate.Name == targetTemplateName {
-						v.Objs.Template = tmpl
-						v.Objs.VAppTmpls[tmpl.VAppTemplate.Name] = tmpl
-					}
-					v.Objs.VAppTmpls[tmpl.VAppTemplate.Name] = tmpl
-					if v.Verbose {
-						log.SpanLog(ctx, log.DebugLevelInfra, "Discover add", "template", tmpl.VAppTemplate.Name)
-					}
-				}
-			}
-		}
-	}
 	if existingCloudlet {
 		log.SpanLog(ctx, log.DebugLevelInfra, "Discover: RebuildClusters for", "Cloudlet", v.Objs.Cloudlet.CloudletName)
 		err := v.RebuildClusters(ctx)
@@ -607,87 +597,47 @@ func (v *VcdPlatform) IdSanitize(name string) string {
 	return str
 }
 
-func (v *VcdPlatform) GetServerDetail(ctx context.Context, vappName string) (*vmlayer.ServerDetail, error) {
-	var vm *govcd.VM
-	serverName := vappName
-	vappName = serverName + "-vapp"
+// need a cacheless version
 
-	log.SpanLog(ctx, log.DebugLevelInfra, "GetServerDetail", "vmname", vappName)
+func (v *VcdPlatform) GetServerDetail(ctx context.Context, serverName string) (*vmlayer.ServerDetail, error) {
+
+	vm, err := v.FindVMByName(ctx, serverName)
+	if err != nil {
+		fmt.Printf("GetServerDetail-E-Couldn't find %s\n", serverName)
+		return nil, err
+	}
+
+	vmStatus, err := vm.GetStatus()
+	if err != nil {
+		return nil, err
+	}
 
 	detail := vmlayer.ServerDetail{}
-	vapp, err := v.FindVApp(ctx, vappName)
+	detail.Name = vm.VM.Name
+	detail.ID = vm.VM.ID
 
-	if err != nil {
-		// Not a vapp, vm
-		fmt.Printf("\nGetServerDetail-I-find serverName: %s\n", serverName)
-		log.SpanLog(ctx, log.DebugLevelInfra, "GetServerDetail find vm", "vmname", serverName)
-		vm, err := v.FindVM(ctx, serverName)
-		if err != nil {
-			log.SpanLog(ctx, log.DebugLevelInfra, "serverName not found ", "serverName", serverName)
-			return nil, fmt.Errorf("Server Not found")
-		}
-		vmStatus, err := vm.GetStatus()
-		if err != nil {
-			return nil, err
-		}
-		// replace with block while not status...xxx
-		detail.Name = vm.VM.Name
-		detail.ID = vm.VM.ID
-
-		if vmStatus == "POWERED_ON" {
-			detail.Status = vmlayer.ServerActive
-		} else if vmStatus == "POWERED_OFF" {
-			detail.Status = vmlayer.ServerShutoff
-		} else {
-			detail.Status = vmStatus
-		}
-
-		addresses, _, err := v.GetVMAddresses(ctx, vm)
-		if err != nil {
-			log.SpanLog(ctx, log.DebugLevelInfra, "GetServerDetail err getting VMAddresses for", "vmname", serverName, "err", err)
-			return nil, err
-		}
-		detail.Addresses = addresses
-		// Ok, so the govcd.VM has a vm.GetStatus returning a string, while the vm.VM has a int field status (resource status)
-		return &detail, nil
-
-	} else { // do the cloudlet
-		log.SpanLog(ctx, log.DebugLevelInfra, "GetServerDetail found vapp", "vappName", vappName)
-		if vapp.VApp.Children == nil {
-			log.SpanLog(ctx, log.DebugLevelInfra, "GetServerDetail vapp has no children")
-			return nil, fmt.Errorf("VApp %s has no vms\n", vappName)
-			// this is so wrong, the VApp state would be "RESOLVED" here.
-		}
-		vmname := vapp.VApp.Children.VM[0].Name
-		vm, err = v.FindVMInVApp(ctx, vmname, *vapp)
-		if err != nil {
-			log.SpanLog(ctx, log.DebugLevelInfra, "Vm not found in vapp", "vmName", vmname)
-			return &detail, err
-		}
-		vmStatus, err := vm.GetStatus()
-		if err != nil {
-			return nil, err
-		}
-		detail.Name = vm.VM.Name
-		detail.ID = vm.VM.ID
-		if vmStatus == "POWERED_ON" {
-			detail.Status = vmlayer.ServerActive
-		} else if vmStatus == "POWERED_OFF" {
-			detail.Status = vmlayer.ServerShutoff
-		} else {
-			detail.Status = vmStatus
-		}
-		addresses, ip, err := v.GetVMAddresses(ctx, vm)
-		if err != nil {
-			log.SpanLog(ctx, log.DebugLevelInfra, "GetAddresses failed for vm", "vmName", detail.Name, "ip", ip)
-			return &detail, err
-		}
-		detail.Addresses = addresses
+	if vmStatus == "POWERED_ON" {
+		detail.Status = vmlayer.ServerActive
+	} else if vmStatus == "POWERED_OFF" {
+		detail.Status = vmlayer.ServerShutoff
+	} else {
+		detail.Status = vmStatus
 	}
+
+	addresses, _, err := v.GetVMAddresses(ctx, vm)
+	if err != nil {
+		log.SpanLog(ctx, log.DebugLevelInfra, "GetServerDetail err getting VMAddresses for", "vmname", serverName, "err", err)
+		return nil, err
+	}
+	detail.Addresses = addresses
+	// Ok, so the govcd.VM has a vm.GetStatus returning a string, while the vm.VM has a int field status (resource status)
+
 	return &detail, nil
+
 }
 
 // Given a vappName, does it exist in our vdc?
+/* use vcd-vm:FindVmByName
 func (v *VcdPlatform) FindVdcVapp(ctx context.Context, vappName string) (*govcd.VApp, error) {
 	vdc := v.Objs.Vdc
 	vappRefs := vdc.GetVappList()
@@ -705,4 +655,83 @@ func (v *VcdPlatform) FindVdcVapp(ctx context.Context, vappName string) (*govcd.
 		}
 	}
 	return nil, fmt.Errorf("Not found")
+}
+*/
+// VDC related
+
+// this wants to be the vdc.resource section of Discovery
+// to fetch by name type things of a vdc
+/*
+func (v *VcdPlatform) GetVdcResourceEnt(resType string) *types.ResourceEntity {
+
+	resEnt := &types.ResourceEntity{}
+
+	return resEnt
+
+}
+*/
+
+// Return current vapps in map keyed by external net IP
+func (v *VcdPlatform) GetAllVAppsForVdc(ctx context.Context) (VAppMap, error) {
+	vdc := v.Objs.Vdc
+	netName := v.Objs.PrimaryNet.OrgVDCNetwork.Name
+	vappMap := make(VAppMap)
+	for _, r := range vdc.Vdc.ResourceEntities {
+		for _, res := range r.ResourceEntity {
+			if res.Type == "application/vnd.vmware.vcloud.vApp+xml" {
+				vapp, err := vdc.GetVAppByName(res.Name, true)
+				if err != nil {
+					log.SpanLog(ctx, log.DebugLevelInfra, "GetVappByName", "Vapp", res.Name, "error", err)
+					return vappMap, err
+				} else {
+					fmt.Printf("\nGetVdcVAppbyName returns: %s\n", res.Name)
+					ip, err := v.GetExtAddrOfVapp(ctx, vapp, netName)
+					if err != nil {
+						log.SpanLog(ctx, log.DebugLevelInfra, "GetAllVapps GetExtAddrOfVapp ", "error", err)
+						return vappMap, err
+					}
+					vappMap[ip] = vapp
+				}
+			}
+		}
+	}
+	return vappMap, nil
+
+}
+
+func (v *VcdPlatform) GetAllVAppsForVdcByIntAddr(ctx context.Context) (VAppMap, error) {
+	vdc := v.Objs.Vdc
+	extNetName := v.Objs.PrimaryNet.OrgVDCNetwork.Name
+	vappMap := make(VAppMap)
+	for _, r := range vdc.Vdc.ResourceEntities {
+		for _, res := range r.ResourceEntity {
+			if res.Type == "application/vnd.vmware.vcloud.vApp+xml" {
+				vapp, err := vdc.GetVAppByName(res.Name, true)
+				if err != nil {
+					log.SpanLog(ctx, log.DebugLevelInfra, "GetVappByName", "Vapp", res.Name, "error", err)
+					return vappMap, err
+				} else {
+					ncs, err := vapp.GetNetworkConnectionSection()
+					if err != nil {
+						log.SpanLog(ctx, log.DebugLevelInfra, "GetAllVappsByIntAddr ", "error", err)
+						return vappMap, err
+					}
+					// looking for internal network name
+					for _, nc := range ncs.NetworkConnection {
+						if nc.Network != extNetName {
+							ip, err := v.GetAddrOfVapp(ctx, vapp, nc.Network)
+							if err != nil {
+								log.SpanLog(ctx, log.DebugLevelInfra, "GetAllVapps GetAddrOfVapp ", "error", err)
+								return vappMap, err
+							}
+							vappMap[ip] = vapp
+						}
+						// else if it has no other nets, just skip it
+					}
+				}
+			}
+		}
+	}
+	return vappMap, nil
+
 }

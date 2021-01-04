@@ -136,6 +136,24 @@ func popNetConnect(t *testing.T, ctx context.Context) *types.NetworkConnectionSe
 	return connects
 }
 
+/*
+   xxxxxx hey, try this, note 'deployed' and "not deployed" templates... scratch that itch...
+
+    Sorta smells like our not found locally template is just a "not deployed" template? how to deploy the darn template?
+
+// QueryVappVmTemplate Finds VM template using catalog name, vApp template name, VN name in template. Returns types.QueryResultVMRecordType
+func (vdc *Vdc) QueryVappVmTemplate(catalogName, vappTemplateName, vmNameInTemplate string) (*types.QueryResultVMRecordType, error) {
+
+	queryType := "vm"
+	if vdc.client.IsSysAdmin {
+		queryType = "adminVM"
+	}
+
+	// this allows to query deployed and not deployed templates
+	results, err := vdc.QueryWithNotEncodedParams(nil, map[string]string{"type": queryType,
+		"filter": "catalogName==" + url.QueryEscape(catalogName) + ";containerName==" + url.QueryEscape(vappTemplateName) + ";name==" + url.QueryEscape(vmNameInTemplate) +
+*/
+
 // To create a VAppTemplate from scratch, you must first create a VApp.
 // When you then add this newly create VApp to a catalog, implictly, we are creating a
 // VAppTemplate from the VApp.
@@ -147,6 +165,7 @@ func TestTmpl(t *testing.T) {
 	live, ctx, err := InitVcdTestEnv()
 	require.Nil(t, err, "InitVcdTestEnv")
 	if live {
+		//found := false
 		fmt.Printf("TestTmpl (have %d vms in v.Objs.VMs", len(tv.Objs.VMs))
 		//	tmplName = "mobiledgex-v4.0.4-tmpl" // -vsphere"
 
@@ -156,7 +175,7 @@ func TestTmpl(t *testing.T) {
 
 		_, err := tv.FindTemplate(ctx, *tmplName)
 		if err != nil {
-			fmt.Printf("TestTmpl-E-%s not found locally\n", *tmplName)
+			fmt.Printf("TestTmpl-E-%s not vdc.Resource\n", *tmplName)
 		}
 
 		tmpls, err := tv.GetAllVdcTemplates(ctx)
@@ -164,11 +183,26 @@ func TestTmpl(t *testing.T) {
 			fmt.Printf("GetAllVdcTemplates next template: %s\n", tmp.VAppTemplate.Name)
 
 			if tmp.VAppTemplate.Name == *tmplName {
+				//found = true
 				fmt.Printf("We've Found and returned our template! %s\n", *tmplName)
 				dumpVAppTemplate(&tv, ctx, tmp, 1)
 			}
 		}
 
+		//if !found {
+		// try a deeper look
+		vdc := tv.Objs.Vdc
+		catName := tv.Objs.PrimaryCat.Catalog.Name
+		// isn't it interesting that the QueryVappVMTemplate call retruns a
+		// *types.QueryResultVMRecordType ?
+		qrVMRec, err := vdc.QueryVappVmTemplate(catName, *tmplName, *vmName)
+		if err != nil {
+			fmt.Printf("QueryVmTemplate-E-%s\n", err.Error())
+			return
+		}
+		// What now, get by HREF?
+		fmt.Printf("qrVMRecType: %+v\n", qrVMRec)
+		//}
 		// for dumping internal vms in the template we'll need our local test cache objs.
 		//dumpVAppTemplate(&tv, ctx, tmpl, 1)
 	} else {
@@ -374,7 +408,7 @@ func dumpVAppTemplate(tv *VcdPlatform, ctx context.Context, vt *govcd.VAppTempla
 	if vt.VAppTemplate.Type == "application/vnd.vmware.vcloud.vm+xml" {
 
 		// we can fetch it from vCD or from our local cache if we've done things right
-		vm, err := tv.FindVM(ctx, vt.VAppTemplate.Name)
+		vm, err := tv.FindVMByName(ctx, vt.VAppTemplate.Name)
 		if err != nil {
 			fmt.Printf("Failed to find vm %s locally\n", vt.VAppTemplate.Name)
 		} else {

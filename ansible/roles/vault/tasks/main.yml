@@ -59,74 +59,23 @@
   tags: setup
   when: vault_ha_instance_port < 1024
 
-- name: Create storage bucket
-  command: "gsutil mb gs://{{ storage_bucket_name }}"
-  changed_when: false
-  register: result
-  failed_when:
-    - result.rc != 0
-    - "'already exists' not in result.stderr"
-  delegate_to: localhost
-  tags: setup
+- name: Set up vault data dir
+  file:
+    path: "{{ vault_data_directory }}"
+    state: directory
+    owner: "{{ vault_user }}"
+    group: "{{ vault_group }}"
+    mode: 0700
+  become: yes
 
+# Get a list of other vault nodes in the HA setup
 - set_fact:
-    storage_bucket_service_account_name: "{{ storage_bucket_name }}-user"
-    storage_bucket_service_account_email: "{{ storage_bucket_name }}-user@{{ project }}.iam.gserviceaccount.com"
-
-- name: Create service account
-  command: "gcloud iam service-accounts create {{ storage_bucket_service_account_name }} --display-name {{ storage_bucket_service_account_name }}"
-  changed_when: false
-  register: result
-  failed_when:
-    - result.rc != 0
-    - "'already exists within project' not in result.stderr"
-  delegate_to: localhost
-  tags: setup
-
-- name: Grant access to storage bucket
-  command: "gsutil iam ch serviceAccount:{{ storage_bucket_service_account_email }}:roles/storage.objectAdmin gs://{{ storage_bucket_name }}"
-  changed_when: false
-  delegate_to: localhost
-  tags: setup
-
-- block:
-
-    - stat:
-        path: "{{ storage_service_account_key }}"
-      become: yes
-      register: key
-
-    - name: Verify that service account key is present
-      assert:
-        that: key.stat.exists
-
-  rescue:
-
-    - name: Make sure key directory is present
-      file:
-        path: "{{ storage_service_account_key | dirname }}"
-        owner: "{{ vault_user }}"
-        group: "{{ vault_group }}"
-        state: directory
-        mode: 0700
-      become: yes
-
-    - tempfile:
-        suffix: .json
-      register: key_tempfile
-      notify: Delete key tempfile
-
-    - name: Get service account key
-      command: "gcloud iam service-accounts keys create {{ key_tempfile.path }} --iam-account {{ storage_bucket_service_account_email }}"
-      delegate_to: localhost
-
-    - name: Install service account key
-      copy:
-        src: "{{ key_tempfile.path }}"
-        dest: "{{ storage_service_account_key }}"
-      become: yes
-      notify: Reload vault
-  tags: setup
+    other_vaults: []
+- set_fact:
+    other_vaults: "{{ other_vaults }} + [ '{{ item }}' ]"
+  with_inventory_hostnames:
+    - vault
+  when: inventory_hostname != item
 
 - name: Install vault config file
   template:

@@ -51,6 +51,7 @@ console-qa.mobiledgex.net
 [vault]
 vault-qa-a.mobiledgex.net
 vault-qa-b.mobiledgex.net
+vault-qa-c.mobiledgex.net
 
 [artifactory]
 artifactory-qa.mobiledgex.net

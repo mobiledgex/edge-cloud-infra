@@ -73,6 +73,12 @@
     policies:
       - pki-tidy.v1
 
+- name: snapshot.v1 role
+  vault_role:
+    name: snapshot.v1
+    policies:
+      - sys-storage-raft-snapshot.read.v1
+
 - include_role:
     name: vault
     tasks_from: region-roles

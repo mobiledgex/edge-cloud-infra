@@ -3,53 +3,70 @@ package vcd
 import (
 	"context"
 	"fmt"
+
+	"github.com/mobiledgex/edge-cloud/log"
 	"github.com/vmware/go-vcloud-director/v2/govcd"
 )
 
 // vapptemplate related operations
 
-// New refactored version that only looks at vdc.Resources
-
+// Return requested vdc template
 func (v *VcdPlatform) FindTemplate(ctx context.Context, tmplName string) (*govcd.VAppTemplate, error) {
 
-	// reimpl
-	// v.Objs.VAppTmpls is going away, and it only reflects vdc.Resource type
-	//
-	fmt.Printf("\n\nFindTemplate-I-have %d templates\n\n", len(v.Objs.VAppTmpls))
-	for _, tmpl := range v.Objs.VAppTmpls {
-		fmt.Printf("\tchecking %s vs requested %s\n", tmpl.VAppTemplate.Name, tmplName)
+	log.SpanLog(ctx, log.DebugLevelInfra, "Find template", "Name", tmplName)
+	tmpls, err := v.GetAllVdcTemplates(ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	for _, tmpl := range tmpls {
 		if tmpl.VAppTemplate.Name == tmplName {
+			log.SpanLog(ctx, log.DebugLevelInfra, "Found template", "Name", tmplName)
 			return tmpl, nil
 		}
 	}
 
 	return nil, fmt.Errorf("template %s not found", tmplName)
-
 }
 
-// Return all templates found in our catalog
-func (v *VcdPlatform) GetAllVdcTemplates(ctx context.Context /*, cat *govcd.Catalog*/) ([]*govcd.VAppTemplate, error) {
+// Return all templates found as vdc resources from MEX_CATALOG
+func (v *VcdPlatform) GetAllVdcTemplates(ctx context.Context) ([]*govcd.VAppTemplate, error) {
 
 	var tmpls []*govcd.VAppTemplate
-	queryRes, err := v.Objs.Vdc.QueryVappTemplateList()
+	org, err := v.GetOrg(ctx)
 	if err != nil {
-		return nil, err
+		return tmpls, err
 	}
-	for _, res := range queryRes {
-		for _, catContainer := range v.Objs.Cats {
-			cat := catContainer.OrgCat
 
-			tmpl, err := cat.GetVappTemplateByHref(res.HREF)
-			if err != nil {
-				// This can happen if we have a vm with no vapp, one gets created for it
-				continue
-			} else {
-				v.Objs.VAppTmpls[tmpl.VAppTemplate.Name] = tmpl
-				tmpls = append(tmpls, tmpl)
+	vdc, err := v.GetVdc(ctx)
+	if err != nil {
+		return tmpls, err
+	}
+	// Get our catalog MEX_CATALOG
+	catName := v.GetCatalogName()
+	if catName == "" {
+		return tmpls, fmt.Errorf("MEX_CATALOG name not found")
+	}
+
+	cat, err := org.GetCatalogByName(catName, true)
+	if err != nil {
+		return tmpls, err
+	}
+
+	for _, r := range vdc.Vdc.ResourceEntities {
+		for _, res := range r.ResourceEntity {
+			if res.Type == "application/vnd.vmware.vcloud.vAppTemplate+xml" {
+				if v.Verbose {
+					log.SpanLog(ctx, log.DebugLevelInfra, "Found Vdc resource template", "Name", res.Name, "from Catalog", catName)
+				}
+				tmpl, err := cat.GetVappTemplateByHref(res.HREF)
+				if err != nil {
+					continue
+				} else {
+					tmpls = append(tmpls, tmpl)
+				}
 			}
 		}
 	}
-
 	return tmpls, nil
-
 }

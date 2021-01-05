@@ -3,7 +3,7 @@ package vcd
 import (
 	"context"
 	"fmt"
-	"os"
+
 	"strconv"
 	"strings"
 
@@ -27,7 +27,11 @@ import (
 
 // Just the vapp name and serverName
 func (v *VcdPlatform) FindVM(ctx context.Context, serverName, vappName string) (*govcd.VM, error) {
-	vdc := v.Objs.Vdc
+
+	vdc, err := v.GetVdc(ctx)
+	if err != nil {
+		return nil, err
+	}
 	vmRec, err := vdc.QueryVM(vappName, serverName)
 	if err != nil {
 		return nil, err
@@ -43,9 +47,12 @@ func (v *VcdPlatform) FindVM(ctx context.Context, serverName, vappName string) (
 // If all you have is the serverName (vmName)
 func (v *VcdPlatform) FindVMByName(ctx context.Context, serverName string) (*govcd.VM, error) {
 
-	vdc := v.Objs.Vdc
-	vm := &govcd.VM{}
+	vdc, err := v.GetVdc(ctx)
+	if err != nil {
+		return nil, err
+	}
 
+	vm := &govcd.VM{}
 	vappRefList := vdc.GetVappList()
 	for _, vappRef := range vappRefList {
 
@@ -102,7 +109,7 @@ func (v *VcdPlatform) PopulateVMNetConnectSection(ctx context.Context, vmparams 
 			&types.NetworkConnection{
 				IsConnected:             true,
 				IPAddressAllocationMode: types.IPAllocationModeManual,
-				Network:                 v.Objs.PrimaryNet.OrgVDCNetwork.Name,
+				Network:                 v.GetExtNetworkName(),
 			},
 		)
 	}
@@ -216,8 +223,12 @@ func (v *VcdPlatform) RetrieveTemlate(ctx context.Context) (*govcd.VAppTemplate,
 // We'll get a vapp for the platform vm, and another for the cldlet. Then each cluster will be a Vapp
 // So two overhead vapps that don't chnage, much.
 //
-func (v *VcdPlatform) CreateVMs2(ctx context.Context, vmgp *vmlayer.VMGroupOrchestrationParams, updateCallback edgeproto.CacheUpdateCallback) error {
+func (v *VcdPlatform) CreateVMs(ctx context.Context, vmgp *vmlayer.VMGroupOrchestrationParams, updateCallback edgeproto.CacheUpdateCallback) error {
 	log.SpanLog(ctx, log.DebugLevelInfra, "CreateVMs2 Refactor", "grpName", vmgp.GroupName)
+	vdc, err := v.GetVdc(ctx)
+	if err != nil {
+		return err
+	}
 
 	tmpl, err := v.RetrieveTemlate(ctx)
 	if err != nil {
@@ -237,7 +248,7 @@ func (v *VcdPlatform) CreateVMs2(ctx context.Context, vmgp *vmlayer.VMGroupOrche
 		return err
 	}
 	// Should exist
-	_, err = v.Objs.Vdc.QueryVM(vappName, vmName)
+	_, err = vdc.QueryVM(vappName, vmName)
 	if err != nil {
 		fmt.Printf("Could not find the vapp/vm we just created err: %s\n", err.Error())
 		return err
@@ -248,6 +259,8 @@ func (v *VcdPlatform) CreateVMs2(ctx context.Context, vmgp *vmlayer.VMGroupOrche
 }
 
 // Create VMs according to their role/type and names
+
+/* refactored out
 func (v *VcdPlatform) CreateVMs(ctx context.Context, vmgp *vmlayer.VMGroupOrchestrationParams, updateCallback edgeproto.CacheUpdateCallback) error {
 
 	// temp toggle from old to new refactor code
@@ -349,6 +362,7 @@ func (v *VcdPlatform) CreateVMs(ctx context.Context, vmgp *vmlayer.VMGroupOrches
 	log.SpanLog(ctx, log.DebugLevelInfra, "CreateVMs", "Vapp", vapp.VApp.Name, "Status", status)
 	return nil
 }
+*/
 
 // updates of a vm that is 'shared' across multiple vapps
 // balks at being modified "can't modify disk of a vm with snapshots"
@@ -569,14 +583,16 @@ func (v *VcdPlatform) SyncVMs(ctx context.Context, vmgp *vmlayer.VMGroupOrchestr
 
 func (v *VcdPlatform) DeleteVM(ctx context.Context, vm *govcd.VM) error {
 	log.SpanLog(ctx, log.DebugLevelInfra, "DeleteVM", "vmName", vm.VM.Name)
-	vapp := v.Objs.Cloudlet.CloudVapp
 
 	if vm == nil {
 		return fmt.Errorf("nil vm encountered")
 	}
+	vapp, err := vm.GetParentVApp()
+	if err != nil {
+		return err
+	}
+	log.SpanLog(ctx, log.DebugLevelInfra, "DeleteVM", "vmName", vm.VM.Name, "from vapp", vapp.VApp.Name)
 
-	log.SpanLog(ctx, log.DebugLevelInfra, "DeleteVM", "vmName", vm.VM.Name)
-	// do we care? mdata, err := vm.GetMetadata()
 	status, err := vm.GetStatus()
 	if err != nil {
 		return err
@@ -765,7 +781,7 @@ func (v *VcdPlatform) GetVMAddresses(ctx context.Context, vm *govcd.VM) ([]vmlay
 			InternalAddr: connection.IPAddress,
 			PortName:     strconv.Itoa(connection.NetworkConnectionIndex),
 		}
-		if connection.Network != v.Objs.PrimaryNet.OrgVDCNetwork.Name {
+		if connection.Network != v.GetExtNetworkName() {
 			// internal isolated net
 			servIP.PortName = vmName + "-" + connection.Network + "-port"
 			// servIP.PortName = connection.Network
@@ -779,34 +795,71 @@ func (v *VcdPlatform) GetVMAddresses(ctx context.Context, vm *govcd.VM) ([]vmlay
 
 func (v *VcdPlatform) SetVMProperties(vmProperties *vmlayer.VMProperties) {
 	v.vmProperties = vmProperties
-	vmProperties.IptablesBasedFirewall = true // xxx false
+	vmProperties.IptablesBasedFirewall = true
 }
 
-// This can get called with name representing
-// a single VM name like a sharedRootLB, or PlatformVM
-// a cluster name.
-// Can't return values from just a govcd.VM obj. We must have a cloudlet + cloudlet on there
-//
+// Should always be a vapp/cluster/group name
 func (v *VcdPlatform) GetServerGroupResources(ctx context.Context, name string) (*edgeproto.InfraResources, error) {
 	resources := &edgeproto.InfraResources{}
 	// xxx need ContainerInfo as well
+	vdc, err := v.GetVdc(ctx)
+	if err != nil {
+		return nil, err
+	}
+	vappName := name + "-vapp"
+	vapp, err := vdc.GetVAppByName(vappName, true)
+	if err != nil {
+		log.SpanLog(ctx, log.DebugLevelInfra, "GetServerGroupResource vapp not found  ", "Name", name)
+		return nil, err
+	}
 	log.SpanLog(ctx, log.DebugLevelInfra, "grp resources for", "grpName", name)
-	if v.Objs.Cloudlet != nil {
+	if vapp.VApp.Children == nil {
+		return nil, fmt.Errorf("ErrorEntityNotFound")
+	}
 
-		for _, cluster := range v.Objs.Cloudlet.Clusters {
-			if name == cluster.Name {
-				for _, vm := range cluster.VMs {
-					vminfo := edgeproto.VmInfo{
-						Name:        vm.vmName,
-						InfraFlavor: vm.vmFlavor,
-						Type:        string(vmlayer.GetVmTypeForRole(vm.vmRole)),
-					}
-					vminfo.Ipaddresses = append(vminfo.Ipaddresses, vm.vmIPs)
-					resources.Vms = append(resources.Vms, vminfo)
-				}
-				return resources, nil
+	for _, cvm := range vapp.VApp.Children.VM {
+		vm, err := vapp.GetVMByName(cvm.Name, true)
+		if err != nil {
+			log.SpanLog(ctx, log.DebugLevelInfra, "Warn GetVMByName: vm not found in vapp ", "vapp", name, "vm", cvm.Name)
+			continue
+		}
+		metadata, err := vm.GetMetadata()
+		if err != nil {
+			// flavor/role  not available
+		}
+		flavor := ""
+		role := ""
+		for _, md := range metadata.MetadataEntry {
+			if md.Key == "FlavorName" {
+				flavor = md.TypedValue.Value
+			}
+			if md.Key == "vmRole" {
+				role = md.TypedValue.Value
 			}
 		}
+		vminfo := edgeproto.VmInfo{
+			Name:        vm.VM.Name,
+			InfraFlavor: flavor,
+			Type:        string(vmlayer.GetVmTypeForRole(role)),
+		}
+		ipAddr := edgeproto.IpAddr{}
+
+		extAddr, err := v.GetExtAddrOfVM(ctx, vm, v.GetExtNetworkName())
+		if err != nil {
+			log.SpanLog(ctx, log.DebugLevelInfra, "GetExtAddrOfVM failed", "error", err)
+			return nil, err
+		}
+		intAddrs, err := v.GetIntAddrsOfVM(ctx, vm)
+		if err != nil {
+			log.SpanLog(ctx, log.DebugLevelInfra, "GetExtAddrOfVM failed", "error", err)
+			return nil, err
+		}
+		// just pick the first of possibly many internal ips xxx
+		ipAddr.InternalIp = intAddrs[0]
+		ipAddr.ExternalIp = extAddr
+
+		vminfo.Ipaddresses = append(vminfo.Ipaddresses, ipAddr)
+		resources.Vms = append(resources.Vms, vminfo)
 	}
 	return resources, nil
 }

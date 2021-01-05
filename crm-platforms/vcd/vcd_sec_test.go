@@ -45,15 +45,16 @@ type EdgeFirewallRule struct {
 
 //
 func TestFirewall(t *testing.T) {
-	live, _, err := InitVcdTestEnv()
+	live, ctx, err := InitVcdTestEnv()
 	require.Nil(t, err, "InitVcdTestEnv")
 	if live {
-		fmt.Printf("TestFireWall: vdc: %s\n", *vdcName)
-		vdc := tv.Objs.Vdc
+
+		vdc, err := tv.GetVdc(ctx)
 		if err != nil {
-			fmt.Printf("unable to find vdc name %s\n", *vdcName)
+			fmt.Printf("GetVdc error %s\n", err.Error())
 			return
 		}
+
 		/*
 			edgeGateWayRecord, err := tv.Objs.Vdc.GetEdgeGatewayRecordsType(true)
 			if err != nil {

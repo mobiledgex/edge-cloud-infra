@@ -101,6 +101,12 @@ func (v *VcdPlatform) GetFlavorList(ctx context.Context) ([]*edgeproto.FlavorInf
 
 var qcowConvertTimeout = 5 * time.Minute
 
+func (v *VcdPlatform) AddCloudletImageIfNotPresent(ctx context.Context, imgPathPrefix, imgVersion string, updateCallback edgeproto.CacheUpdateCallback) (string, error) {
+	log.SpanLog(ctx, log.DebugLevelInfra, "AddCloudletImageIfNotPresent", "imgPathPrefix", imgPathPrefix, "ImgVersion", imgVersion)
+	//	filePath, err := vmlayer.DownloadVMImage(ctx, v.vmProperties.CommonPf.VaultConfig, imageName, imageUrl, md5Sum)
+	return "", nil
+}
+
 func (v *VcdPlatform) CreateImageFromUrl(ctx context.Context, imageName, imageUrl, md5Sum string) (string, error) {
 
 	// dne	filePath, err := vmlayer.DownloadVMImage(ctx, v.vmProperties.CommonPf.VaultConfig, imageName, imageUrl, md5Sum)
@@ -156,4 +162,16 @@ func (v *VcdPlatform) ConvertQcowToVmdk(ctx context.Context, sourceFile string, 
 		return "", errors.New(convertErr)
 	}
 	return destFile, nil
+}
+
+// This appears to only deal with non-existant flavors in vmware world
+func (v *VcdPlatform) GatherCloudletInfo(ctx context.Context, info *edgeproto.CloudletInfo) error {
+
+	log.SpanLog(ctx, log.DebugLevelInfra, "GatherCloudletInfo ")
+	var err error
+	info.Flavors, err = v.GetFlavorList(ctx)
+	if err != nil {
+		return err
+	}
+	return nil
 }

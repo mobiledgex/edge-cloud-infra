@@ -22,20 +22,24 @@ var VcdProps = map[string]*edgeproto.PropertyInfo{
 		Value: "vcd-org",
 	},
 	"MEX_CATALOG": {
-		Mandatory: false,
+
+		Mandatory:   true,
+		Description: "VCD Org Catalog Name",
 	},
 	"MEX_EXTERNAL_IP_RANGES": {
-		Mandatory: false,
-	},
-	"MEX_EXTERNAL_NETWORK_MASK": {
 		Mandatory: false,
 	},
 	// We don't get a value for the edgegateway xxx
 	"MEX_EXTERNAL_NETWORK_EDGEGATEWAY": {
 		Mandatory: false,
 	},
-	"MEX_INTERNAL_NETWORK_MASK": {
-		Value: "24",
+	"MEX_EXT_NETWORK": {
+		Mandatory: true,
+	},
+	"MEX_EXTERNAL_NETWORK_MASK": {
+		Name:        "External Network Mask",
+		Description: "External Network Mask",
+		Mandatory:   true,
 	},
 }
 
@@ -60,8 +64,15 @@ func (v *VcdPlatform) GetVcdVars(ctx context.Context, accessApi platform.AccessA
 		log.SpanLog(ctx, log.DebugLevelInfra, "vcd ", "Vars", v.vcdVars)
 	}
 	for k, v := range v.vcdVars {
-		fmt.Printf("k: %s v: %s\n", k, v)
+		fmt.Printf("%s : %s\n", k, v)
 	}
+	// debug
+	extNetMask := v.GetExternalNetmask()
+	intNetMask := v.GetInternalNetmask()
+	mexCatalogName := v.GetCatalogName()
+
+	fmt.Printf("\n ExtNetMask: %s IntNetMask: %s mexCatalogName %s\n", extNetMask, intNetMask, mexCatalogName)
+
 	err = v.PopulateOrgLoginCredsFromVault(ctx)
 	if err != nil {
 		return err
@@ -112,7 +123,7 @@ func (v *VcdPlatform) GetPrimaryVdc() string {
 	return v.vcdVars["PRIMARY_VDC"]
 }
 
-func (v *VcdPlatform) GetMexExtNetwork() string {
+func (v *VcdPlatform) GetExtNetworkName() string {
 	return v.vcdVars["MEX_EXT_NETWORK"]
 }
 
@@ -170,5 +181,10 @@ func (v *VcdPlatform) GetExternalNetmask() string {
 
 func (v *VcdPlatform) GetInternalNetmask() string {
 	val, _ := v.vmProperties.CommonPf.Properties.GetValue("MEX_INTERNAL_NETWORK_MASK")
+	return val
+}
+
+func (v *VcdPlatform) GetCatalogName() string {
+	val, _ := v.vmProperties.CommonPf.Properties.GetValue("MEX_CATALOG")
 	return val
 }

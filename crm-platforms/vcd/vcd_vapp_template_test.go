@@ -19,9 +19,10 @@ func TestInstanciateTmpl(t *testing.T) {
 	live, ctx, err := InitVcdTestEnv()
 	require.Nil(t, err, "InitVcdTestEnv")
 	if live {
-		vdc := tv.Objs.Vdc
+
+		vdc, err := tv.GetVdc(ctx)
 		if err != nil {
-			fmt.Printf("%s not found\n", *vdcName)
+			fmt.Printf("GetVdc err: %s\n", err.Error())
 			return
 		}
 		fmt.Printf("TestInstancitate tmplName %s vappName %s\n", *tmplName, *vappName)
@@ -74,8 +75,12 @@ func popNetConfig(t *testing.T, ctx context.Context) *types.NetworkConfigSection
 	// This is the guy with the IPScopes /Features
 	// *Note SubInterface and DistributedInterface here, they are mutually exclusive
 	// When both are nil, the internal (default) interface is  used.
-	vdcnet := tv.Objs.PrimaryNet.OrgVDCNetwork
-	var ipscopes *types.IPScopes = vdcnet.Configuration.IPScopes
+	vdcnet, err := tv.GetExtNetwork(ctx)
+	if err != nil {
+		return nil
+	}
+	net := vdcnet.OrgVDCNetwork
+	var ipscopes *types.IPScopes = vdcnet.OrgVDCNetwork.Configuration.IPScopes
 
 	//	Ipscope := vdcnet.Configuration.IPScopes.IPScope[0]
 
@@ -84,17 +89,17 @@ func popNetConfig(t *testing.T, ctx context.Context) *types.NetworkConfigSection
 	netConfig := &types.NetworkConfiguration{
 		IPScopes: ipscopes,
 		ParentNetwork: &types.Reference{
-			HREF: vdcnet.HREF,
-			ID:   vdcnet.ID,
-			Type: vdcnet.Type,
-			Name: vdcnet.Name,
+			HREF: net.HREF,
+			ID:   net.ID,
+			Type: net.Type,
+			Name: net.Name,
 		},
 	}
 	var vappNetConfigs []types.VAppNetworkConfiguration
 
 	vappNetConfig := types.VAppNetworkConfiguration{
 		// create unique name for our new Vapp network
-		NetworkName:   "vapp-" + vdcnet.Name + "-network",
+		NetworkName:   "vapp-" + net.Name + "-network",
 		Configuration: netConfig, // *types.NetworkConfiguration
 	}
 	vappNetConfigs = append(vappNetConfigs, vappNetConfig)
@@ -112,12 +117,16 @@ func popNetConfig(t *testing.T, ctx context.Context) *types.NetworkConfigSection
 }
 
 func popNetConnect(t *testing.T, ctx context.Context) *types.NetworkConnectionSection {
-	vdcnet := tv.Objs.PrimaryNet.OrgVDCNetwork
+	vdcnet, err := tv.GetExtNetwork(ctx)
+	if err != nil {
+		return nil
+	}
+	net := vdcnet.OrgVDCNetwork
 	//		Network: "vapp-"+vdcnet.Name+"-network", // Name of the network to which this NIC is connected
 
 	var netConnections []*types.NetworkConnection
 	netConnection := &types.NetworkConnection{
-		Network:                "vapp-" + vdcnet.Name + "-network",
+		Network:                "vapp-" + net.Name + "-network",
 		NeedsCustomization:     false,
 		NetworkConnectionIndex: 0,
 		//		IPAddress:
@@ -125,7 +134,7 @@ func popNetConnect(t *testing.T, ctx context.Context) *types.NetworkConnectionSe
 		IsConnected:             true,
 		MACAddress:              "00.00.00.00.00",
 		IPAddressAllocationMode: types.IPAllocationModeDHCP,
-		NetworkAdapterType:      "E1000", // VMXNET3 ?
+		NetworkAdapterType:      "E1000", // VMXNET3
 	}
 	netConnections = append(netConnections, netConnection)
 	connects := &types.NetworkConnectionSection{
@@ -154,62 +163,6 @@ func (vdc *Vdc) QueryVappVmTemplate(catalogName, vappTemplateName, vmNameInTempl
 		"filter": "catalogName==" + url.QueryEscape(catalogName) + ";containerName==" + url.QueryEscape(vappTemplateName) + ";name==" + url.QueryEscape(vmNameInTemplate) +
 */
 
-// To create a VAppTemplate from scratch, you must first create a VApp.
-// When you then add this newly create VApp to a catalog, implictly, we are creating a
-// VAppTemplate from the VApp.
-// We can then  use this template to create other VApps, and just modify bits like the networkConnection section
-// (Change its name and ip address, + metadata like guest-info /Role etc a
-// We could then just delete the original VApp
-
-func TestTmpl(t *testing.T) {
-	live, ctx, err := InitVcdTestEnv()
-	require.Nil(t, err, "InitVcdTestEnv")
-	if live {
-		//found := false
-		fmt.Printf("TestTmpl (have %d vms in v.Objs.VMs", len(tv.Objs.VMs))
-		//	tmplName = "mobiledgex-v4.0.4-tmpl" // -vsphere"
-
-		for name, vm := range tv.Objs.VMs {
-			fmt.Printf("test = have vm %s name: %s \n", vm.VM.Name, name)
-		}
-
-		_, err := tv.FindTemplate(ctx, *tmplName)
-		if err != nil {
-			fmt.Printf("TestTmpl-E-%s not vdc.Resource\n", *tmplName)
-		}
-
-		tmpls, err := tv.GetAllVdcTemplates(ctx)
-		for _, tmp := range tmpls {
-			fmt.Printf("GetAllVdcTemplates next template: %s\n", tmp.VAppTemplate.Name)
-
-			if tmp.VAppTemplate.Name == *tmplName {
-				//found = true
-				fmt.Printf("We've Found and returned our template! %s\n", *tmplName)
-				dumpVAppTemplate(&tv, ctx, tmp, 1)
-			}
-		}
-
-		//if !found {
-		// try a deeper look
-		vdc := tv.Objs.Vdc
-		catName := tv.Objs.PrimaryCat.Catalog.Name
-		// isn't it interesting that the QueryVappVMTemplate call retruns a
-		// *types.QueryResultVMRecordType ?
-		qrVMRec, err := vdc.QueryVappVmTemplate(catName, *tmplName, *vmName)
-		if err != nil {
-			fmt.Printf("QueryVmTemplate-E-%s\n", err.Error())
-			return
-		}
-		// What now, get by HREF?
-		fmt.Printf("qrVMRecType: %+v\n", qrVMRec)
-		//}
-		// for dumping internal vms in the template we'll need our local test cache objs.
-		//dumpVAppTemplate(&tv, ctx, tmpl, 1)
-	} else {
-		return
-	}
-}
-
 func populateInstantiationParams() *types.InstantiationParams {
 
 	custSec := &types.CustomizationSection{
@@ -225,8 +178,6 @@ func populateInstantiationParams() *types.InstantiationParams {
 	leaseSettingSec := &types.LeaseSettingsSection{}
 
 	vappNetConfigSec := &types.NetworkConfigSection{}
-
-	//vappNetConfigSec = tv.Objs.PrimaryNet.OrgVDCNetwork.Configuration
 
 	netConnectSec := &types.NetworkConnectionSection{}
 	prodSec := &types.ProductSection{}
@@ -256,8 +207,10 @@ func populateVAppTmplInstatiationParams(t *testing.T, ctx context.Context) *type
 // catalogItem.Delete()
 // So must frist get the catitem for this templ name.
 func testDestroyVAppTmpl(t *testing.T, ctx context.Context, tmplname string) error {
-	cat := tv.Objs.PrimaryCat
-
+	cat, err := tv.GetCatalog(ctx, tv.GetCatalogName())
+	if err != nil {
+		return err
+	}
 	catitem, err := cat.GetCatalogItemByName(tmplname, true)
 	if err != nil {
 		fmt.Printf("testDestroyVAppTmpl-E-error finding %s item in cat: %s\n", tmplname, cat.Catalog.Name)
@@ -268,95 +221,6 @@ func testDestroyVAppTmpl(t *testing.T, ctx context.Context, tmplname string) err
 		return err
 	}
 	return nil
-}
-
-// create template with two networks using tv.Objs.PrimaryNet / dhcp
-func testCreatePlatformTemplate() {
-
-}
-
-// create template with only internal isolated netowrk using static 10.101.x.[1, 10, 101, 102..]
-// Q: How is x selected today? (openstack?)
-
-func testCreateInternalTemplate() {
-
-}
-
-func testUpdateVAppTmpl(t *testing.T, ctx context.Context) {
-
-}
-
-func testAddNetworksToVAppTmpl(t *testing.T, ctx context.Context) {
-
-}
-
-func testInsertMediaToVAppTmpl(t *testing.T, ctx context.Context) {
-
-}
-
-// recompose uploaded mobiledgex-v3.1.6-v14-vapp.ovf to use our networks
-//
-/*
-func testComposeVapp(t *testing.T, ctx context.Context, vappName string) error {
-
-	targetTmpl := &govcd.VAppTemplate{}
-
-	vappDesc := "recomposed mex BI"
-	for tmplName, tmpl := range tv.Objs.VAppTmpls {
-		fmt.Printf("Checking for target tmpl: %s\n", tmplName)
-		if strings.Contains(tmplName, "mobiledgex") {
-			targetTmpl = tmpl
-			fmt.Printf("Using tmplate %s\n", tmplName)
-			break
-		}
-	}
-	fmt.Printf("targetTmpl = %+v\n", targetTmpl.VAppTemplate)
-	// now get the actual govcd.VM by name of this VM, we have a recordtype
-	// Looks like we need to create a new vapp from our template, and using that vapp, call vapp.RemoveNetwork and
-	// maybe vapp.UpdateOrgNetwork
-	// vapp.ChangeNetworkConfig(netowrks, ip string)
-	stoRef := types.Reference{}
-	// get template object by name
-	// Need a Query to ge storageProfiles
-
-	// Yes, we know this apriori, but need to find it dynamically
-	// item? type="application/vnd.vmware.vcloud.vdcStorageProfile+xml"
-	//defStorPol := "vSan Default Stroage Policy"
-	query := &types.QueryResultRecordsType{}
-	storRef, err := tv.Objs.Vdc.GetDefaultStorageProfileReference(query)
-	if err != nil {
-		fmt.Printf("Error from GetDefaultStorageProfileReference : %s\n", err.Error())
-	} else {
-		fmt.Printf("Default Storage Profile for Vdc : Name %s Type %s\n", storRef.Name, storRef.Type)
-	}
-
-	// So we're going to use vdc.ComposeVApp(networks, template, storageRef, name, accept all
-	network := []*types.OrgVDCNetwork{}
-	network = append(network, tv.Objs.PrimaryNet.OrgVDCNetwork)
-	// comments in vapptempl indicate that if stoRef not found, it will use the default, which is ok for now.
-	task, err := tv.Objs.Vdc.ComposeVApp(network, *targetTmpl, stoRef, vappName, vappDesc, true)
-	if err != nil {
-		fmt.Printf("ComposeVApp-E-%s\n", err.Error())
-		return err
-	}
-	fmt.Printf("Task: %+v\n", task)
-	// should we turn around and verify?
-	vapp, err := tv.Objs.Vdc.GetVAppByName(vappName, true)
-	if err != nil {
-		fmt.Printf("GetByName %s failed: %s\n", vappName, err.Error())
-		return err
-	}
-	fmt.Printf("Composed Vapp:\n")
-	vu.DumpVApp(vapp, 1)
-	// or did we need to remove the old network first?
-	return err
-}
-*/
-
-// AddNewVM Adds VM from VApp template with custom NetworkConnectionSection
-// So the VApp we've just composed, add a second VM with just an internal network
-func (v *VcdPlatform) testAddVMToVAppTmpl(t *testing.T, ctx context.Context, vapp *VApp, network *types.NetworkConnectionSection) {
-
 }
 
 // test for bug handle removing networks along with VM if the vm removed is last one using network.

@@ -14,12 +14,16 @@ import (
 )
 
 func TestCats(t *testing.T) {
-	live, _, err := InitVcdTestEnv()
+	live, ctx, err := InitVcdTestEnv()
 	require.Nil(t, err, "InitVcdTestEnv")
 	if live {
 		fmt.Printf("TestCats-I-tv init done\n")
-		pcat := tv.Objs.PrimaryCat
-		govcd.ShowCatalog(*pcat.Catalog)
+		cat, err := tv.GetCatalog(ctx, tv.GetCatalogName())
+		if err != nil {
+			fmt.Printf("GetCatalog faled: %s\n", err.Error())
+			return
+		}
+		govcd.ShowCatalog(*cat.Catalog)
 	} else { //
 		return
 	}
@@ -74,10 +78,14 @@ func TestGetTemplates(t *testing.T) {
 
 	//	var tmpls []string
 
-	live, _, err := InitVcdTestEnv()
+	live, ctx, err := InitVcdTestEnv()
 	require.Nil(t, err, "InitVcdTestEnv")
 	if live {
-		vdc := tv.Objs.Vdc
+		vdc, err := tv.GetVdc(ctx)
+		if err != nil {
+			fmt.Printf("GetVdc failed: %s\n", err.Error())
+			return
+		}
 		fmt.Printf("TestGetTemplates\n")
 		for _, res := range vdc.Vdc.ResourceEntities {
 			for N, item := range res.ResourceEntity {
@@ -109,7 +117,12 @@ func testOvaUpload(t *testing.T, ctx context.Context) error {
 	tname := "mobiledgex-v4.1.3-vcd"
 	fmt.Printf("testMediaUpload-I-attempt uploading: %s naming it %s \n", url, tname)
 
-	cat := tv.Objs.PrimaryCat
+	cat, err := tv.GetCatalog(ctx, tv.GetCatalogName())
+	if err != nil {
+		fmt.Printf("GetCatalog faled: %s\n", err.Error())
+		return err
+	}
+
 	elapse_start := time.Now()
 	task, err := cat.UploadOvf(url, tname, "test-import-ova-vcd", (1024 * 100))
 
@@ -129,12 +142,20 @@ func testOvaUpload(t *testing.T, ctx context.Context) error {
 
 func TestCatItemTmpl(t *testing.T) {
 
-	live, _, err := InitVcdTestEnv()
+	live, ctx, err := InitVcdTestEnv()
 	require.Nil(t, err, "InitVcdTestEnv")
 	templateName := ""
 	if live {
-		vdc := tv.Objs.Vdc
-		cat := tv.Objs.PrimaryCat
+		vdc, err := tv.GetVdc(ctx)
+		if err != nil {
+			fmt.Printf("GetVdc failed: %s\n", err.Error())
+			return
+		}
+		cat, err := tv.GetCatalog(ctx, tv.GetCatalogName())
+		if err != nil {
+			fmt.Printf("GetCatalog faled: %s\n", err.Error())
+			return
+		}
 
 		// all items in the cat. You can ask vdc.QueryCatalogItemsList for vdc  items I guess Or adminVdc.Query
 		fmt.Printf("\n Using cat.QueryCatalogItemList\n")
@@ -235,12 +256,22 @@ func TestImportVMTmpl(t *testing.T) {
 
 	//	var tmpls []string
 
-	live, _, err := InitVcdTestEnv()
+	live, ctx, err := InitVcdTestEnv()
 	require.Nil(t, err, "InitVcdTestEnv")
 	if live {
 		fmt.Printf("TestImport tmpl %s\n", *tmplName)
 		// we want to take a item (vcloud.vm+xml) and instanciate it to be a vdc.resource full vcloud.vapptemplate+xml type
-		vdc := tv.Objs.Vdc
+		vdc, err := tv.GetVdc(ctx)
+		if err != nil {
+			fmt.Printf("GetVdc failed: %s\n", err.Error())
+			return
+		}
+		cat, err := tv.GetCatalog(ctx, tv.GetCatalogName())
+		if err != nil {
+			fmt.Printf("GetCatalog faled: %s\n", err.Error())
+			return
+		}
+
 		templateVmQueryRecs, err := tv.Client.Client.QueryVmList(types.VmQueryFilterOnlyTemplates)
 
 		qr := &types.QueryResultVMRecordType{}
@@ -250,7 +281,7 @@ func TestImportVMTmpl(t *testing.T) {
 
 				fmt.Printf("Discover found template:\n\tName%s\n\tType: %s\n\tHref:%s\n", qr.Name, qr.Type, qr.HREF)
 
-				tmpl, err := tv.Objs.PrimaryCat.GetVappTemplateByHref(qr.HREF)
+				tmpl, err := cat.GetVappTemplateByHref(qr.HREF)
 
 				fmt.Printf("template:\n\tName: %s\n\tType: %s\n\tID: %s\n\tHREF: %s\n\t OperKey: %s\n\tStatus: %d\n\tOvfDescriptorUpLoaded: %s\n",
 					tmpl.VAppTemplate.Name,

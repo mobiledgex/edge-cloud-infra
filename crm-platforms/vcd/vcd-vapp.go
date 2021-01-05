@@ -23,7 +23,12 @@ func (v *VcdPlatform) CreateVApp(ctx context.Context, vappTmpl *govcd.VAppTempla
 	var err error
 
 	numVMs := len(vmgp.VMs)
-	vdc := v.Objs.Vdc
+
+	vdc, err := v.GetVdc(ctx)
+	if err != nil {
+		return nil, err
+	}
+
 	storRef := types.Reference{}
 	// Nil ref wins default storage policy
 	log.SpanLog(ctx, log.DebugLevelInfra, "CreateVapp", "name", vmgp.GroupName, "tmpl", vappTmpl.VAppTemplate.Name)
@@ -54,8 +59,9 @@ func (v *VcdPlatform) CreateVApp(ctx context.Context, vappTmpl *govcd.VAppTempla
 	vmType := string(vmlayer.GetVmTypeForRole(string(vmparams.Role)))
 
 	// MEX-EXT-NET
+	vdcNet, err := v.GetExtNetwork(ctx)
 	networks := []*types.OrgVDCNetwork{}
-	networks = append(networks, v.Objs.PrimaryNet.OrgVDCNetwork)
+	networks = append(networks, vdcNet.OrgVDCNetwork)
 
 	fmt.Printf("\nCreateVApp-I-composes vapp %s role: %s type: %s\n", vappName, vmRole, vmType)
 
@@ -75,7 +81,7 @@ func (v *VcdPlatform) CreateVApp(ctx context.Context, vappTmpl *govcd.VAppTempla
 	}
 
 	vmtmpl.Name = vmtmplVMName
-	vapp, err = v.Objs.Vdc.GetVAppByName(vappName, true)
+	vapp, err = vdc.GetVAppByName(vappName, true)
 	if err != nil {
 		log.SpanLog(ctx, log.DebugLevelInfra, "can't retrieve compoled vapp", "VAppName", vmgp.GroupName, "error", err)
 		return nil, err
@@ -199,44 +205,14 @@ func (v *VcdPlatform) DeleteVapp(ctx context.Context, vapp *govcd.VApp) error {
 	return nil
 }
 
-func (v *VcdPlatform) addVApp(ctx context.Context, vappName string, vdc *govcd.Vdc) error {
-
-	vapp, err := v.FindVApp(ctx, vappName)
-	if err != nil {
-		tmpVApp, err := vdc.GetVAppByName(vappName, true)
-		if err != nil {
-			return err
-		}
-		// Now, check their HREFS for equality
-		if vapp.VApp.HREF != tmpVApp.VApp.HREF {
-			return fmt.Errorf("Duplicate VApp Names found")
-		}
-	}
-	// update
-	VApp := VApp{
-		VApp: vapp,
-	}
-	v.Objs.VApps[vapp.VApp.Name] = &VApp
-	return nil
-}
-
 func (v *VcdPlatform) FindVApp(ctx context.Context, vappName string) (*govcd.VApp, error) {
 
-	vdc := v.Objs.Vdc
+	vdc, err := v.GetVdc(ctx)
+	if err != nil {
+		return nil, err
+	}
 	vapp, err := vdc.GetVAppByName(vappName, true)
 	return vapp, err
-}
-
-func (v *VcdPlatform) FindVAppOld(ctx context.Context, vappName string) (*govcd.VApp, error) {
-
-	for name, vapp := range v.Objs.VApps {
-		if vappName == name {
-			return vapp.VApp, nil
-		}
-	}
-
-	// Use GetAvailableQuery incase something new was created behind our backs.
-	return nil, fmt.Errorf("Server does not exist")
 }
 
 // Propteries make up the ProductSection and are retrievable in the VM

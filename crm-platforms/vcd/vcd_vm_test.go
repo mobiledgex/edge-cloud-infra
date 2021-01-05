@@ -32,7 +32,7 @@ var grpName = flag.String("grp", "grp-default", "some grp name")
 var clstName = flag.String("clst", "clst-default", "some cluster  name")
 var cldName = flag.String("cld", "cld-default", "some cld name")
 var phyName = flag.String("phy", "packet", "some physicalLocation")
-var orgName = flag.String("org", "mexorg", "some physicalLocation")
+var orgName = flag.String("org", "mexorg", "some vCD Org")
 var regionName = flag.String("reg", "US", "some regiony")
 var livetest = flag.String("live", "false", "live or canned data")
 
@@ -46,16 +46,16 @@ func InitVcdTestEnv() (bool, context.Context, error) {
 	ctx := log.StartTestSpan(context.Background())
 	//tv.initDebug(o.VMProperties.CommonPf.PlatformConfig.NodeMgr) // XXX needed now?
 	// make our object maps
-	tv.Objs.Nets = make(map[string]*govcd.OrgVDCNetwork)
-	tv.Objs.Cats = make(map[string]CatContainer)
+	//	tv.Objs.Nets = make(map[string]*govcd.OrgVDCNetwork)
+	//tv.Objs.Cats = make(map[string]CatContainer)
 
-	tv.Objs.VApps = make(map[string]*VApp)
-	tv.Objs.VMs = make(map[string]*govcd.VM)
-	tv.Objs.VAppTmpls = make(map[string]*govcd.VAppTemplate)
+	//	tv.Objs.VApps = make(map[string]*VApp)
+	//	tv.Objs.VMs = make(map[string]*govcd.VM)
+	//	tv.Objs.VAppTmpls = make(map[string]*govcd.VAppTemplate)
 
 	//v.Objs.TemplateVMs = make(map[string]*types.QueryResultVMRecordType)
-	tv.Objs.TemplateVMs = make(TmplVMsMap)
-	tv.Objs.Media = make(MediaMap)
+	//	tv.Objs.TemplateVMs = make(TmplVMsMap)
+	//	tv.Objs.Media = make(MediaMap)
 	tv.TestMode = true
 	if *livetest == "true" {
 		live = true
@@ -74,7 +74,7 @@ func InitVcdTestEnv() (bool, context.Context, error) {
 			return live, ctx, fmt.Errorf("ImportDataFromInfra failed: %s", err.Error())
 		}
 
-		fmt.Printf("TestEnvInit live org: %s Complete\n", tv.Objs.Org.Org.Name)
+		fmt.Printf("TestEnvInit live Complete\n")
 
 	} else {
 		// anything other than a manual run providing "true" for flag "live" results
@@ -130,7 +130,7 @@ func TestVMMetrics(t *testing.T) {
 	if live {
 		fmt.Printf("TestVMMetric Start\n")
 
-		govcd.ShowOrg(*tv.Objs.Org.Org)
+		//govcd.ShowOrg(*tv.Objs.Org.Org)
 
 		// So supposedly, there are potentially 4 Links on a VM that point to historic / current usage
 		// mentric of all catagories. But only historic are available from a Powered Off vm, which makes sense
@@ -209,14 +209,22 @@ func TestVM(t *testing.T) {
 	require.Nil(t, err, "InitTestEnv")
 	if live {
 		// You need an AdminOrg object if you want to get at OrgSettings.
-		org := tv.Objs.Org.Org
-		vdc := tv.Objs.Vdc
+		org, err := tv.GetOrg(ctx)
+		if err != nil {
+			fmt.Printf("GetOrg failed: %s\n", err.Error())
+			return
+		}
+		vdc, err := tv.GetVdc(ctx)
+		if err != nil {
+			fmt.Printf("GetVdc failed: %s\n", err.Error())
+			return
+		}
 
 		fmt.Printf("TestVM-VMQuota: %d NicQuota %d\n", vdc.Vdc.VMQuota, vdc.Vdc.NicQuota)
 
 		cli := tv.Client
 
-		adminOrg, err := govcd.GetAdminOrgByName(cli, org.Name)
+		adminOrg, err := govcd.GetAdminOrgByName(cli, org.Org.Name)
 		if err != nil {
 			fmt.Printf("Error retrieving AdminOrg: %s\n", err.Error())
 		} else {
@@ -253,23 +261,6 @@ func TestVM(t *testing.T) {
 	} else {
 		return
 	}
-}
-
-// This one uses vmlayer vm orch params and vdc-vm.go::CreateVM work routine
-func TestMexVM(t *testing.T) {
-
-	live, ctx, err := InitVcdTestEnv()
-	require.Nil(t, err, "InitTestEnv")
-	if live {
-		testCreateVM(t, ctx)
-
-		//tv.testInsertMediaToVM(t, ctx)
-		//tv.testAddNetworksToVM(t, ctx)
-
-		// ...
-		//tv.testDestroyVM(t, ctx)
-	}
-
 }
 
 // -live  -vm
@@ -497,17 +488,6 @@ func testUpdateVM(t *testing.T, ctx context.Context) {
 
 }
 
-func testInsertMediaToVM(t *testing.T, ctx context.Context, vm *govcd.VM) (*govcd.VM, error) {
-
-	task, err := vm.HandleInsertMedia(tv.Objs.Org, tv.Objs.PrimaryCat.Catalog.Name, "ubuntu-18.04")
-	if err != nil {
-		fmt.Printf("Error inserting media %s to vm %s\n", "ubuntu-18.04", vm.VM.Name)
-		return nil, err
-	}
-	fmt.Printf("HandleInsertMedia task: %+v\n", task)
-	return vm, nil
-}
-
 func testVMMetrics(t *testing.T, ctx context.Context, vmname string, poweron bool) error {
 
 	// Apparently, once a VM is powered on, it's Links should contain 4 links where the value of the type attribute has
@@ -606,31 +586,6 @@ func TestServerGroupResources(t *testing.T) {
 			for _, ipSet := range vinfo.Ipaddresses {
 				fmt.Printf("\tExternalIp: %s\n\tInternalIp:%s\n",
 					ipSet.ExternalIp, ipSet.InternalIp)
-			}
-		}
-	}
-}
-
-func TestClusterVMs(t *testing.T) {
-	live, _, err := InitVcdTestEnv()
-	require.Nil(t, err, "InitTestEnv")
-
-	if live {
-		fmt.Printf("Find all ClusterVMs\n")
-
-		if tv.Objs.Cloudlet == nil {
-			fmt.Printf("No cloudlet yet, no clusters available\n")
-			return
-		}
-		if tv.Objs.Cloudlet.Clusters == nil {
-			fmt.Printf("No clusters available\n")
-			return
-		}
-
-		for caddr, cluster := range tv.Objs.Cloudlet.Clusters {
-			fmt.Printf("Consider cluster %s extAddr: %s\n", cluster.Name, caddr)
-			for vaddr, cvm := range cluster.VMs {
-				fmt.Printf("next vm: %s addr %s\n", cvm.vmName, vaddr)
 			}
 		}
 	}

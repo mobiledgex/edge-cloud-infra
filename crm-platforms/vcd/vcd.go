@@ -5,7 +5,7 @@ import (
 	"fmt"
 	gogotypes "github.com/gogo/protobuf/types"
 	"github.com/mobiledgex/edge-cloud-infra/vmlayer"
-	"os"
+	//"os"
 	"strings"
 	"time"
 	"unicode"
@@ -13,12 +13,12 @@ import (
 	"github.com/mobiledgex/edge-cloud/cloud-resource-manager/platform"
 	"github.com/mobiledgex/edge-cloud/edgeproto"
 	"github.com/mobiledgex/edge-cloud/log"
+	"github.com/mobiledgex/edge-cloud/vault"
 	ssh "github.com/mobiledgex/golang-ssh"
 	"github.com/vmware/go-vcloud-director/v2/govcd"
-	"github.com/vmware/go-vcloud-director/v2/types/v56"
+	//"github.com/vmware/go-vcloud-director/v2/types/v56"
 )
 
-// Vcd support objects
 // Note regarding govcd SDK:
 // Most all types in govcd are arranged as a containerized type in govcd that compose Client and
 // specific methods, with the business end of the type in types.go. example found in vdc.go:
@@ -39,7 +39,6 @@ type VcdPlatform struct {
 	caches       *platform.Caches
 	Creds        *VcdConfigParams
 	Client       *govcd.VCDClient
-	Objs         VcdObjects
 	TestMode     bool
 	Verbose      bool
 }
@@ -54,91 +53,7 @@ type VcdConfigParams struct {
 	Token    string
 }
 
-type VdcMap map[string]*govcd.Vdc
-
-type CatContainer struct {
-	OrgCat    *govcd.Catalog // contains types.Catalog
-	CatRec    *types.CatalogRecord
-	MediaRecs []*types.MediaRecordType // Media found in OrgCat
-}
-
-type NetMap map[string]*govcd.OrgVDCNetwork
-type CatMap map[string]CatContainer
-
-type VApp struct {
-	VApp *govcd.VApp
-	VMs  VMMap
-}
-
 type VAppMap map[string]*govcd.VApp
-
-// Deprecated VAppsMap et. al. XXX
-type VAppsMap map[string]*VApp
-
-type VMMap map[string]*govcd.VM // alt VMRecord?
-type VAppTmplMap map[string]*govcd.VAppTemplate
-type TmplVMsMap map[string]*types.QueryResultVMRecordType
-type MediaMap map[string]*govcd.Media
-
-// A VM element of a clusterInst in some Cloudlet
-type ClusterVm struct {
-	vmName          string
-	vmRole          string
-	vmType          string
-	vmFlavor        string
-	vmMeta          []string
-	vmIPs           edgeproto.IpAddr // ExternalIp , InternalIp
-	vmParentCluster string
-	vm              *govcd.VM
-}
-
-// IPaddr + vm attributes per cluster
-type VMIPsMap map[string]ClusterVm
-
-// A map key'ed by CIDR whose value is another map of all VMs in the
-// Cluster represented by this CIDR, this key'ed by IP addr
-// This set of vms under this CIDR represent a single cluster
-type Cluster struct {
-	Name string
-	VMs  VMIPsMap
-}
-
-type CidrMap map[string]*Cluster
-type CloudVMsMap map[string]*govcd.VM
-
-// One cloudlet per vdc instance
-type MexCloudlet struct {
-	ParentVdc    *govcd.Vdc
-	CloudVapp    *govcd.VApp
-	CloudletName string
-	ExtNet       *govcd.OrgVDCNetwork // The external network shared by all agent nodes of cluster in cloudlet
-	ExtIp        string
-	Clusters     CidrMap     // Clusters are keyed by their internal net CIDR
-	ExtVMMap     CloudVMsMap // keyed by exteral net ip
-	// federation partner TBI (single remote org/vdc:  a pair wise assocication)
-
-}
-
-type VcdObjects struct {
-	Org       *govcd.Org
-	Vdc       *govcd.Vdc // VdcMap
-	Nets      NetMap
-	Cats      CatMap
-	VApps     VAppsMap
-	VAppTmpls VAppTmplMap
-	// while we'll discover all external networks
-	// avaliable to our vdc, we'll only utilize the first we find as
-	// v.Objs.PrimaryNet. May be overriden using vcd.Vars
-	PrimaryNet  *govcd.OrgVDCNetwork
-	PrimaryCat  *govcd.Catalog
-	VMs         VMMap
-	DeployedVMs VMMap
-	TemplateVMs TmplVMsMap
-	EdgeGateway govcd.EdgeGateway
-	Media       MediaMap
-	Cloudlet    *MexCloudlet
-	Template    *govcd.VAppTemplate // tmp xxx debug
-}
 
 func (v *VcdPlatform) GetType() string {
 	return "vcd"
@@ -151,13 +66,6 @@ func (v *VcdPlatform) InitProvider(ctx context.Context, caches *platform.Caches,
 	log.SpanLog(ctx, log.DebugLevelInfra, "InitProvider for Vcd 1", "stage", stage)
 	v.Verbose = v.GetVcdVerbose()
 	v.InitData(ctx, caches)
-	v.Objs.Nets = make(map[string]*govcd.OrgVDCNetwork)
-	v.Objs.Cats = make(map[string]CatContainer)
-	v.Objs.VApps = make(map[string]*VApp)
-	v.Objs.VMs = make(map[string]*govcd.VM)
-	v.Objs.VAppTmpls = make(map[string]*govcd.VAppTemplate)
-	v.Objs.TemplateVMs = make(map[string]*types.QueryResultVMRecordType)
-	v.Objs.Media = make(MediaMap)
 
 	if v.Client == nil {
 		client, err := v.GetClient(ctx, v.Creds)
@@ -210,17 +118,10 @@ func (v *VcdPlatform) GetPlatformResourceInfo(ctx context.Context) (*vmlayer.Pla
 	log.SpanLog(ctx, log.DebugLevelInfra, "GetPlatformResourceInfo ")
 
 	resources.CollectTime, _ = gogotypes.TimestampProto(time.Now())
-
-	org, err := v.GetOrg(ctx, v.Client, v.Creds.Org)
+	vdc, err := v.GetVdc(ctx)
 	if err != nil {
 		return nil, err
 	}
-	v.Objs.Org = org
-	vdc, err := v.GetVdc(ctx, v.Creds.VDC)
-	if err != nil {
-		return nil, err
-	}
-	v.Objs.Vdc = vdc
 
 	c_capacity := vdc.Vdc.ComputeCapacity
 	for _, cap := range c_capacity {
@@ -275,54 +176,22 @@ func (v VcdPlatform) CheckServerReady(ctx context.Context, client ssh.Client, se
 	}
 }
 
-func (v VcdPlatform) CheckServerReadyOld(ctx context.Context, client ssh.Client, serverName string) error {
+// Retrieve our top level Org object
+func (v *VcdPlatform) GetOrg(ctx context.Context) (*govcd.Org, error) {
 
-	// ServerName here is really the external ip address.
-	// Worker nodes are never checked?
-	// Run our Cluster Cider map looking for this IP
-	log.SpanLog(ctx, log.DebugLevelInfra, "CheckServerReady", "serverName", serverName)
-
-	vmName := ""
-	if v.Objs.Cloudlet != nil {
-		for addr, vm := range v.Objs.Cloudlet.ExtVMMap {
-			if serverName == addr {
-				vmName = vm.VM.Name
-				break
-			}
-		}
-
-		log.SpanLog(ctx, log.DebugLevelInfra, "CheckServerReady", "serverName", serverName, "vmName", vmName)
-
-		detail, err := v.GetServerDetail(ctx, vmName)
-		if err != nil {
-			fmt.Printf("\n\nCheckServerReady-I-GetServerDetail err: %s recovered\n\n", err.Error())
-			return nil
-		}
-		out := ""
-		if detail.Status == vmlayer.ServerActive {
-			out, err = client.Output("systemctl status mobiledgex.service")
-			log.SpanLog(ctx, log.DebugLevelInfra, "CheckServerReady Mobiledgex service status", "serverName", serverName, "out", out, "err", err)
-			return nil
-		} else {
-			log.SpanLog(ctx, log.DebugLevelInfra, "CheckServerReady Mobiledgex service status (recovered) ", "serverName", serverName, "out", out, "err", err)
-			return nil // fmt.Errorf("Server %s status: %s", serverName, detail.Status)
-		}
-	}
-	return nil
-}
-
-func (v *VcdPlatform) GetOrg(ctx context.Context, cli *govcd.VCDClient, orgName string) (*govcd.Org, error) {
-
-	org, err := cli.GetOrgByName(orgName)
+	cli := v.Client
+	org, err := cli.GetOrgByName(v.Creds.Org)
 	if err != nil {
 		return nil, fmt.Errorf("GetOrgByName error %s", err.Error())
 	}
 	return org, nil
 }
 
-func (v *VcdPlatform) GetVdc(ctx context.Context, vdcName string) (*govcd.Vdc, error) {
+// Retrieve our refreshed vdc object
+func (v *VcdPlatform) GetVdc(ctx context.Context) (*govcd.Vdc, error) {
 
-	vdc, err := v.Objs.Org.GetVDCByName(vdcName, true)
+	org, err := v.GetOrg(ctx)
+	vdc, err := org.GetVDCByName(v.Creds.VDC, true)
 	if err != nil {
 		return nil, err
 	}
@@ -332,219 +201,11 @@ func (v *VcdPlatform) GetVdc(ctx context.Context, vdcName string) (*govcd.Vdc, e
 
 // return everything else,
 func (v *VcdPlatform) GetPlatformResources(ctx context.Context) error {
-
-	var err error
-	var existingCloudlet = false
-
-	if v.Objs.Org == nil {
-		v.Objs.Org, err = v.GetOrg(ctx, v.Client, v.Creds.Org)
-		if err != nil {
-			log.SpanLog(ctx, log.DebugLevelInfra, "Org Not Found", "Org", v.Creds.Org)
-			return fmt.Errorf("Unable to fetch Org %s err: %s", v.Creds.Org, err.Error())
-		}
-
-	}
-	log.SpanLog(ctx, log.DebugLevelInfra, "Discover: Org  as", "Vdc", v.Objs.Org.Org.Name)
-	// Get resources under our vdc, give a chance to override.
-	// the target vdc via env/property
-	vdcName := v.GetPrimaryVdc()
-	if vdcName == "" {
-		vdcName = v.GetVDCName()
-	}
-	if v.Objs.Vdc == nil {
-		v.Objs.Vdc, err = v.GetVdc(ctx, vdcName)
-		if err != nil {
-			log.SpanLog(ctx, log.DebugLevelInfra, "Vdc Not Found", "Vdc", vdcName)
-			return err
-		}
-	}
-	vdc := v.Objs.Vdc
-	log.SpanLog(ctx, log.DebugLevelInfra, "Discover: Vdc as", "Vdc", vdcName)
-
-	primNet := ""
-	if v.TestMode {
-		primNet = os.Getenv("MEX_EXT_NETWORK")
-	} else {
-		primNet = v.GetMexExtNetwork()
-	}
-	log.SpanLog(ctx, log.DebugLevelInfra, "Discover: Collecting resources", "vdc", vdc.Vdc.Name)
-	// dumpVdcResourceEntities(vdc, 1)
-	// fill our maps with bits from our virtual data center object
-	nets := vdc.Vdc.AvailableNetworks
-	for _, net := range nets {
-		for _, ref := range net.Network {
-			orgvdcnet, err := vdc.GetOrgVdcNetworkByName(ref.Name, false)
-			if err != nil {
-				// optional mark as failed and move on? XXX
-				return fmt.Errorf("GetOrgVdcNetworkByName %s failed err:%s", ref.Name, err.Error())
-			}
-			v.Objs.Nets[ref.Name] = orgvdcnet
-			if ref.Name == primNet {
-				log.SpanLog(ctx, log.DebugLevelInfra, "Discover: Primary", "network", orgvdcnet.OrgVDCNetwork.Name)
-				v.Objs.PrimaryNet = orgvdcnet
-			}
-			v.Objs.Nets[ref.Name] = orgvdcnet
-			log.SpanLog(ctx, log.DebugLevelInfra, "Discover:", "network", orgvdcnet.OrgVDCNetwork.Name)
-		}
-	}
-	// cats map
-	//
-	catalog := &govcd.Catalog{}
-	catalogRecords, err := v.Objs.Org.QueryCatalogList()
-	if err != nil {
-		return err
-	} else {
-		// Query all Org cats returns a types.CatalogRecord, we want both representations of a catalog
-		for n, cat := range catalogRecords {
-			orgcat, err := v.Objs.Org.GetCatalogByName(cat.Name, true)
-			if err != nil {
-				return fmt.Errorf("No org cat for CatRec %s", cat.Name)
-			}
-			v.Objs.Cats[cat.Name] = CatContainer{
-				CatRec: cat,
-				OrgCat: orgcat,
-			}
-
-			if n == 0 { // xxx first cat found, typically only one but... xxx
-				log.SpanLog(ctx, log.DebugLevelInfra, "Discover: Primary", "catalog", orgcat.Catalog.Name)
-				v.Objs.PrimaryCat = orgcat
-			}
-			if len(catalogRecords) > 1 && n == 0 { // j
-				log.SpanLog(ctx, log.DebugLevelInfra, "Discover: Multiple catalogs found, add non Primary as ", "catalog", catalog.Catalog.Name)
-			}
-		}
-	}
-
-	// Vapps map
-	// Alt. client.QueryVappList: returns a list o all VApps in all the orgainzations available to the caller
-	// (returns []*types.QueryResultVAppRecordType, error) So, we'll have to turn around and get the govcd.VApp objects
-	//
-	// This should be a rtn given res.Type xxx
-	for _, r := range vdc.Vdc.ResourceEntities {
-		for _, res := range r.ResourceEntity {
-			log.SpanLog(ctx, log.DebugLevelInfra, "Discover: Next VDC  Resource:", "Type", res.Type, "Name", res.Name, "Href", "res.HREF")
-
-			if res.Type == "application/vnd.vmware.vcloud.vApp+xml" {
-				vapp, err := vdc.GetVAppByName(res.Name, false)
-				if err != nil {
-					log.SpanLog(ctx, log.DebugLevelInfra, "Discover: error fetching Vdc VApp", "Name", res.Name)
-				} else {
-					a := VApp{
-						VApp: vapp,
-					}
-					log.SpanLog(ctx, log.DebugLevelInfra, "Discover: existing vapp", "Name", res.Name)
-					v.Objs.VApps[res.Name] = &a
-					mdata, err := vapp.GetMetadata()
-					if err != nil {
-						return err
-					}
-					for _, data := range mdata.MetadataEntry {
-						if data.Key == "CloudletName" {
-							log.SpanLog(ctx, log.DebugLevelInfra, "Discover: existing vapp marked cloudlet", "Name", res.Name, "metavalue", data.TypedValue.Value)
-							extAddr, err := v.GetExtAddrOfVapp(ctx, vapp, v.Objs.PrimaryNet.OrgVDCNetwork.Name)
-							if err != nil {
-								if v.Verbose {
-									log.SpanLog(ctx, log.DebugLevelInfra, "Discover: Error getting ext addr", "cloudlet", res.Name)
-								}
-								return err
-							}
-							v.Objs.Cloudlet = &MexCloudlet{
-								ParentVdc: vdc,
-								CloudVapp: vapp,
-								ExtNet:    v.Objs.PrimaryNet,
-								ExtIp:     extAddr,
-								Clusters:  make(CidrMap),
-								ExtVMMap:  make(CloudVMsMap),
-							}
-							// getbyname the first vm here
-							vm, err := vapp.GetVMByName(vapp.VApp.Children.VM[0].Name, false)
-							v.Objs.Cloudlet.ExtVMMap[extAddr] = vm
-							fmt.Printf("\n\nDiscover: Cloudlet ExtVMMap set Addr  %s vmName: %s\n", extAddr, res.Name)
-							existingCloudlet = true
-						}
-					}
-					log.SpanLog(ctx, log.DebugLevelInfra, "Discover: VApp", "Name", res.Name)
-					// now collect any VMs in this Vapp
-					if vapp.VApp.Children != nil {
-						if v.Verbose {
-							log.SpanLog(ctx, log.DebugLevelInfra, "Discover:", "VApp", vapp.VApp.Name, "child vms", len(vapp.VApp.Children.VM))
-						}
-						for _, child := range vapp.VApp.Children.VM {
-							vm, err := vapp.GetVMByName(child.Name, true)
-							if err != nil {
-								continue
-							} else {
-								if v.Verbose {
-									log.SpanLog(ctx, log.DebugLevelInfra, "Discover: Adding VM", "Name", vm.VM.Name)
-								}
-								v.Objs.VMs[vm.VM.Name] = vm
-
-								// if this vm has an external address add to ExtVMMap
-								eAddr, err := v.GetExtAddrOfVM(ctx, vm, v.Objs.PrimaryNet.OrgVDCNetwork.Name)
-								if err == nil {
-									fmt.Printf("\nDiscover: %s has extAddr %s\n", child.Name, eAddr)
-									if v.Objs.Cloudlet != nil {
-										v.Objs.Cloudlet.ExtVMMap[eAddr] = vm
-									}
-								}
-								// where does findVM look in?
-
-							}
-						}
-					}
-				}
-			} else if res.Type == "application/vnd.vmware.vcloud.vms+xml" {
-				// VMs
-				if v.Verbose {
-					log.SpanLog(ctx, log.DebugLevelInfra, "Discover: Vdc VM resource", "VmName", res.Name, "Href", res.HREF)
-				}
-				vm, err := v.Client.Client.GetVMByHref(res.HREF)
-				if err != nil {
-					return err
-				} else {
-					v.Objs.VMs[res.Name] = vm
-				}
-
-				// Templates
-			} else if res.Type == "application/vnd.vmware.vcloud.vAppTemplate+xml" {
-				if v.Verbose {
-					log.SpanLog(ctx, log.DebugLevelInfra, "Discover: Vdc  resource template", "Name", res.Name, "Href", res.HREF)
-				}
-
-				tmpl, err := v.Objs.PrimaryCat.GetVappTemplateByHref(res.HREF)
-				if err != nil {
-					continue
-				} else {
-					v.Objs.VAppTmpls[res.Name] = tmpl
-				}
-				// Media
-			} else if res.Type == "application/vnd.vmware.vcloud.media+xml" {
-				media, err := v.Objs.PrimaryCat.GetMediaByHref(res.HREF)
-				if err != nil {
-					log.SpanLog(ctx, log.DebugLevelInfra, "Discover error retrive meida %s from catalog\n", "Catalog", res.Name, "error", err)
-				}
-				v.Objs.Media[res.Name] = media
-
-			} else {
-				log.SpanLog(ctx, log.DebugLevelInfra, "Unhandled resource type ignored", "name", res.Name, "Type", res.Type)
-			}
-		}
-	}
-
-	if existingCloudlet {
-		log.SpanLog(ctx, log.DebugLevelInfra, "Discover: RebuildClusters for", "Cloudlet", v.Objs.Cloudlet.CloudletName)
-		err := v.RebuildClusters(ctx)
-		if err != nil {
-			log.SpanLog(ctx, log.DebugLevelInfra, "RebuildClusters", "err", err)
-			return err
-		}
-	}
-
+	log.SpanLog(ctx, log.DebugLevelInfra, "GetPlatformResources")
 	return nil
 }
 
 func (v *VcdPlatform) GetConsoleUrl(ctx context.Context, serverName string) (string, error) {
-
 	return v.Creds.Href, nil
 }
 
@@ -552,8 +213,11 @@ func (v *VcdPlatform) ImportImage(ctx context.Context, folder, imageFile string)
 	log.SpanLog(ctx, log.DebugLevelInfra, "ImportImage", "imageFile", imageFile, "folder", folder)
 	// first delete anything that may be there for this image
 	v.DeleteImage(ctx, folder, imageFile)
-	// .ova's are the unit of upload to our catalog
-	cat := v.Objs.PrimaryCat
+	// .ova's are the unit of upload to our catalog (but could be an ovf + vmdk)
+	cat, err := v.GetCatalog(ctx, v.GetCatalogName())
+	if err != nil {
+		return err
+	}
 	// ovaFile, itemName, description, uploadPieceSize xxx is folder appropriate for itemName?
 	cat.UploadOvf(imageFile, folder+"-tmpl", "mex base iamge", 4*1024)
 	return nil
@@ -636,46 +300,18 @@ func (v *VcdPlatform) GetServerDetail(ctx context.Context, serverName string) (*
 
 }
 
-// Given a vappName, does it exist in our vdc?
-/* use vcd-vm:FindVmByName
-func (v *VcdPlatform) FindVdcVapp(ctx context.Context, vappName string) (*govcd.VApp, error) {
-	vdc := v.Objs.Vdc
-	vappRefs := vdc.GetVappList()
-	for _, ref := range vappRefs {
-		vapp, err := v.Objs.Vdc.GetVAppByName(ref.Name, false)
-		if err != nil {
-			continue
-		}
-		if ref.Name == vapp.VApp.Name {
-			vapp, err := vdc.FindVAppByName(vappName)
-			if err != nil {
-				continue
-			}
-			return &vapp, nil
-		}
-	}
-	return nil, fmt.Errorf("Not found")
-}
-*/
-// VDC related
-
-// this wants to be the vdc.resource section of Discovery
-// to fetch by name type things of a vdc
-/*
-func (v *VcdPlatform) GetVdcResourceEnt(resType string) *types.ResourceEntity {
-
-	resEnt := &types.ResourceEntity{}
-
-	return resEnt
-
-}
-*/
-
 // Return current vapps in map keyed by external net IP
+// Combine the two such rnts use netType
 func (v *VcdPlatform) GetAllVAppsForVdc(ctx context.Context) (VAppMap, error) {
-	vdc := v.Objs.Vdc
-	netName := v.Objs.PrimaryNet.OrgVDCNetwork.Name
+
 	vappMap := make(VAppMap)
+
+	vdc, err := v.GetVdc(ctx)
+	if err != nil {
+		return vappMap, err
+	}
+	netName := v.GetExtNetworkName()
+
 	for _, r := range vdc.Vdc.ResourceEntities {
 		for _, res := range r.ResourceEntity {
 			if res.Type == "application/vnd.vmware.vcloud.vApp+xml" {
@@ -684,7 +320,6 @@ func (v *VcdPlatform) GetAllVAppsForVdc(ctx context.Context) (VAppMap, error) {
 					log.SpanLog(ctx, log.DebugLevelInfra, "GetVappByName", "Vapp", res.Name, "error", err)
 					return vappMap, err
 				} else {
-					fmt.Printf("\nGetVdcVAppbyName returns: %s\n", res.Name)
 					ip, err := v.GetExtAddrOfVapp(ctx, vapp, netName)
 					if err != nil {
 						log.SpanLog(ctx, log.DebugLevelInfra, "GetAllVapps GetExtAddrOfVapp ", "error", err)
@@ -700,9 +335,15 @@ func (v *VcdPlatform) GetAllVAppsForVdc(ctx context.Context) (VAppMap, error) {
 }
 
 func (v *VcdPlatform) GetAllVAppsForVdcByIntAddr(ctx context.Context) (VAppMap, error) {
-	vdc := v.Objs.Vdc
-	extNetName := v.Objs.PrimaryNet.OrgVDCNetwork.Name
+
 	vappMap := make(VAppMap)
+	vdc, err := v.GetVdc(ctx)
+	if err != nil {
+		return vappMap, err
+	}
+
+	extNetName := v.GetExtNetworkName()
+
 	for _, r := range vdc.Vdc.ResourceEntities {
 		for _, res := range r.ResourceEntity {
 			if res.Type == "application/vnd.vmware.vcloud.vApp+xml" {
@@ -734,4 +375,28 @@ func (v *VcdPlatform) GetAllVAppsForVdcByIntAddr(ctx context.Context) (VAppMap, 
 	}
 	return vappMap, nil
 
+}
+
+func (v *VcdPlatform) GetApiEndpointAddr(ctx context.Context) (string, error) {
+
+	ip := v.GetVCDIP() // {vcdVars["VCD_IP"]
+	apiUrl := ip + "/api"
+	log.SpanLog(ctx, log.DebugLevelInfra, "GetApiEndpointAddr", "Href", apiUrl)
+	return apiUrl, nil
+}
+
+func (v *VcdPlatform) GetCloudletImageSuffix(ctx context.Context) string {
+	return "-vcd.qcow2"
+}
+
+func (v *VcdPlatform) GetCloudletManifest(ctx context.Context, name, cloudletImagePath string, VMGroupOrchestrationParams *vmlayer.VMGroupOrchestrationParams) (string, error) {
+	log.SpanLog(ctx, log.DebugLevelInfra, "GetCloudletManifest", "name", name, "imagePath", cloudletImagePath)
+	return "", nil
+}
+
+func (v *VcdPlatform) GetSessionTokens(ctx context.Context, vaultConfig *vault.Config, account string) (map[string]string, error) {
+	return nil, fmt.Errorf("GetSessionTokens not supported in VcdPlatform")
+}
+func (v *VcdPlatform) SaveCloudletAccessVars(ctx context.Context, cloudlet *edgeproto.Cloudlet, accessVarsIn map[string]string, pfConfig *edgeproto.PlatformConfig, vaultConfig *vault.Config, updateCallback edgeproto.CacheUpdateCallback) error {
+	return fmt.Errorf("SaveCloudletAccessVars not implemented for vcd")
 }

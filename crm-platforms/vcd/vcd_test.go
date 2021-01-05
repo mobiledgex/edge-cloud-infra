@@ -27,11 +27,16 @@ type MexVapp struct {
 // we're creating a clusterInst, get all the bits needed to createa a VApp that will be
 // an example.
 func TestDiscover(t *testing.T) {
-	live, _, err := InitVcdTestEnv()
+	live, ctx, err := InitVcdTestEnv()
 	require.Nil(t, err, "InitVcdTestEnv")
+	org, err := tv.GetOrg(ctx)
+	if err != nil {
+		fmt.Printf("Error GetOrg: %s\n", err.Error())
+		return
+	}
 
 	if live {
-		fmt.Printf("Org %s id: %s\n", tv.Objs.Org.Org.Name, tv.Objs.Org.Org.ID)
+		fmt.Printf("Org %s id: %s\n", org.Org.Name, org.Org.ID)
 	} else {
 		return
 	}

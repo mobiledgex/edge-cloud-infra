@@ -3,10 +3,7 @@ package vcd
 import (
 	"context"
 	"fmt"
-	"strconv"
-	"strings"
 
-	"github.com/mobiledgex/edge-cloud-infra/vmlayer"
 	"github.com/stretchr/testify/require"
 	"github.com/vmware/go-vcloud-director/v2/govcd"
 	"github.com/vmware/go-vcloud-director/v2/types/v56"
@@ -34,51 +31,28 @@ func TestNextIntAddr(t *testing.T) {
 	require.Nil(t, err, "InitVcdTestEnv")
 
 	if live {
-		cloud := &MexCloudlet{}
-		if tv.Objs.Cloudlet == nil {
-			fmt.Printf("Make Test Cloudlet\n")
-			//cmap := make(CidrMap)
-			tv.Objs.Cloudlet = cloud
-			cloud.Clusters = make(CidrMap)
-			cloud.Clusters["10.101.1.1"] = &Cluster{}
-		}
 		nextAddr, err := tv.GetNextInternalNet(ctx)
 		if err != nil {
 			fmt.Printf("Error getting next addr  : %s\n", err.Error())
 			return
 		}
+		/*
+			fmt.Printf("Next ext-net Address: %s\n", nextAddr)
+			cloud.Clusters[nextAddr] = &Cluster{}
+			nextAddr, err = tv.GetNextInternalNet(ctx)
+			if err != nil {
+				fmt.Printf("Error getting next addr  : %s\n", err.Error())
+				return
+			}
+			fmt.Printf("Next ext-net Address: %s\n", nextAddr)
+			delete(cloud.Clusters, "10.101.2.1")
+			nextAddr, err = tv.GetNextInternalNet(ctx)
+			if err != nil {
+				fmt.Printf("Error getting next addr  : %s\n", err.Error())
+				return
+			}
+		*/require.Equal(t, nextAddr, "10.101.2.1")
 
-		fmt.Printf("Next ext-net Address: %s\n", nextAddr)
-		cloud.Clusters[nextAddr] = &Cluster{}
-		nextAddr, err = tv.GetNextInternalNet(ctx)
-		if err != nil {
-			fmt.Printf("Error getting next addr  : %s\n", err.Error())
-			return
-		}
-		fmt.Printf("Next ext-net Address: %s\n", nextAddr)
-		delete(cloud.Clusters, "10.101.2.1")
-		nextAddr, err = tv.GetNextInternalNet(ctx)
-		if err != nil {
-			fmt.Printf("Error getting next addr  : %s\n", err.Error())
-			return
-		}
-		require.Equal(t, nextAddr, "10.101.2.1")
-
-	}
-}
-
-func TestGetOrgNetworks(t *testing.T) {
-	live, ctx, err := InitVcdTestEnv()
-	require.Nil(t, err, "InitVcdTestEnv")
-
-	if live {
-		networks, err := tv.GetOrgNetworks(ctx, tv.Objs.Org)
-		if err != nil {
-			fmt.Printf("GetORgNetworks failed: %s\n", err.Error())
-		}
-		for _, net := range networks {
-			fmt.Printf("net: %s\n", net)
-		}
 	}
 }
 
@@ -140,158 +114,37 @@ func TestNetAddrs(t *testing.T) {
 	require.Equal(t, 6, N, "ThirdOctet")
 
 	if live {
-		vdc := tv.Objs.Vdc
+		_, err := tv.GetVdc(ctx)
+		if err != nil {
+			fmt.Printf("Error from GetVdc : %s\n", err.Error())
+			return
+		}
 
 		// Expect our test begins with zero Cloudlets
-		if tv.Objs.Cloudlet == nil {
 
-			fmt.Printf("non-nominal zero cloudlet test in vdc")
-			nextCidr, err := tv.GetNextInternalNet(ctx)
-			if err != nil {
-				fmt.Printf("GetNextInternalNet return err: %s\n", err.Error())
-				return
-			}
-			// expect 10.101.1.0/24
-			fmt.Printf("GetNextInternalNet expect 10.101.1.0/24 cidr: %s\n", nextCidr)
-
-		}
 		// We ask for the first external address in our PrimaryNet range
-		CloudletAddr, err := tv.GetNextExtAddrForVdcNet(ctx)
+		_ /*CloudletAddr,*/, err = tv.GetNextExtAddrForVdcNet(ctx)
 		if err != nil {
 			fmt.Printf("GetNextExternalAddrForVdcNet failed: %s\n", err.Error())
 			return
 		}
-
-		vapp := &govcd.VApp{}
-
-		fmt.Printf("Cloudlet Cider: %s\n", CloudletAddr)
-		tv.Objs.Cloudlet = &MexCloudlet{
-			ParentVdc:    vdc,
-			CloudVapp:    vapp,
-			CloudletName: "testCloudlet1",
-			ExtIp:        CloudletAddr,
-		}
-		tv.Objs.Cloudlet.Clusters = make(CidrMap)
-		// ExtVMMap represents all vms in the cloudlet assigned an external IP address
-		tv.Objs.Cloudlet.ExtVMMap = make(CloudVMsMap)
-		// Cloudlet's externa,l addr is our vapp
-		// We still have no  clusters, get the next external Cidr for it
-
-		cluster1Addr, err := tv.GetNextExtAddrForVdcNet(ctx)
-		if err != nil {
-			fmt.Printf("GetNextExternalAddrForVdcNet failed: %s\n", err.Error())
-			return
-
-		}
-		cluster1 := Cluster{
-			Name: "cluster1",
-			VMs:  make(VMIPsMap),
-		}
-
-		tv.Objs.Cloudlet.ExtVMMap[cluster1Addr] = &govcd.VM{}
-		tv.Objs.Cloudlet.Clusters[cluster1Addr] = &cluster1
-		fmt.Printf("Cluster1 received addr: %s\n", cluster1Addr)
-
-		cluster2Addr, err := tv.GetNextExtAddrForVdcNet(ctx)
-		if err != nil {
-			fmt.Printf("GetNextExternalAddrForVdcNet failed: %s\n", err.Error())
-			return
-		}
-		cluster2 := Cluster{
-			Name: "cluster2",
-			VMs:  make(VMIPsMap),
-		}
-		tv.Objs.Cloudlet.ExtVMMap[cluster2Addr] = &govcd.VM{}
-		tv.Objs.Cloudlet.Clusters[cluster2Addr] = &cluster2
-		fmt.Printf("Cluster2 received addr: %s\n", cluster2Addr)
-
-		cluster3Addr, err := tv.GetNextExtAddrForVdcNet(ctx)
-		if err != nil {
-			fmt.Printf("GetNextExternalAddrForVdcNet failed: %s\n", err.Error())
-			return
-		}
-		cluster3 := Cluster{
-			Name: "cluster3",
-			VMs:  make(VMIPsMap),
-		}
-		tv.Objs.Cloudlet.ExtVMMap[cluster3Addr] = &govcd.VM{}
-		tv.Objs.Cloudlet.Clusters[cluster3Addr] = &cluster3
-		fmt.Printf("Cluster3 received addr: %s\n", cluster3Addr)
-
-		// Now delete 2, and create 4, should get what 2 had
-		delete(tv.Objs.Cloudlet.ExtVMMap, cluster2Addr)
-		delete(tv.Objs.Cloudlet.Clusters, cluster2Addr)
-
-		cluster4Addr, err := tv.GetNextExtAddrForVdcNet(ctx)
-		if err != nil {
-			fmt.Printf("GetNextExternalAddrForVdcNet failed: %s\n", err.Error())
-			return
-		}
-		if cluster4Addr != cluster2Addr {
-			fmt.Printf("FAIL Cluster4addr %s vs Cluster2Addr: %s\n", cluster4Addr, cluster2Addr)
-			return
-		}
-		// Next internal net tests for the vms
-
-		intAddr1, err := tv.GetNextInternalNet(ctx)
-		fmt.Printf("firrst internal addr: %s\n", intAddr1)
-
-		//vmIpMap1 := make(VMIPsMap)
-		//vmIpMap2 := make(VMIPsMap)
-		/*
-			cvm1 := ClusterVm{
-				vmName: "testVM1",
-				vmRole: "roleAgent",
-				//vmMeta: "",
-			}
-			cvm2 := ClusterVm{
-				vmName: "testVM2",
-				vmRole: "roleNode",
-				//vmMeta: "",
-			}
-			fmt.Printf("Nominal single Cloudlet test\n")
-			// Create a test cloudlet obj
-
-			cli := tv.Client.Client
-			vdc2 := govcd.NewVdc(&cli)
-
-			vdc2.Vdc.Name = "testvdc2"
-
-			fmt.Printf("Text Case 3 seccond vdc/cloudlet\n")
-			nextCidr, err := tv.GetNextInternalNet(ctx)
-			if err != nil {
-				fmt.Printf("GetNextInternalNet failed: %s\n", err.Error())
-				return
-			}
-			fmt.Printf("next cider : %s\n", nextCidr)
-
-			vdc3 := govcd.NewVdc(&cli)
-
-			vdc3.Vdc.Name = "testvdc2"
-
-			fmt.Printf("Text Case 3 seccond vdc/cloudlet\n")
-			nextCidr, err = tv.GetNextInternalNet(ctx)
-			if err != nil {
-				fmt.Printf("GetNextInternalNet failed: %s\n", err.Error())
-				return
-			}
-			fmt.Printf("next cider : %s\n", nextCidr)
-
-			// next, create a hole in our cidrs and ensure we fill it with the next new entry
-			// TBI
-		*/
 	}
-
 }
 
 // -vdc -net  is some OrgVdcNetwork in vdc
 func TestGetAllocatedIPs(t *testing.T) {
-	live, _, err := InitVcdTestEnv()
+	live, ctx, err := InitVcdTestEnv()
 	require.Nil(t, err, "InitVcdTestEnv")
 	if live {
-		vdc, err := tv.Objs.Org.GetVdcByName(*vdcName)
+		org, err := tv.GetOrg(ctx)
 		if err != nil {
-			fmt.Printf("vdc %s not found in org %s\n", *vdcName, tv.Objs.Org.Org.Name)
+			fmt.Printf("GetOrgs failed: %s\n", err.Error())
+			return
+		}
+		vdc, err := org.GetVdcByName(*vdcName)
+
+		if err != nil {
+			fmt.Printf("vdc %s not found in org %s\n", *vdcName, org.Org.Name)
 			return
 		}
 		vdcnet, err := vdc.GetOrgVdcNetworkByName(*netName, false)
@@ -320,43 +173,22 @@ func TestGetAllocatedIPs(t *testing.T) {
 
 	}
 }
-func TestGetNetList(t *testing.T) {
-	live, ctx, err := InitVcdTestEnv()
-	require.Nil(t, err, "InitVcdTestEnv")
-	if live {
-		nets, err := tv.GetNetworkList(ctx)
-		require.Nil(t, err, "GetNetworkList")
-		for n, net := range nets {
-			fmt.Printf("%d : %s\n", n, net)
-		}
-	} else {
-		return
-	}
-}
 
 func TestDumpNet(t *testing.T) {
-	live, _, err := InitVcdTestEnv()
+	live, ctx, err := InitVcdTestEnv()
 	require.Nil(t, err, "InitVcdTestEnv")
 	if live {
 		fmt.Printf("TestNetworks\n")
 		// monitor.go
-		govcd.ShowNetwork(*tv.Objs.PrimaryNet.OrgVDCNetwork)
+		net, err := tv.GetExtNetwork(ctx)
+		if err != nil {
+			fmt.Printf("GetExtNetwork error; %s\n", err.Error())
+			return
+		}
+		govcd.ShowNetwork(*net.OrgVDCNetwork)
 	} else {
 		return
 	}
-}
-
-func getNetByName(t *testing.T, ctx context.Context, netName string) (*govcd.OrgVDCNetwork, error) {
-
-	if netName == "" {
-		return nil, fmt.Errorf("Nil netName encountered")
-	}
-	for name, net := range tv.Objs.Nets {
-		if name == netName {
-			return net, nil
-		}
-	}
-	return nil, fmt.Errorf("net %s not found", netName)
 }
 
 // only operate on vapp networks, not OrgVDCNetwworks
@@ -375,140 +207,24 @@ func TestRMNet(t *testing.T) {
 
 }
 
-// -live -vm
-func TestGetPortNameForIntNetVM(t *testing.T) {
-	live, ctx, err := InitVcdTestEnv()
-	require.Nil(t, err, "InitVcdTestEnv")
-
-	if live {
-		vm := &govcd.VM{}
-		fmt.Printf("TestGetPortNameForIntNetVM\n")
-		vm, err = tv.FindVMByName(ctx, *vmName)
-		if err != nil {
-			fmt.Printf("%s not found\n", *vmName)
-			return
-		}
-		portName := tv.GetInternalNetworkNameForCluster(ctx, *vmName)
-		portName = portName + "-port"
-		fmt.Printf("Portname as %s\n", portName)
-		clusterName := ""
-		serverName := *vmName
-		parts := strings.Split(serverName, ".")
-		if len(parts) == 1 {
-			// something with just - delimiters doesn't want an internal addr anyway
-			return
-		}
-		for i := 0; i < len(parts); i++ {
-			fmt.Printf("part[%d] = %s \n", i, parts[i])
-		}
-		if len(parts) > 1 {
-			clusterName = string(parts[0])
-		} else {
-			fmt.Printf("Error popping clusterName off %s failed\n", serverName)
-			return
-		}
-		cldletName := tv.Objs.Cloudlet.CloudletName
-		orgName := tv.Objs.Org.Org.Name
-		subnetName := fmt.Sprintf("%s-%s-%s-%s", "mex-k8s-subnet", cldletName, clusterName, orgName)
-		fmt.Printf("Subnet Name = %s\n", subnetName)
-
-		// Subnets are base bit         + cldletName     + clusterName + OrgName
-		subnetName = "mex-k8s-subnet-" + parts[1] + "-" + parts[0] + "-" + parts[3]
-		fmt.Printf("netname : %s\n", subnetName)
-
-		fmt.Printf("\n\nGetVMAddresses portname: \n")
-		connections := vm.VM.NetworkConnectionSection.NetworkConnection
-		for _, connection := range connections {
-
-			servIP := vmlayer.ServerIP{
-				MacAddress:   connection.MACAddress,
-				Network:      connection.Network,
-				ExternalAddr: connection.IPAddress,
-				InternalAddr: connection.IPAddress,
-				PortName:     strconv.Itoa(connection.NetworkConnectionIndex),
-			}
-			if connection.Network != tv.Objs.PrimaryNet.OrgVDCNetwork.Name {
-				// internal isolated net
-				servIP.PortName = *vmName + "-" + connection.Network + "-port"
-
-				fmt.Printf("vmName %s-%s-port\n", *vmName, connection.Network)
-
-				fmt.Printf("GetVMAddresses - servIP.PortName %s\n", servIP.PortName)
-			}
-		}
-
-	}
-}
-
-func TestNets(t *testing.T) {
+func TestGetExtNet(t *testing.T) {
 	live, ctx, err := InitVcdTestEnv()
 	require.Nil(t, err, "InitVcdTestEnv")
 	if live {
-		fmt.Printf("TestNetworks\n")
-		net, err := getNetByName(t, ctx, *netName)
+
+		extNetMask := tv.GetExternalNetmask()
+		fmt.Printf("extNetMask: %s\n", extNetMask)
+		orgvdcNet, err := tv.GetExtNetwork(ctx)
 		if err != nil {
-			fmt.Printf("Error getting net %s\n", *netName)
+			fmt.Printf("Error retrieving network object  err: %s\n", err.Error())
 			return
 		}
-		// ok, let's see if we can enable FirewallService on netName Should be a vapp network.
-		netconfig := net.OrgVDCNetwork.Configuration
-		gatewayFeatures := net.OrgVDCNetwork.ServiceConfig
-
-		//govcd.ShowNetwork(*net.OrgVDCNetwork)
-
-		fmt.Printf("netconfig %+v\n", netconfig)
-		fmt.Printf("gatewayFeatures %+v\n", gatewayFeatures)
-
-		// Ok, so grab our Vapp, and create a new VApp
-		// VappNetworkSettings, and enable the firewall service in the config, and call
-		// vapp.UpdateNetwork( newsettings, orgvdcnetwork)
-		vappName := "clusterVapp1"
-		vapp, err := tv.FindVApp(ctx, vappName)
-		if err != nil {
-			fmt.Printf("Error getting %s : %s\n", vappName, err.Error())
-			return
-		}
-		netID := net.OrgVDCNetwork.ID
-		vappnet, err := vapp.GetVappNetworkById(netID, false)
-		if err != nil {
-			fmt.Printf("Error from GetVappNetworkById : %s\n", err.Error())
-			return
-		}
-		fmt.Printf("result vapp net: %+v\n", vappnet)
-
-		protocols := types.FirewallRuleProtocols{
-			Any: true,
-		}
-		var rules []*types.FirewallRule
-
-		// allow our host
-		rule1 := types.FirewallRule{
-			SourceIP:             "73.252.170.111",
-			Policy:               "allow",
-			Protocols:            &protocols,
-			DestinationPortRange: "22",
-			IcmpSubType:          "any",
-			IsEnabled:            true, // default
-		}
-		// drop everything else
-		rules = append(rules, &rule1)
-		rule2 := types.FirewallRule{
-			SourceIP: "Any",
-			Policy:   "drop",
-		}
-		rules = append(rules, &rule2)
-		// this drop = defaultAction, we have explictly defined each.
-		vappNetwork, err := vapp.UpdateNetworkFirewallRules(netID, rules, true, "drop", false)
-		if err != nil {
-			fmt.Printf("Error UpdateNetworkFirewalRules: %s\n", err.Error())
-			return
-		}
-		fmt.Printf("Result vappnetwork: \n %+v\n", vappNetwork)
-	} else {
-		return
+		fmt.Printf("Found network %s\n", orgvdcNet.OrgVDCNetwork.Name)
+		govcd.ShowNetwork(*orgvdcNet.OrgVDCNetwork)
 	}
 }
 
+// -net -live
 // what can we enable or not?
 func testEnableVDCNetFirewall(t *testing.T, ctx context.Context, netName string) error {
 

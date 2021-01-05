@@ -173,7 +173,7 @@ func (s *OpenstackPlatform) GetVMStats(ctx context.Context, key *edgeproto.AppIn
 	cpuChan := s.goGetMetricforId(ctx, server.ID, "cpu_util", &Cpu)
 	memChan := s.goGetMetricforId(ctx, server.ID, "memory.usage", &Mem)
 
-	// For disk we get all instace_disk type and vda one, that's associated with the instance
+	// For disk we get all instance_disk type and vda one, that's associated with the instance
 	disk, err := s.OSFindResourceByInstId(ctx, "instance_disk", server.ID, "vda")
 	if err == nil {
 		diskChan = s.goGetMetricforId(ctx, disk.Id, "disk.device.usage", &Disk)

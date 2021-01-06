@@ -40,6 +40,9 @@ func InjectDevice(c echo.Context) error {
 	if err := c.Bind(&in); err != nil {
 		return bindErr(c, err)
 	}
+	if err := in.Device.IsValidArgsForInjectDevice(); err != nil {
+		return err
+	}
 	rc.region = in.Region
 	span := log.SpanFromContext(ctx)
 	span.SetTag("region", in.Region)
@@ -171,6 +174,9 @@ func EvictDevice(c echo.Context) error {
 	in := ormapi.RegionDevice{}
 	if err := c.Bind(&in); err != nil {
 		return bindErr(c, err)
+	}
+	if err := in.Device.IsValidArgsForEvictDevice(); err != nil {
+		return err
 	}
 	rc.region = in.Region
 	span := log.SpanFromContext(ctx)

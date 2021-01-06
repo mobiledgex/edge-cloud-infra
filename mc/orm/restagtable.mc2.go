@@ -39,6 +39,9 @@ func CreateResTagTable(c echo.Context) error {
 	if err := c.Bind(&in); err != nil {
 		return bindErr(c, err)
 	}
+	if err := in.ResTagTable.IsValidArgsForCreateResTagTable(); err != nil {
+		return err
+	}
 	rc.region = in.Region
 	span := log.SpanFromContext(ctx)
 	span.SetTag("region", in.Region)
@@ -89,6 +92,9 @@ func DeleteResTagTable(c echo.Context) error {
 	if err := c.Bind(&in); err != nil {
 		return bindErr(c, err)
 	}
+	if err := in.ResTagTable.IsValidArgsForDeleteResTagTable(); err != nil {
+		return err
+	}
 	rc.region = in.Region
 	span := log.SpanFromContext(ctx)
 	span.SetTag("region", in.Region)
@@ -138,6 +144,9 @@ func UpdateResTagTable(c echo.Context) error {
 	in := ormapi.RegionResTagTable{}
 	if err := c.Bind(&in); err != nil {
 		return bindErr(c, err)
+	}
+	if err := in.ResTagTable.IsValidArgsForUpdateResTagTable(); err != nil {
+		return err
 	}
 	rc.region = in.Region
 	span := log.SpanFromContext(ctx)
@@ -273,6 +282,9 @@ func AddResTag(c echo.Context) error {
 	if err := c.Bind(&in); err != nil {
 		return bindErr(c, err)
 	}
+	if err := in.ResTagTable.IsValidArgsForAddResTag(); err != nil {
+		return err
+	}
 	rc.region = in.Region
 	span := log.SpanFromContext(ctx)
 	span.SetTag("region", in.Region)
@@ -323,6 +335,9 @@ func RemoveResTag(c echo.Context) error {
 	if err := c.Bind(&in); err != nil {
 		return bindErr(c, err)
 	}
+	if err := in.ResTagTable.IsValidArgsForRemoveResTag(); err != nil {
+		return err
+	}
 	rc.region = in.Region
 	span := log.SpanFromContext(ctx)
 	span.SetTag("region", in.Region)
@@ -372,6 +387,9 @@ func GetResTagTable(c echo.Context) error {
 	in := ormapi.RegionResTagTableKey{}
 	if err := c.Bind(&in); err != nil {
 		return bindErr(c, err)
+	}
+	if err := in.ResTagTableKey.IsValidArgsForGetResTagTable(); err != nil {
+		return err
 	}
 	rc.region = in.Region
 	span := log.SpanFromContext(ctx)

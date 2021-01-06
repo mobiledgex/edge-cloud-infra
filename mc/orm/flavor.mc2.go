@@ -39,6 +39,9 @@ func CreateFlavor(c echo.Context) error {
 	if err := c.Bind(&in); err != nil {
 		return bindErr(c, err)
 	}
+	if err := in.Flavor.IsValidArgsForCreateFlavor(); err != nil {
+		return err
+	}
 	rc.region = in.Region
 	span := log.SpanFromContext(ctx)
 	span.SetTag("region", in.Region)
@@ -88,6 +91,9 @@ func DeleteFlavor(c echo.Context) error {
 	if err := c.Bind(&in); err != nil {
 		return bindErr(c, err)
 	}
+	if err := in.Flavor.IsValidArgsForDeleteFlavor(); err != nil {
+		return err
+	}
 	rc.region = in.Region
 	span := log.SpanFromContext(ctx)
 	span.SetTag("region", in.Region)
@@ -136,6 +142,9 @@ func UpdateFlavor(c echo.Context) error {
 	in := ormapi.RegionFlavor{}
 	if err := c.Bind(&in); err != nil {
 		return bindErr(c, err)
+	}
+	if err := in.Flavor.IsValidArgsForUpdateFlavor(); err != nil {
+		return err
 	}
 	rc.region = in.Region
 	span := log.SpanFromContext(ctx)
@@ -256,6 +265,9 @@ func AddFlavorRes(c echo.Context) error {
 	if err := c.Bind(&in); err != nil {
 		return bindErr(c, err)
 	}
+	if err := in.Flavor.IsValidArgsForAddFlavorRes(); err != nil {
+		return err
+	}
 	rc.region = in.Region
 	span := log.SpanFromContext(ctx)
 	span.SetTag("region", in.Region)
@@ -304,6 +316,9 @@ func RemoveFlavorRes(c echo.Context) error {
 	in := ormapi.RegionFlavor{}
 	if err := c.Bind(&in); err != nil {
 		return bindErr(c, err)
+	}
+	if err := in.Flavor.IsValidArgsForRemoveFlavorRes(); err != nil {
+		return err
 	}
 	rc.region = in.Region
 	span := log.SpanFromContext(ctx)

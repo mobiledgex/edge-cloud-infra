@@ -42,6 +42,9 @@ func CreateCloudlet(c echo.Context) error {
 		return err
 	}
 	defer CloseConn(c)
+	if err := in.Cloudlet.IsValidArgsForCreateCloudlet(); err != nil {
+		return err
+	}
 	rc.region = in.Region
 	span := log.SpanFromContext(ctx)
 	span.SetTag("region", in.Region)
@@ -120,6 +123,9 @@ func DeleteCloudlet(c echo.Context) error {
 		return err
 	}
 	defer CloseConn(c)
+	if err := in.Cloudlet.IsValidArgsForDeleteCloudlet(); err != nil {
+		return err
+	}
 	rc.region = in.Region
 	span := log.SpanFromContext(ctx)
 	span.SetTag("region", in.Region)
@@ -198,6 +204,9 @@ func UpdateCloudlet(c echo.Context) error {
 		return err
 	}
 	defer CloseConn(c)
+	if err := in.Cloudlet.IsValidArgsForUpdateCloudlet(); err != nil {
+		return err
+	}
 	rc.region = in.Region
 	span := log.SpanFromContext(ctx)
 	span.SetTag("region", in.Region)
@@ -361,6 +370,9 @@ func GetCloudletManifest(c echo.Context) error {
 	if err := c.Bind(&in); err != nil {
 		return bindErr(c, err)
 	}
+	if err := in.CloudletKey.IsValidArgsForGetCloudletManifest(); err != nil {
+		return err
+	}
 	rc.region = in.Region
 	span := log.SpanFromContext(ctx)
 	span.SetTag("region", in.Region)
@@ -458,6 +470,9 @@ func AddCloudletResMapping(c echo.Context) error {
 	if err := c.Bind(&in); err != nil {
 		return bindErr(c, err)
 	}
+	if err := in.CloudletResMap.IsValidArgsForAddCloudletResMapping(); err != nil {
+		return err
+	}
 	rc.region = in.Region
 	span := log.SpanFromContext(ctx)
 	span.SetTag("region", in.Region)
@@ -507,6 +522,9 @@ func RemoveCloudletResMapping(c echo.Context) error {
 	in := ormapi.RegionCloudletResMap{}
 	if err := c.Bind(&in); err != nil {
 		return bindErr(c, err)
+	}
+	if err := in.CloudletResMap.IsValidArgsForRemoveCloudletResMapping(); err != nil {
+		return err
 	}
 	rc.region = in.Region
 	span := log.SpanFromContext(ctx)
@@ -608,6 +626,9 @@ func RevokeAccessKey(c echo.Context) error {
 	if err := c.Bind(&in); err != nil {
 		return bindErr(c, err)
 	}
+	if err := in.CloudletKey.IsValidArgsForRevokeAccessKey(); err != nil {
+		return err
+	}
 	rc.region = in.Region
 	span := log.SpanFromContext(ctx)
 	span.SetTag("region", in.Region)
@@ -656,6 +677,9 @@ func GenerateAccessKey(c echo.Context) error {
 	in := ormapi.RegionCloudletKey{}
 	if err := c.Bind(&in); err != nil {
 		return bindErr(c, err)
+	}
+	if err := in.CloudletKey.IsValidArgsForGenerateAccessKey(); err != nil {
+		return err
 	}
 	rc.region = in.Region
 	span := log.SpanFromContext(ctx)
@@ -790,6 +814,9 @@ func InjectCloudletInfo(c echo.Context) error {
 	if err := c.Bind(&in); err != nil {
 		return bindErr(c, err)
 	}
+	if err := in.CloudletInfo.IsValidArgsForInjectCloudletInfo(); err != nil {
+		return err
+	}
 	rc.region = in.Region
 	span := log.SpanFromContext(ctx)
 	span.SetTag("region", in.Region)
@@ -839,6 +866,9 @@ func EvictCloudletInfo(c echo.Context) error {
 	in := ormapi.RegionCloudletInfo{}
 	if err := c.Bind(&in); err != nil {
 		return bindErr(c, err)
+	}
+	if err := in.CloudletInfo.IsValidArgsForEvictCloudletInfo(); err != nil {
+		return err
 	}
 	rc.region = in.Region
 	span := log.SpanFromContext(ctx)

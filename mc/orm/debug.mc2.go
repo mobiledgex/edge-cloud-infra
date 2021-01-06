@@ -40,6 +40,9 @@ func EnableDebugLevels(c echo.Context) error {
 		return err
 	}
 	defer CloseConn(c)
+	if err := in.DebugRequest.IsValidArgsForEnableDebugLevels(); err != nil {
+		return err
+	}
 	rc.region = in.Region
 	span := log.SpanFromContext(ctx)
 	span.SetTag("region", in.Region)
@@ -116,6 +119,9 @@ func DisableDebugLevels(c echo.Context) error {
 		return err
 	}
 	defer CloseConn(c)
+	if err := in.DebugRequest.IsValidArgsForDisableDebugLevels(); err != nil {
+		return err
+	}
 	rc.region = in.Region
 	span := log.SpanFromContext(ctx)
 	span.SetTag("region", in.Region)
@@ -268,6 +274,9 @@ func RunDebug(c echo.Context) error {
 		return err
 	}
 	defer CloseConn(c)
+	if err := in.DebugRequest.IsValidArgsForRunDebug(); err != nil {
+		return err
+	}
 	rc.region = in.Region
 	span := log.SpanFromContext(ctx)
 	span.SetTag("region", in.Region)

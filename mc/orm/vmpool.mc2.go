@@ -40,6 +40,9 @@ func CreateVMPool(c echo.Context) error {
 	if err := c.Bind(&in); err != nil {
 		return bindErr(c, err)
 	}
+	if err := in.VMPool.IsValidArgsForCreateVMPool(); err != nil {
+		return err
+	}
 	rc.region = in.Region
 	span := log.SpanFromContext(ctx)
 	span.SetTag("region", in.Region)
@@ -90,6 +93,9 @@ func DeleteVMPool(c echo.Context) error {
 	if err := c.Bind(&in); err != nil {
 		return bindErr(c, err)
 	}
+	if err := in.VMPool.IsValidArgsForDeleteVMPool(); err != nil {
+		return err
+	}
 	rc.region = in.Region
 	span := log.SpanFromContext(ctx)
 	span.SetTag("region", in.Region)
@@ -139,6 +145,9 @@ func UpdateVMPool(c echo.Context) error {
 	in := ormapi.RegionVMPool{}
 	if err := c.Bind(&in); err != nil {
 		return bindErr(c, err)
+	}
+	if err := in.VMPool.IsValidArgsForUpdateVMPool(); err != nil {
+		return err
 	}
 	rc.region = in.Region
 	span := log.SpanFromContext(ctx)
@@ -274,6 +283,9 @@ func AddVMPoolMember(c echo.Context) error {
 	if err := c.Bind(&in); err != nil {
 		return bindErr(c, err)
 	}
+	if err := in.VMPoolMember.IsValidArgsForAddVMPoolMember(); err != nil {
+		return err
+	}
 	rc.region = in.Region
 	span := log.SpanFromContext(ctx)
 	span.SetTag("region", in.Region)
@@ -323,6 +335,9 @@ func RemoveVMPoolMember(c echo.Context) error {
 	in := ormapi.RegionVMPoolMember{}
 	if err := c.Bind(&in); err != nil {
 		return bindErr(c, err)
+	}
+	if err := in.VMPoolMember.IsValidArgsForRemoveVMPoolMember(); err != nil {
+		return err
 	}
 	rc.region = in.Region
 	span := log.SpanFromContext(ctx)

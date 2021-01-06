@@ -41,6 +41,9 @@ func CreateAppInst(c echo.Context) error {
 		return err
 	}
 	defer CloseConn(c)
+	if err := in.AppInst.IsValidArgsForCreateAppInst(); err != nil {
+		return err
+	}
 	rc.region = in.Region
 	span := log.SpanFromContext(ctx)
 	span.SetTag("region", in.Region)
@@ -119,6 +122,9 @@ func DeleteAppInst(c echo.Context) error {
 		return err
 	}
 	defer CloseConn(c)
+	if err := in.AppInst.IsValidArgsForDeleteAppInst(); err != nil {
+		return err
+	}
 	rc.region = in.Region
 	span := log.SpanFromContext(ctx)
 	span.SetTag("region", in.Region)
@@ -197,6 +203,9 @@ func RefreshAppInst(c echo.Context) error {
 		return err
 	}
 	defer CloseConn(c)
+	if err := in.AppInst.IsValidArgsForRefreshAppInst(); err != nil {
+		return err
+	}
 	rc.region = in.Region
 	span := log.SpanFromContext(ctx)
 	span.SetTag("region", in.Region)
@@ -275,6 +284,9 @@ func UpdateAppInst(c echo.Context) error {
 		return err
 	}
 	defer CloseConn(c)
+	if err := in.AppInst.IsValidArgsForUpdateAppInst(); err != nil {
+		return err
+	}
 	rc.region = in.Region
 	span := log.SpanFromContext(ctx)
 	span.SetTag("region", in.Region)

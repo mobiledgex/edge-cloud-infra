@@ -40,6 +40,9 @@ func CreateTrustPolicy(c echo.Context) error {
 		return err
 	}
 	defer CloseConn(c)
+	if err := in.TrustPolicy.IsValidArgsForCreateTrustPolicy(); err != nil {
+		return err
+	}
 	rc.region = in.Region
 	span := log.SpanFromContext(ctx)
 	span.SetTag("region", in.Region)
@@ -118,6 +121,9 @@ func DeleteTrustPolicy(c echo.Context) error {
 		return err
 	}
 	defer CloseConn(c)
+	if err := in.TrustPolicy.IsValidArgsForDeleteTrustPolicy(); err != nil {
+		return err
+	}
 	rc.region = in.Region
 	span := log.SpanFromContext(ctx)
 	span.SetTag("region", in.Region)
@@ -196,6 +202,9 @@ func UpdateTrustPolicy(c echo.Context) error {
 		return err
 	}
 	defer CloseConn(c)
+	if err := in.TrustPolicy.IsValidArgsForUpdateTrustPolicy(); err != nil {
+		return err
+	}
 	rc.region = in.Region
 	span := log.SpanFromContext(ctx)
 	span.SetTag("region", in.Region)

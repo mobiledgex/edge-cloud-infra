@@ -41,6 +41,9 @@ func CreateAutoProvPolicy(c echo.Context) error {
 	if err := c.Bind(&in); err != nil {
 		return bindErr(c, err)
 	}
+	if err := in.AutoProvPolicy.IsValidArgsForCreateAutoProvPolicy(); err != nil {
+		return err
+	}
 	rc.region = in.Region
 	span := log.SpanFromContext(ctx)
 	span.SetTag("region", in.Region)
@@ -91,6 +94,9 @@ func DeleteAutoProvPolicy(c echo.Context) error {
 	if err := c.Bind(&in); err != nil {
 		return bindErr(c, err)
 	}
+	if err := in.AutoProvPolicy.IsValidArgsForDeleteAutoProvPolicy(); err != nil {
+		return err
+	}
 	rc.region = in.Region
 	span := log.SpanFromContext(ctx)
 	span.SetTag("region", in.Region)
@@ -140,6 +146,9 @@ func UpdateAutoProvPolicy(c echo.Context) error {
 	in := ormapi.RegionAutoProvPolicy{}
 	if err := c.Bind(&in); err != nil {
 		return bindErr(c, err)
+	}
+	if err := in.AutoProvPolicy.IsValidArgsForUpdateAutoProvPolicy(); err != nil {
+		return err
 	}
 	rc.region = in.Region
 	span := log.SpanFromContext(ctx)
@@ -275,6 +284,9 @@ func AddAutoProvPolicyCloudlet(c echo.Context) error {
 	if err := c.Bind(&in); err != nil {
 		return bindErr(c, err)
 	}
+	if err := in.AutoProvPolicyCloudlet.IsValidArgsForAddAutoProvPolicyCloudlet(); err != nil {
+		return err
+	}
 	rc.region = in.Region
 	span := log.SpanFromContext(ctx)
 	span.SetTag("region", in.Region)
@@ -324,6 +336,9 @@ func RemoveAutoProvPolicyCloudlet(c echo.Context) error {
 	in := ormapi.RegionAutoProvPolicyCloudlet{}
 	if err := c.Bind(&in); err != nil {
 		return bindErr(c, err)
+	}
+	if err := in.AutoProvPolicyCloudlet.IsValidArgsForRemoveAutoProvPolicyCloudlet(); err != nil {
+		return err
 	}
 	rc.region = in.Region
 	span := log.SpanFromContext(ctx)

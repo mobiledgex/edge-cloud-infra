@@ -40,6 +40,9 @@ func CreateApp(c echo.Context) error {
 	if err := c.Bind(&in); err != nil {
 		return bindErr(c, err)
 	}
+	if err := in.App.IsValidArgsForCreateApp(); err != nil {
+		return err
+	}
 	rc.region = in.Region
 	span := log.SpanFromContext(ctx)
 	span.SetTag("region", in.Region)
@@ -90,6 +93,9 @@ func DeleteApp(c echo.Context) error {
 	if err := c.Bind(&in); err != nil {
 		return bindErr(c, err)
 	}
+	if err := in.App.IsValidArgsForDeleteApp(); err != nil {
+		return err
+	}
 	rc.region = in.Region
 	span := log.SpanFromContext(ctx)
 	span.SetTag("region", in.Region)
@@ -139,6 +145,9 @@ func UpdateApp(c echo.Context) error {
 	in := ormapi.RegionApp{}
 	if err := c.Bind(&in); err != nil {
 		return bindErr(c, err)
+	}
+	if err := in.App.IsValidArgsForUpdateApp(); err != nil {
+		return err
 	}
 	rc.region = in.Region
 	span := log.SpanFromContext(ctx)
@@ -274,6 +283,9 @@ func AddAppAutoProvPolicy(c echo.Context) error {
 	if err := c.Bind(&in); err != nil {
 		return bindErr(c, err)
 	}
+	if err := in.AppAutoProvPolicy.IsValidArgsForAddAppAutoProvPolicy(); err != nil {
+		return err
+	}
 	rc.region = in.Region
 	span := log.SpanFromContext(ctx)
 	span.SetTag("region", in.Region)
@@ -322,6 +334,9 @@ func RemoveAppAutoProvPolicy(c echo.Context) error {
 	in := ormapi.RegionAppAutoProvPolicy{}
 	if err := c.Bind(&in); err != nil {
 		return bindErr(c, err)
+	}
+	if err := in.AppAutoProvPolicy.IsValidArgsForRemoveAppAutoProvPolicy(); err != nil {
+		return err
 	}
 	rc.region = in.Region
 	span := log.SpanFromContext(ctx)

@@ -37,6 +37,9 @@ func RunCommand(c echo.Context) error {
 	if err := c.Bind(&in); err != nil {
 		return bindErr(c, err)
 	}
+	if err := in.ExecRequest.IsValidArgsForRunCommand(); err != nil {
+		return err
+	}
 	rc.region = in.Region
 	span := log.SpanFromContext(ctx)
 	span.SetTag("region", in.Region)
@@ -85,6 +88,9 @@ func RunConsole(c echo.Context) error {
 	in := ormapi.RegionExecRequest{}
 	if err := c.Bind(&in); err != nil {
 		return bindErr(c, err)
+	}
+	if err := in.ExecRequest.IsValidArgsForRunConsole(); err != nil {
+		return err
 	}
 	rc.region = in.Region
 	span := log.SpanFromContext(ctx)
@@ -183,6 +189,9 @@ func AccessCloudlet(c echo.Context) error {
 	in := ormapi.RegionExecRequest{}
 	if err := c.Bind(&in); err != nil {
 		return bindErr(c, err)
+	}
+	if err := in.ExecRequest.IsValidArgsForAccessCloudlet(); err != nil {
+		return err
 	}
 	rc.region = in.Region
 	span := log.SpanFromContext(ctx)

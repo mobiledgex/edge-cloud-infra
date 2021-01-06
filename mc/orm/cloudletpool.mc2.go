@@ -40,6 +40,9 @@ func CreateCloudletPool(c echo.Context) error {
 	if err := c.Bind(&in); err != nil {
 		return bindErr(c, err)
 	}
+	if err := in.CloudletPool.IsValidArgsForCreateCloudletPool(); err != nil {
+		return err
+	}
 	rc.region = in.Region
 	span := log.SpanFromContext(ctx)
 	span.SetTag("region", in.Region)
@@ -90,6 +93,9 @@ func DeleteCloudletPool(c echo.Context) error {
 	if err := c.Bind(&in); err != nil {
 		return bindErr(c, err)
 	}
+	if err := in.CloudletPool.IsValidArgsForDeleteCloudletPool(); err != nil {
+		return err
+	}
 	rc.region = in.Region
 	span := log.SpanFromContext(ctx)
 	span.SetTag("region", in.Region)
@@ -139,6 +145,9 @@ func UpdateCloudletPool(c echo.Context) error {
 	in := ormapi.RegionCloudletPool{}
 	if err := c.Bind(&in); err != nil {
 		return bindErr(c, err)
+	}
+	if err := in.CloudletPool.IsValidArgsForUpdateCloudletPool(); err != nil {
+		return err
 	}
 	rc.region = in.Region
 	span := log.SpanFromContext(ctx)
@@ -274,6 +283,9 @@ func AddCloudletPoolMember(c echo.Context) error {
 	if err := c.Bind(&in); err != nil {
 		return bindErr(c, err)
 	}
+	if err := in.CloudletPoolMember.IsValidArgsForAddCloudletPoolMember(); err != nil {
+		return err
+	}
 	rc.region = in.Region
 	span := log.SpanFromContext(ctx)
 	span.SetTag("region", in.Region)
@@ -323,6 +335,9 @@ func RemoveCloudletPoolMember(c echo.Context) error {
 	in := ormapi.RegionCloudletPoolMember{}
 	if err := c.Bind(&in); err != nil {
 		return bindErr(c, err)
+	}
+	if err := in.CloudletPoolMember.IsValidArgsForRemoveCloudletPoolMember(); err != nil {
+		return err
 	}
 	rc.region = in.Region
 	span := log.SpanFromContext(ctx)

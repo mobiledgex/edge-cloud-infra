@@ -39,6 +39,9 @@ func CreateAutoScalePolicy(c echo.Context) error {
 	if err := c.Bind(&in); err != nil {
 		return bindErr(c, err)
 	}
+	if err := in.AutoScalePolicy.IsValidArgsForCreateAutoScalePolicy(); err != nil {
+		return err
+	}
 	rc.region = in.Region
 	span := log.SpanFromContext(ctx)
 	span.SetTag("region", in.Region)
@@ -89,6 +92,9 @@ func DeleteAutoScalePolicy(c echo.Context) error {
 	if err := c.Bind(&in); err != nil {
 		return bindErr(c, err)
 	}
+	if err := in.AutoScalePolicy.IsValidArgsForDeleteAutoScalePolicy(); err != nil {
+		return err
+	}
 	rc.region = in.Region
 	span := log.SpanFromContext(ctx)
 	span.SetTag("region", in.Region)
@@ -138,6 +144,9 @@ func UpdateAutoScalePolicy(c echo.Context) error {
 	in := ormapi.RegionAutoScalePolicy{}
 	if err := c.Bind(&in); err != nil {
 		return bindErr(c, err)
+	}
+	if err := in.AutoScalePolicy.IsValidArgsForUpdateAutoScalePolicy(); err != nil {
+		return err
 	}
 	rc.region = in.Region
 	span := log.SpanFromContext(ctx)

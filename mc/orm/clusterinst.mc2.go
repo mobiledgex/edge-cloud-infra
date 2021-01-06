@@ -41,6 +41,9 @@ func CreateClusterInst(c echo.Context) error {
 		return err
 	}
 	defer CloseConn(c)
+	if err := in.ClusterInst.IsValidArgsForCreateClusterInst(); err != nil {
+		return err
+	}
 	rc.region = in.Region
 	span := log.SpanFromContext(ctx)
 	span.SetTag("region", in.Region)
@@ -119,6 +122,9 @@ func DeleteClusterInst(c echo.Context) error {
 		return err
 	}
 	defer CloseConn(c)
+	if err := in.ClusterInst.IsValidArgsForDeleteClusterInst(); err != nil {
+		return err
+	}
 	rc.region = in.Region
 	span := log.SpanFromContext(ctx)
 	span.SetTag("region", in.Region)
@@ -197,6 +203,9 @@ func UpdateClusterInst(c echo.Context) error {
 		return err
 	}
 	defer CloseConn(c)
+	if err := in.ClusterInst.IsValidArgsForUpdateClusterInst(); err != nil {
+		return err
+	}
 	rc.region = in.Region
 	span := log.SpanFromContext(ctx)
 	span.SetTag("region", in.Region)

@@ -38,6 +38,9 @@ func UpdateSettings(c echo.Context) error {
 	if err := c.Bind(&in); err != nil {
 		return bindErr(c, err)
 	}
+	if err := in.Settings.IsValidArgsForUpdateSettings(); err != nil {
+		return err
+	}
 	rc.region = in.Region
 	span := log.SpanFromContext(ctx)
 	span.SetTag("region", in.Region)
@@ -85,6 +88,9 @@ func ResetSettings(c echo.Context) error {
 	in := ormapi.RegionSettings{}
 	if err := c.Bind(&in); err != nil {
 		return bindErr(c, err)
+	}
+	if err := in.Settings.IsValidArgsForResetSettings(); err != nil {
+		return err
 	}
 	rc.region = in.Region
 	span := log.SpanFromContext(ctx)

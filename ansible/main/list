@@ -36,6 +36,7 @@ stun.mobiledgex.net
 [vault]
 vault-main-a.mobiledgex.net
 vault-main-b.mobiledgex.net
+vault-main-c.mobiledgex.net
 
 [jaeger]
 jaeger.mobiledgex.net		es_instance=main

@@ -9,5 +9,6 @@ vault_audit_elasticsearch: yes
 vault_ha_zones:
   us: us-central1-a
   eu: europe-west3-a
+  as: asia-east1-b
 offline_root_cert: yes
 vault_github_teams: []

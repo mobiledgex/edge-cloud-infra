@@ -493,6 +493,11 @@ func {{.MethodName}}(c echo.Context) error {
 		return bindErr(c, err)
 	}
 {{- end}}
+{{- if (ne .Action "ActionView")}}
+	if err := in.{{.InName}}.IsValidArgsFor{{.MethodName}}(); err != nil {
+		return err
+	}
+{{- end}}
 	rc.region = in.Region
 	span := log.SpanFromContext(ctx)
 	span.SetTag("region", in.Region)

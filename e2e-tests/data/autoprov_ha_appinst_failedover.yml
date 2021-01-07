@@ -14,7 +14,11 @@ regiondata:
             organization: tmus
             name: tmus-cloud-1
           organization: MobiledgeX
+      cloudletloc:
+        latitude: 31
+        longitude: -91
       uri: tmus-cloud-1.tmus.mobiledgex.net
+      liveness: LivenessAutoprov
       mappedports:
       - proto: LProtoTcp
         internalport: 82
@@ -43,7 +47,11 @@ regiondata:
             organization: azure
             name: azure-cloud-4
           organization: MobiledgeX
+      cloudletloc:
+        latitude: 32
+        longitude: -91
       uri: acmeappcoautoprovha10.reservable3.azure-cloud-4.azure.mobiledgex.net
+      liveness: LivenessAutoprov
       mappedports:
       - proto: LProtoTcp
         internalport: 82
@@ -72,7 +80,11 @@ regiondata:
             organization: gcp
             name: gcp-cloud-5
           organization: MobiledgeX
+      cloudletloc:
+        latitude: 36
+        longitude: -95
       uri: acmeappcoautoprovha10.reservable4.gcp-cloud-5.gcp.mobiledgex.net
+      liveness: LivenessAutoprov
       mappedports:
       - proto: LProtoTcp
         internalport: 82

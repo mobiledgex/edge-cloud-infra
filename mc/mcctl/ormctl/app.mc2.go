@@ -201,6 +201,7 @@ var AppOptionalArgs = []string{
 	"officialfqdn",
 	"md5sum",
 	"defaultsharedvolumesize",
+	"autoprovpolicy",
 	"accesstype",
 	"autoprovpolicies",
 	"templatedelimiter",

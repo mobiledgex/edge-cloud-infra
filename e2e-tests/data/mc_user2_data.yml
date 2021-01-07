@@ -80,6 +80,7 @@ regiondata:
       defaultflavor:
         name: x1.small
       accessports: "tcp:81"
+      autoprovpolicy: autoprov1
     - key:
         organization: AcmeAppCo
         name: autoprovappd
@@ -90,6 +91,7 @@ regiondata:
       defaultflavor:
         name: x1.small
       accessports: "tcp:81"
+      autoprovpolicy: autoprov1
     - key:
         organization: Samsung
         name: SamsungEnablingLayer
@@ -214,6 +216,7 @@ regiondata:
       defaultflavor:
         name: x1.small
       accessports: "tcp:81"
+      autoprovpolicy: autoprov1
     - key:
         organization: Samsung
         name: SamsungEnablingLayer

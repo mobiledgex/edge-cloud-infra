@@ -92,14 +92,3 @@ func (s *Client) RequestAppInstLatency(uri, token string, in *ormapi.RegionAppIn
 	}
 	return &out, st, err
 }
-
-func (s *Client) ShowAppInstLatency(uri, token string, in *ormapi.RegionAppInstLatency) ([]edgeproto.AppInstLatency, int, error) {
-	args := []string{"region", "ShowAppInstLatency"}
-	outlist := []edgeproto.AppInstLatency{}
-	noconfig := strings.Split("", ",")
-	ops := []runOp{
-		withIgnore(noconfig),
-	}
-	st, err := s.runObjs(uri, token, args, in, &outlist, ops...)
-	return outlist, st, err
-}

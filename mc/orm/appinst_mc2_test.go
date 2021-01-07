@@ -176,17 +176,3 @@ func goodPermRequestAppInstLatency(t *testing.T, mcClient *ormclient.Client, uri
 	require.Nil(t, err)
 	require.Equal(t, http.StatusOK, status)
 }
-
-var _ = edgeproto.GetFields
-
-func badPermShowAppInstLatency(t *testing.T, mcClient *ormclient.Client, uri, token, region, org string, modFuncs ...func(*edgeproto.AppInstLatency)) {
-	_, status, err := testutil.TestPermShowAppInstLatency(mcClient, uri, token, region, org, modFuncs...)
-	require.NotNil(t, err)
-	require.Equal(t, http.StatusForbidden, status)
-}
-
-func goodPermShowAppInstLatency(t *testing.T, mcClient *ormclient.Client, uri, token, region, org string, modFuncs ...func(*edgeproto.AppInstLatency)) {
-	_, status, err := testutil.TestPermShowAppInstLatency(mcClient, uri, token, region, org, modFuncs...)
-	require.Nil(t, err)
-	require.Equal(t, http.StatusOK, status)
-}

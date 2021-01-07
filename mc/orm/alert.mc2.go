@@ -150,6 +150,8 @@ func addControllerApis(method string, group *echo.Group) {
 	// InfluxDbMetricsRetention: 18
 	// CloudletMaintenanceTimeout: 19
 	// UpdateVmPoolTimeout: 21
+	// DmeApiMetricsCollectionInterval: 22
+	// PersistentConnectionMetricsCollectionInterval: 23
 	// ```
 	// Security:
 	//   Bearer:
@@ -1273,16 +1275,6 @@ func addControllerApis(method string, group *echo.Group) {
 	//   403: forbidden
 	//   404: notFound
 	group.Match([]string{method}, "/ctrl/RequestAppInstLatency", RequestAppInstLatency)
-	// swagger:route POST /auth/ctrl/ShowAppInstLatency AppInstLatency ShowAppInstLatency
-	// Show Latency measurements for clients connected to AppInst.
-	// Security:
-	//   Bearer:
-	// responses:
-	//   200: success
-	//   400: badRequest
-	//   403: forbidden
-	//   404: notFound
-	group.Match([]string{method}, "/ctrl/ShowAppInstLatency", ShowAppInstLatency)
 	// swagger:route POST /auth/ctrl/ShowCloudletRefs CloudletRefs ShowCloudletRefs
 	// Show CloudletRefs (debug only).
 	// Security:

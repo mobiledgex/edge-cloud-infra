@@ -6,9 +6,9 @@ import (
 
 	dmecommon "github.com/mobiledgex/edge-cloud/d-match-engine/dme-common"
 	dme "github.com/mobiledgex/edge-cloud/d-match-engine/dme-proto"
-	dmeutil "github.com/mobiledgex/edge-cloud/d-match-engine/dme-util"
 	"github.com/mobiledgex/edge-cloud/edgeproto"
 	"github.com/mobiledgex/edge-cloud/log"
+	grpcstats "github.com/mobiledgex/edge-cloud/metrics/grpc"
 	"github.com/mobiledgex/edge-cloud/util"
 )
 
@@ -84,7 +84,7 @@ func (e *EdgeEventsHandlerPlugin) RemoveAppInstKey(ctx context.Context, appInstK
 
 // Handle processing of latency samples and then send back to client
 // For now: Avg, Min, Max, StdDev
-func (e *EdgeEventsHandlerPlugin) ProcessLatencySamples(ctx context.Context, appInstKey edgeproto.AppInstKey, cookieKey dmecommon.CookieKey, samples []*dme.Sample) (*dme.Latency, error) {
+func (e *EdgeEventsHandlerPlugin) ProcessLatencySamples(ctx context.Context, appInstKey edgeproto.AppInstKey, cookieKey dmecommon.CookieKey, samples []*dme.Sample) (*dme.Statistics, error) {
 	e.mux.Lock()
 	defer e.mux.Unlock()
 	clients, ok := e.AppInstsStruct.AppInstsMap[appInstKey]
@@ -103,11 +103,11 @@ func (e *EdgeEventsHandlerPlugin) ProcessLatencySamples(ctx context.Context, app
 	latencyEdgeEvent := new(dme.ServerEdgeEvent)
 	latencyEdgeEvent.EventType = dme.ServerEdgeEvent_EVENT_LATENCY_PROCESSED
 
-	latency := dmeutil.CalculateLatency(samples)
-	latencyEdgeEvent.Latency = &latency
+	stats := grpcstats.CalculateStatistics(samples)
+	latencyEdgeEvent.Statistics = &stats
 
 	sendFunc(latencyEdgeEvent)
-	return &latency, nil
+	return &stats, nil
 }
 
 // Send a ServerEdgeEvent with Latency Request Event to all clients connected to specified AppInst (and also have an initiated persistent connection)

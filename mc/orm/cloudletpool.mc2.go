@@ -40,9 +40,6 @@ func CreateCloudletPool(c echo.Context) error {
 	if err := c.Bind(&in); err != nil {
 		return bindErr(c, err)
 	}
-	if err := in.CloudletPool.IsValidArgsForCreateCloudletPool(); err != nil {
-		return err
-	}
 	rc.region = in.Region
 	span := log.SpanFromContext(ctx)
 	span.SetTag("region", in.Region)
@@ -59,6 +56,9 @@ func CreateCloudletPool(c echo.Context) error {
 
 func CreateCloudletPoolObj(ctx context.Context, rc *RegionContext, obj *edgeproto.CloudletPool) (*edgeproto.Result, error) {
 	log.SetContextTags(ctx, edgeproto.GetTags(obj))
+	if err := obj.IsValidArgsForCreateCloudletPool(); err != nil {
+		return nil, err
+	}
 	if !rc.skipAuthz {
 		if err := authorized(ctx, rc.username, obj.Key.Organization,
 			ResourceCloudletPools, ActionManage, withRequiresOrg(obj.Key.Organization)); err != nil {
@@ -93,9 +93,6 @@ func DeleteCloudletPool(c echo.Context) error {
 	if err := c.Bind(&in); err != nil {
 		return bindErr(c, err)
 	}
-	if err := in.CloudletPool.IsValidArgsForDeleteCloudletPool(); err != nil {
-		return err
-	}
 	rc.region = in.Region
 	span := log.SpanFromContext(ctx)
 	span.SetTag("region", in.Region)
@@ -112,6 +109,9 @@ func DeleteCloudletPool(c echo.Context) error {
 
 func DeleteCloudletPoolObj(ctx context.Context, rc *RegionContext, obj *edgeproto.CloudletPool) (*edgeproto.Result, error) {
 	log.SetContextTags(ctx, edgeproto.GetTags(obj))
+	if err := obj.IsValidArgsForDeleteCloudletPool(); err != nil {
+		return nil, err
+	}
 	if !rc.skipAuthz {
 		if err := authzDeleteCloudletPool(ctx, rc.region, rc.username, obj,
 			ResourceCloudletPools, ActionManage); err != nil {
@@ -146,9 +146,6 @@ func UpdateCloudletPool(c echo.Context) error {
 	if err := c.Bind(&in); err != nil {
 		return bindErr(c, err)
 	}
-	if err := in.CloudletPool.IsValidArgsForUpdateCloudletPool(); err != nil {
-		return err
-	}
 	rc.region = in.Region
 	span := log.SpanFromContext(ctx)
 	span.SetTag("region", in.Region)
@@ -165,6 +162,9 @@ func UpdateCloudletPool(c echo.Context) error {
 
 func UpdateCloudletPoolObj(ctx context.Context, rc *RegionContext, obj *edgeproto.CloudletPool) (*edgeproto.Result, error) {
 	log.SetContextTags(ctx, edgeproto.GetTags(obj))
+	if err := obj.IsValidArgsForUpdateCloudletPool(); err != nil {
+		return nil, err
+	}
 	if !rc.skipAuthz {
 		if err := authorized(ctx, rc.username, obj.Key.Organization,
 			ResourceCloudletPools, ActionManage); err != nil {
@@ -283,9 +283,6 @@ func AddCloudletPoolMember(c echo.Context) error {
 	if err := c.Bind(&in); err != nil {
 		return bindErr(c, err)
 	}
-	if err := in.CloudletPoolMember.IsValidArgsForAddCloudletPoolMember(); err != nil {
-		return err
-	}
 	rc.region = in.Region
 	span := log.SpanFromContext(ctx)
 	span.SetTag("region", in.Region)
@@ -302,6 +299,9 @@ func AddCloudletPoolMember(c echo.Context) error {
 
 func AddCloudletPoolMemberObj(ctx context.Context, rc *RegionContext, obj *edgeproto.CloudletPoolMember) (*edgeproto.Result, error) {
 	log.SetContextTags(ctx, edgeproto.GetTags(obj))
+	if err := obj.IsValidArgsForAddCloudletPoolMember(); err != nil {
+		return nil, err
+	}
 	if !rc.skipAuthz {
 		if err := authorized(ctx, rc.username, obj.Key.Organization,
 			ResourceCloudletPools, ActionManage); err != nil {
@@ -336,9 +336,6 @@ func RemoveCloudletPoolMember(c echo.Context) error {
 	if err := c.Bind(&in); err != nil {
 		return bindErr(c, err)
 	}
-	if err := in.CloudletPoolMember.IsValidArgsForRemoveCloudletPoolMember(); err != nil {
-		return err
-	}
 	rc.region = in.Region
 	span := log.SpanFromContext(ctx)
 	span.SetTag("region", in.Region)
@@ -355,6 +352,9 @@ func RemoveCloudletPoolMember(c echo.Context) error {
 
 func RemoveCloudletPoolMemberObj(ctx context.Context, rc *RegionContext, obj *edgeproto.CloudletPoolMember) (*edgeproto.Result, error) {
 	log.SetContextTags(ctx, edgeproto.GetTags(obj))
+	if err := obj.IsValidArgsForRemoveCloudletPoolMember(); err != nil {
+		return nil, err
+	}
 	if !rc.skipAuthz {
 		if err := authorized(ctx, rc.username, obj.Key.Organization,
 			ResourceCloudletPools, ActionManage); err != nil {

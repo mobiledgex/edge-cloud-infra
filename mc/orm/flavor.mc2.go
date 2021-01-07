@@ -39,9 +39,6 @@ func CreateFlavor(c echo.Context) error {
 	if err := c.Bind(&in); err != nil {
 		return bindErr(c, err)
 	}
-	if err := in.Flavor.IsValidArgsForCreateFlavor(); err != nil {
-		return err
-	}
 	rc.region = in.Region
 	span := log.SpanFromContext(ctx)
 	span.SetTag("region", in.Region)
@@ -57,6 +54,9 @@ func CreateFlavor(c echo.Context) error {
 
 func CreateFlavorObj(ctx context.Context, rc *RegionContext, obj *edgeproto.Flavor) (*edgeproto.Result, error) {
 	log.SetContextTags(ctx, edgeproto.GetTags(obj))
+	if err := obj.IsValidArgsForCreateFlavor(); err != nil {
+		return nil, err
+	}
 	if !rc.skipAuthz {
 		if err := authorized(ctx, rc.username, "",
 			ResourceFlavors, ActionManage); err != nil {
@@ -91,9 +91,6 @@ func DeleteFlavor(c echo.Context) error {
 	if err := c.Bind(&in); err != nil {
 		return bindErr(c, err)
 	}
-	if err := in.Flavor.IsValidArgsForDeleteFlavor(); err != nil {
-		return err
-	}
 	rc.region = in.Region
 	span := log.SpanFromContext(ctx)
 	span.SetTag("region", in.Region)
@@ -109,6 +106,9 @@ func DeleteFlavor(c echo.Context) error {
 
 func DeleteFlavorObj(ctx context.Context, rc *RegionContext, obj *edgeproto.Flavor) (*edgeproto.Result, error) {
 	log.SetContextTags(ctx, edgeproto.GetTags(obj))
+	if err := obj.IsValidArgsForDeleteFlavor(); err != nil {
+		return nil, err
+	}
 	if !rc.skipAuthz {
 		if err := authorized(ctx, rc.username, "",
 			ResourceFlavors, ActionManage); err != nil {
@@ -143,9 +143,6 @@ func UpdateFlavor(c echo.Context) error {
 	if err := c.Bind(&in); err != nil {
 		return bindErr(c, err)
 	}
-	if err := in.Flavor.IsValidArgsForUpdateFlavor(); err != nil {
-		return err
-	}
 	rc.region = in.Region
 	span := log.SpanFromContext(ctx)
 	span.SetTag("region", in.Region)
@@ -161,6 +158,9 @@ func UpdateFlavor(c echo.Context) error {
 
 func UpdateFlavorObj(ctx context.Context, rc *RegionContext, obj *edgeproto.Flavor) (*edgeproto.Result, error) {
 	log.SetContextTags(ctx, edgeproto.GetTags(obj))
+	if err := obj.IsValidArgsForUpdateFlavor(); err != nil {
+		return nil, err
+	}
 	if !rc.skipAuthz {
 		if err := authorized(ctx, rc.username, "",
 			ResourceFlavors, ActionManage); err != nil {
@@ -265,9 +265,6 @@ func AddFlavorRes(c echo.Context) error {
 	if err := c.Bind(&in); err != nil {
 		return bindErr(c, err)
 	}
-	if err := in.Flavor.IsValidArgsForAddFlavorRes(); err != nil {
-		return err
-	}
 	rc.region = in.Region
 	span := log.SpanFromContext(ctx)
 	span.SetTag("region", in.Region)
@@ -283,6 +280,9 @@ func AddFlavorRes(c echo.Context) error {
 
 func AddFlavorResObj(ctx context.Context, rc *RegionContext, obj *edgeproto.Flavor) (*edgeproto.Result, error) {
 	log.SetContextTags(ctx, edgeproto.GetTags(obj))
+	if err := obj.IsValidArgsForAddFlavorRes(); err != nil {
+		return nil, err
+	}
 	if !rc.skipAuthz {
 		if err := authorized(ctx, rc.username, "",
 			ResourceFlavors, ActionManage); err != nil {
@@ -317,9 +317,6 @@ func RemoveFlavorRes(c echo.Context) error {
 	if err := c.Bind(&in); err != nil {
 		return bindErr(c, err)
 	}
-	if err := in.Flavor.IsValidArgsForRemoveFlavorRes(); err != nil {
-		return err
-	}
 	rc.region = in.Region
 	span := log.SpanFromContext(ctx)
 	span.SetTag("region", in.Region)
@@ -335,6 +332,9 @@ func RemoveFlavorRes(c echo.Context) error {
 
 func RemoveFlavorResObj(ctx context.Context, rc *RegionContext, obj *edgeproto.Flavor) (*edgeproto.Result, error) {
 	log.SetContextTags(ctx, edgeproto.GetTags(obj))
+	if err := obj.IsValidArgsForRemoveFlavorRes(); err != nil {
+		return nil, err
+	}
 	if !rc.skipAuthz {
 		if err := authorized(ctx, rc.username, "",
 			ResourceFlavors, ActionManage); err != nil {

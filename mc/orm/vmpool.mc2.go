@@ -40,9 +40,6 @@ func CreateVMPool(c echo.Context) error {
 	if err := c.Bind(&in); err != nil {
 		return bindErr(c, err)
 	}
-	if err := in.VMPool.IsValidArgsForCreateVMPool(); err != nil {
-		return err
-	}
 	rc.region = in.Region
 	span := log.SpanFromContext(ctx)
 	span.SetTag("region", in.Region)
@@ -59,6 +56,9 @@ func CreateVMPool(c echo.Context) error {
 
 func CreateVMPoolObj(ctx context.Context, rc *RegionContext, obj *edgeproto.VMPool) (*edgeproto.Result, error) {
 	log.SetContextTags(ctx, edgeproto.GetTags(obj))
+	if err := obj.IsValidArgsForCreateVMPool(); err != nil {
+		return nil, err
+	}
 	if !rc.skipAuthz {
 		if err := authorized(ctx, rc.username, obj.Key.Organization,
 			ResourceCloudlets, ActionManage, withRequiresOrg(obj.Key.Organization)); err != nil {
@@ -93,9 +93,6 @@ func DeleteVMPool(c echo.Context) error {
 	if err := c.Bind(&in); err != nil {
 		return bindErr(c, err)
 	}
-	if err := in.VMPool.IsValidArgsForDeleteVMPool(); err != nil {
-		return err
-	}
 	rc.region = in.Region
 	span := log.SpanFromContext(ctx)
 	span.SetTag("region", in.Region)
@@ -112,6 +109,9 @@ func DeleteVMPool(c echo.Context) error {
 
 func DeleteVMPoolObj(ctx context.Context, rc *RegionContext, obj *edgeproto.VMPool) (*edgeproto.Result, error) {
 	log.SetContextTags(ctx, edgeproto.GetTags(obj))
+	if err := obj.IsValidArgsForDeleteVMPool(); err != nil {
+		return nil, err
+	}
 	if !rc.skipAuthz {
 		if err := authorized(ctx, rc.username, obj.Key.Organization,
 			ResourceCloudlets, ActionManage); err != nil {
@@ -146,9 +146,6 @@ func UpdateVMPool(c echo.Context) error {
 	if err := c.Bind(&in); err != nil {
 		return bindErr(c, err)
 	}
-	if err := in.VMPool.IsValidArgsForUpdateVMPool(); err != nil {
-		return err
-	}
 	rc.region = in.Region
 	span := log.SpanFromContext(ctx)
 	span.SetTag("region", in.Region)
@@ -165,6 +162,9 @@ func UpdateVMPool(c echo.Context) error {
 
 func UpdateVMPoolObj(ctx context.Context, rc *RegionContext, obj *edgeproto.VMPool) (*edgeproto.Result, error) {
 	log.SetContextTags(ctx, edgeproto.GetTags(obj))
+	if err := obj.IsValidArgsForUpdateVMPool(); err != nil {
+		return nil, err
+	}
 	if !rc.skipAuthz {
 		if err := authorized(ctx, rc.username, obj.Key.Organization,
 			ResourceCloudlets, ActionManage); err != nil {
@@ -283,9 +283,6 @@ func AddVMPoolMember(c echo.Context) error {
 	if err := c.Bind(&in); err != nil {
 		return bindErr(c, err)
 	}
-	if err := in.VMPoolMember.IsValidArgsForAddVMPoolMember(); err != nil {
-		return err
-	}
 	rc.region = in.Region
 	span := log.SpanFromContext(ctx)
 	span.SetTag("region", in.Region)
@@ -302,6 +299,9 @@ func AddVMPoolMember(c echo.Context) error {
 
 func AddVMPoolMemberObj(ctx context.Context, rc *RegionContext, obj *edgeproto.VMPoolMember) (*edgeproto.Result, error) {
 	log.SetContextTags(ctx, edgeproto.GetTags(obj))
+	if err := obj.IsValidArgsForAddVMPoolMember(); err != nil {
+		return nil, err
+	}
 	if !rc.skipAuthz {
 		if err := authorized(ctx, rc.username, obj.Key.Organization,
 			ResourceCloudlets, ActionManage); err != nil {
@@ -336,9 +336,6 @@ func RemoveVMPoolMember(c echo.Context) error {
 	if err := c.Bind(&in); err != nil {
 		return bindErr(c, err)
 	}
-	if err := in.VMPoolMember.IsValidArgsForRemoveVMPoolMember(); err != nil {
-		return err
-	}
 	rc.region = in.Region
 	span := log.SpanFromContext(ctx)
 	span.SetTag("region", in.Region)
@@ -355,6 +352,9 @@ func RemoveVMPoolMember(c echo.Context) error {
 
 func RemoveVMPoolMemberObj(ctx context.Context, rc *RegionContext, obj *edgeproto.VMPoolMember) (*edgeproto.Result, error) {
 	log.SetContextTags(ctx, edgeproto.GetTags(obj))
+	if err := obj.IsValidArgsForRemoveVMPoolMember(); err != nil {
+		return nil, err
+	}
 	if !rc.skipAuthz {
 		if err := authorized(ctx, rc.username, obj.Key.Organization,
 			ResourceCloudlets, ActionManage); err != nil {

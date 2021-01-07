@@ -493,11 +493,6 @@ func {{.MethodName}}(c echo.Context) error {
 		return bindErr(c, err)
 	}
 {{- end}}
-{{- if (ne .Action "ActionView")}}
-	if err := in.{{.InName}}.IsValidArgsFor{{.MethodName}}(); err != nil {
-		return err
-	}
-{{- end}}
 	rc.region = in.Region
 	span := log.SpanFromContext(ctx)
 	span.SetTag("region", in.Region)
@@ -543,6 +538,11 @@ func {{.MethodName}}Obj(ctx context.Context, rc *RegionContext, obj *edgeproto.{
 {{- if (not .Show)}}
 	{{- /* don't set tags for show because create/etc may call shows, which end up adding unnecessary blank tags */}}
 	log.SetContextTags(ctx, edgeproto.GetTags(obj))
+{{- end}}
+{{- if (ne .Action "ActionView")}}
+	if err := obj.IsValidArgsFor{{.MethodName}}(); err != nil {
+		return {{.ReturnErrArg}}err
+	}
 {{- end}}
 {{- if (not .SkipEnforce)}}
 {{- if and .Show .CustomAuthz}}

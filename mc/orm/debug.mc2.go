@@ -40,9 +40,6 @@ func EnableDebugLevels(c echo.Context) error {
 		return err
 	}
 	defer CloseConn(c)
-	if err := in.DebugRequest.IsValidArgsForEnableDebugLevels(); err != nil {
-		return err
-	}
 	rc.region = in.Region
 	span := log.SpanFromContext(ctx)
 	span.SetTag("region", in.Region)
@@ -60,6 +57,9 @@ func EnableDebugLevels(c echo.Context) error {
 
 func EnableDebugLevelsStream(ctx context.Context, rc *RegionContext, obj *edgeproto.DebugRequest, cb func(res *edgeproto.DebugReply)) error {
 	log.SetContextTags(ctx, edgeproto.GetTags(obj))
+	if err := obj.IsValidArgsForEnableDebugLevels(); err != nil {
+		return err
+	}
 	if !rc.skipAuthz {
 		if err := authorized(ctx, rc.username, "",
 			ResourceConfig, ActionManage); err != nil {
@@ -119,9 +119,6 @@ func DisableDebugLevels(c echo.Context) error {
 		return err
 	}
 	defer CloseConn(c)
-	if err := in.DebugRequest.IsValidArgsForDisableDebugLevels(); err != nil {
-		return err
-	}
 	rc.region = in.Region
 	span := log.SpanFromContext(ctx)
 	span.SetTag("region", in.Region)
@@ -139,6 +136,9 @@ func DisableDebugLevels(c echo.Context) error {
 
 func DisableDebugLevelsStream(ctx context.Context, rc *RegionContext, obj *edgeproto.DebugRequest, cb func(res *edgeproto.DebugReply)) error {
 	log.SetContextTags(ctx, edgeproto.GetTags(obj))
+	if err := obj.IsValidArgsForDisableDebugLevels(); err != nil {
+		return err
+	}
 	if !rc.skipAuthz {
 		if err := authorized(ctx, rc.username, "",
 			ResourceConfig, ActionManage); err != nil {
@@ -274,9 +274,6 @@ func RunDebug(c echo.Context) error {
 		return err
 	}
 	defer CloseConn(c)
-	if err := in.DebugRequest.IsValidArgsForRunDebug(); err != nil {
-		return err
-	}
 	rc.region = in.Region
 	span := log.SpanFromContext(ctx)
 	span.SetTag("region", in.Region)
@@ -294,6 +291,9 @@ func RunDebug(c echo.Context) error {
 
 func RunDebugStream(ctx context.Context, rc *RegionContext, obj *edgeproto.DebugRequest, cb func(res *edgeproto.DebugReply)) error {
 	log.SetContextTags(ctx, edgeproto.GetTags(obj))
+	if err := obj.IsValidArgsForRunDebug(); err != nil {
+		return err
+	}
 	if !rc.skipAuthz {
 		if err := authorized(ctx, rc.username, "",
 			ResourceConfig, ActionManage); err != nil {

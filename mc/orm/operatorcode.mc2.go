@@ -39,9 +39,6 @@ func CreateOperatorCode(c echo.Context) error {
 	if err := c.Bind(&in); err != nil {
 		return bindErr(c, err)
 	}
-	if err := in.OperatorCode.IsValidArgsForCreateOperatorCode(); err != nil {
-		return err
-	}
 	rc.region = in.Region
 	span := log.SpanFromContext(ctx)
 	span.SetTag("region", in.Region)
@@ -57,6 +54,9 @@ func CreateOperatorCode(c echo.Context) error {
 
 func CreateOperatorCodeObj(ctx context.Context, rc *RegionContext, obj *edgeproto.OperatorCode) (*edgeproto.Result, error) {
 	log.SetContextTags(ctx, edgeproto.GetTags(obj))
+	if err := obj.IsValidArgsForCreateOperatorCode(); err != nil {
+		return nil, err
+	}
 	if !rc.skipAuthz {
 		if err := authorized(ctx, rc.username, obj.Organization,
 			ResourceCloudlets, ActionManage, withRequiresOrg(obj.Organization)); err != nil {
@@ -91,9 +91,6 @@ func DeleteOperatorCode(c echo.Context) error {
 	if err := c.Bind(&in); err != nil {
 		return bindErr(c, err)
 	}
-	if err := in.OperatorCode.IsValidArgsForDeleteOperatorCode(); err != nil {
-		return err
-	}
 	rc.region = in.Region
 	span := log.SpanFromContext(ctx)
 	span.SetTag("region", in.Region)
@@ -109,6 +106,9 @@ func DeleteOperatorCode(c echo.Context) error {
 
 func DeleteOperatorCodeObj(ctx context.Context, rc *RegionContext, obj *edgeproto.OperatorCode) (*edgeproto.Result, error) {
 	log.SetContextTags(ctx, edgeproto.GetTags(obj))
+	if err := obj.IsValidArgsForDeleteOperatorCode(); err != nil {
+		return nil, err
+	}
 	if !rc.skipAuthz {
 		if err := authorized(ctx, rc.username, obj.Organization,
 			ResourceCloudlets, ActionManage); err != nil {

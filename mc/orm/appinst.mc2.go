@@ -41,9 +41,6 @@ func CreateAppInst(c echo.Context) error {
 		return err
 	}
 	defer CloseConn(c)
-	if err := in.AppInst.IsValidArgsForCreateAppInst(); err != nil {
-		return err
-	}
 	rc.region = in.Region
 	span := log.SpanFromContext(ctx)
 	span.SetTag("region", in.Region)
@@ -63,6 +60,9 @@ func CreateAppInst(c echo.Context) error {
 
 func CreateAppInstStream(ctx context.Context, rc *RegionContext, obj *edgeproto.AppInst, cb func(res *edgeproto.Result)) error {
 	log.SetContextTags(ctx, edgeproto.GetTags(obj))
+	if err := obj.IsValidArgsForCreateAppInst(); err != nil {
+		return err
+	}
 	if !rc.skipAuthz {
 		if err := authzCreateAppInst(ctx, rc.region, rc.username, obj,
 			ResourceAppInsts, ActionManage); err != nil {
@@ -122,9 +122,6 @@ func DeleteAppInst(c echo.Context) error {
 		return err
 	}
 	defer CloseConn(c)
-	if err := in.AppInst.IsValidArgsForDeleteAppInst(); err != nil {
-		return err
-	}
 	rc.region = in.Region
 	span := log.SpanFromContext(ctx)
 	span.SetTag("region", in.Region)
@@ -144,6 +141,9 @@ func DeleteAppInst(c echo.Context) error {
 
 func DeleteAppInstStream(ctx context.Context, rc *RegionContext, obj *edgeproto.AppInst, cb func(res *edgeproto.Result)) error {
 	log.SetContextTags(ctx, edgeproto.GetTags(obj))
+	if err := obj.IsValidArgsForDeleteAppInst(); err != nil {
+		return err
+	}
 	if !rc.skipAuthz {
 		if err := authorized(ctx, rc.username, obj.Key.AppKey.Organization,
 			ResourceAppInsts, ActionManage); err != nil {
@@ -203,9 +203,6 @@ func RefreshAppInst(c echo.Context) error {
 		return err
 	}
 	defer CloseConn(c)
-	if err := in.AppInst.IsValidArgsForRefreshAppInst(); err != nil {
-		return err
-	}
 	rc.region = in.Region
 	span := log.SpanFromContext(ctx)
 	span.SetTag("region", in.Region)
@@ -225,6 +222,9 @@ func RefreshAppInst(c echo.Context) error {
 
 func RefreshAppInstStream(ctx context.Context, rc *RegionContext, obj *edgeproto.AppInst, cb func(res *edgeproto.Result)) error {
 	log.SetContextTags(ctx, edgeproto.GetTags(obj))
+	if err := obj.IsValidArgsForRefreshAppInst(); err != nil {
+		return err
+	}
 	if !rc.skipAuthz {
 		if err := authorized(ctx, rc.username, obj.Key.AppKey.Organization,
 			ResourceAppInsts, ActionManage); err != nil {
@@ -284,9 +284,6 @@ func UpdateAppInst(c echo.Context) error {
 		return err
 	}
 	defer CloseConn(c)
-	if err := in.AppInst.IsValidArgsForUpdateAppInst(); err != nil {
-		return err
-	}
 	rc.region = in.Region
 	span := log.SpanFromContext(ctx)
 	span.SetTag("region", in.Region)
@@ -306,6 +303,9 @@ func UpdateAppInst(c echo.Context) error {
 
 func UpdateAppInstStream(ctx context.Context, rc *RegionContext, obj *edgeproto.AppInst, cb func(res *edgeproto.Result)) error {
 	log.SetContextTags(ctx, edgeproto.GetTags(obj))
+	if err := obj.IsValidArgsForUpdateAppInst(); err != nil {
+		return err
+	}
 	if !rc.skipAuthz {
 		if err := authorized(ctx, rc.username, obj.Key.AppKey.Organization,
 			ResourceAppInsts, ActionManage); err != nil {

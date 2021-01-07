@@ -178,7 +178,7 @@ func createAppInstStateEvent(ctx context.Context, appInst *dmecommon.DmeAppInst,
 	case dme.ServerEdgeEvent_EVENT_CLOUDLET_MAINTENANCE:
 		updateServerEdgeEvent.MaintenanceState = appInst.MaintenanceState
 	case dme.ServerEdgeEvent_EVENT_APPINST_HEALTH:
-		updateServerEdgeEvent.HealthCheck = appInst.HealthCheck
+		updateServerEdgeEvent.HealthCheck = appInst.AppInstHealth
 	default:
 	}
 

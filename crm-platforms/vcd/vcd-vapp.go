@@ -3,7 +3,6 @@ package vcd
 import (
 	"context"
 	"encoding/base64"
-	"fmt"
 	"strings"
 
 	vu "github.com/mobiledgex/edge-cloud-infra/crm-platforms/vcd/vcdutils"
@@ -16,7 +15,8 @@ import (
 	"github.com/vmware/go-vcloud-director/v2/types/v56"
 )
 
-// Combine CreateCloudlet with CreateCluster to make CreateVApp
+// Compose a new vapp from the given template, using vmgrp orch params
+// Creates one or more vms.
 func (v *VcdPlatform) CreateVApp(ctx context.Context, vappTmpl *govcd.VAppTemplate, vmgp *vmlayer.VMGroupOrchestrationParams, description string, updateCallback edgeproto.CacheUpdateCallback) (*govcd.VApp, error) {
 
 	var vapp *govcd.VApp
@@ -34,7 +34,6 @@ func (v *VcdPlatform) CreateVApp(ctx context.Context, vappTmpl *govcd.VAppTempla
 	log.SpanLog(ctx, log.DebugLevelInfra, "CreateVapp", "name", vmgp.GroupName, "tmpl", vappTmpl.VAppTemplate.Name)
 	// vu.DumpVMGroupParams(vmgp, 1)
 
-	// does a vapp with this name exist already?
 	vappName := vmgp.GroupName + "-vapp"
 	vapp, err = v.FindVApp(ctx, vappName)
 	if err == nil {
@@ -42,28 +41,22 @@ func (v *VcdPlatform) CreateVApp(ctx context.Context, vappTmpl *govcd.VAppTempla
 		return vapp, nil
 	}
 
-	// Even if we don't add an external net to a vm, the vapp needs it
-	// We'll alloc a new extAddr for any vm that needs it.
 	vmtmpl := &types.VAppTemplate{}
 	vmparams := vmlayer.VMOrchestrationParams{}
 
 	// xxx non-standard
 	vmtmpl = vappTmpl.VAppTemplate.Children.VM[0]
 	vmparams = vmgp.VMs[0]
-	fmt.Printf("\n\nCreateVapp-I=Template %s vm name %s vmparams.Name: %s\n\n", vappTmpl.VAppTemplate.Name, vmtmpl.Name, vmparams.Name)
-
 	vmtmplVMName := vmtmpl.Name
 	// save orig tmplate name
 	vmtmpl.Name = vmparams.Name
 	vmRole := vmparams.Role
 	vmType := string(vmlayer.GetVmTypeForRole(string(vmparams.Role)))
 
-	// MEX-EXT-NET
+	// MEX_EXT_NET
 	vdcNet, err := v.GetExtNetwork(ctx)
 	networks := []*types.OrgVDCNetwork{}
 	networks = append(networks, vdcNet.OrgVDCNetwork)
-
-	fmt.Printf("\nCreateVApp-I-composes vapp %s role: %s type: %s\n", vappName, vmRole, vmType)
 
 	log.SpanLog(ctx, log.DebugLevelInfra, "CreateVApp compose vapp", "name", vappName, "vmRole", vmRole, "vmType", vmType)
 
@@ -73,7 +66,6 @@ func (v *VcdPlatform) CreateVApp(ctx context.Context, vappTmpl *govcd.VAppTempla
 		log.SpanLog(ctx, log.DebugLevelInfra, "CreateVApp compose failed", "error", err)
 		return nil, err
 	}
-
 	err = task.WaitTaskCompletion()
 	if err != nil {
 		log.SpanLog(ctx, log.DebugLevelInfra, "ComposeVApp wait for completeion failed", "VAppName", vmgp.GroupName, "error", err)
@@ -83,7 +75,7 @@ func (v *VcdPlatform) CreateVApp(ctx context.Context, vappTmpl *govcd.VAppTempla
 	vmtmpl.Name = vmtmplVMName
 	vapp, err = vdc.GetVAppByName(vappName, true)
 	if err != nil {
-		log.SpanLog(ctx, log.DebugLevelInfra, "can't retrieve compoled vapp", "VAppName", vmgp.GroupName, "error", err)
+		log.SpanLog(ctx, log.DebugLevelInfra, "can't retrieve composed vapp", "VAppName", vmgp.GroupName, "error", err)
 		return nil, err
 	}
 	// wait before adding vms
@@ -93,6 +85,7 @@ func (v *VcdPlatform) CreateVApp(ctx context.Context, vappTmpl *govcd.VAppTempla
 		log.SpanLog(ctx, log.DebugLevelInfra, "wait for RESOLVED error", "VAppName", vmgp.GroupName, "error", err)
 		return nil, err
 	}
+
 	// ensure we have a clean slate
 	task, err = vapp.RemoveAllNetworks()
 	if err != nil {
@@ -107,12 +100,15 @@ func (v *VcdPlatform) CreateVApp(ctx context.Context, vappTmpl *govcd.VAppTempla
 	// Get the VApp network in place, all vapps need an external network at least
 	nextCidr, err := v.AddPortsToVapp(ctx, vapp, *vmgp)
 	if err != nil {
-		fmt.Printf("CreateVapp-E-AddPortsToVapp failed: %s\n", err.Error())
+		log.SpanLog(ctx, log.DebugLevelInfra, "AddPortsToVapp failed", "VAppName", vmgp.GroupName, "error", err)
+
 	}
+	log.SpanLog(ctx, log.DebugLevelInfra, "CreateVapp nextCidr for vapp internal net", "Cidr", nextCidr, "vmRole", vmRole, "vmType", vmType)
+
 	vmtmplName := vapp.VApp.Children.VM[0].Name
 	vm, err := vapp.GetVMByName(vmtmplName, false)
 	if err != nil {
-		fmt.Printf("\nCreateVApp-E-could not retrive newly created vm named %s\n", vmtmplName)
+		log.SpanLog(ctx, log.DebugLevelInfra, "CreateVApp failed to retrieve", "VM", vmtmplName)
 		return nil, err
 	}
 	var subnet string
@@ -131,12 +127,18 @@ func (v *VcdPlatform) CreateVApp(ctx context.Context, vappTmpl *govcd.VAppTempla
 		}
 		log.SpanLog(ctx, log.DebugLevelInfra, "CreateVApp composed VMs added", "GroupName", vmgp.GroupName)
 	} else {
-		fmt.Printf("CreateVApp composed vapp/vm no extra VMs specifed\n")
-		log.SpanLog(ctx, log.DebugLevelInfra, "CreateVApp composed VApp no extra VMs added", "GroupName", vmgp.GroupName)
+		if v.Verbose {
+			log.SpanLog(ctx, log.DebugLevelInfra, "CreateVApp composed VApp no extra VMs added", "GroupName", vmgp.GroupName)
+		}
 	}
+	if v.Verbose {
+		// govcd.ShowVapp(*vapp.VApp) its... large
+	}
+	log.SpanLog(ctx, log.DebugLevelInfra, "CreateVApp composed Powering On DUMP! ", "Vapp", vappName)
 
-	// govcd.ShowVapp(*vapp.VApp) its... large
-	log.SpanLog(ctx, log.DebugLevelInfra, "CreateVApp composed Powering On", "Vapp", vappName)
+	// try the reorderd AddVMsToVApp before this last resort
+	v.refreshVappNets(ctx, vapp)
+
 	task, err = vapp.PowerOn()
 	if err != nil {
 		log.SpanLog(ctx, log.DebugLevelInfra, "power on  failed ", "VAppName", vapp.VApp.Name, "err", err)
@@ -160,7 +162,6 @@ func (v *VcdPlatform) LogVappVMsStatus(ctx context.Context, vapp *govcd.VApp) {
 
 	vms := vapp.VApp.Children.VM
 	for _, vm := range vms {
-		// make sure they're all powered off as well
 		v, err := vapp.GetVMByName(vm.Name, false)
 		if err != nil {
 			continue
@@ -170,19 +171,21 @@ func (v *VcdPlatform) LogVappVMsStatus(ctx context.Context, vapp *govcd.VApp) {
 			log.SpanLog(ctx, log.DebugLevelInfra, "Error getting vm status", "vm", vm.Name, "error", err)
 			continue
 		}
-		log.SpanLog(ctx, log.DebugLevelInfra, "Status", "vm", vm.Name, "status", vmstatus)
+		log.SpanLog(ctx, log.DebugLevelInfra, "LogVappVmsStatus", "vm", vm.Name, "status", vmstatus)
 	}
 }
 
 func (v *VcdPlatform) DeleteVapp(ctx context.Context, vapp *govcd.VApp) error {
 
-	log.SpanLog(ctx, log.DebugLevelInfra, "DeleteVapp", "name", vapp.VApp.Name)
+	vappName := vapp.VApp.Name
+
+	log.SpanLog(ctx, log.DebugLevelInfra, "DeleteVapp", "name", vappName)
+
 	status, err := vapp.GetStatus()
 	if err != nil {
 		return err
 	}
-	// If the vapp is already powered off, it may be deleteled directy
-	// else, first undeploy
+
 	if status == "POWERED_ON" {
 		task, err := vapp.Undeploy()
 		if err != nil {
@@ -192,7 +195,7 @@ func (v *VcdPlatform) DeleteVapp(ctx context.Context, vapp *govcd.VApp) error {
 		if err != nil {
 			return err
 		}
-		log.SpanLog(ctx, log.DebugLevelInfra, "DeleteVapp vapp undeployed")
+		log.SpanLog(ctx, log.DebugLevelInfra, "DeleteVapp undeployed", "Vapp", vappName)
 	}
 	task, err := vapp.Delete()
 	if err != nil {
@@ -202,6 +205,7 @@ func (v *VcdPlatform) DeleteVapp(ctx context.Context, vapp *govcd.VApp) error {
 	if err != nil {
 		return err
 	}
+	log.SpanLog(ctx, log.DebugLevelInfra, "DeleteVapp deleted", "Vapp", vappName)
 	return nil
 }
 
@@ -219,7 +223,6 @@ func (v *VcdPlatform) FindVApp(ctx context.Context, vappName string) (*govcd.VAp
 func makeProp(key, value string) *types.Property {
 	prop := &types.Property{
 		// We hard code UserConfigurable for now, as if false, it does not appear in the ovfenv fetched by vmtoolsd,
-		// and what good is that to us?
 		UserConfigurable: true,
 		Type:             "string",
 		Key:              key,
@@ -291,7 +294,25 @@ func (v *VcdPlatform) populateProductSection(ctx context.Context, vm *govcd.VM, 
 	}
 	props = append(props, makeProp("SKIPK8S", string(skipk8s)))
 	psl.ProductSection.Property = props
-	// XXX what else?
 
 	return psl, nil
+}
+
+func (v *VcdPlatform) refreshVappNets(ctx context.Context, vapp *govcd.VApp) error {
+	vmname := vapp.VApp.Children.VM[0].Name
+	vm, err := vapp.GetVMByName(vmname, true)
+	if err != nil {
+		return err
+	}
+	//InternalNetConfigSec := &types.NetworkConfigSection{}
+	ncs, err := vm.GetNetworkConnectionSection()
+	if err != nil {
+		return err
+	}
+	log.SpanLog(ctx, log.DebugLevelInfra, "refreshVapp", "Vapp", vapp.VApp.Name, "vmName", vmname)
+	err = vm.UpdateNetworkConnectionSection(ncs)
+	if err != nil {
+		return err
+	}
+	return nil
 }

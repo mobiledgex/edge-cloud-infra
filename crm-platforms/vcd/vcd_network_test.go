@@ -3,7 +3,9 @@ package vcd
 import (
 	"context"
 	"fmt"
+	"strings"
 
+	vu "github.com/mobiledgex/edge-cloud-infra/crm-platforms/vcd/vcdutils"
 	"github.com/stretchr/testify/require"
 	"github.com/vmware/go-vcloud-director/v2/govcd"
 	"github.com/vmware/go-vcloud-director/v2/types/v56"
@@ -26,12 +28,14 @@ func TestNextExtAddr(t *testing.T) {
 	}
 }
 
+// -vapp
 func TestNextIntAddr(t *testing.T) {
 	live, ctx, err := InitVcdTestEnv()
 	require.Nil(t, err, "InitVcdTestEnv")
 
 	if live {
-		nextAddr, err := tv.GetNextInternalNet(ctx)
+		// vappName is just logging here
+		nextAddr, err := tv.GetNextInternalSubnet(ctx, *vappName)
 		if err != nil {
 			fmt.Printf("Error getting next addr  : %s\n", err.Error())
 			return
@@ -68,7 +72,7 @@ func TestGetVappAddr(t *testing.T) {
 			return
 		}
 
-		addr, err := tv.GetExtAddrOfVapp(ctx, vapp, *netName)
+		addr, err := tv.GetAddrOfVapp(ctx, vapp, *netName)
 		if err != nil {
 			fmt.Printf("Test error from GetExtAddrOfVapp  %s = %s \n", *vappName, err.Error())
 			return
@@ -96,6 +100,32 @@ func TestGetVMAddr(t *testing.T) {
 		}
 
 		fmt.Printf("Next ext-net Address: %s\n", addr)
+	}
+}
+
+func TestGetVdcNetworks(t *testing.T) {
+	live, ctx, err := InitVcdTestEnv()
+	require.Nil(t, err, "InitVcdTestEnv")
+
+	//	vdc, err := tv.GetVdc(ctx)
+	//	if err != nil {
+	//		fmt.Printf("VDC not found\n")
+	//		return
+	//	}
+	if live {
+		fmt.Printf("TestGetVdcNetworks\n")
+		netMap, err := tv.GetAllVdcNetworks(ctx)
+		if err != nil {
+			fmt.Printf("GetAllVdcNetworks failed: %s\n", err.Error())
+		}
+		if len(netMap) == 0 {
+			fmt.Printf("GetAllVdcNetworks return no networks\n")
+			return
+		}
+		for Name, net := range netMap {
+			fmt.Printf("Network %s:\n", Name)
+			govcd.ShowNetwork(*net.OrgVDCNetwork)
+		}
 	}
 }
 
@@ -207,22 +237,133 @@ func TestRMNet(t *testing.T) {
 
 }
 
-func TestGetExtNet(t *testing.T) {
+// Test AttachPortToServer
+// we want a new vapp, one ext and three internal subnets.
+// -live -vapp
+func TestAttachPortToServer(t *testing.T) {
 	live, ctx, err := InitVcdTestEnv()
 	require.Nil(t, err, "InitVcdTestEnv")
 	if live {
+		fmt.Printf("TestAttachPortToServer testsubnets to %s\n", *vappName)
 
-		extNetMask := tv.GetExternalNetmask()
-		fmt.Printf("extNetMask: %s\n", extNetMask)
-		orgvdcNet, err := tv.GetExtNetwork(ctx)
+		// create 3 vapp internal (isolated) networks for vapp
+		// then add connections to same for the first vm in target vapp
+
+		vapp, err := tv.FindVApp(ctx, *vappName)
 		if err != nil {
-			fmt.Printf("Error retrieving network object  err: %s\n", err.Error())
+			fmt.Printf("%s not found\n", *vappName)
 			return
 		}
-		fmt.Printf("Found network %s\n", orgvdcNet.OrgVDCNetwork.Name)
-		govcd.ShowNetwork(*orgvdcNet.OrgVDCNetwork)
+		vmname := vapp.VApp.Children.VM[0].Name
+		vm, err := vapp.GetVMByName(vmname, true)
+		if err != nil {
+			fmt.Printf("Error GetVMByName %s failed: %s\n", vmname, err.Error())
+		}
+		fmt.Printf("Add 3 subnets to vm %s\n", vmname)
+		InternalNetConfigSec := &types.NetworkConfigSection{}
+		ncs, err := vm.GetNetworkConnectionSection()
+		if err != nil {
+			fmt.Printf("GetNetworkConnectionSection for vm %s failed: %s\n", vmname, err.Error())
+			return
+		}
+
+		type subnet struct {
+			SubnetAddr string
+			Netname    string
+			ConIdx     int
+			StartAddr  string
+			EndAddr    string
+		}
+
+		// conIdx 1 is our external network mostly
+		var subnets = []subnet{
+			subnet{
+				SubnetAddr: "10.101.1.1",
+				Netname:    "subnet1",
+				ConIdx:     0,
+				StartAddr:  "10.101.1.2",
+				EndAddr:    "10.101.1.254",
+			},
+			subnet{
+				SubnetAddr: "10.101.2.1",
+				Netname:    "subnet2",
+				ConIdx:     2,
+				StartAddr:  "10.101.2.2",
+				EndAddr:    "10.101.2.254",
+			},
+			subnet{
+				SubnetAddr: "10.101.3.1",
+				Netname:    "subnet3",
+				ConIdx:     3,
+				StartAddr:  "10.101.3.2",
+				EndAddr:    "10.101.3.254",
+			},
+		}
+
+		// all intetrnal subnets are /24 for their ip ranges:
+
+		// Ok, before we can add connections to the vm, we first need to create the
+		// 3 new internal Vapp Networks
+
+		for n, subnet := range subnets {
+
+			var iprange []*types.IPRange
+			addrRange := types.IPRange{
+				StartAddress: subnet.StartAddr,
+				EndAddress:   subnet.EndAddr,
+			}
+			iprange = append(iprange, &addrRange)
+
+			// create each internal vapp network
+			internalSettings := govcd.VappNetworkSettings{
+				Name:           subnet.Netname,
+				Description:    "internal " + subnet.Netname,
+				Gateway:        subnet.SubnetAddr,
+				NetMask:        "255.255.255.0",
+				DNS1:           "1.1.1.1",
+				DNS2:           "",
+				DNSSuffix:      "mobiledgex.net",
+				StaticIPRanges: iprange,
+			}
+			fmt.Printf("Create vapp subnet %s\n", subnet.Netname)
+			InternalNetConfigSec, err = vapp.CreateVappNetwork(&internalSettings, nil)
+			if err != nil {
+				if !strings.Contains(err.Error(), "already exists") {
+					fmt.Printf("Create subnet failed for %s err: %s\n",
+						subnet.Netname, err.Error())
+					return
+				}
+			}
+			fmt.Printf("Network[%d]  %s created ConfigSec: %+v\n", n, subnet.Netname, InternalNetConfigSec)
+		}
+
+		vu.DumpNetworkConfigSection(InternalNetConfigSec, 1)
+
+		fmt.Printf("All vapp isolated subnets created succesfully, now add 'em to the vm\n")
+
+		for _, subnet := range subnets {
+
+			ncs.NetworkConnection = append(ncs.NetworkConnection,
+				&types.NetworkConnection{
+					Network:                 subnet.Netname,
+					NetworkConnectionIndex:  subnet.ConIdx,
+					IPAddress:               subnet.SubnetAddr,
+					IsConnected:             true,
+					IPAddressAllocationMode: types.IPAllocationModeManual,
+				})
+
+			// update each time around the wheel, or just once? Just once
+		}
+		err = vm.UpdateNetworkConnectionSection(ncs)
+		if err != nil {
+			fmt.Printf("UpdateNetworkConnectionSection failed: %s\n", err.Error())
+			return
+		}
 	}
 }
+
+// -live -server
+// We aim to call
 
 // -net -live
 // what can we enable or not?

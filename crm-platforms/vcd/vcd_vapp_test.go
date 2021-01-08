@@ -633,10 +633,10 @@ func TestExtAddrVApp(t *testing.T) {
 		require.Nil(t, err, "FindVapp")
 		fmt.Printf("TestVApp-Start create vapp named %s in vdc %s \n", *vappName, *vdcName)
 
-		addr, err := tv.GetExtAddrOfVapp(ctx, vapp, *netName)
+		addr, err := tv.GetAddrOfVapp(ctx, vapp, *netName)
 
 		if err != nil {
-			fmt.Printf("error from GetExtAddrOfVapp : %s\n", err.Error())
+			fmt.Printf("error from GetAddrOfVapp : %s\n", err.Error())
 			return
 		}
 		fmt.Printf("Vapp %s has external address as %s\n", *vappName, addr)

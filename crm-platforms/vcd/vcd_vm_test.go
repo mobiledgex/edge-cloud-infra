@@ -44,18 +44,6 @@ func InitVcdTestEnv() (bool, context.Context, error) {
 	log.InitTracer(nil)
 	defer log.FinishTracer()
 	ctx := log.StartTestSpan(context.Background())
-	//tv.initDebug(o.VMProperties.CommonPf.PlatformConfig.NodeMgr) // XXX needed now?
-	// make our object maps
-	//	tv.Objs.Nets = make(map[string]*govcd.OrgVDCNetwork)
-	//tv.Objs.Cats = make(map[string]CatContainer)
-
-	//	tv.Objs.VApps = make(map[string]*VApp)
-	//	tv.Objs.VMs = make(map[string]*govcd.VM)
-	//	tv.Objs.VAppTmpls = make(map[string]*govcd.VAppTemplate)
-
-	//v.Objs.TemplateVMs = make(map[string]*types.QueryResultVMRecordType)
-	//	tv.Objs.TemplateVMs = make(TmplVMsMap)
-	//	tv.Objs.Media = make(MediaMap)
 	tv.TestMode = true
 	if *livetest == "true" {
 		live = true
@@ -360,90 +348,6 @@ func TestVMDisk(t *testing.T) {
 	} else {
 		return
 	}
-}
-
-// Test feeding our VM create work routine vmlayers Orch Params with a simple example.
-func testCreateVM(t *testing.T, ctx context.Context) (*govcd.VM, error) {
-	fmt.Printf("testCreateVM...")
-	vm := &govcd.VM{}
-
-	// This needs to send vapp to CreateVM
-	vapp := govcd.VApp{}
-	var vols []vmlayer.VolumeOrchestrationParams
-	vols = append(vols, vmlayer.VolumeOrchestrationParams{
-		Name:               "Mex-vol1",
-		ImageName:          "ubuntu-18.04",
-		Size:               40,
-		AvailabilityZone:   "none",
-		DeviceName:         "disk1",
-		AttachExternalDisk: false,
-		UnitNumber:         1,
-	},
-	)
-
-	ports := []vmlayer.PortResourceReference{} // Ips may be assigned to ports or...
-	/*
-			Name        "mex-ports"
-			Id          string
-			NetworkId   string
-			SubnetId    string
-			Preexisting bool
-			NetworkType NetType
-			PortGroup   string
-
-		}
-	*/
-	// use fixed
-	// We should get a fixed IP from our tv.Obj.PrimaryNet
-	// .51 or .52
-	var fixedIps []vmlayer.FixedIPOrchestrationParams
-	fixedIps = append(fixedIps, vmlayer.FixedIPOrchestrationParams{
-		LastIPOctet: 2,
-		Address:     "172.70.52.2",
-		Mask:        "255.255.255.0",
-		Subnet: vmlayer.ResourceReference{
-			Name:        "",
-			Id:          "",
-			Preexisting: false,
-		},
-		Gateway: "172.70.52.1",
-	},
-	)
-	//cparams := chefmgmt.VMChefParams{}
-
-	vmparams := vmlayer.VMOrchestrationParams{
-
-		Id:          "VMtestID",
-		Name:        "MexVM1",
-		Role:        vmlayer.RoleVMPlatform,
-		ImageName:   "ubuntu-18.04",
-		ImageFolder: "MEX-CAT01",
-		HostName:    "MexVMHostName",
-		DNSDomain:   "mobiledgex.net",
-		FlavorName:  "mex.medium",
-
-		Vcpus:                   2,
-		Ram:                     4092,
-		Disk:                    40,
-		ComputeAvailabilityZone: "nova", // xxx
-		UserData:                "GuestCustomizeHere",
-		MetaData:                "UserMetaData",
-		SharedVolume:            false,
-		AuthPublicKey:           "",
-		DeploymentManifest:      "",
-		Command:                 "",
-		Volumes:                 vols,
-		Ports:                   ports,
-		FixedIPs:                fixedIps,
-		AttachExternalDisk:      false,
-		//ChefParams:              &cparams,
-	}
-	fmt.Printf("\nOrchParams created, calling our CreateVM work routine\n")
-	vm, err := tv.CreateVM(ctx, &vapp, &vmparams)
-	require.Nil(t, err, "CreateVM")
-	vu.DumpVM(vm.VM, 1)
-	return vm, nil
-
 }
 
 func testDetachPortFromServer(t *testing.T, ctx context.Context, serverName, subnetName, portName, string, powerState bool) error {

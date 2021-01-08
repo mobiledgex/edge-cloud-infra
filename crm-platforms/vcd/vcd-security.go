@@ -77,9 +77,6 @@ func (v *VcdPlatform) PopulateOrgLoginCredsFromVault(ctx context.Context) error 
 		Insecure: true,
 	}
 
-	fmt.Printf("\n\nPopLoginCreds: \n\tUser: %s\n\tPassword: %s\n\tORG: %s\n\tHref: %s\n\t VDCName: %s\n",
-		creds.User, creds.Password, creds.Org, creds.Href, creds.VDC)
-
 	if creds.User == "" {
 		return fmt.Errorf("User not defined")
 	}
@@ -117,7 +114,7 @@ func (v *VcdPlatform) PrepareRootLB(ctx context.Context, client ssh.Client, root
 
 func (v *VcdPlatform) WhitelistSecurityRules(ctx context.Context, client ssh.Client, secGrpName, serverName, label string, allowedCIDR string, ports []dme.AppPort) error {
 
-	log.SpanLog(ctx, log.DebugLevelInfra, "WhitelistSecurityRules N TBI", "secGrpName", secGrpName, "allowedCIDR", allowedCIDR, "ports", ports)
+	log.SpanLog(ctx, log.DebugLevelInfra, "WhitelistSecurityRules", "secGrpName", secGrpName, "allowedCIDR", allowedCIDR, "ports", ports)
 
 	return nil
 }

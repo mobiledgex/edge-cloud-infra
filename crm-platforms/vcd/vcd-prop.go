@@ -41,6 +41,10 @@ var VcdProps = map[string]*edgeproto.PropertyInfo{
 		Description: "External Network Mask",
 		Mandatory:   true,
 	},
+	"MEX_VDC_TEMPLATE": {
+		Mandatory: false,
+		// could be in the secret
+	},
 }
 
 func (v *VcdPlatform) GetVaultCloudletAccessPath(key *edgeproto.CloudletKey, region, physicalName string) string {
@@ -63,17 +67,8 @@ func (v *VcdPlatform) GetVcdVars(ctx context.Context, accessApi platform.AccessA
 	if v.Verbose {
 		log.SpanLog(ctx, log.DebugLevelInfra, "vcd ", "Vars", v.vcdVars)
 	}
-	for k, v := range v.vcdVars {
-		fmt.Printf("%s : %s\n", k, v)
-	}
-	// debug
-	extNetMask := v.GetExternalNetmask()
-	intNetMask := v.GetInternalNetmask()
-	mexCatalogName := v.GetCatalogName()
-
-	fmt.Printf("\n ExtNetMask: %s IntNetMask: %s mexCatalogName %s\n", extNetMask, intNetMask, mexCatalogName)
-
 	err = v.PopulateOrgLoginCredsFromVault(ctx)
+
 	if err != nil {
 		return err
 	}
@@ -186,5 +181,10 @@ func (v *VcdPlatform) GetInternalNetmask() string {
 
 func (v *VcdPlatform) GetCatalogName() string {
 	val, _ := v.vmProperties.CommonPf.Properties.GetValue("MEX_CATALOG")
+	return val
+}
+
+func (v *VcdPlatform) GetTemplateName() string {
+	val, _ := v.vmProperties.CommonPf.Properties.GetValue("MEX_VDC_TEMPLATE")
 	return val
 }

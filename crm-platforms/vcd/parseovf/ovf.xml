@@ -1,0 +1,48 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<Environment
+     xmlns="http://schemas.dmtf.org/ovf/environment/1"
+     xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+     xmlns:oe="http://schemas.dmtf.org/ovf/environment/1"
+     xmlns:ve="http://www.vmware.com/schema/ovfenv"
+     oe:id=""
+     ve:vCenterId="vm-768">
+   <PlatformSection>
+      <Kind>VMware ESXi</Kind>
+      <Version>6.7.0</Version>
+      <Vendor>VMware, Inc.</Vendor>
+      <Locale>en</Locale>
+   </PlatformSection>
+   <PropertySection>
+         <Property oe:key="ROLE" oe:value="mex-agent-node"/>
+         <Property oe:key="SKIPK8S" oe:value="yes"/>
+         <Property oe:key="vCloud_UseSysPrep" oe:value="None"/>
+         <Property oe:key="vCloud_bitMask" oe:value="11"/>
+         <Property oe:key="vCloud_bootproto_0" oe:value="static"/>
+         <Property oe:key="vCloud_bootproto_1" oe:value="static"/>
+         <Property oe:key="vCloud_computerName" oe:value="mobiledgex-v404-vsphere-001"/>
+         <Property oe:key="vCloud_dns1_0" oe:value="10.40.1.14"/>
+         <Property oe:key="vCloud_dns1_1" oe:value="10.40.1.14"/>
+         <Property oe:key="vCloud_dns2_0" oe:value="1.1.1.1"/>
+         <Property oe:key="vCloud_dns2_1" oe:value="1.1.1.1"/>
+         <Property oe:key="vCloud_gateway_0" oe:value="172.70.52.1"/>
+         <Property oe:key="vCloud_gateway_1" oe:value="10.101.1.1"/>
+         <Property oe:key="vCloud_ip_0" oe:value="172.70.52.212"/>
+         <Property oe:key="vCloud_ip_1" oe:value="10.101.1.1"/>
+         <Property oe:key="vCloud_macaddr_0" oe:value="00:50:56:01:01:55"/>
+         <Property oe:key="vCloud_macaddr_1" oe:value="00:50:56:01:01:56"/>
+         <Property oe:key="vCloud_markerid" oe:value="007d8d53-c4e7-41e0-b586-e33f0b5e080c"/>
+         <Property oe:key="vCloud_netmask_0" oe:value="255.255.255.0"/>
+         <Property oe:key="vCloud_netmask_1" oe:value="255.255.255.0"/>
+         <Property oe:key="vCloud_numnics" oe:value="2"/>
+         <Property oe:key="vCloud_primaryNic" oe:value="0"/>
+         <Property oe:key="vCloud_reconfigToken" oe:value="872820219"/>
+         <Property oe:key="vCloud_resetPassword" oe:value="0"/>
+         <Property oe:key="vCloud_suffix_0" oe:value="vmwmex.net"/>
+         <Property oe:key="vCloud_suffix_1" oe:value="vmwmex.net"/>
+   </PropertySection>
+   <ve:EthernetAdapterSection>
+      <ve:Adapter ve:mac="00:50:56:01:01:55" ve:network="mex-net02-03f4de2c-c63a-4100-91f2-e974a42986e4" ve:unitNumber="7"/>
+      <ve:Adapter ve:mac="00:50:56:01:01:56" ve:network="mex-vmware-vcd.tdg.mobiledgex.net-vapp-inte-ec71fe73-84c1-4d64-b49d-94573c8f265c" ve:unitNumber="8"/>
+   </ve:EthernetAdapterSection>
+</Environment>
+

@@ -48,6 +48,7 @@ console-stage.mobiledgex.net
 [vault]
 vault-stage-a.mobiledgex.net
 vault-stage-b.mobiledgex.net
+vault-stage-c.mobiledgex.net
 
 [jaeger]
 jaeger-stage.mobiledgex.net	nginx_config_filename=jaeger jaeger_ui_port=8443

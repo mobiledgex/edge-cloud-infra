@@ -14,7 +14,7 @@
     tasks_from: locapi
 
 - name: Get current deployment details
-  k8s_facts:
+  k8s_info:
     name: dme
     kind: Deployment
     namespace: default

@@ -119,7 +119,6 @@ var UpdateClusterInstOptionalArgs = []string{
 	"numnodes",
 	"autoscalepolicy",
 	"skipcrmcleanuponfailure",
-	"optres",
 }
 var ClusterInstKeyRequiredArgs = []string{}
 var ClusterInstKeyOptionalArgs = []string{
@@ -158,9 +157,7 @@ var ClusterInstOptionalArgs = []string{
 	"imagename",
 	"reservable",
 	"sharedvolumesize",
-	"privacypolicy",
 	"skipcrmcleanuponfailure",
-	"optres",
 }
 var ClusterInstAliasArgs = []string{
 	"fields=clusterinst.fields",
@@ -193,7 +190,6 @@ var ClusterInstAliasArgs = []string{
 	"reservable=clusterinst.reservable",
 	"reservedby=clusterinst.reservedby",
 	"sharedvolumesize=clusterinst.sharedvolumesize",
-	"privacypolicy=clusterinst.privacypolicy",
 	"masternodeflavor=clusterinst.masternodeflavor",
 	"skipcrmcleanuponfailure=clusterinst.skipcrmcleanuponfailure",
 	"optres=clusterinst.optres",
@@ -238,7 +234,6 @@ var ClusterInstComments = map[string]string{
 	"reservable":                             "If ClusterInst is reservable",
 	"reservedby":                             "For reservable MobiledgeX ClusterInsts, the current developer tenant",
 	"sharedvolumesize":                       "Size of an optional shared volume to be mounted on the master",
-	"privacypolicy":                          "Optional privacy policy name",
 	"masternodeflavor":                       "Generic flavor for k8s master VM when worker nodes > 0",
 	"skipcrmcleanuponfailure":                "Prevents cleanup of resources on failure within CRM, used for diagnostic purposes",
 	"optres":                                 "Optional Resources required by OS flavor if any",

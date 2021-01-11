@@ -123,11 +123,13 @@ module "console" {
     "alt-https",
     "notifyroot",
     "alertmanager",
+    "vault-ac",
   ]
   labels = {
     "environ" = var.environ_tag
     "console" = "true"
     "owner"   = "qa"
+    "vault"   = "true"
   }
 }
 
@@ -177,6 +179,12 @@ module "vault_b_dns" {
   source   = "../../modules/cloudflare_record"
   hostname = var.vault_b_domain_name
   ip       = module.vault_b.external_ip
+}
+
+module "vault_c_dns" {
+  source                        = "../../modules/cloudflare_record"
+  hostname                      = "${var.vault_c_domain_name}"
+  ip                            = "${module.console.external_ip}"
 }
 
 module "fw_vault_gcp" {

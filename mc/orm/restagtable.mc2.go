@@ -55,6 +55,9 @@ func CreateResTagTable(c echo.Context) error {
 
 func CreateResTagTableObj(ctx context.Context, rc *RegionContext, obj *edgeproto.ResTagTable) (*edgeproto.Result, error) {
 	log.SetContextTags(ctx, edgeproto.GetTags(obj))
+	if err := obj.IsValidArgsForCreateResTagTable(); err != nil {
+		return nil, err
+	}
 	if !rc.skipAuthz {
 		if err := authorized(ctx, rc.username, obj.Key.Organization,
 			ResourceResTagTable, ActionManage, withRequiresOrg(obj.Key.Organization)); err != nil {
@@ -105,6 +108,9 @@ func DeleteResTagTable(c echo.Context) error {
 
 func DeleteResTagTableObj(ctx context.Context, rc *RegionContext, obj *edgeproto.ResTagTable) (*edgeproto.Result, error) {
 	log.SetContextTags(ctx, edgeproto.GetTags(obj))
+	if err := obj.IsValidArgsForDeleteResTagTable(); err != nil {
+		return nil, err
+	}
 	if !rc.skipAuthz {
 		if err := authorized(ctx, rc.username, obj.Key.Organization,
 			ResourceResTagTable, ActionManage); err != nil {
@@ -155,6 +161,9 @@ func UpdateResTagTable(c echo.Context) error {
 
 func UpdateResTagTableObj(ctx context.Context, rc *RegionContext, obj *edgeproto.ResTagTable) (*edgeproto.Result, error) {
 	log.SetContextTags(ctx, edgeproto.GetTags(obj))
+	if err := obj.IsValidArgsForUpdateResTagTable(); err != nil {
+		return nil, err
+	}
 	if !rc.skipAuthz {
 		if err := authorized(ctx, rc.username, obj.Key.Organization,
 			ResourceResTagTable, ActionManage); err != nil {
@@ -213,9 +222,6 @@ func ShowResTagTableStream(ctx context.Context, rc *RegionContext, obj *edgeprot
 	var err error
 	if !rc.skipAuthz {
 		authz, err = newShowAuthz(ctx, rc.region, rc.username, ResourceResTagTable, ActionView)
-		if err == echo.ErrForbidden {
-			return nil
-		}
 		if err != nil {
 			return err
 		}
@@ -292,6 +298,9 @@ func AddResTag(c echo.Context) error {
 
 func AddResTagObj(ctx context.Context, rc *RegionContext, obj *edgeproto.ResTagTable) (*edgeproto.Result, error) {
 	log.SetContextTags(ctx, edgeproto.GetTags(obj))
+	if err := obj.IsValidArgsForAddResTag(); err != nil {
+		return nil, err
+	}
 	if !rc.skipAuthz {
 		if err := authorized(ctx, rc.username, obj.Key.Organization,
 			ResourceResTagTable, ActionManage); err != nil {
@@ -342,6 +351,9 @@ func RemoveResTag(c echo.Context) error {
 
 func RemoveResTagObj(ctx context.Context, rc *RegionContext, obj *edgeproto.ResTagTable) (*edgeproto.Result, error) {
 	log.SetContextTags(ctx, edgeproto.GetTags(obj))
+	if err := obj.IsValidArgsForRemoveResTag(); err != nil {
+		return nil, err
+	}
 	if !rc.skipAuthz {
 		if err := authorized(ctx, rc.username, obj.Key.Organization,
 			ResourceResTagTable, ActionManage); err != nil {
@@ -390,6 +402,9 @@ func GetResTagTable(c echo.Context) error {
 
 func GetResTagTableObj(ctx context.Context, rc *RegionContext, obj *edgeproto.ResTagTableKey) (*edgeproto.ResTagTable, error) {
 	log.SetContextTags(ctx, edgeproto.GetTags(obj))
+	if err := obj.IsValidArgsForGetResTagTable(); err != nil {
+		return nil, err
+	}
 	if !rc.skipAuthz {
 		if err := authorized(ctx, rc.username, "",
 			ResourceResTagTable, ActionManage); err != nil {

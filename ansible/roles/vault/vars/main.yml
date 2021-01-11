@@ -3,6 +3,7 @@ vault_group: vault
 vault_path: /usr/local/bin
 vault_conf: /etc/vault.hcl
 vault_plugin_directory: /etc/vault-plugins
+vault_data_directory: /var/lib/vault
 vault_audit_log: /var/log/vault_audit.log
 vault_logrotate_path: /etc/logrotate.d/vault
 certgen_image: "{{ mex_docker_registry }}/mobiledgex/certgen"

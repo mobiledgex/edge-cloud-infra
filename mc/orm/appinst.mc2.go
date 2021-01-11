@@ -60,6 +60,9 @@ func CreateAppInst(c echo.Context) error {
 
 func CreateAppInstStream(ctx context.Context, rc *RegionContext, obj *edgeproto.AppInst, cb func(res *edgeproto.Result)) error {
 	log.SetContextTags(ctx, edgeproto.GetTags(obj))
+	if err := obj.IsValidArgsForCreateAppInst(); err != nil {
+		return err
+	}
 	if !rc.skipAuthz {
 		if err := authzCreateAppInst(ctx, rc.region, rc.username, obj,
 			ResourceAppInsts, ActionManage); err != nil {
@@ -138,6 +141,9 @@ func DeleteAppInst(c echo.Context) error {
 
 func DeleteAppInstStream(ctx context.Context, rc *RegionContext, obj *edgeproto.AppInst, cb func(res *edgeproto.Result)) error {
 	log.SetContextTags(ctx, edgeproto.GetTags(obj))
+	if err := obj.IsValidArgsForDeleteAppInst(); err != nil {
+		return err
+	}
 	if !rc.skipAuthz {
 		if err := authorized(ctx, rc.username, obj.Key.AppKey.Organization,
 			ResourceAppInsts, ActionManage); err != nil {
@@ -216,6 +222,9 @@ func RefreshAppInst(c echo.Context) error {
 
 func RefreshAppInstStream(ctx context.Context, rc *RegionContext, obj *edgeproto.AppInst, cb func(res *edgeproto.Result)) error {
 	log.SetContextTags(ctx, edgeproto.GetTags(obj))
+	if err := obj.IsValidArgsForRefreshAppInst(); err != nil {
+		return err
+	}
 	if !rc.skipAuthz {
 		if err := authorized(ctx, rc.username, obj.Key.AppKey.Organization,
 			ResourceAppInsts, ActionManage); err != nil {
@@ -294,6 +303,9 @@ func UpdateAppInst(c echo.Context) error {
 
 func UpdateAppInstStream(ctx context.Context, rc *RegionContext, obj *edgeproto.AppInst, cb func(res *edgeproto.Result)) error {
 	log.SetContextTags(ctx, edgeproto.GetTags(obj))
+	if err := obj.IsValidArgsForUpdateAppInst(); err != nil {
+		return err
+	}
 	if !rc.skipAuthz {
 		if err := authorized(ctx, rc.username, obj.Key.AppKey.Organization,
 			ResourceAppInsts, ActionManage); err != nil {
@@ -375,9 +387,6 @@ func ShowAppInstStream(ctx context.Context, rc *RegionContext, obj *edgeproto.Ap
 	var err error
 	if !rc.skipAuthz {
 		authz, err = newShowAuthz(ctx, rc.region, rc.username, ResourceAppInsts, ActionView)
-		if err == echo.ErrForbidden {
-			return nil
-		}
 		if err != nil {
 			return err
 		}

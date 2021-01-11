@@ -4,6 +4,9 @@
     cloudletorg: tmus
     region: local
     scope: Cloudlet
+  annotations:
+    description: Cloudlet resource manager is offline
+    title: CloudletDown
   state: firing
   activeat:
     seconds: 1606856995

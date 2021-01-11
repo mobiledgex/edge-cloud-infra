@@ -1,5 +1,5 @@
 - name: Check if EtcdCluster objects are present
-  k8s_facts:
+  k8s_info:
     kubeconfig: "{{ kubeconfig_file.path }}"
     namespace: default
     api_version: etcd.database.coreos.com/v1beta2
@@ -7,7 +7,7 @@
   register: etcd_cluster_facts
 
 - name: Check if Etcd StatefulSet is present
-  k8s_facts:
+  k8s_info:
     kubeconfig: "{{ kubeconfig_file.path }}"
     namespace: default
     kind: StatefulSet
@@ -16,7 +16,7 @@
   register: etcd_sts_facts
 
 - name: Check if Etcd persistent volume claims are present
-  k8s_facts:
+  k8s_info:
     kubeconfig: "{{ kubeconfig_file.path }}"
     namespace: default
     kind: PersistentVolumeClaim
@@ -48,7 +48,7 @@
     namespace: default
     definition: "{{ lookup('template', 'mex-etcd-client.yml') }}"
 
-- k8s_facts:
+- k8s_info:
     kubeconfig: "{{ kubeconfig_file.path }}"
     namespace: default
     kind: StatefulSet

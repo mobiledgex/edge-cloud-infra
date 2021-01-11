@@ -56,11 +56,17 @@ var promHealthCheckAlerts = `groups:
     labels:
       ` + cloudcommon.AlertHealthCheckStatus + ": " + strconv.Itoa(int(edgeproto.HealthCheck_HEALTH_CHECK_FAIL_ROOTLB_OFFLINE)) + `
       ` + cloudcommon.AlertScopeTypeTag + ": " + cloudcommon.AlertScopeApp + `
+    annotations:
+      ` + cloudcommon.AlertAnnotationTitle + ": " + cloudcommon.AlertAppInstDown + `
+      ` + cloudcommon.AlertAnnotationDescription + ": Root Load Balancer is not responding" + `
   - alert: ` + cloudcommon.AlertAppInstDown + `
     expr: envoy_cluster_health_check_healthy == 0
     labels:
       ` + cloudcommon.AlertHealthCheckStatus + ": " + strconv.Itoa(int(edgeproto.HealthCheck_HEALTH_CHECK_FAIL_SERVER_FAIL)) + `
-      ` + cloudcommon.AlertScopeTypeTag + ": " + cloudcommon.AlertScopeApp
+      ` + cloudcommon.AlertScopeTypeTag + ": " + cloudcommon.AlertScopeApp + `
+    annotations:
+      ` + cloudcommon.AlertAnnotationTitle + ": " + cloudcommon.AlertAppInstDown + `
+      ` + cloudcommon.AlertAnnotationDescription + ": Application server port is not responding"
 
 type targetData struct {
 	MetricsProxyAddr string
@@ -113,6 +119,8 @@ func writePrometheusTargetsFile(ctx context.Context, key interface{}) {
 	err := ioutil.WriteFile(*promTargetsFile, []byte(targets), 0644)
 	if err != nil {
 		log.SpanLog(ctx, log.DebugLevelInfo, "Failed to write prom targets file", "file", *promTargetsFile, "err", err)
+	} else {
+		log.SpanLog(ctx, log.DebugLevelInfo, "Wrote prom targets file", "file", *promTargetsFile)
 	}
 	if runtime.GOOS == "darwin" {
 		// probably because of the way docker uses VMs on mac,
@@ -123,6 +131,9 @@ func writePrometheusTargetsFile(ctx context.Context, key interface{}) {
 		if err != nil {
 			log.SpanLog(ctx, log.DebugLevelInfo, "Failed to touch prom targets file in container to trigger refresh in Prometheus", "out", string(out), "err", err)
 		}
+		// touch above is sometimes insufficient, so force prometheus
+		// to re-read the rules file
+		reloadCloudletProm(ctx)
 	}
 }
 

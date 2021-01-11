@@ -57,6 +57,9 @@ func CreateAutoProvPolicy(c echo.Context) error {
 
 func CreateAutoProvPolicyObj(ctx context.Context, rc *RegionContext, obj *edgeproto.AutoProvPolicy) (*edgeproto.Result, error) {
 	log.SetContextTags(ctx, edgeproto.GetTags(obj))
+	if err := obj.IsValidArgsForCreateAutoProvPolicy(); err != nil {
+		return nil, err
+	}
 	if !rc.skipAuthz {
 		if err := authzCreateAutoProvPolicy(ctx, rc.region, rc.username, obj,
 			ResourceDeveloperPolicy, ActionManage); err != nil {
@@ -107,6 +110,9 @@ func DeleteAutoProvPolicy(c echo.Context) error {
 
 func DeleteAutoProvPolicyObj(ctx context.Context, rc *RegionContext, obj *edgeproto.AutoProvPolicy) (*edgeproto.Result, error) {
 	log.SetContextTags(ctx, edgeproto.GetTags(obj))
+	if err := obj.IsValidArgsForDeleteAutoProvPolicy(); err != nil {
+		return nil, err
+	}
 	if !rc.skipAuthz {
 		if err := authorized(ctx, rc.username, obj.Key.Organization,
 			ResourceDeveloperPolicy, ActionManage); err != nil {
@@ -157,6 +163,9 @@ func UpdateAutoProvPolicy(c echo.Context) error {
 
 func UpdateAutoProvPolicyObj(ctx context.Context, rc *RegionContext, obj *edgeproto.AutoProvPolicy) (*edgeproto.Result, error) {
 	log.SetContextTags(ctx, edgeproto.GetTags(obj))
+	if err := obj.IsValidArgsForUpdateAutoProvPolicy(); err != nil {
+		return nil, err
+	}
 	if !rc.skipAuthz {
 		if err := authzUpdateAutoProvPolicy(ctx, rc.region, rc.username, obj,
 			ResourceDeveloperPolicy, ActionManage); err != nil {
@@ -215,9 +224,6 @@ func ShowAutoProvPolicyStream(ctx context.Context, rc *RegionContext, obj *edgep
 	var err error
 	if !rc.skipAuthz {
 		authz, err = newShowAuthz(ctx, rc.region, rc.username, ResourceDeveloperPolicy, ActionView)
-		if err == echo.ErrForbidden {
-			return nil
-		}
 		if err != nil {
 			return err
 		}
@@ -294,6 +300,9 @@ func AddAutoProvPolicyCloudlet(c echo.Context) error {
 
 func AddAutoProvPolicyCloudletObj(ctx context.Context, rc *RegionContext, obj *edgeproto.AutoProvPolicyCloudlet) (*edgeproto.Result, error) {
 	log.SetContextTags(ctx, edgeproto.GetTags(obj))
+	if err := obj.IsValidArgsForAddAutoProvPolicyCloudlet(); err != nil {
+		return nil, err
+	}
 	if !rc.skipAuthz {
 		if err := authzAddAutoProvPolicyCloudlet(ctx, rc.region, rc.username, obj,
 			ResourceDeveloperPolicy, ActionManage); err != nil {
@@ -344,6 +353,9 @@ func RemoveAutoProvPolicyCloudlet(c echo.Context) error {
 
 func RemoveAutoProvPolicyCloudletObj(ctx context.Context, rc *RegionContext, obj *edgeproto.AutoProvPolicyCloudlet) (*edgeproto.Result, error) {
 	log.SetContextTags(ctx, edgeproto.GetTags(obj))
+	if err := obj.IsValidArgsForRemoveAutoProvPolicyCloudlet(); err != nil {
+		return nil, err
+	}
 	if !rc.skipAuthz {
 		if err := authorized(ctx, rc.username, obj.Key.Organization,
 			ResourceDeveloperPolicy, ActionManage); err != nil {

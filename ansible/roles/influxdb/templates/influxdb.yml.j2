@@ -1,9 +1,16 @@
-apiVersion: extensions/v1beta1
+apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: {{ influxdb_name }}
+  labels:
+    task: monitoring
+    k8s-app: influxdb
 spec:
   replicas: 1
+  selector:
+    matchLabels:
+      task: monitoring
+      k8s-app: influxdb
   template:
     metadata:
       labels:

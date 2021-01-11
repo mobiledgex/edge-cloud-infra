@@ -106,6 +106,31 @@ module "vault_b_dns" {
   ip       = module.vault_b.external_ip
 }
 
+module "vault_c" {
+  source              = "../../modules/vm_gcp"
+
+  instance_name       = "${var.vault_c_vm_name}"
+  environ_tag         = "${var.environ_tag}"
+  zone                = "${var.vault_c_gcp_zone}"
+  boot_disk_size      = 20
+  tags                = [
+    "mexplat-${var.environ_tag}",
+    "vault-ac",
+    "${module.fw_vault_gcp.target_tag}"
+  ]
+  labels              = {
+    "environ"         = "${var.environ_tag}",
+    "vault"           = "true",
+    "owner"           = "ops",
+  }
+}
+
+module "vault_c_dns" {
+  source                        = "../../modules/cloudflare_record"
+  hostname                      = "${var.vault_c_domain_name}"
+  ip                            = "${module.vault_c.external_ip}"
+}
+
 # VM for console
 module "console" {
   source = "../../modules/vm_gcp"
@@ -124,6 +149,7 @@ module "console" {
     "mc-notify-${var.environ_tag}",
     "notifyroot",
     "alertmanager",
+    "stun-turn",
   ]
   labels = {
     "environ" = var.environ_tag

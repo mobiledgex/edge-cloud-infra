@@ -21,7 +21,7 @@
   loop_control:
     loop_var: manifest
 
-- k8s_facts:
+- k8s_info:
     kubeconfig: "{{ kubeconfig_file.path }}"
     kind: Service
     name: ingress-nginx

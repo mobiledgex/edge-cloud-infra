@@ -539,15 +539,17 @@ func {{.MethodName}}Obj(ctx context.Context, rc *RegionContext, obj *edgeproto.{
 	{{- /* don't set tags for show because create/etc may call shows, which end up adding unnecessary blank tags */}}
 	log.SetContextTags(ctx, edgeproto.GetTags(obj))
 {{- end}}
+{{- if (ne .Action "ActionView")}}
+	if err := obj.IsValidArgsFor{{.MethodName}}(); err != nil {
+		return {{.ReturnErrArg}}err
+	}
+{{- end}}
 {{- if (not .SkipEnforce)}}
 {{- if and .Show .CustomAuthz}}
 	var authz {{.MethodName}}Authz
 	var err error
 	if !rc.skipAuthz {
 		authz, err = new{{.MethodName}}Authz(ctx, rc.region, rc.username, {{.Resource}}, {{.Action}})
-		if err == echo.ErrForbidden {
-			return {{.ReturnErrArg}}nil
-		}
 		if err != nil {
 			return {{.ReturnErrArg}}err
 		}
@@ -557,9 +559,6 @@ func {{.MethodName}}Obj(ctx context.Context, rc *RegionContext, obj *edgeproto.{
 	var err error
 	if !rc.skipAuthz {
 		authz, err = newShowAuthz(ctx, rc.region, rc.username, {{.Resource}}, {{.Action}})
-		if err == echo.ErrForbidden {
-			return {{.ReturnErrArg}}nil
-		}
 		if err != nil {
 			return {{.ReturnErrArg}}err
 		}

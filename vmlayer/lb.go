@@ -313,6 +313,7 @@ func (v *VMPlatform) GetVMSpecForRootLB(ctx context.Context, rootLbName string, 
 	chefAttributes["tags"] = tags
 	clientName := v.GetChefClientName(rootLbName)
 	chefParams := v.GetVMChefParams(clientName, "", chefmgmt.ChefPolicyBase, chefAttributes)
+
 	return v.GetVMRequestSpec(ctx,
 		VMTypeRootLB,
 		rootLbName,
@@ -349,7 +350,6 @@ func (v *VMPlatform) CreateRootLB(
 	tags []string,
 	updateCallback edgeproto.CacheUpdateCallback,
 ) error {
-
 	log.SpanLog(ctx, log.DebugLevelInfra, "create rootlb", "name", rootLBName, "action", action)
 	if action == ActionCreate {
 		_, err := v.VMProvider.GetServerDetail(ctx, rootLBName)
@@ -379,7 +379,7 @@ func (v *VMPlatform) CreateRootLB(
 func (v *VMPlatform) SetupRootLB(
 	ctx context.Context, rootLBName string,
 	cloudletKey *edgeproto.CloudletKey,
-	privacyPolicy *edgeproto.PrivacyPolicy,
+	TrustPolicy *edgeproto.TrustPolicy,
 	updateCallback edgeproto.CacheUpdateCallback,
 ) error {
 	log.SpanLog(ctx, log.DebugLevelInfra, "SetupRootLB", "rootLBName", rootLBName)
@@ -403,6 +403,8 @@ func (v *VMPlatform) SetupRootLB(
 	if err != nil {
 		return err
 	}
+	// TODO: this should eventually be removed when all providers use
+	// cloudlet level rules (TrustPolicy) that does the whitelist at the cloudlet level
 	myIp, err := infracommon.GetExternalPublicAddr(ctx)
 	if err != nil {
 		// this is not necessarily fatal
@@ -465,7 +467,7 @@ func (v *VMPlatform) SetupRootLB(
 	log.SpanLog(ctx, log.DebugLevelInfra, "DNS A record activated", "name", rootLBName)
 
 	// perform provider specific prep of the rootLB
-	return v.VMProvider.PrepareRootLB(ctx, client, rootLBName, GetServerSecurityGroupName(rootLBName), privacyPolicy)
+	return v.VMProvider.PrepareRootLB(ctx, client, rootLBName, GetServerSecurityGroupName(rootLBName), TrustPolicy)
 }
 
 // This function copies resource-tracker from crm to rootLb - we need this to provide docker metrics
@@ -509,4 +511,63 @@ func GetChefRootLBTags(platformConfig *platform.PlatformConfig) []string {
 		"cloudletorg/" + platformConfig.CloudletKey.Organization,
 		"vmtype/" + string(VMTypeRootLB),
 	}
+}
+
+func (v *VMPlatform) GetRootLBClients(ctx context.Context) (map[string]ssh.Client, error) {
+	if v.Caches == nil {
+		return nil, fmt.Errorf("caches is nil")
+	}
+	rootLBClients := make(map[string]ssh.Client)
+	clusterInstKeys := []edgeproto.ClusterInstKey{}
+	v.Caches.ClusterInstCache.GetAllKeys(ctx, func(k *edgeproto.ClusterInstKey, modRev int64) {
+		clusterInstKeys = append(clusterInstKeys, *k)
+	})
+	for _, k := range clusterInstKeys {
+		var clusterInst edgeproto.ClusterInst
+		if v.Caches.ClusterInstCache.Get(&k, &clusterInst) {
+			if clusterInst.IpAccess == edgeproto.IpAccess_IP_ACCESS_DEDICATED {
+				lbName := v.VMProperties.GetRootLBNameForCluster(ctx, &clusterInst)
+				client, err := v.GetClusterPlatformClient(ctx, &clusterInst, cloudcommon.ClientTypeRootLB)
+				if err != nil {
+					log.SpanLog(ctx, log.DebugLevelInfra, "failed to get rootLB client for dedicated cluster", "key", clusterInst.Key, "error", err)
+					// set client as nil and continue, caller will generate alert accordingly
+					client = nil
+				}
+				rootLBClients[lbName] = client
+			}
+		}
+	}
+
+	apps := make(map[edgeproto.AppKey]struct{})
+	v.Caches.AppCache.GetAllKeys(ctx, func(k *edgeproto.AppKey, modRev int64) {
+		apps[*k] = struct{}{}
+	})
+	for k := range apps {
+		var app edgeproto.App
+		if v.Caches.AppCache.Get(&k, &app) {
+			if app.Deployment == cloudcommon.DeploymentTypeVM && app.AccessType == edgeproto.AccessType_ACCESS_TYPE_LOAD_BALANCER {
+				continue
+			}
+		}
+		delete(apps, k)
+	}
+
+	appInstKeys := []edgeproto.AppInstKey{}
+	v.Caches.AppInstCache.GetAllKeys(ctx, func(k *edgeproto.AppInstKey, modRev int64) {
+		appInstKeys = append(appInstKeys, *k)
+	})
+	for _, k := range appInstKeys {
+		if _, ok := apps[k.AppKey]; !ok {
+			continue
+		}
+		lbName := cloudcommon.GetVMAppFQDN(&k, &k.ClusterInstKey.CloudletKey, v.VMProperties.CommonPf.PlatformConfig.AppDNSRoot)
+		client, err := v.GetSSHClientForServer(ctx, lbName, v.VMProperties.GetCloudletExternalNetwork())
+		if err != nil {
+			log.SpanLog(ctx, log.DebugLevelInfra, "failed to get rootLB client for VM app instance", "key", k, "error", err)
+			client = nil
+			// set client as nil and continue, caller will generate alert accordingly
+		}
+		rootLBClients[lbName] = client
+	}
+	return rootLBClients, nil
 }

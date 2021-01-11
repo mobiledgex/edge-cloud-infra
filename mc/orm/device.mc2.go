@@ -55,6 +55,9 @@ func InjectDevice(c echo.Context) error {
 
 func InjectDeviceObj(ctx context.Context, rc *RegionContext, obj *edgeproto.Device) (*edgeproto.Result, error) {
 	log.SetContextTags(ctx, edgeproto.GetTags(obj))
+	if err := obj.IsValidArgsForInjectDevice(); err != nil {
+		return nil, err
+	}
 	if !rc.skipAuthz {
 		if err := authorized(ctx, rc.username, "",
 			ResourceConfig, ActionManage); err != nil {
@@ -112,9 +115,6 @@ func ShowDeviceStream(ctx context.Context, rc *RegionContext, obj *edgeproto.Dev
 	var err error
 	if !rc.skipAuthz {
 		authz, err = newShowAuthz(ctx, rc.region, rc.username, ResourceConfig, ActionView)
-		if err == echo.ErrForbidden {
-			return nil
-		}
 		if err != nil {
 			return err
 		}
@@ -190,6 +190,9 @@ func EvictDevice(c echo.Context) error {
 
 func EvictDeviceObj(ctx context.Context, rc *RegionContext, obj *edgeproto.Device) (*edgeproto.Result, error) {
 	log.SetContextTags(ctx, edgeproto.GetTags(obj))
+	if err := obj.IsValidArgsForEvictDevice(); err != nil {
+		return nil, err
+	}
 	if !rc.skipAuthz {
 		if err := authorized(ctx, rc.username, "",
 			ResourceConfig, ActionManage); err != nil {
@@ -247,9 +250,6 @@ func ShowDeviceReportStream(ctx context.Context, rc *RegionContext, obj *edgepro
 	var err error
 	if !rc.skipAuthz {
 		authz, err = newShowAuthz(ctx, rc.region, rc.username, ResourceConfig, ActionView)
-		if err == echo.ErrForbidden {
-			return nil
-		}
 		if err != nil {
 			return err
 		}

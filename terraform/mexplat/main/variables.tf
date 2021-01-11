@@ -85,6 +85,18 @@ variable "vault_b_domain_name" {
   default = "vault-main-b.mobiledgex.net"
 }
 
+variable "vault_c_vm_name" {
+  default     = "vault-main-c"
+}
+
+variable "vault_c_gcp_zone" {
+  default     = "asia-east1-b"
+}
+
+variable "vault_c_domain_name" {
+  default     = "vault-main-c.mobiledgex.net"
+}
+
 variable "console_instance_name" {
   default = "console-main"
 }

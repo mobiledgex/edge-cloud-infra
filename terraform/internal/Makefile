@@ -1,5 +1,4 @@
 ANSIBLE_ROOT		= ../../../ansible
-ANSIBLE_TFVARS		= ansible.auto.tfvars
 INIT_DONE_FLAG		= .terraform.init.done
 TFWRAP			= ../tfwrap
 
@@ -20,6 +19,6 @@ deploy: init
 	terraform apply
 
 clean:
-	$(RM) $(INIT)
+	$(RM) $(INIT_DONE_FLAG)
 
 FORCE:

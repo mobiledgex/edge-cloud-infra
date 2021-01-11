@@ -41,7 +41,7 @@ module "influxdb" {
   instance_size  = "custom-1-4864"
   zone           = var.gcp_zone
   boot_disk_size = 100
-  tags           = ["internal", "influxdb", "http-server", "https-server", "mosh-default"]
+  tags           = ["mexplat-internal", "influxdb", "http-server", "https-server", "mosh-default"]
   labels = {
     "owner" = "venky"
   }
@@ -67,7 +67,7 @@ module "jaeger" {
   instance_size  = "custom-1-7680-ext"
   zone           = var.jaeger_gcp_zone
   boot_disk_size = 20
-  tags           = ["mexplat-${var.environ_tag}", "http-server", "https-server", "jaeger"]
+  tags           = ["mexplat-internal", "http-server", "https-server", "jaeger"]
   labels = {
     "owner" = "ops"
   }
@@ -94,7 +94,7 @@ module "apt" {
   zone           = var.gcp_zone
   boot_disk_size = 1024
   tags           = [
-		"mexplat-${var.environ_tag}",
+		"mexplat-internal",
 		"infra",
 		"http-server",
 		"https-server",
@@ -118,7 +118,7 @@ module "backups" {
   environ_tag    = var.environ_tag
   zone           = var.gcp_zone
   boot_disk_size = 1024
-  tags           = ["mexplat-${var.environ_tag}", "infra", "docker-registry"]
+  tags           = ["mexplat-internal", "infra", "docker-registry"]
   labels = {
     "owner" = "ops"
   }
@@ -139,7 +139,7 @@ module "chef" {
   zone           = var.chef_zone
   boot_image     = "ubuntu-1604-xenial-v20200407"
   boot_disk_size = 100
-  tags           = ["mexplat-${var.environ_tag}", "http-server", "https-server"]
+  tags           = ["mexplat-internal", "http-server", "https-server"]
   labels = {
     "owner" = "ops"
   }
@@ -159,7 +159,7 @@ module "monitor" {
   instance_size       = "custom-1-5376"
   zone                = var.monitor_zone
   boot_disk_size      = 100
-  tags                = ["mexplat-${var.environ_tag}", "http-server", "https-server"]
+  tags                = ["mexplat-internal", "http-server", "https-server"]
   labels = {
     "owner" = "venky"
   }
@@ -170,4 +170,3 @@ module "monitor_dns" {
   hostname = var.monitor_domain_name
   ip       = module.monitor.external_ip
 }
-

@@ -7,6 +7,7 @@ import os
 import requests
 import subprocess
 import sys
+import tempfile
 
 DEF_VAULT = os.environ.get("VAULT_ADDR",
                            "https://vault-main.mobiledgex.net")
@@ -91,9 +92,13 @@ if __name__ == "__main__":
               "terraform_service_principal_secret"):
         tfvars[f"TF_VAR_azure_{p}"] = az[p]
 
+    az_storage = vault.get("secret/ansible/common/accounts/azure_terraform").json()["data"]["data"]
+
     cf = vault.get("secret/ansible/common/accounts/cloudflare").json()["data"]["data"]
     tfvars["TF_VAR_cloudflare_account_email"] = cf["user"]
     tfvars["TF_VAR_cloudflare_account_api_token"] = cf["pass"]
+
+    gcp = vault.get("secret/ansible/common/accounts/gcp_terraform").json()["data"]["data"]
 
     command = [ args.terraform, args.operation ] + args.args
 
@@ -104,5 +109,12 @@ if __name__ == "__main__":
     env = os.environ.copy()
     for v in tfvars:
         env[v] = tfvars[v]
+    env["ARM_ACCESS_KEY"] = az_storage["access_key"]
 
-    subprocess.call(command, env=env)
+    with tempfile.TemporaryDirectory() as tmpdir:
+        gcp_creds = os.path.join(tmpdir, "gcp_creds.json")
+        with open(gcp_creds, "w") as f:
+            f.write(json.dumps(gcp))
+        env["GOOGLE_APPLICATION_CREDENTIALS"] = gcp_creds
+
+        subprocess.check_call(command, env=env)

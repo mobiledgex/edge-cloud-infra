@@ -39,7 +39,7 @@
     state: absent
 
 - name: Wait for etcd cluster to come down
-  k8s_facts:
+  k8s_info:
     kubeconfig: "{{ kubeconfig_file.path }}"
     namespace: default
     kind: StatefulSet

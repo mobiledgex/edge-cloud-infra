@@ -54,6 +54,15 @@
 
       tags: console
 
+- name: Check gitlab version
+  hosts:
+    - gitlab
+  gather_facts: no
+  tasks:
+    - import_role:
+        name: gitlab
+        tasks_from: version-check
+
 - name: Set up vault auth, policies, and roles
   import_playbook: vault-setup.yml
   tags: vault-setup

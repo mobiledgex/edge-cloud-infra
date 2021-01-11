@@ -7,6 +7,12 @@
     vault_slack_webhook_path: secret/ansible/common/accounts/slack_webhooks/support
 
   tasks:
+    - import_role:
+        name: telegraf
+      tags:
+        - monitoring
+        - setup
+
     - include_role: name="docker"
       tags: setup
 

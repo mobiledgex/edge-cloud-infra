@@ -31,4 +31,4 @@
 
   when:
     - global_dme_dns is defined
-    - dme_details
+    - dme_details|bool

@@ -1,0 +1,6 @@
+- name: Get package versions
+  package_facts:
+
+- name: "Ensure that gitlab version is {{ gitlab_version }}"
+  assert:
+    that: ansible_facts.packages['gitlab-ee'][0]['version'] == gitlab_version

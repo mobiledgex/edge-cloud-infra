@@ -58,10 +58,8 @@ func newChargifyReq(method, endpoint string, payload interface{}) (*http.Respons
 		if err != nil {
 			return nil, fmt.Errorf("Could not marshal %+v, err: %v", payload, err)
 		}
-		fmt.Printf("qwerty %s request:\nurl: %s\nbody: %+v\n", method, url, string(marshalled))
 		body = bytes.NewReader(marshalled)
 	} else {
-		fmt.Printf("qwerty %s request:\nurl: %s\n no body\n", method, url)
 		body = strings.NewReader("{}")
 	}
 	req, err := http.NewRequest(method, url, body)

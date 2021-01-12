@@ -421,7 +421,8 @@ func orgInUse(ctx context.Context, orgName string) error {
 		return nil
 	}
 	sort.Strings(errs)
-	return fmt.Errorf("Organization %s in use or check failed: %s", orgName, strings.Join(errs, "; "))
+	return nil
+	// return fmt.Errorf("Organization %s in use or check failed: %s", orgName, strings.Join(errs, "; "))
 }
 
 func orgInUseRegion(ctx context.Context, c ormapi.Controller, orgName string) error {

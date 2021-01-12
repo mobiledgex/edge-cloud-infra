@@ -25,6 +25,9 @@ func CollectBillingUsage(ctx context.Context, collectInterval time.Duration) {
 	for {
 		select {
 		case <-time.After(nextCollectTime.Sub(time.Now())):
+			if !billingEnabled(ctx) {
+				continue
+			}
 			span := log.StartSpan(log.DebugLevelInfo, "Billing usage collection thread", opentracing.ChildOf(log.SpanFromContext(ctx).Context()))
 			controllers, err := ShowControllerObj(ctx, nil)
 			if err != nil {

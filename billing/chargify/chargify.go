@@ -20,27 +20,22 @@ type accountCreds struct {
 	Url    string `json:"url"`
 }
 
-func (bs *BillingService) Init(ctx context.Context, vaultConfig *vault.Config, path string) error {
+func (bs *BillingService) Init(ctx context.Context, vaultConfig *vault.Config) error {
 	creds := accountCreds{}
-	err := vault.GetData(vaultConfig, vaultPath+path, 0, &creds)
-	if err != nil && !strings.Contains(err.Error(), "no secrets") {
-		return err
-	}
+	err := vault.GetData(vaultConfig, vaultPath, 0, &creds)
 	apiKey = creds.ApiKey
 	siteName = creds.Url
-
-	// if the creds weren't in vault check env vars
-	if apiKey == "" {
-		apiKey = os.Getenv("CHARGIFY_API_KEY")
-	}
-	if apiKey == "" {
-		return fmt.Errorf("unable to get apiKey")
-	}
-	if siteName == "" {
-		siteName = os.Getenv("CHARGIFY_SITE_NAME")
-	}
-	if siteName == "" {
-		return fmt.Errorf("unable to get siteName")
+	if err != nil {
+		// if the creds weren't in vault check env vars
+		if apiKey == "" {
+			apiKey = os.Getenv("CHARGIFY_API_KEY")
+		}
+		if siteName == "" {
+			siteName = os.Getenv("CHARGIFY_SITE_NAME")
+		}
+		if apiKey == "" || siteName == "" {
+			return err
+		}
 	}
 
 	// since we can potentially be sending stuff like credit card info, make sure the url is secure
@@ -63,8 +58,10 @@ func newChargifyReq(method, endpoint string, payload interface{}) (*http.Respons
 		if err != nil {
 			return nil, fmt.Errorf("Could not marshal %+v, err: %v", payload, err)
 		}
+		fmt.Printf("qwerty %s request:\nurl: %s\nbody: %+v\n", method, url, string(marshalled))
 		body = bytes.NewReader(marshalled)
 	} else {
+		fmt.Printf("qwerty %s request:\nurl: %s\n no body\n", method, url)
 		body = strings.NewReader("{}")
 	}
 	req, err := http.NewRequest(method, url, body)

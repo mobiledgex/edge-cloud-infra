@@ -33,7 +33,7 @@ func (v *VcdPlatform) CreateVApp(ctx context.Context, vappTmpl *govcd.VAppTempla
 	vappName := vmgp.GroupName + "-vapp"
 	vapp, err = v.FindVApp(ctx, vappName)
 	if err == nil {
-		log.SpanLog(ctx, log.DebugLevelInfra, "CreateVApp vapp", "name", vmgp.GroupName, "vapp", vapp)
+		log.SpanLog(ctx, log.DebugLevelInfra, "CreateVApp vapp alredy exists", "name", vmgp.GroupName, "vapp", vapp)
 		return vapp, nil
 	}
 
@@ -49,6 +49,9 @@ func (v *VcdPlatform) CreateVApp(ctx context.Context, vappTmpl *govcd.VAppTempla
 
 	// MEX_EXT_NET
 	vdcNet, err := v.GetExtNetwork(ctx)
+	if err != nil {
+		log.SpanLog(ctx, log.DebugLevelInfra, "CreateVApp failed to retrieve our external network", "name", vmgp.GroupName, "vapp", vapp, "err", err)
+	}
 	networks := []*types.OrgVDCNetwork{}
 	networks = append(networks, vdcNet.OrgVDCNetwork)
 
@@ -128,8 +131,12 @@ func (v *VcdPlatform) CreateVApp(ctx context.Context, vappTmpl *govcd.VAppTempla
 	if v.Verbose {
 		// govcd.ShowVapp(*vapp.VApp) its... quite large
 	}
-	log.SpanLog(ctx, log.DebugLevelInfra, "CreateVApp composed Powering On DUMP! ", "Vapp", vappName)
-	v.refreshVappNets(ctx, vapp)
+	log.SpanLog(ctx, log.DebugLevelInfra, "CreateVApp composed Powering On", "Vapp", vappName)
+	err = v.refreshVappNets(ctx, vapp)
+	if err != nil {
+		log.SpanLog(ctx, log.DebugLevelInfra, "refreshVappNets failed", "err", err)
+		return nil, err
+	}
 	task, err = vapp.PowerOn()
 	if err != nil {
 		log.SpanLog(ctx, log.DebugLevelInfra, "power on  failed ", "VAppName", vapp.VApp.Name, "err", err)
@@ -168,9 +175,18 @@ func (v *VcdPlatform) LogVappVMsStatus(ctx context.Context, vapp *govcd.VApp) {
 
 func (v *VcdPlatform) DeleteVapp(ctx context.Context, vapp *govcd.VApp) error {
 
+	// are we being asked to delete vm or vapp (do we ever get asked to delete a single VM?)
 	vappName := vapp.VApp.Name
 
 	log.SpanLog(ctx, log.DebugLevelInfra, "DeleteVapp", "name", vappName)
+
+	// First, does this guy even exist?
+	// If not, ok, its deleted
+	vapp, err := v.FindVApp(ctx, vappName)
+	if err != nil {
+		log.SpanLog(ctx, log.DebugLevelInfra, "DeleteVapp vapp not found return success", "vapp", vappName)
+		return nil
+	}
 
 	status, err := vapp.GetStatus()
 	if err != nil {
@@ -276,7 +292,7 @@ func (v *VcdPlatform) populateProductSection(ctx context.Context, vm *govcd.VM, 
 		props = append(props, makeProp("user-data", udata))
 	}
 
-	log.SpanLog(ctx, log.DebugLevelInfra, "populateProdcutSection", "name", vmparams.Name, "role", vmparams.Role)
+	log.SpanLog(ctx, log.DebugLevelInfra, "populateProductSection", "name", vmparams.Name, "role", vmparams.Role)
 	role := vmparams.Role
 	props = append(props, makeProp("ROLE", string(role)))
 	skipk8s := vmlayer.SkipK8sYes

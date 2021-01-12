@@ -19,13 +19,6 @@ var vmsCreateLock sync.Mutex
 
 // VM related operations
 
-// still need to return the goods uncached
-//
-//      Turn off USE_REFACTOR and make 2 be Find and test. Should be equiv.... XXX Thurday AM !!!!
-//
-//      renamed, use refact off, let see sparks, well, diff sigs, so
-//      have the
-
 // Just the vapp name and serverName
 func (v *VcdPlatform) FindVM(ctx context.Context, serverName, vappName string) (*govcd.VM, error) {
 
@@ -59,12 +52,12 @@ func (v *VcdPlatform) FindVMByName(ctx context.Context, serverName string) (*gov
 
 		vapp, err := vdc.GetVAppByHref(vappRef.HREF)
 		if err != nil {
-			log.SpanLog(ctx, log.DebugLevelInfra, "GetVappByHref failed", "vapp.HREF", vappRef.HREF)
+			log.SpanLog(ctx, log.DebugLevelInfra, "GetVappByHref failed", "vapp.HREF", vappRef.HREF, "err", err)
 			continue
 		}
 		vm, err = vapp.GetVMByName(serverName, true)
 		if err == nil {
-			log.SpanLog(ctx, log.DebugLevelInfra, "FindVMByName found", "vmName", serverName, "vappName", vapp.VApp.Name)
+			log.SpanLog(ctx, log.DebugLevelInfra, "FindVMByName found", "vmName", serverName, "vappName", vapp.VApp.Name, "err", err)
 			return vm, nil
 		}
 	}
@@ -96,53 +89,7 @@ func (v *VcdPlatform) IsDhcpEnabled(ctx context.Context, net *govcd.OrgVDCNetwor
 	return false
 }
 
-// Per VMRequestSpec/VM
-func (v *VcdPlatform) PopulateVMNetConnectSection(ctx context.Context, vmparams *vmlayer.VMOrchestrationParams) (*types.NetworkConnectionSection, error) {
-
-	netConnectSec := &types.NetworkConnectionSection{}
-	log.SpanLog(ctx, log.DebugLevelInfra, "PopulateVMNetConnectSection ", "name", vmparams.Name, "role", vmparams.Role)
-	if vmparams.Role == vmlayer.RoleVMPlatform || vmparams.Role == vmlayer.RoleAgent {
-
-		netConnectSec := &types.NetworkConnectionSection{}
-		netConnectSec.PrimaryNetworkConnectionIndex = 0
-
-		netConnectSec.NetworkConnection = append(netConnectSec.NetworkConnection,
-			&types.NetworkConnection{
-				IsConnected:             true,
-				IPAddressAllocationMode: types.IPAllocationModeManual,
-				Network:                 v.GetExtNetworkName(),
-			},
-		)
-	}
-	return netConnectSec, nil
-}
-
-// Given an org, vm, catalog name, and meida name, insert the media into the vm
-/*
-func (v *VcdPlatform) InsertMediaToVM(ctx context.Context, catalogName, mediaName string, vm *govcd.VM) error {
-
-	if vm == nil {
-		return fmt.Errorf("Encountered nil vm")
-	}
-	// xxx think about multiple []catNames and look in them all...
-	log.SpanLog(ctx, log.DebugLevelInfra, "InsertMediaToVM", "VM", vm.VM.Name, "media", mediaName)
-	_, err := vm.HandleInsertMedia(v.Objs.Org, catalogName, mediaName)
-	if err != nil {
-		return fmt.Errorf("Error inserting %s from %s to vm %s org %s err %s",
-			mediaName, catalogName, vm.VM.Name, v.Objs.Org.Org.Name, err.Error())
-	}
-	return nil
-}
-*/
-
-// vm_types.go has the recompose bits for whatever reason...
-func (v *VcdPlatform) PopulateRecomposeParamsFromOrchParams(ctx context.Context, vmparams *vmlayer.VMOrchestrationParams) (*types.RecomposeVAppParamsForEmptyVm, error) {
-	recompParams := &types.RecomposeVAppParamsForEmptyVm{}
-	return recompParams, nil
-}
-
-// part of the new refactor,
-func (v *VcdPlatform) RetrieveTemlate(ctx context.Context) (*govcd.VAppTemplate, error) {
+func (v *VcdPlatform) RetrieveTemplate(ctx context.Context) (*govcd.VAppTemplate, error) {
 
 	// Prefer an envVar, fall back to property
 	tmplName := v.GetTemplateName()
@@ -154,7 +101,7 @@ func (v *VcdPlatform) RetrieveTemlate(ctx context.Context) (*govcd.VAppTemplate,
 	}
 	tmpl, err := v.FindTemplate(ctx, tmplName)
 	if err != nil {
-		log.SpanLog(ctx, log.DebugLevelInfra, "Template not found locally", "template", tmplName)
+		log.SpanLog(ctx, log.DebugLevelInfra, "Template not found locally", "template", tmplName, "err", err)
 		return nil, err
 	}
 	// The way we look for templates this should never trigger, but just in case
@@ -179,7 +126,7 @@ func (v *VcdPlatform) CreateVMs(ctx context.Context, vmgp *vmlayer.VMGroupOrches
 		return err
 	}
 
-	tmpl, err := v.RetrieveTemlate(ctx)
+	tmpl, err := v.RetrieveTemplate(ctx)
 	if err != nil {
 		return err
 	}
@@ -203,8 +150,6 @@ func (v *VcdPlatform) CreateVMs(ctx context.Context, vmgp *vmlayer.VMGroupOrches
 
 	return nil
 }
-
-// Create VMs according to their role/type and names
 
 // updates of a vm that is 'shared' across multiple vapps
 // balks at being modified "can't modify disk of a vm with snapshots"
@@ -287,7 +232,11 @@ func (v *VcdPlatform) AddVMsToVApp(ctx context.Context, vapp *govcd.VApp, vmgp *
 			lbvm = vm
 			vmIp = baseAddr
 		} else {
-			vmIp = v.IncrIP(ctx, baseAddr, 100+(n-1))
+			vmIp, err = IncrIP(ctx, baseAddr, 100+(n-1))
+			if err != nil {
+				log.SpanLog(ctx, log.DebugLevelInfra, "IncrIP failed", "baseAddr", baseAddr, "delta", 100+(n-1), "err", err)
+				return err
+			}
 			ncs.PrimaryNetworkConnectionIndex = 0
 		}
 		// some unique key within the vapp
@@ -355,13 +304,6 @@ func (v *VcdPlatform) guestCustomization(ctx context.Context, vm govcd.VM, vmpar
 
 	log.SpanLog(ctx, log.DebugLevelInfra, "guestCustomization ", "VM", vm.VM.Name, "HostName", vmparams.HostName)
 	vm.VM.GuestCustomizationSection.ComputerName = vmparams.HostName
-	/*
-		if subnet != "" {
-			subnet = "10.101.1.1"
-			script := fmt.Sprintf("%s%s%s", "#!/bin/bash  &#13; ip route del default via", subnet, "&#13")
-			vm.VM.GuestCustomizationSection.CustomizationScript = script
-		}
-	*/
 	vm.VM.GuestCustomizationSection.Enabled = TakeBoolPointer(true)
 	return nil
 }
@@ -601,12 +543,12 @@ func (v *VcdPlatform) VerifyVMs(ctx context.Context, vms []edgeproto.VM) error {
 	return nil
 }
 
-func (v *VcdPlatform) GetVMAddresses(ctx context.Context, vm *govcd.VM) ([]vmlayer.ServerIP, string, error) {
+func (v *VcdPlatform) GetVMAddresses(ctx context.Context, vm *govcd.VM) ([]vmlayer.ServerIP, error) {
 
 	log.SpanLog(ctx, log.DebugLevelInfra, "GetVMAddresses", "vmname", vm.VM.Name)
 	var serverIPs []vmlayer.ServerIP
 	if vm == nil {
-		return serverIPs, "", fmt.Errorf("Nil vm received")
+		return serverIPs, fmt.Errorf("Nil vm received")
 	}
 	vmName := vm.VM.Name
 	//parentVapp, err := vm.GetParentVApp()
@@ -627,8 +569,8 @@ func (v *VcdPlatform) GetVMAddresses(ctx context.Context, vm *govcd.VM) ([]vmlay
 		}
 		serverIPs = append(serverIPs, servIP)
 	}
-	ip := connections[0].IPAddress
-	return serverIPs, ip, nil
+
+	return serverIPs, nil
 }
 
 func (v *VcdPlatform) SetVMProperties(vmProperties *vmlayer.VMProperties) {
@@ -644,6 +586,8 @@ func (v *VcdPlatform) GetServerGroupResources(ctx context.Context, name string) 
 	if err != nil {
 		return nil, err
 	}
+	extNetName := v.GetExtNetworkName()
+
 	vappName := name + "-vapp"
 	vapp, err := vdc.GetVAppByName(vappName, true)
 	if err != nil {
@@ -668,7 +612,8 @@ func (v *VcdPlatform) GetServerGroupResources(ctx context.Context, name string) 
 		}
 		metadata, err := vm.GetMetadata()
 		if err != nil {
-			// flavor/role  not available
+			log.SpanLog(ctx, log.DebugLevelInfra, "GetServerGroupResouce metadata not found for  vapp ", "vapp", name, "vm", cvm.Name, "err", err)
+			return nil, err
 		}
 		flavor := ""
 		role := ""
@@ -687,14 +632,17 @@ func (v *VcdPlatform) GetServerGroupResources(ctx context.Context, name string) 
 		}
 		ipAddr := edgeproto.IpAddr{}
 
-		extAddr, err := v.GetExtAddrOfVM(ctx, vm, v.GetExtNetworkName())
+		//extAddr, err := v.GetExtAddrOfVM(ctx, vm, v.GetExtNetworkName())
+		// Find addr of vm for the given network
+		extAddr, err := v.GetAddrOfVM(ctx, vm, extNetName)
+		// It fine if some vm doesn't have an external net connection
 		if err != nil {
-			log.SpanLog(ctx, log.DebugLevelInfra, "GetExtAddrOfVM failed", "error", err)
-			return nil, err
+			log.SpanLog(ctx, log.DebugLevelInfra, "GetAddrOfVM No addr", "vm", vm.VM.Name, "network", extNetName, "error", err)
 		}
+
 		intAddrs, err := v.GetIntAddrsOfVM(ctx, vm)
 		if err != nil {
-			log.SpanLog(ctx, log.DebugLevelInfra, "GetExtAddrOfVM failed", "error", err)
+			log.SpanLog(ctx, log.DebugLevelInfra, "GetIntAddrOfVM failed", "error", err)
 			return nil, err
 		}
 		// intAddrs could be 0, 1 or many depending on the node type

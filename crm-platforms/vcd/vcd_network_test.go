@@ -167,12 +167,12 @@ func TestNetAddrs(t *testing.T) {
 	require.Nil(t, err, "InitVcdTestEnv")
 
 	testaddr := "10.101.5.10"
-	N, err := tv.Octet(ctx, testaddr, 2) // third octet)
+	N, err := Octet(ctx, testaddr, 2) // third octet)
 	require.Nil(t, err, "ThrirdOctet err")
 	require.Equal(t, 5, N, "ThirdOctet")
 
 	testaddr = "10.101.6.10/24"
-	N, err = tv.Octet(ctx, testaddr, 2)
+	N, err = Octet(ctx, testaddr, 2)
 	require.Nil(t, err, "ThrirdOctet err")
 	require.Equal(t, 6, N, "ThirdOctet")
 
@@ -270,9 +270,205 @@ func TestRMNet(t *testing.T) {
 
 }
 
+// Find out how much of OrgVDCNetwork we need to fill in
+// This test
+// 1) creates a new isolated OrgVDCNetwork subnet (Not a vapp network)
+// 2) AddOrgNetwork to the target vapp
+// 3) Retrieve the vapp's first VM and appends a new networkConnectionSection assigned its IP address
+// 4) Updates the VMs network connection section
+// 5) Removes the network from the VM/VAPP
+// 6) Removes the newly created network
+//
+func TestIsoVdcNet(t *testing.T) {
+	live, ctx, err := InitVcdTestEnv()
+	require.Nil(t, err, "InitVcdTestEnv")
+
+	if live {
+		fmt.Printf("TestIsoVdcNet\n")
+		vdc, err := tv.GetVdc(ctx)
+		if err != nil {
+			fmt.Printf("Error obtaining Vdc: %s\n", err.Error())
+			return
+		}
+
+		var (
+			gateway       = "10.101.1.1"
+			networkName   = "Subnet-1"
+			startAddress  = "10.101.1.2"
+			endAddress    = "10.101.1.254"
+			netmask       = "255.255.255.0"
+			dns1          = "1.1.1.1"
+			dns2          = "8.8.8.8"
+			dnsSuffix     = "mobiledgex.net"
+			description   = "Created mex live test"
+			networkConfig = types.OrgVDCNetwork{
+				Xmlns:       types.XMLNamespaceVCloud,
+				Name:        networkName,
+				Description: description,
+				Configuration: &types.NetworkConfiguration{
+					FenceMode: types.FenceModeIsolated,
+					/*One of:
+						bridged (connected directly to the ParentNetwork),
+					  isolated (not connected to any other network),
+					  natRouted (connected to the ParentNetwork via a NAT service)
+					  https://code.vmware.com/apis/287/vcloud#/doc/doc/types/OrgVdcNetworkType.html
+					*/
+					IPScopes: &types.IPScopes{
+						IPScope: []*types.IPScope{&types.IPScope{
+							IsInherited: false,
+							Gateway:     gateway,
+							Netmask:     netmask,
+							DNS1:        dns1,
+							DNS2:        dns2,
+							DNSSuffix:   dnsSuffix,
+							IPRanges: &types.IPRanges{
+								IPRange: []*types.IPRange{
+									&types.IPRange{
+										StartAddress: startAddress,
+										EndAddress:   endAddress,
+									},
+								},
+							},
+						},
+						},
+					},
+					BackwardCompatibilityMode: true,
+				},
+				IsShared: false, // true,
+				// XXX Requesting Shared results in: Maybe it's sharable within the vdc, but not across vdcs? Lets hope so.
+
+				//error creating Network <Subnet-1>: error creating the network: error instantiating a new OrgVDCNetwork: API Error: 403: [ 28be4fcd-0d98-4fb0-86a5-ab031d5090f8 ] Org Vdc mex-qe(com.vmware.vcloud.entity.vdc:a9c60070-3f05-4d62-ab83-e99d6d0dd339) does not have the following network capability: shareOrgVdcNetwork
+			}
+		)
+
+		fmt.Printf("CreateOrgVDCNetworkWait....\n")
+		err = vdc.CreateOrgVDCNetworkWait(&networkConfig)
+		if err != nil {
+			fmt.Printf("error creating Network <%s>: %s\n", networkName, err)
+		}
+
+		fmt.Printf("Network %s created successfully now add it to %s\n", networkName, *vappName)
+		// ok, now that it's created, we'll add it to *vappNmae eh?
+
+		vapp, err := tv.FindVApp(ctx, *vappName)
+		if err != nil {
+			fmt.Printf("Failed to find vapp %s\n", *vappName)
+			return
+		}
+
+		// We should be able to fetch it by name now.
+		newNetwork, err := vdc.GetOrgVdcNetworkByName(networkName, true)
+		if err != nil {
+			fmt.Printf("Failed to retrieve Orgvdcnetbyname: %s error: %s\n", networkName, err.Error())
+			return
+		}
+
+		// Need to add this vdc network to the vapp? Since if we do not, UpdateNetworkConnection below says
+		// 'the entity network "Subnet-1" does not exist'
+		//
+
+		IPScope := newNetwork.OrgVDCNetwork.Configuration.IPScopes.IPScope[0] // xxx
+
+		var iprange []*types.IPRange
+		iprange = append(iprange, IPScope.IPRanges.IPRange[0])
+
+		VappNetworkSettings := govcd.VappNetworkSettings{
+			// now poke our changes into the new vapp
+			Name:           networkName,
+			Gateway:        IPScope.Gateway,
+			NetMask:        IPScope.Netmask,
+			DNS1:           IPScope.DNS1,
+			DNS2:           IPScope.DNS2,
+			DNSSuffix:      IPScope.DNSSuffix,
+			StaticIPRanges: iprange,
+		}
+
+		netConfigSec, err := vapp.AddOrgNetwork(&VappNetworkSettings, newNetwork.OrgVDCNetwork, false)
+		if err != nil {
+			fmt.Printf("AddOrgNetwork %s failed: %s\n", networkName, err.Error())
+			return
+		}
+		fmt.Printf("netConfigSec: %+v\n", netConfigSec)
+
+		fmt.Printf("Retrived newNetwork %s\n", newNetwork.OrgVDCNetwork.Name)
+
+		vmname := vapp.VApp.Children.VM[0].Name
+		vm, err := vdc.FindVMByName(*vapp, vmname)
+		if err != nil {
+			fmt.Printf("FindVMByName failed for %s vapp %s err: %s\n", vmname, vapp.VApp.Name, err.Error())
+			return
+		}
+
+		ipAddr := "10.101.1.1" // server is gateway
+		fmt.Printf("Retrived vm child of Vapp as %s adding ip %s on network %s \n", vm.VM.Name, ipAddr, networkName)
+
+		//		netConfigSec, err := vapp.AddOrgNetwork(vappNetSettings, newNetwwork)
+
+		ncs, err := vm.GetNetworkConnectionSection()
+
+		ncs.NetworkConnection = append(ncs.NetworkConnection,
+			&types.NetworkConnection{
+				Network:                 newNetwork.OrgVDCNetwork.Name,
+				NetworkConnectionIndex:  1, //  0,
+				IPAddress:               ipAddr,
+				IsConnected:             true,
+				IPAddressAllocationMode: types.IPAllocationModeManual,
+			})
+
+		err = vm.UpdateNetworkConnectionSection(ncs)
+		if err != nil {
+			fmt.Printf("UpdateNetworkConnectionSection failed: %s\n", err.Error())
+			return
+		}
+
+		fmt.Printf("Network %s successfully attached to vm\n", networkName)
+
+		// well, hmm, try removing the connectin from the vm and another UpdateNetworkConnectionSection on the VM
+
+		netConSec, err := vm.GetNetworkConnectionSection()
+		if err != nil {
+			fmt.Printf("Failed to retrieve NetConSec from vm %s\n", err.Error())
+			return
+		}
+		for n, nc := range netConSec.NetworkConnection {
+			if nc.Network == networkName {
+				fmt.Printf("Found %s in netConSec, removing\n", networkName)
+				ncs.NetworkConnection[n] = ncs.NetworkConnection[len(ncs.NetworkConnection)-1]
+				ncs.NetworkConnection[len(ncs.NetworkConnection)-1] = &types.NetworkConnection{}
+				ncs.NetworkConnection = ncs.NetworkConnection[:len(ncs.NetworkConnection)-1]
+				err := vm.UpdateNetworkConnectionSection(ncs)
+				if err != nil {
+					fmt.Printf("Error UpdateNetworkCOnnectinSection after remvoing : %s\n", err.Error())
+					return
+				}
+			}
+		}
+
+		// See if this balks wanting it out of the vm first?
+		_, err = vapp.RemoveNetwork(networkName)
+		if err != nil {
+			fmt.Printf("vapp.RemoveNetwork(%s) failed: %s\n", networkName, err.Error())
+			return
+		}
+
+		err = govcd.RemoveOrgVdcNetworkIfExists(*vdc, networkName)
+		if err != nil {
+			fmt.Printf("RemoveOrgVdcNetworkIfExists failed: %s\n", err.Error())
+			return
+		}
+		fmt.Printf("New network %s deleted\n", networkName)
+
+	}
+
+}
+
 // Test AttachPortToServer
 // we want a new vapp, one ext and three internal subnets.
 // -live -vapp
+// This doesn't really work today. Vapps only want to have one internal isolated network.
+// For a shared LB, (it's own groupName) it's a cluster/Vapp so it wants multiple OrgVCDNetowrks that are isolated
+// and all the clusters (VApps) that the shared LB routes to, will have to have this net added as well...
+//
 func TestAttachPortToServer(t *testing.T) {
 	live, ctx, err := InitVcdTestEnv()
 	require.Nil(t, err, "InitVcdTestEnv")

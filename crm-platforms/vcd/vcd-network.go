@@ -28,7 +28,6 @@ func (v *VcdPlatform) GetExternalIpNetworkCidr(ctx context.Context) (string, err
 		return "", err
 	}
 	scope := extNet.OrgVDCNetwork.Configuration.IPScopes.IPScope[0]
-	//addr := scope.Gateway + "/" + scope.Netmask
 	mask := v.GetExternalNetmask()
 	addr := scope.Gateway + "/" + mask
 
@@ -115,17 +114,22 @@ func (v *VcdPlatform) AddPortsToVapp(ctx context.Context, vapp *govcd.VApp, vmgp
 	log.SpanLog(ctx, log.DebugLevelInfra, "AddPortsToVapp", "VAppName", vmgp.GroupName, "role", vmparams.Role, "type", vmType, "numports", numPorts)
 
 	for n, port := range ports {
-		// External = 1
+		// External = 0
 		if port.NetworkType == vmlayer.NetTypeExternal {
 
 			desiredNetConfig := &types.NetworkConnectionSection{}
 			desiredNetConfig.PrimaryNetworkConnectionIndex = 1
 			extAddr, err := v.GetNextExtAddrForVdcNet(ctx)
-			if extAddr == "" {
+			if err != nil {
+				log.SpanLog(ctx, log.DebugLevelInfra, "AddPortsToVapp GetNextExtAddr failed", "err", err)
 				return "", err
 			}
-			log.SpanLog(ctx, log.DebugLevelInfra, "AddPortsToVapp adding external vapp net", "PortNum", n, "vapp", vapp.VApp.Name, "port.NetworkName", port.NetworkName, "IP", extAddr)
-
+			if extAddr == "" {
+				log.SpanLog(ctx, log.DebugLevelInfra, "AddVMsToVApp next ext net IP not found", "vapp", vmgp.GroupName)
+				return "", fmt.Errorf("next available ext net ip not found")
+			}
+			conIdx := 1
+			log.SpanLog(ctx, log.DebugLevelInfra, "AddPortsToVapp adding external vapp net", "PortNum", n, "vapp", vapp.VApp.Name, "port.NetworkName", port.NetworkName, "IP", extAddr, "ConIdx", conIdx)
 			_, err = v.AddVappNetwork(ctx, vapp)
 
 			desiredNetConfig.NetworkConnection = append(desiredNetConfig.NetworkConnection,
@@ -133,7 +137,7 @@ func (v *VcdPlatform) AddPortsToVapp(ctx context.Context, vapp *govcd.VApp, vmgp
 					IsConnected:             true,
 					IPAddressAllocationMode: types.IPAllocationModeManual,
 					Network:                 v.GetExtNetworkName(),
-					NetworkConnectionIndex:  1,
+					NetworkConnectionIndex:  conIdx,
 					IPAddress:               extAddr,
 				})
 
@@ -141,6 +145,7 @@ func (v *VcdPlatform) AddPortsToVapp(ctx context.Context, vapp *govcd.VApp, vmgp
 			vmtmplName := vapp.VApp.Children.VM[0].Name
 			vm, err := vapp.GetVMByName(vmtmplName, false)
 			if err != nil {
+				log.SpanLog(ctx, log.DebugLevelInfra, "AddVMsToVApp unable to retrieve", "vm", vmtmplName, "vapp", vapp.VApp.Name)
 				return "", err
 			}
 			err = vm.UpdateNetworkConnectionSection(desiredNetConfig)
@@ -149,9 +154,8 @@ func (v *VcdPlatform) AddPortsToVapp(ctx context.Context, vapp *govcd.VApp, vmgp
 				return "", err
 			}
 		}
-		// Internal (isolatedD)
-		// Create an isolated subnet for this vapp/clusterInst (Not OrgVDCNetwork)
-
+		// Internal (isolated)
+		// Create isolated subnet for this vapp/clusterInst (Not OrgVDCNetwork)
 		if port.NetworkType == vmlayer.NetTypeInternal && !intAdded {
 			var err error
 			nextCidr, err = v.GetNextInternalSubnet(ctx, vapp.VApp.Name)
@@ -279,51 +283,48 @@ func (v *VcdPlatform) DetachPortFromServer(ctx context.Context, serverName, subn
 	return nil
 }
 
-func (v *VcdPlatform) IncrIP(ctx context.Context, a string, delta int) string {
+func IncrIP(ctx context.Context, a string, delta int) (string, error) {
 	ip := net.ParseIP(a)
 	if ip == nil {
-		return ""
+		return "", fmt.Errorf("%s failed to parse as IP", a)
 	}
 	ip = ip.To4()
 	if ip == nil {
-		return ""
+		return "", fmt.Errorf("%s failed to parse as IP", a)
 	}
 	ip[3] += byte(delta)
-
 	// we know a is a good IP
-	ao, _ := v.Octet(ctx, a, 3)
-	ipo, err := v.Octet(ctx, ip.String(), 3)
+	ao, _ := Octet(ctx, a, 3)
+	ipo, err := Octet(ctx, ip.String(), 3)
 	if err != nil {
-		return ""
+		return "", err
 	}
 	if ipo != ao+delta {
-		return ""
-		// fmt.Errorf("range wrap err")
+		return "", fmt.Errorf("range wrap err")
 	}
-	return ip.String()
+	return ip.String(), nil
 }
 
-func (v *VcdPlatform) DecrIP(ctx context.Context, a string, delta int) string {
+func DecrIP(ctx context.Context, a string, delta int) (string, error) {
 	ip := net.ParseIP(a)
 	if ip == nil {
-		return ""
+		return "", fmt.Errorf("%s failed to parse as IP", a)
 	}
 	ip = ip.To4()
 	if ip == nil {
-		return ""
+		return "", fmt.Errorf("Ip %s Not a v4 address", ip)
 	}
 	ip[3] -= byte(delta)
 
-	ao, _ := v.Octet(ctx, a, 3)
-	ipo, _ := v.Octet(ctx, ip.String(), 3)
+	ao, _ := Octet(ctx, a, 3)
+	ipo, _ := Octet(ctx, ip.String(), 3)
 	if ao-delta != ipo {
-		return ""
+		return "", fmt.Errorf("range wrap error")
 	}
-
-	return ip.String()
+	return ip.String(), nil
 }
 
-func (v *VcdPlatform) Octet(ctx context.Context, a string, n int) (int, error) {
+func Octet(ctx context.Context, a string, n int) (int, error) {
 	addr := a
 	// strip any cidr mask if present
 	parts := strings.Split(a, "/")
@@ -333,16 +334,16 @@ func (v *VcdPlatform) Octet(ctx context.Context, a string, n int) (int, error) {
 
 	ip := net.ParseIP(addr)
 	if ip == nil {
-		return 0, fmt.Errorf("Invalid IP")
+		return 0, fmt.Errorf("%s failed to parse as IP", a)
 	}
 	ip = ip.To4()
 	if ip == nil {
-		return 0, fmt.Errorf("Ip Not a v4 address")
+		return 0, fmt.Errorf("Ip %s Not a v4 address", ip)
 	}
 	return int(ip[n]), nil
 }
 
-func (v *VcdPlatform) IncrCidr(a string, delta int) string {
+func (v *VcdPlatform) IncrCidr(a string, delta int) (string, error) {
 
 	addr := a
 	parts := strings.Split(a, "/")
@@ -352,11 +353,12 @@ func (v *VcdPlatform) IncrCidr(a string, delta int) string {
 
 	ip := net.ParseIP(addr)
 	if ip == nil {
-		return ""
+		return "", fmt.Errorf("%s failed to parse as IP", a)
 	}
 	ip = ip.To4()
+
 	ip[2] += byte(delta)
-	return ip.String()
+	return ip.String(), nil
 }
 
 // VappNetworks
@@ -374,8 +376,16 @@ func (v *VcdPlatform) CreateInternalNetworkForNewVm(ctx context.Context, vapp *g
 	gateway := addr
 	dns2 := ""
 
-	startAddr := v.IncrIP(ctx, gateway, 1)
-	endAddr := v.IncrIP(ctx, gateway, InternalNetMax)
+	startAddr, err := IncrIP(ctx, gateway, 1)
+	if err != nil {
+		log.SpanLog(ctx, log.DebugLevelInfra, "IncrIP startaddr", "netname", netName, "gateway", gateway, "err", err)
+		return "", err
+	}
+	endAddr, err := IncrIP(ctx, gateway, InternalNetMax)
+	if err != nil {
+		log.SpanLog(ctx, log.DebugLevelInfra, "IncrIP endaddr", "netname", netName, "gateway", gateway, "err", err)
+		return "", err
+	}
 
 	if v.Verbose {
 		log.SpanLog(ctx, log.DebugLevelInfra, "CreateInternalNetwork ", "serverName", serverName, "netname", netName, "gateway", gateway, "StartIP", startAddr, "EndIP", endAddr)
@@ -397,7 +407,7 @@ func (v *VcdPlatform) CreateInternalNetworkForNewVm(ctx context.Context, vapp *g
 		DNSSuffix:      "mobiledgex.net",
 		StaticIPRanges: iprange,
 	}
-	_ /*InternalNetConfigSec,*/, err := vapp.CreateVappNetwork(&internalSettings, nil)
+	_ /*InternalNetConfigSec,*/, err = vapp.CreateVappNetwork(&internalSettings, nil)
 	if err != nil {
 		if !strings.Contains(err.Error(), "already exists") {
 			log.SpanLog(ctx, log.DebugLevelInfra, "CreateInternalNetwork create", "serverName", serverName, "error", err)
@@ -466,6 +476,7 @@ func (v *VcdPlatform) GetExtAddrOfVM(ctx context.Context, vm *govcd.VM, netName 
 	if vm == nil {
 		return "", fmt.Errorf("Invalid Arg")
 	}
+	log.SpanLog(ctx, log.DebugLevelInfra, "GetExtAddrOfVm", "vm", vm.VM.Name, "netname", netName)
 	ncs, err := vm.GetNetworkConnectionSection()
 	if err != nil {
 		return "", err
@@ -485,7 +496,7 @@ func (v *VcdPlatform) GetAddrOfVM(ctx context.Context, vm *govcd.VM, netName str
 	if vm == nil {
 		return "", fmt.Errorf("Invalid Arg")
 	}
-
+	log.SpanLog(ctx, log.DebugLevelInfra, "GetAddrOfVm", "vm", vm.VM.Name, "netname", netName)
 	// if this vapp has no vms, this call panics govcd.vapp.go xxx
 	// Which is really really a bad thing. How should these vapps be validated?
 	// How about getting its status, and if not at least Resolved, consider it a bad egg.
@@ -496,9 +507,10 @@ func (v *VcdPlatform) GetAddrOfVM(ctx context.Context, vm *govcd.VM, netName str
 	}
 	numNets := len(ncs.NetworkConnection)
 	log.SpanLog(ctx, log.DebugLevelInfra, "GetAddrOfVM", "vapp", vm.VM.Name, "network", netName, "numNetworks", numNets)
+
 	for _, nc := range ncs.NetworkConnection {
 		if nc.Network == netName {
-			log.SpanLog(ctx, log.DebugLevelInfra, "GetAddrOfVapp", "Vapp", vm.VM.Name, "on net", netName, "ip", nc.IPAddress)
+			log.SpanLog(ctx, log.DebugLevelInfra, "GetAddrOfVapp", "Vapp", vm.VM.Name, "Net", netName, "ip", nc.IPAddress)
 			return nc.IPAddress, nil
 		}
 	}
@@ -513,32 +525,32 @@ func (v *VcdPlatform) GetAddrOfVapp(ctx context.Context, vapp *govcd.VApp, netNa
 	if vapp == nil {
 		return "", fmt.Errorf("Invalid Arg")
 	}
-
-	// if this vapp has no vms, this call panics govcd.vapp.go xxx
-	// Which is really really a bad thing. How should these vapps be validated?
-	// How about getting its status, and if not at least Resolved, consider it a bad egg.
+	log.SpanLog(ctx, log.DebugLevelInfra, "GetAddrOfVapp", "vapp", vapp.VApp.Name, "network", netName)
 	ncs, err := vapp.GetNetworkConnectionSection()
 	if err != nil {
 		log.SpanLog(ctx, log.DebugLevelInfra, "GetAddrOfVapp err retrieving NetConnection section", "vapp", vapp.VApp.Name, "network", netName, "err", err)
 		return "", err
 	}
 	numNets := len(ncs.NetworkConnection)
-	log.SpanLog(ctx, log.DebugLevelInfra, "GetAddrOfVapp", "vapp", vapp.VApp.Name, "network", netName, "numNetworks", numNets)
+	if v.Verbose {
+		log.SpanLog(ctx, log.DebugLevelInfra, "GetAddrOfVapp", "vapp", vapp.VApp.Name, "network", netName, "numNetworks", numNets)
+	}
 	for _, nc := range ncs.NetworkConnection {
+		if v.Verbose {
+			log.SpanLog(ctx, log.DebugLevelInfra, "GetAddrOfVapp consider", "nc.Network", nc.Network, "netName", netName)
+		}
+
 		if nc.Network == netName {
-			log.SpanLog(ctx, log.DebugLevelInfra, "GetAddrOfVapp", "Vapp", vapp.VApp.Name, "on net", netName, "ip", nc.IPAddress)
+			log.SpanLog(ctx, log.DebugLevelInfra, "GetAddrOfVapp", "Vapp", vapp.VApp.Name, "net", netName, "ip", nc.IPAddress)
 			return nc.IPAddress, nil
+		} else {
+			if v.Verbose {
+				log.SpanLog(ctx, log.DebugLevelInfra, "GetAddrOfVapp skipping ", "Vapp", vapp.VApp.Name, "network", netName)
+			}
 		}
 	}
-
 	return "", fmt.Errorf("Not Found")
 }
-
-// Next up refactor: Need
-// to run all VApps external addresses
-// We still need some sort of map, we can build on the fly
-// or try and cache/rebuild
-//
 
 func (v *VcdPlatform) GetNextExtAddrForVdcNet(ctx context.Context) (string, error) {
 	// for all Vapps
@@ -548,11 +560,13 @@ func (v *VcdPlatform) GetNextExtAddrForVdcNet(ctx context.Context) (string, erro
 	}
 	netName := vdcnet.OrgVDCNetwork.Name
 	iprange := vdcnet.OrgVDCNetwork.Configuration.IPScopes.IPScope[0].IPRanges.IPRange[0]
-	s, _ := v.Octet(ctx, iprange.StartAddress, 3)
-	e, _ := v.Octet(ctx, iprange.EndAddress, 3)
+	s, _ := Octet(ctx, iprange.StartAddress, 3)
+	e, _ := Octet(ctx, iprange.EndAddress, 3)
 	curAddr := iprange.StartAddress
 
-	log.SpanLog(ctx, log.DebugLevelInfra, "GetNextExtAddr", "start", s, "end", e, "curAddr", curAddr, "network", netName)
+	if v.Verbose {
+		log.SpanLog(ctx, log.DebugLevelInfra, "GetNextExtAddr", "start", s, "end", e, "curAddr", curAddr, "network", netName)
+	}
 	vappMap, err := v.GetAllVAppsForVdc(ctx)
 	if err != nil {
 		log.SpanLog(ctx, log.DebugLevelInfra, "GetNextExtAddr return", "curAddr", curAddr)
@@ -569,10 +583,19 @@ func (v *VcdPlatform) GetNextExtAddrForVdcNet(ctx context.Context) (string, erro
 		if _, found := vappMap[curAddr]; !found {
 			log.SpanLog(ctx, log.DebugLevelInfra, "GetNextExtAddr return", "curAddr", curAddr)
 			return curAddr, nil
+		} else {
+			if v.Verbose {
+				log.SpanLog(ctx, log.DebugLevelInfra, "GetNextExtAddr in use", "curAddr", curAddr)
+			}
 		}
-		curAddr = v.IncrIP(ctx, curAddr, 1)
-		_, err := v.Octet(ctx, curAddr, 3)
+		curAddr, err = IncrIP(ctx, curAddr, 1)
 		if err != nil {
+			log.SpanLog(ctx, log.DebugLevelInfra, "GetNextExtAddr IncrIP err", "curAddr", curAddr, "err", err)
+			return "", err
+		}
+		_, err := Octet(ctx, curAddr, 3)
+		if err != nil {
+			log.SpanLog(ctx, log.DebugLevelInfra, "GetNextExtAddr Octet err", "curAddr", curAddr, "err", err)
 			return "", err
 		}
 	}
@@ -580,10 +603,6 @@ func (v *VcdPlatform) GetNextExtAddrForVdcNet(ctx context.Context) (string, erro
 }
 
 // Given our scheme for networks 10.101.X.0/24 return the next available Isolated network CIDR
-//
-// Refactor, we like external, we can GetAllVappsForVdc, and
-// run that map getting internal addr of the vapp, if it has one.
-
 func (v *VcdPlatform) GetNextInternalSubnet(ctx context.Context, vappName string) (string, error) {
 
 	var MAX_CIDRS = 255 // These are internal /24 subnets so 255, not that we'll have that many clusters / cloudlet
@@ -612,8 +631,11 @@ func (v *VcdPlatform) GetNextInternalSubnet(ctx context.Context, vappName string
 			log.SpanLog(ctx, log.DebugLevelInfra, "GetNextInternalSubnet return available", "cidr", curAddr)
 			return curAddr, nil
 		}
-		// don't we want to incr the target octet?
-		curAddr = v.IncrCidr(curAddr, 1)
+		curAddr, err = v.IncrCidr(curAddr, 1)
+		if err != nil {
+			log.SpanLog(ctx, log.DebugLevelInfra, "GetNextInternalSubnet IncrCidr failed", "curAddr", curAddr, "err", err)
+			return "", err
+		}
 	}
 	log.SpanLog(ctx, log.DebugLevelInfra, "GetNextInternalSubnet  subnet range exhasted")
 	return "", err

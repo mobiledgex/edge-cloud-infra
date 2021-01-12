@@ -158,8 +158,8 @@ func (v VcdPlatform) CheckServerReady(ctx context.Context, client ssh.Client, se
 	log.SpanLog(ctx, log.DebugLevelInfra, "CheckServerReady", "serverName", serverName)
 	detail, err := v.GetServerDetail(ctx, serverName)
 	if err != nil {
-		fmt.Printf("\n\nCheckServerReady-I-GetServerDetail err: %s recovered\n\n", err.Error())
-		return nil
+		log.SpanLog(ctx, log.DebugLevelInfra, "CheckServerReady GetServerDetail", "err", err)
+		return err
 	}
 	out := ""
 	if detail.Status == vmlayer.ServerActive {
@@ -178,6 +178,7 @@ func (v *VcdPlatform) GetOrg(ctx context.Context) (*govcd.Org, error) {
 	cli := v.Client
 	org, err := cli.GetOrgByName(v.Creds.Org)
 	if err != nil {
+		log.SpanLog(ctx, log.DebugLevelInfra, "GetOrgByName failed", "org", v.Creds.Org, "err", err)
 		return nil, fmt.Errorf("GetOrgByName error %s", err.Error())
 	}
 	return org, nil
@@ -188,6 +189,7 @@ func (v *VcdPlatform) GetVdc(ctx context.Context) (*govcd.Vdc, error) {
 
 	org, err := v.GetOrg(ctx)
 	if err != nil {
+		log.SpanLog(ctx, log.DebugLevelInfra, "GetVdc GetOrg return error", "vdc", v.Creds.VDC, "org", v.Creds.Org, "err", err)
 		return nil, err
 	}
 
@@ -261,8 +263,6 @@ func (v *VcdPlatform) IdSanitize(name string) string {
 	return str
 }
 
-// need a cacheless version
-
 func (v *VcdPlatform) GetServerDetail(ctx context.Context, serverName string) (*vmlayer.ServerDetail, error) {
 
 	vm, err := v.FindVMByName(ctx, serverName)
@@ -286,7 +286,7 @@ func (v *VcdPlatform) GetServerDetail(ctx context.Context, serverName string) (*
 		detail.Status = vmStatus
 	}
 
-	addresses, _, err := v.GetVMAddresses(ctx, vm)
+	addresses, err := v.GetVMAddresses(ctx, vm)
 	if err != nil {
 		log.SpanLog(ctx, log.DebugLevelInfra, "GetServerDetail err getting VMAddresses for", "vmname", serverName, "err", err)
 		return nil, err
@@ -319,7 +319,7 @@ func (v *VcdPlatform) GetAllVAppsForVdc(ctx context.Context) (VAppMap, error) {
 				} else {
 					ip, err := v.GetAddrOfVapp(ctx, vapp, netName)
 					if err != nil {
-						log.SpanLog(ctx, log.DebugLevelInfra, "GetAllVapps GetExtAddrOfVapp ", "error", err)
+						log.SpanLog(ctx, log.DebugLevelInfra, "GetAllVapps GetExtAddrOfVapp ", "vapp", vapp.VApp.Name, "error", err)
 						if strings.Contains(err.Error(), "Not Found") {
 							continue
 						}
@@ -353,7 +353,9 @@ func (v *VcdPlatform) GetAllVMsForVdcByIntAddr(ctx context.Context) (VMMap, erro
 					log.SpanLog(ctx, log.DebugLevelInfra, "GetAllVMsForVdcByIntAddr FindVMByName error", "vm", res.Name, "error", err)
 					return vmMap, err
 				} else {
-					log.SpanLog(ctx, log.DebugLevelInfra, "GetAllVMsByIntAddr consider ", "vm", res.Name)
+					if v.Verbose {
+						log.SpanLog(ctx, log.DebugLevelInfra, "GetAllVMsByIntAddr consider ", "vm", res.Name)
+					}
 					ncs, err := vm.GetNetworkConnectionSection()
 					if err != nil {
 						log.SpanLog(ctx, log.DebugLevelInfra, "GetAllVMsByIntAddr GetNetworkConnectionSection failed", "error", err)
@@ -400,7 +402,9 @@ func (v *VcdPlatform) GetAllVAppsForVdcByIntAddr(ctx context.Context) (VAppMap, 
 					log.SpanLog(ctx, log.DebugLevelInfra, "GetVappByName", "Vapp", res.Name, "error", err)
 					return vappMap, err
 				} else {
-					log.SpanLog(ctx, log.DebugLevelInfra, "GetAllVappsByIntAddr consider ", "vapp", res.Name)
+					if v.Verbose {
+						log.SpanLog(ctx, log.DebugLevelInfra, "GetAllVappsByIntAddr consider ", "vapp", res.Name)
+					}
 					ncs, err := vapp.GetNetworkConnectionSection()
 					if err != nil {
 						log.SpanLog(ctx, log.DebugLevelInfra, "GetAllVappsByIntAddr ", "error", err)
@@ -419,14 +423,12 @@ func (v *VcdPlatform) GetAllVAppsForVdcByIntAddr(ctx context.Context) (VAppMap, 
 							//
 							// Skip the vapp we're attempting to set
 							if ip != "" {
-								delimiter, err := v.Octet(ctx, ip, 2)
+								delimiter, err := Octet(ctx, ip, 2)
 								if err != nil {
 									log.SpanLog(ctx, log.DebugLevelInfra, "GetAllVappsByIntAddr Octet failed", "err", err)
 									return vappMap, err
 								}
 								addr := fmt.Sprintf("10.101.%d.1", delimiter)
-								fmt.Printf("\n\n vapp %s using subnet %s\n", vapp.VApp.Name, addr)
-
 								log.SpanLog(ctx, log.DebugLevelInfra, "GetAllVappsByIntAddr add", "ip", ip, "vapp", res.Name)
 								vappMap[addr] = vapp
 							}
@@ -465,6 +467,13 @@ func (v *VcdPlatform) GetCloudletManifest(ctx context.Context, name, cloudletIma
 func (v *VcdPlatform) GetSessionTokens(ctx context.Context, vaultConfig *vault.Config, account string) (map[string]string, error) {
 	return nil, fmt.Errorf("GetSessionTokens not supported in VcdPlatform")
 }
+
+// Return our current set of access vars
+// For what exactly?
+// where do I save it?
+//
 func (v *VcdPlatform) SaveCloudletAccessVars(ctx context.Context, cloudlet *edgeproto.Cloudlet, accessVarsIn map[string]string, pfConfig *edgeproto.PlatformConfig, vaultConfig *vault.Config, updateCallback edgeproto.CacheUpdateCallback) error {
+
 	return fmt.Errorf("SaveCloudletAccessVars not implemented for vcd")
+
 }

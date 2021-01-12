@@ -9,8 +9,6 @@ import (
 	"github.com/mobiledgex/edge-cloud/cloud-resource-manager/platform"
 	"github.com/mobiledgex/edge-cloud/edgeproto"
 	"github.com/mobiledgex/edge-cloud/log"
-	//"github.com/mobiledgex/edge-cloud/vault"
-	//"strings"
 )
 
 // model VcdProps after vsphere to start
@@ -19,22 +17,24 @@ import (
 var VcdProps = map[string]*edgeproto.PropertyInfo{
 
 	"MEX_ORG": {
-		Value: "vcd-org",
+		Description: "vCD Org for our tenant",
+		Value:       "vcd-org",
 	},
 	"MEX_CATALOG": {
-
 		Mandatory:   true,
 		Description: "VCD Org Catalog Name",
 	},
 	"MEX_EXTERNAL_IP_RANGES": {
-		Mandatory: false,
+		Description: "Override natrual ext net range if more limited",
+		Mandatory:   false,
 	},
 	// We don't get a value for the edgegateway xxx
 	"MEX_EXTERNAL_NETWORK_EDGEGATEWAY": {
 		Mandatory: false,
 	},
 	"MEX_EXT_NETWORK": {
-		Mandatory: true,
+		Description: "External OrgVDCNetwork to use",
+		Mandatory:   true,
 	},
 	"MEX_EXTERNAL_NETWORK_MASK": {
 		Name:        "External Network Mask",
@@ -42,7 +42,8 @@ var VcdProps = map[string]*edgeproto.PropertyInfo{
 		Mandatory:   true,
 	},
 	"MEX_VDC_TEMPLATE": {
-		Mandatory: false,
+		Description: "The uploaded ova template name",
+		Mandatory:   false,
 		// could be in the secret
 	},
 }
@@ -84,8 +85,6 @@ func (v *VcdPlatform) GetVcdVerbose() bool {
 			return true
 		}
 	}
-	// if not test get envVar or that node debug
-	// XXX
 	return true
 }
 
@@ -129,8 +128,6 @@ func (v *VcdPlatform) GetVDCTemplateName() string {
 		if tmplName != "" {
 			return tmplName
 		}
-
-		return os.Getenv("VDCTEMPLATE")
 	}
 	tmplName := v.vcdVars["VCDTEMPLATE"]
 	if tmplName != "" {

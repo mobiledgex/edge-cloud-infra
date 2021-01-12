@@ -48,7 +48,7 @@ func (v *VcdPlatform) GetFlavorList(ctx context.Context) ([]*edgeproto.FlavorInf
 
 	for k := range flavorkeys {
 		if v.Verbose {
-			log.SpanLog(ctx, log.DebugLevelInfra, "GetFlavorList found flavor", "key", k)
+			//log.SpanLog(ctx, log.DebugLevelInfra, "GetFlavorList found flavor", "key", k)
 		}
 		var flav edgeproto.Flavor
 		if v.caches.FlavorCache.Get(&k, &flav) {

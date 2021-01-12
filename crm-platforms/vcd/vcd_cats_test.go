@@ -23,8 +23,6 @@ func TestCats(t *testing.T) {
 			return
 		}
 		govcd.ShowCatalog(*cat.Catalog)
-	} else { //
-		return
 	}
 }
 

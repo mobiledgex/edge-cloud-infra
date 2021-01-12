@@ -5,7 +5,7 @@ metadata:
   labels:
     app: dme
 spec:
-  replicas: 1
+  replicas: {{ dme_replicas }}
   selector:
     matchLabels:
       app: dme

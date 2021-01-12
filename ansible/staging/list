@@ -26,6 +26,8 @@ letsencrypt_env=production
 console_prod=yes
 alertmanager_hostname=alertmanager-{{ deploy_environ }}.mobiledgex.net
 influxdb_backup_disabled=true
+controller_replicas=2
+dme_replicas=2
 
 [notifyroot]
 notifyroot-stage.mobiledgex.net

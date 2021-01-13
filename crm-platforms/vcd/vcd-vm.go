@@ -180,8 +180,10 @@ func (v *VcdPlatform) updateVmDisk(vm *govcd.VM, size int64) error {
 
 // For each vm spec defined in vmgp, add a new VM to vapp with those applicable attributes.
 func (v *VcdPlatform) AddVMsToVApp(ctx context.Context, vapp *govcd.VApp, vmgp *vmlayer.VMGroupOrchestrationParams, tmpl *govcd.VAppTemplate, nextCidr string) error {
+
 	if nextCidr == "" {
-		panic("next cider null for AddVMsToVApp")
+		log.SpanLog(ctx, log.DebugLevelInfra, "AddVMsToVApp next cidr nil", "GroupName", vmgp.GroupName)
+		return fmt.Errorf("IP range exhaused")
 	}
 
 	var err error

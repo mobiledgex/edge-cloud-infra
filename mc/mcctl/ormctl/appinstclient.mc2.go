@@ -44,10 +44,10 @@ var AppInstClientApiCmds = []*cli.Command{
 
 var AppInstClientKeyRequiredArgs = []string{
 	"app-org",
-	"appname",
-	"appvers",
 }
 var AppInstClientKeyOptionalArgs = []string{
+	"appname",
+	"appvers",
 	"cluster",
 	"cloudlet-org",
 	"cloudlet",

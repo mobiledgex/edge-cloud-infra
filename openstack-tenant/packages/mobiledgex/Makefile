@@ -5,7 +5,7 @@ COMPONENT = main
 
 PKGDIR = $(PACKAGE)_$(VERSION)
 
-all: openstack vsphere
+all: openstack vsphere vcd
 
 openstack:
 	$(MAKE) package

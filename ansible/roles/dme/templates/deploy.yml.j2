@@ -39,17 +39,6 @@ spec:
              --cloudletKey '{"organization":"{{ operator_key }}","name":"{{ deploy_target }}-cloudlet"}' \
              --toksrvurl "{{ toksrv_url }}" \
              -d locapi,dmedb,dmereq,notify
-        livenessProbe:
-          exec:
-            command:
-              - "vault-cert"
-              - "--vault"
-              - "{{ vault_address }}"
-              - "--check"
-              - _.dme.mobiledgex.net
-          periodSeconds: 28800
-          timeoutSeconds: 180
-          initialDelaySeconds: 900
         env:
          - name: LOCAPI_USER
            value: "{{ locapi_user }}"

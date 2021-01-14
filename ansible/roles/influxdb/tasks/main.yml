@@ -72,7 +72,7 @@
     namespace: default
     definition: "{{ lookup('template', 'influxdb-svc.yml.j2') }}"
 
-- k8s_facts:
+- k8s_info:
     kubeconfig: "{{ kubeconfig_file.path }}"
     kind: Service
     name: "{{ influxdb_name }}"

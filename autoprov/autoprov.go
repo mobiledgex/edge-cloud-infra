@@ -59,7 +59,8 @@ func start() error {
 	log.SetDebugLevelStrs(*debugLevels)
 	settings = *edgeproto.GetDefaultSettings()
 
-	ctx, span, err := nodeMgr.Init("autoprov", node.CertIssuerRegional, node.WithName(*hostname), node.WithRegion(*region), node.WithVaultConfig(vaultConfig))
+	// TODO: figure this out
+	ctx, span, err := nodeMgr.Init("autoprov", node.CertIssuerRegional, node.WithName(*hostname), node.WithRegion(*region), node.WithVaultConfig(vaultConfig), node.WithCloudletLookup(nil))
 	if err != nil {
 		return err
 	}

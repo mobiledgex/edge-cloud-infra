@@ -482,7 +482,6 @@ func DeleteBillingOrgObj(ctx context.Context, claims *UserClaims, org *ormapi.Bi
 		db := loggedDB(ctx)
 		res := db.Where(&lookup).First(&org)
 		if res.RecordNotFound() {
-			// TODO: bug where if we get here from regular org delete, the org is gone so this error always occurs
 			return fmt.Errorf("unable to find corresponding Organization")
 		}
 		org.Parent = ""

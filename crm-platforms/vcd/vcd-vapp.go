@@ -3,6 +3,7 @@ package vcd
 import (
 	"context"
 	"encoding/base64"
+	"fmt"
 	"strings"
 
 	"github.com/mobiledgex/edge-cloud-infra/vmlayer"
@@ -82,6 +83,11 @@ func (v *VcdPlatform) CreateVApp(ctx context.Context, vappTmpl *govcd.VAppTempla
 		log.SpanLog(ctx, log.DebugLevelInfra, "wait for RESOLVED error", "VAppName", vmgp.GroupName, "error", err)
 		return nil, err
 	}
+
+	log.SpanLog(ctx, log.DebugLevelInfra, "Compose Vapp succefully", "VApp", vmgp.GroupName, "tmpl", vappTmpl.VAppTemplate.Name)
+	// 10.0 if we retrieved the template from the catalog, we can compose, but the validation of the vm
+	// is in question seems to be missing vmspec.MemoryResourceMb.Configured
+	err = v.validateVMSpecSection(ctx, *vapp)
 
 	// ensure we have a clean slate
 	task, err = vapp.RemoveAllNetworks()
@@ -388,5 +394,39 @@ func (v *VcdPlatform) refreshVappNets(ctx context.Context, vapp *govcd.VApp) err
 	if err != nil {
 		return err
 	}
+	return nil
+}
+
+func (v *VcdPlatform) GetVMFromVAppByIdx(ctx context.Context, vapp *govcd.VApp, idx int) (*govcd.VM, error) {
+
+	if vapp.VApp.Children == nil {
+		return nil, fmt.Errorf("vapp has no children vms")
+	}
+	vmName := vapp.VApp.Children.VM[idx].Name
+	vm, err := vapp.GetVMByName(vmName, true)
+	if err != nil {
+		return nil, err
+	}
+	return vm, nil
+}
+
+func (v *VcdPlatform) validateVMSpecSection(ctx context.Context, vapp govcd.VApp) error {
+
+	vm, err := v.GetVMFromVAppByIdx(ctx, &vapp, 1)
+	if err != nil {
+		log.SpanLog(ctx, log.DebugLevelInfra, "validateVMSpecSecion VM not found", "Vapp", vapp.VApp.Name, "idx", 1)
+	}
+	vmSpec := vm.VM.VmSpecSection
+	if vmSpec.MemoryResourceMb == nil {
+		mresMB := &types.MemoryResourceMb{
+			Configured: 4096,
+		}
+		vmSpec.MemoryResourceMb = mresMB
+		_, err := vm.UpdateVmSpecSection(vmSpec, "update missing MB")
+		if err != nil {
+			log.SpanLog(ctx, log.DebugLevelInfra, "validateVMSpecSecion err updating spec section", "vm", vm.VM.Name, "err", err)
+		}
+	}
+	// what else will we find missing in 10.0? No problems in 10.1
 	return nil
 }

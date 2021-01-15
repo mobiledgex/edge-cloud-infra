@@ -101,16 +101,49 @@ func (v *VcdPlatform) RetrieveTemplate(ctx context.Context) (*govcd.VAppTemplate
 	}
 	tmpl, err := v.FindTemplate(ctx, tmplName)
 	if err != nil {
-		log.SpanLog(ctx, log.DebugLevelInfra, "Template not found locally", "template", tmplName, "err", err)
-		return nil, err
+		// Not found as a vdc.Resource, try direct from our catalog
+		log.SpanLog(ctx, log.DebugLevelInfra, "Template not vdc.Resource, Try fetch from catalog", "template", tmplName)
+		cat, err := v.GetCatalog(ctx, v.GetCatalogName())
+		if err != nil {
+			log.SpanLog(ctx, log.DebugLevelInfra, "failed retrieving catalog", "cat", v.GetCatalogName())
+			return nil, fmt.Errorf("Template invalid")
+		}
+
+		emptyItem := govcd.CatalogItem{}
+		catItem, err := cat.FindCatalogItem(tmplName)
+		// Now, how to get this item type. catalog.go?
+		if err != nil {
+			log.SpanLog(ctx, log.DebugLevelInfra, "find catalog item failed", "err", err)
+			return nil, fmt.Errorf("Template invalid")
+		}
+		if catItem == emptyItem { // empty!
+			log.SpanLog(ctx, log.DebugLevelInfra, "find catalog item retured empty item")
+			return nil, fmt.Errorf("Template invalid")
+		} else {
+			tmpl, err := catItem.GetVAppTemplate()
+			if err != nil {
+				log.SpanLog(ctx, log.DebugLevelInfra, "catItem.GetVAppTemplate failed", "err", err)
+				return nil, fmt.Errorf("Template invalid")
+			}
+
+			if tmpl.VAppTemplate.Children == nil {
+				log.SpanLog(ctx, log.DebugLevelInfra, "template has no children")
+				return nil, fmt.Errorf("Template invalid")
+			} else {
+				numChildren := len(tmpl.VAppTemplate.Children.VM)
+				log.SpanLog(ctx, log.DebugLevelInfra, "template looks good from cat", "numChildren", numChildren)
+				return &tmpl, nil
+			}
+		}
 	}
 	// The way we look for templates this should never trigger, but just in case
 	if tmpl.VAppTemplate.Children == nil {
-		if v.Verbose {
-			log.SpanLog(ctx, log.DebugLevelInfra, "Invalid", "template", tmpl)
-		}
-		return nil, fmt.Errorf("Invalid Template %s", tmpl.VAppTemplate.Name)
+		// Wait, try once more
+		log.SpanLog(ctx, log.DebugLevelInfra, "catItem.GetVAppTemplate failed", "err", err)
+		return nil, fmt.Errorf("Template invalid")
+
 	}
+	// if it was found as vdc.resource and children !nil, good to go
 	log.SpanLog(ctx, log.DebugLevelInfra, "RetrieveTemplate using", "Template", tmplName)
 	return tmpl, nil
 }
@@ -245,22 +278,11 @@ func (v *VcdPlatform) AddVMsToVApp(ctx context.Context, vapp *govcd.VApp, vmgp *
 		key := fmt.Sprintf("%s-vm-%d", vapp.VApp.Name, n)
 		vm.VM.OperationKey = key
 
-		// add portName to metadata xxx
-		err = v.AddMetadataToVM(ctx, vm, vmparams, vmType, vapp.VApp.Name)
-		if err != nil {
-			log.SpanLog(ctx, log.DebugLevelInfra, "AddVMsToVApp add ext net failed", "VM", lbvm.VM.Name, "error", err)
-			return err
-		}
-
 		ncs, err = vm.GetNetworkConnectionSection()
 		if err != nil {
 			return err
 		}
 
-		// we just want to set the ip address and connection index for an internal network
-		// of the parent vapp.
-		// We know the name of the internal subnet if one is needed
-		// by our ports
 		internalNetName := ""
 		ports := vmgp.Ports
 		for _, port := range ports {
@@ -313,6 +335,8 @@ func (v *VcdPlatform) guestCustomization(ctx context.Context, vm govcd.VM, vmpar
 // set vm params and call vm.UpdateVmSpecSection
 func (v *VcdPlatform) updateVM(ctx context.Context, vm *govcd.VM, vmparams vmlayer.VMOrchestrationParams, subnet string) error {
 
+	log.SpanLog(ctx, log.DebugLevelInfra, "updateVM", "vm", vm.VM.Name)
+
 	flavorName := vmparams.FlavorName
 	flavor, err := v.GetFlavor(ctx, flavorName)
 	vmSpecSec := vm.VM.VmSpecSection
@@ -324,26 +348,31 @@ func (v *VcdPlatform) updateVM(ctx context.Context, vm *govcd.VM, vmparams vmlay
 	desc := fmt.Sprintf("Update flavor: %s", flavorName)
 	_, err = vm.UpdateVmSpecSection(vmSpecSec, desc)
 	if err != nil {
+		log.SpanLog(ctx, log.DebugLevelInfra, "updateVM UpdateVmSpecSection failed", "vm", vm.VM.Name, "err", err)
+
 		return err
 	}
 
-	// meta data for Role etc
+	err = v.AddMetadataToVM(ctx, vm, vmparams)
+	if err != nil {
+		log.SpanLog(ctx, log.DebugLevelInfra, "updateVM AddMetadataToVm  failed", "vm", vm.VM.Name, "err", err)
+		return nil
+	}
 	psl, err := v.populateProductSection(ctx, vm, &vmparams)
 	if err != nil {
+		log.SpanLog(ctx, log.DebugLevelInfra, "updateVM populateProdcutSection failed", "vm", vm.VM.Name, "err", err)
 		return fmt.Errorf("updateVM-E-error from populateProductSection: %s", err.Error())
 	}
 
 	_, err = vm.SetProductSectionList(psl)
 	if err != nil {
-		return fmt.Errorf("updateVM-E-error Setting product section %s", err.Error())
-	}
-	_, err = vm.SetProductSectionList(psl)
-	if err != nil {
-		return err
+		log.SpanLog(ctx, log.DebugLevelInfra, "updateVM vm.SetProductSectionList  failed", "vm", vm.VM.Name, "err", err)
+		return fmt.Errorf("Error Setting product section %s", err.Error())
 	}
 
 	err = v.guestCustomization(ctx, *vm, vmparams, subnet)
 	if err != nil {
+		log.SpanLog(ctx, log.DebugLevelInfra, "updateVM GuestCustomization   failed", "vm", vm.VM.Name, "err", err)
 		return fmt.Errorf("updateVM-E-error from guestCustomize: %s", err.Error())
 	}
 
@@ -660,9 +689,10 @@ func (v *VcdPlatform) GetServerGroupResources(ctx context.Context, name string) 
 	return resources, nil
 }
 
-// Store attrs of vm for crmrestarts
-func (v *VcdPlatform) AddMetadataToVM(ctx context.Context, vm *govcd.VM, vmparams vmlayer.VMOrchestrationParams, vmType, parentCluster string) error {
+// Store attrs of vm for crmrestarts and resource fetching
+func (v *VcdPlatform) AddMetadataToVM(ctx context.Context, vm *govcd.VM, vmparams vmlayer.VMOrchestrationParams) error {
 
+	vmType := string(vmlayer.GetVmTypeForRole(string(vmparams.Role)))
 	// why no async for vms?
 	task, err := vm.AddMetadata("vmType", vmType)
 	if err != nil {
@@ -687,11 +717,6 @@ func (v *VcdPlatform) AddMetadataToVM(ctx context.Context, vm *govcd.VM, vmparam
 		return err
 	}
 	err = task.WaitTaskCompletion()
-	if err != nil {
-		return err
-	}
-
-	task, err = vm.AddMetadata("ParentCluster", parentCluster)
 	if err != nil {
 		return err
 	}

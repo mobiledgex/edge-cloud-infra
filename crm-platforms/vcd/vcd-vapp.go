@@ -246,17 +246,38 @@ func vcdUserDataFormatter(instring string) string {
 	return base64.StdEncoding.EncodeToString([]byte(instring))
 }
 
+func makeMetaMap(ctx context.Context, mexmeta string) map[string]string {
+
+	log.SpanLog(ctx, log.DebugLevelInfra, "makeMetaMap", "meta", mexmeta)
+	smap := make(map[string]string)
+	s := strings.Replace(mexmeta, "\n", ":", -1)
+	parts := strings.Split(s, ":")
+	len := len(parts)
+	for i := 0; i < len; i += 2 {
+		key := strings.TrimSpace(parts[i])
+		val := strings.TrimSpace(parts[i+1])
+		smap[key] = val
+	}
+	return smap
+}
+
+func vcdMetaDataFormatter(instring string) string {
+	return instring
+}
 func (v *VcdPlatform) populateProductSection(ctx context.Context, vm *govcd.VM, vmparams *vmlayer.VMOrchestrationParams) (*types.ProductSectionList, error) {
 
+	log.SpanLog(ctx, log.DebugLevelInfra, "populateProductSection", "vm", vm.VM.Name)
 	command := ""
 	manifest := ""
 	// format vmparams.CloudConfigParams into yaml format, which we'll then base64 encode for the ovf datasource
 	udata, err := vmlayer.GetVMUserData(vm.VM.Name, false, manifest, command, &vmparams.CloudConfigParams, vcdUserDataFormatter)
 	if err != nil {
+		log.SpanLog(ctx, log.DebugLevelInfra, "Unable to retrive VMUserData", "err", err)
 		return nil, err
 	}
 	guestCustomSec, err := vm.GetGuestCustomizationSection()
 	if err != nil {
+		log.SpanLog(ctx, log.DebugLevelInfra, "GetGuestCustomizationSection failed", "err", err)
 		return nil, err
 	}
 	if !*guestCustomSec.Enabled {
@@ -265,16 +286,60 @@ func (v *VcdPlatform) populateProductSection(ctx context.Context, vm *govcd.VM, 
 		// vault kv get -field=value secret/accounts/baseimage/password
 		_, err := vm.SetGuestCustomizationSection(guestCustomSec)
 		if err != nil {
+			log.SpanLog(ctx, log.DebugLevelInfra, "SetGuestCustomizationSection failed", "err", err)
 			return nil, err
 
 		}
 	}
+	// if this node is a k8s-node then our parent vapps first vm's internal address is our matserIP
+	masterIP := ""
+	if vmparams.Role == vmlayer.RoleNode { // k8s-node
+		log.SpanLog(ctx, log.DebugLevelInfra, "Have k8s-node find masterIP ", "vm", vm.VM.Name)
+		vapp, err := vm.GetParentVApp()
+		if err != nil {
+			log.SpanLog(ctx, log.DebugLevelInfra, "Could not GetParentVapp for", "vm", vm.VM.Name, "err", err)
+
+		}
+		vmName := vapp.VApp.Children.VM[0].Name
+		tvm, err := vapp.GetVMByName(vmName, true)
+		if err != nil {
+			log.SpanLog(ctx, log.DebugLevelInfra, "GetVMByName failed for", "vm", vmName, "err", err)
+		} else {
+			mdata, err := vm.GetMetadata()
+			if err != nil {
+				log.SpanLog(ctx, log.DebugLevelInfra, "populateProductSection metadata not found for", "vm", vmName, "err", err)
+			} else {
+				for _, md := range mdata.MetadataEntry {
+					if md.Key == "vmRole" {
+						if md.TypedValue.Value == "k8s-master" {
+							ips, err := v.GetIntAddrsOfVM(ctx, tvm)
+
+							if err != nil {
+								log.SpanLog(ctx, log.DebugLevelInfra, "populateProductSection failed to retrieve master ip for k8s-master", "vm", vmName, "err", err)
+							}
+							if len(ips) != 0 {
+								log.SpanLog(ctx, log.DebugLevelInfra, "populateProductSection retrieve master ip for k8s-master", "vm", vmName, "maserIP", masterIP)
+								masterIP = ips[0]
+							}
+						}
+					}
+				}
+			}
+
+		}
+	}
+
+	mexMetadata := vmlayer.GetVMMetaData(vmparams.Role, masterIP, vcdMetaDataFormatter)
+	log.SpanLog(ctx, log.DebugLevelInfra, "populateProductSection", "vmMetadata", mexMetadata)
+	mdMap := makeMetaMap(ctx, mexMetadata)
 
 	psl, err := vm.GetProductSectionList()
 	if err != nil {
+		log.SpanLog(ctx, log.DebugLevelInfra, "GetProductSectionList failed", "vm", vm.VM.Name, "err", err)
 		return nil, err
 	}
 	if psl.ProductSection == nil {
+		log.SpanLog(ctx, log.DebugLevelInfra, "GetGuestCustomizationSection nil creating", "vm", vm.VM.Name)
 		psl = &types.ProductSectionList{
 			ProductSection: &types.ProductSection{
 				Info:     "Guest Properties",
@@ -295,11 +360,13 @@ func (v *VcdPlatform) populateProductSection(ctx context.Context, vm *govcd.VM, 
 	log.SpanLog(ctx, log.DebugLevelInfra, "populateProductSection", "name", vmparams.Name, "role", vmparams.Role)
 	role := vmparams.Role
 	props = append(props, makeProp("ROLE", string(role)))
-	skipk8s := vmlayer.SkipK8sYes
-	if role == vmlayer.RoleMaster || role == vmlayer.RoleNode {
-		skipk8s = vmlayer.SkipK8sNo
+	for k, val := range mdMap {
+		if v.Verbose {
+			log.SpanLog(ctx, log.DebugLevelInfra, "populateProductSection mdata", "key", k, "value", val)
+		}
+		props = append(props, makeProp(k, val))
 	}
-	props = append(props, makeProp("SKIPK8S", string(skipk8s)))
+
 	psl.ProductSection.Property = props
 
 	return psl, nil

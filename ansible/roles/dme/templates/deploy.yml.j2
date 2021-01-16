@@ -29,8 +29,6 @@ spec:
              --apiAddr 0.0.0.0:50051 \
              --httpAddr 0.0.0.0:38001 \
              --notifyAddrs {{ controller_hostname }}:37001 \
-             --tlsApiCertFile /tls/tls.crt \
-             --tlsApiKeyFile /tls/tls.key \
              --vaultAddr "{{ vault_address }}" \
              --useVaultCerts \
              --deploymentTag "{{ deployment_tag_override | default(deploy_environ) }}" \

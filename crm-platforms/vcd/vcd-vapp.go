@@ -412,9 +412,9 @@ func (v *VcdPlatform) GetVMFromVAppByIdx(ctx context.Context, vapp *govcd.VApp, 
 
 func (v *VcdPlatform) validateVMSpecSection(ctx context.Context, vapp govcd.VApp) error {
 
-	vm, err := v.GetVMFromVAppByIdx(ctx, &vapp, 1)
+	vm, err := v.GetVMFromVAppByIdx(ctx, &vapp, 0)
 	if err != nil {
-		log.SpanLog(ctx, log.DebugLevelInfra, "validateVMSpecSecion VM not found", "Vapp", vapp.VApp.Name, "idx", 1)
+		log.SpanLog(ctx, log.DebugLevelInfra, "validateVMSpecSecion VM not found", "Vapp", vapp.VApp.Name, "idx", 0)
 	}
 	vmSpec := vm.VM.VmSpecSection
 	if vmSpec.MemoryResourceMb == nil {

@@ -22,7 +22,6 @@ spec:
          - "/bin/bash"
          - "-ecx"
          - |
-           vault-cert --vault "{{ vault_address }}" _.dme.mobiledgex.net
            exec dme-server \
              --commonName "{{ dme_dns }}.{{ cloudflare_zone }}" \
              --region "{{ region }}" \

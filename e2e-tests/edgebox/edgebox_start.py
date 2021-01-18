@@ -118,6 +118,21 @@ def getRoles(mcapi):
 
     return r.json()
 
+def getAccessKey(mcapi):
+    try:
+        r = mcapi("ctrl/GenerateAccessKey",
+                  data={
+                      "cloudletkey": {
+                          "name": Cloudlet,
+                          "organization": CloudletOrg,
+                      },
+                      "region": Region,
+                  })
+    except Exception as e:
+        sys.exit("Failed to generate access key: {0}".format(e))
+
+    return r.json()["message"]
+
 def getLocDefaults():
     try:
         r = requests.get("http://ipinfo.io/geo", timeout=2)
@@ -361,6 +376,9 @@ def startCloudlet():
    global CreateTestfile
    global Setupfile
    global Varsfile
+   global Mc
+   global Mcuser
+   global Mcpass
 
    out = None
    if not yesOrNo("Ready to deploy?"):
@@ -375,6 +393,13 @@ def startCloudlet():
    if "Failed Tests" in out:
       print ("Failed to create provisioning")
       return
+
+   print("*** Generating access key")
+   token = getMcToken(Mc, Mcuser, Mcpass)
+   mcapi = getMc(Mc, token)
+   accessKey = getAccessKey(mcapi)
+   with open(os.path.join(OutputDir, "accesskey.pem"), "w") as f:
+       f.write(accessKey)
 
    print("*** Running create deploy local CRM via e2e tests")
    p = subprocess.Popen("e2e-tests -testfile "+DeployTestfile+" -setupfile "+Setupfile+" -varsfile "+Varsfile+" -notimestamp"+" -outputdir "+OutputDir, stdout=subprocess.PIPE, stderr=subprocess.PIPE, shell=True, universal_newlines=True)

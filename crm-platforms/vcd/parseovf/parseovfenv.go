@@ -1,7 +1,6 @@
 package main
 
 import (
-	"bufio"
 	"encoding/json"
 	"encoding/xml"
 	"flag"
@@ -9,8 +8,6 @@ import (
 	"io/ioutil"
 	"os"
 	"strings"
-
-	"github.com/vmware/go-vcloud-director/v2/types/v56"
 )
 
 // Parse the result of vcd's ProductSection ovfenv produced via
@@ -46,7 +43,7 @@ func main() {
 	envars := map[string]string{
 		"ROLE":           "",
 		"SKIPK8S":        "",
-		"MASTERADDR":     "",
+		"K8SMASTER":      "",
 		"HOSTNAME":       "",
 		"UPDATE":         "",
 		"SKIPINIT":       "",
@@ -56,9 +53,15 @@ func main() {
 		"NETMASK":        "",
 		"NETTYPE":        "",
 	}
-
+	type EnvProperty struct {
+		Key   string `xml:"key,attr"`
+		Value string `xml:"value,attr"`
+	}
+	type PropertySection struct {
+		Properties []EnvProperty `xml:"Property"`
+	}
 	type Environment struct {
-		PropertySection types.ProductSection `xml:"PropertySection,omitempty"`
+		Property *PropertySection `xml:"PropertySection"`
 	}
 	info := Environment{}
 
@@ -80,29 +83,19 @@ func main() {
 		fmt.Printf("Error unmarshal: %s\n", err.Error())
 		os.Exit(-1)
 	}
-	fmt.Printf("Unmarshalled: %+v\n", info.PropertySection)
-
-	scanner := bufio.NewScanner(ovf)
-	if err != nil {
-		fmt.Printf("could not create scanner! :%s\n", err.Error())
-		os.Exit(1)
-	}
-	vars := make(map[string]interface{}) // Jon alt.
-	for scanner.Scan() {
-		nextline := scanner.Text()
-		for key, _ := range envars {
-			if strings.Contains(nextline, key) {
-				value := getValue(nextline)
-				vars[strings.ToLower(key)] = value // Jon's alt. add to vars map
-			}
+	vars := make(map[string]interface{})
+	for _, p := range info.Property.Properties {
+		_, ok := envars[strings.ToUpper(p.Key)]
+		if ok {
+			vars[p.Key] = p.Value
 		}
 	}
-	metadata := map[string]interface{}{ // Jons impl
-		"meta": vars, // jon
+	metadata := map[string]interface{}{
+		"meta": vars,
 	}
 	out, err := json.Marshal(metadata)
 	if err != nil {
-		fmt.Printf("Error marsheling meta data %s\n", err.Error())
+		fmt.Printf("Error marshalling meta data %s\n", err.Error())
 		os.Exit(-1)
 	}
 	fmt.Printf("%s", string(out))

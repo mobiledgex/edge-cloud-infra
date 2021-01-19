@@ -180,6 +180,11 @@ func (v *VcdPlatform) GetOrg(ctx context.Context) (*govcd.Org, error) {
 	if err != nil {
 		log.SpanLog(ctx, log.DebugLevelInfra, "GetOrg failed get new client", "Org", v.Creds.Org)
 		// Perhaps we've lost our client, try and get it again
+		if v.Client != nil {
+			err := v.Client.Disconnect()
+			log.SpanLog(ctx, log.DebugLevelInfra, "GetOrg GetClient disconnnect (info) failed", "err", err)
+		}
+
 		client, err := v.GetClient(ctx, v.Creds)
 		if err != nil {
 			log.SpanLog(ctx, log.DebugLevelInfra, "GetOrg GetClient failed", "err", err)

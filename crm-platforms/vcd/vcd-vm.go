@@ -211,18 +211,19 @@ func (v *VcdPlatform) updateVmDisk(vm *govcd.VM, size int64) error {
 	return nil
 }
 
-// For each vm spec defined in vmgp, add a new VM to vapp with those applicable attributes.
-func (v *VcdPlatform) AddVMsToVApp(ctx context.Context, vapp *govcd.VApp, vmgp *vmlayer.VMGroupOrchestrationParams, tmpl *govcd.VAppTemplate, nextCidr string) error {
+// For each vm spec defined in vmgp, add a new VM to vapp with those applicable attributes.  Returns a map of VMs added
+func (v *VcdPlatform) AddVMsToVApp(ctx context.Context, vapp *govcd.VApp, vmgp *vmlayer.VMGroupOrchestrationParams, tmpl *govcd.VAppTemplate, nextCidr string) (map[string]*govcd.VM, error) {
+	log.SpanLog(ctx, log.DebugLevelInfra, "AddVMsToVApp", "GroupName", vmgp.GroupName)
 
+	vmsAdded := make(map[string]*govcd.VM)
 	if nextCidr == "" {
 		log.SpanLog(ctx, log.DebugLevelInfra, "AddVMsToVApp next cidr nil", "GroupName", vmgp.GroupName)
-		return fmt.Errorf("IP range exhaused")
+		return nil, fmt.Errorf("IP range exhaused")
 	}
-
 	var err error
 	numVMs := len(vmgp.VMs)
 	if numVMs < 2 {
-		return fmt.Errorf("invalid VMGroupOrchParams for call")
+		return nil, fmt.Errorf("invalid VMGroupOrchParams for call")
 	}
 	log.SpanLog(ctx, log.DebugLevelInfra, "AddVMsToVApp numVMs ", "count", numVMs, "GroupName", vmgp.GroupName, "Internal IP", nextCidr)
 
@@ -248,18 +249,18 @@ func (v *VcdPlatform) AddVMsToVApp(ctx context.Context, vapp *govcd.VApp, vmgp *
 			task, err := vapp.AddNewVM(vmparams.Name, *tmpl, ncs, true)
 			if err != nil {
 				log.SpanLog(ctx, log.DebugLevelInfra, "create add vm failed", "err", err)
-				return err
+				return nil, err
 			}
 			err = task.WaitTaskCompletion()
 			if err != nil {
 				log.SpanLog(ctx, log.DebugLevelInfra, "wait add vm failed", "err", err)
-				return err
+				return nil, err
 			}
 			// Make sure it's there
 			vm, err = vapp.GetVMByName(vmparams.Name, true)
 			if err != nil {
 				// internal error
-				return err
+				return nil, err
 			}
 		}
 		// Consider nextwork assignement XXX revist for pf and cloudlet (no internal nets)
@@ -270,7 +271,7 @@ func (v *VcdPlatform) AddVMsToVApp(ctx context.Context, vapp *govcd.VApp, vmgp *
 			vmIp, err = IncrIP(ctx, baseAddr, 100+(n-1))
 			if err != nil {
 				log.SpanLog(ctx, log.DebugLevelInfra, "IncrIP failed", "baseAddr", baseAddr, "delta", 100+(n-1), "err", err)
-				return err
+				return nil, err
 			}
 			ncs.PrimaryNetworkConnectionIndex = 0
 		}
@@ -280,7 +281,7 @@ func (v *VcdPlatform) AddVMsToVApp(ctx context.Context, vapp *govcd.VApp, vmgp *
 
 		ncs, err = vm.GetNetworkConnectionSection()
 		if err != nil {
-			return err
+			return nil, err
 		}
 
 		internalNetName := ""
@@ -307,7 +308,7 @@ func (v *VcdPlatform) AddVMsToVApp(ctx context.Context, vapp *govcd.VApp, vmgp *
 			err = vm.UpdateNetworkConnectionSection(ncs)
 			if err != nil {
 				log.SpanLog(ctx, log.DebugLevelInfra, "AddVMsToVApp add internal net failed", "VM", lbvm.VM.Name, "error", err)
-				return err
+				return nil, err
 			}
 		}
 
@@ -315,11 +316,12 @@ func (v *VcdPlatform) AddVMsToVApp(ctx context.Context, vapp *govcd.VApp, vmgp *
 		err = v.updateVM(ctx, vm, vmparams, subnet)
 		if err != nil {
 			log.SpanLog(ctx, log.DebugLevelInfra, "update vm failed ", "VAppName", vmgp.GroupName, "err", err)
-			return err
+			return nil, err
 		}
+		vmsAdded[vm.VM.Name] = vm
 	}
 	log.SpanLog(ctx, log.DebugLevelInfra, "AddVMsToVApp complete")
-	return nil
+	return vmsAdded, nil
 }
 
 // useless remove
@@ -375,7 +377,6 @@ func (v *VcdPlatform) updateVM(ctx context.Context, vm *govcd.VM, vmparams vmlay
 		log.SpanLog(ctx, log.DebugLevelInfra, "updateVM GuestCustomization   failed", "vm", vm.VM.Name, "err", err)
 		return fmt.Errorf("updateVM-E-error from guestCustomize: %s", err.Error())
 	}
-
 	return err
 }
 
@@ -606,7 +607,11 @@ func (v *VcdPlatform) GetVMAddresses(ctx context.Context, vm *govcd.VM) ([]vmlay
 
 func (v *VcdPlatform) SetVMProperties(vmProperties *vmlayer.VMProperties) {
 	v.vmProperties = vmProperties
-	vmProperties.IptablesBasedFirewall = true
+	// TODO: the intention is to use Iptables firewall for VCD. However, as this
+	// is not implemented yet, we will set this to false for now so that the forwarding
+	// rules can be added. As part of the implementation of iptables for vCD, the forwarding
+	// rules will be done in that code and this can be set back to true
+	vmProperties.IptablesBasedFirewall = false
 }
 
 // Should always be a vapp/cluster/group name
@@ -725,5 +730,19 @@ func (v *VcdPlatform) AddMetadataToVM(ctx context.Context, vm *govcd.VM, vmparam
 		return err
 	}
 
+	return nil
+}
+
+// powerOnVmsAndForceCustomization calls PowerOnAndForceCustomization on each VM provided.  Unfortunately
+// this needs to be done one at a time or it tends to fail
+func (v *VcdPlatform) powerOnVmsAndForceCustomization(ctx context.Context, vms map[string]*govcd.VM) error {
+	log.SpanLog(ctx, log.DebugLevelInfra, "powerOnVmsAndForceCustomization")
+	for vmName, vm := range vms {
+		log.SpanLog(ctx, log.DebugLevelInfra, "Powering on VM", "vmName", vmName)
+		err := vm.PowerOnAndForceCustomization()
+		if err != nil {
+			return fmt.Errorf("Error powering on VM: %s - %v", vmName, vm)
+		}
+	}
 	return nil
 }

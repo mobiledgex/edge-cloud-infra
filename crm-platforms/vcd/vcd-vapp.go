@@ -104,7 +104,7 @@ func (v *VcdPlatform) CreateVApp(ctx context.Context, vappTmpl *govcd.VAppTempla
 	nextCidr, err := v.AddPortsToVapp(ctx, vapp, *vmgp)
 	if err != nil {
 		log.SpanLog(ctx, log.DebugLevelInfra, "AddPortsToVapp failed", "VAppName", vmgp.GroupName, "error", err)
-
+		return nil, err
 	}
 	log.SpanLog(ctx, log.DebugLevelInfra, "CreateVapp nextCidr for vapp internal net", "Cidr", nextCidr, "vmRole", vmRole, "vmType", vmType)
 
@@ -123,12 +123,17 @@ func (v *VcdPlatform) CreateVApp(ctx context.Context, vappTmpl *govcd.VAppTempla
 
 	if numVMs > 1 {
 		log.SpanLog(ctx, log.DebugLevelInfra, "CreateVApp composed adding VMs for ", "GroupName", vmgp.GroupName)
-		err = v.AddVMsToVApp(ctx, vapp, vmgp, vappTmpl, nextCidr)
+		vmsAdded, err := v.AddVMsToVApp(ctx, vapp, vmgp, vappTmpl, nextCidr)
 		if err != nil {
 			log.SpanLog(ctx, log.DebugLevelInfra, "CreateVApp AddVMsToVApp failed", "error", err)
 			return nil, err
 		}
 		log.SpanLog(ctx, log.DebugLevelInfra, "CreateVApp composed VMs added", "GroupName", vmgp.GroupName)
+		// poweron and customize
+		err = v.powerOnVmsAndForceCustomization(ctx, vmsAdded)
+		if err != nil {
+			return nil, err
+		}
 	} else {
 		if v.Verbose {
 			log.SpanLog(ctx, log.DebugLevelInfra, "CreateVApp composed VApp no extra VMs added", "GroupName", vmgp.GroupName)
@@ -297,46 +302,40 @@ func (v *VcdPlatform) populateProductSection(ctx context.Context, vm *govcd.VM, 
 
 		}
 	}
-	// if this node is a k8s-node then our parent vapps first vm's internal address is our matserIP
+	// find the master, which can be either the first or second vm in the vapp, or none
 	masterIP := ""
 	if vmparams.Role == vmlayer.RoleNode { // k8s-node
 		log.SpanLog(ctx, log.DebugLevelInfra, "Have k8s-node find masterIP ", "vm", vm.VM.Name)
 		vapp, err := vm.GetParentVApp()
 		if err != nil {
 			log.SpanLog(ctx, log.DebugLevelInfra, "Could not GetParentVapp for", "vm", vm.VM.Name, "err", err)
-
+			return nil, err
 		}
-		vmName := vapp.VApp.Children.VM[0].Name
-		tvm, err := vapp.GetVMByName(vmName, true)
-		if err != nil {
-			log.SpanLog(ctx, log.DebugLevelInfra, "GetVMByName failed for", "vm", vmName, "err", err)
-		} else {
-			mdata, err := vm.GetMetadata()
-			if err != nil {
-				log.SpanLog(ctx, log.DebugLevelInfra, "populateProductSection metadata not found for", "vm", vmName, "err", err)
-			} else {
-				for _, md := range mdata.MetadataEntry {
-					if md.Key == "vmRole" {
-						if md.TypedValue.Value == "k8s-master" {
-							ips, err := v.GetIntAddrsOfVM(ctx, tvm)
-
-							if err != nil {
-								log.SpanLog(ctx, log.DebugLevelInfra, "populateProductSection failed to retrieve master ip for k8s-master", "vm", vmName, "err", err)
-							}
-							if len(ips) != 0 {
-								log.SpanLog(ctx, log.DebugLevelInfra, "populateProductSection retrieve master ip for k8s-master", "vm", vmName, "maserIP", masterIP)
-								masterIP = ips[0]
-							}
-						}
-					}
-				}
+		for _, child := range vapp.VApp.Children.VM {
+			log.SpanLog(ctx, log.DebugLevelInfra, "found child VM in vapp", "child", child.Name)
+			if !strings.Contains(child.Name, vmlayer.ClusterTypeKubernetesMasterLabel) {
+				continue
 			}
-
+			tvm, err := vapp.GetVMByName(child.Name, true)
+			if err != nil {
+				log.SpanLog(ctx, log.DebugLevelInfra, "GetVMByName failed for", "vm", child.Name, "err", err)
+				return nil, err
+			}
+			ips, err := v.GetIntAddrsOfVM(ctx, tvm)
+			if err != nil {
+				log.SpanLog(ctx, log.DebugLevelInfra, "populateProductSection failed to retrieve master ip for k8s-master", "vm", child.Name, "err", err)
+				return nil, err
+			}
+			if len(ips) != 0 {
+				log.SpanLog(ctx, log.DebugLevelInfra, "populateProductSection retrieve master ip for k8s-master", "vm", child.Name, "maserIP", masterIP)
+				masterIP = ips[0]
+			} else {
+				return nil, fmt.Errorf("No IPs on master: %s", child.Name)
+			}
 		}
 	}
-
 	mexMetadata := vmlayer.GetVMMetaData(vmparams.Role, masterIP, vcdMetaDataFormatter)
-	log.SpanLog(ctx, log.DebugLevelInfra, "populateProductSection", "vmMetadata", mexMetadata)
+	log.SpanLog(ctx, log.DebugLevelInfra, "populateProductSection", "masterIP", masterIP, "vmMetadata", mexMetadata)
 	mdMap := makeMetaMap(ctx, mexMetadata)
 
 	psl, err := vm.GetProductSectionList()

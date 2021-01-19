@@ -174,11 +174,12 @@ func (v VcdPlatform) CheckServerReady(ctx context.Context, client ssh.Client, se
 
 // Retrieve our top level Org object
 func (v *VcdPlatform) GetOrg(ctx context.Context) (*govcd.Org, error) {
-
+	var err error
+	org := &govcd.Org{}
 	cli := v.Client
-	org, err := cli.GetOrgByName(v.Creds.Org)
+	org, err = cli.GetOrgByName(v.Creds.Org)
 	if err != nil {
-		log.SpanLog(ctx, log.DebugLevelInfra, "GetOrg failed get new client", "Org", v.Creds.Org)
+		log.SpanLog(ctx, log.DebugLevelInfra, "GetOrg failed get new client", "Org", v.Creds.Org, "err", err)
 		// Perhaps we've lost our client, try and get it again
 		if v.Client != nil {
 			err := v.Client.Disconnect()
@@ -191,9 +192,11 @@ func (v *VcdPlatform) GetOrg(ctx context.Context) (*govcd.Org, error) {
 			return nil, fmt.Errorf("Unable to create Vcd Client: %s\n", err.Error())
 		}
 		v.Client = client
-
-		log.SpanLog(ctx, log.DebugLevelInfra, "GetOrgByName failed", "org", v.Creds.Org, "err", err)
-		return nil, fmt.Errorf("GetOrgByName error %s", err.Error())
+		org, err = cli.GetOrgByName(v.Creds.Org)
+		if err != nil {
+			log.SpanLog(ctx, log.DebugLevelInfra, "GetOrgByName failed", "org", v.Creds.Org, "err", err)
+			return nil, fmt.Errorf("GetOrgByName error %s", err.Error())
+		}
 	}
 	return org, nil
 }

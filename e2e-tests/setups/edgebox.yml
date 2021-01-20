@@ -13,9 +13,9 @@ crms:
   usevaultcerts: true
   accessapiaddr: "{{controller}}:41001"
   accesskeyfile: "{{outputdir}}/accesskey.pem"
-  deploymenttag: "stage"
+  deploymenttag: "{{deploy-env}}"
   region: "{{region}}"
   envvars:
     PLATFORM: PLATFORM_TYPE_EDGEBOX
-    JAEGER_ENDPOINT: https://jaeger-stage.mobiledgex.net:14268/api/traces
+    JAEGER_ENDPOINT: "https://jaeger-{{deploy-env}}.mobiledgex.net:14268/api/traces"
 

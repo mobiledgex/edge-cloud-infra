@@ -1,7 +1,6 @@
 package main
 
 import (
-	"context"
 	"flag"
 	"fmt"
 	"os"
@@ -90,11 +89,7 @@ func main() {
 		log.FatalLog("Server could not be started", "err", err)
 	}
 
-	// start usage tracker
-	span := log.StartSpan(log.DebugLevelInfo, "billing")
-	defer span.Finish()
-	ctx := log.ContextWithSpan(context.Background(), span)
-	go orm.CollectBillingUsage(ctx, *usageCollectionInterval)
+	go orm.CollectBillingUsage(*usageCollectionInterval)
 
 	// wait until process is killed/interrupted
 	signal.Notify(sigChan, os.Interrupt)

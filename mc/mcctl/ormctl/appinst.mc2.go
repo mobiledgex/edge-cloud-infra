@@ -140,10 +140,7 @@ var CreateAppInstOptionalArgs = []string{
 	"configs:#.config",
 	"sharedvolumesize",
 	"healthcheck",
-<<<<<<< HEAD
 	"privacypolicy",
-=======
->>>>>>> org checks
 }
 var DeleteAppInstRequiredArgs = []string{
 	"app-org",
@@ -164,10 +161,7 @@ var DeleteAppInstOptionalArgs = []string{
 	"configs:#.config",
 	"sharedvolumesize",
 	"healthcheck",
-<<<<<<< HEAD
 	"privacypolicy",
-=======
->>>>>>> org checks
 }
 var RefreshAppInstRequiredArgs = []string{
 	"app-org",

@@ -155,7 +155,7 @@ func (v *VcdPlatform) GetClient(ctx context.Context, creds *VcdConfigParams) (cl
 		}
 	}
 
-	log.SpanLog(ctx, log.DebugLevelInfra, "GetClient", "Credentails", creds)
+	log.SpanLog(ctx, log.DebugLevelInfra, "GetClient", "user", creds.User)
 
 	u, err := url.ParseRequestURI(creds.Href)
 	if err != nil {
@@ -239,9 +239,8 @@ func (v *VcdPlatform) InitOperationContext(ctx context.Context, operationStage v
 			log.SpanLog(ctx, log.DebugLevelInfra, "Failed to initialize vcdClient", "err", err)
 			return ctx, err
 		} else {
-			// set the client within the context
 			ctx = context.WithValue(ctx, VCDClientCtxKey, vcdClient)
-			log.SpanLog(ctx, log.DebugLevelInfra, "Udpated context with client", "key", VCDClientCtxKey)
+			log.SpanLog(ctx, log.DebugLevelInfra, "Updated context with client", "APIVersion", vcdClient.Client.APIVersion, "key", VCDClientCtxKey)
 			return ctx, nil
 		}
 	} else {
@@ -253,7 +252,8 @@ func (v *VcdPlatform) InitOperationContext(ctx context.Context, operationStage v
 		log.SpanLog(ctx, log.DebugLevelInfra, "Disconnecting vcdClient")
 		err = vcdClient.Disconnect()
 		if err != nil {
-			log.SpanLog(ctx, log.DebugLevelInfra, "Failed to disconnect vcdClient", "err", err)
+			// err here happens all the time but has no impact
+			log.SpanLog(ctx, log.DebugLevelInfra, "Disconnect vcdClient", "err", err)
 		}
 		return ctx, err
 	}

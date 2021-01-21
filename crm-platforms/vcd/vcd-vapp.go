@@ -29,7 +29,6 @@ func (v *VcdPlatform) CreateVApp(ctx context.Context, vappTmpl *govcd.VAppTempla
 	if err != nil {
 		return nil, err
 	}
-
 	storRef := types.Reference{}
 	// Nil ref wins default storage policy
 	log.SpanLog(ctx, log.DebugLevelInfra, "CreateVapp", "name", vmgp.GroupName, "tmpl", vappTmpl.VAppTemplate.Name)
@@ -420,24 +419,19 @@ func (v *VcdPlatform) validateVMSpecSection(ctx context.Context, vapp govcd.VApp
 		log.SpanLog(ctx, log.DebugLevelInfra, "validateVMSpecSecion VM not found", "Vapp", vapp.VApp.Name, "idx", 0)
 	}
 	vmSpec := vm.VM.VmSpecSection
-	log.WarnLog("XXXX VMSPEC", "VMname", vm.VM.Name, "vmspec", fmt.Sprintf("%+v", vmSpec))
-	//	if vmSpec.MemoryResourceMb == nil {
-	mresMB := &types.MemoryResourceMb{
-		Configured: 4096,
+	if vmSpec.MemoryResourceMb == nil {
+		// TODO: figure this out
+		log.SpanLog(ctx, log.DebugLevelInfra, "Warning: validateVMSpecSection missing MemoryResourceMb")
+		mresMB := &types.MemoryResourceMb{
+			Configured: int64(vmlayer.MINIMUM_RAM_SIZE),
+		}
+		vmSpec.MemoryResourceMb = mresMB
+		_, err := vm.UpdateVmSpecSection(vmSpec, "update missing MB")
+		if err != nil {
+			log.SpanLog(ctx, log.DebugLevelInfra, "validateVMSpecSecion err updating spec section", "vm", vm.VM.Name, "err", err)
+		}
 	}
-	vmSpec.MemoryResourceMb = mresMB
-
-	diskSettings := types.DiskSettings{
-		SizeMb:          20 * 1024,
-		ThinProvisioned: TakeBoolPointer(true),
-	}
-	diskSection := &types.DiskSection{
-		DiskSettings: []*types.DiskSettings{&diskSettings},
-	}
-	vmSpec.DiskSection = diskSection
-	log.SpanLog(ctx, log.DebugLevelInfra, "validateVMSpecSecion", "vmSpec", vmSpec)
-	log.WarnLog("XXXX VMSPEC2", "VMname", vm.VM.Name, "vmspec", fmt.Sprintf("%+v", vmSpec))
-
+	// what else will we find missing in 10.0? No problems in 10.1
 	_, err = vm.UpdateVmSpecSection(vmSpec, "update vm spec")
 	if err != nil {
 		log.SpanLog(ctx, log.DebugLevelInfra, "validateVMSpecSecion err updating spec section", "vm", vm.VM.Name, "err", err)

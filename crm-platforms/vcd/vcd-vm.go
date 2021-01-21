@@ -356,15 +356,14 @@ func (v *VcdPlatform) updateVM(ctx context.Context, vm *govcd.VM, vmparams vmlay
 	vmSpecSec.NumCpus = TakeIntPointer(int(flavor.Vcpus))
 	vmSpecSec.MemoryResourceMb.Configured = int64(flavor.Ram)
 
-	//hostName := vmparams.HostName
-
 	desc := fmt.Sprintf("Update flavor: %s", flavorName)
 	_, err = vm.UpdateVmSpecSection(vmSpecSec, desc)
 	if err != nil {
 		log.SpanLog(ctx, log.DebugLevelInfra, "updateVM UpdateVmSpecSection failed", "vm", vm.VM.Name, "err", err)
-
 		return err
 	}
+
+	log.SpanLog(ctx, log.DebugLevelInfra, "updateVM done", "vm", vm.VM.Name, "flavor", flavor)
 
 	err = v.AddMetadataToVM(ctx, vm, vmparams)
 	if err != nil {

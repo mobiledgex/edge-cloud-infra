@@ -94,10 +94,6 @@ func (v *VcdPlatform) CreateVApp(ctx context.Context, vappTmpl *govcd.VAppTempla
 	if err != nil {
 		return nil, err
 	}
-	err = vapp.Refresh()
-	if err != nil {
-		return nil, fmt.Errorf("vapp refresh error: %v", err)
-	}
 	// ensure we have a clean slate
 	task, err = vapp.RemoveAllNetworks()
 	if err != nil {
@@ -431,12 +427,6 @@ func (v *VcdPlatform) validateVMSpecSection(ctx context.Context, vapp govcd.VApp
 			log.SpanLog(ctx, log.DebugLevelInfra, "validateVMSpecSecion err updating spec section", "vm", vm.VM.Name, "err", err)
 		}
 	}
-	// what else will we find missing in 10.0? No problems in 10.1
-	_, err = vm.UpdateVmSpecSection(vmSpec, "update vm spec")
-	if err != nil {
-		log.SpanLog(ctx, log.DebugLevelInfra, "validateVMSpecSecion err updating spec section", "vm", vm.VM.Name, "err", err)
-	}
-	//	}
 	// what else will we find missing in 10.0? No problems in 10.1
 	return nil
 }

@@ -6,13 +6,10 @@ import (
 	"net/url"
 	"os"
 
-	"github.com/mobiledgex/edge-cloud/log"
-
-	"github.com/mobiledgex/edge-cloud/log"
-
 	"github.com/mobiledgex/edge-cloud-infra/vmlayer"
 	dme "github.com/mobiledgex/edge-cloud/d-match-engine/dme-proto"
 	"github.com/mobiledgex/edge-cloud/edgeproto"
+	"github.com/mobiledgex/edge-cloud/log"
 	ssh "github.com/mobiledgex/golang-ssh"
 	"github.com/vmware/go-vcloud-director/v2/govcd"
 )

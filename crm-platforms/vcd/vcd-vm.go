@@ -162,15 +162,26 @@ func (v *VcdPlatform) CreateVMs(ctx context.Context, vmgp *vmlayer.VMGroupOrches
 	vmsCreateLock.Lock()
 	defer vmsCreateLock.Unlock()
 
+<<<<<<< HEAD
 	vcdClient := v.GetVcdClientFromContext(ctx)
 	if vcdClient == nil {
 		log.SpanLog(ctx, log.DebugLevelInfra, NoVCDClientInContext)
 		return fmt.Errorf(NoVCDClientInContext)
 	}
 	vdc, err := v.GetVdc(ctx, vcdClient)
+=======
+	vcdClient, err := v.GetVcdClientFromContext(ctx)
+>>>>>>> d57a9e9c6db35efd2818bd727418fe284ab769a6
 	if err != nil {
 		return fmt.Errorf("GetVdc Failed - %v", err)
 	}
+<<<<<<< HEAD
+=======
+	vdc, err := v.GetVdc(ctx, vcdClient)
+	if err != nil {
+		return fmt.Errorf("GetVdc Failed - %v", err)
+	}
+>>>>>>> d57a9e9c6db35efd2818bd727418fe284ab769a6
 	tmpl, err := v.RetrieveTemplate(ctx, vcdClient)
 	if err != nil {
 		return err
@@ -450,10 +461,16 @@ func (v *VcdPlatform) DeleteVMs(ctx context.Context, vmGroupName string) error {
 
 	log.SpanLog(ctx, log.DebugLevelInfra, "DeleteVMs", "vmGroupName", vmGroupName)
 
+<<<<<<< HEAD
 	vcdClient := v.GetVcdClientFromContext(ctx)
 	if vcdClient == nil {
 		log.SpanLog(ctx, log.DebugLevelInfra, NoVCDClientInContext)
 		return fmt.Errorf(NoVCDClientInContext)
+=======
+	vcdClient, err := v.GetVcdClientFromContext(ctx)
+	if err != nil {
+		return err
+>>>>>>> d57a9e9c6db35efd2818bd727418fe284ab769a6
 	}
 	vappName := vmGroupName + "-vapp"
 	log.SpanLog(ctx, log.DebugLevelInfra, "DeleteVMs check", "vappName", vappName)
@@ -478,10 +495,16 @@ func (v *VcdPlatform) GetVMStats(ctx context.Context, key *edgeproto.AppInstKey)
 	metrics := vmlayer.VMMetrics{}
 	var err error
 
+<<<<<<< HEAD
 	vcdClient := v.GetVcdClientFromContext(ctx)
 	if vcdClient == nil {
 		log.SpanLog(ctx, log.DebugLevelInfra, NoVCDClientInContext)
 		return nil, fmt.Errorf(NoVCDClientInContext, err)
+=======
+	vcdClient, err := v.GetVcdClientFromContext(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("GetVcdClientFromContext failed %v", err)
+>>>>>>> d57a9e9c6db35efd2818bd727418fe284ab769a6
 	}
 
 	vmName := cloudcommon.GetAppFQN(&key.AppKey)
@@ -528,10 +551,16 @@ func (v *VcdPlatform) GetVMStats(ctx context.Context, key *edgeproto.AppInstKey)
 // always sync.
 func (v *VcdPlatform) SetPowerState(ctx context.Context, serverName, serverAction string) error {
 
+<<<<<<< HEAD
 	vcdClient := v.GetVcdClientFromContext(ctx)
 	if vcdClient == nil {
 		log.SpanLog(ctx, log.DebugLevelInfra, NoVCDClientInContext)
 		return fmt.Errorf(NoVCDClientInContext)
+=======
+	vcdClient, err := v.GetVcdClientFromContext(ctx)
+	if err != nil {
+		return fmt.Errorf("GetVcdClientFromContext failed %v", err)
+>>>>>>> d57a9e9c6db35efd2818bd727418fe284ab769a6
 	}
 	vm, err := v.FindVMByName(ctx, serverName, vcdClient)
 	if err != nil {
@@ -644,10 +673,16 @@ func (v *VcdPlatform) SetVMProperties(vmProperties *vmlayer.VMProperties) {
 func (v *VcdPlatform) GetServerGroupResources(ctx context.Context, name string) (*edgeproto.InfraResources, error) {
 	resources := &edgeproto.InfraResources{}
 
+<<<<<<< HEAD
 	vcdClient := v.GetVcdClientFromContext(ctx)
 	if vcdClient == nil {
 		log.SpanLog(ctx, log.DebugLevelInfra, NoVCDClientInContext)
 		return nil, fmt.Errorf(NoVCDClientInContext)
+=======
+	vcdClient, err := v.GetVcdClientFromContext(ctx)
+	if err != nil {
+		return nil, err
+>>>>>>> d57a9e9c6db35efd2818bd727418fe284ab769a6
 	}
 	// xxx need ContainerInfo as well
 	vdc, err := v.GetVdc(ctx, vcdClient)

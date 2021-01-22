@@ -79,16 +79,10 @@ func (v *VcdPlatform) GetGatewayForOrgVDCNetwork(ctx context.Context, network *t
 // Return the IP address of the external Gateway
 func (v *VcdPlatform) GetExternalGateway(ctx context.Context, extNetname string) (string, error) {
 
-<<<<<<< HEAD
 	vcdClient := v.GetVcdClientFromContext(ctx)
 	if vcdClient == nil {
 		log.SpanLog(ctx, log.DebugLevelInfra, NoVCDClientInContext)
 		return "", fmt.Errorf(NoVCDClientInContext)
-=======
-	vcdClient, err := v.GetVcdClientFromContext(ctx)
-	if err != nil {
-		return "", err
->>>>>>> d57a9e9c6db35efd2818bd727418fe284ab769a6
 	}
 	vdcNet, err := v.GetExtNetwork(ctx, vcdClient)
 	if err != nil {
@@ -205,16 +199,10 @@ func (v *VcdPlatform) AttachPortToServer(ctx context.Context, serverName, subnet
 	// shared LBs are asked to grow a new internal network
 	vappName := serverName + v.GetVappServerSuffix()
 
-<<<<<<< HEAD
 	vcdClient := v.GetVcdClientFromContext(ctx)
 	if vcdClient == nil {
 		log.SpanLog(ctx, log.DebugLevelInfra, NoVCDClientInContext)
 		return fmt.Errorf(NoVCDClientInContext)
-=======
-	vcdClient, err := v.GetVcdClientFromContext(ctx)
-	if err != nil {
-		return err
->>>>>>> d57a9e9c6db35efd2818bd727418fe284ab769a6
 	}
 
 	vapp, err := v.FindVApp(ctx, vappName, vcdClient)

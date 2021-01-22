@@ -5,15 +5,11 @@ import (
 	"fmt"
 	"net/url"
 	"os"
-	"strings"
 
 	"github.com/mobiledgex/edge-cloud/log"
 
-<<<<<<< HEAD
 	"github.com/mobiledgex/edge-cloud/log"
 
-=======
->>>>>>> d57a9e9c6db35efd2818bd727418fe284ab769a6
 	"github.com/mobiledgex/edge-cloud-infra/vmlayer"
 	dme "github.com/mobiledgex/edge-cloud/d-match-engine/dme-proto"
 	"github.com/mobiledgex/edge-cloud/edgeproto"
@@ -212,7 +208,6 @@ func (v *VcdPlatform) ConfigureCloudletSecurityRules(ctx context.Context, egress
 	return nil
 }
 
-<<<<<<< HEAD
 // GetVcdClientFromContext returns a client object if one exists, otherwise nil
 func (v *VcdPlatform) GetVcdClientFromContext(ctx context.Context) *govcd.VCDClient {
 	vcdClient, found := ctx.Value(VCDClientCtxKey).(*govcd.VCDClient)
@@ -220,14 +215,6 @@ func (v *VcdPlatform) GetVcdClientFromContext(ctx context.Context) *govcd.VCDCli
 		return nil
 	}
 	return vcdClient
-=======
-func (v *VcdPlatform) GetVcdClientFromContext(ctx context.Context) (*govcd.VCDClient, error) {
-	vcdClient, found := ctx.Value(VCDClientCtxKey).(*govcd.VCDClient)
-	if !found {
-		return nil, fmt.Errorf(NoVCDClientInContext)
-	}
-	return vcdClient, nil
->>>>>>> d57a9e9c6db35efd2818bd727418fe284ab769a6
 }
 
 func (v *VcdPlatform) InitOperationContext(ctx context.Context, operationStage vmlayer.OperationInitStage) (context.Context, error) {
@@ -237,28 +224,16 @@ func (v *VcdPlatform) InitOperationContext(ctx context.Context, operationStage v
 		// getClient will setup the client within the context.  First ensure it is not already set, which
 		// indicates an error because we don't want it to be setup twice as it may get cleaned up erroneously.
 		// So we look for the client and expect a NoVCDClientInContext error
-<<<<<<< HEAD
 		vcdClient := v.GetVcdClientFromContext(ctx)
 		if vcdClient != nil {
-=======
-		vcdClient, err := v.GetVcdClientFromContext(ctx)
-		if err == nil {
->>>>>>> d57a9e9c6db35efd2818bd727418fe284ab769a6
 			// this indicates we called InitOperationContext with OperationInitStart twice before OperationInitComplete
 			log.SpanLog(ctx, log.DebugLevelInfra, "InitOperationContext VCDClient is already in context")
 			// generate warning for the purpose of a traceback
 			log.WarnLog("InitOperationContext VCDClient is already in context")
 			return ctx, fmt.Errorf("VCDClient is already in context")
 		}
-<<<<<<< HEAD
 		// now get a new client
 		var err error
-=======
-		if !strings.Contains(err.Error(), NoVCDClientInContext) {
-			return ctx, fmt.Errorf("Unexpected error looking for VCDClient in context: %v", err)
-		}
-		// now get a new client
->>>>>>> d57a9e9c6db35efd2818bd727418fe284ab769a6
 		vcdClient, err = v.GetClient(ctx, v.Creds)
 		if err != nil {
 			log.SpanLog(ctx, log.DebugLevelInfra, "Failed to initialize vcdClient", "err", err)
@@ -269,7 +244,6 @@ func (v *VcdPlatform) InitOperationContext(ctx context.Context, operationStage v
 			return ctx, nil
 		}
 	} else {
-<<<<<<< HEAD
 		vcdClient := v.GetVcdClientFromContext(ctx)
 		if vcdClient == nil {
 			log.SpanLog(ctx, log.DebugLevelInfra, NoVCDClientInContext, "ctx", fmt.Sprintf("%+v", ctx))
@@ -277,15 +251,6 @@ func (v *VcdPlatform) InitOperationContext(ctx context.Context, operationStage v
 		}
 		log.SpanLog(ctx, log.DebugLevelInfra, "Disconnecting vcdClient")
 		err := vcdClient.Disconnect()
-=======
-		vcdClient, err := v.GetVcdClientFromContext(ctx)
-		if err != nil {
-			log.SpanLog(ctx, log.DebugLevelInfra, "Failed to find vcdClient in context", "err", err, "ctx", fmt.Sprintf("%+v", ctx))
-			return ctx, err
-		}
-		log.SpanLog(ctx, log.DebugLevelInfra, "Disconnecting vcdClient")
-		err = vcdClient.Disconnect()
->>>>>>> d57a9e9c6db35efd2818bd727418fe284ab769a6
 		if err != nil {
 			// err here happens all the time but has no impact
 			log.SpanLog(ctx, log.DebugLevelInfra, "Disconnect vcdClient", "err", err)

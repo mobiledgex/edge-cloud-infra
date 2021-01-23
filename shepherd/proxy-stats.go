@@ -283,8 +283,8 @@ func ProxyScraper(done chan bool) {
 			scrapePoints := copyMapValues()
 			for _, v := range scrapePoints {
 				if !clientReady(v) {
-					// Try to re-connect to the client every 3rd time we run this
-					if time.Since(v.LastConnectAttempt) > 3*settings.ShepherdMetricsCollectionInterval.TimeDuration() {
+					// If we could not connect first, skip 5 intervals before trying to re-connect
+					if time.Since(v.LastConnectAttempt) > 6*settings.ShepherdMetricsCollectionInterval.TimeDuration() {
 						// Update this in the background
 						go updateProxyScrapeClient(v.Key)
 					}

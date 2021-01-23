@@ -342,8 +342,6 @@ func (v *VcdPlatform) AddVMsToVApp(ctx context.Context, vapp *govcd.VApp, vmgp *
 
 func (v *VcdPlatform) AddVMsToExistingVApp(ctx context.Context, vapp *govcd.VApp, vmgp *vmlayer.VMGroupOrchestrationParams, vcdClient *govcd.VCDClient) (VMMap, error) {
 	vmMap := make(VMMap)
-	// we know we're not creating any new subnets here, simply scaling what we have
-	// if that changes, this is insuffiecent.
 	numExistingVMs := len(vapp.VApp.Children.VM)
 
 	tmpl, err := v.RetrieveTemplate(ctx, vcdClient)
@@ -352,11 +350,6 @@ func (v *VcdPlatform) AddVMsToExistingVApp(ctx context.Context, vapp *govcd.VApp
 		return vmMap, err
 	}
 	ports := vmgp.Ports
-	numPorts := len(ports)
-	// We're servicing an UpdateClusterInst exclusivly here, so we don't expect mulltiple ports here
-	if len(ports) > 1 {
-		log.SpanLog(ctx, log.DebugLevelInfra, "AddVMsToExistingVapp warn  unexpected", "numports", numPorts)
-	}
 	numVMs := len(vmgp.VMs)
 	netName := ports[0].SubnetId
 	log.SpanLog(ctx, log.DebugLevelInfra, "AddVMsToExistingVapp", "network", netName, "vms", numVMs, "to existing vms", numExistingVMs)
@@ -365,12 +358,11 @@ func (v *VcdPlatform) AddVMsToExistingVApp(ctx context.Context, vapp *govcd.VApp
 	baseAddr, err := v.GetAddrOfVapp(ctx, vapp, netName)
 	if err != nil {
 		log.SpanLog(ctx, log.DebugLevelInfra, "AddVMsToExistingVApp GetAddrOfVapp", "vapp", vapp.VApp.Name, "netName", netName, "err", err)
-		//return vmMap, err
 	}
 	cName := vapp.VApp.Children.VM[0].Name
 	cvm, err := vapp.GetVMByName(cName, true)
 	if err != nil {
-		log.SpanLog(ctx, log.DebugLevelInfra, "AddVMsToExistingVApp get vapp.vm[0] faile", "vapp", vapp.VApp.Name, "vmname", cName, "err", err)
+		log.SpanLog(ctx, log.DebugLevelInfra, "AddVMsToExistingVApp get vapp.vm[0] failed", "vapp", vapp.VApp.Name, "vmname", cName, "err", err)
 		return vmMap, err
 	}
 	if baseAddr == "" {
@@ -416,8 +408,6 @@ func (v *VcdPlatform) AddVMsToExistingVApp(ctx context.Context, vapp *govcd.VApp
 				return nil, err
 			}
 		}
-		// whats the base addr of netName?
-		// crazy? Sometimes we get the x.1, sometimes x.101 go figure, handle both cases (swear)
 
 		lastOctet, err := Octet(ctx, baseAddr, 3)
 
@@ -638,8 +628,6 @@ func (v *VcdPlatform) UpdateVMs(ctx context.Context, vmgp *vmlayer.VMGroupOrches
 			// Trustpolicy and / or autoscale policy / skipcrmcleanupnfailre / crmoverride
 			log.SpanLog(ctx, log.DebugLevelInfra, "UpdateVMs modify existing", "vm", vm.Name)
 		}
-		// hmm... this would give the opportunity to change flavors too if we used updateVM here.
-		// get the vm and run updateVM on it with it's vmparams
 	}
 	return nil
 }

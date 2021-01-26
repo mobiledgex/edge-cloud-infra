@@ -111,6 +111,7 @@ func (v *VcdPlatform) GetPlatformResourceInfo(ctx context.Context) (*vmlayer.Pla
 	if err != nil {
 		return nil, err
 	}
+
 	c_capacity := vdc.Vdc.ComputeCapacity
 	for _, cap := range c_capacity {
 		resources.VCpuMax = uint64(cap.CPU.Limit)

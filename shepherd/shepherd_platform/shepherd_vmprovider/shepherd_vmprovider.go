@@ -57,7 +57,6 @@ func (s *ShepherdPlatform) Init(ctx context.Context, pc *platform.PlatformConfig
 		log.FatalLog("Failed to InitOperationContext", "err", err)
 	}
 	defer s.VMPlatform.VMProvider.InitOperationContext(ctx, vmlayer.OperationInitComplete)
-
 	//need to have a separate one for dedicated rootlbs, see openstack.go line 111,
 	s.rootLbName = cloudcommon.GetRootLBFQDN(pc.CloudletKey, s.appDNSRoot)
 	s.SharedClient, err = s.VMPlatform.GetNodePlatformClient(ctx, &edgeproto.CloudletMgmtNode{Name: s.rootLbName})
@@ -110,6 +109,7 @@ func (s *ShepherdPlatform) GetClusterPlatformClient(ctx context.Context, cluster
 	if err != nil {
 		return nil, err
 	}
+	defer s.VMPlatform.VMProvider.InitOperationContext(ctx, vmlayer.OperationInitComplete)
 	client, err := s.VMPlatform.GetClusterPlatformClientInternal(ctx, clusterInst, clientType, pc.WithCachedIp(false))
 	if err != nil {
 		return nil, err
@@ -127,6 +127,7 @@ func (s *ShepherdPlatform) GetVmAppRootLbClient(ctx context.Context, app *edgepr
 	if err != nil {
 		return nil, err
 	}
+	defer s.VMPlatform.VMProvider.InitOperationContext(ctx, vmlayer.OperationInitComplete)
 	rootLBName := cloudcommon.GetVMAppFQDN(app, s.VMPlatform.VMProperties.CommonPf.PlatformConfig.CloudletKey, s.VMPlatform.VMProperties.CommonPf.PlatformConfig.AppDNSRoot)
 	client, err := s.VMPlatform.GetNodePlatformClient(ctx, &edgeproto.CloudletMgmtNode{Name: rootLBName}, pc.WithCachedIp(false))
 	if err != nil {
@@ -146,6 +147,7 @@ func (s *ShepherdPlatform) GetPlatformStats(ctx context.Context) (shepherd_commo
 	if err != nil {
 		return cloudletMetric, err
 	}
+	defer s.VMPlatform.VMProvider.InitOperationContext(ctx, vmlayer.OperationInitComplete)
 	platformResources, err := s.VMPlatform.VMProvider.GetPlatformResourceInfo(ctx)
 	if err != nil {
 		return cloudletMetric, err
@@ -161,6 +163,7 @@ func (s *ShepherdPlatform) GetVmStats(ctx context.Context, key *edgeproto.AppIns
 	if err != nil {
 		return appMetrics, err
 	}
+	defer s.VMPlatform.VMProvider.InitOperationContext(ctx, vmlayer.OperationInitComplete)
 	vmMetrics, err := s.VMPlatform.VMProvider.GetVMStats(ctx, key)
 	if err != nil {
 		return appMetrics, err

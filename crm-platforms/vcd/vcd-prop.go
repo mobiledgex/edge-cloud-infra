@@ -36,10 +36,6 @@ var VcdProps = map[string]*edgeproto.PropertyInfo{
 		Description: "Verbose logging for VCD",
 		Internal:    true,
 	},
-	"MEX_ENABLE_VCD_DISK_RESIZE": {
-		Description: "VM disks cloned from the VDC template will be resized based on flavor if set to \"true\".  Must be set to \"false\" if fast provisioning is enabled in the VDC or VM creation will fail.",
-		Value:       "true",
-	},
 }
 
 func (v *VcdPlatform) GetVaultCloudletAccessPath(key *edgeproto.CloudletKey, region, physicalName string) string {

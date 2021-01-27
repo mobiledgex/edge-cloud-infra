@@ -95,10 +95,21 @@ func (s *ShepherdPlatform) GetMetricsCollectInterval() time.Duration {
 }
 
 func (s *ShepherdPlatform) GetClusterIP(ctx context.Context, clusterInst *edgeproto.ClusterInst) (string, error) {
+	var err error
+	ctx, err = s.VMPlatform.VMProvider.InitOperationContext(ctx, vmlayer.OperationInitStart)
+	if err != nil {
+		return "", err
+	}
+	defer s.VMPlatform.VMProvider.InitOperationContext(ctx, vmlayer.OperationInitComplete)
 	return s.VMPlatform.GetClusterAccessIP(ctx, clusterInst)
 }
 
 func (s *ShepherdPlatform) GetClusterPlatformClient(ctx context.Context, clusterInst *edgeproto.ClusterInst, clientType string) (ssh.Client, error) {
+	var err error
+	ctx, err = s.VMPlatform.VMProvider.InitOperationContext(ctx, vmlayer.OperationInitStart)
+	if err != nil {
+		return nil, err
+	}
 	client, err := s.VMPlatform.GetClusterPlatformClientInternal(ctx, clusterInst, clientType, pc.WithCachedIp(false))
 	if err != nil {
 		return nil, err
@@ -111,6 +122,11 @@ func (s *ShepherdPlatform) GetClusterPlatformClient(ctx context.Context, cluster
 }
 
 func (s *ShepherdPlatform) GetVmAppRootLbClient(ctx context.Context, app *edgeproto.AppInstKey) (ssh.Client, error) {
+	var err error
+	ctx, err = s.VMPlatform.VMProvider.InitOperationContext(ctx, vmlayer.OperationInitStart)
+	if err != nil {
+		return nil, err
+	}
 	rootLBName := cloudcommon.GetVMAppFQDN(app, s.VMPlatform.VMProperties.CommonPf.PlatformConfig.CloudletKey, s.VMPlatform.VMProperties.CommonPf.PlatformConfig.AppDNSRoot)
 	client, err := s.VMPlatform.GetNodePlatformClient(ctx, &edgeproto.CloudletMgmtNode{Name: rootLBName}, pc.WithCachedIp(false))
 	if err != nil {
@@ -124,7 +140,12 @@ func (s *ShepherdPlatform) GetVmAppRootLbClient(ctx context.Context, app *edgepr
 }
 
 func (s *ShepherdPlatform) GetPlatformStats(ctx context.Context) (shepherd_common.CloudletMetrics, error) {
+	var err error
 	cloudletMetric := shepherd_common.CloudletMetrics{}
+	ctx, err = s.VMPlatform.VMProvider.InitOperationContext(ctx, vmlayer.OperationInitStart)
+	if err != nil {
+		return cloudletMetric, err
+	}
 	platformResources, err := s.VMPlatform.VMProvider.GetPlatformResourceInfo(ctx)
 	if err != nil {
 		return cloudletMetric, err
@@ -134,7 +155,12 @@ func (s *ShepherdPlatform) GetPlatformStats(ctx context.Context) (shepherd_commo
 }
 
 func (s *ShepherdPlatform) GetVmStats(ctx context.Context, key *edgeproto.AppInstKey) (shepherd_common.AppMetrics, error) {
+	var err error
 	appMetrics := shepherd_common.AppMetrics{}
+	ctx, err = s.VMPlatform.VMProvider.InitOperationContext(ctx, vmlayer.OperationInitStart)
+	if err != nil {
+		return appMetrics, err
+	}
 	vmMetrics, err := s.VMPlatform.VMProvider.GetVMStats(ctx, key)
 	if err != nil {
 		return appMetrics, err

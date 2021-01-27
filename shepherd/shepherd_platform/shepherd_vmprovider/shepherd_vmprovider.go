@@ -52,6 +52,11 @@ func (s *ShepherdPlatform) Init(ctx context.Context, pc *platform.PlatformConfig
 	if err = s.VMPlatform.VMProvider.InitApiAccessProperties(ctx, pc.AccessApi, pc.EnvVars, vmlayer.ProviderInitPlatformStart); err != nil {
 		return err
 	}
+	ctx, err = s.VMPlatform.VMProvider.InitOperationContext(ctx, vmlayer.OperationInitStart)
+	if err != nil {
+		log.FatalLog("Failed to InitOperationContext", "err", err)
+	}
+	defer s.VMPlatform.VMProvider.InitOperationContext(ctx, vmlayer.OperationInitComplete)
 
 	//need to have a separate one for dedicated rootlbs, see openstack.go line 111,
 	s.rootLbName = cloudcommon.GetRootLBFQDN(pc.CloudletKey, s.appDNSRoot)

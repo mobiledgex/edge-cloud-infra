@@ -62,15 +62,32 @@ vsphere)
 	fi
 
 	log "dump userdata"
-	vmtoolsd --cmd "info-get guestinfo.userdata" > /var/log/userdata.log
+	if ! vmtoolsd --cmd "info-get guestinfo.userdata" > /var/log/userdata.log;
+	then
+		log "error getting guestinfo.userdata, quitting"
+		log "Finished mobiledgex init"
+		exit 1
+	fi
+
 	mkdir -p $METADIR
-	vmtoolsd --cmd "info-get guestinfo.metadata"|base64 -d|python3 -c 'import sys, yaml, json; json.dump(yaml.load(sys.stdin), sys.stdout)' > $METADATA
+	if ! vmtoolsd --cmd "info-get guestinfo.metadata"|base64 -d|python3 -c 'import sys, yaml, json; json.dump(yaml.load(sys.stdin), sys.stdout)' > $METADATA;
+	then
+                log "error handling guestinfo.metadata, quitting"
+                log "Finished mobiledgex init"
+                exit 1
+        fi
+
 		;;
 
 vcd)
 	log "VMware vCD case, fetch metadata from userdata.ovfenv"
 	log "dump ovfEnv userdata"
-	vmtoolsd --cmd "info-get guestinfo.ovfEnv" > /var/log/userdata.log
+	if ! vmtoolsd --cmd "info-get guestinfo.ovfEnv" > /var/log/userdata.log;
+	then
+		log "error getting guestinfo.ovfEnv, quitting"
+		log "Finished mobiledgex init"
+		exit 1
+	fi
 	mkdir -p $METADIR
 	/usr/local/bin/parseovfenv > $METADATA
 		;;

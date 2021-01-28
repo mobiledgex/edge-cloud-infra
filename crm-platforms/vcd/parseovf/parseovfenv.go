@@ -10,29 +10,6 @@ import (
 	"strings"
 )
 
-// Parse the result of vcd's ProductSection ovfenv produced via
-// vmtoolsd --cmd "info-get guestinfo.ovfenv"
-// and just write to stdout as mobiledgex-init will
-// send to output to the existing /mnt/mobiledgex/openstack/latest/meta-data.json file
-//
-func getValue(line string) string {
-	value := strings.SplitAfter(line, "value=")
-	if len(value) > 0 {
-		val := value[1]
-		v := strings.Split(val, "/")
-		s := v[0]
-		if len(s) > 1 {
-			s = s[1 : len(s)-1]
-			return s
-		} else {
-			return ""
-		}
-	}
-	return ""
-}
-
-// XXX This still uses the Contains operation, which can match unwanted tokens
-// Revisit
 func main() {
 	// default read from /var/log but use -ovf foo.txt to override
 	ovfile := flag.String("ovf", "/var/log/userdata.log", "default ovfenv file")

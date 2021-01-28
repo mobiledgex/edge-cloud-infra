@@ -150,6 +150,7 @@ func addControllerApis(method string, group *echo.Group) {
 	// UpdateTrustPolicyTimeout: 22
 	// DmeApiMetricsCollectionInterval: 23
 	// PersistentConnectionMetricsCollectionInterval: 24
+	// CleanupReservableAutoClusterIdletime: 25
 	// ```
 	// Security:
 	//   Bearer:
@@ -1031,6 +1032,9 @@ func addControllerApis(method string, group *echo.Group) {
 	// UpdatedAt: 30
 	// UpdatedAtSeconds: 30.1
 	// UpdatedAtNanos: 30.2
+	// ReservationEndedAt: 31
+	// ReservationEndedAtSeconds: 31.1
+	// ReservationEndedAtNanos: 31.2
 	// ```
 	// Security:
 	//   Bearer:
@@ -1051,6 +1055,17 @@ func addControllerApis(method string, group *echo.Group) {
 	//   403: forbidden
 	//   404: notFound
 	group.Match([]string{method}, "/ctrl/ShowClusterInst", ShowClusterInst)
+	// swagger:route POST /auth/ctrl/DeleteIdleReservableClusterInsts IdleReservableClusterInsts DeleteIdleReservableClusterInsts
+	// Cleanup Reservable Cluster Instances.
+	//  Deletes reservable cluster instances that are not in use.
+	// Security:
+	//   Bearer:
+	// responses:
+	//   200: success
+	//   400: badRequest
+	//   403: forbidden
+	//   404: notFound
+	group.Match([]string{method}, "/ctrl/DeleteIdleReservableClusterInsts", DeleteIdleReservableClusterInsts)
 	// swagger:route POST /auth/ctrl/CreateAutoProvPolicy AutoProvPolicy CreateAutoProvPolicy
 	// Create an Auto Provisioning Policy.
 	// Security:
@@ -1297,6 +1312,7 @@ func addControllerApis(method string, group *echo.Group) {
 	// UpdatedAt: 36
 	// UpdatedAtSeconds: 36.1
 	// UpdatedAtNanos: 36.2
+	// RealClusterName: 37
 	// ```
 	// Security:
 	//   Bearer:

@@ -7,7 +7,7 @@ ran: curl -s http://localhost:9092/api/v1/alerts | jq '.data.alerts[] | select(.
     "appver": "1.0",
     "cloudlet": "tmus-cloud-1",
     "cloudletorg": "tmus",
-    "cluster": "ReservableD",
+    "cluster": "autoclusterautoprovappd1.0AcmeAppCo",
     "clusterorg": "MobiledgeX",
     "job": "MobiledgeX Monitoring"
   },

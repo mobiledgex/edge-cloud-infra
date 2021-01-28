@@ -89,7 +89,12 @@ vcd)
 		exit 1
 	fi
 	mkdir -p $METADIR
-	/usr/local/bin/parseovfenv > $METADATA
+	if ! /usr/local/bin/parseovfenv > $METADATA;
+	then
+		log "error in parseovfenv, quitting"
+		log "Finished mobiledgex init"
+		exit 1
+	fi
 		;;
 
 *)

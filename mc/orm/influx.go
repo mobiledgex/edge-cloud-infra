@@ -50,6 +50,8 @@ type influxQueryArgs struct {
 	DeploymentType string
 	Last           int
 	CloudletList   string
+	QueryFilter    string
+	TimeDefinition string
 }
 
 var AppSelectors = []string{

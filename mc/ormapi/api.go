@@ -352,9 +352,10 @@ type MetricData struct {
 }
 
 type MetricSeries struct {
-	Columns []string        `json:"columns"`
-	Name    string          `json:"name"`
-	Values  [][]interface{} `json:"values"`
+	Columns []string          `json:"columns"`
+	Name    string            `json:"name"`
+	Tags    map[string]string `json:"tags"`
+	Values  [][]interface{}   `json:"values"`
 }
 
 type RegionAppInstMetrics struct {
@@ -471,4 +472,14 @@ type AlertReceiver struct {
 	Cloudlet edgeproto.CloudletKey `json:",omitempty"`
 	// AppInst spec for alerts
 	AppInst edgeproto.AppInstKey `json:",omitempty"`
+}
+
+type RegionAppInstMetricsV2 struct {
+	Region    string
+	AppInsts  []edgeproto.AppInstKey
+	Selector  string
+	Function  string    `json:",omitempty"` // Future use - allow to specify rate/mean/max/sum
+	StartTime time.Time `json:",omitempty"`
+	EndTime   time.Time `json:",omitempty"`
+	Last      int       `json:",omitempty"`
 }

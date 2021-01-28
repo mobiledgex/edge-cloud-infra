@@ -46,12 +46,25 @@ func GetMetricsCommand() *cobra.Command {
 		ReqData:      &ormapi.RegionClientMetrics{},
 		ReplyData:    &ormapi.AllMetrics{},
 		Run:          runRest("/auth/metrics/client"),
+	}, &cli.Command{
+		Use:          "appv2",
+		RequiredArgs: strings.Join(append([]string{"region"}, AppMetricV2RequiredArgs...), " "),
+		OptionalArgs: strings.Join(AppMetricOptionalArgs, " "),
+		AliasArgs:    strings.Join(AppMetricV2AliasArgs, " "),
+		Comments:     mergeMetricComments(addRegionComment(MetricCommentsCommon), AppMetricComments),
+		ReqData:      &ormapi.RegionAppInstMetricsV2{},
+		ReplyData:    &ormapi.AllMetrics{},
+		Run:          runRest("/auth/metrics/v2/app"),
 	}}
 	return cli.GenGroup("metrics", "view metrics ", cmds)
 }
 
 var AppMetricRequiredArgs = []string{
 	"app-org",
+	"selector",
+}
+
+var AppMetricV2RequiredArgs = []string{
 	"selector",
 }
 
@@ -75,6 +88,16 @@ var AppMetricAliasArgs = []string{
 	"cluster-org=appinst.clusterinstkey.organization",
 	"cloudlet-org=appinst.clusterinstkey.cloudletkey.organization",
 	"cloudlet=appinst.clusterinstkey.cloudletkey.name",
+}
+
+var AppMetricV2AliasArgs = []string{
+	"appinsts:#.app-org=appinsts:#.appkey.organization",
+	"appinsts:#.appname=appinsts:#.appkey.name",
+	"appinsts:#.appvers=appinsts:.appkey.version",
+	"appinsts:#.cluster=appinsts:#.clusterinstkey.clusterkey.name",
+	"appinsts:#.cluster-org=appinsts:#.clusterinstkey.organization",
+	"appinsts:#.cloudlet-org=appinsts:#.clusterinstkey.cloudletkey.organization",
+	"appinsts:#.cloudlet=appinsts:#.clusterinstkey.cloudletkey.name",
 }
 
 var AppMetricComments = map[string]string{

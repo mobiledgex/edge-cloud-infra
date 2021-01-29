@@ -192,11 +192,14 @@ func (v *VcdPlatform) DeleteVapp(ctx context.Context, vapp *govcd.VApp, vcdClien
 	// handle deletion of an iso orgvdcnet of the client of a shared LB
 	// DetachPortFromServer has already been called, and can't delete the network
 	// because it's still in use, possibly by this vapp (shared clusterInst)
+
 	vdc, err := v.GetVdc(ctx, vcdClient)
 	if err != nil {
 		log.SpanLog(ctx, log.DebugLevelInfra, "DeleteVapp err getting vdc", "vapp", vappName, "err", err)
 		return err
 	}
+	// If GetVappIsoNetwork actually fails (GetNetworkList() unlikely)
+	// don't fail the delete cluster operation here.
 	netName, err := v.GetVappIsoNetwork(ctx, vdc, vapp)
 	// if one of these is an isolated orgvdcnetwork
 	if err == nil && netName != "" {
@@ -216,6 +219,8 @@ func (v *VcdPlatform) DeleteVapp(ctx context.Context, vapp *govcd.VApp, vcdClien
 		} else {
 			log.SpanLog(ctx, log.DebugLevelInfra, "DeleteVapp RemoveOrgVdcNetworkIfExists success", "netName", netName)
 		}
+	} else if err != nil {
+		log.SpanLog(ctx, log.DebugLevelInfra, "DeleteVapp GetVappIsoNetwork failed ignoring ", "vapp", vappName, "netName", netName, "err", err)
 	}
 
 	status, err := vapp.GetStatus()

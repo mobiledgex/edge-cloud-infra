@@ -231,7 +231,6 @@ func (v *VcdPlatform) AddVMsToVApp(ctx context.Context, vapp *govcd.VApp, vmgp *
 
 	log.SpanLog(ctx, log.DebugLevelInfra, "AddVMsToVApp numVMs ", "count", numVMs, "GroupName", vmgp.GroupName, "Internal IP", nextCidr)
 
-	//	lbvm := &govcd.VM{}
 	vmIp := ""
 	var a []string
 	baseAddr := ""
@@ -281,6 +280,11 @@ func (v *VcdPlatform) AddVMsToVApp(ctx context.Context, vapp *govcd.VApp, vmgp *
 				if sharedRootLB {
 					log.SpanLog(ctx, log.DebugLevelInfra, "SharedLB", "vm", vm.VM.Name, "gateway", baseAddr)
 					vmIp, err = IncrIP(ctx, baseAddr, 101+(n-1))
+					if err != nil {
+						log.SpanLog(ctx, log.DebugLevelInfra, "IncrIP failed", "baseAddr", baseAddr, "delta", 100+(n-1), "err", err)
+						return nil, err
+					}
+
 					ncs.PrimaryNetworkConnectionIndex = 0
 				} else {
 					log.SpanLog(ctx, log.DebugLevelInfra, "Dedicated", "vm", vm.VM.Name, "gateway", baseAddr)

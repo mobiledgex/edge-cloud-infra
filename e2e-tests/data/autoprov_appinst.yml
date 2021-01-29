@@ -9,7 +9,7 @@ regiondata:
           version: "1.0"
         clusterinstkey:
           clusterkey:
-            name: autoclusterautoprovapp1.0AcmeAppCo
+            name: autocluster-autoprov
     - key:
         appkey:
           organization: AcmeAppCo
@@ -17,4 +17,4 @@ regiondata:
           version: "1.0"
         clusterinstkey:
           clusterkey:
-            name: autoclusterautoprovappd1.0AcmeAppCo
+            name: autocluster-autoprov

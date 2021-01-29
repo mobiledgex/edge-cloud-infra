@@ -660,7 +660,7 @@ func (s *policyTest) getAppInsts(key *edgeproto.AppKey) []edgeproto.AppInst {
 	for ii, _ := range s.clusterInsts {
 		inst := edgeproto.AppInst{}
 		inst.Key.AppKey = *key
-		inst.Key.ClusterInstKey = *s.clusterInsts[ii].Key.Virtual(cloudcommon.AutoProvClusterName(key))
+		inst.Key.ClusterInstKey = *s.clusterInsts[ii].Key.Virtual(cloudcommon.AutoProvClusterName)
 		insts = append(insts, inst)
 	}
 	return insts

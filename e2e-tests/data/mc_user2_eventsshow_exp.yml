@@ -99,7 +99,7 @@
       appver: "1.0"
       cloudlet: tmus-cloud-1
       cloudletorg: tmus
-      cluster: autoclusterautoprovHA1.0AcmeAppCo
+      cluster: autocluster-autoprov
       clusterorg: MobiledgeX
       hostname: Jon-Mex.lan
       lineno: node/events.go:240
@@ -118,7 +118,7 @@
       appver: "1.0"
       cloudlet: gcp-cloud-5
       cloudletorg: gcp
-      cluster: autoclusterautoprovHA1.0AcmeAppCo
+      cluster: autocluster-autoprov
       clusterorg: MobiledgeX
       hostname: Jon-Mex.lan
       lineno: node/events.go:240
@@ -311,7 +311,7 @@
       appver: "1.0"
       cloudlet: tmus-cloud-1
       cloudletorg: tmus
-      cluster: autoclusterautoprovHA1.0AcmeAppCo
+      cluster: autocluster-autoprov
       clusterorg: MobiledgeX
       hostname: Jon-Mex.lan
       lineno: node/events.go:240
@@ -330,7 +330,7 @@
       appver: "1.0"
       cloudlet: tmus-cloud-1
       cloudletorg: tmus
-      cluster: autoclusterautoprovHA1.0AcmeAppCo
+      cluster: autocluster-autoprov
       clusterorg: MobiledgeX
       hostname: Jon-Mex.lan
       lineno: node/events.go:240
@@ -350,7 +350,7 @@
       autoprovpolicy: autoprovHA
       cloudlet: tmus-cloud-1
       cloudletorg: tmus
-      cluster: autoclusterautoprovHA1.0AcmeAppCo
+      cluster: autocluster-autoprov
       clusterorg: MobiledgeX
       duration: 334.814153ms
       hostname: Jon-Mex
@@ -377,7 +377,7 @@
       appver: "1.0"
       cloudlet: tmus-cloud-1
       cloudletorg: tmus
-      cluster: autoclusterautoprovHA1.0AcmeAppCo
+      cluster: autocluster-autoprov
       clusterorg: MobiledgeX
       hostname: Jon-Mex.lan
       lineno: node/events.go:240
@@ -396,7 +396,7 @@
       appver: "1.0"
       cloudlet: tmus-cloud-1
       cloudletorg: tmus
-      cluster: autoclusterautoprovHA1.0AcmeAppCo
+      cluster: autocluster-autoprov
       clusterorg: MobiledgeX
       hostname: Jon-Mex.lan
       lineno: node/events.go:240
@@ -416,7 +416,7 @@
       autoprovpolicy: autoprovHA
       cloudlet: tmus-cloud-1
       cloudletorg: tmus
-      cluster: autoclusterautoprovHA1.0AcmeAppCo
+      cluster: autocluster-autoprov
       clusterorg: MobiledgeX
       duration: 334.814153ms
       hostname: Jon-Mex
@@ -544,7 +544,7 @@
       autoprovpolicy: ""
       cloudlet: tmus-cloud-2
       cloudletorg: tmus
-      cluster: autoclusterautoprovHA1.0AcmeAppCo
+      cluster: autocluster-autoprov
       clusterorg: MobiledgeX
       duration: 169.970063ms
       hostname: Jon-Mex
@@ -565,7 +565,7 @@
       autoprovpolicy: ""
       cloudlet: tmus-cloud-2
       cloudletorg: tmus
-      cluster: autoclusterautoprovHA1.0AcmeAppCo
+      cluster: autocluster-autoprov
       clusterorg: MobiledgeX
       duration: 187.353273ms
       hostname: Jon-Mex
@@ -592,7 +592,7 @@
       autoprovpolicy: autoprovHA
       cloudlet: gcp-cloud-5
       cloudletorg: gcp
-      cluster: autoclusterautoprovHA1.0AcmeAppCo
+      cluster: autocluster-autoprov
       clusterorg: MobiledgeX
       duration: 317.624796ms
       hostname: Jon-Mex
@@ -613,7 +613,7 @@
       autoprovpolicy: autoprovHA
       cloudlet: azure-cloud-4
       cloudletorg: azure
-      cluster: autoclusterautoprovHA1.0AcmeAppCo
+      cluster: autocluster-autoprov
       clusterorg: MobiledgeX
       duration: 275.444974ms
       hostname: Jon-Mex

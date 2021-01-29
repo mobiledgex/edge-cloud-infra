@@ -482,7 +482,7 @@ func (s *AppChecker) checkPolicy(ctx context.Context, app *edgeproto.App, pname 
 		inst := edgeproto.AppInst{}
 		inst.Key.AppKey = app.Key
 		inst.Key.ClusterInstKey.CloudletKey = site.cloudletKey
-		inst.Key.ClusterInstKey.ClusterKey.Name = cloudcommon.AutoProvClusterName(&app.Key)
+		inst.Key.ClusterInstKey.ClusterKey.Name = cloudcommon.AutoProvClusterName
 		inst.Key.ClusterInstKey.Organization = cloudcommon.OrganizationMobiledgeX
 
 		for _, req := range s.failoverReqs {

@@ -283,7 +283,7 @@ func (s *AutoProvAggr) deploy(ctx context.Context, app *edgeproto.App, cloudletK
 	inst.Key.AppKey = app.Key
 	// let Controller pick or create a reservable ClusterInst.
 	inst.Key.ClusterInstKey.CloudletKey = *cloudletKey
-	inst.Key.ClusterInstKey.ClusterKey.Name = cloudcommon.AutoProvClusterName(&app.Key)
+	inst.Key.ClusterInstKey.ClusterKey.Name = cloudcommon.AutoProvClusterName
 	inst.Key.ClusterInstKey.Organization = cloudcommon.OrganizationMobiledgeX
 
 	go goAppInstApi(ctx, &inst, cloudcommon.Create, cloudcommon.AutoProvReasonDemand, "")

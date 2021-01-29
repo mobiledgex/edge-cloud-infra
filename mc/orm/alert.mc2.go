@@ -889,7 +889,6 @@ func addControllerApis(method string, group *echo.Group) {
 	// Revision: 24
 	// OfficialFqdn: 25
 	// Md5Sum: 26
-	// DefaultSharedVolumeSize: 27
 	// AutoProvPolicy: 28
 	// AccessType: 29
 	// DeletePrepare: 31
@@ -1301,7 +1300,6 @@ func addControllerApis(method string, group *echo.Group) {
 	// Configs: 27
 	// ConfigsKind: 27.1
 	// ConfigsConfig: 27.2
-	// SharedVolumeSize: 28
 	// HealthCheck: 29
 	// PrivacyPolicy: 30
 	// PowerState: 31

@@ -619,9 +619,9 @@ func (v *VSpherePlatform) DeleteVMAndTags(ctx context.Context, vmName string) er
 	return nil
 }
 
-func (v *VSpherePlatform) GetServerGroupResources(ctx context.Context, name string) (*edgeproto.InfraResources, error) {
+func (v *VSpherePlatform) GetServerGroupResources(ctx context.Context, name string) (*edgeproto.InfraResourcesSnapshot, error) {
 	log.SpanLog(ctx, log.DebugLevelInfra, "GetServerGroupResources", "name", name)
-	var resources edgeproto.InfraResources
+	var resources edgeproto.InfraResourcesSnapshot
 	vmTags, err := v.GetTagsMatchingField(ctx, TagFieldGroup, name, v.GetVMDomainTagCategory(ctx))
 	if err != nil {
 		return nil, err

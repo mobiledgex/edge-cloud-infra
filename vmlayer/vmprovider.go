@@ -60,11 +60,15 @@ type VMProvider interface {
 	GetPlatformResourceInfo(ctx context.Context) (*PlatformResources, error)
 	VerifyVMs(ctx context.Context, vms []edgeproto.VM) error
 	CheckServerReady(ctx context.Context, client ssh.Client, serverName string) error
-	GetServerGroupResources(ctx context.Context, name string) (*edgeproto.InfraResources, error)
+	GetServerGroupResources(ctx context.Context, name string) (*edgeproto.InfraResourcesSnapshot, error)
 	ValidateAdditionalNetworks(ctx context.Context, additionalNets []string) error
 	GetSessionTokens(ctx context.Context, vaultConfig *vault.Config, account string) (map[string]string, error)
 	ConfigureCloudletSecurityRules(ctx context.Context, egressRestricted bool, TrustPolicy *edgeproto.TrustPolicy, updateCallback edgeproto.CacheUpdateCallback) error
 	InitOperationContext(ctx context.Context, operationStage OperationInitStage) (context.Context, error)
+	GetCloudletInfraResourcesInfo(ctx context.Context) ([]edgeproto.InfraResource, error)
+	GetCloudletResourceQuotaProps(ctx context.Context) (*edgeproto.CloudletResourceQuotaProps, error)
+	GetClusterAdditionalResources(ctx context.Context, cloudlet *edgeproto.Cloudlet, vmResources []edgeproto.VMResource, infraResMap map[string]*edgeproto.InfraResource) map[string]*edgeproto.InfraResource
+	GetClusterAdditionalResourceMetric(ctx context.Context, cloudlet *edgeproto.Cloudlet, resMetric *edgeproto.Metric, resources []edgeproto.VMResource) error
 }
 
 // VMPlatform contains the needed by all VM based platforms
@@ -444,7 +448,7 @@ func (v *VMPlatform) SyncControllerCache(ctx context.Context, caches *platform.C
 	return nil
 }
 
-func (v *VMPlatform) GetCloudletInfraResources(ctx context.Context) (*edgeproto.InfraResources, error) {
+func (v *VMPlatform) GetCloudletInfraResources(ctx context.Context) (*edgeproto.InfraResourcesSnapshot, error) {
 	log.SpanLog(ctx, log.DebugLevelInfra, "GetCloudletInfraResources")
 
 	var err error
@@ -453,7 +457,7 @@ func (v *VMPlatform) GetCloudletInfraResources(ctx context.Context) (*edgeproto.
 		return nil, err
 	}
 	defer v.VMProvider.InitOperationContext(ctx, OperationInitComplete)
-	var resources edgeproto.InfraResources
+	var resources edgeproto.InfraResourcesSnapshot
 	platResources, err := v.VMProvider.GetServerGroupResources(ctx, v.GetPlatformVMName(&v.VMProperties.CommonPf.PlatformConfig.NodeMgr.MyNode.Key.CloudletKey))
 	if err == nil {
 		resources.Vms = append(resources.Vms, platResources.Vms...)
@@ -466,10 +470,29 @@ func (v *VMPlatform) GetCloudletInfraResources(ctx context.Context) (*edgeproto.
 	} else {
 		log.SpanLog(ctx, log.DebugLevelInfra, "Failed to get root lb resources", "err", err)
 	}
+	resourcesInfo, err := v.VMProvider.GetCloudletInfraResourcesInfo(ctx)
+	if err == nil {
+		resources.Info = resourcesInfo
+	} else {
+		log.SpanLog(ctx, log.DebugLevelInfra, "Failed to get cloudlet infra resources info", "err", err)
+	}
 	return &resources, nil
 }
 
-func (v *VMPlatform) GetClusterInfraResources(ctx context.Context, clusterKey *edgeproto.ClusterInstKey) (*edgeproto.InfraResources, error) {
+func (v *VMPlatform) GetCloudletResourceQuotaProps(ctx context.Context) (*edgeproto.CloudletResourceQuotaProps, error) {
+	return v.VMProvider.GetCloudletResourceQuotaProps(ctx)
+}
+
+// called by controller, make sure it doesn't make any calls to infra API
+func (v *VMPlatform) GetClusterAdditionalResources(ctx context.Context, cloudlet *edgeproto.Cloudlet, vmResources []edgeproto.VMResource, infraResMap map[string]*edgeproto.InfraResource) map[string]*edgeproto.InfraResource {
+	return v.VMProvider.GetClusterAdditionalResources(ctx, cloudlet, vmResources, infraResMap)
+}
+
+func (v *VMPlatform) GetClusterAdditionalResourceMetric(ctx context.Context, cloudlet *edgeproto.Cloudlet, resMetric *edgeproto.Metric, resources []edgeproto.VMResource) error {
+	return v.VMProvider.GetClusterAdditionalResourceMetric(ctx, cloudlet, resMetric, resources)
+}
+
+func (v *VMPlatform) GetClusterInfraResources(ctx context.Context, clusterKey *edgeproto.ClusterInstKey) (*edgeproto.InfraResourcesSnapshot, error) {
 	log.SpanLog(ctx, log.DebugLevelInfra, "GetClusterInfraResources")
 
 	var err error

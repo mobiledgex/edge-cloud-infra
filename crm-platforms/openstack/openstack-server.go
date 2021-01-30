@@ -356,9 +356,9 @@ func (s *OpenstackPlatform) CheckServerReady(ctx context.Context, client ssh.Cli
 	return nil
 }
 
-func (o *OpenstackPlatform) GetServerGroupResources(ctx context.Context, name string) (*edgeproto.InfraResources, error) {
+func (o *OpenstackPlatform) GetServerGroupResources(ctx context.Context, name string) (*edgeproto.InfraResourcesSnapshot, error) {
 	log.SpanLog(ctx, log.DebugLevelInfra, "GetServerGroupResources")
-	var resources edgeproto.InfraResources
+	var resources edgeproto.InfraResourcesSnapshot
 	serverMap, err := o.ListServers(ctx)
 	if err != nil {
 		return nil, err

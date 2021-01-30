@@ -898,8 +898,8 @@ func (v *VcdPlatform) SetVMProperties(vmProperties *vmlayer.VMProperties) {
 }
 
 // Should always be a vapp/cluster/group name
-func (v *VcdPlatform) GetServerGroupResources(ctx context.Context, name string) (*edgeproto.InfraResources, error) {
-	resources := &edgeproto.InfraResources{}
+func (v *VcdPlatform) GetServerGroupResources(ctx context.Context, name string) (*edgeproto.InfraResourcesSnapshot, error) {
+	resources := &edgeproto.InfraResourcesSnapshot{}
 
 	vcdClient := v.GetVcdClientFromContext(ctx)
 	if vcdClient == nil {

@@ -7,8 +7,7 @@ import (
 	"github.com/mobiledgex/edge-cloud/edgeproto"
 	"github.com/mobiledgex/edge-cloud/log"
 	"github.com/mobiledgex/edge-cloud/testutil"
-	"github.com/stretchr/testify/assert"
-	"github.com/test-go/testify/require"
+	"github.com/stretchr/testify/require"
 )
 
 // Test the types of appInstances that will create a scrapePoint
@@ -136,19 +135,19 @@ func TestCollectProxyStats(t *testing.T) {
 	app := edgeproto.App{}
 	found := AppCache.Get(&appInst.Key.AppKey, &app)
 	if !found {
-		assert.Fail(t, "Could not find app for appinst")
+		require.Fail(t, "Could not find app for appinst")
 	}
 	ports, _ := edgeproto.ParseAppPorts(app.AccessPorts)
 	appInst.MappedPorts = ports
 	appInst.State = edgeproto.TrackedState_READY
 	// scrape point should still be created
 	target := CollectProxyStats(ctx, &appInst)
-	assert.NotEmpty(t, target)
-	assert.Nil(t, ProxyMap[target].Client)
+	require.NotEmpty(t, target)
+	require.Nil(t, ProxyMap[target].Client)
 	// Set myPlatform to return client now and create appInst again
 	myPlatform = &shepherd_unittest.Platform{FailPlatformClient: false}
 	// Create scrape point again
 	target = CollectProxyStats(ctx, &appInst)
-	assert.NotEmpty(t, target)
-	assert.NotNil(t, ProxyMap[target].Client)
+	require.NotEmpty(t, target)
+	require.NotNil(t, ProxyMap[target].Client)
 }

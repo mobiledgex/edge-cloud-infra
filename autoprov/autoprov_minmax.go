@@ -399,9 +399,16 @@ func (s *AppChecker) Check(ctx context.Context) {
 	}
 }
 
+type HasItType int
+
+const (
+	NotHasIt HasItType = 0
+	HasIt    HasItType = 1
+)
+
 type potentialCreateSite struct {
 	cloudletKey edgeproto.CloudletKey
-	hasFree     int
+	hasFree     HasItType
 }
 
 func (s *AppChecker) checkPolicy(ctx context.Context, app *edgeproto.App, pname string, prevPolicyCloudlets map[edgeproto.CloudletKey]struct{}) {
@@ -436,7 +443,7 @@ func (s *AppChecker) checkPolicy(ctx context.Context, app *edgeproto.App, pname 
 			// see if free reservable ClusterInst exists
 			freeClustKey := s.caches.frClusterInsts.GetForCloudlet(&apCloudlet.Key, app.Deployment, app.DefaultFlavor.Name, cloudcommon.AppInstToClusterDeployment)
 			if freeClustKey != nil {
-				pt.hasFree = 1
+				pt.hasFree = HasIt
 			}
 			potentialCreate = append(potentialCreate, pt)
 		} else {

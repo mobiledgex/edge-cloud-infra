@@ -14,13 +14,12 @@ import (
 
 // For each cluster the notify worker is created
 type AppInstWorker struct {
-	pf              platform.Platform
-	appInstKey      edgeproto.AppInstKey
-	realClusterName string
-	interval        time.Duration
-	send            func(ctx context.Context, metric *edgeproto.Metric) bool
-	waitGrp         sync.WaitGroup
-	stop            chan struct{}
+	pf         platform.Platform
+	appInstKey edgeproto.AppInstKey
+	interval   time.Duration
+	send       func(ctx context.Context, metric *edgeproto.Metric) bool
+	waitGrp    sync.WaitGroup
+	stop       chan struct{}
 }
 
 func NewAppInstWorker(ctx context.Context, interval time.Duration, send func(ctx context.Context, metric *edgeproto.Metric) bool, appinst *edgeproto.AppInst, pf platform.Platform) (*AppInstWorker, error) {
@@ -33,7 +32,6 @@ func NewAppInstWorker(ctx context.Context, interval time.Duration, send func(ctx
 	}
 	p.send = send
 	p.appInstKey = appinst.Key
-	p.realClusterName = appinst.RealClusterName
 	log.SpanLog(ctx, log.DebugLevelMetrics, "NewAppInstWorker", "app", appinst)
 	return &p, nil
 }
@@ -57,7 +55,8 @@ func (p *AppInstWorker) sendMetrics() {
 	ctx := log.ContextWithSpan(context.Background(), span)
 	defer span.Finish()
 	key := shepherd_common.MetricAppInstKey{
-		ClusterInstKey: *p.appInstKey.ClusterInstKey.Real(p.realClusterName),
+		// no real cluster name since these are VM apps
+		ClusterInstKey: *p.appInstKey.ClusterInstKey.Real(""),
 		Pod:            p.appInstKey.AppKey.Name,
 		App:            util.DNSSanitize(p.appInstKey.AppKey.Name),
 		Version:        util.DNSSanitize(p.appInstKey.AppKey.Version),

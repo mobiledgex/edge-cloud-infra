@@ -69,6 +69,7 @@ func (v *VcdPlatform) GetVcdVars(ctx context.Context, accessApi platform.AccessA
 }
 
 // access vars from the vault
+
 func (v *VcdPlatform) GetVCDIP() string {
 	return v.vcdVars["VCD_IP"]
 }
@@ -98,10 +99,6 @@ func (v *VcdPlatform) GetVDCTemplateName() string {
 		}
 	}
 	return v.vcdVars["VDCTEMPLATE"]
-}
-
-func (v *VcdPlatform) GetExtNetworkName() string {
-	return v.vcdVars["MEX_EXT_NETWORK"]
 }
 
 // properties from envvars

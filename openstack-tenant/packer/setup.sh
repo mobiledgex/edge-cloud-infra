@@ -125,7 +125,7 @@ ps -ef | grep cloud
 log "Set up APT sources"
 sudo rm -rf /etc/apt/sources.list.d
 sudo tee /etc/apt/sources.list <<EOT
-deb https://apt.mobiledgex.net/cirrus/2021-01-06 bionic main
+deb https://apt.mobiledgex.net/cirrus/2021-02-01 bionic main
 deb https://artifactory.mobiledgex.net/artifactory/packages cirrus main
 EOT
 sudo apt-get update

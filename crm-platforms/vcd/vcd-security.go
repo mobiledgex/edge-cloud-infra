@@ -112,8 +112,12 @@ func (v *VcdPlatform) GetExternalIpNetworkCidr(ctx context.Context, vcdClient *g
 	}
 
 	scope := extNet.OrgVDCNetwork.Configuration.IPScopes.IPScope[0]
-	mask := v.GetExternalNetmask()
-	addr := scope.Gateway + "/" + mask
+	cidr, err := MaskToCidr(scope.Netmask)
+	if err != nil {
+		log.SpanLog(ctx, log.DebugLevelInfra, "GetExternalIpNetworkCidr error converting mask to cider", "cidr", cidr, "error", err)
+		return "", err
+	}
+	addr := scope.Gateway + "/" + cidr
 
 	log.SpanLog(ctx, log.DebugLevelInfra, "GetExternalIpNetworkCidr", "addr", addr)
 

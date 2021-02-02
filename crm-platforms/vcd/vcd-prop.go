@@ -36,11 +36,6 @@ var VcdProps = map[string]*edgeproto.PropertyInfo{
 		Description: "Verbose logging for VCD",
 		Internal:    true,
 	},
-	"MEX_EXTERNAL_NETWORK_MASK": {
-		Name:        "External Network Mask",
-		Description: "External Network Mask",
-		Mandatory:   true,
-	},
 }
 
 func (v *VcdPlatform) GetVaultCloudletAccessPath(key *edgeproto.CloudletKey, region, physicalName string) string {
@@ -148,17 +143,5 @@ func (v *VcdPlatform) GetProviderSpecificProps(ctx context.Context) (map[string]
 
 func (v *VcdPlatform) GetTemplateNameFromProps() string {
 	val, _ := v.vmProperties.CommonPf.Properties.GetValue("MEX_VDC_TEMPLATE")
-	return val
-}
-
-func (v *VcdPlatform) GetExternalNetmask() string {
-	if v.vmProperties.Domain == vmlayer.VMDomainPlatform {
-		// check for optional management netmask
-		val, _ := v.vmProperties.CommonPf.Properties.GetValue("MEX_MANAGEMENT_EXTERNAL_NETWORK_MASK")
-		if val != "" {
-			return val
-		}
-	}
-	val, _ := v.vmProperties.CommonPf.Properties.GetValue("MEX_EXTERNAL_NETWORK_MASK")
 	return val
 }

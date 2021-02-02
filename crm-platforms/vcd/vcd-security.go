@@ -112,8 +112,7 @@ func (v *VcdPlatform) GetExternalIpNetworkCidr(ctx context.Context, vcdClient *g
 	}
 
 	scope := extNet.OrgVDCNetwork.Configuration.IPScopes.IPScope[0]
-	mask := "29"
-	//	mask := v.GetExternalNetmask()
+	mask := v.GetExternalNetmask()
 	addr := scope.Gateway + "/" + mask
 
 	log.SpanLog(ctx, log.DebugLevelInfra, "GetExternalIpNetworkCidr", "addr", addr)
@@ -130,7 +129,7 @@ func (v *VcdPlatform) PrepareRootLB(ctx context.Context, client ssh.Client, root
 		log.SpanLog(ctx, log.DebugLevelInfra, NoVCDClientInContext)
 		return fmt.Errorf(NoVCDClientInContext)
 	}
-	log.SpanLog(ctx, log.DebugLevelInfra, "PrepareRootLB TBI", "rootLBName", rootLBName)
+	log.SpanLog(ctx, log.DebugLevelInfra, "PrepareRootLB", "rootLBName", rootLBName)
 	// configure iptables based security
 	sshCidrsAllowed := []string{}
 	externalNet, err := v.GetExternalIpNetworkCidr(ctx, vcdClient)

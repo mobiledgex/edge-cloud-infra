@@ -903,10 +903,6 @@ func (v *VcdPlatform) GetVMAddresses(ctx context.Context, vm *govcd.VM) ([]vmlay
 
 func (v *VcdPlatform) SetVMProperties(vmProperties *vmlayer.VMProperties) {
 	v.vmProperties = vmProperties
-	// TODO: the intention is to use Iptables firewall for VCD. However, as this
-	// is not implemented yet, we will set this to false for now so that the forwarding
-	// rules can be added. As part of the implementation of iptables for vCD, the forwarding
-	// rules will be done in that code and this can be set back to true
 	vmProperties.IptablesBasedFirewall = true
 }
 

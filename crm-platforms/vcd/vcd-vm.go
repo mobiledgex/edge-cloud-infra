@@ -907,7 +907,7 @@ func (v *VcdPlatform) SetVMProperties(vmProperties *vmlayer.VMProperties) {
 	// is not implemented yet, we will set this to false for now so that the forwarding
 	// rules can be added. As part of the implementation of iptables for vCD, the forwarding
 	// rules will be done in that code and this can be set back to true
-	vmProperties.IptablesBasedFirewall = false
+	vmProperties.IptablesBasedFirewall = true
 }
 
 // Should always be a vapp/cluster/group name

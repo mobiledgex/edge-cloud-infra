@@ -8,6 +8,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/mobiledgex/edge-cloud-infra/billing"
 	"github.com/mobiledgex/edge-cloud-infra/mc/ormapi"
 	"github.com/mobiledgex/edge-cloud-infra/mc/ormclient"
 	"github.com/mobiledgex/edge-cloud-infra/mc/rbac"
@@ -42,7 +43,7 @@ func TestServer(t *testing.T) {
 		SkipVerifyEmail:         true,
 		vaultConfig:             vaultConfig,
 		UsageCheckpointInterval: "MONTH",
-		BillingPlatform:         "fake",
+		BillingPlatform:         billing.BillingTypeFake,
 	}
 	server, err := RunServer(&config)
 	require.Nil(t, err, "run server")

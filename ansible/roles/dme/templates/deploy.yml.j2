@@ -22,15 +22,12 @@ spec:
          - "/bin/bash"
          - "-ecx"
          - |
-           vault-cert --vault "{{ vault_address }}" _.dme.mobiledgex.net
            exec dme-server \
              --commonName "{{ dme_dns }}.{{ cloudflare_zone }}" \
              --region "{{ region }}" \
              --apiAddr 0.0.0.0:50051 \
              --httpAddr 0.0.0.0:38001 \
              --notifyAddrs {{ controller_hostname }}:37001 \
-             --tlsApiCertFile /tls/tls.crt \
-             --tlsApiKeyFile /tls/tls.key \
              --vaultAddr "{{ vault_address }}" \
              --useVaultCerts \
              --deploymentTag "{{ deployment_tag_override | default(deploy_environ) }}" \
@@ -39,17 +36,6 @@ spec:
              --cloudletKey '{"organization":"{{ operator_key }}","name":"{{ deploy_target }}-cloudlet"}' \
              --toksrvurl "{{ toksrv_url }}" \
              -d locapi,dmedb,dmereq,notify
-        livenessProbe:
-          exec:
-            command:
-              - "vault-cert"
-              - "--vault"
-              - "{{ vault_address }}"
-              - "--check"
-              - _.dme.mobiledgex.net
-          periodSeconds: 28800
-          timeoutSeconds: 180
-          initialDelaySeconds: 900
         env:
          - name: LOCAPI_USER
            value: "{{ locapi_user }}"

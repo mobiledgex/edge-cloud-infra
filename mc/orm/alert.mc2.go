@@ -416,7 +416,6 @@ func addControllerApis(method string, group *echo.Group) {
 	// Revision: 24
 	// OfficialFqdn: 25
 	// Md5Sum: 26
-	// DefaultSharedVolumeSize: 27
 	// AutoProvPolicy: 28
 	// AccessType: 29
 	// DeletePrepare: 31
@@ -668,17 +667,6 @@ func addControllerApis(method string, group *echo.Group) {
 	//   403: forbidden
 	//   404: notFound
 	group.Match([]string{method}, "/ctrl/GetCloudletResourceUsage", GetCloudletResourceUsage)
-	// swagger:route POST /auth/ctrl/SyncCloudletInfraResources CloudletKey SyncCloudletInfraResources
-	// Sync Cloudlet Infra resources.
-	//  Synchronizes controllers view of cloudlet resources
-	// Security:
-	//   Bearer:
-	// responses:
-	//   200: success
-	//   400: badRequest
-	//   403: forbidden
-	//   404: notFound
-	group.Match([]string{method}, "/ctrl/SyncCloudletInfraResources", SyncCloudletInfraResources)
 	// swagger:route POST /auth/ctrl/AddCloudletResMapping CloudletResMap AddCloudletResMapping
 	// Add Optional Resource tag table.
 	// Security:
@@ -985,118 +973,6 @@ func addControllerApis(method string, group *echo.Group) {
 	//   403: forbidden
 	//   404: notFound
 	group.Match([]string{method}, "/ctrl/ShowAutoScalePolicy", ShowAutoScalePolicy)
-<<<<<<< HEAD
-=======
-	// swagger:route POST /auth/ctrl/CreateApp App CreateApp
-	// Create Application.
-	//  Creates a definition for an application instance for Cloudlet deployment.
-	// Security:
-	//   Bearer:
-	// responses:
-	//   200: success
-	//   400: badRequest
-	//   403: forbidden
-	//   404: notFound
-	group.Match([]string{method}, "/ctrl/CreateApp", CreateApp)
-	// swagger:route POST /auth/ctrl/DeleteApp App DeleteApp
-	// Delete Application.
-	//  Deletes a definition of an Application instance. Make sure no other application instances exist with that definition. If they do exist, you must delete those Application instances first.
-	// Security:
-	//   Bearer:
-	// responses:
-	//   200: success
-	//   400: badRequest
-	//   403: forbidden
-	//   404: notFound
-	group.Match([]string{method}, "/ctrl/DeleteApp", DeleteApp)
-	// swagger:route POST /auth/ctrl/UpdateApp App UpdateApp
-	// Update Application.
-	//  Updates the definition of an Application instance.
-	// The following values should be added to `App.fields` field array to specify which fields will be updated.
-	// ```
-	// Key: 2
-	// KeyOrganization: 2.1
-	// KeyName: 2.2
-	// KeyVersion: 2.3
-	// ImagePath: 4
-	// ImageType: 5
-	// AccessPorts: 7
-	// DefaultFlavor: 9
-	// DefaultFlavorName: 9.1
-	// AuthPublicKey: 12
-	// Command: 13
-	// Annotations: 14
-	// Deployment: 15
-	// DeploymentManifest: 16
-	// DeploymentGenerator: 17
-	// AndroidPackageName: 18
-	// DelOpt: 20
-	// Configs: 21
-	// ConfigsKind: 21.1
-	// ConfigsConfig: 21.2
-	// ScaleWithCluster: 22
-	// InternalPorts: 23
-	// Revision: 24
-	// OfficialFqdn: 25
-	// Md5Sum: 26
-	// AutoProvPolicy: 28
-	// AccessType: 29
-	// DeletePrepare: 31
-	// AutoProvPolicies: 32
-	// TemplateDelimiter: 33
-	// SkipHcPorts: 34
-	// CreatedAt: 35
-	// CreatedAtSeconds: 35.1
-	// CreatedAtNanos: 35.2
-	// UpdatedAt: 36
-	// UpdatedAtSeconds: 36.1
-	// UpdatedAtNanos: 36.2
-	// Trusted: 37
-	// RequiredOutboundConnections: 38
-	// RequiredOutboundConnectionsProtocol: 38.1
-	// RequiredOutboundConnectionsPort: 38.2
-	// RequiredOutboundConnectionsRemoteIp: 38.4
-	// ```
-	// Security:
-	//   Bearer:
-	// responses:
-	//   200: success
-	//   400: badRequest
-	//   403: forbidden
-	//   404: notFound
-	group.Match([]string{method}, "/ctrl/UpdateApp", UpdateApp)
-	// swagger:route POST /auth/ctrl/ShowApp App ShowApp
-	// Show Applications.
-	//  Lists all Application definitions managed from the Edge Controller. Any fields specified will be used to filter results.
-	// Security:
-	//   Bearer:
-	// responses:
-	//   200: success
-	//   400: badRequest
-	//   403: forbidden
-	//   404: notFound
-	group.Match([]string{method}, "/ctrl/ShowApp", ShowApp)
-	// swagger:route POST /auth/ctrl/AddAppAutoProvPolicy AppAutoProvPolicy AddAppAutoProvPolicy
-	// .
-	// Security:
-	//   Bearer:
-	// responses:
-	//   200: success
-	//   400: badRequest
-	//   403: forbidden
-	//   404: notFound
-	group.Match([]string{method}, "/ctrl/AddAppAutoProvPolicy", AddAppAutoProvPolicy)
-	// swagger:route POST /auth/ctrl/RemoveAppAutoProvPolicy AppAutoProvPolicy RemoveAppAutoProvPolicy
-	// .
-	// Security:
-	//   Bearer:
-	// responses:
-	//   200: success
-	//   400: badRequest
-	//   403: forbidden
-	//   404: notFound
-	group.Match([]string{method}, "/ctrl/RemoveAppAutoProvPolicy", RemoveAppAutoProvPolicy)
->>>>>>> 97a232b94f1e93920c95381229fe286a02fdc1e2
 	// swagger:route POST /auth/ctrl/CreateClusterInst ClusterInst CreateClusterInst
 	// Create Cluster Instance.
 	//  Creates an instance of a Cluster on a Cloudlet, defined by a Cluster Key and a Cloudlet Key. ClusterInst is a collection of compute resources on a Cloudlet on which AppInsts are deployed.
@@ -1161,41 +1037,21 @@ func addControllerApis(method string, group *echo.Group) {
 	// MasterNodeFlavor: 25
 	// SkipCrmCleanupOnFailure: 26
 	// OptRes: 27
-	// ResourcesSnapshot: 28
-	// ResourcesSnapshotVms: 28.1
-	// ResourcesSnapshotVmsName: 28.1.1
-	// ResourcesSnapshotVmsType: 28.1.2
-	// ResourcesSnapshotVmsStatus: 28.1.3
-	// ResourcesSnapshotVmsInfraFlavor: 28.1.4
-	// ResourcesSnapshotVmsIpaddresses: 28.1.5
-	// ResourcesSnapshotVmsIpaddressesExternalIp: 28.1.5.1
-	// ResourcesSnapshotVmsIpaddressesInternalIp: 28.1.5.2
-	// ResourcesSnapshotVmsContainers: 28.1.6
-	// ResourcesSnapshotVmsContainersName: 28.1.6.1
-	// ResourcesSnapshotVmsContainersType: 28.1.6.2
-	// ResourcesSnapshotVmsContainersStatus: 28.1.6.3
-	// ResourcesSnapshotVmsContainersClusterip: 28.1.6.4
-	// ResourcesSnapshotVmsContainersRestarts: 28.1.6.5
-	// ResourcesSnapshotInfo: 28.2
-	// ResourcesSnapshotInfoName: 28.2.1
-	// ResourcesSnapshotInfoValue: 28.2.2
-	// ResourcesSnapshotInfoMaxValue: 28.2.3
-	// ResourcesSnapshotInfoDescription: 28.2.4
-	// ResourcesSnapshotInfoUnits: 28.2.5
-	// ResourcesSnapshotInfoAlertThreshold: 28.2.6
-	// ResourcesSnapshotClusterInsts: 28.3
-	// ResourcesSnapshotClusterInstsClusterKey: 28.3.1
-	// ResourcesSnapshotClusterInstsClusterKeyName: 28.3.1.1
-	// ResourcesSnapshotClusterInstsOrganization: 28.3.2
-	// ResourcesSnapshotVmAppInsts: 28.4
-	// ResourcesSnapshotVmAppInstsAppKey: 28.4.1
-	// ResourcesSnapshotVmAppInstsAppKeyOrganization: 28.4.1.1
-	// ResourcesSnapshotVmAppInstsAppKeyName: 28.4.1.2
-	// ResourcesSnapshotVmAppInstsAppKeyVersion: 28.4.1.3
-	// ResourcesSnapshotVmAppInstsClusterInstKey: 28.4.2
-	// ResourcesSnapshotVmAppInstsClusterInstKeyClusterKey: 28.4.2.1
-	// ResourcesSnapshotVmAppInstsClusterInstKeyClusterKeyName: 28.4.2.1.1
-	// ResourcesSnapshotVmAppInstsClusterInstKeyOrganization: 28.4.2.2
+	// Resources: 28
+	// ResourcesVms: 28.1
+	// ResourcesVmsName: 28.1.1
+	// ResourcesVmsType: 28.1.2
+	// ResourcesVmsStatus: 28.1.3
+	// ResourcesVmsInfraFlavor: 28.1.4
+	// ResourcesVmsIpaddresses: 28.1.5
+	// ResourcesVmsIpaddressesExternalIp: 28.1.5.1
+	// ResourcesVmsIpaddressesInternalIp: 28.1.5.2
+	// ResourcesVmsContainers: 28.1.6
+	// ResourcesVmsContainersName: 28.1.6.1
+	// ResourcesVmsContainersType: 28.1.6.2
+	// ResourcesVmsContainersStatus: 28.1.6.3
+	// ResourcesVmsContainersClusterip: 28.1.6.4
+	// ResourcesVmsContainersRestarts: 28.1.6.5
 	// CreatedAt: 29
 	// CreatedAtSeconds: 29.1
 	// CreatedAtNanos: 29.2

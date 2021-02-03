@@ -690,6 +690,6 @@ func (s *VMPoolPlatform) CheckServerReady(ctx context.Context, client ssh.Client
 	return nil
 }
 
-func (v *VMPoolPlatform) GetServerGroupResources(ctx context.Context, name string) (*edgeproto.InfraResourcesSnapshot, error) {
+func (v *VMPoolPlatform) GetServerGroupResources(ctx context.Context, name string) (*edgeproto.InfraResources, error) {
 	return nil, fmt.Errorf("GetServerGroupResources not implemented for VMPool")
 }

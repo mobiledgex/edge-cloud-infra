@@ -423,6 +423,6 @@ func (a *AwsEc2Platform) AddAppImageIfNotPresent(ctx context.Context, imageInfo 
 	return fmt.Errorf("AddAppImageIfNotPresent not implemented")
 }
 
-func (a *AwsEc2Platform) GetServerGroupResources(ctx context.Context, name string) (*edgeproto.InfraResourcesSnapshot, error) {
+func (a *AwsEc2Platform) GetServerGroupResources(ctx context.Context, name string) (*edgeproto.InfraResources, error) {
 	return nil, fmt.Errorf("GetServerGroupResources not implemented for AWS EC2")
 }

@@ -140,20 +140,6 @@ func goodPermGetCloudletResourceUsage(t *testing.T, mcClient *ormclient.Client, 
 
 var _ = edgeproto.GetFields
 
-func badPermSyncCloudletInfraResources(t *testing.T, mcClient *ormclient.Client, uri, token, region, org string, modFuncs ...func(*edgeproto.CloudletKey)) {
-	_, status, err := testutil.TestPermSyncCloudletInfraResources(mcClient, uri, token, region, org, modFuncs...)
-	require.NotNil(t, err)
-	require.Equal(t, http.StatusForbidden, status)
-}
-
-func goodPermSyncCloudletInfraResources(t *testing.T, mcClient *ormclient.Client, uri, token, region, org string, modFuncs ...func(*edgeproto.CloudletKey)) {
-	_, status, err := testutil.TestPermSyncCloudletInfraResources(mcClient, uri, token, region, org, modFuncs...)
-	require.Nil(t, err)
-	require.Equal(t, http.StatusOK, status)
-}
-
-var _ = edgeproto.GetFields
-
 func badPermAddCloudletResMapping(t *testing.T, mcClient *ormclient.Client, uri, token, region, org string, modFuncs ...func(*edgeproto.CloudletResMap)) {
 	_, status, err := testutil.TestPermAddCloudletResMapping(mcClient, uri, token, region, org, modFuncs...)
 	require.NotNil(t, err)

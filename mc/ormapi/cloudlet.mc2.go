@@ -112,13 +112,6 @@ type RegionCloudletResourceUsage struct {
 	CloudletResourceUsage edgeproto.CloudletResourceUsage
 }
 
-// Request summary for SyncCloudletInfraResources
-// swagger:parameters SyncCloudletInfraResources
-type swaggerSyncCloudletInfraResources struct {
-	// in: body
-	Body RegionCloudletKey
-}
-
 // Request summary for AddCloudletResMapping
 // swagger:parameters AddCloudletResMapping
 type swaggerAddCloudletResMapping struct {

@@ -218,36 +218,36 @@ func (o *OpenstackPlatform) GetCloudletInfraResourcesInfo(ctx context.Context) (
 	}
 	resInfo := []edgeproto.InfraResource{
 		edgeproto.InfraResource{
-			Name:     cloudcommon.ResourceRamMb,
-			Value:    ramUsed,
-			MaxValue: ramMax,
-			Units:    cloudcommon.ResourceRamUnits,
+			Name:          cloudcommon.ResourceRamMb,
+			Value:         ramUsed,
+			InfraMaxValue: ramMax,
+			Units:         cloudcommon.ResourceRamUnits,
 		},
 		edgeproto.InfraResource{
-			Name:     cloudcommon.ResourceVcpus,
-			Value:    vcpusUsed,
-			MaxValue: vcpusMax,
+			Name:          cloudcommon.ResourceVcpus,
+			Value:         vcpusUsed,
+			InfraMaxValue: vcpusMax,
 		},
 		edgeproto.InfraResource{
-			Name:     cloudcommon.ResourceDiskGb,
-			Value:    diskUsed,
-			MaxValue: diskMax,
-			Units:    cloudcommon.ResourceDiskUnits,
+			Name:          cloudcommon.ResourceDiskGb,
+			Value:         diskUsed,
+			InfraMaxValue: diskMax,
+			Units:         cloudcommon.ResourceDiskUnits,
 		},
 		edgeproto.InfraResource{
-			Name:     ResourceInstances,
-			Value:    instancesUsed,
-			MaxValue: instancesMax,
+			Name:          ResourceInstances,
+			Value:         instancesUsed,
+			InfraMaxValue: instancesMax,
 		},
 		edgeproto.InfraResource{
-			Name:     ResourceSecurityGroups,
-			Value:    secGrpsUsed,
-			MaxValue: secGrpsMax,
+			Name:          ResourceSecurityGroups,
+			Value:         secGrpsUsed,
+			InfraMaxValue: secGrpsMax,
 		},
 		edgeproto.InfraResource{
-			Name:     ResourceFloatingIPs,
-			Value:    fipsUsed,
-			MaxValue: fipsMax,
+			Name:          ResourceFloatingIPs,
+			Value:         fipsUsed,
+			InfraMaxValue: fipsMax,
 		},
 	}
 	return resInfo, nil
@@ -309,12 +309,12 @@ func (o *OpenstackPlatform) GetClusterAdditionalResources(ctx context.Context, c
 	for resName, resUnits := range cloudletRes {
 		resMax := uint64(0)
 		if infraRes, ok := infraResMap[resName]; ok {
-			resMax = infraRes.MaxValue
+			resMax = infraRes.InfraMaxValue
 		}
 		resInfo[resName] = &edgeproto.InfraResource{
-			Name:     resName,
-			MaxValue: resMax,
-			Units:    resUnits,
+			Name:          resName,
+			InfraMaxValue: resMax,
+			Units:         resUnits,
 		}
 	}
 

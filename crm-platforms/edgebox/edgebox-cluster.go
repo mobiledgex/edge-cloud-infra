@@ -18,7 +18,7 @@ func (e *EdgeboxPlatform) GetCloudletInfraResources(ctx context.Context) (*edgep
 	return e.generic.GetCloudletInfraResources(ctx)
 }
 
-func (e *EdgeboxPlatform) GetClusterInfraResources(ctx context.Context, clusterKey *edgeproto.ClusterInstKey) (*edgeproto.InfraResourcesSnapshot, error) {
+func (e *EdgeboxPlatform) GetClusterInfraResources(ctx context.Context, clusterKey *edgeproto.ClusterInstKey) (*edgeproto.InfraResources, error) {
 	return e.generic.GetClusterInfraResources(ctx, clusterKey)
 }
 

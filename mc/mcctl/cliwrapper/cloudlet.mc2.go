@@ -114,17 +114,6 @@ func (s *Client) GetCloudletResourceUsage(uri, token string, in *ormapi.RegionCl
 	return &out, st, err
 }
 
-func (s *Client) SyncCloudletInfraResources(uri, token string, in *ormapi.RegionCloudletKey) (*edgeproto.Result, int, error) {
-	args := []string{"region", "SyncCloudletInfraResources"}
-	out := edgeproto.Result{}
-	noconfig := strings.Split("", ",")
-	st, err := s.runObjs(uri, token, args, in, &out, withIgnore(noconfig))
-	if err != nil {
-		return nil, st, err
-	}
-	return &out, st, err
-}
-
 func (s *Client) AddCloudletResMapping(uri, token string, in *ormapi.RegionCloudletResMap) (*edgeproto.Result, int, error) {
 	args := []string{"region", "AddCloudletResMapping"}
 	out := edgeproto.Result{}

@@ -106,6 +106,14 @@ regiondata:
       flavor:
         name: DefaultPlatformFlavor
       physicalname: tmus-cloud-1
+      resourcequotas:
+      - name: RAM
+        alertthreshold: 50
+      - name: vCPUs
+        value: 20
+        alertthreshold: 50
+      - name: External IPs
+        alertthreshold: 10
     - key:
         organization: tmus
         name: tmus-cloud-2

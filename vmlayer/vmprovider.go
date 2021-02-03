@@ -60,7 +60,7 @@ type VMProvider interface {
 	GetPlatformResourceInfo(ctx context.Context) (*PlatformResources, error)
 	VerifyVMs(ctx context.Context, vms []edgeproto.VM) error
 	CheckServerReady(ctx context.Context, client ssh.Client, serverName string) error
-	GetServerGroupResources(ctx context.Context, name string) (*edgeproto.InfraResourcesSnapshot, error)
+	GetServerGroupResources(ctx context.Context, name string) (*edgeproto.InfraResources, error)
 	ValidateAdditionalNetworks(ctx context.Context, additionalNets []string) error
 	GetSessionTokens(ctx context.Context, vaultConfig *vault.Config, account string) (map[string]string, error)
 	ConfigureCloudletSecurityRules(ctx context.Context, egressRestricted bool, TrustPolicy *edgeproto.TrustPolicy, updateCallback edgeproto.CacheUpdateCallback) error
@@ -494,13 +494,13 @@ func (v *VMPlatform) GetCloudletInfraResources(ctx context.Context) (*edgeproto.
 	var resources edgeproto.InfraResourcesSnapshot
 	platResources, err := v.VMProvider.GetServerGroupResources(ctx, v.GetPlatformVMName(&v.VMProperties.CommonPf.PlatformConfig.NodeMgr.MyNode.Key.CloudletKey))
 	if err == nil {
-		resources.Vms = append(resources.Vms, platResources.Vms...)
+		resources.PlatformVms = append(resources.PlatformVms, platResources.Vms...)
 	} else {
 		log.SpanLog(ctx, log.DebugLevelInfra, "Failed to get platform VM resources", "err", err)
 	}
 	rootlbResources, err := v.VMProvider.GetServerGroupResources(ctx, v.VMProperties.SharedRootLBName)
 	if err == nil {
-		resources.Vms = append(resources.Vms, rootlbResources.Vms...)
+		resources.PlatformVms = append(resources.PlatformVms, rootlbResources.Vms...)
 	} else {
 		log.SpanLog(ctx, log.DebugLevelInfra, "Failed to get root lb resources", "err", err)
 	}
@@ -526,7 +526,7 @@ func (v *VMPlatform) GetClusterAdditionalResourceMetric(ctx context.Context, clo
 	return v.VMProvider.GetClusterAdditionalResourceMetric(ctx, cloudlet, resMetric, resources)
 }
 
-func (v *VMPlatform) GetClusterInfraResources(ctx context.Context, clusterKey *edgeproto.ClusterInstKey) (*edgeproto.InfraResourcesSnapshot, error) {
+func (v *VMPlatform) GetClusterInfraResources(ctx context.Context, clusterKey *edgeproto.ClusterInstKey) (*edgeproto.InfraResources, error) {
 	log.SpanLog(ctx, log.DebugLevelInfra, "GetClusterInfraResources")
 
 	var err error

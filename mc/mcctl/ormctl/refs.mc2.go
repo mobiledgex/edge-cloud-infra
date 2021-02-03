@@ -131,7 +131,7 @@ var CloudletRefsOptionalArgs = []string{
 	"usedstaticips",
 	"optresusedmap:#.key",
 	"optresusedmap:#.value",
-<<<<<<< HEAD
+	"reservedautoclusterids",
 	"clusterinsts:#.clusterkey.name",
 	"clusterinsts:#.organization",
 	"vmappinsts:#.appkey.organization",
@@ -139,9 +139,6 @@ var CloudletRefsOptionalArgs = []string{
 	"vmappinsts:#.appkey.version",
 	"vmappinsts:#.clusterinstkey.clusterkey.name",
 	"vmappinsts:#.clusterinstkey.organization",
-=======
-	"reservedautoclusterids",
->>>>>>> 97a232b94f1e93920c95381229fe286a02fdc1e2
 }
 var CloudletRefsAliasArgs = []string{
 	"key.organization=cloudletrefs.key.organization",
@@ -155,7 +152,7 @@ var CloudletRefsAliasArgs = []string{
 	"usedstaticips=cloudletrefs.usedstaticips",
 	"optresusedmap:#.key=cloudletrefs.optresusedmap:#.key",
 	"optresusedmap:#.value=cloudletrefs.optresusedmap:#.value",
-<<<<<<< HEAD
+	"reservedautoclusterids=cloudletrefs.reservedautoclusterids",
 	"clusterinsts:#.clusterkey.name=cloudletrefs.clusterinsts:#.clusterkey.name",
 	"clusterinsts:#.organization=cloudletrefs.clusterinsts:#.organization",
 	"vmappinsts:#.appkey.organization=cloudletrefs.vmappinsts:#.appkey.organization",
@@ -165,34 +162,21 @@ var CloudletRefsAliasArgs = []string{
 	"vmappinsts:#.clusterinstkey.organization=cloudletrefs.vmappinsts:#.clusterinstkey.organization",
 }
 var CloudletRefsComments = map[string]string{
-	"key.organization":                 "Organization of the cloudlet site",
-	"key.name":                         "Name of the cloudlet",
-	"usedram":                          "Used RAM in MB",
-	"usedvcores":                       "Used VCPU cores",
-	"useddisk":                         "Used disk in GB",
-	"useddynamicips":                   "Used dynamic IPs",
-	"usedstaticips":                    "Used static IPs",
-	"clusterinsts:#.clusterkey.name":   "Cluster name",
-	"clusterinsts:#.organization":      "Name of Developer organization that this cluster belongs to",
-	"vmappinsts:#.appkey.organization": "App developer organization",
-	"vmappinsts:#.appkey.name":         "App name",
-	"vmappinsts:#.appkey.version":      "App version",
+	"key.organization":                            "Organization of the cloudlet site",
+	"key.name":                                    "Name of the cloudlet",
+	"usedram":                                     "Used RAM in MB",
+	"usedvcores":                                  "Used VCPU cores",
+	"useddisk":                                    "Used disk in GB",
+	"useddynamicips":                              "Used dynamic IPs",
+	"usedstaticips":                               "Used static IPs",
+	"reservedautoclusterids":                      "Track reservable autoclusterinsts ids in use. This is a bitmap.",
+	"clusterinsts:#.clusterkey.name":              "Cluster name",
+	"clusterinsts:#.organization":                 "Name of Developer organization that this cluster belongs to",
+	"vmappinsts:#.appkey.organization":            "App developer organization",
+	"vmappinsts:#.appkey.name":                    "App name",
+	"vmappinsts:#.appkey.version":                 "App version",
 	"vmappinsts:#.clusterinstkey.clusterkey.name": "Cluster name",
 	"vmappinsts:#.clusterinstkey.organization":    "Name of Developer organization that this cluster belongs to",
-=======
-	"reservedautoclusterids=cloudletrefs.reservedautoclusterids",
-}
-var CloudletRefsComments = map[string]string{
-	"key.organization":       "Organization of the cloudlet site",
-	"key.name":               "Name of the cloudlet",
-	"clusters:#.name":        "Cluster name",
-	"usedram":                "Used RAM in MB",
-	"usedvcores":             "Used VCPU cores",
-	"useddisk":               "Used disk in GB",
-	"useddynamicips":         "Used dynamic IPs",
-	"usedstaticips":          "Used static IPs",
-	"reservedautoclusterids": "Track reservable autoclusterinsts ids in use. This is a bitmap.",
->>>>>>> 97a232b94f1e93920c95381229fe286a02fdc1e2
 }
 var CloudletRefsSpecialArgs = map[string]string{}
 var ClusterRefsRequiredArgs = []string{

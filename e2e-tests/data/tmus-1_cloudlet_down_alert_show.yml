@@ -1,4 +1,69 @@
 - labels:
+    alertname: CloudletResourceUsage
+    cloudlet: tmus-cloud-1
+    cloudletorg: tmus
+    scope: Cloudlet
+    warning: More than 50%!o(MISSING)f RAM is used
+  annotations:
+    description: More than 50%!o(MISSING)f RAM is used
+    title: CloudletResourceUsage
+  state: firing
+  activeat:
+    seconds: 1612415618
+    nanos: 184534000
+- labels:
+    alertname: CloudletResourceUsage
+    cloudlet: tmus-cloud-1
+    cloudletorg: tmus
+    scope: Cloudlet
+    warning: More than 50%!o(MISSING)f vCPUs is used
+  annotations:
+    description: More than 50%!o(MISSING)f vCPUs is used
+    title: CloudletResourceUsage
+  state: firing
+  activeat:
+    seconds: 1612415618
+    nanos: 184536000
+- labels:
+    alertname: CloudletResourceUsage
+    cloudlet: tmus-cloud-1
+    cloudletorg: tmus
+    scope: Cloudlet
+    warning: More than 10%!o(MISSING)f External IPs is used
+  annotations:
+    description: More than 10%!o(MISSING)f External IPs is used
+    title: CloudletResourceUsage
+  state: firing
+  activeat:
+    seconds: 1612415618
+    nanos: 184531000
+- labels:
+    alertname: CloudletResourceUsage
+    cloudlet: tmus-cloud-1
+    cloudletorg: tmus
+    scope: Cloudlet
+    warning: '[Infra] More than 10%!o(MISSING)f External IPs is used'
+  annotations:
+    description: '[Infra] More than 10%!o(MISSING)f External IPs is used'
+    title: CloudletResourceUsage
+  state: firing
+  activeat:
+    seconds: 1612415618
+    nanos: 184539000
+- labels:
+    alertname: CloudletResourceUsage
+    cloudlet: tmus-cloud-1
+    cloudletorg: tmus
+    scope: Cloudlet
+    warning: '[Infra] More than 50%!o(MISSING)f RAM is used'
+  annotations:
+    description: '[Infra] More than 50%!o(MISSING)f RAM is used'
+    title: CloudletResourceUsage
+  state: firing
+  activeat:
+    seconds: 1612415618
+    nanos: 184540000
+- labels:
     alertname: CloudletDown
     cloudlet: tmus-cloud-1
     cloudletorg: tmus

@@ -17,9 +17,8 @@ import (
 
 // Openstack resources
 var (
-	ResourceInstances      = "Instances"
-	ResourceSecurityGroups = "Security Groups"
-	ResourceFloatingIPs    = "Floating IPs"
+	ResourceInstances   = "Instances"
+	ResourceFloatingIPs = "Floating IPs"
 )
 
 type OpenstackResources struct {
@@ -184,8 +183,6 @@ func (o *OpenstackPlatform) GetCloudletInfraResourcesInfo(ctx context.Context) (
 	diskMax := uint64(0)
 	instancesUsed := uint64(0)
 	instancesMax := uint64(0)
-	secGrpsUsed := uint64(0)
-	secGrpsMax := uint64(0)
 	fipsUsed := uint64(0)
 	fipsMax := uint64(0)
 	for _, l := range osLimits {
@@ -206,10 +203,6 @@ func (o *OpenstackPlatform) GetCloudletInfraResourcesInfo(ctx context.Context) (
 			instancesUsed = uint64(l.Value)
 		case "maxTotalInstances":
 			instancesMax = uint64(l.Value)
-		case "totalSecurityGroupsUsed":
-			secGrpsUsed = uint64(l.Value)
-		case "maxSecurityGroups":
-			secGrpsMax = uint64(l.Value)
 		case "totalFloatingIpsUsed":
 			fipsUsed = uint64(l.Value)
 		case "maxTotalFloatingIps":
@@ -240,11 +233,6 @@ func (o *OpenstackPlatform) GetCloudletInfraResourcesInfo(ctx context.Context) (
 			InfraMaxValue: instancesMax,
 		},
 		edgeproto.InfraResource{
-			Name:          ResourceSecurityGroups,
-			Value:         secGrpsUsed,
-			InfraMaxValue: secGrpsMax,
-		},
-		edgeproto.InfraResource{
 			Name:          ResourceFloatingIPs,
 			Value:         fipsUsed,
 			InfraMaxValue: fipsMax,
@@ -259,10 +247,6 @@ func (o *OpenstackPlatform) GetCloudletResourceQuotaProps(ctx context.Context) (
 			edgeproto.InfraResource{
 				Name:        ResourceInstances,
 				Description: "Limit on number of instances that can be provisioned",
-			},
-			edgeproto.InfraResource{
-				Name:        ResourceSecurityGroups,
-				Description: "Limit on number of security groups that can be created",
 			},
 			edgeproto.InfraResource{
 				Name:        ResourceFloatingIPs,
@@ -283,11 +267,6 @@ func getOpenstackResources(cloudlet *edgeproto.Cloudlet, resources []edgeproto.V
 	for _, vmRes := range resources {
 		// Number of Instances = Number of resources
 		oRes.InstancesUsed += 1
-		if vmRes.Type == cloudcommon.VMTypeRootLB ||
-			vmRes.Type == cloudcommon.VMTypeAppVM {
-			// Number of security groups = Number of rootLB/appVM/pfVM resources
-			oRes.SecGrpsUsed += 1
-		}
 		if floatingIp && vmRes.Type == cloudcommon.VMTypeRootLB ||
 			(vmRes.Type == cloudcommon.VMTypeAppVM && vmRes.AppAccessType != edgeproto.AccessType_ACCESS_TYPE_LOAD_BALANCER) {
 			// Number of floating IPs = NetworkScheme==FloatingIP && Number of external facing resources
@@ -301,9 +280,8 @@ func getOpenstackResources(cloudlet *edgeproto.Cloudlet, resources []edgeproto.V
 func (o *OpenstackPlatform) GetClusterAdditionalResources(ctx context.Context, cloudlet *edgeproto.Cloudlet, vmResources []edgeproto.VMResource, infraResMap map[string]*edgeproto.InfraResource) map[string]*edgeproto.InfraResource {
 	// resource name -> resource units
 	cloudletRes := map[string]string{
-		ResourceInstances:      "",
-		ResourceSecurityGroups: "",
-		ResourceFloatingIPs:    "",
+		ResourceInstances:   "",
+		ResourceFloatingIPs: "",
 	}
 	resInfo := make(map[string]*edgeproto.InfraResource)
 	for resName, resUnits := range cloudletRes {
@@ -320,7 +298,6 @@ func (o *OpenstackPlatform) GetClusterAdditionalResources(ctx context.Context, c
 
 	oRes := getOpenstackResources(cloudlet, vmResources)
 	resInfo[ResourceInstances].Value += oRes.InstancesUsed
-	resInfo[ResourceSecurityGroups].Value += oRes.SecGrpsUsed
 	resInfo[ResourceFloatingIPs].Value += oRes.FloatingIPsUsed
 	return resInfo
 }
@@ -329,7 +306,6 @@ func (o *OpenstackPlatform) GetClusterAdditionalResourceMetric(ctx context.Conte
 	oRes := getOpenstackResources(cloudlet, resources)
 
 	resMetric.AddIntVal("instancesUsed", oRes.InstancesUsed)
-	resMetric.AddIntVal("securityGroupsUsed", oRes.SecGrpsUsed)
 	resMetric.AddIntVal("floatingIpsUsed", oRes.FloatingIPsUsed)
 	return nil
 }

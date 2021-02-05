@@ -473,6 +473,10 @@ type AlertReceiver struct {
 	SlackChannel string `json:",omitempty"`
 	// Custom slack webhook
 	SlackWebhook string `json:",omitempty"`
+	// PagerDuty integration key
+	IntegrationKey string `json:",omitempty"`
+	// PagerDuty API version
+	ApiVersion string `json:",omitempty"`
 	// Cloudlet spec for alerts
 	Cloudlet edgeproto.CloudletKey `json:",omitempty"`
 	// AppInst spec for alerts

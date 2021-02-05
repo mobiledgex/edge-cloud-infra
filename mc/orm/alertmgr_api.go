@@ -111,8 +111,8 @@ func CreateAlertReceiver(c echo.Context) error {
 				nil)
 		}
 		if len(in.IntegrationKey) != alertmgr.AlertmgrIntegrationKeyLen {
-			return setReply(c, fmt.Errorf("PagerDuty Integration Key must contain %d characters(%d)",
-				alertmgr.AlertmgrIntegrationKeyLen, len(in.IntegrationKey)), nil)
+			return setReply(c, fmt.Errorf("PagerDuty Integration Key must contain %d characters",
+				alertmgr.AlertmgrIntegrationKeyLen), nil)
 		}
 	default:
 		log.SpanLog(ctx, log.DebugLevelInfo, "type of a receiver is invalid")

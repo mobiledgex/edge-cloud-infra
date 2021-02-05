@@ -599,7 +599,7 @@ regiondata:
                 labels:
                   severity: none
                 annotations:
-                  message: High cpu greater than 85%!f(MISSING)or all nodes
+                  message: High cpu greater than 85% for all nodes
                   nodecount: '{{ with query "node_count" }}{{ . | first | value | humanize }}{{ end }}'
               - alert: AutoScaleDown
                 expr: node_cpu_low_count > 0 and node_count > 1
@@ -607,7 +607,7 @@ regiondata:
                 labels:
                   severity: none
                 annotations:
-                  message: Low cpu less than 20%!f(MISSING)or some nodes
+                  message: Low cpu less than 20% for some nodes
                   lowcpunodecount: '{{ $value }}'
                   nodecount: '{{ with query "node_count" }}{{ . | first | value | humanize }}{{ end }}'
                   minnodes: '1'

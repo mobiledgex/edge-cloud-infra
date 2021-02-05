@@ -3,9 +3,9 @@
     cloudlet: tmus-cloud-1
     cloudletorg: tmus
     scope: Cloudlet
-    warning: More than 50%!o(MISSING)f RAM is used
+    warning: More than 50% of RAM is used
   annotations:
-    description: More than 50%!o(MISSING)f RAM is used
+    description: More than 50% of RAM is used
     title: CloudletResourceUsage
   state: firing
   activeat:
@@ -16,9 +16,9 @@
     cloudlet: tmus-cloud-1
     cloudletorg: tmus
     scope: Cloudlet
-    warning: More than 50%!o(MISSING)f vCPUs is used
+    warning: More than 50% of vCPUs is used
   annotations:
-    description: More than 50%!o(MISSING)f vCPUs is used
+    description: More than 50% of vCPUs is used
     title: CloudletResourceUsage
   state: firing
   activeat:
@@ -29,9 +29,9 @@
     cloudlet: tmus-cloud-1
     cloudletorg: tmus
     scope: Cloudlet
-    warning: More than 10%!o(MISSING)f External IPs is used
+    warning: More than 10% of External IPs is used
   annotations:
-    description: More than 10%!o(MISSING)f External IPs is used
+    description: More than 10% of External IPs is used
     title: CloudletResourceUsage
   state: firing
   activeat:
@@ -42,9 +42,9 @@
     cloudlet: tmus-cloud-1
     cloudletorg: tmus
     scope: Cloudlet
-    warning: '[Infra] More than 10%!o(MISSING)f External IPs is used'
+    warning: '[Infra] More than 10% of External IPs is used'
   annotations:
-    description: '[Infra] More than 10%!o(MISSING)f External IPs is used'
+    description: '[Infra] More than 10% of External IPs is used'
     title: CloudletResourceUsage
   state: firing
   activeat:
@@ -55,9 +55,9 @@
     cloudlet: tmus-cloud-1
     cloudletorg: tmus
     scope: Cloudlet
-    warning: '[Infra] More than 50%!o(MISSING)f RAM is used'
+    warning: '[Infra] More than 50% of RAM is used'
   annotations:
-    description: '[Infra] More than 50%!o(MISSING)f RAM is used'
+    description: '[Infra] More than 50% of RAM is used'
     title: CloudletResourceUsage
   state: firing
   activeat:

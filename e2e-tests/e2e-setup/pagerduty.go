@@ -16,7 +16,7 @@ const (
 	PagerDutyApi                = "/pagerduty/event"
 )
 
-// The structure below is a a partial pagerduty event
+// The structure below is a partial pagerduty event
 // that alertmanager sends to the pagerduty api
 type TestPagerDutyEvent struct {
 	RoutingKey  string `json:"routing_key"`
@@ -57,7 +57,8 @@ func RunPagerDutyAPI(api, apiFile, outputDir string) error {
 			cmd := exec.Command("curl", "-s", "-S", apiUrl)
 			out, err := cmd.CombinedOutput()
 			if err != nil {
-				log.Printf("Error running show pagerduty events API on port %d, err: %v\n", proc.Port, err)
+				log.Printf("Error running show pagerduty events API on port %d, err: %v(%s)\n",
+					proc.Port, err, string(out))
 				return err
 			}
 			// unmarshal and marshal back to get just the fields we want

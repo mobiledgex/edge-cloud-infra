@@ -18,8 +18,8 @@ alertreceivers:
   severity: error
   region: local
   user: mexadmin
-  integrationkey: <hidden>
-  apiversion: "v2"
+  pagerdutyintegrationkey: <hidden>
+  pagerdutyapiversion: "v2"
   appinst:
     appkey:
       organization: AcmeAppCo

@@ -106,13 +106,13 @@ func CreateAlertReceiver(c echo.Context) error {
 			in.SlackChannel = "#" + in.SlackChannel
 		}
 	case alertmgr.AlertReceiverTypePagerDuty:
-		if in.IntegrationKey == "" {
+		if in.PagerDutyIntegrationKey == "" {
 			return setReply(c, fmt.Errorf("PagerDuty Integration Key must be present"),
 				nil)
 		}
-		if len(in.IntegrationKey) != alertmgr.AlertmgrIntegrationKeyLen {
+		if len(in.PagerDutyIntegrationKey) != alertmgr.PagerDutyIntegrationKeyLen {
 			return setReply(c, fmt.Errorf("PagerDuty Integration Key must contain %d characters",
-				alertmgr.AlertmgrIntegrationKeyLen), nil)
+				alertmgr.PagerDutyIntegrationKeyLen), nil)
 		}
 	default:
 		log.SpanLog(ctx, log.DebugLevelInfo, "type of a receiver is invalid")

@@ -368,13 +368,13 @@ func (s *AlertMgrServer) CreateReceiver(ctx context.Context, receiver *ormapi.Al
 			ClientURL:      alertmanagerConfigSlackTitleLink,
 			Severity:       receiver.Severity,
 		}
-		if receiver.ApiVersion == "" || receiver.ApiVersion == "v2" {
-			pagerDutyCfg.RoutingKey = alertmanager_config.Secret(receiver.IntegrationKey)
-		} else if receiver.ApiVersion == "v1" {
+		if receiver.PagerDutyApiVersion == "" || receiver.PagerDutyApiVersion == "v2" {
+			pagerDutyCfg.RoutingKey = alertmanager_config.Secret(receiver.PagerDutyIntegrationKey)
+		} else if receiver.PagerDutyApiVersion == "v1" {
 			// Prometheus integration
-			pagerDutyCfg.ServiceKey = alertmanager_config.Secret(receiver.IntegrationKey)
+			pagerDutyCfg.ServiceKey = alertmanager_config.Secret(receiver.PagerDutyIntegrationKey)
 		} else {
-			return fmt.Errorf("PagerDuty Integration Api version must be \"v1\" or \"v2\"")
+			return fmt.Errorf("PagerDuty Integration Api version must be \"v1\" or \"v2\"(\"v2\" will be used if not specified)")
 		}
 		rec = alertmanager_config.Receiver{
 			// to make the name unique - construct it with all the fields and username
@@ -507,14 +507,14 @@ func (s *AlertMgrServer) ShowReceivers(ctx context.Context, filter *ormapi.Alert
 			receiver.Email = rec.Receiver.EmailConfigs[0].To
 		case AlertReceiverTypeSlack:
 			receiver.SlackChannel = rec.Receiver.SlackConfigs[0].Channel
-			receiver.SlackWebhook = AlertMgrSecretToken
+			receiver.SlackWebhook = AlertMgrDisplayHidden
 		case AlertReceiverTypePagerDuty:
 			if rec.Receiver.PagerdutyConfigs[0].ServiceKey != "" {
-				receiver.ApiVersion = "v1"
-				receiver.IntegrationKey = AlertMgrSecretToken
+				receiver.PagerDutyApiVersion = "v1"
+				receiver.PagerDutyIntegrationKey = AlertMgrDisplayHidden
 			} else {
-				receiver.ApiVersion = "v2"
-				receiver.IntegrationKey = AlertMgrSecretToken
+				receiver.PagerDutyApiVersion = "v2"
+				receiver.PagerDutyIntegrationKey = AlertMgrDisplayHidden
 			}
 		default:
 			log.SpanLog(ctx, log.DebugLevelApi, "Unknown receiver type", "type", receiver.Type)

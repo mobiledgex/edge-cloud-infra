@@ -49,13 +49,13 @@ var alertmanagerConfigSlackIcon = "https://www.mobiledgex.com/img/logo.svg"
 
 var alertmanagerConfigPagerDutyClient = "MobiledgeX Monitoring"
 
-var AlertmgrIntegrationKeyLen = 32
+var PagerDutyIntegrationKeyLen = 32
 
 const (
 	AlertReceiverTypeEmail     = "email"
 	AlertReceiverTypeSlack     = "slack"
 	AlertReceiverTypePagerDuty = "pagerduty"
-	AlertMgrSecretToken        = "<hidden>"
+	AlertMgrDisplayHidden      = "<hidden>"
 )
 
 const (

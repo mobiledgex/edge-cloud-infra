@@ -12,7 +12,7 @@ import (
 var AlertReceiverAliasArgs = []string{
 	"slack-channel=slackchannel",
 	"slack-api-url=slackwebhook",
-	"pagerduty-integration-key=integrationkey",
+	"pagerduty-integration-key=pagerdutyintegrationkey",
 	"pagerduty-api-version=apiversion",
 	"app-org=appinst.appkey.organization",
 	"appname=appinst.appkey.name",

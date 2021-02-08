@@ -120,7 +120,7 @@ func (v *VcdPlatform) CreateVApp(ctx context.Context, vappTmpl *govcd.VAppTempla
 	updateCallback(edgeproto.UpdateTask, "Adding VMs to vApp")
 	log.SpanLog(ctx, log.DebugLevelInfra, "CreateVApp composed adding VMs for ", "GroupName", vmgp.GroupName, "count", numVMs)
 
-	vmsAdded, err := v.AddVMsToVApp(ctx, vapp, vmgp, vappTmpl, nextCidr, vcdClient)
+	vmsAdded, err := v.AddVMsToVApp(ctx, vapp, vmgp, vappTmpl, nextCidr, vdc, vcdClient, updateCallback)
 	if err != nil {
 		log.SpanLog(ctx, log.DebugLevelInfra, "CreateVApp AddVMsToVApp failed", "error", err)
 		return nil, err
@@ -286,13 +286,15 @@ func makeMetaMap(ctx context.Context, mexmeta string) map[string]string {
 
 	log.SpanLog(ctx, log.DebugLevelInfra, "makeMetaMap", "meta", mexmeta)
 	smap := make(map[string]string)
-	s := strings.Replace(mexmeta, "\n", ":", -1)
-	parts := strings.Split(s, ":")
-	len := len(parts)
-	for i := 0; i < len; i += 2 {
-		key := strings.TrimSpace(parts[i])
-		val := strings.TrimSpace(parts[i+1])
-		smap[key] = val
+	if mexmeta != "" {
+		s := strings.Replace(mexmeta, "\n", ":", -1)
+		parts := strings.Split(s, ":")
+		len := len(parts)
+		for i := 0; i < len; i += 2 {
+			key := strings.TrimSpace(parts[i])
+			val := strings.TrimSpace(parts[i+1])
+			smap[key] = val
+		}
 	}
 	return smap
 }

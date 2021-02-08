@@ -3,6 +3,7 @@ package vmlayer
 import (
 	"context"
 	"fmt"
+	"net"
 	"strings"
 	"time"
 
@@ -298,6 +299,7 @@ func (v *VMPlatform) CreateAppInst(ctx context.Context, clusterInst *edgeproto.C
 				return fmt.Errorf("AddProxySecurityRulesAndPatchDNS error: %v", err)
 			}
 
+			var internalIfName string
 			if v.VMProperties.GetCloudletExternalRouter() == NoExternalRouter {
 				log.SpanLog(ctx, log.DebugLevelInfra, "Need to attach internal interface on rootlb")
 
@@ -308,10 +310,20 @@ func (v *VMPlatform) CreateAppInst(ctx context.Context, clusterInst *edgeproto.C
 					return err
 				}
 				attachPort := v.VMProvider.GetInternalPortPolicy() == AttachPortAfterCreate
-				err = v.AttachAndEnableRootLBInterface(ctx, client, orchVals.lbName, attachPort, orchVals.newSubnetName, GetPortName(orchVals.lbName, orchVals.newSubnetName), gw)
+				internalIfName, err = v.AttachAndEnableRootLBInterface(ctx, client, orchVals.lbName, attachPort, orchVals.newSubnetName, GetPortName(orchVals.lbName, orchVals.newSubnetName), gw)
 				if err != nil {
 					log.SpanLog(ctx, log.DebugLevelInfra, "AttachAndEnableRootLBInterface failed", "err", err)
 					return err
+				}
+				rootLBIPaddr, err := v.GetIPFromServerName(ctx, v.VMProperties.GetCloudletExternalNetwork(), "", orchVals.lbName, pc.WithCachedIp(true))
+				if err != nil {
+					return err
+				}
+				if v.VMProperties.RunLbDhcpServerForVmApps {
+					err = v.StartDhcpServerForVmApp(ctx, client, internalIfName, vmIP.InternalAddr, rootLBIPaddr.InternalAddr, orchVals.externalServerName)
+					if err != nil {
+						return err
+					}
 				}
 			} else {
 				log.SpanLog(ctx, log.DebugLevelInfra, "External router in use, no internal interface for rootlb")
@@ -725,4 +737,63 @@ func DownloadVMImage(ctx context.Context, accessApi platform.AccessApi, imageNam
 		}
 	}
 	return filePath, nil
+}
+
+var dhcpConfig = "subnet 10.101.1.0 netmask 255.255.255.0 {option routers 10.101.1.1;option subnet-mask 255.255.255.0;option domain-name-servers 1.1.1.1;range 10.101.1.101 10.101.1.101;}"
+
+// StartDhcpServerForVmApp sets up a DHCP server on the LB to enable the VMApp to get an IP
+// address configured for VM providers which do not have DHCP built in for internal networks.
+func (v *VMPlatform) StartDhcpServerForVmApp(ctx context.Context, client ssh.Client, internalIfName, vmip, lbip, vmname string) error {
+	log.SpanLog(ctx, log.DebugLevelInfra, "EnableDhcpForVMApp", "internalIfName", internalIfName, "vmname", vmname, "vmip", vmip, "lbip", lbip)
+
+	ns := v.VMProperties.GetCloudletNetworkScheme()
+	nspec, err := ParseNetSpec(ctx, ns)
+	if err != nil {
+		return nil
+	}
+	netmask, err := MaskLenToMask(nspec.NetmaskBits)
+	if err != nil {
+		return err
+	}
+	subnet, _, err := net.ParseCIDR(vmip + "/" + nspec.NetmaskBits)
+	if err != nil {
+		return err
+	}
+	// install DHCP on the LB
+	cmd := fmt.Sprintf("apt install isc-dhcp-server -y")
+	if out, err := client.Output(cmd); err != nil {
+		return fmt.Errorf("failed to install isc-dhcp-server: %s, %v", out, err)
+	}
+	// update DHCP to listen on the internal interface only
+	cmd = fmt.Sprintf("perl -i -p -e s/'INTERFACESv4=\"\"'/'INTERFACESv4=\"%s\"'/g  /etc/default/isc-dhcp-server", internalIfName)
+	if out, err := client.Output(cmd); err != nil {
+		return fmt.Errorf("failed to set interface in isc-dhcp-server: %s, %v", out, err)
+	}
+	// configure DHCP settings
+	dns := v.VMProperties.GetCloudletDNS()
+	dhcpConfig := fmt.Sprintf("subnet %s netmask %s {option routers %s;option subnet-mask %s;option domain-name-servers %s;range %s %s;}",
+		subnet, netmask, lbip, netmask, dns, vmip, vmip)
+	cmd = fmt.Sprintf("echo '%s' >> /etc/dhcp/dhcpd.conf", dhcpConfig)
+	if out, err := client.Output(cmd); err != nil {
+		return fmt.Errorf("failed update dhcp config: %s, %v", out, err)
+	}
+	// start DHCP service
+	cmd = fmt.Sprintf("perl -i -p -e s/'INTERFACESv4=\"\"'/'INTERFACESv4=\"%s\"'/g  /etc/default/isc-dhcp-server", internalIfName)
+	if out, err := client.Output(cmd); err != nil {
+		return fmt.Errorf("failed to set interface in isc-dhcp-server: %s, %v", out, err)
+	}
+	// enable DHCP across reboots
+	cmd = fmt.Sprintf("sudo systemctl enable isc-dhcp-server.service")
+	if out, err := client.Output(cmd); err != nil {
+		return fmt.Errorf("failed to enable isc-dhcp-server.service: %s, %v", out, err)
+	}
+	log.SpanLog(ctx, log.DebugLevelInfra, "Starting DHCP service on LB")
+	cmd = fmt.Sprintf("sudo systemctl start isc-dhcp-server.service")
+	if out, err := client.Output(cmd); err != nil {
+		return fmt.Errorf("failed to start isc-dhcp-server.service: %s, %v", out, err)
+	}
+
+	// reboot the VM so it can get a DHCP assigned address
+	log.SpanLog(ctx, log.DebugLevelInfra, "Rebooting VM", "vmname", vmname)
+	return v.VMProvider.SetPowerState(ctx, vmname, ActionReboot)
 }

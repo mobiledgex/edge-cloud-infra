@@ -31,7 +31,7 @@ func (v *VcdPlatform) GetCatalog(ctx context.Context, catName string, vcdClient 
 
 // UploadOvaFile uploads either an OVF or OVA
 func (v *VcdPlatform) UploadOvaFile(ctx context.Context, fileName, itemName, descr string, vcdClient *govcd.VCDClient) error {
-	log.SpanLog(ctx, log.DebugLevelInfra, "UploadOvaFile", "itemName", itemName, "fileName", fileName)
+	log.SpanLog(ctx, log.DebugLevelInfra, "UploadOvaFile", "fileName", fileName, "itemName", itemName)
 	cat, err := v.GetCatalog(ctx, v.GetCatalogName(), vcdClient)
 	if err != nil {
 		return err
@@ -45,13 +45,13 @@ func (v *VcdPlatform) UploadOvaFile(ctx context.Context, fileName, itemName, des
 	// 8*1024 MB chunk size for the download.
 	task, err := cat.UploadOvf(fileName, itemName, descr, uploadChunkSize)
 	if err != nil {
-		return err
+		return fmt.Errorf("UploadOvf to catalog start failed: %v", err)
 	}
 	err = task.WaitTaskCompletion()
 	elapsed := time.Since(elapse_start).String()
 	log.SpanLog(ctx, log.DebugLevelInfra, "OVA uploaded ", "itemName", itemName, "elapsed time", elapsed)
 	if err != nil {
-		return fmt.Errorf("OVA file upload failed: %v", err)
+		return fmt.Errorf("UploadOvf to catalog task failed: %v", err)
 	}
 	return nil
 }

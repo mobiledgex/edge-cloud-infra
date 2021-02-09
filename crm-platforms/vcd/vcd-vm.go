@@ -221,11 +221,12 @@ func (v *VcdPlatform) updateVmDisk(vm *govcd.VM, size int64) error {
 	return nil
 }
 
-// For each vm spec defined in vmgp, add a new VM to vapp with those applicable attributes.  Returns a map of VMs added
+// For each vm spec defined in vmgp, add a new VM to vapp with those applicable attributes.  Returns a map of VMs which
+// should be powered on and customized
 func (v *VcdPlatform) AddVMsToVApp(ctx context.Context, vapp *govcd.VApp, vmgp *vmlayer.VMGroupOrchestrationParams, baseImgTmpl *govcd.VAppTemplate, nextCidr string, vdc *govcd.Vdc, vcdClient *govcd.VCDClient, updateCallback edgeproto.CacheUpdateCallback) (VMMap, error) {
 	log.SpanLog(ctx, log.DebugLevelInfra, "AddVMsToVApp", "GroupName", vmgp.GroupName)
 
-	vmsAdded := make(VMMap)
+	vmsToCustomize := make(VMMap)
 	var err error
 	numVMs := len(vmgp.VMs)
 
@@ -360,10 +361,15 @@ func (v *VcdPlatform) AddVMsToVApp(ctx context.Context, vapp *govcd.VApp, vmgp *
 			return nil, err
 		}
 
-		vmsAdded[vm.VM.Name] = vm
+		if vmparams.Role != vmlayer.RoleVMApplication {
+			// VMApps do not get customized as they are unlikely to have VMTools.  If we want to support adding customization parms
+			// to VCD VMs then it would require additional metadata about the VMApp, or maybe the download of a custom OVF rather than
+			// generation of the OVF
+			vmsToCustomize[vm.VM.Name] = vm
+		}
 	}
 	log.SpanLog(ctx, log.DebugLevelInfra, "AddVMsToVApp complete")
-	return vmsAdded, nil
+	return vmsToCustomize, nil
 }
 
 func (v *VcdPlatform) AddVMsToExistingVApp(ctx context.Context, vapp *govcd.VApp, vmgp *vmlayer.VMGroupOrchestrationParams, vcdClient *govcd.VCDClient) (VMMap, error) {
@@ -565,9 +571,13 @@ func (v *VcdPlatform) updateVM(ctx context.Context, vm *govcd.VM, vmparams vmlay
 		log.SpanLog(ctx, log.DebugLevelInfra, "updateVM AddMetadataToVm  failed", "vm", vm.VM.Name, "err", err)
 		return nil
 	}
+	if vmparams.Role == vmlayer.RoleVMApplication {
+		log.SpanLog(ctx, log.DebugLevelInfra, "Skipping populateProductSection for VMApp", "vm", vm.VM.Name)
+		return nil
+	}
 	psl, err := v.populateProductSection(ctx, vm, &vmparams)
 	if err != nil {
-		log.SpanLog(ctx, log.DebugLevelInfra, "updateVM populateProdcutSection failed", "vm", vm.VM.Name, "err", err)
+		log.SpanLog(ctx, log.DebugLevelInfra, "updateVM populateProductSection failed", "vm", vm.VM.Name, "err", err)
 		return fmt.Errorf("updateVM-E-error from populateProductSection: %s", err.Error())
 	}
 
@@ -582,6 +592,7 @@ func (v *VcdPlatform) updateVM(ctx context.Context, vm *govcd.VM, vmparams vmlay
 		log.SpanLog(ctx, log.DebugLevelInfra, "updateVM GuestCustomization   failed", "vm", vm.VM.Name, "err", err)
 		return fmt.Errorf("updateVM-E-error from guestCustomize: %s", err.Error())
 	}
+
 	return err
 }
 
@@ -741,18 +752,18 @@ func (v *VcdPlatform) DeleteVMs(ctx context.Context, vmGroupName string) error {
 	vappName := vmGroupName + "-vapp"
 	log.SpanLog(ctx, log.DebugLevelInfra, "DeleteVMs check", "vappName", vappName)
 	vapp, err := v.FindVApp(ctx, vappName, vcdClient)
-
 	if err == nil {
 		log.SpanLog(ctx, log.DebugLevelInfra, "DeleteVMs deleting", "VApp", vappName)
 		err := v.DeleteVapp(ctx, vapp, vcdClient)
 		return err
+	} else {
+		if strings.Contains(err.Error(), govcd.ErrorEntityNotFound.Error()) {
+			log.SpanLog(ctx, log.DebugLevelInfra, "VApp already deleted", "vappName", vappName)
+			return nil
+		} else {
+			return fmt.Errorf("Unexpected error in FindVApp - %v", err)
+		}
 	}
-
-	vm, err := v.FindVM(ctx, vmGroupName, vappName, vcdClient)
-	if err == nil {
-		return v.DeleteVM(ctx, vm)
-	}
-	return fmt.Errorf("Not Found")
 }
 
 func (v *VcdPlatform) GetVMStats(ctx context.Context, key *edgeproto.AppInstKey) (*vmlayer.VMMetrics, error) {
@@ -1055,7 +1066,7 @@ func (v *VcdPlatform) powerOnVmsAndForceCustomization(ctx context.Context, vms V
 		log.SpanLog(ctx, log.DebugLevelInfra, "Powering on VM", "vmName", vmName)
 		err := vm.PowerOnAndForceCustomization()
 		if err != nil {
-			return fmt.Errorf("Error powering on VM: %s - %v", vmName, vm)
+			return fmt.Errorf("Error powering on VM: %s - %v", vmName, vm.VM)
 		}
 	}
 	return nil

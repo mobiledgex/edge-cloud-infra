@@ -6,8 +6,10 @@ import (
 	"net"
 	"strconv"
 	"strings"
+	"sync"
 
 	"github.com/mobiledgex/edge-cloud-infra/vmlayer"
+	"github.com/mobiledgex/edge-cloud/edgeproto"
 	"github.com/mobiledgex/edge-cloud/log"
 	"github.com/vmware/go-vcloud-director/v2/govcd"
 	"github.com/vmware/go-vcloud-director/v2/types/v56"
@@ -108,7 +110,7 @@ func (v *VcdPlatform) haveSharedRootLB(ctx context.Context, vmgp vmlayer.VMGroup
 
 }
 
-func (v *VcdPlatform) AddPortsToVapp(ctx context.Context, vapp *govcd.VApp, vmgp vmlayer.VMGroupOrchestrationParams, vcdClient *govcd.VCDClient) (string, error) {
+func (v *VcdPlatform) AddPortsToVapp(ctx context.Context, vapp *govcd.VApp, vmgp vmlayer.VMGroupOrchestrationParams, updateCallback edgeproto.CacheUpdateCallback, vcdClient *govcd.VCDClient) (string, error) {
 	ports := vmgp.Ports
 	nextCidr := ""
 	numPorts := len(ports)
@@ -153,7 +155,7 @@ func (v *VcdPlatform) AddPortsToVapp(ctx context.Context, vapp *govcd.VApp, vmgp
 		// Create isolated subnet for this vapp/clusterInst Vapp net for Dedicated, or OrgVDCNetwork for Shared LB
 		if port.NetworkType == vmlayer.NetTypeInternal && !intAdded {
 			var err error
-			nextCidr, err = v.GetNextInternalSubnet(ctx, vapp.VApp.Name, vcdClient)
+			nextCidr, err = v.GetNextInternalSubnet(ctx, vapp.VApp.Name, updateCallback, vcdClient)
 			if err != nil {
 				log.SpanLog(ctx, log.DebugLevelInfra, "AddVMsToVApp next internal net failed: ", "GroupName", vmgp.GroupName, "err", err)
 				return "", err
@@ -483,16 +485,17 @@ func (v *VcdPlatform) CreateInternalNetworkForNewVm(ctx context.Context, vapp *g
 	iprange = append(iprange, &addrRange)
 
 	internalSettings := govcd.VappNetworkSettings{
-		Name:           netName,
-		Description:    description,
-		Gateway:        gateway,
-		NetMask:        "255.255.255.0",
-		DNS1:           "1.1.1.1",
-		DNS2:           dns2,
-		DNSSuffix:      "mobiledgex.net",
-		StaticIPRanges: iprange,
+		Name:             netName,
+		Description:      description,
+		Gateway:          gateway,
+		NetMask:          "255.255.255.0",
+		DNS1:             "1.1.1.1",
+		DNS2:             dns2,
+		DNSSuffix:        "mobiledgex.net",
+		StaticIPRanges:   iprange,
+		VappFenceEnabled: TakeBoolPointer(true),
 	}
-	_ /*InternalNetConfigSec,*/, err = vapp.CreateVappNetwork(&internalSettings, nil)
+	_, err = vapp.CreateVappNetwork(&internalSettings, nil)
 	if err != nil {
 		if !strings.Contains(err.Error(), "already exists") {
 			log.SpanLog(ctx, log.DebugLevelInfra, "CreateInternalNetwork create", "serverName", serverName, "error", err)
@@ -643,8 +646,12 @@ func (v *VcdPlatform) GetAddrOfVapp(ctx context.Context, vapp *govcd.VApp, netNa
 	return "", fmt.Errorf("Not Found")
 }
 
+var intAddrLock sync.Mutex
+
 // Given our scheme for networks 10.101.X.0/24 return the next available Isolated network CIDR
-func (v *VcdPlatform) GetNextInternalSubnet(ctx context.Context, vappName string, vcdClient *govcd.VCDClient) (string, error) {
+func (v *VcdPlatform) GetNextInternalSubnet(ctx context.Context, vappName string, updateCallback edgeproto.CacheUpdateCallback, vcdClient *govcd.VCDClient) (string, error) {
+	intAddrLock.Lock()
+	defer intAddrLock.Unlock()
 
 	var MAX_CIDRS = 255 // These are internal /24 subnets so 255, not that we'll have that many clusters / cloudlet
 

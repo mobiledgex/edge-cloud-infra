@@ -382,10 +382,13 @@ func (v *VMPlatform) setupClusterRootLBAndNodes(ctx context.Context, rootLBName 
 		// subtract elapsed time from total time to get remaining time
 		timeout -= elapsed
 		updateCallback(edgeproto.UpdateTask, "Waiting for Cluster to Initialize")
+		k8sTime := time.Now()
 		err := v.waitClusterReady(ctx, clusterInst, rootLBName, updateCallback, timeout)
 		if err != nil {
 			return err
 		}
+		msg := fmt.Sprintf("Wait Cluster Complete time: %s", time.Since(k8sTime).String())
+		updateCallback(edgeproto.UpdateTask, msg)
 		updateCallback(edgeproto.UpdateTask, "Creating config map")
 		if err := infracommon.CreateClusterConfigMap(ctx, client, clusterInst); err != nil {
 			return err

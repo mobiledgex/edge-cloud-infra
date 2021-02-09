@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"net/url"
 	"os"
+	"time"
 
 	"github.com/mobiledgex/edge-cloud-infra/vmlayer"
 	dme "github.com/mobiledgex/edge-cloud/d-match-engine/dme-proto"
@@ -126,8 +127,9 @@ func (v *VcdPlatform) GetExternalIpNetworkCidr(ctx context.Context, vcdClient *g
 }
 
 // same as vsphere (common vmware utils?)
-func (v *VcdPlatform) PrepareRootLB(ctx context.Context, client ssh.Client, rootLBName string, secGrpName string, trustPolicy *edgeproto.TrustPolicy) error {
-
+func (v *VcdPlatform) PrepareRootLB(ctx context.Context, client ssh.Client, rootLBName string, secGrpName string, trustPolicy *edgeproto.TrustPolicy, updateCallback edgeproto.CacheUpdateCallback) error {
+	log.SpanLog(ctx, log.DebugLevelInfra, "PrepareRootLB ", "rootLBName", rootLBName)
+	iptblStart := time.Now()
 	vcdClient := v.GetVcdClientFromContext(ctx)
 	if vcdClient == nil {
 		log.SpanLog(ctx, log.DebugLevelInfra, NoVCDClientInContext)
@@ -140,14 +142,17 @@ func (v *VcdPlatform) PrepareRootLB(ctx context.Context, client ssh.Client, root
 	if err != nil {
 		return err
 	}
-
 	sshCidrsAllowed = append(sshCidrsAllowed, externalNet)
 	err = v.vmProperties.SetupIptablesRulesForRootLB(ctx, client, sshCidrsAllowed, trustPolicy)
 	if err != nil {
 		log.SpanLog(ctx, log.DebugLevelInfra, "PrepareRootLB SetupIptableRulesForRootLB failed", "rootLBName", rootLBName, "err", err)
 		return err
 	}
-
+	if v.Verbose {
+		msg := fmt.Sprintf("%s %s", "Setup Root LB time", time.Since(iptblStart).String())
+		updateCallback(edgeproto.UpdateTask, msg)
+	}
+	log.SpanLog(ctx, log.DebugLevelInfra, "PrepareRootLB SetupIptableRulesForRootLB complete", "rootLBName", rootLBName, "time", time.Since(iptblStart).String())
 	return nil
 }
 

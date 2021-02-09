@@ -392,8 +392,9 @@ func outMcErr(output *AllDataOut, desc string, status int, err error) {
 
 func checkMcErr(msg string, status int, err error, rc *bool) {
 	if strings.HasPrefix(msg, "Show") || strings.HasPrefix(msg, "show") {
-		if err == echo.ErrForbidden {
+		if status == http.StatusForbidden {
 			err = nil
+			status = http.StatusOK
 		}
 	}
 	if err != nil || status != http.StatusOK {

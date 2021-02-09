@@ -129,7 +129,7 @@ func (v *VcdPlatform) CreateVApp(ctx context.Context, vappTmpl *govcd.VAppTempla
 	log.SpanLog(ctx, log.DebugLevelInfra, "CreateVApp composed adding VMs for ", "GroupName", vmgp.GroupName, "count", numVMs)
 	addVMStart := time.Now()
 
-	vmsAdded, err := v.AddVMsToVApp(ctx, vapp, vmgp, vappTmpl, nextCidr, vcdClient)
+	vmsToCustomize, err := v.AddVMsToVApp(ctx, vapp, vmgp, vappTmpl, nextCidr, vdc, vcdClient, updateCallback)
 	if err != nil {
 		log.SpanLog(ctx, log.DebugLevelInfra, "CreateVApp AddVMsToVApp failed", "error", err)
 		return nil, err
@@ -141,8 +141,7 @@ func (v *VcdPlatform) CreateVApp(ctx context.Context, vappTmpl *govcd.VAppTempla
 		updateCallback(edgeproto.UpdateTask, msg)
 	}
 	updateCallback(edgeproto.UpdateTask, "Powering on VMs")
-	powerOnStart := time.Now()
-	err = v.powerOnVmsAndForceCustomization(ctx, vmsAdded)
+	err = v.powerOnVmsAndForceCustomization(ctx, vmsToCustomize)
 	if err != nil {
 		return nil, err
 	}
@@ -157,14 +156,15 @@ func (v *VcdPlatform) CreateVApp(ctx context.Context, vappTmpl *govcd.VAppTempla
 	log.SpanLog(ctx, log.DebugLevelInfra, "CreateVApp composed Powering On", "Vapp", vappName)
 
 	vappPowerOnStart := time.Now()
+	updateCallback(edgeproto.UpdateTask, "Powering on Vapp")
 	task, err = vapp.PowerOn()
 	if err != nil {
-		log.SpanLog(ctx, log.DebugLevelInfra, "power on  failed ", "VAppName", vapp.VApp.Name, "err", err)
+		log.SpanLog(ctx, log.DebugLevelInfra, "power on failed ", "VAppName", vapp.VApp.Name, "err", err)
 		return nil, err
 	}
 	err = task.WaitTaskCompletion()
 	if err != nil {
-		log.SpanLog(ctx, log.DebugLevelInfra, "wait power on  failed", "VAppName", vmgp.GroupName, "error", err)
+		log.SpanLog(ctx, log.DebugLevelInfra, "wait power on failed", "VAppName", vmgp.GroupName, "error", err)
 		return nil, err
 	}
 	if v.Verbose {
@@ -312,13 +312,15 @@ func makeMetaMap(ctx context.Context, mexmeta string) map[string]string {
 
 	log.SpanLog(ctx, log.DebugLevelInfra, "makeMetaMap", "meta", mexmeta)
 	smap := make(map[string]string)
-	s := strings.Replace(mexmeta, "\n", ":", -1)
-	parts := strings.Split(s, ":")
-	len := len(parts)
-	for i := 0; i < len; i += 2 {
-		key := strings.TrimSpace(parts[i])
-		val := strings.TrimSpace(parts[i+1])
-		smap[key] = val
+	if mexmeta != "" {
+		s := strings.Replace(mexmeta, "\n", ":", -1)
+		parts := strings.Split(s, ":")
+		len := len(parts)
+		for i := 0; i < len; i += 2 {
+			key := strings.TrimSpace(parts[i])
+			val := strings.TrimSpace(parts[i+1])
+			smap[key] = val
+		}
 	}
 	return smap
 }

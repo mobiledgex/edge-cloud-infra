@@ -10,7 +10,6 @@ import (
 	"strings"
 	"time"
 
-	"github.com/labstack/echo"
 	intprocess "github.com/mobiledgex/edge-cloud-infra/e2e-tests/int-process"
 	"github.com/mobiledgex/edge-cloud-infra/mc/mcctl/cliwrapper"
 	"github.com/mobiledgex/edge-cloud-infra/mc/orm"

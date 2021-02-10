@@ -495,6 +495,9 @@ func (v *VMPlatform) GetCloudletInfraResources(ctx context.Context) (*edgeproto.
 	var resources edgeproto.InfraResourcesSnapshot
 	platResources, err := v.VMProvider.GetServerGroupResources(ctx, v.GetPlatformVMName(&v.VMProperties.CommonPf.PlatformConfig.NodeMgr.MyNode.Key.CloudletKey))
 	if err == nil {
+		for ii, _ := range platResources.Vms {
+			platResources.Vms[ii].Type = string(VMTypePlatform)
+		}
 		resources.PlatformVms = append(resources.PlatformVms, platResources.Vms...)
 	} else {
 		log.SpanLog(ctx, log.DebugLevelInfra, "Failed to get platform VM resources", "err", err)

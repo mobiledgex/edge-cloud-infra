@@ -387,8 +387,7 @@ func (v *VMPlatform) setupClusterRootLBAndNodes(ctx context.Context, rootLBName 
 		if err != nil {
 			return err
 		}
-		msg := fmt.Sprintf("Wait Cluster Complete time: %s", time.Since(k8sTime).String())
-		updateCallback(edgeproto.UpdateTask, msg)
+		updateCallback(edgeproto.UpdateTask, fmt.Sprintf("Wait Cluster Complete time: %s", infracommon.FormatDuration(time.Since(k8sTime), 2)))
 		updateCallback(edgeproto.UpdateTask, "Creating config map")
 		if err := infracommon.CreateClusterConfigMap(ctx, client, clusterInst); err != nil {
 			return err

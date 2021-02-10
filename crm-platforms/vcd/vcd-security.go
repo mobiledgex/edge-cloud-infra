@@ -7,6 +7,7 @@ import (
 	"os"
 	"time"
 
+	"github.com/mobiledgex/edge-cloud-infra/infracommon"
 	"github.com/mobiledgex/edge-cloud-infra/vmlayer"
 	dme "github.com/mobiledgex/edge-cloud/d-match-engine/dme-proto"
 	"github.com/mobiledgex/edge-cloud/edgeproto"
@@ -149,8 +150,7 @@ func (v *VcdPlatform) PrepareRootLB(ctx context.Context, client ssh.Client, root
 		return err
 	}
 	if v.Verbose {
-		msg := fmt.Sprintf("%s %s", "Setup Root LB time", time.Since(iptblStart).String())
-		updateCallback(edgeproto.UpdateTask, msg)
+		updateCallback(edgeproto.UpdateTask, fmt.Sprintf("Setup Root LB time %s", infracommon.FormatDuration(time.Since(iptblStart), 2)))
 	}
 	log.SpanLog(ctx, log.DebugLevelInfra, "PrepareRootLB SetupIptableRulesForRootLB complete", "rootLBName", rootLBName, "time", time.Since(iptblStart).String())
 	return nil

@@ -7,6 +7,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/mobiledgex/edge-cloud-infra/infracommon"
 	"github.com/mobiledgex/edge-cloud-infra/vmlayer"
 	"github.com/mobiledgex/edge-cloud/edgeproto"
 	"github.com/mobiledgex/edge-cloud/log"
@@ -94,7 +95,9 @@ func (v *VcdPlatform) CreateVApp(ctx context.Context, vappTmpl *govcd.VAppTempla
 		return nil, err
 	}
 	// ensure we have a clean slate  xxx needed? speed up fodder potentially
+
 	task, err = vapp.RemoveAllNetworks()
+
 	if err != nil {
 		log.SpanLog(ctx, log.DebugLevelInfra, "remove networks failed", "VAppName", vmgp.GroupName, "error", err)
 		return nil, err
@@ -121,8 +124,8 @@ func (v *VcdPlatform) CreateVApp(ctx context.Context, vappTmpl *govcd.VAppTempla
 		return nil, err
 	}
 	if v.Verbose {
-		msg := fmt.Sprintf("%s %s", "Update vAppPorts time ", time.Since(updatePortsStart).String())
-		updateCallback(edgeproto.UpdateTask, msg)
+		updateCallback(edgeproto.UpdateTask, fmt.Sprintf("Update vApp Ports time %s",
+			infracommon.FormatDuration(time.Since(updatePortsStart), 2)))
 	}
 
 	updateCallback(edgeproto.UpdateTask, "Adding VMs to vApp")
@@ -137,26 +140,24 @@ func (v *VcdPlatform) CreateVApp(ctx context.Context, vappTmpl *govcd.VAppTempla
 	log.SpanLog(ctx, log.DebugLevelInfra, "CreateVApp composed VMs added", "GroupName", vmgp.GroupName)
 	// poweron and customize
 	if v.Verbose {
-		msg := fmt.Sprintf("%s %s", "AddVMsToVApp  time ", time.Since(addVMStart).String())
-		updateCallback(edgeproto.UpdateTask, msg)
+		updateCallback(edgeproto.UpdateTask, fmt.Sprintf("Add VMs to VApp time %s",
+			infracommon.FormatDuration(time.Since(addVMStart), 2)))
 	}
 	updateCallback(edgeproto.UpdateTask, "Powering on VMs")
+	powerOnStart := time.Now()
 	err = v.powerOnVmsAndForceCustomization(ctx, vmsToCustomize)
 	if err != nil {
 		return nil, err
 	}
 
 	if v.Verbose {
-		// govcd.ShowVapp(*vapp.VApp) its... quite large
-	}
-	if v.Verbose {
-		msg := fmt.Sprintf("%s %s", "VM PowerOn   time ", time.Since(powerOnStart).String())
-		updateCallback(edgeproto.UpdateTask, msg)
+		updateCallback(edgeproto.UpdateTask, fmt.Sprintf("VM PowerOn time %s",
+			infracommon.FormatDuration(time.Since(powerOnStart), 2)))
 	}
 	log.SpanLog(ctx, log.DebugLevelInfra, "CreateVApp composed Powering On", "Vapp", vappName)
-
 	vappPowerOnStart := time.Now()
 	updateCallback(edgeproto.UpdateTask, "Powering on Vapp")
+
 	task, err = vapp.PowerOn()
 	if err != nil {
 		log.SpanLog(ctx, log.DebugLevelInfra, "power on failed ", "VAppName", vapp.VApp.Name, "err", err)
@@ -168,17 +169,16 @@ func (v *VcdPlatform) CreateVApp(ctx context.Context, vappTmpl *govcd.VAppTempla
 		return nil, err
 	}
 	if v.Verbose {
-		msg := fmt.Sprintf("%s %s", "vapp power on  time ", time.Since(vappPowerOnStart).String())
+		msg := fmt.Sprintf("%s %s", "vapp power on  time ", infracommon.FormatDuration(time.Since(vappPowerOnStart), 2))
 		updateCallback(edgeproto.UpdateTask, msg)
 	}
-	// vapp.Refresh()
 
 	if v.Verbose {
 		v.LogVappVMsStatus(ctx, vapp)
 	}
 	if v.Verbose {
-		msg := fmt.Sprintf("%s %s", "CreateVMs  time ", time.Since(createStart).String())
-		updateCallback(edgeproto.UpdateTask, msg)
+		updateCallback(edgeproto.UpdateTask, fmt.Sprintf("%s %s", "CreateVMs  time ",
+			infracommon.FormatDuration(time.Since(createStart), 2)))
 	}
 	return vapp, nil
 }

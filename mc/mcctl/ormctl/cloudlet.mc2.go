@@ -316,6 +316,7 @@ var CreateCloudletOptionalArgs = []string{
 	"defaultresourcealertthreshold",
 <<<<<<< HEAD
 <<<<<<< HEAD
+<<<<<<< HEAD
 	"kafkacluster",
 	"kafkauser",
 	"kafkapassword",
@@ -326,6 +327,11 @@ var CreateCloudletOptionalArgs = []string{
 >>>>>>> kafka stuff
 =======
 >>>>>>> kafka bus working
+=======
+	"kafkacluster",
+	"kafkauser",
+	"kafkapassword",
+>>>>>>> autogen files
 }
 var DeleteCloudletRequiredArgs = []string{
 	"cloudlet-org",
@@ -367,6 +373,7 @@ var DeleteCloudletOptionalArgs = []string{
 	"defaultresourcealertthreshold",
 <<<<<<< HEAD
 <<<<<<< HEAD
+<<<<<<< HEAD
 	"kafkacluster",
 	"kafkauser",
 	"kafkapassword",
@@ -377,6 +384,11 @@ var DeleteCloudletOptionalArgs = []string{
 >>>>>>> kafka stuff
 =======
 >>>>>>> kafka bus working
+=======
+	"kafkacluster",
+	"kafkauser",
+	"kafkapassword",
+>>>>>>> autogen files
 }
 var UpdateCloudletRequiredArgs = []string{
 	"cloudlet-org",
@@ -406,6 +418,7 @@ var UpdateCloudletOptionalArgs = []string{
 	"defaultresourcealertthreshold",
 <<<<<<< HEAD
 <<<<<<< HEAD
+<<<<<<< HEAD
 	"kafkacluster",
 	"kafkauser",
 	"kafkapassword",
@@ -416,6 +429,11 @@ var UpdateCloudletOptionalArgs = []string{
 >>>>>>> kafka stuff
 =======
 >>>>>>> kafka bus working
+=======
+	"kafkacluster",
+	"kafkauser",
+	"kafkapassword",
+>>>>>>> autogen files
 }
 var ShowCloudletRequiredArgs = []string{
 	"cloudlet-org",
@@ -457,6 +475,7 @@ var ShowCloudletOptionalArgs = []string{
 	"defaultresourcealertthreshold",
 <<<<<<< HEAD
 <<<<<<< HEAD
+<<<<<<< HEAD
 	"kafkacluster",
 	"kafkauser",
 	"kafkapassword",
@@ -467,6 +486,11 @@ var ShowCloudletOptionalArgs = []string{
 >>>>>>> kafka stuff
 =======
 >>>>>>> kafka bus working
+=======
+	"kafkacluster",
+	"kafkauser",
+	"kafkapassword",
+>>>>>>> autogen files
 }
 var GetCloudletPropsRequiredArgs = []string{
 	"platformtype",
@@ -775,6 +799,7 @@ var CloudletOptionalArgs = []string{
 	"defaultresourcealertthreshold",
 <<<<<<< HEAD
 <<<<<<< HEAD
+<<<<<<< HEAD
 	"kafkacluster",
 	"kafkauser",
 	"kafkapassword",
@@ -785,6 +810,11 @@ var CloudletOptionalArgs = []string{
 >>>>>>> kafka stuff
 =======
 >>>>>>> kafka bus working
+=======
+	"kafkacluster",
+	"kafkauser",
+	"kafkapassword",
+>>>>>>> autogen files
 }
 var CloudletAliasArgs = []string{
 	"fields=cloudlet.fields",
@@ -874,10 +904,13 @@ var CloudletAliasArgs = []string{
 <<<<<<< HEAD
 <<<<<<< HEAD
 <<<<<<< HEAD
+<<<<<<< HEAD
 =======
 >>>>>>> kafka stuff
 =======
 >>>>>>> kafka bus working
+=======
+>>>>>>> autogen files
 	"hostcontroller=cloudlet.hostcontroller",
 =======
 =======
@@ -899,6 +932,11 @@ var CloudletAliasArgs = []string{
 =======
 >>>>>>> kafka bus working
 >>>>>>> kafka bus working
+=======
+	"kafkacluster=cloudlet.kafkacluster",
+	"kafkauser=cloudlet.kafkauser",
+	"kafkapassword=cloudlet.kafkapassword",
+>>>>>>> autogen files
 }
 var CloudletComments = map[string]string{
 	"fields":                              "Fields are used for the Update API to specify which fields to apply",
@@ -976,10 +1014,13 @@ var CloudletComments = map[string]string{
 <<<<<<< HEAD
 <<<<<<< HEAD
 <<<<<<< HEAD
+<<<<<<< HEAD
 =======
 >>>>>>> kafka stuff
 =======
 >>>>>>> kafka bus working
+=======
+>>>>>>> autogen files
 	"hostcontroller":                      "Addr of the controller hosting the cloudlet services if it is running locally",
 =======
 =======
@@ -992,6 +1033,7 @@ var CloudletComments = map[string]string{
 >>>>>>> kafka bus working
 =======
 	"kafkacluster":                        "operator provided kafka cluster endpoint to push events to",
+<<<<<<< HEAD
 =======
 	"kafkacluster":                        "operator provided kafka cluster endpoint to push events to, specify REMOVE_KAFKA on a cloudletUpdate to stop pushing to kafka",
 >>>>>>> cleanup
@@ -1004,6 +1046,11 @@ var CloudletComments = map[string]string{
 =======
 >>>>>>> kafka bus working
 >>>>>>> kafka bus working
+=======
+	"kafkauser":                           "username for kafka SASL/PLAIN authentification",
+	"kafkapassword":                       "password for kafka SASL/PLAIN authentification",
+>>>>>>> autogen files
+>>>>>>> autogen files
 }
 var CloudletSpecialArgs = map[string]string{
 	"cloudlet.accessvars":    "StringToString",

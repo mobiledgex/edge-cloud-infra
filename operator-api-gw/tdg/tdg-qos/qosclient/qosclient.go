@@ -53,7 +53,7 @@ func GetQOSPositionFromApiGW(serverUrl string, mreq *dme.QosPositionRequest, qos
 
 	log.DebugLog(log.DebugLevelDmereq, "Connecting to QOS API GW", "serverUrl", serverUrl)
 
-	tlsConfig, err := edgetls.GetTLSClientConfig(serverUrl, nil, clientCertFile, serverCertFile, true)
+	tlsConfig, err := edgetls.GetTLSClientConfig(true, serverUrl, nil, clientCertFile, serverCertFile, true)
 	if err != nil {
 		return grpc.Errorf(codes.Unavailable, "Unable get TLS Client config: %v", err)
 	}

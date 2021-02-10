@@ -43,7 +43,7 @@
       - "{{ postgres_hostname }}:5432"
       - "-vaultAddr"
       - "{{ vault_address }}"
-      - "-useVaultCerts"
+      - "-useVaultPki"
       - "-gitlabAddr"
       - "https://{{ gitlab_vm_hostname }}"
       - "-ldapAddr"

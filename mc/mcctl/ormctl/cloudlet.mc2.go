@@ -1015,12 +1015,15 @@ var CloudletComments = map[string]string{
 <<<<<<< HEAD
 <<<<<<< HEAD
 <<<<<<< HEAD
+<<<<<<< HEAD
 =======
 >>>>>>> kafka stuff
 =======
 >>>>>>> kafka bus working
 =======
 >>>>>>> autogen files
+=======
+>>>>>>> cleanup
 	"hostcontroller":                      "Addr of the controller hosting the cloudlet services if it is running locally",
 =======
 =======
@@ -1034,6 +1037,9 @@ var CloudletComments = map[string]string{
 =======
 	"kafkacluster":                        "operator provided kafka cluster endpoint to push events to",
 <<<<<<< HEAD
+<<<<<<< HEAD
+=======
+>>>>>>> cleanup
 =======
 	"kafkacluster":                        "operator provided kafka cluster endpoint to push events to, specify REMOVE_KAFKA on a cloudletUpdate to stop pushing to kafka",
 >>>>>>> cleanup

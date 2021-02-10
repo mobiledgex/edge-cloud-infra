@@ -59,8 +59,7 @@ func start() error {
 	log.SetDebugLevelStrs(*debugLevels)
 	settings = *edgeproto.GetDefaultSettings()
 
-	// TODO: figure this out
-	ctx, span, err := nodeMgr.Init("autoprov", node.CertIssuerRegional, node.WithName(*hostname), node.WithRegion(*region), node.WithVaultConfig(vaultConfig), node.WithCloudletLookup(nil))
+	ctx, span, err := nodeMgr.Init("autoprov", node.CertIssuerRegional, node.WithName(*hostname), node.WithRegion(*region), node.WithVaultConfig(vaultConfig))
 	if err != nil {
 		return err
 	}
@@ -77,8 +76,8 @@ func start() error {
 	}
 	dialOpts = tls.GetGrpcDialOption(clientTlsConfig)
 
-	cacheData.init()
 	retryTracker = newRetryTracker()
+	cacheData.init(&nodeMgr)
 	autoProvAggr = NewAutoProvAggr(settings.AutoDeployIntervalSec, settings.AutoDeployOffsetSec, &cacheData)
 	minMaxChecker = newMinMaxChecker(&cacheData)
 	cacheData.alertCache.AddUpdatedCb(alertChanged)

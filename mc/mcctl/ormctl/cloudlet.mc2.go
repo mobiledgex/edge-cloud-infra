@@ -314,6 +314,9 @@ var CreateCloudletOptionalArgs = []string{
 	"resourcequotas:#.value",
 	"resourcequotas:#.alertthreshold",
 	"defaultresourcealertthreshold",
+	"kafkacluster",
+	"kafkauser",
+	"kafkapassword",
 }
 var DeleteCloudletRequiredArgs = []string{
 	"cloudlet-org",
@@ -353,6 +356,9 @@ var DeleteCloudletOptionalArgs = []string{
 	"resourcequotas:#.value",
 	"resourcequotas:#.alertthreshold",
 	"defaultresourcealertthreshold",
+	"kafkacluster",
+	"kafkauser",
+	"kafkapassword",
 }
 var UpdateCloudletRequiredArgs = []string{
 	"cloudlet-org",
@@ -380,6 +386,9 @@ var UpdateCloudletOptionalArgs = []string{
 	"resourcequotas:#.value",
 	"resourcequotas:#.alertthreshold",
 	"defaultresourcealertthreshold",
+	"kafkacluster",
+	"kafkauser",
+	"kafkapassword",
 }
 var ShowCloudletRequiredArgs = []string{
 	"cloudlet-org",
@@ -419,6 +428,9 @@ var ShowCloudletOptionalArgs = []string{
 	"resourcequotas:#.value",
 	"resourcequotas:#.alertthreshold",
 	"defaultresourcealertthreshold",
+	"kafkacluster",
+	"kafkauser",
+	"kafkapassword",
 }
 var GetCloudletPropsRequiredArgs = []string{
 	"platformtype",
@@ -725,6 +737,9 @@ var CloudletOptionalArgs = []string{
 	"resourcequotas:#.value",
 	"resourcequotas:#.alertthreshold",
 	"defaultresourcealertthreshold",
+	"kafkacluster",
+	"kafkauser",
+	"kafkapassword",
 }
 var CloudletAliasArgs = []string{
 	"fields=cloudlet.fields",
@@ -811,6 +826,7 @@ var CloudletAliasArgs = []string{
 	"defaultresourcealertthreshold=cloudlet.defaultresourcealertthreshold",
 <<<<<<< HEAD
 <<<<<<< HEAD
+<<<<<<< HEAD
 	"hostcontroller=cloudlet.hostcontroller",
 =======
 =======
@@ -819,6 +835,11 @@ var CloudletAliasArgs = []string{
 >>>>>>> kafka stuff
 =======
 >>>>>>> kafka bus working
+=======
+	"kafkacluster=cloudlet.kafkacluster",
+	"kafkauser=cloudlet.kafkauser",
+	"kafkapassword=cloudlet.kafkapassword",
+>>>>>>> autogen files
 }
 var CloudletComments = map[string]string{
 	"fields":                              "Fields are used for the Update API to specify which fields to apply",
@@ -892,6 +913,7 @@ var CloudletComments = map[string]string{
 	"defaultresourcealertthreshold":       "Default resource alert threshold percentage",
 <<<<<<< HEAD
 <<<<<<< HEAD
+<<<<<<< HEAD
 	"hostcontroller":                      "Addr of the controller hosting the cloudlet services if it is running locally",
 =======
 =======
@@ -900,6 +922,11 @@ var CloudletComments = map[string]string{
 >>>>>>> kafka stuff
 =======
 >>>>>>> kafka bus working
+=======
+	"kafkacluster":                        "operator provided kafka cluster endpoint to push events to",
+	"kafkauser":                           "username for kafka SASL/PLAIN authentification",
+	"kafkapassword":                       "password for kafka SASL/PLAIN authentification",
+>>>>>>> autogen files
 }
 var CloudletSpecialArgs = map[string]string{
 	"cloudlet.accessvars":    "StringToString",

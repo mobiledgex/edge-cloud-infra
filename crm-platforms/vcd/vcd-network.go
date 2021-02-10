@@ -183,7 +183,7 @@ func (v *VcdPlatform) AddPortsToVapp(ctx context.Context, vapp *govcd.VApp, vmgp
 			var err error
 			log.SpanLog(ctx, log.DebugLevelInfra, "AddPortsToVapp adding internal vapp net", "PortNum", n, "vapp", vapp.VApp.Name, "port.NetowkName", port.SubnetId, "port.SubnetId", port.SubnetId)
 			// We've fenced our VApp isolated networks, so they can all use the same subnet
-			subnet := "10.101.1.1"
+			subnet = "10.101.1.1"
 			if v.Verbose {
 				log.SpanLog(ctx, log.DebugLevelInfra, "AddPortsToVapp adding internal vapp net", "PortNum", n, "vapp", vapp.VApp.Name, "port.NetowkrNamek", port.NetworkName, "IP subnet", subnet)
 			}

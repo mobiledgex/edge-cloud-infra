@@ -914,6 +914,7 @@ var CloudletComments = map[string]string{
 <<<<<<< HEAD
 <<<<<<< HEAD
 <<<<<<< HEAD
+<<<<<<< HEAD
 	"hostcontroller":                      "Addr of the controller hosting the cloudlet services if it is running locally",
 =======
 =======
@@ -924,6 +925,9 @@ var CloudletComments = map[string]string{
 >>>>>>> kafka bus working
 =======
 	"kafkacluster":                        "operator provided kafka cluster endpoint to push events to",
+=======
+	"kafkacluster":                        "operator provided kafka cluster endpoint to push events to, specify REMOVE_KAFKA on a cloudletUpdate to stop pushing to kafka",
+>>>>>>> cleanup
 	"kafkauser":                           "username for kafka SASL/PLAIN authentification",
 	"kafkapassword":                       "password for kafka SASL/PLAIN authentification",
 >>>>>>> autogen files

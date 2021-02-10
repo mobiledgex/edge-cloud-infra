@@ -10,7 +10,7 @@ crms:
   cloudletkey: '{"organization": "{{cloudlet-org}}","name":"{{cloudlet}}"}'
   hostname: "127.0.0.1"
   usevaultcas: true
-  usevaultcerts: true
+  usevaultpki: true
   accessapiaddr: "{{controller}}:41001"
   accesskeyfile: "{{outputdir}}/accesskey.pem"
   deploymenttag: "{{deploy-env}}"

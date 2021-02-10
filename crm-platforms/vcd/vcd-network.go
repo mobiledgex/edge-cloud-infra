@@ -138,7 +138,7 @@ func (v *VcdPlatform) createNextSharedLBSubnet(ctx context.Context, vapp *govcd.
 
 func (v *VcdPlatform) AddPortsToVapp(ctx context.Context, vapp *govcd.VApp, vmgp vmlayer.VMGroupOrchestrationParams, updateCallback edgeproto.CacheUpdateCallback, vcdClient *govcd.VCDClient) (string, error) {
 	ports := vmgp.Ports
-	nextCidr := ""
+	subnet := ""
 	numPorts := len(ports)
 	vmparams := vmgp.VMs[0]
 	serverName := vmparams.Name
@@ -181,12 +181,14 @@ func (v *VcdPlatform) AddPortsToVapp(ctx context.Context, vapp *govcd.VApp, vmgp
 		// Create isolated subnet for this vapp/clusterInst Vapp net for Dedicated, or OrgVDCNetwork for Shared LB
 		if port.NetworkType == vmlayer.NetTypeInternal && !intAdded {
 			var err error
+			log.SpanLog(ctx, log.DebugLevelInfra, "AddPortsToVapp adding internal vapp net", "PortNum", n, "vapp", vapp.VApp.Name, "port.NetowkName", port.SubnetId, "port.SubnetId", port.SubnetId)
 			// We've fenced our VApp isolated networks, so they can all use the same subnet
 			subnet := "10.101.1.1"
 			if v.Verbose {
 				log.SpanLog(ctx, log.DebugLevelInfra, "AddPortsToVapp adding internal vapp net", "PortNum", n, "vapp", vapp.VApp.Name, "port.NetowkrNamek", port.NetworkName, "IP subnet", subnet)
 			}
 			if v.haveSharedRootLB(ctx, vmgp) {
+				log.SpanLog(ctx, log.DebugLevelInfra, "AddPortsToVapp adding internal vapp net for SharedLB", "vapp", vapp.VApp.Name)
 				err := v.createNextSharedLBSubnet(ctx, vapp, port, updateCallback, vcdClient)
 				if err != nil {
 					log.SpanLog(ctx, log.DebugLevelInfra, "AddPortsToVapp createNextShareRootLBSubnet failed", "vapp", vapp.VApp.Name, "error", err)
@@ -194,6 +196,7 @@ func (v *VcdPlatform) AddPortsToVapp(ctx context.Context, vapp *govcd.VApp, vmgp
 				}
 				log.SpanLog(ctx, log.DebugLevelInfra, "AddPortsToVapp created iso vdcnet for SharedLB", "network", port.SubnetId, "vapp", vapp.VApp.Name)
 			} else {
+				log.SpanLog(ctx, log.DebugLevelInfra, "AddPortsToVapp adding internal vapp net non-shared", "vapp", vapp.VApp.Name)
 				_, err = v.CreateInternalNetworkForNewVm(ctx, vapp, serverName, port.SubnetId, subnet)
 				if err != nil {
 					log.SpanLog(ctx, log.DebugLevelInfra, "create internal net failed", "err", err)
@@ -207,9 +210,9 @@ func (v *VcdPlatform) AddPortsToVapp(ctx context.Context, vapp *govcd.VApp, vmgp
 		}
 	}
 	if v.Verbose {
-		log.SpanLog(ctx, log.DebugLevelInfra, "AddPortsToVapp return", "NextCidr", nextCidr, "NumPorts", numPorts)
+		log.SpanLog(ctx, log.DebugLevelInfra, "AddPortsToVapp return", "NextCidr", subnet, "NumPorts", numPorts)
 	}
-	return nextCidr, nil
+	return subnet, nil
 }
 
 // AttachPortToServer

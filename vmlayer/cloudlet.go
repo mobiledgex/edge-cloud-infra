@@ -313,9 +313,8 @@ func (v *VMPlatform) getChefRunStatus(ctx context.Context, chefClient *chef.Clie
 			}
 			break
 		}
-		updateCallback(edgeproto.UpdateTask, fmt.Sprintf("Wait run list complete time: %s", infracommon.FormatDuration(time.Since(runListTime), 2)))
 	}
-
+	updateCallback(edgeproto.UpdateTask, fmt.Sprintf("Wait run list complete time: %s", infracommon.FormatDuration(time.Since(runListTime), 2)))
 	return nil
 }
 

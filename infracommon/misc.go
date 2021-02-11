@@ -152,16 +152,20 @@ func FormatDuration(dur time.Duration, digIdx int) string {
 		time.Duration(1000),
 	}
 
-	if digIdx < 0 || digIdx >= len(divisors) {
-		return fmt.Sprintf("FormatDuration: Invalid digIdx %d encountered", digIdx)
+	if digIdx < 0 {
+		digIdx = 0
 	}
+	if digIdx >= len(divisors) {
+		digIdx = len(divisors) - 1
+	}
+
 	switch {
 	case dur > time.Second:
 		dur = dur.Round(time.Second / divisors[digIdx])
 	case dur > time.Millisecond:
 		dur = dur.Round(time.Millisecond / divisors[digIdx])
 	case dur > time.Microsecond:
-		dur = dur.Round(time.Millisecond / divisors[digIdx])
+		dur = dur.Round(time.Microsecond / divisors[digIdx])
 	}
 	return dur.String()
 }

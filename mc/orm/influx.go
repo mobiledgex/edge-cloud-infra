@@ -12,6 +12,7 @@ import (
 	influxdb "github.com/influxdata/influxdb/client/v2"
 	"github.com/labstack/echo"
 	"github.com/mobiledgex/edge-cloud-infra/mc/ormapi"
+	pf "github.com/mobiledgex/edge-cloud/cloud-resource-manager/platform"
 	"github.com/mobiledgex/edge-cloud/cloudcommon"
 	"github.com/mobiledgex/edge-cloud/cloudcommon/influxsup"
 	"github.com/mobiledgex/edge-cloud/edgeproto"
@@ -497,10 +498,10 @@ func getCloudletUsageMeasurementString(selector string, platformTypes map[string
 	for _, cSelector := range selectors {
 		if cSelector == "resourceusage" {
 			for pfType, _ := range platformTypes {
-				measurements = append(measurements, fmt.Sprintf("%s-resource-usage", pfType))
+				measurements = append(measurements, cloudcommon.GetCloudletResourceUsageMeasurement(pfType))
 			}
 		} else if selector == "flavorusage" {
-			measurements = append(measurements, "cloudlet-flavor-usage")
+			measurements = append(measurements, cloudcommon.CloudletFlavorUsageMeasurement)
 		} else {
 			measurements = append(measurements, cSelector)
 		}
@@ -697,10 +698,7 @@ func GetMetricsCommon(c echo.Context) error {
 				Key: in.Cloudlet,
 			}
 			err = ShowCloudletStream(ctx, rc, &obj, func(res *edgeproto.Cloudlet) {
-				pfType := res.PlatformType.String()
-				pfType = strings.TrimPrefix(pfType, "PLATFORM_TYPE_")
-				pfType = strings.ToLower(pfType)
-				pfType = strings.Replace(pfType, "_", "", -1)
+				pfType := pf.GetType(res.PlatformType.String())
 				platformTypes[pfType] = struct{}{}
 			})
 			if err != nil {

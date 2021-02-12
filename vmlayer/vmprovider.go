@@ -67,7 +67,7 @@ type VMProvider interface {
 	InitOperationContext(ctx context.Context, operationStage OperationInitStage) (context.Context, OperationInitResult, error)
 	GetCloudletInfraResourcesInfo(ctx context.Context) ([]edgeproto.InfraResource, error)
 	GetCloudletResourceQuotaProps(ctx context.Context) (*edgeproto.CloudletResourceQuotaProps, error)
-	GetClusterAdditionalResources(ctx context.Context, cloudlet *edgeproto.Cloudlet, vmResources []edgeproto.VMResource, infraResMap map[string]*edgeproto.InfraResource) map[string]*edgeproto.InfraResource
+	GetClusterAdditionalResources(ctx context.Context, cloudlet *edgeproto.Cloudlet, vmResources []edgeproto.VMResource, infraResMap map[string]edgeproto.InfraResource) map[string]edgeproto.InfraResource
 	GetClusterAdditionalResourceMetric(ctx context.Context, cloudlet *edgeproto.Cloudlet, resMetric *edgeproto.Metric, resources []edgeproto.VMResource) error
 }
 
@@ -138,14 +138,6 @@ const (
 	ResourceTypeSecurityGroup ResourceType = "SecGrp"
 )
 
-const (
-	VMProviderOpenstack string = "openstack"
-	VMProviderVSphere   string = "vsphere"
-	VMProviderVMPool    string = "vmpool"
-	VMProviderAwsEc2    string = "awsec2"
-	VMProviderVCD       string = "vcd"
-)
-
 type ProviderInitStage string
 
 const (
@@ -182,10 +174,6 @@ type ResTagTables map[string]*edgeproto.ResTagTable
 var pCaches *platform.Caches
 
 // VMPlatform embeds Platform and VMProvider
-
-func (v *VMPlatform) GetType() string {
-	return v.Type
-}
 
 func (v *VMPlatform) GetClusterPlatformClient(ctx context.Context, clusterInst *edgeproto.ClusterInst, clientType string) (ssh.Client, error) {
 	var err error
@@ -522,7 +510,7 @@ func (v *VMPlatform) GetCloudletResourceQuotaProps(ctx context.Context) (*edgepr
 }
 
 // called by controller, make sure it doesn't make any calls to infra API
-func (v *VMPlatform) GetClusterAdditionalResources(ctx context.Context, cloudlet *edgeproto.Cloudlet, vmResources []edgeproto.VMResource, infraResMap map[string]*edgeproto.InfraResource) map[string]*edgeproto.InfraResource {
+func (v *VMPlatform) GetClusterAdditionalResources(ctx context.Context, cloudlet *edgeproto.Cloudlet, vmResources []edgeproto.VMResource, infraResMap map[string]edgeproto.InfraResource) map[string]edgeproto.InfraResource {
 	return v.VMProvider.GetClusterAdditionalResources(ctx, cloudlet, vmResources, infraResMap)
 }
 

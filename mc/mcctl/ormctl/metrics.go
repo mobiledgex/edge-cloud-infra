@@ -55,6 +55,24 @@ func GetMetricsCommand() *cobra.Command {
 		ReqData:      &ormapi.RegionClientMetrics{},
 		ReplyData:    &ormapi.AllMetrics{},
 		Run:          runRest("/auth/metrics/client"),
+	}, &cli.Command{
+		Use:          "cloudletpoolapp",
+		RequiredArgs: strings.Join(append([]string{"region"}, CloudletPoolMetricsRequiredArgs...), " "),
+		OptionalArgs: strings.Join(append([]string{"app-org"}, AppMetricOptionalArgs...), " "),
+		AliasArgs:    strings.Join(append(CloudletPoolMetricsRequiredAliasArgs, AppMetricAliasArgs...), " "),
+		Comments:     mergeMetricComments(addRegionComment(MetricCommentsCommon), CloudletPoolAppMetricComments),
+		ReqData:      &ormapi.RegionCloudletPoolAppInstMetrics{},
+		ReplyData:    &ormapi.AllMetrics{},
+		Run:          runRest("/auth/metrics/cloudletpool/app"),
+	}, &cli.Command{
+		Use:          "cloudletpoolcluster",
+		RequiredArgs: strings.Join(append([]string{"region"}, CloudletPoolMetricsRequiredArgs...), " "),
+		OptionalArgs: strings.Join(append([]string{"cluster-org"}, ClusterMetricOptionalArgs...), " "),
+		AliasArgs:    strings.Join(append(CloudletPoolMetricsRequiredAliasArgs, ClusterMetricAliasArgs...), " "),
+		Comments:     mergeMetricComments(addRegionComment(MetricCommentsCommon), CloudletPoolClusterMetricComments),
+		ReqData:      &ormapi.RegionCloudletPoolClusterInstMetrics{},
+		ReplyData:    &ormapi.AllMetrics{},
+		Run:          runRest("/auth/metrics/cloudletpool/cluster"),
 	}}
 	return cli.GenGroup("metrics", "view metrics ", cmds)
 }
@@ -189,6 +207,29 @@ var MetricCommentsCommon = map[string]string{
 	"last":         "Display the last X metrics",
 	"starttime":    "Time to start displaying stats from in RFC3339 format (ex. 2002-12-31T15:00:00Z)",
 	"endtime":      "Time up to which to display stats in RFC3339 format (ex. 2002-12-31T10:00:00-05:00)",
+}
+
+var CloudletPoolMetricsRequiredArgs = []string{
+	"pool",
+	"org",
+	"selector",
+}
+
+var CloudletPoolMetricsRequiredAliasArgs = []string{
+	"pool=cloudletpool.name",
+	"org=cloudletpool.organization",
+}
+
+var CloudletPoolAppMetricComments = map[string]string{
+	"selector": "Comma separated list of metrics to view. Available metrics: \"" + strings.Join(orm.AppSelectors, "\", \"") + "\"",
+	"pool":     "CloudletPool name",
+	"org":      "Organization or Company name of the CloudletPool",
+}
+
+var CloudletPoolClusterMetricComments = map[string]string{
+	"selector": "Comma separated list of metrics to view. Available metrics: \"" + strings.Join(orm.ClusterSelectors, "\", \"") + "\"",
+	"pool":     "CloudletPool name",
+	"org":      "Organization or Company name of the CloudletPool",
 }
 
 // merge two maps - entries in b will overwrite values in a

@@ -14,12 +14,14 @@ import (
 	"github.com/mobiledgex/edge-cloud-infra/mc/ormapi"
 	"github.com/mobiledgex/edge-cloud/cloudcommon"
 	"github.com/mobiledgex/edge-cloud/cloudcommon/influxsup"
+	"github.com/mobiledgex/edge-cloud/edgeproto"
 	"github.com/mobiledgex/edge-cloud/log"
 	"github.com/mobiledgex/edge-cloud/util"
 )
 
 var devInfluxDBTemplate *template.Template
 var operatorInfluxDBTemplate *template.Template
+var cloudletpoolInfluxDBTemplate *template.Template
 
 // 100 values at a time
 var queryChunkSize = 100
@@ -50,6 +52,7 @@ type influxQueryArgs struct {
 	DeploymentType string
 	Last           int
 	CloudletList   string
+	DevOrg         string
 }
 
 var AppSelectors = []string{
@@ -255,9 +258,21 @@ var operatorInfluxDBT = `SELECT {{.Selector}} from "{{.Measurement}}"` +
 	`{{if .EndTime}} AND time <= '{{.EndTime}}'{{end}}` +
 	` order by time desc{{if ne .Last 0}} limit {{.Last}}{{end}}`
 
+var cloudletpoolDBT = `SELECT {{.Selector}} from "{{.Measurement}}"` +
+	` WHERE "cloudletorg"='{{.ApiCallerOrg}}'` +
+	`{{if .AppInstName}} AND "app"='{{.AppInstName}}'{{end}}` +
+	`{{if .ClusterName}} AND "cluster"='{{.ClusterName}}'{{end}}` +
+	`{{if .DevOrg}} AND "{{.OrgField}}"='{{.DevOrg}}'{{end}}` +
+	`{{if .AppVersion}} AND "ver"='{{.AppVersion}}'{{end}}` +
+	`{{if .StartTime}} AND time >= '{{.StartTime}}'{{end}}` +
+	`{{if .EndTime}} AND time <= '{{.EndTime}}'{{end}}` +
+	`{{if .CloudletList}} AND ({{.CloudletList}}){{end}}` +
+	` order by time desc{{if ne .Last 0}} limit {{.Last}}{{end}}`
+
 func init() {
 	devInfluxDBTemplate = template.Must(template.New("influxquery").Parse(devInfluxDBT))
 	operatorInfluxDBTemplate = template.Must(template.New("influxquery").Parse(operatorInfluxDBT))
+	cloudletpoolInfluxDBTemplate = template.Must(template.New("influxquery").Parse(cloudletpoolDBT))
 }
 
 func ConnectInfluxDB(ctx context.Context, region string) (influxdb.Client, error) {
@@ -393,6 +408,36 @@ func CloudletUsageMetricsQuery(obj *ormapi.RegionCloudletMetrics) string {
 		Last:         obj.Last,
 	}
 	return fillTimeAndGetCmd(&arg, operatorInfluxDBTemplate, &obj.StartTime, &obj.EndTime)
+}
+
+func CloudletPoolAppQuery(obj *ormapi.RegionCloudletPoolAppInstMetrics, cloudletList []string) string {
+	arg := influxQueryArgs{
+		Selector:     getFields(obj.Selector, APPINST),
+		Measurement:  getMeasurementString(obj.Selector, APPINST),
+		ApiCallerOrg: obj.CloudletPool.Organization,
+		AppInstName:  util.DNSSanitize(obj.AppInst.AppKey.Name),
+		AppVersion:   util.DNSSanitize(obj.AppInst.AppKey.Version),
+		OrgField:     "apporg",
+		DevOrg:       obj.AppInst.AppKey.Organization,
+		ClusterName:  obj.AppInst.ClusterInstKey.ClusterKey.Name,
+		Last:         obj.Last,
+		CloudletList: generateCloudletList(cloudletList),
+	}
+	return fillTimeAndGetCmd(&arg, cloudletpoolInfluxDBTemplate, &obj.StartTime, &obj.EndTime)
+}
+
+func CloudletPoolClusterQuery(obj *ormapi.RegionCloudletPoolClusterInstMetrics, cloudletList []string) string {
+	arg := influxQueryArgs{
+		Selector:     getFields(obj.Selector, CLUSTER),
+		Measurement:  getMeasurementString(obj.Selector, CLUSTER),
+		ApiCallerOrg: obj.CloudletPool.Organization,
+		OrgField:     "clusterorg",
+		DevOrg:       obj.ClusterInst.Organization,
+		ClusterName:  obj.ClusterInst.ClusterKey.Name,
+		Last:         obj.Last,
+		CloudletList: generateCloudletList(cloudletList),
+	}
+	return fillTimeAndGetCmd(&arg, cloudletpoolInfluxDBTemplate, &obj.StartTime, &obj.EndTime)
 }
 
 // TODO: This function should be a streaming function, but currently client library for influxDB
@@ -581,6 +626,8 @@ func GetMetricsCommon(c echo.Context) error {
 	if err != nil {
 		return err
 	}
+	regionRc := &RegionContext{}
+	regionRc.username = claims.Username
 	rc.claims = claims
 	ctx := GetContext(c)
 	// Get the current config
@@ -699,6 +746,88 @@ func GetMetricsCommon(c echo.Context) error {
 		if err := authorized(ctx, rc.claims.Username, org, ResourceCloudletAnalytics, ActionView); err != nil {
 			return setReply(c, err, nil)
 		}
+	} else if strings.HasSuffix(c.Path(), "metrics/cloudletpool/app") {
+		in := ormapi.RegionCloudletPoolAppInstMetrics{}
+		success, err := ReadConn(c, &in)
+		if !success {
+			return err
+		}
+		// Operator and cloudletpool name has to be specified
+		if in.CloudletPool.Organization == "" || in.CloudletPool.Name == "" {
+			return setReply(c, fmt.Errorf("CloudletPool details must be present"), nil)
+		}
+		rc.region = in.Region
+		regionRc.region = in.Region
+		if err = validateSelectorString(in.Selector, APPINST); err != nil {
+			return setReply(c, err, nil)
+		}
+		cloudletpoolQuery := edgeproto.CloudletPool{Key: in.CloudletPool}
+		// this also does an authorization check, so we dont have to
+		cloudletPools, err := ShowCloudletPoolObj(ctx, regionRc, &cloudletpoolQuery)
+		if err != nil {
+			return err
+		}
+		// since we specify name, should only have at most 1 result
+		if len(cloudletPools) != 1 {
+			log.SpanLog(ctx, log.DebugLevelMetrics, "Invalid response retrieving cloudletPool", "cloudletPools", cloudletPools)
+			return setReply(c, fmt.Errorf("Unable to retrieve CloudletPool info"), nil)
+		}
+		cloudletList := []string{}
+		for _, cloudlet := range cloudletPools[0].Cloudlets {
+			if in.AppInst.ClusterInstKey.CloudletKey.Name == "" {
+				cloudletList = append(cloudletList, cloudlet)
+			} else if in.AppInst.ClusterInstKey.CloudletKey.Name == cloudlet {
+				// only show the one cloudlet if they specified one, but make sure its in the pool
+				cloudletList = append(cloudletList, cloudlet)
+				break
+			}
+		}
+		if len(cloudletList) == 0 {
+			return setReply(c, fmt.Errorf("No cloudlet(s) found"), nil)
+		}
+		cmd = CloudletPoolAppQuery(&in, cloudletList)
+
+	} else if strings.HasSuffix(c.Path(), "metrics/cloudletpool/cluster") {
+		in := ormapi.RegionCloudletPoolClusterInstMetrics{}
+		success, err := ReadConn(c, &in)
+		if !success {
+			return err
+		}
+		// Operator and cloudletpool name has to be specified
+		if in.CloudletPool.Organization == "" || in.CloudletPool.Name == "" {
+			return setReply(c, fmt.Errorf("CloudletPool details must be present"), nil)
+		}
+		rc.region = in.Region
+		regionRc.region = in.Region
+		if err = validateSelectorString(in.Selector, CLUSTER); err != nil {
+			return setReply(c, err, nil)
+		}
+		cloudletpoolQuery := edgeproto.CloudletPool{Key: in.CloudletPool}
+		// this also does an authorization check, so we dont have to
+		cloudletPools, err := ShowCloudletPoolObj(ctx, regionRc, &cloudletpoolQuery)
+		if err != nil {
+			return err
+		}
+		// since we specify name, should only have at most 1 result
+		if len(cloudletPools) != 1 {
+			log.SpanLog(ctx, log.DebugLevelMetrics, "Invalid response retrieving cloudletPool", "cloudletPools", cloudletPools)
+			return setReply(c, fmt.Errorf("Unable to retrieve CloudletPool info"), nil)
+		}
+		cloudletList := []string{}
+		for _, cloudlet := range cloudletPools[0].Cloudlets {
+			if in.ClusterInst.CloudletKey.Name == "" {
+				cloudletList = append(cloudletList, cloudlet)
+			} else if in.ClusterInst.CloudletKey.Name == cloudlet {
+				// only show the one cloudlet if they specified one, but make sure its in the pool
+				cloudletList = append(cloudletList, cloudlet)
+				break
+			}
+		}
+		if len(cloudletList) == 0 {
+			return setReply(c, fmt.Errorf("No cloudlet(s) found"), nil)
+		}
+		cmd = CloudletPoolClusterQuery(&in, cloudletList)
+
 	} else {
 		return setReply(c, echo.ErrNotFound, nil)
 	}

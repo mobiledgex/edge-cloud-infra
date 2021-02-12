@@ -381,6 +381,26 @@ type RegionClusterInstMetrics struct {
 	Last        int       `json:",omitempty"`
 }
 
+type RegionCloudletPoolAppInstMetrics struct {
+	Region       string
+	AppInst      edgeproto.AppInstKey
+	CloudletPool edgeproto.CloudletPoolKey
+	Selector     string
+	StartTime    time.Time `json:",omitempty"`
+	EndTime      time.Time `json:",omitempty"`
+	Last         int       `json:",omitempty"`
+}
+
+type RegionCloudletPoolClusterInstMetrics struct {
+	Region       string
+	ClusterInst  edgeproto.ClusterInstKey
+	CloudletPool edgeproto.CloudletPoolKey
+	Selector     string
+	StartTime    time.Time `json:",omitempty"`
+	EndTime      time.Time `json:",omitempty"`
+	Last         int       `json:",omitempty"`
+}
+
 type RegionCloudletMetrics struct {
 	Region       string
 	Cloudlet     edgeproto.CloudletKey

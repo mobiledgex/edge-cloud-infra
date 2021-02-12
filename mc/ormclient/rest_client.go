@@ -304,6 +304,18 @@ func (s *Client) ShowClientMetrics(uri, token string, query *ormapi.RegionClient
 	return &metrics, status, err
 }
 
+func (s *Client) ShowCloudletPoolAppMetrics(uri, token string, query *ormapi.RegionCloudletPoolAppInstMetrics) (*ormapi.AllMetrics, int, error) {
+	metrics := ormapi.AllMetrics{}
+	status, err := s.PostJson(uri+"/auth/metrics/cloudletpool/app", token, query, &metrics)
+	return &metrics, status, err
+}
+
+func (s *Client) ShowCloudletPoolClusterMetrics(uri, token string, query *ormapi.RegionCloudletPoolClusterInstMetrics) (*ormapi.AllMetrics, int, error) {
+	metrics := ormapi.AllMetrics{}
+	status, err := s.PostJson(uri+"/auth/metrics/cloudletpool/cluster", token, query, &metrics)
+	return &metrics, status, err
+}
+
 func (s *Client) ShowAppEvents(uri, token string, query *ormapi.RegionAppInstEvents) (*ormapi.AllMetrics, int, error) {
 	metrics := ormapi.AllMetrics{}
 	status, err := s.PostJson(uri+"/auth/events/app", token, query, &metrics)

@@ -30,3 +30,17 @@ func (s *Client) ShowClientMetrics(uri, token string, query *ormapi.RegionClient
 	st, err := s.runObjs(uri, token, args, query, &metrics)
 	return &metrics, st, err
 }
+
+func (s *Client) ShowCloudletPoolAppMetrics(uri, token string, query *ormapi.RegionCloudletPoolAppInstMetrics) (*ormapi.AllMetrics, int, error) {
+	args := []string{"metrics", "cloudletpoolapp"}
+	metrics := ormapi.AllMetrics{}
+	st, err := s.runObjs(uri, token, args, query, &metrics)
+	return &metrics, st, err
+}
+
+func (s *Client) ShowCloudletPoolClusterMetrics(uri, token string, query *ormapi.RegionCloudletPoolClusterInstMetrics) (*ormapi.AllMetrics, int, error) {
+	args := []string{"metrics", "cloudletpoolcluster"}
+	metrics := ormapi.AllMetrics{}
+	st, err := s.runObjs(uri, token, args, query, &metrics)
+	return &metrics, st, err
+}

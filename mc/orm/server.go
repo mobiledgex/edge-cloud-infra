@@ -557,6 +557,30 @@ func RunServer(config *ServerConfig) (retserver *Server, reterr error) {
 	//   404: notFound
 	auth.POST("/metrics/client", GetMetricsCommon)
 
+	// swagger:route POST /auth/metrics/client OperatorMetrics AppMetrics
+	// App related metrics for cloudletpools.
+	// Display app related metrics for AppInsts in a CloudletPool.
+	// Security:
+	//   Bearer:
+	// responses:
+	//   200: success
+	//   400: badRequest
+	//   403: forbidden
+	//   404: notFound
+	auth.POST("/metrics/cloudletpool/app", GetMetricsCommon)
+
+	// swagger:route POST /auth/metrics/client OperatorMetrics ClusterMetrics
+	// Cluster related metrics for cloudletpools.
+	// Display cluster related metrics for ClusterInsts in a CloudletPool.
+	// Security:
+	//   Bearer:
+	// responses:
+	//   200: success
+	//   400: badRequest
+	//   403: forbidden
+	//   404: notFound
+	auth.POST("/metrics/cloudletpool/cluster", GetMetricsCommon)
+
 	auth.POST("/events/app", GetEventsCommon)
 	auth.POST("/events/cluster", GetEventsCommon)
 	auth.POST("/events/cloudlet", GetEventsCommon)
@@ -676,6 +700,8 @@ func RunServer(config *ServerConfig) (retserver *Server, reterr error) {
 	ws.GET("/metrics/cloudlet", GetMetricsCommon)
 	ws.GET("/metrics/cloudlet/usage", GetMetricsCommon)
 	ws.GET("/metrics/client", GetMetricsCommon)
+	ws.GET("/metrics/cloudletpool/app", GetMetricsCommon)
+	ws.GET("/metrics/cloudletpool/cluster", GetMetricsCommon)
 
 	if config.NotifySrvAddr != "" {
 		server.notifyServer = &notify.ServerMgr{}

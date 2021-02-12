@@ -45,6 +45,8 @@ type Api interface {
 	ShowClusterMetrics(uri, token string, query *ormapi.RegionClusterInstMetrics) (*ormapi.AllMetrics, int, error)
 	ShowCloudletMetrics(uri, token string, query *ormapi.RegionCloudletMetrics) (*ormapi.AllMetrics, int, error)
 	ShowClientMetrics(uri, token string, query *ormapi.RegionClientMetrics) (*ormapi.AllMetrics, int, error)
+	ShowCloudletPoolAppMetrics(uri, token string, query *ormapi.RegionCloudletPoolAppInstMetrics) (*ormapi.AllMetrics, int, error)
+	ShowCloudletPoolClusterMetrics(uri, token string, query *ormapi.RegionCloudletPoolClusterInstMetrics) (*ormapi.AllMetrics, int, error)
 
 	ShowAppEvents(uri, token string, query *ormapi.RegionAppInstEvents) (*ormapi.AllMetrics, int, error)
 	ShowClusterEvents(uri, token string, query *ormapi.RegionClusterInstEvents) (*ormapi.AllMetrics, int, error)

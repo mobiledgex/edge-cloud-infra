@@ -804,14 +804,14 @@ func (v *VcdPlatform) CreateIsoVdcNetwork(ctx context.Context, vapp *govcd.VApp,
 	)
 
 	err = vdc.CreateOrgVDCNetworkWait(&networkConfig)
+	// accept  a pre-existing network
 	if err != nil {
-		fmt.Printf("Does this net already exist? %s\n", netName)
 		if strings.Contains(err.Error(), "exists") {
-			fmt.Printf("Does this net already exist? Yes return ok  %s\n", netName)
-			return nil
+			log.SpanLog(ctx, log.DebugLevelInfra, "CreateIsoVdcNetwork use existing orgvdcnet", "netName", netName)
+		} else {
+			log.SpanLog(ctx, log.DebugLevelInfra, "CreateIsoVdcNetwork CreateOrgVDCNetwork  failed ", "err", err)
+			return err
 		}
-		log.SpanLog(ctx, log.DebugLevelInfra, "CreateIsoVdcNetwork CreateOrgVDCNetwork  failed ", "err", err)
-		return err
 	}
 
 	orgvdcnet, err := vdc.GetOrgVdcNetworkByName(netName, true)
@@ -821,10 +821,7 @@ func (v *VcdPlatform) CreateIsoVdcNetwork(ctx context.Context, vapp *govcd.VApp,
 		return err
 	}
 
-	// govcd.ShowNetwork(*orgvdcnet.OrgVDCNetwork)
-
 	log.SpanLog(ctx, log.DebugLevelInfra, "CreateIsoVdcNetowrk created", "name", netName)
-
 	vappNetSettings := &govcd.VappNetworkSettings{
 		Name:             netName,
 		VappFenceEnabled: TakeBoolPointer(false),

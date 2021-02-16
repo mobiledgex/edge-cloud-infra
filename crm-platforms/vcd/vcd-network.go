@@ -112,7 +112,7 @@ func (v *VcdPlatform) haveSharedRootLB(ctx context.Context, vmgp vmlayer.VMGroup
 
 var netLock sync.Mutex
 
-func (v *VcdPlatform) createNextSharedLBSubnet(ctx context.Context, vapp *govcd.VApp, port vmlayer.PortOrchestrationParams, updateCallback edgeproto.CacheUpdateCallback, vcdClient *govcd.VCDClient) error {
+func (v *VcdPlatform) createNextSharedLBSubnet(ctx context.Context, vapp *govcd.VApp, port vmlayer.PortOrchestrationParams, updateCallback edgeproto.CacheUpdateCallback, vcdClient *govcd.VCDClient) (string, error) {
 	// shared lbs need individual orgvcd isolated networks, must be unique.
 	// take the lock that is released after the network has been added to the sharedLB's VApp
 	log.SpanLog(ctx, log.DebugLevelInfra, "createNextSharedLBSubnet", "vapp", vapp.VApp.Name)
@@ -123,7 +123,7 @@ func (v *VcdPlatform) createNextSharedLBSubnet(ctx context.Context, vapp *govcd.
 	subnet, err := v.GetNextInternalSubnet(ctx, vapp.VApp.Name, updateCallback, vcdClient)
 	if err != nil {
 		log.SpanLog(ctx, log.DebugLevelInfra, "createNextSharedLBSubnet  SharedLB GetNextInternalSubnet failed", "vapp", vapp.VApp.Name, "port.NetowkrNamek", port.NetworkName, "error", err)
-		return err
+		return "", err
 	}
 	log.SpanLog(ctx, log.DebugLevelInfra, "createNextSharedLBSubnetSharedLB", "vapp", vapp.VApp.Name, "port.NetowkrName", port.NetworkName, "port.SubnetId", port.SubnetId, "IP subnet", subnet)
 	// OrgVDCNetwork LinkType = 2 (isolated)
@@ -131,9 +131,9 @@ func (v *VcdPlatform) createNextSharedLBSubnet(ctx context.Context, vapp *govcd.
 	err = v.CreateIsoVdcNetwork(ctx, vapp, port.SubnetId, subnet, vcdClient)
 	if err != nil {
 		log.SpanLog(ctx, log.DebugLevelInfra, "createNextSharedLBSubnet  create iso orgvdc internal net failed", "err", err)
-		return err
+		return "", err
 	}
-	return nil
+	return subnet, nil
 }
 
 func (v *VcdPlatform) AddPortsToVapp(ctx context.Context, vapp *govcd.VApp, vmgp vmlayer.VMGroupOrchestrationParams, updateCallback edgeproto.CacheUpdateCallback, vcdClient *govcd.VCDClient) (string, error) {
@@ -189,12 +189,12 @@ func (v *VcdPlatform) AddPortsToVapp(ctx context.Context, vapp *govcd.VApp, vmgp
 			}
 			if v.haveSharedRootLB(ctx, vmgp) {
 				log.SpanLog(ctx, log.DebugLevelInfra, "AddPortsToVapp adding internal vapp net for SharedLB", "vapp", vapp.VApp.Name)
-				err := v.createNextSharedLBSubnet(ctx, vapp, port, updateCallback, vcdClient)
+				subnet, err = v.createNextSharedLBSubnet(ctx, vapp, port, updateCallback, vcdClient)
 				if err != nil {
 					log.SpanLog(ctx, log.DebugLevelInfra, "AddPortsToVapp createNextShareRootLBSubnet failed", "vapp", vapp.VApp.Name, "error", err)
 					return "", err
 				}
-				log.SpanLog(ctx, log.DebugLevelInfra, "AddPortsToVapp created iso vdcnet for SharedLB", "network", port.SubnetId, "vapp", vapp.VApp.Name)
+				log.SpanLog(ctx, log.DebugLevelInfra, "AddPortsToVapp created iso vdcnet for SharedLB", "network", port.SubnetId, "vapp", vapp.VApp.Name, "IP subnet", subnet)
 			} else {
 				log.SpanLog(ctx, log.DebugLevelInfra, "AddPortsToVapp adding internal vapp net non-shared", "vapp", vapp.VApp.Name)
 				_, err = v.CreateInternalNetworkForNewVm(ctx, vapp, serverName, port.SubnetId, subnet)

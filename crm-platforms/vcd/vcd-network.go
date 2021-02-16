@@ -908,9 +908,13 @@ func (v *VcdPlatform) GetVappIsoNetwork(ctx context.Context, vdc *govcd.Vdc, vap
 				log.SpanLog(ctx, log.DebugLevelInfra, "GetVappIsoNetwork vapp using isoOrgVdcNetwork", "netName", q.Name)
 				return q.Name, nil
 			}
+			if v.Verbose {
+				log.SpanLog(ctx, log.DebugLevelInfra, "GetVappIsoNetwork vapp using non-isoOrgVdcNet", "netName", q.Name)
+			}
 		}
-	}
 
+	}
+	log.SpanLog(ctx, log.DebugLevelInfra, "GetVappIsoNetwork no IsoNetwork found for ", "vapp", vapp.VApp.Name)
 	return "", nil
 
 }

@@ -829,7 +829,13 @@ func (v *VcdPlatform) CreateIsoVdcNetwork(ctx context.Context, vapp *govcd.VApp,
 
 	netConfSec, err := vapp.AddOrgNetwork(vappNetSettings, orgvdcnet.OrgVDCNetwork, false)
 	if err != nil {
-		log.SpanLog(ctx, log.DebugLevelInfra, "CreateIsoVdcNetwork AddOrgNetwork  failed ", "netName", netName, "err", err)
+		log.SpanLog(ctx, log.DebugLevelInfra, "CreateIsoVdcNetwork AddOrgNetwork failed removing", "netName", netName, "err", err)
+		// we've created the iso network, if add to vapp fails, remove the network now, as we can't later
+		// when the vapp is removed, (since it won't be found in the vapp)
+		err = govcd.RemoveOrgVdcNetworkIfExists(*vdc, netName)
+		if err != nil {
+			log.SpanLog(ctx, log.DebugLevelInfra, "CreateIsoVdcNetwork  RemoveOrgVdcNetworkIfExists failed ", "vapp", vapp.VApp.Name, "netName", netName, "err", err)
+		}
 		return err
 	}
 

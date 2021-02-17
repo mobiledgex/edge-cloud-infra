@@ -432,12 +432,15 @@ func MaskToCidr(addr string) (string, error) {
 const MaxSubnetsPerSharedLB = 254
 
 func GetNextAvailConIdx(ctx context.Context, ncs *types.NetworkConnectionSection) (int, error) {
-	// return first unused conIdx for a vapp or vm
+	// return first unused conIdx for a vm
+
+	log.SpanLog(ctx, log.DebugLevelInfra, "GetNextAvailConIdx", "ncs", ncs)
+
 	conIdMap := make(map[int]*types.NetworkConnection)
 	for _, nc := range ncs.NetworkConnection {
 		// Before we add this idx as inuse, does this entry actually point at a connection?
-		if nc.Network == "" {
-			log.SpanLog(ctx, log.DebugLevelInfra, "GetNextAvailConIdx skip available empty", "ConIdx", nc.NetworkConnectionIndex, "IP", nc.IPAddress)
+		if nc.Network == "" || nc.IPAddress == "" || nc.IsConnected == false {
+			log.SpanLog(ctx, log.DebugLevelInfra, "GetNextAvailConIdx skip available empty", "ConIdx", nc.NetworkConnectionIndex, "IP", nc.IPAddress, "isConnected", nc.IsConnected)
 			continue
 		}
 		conIdMap[nc.NetworkConnectionIndex] = nc
@@ -445,6 +448,7 @@ func GetNextAvailConIdx(ctx context.Context, ncs *types.NetworkConnectionSection
 	curIdx := 0
 	for curIdx = 0; curIdx < MaxSubnetsPerSharedLB; curIdx++ {
 		if _, found := conIdMap[curIdx]; !found {
+			log.SpanLog(ctx, log.DebugLevelInfra, "GetNextAvailConIdx returns", "conIdx", curIdx)
 			return curIdx, nil
 		}
 	}

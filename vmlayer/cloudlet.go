@@ -452,7 +452,7 @@ func (v *VMPlatform) DeleteCloudlet(ctx context.Context, cloudlet *edgeproto.Clo
 	return nil
 }
 
-func (v *VMPlatform) StopLocalCloudletServices(ctx context.Context, cloudlet *edgeproto.Cloudlet, updateCallback edgeproto.CacheUpdateCallback) error {
+func (v *VMPlatform) StopLocalCloudletServices(ctx context.Context, cloudlet *edgeproto.Cloudlet) error {
 	return nil
 }
 

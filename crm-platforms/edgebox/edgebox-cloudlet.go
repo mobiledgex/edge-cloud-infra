@@ -46,15 +46,12 @@ func (e *EdgeboxPlatform) DeleteCloudlet(ctx context.Context, cloudlet *edgeprot
 	return nil
 }
 
-func (e *EdgeboxPlatform) StopLocalCloudletServices(ctx context.Context, cloudlet *edgeproto.Cloudlet, updateCallback edgeproto.CacheUpdateCallback) error {
-	updateCallback(edgeproto.UpdateTask, "Stopping CRMServer")
-	err := e.generic.StopLocalCloudletServices(ctx, cloudlet, updateCallback)
+func (e *EdgeboxPlatform) StopLocalCloudletServices(ctx context.Context, cloudlet *edgeproto.Cloudlet) error {
+	err := e.generic.StopLocalCloudletServices(ctx, cloudlet)
 	if err != nil {
 		return err
 	}
-	updateCallback(edgeproto.UpdateTask, "Stopping Cloudlet Monitoring")
 	intprocess.StartCloudletPrometheus(ctx, cloudlet, edgeproto.GetDefaultSettings())
-	updateCallback(edgeproto.UpdateTask, "Stopping Shepherd")
 	return intprocess.StopShepherdService(ctx, cloudlet)
 }
 

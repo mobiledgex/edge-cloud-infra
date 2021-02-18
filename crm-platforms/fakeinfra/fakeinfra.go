@@ -51,12 +51,11 @@ func (s *Platform) DeleteCloudlet(ctx context.Context, cloudlet *edgeproto.Cloud
 	return nil
 }
 
-func (s *Platform) StopLocalCloudletServices(ctx context.Context, cloudlet *edgeproto.Cloudlet, updateCallback edgeproto.CacheUpdateCallback) error {
-	err := s.Platform.StopLocalCloudletServices(ctx, cloudlet, updateCallback)
+func (s *Platform) StopLocalCloudletServices(ctx context.Context, cloudlet *edgeproto.Cloudlet) error {
+	err := s.Platform.StopLocalCloudletServices(ctx, cloudlet)
 	if err != nil {
 		return err
 	}
-	updateCallback(edgeproto.UpdateTask, "Stopping Shepherd")
 	return intprocess.StopShepherdService(ctx, cloudlet)
 }
 

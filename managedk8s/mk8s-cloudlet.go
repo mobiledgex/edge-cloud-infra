@@ -128,7 +128,7 @@ func (m *ManagedK8sPlatform) DeleteCloudlet(ctx context.Context, cloudlet *edgep
 	return m.deleteClusterInstInternal(ctx, cloudletClusterName, updateCallback)
 }
 
-func (v *ManagedK8sPlatform) StopLocalCloudletServices(ctx context.Context, cloudlet *edgeproto.Cloudlet, updateCallback edgeproto.CacheUpdateCallback) error {
+func (v *ManagedK8sPlatform) StopLocalCloudletServices(ctx context.Context, cloudlet *edgeproto.Cloudlet) error {
 	return nil
 }
 

@@ -824,16 +824,5 @@ func checkPermissionsAndGetCloudletList(ctx context.Context, claims *UserClaims,
 			}
 		}
 	}
-
-	// Check the developer against who is logged in
-	if devOrgPermOk {
-		if err := authorized(ctx, claims.Username, devOrg, devResource, ActionView); err != nil {
-			return []string{}, err
-		}
-	} else if operOrgPermOk {
-		if err := authorized(ctx, claims.Username, cloudletKey.Organization, ResourceCloudletAnalytics, ActionView); err != nil {
-			return []string{}, err
-		}
-	}
 	return cloudletList, nil
 }

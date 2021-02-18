@@ -615,7 +615,7 @@ func GetMetricsCommon(c echo.Context) error {
 			return err
 		}
 		rc.region = in.Region
-		cloudletList, err := checkPermissionsAndGetCloudletList(ctx, claims, in.Region, in.AppInst.AppKey.Organization, in.AppInst.ClusterInstKey.CloudletKey)
+		cloudletList, err := checkPermissionsAndGetCloudletList(ctx, claims, in.Region, in.AppInst.AppKey.Organization, ResourceAppAnalytics, in.AppInst.ClusterInstKey.CloudletKey)
 		if err != nil {
 			return setReply(c, err, nil)
 		}
@@ -634,7 +634,7 @@ func GetMetricsCommon(c echo.Context) error {
 			return setReply(c, fmt.Errorf("Cluster details must be present"), nil)
 		}
 		rc.region = in.Region
-		cloudletList, err := checkPermissionsAndGetCloudletList(ctx, claims, in.Region, in.ClusterInst.Organization, in.ClusterInst.CloudletKey)
+		cloudletList, err := checkPermissionsAndGetCloudletList(ctx, claims, in.Region, in.ClusterInst.Organization, ResourceClusterAnalytics, in.ClusterInst.CloudletKey)
 		if err != nil {
 			return setReply(c, err, nil)
 		}
@@ -642,11 +642,6 @@ func GetMetricsCommon(c echo.Context) error {
 			return setReply(c, err, nil)
 		}
 		cmd = ClusterMetricsQuery(&in, cloudletList)
-
-		// Check the developer against who is logged in
-		if err := authorized(ctx, rc.claims.Username, org, ResourceClusterAnalytics, ActionView); err != nil {
-			return err
-		}
 	} else if strings.HasSuffix(c.Path(), "metrics/cloudlet") {
 		in := ormapi.RegionCloudletMetrics{}
 		success, err := ReadConn(c, &in)
@@ -753,64 +748,65 @@ func checkForTimeError(errStr string) string {
 	return errStr
 }
 
-func checkPermissionsAndGetCloudletList(ctx context.Context, claims *UserClaims, region, devOrg string, cloudletKey edgeproto.CloudletKey) ([]string, error) {
+func checkPermissionsAndGetCloudletList(ctx context.Context, claims *UserClaims, region, devOrg, devResource string, cloudletKey edgeproto.CloudletKey) ([]string, error) {
 	regionRc := &RegionContext{}
 	regionRc.username = claims.Username
 	regionRc.region = region
-	devOrgs := []string{}
-	var cloudletOrg string
 	cloudletList := []string{}
 	// get all associated orgs
-	roles, err := ShowUserRoleObj(ctx, claims.Username)
-	if err != nil {
-		return []string{}, fmt.Errorf("Unable to discover user roles: %v", err)
-	}
-	isAdmin := false
-	isOperator := false
-	isDeveloper := false
-	for _, role := range roles {
-		if isAdminRole(role.Role) {
-			isAdmin = true
-			break
-		}
-		if isOperatorRole(role.Role) {
-			isOperator = true
-		}
-		if isDeveloperRole(role.Role) {
-			devOrgs = append(devOrgs, role.Org)
-			isDeveloper = true
-		}
-	}
-	if devOrg == "" && !isOperator && !isAdmin {
-		return []string{}, fmt.Errorf("App details must be present")
-	}
-	if cloudletKey.Organization != "" {
-		cloudletOrg = cloudletKey.Organization
-	} else if !isDeveloper && !isAdmin {
-		return []string{}, fmt.Errorf("Cloudlet details must be present")
-	}
 	if devOrg == "" && cloudletKey.Organization == "" {
-		return []string{}, fmt.Errorf("Must provide either app or cloudlet details")
+		return []string{}, fmt.Errorf("Must provide either App organization or Cloudlet organization")
 	}
+	authDevOrgs, err := enforcer.GetAuthorizedOrgs(ctx, claims.Username, devResource, ActionView)
+	if err != nil {
+		return []string{}, err
+	}
+	_, devOrgPermOk := authDevOrgs[devOrg]
+	if _, found := authDevOrgs[""]; found {
+		// admin
+		devOrgPermOk = true
+	}
+	authOperOrgs, err := enforcer.GetAuthorizedOrgs(ctx, claims.Username, ResourceCloudletAnalytics, ActionView)
+	if err != nil {
+		return []string{}, err
+	}
+	_, operOrgPermOk := authOperOrgs[cloudletKey.Organization]
+	if _, found := authOperOrgs[""]; found {
+		// admin
+		operOrgPermOk = true
+	}
+	if !devOrgPermOk && !operOrgPermOk {
+		// no perms for specified orgs, or they forgot to specify an org that
+		// they have perms to (since there are two choices)
+		if devOrg == "" && len(authDevOrgs) > 0 {
+			// developer but didn't specify App org
+			orgField := "App"
+			if devResource == ResourceClusterAnalytics {
+				orgField = "Cluster"
+			}
+			return []string{}, fmt.Errorf("Developers please specify the %s Organization", orgField)
+		} else if cloudletKey.Organization == "" && len(authOperOrgs) > 0 {
+			return []string{}, fmt.Errorf("Operators please specify the Cloudlet Organization")
+		} else {
+			return []string{}, echo.ErrForbidden
+		}
+	}
+
 	if cloudletKey.Name != "" {
 		cloudletList = []string{cloudletKey.Name}
 	}
 	// only grab the cloudletpools if no specific cloudlet was mentioned
 	getPools := false
-	if isOperator && len(cloudletList) == 0 {
+	if operOrgPermOk && len(cloudletList) == 0 {
 		getPools = true
 		// operator specified an apporg. If it is an org the user is a part of then just show everything tied to that org
 		// if the user is not part of the org, then only show the metrics of the org inside the operator's cloudletpools
-		if isDeveloper {
-			for _, org := range devOrgs {
-				if org == devOrg {
-					getPools = false
-				}
-			}
+		if devOrgPermOk {
+			getPools = false
 		}
 	}
 	if getPools {
-		cloudletpoolQuery := edgeproto.CloudletPool{Key: edgeproto.CloudletPoolKey{Organization: cloudletOrg}}
+		cloudletpoolQuery := edgeproto.CloudletPool{Key: edgeproto.CloudletPoolKey{Organization: cloudletKey.Organization}}
 		cloudletPools, err := ShowCloudletPoolObj(ctx, regionRc, &cloudletpoolQuery)
 		if err != nil {
 			return []string{}, err
@@ -822,17 +818,7 @@ func checkPermissionsAndGetCloudletList(ctx context.Context, claims *UserClaims,
 		}
 	} else if len(cloudletList) == 1 {
 		//make sure the cloudlet is in a pool
-		checkInPool := true
-		if !isOperator {
-			checkInPool = false
-		} else if isOperator && isDeveloper && !isAdmin {
-			for _, org := range devOrgs {
-				if org == devOrg {
-					checkInPool = false
-				}
-			}
-		}
-		if checkInPool {
+		if operOrgPermOk && !devOrgPermOk {
 			if !allRegionCaches.InPool(region, cloudletKey) {
 				return []string{}, fmt.Errorf("Operators must specify a cloudlet in a cloudletPool")
 			}
@@ -840,16 +826,12 @@ func checkPermissionsAndGetCloudletList(ctx context.Context, claims *UserClaims,
 	}
 
 	// Check the developer against who is logged in
-	if isDeveloper && !isAdmin {
-		for _, org := range devOrgs {
-			if org == devOrg {
-				if err := authorized(ctx, claims.Username, org, ResourceAppAnalytics, ActionView); err != nil {
-					return []string{}, err
-				}
-			}
+	if devOrgPermOk {
+		if err := authorized(ctx, claims.Username, devOrg, devResource, ActionView); err != nil {
+			return []string{}, err
 		}
-	} else if isOperator && !isAdmin {
-		if err := authorized(ctx, claims.Username, devOrg, ResourceCloudletAnalytics, ActionView); err != nil {
+	} else if operOrgPermOk {
+		if err := authorized(ctx, claims.Username, cloudletKey.Organization, ResourceCloudletAnalytics, ActionView); err != nil {
 			return []string{}, err
 		}
 	}

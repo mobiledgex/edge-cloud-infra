@@ -42,7 +42,7 @@ func (e *EdgeboxPlatform) DeleteCloudlet(ctx context.Context, cloudlet *edgeprot
 	if err != nil {
 		return err
 	}
-	// rely on controller stop cloudlet services
+	// rely on controller to stop cloudlet services
 	return nil
 }
 

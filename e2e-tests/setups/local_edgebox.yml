@@ -83,6 +83,7 @@ dmes:
   hostname: "127.0.0.1"
   envvars:
     E2ETEST_TLS: true
+    PUBLIC_ENDPOINT_TLS: false
 
 clustersvcs:
 - name: cluster-svc1

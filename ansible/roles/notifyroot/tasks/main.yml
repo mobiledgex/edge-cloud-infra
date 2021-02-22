@@ -16,7 +16,7 @@
       - "0.0.0.0:{{ notifyroot_port }}"
       - "--vaultAddr"
       - "https://{{ vault_vm_hostname }}:{{ vault_port }}"
-      - "--useVaultCerts"
+      - "--useVaultPki"
       - "--deploymentTag"
       - "{{ deployment_tag_override | default(deploy_environ) }}"
     env:

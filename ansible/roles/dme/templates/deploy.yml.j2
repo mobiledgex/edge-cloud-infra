@@ -29,7 +29,7 @@ spec:
              --httpAddr 0.0.0.0:38001 \
              --notifyAddrs {{ controller_hostname }}:37001 \
              --vaultAddr "{{ vault_address }}" \
-             --useVaultCerts \
+             --useVaultPki \
              --deploymentTag "{{ deployment_tag_override | default(deploy_environ) }}" \
              --locverurl "{{ locver_url }}" \
              --carrier "{{ dme_carrier }}" \

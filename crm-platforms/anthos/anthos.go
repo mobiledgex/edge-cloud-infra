@@ -17,9 +17,12 @@ import (
 )
 
 type AnthosPlatform struct {
-	commonPf   infracommon.CommonPlatform
-	caches     *platform.Caches
-	FlavorList []*edgeproto.FlavorInfo
+	commonPf           infracommon.CommonPlatform
+	caches             *platform.Caches
+	FlavorList         []*edgeproto.FlavorInfo
+	sharedLBName       string
+	sharedLBNamespace  string
+	cloudletKubeConfig string
 }
 
 var RootLBFlavor = edgeproto.Flavor{
@@ -29,16 +32,41 @@ var RootLBFlavor = edgeproto.Flavor{
 	Disk:  uint64(40),
 }
 
+func (a *AnthosPlatform) GetCloudletKubeConfig(cloudletKey *edgeproto.CloudletKey) string {
+	return fmt.Sprintf("%s/%s-%s", a.GetConfigDir(), cloudletKey.Name, "cloudlet-kubeconfig")
+}
+
 func (a *AnthosPlatform) IsCloudletServicesLocal() bool {
 	return false
 }
 
 func (a *AnthosPlatform) Init(ctx context.Context, platformConfig *platform.PlatformConfig, caches *platform.Caches, updateCallback edgeproto.CacheUpdateCallback) error {
-	log.SpanLog(ctx, log.DebugLevelInfra, "Init")
+	log.SpanLog(ctx, log.DebugLevelInfra, "Init start")
 
 	if err := a.commonPf.InitInfraCommon(ctx, platformConfig, anthosProps); err != nil {
 		return err
 	}
+	a.sharedLBName = a.GetSharedLBName(ctx, platformConfig.CloudletKey)
+	a.sharedLBNamespace = a.GetSharedLBNamespace(ctx, platformConfig.CloudletKey)
+	a.cloudletKubeConfig = a.GetCloudletKubeConfig(platformConfig.CloudletKey)
+
+	if !platformConfig.TestMode {
+		err := a.commonPf.InitCloudletSSHKeys(ctx, platformConfig.AccessApi)
+		if err != nil {
+			return err
+		}
+		go a.commonPf.RefreshCloudletSSHKeys(platformConfig.AccessApi)
+	}
+
+	client, err := a.GetNodePlatformClient(ctx, &edgeproto.CloudletMgmtNode{Name: platformConfig.CloudletKey.String(), Type: "anthoscontrolhost"})
+	if err != nil {
+		return err
+	}
+	err = a.SetupLB(ctx, client, a.sharedLBName, a.sharedLBNamespace)
+	if err != nil {
+		return err
+	}
+	log.SpanLog(ctx, log.DebugLevelInfra, "Init complete", "AnthosPlatform", a)
 	return nil
 }
 
@@ -107,7 +135,6 @@ func (a *AnthosPlatform) GetClusterPlatformClient(ctx context.Context, clusterIn
 
 func (a *AnthosPlatform) GetNodePlatformClient(ctx context.Context, node *edgeproto.CloudletMgmtNode, ops ...pc.SSHClientOp) (ssh.Client, error) {
 	log.SpanLog(ctx, log.DebugLevelInfra, "GetNodePlatformClient", "node", node)
-
 	if node == nil || node.Name == "" {
 		return nil, fmt.Errorf("cannot GetNodePlatformClient, as node details are empty")
 	}

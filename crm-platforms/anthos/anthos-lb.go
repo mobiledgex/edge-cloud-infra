@@ -3,16 +3,24 @@ package anthos
 import (
 	"context"
 	"fmt"
-	"path/filepath"
 	"strings"
 
-	"github.com/mobiledgex/edge-cloud-infra/infracommon"
 	"github.com/mobiledgex/edge-cloud/cloud-resource-manager/platform/pc"
 	"github.com/mobiledgex/edge-cloud/cloudcommon"
 	"github.com/mobiledgex/edge-cloud/edgeproto"
 	"github.com/mobiledgex/edge-cloud/log"
 	ssh "github.com/mobiledgex/golang-ssh"
+	yaml "gopkg.in/yaml.v2"
 )
+
+var LbInfoDoesNotExist string = "LB info does not exist"
+
+type LbInfo struct {
+	Name            string
+	ExternalIpAddr  string
+	InternalIpAddr  string
+	LbListenDevName string
+}
 
 func (a *AnthosPlatform) GetSharedLBName(ctx context.Context, key *edgeproto.CloudletKey) string {
 	log.SpanLog(ctx, log.DebugLevelInfra, "GetSharedLBName", "key", key)
@@ -20,64 +28,77 @@ func (a *AnthosPlatform) GetSharedLBName(ctx context.Context, key *edgeproto.Clo
 	return name
 }
 
-/*
-func (a *AnthosPlatform) GetSharedLBNamespace(ctx context.Context, key *edgeproto.CloudletKey) string {
-	log.SpanLog(ctx, log.DebugLevelInfra, "GetSharedLBNamespace", "key", key)
-	name := util.K8SSanitize(key.Name) + "-shared"
-	return name
-}*/
+func (a *AnthosPlatform) GetLbNameForCluster(ctx context.Context, clusterInst *edgeproto.ClusterInst) string {
+	lbName := a.sharedLBName
+	if clusterInst.IpAccess == edgeproto.IpAccess_IP_ACCESS_DEDICATED {
+		lbName = cloudcommon.GetDedicatedLBFQDN(a.commonPf.PlatformConfig.CloudletKey, &clusterInst.Key.ClusterKey, a.commonPf.PlatformConfig.AppDNSRoot)
+	}
+	return lbName
+}
+
+func (a *AnthosPlatform) GetDirForLb(ctx context.Context, name string) string {
+	return a.GetConfigDir() + "/lbconfig-" + name
+}
+
+func (a *AnthosPlatform) GetLbInfo(ctx context.Context, client ssh.Client, name string) (*LbInfo, error) {
+	log.SpanLog(ctx, log.DebugLevelInfra, "GetLbInfo", "name", name)
+	lbdir := a.GetDirForLb(ctx, name)
+	lfinfoFile := lbdir + "/lbinfo.yml"
+	out, err := client.Output("cat " + lfinfoFile)
+	if err != nil {
+		if !strings.Contains(out, "No such file") {
+			return nil, fmt.Errorf(LbInfoDoesNotExist)
+		}
+	}
+	var lbInfo LbInfo
+	err = yaml.Unmarshal([]byte(out), &lbInfo)
+	if err != nil {
+		log.SpanLog(ctx, log.DebugLevelInfra, "Unmarshal fail", "out", out, "err", err)
+		return nil, fmt.Errorf("Unmarshal failed for lbinfo- %v", err)
+	}
+	return &lbInfo, nil
+}
 
 func (a *AnthosPlatform) SetupLb(ctx context.Context, client ssh.Client, name string) error {
 	log.SpanLog(ctx, log.DebugLevelInfra, "SetupLb", "name", name)
-	return nil
-}
+	lbdir := a.GetDirForLb(ctx, name)
+	lfinfoFile := lbdir + "/lbinfo.yml"
 
-func (a *AnthosPlatform) SetupVirtualCluster(ctx context.Context, client ssh.Client, name string) error {
-	log.SpanLog(ctx, log.DebugLevelInfra, "SetupVirtualCluster", "name", name)
-	err := a.CreateNamespace(ctx, client, name)
-
+	// see if file exists
+	out, err := client.Output("ls " + lfinfoFile)
 	if err != nil {
-		return err
-	}
-	policyName := name + "-netpol"
-	manifest, err := infracommon.CreateK8sNetworkPolicyManifest(ctx, client, policyName, name, a.GetConfigDir())
-	if err != nil {
-		return err
-	}
-	return infracommon.ApplyK8sNetworkPolicyManifest(ctx, client, manifest, a.cloudletKubeConfig)
-}
-
-func (a *AnthosPlatform) GetKubeConfigForNamespace(namespace string) string {
-	return filepath.Dir(a.cloudletKubeConfig) + "/" + namespace + "-kubeconfig"
-}
-
-func (a *AnthosPlatform) CreateNamespace(ctx context.Context, client ssh.Client, nameSpace string) error {
-	log.SpanLog(ctx, log.DebugLevelInfra, "CreateNamespace", "lbname", nameSpace)
-
-	cmd := fmt.Sprintf("kubectl create namespace  %s --kubeconfig=%s", nameSpace, a.cloudletKubeConfig)
-	out, err := client.Output(cmd)
-	if err != nil {
-		if strings.Contains(out, "AlreadyExists") {
-			log.SpanLog(ctx, log.DebugLevelInfra, "namespace already exists", "out", out)
-		} else {
-			return fmt.Errorf("Error in creating namespace: %s - %v", out, err)
+		if !strings.Contains(out, "No such file") {
+			return fmt.Errorf("Unexpected error listing lbinfo file: %s - %v", out, err)
 		}
+		// create dir, it may already exist in which case do not overwrite
+		log.SpanLog(ctx, log.DebugLevelInfra, "creating directory for LB", "lbdir", lbdir)
+		err := pc.CreateDir(ctx, client, lbdir, pc.NoOverwrite)
+		if err != nil {
+			return fmt.Errorf("Unable to create LB Dir: %s - %v", lbdir, err)
+		}
+		log.SpanLog(ctx, log.DebugLevelInfra, "New LB, assign free IP")
+		dev, externalIp, internalIp, err := a.AssignFreeLbIp(ctx, client)
+		if err != nil {
+			return err
+		}
+		lbInfo := LbInfo{
+			Name:            name,
+			ExternalIpAddr:  externalIp,
+			InternalIpAddr:  internalIp,
+			LbListenDevName: dev,
+		}
+		log.SpanLog(ctx, log.DebugLevelInfra, "creating lbinfo file", "lbdir", lfinfoFile)
+		lbYaml, err := yaml.Marshal(&lbInfo)
+		if err != nil {
+			return fmt.Errorf("Unable to marshal LB info - %v", err)
+		}
+		err = pc.WriteFile(client, lfinfoFile, string(lbYaml), "lbinfo", pc.NoSudo)
+		if err != nil {
+			return fmt.Errorf("Unable to create LB info file %v", err)
+		}
+	} else {
+		log.SpanLog(ctx, log.DebugLevelInfra, "LBInfo file already exists")
 	}
-	// copy the kubeconfig and update the new one with the new namespace
-	clustKubeConfig := a.GetKubeConfigForNamespace(nameSpace)
-	log.SpanLog(ctx, log.DebugLevelInfra, "create new kubeconfig for lb namespace", "cloudletKubeConfig", a.cloudletKubeConfig, "clustKubeConfig", clustKubeConfig)
-
-	err = pc.CopyFile(client, a.cloudletKubeConfig, clustKubeConfig)
-	if err != nil {
-		return fmt.Errorf("Failed to create new kubeconfig: %v", err)
-	}
-	// set the current context
-	cmd = fmt.Sprintf("KUBECONFIG=%s kubectl config set-context --current --namespace=%s", clustKubeConfig, nameSpace)
-	out, err = client.Output(cmd)
-	if err != nil {
-		return fmt.Errorf("Error in setting new namespace context: %s - %v", out, err)
-	}
-	secIps, err := a.GetSecondaryEthInterfaces(ctx, client, a.GetLbEthernetInterface())
-	log.SpanLog(ctx, log.DebugLevelInfra, "SECIFS", "secIps", secIps, "err", err)
+	log.SpanLog(ctx, log.DebugLevelInfra, "SetupLb done")
 	return nil
 }

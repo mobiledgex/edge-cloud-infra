@@ -12,9 +12,14 @@ var (
 )
 
 var anthosProps = map[string]*edgeproto.PropertyInfo{
+	"ANTHOS_CONTROL_ACCESS_IP": {
+		Name:        "Anthos Control Access IP",
+		Description: "IP used to access the control plane externally",
+		Mandatory:   true,
+	},
 	"ANTHOS_CONTROL_VIP": {
-		Name:        "Anthos Control VIP",
-		Description: "Virtual IP of Anthos Control Plane",
+		Name:        "Anthos Control Virtual IP",
+		Description: "Virtual IP used to access the control plane (k8s master)",
 		Mandatory:   true,
 	},
 	"ANTHOS_CONFIG_DIR": {
@@ -22,16 +27,31 @@ var anthosProps = map[string]*edgeproto.PropertyInfo{
 		Description: "Directory of Anthos Config files",
 		Mandatory:   true,
 	},
-	"ANTHOS_LB_IP_RANGES": {
-		Name:        "IP Ranges(s) for Anthos Load Balancers",
-		Description: "Range of IP addresses for Anthos LBs, Format: StartCIDR-EndCIDR,StartCIDR2-EndCIDR2,...",
+	"ANTHOS_EXTERNAL_IP_RANGES": {
+		Name:        "External IP Ranges(s) for Anthos Load Balancers",
+		Description: "Range of External IP addresses for Anthos LBs, Format: StartCIDR-EndCIDR,StartCIDR2-EndCIDR2,...",
 		Mandatory:   true,
 	},
-	"ANTHOS_LB_ETH_INTERFACE": {
-		Name:        "Load Balancer Ethernet Interface",
+	"ANTHOS_INTERNAL_IP_RANGES": {
+		Name:        "Internal IP Ranges(s) for Anthos Load Control Plane",
+		Description: "Range of Internal IP addresses for Anthos Control plane, Format: StartCIDR-EndCIDR,StartCIDR2-EndCIDR2,...",
+		Mandatory:   true,
+	},
+	"ANTHOS_EXTERNAL_ETH_INTERFACE": {
+		Name:        "External Ethernet Interface",
 		Description: "Ethernet interface used for LB, e.g. eno2",
 		Mandatory:   true,
 	},
+	"ANTHOS_INTERNAL_ETH_INTERFACE": {
+		Name:        "Internal Ethernet Interface",
+		Description: "Ethernet interface used for internal control plane",
+		Mandatory:   true,
+	},
+}
+
+func (a *AnthosPlatform) GetControlAccessIp() string {
+	value, _ := a.commonPf.Properties.GetValue("ANTHOS_CONTROL_ACCESS_IP")
+	return value
 }
 
 func (a *AnthosPlatform) GetControlVip() string {
@@ -44,13 +64,23 @@ func (a *AnthosPlatform) GetConfigDir() string {
 	return value
 }
 
-func (a *AnthosPlatform) GetLbIpRanges() string {
-	value, _ := a.commonPf.Properties.GetValue("ANTHOS_LB_IP_RANGES")
+func (a *AnthosPlatform) GetExternalIpRanges() string {
+	value, _ := a.commonPf.Properties.GetValue("ANTHOS_EXTERNAL_IP_RANGES")
 	return value
 }
 
-func (a *AnthosPlatform) GetLbEthernetInterface() string {
-	value, _ := a.commonPf.Properties.GetValue("ANTHOS_LB_ETH_INTERFACE")
+func (a *AnthosPlatform) GetInternalIpRanges() string {
+	value, _ := a.commonPf.Properties.GetValue("ANTHOS_INTERNAL_IP_RANGES")
+	return value
+}
+
+func (a *AnthosPlatform) GetExternalEthernetInterface() string {
+	value, _ := a.commonPf.Properties.GetValue("ANTHOS_EXTERNAL_ETH_INTERFACE")
+	return value
+}
+
+func (a *AnthosPlatform) GetInternalEthernetInterface() string {
+	value, _ := a.commonPf.Properties.GetValue("ANTHOS_INTERNAL_ETH_INTERFACE")
 	return value
 }
 

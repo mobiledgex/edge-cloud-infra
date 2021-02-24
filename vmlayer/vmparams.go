@@ -14,6 +14,7 @@ import (
 	"strings"
 
 	"github.com/mobiledgex/edge-cloud-infra/chefmgmt"
+	"github.com/mobiledgex/edge-cloud-infra/infracommon"
 	"github.com/mobiledgex/edge-cloud/edgeproto"
 	"github.com/mobiledgex/edge-cloud/log"
 	"github.com/mobiledgex/edge-cloud/util"
@@ -68,9 +69,6 @@ var NetTypeExternal NetType = 1
 // NextAvailableResource means the orchestration code needs to find an available
 // resource of the given type as the calling code won't know what is free
 var NextAvailableResource = "NextAvailable"
-
-const RemoteCidrAll = "0.0.0.0/0"
-const RemoteCidrNone = "0.0.0.0/32"
 
 // ResourceReference identifies a resource that is referenced by another resource. The
 // Preexisting flag indicates whether the resource is already present or is being created
@@ -381,10 +379,10 @@ func SecGrpWithEgressRules(rules []edgeproto.SecurityRule, egressRestricted bool
 			// ensure at least one rule is present so that the orchestrator
 			// does not auto-create an empty allow-all rule
 			if egressRestricted {
-				allowNoneRule := edgeproto.SecurityRule{RemoteCidr: RemoteCidrNone}
+				allowNoneRule := edgeproto.SecurityRule{RemoteCidr: infracommon.RemoteCidrNone}
 				rules = append(rules, allowNoneRule)
 			} else {
-				allowAllRule := edgeproto.SecurityRule{RemoteCidr: RemoteCidrAll}
+				allowAllRule := edgeproto.SecurityRule{RemoteCidr: infracommon.RemoteCidrAll}
 				rules = append(rules, allowAllRule)
 			}
 		}

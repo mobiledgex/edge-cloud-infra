@@ -169,7 +169,7 @@ func (v *VcdPlatform) WhitelistSecurityRules(ctx context.Context, client ssh.Cli
 }
 
 // same as vsphere
-func (v *VcdPlatform) RemoveWhitelistSecurityRules(ctx context.Context, client ssh.Client, secGrpName, label string, allowedCIDR string, ports []dme.AppPort) error {
+func (v *VcdPlatform) RemoveWhitelistSecurityRules(ctx context.Context, client ssh.Client, secGrpName, server, label string, allowedCIDR string, ports []dme.AppPort) error {
 
 	log.SpanLog(ctx, log.DebugLevelInfra, "RemoveWhitelistSecurityRules", "secGrpName", secGrpName, "allowedCIDR", allowedCIDR, "ports", ports)
 	return vmlayer.RemoveIngressIptablesRules(ctx, client, label, allowedCIDR, ports)

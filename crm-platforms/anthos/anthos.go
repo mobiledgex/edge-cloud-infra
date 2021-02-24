@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"github.com/mobiledgex/edge-cloud-infra/infracommon"
+	"github.com/mobiledgex/edge-cloud/cloud-resource-manager/k8smgmt"
 	"github.com/mobiledgex/edge-cloud/cloud-resource-manager/platform"
 	"github.com/mobiledgex/edge-cloud/cloud-resource-manager/platform/pc"
 	"github.com/mobiledgex/edge-cloud/cloudcommon"
@@ -21,8 +22,9 @@ type AnthosPlatform struct {
 	caches             *platform.Caches
 	FlavorList         []*edgeproto.FlavorInfo
 	sharedLBName       string
-	sharedLBNamespace  string
 	cloudletKubeConfig string
+	externalIps        []string
+	internalIps        []string
 }
 
 var RootLBFlavor = edgeproto.Flavor{
@@ -46,8 +48,21 @@ func (a *AnthosPlatform) Init(ctx context.Context, platformConfig *platform.Plat
 	if err := a.commonPf.InitInfraCommon(ctx, platformConfig, anthosProps); err != nil {
 		return err
 	}
+	externalIps, err := infracommon.ParseIpRanges(a.GetExternalIpRanges())
+	if err != nil {
+		return err
+	}
+	a.externalIps = externalIps
+	internalIps, err := infracommon.ParseIpRanges(a.GetInternalIpRanges())
+	if err != nil {
+		return err
+	}
+	if len(externalIps) > len(internalIps) {
+		log.SpanLog(ctx, log.DebugLevelInfra, "Not enough internal IPs", "numexternal", len(externalIps), "numinternal", len(internalIps))
+		return fmt.Errorf("Number of internal IPs defined in ANTHOS_INTERNAL_IP_RANGES must be at least at many as ANTHOS_EXTERNAL_IP_RANGES")
+	}
+	a.internalIps = internalIps
 	a.sharedLBName = a.GetSharedLBName(ctx, platformConfig.CloudletKey)
-	a.sharedLBNamespace = a.GetSharedLBNamespace(ctx, platformConfig.CloudletKey)
 	a.cloudletKubeConfig = a.GetCloudletKubeConfig(platformConfig.CloudletKey)
 
 	if !platformConfig.TestMode {
@@ -62,7 +77,7 @@ func (a *AnthosPlatform) Init(ctx context.Context, platformConfig *platform.Plat
 	if err != nil {
 		return err
 	}
-	err = a.SetupLB(ctx, client, a.sharedLBName, a.sharedLBNamespace)
+	err = a.SetupLb(ctx, client, a.sharedLBName)
 	if err != nil {
 		return err
 	}
@@ -71,11 +86,39 @@ func (a *AnthosPlatform) Init(ctx context.Context, platformConfig *platform.Plat
 }
 
 func (a *AnthosPlatform) GatherCloudletInfo(ctx context.Context, info *edgeproto.CloudletInfo) error {
+	info.Flavors = append(
+		info.Flavors,
+		&edgeproto.FlavorInfo{
+			Name:  "anthos-host-flavor",
+			Vcpus: uint64(10),
+			Ram:   uint64(8192),
+			Disk:  uint64(160),
+		},
+	)
 	return nil
 }
 
 func (a *AnthosPlatform) CreateClusterInst(ctx context.Context, clusterInst *edgeproto.ClusterInst, updateCallback edgeproto.CacheUpdateCallback, timeout time.Duration) error {
-	return fmt.Errorf("CreateClusterInst todo")
+	log.SpanLog(ctx, log.DebugLevelInfra, "CreateClusterInst")
+
+	client, err := a.GetNodePlatformClient(ctx, &edgeproto.CloudletMgmtNode{Name: a.commonPf.PlatformConfig.CloudletKey.String(), Type: "anthoscontrolhost"})
+	if err != nil {
+		return err
+	}
+	updateCallback(edgeproto.UpdateTask, "Setting up virtual cluster")
+	err = a.SetupVirtualCluster(ctx, client, a.GetNamespaceNameForCluster(ctx, clusterInst), k8smgmt.GetKconfName(clusterInst))
+	if err != nil {
+		return err
+	}
+	if clusterInst.IpAccess == edgeproto.IpAccess_IP_ACCESS_DEDICATED {
+		lbName := a.GetLbNameForCluster(ctx, clusterInst)
+		updateCallback(edgeproto.UpdateTask, "Setting up load balancer")
+		err = a.SetupLb(ctx, client, lbName)
+		if err != nil {
+			return err
+		}
+	}
+	return nil
 }
 
 func (a *AnthosPlatform) UpdateClusterInst(ctx context.Context, clusterInst *edgeproto.ClusterInst, updateCallback edgeproto.CacheUpdateCallback) error {
@@ -113,18 +156,6 @@ func (a *AnthosPlatform) GetClusterInfraResources(ctx context.Context, clusterKe
 	return &resources, nil
 }
 
-func (a *AnthosPlatform) CreateAppInst(ctx context.Context, clusterInst *edgeproto.ClusterInst, app *edgeproto.App, appInst *edgeproto.AppInst, flavor *edgeproto.Flavor, updateCallback edgeproto.CacheUpdateCallback) error {
-	return fmt.Errorf("CreateAppInst TODO")
-}
-
-func (a *AnthosPlatform) DeleteAppInst(ctx context.Context, clusterInst *edgeproto.ClusterInst, app *edgeproto.App, appInst *edgeproto.AppInst, updateCallback edgeproto.CacheUpdateCallback) error {
-	return fmt.Errorf("DeleteAppInst TODO")
-}
-
-func (a *AnthosPlatform) UpdateAppInst(ctx context.Context, clusterInst *edgeproto.ClusterInst, app *edgeproto.App, appInst *edgeproto.AppInst, updateCallback edgeproto.CacheUpdateCallback) error {
-	return fmt.Errorf("UpdateAppInst TODO")
-}
-
 func (a *AnthosPlatform) GetAppInstRuntime(ctx context.Context, clusterInst *edgeproto.ClusterInst, app *edgeproto.App, appInst *edgeproto.AppInst) (*edgeproto.AppInstRuntime, error) {
 	return &edgeproto.AppInstRuntime{}, nil
 }
@@ -138,8 +169,8 @@ func (a *AnthosPlatform) GetNodePlatformClient(ctx context.Context, node *edgepr
 	if node == nil || node.Name == "" {
 		return nil, fmt.Errorf("cannot GetNodePlatformClient, as node details are empty")
 	}
-	controlVip := a.GetControlVip()
-	return a.commonPf.GetSSHClientFromIPAddr(ctx, controlVip, ops...)
+	controlIp := a.GetControlAccessIp()
+	return a.commonPf.GetSSHClientFromIPAddr(ctx, controlIp, ops...)
 }
 
 func (a *AnthosPlatform) ListCloudletMgmtNodes(ctx context.Context, clusterInsts []edgeproto.ClusterInst) ([]edgeproto.CloudletMgmtNode, error) {

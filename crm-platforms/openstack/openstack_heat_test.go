@@ -237,7 +237,7 @@ func TestHeatTemplate(t *testing.T) {
 		"openstack-test",
 		vms,
 		vmlayer.WithNewSecurityGroup("testvmgroup-sg"),
-		vmlayer.WithAccessPorts("tcp:7777,udp:8888", vmlayer.RemoteCidrAll),
+		vmlayer.WithAccessPorts("tcp:7777,udp:8888", infracommon.RemoteCidrAll),
 		vmlayer.WithNewSubnet(subnetName),
 	)
 
@@ -251,7 +251,7 @@ func TestHeatTemplate(t *testing.T) {
 		"openstack-fip-test",
 		vms,
 		vmlayer.WithNewSecurityGroup("testvmgroup-sg"),
-		vmlayer.WithAccessPorts("tcp:7777,udp:8888", vmlayer.RemoteCidrAll),
+		vmlayer.WithAccessPorts("tcp:7777,udp:8888", infracommon.RemoteCidrAll),
 		vmlayer.WithNewSubnet(subnetName),
 		vmlayer.WithSkipInfraSpecificCheck(true),
 	)

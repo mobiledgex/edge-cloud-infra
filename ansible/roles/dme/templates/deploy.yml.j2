@@ -32,7 +32,7 @@ spec:
              --tlsApiCertFile /tls/tls.crt \
              --tlsApiKeyFile /tls/tls.key \
              --vaultAddr "{{ vault_address }}" \
-             --useVaultCerts \
+             --useVaultPki \
              --deploymentTag "{{ deployment_tag_override | default(deploy_environ) }}" \
              --locverurl "{{ locver_url }}" \
              --carrier "{{ dme_carrier }}" \

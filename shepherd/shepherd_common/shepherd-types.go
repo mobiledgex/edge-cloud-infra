@@ -42,8 +42,9 @@ type AppMetrics struct {
 	NetSent   uint64
 	NetSentTS *types.Timestamp
 	// NetRecv is bytes/second average
-	NetRecv   uint64
-	NetRecvTS *types.Timestamp
+	NetRecv    uint64
+	NetRecvTS  *types.Timestamp
+	Containers float64
 }
 
 type ClusterMetrics struct {

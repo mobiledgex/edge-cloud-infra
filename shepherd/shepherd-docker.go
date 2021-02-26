@@ -322,6 +322,7 @@ func (c *DockerClusterStats) collectDockerAppMetrics(ctx context.Context, p *Doc
 		appKey.App = containerStats.App
 		appKey.Version = containerStats.Version
 		stat, found := appStatsMap[appKey]
+		stat.Containers += 1
 		if !found {
 			stat = &shepherd_common.AppMetrics{}
 			appStatsMap[appKey] = stat
@@ -335,7 +336,8 @@ func (c *DockerClusterStats) collectDockerAppMetrics(ctx context.Context, p *Doc
 			log.SpanLog(ctx, log.DebugLevelMetrics, "Failed to parse CPU usage", "App", appKey, "stats", containerStats, "err", err)
 		}
 		// TODO EDGECLOUD-1316 - add stats for all containers together
-		stat.Cpu += cpu
+		// since cpu is a percentage it needs to be averaged
+		stat.Cpu = ((stat.Cpu * (stat.Containers - 1)) + cpu) / stat.Containers
 
 		memData, err := parseComputeUnitsDelim(ctx, containerStats.Memory.Raw)
 		if err != nil {

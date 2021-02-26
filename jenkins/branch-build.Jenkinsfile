@@ -4,10 +4,11 @@ pipeline {
     }
     agent any
     parameters {
-        string(name: 'BRANCH', defaultValue: '', description: 'Branch to build')
+        string(name: 'BRANCH', defaultValue: '', description: 'Branch or tag to build')
+        string(name: 'DOCKER_BUILD_TAG', defaultValue: '', description: 'Docker build tag for the custom build')
     }
     environment {
-        DOCKER_BUILD_TAG = """${sh(
+        DEFAULT_DOCKER_BUILD_TAG = """${sh(
             returnStdout: true,
             script: '''
 	    	echo -n "${BRANCH}-`date +'%Y-%m-%d'`"
@@ -18,7 +19,11 @@ pipeline {
         stage('Set up build tag') {
             steps {
                 script {
-                    currentBuild.displayName = "${DOCKER_BUILD_TAG}"
+                    try {
+                        currentBuild.displayName = "${DOCKER_BUILD_TAG}"
+                    } catch (err) {
+                        currentBuild.displayName = "${DEFAULT_DOCKER_BUILD_TAG}"
+                    }
                 }
             }
         }
@@ -52,12 +57,16 @@ pipeline {
             steps {
                 dir(path: 'go/src/github.com/mobiledgex/edge-cloud') {
                     sh label: 'make build-docker', script: '''#!/bin/bash
+[ -n "$DOCKER_BUILD_TAG" ] || DOCKER_BUILD_TAG="$DEFAULT_DOCKER_BUILD_TAG"
 TAG="${DOCKER_BUILD_TAG}" make build-docker
                     '''
                 }
                 script {
-                    currentBuild.displayName = sh(returnStdout: true,
-                        script: "docker run --rm registry.mobiledgex.net:5000/mobiledgex/edge-cloud:${DOCKER_BUILD_TAG} version")
+                    currentBuild.displayName = sh returnStdout: true,
+                        script: '''#!/bin/bash
+[ -n "$DOCKER_BUILD_TAG" ] || DOCKER_BUILD_TAG="$DEFAULT_DOCKER_BUILD_TAG"
+docker run --rm registry.mobiledgex.net:5000/mobiledgex/edge-cloud:${DOCKER_BUILD_TAG} version
+                    '''
                 }
             }
         }

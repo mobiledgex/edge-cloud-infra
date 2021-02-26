@@ -27,12 +27,19 @@ spec:
   - from:
     - namespaceSelector:
         matchLabels:
-          name: {{.Namespace}}`
+          name: {{.Namespace}}
+    - ipBlock:
+        cidr: 0.0.0.0/0
+`
 
 // CreateK8sNetworkPolicyManifest returns the manifest filename
 func CreateK8sNetworkPolicyManifest(ctx context.Context, client ssh.Client, policyName, namespace, dir string) (string, error) {
 	log.SpanLog(ctx, log.DebugLevelInfra, "CreateK8sNetworkPolicyFile", "policyName", policyName, "namespace", namespace, "dir", dir)
 
+	err := pc.CreateDir(ctx, client, dir, pc.NoOverwrite)
+	if err != nil {
+		return "", fmt.Errorf("unable to create directory: %s for network policy: %v", dir, err)
+	}
 	fileName := dir + "/" + policyName + ".yml"
 	policyParams := K8sNetworkPolicyParams{
 		PolicyName: policyName,

@@ -9,6 +9,7 @@ import (
 	"io/ioutil"
 	"net"
 	"os"
+	"path/filepath"
 	"strings"
 	"time"
 
@@ -204,4 +205,13 @@ func ParseIpRanges(ipranges string) ([]string, error) {
 		}
 	}
 	return rc, nil
+}
+
+func GetDockerCrtFile(crtFilePath string) (string, error) {
+	_, crtFile := filepath.Split(crtFilePath)
+	ext := filepath.Ext(crtFile)
+	if ext == "" {
+		return "", fmt.Errorf("invalid tls cert file name: %s", crtFile)
+	}
+	return "/root/tls/" + crtFile, nil
 }

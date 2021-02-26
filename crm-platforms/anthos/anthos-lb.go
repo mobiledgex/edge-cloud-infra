@@ -15,6 +15,8 @@ import (
 
 var LbInfoDoesNotExist string = "LB info does not exist"
 
+var LbConfigDir = "lbconfig"
+
 type LbInfo struct {
 	Name            string
 	ExternalIpAddr  string
@@ -36,19 +38,19 @@ func (a *AnthosPlatform) GetLbNameForCluster(ctx context.Context, clusterInst *e
 	return lbName
 }
 
-func (a *AnthosPlatform) GetDirForLb(ctx context.Context, name string) string {
-	return a.GetConfigDir() + "/lbconfig-" + name
+func (a *AnthosPlatform) getLbConfigFile(ctx context.Context, lbname string) string {
+	return LbConfigDir + "/" + lbname + "-lbconfig.yml"
 }
 
-func (a *AnthosPlatform) GetLbInfo(ctx context.Context, client ssh.Client, name string) (*LbInfo, error) {
-	log.SpanLog(ctx, log.DebugLevelInfra, "GetLbInfo", "name", name)
-	lbdir := a.GetDirForLb(ctx, name)
-	lfinfoFile := lbdir + "/lbinfo.yml"
+func (a *AnthosPlatform) GetLbInfo(ctx context.Context, client ssh.Client, lbname string) (*LbInfo, error) {
+	log.SpanLog(ctx, log.DebugLevelInfra, "GetLbInfo", "name", lbname)
+	lfinfoFile := a.getLbConfigFile(ctx, lbname)
 	out, err := client.Output("cat " + lfinfoFile)
 	if err != nil {
-		if !strings.Contains(out, "No such file") {
-			return nil, fmt.Errorf(LbInfoDoesNotExist)
+		if strings.Contains(out, "No such file") {
+			return nil, fmt.Errorf("LbInfoDoesNotExist")
 		}
+		return nil, fmt.Errorf("error getting lbinfo: %v", err)
 	}
 	var lbInfo LbInfo
 	err = yaml.Unmarshal([]byte(out), &lbInfo)
@@ -59,10 +61,21 @@ func (a *AnthosPlatform) GetLbInfo(ctx context.Context, client ssh.Client, name 
 	return &lbInfo, nil
 }
 
-func (a *AnthosPlatform) SetupLb(ctx context.Context, client ssh.Client, name string) error {
-	log.SpanLog(ctx, log.DebugLevelInfra, "SetupLb", "name", name)
-	lbdir := a.GetDirForLb(ctx, name)
-	lfinfoFile := lbdir + "/lbinfo.yml"
+func (a *AnthosPlatform) DeleteLbInfo(ctx context.Context, client ssh.Client, lbname string) error {
+	log.SpanLog(ctx, log.DebugLevelInfra, "DeleteLbInfo", "lbname", lbname)
+	lfinfoFile := a.getLbConfigFile(ctx, lbname)
+	out, err := client.Output("rm -f " + lfinfoFile)
+	if err != nil {
+		if !strings.Contains(out, "No such file") {
+			return fmt.Errorf("Error deleting lbinfo")
+		}
+	}
+	return nil
+}
+
+func (a *AnthosPlatform) SetupLb(ctx context.Context, client ssh.Client, lbname string) error {
+	log.SpanLog(ctx, log.DebugLevelInfra, "SetupLb", "lbname", lbname)
+	lfinfoFile := a.getLbConfigFile(ctx, lbname)
 
 	// see if file exists
 	out, err := client.Output("ls " + lfinfoFile)
@@ -71,10 +84,10 @@ func (a *AnthosPlatform) SetupLb(ctx context.Context, client ssh.Client, name st
 			return fmt.Errorf("Unexpected error listing lbinfo file: %s - %v", out, err)
 		}
 		// create dir, it may already exist in which case do not overwrite
-		log.SpanLog(ctx, log.DebugLevelInfra, "creating directory for LB", "lbdir", lbdir)
-		err := pc.CreateDir(ctx, client, lbdir, pc.NoOverwrite)
+		log.SpanLog(ctx, log.DebugLevelInfra, "creating directory for LB", "LbConfigDir", LbConfigDir)
+		err := pc.CreateDir(ctx, client, LbConfigDir, pc.NoOverwrite)
 		if err != nil {
-			return fmt.Errorf("Unable to create LB Dir: %s - %v", lbdir, err)
+			return fmt.Errorf("Unable to create LB Dir: %s - %v", LbConfigDir, err)
 		}
 		log.SpanLog(ctx, log.DebugLevelInfra, "New LB, assign free IP")
 		dev, externalIp, internalIp, err := a.AssignFreeLbIp(ctx, client)
@@ -82,7 +95,7 @@ func (a *AnthosPlatform) SetupLb(ctx context.Context, client ssh.Client, name st
 			return err
 		}
 		lbInfo := LbInfo{
-			Name:            name,
+			Name:            lbname,
 			ExternalIpAddr:  externalIp,
 			InternalIpAddr:  internalIp,
 			LbListenDevName: dev,
@@ -96,9 +109,11 @@ func (a *AnthosPlatform) SetupLb(ctx context.Context, client ssh.Client, name st
 		if err != nil {
 			return fmt.Errorf("Unable to create LB info file %v", err)
 		}
+		if err = a.commonPf.ActivateFQDNA(ctx, lbname, externalIp); err != nil {
+			return err
+		}
 	} else {
 		log.SpanLog(ctx, log.DebugLevelInfra, "LBInfo file already exists")
 	}
-	log.SpanLog(ctx, log.DebugLevelInfra, "SetupLb done")
 	return nil
 }

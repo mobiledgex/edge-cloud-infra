@@ -4,8 +4,10 @@ import (
 	"context"
 	"fmt"
 	"strings"
+	"time"
 
 	"github.com/mobiledgex/edge-cloud-infra/infracommon"
+	"github.com/mobiledgex/edge-cloud/cloud-resource-manager/k8smgmt"
 	"github.com/mobiledgex/edge-cloud/cloud-resource-manager/platform/pc"
 	"github.com/mobiledgex/edge-cloud/edgeproto"
 	"github.com/mobiledgex/edge-cloud/log"
@@ -13,11 +15,15 @@ import (
 	ssh "github.com/mobiledgex/golang-ssh"
 )
 
+func (a *AnthosPlatform) GetClusterDir(clusterInst *edgeproto.ClusterInst) string {
+	return k8smgmt.GetNormalizedClusterName(clusterInst)
+}
+
 func (a *AnthosPlatform) GetNamespaceNameForCluster(ctx context.Context, clusterInst *edgeproto.ClusterInst) string {
 	return util.K8SSanitize(fmt.Sprintf("%s-%s", clusterInst.Key.Organization, clusterInst.Key.ClusterKey.Name))
 }
 
-func (a *AnthosPlatform) SetupVirtualCluster(ctx context.Context, client ssh.Client, namespace, kubeconfig string) error {
+func (a *AnthosPlatform) SetupVirtualCluster(ctx context.Context, client ssh.Client, namespace, kubeconfig, dir string) error {
 	log.SpanLog(ctx, log.DebugLevelInfra, "SetupVirtualCluster", "namespace", namespace)
 
 	err := a.CreateNamespace(ctx, client, namespace, kubeconfig)
@@ -26,17 +32,12 @@ func (a *AnthosPlatform) SetupVirtualCluster(ctx context.Context, client ssh.Cli
 		return err
 	}
 	policyName := namespace + "-netpol"
-	manifest, err := infracommon.CreateK8sNetworkPolicyManifest(ctx, client, policyName, namespace, a.GetConfigDir())
+	manifest, err := infracommon.CreateK8sNetworkPolicyManifest(ctx, client, policyName, namespace, dir)
 	if err != nil {
 		return err
 	}
 	return infracommon.ApplyK8sNetworkPolicyManifest(ctx, client, manifest, a.cloudletKubeConfig)
 }
-
-/*
-func (a *AnthosPlatform) GetKubeConfigForNamespace(namespace string) string {
-	return filepath.Dir(a.cloudletKubeConfig) + "/" + namespace + "-kubeconfig"
-}*/
 
 func (a *AnthosPlatform) CreateNamespace(ctx context.Context, client ssh.Client, nameSpace, kubeconfig string) error {
 	log.SpanLog(ctx, log.DebugLevelInfra, "CreateNamespace", "lbname", nameSpace)
@@ -62,6 +63,88 @@ func (a *AnthosPlatform) CreateNamespace(ctx context.Context, client ssh.Client,
 	out, err = client.Output(cmd)
 	if err != nil {
 		return fmt.Errorf("Error in setting new namespace context: %s - %v", out, err)
+	}
+	return nil
+}
+
+func (a *AnthosPlatform) DeleteNamespace(ctx context.Context, client ssh.Client, nameSpace string) error {
+	log.SpanLog(ctx, log.DebugLevelInfra, "DeleteNamespace", "nameSpace", nameSpace)
+	cmd := fmt.Sprintf("kubectl delete namespace  %s --kubeconfig=%s", nameSpace, a.cloudletKubeConfig)
+	out, err := client.Output(cmd)
+	if err != nil {
+		if !strings.Contains(out, "not found") {
+			return fmt.Errorf("Error in deleting namespace: %s - %v", out, err)
+		}
+	}
+	return nil
+}
+
+func (a *AnthosPlatform) CreateClusterInst(ctx context.Context, clusterInst *edgeproto.ClusterInst, updateCallback edgeproto.CacheUpdateCallback, timeout time.Duration) error {
+	log.SpanLog(ctx, log.DebugLevelInfra, "CreateClusterInst")
+	client, err := a.GetNodePlatformClient(ctx, &edgeproto.CloudletMgmtNode{Name: a.commonPf.PlatformConfig.CloudletKey.String(), Type: "anthoscontrolhost"})
+	if err != nil {
+		return err
+	}
+	updateCallback(edgeproto.UpdateTask, "Setting up virtual cluster")
+	err = a.SetupVirtualCluster(ctx, client, a.GetNamespaceNameForCluster(ctx, clusterInst), k8smgmt.GetKconfName(clusterInst), a.GetClusterDir(clusterInst))
+	if err != nil {
+		return err
+	}
+	if clusterInst.IpAccess == edgeproto.IpAccess_IP_ACCESS_DEDICATED {
+		lbName := a.GetLbNameForCluster(ctx, clusterInst)
+		updateCallback(edgeproto.UpdateTask, "Setting up load balancer")
+		err = a.SetupLb(ctx, client, lbName)
+		if err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func (a *AnthosPlatform) UpdateClusterInst(ctx context.Context, clusterInst *edgeproto.ClusterInst, updateCallback edgeproto.CacheUpdateCallback) error {
+	return fmt.Errorf("UpdateClusterInst todo")
+}
+
+func (a *AnthosPlatform) DeleteClusterInst(ctx context.Context, clusterInst *edgeproto.ClusterInst, updateCallback edgeproto.CacheUpdateCallback) error {
+	log.SpanLog(ctx, log.DebugLevelInfra, "DeleteClusterInst")
+	client, err := a.GetNodePlatformClient(ctx, &edgeproto.CloudletMgmtNode{Name: a.commonPf.PlatformConfig.CloudletKey.String(), Type: "anthoscontrolhost"})
+	if err != nil {
+		return err
+	}
+	externalDev := a.GetExternalEthernetInterface()
+	internalDev := a.GetInternalEthernetInterface()
+	rootLBName := a.GetLbNameForCluster(ctx, clusterInst)
+	lbinfo, err := a.GetLbInfo(ctx, client, rootLBName)
+	if err != nil {
+		if strings.Contains(err.Error(), LbInfoDoesNotExist) {
+			log.SpanLog(ctx, log.DebugLevelInfra, "lbinfo does not exist")
+
+		} else {
+			return err
+		}
+	} else {
+		err := a.RemoveIp(ctx, client, lbinfo.ExternalIpAddr, externalDev)
+		if err != nil {
+			return err
+		}
+		err = a.RemoveIp(ctx, client, lbinfo.InternalIpAddr, internalDev)
+		if err != nil {
+			return err
+		}
+	}
+	namespace := a.GetNamespaceNameForCluster(ctx, clusterInst)
+	err = a.DeleteNamespace(ctx, client, namespace)
+	if err != nil {
+		return err
+	}
+	err = a.DeleteLbInfo(ctx, client, rootLBName)
+	if err != nil {
+		return err
+	}
+	if clusterInst.IpAccess == edgeproto.IpAccess_IP_ACCESS_DEDICATED {
+		if err = a.commonPf.DeleteDNSRecords(ctx, rootLBName); err != nil {
+			log.SpanLog(ctx, log.DebugLevelInfra, "failed to delete DNS record", "fqdn", rootLBName, "err", err)
+		}
 	}
 	return nil
 }

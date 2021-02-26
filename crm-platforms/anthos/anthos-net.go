@@ -15,6 +15,18 @@ import (
 var ipLock sync.Mutex
 var maxSecondaryInterfaces = 100
 
+func (a *AnthosPlatform) RemoveIp(ctx context.Context, client ssh.Client, addr, dev string) error {
+	log.SpanLog(ctx, log.DebugLevelInfra, "RemoveIp", "addr", addr, "dev", dev)
+	cmd := fmt.Sprintf("sudo ip address del %s/32 dev %s", addr, dev)
+	out, err := client.Output(cmd)
+	if err != nil {
+		if !strings.Contains(out, "Cannot assign") {
+			return fmt.Errorf("Error deleting ip: %s - %s - %v", addr, out, err)
+		}
+	}
+	return nil
+}
+
 // GetUsedSecondaryIpAddresses gets a map of address->interface name of IPs current in use on the device
 func (a *AnthosPlatform) GetUsedSecondaryIpAddresses(ctx context.Context, client ssh.Client, devname string) (map[string]string, error) {
 	log.SpanLog(ctx, log.DebugLevelInfra, "GetUsedSecondaryIpAddresses", "devname", devname)

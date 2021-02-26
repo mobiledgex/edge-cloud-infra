@@ -22,6 +22,7 @@ type ProxyDnsSecOpts struct {
 	AddProxy              bool
 	AddDnsAndPatchKubeSvc bool
 	AddSecurityRules      bool
+	ProxyNamePrefix       string
 }
 
 const RemoteCidrAll = "0.0.0.0/0"
@@ -62,7 +63,8 @@ func (c *CommonPlatform) AddProxySecurityRulesAndPatchDNS(ctx context.Context, c
 			/*if aac.LbTlsCertCommonName != "" {
 			        ... get cert here
 			}*/
-			proxyerr := proxy.CreateNginxProxy(ctx, client, dockermgmt.GetContainerName(&app.Key), listenIP, backendIP, appInst.MappedPorts, app.SkipHcPorts, proxyops...)
+			containerName := ops.ProxyNamePrefix + dockermgmt.GetContainerName(&app.Key)
+			proxyerr := proxy.CreateNginxProxy(ctx, client, containerName, listenIP, backendIP, appInst.MappedPorts, app.SkipHcPorts, proxyops...)
 			if proxyerr == nil {
 				proxychan <- ""
 			} else {

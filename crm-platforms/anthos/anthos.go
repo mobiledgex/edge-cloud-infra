@@ -3,10 +3,8 @@ package anthos
 import (
 	"context"
 	"fmt"
-	"time"
 
 	"github.com/mobiledgex/edge-cloud-infra/infracommon"
-	"github.com/mobiledgex/edge-cloud/cloud-resource-manager/k8smgmt"
 	"github.com/mobiledgex/edge-cloud/cloud-resource-manager/platform"
 	"github.com/mobiledgex/edge-cloud/cloud-resource-manager/platform/pc"
 	"github.com/mobiledgex/edge-cloud/cloudcommon"
@@ -35,7 +33,7 @@ var RootLBFlavor = edgeproto.Flavor{
 }
 
 func (a *AnthosPlatform) GetCloudletKubeConfig(cloudletKey *edgeproto.CloudletKey) string {
-	return fmt.Sprintf("%s/%s-%s", a.GetConfigDir(), cloudletKey.Name, "cloudlet-kubeconfig")
+	return fmt.Sprintf("%s-%s", cloudletKey.Name, "cloudlet-kubeconfig")
 }
 
 func (a *AnthosPlatform) IsCloudletServicesLocal() bool {
@@ -98,37 +96,6 @@ func (a *AnthosPlatform) GatherCloudletInfo(ctx context.Context, info *edgeproto
 	return nil
 }
 
-func (a *AnthosPlatform) CreateClusterInst(ctx context.Context, clusterInst *edgeproto.ClusterInst, updateCallback edgeproto.CacheUpdateCallback, timeout time.Duration) error {
-	log.SpanLog(ctx, log.DebugLevelInfra, "CreateClusterInst")
-
-	client, err := a.GetNodePlatformClient(ctx, &edgeproto.CloudletMgmtNode{Name: a.commonPf.PlatformConfig.CloudletKey.String(), Type: "anthoscontrolhost"})
-	if err != nil {
-		return err
-	}
-	updateCallback(edgeproto.UpdateTask, "Setting up virtual cluster")
-	err = a.SetupVirtualCluster(ctx, client, a.GetNamespaceNameForCluster(ctx, clusterInst), k8smgmt.GetKconfName(clusterInst))
-	if err != nil {
-		return err
-	}
-	if clusterInst.IpAccess == edgeproto.IpAccess_IP_ACCESS_DEDICATED {
-		lbName := a.GetLbNameForCluster(ctx, clusterInst)
-		updateCallback(edgeproto.UpdateTask, "Setting up load balancer")
-		err = a.SetupLb(ctx, client, lbName)
-		if err != nil {
-			return err
-		}
-	}
-	return nil
-}
-
-func (a *AnthosPlatform) UpdateClusterInst(ctx context.Context, clusterInst *edgeproto.ClusterInst, updateCallback edgeproto.CacheUpdateCallback) error {
-	return fmt.Errorf("UpdateClusterInst todo")
-}
-
-func (a *AnthosPlatform) DeleteClusterInst(ctx context.Context, clusterInst *edgeproto.ClusterInst, updateCallback edgeproto.CacheUpdateCallback) error {
-	return fmt.Errorf("UpdateClusterInst todo")
-}
-
 func (a *AnthosPlatform) GetCloudletInfraResources(ctx context.Context) (*edgeproto.InfraResourcesSnapshot, error) {
 	var resources edgeproto.InfraResourcesSnapshot
 	return &resources, nil
@@ -183,22 +150,6 @@ func (a *AnthosPlatform) GetContainerCommand(ctx context.Context, clusterInst *e
 
 func (a *AnthosPlatform) GetConsoleUrl(ctx context.Context, app *edgeproto.App) (string, error) {
 	return "", fmt.Errorf("GetConsoleUrl not supported on Anthos")
-}
-
-func (a *AnthosPlatform) CreateCloudlet(ctx context.Context, cloudlet *edgeproto.Cloudlet, pfConfig *edgeproto.PlatformConfig, flavor *edgeproto.Flavor, caches *platform.Caches, accessApi platform.AccessApi, updateCallback edgeproto.CacheUpdateCallback) error {
-	return fmt.Errorf("CreateCloudlet TODO")
-}
-
-func (a *AnthosPlatform) UpdateCloudlet(ctx context.Context, cloudlet *edgeproto.Cloudlet, updateCallback edgeproto.CacheUpdateCallback) error {
-	return fmt.Errorf("UpdateCloudlet TODO")
-}
-
-func (a *AnthosPlatform) UpdateTrustPolicy(ctx context.Context, TrustPolicy *edgeproto.TrustPolicy) error {
-	return fmt.Errorf("UpdateTrustPolicy TODO")
-}
-
-func (a *AnthosPlatform) DeleteCloudlet(ctx context.Context, cloudlet *edgeproto.Cloudlet, pfConfig *edgeproto.PlatformConfig, caches *platform.Caches, accessApi platform.AccessApi, updateCallback edgeproto.CacheUpdateCallback) error {
-	return fmt.Errorf("DeleteCloudlet TODO")
 }
 
 func (a *AnthosPlatform) SaveCloudletAccessVars(ctx context.Context, cloudlet *edgeproto.Cloudlet, accessVarsIn map[string]string, pfConfig *edgeproto.PlatformConfig, vaultConfig *vault.Config, updateCallback edgeproto.CacheUpdateCallback) error {

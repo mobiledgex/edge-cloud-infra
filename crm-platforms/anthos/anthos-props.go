@@ -22,11 +22,6 @@ var anthosProps = map[string]*edgeproto.PropertyInfo{
 		Description: "Virtual IP used to access the control plane (k8s master)",
 		Mandatory:   true,
 	},
-	"ANTHOS_CONFIG_DIR": {
-		Name:        "Anthos Config Dir",
-		Description: "Directory of Anthos Config files",
-		Mandatory:   true,
-	},
 	"ANTHOS_EXTERNAL_IP_RANGES": {
 		Name:        "External IP Ranges(s) for Anthos Load Balancers",
 		Description: "Range of External IP addresses for Anthos LBs, Format: StartCIDR-EndCIDR,StartCIDR2-EndCIDR2,...",
@@ -56,11 +51,6 @@ func (a *AnthosPlatform) GetControlAccessIp() string {
 
 func (a *AnthosPlatform) GetControlVip() string {
 	value, _ := a.commonPf.Properties.GetValue("ANTHOS_CONTROL_VIP")
-	return value
-}
-
-func (a *AnthosPlatform) GetConfigDir() string {
-	value, _ := a.commonPf.Properties.GetValue("ANTHOS_CONFIG_DIR")
 	return value
 }
 

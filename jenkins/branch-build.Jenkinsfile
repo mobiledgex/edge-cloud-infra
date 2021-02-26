@@ -32,19 +32,22 @@ pipeline {
                 dir(path: 'go/src/github.com/mobiledgex/edge-cloud-infra') {
                     checkout([$class: 'GitSCM',
                              branches: [[name: "${BRANCH}"]],
-                             userRemoteConfigs: [[url: 'git@github.com:mobiledgex/edge-cloud-infra.git']]
+                             userRemoteConfigs: [[refspec: '+refs/remotes/origin/*:refs/tags/*',
+			                          url: 'git@github.com:mobiledgex/edge-cloud-infra.git']]
                             ])
                 }
                 dir(path: 'go/src/github.com/mobiledgex/edge-cloud') {
                     checkout([$class: 'GitSCM',
                              branches: [[name: "${BRANCH}"]],
-                             userRemoteConfigs: [[url: 'git@github.com:mobiledgex/edge-cloud.git']]
+                             userRemoteConfigs: [[refspec: '+refs/remotes/origin/*:refs/tags/*',
+			                          url: 'git@github.com:mobiledgex/edge-cloud.git']]
                             ])
                 }
                 dir(path: 'go/src/github.com/mobiledgex/edge-proto') {
                     checkout([$class: 'GitSCM',
                              branches: [[name: "${BRANCH}"]],
-                             userRemoteConfigs: [[url: 'git@github.com:mobiledgex/edge-proto.git']]
+                             userRemoteConfigs: [[refspec: '+refs/remotes/origin/*:refs/tags/*',
+			                          url: 'git@github.com:mobiledgex/edge-proto.git']]
                             ])
                 }
             }

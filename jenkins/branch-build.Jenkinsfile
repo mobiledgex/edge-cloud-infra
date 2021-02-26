@@ -30,16 +30,22 @@ pipeline {
         stage('Checkout') {
             steps {
                 dir(path: 'go/src/github.com/mobiledgex/edge-cloud-infra') {
-                    git url: 'git@github.com:mobiledgex/edge-cloud-infra.git',
-		    	branch: "${BRANCH}"
+                    checkout([$class: 'GitSCM',
+                             branches: [[name: "${BRANCH}"]],
+                             userRemoteConfigs: [[url: 'git@github.com:mobiledgex/edge-cloud-infra.git']]
+                            ])
                 }
                 dir(path: 'go/src/github.com/mobiledgex/edge-cloud') {
-                    git url: 'git@github.com:mobiledgex/edge-cloud.git',
-		    	branch: "${BRANCH}"
+                    checkout([$class: 'GitSCM',
+                             branches: [[name: "${BRANCH}"]],
+                             userRemoteConfigs: [[url: 'git@github.com:mobiledgex/edge-cloud.git']]
+                            ])
                 }
                 dir(path: 'go/src/github.com/mobiledgex/edge-proto') {
-                    git url: 'git@github.com:mobiledgex/edge-proto.git',
-		    	branch: "${BRANCH}"
+                    checkout([$class: 'GitSCM',
+                             branches: [[name: "${BRANCH}"]],
+                             userRemoteConfigs: [[url: 'git@github.com:mobiledgex/edge-proto.git']]
+                            ])
                 }
             }
         }

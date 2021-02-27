@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 
+	"github.com/mobiledgex/edge-cloud/cloud-resource-manager/platform/pc"
 	"github.com/mobiledgex/edge-cloud/util"
 
 	"github.com/mobiledgex/edge-cloud-infra/chefmgmt"
@@ -12,14 +13,15 @@ import (
 	"github.com/mobiledgex/edge-cloud/cloudcommon"
 	"github.com/mobiledgex/edge-cloud/edgeproto"
 	"github.com/mobiledgex/edge-cloud/log"
+	ssh "github.com/mobiledgex/golang-ssh"
 )
 
-func (a *AnthosPlatform) GetChefParams(nodeName, clientKey string, policyName string, attributes map[string]interface{}) *chefmgmt.VMChefParams {
+func (a *AnthosPlatform) GetChefParams(nodeName, clientKey string, policyName string, attributes map[string]interface{}) *chefmgmt.ServerChefParams {
 	chefServerPath := a.commonPf.ChefServerPath
 	if chefServerPath == "" {
 		chefServerPath = chefmgmt.DefaultChefServerPath
 	}
-	return &chefmgmt.VMChefParams{
+	return &chefmgmt.ServerChefParams{
 		NodeName:    nodeName,
 		ServerPath:  chefServerPath,
 		ClientKey:   clientKey,
@@ -38,12 +40,13 @@ func (a *AnthosPlatform) GetChefClientName(ckey *edgeproto.CloudletKey) string {
 func (a *AnthosPlatform) CreateCloudlet(ctx context.Context, cloudlet *edgeproto.Cloudlet, pfConfig *edgeproto.PlatformConfig, flavor *edgeproto.Flavor, caches *platform.Caches, accessApi platform.AccessApi, updateCallback edgeproto.CacheUpdateCallback) error {
 	log.SpanLog(ctx, log.DebugLevelInfra, "CreateCloudlet", "cloudlet", cloudlet)
 
-	if !pfConfig.TestMode {
-		err := a.commonPf.InitCloudletSSHKeys(ctx, accessApi)
-		if err != nil {
-			return err
-		}
+	//	if !pfConfig.TestMode {
+	err := a.commonPf.InitCloudletSSHKeys(ctx, accessApi)
+	if err != nil {
+		return err
 	}
+	//	}
+	a.commonPf.PlatformConfig = infracommon.GetPlatformConfig(cloudlet, pfConfig, accessApi)
 	if err := a.commonPf.InitInfraCommon(ctx, a.commonPf.PlatformConfig, anthosProps); err != nil {
 		return err
 	}
@@ -69,7 +72,11 @@ func (a *AnthosPlatform) CreateCloudlet(ctx context.Context, cloudlet *edgeproto
 		pfConfig.ContainerRegistryPath = infracommon.DefaultContainerRegistryPath
 	}
 	chefApi := chefmgmt.ChefApiAccess{}
+	cloudlet.NotifySrvAddr = "mexplat-dev.ctrl.mobiledgex.net:37001"
+
 	chefAttributes, err := chefmgmt.GetChefPlatformAttributes(ctx, cloudlet, pfConfig, "platform", &chefApi)
+	chefAttributes["notifyAddrs"] = "mexplat-dev.ctrl.mobiledgex.net:37001" //TEMP
+	log.WarnLog("XXXXX CHEFATTR", "chefAttributes", chefAttributes)
 	if err != nil {
 		return err
 	}
@@ -83,29 +90,46 @@ func (a *AnthosPlatform) CreateCloudlet(ctx context.Context, cloudlet *edgeproto
 	}
 	cloudlet.ChefClientKey = make(map[string]string)
 	if cloudlet.InfraApiAccess == edgeproto.InfraApiAccess_RESTRICTED_ACCESS {
-		hostName := cloudlet.Key.Name
-		chefParams := a.GetChefParams(hostName, "", chefPolicy, chefAttributes)
+		return fmt.Errorf("Restricted access not yet supported on Anthos")
+	}
+	clientName := a.GetChefClientName(&cloudlet.Key)
+	chefParams := a.GetChefParams(clientName, "", chefPolicy, chefAttributes)
 
-		updateCallback(edgeproto.UpdateTask, fmt.Sprintf("Creating chef client %s with cloudlet attributes", hostName))
-		clientKey, err := chefmgmt.ChefClientCreate(ctx, a.commonPf.ChefClient, chefParams)
-		if err != nil {
-			return err
-		}
-		// Store client key in cloudlet obj
-		cloudlet.ChefClientKey[hostName] = clientKey
-
-		// Return, as end-user will setup the platform VM
-		return nil
+	updateCallback(edgeproto.UpdateTask, fmt.Sprintf("Creating chef client %s with cloudlet attributes", clientName))
+	clientKey, err := chefmgmt.ChefClientCreate(ctx, a.commonPf.ChefClient, chefParams)
+	if err != nil {
+		return err
+	}
+	// Store client key in cloudlet obj
+	cloudlet.ChefClientKey[clientName] = clientKey
+	sshClient, err := a.GetNodePlatformClient(ctx, &edgeproto.CloudletMgmtNode{Name: a.commonPf.PlatformConfig.CloudletKey.String(), Type: "anthoscontrolhost"})
+	if err != nil {
+		return fmt.Errorf("Failed to get ssh client to control host: %v", err)
+	}
+	err = a.SetupChefOnServer(ctx, sshClient, clientName, cloudlet, chefParams)
+	if err != nil {
+		return err
 	}
 
-	/*
-		err = a.SetupChef(ctx, accessApi, cloudlet, pfConfig, pfFlavor, updateCallback)
-		if err != nil {
-			return err
-		}*/
-
-	clientName := a.GetChefClientName(&cloudlet.Key)
 	return chefmgmt.GetChefRunStatus(ctx, a.commonPf.ChefClient, clientName, cloudlet, pfConfig, accessApi, updateCallback)
+}
+
+func (a *AnthosPlatform) SetupChefOnServer(ctx context.Context, sshClient ssh.Client, clientName string, cloudlet *edgeproto.Cloudlet, chefParams *chefmgmt.ServerChefParams) error {
+	log.SpanLog(ctx, log.DebugLevelInfra, "SetupChefOnServer", "clientName", clientName)
+
+	err := pc.WriteFile(sshClient, "/etc/chef/client.pem", cloudlet.ChefClientKey[clientName], "chef-key", pc.SudoOn)
+	if err != nil {
+		return fmt.Errorf("Failed to write chef client key: %v", err)
+	}
+	// note the client name is actually used as the node name
+	command := fmt.Sprintf("sudo chef-client --chef-license ACCEPT -S %s -N %s -l debug -i 60 -d -L /var/log/chef.log", chefParams.ServerPath, clientName)
+	log.WarnLog("RUNCHEF", "command", command)
+
+	out, err := sshClient.Output(command)
+	if err != nil {
+		return fmt.Errorf("Failed to run chef client: %s - %v", out, err)
+	}
+	return nil
 }
 
 func (a *AnthosPlatform) UpdateCloudlet(ctx context.Context, cloudlet *edgeproto.Cloudlet, updateCallback edgeproto.CacheUpdateCallback) error {

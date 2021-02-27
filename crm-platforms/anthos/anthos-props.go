@@ -17,11 +17,6 @@ var anthosProps = map[string]*edgeproto.PropertyInfo{
 		Description: "IP used to access the control plane externally",
 		Mandatory:   true,
 	},
-	"ANTHOS_CONTROL_VIP": {
-		Name:        "Anthos Control Virtual IP",
-		Description: "Virtual IP used to access the control plane (k8s master)",
-		Mandatory:   true,
-	},
 	"ANTHOS_EXTERNAL_IP_RANGES": {
 		Name:        "External IP Ranges(s) for Anthos Load Balancers",
 		Description: "Range of External IP addresses for Anthos LBs, Format: StartCIDR-EndCIDR,StartCIDR2-EndCIDR2,...",
@@ -46,11 +41,6 @@ var anthosProps = map[string]*edgeproto.PropertyInfo{
 
 func (a *AnthosPlatform) GetControlAccessIp() string {
 	value, _ := a.commonPf.Properties.GetValue("ANTHOS_CONTROL_ACCESS_IP")
-	return value
-}
-
-func (a *AnthosPlatform) GetControlVip() string {
-	value, _ := a.commonPf.Properties.GetValue("ANTHOS_CONTROL_VIP")
 	return value
 }
 

@@ -47,7 +47,7 @@ var ValidDockerArgs = map[string]string{
 	"volume":  "list",
 }
 
-type VMChefParams struct {
+type ServerChefParams struct {
 	NodeName    string
 	ServerPath  string
 	ClientKey   string
@@ -223,7 +223,7 @@ func ChefClientRunStatus(ctx context.Context, client *chef.Client, clientName st
 	return statusInfo, nil
 }
 
-func ChefClientCreate(ctx context.Context, client *chef.Client, chefParams *VMChefParams) (string, error) {
+func ChefClientCreate(ctx context.Context, client *chef.Client, chefParams *ServerChefParams) (string, error) {
 	if chefParams == nil {
 		return "", fmt.Errorf("unable to get chef params")
 	}
@@ -379,7 +379,7 @@ func ChefPolicyGroupList(ctx context.Context, client *chef.Client) ([]string, er
 func GetChefRunStatus(ctx context.Context, chefClient *chef.Client, clientName string, cloudlet *edgeproto.Cloudlet, pfConfig *edgeproto.PlatformConfig, accessApi platform.AccessApi, updateCallback edgeproto.CacheUpdateCallback) error {
 	// Fetch chef run list status
 	var err error
-	updateCallback(edgeproto.UpdateTask, "Waiting for run lists to be executed on Platform VM")
+	updateCallback(edgeproto.UpdateTask, "Waiting for run lists to be executed on Platform Server")
 	timeout := time.After(20 * time.Minute)
 	tick := time.Tick(5 * time.Second)
 	runListTime := time.Now()
@@ -389,7 +389,7 @@ func GetChefRunStatus(ctx context.Context, chefClient *chef.Client, clientName s
 		select {
 		case <-timeout:
 			log.SpanLog(ctx, log.DebugLevelInfra, "getChefRunStatus timeout", "cloudletName", cloudlet.Key.Name)
-			return fmt.Errorf("timed out waiting for platform VM to connect to Chef Server")
+			return fmt.Errorf("timed out waiting for platform Server to connect to Chef Server")
 		case <-tick:
 			statusInfo, err = ChefClientRunStatus(ctx, chefClient, clientName)
 			if err != nil {
@@ -412,17 +412,17 @@ func GetChefRunStatus(ctx context.Context, chefClient *chef.Client, clientName s
 	return nil
 }
 
-func GetChefCloudletTags(cloudlet *edgeproto.Cloudlet, pfConfig *edgeproto.PlatformConfig, vmType string) []string {
+func GetChefCloudletTags(cloudlet *edgeproto.Cloudlet, pfConfig *edgeproto.PlatformConfig, serverType string) []string {
 	return []string{
 		"deploytag/" + pfConfig.DeploymentTag,
 		"region/" + pfConfig.Region,
 		"cloudlet/" + cloudlet.Key.Name,
 		"cloudletorg/" + cloudlet.Key.Organization,
-		"vmtype/" + vmType,
+		"vmtype/" + serverType,
 	}
 }
 
-func GetChefCloudletAttributes(ctx context.Context, cloudlet *edgeproto.Cloudlet, pfConfig *edgeproto.PlatformConfig, vmtype string) (map[string]interface{}, error) {
+func GetChefCloudletAttributes(ctx context.Context, cloudlet *edgeproto.Cloudlet, pfConfig *edgeproto.PlatformConfig, serverType string) (map[string]interface{}, error) {
 	log.SpanLog(ctx, log.DebugLevelInfra, "GetChefCloudletAttributes", "region", pfConfig.Region, "cloudletKey", cloudlet.Key)
 
 	chefAttributes := make(map[string]interface{})
@@ -435,9 +435,7 @@ func GetChefCloudletAttributes(ctx context.Context, cloudlet *edgeproto.Cloudlet
 	if cloudlet.OverridePolicyContainerVersion {
 		chefAttributes["edgeCloudVersionOverride"] = cloudlet.ContainerVersion
 	}
-	chefAttributes["notifyAddrs"] = pfConfig.NotifyCtrlAddrs
-
-	chefAttributes["tags"] = GetChefCloudletTags(cloudlet, pfConfig, vmtype)
+	chefAttributes["tags"] = GetChefCloudletTags(cloudlet, pfConfig, serverType)
 
 	// Use default address if port is 0, as we'll have single
 	// CRM instance here, hence there will be no port conflict
@@ -499,10 +497,10 @@ func GetChefCloudletAttributes(ctx context.Context, cloudlet *edgeproto.Cloudlet
 	return chefAttributes, nil
 }
 
-func GetChefPlatformAttributes(ctx context.Context, cloudlet *edgeproto.Cloudlet, pfConfig *edgeproto.PlatformConfig, vmtype string, apiAccess *ChefApiAccess) (map[string]interface{}, error) {
+func GetChefPlatformAttributes(ctx context.Context, cloudlet *edgeproto.Cloudlet, pfConfig *edgeproto.PlatformConfig, serverType string, apiAccess *ChefApiAccess) (map[string]interface{}, error) {
 	log.SpanLog(ctx, log.DebugLevelInfra, "GetChefPlatformAttributes", "region", pfConfig.Region, "cloudletKey", cloudlet.Key, "PhysicalName", cloudlet.PhysicalName)
 
-	chefAttributes, err := GetChefCloudletAttributes(ctx, cloudlet, pfConfig, vmtype)
+	chefAttributes, err := GetChefCloudletAttributes(ctx, cloudlet, pfConfig, serverType)
 	if err != nil {
 		return nil, err
 	}

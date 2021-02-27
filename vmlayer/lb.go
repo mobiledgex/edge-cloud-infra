@@ -311,7 +311,7 @@ func (v *VMPlatform) GetVMSpecForRootLB(ctx context.Context, rootLbName string, 
 	chefAttributes := make(map[string]interface{})
 	chefAttributes["tags"] = tags
 	clientName := v.GetChefClientName(rootLbName)
-	chefParams := v.GetVMChefParams(clientName, "", chefmgmt.ChefPolicyBase, chefAttributes)
+	chefParams := v.GetServerChefParams(clientName, "", chefmgmt.ChefPolicyBase, chefAttributes)
 
 	return v.GetVMRequestSpec(ctx,
 		VMTypeRootLB,

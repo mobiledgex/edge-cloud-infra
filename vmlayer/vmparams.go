@@ -135,7 +135,7 @@ type VMRequestSpec struct {
 	ConnectToExternalNet    bool
 	CreatePortsOnly         bool
 	ConnectToSubnet         string
-	ChefParams              *chefmgmt.VMChefParams
+	ChefParams              *chefmgmt.ServerChefParams
 	OptionalResource        string
 	AccessKey               string
 	AdditionalNetworks      []string
@@ -205,7 +205,7 @@ func WithImageFolder(folder string) VMReqOp {
 		return nil
 	}
 }
-func WithChefParams(chefParams *chefmgmt.VMChefParams) VMReqOp {
+func WithChefParams(chefParams *chefmgmt.ServerChefParams) VMReqOp {
 	return func(s *VMRequestSpec) error {
 		s.ChefParams = chefParams
 		return nil
@@ -445,7 +445,7 @@ type TagOrchestrationParams struct {
 
 type VMCloudConfigParams struct {
 	ExtraBootCommands []string
-	ChefParams        *chefmgmt.VMChefParams
+	ChefParams        *chefmgmt.ServerChefParams
 	CACert            string
 	AccessKey         string
 	PrimaryDNS        string
@@ -490,11 +490,11 @@ func (v *VMPlatform) GetChefClientName(name string) string {
 	return v.VMProperties.GetDeploymentTag() + "-" + v.VMProperties.GetRegion() + "-" + name
 }
 
-func (v *VMPlatform) GetVMChefParams(nodeName, clientKey string, policyName string, attributes map[string]interface{}) *chefmgmt.VMChefParams {
+func (v *VMPlatform) GetServerChefParams(nodeName, clientKey string, policyName string, attributes map[string]interface{}) *chefmgmt.ServerChefParams {
 	chefServerPath := v.VMProperties.GetChefServerPath()
 	deploymentTag := v.VMProperties.GetDeploymentTag()
 
-	return &chefmgmt.VMChefParams{
+	return &chefmgmt.ServerChefParams{
 		NodeName:    nodeName,
 		ServerPath:  chefServerPath,
 		ClientKey:   clientKey,

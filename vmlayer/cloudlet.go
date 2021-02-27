@@ -272,7 +272,7 @@ func (v *VMPlatform) CreateCloudlet(ctx context.Context, cloudlet *edgeproto.Clo
 		for _, nodeName := range nodes {
 			clientName := v.GetChefClientName(nodeName)
 			updateCallback(edgeproto.UpdateTask, fmt.Sprintf("Creating chef client %s with cloudlet attributes", clientName))
-			chefParams := v.GetVMChefParams(clientName, "", chefPolicy, chefAttributes)
+			chefParams := v.GetServerChefParams(clientName, "", chefPolicy, chefAttributes)
 			clientKey, err := chefmgmt.ChefClientCreate(ctx, chefClient, chefParams)
 			if err != nil {
 				return err
@@ -582,7 +582,7 @@ func (v *VMPlatform) getCloudletVMsSpec(ctx context.Context, accessApi platform.
 	var vms []*VMRequestSpec
 	subnetName := v.GetPlatformSubnetName(&cloudlet.Key)
 	if cloudlet.Deployment == cloudcommon.DeploymentTypeDocker {
-		chefParams := v.GetVMChefParams(clientName, cloudlet.ChefClientKey[clientName], chefmgmt.ChefPolicyDocker, chefAttributes)
+		chefParams := v.GetServerChefParams(clientName, cloudlet.ChefClientKey[clientName], chefmgmt.ChefPolicyDocker, chefAttributes)
 		platvm, err := v.GetVMRequestSpec(
 			ctx,
 			VMTypePlatform,
@@ -605,7 +605,7 @@ func (v *VMPlatform) getCloudletVMsSpec(ctx context.Context, accessApi platform.
 			if strings.HasSuffix(nodeName, "-master") {
 				masterAttributes := chefAttributes
 				masterAttributes["tags"] = chefmgmt.GetChefCloudletTags(cloudlet, pfConfig, string(VMTypePlatformClusterMaster))
-				chefParams := v.GetVMChefParams(clientName, cloudlet.ChefClientKey[clientName], chefmgmt.ChefPolicyK8s, chefAttributes)
+				chefParams := v.GetServerChefParams(clientName, cloudlet.ChefClientKey[clientName], chefmgmt.ChefPolicyK8s, chefAttributes)
 				vmSpec, err = v.GetVMRequestSpec(
 					ctx,
 					VMTypeClusterMaster,
@@ -620,7 +620,7 @@ func (v *VMPlatform) getCloudletVMsSpec(ctx context.Context, accessApi platform.
 			} else {
 				nodeAttributes := make(map[string]interface{})
 				nodeAttributes["tags"] = chefmgmt.GetChefCloudletTags(cloudlet, pfConfig, string(VMTypePlatformClusterNode))
-				chefParams := v.GetVMChefParams(clientName, cloudlet.ChefClientKey[clientName], chefmgmt.ChefPolicyK8s, nodeAttributes)
+				chefParams := v.GetServerChefParams(clientName, cloudlet.ChefClientKey[clientName], chefmgmt.ChefPolicyK8s, nodeAttributes)
 				vmSpec, err = v.GetVMRequestSpec(ctx,
 					VMTypeClusterNode,
 					nodeName,

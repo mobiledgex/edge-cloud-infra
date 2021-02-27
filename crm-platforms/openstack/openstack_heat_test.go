@@ -226,7 +226,7 @@ func TestHeatTemplate(t *testing.T) {
 	op.VMProperties.CommonPf.PlatformConfig.TestMode = true
 	// Add chef params
 	for _, vm := range vms {
-		vm.ChefParams = &chefmgmt.VMChefParams{
+		vm.ChefParams = &chefmgmt.ServerChefParams{
 			NodeName:   vm.Name,
 			ServerPath: "cheftestserver.mobiledgex.net/organizations/mobiledgex",
 			ClientKey:  "-----BEGIN RSA PRIVATE KEY-----\nNDFGHJKLJHGHJKJNHJNBHJNBGYUJNBGHJNBGSZiO/8i6ERbmqPopV8GWC5VjxlZm\n-----END RSA PRIVATE KEY-----",

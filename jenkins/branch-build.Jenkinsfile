@@ -11,7 +11,7 @@ pipeline {
         DEFAULT_DOCKER_BUILD_TAG = """${sh(
             returnStdout: true,
             script: '''
-	    	echo -n "${BRANCH}-`date +'%Y-%m-%d'`"
+            echo -n "${BRANCH}-`date +'%Y-%m-%d'`"
             '''
         )}"""
     }
@@ -27,27 +27,32 @@ pipeline {
                 }
             }
         }
+        stage('Clean') {
+            steps {
+                deleteDir()
+            }
+        }
         stage('Checkout') {
             steps {
                 dir(path: 'go/src/github.com/mobiledgex/edge-cloud-infra') {
                     checkout([$class: 'GitSCM',
                              branches: [[name: "${BRANCH}"]],
                              userRemoteConfigs: [[refspec: '+refs/remotes/origin/*:refs/tags/*',
-			                          url: 'git@github.com:mobiledgex/edge-cloud-infra.git']]
+                                      url: 'git@github.com:mobiledgex/edge-cloud-infra.git']]
                             ])
                 }
                 dir(path: 'go/src/github.com/mobiledgex/edge-cloud') {
                     checkout([$class: 'GitSCM',
                              branches: [[name: "${BRANCH}"]],
                              userRemoteConfigs: [[refspec: '+refs/remotes/origin/*:refs/tags/*',
-			                          url: 'git@github.com:mobiledgex/edge-cloud.git']]
+                                      url: 'git@github.com:mobiledgex/edge-cloud.git']]
                             ])
                 }
                 dir(path: 'go/src/github.com/mobiledgex/edge-proto') {
                     checkout([$class: 'GitSCM',
                              branches: [[name: "${BRANCH}"]],
                              userRemoteConfigs: [[refspec: '+refs/remotes/origin/*:refs/tags/*',
-			                          url: 'git@github.com:mobiledgex/edge-proto.git']]
+                                      url: 'git@github.com:mobiledgex/edge-proto.git']]
                             ])
                 }
             }

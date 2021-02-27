@@ -3,6 +3,7 @@ package anthos
 import (
 	"context"
 	"fmt"
+	"strings"
 
 	"github.com/mobiledgex/edge-cloud/cloud-resource-manager/platform/pc"
 	"github.com/mobiledgex/edge-cloud/util"
@@ -72,11 +73,8 @@ func (a *AnthosPlatform) CreateCloudlet(ctx context.Context, cloudlet *edgeproto
 		pfConfig.ContainerRegistryPath = infracommon.DefaultContainerRegistryPath
 	}
 	chefApi := chefmgmt.ChefApiAccess{}
-	cloudlet.NotifySrvAddr = "mexplat-dev.ctrl.mobiledgex.net:37001"
 
 	chefAttributes, err := chefmgmt.GetChefPlatformAttributes(ctx, cloudlet, pfConfig, "platform", &chefApi)
-	chefAttributes["notifyAddrs"] = "mexplat-dev.ctrl.mobiledgex.net:37001" //TEMP
-	log.WarnLog("XXXXX CHEFATTR", "chefAttributes", chefAttributes)
 	if err != nil {
 		return err
 	}
@@ -95,7 +93,7 @@ func (a *AnthosPlatform) CreateCloudlet(ctx context.Context, cloudlet *edgeproto
 	clientName := a.GetChefClientName(&cloudlet.Key)
 	chefParams := a.GetChefParams(clientName, "", chefPolicy, chefAttributes)
 
-	updateCallback(edgeproto.UpdateTask, fmt.Sprintf("Creating chef client %s with cloudlet attributes", clientName))
+	updateCallback(edgeproto.UpdateTask, fmt.Sprintf("Creating Chef Client %s with cloudlet attributes", clientName))
 	clientKey, err := chefmgmt.ChefClientCreate(ctx, a.commonPf.ChefClient, chefParams)
 	if err != nil {
 		return err
@@ -106,6 +104,13 @@ func (a *AnthosPlatform) CreateCloudlet(ctx context.Context, cloudlet *edgeproto
 	if err != nil {
 		return fmt.Errorf("Failed to get ssh client to control host: %v", err)
 	}
+	if pfConfig.CrmAccessPrivateKey != "" {
+		err = pc.WriteFile(sshClient, " /root/accesskey/accesskey.pem", pfConfig.CrmAccessPrivateKey, "accesskey", pc.SudoOn)
+		if err != nil {
+			return fmt.Errorf("Write access key fail: %v", err)
+		}
+	}
+
 	err = a.SetupChefOnServer(ctx, sshClient, clientName, cloudlet, chefParams)
 	if err != nil {
 		return err
@@ -123,7 +128,7 @@ func (a *AnthosPlatform) SetupChefOnServer(ctx context.Context, sshClient ssh.Cl
 	}
 	// note the client name is actually used as the node name
 	command := fmt.Sprintf("sudo chef-client --chef-license ACCEPT -S %s -N %s -l debug -i 60 -d -L /var/log/chef.log", chefParams.ServerPath, clientName)
-	log.WarnLog("RUNCHEF", "command", command)
+	log.SpanLog(ctx, log.DebugLevelInfra, "Running chef-client", "command", command)
 
 	out, err := sshClient.Output(command)
 	if err != nil {
@@ -141,5 +146,61 @@ func (a *AnthosPlatform) UpdateTrustPolicy(ctx context.Context, TrustPolicy *edg
 }
 
 func (a *AnthosPlatform) DeleteCloudlet(ctx context.Context, cloudlet *edgeproto.Cloudlet, pfConfig *edgeproto.PlatformConfig, caches *platform.Caches, accessApi platform.AccessApi, updateCallback edgeproto.CacheUpdateCallback) error {
-	return fmt.Errorf("DeleteCloudlet TODO")
+	log.SpanLog(ctx, log.DebugLevelInfra, "DeleteCloudlet")
+	updateCallback(edgeproto.UpdateTask, "Deleting cloudlet")
+	err := a.commonPf.InitCloudletSSHKeys(ctx, accessApi)
+	if err != nil {
+		return err
+	}
+	a.commonPf.PlatformConfig = infracommon.GetPlatformConfig(cloudlet, pfConfig, accessApi)
+	if err := a.commonPf.InitInfraCommon(ctx, a.commonPf.PlatformConfig, anthosProps); err != nil {
+		return err
+	}
+	sshClient, err := a.GetNodePlatformClient(ctx, &edgeproto.CloudletMgmtNode{Name: a.commonPf.PlatformConfig.CloudletKey.String(), Type: "anthoscontrolhost"})
+	if err != nil {
+		return fmt.Errorf("Failed to get ssh client to control host: %v", err)
+	}
+
+	updateCallback(edgeproto.UpdateTask, "Deleting Shared RootLB")
+	sharedLbName := a.GetSharedLBName(ctx, &cloudlet.Key)
+	lbInfo, err := a.GetLbInfo(ctx, sshClient, sharedLbName)
+	if err != nil {
+		log.SpanLog(ctx, log.DebugLevelInfra, "Failed to get shared LB info", "sharedLbName", sharedLbName, "err", err)
+	} else {
+		externalDev := a.GetExternalEthernetInterface()
+		internalDev := a.GetInternalEthernetInterface()
+		err = a.RemoveIp(ctx, sshClient, lbInfo.ExternalIpAddr, externalDev)
+		if err != nil {
+			log.SpanLog(ctx, log.DebugLevelInfra, "Remove IP Fail", "lbInfo.ExternalIpAddr", lbInfo.ExternalIpAddr)
+		}
+		err = a.RemoveIp(ctx, sshClient, lbInfo.InternalIpAddr, internalDev)
+		if err != nil {
+			log.SpanLog(ctx, log.DebugLevelInfra, "Remove IP Fail", "lbInfo.InternalIpAddr", lbInfo.InternalIpAddr)
+		}
+		err = a.DeleteLbInfo(ctx, sshClient, sharedLbName)
+		if err != nil {
+			log.SpanLog(ctx, log.DebugLevelInfra, "error deleting lbinfo", "err", err)
+		}
+	}
+
+	updateCallback(edgeproto.UpdateTask, "Removing platform containers")
+	platContainers := []string{chefmgmt.ServiceTypeCRM, chefmgmt.ServiceTypeShepherd, chefmgmt.ServiceTypeCloudletPrometheus}
+	for _, p := range platContainers {
+		out, err := sshClient.Output(fmt.Sprintf("sudo docker rm -f %s", p))
+		if err != nil {
+			if strings.Contains(err.Error(), "No such container") {
+				log.SpanLog(ctx, log.DebugLevelInfra, "container does not exist", "plat", p)
+			} else {
+				return fmt.Errorf("Error removing platform service: %s - %s - %v", p, out, err)
+			}
+		}
+	}
+	// kill chef and other cleanup
+	out, err := sshClient.Output(fmt.Sprintf("sudo pkill -9 chef-client"))
+	log.SpanLog(ctx, log.DebugLevelInfra, "chef kill results", "out", out, "err", err)
+	out, err = sshClient.Output(fmt.Sprintf("sudo rm -f /tmp/'Chef Infra Client.pid'"))
+	log.SpanLog(ctx, log.DebugLevelInfra, "chef pid rm results", "out", out, "err", err)
+	out, err = sshClient.Output(fmt.Sprintf("sudo rm -f /root/accesskey/*"))
+	log.SpanLog(ctx, log.DebugLevelInfra, "accesskey rm results", "out", out, "err", err)
+	return nil
 }

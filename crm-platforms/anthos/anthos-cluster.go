@@ -85,14 +85,14 @@ func (a *AnthosPlatform) CreateClusterInst(ctx context.Context, clusterInst *edg
 	if err != nil {
 		return err
 	}
-	updateCallback(edgeproto.UpdateTask, "Setting up virtual cluster")
+	updateCallback(edgeproto.UpdateTask, "Setting up Virtual Cluster")
 	err = a.SetupVirtualCluster(ctx, client, a.GetNamespaceNameForCluster(ctx, clusterInst), k8smgmt.GetKconfName(clusterInst), a.GetClusterDir(clusterInst))
 	if err != nil {
 		return err
 	}
 	if clusterInst.IpAccess == edgeproto.IpAccess_IP_ACCESS_DEDICATED {
 		lbName := a.GetLbNameForCluster(ctx, clusterInst)
-		updateCallback(edgeproto.UpdateTask, "Setting up load balancer")
+		updateCallback(edgeproto.UpdateTask, "Setting up Dedicated Load Balancer")
 		err = a.SetupLb(ctx, client, lbName)
 		if err != nil {
 			return err
@@ -145,6 +145,19 @@ func (a *AnthosPlatform) DeleteClusterInst(ctx context.Context, clusterInst *edg
 		if err = a.commonPf.DeleteDNSRecords(ctx, rootLBName); err != nil {
 			log.SpanLog(ctx, log.DebugLevelInfra, "failed to delete DNS record", "fqdn", rootLBName, "err", err)
 		}
+	}
+	clusterDir := a.GetClusterDir(clusterInst)
+	clusterKubeConf := k8smgmt.GetKconfName(clusterInst)
+
+	err = pc.DeleteFile(client, clusterKubeConf)
+	if err != nil {
+		// DeleteFile uses -f so an error is really a problem
+		return fmt.Errorf("Fail to delete cluster kubeconfig")
+	}
+	err = pc.DeleteDir(ctx, client, clusterDir, pc.NoSudo)
+	if err != nil {
+		// DeleteDir uses -rf so an error is really a problem
+		return fmt.Errorf("Fail to delete cluster kubeconfig")
 	}
 	return nil
 }

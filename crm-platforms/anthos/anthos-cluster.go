@@ -111,40 +111,42 @@ func (a *AnthosPlatform) DeleteClusterInst(ctx context.Context, clusterInst *edg
 	if err != nil {
 		return err
 	}
-	externalDev := a.GetExternalEthernetInterface()
-	internalDev := a.GetInternalEthernetInterface()
-	rootLBName := a.GetLbNameForCluster(ctx, clusterInst)
-	lbinfo, err := a.GetLbInfo(ctx, client, rootLBName)
-	if err != nil {
-		if strings.Contains(err.Error(), LbInfoDoesNotExist) {
-			log.SpanLog(ctx, log.DebugLevelInfra, "lbinfo does not exist")
+	if clusterInst.IpAccess == edgeproto.IpAccess_IP_ACCESS_DEDICATED {
+		externalDev := a.GetExternalEthernetInterface()
+		internalDev := a.GetInternalEthernetInterface()
+		rootLBName := a.GetLbNameForCluster(ctx, clusterInst)
+		lbinfo, err := a.GetLbInfo(ctx, client, rootLBName)
+		if err != nil {
+			if strings.Contains(err.Error(), LbInfoDoesNotExist) {
+				log.SpanLog(ctx, log.DebugLevelInfra, "lbinfo does not exist")
 
+			} else {
+				return err
+			}
 		} else {
-			return err
+			err := a.RemoveIp(ctx, client, lbinfo.ExternalIpAddr, externalDev)
+			if err != nil {
+				return err
+			}
+			err = a.RemoveIp(ctx, client, lbinfo.InternalIpAddr, internalDev)
+			if err != nil {
+				return err
+			}
 		}
-	} else {
-		err := a.RemoveIp(ctx, client, lbinfo.ExternalIpAddr, externalDev)
-		if err != nil {
-			return err
-		}
-		err = a.RemoveIp(ctx, client, lbinfo.InternalIpAddr, internalDev)
-		if err != nil {
-			return err
+		if clusterInst.IpAccess == edgeproto.IpAccess_IP_ACCESS_DEDICATED {
+			err = a.DeleteLbInfo(ctx, client, rootLBName)
+			if err != nil {
+				return err
+			}
+			if err = a.commonPf.DeleteDNSRecords(ctx, rootLBName); err != nil {
+				log.SpanLog(ctx, log.DebugLevelInfra, "failed to delete DNS record", "fqdn", rootLBName, "err", err)
+			}
 		}
 	}
 	namespace := a.GetNamespaceNameForCluster(ctx, clusterInst)
 	err = a.DeleteNamespace(ctx, client, namespace)
 	if err != nil {
 		return err
-	}
-	err = a.DeleteLbInfo(ctx, client, rootLBName)
-	if err != nil {
-		return err
-	}
-	if clusterInst.IpAccess == edgeproto.IpAccess_IP_ACCESS_DEDICATED {
-		if err = a.commonPf.DeleteDNSRecords(ctx, rootLBName); err != nil {
-			log.SpanLog(ctx, log.DebugLevelInfra, "failed to delete DNS record", "fqdn", rootLBName, "err", err)
-		}
 	}
 	clusterDir := a.GetClusterDir(clusterInst)
 	clusterKubeConf := k8smgmt.GetKconfName(clusterInst)

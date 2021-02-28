@@ -435,6 +435,8 @@ func GetChefCloudletAttributes(ctx context.Context, cloudlet *edgeproto.Cloudlet
 	if cloudlet.OverridePolicyContainerVersion {
 		chefAttributes["edgeCloudVersionOverride"] = cloudlet.ContainerVersion
 	}
+	chefAttributes["notifyAddrs"] = pfConfig.NotifyCtrlAddrs
+
 	chefAttributes["tags"] = GetChefCloudletTags(cloudlet, pfConfig, serverType)
 
 	// Use default address if port is 0, as we'll have single

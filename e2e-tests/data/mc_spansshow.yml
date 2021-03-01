@@ -1,0 +1,23 @@
+- limit: 1
+  match:
+    operations:
+    - notify-recv edgeproto.CloudletInfo
+    logvalues:
+    - "*tmus-cloud-1*"
+    services:
+    - autoprov
+- limit: 1
+  match:
+    operations:
+    - FindCloudlet
+    logvalues:
+    - "*tmus-cloud-1*"
+    - autoprovapp
+- limit: 1
+  match:
+    operations:
+    - UpgradeAccessKey
+    logvalues:
+    - "*tmus-cloud-2*"
+    logmsgs:
+    - verified access key

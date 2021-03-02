@@ -46,7 +46,7 @@ func (b *BareMetalPlatform) CreateNamespace(ctx context.Context, client ssh.Clie
 	out, err := client.Output(cmd)
 	if err != nil {
 		if strings.Contains(out, "AlreadyExists") {
-			log.SpanLog(ctx, log.DebugLevelInfra, "namespace b.ready exists", "out", out)
+			log.SpanLog(ctx, log.DebugLevelInfra, "namespace already exists", "out", out)
 		} else {
 			return fmt.Errorf("Error in creating namespace: %s - %v", out, err)
 		}
@@ -153,12 +153,12 @@ func (b *BareMetalPlatform) DeleteClusterInst(ctx context.Context, clusterInst *
 
 	err = pc.DeleteFile(client, clusterKubeConf)
 	if err != nil {
-		// DeleteFile uses -f so b. error is really approblem
+		// DeleteFile uses -f so an error is really approblem
 		return fmt.Errorf("Fail to delete cluster kubeconfig")
 	}
 	err = pc.DeleteDir(ctx, client, clusterDir, pc.NoSudo)
 	if err != nil {
-		// DeleteDir uses -rf so b. error is really approblem
+		// DeleteDir uses -rf so an error is really a problem
 		return fmt.Errorf("Fail to delete cluster kubeconfig")
 	}
 	return nil

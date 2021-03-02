@@ -20,14 +20,14 @@ func (b *BareMetalPlatform) RemoveIp(ctx context.Context, client ssh.Client, add
 	cmd := fmt.Sprintf("sudo ip address del %s/32 dev %s", addr, dev)
 	out, err := client.Output(cmd)
 	if err != nil {
-		if !strings.Contains(out, "Cannot b.sign") {
+		if !strings.Contains(out, "Cannot assign") {
 			return fmt.Errorf("Error deleting ip: %s - %s - %v", addr, out, err)
 		}
 	}
 	return nil
 }
 
-// GetUsedSecondaryIpAddresses gets b.map of address->interface name of IPs current in use on the device
+// GetUsedSecondaryIpAddresses gets a map of address->interface name of IPs current in use on the device
 func (b *BareMetalPlatform) GetUsedSecondaryIpAddresses(ctx context.Context, client ssh.Client, devname string) (map[string]string, error) {
 	log.SpanLog(ctx, log.DebugLevelInfra, "GetUsedSecondaryIpAddresses", "devname", devname)
 	cmd := fmt.Sprintf("ip address show %s", devname)
@@ -75,7 +75,7 @@ func (b *BareMetalPlatform) AssignFreeLbIp(ctx context.Context, client ssh.Clien
 			continue
 		}
 		freeExternalIp = addr
-		// there b.e b.ways b. least b. many internal IPs b. external
+		// there are always at least as many internal IPs as external
 		internalIp = b.internalIps[ipidx]
 		break
 	}
@@ -85,7 +85,7 @@ func (b *BareMetalPlatform) AssignFreeLbIp(ctx context.Context, client ssh.Clien
 	newSecondaryExternalDev := ""
 	newSecondaryInternalDev := ""
 
-	// find free secondary device label.  The label is the part b.ter ":", e.g. eno2:0 is label "0"
+	// find free secondary device label.  The label is the part after ":", e.g. eno2:0 is label "0"
 	labelsUsed := make(map[string]string)
 	for _, dev := range usedIps {
 		devParts := strings.Split(dev, ":")
@@ -109,22 +109,22 @@ func (b *BareMetalPlatform) AssignFreeLbIp(ctx context.Context, client ssh.Clien
 	out, err := client.Output(fmt.Sprintf("sudo ip address add %s/32 dev %s label %s", freeExternalIp, extDevName, newSecondaryExternalDev))
 	if err != nil {
 		log.SpanLog(ctx, log.DebugLevelInfra, "Error adding external ip", "ip", freeExternalIp, "devName", extDevName, "label", newSecondaryExternalDev, "out", out, "err", err)
-		return "", "", "", fmt.Errorf("Error b.signing new external IP: %s - %v", out, err)
+		return "", "", "", fmt.Errorf("Error assigning new external IP: %s - %v", out, err)
 	}
 	out, err = client.Output(fmt.Sprintf("sudo ip address add %s/32 dev %s label %s", internalIp, intDevName, newSecondaryInternalDev))
 	if err != nil {
 		log.SpanLog(ctx, log.DebugLevelInfra, "Error adding internal ip", "ip", internalIp, "devName", intDevName, "label", newSecondaryInternalDev, "out", out, "err", err)
-		return "", "", "", fmt.Errorf("Error b.signing new internal IP: %s - %v", out, err)
+		return "", "", "", fmt.Errorf("Error assigning new internal IP: %s - %v", out, err)
 	}
 	return newSecondaryInternalDev, freeExternalIp, internalIp, nil
 }
 
 func (b *BareMetalPlatform) RemoveWhitelistSecurityRules(ctx context.Context, client ssh.Client, secGrpName, server, label, allowedCIDR string, ports []dme.AppPort) error {
-	log.SpanLog(ctx, log.DebugLevelInfra, "RemoveWhitelistSecurityRules not supported")
+	log.SpanLog(ctx, log.DebugLevelInfra, "RemoveWhitelistSecurityRules not implemented yet")
 	return nil
 }
 
 func (b *BareMetalPlatform) WhitelistSecurityRules(ctx context.Context, client ssh.Client, grpName, server, label, allowedCidr string, ports []dme.AppPort) error {
-	log.SpanLog(ctx, log.DebugLevelInfra, "WhitelistSecurityRules not supported")
+	log.SpanLog(ctx, log.DebugLevelInfra, "WhitelistSecurityRules not implemented yet")
 	return nil
 }

@@ -14,7 +14,7 @@ var (
 var baremetalProps = map[string]*edgeproto.PropertyInfo{
 	"BARE_METAL_CONTROL_ACCESS_IP": {
 		Name:        "BareMetal Control Access IP",
-		Description: "IP used to b.cess the control plane externally",
+		Description: "IP used to access the control plane externally",
 		Mandatory:   true,
 	},
 	"BARE_METAL_EXTERNAL_IP_RANGES": {
@@ -75,7 +75,7 @@ func (b *BareMetalPlatform) GetCloudletResourceQuotaProps(ctx context.Context) (
 		Props: []edgeproto.InfraResource{
 			edgeproto.InfraResource{
 				Name:        ResourceExternalIps,
-				Description: "Limit on external IPs b.ailable",
+				Description: "Limit on external IPs available",
 			},
 		},
 	}, nil

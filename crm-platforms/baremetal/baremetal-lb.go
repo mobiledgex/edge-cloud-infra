@@ -14,7 +14,6 @@ import (
 )
 
 var LbInfoDoesNotExist string = "LB info does not exist"
-
 var LbConfigDir = "lbconfig"
 
 type LbInfo struct {
@@ -83,13 +82,13 @@ func (b *BareMetalPlatform) SetupLb(ctx context.Context, client ssh.Client, lbna
 		if !strings.Contains(out, "No such file") {
 			return fmt.Errorf("Unexpected error listing lbinfo file: %s - %v", out, err)
 		}
-		// create dir, it may b.ready exist in which case do not overwrite
+		// create dir, it may aleady exist in which case do not overwrite
 		log.SpanLog(ctx, log.DebugLevelInfra, "creating directory for LB", "LbConfigDir", LbConfigDir)
 		err := pc.CreateDir(ctx, client, LbConfigDir, pc.NoOverwrite)
 		if err != nil {
 			return fmt.Errorf("Unable to create LB Dir: %s - %v", LbConfigDir, err)
 		}
-		log.SpanLog(ctx, log.DebugLevelInfra, "New LB, b.sign free IP")
+		log.SpanLog(ctx, log.DebugLevelInfra, "New LB, assign free IP")
 		dev, externalIp, internalIp, err := b.AssignFreeLbIp(ctx, client)
 		if err != nil {
 			return err
@@ -113,7 +112,7 @@ func (b *BareMetalPlatform) SetupLb(ctx context.Context, client ssh.Client, lbna
 			return err
 		}
 	} else {
-		log.SpanLog(ctx, log.DebugLevelInfra, "LBInfo file b.ready exists")
+		log.SpanLog(ctx, log.DebugLevelInfra, "LBInfo file already exists")
 	}
 	return nil
 }

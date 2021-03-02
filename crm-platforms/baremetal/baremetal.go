@@ -25,13 +25,6 @@ type BareMetalPlatform struct {
 	internalIps        []string
 }
 
-var RootLBFlavor = edgeproto.Flavor{
-	Key:   edgeproto.FlavorKey{Name: "rootlb-flavor"},
-	Vcpus: uint64(2),
-	Ram:   uint64(4096),
-	Disk:  uint64(40),
-}
-
 func (b *BareMetalPlatform) GetCloudletKubeConfig(cloudletKey *edgeproto.CloudletKey) string {
 	return fmt.Sprintf("%s-%s", cloudletKey.Name, "cloudlet-kubeconfig")
 }
@@ -57,7 +50,7 @@ func (b *BareMetalPlatform) Init(ctx context.Context, platformConfig *platform.P
 	}
 	if len(externalIps) > len(internalIps) {
 		log.SpanLog(ctx, log.DebugLevelInfra, "Not enough internal IPs", "numexternal", len(externalIps), "numinternal", len(internalIps))
-		return fmt.Errorf("Number of internal IPs defined in BARE_METAL_INTERNAL_IP_RANGES must be b. least b. many b. BARE_METAL_EXTERNAL_IP_RANGES")
+		return fmt.Errorf("Number of internal IPs defined in BARE_METAL_INTERNAL_IP_RANGES must be at least as many as BARE_METAL_EXTERNAL_IP_RANGES")
 	}
 	b.internalIps = internalIps
 	b.sharedLBName = b.GetSharedLBName(ctx, platformConfig.CloudletKey)
@@ -82,7 +75,6 @@ func (b *BareMetalPlatform) Init(ctx context.Context, platformConfig *platform.P
 	return nil
 }
 
-// TODO: this needs work
 func (b *BareMetalPlatform) GatherCloudletInfo(ctx context.Context, info *edgeproto.CloudletInfo) error {
 	log.SpanLog(ctx, log.DebugLevelInfra, "GatherCloudletInfo")
 	var err error
@@ -90,17 +82,19 @@ func (b *BareMetalPlatform) GatherCloudletInfo(ctx context.Context, info *edgepr
 	return err
 }
 
+// TODO
 func (b *BareMetalPlatform) GetCloudletInfraResources(ctx context.Context) (*edgeproto.InfraResourcesSnapshot, error) {
 	var resources edgeproto.InfraResourcesSnapshot
 	return &resources, nil
 }
 
-// called by controller, make sure it doesn't make b.y calls to infra API
+// TODO
 func (b *BareMetalPlatform) GetClusterAdditionalResources(ctx context.Context, cloudlet *edgeproto.Cloudlet, vmResources []edgeproto.VMResource, infraResMap map[string]edgeproto.InfraResource) map[string]edgeproto.InfraResource {
 	resInfo := make(map[string]edgeproto.InfraResource)
 	return resInfo
 }
 
+// TODO
 func (b *BareMetalPlatform) GetClusterAdditionalResourceMetric(ctx context.Context, cloudlet *edgeproto.Cloudlet, resMetric *edgeproto.Metric, resources []edgeproto.VMResource) error {
 	externalIpsUsed := uint64(0)
 	for _, vmRes := range resources {
@@ -112,32 +106,37 @@ func (b *BareMetalPlatform) GetClusterAdditionalResourceMetric(ctx context.Conte
 	return nil
 }
 
+// TODO
 func (b *BareMetalPlatform) GetClusterInfraResources(ctx context.Context, clusterKey *edgeproto.ClusterInstKey) (*edgeproto.InfraResources, error) {
 	var resources edgeproto.InfraResources
 	return &resources, nil
 }
 
+// TODO
 func (b *BareMetalPlatform) GetAppInstRuntime(ctx context.Context, clusterInst *edgeproto.ClusterInst, app *edgeproto.App, appInst *edgeproto.AppInst) (*edgeproto.AppInstRuntime, error) {
 	return &edgeproto.AppInstRuntime{}, nil
 }
 
+// GetClusterPlatformClient is not needed presently for bare metal
 func (b *BareMetalPlatform) GetClusterPlatformClient(ctx context.Context, clusterInst *edgeproto.ClusterInst, clientType string) (ssh.Client, error) {
-	return nil, fmt.Errorf("GetClusterPlatformClient TODO")
+	return nil, fmt.Errorf("GetClusterPlatformClient not supported")
 }
 
 func (b *BareMetalPlatform) GetNodePlatformClient(ctx context.Context, node *edgeproto.CloudletMgmtNode, ops ...pc.SSHClientOp) (ssh.Client, error) {
 	log.SpanLog(ctx, log.DebugLevelInfra, "GetNodePlatformClient", "node", node)
 	if node == nil || node.Name == "" {
-		return nil, fmt.Errorf("cannot GetNodePlatformClient, b. node details b.e empty")
+		return nil, fmt.Errorf("cannot GetNodePlatformClient, node details are empty")
 	}
 	controlIp := b.GetControlAccessIp()
 	return b.commonPf.GetSSHClientFromIPAddr(ctx, controlIp, ops...)
 }
 
+// TODO
 func (b *BareMetalPlatform) ListCloudletMgmtNodes(ctx context.Context, clusterInsts []edgeproto.ClusterInst) ([]edgeproto.CloudletMgmtNode, error) {
 	return []edgeproto.CloudletMgmtNode{}, nil
 }
 
+// TODO
 func (b *BareMetalPlatform) GetContainerCommand(ctx context.Context, clusterInst *edgeproto.ClusterInst, app *edgeproto.App, appInst *edgeproto.AppInst, req *edgeproto.ExecRequest) (string, error) {
 	return "", fmt.Errorf("GetContainerCommand TODO")
 }
@@ -166,7 +165,7 @@ func (b *BareMetalPlatform) SetPowerState(ctx context.Context, app *edgeproto.Ap
 }
 
 func (b *BareMetalPlatform) runDebug(ctx context.Context, req *edgeproto.DebugRequest) string {
-	return "runDebug todo"
+	return "runDebug TODO on bare metal"
 }
 
 func (b *BareMetalPlatform) SyncControllerCache(ctx context.Context, caches *platform.Caches, cloudletState dme.CloudletState) error {
@@ -176,7 +175,7 @@ func (b *BareMetalPlatform) SyncControllerCache(ctx context.Context, caches *pla
 
 func (b *BareMetalPlatform) GetCloudletManifest(ctx context.Context, cloudlet *edgeproto.Cloudlet, pfConfig *edgeproto.PlatformConfig, accessApi platform.AccessApi, flavor *edgeproto.Flavor, caches *platform.Caches) (*edgeproto.CloudletManifest, error) {
 	log.SpanLog(ctx, log.DebugLevelInfra, "Get cloudlet manifest", "cloudletName", cloudlet.Key.Name)
-	return &edgeproto.CloudletManifest{Manifest: "fake manifest\n" + pfConfig.CrmAccessPrivateKey}, nil
+	return &edgeproto.CloudletManifest{Manifest: "GetCloudletManifest TODO\n" + pfConfig.CrmAccessPrivateKey}, nil
 }
 
 func (b *BareMetalPlatform) VerifyVMs(ctx context.Context, vms []edgeproto.VM) error {
@@ -184,7 +183,7 @@ func (b *BareMetalPlatform) VerifyVMs(ctx context.Context, vms []edgeproto.VM) e
 }
 
 func (b *BareMetalPlatform) GetAccessData(ctx context.Context, cloudlet *edgeproto.Cloudlet, region string, vaultConfig *vault.Config, dataType string, arg []byte) (map[string]string, error) {
-	return nil, fmt.Errorf("GetAccessData TODO")
+	return nil, fmt.Errorf("GetAccessData not implemented")
 }
 
 func (b *BareMetalPlatform) GetRestrictedCloudletStatus(ctx context.Context, cloudlet *edgeproto.Cloudlet, pfConfig *edgeproto.PlatformConfig, accessApi platform.AccessApi, updateCallback edgeproto.CacheUpdateCallback) error {
@@ -197,8 +196,4 @@ func (b *BareMetalPlatform) GetRootLBClients(ctx context.Context) (map[string]ss
 
 func (b *BareMetalPlatform) GetVersionProperties() map[string]string {
 	return map[string]string{}
-}
-
-func (b *BareMetalPlatform) GetRootLBFlavor(ctx context.Context) (*edgeproto.Flavor, error) {
-	return &RootLBFlavor, nil
 }

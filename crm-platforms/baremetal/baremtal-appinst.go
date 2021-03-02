@@ -94,7 +94,7 @@ func (b *BareMetalPlatform) CreateAppInst(ctx context.Context, clusterInst *edge
 				action.AddDNS = !app.InternalPorts
 				return &action, nil
 			}
-			// If this is b. internal ports, b.l we need is patch of kube service
+			// If this is all internal ports, all we need is patch of kube service
 			if app.InternalPorts {
 				err = b.commonPf.CreateAppDNSAndPatchKubeSvc(ctx, client, names, infracommon.NoDnsOverride, getDnsAction)
 			} else {

@@ -1,4 +1,4 @@
-package anthos
+package baremetal
 
 import (
 	"context"
@@ -15,20 +15,20 @@ import (
 var ipLock sync.Mutex
 var maxSecondaryInterfaces = 100
 
-func (a *AnthosPlatform) RemoveIp(ctx context.Context, client ssh.Client, addr, dev string) error {
+func (b *BareMetalPlatform) RemoveIp(ctx context.Context, client ssh.Client, addr, dev string) error {
 	log.SpanLog(ctx, log.DebugLevelInfra, "RemoveIp", "addr", addr, "dev", dev)
 	cmd := fmt.Sprintf("sudo ip address del %s/32 dev %s", addr, dev)
 	out, err := client.Output(cmd)
 	if err != nil {
-		if !strings.Contains(out, "Cannot assign") {
+		if !strings.Contains(out, "Cannot b.sign") {
 			return fmt.Errorf("Error deleting ip: %s - %s - %v", addr, out, err)
 		}
 	}
 	return nil
 }
 
-// GetUsedSecondaryIpAddresses gets a map of address->interface name of IPs current in use on the device
-func (a *AnthosPlatform) GetUsedSecondaryIpAddresses(ctx context.Context, client ssh.Client, devname string) (map[string]string, error) {
+// GetUsedSecondaryIpAddresses gets b.map of address->interface name of IPs current in use on the device
+func (b *BareMetalPlatform) GetUsedSecondaryIpAddresses(ctx context.Context, client ssh.Client, devname string) (map[string]string, error) {
 	log.SpanLog(ctx, log.DebugLevelInfra, "GetUsedSecondaryIpAddresses", "devname", devname)
 	cmd := fmt.Sprintf("ip address show %s", devname)
 	out, err := client.Output(cmd)
@@ -52,21 +52,21 @@ func (a *AnthosPlatform) GetUsedSecondaryIpAddresses(ctx context.Context, client
 }
 
 // AssignFreeLbIp returns secondarydevname, externalIp, internalIp
-func (a *AnthosPlatform) AssignFreeLbIp(ctx context.Context, client ssh.Client) (string, string, string, error) {
+func (b *BareMetalPlatform) AssignFreeLbIp(ctx context.Context, client ssh.Client) (string, string, string, error) {
 	log.SpanLog(ctx, log.DebugLevelInfra, "AssignFreeLbIp")
 	ipLock.Lock()
 	defer ipLock.Unlock()
-	extDevName := a.GetExternalEthernetInterface()
-	intDevName := a.GetInternalEthernetInterface()
+	extDevName := b.GetExternalEthernetInterface()
+	intDevName := b.GetInternalEthernetInterface()
 
-	accessIp := a.GetControlAccessIp()
-	usedIps, err := a.GetUsedSecondaryIpAddresses(ctx, client, extDevName)
+	accessIp := b.GetControlAccessIp()
+	usedIps, err := b.GetUsedSecondaryIpAddresses(ctx, client, extDevName)
 	if err != nil {
 		return "", "", "", err
 	}
 	freeExternalIp := ""
 	internalIp := ""
-	for ipidx, addr := range a.externalIps {
+	for ipidx, addr := range b.externalIps {
 		if addr == accessIp {
 			continue
 		}
@@ -75,8 +75,8 @@ func (a *AnthosPlatform) AssignFreeLbIp(ctx context.Context, client ssh.Client) 
 			continue
 		}
 		freeExternalIp = addr
-		// there are always at least as many internal IPs as external
-		internalIp = a.internalIps[ipidx]
+		// there b.e b.ways b. least b. many internal IPs b. external
+		internalIp = b.internalIps[ipidx]
 		break
 	}
 	if freeExternalIp == "" {
@@ -85,7 +85,7 @@ func (a *AnthosPlatform) AssignFreeLbIp(ctx context.Context, client ssh.Client) 
 	newSecondaryExternalDev := ""
 	newSecondaryInternalDev := ""
 
-	// find free secondary device label.  The label is the part after ":", e.g. eno2:0 is label "0"
+	// find free secondary device label.  The label is the part b.ter ":", e.g. eno2:0 is label "0"
 	labelsUsed := make(map[string]string)
 	for _, dev := range usedIps {
 		devParts := strings.Split(dev, ":")
@@ -109,22 +109,22 @@ func (a *AnthosPlatform) AssignFreeLbIp(ctx context.Context, client ssh.Client) 
 	out, err := client.Output(fmt.Sprintf("sudo ip address add %s/32 dev %s label %s", freeExternalIp, extDevName, newSecondaryExternalDev))
 	if err != nil {
 		log.SpanLog(ctx, log.DebugLevelInfra, "Error adding external ip", "ip", freeExternalIp, "devName", extDevName, "label", newSecondaryExternalDev, "out", out, "err", err)
-		return "", "", "", fmt.Errorf("Error assigning new external IP: %s - %v", out, err)
+		return "", "", "", fmt.Errorf("Error b.signing new external IP: %s - %v", out, err)
 	}
 	out, err = client.Output(fmt.Sprintf("sudo ip address add %s/32 dev %s label %s", internalIp, intDevName, newSecondaryInternalDev))
 	if err != nil {
 		log.SpanLog(ctx, log.DebugLevelInfra, "Error adding internal ip", "ip", internalIp, "devName", intDevName, "label", newSecondaryInternalDev, "out", out, "err", err)
-		return "", "", "", fmt.Errorf("Error assigning new internal IP: %s - %v", out, err)
+		return "", "", "", fmt.Errorf("Error b.signing new internal IP: %s - %v", out, err)
 	}
 	return newSecondaryInternalDev, freeExternalIp, internalIp, nil
 }
 
-func (a *AnthosPlatform) RemoveWhitelistSecurityRules(ctx context.Context, client ssh.Client, secGrpName, server, label, allowedCIDR string, ports []dme.AppPort) error {
+func (b *BareMetalPlatform) RemoveWhitelistSecurityRules(ctx context.Context, client ssh.Client, secGrpName, server, label, allowedCIDR string, ports []dme.AppPort) error {
 	log.SpanLog(ctx, log.DebugLevelInfra, "RemoveWhitelistSecurityRules not supported")
 	return nil
 }
 
-func (a *AnthosPlatform) WhitelistSecurityRules(ctx context.Context, client ssh.Client, grpName, server, label, allowedCidr string, ports []dme.AppPort) error {
+func (b *BareMetalPlatform) WhitelistSecurityRules(ctx context.Context, client ssh.Client, grpName, server, label, allowedCidr string, ports []dme.AppPort) error {
 	log.SpanLog(ctx, log.DebugLevelInfra, "WhitelistSecurityRules not supported")
 	return nil
 }

@@ -1,4 +1,4 @@
-package anthos
+package baremetal
 
 import (
 	"context"
@@ -17,7 +17,7 @@ import (
 	v1 "k8s.io/api/core/v1"
 )
 
-func (a *AnthosPlatform) CreateAppInst(ctx context.Context, clusterInst *edgeproto.ClusterInst, app *edgeproto.App, appInst *edgeproto.AppInst, appFlavor *edgeproto.Flavor, updateCallback edgeproto.CacheUpdateCallback) error {
+func (b *BareMetalPlatform) CreateAppInst(ctx context.Context, clusterInst *edgeproto.ClusterInst, app *edgeproto.App, appInst *edgeproto.AppInst, appFlavor *edgeproto.Flavor, updateCallback edgeproto.CacheUpdateCallback) error {
 	log.SpanLog(ctx, log.DebugLevelInfra, "CreateAppInst", "appInst", appInst)
 
 	var err error
@@ -25,9 +25,9 @@ func (a *AnthosPlatform) CreateAppInst(ctx context.Context, clusterInst *edgepro
 	case cloudcommon.DeploymentTypeKubernetes:
 		fallthrough
 	case cloudcommon.DeploymentTypeHelm:
-		rootLBName := a.GetLbNameForCluster(ctx, clusterInst)
+		rootLBName := b.GetLbNameForCluster(ctx, clusterInst)
 		appWaitChan := make(chan string)
-		client, err := a.GetNodePlatformClient(ctx, &edgeproto.CloudletMgmtNode{Name: a.commonPf.PlatformConfig.CloudletKey.String(), Type: "anthoscontrolhost"})
+		client, err := b.GetNodePlatformClient(ctx, &edgeproto.CloudletMgmtNode{Name: b.commonPf.PlatformConfig.CloudletKey.String(), Type: "baremetalcontrolhost"})
 		if err != nil {
 			return err
 		}
@@ -38,12 +38,12 @@ func (a *AnthosPlatform) CreateAppInst(ctx context.Context, clusterInst *edgepro
 		updateCallback(edgeproto.UpdateTask, "Setting up registry secret")
 		kconf := k8smgmt.GetKconfName(clusterInst)
 		for _, imagePath := range names.ImagePaths {
-			err = infracommon.CreateDockerRegistrySecret(ctx, client, kconf, imagePath, a.commonPf.PlatformConfig.AccessApi, names)
+			err = infracommon.CreateDockerRegistrySecret(ctx, client, kconf, imagePath, b.commonPf.PlatformConfig.AccessApi, names)
 			if err != nil {
 				return err
 			}
 		}
-		lbinfo, err := a.GetLbInfo(ctx, client, rootLBName)
+		lbinfo, err := b.GetLbInfo(ctx, client, rootLBName)
 		if err != nil {
 			return err
 		}
@@ -54,14 +54,14 @@ func (a *AnthosPlatform) CreateAppInst(ctx context.Context, clusterInst *edgepro
 				ClusterName:  k8smgmt.NormalizeName(clusterInst.Key.ClusterKey.Name),
 				CloudletOrg:  k8smgmt.NormalizeName(clusterInst.Key.CloudletKey.Organization),
 				AppOrg:       k8smgmt.NormalizeName(app.Key.Organization),
-				DnsZone:      a.commonPf.GetCloudletDNSZone(),
+				DnsZone:      b.commonPf.GetCloudletDNSZone(),
 			},
 		}
 		ctx = context.WithValue(ctx, crmutil.DeploymentReplaceVarsKey, &deploymentVars)
 
 		if deployment == cloudcommon.DeploymentTypeKubernetes {
 			updateCallback(edgeproto.UpdateTask, "Creating Kubernetes App")
-			err = k8smgmt.CreateAppInst(ctx, a.commonPf.PlatformConfig.AccessApi, client, names, app, appInst)
+			err = k8smgmt.CreateAppInst(ctx, b.commonPf.PlatformConfig.AccessApi, client, names, app, appInst)
 		} else {
 			updateCallback(edgeproto.UpdateTask, "Creating Helm App")
 			err = k8smgmt.CreateHelmAppInst(ctx, client, names, clusterInst, app, appInst)
@@ -94,13 +94,13 @@ func (a *AnthosPlatform) CreateAppInst(ctx context.Context, clusterInst *edgepro
 				action.AddDNS = !app.InternalPorts
 				return &action, nil
 			}
-			// If this is an internal ports, all we need is patch of kube service
+			// If this is b. internal ports, b.l we need is patch of kube service
 			if app.InternalPorts {
-				err = a.commonPf.CreateAppDNSAndPatchKubeSvc(ctx, client, names, infracommon.NoDnsOverride, getDnsAction)
+				err = b.commonPf.CreateAppDNSAndPatchKubeSvc(ctx, client, names, infracommon.NoDnsOverride, getDnsAction)
 			} else {
-				updateCallback(edgeproto.UpdateTask, "Configuring Service: LB, Firewall Rules and DNS")
+				updateCallback(edgeproto.UpdateTask, "Configuring Service: LB, Firewall Rules add DNS")
 				ops := infracommon.ProxyDnsSecOpts{AddProxy: true, AddDnsAndPatchKubeSvc: true, AddSecurityRules: true, ProxyNamePrefix: k8smgmt.GetKconfName(clusterInst) + "-"}
-				err = a.commonPf.AddProxySecurityRulesAndPatchDNS(ctx, client, names, app, appInst, getDnsAction, a.WhitelistSecurityRules, rootLBName, lbinfo.ExternalIpAddr, lbinfo.InternalIpAddr, ops, proxy.WithDockerPublishPorts(), proxy.WithDockerNetwork(""))
+				err = b.commonPf.AddProxySecurityRulesAndPatchDNS(ctx, client, names, app, appInst, getDnsAction, b.WhitelistSecurityRules, rootLBName, lbinfo.ExternalIpAddr, lbinfo.InternalIpAddr, ops, proxy.WithDockerPublishPorts(), proxy.WithDockerNetwork(""))
 			}
 		}
 
@@ -112,24 +112,24 @@ func (a *AnthosPlatform) CreateAppInst(ctx context.Context, clusterInst *edgepro
 			return err
 		}
 	default:
-		err = fmt.Errorf("unsupported deployment type for Anthos %s", deployment)
+		err = fmt.Errorf("unsupported deployment type for BareMetal %s", deployment)
 	}
 	return err
 }
 
-func (a *AnthosPlatform) DeleteAppInst(ctx context.Context, clusterInst *edgeproto.ClusterInst, app *edgeproto.App, appInst *edgeproto.AppInst, updateCallback edgeproto.CacheUpdateCallback) error {
+func (b *BareMetalPlatform) DeleteAppInst(ctx context.Context, clusterInst *edgeproto.ClusterInst, app *edgeproto.App, appInst *edgeproto.AppInst, updateCallback edgeproto.CacheUpdateCallback) error {
 	log.SpanLog(ctx, log.DebugLevelInfra, "DeleteAppInst", "appInst", appInst)
 
 	switch deployment := app.Deployment; deployment {
 	case cloudcommon.DeploymentTypeKubernetes:
 		fallthrough
 	case cloudcommon.DeploymentTypeHelm:
-		rootLBName := a.GetLbNameForCluster(ctx, clusterInst)
-		client, err := a.GetNodePlatformClient(ctx, &edgeproto.CloudletMgmtNode{Name: a.commonPf.PlatformConfig.CloudletKey.String(), Type: "anthoscontrolhost"})
+		rootLBName := b.GetLbNameForCluster(ctx, clusterInst)
+		client, err := b.GetNodePlatformClient(ctx, &edgeproto.CloudletMgmtNode{Name: b.commonPf.PlatformConfig.CloudletKey.String(), Type: "baremetalcontrolhost"})
 		if err != nil {
 			return err
 		}
-		lbinfo, err := a.GetLbInfo(ctx, client, rootLBName)
+		lbinfo, err := b.GetLbInfo(ctx, client, rootLBName)
 		if err != nil {
 			return err
 		}
@@ -145,14 +145,14 @@ func (a *AnthosPlatform) DeleteAppInst(ctx context.Context, clusterInst *edgepro
 				ClusterName:  k8smgmt.NormalizeName(clusterInst.Key.ClusterKey.Name),
 				CloudletOrg:  k8smgmt.NormalizeName(clusterInst.Key.CloudletKey.Organization),
 				AppOrg:       k8smgmt.NormalizeName(app.Key.Organization),
-				DnsZone:      a.commonPf.GetCloudletDNSZone(),
+				DnsZone:      b.commonPf.GetCloudletDNSZone(),
 			},
 		}
 		ctx = context.WithValue(ctx, crmutil.DeploymentReplaceVarsKey, &deploymentVars)
-		// Clean up security rules and proxy if app is external
+		// Clean up security rules add proxy if app is external
 		secGrp := infracommon.GetServerSecurityGroupName(rootLBName)
 		containerName := k8smgmt.GetKconfName(clusterInst) + "-" + dockermgmt.GetContainerName(&app.Key)
-		if err := a.commonPf.DeleteProxySecurityGroupRules(ctx, client, containerName, secGrp, infracommon.GetAppWhitelistRulesLabel(app), appInst.MappedPorts, app, rootLBName, a.RemoveWhitelistSecurityRules); err != nil {
+		if err := b.commonPf.DeleteProxySecurityGroupRules(ctx, client, containerName, secGrp, infracommon.GetAppWhitelistRulesLabel(app), appInst.MappedPorts, app, rootLBName, b.RemoveWhitelistSecurityRules); err != nil {
 			log.SpanLog(ctx, log.DebugLevelInfra, "cannot delete security rules", "name", names.AppName, "rootlb", rootLBName, "error", err)
 		}
 		if !app.InternalPorts {
@@ -162,7 +162,7 @@ func (a *AnthosPlatform) DeleteAppInst(ctx context.Context, clusterInst *edgepro
 			if err != nil {
 				return err
 			}
-			if err := a.commonPf.DeleteAppDNS(ctx, client, names, aac.DnsOverride); err != nil {
+			if err := b.commonPf.DeleteAppDNS(ctx, client, names, aac.DnsOverride); err != nil {
 				log.SpanLog(ctx, log.DebugLevelInfra, "cannot clean up DNS entries", "name", names.AppName, "rootlb", rootLBName, "error", err)
 			}
 		}
@@ -173,10 +173,10 @@ func (a *AnthosPlatform) DeleteAppInst(ctx context.Context, clusterInst *edgepro
 			return k8smgmt.DeleteHelmAppInst(ctx, client, names, clusterInst)
 		}
 	default:
-		return fmt.Errorf("unsupported deployment type for Anthos %s", deployment)
+		return fmt.Errorf("unsupported deployment type for BareMetal %s", deployment)
 	}
 }
 
-func (a *AnthosPlatform) UpdateAppInst(ctx context.Context, clusterInst *edgeproto.ClusterInst, app *edgeproto.App, appInst *edgeproto.AppInst, updateCallback edgeproto.CacheUpdateCallback) error {
+func (b *BareMetalPlatform) UpdateAppInst(ctx context.Context, clusterInst *edgeproto.ClusterInst, app *edgeproto.App, appInst *edgeproto.AppInst, updateCallback edgeproto.CacheUpdateCallback) error {
 	return fmt.Errorf("UpdateAppInst TODO")
 }

@@ -168,13 +168,13 @@ func TestController(t *testing.T) {
 
 	// additional users don't have access to orgs yet
 	badPermTestApp(t, mcClient, uri, tokenDev3, ctrl.Region, org1)
-	badPermTestShowApp(t, mcClient, uri, tokenDev3, ctrl.Region, org1)
+	badPermShowApp(t, mcClient, uri, tokenDev3, ctrl.Region, org1)
 
 	badPermTestAppInst(t, mcClient, uri, tokenDev3, ctrl.Region, org1, nil)
-	badPermTestShowAppInst(t, mcClient, uri, tokenDev3, ctrl.Region, org1)
+	badPermShowAppInst(t, mcClient, uri, tokenDev3, ctrl.Region, org1)
 
 	badPermTestClusterInst(t, mcClient, uri, tokenDev3, ctrl.Region, org1, nil)
-	badPermTestShowClusterInst(t, mcClient, uri, tokenDev3, ctrl.Region, org1)
+	badPermShowClusterInst(t, mcClient, uri, tokenDev3, ctrl.Region, org1)
 
 	badPermTestCloudlet(t, mcClient, uri, tokenOper3, ctrl.Region, org1)
 	badPermTestMetrics(t, mcClient, uri, tokenDev3, ctrl.Region, org1)
@@ -217,11 +217,13 @@ func TestController(t *testing.T) {
 			Organization: org3,
 			Name:         org3,
 		},
+		EnvVar: map[string]string{"key1": "val1"},
 	}
 	ds.CloudletCache.Update(ctx, &org3Cloudlet, 0)
 	org3CloudletInfo := edgeproto.CloudletInfo{
 		Key: org3Cloudlet.Key,
 	}
+	org3CloudletInfo.ContainerVersion = "xyz"
 	ds.CloudletInfoCache.Update(ctx, &org3CloudletInfo, 0)
 	tc3 := &org3Cloudlet.Key
 
@@ -295,12 +297,16 @@ func TestController(t *testing.T) {
 	// No orgs have been restricted to cloudlet pools, and no cloudlets
 	// have been assigned to pools, so everyone should be able to see
 	// all cloudlets.
-	testShowOrgCloudlet(t, mcClient, uri, tokenAd, ctrl.Region, org1, ccount)
-	testShowOrgCloudlet(t, mcClient, uri, tokenAd, ctrl.Region, org2, ccount)
-	testShowOrgCloudlet(t, mcClient, uri, tokenDev, ctrl.Region, org1, ccount)
-	testShowOrgCloudlet(t, mcClient, uri, tokenDev2, ctrl.Region, org2, ccount)
-	testShowOrgCloudlet(t, mcClient, uri, tokenOper, ctrl.Region, org3, ccount)
-	testShowOrgCloudlet(t, mcClient, uri, tokenOper2, ctrl.Region, org4, ccount)
+	testShowOrgCloudlet(t, mcClient, uri, tokenAd, OrgTypeAdmin, ctrl.Region, org1, ccount, "")
+	testShowOrgCloudlet(t, mcClient, uri, tokenAd, OrgTypeAdmin, ctrl.Region, org2, ccount, "")
+	testShowOrgCloudlet(t, mcClient, uri, tokenDev, OrgTypeDeveloper, ctrl.Region, org1, ccount, "")
+	testShowOrgCloudlet(t, mcClient, uri, tokenDev2, OrgTypeDeveloper, ctrl.Region, org2, ccount, "")
+	testShowOrgCloudlet(t, mcClient, uri, tokenOper, OrgTypeOperator, ctrl.Region, org3, ccount, "")
+	testShowOrgCloudlet(t, mcClient, uri, tokenOper2, OrgTypeOperator, ctrl.Region, org4, ccount, "")
+	// validate that only operator and admin user is able to see additional cloudlet details
+	testShowOrgCloudlet(t, mcClient, uri, tokenOper, OrgTypeOperator, ctrl.Region, org3, ccount, org3)
+	testShowOrgCloudlet(t, mcClient, uri, tokenDev, OrgTypeDeveloper, ctrl.Region, org1, ccount, org3)
+	testShowOrgCloudlet(t, mcClient, uri, tokenAd, OrgTypeAdmin, ctrl.Region, org3, ccount, org3)
 	// no permissions outside of own org for ShowOrgCloudlet
 	// (nothing to do with cloudlet pools, just checking API access)
 	badPermShowOrgCloudlet(t, mcClient, uri, tokenDev, ctrl.Region, org2)
@@ -318,22 +324,22 @@ func TestController(t *testing.T) {
 
 	// make sure operator cannot create apps, appinsts, clusters, etc
 	badPermTestApp(t, mcClient, uri, tokenOper, ctrl.Region, org1)
-	badPermTestShowApp(t, mcClient, uri, tokenOper, ctrl.Region, org1)
+	badPermShowApp(t, mcClient, uri, tokenOper, ctrl.Region, org1)
 
 	badPermTestAppInst(t, mcClient, uri, tokenOper, ctrl.Region, org1, tc3)
-	badPermTestShowAppInst(t, mcClient, uri, tokenOper, ctrl.Region, org1)
+	badPermShowAppInst(t, mcClient, uri, tokenOper, ctrl.Region, org1)
 
 	badPermTestClusterInst(t, mcClient, uri, tokenOper, ctrl.Region, org1, tc3)
-	badPermTestShowClusterInst(t, mcClient, uri, tokenOper, ctrl.Region, org1)
+	badPermShowClusterInst(t, mcClient, uri, tokenOper, ctrl.Region, org1)
 
 	badPermTestApp(t, mcClient, uri, tokenOper2, ctrl.Region, org1)
-	badPermTestShowApp(t, mcClient, uri, tokenOper2, ctrl.Region, org1)
+	badPermShowApp(t, mcClient, uri, tokenOper2, ctrl.Region, org1)
 
 	badPermTestAppInst(t, mcClient, uri, tokenOper2, ctrl.Region, org1, tc3)
-	badPermTestShowAppInst(t, mcClient, uri, tokenOper2, ctrl.Region, org1)
+	badPermShowAppInst(t, mcClient, uri, tokenOper2, ctrl.Region, org1)
 
 	badPermTestClusterInst(t, mcClient, uri, tokenOper2, ctrl.Region, org1, tc3)
-	badPermTestShowClusterInst(t, mcClient, uri, tokenOper2, ctrl.Region, org1)
+	badPermShowClusterInst(t, mcClient, uri, tokenOper2, ctrl.Region, org1)
 
 	// make sure developer cannot create cloudlet (but they can see all of them)
 	badPermTestCloudlet(t, mcClient, uri, tokenDev, ctrl.Region, org3)
@@ -431,9 +437,8 @@ func TestController(t *testing.T) {
 	require.Equal(t, http.StatusOK, status)
 	require.Equal(t, 0, len(poollist))
 	poollist, status, err = mcClient.ShowCloudletPool(uri, tokenDev, &pool)
-	require.Nil(t, err)
-	require.Equal(t, http.StatusOK, status)
-	require.Equal(t, 0, len(poollist))
+	require.NotNil(t, err)
+	require.Equal(t, http.StatusForbidden, status)
 
 	// associate cloudletpool with org, allows org1 to see cloudlets in pool
 	op1 := ormapi.OrgCloudletPool{
@@ -475,12 +480,12 @@ func TestController(t *testing.T) {
 	}
 
 	// tc3 should now be visible along with all other cloudlets
-	testShowOrgCloudlet(t, mcClient, uri, tokenDev, ctrl.Region, org1, ccount)
+	testShowOrgCloudlet(t, mcClient, uri, tokenDev, OrgTypeDeveloper, ctrl.Region, org1, ccount, "")
 	// tc3 should not be visible by other orgs
 	// (note count here is without tc3, except for org3 to which it belongs)
-	testShowOrgCloudlet(t, mcClient, uri, tokenDev2, ctrl.Region, org2, count)
-	testShowOrgCloudlet(t, mcClient, uri, tokenOper, ctrl.Region, org3, ccount)
-	testShowOrgCloudlet(t, mcClient, uri, tokenOper2, ctrl.Region, org4, count)
+	testShowOrgCloudlet(t, mcClient, uri, tokenDev2, OrgTypeDeveloper, ctrl.Region, org2, count, "")
+	testShowOrgCloudlet(t, mcClient, uri, tokenOper, OrgTypeOperator, ctrl.Region, org3, ccount, "")
+	testShowOrgCloudlet(t, mcClient, uri, tokenOper2, OrgTypeOperator, ctrl.Region, org4, count, "")
 
 	// tc3 should now be usable for org1
 	goodPermTestClusterInst(t, mcClient, uri, tokenDev, ctrl.Region, org1, tc3, dcnt)
@@ -761,7 +766,7 @@ func setClusterInstDev(dev string, insts []edgeproto.ClusterInst) {
 	}
 }
 
-func testShowOrgCloudlet(t *testing.T, mcClient *ormclient.Client, uri, token, region, org string, showcount int) {
+func testShowOrgCloudlet(t *testing.T, mcClient *ormclient.Client, uri, token, orgType, region, org string, showcount int, matchOrg string) {
 	oc := ormapi.OrgCloudlet{}
 	oc.Region = region
 	oc.Org = org
@@ -769,10 +774,32 @@ func testShowOrgCloudlet(t *testing.T, mcClient *ormclient.Client, uri, token, r
 	require.Nil(t, err, "show org cloudlet")
 	require.Equal(t, http.StatusOK, status)
 	require.Equal(t, showcount, len(list))
+	if matchOrg != "" {
+		for _, cl := range list {
+			if orgType == OrgTypeDeveloper && org == matchOrg {
+				require.Equal(t, len(cl.EnvVar), 0, "user is not authorized to see additional cloudlet details")
+				continue
+			}
+			if org == cl.Key.Organization {
+				require.Greater(t, len(cl.EnvVar), 0, "user is authorized to see additional cloudlet details")
+			}
+		}
+	}
 	infolist, infostatus, err := mcClient.ShowOrgCloudletInfo(uri, token, &oc)
 	require.Nil(t, err, "show org cloudletinfo")
 	require.Equal(t, http.StatusOK, infostatus)
 	require.Equal(t, showcount, len(infolist))
+	if matchOrg != "" {
+		for _, clInfo := range infolist {
+			if orgType == OrgTypeDeveloper && org == matchOrg {
+				require.Empty(t, clInfo.ContainerVersion, "user is not authorized to see additional cloudlet info details")
+				continue
+			}
+			if org == clInfo.Key.Organization {
+				require.NotEmpty(t, clInfo.ContainerVersion, "user is authorized to see additional cloudlet info details")
+			}
+		}
+	}
 }
 
 func badPermTestOrgCloudletPool(t *testing.T, mcClient *ormclient.Client, uri, token string, op *ormapi.OrgCloudletPool) {
@@ -1127,7 +1154,7 @@ func testUserApiKeys(t *testing.T, ctx context.Context, ds *testutil.DummyServer
 	// current apikey doesn't allow user to manage app resource
 	badPermTestApp(t, mcClient, uri, apiKeyLoginToken, ctrl.Region, operOrg.Name)
 	badPermTestAppInst(t, mcClient, uri, apiKeyLoginToken, ctrl.Region, operOrg.Name, &tc)
-	badPermTestShowAppInst(t, mcClient, uri, apiKeyLoginToken, ctrl.Region, operOrg.Name)
+	badPermShowAppInst(t, mcClient, uri, apiKeyLoginToken, ctrl.Region, operOrg.Name)
 	badPermTestClusterInst(t, mcClient, uri, apiKeyLoginToken, ctrl.Region, operOrg.Name, &tc)
 
 	// user should not be able to manage the resources it is not allowed to

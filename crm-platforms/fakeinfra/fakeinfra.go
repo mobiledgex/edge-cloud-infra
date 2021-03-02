@@ -10,6 +10,7 @@ import (
 
 	intprocess "github.com/mobiledgex/edge-cloud-infra/e2e-tests/int-process"
 	"github.com/mobiledgex/edge-cloud-infra/shepherd/shepherd_common"
+	"github.com/mobiledgex/edge-cloud-infra/version"
 	"github.com/mobiledgex/edge-cloud/cloud-resource-manager/platform"
 	pf "github.com/mobiledgex/edge-cloud/cloud-resource-manager/platform"
 	"github.com/mobiledgex/edge-cloud/cloud-resource-manager/platform/fake"
@@ -25,13 +26,13 @@ type Platform struct {
 	mux    sync.Mutex
 }
 
-func (s *Platform) GetType() string {
-	return "fakeinfra"
-}
-
 func (s *Platform) Init(ctx context.Context, platformConfig *platform.PlatformConfig, caches *platform.Caches, updateCallback edgeproto.CacheUpdateCallback) error {
 	s.envoys = make(map[edgeproto.AppInstKey]*exec.Cmd)
 	return s.Platform.Init(ctx, platformConfig, caches, updateCallback)
+}
+
+func (s *Platform) IsCloudletServicesLocal() bool {
+	return s.Platform.IsCloudletServicesLocal()
 }
 
 func (s *Platform) CreateCloudlet(ctx context.Context, cloudlet *edgeproto.Cloudlet, pfConfig *edgeproto.PlatformConfig, flavor *edgeproto.Flavor, caches *pf.Caches, accessApi platform.AccessApi, updateCallback edgeproto.CacheUpdateCallback) error {
@@ -137,4 +138,8 @@ func (s *Platform) DeleteAppInst(ctx context.Context, clusterInst *edgeproto.Clu
 
 func (s *Platform) GetCloudletProps(ctx context.Context) (*edgeproto.CloudletProps, error) {
 	return s.Platform.GetCloudletProps(ctx)
+}
+
+func (s *Platform) GetVersionProperties() map[string]string {
+	return version.InfraBuildProps("FakeInfra")
 }

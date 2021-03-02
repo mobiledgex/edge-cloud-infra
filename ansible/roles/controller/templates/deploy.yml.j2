@@ -42,7 +42,7 @@ spec:
          - "{{ edgeturn_fqdn }}:6080"
          - "--vaultAddr"
          - "https://{{ vault_vm_hostname }}:{{ vault_port }}"
-         - "--useVaultCerts"
+         - "--useVaultPki"
          - "--influxAddr"
          - "https://{{ influxdb_dns }}.{{ cloudflare_zone }}:8086"
          - "--registryFQDN"

@@ -20,6 +20,7 @@ import (
 	"github.com/mobiledgex/edge-cloud-infra/shepherd/shepherd_platform/shepherd_edgebox"
 	"github.com/mobiledgex/edge-cloud-infra/shepherd/shepherd_platform/shepherd_fake"
 	"github.com/mobiledgex/edge-cloud-infra/shepherd/shepherd_platform/shepherd_vmprovider"
+	"github.com/mobiledgex/edge-cloud-infra/version"
 	"github.com/mobiledgex/edge-cloud-infra/vmlayer"
 	"github.com/mobiledgex/edge-cloud/cloud-resource-manager/accessapi"
 	"github.com/mobiledgex/edge-cloud/cloud-resource-manager/k8smgmt"
@@ -273,13 +274,14 @@ func cloudletCb(ctx context.Context, old *edgeproto.Cloudlet, new *edgeproto.Clo
 func getPlatform() (platform.Platform, error) {
 	var plat platform.Platform
 	var err error
+	pfType := pf.GetType(*platformName)
 	switch *platformName {
 	case "PLATFORM_TYPE_EDGEBOX":
 		plat = &shepherd_edgebox.Platform{}
 	case "PLATFORM_TYPE_OPENSTACK":
 		osProvider := openstack.OpenstackPlatform{}
 		vmPlatform := vmlayer.VMPlatform{
-			Type:       vmlayer.VMProviderOpenstack,
+			Type:       pfType,
 			VMProvider: &osProvider,
 		}
 		plat = &shepherd_vmprovider.ShepherdPlatform{
@@ -288,7 +290,7 @@ func getPlatform() (platform.Platform, error) {
 	case "PLATFORM_TYPE_VSPHERE":
 		vsphereProvider := vsphere.VSpherePlatform{}
 		vmPlatform := vmlayer.VMPlatform{
-			Type:       vmlayer.VMProviderVSphere,
+			Type:       pfType,
 			VMProvider: &vsphereProvider,
 		}
 		plat = &shepherd_vmprovider.ShepherdPlatform{
@@ -297,7 +299,7 @@ func getPlatform() (platform.Platform, error) {
 	case "PLATFORM_TYPE_VCD":
 		vcdProvider := vcd.VcdPlatform{}
 		vmPlatform := vmlayer.VMPlatform{
-			Type:       vmlayer.VMProviderVCD,
+			Type:       pfType,
 			VMProvider: &vcdProvider,
 		}
 		plat = &shepherd_vmprovider.ShepherdPlatform{
@@ -306,7 +308,7 @@ func getPlatform() (platform.Platform, error) {
 	case "PLATFORM_TYPE_AWS_EC2":
 		awsEc2Provider := awsec2.AwsEc2Platform{}
 		vmPlatform := vmlayer.VMPlatform{
-			Type:       vmlayer.VMProviderAwsEc2,
+			Type:       pfType,
 			VMProvider: &awsEc2Provider,
 		}
 		plat = &shepherd_vmprovider.ShepherdPlatform{
@@ -315,7 +317,7 @@ func getPlatform() (platform.Platform, error) {
 	case "PLATFORM_TYPE_VM_POOL":
 		vmpoolProvider := vmpool.VMPoolPlatform{}
 		vmPlatform := vmlayer.VMPlatform{
-			Type:       vmlayer.VMProviderVMPool,
+			Type:       pfType,
 			VMProvider: &vmpoolProvider,
 		}
 		plat = &shepherd_vmprovider.ShepherdPlatform{
@@ -356,6 +358,7 @@ func start() {
 		log.FatalLog(err.Error())
 	}
 	defer span.Finish()
+	nodeMgr.UpdateNodeProps(ctx, version.InfraBuildProps("Infra"))
 
 	if !nodeMgr.AccessKeyClient.IsEnabled() {
 		log.FatalLog("access key client is not enabled")
@@ -497,7 +500,7 @@ func start() {
 	vmAppWorkerMap = make(map[string]*AppInstWorker)
 	// LB metrics are not supported in fake mode
 	InitProxyScraper()
-	if myPlatform.GetType() != "fake" {
+	if pf.GetType(*platformName) != "fake" {
 		StartProxyScraper(stopCh)
 	}
 	InitPlatformMetrics(stopCh)

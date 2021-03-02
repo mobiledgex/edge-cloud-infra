@@ -24,6 +24,7 @@ type EdgeboxPlatform struct {
 	generic       dind.Platform
 	NetworkScheme string
 	commonPf      infracommon.CommonPlatform
+	infracommon.CommonEmbedded
 }
 
 var edgeboxProps = map[string]*edgeproto.PropertyInfo{
@@ -32,10 +33,6 @@ var edgeboxProps = map[string]*edgeproto.PropertyInfo{
 		Description: vmlayer.GetSupportedSchemesStr(),
 		Value:       cloudcommon.NetworkSchemePrivateIP,
 	},
-}
-
-func (e *EdgeboxPlatform) GetType() string {
-	return "edgebox"
 }
 
 func (e *EdgeboxPlatform) Init(ctx context.Context, platformConfig *platform.PlatformConfig, caches *platform.Caches, updateCallback edgeproto.CacheUpdateCallback) error {

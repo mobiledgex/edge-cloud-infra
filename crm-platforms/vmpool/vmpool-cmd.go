@@ -33,7 +33,7 @@ func (s *VMPoolPlatform) GetFlavorList(ctx context.Context) ([]*edgeproto.Flavor
 	if accessIP == "" {
 		return nil, fmt.Errorf("At least one VM should have access to external network")
 	}
-	accessClient, err := s.VMProperties.GetSSHClientFromIPAddr(ctx, accessIP)
+	accessClient, err := s.VMProperties.CommonPf.GetSSHClientFromIPAddr(ctx, accessIP)
 	if err != nil {
 		return nil, fmt.Errorf("can't get ssh client for %s, %v", accessIP, err)
 	}
@@ -48,12 +48,11 @@ func (s *VMPoolPlatform) GetFlavorList(ctx context.Context) ([]*edgeproto.Flavor
 	for _, vm := range s.caches.VMPool.Vms {
 		var client ssh.Client
 		if vm.NetInfo.ExternalIp != "" {
-			client, err = s.VMProperties.GetSSHClientFromIPAddr(ctx, vm.NetInfo.ExternalIp)
+			client, err = s.VMProperties.CommonPf.GetSSHClientFromIPAddr(ctx, vm.NetInfo.ExternalIp)
 			if err != nil {
 				return nil, fmt.Errorf("failed to verify vm %s, can't get ssh client for %s, %v", vm.Name, vm.NetInfo.ExternalIp, err)
 			}
 		} else if vm.NetInfo.InternalIp != "" {
-
 			client, err = accessClient.AddHop(vm.NetInfo.InternalIp, 22)
 			if err != nil {
 				return nil, fmt.Errorf("failed to verify vm %s, can't get ssh client for %s, %v", vm.Name, vm.NetInfo.InternalIp, err)

@@ -20,6 +20,7 @@ import (
 	"github.com/mobiledgex/edge-cloud-infra/mc/orm/alertmgr"
 	"github.com/mobiledgex/edge-cloud-infra/mc/ormapi"
 	"github.com/mobiledgex/edge-cloud-infra/mc/rbac"
+	"github.com/mobiledgex/edge-cloud-infra/version"
 	"github.com/mobiledgex/edge-cloud/cloudcommon"
 	"github.com/mobiledgex/edge-cloud/cloudcommon/node"
 	edgeproto "github.com/mobiledgex/edge-cloud/edgeproto"
@@ -28,7 +29,6 @@ import (
 	"github.com/mobiledgex/edge-cloud/notify"
 	edgetls "github.com/mobiledgex/edge-cloud/tls"
 	"github.com/mobiledgex/edge-cloud/vault"
-	"github.com/mobiledgex/edge-cloud/version"
 	"github.com/nmcclain/ldap"
 	gitlab "github.com/xanzy/go-gitlab"
 	"google.golang.org/grpc/status"
@@ -148,6 +148,7 @@ func RunServer(config *ServerConfig) (retserver *Server, reterr error) {
 			server.Stop()
 		}
 	}()
+	nodeMgr.UpdateNodeProps(ctx, version.InfraBuildProps("Infra"))
 
 	if config.LocalVault {
 		vaultProc := process.Vault{
@@ -532,6 +533,18 @@ func RunServer(config *ServerConfig) (retserver *Server, reterr error) {
 	//   404: notFound
 	auth.POST("/metrics/cloudlet", GetMetricsCommon)
 
+	// swagger:route POST /auth/metrics/cloudlet/usage OperatorMetrics CloudletUsageMetrics
+	// Cloudlet usage related metrics.
+	// Display cloudlet usage related metrics.
+	// Security:
+	//   Bearer:
+	// responses:
+	//   200: success
+	//   400: badRequest
+	//   403: forbidden
+	//   404: notFound
+	auth.POST("/metrics/cloudlet/usage", GetMetricsCommon)
+
 	// swagger:route POST /auth/metrics/client DeveloperMetrics ClientMetrics
 	// Client related metrics.
 	// Display client related metrics.
@@ -582,6 +595,10 @@ func RunServer(config *ServerConfig) (retserver *Server, reterr error) {
 	//   403: forbidden
 	//   404: notFound
 	auth.POST("/events/terms", EventTerms)
+
+	auth.POST("/spans/terms", SpanTerms)
+	auth.POST("/spans/show", ShowSpans)
+	auth.POST("/spans/showverbose", ShowSpansVerbose)
 
 	// swagger:route POST /auth/usage/app DeveloperUsage AppUsage
 	// App Usage
@@ -661,6 +678,7 @@ func RunServer(config *ServerConfig) (retserver *Server, reterr error) {
 	ws.GET("/metrics/app", GetMetricsCommon)
 	ws.GET("/metrics/cluster", GetMetricsCommon)
 	ws.GET("/metrics/cloudlet", GetMetricsCommon)
+	ws.GET("/metrics/cloudlet/usage", GetMetricsCommon)
 	ws.GET("/metrics/client", GetMetricsCommon)
 
 	if config.NotifySrvAddr != "" {

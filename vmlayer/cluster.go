@@ -11,7 +11,7 @@ import (
 	"github.com/mobiledgex/edge-cloud-infra/chefmgmt"
 	"github.com/mobiledgex/edge-cloud-infra/infracommon"
 	"github.com/mobiledgex/edge-cloud/cloud-resource-manager/k8smgmt"
-	"github.com/mobiledgex/edge-cloud/cloud-resource-manager/proxy"
+	proxycerts "github.com/mobiledgex/edge-cloud/cloud-resource-manager/proxy/certs"
 	"github.com/mobiledgex/edge-cloud/cloudcommon"
 	"github.com/mobiledgex/edge-cloud/edgeproto"
 	"github.com/mobiledgex/edge-cloud/log"
@@ -262,7 +262,7 @@ func (v *VMPlatform) deleteCluster(ctx context.Context, rootLBName string, clust
 	}
 
 	if dedicatedRootLB {
-		proxy.RemoveDedicatedLB(ctx, rootLBName)
+		proxycerts.RemoveDedicatedLB(ctx, rootLBName)
 		DeleteServerIpFromCache(ctx, rootLBName)
 	}
 	return nil
@@ -354,7 +354,7 @@ func (v *VMPlatform) setupClusterRootLBAndNodes(ctx context.Context, rootLBName 
 			if clusterInst.IpAccess == edgeproto.IpAccess_IP_ACCESS_DEDICATED && v.VMProvider.GetInternalPortPolicy() == AttachPortDuringCreate {
 				attachPort = false
 			}
-			err = v.AttachAndEnableRootLBInterface(ctx, client, rootLBName, attachPort, subnetName, GetPortName(rootLBName, subnetName), gw)
+			_, err = v.AttachAndEnableRootLBInterface(ctx, client, rootLBName, attachPort, subnetName, GetPortName(rootLBName, subnetName), gw)
 			if err != nil {
 				log.SpanLog(ctx, log.DebugLevelInfra, "AttachAndEnableRootLBInterface failed", "err", err)
 				return err
@@ -382,17 +382,19 @@ func (v *VMPlatform) setupClusterRootLBAndNodes(ctx context.Context, rootLBName 
 		// subtract elapsed time from total time to get remaining time
 		timeout -= elapsed
 		updateCallback(edgeproto.UpdateTask, "Waiting for Cluster to Initialize")
+		k8sTime := time.Now()
 		err := v.waitClusterReady(ctx, clusterInst, rootLBName, updateCallback, timeout)
 		if err != nil {
 			return err
 		}
+		updateCallback(edgeproto.UpdateTask, fmt.Sprintf("Wait Cluster Complete time: %s", infracommon.FormatDuration(time.Since(k8sTime), 2)))
 		updateCallback(edgeproto.UpdateTask, "Creating config map")
 		if err := infracommon.CreateClusterConfigMap(ctx, client, clusterInst); err != nil {
 			return err
 		}
 	}
 	if clusterInst.IpAccess == edgeproto.IpAccess_IP_ACCESS_DEDICATED {
-		proxy.NewDedicatedLB(ctx, &clusterInst.Key.CloudletKey, rootLBName, client, v.VMProperties.CommonPf.PlatformConfig.NodeMgr)
+		proxycerts.NewDedicatedLB(ctx, &clusterInst.Key.CloudletKey, rootLBName, client, v.VMProperties.CommonPf.PlatformConfig.NodeMgr)
 	}
 	log.SpanLog(ctx, log.DebugLevelInfra, "created cluster")
 	return nil

@@ -21,10 +21,6 @@ type VMPoolPlatform struct {
 	FlavorList   []*edgeproto.FlavorInfo
 }
 
-func (o *VMPoolPlatform) GetType() string {
-	return "vmpool"
-}
-
 func (o *VMPoolPlatform) SetVMProperties(vmProperties *vmlayer.VMProperties) {
 	o.VMProperties = vmProperties
 }
@@ -105,7 +101,7 @@ func (o *VMPoolPlatform) GetResourceID(ctx context.Context, resourceType vmlayer
 	return "", fmt.Errorf("GetResourceID not implemented for resource type: %s ", resourceType)
 }
 
-func (o *VMPoolPlatform) PrepareRootLB(ctx context.Context, client ssh.Client, rootLBName string, secGrpName string, TrustPolicy *edgeproto.TrustPolicy) error {
+func (o *VMPoolPlatform) PrepareRootLB(ctx context.Context, client ssh.Client, rootLBName string, secGrpName string, TrustPolicy *edgeproto.TrustPolicy, updateCallback edgeproto.CacheUpdateCallback) error {
 	// nothing to do
 	return nil
 }

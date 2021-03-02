@@ -53,7 +53,7 @@ regiondata:
       shepherdalertevaluationinterval: 1s
       shepherdhealthcheckretries: 3
       shepherdhealthcheckinterval: 5s
-      autodeployintervalsec: 1
+      autodeployintervalsec: 300
       autodeployoffsetsec: 0.3
       autodeploymaxintervals: 10
       createappinsttimeout: 3s
@@ -63,7 +63,7 @@ regiondata:
       updateclusterinsttimeout: 2s
       deleteclusterinsttimeout: 2s
       updatetrustpolicytimeout: 5s
-      masternodeflavor: x1.tiny
+      masternodeflavor: x1.small
       loadbalancermaxportrange: 100
       maxtrackeddmeclients: 100
       chefclientinterval: 10m
@@ -73,6 +73,7 @@ regiondata:
       persistentconnectionmetricscollectioninterval: 1s
       influxdbmetricsretention: 672h0m0s
       cleanupreservableautoclusteridletime: 30m
+      influxdbcloudletusagemetricsretention: 8760h0m0s
     flavors:
     - key:
         name: x1.tiny
@@ -97,7 +98,7 @@ regiondata:
       shepherdalertevaluationinterval: 1s
       shepherdhealthcheckretries: 3
       shepherdhealthcheckinterval: 5s
-      autodeployintervalsec: 1
+      autodeployintervalsec: 300
       autodeployoffsetsec: 0.3
       autodeploymaxintervals: 10
       createappinsttimeout: 3s
@@ -107,7 +108,7 @@ regiondata:
       updateclusterinsttimeout: 2s
       deleteclusterinsttimeout: 2s
       updatetrustpolicytimeout: 5s
-      masternodeflavor: x1.tiny
+      masternodeflavor: x1.small
       loadbalancermaxportrange: 100
       maxtrackeddmeclients: 100
       chefclientinterval: 10m
@@ -117,6 +118,7 @@ regiondata:
       persistentconnectionmetricscollectioninterval: 1s
       influxdbmetricsretention: 672h0m0s
       cleanupreservableautoclusteridletime: 30m
+      influxdbcloudletusagemetricsretention: 8760h0m0s
     flavors:
     - key:
         name: x1.tiny

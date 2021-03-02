@@ -1,0 +1,162 @@
+- labels:
+    alertname: CloudletResourceUsage
+    cloudlet: tmus-cloud-1
+    cloudletorg: tmus
+    scope: Cloudlet
+    warning: '[Infra] More than 50% of RAM is used'
+  annotations:
+    description: '[Infra] More than 50% of RAM is used'
+    title: CloudletResourceUsage
+  state: firing
+  activeat:
+    seconds: 1613579362
+    nanos: 835049000
+- labels:
+    alertname: CloudletResourceUsage
+    cloudlet: azure-cloud-4
+    cloudletorg: azure
+    scope: Cloudlet
+    warning: '[Quota] Expected RAM available to be 23552MB, but only 20480MB is available'
+  annotations:
+    description: '[Quota] Expected RAM available to be 23552MB, but only 20480MB is
+      available'
+    title: CloudletResourceUsage
+  state: firing
+  activeat:
+    seconds: 1613579294
+    nanos: 291881000
+- labels:
+    alertname: CloudletResourceUsage
+    cloudlet: azure-cloud-4
+    cloudletorg: azure
+    scope: Cloudlet
+    warning: '[Quota] Expected vCPUs available to be 41, but only 40 is available'
+  annotations:
+    description: '[Quota] Expected vCPUs available to be 41, but only 40 is available'
+    title: CloudletResourceUsage
+  state: firing
+  activeat:
+    seconds: 1613579294
+    nanos: 291884000
+- labels:
+    alertname: CloudletResourceUsage
+    cloudlet: azure-cloud-4
+    cloudletorg: azure
+    scope: Cloudlet
+    warning: '[Quota] Expected Disk available to be 4820GB, but only 4800GB is available'
+  annotations:
+    description: '[Quota] Expected Disk available to be 4820GB, but only 4800GB is
+      available'
+    title: CloudletResourceUsage
+  state: firing
+  activeat:
+    seconds: 1613579294
+    nanos: 291885000
+- labels:
+    alertname: CloudletResourceUsage
+    cloudlet: gcp-cloud-5
+    cloudletorg: gcp
+    scope: Cloudlet
+    warning: '[Quota] Expected Disk available to be 4820GB, but only 4800GB is available'
+  annotations:
+    description: '[Quota] Expected Disk available to be 4820GB, but only 4800GB is
+      available'
+    title: CloudletResourceUsage
+  state: firing
+  activeat:
+    seconds: 1613579294
+    nanos: 761434000
+- labels:
+    alertname: CloudletResourceUsage
+    cloudlet: enterprise-1
+    cloudletorg: enterprise
+    scope: Cloudlet
+    warning: '[Quota] Expected vCPUs available to be 41, but only 40 is available'
+  annotations:
+    description: '[Quota] Expected vCPUs available to be 41, but only 40 is available'
+    title: CloudletResourceUsage
+  state: firing
+  activeat:
+    seconds: 1613579295
+    nanos: 378140000
+- labels:
+    alertname: CloudletResourceUsage
+    cloudlet: tmus-cloud-1
+    cloudletorg: tmus
+    scope: Cloudlet
+    warning: More than 50% of RAM is used
+  annotations:
+    description: More than 50% of RAM is used
+    title: CloudletResourceUsage
+  state: firing
+  activeat:
+    seconds: 1613579362
+    nanos: 835044000
+- labels:
+    alertname: CloudletResourceUsage
+    cloudlet: tmus-cloud-1
+    cloudletorg: tmus
+    scope: Cloudlet
+    warning: More than 50% of vCPUs is used
+  annotations:
+    description: More than 50% of vCPUs is used
+    title: CloudletResourceUsage
+  state: firing
+  activeat:
+    seconds: 1613579362
+    nanos: 835047000
+- labels:
+    alertname: CloudletResourceUsage
+    cloudlet: gcp-cloud-5
+    cloudletorg: gcp
+    scope: Cloudlet
+    warning: '[Quota] Expected vCPUs available to be 41, but only 40 is available'
+  annotations:
+    description: '[Quota] Expected vCPUs available to be 41, but only 40 is available'
+    title: CloudletResourceUsage
+  state: firing
+  activeat:
+    seconds: 1613579294
+    nanos: 761431000
+- labels:
+    alertname: CloudletResourceUsage
+    cloudlet: enterprise-1
+    cloudletorg: enterprise
+    scope: Cloudlet
+    warning: '[Quota] Expected RAM available to be 23552MB, but only 20480MB is available'
+  annotations:
+    description: '[Quota] Expected RAM available to be 23552MB, but only 20480MB is
+      available'
+    title: CloudletResourceUsage
+  state: firing
+  activeat:
+    seconds: 1613579295
+    nanos: 378138000
+- labels:
+    alertname: CloudletResourceUsage
+    cloudlet: gcp-cloud-5
+    cloudletorg: gcp
+    scope: Cloudlet
+    warning: '[Quota] Expected RAM available to be 23552MB, but only 20480MB is available'
+  annotations:
+    description: '[Quota] Expected RAM available to be 23552MB, but only 20480MB is
+      available'
+    title: CloudletResourceUsage
+  state: firing
+  activeat:
+    seconds: 1613579294
+    nanos: 761437000
+- labels:
+    alertname: CloudletResourceUsage
+    cloudlet: enterprise-1
+    cloudletorg: enterprise
+    scope: Cloudlet
+    warning: '[Quota] Expected Disk available to be 4820GB, but only 4800GB is available'
+  annotations:
+    description: '[Quota] Expected Disk available to be 4820GB, but only 4800GB is
+      available'
+    title: CloudletResourceUsage
+  state: firing
+  activeat:
+    seconds: 1613579295
+    nanos: 378135000

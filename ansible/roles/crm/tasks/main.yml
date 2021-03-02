@@ -59,7 +59,7 @@
       - "{{ item.controller_region }}"
       - "--vaultAddr"
       - "https://{{ vault_vm_hostname }}:{{ vault_port }}"
-      - "--useVaultCerts"
+      - "--useVaultPki"
       - "--notifyAddrs"
       - "{{ controller_name }}.ctrl.{{ cloudflare_zone }}:37001"
       - "--deploymentTag"

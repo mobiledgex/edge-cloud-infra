@@ -26,6 +26,8 @@ class Chef
       # Hash of:
       #   Key = arg name
       #   Value = arg type (false means flag type)
+      # NOTE:
+      #   Please update chef/cookbooks/setup_services/attributes/default.rb, if argsmap is updated below
       argsmap = {
         "cloudletKey" => true,
         "notifyAddrs" => true,
@@ -41,8 +43,7 @@ class Chef
         "vmImageVersion" => true,
         "containerVersion" => true,
         "commercialCerts" => false,
-        "useVaultCAs" => false,
-        "useVaultCerts" => false,
+        "useVaultPki" => false,
         "chefServerPath" => true,
         "deploymentTag" => true,
         "upgrade" => false,
@@ -57,6 +58,8 @@ class Chef
       # Hash of:
       #   Key = arg name
       #   Value = arg type (false means flag type)
+      # NOTE:
+      #   Please update chef/cookbooks/setup_services/attributes/default.rb, if argsmap is updated below
       argsmap = {
         "cloudletKey" => true,
         "notifyAddrs" => true,
@@ -67,8 +70,7 @@ class Chef
         "region" => true,
         "span" => true,
         "d" => true,
-        "useVaultCAs" => false,
-        "useVaultCerts" => false,
+        "useVaultPki" => false,
         "chefServerPath" => true,
         "deploymentTag" => true,
         "accessKeyFile" => true,

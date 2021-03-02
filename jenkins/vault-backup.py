@@ -11,7 +11,7 @@ import re
 import requests
 import subprocess
 
-ARTIFACTORY = "https://artifactory.mobiledgex.net"
+ARTIFACTORY = "https://artifactory.mobiledgex.net/artifactory"
 ARTIFACTORY_REPO = "vault-backup"
 SNAPSHOT_ROLE = "snapshot.v1"
 

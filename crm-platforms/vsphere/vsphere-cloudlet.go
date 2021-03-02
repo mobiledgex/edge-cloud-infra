@@ -42,7 +42,7 @@ func (v *VSpherePlatform) CreateImageFromUrl(ctx context.Context, imageName, ima
 		}
 	}()
 
-	vmdkFile, err := v.ConvertQcowToVmdk(ctx, filePath, vmlayer.MINIMUM_DISK_SIZE)
+	vmdkFile, err := vmlayer.ConvertQcowToVmdk(ctx, filePath, vmlayer.MINIMUM_DISK_SIZE)
 	if err != nil {
 		return err
 	}
@@ -208,5 +208,22 @@ func (v *VSpherePlatform) GetCloudletManifest(ctx context.Context, name string, 
 }
 
 func (s *VSpherePlatform) VerifyVMs(ctx context.Context, vms []edgeproto.VM) error {
+	return nil
+}
+
+func (s *VSpherePlatform) GetCloudletInfraResourcesInfo(ctx context.Context) ([]edgeproto.InfraResource, error) {
+	return []edgeproto.InfraResource{}, nil
+}
+
+func (s *VSpherePlatform) GetCloudletResourceQuotaProps(ctx context.Context) (*edgeproto.CloudletResourceQuotaProps, error) {
+	return &edgeproto.CloudletResourceQuotaProps{}, nil
+}
+
+func (s *VSpherePlatform) GetClusterAdditionalResources(ctx context.Context, cloudlet *edgeproto.Cloudlet, vmResources []edgeproto.VMResource, infraResMap map[string]edgeproto.InfraResource) map[string]edgeproto.InfraResource {
+	resInfo := make(map[string]edgeproto.InfraResource)
+	return resInfo
+}
+
+func (s *VSpherePlatform) GetClusterAdditionalResourceMetric(ctx context.Context, cloudlet *edgeproto.Cloudlet, resMetric *edgeproto.Metric, resources []edgeproto.VMResource) error {
 	return nil
 }

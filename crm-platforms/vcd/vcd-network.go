@@ -6,8 +6,10 @@ import (
 	"net"
 	"strconv"
 	"strings"
+	"sync"
 
 	"github.com/mobiledgex/edge-cloud-infra/vmlayer"
+	"github.com/mobiledgex/edge-cloud/edgeproto"
 	"github.com/mobiledgex/edge-cloud/log"
 	"github.com/vmware/go-vcloud-director/v2/govcd"
 	"github.com/vmware/go-vcloud-director/v2/types/v56"
@@ -108,9 +110,35 @@ func (v *VcdPlatform) haveSharedRootLB(ctx context.Context, vmgp vmlayer.VMGroup
 
 }
 
-func (v *VcdPlatform) AddPortsToVapp(ctx context.Context, vapp *govcd.VApp, vmgp vmlayer.VMGroupOrchestrationParams, vcdClient *govcd.VCDClient) (string, error) {
+var netLock sync.Mutex
+
+func (v *VcdPlatform) createNextSharedLBSubnet(ctx context.Context, vapp *govcd.VApp, port vmlayer.PortOrchestrationParams, updateCallback edgeproto.CacheUpdateCallback, vcdClient *govcd.VCDClient) (string, error) {
+	// shared lbs need individual orgvcd isolated networks, must be unique.
+	// take the lock that is released after the network has been added to the sharedLB's VApp
+	log.SpanLog(ctx, log.DebugLevelInfra, "createNextSharedLBSubnet", "vapp", vapp.VApp.Name)
+
+	netLock.Lock()
+	defer netLock.Unlock()
+
+	subnet, err := v.GetNextInternalSubnet(ctx, vapp.VApp.Name, updateCallback, vcdClient)
+	if err != nil {
+		log.SpanLog(ctx, log.DebugLevelInfra, "createNextSharedLBSubnet  SharedLB GetNextInternalSubnet failed", "vapp", vapp.VApp.Name, "port.NetowkrNamek", port.NetworkName, "error", err)
+		return "", err
+	}
+	log.SpanLog(ctx, log.DebugLevelInfra, "createNextSharedLBSubnetSharedLB", "vapp", vapp.VApp.Name, "port.NetowkrName", port.NetworkName, "port.SubnetId", port.SubnetId, "IP subnet", subnet)
+	// OrgVDCNetwork LinkType = 2 (isolated)
+	// This seems to be an admin priv operation if using  nsx-t back network pool xxx
+	err = v.CreateIsoVdcNetwork(ctx, vapp, port.SubnetId, subnet, vcdClient)
+	if err != nil {
+		log.SpanLog(ctx, log.DebugLevelInfra, "createNextSharedLBSubnet  create iso orgvdc internal net failed", "err", err)
+		return "", err
+	}
+	return subnet, nil
+}
+
+func (v *VcdPlatform) AddPortsToVapp(ctx context.Context, vapp *govcd.VApp, vmgp vmlayer.VMGroupOrchestrationParams, updateCallback edgeproto.CacheUpdateCallback, vcdClient *govcd.VCDClient) (string, error) {
 	ports := vmgp.Ports
-	nextCidr := ""
+	subnet := ""
 	numPorts := len(ports)
 	vmparams := vmgp.VMs[0]
 	serverName := vmparams.Name
@@ -125,7 +153,7 @@ func (v *VcdPlatform) AddPortsToVapp(ctx context.Context, vapp *govcd.VApp, vmgp
 
 			desiredNetConfig := &types.NetworkConnectionSection{}
 			desiredNetConfig.PrimaryNetworkConnectionIndex = 1
-			conIdx := 1 // GetNextAvailConIdx xxx
+			conIdx := 1
 			log.SpanLog(ctx, log.DebugLevelInfra, "AddPortsToVapp adding external vapp net", "PortNum", n, "vapp", vapp.VApp.Name, "port.NetworkName", port.NetworkName, "ConIdx", conIdx)
 			_, err := v.AddVappNetwork(ctx, vapp, vcdClient)
 
@@ -153,32 +181,23 @@ func (v *VcdPlatform) AddPortsToVapp(ctx context.Context, vapp *govcd.VApp, vmgp
 		// Create isolated subnet for this vapp/clusterInst Vapp net for Dedicated, or OrgVDCNetwork for Shared LB
 		if port.NetworkType == vmlayer.NetTypeInternal && !intAdded {
 			var err error
-			nextCidr, err = v.GetNextInternalSubnet(ctx, vapp.VApp.Name, vcdClient)
-			if err != nil {
-				log.SpanLog(ctx, log.DebugLevelInfra, "AddVMsToVApp next internal net failed: ", "GroupName", vmgp.GroupName, "err", err)
-				return "", err
-			}
-			if nextCidr == "" {
-				log.SpanLog(ctx, log.DebugLevelInfra, "AddVMsToVApp next internal net cid == ", "Vapp", vapp.VApp.Name, "Port.Network", port.NetworkName, "PortNum", n)
-				return "", fmt.Errorf("next available subnet not found")
-
-			}
+			log.SpanLog(ctx, log.DebugLevelInfra, "AddPortsToVapp adding internal vapp net", "PortNum", n, "vapp", vapp.VApp.Name, "port.NetowkName", port.SubnetId, "port.SubnetId", port.SubnetId)
+			// We've fenced our VApp isolated networks, so they can all use the same subnet
+			subnet = "10.101.1.1"
 			if v.Verbose {
-				log.SpanLog(ctx, log.DebugLevelInfra, "AddPortsToVapp adding internal vapp net", "PortNum", n, "vapp", vapp.VApp.Name, "port.NetowkrNamek", port.NetworkName, "IP subnet", nextCidr)
+				log.SpanLog(ctx, log.DebugLevelInfra, "AddPortsToVapp adding internal vapp net", "PortNum", n, "vapp", vapp.VApp.Name, "port.NetowkrNamek", port.NetworkName, "IP subnet", subnet)
 			}
 			if v.haveSharedRootLB(ctx, vmgp) {
-				log.SpanLog(ctx, log.DebugLevelInfra, "AddPortsToVapp for SharedLB", "PortNum", n, "vapp", vapp.VApp.Name, "port.NetowkrNamek", port.NetworkName, "IP subnet", nextCidr)
-				// OrgVDCNetwork LinkType = 2 (isolated)
-				// This seems to be an admin priv operation if using  nsx-t back network pool xxx
-				err = v.CreateIsoVdcNetwork(ctx, vapp, port.SubnetId, nextCidr, vcdClient)
+				log.SpanLog(ctx, log.DebugLevelInfra, "AddPortsToVapp adding internal vapp net for SharedLB", "vapp", vapp.VApp.Name)
+				subnet, err = v.createNextSharedLBSubnet(ctx, vapp, port, updateCallback, vcdClient)
 				if err != nil {
-					log.SpanLog(ctx, log.DebugLevelInfra, "AddPortsToVapp create iso orgvdc internal net failed", "err", err)
+					log.SpanLog(ctx, log.DebugLevelInfra, "AddPortsToVapp createNextShareRootLBSubnet failed", "vapp", vapp.VApp.Name, "error", err)
 					return "", err
 				}
-
-				log.SpanLog(ctx, log.DebugLevelInfra, "AddPortsToVapp created iso vdcnet for SharedLB", "network", port.SubnetId, "vapp", vapp.VApp.Name)
+				log.SpanLog(ctx, log.DebugLevelInfra, "AddPortsToVapp created iso vdcnet for SharedLB", "network", port.SubnetId, "vapp", vapp.VApp.Name, "IP subnet", subnet)
 			} else {
-				_, err = v.CreateInternalNetworkForNewVm(ctx, vapp, serverName, port.SubnetId, nextCidr)
+				log.SpanLog(ctx, log.DebugLevelInfra, "AddPortsToVapp adding internal vapp net non-shared", "vapp", vapp.VApp.Name)
+				_, err = v.CreateInternalNetworkForNewVm(ctx, vapp, serverName, port.SubnetId, subnet)
 				if err != nil {
 					log.SpanLog(ctx, log.DebugLevelInfra, "create internal net failed", "err", err)
 					return "", err
@@ -191,9 +210,9 @@ func (v *VcdPlatform) AddPortsToVapp(ctx context.Context, vapp *govcd.VApp, vmgp
 		}
 	}
 	if v.Verbose {
-		log.SpanLog(ctx, log.DebugLevelInfra, "AddPortsToVapp return", "NextCidr", nextCidr, "NumPorts", numPorts)
+		log.SpanLog(ctx, log.DebugLevelInfra, "AddPortsToVapp return", "NextCidr", subnet, "NumPorts", numPorts)
 	}
-	return nextCidr, nil
+	return subnet, nil
 }
 
 // AttachPortToServer
@@ -412,16 +431,22 @@ func MaskToCidr(addr string) (string, error) {
 
 const MaxSubnetsPerSharedLB = 254
 
-// Pretty sure vcd would fail before hitting this limit.
 func GetNextAvailConIdx(ctx context.Context, ncs *types.NetworkConnectionSection) (int, error) {
 	// return first unused conIdx for a vapp or vm
+	log.SpanLog(ctx, log.DebugLevelInfra, "GetNextAvailConIdx", "ncs", ncs)
 	conIdMap := make(map[int]*types.NetworkConnection)
 	for _, nc := range ncs.NetworkConnection {
+		// Before we add this idx as inuse, does this entry actually point at a connection?
+		if nc.Network == "" || nc.IPAddress == "" || nc.IsConnected == false {
+			log.SpanLog(ctx, log.DebugLevelInfra, "GetNextAvailConIdx skip available empty", "ConIdx", nc.NetworkConnectionIndex, "IP", nc.IPAddress, "isConnected", nc.IsConnected)
+			continue
+		}
 		conIdMap[nc.NetworkConnectionIndex] = nc
 	}
 	curIdx := 0
 	for curIdx = 0; curIdx < MaxSubnetsPerSharedLB; curIdx++ {
 		if _, found := conIdMap[curIdx]; !found {
+			log.SpanLog(ctx, log.DebugLevelInfra, "GetNextAvailConIdx returns", "conIdx", curIdx)
 			return curIdx, nil
 		}
 	}
@@ -483,16 +508,17 @@ func (v *VcdPlatform) CreateInternalNetworkForNewVm(ctx context.Context, vapp *g
 	iprange = append(iprange, &addrRange)
 
 	internalSettings := govcd.VappNetworkSettings{
-		Name:           netName,
-		Description:    description,
-		Gateway:        gateway,
-		NetMask:        "255.255.255.0",
-		DNS1:           "1.1.1.1",
-		DNS2:           dns2,
-		DNSSuffix:      "mobiledgex.net",
-		StaticIPRanges: iprange,
+		Name:             netName,
+		Description:      description,
+		Gateway:          gateway,
+		NetMask:          "255.255.255.0",
+		DNS1:             "1.1.1.1",
+		DNS2:             dns2,
+		DNSSuffix:        "mobiledgex.net",
+		StaticIPRanges:   iprange,
+		VappFenceEnabled: TakeBoolPointer(true),
 	}
-	_ /*InternalNetConfigSec,*/, err = vapp.CreateVappNetwork(&internalSettings, nil)
+	_, err = vapp.CreateVappNetwork(&internalSettings, nil)
 	if err != nil {
 		if !strings.Contains(err.Error(), "already exists") {
 			log.SpanLog(ctx, log.DebugLevelInfra, "CreateInternalNetwork create", "serverName", serverName, "error", err)
@@ -644,7 +670,8 @@ func (v *VcdPlatform) GetAddrOfVapp(ctx context.Context, vapp *govcd.VApp, netNa
 }
 
 // Given our scheme for networks 10.101.X.0/24 return the next available Isolated network CIDR
-func (v *VcdPlatform) GetNextInternalSubnet(ctx context.Context, vappName string, vcdClient *govcd.VCDClient) (string, error) {
+
+func (v *VcdPlatform) GetNextInternalSubnet(ctx context.Context, vappName string, updateCallback edgeproto.CacheUpdateCallback, vcdClient *govcd.VCDClient) (string, error) {
 
 	var MAX_CIDRS = 255 // These are internal /24 subnets so 255, not that we'll have that many clusters / cloudlet
 
@@ -654,7 +681,6 @@ func (v *VcdPlatform) GetNextInternalSubnet(ctx context.Context, vappName string
 	// We'll incr the netSpec.DelimiterOctet of this start addr, if it's not in our
 	// All VApps map, it's available
 	curAddr := startAddr
-
 	vappMap, err := v.GetAllVAppsForVdcByIntAddr(ctx, vcdClient)
 	if err != nil {
 		log.SpanLog(ctx, log.DebugLevelInfra, "GetNextInternalSubnet return", "curAddr", curAddr)
@@ -702,7 +728,6 @@ func (v *VcdPlatform) AddExtNetToVm(ctx context.Context, vm *govcd.VM, netName s
 
 		return err
 	}
-
 	return nil
 }
 
@@ -785,14 +810,14 @@ func (v *VcdPlatform) CreateIsoVdcNetwork(ctx context.Context, vapp *govcd.VApp,
 	)
 
 	err = vdc.CreateOrgVDCNetworkWait(&networkConfig)
+	// accept  a pre-existing network
 	if err != nil {
-		fmt.Printf("Does this net already exist? %s\n", netName)
 		if strings.Contains(err.Error(), "exists") {
-			fmt.Printf("Does this net already exist? Yes return ok  %s\n", netName)
-			return nil
+			log.SpanLog(ctx, log.DebugLevelInfra, "CreateIsoVdcNetwork use existing orgvdcnet", "netName", netName)
+		} else {
+			log.SpanLog(ctx, log.DebugLevelInfra, "CreateIsoVdcNetwork CreateOrgVDCNetwork  failed ", "err", err)
+			return err
 		}
-		log.SpanLog(ctx, log.DebugLevelInfra, "CreateIsoVdcNetwork CreateOrgVDCNetwork  failed ", "err", err)
-		return err
 	}
 
 	orgvdcnet, err := vdc.GetOrgVdcNetworkByName(netName, true)
@@ -802,10 +827,7 @@ func (v *VcdPlatform) CreateIsoVdcNetwork(ctx context.Context, vapp *govcd.VApp,
 		return err
 	}
 
-	govcd.ShowNetwork(*orgvdcnet.OrgVDCNetwork)
-
 	log.SpanLog(ctx, log.DebugLevelInfra, "CreateIsoVdcNetowrk created", "name", netName)
-
 	vappNetSettings := &govcd.VappNetworkSettings{
 		Name:             netName,
 		VappFenceEnabled: TakeBoolPointer(false),
@@ -889,9 +911,13 @@ func (v *VcdPlatform) GetVappIsoNetwork(ctx context.Context, vdc *govcd.Vdc, vap
 				log.SpanLog(ctx, log.DebugLevelInfra, "GetVappIsoNetwork vapp using isoOrgVdcNetwork", "netName", q.Name)
 				return q.Name, nil
 			}
+			if v.Verbose {
+				log.SpanLog(ctx, log.DebugLevelInfra, "GetVappIsoNetwork vapp using non-isoOrgVdcNet", "netName", q.Name)
+			}
 		}
-	}
 
+	}
+	log.SpanLog(ctx, log.DebugLevelInfra, "GetVappIsoNetwork no IsoNetwork found for ", "vapp", vapp.VApp.Name)
 	return "", nil
 
 }

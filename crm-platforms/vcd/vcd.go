@@ -55,10 +55,6 @@ type VAppMap map[string]*govcd.VApp
 type VMMap map[string]*govcd.VM
 type NetMap map[string]*govcd.OrgVDCNetwork
 
-func (v *VcdPlatform) GetType() string {
-	return "vcd"
-}
-
 func (v *VcdPlatform) InitProvider(ctx context.Context, caches *platform.Caches, stage vmlayer.ProviderInitStage, updateCallback edgeproto.CacheUpdateCallback) error {
 
 	v.Verbose = true
@@ -201,7 +197,7 @@ func (v *VcdPlatform) GetPlatformResources(ctx context.Context) error {
 }
 
 func (v *VcdPlatform) GetConsoleUrl(ctx context.Context, serverName string) (string, error) {
-	return v.Creds.Href, nil
+	return "", fmt.Errorf("VM Console not supported for VCD")
 }
 
 func (v *VcdPlatform) ImportImage(ctx context.Context, folder, imageFile string) error {
@@ -221,14 +217,6 @@ func (v *VcdPlatform) ImportImage(ctx context.Context, folder, imageFile string)
 	}
 	// ovaFile, itemName, description, uploadPieceSize xxx is folder appropriate for itemName?
 	cat.UploadOvf(imageFile, folder+"-tmpl", "mex base iamge", 4*1024)
-	return nil
-}
-
-func (v *VcdPlatform) DeleteImage(ctx context.Context, folder, image string) error {
-
-	log.SpanLog(ctx, log.DebugLevelInfra, "DeleteImage", "image", image)
-	// Fetch the folder-tmpl item and call item.Delete()
-	// TBI
 	return nil
 }
 
@@ -441,4 +429,21 @@ func (v *VcdPlatform) SaveCloudletAccessVars(ctx context.Context, cloudlet *edge
 
 	return fmt.Errorf("SaveCloudletAccessVars not implemented for vcd")
 
+}
+
+func (v *VcdPlatform) GetCloudletInfraResourcesInfo(ctx context.Context) ([]edgeproto.InfraResource, error) {
+	return []edgeproto.InfraResource{}, nil
+}
+
+func (v *VcdPlatform) GetCloudletResourceQuotaProps(ctx context.Context) (*edgeproto.CloudletResourceQuotaProps, error) {
+	return &edgeproto.CloudletResourceQuotaProps{}, nil
+}
+
+func (v *VcdPlatform) GetClusterAdditionalResources(ctx context.Context, cloudlet *edgeproto.Cloudlet, vmResources []edgeproto.VMResource, infraResMap map[string]edgeproto.InfraResource) map[string]edgeproto.InfraResource {
+	resInfo := make(map[string]edgeproto.InfraResource)
+	return resInfo
+}
+
+func (v *VcdPlatform) GetClusterAdditionalResourceMetric(ctx context.Context, cloudlet *edgeproto.Cloudlet, resMetric *edgeproto.Metric, resources []edgeproto.VMResource) error {
+	return nil
 }

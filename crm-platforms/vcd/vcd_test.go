@@ -6,12 +6,12 @@ import (
 	"os"
 	"testing"
 
-	vu "github.com/mobiledgex/edge-cloud-infra/crm-platforms/vcd/vcdutils"
+	"net/url"
+
 	"github.com/mobiledgex/edge-cloud/log"
 	"github.com/stretchr/testify/require"
 	"github.com/vmware/go-vcloud-director/v2/govcd"
 	"github.com/vmware/go-vcloud-director/v2/types/v56"
-	"net/url"
 )
 
 // This is our object we'll store nacent Vapps in ?
@@ -29,14 +29,15 @@ type MexVapp struct {
 func TestDiscover(t *testing.T) {
 	live, ctx, err := InitVcdTestEnv()
 	require.Nil(t, err, "InitVcdTestEnv")
-	org, err := tv.GetOrg(ctx)
-	if err != nil {
-		fmt.Printf("Error GetOrg: %s\n", err.Error())
-		return
-	}
-
+	defer testVcdClient.Disconnect()
 	if live {
-		fmt.Printf("Org %s id: %s\n", org.Org.Name, org.Org.ID)
+		org, err := tv.GetOrg(ctx, testVcdClient)
+		if err != nil {
+			fmt.Printf("Error GetOrg: %s\n", err.Error())
+			return
+		}
+		vcd, err := tv.GetVdc(ctx, testVcdClient)
+		fmt.Printf("Org:\n\tName: %s\n\tid: %s\n\tVcd: %s\n\tHref: %s\n", org.Org.Name, org.Org.ID, vcd.Vdc.Name, tv.Creds.Href)
 	} else {
 		return
 	}
@@ -47,6 +48,8 @@ func TestVCD(t *testing.T) {
 
 	live, ctx, err := InitVcdTestEnv()
 	require.Nil(t, err, "InitVcdTestEnv")
+	defer testVcdClient.Disconnect()
+
 	if live {
 		m_vapp := populateMexVappConfig(t, ctx, "mexcloudname")
 
@@ -119,16 +122,10 @@ func TestVCD(t *testing.T) {
 				//	fmt.Printf("vdcnet: %+v\n\n", vdcnet)
 
 				fmt.Printf("OrgVDCNetwork %s :\n", ref.Name)
-				vu.DumpOrgVDCNetwork(vdcnet, 1)
-
-				// What NetworkFeatures are avaiable? Specifically, can we fetch Feature FirewallService?
+				//vu.DumpOrgVDCNetwork(vdcnet, 1)
+				fmt.Printf("vcdnet: %+v\n", vdcnet)
 			}
 		}
-
-		//nets, err := testGetOrgNetworks(t, org)
-		//for j, net := range nets {
-		//fmt.Printf("%d: Org %s network %d = %s\n", j, m_vapp.Config.Org, j, net)
-		//}
 
 		// This doesn't seem to allow fetch/manipulation of the catalog object It's link is nil
 		catalogs, err := testQueryCatalogList(t, org)
@@ -144,12 +141,8 @@ func TestVCD(t *testing.T) {
 
 		// get the .iso image from cat1 to put into our vapp
 		fmt.Printf("TestVCD-I-cats: %+v\n", cats)
-		// testCreateVAppTempate(t)
-
-		vapp, err := testGetVAppByName(t, vdc, *vappName)
+		_, err = testGetVAppByName(t, vdc, *vappName)
 		require.Nil(t, err, "testGetVappByName")
-		vu.DumpVApp(vapp, 1)
-		//fmt.Printf("vapp: %+v\n\nvapp.VApp: %+v\n", vapp, vapp.VApp)
 
 		testGetAllVAppsForVdc(t, &vdc)
 	} else {
@@ -205,7 +198,7 @@ func testGetAllVAppsForVdc(t *testing.T, vdc *govcd.Vdc) {
 					// spanlog
 				} else {
 					fmt.Printf("\nGetVdcVAppbyName returns: %s\n", res.Name)
-					vu.DumpVApp(vapp, 1) // XXX
+					fmt.Printf("vapp: %+v\n", vapp)
 				}
 			}
 		}

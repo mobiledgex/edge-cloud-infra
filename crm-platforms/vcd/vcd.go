@@ -3,12 +3,12 @@ package vcd
 import (
 	"context"
 	"fmt"
-	gogotypes "github.com/gogo/protobuf/types"
-	"github.com/mobiledgex/edge-cloud-infra/vmlayer"
-	//"os"
 	"strings"
 	"time"
 	"unicode"
+
+	gogotypes "github.com/gogo/protobuf/types"
+	"github.com/mobiledgex/edge-cloud-infra/vmlayer"
 
 	"github.com/mobiledgex/edge-cloud/cloud-resource-manager/platform"
 	"github.com/mobiledgex/edge-cloud/edgeproto"
@@ -16,7 +16,6 @@ import (
 	"github.com/mobiledgex/edge-cloud/vault"
 	ssh "github.com/mobiledgex/golang-ssh"
 	"github.com/vmware/go-vcloud-director/v2/govcd"
-	"github.com/vmware/go-vcloud-director/v2/types/v56"
 )
 
 // Note regarding govcd SDK:
@@ -38,9 +37,10 @@ type VcdPlatform struct {
 	vcdVars      map[string]string
 	caches       *platform.Caches
 	Creds        *VcdConfigParams
-	Client       *govcd.VCDClient
 	TestMode     bool
 	Verbose      bool
+	// derived from our baes image, used if no other template is supplied
+	DefaultTemplateName string
 }
 
 type VcdConfigParams struct {
@@ -57,10 +57,6 @@ type VAppMap map[string]*govcd.VApp
 type VMMap map[string]*govcd.VM
 type NetMap map[string]*govcd.OrgVDCNetwork
 
-func (v *VcdPlatform) GetType() string {
-	return "vcd"
-}
-
 func (v *VcdPlatform) InitProvider(ctx context.Context, caches *platform.Caches, stage vmlayer.ProviderInitStage, updateCallback edgeproto.CacheUpdateCallback) error {
 
 	v.Verbose = true
@@ -68,14 +64,6 @@ func (v *VcdPlatform) InitProvider(ctx context.Context, caches *platform.Caches,
 	log.SpanLog(ctx, log.DebugLevelInfra, "InitProvider for Vcd 1", "stage", stage)
 	v.Verbose = v.GetVcdVerbose()
 	v.InitData(ctx, caches)
-
-	if v.Client == nil {
-		client, err := v.GetClient(ctx, v.Creds)
-		if err != nil {
-			return fmt.Errorf("InitProvider Unable to create Vcd Client: %s\n", err.Error())
-		}
-		v.Client = client
-	}
 
 	log.SpanLog(ctx, log.DebugLevelInfra, "Discover resources for", "Org", v.Creds.Org)
 	err := v.ImportDataFromInfra(ctx)
@@ -88,6 +76,25 @@ func (v *VcdPlatform) InitProvider(ctx context.Context, caches *platform.Caches,
 	if err != nil {
 		return err
 	}
+	/*
+		if stage == vmlayer.ProviderInitPlatformStart {
+			v.initDebug(v.vmProperties.CommonPf.PlatformConfig.NodeMgr)
+
+			overrideLeaseDisable := v.GetLeaseOverride()
+			err := v.DisableOrgRuntimeLease(ctx, overrideLeaseDisable)
+			if err != nil {
+				log.SpanLog(ctx, log.DebugLevelInfra, "InitProvider DisableOrgRuntimeLease failed", "stage", stage, "error", err)
+				// Only fatal if we don't have an override flag stating we're ok with Org lease settings
+
+				if !overrideLeaseDisable {
+					log.SpanLog(ctx, log.DebugLevelInfra, "InitProvider unable to disable org leases and override not set fatal", "stage", stage, "error", err)
+					return err
+				}
+
+			}
+
+		}
+	*/
 	return nil
 }
 
@@ -99,14 +106,6 @@ func (v *VcdPlatform) InitData(ctx context.Context, caches *platform.Caches) {
 func (v *VcdPlatform) ImportDataFromInfra(ctx context.Context) error {
 
 	log.SpanLog(ctx, log.DebugLevelInfra, "ImportDataFromInfra")
-	if v.Client == nil {
-		log.SpanLog(ctx, log.DebugLevelInfra, "Obtain vcd client")
-		client, err := v.GetClient(ctx, v.Creds)
-		if err != nil {
-			return fmt.Errorf("Unable to create Vcd Client %s\n", err.Error())
-		}
-		v.Client = client
-	}
 	err := v.GetPlatformResources(ctx)
 	if err != nil {
 		return fmt.Errorf("Error retrieving Platform Resources: %s", err.Error())
@@ -116,11 +115,16 @@ func (v *VcdPlatform) ImportDataFromInfra(ctx context.Context) error {
 
 func (v *VcdPlatform) GetPlatformResourceInfo(ctx context.Context) (*vmlayer.PlatformResources, error) {
 
-	var resources *vmlayer.PlatformResources
+	var resources = vmlayer.PlatformResources{}
 	log.SpanLog(ctx, log.DebugLevelInfra, "GetPlatformResourceInfo ")
 
+	vcdClient := v.GetVcdClientFromContext(ctx)
+	if vcdClient == nil {
+		log.SpanLog(ctx, log.DebugLevelInfra, NoVCDClientInContext)
+		return nil, fmt.Errorf(NoVCDClientInContext)
+	}
 	resources.CollectTime, _ = gogotypes.TimestampProto(time.Now())
-	vdc, err := v.GetVdc(ctx)
+	vdc, err := v.GetVdc(ctx, vcdClient)
 	if err != nil {
 		return nil, err
 	}
@@ -132,15 +136,20 @@ func (v *VcdPlatform) GetPlatformResourceInfo(ctx context.Context) (*vmlayer.Pla
 		resources.MemMax = uint64(cap.Memory.Limit)
 		resources.MemUsed = uint64(cap.Memory.Used)
 	}
-	return resources, nil
+	return &resources, nil
 }
 
 func (v *VcdPlatform) GetResourceID(ctx context.Context, resourceType vmlayer.ResourceType, resourceName string) (string, error) {
 
+	vcdClient := v.GetVcdClientFromContext(ctx)
+	if vcdClient == nil {
+		log.SpanLog(ctx, log.DebugLevelInfra, NoVCDClientInContext)
+		return "", fmt.Errorf(NoVCDClientInContext)
+	}
 	// VM, Subnet and SecGrp are the current potential values of Type
 	// The only one we have so far is VMs, (subnets soon, and secGrps eventually)
 	if resourceType == vmlayer.ResourceTypeVM {
-		vm, err := v.FindVMByName(ctx, resourceName)
+		vm, err := v.FindVMByName(ctx, resourceName, vcdClient)
 		if err != nil {
 			return "", fmt.Errorf("resource %s not found", resourceName)
 		}
@@ -157,16 +166,12 @@ func (v *VcdPlatform) GetResourceID(ctx context.Context, resourceType vmlayer.Re
 // CheckServerReady
 func (v VcdPlatform) CheckServerReady(ctx context.Context, client ssh.Client, serverName string) error {
 
-	fmt.Printf("CheckServerReady-I-looking for servername: %s\n", serverName)
-
 	log.SpanLog(ctx, log.DebugLevelInfra, "CheckServerReady", "serverName", serverName)
 	detail, err := v.GetServerDetail(ctx, serverName)
 	if err != nil {
-		fmt.Printf("\n\nCheckServerReady-I-GetServerDetail err: %s recovered\n\n", err.Error())
-		return nil
+		log.SpanLog(ctx, log.DebugLevelInfra, "CheckServerReady GetServerDetail", "err", err)
+		return err
 	}
-	fmt.Printf("CheckServerRead-I-GetServerDetail ok for %s\n", serverName)
-
 	out := ""
 	if detail.Status == vmlayer.ServerActive {
 		//out, err = client.Output("systemctl status mobiledgex.service")
@@ -179,21 +184,22 @@ func (v VcdPlatform) CheckServerReady(ctx context.Context, client ssh.Client, se
 }
 
 // Retrieve our top level Org object
-func (v *VcdPlatform) GetOrg(ctx context.Context) (*govcd.Org, error) {
-
-	cli := v.Client
-	org, err := cli.GetOrgByName(v.Creds.Org)
+func (v *VcdPlatform) GetOrg(ctx context.Context, vcdClient *govcd.VCDClient) (*govcd.Org, error) {
+	org, err := vcdClient.GetOrgByName(v.Creds.Org)
 	if err != nil {
+		log.SpanLog(ctx, log.DebugLevelInfra, "GetOrgByName failed", "org", v.Creds.Org, "err", err)
 		return nil, fmt.Errorf("GetOrgByName error %s", err.Error())
 	}
 	return org, nil
 }
 
 // Retrieve our refreshed vdc object
-func (v *VcdPlatform) GetVdc(ctx context.Context) (*govcd.Vdc, error) {
+func (v *VcdPlatform) GetVdc(ctx context.Context, vcdClient *govcd.VCDClient) (*govcd.Vdc, error) {
+	log.SpanLog(ctx, log.DebugLevelInfra, "GetVdc")
 
-	org, err := v.GetOrg(ctx)
+	org, err := v.GetOrg(ctx, vcdClient)
 	if err != nil {
+		log.SpanLog(ctx, log.DebugLevelInfra, "GetVdc GetOrg return error", "vdc", v.Creds.VDC, "org", v.Creds.Org, "err", err)
 		return nil, err
 	}
 
@@ -212,28 +218,26 @@ func (v *VcdPlatform) GetPlatformResources(ctx context.Context) error {
 }
 
 func (v *VcdPlatform) GetConsoleUrl(ctx context.Context, serverName string) (string, error) {
-	return v.Creds.Href, nil
+	return "", fmt.Errorf("VM Console not supported for VCD")
 }
 
 func (v *VcdPlatform) ImportImage(ctx context.Context, folder, imageFile string) error {
 	log.SpanLog(ctx, log.DebugLevelInfra, "ImportImage", "imageFile", imageFile, "folder", folder)
+
+	vcdClient := v.GetVcdClientFromContext(ctx)
+	if vcdClient == nil {
+		log.SpanLog(ctx, log.DebugLevelInfra, NoVCDClientInContext)
+		return fmt.Errorf(NoVCDClientInContext)
+	}
 	// first delete anything that may be there for this image
 	v.DeleteImage(ctx, folder, imageFile)
 	// .ova's are the unit of upload to our catalog (but could be an ovf + vmdk)
-	cat, err := v.GetCatalog(ctx, v.GetCatalogName())
+	cat, err := v.GetCatalog(ctx, v.GetCatalogName(), vcdClient)
 	if err != nil {
 		return err
 	}
 	// ovaFile, itemName, description, uploadPieceSize xxx is folder appropriate for itemName?
 	cat.UploadOvf(imageFile, folder+"-tmpl", "mex base iamge", 4*1024)
-	return nil
-}
-
-func (v *VcdPlatform) DeleteImage(ctx context.Context, folder, image string) error {
-
-	log.SpanLog(ctx, log.DebugLevelInfra, "DeleteImage", "image", image)
-	// Fetch the folder-tmpl item and call item.Delete()
-	// TBI
 	return nil
 }
 
@@ -267,24 +271,25 @@ func (v *VcdPlatform) IdSanitize(name string) string {
 	return str
 }
 
-// need a cacheless version
-
 func (v *VcdPlatform) GetServerDetail(ctx context.Context, serverName string) (*vmlayer.ServerDetail, error) {
 
-	vm, err := v.FindVMByName(ctx, serverName)
+	vcdClient := v.GetVcdClientFromContext(ctx)
+	if vcdClient == nil {
+		log.SpanLog(ctx, log.DebugLevelInfra, NoVCDClientInContext)
+		return nil, fmt.Errorf(NoVCDClientInContext)
+	}
+	vm, err := v.FindVMByName(ctx, serverName, vcdClient)
 	if err != nil {
-		fmt.Printf("GetServerDetail-E-Couldn't find %s\n", serverName)
+		log.SpanLog(ctx, log.DebugLevelInfra, "GetServerDetail not found", "vmname", serverName)
 		return nil, err
 	}
-
+	detail := vmlayer.ServerDetail{}
+	detail.Name = vm.VM.Name
+	detail.ID = vm.VM.ID
 	vmStatus, err := vm.GetStatus()
 	if err != nil {
 		return nil, err
 	}
-
-	detail := vmlayer.ServerDetail{}
-	detail.Name = vm.VM.Name
-	detail.ID = vm.VM.ID
 
 	if vmStatus == "POWERED_ON" {
 		detail.Status = vmlayer.ServerActive
@@ -294,75 +299,37 @@ func (v *VcdPlatform) GetServerDetail(ctx context.Context, serverName string) (*
 		detail.Status = vmStatus
 	}
 
-	addresses, _, err := v.GetVMAddresses(ctx, vm)
+	addresses, err := v.GetVMAddresses(ctx, vm)
 	if err != nil {
 		log.SpanLog(ctx, log.DebugLevelInfra, "GetServerDetail err getting VMAddresses for", "vmname", serverName, "err", err)
 		return nil, err
 	}
 	detail.Addresses = addresses
-	// Ok, so the govcd.VM has a vm.GetStatus returning a string, while the vm.VM has a int field status (resource status)
 
 	return &detail, nil
 
 }
 
-// Return current vapps in map keyed by external net IP
-// Combine the two such rnts use netType
-func (v *VcdPlatform) GetAllVAppsForVdc(ctx context.Context) (VAppMap, error) {
-
-	vappMap := make(VAppMap)
-
-	vdc, err := v.GetVdc(ctx)
-	if err != nil {
-		return vappMap, err
-	}
-	netName := v.GetExtNetworkName()
-	log.SpanLog(ctx, log.DebugLevelInfra, "GetAllVappsForVcd by ext addr on ", "network", netName)
-	for _, r := range vdc.Vdc.ResourceEntities {
-		for _, res := range r.ResourceEntity {
-			if res.Type == "application/vnd.vmware.vcloud.vApp+xml" {
-				vapp, err := vdc.GetVAppByName(res.Name, true)
-				if err != nil {
-					log.SpanLog(ctx, log.DebugLevelInfra, "GetVappByName", "Vapp", res.Name, "error", err)
-					return vappMap, err
-				} else {
-					ip, err := v.GetAddrOfVapp(ctx, vapp, netName)
-					if err != nil {
-						log.SpanLog(ctx, log.DebugLevelInfra, "GetAllVapps GetExtAddrOfVapp ", "error", err)
-						if strings.Contains(err.Error(), "Not Found") {
-							continue
-						}
-					}
-					if ip != "" {
-						log.SpanLog(ctx, log.DebugLevelInfra, "GetAllVappsByExtAddr add", "ip", ip, "vapp", res.Name)
-						vappMap[ip] = vapp
-					}
-				}
-			}
-		}
-	}
-	return vappMap, nil
-
-}
-
-func (v *VcdPlatform) GetAllVMsForVdcByIntAddr(ctx context.Context) (VMMap, error) {
+func (v *VcdPlatform) GetAllVMsForVdcByIntAddr(ctx context.Context, vcdClient *govcd.VCDClient) (VMMap, error) {
 	vmMap := make(VMMap)
 
-	vdc, err := v.GetVdc(ctx)
+	vdc, err := v.GetVdc(ctx, vcdClient)
 	if err != nil {
 		return vmMap, err
 	}
-	netName := v.GetExtNetworkName()
+	netName := v.vmProperties.GetCloudletExternalNetwork()
 
 	for _, r := range vdc.Vdc.ResourceEntities {
 		for _, res := range r.ResourceEntity {
 			if res.Type == "application/vnd.vmware.vcloud.vm+xml" {
-				vm, err := v.FindVMByName(ctx, res.Name)
+				vm, err := v.FindVMByName(ctx, res.Name, vcdClient)
 				if err != nil {
 					log.SpanLog(ctx, log.DebugLevelInfra, "GetAllVMsForVdcByIntAddr FindVMByName error", "vm", res.Name, "error", err)
 					return vmMap, err
 				} else {
-					log.SpanLog(ctx, log.DebugLevelInfra, "GetAllVMsByIntAddr consider ", "vm", res.Name)
+					if v.Verbose {
+						log.SpanLog(ctx, log.DebugLevelInfra, "GetAllVMsByIntAddr consider ", "vm", res.Name)
+					}
 					ncs, err := vm.GetNetworkConnectionSection()
 					if err != nil {
 						log.SpanLog(ctx, log.DebugLevelInfra, "GetAllVMsByIntAddr GetNetworkConnectionSection failed", "error", err)
@@ -391,48 +358,15 @@ func (v *VcdPlatform) GetAllVMsForVdcByIntAddr(ctx context.Context) (VMMap, erro
 	return vmMap, nil
 }
 
-func (v *VcdPlatform) GetAllVdcNetworks(ctx context.Context) (NetMap, error) {
-
-	netMap := make(NetMap)
-	vdc, err := v.GetVdc(ctx)
-	if err != nil {
-		return netMap, err
-	}
-
-	for _, res := range vdc.Vdc.ResourceEntities {
-		for _, resEnt := range res.ResourceEntity {
-			fmt.Printf("GetAllVdcNetworks-I-next resName %s\n\t resType %s\n\t  resHref %s\n",
-				resEnt.Name, resEnt.Type, resEnt.HREF)
-			if resEnt.Type == types.MimeNetwork { // "application/vnd.vmware.vcloud.network+xml" {
-				fmt.Printf("\nGetAllVdcNetworks-I-found simple network name: %s\n\n", resEnt.Name)
-
-				//
-
-				if resEnt.Type == types.MimeOrgVdcNetwork { // "application/vnd.vmware.vcloud.orgVdcNetwork+xml" {
-					network, err := vdc.GetOrgVdcNetworkByName(resEnt.Name, true)
-					if err != nil {
-						fmt.Printf("Error GetOrgVdcNetworkByname for %s err: %s\n", resEnt.Name, err.Error())
-						continue
-					}
-					netMap[resEnt.Name] = network
-					govcd.ShowNetwork(*network.OrgVDCNetwork)
-				}
-			}
-		}
-	}
-
-	return netMap, nil
-}
-
-func (v *VcdPlatform) GetAllVAppsForVdcByIntAddr(ctx context.Context) (VAppMap, error) {
+func (v *VcdPlatform) GetAllVAppsForVdcByIntAddr(ctx context.Context, vcdClient *govcd.VCDClient) (VAppMap, error) {
 
 	vappMap := make(VAppMap)
-	vdc, err := v.GetVdc(ctx)
+	vdc, err := v.GetVdc(ctx, vcdClient)
 	if err != nil {
 		return vappMap, err
 	}
 
-	extNetName := v.GetExtNetworkName()
+	extNetName := v.vmProperties.GetCloudletExternalNetwork()
 
 	for _, r := range vdc.Vdc.ResourceEntities {
 		for _, res := range r.ResourceEntity {
@@ -442,7 +376,9 @@ func (v *VcdPlatform) GetAllVAppsForVdcByIntAddr(ctx context.Context) (VAppMap, 
 					log.SpanLog(ctx, log.DebugLevelInfra, "GetVappByName", "Vapp", res.Name, "error", err)
 					return vappMap, err
 				} else {
-					log.SpanLog(ctx, log.DebugLevelInfra, "GetAllVappsByIntAddr consider ", "vapp", res.Name)
+					if v.Verbose {
+						log.SpanLog(ctx, log.DebugLevelInfra, "GetAllVappsByIntAddr consider ", "vapp", res.Name)
+					}
 					ncs, err := vapp.GetNetworkConnectionSection()
 					if err != nil {
 						log.SpanLog(ctx, log.DebugLevelInfra, "GetAllVappsByIntAddr ", "error", err)
@@ -461,14 +397,12 @@ func (v *VcdPlatform) GetAllVAppsForVdcByIntAddr(ctx context.Context) (VAppMap, 
 							//
 							// Skip the vapp we're attempting to set
 							if ip != "" {
-								delimiter, err := v.Octet(ctx, ip, 2)
+								delimiter, err := Octet(ctx, ip, 2)
 								if err != nil {
 									log.SpanLog(ctx, log.DebugLevelInfra, "GetAllVappsByIntAddr Octet failed", "err", err)
 									return vappMap, err
 								}
 								addr := fmt.Sprintf("10.101.%d.1", delimiter)
-								fmt.Printf("\n\n vapp %s using subnet %s\n", vapp.VApp.Name, addr)
-
 								log.SpanLog(ctx, log.DebugLevelInfra, "GetAllVappsByIntAddr add", "ip", ip, "vapp", res.Name)
 								vappMap[addr] = vapp
 							}
@@ -499,14 +433,74 @@ func (v *VcdPlatform) GetCloudletImageSuffix(ctx context.Context) string {
 	return "-vcd.qcow2"
 }
 
-func (v *VcdPlatform) GetCloudletManifest(ctx context.Context, name, cloudletImagePath string, VMGroupOrchestrationParams *vmlayer.VMGroupOrchestrationParams) (string, error) {
-	log.SpanLog(ctx, log.DebugLevelInfra, "GetCloudletManifest", "name", name, "imagePath", cloudletImagePath)
-	return "", nil
-}
-
 func (v *VcdPlatform) GetSessionTokens(ctx context.Context, vaultConfig *vault.Config, account string) (map[string]string, error) {
 	return nil, fmt.Errorf("GetSessionTokens not supported in VcdPlatform")
 }
+
 func (v *VcdPlatform) SaveCloudletAccessVars(ctx context.Context, cloudlet *edgeproto.Cloudlet, accessVarsIn map[string]string, pfConfig *edgeproto.PlatformConfig, vaultConfig *vault.Config, updateCallback edgeproto.CacheUpdateCallback) error {
+
 	return fmt.Errorf("SaveCloudletAccessVars not implemented for vcd")
+
+}
+
+func (v *VcdPlatform) GetCloudletInfraResourcesInfo(ctx context.Context) ([]edgeproto.InfraResource, error) {
+	return []edgeproto.InfraResource{}, nil
+}
+
+func (v *VcdPlatform) GetCloudletResourceQuotaProps(ctx context.Context) (*edgeproto.CloudletResourceQuotaProps, error) {
+	return &edgeproto.CloudletResourceQuotaProps{}, nil
+}
+
+func (v *VcdPlatform) GetClusterAdditionalResources(ctx context.Context, cloudlet *edgeproto.Cloudlet, vmResources []edgeproto.VMResource, infraResMap map[string]edgeproto.InfraResource) map[string]edgeproto.InfraResource {
+	resInfo := make(map[string]edgeproto.InfraResource)
+	return resInfo
+}
+
+func (v *VcdPlatform) GetClusterAdditionalResourceMetric(ctx context.Context, cloudlet *edgeproto.Cloudlet, resMetric *edgeproto.Metric, resources []edgeproto.VMResource) error {
+	return nil
+}
+
+func (v *VcdPlatform) DisableOrgRuntimeLease(ctx context.Context, override bool) error {
+	var err error
+	log.SpanLog(ctx, log.DebugLevelInfra, "DisableOrgRuntimeLease", "override", override)
+
+	vcdClient := v.GetVcdClientFromContext(ctx)
+	if vcdClient == nil {
+		// Too early for context
+		vcdClient, err = v.GetClient(ctx, v.Creds)
+		if err != nil {
+			return fmt.Errorf(NoVCDClientInContext)
+		}
+		log.SpanLog(ctx, log.DebugLevelInfra, "Obtained client directly continuing")
+	}
+	org, err := v.GetOrg(ctx, vcdClient)
+	if err != nil {
+		log.SpanLog(ctx, log.DebugLevelInfra, "DisableOrgRuntimeLease failed to retrive org", "error", err)
+		return err
+	}
+	adminOrg, err := govcd.GetAdminOrgByName(vcdClient, org.Org.Name)
+	if err != nil {
+		log.SpanLog(ctx, log.DebugLevelInfra, "DisableOrgRuntimeLease failed to retrive adminOrg", "error", err)
+		if override {
+			log.SpanLog(ctx, log.DebugLevelInfra, "DisableOrgRuntimeLease failed to retrive adminOrg override on continuing with Org leases per VCD provider", "error", err)
+			return nil
+		} else {
+			log.SpanLog(ctx, log.DebugLevelInfra, "DisableOrgRuntimeLease failed to retrive adminOrg override off:  fatal", "error", err)
+			return err
+		}
+	}
+	adminOrg.AdminOrg.OrgSettings.OrgVAppLeaseSettings.DeploymentLeaseSeconds = TakeIntPointer(0)
+	task, err := adminOrg.Update()
+	if err != nil {
+		log.SpanLog(ctx, log.DebugLevelInfra, "DisableOrgRuntimeLease org.Update failed", "error", err)
+		return err
+	}
+	err = task.WaitTaskCompletion()
+	if err != nil {
+		log.SpanLog(ctx, log.DebugLevelInfra, "DisableOrgRuntimeLease wait org.Update failed", "error", err)
+		return err
+	}
+	log.SpanLog(ctx, log.DebugLevelInfra, "DisableOrgRuntimeLease disabled lease", "settings",
+		adminOrg.AdminOrg.OrgSettings.OrgVAppLeaseSettings)
+	return nil
 }

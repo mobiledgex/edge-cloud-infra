@@ -2,17 +2,14 @@ package vcd
 
 import (
 	"context"
-	"errors"
 	"fmt"
-	"strings"
 	"time"
 
-	"github.com/codeskyblue/go-sh"
 	"github.com/mobiledgex/edge-cloud-infra/infracommon"
 	"github.com/mobiledgex/edge-cloud-infra/vmlayer"
+	"github.com/mobiledgex/edge-cloud/cloudcommon"
 	"github.com/mobiledgex/edge-cloud/edgeproto"
 	"github.com/mobiledgex/edge-cloud/log"
-	"path/filepath"
 )
 
 // This functions could be shared across non-openstack platforms, and were basicly hijacked from vsphere
@@ -48,7 +45,7 @@ func (v *VcdPlatform) GetFlavorList(ctx context.Context) ([]*edgeproto.FlavorInf
 
 	for k := range flavorkeys {
 		if v.Verbose {
-			log.SpanLog(ctx, log.DebugLevelInfra, "GetFlavorList found flavor", "key", k)
+			//log.SpanLog(ctx, log.DebugLevelInfra, "GetFlavorList found flavor", "key", k)
 		}
 		var flav edgeproto.Flavor
 		if v.caches.FlavorCache.Get(&k, &flav) {
@@ -96,14 +93,36 @@ func (v *VcdPlatform) GetFlavorList(ctx context.Context) ([]*edgeproto.FlavorInf
 // Really, it could have the platform passed in, and we could return p.ImportImage
 // but not yet, just let the caller do the ImportImage
 //
-//CreateImageFromUrl downloads image from URL and then imports to the datastore
-//func (v *VSpherePlatform) CreateImageFromUrl(ctx context.Context, imageName, imageUrl, md5Sum string) error {
 
 var qcowConvertTimeout = 5 * time.Minute
 
+func (v *VcdPlatform) buildDefaultTemplateName(ctx context.Context, path, version string) error {
+	//tmplName := ""
+	defaultImage := v.vmProperties.GetCloudletOSImage()
+	if defaultImage != "" {
+		v.DefaultTemplateName = defaultImage + "-vcd"
+
+		log.SpanLog(ctx, log.DebugLevelInfra, "buildDefaultTemplateName", "template", v.DefaultTemplateName)
+	}
+
+	// our arti image then should be v.DefaultTemplateName + "-qcow2"
+
+	return nil
+}
+
 func (v *VcdPlatform) AddCloudletImageIfNotPresent(ctx context.Context, imgPathPrefix, imgVersion string, updateCallback edgeproto.CacheUpdateCallback) (string, error) {
-	log.SpanLog(ctx, log.DebugLevelInfra, "AddCloudletImageIfNotPresent", "imgPathPrefix", imgPathPrefix, "ImgVersion", imgVersion)
-	//	filePath, err := vmlayer.DownloadVMImage(ctx, v.vmProperties.CommonPf.VaultConfig, imageName, imageUrl, md5Sum)
+
+	fmt.Printf("\n\nAddImageIfNotPresent\n\n")
+
+	log.SpanLog(ctx, log.DebugLevelInfra, "AddCloudletsImageIfNotPresent", "imgPathPrefix", imgPathPrefix, "ImgVersion", imgVersion)
+
+	imgPath := vmlayer.GetCloudletVMImagePath(imgPathPrefix, imgVersion, v.GetCloudletImageSuffix(ctx))
+	// Fetch platform base image name
+	pfImageName, err := cloudcommon.GetFileName(imgPath)
+	if err != nil {
+		return "", err
+	}
+	log.SpanLog(ctx, log.DebugLevelInfra, "AddCloudletsImageIfNotPresent", "imgPathPrefix", imgPathPrefix, "ImgVersion", imgVersion, "imagePath", imgPath, "pfImageName", pfImageName)
 	return "", nil
 }
 
@@ -118,7 +137,7 @@ func (v *VcdPlatform) CreateImageFromUrl(ctx context.Context, imageName, imageUr
 		}
 	}()
 
-	vmdkFile, err := v.ConvertQcowToVmdk(ctx, filePath, vmlayer.MINIMUM_DISK_SIZE)
+	vmdkFile, err := vmlayer.ConvertQcowToVmdk(ctx, filePath, vmlayer.MINIMUM_DISK_SIZE)
 	if err != nil {
 		return "", err
 	}
@@ -126,45 +145,6 @@ func (v *VcdPlatform) CreateImageFromUrl(ctx context.Context, imageName, imageUr
 	// return v.ImportImage(ctx, imageName, vmdkFile)
 }
 
-func (v *VcdPlatform) ConvertQcowToVmdk(ctx context.Context, sourceFile string, size uint64) (string, error) {
-	log.SpanLog(ctx, log.DebugLevelInfra, "ConvertQcowToVmdk", "sourceFile", sourceFile, "size", size)
-	destFile := strings.TrimSuffix(sourceFile, filepath.Ext(sourceFile))
-	destFile = destFile + ".vmdk"
-
-	convertChan := make(chan string, 1)
-	var convertErr string
-	go func() {
-		//resize to the correct size
-		sizeInGB := fmt.Sprintf("%dG", size)
-		log.SpanLog(ctx, log.DebugLevelInfra, "Resizing to", "size", sizeInGB)
-		out, err := sh.Command("qemu-img", "resize", sourceFile, "--shrink", sizeInGB).CombinedOutput()
-
-		if err != nil {
-			log.SpanLog(ctx, log.DebugLevelInfra, "qemu-img resize failed", "out", string(out), "err", err)
-			convertChan <- fmt.Sprintf("qemu-img resize failed: %s %v", out, err)
-		}
-		log.SpanLog(ctx, log.DebugLevelInfra, "doing qemu-img convert", "destFile", destFile)
-		out, err = sh.Command("qemu-img", "convert", "-O", "vmdk", "-o", "subformat=streamOptimized", sourceFile, destFile).CombinedOutput()
-		if err != nil {
-			log.SpanLog(ctx, log.DebugLevelInfra, "qemu-img convert failed", "out", string(out), "err", err)
-			convertChan <- fmt.Sprintf("qemu-img convert failed: %s %v", out, err)
-		} else {
-			convertChan <- ""
-
-		}
-	}()
-	select {
-	case convertErr = <-convertChan:
-	case <-time.After(qcowConvertTimeout):
-		return "", fmt.Errorf("ConvertQcowToVmdk timed out")
-	}
-	if convertErr != "" {
-		return "", errors.New(convertErr)
-	}
-	return destFile, nil
-}
-
-// This appears to only deal with non-existant flavors in vmware world
 func (v *VcdPlatform) GatherCloudletInfo(ctx context.Context, info *edgeproto.CloudletInfo) error {
 
 	log.SpanLog(ctx, log.DebugLevelInfra, "GatherCloudletInfo ")
@@ -174,4 +154,32 @@ func (v *VcdPlatform) GatherCloudletInfo(ctx context.Context, info *edgeproto.Cl
 		return err
 	}
 	return nil
+}
+
+// convenience routines for SDK objects
+func TakeBoolPointer(value bool) *bool {
+	return &value
+}
+
+// takeIntAddress is a helper that returns the address of an `int`
+func TakeIntAddress(x int) *int {
+	return &x
+}
+
+// takeStringPointer is a helper that returns the address of a `string`
+func TakeStringPointer(x string) *string {
+	return &x
+}
+
+// takeFloatAddress is a helper that returns the address of an `float64`
+func TakeFloatAddress(x float64) *float64 {
+	return &x
+}
+
+func TakeIntPointer(x int) *int {
+	return &x
+}
+
+func TakeUint64Pointer(x uint64) *uint64 {
+	return &x
 }

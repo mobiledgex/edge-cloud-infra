@@ -11,9 +11,10 @@ import (
 
 // catalog releated functionality
 
-func (v *VcdPlatform) GetCatalog(ctx context.Context, catName string) (*govcd.Catalog, error) {
+const uploadChunkSize = 10 * 1024 * 1024 // 10 MB
+func (v *VcdPlatform) GetCatalog(ctx context.Context, catName string, vcdClient *govcd.VCDClient) (*govcd.Catalog, error) {
 
-	org, err := v.GetOrg(ctx)
+	org, err := v.GetOrg(ctx, vcdClient)
 	if err != nil {
 		return nil, err
 	}
@@ -28,33 +29,35 @@ func (v *VcdPlatform) GetCatalog(ctx context.Context, catName string) (*govcd.Ca
 	return cat, nil
 }
 
-// generic upload in cats_test
-func (v *VcdPlatform) UploadOvaFile(ctx context.Context, tmplName string) error {
-
-	baseurl := "" // ovaLocation
-	tname := tmplName
-	url := baseurl + "/tmplName" + "ova"
-
-	log.SpanLog(ctx, log.DebugLevelInfra, "upload ova from", "URI", url, "tmpl", tname)
-	cat, err := v.GetCatalog(ctx, v.GetCatalogName())
+// UploadOvaFile uploads either an OVF or OVA
+func (v *VcdPlatform) UploadOvaFile(ctx context.Context, fileName, itemName, descr string, vcdClient *govcd.VCDClient) error {
+	log.SpanLog(ctx, log.DebugLevelInfra, "UploadOvaFile", "fileName", fileName, "itemName", itemName)
+	cat, err := v.GetCatalog(ctx, v.GetCatalogName(), vcdClient)
 	if err != nil {
 		return err
 	}
+	_, err = cat.GetCatalogItemByName(itemName, true)
+	if err == nil {
+		log.SpanLog(ctx, log.DebugLevelInfra, "OVA already in catalog", "itemName", itemName)
+		return nil
+	}
 	elapse_start := time.Now()
-	// MB
-	task, err := cat.UploadOvf(url, tname, "mex ova base template", 8*1024)
+	// 8*1024 MB chunk size for the download.
+	task, err := cat.UploadOvf(fileName, itemName, descr, uploadChunkSize)
 	if err != nil {
-		return err
+		return fmt.Errorf("UploadOvf to catalog start failed: %v", err)
 	}
 	err = task.WaitTaskCompletion()
 	elapsed := time.Since(elapse_start).String()
-	log.SpanLog(ctx, log.DebugLevelInfra, "tmpl uploaded ", "template", tmplName, "elapsed time", elapsed)
-
-	return err
+	log.SpanLog(ctx, log.DebugLevelInfra, "OVA uploaded ", "itemName", itemName, "elapsed time", elapsed)
+	if err != nil {
+		return fmt.Errorf("UploadOvf to catalog task failed: %v", err)
+	}
+	return nil
 }
 
-func (v *VcdPlatform) DeleteTemplate(ctx context.Context, name string) error {
-	cat, err := v.GetCatalog(ctx, v.GetCatalogName())
+func (v *VcdPlatform) DeleteTemplate(ctx context.Context, name string, vcdClient *govcd.VCDClient) error {
+	cat, err := v.GetCatalog(ctx, v.GetCatalogName(), vcdClient)
 	if err != nil {
 		return err
 	}

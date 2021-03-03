@@ -4,24 +4,88 @@ import (
 	"context"
 	"encoding/xml"
 	"fmt"
+	"net/url"
 	"testing"
 
-	vu "github.com/mobiledgex/edge-cloud-infra/crm-platforms/vcd/vcdutils"
 	"github.com/mobiledgex/edge-cloud-infra/vmlayer"
 	"github.com/stretchr/testify/require"
 	"github.com/vmware/go-vcloud-director/v2/govcd"
 	"github.com/vmware/go-vcloud-director/v2/types/v56"
 )
 
+func TestRMAllVAppFromVdc(t *testing.T) {
+	live, ctx, err := InitVcdTestEnv()
+	require.Nil(t, err, "InitVcdTestEnv")
+	defer testVcdClient.Disconnect()
+
+	if live {
+		fmt.Printf("TestRAllVAppFromVdc\n")
+		vdc, err := tv.GetVdc(ctx, testVcdClient)
+		if err != nil {
+			fmt.Printf("Failed to get vdc %s\n", err.Error())
+			return
+		}
+		err = vdc.Refresh()
+		if err != nil {
+			fmt.Printf("Refresh failed%s\n", err.Error())
+			return
+		}
+		for _, resents := range vdc.Vdc.ResourceEntities {
+			for _, resent := range resents.ResourceEntity {
+				if resent.Type == "application/vnd.vmware.vcloud.vApp+xml" {
+					vappHREF, err := url.Parse(resent.HREF)
+					if err != nil {
+						fmt.Printf("Error url.parse %s\n", err.Error())
+						return
+					}
+					vapp, err := vdc.GetVAppByHref(vappHREF.String())
+					if err != nil {
+						fmt.Printf("error retrieving vapp with url: %s and with error %s", vappHREF.Path, err)
+						return
+					}
+					fmt.Printf("Found %s undeploy()\n", vapp.VApp.Name)
+					task, err := vapp.Undeploy()
+					if err != nil {
+						fmt.Printf("Undeploy failed %s\n", err.Error())
+						return
+					}
+
+					if task == (govcd.Task{}) {
+						continue
+					}
+					err = task.WaitTaskCompletion()
+					if err != nil {
+						fmt.Printf("Undeploy failed %s\n", err.Error())
+						return
+					}
+
+					task, err = vapp.Delete()
+					if err != nil {
+						fmt.Printf("error deleting vapp: %s", err.Error())
+						return
+					}
+					err = task.WaitTaskCompletion()
+					if err != nil {
+						fmt.Printf("couldn't finish removing vapp %s", err.Error())
+						return
+					}
+				}
+			}
+		}
+	}
+	return
+}
+
 func TestDumpVappNetworks(t *testing.T) {
 	live, ctx, err := InitVcdTestEnv()
 	require.Nil(t, err, "InitVcdTestEnv")
+	defer testVcdClient.Disconnect()
 
 	if live {
 		fmt.Printf("TestDumpVAppNetworks...")
 		vappName := "mex-cldlet3.tdg.mobiledgex.net-vapp"
 		//vappName := "mex-vmware-vcd.tdg.mobiledgex.net-vapp"
-		vapp, err := tv.FindVApp(ctx, vappName)
+		vapp, err := tv.FindVApp(ctx, vappName, testVcdClient)
 		if err != nil {
 			fmt.Printf("%s not found\n", vappName)
 			return
@@ -31,10 +95,9 @@ func TestDumpVappNetworks(t *testing.T) {
 			fmt.Printf("GetNetworkConfig failed: %s\n", err.Error())
 			return
 		}
-		govcd.ShowVapp(*vapp.VApp)
 
-		fmt.Printf("\n\n and DumpNetworkConfig: \n")
-		vu.DumpNetworkConfigSection(networkConfig, 1)
+		fmt.Printf("and DumpNetworkConfig: %+v \n", networkConfig)
+		//vu.DumpNetworkConfigSection(networkConfig, 1)
 
 		fmt.Printf("\n\n")
 		govcd.ShowVapp(*vapp.VApp)
@@ -48,6 +111,7 @@ func TestRMVApp(t *testing.T) {
 
 	live, ctx, err := InitVcdTestEnv()
 	require.Nil(t, err, "InitVcdTestEnv")
+	defer testVcdClient.Disconnect()
 
 	if live {
 		fmt.Printf("testRMVappVApp")
@@ -67,6 +131,7 @@ func TestRMVApp(t *testing.T) {
 func TestMexVApp(t *testing.T) {
 	live, _, err := InitVcdTestEnv()
 	require.Nil(t, err, "InitVcdTestEnv")
+	defer testVcdClient.Disconnect()
 
 	if live {
 		fmt.Printf("testCreateVM...")
@@ -147,14 +212,6 @@ func TestMexVApp(t *testing.T) {
 
 		vmgp.VMs = append(vmgp.VMs, vmparams)
 
-		//var updateCallback edgeproto.CacheUpdateCallback
-		/*
-			vapp, err := tv.CreateRawVApp(ctx, vmgp.GroupName)
-			if err != nil {
-				fmt.Printf("Error creating VApp: %s\n", err.Error())
-			}
-			vu.DumpVApp(vapp, 1)
-		*/
 	} else {
 		return
 	}
@@ -209,9 +266,10 @@ func GetVirtHwItem(t *testing.T, ctx context.Context) types.VirtualHardwareItem 
 func TestShowVApp(t *testing.T) {
 	live, ctx, err := InitVcdTestEnv()
 	require.Nil(t, err, "InitVcdTestEnv")
+	defer testVcdClient.Disconnect()
 	if live {
 		fmt.Printf("TestShowVApp-Start show vapp named %s\n", *vappName)
-		vdc, err := tv.GetVdc(ctx)
+		vdc, err := tv.GetVdc(ctx, testVcdClient)
 		if err != nil {
 			fmt.Printf("GetVdc failed: %s", err.Error())
 			return
@@ -238,9 +296,10 @@ func TestRawVApp(t *testing.T) {
 
 	live, ctx, err := InitVcdTestEnv()
 	require.Nil(t, err, "InitVcdTestEnv")
+	defer testVcdClient.Disconnect()
 
 	if live {
-		vdc, err := tv.GetVdc(ctx)
+		vdc, err := tv.GetVdc(ctx, testVcdClient)
 		if err != nil {
 			fmt.Printf("GetVdc ailed: %s\n", err.Error())
 			return
@@ -257,7 +316,7 @@ func TestRawVApp(t *testing.T) {
 		govcd.ShowVapp(*vapp.VApp)
 
 		// Retrive our template, we need the HREF of it's VM
-		tmpl, err := tv.FindTemplate(ctx, *tmplName)
+		tmpl, err := tv.FindTemplate(ctx, *tmplName, testVcdClient)
 		require.Nil(t, err, "FindTemplate")
 		childvm := tmpl.VAppTemplate.Children.VM[0]
 		// 3) and a new vm w/template and VmGeneralParams (Change the vm name)
@@ -409,8 +468,7 @@ func testCreateVAppChild() (*types.VAppTemplate, error) {
 // from scratch vs  using an existing template.
 //
 func testPopulateVappTmpl(t *testing.T, ctx context.Context, tmplName string) *govcd.VAppTemplate {
-	cli := tv.Client.Client
-	tmpl := govcd.NewVAppTemplate(&cli)
+	tmpl := govcd.NewVAppTemplate(&testVcdClient.Client)
 
 	fmt.Printf("PopuldateVappTemplate, must have VAppTemplateChildren !- nil and networks not nil\n")
 
@@ -481,7 +539,7 @@ func createInternalNetwork(t *testing.T, ctx context.Context, vapp *govcd.VApp) 
 //
 func testDeleteVApp(t *testing.T, ctx context.Context, name string) error {
 
-	vdc, err := tv.GetVdc(ctx)
+	vdc, err := tv.GetVdc(ctx, testVcdClient)
 	if err != nil {
 		fmt.Printf("GetVdc failed: %s\n", err.Error())
 		return err
@@ -580,21 +638,6 @@ func getCreateItemForInternalNetwork(t *testing.T, ctx context.Context) *types.C
 	return ci
 }
 
-func createVmSpecWithNewNet(t *testing.T, ctx context.Context, vapp *govcd.VApp, vm *govcd.VM) *types.VmSpecSection {
-	// The section(s) we're interested in changing
-	// This will work for nominal resources, not network though
-	//sec := &types.VmSpecSection{}
-	sec := vm.VM.VmSpecSection
-	cpus := 4
-	sec.NumCpus = &cpus
-	fmt.Printf("Set VmSpecSection to change cpu count\n")
-
-	fmt.Printf("createVmSpecWithNewNet-I-here's our current VmSpecSection: \n")
-
-	vu.DumpVmSpecSection(sec, 1)
-	return sec
-}
-
 func validateNetworkConfigSettings(networkSettings *govcd.VappNetworkSettings) error {
 	if networkSettings.Name == "" {
 		return fmt.Errorf("network name is missing")
@@ -627,9 +670,10 @@ func TestExtAddrVApp(t *testing.T) {
 
 	live, ctx, err := InitVcdTestEnv()
 	require.Nil(t, err, "InitVcdTestEnv")
+	defer testVcdClient.Disconnect()
 
 	if live {
-		vapp, err := tv.FindVApp(ctx, *vappName)
+		vapp, err := tv.FindVApp(ctx, *vappName, testVcdClient)
 		require.Nil(t, err, "FindVapp")
 		fmt.Printf("TestVApp-Start create vapp named %s in vdc %s \n", *vappName, *vdcName)
 
@@ -640,5 +684,31 @@ func TestExtAddrVApp(t *testing.T) {
 			return
 		}
 		fmt.Printf("Vapp %s has external address as %s\n", *vappName, addr)
+	}
+}
+
+func TestListAllVApps(t *testing.T) {
+
+	live, ctx, err := InitVcdTestEnv()
+	require.Nil(t, err, "InitVcdTestEnv")
+	defer testVcdClient.Disconnect()
+
+	if live {
+		vdc, err := tv.GetVdc(ctx, testVcdClient)
+		if err != nil {
+			fmt.Printf("GetVdc failed: %s", err.Error())
+			return
+		}
+
+		fmt.Printf("List all VApps in vdc\n")
+		resRefs := vdc.GetVappList()
+		if err != nil {
+			fmt.Printf("GetVappList failed: %s", err.Error())
+			return
+		}
+
+		for _, ref := range resRefs {
+			fmt.Printf("Vapp : %s\n", ref.Name)
+		}
 	}
 }

@@ -3,15 +3,22 @@ package vcd
 import (
 	"context"
 	"fmt"
-	"github.com/mobiledgex/edge-cloud/log"
 	"net/url"
 	"os"
+	"time"
 
+	"github.com/mobiledgex/edge-cloud-infra/infracommon"
+	"github.com/mobiledgex/edge-cloud-infra/vmlayer"
 	dme "github.com/mobiledgex/edge-cloud/d-match-engine/dme-proto"
 	"github.com/mobiledgex/edge-cloud/edgeproto"
+	"github.com/mobiledgex/edge-cloud/log"
 	ssh "github.com/mobiledgex/golang-ssh"
 	"github.com/vmware/go-vcloud-director/v2/govcd"
 )
+
+var VCDClientCtxKey = "VCDClientCtxKey"
+
+var NoVCDClientInContext = "No VCD Client in Context"
 
 // vcd security related operations
 
@@ -99,30 +106,73 @@ func (v *VcdPlatform) PopulateOrgLoginCredsFromVault(ctx context.Context) error 
 	return nil
 }
 
-func (v *VcdPlatform) PrepareRootLB(ctx context.Context, client ssh.Client, rootLBName string, secGrpName string, privacyPolicy *edgeproto.PrivacyPolicy) error {
-	log.SpanLog(ctx, log.DebugLevelInfra, "PrepareRootLB TBI", "rootLBName", rootLBName)
+func (v *VcdPlatform) GetExternalIpNetworkCidr(ctx context.Context, vcdClient *govcd.VCDClient) (string, error) {
+
+	extNet, err := v.GetExtNetwork(ctx, vcdClient)
+	if err != nil {
+		return "", err
+	}
+
+	scope := extNet.OrgVDCNetwork.Configuration.IPScopes.IPScope[0]
+	cidr, err := MaskToCidr(scope.Netmask)
+	if err != nil {
+		log.SpanLog(ctx, log.DebugLevelInfra, "GetExternalIpNetworkCidr error converting mask to cider", "cidr", cidr, "error", err)
+		return "", err
+	}
+	addr := scope.Gateway + "/" + cidr
+
+	log.SpanLog(ctx, log.DebugLevelInfra, "GetExternalIpNetworkCidr", "addr", addr)
+
+	return addr, nil
+
+}
+
+// same as vsphere (common vmware utils?)
+func (v *VcdPlatform) PrepareRootLB(ctx context.Context, client ssh.Client, rootLBName string, secGrpName string, trustPolicy *edgeproto.TrustPolicy, updateCallback edgeproto.CacheUpdateCallback) error {
+	log.SpanLog(ctx, log.DebugLevelInfra, "PrepareRootLB", "rootLBName", rootLBName)
+	iptblStart := time.Now()
+	vcdClient := v.GetVcdClientFromContext(ctx)
+	if vcdClient == nil {
+		log.SpanLog(ctx, log.DebugLevelInfra, NoVCDClientInContext)
+		return fmt.Errorf(NoVCDClientInContext)
+	}
+	log.SpanLog(ctx, log.DebugLevelInfra, "PrepareRootLB", "rootLBName", rootLBName)
 	// configure iptables based security
-	//sshCidrsAllowed := []string{}
-	//externalNet, err := v.GetExternalIpNetworkCidr(ctx)
-	//if err != nil {
-	//		return err
-	//	}
-	//	sshCidrsAllowed = append(sshCidrsAllowed, externalNet)
-	// return v.vmProperties.SetupIptablesRulesForRootLB(ctx, client, sshCidrsAllowed, privacyPolicy)
+	sshCidrsAllowed := []string{}
+	externalNet, err := v.GetExternalIpNetworkCidr(ctx, vcdClient)
+	if err != nil {
+		return err
+	}
+	sshCidrsAllowed = append(sshCidrsAllowed, externalNet)
+	err = v.vmProperties.SetupIptablesRulesForRootLB(ctx, client, sshCidrsAllowed, trustPolicy)
+	if err != nil {
+		log.SpanLog(ctx, log.DebugLevelInfra, "PrepareRootLB SetupIptableRulesForRootLB failed", "rootLBName", rootLBName, "err", err)
+		return err
+	}
+	if v.Verbose {
+		updateCallback(edgeproto.UpdateTask, fmt.Sprintf("Setup Root LB time %s", infracommon.FormatDuration(time.Since(iptblStart), 2)))
+	}
+	log.SpanLog(ctx, log.DebugLevelInfra, "PrepareRootLB SetupIptableRulesForRootLB complete", "rootLBName", rootLBName, "time", time.Since(iptblStart).String())
 	return nil
 }
 
+// same as vsphere
 func (v *VcdPlatform) WhitelistSecurityRules(ctx context.Context, client ssh.Client, secGrpName, serverName, label string, allowedCIDR string, ports []dme.AppPort) error {
 
 	log.SpanLog(ctx, log.DebugLevelInfra, "WhitelistSecurityRules", "secGrpName", secGrpName, "allowedCIDR", allowedCIDR, "ports", ports)
-
-	return nil
+	// this can be called during LB init so we need to ensure we can reach the server before trying iptables commands
+	err := vmlayer.WaitServerReady(ctx, v, client, serverName, vmlayer.MaxRootLBWait)
+	if err != nil {
+		return err
+	}
+	return vmlayer.AddIngressIptablesRules(ctx, client, label, allowedCIDR, ports)
 }
 
+// same as vsphere
 func (v *VcdPlatform) RemoveWhitelistSecurityRules(ctx context.Context, client ssh.Client, secGrpName, label string, allowedCIDR string, ports []dme.AppPort) error {
-	log.SpanLog(ctx, log.DebugLevelInfra, "RemoveWhitelistSecurityRules", "secGrpName", secGrpName, "allowedCIDR", allowedCIDR, "ports", ports)
 
-	return nil
+	log.SpanLog(ctx, log.DebugLevelInfra, "RemoveWhitelistSecurityRules", "secGrpName", secGrpName, "allowedCIDR", allowedCIDR, "ports", ports)
+	return vmlayer.RemoveIngressIptablesRules(ctx, client, label, allowedCIDR, ports)
 }
 
 func setVer(cli *govcd.VCDClient) error {
@@ -141,12 +191,12 @@ func (v *VcdPlatform) GetClient(ctx context.Context, creds *VcdConfigParams) (cl
 		}
 	}
 
-	log.SpanLog(ctx, log.DebugLevelInfra, "GetClient", "Credentails", creds)
-
-	if v.Client != nil {
-		log.SpanLog(ctx, log.DebugLevelInfra, "GetClient client exists  ", "client", v.Client)
-		return v.Client, nil
+	if creds == nil {
+		// usually indicates we called GetClient before InitProvider
+		return nil, fmt.Errorf("nil creds passed to GetClient")
 	}
+
+	log.SpanLog(ctx, log.DebugLevelInfra, "GetClient", "user", creds.User)
 
 	u, err := url.ParseRequestURI(creds.Href)
 	if err != nil {
@@ -185,9 +235,67 @@ func (v *VcdPlatform) GetClient(ctx context.Context, creds *VcdConfigParams) (cl
 			vcdClient.Client.APIVersion = "34.0"
 		}
 	*/
-	v.Client = vcdClient
-	log.SpanLog(ctx, log.DebugLevelInfra, "GetClient connected", "API Version", v.Client.Client.APIVersion)
-
+	log.SpanLog(ctx, log.DebugLevelInfra, "GetClient connected", "API Version", vcdClient.Client.APIVersion)
+	// setup the client in the context
 	return vcdClient, nil
 
+}
+
+// New
+func (v *VcdPlatform) ConfigureCloudletSecurityRules(ctx context.Context, egressRestricted bool, TrustPolicy *edgeproto.TrustPolicy, action vmlayer.ActionType, updateCallback edgeproto.CacheUpdateCallback) error {
+
+	log.SpanLog(ctx, log.DebugLevelInfra, "ConfigureCloudletSecurityRules tbi")
+	return nil
+}
+
+// GetVcdClientFromContext returns a client object if one exists, otherwise nil
+func (v *VcdPlatform) GetVcdClientFromContext(ctx context.Context) *govcd.VCDClient {
+	vcdClient, found := ctx.Value(VCDClientCtxKey).(*govcd.VCDClient)
+	if !found {
+		return nil
+	}
+	return vcdClient
+}
+
+func (v *VcdPlatform) InitOperationContext(ctx context.Context, operationStage vmlayer.OperationInitStage) (context.Context, vmlayer.OperationInitResult, error) {
+	log.SpanLog(ctx, log.DebugLevelInfra, "InitOperationContext", "operationStage", operationStage)
+
+	if operationStage == vmlayer.OperationInitStart {
+		// getClient will setup the client within the context.  First ensure it is not already set, which
+		// indicates an error because we don't want it to be setup twice as it may get cleaned up erroneously.
+		// So we look for the client and expect a NoVCDClientInContext error
+		vcdClient := v.GetVcdClientFromContext(ctx)
+		if vcdClient != nil {
+			// This indicates we called InitOperationContext with OperationInitStart twice before OperationInitComplete
+			// which is unavoidable in some flows
+			log.SpanLog(ctx, log.DebugLevelInfra, "InitOperationContext VCDClient is already in context")
+			return ctx, vmlayer.OperationAlreadyInitialized, nil
+		}
+		// now get a new client
+		var err error
+		vcdClient, err = v.GetClient(ctx, v.Creds)
+		if err != nil {
+			log.SpanLog(ctx, log.DebugLevelInfra, "Failed to initialize vcdClient", "err", err)
+			return ctx, vmlayer.OperationInitFailed, err
+		} else {
+			ctx = context.WithValue(ctx, VCDClientCtxKey, vcdClient)
+			log.SpanLog(ctx, log.DebugLevelInfra, "Updated context with client", "APIVersion", vcdClient.Client.APIVersion, "key", VCDClientCtxKey)
+			return ctx, vmlayer.OperationNewlyInitialized, nil
+		}
+	} else {
+		vcdClient := v.GetVcdClientFromContext(ctx)
+		if vcdClient == nil {
+			log.SpanLog(ctx, log.DebugLevelInfra, NoVCDClientInContext, "ctx", fmt.Sprintf("%+v", ctx))
+			return ctx, vmlayer.OperationInitFailed, fmt.Errorf(NoVCDClientInContext)
+		}
+		log.SpanLog(ctx, log.DebugLevelInfra, "Disconnecting vcdClient")
+		err := vcdClient.Disconnect()
+		if err != nil {
+			// err here happens all the time but has no impact
+			if v.Verbose {
+				log.SpanLog(ctx, log.DebugLevelInfra, "Disconnect vcdClient", "err", err)
+			}
+		}
+		return ctx, vmlayer.OperationNewlyInitialized, err
+	}
 }

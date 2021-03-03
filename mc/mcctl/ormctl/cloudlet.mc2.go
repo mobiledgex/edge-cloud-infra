@@ -40,8 +40,8 @@ var CreateCloudletCmd = &cli.Command{
 
 var DeleteCloudletCmd = &cli.Command{
 	Use:                  "DeleteCloudlet",
-	RequiredArgs:         "region " + strings.Join(CloudletRequiredArgs, " "),
-	OptionalArgs:         strings.Join(CloudletOptionalArgs, " "),
+	RequiredArgs:         "region " + strings.Join(DeleteCloudletRequiredArgs, " "),
+	OptionalArgs:         strings.Join(DeleteCloudletOptionalArgs, " "),
 	AliasArgs:            strings.Join(CloudletAliasArgs, " "),
 	SpecialArgs:          &CloudletSpecialArgs,
 	Comments:             addRegionComment(CloudletComments),
@@ -125,6 +125,30 @@ var GetCloudletPropsCmd = &cli.Command{
 	Run:          runRest("/auth/ctrl/GetCloudletProps"),
 }
 
+var GetCloudletResourceQuotaPropsCmd = &cli.Command{
+	Use:          "GetCloudletResourceQuotaProps",
+	RequiredArgs: "region " + strings.Join(GetCloudletResourceQuotaPropsRequiredArgs, " "),
+	OptionalArgs: strings.Join(GetCloudletResourceQuotaPropsOptionalArgs, " "),
+	AliasArgs:    strings.Join(CloudletResourceQuotaPropsAliasArgs, " "),
+	SpecialArgs:  &CloudletResourceQuotaPropsSpecialArgs,
+	Comments:     addRegionComment(CloudletResourceQuotaPropsComments),
+	ReqData:      &ormapi.RegionCloudletResourceQuotaProps{},
+	ReplyData:    &edgeproto.CloudletResourceQuotaProps{},
+	Run:          runRest("/auth/ctrl/GetCloudletResourceQuotaProps"),
+}
+
+var GetCloudletResourceUsageCmd = &cli.Command{
+	Use:          "GetCloudletResourceUsage",
+	RequiredArgs: "region " + strings.Join(CloudletResourceUsageRequiredArgs, " "),
+	OptionalArgs: strings.Join(CloudletResourceUsageOptionalArgs, " "),
+	AliasArgs:    strings.Join(CloudletResourceUsageAliasArgs, " "),
+	SpecialArgs:  &CloudletResourceUsageSpecialArgs,
+	Comments:     addRegionComment(CloudletResourceUsageComments),
+	ReqData:      &ormapi.RegionCloudletResourceUsage{},
+	ReplyData:    &edgeproto.InfraResourcesSnapshot{},
+	Run:          runRest("/auth/ctrl/GetCloudletResourceUsage"),
+}
+
 var AddCloudletResMappingCmd = &cli.Command{
 	Use:          "AddCloudletResMapping",
 	RequiredArgs: "region " + strings.Join(CloudletResMapRequiredArgs, " "),
@@ -192,6 +216,8 @@ var CloudletApiCmds = []*cli.Command{
 	ShowCloudletCmd,
 	GetCloudletManifestCmd,
 	GetCloudletPropsCmd,
+	GetCloudletResourceQuotaPropsCmd,
+	GetCloudletResourceUsageCmd,
 	AddCloudletResMappingCmd,
 	RemoveCloudletResMappingCmd,
 	FindFlavorMatchCmd,
@@ -223,9 +249,6 @@ var CreateCloudletOptionalArgs = []string{
 	"physicalname",
 	"envvar",
 	"containerversion",
-	"restagmap:#.key",
-	"restagmap:#.value.name",
-	"restagmap:#.value.organization",
 	"accessvars",
 	"vmimageversion",
 	"deployment",
@@ -235,6 +258,50 @@ var CreateCloudletOptionalArgs = []string{
 	"maintenancestate",
 	"overridepolicycontainerversion",
 	"vmpool",
+	"trustpolicy",
+	"resourcequotas:#.name",
+	"resourcequotas:#.value",
+	"resourcequotas:#.alertthreshold",
+	"defaultresourcealertthreshold",
+}
+var DeleteCloudletRequiredArgs = []string{
+	"cloudlet-org",
+	"cloudlet",
+}
+var DeleteCloudletOptionalArgs = []string{
+	"location.latitude",
+	"location.longitude",
+	"location.altitude",
+	"ipsupport",
+	"staticips",
+	"numdynamicips",
+	"timelimits.createclusterinsttimeout",
+	"timelimits.updateclusterinsttimeout",
+	"timelimits.deleteclusterinsttimeout",
+	"timelimits.createappinsttimeout",
+	"timelimits.updateappinsttimeout",
+	"timelimits.deleteappinsttimeout",
+	"crmoverride",
+	"deploymentlocal",
+	"platformtype",
+	"flavor.name",
+	"physicalname",
+	"envvar",
+	"containerversion",
+	"accessvars",
+	"vmimageversion",
+	"deployment",
+	"infraapiaccess",
+	"infraconfig.externalnetworkname",
+	"infraconfig.flavorname",
+	"maintenancestate",
+	"overridepolicycontainerversion",
+	"vmpool",
+	"trustpolicy",
+	"resourcequotas:#.name",
+	"resourcequotas:#.value",
+	"resourcequotas:#.alertthreshold",
+	"defaultresourcealertthreshold",
 }
 var UpdateCloudletRequiredArgs = []string{
 	"cloudlet-org",
@@ -257,11 +324,67 @@ var UpdateCloudletOptionalArgs = []string{
 	"envvar",
 	"accessvars",
 	"maintenancestate",
+	"trustpolicy",
+	"resourcequotas:#.name",
+	"resourcequotas:#.value",
+	"resourcequotas:#.alertthreshold",
+	"defaultresourcealertthreshold",
+}
+var ShowCloudletRequiredArgs = []string{
+	"cloudlet-org",
+	"cloudlet",
+}
+var ShowCloudletOptionalArgs = []string{
+	"location.latitude",
+	"location.longitude",
+	"location.altitude",
+	"ipsupport",
+	"staticips",
+	"numdynamicips",
+	"timelimits.createclusterinsttimeout",
+	"timelimits.updateclusterinsttimeout",
+	"timelimits.deleteclusterinsttimeout",
+	"timelimits.createappinsttimeout",
+	"timelimits.updateappinsttimeout",
+	"timelimits.deleteappinsttimeout",
+	"crmoverride",
+	"deploymentlocal",
+	"platformtype",
+	"flavor.name",
+	"physicalname",
+	"envvar",
+	"containerversion",
+	"accessvars",
+	"vmimageversion",
+	"deployment",
+	"infraapiaccess",
+	"infraconfig.externalnetworkname",
+	"infraconfig.flavorname",
+	"maintenancestate",
+	"overridepolicycontainerversion",
+	"vmpool",
+	"trustpolicy",
+	"resourcequotas:#.name",
+	"resourcequotas:#.value",
+	"resourcequotas:#.alertthreshold",
+	"defaultresourcealertthreshold",
 }
 var GetCloudletPropsRequiredArgs = []string{
 	"platformtype",
 }
 var GetCloudletPropsOptionalArgs = []string{}
+var GetCloudletResourceQuotaPropsRequiredArgs = []string{
+	"platformtype",
+}
+var GetCloudletResourceQuotaPropsOptionalArgs = []string{
+	"props:#.name",
+	"props:#.value",
+	"props:#.inframaxvalue",
+	"props:#.quotamaxvalue",
+	"props:#.description",
+	"props:#.units",
+	"props:#.alertthreshold",
+}
 
 var ShowCloudletInfoCmd = &cli.Command{
 	Use:          "ShowCloudletInfo",
@@ -361,8 +484,7 @@ var PlatformConfigOptionalArgs = []string{
 	"cleanupmode",
 	"region",
 	"commercialcerts",
-	"usevaultcerts",
-	"usevaultcas",
+	"usevaultpki",
 	"appdnsroot",
 	"chefserverpath",
 	"chefclientinterval",
@@ -384,8 +506,7 @@ var PlatformConfigAliasArgs = []string{
 	"cleanupmode=platformconfig.cleanupmode",
 	"region=platformconfig.region",
 	"commercialcerts=platformconfig.commercialcerts",
-	"usevaultcerts=platformconfig.usevaultcerts",
-	"usevaultcas=platformconfig.usevaultcas",
+	"usevaultpki=platformconfig.usevaultpki",
 	"appdnsroot=platformconfig.appdnsroot",
 	"chefserverpath=platformconfig.chefserverpath",
 	"chefclientinterval=platformconfig.chefclientinterval",
@@ -407,8 +528,7 @@ var PlatformConfigComments = map[string]string{
 	"cleanupmode":           "Internal cleanup flag",
 	"region":                "Region",
 	"commercialcerts":       "Get certs from vault or generate your own for the root load balancer",
-	"usevaultcerts":         "Use Vault certs for internal TLS communication",
-	"usevaultcas":           "Use Vault CAs to authenticate TLS communication",
+	"usevaultpki":           "Use Vault certs and CAs for internal TLS communication",
 	"appdnsroot":            "App domain name root",
 	"chefserverpath":        "Path to Chef Server",
 	"chefclientinterval":    "Chef client interval",
@@ -452,6 +572,23 @@ var InfraConfigComments = map[string]string{
 	"flavorname":          "Infra specific flavor name",
 }
 var InfraConfigSpecialArgs = map[string]string{}
+var ResourceQuotaRequiredArgs = []string{}
+var ResourceQuotaOptionalArgs = []string{
+	"name",
+	"value",
+	"alertthreshold",
+}
+var ResourceQuotaAliasArgs = []string{
+	"name=resourcequota.name",
+	"value=resourcequota.value",
+	"alertthreshold=resourcequota.alertthreshold",
+}
+var ResourceQuotaComments = map[string]string{
+	"name":           "Resource name on which to set quota",
+	"value":          "Quota value of the resource",
+	"alertthreshold": "Generate alert when more than threshold percentage of resource is used",
+}
+var ResourceQuotaSpecialArgs = map[string]string{}
 var CloudletRequiredArgs = []string{
 	"cloudlet-org",
 	"cloudlet",
@@ -488,6 +625,11 @@ var CloudletOptionalArgs = []string{
 	"maintenancestate",
 	"overridepolicycontainerversion",
 	"vmpool",
+	"trustpolicy",
+	"resourcequotas:#.name",
+	"resourcequotas:#.value",
+	"resourcequotas:#.alertthreshold",
+	"defaultresourcealertthreshold",
 }
 var CloudletAliasArgs = []string{
 	"fields=cloudlet.fields",
@@ -540,8 +682,7 @@ var CloudletAliasArgs = []string{
 	"config.cleanupmode=cloudlet.config.cleanupmode",
 	"config.region=cloudlet.config.region",
 	"config.commercialcerts=cloudlet.config.commercialcerts",
-	"config.usevaultcerts=cloudlet.config.usevaultcerts",
-	"config.usevaultcas=cloudlet.config.usevaultcas",
+	"config.usevaultpki=cloudlet.config.usevaultpki",
 	"config.appdnsroot=cloudlet.config.appdnsroot",
 	"config.chefserverpath=cloudlet.config.chefserverpath",
 	"config.chefclientinterval=cloudlet.config.chefclientinterval",
@@ -567,6 +708,13 @@ var CloudletAliasArgs = []string{
 	"createdat.nanos=cloudlet.createdat.nanos",
 	"updatedat.seconds=cloudlet.updatedat.seconds",
 	"updatedat.nanos=cloudlet.updatedat.nanos",
+	"trustpolicy=cloudlet.trustpolicy",
+	"trustpolicystate=cloudlet.trustpolicystate",
+	"resourcequotas:#.name=cloudlet.resourcequotas:#.name",
+	"resourcequotas:#.value=cloudlet.resourcequotas:#.value",
+	"resourcequotas:#.alertthreshold=cloudlet.resourcequotas:#.alertthreshold",
+	"defaultresourcealertthreshold=cloudlet.defaultresourcealertthreshold",
+	"hostcontroller=cloudlet.hostcontroller",
 }
 var CloudletComments = map[string]string{
 	"fields":                              "Fields are used for the Update API to specify which fields to apply",
@@ -592,7 +740,7 @@ var CloudletComments = map[string]string{
 	"state":                               "Current state of the cloudlet, one of TrackedStateUnknown, NotPresent, CreateRequested, Creating, CreateError, Ready, UpdateRequested, Updating, UpdateError, DeleteRequested, Deleting, DeleteError, DeletePrepare, CrmInitok, CreatingDependencies, DeleteDone",
 	"crmoverride":                         "Override actions to CRM, one of NoOverride, IgnoreCrmErrors, IgnoreCrm, IgnoreTransientState, IgnoreCrmAndTransientState",
 	"deploymentlocal":                     "Deploy cloudlet services locally",
-	"platformtype":                        "Platform type, one of PlatformTypeFake, PlatformTypeDind, PlatformTypeOpenstack, PlatformTypeAzure, PlatformTypeGcp, PlatformTypeEdgebox, PlatformTypeFakeinfra, PlatformTypeVsphere, PlatformTypeAwsEks, PlatformTypeVmPool, PlatformTypeAwsEc2",
+	"platformtype":                        "Platform type, one of PlatformTypeFake, PlatformTypeDind, PlatformTypeOpenstack, PlatformTypeAzure, PlatformTypeGcp, PlatformTypeEdgebox, PlatformTypeFakeinfra, PlatformTypeVsphere, PlatformTypeAwsEks, PlatformTypeVmPool, PlatformTypeAwsEc2, PlatformTypeVcd, PlatformTypeAnthos, PlatformTypeKind",
 	"notifysrvaddr":                       "Address for the CRM notify listener to run on",
 	"flavor.name":                         "Flavor name",
 	"physicalname":                        "Physical infrastructure cloudlet name",
@@ -611,8 +759,7 @@ var CloudletComments = map[string]string{
 	"config.cleanupmode":                  "Internal cleanup flag",
 	"config.region":                       "Region",
 	"config.commercialcerts":              "Get certs from vault or generate your own for the root load balancer",
-	"config.usevaultcerts":                "Use Vault certs for internal TLS communication",
-	"config.usevaultcas":                  "Use Vault CAs to authenticate TLS communication",
+	"config.usevaultpki":                  "Use Vault certs and CAs for internal TLS communication",
 	"config.appdnsroot":                   "App domain name root",
 	"config.chefserverpath":               "Path to Chef Server",
 	"config.chefclientinterval":           "Chef client interval",
@@ -628,11 +775,18 @@ var CloudletComments = map[string]string{
 	"infraconfig.externalnetworkname":     "Infra specific external network name",
 	"infraconfig.flavorname":              "Infra specific flavor name",
 	"chefclientkey":                       "Chef client key",
-	"maintenancestate":                    "State for maintenance, one of NormalOperation, MaintenanceStart, MaintenanceStartNoFailover",
+	"maintenancestate":                    "State for maintenance, one of NormalOperation, MaintenanceStart, FailoverRequested, FailoverDone, FailoverError, MaintenanceStartNoFailover, CrmRequested, CrmUnderMaintenance, CrmError, NormalOperationInit, UnderMaintenance",
 	"overridepolicycontainerversion":      "Override container version from policy file",
 	"vmpool":                              "VM Pool",
 	"crmaccesspublickey":                  "CRM access public key",
 	"crmaccesskeyupgraderequired":         "CRM access key upgrade required",
+	"trustpolicy":                         "Optional Trust Policy",
+	"trustpolicystate":                    "State of trust policy, one of TrackedStateUnknown, NotPresent, CreateRequested, Creating, CreateError, Ready, UpdateRequested, Updating, UpdateError, DeleteRequested, Deleting, DeleteError, DeletePrepare, CrmInitok, CreatingDependencies, DeleteDone",
+	"resourcequotas:#.name":               "Resource name on which to set quota",
+	"resourcequotas:#.value":              "Quota value of the resource",
+	"resourcequotas:#.alertthreshold":     "Generate alert when more than threshold percentage of resource is used",
+	"defaultresourcealertthreshold":       "Default resource alert threshold percentage",
+	"hostcontroller":                      "Addr of the controller hosting the cloudlet services if it is running locally",
 }
 var CloudletSpecialArgs = map[string]string{
 	"cloudlet.accessvars":    "StringToString",
@@ -721,7 +875,7 @@ var CloudletPropsAliasArgs = []string{
 	"properties:#.value.internal=cloudletprops.properties:#.value.internal",
 }
 var CloudletPropsComments = map[string]string{
-	"platformtype":                   "Platform type, one of PlatformTypeFake, PlatformTypeDind, PlatformTypeOpenstack, PlatformTypeAzure, PlatformTypeGcp, PlatformTypeEdgebox, PlatformTypeFakeinfra, PlatformTypeVsphere, PlatformTypeAwsEks, PlatformTypeVmPool, PlatformTypeAwsEc2",
+	"platformtype":                   "Platform type, one of PlatformTypeFake, PlatformTypeDind, PlatformTypeOpenstack, PlatformTypeAzure, PlatformTypeGcp, PlatformTypeEdgebox, PlatformTypeFakeinfra, PlatformTypeVsphere, PlatformTypeAwsEks, PlatformTypeVmPool, PlatformTypeAwsEc2, PlatformTypeVcd, PlatformTypeAnthos, PlatformTypeKind",
 	"properties:#.value.name":        "Name of the property",
 	"properties:#.value.description": "Description of the property",
 	"properties:#.value.value":       "Default value of the property",
@@ -730,6 +884,56 @@ var CloudletPropsComments = map[string]string{
 	"properties:#.value.internal":    "Is the property internal, not to be set by Operator",
 }
 var CloudletPropsSpecialArgs = map[string]string{}
+var CloudletResourceQuotaPropsRequiredArgs = []string{}
+var CloudletResourceQuotaPropsOptionalArgs = []string{
+	"platformtype",
+	"props:#.name",
+	"props:#.value",
+	"props:#.inframaxvalue",
+	"props:#.quotamaxvalue",
+	"props:#.description",
+	"props:#.units",
+	"props:#.alertthreshold",
+}
+var CloudletResourceQuotaPropsAliasArgs = []string{
+	"platformtype=cloudletresourcequotaprops.platformtype",
+	"props:#.name=cloudletresourcequotaprops.props:#.name",
+	"props:#.value=cloudletresourcequotaprops.props:#.value",
+	"props:#.inframaxvalue=cloudletresourcequotaprops.props:#.inframaxvalue",
+	"props:#.quotamaxvalue=cloudletresourcequotaprops.props:#.quotamaxvalue",
+	"props:#.description=cloudletresourcequotaprops.props:#.description",
+	"props:#.units=cloudletresourcequotaprops.props:#.units",
+	"props:#.alertthreshold=cloudletresourcequotaprops.props:#.alertthreshold",
+}
+var CloudletResourceQuotaPropsComments = map[string]string{
+	"platformtype":           "Platform type, one of PlatformTypeFake, PlatformTypeDind, PlatformTypeOpenstack, PlatformTypeAzure, PlatformTypeGcp, PlatformTypeEdgebox, PlatformTypeFakeinfra, PlatformTypeVsphere, PlatformTypeAwsEks, PlatformTypeVmPool, PlatformTypeAwsEc2, PlatformTypeVcd, PlatformTypeAnthos, PlatformTypeKind",
+	"props:#.name":           "Resource name",
+	"props:#.value":          "Resource value",
+	"props:#.inframaxvalue":  "Resource infra max value",
+	"props:#.quotamaxvalue":  "Resource quota max value",
+	"props:#.description":    "Resource description",
+	"props:#.units":          "Resource units",
+	"props:#.alertthreshold": "Generate alert when more than threshold percentage of resource is used",
+}
+var CloudletResourceQuotaPropsSpecialArgs = map[string]string{}
+var CloudletResourceUsageRequiredArgs = []string{
+	"cloudlet-org",
+	"cloudlet",
+}
+var CloudletResourceUsageOptionalArgs = []string{
+	"infrausage",
+}
+var CloudletResourceUsageAliasArgs = []string{
+	"cloudlet-org=cloudletresourceusage.key.organization",
+	"cloudlet=cloudletresourceusage.key.name",
+	"infrausage=cloudletresourceusage.infrausage",
+}
+var CloudletResourceUsageComments = map[string]string{
+	"cloudlet-org": "Organization of the cloudlet site",
+	"cloudlet":     "Name of the cloudlet",
+	"infrausage":   "Show Infra based usage",
+}
+var CloudletResourceUsageSpecialArgs = map[string]string{}
 var FlavorInfoRequiredArgs = []string{}
 var FlavorInfoOptionalArgs = []string{
 	"name",
@@ -818,6 +1022,32 @@ var CloudletInfoOptionalArgs = []string{
 	"osimages:#.diskformat",
 	"controllercachereceived",
 	"maintenancestate",
+	"resourcessnapshot.platformvms:#.name",
+	"resourcessnapshot.platformvms:#.type",
+	"resourcessnapshot.platformvms:#.status",
+	"resourcessnapshot.platformvms:#.infraflavor",
+	"resourcessnapshot.platformvms:#.ipaddresses:#.externalip",
+	"resourcessnapshot.platformvms:#.ipaddresses:#.internalip",
+	"resourcessnapshot.platformvms:#.containers:#.name",
+	"resourcessnapshot.platformvms:#.containers:#.type",
+	"resourcessnapshot.platformvms:#.containers:#.status",
+	"resourcessnapshot.platformvms:#.containers:#.clusterip",
+	"resourcessnapshot.platformvms:#.containers:#.restarts",
+	"resourcessnapshot.info:#.name",
+	"resourcessnapshot.info:#.value",
+	"resourcessnapshot.info:#.inframaxvalue",
+	"resourcessnapshot.info:#.quotamaxvalue",
+	"resourcessnapshot.info:#.description",
+	"resourcessnapshot.info:#.units",
+	"resourcessnapshot.info:#.alertthreshold",
+	"resourcessnapshot.clusterinsts:#.clusterkey.name",
+	"resourcessnapshot.clusterinsts:#.organization",
+	"resourcessnapshot.vmappinsts:#.appkey.organization",
+	"resourcessnapshot.vmappinsts:#.appkey.name",
+	"resourcessnapshot.vmappinsts:#.appkey.version",
+	"resourcessnapshot.vmappinsts:#.clusterinstkey.clusterkey.name",
+	"resourcessnapshot.vmappinsts:#.clusterinstkey.organization",
+	"trustpolicystate",
 }
 var CloudletInfoAliasArgs = []string{
 	"fields=cloudletinfo.fields",
@@ -850,17 +1080,32 @@ var CloudletInfoAliasArgs = []string{
 	"osimages:#.diskformat=cloudletinfo.osimages:#.diskformat",
 	"controllercachereceived=cloudletinfo.controllercachereceived",
 	"maintenancestate=cloudletinfo.maintenancestate",
-	"resources.vms:#.name=cloudletinfo.resources.vms:#.name",
-	"resources.vms:#.type=cloudletinfo.resources.vms:#.type",
-	"resources.vms:#.status=cloudletinfo.resources.vms:#.status",
-	"resources.vms:#.infraflavor=cloudletinfo.resources.vms:#.infraflavor",
-	"resources.vms:#.ipaddresses:#.externalip=cloudletinfo.resources.vms:#.ipaddresses:#.externalip",
-	"resources.vms:#.ipaddresses:#.internalip=cloudletinfo.resources.vms:#.ipaddresses:#.internalip",
-	"resources.vms:#.containers:#.name=cloudletinfo.resources.vms:#.containers:#.name",
-	"resources.vms:#.containers:#.type=cloudletinfo.resources.vms:#.containers:#.type",
-	"resources.vms:#.containers:#.status=cloudletinfo.resources.vms:#.containers:#.status",
-	"resources.vms:#.containers:#.clusterip=cloudletinfo.resources.vms:#.containers:#.clusterip",
-	"resources.vms:#.containers:#.restarts=cloudletinfo.resources.vms:#.containers:#.restarts",
+	"resourcessnapshot.platformvms:#.name=cloudletinfo.resourcessnapshot.platformvms:#.name",
+	"resourcessnapshot.platformvms:#.type=cloudletinfo.resourcessnapshot.platformvms:#.type",
+	"resourcessnapshot.platformvms:#.status=cloudletinfo.resourcessnapshot.platformvms:#.status",
+	"resourcessnapshot.platformvms:#.infraflavor=cloudletinfo.resourcessnapshot.platformvms:#.infraflavor",
+	"resourcessnapshot.platformvms:#.ipaddresses:#.externalip=cloudletinfo.resourcessnapshot.platformvms:#.ipaddresses:#.externalip",
+	"resourcessnapshot.platformvms:#.ipaddresses:#.internalip=cloudletinfo.resourcessnapshot.platformvms:#.ipaddresses:#.internalip",
+	"resourcessnapshot.platformvms:#.containers:#.name=cloudletinfo.resourcessnapshot.platformvms:#.containers:#.name",
+	"resourcessnapshot.platformvms:#.containers:#.type=cloudletinfo.resourcessnapshot.platformvms:#.containers:#.type",
+	"resourcessnapshot.platformvms:#.containers:#.status=cloudletinfo.resourcessnapshot.platformvms:#.containers:#.status",
+	"resourcessnapshot.platformvms:#.containers:#.clusterip=cloudletinfo.resourcessnapshot.platformvms:#.containers:#.clusterip",
+	"resourcessnapshot.platformvms:#.containers:#.restarts=cloudletinfo.resourcessnapshot.platformvms:#.containers:#.restarts",
+	"resourcessnapshot.info:#.name=cloudletinfo.resourcessnapshot.info:#.name",
+	"resourcessnapshot.info:#.value=cloudletinfo.resourcessnapshot.info:#.value",
+	"resourcessnapshot.info:#.inframaxvalue=cloudletinfo.resourcessnapshot.info:#.inframaxvalue",
+	"resourcessnapshot.info:#.quotamaxvalue=cloudletinfo.resourcessnapshot.info:#.quotamaxvalue",
+	"resourcessnapshot.info:#.description=cloudletinfo.resourcessnapshot.info:#.description",
+	"resourcessnapshot.info:#.units=cloudletinfo.resourcessnapshot.info:#.units",
+	"resourcessnapshot.info:#.alertthreshold=cloudletinfo.resourcessnapshot.info:#.alertthreshold",
+	"resourcessnapshot.clusterinsts:#.clusterkey.name=cloudletinfo.resourcessnapshot.clusterinsts:#.clusterkey.name",
+	"resourcessnapshot.clusterinsts:#.organization=cloudletinfo.resourcessnapshot.clusterinsts:#.organization",
+	"resourcessnapshot.vmappinsts:#.appkey.organization=cloudletinfo.resourcessnapshot.vmappinsts:#.appkey.organization",
+	"resourcessnapshot.vmappinsts:#.appkey.name=cloudletinfo.resourcessnapshot.vmappinsts:#.appkey.name",
+	"resourcessnapshot.vmappinsts:#.appkey.version=cloudletinfo.resourcessnapshot.vmappinsts:#.appkey.version",
+	"resourcessnapshot.vmappinsts:#.clusterinstkey.clusterkey.name=cloudletinfo.resourcessnapshot.vmappinsts:#.clusterinstkey.clusterkey.name",
+	"resourcessnapshot.vmappinsts:#.clusterinstkey.organization=cloudletinfo.resourcessnapshot.vmappinsts:#.clusterinstkey.organization",
+	"trustpolicystate=cloudletinfo.trustpolicystate",
 }
 var CloudletInfoComments = map[string]string{
 	"fields":                                 "Fields are used for the Update API to specify which fields to apply",
@@ -884,16 +1129,31 @@ var CloudletInfoComments = map[string]string{
 	"osimages:#.properties":                  "image properties/metadata",
 	"osimages:#.diskformat":                  "format qcow2, img, etc",
 	"controllercachereceived":                "Indicates all controller data has been sent to CRM",
-	"maintenancestate":                       "State for maintenance, one of NormalOperation, MaintenanceStart, MaintenanceStartNoFailover",
-	"resources.vms:#.name":                   "Virtual machine name",
-	"resources.vms:#.type":                   "Type can be platform, rootlb, cluster-master, cluster-node, vmapp",
-	"resources.vms:#.status":                 "Runtime status of the VM",
-	"resources.vms:#.infraflavor":            "Flavor allocated within the cloudlet infrastructure, distinct from the control plane flavor",
-	"resources.vms:#.containers:#.name":      "Name of the container",
-	"resources.vms:#.containers:#.type":      "Type can be docker or kubernetes",
-	"resources.vms:#.containers:#.status":    "Runtime status of the container",
-	"resources.vms:#.containers:#.clusterip": "IP within the CNI and is applicable to kubernetes only",
-	"resources.vms:#.containers:#.restarts":  "Restart count, applicable to kubernetes only",
+	"maintenancestate":                       "State for maintenance, one of NormalOperation, MaintenanceStart, FailoverRequested, FailoverDone, FailoverError, MaintenanceStartNoFailover, CrmRequested, CrmUnderMaintenance, CrmError, NormalOperationInit, UnderMaintenance",
+	"resourcessnapshot.platformvms:#.name":   "Virtual machine name",
+	"resourcessnapshot.platformvms:#.type":   "Type can be platform, rootlb, cluster-master, cluster-node, vmapp",
+	"resourcessnapshot.platformvms:#.status": "Runtime status of the VM",
+	"resourcessnapshot.platformvms:#.infraflavor":                   "Flavor allocated within the cloudlet infrastructure, distinct from the control plane flavor",
+	"resourcessnapshot.platformvms:#.containers:#.name":             "Name of the container",
+	"resourcessnapshot.platformvms:#.containers:#.type":             "Type can be docker or kubernetes",
+	"resourcessnapshot.platformvms:#.containers:#.status":           "Runtime status of the container",
+	"resourcessnapshot.platformvms:#.containers:#.clusterip":        "IP within the CNI and is applicable to kubernetes only",
+	"resourcessnapshot.platformvms:#.containers:#.restarts":         "Restart count, applicable to kubernetes only",
+	"resourcessnapshot.info:#.name":                                 "Resource name",
+	"resourcessnapshot.info:#.value":                                "Resource value",
+	"resourcessnapshot.info:#.inframaxvalue":                        "Resource infra max value",
+	"resourcessnapshot.info:#.quotamaxvalue":                        "Resource quota max value",
+	"resourcessnapshot.info:#.description":                          "Resource description",
+	"resourcessnapshot.info:#.units":                                "Resource units",
+	"resourcessnapshot.info:#.alertthreshold":                       "Generate alert when more than threshold percentage of resource is used",
+	"resourcessnapshot.clusterinsts:#.clusterkey.name":              "Cluster name",
+	"resourcessnapshot.clusterinsts:#.organization":                 "Name of Developer organization that this cluster belongs to",
+	"resourcessnapshot.vmappinsts:#.appkey.organization":            "App developer organization",
+	"resourcessnapshot.vmappinsts:#.appkey.name":                    "App name",
+	"resourcessnapshot.vmappinsts:#.appkey.version":                 "App version",
+	"resourcessnapshot.vmappinsts:#.clusterinstkey.clusterkey.name": "Cluster name",
+	"resourcessnapshot.vmappinsts:#.clusterinstkey.organization":    "Name of Developer organization that this cluster belongs to",
+	"trustpolicystate": "Trust Policy State, one of TrackedStateUnknown, NotPresent, CreateRequested, Creating, CreateError, Ready, UpdateRequested, Updating, UpdateError, DeleteRequested, Deleting, DeleteError, DeletePrepare, CrmInitok, CreatingDependencies, DeleteDone",
 }
 var CloudletInfoSpecialArgs = map[string]string{
 	"cloudletinfo.errors":            "StringArray",

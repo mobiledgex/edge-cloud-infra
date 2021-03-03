@@ -12,6 +12,7 @@ import (
 	_ "github.com/gogo/protobuf/types"
 	"github.com/labstack/echo"
 	"github.com/mobiledgex/edge-cloud-infra/mc/ormapi"
+	_ "github.com/mobiledgex/edge-cloud/d-match-engine/dme-proto"
 	edgeproto "github.com/mobiledgex/edge-cloud/edgeproto"
 	"github.com/mobiledgex/edge-cloud/log"
 	_ "github.com/mobiledgex/edge-cloud/protogen"
@@ -213,7 +214,7 @@ func ShowVMPoolStream(ctx context.Context, rc *RegionContext, obj *edgeproto.VMP
 	var authz *AuthzShow
 	var err error
 	if !rc.skipAuthz {
-		authz, err = newShowAuthz(ctx, rc.region, rc.username, ResourceCloudlets, ActionView)
+		authz, err = newShowAuthz(ctx, rc.region, rc.username, ResourceCloudletAnalytics, ActionView)
 		if err == echo.ErrForbidden {
 			return nil
 		}

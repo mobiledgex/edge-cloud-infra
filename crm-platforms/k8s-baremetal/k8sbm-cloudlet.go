@@ -1,4 +1,4 @@
-package baremetal
+package k8sbm
 
 import (
 	"context"
@@ -38,8 +38,8 @@ file_backup_path       "/var/backups/chef"
 pid_file               "/var/run/chef/client.pid"
 Chef::Log::Formatter.show_time = true`
 
-func (b *BareMetalPlatform) GetChefParams(nodeName, clientKey string, policyName string, attributes map[string]interface{}) *chefmgmt.ServerChefParams {
-	chefServerPath := b.commonPf.ChefServerPath
+func (k *K8sBareMetalPlatform) GetChefParams(nodeName, clientKey string, policyName string, attributes map[string]interface{}) *chefmgmt.ServerChefParams {
+	chefServerPath := k.commonPf.ChefServerPath
 	if chefServerPath == "" {
 		chefServerPath = chefmgmt.DefaultChefServerPath
 	}
@@ -49,26 +49,26 @@ func (b *BareMetalPlatform) GetChefParams(nodeName, clientKey string, policyName
 		ClientKey:   clientKey,
 		Attributes:  attributes,
 		PolicyName:  policyName,
-		PolicyGroup: b.commonPf.DeploymentTag,
+		PolicyGroup: k.commonPf.DeploymentTag,
 	}
 }
 
-func (b *BareMetalPlatform) GetChefClientName(ckey *edgeproto.CloudletKey) string {
+func (k *K8sBareMetalPlatform) GetChefClientName(ckey *edgeproto.CloudletKey) string {
 	// Prefix with region name
 	name := util.K8SSanitize(ckey.Name + "-" + ckey.Organization)
-	return b.commonPf.DeploymentTag + "-" + b.commonPf.PlatformConfig.Region + "-" + name
+	return k.commonPf.DeploymentTag + "-" + k.commonPf.PlatformConfig.Region + "-" + name
 }
 
-func (b *BareMetalPlatform) CreateCloudlet(ctx context.Context, cloudlet *edgeproto.Cloudlet, pfConfig *edgeproto.PlatformConfig, flavor *edgeproto.Flavor, caches *platform.Caches, accessApi platform.AccessApi, updateCallback edgeproto.CacheUpdateCallback) error {
+func (k *K8sBareMetalPlatform) CreateCloudlet(ctx context.Context, cloudlet *edgeproto.Cloudlet, pfConfig *edgeproto.PlatformConfig, flavor *edgeproto.Flavor, caches *platform.Caches, accessApi platform.AccessApi, updateCallback edgeproto.CacheUpdateCallback) error {
 	log.SpanLog(ctx, log.DebugLevelInfra, "CreateCloudlet", "cloudlet", cloudlet)
 
-	err := b.commonPf.InitCloudletSSHKeys(ctx, accessApi)
+	err := k.commonPf.InitCloudletSSHKeys(ctx, accessApi)
 	if err != nil {
 		return err
 	}
 
-	b.commonPf.PlatformConfig = infracommon.GetPlatformConfig(cloudlet, pfConfig, accessApi)
-	if err := b.commonPf.InitInfraCommon(ctx, b.commonPf.PlatformConfig, baremetalProps); err != nil {
+	k.commonPf.PlatformConfig = infracommon.GetPlatformConfig(cloudlet, pfConfig, accessApi)
+	if err := k.commonPf.InitInfraCommon(ctx, k.commonPf.PlatformConfig, k8sbmProps); err != nil {
 		return err
 	}
 
@@ -93,7 +93,7 @@ func (b *BareMetalPlatform) CreateCloudlet(ctx context.Context, cloudlet *edgepr
 	if err != nil {
 		return err
 	}
-	if b.commonPf.ChefClient == nil {
+	if k.commonPf.ChefClient == nil {
 		return fmt.Errorf("Chef client is not initialized")
 	}
 
@@ -105,17 +105,17 @@ func (b *BareMetalPlatform) CreateCloudlet(ctx context.Context, cloudlet *edgepr
 	if cloudlet.InfraApiAccess == edgeproto.InfraApiAccess_RESTRICTED_ACCESS {
 		return fmt.Errorf("Restricted access not yet supported on BareMetal")
 	}
-	clientName := b.GetChefClientName(&cloudlet.Key)
-	chefParams := b.GetChefParams(clientName, "", chefPolicy, chefAttributes)
+	clientName := k.GetChefClientName(&cloudlet.Key)
+	chefParams := k.GetChefParams(clientName, "", chefPolicy, chefAttributes)
 
 	updateCallback(edgeproto.UpdateTask, fmt.Sprintf("Creating Chef Client %s with cloudlet attributes", clientName))
-	clientKey, err := chefmgmt.ChefClientCreate(ctx, b.commonPf.ChefClient, chefParams)
+	clientKey, err := chefmgmt.ChefClientCreate(ctx, k.commonPf.ChefClient, chefParams)
 	if err != nil {
 		return err
 	}
 	// Store client key in cloudlet obj
 	cloudlet.ChefClientKey[clientName] = clientKey
-	sshClient, err := b.GetNodePlatformClient(ctx, &edgeproto.CloudletMgmtNode{Name: b.commonPf.PlatformConfig.CloudletKey.String(), Type: "baremetalcontrolhost"})
+	sshClient, err := k.GetNodePlatformClient(ctx, &edgeproto.CloudletMgmtNode{Name: k.commonPf.PlatformConfig.CloudletKey.String(), Type: "k8sbmcontrolhost"})
 	if err != nil {
 		return fmt.Errorf("Failed to get ssh client to control host: %v", err)
 	}
@@ -126,14 +126,14 @@ func (b *BareMetalPlatform) CreateCloudlet(ctx context.Context, cloudlet *edgepr
 		}
 	}
 	// install chef
-	err = b.SetupChefOnServer(ctx, sshClient, clientName, cloudlet, chefParams)
+	err = k.SetupChefOnServer(ctx, sshClient, clientName, cloudlet, chefParams)
 	if err != nil {
 		return err
 	}
-	return chefmgmt.GetChefRunStatus(ctx, b.commonPf.ChefClient, clientName, cloudlet, pfConfig, accessApi, updateCallback)
+	return chefmgmt.GetChefRunStatus(ctx, k.commonPf.ChefClient, clientName, cloudlet, pfConfig, accessApi, updateCallback)
 }
 
-func (b *BareMetalPlatform) SetupChefOnServer(ctx context.Context, sshClient ssh.Client, clientName string, cloudlet *edgeproto.Cloudlet, chefParams *chefmgmt.ServerChefParams) error {
+func (k *K8sBareMetalPlatform) SetupChefOnServer(ctx context.Context, sshClient ssh.Client, clientName string, cloudlet *edgeproto.Cloudlet, chefParams *chefmgmt.ServerChefParams) error {
 	log.SpanLog(ctx, log.DebugLevelInfra, "SetupChefOnServer", "clientName", clientName)
 
 	err := pc.WriteFile(sshClient, "/etc/chef/client.pem", cloudlet.ChefClientKey[clientName], "chef-key", pc.SudoOn)
@@ -171,47 +171,47 @@ func (b *BareMetalPlatform) SetupChefOnServer(ctx context.Context, sshClient ssh
 	return nil
 }
 
-func (b *BareMetalPlatform) UpdateCloudlet(ctx context.Context, cloudlet *edgeproto.Cloudlet, updateCallback edgeproto.CacheUpdateCallback) error {
+func (k *K8sBareMetalPlatform) UpdateCloudlet(ctx context.Context, cloudlet *edgeproto.Cloudlet, updateCallback edgeproto.CacheUpdateCallback) error {
 	return fmt.Errorf("UpdateCloudlet TODO")
 }
 
-func (b *BareMetalPlatform) UpdateTrustPolicy(ctx context.Context, TrustPolicy *edgeproto.TrustPolicy) error {
+func (k *K8sBareMetalPlatform) UpdateTrustPolicy(ctx context.Context, TrustPolicy *edgeproto.TrustPolicy) error {
 	return fmt.Errorf("UpdateTrustPolicy TODO")
 }
 
-func (b *BareMetalPlatform) DeleteCloudlet(ctx context.Context, cloudlet *edgeproto.Cloudlet, pfConfig *edgeproto.PlatformConfig, caches *platform.Caches, accessApi platform.AccessApi, updateCallback edgeproto.CacheUpdateCallback) error {
+func (k *K8sBareMetalPlatform) DeleteCloudlet(ctx context.Context, cloudlet *edgeproto.Cloudlet, pfConfig *edgeproto.PlatformConfig, caches *platform.Caches, accessApi platform.AccessApi, updateCallback edgeproto.CacheUpdateCallback) error {
 	log.SpanLog(ctx, log.DebugLevelInfra, "DeleteCloudlet")
 	updateCallback(edgeproto.UpdateTask, "Deleting cloudlet")
-	err := b.commonPf.InitCloudletSSHKeys(ctx, accessApi)
+	err := k.commonPf.InitCloudletSSHKeys(ctx, accessApi)
 	if err != nil {
 		return err
 	}
-	b.commonPf.PlatformConfig = infracommon.GetPlatformConfig(cloudlet, pfConfig, accessApi)
-	if err := b.commonPf.InitInfraCommon(ctx, b.commonPf.PlatformConfig, baremetalProps); err != nil {
+	k.commonPf.PlatformConfig = infracommon.GetPlatformConfig(cloudlet, pfConfig, accessApi)
+	if err := k.commonPf.InitInfraCommon(ctx, k.commonPf.PlatformConfig, k8sbmProps); err != nil {
 		return err
 	}
-	sshClient, err := b.GetNodePlatformClient(ctx, &edgeproto.CloudletMgmtNode{Name: b.commonPf.PlatformConfig.CloudletKey.String(), Type: "baremetalcontrolhost"})
+	sshClient, err := k.GetNodePlatformClient(ctx, &edgeproto.CloudletMgmtNode{Name: k.commonPf.PlatformConfig.CloudletKey.String(), Type: "k8sbmcontrolhost"})
 	if err != nil {
 		return fmt.Errorf("Failed to get ssh client to control host: %v", err)
 	}
 
 	updateCallback(edgeproto.UpdateTask, "Deleting Shared RootLB")
-	sharedLbName := b.GetSharedLBName(ctx, &cloudlet.Key)
-	lbInfo, err := b.GetLbInfo(ctx, sshClient, sharedLbName)
+	sharedLbName := k.GetSharedLBName(ctx, &cloudlet.Key)
+	lbInfo, err := k.GetLbInfo(ctx, sshClient, sharedLbName)
 	if err != nil {
 		log.SpanLog(ctx, log.DebugLevelInfra, "Failed to get shared LB info", "sharedLbName", sharedLbName, "err", err)
 	} else {
-		externalDev := b.GetExternalEthernetInterface()
-		internalDev := b.GetInternalEthernetInterface()
-		err = b.RemoveIp(ctx, sshClient, lbInfo.ExternalIpAddr, externalDev)
+		externalDev := k.GetExternalEthernetInterface()
+		internalDev := k.GetInternalEthernetInterface()
+		err = k.RemoveIp(ctx, sshClient, lbInfo.ExternalIpAddr, externalDev)
 		if err != nil {
 			log.SpanLog(ctx, log.DebugLevelInfra, "Remove IP Fail", "lbInfo.ExternalIpAddr", lbInfo.ExternalIpAddr)
 		}
-		err = b.RemoveIp(ctx, sshClient, lbInfo.InternalIpAddr, internalDev)
+		err = k.RemoveIp(ctx, sshClient, lbInfo.InternalIpAddr, internalDev)
 		if err != nil {
 			log.SpanLog(ctx, log.DebugLevelInfra, "Remove IP Fail", "lbInfo.InternalIpAddr", lbInfo.InternalIpAddr)
 		}
-		err = b.DeleteLbInfo(ctx, sshClient, sharedLbName)
+		err = k.DeleteLbInfo(ctx, sshClient, sharedLbName)
 		if err != nil {
 			log.SpanLog(ctx, log.DebugLevelInfra, "error deleting lbinfo", "err", err)
 		}
@@ -241,21 +241,21 @@ func (b *BareMetalPlatform) DeleteCloudlet(ctx context.Context, cloudlet *edgepr
 	return nil
 }
 
-func (b *BareMetalPlatform) GetFlavorList(ctx context.Context) ([]*edgeproto.FlavorInfo, error) {
+func (k *K8sBareMetalPlatform) GetFlavorList(ctx context.Context) ([]*edgeproto.FlavorInfo, error) {
 	log.SpanLog(ctx, log.DebugLevelInfra, "GetFlavorList")
 	var flavors []*edgeproto.FlavorInfo
-	if b.caches == nil {
+	if k.caches == nil {
 		log.WarnLog("flavor cache is nil")
 		return nil, fmt.Errorf("Flavor cache is nil")
 	}
 	flavorkeys := make(map[edgeproto.FlavorKey]struct{})
-	b.caches.FlavorCache.GetAllKeys(ctx, func(k *edgeproto.FlavorKey, modRev int64) {
+	k.caches.FlavorCache.GetAllKeys(ctx, func(k *edgeproto.FlavorKey, modRev int64) {
 		flavorkeys[*k] = struct{}{}
 	})
-	for k := range flavorkeys {
+	for f := range flavorkeys {
 		log.SpanLog(ctx, log.DebugLevelInfra, "GetFlavorList found flavor", "key", k)
 		var flav edgeproto.Flavor
-		if b.caches.FlavorCache.Get(&k, &flav) {
+		if k.caches.FlavorCache.Get(&f, &flav) {
 			var flavInfo edgeproto.FlavorInfo
 			_, gpu := flav.OptResMap["gpu"]
 			if gpu {
@@ -268,7 +268,7 @@ func (b *BareMetalPlatform) GetFlavorList(ctx context.Context) ([]*edgeproto.Fla
 			flavInfo.Ram = flav.Ram
 			flavors = append(flavors, &flavInfo)
 		} else {
-			return nil, fmt.Errorf("fail to fetch flavor %s", k)
+			return nil, fmt.Errorf("fail to fetch flavor %s", f)
 		}
 	}
 	return flavors, nil

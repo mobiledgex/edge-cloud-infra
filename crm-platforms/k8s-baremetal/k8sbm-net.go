@@ -1,4 +1,4 @@
-package baremetal
+package k8sbm
 
 import (
 	"context"
@@ -15,7 +15,7 @@ import (
 var ipLock sync.Mutex
 var maxSecondaryInterfaces = 100
 
-func (b *BareMetalPlatform) RemoveIp(ctx context.Context, client ssh.Client, addr, dev string) error {
+func (k *K8sBareMetalPlatform) RemoveIp(ctx context.Context, client ssh.Client, addr, dev string) error {
 	log.SpanLog(ctx, log.DebugLevelInfra, "RemoveIp", "addr", addr, "dev", dev)
 	cmd := fmt.Sprintf("sudo ip address del %s/32 dev %s", addr, dev)
 	out, err := client.Output(cmd)
@@ -29,7 +29,7 @@ func (b *BareMetalPlatform) RemoveIp(ctx context.Context, client ssh.Client, add
 }
 
 // GetUsedSecondaryIpAddresses gets a map of address->interface name of IPs current in use on the device
-func (b *BareMetalPlatform) GetUsedSecondaryIpAddresses(ctx context.Context, client ssh.Client, devname string) (map[string]string, error) {
+func (k *K8sBareMetalPlatform) GetUsedSecondaryIpAddresses(ctx context.Context, client ssh.Client, devname string) (map[string]string, error) {
 	log.SpanLog(ctx, log.DebugLevelInfra, "GetUsedSecondaryIpAddresses", "devname", devname)
 	cmd := fmt.Sprintf("ip address show %s", devname)
 	out, err := client.Output(cmd)
@@ -53,21 +53,21 @@ func (b *BareMetalPlatform) GetUsedSecondaryIpAddresses(ctx context.Context, cli
 }
 
 // AssignFreeLbIp returns secondarydevname, externalIp, internalIp
-func (b *BareMetalPlatform) AssignFreeLbIp(ctx context.Context, client ssh.Client) (string, string, string, error) {
+func (k *K8sBareMetalPlatform) AssignFreeLbIp(ctx context.Context, client ssh.Client) (string, string, string, error) {
 	log.SpanLog(ctx, log.DebugLevelInfra, "AssignFreeLbIp")
 	ipLock.Lock()
 	defer ipLock.Unlock()
-	extDevName := b.GetExternalEthernetInterface()
-	intDevName := b.GetInternalEthernetInterface()
+	extDevName := k.GetExternalEthernetInterface()
+	intDevName := k.GetInternalEthernetInterface()
 
-	accessIp := b.GetControlAccessIp()
-	usedIps, err := b.GetUsedSecondaryIpAddresses(ctx, client, extDevName)
+	accessIp := k.GetControlAccessIp()
+	usedIps, err := k.GetUsedSecondaryIpAddresses(ctx, client, extDevName)
 	if err != nil {
 		return "", "", "", err
 	}
 	freeExternalIp := ""
 	internalIp := ""
-	for ipidx, addr := range b.externalIps {
+	for ipidx, addr := range k.externalIps {
 		if addr == accessIp {
 			continue
 		}
@@ -77,7 +77,7 @@ func (b *BareMetalPlatform) AssignFreeLbIp(ctx context.Context, client ssh.Clien
 		}
 		freeExternalIp = addr
 		// there are always at least as many internal IPs as external
-		internalIp = b.internalIps[ipidx]
+		internalIp = k.internalIps[ipidx]
 		break
 	}
 	if freeExternalIp == "" {
@@ -120,12 +120,12 @@ func (b *BareMetalPlatform) AssignFreeLbIp(ctx context.Context, client ssh.Clien
 	return newSecondaryInternalDev, freeExternalIp, internalIp, nil
 }
 
-func (b *BareMetalPlatform) RemoveWhitelistSecurityRules(ctx context.Context, client ssh.Client, secGrpName, server, label, allowedCIDR string, ports []dme.AppPort) error {
+func (k *K8sBareMetalPlatform) RemoveWhitelistSecurityRules(ctx context.Context, client ssh.Client, secGrpName, server, label, allowedCIDR string, ports []dme.AppPort) error {
 	log.SpanLog(ctx, log.DebugLevelInfra, "RemoveWhitelistSecurityRules not implemented yet")
 	return nil
 }
 
-func (b *BareMetalPlatform) WhitelistSecurityRules(ctx context.Context, client ssh.Client, grpName, server, label, allowedCidr string, ports []dme.AppPort) error {
+func (k *K8sBareMetalPlatform) WhitelistSecurityRules(ctx context.Context, client ssh.Client, grpName, server, label, allowedCidr string, ports []dme.AppPort) error {
 	log.SpanLog(ctx, log.DebugLevelInfra, "WhitelistSecurityRules not implemented yet")
 	return nil
 }

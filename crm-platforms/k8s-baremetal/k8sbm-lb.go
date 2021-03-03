@@ -1,4 +1,4 @@
-package baremetal
+package k8sbm
 
 import (
 	"context"
@@ -23,27 +23,27 @@ type LbInfo struct {
 	LbListenDevName string
 }
 
-func (b *BareMetalPlatform) GetSharedLBName(ctx context.Context, key *edgeproto.CloudletKey) string {
+func (k *K8sBareMetalPlatform) GetSharedLBName(ctx context.Context, key *edgeproto.CloudletKey) string {
 	log.SpanLog(ctx, log.DebugLevelInfra, "GetSharedLBName", "key", key)
-	name := cloudcommon.GetRootLBFQDN(key, b.commonPf.PlatformConfig.AppDNSRoot)
+	name := cloudcommon.GetRootLBFQDN(key, k.commonPf.PlatformConfig.AppDNSRoot)
 	return name
 }
 
-func (b *BareMetalPlatform) GetLbNameForCluster(ctx context.Context, clusterInst *edgeproto.ClusterInst) string {
-	lbName := b.sharedLBName
+func (k *K8sBareMetalPlatform) GetLbNameForCluster(ctx context.Context, clusterInst *edgeproto.ClusterInst) string {
+	lbName := k.sharedLBName
 	if clusterInst.IpAccess == edgeproto.IpAccess_IP_ACCESS_DEDICATED {
-		lbName = cloudcommon.GetDedicatedLBFQDN(b.commonPf.PlatformConfig.CloudletKey, &clusterInst.Key.ClusterKey, b.commonPf.PlatformConfig.AppDNSRoot)
+		lbName = cloudcommon.GetDedicatedLBFQDN(k.commonPf.PlatformConfig.CloudletKey, &clusterInst.Key.ClusterKey, k.commonPf.PlatformConfig.AppDNSRoot)
 	}
 	return lbName
 }
 
-func (b *BareMetalPlatform) getLbConfigFile(ctx context.Context, lbname string) string {
+func (k *K8sBareMetalPlatform) getLbConfigFile(ctx context.Context, lbname string) string {
 	return LbConfigDir + "/" + lbname + "-lbconfig.yml"
 }
 
-func (b *BareMetalPlatform) GetLbInfo(ctx context.Context, client ssh.Client, lbname string) (*LbInfo, error) {
+func (k *K8sBareMetalPlatform) GetLbInfo(ctx context.Context, client ssh.Client, lbname string) (*LbInfo, error) {
 	log.SpanLog(ctx, log.DebugLevelInfra, "GetLbInfo", "name", lbname)
-	lfinfoFile := b.getLbConfigFile(ctx, lbname)
+	lfinfoFile := k.getLbConfigFile(ctx, lbname)
 	out, err := client.Output("cat " + lfinfoFile)
 	if err != nil {
 		if strings.Contains(out, "No such file") {
@@ -60,9 +60,9 @@ func (b *BareMetalPlatform) GetLbInfo(ctx context.Context, client ssh.Client, lb
 	return &lbInfo, nil
 }
 
-func (b *BareMetalPlatform) DeleteLbInfo(ctx context.Context, client ssh.Client, lbname string) error {
+func (k *K8sBareMetalPlatform) DeleteLbInfo(ctx context.Context, client ssh.Client, lbname string) error {
 	log.SpanLog(ctx, log.DebugLevelInfra, "DeleteLbInfo", "lbname", lbname)
-	lfinfoFile := b.getLbConfigFile(ctx, lbname)
+	lfinfoFile := k.getLbConfigFile(ctx, lbname)
 	out, err := client.Output("rm -f " + lfinfoFile)
 	if err != nil {
 		if !strings.Contains(out, "No such file") {
@@ -72,9 +72,9 @@ func (b *BareMetalPlatform) DeleteLbInfo(ctx context.Context, client ssh.Client,
 	return nil
 }
 
-func (b *BareMetalPlatform) SetupLb(ctx context.Context, client ssh.Client, lbname string) error {
+func (k *K8sBareMetalPlatform) SetupLb(ctx context.Context, client ssh.Client, lbname string) error {
 	log.SpanLog(ctx, log.DebugLevelInfra, "SetupLb", "lbname", lbname)
-	lfinfoFile := b.getLbConfigFile(ctx, lbname)
+	lfinfoFile := k.getLbConfigFile(ctx, lbname)
 
 	// see if file exists
 	out, err := client.Output("ls " + lfinfoFile)
@@ -89,7 +89,7 @@ func (b *BareMetalPlatform) SetupLb(ctx context.Context, client ssh.Client, lbna
 			return fmt.Errorf("Unable to create LB Dir: %s - %v", LbConfigDir, err)
 		}
 		log.SpanLog(ctx, log.DebugLevelInfra, "New LB, assign free IP")
-		dev, externalIp, internalIp, err := b.AssignFreeLbIp(ctx, client)
+		dev, externalIp, internalIp, err := k.AssignFreeLbIp(ctx, client)
 		if err != nil {
 			return err
 		}
@@ -108,7 +108,7 @@ func (b *BareMetalPlatform) SetupLb(ctx context.Context, client ssh.Client, lbna
 		if err != nil {
 			return fmt.Errorf("Unable to create LB info file %v", err)
 		}
-		if err = b.commonPf.ActivateFQDNA(ctx, lbname, externalIp); err != nil {
+		if err = k.commonPf.ActivateFQDNA(ctx, lbname, externalIp); err != nil {
 			return err
 		}
 	} else {
@@ -117,7 +117,7 @@ func (b *BareMetalPlatform) SetupLb(ctx context.Context, client ssh.Client, lbna
 	return nil
 }
 
-func (b *BareMetalPlatform) GetRootLBFlavor(ctx context.Context) (*edgeproto.Flavor, error) {
+func (k *K8sBareMetalPlatform) GetRootLBFlavor(ctx context.Context) (*edgeproto.Flavor, error) {
 	return &edgeproto.Flavor{
 		Vcpus: uint64(0),
 		Ram:   uint64(0),

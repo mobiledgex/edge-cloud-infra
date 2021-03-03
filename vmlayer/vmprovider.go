@@ -40,7 +40,7 @@ type VMProvider interface {
 	GetInternalPortPolicy() InternalPortAttachPolicy
 	AttachPortToServer(ctx context.Context, serverName, subnetName, portName, ipaddr string, action ActionType) error
 	DetachPortFromServer(ctx context.Context, serverName, subnetName, portName string) error
-	PrepareRootLB(ctx context.Context, client ssh.Client, rootLBName string, secGrpName string, privacyPolicy *edgeproto.PrivacyPolicy) error
+	PrepareRootLB(ctx context.Context, client ssh.Client, rootLBName string, secGrpName string, TrustPolicy *edgeproto.TrustPolicy, updateCallback edgeproto.CacheUpdateCallback) error
 	WhitelistSecurityRules(ctx context.Context, client ssh.Client, secGrpName string, serverName, label, allowedCIDR string, ports []dme.AppPort) error
 	RemoveWhitelistSecurityRules(ctx context.Context, client ssh.Client, secGrpName, label string, allowedCIDR string, ports []dme.AppPort) error
 	GetResourceID(ctx context.Context, resourceType ResourceType, resourceName string) (string, error)
@@ -63,6 +63,12 @@ type VMProvider interface {
 	GetServerGroupResources(ctx context.Context, name string) (*edgeproto.InfraResources, error)
 	ValidateAdditionalNetworks(ctx context.Context, additionalNets []string) error
 	GetSessionTokens(ctx context.Context, vaultConfig *vault.Config, account string) (map[string]string, error)
+	ConfigureCloudletSecurityRules(ctx context.Context, egressRestricted bool, TrustPolicy *edgeproto.TrustPolicy, action ActionType, updateCallback edgeproto.CacheUpdateCallback) error
+	InitOperationContext(ctx context.Context, operationStage OperationInitStage) (context.Context, OperationInitResult, error)
+	GetCloudletInfraResourcesInfo(ctx context.Context) ([]edgeproto.InfraResource, error)
+	GetCloudletResourceQuotaProps(ctx context.Context) (*edgeproto.CloudletResourceQuotaProps, error)
+	GetClusterAdditionalResources(ctx context.Context, cloudlet *edgeproto.Cloudlet, vmResources []edgeproto.VMResource, infraResMap map[string]edgeproto.InfraResource) map[string]edgeproto.InfraResource
+	GetClusterAdditionalResourceMetric(ctx context.Context, cloudlet *edgeproto.Cloudlet, resMetric *edgeproto.Metric, resources []edgeproto.VMResource) error
 }
 
 // VMPlatform contains the needed by all VM based platforms
@@ -72,6 +78,7 @@ type VMPlatform struct {
 	VMProperties VMProperties
 	FlavorList   []*edgeproto.FlavorInfo
 	Caches       *platform.Caches
+	infracommon.CommonEmbedded
 }
 
 // VMMetrics contains stats and timestamp
@@ -131,14 +138,6 @@ const (
 	ResourceTypeSecurityGroup ResourceType = "SecGrp"
 )
 
-const (
-	VMProviderOpenstack string = "openstack"
-	VMProviderVSphere   string = "vsphere"
-	VMProviderVMPool    string = "vmpool"
-	VMProviderAwsEc2    string = "awsec2"
-	VMProviderVCD       string = "vcd"
-)
-
 type ProviderInitStage string
 
 const (
@@ -149,6 +148,25 @@ const (
 	ProviderInitGetVmSpec                ProviderInitStage = "GetVmSpec"
 )
 
+// OperationInitStage is used to perform any common functions needed when starting and finishing an operation on the provider
+type OperationInitStage string
+
+const (
+	OperationInitStart    OperationInitStage = "OperationStart"
+	OperationInitComplete OperationInitStage = "OperationComplete"
+)
+
+// OperationInitResult indicates whether the initialization was newly done or previously done for
+// the context.  It is necessary because there are some flows in which an initialization could
+// be done multiple times.  If OperationAlreadyInitialized is returned, cleanup should be skipped
+type OperationInitResult string
+
+const (
+	OperationNewlyInitialized   OperationInitResult = "OperationNewlyInitialized"
+	OperationInitFailed         OperationInitResult = "OperationInitFailed"
+	OperationAlreadyInitialized OperationInitResult = "OperationAlreadyInitialized"
+)
+
 type StringSanitizer func(value string) string
 
 type ResTagTables map[string]*edgeproto.ResTagTable
@@ -157,11 +175,16 @@ var pCaches *platform.Caches
 
 // VMPlatform embeds Platform and VMProvider
 
-func (v *VMPlatform) GetType() string {
-	return v.Type
-}
-
 func (v *VMPlatform) GetClusterPlatformClient(ctx context.Context, clusterInst *edgeproto.ClusterInst, clientType string) (ssh.Client, error) {
+	var err error
+	var result OperationInitResult
+	ctx, result, err = v.VMProvider.InitOperationContext(ctx, OperationInitStart)
+	if err != nil {
+		return nil, err
+	}
+	if result == OperationNewlyInitialized {
+		defer v.VMProvider.InitOperationContext(ctx, OperationInitComplete)
+	}
 	return v.GetClusterPlatformClientInternal(ctx, clusterInst, clientType, pc.WithCachedIp(true))
 }
 
@@ -195,6 +218,15 @@ func (v *VMPlatform) GetNodePlatformClient(ctx context.Context, node *edgeproto.
 	}
 	if v.VMProperties.GetCloudletExternalNetwork() == "" {
 		return nil, fmt.Errorf("GetNodePlatformClient, missing external network in platform config")
+	}
+	var err error
+	var result OperationInitResult
+	ctx, result, err = v.VMProvider.InitOperationContext(ctx, OperationInitStart)
+	if err != nil {
+		return nil, err
+	}
+	if result == OperationNewlyInitialized {
+		defer v.VMProvider.InitOperationContext(ctx, OperationInitComplete)
 	}
 	return v.GetSSHClientForServer(ctx, node.Name, v.VMProperties.GetCloudletExternalNetwork(), ops...)
 }
@@ -267,13 +299,14 @@ func (v *VMPlatform) InitProps(ctx context.Context, platformConfig *platform.Pla
 	v.VMProvider.SetVMProperties(&v.VMProperties)
 	v.VMProperties.SharedRootLBName = v.GetRootLBName(v.VMProperties.CommonPf.PlatformConfig.CloudletKey)
 	v.VMProperties.PlatformSecgrpName = GetServerSecurityGroupName(v.GetPlatformVMName(v.VMProperties.CommonPf.PlatformConfig.CloudletKey))
+	v.VMProperties.CloudletSecgrpName = v.getCloudletSecurityGroupName()
 	return nil
 }
 
 func (v *VMPlatform) initDebug(nodeMgr *node.NodeMgr) {
 	nodeMgr.Debug.AddDebugFunc("crmrefreshsshkeys",
 		func(ctx context.Context, req *edgeproto.DebugRequest) string {
-			v.triggerRefreshCloudletSSHKeys()
+			infracommon.TriggerRefreshCloudletSSHKeys(&v.VMProperties.CommonPf.SshKey)
 			return "triggered refresh"
 		})
 
@@ -301,12 +334,12 @@ func (v *VMPlatform) Init(ctx context.Context, platformConfig *platform.Platform
 	v.VMProperties.Domain = VMDomainCompute
 
 	if !platformConfig.TestMode {
-		err := v.InitCloudletSSHKeys(ctx, platformConfig.AccessApi)
+		err := v.VMProperties.CommonPf.InitCloudletSSHKeys(ctx, platformConfig.AccessApi)
 		if err != nil {
 			return err
 		}
 
-		go v.RefreshCloudletSSHKeys(platformConfig.AccessApi)
+		go v.VMProperties.CommonPf.RefreshCloudletSSHKeys(platformConfig.AccessApi)
 	}
 
 	if err := v.InitProps(ctx, platformConfig); err != nil {
@@ -324,7 +357,17 @@ func (v *VMPlatform) Init(ctx context.Context, platformConfig *platform.Platform
 	if err := v.VMProvider.InitProvider(ctx, caches, ProviderInitPlatformStart, updateCallback); err != nil {
 		return err
 	}
-
+	var result OperationInitResult
+	ctx, result, err = v.VMProvider.InitOperationContext(ctx, OperationInitStart)
+	if err != nil {
+		return err
+	}
+	if result == OperationNewlyInitialized {
+		defer v.VMProvider.InitOperationContext(ctx, OperationInitComplete)
+	}
+	if err := v.ConfigureCloudletSecurityRules(ctx, ActionCreate); err != nil {
+		return err
+	}
 	// Set debug command to start crm upgrade
 	v.initDebug(v.VMProperties.CommonPf.PlatformConfig.NodeMgr)
 
@@ -349,13 +392,13 @@ func (v *VMPlatform) Init(ctx context.Context, platformConfig *platform.Platform
 		if err != nil {
 			return err
 		}
-		v.VMProperties.sshKey.MEXPrivateKey = mexKey.PrivateKey
+		v.VMProperties.CommonPf.SshKey.MEXPrivateKey = mexKey.PrivateKey
 
 		log.SpanLog(ctx, log.DebugLevelInfra, "Upgrade shared rootlb to use vault SSH")
 
 		// Upgrade Shared RootLB to use Vault SSH
 		// Set SSH client to use mex private key
-		v.VMProperties.sshKey.UseMEXPrivateKey = true
+		v.VMProperties.CommonPf.SshKey.UseMEXPrivateKey = true
 		sharedRootLBClient, err := v.GetSSHClientForServer(ctx, v.VMProperties.SharedRootLBName, v.VMProperties.GetCloudletExternalNetwork())
 		if err != nil {
 			return err
@@ -368,7 +411,7 @@ func (v *VMPlatform) Init(ctx context.Context, platformConfig *platform.Platform
 		ExecuteUpgradeScript(ctx, v.VMProperties.SharedRootLBName, sharedRootLBClient, upgradeScript)
 		// Verify if shared rootlb is reachable using vault SSH
 		// Set SSH client to use vault signed Keys
-		v.VMProperties.sshKey.UseMEXPrivateKey = false
+		v.VMProperties.CommonPf.SshKey.UseMEXPrivateKey = false
 		sharedRootLBClient, err = v.GetSSHClientForServer(ctx, v.VMProperties.SharedRootLBName, v.VMProperties.GetCloudletExternalNetwork())
 		if err != nil {
 			return err
@@ -402,9 +445,8 @@ func (v *VMPlatform) Init(ctx context.Context, platformConfig *platform.Platform
 	return nil
 }
 
-func (v *VMPlatform) SyncControllerCache(ctx context.Context, caches *platform.Caches, cloudletState edgeproto.CloudletState) error {
+func (v *VMPlatform) SyncControllerCache(ctx context.Context, caches *platform.Caches, cloudletState dme.CloudletState) error {
 	log.SpanLog(ctx, log.DebugLevelInfra, "SyncControllerCache", "cloudletState", cloudletState)
-	// no sync needed right now
 
 	if v.VMProperties.Upgrade {
 		_, err := v.UpgradeFuncHandleSSHKeys(ctx, v.VMProperties.CommonPf.PlatformConfig.AccessApi, caches)
@@ -426,26 +468,69 @@ func (v *VMPlatform) SyncControllerCache(ctx context.Context, caches *platform.C
 	return nil
 }
 
-func (v *VMPlatform) GetCloudletInfraResources(ctx context.Context) (*edgeproto.InfraResources, error) {
+func (v *VMPlatform) GetCloudletInfraResources(ctx context.Context) (*edgeproto.InfraResourcesSnapshot, error) {
 	log.SpanLog(ctx, log.DebugLevelInfra, "GetCloudletInfraResources")
-	var resources edgeproto.InfraResources
+
+	var err error
+	var result OperationInitResult
+	ctx, result, err = v.VMProvider.InitOperationContext(ctx, OperationInitStart)
+	if err != nil {
+		return nil, err
+	}
+	if result == OperationNewlyInitialized {
+		defer v.VMProvider.InitOperationContext(ctx, OperationInitComplete)
+	}
+	var resources edgeproto.InfraResourcesSnapshot
 	platResources, err := v.VMProvider.GetServerGroupResources(ctx, v.GetPlatformVMName(&v.VMProperties.CommonPf.PlatformConfig.NodeMgr.MyNode.Key.CloudletKey))
 	if err == nil {
-		resources.Vms = append(resources.Vms, platResources.Vms...)
+		for ii, _ := range platResources.Vms {
+			platResources.Vms[ii].Type = string(VMTypePlatform)
+		}
+		resources.PlatformVms = append(resources.PlatformVms, platResources.Vms...)
 	} else {
 		log.SpanLog(ctx, log.DebugLevelInfra, "Failed to get platform VM resources", "err", err)
 	}
 	rootlbResources, err := v.VMProvider.GetServerGroupResources(ctx, v.VMProperties.SharedRootLBName)
 	if err == nil {
-		resources.Vms = append(resources.Vms, rootlbResources.Vms...)
+		resources.PlatformVms = append(resources.PlatformVms, rootlbResources.Vms...)
 	} else {
 		log.SpanLog(ctx, log.DebugLevelInfra, "Failed to get root lb resources", "err", err)
+	}
+	resourcesInfo, err := v.VMProvider.GetCloudletInfraResourcesInfo(ctx)
+	if err == nil {
+		resources.Info = resourcesInfo
+	} else {
+		log.SpanLog(ctx, log.DebugLevelInfra, "Failed to get cloudlet infra resources info", "err", err)
 	}
 	return &resources, nil
 }
 
+func (v *VMPlatform) GetCloudletResourceQuotaProps(ctx context.Context) (*edgeproto.CloudletResourceQuotaProps, error) {
+	return v.VMProvider.GetCloudletResourceQuotaProps(ctx)
+}
+
+// called by controller, make sure it doesn't make any calls to infra API
+func (v *VMPlatform) GetClusterAdditionalResources(ctx context.Context, cloudlet *edgeproto.Cloudlet, vmResources []edgeproto.VMResource, infraResMap map[string]edgeproto.InfraResource) map[string]edgeproto.InfraResource {
+	return v.VMProvider.GetClusterAdditionalResources(ctx, cloudlet, vmResources, infraResMap)
+}
+
+func (v *VMPlatform) GetClusterAdditionalResourceMetric(ctx context.Context, cloudlet *edgeproto.Cloudlet, resMetric *edgeproto.Metric, resources []edgeproto.VMResource) error {
+	return v.VMProvider.GetClusterAdditionalResourceMetric(ctx, cloudlet, resMetric, resources)
+}
+
 func (v *VMPlatform) GetClusterInfraResources(ctx context.Context, clusterKey *edgeproto.ClusterInstKey) (*edgeproto.InfraResources, error) {
 	log.SpanLog(ctx, log.DebugLevelInfra, "GetClusterInfraResources")
+
+	var err error
+	var result OperationInitResult
+	ctx, result, err = v.VMProvider.InitOperationContext(ctx, OperationInitStart)
+	if err != nil {
+		return nil, err
+	}
+	if result == OperationNewlyInitialized {
+		defer v.VMProvider.InitOperationContext(ctx, OperationInitComplete)
+	}
+
 	clusterName := v.VMProvider.NameSanitize(k8smgmt.GetCloudletClusterName(clusterKey))
 	return v.VMProvider.GetServerGroupResources(ctx, clusterName)
 }

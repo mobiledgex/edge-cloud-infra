@@ -2,7 +2,6 @@ package edgebox
 
 import (
 	"context"
-	"fmt"
 	"net"
 
 	"github.com/mobiledgex/edge-cloud-infra/infracommon"
@@ -14,7 +13,7 @@ import (
 	v1 "k8s.io/api/core/v1"
 )
 
-func (e *EdgeboxPlatform) CreateAppInst(ctx context.Context, clusterInst *edgeproto.ClusterInst, app *edgeproto.App, appInst *edgeproto.AppInst, flavor *edgeproto.Flavor, privacyPolicy *edgeproto.PrivacyPolicy, updateCallback edgeproto.CacheUpdateCallback) error {
+func (e *EdgeboxPlatform) CreateAppInst(ctx context.Context, clusterInst *edgeproto.ClusterInst, app *edgeproto.App, appInst *edgeproto.AppInst, flavor *edgeproto.Flavor, updateCallback edgeproto.CacheUpdateCallback) error {
 	client, err := e.generic.GetClusterPlatformClient(ctx, clusterInst, cloudcommon.ClientTypeRootLB)
 	if err != nil {
 		return err
@@ -34,7 +33,7 @@ func (e *EdgeboxPlatform) CreateAppInst(ctx context.Context, clusterInst *edgepr
 	}
 
 	// Use generic DIND to create the AppInst
-	err = e.generic.CreateAppInstInternal(ctx, clusterInst, app, appInst, names)
+	err = e.generic.CreateAppInstNoPatch(ctx, clusterInst, app, appInst, flavor, updateCallback)
 	if err != nil {
 		log.SpanLog(ctx, log.DebugLevelInfra, "cannot create app", "error", err)
 		return err
@@ -104,7 +103,14 @@ func (e *EdgeboxPlatform) DeleteAppInst(ctx context.Context, clusterInst *edgepr
 }
 
 func (e *EdgeboxPlatform) UpdateAppInst(ctx context.Context, clusterInst *edgeproto.ClusterInst, app *edgeproto.App, appInst *edgeproto.AppInst, updateCallback edgeproto.CacheUpdateCallback) error {
-	return fmt.Errorf("Update not supported for dind")
+	log.SpanLog(ctx, log.DebugLevelInfra, "UpdateAppInst", "appInst", appInst)
+
+	err := e.generic.UpdateAppInst(ctx, clusterInst, app, appInst, updateCallback)
+	if err != nil {
+		log.SpanLog(ctx, log.DebugLevelInfra, "error updating appinst", "error", err)
+		return err
+	}
+	return nil
 }
 
 func (e *EdgeboxPlatform) GetAppInstRuntime(ctx context.Context, clusterInst *edgeproto.ClusterInst, app *edgeproto.App, appInst *edgeproto.AppInst) (*edgeproto.AppInstRuntime, error) {

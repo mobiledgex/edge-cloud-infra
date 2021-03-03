@@ -26,6 +26,9 @@ letsencrypt_env=production
 console_prod=yes
 alertmanager_hostname=alertmanager-{{ deploy_environ }}.mobiledgex.net
 influxdb_backup_disabled=true
+controller_replicas=2
+dme_replicas=2
+gitlab_version=13.5.7-ee.0
 
 [notifyroot]
 notifyroot-stage.mobiledgex.net
@@ -48,6 +51,7 @@ console-stage.mobiledgex.net
 [vault]
 vault-stage-a.mobiledgex.net
 vault-stage-b.mobiledgex.net
+vault-stage-c.mobiledgex.net
 
 [jaeger]
 jaeger-stage.mobiledgex.net	nginx_config_filename=jaeger jaeger_ui_port=8443

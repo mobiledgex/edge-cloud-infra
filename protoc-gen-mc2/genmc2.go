@@ -526,7 +526,8 @@ func {{.MethodName}}(c echo.Context) error {
 
 {{- if and (not .SkipEnforce) (and .Show .CustomAuthz)}}
 type {{.MethodName}}Authz interface {
-	Ok(obj *edgeproto.{{.InName}}) bool
+	Ok(obj *edgeproto.{{.InName}}) (bool, bool)
+	Filter(obj *edgeproto.{{.InName}})
 }
 {{- end}}
 
@@ -539,15 +540,17 @@ func {{.MethodName}}Obj(ctx context.Context, rc *RegionContext, obj *edgeproto.{
 	{{- /* don't set tags for show because create/etc may call shows, which end up adding unnecessary blank tags */}}
 	log.SetContextTags(ctx, edgeproto.GetTags(obj))
 {{- end}}
+{{- if (ne .Action "ActionView")}}
+	if err := obj.IsValidArgsFor{{.MethodName}}(); err != nil {
+		return {{.ReturnErrArg}}err
+	}
+{{- end}}
 {{- if (not .SkipEnforce)}}
 {{- if and .Show .CustomAuthz}}
 	var authz {{.MethodName}}Authz
 	var err error
 	if !rc.skipAuthz {
 		authz, err = new{{.MethodName}}Authz(ctx, rc.region, rc.username, {{.Resource}}, {{.Action}})
-		if err == echo.ErrForbidden {
-			return {{.ReturnErrArg}}nil
-		}
 		if err != nil {
 			return {{.ReturnErrArg}}err
 		}
@@ -557,9 +560,6 @@ func {{.MethodName}}Obj(ctx context.Context, rc *RegionContext, obj *edgeproto.{
 	var err error
 	if !rc.skipAuthz {
 		authz, err = newShowAuthz(ctx, rc.region, rc.username, {{.Resource}}, {{.Action}})
-		if err == echo.ErrForbidden {
-			return {{.ReturnErrArg}}nil
-		}
 		if err != nil {
 			return {{.ReturnErrArg}}err
 		}
@@ -613,9 +613,19 @@ func {{.MethodName}}Obj(ctx context.Context, rc *RegionContext, obj *edgeproto.{
 {{- if and .Show (not .SkipEnforce)}}
 		if !rc.skipAuthz {
 {{- if .CustomAuthz}}
+{{- if .Show }}
+			authzOk, filterOutput := authz.Ok(res)
+			if !authzOk {
+{{- else }}
 			if !authz.Ok(res) {
+{{- end}}
 				continue
 			}
+{{- if .Show }}
+			if filterOutput {
+				authz.Filter(res)
+			}
+{{- end}}
 {{- else}}
 			if !authz.Ok({{.ShowOrg}}) {
 				continue

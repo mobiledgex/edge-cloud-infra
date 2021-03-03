@@ -39,10 +39,6 @@ func (a *AwsEc2Platform) GetInternalPortPolicy() vmlayer.InternalPortAttachPolic
 	return vmlayer.AttachPortAfterCreate
 }
 
-func (a *AwsEc2Platform) GetType() string {
-	return "awsec2"
-}
-
 func (a *AwsEc2Platform) GetProviderSpecificProps(ctx context.Context) (map[string]*edgeproto.PropertyInfo, error) {
 	return a.awsGenPf.GetProviderSpecificProps(ctx)
 }
@@ -74,4 +70,8 @@ func (a *AwsEc2Platform) InitData(ctx context.Context, caches *platform.Caches) 
 	log.SpanLog(ctx, log.DebugLevelInfra, "InitData", "AwsEc2Platform", fmt.Sprintf("%+v", a))
 	a.caches = caches
 	a.awsGenPf = &awsgen.AwsGenericPlatform{Properties: &a.VMProperties.CommonPf.Properties}
+}
+
+func (a *AwsEc2Platform) InitOperationContext(ctx context.Context, operationStage vmlayer.OperationInitStage) (context.Context, vmlayer.OperationInitResult, error) {
+	return ctx, vmlayer.OperationNewlyInitialized, nil
 }

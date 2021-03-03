@@ -11,6 +11,7 @@ import (
 
 	"github.com/jarcoal/httpmock"
 	"github.com/mitchellh/mapstructure"
+	"github.com/mobiledgex/edge-cloud-infra/billing"
 	ormtestutil "github.com/mobiledgex/edge-cloud-infra/mc/orm/testutil"
 	"github.com/mobiledgex/edge-cloud-infra/mc/ormapi"
 	"github.com/mobiledgex/edge-cloud-infra/mc/ormclient"
@@ -57,6 +58,7 @@ func TestController(t *testing.T) {
 		AlertMgrAddr:            testAlertMgrAddr,
 		AlertmgrResolveTimout:   3 * time.Minute,
 		UsageCheckpointInterval: "MONTH",
+		BillingPlatform:         billing.BillingTypeFake,
 	}
 	server, err := RunServer(&config)
 	require.Nil(t, err, "run server")
@@ -102,7 +104,7 @@ func TestController(t *testing.T) {
 	mcClient := &ormclient.Client{}
 
 	// login as super user
-	token, err := mcClient.DoLogin(uri, DefaultSuperuser, DefaultSuperpass, NoOTP)
+	token, err := mcClient.DoLogin(uri, DefaultSuperuser, DefaultSuperpass, NoOTP, NoApiKeyId, NoApiKey)
 	require.Nil(t, err, "login as superuser")
 
 	// test controller api
@@ -125,6 +127,11 @@ func TestController(t *testing.T) {
 	require.Equal(t, 1, len(ctrls))
 	require.Equal(t, ctrl.Region, ctrls[0].Region)
 	require.Equal(t, ctrl.Address, ctrls[0].Address)
+
+	// delete non-existing controller
+	status, err = mcClient.DeleteController(uri, token, &ormapi.Controller{})
+	require.NotNil(t, err)
+	require.Contains(t, err.Error(), "Controller Region not specified")
 
 	// create admin
 	admin, tokenAd, _ := testCreateUser(t, mcClient, uri, "admin1")
@@ -161,13 +168,13 @@ func TestController(t *testing.T) {
 
 	// additional users don't have access to orgs yet
 	badPermTestApp(t, mcClient, uri, tokenDev3, ctrl.Region, org1)
-	badPermTestShowApp(t, mcClient, uri, tokenDev3, ctrl.Region, org1)
+	badPermShowApp(t, mcClient, uri, tokenDev3, ctrl.Region, org1)
 
 	badPermTestAppInst(t, mcClient, uri, tokenDev3, ctrl.Region, org1, nil)
-	badPermTestShowAppInst(t, mcClient, uri, tokenDev3, ctrl.Region, org1)
+	badPermShowAppInst(t, mcClient, uri, tokenDev3, ctrl.Region, org1)
 
 	badPermTestClusterInst(t, mcClient, uri, tokenDev3, ctrl.Region, org1, nil)
-	badPermTestShowClusterInst(t, mcClient, uri, tokenDev3, ctrl.Region, org1)
+	badPermShowClusterInst(t, mcClient, uri, tokenDev3, ctrl.Region, org1)
 
 	badPermTestCloudlet(t, mcClient, uri, tokenOper3, ctrl.Region, org1)
 	badPermTestMetrics(t, mcClient, uri, tokenDev3, ctrl.Region, org1)
@@ -210,11 +217,13 @@ func TestController(t *testing.T) {
 			Organization: org3,
 			Name:         org3,
 		},
+		EnvVar: map[string]string{"key1": "val1"},
 	}
 	ds.CloudletCache.Update(ctx, &org3Cloudlet, 0)
 	org3CloudletInfo := edgeproto.CloudletInfo{
 		Key: org3Cloudlet.Key,
 	}
+	org3CloudletInfo.ContainerVersion = "xyz"
 	ds.CloudletInfoCache.Update(ctx, &org3CloudletInfo, 0)
 	tc3 := &org3Cloudlet.Key
 
@@ -288,12 +297,16 @@ func TestController(t *testing.T) {
 	// No orgs have been restricted to cloudlet pools, and no cloudlets
 	// have been assigned to pools, so everyone should be able to see
 	// all cloudlets.
-	testShowOrgCloudlet(t, mcClient, uri, tokenAd, ctrl.Region, org1, ccount)
-	testShowOrgCloudlet(t, mcClient, uri, tokenAd, ctrl.Region, org2, ccount)
-	testShowOrgCloudlet(t, mcClient, uri, tokenDev, ctrl.Region, org1, ccount)
-	testShowOrgCloudlet(t, mcClient, uri, tokenDev2, ctrl.Region, org2, ccount)
-	testShowOrgCloudlet(t, mcClient, uri, tokenOper, ctrl.Region, org3, ccount)
-	testShowOrgCloudlet(t, mcClient, uri, tokenOper2, ctrl.Region, org4, ccount)
+	testShowOrgCloudlet(t, mcClient, uri, tokenAd, OrgTypeAdmin, ctrl.Region, org1, ccount, "")
+	testShowOrgCloudlet(t, mcClient, uri, tokenAd, OrgTypeAdmin, ctrl.Region, org2, ccount, "")
+	testShowOrgCloudlet(t, mcClient, uri, tokenDev, OrgTypeDeveloper, ctrl.Region, org1, ccount, "")
+	testShowOrgCloudlet(t, mcClient, uri, tokenDev2, OrgTypeDeveloper, ctrl.Region, org2, ccount, "")
+	testShowOrgCloudlet(t, mcClient, uri, tokenOper, OrgTypeOperator, ctrl.Region, org3, ccount, "")
+	testShowOrgCloudlet(t, mcClient, uri, tokenOper2, OrgTypeOperator, ctrl.Region, org4, ccount, "")
+	// validate that only operator and admin user is able to see additional cloudlet details
+	testShowOrgCloudlet(t, mcClient, uri, tokenOper, OrgTypeOperator, ctrl.Region, org3, ccount, org3)
+	testShowOrgCloudlet(t, mcClient, uri, tokenDev, OrgTypeDeveloper, ctrl.Region, org1, ccount, org3)
+	testShowOrgCloudlet(t, mcClient, uri, tokenAd, OrgTypeAdmin, ctrl.Region, org3, ccount, org3)
 	// no permissions outside of own org for ShowOrgCloudlet
 	// (nothing to do with cloudlet pools, just checking API access)
 	badPermShowOrgCloudlet(t, mcClient, uri, tokenDev, ctrl.Region, org2)
@@ -311,22 +324,22 @@ func TestController(t *testing.T) {
 
 	// make sure operator cannot create apps, appinsts, clusters, etc
 	badPermTestApp(t, mcClient, uri, tokenOper, ctrl.Region, org1)
-	badPermTestShowApp(t, mcClient, uri, tokenOper, ctrl.Region, org1)
+	badPermShowApp(t, mcClient, uri, tokenOper, ctrl.Region, org1)
 
 	badPermTestAppInst(t, mcClient, uri, tokenOper, ctrl.Region, org1, tc3)
-	badPermTestShowAppInst(t, mcClient, uri, tokenOper, ctrl.Region, org1)
+	badPermShowAppInst(t, mcClient, uri, tokenOper, ctrl.Region, org1)
 
 	badPermTestClusterInst(t, mcClient, uri, tokenOper, ctrl.Region, org1, tc3)
-	badPermTestShowClusterInst(t, mcClient, uri, tokenOper, ctrl.Region, org1)
+	badPermShowClusterInst(t, mcClient, uri, tokenOper, ctrl.Region, org1)
 
 	badPermTestApp(t, mcClient, uri, tokenOper2, ctrl.Region, org1)
-	badPermTestShowApp(t, mcClient, uri, tokenOper2, ctrl.Region, org1)
+	badPermShowApp(t, mcClient, uri, tokenOper2, ctrl.Region, org1)
 
 	badPermTestAppInst(t, mcClient, uri, tokenOper2, ctrl.Region, org1, tc3)
-	badPermTestShowAppInst(t, mcClient, uri, tokenOper2, ctrl.Region, org1)
+	badPermShowAppInst(t, mcClient, uri, tokenOper2, ctrl.Region, org1)
 
 	badPermTestClusterInst(t, mcClient, uri, tokenOper2, ctrl.Region, org1, tc3)
-	badPermTestShowClusterInst(t, mcClient, uri, tokenOper2, ctrl.Region, org1)
+	badPermShowClusterInst(t, mcClient, uri, tokenOper2, ctrl.Region, org1)
 
 	// make sure developer cannot create cloudlet (but they can see all of them)
 	badPermTestCloudlet(t, mcClient, uri, tokenDev, ctrl.Region, org3)
@@ -337,6 +350,7 @@ func TestController(t *testing.T) {
 	badPermTestCloudlet(t, mcClient, uri, tokenOper2, ctrl.Region, org3)
 	permTestCloudletPool(t, mcClient, uri, tokenOper, tokenOper2, ctrl.Region, org3, org4, dcnt)
 	permTestVMPool(t, mcClient, uri, tokenOper, tokenOper2, ctrl.Region, org3, org4, dcnt)
+	permTestTrustPolicy(t, mcClient, uri, tokenOper, tokenOper2, ctrl.Region, org3, org4, dcnt)
 
 	// test developers can modify their own objs but not each other's
 	// tests also that developers can create AppInsts/ClusterInsts on tc3.
@@ -349,8 +363,6 @@ func TestController(t *testing.T) {
 	permTestAutoProvPolicy(t, mcClient, uri, tokenDev, tokenDev2, ctrl.Region,
 		org1, org2, dcnt)
 	permTestAutoScalePolicy(t, mcClient, uri, tokenDev, tokenDev2, ctrl.Region,
-		org1, org2, dcnt)
-	permTestPrivacyPolicy(t, mcClient, uri, tokenDev, tokenDev2, ctrl.Region,
 		org1, org2, dcnt)
 	// test users with different roles
 	goodPermTestApp(t, mcClient, uri, tokenDev3, ctrl.Region, org1, dcnt)
@@ -425,9 +437,8 @@ func TestController(t *testing.T) {
 	require.Equal(t, http.StatusOK, status)
 	require.Equal(t, 0, len(poollist))
 	poollist, status, err = mcClient.ShowCloudletPool(uri, tokenDev, &pool)
-	require.Nil(t, err)
-	require.Equal(t, http.StatusOK, status)
-	require.Equal(t, 0, len(poollist))
+	require.NotNil(t, err)
+	require.Equal(t, http.StatusForbidden, status)
 
 	// associate cloudletpool with org, allows org1 to see cloudlets in pool
 	op1 := ormapi.OrgCloudletPool{
@@ -469,12 +480,12 @@ func TestController(t *testing.T) {
 	}
 
 	// tc3 should now be visible along with all other cloudlets
-	testShowOrgCloudlet(t, mcClient, uri, tokenDev, ctrl.Region, org1, ccount)
+	testShowOrgCloudlet(t, mcClient, uri, tokenDev, OrgTypeDeveloper, ctrl.Region, org1, ccount, "")
 	// tc3 should not be visible by other orgs
 	// (note count here is without tc3, except for org3 to which it belongs)
-	testShowOrgCloudlet(t, mcClient, uri, tokenDev2, ctrl.Region, org2, count)
-	testShowOrgCloudlet(t, mcClient, uri, tokenOper, ctrl.Region, org3, ccount)
-	testShowOrgCloudlet(t, mcClient, uri, tokenOper2, ctrl.Region, org4, count)
+	testShowOrgCloudlet(t, mcClient, uri, tokenDev2, OrgTypeDeveloper, ctrl.Region, org2, count, "")
+	testShowOrgCloudlet(t, mcClient, uri, tokenOper, OrgTypeOperator, ctrl.Region, org3, ccount, "")
+	testShowOrgCloudlet(t, mcClient, uri, tokenOper2, OrgTypeOperator, ctrl.Region, org4, count, "")
 
 	// tc3 should now be usable for org1
 	goodPermTestClusterInst(t, mcClient, uri, tokenDev, ctrl.Region, org1, tc3, dcnt)
@@ -499,6 +510,9 @@ func TestController(t *testing.T) {
 	_, status, err = ormtestutil.TestDeleteCloudletPool(mcClient, uri, tokenAd, ctrl.Region, &edgeproto.CloudletPool{})
 	require.Nil(t, err)
 	require.Equal(t, http.StatusOK, status)
+
+	// test user api keys
+	testUserApiKeys(t, ctx, ds, &ctrl, count, mcClient, uri, token)
 
 	// delete org cloudlet pools
 	status, err = mcClient.DeleteOrgCloudletPool(uri, tokenOper, &op1)
@@ -622,7 +636,7 @@ func testCreateUser(t *testing.T, mcClient *ormclient.Client, uri, name string) 
 	// login
 	otp, err := totp.GenerateCode(resp.TOTPSharedKey, time.Now())
 	require.Nil(t, err, "generate otp", name)
-	token, err := mcClient.DoLogin(uri, user.Name, user.Passhash, otp)
+	token, err := mcClient.DoLogin(uri, user.Name, user.Passhash, otp, NoApiKeyId, NoApiKey)
 	require.Nil(t, err, "login as ", name)
 	return &user, token, user.Passhash
 }
@@ -752,7 +766,7 @@ func setClusterInstDev(dev string, insts []edgeproto.ClusterInst) {
 	}
 }
 
-func testShowOrgCloudlet(t *testing.T, mcClient *ormclient.Client, uri, token, region, org string, showcount int) {
+func testShowOrgCloudlet(t *testing.T, mcClient *ormclient.Client, uri, token, orgType, region, org string, showcount int, matchOrg string) {
 	oc := ormapi.OrgCloudlet{}
 	oc.Region = region
 	oc.Org = org
@@ -760,10 +774,32 @@ func testShowOrgCloudlet(t *testing.T, mcClient *ormclient.Client, uri, token, r
 	require.Nil(t, err, "show org cloudlet")
 	require.Equal(t, http.StatusOK, status)
 	require.Equal(t, showcount, len(list))
+	if matchOrg != "" {
+		for _, cl := range list {
+			if orgType == OrgTypeDeveloper && org == matchOrg {
+				require.Equal(t, len(cl.EnvVar), 0, "user is not authorized to see additional cloudlet details")
+				continue
+			}
+			if org == cl.Key.Organization {
+				require.Greater(t, len(cl.EnvVar), 0, "user is authorized to see additional cloudlet details")
+			}
+		}
+	}
 	infolist, infostatus, err := mcClient.ShowOrgCloudletInfo(uri, token, &oc)
 	require.Nil(t, err, "show org cloudletinfo")
 	require.Equal(t, http.StatusOK, infostatus)
 	require.Equal(t, showcount, len(infolist))
+	if matchOrg != "" {
+		for _, clInfo := range infolist {
+			if orgType == OrgTypeDeveloper && org == matchOrg {
+				require.Empty(t, clInfo.ContainerVersion, "user is not authorized to see additional cloudlet info details")
+				continue
+			}
+			if org == clInfo.Key.Organization {
+				require.NotEmpty(t, clInfo.ContainerVersion, "user is authorized to see additional cloudlet info details")
+			}
+		}
+	}
 }
 
 func badPermTestOrgCloudletPool(t *testing.T, mcClient *ormclient.Client, uri, token string, op *ormapi.OrgCloudletPool) {
@@ -802,7 +838,7 @@ func badPermTestNonExistent(t *testing.T, mcClient *ormclient.Client, uri, token
 	badPermCreateOperatorCode(t, mcClient, uri, token, region, neOrg)
 	badPermCreateAutoProvPolicy(t, mcClient, uri, token, region, neOrg)
 	badPermCreateAutoScalePolicy(t, mcClient, uri, token, region, neOrg)
-	badPermCreatePrivacyPolicy(t, mcClient, uri, token, region, neOrg)
+	badPermCreateTrustPolicy(t, mcClient, uri, token, region, neOrg)
 	badPermCreateCloudletPool(t, mcClient, uri, token, region, neOrg)
 	badPermCreateResTagTable(t, mcClient, uri, token, region, neOrg)
 }
@@ -859,6 +895,10 @@ func (s *StreamDummyServer) ShowClusterInst(in *edgeproto.ClusterInst, server ed
 	return nil
 }
 
+func (s *StreamDummyServer) DeleteIdleReservableClusterInsts(ctx context.Context, in *edgeproto.IdleReservableClusterInsts) (*edgeproto.Result, error) {
+	return &edgeproto.Result{}, nil
+}
+
 func (s *StreamDummyServer) CreateCloudletPool(ctx context.Context, in *edgeproto.CloudletPool) (*edgeproto.Result, error) {
 	return &edgeproto.Result{}, nil
 }
@@ -881,4 +921,306 @@ func (s *StreamDummyServer) RemoveCloudletPoolMember(ctx context.Context, in *ed
 
 func (s *StreamDummyServer) ShowCloudletPool(in *edgeproto.CloudletPool, cb edgeproto.CloudletPoolApi_ShowCloudletPoolServer) error {
 	return nil
+}
+
+func testUserApiKeys(t *testing.T, ctx context.Context, ds *testutil.DummyServer, ctrl *ormapi.Controller, count int, mcClient *ormclient.Client, uri, token string) {
+	// login as super user
+	token, err := mcClient.DoLogin(uri, DefaultSuperuser, DefaultSuperpass, NoOTP, NoApiKeyId, NoApiKey)
+	require.Nil(t, err, "login as superuser")
+
+	// create developer & operator orgs
+	devOrg := ormapi.Organization{
+		Type: "developer",
+		Name: "DevOrg",
+	}
+	status, err := mcClient.CreateOrg(uri, token, &devOrg)
+	require.Nil(t, err, "create org")
+	require.Equal(t, http.StatusOK, status, "create org status")
+	operOrg := ormapi.Organization{
+		Type: "operator",
+		Name: "OperOrg",
+	}
+	status, err = mcClient.CreateOrg(uri, token, &operOrg)
+	require.Nil(t, err, "create org")
+	require.Equal(t, http.StatusOK, status, "create org status")
+
+	// create user
+	user1, token1, _ := testCreateUser(t, mcClient, uri, "user1")
+	// add user role
+	testAddUserRole(t, mcClient, uri, token, devOrg.Name, "DeveloperViewer", user1.Name, Success)
+
+	// invalid action error
+	userApiKeyObj := ormapi.CreateUserApiKey{
+		UserApiKey: ormapi.UserApiKey{
+			Description: "App view only key",
+			Org:         devOrg.Name,
+		},
+		Permissions: []ormapi.RolePerm{
+			ormapi.RolePerm{
+				Action:   "views",
+				Resource: "apps",
+			},
+		},
+	}
+	_, status, err = mcClient.CreateUserApiKey(uri, token1, &userApiKeyObj)
+	require.NotNil(t, err, "invalid actions")
+	require.Contains(t, err.Error(), "Invalid action", "invalid action err match")
+	require.Equal(t, http.StatusBadRequest, status, "bad request")
+
+	// invalid permission error
+	userApiKeyObj.Permissions = []ormapi.RolePerm{
+		ormapi.RolePerm{
+			Action:   "view",
+			Resource: "app",
+		},
+	}
+	_, status, err = mcClient.CreateUserApiKey(uri, token1, &userApiKeyObj)
+	require.NotNil(t, err, "invalid permission")
+	require.Contains(t, err.Error(), "Invalid permission specified", "err match")
+	require.Equal(t, http.StatusBadRequest, status, "bad request")
+
+	// user of developer org should fail to create operator role based api key
+	userApiKeyObj.Permissions = []ormapi.RolePerm{
+		ormapi.RolePerm{
+			Action:   "manage",
+			Resource: "cloudlets",
+		},
+	}
+	_, status, err = mcClient.CreateUserApiKey(uri, token1, &userApiKeyObj)
+	require.NotNil(t, err, "not allowed to use operator resource")
+	require.Contains(t, err.Error(), "Invalid permission specified", "err match")
+	require.Equal(t, http.StatusBadRequest, status, "bad request")
+
+	// user of developerviewer role should fail to create manage action based api key
+	userApiKeyObj.Permissions = []ormapi.RolePerm{
+		ormapi.RolePerm{
+			Action:   "manage",
+			Resource: "apps",
+		},
+	}
+	_, status, err = mcClient.CreateUserApiKey(uri, token1, &userApiKeyObj)
+	require.NotNil(t, err, "not allowed to use manage action")
+	require.Contains(t, err.Error(), "Invalid permission specified", "err match")
+	require.Equal(t, http.StatusBadRequest, status, "bad request")
+
+	// user of operator org should fail to create developer role based api key
+	testRemoveUserRole(t, mcClient, uri, token, devOrg.Name, "DeveloperViewer", user1.Name, Success)
+	testAddUserRole(t, mcClient, uri, token, operOrg.Name, "OperatorViewer", user1.Name, Success)
+	userApiKeyObj.Org = operOrg.Name
+	userApiKeyObj.Permissions = []ormapi.RolePerm{
+		ormapi.RolePerm{
+			Action:   "view",
+			Resource: "apps",
+		},
+	}
+	_, status, err = mcClient.CreateUserApiKey(uri, token1, &userApiKeyObj)
+	require.NotNil(t, err, "invalid permission")
+	require.Contains(t, err.Error(), "Invalid permission specified", "err match")
+	require.Equal(t, http.StatusBadRequest, status, "bad request")
+
+	// user of operator org should fail to create admin role based api key
+	userApiKeyObj.Permissions = []ormapi.RolePerm{
+		ormapi.RolePerm{
+			Action:   "manage",
+			Resource: "users",
+		},
+	}
+	_, status, err = mcClient.CreateUserApiKey(uri, token1, &userApiKeyObj)
+	require.NotNil(t, err, "invalid permission")
+	require.Contains(t, err.Error(), "Invalid permission specified", "err match")
+	require.Equal(t, http.StatusBadRequest, status, "bad request")
+
+	// user of operatorviewer role should fail to create manage action based api key
+	userApiKeyObj.Permissions = []ormapi.RolePerm{
+		ormapi.RolePerm{
+			Action:   "manage",
+			Resource: "cloudlets",
+		},
+	}
+	_, status, err = mcClient.CreateUserApiKey(uri, token1, &userApiKeyObj)
+	require.NotNil(t, err, "not allowed to use manage action")
+	require.Contains(t, err.Error(), "Invalid permission specified", "err match")
+	require.Equal(t, http.StatusBadRequest, status, "bad request")
+
+	// user should be able to create api key if action, resource input are correct
+	testRemoveUserRole(t, mcClient, uri, token, operOrg.Name, "OperatorViewer", user1.Name, Success)
+	testAddUserRole(t, mcClient, uri, token, operOrg.Name, "OperatorManager", user1.Name, Success)
+	userApiKeyObj.Permissions = []ormapi.RolePerm{
+		ormapi.RolePerm{
+			Action:   "view",
+			Resource: "cloudlets",
+		},
+		ormapi.RolePerm{
+			Action:   "manage",
+			Resource: "cloudlets",
+		},
+	}
+	resp, status, err := mcClient.CreateUserApiKey(uri, token1, &userApiKeyObj)
+	require.Nil(t, err, "create apikey")
+	require.Equal(t, http.StatusOK, status, "create apikey success")
+	require.NotEmpty(t, resp.Id, "api key id exists")
+	require.NotEmpty(t, resp.ApiKey, "api key exists")
+
+	// verify role exists
+	roleAssignments, status, err := mcClient.ShowRoleAssignment(uri, token)
+	require.Nil(t, err, "show roles")
+	require.Equal(t, http.StatusOK, status, "show role status")
+	apiKeyRole := ormapi.Role{}
+	for _, role := range roleAssignments {
+		if isApiKeyRole(role.Role) {
+			apiKeyRole = role
+			break
+		}
+	}
+	require.Equal(t, apiKeyRole.Role, getApiKeyRoleName(resp.Id))
+	require.Equal(t, apiKeyRole.Username, resp.Id)
+	require.Equal(t, apiKeyRole.Org, operOrg.Name)
+	policies, status, err := showRolePerms(mcClient, uri, token)
+	require.Nil(t, err, "show role perms err")
+	require.Equal(t, http.StatusOK, status, "show role perms status")
+	apiKeyRoleViewPerm := ormapi.RolePerm{}
+	apiKeyRoleManagePerm := ormapi.RolePerm{}
+	for _, policy := range policies {
+		if isApiKeyRole(policy.Role) {
+			if policy.Action == ActionView {
+				apiKeyRoleViewPerm = policy
+			} else if policy.Action == ActionManage {
+				apiKeyRoleManagePerm = policy
+			}
+		}
+	}
+	require.Equal(t, apiKeyRoleViewPerm.Role, getApiKeyRoleName(resp.Id))
+	require.Equal(t, apiKeyRoleViewPerm.Action, ActionView)
+	require.Equal(t, apiKeyRoleViewPerm.Resource, ResourceCloudlets)
+	require.Equal(t, apiKeyRoleManagePerm.Role, getApiKeyRoleName(resp.Id))
+	require.Equal(t, apiKeyRoleManagePerm.Action, ActionManage)
+	require.Equal(t, apiKeyRoleManagePerm.Resource, ResourceCloudlets)
+
+	// show api key should show the created keys
+	apiKeys, status, err := mcClient.ShowUserApiKey(uri, token, nil)
+	require.Nil(t, err, "show apikey")
+	require.Equal(t, http.StatusOK, status, "show apikey")
+	require.Equal(t, len(apiKeys), 1, "match api key count")
+
+	// login using api key
+	apiKeyLoginToken, err := mcClient.DoLogin(uri, NoUserName, NoPassword, NoOTP, resp.Id, resp.ApiKey)
+	require.Nil(t, err, "login using api key")
+
+	// user's login token should have shorter expiration time
+	claims := UserClaims{}
+	_, err = Jwks.VerifyCookie(apiKeyLoginToken, &claims)
+	require.Nil(t, err, "parse token")
+	delta := claims.ExpiresAt - claims.IssuedAt
+	require.Equal(t, delta, int64(JWTShortDuration.Seconds()), "match short expiration time")
+
+	// user should not be able to create/delete/show apikey
+	userApiKeyObj.Permissions = []ormapi.RolePerm{
+		ormapi.RolePerm{
+			Action:   "view",
+			Resource: "cloudlets",
+		},
+		ormapi.RolePerm{
+			Action:   "manag",
+			Resource: "cloudlets",
+		},
+	}
+	_, status, err = mcClient.CreateUserApiKey(uri, apiKeyLoginToken, &userApiKeyObj)
+	require.NotNil(t, err, "create apikey should fail")
+	require.Equal(t, http.StatusForbidden, status, "create apikey failure")
+	require.Contains(t, err.Error(), "not allowed to create", "err matches")
+
+	delKeyObj := ormapi.CreateUserApiKey{UserApiKey: ormapi.UserApiKey{Id: resp.Id}}
+	status, err = mcClient.DeleteUserApiKey(uri, apiKeyLoginToken, &delKeyObj)
+	require.NotNil(t, err, "delete apikey should fail")
+	require.Equal(t, http.StatusForbidden, status, "delete apikey failure")
+	require.Contains(t, err.Error(), "not allowed to delete", "err matches")
+
+	_, status, err = mcClient.ShowUserApiKey(uri, apiKeyLoginToken, nil)
+	require.NotNil(t, err, "show apikey should fail")
+	require.Equal(t, http.StatusForbidden, status, "show apikey failure")
+	require.Contains(t, err.Error(), "not allowed to show", "err matches")
+
+	// user should be able to view/manage the resources it is allowed to
+	dcnt := 2
+	ds.AddDummyObjs(ctx, dcnt)
+	ds.AddDummyOrgObjs(ctx, operOrg.Name, dcnt)
+	goodPermTestCloudlet(t, mcClient, uri, apiKeyLoginToken, ctrl.Region, operOrg.Name, count+2)
+	goodPermTestShowCloudlet(t, mcClient, uri, apiKeyLoginToken, ctrl.Region, operOrg.Name, count+2)
+	tc := edgeproto.CloudletKey{
+		Organization: operOrg.Name,
+		Name:         "0",
+	}
+
+	// current apikey doesn't allow user to manage app resource
+	badPermTestApp(t, mcClient, uri, apiKeyLoginToken, ctrl.Region, operOrg.Name)
+	badPermTestAppInst(t, mcClient, uri, apiKeyLoginToken, ctrl.Region, operOrg.Name, &tc)
+	badPermShowAppInst(t, mcClient, uri, apiKeyLoginToken, ctrl.Region, operOrg.Name)
+	badPermTestClusterInst(t, mcClient, uri, apiKeyLoginToken, ctrl.Region, operOrg.Name, &tc)
+
+	// user should not be able to manage the resources it is not allowed to
+	status, err = mcClient.DeleteUser(uri, apiKeyLoginToken, user1)
+	require.NotNil(t, err, "delete user")
+	require.Equal(t, http.StatusForbidden, status, "forbidden")
+	require.Contains(t, err.Error(), "Forbidden", "err matches")
+
+	// deletion of apikey should result in deletion of respective roles
+	delKeyObj = ormapi.CreateUserApiKey{UserApiKey: ormapi.UserApiKey{Id: resp.Id}}
+	status, err = mcClient.DeleteUserApiKey(uri, token1, &delKeyObj)
+	require.Nil(t, err, "delete user api key")
+
+	// verify role doesn't exist
+	roleAssignments, status, err = mcClient.ShowRoleAssignment(uri, token)
+	require.Nil(t, err, "show roles")
+	require.Equal(t, http.StatusOK, status, "show role status")
+	found := false
+	apiKeyRole = ormapi.Role{}
+	for _, role := range roleAssignments {
+		if isApiKeyRole(role.Role) {
+			found = true
+			break
+		}
+	}
+	require.False(t, found, "role doesn't exist")
+	policies, status, err = showRolePerms(mcClient, uri, token)
+	require.Nil(t, err, "show role perms err")
+	require.Equal(t, http.StatusOK, status, "show role perms status")
+	found = false
+	for _, policy := range policies {
+		if isApiKeyRole(policy.Role) {
+			found = true
+			break
+		}
+	}
+	require.False(t, found, "policy doesn't exist")
+
+	// create max api keys allowed for user
+	userApiKeyObj.Permissions = []ormapi.RolePerm{
+		ormapi.RolePerm{
+			Action:   "view",
+			Resource: "cloudlets",
+		},
+	}
+	for ii := 0; ii < defaultConfig.UserApiKeyCreateLimit; ii++ {
+		_, _, err = mcClient.CreateUserApiKey(uri, token1, &userApiKeyObj)
+		require.Nil(t, err, "create apikey")
+	}
+
+	// user should only be able to create limited number of api keys
+	_, status, err = mcClient.CreateUserApiKey(uri, token1, &userApiKeyObj)
+	require.NotNil(t, err, "create apikey limit reached")
+	require.Equal(t, http.StatusBadRequest, status, "create should fail")
+	require.Contains(t, err.Error(), "cannot create more than", "err matches")
+
+	// show api key should show the created keys
+	apiKeys, status, err = mcClient.ShowUserApiKey(uri, token1, nil)
+	require.Nil(t, err, "show apikey")
+	require.Equal(t, http.StatusOK, status, "show apikey")
+	require.Equal(t, len(apiKeys), defaultConfig.UserApiKeyCreateLimit, "match api key count")
+
+	// delete all the api keys
+	for _, apiKeyObj := range apiKeys {
+		status, err = mcClient.DeleteUserApiKey(uri, token1, &apiKeyObj)
+		require.Nil(t, err, "delete user api key")
+		require.Equal(t, http.StatusOK, status)
+	}
 }

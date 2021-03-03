@@ -122,6 +122,16 @@ func GetCloudletNetworkIfaceFile(netplanEnabled bool) string {
 }
 
 func (v *VMPlatform) GetConsoleUrl(ctx context.Context, app *edgeproto.App) (string, error) {
+	var err error
+	var result OperationInitResult
+	ctx, result, err = v.VMProvider.InitOperationContext(ctx, OperationInitStart)
+	if err != nil {
+		return "", err
+	}
+	if result == OperationNewlyInitialized {
+		defer v.VMProvider.InitOperationContext(ctx, OperationInitComplete)
+	}
+
 	switch deployment := app.Deployment; deployment {
 	case cloudcommon.DeploymentTypeVM:
 		objName := cloudcommon.GetAppFQN(&app.Key)
@@ -165,6 +175,14 @@ func (v *VMPlatform) SetPowerState(ctx context.Context, app *edgeproto.App, appI
 			}
 		default:
 			return fmt.Errorf("unsupported server power action: %s", PowerState)
+		}
+		var result OperationInitResult
+		ctx, result, err = v.VMProvider.InitOperationContext(ctx, OperationInitStart)
+		if err != nil {
+			return err
+		}
+		if result == OperationNewlyInitialized {
+			defer v.VMProvider.InitOperationContext(ctx, OperationInitComplete)
 		}
 
 		serverSubnet := v.VMProperties.GetCloudletExternalNetwork()

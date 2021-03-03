@@ -33,6 +33,7 @@ func logger(next echo.HandlerFunc) echo.HandlerFunc {
 
 		path := strings.Split(req.RequestURI, "/")
 		method := path[len(path)-1]
+		isShow := false
 		debugEvents := log.GetDebugLevel()&log.DebugLevelEvents != 0
 		if strings.Contains(req.RequestURI, "/auth/events/") && debugEvents {
 			// log events
@@ -46,6 +47,7 @@ func logger(next echo.HandlerFunc) echo.HandlerFunc {
 			// don't log (fills up Audit logs)
 			lvl = log.SuppressLvl
 			logaudit = false
+			isShow = true
 		}
 
 		// All Tags on this span will be exposed to the end-user in
@@ -81,7 +83,7 @@ func logger(next echo.HandlerFunc) echo.HandlerFunc {
 
 		span.SetTag("status", res.Status)
 
-		if lvl == log.SuppressLvl && (nexterr != nil || res.Status != http.StatusOK) {
+		if lvl == log.SuppressLvl && (nexterr != nil || res.Status != http.StatusOK) && (!isShow || res.Status != http.StatusForbidden) {
 			// log if there was a failure for shows.
 			// note logs will not show up in stdout
 			// except for final "finish" log,
@@ -108,6 +110,7 @@ func logger(next echo.HandlerFunc) echo.HandlerFunc {
 			if err == nil {
 				login.Password = ""
 				login.TOTP = ""
+				login.ApiKey = ""
 				reqBody, err = json.Marshal(login)
 			}
 			if err != nil {
@@ -195,6 +198,20 @@ func logger(next echo.HandlerFunc) echo.HandlerFunc {
 				} else {
 					response = string(resBody)
 				}
+			} else if strings.Contains(string(resBody), "ApiKey") {
+				resp := ormapi.CreateUserApiKey{}
+				err := json.Unmarshal(resBody, &resp)
+				if err == nil {
+					resp.ApiKey = ""
+					updatedResp, err := json.Marshal(&resp)
+					if err == nil {
+						response = string(updatedResp)
+					} else {
+						response = string(resBody)
+					}
+				} else {
+					response = string(resBody)
+				}
 
 			} else {
 				response = string(resBody)
@@ -222,7 +239,7 @@ func logger(next echo.HandlerFunc) echo.HandlerFunc {
 				}
 			}
 			for k, v := range log.GetTags(span) {
-				if k == "level" || k == "error" || k == "sampler.type" {
+				if k == "level" || k == "error" || log.IgnoreSpanTag(k) {
 					continue
 				}
 				// handle only string values

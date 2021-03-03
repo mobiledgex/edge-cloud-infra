@@ -8,6 +8,7 @@ import (
 	"sync"
 
 	"github.com/mobiledgex/edge-cloud/cloudcommon"
+	dme "github.com/mobiledgex/edge-cloud/d-match-engine/dme-proto"
 	"github.com/mobiledgex/edge-cloud/edgeproto"
 	"github.com/mobiledgex/edge-cloud/log"
 	"github.com/mobiledgex/edge-cloud/util/tasks"
@@ -164,7 +165,7 @@ func (s *MinMaxChecker) UpdatedCloudlet(ctx context.Context, old *edgeproto.Clou
 
 // Caller must hold MinMaxChecker.mux
 func (s *MinMaxChecker) handleFailoverReq(ctx context.Context, cloudlet *edgeproto.Cloudlet, appsToCheck map[edgeproto.AppKey]struct{}) {
-	if cloudlet.MaintenanceState != edgeproto.MaintenanceState_FAILOVER_REQUESTED {
+	if cloudlet.MaintenanceState != dme.MaintenanceState_FAILOVER_REQUESTED {
 		// not a failover request
 		return
 	}
@@ -173,7 +174,7 @@ func (s *MinMaxChecker) handleFailoverReq(ctx context.Context, cloudlet *edgepro
 		// no apps to trigger reply so send reply now
 		info := edgeproto.AutoProvInfo{}
 		info.Key = cloudlet.Key
-		info.MaintenanceState = edgeproto.MaintenanceState_FAILOVER_DONE
+		info.MaintenanceState = dme.MaintenanceState_FAILOVER_DONE
 		s.caches.autoProvInfoCache.Update(ctx, &info, 0)
 		return
 	}
@@ -306,9 +307,9 @@ func (s *MinMaxChecker) CheckApp(ctx context.Context, k interface{}) {
 
 			r.waitApiCalls.Wait()
 			if len(r.info.Errors) == 0 {
-				r.info.MaintenanceState = edgeproto.MaintenanceState_FAILOVER_DONE
+				r.info.MaintenanceState = dme.MaintenanceState_FAILOVER_DONE
 			} else {
-				r.info.MaintenanceState = edgeproto.MaintenanceState_FAILOVER_ERROR
+				r.info.MaintenanceState = dme.MaintenanceState_FAILOVER_ERROR
 			}
 			s.caches.autoProvInfoCache.Update(ctx, &r.info, 0)
 		}(ctx, req)
@@ -398,6 +399,18 @@ func (s *AppChecker) Check(ctx context.Context) {
 	}
 }
 
+type HasItType int
+
+const (
+	NotHasIt HasItType = 0
+	HasIt    HasItType = 1
+)
+
+type potentialCreateSite struct {
+	cloudletKey edgeproto.CloudletKey
+	hasFree     HasItType
+}
+
 func (s *AppChecker) checkPolicy(ctx context.Context, app *edgeproto.App, pname string, prevPolicyCloudlets map[edgeproto.CloudletKey]struct{}) {
 	log.SpanLog(ctx, log.DebugLevelMetrics, "checkPolicy", "app", s.appKey, "policy", pname)
 	policy := edgeproto.AutoProvPolicy{}
@@ -412,7 +425,7 @@ func (s *AppChecker) checkPolicy(ctx context.Context, app *edgeproto.App, pname 
 
 	// get counts
 	potentialDelete := []edgeproto.AppInstKey{}
-	potentialCreate := []edgeproto.AppInstKey{}
+	potentialCreate := []*potentialCreateSite{}
 	onlineCount := 0
 	totalCount := 0
 	// check AppInsts on the policy's cloudlets
@@ -424,15 +437,15 @@ func (s *AppChecker) checkPolicy(ctx context.Context, app *edgeproto.App, pname 
 			if !s.cloudletOnline(&apCloudlet.Key) {
 				continue
 			}
-			// see if free reservable ClusterInst exists
-			freeClustKey := s.caches.frClusterInsts.GetForCloudlet(&apCloudlet.Key, app.Deployment, cloudcommon.AppInstToClusterDeployment)
-			if freeClustKey != nil {
-				appInstKey := edgeproto.AppInstKey{
-					AppKey:         s.appKey,
-					ClusterInstKey: *freeClustKey,
-				}
-				potentialCreate = append(potentialCreate, appInstKey)
+			pt := &potentialCreateSite{
+				cloudletKey: apCloudlet.Key,
 			}
+			// see if free reservable ClusterInst exists
+			freeClustKey := s.caches.frClusterInsts.GetForCloudlet(&apCloudlet.Key, app.Deployment, app.DefaultFlavor.Name, cloudcommon.AppInstToClusterDeployment)
+			if freeClustKey != nil {
+				pt.hasFree = HasIt
+			}
+			potentialCreate = append(potentialCreate, pt)
 		} else {
 			for appInstKey, _ := range insts {
 				totalCount++
@@ -464,18 +477,21 @@ func (s *AppChecker) checkPolicy(ctx context.Context, app *edgeproto.App, pname 
 	}
 
 	// Check min
-	createKeys := s.chooseCreate(ctx, potentialCreate, int(policy.MinActiveInstances)-onlineCount)
-	if len(createKeys) < int(policy.MinActiveInstances)-onlineCount {
+	createSites := s.chooseCreate(ctx, potentialCreate, int(policy.MinActiveInstances)-onlineCount)
+	if len(createSites) < int(policy.MinActiveInstances)-onlineCount {
 		log.SpanLog(ctx, log.DebugLevelMetrics, "Not enough potential Cloudlets to meet min constraint", "App", s.appKey, "policy", pname, "min", policy.MinActiveInstances)
 		str := fmt.Sprintf("Not enough potential cloudlets to deploy to for App %s to meet policy %s min constraint %d", s.appKey.GetKeyString(), pname, policy.MinActiveInstances)
 		for _, req := range s.failoverReqs {
 			req.addError(str)
 		}
 	}
-	for _, key := range createKeys {
-		inst := edgeproto.AppInst{
-			Key: key,
-		}
+	for _, site := range createSites {
+		inst := edgeproto.AppInst{}
+		inst.Key.AppKey = app.Key
+		inst.Key.ClusterInstKey.CloudletKey = site.cloudletKey
+		inst.Key.ClusterInstKey.ClusterKey.Name = cloudcommon.AutoProvClusterName
+		inst.Key.ClusterInstKey.Organization = cloudcommon.OrganizationMobiledgeX
+
 		for _, req := range s.failoverReqs {
 			req.waitApiCalls.Add(1)
 		}
@@ -515,9 +531,9 @@ func (s *AppChecker) chooseDelete(ctx context.Context, potential []edgeproto.App
 	return potential[len(potential)-count : len(potential)]
 }
 
-func (s *AppChecker) chooseCreate(ctx context.Context, potential []edgeproto.AppInstKey, count int) []edgeproto.AppInstKey {
+func (s *AppChecker) chooseCreate(ctx context.Context, potential []*potentialCreateSite, count int) []*potentialCreateSite {
 	if count <= 0 {
-		return []edgeproto.AppInstKey{}
+		return []*potentialCreateSite{}
 	}
 	if count >= len(potential) {
 		count = len(potential)
@@ -526,17 +542,24 @@ func (s *AppChecker) chooseCreate(ctx context.Context, potential []edgeproto.App
 	autoProvAggr.mux.Lock()
 	defer autoProvAggr.mux.Unlock()
 
-	appStats, found := autoProvAggr.allStats[s.appKey]
-	if !found {
-		return potential[:count]
-	}
+	appStats, statsFound := autoProvAggr.allStats[s.appKey]
 
-	// sort to put highest client demand first
-	// client demand is only tracked for the last interval,
-	// and is scaled by the deploy client count.
 	sort.Slice(potential, func(i, j int) bool {
-		ckey1 := potential[i].ClusterInstKey.CloudletKey
-		ckey2 := potential[j].ClusterInstKey.CloudletKey
+		p1 := potential[i]
+		p2 := potential[j]
+		if p1.hasFree != p2.hasFree {
+			// prefer cloudlets that have a matching free ClusterInst
+			return p1.hasFree > p2.hasFree
+		}
+		if !statsFound {
+			// no stats so preserve existing order in list
+			return false
+		}
+		// sort to put highest client demand first
+		// client demand is only tracked for the last interval,
+		// and is scaled by the deploy client count.
+		ckey1 := p1.cloudletKey
+		ckey2 := p2.cloudletKey
 
 		var incr1, incr2 uint64
 		if cstats, found := appStats.cloudlets[ckey1]; found && cstats.intervalNum == autoProvAggr.intervalNum {

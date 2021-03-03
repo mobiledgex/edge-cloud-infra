@@ -36,6 +36,7 @@ var VcdProps = map[string]*edgeproto.PropertyInfo{
 		Description: "Verbose logging for VCD",
 		Internal:    true,
 	},
+
 	// Use this when we don't have OrgAdmin rights and can not disable Org lease settings
 	// but still wish to run. Leases will enforced by VCD.
 	"VCD_OVERRIDE_LEASE_DISABLE": {

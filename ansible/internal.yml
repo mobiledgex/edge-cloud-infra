@@ -230,6 +230,7 @@
         - cloudflare-dns-entries.tick
         - cpu-usage.tick
         - disk-usage.tick
+        - elasticsearch-status.tick
         - etcd-db.tick
         - memory-usage.tick
         - vault-seal-status.tick

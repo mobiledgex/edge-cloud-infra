@@ -1,4 +1,43 @@
 - labels:
+    alertname: CloudletResourceUsage
+    cloudlet: tmus-cloud-1
+    cloudletorg: tmus
+    scope: Cloudlet
+    warning: More than 50% of vCPUs is used
+  annotations:
+    description: More than 50% of vCPUs is used
+    title: CloudletResourceUsage
+  state: firing
+  activeat:
+    seconds: 1614751830
+    nanos: 96535000
+- labels:
+    alertname: CloudletResourceUsage
+    cloudlet: tmus-cloud-1
+    cloudletorg: tmus
+    scope: Cloudlet
+    warning: '[Infra] More than 50% of RAM is used'
+  annotations:
+    description: '[Infra] More than 50% of RAM is used'
+    title: CloudletResourceUsage
+  state: firing
+  activeat:
+    seconds: 1614751830
+    nanos: 96537000
+- labels:
+    alertname: CloudletResourceUsage
+    cloudlet: tmus-cloud-1
+    cloudletorg: tmus
+    scope: Cloudlet
+    warning: More than 50% of RAM is used
+  annotations:
+    description: More than 50% of RAM is used
+    title: CloudletResourceUsage
+  state: firing
+  activeat:
+    seconds: 1614751830
+    nanos: 96530000
+- labels:
     alertname: CloudletDown
     cloudlet: tmus-cloud-1
     cloudletorg: tmus
@@ -9,5 +48,6 @@
     title: CloudletDown
   state: firing
   activeat:
-    seconds: 1606856995
-    nanos: 918670000
+    seconds: 1614751858
+    nanos: 325065000
+  controller: Ashishs-MacBook-Pro-2.local@127.0.0.1:55001

@@ -1,8 +1,5 @@
-{% if kubernetes_version is version('1.15', '<') %}
-apiVersion: apps/v1beta1
-{% else %}
 apiVersion: apps/v1
-{% endif %}
+
 kind: StatefulSet
 metadata:
   name: "{{ etcd_cluster_name }}"

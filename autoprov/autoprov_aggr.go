@@ -60,6 +60,7 @@ func NewAutoProvAggr(intervalSec, offsetSec float64, caches *CacheData) *AutoPro
 	s.intervalSec = intervalSec
 	s.offsetSec = offsetSec
 	s.caches = caches
+	s.allStats = make(map[edgeproto.AppKey]*apAppStats)
 	// set callbacks to respond to changes
 	caches.appCache.AddUpdatedKeyCb(s.UpdateApp)
 	caches.appCache.AddDeletedKeyCb(s.DeleteApp)
@@ -70,11 +71,10 @@ func NewAutoProvAggr(intervalSec, offsetSec float64, caches *CacheData) *AutoPro
 func (s *AutoProvAggr) Start() {
 	s.mux.Lock()
 	defer s.mux.Unlock()
-	if s.allStats != nil {
+	if s.stop != nil {
 		// already started
 		return
 	}
-	s.allStats = make(map[edgeproto.AppKey]*apAppStats)
 	s.stop = make(chan struct{})
 	s.waitGroup.Add(1)
 	go s.Run()
@@ -82,12 +82,10 @@ func (s *AutoProvAggr) Start() {
 
 func (s *AutoProvAggr) Stop() {
 	s.mux.Lock()
+	defer s.mux.Unlock()
 	close(s.stop)
-	s.mux.Unlock()
 	s.waitGroup.Wait()
-	s.mux.Lock()
-	s.allStats = nil
-	s.mux.Unlock()
+	s.stop = nil
 }
 
 func (s *AutoProvAggr) UpdateSettings(ctx context.Context, intervalSec, offsetSec float64) {
@@ -279,15 +277,12 @@ func (s *AutoProvAggr) runIter(ctx context.Context, init bool) error {
 func (s *AutoProvAggr) deploy(ctx context.Context, app *edgeproto.App, cloudletKey *edgeproto.CloudletKey) {
 	log.SpanLog(ctx, log.DebugLevelApi, "auto-prov deploy App", "app", app.Key, "cloudlet", *cloudletKey)
 
-	// find free reservable ClusterInst
-	cinstKey := s.caches.frClusterInsts.GetForCloudlet(cloudletKey, app.Deployment, cloudcommon.AppInstToClusterDeployment)
-	if cinstKey == nil {
-		log.SpanLog(ctx, log.DebugLevelApi, "auto-prov no free ClusterInst")
-		return
-	}
 	inst := edgeproto.AppInst{}
 	inst.Key.AppKey = app.Key
-	inst.Key.ClusterInstKey = *cinstKey
+	// let Controller pick or create a reservable ClusterInst.
+	inst.Key.ClusterInstKey.CloudletKey = *cloudletKey
+	inst.Key.ClusterInstKey.ClusterKey.Name = cloudcommon.AutoProvClusterName
+	inst.Key.ClusterInstKey.Organization = cloudcommon.OrganizationMobiledgeX
 
 	go goAppInstApi(ctx, &inst, cloudcommon.Create, cloudcommon.AutoProvReasonDemand, "")
 }

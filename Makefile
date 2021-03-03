@@ -16,6 +16,10 @@ internal: build-internal install-internal
 dep:
 	dep ensure -vendor-only
 
+build-vers:
+	mkdir -p version
+	(cd version; ../../edge-cloud/version/version.sh "Infra")
+
 #
 # Local OS Target
 #
@@ -35,14 +39,15 @@ edge-cloud-version-set:
 	@echo "Setting edge-cloud repo branch/tag to $(EDGE_CLOUD_VERSION)"
 	git -C ../edge-cloud checkout $(EDGE_CLOUD_VERSION)
 
-build-internal:
+build-internal: build-vers
 	go install ./fixmod
 	fixmod -srcRepo ../edge-cloud -keep github.com/mobiledgex/edge-cloud
 	go install ./protoc-gen-mc2
 	make -f proto.make
 	make -C vault/letsencrypt-plugin letsencrypt/version.go
 	go build ./...
-	go build -buildmode=plugin -o ${GOPATH}/plugins/platforms.so plugin/*.go
+	go build -buildmode=plugin -o ${GOPATH}/plugins/platforms.so plugin/platform/*.go
+	go build -buildmode=plugin -o ${GOPATH}/plugins/edgeevents.so plugin/edgeevents/*.go	
 	go vet ./...
 
 install-edge-cloud:
@@ -142,7 +147,6 @@ build-edgebox:
 	rsync -a ansible/playbooks edgebox_bin/ansible
 	rsync -a e2e-tests edgebox_bin
 	rsync -a ../edge-cloud/setup-env/e2e-tests/data edgebox_bin/e2e-tests/edgebox
-	rsync -a ../edge-cloud/tls/out/mex-* edgebox_bin/e2e-tests/edgebox/tlsout
 	rsync -a $(GOPATH)/plugins edgebox_bin
 	rsync -a $(GOPATH)/bin/crmserver \
 		 $(GOPATH)/bin/e2e-tests \

@@ -27,6 +27,11 @@ alertmanager_hostname=alertmanager-{{ deploy_environ }}.mobiledgex.net
 influxdb_backup_disabled=true
 etcd_quota_backend="150 MB"
 etcd_auto_compaction_retention=2
+artifactory_fqdn=https://artifactory-qa.mobiledgex.net/artifactory/
+cloudlet_vm_path=https://artifactory-qa.mobiledgex.net/artifactory/baseimages
+controller_replicas=2
+dme_replicas=2
+gitlab_version=13.5.7-ee.0
 
 [notifyroot]
 notifyroot-qa.mobiledgex.net
@@ -49,6 +54,7 @@ console-qa.mobiledgex.net
 [vault]
 vault-qa-a.mobiledgex.net
 vault-qa-b.mobiledgex.net
+vault-qa-c.mobiledgex.net
 
 [artifactory]
 artifactory-qa.mobiledgex.net

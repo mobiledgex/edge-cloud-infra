@@ -45,9 +45,18 @@ const (
 	VMDomainAny      VMDomain = "any" // used for matching only
 )
 
+func (v *VMPlatform) IsCloudletServicesLocal() bool {
+	return false
+}
+
+func (v *VMPlatform) GetSanitizedCloudletName(key *edgeproto.CloudletKey) string {
+	// Form platform VM name based on cloudletKey
+	return v.VMProvider.NameSanitize(key.Name + "-" + key.Organization)
+}
+
 func (v *VMPlatform) GetPlatformVMName(key *edgeproto.CloudletKey) string {
 	// Form platform VM name based on cloudletKey
-	return v.VMProvider.NameSanitize(key.Name + "-" + key.Organization + "-pf")
+	return v.GetSanitizedCloudletName(key) + "-pf"
 }
 
 func (v *VMPlatform) GetPlatformSubnetName(key *edgeproto.CloudletKey) string {
@@ -112,7 +121,7 @@ func (v *VMPlatform) SetupPlatformVM(ctx context.Context, accessApi platform.Acc
 			ActionCreate,
 			updateCallback,
 			WithNewSecurityGroup(GetServerSecurityGroupName(platformVmName)),
-			WithAccessPorts("tcp:22"),
+			WithAccessPorts("tcp:22", RemoteCidrAll),
 			WithSkipDefaultSecGrp(true),
 			WithInitOrchestrator(true),
 		)
@@ -131,7 +140,7 @@ func (v *VMPlatform) SetupPlatformVM(ctx context.Context, accessApi platform.Acc
 			ActionCreate,
 			updateCallback,
 			WithNewSecurityGroup(GetServerSecurityGroupName(platformVmName)),
-			WithAccessPorts("tcp:22"),
+			WithAccessPorts("tcp:22", RemoteCidrAll),
 			WithSkipDefaultSecGrp(true),
 			WithNewSubnet(subnetName),
 			WithSkipSubnetGateway(true),
@@ -164,12 +173,11 @@ func (v *VMPlatform) CreateCloudlet(ctx context.Context, cloudlet *edgeproto.Clo
 	log.SpanLog(ctx, log.DebugLevelInfra, "Creating cloudlet", "cloudletName", cloudlet.Key.Name)
 
 	if !pfConfig.TestMode {
-		err = v.InitCloudletSSHKeys(ctx, accessApi)
+		err = v.VMProperties.CommonPf.InitCloudletSSHKeys(ctx, accessApi)
 		if err != nil {
 			return err
 		}
 	}
-
 	v.VMProperties.Domain = VMDomainPlatform
 	pc := infracommon.GetPlatformConfig(cloudlet, pfConfig, accessApi)
 	err = v.InitProps(ctx, pc)
@@ -224,6 +232,14 @@ func (v *VMPlatform) CreateCloudlet(ctx context.Context, cloudlet *edgeproto.Clo
 	if err != nil {
 		return err
 	}
+	var result OperationInitResult
+	ctx, result, err = v.VMProvider.InitOperationContext(ctx, OperationInitStart)
+	if err != nil {
+		return err
+	}
+	if result == OperationNewlyInitialized {
+		defer v.VMProvider.InitOperationContext(ctx, OperationInitComplete)
+	}
 
 	chefAttributes, err := v.GetChefPlatformAttributes(ctx, cloudlet, pfConfig)
 	if err != nil {
@@ -276,14 +292,18 @@ func (v *VMPlatform) getChefRunStatus(ctx context.Context, chefClient *chef.Clie
 	updateCallback(edgeproto.UpdateTask, "Waiting for run lists to be executed on Platform VM")
 	timeout := time.After(20 * time.Minute)
 	tick := time.Tick(5 * time.Second)
+	runListTime := time.Now()
+
 	for {
 		var statusInfo []chefmgmt.ChefStatusInfo
 		select {
 		case <-timeout:
+			log.SpanLog(ctx, log.DebugLevelInfra, "getChefRunStatus timeout", "cloudletName", cloudlet.Key.Name)
 			return fmt.Errorf("timed out waiting for platform VM to connect to Chef Server")
 		case <-tick:
 			statusInfo, err = chefmgmt.ChefClientRunStatus(ctx, chefClient, clientName)
 			if err != nil {
+				log.SpanLog(ctx, log.DebugLevelInfra, "getChefRunStatus ChefClientRunStatus error", "cloudletName", cloudlet.Key.Name, "error", err)
 				return err
 			}
 		}
@@ -298,7 +318,7 @@ func (v *VMPlatform) getChefRunStatus(ctx context.Context, chefClient *chef.Clie
 			break
 		}
 	}
-
+	updateCallback(edgeproto.UpdateTask, fmt.Sprintf("Wait run list complete time: %s", infracommon.FormatDuration(time.Since(runListTime), 2)))
 	return nil
 }
 
@@ -333,13 +353,19 @@ func (v *VMPlatform) UpdateCloudlet(ctx context.Context, cloudlet *edgeproto.Clo
 	return nil
 }
 
+func (v *VMPlatform) UpdateTrustPolicy(ctx context.Context, TrustPolicy *edgeproto.TrustPolicy) error {
+	log.DebugLog(log.DebugLevelInfra, "update VMPlatform TrustPolicy", "policy", TrustPolicy)
+	egressRestricted := TrustPolicy.Key.Name != ""
+	return v.VMProvider.ConfigureCloudletSecurityRules(ctx, egressRestricted, TrustPolicy, ActionUpdate, edgeproto.DummyUpdateCallback)
+}
+
 func (v *VMPlatform) DeleteCloudlet(ctx context.Context, cloudlet *edgeproto.Cloudlet, pfConfig *edgeproto.PlatformConfig, caches *pf.Caches, accessApi platform.AccessApi, updateCallback edgeproto.CacheUpdateCallback) error {
 	log.SpanLog(ctx, log.DebugLevelInfra, "Deleting cloudlet", "cloudletName", cloudlet.Key.Name)
 
 	updateCallback(edgeproto.UpdateTask, "Deleting cloudlet")
 
 	if !pfConfig.TestMode {
-		err := v.InitCloudletSSHKeys(ctx, accessApi)
+		err := v.VMProperties.CommonPf.InitCloudletSSHKeys(ctx, accessApi)
 		if err != nil {
 			return err
 		}
@@ -371,6 +397,15 @@ func (v *VMPlatform) DeleteCloudlet(ctx context.Context, cloudlet *edgeproto.Clo
 	v.Caches = caches
 	v.VMProvider.InitProvider(ctx, caches, ProviderInitDeleteCloudlet, updateCallback)
 
+	var result OperationInitResult
+	ctx, result, err = v.VMProvider.InitOperationContext(ctx, OperationInitStart)
+	if err != nil {
+		return err
+	}
+	if result == OperationNewlyInitialized {
+		defer v.VMProvider.InitOperationContext(ctx, OperationInitComplete)
+	}
+
 	chefClient := v.VMProperties.GetChefClient()
 	if chefClient == nil {
 		return fmt.Errorf("Chef client is not initialzied")
@@ -388,6 +423,11 @@ func (v *VMPlatform) DeleteCloudlet(ctx context.Context, cloudlet *edgeproto.Clo
 		}
 		updateCallback(edgeproto.UpdateTask, fmt.Sprintf("Deleting RootLB %s", rootLBName))
 		err = v.VMProvider.DeleteVMs(ctx, rootLBName)
+		if err != nil {
+			return fmt.Errorf("DeleteCloudlet error: %v", err)
+		}
+		updateCallback(edgeproto.UpdateTask, fmt.Sprintf("Deleting Cloudlet Security Rules %s", rootLBName))
+		err = v.VMProvider.ConfigureCloudletSecurityRules(ctx, false, &edgeproto.TrustPolicy{}, ActionDelete, edgeproto.DummyUpdateCallback)
 		if err != nil {
 			return fmt.Errorf("DeleteCloudlet error: %v", err)
 		}
@@ -441,6 +481,15 @@ func (v *VMPlatform) SaveCloudletAccessVars(ctx context.Context, cloudlet *edgep
 }
 
 func (v *VMPlatform) GatherCloudletInfo(ctx context.Context, info *edgeproto.CloudletInfo) error {
+	var err error
+	var result OperationInitResult
+	ctx, result, err = v.VMProvider.InitOperationContext(ctx, OperationInitStart)
+	if err != nil {
+		return err
+	}
+	if result == OperationNewlyInitialized {
+		defer v.VMProvider.InitOperationContext(ctx, OperationInitComplete)
+	}
 	return v.VMProvider.GatherCloudletInfo(ctx, info)
 }
 
@@ -798,7 +847,7 @@ func (v *VMPlatform) GetCloudletManifest(ctx context.Context, cloudlet *edgeprot
 			platformVmName,
 			platvms,
 			WithNewSecurityGroup(GetServerSecurityGroupName(platformVmName)),
-			WithAccessPorts("tcp:22"),
+			WithAccessPorts("tcp:22", RemoteCidrAll),
 			WithSkipDefaultSecGrp(true),
 			WithSkipInfraSpecificCheck(skipInfraSpecificCheck),
 		)
@@ -809,7 +858,7 @@ func (v *VMPlatform) GetCloudletManifest(ctx context.Context, cloudlet *edgeprot
 			platformVmName,
 			platvms,
 			WithNewSecurityGroup(GetServerSecurityGroupName(platformVmName)),
-			WithAccessPorts("tcp:22"),
+			WithAccessPorts("tcp:22", RemoteCidrAll),
 			WithNewSubnet(subnetName),
 			WithSkipDefaultSecGrp(true),
 			WithSkipSubnetGateway(true),

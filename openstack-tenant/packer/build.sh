@@ -1,5 +1,5 @@
 #!/bin/bash
-ARTIFACTORY_BASEURL='https://artifactory.mobiledgex.net'
+ARTIFACTORY_BASEURL='https://artifactory.mobiledgex.net/artifactory'
 ARTIFACTORY_USER='packer'
 ARTIFACTORY_ARTIFACTS_TAG='2020-04-27'
 CLOUD_IMAGE='ubuntu-18.04-server-cloudimg-amd64.img'
@@ -21,7 +21,7 @@ USAGE="usage: $( basename $0 ) <options>
  -f <flavor>      Image flavor (default: \"$FLAVOR\")
  -i <image-tag>   Glance source image tag (default: \"$CLOUD_IMAGE_TAG\")
  -o <output-tag>  Output image tag (default: same as tag below)
- -p <platform>    Output platform flavor; one of \"openstack\" (default) or \"vsphere\"
+ -p <platform>    Output platform flavor; one of \"openstack\" (default), \"vcd\", or \"vsphere\"
  -t <tag>         Image tag name (default: \"$TAG\")
  -F               Ignore source image checksum mismatch
  -T               Print trace debug messages during build
@@ -55,6 +55,7 @@ die() {
 case "$OUTPUT_PLATFORM" in
 	openstack)	true ;;
 	vsphere)	TAG="${TAG%-vsphere}-vsphere" ;;
+	vcd)		TAG="${TAG%-vcd}-vcd" ;;
 	*)		die "Unknown platform type: $OUTPUT_PLATFORM" ;;
 esac
 

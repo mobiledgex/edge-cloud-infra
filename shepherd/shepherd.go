@@ -12,6 +12,7 @@ import (
 
 	awsec2 "github.com/mobiledgex/edge-cloud-infra/crm-platforms/aws/aws-ec2"
 	"github.com/mobiledgex/edge-cloud-infra/crm-platforms/openstack"
+	"github.com/mobiledgex/edge-cloud-infra/crm-platforms/vcd"
 	"github.com/mobiledgex/edge-cloud-infra/crm-platforms/vmpool"
 	"github.com/mobiledgex/edge-cloud-infra/crm-platforms/vsphere"
 	intprocess "github.com/mobiledgex/edge-cloud-infra/e2e-tests/int-process"
@@ -19,12 +20,14 @@ import (
 	"github.com/mobiledgex/edge-cloud-infra/shepherd/shepherd_platform/shepherd_edgebox"
 	"github.com/mobiledgex/edge-cloud-infra/shepherd/shepherd_platform/shepherd_fake"
 	"github.com/mobiledgex/edge-cloud-infra/shepherd/shepherd_platform/shepherd_vmprovider"
+	"github.com/mobiledgex/edge-cloud-infra/version"
 	"github.com/mobiledgex/edge-cloud-infra/vmlayer"
 	"github.com/mobiledgex/edge-cloud/cloud-resource-manager/accessapi"
 	"github.com/mobiledgex/edge-cloud/cloud-resource-manager/k8smgmt"
 	pf "github.com/mobiledgex/edge-cloud/cloud-resource-manager/platform"
 	"github.com/mobiledgex/edge-cloud/cloudcommon"
 	"github.com/mobiledgex/edge-cloud/cloudcommon/node"
+	dme "github.com/mobiledgex/edge-cloud/d-match-engine/dme-proto"
 	"github.com/mobiledgex/edge-cloud/edgeproto"
 	"github.com/mobiledgex/edge-cloud/log"
 	"github.com/mobiledgex/edge-cloud/notify"
@@ -119,7 +122,7 @@ func appInstCb(ctx context.Context, old *edgeproto.AppInst, new *edgeproto.AppIn
 		return
 	} else if new.Key.AppKey.Name == MEXPrometheusAppName {
 		// check for prometheus
-		mapKey = k8smgmt.GetK8sNodeNameSuffix(&new.Key.ClusterInstKey)
+		mapKey = k8smgmt.GetK8sNodeNameSuffix(new.ClusterInstKey())
 	} else {
 		return
 	}
@@ -130,7 +133,7 @@ func appInstCb(ctx context.Context, old *edgeproto.AppInst, new *edgeproto.AppIn
 		log.SpanLog(ctx, log.DebugLevelMetrics, "New Prometheus instance detected", "clustername", mapKey, "appInst", new)
 		// get address of prometheus.
 		clusterInst := edgeproto.ClusterInst{}
-		found := ClusterInstCache.Get(&new.Key.ClusterInstKey, &clusterInst)
+		found := ClusterInstCache.Get(new.ClusterInstKey(), &clusterInst)
 		if !found {
 			log.SpanLog(ctx, log.DebugLevelMetrics, "Unable to find clusterInst for prometheus")
 			return
@@ -271,13 +274,14 @@ func cloudletCb(ctx context.Context, old *edgeproto.Cloudlet, new *edgeproto.Clo
 func getPlatform() (platform.Platform, error) {
 	var plat platform.Platform
 	var err error
+	pfType := pf.GetType(*platformName)
 	switch *platformName {
 	case "PLATFORM_TYPE_EDGEBOX":
 		plat = &shepherd_edgebox.Platform{}
 	case "PLATFORM_TYPE_OPENSTACK":
 		osProvider := openstack.OpenstackPlatform{}
 		vmPlatform := vmlayer.VMPlatform{
-			Type:       vmlayer.VMProviderOpenstack,
+			Type:       pfType,
 			VMProvider: &osProvider,
 		}
 		plat = &shepherd_vmprovider.ShepherdPlatform{
@@ -286,8 +290,17 @@ func getPlatform() (platform.Platform, error) {
 	case "PLATFORM_TYPE_VSPHERE":
 		vsphereProvider := vsphere.VSpherePlatform{}
 		vmPlatform := vmlayer.VMPlatform{
-			Type:       vmlayer.VMProviderVSphere,
+			Type:       pfType,
 			VMProvider: &vsphereProvider,
+		}
+		plat = &shepherd_vmprovider.ShepherdPlatform{
+			VMPlatform: &vmPlatform,
+		}
+	case "PLATFORM_TYPE_VCD":
+		vcdProvider := vcd.VcdPlatform{}
+		vmPlatform := vmlayer.VMPlatform{
+			Type:       pfType,
+			VMProvider: &vcdProvider,
 		}
 		plat = &shepherd_vmprovider.ShepherdPlatform{
 			VMPlatform: &vmPlatform,
@@ -295,7 +308,7 @@ func getPlatform() (platform.Platform, error) {
 	case "PLATFORM_TYPE_AWS_EC2":
 		awsEc2Provider := awsec2.AwsEc2Platform{}
 		vmPlatform := vmlayer.VMPlatform{
-			Type:       vmlayer.VMProviderAwsEc2,
+			Type:       pfType,
 			VMProvider: &awsEc2Provider,
 		}
 		plat = &shepherd_vmprovider.ShepherdPlatform{
@@ -304,7 +317,7 @@ func getPlatform() (platform.Platform, error) {
 	case "PLATFORM_TYPE_VM_POOL":
 		vmpoolProvider := vmpool.VMPoolPlatform{}
 		vmPlatform := vmlayer.VMPlatform{
-			Type:       vmlayer.VMProviderVMPool,
+			Type:       pfType,
 			VMProvider: &vmpoolProvider,
 		}
 		plat = &shepherd_vmprovider.ShepherdPlatform{
@@ -345,6 +358,7 @@ func start() {
 		log.FatalLog(err.Error())
 	}
 	defer span.Finish()
+	nodeMgr.UpdateNodeProps(ctx, version.InfraBuildProps("Infra"))
 
 	if !nodeMgr.AccessKeyClient.IsEnabled() {
 		log.FatalLog("access key client is not enabled")
@@ -434,7 +448,7 @@ func start() {
 	}
 
 	// Send state INIT to get cloudlet obj from crm
-	cloudletInfo.State = edgeproto.CloudletState_CLOUDLET_STATE_INIT
+	cloudletInfo.State = dme.CloudletState_CLOUDLET_STATE_INIT
 	CloudletInfoCache.Update(ctx, &cloudletInfo, 0)
 
 	var cloudlet edgeproto.Cloudlet
@@ -486,13 +500,13 @@ func start() {
 	vmAppWorkerMap = make(map[string]*AppInstWorker)
 	// LB metrics are not supported in fake mode
 	InitProxyScraper()
-	if myPlatform.GetType() != "fake" {
+	if pf.GetType(*platformName) != "fake" {
 		StartProxyScraper(stopCh)
 	}
 	InitPlatformMetrics(stopCh)
 
 	// Send state READY to get AppInst/ClusterInst objs from crm
-	cloudletInfo.State = edgeproto.CloudletState_CLOUDLET_STATE_READY
+	cloudletInfo.State = dme.CloudletState_CLOUDLET_STATE_READY
 	CloudletInfoCache.Update(ctx, &cloudletInfo, 0)
 
 	log.SpanLog(ctx, log.DebugLevelMetrics, "Ready")

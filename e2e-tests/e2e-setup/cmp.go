@@ -164,12 +164,51 @@ func CompareYamlFiles(firstYamlFile string, secondYamlFile string, fileType stri
 
 		copts = []cmp.Option{
 			cmpopts.IgnoreFields(ecutil.TimeRange{}, "StartTime", "EndTime", "StartAge", "EndAge"),
-			cmpopts.IgnoreSliceElements(func(str string) bool {
+			cmpopts.IgnoreFields(node.AggrVal{}, "DocCount"),
+			cmpopts.IgnoreSliceElements(func(aggr node.AggrVal) bool {
 				// no websocket equivalent so leads to
 				// different results for EventTerms for cli vs api
-				return str == "/api/v1/auth/ctrl/AccessCloudlet"
+				return aggr.Key == "/api/v1/auth/ctrl/AccessCloudlet"
 			}),
 		}
+		y1 = a1
+		y2 = a2
+	} else if fileType == "mcspanterms" {
+		var a1 []SpanTerms
+		var a2 []SpanTerms
+
+		err1 = util.ReadYamlFile(firstYamlFile, &a1)
+		err2 = util.ReadYamlFile(secondYamlFile, &a2)
+
+		cmpFilterSpanTerms(a1)
+		cmpFilterSpanTerms(a2)
+
+		copts = []cmp.Option{
+			cmpopts.IgnoreFields(ecutil.TimeRange{}, "StartTime", "EndTime", "StartAge", "EndAge"),
+			cmpopts.IgnoreFields(node.AggrVal{}, "DocCount"),
+			// Ignore messages and tags because they will change often.
+			// Hostnames will depend on local machine name so have to
+			// ignore those too.
+			cmpopts.IgnoreFields(node.SpanTerms{}, "Msgs", "Tags", "Hostnames"),
+		}
+		y1 = a1
+		y2 = a2
+	} else if fileType == "mcspans" {
+		var a1 []SpanSearch
+		var a2 []SpanSearch
+
+		err1 = util.ReadYamlFile(firstYamlFile, &a1)
+		err2 = util.ReadYamlFile(secondYamlFile, &a2)
+
+		cmpFilterSpans(a1)
+		cmpFilterSpans(a2)
+
+		copts = []cmp.Option{
+			cmpopts.IgnoreFields(node.SpanOutCondensed{}, "StartTime", "Duration", "TraceID", "SpanID", "Hostname"),
+			cmpopts.IgnoreFields(ecutil.TimeRange{}, "StartTime", "EndTime", "StartAge", "EndAge"),
+			cmpopts.IgnoreFields(node.SpanLogOut{}, "Timestamp", "Lineno"),
+		}
+
 		y1 = a1
 		y2 = a2
 	} else if fileType == "mcmetrics" {
@@ -300,35 +339,97 @@ func cmpFilterEventData(data []EventSearch) {
 			// because the json generated from cli comes
 			// from a map, and from api comes from a struct,
 			// and end up being formatted differently.
-			delete(event.Mtags, "duration")
-			delete(event.Mtags, "traceid")
-			delete(event.Mtags, "spanid")
-			delete(event.Mtags, "hostname")
-			delete(event.Mtags, "lineno")
-			delete(event.Mtags, "request")
-			delete(event.Mtags, "response")
+			ignoreMapStringVal(event.Mtags, "duration")
+			ignoreMapStringVal(event.Mtags, "traceid")
+			ignoreMapStringVal(event.Mtags, "spanid")
+			ignoreMapStringVal(event.Mtags, "hostname")
+			ignoreMapStringVal(event.Mtags, "lineno")
+			ignoreMapStringVal(event.Mtags, "request")
+			ignoreMapStringVal(event.Mtags, "response")
 		}
 	}
 }
 
+func cmpFilterSpans(data []SpanSearch) {
+	for ii := 0; ii < len(data); ii++ {
+		for jj := 0; jj < len(data[ii].Results); jj++ {
+			out := data[ii].Results[jj]
+			ignoreMapVal(out.Tags, "client")
+			ignoreMapVal(out.Tags, "lineno")
+			ignoreMapVal(out.Tags, "peer")
+			for _, log := range out.Logs {
+				// remove values that change each run
+				ignoreMapVal(log.KeyValues, "modRev")
+				ignoreMapVal(log.KeyValues, "peer")
+				ignoreMapVal(log.KeyValues, "peerAddr")
+				ignoreMapVal(log.KeyValues, "cookie")
+				ignoreMapVal(log.KeyValues, "expires")
+				ignoreMapVal(log.KeyValues, "resp")
+				ignoreMapVal(log.KeyValues, "rev")
+				ignoreMapVal(log.KeyValues, "autoProvStats")
+			}
+		}
+	}
+}
+
+// This nils out map value so we can check that keys match
+// between expected and actual, but ignore the actual values
+// since the values may change or be inconsistent.
+func ignoreMapVal(m map[string]interface{}, key string) {
+	if _, found := m[key]; found {
+		m[key] = nil
+	}
+}
+func ignoreMapStringVal(m map[string]string, key string) {
+	if _, found := m[key]; found {
+		m[key] = ""
+	}
+}
+
+type sortAggrVals []node.AggrVal
+
+func (s sortAggrVals) Len() int           { return len(s) }
+func (s sortAggrVals) Swap(i, j int)      { s[i], s[j] = s[j], s[i] }
+func (s sortAggrVals) Less(i, j int) bool { return s[i].Key < s[j].Key }
+
 func cmpFilterEventTerms(data []EventTerms) {
 	for ii := 0; ii < len(data); ii++ {
-		changed := false
-		for jj := 0; jj < len(data[ii].Terms.Names); jj++ {
+		terms := data[ii].Terms
+		if terms == nil {
+			continue
+		}
+		for jj := 0; jj < len(terms.Names); jj++ {
 			// cli runs /ws version of RunCommand which makes
 			// it impossible to get the same results from both
 			// api and cli EventTerms, so map ws one to normal one.
-			if data[ii].Terms.Names[jj] == "/ws/api/v1/auth/ctrl/RunCommand" {
-				data[ii].Terms.Names[jj] = "/api/v1/auth/ctrl/RunCommand"
-				changed = true
+			if terms.Names[jj].Key == "/ws/api/v1/auth/ctrl/RunCommand" {
+				terms.Names[jj].Key = "/api/v1/auth/ctrl/RunCommand"
 			}
-			if data[ii].Terms.Names[jj] == "/ws/api/v1/auth/ctrl/ShowLogs" {
-				data[ii].Terms.Names[jj] = "/api/v1/auth/ctrl/ShowLogs"
-				changed = true
+			if terms.Names[jj].Key == "/ws/api/v1/auth/ctrl/ShowLogs" {
+				terms.Names[jj].Key = "/api/v1/auth/ctrl/ShowLogs"
 			}
 		}
-		if changed {
-			sort.Strings(data[ii].Terms.Names)
+		// output order depends on counts, which may
+		// change over time or due to retries.
+		// Since we're ignoring counts, change order to alphabetical.
+		sort.Sort(sortAggrVals(terms.Names))
+		sort.Sort(sortAggrVals(terms.Orgs))
+		sort.Sort(sortAggrVals(terms.Types))
+		sort.Sort(sortAggrVals(terms.Regions))
+		sort.Sort(sortAggrVals(terms.TagKeys))
+	}
+}
+
+func cmpFilterSpanTerms(data []SpanTerms) {
+	for ii := 0; ii < len(data); ii++ {
+		terms := data[ii].Terms
+		if terms == nil {
+			continue
 		}
+		sort.Sort(sortAggrVals(terms.Operations))
+		sort.Sort(sortAggrVals(terms.Services))
+		sort.Sort(sortAggrVals(terms.Hostnames))
+		sort.Sort(sortAggrVals(terms.Msgs))
+		sort.Sort(sortAggrVals(terms.Tags))
 	}
 }

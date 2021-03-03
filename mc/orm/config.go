@@ -17,6 +17,8 @@ var defaultConfig = ormapi.Config{
 	PasswordMinCrackTimeSec:      30 * 86400,      // 30 days
 	AdminPasswordMinCrackTimeSec: 2 * 365 * 86400, // 2 years
 	MaxMetricsDataPoints:         10000,
+	UserApiKeyCreateLimit:        10,
+	BillingEnable:                false, // TODO: eventually set the default to true?
 }
 
 func InitConfig(ctx context.Context) error {
@@ -34,18 +36,24 @@ func InitConfig(ctx context.Context) error {
 	if err != nil {
 		return err
 	}
+	save := false
 	// set password min times if not set
 	if config.PasswordMinCrackTimeSec == 0 && config.AdminPasswordMinCrackTimeSec == 0 {
 		config.PasswordMinCrackTimeSec = defaultConfig.PasswordMinCrackTimeSec
 		config.AdminPasswordMinCrackTimeSec = defaultConfig.AdminPasswordMinCrackTimeSec
-		err = db.Save(&config).Error
-		if err != nil {
-			return err
-		}
+		save = true
 	}
 	// set influxDB data points max number if not set
 	if config.MaxMetricsDataPoints == 0 {
 		config.MaxMetricsDataPoints = defaultConfig.MaxMetricsDataPoints
+		save = true
+	}
+	// set userapikeykeycreatelimit if not set
+	if config.UserApiKeyCreateLimit == 0 {
+		config.UserApiKeyCreateLimit = defaultConfig.UserApiKeyCreateLimit
+		save = true
+	}
+	if save {
 		err = db.Save(&config).Error
 		if err != nil {
 			return err

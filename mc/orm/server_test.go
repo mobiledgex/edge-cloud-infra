@@ -8,6 +8,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/mobiledgex/edge-cloud-infra/billing"
 	"github.com/mobiledgex/edge-cloud-infra/mc/ormapi"
 	"github.com/mobiledgex/edge-cloud-infra/mc/ormclient"
 	"github.com/mobiledgex/edge-cloud-infra/mc/rbac"
@@ -42,6 +43,7 @@ func TestServer(t *testing.T) {
 		SkipVerifyEmail:         true,
 		vaultConfig:             vaultConfig,
 		UsageCheckpointInterval: "MONTH",
+		BillingPlatform:         billing.BillingTypeFake,
 	}
 	server, err := RunServer(&config)
 	require.Nil(t, err, "run server")
@@ -60,7 +62,7 @@ func TestServer(t *testing.T) {
 	mcClient := &ormclient.Client{}
 
 	// login as super user
-	token, err := mcClient.DoLogin(uri, DefaultSuperuser, DefaultSuperpass, NoOTP)
+	token, err := mcClient.DoLogin(uri, DefaultSuperuser, DefaultSuperpass, NoOTP, NoApiKeyId, NoApiKey)
 	require.Nil(t, err, "login as superuser")
 
 	super, status, err := showCurrentUser(mcClient, uri, token)
@@ -79,7 +81,7 @@ func TestServer(t *testing.T) {
 	require.Equal(t, super.Name, roleAssignments[0].Username)
 
 	// show users - only super user at this point
-	users, status, err := mcClient.ShowUser(uri, token, &ormapi.Organization{})
+	users, status, err := mcClient.ShowUser(uri, token, &ormapi.ShowUser{})
 	require.Equal(t, http.StatusOK, status, "show user status")
 	require.Equal(t, 1, len(users))
 	require.Equal(t, DefaultSuperuser, users[0].Name, "super user name")
@@ -106,7 +108,7 @@ func TestServer(t *testing.T) {
 	require.Nil(t, err, "create user")
 	require.Equal(t, http.StatusOK, status, "create user status")
 	// login as new user1, should work as 2fa is not enabled
-	tokenMisterX, err := mcClient.DoLogin(uri, user1.Name, user1.Passhash, NoOTP)
+	tokenMisterX, err := mcClient.DoLogin(uri, user1.Name, user1.Passhash, NoOTP, NoApiKeyId, NoApiKey)
 	require.Nil(t, err, "login as user1 with no 2fa")
 	// enable 2fa for user1
 	mapData := map[string]interface{}{
@@ -116,11 +118,11 @@ func TestServer(t *testing.T) {
 	require.Nil(t, err)
 	resp, status, err = mcClient.UpdateUser(uri, tokenMisterX, string(jsonData))
 	require.Nil(t, err)
-	tokenMisterX, err = mcClient.DoLogin(uri, user1.Name, user1.Passhash, NoOTP)
+	tokenMisterX, err = mcClient.DoLogin(uri, user1.Name, user1.Passhash, NoOTP, NoApiKeyId, NoApiKey)
 	require.NotNil(t, err, "login should fail, missing otp")
 	otp, err := totp.GenerateCode(resp.TOTPSharedKey, time.Now())
 	require.Nil(t, err, "generate otp")
-	tokenMisterX, err = mcClient.DoLogin(uri, user1.Name, user1.Passhash, otp)
+	tokenMisterX, err = mcClient.DoLogin(uri, user1.Name, user1.Passhash, otp, NoApiKeyId, NoApiKey)
 	require.Nil(t, err, "login as mister X")
 	// disable 2fa for user1
 	mapData = map[string]interface{}{
@@ -131,7 +133,7 @@ func TestServer(t *testing.T) {
 	_, status, err = mcClient.UpdateUser(uri, tokenMisterX, string(jsonData))
 	require.Nil(t, err)
 	// login, should work as 2fa is now disabled
-	tokenMisterX, err = mcClient.DoLogin(uri, user1.Name, user1.Passhash, NoOTP)
+	tokenMisterX, err = mcClient.DoLogin(uri, user1.Name, user1.Passhash, NoOTP, NoApiKeyId, NoApiKey)
 	require.Nil(t, err, "login as user1 with no 2fa")
 
 	// create an Organization
@@ -179,7 +181,7 @@ func TestServer(t *testing.T) {
 	// login as new user2
 	otp, err = totp.GenerateCode(resp.TOTPSharedKey, time.Now())
 	require.Nil(t, err, "generate otp")
-	tokenMisterY, err := mcClient.DoLogin(uri, user2.Name, user2.Passhash, otp)
+	tokenMisterY, err := mcClient.DoLogin(uri, user2.Name, user2.Passhash, otp, NoApiKeyId, NoApiKey)
 	require.Nil(t, err, "login as mister Y")
 
 	// create user2 (case-insensitive) - duplicate
@@ -271,7 +273,7 @@ func TestServer(t *testing.T) {
 	// login as new admin
 	otp, err = totp.GenerateCode(resp.TOTPSharedKey, time.Now())
 	require.Nil(t, err, "generate otp")
-	tokenAdmin, err := mcClient.DoLogin(uri, admin.Name, admin.Passhash, otp)
+	tokenAdmin, err := mcClient.DoLogin(uri, admin.Name, admin.Passhash, otp, NoApiKeyId, NoApiKey)
 	require.Nil(t, err, "login as admin")
 
 	orgMex := ormapi.Organization{
@@ -340,41 +342,87 @@ func TestServer(t *testing.T) {
 	require.Equal(t, http.StatusOK, status)
 	require.Equal(t, 5, len(roleAssignments))
 
+	showUserOrg1 := &ormapi.ShowUser{
+		Org: org1.Name,
+	}
+	showUserOrg2 := &ormapi.ShowUser{
+		Org: org2.Name,
+	}
 	// show org users as mister x
-	users, status, err = mcClient.ShowUser(uri, tokenMisterX, &org1)
+	users, status, err = mcClient.ShowUser(uri, tokenMisterX, showUserOrg1)
 	require.Nil(t, err)
 	require.Equal(t, http.StatusOK, status)
 	require.Equal(t, 1, len(users))
 	require.Equal(t, user1.Name, users[0].Name)
 	// show org users as mister y
-	users, status, err = mcClient.ShowUser(uri, tokenMisterY, &org2)
+	users, status, err = mcClient.ShowUser(uri, tokenMisterY, showUserOrg2)
 	require.Nil(t, err)
 	require.Equal(t, http.StatusOK, status)
 	require.Equal(t, 1, len(users))
 	require.Equal(t, user2.Name, users[0].Name)
-	// super user can see all users with org ID = 0
-	users, status, err = mcClient.ShowUser(uri, token, &ormapi.Organization{})
+	// super user can see all users with org = ""
+	users, status, err = mcClient.ShowUser(uri, token, &ormapi.ShowUser{})
 	require.Nil(t, err)
 	require.Equal(t, http.StatusOK, status)
 	require.Equal(t, 4, len(users))
-	users, status, err = mcClient.ShowUser(uri, tokenAdmin, &ormapi.Organization{})
+	users, status, err = mcClient.ShowUser(uri, tokenAdmin, &ormapi.ShowUser{})
 	require.Nil(t, err)
 	require.Equal(t, http.StatusOK, status)
 	require.Equal(t, 4, len(users))
+	// super user can see other users by email
+	showUserEmail := func(email string) *ormapi.ShowUser {
+		showUser := &ormapi.ShowUser{}
+		showUser.User.Email = email
+		return showUser
+	}
+	users, status, err = mcClient.ShowUser(uri, tokenAdmin, showUserEmail(user1.Email))
+	require.Nil(t, err)
+	require.Equal(t, http.StatusOK, status)
+	require.Equal(t, 1, len(users))
+	require.Equal(t, user1.Name, users[0].Name)
+	// super user can see users by role
+	showUser := &ormapi.ShowUser{
+		Role: RoleAdminManager,
+	}
+	users, status, err = mcClient.ShowUser(uri, tokenAdmin, showUser)
+	require.Nil(t, err)
+	require.Equal(t, http.StatusOK, status)
+	require.Equal(t, 2, len(users))
+	require.Equal(t, DefaultSuperuser, users[0].Name)
+	require.Equal(t, admin.Name, users[1].Name)
+	showUser = &ormapi.ShowUser{
+		Role: RoleDeveloperManager,
+	}
+	users, status, err = mcClient.ShowUser(uri, tokenAdmin, showUser)
+	require.Nil(t, err)
+	require.Equal(t, http.StatusOK, status)
+	require.Equal(t, 3, len(users))
+	require.Equal(t, user1.Name, users[0].Name)
+	require.Equal(t, user2.Name, users[1].Name)
+	require.Equal(t, admin.Name, users[2].Name)
 
 	// check that x and y cannot see each other's org users
-	users, status, err = mcClient.ShowUser(uri, tokenMisterX, &org2)
+	users, status, err = mcClient.ShowUser(uri, tokenMisterX, showUserOrg2)
 	require.NotNil(t, err)
 	require.Equal(t, http.StatusForbidden, status)
-	users, status, err = mcClient.ShowUser(uri, tokenMisterY, &org1)
+	users, status, err = mcClient.ShowUser(uri, tokenMisterY, showUserOrg1)
 	require.NotNil(t, err)
 	require.Equal(t, http.StatusForbidden, status)
 	foobar := &ormapi.Organization{
 		Name: "foobar",
 	}
-	users, status, err = mcClient.ShowUser(uri, tokenMisterX, foobar)
+	users, status, err = mcClient.ShowUser(uri, tokenMisterX, &ormapi.ShowUser{Org: foobar.Name})
 	require.NotNil(t, err)
 	require.Equal(t, http.StatusForbidden, status)
+	// check that x and y cannot see each other's users filtered by email
+	users, status, err = mcClient.ShowUser(uri, tokenMisterX, showUserEmail(updateNewEmail)) // user2's email is now updateNewEmail
+	require.Nil(t, err)
+	require.Equal(t, http.StatusOK, status)
+	require.Equal(t, 0, len(users))
+	users, status, err = mcClient.ShowUser(uri, tokenMisterY, showUserEmail(user1.Email))
+	require.Nil(t, err)
+	require.Equal(t, http.StatusOK, status)
+	require.Equal(t, 0, len(users))
 
 	// check that x and y cannot delete each other's orgs
 	status, err = mcClient.DeleteOrg(uri, tokenMisterX, &org2)
@@ -399,19 +447,26 @@ func TestServer(t *testing.T) {
 	_, err = mcClient.AddUserRole(uri, tokenMisterX, &roleArgX)
 	require.NotNil(t, err, "user name with same name as org (case-insensitive)")
 	// check that they can see all users in org
-	users, status, err = mcClient.ShowUser(uri, token3, &org1)
+	users, status, err = mcClient.ShowUser(uri, token3, showUserOrg1)
 	require.Nil(t, err)
 	require.Equal(t, http.StatusOK, status)
 	require.Equal(t, 3, len(users))
-	users, status, err = mcClient.ShowUser(uri, token4, &org1)
+	users, status, err = mcClient.ShowUser(uri, token4, showUserOrg1)
 	require.Nil(t, err)
 	require.Equal(t, http.StatusOK, status)
 	require.Equal(t, 3, len(users))
+	// check that org owners can see filtered users without specifying org
+	users, status, err = mcClient.ShowUser(uri, tokenMisterX, showUserEmail(user3.Email))
+	require.Nil(t, err)
+	require.Equal(t, http.StatusOK, status)
+	require.Equal(t, 1, len(users))
+	require.Equal(t, user3.Name, users[0].Name)
+
 	// make sure they can't see users from other org
-	users, status, err = mcClient.ShowUser(uri, token3, &org2)
+	users, status, err = mcClient.ShowUser(uri, token3, showUserOrg2)
 	require.NotNil(t, err)
 	require.Equal(t, http.StatusForbidden, status)
-	users, status, err = mcClient.ShowUser(uri, token4, &org2)
+	users, status, err = mcClient.ShowUser(uri, token4, showUserOrg2)
 	require.NotNil(t, err)
 	require.Equal(t, http.StatusForbidden, status)
 
@@ -474,7 +529,7 @@ func TestServer(t *testing.T) {
 	require.Equal(t, http.StatusOK, status)
 	require.Equal(t, 0, len(orgs))
 	// check users are gone
-	users, status, err = mcClient.ShowUser(uri, token, &ormapi.Organization{})
+	users, status, err = mcClient.ShowUser(uri, token, &ormapi.ShowUser{})
 	require.Nil(t, err)
 	require.Equal(t, http.StatusOK, status)
 	require.Equal(t, 1, len(users))
@@ -522,7 +577,7 @@ func dumpTables() {
 
 func testLockedUsers(t *testing.T, uri string, mcClient *ormclient.Client) {
 	// login as super user
-	superTok, err := mcClient.DoLogin(uri, DefaultSuperuser, DefaultSuperpass, NoOTP)
+	superTok, err := mcClient.DoLogin(uri, DefaultSuperuser, DefaultSuperpass, NoOTP, NoApiKeyId, NoApiKey)
 	require.Nil(t, err, "login as superuser")
 
 	// set config to be locked. This needs to be a map so that
@@ -550,7 +605,7 @@ func testLockedUsers(t *testing.T, uri string, mcClient *ormclient.Client) {
 	// login as new user1
 	otp, err := totp.GenerateCode(resp.TOTPSharedKey, time.Now())
 	require.Nil(t, err, "generate otp")
-	_, err = mcClient.DoLogin(uri, user1.Name, user1.Passhash, otp)
+	_, err = mcClient.DoLogin(uri, user1.Name, user1.Passhash, otp, NoApiKeyId, NoApiKey)
 	require.NotNil(t, err, "login")
 	require.Contains(t, err.Error(), "Account is locked")
 
@@ -565,7 +620,7 @@ func testLockedUsers(t *testing.T, uri string, mcClient *ormclient.Client) {
 	// user should be able to log in now
 	otp, err = totp.GenerateCode(resp.TOTPSharedKey, time.Now())
 	require.Nil(t, err, "generate otp")
-	tok1, err := mcClient.DoLogin(uri, user1.Name, user1.Passhash, otp)
+	tok1, err := mcClient.DoLogin(uri, user1.Name, user1.Passhash, otp, NoApiKeyId, NoApiKey)
 	require.Nil(t, err)
 
 	// create another new user
@@ -581,7 +636,7 @@ func testLockedUsers(t *testing.T, uri string, mcClient *ormclient.Client) {
 	// login as new user2
 	otp, err = totp.GenerateCode(resp.TOTPSharedKey, time.Now())
 	require.Nil(t, err, "generate otp")
-	_, err = mcClient.DoLogin(uri, user2.Name, user2.Passhash, otp)
+	_, err = mcClient.DoLogin(uri, user2.Name, user2.Passhash, otp, NoApiKeyId, NoApiKey)
 	require.NotNil(t, err, "login")
 	require.Contains(t, err.Error(), "Account is locked")
 
@@ -607,7 +662,7 @@ func testLockedUsers(t *testing.T, uri string, mcClient *ormclient.Client) {
 	// user2 still should not be able to log in
 	otp, err = totp.GenerateCode(resp.TOTPSharedKey, time.Now())
 	require.Nil(t, err, "generate otp")
-	_, err = mcClient.DoLogin(uri, user2.Name, user2.Passhash, otp)
+	_, err = mcClient.DoLogin(uri, user2.Name, user2.Passhash, otp, NoApiKeyId, NoApiKey)
 	require.NotNil(t, err, "login")
 	require.Contains(t, err.Error(), "Account is locked")
 
@@ -621,7 +676,7 @@ func testLockedUsers(t *testing.T, uri string, mcClient *ormclient.Client) {
 	// login as new user2
 	otp, err = totp.GenerateCode(resp.TOTPSharedKey, time.Now())
 	require.Nil(t, err, "generate otp")
-	_, err = mcClient.DoLogin(uri, user2.Name, user2.Passhash, otp)
+	_, err = mcClient.DoLogin(uri, user2.Name, user2.Passhash, otp, NoApiKeyId, NoApiKey)
 	require.Nil(t, err)
 
 	// show config, make sure changes didn't affect notify email address
@@ -760,7 +815,7 @@ func testPasswordStrength(t *testing.T, ctx context.Context, mcClient *ormclient
 	// make sure login is disallowed for admins because of weak password
 	otp, err := totp.GenerateCode(totpKey, time.Now())
 	require.Nil(t, err, "generate otp")
-	_, err = mcClient.DoLogin(uri, adminOld.Name, adminOldPw, otp)
+	_, err = mcClient.DoLogin(uri, adminOld.Name, adminOldPw, otp, NoApiKeyId, NoApiKey)
 	require.NotNil(t, err)
 	require.Contains(t, err.Error(), "Existing password for Admin too weak")
 
@@ -788,7 +843,7 @@ func testPasswordStrength(t *testing.T, ctx context.Context, mcClient *ormclient
 	// login as new user1
 	otp, err = totp.GenerateCode(resp.TOTPSharedKey, time.Now())
 	require.Nil(t, err, "generate otp")
-	tokenMisterX, err := mcClient.DoLogin(uri, user1.Name, user1.Passhash, otp)
+	tokenMisterX, err := mcClient.DoLogin(uri, user1.Name, user1.Passhash, otp, NoApiKeyId, NoApiKey)
 	require.Nil(t, err, "login as mister X")
 
 	// change user password
@@ -820,7 +875,7 @@ func testPasswordStrength(t *testing.T, ctx context.Context, mcClient *ormclient
 	// old admin should be able to log in now
 	otp, err = totp.GenerateCode(totpKey, time.Now())
 	require.Nil(t, err, "generate otp")
-	_, err = mcClient.DoLogin(uri, adminOld.Name, adminOldPw, otp)
+	_, err = mcClient.DoLogin(uri, adminOld.Name, adminOldPw, otp, NoApiKeyId, NoApiKey)
 	require.Nil(t, err)
 
 	// assign admin rights to user1, will not work because
@@ -831,7 +886,7 @@ func testPasswordStrength(t *testing.T, ctx context.Context, mcClient *ormclient
 	// login to set verify password strength
 	otp, err = totp.GenerateCode(resp.TOTPSharedKey, time.Now())
 	require.Nil(t, err, "generate otp")
-	_, err = mcClient.DoLogin(uri, user1.Name, user1.Passhash+"1", otp)
+	_, err = mcClient.DoLogin(uri, user1.Name, user1.Passhash+"1", otp, NoApiKeyId, NoApiKey)
 	require.Nil(t, err)
 	// assign admin rights to user1, should work due to low password strength
 	// requirements
@@ -850,13 +905,13 @@ func testPasswordStrength(t *testing.T, ctx context.Context, mcClient *ormclient
 	// old admin should not be able to log in now
 	otp, err = totp.GenerateCode(totpKey, time.Now())
 	require.Nil(t, err, "generate otp")
-	_, err = mcClient.DoLogin(uri, adminOld.Name, adminOldPw, otp)
+	_, err = mcClient.DoLogin(uri, adminOld.Name, adminOldPw, otp, NoApiKeyId, NoApiKey)
 	require.NotNil(t, err)
 	require.Contains(t, err.Error(), "Existing password for Admin too weak")
 	// user1 is now an admin and should also not be able to log in
 	otp, err = totp.GenerateCode(resp.TOTPSharedKey, time.Now())
 	require.Nil(t, err, "generate otp")
-	_, err = mcClient.DoLogin(uri, user1.Name, user1.Passhash+"1", otp)
+	_, err = mcClient.DoLogin(uri, user1.Name, user1.Passhash+"1", otp, NoApiKeyId, NoApiKey)
 	require.NotNil(t, err)
 	require.Contains(t, err.Error(), "Existing password for Admin too weak")
 

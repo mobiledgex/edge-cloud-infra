@@ -63,9 +63,6 @@ func CreateOrgObj(ctx context.Context, claims *UserClaims, org *ormapi.Organizat
 	} else {
 		return fmt.Errorf("Organization type must be %s, or %s", OrgTypeDeveloper, OrgTypeOperator)
 	}
-	if strings.ToLower(claims.Username) == strings.ToLower(org.Name) {
-		return fmt.Errorf("org name cannot be same as existing user name")
-	}
 	if strings.ToLower(org.Name) == strings.ToLower(cloudcommon.OrganizationMobiledgeX) || strings.ToLower(org.Name) == strings.ToLower(cloudcommon.OrganizationEdgeBox) {
 		if err := authorized(ctx, claims.Username, "", ResourceUsers, ActionManage); err != nil {
 			return fmt.Errorf("Not authorized to create reserved org %s", org.Name)
@@ -75,6 +72,17 @@ func CreateOrgObj(ctx context.Context, claims *UserClaims, org *ormapi.Organizat
 	org.Parent = ""
 
 	db := loggedDB(ctx)
+
+	users := []ormapi.User{}
+	err = db.Find(&users).Error
+	if err != nil {
+		return err
+	}
+	for _, user := range users {
+		if strings.ToLower(user.Name) == strings.ToLower(org.Name) {
+			return fmt.Errorf("org name cannot be same as existing user name")
+		}
+	}
 	err = db.Create(&org).Error
 	if err != nil {
 		if strings.Contains(err.Error(), "duplicate key value violates unique constraint \"organizations_pkey") {
@@ -152,11 +160,8 @@ func DeleteOrgObj(ctx context.Context, claims *UserClaims, org *ormapi.Organizat
 		return err
 	}
 
-	// check to see if this org had a billingOrg attached
-	selfOrg := false
-	if orgCheck.Parent == orgCheck.Name {
-		selfOrg = true
-	} else if orgCheck.Parent != "" {
+	// check to see if this org has a billingOrg attached
+	if orgCheck.Parent != "" {
 		undoerr := markOrgForDelete(db, org.Name, !doMark)
 		if undoerr != nil {
 			log.SpanLog(ctx, log.DebugLevelApi, "undo mark org for delete", "undoerr", undoerr)
@@ -175,13 +180,6 @@ func DeleteOrgObj(ctx context.Context, claims *UserClaims, org *ormapi.Organizat
 			return fmt.Errorf("Cannot delete organization because it is referenced by an OrgCloudletPool")
 		}
 		return dbErr(err)
-	}
-
-	if selfOrg {
-		err = DeleteBillingOrgObj(ctx, claims, &ormapi.BillingOrganization{Name: org.Name})
-		if err != nil {
-			return err
-		}
 	}
 
 	// delete all casbin groups associated with org

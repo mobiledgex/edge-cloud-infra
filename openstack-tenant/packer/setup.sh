@@ -125,7 +125,7 @@ ps -ef | grep cloud
 log "Set up APT sources"
 sudo rm -rf /etc/apt/sources.list.d
 sudo tee /etc/apt/sources.list <<EOT
-deb https://apt.mobiledgex.net/cirrus/2020-10-22 bionic main
+deb https://apt.mobiledgex.net/cirrus/2021-02-01 bionic main
 deb https://artifactory.mobiledgex.net/artifactory/packages cirrus main
 EOT
 sudo apt-get update
@@ -187,11 +187,13 @@ sudo systemctl enable mobiledgex
 log "Updating dhclient timeout"
 sudo perl -i -p -e s/'timeout 300;'/'timeout 15;'/g /etc/dhcp/dhclient.conf
 
-if [[ "$OUTPUT_PLATFORM" == vsphere ]]; then
+case "$OUTPUT_PLATFORM" in
+vsphere|vcd)
 	log "Removing serial console from grub"
 	sudo perl -i -p -e s/'"console=tty1 console=ttyS0"'/'""'/g /etc/default/grub.d/50-cloudimg-settings.cfg
 	sudo grub-mkconfig -o /boot/grub/grub.cfg
-fi
+	;;
+esac
 
 log "Setting the root password"
 echo "root:$ROOT_PASS" | sudo chpasswd
@@ -301,7 +303,8 @@ Restart=always
 WantedBy=multi-user.target
 EOT
 
-if [[ "$OUTPUT_PLATFORM" == vsphere ]]; then
+case "$OUTPUT_PLATFORM" in
+vsphere|vcd)
 	sudo tee /lib/systemd/system/open-vm-tools.service <<'EOT'
 [Unit]
 Description=Service for virtual machines hosted on VMware
@@ -320,7 +323,8 @@ EOT
 
 	log "Enabling the open-vm-tools service"
 	sudo systemctl enable open-vm-tools
-fi
+	;;
+esac
 
 # Clear /etc/machine-id so that it is uniquely generated on every clone
 echo "" | sudo tee /etc/machine-id

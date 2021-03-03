@@ -3,7 +3,9 @@ package infracommon
 import (
 	"bytes"
 	"context"
+	"encoding/json"
 	"fmt"
+	"io"
 	"io/ioutil"
 	"net"
 	"os"
@@ -112,4 +114,58 @@ func IncrIP(ip net.IP) {
 			break
 		}
 	}
+}
+
+type ErrorResp struct {
+	Error  string   `json:"error,omitempty"`
+	Errors []string `json:"errors,omitempty"`
+}
+
+// for reading errors from an http response
+func GetReqErr(reqBody io.ReadCloser) error {
+	body, err := ioutil.ReadAll(reqBody)
+	if err != nil {
+		return err
+	}
+	errorResp := ErrorResp{}
+	err = json.Unmarshal(body, &errorResp)
+	if err != nil {
+		// string error
+		return fmt.Errorf("%s", body)
+	}
+	combineErrors(&errorResp)
+	return fmt.Errorf("Errors: %s", strings.Join(errorResp.Errors, ","))
+}
+
+func combineErrors(e *ErrorResp) {
+	e.Errors = append(e.Errors, e.Error)
+}
+
+// round the given field denoted by digIdx, we mostly want seconds
+// rounded to two digits
+func FormatDuration(dur time.Duration, digIdx int) string {
+
+	var divisors = []time.Duration{
+		time.Duration(1),
+		time.Duration(10),
+		time.Duration(100),
+		time.Duration(1000),
+	}
+
+	if digIdx < 0 {
+		digIdx = 0
+	}
+	if digIdx >= len(divisors) {
+		digIdx = len(divisors) - 1
+	}
+
+	switch {
+	case dur > time.Second:
+		dur = dur.Round(time.Second / divisors[digIdx])
+	case dur > time.Millisecond:
+		dur = dur.Round(time.Millisecond / divisors[digIdx])
+	case dur > time.Microsecond:
+		dur = dur.Round(time.Microsecond / divisors[digIdx])
+	}
+	return dur.String()
 }

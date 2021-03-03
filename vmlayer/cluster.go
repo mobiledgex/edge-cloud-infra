@@ -11,7 +11,7 @@ import (
 	"github.com/mobiledgex/edge-cloud-infra/chefmgmt"
 	"github.com/mobiledgex/edge-cloud-infra/infracommon"
 	"github.com/mobiledgex/edge-cloud/cloud-resource-manager/k8smgmt"
-	"github.com/mobiledgex/edge-cloud/cloud-resource-manager/proxy"
+	proxycerts "github.com/mobiledgex/edge-cloud/cloud-resource-manager/proxy/certs"
 	"github.com/mobiledgex/edge-cloud/cloudcommon"
 	"github.com/mobiledgex/edge-cloud/edgeproto"
 	"github.com/mobiledgex/edge-cloud/log"
@@ -81,7 +81,17 @@ func ParseClusterNodePrefix(name string) (bool, uint32) {
 	return true, uint32(num)
 }
 
-func (v *VMPlatform) UpdateClusterInst(ctx context.Context, clusterInst *edgeproto.ClusterInst, privacyPolicy *edgeproto.PrivacyPolicy, updateCallback edgeproto.CacheUpdateCallback) error {
+func (v *VMPlatform) UpdateClusterInst(ctx context.Context, clusterInst *edgeproto.ClusterInst, updateCallback edgeproto.CacheUpdateCallback) error {
+	var err error
+	var result OperationInitResult
+	ctx, result, err = v.VMProvider.InitOperationContext(ctx, OperationInitStart)
+	if err != nil {
+		return err
+	}
+	if result == OperationNewlyInitialized {
+		defer v.VMProvider.InitOperationContext(ctx, OperationInitComplete)
+	}
+
 	lbName := v.VMProperties.GetRootLBNameForCluster(ctx, clusterInst)
 	client, err := v.GetClusterPlatformClient(ctx, clusterInst, cloudcommon.ClientTypeRootLB)
 	if err != nil {
@@ -94,10 +104,10 @@ func (v *VMPlatform) UpdateClusterInst(ctx context.Context, clusterInst *edgepro
 		log.InfoLog("error with cloudlet base image", "imgName", imgName, "error", err)
 		return err
 	}
-	return v.updateClusterInternal(ctx, client, lbName, imgName, clusterInst, privacyPolicy, updateCallback)
+	return v.updateClusterInternal(ctx, client, lbName, imgName, clusterInst, updateCallback)
 }
 
-func (v *VMPlatform) updateClusterInternal(ctx context.Context, client ssh.Client, rootLBName, imgName string, clusterInst *edgeproto.ClusterInst, privacyPolicy *edgeproto.PrivacyPolicy, updateCallback edgeproto.CacheUpdateCallback) (reterr error) {
+func (v *VMPlatform) updateClusterInternal(ctx context.Context, client ssh.Client, rootLBName, imgName string, clusterInst *edgeproto.ClusterInst, updateCallback edgeproto.CacheUpdateCallback) (reterr error) {
 	updateCallback(edgeproto.UpdateTask, "Updating Cluster Resources")
 	start := time.Now()
 
@@ -156,12 +166,12 @@ func (v *VMPlatform) updateClusterInternal(ctx context.Context, client ssh.Clien
 			return nil
 		}
 	}
-	vmgp, err := v.PerformOrchestrationForCluster(ctx, imgName, clusterInst, privacyPolicy, ActionUpdate, chefUpdateInfo, updateCallback)
+	vmgp, err := v.PerformOrchestrationForCluster(ctx, imgName, clusterInst, ActionUpdate, chefUpdateInfo, updateCallback)
 	if err != nil {
 		return err
 	}
 	//todo: calculate timeouts instead of hardcoded value
-	return v.setupClusterRootLBAndNodes(ctx, rootLBName, clusterInst, updateCallback, start, time.Minute*15, vmgp, privacyPolicy, ActionUpdate)
+	return v.setupClusterRootLBAndNodes(ctx, rootLBName, clusterInst, updateCallback, start, time.Minute*15, vmgp, ActionUpdate)
 }
 
 //DeleteCluster deletes kubernetes cluster
@@ -252,15 +262,25 @@ func (v *VMPlatform) deleteCluster(ctx context.Context, rootLBName string, clust
 	}
 
 	if dedicatedRootLB {
-		proxy.RemoveDedicatedCluster(ctx, clusterInst.Key.ClusterKey.Name)
+		proxycerts.RemoveDedicatedLB(ctx, rootLBName)
 		DeleteServerIpFromCache(ctx, rootLBName)
 	}
 	return nil
 }
 
-func (v *VMPlatform) CreateClusterInst(ctx context.Context, clusterInst *edgeproto.ClusterInst, privacyPolicy *edgeproto.PrivacyPolicy, updateCallback edgeproto.CacheUpdateCallback, timeout time.Duration) error {
+func (v *VMPlatform) CreateClusterInst(ctx context.Context, clusterInst *edgeproto.ClusterInst, updateCallback edgeproto.CacheUpdateCallback, timeout time.Duration) error {
 	lbName := v.VMProperties.GetRootLBNameForCluster(ctx, clusterInst)
 	log.SpanLog(ctx, log.DebugLevelInfra, "CreateClusterInst", "clusterInst", clusterInst, "lbName", lbName)
+
+	var err error
+	var result OperationInitResult
+	ctx, result, err = v.VMProvider.InitOperationContext(ctx, OperationInitStart)
+	if err != nil {
+		return err
+	}
+	if result == OperationNewlyInitialized {
+		defer v.VMProvider.InitOperationContext(ctx, OperationInitComplete)
+	}
 
 	//find the flavor and check the disk size
 	for _, flavor := range v.FlavorList {
@@ -279,10 +299,10 @@ func (v *VMPlatform) CreateClusterInst(ctx context.Context, clusterInst *edgepro
 		log.InfoLog("error with cloudlet base image", "imgName", imgName, "error", err)
 		return err
 	}
-	return v.createClusterInternal(ctx, lbName, imgName, clusterInst, privacyPolicy, updateCallback, timeout)
+	return v.createClusterInternal(ctx, lbName, imgName, clusterInst, updateCallback, timeout)
 }
 
-func (v *VMPlatform) createClusterInternal(ctx context.Context, rootLBName string, imgName string, clusterInst *edgeproto.ClusterInst, privacyPolicy *edgeproto.PrivacyPolicy, updateCallback edgeproto.CacheUpdateCallback, timeout time.Duration) (reterr error) {
+func (v *VMPlatform) createClusterInternal(ctx context.Context, rootLBName string, imgName string, clusterInst *edgeproto.ClusterInst, updateCallback edgeproto.CacheUpdateCallback, timeout time.Duration) (reterr error) {
 	// clean-up func
 	defer func() {
 		if reterr == nil {
@@ -303,19 +323,20 @@ func (v *VMPlatform) createClusterInternal(ctx context.Context, rootLBName strin
 	log.SpanLog(ctx, log.DebugLevelInfra, "creating cluster instance", "clusterInst", clusterInst, "timeout", timeout)
 
 	var err error
-	vmgp, err := v.PerformOrchestrationForCluster(ctx, imgName, clusterInst, privacyPolicy, ActionCreate, nil, updateCallback)
+	vmgp, err := v.PerformOrchestrationForCluster(ctx, imgName, clusterInst, ActionCreate, nil, updateCallback)
 	if err != nil {
 		return fmt.Errorf("Cluster VM create Failed: %v", err)
 	}
 
-	return v.setupClusterRootLBAndNodes(ctx, rootLBName, clusterInst, updateCallback, start, timeout, vmgp, privacyPolicy, ActionCreate)
+	return v.setupClusterRootLBAndNodes(ctx, rootLBName, clusterInst, updateCallback, start, timeout, vmgp, ActionCreate)
 }
 
-func (v *VMPlatform) setupClusterRootLBAndNodes(ctx context.Context, rootLBName string, clusterInst *edgeproto.ClusterInst, updateCallback edgeproto.CacheUpdateCallback, start time.Time, timeout time.Duration, vmgp *VMGroupOrchestrationParams, privacyPolicy *edgeproto.PrivacyPolicy, action ActionType) (reterr error) {
+func (v *VMPlatform) setupClusterRootLBAndNodes(ctx context.Context, rootLBName string, clusterInst *edgeproto.ClusterInst, updateCallback edgeproto.CacheUpdateCallback, start time.Time, timeout time.Duration, vmgp *VMGroupOrchestrationParams, action ActionType) (reterr error) {
 	client, err := v.GetClusterPlatformClient(ctx, clusterInst, cloudcommon.ClientTypeRootLB)
 	if err != nil {
 		return fmt.Errorf("can't get rootLB client, %v", err)
 	}
+
 	if v.VMProperties.GetCloudletExternalRouter() == NoExternalRouter {
 		if clusterInst.Deployment == cloudcommon.DeploymentTypeKubernetes ||
 			(clusterInst.Deployment == cloudcommon.DeploymentTypeDocker) {
@@ -333,8 +354,7 @@ func (v *VMPlatform) setupClusterRootLBAndNodes(ctx context.Context, rootLBName 
 			if clusterInst.IpAccess == edgeproto.IpAccess_IP_ACCESS_DEDICATED && v.VMProvider.GetInternalPortPolicy() == AttachPortDuringCreate {
 				attachPort = false
 			}
-			log.SpanLog(ctx, log.DebugLevelInfra, "setupClusterRootLBAndNodes", "rootLBname", rootLBName, "subnetName", subnetName, "portName", GetPortName(rootLBName, subnetName))
-			err = v.AttachAndEnableRootLBInterface(ctx, client, rootLBName, attachPort, subnetName, GetPortName(rootLBName, subnetName), gw)
+			_, err = v.AttachAndEnableRootLBInterface(ctx, client, rootLBName, attachPort, subnetName, GetPortName(rootLBName, subnetName), gw)
 			if err != nil {
 				log.SpanLog(ctx, log.DebugLevelInfra, "AttachAndEnableRootLBInterface failed", "err", err)
 				return err
@@ -346,12 +366,12 @@ func (v *VMPlatform) setupClusterRootLBAndNodes(ctx context.Context, rootLBName 
 		log.SpanLog(ctx, log.DebugLevelInfra, "External router in use, no internal interface for rootlb")
 	}
 
-	// the root LB was created as part of cluster creation, but it needs to be prepped and
-	// mex agent started
+	// the root LB was created as part of cluster creation, but it needs to be prepped
 	if clusterInst.IpAccess == edgeproto.IpAccess_IP_ACCESS_DEDICATED {
 		log.SpanLog(ctx, log.DebugLevelInfra, "new dedicated rootLB", "IpAccess", clusterInst.IpAccess)
 		updateCallback(edgeproto.UpdateTask, "Setting Up Root LB")
-		err := v.SetupRootLB(ctx, rootLBName, &clusterInst.Key.CloudletKey, privacyPolicy, updateCallback)
+		TrustPolicy := edgeproto.TrustPolicy{}
+		err := v.SetupRootLB(ctx, rootLBName, &clusterInst.Key.CloudletKey, &TrustPolicy, updateCallback)
 		if err != nil {
 			return err
 		}
@@ -362,23 +382,35 @@ func (v *VMPlatform) setupClusterRootLBAndNodes(ctx context.Context, rootLBName 
 		// subtract elapsed time from total time to get remaining time
 		timeout -= elapsed
 		updateCallback(edgeproto.UpdateTask, "Waiting for Cluster to Initialize")
+		k8sTime := time.Now()
 		err := v.waitClusterReady(ctx, clusterInst, rootLBName, updateCallback, timeout)
 		if err != nil {
 			return err
 		}
+		updateCallback(edgeproto.UpdateTask, fmt.Sprintf("Wait Cluster Complete time: %s", infracommon.FormatDuration(time.Since(k8sTime), 2)))
 		updateCallback(edgeproto.UpdateTask, "Creating config map")
 		if err := infracommon.CreateClusterConfigMap(ctx, client, clusterInst); err != nil {
 			return err
 		}
 	}
 	if clusterInst.IpAccess == edgeproto.IpAccess_IP_ACCESS_DEDICATED {
-		proxy.NewDedicatedCluster(ctx, clusterInst.Key.ClusterKey.Name, client)
+		proxycerts.NewDedicatedLB(ctx, &clusterInst.Key.CloudletKey, rootLBName, client, v.VMProperties.CommonPf.PlatformConfig.NodeMgr)
 	}
 	log.SpanLog(ctx, log.DebugLevelInfra, "created cluster")
 	return nil
 }
 
 func (v *VMPlatform) DeleteClusterInst(ctx context.Context, clusterInst *edgeproto.ClusterInst, updateCallback edgeproto.CacheUpdateCallback) error {
+	var err error
+	var result OperationInitResult
+	ctx, result, err = v.VMProvider.InitOperationContext(ctx, OperationInitStart)
+	if err != nil {
+		return err
+	}
+	if result == OperationNewlyInitialized {
+		defer v.VMProvider.InitOperationContext(ctx, OperationInitComplete)
+	}
+
 	lbName := v.VMProperties.GetRootLBNameForCluster(ctx, clusterInst)
 	return v.deleteCluster(ctx, lbName, clusterInst, updateCallback)
 }
@@ -530,7 +562,7 @@ func (v *VMPlatform) GetChefClusterTags(key *edgeproto.ClusterInstKey, vmType VM
 	}
 }
 
-func (v *VMPlatform) getVMRequestSpecForDockerCluster(ctx context.Context, imgName string, clusterInst *edgeproto.ClusterInst, privacyPolicy *edgeproto.PrivacyPolicy, action ActionType, updateCallback edgeproto.CacheUpdateCallback) ([]*VMRequestSpec, string, string, error) {
+func (v *VMPlatform) getVMRequestSpecForDockerCluster(ctx context.Context, imgName string, clusterInst *edgeproto.ClusterInst, action ActionType, updateCallback edgeproto.CacheUpdateCallback) ([]*VMRequestSpec, string, string, error) {
 
 	log.SpanLog(ctx, log.DebugLevelInfo, "getVMRequestSpecForDockerCluster", "clusterInst", clusterInst)
 
@@ -585,7 +617,7 @@ func (v *VMPlatform) getVMRequestSpecForDockerCluster(ctx context.Context, imgNa
 	return vms, newSubnetName, newSecgrpName, nil
 }
 
-func (v *VMPlatform) PerformOrchestrationForCluster(ctx context.Context, imgName string, clusterInst *edgeproto.ClusterInst, privacyPolicy *edgeproto.PrivacyPolicy, action ActionType, updateInfo map[string]string, updateCallback edgeproto.CacheUpdateCallback) (*VMGroupOrchestrationParams, error) {
+func (v *VMPlatform) PerformOrchestrationForCluster(ctx context.Context, imgName string, clusterInst *edgeproto.ClusterInst, action ActionType, updateInfo map[string]string, updateCallback edgeproto.CacheUpdateCallback) (*VMGroupOrchestrationParams, error) {
 	log.SpanLog(ctx, log.DebugLevelInfo, "PerformOrchestrationForCluster", "clusterInst", clusterInst, "action", action)
 
 	var vms []*VMRequestSpec
@@ -595,7 +627,7 @@ func (v *VMPlatform) PerformOrchestrationForCluster(ctx context.Context, imgName
 	var newSecgrpName string
 
 	if clusterInst.Deployment == cloudcommon.DeploymentTypeDocker {
-		vms, newSubnetName, newSecgrpName, err = v.getVMRequestSpecForDockerCluster(ctx, imgName, clusterInst, privacyPolicy, action, updateCallback)
+		vms, newSubnetName, newSecgrpName, err = v.getVMRequestSpecForDockerCluster(ctx, imgName, clusterInst, action, updateCallback)
 		if err != nil {
 			return nil, err
 		}
@@ -684,7 +716,6 @@ func (v *VMPlatform) PerformOrchestrationForCluster(ctx context.Context, imgName
 		action,
 		updateCallback,
 		WithNewSubnet(newSubnetName),
-		WithPrivacyPolicy(privacyPolicy),
 		WithNewSecurityGroup(newSecgrpName),
 		WithChefUpdateInfo(updateInfo),
 		WithSkipCleanupOnFailure(clusterInst.SkipCrmCleanupOnFailure),

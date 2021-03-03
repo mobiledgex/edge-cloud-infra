@@ -1,2 +1,3 @@
 artifactory_fqdn: https://artifactory.mobiledgex.net/artifactory/
 cloudlet_vm_path: "https://artifactory.mobiledgex.net/artifactory/baseimages"
+controller_replicas: 1

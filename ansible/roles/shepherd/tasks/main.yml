@@ -1,6 +1,6 @@
 - debug: var=item
 
-- azure_rm_aks_facts:
+- azure_rm_aks_info:
     tags:
       - "Environment:mexplat-{{ deploy_environ }}"
       - "Region:{{ item.controller_region }}"

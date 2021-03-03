@@ -7,6 +7,7 @@ set -x
 . /etc/mex-release
 
 if [[ "$MEX_PLATFORM_FLAVOR" == vsphere ]]; then
+        # this should be revisited to see if it is really needed
 	systemctl status open-vm-tools > /var/log/openvmtool.status.log
 	systemctl start open-vm-tools
 fi
@@ -34,12 +35,6 @@ chmod a+rw /var/run/docker.sock
 ifconfig -a | log
 ip route | log
 
-if [[ -z "$ROLE" ]]; then
-	log "WARNING: Role is empty"
-else
-	log "ROLE: $ROLE"
-fi
-
 MCONF=/mnt/mobiledgex-config
 METADIR="$MCONF/openstack/latest"
 METADATA="$METADIR/meta_data.json"
@@ -55,27 +50,58 @@ chmod u-x,go-rwx /etc/shadow-
 chmod og-rwx /boot/grub/grub.cfg
 find /var/log -type f -exec chmod g-wx,o-rwx "{}" + -o -type d -exec chmod g-w,o-rwx "{}" +
 
-# check for vsphere meta data
-if  vmtoolsd --cmd "info-get guestinfo.metadata" >& /dev/null; then
-    log "VMware vsphere cloud-init case, fetch metadata from vmtoolsd"
-    vmtoolsd --cmd "info-get guestinfo.userdata" > /var/log/userdata.log
-    mkdir -p $METADIR
-    vmtoolsd --cmd "info-get guestinfo.metadata"|base64 -d|python3 -c 'import sys, yaml, json; json.dump(yaml.load(sys.stdin), sys.stdout)' > $METADATA
+case "$MEX_PLATFORM_FLAVOR" in
+vsphere)
+	log "VMware vSphere case, fetch metadata from vmtoolsd"
+	# check that metadata exists, if it does not then exit.
+	if ! vmtoolsd --cmd "info-get guestinfo.metadata";
+	then
+		log "VMware metadata is empty, quitting"
+		log "Finished mobiledgex init"
+		exit 0
+	fi
 
-# no? check for vcd ovf environment properties    
-elif  vmtoolsd --cmd "info-get guestinfo.ovfEnv" >& /dev/null; then 	 
-         log "VMware vCD case  fetch metadata from userdata.ovfenv"
-         mkdir -p $METADIR
-	 # like vsphere, leave a copy in usrdata.log
-         vmtoolsd --cmd "info-get guestinfo.ovfEnv" > /var/log/userdata.log
-	 export OVFILENAME=/var/log/userdata.log
-	 /usr/local/bin/parseovfenv > $METADATA
-	 
-else
-    echo "VMware vsphere and vcd metadata are empty  quitting"
-    echo "Finished mobiledgex init"
-    exit 0
-fi
+	log "dump userdata"
+	if ! vmtoolsd --cmd "info-get guestinfo.userdata" > /var/log/userdata.log;
+	then
+		log "error getting guestinfo.userdata, quitting"
+		log "Finished mobiledgex init"
+		exit 1
+	fi
+
+	mkdir -p $METADIR
+	if ! vmtoolsd --cmd "info-get guestinfo.metadata"|base64 -d|python3 -c 'import sys, yaml, json; json.dump(yaml.load(sys.stdin), sys.stdout)' > $METADATA;
+	then
+                log "error handling guestinfo.metadata, quitting"
+                log "Finished mobiledgex init"
+                exit 1
+        fi
+
+		;;
+
+vcd)
+	log "VMware vCD case, fetch metadata from userdata.ovfenv"
+	log "dump ovfEnv userdata"
+	if ! vmtoolsd --cmd "info-get guestinfo.ovfEnv" > /var/log/userdata.log;
+	then
+		log "error getting guestinfo.ovfEnv, quitting"
+		log "Finished mobiledgex init"
+		exit 1
+	fi
+	mkdir -p $METADIR
+	if ! /usr/local/bin/parseovfenv > $METADATA;
+	then
+		log "error in parseovfenv, quitting"
+		log "Finished mobiledgex init"
+		exit 1
+	fi
+		;;
+
+*)
+	log "openstack case"
+                ;;
+
+esac
 
 mkdir -p $MCONF
 mount `blkid -t LABEL="config-2" -odevice` $MCONF
@@ -128,6 +154,12 @@ if [[ "$SKIPINIT" == yes ]]; then
 fi
 
 # TODO: Updates; and also if supported, disable run-once flag check at the top
+
+if [[ -z "$ROLE" ]]; then
+        log "WARNING: Role is empty"
+else
+        log "ROLE: $ROLE"
+fi
 
 if [[ "$ROLE" == mex-agent-node ]]; then
 	log "Initializing mex agent node"

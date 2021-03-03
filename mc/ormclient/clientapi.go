@@ -4,15 +4,16 @@ import (
 	"github.com/mobiledgex/edge-cloud-infra/mc/ormapi"
 	"github.com/mobiledgex/edge-cloud/cloudcommon/node"
 	edgeproto "github.com/mobiledgex/edge-cloud/edgeproto"
+	"github.com/mobiledgex/jaeger/plugin/storage/es/spanstore/dbmodel"
 )
 
 type Api interface {
-	DoLogin(uri, user, pass, otp string) (string, error)
+	DoLogin(uri, user, pass, otp, apikeyid, apikey string) (string, error)
 
 	CreateUser(uri string, user *ormapi.User) (*ormapi.UserResponse, int, error)
 	DeleteUser(uri, token string, user *ormapi.User) (int, error)
 	UpdateUser(uri, token string, createUserJSON string) (*ormapi.UserResponse, int, error)
-	ShowUser(uri, token string, org *ormapi.Organization) ([]ormapi.User, int, error)
+	ShowUser(uri, token string, org *ormapi.ShowUser) ([]ormapi.User, int, error)
 	RestrictedUserUpdate(uri, token string, user map[string]interface{}) (int, error)
 	NewPassword(uri, token, password string) (int, error)
 
@@ -54,6 +55,10 @@ type Api interface {
 	FindEvents(uri, token string, query *node.EventSearch) ([]node.EventData, int, error)
 	EventTerms(uri, token string, query *node.EventSearch) (*node.EventTerms, int, error)
 
+	ShowSpans(uri, token string, query *node.SpanSearch) ([]node.SpanOutCondensed, int, error)
+	ShowSpansVerbose(uri, token string, query *node.SpanSearch) ([]dbmodel.Span, int, error)
+	SpanTerms(uri, token string, query *node.SpanSearch) (*node.SpanTerms, int, error)
+
 	ShowAppUsage(uri, token string, query *ormapi.RegionAppInstUsage) (*ormapi.AllMetrics, int, error)
 	ShowClusterUsage(uri, token string, query *ormapi.RegionClusterInstUsage) (*ormapi.AllMetrics, int, error)
 	ShowCloudletPoolUsage(uri, token string, query *ormapi.RegionCloudletPoolUsage) (*ormapi.AllMetrics, int, error)
@@ -87,7 +92,7 @@ type Api interface {
 	AutoScalePolicyApiClient
 	ResTagTableApiClient
 	AutoProvPolicyApiClient
-	PrivacyPolicyApiClient
+	TrustPolicyApiClient
 	OperatorCodeApiClient
 	SettingsApiClient
 	AppInstClientApiClient
@@ -100,4 +105,5 @@ type Api interface {
 	AppInstRefsApiClient
 	StreamObjApiClient
 	DeviceApiClient
+	AppInstLatencyApiClient
 }

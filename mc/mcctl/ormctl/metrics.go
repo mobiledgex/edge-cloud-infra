@@ -38,6 +38,15 @@ func GetMetricsCommand() *cobra.Command {
 		ReplyData:    &ormapi.AllMetrics{},
 		Run:          runRest("/auth/metrics/cloudlet"),
 	}, &cli.Command{
+		Use:          "cloudletusage",
+		RequiredArgs: strings.Join(append([]string{"region"}, CloudletMetricRequiredArgs...), " "),
+		OptionalArgs: strings.Join(CloudletMetricOptionalArgs, " "),
+		AliasArgs:    strings.Join(CloudletMetricAliasArgs, " "),
+		Comments:     mergeMetricComments(addRegionComment(MetricCommentsCommon), CloudletUsageMetricComments),
+		ReqData:      &ormapi.RegionCloudletMetrics{},
+		ReplyData:    &ormapi.AllMetrics{},
+		Run:          runRest("/auth/metrics/cloudlet/usage"),
+	}, &cli.Command{
 		Use:          "client",
 		RequiredArgs: strings.Join(append([]string{"region"}, ClientMetricRequiredArgs...), " "),
 		OptionalArgs: strings.Join(ClientMetricOptionalArgs, " "),
@@ -51,12 +60,12 @@ func GetMetricsCommand() *cobra.Command {
 }
 
 var AppMetricRequiredArgs = []string{
-	"app-org",
 	"selector",
 }
 
 var AppMetricOptionalArgs = []string{
 	"appname",
+	"app-org",
 	"appvers",
 	"cluster",
 	"cluster-org",
@@ -82,12 +91,12 @@ var AppMetricComments = map[string]string{
 }
 
 var ClusterMetricRequiredArgs = []string{
-	"cluster-org",
 	"selector",
 }
 
 var ClusterMetricOptionalArgs = []string{
 	"cluster",
+	"cluster-org",
 	"cloudlet-org",
 	"cloudlet",
 	"last",
@@ -125,6 +134,10 @@ var CloudletMetricAliasArgs = []string{
 
 var CloudletMetricComments = map[string]string{
 	"selector": "Comma separated list of metrics to view. Available metrics: \"" + strings.Join(orm.CloudletSelectors, "\", \"") + "\"",
+}
+
+var CloudletUsageMetricComments = map[string]string{
+	"selector": "Comma separated list of metrics to view. Available metrics: \"" + strings.Join(orm.CloudletUsageSelectors, "\", \"") + "\"",
 }
 
 var ClientMetricRequiredArgs = []string{

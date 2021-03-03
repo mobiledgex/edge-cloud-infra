@@ -76,25 +76,24 @@ func (v *VcdPlatform) InitProvider(ctx context.Context, caches *platform.Caches,
 	if err != nil {
 		return err
 	}
-	/*
-		if stage == vmlayer.ProviderInitPlatformStart {
-			v.initDebug(v.vmProperties.CommonPf.PlatformConfig.NodeMgr)
 
-			overrideLeaseDisable := v.GetLeaseOverride()
-			err := v.DisableOrgRuntimeLease(ctx, overrideLeaseDisable)
-			if err != nil {
-				log.SpanLog(ctx, log.DebugLevelInfra, "InitProvider DisableOrgRuntimeLease failed", "stage", stage, "error", err)
-				// Only fatal if we don't have an override flag stating we're ok with Org lease settings
+	if stage == vmlayer.ProviderInitPlatformStart {
+		v.initDebug(v.vmProperties.CommonPf.PlatformConfig.NodeMgr)
 
-				if !overrideLeaseDisable {
-					log.SpanLog(ctx, log.DebugLevelInfra, "InitProvider unable to disable org leases and override not set fatal", "stage", stage, "error", err)
-					return err
-				}
+		overrideLeaseDisable := v.GetLeaseOverride()
+		err := v.DisableOrgRuntimeLease(ctx, overrideLeaseDisable)
+		if err != nil {
+			log.SpanLog(ctx, log.DebugLevelInfra, "InitProvider DisableOrgRuntimeLease failed", "stage", stage, "error", err)
+			// Only fatal if we don't have an override flag stating we're ok with Org lease settings
 
+			if !overrideLeaseDisable {
+				log.SpanLog(ctx, log.DebugLevelInfra, "InitProvider unable to disable org leases and override not set fatal", "stage", stage, "error", err)
+				return err
 			}
 
 		}
-	*/
+
+	}
 	return nil
 }
 
@@ -436,6 +435,11 @@ func (v *VcdPlatform) GetCloudletImageSuffix(ctx context.Context) string {
 func (v *VcdPlatform) GetSessionTokens(ctx context.Context, vaultConfig *vault.Config, account string) (map[string]string, error) {
 	return nil, fmt.Errorf("GetSessionTokens not supported in VcdPlatform")
 }
+
+// Return our current set of access vars
+// For what exactly?
+// where do I save it?
+//
 
 func (v *VcdPlatform) SaveCloudletAccessVars(ctx context.Context, cloudlet *edgeproto.Cloudlet, accessVarsIn map[string]string, pfConfig *edgeproto.PlatformConfig, vaultConfig *vault.Config, updateCallback edgeproto.CacheUpdateCallback) error {
 

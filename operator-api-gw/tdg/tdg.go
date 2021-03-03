@@ -6,6 +6,7 @@ import (
 
 	locclient "github.com/mobiledgex/edge-cloud-infra/operator-api-gw/tdg/tdg-loc/locclient"
 	qosclient "github.com/mobiledgex/edge-cloud-infra/operator-api-gw/tdg/tdg-qos/qosclient"
+	"github.com/mobiledgex/edge-cloud-infra/version"
 	dme "github.com/mobiledgex/edge-cloud/d-match-engine/dme-proto"
 	operator "github.com/mobiledgex/edge-cloud/d-match-engine/operator"
 	simulatedloc "github.com/mobiledgex/edge-cloud/d-match-engine/operator/defaultoperator/simulated-location"
@@ -88,4 +89,8 @@ func (o *OperatorApiGw) GetQOSPositionKPI(mreq *dme.QosPositionRequest, getQosSv
 		return simulatedqos.GetSimulatedQOSPositionKPI(mreq, getQosSvr)
 	}
 	return qosclient.GetQOSPositionFromApiGW(o.Servers.QosPosUrl, mreq, getQosSvr)
+}
+
+func (*OperatorApiGw) GetVersionProperties() map[string]string {
+	return version.InfraBuildProps("TDGOperator")
 }

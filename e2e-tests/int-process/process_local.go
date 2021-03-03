@@ -62,12 +62,12 @@ func (p *MC) StartLocal(logfile string, opts ...process.StartOp) error {
 		args = append(args, "--alertResolveTimeout")
 		args = append(args, p.AlertResolveTimeout)
 	}
-	if p.UseVaultCAs {
-		args = append(args, "--useVaultCAs")
+	if p.UseVaultPki {
+		args = append(args, "--useVaultPki")
 	}
-	if p.BillingPath != "" {
-		args = append(args, "--billingPath")
-		args = append(args, p.BillingPath)
+	if p.BillingPlatform != "" {
+		args = append(args, "--billingPlatform")
+		args = append(args, p.BillingPlatform)
 	}
 	if p.UsageCollectionInterval != "" {
 		args = append(args, "--usageCollectionInterval")
@@ -76,9 +76,6 @@ func (p *MC) StartLocal(logfile string, opts ...process.StartOp) error {
 	if p.UsageCheckpointInterval != "" {
 		args = append(args, "--usageCheckpointInterval")
 		args = append(args, p.UsageCheckpointInterval)
-	}
-	if p.UseVaultCerts {
-		args = append(args, "--useVaultCerts")
 	}
 	if p.AlertMgrApiAddr != "" {
 		args = append(args, "--alertMgrApiAddr")
@@ -299,11 +296,8 @@ func (p *Shepherd) GetArgs(opts ...process.StartOp) []string {
 		args = append(args, "--region")
 		args = append(args, p.Region)
 	}
-	if p.UseVaultCAs {
-		args = append(args, "--useVaultCAs")
-	}
-	if p.UseVaultCerts {
-		args = append(args, "--useVaultCerts")
+	if p.UseVaultPki {
+		args = append(args, "--useVaultPki")
 	}
 	if p.MetricsAddr != "" {
 		args = append(args, "--metricsAddr")
@@ -390,11 +384,8 @@ func (p *AutoProv) StartLocal(logfile string, opts ...process.StartOp) error {
 		args = append(args, "--region")
 		args = append(args, p.Region)
 	}
-	if p.UseVaultCAs {
-		args = append(args, "--useVaultCAs")
-	}
-	if p.UseVaultCerts {
-		args = append(args, "--useVaultCerts")
+	if p.UseVaultPki {
+		args = append(args, "--useVaultPki")
 	}
 	options := process.StartOptions{}
 	options.ApplyStartOptions(opts...)

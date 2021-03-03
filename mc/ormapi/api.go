@@ -3,6 +3,7 @@ package ormapi
 import (
 	"time"
 
+	"github.com/mobiledgex/edge-cloud-infra/billing"
 	"github.com/mobiledgex/edge-cloud/edgeproto"
 	"github.com/mobiledgex/edge-cloud/util"
 )
@@ -47,6 +48,38 @@ type User struct {
 	Metadata string
 }
 
+type CreateUserApiKey struct {
+	UserApiKey `json:",inline"`
+	// API key
+	ApiKey string
+	// List of API key permissions
+	Permissions []RolePerm `json:"permissions"`
+}
+
+type UserApiKey struct {
+	// API key ID used as an identifier for API keys
+	// read only: true
+	Id string `gorm:"primary_key;type:citext"`
+	// Description of the purpose of this API key
+	// required: true
+	Description string
+	// Org to which API key has permissions to access its objects
+	// required: true
+	Org string
+	// read only: true
+	Username string
+	// read only: true
+	ApiKeyHash string `gorm:"not null"`
+	// read only: true
+	Salt string `gorm:"not null"`
+	// read only: true
+	Iter int `gorm:"not null"`
+	// read only: true
+	CreatedAt time.Time `json:",omitempty"`
+	// read only: true
+	UpdatedAt time.Time `json:",omitempty"`
+}
+
 type UserResponse struct {
 	Message       string
 	TOTPSharedKey string
@@ -75,6 +108,24 @@ type Organization struct {
 	Parent string `json:",omitempty"`
 }
 
+// used for CreateBillingOrg, so we can pass through payment details to the billing service without actually storing them
+type CreateBillingOrganization struct {
+	Name       string `json:",omitempty"`
+	Type       string `json:",omitempty"`
+	FirstName  string `json:",omitempty"`
+	LastName   string `json:",omitempty"`
+	Email      string `json:",omitempty"`
+	Address    string `json:",omitempty"`
+	Address2   string `json:",omitempty"`
+	City       string `json:",omitempty"`
+	Country    string `json:",omitempty"`
+	State      string `json:",omitempty"`
+	PostalCode string `json:",omitempty"`
+	Phone      string `json:",omitempty"`
+	Children   string `json:",omitempty"`
+	Payment    billing.PaymentMethod
+}
+
 type BillingOrganization struct {
 	// BillingOrganization name. Can only contain letters, digits, underscore, period, hyphen. It cannot have leading or trailing spaces or period. It cannot start with hyphen
 	// required: true
@@ -89,6 +140,8 @@ type BillingOrganization struct {
 	Email string `json:",omitempty"`
 	// Organization address
 	Address string `json:",omitempty"`
+	// Organization address2
+	Address2 string `json:",omitempty"`
 	// Organization city
 	City string `json:",omitempty"`
 	// Organization Country
@@ -99,8 +152,6 @@ type BillingOrganization struct {
 	PostalCode string `json:",omitempty"`
 	// Organization phone number
 	Phone string `json:",omitempty"`
-	// Currency
-	Currency string `json:",omitempty"` // currently only allow "USD"
 	// Children belonging to this BillingOrganization
 	Children string `json:",omitempty"`
 	// read only: true
@@ -135,6 +186,10 @@ type Config struct {
 	AdminPasswordMinCrackTimeSec float64
 	// InfluxDB max number of data points returned
 	MaxMetricsDataPoints int
+	// Max number of API keys a user can create
+	UserApiKeyCreateLimit int
+	// Toggle for enabling billing (primarily for testing purposes)
+	BillingEnable bool
 }
 
 type OrgCloudletPool struct {
@@ -163,6 +218,12 @@ type OrgCloudlet struct {
 	Org    string `form:"org" json:"org"`
 }
 
+type ShowUser struct {
+	User `json:",inline"`
+	Org  string `form:"org" json:"org"`
+	Role string `form:"role" json:"role"`
+}
+
 type UserLogin struct {
 	// User's name or email address
 	// required: true
@@ -172,6 +233,10 @@ type UserLogin struct {
 	Password string `form:"password" json:"password"`
 	// read only: true
 	TOTP string `form:"totp" json:"totp"`
+	// read only: true
+	ApiKeyId string `form:"apikeyid" json:"apikeyid"`
+	// read only: true
+	ApiKey string `form:"apikey" json:"apikey"`
 }
 
 type NewPassword struct {

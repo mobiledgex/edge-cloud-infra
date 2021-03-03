@@ -1,0 +1,39 @@
+- labels:
+    alertname: CloudletResourceUsage
+    cloudlet: tmus-cloud-1
+    cloudletorg: tmus
+    scope: Cloudlet
+    warning: '[Infra] More than 50% of RAM is used'
+  annotations:
+    description: '[Infra] More than 50% of RAM is used'
+    title: CloudletResourceUsage
+  state: firing
+  activeat:
+    seconds: 1614752100
+    nanos: 130990000
+- labels:
+    alertname: CloudletResourceUsage
+    cloudlet: tmus-cloud-1
+    cloudletorg: tmus
+    scope: Cloudlet
+    warning: More than 50% of RAM is used
+  annotations:
+    description: More than 50% of RAM is used
+    title: CloudletResourceUsage
+  state: firing
+  activeat:
+    seconds: 1614752100
+    nanos: 130988000
+- labels:
+    alertname: CloudletResourceUsage
+    cloudlet: tmus-cloud-1
+    cloudletorg: tmus
+    scope: Cloudlet
+    warning: More than 50% of vCPUs is used
+  annotations:
+    description: More than 50% of vCPUs is used
+    title: CloudletResourceUsage
+  state: firing
+  activeat:
+    seconds: 1614752100
+    nanos: 130985000

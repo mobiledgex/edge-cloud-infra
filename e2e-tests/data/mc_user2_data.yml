@@ -37,10 +37,7 @@ regiondata:
         organization: AcmeAppCo
       flavor:
         name: x1.small
-      liveness: LivenessStatic
       ipaccess: IpAccessDedicated
-      nodeflavor: x1.small
-      masterflavor: x1.small
       nummasters: 1
       numnodes: 1
       autoscalepolicy: scale1
@@ -53,10 +50,7 @@ regiondata:
         organization: AcmeAppCo
       flavor:
         name: x1.small
-      liveness: LivenessStatic
       ipaccess: IpAccessShared
-      nodeflavor: x1.small
-      masterflavor: x1.small
       nummasters: 1
       numnodes: 1
 
@@ -86,7 +80,8 @@ regiondata:
       defaultflavor:
         name: x1.small
       accessports: "tcp:81"
-      autoprovpolicy: autoprov1
+      autoprovpolicies:
+      - autoprov1
     - key:
         organization: AcmeAppCo
         name: autoprovappd
@@ -97,7 +92,8 @@ regiondata:
       defaultflavor:
         name: x1.small
       accessports: "tcp:81"
-      autoprovpolicy: autoprov1
+      autoprovpolicies:
+      - autoprov1
     - key:
         organization: Samsung
         name: SamsungEnablingLayer
@@ -124,10 +120,6 @@ regiondata:
             organization: tmus
             name: tmus-cloud-1
           organization: AcmeAppCo
-      cloudletloc:
-        latitude: 31
-        longitude: -91
-      liveness: LivenessStatic
       flavor:
         name: x1.small
     - key:
@@ -142,10 +134,20 @@ regiondata:
             organization: tmus
             name: tmus-cloud-2
           organization: AcmeAppCo
-      cloudletloc:
-        latitude: 35
-        longitude: -95
-      liveness: LivenessStatic
+      flavor:
+        name: x1.small
+    - key:
+        appkey:
+          organization: AcmeAppCo
+          name: someapplication1
+          version: "1.0"
+        clusterinstkey:
+          clusterkey:
+            name: autoclusterAcme
+          cloudletkey:
+            organization: tmus
+            name: tmus-cloud-2
+          organization: MobiledgeX
       flavor:
         name: x1.small
 
@@ -187,10 +189,7 @@ regiondata:
         organization: AcmeAppCo
       flavor:
         name: x1.small
-      liveness: LivenessStatic
       ipaccess: IpAccessDedicated
-      nodeflavor: x1.small
-      masterflavor: x1.small
       nummasters: 1
       numnodes: 1
       autoscalepolicy: scale1
@@ -203,10 +202,7 @@ regiondata:
         organization: AcmeAppCo
       flavor:
         name: x1.small
-      liveness: LivenessStatic
       ipaccess: IpAccessShared
-      nodeflavor: x1.small
-      masterflavor: x1.small
       nummasters: 1
       numnodes: 1
 
@@ -236,7 +232,8 @@ regiondata:
       defaultflavor:
         name: x1.small
       accessports: "tcp:81"
-      autoprovpolicy: autoprov1
+      autoprovpolicies:
+      - autoprov1
     - key:
         organization: Samsung
         name: SamsungEnablingLayer
@@ -263,10 +260,6 @@ regiondata:
             organization: tmus
             name: tmus-cloud-3
           organization: AcmeAppCo
-      cloudletloc:
-        latitude: 31
-        longitude: -91
-      liveness: LivenessStatic
       flavor:
         name: x1.small
     - key:
@@ -281,10 +274,6 @@ regiondata:
             organization: tmus
             name: tmus-cloud-4
           organization: AcmeAppCo
-      cloudletloc:
-        latitude: 35
-        longitude: -95
-      liveness: LivenessStatic
       flavor:
         name: x1.small
 

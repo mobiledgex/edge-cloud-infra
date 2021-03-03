@@ -57,6 +57,7 @@
     - policies/sys-plugins-certs-config.read.v1.hcl.j2
     - policies/sys-policies.read.v1.hcl.j2
     - policies/sys-policies.write.v1.hcl.j2
+    - policies/sys-storage-raft-snapshot.read.v1.hcl.j2
     - policies/ui-access.v1.hcl.j2
 
 - include_role:

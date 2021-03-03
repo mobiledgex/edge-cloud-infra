@@ -12,6 +12,7 @@ import (
 	"github.com/mobiledgex/edge-cloud-infra/shepherd/shepherd_common"
 	"github.com/mobiledgex/edge-cloud/cloud-resource-manager/dockermgmt"
 	"github.com/mobiledgex/edge-cloud/cloud-resource-manager/k8smgmt"
+	pf "github.com/mobiledgex/edge-cloud/cloud-resource-manager/platform"
 	"github.com/mobiledgex/edge-cloud/cloud-resource-manager/proxy"
 	"github.com/mobiledgex/edge-cloud/cloudcommon"
 	dme "github.com/mobiledgex/edge-cloud/d-match-engine/dme-proto"
@@ -51,15 +52,16 @@ var envoyUnseen = "No recorded values"
 var envoyHistogramBuckets = []string{"P0", "P25", "P50", "P75", "P90", "P95", "P99", "P99.5", "P99.9", "P100"}
 
 type ProxyScrapePoint struct {
-	Key               edgeproto.AppInstKey
-	FailedChecksCount int
-	App               string
-	Cluster           string
-	ClusterOrg        string
-	TcpPorts          []int32
-	UdpPorts          []int32
-	Client            ssh.Client
-	ProxyContainer    string
+	Key                edgeproto.AppInstKey
+	FailedChecksCount  int
+	App                string
+	Cluster            string
+	ClusterOrg         string
+	TcpPorts           []int32
+	UdpPorts           []int32
+	LastConnectAttempt time.Time
+	Client             ssh.Client
+	ProxyContainer     string
 }
 
 func InitProxyScraper() {
@@ -75,8 +77,9 @@ func StartProxyScraper(done chan bool) {
 
 // Figure out envoy proxy container name
 func getProxyContainerName(ctx context.Context, scrapePoint ProxyScrapePoint) (string, error) {
-	log.SpanLog(ctx, log.DebugLevelMetrics, "getProxyContainerName", "type", myPlatform.GetType())
-	if myPlatform.GetType() == "fake" {
+	pfType := pf.GetType(*platformName)
+	log.SpanLog(ctx, log.DebugLevelMetrics, "getProxyContainerName", "type", pfType)
+	if pfType == "fake" {
 		return "fakeEnvoy", nil
 	}
 	container := proxy.GetEnvoyContainerName(scrapePoint.App)
@@ -104,6 +107,9 @@ func getProxyContainerName(ctx context.Context, scrapePoint ProxyScrapePoint) (s
 // Init cluster client for a scrape point
 func initClient(ctx context.Context, app *edgeproto.App, appInst *edgeproto.AppInst, clusterInst *edgeproto.ClusterInst, scrapePoint *ProxyScrapePoint) error {
 	var err error
+
+	// record last connection attempt
+	scrapePoint.LastConnectAttempt = time.Now()
 	if app.Deployment == cloudcommon.DeploymentTypeVM && app.AccessType == edgeproto.AccessType_ACCESS_TYPE_LOAD_BALANCER {
 		scrapePoint.Client, err = myPlatform.GetVmAppRootLbClient(ctx, &appInst.Key)
 		if err != nil {
@@ -182,10 +188,10 @@ func CollectProxyStats(ctx context.Context, appInst *edgeproto.AppInst) string {
 		}
 
 		clusterInst := edgeproto.ClusterInst{}
-		found := ClusterInstCache.Get(&appInst.Key.ClusterInstKey, &clusterInst)
+		found := ClusterInstCache.Get(appInst.ClusterInstKey(), &clusterInst)
 		// lb vm apps continue anyway
 		if !found && !(app.Deployment == cloudcommon.DeploymentTypeVM && app.AccessType == edgeproto.AccessType_ACCESS_TYPE_LOAD_BALANCER) {
-			log.SpanLog(ctx, log.DebugLevelMetrics, "Unable to find clusterInst for "+appInst.Key.AppKey.Name)
+			log.SpanLog(ctx, log.DebugLevelMetrics, "Unable to find clusterInst for AppInst", "AppInstKey", appInst.Key)
 			return ""
 		}
 		err := initClient(ctx, &app, appInst, &clusterInst, &scrapePoint)
@@ -279,8 +285,11 @@ func ProxyScraper(done chan bool) {
 			scrapePoints := copyMapValues()
 			for _, v := range scrapePoints {
 				if !clientReady(v) {
-					// Update this in the background
-					go updateProxyScrapeClient(v.Key)
+					// If we could not connect first, skip 5 intervals before trying to re-connect
+					if time.Since(v.LastConnectAttempt) > 6*settings.ShepherdMetricsCollectionInterval.TimeDuration() {
+						// Update this in the background
+						go updateProxyScrapeClient(v.Key)
+					}
 					// no need to actually collect metrics
 					continue
 				}
@@ -297,7 +306,7 @@ func ProxyScraper(done chan bool) {
 					influxData := MarshallTcpProxyMetric(v, metrics)
 					influxData = append(influxData, MarshallUdpProxyMetric(v, metrics)...)
 					for _, datapoint := range influxData {
-						MetricSender.Update(ctx, datapoint)
+						MetricSender.Update(context.Background(), datapoint)
 					}
 				}
 				span.Finish()

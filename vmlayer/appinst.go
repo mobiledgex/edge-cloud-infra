@@ -2,10 +2,13 @@ package vmlayer
 
 import (
 	"context"
+	"errors"
 	"fmt"
+	"path/filepath"
 	"strings"
 	"time"
 
+	"github.com/codeskyblue/go-sh"
 	"github.com/mobiledgex/edge-cloud-infra/chefmgmt"
 	"github.com/mobiledgex/edge-cloud-infra/infracommon"
 	"github.com/mobiledgex/edge-cloud/cloud-resource-manager/access"
@@ -15,6 +18,7 @@ import (
 	"github.com/mobiledgex/edge-cloud/cloud-resource-manager/platform"
 	"github.com/mobiledgex/edge-cloud/cloud-resource-manager/platform/pc"
 	"github.com/mobiledgex/edge-cloud/cloud-resource-manager/proxy"
+	proxycerts "github.com/mobiledgex/edge-cloud/cloud-resource-manager/proxy/certs"
 	"github.com/mobiledgex/edge-cloud/cloudcommon"
 	"github.com/mobiledgex/edge-cloud/edgeproto"
 	"github.com/mobiledgex/edge-cloud/log"
@@ -24,6 +28,8 @@ import (
 )
 
 var MaxDockerSeedWait = 1 * time.Minute
+
+var qcowConvertTimeout = 15 * time.Minute
 
 type ProxyDnsSecOpts struct {
 	AddProxy              bool
@@ -42,29 +48,28 @@ func GetAppWhitelistRulesLabel(app *edgeproto.App) string {
 	return "appaccess-" + k8smgmt.NormalizeName(app.Key.Name)
 }
 
-func (v *VMPlatform) PerformOrchestrationForVMApp(ctx context.Context, app *edgeproto.App, appInst *edgeproto.AppInst, privacyPolicy *edgeproto.PrivacyPolicy, action ActionType, updateCallback edgeproto.CacheUpdateCallback) (*vmAppOrchValues, error) {
+func (v *VMPlatform) PerformOrchestrationForVMApp(ctx context.Context, app *edgeproto.App, appInst *edgeproto.AppInst, updateCallback edgeproto.CacheUpdateCallback) (*vmAppOrchValues, error) {
 	var orchVals vmAppOrchValues
 
 	imageName, err := cloudcommon.GetFileName(app.ImagePath)
 	if err != nil {
 		return &orchVals, err
 	}
+	var imageInfo infracommon.ImageInfo
+	sourceImageTime, md5Sum, err := infracommon.GetUrlInfo(ctx, v.VMProperties.CommonPf.PlatformConfig.AccessApi, app.ImagePath)
+	imageInfo.LocalImageName = imageName + "-" + md5Sum
+	if v.VMProperties.AppendFlavorToVmAppImage {
+		imageInfo.LocalImageName = imageInfo.LocalImageName + "-" + appInst.Flavor.Name
+	}
+	imageInfo.Md5sum = md5Sum
+	imageInfo.SourceImageTime = sourceImageTime
+	if err != nil {
+		return &orchVals, err
+	}
 
-	if action == ActionCreate {
-		imgName, err := cloudcommon.GetFileName(app.ImagePath)
-		if err != nil {
-			return &orchVals, err
-		}
-		var imageInfo infracommon.ImageInfo
-		sourceImageTime, md5Sum, err := infracommon.GetUrlInfo(ctx, v.VMProperties.CommonPf.PlatformConfig.AccessApi, app.ImagePath)
-		imageInfo.LocalImageName = imgName + "-" + md5Sum
-		imageInfo.Md5sum = md5Sum
-		imageInfo.SourceImageTime = sourceImageTime
-
-		err = v.VMProvider.AddAppImageIfNotPresent(ctx, &imageInfo, app, appInst.Flavor.Name, updateCallback)
-		if err != nil {
-			return &orchVals, err
-		}
+	err = v.VMProvider.AddAppImageIfNotPresent(ctx, &imageInfo, app, appInst.Flavor.Name, updateCallback)
+	if err != nil {
+		return &orchVals, err
 	}
 
 	objName := cloudcommon.GetAppFQN(&app.Key)
@@ -90,7 +95,7 @@ func (v *VMPlatform) PerformOrchestrationForVMApp(ctx context.Context, app *edge
 		orchVals.lbName = cloudcommon.GetVMAppFQDN(&appInst.Key, &appInst.Key.ClusterInstKey.CloudletKey, v.VMProperties.CommonPf.PlatformConfig.AppDNSRoot)
 		orchVals.externalServerName = orchVals.lbName
 		orchVals.newSubnetName = objName + "-subnet"
-		tags := v.GetChefClusterTags(&appInst.Key.ClusterInstKey, VMTypeRootLB)
+		tags := v.GetChefClusterTags(appInst.ClusterInstKey(), VMTypeRootLB)
 		lbVm, err := v.GetVMSpecForRootLB(ctx, orchVals.lbName, orchVals.newSubnetName, tags, updateCallback)
 		if err != nil {
 			return &orchVals, err
@@ -103,7 +108,7 @@ func (v *VMPlatform) PerformOrchestrationForVMApp(ctx context.Context, app *edge
 		VMTypeAppVM,
 		objName,
 		appInst.VmFlavor,
-		imageName,
+		imageInfo.LocalImageName,
 		appConnectsExternal,
 		WithComputeAvailabilityZone(appInst.AvailabilityZone),
 		WithExternalVolume(appInst.ExternalVolumeSize),
@@ -117,9 +122,8 @@ func (v *VMPlatform) PerformOrchestrationForVMApp(ctx context.Context, app *edge
 	}
 	vms = append(vms, appVm)
 	updateCallback(edgeproto.UpdateTask, "Deploying App")
-	vmgp, err := v.OrchestrateVMsFromVMSpec(ctx, objName, vms, action, updateCallback, WithNewSubnet(orchVals.newSubnetName),
-		WithPrivacyPolicy(privacyPolicy),
-		WithAccessPorts(app.AccessPorts),
+	vmgp, err := v.OrchestrateVMsFromVMSpec(ctx, objName, vms, ActionCreate, updateCallback, WithNewSubnet(orchVals.newSubnetName),
+		WithAccessPorts(app.AccessPorts, RemoteCidrAll),
 		WithNewSecurityGroup(GetServerSecurityGroupName(orchVals.externalServerName)),
 	)
 	if err != nil {
@@ -150,9 +154,18 @@ func seedDockerSecrets(ctx context.Context, client ssh.Client, clusterInst *edge
 	return nil
 }
 
-func (v *VMPlatform) CreateAppInst(ctx context.Context, clusterInst *edgeproto.ClusterInst, app *edgeproto.App, appInst *edgeproto.AppInst, appFlavor *edgeproto.Flavor, privacyPolicy *edgeproto.PrivacyPolicy, updateCallback edgeproto.CacheUpdateCallback) error {
+func (v *VMPlatform) CreateAppInst(ctx context.Context, clusterInst *edgeproto.ClusterInst, app *edgeproto.App, appInst *edgeproto.AppInst, appFlavor *edgeproto.Flavor, updateCallback edgeproto.CacheUpdateCallback) error {
 
 	var err error
+	var result OperationInitResult
+	ctx, result, err = v.VMProvider.InitOperationContext(ctx, OperationInitStart)
+	if err != nil {
+		return err
+	}
+	if result == OperationNewlyInitialized {
+		defer v.VMProvider.InitOperationContext(ctx, OperationInitComplete)
+	}
+
 	switch deployment := app.Deployment; deployment {
 	case cloudcommon.DeploymentTypeKubernetes:
 		fallthrough
@@ -251,7 +264,7 @@ func (v *VMPlatform) CreateAppInst(ctx context.Context, clusterInst *edgeproto.C
 		}
 	case cloudcommon.DeploymentTypeVM:
 		objName := cloudcommon.GetAppFQN(&app.Key)
-		orchVals, err := v.PerformOrchestrationForVMApp(ctx, app, appInst, privacyPolicy, ActionCreate, updateCallback)
+		orchVals, err := v.PerformOrchestrationForVMApp(ctx, app, appInst, updateCallback)
 		if err != nil {
 			return err
 		}
@@ -261,7 +274,8 @@ func (v *VMPlatform) CreateAppInst(ctx context.Context, clusterInst *edgeproto.C
 		}
 		if app.AccessType == edgeproto.AccessType_ACCESS_TYPE_LOAD_BALANCER {
 			updateCallback(edgeproto.UpdateTask, "Setting Up Load Balancer")
-			err = v.SetupRootLB(ctx, orchVals.lbName, &clusterInst.Key.CloudletKey, privacyPolicy, updateCallback)
+			pp := edgeproto.TrustPolicy{}
+			err = v.SetupRootLB(ctx, orchVals.lbName, &clusterInst.Key.CloudletKey, &pp, updateCallback)
 			if err != nil {
 				return err
 			}
@@ -293,6 +307,7 @@ func (v *VMPlatform) CreateAppInst(ctx context.Context, clusterInst *edgeproto.C
 				return fmt.Errorf("AddProxySecurityRulesAndPatchDNS error: %v", err)
 			}
 
+			var internalIfName string
 			if v.VMProperties.GetCloudletExternalRouter() == NoExternalRouter {
 				log.SpanLog(ctx, log.DebugLevelInfra, "Need to attach internal interface on rootlb")
 
@@ -303,15 +318,22 @@ func (v *VMPlatform) CreateAppInst(ctx context.Context, clusterInst *edgeproto.C
 					return err
 				}
 				attachPort := v.VMProvider.GetInternalPortPolicy() == AttachPortAfterCreate
-				err = v.AttachAndEnableRootLBInterface(ctx, client, orchVals.lbName, attachPort, orchVals.newSubnetName, GetPortName(orchVals.lbName, orchVals.newSubnetName), gw)
+				internalIfName, err = v.AttachAndEnableRootLBInterface(ctx, client, orchVals.lbName, attachPort, orchVals.newSubnetName, GetPortName(orchVals.lbName, orchVals.newSubnetName), gw)
 				if err != nil {
 					log.SpanLog(ctx, log.DebugLevelInfra, "AttachAndEnableRootLBInterface failed", "err", err)
 					return err
 				}
+				if v.VMProperties.RunLbDhcpServerForVmApps {
+					updateCallback(edgeproto.UpdateTask, "Enabling DHCP on RootLB for VM App")
+					err = v.StartDhcpServerForVmApp(ctx, client, internalIfName, vmIP.InternalAddr, objName)
+					if err != nil {
+						return err
+					}
+				}
 			} else {
 				log.SpanLog(ctx, log.DebugLevelInfra, "External router in use, no internal interface for rootlb")
 			}
-			proxy.NewDedicatedVmApp(ctx, objName, client)
+			proxycerts.NewDedicatedLB(ctx, &appInst.Key.ClusterInstKey.CloudletKey, orchVals.lbName, client, v.VMProperties.CommonPf.PlatformConfig.NodeMgr)
 			// DNS entry is already added while setting up RootLB
 			return nil
 		}
@@ -422,6 +444,15 @@ func (v *VMPlatform) DeleteAppInst(ctx context.Context, clusterInst *edgeproto.C
 	if chefClient == nil {
 		return fmt.Errorf("Chef client is not initialized")
 	}
+	var err error
+	var result OperationInitResult
+	ctx, result, err = v.VMProvider.InitOperationContext(ctx, OperationInitStart)
+	if err != nil {
+		return err
+	}
+	if result == OperationNewlyInitialized {
+		defer v.VMProvider.InitOperationContext(ctx, OperationInitComplete)
+	}
 	switch deployment := app.Deployment; deployment {
 	case cloudcommon.DeploymentTypeKubernetes:
 		fallthrough
@@ -506,7 +537,7 @@ func (v *VMPlatform) DeleteAppInst(ctx context.Context, clusterInst *edgeproto.C
 			if err != nil {
 				log.SpanLog(ctx, log.DebugLevelInfra, "failed to delete client from Chef Server", "clientName", clientName, "err", err)
 			}
-			proxy.RemoveDedicatedVmApp(ctx, cloudcommon.GetAppFQN(&app.Key))
+			proxycerts.RemoveDedicatedLB(ctx, lbName)
 			DeleteServerIpFromCache(ctx, lbName)
 		}
 		imgName, err := cloudcommon.GetFileName(app.ImagePath)
@@ -515,10 +546,12 @@ func (v *VMPlatform) DeleteAppInst(ctx context.Context, clusterInst *edgeproto.C
 		}
 		_, md5Sum, err := infracommon.GetUrlInfo(ctx, v.VMProperties.CommonPf.PlatformConfig.AccessApi, app.ImagePath)
 		localImageName := imgName + "-" + md5Sum
-
+		if v.VMProperties.AppendFlavorToVmAppImage {
+			localImageName = localImageName + "-" + appInst.Flavor.Name
+		}
 		err = v.VMProvider.DeleteImage(ctx, cloudcommon.GetAppFQN(&app.Key), localImageName)
 		if err != nil {
-			log.SpanLog(ctx, log.DebugLevelInfra, "cannot delete image", "imgName", imgName)
+			log.SpanLog(ctx, log.DebugLevelInfra, "cannot delete image", "localImageName", localImageName)
 		}
 		if appInst.Uri != "" {
 			fqdn := appInst.Uri
@@ -578,6 +611,17 @@ func (v *VMPlatform) DeleteAppInst(ctx context.Context, clusterInst *edgeproto.C
 }
 
 func (v *VMPlatform) UpdateAppInst(ctx context.Context, clusterInst *edgeproto.ClusterInst, app *edgeproto.App, appInst *edgeproto.AppInst, updateCallback edgeproto.CacheUpdateCallback) error {
+
+	var err error
+	var result OperationInitResult
+	ctx, result, err = v.VMProvider.InitOperationContext(ctx, OperationInitStart)
+	if err != nil {
+		return err
+	}
+	if result == OperationNewlyInitialized {
+		defer v.VMProvider.InitOperationContext(ctx, OperationInitComplete)
+	}
+
 	masterIP, err := v.GetIPFromServerName(ctx, v.VMProperties.GetCloudletMexNetwork(), GetClusterSubnetName(ctx, clusterInst), GetClusterMasterName(ctx, clusterInst))
 	if err != nil {
 		return err
@@ -678,6 +722,8 @@ func (v *VMPlatform) GetContainerCommand(ctx context.Context, clusterInst *edgep
 }
 
 func DownloadVMImage(ctx context.Context, accessApi platform.AccessApi, imageName, imageUrl, md5Sum string) (string, error) {
+	log.SpanLog(ctx, log.DebugLevelInfra, "DownloadVMImage", "imageName", imageName, "imageUrl", imageUrl)
+
 	fileExt, err := cloudcommon.GetFileNameWithExt(imageUrl)
 	if err != nil {
 		return "", err
@@ -700,4 +746,42 @@ func DownloadVMImage(ctx context.Context, accessApi platform.AccessApi, imageNam
 		}
 	}
 	return filePath, nil
+}
+
+func ConvertQcowToVmdk(ctx context.Context, sourceFile string, size uint64) (string, error) {
+	log.SpanLog(ctx, log.DebugLevelInfra, "ConvertQcowToVmdk", "sourceFile", sourceFile, "size", size, "timeout", qcowConvertTimeout)
+	destFile := strings.TrimSuffix(sourceFile, filepath.Ext(sourceFile))
+	destFile = destFile + ".vmdk"
+
+	convertChan := make(chan string, 1)
+	var convertErr string
+	go func() {
+		//resize to the correct size
+		sizeInGB := fmt.Sprintf("%dG", size)
+		log.SpanLog(ctx, log.DebugLevelInfra, "Resizing to", "size", sizeInGB)
+		out, err := sh.Command("qemu-img", "resize", sourceFile, "--shrink", sizeInGB).CombinedOutput()
+
+		if err != nil {
+			log.SpanLog(ctx, log.DebugLevelInfra, "qemu-img resize failed", "out", string(out), "err", err)
+			convertChan <- fmt.Sprintf("qemu-img resize failed: %s %v", out, err)
+		}
+		log.SpanLog(ctx, log.DebugLevelInfra, "doing qemu-img convert", "destFile", destFile)
+		out, err = sh.Command("qemu-img", "convert", "-O", "vmdk", "-o", "subformat=streamOptimized", sourceFile, destFile).CombinedOutput()
+		if err != nil {
+			log.SpanLog(ctx, log.DebugLevelInfra, "qemu-img convert failed", "out", string(out), "err", err)
+			convertChan <- fmt.Sprintf("qemu-img convert failed: %s %v", out, err)
+		} else {
+			convertChan <- ""
+
+		}
+	}()
+	select {
+	case convertErr = <-convertChan:
+	case <-time.After(qcowConvertTimeout):
+		return "", fmt.Errorf("ConvertQcowToVmdk timed out")
+	}
+	if convertErr != "" {
+		return "", errors.New(convertErr)
+	}
+	return destFile, nil
 }

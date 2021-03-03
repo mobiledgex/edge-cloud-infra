@@ -106,10 +106,6 @@ func (a *AwsEc2Platform) InitProvider(ctx context.Context, caches *platform.Cach
 		return err
 	}
 	a.AmiIamAccountId = acct
-	// aws cannot use the name "default" as a new security group name as it is reserved
-	if a.VMProperties.GetCloudletSecurityGroupName() == "default" {
-		a.VMProperties.SetCloudletSecurityGroupName(vpcName + "-cloudlet-sg")
-	}
 
 	ns := a.VMProperties.GetCloudletNetworkScheme()
 	nspec, err := vmlayer.ParseNetSpec(ctx, ns)
@@ -144,7 +140,7 @@ func (a *AwsEc2Platform) InitProvider(ctx context.Context, caches *platform.Cach
 		log.SpanLog(ctx, log.DebugLevelInfra, "Internet GW already exists")
 	}
 
-	secGrpName := a.VMProperties.GetCloudletSecurityGroupName()
+	secGrpName := a.VMProperties.CloudletSecgrpName
 	sg, err := a.GetSecurityGroup(ctx, secGrpName, vpcId)
 	if err != nil {
 		if strings.Contains(err.Error(), SecGrpDoesNotExistError) {
@@ -201,7 +197,7 @@ func (a *AwsEc2Platform) InitProvider(ctx context.Context, caches *platform.Cach
 	return nil
 }
 
-func (a *AwsEc2Platform) PrepareRootLB(ctx context.Context, client ssh.Client, rootLBName string, secGrpName string, privacyPolicy *edgeproto.PrivacyPolicy) error {
+func (a *AwsEc2Platform) PrepareRootLB(ctx context.Context, client ssh.Client, rootLBName string, secGrpName string, TrustPolicy *edgeproto.TrustPolicy, updateCallback edgeproto.CacheUpdateCallback) error {
 	log.SpanLog(ctx, log.DebugLevelInfra, "PrepareRootLB", "rootLBName", rootLBName)
 	return nil
 }
@@ -274,4 +270,21 @@ func (a *AwsEc2Platform) GetVaultCloudletAccessPath(key *edgeproto.CloudletKey, 
 
 func (a *AwsEc2Platform) GetSessionTokens(ctx context.Context, vaultConfig *vault.Config, account string) (map[string]string, error) {
 	return a.awsGenPf.GetSessionTokens(ctx, vaultConfig, account)
+}
+
+func (a *AwsEc2Platform) GetCloudletInfraResourcesInfo(ctx context.Context) ([]edgeproto.InfraResource, error) {
+	return []edgeproto.InfraResource{}, nil
+}
+
+func (a *AwsEc2Platform) GetCloudletResourceQuotaProps(ctx context.Context) (*edgeproto.CloudletResourceQuotaProps, error) {
+	return &edgeproto.CloudletResourceQuotaProps{}, nil
+}
+
+func (a *AwsEc2Platform) GetClusterAdditionalResources(ctx context.Context, cloudlet *edgeproto.Cloudlet, vmResources []edgeproto.VMResource, infraResMap map[string]edgeproto.InfraResource) map[string]edgeproto.InfraResource {
+	resInfo := make(map[string]edgeproto.InfraResource)
+	return resInfo
+}
+
+func (a *AwsEc2Platform) GetClusterAdditionalResourceMetric(ctx context.Context, cloudlet *edgeproto.Cloudlet, resMetric *edgeproto.Metric, resources []edgeproto.VMResource) error {
+	return nil
 }

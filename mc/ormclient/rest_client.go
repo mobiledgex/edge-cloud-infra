@@ -19,6 +19,7 @@ import (
 	"github.com/mobiledgex/edge-cloud-infra/mc/ormapi"
 	"github.com/mobiledgex/edge-cloud/cloudcommon/node"
 	edgeproto "github.com/mobiledgex/edge-cloud/edgeproto"
+	"github.com/mobiledgex/jaeger/plugin/storage/es/spanstore/dbmodel"
 )
 
 type Client struct {
@@ -26,11 +27,13 @@ type Client struct {
 	Debug      bool
 }
 
-func (s *Client) DoLogin(uri, user, pass, otp string) (string, error) {
+func (s *Client) DoLogin(uri, user, pass, otp, apikeyid, apikey string) (string, error) {
 	login := ormapi.UserLogin{
 		Username: user,
 		Password: pass,
 		TOTP:     otp,
+		ApiKeyId: apikeyid,
+		ApiKey:   apikey,
 	}
 	result := make(map[string]interface{})
 	status, err := s.PostJson(uri+"/login", "", &login, &result)
@@ -67,7 +70,7 @@ func (s *Client) UpdateUser(uri, token string, createUserJSON string) (*ormapi.U
 	return &resp, st, err
 }
 
-func (s *Client) ShowUser(uri, token string, org *ormapi.Organization) ([]ormapi.User, int, error) {
+func (s *Client) ShowUser(uri, token string, org *ormapi.ShowUser) ([]ormapi.User, int, error) {
 	users := []ormapi.User{}
 	status, err := s.PostJson(uri+"/auth/user/show", token, org, &users)
 	return users, status, err
@@ -275,6 +278,24 @@ func (s *Client) FindEvents(uri, token string, query *node.EventSearch) ([]node.
 func (s *Client) EventTerms(uri, token string, query *node.EventSearch) (*node.EventTerms, int, error) {
 	resp := node.EventTerms{}
 	status, err := s.PostJson(uri+"/auth/events/terms", token, query, &resp)
+	return &resp, status, err
+}
+
+func (s *Client) ShowSpans(uri, token string, query *node.SpanSearch) ([]node.SpanOutCondensed, int, error) {
+	resp := []node.SpanOutCondensed{}
+	status, err := s.PostJson(uri+"/auth/spans/show", token, query, &resp)
+	return resp, status, err
+}
+
+func (s *Client) ShowSpansVerbose(uri, token string, query *node.SpanSearch) ([]dbmodel.Span, int, error) {
+	resp := []dbmodel.Span{}
+	status, err := s.PostJson(uri+"/auth/spans/showverbose", token, query, &resp)
+	return resp, status, err
+}
+
+func (s *Client) SpanTerms(uri, token string, query *node.SpanSearch) (*node.SpanTerms, int, error) {
+	resp := node.SpanTerms{}
+	status, err := s.PostJson(uri+"/auth/spans/terms", token, query, &resp)
 	return &resp, status, err
 }
 
@@ -607,4 +628,20 @@ func (s *Client) ShowAlertReceiver(uri, token string, in *ormapi.AlertReceiver) 
 	receivers := []ormapi.AlertReceiver{}
 	status, err := s.PostJson(uri+"/auth/alertreceiver/show", token, in, &receivers)
 	return receivers, status, err
+}
+
+func (s *Client) CreateUserApiKey(uri, token string, userApiKey *ormapi.CreateUserApiKey) (*ormapi.CreateUserApiKey, int, error) {
+	resp := ormapi.CreateUserApiKey{}
+	st, err := s.PostJson(uri+"/auth/user/create/apikey", token, userApiKey, &resp)
+	return &resp, st, err
+}
+
+func (s *Client) DeleteUserApiKey(uri, token string, userApiKey *ormapi.CreateUserApiKey) (int, error) {
+	return s.PostJson(uri+"/auth/user/delete/apikey", token, userApiKey, nil)
+}
+
+func (s *Client) ShowUserApiKey(uri, token string, userApiKey *ormapi.CreateUserApiKey) ([]ormapi.CreateUserApiKey, int, error) {
+	userApiKeys := []ormapi.CreateUserApiKey{}
+	status, err := s.PostJson(uri+"/auth/user/show/apikey", token, userApiKey, &userApiKeys)
+	return userApiKeys, status, err
 }

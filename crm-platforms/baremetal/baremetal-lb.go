@@ -116,3 +116,11 @@ func (b *BareMetalPlatform) SetupLb(ctx context.Context, client ssh.Client, lbna
 	}
 	return nil
 }
+
+func (b *BareMetalPlatform) GetRootLBFlavor(ctx context.Context) (*edgeproto.Flavor, error) {
+	return &edgeproto.Flavor{
+		Vcpus: uint64(0),
+		Ram:   uint64(0),
+		Disk:  uint64(0),
+	}, nil
+}

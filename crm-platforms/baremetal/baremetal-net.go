@@ -20,6 +20,7 @@ func (b *BareMetalPlatform) RemoveIp(ctx context.Context, client ssh.Client, add
 	cmd := fmt.Sprintf("sudo ip address del %s/32 dev %s", addr, dev)
 	out, err := client.Output(cmd)
 	if err != nil {
+		// Not intuitive, but "Cannot assign" is reported when trying to delete a nonexistent address
 		if !strings.Contains(out, "Cannot assign") {
 			return fmt.Errorf("Error deleting ip: %s - %s - %v", addr, out, err)
 		}

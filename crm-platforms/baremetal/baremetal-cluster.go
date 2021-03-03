@@ -45,14 +45,10 @@ func (b *BareMetalPlatform) CreateNamespace(ctx context.Context, client ssh.Clie
 	cmd := fmt.Sprintf("kubectl create namespace  %s --kubeconfig=%s", nameSpace, b.cloudletKubeConfig)
 	out, err := client.Output(cmd)
 	if err != nil {
-		if strings.Contains(out, "AlreadyExists") {
-			log.SpanLog(ctx, log.DebugLevelInfra, "namespace already exists", "out", out)
-		} else {
-			return fmt.Errorf("Error in creating namespace: %s - %v", out, err)
-		}
+		return fmt.Errorf("Error in creating namespace: %s - %v", out, err)
 	}
 	// copy the kubeconfig add update the new one with the new namespace
-	log.SpanLog(ctx, log.DebugLevelInfra, "create new kubeconfig for lb namespace", "cloudletKubeConfig", b.cloudletKubeConfig, "clustKubeConfig", kubeconfig)
+	log.SpanLog(ctx, log.DebugLevelInfra, "create new kubeconfig for cluster namespace", "cloudletKubeConfig", b.cloudletKubeConfig, "clustKubeConfig", kubeconfig)
 
 	err = pc.CopyFile(client, b.cloudletKubeConfig, kubeconfig)
 	if err != nil {

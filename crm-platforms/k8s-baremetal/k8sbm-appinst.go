@@ -99,8 +99,17 @@ func (k *K8sBareMetalPlatform) CreateAppInst(ctx context.Context, clusterInst *e
 				err = k.commonPf.CreateAppDNSAndPatchKubeSvc(ctx, client, names, infracommon.NoDnsOverride, getDnsAction)
 			} else {
 				updateCallback(edgeproto.UpdateTask, "Configuring Service: LB, Firewall Rules add DNS")
+
+				wlParams := infracommon.WhiteListParams{
+					ServerName:  rootLBName,
+					SecGrpName:  rootLBName,
+					Label:       infracommon.GetAppWhitelistRulesLabel(app),
+					AllowedCIDR: infracommon.GetAllowedClientCIDR(),
+					Ports:       appInst.MappedPorts,
+					DestIP:      lbinfo.ExternalIpAddr,
+				}
 				ops := infracommon.ProxyDnsSecOpts{AddProxy: true, AddDnsAndPatchKubeSvc: true, AddSecurityRules: true, ProxyNamePrefix: k8smgmt.GetKconfName(clusterInst) + "-"}
-				err = k.commonPf.AddProxySecurityRulesAndPatchDNS(ctx, client, names, app, appInst, getDnsAction, k.WhitelistSecurityRules, rootLBName, lbinfo.ExternalIpAddr, lbinfo.InternalIpAddr, ops, proxy.WithDockerPublishPorts(), proxy.WithDockerNetwork(""))
+				err = k.commonPf.AddProxySecurityRulesAndPatchDNS(ctx, client, names, app, appInst, getDnsAction, k.WhitelistSecurityRules, &wlParams, lbinfo.ExternalIpAddr, lbinfo.InternalIpAddr, ops, proxy.WithDockerPublishPorts(), proxy.WithDockerNetwork(""))
 			}
 		}
 
@@ -152,7 +161,15 @@ func (k *K8sBareMetalPlatform) DeleteAppInst(ctx context.Context, clusterInst *e
 		// Clean up security rules add proxy if app is external
 		secGrp := infracommon.GetServerSecurityGroupName(rootLBName)
 		containerName := k8smgmt.GetKconfName(clusterInst) + "-" + dockermgmt.GetContainerName(&app.Key)
-		if err := k.commonPf.DeleteProxySecurityGroupRules(ctx, client, containerName, secGrp, infracommon.GetAppWhitelistRulesLabel(app), appInst.MappedPorts, app, rootLBName, k.RemoveWhitelistSecurityRules); err != nil {
+		wlParams := infracommon.WhiteListParams{
+			ServerName:  rootLBName,
+			SecGrpName:  secGrp,
+			Label:       infracommon.GetAppWhitelistRulesLabel(app),
+			AllowedCIDR: infracommon.GetAllowedClientCIDR(),
+			Ports:       appInst.MappedPorts,
+			DestIP:      lbinfo.ExternalIpAddr,
+		}
+		if err := k.commonPf.DeleteProxySecurityGroupRules(ctx, client, containerName, k.RemoveWhitelistSecurityRules, &wlParams); err != nil {
 			log.SpanLog(ctx, log.DebugLevelInfra, "cannot delete security rules", "name", names.AppName, "rootlb", rootLBName, "error", err)
 		}
 		if !app.InternalPorts {
@@ -178,5 +195,15 @@ func (k *K8sBareMetalPlatform) DeleteAppInst(ctx context.Context, clusterInst *e
 }
 
 func (k *K8sBareMetalPlatform) UpdateAppInst(ctx context.Context, clusterInst *edgeproto.ClusterInst, app *edgeproto.App, appInst *edgeproto.AppInst, updateCallback edgeproto.CacheUpdateCallback) error {
-	return fmt.Errorf("UpdateAppInst TODO")
+	log.SpanLog(ctx, log.DebugLevelInfra, "UpdateAppInst", "appInst", appInst)
+
+	names, err := k8smgmt.GetKubeNames(clusterInst, app, appInst)
+	if err != nil {
+		return fmt.Errorf("get kube names failed: %s", err)
+	}
+	client, err := k.GetNodePlatformClient(ctx, &edgeproto.CloudletMgmtNode{Name: k.commonPf.PlatformConfig.CloudletKey.String(), Type: "k8sbmcontrolhost"})
+	if err != nil {
+		return err
+	}
+	return k8smgmt.UpdateAppInst(ctx, k.commonPf.PlatformConfig.AccessApi, client, names, app, appInst)
 }

@@ -102,6 +102,19 @@ func (s *DummyController) waitForAppInsts(ctx context.Context, count int) error 
 	return fmt.Errorf("Timed out waiting for %d AppInsts, have %d instead", count, s.appInstCache.GetCount())
 }
 
+func (s *DummyController) waitForRetryAppInsts(ctx context.Context, appInstKey edgeproto.AppInstKey, checkFound bool) error {
+	for i := 0; i < 50; i++ {
+		found := retryTracker.hasFailure(ctx, appInstKey.AppKey, appInstKey.ClusterInstKey.CloudletKey)
+		if checkFound == found {
+			log.SpanLog(ctx, log.DebugLevelInfo, "waitForRetryAppInsts: retry appInst found", "found", checkFound)
+			return nil
+		}
+		time.Sleep(20 * time.Millisecond)
+	}
+	log.SpanLog(ctx, log.DebugLevelInfo, "Timed out waiting for retryTracker to find appInstKey", "found", checkFound)
+	return fmt.Errorf("Timed out waiting for AppInst %v to be found(%v) by retryTracker", appInstKey, checkFound)
+}
+
 func (s *DummyController) CreateAppInst(in *edgeproto.AppInst, server edgeproto.AppInstApi_CreateAppInstServer) error {
 	if s.failCreate {
 		return fmt.Errorf("Some error")

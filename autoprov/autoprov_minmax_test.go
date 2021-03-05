@@ -161,6 +161,7 @@ func TestAppChecker(t *testing.T) {
 	testDialOpt = grpc.WithInsecure()
 
 	minmax := newMinMaxChecker(&cacheData)
+	retryTracker = newRetryTracker()
 	// run iterations manually, otherwise the cache update loop causes
 	// checkApp to be run multiple times, and without the Controller code
 	// to block invalid creates/deletes, we end up with incorrect states.
@@ -599,6 +600,50 @@ func TestAppChecker(t *testing.T) {
 	case <-time.After(2 * time.Second):
 		require.Fail(t, "timeout waiting for AutoProvInfo")
 	}
+
+	// Bug4217: ETCD spike issue, autoprov service continuously
+	//           creates & deletes app on CRM failure
+	pt3Max := uint32(1)
+	pt3 := makePolicyTest("policy3", pt3Max, &cacheData)
+	pt3.updatePolicy(ctx)
+	pt3.updateClusterInsts(ctx)
+	appRetry := edgeproto.App{}
+	appRetry.Key.Name = "appRetry"
+	// add both policies to app
+	appRetry.AutoProvPolicies = append(appRetry.AutoProvPolicies, pt3.policy.Key.Name)
+	cacheData.appCache.Update(ctx, &appRetry, 0)
+	refs = edgeproto.AppInstRefs{}
+	refs.Key = appRetry.Key
+	refs.Insts = make(map[string]uint32)
+	cacheData.appInstRefsCache.Update(ctx, &refs, 0)
+	// no AppInsts to start
+	require.Equal(t, 0, dc.appInstCache.GetCount())
+	// Set failCreate to simulate appInst/clusterInst create failure
+	dc.failCreate = true
+	// set reasonable min/max and see that min is met
+	pt3.policy.MinActiveInstances = 1
+	pt3.policy.MaxInstances = 1
+	pt3.updatePolicy(ctx)
+	// trigger appInst creation
+	minmax.CheckApp(ctx, appRetry.Key)
+	// this appinst should be part of retryTracker due to failCreate
+	retryAppInstKey := edgeproto.AppInstKey{}
+	retryAppInstKey.AppKey = appRetry.Key
+	retryAppInstKey.ClusterInstKey.CloudletKey.Name = "policy3_0"
+	found := true
+	err = dc.waitForRetryAppInsts(ctx, retryAppInstKey, found)
+	require.Nil(t, err)
+	// disable failCreate, appInst should now be created successfully
+	dc.failCreate = false
+	minMaxChecker = minmax
+	minMaxChecker.workers.Init("autoprov-minmax", minMaxChecker.CheckApp)
+	retryTracker.checkRetry(ctx)
+	// ensure that appInst is part of failed appinsts
+	err = dc.waitForRetryAppInsts(ctx, retryAppInstKey, !found)
+	require.Nil(t, err)
+	// ensure that appInst is created
+	err = dc.waitForAppInsts(ctx, 1)
+	require.Nil(t, err)
 }
 
 type policyTest struct {

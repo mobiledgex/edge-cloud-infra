@@ -129,7 +129,7 @@ func (s *AutoProvAggr) Run() {
 			if err != nil {
 				log.SpanLog(ctx, log.DebugLevelMetrics, "runIter failed", "err", err)
 			}
-			retryTracker.checkRetry(ctx)
+			retryTracker.doRetry(ctx, minMaxChecker)
 			span.Finish()
 		case <-s.stop:
 			done = true

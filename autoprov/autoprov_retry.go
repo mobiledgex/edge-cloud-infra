@@ -29,7 +29,9 @@ func (s *RetryTracker) registerDeployResult(ctx context.Context, key edgeproto.A
 
 	s.mux.Lock()
 	defer s.mux.Unlock()
-	if err == nil {
+
+	existsErr := key.ExistsError()
+	if err == nil || err.Error() == existsErr.Error() {
 		delete(s.allFailures, key)
 		return
 	}
@@ -40,7 +42,7 @@ func (s *RetryTracker) registerDeployResult(ctx context.Context, key edgeproto.A
 	// multiple consecutive failures.
 }
 
-func (s *RetryTracker) checkRetry(ctx context.Context) {
+func (s *RetryTracker) doRetry(ctx context.Context, minmax *MinMaxChecker) {
 	s.mux.Lock()
 	defer s.mux.Unlock()
 
@@ -53,7 +55,7 @@ func (s *RetryTracker) checkRetry(ctx context.Context) {
 		// another retry interval.
 		delete(s.allFailures, k)
 		// trigger retry
-		minMaxChecker.workers.NeedsWork(ctx, k.AppKey)
+		minmax.workers.NeedsWork(ctx, k.AppKey)
 	}
 }
 

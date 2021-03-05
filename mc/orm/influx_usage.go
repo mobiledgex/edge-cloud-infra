@@ -83,7 +83,7 @@ var appInstDataColumns = []string{
 	"note",
 }
 
-var usageInfluDBT = `SELECT {{.Selector}} from "{{.Measurement}}"` +
+var usageInfluxDBT = `SELECT {{.Selector}} from "{{.Measurement}}"` +
 	` WHERE time >='{{.StartTime}}'` +
 	` AND time <= '{{.EndTime}}'` +
 	`{{if .AppInstName}} AND "app"='{{.AppInstName}}'{{end}}` +
@@ -110,7 +110,7 @@ var usageTypeCluster = "cluster-usage"
 var usageTypeAppInst = "appinst-usage"
 
 func init() {
-	usageInfluxDBTemplate = template.Must(template.New("influxquery").Parse(usageInfluDBT))
+	usageInfluxDBTemplate = template.Must(template.New("influxquery").Parse(usageInfluxDBT))
 }
 
 func checkUsageCheckpointInterval() error {

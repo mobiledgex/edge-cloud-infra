@@ -209,6 +209,7 @@ var ClientAppUsageMetricOptionalArgs = []string{
 	"device-os",
 	"device-type",
 	"data-network-type",
+	"raw-data",
 	"last",
 	"starttime",
 	"endtime",
@@ -229,6 +230,7 @@ var ClientAppUsageMetricComments = map[string]string{
 	"device-os":         "Device operating system. Use only for deviceinfo selector",
 	"device-type":       "Device type. Use only for deviceinfo selector",
 	"data-network-type": "Data network type used by client device. Use only for deviceinfo selector",
+	"raw-data":          "Set to true for additional raw data (not downsampled)",
 	"selector":          "Comma separated list of metrics to view. Available metrics: \"" + strings.Join(orm.ClientAppUsageSelectors, "\", \"") + "\"",
 }
 
@@ -243,6 +245,7 @@ var ClientCloudletUsageMetricOptionalArgs = []string{
 	"device-os",
 	"device-type",
 	"data-network-type",
+	"raw-data",
 	"last",
 	"starttime",
 	"endtime",
@@ -258,6 +261,7 @@ var ClientCloudletUsageMetricComments = map[string]string{
 	"device-os":         "Device operating system. Use only for deviceinfo selector",
 	"device-type":       "Device type. Use only for deviceinfo selector",
 	"data-network-type": "Data network type used by client device. Use only for latency selector",
+	"raw-data":          "Set to true for additional raw data (not downsampled)",
 	"selector":          "Comma separated list of metrics to view. Available metrics: \"" + strings.Join(orm.ClientCloudletUsageSelectors, "\", \"") + "\"",
 }
 

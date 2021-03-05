@@ -797,6 +797,7 @@ func showMcClientAppMetrics(uri, token string, targets *MetricTargets, rc *bool)
 	clientAppUsageQuery := ormapi.RegionClientAppUsageMetrics{
 		Region:  "local",
 		AppInst: targets.AppInstKey,
+		RawData: true,
 		Last:    1,
 	}
 	for _, selector := range orm.ClientAppUsageSelectors {
@@ -816,6 +817,7 @@ func showMcClientCloudletMetrics(uri, token string, targets *MetricTargets, rc *
 	clientCloudletUsageQuery := ormapi.RegionClientCloudletUsageMetrics{
 		Region:   "local",
 		Cloudlet: targets.CloudletKey,
+		RawData:  true,
 		Last:     1,
 	}
 	for _, selector := range orm.ClientCloudletUsageSelectors {

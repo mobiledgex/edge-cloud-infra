@@ -2,9 +2,11 @@ package main
 
 import (
 	"context"
+	"strings"
 	"sync"
 
 	"github.com/mobiledgex/edge-cloud/edgeproto"
+	"github.com/mobiledgex/edge-cloud/log"
 )
 
 type RetryTracker struct {
@@ -32,10 +34,14 @@ func (s *RetryTracker) registerDeployResult(ctx context.Context, key edgeproto.A
 	s.mux.Lock()
 	defer s.mux.Unlock()
 
-	if err == nil || err.Error() == existsErr.Error() {
+	if err == nil ||
+		strings.Contains(err.Error(), existsErr.Error()) ||
+		strings.Contains(err.Error(), "already met, ignoring") ||
+		strings.Contains(err.Error(), "AppInst against App which is being deleted") {
 		delete(s.allFailures, key)
 		return
 	}
+	log.SpanLog(ctx, log.DebugLevelApi, "Failed to deploy appInst, track it as part of retryTracker", "key", key, "err", err)
 	// track new failure
 	s.allFailures[key] = struct{}{}
 	// Because the retry interval (the aggr thread interval) is so long

@@ -4,3 +4,4 @@ cd /var/tmp/alertmanager
 cat config.yml | sed -E 's/(- name:.+|- receiver:.+)-(.+)-(.+)-(.+)/\1::\2::\3::\4/g' > config.yml.v2
 cp config.yml config.yml.old
 cp config.yml.v2 config.yml
+touch /var/tmp/alertmanager/receiver_dashed_name_upgraded

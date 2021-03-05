@@ -39,7 +39,7 @@ func TestRetry(t *testing.T) {
 	cacheData.init()
 	minmax := newMinMaxChecker(&cacheData)
 	runCount := 0
-	minMaxChecker.workers.Init("test-retry", func(ctx context.Context, k interface{}) {
+	minmax.workers.Init("test-retry", func(ctx context.Context, k interface{}) {
 		appkey, ok := k.(edgeproto.AppKey)
 		require.True(t, ok)
 		require.Equal(t, key.AppKey, appkey)
@@ -48,6 +48,6 @@ func TestRetry(t *testing.T) {
 	// do retry should queue recheck and clear failure
 	retry.doRetry(ctx, minmax)
 	require.Equal(t, 0, len(retry.allFailures))
-	minMaxChecker.workers.WaitIdle()
+	minmax.workers.WaitIdle()
 	require.Equal(t, 1, runCount)
 }

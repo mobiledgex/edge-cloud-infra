@@ -20,6 +20,8 @@ func newRetryTracker() *RetryTracker {
 }
 
 func (s *RetryTracker) registerDeployResult(ctx context.Context, key edgeproto.AppInstKey, err error) {
+	existsErr := key.ExistsError()
+
 	// tracking is cluster agnostic. We assume any failures are
 	// caused by the App config, or an issue with the Cloudlet, and
 	// nothing specific to autoclusters, whose configuration is
@@ -30,7 +32,6 @@ func (s *RetryTracker) registerDeployResult(ctx context.Context, key edgeproto.A
 	s.mux.Lock()
 	defer s.mux.Unlock()
 
-	existsErr := key.ExistsError()
 	if err == nil || err.Error() == existsErr.Error() {
 		delete(s.allFailures, key)
 		return

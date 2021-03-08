@@ -159,7 +159,7 @@ func (v *VcdPlatform) GetLeaseOverride() bool {
 		}
 		return false
 	}
-	val := v.vcdVars["VCD_OVERRIDE_LEASE_DISABLE"]
+	val, _ := v.vmProperties.CommonPf.Properties.GetValue("VCD_OVERRIDE_LEASE_DISABLE")
 	if val == "true" {
 		return true
 	} else {

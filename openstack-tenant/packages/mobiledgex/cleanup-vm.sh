@@ -39,6 +39,14 @@ if [[ -d /home/ubuntu/envoy ]]; then
   rm -r /home/ubuntu/envoy
 fi
 
+# stop k8s-join service if it is running
+systemctl is-active --quiet k8s-join
+if [[ $? -eq 0 ]]; then
+  log "Stopping k8s-join service"
+  systemctl disable k8s-join
+  systemctl stop k8s-join
+fi
+
 # Cleanup docker setup
 containers=$(docker ps -a -q)
 images=$(docker ps --format "{{.Image}}" | uniq)

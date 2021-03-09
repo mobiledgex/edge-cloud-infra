@@ -138,7 +138,7 @@ func (o *OpenstackPlatform) GetCloudletManifest(ctx context.Context, name string
 	}
 
 	// generate the heat template
-	buf, err := vmlayer.ExecTemplate(name, VmGroupTemplate, vmgp)
+	buf, err := infracommon.ExecTemplate(name, VmGroupTemplate, vmgp)
 	if err != nil {
 		return "", err
 	}
@@ -243,7 +243,7 @@ func (o *OpenstackPlatform) GetCloudletInfraResourcesInfo(ctx context.Context) (
 
 func (o *OpenstackPlatform) GetCloudletResourceQuotaProps(ctx context.Context) (*edgeproto.CloudletResourceQuotaProps, error) {
 	return &edgeproto.CloudletResourceQuotaProps{
-		Props: []edgeproto.InfraResource{
+		Properties: []edgeproto.InfraResource{
 			edgeproto.InfraResource{
 				Name:        ResourceInstances,
 				Description: "Limit on number of instances that can be provisioned",

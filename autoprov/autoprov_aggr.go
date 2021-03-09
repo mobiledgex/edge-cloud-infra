@@ -82,10 +82,12 @@ func (s *AutoProvAggr) Start() {
 
 func (s *AutoProvAggr) Stop() {
 	s.mux.Lock()
-	defer s.mux.Unlock()
 	close(s.stop)
+	s.mux.Unlock()
 	s.waitGroup.Wait()
+	s.mux.Lock()
 	s.stop = nil
+	s.mux.Unlock()
 }
 
 func (s *AutoProvAggr) UpdateSettings(ctx context.Context, intervalSec, offsetSec float64) {
@@ -129,6 +131,7 @@ func (s *AutoProvAggr) Run() {
 			if err != nil {
 				log.SpanLog(ctx, log.DebugLevelMetrics, "runIter failed", "err", err)
 			}
+			retryTracker.doRetry(ctx, minMaxChecker)
 			span.Finish()
 		case <-s.stop:
 			done = true

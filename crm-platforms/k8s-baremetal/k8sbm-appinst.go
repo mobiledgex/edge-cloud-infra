@@ -209,3 +209,22 @@ func (k *K8sBareMetalPlatform) UpdateAppInst(ctx context.Context, clusterInst *e
 	}
 	return k8smgmt.UpdateAppInst(ctx, k.commonPf.PlatformConfig.AccessApi, client, names, app, appInst)
 }
+
+func (k *K8sBareMetalPlatform) GetAppInstRuntime(ctx context.Context, clusterInst *edgeproto.ClusterInst, app *edgeproto.App, appInst *edgeproto.AppInst) (*edgeproto.AppInstRuntime, error) {
+	log.SpanLog(ctx, log.DebugLevelInfra, "GetAppInstRuntime", "app", app)
+
+	client, err := k.GetNodePlatformClient(ctx, &edgeproto.CloudletMgmtNode{Name: k.commonPf.PlatformConfig.CloudletKey.String(), Type: "k8sbmcontrolhost"})
+	if err != nil {
+		return nil, err
+	}
+	names, err := k8smgmt.GetKubeNames(clusterInst, app, appInst)
+	if err != nil {
+		return nil, err
+	}
+	return k8smgmt.GetAppInstRuntime(ctx, client, names, app, appInst)
+}
+
+func (k *K8sBareMetalPlatform) GetContainerCommand(ctx context.Context, clusterInst *edgeproto.ClusterInst, app *edgeproto.App, appInst *edgeproto.AppInst, req *edgeproto.ExecRequest) (string, error) {
+	log.SpanLog(ctx, log.DebugLevelInfra, "GetContainerCommand", "app", app)
+	return k8smgmt.GetContainerCommand(ctx, clusterInst, app, appInst, req)
+}

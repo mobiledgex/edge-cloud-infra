@@ -162,7 +162,7 @@ func (v *VcdPlatform) GetVcpuSpeedOverride(ctx context.Context) int64 {
 		return 0
 	}
 	speed, err := strconv.ParseInt(val, 10, 64)
-	if err == nil {
+	if err != nil {
 		log.SpanLog(ctx, log.DebugLevelInfra, "Unable to convert VCD_OVERRIDE_VCPU_SPEED to int", "val", val, "err", err)
 		return 0
 	}

@@ -16,8 +16,8 @@ import (
 )
 
 var (
-	ResourceVMs         = "VMs"
-	ResourceExternalIps = "ExternalIPs"
+	ResourceInstances   = "Instances"
+	ResourceExternalIps = "External IPs"
 )
 
 type VcdResources struct {
@@ -137,7 +137,7 @@ func (v *VcdPlatform) GetCloudletInfraResourcesInfo(ctx context.Context) ([]edge
 		Value:         usedIps,
 	})
 	resInfo = append(resInfo, edgeproto.InfraResource{
-		Name:          ResourceVMs,
+		Name:          ResourceInstances,
 		InfraMaxValue: uint64(vdc.Vdc.VMQuota),
 		Value:         uint64(len(vmlist)),
 	})
@@ -163,11 +163,11 @@ func (v *VcdPlatform) GetCloudletResourceQuotaProps(ctx context.Context) (*edgep
 		Properties: []edgeproto.InfraResource{
 			{
 				Name:        ResourceExternalIps,
-				Description: "Limit on how many IPs are available in the external network",
+				Description: "Limit on how many external IPs are available",
 			},
 			{
-				Name:        ResourceVMs,
-				Description: "Limit on number of VMs that can be created",
+				Name:        ResourceInstances,
+				Description: "Limit on number of instances that can be provisioned",
 			},
 		},
 	}, nil
@@ -193,7 +193,7 @@ func getVcdResources(ctx context.Context, cloudlet *edgeproto.Cloudlet, resource
 func (v *VcdPlatform) GetClusterAdditionalResources(ctx context.Context, cloudlet *edgeproto.Cloudlet, vmResources []edgeproto.VMResource, infraResMap map[string]edgeproto.InfraResource) map[string]edgeproto.InfraResource {
 	// resource name -> resource units
 	cloudletRes := map[string]string{
-		ResourceVMs:         "",
+		ResourceInstances:   "",
 		ResourceExternalIps: "",
 	}
 	resInfo := make(map[string]edgeproto.InfraResource)
@@ -209,10 +209,10 @@ func (v *VcdPlatform) GetClusterAdditionalResources(ctx context.Context, cloudle
 		}
 	}
 	vRes := getVcdResources(ctx, cloudlet, vmResources)
-	outInfo, ok := resInfo[ResourceVMs]
+	outInfo, ok := resInfo[ResourceInstances]
 	if ok {
 		outInfo.Value += vRes.VmsUsed
-		resInfo[ResourceVMs] = outInfo
+		resInfo[ResourceInstances] = outInfo
 	}
 	outInfo, ok = resInfo[ResourceExternalIps]
 	if ok {

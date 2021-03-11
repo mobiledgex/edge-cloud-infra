@@ -27,7 +27,6 @@ console_prod=yes
 alertmanager_hostname=alertmanager-{{ deploy_environ }}.mobiledgex.net
 influxdb_backup_disabled=true
 controller_replicas=2
-dme_replicas=2
 gitlab_version=13.5.7-ee.0
 
 [notifyroot]

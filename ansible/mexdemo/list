@@ -24,7 +24,6 @@ influxdb_volume_size=10Gi
 console_prod=yes
 events_elasticsearch_cleanup_age=183
 controller_replicas=2
-dme_replicas=2
 
 [platform]
 localhost	ansible_connection=local

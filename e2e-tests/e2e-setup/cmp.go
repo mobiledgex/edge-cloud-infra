@@ -249,6 +249,12 @@ func CompareYamlFiles(firstYamlFile string, secondYamlFile string, fileType stri
 		sort.Slice(a2, func(i, j int) bool {
 			return a2[i].Headers.Subject < a2[j].Headers.Subject
 		})
+		sort.Slice(a1, func(i, j int) bool {
+			return a1[i].Text < a1[j].Text
+		})
+		sort.Slice(a2, func(i, j int) bool {
+			return a2[i].Text < a2[j].Text
+		})
 
 		y1 = a1
 		y2 = a2

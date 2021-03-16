@@ -29,3 +29,5 @@ regiondata:
       persistentconnectionmetricscollectioninterval: 1s
       cleanupreservableautoclusteridletime: 30m0s
       influxdbcloudletusagemetricsretention: 8760h0m0s
+      appinstclientcleanupinterval: 24h
+

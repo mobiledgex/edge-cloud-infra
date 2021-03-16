@@ -49,6 +49,7 @@
   vars:
     begin_def: !unsafe '{{ define "console.link" }}'
     end_def: !unsafe '{{ end }}'
+  notify: Restart alertmanager
 
 - name: Run receiver name upgrade
   script: "files/name_delim_upgrade.sh"

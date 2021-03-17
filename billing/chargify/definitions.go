@@ -1,7 +1,5 @@
 package chargify
 
-import "github.com/mobiledgex/edge-cloud-infra/billing"
-
 var apiKey string
 var siteName string
 var apiPassword = "x" // password to go with apiKey in basic auth for http. This is always x, the apiKey is what changes
@@ -198,15 +196,6 @@ type PaymentProfile struct {
 	BillingCountry  string `json:"billing_country,omitempty"`
 	CardType        string `json:"card_type,omitempty"`
 	Id              int    `json:"id,omitempty"`
-}
-
-type invoiceResp struct {
-	Invoices []billing.InvoiceData `json:"invoices,omitempty"`
-	Meta     struct {
-		StatusCode int `json:"status_code,omitempty"`
-		InvCount   int `json:"total_invoice_count,omitempty"`
-		CurPage    int `json:"current_page,omitempty"`
-	} `json:"meta,omitempty"`
 }
 
 // This is essentially billing.InvoiceData uncensored

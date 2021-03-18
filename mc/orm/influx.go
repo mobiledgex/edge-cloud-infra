@@ -709,7 +709,10 @@ func GetMetricsCommon(c echo.Context) error {
 				platformTypes[pfType] = struct{}{}
 			})
 			if err != nil {
-				return err
+				return setReply(c, err, nil)
+			}
+			if len(platformTypes) == 0 {
+				return setReply(c, nil, nil)
 			}
 		}
 		rc.region = in.Region
@@ -823,6 +826,9 @@ func checkPermissionsAndGetCloudletList(ctx context.Context, claims *UserClaims,
 				return []string{}, fmt.Errorf("Operators must specify a cloudlet in a cloudletPool")
 			}
 		}
+	}
+	if operOrgPermOk && !devOrgPermOk && len(cloudletList) == 0 {
+		return []string{}, fmt.Errorf("No non-empty CloudletPools to show")
 	}
 	return cloudletList, nil
 }

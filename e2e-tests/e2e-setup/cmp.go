@@ -244,10 +244,16 @@ func CompareYamlFiles(firstYamlFile string, secondYamlFile string, fileType stri
 			a2 = []MailDevEmail{}
 		}
 		sort.Slice(a1, func(i, j int) bool {
-			return a1[i].Headers.Subject < a1[j].Headers.Subject
+			if a1[i].Text == a1[j].Text {
+				return a1[i].Headers.Subject < a1[j].Headers.Subject
+			}
+			return a1[i].Text < a1[j].Text
 		})
 		sort.Slice(a2, func(i, j int) bool {
-			return a2[i].Headers.Subject < a2[j].Headers.Subject
+			if a2[i].Text == a2[j].Text {
+				return a2[i].Headers.Subject < a2[j].Headers.Subject
+			}
+			return a2[i].Text < a2[j].Text
 		})
 
 		y1 = a1
@@ -284,6 +290,30 @@ func CompareYamlFiles(firstYamlFile string, secondYamlFile string, fileType stri
 				return true
 			}
 			return a2[i].Attachments[0].Title < a2[j].Attachments[0].Title
+		})
+
+		y1 = a1
+		y2 = a2
+	} else if fileType == "pagerdutydata" {
+		// sort email headers
+		var a1 []TestPagerDutyEvent
+		var a2 []TestPagerDutyEvent
+
+		err1 = util.ReadYamlFile(firstYamlFile, &a1)
+		// If this is an empty file, treat it as an empty list
+		if a1 == nil {
+			a1 = []TestPagerDutyEvent{}
+		}
+		err2 = util.ReadYamlFile(secondYamlFile, &a2)
+		// If this is an empty file, treat it as an empty list
+		if a2 == nil {
+			a2 = []TestPagerDutyEvent{}
+		}
+		sort.Slice(a1, func(i, j int) bool {
+			return a1[i].Payload.Summary < a1[j].Payload.Summary
+		})
+		sort.Slice(a2, func(i, j int) bool {
+			return a2[i].Payload.Summary < a2[j].Payload.Summary
 		})
 
 		y1 = a1

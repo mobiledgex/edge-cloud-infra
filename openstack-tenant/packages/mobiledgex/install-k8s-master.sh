@@ -84,10 +84,12 @@ kubeadm token create --ttl 0 --print-join-command | tee /tmp/k8s-join-cmd.tmp
 cat /tmp/k8s-join-cmd.tmp
 mv /tmp/k8s-join-cmd.tmp /var/tmp/k8s-join/k8s-join-cmd
 chown ubuntu:ubuntu /var/tmp/k8s-join/k8s-join-cmd
-#cd /tmp
-#echo running simple http server at :8000
-#python -m SimpleHTTPServer 
-#should not get here
-#echo error returned from simple http server
-#consul kv put join-cmd "`cat /tmp/k8s-join-cmd`"
+
+# Start k8s-join service if not started already
+systemctl is-active --quiet k8s-join
+if [ $? -ne 0 ]; then
+  echo "start k8s-join service"
+  systemctl enable k8s-join
+  systemctl start k8s-join
+fi
 echo master ready

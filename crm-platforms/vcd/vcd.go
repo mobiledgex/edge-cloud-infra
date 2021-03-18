@@ -40,13 +40,17 @@ type VcdPlatform struct {
 }
 
 type VcdConfigParams struct {
-	User     string
-	Password string
-	Org      string
-	Href     string
-	VDC      string
-	Insecure bool
-	Token    string
+	User              string
+	Password          string
+	Org               string
+	Href              string
+	VDC               string
+	Insecure          bool
+	Token             string
+	OauthSgwUrl       string
+	OauthAccessUrl    string
+	OauthClientId     string
+	OauthClientSecret string
 }
 
 type VAppMap map[string]*govcd.VApp

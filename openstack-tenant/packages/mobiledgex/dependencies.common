@@ -8,6 +8,9 @@ helm                            =2.17.0
 iptables-persistent             >=1.0.4+nmu2ubuntu1
 ipvsadm                         >=1:1.28-3ubuntu0.18.04.1
 jq                              >=1.5+dfsg-2
+# NOTE: If changing kubernetes package versions, also fix
+#       the list of docker images to be cached in
+#       ../packer/docker-image-cache.txt
 kubeadm                         =1.16.3-00
 kubectl                         =1.16.3-00
 kubelet                         =1.16.3-00

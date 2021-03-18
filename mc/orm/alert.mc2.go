@@ -313,7 +313,7 @@ func addControllerApis(method string, group *echo.Group) {
 	//   404: notFound
 	group.Match([]string{method}, "/ctrl/DeleteResTagTable", DeleteResTagTable)
 	// swagger:route POST /auth/ctrl/UpdateResTagTable ResTagTable UpdateResTagTable
-	// .
+	// Update TagTable.
 	// The following values should be added to `ResTagTable.fields` field array to specify which fields will be updated.
 	// ```
 	// Key: 2
@@ -333,7 +333,7 @@ func addControllerApis(method string, group *echo.Group) {
 	//   404: notFound
 	group.Match([]string{method}, "/ctrl/UpdateResTagTable", UpdateResTagTable)
 	// swagger:route POST /auth/ctrl/ShowResTagTable ResTagTable ShowResTagTable
-	// show TagTable.
+	// Show TagTable.
 	// Security:
 	//   Bearer:
 	// responses:
@@ -343,7 +343,7 @@ func addControllerApis(method string, group *echo.Group) {
 	//   404: notFound
 	group.Match([]string{method}, "/ctrl/ShowResTagTable", ShowResTagTable)
 	// swagger:route POST /auth/ctrl/AddResTag ResTagTable AddResTag
-	// add new tag(s) to TagTable.
+	// Add new tag(s) to TagTable.
 	// Security:
 	//   Bearer:
 	// responses:
@@ -353,7 +353,7 @@ func addControllerApis(method string, group *echo.Group) {
 	//   404: notFound
 	group.Match([]string{method}, "/ctrl/AddResTag", AddResTag)
 	// swagger:route POST /auth/ctrl/RemoveResTag ResTagTable RemoveResTag
-	// remove existing tag(s) from TagTable.
+	// Remove existing tag(s) from TagTable.
 	// Security:
 	//   Bearer:
 	// responses:
@@ -462,7 +462,7 @@ func addControllerApis(method string, group *echo.Group) {
 	//   404: notFound
 	group.Match([]string{method}, "/ctrl/ShowApp", ShowApp)
 	// swagger:route POST /auth/ctrl/AddAppAutoProvPolicy AppAutoProvPolicy AddAppAutoProvPolicy
-	// .
+	// Add an AutoProvPolicy to the App.
 	// Security:
 	//   Bearer:
 	// responses:
@@ -472,7 +472,7 @@ func addControllerApis(method string, group *echo.Group) {
 	//   404: notFound
 	group.Match([]string{method}, "/ctrl/AddAppAutoProvPolicy", AddAppAutoProvPolicy)
 	// swagger:route POST /auth/ctrl/RemoveAppAutoProvPolicy AppAutoProvPolicy RemoveAppAutoProvPolicy
-	// .
+	// Remove an AutoProvPolicy from the App.
 	// Security:
 	//   Bearer:
 	// responses:
@@ -1428,7 +1428,7 @@ func addControllerApis(method string, group *echo.Group) {
 	//   404: notFound
 	group.Match([]string{method}, "/ctrl/ShowNode", ShowNode)
 	// swagger:route POST /auth/ctrl/EnableDebugLevels DebugRequest EnableDebugLevels
-	// .
+	// Enable debug log levels.
 	// Security:
 	//   Bearer:
 	// responses:
@@ -1438,7 +1438,7 @@ func addControllerApis(method string, group *echo.Group) {
 	//   404: notFound
 	group.Match([]string{method}, "/ctrl/EnableDebugLevels", EnableDebugLevels)
 	// swagger:route POST /auth/ctrl/DisableDebugLevels DebugRequest DisableDebugLevels
-	// .
+	// Disable debug log levels.
 	// Security:
 	//   Bearer:
 	// responses:
@@ -1448,7 +1448,7 @@ func addControllerApis(method string, group *echo.Group) {
 	//   404: notFound
 	group.Match([]string{method}, "/ctrl/DisableDebugLevels", DisableDebugLevels)
 	// swagger:route POST /auth/ctrl/ShowDebugLevels DebugRequest ShowDebugLevels
-	// .
+	// Show debug log levels.
 	// Security:
 	//   Bearer:
 	// responses:
@@ -1458,7 +1458,7 @@ func addControllerApis(method string, group *echo.Group) {
 	//   404: notFound
 	group.Match([]string{method}, "/ctrl/ShowDebugLevels", ShowDebugLevels)
 	// swagger:route POST /auth/ctrl/RunDebug DebugRequest RunDebug
-	// .
+	// Run debug command.
 	// Security:
 	//   Bearer:
 	// responses:
@@ -1468,7 +1468,7 @@ func addControllerApis(method string, group *echo.Group) {
 	//   404: notFound
 	group.Match([]string{method}, "/ctrl/RunDebug", RunDebug)
 	// swagger:route POST /auth/ctrl/InjectDevice Device InjectDevice
-	// .
+	// Inject a device.
 	// Security:
 	//   Bearer:
 	// responses:
@@ -1478,7 +1478,7 @@ func addControllerApis(method string, group *echo.Group) {
 	//   404: notFound
 	group.Match([]string{method}, "/ctrl/InjectDevice", InjectDevice)
 	// swagger:route POST /auth/ctrl/ShowDevice Device ShowDevice
-	// .
+	// Show devices.
 	// Security:
 	//   Bearer:
 	// responses:
@@ -1488,7 +1488,7 @@ func addControllerApis(method string, group *echo.Group) {
 	//   404: notFound
 	group.Match([]string{method}, "/ctrl/ShowDevice", ShowDevice)
 	// swagger:route POST /auth/ctrl/EvictDevice Device EvictDevice
-	// .
+	// Evict a device.
 	// Security:
 	//   Bearer:
 	// responses:

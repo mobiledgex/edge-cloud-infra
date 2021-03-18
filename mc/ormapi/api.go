@@ -40,7 +40,7 @@ type User struct {
 	Locked bool
 	// read only: true
 	PassCrackTimeSec float64
-	// read only: true
+	// Enable or disable temporary one-time passwords for the account
 	EnableTOTP bool
 	// read only: true
 	TOTPSharedKey string
@@ -163,12 +163,16 @@ type BillingOrganization struct {
 }
 
 type Controller struct {
-	Region     string    `gorm:"primary_key"`
-	Address    string    `gorm:"unique;not null"`
-	NotifyAddr string    `gorm:"type:text"`
-	InfluxDB   string    `gorm:"type:text"`
-	CreatedAt  time.Time `json:",omitempty"`
-	UpdatedAt  time.Time `json:",omitempty"`
+	// Controller region name
+	Region string `gorm:"primary_key"`
+	// Controller API address or URL
+	Address string `gorm:"unique;not null"`
+	// Controller notify address or URL
+	NotifyAddr string `gorm:"type:text"`
+	// InfluxDB address
+	InfluxDB  string    `gorm:"type:text"`
+	CreatedAt time.Time `json:",omitempty"`
+	UpdatedAt time.Time `json:",omitempty"`
 }
 
 type Config struct {
@@ -201,7 +205,7 @@ type OrgCloudletPool struct {
 	CloudletPool string `gorm:"not null"`
 	// Operator's Organization
 	CloudletPoolOrg string `gorm:"type:citext REFERENCES organizations(name)"`
-	// Type in an internal-only field which is either invitation or confirmation
+	// Type is an internal-only field which is either invitation or confirmation
 	Type string `json:",omitempty"`
 }
 
@@ -213,15 +217,21 @@ const (
 // Structs used for API calls
 
 type RolePerm struct {
-	Role     string `json:"role"`
+	// Role defines a collection of permissions, which are resource-action pairs
+	Role string `json:"role"`
+	// Resource defines a resource to act upon
 	Resource string `json:"resource"`
-	Action   string `json:"action"`
+	// Action defines what type of action can be performed on a resource
+	Action string `json:"action"`
 }
 
 type Role struct {
-	Org      string `form:"org" json:"org"`
+	// Organization name
+	Org string `form:"org" json:"org"`
+	// User name
 	Username string `form:"username" json:"username"`
-	Role     string `form:"role" json:"role"`
+	// Role which defines the set of permissions
+	Role string `form:"role" json:"role"`
 }
 
 type OrgCloudlet struct {

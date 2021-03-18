@@ -12,6 +12,7 @@ import (
 func GetMetricsCommand() *cobra.Command {
 	cmds := []*cli.Command{&cli.Command{
 		Use:          "app",
+		Short:        "View App metrics",
 		RequiredArgs: strings.Join(append([]string{"region"}, AppMetricRequiredArgs...), " "),
 		OptionalArgs: strings.Join(AppMetricOptionalArgs, " "),
 		AliasArgs:    strings.Join(AppMetricAliasArgs, " "),
@@ -21,6 +22,7 @@ func GetMetricsCommand() *cobra.Command {
 		Run:          runRest("/auth/metrics/app"),
 	}, &cli.Command{
 		Use:          "cluster",
+		Short:        "View ClusterInst metrics",
 		RequiredArgs: strings.Join(append([]string{"region"}, ClusterMetricRequiredArgs...), " "),
 		OptionalArgs: strings.Join(ClusterMetricOptionalArgs, " "),
 		AliasArgs:    strings.Join(ClusterMetricAliasArgs, " "),
@@ -30,6 +32,7 @@ func GetMetricsCommand() *cobra.Command {
 		Run:          runRest("/auth/metrics/cluster"),
 	}, &cli.Command{
 		Use:          "cloudlet",
+		Short:        "View Cloudlet metrics",
 		RequiredArgs: strings.Join(append([]string{"region"}, CloudletMetricRequiredArgs...), " "),
 		OptionalArgs: strings.Join(CloudletMetricOptionalArgs, " "),
 		AliasArgs:    strings.Join(CloudletMetricAliasArgs, " "),
@@ -39,6 +42,7 @@ func GetMetricsCommand() *cobra.Command {
 		Run:          runRest("/auth/metrics/cloudlet"),
 	}, &cli.Command{
 		Use:          "cloudletusage",
+		Short:        "View Cloudlet usage",
 		RequiredArgs: strings.Join(append([]string{"region"}, CloudletMetricRequiredArgs...), " "),
 		OptionalArgs: strings.Join(CloudletMetricOptionalArgs, " "),
 		AliasArgs:    strings.Join(CloudletMetricAliasArgs, " "),
@@ -48,6 +52,7 @@ func GetMetricsCommand() *cobra.Command {
 		Run:          runRest("/auth/metrics/cloudlet/usage"),
 	}, &cli.Command{
 		Use:          "client",
+		Short:        "View client metrics",
 		RequiredArgs: strings.Join(append([]string{"region"}, ClientMetricRequiredArgs...), " "),
 		OptionalArgs: strings.Join(ClientMetricOptionalArgs, " "),
 		AliasArgs:    strings.Join(ClientMetricAliasArgs, " "),
@@ -56,7 +61,7 @@ func GetMetricsCommand() *cobra.Command {
 		ReplyData:    &ormapi.AllMetrics{},
 		Run:          runRest("/auth/metrics/client"),
 	}}
-	return cli.GenGroup("metrics", "view metrics ", cmds)
+	return cli.GenGroup("metrics", "View metrics", cmds)
 }
 
 var AppMetricRequiredArgs = []string{

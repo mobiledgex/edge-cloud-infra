@@ -15,6 +15,8 @@ import (
 	ssh "github.com/mobiledgex/golang-ssh"
 )
 
+var k8sControlHostNodeType = "k8sbmcontrolhost"
+
 type K8sBareMetalPlatform struct {
 	commonPf           infracommon.CommonPlatform
 	caches             *platform.Caches
@@ -64,7 +66,7 @@ func (k *K8sBareMetalPlatform) Init(ctx context.Context, platformConfig *platfor
 		go k.commonPf.RefreshCloudletSSHKeys(platformConfig.AccessApi)
 	}
 
-	client, err := k.GetNodePlatformClient(ctx, &edgeproto.CloudletMgmtNode{Name: platformConfig.CloudletKey.String(), Type: "k8sbmcontrolhost"})
+	client, err := k.GetNodePlatformClient(ctx, &edgeproto.CloudletMgmtNode{Name: platformConfig.CloudletKey.String(), Type: k8sControlHostNodeType})
 	if err != nil {
 		return err
 	}
@@ -114,7 +116,7 @@ func (k *K8sBareMetalPlatform) GetClusterInfraResources(ctx context.Context, clu
 
 func (k *K8sBareMetalPlatform) GetClusterPlatformClient(ctx context.Context, clusterInst *edgeproto.ClusterInst, clientType string) (ssh.Client, error) {
 	log.SpanLog(ctx, log.DebugLevelInfra, "GetClusterPlatformClient")
-	return k.GetNodePlatformClient(ctx, &edgeproto.CloudletMgmtNode{Name: k.commonPf.PlatformConfig.CloudletKey.String(), Type: "k8sbmcontrolhost"})
+	return k.GetNodePlatformClient(ctx, &edgeproto.CloudletMgmtNode{Name: k.commonPf.PlatformConfig.CloudletKey.String(), Type: k8sControlHostNodeType})
 }
 
 func (k *K8sBareMetalPlatform) GetNodePlatformClient(ctx context.Context, node *edgeproto.CloudletMgmtNode, ops ...pc.SSHClientOp) (ssh.Client, error) {

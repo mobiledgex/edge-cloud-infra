@@ -193,11 +193,22 @@ type Config struct {
 }
 
 type OrgCloudletPool struct {
-	Org             string `gorm:"type:citext REFERENCES organizations(name)"`
-	Region          string `gorm:"type:text REFERENCES controllers(region)"`
-	CloudletPool    string `gorm:"not null"`
+	// Developer Organization
+	Org string `gorm:"type:citext REFERENCES organizations(name)"`
+	// Region
+	Region string `gorm:"type:text REFERENCES controllers(region)"`
+	// Operator's CloudletPool name
+	CloudletPool string `gorm:"not null"`
+	// Operator's Organization
 	CloudletPoolOrg string `gorm:"type:citext REFERENCES organizations(name)"`
+	// Type in an internal-only field which is either invitation or confirmation
+	Type string `json:",omitempty"`
 }
+
+const (
+	CloudletPoolAccessInvitation   = "invitation"
+	CloudletPoolAccessConfirmation = "confirmation"
+)
 
 // Structs used for API calls
 
@@ -334,13 +345,14 @@ type WSStreamPayload struct {
 // all data is for full create/delete
 
 type AllData struct {
-	Controllers      []Controller          `json:"controllers,omitempty"`
-	BillingOrgs      []BillingOrganization `json:"billingorgs,omitempty"`
-	AlertReceivers   []AlertReceiver       `json:"alertreceivers,omitempty"`
-	Orgs             []Organization        `json:"orgs,omitempty"`
-	Roles            []Role                `json:"roles,omitempty"`
-	OrgCloudletPools []OrgCloudletPool     `json:"orgcloudletpools,omitempty"`
-	RegionData       []RegionData          `json:"regiondata,omitempty"`
+	Controllers                     []Controller          `json:"controllers,omitempty"`
+	BillingOrgs                     []BillingOrganization `json:"billingorgs,omitempty"`
+	AlertReceivers                  []AlertReceiver       `json:"alertreceivers,omitempty"`
+	Orgs                            []Organization        `json:"orgs,omitempty"`
+	Roles                           []Role                `json:"roles,omitempty"`
+	CloudletPoolAccessInvitations   []OrgCloudletPool     `json:"cloudletpoolaccessinvitations,omitempty"`
+	CloudletPoolAccessConfirmations []OrgCloudletPool     `json:"cloudletpoolaccessconfirmations,omitempty"`
+	RegionData                      []RegionData          `json:"regiondata,omitempty"`
 }
 
 type RegionData struct {
@@ -382,15 +394,16 @@ type RegionClusterInstMetrics struct {
 }
 
 type RegionCloudletMetrics struct {
-	Region    string
-	Cloudlet  edgeproto.CloudletKey
-	Selector  string
-	StartTime time.Time `json:",omitempty"`
-	EndTime   time.Time `json:",omitempty"`
-	Last      int       `json:",omitempty"`
+	Region       string
+	Cloudlet     edgeproto.CloudletKey
+	Selector     string
+	PlatformType string
+	StartTime    time.Time `json:",omitempty"`
+	EndTime      time.Time `json:",omitempty"`
+	Last         int       `json:",omitempty"`
 }
 
-type RegionClientMetrics struct {
+type RegionClientApiUsageMetrics struct {
 	Region    string
 	AppInst   edgeproto.AppInstKey
 	Method    string `json:",omitempty"`
@@ -399,6 +412,38 @@ type RegionClientMetrics struct {
 	StartTime time.Time `json:",omitempty"`
 	EndTime   time.Time `json:",omitempty"`
 	Last      int       `json:",omitempty"`
+}
+
+type RegionClientAppUsageMetrics struct {
+	Region          string
+	AppInst         edgeproto.AppInstKey
+	Selector        string
+	RawData         bool      `json:",omitempty"`
+	DeviceCarrier   string    `json:",omitempty"`
+	DataNetworkType string    `json:",omitempty"`
+	DeviceModel     string    `json:",omitempty"`
+	DeviceOs        string    `json:",omitempty"`
+	SignalStrength  string    `json:",omitempty"`
+	LocationTile    string    `json:",omitempty"`
+	StartTime       time.Time `json:",omitempty"`
+	EndTime         time.Time `json:",omitempty"`
+	Last            int       `json:",omitempty"`
+}
+
+type RegionClientCloudletUsageMetrics struct {
+	Region          string
+	Cloudlet        edgeproto.CloudletKey
+	Selector        string
+	RawData         bool      `json:",omitempty"`
+	DeviceCarrier   string    `json:",omitempty"`
+	DataNetworkType string    `json:",omitempty"`
+	DeviceModel     string    `json:",omitempty"`
+	DeviceOs        string    `json:",omitempty"`
+	SignalStrength  string    `json:",omitempty"`
+	LocationTile    string    `json:",omitempty"`
+	StartTime       time.Time `json:",omitempty"`
+	EndTime         time.Time `json:",omitempty"`
+	Last            int       `json:",omitempty"`
 }
 
 type RegionAppInstEvents struct {

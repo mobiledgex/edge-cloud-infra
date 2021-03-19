@@ -26,11 +26,8 @@ func (e *EdgeboxPlatform) CreateAppInst(ctx context.Context, clusterInst *edgepr
 	}
 	// Should only add DNS for external ports
 	mappedAddr := e.commonPf.GetMappedExternalIP(externalIP)
-	// Set custom DNS hostname as we don't want to use up Cloudflare entries
-	// Cloudflare will resolve '*.edgebox.mobiledgex.net' to a delegated DNS zone which will
-	// perform mapping to IP address. IP address will be derived from hostname as it will be encoded
-	// For example: 'local-10.10.10.1.edgebox.mobiledgex.net' will resolve to '10.10.10.1'
-	appInst.Uri = cloudcommon.GetIPBasedDNSMap(mappedAddr, "edgebox", e.commonPf.GetCloudletDNSZone())
+	// Use IP address as AppInst URI, so that we can avoid using Cloudflare for Edgebox
+	appInst.Uri = mappedAddr
 
 	names, err := k8smgmt.GetKubeNames(clusterInst, app, appInst)
 	if err != nil {

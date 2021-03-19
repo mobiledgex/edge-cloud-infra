@@ -33,6 +33,7 @@ func (e *EdgeboxPlatform) CreateAppInst(ctx context.Context, clusterInst *edgepr
 	if err != nil {
 		return err
 	}
+	names.IsUriIPAddr = true
 	// Setup secrets only for K8s app. For docker, we already do it as part of edgebox script
 	if app.Deployment != cloudcommon.DeploymentTypeDocker {
 		for _, imagePath := range names.ImagePaths {

@@ -34,11 +34,13 @@ func (bs *BillingService) GetInvoice(ctx context.Context, account *billing.Accou
 	if endDate != "" {
 		params.Add("end_date", endDate)
 	}
+	noPayments := false
 	switch account.Type {
 	case billing.CUSTOMER_TYPE_PARENT:
 		params.Add("subscription_group_uid", account.SubscriptionId)
 	case billing.CUSTOMER_TYPE_CHILD:
-		fallthrough // do we actually want children to be able to view their own invoices? or only the parents can view invoices?
+		noPayments = true // dont show parent payment data to children
+		fallthrough
 	case billing.CUSTOMER_TYPE_SELF:
 		params.Add("subscription_id", account.SubscriptionId)
 	default:
@@ -67,6 +69,11 @@ func (bs *BillingService) GetInvoice(ctx context.Context, account *billing.Accou
 	err = json.NewDecoder(resp.Body).Decode(&invoice)
 	if err != nil {
 		return nil, fmt.Errorf("error parsing response: %v\n", err)
+	}
+	if noPayments {
+		for _, inv := range invoice.Invoices {
+			inv.Payments = nil
+		}
 	}
 	return invoice.Invoices, nil
 }

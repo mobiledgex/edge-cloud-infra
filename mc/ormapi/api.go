@@ -132,7 +132,7 @@ type BillingOrganization struct {
 	Name string `gorm:"primary_key;type:citext"`
 	// Organization type: "parent" or "self"
 	Type string `gorm:"not null"`
-	// Billing Info First Name
+	// Billing info first name
 	FirstName string `json:",omitempty"`
 	// Billing info last name
 	LastName string `json:",omitempty"`
@@ -144,11 +144,11 @@ type BillingOrganization struct {
 	Address2 string `json:",omitempty"`
 	// Organization city
 	City string `json:",omitempty"`
-	// Organization Country
+	// Organization country
 	Country string `json:",omitempty"`
-	// Organization State
+	// Organization state
 	State string `json:",omitempty"`
-	// Organization Postal code
+	// Organization postal code
 	PostalCode string `json:",omitempty"`
 	// Organization phone number
 	Phone string `json:",omitempty"`

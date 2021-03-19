@@ -30,6 +30,11 @@
 	    "destination": "/tmp/pkg-cleanup.txt"
 	},
 	{
+	    "type": "file",
+	    "source": "docker-image-cache.txt",
+	    "destination": "/tmp/docker-image-cache.txt"
+	},
+	{
 	    "type": "shell",
 	    "script": "setup.sh",
 	    "environment_vars": [

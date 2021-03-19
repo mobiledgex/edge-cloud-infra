@@ -180,7 +180,7 @@ func (v *VMPlatform) CreateAppInst(ctx context.Context, clusterInst *edgeproto.C
 		updateCallback(edgeproto.UpdateTask, "Setting up registry secret")
 		kconf := k8smgmt.GetKconfName(clusterInst)
 		for _, imagePath := range names.ImagePaths {
-			err = infracommon.CreateDockerRegistrySecret(ctx, client, kconf, imagePath, v.VMProperties.CommonPf.PlatformConfig.AccessApi, names)
+			err = infracommon.CreateDockerRegistrySecret(ctx, client, kconf, imagePath, v.VMProperties.CommonPf.PlatformConfig.AccessApi, names, nil)
 			if err != nil {
 				return err
 			}
@@ -704,7 +704,7 @@ func (v *VMPlatform) UpdateAppInst(ctx context.Context, clusterInst *edgeproto.C
 			if err != nil {
 				return err
 			}
-			err = infracommon.CreateDockerRegistrySecret(ctx, client, kconf, imagePath, v.VMProperties.CommonPf.PlatformConfig.AccessApi, names)
+			err = infracommon.CreateDockerRegistrySecret(ctx, client, kconf, imagePath, v.VMProperties.CommonPf.PlatformConfig.AccessApi, names, nil)
 			if err != nil {
 				return err
 			}

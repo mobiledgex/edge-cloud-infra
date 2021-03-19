@@ -3,6 +3,7 @@ package edgebox
 import (
 	"context"
 	"fmt"
+	"strings"
 
 	"github.com/mobiledgex/edge-cloud-infra/infracommon"
 	"github.com/mobiledgex/edge-cloud-infra/vmlayer"
@@ -33,6 +34,11 @@ var edgeboxProps = map[string]*edgeproto.PropertyInfo{
 		Description: vmlayer.GetSupportedSchemesStr(),
 		Value:       cloudcommon.NetworkSchemePrivateIP,
 	},
+	"MEX_EDGEBOX_DOCKER_CREDS": &edgeproto.PropertyInfo{
+		Name:        "EdgeBox Docker Credentials",
+		Description: "Format: '<username>:<password>'",
+		Mandatory:   true,
+	},
 }
 
 func (e *EdgeboxPlatform) Init(ctx context.Context, platformConfig *platform.PlatformConfig, caches *platform.Caches, updateCallback edgeproto.CacheUpdateCallback) error {
@@ -62,6 +68,15 @@ func (e *EdgeboxPlatform) Init(ctx context.Context, platformConfig *platform.Pla
 func (e *EdgeboxPlatform) GetEdgeboxNetworkScheme() string {
 	val, _ := e.commonPf.Properties.GetValue("MEX_EDGEBOX_NETWORK_SCHEME")
 	return val
+}
+
+func (e *EdgeboxPlatform) GetEdgeboxDockerCreds() (string, string) {
+	val, _ := e.commonPf.Properties.GetValue("MEX_EDGEBOX_DOCKER_CREDS")
+	creds := strings.Split(val, ":")
+	if len(creds) == 2 {
+		return creds[0], creds[1]
+	}
+	return "", ""
 }
 
 func (e *EdgeboxPlatform) GatherCloudletInfo(ctx context.Context, info *edgeproto.CloudletInfo) error {

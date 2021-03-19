@@ -39,6 +39,7 @@ type ContainerStats struct {
 	Memory    ContainerMem
 	Cpu       string
 	IO        ContainerIO
+	coreCount uint64
 }
 
 type DockerStats struct {
@@ -121,14 +122,18 @@ func (c *DockerClusterStats) GetContainerStats(ctx context.Context) (*DockerStat
 			cData, found = containers[cID]
 
 			if found {
+				flavor := edgeproto.Flavor{}
+				if FlavorCache.Get(&obj.Flavor, &flavor) {
+					cData.coreCount = flavor.Vcpus
+				}
 				cData.App = util.DNSSanitize(obj.Key.AppKey.Name)
 				cData.Version = util.DNSSanitize(obj.Key.AppKey.Version)
 				dockerResp.Containers = append(dockerResp.Containers, *cData)
-
 			}
 		}
 	})
 	// Keep track of those containers not associated with any App, just in case
+	// Also avg out the cpu based on how many cores, since docker stats just returns a sum %
 	for _, container := range containers {
 		if container.App == "" {
 			// container and app are the same here
@@ -322,7 +327,6 @@ func (c *DockerClusterStats) collectDockerAppMetrics(ctx context.Context, p *Doc
 		appKey.App = containerStats.App
 		appKey.Version = containerStats.Version
 		stat, found := appStatsMap[appKey]
-		stat.Containers += 1
 		if !found {
 			stat = &shepherd_common.AppMetrics{}
 			appStatsMap[appKey] = stat
@@ -332,12 +336,15 @@ func (c *DockerClusterStats) collectDockerAppMetrics(ctx context.Context, p *Doc
 		stat.CpuTS, stat.MemTS, stat.DiskTS, stat.NetSentTS, stat.NetRecvTS = ts, ts, ts, ts, ts
 		// cpu is in the form "0.00%" - remove the % at the end and cast to float
 		cpu, err := parsePercentStr(containerStats.Cpu)
+		if containerStats.coreCount > 0 {
+			cpu = cpu / float64(containerStats.coreCount)
+		}
 		if err != nil {
 			log.SpanLog(ctx, log.DebugLevelMetrics, "Failed to parse CPU usage", "App", appKey, "stats", containerStats, "err", err)
 		}
 		// TODO EDGECLOUD-1316 - add stats for all containers together
 		// since cpu is a percentage it needs to be averaged
-		stat.Cpu = ((stat.Cpu * (stat.Containers - 1)) + cpu) / stat.Containers
+		stat.Cpu += cpu
 
 		memData, err := parseComputeUnitsDelim(ctx, containerStats.Memory.Raw)
 		if err != nil {

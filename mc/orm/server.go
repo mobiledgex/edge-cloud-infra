@@ -486,9 +486,13 @@ func RunServer(config *ServerConfig) (retserver *Server, reterr error) {
 	auth.POST("/audit/showself", ShowAuditSelf)
 	auth.POST("/audit/showorg", ShowAuditOrg)
 	auth.POST("/audit/operations", GetAuditOperations)
-	auth.POST("/orgcloudletpool/create", CreateOrgCloudletPool)
-	auth.POST("/orgcloudletpool/delete", DeleteOrgCloudletPool)
-	auth.POST("/orgcloudletpool/show", ShowOrgCloudletPool)
+	auth.POST("/cloudletpoolaccessinvitation/create", CreateCloudletPoolAccessInvitation)
+	auth.POST("/cloudletpoolaccessinvitation/delete", DeleteCloudletPoolAccessInvitation)
+	auth.POST("/cloudletpoolaccessinvitation/show", ShowCloudletPoolAccessInvitation)
+	auth.POST("/cloudletpoolaccessconfirmation/create", CreateCloudletPoolAccessConfirmation)
+	auth.POST("/cloudletpoolaccessconfirmation/delete", DeleteCloudletPoolAccessConfirmation)
+	auth.POST("/cloudletpoolaccessconfirmation/show", ShowCloudletPoolAccessConfirmation)
+	auth.POST("/cloudletpoolaccessgranted/show", ShowCloudletPoolAccessGranted)
 	auth.POST("/orgcloudlet/show", ShowOrgCloudlet)
 	auth.POST("/orgcloudletinfo/show", ShowOrgCloudletInfo)
 
@@ -545,9 +549,9 @@ func RunServer(config *ServerConfig) (retserver *Server, reterr error) {
 	//   404: notFound
 	auth.POST("/metrics/cloudlet/usage", GetMetricsCommon)
 
-	// swagger:route POST /auth/metrics/client DeveloperMetrics ClientMetrics
-	// Client related metrics.
-	// Display client related metrics.
+	// swagger:route POST /auth/metrics/clientapiusage DeveloperMetrics ClientApiUsageMetrics
+	// Client api usage related metrics.
+	// Display client api usage related metrics.
 	// Security:
 	//   Bearer:
 	// responses:
@@ -555,7 +559,31 @@ func RunServer(config *ServerConfig) (retserver *Server, reterr error) {
 	//   400: badRequest
 	//   403: forbidden
 	//   404: notFound
-	auth.POST("/metrics/client", GetMetricsCommon)
+	auth.POST("/metrics/clientapiusage", GetMetricsCommon)
+
+	// swagger:route POST /auth/metrics/clientappusage DeveloperMetrics ClientAppUsageMetrics
+	// Client app usage related metrics.
+	// Display client app usage related metrics.
+	// Security:
+	//   Bearer:
+	// responses:
+	//   200: success
+	//   400: badRequest
+	//   403: forbidden
+	//   404: notFound
+	auth.POST("/metrics/clientappusage", GetMetricsCommon)
+
+	// swagger:route POST /auth/metrics/clientcloudletusage DeveloperMetrics ClientCloudletUsageMetrics
+	// Client cloudlet usage related metrics.
+	// Display client cloudlet usage related metrics.
+	// Security:
+	//   Bearer:
+	// responses:
+	//   200: success
+	//   400: badRequest
+	//   403: forbidden
+	//   404: notFound
+	auth.POST("/metrics/clientcloudletusage", GetMetricsCommon)
 
 	auth.POST("/events/app", GetEventsCommon)
 	auth.POST("/events/cluster", GetEventsCommon)
@@ -679,7 +707,9 @@ func RunServer(config *ServerConfig) (retserver *Server, reterr error) {
 	ws.GET("/metrics/cluster", GetMetricsCommon)
 	ws.GET("/metrics/cloudlet", GetMetricsCommon)
 	ws.GET("/metrics/cloudlet/usage", GetMetricsCommon)
-	ws.GET("/metrics/client", GetMetricsCommon)
+	ws.GET("/metrics/clientapiusage", GetMetricsCommon)
+	ws.GET("/metrics/clientappusage", GetMetricsCommon)
+	ws.GET("/metrics/clientcloudletusage", GetMetricsCommon)
 
 	if config.NotifySrvAddr != "" {
 		server.notifyServer = &notify.ServerMgr{}

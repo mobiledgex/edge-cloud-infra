@@ -104,7 +104,7 @@ func TestController(t *testing.T) {
 	mcClient := &ormclient.Client{}
 
 	// login as super user
-	token, err := mcClient.DoLogin(uri, DefaultSuperuser, DefaultSuperpass, NoOTP, NoApiKeyId, NoApiKey)
+	token, _, err := mcClient.DoLogin(uri, DefaultSuperuser, DefaultSuperpass, NoOTP, NoApiKeyId, NoApiKey)
 	require.Nil(t, err, "login as superuser")
 
 	// test controller api
@@ -385,11 +385,25 @@ func TestController(t *testing.T) {
 		// developers can't create AppInsts on other developemar's ClusterInsts
 		appinst := edgeproto.AppInst{}
 		appinst.Key.AppKey.Organization = org1
-		appinst.Key.ClusterInstKey.Organization = cloudcommon.OrganizationMobiledgeX
+		appinst.Key.ClusterInstKey.Organization = org2
 		_, status, err := ormtestutil.TestCreateAppInst(mcClient, uri, tokenDev, ctrl.Region, &appinst)
 		require.NotNil(t, err)
-		require.Contains(t, err.Error(), "AppInst organization must match ClusterInst organization")
-		// but admin can
+		require.Contains(t, err.Error(), "Forbidden")
+		// developers can create against MobiledgeX ClusterInsts
+		// (reservable or multitenant).
+		appinst.Key.AppKey.Organization = org1
+		appinst.Key.ClusterInstKey.Organization = cloudcommon.OrganizationMobiledgeX
+		_, status, err = ormtestutil.TestCreateAppInst(mcClient, uri, tokenDev, ctrl.Region, &appinst)
+		require.Nil(t, err)
+		require.Equal(t, http.StatusOK, status)
+		_, status, err = ormtestutil.TestDeleteAppInst(mcClient, uri, tokenDev, ctrl.Region, &appinst)
+		require.Nil(t, err)
+		require.Equal(t, http.StatusOK, status)
+		// Only admin can create MobiledgeX sidecar apps, since other
+		// developers won't have App rbac perms for org MobiledgeX.
+		testCreateOrg(t, mcClient, uri, tokenAd, OrgTypeDeveloper, cloudcommon.OrganizationMobiledgeX)
+		appinst.Key.AppKey.Organization = cloudcommon.OrganizationMobiledgeX
+		appinst.Key.ClusterInstKey.Organization = org2
 		_, status, err = ormtestutil.TestCreateAppInst(mcClient, uri, tokenAd, ctrl.Region, &appinst)
 		require.Nil(t, err)
 		require.Equal(t, http.StatusOK, status)
@@ -440,14 +454,25 @@ func TestController(t *testing.T) {
 	require.NotNil(t, err)
 	require.Equal(t, http.StatusForbidden, status)
 
-	// associate cloudletpool with org, allows org1 to see cloudlets in pool
+	// invite developer org1 to see cloudlets in pool
 	op1 := ormapi.OrgCloudletPool{
 		Org:             org1,
 		Region:          ctrl.Region,
 		CloudletPool:    pool.CloudletPool.Key.Name,
 		CloudletPoolOrg: pool.CloudletPool.Key.Organization, // org3
 	}
-	status, err = mcClient.CreateOrgCloudletPool(uri, tokenOper, &op1)
+	status, err = mcClient.CreateCloudletPoolAccessInvitation(uri, tokenOper, &op1)
+	require.Nil(t, err)
+	require.Equal(t, http.StatusOK, status)
+	// create another invitation (this tests that developer can't see invitations
+	// unrelated to their org
+	op2 := ormapi.OrgCloudletPool{
+		Org:             org2,
+		Region:          ctrl.Region,
+		CloudletPool:    pool.CloudletPool.Key.Name,
+		CloudletPoolOrg: pool.CloudletPool.Key.Organization, // org3
+	}
+	status, err = mcClient.CreateCloudletPoolAccessInvitation(uri, tokenOper, &op2)
 	require.Nil(t, err)
 	require.Equal(t, http.StatusOK, status)
 
@@ -479,6 +504,29 @@ func TestController(t *testing.T) {
 		in.CloudletKey = *tc3
 	}
 
+	// tc3 should not be visible yet, because developer has not confirmed invitation
+	testShowOrgCloudlet(t, mcClient, uri, tokenDev, OrgTypeDeveloper, ctrl.Region, org1, count, "")
+	testShowCloudletPoolAccessGranted(t, mcClient, uri, tokenOper)
+	testShowCloudletPoolAccessGranted(t, mcClient, uri, tokenDev)
+	// operator can see both invitations
+	testShowCloudletPoolAccessInvitation(t, mcClient, uri, tokenOper, op1, op2)
+	// developers can only see invitations related to them
+	testShowCloudletPoolAccessInvitation(t, mcClient, uri, tokenDev, op1)
+	testShowCloudletPoolAccessInvitation(t, mcClient, uri, tokenDev2, op2)
+
+	// developer confirms invitation
+	status, err = mcClient.CreateCloudletPoolAccessConfirmation(uri, tokenDev, &op1)
+	require.Nil(t, err)
+	require.Equal(t, http.StatusOK, status)
+	// developer2 cannot confirm invitation for dev1
+	status, err = mcClient.CreateCloudletPoolAccessConfirmation(uri, tokenDev2, &op1)
+	require.NotNil(t, err)
+	require.Equal(t, http.StatusForbidden, status)
+
+	// check that show reports access granted
+	testShowCloudletPoolAccessGranted(t, mcClient, uri, tokenOper, op1)
+	testShowCloudletPoolAccessGranted(t, mcClient, uri, tokenDev, op1)
+
 	// tc3 should now be visible along with all other cloudlets
 	testShowOrgCloudlet(t, mcClient, uri, tokenDev, OrgTypeDeveloper, ctrl.Region, org1, ccount, "")
 	// tc3 should not be visible by other orgs
@@ -505,6 +553,39 @@ func TestController(t *testing.T) {
 	goodPermTestShowCloudlet(t, mcClient, uri, tokenDev2, ctrl.Region, "", count)
 	goodPermTestShowCloudlet(t, mcClient, uri, tokenOper, ctrl.Region, "", ccount)
 	goodPermTestShowCloudlet(t, mcClient, uri, tokenOper2, ctrl.Region, "", count)
+
+	// developer2 confirms invitation
+	status, err = mcClient.CreateCloudletPoolAccessConfirmation(uri, tokenDev2, &op2)
+	require.Nil(t, err)
+	require.Equal(t, http.StatusOK, status)
+	// check that operator can see both granted, but developers only see their own
+	testShowCloudletPoolAccessGranted(t, mcClient, uri, tokenOper, op1, op2)
+	testShowCloudletPoolAccessGranted(t, mcClient, uri, tokenDev, op1)
+	testShowCloudletPoolAccessGranted(t, mcClient, uri, tokenDev2, op2)
+
+	// operator remove invitation should disallow usage
+	status, err = mcClient.DeleteCloudletPoolAccessInvitation(uri, tokenOper, &op1)
+	require.Nil(t, err)
+	require.Equal(t, http.StatusOK, status)
+	// check that tc3 is not visible
+	testShowOrgCloudlet(t, mcClient, uri, tokenDev, OrgTypeDeveloper, ctrl.Region, org1, count, "")
+	// developer can also remove confirmation
+	status, err = mcClient.DeleteCloudletPoolAccessConfirmation(uri, tokenDev, &op1)
+	require.Nil(t, err)
+	require.Equal(t, http.StatusOK, status)
+
+	status, err = mcClient.DeleteCloudletPoolAccessConfirmation(uri, tokenDev2, &op2)
+	require.Nil(t, err)
+	require.Equal(t, http.StatusOK, status)
+	// operator remove org2 invitation
+	status, err = mcClient.DeleteCloudletPoolAccessInvitation(uri, tokenOper, &op2)
+	require.Nil(t, err)
+	require.Equal(t, http.StatusOK, status)
+	// make sure everything is cleaned up
+	testShowCloudletPoolAccessInvitation(t, mcClient, uri, token)
+	testShowCloudletPoolAccessConfirmation(t, mcClient, uri, token)
+	testShowCloudletPoolAccessGranted(t, mcClient, uri, token)
+
 	// bug1741 - empty args to Delete CloudletPool when pools are present
 	// Should allow delete to continue to controller which always returns success
 	_, status, err = ormtestutil.TestDeleteCloudletPool(mcClient, uri, tokenAd, ctrl.Region, &edgeproto.CloudletPool{})
@@ -514,14 +595,12 @@ func TestController(t *testing.T) {
 	// test user api keys
 	testUserApiKeys(t, ctx, ds, &ctrl, count, mcClient, uri, token)
 
-	// delete org cloudlet pools
-	status, err = mcClient.DeleteOrgCloudletPool(uri, tokenOper, &op1)
-	require.Nil(t, err)
-	require.Equal(t, http.StatusOK, status)
 	// delete cloudlet pool
 	_, status, err = mcClient.DeleteCloudletPool(uri, tokenOper, &pool)
 	require.Nil(t, err)
 	require.Equal(t, http.StatusOK, status)
+
+	testOrgCloudletPoolUpgrade(t, ctx)
 
 	// delete controller
 	status, err = mcClient.DeleteController(uri, token, &ctrl)
@@ -636,7 +715,7 @@ func testCreateUser(t *testing.T, mcClient *ormclient.Client, uri, name string) 
 	// login
 	otp, err := totp.GenerateCode(resp.TOTPSharedKey, time.Now())
 	require.Nil(t, err, "generate otp", name)
-	token, err := mcClient.DoLogin(uri, user.Name, user.Passhash, otp, NoApiKeyId, NoApiKey)
+	token, _, err := mcClient.DoLogin(uri, user.Name, user.Passhash, otp, NoApiKeyId, NoApiKey)
 	require.Nil(t, err, "login as ", name)
 	return &user, token, user.Passhash
 }
@@ -766,6 +845,36 @@ func setClusterInstDev(dev string, insts []edgeproto.ClusterInst) {
 	}
 }
 
+func testShowCloudletPoolAccessInvitation(t *testing.T, mcClient *ormclient.Client, uri, token string, expected ...ormapi.OrgCloudletPool) {
+	if expected == nil {
+		expected = []ormapi.OrgCloudletPool{}
+	}
+	list, status, err := mcClient.ShowCloudletPoolAccessInvitation(uri, token, &ormapi.OrgCloudletPool{})
+	require.Nil(t, err, "show cloudlet pool access invitation")
+	require.Equal(t, http.StatusOK, status)
+	require.Equal(t, expected, list)
+}
+
+func testShowCloudletPoolAccessConfirmation(t *testing.T, mcClient *ormclient.Client, uri, token string, expected ...ormapi.OrgCloudletPool) {
+	if expected == nil {
+		expected = []ormapi.OrgCloudletPool{}
+	}
+	list, status, err := mcClient.ShowCloudletPoolAccessConfirmation(uri, token, &ormapi.OrgCloudletPool{})
+	require.Nil(t, err, "show cloudlet pool access confirmation")
+	require.Equal(t, http.StatusOK, status)
+	require.Equal(t, expected, list)
+}
+
+func testShowCloudletPoolAccessGranted(t *testing.T, mcClient *ormclient.Client, uri, token string, expected ...ormapi.OrgCloudletPool) {
+	if expected == nil {
+		expected = []ormapi.OrgCloudletPool{}
+	}
+	list, status, err := mcClient.ShowCloudletPoolAccessGranted(uri, token, &ormapi.OrgCloudletPool{})
+	require.Nil(t, err, "show cloudlet pool access granted")
+	require.Equal(t, http.StatusOK, status)
+	require.Equal(t, expected, list)
+}
+
 func testShowOrgCloudlet(t *testing.T, mcClient *ormclient.Client, uri, token, orgType, region, org string, showcount int, matchOrg string) {
 	oc := ormapi.OrgCloudlet{}
 	oc.Region = region
@@ -800,19 +909,6 @@ func testShowOrgCloudlet(t *testing.T, mcClient *ormclient.Client, uri, token, o
 			}
 		}
 	}
-}
-
-func badPermTestOrgCloudletPool(t *testing.T, mcClient *ormclient.Client, uri, token string, op *ormapi.OrgCloudletPool) {
-	status, err := mcClient.CreateOrgCloudletPool(uri, token, op)
-	require.NotNil(t, err)
-	require.Equal(t, http.StatusForbidden, status)
-	status, err = mcClient.DeleteOrgCloudletPool(uri, token, op)
-	require.NotNil(t, err)
-	require.Equal(t, http.StatusForbidden, status)
-	list, status, err := mcClient.ShowOrgCloudletPool(uri, token)
-	require.Nil(t, err)
-	require.Equal(t, http.StatusOK, status)
-	require.Equal(t, 0, len(list))
 }
 
 func badPermShowOrgCloudlet(t *testing.T, mcClient *ormclient.Client, uri, token, region, org string) {
@@ -925,7 +1021,7 @@ func (s *StreamDummyServer) ShowCloudletPool(in *edgeproto.CloudletPool, cb edge
 
 func testUserApiKeys(t *testing.T, ctx context.Context, ds *testutil.DummyServer, ctrl *ormapi.Controller, count int, mcClient *ormclient.Client, uri, token string) {
 	// login as super user
-	token, err := mcClient.DoLogin(uri, DefaultSuperuser, DefaultSuperpass, NoOTP, NoApiKeyId, NoApiKey)
+	token, _, err := mcClient.DoLogin(uri, DefaultSuperuser, DefaultSuperpass, NoOTP, NoApiKeyId, NoApiKey)
 	require.Nil(t, err, "login as superuser")
 
 	// create developer & operator orgs
@@ -1103,7 +1199,7 @@ func testUserApiKeys(t *testing.T, ctx context.Context, ds *testutil.DummyServer
 	require.Equal(t, len(apiKeys), 1, "match api key count")
 
 	// login using api key
-	apiKeyLoginToken, err := mcClient.DoLogin(uri, NoUserName, NoPassword, NoOTP, resp.Id, resp.ApiKey)
+	apiKeyLoginToken, _, err := mcClient.DoLogin(uri, NoUserName, NoPassword, NoOTP, resp.Id, resp.ApiKey)
 	require.Nil(t, err, "login using api key")
 
 	// user's login token should have shorter expiration time
@@ -1222,5 +1318,74 @@ func testUserApiKeys(t *testing.T, ctx context.Context, ds *testutil.DummyServer
 		status, err = mcClient.DeleteUserApiKey(uri, token1, &apiKeyObj)
 		require.Nil(t, err, "delete user api key")
 		require.Equal(t, http.StatusOK, status)
+	}
+}
+
+func testOrgCloudletPoolUpgrade(t *testing.T, ctx context.Context) {
+	// Test upgrading from single OrgCloudletPool with no type to
+	// dual OrgCloudletPool, one with type invitation, the other with
+	// type confirmation, which together grant access like the old
+	// single OrgCloudletPool did.
+	addNew := addNewTestOrgCloudletPool
+
+	data := []ormapi.OrgCloudletPool{}
+	dataLen := 4
+	for ii := 0; ii < dataLen; ii++ {
+		addNew(&data, ii, "")
+	}
+	// insert into db old format OrgCloudletPool with blank type
+	db := loggedDB(ctx)
+	for _, d := range data {
+		org := ormapi.Organization{}
+		// create dev org (must exist)
+		org.Name = d.Org
+		err := db.Create(&org).Error
+		require.Nil(t, err)
+		// create oper org (must exist)
+		org.Name = d.CloudletPoolOrg
+		err = db.Create(&org).Error
+		require.Nil(t, err)
+		// create old orgcloudletpool with empty type
+		err = db.Create(&d).Error
+		require.Nil(t, err)
+	}
+	// check data
+	check := []ormapi.OrgCloudletPool{}
+	err := db.Find(&check).Error
+	require.Nil(t, err)
+	require.Equal(t, data, check)
+	// run upgrade function
+	err = upgradeOrgCloudletPoolType(ctx)
+	require.Nil(t, err)
+	// expected data
+	expected := []ormapi.OrgCloudletPool{}
+	for ii := 0; ii < dataLen; ii++ {
+		addNew(&expected, ii, ormapi.CloudletPoolAccessConfirmation)
+		addNew(&expected, ii, ormapi.CloudletPoolAccessInvitation)
+	}
+	// check upgraded data
+	check = []ormapi.OrgCloudletPool{}
+	err = db.Find(&check).Error
+	require.Nil(t, err)
+	require.ElementsMatch(t, expected, check)
+	// clean up
+	for _, d := range data {
+		// delete orgcloudletpools
+		p := d
+		p.Type = ormapi.CloudletPoolAccessInvitation
+		err = db.Delete(&p).Error
+		require.Nil(t, err)
+		p.Type = ormapi.CloudletPoolAccessConfirmation
+		err = db.Delete(&p).Error
+		require.Nil(t, err)
+		// delete dev org
+		org := ormapi.Organization{}
+		org.Name = d.Org
+		err := db.Delete(&org).Error
+		require.Nil(t, err)
+		// delete oper org
+		org.Name = d.CloudletPoolOrg
+		err = db.Delete(&org).Error
+		require.Nil(t, err)
 	}
 }

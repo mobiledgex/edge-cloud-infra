@@ -4,7 +4,6 @@ import (
 	"context"
 	fmt "fmt"
 	"net/http"
-	"strings"
 
 	"github.com/labstack/echo"
 	"github.com/mobiledgex/edge-cloud-infra/mc/ormapi"
@@ -85,6 +84,8 @@ func (s *AuthzCloudlet) populate(ctx context.Context, region, username, orgfilte
 	if err != nil {
 		return err
 	}
+	ops = getAccessGranted(ops)
+
 	mypools := make(map[edgeproto.CloudletPoolKey]struct{})
 	for _, op := range ops {
 		if _, found := orgs[op.Org]; !found {
@@ -208,17 +209,17 @@ func authzCreateAppInst(ctx context.Context, region, username string, obj *edgep
 	if authzOk, _ := authzCloudlet.Ok(&cloudlet); !authzOk {
 		return echo.ErrForbidden
 	}
-	// Developers can't create AppInsts on other developer's ClusterInsts,
-	// except for autoclusters where ClusterInst org is MobiledgeX.
-	autocluster := false
-	if strings.HasPrefix(obj.Key.ClusterInstKey.ClusterKey.Name, cloudcommon.AutoClusterPrefix) {
-		if obj.Key.ClusterInstKey.Organization != cloudcommon.OrganizationMobiledgeX {
-			return echo.NewHTTPError(http.StatusBadRequest, fmt.Errorf("Autocluster AppInst's ClusterInst organization must be %s", cloudcommon.OrganizationMobiledgeX))
+	// The autocluster organization checks are now dependent on the CRM version,
+	// so these checks are left to the Controller. The MC is only
+	// concerned about RBAC permissions, so only ensures that different
+	// organizations are not encroaching on each other.
+	if obj.Key.AppKey.Organization != obj.Key.ClusterInstKey.Organization && obj.Key.ClusterInstKey.Organization != "" {
+		// Sidecar apps may have MobiledgeX organization, or
+		// target ClusterInst may be MobiledgeX reservable/multitenant.
+		// So one of the orgs must be MobiledgeX to pass RBAC.
+		if obj.Key.AppKey.Organization != cloudcommon.OrganizationMobiledgeX && obj.Key.ClusterInstKey.Organization != cloudcommon.OrganizationMobiledgeX {
+			return echo.ErrForbidden
 		}
-		autocluster = true
-	}
-	if !authzCloudlet.admin && !autocluster && obj.Key.ClusterInstKey.Organization != "" && obj.Key.ClusterInstKey.Organization != obj.Key.AppKey.Organization {
-		return echo.NewHTTPError(http.StatusBadRequest, fmt.Errorf("AppInst organization must match ClusterInst organization"))
 	}
 	return nil
 }

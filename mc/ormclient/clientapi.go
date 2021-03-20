@@ -8,7 +8,7 @@ import (
 )
 
 type Api interface {
-	DoLogin(uri, user, pass, otp, apikeyid, apikey string) (string, error)
+	DoLogin(uri, user, pass, otp, apikeyid, apikey string) (string, bool, error)
 
 	CreateUser(uri string, user *ormapi.User) (*ormapi.UserResponse, int, error)
 	DeleteUser(uri, token string, user *ormapi.User) (int, error)
@@ -45,7 +45,9 @@ type Api interface {
 	ShowAppMetrics(uri, token string, query *ormapi.RegionAppInstMetrics) (*ormapi.AllMetrics, int, error)
 	ShowClusterMetrics(uri, token string, query *ormapi.RegionClusterInstMetrics) (*ormapi.AllMetrics, int, error)
 	ShowCloudletMetrics(uri, token string, query *ormapi.RegionCloudletMetrics) (*ormapi.AllMetrics, int, error)
-	ShowClientMetrics(uri, token string, query *ormapi.RegionClientMetrics) (*ormapi.AllMetrics, int, error)
+	ShowClientApiUsageMetrics(uri, token string, query *ormapi.RegionClientApiUsageMetrics) (*ormapi.AllMetrics, int, error)
+	ShowClientAppUsageMetrics(uri, token string, query *ormapi.RegionClientAppUsageMetrics) (*ormapi.AllMetrics, int, error)
+	ShowClientCloudletUsageMetrics(uri, token string, query *ormapi.RegionClientCloudletUsageMetrics) (*ormapi.AllMetrics, int, error)
 
 	ShowAppEvents(uri, token string, query *ormapi.RegionAppInstEvents) (*ormapi.AllMetrics, int, error)
 	ShowClusterEvents(uri, token string, query *ormapi.RegionClusterInstEvents) (*ormapi.AllMetrics, int, error)
@@ -68,9 +70,14 @@ type Api interface {
 	ShowConfig(uri, token string) (*ormapi.Config, int, error)
 	PublicConfig(uri string) (*ormapi.Config, int, error)
 
-	CreateOrgCloudletPool(uri, token string, op *ormapi.OrgCloudletPool) (int, error)
-	DeleteOrgCloudletPool(uri, token string, op *ormapi.OrgCloudletPool) (int, error)
-	ShowOrgCloudletPool(uri, token string) ([]ormapi.OrgCloudletPool, int, error)
+	CreateCloudletPoolAccessInvitation(uri, token string, op *ormapi.OrgCloudletPool) (int, error)
+	DeleteCloudletPoolAccessInvitation(uri, token string, op *ormapi.OrgCloudletPool) (int, error)
+	ShowCloudletPoolAccessInvitation(uri, token string, filter *ormapi.OrgCloudletPool) ([]ormapi.OrgCloudletPool, int, error)
+	CreateCloudletPoolAccessConfirmation(uri, token string, op *ormapi.OrgCloudletPool) (int, error)
+	DeleteCloudletPoolAccessConfirmation(uri, token string, op *ormapi.OrgCloudletPool) (int, error)
+	ShowCloudletPoolAccessConfirmation(uri, token string, filter *ormapi.OrgCloudletPool) ([]ormapi.OrgCloudletPool, int, error)
+	ShowCloudletPoolAccessGranted(uri, token string, filter *ormapi.OrgCloudletPool) ([]ormapi.OrgCloudletPool, int, error)
+
 	ShowOrgCloudlet(uri, token string, in *ormapi.OrgCloudlet) ([]edgeproto.Cloudlet, int, error)
 	ShowOrgCloudletInfo(uri, token string, in *ormapi.OrgCloudlet) ([]edgeproto.CloudletInfo, int, error)
 

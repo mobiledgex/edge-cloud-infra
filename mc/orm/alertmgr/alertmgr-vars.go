@@ -67,7 +67,7 @@ var (
 	alertmanagerConfigPagerDutyDescription = `{{ template "common.title" . }}`
 	alertmanagerConfigPagerDutyDetails     = map[string]string{
 		"alerts": alertmanagerConfigPagerDutyAllAlertsDetails,
-		// Need to reset default values, otherwise the notification looks odd
+		// Need to reset default values, otherwise they get included in the notification
 		"firing":       "",
 		"resolved":     "",
 		"num_firing":   "",

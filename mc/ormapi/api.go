@@ -40,7 +40,7 @@ type User struct {
 	Locked bool
 	// read only: true
 	PassCrackTimeSec float64
-	// read only: true
+	// Enable or disable temporary one-time passwords for the account
 	EnableTOTP bool
 	// read only: true
 	TOTPSharedKey string
@@ -132,7 +132,7 @@ type BillingOrganization struct {
 	Name string `gorm:"primary_key;type:citext"`
 	// Organization type: "parent" or "self"
 	Type string `gorm:"not null"`
-	// Billing Info First Name
+	// Billing info first name
 	FirstName string `json:",omitempty"`
 	// Billing info last name
 	LastName string `json:",omitempty"`
@@ -144,11 +144,11 @@ type BillingOrganization struct {
 	Address2 string `json:",omitempty"`
 	// Organization city
 	City string `json:",omitempty"`
-	// Organization Country
+	// Organization country
 	Country string `json:",omitempty"`
-	// Organization State
+	// Organization state
 	State string `json:",omitempty"`
-	// Organization Postal code
+	// Organization postal code
 	PostalCode string `json:",omitempty"`
 	// Organization phone number
 	Phone string `json:",omitempty"`
@@ -163,12 +163,16 @@ type BillingOrganization struct {
 }
 
 type Controller struct {
-	Region     string    `gorm:"primary_key"`
-	Address    string    `gorm:"unique;not null"`
-	NotifyAddr string    `gorm:"type:text"`
-	InfluxDB   string    `gorm:"type:text"`
-	CreatedAt  time.Time `json:",omitempty"`
-	UpdatedAt  time.Time `json:",omitempty"`
+	// Controller region name
+	Region string `gorm:"primary_key"`
+	// Controller API address or URL
+	Address string `gorm:"unique;not null"`
+	// Controller notify address or URL
+	NotifyAddr string `gorm:"type:text"`
+	// InfluxDB address
+	InfluxDB  string    `gorm:"type:text"`
+	CreatedAt time.Time `json:",omitempty"`
+	UpdatedAt time.Time `json:",omitempty"`
 }
 
 type Config struct {
@@ -193,24 +197,41 @@ type Config struct {
 }
 
 type OrgCloudletPool struct {
-	Org             string `gorm:"type:citext REFERENCES organizations(name)"`
-	Region          string `gorm:"type:text REFERENCES controllers(region)"`
-	CloudletPool    string `gorm:"not null"`
+	// Developer Organization
+	Org string `gorm:"type:citext REFERENCES organizations(name)"`
+	// Region
+	Region string `gorm:"type:text REFERENCES controllers(region)"`
+	// Operator's CloudletPool name
+	CloudletPool string `gorm:"not null"`
+	// Operator's Organization
 	CloudletPoolOrg string `gorm:"type:citext REFERENCES organizations(name)"`
+	// Type is an internal-only field which is either invitation or confirmation
+	Type string `json:",omitempty"`
 }
+
+const (
+	CloudletPoolAccessInvitation   = "invitation"
+	CloudletPoolAccessConfirmation = "confirmation"
+)
 
 // Structs used for API calls
 
 type RolePerm struct {
-	Role     string `json:"role"`
+	// Role defines a collection of permissions, which are resource-action pairs
+	Role string `json:"role"`
+	// Resource defines a resource to act upon
 	Resource string `json:"resource"`
-	Action   string `json:"action"`
+	// Action defines what type of action can be performed on a resource
+	Action string `json:"action"`
 }
 
 type Role struct {
-	Org      string `form:"org" json:"org"`
+	// Organization name
+	Org string `form:"org" json:"org"`
+	// User name
 	Username string `form:"username" json:"username"`
-	Role     string `form:"role" json:"role"`
+	// Role which defines the set of permissions
+	Role string `form:"role" json:"role"`
 }
 
 type OrgCloudlet struct {
@@ -334,13 +355,14 @@ type WSStreamPayload struct {
 // all data is for full create/delete
 
 type AllData struct {
-	Controllers      []Controller          `json:"controllers,omitempty"`
-	BillingOrgs      []BillingOrganization `json:"billingorgs,omitempty"`
-	AlertReceivers   []AlertReceiver       `json:"alertreceivers,omitempty"`
-	Orgs             []Organization        `json:"orgs,omitempty"`
-	Roles            []Role                `json:"roles,omitempty"`
-	OrgCloudletPools []OrgCloudletPool     `json:"orgcloudletpools,omitempty"`
-	RegionData       []RegionData          `json:"regiondata,omitempty"`
+	Controllers                     []Controller          `json:"controllers,omitempty"`
+	BillingOrgs                     []BillingOrganization `json:"billingorgs,omitempty"`
+	AlertReceivers                  []AlertReceiver       `json:"alertreceivers,omitempty"`
+	Orgs                            []Organization        `json:"orgs,omitempty"`
+	Roles                           []Role                `json:"roles,omitempty"`
+	CloudletPoolAccessInvitations   []OrgCloudletPool     `json:"cloudletpoolaccessinvitations,omitempty"`
+	CloudletPoolAccessConfirmations []OrgCloudletPool     `json:"cloudletpoolaccessconfirmations,omitempty"`
+	RegionData                      []RegionData          `json:"regiondata,omitempty"`
 }
 
 type RegionData struct {
@@ -382,15 +404,16 @@ type RegionClusterInstMetrics struct {
 }
 
 type RegionCloudletMetrics struct {
-	Region    string
-	Cloudlet  edgeproto.CloudletKey
-	Selector  string
-	StartTime time.Time `json:",omitempty"`
-	EndTime   time.Time `json:",omitempty"`
-	Last      int       `json:",omitempty"`
+	Region       string
+	Cloudlet     edgeproto.CloudletKey
+	Selector     string
+	PlatformType string
+	StartTime    time.Time `json:",omitempty"`
+	EndTime      time.Time `json:",omitempty"`
+	Last         int       `json:",omitempty"`
 }
 
-type RegionClientMetrics struct {
+type RegionClientApiUsageMetrics struct {
 	Region    string
 	AppInst   edgeproto.AppInstKey
 	Method    string `json:",omitempty"`
@@ -399,6 +422,38 @@ type RegionClientMetrics struct {
 	StartTime time.Time `json:",omitempty"`
 	EndTime   time.Time `json:",omitempty"`
 	Last      int       `json:",omitempty"`
+}
+
+type RegionClientAppUsageMetrics struct {
+	Region          string
+	AppInst         edgeproto.AppInstKey
+	Selector        string
+	RawData         bool      `json:",omitempty"`
+	DeviceCarrier   string    `json:",omitempty"`
+	DataNetworkType string    `json:",omitempty"`
+	DeviceModel     string    `json:",omitempty"`
+	DeviceOs        string    `json:",omitempty"`
+	SignalStrength  string    `json:",omitempty"`
+	LocationTile    string    `json:",omitempty"`
+	StartTime       time.Time `json:",omitempty"`
+	EndTime         time.Time `json:",omitempty"`
+	Last            int       `json:",omitempty"`
+}
+
+type RegionClientCloudletUsageMetrics struct {
+	Region          string
+	Cloudlet        edgeproto.CloudletKey
+	Selector        string
+	RawData         bool      `json:",omitempty"`
+	DeviceCarrier   string    `json:",omitempty"`
+	DataNetworkType string    `json:",omitempty"`
+	DeviceModel     string    `json:",omitempty"`
+	DeviceOs        string    `json:",omitempty"`
+	SignalStrength  string    `json:",omitempty"`
+	LocationTile    string    `json:",omitempty"`
+	StartTime       time.Time `json:",omitempty"`
+	EndTime         time.Time `json:",omitempty"`
+	Last            int       `json:",omitempty"`
 }
 
 type RegionAppInstEvents struct {

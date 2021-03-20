@@ -233,6 +233,26 @@ func runMcDataAPI(api, uri, apiFile, curUserFile, outputDir string, mods []strin
 		return rc
 	}
 
+	if api == "showclientappmetrics" {
+		var showClientAppMetrics *ormapi.AllMetrics
+		targets := readMCMetricTargetsFile(apiFile, vars)
+		var parsedMetrics *[]MetricsCompare
+		showClientAppMetrics = showMcClientAppMetrics(uri, token, targets, &rc)
+		parsedMetrics = parseMetrics(showClientAppMetrics)
+		util.PrintToYamlFile("show-commands.yml", outputDir, parsedMetrics, true)
+		return rc
+	}
+
+	if api == "showclientcloudletmetrics" {
+		var showClientCloudletMetrics *ormapi.AllMetrics
+		targets := readMCMetricTargetsFile(apiFile, vars)
+		var parsedMetrics *[]MetricsCompare
+		showClientCloudletMetrics = showMcClientCloudletMetrics(uri, token, targets, &rc)
+		parsedMetrics = parseMetrics(showClientCloudletMetrics)
+		util.PrintToYamlFile("show-commands.yml", outputDir, parsedMetrics, true)
+		return rc
+	}
+
 	if apiFile == "" {
 		log.Println("Error: Cannot run MC data APIs without API file")
 		return false
@@ -371,7 +391,7 @@ func loginCurUser(uri, curUserFile string, vars, sharedData map[string]string) (
 			log.Printf("failed to generate otp: %v, %s\n", sharedData, users[0].Name)
 		}
 	}
-	token, err := mcClient.DoLogin(uri, users[0].Name, users[0].Passhash, otp, orm.NoApiKeyId, orm.NoApiKey)
+	token, _, err := mcClient.DoLogin(uri, users[0].Name, users[0].Passhash, otp, orm.NoApiKeyId, orm.NoApiKey)
 	rc := true
 	checkMcErr("DoLogin", http.StatusOK, err, &rc)
 	return token, rc
@@ -434,15 +454,18 @@ func showMcData(uri, token, tag string, rc *bool) *ormapi.AllData {
 	checkMcErr("ShowBillingOrgs", status, err, rc)
 	roles, status, err := mcClient.ShowUserRole(uri, token)
 	checkMcErr("ShowRoles", status, err, rc)
-	ocs, status, err := mcClient.ShowOrgCloudletPool(uri, token)
-	checkMcErr("ShowOrgCloudletPools", status, err, rc)
+	invites, status, err := mcClient.ShowCloudletPoolAccessInvitation(uri, token, &ormapi.OrgCloudletPool{})
+	checkMcErr("ShowCloudletPoolAccessInvitations", status, err, rc)
+	confirms, status, err := mcClient.ShowCloudletPoolAccessConfirmation(uri, token, &ormapi.OrgCloudletPool{})
+	checkMcErr("ShowCloudletPoolAccessConfirmations", status, err, rc)
 
 	showData := &ormapi.AllData{
-		Controllers:      ctrls,
-		Orgs:             orgs,
-		BillingOrgs:      bOrgs,
-		Roles:            roles,
-		OrgCloudletPools: ocs,
+		Controllers:                     ctrls,
+		Orgs:                            orgs,
+		BillingOrgs:                     bOrgs,
+		Roles:                           roles,
+		CloudletPoolAccessInvitations:   invites,
+		CloudletPoolAccessConfirmations: confirms,
 	}
 	for _, ctrl := range ctrls {
 		client := testutil.TestClient{
@@ -506,7 +529,7 @@ func getRegionAppDataFromMap(regionDataMap interface{}) map[string]interface{} {
 	return appData
 }
 
-func runRegionDataApi(mcClient ormclient.Api, uri, token, tag string, rd *ormapi.RegionData, rdMap interface{}, rc *bool, mode string) *edgetestutil.AllDataOut {
+func runRegionDataApi(mcClient ormclient.Api, uri, token, tag string, rd *ormapi.RegionData, rdMap interface{}, rc *bool, mode string, apicb edgetestutil.RunAllDataApiCallback) *edgetestutil.AllDataOut {
 	appDataMap := getRegionAppDataFromMap(rdMap)
 	client := testutil.TestClient{
 		Region:   rd.Region,
@@ -523,11 +546,11 @@ func runRegionDataApi(mcClient ormclient.Api, uri, token, tag string, rd *ormapi
 	case "add":
 		fallthrough
 	case "update":
-		edgetestutil.RunAllDataApis(run, &rd.AppData, appDataMap, output)
+		edgetestutil.RunAllDataApis(run, &rd.AppData, appDataMap, output, apicb)
 	case "remove":
 		fallthrough
 	case "delete":
-		edgetestutil.RunAllDataReverseApis(run, &rd.AppData, appDataMap, output)
+		edgetestutil.RunAllDataReverseApis(run, &rd.AppData, appDataMap, output, apicb)
 	}
 	run.CheckErrs(fmt.Sprintf("%s region %s", mode, rd.Region), tag)
 	return output
@@ -550,14 +573,46 @@ func createMcData(uri, token, tag string, data *ormapi.AllData, dataMap map[stri
 		st, err := mcClient.AddUserRole(uri, token, &role)
 		outMcErr(output, fmt.Sprintf("AddUserRole[%d]", ii), st, err)
 	}
+	// CloudletPoolAccess must be run after regional CloudletPools, because
+	// they require the CloudletPools to exist, but before
+	// AppInst/ClusterInst since they affect the RBAC for them.
+	// We use a callback to intersperse their create in between the regional
+	// data creates.
+	// We also need to handle the case where there's no regional data,
+	// so the callback func is not called.
+	regions := getRegionsForCb(data)
+	apiRegionCb := func(done, region string) {
+		// this is done after cloudletpools are created
+		if done == "cloudletpools" {
+			for ii, oc := range data.CloudletPoolAccessInvitations {
+				if oc.Region != region {
+					continue
+				}
+				st, err := mcClient.CreateCloudletPoolAccessInvitation(uri, token, &oc)
+				outMcErr(output, fmt.Sprintf("CreateCloudletPoolAccessInvitation[%d]", ii), st, err)
+			}
+			for ii, oc := range data.CloudletPoolAccessConfirmations {
+				if oc.Region != region {
+					continue
+				}
+				st, err := mcClient.CreateCloudletPoolAccessConfirmation(uri, token, &oc)
+				outMcErr(output, fmt.Sprintf("CreateCloudletPoolAccessConfirmation[%d]", ii), st, err)
+			}
+		}
+		delete(regions, region)
+	}
 	for ii, rd := range data.RegionData {
+		apicb := func(done string) {
+			apiRegionCb(done, rd.Region)
+		}
 		rdm := getRegionDataMap(dataMap, ii)
-		rdout := runRegionDataApi(mcClient, uri, token, tag, &rd, rdm, rc, "create")
+		rdout := runRegionDataApi(mcClient, uri, token, tag, &rd, rdm, rc, "create", apicb)
 		output.RegionData = append(output.RegionData, *rdout)
 	}
-	for ii, oc := range data.OrgCloudletPools {
-		st, err := mcClient.CreateOrgCloudletPool(uri, token, &oc)
-		outMcErr(output, fmt.Sprintf("CreateOrgCloudletPool[%d]", ii), st, err)
+	for region, _ := range regions {
+		// process MC data that was waiting on regional apis, but where
+		// no regional data was present so no regional apis where called.
+		apiRegionCb("cloudletpools", region)
 	}
 	for ii, ar := range data.AlertReceivers {
 		st, err := mcClient.CreateAlertReceiver(uri, token, &ar)
@@ -566,14 +621,43 @@ func createMcData(uri, token, tag string, data *ormapi.AllData, dataMap map[stri
 }
 
 func deleteMcData(uri, token, tag string, data *ormapi.AllData, dataMap map[string]interface{}, output *AllDataOut, rc *bool) {
-	for ii, oc := range data.OrgCloudletPools {
-		st, err := mcClient.DeleteOrgCloudletPool(uri, token, &oc)
-		outMcErr(output, fmt.Sprintf("DeleteOrgCloudletPool[%d]", ii), st, err)
+	for ii, ar := range data.AlertReceivers {
+		st, err := mcClient.DeleteAlertReceiver(uri, token, &ar)
+		outMcErr(output, fmt.Sprintf("DeleteAlertReceiver[%d]", ii), st, err)
+	}
+	// see comments in createMcData
+	regions := getRegionsForCb(data)
+	apiRegionCb := func(next, region string) {
+		// these must be done before CloudletPools
+		if next == "cloudletpools" {
+			for ii, oc := range data.CloudletPoolAccessConfirmations {
+				if oc.Region != region {
+					continue
+				}
+				st, err := mcClient.DeleteCloudletPoolAccessConfirmation(uri, token, &oc)
+				outMcErr(output, fmt.Sprintf("DeleteCloudletPoolAccessConfirmation[%d]", ii), st, err)
+			}
+			for ii, oc := range data.CloudletPoolAccessInvitations {
+				if oc.Region != region {
+					continue
+				}
+				st, err := mcClient.DeleteCloudletPoolAccessInvitation(uri, token, &oc)
+				outMcErr(output, fmt.Sprintf("DeleteCloudletPoolAccessInvitation[%d]", ii), st, err)
+			}
+		}
+		delete(regions, region)
 	}
 	for ii, rd := range data.RegionData {
+		apicb := func(next string) {
+			apiRegionCb(next, rd.Region)
+		}
 		rdm := getRegionDataMap(dataMap, ii)
-		rdout := runRegionDataApi(mcClient, uri, token, tag, &rd, rdm, rc, "delete")
+		rdout := runRegionDataApi(mcClient, uri, token, tag, &rd, rdm, rc, "delete", apicb)
 		output.RegionData = append(output.RegionData, *rdout)
+	}
+	for region, _ := range regions {
+		// unused callbacks
+		apiRegionCb("cloudletpools", region)
 	}
 	for ii, bOrg := range data.BillingOrgs {
 		st, err := mcClient.DeleteBillingOrg(uri, token, &bOrg)
@@ -591,18 +675,25 @@ func deleteMcData(uri, token, tag string, data *ormapi.AllData, dataMap map[stri
 		st, err := mcClient.DeleteController(uri, token, &ctrl)
 		outMcErr(output, fmt.Sprintf("DeleteController[%d]", ii), st, err)
 	}
-	for ii, ar := range data.AlertReceivers {
-		st, err := mcClient.DeleteAlertReceiver(uri, token, &ar)
-		outMcErr(output, fmt.Sprintf("DeleteAlertReceiver[%d]", ii), st, err)
-	}
 }
 
 func updateMcData(mode, uri, token, tag string, data *ormapi.AllData, dataMap map[string]interface{}, output *AllDataOut, rc *bool) {
 	for ii, rd := range data.RegionData {
 		rdm := getRegionDataMap(dataMap, ii)
-		rdout := runRegionDataApi(mcClient, uri, token, tag, &rd, rdm, rc, mode)
+		rdout := runRegionDataApi(mcClient, uri, token, tag, &rd, rdm, rc, mode, edgetestutil.NoApiCallback)
 		output.RegionData = append(output.RegionData, *rdout)
 	}
+}
+
+func getRegionsForCb(data *ormapi.AllData) map[string]struct{} {
+	regions := make(map[string]struct{})
+	for _, oc := range data.CloudletPoolAccessInvitations {
+		regions[oc.Region] = struct{}{}
+	}
+	for _, oc := range data.CloudletPoolAccessConfirmations {
+		regions[oc.Region] = struct{}{}
+	}
+	return regions
 }
 
 func showMcMetricsAll(uri, token string, targets *MetricTargets, rc *bool) *ormapi.AllMetrics {
@@ -626,6 +717,7 @@ func showMcMetricsAll(uri, token string, targets *MetricTargets, rc *bool) *orma
 	appMetrics.Data = append(appMetrics.Data, clusterMetrics.Data...)
 	return appMetrics
 }
+
 func showMcEvents(uri, token string, targets *MetricTargets, rc *bool) *ormapi.AllMetrics {
 	appQuery := ormapi.RegionAppInstEvents{
 		Region:  "local",
@@ -680,6 +772,59 @@ func showMcMetricsSep(uri, token string, targets *MetricTargets, rc *bool) *orma
 		clusterMetric, status, err := mcClient.ShowClusterMetrics(uri, token, &clusterQuery)
 		checkMcErr("ShowCluster"+strings.Title(selector), status, err, rc)
 		allMetrics.Data = append(allMetrics.Data, clusterMetric.Data...)
+	}
+	return &allMetrics
+}
+
+func showMcClientAppMetrics(uri, token string, targets *MetricTargets, rc *bool) *ormapi.AllMetrics {
+	allMetrics := ormapi.AllMetrics{Data: make([]ormapi.MetricData, 0)}
+	for _, method := range ApiMethods {
+		clientApiUsageQuery := ormapi.RegionClientApiUsageMetrics{
+			Region: "local",
+			AppInst: edgeproto.AppInstKey{
+				AppKey: targets.AppInstKey.AppKey,
+			},
+			Method: method,
+			Last:   1,
+		}
+		for _, selector := range orm.ClientApiUsageSelectors {
+			clientApiUsageQuery.Selector = selector
+			clientApiUsageMetric, status, err := mcClient.ShowClientApiUsageMetrics(uri, token, &clientApiUsageQuery)
+			checkMcErr("ShowClientApiUsage"+strings.Title(selector), status, err, rc)
+			allMetrics.Data = append(allMetrics.Data, clientApiUsageMetric.Data...)
+		}
+	}
+	clientAppUsageQuery := ormapi.RegionClientAppUsageMetrics{
+		Region:  "local",
+		AppInst: targets.AppInstKey,
+		RawData: true,
+		Last:    1,
+	}
+	for _, selector := range orm.ClientAppUsageSelectors {
+		if selector == "custom" {
+			continue
+		}
+		clientAppUsageQuery.Selector = selector
+		clientAppUsageMetric, status, err := mcClient.ShowClientAppUsageMetrics(uri, token, &clientAppUsageQuery)
+		checkMcErr("ShowClientAppUsage"+strings.Title(selector), status, err, rc)
+		allMetrics.Data = append(allMetrics.Data, clientAppUsageMetric.Data...)
+	}
+	return &allMetrics
+}
+
+func showMcClientCloudletMetrics(uri, token string, targets *MetricTargets, rc *bool) *ormapi.AllMetrics {
+	allMetrics := ormapi.AllMetrics{Data: make([]ormapi.MetricData, 0)}
+	clientCloudletUsageQuery := ormapi.RegionClientCloudletUsageMetrics{
+		Region:   "local",
+		Cloudlet: targets.CloudletKey,
+		RawData:  true,
+		Last:     1,
+	}
+	for _, selector := range orm.ClientCloudletUsageSelectors {
+		clientCloudletUsageQuery.Selector = selector
+		clientCloudletUsageMetric, status, err := mcClient.ShowClientCloudletUsageMetrics(uri, token, &clientCloudletUsageQuery)
+		checkMcErr("ShowClientCloudletUsage"+strings.Title(selector), status, err, rc)
+		allMetrics.Data = append(allMetrics.Data, clientCloudletUsageMetric.Data...)
 	}
 	return &allMetrics
 }
@@ -762,7 +907,7 @@ func runMcAudit(api, uri, apiFile, curUserFile, outputDir string, mods []string,
 					log.Printf("failed to generate otp: %v, %s\n", sharedData, user.Name)
 				}
 			}
-			token, err := mcClient.DoLogin(uri, user.Name, user.Passhash, otp, orm.NoApiKeyId, orm.NoApiKey)
+			token, _, err := mcClient.DoLogin(uri, user.Name, user.Passhash, otp, orm.NoApiKeyId, orm.NoApiKey)
 			checkMcErr("DoLogin", http.StatusOK, err, &rc)
 			if err == nil && rc {
 				fname := getTokenFile(user.Name, outputDir)

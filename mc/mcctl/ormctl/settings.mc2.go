@@ -24,7 +24,8 @@ var _ = math.Inf
 // Auto-generated code: DO NOT EDIT
 
 var UpdateSettingsCmd = &cli.Command{
-	Use:          "UpdateSettings",
+	Use:          "update",
+	Short:        "Update settings",
 	RequiredArgs: "region " + strings.Join(SettingsRequiredArgs, " "),
 	OptionalArgs: strings.Join(SettingsOptionalArgs, " "),
 	AliasArgs:    strings.Join(SettingsAliasArgs, " "),
@@ -58,7 +59,8 @@ func setUpdateSettingsFields(in map[string]interface{}) {
 }
 
 var ResetSettingsCmd = &cli.Command{
-	Use:          "ResetSettings",
+	Use:          "reset",
+	Short:        "Reset all settings to their defaults",
 	RequiredArgs: "region " + strings.Join(SettingsRequiredArgs, " "),
 	OptionalArgs: strings.Join(SettingsOptionalArgs, " "),
 	AliasArgs:    strings.Join(SettingsAliasArgs, " "),
@@ -70,7 +72,8 @@ var ResetSettingsCmd = &cli.Command{
 }
 
 var ShowSettingsCmd = &cli.Command{
-	Use:          "ShowSettings",
+	Use:          "show",
+	Short:        "Show settings",
 	RequiredArgs: "region " + strings.Join(SettingsRequiredArgs, " "),
 	OptionalArgs: strings.Join(SettingsOptionalArgs, " "),
 	AliasArgs:    strings.Join(SettingsAliasArgs, " "),
@@ -86,6 +89,8 @@ var SettingsApiCmds = []*cli.Command{
 	ResetSettingsCmd,
 	ShowSettingsCmd,
 }
+
+var SettingsApiCmdsGroup = cli.GenGroup("settings", "Manage Settingss", SettingsApiCmds)
 
 var SettingsRequiredArgs = []string{}
 var SettingsOptionalArgs = []string{
@@ -111,11 +116,15 @@ var SettingsOptionalArgs = []string{
 	"updatevmpooltimeout",
 	"updatetrustpolicytimeout",
 	"dmeapimetricscollectioninterval",
-	"persistentconnectionmetricscollectioninterval",
+	"edgeeventsmetricscollectioninterval",
 	"cleanupreservableautoclusteridletime",
 	"influxdbcloudletusagemetricsretention",
 	"createcloudlettimeout",
 	"updatecloudlettimeout",
+	"locationtilesidelengthkm",
+	"edgeeventsmetricscontinuousqueriescollectionintervals:#.interval",
+	"influxdbdownsampledmetricsretention",
+	"influxdbedgeeventsmetricsretention",
 }
 var SettingsAliasArgs = []string{
 	"fields=settings.fields",
@@ -141,42 +150,58 @@ var SettingsAliasArgs = []string{
 	"updatevmpooltimeout=settings.updatevmpooltimeout",
 	"updatetrustpolicytimeout=settings.updatetrustpolicytimeout",
 	"dmeapimetricscollectioninterval=settings.dmeapimetricscollectioninterval",
-	"persistentconnectionmetricscollectioninterval=settings.persistentconnectionmetricscollectioninterval",
+	"edgeeventsmetricscollectioninterval=settings.edgeeventsmetricscollectioninterval",
 	"cleanupreservableautoclusteridletime=settings.cleanupreservableautoclusteridletime",
 	"influxdbcloudletusagemetricsretention=settings.influxdbcloudletusagemetricsretention",
 	"createcloudlettimeout=settings.createcloudlettimeout",
 	"updatecloudlettimeout=settings.updatecloudlettimeout",
+	"locationtilesidelengthkm=settings.locationtilesidelengthkm",
+	"edgeeventsmetricscontinuousqueriescollectionintervals:#.interval=settings.edgeeventsmetricscontinuousqueriescollectionintervals:#.interval",
+	"influxdbdownsampledmetricsretention=settings.influxdbdownsampledmetricsretention",
+	"influxdbedgeeventsmetricsretention=settings.influxdbedgeeventsmetricsretention",
 }
 var SettingsComments = map[string]string{
-	"fields":                                        "Fields are used for the Update API to specify which fields to apply",
-	"shepherdmetricscollectioninterval":             "Shepherd metrics collection interval for k8s and docker appInstances (duration)",
-	"shepherdalertevaluationinterval":               "Shepherd alert evaluation interval for k8s and docker appInstances (duration)",
-	"shepherdhealthcheckretries":                    "Number of times Shepherd Health Check fails before we mark appInst down",
-	"shepherdhealthcheckinterval":                   "Health Checking probing frequency (duration)",
-	"autodeployintervalsec":                         "Auto Provisioning Stats push and analysis interval (seconds)",
-	"autodeployoffsetsec":                           "Auto Provisioning analysis offset from interval (seconds)",
-	"autodeploymaxintervals":                        "Auto Provisioning Policy max allowed intervals",
-	"createappinsttimeout":                          "Create AppInst timeout (duration)",
-	"updateappinsttimeout":                          "Update AppInst timeout (duration)",
-	"deleteappinsttimeout":                          "Delete AppInst timeout (duration)",
-	"createclusterinsttimeout":                      "Create ClusterInst timeout (duration)",
-	"updateclusterinsttimeout":                      "Update ClusterInst timeout (duration)",
-	"deleteclusterinsttimeout":                      "Delete ClusterInst timeout (duration)",
-	"masternodeflavor":                              "Default flavor for k8s master VM and > 0  workers",
-	"loadbalancermaxportrange":                      "Max IP Port range when using a load balancer",
-	"maxtrackeddmeclients":                          "Max DME clients to be tracked at the same time.",
-	"chefclientinterval":                            "Default chef client interval (duration)",
-	"influxdbmetricsretention":                      "Default influxDB metrics retention policy (duration)",
-	"cloudletmaintenancetimeout":                    "Default Cloudlet Maintenance timeout (used twice for AutoProv and Cloudlet)",
-	"updatevmpooltimeout":                           "Update VM pool timeout (duration)",
-	"updatetrustpolicytimeout":                      "Update Trust Policy timeout (duration)",
-	"dmeapimetricscollectioninterval":               "Metrics collection interval for DME API counts (duration)",
-	"persistentconnectionmetricscollectioninterval": "Metrics collection interval for persistent connection (appinstlatency and gps locations) (duration)",
-	"cleanupreservableautoclusteridletime":          "Idle reservable ClusterInst clean up time",
-	"influxdbcloudletusagemetricsretention":         "Default influxDB cloudlet usage metrics retention policy (duration)",
-	"createcloudlettimeout":                         "Create Cloudlet timeout (duration)",
-	"updatecloudlettimeout":                         "Update Cloudlet timeout (duration)",
+	"fields":                                "Fields are used for the Update API to specify which fields to apply",
+	"shepherdmetricscollectioninterval":     "Shepherd metrics collection interval for k8s and docker appInstances (duration)",
+	"shepherdalertevaluationinterval":       "Shepherd alert evaluation interval for k8s and docker appInstances (duration)",
+	"shepherdhealthcheckretries":            "Number of times Shepherd Health Check fails before we mark appInst down",
+	"shepherdhealthcheckinterval":           "Health Checking probing frequency (duration)",
+	"autodeployintervalsec":                 "Auto Provisioning Stats push and analysis interval (seconds)",
+	"autodeployoffsetsec":                   "Auto Provisioning analysis offset from interval (seconds)",
+	"autodeploymaxintervals":                "Auto Provisioning Policy max allowed intervals",
+	"createappinsttimeout":                  "Create AppInst timeout (duration)",
+	"updateappinsttimeout":                  "Update AppInst timeout (duration)",
+	"deleteappinsttimeout":                  "Delete AppInst timeout (duration)",
+	"createclusterinsttimeout":              "Create ClusterInst timeout (duration)",
+	"updateclusterinsttimeout":              "Update ClusterInst timeout (duration)",
+	"deleteclusterinsttimeout":              "Delete ClusterInst timeout (duration)",
+	"masternodeflavor":                      "Default flavor for k8s master VM and > 0  workers",
+	"loadbalancermaxportrange":              "Max IP Port range when using a load balancer",
+	"maxtrackeddmeclients":                  "Max DME clients to be tracked at the same time.",
+	"chefclientinterval":                    "Default chef client interval (duration)",
+	"influxdbmetricsretention":              "Default influxDB metrics retention policy (duration)",
+	"cloudletmaintenancetimeout":            "Default Cloudlet Maintenance timeout (used twice for AutoProv and Cloudlet)",
+	"updatevmpooltimeout":                   "Update VM pool timeout (duration)",
+	"updatetrustpolicytimeout":              "Update Trust Policy timeout (duration)",
+	"dmeapimetricscollectioninterval":       "Metrics collection interval for DME API counts (duration)",
+	"edgeeventsmetricscollectioninterval":   "Collection interval for edgeevents metrics (latency, device, and custom)",
+	"cleanupreservableautoclusteridletime":  "Idle reservable ClusterInst clean up time",
+	"influxdbcloudletusagemetricsretention": "Default influxDB cloudlet usage metrics retention policy (duration)",
+	"createcloudlettimeout":                 "Create Cloudlet timeout (duration)",
+	"updatecloudlettimeout":                 "Update Cloudlet timeout (duration)",
+	"locationtilesidelengthkm":              "Length of location tiles side for latency metrics (km)",
+	"influxdbdownsampledmetricsretention":   "Default retention policy for downsampled influx db (duration)",
+	"influxdbedgeeventsmetricsretention":    "Default retention policy for edgeevents metrics influx db (duration)",
 }
 var SettingsSpecialArgs = map[string]string{
 	"settings.fields": "StringArray",
 }
+var CollectionIntervalRequiredArgs = []string{}
+var CollectionIntervalOptionalArgs = []string{
+	"interval",
+}
+var CollectionIntervalAliasArgs = []string{
+	"interval=collectioninterval.interval",
+}
+var CollectionIntervalComments = map[string]string{}
+var CollectionIntervalSpecialArgs = map[string]string{}

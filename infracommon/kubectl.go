@@ -48,9 +48,9 @@ func getSecretAuth(ctx context.Context, imagePath string, authApi cloudcommon.Re
 	return secretName, dockerServer, auth, nil
 }
 
-func DeleteDockerRegistrySecret(ctx context.Context, client ssh.Client, kconf string, imagePath string, authApi cloudcommon.RegistryAuthApi, names *k8smgmt.KubeNames) error {
+func DeleteDockerRegistrySecret(ctx context.Context, client ssh.Client, kconf string, imagePath string, authApi cloudcommon.RegistryAuthApi, names *k8smgmt.KubeNames, existingCreds *cloudcommon.RegistryAuth) error {
 	log.SpanLog(ctx, log.DebugLevelInfra, "deleting docker registry secret in kubernetes cluster", "imagePath", imagePath)
-	secretName, _, auth, err := getSecretAuth(ctx, imagePath, authApi, nil)
+	secretName, _, auth, err := getSecretAuth(ctx, imagePath, authApi, existingCreds)
 	if err != nil {
 		return err
 	}

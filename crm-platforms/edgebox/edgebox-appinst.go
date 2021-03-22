@@ -104,7 +104,35 @@ func (e *EdgeboxPlatform) DeleteAppInst(ctx context.Context, clusterInst *edgepr
 func (e *EdgeboxPlatform) UpdateAppInst(ctx context.Context, clusterInst *edgeproto.ClusterInst, app *edgeproto.App, appInst *edgeproto.AppInst, updateCallback edgeproto.CacheUpdateCallback) error {
 	log.SpanLog(ctx, log.DebugLevelInfra, "UpdateAppInst", "appInst", appInst)
 
-	err := e.generic.UpdateAppInst(ctx, clusterInst, app, appInst, updateCallback)
+	names, err := k8smgmt.GetKubeNames(clusterInst, app, appInst)
+	if err != nil {
+		return err
+	}
+	client, err := e.generic.GetClient(ctx)
+	if err != nil {
+		return err
+	}
+	if app.Deployment == cloudcommon.DeploymentTypeKubernetes || app.Deployment == cloudcommon.DeploymentTypeHelm {
+		// Use secrets from env-var as we already have console creds, which limits user to access its own org images
+		dockerUser, dockerPass := e.GetEdgeboxDockerCreds()
+		existingCreds := cloudcommon.RegistryAuth{}
+		existingCreds.Username = dockerUser
+		existingCreds.Password = dockerPass
+		kconf := k8smgmt.GetKconfName(clusterInst)
+		for _, imagePath := range names.ImagePaths {
+			// secret may have changed, so delete and re-create
+			err = infracommon.DeleteDockerRegistrySecret(ctx, client, kconf, imagePath, e.commonPf.PlatformConfig.AccessApi, names, &existingCreds)
+			if err != nil {
+				return err
+			}
+			err = infracommon.CreateDockerRegistrySecret(ctx, client, kconf, imagePath, e.commonPf.PlatformConfig.AccessApi, names, &existingCreds)
+			if err != nil {
+				return err
+			}
+		}
+	}
+
+	err = e.generic.UpdateAppInst(ctx, clusterInst, app, appInst, updateCallback)
 	if err != nil {
 		log.SpanLog(ctx, log.DebugLevelInfra, "error updating appinst", "error", err)
 		return err

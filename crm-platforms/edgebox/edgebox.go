@@ -3,7 +3,6 @@ package edgebox
 import (
 	"context"
 	"fmt"
-	"strings"
 
 	"github.com/mobiledgex/edge-cloud-infra/infracommon"
 	"github.com/mobiledgex/edge-cloud-infra/vmlayer"
@@ -34,10 +33,16 @@ var edgeboxProps = map[string]*edgeproto.PropertyInfo{
 		Description: vmlayer.GetSupportedSchemesStr(),
 		Value:       cloudcommon.NetworkSchemePrivateIP,
 	},
-	"MEX_EDGEBOX_DOCKER_CREDS": &edgeproto.PropertyInfo{
-		Name:        "EdgeBox Docker Credentials",
-		Description: "Format: '<username>:<password>'",
+	"MEX_EDGEBOX_DOCKER_USER": &edgeproto.PropertyInfo{
+		Name:        "EdgeBox Docker Username",
+		Description: "Username to login to docker registry server",
 		Mandatory:   true,
+	},
+	"MEX_EDGEBOX_DOCKER_PASS": &edgeproto.PropertyInfo{
+		Name:        "EdgeBox Docker Password",
+		Description: "Password to login to docker registry server",
+		Mandatory:   true,
+		Secret:      true,
 	},
 }
 
@@ -48,6 +53,14 @@ func (e *EdgeboxPlatform) Init(ctx context.Context, platformConfig *platform.Pla
 
 	if err := e.commonPf.InitInfraCommon(ctx, platformConfig, edgeboxProps); err != nil {
 		return err
+	}
+
+	docker_user, docker_pass := e.GetEdgeboxDockerCreds()
+	if docker_user == "" {
+		return fmt.Errorf("Missing docker username, please set 'MEX_EDGEBOX_DOCKER_USER' env var")
+	}
+	if docker_pass == "" {
+		return fmt.Errorf("Missing docker password, please set 'MEX_EDGEBOX_DOCKER_PASS' env var")
 	}
 
 	e.NetworkScheme = e.GetEdgeboxNetworkScheme()
@@ -71,12 +84,9 @@ func (e *EdgeboxPlatform) GetEdgeboxNetworkScheme() string {
 }
 
 func (e *EdgeboxPlatform) GetEdgeboxDockerCreds() (string, string) {
-	val, _ := e.commonPf.Properties.GetValue("MEX_EDGEBOX_DOCKER_CREDS")
-	creds := strings.Split(val, ":")
-	if len(creds) == 2 {
-		return creds[0], creds[1]
-	}
-	return "", ""
+	user_val, _ := e.commonPf.Properties.GetValue("MEX_EDGEBOX_DOCKER_USER")
+	pass_val, _ := e.commonPf.Properties.GetValue("MEX_EDGEBOX_DOCKER_PASS")
+	return user_val, pass_val
 }
 
 func (e *EdgeboxPlatform) GatherCloudletInfo(ctx context.Context, info *edgeproto.CloudletInfo) error {

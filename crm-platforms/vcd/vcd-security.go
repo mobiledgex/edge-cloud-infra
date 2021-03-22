@@ -28,12 +28,12 @@ func (v *VcdPlatform) PopulateOrgLoginCredsFromEnv(ctx context.Context) error {
 	log.SpanLog(ctx, log.DebugLevelInfra, "PopulateOrgLoginCredsFromEnv")
 
 	creds := VcdConfigParams{
-		User:     os.Getenv("VCD_USER"),
-		Password: os.Getenv("VCD_PASSWORD"),
-		Org:      os.Getenv("VCD_ORG"),
-		Href:     os.Getenv("VCD_IP") + "/api",
-		VDC:      os.Getenv("VDC_NAME"),
-		Insecure: true,
+		User:      os.Getenv("VCD_USER"),
+		Password:  os.Getenv("VCD_PASSWORD"),
+		Org:       os.Getenv("VCD_ORG"),
+		VcdApiUrl: os.Getenv("VCD_URL"),
+		VDC:       os.Getenv("VDC_NAME"),
+		Insecure:  true,
 	}
 	if creds.User == "" {
 		return fmt.Errorf("User not defined")
@@ -44,8 +44,8 @@ func (v *VcdPlatform) PopulateOrgLoginCredsFromEnv(ctx context.Context) error {
 	if creds.Org == "" {
 		return fmt.Errorf("Org not defined")
 	}
-	if creds.Href == "" {
-		return fmt.Errorf("Href not defined")
+	if creds.VcdApiUrl == "" {
+		return fmt.Errorf("VcdApiUrl not defined")
 	}
 	if creds.VDC == "" {
 		return fmt.Errorf("missing VDC name")
@@ -66,21 +66,21 @@ func (v *VcdPlatform) GetVcdOrgName() string {
 func (v *VcdPlatform) GetVcdVdcName() string {
 	return v.Creds.VDC
 }
-func (v *VcdPlatform) GetVcdAddress() string {
 
-	return v.Creds.Href
-}
-
-// Create new option for our live unit tests to use this rather than env XXX
-func (v *VcdPlatform) PopulateOrgLoginCredsFromVault(ctx context.Context) error {
+func (v *VcdPlatform) PopulateOrgLoginCredsFromVcdVars(ctx context.Context) error {
 
 	log.SpanLog(ctx, log.DebugLevelInfra, "PopulateOrgLoginCredsFromVault")
 	creds := VcdConfigParams{
-		User:     v.GetVCDUser(),
-		Password: v.GetVCDPassword(),
-		Org:      v.GetVCDORG(),
-		Href:     v.GetVCDIP() + "/api",
-		VDC:      v.GetVDCName(),
+		User:              v.GetVCDUser(),
+		Password:          v.GetVCDPassword(),
+		Org:               v.GetVCDORG(),
+		VcdApiUrl:         v.GetVcdUrl(),
+		VDC:               v.GetVDCName(),
+		OauthSgwUrl:       v.GetVcdOauthSgwUrl(),
+		OauthAgwUrl:       v.GetVcdOauthAgwUrl(),
+		OauthClientId:     v.GetVcdOauthClientId(),
+		OauthClientSecret: v.GetVcdOauthClientSecret(),
+
 		Insecure: true,
 	}
 
@@ -93,8 +93,8 @@ func (v *VcdPlatform) PopulateOrgLoginCredsFromVault(ctx context.Context) error 
 	if creds.Org == "" {
 		return fmt.Errorf("Org not defined")
 	}
-	if creds.Href == "" {
-		return fmt.Errorf("Href not defined")
+	if creds.VcdApiUrl == "" {
+		return fmt.Errorf("VCD Href not defined")
 	}
 	if creds.VDC == "" {
 		return fmt.Errorf("missing VDC name")
@@ -194,9 +194,9 @@ func (v *VcdPlatform) GetClient(ctx context.Context, creds *VcdConfigParams) (cl
 
 	log.SpanLog(ctx, log.DebugLevelInfra, "GetClient", "user", creds.User)
 
-	u, err := url.ParseRequestURI(creds.Href)
+	u, err := url.ParseRequestURI(creds.VcdApiUrl)
 	if err != nil {
-		return nil, fmt.Errorf("Unable to parse request to org %s at %s err: %s", creds.Org, creds.Href, err)
+		return nil, fmt.Errorf("Unable to parse request to org %s at %s err: %s", creds.Org, creds.VcdApiUrl, err)
 	}
 	vcdClient := govcd.NewVCDClient(*u, creds.Insecure)
 
@@ -205,7 +205,7 @@ func (v *VcdPlatform) GetClient(ctx context.Context, creds *VcdConfigParams) (cl
 	} else {
 		_, err := vcdClient.GetAuthResponse(creds.User, creds.Password, creds.Org)
 		if err != nil {
-			return nil, fmt.Errorf("Unable to login to org %s at %s err: %s", creds.Org, creds.Href, err)
+			return nil, fmt.Errorf("Unable to login to org %s at %s err: %s", creds.Org, creds.VcdApiUrl, err)
 		}
 		//creds.Token = resp.Header[govcd.AuthorizationHeader]
 	}

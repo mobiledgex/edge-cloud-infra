@@ -43,11 +43,12 @@ type VcdConfigParams struct {
 	User              string
 	Password          string
 	Org               string
-	Href              string
+	VcdApiUrl         string
 	VDC               string
 	Insecure          bool
 	Token             string
 	OauthSgwUrl       string
+	OauthAgwUrl       string
 	OauthAccessUrl    string
 	OauthClientId     string
 	OauthClientSecret string
@@ -363,8 +364,8 @@ func (v *VcdPlatform) GetAllVAppsForVdcByIntAddr(ctx context.Context, vcdClient 
 
 func (v *VcdPlatform) GetApiEndpointAddr(ctx context.Context) (string, error) {
 
-	ip := v.GetVCDIP() // {vcdVars["VCD_IP"]
-	apiUrl := ip + "/api"
+	url := v.GetVcdUrl()
+	apiUrl := url + "/api"
 	log.SpanLog(ctx, log.DebugLevelInfra, "GetApiEndpointAddr", "Href", apiUrl)
 	return apiUrl, nil
 }

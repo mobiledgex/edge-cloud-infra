@@ -12,10 +12,7 @@ import (
 	"net/http"
 	"net/url"
 
-	"github.com/mobiledgex/edge-cloud/vault"
-
 	"github.com/mobiledgex/edge-cloud-infra/crm-platforms/vcd"
-	"github.com/mobiledgex/edge-cloud-infra/infracommon"
 
 	"github.com/vmware/go-vcloud-director/v2/govcd"
 )
@@ -34,7 +31,7 @@ var (
 	getTokenPath = flag.String("gettokenpath", "/openid/connect/auth/oauth/v2/t3/org/token", "path to gettoken")
 	indexpath    = "/"
 	vcdVars      map[string]string
-	vcdCreds     vcd.VcdConfigParams
+	vcdPlatform  = vcd.VcdPlatform{} // used for creds
 	vcdUri       *url.URL
 )
 
@@ -70,11 +67,11 @@ func validateRequest(r *http.Request) int {
 		log.Printf("Bad scope: %s", tokReq.Scope)
 		return http.StatusBadRequest
 	}
-	if tokReq.ClientId != vcdCreds.OauthClientId {
+	if tokReq.ClientId != vcdPlatform.GetVcdOauthClientId() {
 		log.Printf("wrong client id: %s", tokReq.ClientId)
 		return http.StatusUnauthorized
 	}
-	if tokReq.ClientSecret != vcdCreds.OauthClientSecret {
+	if tokReq.ClientSecret != vcdPlatform.GetVcdOauthClientSecret() {
 		log.Printf("wrong client secret: %s", tokReq.ClientSecret)
 		return http.StatusUnauthorized
 	}
@@ -89,76 +86,30 @@ func getToken(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	vcdClient := govcd.NewVCDClient(*vcdUri, vcdCreds.Insecure)
-	authResp, err := vcdClient.GetAuthResponse(vcdCreds.User, vcdCreds.Password, vcdCreds.Org)
+	vcdClient := govcd.NewVCDClient(*vcdUri, vcdPlatform.Creds.Insecure)
+	authResp, err := vcdClient.GetAuthResponse(vcdPlatform.Creds.User, vcdPlatform.Creds.Password, vcdPlatform.Creds.Org)
 	if err != nil {
-		log.Printf("Unable to login to org %s at %s err: %s", vcdCreds.Org, vcdCreds.Href, err)
+		log.Printf("Unable to login to org %s at %s err: %s", vcdPlatform.Creds.Org, vcdPlatform.Creds.VcdApiUrl, err)
 		// from the client's perspective this is a server error because these are not creds the client provides
 		w.WriteHeader(http.StatusInternalServerError)
 		w.Write([]byte("Unable to login to org " + err.Error()))
 		return
 	}
 
+	// the SGW simulator builds the oauth token from the original VCD client token plus the VCD
+	// auth header separated by semicolon.  The AGW simulator will break these apart and send to VCD
+	at := vcdClient.Client.VCDToken + ";" + authResp.Header.Get(vcd.VcdAuthHeader)
+
 	log.Printf("Got authResp: %+v client: %+v ", authResp, vcdClient)
 	tokenResponse := vcd.TokenResponse{
-		AccessToken:  vcdClient.Client.VCDToken, //get from vcd
-		TokenType:    "Bearer",
-		ExpiresIn:    *expiresin,
-		Scope:        "openid account.read customer.read customer.accounts.read",
-		IdToken:      "aaaaaaaa.bbbbbbbb.cccccccc",
-		VcdAuthToken: authResp.Header.Get(vcd.VcdAuthHeader),
+		AccessToken: at,
+		TokenType:   "Bearer",
+		ExpiresIn:   *expiresin,
+		Scope:       "openid account.read customer.read customer.accounts.read",
+		IdToken:     "aaaaaaaa.bbbbbbbb.cccccccc",
 	}
 	byt, _ := json.Marshal(tokenResponse)
 	w.Write(byt)
-}
-
-func getCredsFromVault() error {
-	path := fmt.Sprintf("/secret/data/%s/cloudlet/vcd/%s/%s/vcd.json", "EU", "packet", "qa-lab")
-	ctx := context.TODO()
-	vaultConfig, err := vault.BestConfig(*vaultaddr)
-	if err != nil {
-		return fmt.Errorf("Unable to get vault config - %v", err)
-	}
-	vcdVars, err = infracommon.GetEnvVarsFromVault(ctx, vaultConfig, path)
-	if err != nil {
-		return fmt.Errorf("Unable to get vars from vault: %s -  %v", *vaultaddr, err)
-	}
-	return nil
-}
-
-func populateCreds() error {
-	vcdCreds = vcd.VcdConfigParams{
-		User:              vcdVars["VCD_USER"],
-		Password:          vcdVars["VCD_PASSWORD"],
-		Org:               vcdVars["VCD_ORG"],
-		Href:              vcdVars["VCD_IP"] + "/api",
-		VDC:               vcdVars["VDC_NAME"],
-		OauthClientId:     vcdVars["OAUTH_CLIENT_ID"],
-		OauthClientSecret: vcdVars["OAUTH_CLIENT_SECRET"],
-		Insecure:          true,
-	}
-	if vcdCreds.User == "" {
-		return fmt.Errorf("VCD_USER not found")
-	}
-	if vcdCreds.Password == "" {
-		return fmt.Errorf("VCD_PASSWORD not found")
-	}
-	if vcdCreds.Org == "" {
-		return fmt.Errorf("VCD_ORG not found")
-	}
-	if vcdCreds.Href == "/api" {
-		return fmt.Errorf("VCD_IP not found")
-	}
-	if vcdCreds.VDC == "" {
-		return fmt.Errorf("VDC_NAME not found")
-	}
-	if vcdCreds.OauthClientId == "" {
-		return fmt.Errorf("OAUTH_CLIENT_ID not found")
-	}
-	if vcdCreds.OauthClientSecret == "" {
-		return fmt.Errorf("OAUTH_CLIENT_SECRET not found")
-	}
-	return nil
 }
 
 func run() {
@@ -183,19 +134,14 @@ func run() {
 	if *vaultaddr == "" {
 		panic("--vaultaddr is empty")
 	}
-
-	err := getCredsFromVault()
-	if err != nil {
-		panic(err.Error())
-	}
-	err = populateCreds()
+	err := vcdPlatform.PopulateCredsForSimulator(context.TODO(), *region, *org, *physname, *vaultaddr)
 	if err != nil {
 		panic(err.Error())
 	}
 
-	vcdUri, err = url.ParseRequestURI(vcdCreds.Href)
+	vcdUri, err = url.ParseRequestURI(vcdPlatform.Creds.VcdApiUrl)
 	if err != nil {
-		panic(fmt.Errorf("Unable to parse vcd uri %s err: %s", vcdCreds.Href, err))
+		panic(fmt.Errorf("Unable to parse vcd uri %s err: %s", vcdPlatform.Creds.VcdApiUrl, err))
 	}
 	certfile := fmt.Sprintf("%s/%s.crt", *certdir, *certname)
 	keyfile := fmt.Sprintf("%s/%s.key", *certdir, *certname)

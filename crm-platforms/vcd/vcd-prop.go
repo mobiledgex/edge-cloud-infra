@@ -56,7 +56,6 @@ func (v *VcdPlatform) GetVaultCloudletAccessPath(key *edgeproto.CloudletKey, reg
 func (v *VcdPlatform) GetVcdVars(ctx context.Context, accessApi platform.AccessApi) error {
 
 	log.SpanLog(ctx, log.DebugLevelInfra, "vcd vars")
-
 	vars, err := accessApi.GetCloudletAccessVars(ctx)
 	if err != nil {
 		log.SpanLog(ctx, log.DebugLevelInfra, "vcd vars accessApi vars failed", "err", err)
@@ -69,20 +68,30 @@ func (v *VcdPlatform) GetVcdVars(ctx context.Context, accessApi platform.AccessA
 	if v.Verbose {
 		log.SpanLog(ctx, log.DebugLevelInfra, "vcd ", "Vars", v.vcdVars)
 	}
-	err = v.PopulateOrgLoginCredsFromVault(ctx)
+	err = v.PopulateOrgLoginCredsFromVcdVars(ctx)
 
 	if err != nil {
 		return err
 	}
-	v.vcdVars["VCD_URL"] = v.Creds.Href
-	log.SpanLog(ctx, log.DebugLevelInfra, "vcd ", "HREF", v.Creds.Href)
 	return nil
 }
 
 // access vars from the vault
 
-func (v *VcdPlatform) GetVCDIP() string {
-	return v.vcdVars["VCD_IP"]
+func (v *VcdPlatform) GetVcdUrl() string {
+	return v.vcdVars["VCD_URL"]
+}
+func (v *VcdPlatform) GetVcdOauthSgwUrl() string {
+	return v.vcdVars["VCD_OAUTH_SGW_URL"]
+}
+func (v *VcdPlatform) GetVcdOauthAgwUrl() string {
+	return v.vcdVars["VCD_OAUTH_AGW_URL"]
+}
+func (v *VcdPlatform) GetVcdOauthClientId() string {
+	return v.vcdVars["VCD_OAUTH_CLIENT_ID"]
+}
+func (v *VcdPlatform) GetVcdOauthClientSecret() string {
+	return v.vcdVars["VCD_OAUTH_CLIENT_SECRET"]
 }
 func (v *VcdPlatform) GetVCDUser() string {
 	return v.vcdVars["VCD_USER"]

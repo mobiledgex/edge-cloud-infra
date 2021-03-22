@@ -199,6 +199,8 @@ type PaymentProfile struct {
 }
 
 // This is essentially billing.InvoiceData uncensored
+/* Commented out for now as billing.InvoiceData is currently the same as this and is used in chargify.GetInvoice. However if we decide
+to change our public facing invoice data setup in the future then we'll need to use these definitions and manually convert them over.
 type Invoice struct {
 	Uid                        string          `json:"uid,omitempty"`
 	SiteId                     int             `json:"site_id,omitempty"`
@@ -361,3 +363,4 @@ type PrevBalanceData struct {
 		OutstandingAmount string `json:"outstanding_amount,omitempty"`
 	} `json:"invoices,omitempty"`
 }
+*/

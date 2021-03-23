@@ -6,6 +6,7 @@ import (
 
 	"github.com/mobiledgex/edge-cloud-infra/infracommon"
 	"github.com/mobiledgex/edge-cloud-infra/vmlayer"
+	"github.com/mobiledgex/edge-cloud/cloud-resource-manager/crmutil"
 	"github.com/mobiledgex/edge-cloud/edgeproto"
 	"github.com/mobiledgex/edge-cloud/log"
 )
@@ -156,4 +157,37 @@ func TakeIntPointer(x int) *int {
 
 func TakeUint64Pointer(x uint64) *uint64 {
 	return &x
+}
+
+func (v *VcdPlatform) GetCloudletTrustPolicy(ctx context.Context) (*edgeproto.TrustPolicy, error) {
+
+	if v.caches == nil || v.caches.TrustPolicyCache == nil {
+		log.SpanLog(ctx, log.DebugLevelInfra, "vcd:GetCloudletTrustPolicy trustpolicy cache is nil")
+		return nil, fmt.Errorf("Not Found")
+	}
+
+	cldkeys := make(map[edgeproto.CloudletKey]struct{})
+	v.caches.CloudletCache.GetAllKeys(ctx, func(k *edgeproto.CloudletKey, modRev int64) {
+		cldkeys[*k] = struct{}{}
+	})
+	trustcache := v.caches.TrustPolicyCache
+	// we should never see > 1 key here, one cld per vdc.
+	if len(cldkeys) > 0 {
+		for key := range cldkeys {
+			var cldlet edgeproto.Cloudlet
+
+			if v.caches.CloudletCache.Get(&key, &cldlet) {
+				tpol, err := crmutil.GetCloudletTrustPolicy(ctx, cldlet.TrustPolicy, key.Organization, trustcache)
+				if err != nil {
+					log.SpanLog(ctx, log.DebugLevelInfra, "vcd:GetCloudletTrustPolicy crmutil failed", "cloudlet", cldlet.Key.Name, "cloudletOrg", key.Organization, "error", err)
+					return nil, err
+				}
+				log.SpanLog(ctx, log.DebugLevelInfra, "vcd:GetCloudletTrustPolicy fetched", "TrustPolicy", tpol.Key.Name, "cloudlet", cldlet.Key.Name)
+				return tpol, nil
+			}
+		}
+	} else {
+		fmt.Printf("No cloudlets in cache\n")
+	}
+	return nil, nil
 }

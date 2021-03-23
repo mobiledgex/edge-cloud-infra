@@ -1,6 +1,7 @@
 package ormclient
 
 import (
+	"github.com/mobiledgex/edge-cloud-infra/billing"
 	"github.com/mobiledgex/edge-cloud-infra/mc/ormapi"
 	"github.com/mobiledgex/edge-cloud/cloudcommon/node"
 	edgeproto "github.com/mobiledgex/edge-cloud/edgeproto"
@@ -8,7 +9,7 @@ import (
 )
 
 type Api interface {
-	DoLogin(uri, user, pass, otp, apikeyid, apikey string) (string, error)
+	DoLogin(uri, user, pass, otp, apikeyid, apikey string) (string, bool, error)
 
 	CreateUser(uri string, user *ormapi.User) (*ormapi.UserResponse, int, error)
 	DeleteUser(uri, token string, user *ormapi.User) (int, error)
@@ -32,6 +33,7 @@ type Api interface {
 	ShowBillingOrg(uri, token string) ([]ormapi.BillingOrganization, int, error)
 	AddChildOrg(uri, token string, org *ormapi.BillingOrganization) (int, error)
 	RemoveChildOrg(uri, token string, org *ormapi.BillingOrganization) (int, error)
+	GetInvoice(uri, token string, req *ormapi.InvoiceRequest) ([]billing.InvoiceData, int, error)
 
 	AddUserRole(uri, token string, role *ormapi.Role) (int, error)
 	RemoveUserRole(uri, token string, role *ormapi.Role) (int, error)
@@ -45,7 +47,9 @@ type Api interface {
 	ShowAppMetrics(uri, token string, query *ormapi.RegionAppInstMetrics) (*ormapi.AllMetrics, int, error)
 	ShowClusterMetrics(uri, token string, query *ormapi.RegionClusterInstMetrics) (*ormapi.AllMetrics, int, error)
 	ShowCloudletMetrics(uri, token string, query *ormapi.RegionCloudletMetrics) (*ormapi.AllMetrics, int, error)
-	ShowClientMetrics(uri, token string, query *ormapi.RegionClientMetrics) (*ormapi.AllMetrics, int, error)
+	ShowClientApiUsageMetrics(uri, token string, query *ormapi.RegionClientApiUsageMetrics) (*ormapi.AllMetrics, int, error)
+	ShowClientAppUsageMetrics(uri, token string, query *ormapi.RegionClientAppUsageMetrics) (*ormapi.AllMetrics, int, error)
+	ShowClientCloudletUsageMetrics(uri, token string, query *ormapi.RegionClientCloudletUsageMetrics) (*ormapi.AllMetrics, int, error)
 
 	ShowAppEvents(uri, token string, query *ormapi.RegionAppInstEvents) (*ormapi.AllMetrics, int, error)
 	ShowClusterEvents(uri, token string, query *ormapi.RegionClusterInstEvents) (*ormapi.AllMetrics, int, error)

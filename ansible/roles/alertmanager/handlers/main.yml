@@ -1,0 +1,5 @@
+- name: Restart alertmanager
+  docker_compose:
+    project_name: alertmanager
+    project_src: "{{ alertmanager_config_path }}"
+    restarted: yes

@@ -33,6 +33,17 @@ var edgeboxProps = map[string]*edgeproto.PropertyInfo{
 		Description: vmlayer.GetSupportedSchemesStr(),
 		Value:       cloudcommon.NetworkSchemePrivateIP,
 	},
+	"MEX_EDGEBOX_DOCKER_USER": &edgeproto.PropertyInfo{
+		Name:        "EdgeBox Docker Username",
+		Description: "Username to login to docker registry server",
+		Mandatory:   true,
+	},
+	"MEX_EDGEBOX_DOCKER_PASS": &edgeproto.PropertyInfo{
+		Name:        "EdgeBox Docker Password",
+		Description: "Password to login to docker registry server",
+		Mandatory:   true,
+		Secret:      true,
+	},
 }
 
 func (e *EdgeboxPlatform) Init(ctx context.Context, platformConfig *platform.PlatformConfig, caches *platform.Caches, updateCallback edgeproto.CacheUpdateCallback) error {
@@ -44,20 +55,23 @@ func (e *EdgeboxPlatform) Init(ctx context.Context, platformConfig *platform.Pla
 		return err
 	}
 
+	docker_user, docker_pass := e.GetEdgeboxDockerCreds()
+	if docker_user == "" {
+		return fmt.Errorf("Missing docker username, please set 'MEX_EDGEBOX_DOCKER_USER' env var")
+	}
+	if docker_pass == "" {
+		return fmt.Errorf("Missing docker password, please set 'MEX_EDGEBOX_DOCKER_PASS' env var")
+	}
+
 	e.NetworkScheme = e.GetEdgeboxNetworkScheme()
 	if e.NetworkScheme != cloudcommon.NetworkSchemePrivateIP &&
 		e.NetworkScheme != cloudcommon.NetworkSchemePublicIP {
 		return fmt.Errorf("Unsupported network scheme for DIND: %s", e.NetworkScheme)
 	}
-
-	fqdn := cloudcommon.GetRootLBFQDN(platformConfig.CloudletKey, platformConfig.AppDNSRoot)
-	ipaddr, err := e.GetDINDServiceIP(ctx)
+	// ensure service ip exists
+	_, err = e.GetDINDServiceIP(ctx)
 	if err != nil {
 		return fmt.Errorf("init cannot get service ip, %s", err.Error())
-	}
-	if err := e.commonPf.ActivateFQDNA(ctx, fqdn, ipaddr); err != nil {
-		log.SpanLog(ctx, log.DebugLevelInfra, "error in ActivateFQDNA", "err", err)
-		return err
 	}
 	log.SpanLog(ctx, log.DebugLevelInfra, "done init edgebox")
 	return nil
@@ -67,6 +81,12 @@ func (e *EdgeboxPlatform) Init(ctx context.Context, platformConfig *platform.Pla
 func (e *EdgeboxPlatform) GetEdgeboxNetworkScheme() string {
 	val, _ := e.commonPf.Properties.GetValue("MEX_EDGEBOX_NETWORK_SCHEME")
 	return val
+}
+
+func (e *EdgeboxPlatform) GetEdgeboxDockerCreds() (string, string) {
+	user_val, _ := e.commonPf.Properties.GetValue("MEX_EDGEBOX_DOCKER_USER")
+	pass_val, _ := e.commonPf.Properties.GetValue("MEX_EDGEBOX_DOCKER_PASS")
+	return user_val, pass_val
 }
 
 func (e *EdgeboxPlatform) GatherCloudletInfo(ctx context.Context, info *edgeproto.CloudletInfo) error {

@@ -118,7 +118,6 @@ EOT
 log "Set up the APT keys"
 curl -s https://${APT_USER}:${APT_PASS}@artifactory.mobiledgex.net/artifactory/api/gpg/key/public | sudo apt-key add -
 curl -s https://${APT_USER}:${APT_PASS}@apt.mobiledgex.net/gpg.key | sudo apt-key add -
-curl -s -L https://nvidia.github.io/nvidia-docker/gpgkey | sudo apt-key add -
 
 ps -ef | grep cloud
 
@@ -211,10 +210,21 @@ $TOTP_KEY
 EOT
 sudo chmod 400 /root/.google_authenticator
 
+# Fetch kubeadm package version
+K8SVERS=$( dpkg -l | grep kubeadm | awk '{print $3}' | cut -d- -f1 )
+
+log "Pulling docker images for kubernetes $K8SVERS"
+sudo kubeadm config images pull --kubernetes-version "$K8SVERS"
+for DOCKER_IMAGE in $( cat /tmp/docker-image-cache.txt ); do
+	sudo docker pull --quiet "$DOCKER_IMAGE"
+done
+
+log "Cached docker images"
+sudo docker image ls
+
 log "System setup"
 sudo swapoff -a
 sudo sed -i "s/cgroup-driver=systemd/cgroup-driver=cgroupfs/g" /etc/systemd/system/kubelet.service.d/10-kubeadm.conf
-sudo kubeadm config images pull
 sudo usermod -aG docker root
 
 echo "d /run/sshd 0755 root root" | sudo tee -a /usr/lib/tmpfiles.d/sshd.conf

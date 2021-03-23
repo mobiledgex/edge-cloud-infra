@@ -2,6 +2,7 @@ package edgebox
 
 import (
 	"context"
+	"fmt"
 	"net"
 
 	"github.com/mobiledgex/edge-cloud-infra/infracommon"
@@ -19,13 +20,29 @@ func (e *EdgeboxPlatform) CreateAppInst(ctx context.Context, clusterInst *edgepr
 		return err
 	}
 
+	externalIP, err := e.GetDINDServiceIP(ctx)
+	if err != nil {
+		return fmt.Errorf("init cannot get service ip, %s", err.Error())
+	}
+	// Should only add DNS for external ports
+	mappedAddr := e.commonPf.GetMappedExternalIP(externalIP)
+	// Use IP address as AppInst URI, so that we can avoid using Cloudflare for Edgebox
+	appInst.Uri = mappedAddr
+
 	names, err := k8smgmt.GetKubeNames(clusterInst, app, appInst)
 	if err != nil {
 		return err
 	}
+	names.IsUriIPAddr = true
+	// Setup secrets only for K8s app. For docker, we already do it as part of edgebox script
+	// Use secrets from env-var as we already have console creds, which limits user to access its own org images
+	dockerUser, dockerPass := e.GetEdgeboxDockerCreds()
+	existingCreds := cloudcommon.RegistryAuth{}
+	existingCreds.Username = dockerUser
+	existingCreds.Password = dockerPass
 	if app.Deployment != cloudcommon.DeploymentTypeDocker {
 		for _, imagePath := range names.ImagePaths {
-			err = infracommon.CreateDockerRegistrySecret(ctx, client, k8smgmt.GetKconfName(clusterInst), imagePath, e.commonPf.PlatformConfig.AccessApi, names)
+			err = infracommon.CreateDockerRegistrySecret(ctx, client, k8smgmt.GetKconfName(clusterInst), imagePath, e.commonPf.PlatformConfig.AccessApi, names, &existingCreds)
 			if err != nil {
 				return err
 			}
@@ -51,7 +68,6 @@ func (e *EdgeboxPlatform) CreateAppInst(ctx context.Context, clusterInst *edgepr
 		return err
 	}
 	masterIP := cluster.MasterAddr
-	externalIP, err := e.GetDINDServiceIP(ctx)
 	getDnsAction := func(svc v1.Service) (*infracommon.DnsSvcAction, error) {
 		action := infracommon.DnsSvcAction{}
 
@@ -65,8 +81,8 @@ func (e *EdgeboxPlatform) CreateAppInst(ctx context.Context, clusterInst *edgepr
 			return nil, err
 		}
 		action.ExternalIP = externalIP
-		// Should only add DNS for external ports
-		action.AddDNS = !app.InternalPorts
+		// use custom DNS mapping, and hence not create cloudflare entries
+		action.AddDNS = false
 		return &action, nil
 	}
 	if err = e.commonPf.CreateAppDNSAndPatchKubeSvc(ctx, client, names, infracommon.NoDnsOverride, getDnsAction); err != nil {
@@ -78,24 +94,7 @@ func (e *EdgeboxPlatform) CreateAppInst(ctx context.Context, clusterInst *edgepr
 }
 
 func (e *EdgeboxPlatform) DeleteAppInst(ctx context.Context, clusterInst *edgeproto.ClusterInst, app *edgeproto.App, appInst *edgeproto.AppInst, updateCallback edgeproto.CacheUpdateCallback) error {
-	var err error
-	client, err := e.generic.GetClusterPlatformClient(ctx, clusterInst, cloudcommon.ClientTypeRootLB)
-	if err != nil {
-		return err
-	}
-
-	names, err := k8smgmt.GetKubeNames(clusterInst, app, appInst)
-	if err != nil {
-		return err
-	}
-
-	// remove DNS entries if it was added
-	if !app.InternalPorts {
-		if err = e.commonPf.DeleteAppDNS(ctx, client, names, infracommon.NoDnsOverride); err != nil {
-			log.SpanLog(ctx, log.DebugLevelInfra, "warning, cannot delete DNS record", "error", err)
-		}
-	}
-	if err = e.generic.DeleteAppInst(ctx, clusterInst, app, appInst, updateCallback); err != nil {
+	if err := e.generic.DeleteAppInst(ctx, clusterInst, app, appInst, updateCallback); err != nil {
 		log.SpanLog(ctx, log.DebugLevelInfra, "warning, cannot delete AppInst", "error", err)
 		return err
 	}
@@ -105,7 +104,35 @@ func (e *EdgeboxPlatform) DeleteAppInst(ctx context.Context, clusterInst *edgepr
 func (e *EdgeboxPlatform) UpdateAppInst(ctx context.Context, clusterInst *edgeproto.ClusterInst, app *edgeproto.App, appInst *edgeproto.AppInst, updateCallback edgeproto.CacheUpdateCallback) error {
 	log.SpanLog(ctx, log.DebugLevelInfra, "UpdateAppInst", "appInst", appInst)
 
-	err := e.generic.UpdateAppInst(ctx, clusterInst, app, appInst, updateCallback)
+	names, err := k8smgmt.GetKubeNames(clusterInst, app, appInst)
+	if err != nil {
+		return err
+	}
+	client, err := e.generic.GetClient(ctx)
+	if err != nil {
+		return err
+	}
+	if app.Deployment == cloudcommon.DeploymentTypeKubernetes || app.Deployment == cloudcommon.DeploymentTypeHelm {
+		// Use secrets from env-var as we already have console creds, which limits user to access its own org images
+		dockerUser, dockerPass := e.GetEdgeboxDockerCreds()
+		existingCreds := cloudcommon.RegistryAuth{}
+		existingCreds.Username = dockerUser
+		existingCreds.Password = dockerPass
+		kconf := k8smgmt.GetKconfName(clusterInst)
+		for _, imagePath := range names.ImagePaths {
+			// secret may have changed, so delete and re-create
+			err = infracommon.DeleteDockerRegistrySecret(ctx, client, kconf, imagePath, e.commonPf.PlatformConfig.AccessApi, names, &existingCreds)
+			if err != nil {
+				return err
+			}
+			err = infracommon.CreateDockerRegistrySecret(ctx, client, kconf, imagePath, e.commonPf.PlatformConfig.AccessApi, names, &existingCreds)
+			if err != nil {
+				return err
+			}
+		}
+	}
+
+	err = e.generic.UpdateAppInst(ctx, clusterInst, app, appInst, updateCallback)
 	if err != nil {
 		log.SpanLog(ctx, log.DebugLevelInfra, "error updating appinst", "error", err)
 		return err

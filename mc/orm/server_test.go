@@ -541,6 +541,7 @@ func TestServer(t *testing.T) {
 	testImagePaths(t, ctx, mcClient, uri, token)
 	testLockedUsers(t, uri, mcClient)
 	testPasswordStrength(t, ctx, mcClient, uri, token)
+	testEdgeboxOrgs(t, uri, mcClient)
 }
 
 func showCurrentUser(mcClient *ormclient.Client, uri, token string) (*ormapi.User, int, error) {
@@ -926,4 +927,81 @@ func testPasswordStrength(t *testing.T, ctx context.Context, mcClient *ormclient
 	status, err = mcClient.DeleteUser(uri, token, &user1)
 	require.Nil(t, err)
 	require.Equal(t, http.StatusOK, status)
+}
+
+func testEdgeboxOrgs(t *testing.T, uri string, mcClient *ormclient.Client) {
+	// login as super user
+	superTok, _, err := mcClient.DoLogin(uri, DefaultSuperuser, DefaultSuperpass, NoOTP, NoApiKeyId, NoApiKey)
+	require.Nil(t, err, "login as superuser")
+
+	// create non-admin user
+	user := ormapi.User{
+		Name:     "user",
+		Email:    "user@gmail.com",
+		Passhash: "user-password-super-long-crazy-hard-difficult",
+	}
+	_, status, err := mcClient.CreateUser(uri, &user)
+	require.Nil(t, err, "create user")
+	require.Equal(t, http.StatusOK, status, "create user status")
+
+	// login as non-admin user
+	userTok, _, err := mcClient.DoLogin(uri, user.Name, user.Passhash, NoOTP, NoApiKeyId, NoApiKey)
+	require.Nil(t, err, "login")
+
+	// create an Organization
+	org := ormapi.Organization{
+		Type: "operator",
+		Name: "Oper",
+		// setting edgeboxorg will have no effect
+		EdgeboxOrg: false,
+	}
+	_, err = mcClient.CreateOrg(uri, userTok, &org)
+	require.Nil(t, err, "create org")
+
+	// default operator org will be edgebox org
+	check := getOrg(t, mcClient, uri, userTok, org.Name)
+	require.NotNil(t, check, "org exists")
+	require.True(t, check.EdgeboxOrg, "by default operator org is edgebox org")
+	// super user toggle edgebox org
+	orgReq := make(map[string]interface{})
+	orgReq["name"] = org.Name
+	orgReq["edgeboxorg"] = false
+	status, err = mcClient.RestrictedOrgUpdate(uri, superTok, orgReq)
+	require.Nil(t, err)
+	require.Equal(t, http.StatusOK, status)
+
+	// check if edgebox org got toggled
+	check = getOrg(t, mcClient, uri, userTok, org.Name)
+	require.NotNil(t, check, "org exists")
+	require.False(t, check.EdgeboxOrg, "toggled edgeboxorg")
+
+	// cleanup org
+	_, err = mcClient.DeleteOrg(uri, userTok, &org)
+	require.Nil(t, err, "delete org")
+
+	// set config to be disable edgeboxorg as default operator org
+	configReq := make(map[string]interface{})
+	configReq["skipoperatoredgeboxorg"] = true
+	status, err = mcClient.UpdateConfig(uri, superTok, configReq)
+	require.Nil(t, err)
+	require.Equal(t, http.StatusOK, status)
+
+	// now default operator org will not be edgebox org
+	_, err = mcClient.CreateOrg(uri, userTok, &org)
+	require.Nil(t, err, "create org")
+	check = getOrg(t, mcClient, uri, userTok, org.Name)
+	require.NotNil(t, check, "org exists")
+	require.False(t, check.EdgeboxOrg, "by default operator org is not edgebox org")
+
+	// make sure non-admin user cannot toggle edgebox org
+	orgReq = make(map[string]interface{})
+	orgReq["name"] = org.Name
+	orgReq["edgeboxorg"] = true
+	status, err = mcClient.RestrictedOrgUpdate(uri, userTok, orgReq)
+	require.NotNil(t, err)
+	require.Equal(t, http.StatusForbidden, status)
+
+	// cleanup org
+	_, err = mcClient.DeleteOrg(uri, userTok, &org)
+	require.Nil(t, err, "delete org")
 }

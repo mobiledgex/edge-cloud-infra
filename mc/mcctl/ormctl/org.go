@@ -38,3 +38,15 @@ func GetOrgCommand() *cobra.Command {
 	}}
 	return cli.GenGroup("org", "Manage organizations", cmds)
 }
+
+func GetRestrictedOrgUpdateCmd() *cobra.Command {
+	cmd := cli.Command{
+		Use:          "restrictedorgupdate",
+		Short:        "Admin-only update of org fields, requires name",
+		OptionalArgs: "name edgeboxorg",
+		Comments:     ormapi.OrganizationComments,
+		ReqData:      &ormapi.Organization{},
+		Run:          runRest("/auth/restricted/org/update"),
+	}
+	return cmd.GenCmd()
+}

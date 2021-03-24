@@ -122,6 +122,10 @@ func (s *Client) ShowOrg(uri, token string) ([]ormapi.Organization, int, error) 
 	return orgs, status, err
 }
 
+func (s *Client) RestrictedOrgUpdate(uri, token string, user map[string]interface{}) (int, error) {
+	return s.PostJson(uri+"/auth/restricted/org/update", token, user, nil)
+}
+
 func (s *Client) CreateBillingOrg(uri, token string, bOrg *ormapi.BillingOrganization) (int, error) {
 	return s.PostJson(uri+"/auth/billingorg/create", token, bOrg, nil)
 }

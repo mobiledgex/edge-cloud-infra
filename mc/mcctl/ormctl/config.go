@@ -10,7 +10,7 @@ func GetConfigCommand() *cobra.Command {
 	cmds := []*cli.Command{&cli.Command{
 		Use:          "update",
 		Short:        "Update master controller global configuration",
-		OptionalArgs: "locknewaccounts notifyemailaddress, skipverifyemail, maxmetricsdatapoints, passwordmincracktimesec, adminpasswordmincracktimesec userapikeycreatelimit billingenable",
+		OptionalArgs: "locknewaccounts notifyemailaddress, skipverifyemail, maxmetricsdatapoints, passwordmincracktimesec, adminpasswordmincracktimesec userapikeycreatelimit billingenable skipoperatoredgeboxorg",
 		ReqData:      &ormapi.Config{},
 		Run:          runRest("/auth/config/update"),
 	}, &cli.Command{

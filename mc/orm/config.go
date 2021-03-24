@@ -19,6 +19,7 @@ var defaultConfig = ormapi.Config{
 	MaxMetricsDataPoints:         10000,
 	UserApiKeyCreateLimit:        10,
 	BillingEnable:                false, // TODO: eventually set the default to true?
+	SkipOperatorEdgeboxOrg:       false,
 }
 
 func InitConfig(ctx context.Context) error {

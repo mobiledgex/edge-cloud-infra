@@ -69,6 +69,7 @@ func main() {
 		ormctl.GetAccessCloudletCmd(),
 		ormctl.GetSpansCommand(),
 		ormctl.GetRestrictedUserUpdateCmd(),
+		ormctl.GetRestrictedOrgUpdateCmd(),
 	}
 	logsMetricsCommands := []*cobra.Command{
 		ormctl.GetMetricsCommand(),

@@ -152,9 +152,8 @@ func (v *VcdPlatform) AddPortsToVapp(ctx context.Context, vapp *govcd.VApp, vmgp
 		if port.NetworkType == vmlayer.NetTypeExternal {
 
 			desiredNetConfig := &types.NetworkConnectionSection{}
-			desiredNetConfig.PrimaryNetworkConnectionIndex = 1
-			conIdx := 1
-			log.SpanLog(ctx, log.DebugLevelInfra, "AddPortsToVapp adding external vapp net", "PortNum", n, "vapp", vapp.VApp.Name, "port.NetworkName", port.NetworkName, "ConIdx", conIdx)
+			desiredNetConfig.PrimaryNetworkConnectionIndex = 0
+			log.SpanLog(ctx, log.DebugLevelInfra, "AddPortsToVapp adding external vapp net", "PortNum", n, "vapp", vapp.VApp.Name, "port.NetworkName", port.NetworkName, "ConIdx", 0)
 			_, err := v.AddVappNetwork(ctx, vapp, vcdClient)
 
 			desiredNetConfig.NetworkConnection = append(desiredNetConfig.NetworkConnection,
@@ -162,7 +161,7 @@ func (v *VcdPlatform) AddPortsToVapp(ctx context.Context, vapp *govcd.VApp, vmgp
 					IsConnected:             true,
 					IPAddressAllocationMode: types.IPAllocationModePool,
 					Network:                 v.vmProperties.GetCloudletExternalNetwork(),
-					NetworkConnectionIndex:  conIdx,
+					NetworkConnectionIndex:  desiredNetConfig.PrimaryNetworkConnectionIndex,
 				})
 
 			vmtmplName := vapp.VApp.Children.VM[0].Name
@@ -323,29 +322,35 @@ func (v *VcdPlatform) DetachPortFromServer(ctx context.Context, serverName, subn
 		log.SpanLog(ctx, log.DebugLevelInfra, "AttachPortToServer orgvdc subnet not found", "subnetName", subnetName)
 		return err
 	}
-	vmName := vapp.VApp.Children.VM[0].Name
-	vm, err := vapp.GetVMByName(vmName, true)
-	if err != nil {
-		log.SpanLog(ctx, log.DebugLevelInfra, "DetachPortFromServer server not found", "vm", vmName, "for server", serverName)
-		return err
-	}
-	ncs, err := vm.GetNetworkConnectionSection()
-	if err != nil {
-		log.SpanLog(ctx, log.DebugLevelInfra, "DetachPortFromServer Failed to retrieve networkConnectionSection from", "vm", vmName, "err", err)
-		return err
-	}
-	for n, nc := range ncs.NetworkConnection {
-		if nc.Network == portName {
-			ncs.NetworkConnection[n] = ncs.NetworkConnection[len(ncs.NetworkConnection)-1]
-			ncs.NetworkConnection[len(ncs.NetworkConnection)-1] = &types.NetworkConnection{}
-			ncs.NetworkConnection = ncs.NetworkConnection[:len(ncs.NetworkConnection)-1]
-			err := vm.UpdateNetworkConnectionSection(ncs)
-			if err != nil {
-				log.SpanLog(ctx, log.DebugLevelInfra, "DetachPortFromServer UpdateNetowrkConnectionSection failed", "serverName", serverName, "port", portName, "subnet", subnetName, "err", err)
-				return err
+
+	// Operate on all VMs in this vapp
+	vms := vapp.VApp.Children.VM
+	for _, tvm := range vms {
+		vmName := tvm.Name // vapp.VApp.Children.VM[0].Name
+		vm, err := vapp.GetVMByName(vmName, true)
+		if err != nil {
+			log.SpanLog(ctx, log.DebugLevelInfra, "DetachPortFromServer server not found", "vm", vmName, "for server", serverName)
+			return err
+		}
+		log.SpanLog(ctx, log.DebugLevelInfra, "DetachPortFromServer", "vm", vmName, "for server", serverName)
+		ncs, err := vm.GetNetworkConnectionSection()
+		if err != nil {
+			log.SpanLog(ctx, log.DebugLevelInfra, "DetachPortFromServer Failed to retrieve networkConnectionSection from", "vm", vmName, "err", err)
+			return err
+		}
+		for n, nc := range ncs.NetworkConnection {
+			if nc.Network == portName {
+				ncs.NetworkConnection[n] = ncs.NetworkConnection[len(ncs.NetworkConnection)-1]
+				ncs.NetworkConnection[len(ncs.NetworkConnection)-1] = &types.NetworkConnection{}
+				ncs.NetworkConnection = ncs.NetworkConnection[:len(ncs.NetworkConnection)-1]
+				err := vm.UpdateNetworkConnectionSection(ncs)
+				if err != nil {
+					log.SpanLog(ctx, log.DebugLevelInfra, "DetachPortFromServer UpdateNetowrkConnectionSection failed", "serverName", serverName, "port", portName, "subnet", subnetName, "err", err)
+					return err
+				}
+				log.SpanLog(ctx, log.DebugLevelInfra, "DetachPortFromServer success", "serverName", serverName, "port", portName, "subnet", subnetName)
+				break
 			}
-			log.SpanLog(ctx, log.DebugLevelInfra, "DetachPortFromServer success", "serverName", serverName, "port", portName, "subnet", subnetName)
-			break
 		}
 	}
 	// Now remove the network from the Vapp/Server
@@ -443,8 +448,8 @@ func GetNextAvailConIdx(ctx context.Context, ncs *types.NetworkConnectionSection
 		}
 		conIdMap[nc.NetworkConnectionIndex] = nc
 	}
-	curIdx := 0
-	for curIdx = 0; curIdx < MaxSubnetsPerSharedLB; curIdx++ {
+	var curIdx int
+	for curIdx = 1; curIdx < MaxSubnetsPerSharedLB; curIdx++ {
 		if _, found := conIdMap[curIdx]; !found {
 			log.SpanLog(ctx, log.DebugLevelInfra, "GetNextAvailConIdx returns", "conIdx", curIdx)
 			return curIdx, nil

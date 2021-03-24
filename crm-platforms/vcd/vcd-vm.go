@@ -233,7 +233,6 @@ func (v *VcdPlatform) AddVMsToVApp(ctx context.Context, vapp *govcd.VApp, vmgp *
 		a = strings.Split(nextCidr, "/")
 		baseAddr = string(a[0])
 	}
-	netConIdx := 0
 	for n, vmparams := range vmgp.VMs {
 		vmName := vmparams.Name
 		vmRole := vmparams.Role
@@ -288,11 +287,9 @@ func (v *VcdPlatform) AddVMsToVApp(ctx context.Context, vapp *govcd.VApp, vmgp *
 						log.SpanLog(ctx, log.DebugLevelInfra, "IncrIP failed", "baseAddr", baseAddr, "delta", 100+(n-1), "err", err)
 						return nil, err
 					}
-
-					ncs.PrimaryNetworkConnectionIndex = 0
 				} else {
 					log.SpanLog(ctx, log.DebugLevelInfra, "Dedicated", "vm", vm.VM.Name, "gateway", baseAddr)
-					// a single node docker cluster will need .101 here for e
+					// a single node docker cluster will need .101 here
 					vmIp, err = IncrIP(ctx, baseAddr, 100+(n-1))
 					if err != nil {
 						log.SpanLog(ctx, log.DebugLevelInfra, "IncrIP failed", "baseAddr", baseAddr, "delta", 100+(n-1), "err", err)
@@ -310,6 +307,11 @@ func (v *VcdPlatform) AddVMsToVApp(ctx context.Context, vapp *govcd.VApp, vmgp *
 				return nil, err
 			}
 
+			ip, _ := v.GetAddrOfVM(ctx, vm, v.vmProperties.GetCloudletExternalNetwork())
+			if ip == "" {
+				ncs.PrimaryNetworkConnectionIndex = 1
+			} // else, it's already set to zero
+
 			internalNetName := ""
 			ports := vmgp.Ports
 			for _, port := range ports {
@@ -324,6 +326,11 @@ func (v *VcdPlatform) AddVMsToVApp(ctx context.Context, vapp *govcd.VApp, vmgp *
 				if vmparams.Role == vmlayer.RoleVMApplication {
 					// VM apps may not have VMTools installed so use the generic E1000 adapter
 					networkAdapterType = "E1000"
+				}
+				netConIdx, err := GetNextAvailConIdx(ctx, ncs)
+				if err != nil {
+					// unlikely we've run out of connection ids
+					return nil, err
 				}
 				ncs.NetworkConnection = append(ncs.NetworkConnection,
 					&types.NetworkConnection{

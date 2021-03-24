@@ -7,18 +7,21 @@ import (
 	"os"
 	"time"
 
+	"github.com/vmware/go-vcloud-director/v2/govcd"
+
 	"github.com/mobiledgex/edge-cloud-infra/infracommon"
 	"github.com/mobiledgex/edge-cloud-infra/vmlayer"
 	"github.com/mobiledgex/edge-cloud/cloudcommon"
 	"github.com/mobiledgex/edge-cloud/edgeproto"
 	"github.com/mobiledgex/edge-cloud/log"
 	ssh "github.com/mobiledgex/golang-ssh"
-	"github.com/vmware/go-vcloud-director/v2/govcd"
 )
 
 var VCDClientCtxKey = "VCDClientCtxKey"
 
 var NoVCDClientInContext = "No VCD Client in Context"
+
+var GlobalVCDClient *govcd.VCDClient
 
 // vcd security related operations
 
@@ -80,6 +83,8 @@ func (v *VcdPlatform) PopulateOrgLoginCredsFromVcdVars(ctx context.Context) erro
 		OauthAgwUrl:       v.GetVcdOauthAgwUrl(),
 		OauthClientId:     v.GetVcdOauthClientId(),
 		OauthClientSecret: v.GetVcdOauthClientSecret(),
+		ClientTlsCert:     v.GetVcdClientTlsCert(),
+		ClientTlsKey:      v.GetVcdClientTlsKey(),
 
 		Insecure: true,
 	}
@@ -192,45 +197,43 @@ func (v *VcdPlatform) GetClient(ctx context.Context, creds *VcdConfigParams) (cl
 		return nil, fmt.Errorf("nil creds passed to GetClient")
 	}
 
-	log.SpanLog(ctx, log.DebugLevelInfra, "GetClient", "user", creds.User)
+	log.SpanLog(ctx, log.DebugLevelInfra, "GetClient", "user", creds.User, "OauthSgwUrl", creds.OauthSgwUrl)
 
-	u, err := url.ParseRequestURI(creds.VcdApiUrl)
+	apiUrl := creds.VcdApiUrl
+	if creds.OauthAgwUrl != "" {
+		apiUrl = creds.OauthAgwUrl
+	}
+	u, err := url.ParseRequestURI(apiUrl)
 	if err != nil {
 		return nil, fmt.Errorf("Unable to parse request to org %s at %s err: %s", creds.Org, creds.VcdApiUrl, err)
 	}
-	vcdClient := govcd.NewVCDClient(*u, creds.Insecure)
+	if GlobalVCDClient == nil {
+		log.WarnLog("CREATE NEW GlobalVCDClient")
 
-	if vcdClient.Client.VCDToken != "" {
-		_ = vcdClient.SetToken(creds.Org, govcd.AuthorizationHeader, creds.Token)
-	} else {
-		_, err := vcdClient.GetAuthResponse(creds.User, creds.Password, creds.Org)
-		if err != nil {
-			return nil, fmt.Errorf("Unable to login to org %s at %s err: %s", creds.Org, creds.VcdApiUrl, err)
+		GlobalVCDClient = govcd.NewVCDClient(*u, creds.Insecure, govcd.WithOauthUrl(creds.OauthSgwUrl), govcd.WithClientTlsCerts(creds.ClientTlsCert, creds.ClientTlsKey))
+
+		if GlobalVCDClient.Client.VCDToken != "" {
+			_ = GlobalVCDClient.SetToken(creds.Org, govcd.AuthorizationHeader, creds.Token)
+		} else {
+			user := creds.User
+			pass := creds.Password
+			if creds.OauthSgwUrl != "" {
+				user = creds.OauthClientId
+				pass = creds.OauthClientSecret
+			}
+			_, err := GlobalVCDClient.GetAuthResponse(user, pass, creds.Org)
+			if err != nil {
+				log.SpanLog(ctx, log.DebugLevelInfra, "Unable to login to org", "org", creds.Org, "err", err)
+				return nil, fmt.Errorf("Unable to login to org %s at %s err: %s", creds.Org, creds.VcdApiUrl, err)
+			}
 		}
-		//creds.Token = resp.Header[govcd.AuthorizationHeader]
 	}
-	// xxx revisit
-	// prefer the highest Api version found on the other end.
-	// vCD 10.0 == Api 33
-	// vCD 10.1 == Api 34
-	// The VMware vcd is 10.1 and highest is 34, but if we change it
-	// to say 33, we get ENF (entity not found) for our vdc <sigh>
-	// So find another way to set this API version. By default,
-	// vcdClient.Client.APIVersion == 31.0 which is a 9.5 version.
+	vcdClient, err := GlobalVCDClient.CopyClient()
+	if err != nil {
+		return nil, fmt.Errorf("copyClient failed - %v", err)
+	}
+	log.InfoLog("COPIED CLIENT", "GlobalVCDClient", fmt.Sprintf("%+v", GlobalVCDClient), "vcdClient", fmt.Sprintf("%+v", vcdClient))
 
-	// Ok, checkout api_vcd.go, we'd need to adjust the loginURL
-	// to match the version change. NewVCDClient could be used with options
-	// but 10.1 supports 31.0, so until we care, we don't.
-	/*
-		if vcdClient.Client.APIVCDMaxVersionIs(">= 33.0") {
-			fmt.Printf("APIVCDMaxVersionIs of >= 33.0 is true")
-			vcdClient.Client.APIVersion = "33.0"
-		}
-		if vcdClient.Client.APIClientVersionIs("= 34.0") {
-			fmt.Printf("Talking with vCD v10.1 using API v 34.0\n")
-			vcdClient.Client.APIVersion = "34.0"
-		}
-	*/
 	log.SpanLog(ctx, log.DebugLevelInfra, "GetClient connected", "API Version", vcdClient.Client.APIVersion)
 	// setup the client in the context
 	return vcdClient, nil
@@ -279,7 +282,8 @@ func (v *VcdPlatform) InitOperationContext(ctx context.Context, operationStage v
 			return ctx, vmlayer.OperationNewlyInitialized, nil
 		}
 	} else {
-		vcdClient := v.GetVcdClientFromContext(ctx)
+		return ctx, vmlayer.OperationNewlyInitialized, nil
+		/*vcdClient := v.GetVcdClientFromContext(ctx)
 		if vcdClient == nil {
 			log.SpanLog(ctx, log.DebugLevelInfra, NoVCDClientInContext, "ctx", fmt.Sprintf("%+v", ctx))
 			return ctx, vmlayer.OperationInitFailed, fmt.Errorf(NoVCDClientInContext)
@@ -288,10 +292,10 @@ func (v *VcdPlatform) InitOperationContext(ctx context.Context, operationStage v
 		err := vcdClient.Disconnect()
 		if err != nil {
 			// err here happens all the time but has no impact
-			if v.Verbose {
+			if v.Verbose {ƒ
 				log.SpanLog(ctx, log.DebugLevelInfra, "Disconnect vcdClient", "err", err)
 			}
 		}
-		return ctx, vmlayer.OperationNewlyInitialized, err
+		return ctx, vmlayer.OperationNewlyInitialized, nil */
 	}
 }

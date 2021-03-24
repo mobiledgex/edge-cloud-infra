@@ -8,12 +8,13 @@ import (
 
 	"github.com/mobiledgex/edge-cloud-infra/vmlayer"
 
+	"github.com/vmware/go-vcloud-director/v2/govcd"
+
 	"github.com/mobiledgex/edge-cloud/cloud-resource-manager/platform"
 	"github.com/mobiledgex/edge-cloud/edgeproto"
 	"github.com/mobiledgex/edge-cloud/log"
 	"github.com/mobiledgex/edge-cloud/vault"
 	ssh "github.com/mobiledgex/golang-ssh"
-	"github.com/vmware/go-vcloud-director/v2/govcd"
 )
 
 // Note regarding govcd SDK:
@@ -49,9 +50,10 @@ type VcdConfigParams struct {
 	Token             string
 	OauthSgwUrl       string
 	OauthAgwUrl       string
-	OauthAccessUrl    string
 	OauthClientId     string
 	OauthClientSecret string
+	ClientTlsKey      string
+	ClientTlsCert     string
 }
 
 type VAppMap map[string]*govcd.VApp
@@ -401,7 +403,7 @@ func (v *VcdPlatform) DisableOrgRuntimeLease(ctx context.Context, override bool)
 		// Too early for context
 		vcdClient, err = v.GetClient(ctx, v.Creds)
 		if err != nil {
-			return fmt.Errorf(NoVCDClientInContext)
+			return fmt.Errorf("Failed to get VCD Client: %v", err)
 		}
 		log.SpanLog(ctx, log.DebugLevelInfra, "Obtained client directly continuing")
 	}

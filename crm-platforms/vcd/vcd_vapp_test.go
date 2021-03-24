@@ -7,9 +7,10 @@ import (
 	"net/url"
 	"testing"
 
+	"github.com/vmware/go-vcloud-director/v2/govcd"
+
 	"github.com/mobiledgex/edge-cloud-infra/vmlayer"
 	"github.com/stretchr/testify/require"
-	"github.com/vmware/go-vcloud-director/v2/govcd"
 	"github.com/vmware/go-vcloud-director/v2/types/v56"
 )
 

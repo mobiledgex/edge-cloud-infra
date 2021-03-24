@@ -93,6 +93,12 @@ func (v *VcdPlatform) GetVcdOauthClientId() string {
 func (v *VcdPlatform) GetVcdOauthClientSecret() string {
 	return v.vcdVars["VCD_OAUTH_CLIENT_SECRET"]
 }
+func (v *VcdPlatform) GetVcdClientTlsCert() string {
+	return v.vcdVars["VCD_CLIENT_TLS_CERT"]
+}
+func (v *VcdPlatform) GetVcdClientTlsKey() string {
+	return v.vcdVars["VCD_CLIENT_TLS_KEY"]
+}
 func (v *VcdPlatform) GetVCDUser() string {
 	return v.vcdVars["VCD_USER"]
 }

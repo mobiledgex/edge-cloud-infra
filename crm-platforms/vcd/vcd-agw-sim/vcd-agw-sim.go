@@ -2,12 +2,14 @@ package main
 
 import (
 	"crypto/tls"
+	"crypto/x509"
 	"flag"
 	"fmt"
 	"log"
 	"net/http"
 
 	"context"
+	"io/ioutil"
 	"strings"
 
 	"github.com/mobiledgex/edge-cloud-infra/crm-platforms/vcd"
@@ -15,11 +17,12 @@ import (
 
 var (
 	port         = flag.Int("port", 8443, "listen port")
+	caname       = flag.String("caname", "mex-ca", "CA cert name")
 	certdir      = flag.String("certdir", "", "certdir")
 	certname     = flag.String("certname", "mex-server", "certname")
 	apiprefix    = flag.String("apiprefix", "/api/rest/TelefonicaApiVCloud/v1/", "api gw path prefix")
 	vcdapivers   = flag.String("vcdapivers", "32.0", "vcd api version")
-	vcdapiprefix = flag.String("vcdapiprefix", "/api", "api prefix for call to vcd")
+	vcdapiprefix = flag.String("vcdapiprefix", "", "api prefix for call to vcd")
 	region       = flag.String("region", "", "region (US or EU)")
 	physname     = flag.String("physname", "", "cloudlet physical name")
 	org          = flag.String("org", "", "cloudlet org")
@@ -36,7 +39,7 @@ func showIndex(w http.ResponseWriter, r *http.Request) {
 }
 
 func doApi(w http.ResponseWriter, r *http.Request) {
-	log.Println("doing doApi URL: " + r.URL.Path)
+	log.Println("doing doApi URL: " + r.URL.Path + " QueryParams: " + r.URL.RawQuery)
 
 	token := r.Header.Get("Authorization")
 	stoken := strings.Split(token, "Bearer")
@@ -60,6 +63,9 @@ func doApi(w http.ResponseWriter, r *http.Request) {
 
 	// now forward to vcd
 	urlString := fmt.Sprintf("%s%s/%s", vcdPlatform.GetVcdUrl(), *vcdapiprefix, vcdapi)
+	if r.URL.RawQuery != "" {
+		urlString += "?" + r.URL.RawQuery
+	}
 	vcdreq, err := http.NewRequest(r.Method, urlString, r.Body)
 	if err != nil {
 		log.Printf("error creating vcd request: %v", err)
@@ -76,7 +82,7 @@ func doApi(w http.ResponseWriter, r *http.Request) {
 		},
 	}
 
-	log.Printf("Sending to VCD: %+v\n", vcdreq)
+	log.Printf("---> Sending to VCD -- Method: %s URL: %s HEADER: %+v\n\n", vcdreq.Method, vcdreq.URL, vcdreq.Header)
 
 	resp, err := client.Do(vcdreq)
 	if err != nil {
@@ -84,27 +90,24 @@ func doApi(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusInternalServerError)
 		return
 	}
-	log.Printf("VCD status code: %d", resp.StatusCode)
+	log.Printf("<--- Received VCD status code: %d", resp.StatusCode)
 	if resp.Body == nil {
 		log.Printf("nil body in vcd response: %v", err)
 		w.WriteHeader(http.StatusInternalServerError)
 		return
 	}
+	defer resp.Body.Close()
 	if resp.StatusCode != http.StatusOK {
 		w.WriteHeader(resp.StatusCode)
-		return
 	}
 
-	var byt []byte
-	_, err = resp.Body.Read(byt)
-	resp.Body.Close()
+	body, err := ioutil.ReadAll(resp.Body)
 	if err != nil {
 		log.Printf("error reading vcd response: %v", err)
 		w.WriteHeader(http.StatusInternalServerError)
 	}
-
-	log.Printf("VCD body: %s\n", string(byt))
-	w.Write(byt)
+	log.Printf("<--- VCD body bytes: %s\n", body)
+	w.Write(body)
 }
 
 func run() {
@@ -134,8 +137,17 @@ func run() {
 	log.Printf("Listening on " + listenAddr)
 	certfile := fmt.Sprintf("%s/%s.crt", *certdir, *certname)
 	keyfile := fmt.Sprintf("%s/%s.key", *certdir, *certname)
+	cafile := fmt.Sprintf("%s/%s.crt", *certdir, *caname)
+	// Create a CA certificate pool and add cert.pem to it
+	caCert, err := ioutil.ReadFile(cafile)
+	if err != nil {
+		log.Fatal(err)
+	}
+	caCertPool := x509.NewCertPool()
+	caCertPool.AppendCertsFromPEM(caCert)
 	tlsConfig := &tls.Config{
-		ClientAuth: tls.NoClientCert,
+		ClientCAs:  caCertPool,
+		ClientAuth: tls.RequireAndVerifyClientCert,
 	}
 	server := &http.Server{
 		Addr:      fmt.Sprintf(":%d", *port),

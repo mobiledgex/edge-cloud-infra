@@ -47,32 +47,39 @@ func printUsage() {
 }
 
 func validateRequest(r *http.Request) int {
+	log.Printf("validating incoming request: %+v", r)
+
 	contentType := r.Header.Get("Content-Type")
 	if contentType != vcd.ContentFormUrlEncoded {
 		log.Printf("Bad Content-Type: " + contentType)
 		return http.StatusBadRequest
 	}
-	var tokReq vcd.TokenRequest
-	err := json.NewDecoder(r.Body).Decode(&tokReq)
+
+	err := r.ParseForm()
 	if err != nil {
-		log.Printf("Unable to decode request %v", err)
+		log.Printf("Bad form data %v", r.Form)
 		return http.StatusBadRequest
 	}
-	log.Printf("Got Token Request: %v contentType: %s", tokReq, contentType)
-	if tokReq.GrantType != vcd.GrantTypeCert {
-		log.Printf("Bad grant type: %s", tokReq.GrantType)
+
+	clientId := r.Form.Get(vcd.ClientId)
+	clientSecret := r.Form.Get(vcd.ClientSecret)
+	grantType := r.Form.Get(vcd.GrantType)
+	scope := r.Form.Get(vcd.Scope)
+
+	if grantType != vcd.GrantTypeCert {
+		log.Printf("Bad grant type: %s", grantType)
 		return http.StatusBadRequest
 	}
-	if tokReq.Scope != vcd.ScopeOpenId {
-		log.Printf("Bad scope: %s", tokReq.Scope)
+	if scope != vcd.ScopeOpenId {
+		log.Printf("Bad scope: %s", scope)
 		return http.StatusBadRequest
 	}
-	if tokReq.ClientId != vcdPlatform.GetVcdOauthClientId() {
-		log.Printf("wrong client id: %s", tokReq.ClientId)
+	if clientId != vcdPlatform.GetVcdOauthClientId() {
+		log.Printf("wrong client id: %s", clientId)
 		return http.StatusUnauthorized
 	}
-	if tokReq.ClientSecret != vcdPlatform.GetVcdOauthClientSecret() {
-		log.Printf("wrong client secret: %s", tokReq.ClientSecret)
+	if clientSecret != vcdPlatform.GetVcdOauthClientSecret() {
+		log.Printf("wrong client secret: %s", clientSecret)
 		return http.StatusUnauthorized
 	}
 	return http.StatusOK
@@ -146,7 +153,6 @@ func run() {
 	certfile := fmt.Sprintf("%s/%s.crt", *certdir, *certname)
 	keyfile := fmt.Sprintf("%s/%s.key", *certdir, *certname)
 	cafile := fmt.Sprintf("%s/%s.crt", *certdir, *caname)
-
 	// Create a CA certificate pool and add cert.pem to it
 	caCert, err := ioutil.ReadFile(cafile)
 	if err != nil {
@@ -158,7 +164,6 @@ func run() {
 		ClientCAs:  caCertPool,
 		ClientAuth: tls.RequireAndVerifyClientCert,
 	}
-	tlsConfig.BuildNameToCertificate()
 	server := &http.Server{
 		Addr:      fmt.Sprintf(":%d", *port),
 		TLSConfig: tlsConfig,

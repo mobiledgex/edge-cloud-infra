@@ -17,12 +17,10 @@ type TokenResponse struct {
 	IdToken      string `json:"id_token"`
 }
 
-type TokenRequest struct {
-	ClientId     string `json:"client_id"`
-	ClientSecret string `json:"client_secret"`
-	GrantType    string `json:"grant_type"`
-	Scope        string `json:"scope"`
-}
+const ClientId = "client_id"
+const ClientSecret = "client_secret"
+const GrantType = "grant_type"
+const Scope = "scope"
 
 const GrantTypeCert = "CERT"
 const ScopeOpenId = "openid"
@@ -57,10 +55,16 @@ func (v *VcdPlatform) PopulateCredsForSimulator(ctx context.Context, region, org
 	}
 	// additional checks because these are optional in the platform
 	if v.Creds.OauthClientId == "" {
-		return fmt.Errorf("OAUTH_CLIENT_ID not found")
+		return fmt.Errorf("VCD_OAUTH_CLIENT_ID not found")
 	}
 	if v.Creds.OauthClientSecret == "" {
-		return fmt.Errorf("OAUTH_CLIENT_SECRET not found")
+		return fmt.Errorf("VCD_OAUTH_CLIENT_SECRET not found")
+	}
+	if v.Creds.ClientTlsCert == "" {
+		return fmt.Errorf("VCD_CLIENT_TLS_CERT not found")
+	}
+	if v.Creds.ClientTlsKey == "" {
+		return fmt.Errorf("VCD_CLIENT_TLS_KEY not found")
 	}
 	return nil
 }

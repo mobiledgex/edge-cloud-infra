@@ -77,6 +77,8 @@ replace (
 	github.com/Sirupsen/logrus v1.6.0 => github.com/sirupsen/logrus v1.6.0
 )
 
+replace github.com/vmware/go-vcloud-director/v2 v2.10.0 => ../go-vcloud-director
+
 replace github.com/gogo/protobuf => github.com/gogo/protobuf v1.3.1
 
 replace golang.org/x/net => golang.org/x/net v0.0.0-20201010224723-4f7140c49acb

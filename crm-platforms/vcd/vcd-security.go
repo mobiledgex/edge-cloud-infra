@@ -89,14 +89,13 @@ func (v *VcdPlatform) PopulateOrgLoginCredsFromVcdVars(ctx context.Context) erro
 		ClientTlsCert:         v.GetVcdClientTlsCert(),
 		ClientTlsKey:          v.GetVcdClientTlsKey(),
 		ClientRefreshInterval: v.GetVcdClientRefreshInterval(ctx),
-		Insecure:              true,
+		Insecure:              v.GetVcdInsecure(),
 	}
 	if creds.OauthSgwUrl != "" {
 		if creds.OauthAgwUrl == "" || creds.OauthClientId == "" || creds.OauthClientSecret == "" {
 			return fmt.Errorf("OauthAgwUrl is set but other OAUTH related parameter(s) are empty")
 		}
 	}
-
 	if creds.User == "" {
 		return fmt.Errorf("User not defined")
 	}
@@ -223,21 +222,17 @@ func (v *VcdPlatform) GetClient(ctx context.Context, creds *VcdConfigParams) (cl
 	if globalVCDClient == nil || expired {
 		log.SpanLog(ctx, log.DebugLevelInfra, "Need to refresh global token")
 
-		globalVCDClient = govcd.NewVCDClient(*u, creds.Insecure, govcd.WithOauthUrl(creds.OauthSgwUrl), govcd.WithClientTlsCerts(creds.ClientTlsCert, creds.ClientTlsKey))
-		user := creds.User
-		pass := creds.Password
-
-		if creds.OauthSgwUrl != "" {
-			log.SpanLog(ctx, log.DebugLevelInfra, "Using OAUTH client credentials", "OauthSgwUrl", creds.OauthSgwUrl)
-			user = creds.OauthClientId
-			pass = creds.OauthClientSecret
-		}
-		_, err := globalVCDClient.GetAuthResponse(user, pass, creds.Org)
+		globalVCDClient = govcd.NewVCDClient(*u, creds.Insecure,
+			govcd.WithOauthUrl(creds.OauthSgwUrl),
+			govcd.WithClientTlsCerts(creds.ClientTlsCert, creds.ClientTlsKey),
+			govcd.WithOauthCreds(creds.OauthClientId, creds.OauthClientSecret))
+		_, err := globalVCDClient.GetAuthResponse(creds.User, creds.Password, creds.Org)
 		if err != nil {
 			log.SpanLog(ctx, log.DebugLevelInfra, "Unable to login to org", "org", creds.Org, "err", err)
 			globalVCDClient = nil
 			return nil, fmt.Errorf("Unable to login to org %s at %s err: %s", creds.Org, creds.VcdApiUrl, err)
 		}
+
 		globalVCDClientLastUpdateTime = time.Now()
 	}
 	vcdClient, err := globalVCDClient.CopyClient()

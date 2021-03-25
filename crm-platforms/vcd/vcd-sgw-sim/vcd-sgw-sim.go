@@ -13,8 +13,6 @@ import (
 	"net/url"
 
 	"github.com/mobiledgex/edge-cloud-infra/crm-platforms/vcd"
-
-	"github.com/vmware/go-vcloud-director/v2/govcd"
 )
 
 var (
@@ -47,7 +45,8 @@ func printUsage() {
 }
 
 func validateRequest(r *http.Request) int {
-	log.Printf("validating incoming request: %+v", r)
+
+	log.Printf("validateRequest")
 
 	contentType := r.Header.Get("Content-Type")
 	if contentType != vcd.ContentFormUrlEncoded {
@@ -60,6 +59,8 @@ func validateRequest(r *http.Request) int {
 		log.Printf("Bad form data %v", r.Form)
 		return http.StatusBadRequest
 	}
+
+	log.Printf("=====> Received oauth form: %v\n", r.Form)
 
 	clientId := r.Form.Get(vcd.ClientId)
 	clientSecret := r.Form.Get(vcd.ClientSecret)
@@ -93,29 +94,34 @@ func getToken(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	vcdClient := govcd.NewVCDClient(*vcdUri, vcdPlatform.Creds.Insecure)
-	authResp, err := vcdClient.GetAuthResponse(vcdPlatform.Creds.User, vcdPlatform.Creds.Password, vcdPlatform.Creds.Org)
-	if err != nil {
-		log.Printf("Unable to login to org %s at %s err: %s", vcdPlatform.Creds.Org, vcdPlatform.Creds.VcdApiUrl, err)
-		// from the client's perspective this is a server error because these are not creds the client provides
-		w.WriteHeader(http.StatusInternalServerError)
-		w.Write([]byte("Unable to login to org " + err.Error()))
-		return
-	}
+	/*
 
-	// the SGW simulator builds the oauth token from the original VCD client token plus the VCD
-	// auth header separated by semicolon.  The AGW simulator will break these apart and send to VCD
-	at := vcdClient.Client.VCDToken + ";" + authResp.Header.Get(vcd.VcdAuthHeader)
+		vcdClient := govcd.NewVCDClient(*vcdUri, vcdPlatform.Creds.Insecure)
+		authResp, err := vcdClient.GetAuthResponse(vcdPlatform.Creds.User, vcdPlatform.Creds.Password, vcdPlatform.Creds.Org)
+		if err != nil {
+			log.Printf("Unable to login to org %s at %s err: %s", vcdPlatform.Creds.Org, vcdPlatform.Creds.VcdApiUrl, err)
+			// from the client's perspective this is a server error because these are not creds the client provides
+			w.WriteHeader(http.StatusInternalServerError)
+			w.Write([]byte("Unable to login to org " + err.Error()))
+			return
+		}
 
-	log.Printf("Got authResp: %+v client: %+v ", authResp, vcdClient)
+		// the SGW simulator builds the oauth token from the original VCD client token plus the VCD
+		// auth header separated by semicolon.  The AGW simulator will break these apart and send to VCD
+		at := vcdClient.Client.VCDToken + ";" + authResp.Header.Get(vcd.VcdAuthHeader)
+		log.Printf("Got authResp: %+v client: %+v ", authResp, vcdClient)
+
+	*/
+
 	tokenResponse := vcd.TokenResponse{
-		AccessToken: at,
+		AccessToken: "simulatoraccesstoken",
 		TokenType:   "Bearer",
 		ExpiresIn:   *expiresin,
 		Scope:       "openid account.read customer.read customer.accounts.read",
 		IdToken:     "aaaaaaaa.bbbbbbbb.cccccccc",
 	}
 	byt, _ := json.Marshal(tokenResponse)
+	log.Printf("<===== Sent response: %v\n", tokenResponse)
 	w.Write(byt)
 }
 

@@ -41,23 +41,22 @@ func showIndex(w http.ResponseWriter, r *http.Request) {
 func doApi(w http.ResponseWriter, r *http.Request) {
 	log.Println("doing doApi URL: " + r.URL.Path + " QueryParams: " + r.URL.RawQuery)
 
+	log.Printf("=====> Received from client -- Method: %s URL: %s HEADER: %+v\n\n", r.Method, r.URL, r.Header)
+
 	token := r.Header.Get("Authorization")
 	stoken := strings.Split(token, "Bearer")
 	if len(stoken) != 2 {
-		log.Printf("Bad auth token header: %s", token)
+		log.Printf("Bad access token: %s", token)
 		w.WriteHeader(http.StatusBadRequest)
 		return
 	}
 	tokval := strings.TrimSpace(stoken[1])
 	// the SGW simulator builds the token as vcdtoken;vcdauth break these apart
-	ts := strings.Split(tokval, ";")
-	if len(ts) != 2 {
-		log.Printf("Bad bearer token, should be 2 parts: %s", token)
-		w.WriteHeader(http.StatusBadRequest)
+	if tokval != "simulatoraccesstoken" {
+		log.Printf("Bad access token: %s", tokval)
+		w.WriteHeader(http.StatusUnauthorized)
 		return
 	}
-	vcdClientToken := ts[0]
-	vcdAuthToken := ts[1]
 
 	vcdapi := strings.TrimPrefix(r.URL.Path, *apiprefix)
 
@@ -72,17 +71,27 @@ func doApi(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusInternalServerError)
 		return
 	}
-	vcdreq.Header.Add(vcd.VcdTokenTypeHeader, "Bearer")
-	vcdreq.Header.Add(vcd.VcdTokenHeader, vcdClientToken)
-	vcdreq.Header.Add(vcd.VcdAuthHeader, vcdAuthToken)
-	vcdreq.Header.Add("Accept", fmt.Sprintf("application/*+xml;version=%s", *vcdapivers))
+	// copy all the headers except the oauth token
+	for k, v := range r.Header {
+		key := k
+		if k == "Authorization" {
+			continue
+		}
+		if k == "Authorization2" {
+			// swap Authorization2 for Authorization when sending to VCD
+			key = "Authorization"
+		}
+		for _, v2 := range v {
+			vcdreq.Header.Add(key, v2)
+		}
+	}
 	client := &http.Client{
 		Transport: &http.Transport{
 			TLSClientConfig: &tls.Config{InsecureSkipVerify: true},
 		},
 	}
 
-	log.Printf("---> Sending to VCD -- Method: %s URL: %s HEADER: %+v\n\n", vcdreq.Method, vcdreq.URL, vcdreq.Header)
+	log.Printf("     ------> Sending to VCD -- Method: %s URL: %s HEADER: %+v\n\n", vcdreq.Method, vcdreq.URL, vcdreq.Header)
 
 	resp, err := client.Do(vcdreq)
 	if err != nil {
@@ -90,7 +99,7 @@ func doApi(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusInternalServerError)
 		return
 	}
-	log.Printf("<--- Received VCD status code: %d", resp.StatusCode)
+	log.Printf("     <--- Received VCD status code: %d", resp.StatusCode)
 	if resp.Body == nil {
 		log.Printf("nil body in vcd response: %v", err)
 		w.WriteHeader(http.StatusInternalServerError)
@@ -106,7 +115,12 @@ func doApi(w http.ResponseWriter, r *http.Request) {
 		log.Printf("error reading vcd response: %v", err)
 		w.WriteHeader(http.StatusInternalServerError)
 	}
-	log.Printf("<--- VCD body bytes: %s\n", body)
+	for k, v := range resp.Header {
+		for _, v2 := range v {
+			w.Header().Add(k, v2)
+		}
+	}
+	log.Printf("<===== Sending response to client -- Code: %d HEADER: %+v\n\n", resp.StatusCode, resp.Header)
 	w.Write(body)
 }
 

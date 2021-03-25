@@ -283,7 +283,6 @@ func testOrgAuth(t *testing.T, config VcdConfigParams) (*govcd.VCDClient, error)
 	resp, err := vcdClient.GetAuthResponse(config.User, config.Password, config.Org)
 	require.Nil(t, err, "GetAuthResponse")
 	fmt.Printf("Token: %s\n", resp.Header[govcd.AuthorizationHeader])
-
 	return vcdClient, nil
 }
 

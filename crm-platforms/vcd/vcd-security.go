@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"net/url"
 	"os"
+	"sync"
 	"time"
 
 	"github.com/vmware/go-vcloud-director/v2/govcd"
@@ -21,7 +22,9 @@ var VCDClientCtxKey = "VCDClientCtxKey"
 
 var NoVCDClientInContext = "No VCD Client in Context"
 
-var GlobalVCDClient *govcd.VCDClient
+var globalVCDClient *govcd.VCDClient
+var globalVCDClientLock sync.Mutex
+var globalVCDClientLastUpdateTime time.Time
 
 // vcd security related operations
 
@@ -74,19 +77,24 @@ func (v *VcdPlatform) PopulateOrgLoginCredsFromVcdVars(ctx context.Context) erro
 
 	log.SpanLog(ctx, log.DebugLevelInfra, "PopulateOrgLoginCredsFromVault")
 	creds := VcdConfigParams{
-		User:              v.GetVCDUser(),
-		Password:          v.GetVCDPassword(),
-		Org:               v.GetVCDORG(),
-		VcdApiUrl:         v.GetVcdUrl(),
-		VDC:               v.GetVDCName(),
-		OauthSgwUrl:       v.GetVcdOauthSgwUrl(),
-		OauthAgwUrl:       v.GetVcdOauthAgwUrl(),
-		OauthClientId:     v.GetVcdOauthClientId(),
-		OauthClientSecret: v.GetVcdOauthClientSecret(),
-		ClientTlsCert:     v.GetVcdClientTlsCert(),
-		ClientTlsKey:      v.GetVcdClientTlsKey(),
-
-		Insecure: true,
+		User:                  v.GetVCDUser(),
+		Password:              v.GetVCDPassword(),
+		Org:                   v.GetVCDORG(),
+		VcdApiUrl:             v.GetVcdUrl(),
+		VDC:                   v.GetVDCName(),
+		OauthSgwUrl:           v.GetVcdOauthSgwUrl(),
+		OauthAgwUrl:           v.GetVcdOauthAgwUrl(),
+		OauthClientId:         v.GetVcdOauthClientId(),
+		OauthClientSecret:     v.GetVcdOauthClientSecret(),
+		ClientTlsCert:         v.GetVcdClientTlsCert(),
+		ClientTlsKey:          v.GetVcdClientTlsKey(),
+		ClientRefreshInterval: v.GetVcdClientRefreshInterval(ctx),
+		Insecure:              true,
+	}
+	if creds.OauthSgwUrl != "" {
+		if creds.OauthAgwUrl == "" || creds.OauthClientId == "" || creds.OauthClientSecret == "" {
+			return fmt.Errorf("OauthAgwUrl is set but other OAUTH related parameter(s) are empty")
+		}
 	}
 
 	if creds.User == "" {
@@ -183,22 +191,9 @@ func setVer(cli *govcd.VCDClient) error {
 	return nil
 }
 
+// GetClient gets a new client object.  Copies are made of the global client object, which instantiates a new
+// http client but shares the access token
 func (v *VcdPlatform) GetClient(ctx context.Context, creds *VcdConfigParams) (client *govcd.VCDClient, err error) {
-
-	if v.TestMode {
-		err := v.PopulateOrgLoginCredsFromEnv(ctx)
-		if err != nil {
-			return nil, err
-		}
-	}
-
-	if creds == nil {
-		// usually indicates we called GetClient before InitProvider
-		return nil, fmt.Errorf("nil creds passed to GetClient")
-	}
-
-	log.SpanLog(ctx, log.DebugLevelInfra, "GetClient", "user", creds.User, "OauthSgwUrl", creds.OauthSgwUrl)
-
 	apiUrl := creds.VcdApiUrl
 	if creds.OauthAgwUrl != "" {
 		apiUrl = creds.OauthAgwUrl
@@ -207,37 +202,50 @@ func (v *VcdPlatform) GetClient(ctx context.Context, creds *VcdConfigParams) (cl
 	if err != nil {
 		return nil, fmt.Errorf("Unable to parse request to org %s at %s err: %s", creds.Org, creds.VcdApiUrl, err)
 	}
-	if GlobalVCDClient == nil {
-		log.WarnLog("CREATE NEW GlobalVCDClient")
-
-		GlobalVCDClient = govcd.NewVCDClient(*u, creds.Insecure, govcd.WithOauthUrl(creds.OauthSgwUrl), govcd.WithClientTlsCerts(creds.ClientTlsCert, creds.ClientTlsKey))
-
-		if GlobalVCDClient.Client.VCDToken != "" {
-			_ = GlobalVCDClient.SetToken(creds.Org, govcd.AuthorizationHeader, creds.Token)
-		} else {
-			user := creds.User
-			pass := creds.Password
-			if creds.OauthSgwUrl != "" {
-				user = creds.OauthClientId
-				pass = creds.OauthClientSecret
-			}
-			_, err := GlobalVCDClient.GetAuthResponse(user, pass, creds.Org)
-			if err != nil {
-				log.SpanLog(ctx, log.DebugLevelInfra, "Unable to login to org", "org", creds.Org, "err", err)
-				return nil, fmt.Errorf("Unable to login to org %s at %s err: %s", creds.Org, creds.VcdApiUrl, err)
-			}
+	if v.TestMode {
+		err := v.PopulateOrgLoginCredsFromEnv(ctx)
+		if err != nil {
+			return nil, err
 		}
 	}
-	vcdClient, err := GlobalVCDClient.CopyClient()
-	if err != nil {
-		return nil, fmt.Errorf("copyClient failed - %v", err)
+	if creds == nil {
+		// usually indicates we called GetClient before InitProvider
+		return nil, fmt.Errorf("nil creds passed to GetClient")
 	}
-	log.InfoLog("COPIED CLIENT", "GlobalVCDClient", fmt.Sprintf("%+v", GlobalVCDClient), "vcdClient", fmt.Sprintf("%+v", vcdClient))
 
+	log.SpanLog(ctx, log.DebugLevelInfra, "GetClient", "user", creds.User, "OauthSgwUrl", creds.OauthSgwUrl)
+	globalVCDClientLock.Lock()
+	defer globalVCDClientLock.Unlock()
+
+	tokenDuration := time.Since(globalVCDClientLastUpdateTime)
+	expired := (uint64(tokenDuration.Seconds()) >= creds.ClientRefreshInterval)
+	log.SpanLog(ctx, log.DebugLevelInfra, "Check for token expired", "tokenDuration", tokenDuration, "ClientRefreshInterval", creds.ClientRefreshInterval, "exipred", expired)
+	if globalVCDClient == nil || expired {
+		log.SpanLog(ctx, log.DebugLevelInfra, "Need to refresh global token")
+
+		globalVCDClient = govcd.NewVCDClient(*u, creds.Insecure, govcd.WithOauthUrl(creds.OauthSgwUrl), govcd.WithClientTlsCerts(creds.ClientTlsCert, creds.ClientTlsKey))
+		user := creds.User
+		pass := creds.Password
+
+		if creds.OauthSgwUrl != "" {
+			log.SpanLog(ctx, log.DebugLevelInfra, "Using OAUTH client credentials", "OauthSgwUrl", creds.OauthSgwUrl)
+			user = creds.OauthClientId
+			pass = creds.OauthClientSecret
+		}
+		_, err := globalVCDClient.GetAuthResponse(user, pass, creds.Org)
+		if err != nil {
+			log.SpanLog(ctx, log.DebugLevelInfra, "Unable to login to org", "org", creds.Org, "err", err)
+			globalVCDClient = nil
+			return nil, fmt.Errorf("Unable to login to org %s at %s err: %s", creds.Org, creds.VcdApiUrl, err)
+		}
+		globalVCDClientLastUpdateTime = time.Now()
+	}
+	vcdClient, err := globalVCDClient.CopyClient()
+	if err != nil {
+		return nil, fmt.Errorf("CopyClient failed - %v", err)
+	}
 	log.SpanLog(ctx, log.DebugLevelInfra, "GetClient connected", "API Version", vcdClient.Client.APIVersion)
-	// setup the client in the context
 	return vcdClient, nil
-
 }
 
 // New
@@ -282,20 +290,8 @@ func (v *VcdPlatform) InitOperationContext(ctx context.Context, operationStage v
 			return ctx, vmlayer.OperationNewlyInitialized, nil
 		}
 	} else {
+		// because we re-use copies of the context, we do not try to disconnect the client.
+		// Disconnect generally does not work in VCD anyway
 		return ctx, vmlayer.OperationNewlyInitialized, nil
-		/*vcdClient := v.GetVcdClientFromContext(ctx)
-		if vcdClient == nil {
-			log.SpanLog(ctx, log.DebugLevelInfra, NoVCDClientInContext, "ctx", fmt.Sprintf("%+v", ctx))
-			return ctx, vmlayer.OperationInitFailed, fmt.Errorf(NoVCDClientInContext)
-		}
-		log.SpanLog(ctx, log.DebugLevelInfra, "Disconnecting vcdClient")
-		err := vcdClient.Disconnect()
-		if err != nil {
-			// err here happens all the time but has no impact
-			if v.Verbose {ƒ
-				log.SpanLog(ctx, log.DebugLevelInfra, "Disconnect vcdClient", "err", err)
-			}
-		}
-		return ctx, vmlayer.OperationNewlyInitialized, nil */
 	}
 }

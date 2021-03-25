@@ -280,14 +280,9 @@ func testOrgAuth(t *testing.T, config VcdConfigParams) (*govcd.VCDClient, error)
 	u, err := url.ParseRequestURI(config.VcdApiUrl)
 	require.Nil(t, err, "ParseRequestURI")
 	vcdClient := govcd.NewVCDClient(*u, config.Insecure)
-
-	if vcdClient.Client.VCDToken != "" {
-		_ = vcdClient.SetToken(config.Org, govcd.AuthorizationHeader, config.Token)
-	} else {
-		resp, err := vcdClient.GetAuthResponse(config.User, config.Password, config.Org)
-		require.Nil(t, err, "GetAuthResponse")
-		fmt.Printf("Token: %s\n", resp.Header[govcd.AuthorizationHeader])
-	}
+	resp, err := vcdClient.GetAuthResponse(config.User, config.Password, config.Org)
+	require.Nil(t, err, "GetAuthResponse")
+	fmt.Printf("Token: %s\n", resp.Header[govcd.AuthorizationHeader])
 
 	return vcdClient, nil
 }

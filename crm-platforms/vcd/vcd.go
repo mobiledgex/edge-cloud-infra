@@ -40,20 +40,22 @@ type VcdPlatform struct {
 	Verbose      bool
 }
 
+var DefaultClientRefreshInterval uint64 = 7 * 60 * 60 // 7 hours
+
 type VcdConfigParams struct {
-	User              string
-	Password          string
-	Org               string
-	VcdApiUrl         string
-	VDC               string
-	Insecure          bool
-	Token             string
-	OauthSgwUrl       string
-	OauthAgwUrl       string
-	OauthClientId     string
-	OauthClientSecret string
-	ClientTlsKey      string
-	ClientTlsCert     string
+	User                  string
+	Password              string
+	Org                   string
+	VcdApiUrl             string
+	VDC                   string
+	Insecure              bool
+	OauthSgwUrl           string
+	OauthAgwUrl           string
+	OauthClientId         string
+	OauthClientSecret     string
+	ClientTlsKey          string
+	ClientTlsCert         string
+	ClientRefreshInterval uint64
 }
 
 type VAppMap map[string]*govcd.VApp

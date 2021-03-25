@@ -126,6 +126,27 @@ func (v *VcdPlatform) GetVDCTemplateName() string {
 	}
 	return v.vcdVars["VDCTEMPLATE"]
 }
+func (v *VcdPlatform) GetVcdClientRefreshInterval(ctx context.Context) uint64 {
+	intervalStr := v.vcdVars["VCD_CLIENT_REFRESH_INTERVAL"]
+	if intervalStr == "" {
+		return DefaultClientRefreshInterval
+	}
+	interval, err := strconv.ParseUint(intervalStr, 10, 32)
+	if err != nil {
+		log.SpanLog(ctx, log.DebugLevelInfra, "Warning: unable to parse VCD_CLIENT_REFRESH_INTERVAL %s as int, using default", intervalStr)
+		return DefaultClientRefreshInterval
+	}
+	return interval
+}
+
+// GetVcdInsecure defaults to true unless explicitly set to false
+func (v *VcdPlatform) GetVcdInsecure() bool {
+	insecure := v.vcdVars["VCD_INSECURE"]
+	if strings.ToLower(insecure) == "false" {
+		return false
+	}
+	return true
+}
 
 // properties from envvars
 func (v *VcdPlatform) GetVcdVerbose() bool {

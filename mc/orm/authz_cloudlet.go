@@ -9,7 +9,6 @@ import (
 	"github.com/mobiledgex/edge-cloud-infra/mc/ormapi"
 	"github.com/mobiledgex/edge-cloud/cloudcommon"
 	"github.com/mobiledgex/edge-cloud/edgeproto"
-	"github.com/mobiledgex/edge-cloud/log"
 )
 
 // AuthzCloudlet provides an efficient way to check if the user
@@ -66,7 +65,9 @@ func (s *AuthzCloudlet) populate(ctx context.Context, region, username, orgfilte
 	}
 
 	if opts.requiresOrg != "" {
-		if err := checkRequiresOrg(ctx, opts.requiresOrg, s.admin); err != nil {
+		// edgeboxOnly check is not required for Show command
+		noEdgeboxOnly := false
+		if err := checkRequiresOrg(ctx, opts.requiresOrg, s.admin, noEdgeboxOnly); err != nil {
 			return err
 		}
 	}
@@ -181,25 +182,11 @@ func (s *AuthzCloudlet) Filter(obj *edgeproto.Cloudlet) {
 }
 
 func authzCreateCloudlet(ctx context.Context, region, username string, obj *edgeproto.Cloudlet, resource, action string) error {
-	if err := authorized(ctx, username, obj.Key.Organization,
-		ResourceCloudlets, ActionManage, withRequiresOrg(obj.Key.Organization)); err != nil {
-		return err
+	ops := []authOp{withRequiresOrg(obj.Key.Organization)}
+	if obj.PlatformType != edgeproto.PlatformType_PLATFORM_TYPE_EDGEBOX {
+		ops = append(ops, withNoEdgeboxOnly())
 	}
-	// make sure only edgebox cloudlets are created for edgebox org
-	org := obj.Key.Organization
-	lookup, err := orgExists(ctx, org)
-	if err != nil {
-		log.SpanLog(ctx, log.DebugLevelApi, "org exists check failed", "err", err)
-		return echo.NewHTTPError(http.StatusInternalServerError, fmt.Sprintf("org %s lookup failed: %v", org, err))
-	}
-	if lookup == nil {
-		log.SpanLog(ctx, log.DebugLevelApi, "org not found", "org", org)
-		return echo.NewHTTPError(http.StatusBadRequest, fmt.Sprintf("org %s not found", org))
-	}
-	if lookup.EdgeboxOrg && obj.PlatformType != edgeproto.PlatformType_PLATFORM_TYPE_EDGEBOX {
-		return echo.NewHTTPError(http.StatusBadRequest, fmt.Sprintf("only allowed to create EDGEBOX cloudlet on org %s", org))
-	}
-	return nil
+	return authorized(ctx, username, obj.Key.Organization, ResourceCloudlets, ActionManage, ops...)
 }
 
 func authzCreateClusterInst(ctx context.Context, region, username string, obj *edgeproto.ClusterInst, resource, action string) error {

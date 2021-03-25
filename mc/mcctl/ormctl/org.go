@@ -43,7 +43,8 @@ func GetRestrictedOrgUpdateCmd() *cobra.Command {
 	cmd := cli.Command{
 		Use:          "restrictedorgupdate",
 		Short:        "Admin-only update of org fields, requires name",
-		OptionalArgs: "name edgeboxorg",
+		RequiredArgs: "name",
+		OptionalArgs: "edgeboxonly",
 		Comments:     ormapi.OrganizationComments,
 		ReqData:      &ormapi.Organization{},
 		Run:          runRest("/auth/restricted/org/update"),

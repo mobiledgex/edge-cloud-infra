@@ -47,9 +47,6 @@ func TestController(t *testing.T) {
 	testAlertMgrAddr, err := InitAlertmgrMock()
 	require.Nil(t, err)
 
-	// disable edgebox org for new operator
-	defaultConfig.SkipOperatorEdgeboxOrg = true
-
 	config := ServerConfig{
 		ServAddr:                addr,
 		SqlAddr:                 "127.0.0.1:5445",
@@ -604,7 +601,7 @@ func TestController(t *testing.T) {
 	require.Equal(t, http.StatusOK, status)
 
 	testOrgCloudletPoolUpgrade(t, ctx)
-	testEdgeboxOrgCloudletCreate(t, ctx, mcClient, uri, ctrl.Region)
+	testEdgeboxOnlyCloudletCreate(t, ctx, mcClient, uri, ctrl.Region)
 
 	// delete controller
 	status, err = mcClient.DeleteController(uri, token, &ctrl)
@@ -1394,23 +1391,16 @@ func testOrgCloudletPoolUpgrade(t *testing.T, ctx context.Context) {
 	}
 }
 
-func testEdgeboxOrgCloudletCreate(t *testing.T, ctx context.Context, mcClient *ormclient.Client, uri, region string) {
+func testEdgeboxOnlyCloudletCreate(t *testing.T, ctx context.Context, mcClient *ormclient.Client, uri, region string) {
 	// login as super user
 	token, _, err := mcClient.DoLogin(uri, DefaultSuperuser, DefaultSuperpass, NoOTP, NoApiKeyId, NoApiKey)
 	require.Nil(t, err, "login as superuser")
-
-	// set config to be enable edgeboxorg as default operator org
-	configReq := make(map[string]interface{})
-	configReq["skipoperatoredgeboxorg"] = false
-	status, err := mcClient.UpdateConfig(uri, token, configReq)
-	require.Nil(t, err)
-	require.Equal(t, http.StatusOK, status)
 
 	operOrg := ormapi.Organization{
 		Type: "operator",
 		Name: "EdgeboxOperOrg",
 	}
-	status, err = mcClient.CreateOrg(uri, token, &operOrg)
+	status, err := mcClient.CreateOrg(uri, token, &operOrg)
 	require.Nil(t, err, "create org")
 	require.Equal(t, http.StatusOK, status, "create org status")
 
@@ -1441,12 +1431,12 @@ func testEdgeboxOrgCloudletCreate(t *testing.T, ctx context.Context, mcClient *o
 	// toggle edgebox org flag for operator org
 	orgReq := make(map[string]interface{})
 	orgReq["name"] = operOrg.Name
-	orgReq["edgeboxorg"] = false
-	status, err = mcClient.RestrictedOrgUpdate(uri, token, orgReq)
+	orgReq["edgeboxonly"] = false
+	status, err = mcClient.RestrictedUpdateOrg(uri, token, orgReq)
 	require.Nil(t, err)
 	require.Equal(t, http.StatusOK, status)
 
-	// cloudlet creation should work for other platforms as edgeboxorg flag is set to false
+	// cloudlet creation should work for other platforms as edgeboxonly flag is set to false
 	regCloudlet.Cloudlet.PlatformType = edgeproto.PlatformType_PLATFORM_TYPE_FAKE
 	_, status, err = mcClient.CreateCloudlet(uri, token, &regCloudlet)
 	require.Nil(t, err)
@@ -1454,9 +1444,4 @@ func testEdgeboxOrgCloudletCreate(t *testing.T, ctx context.Context, mcClient *o
 	// cleanup cloudlet
 	_, status, err = mcClient.DeleteCloudlet(uri, token, &regCloudlet)
 	require.Nil(t, err)
-
-	configReq["skipoperatoredgeboxorg"] = true
-	status, err = mcClient.UpdateConfig(uri, token, configReq)
-	require.Nil(t, err)
-	require.Equal(t, http.StatusOK, status)
 }

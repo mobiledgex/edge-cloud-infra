@@ -25,6 +25,13 @@ var OrgTypeAdmin = "admin"
 var OrgTypeDeveloper = "developer"
 var OrgTypeOperator = "operator"
 
+type UpdateType int
+
+const (
+	NormalUpdate UpdateType = iota
+	AdminUpdate
+)
+
 func CreateOrg(c echo.Context) error {
 	claims, err := getClaims(c)
 	if err != nil {
@@ -55,19 +62,12 @@ func CreateOrgObj(ctx context.Context, claims *UserClaims, org *ormapi.Organizat
 	}
 	// any user can create their own organization
 
-	config, err := getConfig(ctx)
-	if err != nil {
-		return err
-	}
-
 	role := ""
 	if org.Type == OrgTypeDeveloper {
 		role = RoleDeveloperManager
 	} else if org.Type == OrgTypeOperator {
 		role = RoleOperatorManager
-		if !config.SkipOperatorEdgeboxOrg {
-			org.EdgeboxOrg = true
-		}
+		org.EdgeboxOnly = true
 	} else {
 		return fmt.Errorf("Organization type must be %s, or %s", OrgTypeDeveloper, OrgTypeOperator)
 	}
@@ -214,6 +214,14 @@ func DeleteOrgObj(ctx context.Context, claims *UserClaims, org *ormapi.Organizat
 }
 
 func UpdateOrg(c echo.Context) error {
+	return updateOrg(c, NormalUpdate)
+}
+
+func RestrictedUpdateOrg(c echo.Context) error {
+	return updateOrg(c, AdminUpdate)
+}
+
+func updateOrg(c echo.Context, updateType UpdateType) error {
 	ctx := GetContext(c)
 	claims, err := getClaims(c)
 	if err != nil {
@@ -245,10 +253,17 @@ func UpdateOrg(c echo.Context) error {
 		return c.JSON(http.StatusInternalServerError, MsgErr(dbErr(res.Error)))
 	}
 	oldType := org.Type
-	oldEdgeboxOrg := org.EdgeboxOrg
+	oldEdgeboxOnly := org.EdgeboxOnly
 
-	if err := authorized(ctx, claims.Username, in.Name, ResourceUsers, ActionManage); err != nil {
-		return err
+	if updateType == AdminUpdate {
+		// Only admin user allowed to update org data.
+		if err := authorized(ctx, claims.Username, "", ResourceUsers, ActionManage); err != nil {
+			return err
+		}
+	} else {
+		if err := authorized(ctx, claims.Username, in.Name, ResourceUsers, ActionManage); err != nil {
+			return err
+		}
 	}
 
 	// apply specified fields
@@ -259,8 +274,8 @@ func UpdateOrg(c echo.Context) error {
 	if org.Type != oldType {
 		return c.JSON(http.StatusBadRequest, Msg("Cannot change Organization type"))
 	}
-	if org.EdgeboxOrg != oldEdgeboxOrg {
-		return c.JSON(http.StatusBadRequest, Msg("Cannot change Organization edgeboxorg"))
+	if org.EdgeboxOnly != oldEdgeboxOnly && updateType != AdminUpdate {
+		return c.JSON(http.StatusBadRequest, Msg("Cannot update edgeboxonly field for Organization"))
 	}
 
 	err = db.Save(&org).Error
@@ -445,55 +460,4 @@ func orgInUseRegion(ctx context.Context, c ormapi.Controller, orgName string) er
 		return nil
 	}
 	return fmt.Errorf(res.Message)
-}
-
-func RestrictedOrgUpdate(c echo.Context) error {
-	ctx := GetContext(c)
-	claims, err := getClaims(c)
-	if err != nil {
-		return err
-	}
-	// Only admin user allowed to update org data.
-	if err := authorized(ctx, claims.Username, "", ResourceUsers, ActionManage); err != nil {
-		return err
-	}
-
-	// Pull json directly so we can unmarshal twice.
-	// First time is to do lookup, second time is to apply
-	// modified fields.
-	body, err := ioutil.ReadAll(c.Request().Body)
-	if err != nil {
-		return bindErr(c, err)
-	}
-
-	orgObj := ormapi.Organization{}
-	err = json.Unmarshal(body, &orgObj)
-	if err != nil {
-		return bindErr(c, err)
-	}
-	span := log.SpanFromContext(ctx)
-	span.SetTag("org", orgObj.Name)
-
-	// get org details
-	curOrg, err := orgExists(ctx, orgObj.Name)
-	if err != nil {
-		return c.JSON(http.StatusBadRequest, MsgErr(err))
-	}
-	saveOrg := *curOrg
-	// apply specified fields
-	err = json.Unmarshal(body, &curOrg)
-	if err != nil {
-		return bindErr(c, err)
-	}
-
-	if saveOrg.EdgeboxOrg == curOrg.EdgeboxOrg {
-		return c.JSON(http.StatusBadRequest, Msg("nothing to update"))
-	}
-	saveOrg.EdgeboxOrg = curOrg.EdgeboxOrg
-	db := loggedDB(ctx)
-	err = db.Save(&saveOrg).Error
-	if err != nil {
-		return dbErr(err)
-	}
-	return nil
 }

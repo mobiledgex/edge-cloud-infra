@@ -107,7 +107,7 @@ type Organization struct {
 	// read only: true
 	Parent string `json:",omitempty"`
 	// read only: true
-	EdgeboxOrg bool `json:",omitempty"`
+	EdgeboxOnly bool `json:",omitempty"`
 }
 
 // used for CreateBillingOrg, so we can pass through payment details to the billing service without actually storing them
@@ -202,8 +202,6 @@ type Config struct {
 	UserApiKeyCreateLimit int
 	// Toggle for enabling billing (primarily for testing purposes)
 	BillingEnable bool
-	// Skip setting new operator organization as Edgebox org
-	SkipOperatorEdgeboxOrg bool
 }
 
 type OrgCloudletPool struct {

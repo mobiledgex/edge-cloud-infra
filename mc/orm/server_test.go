@@ -252,7 +252,7 @@ func TestServer(t *testing.T) {
 	// EC-31717: Test org exists func. Should be case sensitive, so looking
 	// for "devy" should fail (does not exist), and not hit a false
 	//  positive for org "DevY", which does exist.
-	err = checkRequiresOrg(ctx, "devy", false)
+	err = checkRequiresOrg(ctx, "devy", false, false)
 	require.NotNil(t, err, "devy should not exist")
 
 	// create new admin user
@@ -541,7 +541,7 @@ func TestServer(t *testing.T) {
 	testImagePaths(t, ctx, mcClient, uri, token)
 	testLockedUsers(t, uri, mcClient)
 	testPasswordStrength(t, ctx, mcClient, uri, token)
-	testEdgeboxOrgs(t, uri, mcClient)
+	testEdgeboxOnlyOrgs(t, uri, mcClient)
 }
 
 func showCurrentUser(mcClient *ormclient.Client, uri, token string) (*ormapi.User, int, error) {
@@ -929,7 +929,7 @@ func testPasswordStrength(t *testing.T, ctx context.Context, mcClient *ormclient
 	require.Equal(t, http.StatusOK, status)
 }
 
-func testEdgeboxOrgs(t *testing.T, uri string, mcClient *ormclient.Client) {
+func testEdgeboxOnlyOrgs(t *testing.T, uri string, mcClient *ormclient.Client) {
 	// login as super user
 	superTok, _, err := mcClient.DoLogin(uri, DefaultSuperuser, DefaultSuperpass, NoOTP, NoApiKeyId, NoApiKey)
 	require.Nil(t, err, "login as superuser")
@@ -952,52 +952,34 @@ func testEdgeboxOrgs(t *testing.T, uri string, mcClient *ormclient.Client) {
 	org := ormapi.Organization{
 		Type: "operator",
 		Name: "Oper",
-		// setting edgeboxorg will have no effect
-		EdgeboxOrg: false,
+		// setting edgebox only will have no effect
+		EdgeboxOnly: false,
 	}
 	_, err = mcClient.CreateOrg(uri, userTok, &org)
 	require.Nil(t, err, "create org")
 
-	// default operator org will be edgebox org
+	// default operator org will be edgebox only
 	check := getOrg(t, mcClient, uri, userTok, org.Name)
 	require.NotNil(t, check, "org exists")
-	require.True(t, check.EdgeboxOrg, "by default operator org is edgebox org")
+	require.True(t, check.EdgeboxOnly, "by default operator org is edgebox org")
 	// super user toggle edgebox org
 	orgReq := make(map[string]interface{})
 	orgReq["name"] = org.Name
-	orgReq["edgeboxorg"] = false
-	status, err = mcClient.RestrictedOrgUpdate(uri, superTok, orgReq)
+	orgReq["edgeboxonly"] = false
+	status, err = mcClient.RestrictedUpdateOrg(uri, superTok, orgReq)
 	require.Nil(t, err)
 	require.Equal(t, http.StatusOK, status)
 
-	// check if edgebox org got toggled
+	// check if edgeboxonly field got updated
 	check = getOrg(t, mcClient, uri, userTok, org.Name)
 	require.NotNil(t, check, "org exists")
-	require.False(t, check.EdgeboxOrg, "toggled edgeboxorg")
-
-	// cleanup org
-	_, err = mcClient.DeleteOrg(uri, userTok, &org)
-	require.Nil(t, err, "delete org")
-
-	// set config to be disable edgeboxorg as default operator org
-	configReq := make(map[string]interface{})
-	configReq["skipoperatoredgeboxorg"] = true
-	status, err = mcClient.UpdateConfig(uri, superTok, configReq)
-	require.Nil(t, err)
-	require.Equal(t, http.StatusOK, status)
-
-	// now default operator org will not be edgebox org
-	_, err = mcClient.CreateOrg(uri, userTok, &org)
-	require.Nil(t, err, "create org")
-	check = getOrg(t, mcClient, uri, userTok, org.Name)
-	require.NotNil(t, check, "org exists")
-	require.False(t, check.EdgeboxOrg, "by default operator org is not edgebox org")
+	require.False(t, check.EdgeboxOnly, "toggled edgeboxonly field")
 
 	// make sure non-admin user cannot toggle edgebox org
 	orgReq = make(map[string]interface{})
 	orgReq["name"] = org.Name
-	orgReq["edgeboxorg"] = true
-	status, err = mcClient.RestrictedOrgUpdate(uri, userTok, orgReq)
+	orgReq["edgeboxonly"] = true
+	status, err = mcClient.RestrictedUpdateOrg(uri, userTok, orgReq)
 	require.NotNil(t, err)
 	require.Equal(t, http.StatusForbidden, status)
 

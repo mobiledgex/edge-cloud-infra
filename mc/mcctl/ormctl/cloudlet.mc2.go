@@ -905,6 +905,7 @@ var CloudletAliasArgs = []string{
 <<<<<<< HEAD
 <<<<<<< HEAD
 <<<<<<< HEAD
+<<<<<<< HEAD
 =======
 >>>>>>> kafka stuff
 =======
@@ -937,6 +938,12 @@ var CloudletAliasArgs = []string{
 	"kafkauser=cloudlet.kafkauser",
 	"kafkapassword=cloudlet.kafkapassword",
 >>>>>>> autogen files
+=======
+	"hostcontroller=cloudlet.hostcontroller",
+	"kafkacluster=cloudlet.kafkacluster",
+	"kafkauser=cloudlet.kafkauser",
+	"kafkapassword=cloudlet.kafkapassword",
+>>>>>>> kafka revision
 }
 var CloudletComments = map[string]string{
 	"fields":                              "Fields are used for the Update API to specify which fields to apply",
@@ -1016,6 +1023,7 @@ var CloudletComments = map[string]string{
 <<<<<<< HEAD
 <<<<<<< HEAD
 <<<<<<< HEAD
+<<<<<<< HEAD
 =======
 >>>>>>> kafka stuff
 =======
@@ -1057,6 +1065,12 @@ var CloudletComments = map[string]string{
 	"kafkapassword":                       "password for kafka SASL/PLAIN authentification",
 >>>>>>> autogen files
 >>>>>>> autogen files
+=======
+	"hostcontroller":                      "Addr of the controller hosting the cloudlet services if it is running locally",
+	"kafkacluster":                        "operator provided kafka cluster endpoint to push events to",
+	"kafkauser":                           "username for kafka SASL/PLAIN authentification, stored securely in secret storage and never visible externally",
+	"kafkapassword":                       "password for kafka SASL/PLAIN authentification, stored securely in secret storage and never visible externally",
+>>>>>>> kafka revision
 }
 var CloudletSpecialArgs = map[string]string{
 	"cloudlet.accessvars":    "StringToString",

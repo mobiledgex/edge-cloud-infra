@@ -378,17 +378,11 @@ func start() {
 	if !nodeMgr.AccessKeyClient.IsEnabled() {
 		log.FatalLog("access key client is not enabled")
 	}
-	log.SpanLog(ctx, log.DebugLevelInfo, "Setup persistent access connection to Controller")
-	_ctrlConn, err := nodeMgr.AccessKeyClient.ConnectController(ctx)
-	if err != nil {
-		log.SpanLog(ctx, log.DebugLevelInfo, "Failed to connect to controller", "err", err)
-		span.Finish()
-		log.FatalLog(err.Error())
-	}
-	ctrlConn = _ctrlConn
 
-	accessClient := edgeproto.NewCloudletAccessApiClient(ctrlConn)
-	accessApi := accessapi.NewControllerClient(accessClient)
+	defer nodeMgr.CtrlConn.Close()
+	// Create CloudletAccessApiClient
+	accessClient := &nodeMgr.AccessApiClient
+	accessApi := accessapi.NewControllerClient(*accessClient)
 
 	clientTlsConfig, err := nodeMgr.InternalPki.GetClientTlsConfig(ctx,
 		nodeMgr.CommonName(),

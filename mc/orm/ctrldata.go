@@ -74,8 +74,8 @@ func (s *AllRegionCaches) refreshRegions(ctx context.Context) error {
 		rc.init(notifyClient)
 		s.caches[ctrl.Region] = &rc
 
-		notifyClient.RegisterRecvCloudletCache(rc.cloudletCache.GetCloudletCache(""))
-		notifyClient.RegisterRecvCloudletPoolCache(rc.cloudletPoolCache.GetCloudletPoolCache(""))
+		notifyClient.RegisterRecvCloudletCache(rc.cloudletCache.GetCloudletCache(node.NoRegion))
+		notifyClient.RegisterRecvCloudletPoolCache(rc.cloudletPoolCache.GetCloudletPoolCache(node.NoRegion))
 		notifyClient.Start()
 	}
 

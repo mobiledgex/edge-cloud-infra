@@ -47,6 +47,10 @@ var VcdProps = map[string]*edgeproto.PropertyInfo{
 		Description: "Set value for vCPU Speed if unable to read from admin VCD",
 		Internal:    true,
 	},
+	"MEX_TEMPLATE_URL": {
+		Description: "Optional HTTP URL to retrieve template",
+		Internal:    true,
+	},
 }
 
 func (v *VcdPlatform) GetVaultCloudletAccessPath(key *edgeproto.CloudletKey, region, physicalName string) string {
@@ -218,4 +222,8 @@ func (v *VcdPlatform) GetLeaseOverride() bool {
 	} else {
 		return false
 	}
+}
+func (v *VcdPlatform) GetTemplateUrl() string {
+	val, _ := v.vmProperties.CommonPf.Properties.GetValue("MEX_TEMPLATE_URL")
+	return val
 }

@@ -93,26 +93,6 @@ func getToken(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(code)
 		return
 	}
-
-	/*
-
-		vcdClient := govcd.NewVCDClient(*vcdUri, vcdPlatform.Creds.Insecure)
-		authResp, err := vcdClient.GetAuthResponse(vcdPlatform.Creds.User, vcdPlatform.Creds.Password, vcdPlatform.Creds.Org)
-		if err != nil {
-			log.Printf("Unable to login to org %s at %s err: %s", vcdPlatform.Creds.Org, vcdPlatform.Creds.VcdApiUrl, err)
-			// from the client's perspective this is a server error because these are not creds the client provides
-			w.WriteHeader(http.StatusInternalServerError)
-			w.Write([]byte("Unable to login to org " + err.Error()))
-			return
-		}
-
-		// the SGW simulator builds the oauth token from the original VCD client token plus the VCD
-		// auth header separated by semicolon.  The AGW simulator will break these apart and send to VCD
-		at := vcdClient.Client.VCDToken + ";" + authResp.Header.Get(vcd.VcdAuthHeader)
-		log.Printf("Got authResp: %+v client: %+v ", authResp, vcdClient)
-
-	*/
-
 	tokenResponse := vcd.TokenResponse{
 		AccessToken: "simulatoraccesstoken",
 		TokenType:   "Bearer",

@@ -51,7 +51,6 @@ func doApi(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	tokval := strings.TrimSpace(stoken[1])
-	// the SGW simulator builds the token as vcdtoken;vcdauth break these apart
 	if tokval != "simulatoraccesstoken" {
 		log.Printf("Bad access token: %s", tokval)
 		w.WriteHeader(http.StatusUnauthorized)
@@ -82,7 +81,9 @@ func doApi(w http.ResponseWriter, r *http.Request) {
 			key = "Authorization"
 		}
 		for _, v2 := range v {
-			vcdreq.Header.Add(key, v2)
+			if v2 != "gzip" { // we don't handle gzip responses well
+				vcdreq.Header.Add(key, v2)
+			}
 		}
 	}
 	client := &http.Client{

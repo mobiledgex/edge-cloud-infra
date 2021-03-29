@@ -229,24 +229,35 @@ func (v *VcdPlatform) GetClient(ctx context.Context, creds *VcdConfigParams) (cl
 	expired := (uint64(tokenDuration.Seconds()) >= creds.ClientRefreshInterval)
 	log.SpanLog(ctx, log.DebugLevelInfra, "Check for token expired", "tokenDuration", tokenDuration, "ClientRefreshInterval", creds.ClientRefreshInterval, "exipred", expired)
 	if globalVCDClient == nil || expired {
-		log.SpanLog(ctx, log.DebugLevelInfra, "Need to refresh global token")
+		log.SpanLog(ctx, log.DebugLevelInfra, "Need to refresh client token")
 
 		globalVCDClient = govcd.NewVCDClient(*u, creds.Insecure,
 			govcd.WithOauthUrl(creds.OauthSgwUrl),
 			govcd.WithClientTlsCerts(creds.ClientTlsCert, creds.ClientTlsKey),
 			govcd.WithOauthCreds(creds.OauthClientId, creds.OauthClientSecret))
-		_, err := globalVCDClient.GetAuthResponse(creds.User, creds.Password, creds.Org)
-		if err != nil {
-			log.SpanLog(ctx, log.DebugLevelInfra, "Unable to login to org", "org", creds.Org, "err", err)
-			globalVCDClient = nil
-			return nil, fmt.Errorf("Unable to login to org %s at %s err: %s", creds.Org, creds.VcdApiUrl, err)
-		}
 
+		log.SpanLog(ctx, log.DebugLevelInfra, "Created global client", "org", creds.Org, "OauthSgwUrl", creds.OauthSgwUrl)
+
+		if creds.OauthSgwUrl != "" {
+			_, err := globalVCDClient.GetOauthResponse(creds.User, creds.Password, creds.Org)
+			if err != nil {
+				log.SpanLog(ctx, log.DebugLevelInfra, "failed oauth response", "org", creds.Org, "err", err)
+				globalVCDClient = nil
+				return nil, fmt.Errorf("failed oauth response %s at %s err: %s", creds.Org, creds.OauthSgwUrl, err)
+			}
+		}
 		globalVCDClientLastUpdateTime = time.Now()
 	}
 	vcdClient, err := globalVCDClient.CopyClient()
 	if err != nil {
 		return nil, fmt.Errorf("CopyClient failed - %v", err)
+	}
+	// always refresh the vcd session token
+	_, err = vcdClient.GetAuthResponse(creds.User, creds.Password, creds.Org)
+	if err != nil {
+		log.SpanLog(ctx, log.DebugLevelInfra, "Unable to login to org", "org", creds.Org, "err", err)
+		globalVCDClient = nil
+		return nil, fmt.Errorf("failed oauth response %s at %s err: %s", creds.Org, creds.OauthSgwUrl, err)
 	}
 	log.SpanLog(ctx, log.DebugLevelInfra, "GetClient connected", "API Version", vcdClient.Client.APIVersion)
 	return vcdClient, nil

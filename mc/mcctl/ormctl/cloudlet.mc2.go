@@ -314,24 +314,9 @@ var CreateCloudletOptionalArgs = []string{
 	"resourcequotas:#.value",
 	"resourcequotas:#.alertthreshold",
 	"defaultresourcealertthreshold",
-<<<<<<< HEAD
-<<<<<<< HEAD
-<<<<<<< HEAD
 	"kafkacluster",
 	"kafkauser",
 	"kafkapassword",
-=======
-=======
-	"kafkacluster",
->>>>>>> kafka stuff
->>>>>>> kafka stuff
-=======
->>>>>>> kafka bus working
-=======
-	"kafkacluster",
-	"kafkauser",
-	"kafkapassword",
->>>>>>> autogen files
 }
 var DeleteCloudletRequiredArgs = []string{
 	"cloudlet-org",
@@ -371,24 +356,9 @@ var DeleteCloudletOptionalArgs = []string{
 	"resourcequotas:#.value",
 	"resourcequotas:#.alertthreshold",
 	"defaultresourcealertthreshold",
-<<<<<<< HEAD
-<<<<<<< HEAD
-<<<<<<< HEAD
 	"kafkacluster",
 	"kafkauser",
 	"kafkapassword",
-=======
-=======
-	"kafkacluster",
->>>>>>> kafka stuff
->>>>>>> kafka stuff
-=======
->>>>>>> kafka bus working
-=======
-	"kafkacluster",
-	"kafkauser",
-	"kafkapassword",
->>>>>>> autogen files
 }
 var UpdateCloudletRequiredArgs = []string{
 	"cloudlet-org",
@@ -416,24 +386,9 @@ var UpdateCloudletOptionalArgs = []string{
 	"resourcequotas:#.value",
 	"resourcequotas:#.alertthreshold",
 	"defaultresourcealertthreshold",
-<<<<<<< HEAD
-<<<<<<< HEAD
-<<<<<<< HEAD
 	"kafkacluster",
 	"kafkauser",
 	"kafkapassword",
-=======
-=======
-	"kafkacluster",
->>>>>>> kafka stuff
->>>>>>> kafka stuff
-=======
->>>>>>> kafka bus working
-=======
-	"kafkacluster",
-	"kafkauser",
-	"kafkapassword",
->>>>>>> autogen files
 }
 var ShowCloudletRequiredArgs = []string{
 	"cloudlet-org",
@@ -473,24 +428,9 @@ var ShowCloudletOptionalArgs = []string{
 	"resourcequotas:#.value",
 	"resourcequotas:#.alertthreshold",
 	"defaultresourcealertthreshold",
-<<<<<<< HEAD
-<<<<<<< HEAD
-<<<<<<< HEAD
 	"kafkacluster",
 	"kafkauser",
 	"kafkapassword",
-=======
-=======
-	"kafkacluster",
->>>>>>> kafka stuff
->>>>>>> kafka stuff
-=======
->>>>>>> kafka bus working
-=======
-	"kafkacluster",
-	"kafkauser",
-	"kafkapassword",
->>>>>>> autogen files
 }
 var GetCloudletPropsRequiredArgs = []string{
 	"platformtype",
@@ -797,24 +737,9 @@ var CloudletOptionalArgs = []string{
 	"resourcequotas:#.value",
 	"resourcequotas:#.alertthreshold",
 	"defaultresourcealertthreshold",
-<<<<<<< HEAD
-<<<<<<< HEAD
-<<<<<<< HEAD
 	"kafkacluster",
 	"kafkauser",
 	"kafkapassword",
-=======
-=======
-	"kafkacluster",
->>>>>>> kafka stuff
->>>>>>> kafka stuff
-=======
->>>>>>> kafka bus working
-=======
-	"kafkacluster",
-	"kafkauser",
-	"kafkapassword",
->>>>>>> autogen files
 }
 var CloudletAliasArgs = []string{
 	"fields=cloudlet.fields",
@@ -899,51 +824,10 @@ var CloudletAliasArgs = []string{
 	"resourcequotas:#.value=cloudlet.resourcequotas:#.value",
 	"resourcequotas:#.alertthreshold=cloudlet.resourcequotas:#.alertthreshold",
 	"defaultresourcealertthreshold=cloudlet.defaultresourcealertthreshold",
-<<<<<<< HEAD
-<<<<<<< HEAD
-<<<<<<< HEAD
-<<<<<<< HEAD
-<<<<<<< HEAD
-<<<<<<< HEAD
-<<<<<<< HEAD
-=======
->>>>>>> kafka stuff
-=======
->>>>>>> kafka bus working
-=======
->>>>>>> autogen files
-	"hostcontroller=cloudlet.hostcontroller",
-=======
-=======
-	"kafkacluster=cloudlet.kafkacluster",
->>>>>>> kafka stuff
->>>>>>> kafka stuff
-<<<<<<< HEAD
-<<<<<<< HEAD
-=======
->>>>>>> kafka bus working
-=======
-	"kafkacluster=cloudlet.kafkacluster",
-	"kafkauser=cloudlet.kafkauser",
-	"kafkapassword=cloudlet.kafkapassword",
->>>>>>> autogen files
-=======
->>>>>>> kafka stuff
-=======
-=======
->>>>>>> kafka bus working
->>>>>>> kafka bus working
-=======
-	"kafkacluster=cloudlet.kafkacluster",
-	"kafkauser=cloudlet.kafkauser",
-	"kafkapassword=cloudlet.kafkapassword",
->>>>>>> autogen files
-=======
 	"hostcontroller=cloudlet.hostcontroller",
 	"kafkacluster=cloudlet.kafkacluster",
 	"kafkauser=cloudlet.kafkauser",
 	"kafkapassword=cloudlet.kafkapassword",
->>>>>>> kafka revision
 }
 var CloudletComments = map[string]string{
 	"fields":                              "Fields are used for the Update API to specify which fields to apply",
@@ -1015,62 +899,10 @@ var CloudletComments = map[string]string{
 	"resourcequotas:#.value":              "Quota value of the resource",
 	"resourcequotas:#.alertthreshold":     "Generate alert when more than threshold percentage of resource is used",
 	"defaultresourcealertthreshold":       "Default resource alert threshold percentage",
-<<<<<<< HEAD
-<<<<<<< HEAD
-<<<<<<< HEAD
-<<<<<<< HEAD
-<<<<<<< HEAD
-<<<<<<< HEAD
-<<<<<<< HEAD
-<<<<<<< HEAD
-<<<<<<< HEAD
-=======
->>>>>>> kafka stuff
-=======
->>>>>>> kafka bus working
-=======
->>>>>>> autogen files
-=======
->>>>>>> cleanup
-	"hostcontroller":                      "Addr of the controller hosting the cloudlet services if it is running locally",
-=======
-=======
-	"kafkacluster":                        "operator provided kafka cluster endpoint to push events to",
->>>>>>> kafka stuff
->>>>>>> kafka stuff
-<<<<<<< HEAD
-<<<<<<< HEAD
-=======
->>>>>>> kafka bus working
-=======
-	"kafkacluster":                        "operator provided kafka cluster endpoint to push events to",
-<<<<<<< HEAD
-<<<<<<< HEAD
-=======
->>>>>>> cleanup
-=======
-	"kafkacluster":                        "operator provided kafka cluster endpoint to push events to, specify REMOVE_KAFKA on a cloudletUpdate to stop pushing to kafka",
->>>>>>> cleanup
-	"kafkauser":                           "username for kafka SASL/PLAIN authentification",
-	"kafkapassword":                       "password for kafka SASL/PLAIN authentification",
->>>>>>> autogen files
-=======
->>>>>>> kafka stuff
-=======
-=======
->>>>>>> kafka bus working
->>>>>>> kafka bus working
-=======
-	"kafkauser":                           "username for kafka SASL/PLAIN authentification",
-	"kafkapassword":                       "password for kafka SASL/PLAIN authentification",
->>>>>>> autogen files
->>>>>>> autogen files
-=======
 	"hostcontroller":                      "Addr of the controller hosting the cloudlet services if it is running locally",
 	"kafkacluster":                        "operator provided kafka cluster endpoint to push events to",
 	"kafkauser":                           "username for kafka SASL/PLAIN authentification, stored securely in secret storage and never visible externally",
 	"kafkapassword":                       "password for kafka SASL/PLAIN authentification, stored securely in secret storage and never visible externally",
->>>>>>> kafka revision
 }
 var CloudletSpecialArgs = map[string]string{
 	"cloudlet.accessvars":    "StringToString",

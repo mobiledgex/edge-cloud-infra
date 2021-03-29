@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"strconv"
 	"strings"
 	"text/template"
 
@@ -115,6 +116,18 @@ func (g *GenMC2) GenerateImports(file *generator.FileDescriptor) {
 	}
 }
 
+type ServiceProps struct {
+	cliusebase string
+	cliuses    map[string]string
+	path       []string
+}
+
+func (s *ServiceProps) Init(serviceNum int) {
+	s.cliuses = make(map[string]string)
+	// path: 6 is service type
+	s.path = []string{"6", strconv.Itoa(serviceNum)}
+}
+
 func (g *GenMC2) Generate(file *generator.FileDescriptor) {
 	g.importEcho = false
 	g.importHttp = false
@@ -148,8 +161,10 @@ func (g *GenMC2) Generate(file *generator.FileDescriptor) {
 
 	g.P(gensupport.AutoGenComment)
 
-	for _, service := range file.FileDescriptorProto.Service {
-		g.generateService(service)
+	for ii, service := range file.FileDescriptorProto.Service {
+		serviceProps := ServiceProps{}
+		serviceProps.Init(ii)
+		g.generateService(file, service, &serviceProps)
 		if g.genclient {
 			g.generateClientInterface(service)
 		}
@@ -287,16 +302,18 @@ func (g *GenMC2) genSwaggerSpec(method *descriptor.MethodDescriptorProto, summar
 	g.P("//   404: notFound")
 }
 
-func (g *GenMC2) generateService(service *descriptor.ServiceDescriptorProto) {
+func (g *GenMC2) generateService(file *generator.FileDescriptor, service *descriptor.ServiceDescriptorProto, serviceProps *ServiceProps) {
 	if len(service.Method) == 0 {
 		return
 	}
-	for _, method := range service.Method {
-		g.generateMethod(*service.Name, method)
+	for ii, method := range service.Method {
+		// path: 2 is method type
+		methodPath := append(serviceProps.path, "2", strconv.Itoa(ii))
+		g.generateMethod(file, *service.Name, method, methodPath, serviceProps)
 	}
 }
 
-func (g *GenMC2) generateMethod(service string, method *descriptor.MethodDescriptorProto) {
+func (g *GenMC2) generateMethod(file *generator.FileDescriptor, service string, method *descriptor.MethodDescriptorProto, methodPath []string, serviceProps *ServiceProps) {
 	api := GetMc2Api(method)
 	if api == "" {
 		return
@@ -371,6 +388,23 @@ func (g *GenMC2) generateMethod(service string, method *descriptor.MethodDescrip
 	if len(authops) > 0 {
 		args.AuthOps = ", " + strings.Join(authops, ", ")
 	}
+	if g.genctl || g.gencliwrapper {
+		if serviceProps.cliusebase == "" {
+			serviceProps.cliusebase = inname
+		}
+		// Remove the base name from the commands to avoid redundancy.
+		cliuse := GetCliCmd(method)
+		if cliuse == "" {
+			cliuse = strings.Replace(*method.Name, serviceProps.cliusebase, "", 1)
+		}
+		cliuse = strings.ToLower(cliuse)
+		if conflict, found := serviceProps.cliuses[cliuse]; found {
+			g.Fail("Cli cmd name conflict between", cliuse, "(", *method.Name, ") and", cliuse, "(", conflict, "), please use protogen.cli_cmd option to avoid conflict")
+		}
+		serviceProps.cliuses[cliuse] = *method.Name
+		args.CliUse = cliuse
+	}
+
 	var tmpl *template.Template
 	if g.genapi {
 		tmpl = g.tmplApi
@@ -390,6 +424,11 @@ func (g *GenMC2) generateMethod(service string, method *descriptor.MethodDescrip
 		g.importOrmclient = true
 	} else if g.genctl {
 		tmpl = g.tmplMethodCtl
+		short := g.support.GetComments(file.GetName(), strings.Join(methodPath, ","))
+		args.CliShort = strings.TrimSpace(strings.Map(gensupport.RemoveNewLines, short))
+		if args.CliShort == "" {
+			g.Fail("method", *method.Name, "in file", file.GetName(), "needs a comment")
+		}
 		g.importOrmapi = true
 		g.importStrings = true
 		g.importCli = true
@@ -399,6 +438,7 @@ func (g *GenMC2) generateMethod(service string, method *descriptor.MethodDescrip
 	} else if g.gencliwrapper {
 		tmpl = g.tmplMethodCliWrapper
 		args.NoConfig = gensupport.GetNoConfig(in.DescriptorProto, method)
+		args.CliGroup = getCliGroup(service)
 		g.importOrmapi = true
 		g.importStrings = true
 	} else {
@@ -449,6 +489,9 @@ type tmplArgs struct {
 	NotifyRoot           bool
 	AuthOps              string
 	HasKey               bool
+	CliUse               string
+	CliShort             string
+	CliGroup             string
 }
 
 var tmplApi = `
@@ -727,7 +770,8 @@ func (s *Client) {{.MethodName}}(uri, token string, in *ormapi.Region{{.InName}}
 
 var tmplMethodCtl = `
 var {{.MethodName}}Cmd = &cli.Command{
-	Use: "{{.MethodName}}",
+	Use: "{{.CliUse}}",
+	Short: "{{.CliShort}}",
 {{- if .Show}}
 {{- if not .NotifyRoot}}
 	RequiredArgs: "region",
@@ -785,7 +829,7 @@ func set{{.MethodName}}Fields(in map[string]interface{}) {
 var tmplMethodCliWrapper = `
 {{- if .Outstream}}
 func (s *Client) {{.MethodName}}(uri, token string, in *ormapi.Region{{.InName}}) ([]edgeproto.{{.OutName}}, int, error) {
-	args := []string{"region", "{{.MethodName}}"}
+	args := []string{"{{.CliGroup}}", "{{.CliUse}}"}
 	outlist := []edgeproto.{{.OutName}}{}
 	noconfig := strings.Split("{{.NoConfig}}", ",")
 	ops := []runOp{
@@ -799,7 +843,7 @@ func (s *Client) {{.MethodName}}(uri, token string, in *ormapi.Region{{.InName}}
 }
 {{- else}}
 func (s *Client) {{.MethodName}}(uri, token string, in *ormapi.Region{{.InName}}) (*edgeproto.{{.OutName}}, int, error) {
-	args := []string{"region", "{{.MethodName}}"}
+	args := []string{"{{.CliGroup}}", "{{.CliUse}}"}
 	out := edgeproto.{{.OutName}}{}
 	noconfig := strings.Split("{{.NoConfig}}", ",")
 	st, err := s.runObjs(uri, token, args, in, &out, withIgnore(noconfig))
@@ -1026,9 +1070,22 @@ func (g *GenMC2) generateCtlGroup(service *descriptor.ServiceDescriptorProto) {
 	}
 	g.P("}")
 	g.P()
+	serviceName := strings.TrimSuffix(*service.Name, "Api")
+	groupName := getCliGroup(*service.Name)
+	plural := "s"
+	if strings.HasSuffix(serviceName, "s") {
+		plural = ""
+	}
+	g.P("var ", service.Name, "CmdsGroup = cli.GenGroup(\"", groupName, "\", \"Manage ", serviceName, plural, "\", ", service.Name, "Cmds)")
+	g.P()
 	for ii, method := range service.Method {
 		gensupport.GenerateMethodArgs(g.Generator, &g.support, method, true, ii)
 	}
+}
+
+func getCliGroup(serviceName string) string {
+	serviceName = strings.TrimSuffix(serviceName, "Api")
+	return strings.ToLower(serviceName)
 }
 
 func hasMc2Api(service *descriptor.ServiceDescriptorProto) bool {
@@ -1062,6 +1119,10 @@ func GetMc2CustomAuthz(method *descriptor.MethodDescriptorProto) bool {
 
 func GetMc2ApiNotifyroot(method *descriptor.MethodDescriptorProto) bool {
 	return proto.GetBoolExtension(method.Options, protogen.E_Mc2ApiNotifyroot, false)
+}
+
+func GetCliCmd(method *descriptor.MethodDescriptorProto) string {
+	return gensupport.GetStringExtension(method.Options, protogen.E_CliCmd, "")
 }
 
 func GetMc2TargetCloudlet(message *descriptor.DescriptorProto) string {

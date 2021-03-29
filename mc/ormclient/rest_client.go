@@ -16,6 +16,7 @@ import (
 
 	"github.com/gorilla/websocket"
 	"github.com/mitchellh/mapstructure"
+	"github.com/mobiledgex/edge-cloud-infra/billing"
 	"github.com/mobiledgex/edge-cloud-infra/mc/ormapi"
 	"github.com/mobiledgex/edge-cloud/cloudcommon/node"
 	edgeproto "github.com/mobiledgex/edge-cloud/edgeproto"
@@ -27,7 +28,7 @@ type Client struct {
 	Debug      bool
 }
 
-func (s *Client) DoLogin(uri, user, pass, otp, apikeyid, apikey string) (string, error) {
+func (s *Client) DoLogin(uri, user, pass, otp, apikeyid, apikey string) (string, bool, error) {
 	login := ormapi.UserLogin{
 		Username: user,
 		Password: pass,
@@ -38,20 +39,26 @@ func (s *Client) DoLogin(uri, user, pass, otp, apikeyid, apikey string) (string,
 	result := make(map[string]interface{})
 	status, err := s.PostJson(uri+"/login", "", &login, &result)
 	if err != nil {
-		return "", fmt.Errorf("login error, %s", err.Error())
+		return "", false, fmt.Errorf("login error, %s", err.Error())
 	}
 	if status != http.StatusOK {
-		return "", fmt.Errorf("login status %d instead of OK(200)", status)
+		return "", false, fmt.Errorf("login status %d instead of OK(200)", status)
 	}
 	tokenI, ok := result["token"]
 	if !ok {
-		return "", fmt.Errorf("login token not found in response")
+		return "", false, fmt.Errorf("login token not found in response")
 	}
 	token, ok := tokenI.(string)
 	if !ok {
-		return "", fmt.Errorf("login token not string")
+		return "", false, fmt.Errorf("login token not string")
 	}
-	return token, nil
+	admin := false
+	if adminI, ok := result["admin"]; ok {
+		if adminB, ok := adminI.(bool); ok {
+			admin = adminB
+		}
+	}
+	return token, admin, nil
 }
 
 func (s *Client) CreateUser(uri string, user *ormapi.User) (*ormapi.UserResponse, int, error) {
@@ -115,6 +122,10 @@ func (s *Client) ShowOrg(uri, token string) ([]ormapi.Organization, int, error) 
 	return orgs, status, err
 }
 
+func (s *Client) RestrictedUpdateOrg(uri, token string, org map[string]interface{}) (int, error) {
+	return s.PostJson(uri+"/auth/restricted/org/update", token, org, nil)
+}
+
 func (s *Client) CreateBillingOrg(uri, token string, bOrg *ormapi.BillingOrganization) (int, error) {
 	return s.PostJson(uri+"/auth/billingorg/create", token, bOrg, nil)
 }
@@ -143,6 +154,12 @@ func (s *Client) RemoveChildOrg(uri, token string, bOrg *ormapi.BillingOrganizat
 
 func (s *Client) CreateCloudletPoolAccessInvitation(uri, token string, op *ormapi.OrgCloudletPool) (int, error) {
 	return s.PostJson(uri+"/auth/cloudletpoolaccessinvitation/create", token, op, nil)
+}
+
+func (s *Client) GetInvoice(uri, token string, req *ormapi.InvoiceRequest) ([]billing.InvoiceData, int, error) {
+	invoice := []billing.InvoiceData{}
+	status, err := s.PostJson(uri+"/auth/billingorg/invoice", token, req, &invoice)
+	return invoice, status, err
 }
 
 func (s *Client) DeleteCloudletPoolAccessInvitation(uri, token string, op *ormapi.OrgCloudletPool) (int, error) {

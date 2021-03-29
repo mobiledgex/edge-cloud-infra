@@ -24,7 +24,8 @@ var _ = math.Inf
 // Auto-generated code: DO NOT EDIT
 
 var UpdateSettingsCmd = &cli.Command{
-	Use:          "UpdateSettings",
+	Use:          "update",
+	Short:        "Update settings",
 	RequiredArgs: "region " + strings.Join(SettingsRequiredArgs, " "),
 	OptionalArgs: strings.Join(SettingsOptionalArgs, " "),
 	AliasArgs:    strings.Join(SettingsAliasArgs, " "),
@@ -58,7 +59,8 @@ func setUpdateSettingsFields(in map[string]interface{}) {
 }
 
 var ResetSettingsCmd = &cli.Command{
-	Use:          "ResetSettings",
+	Use:          "reset",
+	Short:        "Reset all settings to their defaults",
 	RequiredArgs: "region " + strings.Join(SettingsRequiredArgs, " "),
 	OptionalArgs: strings.Join(SettingsOptionalArgs, " "),
 	AliasArgs:    strings.Join(SettingsAliasArgs, " "),
@@ -70,7 +72,8 @@ var ResetSettingsCmd = &cli.Command{
 }
 
 var ShowSettingsCmd = &cli.Command{
-	Use:          "ShowSettings",
+	Use:          "show",
+	Short:        "Show settings",
 	RequiredArgs: "region " + strings.Join(SettingsRequiredArgs, " "),
 	OptionalArgs: strings.Join(SettingsOptionalArgs, " "),
 	AliasArgs:    strings.Join(SettingsAliasArgs, " "),
@@ -86,6 +89,8 @@ var SettingsApiCmds = []*cli.Command{
 	ResetSettingsCmd,
 	ShowSettingsCmd,
 }
+
+var SettingsApiCmdsGroup = cli.GenGroup("settings", "Manage Settings", SettingsApiCmds)
 
 var SettingsRequiredArgs = []string{}
 var SettingsOptionalArgs = []string{
@@ -120,6 +125,7 @@ var SettingsOptionalArgs = []string{
 	"edgeeventsmetricscontinuousqueriescollectionintervals:#.interval",
 	"influxdbdownsampledmetricsretention",
 	"influxdbedgeeventsmetricsretention",
+	"appinstclientcleanupinterval",
 }
 var SettingsAliasArgs = []string{
 	"fields=settings.fields",
@@ -154,6 +160,7 @@ var SettingsAliasArgs = []string{
 	"edgeeventsmetricscontinuousqueriescollectionintervals:#.interval=settings.edgeeventsmetricscontinuousqueriescollectionintervals:#.interval",
 	"influxdbdownsampledmetricsretention=settings.influxdbdownsampledmetricsretention",
 	"influxdbedgeeventsmetricsretention=settings.influxdbedgeeventsmetricsretention",
+	"appinstclientcleanupinterval=settings.appinstclientcleanupinterval",
 }
 var SettingsComments = map[string]string{
 	"fields":                                "Fields are used for the Update API to specify which fields to apply",
@@ -187,6 +194,7 @@ var SettingsComments = map[string]string{
 	"locationtilesidelengthkm":              "Length of location tiles side for latency metrics (km)",
 	"influxdbdownsampledmetricsretention":   "Default retention policy for downsampled influx db (duration)",
 	"influxdbedgeeventsmetricsretention":    "Default retention policy for edgeevents metrics influx db (duration)",
+	"appinstclientcleanupinterval":          "AppInstClient cleanup thread run interval",
 }
 var SettingsSpecialArgs = map[string]string{
 	"settings.fields": "StringArray",

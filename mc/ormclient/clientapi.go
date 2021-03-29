@@ -1,6 +1,7 @@
 package ormclient
 
 import (
+	"github.com/mobiledgex/edge-cloud-infra/billing"
 	"github.com/mobiledgex/edge-cloud-infra/mc/ormapi"
 	"github.com/mobiledgex/edge-cloud/cloudcommon/node"
 	edgeproto "github.com/mobiledgex/edge-cloud/edgeproto"
@@ -8,7 +9,7 @@ import (
 )
 
 type Api interface {
-	DoLogin(uri, user, pass, otp, apikeyid, apikey string) (string, error)
+	DoLogin(uri, user, pass, otp, apikeyid, apikey string) (string, bool, error)
 
 	CreateUser(uri string, user *ormapi.User) (*ormapi.UserResponse, int, error)
 	DeleteUser(uri, token string, user *ormapi.User) (int, error)
@@ -25,6 +26,7 @@ type Api interface {
 	DeleteOrg(uri, token string, org *ormapi.Organization) (int, error)
 	UpdateOrg(uri, token string, jsonData string) (int, error)
 	ShowOrg(uri, token string) ([]ormapi.Organization, int, error)
+	RestrictedUpdateOrg(uri, token string, org map[string]interface{}) (int, error)
 
 	CreateBillingOrg(uri, token string, org *ormapi.BillingOrganization) (int, error)
 	DeleteBillingOrg(uri, token string, org *ormapi.BillingOrganization) (int, error)
@@ -32,6 +34,7 @@ type Api interface {
 	ShowBillingOrg(uri, token string) ([]ormapi.BillingOrganization, int, error)
 	AddChildOrg(uri, token string, org *ormapi.BillingOrganization) (int, error)
 	RemoveChildOrg(uri, token string, org *ormapi.BillingOrganization) (int, error)
+	GetInvoice(uri, token string, req *ormapi.InvoiceRequest) ([]billing.InvoiceData, int, error)
 
 	AddUserRole(uri, token string, role *ormapi.Role) (int, error)
 	RemoveUserRole(uri, token string, role *ormapi.Role) (int, error)

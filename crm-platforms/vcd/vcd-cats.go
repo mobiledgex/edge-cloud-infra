@@ -5,9 +5,8 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/vmware/go-vcloud-director/v2/govcd"
-
 	"github.com/mobiledgex/edge-cloud/log"
+	"github.com/vmware/go-vcloud-director/v2/govcd"
 )
 
 // catalog releated functionality

@@ -8,7 +8,6 @@ import (
 	"path/filepath"
 	"strings"
 
-	//"github.com/vmware/go-vcloud-director/v2/govcd"
 	"github.com/vmware/go-vcloud-director/v2/govcd"
 
 	"github.com/mobiledgex/edge-cloud-infra/infracommon"

@@ -25,9 +25,6 @@ const Scope = "scope"
 const GrantTypeCert = "CERT"
 const ScopeOpenId = "openid"
 const ContentFormUrlEncoded = "application/x-www-form-urlencoded"
-const VcdAuthHeader = "X-Vcloud-Authorization"
-const VcdTokenHeader = "X-Vmware-Vcloud-Access-Token"
-const VcdTokenTypeHeader = "X-Vmware-Vcloud-Token-Type"
 
 // GetCredsFromVaultForSimulator is for use by AGW and SGW simulators which do not
 // use the AccessApi functionality from controller

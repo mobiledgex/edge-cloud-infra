@@ -8,12 +8,11 @@ import (
 	"net/http"
 	"testing"
 
-	"github.com/vmware/go-vcloud-director/v2/govcd"
-
 	"github.com/mobiledgex/edge-cloud-infra/vmlayer"
 	"github.com/mobiledgex/edge-cloud/log"
 	ssh "github.com/mobiledgex/golang-ssh"
 	"github.com/stretchr/testify/require"
+	"github.com/vmware/go-vcloud-director/v2/govcd"
 	"github.com/vmware/go-vcloud-director/v2/types/v56"
 )
 

@@ -2,6 +2,7 @@ package e2esetup
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"io/ioutil"
 	"log"
@@ -233,6 +234,16 @@ func runMcDataAPI(api, uri, apiFile, curUserFile, outputDir string, mods []strin
 		return rc
 	}
 
+	if api == "showclientapimetrics" {
+		var showClientApiMetrics *ormapi.AllMetrics
+		targets := readMCMetricTargetsFile(apiFile, vars)
+		var parsedMetrics *[]MetricsCompare
+		showClientApiMetrics = showMcClientApiMetrics(uri, token, targets, &rc)
+		parsedMetrics = parseMetrics(showClientApiMetrics)
+		util.PrintToYamlFile("show-commands.yml", outputDir, parsedMetrics, true)
+		return rc
+	}
+
 	if api == "showclientappmetrics" {
 		var showClientAppMetrics *ormapi.AllMetrics
 		targets := readMCMetricTargetsFile(apiFile, vars)
@@ -288,6 +299,34 @@ func runMcDataAPI(api, uri, apiFile, curUserFile, outputDir string, mods []strin
 	case "stream":
 		dataOut := streamMcData(uri, token, tag, data, &rc)
 		util.PrintToYamlFile("show-commands.yml", outputDir, dataOut, true)
+	case "restrictedupdateorg":
+		val, ok := dataMap["orgs"]
+		if !ok {
+			fmt.Fprintf(os.Stderr, "mcapi: no orgs in %v\n", dataMap)
+			os.Exit(1)
+		}
+		arr, ok := val.([]interface{})
+		if !ok {
+			fmt.Fprintf(os.Stderr, "mcapi: orgs in map not []interface{}: %v\n", dataMap)
+			os.Exit(1)
+		}
+		output := &AllDataOut{}
+		for ii, orgIntf := range arr {
+			var orgMap map[string]interface{}
+			orgObj, err := json.Marshal(orgIntf)
+			if err != nil {
+				log.Printf("error in marshal org for %v: %v\n", orgIntf, err)
+				return false
+			}
+			err = json.Unmarshal(orgObj, &orgMap)
+			if err != nil {
+				log.Printf("error in unmarshal org for %s: %v\n", string(orgObj), err)
+				return false
+			}
+			st, err := mcClient.RestrictedUpdateOrg(uri, token, orgMap)
+			outMcErr(output, fmt.Sprintf("RestrictedUpdateOrg[%d]", ii), st, err)
+		}
+		errs = output.Errors
 	}
 	if tag != "expecterr" && errs != nil {
 		// no errors expected
@@ -776,7 +815,7 @@ func showMcMetricsSep(uri, token string, targets *MetricTargets, rc *bool) *orma
 	return &allMetrics
 }
 
-func showMcClientAppMetrics(uri, token string, targets *MetricTargets, rc *bool) *ormapi.AllMetrics {
+func showMcClientApiMetrics(uri, token string, targets *MetricTargets, rc *bool) *ormapi.AllMetrics {
 	allMetrics := ormapi.AllMetrics{Data: make([]ormapi.MetricData, 0)}
 	for _, method := range ApiMethods {
 		clientApiUsageQuery := ormapi.RegionClientApiUsageMetrics{
@@ -794,6 +833,11 @@ func showMcClientAppMetrics(uri, token string, targets *MetricTargets, rc *bool)
 			allMetrics.Data = append(allMetrics.Data, clientApiUsageMetric.Data...)
 		}
 	}
+	return &allMetrics
+}
+
+func showMcClientAppMetrics(uri, token string, targets *MetricTargets, rc *bool) *ormapi.AllMetrics {
+	allMetrics := ormapi.AllMetrics{Data: make([]ormapi.MetricData, 0)}
 	clientAppUsageQuery := ormapi.RegionClientAppUsageMetrics{
 		Region:  "local",
 		AppInst: targets.AppInstKey,

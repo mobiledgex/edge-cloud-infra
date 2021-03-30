@@ -379,10 +379,7 @@ func start() {
 		log.FatalLog("access key client is not enabled")
 	}
 
-	ctrlConn = nodeMgr.CtrlConn
-	// Create CloudletAccessApiClient
-	accessClient := &nodeMgr.AccessApiClient
-	accessApi := accessapi.NewControllerClient(*accessClient)
+	accessApi := accessapi.NewControllerClient(nodeMgr.AccessApiClient)
 
 	clientTlsConfig, err := nodeMgr.InternalPki.GetClientTlsConfig(ctx,
 		nodeMgr.CommonName(),

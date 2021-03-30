@@ -369,9 +369,8 @@ func (v *VcdPlatform) GetAllVAppsForVdcByIntAddr(ctx context.Context, vcdClient 
 func (v *VcdPlatform) GetApiEndpointAddr(ctx context.Context) (string, error) {
 
 	url := v.GetVcdUrl()
-	apiUrl := url + "/api"
-	log.SpanLog(ctx, log.DebugLevelInfra, "GetApiEndpointAddr", "Href", apiUrl)
-	return apiUrl, nil
+	log.SpanLog(ctx, log.DebugLevelInfra, "GetApiEndpointAddr", "Href", url)
+	return url, nil
 }
 
 func (v *VcdPlatform) GetVappServerSuffix() string {

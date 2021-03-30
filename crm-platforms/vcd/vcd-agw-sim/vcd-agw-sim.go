@@ -81,9 +81,7 @@ func doApi(w http.ResponseWriter, r *http.Request) {
 			key = "Authorization"
 		}
 		for _, v2 := range v {
-			if v2 != "gzip" { // we don't handle gzip responses well
-				vcdreq.Header.Add(key, v2)
-			}
+			vcdreq.Header.Add(key, v2)
 		}
 	}
 	client := &http.Client{

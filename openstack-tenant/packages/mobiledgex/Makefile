@@ -1,5 +1,5 @@
 PACKAGE = mobiledgex
-VERSION = 4.3.3.helmtest
+VERSION = 4.3.3
 DISTRIBUTION = cirrus
 COMPONENT = main
 

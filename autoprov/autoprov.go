@@ -78,7 +78,6 @@ func start() error {
 
 	cacheData.init(&nodeMgr)
 	retryTracker = newRetryTracker()
-	cacheData.init(&nodeMgr)
 	autoProvAggr = NewAutoProvAggr(settings.AutoDeployIntervalSec, settings.AutoDeployOffsetSec, &cacheData)
 	minMaxChecker = newMinMaxChecker(&cacheData)
 	cacheData.alertCache.AddUpdatedCb(alertChanged)

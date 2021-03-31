@@ -25,6 +25,9 @@ func (s *CacheData) init(nodeMgr *node.NodeMgr) {
 	edgeproto.InitAutoProvPolicyCache(&s.autoProvPolicyCache)
 	if nodeMgr != nil {
 		s.cloudletCache = nodeMgr.CloudletLookup.GetCloudletCache(node.NoRegion)
+	} else {
+		s.cloudletCache = &edgeproto.CloudletCache{}
+		edgeproto.InitCloudletCache(s.cloudletCache)
 	}
 	edgeproto.InitCloudletInfoCache(&s.cloudletInfoCache)
 	s.frClusterInsts.Init()

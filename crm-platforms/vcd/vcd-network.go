@@ -120,15 +120,16 @@ func (v *VcdPlatform) createNextSharedLBSubnet(ctx context.Context, vapp *govcd.
 	netLock.Lock()
 	defer netLock.Unlock()
 
-	subnet, err := v.GetNextInternalSubnet(ctx, vapp.VApp.Name, updateCallback, vcdClient)
+	subnet, reuseExistingNet, err := v.GetNextInternalSubnet(ctx, vapp.VApp.Name, updateCallback, vcdClient)
 	if err != nil {
 		log.SpanLog(ctx, log.DebugLevelInfra, "createNextSharedLBSubnet  SharedLB GetNextInternalSubnet failed", "vapp", vapp.VApp.Name, "port.NetowkrNamek", port.NetworkName, "error", err)
 		return "", err
 	}
-	log.SpanLog(ctx, log.DebugLevelInfra, "createNextSharedLBSubnetSharedLB", "vapp", vapp.VApp.Name, "port.NetowkrName", port.NetworkName, "port.SubnetId", port.SubnetId, "IP subnet", subnet)
+
+	log.SpanLog(ctx, log.DebugLevelInfra, "createNextSharedLBSubnetSharedLB", "vapp", vapp.VApp.Name, "port.NetowkrName", port.NetworkName, "port.SubnetId", port.SubnetId, "IP subnet", subnet, "reused", reuseExistingNet)
 	// OrgVDCNetwork LinkType = 2 (isolated)
 	// This seems to be an admin priv operation if using  nsx-t back network pool xxx
-	err = v.CreateIsoVdcNetwork(ctx, vapp, port.SubnetId, subnet, vcdClient)
+	err = v.CreateIsoVdcNetwork(ctx, vapp, port.SubnetId, subnet, vcdClient, reuseExistingNet)
 	if err != nil {
 		log.SpanLog(ctx, log.DebugLevelInfra, "createNextSharedLBSubnet  create iso orgvdc internal net failed", "err", err)
 		return "", err
@@ -188,6 +189,7 @@ func (v *VcdPlatform) AddPortsToVapp(ctx context.Context, vapp *govcd.VApp, vmgp
 			}
 			if v.haveSharedRootLB(ctx, vmgp) {
 				log.SpanLog(ctx, log.DebugLevelInfra, "AddPortsToVapp adding internal vapp net for SharedLB", "vapp", vapp.VApp.Name)
+				// This can return the next available cidr, or an existing cidr from the FreeIsoNets list
 				subnet, err = v.createNextSharedLBSubnet(ctx, vapp, port, updateCallback, vcdClient)
 				if err != nil {
 					log.SpanLog(ctx, log.DebugLevelInfra, "AddPortsToVapp createNextShareRootLBSubnet failed", "vapp", vapp.VApp.Name, "error", err)
@@ -692,11 +694,19 @@ func (v *VcdPlatform) GetAddrOfVapp(ctx context.Context, vapp *govcd.VApp, netNa
 
 // Given our scheme for networks 10.101.X.0/24 return the next available Isolated network CIDR
 
-func (v *VcdPlatform) GetNextInternalSubnet(ctx context.Context, vappName string, updateCallback edgeproto.CacheUpdateCallback, vcdClient *govcd.VCDClient) (string, error) {
+func (v *VcdPlatform) GetNextInternalSubnet(ctx context.Context, vappName string, updateCallback edgeproto.CacheUpdateCallback, vcdClient *govcd.VCDClient) (string, bool, error) {
 
 	var MAX_CIDRS = 255 // These are internal /24 subnets so 255, not that we'll have that many clusters / cloudlet
 
 	log.SpanLog(ctx, log.DebugLevelInfra, "GetNextInternalSubnet", "vapp", vappName)
+
+	// look at the free list and use that if available
+	if len(v.FreeIsoNets) > 0 {
+		cidr := v.getAvailableIsoNetwork(ctx)
+		log.SpanLog(ctx, log.DebugLevelInfra, "GetNetInternalSubnet  FreeNets available reusing", "net", cidr)
+		return cidr, true, nil
+	}
+
 	// use schema xxx
 	startAddr := "10.101.1.1"
 	// We'll incr the netSpec.DelimiterOctet of this start addr, if it's not in our
@@ -705,25 +715,25 @@ func (v *VcdPlatform) GetNextInternalSubnet(ctx context.Context, vappName string
 	vappMap, err := v.GetAllVAppsForVdcByIntAddr(ctx, vcdClient)
 	if err != nil {
 		log.SpanLog(ctx, log.DebugLevelInfra, "GetNextInternalSubnet return", "curAddr", curAddr)
-		return curAddr, err
+		return curAddr, false, err
 	}
 	if len(vappMap) == 0 {
 		log.SpanLog(ctx, log.DebugLevelInfra, "GetNextInternalSubnet  return", "curAddr", curAddr)
-		return curAddr, nil
+		return curAddr, false, nil
 	}
 	for i := 1; i < MAX_CIDRS; i++ {
 		if _, found := vappMap[curAddr]; !found {
 			log.SpanLog(ctx, log.DebugLevelInfra, "GetNextInternalSubnet return available", "cidr", curAddr)
-			return curAddr, nil
+			return curAddr, false, nil
 		}
 		curAddr, err = v.IncrCidr(curAddr, 1)
 		if err != nil {
 			log.SpanLog(ctx, log.DebugLevelInfra, "GetNextInternalSubnet IncrCidr failed", "curAddr", curAddr, "err", err)
-			return "", err
+			return "", false, err
 		}
 	}
 	log.SpanLog(ctx, log.DebugLevelInfra, "GetNextInternalSubnet  subnet range exhasted")
-	return "", err
+	return "", false, err
 }
 
 // vm networks
@@ -766,6 +776,23 @@ func (v *VcdPlatform) GetFirstOrgNetworkOfVdc(ctx context.Context, vdc *govcd.Vd
 	return nil, fmt.Errorf("Not Found")
 }
 
+func (v *VcdPlatform) AddSubnetIdToShareLBClientVapp(ctx context.Context, netName string, vapp *govcd.VApp) error {
+
+	task, err := vapp.AddMetadata("SharedSubnetId", netName)
+	if err != nil {
+		log.SpanLog(ctx, log.DebugLevelInfra, "Addmetadata to  vapp  failed", "vapp", vapp.VApp.Name, "error", err)
+		return err
+	}
+	err = task.WaitTaskCompletion()
+	if err != nil {
+		log.SpanLog(ctx, log.DebugLevelInfra, "wait Addmetadata to  vapp  failed", "vapp", vapp.VApp.Name, "error", err)
+
+		return err
+	}
+	log.SpanLog(ctx, log.DebugLevelInfra, "AddSubnetIdToSharedLBClientVapp", "SharedSubnetId", netName)
+	return nil
+}
+
 func (v *VcdPlatform) ValidateAdditionalNetworks(ctx context.Context, additionalNets []string) error {
 	return fmt.Errorf("Additional networks not supported in vCD  cloudlets")
 }
@@ -780,8 +807,8 @@ func (v *VcdPlatform) getAvailableIsoNetwork(ctx context.Context) string {
 	return ""
 }
 
-func (v *VcdPlatform) CreateIsoVdcNetwork(ctx context.Context, vapp *govcd.VApp, netName, cidr string, vcdClient *govcd.VCDClient) error {
-	log.SpanLog(ctx, log.DebugLevelInfra, "CreateIsoVdcNetowrk", "name", netName, "cidr", cidr)
+func (v *VcdPlatform) CreateIsoVdcNetwork(ctx context.Context, vapp *govcd.VApp, netName, cidr string, vcdClient *govcd.VCDClient, reuseExistingNet bool) error {
+	log.SpanLog(ctx, log.DebugLevelInfra, "CreateIsoVdcNetowrk", "name", netName, "cidr", cidr, "reusing existing net", reuseExistingNet)
 
 	vdc, err := v.GetVdc(ctx, vcdClient)
 	if err != nil {
@@ -789,12 +816,15 @@ func (v *VcdPlatform) CreateIsoVdcNetwork(ctx context.Context, vapp *govcd.VApp,
 		return err
 	}
 	// we are under lock here. First check if we have any free iosnets available to use
-	if len(v.FreeIsoNets) > 0 {
-		cidr = v.getAvailableIsoNetwork(ctx)
-		log.SpanLog(ctx, log.DebugLevelInfra, "CreateIsoVdcNetwork FreeNets vailable reusing", "net", cidr, "for mexNet", netName)
-	} else {
+	if !reuseExistingNet {
+		/*
+				if len(v.FreeIsoNets) > 0 {
+				cidr = v.getAvailableIsoNetwork(ctx)
+				log.SpanLog(ctx, log.DebugLevelInfra, "CreateIsoVdcNetwork FreeNets available reusing", "net", cidr, "for mexNet", netName)
+			} else {
+		*/
 		// create a new one
-		log.SpanLog(ctx, log.DebugLevelInfra, "CreateIsoVdcNetwork FreeNets empty", "creating new", "net", cidr)
+		log.SpanLog(ctx, log.DebugLevelInfra, "CreateIsoVdcNetwork FreeNets empty creating new", "net", cidr)
 		startAddr, err := IncrIP(ctx, cidr, 1)
 		if err != nil {
 			log.SpanLog(ctx, log.DebugLevelInfra, "IncrIP startaddr", "netname", netName, "gateway", cidr, "err", err)
@@ -884,6 +914,8 @@ func (v *VcdPlatform) CreateIsoVdcNetwork(ctx context.Context, vapp *govcd.VApp,
 	// xlate names map for network reuse. All these iossubnets are now named with their cidrs
 	// Lookup the real vdc name (subnetId) using our netName
 	v.IsoNamesMap[netName] = cidr
+	// enable crm restarts, stash the subnetId name in Vapp as metadata)
+	v.AddSubnetIdToShareLBClientVapp(ctx, netName, vapp)
 	log.SpanLog(ctx, log.DebugLevelInfra, "CreateIsoVdcNetowrk added org net ok", "network", netName, "cidr", cidr, "vapp", vapp.VApp.Name, "NetConfigSection", netConfSec)
 	return nil
 }
@@ -932,7 +964,7 @@ func (v *VcdPlatform) GetNextVdcIsoSubnet(ctx context.Context, vcdClient *govcd.
 	return "", fmt.Errorf("Isolated Subnet range exhausted")
 }
 
-// If this vapp is using an isplated orgvdcnet, return its name
+// If this vapp is using an isolated orgvdcnet, return its name
 func (v *VcdPlatform) GetVappIsoNetwork(ctx context.Context, vdc *govcd.Vdc, vapp *govcd.VApp) (string, error) {
 
 	log.SpanLog(ctx, log.DebugLevelInfra, "GetVappIsoNetwork", "vapp", vapp.VApp.Name)
@@ -962,4 +994,84 @@ func (v *VcdPlatform) GetVappIsoNetwork(ctx context.Context, vdc *govcd.Vdc, vap
 	log.SpanLog(ctx, log.DebugLevelInfra, "GetVappIsoNetwork no IsoNetwork found for ", "vapp", vapp.VApp.Name)
 	return "", nil
 
+}
+
+// on (re)start attempt to rebuild the free isolated networks and name mapping.
+// On cloudlet create, if any of these isonets are in existance, (nsx-t)
+// they will be placed on the free list and reused.
+func (v *VcdPlatform) RebuildIsoNamesAndFreeMaps(ctx context.Context) error {
+	log.SpanLog(ctx, log.DebugLevelInfra, "RebuildIsoNamesMap ")
+	var err error
+	vcdClient := v.GetVcdClientFromContext(ctx)
+	if vcdClient == nil {
+		// Too early for context
+		vcdClient, err = v.GetClient(ctx, v.Creds)
+		if err != nil {
+			return fmt.Errorf(NoVCDClientInContext)
+		}
+		log.SpanLog(ctx, log.DebugLevelInfra, "Obtained client directly continuing")
+	}
+
+	vdc, err := v.GetVdc(ctx, vcdClient)
+	if err != nil {
+		log.SpanLog(ctx, log.DebugLevelInfra, "DetachPortFromServer unable to retrieve current vdc", "err", err)
+		return err
+	}
+
+	qr, err := vdc.GetNetworkList()
+	if err != nil {
+		log.SpanLog(ctx, log.DebugLevelInfra, "GetVappIsoNetwork GetNetworkList  failed", "err", err)
+		return err
+	}
+	for _, q := range qr {
+		if q.LinkType == 2 {
+			orgvdcnetwork, err := vdc.GetOrgVdcNetworkByName(q.Name, false)
+			if err != nil {
+				return err
+			}
+			subnetId, err := v.vappUsesIsoNet(ctx, orgvdcnetwork.OrgVDCNetwork.Name, vdc)
+			if subnetId != "" {
+				log.SpanLog(ctx, log.DebugLevelInfra, "RebuildMaps add FreeIsoNets", "Net", orgvdcnetwork.OrgVDCNetwork.Name, "subnetId", subnetId)
+				v.IsoNamesMap[orgvdcnetwork.OrgVDCNetwork.Name] = subnetId
+			} else {
+				// No existing vapp references this orgvdc type 2 net, freelist it
+				v.FreeIsoNets[orgvdcnetwork.OrgVDCNetwork.Name] = orgvdcnetwork
+			}
+
+		}
+	}
+	if len(v.IsoNamesMap) == 0 {
+		log.SpanLog(ctx, log.DebugLevelInfra, "RebuildIsoNamesMap Nothing to rebuild")
+	}
+	return nil
+}
+
+// If any exsting vapp is using this iso net, it's not free to reuse
+func (v *VcdPlatform) vappUsesIsoNet(ctx context.Context, netName string, vdc *govcd.Vdc) (string, error) {
+
+	// For all vapps in vdc
+	for _, r := range vdc.Vdc.ResourceEntities {
+		for _, res := range r.ResourceEntity {
+			if res.Type == "application/vnd.vmware.vcloud.vApp+xml" {
+				vapp, err := vdc.GetVAppByName(res.Name, true)
+				if err != nil {
+					return "", err
+				} else {
+					ip, _ := v.GetAddrOfVapp(ctx, vapp, netName)
+					if ip != "" {
+						md, err := vapp.GetMetadata()
+						if err != nil {
+							return "", err
+						}
+						for _, ent := range md.MetadataEntry {
+							if ent.Key == "SharedSubnetId" {
+								return ent.TypedValue.Value, nil
+							}
+						}
+					}
+				}
+			}
+		}
+	}
+	return "", fmt.Errorf("Not Found")
 }

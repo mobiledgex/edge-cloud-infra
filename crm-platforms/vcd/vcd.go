@@ -72,6 +72,18 @@ func (v *VcdPlatform) InitProvider(ctx context.Context, caches *platform.Caches,
 	}
 
 	if stage == vmlayer.ProviderInitPlatformStart {
+
+		log.SpanLog(ctx, log.DebugLevelInfra, "InitProvider RebuildMaps", "stage", stage)
+		err := v.RebuildIsoNamesAndFreeMaps(ctx)
+		if err != nil {
+			log.SpanLog(ctx, log.DebugLevelInfra, "InitProvider Rebuild maps failed", "error", err)
+		}
+		if len(v.FreeIsoNets) == 0 {
+			log.SpanLog(ctx, log.DebugLevelInfra, "InitProvider FreeIsoNets empty")
+		}
+		if len(v.IsoNamesMap) == 0 {
+			log.SpanLog(ctx, log.DebugLevelInfra, "InitProvider IsoNamesMap empty")
+		}
 		log.SpanLog(ctx, log.DebugLevelInfra, "InitProvider DisableRuntimeLeases", "stage", stage)
 		overrideLeaseDisable := v.GetLeaseOverride()
 		if !overrideLeaseDisable {

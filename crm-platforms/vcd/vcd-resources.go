@@ -99,7 +99,7 @@ func (v *VcdPlatform) GetCloudletInfraResourcesInfo(ctx context.Context) ([]edge
 		log.SpanLog(ctx, log.DebugLevelInfra, "Using cpu speed from properties", "cpuSpeed", cpuSpeed)
 	}
 
-	vmlist, err := vcdClient.Client.QueryVmList(vcdtypes.VmQueryFilterAll)
+	vmlist, err := vcdClient.Client.QueryVmList(vcdtypes.VmQueryFilterOnlyDeployed)
 	if err != nil {
 		return nil, fmt.Errorf("Failed to query VmList: %v", err)
 	}

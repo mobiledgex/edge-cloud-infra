@@ -140,7 +140,7 @@ func (v *VcdPlatform) AddAppImageIfNotPresent(ctx context.Context, imageInfo *in
 
 	if v.GetVcdOauthAgwUrl() != "" {
 		// uploading a VM app image thru the API GW is not possible
-		return fmt.Errorf("VM Apps images cannot be imported when using an Application Gateway")
+		return fmt.Errorf("VM App images cannot be imported when using an API Gateway")
 	}
 	filesToCleanup := []string{}
 	defer func() {

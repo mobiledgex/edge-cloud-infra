@@ -122,11 +122,11 @@ func (v *VcdPlatform) createNextSharedLBSubnet(ctx context.Context, vapp *govcd.
 
 	subnet, reuseExistingNet, err := v.GetNextInternalSubnet(ctx, vapp.VApp.Name, updateCallback, vcdClient)
 	if err != nil {
-		log.SpanLog(ctx, log.DebugLevelInfra, "createNextSharedLBSubnet  SharedLB GetNextInternalSubnet failed", "vapp", vapp.VApp.Name, "port.NetowkrNamek", port.NetworkName, "error", err)
+		log.SpanLog(ctx, log.DebugLevelInfra, "createNextSharedLBSubnet  SharedLB GetNextInternalSubnet failed", "vapp", vapp.VApp.Name, "port.NetworkName", port.NetworkName, "error", err)
 		return "", err
 	}
 
-	log.SpanLog(ctx, log.DebugLevelInfra, "createNextSharedLBSubnetSharedLB", "vapp", vapp.VApp.Name, "port.NetowkrName", port.NetworkName, "port.SubnetId", port.SubnetId, "IP subnet", subnet, "reused", reuseExistingNet)
+	log.SpanLog(ctx, log.DebugLevelInfra, "createNextSharedLBSubnetSharedLB", "vapp", vapp.VApp.Name, "port.Networkname", port.NetworkName, "port.SubnetId", port.SubnetId, "IP subnet", subnet, "reused", reuseExistingNet)
 	// OrgVDCNetwork LinkType = 2 (isolated)
 	// This seems to be an admin priv operation if using  nsx-t back network pool xxx
 	err = v.CreateIsoVdcNetwork(ctx, vapp, port.SubnetId, subnet, vcdClient, reuseExistingNet)
@@ -808,7 +808,7 @@ func (v *VcdPlatform) getAvailableIsoNetwork(ctx context.Context) string {
 }
 
 func (v *VcdPlatform) CreateIsoVdcNetwork(ctx context.Context, vapp *govcd.VApp, netName, cidr string, vcdClient *govcd.VCDClient, reuseExistingNet bool) error {
-	log.SpanLog(ctx, log.DebugLevelInfra, "CreateIsoVdcNetowrk", "name", netName, "cidr", cidr, "reusing existing net", reuseExistingNet)
+	log.SpanLog(ctx, log.DebugLevelInfra, "CreateIsoVdcNetwork", "name", netName, "cidr", cidr, "reusing existing net", reuseExistingNet)
 
 	vdc, err := v.GetVdc(ctx, vcdClient)
 	if err != nil {
@@ -817,12 +817,6 @@ func (v *VcdPlatform) CreateIsoVdcNetwork(ctx context.Context, vapp *govcd.VApp,
 	}
 	// we are under lock here. First check if we have any free iosnets available to use
 	if !reuseExistingNet {
-		/*
-				if len(v.FreeIsoNets) > 0 {
-				cidr = v.getAvailableIsoNetwork(ctx)
-				log.SpanLog(ctx, log.DebugLevelInfra, "CreateIsoVdcNetwork FreeNets available reusing", "net", cidr, "for mexNet", netName)
-			} else {
-		*/
 		// create a new one
 		log.SpanLog(ctx, log.DebugLevelInfra, "CreateIsoVdcNetwork FreeNets empty creating new", "net", cidr)
 		startAddr, err := IncrIP(ctx, cidr, 1)
@@ -1024,6 +1018,7 @@ func (v *VcdPlatform) RebuildIsoNamesAndFreeMaps(ctx context.Context) error {
 		return err
 	}
 	for _, q := range qr {
+		// type 2 = isolated.
 		if q.LinkType == 2 {
 			orgvdcnetwork, err := vdc.GetOrgVdcNetworkByName(q.Name, false)
 			if err != nil {

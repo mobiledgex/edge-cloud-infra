@@ -4,19 +4,13 @@ import (
 	"context"
 
 	"github.com/labstack/echo"
-	"github.com/mobiledgex/edge-cloud-infra/mc/ormapi"
 	"github.com/mobiledgex/edge-cloud/edgeproto"
 )
 
-type PoolOrgPair struct {
-	DeveloperOrg    string
-	CloudletPoolOrg string
-}
-
 type AuthzShow struct {
-	allowedOrgs  map[string]struct{}
-	allowAll     bool
-	poolOrgPairs map[PoolOrgPair]struct{}
+	allowedOrgs      map[string]struct{}
+	allowAll         bool
+	allowedCloudlets map[edgeproto.CloudletKey]struct{}
 }
 
 func newShowAuthz(ctx context.Context, region, username, resource, action string) (*AuthzShow, error) {
@@ -46,40 +40,31 @@ func (s *AuthzShow) Ok(org string) bool {
 	return found
 }
 
-func (s *AuthzShow) setCloudletPoolOrgs(ctx context.Context, region, username string) error {
-	// get pools associated with orgs
-	db := loggedDB(ctx)
-	op := ormapi.OrgCloudletPool{}
-	op.Region = region
-	ops := []ormapi.OrgCloudletPool{}
-	err := db.Where(&op).Find(&ops).Error
-	if err != nil {
-		return err
-	}
-	ops = getAccessGranted(ops)
-
+func (s *AuthzShow) setCloudletKeysFromPool(ctx context.Context, region, username string) error {
 	rc := RegionContext{
 		region:    region,
 		username:  username,
 		skipAuthz: true,
 	}
-	// Validate region
-	err = ShowCloudletPoolStream(ctx, &rc, &edgeproto.CloudletPool{}, func(pool *edgeproto.CloudletPool) {})
+	allowedOperOrgs, err := enforcer.GetAuthorizedOrgs(ctx, username, ResourceCloudletPools, ActionView)
 	if err != nil {
 		return err
 	}
-
-	orgs := []string{}
-	s.poolOrgPairs = make(map[PoolOrgPair]struct{})
-	for _, op := range ops {
-		orgs = append(orgs, op.Org)
-		pair := PoolOrgPair{
-			DeveloperOrg:    op.Org,
-			CloudletPoolOrg: op.CloudletPoolOrg,
+	s.allowedCloudlets = make(map[edgeproto.CloudletKey]struct{})
+	err = ShowCloudletPoolStream(ctx, &rc, &edgeproto.CloudletPool{}, func(pool *edgeproto.CloudletPool) {
+		if _, found := allowedOperOrgs[pool.Key.Organization]; !found {
+			// skip pools which operator is not allowed to access
+			return
 		}
-		s.poolOrgPairs[pair] = struct{}{}
-	}
-	return nil
+		for _, name := range pool.Cloudlets {
+			cloudletKey := edgeproto.CloudletKey{
+				Name:         name,
+				Organization: pool.Key.Organization,
+			}
+			s.allowedCloudlets[cloudletKey] = struct{}{}
+		}
+	})
+	return err
 }
 
 func newShowPoolAuthz(ctx context.Context, region, username string, resource, action string) (*AuthzShow, error) {
@@ -96,16 +81,27 @@ func newShowPoolAuthz(ctx context.Context, region, username string, resource, ac
 		return &authz, nil
 	}
 
-	// get pools associated with orgs
-	err = authz.setCloudletPoolOrgs(ctx, region, username)
+	// get cloudlet keys associated with pools
+	err = authz.setCloudletKeysFromPool(ctx, region, username)
 	if err != nil {
 		return nil, err
 	}
-	if len(authz.allowedOrgs) == 0 && len(authz.poolOrgPairs) == 0 {
+	if len(authz.allowedOrgs) == 0 && len(authz.allowedCloudlets) == 0 {
 		// no access to any orgs for given resource/action
 		return nil, echo.ErrForbidden
 	}
 	return &authz, nil
+}
+
+func (s *AuthzShow) OkCloudlet(devOrg string, cloudletKey edgeproto.CloudletKey) (bool, bool) {
+	filterOutput := false
+	if s.Ok(devOrg) {
+		return true, filterOutput
+	}
+	if _, ok := s.allowedCloudlets[cloudletKey]; ok {
+		return true, filterOutput
+	}
+	return false, filterOutput
 }
 
 type AuthzClusterInstShow struct {
@@ -121,21 +117,11 @@ func newShowClusterInstAuthz(ctx context.Context, region, username string, resou
 }
 
 func (s *AuthzClusterInstShow) Ok(obj *edgeproto.ClusterInst) (bool, bool) {
-	filterOutput := false
-	allow := s.AuthzShow.Ok(obj.Key.Organization)
-	if allow {
-		return allow, filterOutput
-	}
-	poolPair := PoolOrgPair{
-		DeveloperOrg:    obj.Key.Organization,
-		CloudletPoolOrg: obj.Key.CloudletKey.Organization,
-	}
-	_, allow = s.AuthzShow.poolOrgPairs[poolPair]
-	return allow, filterOutput
+	return s.AuthzShow.OkCloudlet(obj.Key.Organization, obj.Key.CloudletKey)
 }
 
 func (s *AuthzClusterInstShow) Filter(obj *edgeproto.ClusterInst) {
-	// nothing to filter for Operator, show all objects for Developer & Operator
+	// nothing to filter for Operator, show all fields for Developer & Operator
 }
 
 type AuthzAppInstShow struct {
@@ -151,19 +137,9 @@ func newShowAppInstAuthz(ctx context.Context, region, username string, resource,
 }
 
 func (s *AuthzAppInstShow) Ok(obj *edgeproto.AppInst) (bool, bool) {
-	filterOutput := false
-	allow := s.AuthzShow.Ok(obj.Key.AppKey.Organization)
-	if allow {
-		return allow, filterOutput
-	}
-	poolPair := PoolOrgPair{
-		DeveloperOrg:    obj.Key.AppKey.Organization,
-		CloudletPoolOrg: obj.Key.ClusterInstKey.CloudletKey.Organization,
-	}
-	_, allow = s.AuthzShow.poolOrgPairs[poolPair]
-	return allow, filterOutput
+	return s.AuthzShow.OkCloudlet(obj.Key.AppKey.Organization, obj.Key.ClusterInstKey.CloudletKey)
 }
 
 func (s *AuthzAppInstShow) Filter(obj *edgeproto.AppInst) {
-	// nothing to filter for Operator, show all objects for Developer & Operator
+	// nothing to filter for Operator, show all fields for Developer & Operator
 }

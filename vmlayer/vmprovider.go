@@ -492,7 +492,7 @@ func (v *VMPlatform) GetCloudletInfraResources(ctx context.Context) (*edgeproto.
 	platResources, err := v.VMProvider.GetServerGroupResources(ctx, v.GetPlatformVMName(&v.VMProperties.CommonPf.PlatformConfig.NodeMgr.MyNode.Key.CloudletKey))
 	if err == nil {
 		for ii, _ := range platResources.Vms {
-			platResources.Vms[ii].Type = string(VMTypePlatform)
+			platResources.Vms[ii].Type = cloudcommon.VMTypePlatform
 		}
 		resources.PlatformVms = append(resources.PlatformVms, platResources.Vms...)
 	} else {

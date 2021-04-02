@@ -659,7 +659,6 @@ func GetMetricsCommon(c echo.Context) error {
 		if err != nil {
 			return setReply(c, err, nil)
 		}
-		org = in.AppInst.AppKey.Organization
 		if err = validateSelectorString(in.Selector, CLIENT_APIUSAGE); err != nil {
 			return setReply(c, err, nil)
 		}
@@ -724,7 +723,6 @@ func GetMetricsCommon(c echo.Context) error {
 		if err != nil {
 			return setReply(c, err, nil)
 		}
-		org = in.AppInst.AppKey.Organization
 		if err = validateClientAppUsageMetricReq(&in, in.Selector); err != nil {
 			return setReply(c, err, nil)
 		}

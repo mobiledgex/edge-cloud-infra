@@ -156,8 +156,6 @@ func (s *AuthzCloudlet) Ok(obj *edgeproto.Cloudlet) (bool, bool) {
 	if s.allowAll {
 		return true, filterOutput
 	}
-	fmt.Println("ASHCHECK", s.orgs, s.billable)
-	fmt.Println("ASHCHECK", obj)
 	if _, found := s.orgs[obj.Key.Organization]; found {
 		// operator has access to cloudlets created by their org,
 		// regardless of whether that cloudlet belongs to
@@ -186,7 +184,6 @@ func (s *AuthzCloudlet) Ok(obj *edgeproto.Cloudlet) (bool, bool) {
 		return poolSide == myPool, filterOutput
 	} else {
 		// "Public" cloudlet, accessible by all billable orgs
-		fmt.Println("ASHCHECK", s.billable)
 		return s.billable, filterOutput
 	}
 }
@@ -242,9 +239,7 @@ func authzCreateAppInst(ctx context.Context, region, username string, obj *edgep
 	cloudlet := edgeproto.Cloudlet{
 		Key: obj.Key.ClusterInstKey.CloudletKey,
 	}
-	fmt.Println("ASHCHECK CHECK:", cloudlet)
 	if authzOk, _ := authzCloudlet.Ok(&cloudlet); !authzOk {
-		fmt.Println("ASHCHECK Forbidden", cloudlet)
 		return echo.ErrForbidden
 	}
 	// The autocluster organization checks are now dependent on the CRM version,

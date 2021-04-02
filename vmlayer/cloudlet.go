@@ -632,7 +632,7 @@ func (v *VMPlatform) getCloudletVMsSpec(ctx context.Context, accessApi platform.
 				nodeAttributes["tags"] = chefmgmt.GetChefCloudletTags(cloudlet, pfConfig, string(VMTypePlatformClusterNode))
 				chefParams := v.GetServerChefParams(clientName, cloudlet.ChefClientKey[clientName], chefmgmt.ChefPolicyK8s, nodeAttributes)
 				vmSpec, err = v.GetVMRequestSpec(ctx,
-					VMTypeClusterNode,
+					VMTypeClusterK8sNode,
 					nodeName,
 					flavorName,
 					pfImageName,

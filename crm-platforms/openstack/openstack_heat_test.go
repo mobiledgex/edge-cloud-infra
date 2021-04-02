@@ -45,7 +45,7 @@ var vms = []*vmlayer.VMRequestSpec{
 	},
 	{
 		Name:                    "node1-xyz",
-		Type:                    vmlayer.VMTypeClusterNode,
+		Type:                    vmlayer.VMTypeClusterK8sNode,
 		FlavorName:              "m1.medium",
 		ImageName:               "mobiledgex-v9.9.9",
 		ComputeAvailabilityZone: "nova1",
@@ -53,7 +53,7 @@ var vms = []*vmlayer.VMRequestSpec{
 	},
 	{
 		Name:                    "node2-xyz",
-		Type:                    vmlayer.VMTypeClusterNode,
+		Type:                    vmlayer.VMTypeClusterK8sNode,
 		FlavorName:              "m1.medium",
 		ImageName:               "mobiledgex-v9.9.9",
 		ComputeAvailabilityZone: "nova1",

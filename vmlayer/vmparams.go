@@ -29,7 +29,8 @@ const (
 	VMTypePlatformClusterMaster VMType = "platform-cluster-master"
 	VMTypePlatformClusterNode   VMType = "platform-cluster-node"
 	VMTypeClusterMaster         VMType = "cluster-master"
-	VMTypeClusterNode           VMType = "cluster-node"
+	VMTypeClusterK8sNode        VMType = "cluster-k8s-node"
+	VMTypeClusterDockerNode     VMType = "cluster-docker-node"
 )
 
 type ActionType string
@@ -56,7 +57,8 @@ type VMRole string
 
 var RoleAgent VMRole = "mex-agent-node"
 var RoleMaster VMRole = "k8s-master"
-var RoleNode VMRole = "k8s-node"
+var RoleK8sNode VMRole = "k8s-node"
+var RoleDockerNode VMRole = "docker-node"
 var RoleVMApplication VMRole = "vmapp"
 var RoleVMPlatform VMRole = "platform"
 var RoleMatchAny VMRole = "any" // not a real role, used for matching
@@ -97,8 +99,10 @@ func GetVmTypeForRole(role string) VMType {
 		return VMTypeRootLB
 	case string(RoleMaster):
 		return VMTypeClusterMaster
-	case string(RoleNode):
-		return VMTypeClusterNode
+	case string(RoleK8sNode):
+		return VMTypeClusterK8sNode
+	case string(RoleDockerNode):
+		return VMTypeClusterDockerNode
 	case string(RoleVMApplication):
 		return VMTypeAppVM
 	case string(RoleVMPlatform):
@@ -812,8 +816,14 @@ func (v *VMPlatform) getVMGroupOrchestrationParamsFromGroupSpec(ctx context.Cont
 			} else {
 				return nil, fmt.Errorf("k8s master not specified to be connected to internal network")
 			}
-		case VMTypeClusterNode:
-			role = RoleNode
+		case VMTypeClusterDockerNode:
+			fallthrough
+		case VMTypeClusterK8sNode:
+			if vm.Type == VMTypeClusterK8sNode {
+				role = RoleK8sNode
+			} else {
+				role = RoleDockerNode
+			}
 			if vm.ConnectToSubnet != "" {
 				// connect via internal network to LB
 				internalPort := PortOrchestrationParams{

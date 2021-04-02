@@ -47,6 +47,8 @@ type ClusterFlavor struct {
 	Topology       string
 }
 
+var MaxDockerVmWait = 2 * time.Minute
+
 func GetClusterSubnetName(ctx context.Context, clusterInst *edgeproto.ClusterInst) string {
 	return MexSubnetPrefix + k8smgmt.GetCloudletClusterName(&clusterInst.Key)
 }
@@ -389,7 +391,21 @@ func (v *VMPlatform) setupClusterRootLBAndNodes(ctx context.Context, rootLBName 
 		}
 		updateCallback(edgeproto.UpdateTask, fmt.Sprintf("Wait Cluster Complete time: %s", cloudcommon.FormatDuration(time.Since(k8sTime), 2)))
 		updateCallback(edgeproto.UpdateTask, "Creating config map")
+
 		if err := infracommon.CreateClusterConfigMap(ctx, client, clusterInst); err != nil {
+			return err
+		}
+	} else if clusterInst.Deployment == cloudcommon.DeploymentTypeDocker {
+		// ensure the docker node is ready before calling the cluster create done
+		updateCallback(edgeproto.UpdateTask, "Waiting for Docker VM to Initialize")
+
+		nodeClient, err := v.GetClusterPlatformClient(ctx, clusterInst, cloudcommon.ClientTypeClusterVM)
+		if err != nil {
+			return err
+		}
+		vmName := GetClusterMasterName(ctx, clusterInst)
+		err = WaitServerReady(ctx, v.VMProvider, nodeClient, vmName, MaxDockerVmWait)
+		if err != nil {
 			return err
 		}
 	}
@@ -594,12 +610,12 @@ func (v *VMPlatform) getVMRequestSpecForDockerCluster(ctx context.Context, imgNa
 		}
 	}
 	chefAttributes := make(map[string]interface{})
-	chefAttributes["tags"] = v.GetChefClusterTags(&clusterInst.Key, VMTypeClusterNode)
+	chefAttributes["tags"] = v.GetChefClusterTags(&clusterInst.Key, VMTypeClusterDockerNode)
 	clientName := v.GetChefClientName(dockerVmName)
 	chefParams := v.GetServerChefParams(clientName, "", chefmgmt.ChefPolicyBase, chefAttributes)
 	dockervm, err := v.GetVMRequestSpec(
 		ctx,
-		VMTypeClusterNode,
+		VMTypeClusterDockerNode,
 		dockerVmName,
 		clusterInst.NodeFlavor,
 		imgName,
@@ -689,12 +705,12 @@ func (v *VMPlatform) PerformOrchestrationForCluster(ctx context.Context, imgName
 		vms = append(vms, master)
 
 		chefAttributes = make(map[string]interface{})
-		chefAttributes["tags"] = v.GetChefClusterTags(&clusterInst.Key, VMTypeClusterNode)
+		chefAttributes["tags"] = v.GetChefClusterTags(&clusterInst.Key, VMTypeClusterK8sNode)
 		for nn := uint32(1); nn <= clusterInst.NumNodes; nn++ {
 			clientName := v.GetChefClientName(GetClusterNodeName(ctx, clusterInst, nn))
 			chefParams := v.GetServerChefParams(clientName, "", chefmgmt.ChefPolicyBase, chefAttributes)
 			node, err := v.GetVMRequestSpec(ctx,
-				VMTypeClusterNode,
+				VMTypeClusterK8sNode,
 				GetClusterNodeName(ctx, clusterInst, nn),
 				clusterInst.NodeFlavor,
 				pfImage,

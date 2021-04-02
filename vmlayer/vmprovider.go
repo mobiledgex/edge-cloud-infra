@@ -189,6 +189,7 @@ func (v *VMPlatform) GetClusterPlatformClient(ctx context.Context, clusterInst *
 }
 
 func (v *VMPlatform) GetClusterPlatformClientInternal(ctx context.Context, clusterInst *edgeproto.ClusterInst, clientType string, ops ...pc.SSHClientOp) (ssh.Client, error) {
+	log.SpanLog(ctx, log.DebugLevelInfra, "GetClusterPlatformClientInternal", "clientType", clientType, "IpAccess", clusterInst.IpAccess)
 	rootLBName := v.VMProperties.SharedRootLBName
 	if clusterInst.IpAccess == edgeproto.IpAccess_IP_ACCESS_DEDICATED {
 		rootLBName = cloudcommon.GetDedicatedLBFQDN(v.VMProperties.CommonPf.PlatformConfig.CloudletKey, &clusterInst.Key.ClusterKey, v.VMProperties.CommonPf.PlatformConfig.AppDNSRoot)
@@ -202,6 +203,7 @@ func (v *VMPlatform) GetClusterPlatformClientInternal(ctx context.Context, clust
 		if err != nil {
 			return nil, err
 		}
+
 		client, err = client.AddHop(vmIP.ExternalAddr, 22)
 		if err != nil {
 			return nil, err

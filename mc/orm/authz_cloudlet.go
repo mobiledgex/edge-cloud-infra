@@ -16,9 +16,11 @@ import (
 // based on an Organization's cloudlet pool associations.
 type AuthzCloudlet struct {
 	orgs             map[string]struct{}
+	operOrgs         map[string]struct{}
 	cloudletPoolSide map[edgeproto.CloudletKey]int
 	allowAll         bool
 	admin            bool
+	billable         bool
 }
 
 const myPool int = 1
@@ -35,6 +37,13 @@ func (s *AuthzCloudlet) populate(ctx context.Context, region, username, orgfilte
 	if err != nil {
 		return err
 	}
+
+	// Get all operator orgs user has access to
+	operOrgs, err := enforcer.GetAuthorizedOrgs(ctx, username, ResourceCloudletPools, ActionView)
+	if err != nil {
+		return err
+	}
+	s.operOrgs = operOrgs
 
 	// special cases
 	if _, found := orgs[""]; found {
@@ -69,6 +78,14 @@ func (s *AuthzCloudlet) populate(ctx context.Context, region, username, orgfilte
 		noEdgeboxOnly := false
 		if err := checkRequiresOrg(ctx, opts.requiresOrg, resource, s.admin, noEdgeboxOnly); err != nil {
 			return err
+		}
+	}
+
+	// check if any org is billable
+	for org, _ := range orgs {
+		if isBillable(ctx, org) {
+			s.billable = true
+			break
 		}
 	}
 
@@ -139,10 +156,18 @@ func (s *AuthzCloudlet) Ok(obj *edgeproto.Cloudlet) (bool, bool) {
 	if s.allowAll {
 		return true, filterOutput
 	}
+	fmt.Println("ASHCHECK", s.orgs, s.billable)
+	fmt.Println("ASHCHECK", obj)
 	if _, found := s.orgs[obj.Key.Organization]; found {
 		// operator has access to cloudlets created by their org,
 		// regardless of whether that cloudlet belongs to
 		// developer pools or not.
+		return true, filterOutput
+	}
+
+	if _, found := s.operOrgs[obj.Key.Organization]; found {
+		// if developer is part of operator org as well, then they
+		// can access those cloudlets
 		return true, filterOutput
 	}
 
@@ -160,8 +185,9 @@ func (s *AuthzCloudlet) Ok(obj *edgeproto.Cloudlet) (bool, bool) {
 		// of our pools
 		return poolSide == myPool, filterOutput
 	} else {
-		// "Public" cloudlet, accessible by all
-		return true, filterOutput
+		// "Public" cloudlet, accessible by all billable orgs
+		fmt.Println("ASHCHECK", s.billable)
+		return s.billable, filterOutput
 	}
 }
 
@@ -216,7 +242,9 @@ func authzCreateAppInst(ctx context.Context, region, username string, obj *edgep
 	cloudlet := edgeproto.Cloudlet{
 		Key: obj.Key.ClusterInstKey.CloudletKey,
 	}
+	fmt.Println("ASHCHECK CHECK:", cloudlet)
 	if authzOk, _ := authzCloudlet.Ok(&cloudlet); !authzOk {
+		fmt.Println("ASHCHECK Forbidden", cloudlet)
 		return echo.ErrForbidden
 	}
 	// The autocluster organization checks are now dependent on the CRM version,

@@ -305,6 +305,62 @@ func TestController(t *testing.T) {
 	goodPermTestShowCloudlet(t, mcClient, uri, tokenOper3, ctrl.Region, "", ccount)
 	goodPermTestShowCloudlet(t, mcClient, uri, tokenOper4, ctrl.Region, "", ccount)
 
+	// Test billing org related developer access to cloudlets
+	{
+		// Enable billing
+		configReq := make(map[string]interface{})
+		configReq["billingenable"] = true
+		status, err = mcClient.UpdateConfig(uri, token, configReq)
+		require.Nil(t, err)
+		require.Equal(t, http.StatusOK, status)
+		// With billing enabled, users will not see any cloudlet they are not part of
+		goodPermTestShowCloudlet(t, mcClient, uri, tokenDev, ctrl.Region, "", dcnt)
+		goodPermTestShowCloudlet(t, mcClient, uri, tokenDev2, ctrl.Region, "", dcnt)
+		goodPermTestShowCloudlet(t, mcClient, uri, tokenDev3, ctrl.Region, "", dcnt)
+		goodPermTestShowCloudlet(t, mcClient, uri, tokenDev4, ctrl.Region, "", dcnt)
+		goodPermTestShowCloudlet(t, mcClient, uri, tokenOper, ctrl.Region, "", dcnt+1)
+		goodPermTestShowCloudlet(t, mcClient, uri, tokenOper2, ctrl.Region, "", dcnt)
+		goodPermTestShowCloudlet(t, mcClient, uri, tokenOper3, ctrl.Region, "", dcnt+1)
+		goodPermTestShowCloudlet(t, mcClient, uri, tokenOper4, ctrl.Region, "", dcnt+1)
+		org1CloudletCnt := dcnt
+		org3CloudletCnt := dcnt + 1
+		// For dev to access any cloudlet without being part of billing org.
+		// Add dev user as part of operator org
+		testAddUserRole(t, mcClient, uri, tokenOper, org3, "OperatorContributor", dev.Name, Success)
+		// dev user will be able to see cloudlet
+		goodPermTestShowCloudlet(t, mcClient, uri, tokenDev, ctrl.Region, "", org1CloudletCnt+org3CloudletCnt)
+		// dev user will be able to create new cloudlet only for that org
+		goodPermTestCloudlet(t, mcClient, uri, tokenDev, ctrl.Region, org3, org1CloudletCnt+org3CloudletCnt)
+		// it will fail for other orgs
+		badPermTestCloudlet(t, mcClient, uri, tokenDev, ctrl.Region, org4)
+		// dev will be able to create clusterinst/appinst only on org3 cloudlet
+		goodPermTestAppInst(t, mcClient, uri, tokenDev, ctrl.Region, org1, tc3, org1CloudletCnt)
+		// dev3 will be not be able to create clusterinst/appinst on org3 cloudlet
+		badPermCreateAppInst(t, mcClient, uri, tokenDev3, ctrl.Region, org1, tc3)
+		// cleanup created cloudlet
+		goodPermDeleteCloudlet(t, mcClient, uri, tokenDev, ctrl.Region, org3)
+		// Other users will not be able to create new cloudlet
+		badPermCreateCloudlet(t, mcClient, uri, tokenDev3, ctrl.Region, org3)
+		// Remove dev user from operator org
+		testRemoveUserRole(t, mcClient, uri, tokenOper, org3, "OperatorContributor", dev.Name, Success)
+		// User will no longer be able to see cloudlet
+		goodPermTestShowCloudlet(t, mcClient, uri, tokenDev, ctrl.Region, "", org1CloudletCnt)
+		// User will no longer be able to create clusterinst/appinst on the cloudlet
+		badPermCreateCloudlet(t, mcClient, uri, tokenDev, ctrl.Region, org3)
+		// Create billing org for org1
+		testCreateBillingOrg(t, mcClient, uri, tokenDev, "self", org1)
+		// dev will be able to see all the cloudlets
+		goodPermTestShowCloudlet(t, mcClient, uri, tokenDev, ctrl.Region, "", ccount)
+		// dev will be able to create clusterinst/appinst on any public cloudlet
+		goodPermTestAppInst(t, mcClient, uri, tokenDev, ctrl.Region, org1, tc3, org1CloudletCnt)
+		goodPermTestClusterInst(t, mcClient, uri, tokenDev, ctrl.Region, org1, tc3, org1CloudletCnt)
+		// Disable billing
+		configReq["billingenable"] = false
+		status, err = mcClient.UpdateConfig(uri, token, configReq)
+		require.Nil(t, err)
+		require.Equal(t, http.StatusOK, status)
+	}
+
 	// However, flavors and clusterflavors cannot be modified by non-admins
 	badPermTestFlavor(t, mcClient, uri, tokenDev, ctrl.Region, "")
 	badPermTestFlavor(t, mcClient, uri, tokenDev2, ctrl.Region, "")
@@ -1658,4 +1714,26 @@ func testEdgeboxOnlyCloudletCreate(t *testing.T, ctx context.Context, mcClient *
 	// cleanup cloudlet
 	_, status, err = mcClient.DeleteCloudlet(uri, token, &regCloudlet)
 	require.Nil(t, err)
+}
+
+func testCreateBillingOrg(t *testing.T, mcClient *ormclient.Client, uri, token, orgType, orgName string) {
+	// create billing org
+	org := ormapi.BillingOrganization{
+		Type: orgType,
+		Name: orgName,
+	}
+	status, err := mcClient.CreateBillingOrg(uri, token, &org)
+	require.Nil(t, err, "create billing org ", orgName)
+	require.Equal(t, http.StatusOK, status)
+}
+
+func testDeleteBillingOrg(t *testing.T, mcClient *ormclient.Client, uri, token, orgType, orgName string) {
+	// delete billing org
+	org := ormapi.BillingOrganization{
+		Type: orgType,
+		Name: orgName,
+	}
+	status, err := mcClient.RemoveChildOrg(uri, token, &org)
+	require.Nil(t, err, "delete billing org ", orgName)
+	require.Equal(t, http.StatusOK, status)
 }

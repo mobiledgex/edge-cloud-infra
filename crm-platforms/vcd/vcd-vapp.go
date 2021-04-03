@@ -377,10 +377,9 @@ func vcdMetaDataFormatter(instring string) string {
 }
 func (v *VcdPlatform) populateProductSection(ctx context.Context, vm *govcd.VM, vmparams *vmlayer.VMOrchestrationParams) (*types.ProductSectionList, error) {
 
-	log.SpanLog(ctx, log.DebugLevelInfra, "populateProductSection", "vm", vm.VM.Name, "role", vmparams.Role)
+	log.SpanLog(ctx, log.DebugLevelInfra, "populateProductSection", "vm", vm.VM.Name)
 	command := ""
 	manifest := ""
-
 	// format vmparams.CloudConfigParams into yaml format, which we'll then base64 encode for the ovf datasource
 	udata, err := vmlayer.GetVMUserData(vm.VM.Name, vmparams.SharedVolume, manifest, command, &vmparams.CloudConfigParams, vcdUserDataFormatter)
 	if err != nil {

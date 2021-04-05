@@ -219,18 +219,15 @@ func (v *VcdPlatform) DeleteVapp(ctx context.Context, vapp *govcd.VApp, vcdClien
 	if err != nil {
 		return err
 	}
-	if vappStatus != "POWERED_OFF" {
-		task, err := vapp.Undeploy()
-		if err != nil {
-			return err
-		}
-		err = task.WaitTaskCompletion()
-		if err != nil {
-			return err
-		}
-		log.SpanLog(ctx, log.DebugLevelInfra, "DeleteVapp undeployed", "Vapp", vappName, "status", vappStatus)
+	task, err := vapp.Undeploy()
+	if err != nil {
+		return err
 	}
-
+	err = task.WaitTaskCompletion()
+	if err != nil {
+		return err
+	}
+	log.SpanLog(ctx, log.DebugLevelInfra, "DeleteVapp undeployed", "Vapp", vappName, "status", vappStatus)
 	// If GetVappIsoNetwork actually fails
 	// don't fail the delete cluster operation here.
 	netName, err := v.GetVappIsoNetwork(ctx, vdc, vapp)
@@ -268,12 +265,12 @@ func (v *VcdPlatform) DeleteVapp(ctx context.Context, vapp *govcd.VApp, vcdClien
 					log.SpanLog(ctx, log.DebugLevelInfra, "DeleteVapp wait for PowerOff failed", "vm", vmName, "error", err)
 					return err
 				}
-
-				err = vm.Delete()
-				if err != nil {
-					log.SpanLog(ctx, log.DebugLevelInfra, "DeleteVapp PowerOff failed", "vm", vmName, "error", err)
-					return err
-				}
+			}
+			log.SpanLog(ctx, log.DebugLevelInfra, "DeleteVapp delete powered off", "vm", vmName)
+			err = vm.Delete()
+			if err != nil {
+				log.SpanLog(ctx, log.DebugLevelInfra, "DeleteVapp PowerOff failed", "vm", vmName, "error", err)
+				return err
 			}
 		}
 		task, err := vapp.RemoveAllNetworks()
@@ -313,7 +310,7 @@ func (v *VcdPlatform) DeleteVapp(ctx context.Context, vapp *govcd.VApp, vcdClien
 		log.SpanLog(ctx, log.DebugLevelInfra, "DeleteVapp GetVappIsoNetwork failed ignoring", "vapp", vappName, "netName", netName, "err", err)
 	}
 
-	task, err := vapp.Delete()
+	task, err = vapp.Delete()
 	if err != nil {
 		return err
 	}
@@ -401,7 +398,7 @@ func (v *VcdPlatform) populateProductSection(ctx context.Context, vm *govcd.VM, 
 	}
 	// find the master, which can be either the first or second vm in the vapp, or none
 	masterIP := ""
-	if vmparams.Role == vmlayer.RoleNode { // k8s-node
+	if vmparams.Role == vmlayer.RoleK8sNode { // k8s-node
 		log.SpanLog(ctx, log.DebugLevelInfra, "Have k8s-node find masterIP ", "vm", vm.VM.Name)
 		vapp, err := vm.GetParentVApp()
 

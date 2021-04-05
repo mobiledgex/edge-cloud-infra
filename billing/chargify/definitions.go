@@ -227,7 +227,7 @@ type Invoice struct {
 	BillingAddress             Address         `json:"billing_address,omitempty"`
 	ShippingAddress            Address         `json:"shipping_address,omitempty"`
 	SubtotalAmount             string          `json:"subtotal_amount,omitempty"`
-	TotalAmount				   string 		   `json:"total_amount,omitempty"`
+	TotalAmount                string          `json:"total_amount,omitempty"`
 	DiscountAmount             string          `json:"discount_amount,omitempty"`
 	TaxAmount                  string          `json:"tax_amount,omitempty"`
 	CreditAmount               string          `json:"credit_amount,omitempty"`

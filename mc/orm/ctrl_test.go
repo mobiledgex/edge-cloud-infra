@@ -1747,14 +1747,3 @@ func testCreateBillingOrg(t *testing.T, mcClient *ormclient.Client, uri, token, 
 	require.Nil(t, err, "create billing org ", orgName)
 	require.Equal(t, http.StatusOK, status)
 }
-
-func testDeleteBillingOrg(t *testing.T, mcClient *ormclient.Client, uri, token, orgType, orgName string) {
-	// delete billing org
-	org := ormapi.BillingOrganization{
-		Type: orgType,
-		Name: orgName,
-	}
-	status, err := mcClient.RemoveChildOrg(uri, token, &org)
-	require.Nil(t, err, "delete billing org ", orgName)
-	require.Equal(t, http.StatusOK, status)
-}

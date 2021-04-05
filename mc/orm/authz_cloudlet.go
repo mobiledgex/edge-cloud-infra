@@ -81,12 +81,14 @@ func (s *AuthzCloudlet) populate(ctx context.Context, region, username, orgfilte
 		}
 	}
 
-	// check if any org is billable
-	for org, _ := range orgs {
-		if isBillable(ctx, org) {
+	if opts.requiresBillingOrg != "" {
+		if isBillable(ctx, opts.requiresBillingOrg) {
 			s.billable = true
-			break
 		}
+	} else {
+		// if billing org check is not required, then set billable to true
+		// so that no restrictions are made for the users of those org
+		s.billable = true
 	}
 
 	s.orgs = orgs
@@ -144,6 +146,22 @@ func (s *AuthzCloudlet) populate(ctx context.Context, region, username, orgfilte
 			s.cloudletPoolSide[cloudletKey] = side
 		}
 	})
+
+	// if dev org is not a billing org, then perform authz here
+	// to return appropriate error msg
+	if opts.requiresBillingOrg != "" && !s.billable {
+		allowed, _ := s.Ok(opts.targetCloudlet)
+		if !allowed {
+			poolSide, found := s.cloudletPoolSide[opts.targetCloudlet.Key]
+			if found {
+				if poolSide != myPool {
+					return fmt.Errorf("Org is not allowed to deploy to private cloudlet")
+				}
+			} else {
+				return fmt.Errorf("Billing Org must be set up to deploy to public cloudlets")
+			}
+		}
+	}
 	return err
 }
 
@@ -213,16 +231,13 @@ func authzCreateCloudlet(ctx context.Context, region, username string, obj *edge
 }
 
 func authzCreateClusterInst(ctx context.Context, region, username string, obj *edgeproto.ClusterInst, resource, action string) error {
-	if !isBillable(ctx, obj.Key.Organization) {
-		return echo.ErrForbidden
-	}
 	authzCloudlet := AuthzCloudlet{}
-	err := authzCloudlet.populate(ctx, region, username, obj.Key.Organization, resource, action, withRequiresOrg(obj.Key.Organization))
-	if err != nil {
-		return err
-	}
 	cloudlet := edgeproto.Cloudlet{
 		Key: obj.Key.CloudletKey,
+	}
+	err := authzCloudlet.populate(ctx, region, username, obj.Key.Organization, resource, action, withRequiresOrg(obj.Key.Organization), withRequiresBillingOrg(obj.Key.Organization, &cloudlet))
+	if err != nil {
+		return err
 	}
 	if authzOk, _ := authzCloudlet.Ok(&cloudlet); !authzOk {
 		return echo.ErrForbidden
@@ -232,12 +247,12 @@ func authzCreateClusterInst(ctx context.Context, region, username string, obj *e
 
 func authzCreateAppInst(ctx context.Context, region, username string, obj *edgeproto.AppInst, resource, action string) error {
 	authzCloudlet := AuthzCloudlet{}
-	err := authzCloudlet.populate(ctx, region, username, obj.Key.AppKey.Organization, resource, action, withRequiresOrg(obj.Key.AppKey.Organization))
-	if err != nil {
-		return err
-	}
 	cloudlet := edgeproto.Cloudlet{
 		Key: obj.Key.ClusterInstKey.CloudletKey,
+	}
+	err := authzCloudlet.populate(ctx, region, username, obj.Key.AppKey.Organization, resource, action, withRequiresOrg(obj.Key.AppKey.Organization), withRequiresBillingOrg(obj.Key.AppKey.Organization, &cloudlet))
+	if err != nil {
+		return err
 	}
 	if authzOk, _ := authzCloudlet.Ok(&cloudlet); !authzOk {
 		return echo.ErrForbidden

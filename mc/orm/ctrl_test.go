@@ -313,38 +313,40 @@ func TestController(t *testing.T) {
 		status, err = mcClient.UpdateConfig(uri, token, configReq)
 		require.Nil(t, err)
 		require.Equal(t, http.StatusOK, status)
-		// With billing enabled, users will not see any cloudlet they are not part of
-		goodPermTestShowCloudlet(t, mcClient, uri, tokenDev, ctrl.Region, "", dcnt)
-		goodPermTestShowCloudlet(t, mcClient, uri, tokenDev2, ctrl.Region, "", dcnt)
-		goodPermTestShowCloudlet(t, mcClient, uri, tokenDev3, ctrl.Region, "", dcnt)
-		goodPermTestShowCloudlet(t, mcClient, uri, tokenDev4, ctrl.Region, "", dcnt)
-		goodPermTestShowCloudlet(t, mcClient, uri, tokenOper, ctrl.Region, "", dcnt+1)
-		goodPermTestShowCloudlet(t, mcClient, uri, tokenOper2, ctrl.Region, "", dcnt)
-		goodPermTestShowCloudlet(t, mcClient, uri, tokenOper3, ctrl.Region, "", dcnt+1)
-		goodPermTestShowCloudlet(t, mcClient, uri, tokenOper4, ctrl.Region, "", dcnt+1)
+		// With billing enabled, users will be able to see all public cloudlets
+		goodPermTestShowCloudlet(t, mcClient, uri, tokenDev, ctrl.Region, "", ccount)
+		goodPermTestShowCloudlet(t, mcClient, uri, tokenDev2, ctrl.Region, "", ccount)
+		goodPermTestShowCloudlet(t, mcClient, uri, tokenDev3, ctrl.Region, "", ccount)
+		goodPermTestShowCloudlet(t, mcClient, uri, tokenDev4, ctrl.Region, "", ccount)
+		goodPermTestShowCloudlet(t, mcClient, uri, tokenOper, ctrl.Region, "", ccount)
+		goodPermTestShowCloudlet(t, mcClient, uri, tokenOper2, ctrl.Region, "", ccount)
+		goodPermTestShowCloudlet(t, mcClient, uri, tokenOper3, ctrl.Region, "", ccount)
+		goodPermTestShowCloudlet(t, mcClient, uri, tokenOper4, ctrl.Region, "", ccount)
 		org1CloudletCnt := dcnt
-		org3CloudletCnt := dcnt + 1
 		// For dev to access any cloudlet without being part of billing org.
 		// Add dev user as part of operator org
 		testAddUserRole(t, mcClient, uri, tokenOper, org3, "OperatorContributor", dev.Name, Success)
-		// dev user will be able to see cloudlet
-		goodPermTestShowCloudlet(t, mcClient, uri, tokenDev, ctrl.Region, "", org1CloudletCnt+org3CloudletCnt)
 		// dev user will be able to create new cloudlet only for that org
-		goodPermTestCloudlet(t, mcClient, uri, tokenDev, ctrl.Region, org3, org1CloudletCnt+org3CloudletCnt)
+		goodPermTestCloudlet(t, mcClient, uri, tokenDev, ctrl.Region, org3, ccount)
 		// it will fail for other orgs
 		badPermTestCloudlet(t, mcClient, uri, tokenDev, ctrl.Region, org4)
 		// dev will be able to create clusterinst/appinst only on org3 cloudlet
 		goodPermTestAppInst(t, mcClient, uri, tokenDev, ctrl.Region, org1, tc3, org1CloudletCnt)
 		// dev3 will be not be able to create clusterinst/appinst on org3 cloudlet
-		badPermCreateAppInst(t, mcClient, uri, tokenDev3, ctrl.Region, org1, tc3)
+		_, status, err := ormtestutil.TestPermCreateAppInst(mcClient, uri, tokenDev3, ctrl.Region, org1, tc3)
+		require.NotNil(t, err)
+		require.Equal(t, err.Error(), "Billing Org must be set up to deploy to public cloudlets")
+		require.Equal(t, http.StatusBadRequest, status)
+		_, status, err = ormtestutil.TestPermCreateClusterInst(mcClient, uri, tokenDev3, ctrl.Region, org1, tc3)
+		require.NotNil(t, err)
+		require.Equal(t, err.Error(), "Billing Org must be set up to deploy to public cloudlets")
+		require.Equal(t, http.StatusBadRequest, status)
 		// cleanup created cloudlet
 		goodPermDeleteCloudlet(t, mcClient, uri, tokenDev, ctrl.Region, org3)
 		// Other users will not be able to create new cloudlet
 		badPermCreateCloudlet(t, mcClient, uri, tokenDev3, ctrl.Region, org3)
 		// Remove dev user from operator org
 		testRemoveUserRole(t, mcClient, uri, tokenOper, org3, "OperatorContributor", dev.Name, Success)
-		// User will no longer be able to see cloudlet
-		goodPermTestShowCloudlet(t, mcClient, uri, tokenDev, ctrl.Region, "", org1CloudletCnt)
 		// User will no longer be able to create clusterinst/appinst on the cloudlet
 		badPermCreateCloudlet(t, mcClient, uri, tokenDev, ctrl.Region, org3)
 		// Create billing org for org1
@@ -630,7 +632,26 @@ func TestController(t *testing.T) {
 	goodPermTestAutoProvPolicy(t, mcClient, uri, tokenDev, ctrl.Region, org1, dcnt, autoProvTc3)
 	goodPermAddAutoProvPolicyCloudlet(t, mcClient, uri, tokenDev, ctrl.Region, org1, autoProvAddTc3)
 	// tc3 should be unusable for other org2
-	badPermCreateClusterInst(t, mcClient, uri, tokenDev2, ctrl.Region, org2, tc3)
+	{
+		// Enable billing
+		configReq := make(map[string]interface{})
+		configReq["billingenable"] = true
+		status, err = mcClient.UpdateConfig(uri, token, configReq)
+		require.Nil(t, err)
+		require.Equal(t, http.StatusOK, status)
+		// verify appropriate error is received as user of org2
+		// will not be allowed to deploy to private cloudlet
+		_, status, err = ormtestutil.TestPermCreateClusterInst(mcClient, uri, tokenDev2, ctrl.Region, org2, tc3)
+		require.NotNil(t, err)
+		require.Equal(t, err.Error(), "Org is not allowed to deploy to private cloudlet")
+		require.Equal(t, http.StatusBadRequest, status)
+		// Disable billing
+		configReq = make(map[string]interface{})
+		configReq["billingenable"] = false
+		status, err = mcClient.UpdateConfig(uri, token, configReq)
+		require.Nil(t, err)
+		require.Equal(t, http.StatusOK, status)
+	}
 	badPermCreateAppInst(t, mcClient, uri, tokenDev2, ctrl.Region, org2, tc3)
 	badPermTestAutoProvPolicy400(t, mcClient, uri, tokenDev2, ctrl.Region, org2, autoProvTc3)
 	badPermAddAutoProvPolicyCloudlet400(t, mcClient, uri, tokenDev2, ctrl.Region, org2, autoProvAddTc3)

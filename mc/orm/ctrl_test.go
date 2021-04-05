@@ -632,26 +632,7 @@ func TestController(t *testing.T) {
 	goodPermTestAutoProvPolicy(t, mcClient, uri, tokenDev, ctrl.Region, org1, dcnt, autoProvTc3)
 	goodPermAddAutoProvPolicyCloudlet(t, mcClient, uri, tokenDev, ctrl.Region, org1, autoProvAddTc3)
 	// tc3 should be unusable for other org2
-	{
-		// Enable billing
-		configReq := make(map[string]interface{})
-		configReq["billingenable"] = true
-		status, err = mcClient.UpdateConfig(uri, token, configReq)
-		require.Nil(t, err)
-		require.Equal(t, http.StatusOK, status)
-		// verify appropriate error is received as user of org2
-		// will not be allowed to deploy to private cloudlet
-		_, status, err = ormtestutil.TestPermCreateClusterInst(mcClient, uri, tokenDev2, ctrl.Region, org2, tc3)
-		require.NotNil(t, err)
-		require.Equal(t, err.Error(), "Org is not allowed to deploy to private cloudlet")
-		require.Equal(t, http.StatusBadRequest, status)
-		// Disable billing
-		configReq = make(map[string]interface{})
-		configReq["billingenable"] = false
-		status, err = mcClient.UpdateConfig(uri, token, configReq)
-		require.Nil(t, err)
-		require.Equal(t, http.StatusOK, status)
-	}
+	badPermCreateClusterInst(t, mcClient, uri, tokenDev2, ctrl.Region, org2, tc3)
 	badPermCreateAppInst(t, mcClient, uri, tokenDev2, ctrl.Region, org2, tc3)
 	badPermTestAutoProvPolicy400(t, mcClient, uri, tokenDev2, ctrl.Region, org2, autoProvTc3)
 	badPermAddAutoProvPolicyCloudlet400(t, mcClient, uri, tokenDev2, ctrl.Region, org2, autoProvAddTc3)

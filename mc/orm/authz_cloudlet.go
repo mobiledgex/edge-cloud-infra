@@ -155,10 +155,10 @@ func (s *AuthzCloudlet) populate(ctx context.Context, region, username, orgfilte
 			poolSide, found := s.cloudletPoolSide[opts.targetCloudlet.Key]
 			if found {
 				if poolSide != myPool {
-					return fmt.Errorf("Org is not allowed to deploy to private cloudlet")
+					return echo.ErrForbidden
 				}
 			} else {
-				return fmt.Errorf("Billing Org must be set up to deploy to public cloudlets")
+				return echo.NewHTTPError(http.StatusBadRequest, fmt.Errorf("Billing Org must be set up to deploy to public cloudlets"))
 			}
 		}
 	}

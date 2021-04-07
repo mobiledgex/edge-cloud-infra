@@ -23,6 +23,7 @@ import (
 	"github.com/mobiledgex/edge-cloud-infra/version"
 	"github.com/mobiledgex/edge-cloud/cloudcommon"
 	"github.com/mobiledgex/edge-cloud/cloudcommon/node"
+	"github.com/mobiledgex/edge-cloud/cloudcommon/ratelimit"
 	edgeproto "github.com/mobiledgex/edge-cloud/edgeproto"
 	"github.com/mobiledgex/edge-cloud/integration/process"
 	"github.com/mobiledgex/edge-cloud/log"
@@ -103,6 +104,8 @@ var nodeMgr *node.NodeMgr
 var AlertManagerServer *alertmgr.AlertMgrServer
 var allRegionCaches AllRegionCaches
 
+var rateLimitMgr *ratelimit.ApiRateLimitManager
+
 func RunServer(config *ServerConfig) (retserver *Server, reterr error) {
 	server := Server{config: config}
 	// keep global pointer to config stored in server for easy access
@@ -112,6 +115,8 @@ func RunServer(config *ServerConfig) (retserver *Server, reterr error) {
 	}
 	nodeMgr = config.NodeMgr
 	server.done = make(chan struct{})
+
+	rateLimitMgr = ratelimit.NewApiRateLimitManager()
 
 	dbuser := os.Getenv("db_username")
 	dbpass := os.Getenv("db_password")
@@ -319,8 +324,9 @@ func RunServer(config *ServerConfig) (retserver *Server, reterr error) {
 	e.POST(root+"/verifyemail", VerifyEmail)
 	e.POST(root+"/resendverify", ResendVerify)
 	// authenticated routes - jwt middleware
-	auth := e.Group(root + "/auth")
-	auth.Use(AuthCookie)
+	authPrefix := root + "/auth"
+	auth := e.Group(authPrefix)
+	auth.Use(AuthCookie, RateLimit)
 	// refresh auth cookie
 	auth.POST("/refresh", RefreshAuthCookie)
 
@@ -561,7 +567,7 @@ func RunServer(config *ServerConfig) (retserver *Server, reterr error) {
 	auth.POST("/orgcloudletinfo/show", ShowOrgCloudletInfo)
 
 	// Support multiple connection types: HTTP(s), Websockets
-	addControllerApis("POST", auth)
+	addControllerApis("POST", auth, authPrefix)
 
 	// Metrics api route use auth to serve a query to influxDB
 
@@ -624,6 +630,7 @@ func RunServer(config *ServerConfig) (retserver *Server, reterr error) {
 	//   403: forbidden
 	//   404: notFound
 	auth.POST("/metrics/clientapiusage", GetMetricsCommon)
+	addApiRateLimit(authPrefix, "/metrics/clientapiusage")
 
 	// swagger:route POST /auth/metrics/clientappusage DeveloperMetrics ClientAppUsageMetrics
 	// Client app usage related metrics.
@@ -783,8 +790,9 @@ func RunServer(config *ServerConfig) (retserver *Server, reterr error) {
 	// Use GET method for websockets as thats the method used
 	// in setting up TCP connection by most of the clients
 	// Also, authorization is handled as part of websocketUpgrade
-	ws := e.Group("ws/"+root+"/auth", server.websocketUpgrade)
-	addControllerApis("GET", ws)
+	wsPrefix := "ws/" + root + "/auth"
+	ws := e.Group(wsPrefix, server.websocketUpgrade)
+	addControllerApis("GET", ws, wsPrefix)
 	// Metrics api route use ws to serve a query to influxDB
 	ws.GET("/metrics/app", GetMetricsCommon)
 	ws.GET("/metrics/cluster", GetMetricsCommon)
@@ -1120,4 +1128,27 @@ func WriteStream(c echo.Context, payload *ormapi.StreamPayload) error {
 		c.Response().Flush()
 	}
 	return nil
+}
+
+func addApiRateLimit(prefix string, path string) {
+	// add api to ratelimitmgr
+	methodName := "/" + prefix + path
+	log.DebugLog(log.DebugLevelInfo, "BLAH: addApiRateLimit", "method", methodName)
+
+	bucketSize := 10
+	flowLimiter := ratelimit.NewTokenBucketLimiter(ratelimit.DefaultReqsPerSecond, bucketSize)
+	var perUserMaxReqs *ratelimit.ApiRateLimitMaxReqs
+	var perOrgMaxReqs *ratelimit.ApiRateLimitMaxReqs
+	/*switch apiType {
+	case Developer:
+		perUserMaxReqs = ratelimit.DefaultDeveloperApiRateLimitMaxReqs
+		perOrgMaxReqs = ratelimit.DefaultDeveloperOrgApiRateLimitMaxReqs
+	case Operator:
+		perUserMaxReqs = ratelimit.DefaultOperatorApiRateLimitMaxReqs
+		perOrgMaxReqs = ratelimit.DefaultOperatorOrgApiRateLimitMaxReqs
+	default:
+	}*/
+	perUserMaxReqs = ratelimit.DefaultDeveloperApiRateLimitMaxReqs
+	perOrgMaxReqs = ratelimit.DefaultDeveloperOrgApiRateLimitMaxReqs
+	rateLimitMgr.AddRateLimitPerApi(methodName, perUserMaxReqs, perOrgMaxReqs, flowLimiter)
 }

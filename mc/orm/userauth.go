@@ -94,6 +94,7 @@ type UserClaims struct {
 	FirstIssuedAt  int64  `json:"firstiat,omitempty"`
 	AuthType       string `json:"authtype"`
 	ApiKeyUsername string `json:"apikeyusername"`
+	Organization   string `json:"organization"`
 }
 
 func (u *UserClaims) GetKid() (int, error) {
@@ -182,6 +183,7 @@ func getClaims(c echo.Context) (*UserClaims, error) {
 
 func AuthCookie(next echo.HandlerFunc) echo.HandlerFunc {
 	return func(c echo.Context) error {
+		log.DebugLog(log.DebugLevelInfo, "BLAH: authcookie")
 		auth := c.Request().Header.Get(echo.HeaderAuthorization)
 		scheme := "Bearer"
 		l := len(scheme)

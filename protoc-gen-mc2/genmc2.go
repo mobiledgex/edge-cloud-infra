@@ -225,7 +225,7 @@ func (g *GenMC2) genFile(file *generator.FileDescriptor) bool {
 }
 
 func (g *GenMC2) generatePosts() {
-	g.P("func addControllerApis(method string, group *echo.Group) {")
+	g.P("func addControllerApis(method string, group *echo.Group, groupPrefix string) {")
 
 	for _, file := range g.Generator.Request.ProtoFile {
 		if !g.support.GenFile(*file.Name) {
@@ -251,6 +251,8 @@ func (g *GenMC2) generatePosts() {
 
 				g.P("group.Match([]string{method}, \"/ctrl/", method.Name,
 					"\", ", method.Name, ")")
+
+				g.P("addApiRateLimit(groupPrefix, \"/ctrl/", method.Name, "\")")
 			}
 		}
 	}

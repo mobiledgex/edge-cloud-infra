@@ -62,6 +62,7 @@ type ProxyScrapePoint struct {
 	LastConnectAttempt time.Time
 	Client             ssh.Client
 	ProxyContainer     string
+	ListenIP           string
 }
 
 func InitProxyScraper() {
@@ -104,7 +105,7 @@ func getProxyContainerName(ctx context.Context, scrapePoint ProxyScrapePoint) (s
 	return container, nil
 }
 
-// Init cluster client for a scrape point
+// Init cluster client for a scrape point, returns ipaddr of client
 func initClient(ctx context.Context, app *edgeproto.App, appInst *edgeproto.AppInst, clusterInst *edgeproto.ClusterInst, scrapePoint *ProxyScrapePoint) error {
 	var err error
 
@@ -171,6 +172,7 @@ func CollectProxyStats(ctx context.Context, appInst *edgeproto.AppInst) string {
 			ClusterOrg: appInst.Key.ClusterInstKey.Organization,
 			TcpPorts:   make([]int32, 0),
 			UdpPorts:   make([]int32, 0),
+			ListenIP:   cloudcommon.ProxyMetricsDefaultListenIP,
 		}
 
 		for _, p := range appInst.MappedPorts {
@@ -326,7 +328,7 @@ func QueryProxy(ctx context.Context, scrapePoint *ProxyScrapePoint) (*shepherd_c
 	if scrapePoint.ProxyContainer == "nginx" {
 		return QueryNginx(ctx, scrapePoint) //if envoy isn't there(for legacy apps) query nginx
 	}
-	request := fmt.Sprintf("docker exec %s curl -s -S http://127.0.0.1:%d/stats", scrapePoint.ProxyContainer, cloudcommon.ProxyMetricsPort)
+	request := fmt.Sprintf("curl -s -S http://%s:%d/stats", scrapePoint.ListenIP, cloudcommon.ProxyMetricsPort)
 	resp, err := scrapePoint.Client.OutputWithTimeout(request, shepherd_common.ShepherdSshConnectTimeout)
 	if err != nil {
 		log.SpanLog(ctx, log.DebugLevelMetrics, "Failed to run request", "request", request, "err", err.Error())

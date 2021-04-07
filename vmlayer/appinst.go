@@ -255,7 +255,7 @@ func (v *VMPlatform) CreateAppInst(ctx context.Context, clusterInst *edgeproto.C
 					Ports:       appInst.MappedPorts,
 					DestIP:      infracommon.DestIPUnspecified,
 				}
-				err = v.VMProperties.CommonPf.AddProxySecurityRulesAndPatchDNS(ctx, client, names, app, appInst, getDnsAction, v.VMProvider.WhitelistSecurityRules, &wlParams, cloudcommon.IPAddrAllInterfaces, masterIP.ExternalAddr, ops, proxy.WithDockerPublishPorts(), proxy.WithDockerNetwork(""))
+				err = v.VMProperties.CommonPf.AddProxySecurityRulesAndPatchDNS(ctx, client, names, app, appInst, getDnsAction, v.VMProvider.WhitelistSecurityRules, &wlParams, cloudcommon.IPAddrAllInterfaces, masterIP.ExternalAddr, ops, proxy.WithDockerNetwork("host"))
 			}
 		}
 
@@ -294,7 +294,7 @@ func (v *VMPlatform) CreateAppInst(ctx context.Context, clusterInst *edgeproto.C
 			if err != nil {
 				return fmt.Errorf("get kube names failed: %s", err)
 			}
-			proxyOps = append(proxyOps, proxy.WithDockerPublishPorts(), proxy.WithDockerNetwork(""))
+			proxyOps = append(proxyOps, proxy.WithDockerNetwork("host"))
 			getDnsAction := func(svc v1.Service) (*infracommon.DnsSvcAction, error) {
 				action := infracommon.DnsSvcAction{}
 				action.PatchKube = false
@@ -435,7 +435,7 @@ func (v *VMPlatform) CreateAppInst(ctx context.Context, clusterInst *edgeproto.C
 		addproxy := false
 		listenIP := "NONE" // only applicable for proxy case
 		if app.AccessType == edgeproto.AccessType_ACCESS_TYPE_LOAD_BALANCER {
-			proxyOps = append(proxyOps, proxy.WithDockerPublishPorts(), proxy.WithDockerNetwork(""))
+			proxyOps = append(proxyOps, proxy.WithDockerNetwork("host"))
 			addproxy = true
 			listenIP = rootLBIPaddr.InternalAddr
 		}

@@ -221,6 +221,7 @@ func (v *VcdPlatform) DeleteVapp(ctx context.Context, vapp *govcd.VApp, vcdClien
 	}
 	task, err := vapp.Undeploy()
 	if err != nil {
+		log.SpanLog(ctx, log.DebugLevelInfra, "error on undeploy.. keep running", "Vapp", vappName, "status", vappStatus)
 		return err
 	}
 	err = task.WaitTaskCompletion()

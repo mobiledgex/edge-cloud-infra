@@ -2280,6 +2280,123 @@ func (s *Client) ShowOrgCloudletInfo(uri string, token string, in *ormapi.OrgClo
 	return out, rundata.RetStatus, rundata.RetError
 }
 
+// Generating group RateLimitSettings
+
+func (s *Client) CreateRateLimitSettings(uri string, token string, in *ormapi.RegionRateLimitSettings) (*edgeproto.Result, int, error) {
+	rundata := RunData{}
+	rundata.Uri = uri
+	rundata.Token = token
+	rundata.In = in
+	var out edgeproto.Result
+	rundata.Out = &out
+
+	apiCmd := ormctl.MustGetCommand("CreateRateLimitSettings")
+	s.ClientRun.Run(apiCmd, &rundata)
+	if rundata.RetError != nil {
+		return nil, rundata.RetStatus, rundata.RetError
+	}
+	return &out, rundata.RetStatus, rundata.RetError
+}
+
+func (s *Client) UpdateRateLimitSettings(uri string, token string, in *ormapi.RegionRateLimitSettings) (*edgeproto.Result, int, error) {
+	rundata := RunData{}
+	rundata.Uri = uri
+	rundata.Token = token
+	rundata.In = in
+	var out edgeproto.Result
+	rundata.Out = &out
+
+	apiCmd := ormctl.MustGetCommand("UpdateRateLimitSettings")
+	s.ClientRun.Run(apiCmd, &rundata)
+	if rundata.RetError != nil {
+		return nil, rundata.RetStatus, rundata.RetError
+	}
+	return &out, rundata.RetStatus, rundata.RetError
+}
+
+func (s *Client) DeleteRateLimitSettings(uri string, token string, in *ormapi.RegionRateLimitSettings) (*edgeproto.Result, int, error) {
+	rundata := RunData{}
+	rundata.Uri = uri
+	rundata.Token = token
+	rundata.In = in
+	var out edgeproto.Result
+	rundata.Out = &out
+
+	apiCmd := ormctl.MustGetCommand("DeleteRateLimitSettings")
+	s.ClientRun.Run(apiCmd, &rundata)
+	if rundata.RetError != nil {
+		return nil, rundata.RetStatus, rundata.RetError
+	}
+	return &out, rundata.RetStatus, rundata.RetError
+}
+
+func (s *Client) ShowRateLimitSettings(uri string, token string, in *ormapi.RegionRateLimitSettings) ([]edgeproto.RateLimitSettings, int, error) {
+	rundata := RunData{}
+	rundata.Uri = uri
+	rundata.Token = token
+	rundata.In = in
+	var out []edgeproto.RateLimitSettings
+	rundata.Out = &out
+
+	apiCmd := ormctl.MustGetCommand("ShowRateLimitSettings")
+	s.ClientRun.Run(apiCmd, &rundata)
+	if rundata.RetError != nil {
+		return nil, rundata.RetStatus, rundata.RetError
+	}
+	return out, rundata.RetStatus, rundata.RetError
+}
+
+// Generating group RateLimitSettingsMc
+
+func (s *Client) UpdateRateLimitSettingsMc(uri string, token string, in map[string]interface{}) (int, error) {
+	rundata := RunData{}
+	rundata.Uri = uri
+	rundata.Token = token
+	rundata.In = in
+
+	apiCmd := ormctl.MustGetCommand("UpdateRateLimitSettingsMc")
+	s.ClientRun.Run(apiCmd, &rundata)
+	return rundata.RetStatus, rundata.RetError
+}
+
+func (s *Client) DeleteRateLimitSettingsMc(uri string, token string, in *ormapi.McRateLimitSettings) (int, error) {
+	rundata := RunData{}
+	rundata.Uri = uri
+	rundata.Token = token
+	rundata.In = in
+
+	apiCmd := ormctl.MustGetCommand("DeleteRateLimitSettingsMc")
+	s.ClientRun.Run(apiCmd, &rundata)
+	return rundata.RetStatus, rundata.RetError
+}
+
+func (s *Client) CreateRateLimitSettingsMc(uri string, token string, in *ormapi.McRateLimitSettings) (int, error) {
+	rundata := RunData{}
+	rundata.Uri = uri
+	rundata.Token = token
+	rundata.In = in
+
+	apiCmd := ormctl.MustGetCommand("CreateRateLimitSettingsMc")
+	s.ClientRun.Run(apiCmd, &rundata)
+	return rundata.RetStatus, rundata.RetError
+}
+
+func (s *Client) ShowRateLimitSettingsMc(uri string, token string, in *ormapi.McRateLimitSettings) ([]ormapi.McRateLimitSettings, int, error) {
+	rundata := RunData{}
+	rundata.Uri = uri
+	rundata.Token = token
+	rundata.In = in
+	var out []ormapi.McRateLimitSettings
+	rundata.Out = &out
+
+	apiCmd := ormctl.MustGetCommand("ShowRateLimitSettingsMc")
+	s.ClientRun.Run(apiCmd, &rundata)
+	if rundata.RetError != nil {
+		return nil, rundata.RetStatus, rundata.RetError
+	}
+	return out, rundata.RetStatus, rundata.RetError
+}
+
 // Generating group Report
 
 func (s *Client) GenerateReport(uri string, token string, in *ormapi.GenerateReport) (int, error) {

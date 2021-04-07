@@ -210,6 +210,41 @@ type Config struct {
 	UserApiKeyCreateLimit int
 	// Toggle for enabling billing (primarily for testing purposes)
 	BillingEnable bool
+	// Toggle to enable and disable MC API rate limiting
+	DisableRateLimit bool
+	// Maximum number of PerIp rate limiters for an api
+	MaxNumPerIpRateLimiters int
+	// Maximum number of PerUser rate limiters for an api
+	MaxNumPerUserRateLimiters int
+}
+
+type McRateLimitFlowSettings struct {
+	Id              string `gorm:"primary_key;type:citext"`
+	ApiName         string
+	RateLimitTarget edgeproto.RateLimitTarget
+	FlowAlgorithm   edgeproto.FlowRateLimitAlgorithm
+	ReqsPerSecond   float64
+	BurstSize       int64
+}
+
+type McRateLimitMaxReqsSettings struct {
+	Id               string `gorm:"primary_key;type:citext"`
+	ApiName          string
+	RateLimitTarget  edgeproto.RateLimitTarget
+	MaxReqsAlgorithm edgeproto.MaxReqsRateLimitAlgorithm
+	MaxRequests      int64
+	Interval         int64
+}
+
+type McRateLimitSettings struct {
+	// Name of API Path (eg. /api/v1/usercreate)
+	ApiName string
+	// RateLimitTarget (AllRequests, PerIp, or PerUser)
+	RateLimitTarget edgeproto.RateLimitTarget
+	// List of Flow Settings
+	FlowSettings []edgeproto.FlowSettings
+	// List of MaxReqs Settings
+	MaxReqsSettings []edgeproto.MaxReqsSettings
 }
 
 type OrgCloudletPool struct {

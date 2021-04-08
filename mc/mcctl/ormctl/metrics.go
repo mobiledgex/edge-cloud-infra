@@ -212,11 +212,11 @@ var ClientAppUsageMetricOptionalArgs = []string{
 	"cluster-org",
 	"cloudlet",
 	"cloudlet-org",
-	"location",
-	"device-os",
-	"device-type",
-	"data-network-type",
-	"raw-data",
+	"locationtile",
+	"deviceos",
+	"devicetype",
+	"datanetworktype",
+	"rawdata",
 	"last",
 	"starttime",
 	"endtime",
@@ -233,12 +233,12 @@ var ClientAppUsageMetricAliasArgs = []string{
 }
 
 var ClientAppUsageMetricComments = map[string]string{
-	"location":          "Location tile. Use only for latency selector",
-	"device-os":         "Device operating system. Use only for deviceinfo selector",
-	"device-type":       "Device type. Use only for deviceinfo selector",
-	"data-network-type": "Data network type used by client device. Use only for deviceinfo selector",
-	"raw-data":          "Set to true for additional raw data (not downsampled)",
-	"selector":          "Comma separated list of metrics to view. Available metrics: \"" + strings.Join(orm.ClientAppUsageSelectors, "\", \"") + "\"",
+	"locationtile":    "Location tile. Use only for latency selector",
+	"deviceos":        "Device operating system. Use only for deviceinfo selector",
+	"devicetype":      "Device type. Use only for deviceinfo selector",
+	"datanetworktype": "Data network type used by client device. Use only for deviceinfo selector",
+	"rawdata":         "Set to true for additional raw data (not downsampled)",
+	"selector":        "Comma separated list of metrics to view. Available metrics: \"" + strings.Join(orm.ClientAppUsageSelectors, "\", \"") + "\"",
 }
 
 var ClientCloudletUsageMetricRequiredArgs = []string{
@@ -248,11 +248,11 @@ var ClientCloudletUsageMetricRequiredArgs = []string{
 
 var ClientCloudletUsageMetricOptionalArgs = []string{
 	"cloudlet",
-	"location",
-	"device-os",
-	"device-type",
-	"data-network-type",
-	"raw-data",
+	"locationtile",
+	"deviceos",
+	"devicetype",
+	"datanetworktype",
+	"rawdata",
 	"last",
 	"starttime",
 	"endtime",
@@ -264,12 +264,12 @@ var ClientCloudletUsageMetricAliasArgs = []string{
 }
 
 var ClientCloudletUsageMetricComments = map[string]string{
-	"location":          "Location tile. Use for either latency or deviceinfo selectors",
-	"device-os":         "Device operating system. Use only for deviceinfo selector",
-	"device-type":       "Device type. Use only for deviceinfo selector",
-	"data-network-type": "Data network type used by client device. Use only for latency selector",
-	"raw-data":          "Set to true for additional raw data (not downsampled)",
-	"selector":          "Comma separated list of metrics to view. Available metrics: \"" + strings.Join(orm.ClientCloudletUsageSelectors, "\", \"") + "\"",
+	"locationtile":    "Location tile. Use for either latency or deviceinfo selectors",
+	"deviceos":        "Device operating system. Use only for deviceinfo selector",
+	"devicetype":      "Device type. Use only for deviceinfo selector",
+	"datanetworktype": "Data network type used by client device. Use only for latency selector",
+	"rawdata":         "Set to true for additional raw data (not downsampled)",
+	"selector":        "Comma separated list of metrics to view. Available metrics: \"" + strings.Join(orm.ClientCloudletUsageSelectors, "\", \"") + "\"",
 }
 
 var MetricCommentsCommon = map[string]string{

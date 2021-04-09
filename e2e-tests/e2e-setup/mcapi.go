@@ -610,8 +610,12 @@ func createMcData(uri, token, tag string, data *ormapi.AllData, dataMap map[stri
 		outMcErr(output, fmt.Sprintf("CreateOrg[%d]", ii), st, err)
 	}
 	for ii, bOrg := range data.BillingOrgs {
-		st, err := mcClient.CreateBillingOrg(uri, token, &bOrg)
-		outMcErr(output, fmt.Sprintf("CreateBillingOrg[%d]", ii), st, err)
+		st, err := mcClient.CreateBillingOrgPrimer(uri, token, &bOrg)
+		outMcErr(output, fmt.Sprintf("CreateBillingOrgPrimer[%d]", ii), st, err)
+	}
+	for ii, acc := range data.AccountInfos {
+		st, err := mcClient.CreateBillingOrgCommit(uri, token, &acc)
+		outMcErr(output, fmt.Sprintf("CreateBillingOrgCommit[%d]", ii), st, err)
 	}
 	for ii, role := range data.Roles {
 		st, err := mcClient.AddUserRole(uri, token, &role)

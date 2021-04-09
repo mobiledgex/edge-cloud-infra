@@ -28,7 +28,8 @@ type Api interface {
 	ShowOrg(uri, token string) ([]ormapi.Organization, int, error)
 	RestrictedUpdateOrg(uri, token string, org map[string]interface{}) (int, error)
 
-	CreateBillingOrg(uri, token string, org *ormapi.BillingOrganization) (int, error)
+	CreateBillingOrgPrimer(uri, token string, org *ormapi.BillingOrganization) (int, error)
+	CreateBillingOrgCommit(uri, token string, acc *billing.AccountInfo) (int, error)
 	DeleteBillingOrg(uri, token string, org *ormapi.BillingOrganization) (int, error)
 	UpdateBillingOrg(uri, token string, jsonData string) (int, error)
 	ShowBillingOrg(uri, token string) ([]ormapi.BillingOrganization, int, error)

@@ -13,7 +13,7 @@ spec:
       restartPolicy: Never
       containers:
       - name: {{ etcd_restore_job_name }}
-        image: busybox:1.31
+        image: ubuntu
         volumeMounts:
         - name: data
           mountPath: /var/etcd/data
@@ -26,9 +26,11 @@ spec:
             cd /var/etcd/data
             {% if not backup_old_db | bool %}rm -rf *;{% endif %}
             rm -f "$SNAP"
+            apt update
+            apt install -y wget
             wget --header 'Authorization: Bearer {{ artifactory_token }}' -O "$SNAP" "{{ snapshot_url }}"
             SNAP_SHA1SUM=$( sha1sum "$SNAP" | awk '{print $1}' )
-            if [[ "$SNAP_SHA1SUM" != "{{ snapshot_sha1sum }}" ]]; then
+            if [ "$SNAP_SHA1SUM" != "{{ snapshot_sha1sum }}" ]; then
               echo "Snapshot download error; SHA1 mismatch: $SNAP_SHA1SUM != $SHA1SUM" >&2
               exit 2
             fi

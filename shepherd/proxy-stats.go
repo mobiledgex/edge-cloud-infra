@@ -99,6 +99,7 @@ func getProxyContainerName(ctx context.Context, scrapePoint ProxyScrapePoint) (s
 		}
 	}
 	if err != nil {
+		log.ForceLogSpan(log.SpanFromContext(ctx))
 		log.SpanLog(ctx, log.DebugLevelMetrics, "Failed to find envoy proxy for app", "scrapepoint", scrapePoint.Key, "err", err, "resp", resp)
 		return "", err
 	}
@@ -332,6 +333,7 @@ func QueryProxy(ctx context.Context, scrapePoint *ProxyScrapePoint) (*shepherd_c
 	request := fmt.Sprintf("curl -s -S http://%s:%d/stats", scrapePoint.ListenIP, cloudcommon.ProxyMetricsPort)
 	resp, err := scrapePoint.Client.OutputWithTimeout(request, shepherd_common.ShepherdSshConnectTimeout)
 	if err != nil {
+		log.ForceLogSpan(log.SpanFromContext(ctx))
 		log.SpanLog(ctx, log.DebugLevelMetrics, "Failed to run request", "request", request, "err", err.Error(), "resp", resp)
 		return nil, err
 	}
@@ -558,6 +560,7 @@ func QueryNginx(ctx context.Context, scrapePoint *ProxyScrapePoint) (*shepherd_c
 		resp, err = scrapePoint.Client.OutputWithTimeout(request, shepherd_common.ShepherdSshConnectTimeout)
 	}
 	if err != nil {
+		log.ForceLogSpan(log.SpanFromContext(ctx))
 		log.SpanLog(ctx, log.DebugLevelMetrics, "Failed to run request", "request", request, "err", err.Error(), "resp", "resp")
 		return nil, err
 	}

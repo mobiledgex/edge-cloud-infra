@@ -350,7 +350,8 @@ func TestController(t *testing.T) {
 		// User will no longer be able to create clusterinst/appinst on the cloudlet
 		badPermCreateCloudlet(t, mcClient, uri, tokenDev, ctrl.Region, org3)
 		// Create billing org for org1
-		testCreateBillingOrg(t, mcClient, uri, tokenDev, "self", org1)
+		// testCreateBillingOrg(t, mcClient, uri, tokenDev, "self", org1)
+		testCreateBillingOrg(t, mcClient, uri, tokenAd, "self", org1) // TODO: remove this when we remove the admin only checks on create billing org
 		// dev will be able to see all the cloudlets
 		goodPermTestShowCloudlet(t, mcClient, uri, tokenDev, ctrl.Region, "", ccount)
 		// dev will be able to create clusterinst/appinst on any public cloudlet

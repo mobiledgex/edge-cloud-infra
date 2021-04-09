@@ -82,6 +82,7 @@ func CompareYamlFiles(firstYamlFile string, secondYamlFile string, fileType stri
 		copts = append(copts, edgeproto.IgnoreTaggedFields("nocmp")...)
 		copts = append(copts, edgeproto.CmpSortSlices()...)
 		copts = append(copts, cmpopts.SortSlices(CmpSortOrgs))
+		copts = append(copts, cmpopts.IgnoreFields(ormapi.BillingOrganization{}, "CreateInProgress"))
 
 		y1 = a1
 		y2 = a2

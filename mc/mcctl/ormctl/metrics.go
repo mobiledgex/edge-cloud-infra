@@ -233,7 +233,7 @@ var ClientAppUsageMetricAliasArgs = []string{
 }
 
 var ClientAppUsageMetricComments = map[string]string{
-	"locationtile":    "Location tile. Use only for latency selector",
+	"locationtile":    "Location tile. Use only for latency selector. Format is: Quadrant-LatitudeIndex,LongitudeIndex-LocationTileLength. Quadrant is the standard 1,2,3,4 sections in R2 where 1 is the top right quarter, 2 is the top left quarter, 3 is the bottom left quarter, and 4 is the bottom right quarter. Indeces are the number of tiles away from the origin in the specified quadrant's direction.",
 	"deviceos":        "Device operating system. Use only for deviceinfo selector",
 	"devicetype":      "Device type. Use only for deviceinfo selector",
 	"datanetworktype": "Data network type used by client device. Use only for deviceinfo selector",
@@ -264,7 +264,7 @@ var ClientCloudletUsageMetricAliasArgs = []string{
 }
 
 var ClientCloudletUsageMetricComments = map[string]string{
-	"locationtile":    "Location tile. Use for either latency or deviceinfo selectors",
+	"locationtile":    "Location tile. Use for either latency or deviceinfo selectors. Format is: Quadrant-LatitudeIndex,LongitudeIndex-LocationTileLength. Quadrant is the standard 1,2,3,4 sections in R2 where 1 is the top right quarter, 2 is the top left quarter, 3 is the bottom left quarter, and 4 is the bottom right quarter. Indeces are the number of tiles away from the origin in the specified quadrant's direction.",
 	"deviceos":        "Device operating system. Use only for deviceinfo selector",
 	"devicetype":      "Device type. Use only for deviceinfo selector",
 	"datanetworktype": "Data network type used by client device. Use only for latency selector",

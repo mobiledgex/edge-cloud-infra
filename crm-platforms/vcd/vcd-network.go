@@ -227,9 +227,9 @@ func (v *VcdPlatform) AttachPortToServer(ctx context.Context, serverName, subnet
 	// The network itself has been created by the client cluster vapp.
 	cidrNet := ""
 	if len(v.IsoNamesMap) > 0 {
-		cidrNet, _ = v.updateIsoNamesMap(ctx, IsoMapActionRead, subnetName, "", "")
-		if cidrNet == "" {
-			log.SpanLog(ctx, log.DebugLevelInfra, "No mapping for", "Network", subnetName)
+		cidrNet, err := v.updateIsoNamesMap(ctx, IsoMapActionRead, subnetName, "", "")
+		if cidrNet == "" || err != nil {
+			log.SpanLog(ctx, log.DebugLevelInfra, "No mapping for", "Network", subnetName, "error", err)
 			return fmt.Errorf("No Matching Subnet in IsoNamesMap")
 		}
 	} else {
@@ -919,8 +919,12 @@ func (v *VcdPlatform) CreateIsoVdcNetwork(ctx context.Context, vapp *govcd.VApp,
 		return err
 	}
 	// xlate names map for network reuse. All these iossubnets are now named with their cidrs
-	// Lookup the real vdc name (subnetId) using our netName
-	v.updateIsoNamesMap(ctx, IsoMapActionAdd, netName, cidr, "")
+	// Addthe real vdc name (subnetId) using our netName
+	_, err = v.updateIsoNamesMap(ctx, IsoMapActionAdd, netName, cidr, "")
+	if err != nil {
+		log.SpanLog(ctx, log.DebugLevelInfra, "CreateIsoVdcNetwork updateIsoNamemsMap failed on Add", "error", err)
+		return err
+	}
 	log.SpanLog(ctx, log.DebugLevelInfra, "CreateIsoVdcNetwork IsoNameMap", "key", netName, " = value", cidr)
 	// enable crm restarts, stash the subnetId name in Vapp as metadata)
 	v.AddSubnetIdToShareLBClientVapp(ctx, netName, vapp)

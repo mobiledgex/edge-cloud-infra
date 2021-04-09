@@ -40,24 +40,24 @@ func CreateBillingOrgPrimer(c echo.Context) error {
 // Parent billing orgs will have a billing Group, self billing orgs will just use the existing developer group from the org
 func PrimeBillingOrgObj(ctx context.Context, claims *UserClaims, org *ormapi.BillingOrganization) error {
 	// TODO: remove this later, for now only mexadmin the permission to create billingOrgs
-	// roles, err := ShowUserRoleObj(ctx, claims.Username)
-	// if err != nil {
-	// 	return fmt.Errorf("Unable to discover user roles: %v", err)
-	// }
-	// isAdmin := false
-	// for _, role := range roles {
-	// 	if isAdminRole(role.Role) {
-	// 		isAdmin = true
-	// 	}
-	// }
-	// if !isAdmin {
-	// 	return fmt.Errorf("Currently only admins may create and commit billingOrgs")
-	// }
+	roles, err := ShowUserRoleObj(ctx, claims.Username)
+	if err != nil {
+		return fmt.Errorf("Unable to discover user roles: %v", err)
+	}
+	isAdmin := false
+	for _, role := range roles {
+		if isAdminRole(role.Role) {
+			isAdmin = true
+		}
+	}
+	if !isAdmin && billingEnabled(ctx) {
+		return fmt.Errorf("Currently only admins may create and commit billingOrgs")
+	}
 	////////////////////////////////////////////////////////////////////////////////////
 	if org.Name == "" {
 		return fmt.Errorf("Name not specified")
 	}
-	err := ValidName(org.Name)
+	err = ValidName(org.Name)
 	if err != nil {
 		return err
 	}
@@ -167,19 +167,19 @@ func CreateBillingOrgCommit(c echo.Context) error {
 
 func CommitBillingOrgObj(ctx context.Context, claims *UserClaims, account *billing.AccountInfo) (reterr error) {
 	// TODO: remove this later, for now only mexadmin has the permission to create billingOrgs
-	// roles, err := ShowUserRoleObj(ctx, claims.Username)
-	// if err != nil {
-	// 	return fmt.Errorf("Unable to discover user roles: %v", err)
-	// }
-	// isAdmin := false
-	// for _, role := range roles {
-	// 	if isAdminRole(role.Role) {
-	// 		isAdmin = true
-	// 	}
-	// }
-	// if !isAdmin {
-	// 	return fmt.Errorf("Currently only admins may create and commit billingOrgs")
-	// }
+	roles, err := ShowUserRoleObj(ctx, claims.Username)
+	if err != nil {
+		return fmt.Errorf("Unable to discover user roles: %v", err)
+	}
+	isAdmin := false
+	for _, role := range roles {
+		if isAdminRole(role.Role) {
+			isAdmin = true
+		}
+	}
+	if !isAdmin && billingEnabled(ctx) {
+		return fmt.Errorf("Currently only admins may create and commit billingOrgs")
+	}
 	////////////////////////////////////////////////////////////////////////////////////
 	if err := authorized(ctx, claims.Username, account.OrgName, ResourceBilling, ActionManage); err != nil {
 		return fmt.Errorf("Not authorized to create a Billing Organization")

@@ -207,7 +207,12 @@ func metricsProxy(w http.ResponseWriter, r *http.Request) {
 		if target.ProxyContainer == "nginx" {
 			return
 		}
-		request := fmt.Sprintf("docker exec %s curl -s -S http://%s:%d/stats/prometheus", target.ProxyContainer, target.ListenIP, cloudcommon.ProxyMetricsPort)
+		execStr := ""
+		if target.ListenIP == cloudcommon.ProxyMetricsDefaultListenIP {
+			// legacy case, need to exec into the container
+			execStr = "docker exec " + target.ProxyContainer
+		}
+		request := fmt.Sprintf("%s curl -s -S http://%s:%d/stats/prometheus", execStr, target.ListenIP, cloudcommon.ProxyMetricsPort)
 		if pf.GetType(*platformName) == "fake" {
 			sock := "/tmp/envoy_" + app + ".sock"
 			request = fmt.Sprintf("curl -s --unix-socket %s http:/sock/stats/prometheus", sock)

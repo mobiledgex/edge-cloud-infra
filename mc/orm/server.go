@@ -404,7 +404,7 @@ func RunServer(config *ServerConfig) (retserver *Server, reterr error) {
 	//   404: notFound
 	auth.POST("/org/delete", DeleteOrg)
 
-	auth.POST("/billingorg/prime", CreateBillingOrgPrimer)
+	auth.POST("/billingorg/validate", CreateBillingOrgValidater)
 	auth.POST("/billingorg/commit", CreateBillingOrgCommit)
 	// swagger:route POST /auth/billingorg/update BillingOrganization UpdateBillingOrg
 	// Update BillingOrganization.

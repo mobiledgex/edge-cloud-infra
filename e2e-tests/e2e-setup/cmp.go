@@ -75,6 +75,11 @@ func CompareYamlFiles(firstYamlFile string, secondYamlFile string, fileType stri
 
 		err1 = util.ReadYamlFile(firstYamlFile, &a1)
 		err2 = util.ReadYamlFile(secondYamlFile, &a2)
+
+		// there is no "show" for accountInfos, so remove them
+		a1.AccountInfos = nil
+		a2.AccountInfos = nil
+
 		copts = []cmp.Option{
 			cmpopts.IgnoreTypes(time.Time{}, dmeproto.Timestamp{}),
 			IgnoreAdminRole,
@@ -82,7 +87,6 @@ func CompareYamlFiles(firstYamlFile string, secondYamlFile string, fileType stri
 		copts = append(copts, edgeproto.IgnoreTaggedFields("nocmp")...)
 		copts = append(copts, edgeproto.CmpSortSlices()...)
 		copts = append(copts, cmpopts.SortSlices(CmpSortOrgs))
-		copts = append(copts, cmpopts.IgnoreFields(ormapi.BillingOrganization{}, "CreateInProgress"))
 
 		y1 = a1
 		y2 = a2

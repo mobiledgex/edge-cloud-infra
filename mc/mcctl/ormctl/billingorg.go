@@ -9,13 +9,13 @@ import (
 
 func GetBillingOrgCommand() *cobra.Command {
 	cmds := []*cli.Command{&cli.Command{
-		Use:          "prime",
+		Use:          "validate",
 		Short:        "Set up a BillingOrganization and validate inputs",
 		RequiredArgs: "name type firstname lastname email",
 		OptionalArgs: "address address2 city country state postalcode phone paymenttype ccfirstname cclastname ccnumber ccexpmonth ccexpyear children",
 		ReqData:      &ormapi.BillingOrganization{},
 		Comments:     CreateBillingOrgComments,
-		Run:          runRest("/auth/billingorg/prime"),
+		Run:          runRest("/auth/billingorg/validate"),
 	}, &cli.Command{
 		Use:          "commit",
 		Short:        "Commit a BillingOrganization after validating it with our payment platform",

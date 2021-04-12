@@ -20,7 +20,7 @@ import (
 var deleteTypeChild = "child"
 var deleteTypeSelf = "self"
 
-func CreateBillingOrgPrimer(c echo.Context) error {
+func CreateBillingOrgValidater(c echo.Context) error {
 	claims, err := getClaims(c)
 	if err != nil {
 		return err
@@ -33,12 +33,12 @@ func CreateBillingOrgPrimer(c echo.Context) error {
 	span := log.SpanFromContext(ctx)
 	span.SetTag("billing org", org.Name)
 
-	err = PrimeBillingOrgObj(ctx, claims, &org)
+	err = ValidateBillingOrgObj(ctx, claims, &org)
 	return setReply(c, err, Msg("Billing Organization primed"))
 }
 
 // Parent billing orgs will have a billing Group, self billing orgs will just use the existing developer group from the org
-func PrimeBillingOrgObj(ctx context.Context, claims *UserClaims, org *ormapi.BillingOrganization) error {
+func ValidateBillingOrgObj(ctx context.Context, claims *UserClaims, org *ormapi.BillingOrganization) error {
 	// TODO: remove this later, for now only mexadmin the permission to create billingOrgs
 	roles, err := ShowUserRoleObj(ctx, claims.Username)
 	if err != nil {
@@ -53,7 +53,6 @@ func PrimeBillingOrgObj(ctx context.Context, claims *UserClaims, org *ormapi.Bil
 	if !isAdmin && billingEnabled(ctx) {
 		return fmt.Errorf("Currently only admins may create and commit billingOrgs")
 	}
-	////////////////////////////////////////////////////////////////////////////////////
 	if org.Name == "" {
 		return fmt.Errorf("Name not specified")
 	}
@@ -180,7 +179,6 @@ func CommitBillingOrgObj(ctx context.Context, claims *UserClaims, account *billi
 	if !isAdmin && billingEnabled(ctx) {
 		return fmt.Errorf("Currently only admins may create and commit billingOrgs")
 	}
-	////////////////////////////////////////////////////////////////////////////////////
 	if err := authorized(ctx, claims.Username, account.OrgName, ResourceBilling, ActionManage); err != nil {
 		return fmt.Errorf("Not authorized to create a Billing Organization")
 	}
@@ -208,7 +206,6 @@ func CommitBillingOrgObj(ctx context.Context, claims *UserClaims, account *billi
 		// if we reach here this is a big problem, that means the account was OK'ed by us earlier in primer and we validated it was successfully
 		// created in chargify, we need some sort of alert to have an admin go and manually delete the customer and sub from chargify
 		if reterr != nil {
-			// what if they added in someone else's orgname to cause this failure? then we'd delete a perfectly valid billingOrg
 			db.Delete(&ormapi.BillingOrganization{Name: account.OrgName})
 			if billingEnabled(ctx) {
 				db.Delete(account)

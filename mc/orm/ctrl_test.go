@@ -1777,7 +1777,7 @@ func testCreateBillingOrg(t *testing.T, mcClient *ormclient.Client, uri, token, 
 		Name: orgName,
 	}
 	acc := billing.AccountInfo{OrgName: org.Name}
-	status, err := mcClient.CreateBillingOrgPrimer(uri, token, &org)
+	status, err := mcClient.CreateBillingOrgValidater(uri, token, &org)
 	require.Nil(t, err, "create billing org primer ", orgName)
 	require.Equal(t, http.StatusOK, status)
 	status, err = mcClient.CreateBillingOrgCommit(uri, token, &acc)

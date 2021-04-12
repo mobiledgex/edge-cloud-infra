@@ -4,8 +4,8 @@ import "github.com/mobiledgex/edge-cloud-infra/mc/ormapi"
 
 import "github.com/mobiledgex/edge-cloud-infra/billing"
 
-func (s *Client) CreateBillingOrgPrimer(uri, token string, org *ormapi.BillingOrganization) (int, error) {
-	args := []string{"billingorg", "prime"}
+func (s *Client) CreateBillingOrgValidater(uri, token string, org *ormapi.BillingOrganization) (int, error) {
+	args := []string{"billingorg", "validate"}
 	return s.runObjs(uri, token, args, org, nil)
 }
 

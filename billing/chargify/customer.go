@@ -248,7 +248,7 @@ func (bs *BillingService) ValidateCustomer(ctx context.Context, account *billing
 		if sub.Product.Handle != publicEdgeProductHandle {
 			return fmt.Errorf("Invalid subscription, incorrect product assignment")
 		}
-		// TODO: when payment info becomes mandatory, check that here
+		// TODO: when payment info becomes mandatory, check that here EDGECLOUD-4723
 	}
 	return nil
 }

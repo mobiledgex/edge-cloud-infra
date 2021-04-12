@@ -120,7 +120,7 @@ func (k *K8sBareMetalPlatform) CreateAppInst(ctx context.Context, clusterInst *e
 				err = k.commonPf.AddProxySecurityRulesAndPatchDNS(ctx, client, names, app, appInst, getDnsAction, k.WhitelistSecurityRules, &wlParams, lbinfo.ExternalIpAddr, lbinfo.InternalIpAddr, ops,
 					proxy.WithDockerNetwork("host"),
 					proxy.WithDockerUser(DockerUser),
-					proxy.WithMetricsIP(lbinfo.InternalIpAddr))
+					proxy.WithMetricsIP(infracommon.GetUniqueLoopbackIp(ctx, appInst.MappedPorts)))
 			}
 		}
 

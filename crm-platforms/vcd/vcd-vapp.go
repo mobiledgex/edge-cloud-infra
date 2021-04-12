@@ -222,39 +222,41 @@ func (v *VcdPlatform) DeleteVapp(ctx context.Context, vapp *govcd.VApp, vcdClien
 		_ = task.WaitTaskCompletion()
 	}
 	log.SpanLog(ctx, log.DebugLevelInfra, "DeleteVapp undeployed", "Vapp", vappName)
-	vms := vapp.VApp.Children.VM
-	for _, tvm := range vms {
-		vmName := tvm.Name
-		vm, err := vapp.GetVMByName(vmName, true)
-		if err != nil {
-			log.SpanLog(ctx, log.DebugLevelInfra, "DeleteVapp vm not found", "vm", vmName, "for server", vappName)
-			return err
-		}
-		log.SpanLog(ctx, log.DebugLevelInfra, "DeleteVapp undeploy/poweroff/delete", "vm", vmName)
-		task, err := vm.Undeploy()
-		if err != nil {
-			log.SpanLog(ctx, log.DebugLevelInfra, "DeleteVapp unDeploy failed", "vm", vmName, "error", err)
-		} else {
-			if err = task.WaitTaskCompletion(); err != nil {
-				log.SpanLog(ctx, log.DebugLevelInfra, "DeleteVapp wait for undeploy failed", "vm", vmName, "error", err)
+	if vapp.VApp.Children.VM != nil {
+		vms := vapp.VApp.Children.VM
+		for _, tvm := range vms {
+			vmName := tvm.Name
+			vm, err := vapp.GetVMByName(vmName, true)
+			if err != nil {
+				log.SpanLog(ctx, log.DebugLevelInfra, "DeleteVapp vm not found", "vm", vmName, "for server", vappName)
+				return err
 			}
-		}
-		// undeployed
-		task, err = vm.PowerOff()
-		if err != nil {
-			log.SpanLog(ctx, log.DebugLevelInfra, "DeleteVapp PowerOff failed", "vm", vmName, "error", err)
-		} else {
-			if err = task.WaitTaskCompletion(); err != nil {
-				log.SpanLog(ctx, log.DebugLevelInfra, "DeleteVapp wait for PowerOff failed", "vm", vmName, "error", err)
+			log.SpanLog(ctx, log.DebugLevelInfra, "DeleteVapp undeploy/poweroff/delete", "vm", vmName)
+			task, err := vm.Undeploy()
+			if err != nil {
+				log.SpanLog(ctx, log.DebugLevelInfra, "DeleteVapp unDeploy failed", "vm", vmName, "error", err)
+			} else {
+				if err = task.WaitTaskCompletion(); err != nil {
+					log.SpanLog(ctx, log.DebugLevelInfra, "DeleteVapp wait for undeploy failed", "vm", vmName, "error", err)
+				}
 			}
+			// undeployed
+			task, err = vm.PowerOff()
+			if err != nil {
+				log.SpanLog(ctx, log.DebugLevelInfra, "DeleteVapp PowerOff failed", "vm", vmName, "error", err)
+			} else {
+				if err = task.WaitTaskCompletion(); err != nil {
+					log.SpanLog(ctx, log.DebugLevelInfra, "DeleteVapp wait for PowerOff failed", "vm", vmName, "error", err)
+				}
+			}
+			// powered off
+			log.SpanLog(ctx, log.DebugLevelInfra, "DeleteVapp delete powered off", "vm", vmName)
+			err = vm.Delete()
+			if err != nil {
+				log.SpanLog(ctx, log.DebugLevelInfra, "DeleteVapp PowerOff failed", "vm", vmName, "error", err)
+			}
+			// deleted
 		}
-		// powered off
-		log.SpanLog(ctx, log.DebugLevelInfra, "DeleteVapp delete powered off", "vm", vmName)
-		err = vm.Delete()
-		if err != nil {
-			log.SpanLog(ctx, log.DebugLevelInfra, "DeleteVapp PowerOff failed", "vm", vmName, "error", err)
-		}
-		// deleted
 	}
 	task, err = vapp.RemoveAllNetworks()
 	if err != nil {

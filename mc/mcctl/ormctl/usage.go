@@ -33,6 +33,7 @@ func GetUsageCommand() *cobra.Command {
 		Use:          "cloudletpool",
 		Short:        "View CloudletPool usage",
 		RequiredArgs: strings.Join(append([]string{"region"}, CloudletPoolUsageRequiredArgs...), " "),
+		OptionalArgs: "shownonvmapps",
 		AliasArgs:    strings.Join(CloudletPoolUsageAliasArgs, " "),
 		Comments:     addRegionComment(CloudletPoolUsageComments),
 		ReqData:      &ormapi.RegionCloudletPoolUsage{},

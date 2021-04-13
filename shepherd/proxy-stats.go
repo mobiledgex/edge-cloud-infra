@@ -364,7 +364,7 @@ func QueryProxy(ctx context.Context, scrapePoint *ProxyScrapePoint) (*shepherd_c
 	if scrapePoint.ProxyContainer == "nginx" {
 		return QueryNginx(ctx, scrapePoint) //if envoy isn't there(for legacy apps) query nginx
 	}
-	request := getProxyMetricsRequest(scrapePoint, "/stats")
+	request := getProxyMetricsRequest(scrapePoint, "stats")
 	resp, err := scrapePoint.Client.OutputWithTimeout(request, shepherd_common.ShepherdSshConnectTimeout)
 	if err != nil {
 		log.ForceLogSpan(log.SpanFromContext(ctx))
@@ -580,7 +580,7 @@ func QueryNginx(ctx context.Context, scrapePoint *ProxyScrapePoint) (*shepherd_c
 		return nil, fmt.Errorf("ScrapePoint client is not initialized")
 	}
 	// build the query
-	request := getProxyMetricsRequest(scrapePoint, "/nginx_metrics")
+	request := getProxyMetricsRequest(scrapePoint, "nginx_metrics")
 	resp, err := scrapePoint.Client.OutputWithTimeout(request, shepherd_common.ShepherdSshConnectTimeout)
 	// if this is the first time, or the container got restarted, install curl (for old deployments)
 	if strings.Contains(resp, "executable file not found") {

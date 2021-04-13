@@ -207,7 +207,7 @@ func metricsProxy(w http.ResponseWriter, r *http.Request) {
 		if target.ProxyContainer == "nginx" {
 			return
 		}
-		request := getProxyMetricsRequest(target, "/stats/prometheus")
+		request := getProxyMetricsRequest(target, "stats/prometheus")
 		if pf.GetType(*platformName) == "fake" {
 			sock := "/tmp/envoy_" + app + ".sock"
 			request = fmt.Sprintf("curl -s --unix-socket %s http:/sock/stats/prometheus", sock)

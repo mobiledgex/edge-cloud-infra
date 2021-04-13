@@ -255,9 +255,7 @@ func (v *VMPlatform) CreateAppInst(ctx context.Context, clusterInst *edgeproto.C
 					Ports:       appInst.MappedPorts,
 					DestIP:      infracommon.DestIPUnspecified,
 				}
-				err = v.VMProperties.CommonPf.AddProxySecurityRulesAndPatchDNS(ctx, client, names, app, appInst, getDnsAction, v.VMProvider.WhitelistSecurityRules, &wlParams, cloudcommon.IPAddrAllInterfaces, masterIP.ExternalAddr, ops,
-					proxy.WithDockerNetwork("host"),
-					proxy.WithMetricsIP(infracommon.GetUniqueLoopbackIp(ctx, appInst.MappedPorts)))
+				err = v.VMProperties.CommonPf.AddProxySecurityRulesAndPatchDNS(ctx, client, names, app, appInst, getDnsAction, v.VMProvider.WhitelistSecurityRules, &wlParams, cloudcommon.IPAddrAllInterfaces, masterIP.ExternalAddr, ops, proxy.WithDockerNetwork("host"), proxy.WithMetricIP(infracommon.GetUniqueLoopbackIp(ctx, appInst.MappedPorts)))
 			}
 		}
 
@@ -297,7 +295,7 @@ func (v *VMPlatform) CreateAppInst(ctx context.Context, clusterInst *edgeproto.C
 				return fmt.Errorf("get kube names failed: %s", err)
 			}
 			proxyOps = append(proxyOps, proxy.WithDockerNetwork("host"))
-			proxyOps = append(proxyOps, proxy.WithMetricsIP(infracommon.GetUniqueLoopbackIp(ctx, appInst.MappedPorts)))
+			proxyOps = append(proxyOps, proxy.WithMetricIP(infracommon.GetUniqueLoopbackIp(ctx, appInst.MappedPorts)))
 
 			getDnsAction := func(svc v1.Service) (*infracommon.DnsSvcAction, error) {
 				action := infracommon.DnsSvcAction{}
@@ -441,7 +439,7 @@ func (v *VMPlatform) CreateAppInst(ctx context.Context, clusterInst *edgeproto.C
 		if app.AccessType == edgeproto.AccessType_ACCESS_TYPE_LOAD_BALANCER {
 			loopbackIp := infracommon.GetUniqueLoopbackIp(ctx, appInst.MappedPorts)
 			proxyOps = append(proxyOps, proxy.WithDockerNetwork("host"))
-			proxyOps = append(proxyOps, proxy.WithMetricsIP(loopbackIp))
+			proxyOps = append(proxyOps, proxy.WithMetricIP(loopbackIp))
 			addproxy = true
 			listenIP = rootLBIPaddr.InternalAddr
 		}

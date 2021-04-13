@@ -347,6 +347,15 @@ func ProxyScraper(done chan bool) {
 	}
 }
 
+func getProxyMetricsRequest(target *ProxyScrapePoint, path string) string {
+	execStr := ""
+	if target.ListenIP == cloudcommon.ProxyMetricsDefaultListenIP {
+		// legacy case, need to exec into the container
+		execStr = "docker exec " + target.ProxyContainer
+	}
+	return fmt.Sprintf("%s curl -s -S http://%s:%d/%s", execStr, target.ListenIP, cloudcommon.ProxyMetricsPort, path)
+}
+
 func QueryProxy(ctx context.Context, scrapePoint *ProxyScrapePoint) (*shepherd_common.ProxyMetrics, error) {
 	if scrapePoint.Client == nil {
 		return nil, fmt.Errorf("ScrapePoint client is not initialized")
@@ -355,12 +364,7 @@ func QueryProxy(ctx context.Context, scrapePoint *ProxyScrapePoint) (*shepherd_c
 	if scrapePoint.ProxyContainer == "nginx" {
 		return QueryNginx(ctx, scrapePoint) //if envoy isn't there(for legacy apps) query nginx
 	}
-	execStr := ""
-	if scrapePoint.ListenIP == cloudcommon.ProxyMetricsDefaultListenIP {
-		// legacy case, need to exec into the container
-		execStr = "docker exec " + scrapePoint.ProxyContainer
-	}
-	request := fmt.Sprintf("%s curl -s -S http://%s:%d/stats", execStr, scrapePoint.ListenIP, cloudcommon.ProxyMetricsPort)
+	request := getProxyMetricsRequest(scrapePoint, "/stats")
 	resp, err := scrapePoint.Client.OutputWithTimeout(request, shepherd_common.ShepherdSshConnectTimeout)
 	if err != nil {
 		log.ForceLogSpan(log.SpanFromContext(ctx))
@@ -576,12 +580,7 @@ func QueryNginx(ctx context.Context, scrapePoint *ProxyScrapePoint) (*shepherd_c
 		return nil, fmt.Errorf("ScrapePoint client is not initialized")
 	}
 	// build the query
-	execStr := ""
-	if scrapePoint.ListenIP == cloudcommon.ProxyMetricsDefaultListenIP {
-		// legacy case, need to exec into the container
-		execStr = "docker exec " + scrapePoint.ProxyContainer
-	}
-	request := fmt.Sprintf("%s curl http://%s:%d/nginx_metrics", execStr, scrapePoint.ListenIP, cloudcommon.ProxyMetricsPort)
+	request := getProxyMetricsRequest(scrapePoint, "/nginx_metrics")
 	resp, err := scrapePoint.Client.OutputWithTimeout(request, shepherd_common.ShepherdSshConnectTimeout)
 	// if this is the first time, or the container got restarted, install curl (for old deployments)
 	if strings.Contains(resp, "executable file not found") {

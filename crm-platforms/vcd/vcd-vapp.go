@@ -215,6 +215,14 @@ func (v *VcdPlatform) DeleteVapp(ctx context.Context, vapp *govcd.VApp, vcdClien
 		return err
 	}
 
+	// Notes on deletion order related to isolated Org VDC networks:
+	// - GetVappIsoNetwork must happen before VMs are deleted or the network will not be found
+	// - VMs are deleted next
+	// - The network must then be removed from the vApp (RemoveAllNetworks) and then the vApp is deleted. This
+	//   ensures that the vApp is not associated with the network, so it can be deleted
+	// - Deleting the network (RemoveOrgVdcNetworkIfExists) must happen last, as if there
+	//   are any users of the network this will fail
+
 	// find the org vcd isolated network if one exists.  Do this before deleting VMs
 	netName, err := v.GetVappIsoNetwork(ctx, vdc, vapp)
 	if err != nil {

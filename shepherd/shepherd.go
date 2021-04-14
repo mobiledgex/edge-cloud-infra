@@ -470,6 +470,7 @@ func start() {
 		log.FatalLog("Timed out waiting for cloudlet cache from controller")
 	}
 	log.SpanLog(ctx, log.DebugLevelInfo, "fetched cloudlet cache from controller", "cloudlet", cloudlet)
+	log.WarnLog("XXXXX", "authtoken", cloudlet.Config.CloudletAuthToken, "accesskey", cloudlet.Config.CrmAccessPrivateKey)
 
 	if cloudlet.PlatformType == edgeproto.PlatformType_PLATFORM_TYPE_VM_POOL {
 		if cloudlet.VmPool == "" {
@@ -496,7 +497,10 @@ func start() {
 		AccessApi:      accessApi,
 	}
 
-	err = myPlatform.Init(ctx, &pc)
+	caches := pf.Caches{
+		CloudletCache: &CloudletCache,
+	}
+	err = myPlatform.Init(ctx, &pc, &caches)
 	if err != nil {
 		// failing to init the platform usually means CRM is not ready.  Give it a little time before exiting as it will restart
 		log.SpanLog(ctx, log.DebugLevelMetrics, "Failed to initialize platform, waiting before exit", "waitTime", ShepherdExitDelay)

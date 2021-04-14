@@ -40,7 +40,6 @@ type VcdPlatform struct {
 	Verbose      bool
 	FreeIsoNets  NetMap
 	IsoNamesMap  map[string]string
-	OauthToken   string
 }
 
 var DefaultClientRefreshInterval uint64 = 7 * 60 * 60 // 7 hours

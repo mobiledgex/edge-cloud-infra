@@ -31,7 +31,7 @@ type ShepherdPlatform struct {
 	appDNSRoot      string
 }
 
-func (s *ShepherdPlatform) Init(ctx context.Context, pc *platform.PlatformConfig) error {
+func (s *ShepherdPlatform) Init(ctx context.Context, pc *platform.PlatformConfig, platformCaches *platform.Caches) error {
 	s.platformConfig = pc
 	s.appDNSRoot = pc.AppDNSRoot
 
@@ -45,7 +45,7 @@ func (s *ShepherdPlatform) Init(ctx context.Context, pc *platform.PlatformConfig
 	if err = s.VMPlatform.InitProps(ctx, pc); err != nil {
 		return err
 	}
-	s.VMPlatform.VMProvider.InitData(ctx, caches)
+	s.VMPlatform.VMProvider.InitData(ctx, platformCaches)
 	if err = s.VMPlatform.VMProvider.InitApiAccessProperties(ctx, pc.AccessApi, pc.EnvVars, vmlayer.ProviderInitPlatformStartShepherd); err != nil {
 		return err
 	}

@@ -92,6 +92,8 @@ func getToken(w http.ResponseWriter, r *http.Request) {
 	log.Println("doing getToken")
 	code := validateRequest(r)
 	if code != http.StatusOK {
+		log.Printf("request validation failed - code: %d", code)
+
 		w.WriteHeader(code)
 		return
 	}

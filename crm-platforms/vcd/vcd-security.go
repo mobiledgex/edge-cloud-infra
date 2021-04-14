@@ -301,7 +301,7 @@ func (v *VcdPlatform) GetClient(ctx context.Context, creds *VcdConfigParams) (cl
 			// it a little time.  This is a workaround pending a more complete fix.
 			elapsed := time.Since(start)
 			if elapsed < maxOauthTokenReadyTime {
-				log.SpanLog(ctx, log.DebugLevelInfra, "sleeping 3 seconds to check if retry oauth token", "org", creds.Org, "err", err)
+				log.SpanLog(ctx, log.DebugLevelInfra, "sleeping 3 seconds to retry oauth token", "org", creds.Org, "err", err)
 				time.Sleep(3 * time.Second)
 				continue
 			}

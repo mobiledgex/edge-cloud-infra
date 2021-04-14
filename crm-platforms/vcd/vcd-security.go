@@ -6,7 +6,6 @@ import (
 	"net/url"
 	"os"
 	"strings"
-	"sync"
 	"time"
 
 	"github.com/vmware/go-vcloud-director/v2/govcd"
@@ -24,19 +23,7 @@ var VCDClientCtxKey = "VCDClientCtxKey"
 
 var NoVCDClientInContext = "No VCD Client in Context"
 
-type vcdClientInfo struct {
-	vcdClient      *govcd.VCDClient
-	lastUpdateTime time.Time
-}
-
-var cloudletClients map[edgeproto.CloudletKey]*vcdClientInfo
-var cloudletClientLock sync.Mutex
-
-// vcd security related operations
-
-func init() {
-	cloudletClients = make(map[edgeproto.CloudletKey]*vcdClientInfo)
-}
+var maxOauthTokenWait = time.Second * 30
 
 // physicalname (vault key) not needed when  using insure env vars.
 func (v *VcdPlatform) PopulateOrgLoginCredsFromEnv(ctx context.Context) error {
@@ -203,9 +190,101 @@ func setVer(cli *govcd.VCDClient) error {
 	return nil
 }
 
+func (v *VcdPlatform) RefreshOauthTokenPeriodic(ctx context.Context, creds *VcdConfigParams) {
+	interval := time.Second * time.Duration(v.GetVcdClientRefreshInterval(ctx))
+	for {
+		select {
+		case <-time.After(interval):
+		}
+		span := log.StartSpan(log.DebugLevelInfra, "refresh oauth oauth token")
+		ctx := log.ContextWithSpan(context.Background(), span)
+		err := v.UpdateOauthToken(ctx, creds)
+		if err != nil {
+			log.SpanLog(ctx, log.DebugLevelInfra, "refresh oauth session error, retrying", "err", err)
+			// try once more
+			err = v.UpdateOauthToken(ctx, creds)
+			if err != nil {
+				log.SpanLog(ctx, log.DebugLevelInfra, "failed to refresh oauth token after retry, exiting - %v", err)
+				log.FatalLog("failed to refresh oauth token after retry", "err", err)
+			}
+		}
+		span.Finish()
+	}
+}
+
+func (v *VcdPlatform) WaitForOauthTokenViaNotify(ctx context.Context) error {
+	start := time.Now()
+	// first wait for the rootlb to exist so we can get a client
+	for {
+		// start with a sleep to give the oauth token time to propagate
+		time.Sleep(5 * time.Second)
+		log.SpanLog(ctx, log.DebugLevelInfra, "looking for oauth token", "token", v.OauthToken)
+		elapsed := time.Since(start)
+		if elapsed > maxOauthTokenWait {
+			return fmt.Errorf("timed out waiting for token from notify")
+		}
+		log.SpanLog(ctx, log.DebugLevelInfra, "sleeping 5 seconds before retry")
+		time.Sleep(5 * time.Second)
+	}
+}
+
+func (v *VcdPlatform) UpdateOauthToken(ctx context.Context, creds *VcdConfigParams) error {
+
+	log.WarnLog("XXXX UpdateOauthToken", "creds", creds)
+	log.SpanLog(ctx, log.DebugLevelInfra, "UpdateOauthToken", "user", creds.User, "OauthSgwUrl", creds.OauthSgwUrl)
+
+	u, err := url.ParseRequestURI(creds.VcdApiUrl)
+	if err != nil {
+		return fmt.Errorf("Unable to parse request to org %s at %s err: %s", creds.Org, creds.VcdApiUrl, err)
+	}
+
+	cloudletClient := govcd.NewVCDClient(*u, creds.Insecure,
+		govcd.WithOauthUrl(creds.OauthSgwUrl),
+		govcd.WithClientTlsCerts(creds.ClientTlsCert, creds.ClientTlsKey),
+		govcd.WithOauthCreds(creds.OauthClientId, creds.OauthClientSecret))
+
+	log.SpanLog(ctx, log.DebugLevelInfra, "GetOauthResponse", "cloudletClient", cloudletClient)
+
+	_, err = cloudletClient.GetOauthResponse(creds.User, creds.Password, creds.Org)
+	if err != nil {
+		log.SpanLog(ctx, log.DebugLevelInfra, "failed oauth response", "org", creds.Org, "err", err)
+		return fmt.Errorf("failed oauth response %s at %s err: %s", creds.Org, creds.OauthSgwUrl, err)
+	}
+	// now wait for the token to actually start working, which may not be immediate
+	start := time.Now()
+	// first wait for the rootlb to exist so we can get a client
+	for {
+		// start with a sleep to give the oauth token time to propagate
+		time.Sleep(5 * time.Second)
+		log.SpanLog(ctx, log.DebugLevelInfra, "Trying Oauth token")
+		elapsed := time.Since(start)
+		_, err := cloudletClient.GetAuthResponse(creds.User, creds.Password, creds.Org)
+		if err == nil {
+			break
+		}
+		log.SpanLog(ctx, log.DebugLevelInfra, "failed to get vcd token with oauth token", "err", err)
+		if elapsed > maxOauthTokenWait {
+			return fmt.Errorf("timed out waiting for oauth token to work -- %v", err)
+		}
+		log.SpanLog(ctx, log.DebugLevelInfra, "sleeping 5 seconds before retry")
+	}
+	//cloudletClientLock.Lock()
+	//defer cloudletClientLock.Unlock()
+
+	//clientInfo := &vcdClientInfo{
+	//	vcdClient:      cloudletClient,
+	//	lastUpdateTime: time.Now(),
+	//}
+	//cloudletClients[*v.vmProperties.CommonPf.PlatformConfig.CloudletKey] = clientInfo
+	log.WarnLog("XXXX Got token", "OauthAccessToken", cloudletClient.Client.OauthAccessToken)
+	v.OauthToken = cloudletClient.Client.OauthAccessToken
+	return nil
+}
+
 // GetClient gets a new client object.  Copies are made of the global client object, which instantiates a new
 // http client but shares the access token
 func (v *VcdPlatform) GetClient(ctx context.Context, creds *VcdConfigParams) (client *govcd.VCDClient, err error) {
+
 	apiUrl := creds.VcdApiUrl
 	if creds.OauthAgwUrl != "" {
 		apiUrl = creds.OauthAgwUrl
@@ -244,55 +323,22 @@ func (v *VcdPlatform) GetClient(ctx context.Context, creds *VcdConfigParams) (cl
 	}
 
 	log.SpanLog(ctx, log.DebugLevelInfra, "GetClient", "user", creds.User, "OauthSgwUrl", creds.OauthSgwUrl)
-	cloudletClientLock.Lock()
-	defer cloudletClientLock.Unlock()
+	cloudletClient := govcd.NewVCDClient(*u, creds.Insecure,
+		govcd.WithOauthUrl(creds.OauthSgwUrl),
+		govcd.WithClientTlsCerts(creds.ClientTlsCert, creds.ClientTlsKey),
+		govcd.WithOauthCreds(creds.OauthClientId, creds.OauthClientSecret))
 
-	clientInfo, clientExists := cloudletClients[*v.vmProperties.CommonPf.PlatformConfig.CloudletKey]
-	clientExpired := false
-	if !clientExists {
-		log.SpanLog(ctx, log.DebugLevelInfra, "No global client yet exists for cloudlet", "CloudletKey", v.vmProperties.CommonPf.PlatformConfig.CloudletKey)
-	} else {
-		tokenAge := time.Since(clientInfo.lastUpdateTime)
-		clientExpired := (uint64(tokenAge.Seconds()) >= creds.ClientRefreshInterval)
-		log.SpanLog(ctx, log.DebugLevelInfra, "Check for token expired", "tokenAge", tokenAge, "ClientRefreshInterval", creds.ClientRefreshInterval, "clientExpired", clientExpired)
+	if creds.OauthSgwUrl != "" && cloudletClient.Client.OauthAccessToken == "" {
+		return nil, fmt.Errorf("No Oauth Token found")
 	}
-
-	if !clientExists || clientExpired {
-		log.SpanLog(ctx, log.DebugLevelInfra, "Need to refresh client token")
-		cloudletClient := govcd.NewVCDClient(*u, creds.Insecure,
-			govcd.WithOauthUrl(creds.OauthSgwUrl),
-			govcd.WithClientTlsCerts(creds.ClientTlsCert, creds.ClientTlsKey),
-			govcd.WithOauthCreds(creds.OauthClientId, creds.OauthClientSecret))
-
-		clientInfo = &vcdClientInfo{
-			vcdClient: cloudletClient,
-		}
-		cloudletClients[*v.vmProperties.CommonPf.PlatformConfig.CloudletKey] = clientInfo
-		log.SpanLog(ctx, log.DebugLevelInfra, "Created cloudlet client", "org", creds.Org, "OauthSgwUrl", creds.OauthSgwUrl)
-
-		if creds.OauthSgwUrl != "" {
-			_, err := cloudletClient.GetOauthResponse(creds.User, creds.Password, creds.Org)
-			if err != nil {
-				log.SpanLog(ctx, log.DebugLevelInfra, "failed oauth response", "org", creds.Org, "err", err)
-				delete(cloudletClients, *v.vmProperties.CommonPf.PlatformConfig.CloudletKey)
-				return nil, fmt.Errorf("failed oauth response %s at %s err: %s", creds.Org, creds.OauthSgwUrl, err)
-			}
-		}
-		clientInfo.lastUpdateTime = time.Now()
-	}
-	clientCopy, err := clientInfo.vcdClient.CopyClient()
-	if err != nil {
-		return nil, fmt.Errorf("CopyClient failed - %v", err)
-	}
+	cloudletClient.Client.OauthAccessToken = v.OauthToken
 	// always refresh the vcd session token
-	_, err = clientCopy.GetAuthResponse(creds.User, creds.Password, creds.Org)
+	_, err = cloudletClient.GetAuthResponse(creds.User, creds.Password, creds.Org)
 	if err != nil {
 		log.SpanLog(ctx, log.DebugLevelInfra, "Unable to login to org", "org", creds.Org, "err", err)
-		delete(cloudletClients, *v.vmProperties.CommonPf.PlatformConfig.CloudletKey)
-		return nil, fmt.Errorf("failed oauth response %s at %s err: %s", creds.Org, creds.OauthSgwUrl, err)
+		return nil, fmt.Errorf("failed auth response %s at %s err: %s", creds.Org, creds.OauthSgwUrl, err)
 	}
-	log.SpanLog(ctx, log.DebugLevelInfra, "GetClient connected", "API Version", clientCopy.Client.APIVersion)
-	return clientCopy, nil
+	return cloudletClient, nil
 }
 
 func (v *VcdPlatform) ConfigureCloudletSecurityRules(ctx context.Context, egressRestricted bool, TrustPolicy *edgeproto.TrustPolicy, action vmlayer.ActionType, updateCallback edgeproto.CacheUpdateCallback) error {

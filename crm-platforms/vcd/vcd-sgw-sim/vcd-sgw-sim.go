@@ -15,6 +15,8 @@ import (
 	"github.com/mobiledgex/edge-cloud-infra/crm-platforms/vcd"
 )
 
+var currTokenNum uint32 = 1
+
 var (
 	port      = flag.Int("port", 8443, "listen port")
 	expiresin = flag.Int("expiresin", 28800, "expires in seconds")
@@ -94,12 +96,13 @@ func getToken(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	tokenResponse := vcd.TokenResponse{
-		AccessToken: "simulatoraccesstoken",
+		AccessToken: fmt.Sprintf("simulatoraccesstoken-%d", currTokenNum),
 		TokenType:   "Bearer",
 		ExpiresIn:   *expiresin,
 		Scope:       "openid account.read customer.read customer.accounts.read",
 		IdToken:     "aaaaaaaa.bbbbbbbb.cccccccc",
 	}
+	currTokenNum++
 	byt, _ := json.Marshal(tokenResponse)
 	log.Printf("<===== Sent response: %v\n", tokenResponse)
 	w.Write(byt)

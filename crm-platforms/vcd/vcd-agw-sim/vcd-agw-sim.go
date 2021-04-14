@@ -51,7 +51,7 @@ func doApi(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	tokval := strings.TrimSpace(stoken[1])
-	if tokval != "simulatoraccesstoken" {
+	if !strings.HasPrefix(tokval, "simulatoraccesstoken") {
 		log.Printf("Bad access token: %s", tokval)
 		w.WriteHeader(http.StatusUnauthorized)
 		return

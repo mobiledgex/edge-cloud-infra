@@ -40,6 +40,7 @@ type VcdPlatform struct {
 	Verbose      bool
 	FreeIsoNets  NetMap
 	IsoNamesMap  map[string]string
+	OauthToken   string
 }
 
 var DefaultClientRefreshInterval uint64 = 7 * 60 * 60 // 7 hours
@@ -87,7 +88,7 @@ func (v *VcdPlatform) InitProvider(ctx context.Context, caches *platform.Caches,
 		return err
 	}
 
-	if stage == vmlayer.ProviderInitPlatformStart {
+	if stage == vmlayer.ProviderInitPlatformStartCrm {
 
 		log.SpanLog(ctx, log.DebugLevelInfra, "InitProvider RebuildMaps", "stage", stage)
 		err := v.RebuildIsoNamesAndFreeMaps(ctx)

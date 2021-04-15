@@ -165,7 +165,13 @@ log "Install mobiledgex ${TAG#v}"
 # avoid interactive for iptables-persistent
 echo iptables-persistent iptables-persistent/autosave_v6 boolean true | sudo debconf-set-selections
 echo iptables-persistent iptables-persistent/autosave_v4 boolean true | sudo debconf-set-selections
-sudo apt-get install -y mobiledgex=${TAG#v}
+# Pin mobiledgex package version
+sudo tee /etc/apt/preferences.d/99mobiledgex <<EOT
+Package: mobiledgex
+Pin: version ${TAG#v}
+Pin-Priority: 1001
+EOT
+sudo apt-get install -y mobiledgex
 [[ $? -ne 0 ]] && die "Failed to install extra packages"
 
 sudo apt-mark hold mobiledgex linux-image-generic linux-image-virtual

@@ -261,7 +261,7 @@ func (v *VcdPlatform) GetClient(ctx context.Context, creds *VcdConfigParams) (cl
 	}
 
 	if !clientExists || clientExpired {
-		log.SpanLog(ctx, log.DebugLevelInfra, "Need to refresh client token")
+		log.SpanLog(ctx, log.DebugLevelInfra, "Need to refresh client")
 		cloudletClient := govcd.NewVCDClient(*u, creds.Insecure,
 			govcd.WithOauthUrl(creds.OauthSgwUrl),
 			govcd.WithClientTlsCerts(creds.ClientTlsCert, creds.ClientTlsKey),
@@ -273,7 +273,7 @@ func (v *VcdPlatform) GetClient(ctx context.Context, creds *VcdConfigParams) (cl
 		cloudletClients[*v.vmProperties.CommonPf.PlatformConfig.CloudletKey] = clientInfo
 		log.SpanLog(ctx, log.DebugLevelInfra, "Created cloudlet client", "org", creds.Org, "OauthSgwUrl", creds.OauthSgwUrl)
 
-		maxRetry := 5
+		maxRetry := 3
 		retries := 0
 		for {
 			if creds.OauthSgwUrl != "" {
@@ -291,6 +291,8 @@ func (v *VcdPlatform) GetClient(ctx context.Context, creds *VcdConfigParams) (cl
 					clientInfo.lastUpdateTime = time.Now()
 					break
 				}
+			} else {
+				break
 			}
 		}
 	}

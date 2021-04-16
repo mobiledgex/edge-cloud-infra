@@ -1060,16 +1060,42 @@ func (v *VcdPlatform) RebuildIsoNamesAndFreeMaps(ctx context.Context) error {
 				// in multi vdc case this could happen
 				log.SpanLog(ctx, log.DebugLevelInfra, "OrgVDCNetwork is not a mex int net", "name", ref.Name, "nntype", ref.Type)
 			}
-
 		}
 	}
 	rootLBFound := false
-	lbvm, err := v.GetServerDetail(ctx, v.vmProperties.SharedRootLBName)
+	lbServerDetail, err := v.GetServerDetail(ctx, v.vmProperties.SharedRootLBName)
 	if err != nil {
 		log.SpanLog(ctx, log.DebugLevelInfra, "Shared LB find fail", "err", err)
 	} else {
-		log.SpanLog(ctx, log.DebugLevelInfra, "Shared LB found", "lbvm", lbvm)
-		rootLBFound = true
+		lbVm, err := v.FindVMByName(ctx, v.vmProperties.SharedRootLBName, vcdClient)
+		if err != nil {
+			return fmt.Errorf("Cannot find rootlb vapp -- %v", err)
+		}
+		ncs, err := lbVm.GetNetworkConnectionSection()
+		if err != nil {
+			return fmt.Errorf("Cannot find rootlb ncs -- %v", err)
+		}
+		if cleanup {
+			needUpdate := false
+			prunedNetConfig := &types.NetworkConnectionSection{}
+			log.SpanLog(ctx, log.DebugLevelInfra, "Shared LB ncs", "ncs", ncs)
+			for _, nc := range ncs.NetworkConnection {
+				if nc.IsConnected == true {
+					prunedNetConfig.NetworkConnection = append(prunedNetConfig.NetworkConnection, nc)
+				} else {
+					log.SpanLog(ctx, log.DebugLevelInfra, "found disconnected rootlb net, pruning", "nc", nc.IPAddress)
+					needUpdate = true
+				}
+			}
+			if needUpdate {
+				log.SpanLog(ctx, log.DebugLevelInfra, "Updating rootLb NCS", "ncs", prunedNetConfig)
+				ncs.NetworkConnection = prunedNetConfig.NetworkConnection
+				err = lbVm.UpdateNetworkConnectionSection(ncs)
+				if err != nil {
+					return fmt.Errorf("Fail to update rootlb NCS - %v", err)
+				}
+			}
+		}
 	}
 
 	numOphans := 0
@@ -1093,11 +1119,11 @@ func (v *VcdPlatform) RebuildIsoNamesAndFreeMaps(ctx context.Context) error {
 				if cleanup {
 					log.SpanLog(ctx, log.DebugLevelInfra, "Cleaning up orphaned network", "net", o)
 					if rootLBFound {
-						for _, sip := range lbvm.Addresses {
+						for _, sip := range lbServerDetail.Addresses {
 							if sip.ExternalAddr == o {
 								// remove hung network from lb
 								log.SpanLog(ctx, log.DebugLevelInfra, "Remove network from lbvm", "net", o)
-								err = v.DetachPortFromServer(ctx, lbvm.Name, o, "")
+								err = v.DetachPortFromServer(ctx, lbServerDetail.Name, o, "")
 								if err != nil {
 									return fmt.Errorf("Removing orphaned net from lbvm failed - %v", err)
 								}

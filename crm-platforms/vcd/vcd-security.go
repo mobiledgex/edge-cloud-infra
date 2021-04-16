@@ -256,7 +256,7 @@ func (v *VcdPlatform) GetClient(ctx context.Context, creds *VcdConfigParams) (cl
 		log.SpanLog(ctx, log.DebugLevelInfra, "No global client yet exists for cloudlet", "CloudletKey", v.vmProperties.CommonPf.PlatformConfig.CloudletKey)
 	} else {
 		tokenAge := time.Since(clientInfo.lastUpdateTime)
-		clientExpired := (uint64(tokenAge.Seconds()) >= creds.ClientRefreshInterval)
+		clientExpired = (uint64(tokenAge.Seconds()) >= creds.ClientRefreshInterval)
 		log.SpanLog(ctx, log.DebugLevelInfra, "Check for token expired", "tokenAge", tokenAge, "ClientRefreshInterval", creds.ClientRefreshInterval, "clientExpired", clientExpired)
 	}
 
@@ -288,10 +288,10 @@ func (v *VcdPlatform) GetClient(ctx context.Context, creds *VcdConfigParams) (cl
 					retries++
 				} else {
 					newOauthToken = true
+					clientInfo.lastUpdateTime = time.Now()
 					break
 				}
 			}
-			clientInfo.lastUpdateTime = time.Now()
 		}
 	}
 	clientCopy, err := clientInfo.vcdClient.CopyClient()

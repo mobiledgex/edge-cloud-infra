@@ -61,7 +61,7 @@ var VcdProps = map[string]*edgeproto.PropertyInfo{
 	},
 	"VCD_NSX_TYPE": {
 		Description: "NSX-T or NSX-V",
-		Value:       "NSX-V",
+		Mandatory:   true,
 	},
 	"VCD_CLEANUP_ORPHAN_NETS": {
 		Description: "Indicates Isolated Org VDC networks with no VApps to be deleted on startup",
@@ -195,6 +195,9 @@ func (v *VcdPlatform) GetEnableVcdDiskResize() bool {
 // the normal methods of querying this seem sometimes unreliable e.g. vdc.IsNsxv()
 func (v *VcdPlatform) GetNsxType() string {
 	val, _ := v.vmProperties.CommonPf.Properties.GetValue("VCD_NSX_TYPE")
+	if val != NSXT && val != NSXV {
+		log.FatalLog("VCD_NSX_TYPE must be " + NSXT + " or " + NSXV)
+	}
 	return val
 }
 

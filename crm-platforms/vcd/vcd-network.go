@@ -231,7 +231,7 @@ func (v *VcdPlatform) AttachPortToServer(ctx context.Context, serverName, subnet
 	cidrNet := ""
 	cidrNet, err := v.updateIsoNamesMap(ctx, IsoMapActionRead, subnetName, "", "")
 	if cidrNet == "" || err != nil {
-		log.SpanLog(ctx, log.DebugLevelInfra, "No mapping for", "Network", subnetName, "error", err)
+		log.SpanLog(ctx, log.DebugLevelInfra, "No mapping for", "Network", subnetName, "error", err, "IsoNamesMap", v.IsoNamesMap)
 		return fmt.Errorf("No Matching Subnet in IsoNamesMap")
 	}
 	vappName := serverName + v.GetVappServerSuffix()
@@ -325,7 +325,7 @@ func (v *VcdPlatform) DetachPortFromServer(ctx context.Context, serverName, subn
 	} else {
 		cidrNet, _ = v.updateIsoNamesMap(ctx, IsoMapActionRead, subnetName, "", "")
 		if cidrNet == "" {
-			log.SpanLog(ctx, log.DebugLevelInfra, "No mapping for", "Network", subnetName)
+			log.SpanLog(ctx, log.DebugLevelInfra, "No mapping for", "Network", subnetName, "IsoNamesMap", v.IsoNamesMap)
 			return fmt.Errorf("No Matching Subnet in IsoNamesMap")
 		}
 		log.SpanLog(ctx, log.DebugLevelInfra, "DetachPortFromServer found isoNamesMap", "subnet", subnetName, "cidrNet", cidrNet)
@@ -1147,7 +1147,7 @@ func (v *VcdPlatform) RebuildIsoNamesAndFreeMaps(ctx context.Context) error {
 		vappNet, ok := vappNets[o]
 		if ok {
 			log.SpanLog(ctx, log.DebugLevelInfra, "org vcd network is not an orphan", "name", o, "vappNet", vappNet)
-			_, err := v.updateIsoNamesMap(ctx, IsoMapActionAdd, o, vappNet, "")
+			_, err := v.updateIsoNamesMap(ctx, IsoMapActionAdd, vappNet, o, "")
 			if err != nil {
 				return err
 			}
@@ -1261,6 +1261,7 @@ func (v *VcdPlatform) getVappToSubnetMap(ctx context.Context, vdc *govcd.Vdc, vc
 var iosNamesLock sync.Mutex
 
 func (v *VcdPlatform) updateIsoNamesMap(ctx context.Context, action IsoMapActionType, key, value, matchval string) (string, error) {
+	log.SpanLog(ctx, log.DebugLevelInfra, "updateIsoNamesMap", "action", action, "key", key, "value", value, "matchval", matchval, "map", v.IsoNamesMap)
 
 	iosNamesLock.Lock()
 	defer iosNamesLock.Unlock()

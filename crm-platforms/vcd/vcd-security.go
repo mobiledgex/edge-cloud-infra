@@ -273,16 +273,26 @@ func (v *VcdPlatform) GetClient(ctx context.Context, creds *VcdConfigParams) (cl
 		cloudletClients[*v.vmProperties.CommonPf.PlatformConfig.CloudletKey] = clientInfo
 		log.SpanLog(ctx, log.DebugLevelInfra, "Created cloudlet client", "org", creds.Org, "OauthSgwUrl", creds.OauthSgwUrl)
 
-		if creds.OauthSgwUrl != "" {
-			_, err := cloudletClient.GetOauthResponse(creds.User, creds.Password, creds.Org)
-			if err != nil {
-				log.SpanLog(ctx, log.DebugLevelInfra, "failed oauth response", "org", creds.Org, "err", err)
-				delete(cloudletClients, *v.vmProperties.CommonPf.PlatformConfig.CloudletKey)
-				return nil, fmt.Errorf("failed oauth response %s at %s err: %s", creds.Org, creds.OauthSgwUrl, err)
+		maxRetry := 5
+		retries := 0
+		for {
+			if creds.OauthSgwUrl != "" {
+				_, err := cloudletClient.GetOauthResponse(creds.User, creds.Password, creds.Org)
+				if err != nil {
+					log.SpanLog(ctx, log.DebugLevelInfra, "failed oauth response", "org", creds.Org, "err", err)
+					delete(cloudletClients, *v.vmProperties.CommonPf.PlatformConfig.CloudletKey)
+					if retries >= maxRetry {
+						return nil, fmt.Errorf("failed oauth response after retries %s at %s err: %s", creds.Org, creds.OauthSgwUrl, err)
+					}
+					log.SpanLog(ctx, log.DebugLevelInfra, "retry oauth", "retries", retries, "maxRetry", maxRetry)
+					retries++
+				} else {
+					newOauthToken = true
+					break
+				}
 			}
-			newOauthToken = true
+			clientInfo.lastUpdateTime = time.Now()
 		}
-		clientInfo.lastUpdateTime = time.Now()
 	}
 	clientCopy, err := clientInfo.vcdClient.CopyClient()
 	if err != nil {

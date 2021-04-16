@@ -18,6 +18,9 @@ import (
 // Networks
 // OrgVDCNetworks
 
+// TODO: currently VCD assumes 10.101.x.x.  We should tweak to use the netplan value so we can have different cloudlets on one vcd
+var mexInternalNetRange = "10.101"
+
 func (v *VcdPlatform) GetNetworkList(ctx context.Context) ([]string, error) {
 	return []string{
 		v.vmProperties.GetCloudletExternalNetwork(),
@@ -314,12 +317,19 @@ func (v *VcdPlatform) DetachPortFromServer(ctx context.Context, serverName, subn
 
 	log.SpanLog(ctx, log.DebugLevelInfra, "DetachPortFromServer", "ServerName", serverName, "subnet", subnetName, "port", portName)
 	cidrNet := ""
-	cidrNet, _ = v.updateIsoNamesMap(ctx, IsoMapActionRead, subnetName, "", "")
-	if cidrNet == "" {
-		log.SpanLog(ctx, log.DebugLevelInfra, "No mapping for", "Network", subnetName)
-		return fmt.Errorf("No Matching Subnet in IsoNamesMap")
+	if strings.HasPrefix(subnetName, mexInternalNetRange) {
+		// special cleanup case, we passed the cidr net as the net.
+		log.SpanLog(ctx, log.DebugLevelInfra, "DetachPortFromServer using subnet name as cidrNet", "subnet", subnetName)
+		cidrNet = subnetName
+		portName = subnetName
+	} else {
+		cidrNet, _ = v.updateIsoNamesMap(ctx, IsoMapActionRead, subnetName, "", "")
+		if cidrNet == "" {
+			log.SpanLog(ctx, log.DebugLevelInfra, "No mapping for", "Network", subnetName)
+			return fmt.Errorf("No Matching Subnet in IsoNamesMap")
+		}
+		log.SpanLog(ctx, log.DebugLevelInfra, "DetachPortFromServer found isoNamesMap", "subnet", subnetName, "cidrNet", cidrNet)
 	}
-	log.SpanLog(ctx, log.DebugLevelInfra, "DetachPortFromServer found isoNamesMap", "subnet", subnetName, "cidrNet", cidrNet)
 
 	vcdClient := v.GetVcdClientFromContext(ctx)
 	if vcdClient == nil {
@@ -360,6 +370,7 @@ func (v *VcdPlatform) DetachPortFromServer(ctx context.Context, serverName, subn
 		}
 
 		for n, nc := range ncs.NetworkConnection {
+			log.SpanLog(ctx, log.DebugLevelInfra, "Remove network from ncs", "nc.Network", nc.Network, "portName", portName)
 			if nc.Network == portName {
 				ncs.NetworkConnection[n] = ncs.NetworkConnection[len(ncs.NetworkConnection)-1]
 				ncs.NetworkConnection[len(ncs.NetworkConnection)-1] = &types.NetworkConnection{}
@@ -374,7 +385,9 @@ func (v *VcdPlatform) DetachPortFromServer(ctx context.Context, serverName, subn
 			}
 		}
 	}
-	// Now remove the network from the Vapp/Server
+	for _, nc := range vapp.VApp.NetworkConfigSection.NetworkConfig {
+		log.SpanLog(ctx, log.DebugLevelInfra, "DetachPortFromServer found net config", "nc", nc, "net to remove", orgvdcnet.OrgVDCNetwork.Name)
+	}
 	_, err = vapp.RemoveNetwork(orgvdcnet.OrgVDCNetwork.Name)
 	if err != nil {
 		log.SpanLog(ctx, log.DebugLevelInfra, "DetachPortFromServer RemoveNetwork (byName) failed try RemoveIsolatedNetwork", "serverName", serverName, "port", portName, "subnet", subnetName, "cidrNet", cidrNet, "err", err)
@@ -1005,16 +1018,20 @@ func (v *VcdPlatform) GetVappIsoNetwork(ctx context.Context, vdc *govcd.Vdc, vap
 // On cloudlet create, if any of these isonets are in existance, (nsx-t)
 // they will be placed on the free list and reused.
 func (v *VcdPlatform) RebuildIsoNamesAndFreeMaps(ctx context.Context) error {
-	log.SpanLog(ctx, log.DebugLevelInfra, "RebuildIsoNamesMap ")
+	cleanup := v.GetCleanupOrphanedNetworks()
+	log.SpanLog(ctx, log.DebugLevelInfra, "RebuildIsoNamesMap", "cleanup", cleanup)
 	var err error
+
+	ctx, result, err := v.InitOperationContext(ctx, vmlayer.OperationInitStart)
+	if err != nil {
+		return err
+	}
+	if result == vmlayer.OperationNewlyInitialized {
+		defer v.InitOperationContext(ctx, vmlayer.OperationInitComplete)
+	}
 	vcdClient := v.GetVcdClientFromContext(ctx)
 	if vcdClient == nil {
-		// Too early for context
-		vcdClient, err = v.GetClient(ctx, v.Creds)
-		if err != nil {
-			return fmt.Errorf(NoVCDClientInContext)
-		}
-		log.SpanLog(ctx, log.DebugLevelInfra, "Obtained client directly continuing")
+		return fmt.Errorf(NoVCDClientInContext)
 	}
 
 	vdc, err := v.GetVdc(ctx, vcdClient)
@@ -1023,40 +1040,148 @@ func (v *VcdPlatform) RebuildIsoNamesAndFreeMaps(ctx context.Context) error {
 		return err
 	}
 
-	qr, err := vdc.GetNetworkList()
+	vappNets, err := v.getVappToSubnetMap(ctx, vdc, vcdClient, cleanup)
 	if err != nil {
-		log.SpanLog(ctx, log.DebugLevelInfra, "GetVappIsoNetwork GetNetworkList  failed", "err", err)
 		return err
 	}
-	for _, q := range qr {
-		// type 2 = isolated.
-		if q.LinkType == 2 {
-			orgvdcnetwork, err := vdc.GetOrgVdcNetworkByName(q.Name, false)
+	orgNets := make(map[string]bool)
+	for _, net := range vdc.Vdc.AvailableNetworks {
+		for _, ref := range net.Network {
+			log.SpanLog(ctx, log.DebugLevelInfra, "Checking available networks, looking for org vdc net", "name", ref.Name)
+			nn, err := vdc.GetOrgVdcNetworkByName(ref.Name, false)
+			if err != nil {
+				log.SpanLog(ctx, log.DebugLevelInfra, "unable to find get net", "ref.Name", ref.Name, "err", err)
+				continue
+			}
+			if strings.HasPrefix(ref.Name, mexInternalNetRange) && nn.OrgVDCNetwork.Type == types.MimeOrgVdcNetwork {
+				log.SpanLog(ctx, log.DebugLevelInfra, "Mex internal OrgVDCNetwork", "name", ref.Name, "nntype", nn.OrgVDCNetwork.Type)
+				orgNets[ref.Name] = true
+			} else {
+				// in multi vdc case this could happen
+				log.SpanLog(ctx, log.DebugLevelInfra, "OrgVDCNetwork is not a mex int net", "name", ref.Name, "nntype", ref.Type)
+			}
+
+		}
+	}
+	rootLBFound := false
+	lbvm, err := v.GetServerDetail(ctx, v.vmProperties.SharedRootLBName)
+	if err != nil {
+		log.SpanLog(ctx, log.DebugLevelInfra, "Shared LB find fail", "err", err)
+	} else {
+		log.SpanLog(ctx, log.DebugLevelInfra, "Shared LB found", "lbvm", lbvm)
+		rootLBFound = true
+	}
+
+	numOphans := 0
+	numFound := 0
+
+	for o := range orgNets {
+		// if cleanup enabled
+		vappNet, ok := vappNets[o]
+		if ok {
+			log.SpanLog(ctx, log.DebugLevelInfra, "org vcd network is not an orphan", "name", o, "vappNet", vappNet)
+			_, err := v.updateIsoNamesMap(ctx, IsoMapActionAdd, o, vappNet, "")
 			if err != nil {
 				return err
 			}
-			subnetId, err := v.vappUsesIsoNet(ctx, orgvdcnetwork.OrgVDCNetwork.Name, vdc)
-			if subnetId != "" {
-				log.SpanLog(ctx, log.DebugLevelInfra, "RebuildMaps add FreeIsoNets", "Net", orgvdcnetwork.OrgVDCNetwork.Name, "subnetId", subnetId)
-				_, err := v.updateIsoNamesMap(ctx, IsoMapActionAdd, orgvdcnetwork.OrgVDCNetwork.Name, subnetId, "")
-				if err != nil {
-					log.SpanLog(ctx, log.DebugLevelInfra, "RebuildMaps updateIsoNamesMap failed", "error", err)
-					return err
+			numFound++
+		} else {
+			if v.GetNsxType() == NSXV {
+				log.SpanLog(ctx, log.DebugLevelInfra, "Orphan net not found on a vapp", "name", o, "cleanup", cleanup)
+				numOphans++
+				// delete this sucker from rootlb and then nuke it
+				if cleanup {
+					log.SpanLog(ctx, log.DebugLevelInfra, "Cleaning up orphaned network", "net", o)
+					if rootLBFound {
+						for _, sip := range lbvm.Addresses {
+							if sip.ExternalAddr == o {
+								// remove hung network from lb
+								log.SpanLog(ctx, log.DebugLevelInfra, "Remove network from lbvm", "net", o)
+								err = v.DetachPortFromServer(ctx, lbvm.Name, o, "")
+								if err != nil {
+									return fmt.Errorf("Removing orphaned net from lbvm failed - %v", err)
+								}
+							}
+						}
+					}
+					err = govcd.RemoveOrgVdcNetworkIfExists(*vdc, o)
+					if err != nil {
+						return fmt.Errorf("Fail to remove orphaned org vcd network %s - %v", o, err)
+					}
 				}
 			} else {
-				// No existing vapp references this orgvdc type 2 net, freelist it
-				v.FreeIsoNets[orgvdcnetwork.OrgVDCNetwork.Name] = orgvdcnetwork
+				// freelist for NSX-T
+				orgvdcnetwork, err := vdc.GetOrgVdcNetworkByName(o, false)
+				if err != nil {
+					return err
+				}
+				v.FreeIsoNets[o] = orgvdcnetwork
 			}
 		}
 	}
-	if len(v.IsoNamesMap) == 0 {
-		log.SpanLog(ctx, log.DebugLevelInfra, "RebuildIsoNamesMap Nothing to rebuild")
-	}
+	log.SpanLog(ctx, log.DebugLevelInfra, "RebuildIsoNamesAndFreeMaps done", "numOphans", numOphans, "IsoNamesMap", v.IsoNamesMap, "numFound", numFound)
 	return nil
+}
+
+func (v *VcdPlatform) vappNameToInternalSubnet(ctx context.Context, vappName string) string {
+	netName := strings.TrimSuffix(vappName, "-vapp")
+	netName = vmlayer.MexSubnetPrefix + netName
+	return netName
+
+}
+
+func (v *VcdPlatform) getVappToSubnetMap(ctx context.Context, vdc *govcd.Vdc, vcdClient *govcd.VCDClient, cleanup bool) (map[string]string, error) {
+	log.SpanLog(ctx, log.DebugLevelInfra, "getVappToSubnetMap", "SharedRootLBName", v.vmProperties.SharedRootLBName)
+	netmap := make(map[string]string)
+	sharedLbVappName := v.vmProperties.SharedRootLBName + "-vapp"
+	// For all vapps in vdc
+	for _, r := range vdc.Vdc.ResourceEntities {
+		for _, res := range r.ResourceEntity {
+			if res.Name == sharedLbVappName {
+				// don't want this one
+				continue
+			}
+			if res.Type == "application/vnd.vmware.vcloud.vApp+xml" {
+				vapp, err := vdc.GetVAppByName(res.Name, true)
+				if err != nil {
+					return nil, err
+				}
+				log.SpanLog(ctx, log.DebugLevelInfra, "Found Vapp Networks", "vappname", vapp.VApp.Name, "nets", vapp.VApp.NetworkConfigSection.NetworkNames())
+				if len(vapp.VApp.NetworkConfigSection.NetworkNames()) == 0 && cleanup {
+					log.SpanLog(ctx, log.DebugLevelInfra, "Vapp has no networks and needs cleanup", "vappname", vapp.VApp.Name)
+					err = v.DeleteVapp(ctx, vapp, vcdClient)
+					if err != nil {
+						log.SpanLog(ctx, log.DebugLevelInfra, "cleanup vapp fail", "vappname", vapp.VApp.Name, "err", err)
+					}
+				}
+
+				for _, n := range vapp.VApp.NetworkConfigSection.NetworkNames() {
+					if n == "none" {
+						continue
+					}
+					net, err := vdc.GetOrgVdcNetworkByName(n, false)
+					if err != nil {
+						log.InfoLog("Cannot get net by name", "netname", n, "err", err)
+						continue
+					}
+					if !strings.HasPrefix(net.OrgVDCNetwork.Name, mexInternalNetRange) {
+						log.SpanLog(ctx, log.DebugLevelInfra, "Skipping network not in internal range", "netname", net.OrgVDCNetwork.Name)
+						continue
+					}
+					mexSubnetName := v.vappNameToInternalSubnet(ctx, vapp.VApp.Name)
+					log.SpanLog(ctx, log.DebugLevelInfra, "mapping vapp net to subnet", "netname", net.OrgVDCNetwork.Name, "mexSubnetName", mexSubnetName)
+					netmap[net.OrgVDCNetwork.Name] = mexSubnetName
+				}
+			}
+		}
+	}
+	return netmap, nil
+
 }
 
 // If any exsting vapp is using this iso net, it's not free to reuse
 func (v *VcdPlatform) vappUsesIsoNet(ctx context.Context, netName string, vdc *govcd.Vdc) (string, error) {
+	log.SpanLog(ctx, log.DebugLevelInfra, "XXX vappUsesIsoNet", "netName", netName)
 
 	// For all vapps in vdc
 	for _, r := range vdc.Vdc.ResourceEntities {
@@ -1067,6 +1192,8 @@ func (v *VcdPlatform) vappUsesIsoNet(ctx context.Context, netName string, vdc *g
 					return "", err
 				} else {
 					ip, _ := v.GetAddrOfVapp(ctx, vapp, netName)
+					log.SpanLog(ctx, log.DebugLevelInfra, "XXX Got Vapp Addr", "netName", netName, "ip", ip)
+
 					if ip != "" {
 						md, err := vapp.GetMetadata()
 						if err != nil {
@@ -1074,7 +1201,10 @@ func (v *VcdPlatform) vappUsesIsoNet(ctx context.Context, netName string, vdc *g
 						}
 						for _, ent := range md.MetadataEntry {
 							if ent.Key == "SharedSubnetId" {
+								log.SpanLog(ctx, log.DebugLevelInfra, "XXX Got SharedSubnetId", "val", ent.TypedValue.Value)
+
 								return ent.TypedValue.Value, nil
+
 							}
 						}
 					}

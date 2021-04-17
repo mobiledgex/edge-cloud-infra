@@ -11,34 +11,61 @@ import (
 	"github.com/wcharczuk/go-chart/v2"
 )
 
+const (
+	FontName     = "Arial"
+	LogoFilePath = "/Users/ashishjain/Desktop/MobiledgeX_Logo.png"
+
+	TimeFormatDate     = "2006/01/02"
+	TimeFormatDateTime = "2006-01-02T15:04:05Z"
+
+	DefaultFontSize    = float64(10)
+	TitleFontSize      = float64(20)
+	HeaderFontSize     = float64(8)
+	TitleLogoSize      = float64(60)
+	ChartWidth         = float64(150)
+	ChartHeight        = float64(60)
+	SectionGap         = float64(15)
+	DefaultColumnWidth = float64(50)
+)
+
+type TimeChartData struct {
+	Name    string
+	XValues []time.Time
+	YValues []float64
+}
+
+type CellInfo struct {
+	List   [][]byte
+	Height float64
+}
+
 func NewReport() *gofpdf.Fpdf {
 	pdf := gofpdf.New(gofpdf.OrientationPortrait, "mm", "A4", "")
 	pdf.AddPage()
-	pdf.SetFont("Arial", "B", 16)
+	pdf.SetFont(FontName, "B", DefaultFontSize)
 	pdf.AliasNbPages("")
 	return pdf
 }
 
 func AddPageTitle(pdf *gofpdf.Fpdf) {
-	pdf.SetFont("Arial", "B", 20)
+	pdf.SetFont(FontName, "B", TitleFontSize)
 	_, topMargin, rightMargin, _ := pdf.GetMargins()
 	pdf.Cell(100, 10, "Cloudlet Usage Report")
 	pageW, _ := pdf.GetPageSize()
 	// Logo aspect ratio is 6:1
-	pdf.ImageOptions("/Users/ashishjain/Desktop/MobiledgeX_Logo.png", pageW-rightMargin-60, topMargin, 60, 10, false, gofpdf.ImageOptions{ImageType: "PNG", ReadDpi: true}, 0, "")
+	pdf.ImageOptions(LogoFilePath, pageW-rightMargin-60, topMargin, TitleLogoSize, TitleLogoSize/6, false, gofpdf.ImageOptions{ImageType: "PNG", ReadDpi: true}, 0, "")
 	pdf.Ln(-1)
 }
 
 func AddHeader(pdf *gofpdf.Fpdf, report *ormapi.GenerateReport) {
 	pdf.SetHeaderFuncMode(func() {
-		pdf.SetFont("Arial", "I", 8)
+		pdf.SetFont(FontName, "I", HeaderFontSize)
 		headerStr := fmt.Sprintf("Operator: %s | Region: %s", report.Org, report.Region)
 		_, topMargin, rightMargin, _ := pdf.GetMargins()
 		pdf.CellFormat(0, 0, headerStr, "", 0, "L", false, 0, "")
 		pageW, _ := pdf.GetPageSize()
 		// Logo aspect ratio is 6:1
-		pdf.ImageOptions("/Users/ashishjain/Desktop/MobiledgeX_Logo.png", pageW-rightMargin-24, topMargin-2, 24, 4, false, gofpdf.ImageOptions{ImageType: "PNG", ReadDpi: true}, 0, "")
-
+		pdf.ImageOptions(LogoFilePath, pageW-rightMargin-24, topMargin-2, 24, 4, false, gofpdf.ImageOptions{ImageType: "PNG", ReadDpi: true}, 0, "")
 		pdf.Ln(5)
 		AddHorizontalLine(pdf)
 		pdf.Ln(5)
@@ -48,19 +75,19 @@ func AddHeader(pdf *gofpdf.Fpdf, report *ormapi.GenerateReport) {
 func AddFooter(pdf *gofpdf.Fpdf) {
 	pdf.SetFooterFunc(func() {
 		pdf.SetY(-15)
-		pdf.SetFont("Arial", "I", 8)
+		pdf.SetFont(FontName, "I", HeaderFontSize)
 		pdf.CellFormat(0, 10, fmt.Sprintf("Page %d/{nb}", pdf.PageNo()), "", 0, "C", false, 0, "")
 	})
 }
 
 func AddOperatorInfo(pdf *gofpdf.Fpdf, report *ormapi.GenerateReport) {
-	pdf.SetFont("Arial", "B", 8)
+	pdf.SetFont(FontName, "B", HeaderFontSize)
 	pdf.Cell(40, 10, fmt.Sprintf("Operator: %s", report.Org))
 	pdf.Ln(5)
 	pdf.Cell(40, 10, fmt.Sprintf("Region: %s", report.Region))
 	pdf.Ln(5)
-	startDate := report.StartTime.Format("2006/01/02")
-	endDate := report.EndTime.Format("2006/01/02")
+	startDate := report.StartTime.Format(TimeFormatDate)
+	endDate := report.EndTime.Format(TimeFormatDate)
 	pdf.Cell(40, 10, fmt.Sprintf("Report Period: %s - %s", startDate, endDate))
 	pdf.Ln(-1)
 }
@@ -73,79 +100,72 @@ func AddHorizontalLine(pdf *gofpdf.Fpdf) {
 	pdf.DrawPath("DF")
 }
 
-func AddTable(pdf *gofpdf.Fpdf, title string, hdr []string, tbl [][]string, alignCols []string, width float64) {
-	if width <= 0 {
-		width = 50
+func AddTable(pdf *gofpdf.Fpdf, title string, hdr []string, tbl [][]string, colWidth float64) {
+	if colWidth <= 0 {
+		colWidth = DefaultColumnWidth
 	}
-	pdf.SetFont("Arial", "B", 10)
+	rowHeight := float64(7)
+	cellGap := float64(2)
+
+	pdf.SetFont(FontName, "B", DefaultFontSize)
 	pdf.Cell(40, 10, title)
 	pdf.Ln(-1)
 
-	// Header
-	pdf.SetFont("Arial", "B", 10)
+	// Center align all columns
+	alignCols := []string{}
+	for _, line := range tbl {
+		for _, _ = range line {
+			alignCols = append(alignCols, "C")
+		}
+	}
+
+	// Table Header
+	pdf.SetFont(FontName, "B", DefaultFontSize)
 	pdf.SetFillColor(240, 240, 240)
 	for ii, str := range hdr {
-		pdf.CellFormat(width, 7, str, "1", 0, alignCols[ii], true, 0, "")
+		pdf.CellFormat(colWidth, rowHeight, str, "1", 0, alignCols[ii], true, 0, "")
 	}
 	pdf.Ln(-1)
 
 	// Table Content
-	pdf.SetFont("Arial", "", 10)
+	pdf.SetFont(FontName, "", DefaultFontSize)
 	pdf.SetFillColor(255, 255, 255)
-	for lineNo, line := range tbl {
-		borderStr := "LRT"
-		for _, str := range line {
-			if str == "" {
-				borderStr = "LR"
-				break
+
+	maxRowHeight := rowHeight
+	_, leftMargin, _, _ := pdf.GetMargins()
+	curY := pdf.GetY()
+	for _, line := range tbl {
+		// Cell height calculation loop
+		cellList := []CellInfo{}
+		for _, colStr := range line {
+			cell := CellInfo{}
+			cell.List = pdf.SplitLines([]byte(colStr), colWidth-cellGap-cellGap)
+			cell.Height = float64(len(cell.List)) * rowHeight
+			cellList = append(cellList, cell)
+			if cell.Height > maxRowHeight {
+				maxRowHeight = cell.Height
 			}
 		}
-		if lineNo == len(tbl)-1 {
-			borderStr = "LRB"
-		}
-		for ii, str := range line {
-			pdf.CellFormat(width, 7, str, borderStr, 0, alignCols[ii], false, 0, "")
-		}
-		pdf.Ln(-1)
-	}
-	pdf.Ln(-1)
-}
-
-func getEntriesFromBlocks(key string, dataBlocks ...[]string) [][]string {
-	maxLen := 0
-	for _, block := range dataBlocks {
-		if len(block) > maxLen {
-			maxLen = len(block)
-		}
-	}
-	entries := [][]string{}
-	for ii := 0; ii < maxLen; ii++ {
-		entry := []string{}
-		if ii == 0 {
-			entry = append(entry, key)
-		} else {
-			entry = append(entry, "")
-		}
-		for _, block := range dataBlocks {
-			if ii < len(block) {
-				entry = append(entry, block[ii])
-			} else {
-				entry = append(entry, "")
+		// Cell render loop
+		curX := leftMargin
+		for colNo, _ := range line {
+			pdf.Rect(curX, curY, colWidth, maxRowHeight+cellGap+cellGap, "D")
+			cell := cellList[colNo]
+			cellY := curY + cellGap + (maxRowHeight-cell.Height)/2
+			for splitNo := 0; splitNo < len(cell.List); splitNo++ {
+				pdf.SetXY(curX+cellGap, cellY)
+				pdf.CellFormat(colWidth-cellGap-cellGap, rowHeight, string(cell.List[splitNo]), "", 0, alignCols[colNo], false, 0, "")
+				cellY += rowHeight
 			}
+			curX += colWidth
 		}
-		entries = append(entries, entry)
+		curY += maxRowHeight + cellGap + cellGap
 	}
-	return entries
-}
-
-type TimeChartData struct {
-	Name    string
-	XValues []time.Time
-	YValues []float64
+	pdf.Ln(SectionGap)
 }
 
 func AddTimeCharts(pdf *gofpdf.Fpdf, title string, charts map[string][]TimeChartData) error {
-	pdf.SetFont("Arial", "B", 10)
+	pdf.SetFont(FontName, "B", DefaultFontSize)
 	pdf.Cell(40, 10, title)
 	pdf.Ln(-1)
 	// sort chart data
@@ -156,7 +176,11 @@ func AddTimeCharts(pdf *gofpdf.Fpdf, title string, charts map[string][]TimeChart
 	sort.Strings(keys)
 
 	for _, key := range keys {
-		err := AddTimeChart(pdf, key, charts[key])
+		chart := charts[key]
+		sort.Slice(chart[:], func(i, j int) bool {
+			return chart[i].Name < chart[j].Name
+		})
+		err := AddTimeChart(pdf, key, chart)
 		if err != nil {
 			return err
 		}
@@ -207,7 +231,7 @@ func AddTimeChart(pdf *gofpdf.Fpdf, title string, data []TimeChartData) error {
 			GridLines: yGridLines,
 		},
 		XAxis: chart.XAxis{
-			ValueFormatter: chart.TimeValueFormatterWithFormat("2006-01-02T15:04:05Z"),
+			ValueFormatter: chart.TimeValueFormatterWithFormat(TimeFormatDateTime),
 			GridMajorStyle: chart.Style{
 				StrokeColor: chart.ColorAlternateGray,
 				StrokeWidth: 0.2,
@@ -242,7 +266,7 @@ func DrawChart(pdf *gofpdf.Fpdf, imgName string, graph *chart.Chart) error {
 	}
 	pdf.RegisterImageOptionsReader(imgName, imgOpts, buffer)
 	curX, curY := pdf.GetXY()
-	pdf.ImageOptions(imgName, curX, curY, float64(150), float64(60), true, imgOpts, 0, "")
-	pdf.Ln(5)
+	pdf.ImageOptions(imgName, curX, curY, ChartWidth, ChartHeight, true, imgOpts, 0, "")
+	pdf.Ln(SectionGap)
 	return nil
 }

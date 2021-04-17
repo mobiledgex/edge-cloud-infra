@@ -1092,7 +1092,11 @@ func (v *VcdPlatform) RebuildIsoNamesAndFreeMaps(ctx context.Context) error {
 			for _, nc := range ncs.NetworkConnection {
 				log.SpanLog(ctx, log.DebugLevelInfra, "Shared LB network connection", "network", nc.Network, "ip", nc.IPAddress)
 				validNetwork := true
-				if !strings.HasPrefix(nc.Network, mexInternalNetRange) {
+				if nc.Network == "none" {
+					// this is a nic connected to nothing.  remove it
+					log.SpanLog(ctx, log.DebugLevelInfra, "found nic connected to none network, pruning", "nc", nc.IPAddress)
+					validNetwork = false
+				} else if !strings.HasPrefix(nc.Network, mexInternalNetRange) {
 					log.SpanLog(ctx, log.DebugLevelInfra, "network is not an mex internal network, not prunable")
 				} else {
 					if nc.IsConnected == false {

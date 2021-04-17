@@ -1129,9 +1129,11 @@ func (v *VcdPlatform) RebuildIsoNamesAndFreeMaps(ctx context.Context) error {
 
 				for _, net := range noVappNets {
 					log.SpanLog(ctx, log.DebugLevelInfra, "Removing network from rootlb vapp", "net", net)
-					_, err = rootlbVapp.RemoveNetwork(net)
-					if err != nil {
-						log.SpanLog(ctx, log.DebugLevelInfra, "Removing network from rootlb vapp failed", "err", err)
+					if rootlbVapp != nil {
+						_, err = rootlbVapp.RemoveNetwork(net)
+						if err != nil {
+							log.SpanLog(ctx, log.DebugLevelInfra, "Removing network from rootlb vapp failed", "err", err)
+						}
 					}
 				}
 			}
@@ -1174,9 +1176,11 @@ func (v *VcdPlatform) RebuildIsoNamesAndFreeMaps(ctx context.Context) error {
 					// network may have been removed via DetachPortFromServer already, but in case that did not happen, remove from vapp
 					log.SpanLog(ctx, log.DebugLevelInfra, "Deleting net from rootlb vapp", "net", o)
 					// remove from rootlb vapp if it is there
-					_, err = rootlbVapp.RemoveNetwork(o)
-					if err != nil {
-						log.SpanLog(ctx, log.DebugLevelInfra, "Removing network from rootlb vapp failed", "err", err)
+					if rootlbVapp != nil {
+						_, err = rootlbVapp.RemoveNetwork(o)
+						if err != nil {
+							log.SpanLog(ctx, log.DebugLevelInfra, "Removing network from rootlb vapp failed", "err", err)
+						}
 					}
 
 					err = vdc.Refresh()

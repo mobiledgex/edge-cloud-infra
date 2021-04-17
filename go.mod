@@ -32,6 +32,7 @@ require (
 	github.com/jarcoal/httpmock v1.0.6
 	github.com/jinzhu/gorm v1.9.10
 	github.com/jpillora/backoff v1.0.0 // indirect
+	github.com/jung-kurt/gofpdf v1.16.2
 	github.com/kballard/go-shellquote v0.0.0-20180428030007-95032a82bc51 // indirect
 	github.com/labstack/echo v0.0.0-20180911044237-1abaa3049251
 	github.com/lib/pq v1.5.2
@@ -57,6 +58,7 @@ require (
 	github.com/tmc/scp v0.0.0-20170824174625-f7b48647feef
 	github.com/trustelem/zxcvbn v1.0.1
 	github.com/vmware/go-vcloud-director/v2 v2.11.0
+	github.com/wcharczuk/go-chart/v2 v2.1.0
 	github.com/xanzy/go-gitlab v0.16.0
 	golang.org/x/crypto v0.0.0-20200622213623-75b288015ac9
 	golang.org/x/net v0.0.0-20201010224723-4f7140c49acb

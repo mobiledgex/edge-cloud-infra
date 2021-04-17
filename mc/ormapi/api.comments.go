@@ -138,3 +138,14 @@ var AlertReceiverComments = map[string]string{
 	"pagerdutyintegrationkey": `PagerDuty integration key`,
 	"pagerdutyapiversion":     `PagerDuty API version`,
 }
+
+var ReporterComments = map[string]string{
+	"name":  `Reporter Name`,
+	"org":   `Org name`,
+	"email": `Email to send generated reports`,
+}
+
+var GenerateReportComments = map[string]string{
+	"org":    `Org`,
+	"region": `Region`,
+}

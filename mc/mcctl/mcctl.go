@@ -37,6 +37,7 @@ func main() {
 		ormctl.OperatorCodeApiCmdsGroup,
 		ormctl.CloudletRefsApiCmdsGroup,
 		ormctl.VMPoolApiCmdsGroup,
+		ormctl.GetReportCommand(),
 	}
 	devShowCloudlet := ormctl.ShowCloudletCmd.GenCmd()
 	devShowCloudlet.Use = "cloudletshow"

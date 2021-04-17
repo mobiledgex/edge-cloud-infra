@@ -699,6 +699,11 @@ func RunServer(config *ServerConfig) (retserver *Server, reterr error) {
 	//   404: notFound
 	auth.POST("/alertreceiver/show", ShowAlertReceiver)
 
+	auth.POST("/reporter/create", CreateReporter)
+	auth.POST("/reporter/delete", DeleteReporter)
+	auth.POST("/reporter/show", ShowReporter)
+	auth.POST("/report/generate", GenerateReport)
+
 	// Use GET method for websockets as thats the method used
 	// in setting up TCP connection by most of the clients
 	// Also, authorization is handled as part of websocketUpgrade

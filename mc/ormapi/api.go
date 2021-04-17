@@ -553,3 +553,37 @@ type AlertReceiver struct {
 	// AppInst spec for alerts
 	AppInst edgeproto.AppInstKey `json:",omitempty"`
 }
+
+//ReportSchedule enum
+type ReportSchedule int32
+
+const (
+	EVERY_WEEK ReportSchedule = iota
+	EVERY_15_DAYS
+	EVERY_30_DAYS
+)
+
+// Reporter to generate period reports
+type Reporter struct {
+	// Reporter Name
+	Name string
+	// Org name
+	Org string
+	// Email to send generated reports
+	Email string `json:",omitempty"`
+	// Indicates how often a report should be generated: EveryWeek, Every15Days, Every30Days
+	Schedule ReportSchedule `json:",omitempty"`
+	// Date when the next report is scheduled to be generated (Default: Now)
+	ScheduleDate time.Time `json:",omitempty"`
+}
+
+type GenerateReport struct {
+	// Org
+	Org string
+	// Region
+	Region string
+	// Start time
+	StartTime time.Time `json:",omitempty"`
+	// End time
+	EndTime time.Time `json:",omitempty"`
+}

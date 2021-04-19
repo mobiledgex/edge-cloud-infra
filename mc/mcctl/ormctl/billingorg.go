@@ -15,15 +15,15 @@ func GetBillingOrgCommand() *cobra.Command {
 		OptionalArgs: "address address2 city country state postalcode phone paymenttype ccfirstname cclastname ccnumber ccexpmonth ccexpyear children",
 		ReqData:      &ormapi.BillingOrganization{},
 		Comments:     CreateBillingOrgComments,
-		Run:          runRest("/auth/billingorg/validate"),
+		Run:          runRest("/auth/billingorg/create"),
 	}, &cli.Command{
-		Use:          "commit",
+		Use:          "updateaccountinfo",
 		Short:        "Commit a BillingOrganization after validating it with our payment platform",
 		RequiredArgs: "orgname accountid",
 		OptionalArgs: "subscriptionid",
 		ReqData:      &billing.AccountInfo{},
 		Comments:     ormapi.AccountInfoComments,
-		Run:          runRest("/auth/billingorg/commit"),
+		Run:          runRest("/auth/billingorg/updateaccount"),
 	}, &cli.Command{
 		Use:          "update",
 		Short:        "Update a billing organization",

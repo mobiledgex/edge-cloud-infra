@@ -4,13 +4,13 @@ import "github.com/mobiledgex/edge-cloud-infra/mc/ormapi"
 
 import "github.com/mobiledgex/edge-cloud-infra/billing"
 
-func (s *Client) CreateBillingOrgValidater(uri, token string, org *ormapi.BillingOrganization) (int, error) {
-	args := []string{"billingorg", "validate"}
+func (s *Client) CreateBillingOrg(uri, token string, org *ormapi.BillingOrganization) (int, error) {
+	args := []string{"billingorg", "create"}
 	return s.runObjs(uri, token, args, org, nil)
 }
 
-func (s *Client) CreateBillingOrgCommit(uri, token string, acc *billing.AccountInfo) (int, error) {
-	args := []string{"billingorg", "commit"}
+func (s *Client) UpdateAccountInfo(uri, token string, acc *billing.AccountInfo) (int, error) {
+	args := []string{"billingorg", "updateaccountinfo"}
 	return s.runObjs(uri, token, args, acc, nil)
 }
 

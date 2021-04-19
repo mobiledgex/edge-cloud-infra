@@ -20,7 +20,7 @@ import (
 var deleteTypeChild = "child"
 var deleteTypeSelf = "self"
 
-func CreateBillingOrgValidater(c echo.Context) error {
+func CreateBillingOrg(c echo.Context) error {
 	claims, err := getClaims(c)
 	if err != nil {
 		return err
@@ -33,12 +33,12 @@ func CreateBillingOrgValidater(c echo.Context) error {
 	span := log.SpanFromContext(ctx)
 	span.SetTag("billing org", org.Name)
 
-	err = ValidateBillingOrgObj(ctx, claims, &org)
+	err = CreateBillingOrgObj(ctx, claims, &org)
 	return setReply(c, err, Msg("Billing Organization primed"))
 }
 
 // Parent billing orgs will have a billing Group, self billing orgs will just use the existing developer group from the org
-func ValidateBillingOrgObj(ctx context.Context, claims *UserClaims, org *ormapi.BillingOrganization) error {
+func CreateBillingOrgObj(ctx context.Context, claims *UserClaims, org *ormapi.BillingOrganization) error {
 	// TODO: remove this later, for now only mexadmin the permission to create billingOrgs
 	roles, err := ShowUserRoleObj(ctx, claims.Username)
 	if err != nil {
@@ -148,7 +148,7 @@ func createBillingAccount(ctx context.Context, info *ormapi.BillingOrganization)
 	return nil
 }
 
-func CreateBillingOrgCommit(c echo.Context) error {
+func UpdateAccountInfo(c echo.Context) error {
 	claims, err := getClaims(c)
 	if err != nil {
 		return err
@@ -160,11 +160,11 @@ func CreateBillingOrgCommit(c echo.Context) error {
 	}
 	span := log.SpanFromContext(ctx)
 	span.SetTag("billing org", acc.OrgName)
-	err = CommitBillingOrgObj(ctx, claims, &acc)
+	err = UpdateAccountInfoObj(ctx, claims, &acc)
 	return setReply(c, err, Msg("Billing Organization committed"))
 }
 
-func CommitBillingOrgObj(ctx context.Context, claims *UserClaims, account *billing.AccountInfo) (reterr error) {
+func UpdateAccountInfoObj(ctx context.Context, claims *UserClaims, account *billing.AccountInfo) (reterr error) {
 	// TODO: remove this later, for now only mexadmin has the permission to create billingOrgs
 	roles, err := ShowUserRoleObj(ctx, claims.Username)
 	if err != nil {
@@ -206,10 +206,8 @@ func CommitBillingOrgObj(ctx context.Context, claims *UserClaims, account *billi
 		// if we reach here this is a big problem, that means the account was OK'ed by us earlier in primer and we validated it was successfully
 		// created in chargify, we need some sort of alert to have an admin go and manually delete the customer and sub from chargify
 		if reterr != nil {
-			db.Delete(&ormapi.BillingOrganization{Name: account.OrgName})
-			if billingEnabled(ctx) {
-				db.Delete(account)
-			}
+			bOrg.CreateInProgress = true
+			db.Save(bOrg)
 		}
 	}()
 	if billingEnabled(ctx) {
@@ -219,6 +217,18 @@ func CommitBillingOrgObj(ctx context.Context, claims *UserClaims, account *billi
 		} else if acc == nil {
 			return fmt.Errorf("Could not locate account information to commit for %s", account.OrgName)
 		}
+		originalAcc := acc.AccountId
+		originalSub := acc.SubscriptionId
+		originalParent := acc.ParentId
+		defer func() {
+			// reset the acc if there is an err after this point
+			if reterr != nil {
+				acc.AccountId = originalAcc
+				acc.SubscriptionId = originalSub
+				acc.ParentId = originalParent
+				db.Save(acc)
+			}
+		}()
 		acc.AccountId = account.AccountId
 		acc.SubscriptionId = account.SubscriptionId
 		acc.ParentId = account.ParentId

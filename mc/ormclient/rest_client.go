@@ -126,12 +126,12 @@ func (s *Client) RestrictedUpdateOrg(uri, token string, org map[string]interface
 	return s.PostJson(uri+"/auth/restricted/org/update", token, org, nil)
 }
 
-func (s *Client) CreateBillingOrgValidater(uri, token string, bOrg *ormapi.BillingOrganization) (int, error) {
-	return s.PostJson(uri+"/auth/billingorg/validate", token, bOrg, nil)
+func (s *Client) CreateBillingOrg(uri, token string, bOrg *ormapi.BillingOrganization) (int, error) {
+	return s.PostJson(uri+"/auth/billingorg/create", token, bOrg, nil)
 }
 
-func (s *Client) CreateBillingOrgCommit(uri, token string, acc *billing.AccountInfo) (int, error) {
-	return s.PostJson(uri+"/auth/billingorg/commit", token, acc, nil)
+func (s *Client) UpdateAccountInfo(uri, token string, acc *billing.AccountInfo) (int, error) {
+	return s.PostJson(uri+"/auth/billingorg/updateaccount", token, acc, nil)
 }
 
 func (s *Client) DeleteBillingOrg(uri, token string, bOrg *ormapi.BillingOrganization) (int, error) {

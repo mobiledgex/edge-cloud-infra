@@ -34,7 +34,7 @@ func CreateBillingOrg(c echo.Context) error {
 	span.SetTag("billing org", org.Name)
 
 	err = CreateBillingOrgObj(ctx, claims, &org)
-	return setReply(c, err, Msg("Billing Organization created"))
+	return setReply(c, err, Msg("Billing Organization primed"))
 }
 
 // Parent billing orgs will have a billing Group, self billing orgs will just use the existing developer group from the org

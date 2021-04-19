@@ -34,7 +34,7 @@ func CreateBillingOrg(c echo.Context) error {
 	span.SetTag("billing org", org.Name)
 
 	err = CreateBillingOrgObj(ctx, claims, &org)
-	return setReply(c, err, Msg("Billing Organization primed"))
+	return setReply(c, err, Msg("Billing Organization created"))
 }
 
 // Parent billing orgs will have a billing Group, self billing orgs will just use the existing developer group from the org
@@ -161,7 +161,7 @@ func UpdateAccountInfo(c echo.Context) error {
 	span := log.SpanFromContext(ctx)
 	span.SetTag("billing org", acc.OrgName)
 	err = UpdateAccountInfoObj(ctx, claims, &acc)
-	return setReply(c, err, Msg("Billing Organization committed"))
+	return setReply(c, err, Msg("Account Info Updated"))
 }
 
 func UpdateAccountInfoObj(ctx context.Context, claims *UserClaims, account *billing.AccountInfo) (reterr error) {

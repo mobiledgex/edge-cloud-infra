@@ -318,13 +318,8 @@ func (v *VMPlatform) GetRestrictedCloudletStatus(ctx context.Context, cloudlet *
 }
 
 func (v *VMPlatform) UpdateCloudlet(ctx context.Context, cloudlet *edgeproto.Cloudlet, updateCallback edgeproto.CacheUpdateCallback) error {
-
-	log.DebugLog(log.DebugLevelInfra, "UpdateCloudlet", "cloudlet", cloudlet)
+	// Update envvars
 	v.VMProperties.CommonPf.Properties.UpdatePropsFromVars(ctx, cloudlet.EnvVar)
-	if cloudlet.Config.CloudletAccessToken != "" {
-		log.DebugLog(log.DebugLevelInfra, "Updating CloudletAccessToken")
-		v.VMProperties.CloudletAccessToken = cloudlet.Config.CloudletAccessToken
-	}
 	return nil
 }
 

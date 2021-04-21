@@ -30,6 +30,7 @@ var NoVCDClientInContext = "No VCD Client in Context"
 
 var maxOauthTokenReady = time.Second * 30
 var maxOauthTokenFromNotify = time.Minute * 2
+var maxOauthRefreshRetries = 5
 
 var aesKeyLen = 32
 
@@ -91,7 +92,6 @@ func getAesKeyFromCloudletKey(cloudletKey *edgeproto.CloudletKey) string {
 	padCount := aesKeyLen - keylen
 	keystringNew := keyString + strings.Repeat("*", padCount)
 	return keystringNew
-
 }
 
 // EncryptToken encrypts a token via AES using the cloudlet name. Because we store the token in the
@@ -283,15 +283,23 @@ func (v *VcdPlatform) RefreshOauthTokenPeriodic(ctx context.Context, creds *VcdC
 		}
 		span := log.StartSpan(log.DebugLevelInfra, "refresh oauth oauth token")
 		ctx := log.ContextWithSpan(context.Background(), span)
-		err := v.UpdateOauthToken(ctx, creds)
-		if err != nil {
-			log.SpanLog(ctx, log.DebugLevelInfra, "refresh oauth session error, retrying", "err", err)
-			// try once more
+		var err error
+		success := false
+		for retryNum := 0; retryNum <= maxOauthRefreshRetries; retryNum++ {
+			log.SpanLog(ctx, log.DebugLevelInfra, "Attempting to update oauth token", "retryNum", retryNum)
 			err = v.UpdateOauthToken(ctx, creds)
-			if err != nil {
-				log.SpanLog(ctx, log.DebugLevelInfra, "failed to refresh oauth token after retry, exiting - %v", err)
-				log.FatalLog("failed to refresh oauth token after retry", "err", err)
+			if err == nil {
+				log.SpanLog(ctx, log.DebugLevelInfra, "refresh oauth ok", "retryNum", retryNum)
+				success = true
+				break
+			} else {
+				log.SpanLog(ctx, log.DebugLevelInfra, "refresh oauth failed, sleep 5 seconds for retry", "err", err)
+				time.Sleep(time.Second * 5)
 			}
+		}
+		if !success {
+			log.SpanLog(ctx, log.DebugLevelInfra, "failed to refresh oauth token after retries, exiting", "err", err)
+			log.FatalLog("failed to refresh oauth token after retries", "err", err)
 		}
 		span.Finish()
 	}
@@ -323,7 +331,6 @@ func (v *VcdPlatform) WaitForOauthTokenViaNotify(ctx context.Context, ckey *edge
 }
 
 func (v *VcdPlatform) UpdateOauthToken(ctx context.Context, creds *VcdConfigParams) error {
-
 	log.SpanLog(ctx, log.DebugLevelInfra, "UpdateOauthToken", "user", creds.User, "OauthSgwUrl", creds.OauthSgwUrl)
 	u, err := url.ParseRequestURI(creds.OauthAgwUrl)
 	if err != nil {

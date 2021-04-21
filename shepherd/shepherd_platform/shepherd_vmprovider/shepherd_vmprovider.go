@@ -22,6 +22,9 @@ var sharedRootLBWait = time.Minute * 5
 
 var caches *platform.Caches
 
+// used for update callback only
+var shepherdPlatform *ShepherdPlatform
+
 type ShepherdPlatform struct {
 	rootLbName      string
 	SharedClient    ssh.Client
@@ -29,6 +32,16 @@ type ShepherdPlatform struct {
 	collectInterval time.Duration
 	platformConfig  *platform.PlatformConfig
 	appDNSRoot      string
+}
+
+func vmProviderCloudletCb(ctx context.Context, old *edgeproto.Cloudlet, new *edgeproto.Cloudlet) {
+	log.SpanLog(ctx, log.DebugLevelInfra, "vmProviderCloudletCb")
+	// only store the updated token if it is not empty because the controller may do
+	// updates with an empty token
+	if new.Config.CloudletAccessToken != "" {
+		log.SpanLog(ctx, log.DebugLevelInfra, "stored new cloudlet access token")
+		shepherdPlatform.VMPlatform.VMProperties.CloudletAccessToken = new.Config.CloudletAccessToken
+	}
 }
 
 func (s *ShepherdPlatform) Init(ctx context.Context, pc *platform.PlatformConfig, platformCaches *platform.Caches) error {
@@ -45,11 +58,11 @@ func (s *ShepherdPlatform) Init(ctx context.Context, pc *platform.PlatformConfig
 	if err = s.VMPlatform.InitProps(ctx, pc); err != nil {
 		return err
 	}
+
 	s.VMPlatform.VMProvider.InitData(ctx, platformCaches)
 	if err = s.VMPlatform.VMProvider.InitApiAccessProperties(ctx, pc.AccessApi, pc.EnvVars, vmlayer.ProviderInitPlatformStartShepherd); err != nil {
 		return err
 	}
-
 	var result vmlayer.OperationInitResult
 	ctx, result, err = s.VMPlatform.VMProvider.InitOperationContext(ctx, vmlayer.OperationInitStart)
 	if err != nil {
@@ -81,6 +94,10 @@ func (s *ShepherdPlatform) Init(ctx context.Context, pc *platform.PlatformConfig
 	if err != nil {
 		return err
 	}
+	// Use a different cloudlet updated callback so CloudletAccessToken updates from the CRM can be stored
+	shepherdPlatform = s
+	platformCaches.CloudletCache.SetUpdatedCb(vmProviderCloudletCb)
+
 	// Reuse the same ssh connection whever possible
 	err = s.SharedClient.StartPersistentConn(shepherd_common.ShepherdSshConnectTimeout)
 	if err != nil {

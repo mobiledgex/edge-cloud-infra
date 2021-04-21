@@ -514,7 +514,7 @@ var PlatformConfigOptionalArgs = []string{
 	"deploymenttag",
 	"crmaccessprivatekey",
 	"accessapiaddr",
-	"cloudletauthtoken",
+	"cloudletaccesstoken",
 }
 var PlatformConfigAliasArgs = []string{
 	"containerregistrypath=platformconfig.containerregistrypath",
@@ -537,7 +537,7 @@ var PlatformConfigAliasArgs = []string{
 	"deploymenttag=platformconfig.deploymenttag",
 	"crmaccessprivatekey=platformconfig.crmaccessprivatekey",
 	"accessapiaddr=platformconfig.accessapiaddr",
-	"cloudletauthtoken=platformconfig.cloudletauthtoken",
+	"cloudletaccesstoken=platformconfig.cloudletaccesstoken",
 }
 var PlatformConfigComments = map[string]string{
 	"containerregistrypath": "Path to Docker registry holding edge-cloud image",
@@ -560,7 +560,7 @@ var PlatformConfigComments = map[string]string{
 	"deploymenttag":         "Deployment Tag",
 	"crmaccessprivatekey":   "crm access private key",
 	"accessapiaddr":         "controller access API address",
-	"cloudletauthtoken":     "Cloudlet auth token",
+	"cloudletaccesstoken":   "Cloudlet access token",
 }
 var PlatformConfigSpecialArgs = map[string]string{
 	"platformconfig.envvar": "StringToString",
@@ -715,7 +715,7 @@ var CloudletAliasArgs = []string{
 	"config.deploymenttag=cloudlet.config.deploymenttag",
 	"config.crmaccessprivatekey=cloudlet.config.crmaccessprivatekey",
 	"config.accessapiaddr=cloudlet.config.accessapiaddr",
-	"config.cloudletauthtoken=cloudlet.config.cloudletauthtoken",
+	"config.cloudletaccesstoken=cloudlet.config.cloudletaccesstoken",
 	"restagmap:#.key=cloudlet.restagmap:#.key",
 	"restagmap:#.value.name=cloudlet.restagmap:#.value.name",
 	"restagmap:#.value.organization=cloudlet.restagmap:#.value.organization",
@@ -793,7 +793,7 @@ var CloudletComments = map[string]string{
 	"config.deploymenttag":                "Deployment Tag",
 	"config.crmaccessprivatekey":          "crm access private key",
 	"config.accessapiaddr":                "controller access API address",
-	"config.cloudletauthtoken":            "Cloudlet auth token",
+	"config.cloudletaccesstoken":          "Cloudlet access token",
 	"restagmap:#.value.name":              "Resource Table Name",
 	"restagmap:#.value.organization":      "Operator organization of the cloudlet site.",
 	"accessvars":                          "Variables required to access cloudlet",

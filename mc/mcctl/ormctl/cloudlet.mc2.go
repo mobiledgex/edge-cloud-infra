@@ -492,6 +492,29 @@ var OperationTimeLimitsComments = map[string]string{
 	"deleteappinsttimeout":     "override default max time to delete an app instance (duration)",
 }
 var OperationTimeLimitsSpecialArgs = map[string]string{}
+var CloudletInternalRequiredArgs = []string{
+	"key.organization",
+	"key.name",
+}
+var CloudletInternalOptionalArgs = []string{
+	"props",
+}
+var CloudletInternalAliasArgs = []string{
+	"fields=cloudletinternal.fields",
+	"key.organization=cloudletinternal.key.organization",
+	"key.name=cloudletinternal.key.name",
+	"props=cloudletinternal.props",
+}
+var CloudletInternalComments = map[string]string{
+	"fields":           "Fields are used for the Update API to specify which fields to apply.",
+	"key.organization": "Organization of the cloudlet site",
+	"key.name":         "Name of the cloudlet",
+	"props":            "Map of key value pairs for data exchanged between components",
+}
+var CloudletInternalSpecialArgs = map[string]string{
+	"cloudletinternal.fields": "StringArray",
+	"cloudletinternal.props":  "StringToString",
+}
 var PlatformConfigRequiredArgs = []string{}
 var PlatformConfigOptionalArgs = []string{
 	"containerregistrypath",
@@ -514,7 +537,6 @@ var PlatformConfigOptionalArgs = []string{
 	"deploymenttag",
 	"crmaccessprivatekey",
 	"accessapiaddr",
-	"cloudletaccesstoken",
 }
 var PlatformConfigAliasArgs = []string{
 	"containerregistrypath=platformconfig.containerregistrypath",
@@ -537,7 +559,6 @@ var PlatformConfigAliasArgs = []string{
 	"deploymenttag=platformconfig.deploymenttag",
 	"crmaccessprivatekey=platformconfig.crmaccessprivatekey",
 	"accessapiaddr=platformconfig.accessapiaddr",
-	"cloudletaccesstoken=platformconfig.cloudletaccesstoken",
 }
 var PlatformConfigComments = map[string]string{
 	"containerregistrypath": "Path to Docker registry holding edge-cloud image",
@@ -560,7 +581,6 @@ var PlatformConfigComments = map[string]string{
 	"deploymenttag":         "Deployment Tag",
 	"crmaccessprivatekey":   "crm access private key",
 	"accessapiaddr":         "controller access API address",
-	"cloudletaccesstoken":   "Cloudlet access token",
 }
 var PlatformConfigSpecialArgs = map[string]string{
 	"platformconfig.envvar": "StringToString",
@@ -715,7 +735,6 @@ var CloudletAliasArgs = []string{
 	"config.deploymenttag=cloudlet.config.deploymenttag",
 	"config.crmaccessprivatekey=cloudlet.config.crmaccessprivatekey",
 	"config.accessapiaddr=cloudlet.config.accessapiaddr",
-	"config.cloudletaccesstoken=cloudlet.config.cloudletaccesstoken",
 	"restagmap:#.key=cloudlet.restagmap:#.key",
 	"restagmap:#.value.name=cloudlet.restagmap:#.value.name",
 	"restagmap:#.value.organization=cloudlet.restagmap:#.value.organization",
@@ -793,7 +812,6 @@ var CloudletComments = map[string]string{
 	"config.deploymenttag":                "Deployment Tag",
 	"config.crmaccessprivatekey":          "crm access private key",
 	"config.accessapiaddr":                "controller access API address",
-	"config.cloudletaccesstoken":          "Cloudlet access token",
 	"restagmap:#.value.name":              "Resource Table Name",
 	"restagmap:#.value.organization":      "Operator organization of the cloudlet site.",
 	"accessvars":                          "Variables required to access cloudlet",

@@ -306,28 +306,39 @@ func (v *VcdPlatform) RefreshOauthTokenPeriodic(ctx context.Context, creds *VcdC
 }
 
 func (v *VcdPlatform) WaitForOauthTokenViaNotify(ctx context.Context, ckey *edgeproto.CloudletKey) error {
-	log.SpanLog(ctx, log.DebugLevelInfra, "WaitForOauthTokenViaNotify")
+	log.SpanLog(ctx, log.DebugLevelInfra, "WaitForOauthTokenViaNotify", "max time", maxOauthTokenFromNotify)
 
-	start := time.Now()
-	// first wait for the rootlb to exist so we can get a client
-	for {
-		var cloudlet edgeproto.Cloudlet
-		if !v.caches.CloudletCache.Get(ckey, &cloudlet) {
-			return fmt.Errorf("cannot get cloudlet from cache")
+	done := make(chan bool, 1)
+
+	checkDone := func(ctx context.Context) {
+		var cloudletInternal edgeproto.CloudletInternal
+		if !v.caches.CloudletInternalCache.Get(ckey, &cloudletInternal) {
+			return
 		}
-		log.SpanLog(ctx, log.DebugLevelInfra, "looking for oauth token", "cacheToken", cloudlet.Config.CloudletAccessToken)
-		if cloudlet.Config.CloudletAccessToken != "" {
+		token, ok := cloudletInternal.Props[vmlayer.CloudletAccessToken]
+		if ok {
 			log.SpanLog(ctx, log.DebugLevelInfra, "found token in cloudlet cache")
-			v.vmProperties.CloudletAccessToken = cloudlet.Config.CloudletAccessToken
-			return nil
+			v.vmProperties.CloudletAccessToken = token
+			select {
+			case done <- true:
+			default:
+			}
 		}
-		elapsed := time.Since(start)
-		if elapsed > maxOauthTokenFromNotify {
-			return fmt.Errorf("timed out waiting for oauth token from notify")
-		}
-		log.SpanLog(ctx, log.DebugLevelInfra, "sleeping 5 seconds before retry waiting for oauth token")
-		time.Sleep(5 * time.Second)
 	}
+	cancel := v.caches.CloudletInternalCache.WatchKey(ckey, checkDone)
+	// check in case it got updated before the watch
+	checkDone(ctx)
+	var err error
+	select {
+	case <-done:
+		// we're done
+		err = nil
+	case <-time.After(maxOauthTokenFromNotify):
+		// timed out
+		err = fmt.Errorf("Timed out waiting for auth token from notify")
+	}
+	cancel()
+	return err
 }
 
 func (v *VcdPlatform) UpdateOauthToken(ctx context.Context, creds *VcdConfigParams) error {
@@ -369,18 +380,18 @@ func (v *VcdPlatform) UpdateOauthToken(ctx context.Context, creds *VcdConfigPara
 		log.SpanLog(ctx, log.DebugLevelInfra, "sleeping 3 seconds before retry")
 	}
 	log.SpanLog(ctx, log.DebugLevelInfra, "Got successful VCD auth response")
-	var cloudlet edgeproto.Cloudlet
-	if !v.caches.CloudletCache.Get(v.vmProperties.CommonPf.PlatformConfig.CloudletKey, &cloudlet) {
-		return fmt.Errorf("cannot get cloudlet from cache")
+	var cloudletInternal edgeproto.CloudletInternal
+	if !v.caches.CloudletInternalCache.Get(v.vmProperties.CommonPf.PlatformConfig.CloudletKey, &cloudletInternal) {
+		return fmt.Errorf("cannot get cloudlet internal from cache")
 	}
 	encToken, err := EncryptToken(ctx, cloudletClient.Client.OauthAccessToken, (v.vmProperties.CommonPf.PlatformConfig.CloudletKey))
 	if err != nil {
 		return err
 	}
-	cloudlet.Config.CloudletAccessToken = encToken
-	v.vmProperties.CloudletAccessToken = encToken
 	log.SpanLog(ctx, log.DebugLevelInfra, "Saving encrypted Oauth token to cache and vmProperties")
-	v.caches.CloudletCache.Update(ctx, &cloudlet, 0)
+	cloudletInternal.Props[vmlayer.CloudletAccessToken] = encToken
+	v.vmProperties.CloudletAccessToken = encToken
+	v.caches.CloudletInternalCache.Update(ctx, &cloudletInternal, 0)
 	return nil
 }
 
@@ -431,10 +442,10 @@ func (v *VcdPlatform) GetClient(ctx context.Context, creds *VcdConfigParams) (cl
 		govcd.WithClientTlsCerts(creds.ClientTlsCert, creds.ClientTlsKey),
 		govcd.WithOauthCreds(creds.OauthClientId, creds.OauthClientSecret))
 
-	var cloudlet edgeproto.Cloudlet
-	if !v.caches.CloudletCache.Get(v.vmProperties.CommonPf.PlatformConfig.CloudletKey, &cloudlet) {
-		log.SpanLog(ctx, log.DebugLevelInfra, "GetClient unable to retrieve cloudlet from cache", "cloudlet", cloudlet.Key.String())
-		return nil, fmt.Errorf("Cannot get client - Cloudlet Not Found in cache")
+	var cloudletInternal edgeproto.CloudletInternal
+	if !v.caches.CloudletInternalCache.Get(v.vmProperties.CommonPf.PlatformConfig.CloudletKey, &cloudletInternal) {
+		log.SpanLog(ctx, log.DebugLevelInfra, "GetClient unable to retrieve cloudlet from cache", "cloudletInternal", cloudletInternal.Key.String())
+		return nil, fmt.Errorf("Cannot get client - Cloudlet Internal Not Found in cache")
 	}
 	if creds.OauthSgwUrl != "" && v.vmProperties.CloudletAccessToken == "" {
 		return nil, fmt.Errorf("Oauth GW specified but no cloudlet Token found")

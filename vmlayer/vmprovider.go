@@ -333,6 +333,13 @@ func (v *VMPlatform) Init(ctx context.Context, platformConfig *platform.Platform
 		v.Type)
 
 	updateCallback(edgeproto.UpdateTask, "Initializing VM platform type: "+v.Type)
+
+	// setup the internal cloudlet cache which does not come from the controller
+	cloudletInternal := edgeproto.CloudletInternal{
+		Key:   *platformConfig.CloudletKey,
+		Props: make(map[string]string),
+	}
+	caches.CloudletInternalCache.Update(ctx, &cloudletInternal, 0)
 	v.Caches = caches
 	v.VMProperties.Domain = VMDomainCompute
 

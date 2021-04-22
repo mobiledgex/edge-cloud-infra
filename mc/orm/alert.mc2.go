@@ -580,7 +580,6 @@ func addControllerApis(method string, group *echo.Group) {
 	// ConfigDeploymentTag: 21.19
 	// ConfigCrmAccessPrivateKey: 21.22
 	// ConfigAccessApiAddr: 21.23
-	// ConfigCloudletAccessToken: 21.24
 	// ResTagMap: 22
 	// ResTagMapKey: 22.1
 	// ResTagMapValue: 22.2

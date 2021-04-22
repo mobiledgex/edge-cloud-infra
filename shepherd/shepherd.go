@@ -64,6 +64,7 @@ var VMPoolCache edgeproto.VMPoolCache
 var VMPoolInfoCache edgeproto.VMPoolInfoCache
 var CloudletCache edgeproto.CloudletCache
 var CloudletInfoCache edgeproto.CloudletInfoCache
+var CloudletInternalCache edgeproto.CloudletInternalCache
 var MetricSender *notify.MetricSend
 var AlertCache edgeproto.AlertCache
 var AutoProvPoliciesCache edgeproto.AutoProvPolicyCache
@@ -272,6 +273,10 @@ func cloudletCb(ctx context.Context, old *edgeproto.Cloudlet, new *edgeproto.Clo
 	}
 }
 
+func cloudletInternalCb(ctx context.Context, old *edgeproto.CloudletInternal, new *edgeproto.CloudletInternal) {
+	log.SpanLog(ctx, log.DebugLevelInfo, "cloudletInternalCb")
+}
+
 func getPlatform() (platform.Platform, error) {
 	var plat platform.Platform
 	var err error
@@ -412,7 +417,6 @@ func start() {
 	edgeproto.InitVMPoolCache(&VMPoolCache)
 	edgeproto.InitVMPoolInfoCache(&VMPoolInfoCache)
 	edgeproto.InitCloudletCache(&CloudletCache)
-
 	addrs := strings.Split(*notifyAddrs, ",")
 	notifyClient = notify.NewClient(nodeMgr.Name(), addrs,
 		tls.GetGrpcDialOption(clientTlsConfig),
@@ -428,10 +432,15 @@ func start() {
 	notifyClient.RegisterRecvClusterInstCache(&ClusterInstCache)
 	notifyClient.RegisterRecvAppCache(&AppCache)
 	notifyClient.RegisterRecvCloudletCache(&CloudletCache)
+	notifyClient.RegisterRecvCloudletInternalCache(&CloudletInternalCache)
 	notifyClient.RegisterRecvAutoProvPolicyCache(&AutoProvPoliciesCache)
 	SettingsCache.SetUpdatedCb(settingsCb)
 	VMPoolInfoCache.SetUpdatedCb(vmPoolInfoCb)
 	CloudletCache.SetUpdatedCb(cloudletCb)
+	CloudletInternalCache.SetUpdatedCb(cloudletInternalCb)
+	edgeproto.InitCloudletInternalCache(&CloudletInternalCache)
+	CloudletInternalCache.SetUpdatedCb(cloudletInternalCb)
+
 	// register to send metrics
 	MetricSender = notify.NewMetricSend()
 	notifyClient.RegisterSend(MetricSender)
@@ -494,7 +503,7 @@ func start() {
 	}
 
 	caches := pf.Caches{
-		CloudletCache: &CloudletCache,
+		CloudletInternalCache: &CloudletInternalCache,
 	}
 	err = myPlatform.Init(ctx, &pc, &caches)
 	if err != nil {
